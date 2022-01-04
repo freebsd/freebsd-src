@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: clipper,v 1.8 2017/03/17 21:35:28 christos Exp $
+# $File: clipper,v 1.9 2020/12/15 23:57:27 christos Exp $
 # clipper:  file(1) magic for Intergraph (formerly Fairchild) Clipper.
 #
 # XXX - what byte order does the Clipper use?
@@ -61,5 +61,5 @@
 >54	byte		2		-Cssw
 >54	byte		3		-Cspw
 >54	byte		4		-Cscb
-4	string		pipe		CLIPPER instruction trace
-4	string		prof		CLIPPER instruction profile
+#4	string		pipe		CLIPPER instruction trace
+#4	string		prof		CLIPPER instruction profile

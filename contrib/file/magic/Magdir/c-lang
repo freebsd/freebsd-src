@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.28 2019/11/15 21:03:14 christos Exp $
+# $File: c-lang,v 1.30 2021/08/16 10:17:05 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
 # The strength is to beat standard HTML
@@ -49,7 +49,10 @@
 >0	regex	\^union[[:space:]]+		C source text
 !:mime	text/x-c
 0	search/8192	main(
->&0 regex	\\)[[:space:]]*\\{		C source text
+>&0	search/64	String			Java source text
+!:mime	text/x-java
+>&0	default		x
+>>&0 regex	\\)[[:space:]]*\\{		C source text
 !:mime	text/x-c
 
 # C++

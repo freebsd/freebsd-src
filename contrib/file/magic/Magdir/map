@@ -1,7 +1,7 @@
 
 
 #------------------------------------------------------------------------------
-# $File: map,v 1.8 2019/12/01 22:46:23 christos Exp $
+# $File: map,v 1.9 2021/04/26 15:56:00 christos Exp $
 # map:  file(1) magic for Map data
 #
 
@@ -40,7 +40,7 @@
 >0	ubyte		x		Garmin
 !:mime	application/x-garmin-map
 # If non-zero, every byte of the entire .img file is to be XORed with this value
->0	ubyte		!0		\b, 0x%x XORed
+>0	ubyte		!0		\b, %#x XORed
 # goto block before FAT
 >(0x40.b*512)	ubyte	x
 # 1st fat name "DLLINFO TXT" only found for vpm
@@ -54,7 +54,7 @@
 >>&512 		string	!DLLINFO\ TXT 	map
 !:ext	img
 # 9 zeros
->1 	ubelong		!0 		\b, zeroes 0x%x
+>1 	ubelong		!0 		\b, zeroes %#x
 # Map's version major
 >8	ubyte		x		v%u
 # Map's version minor
@@ -72,12 +72,12 @@
 # Update month (0-11)
 >0xA	ubyte		x		\b-%.2u
 # All zeroes
->0xc 	uleshort	!0 		\b, zeroes 0x%x
+>0xc 	uleshort	!0 		\b, zeroes %#x
 # Mapsource flag, 1 - file created by Mapsource, 0 - Garmin map visible in Basecamp and Homeport 
-#>0xE	ubyte		!0		\b, Mapsource flag 0x%x
+#>0xE	ubyte		!0		\b, Mapsource flag %#x
 >0xE	ubyte		1		\b, Mapsource
 # Checksum, sum of all bytes modulo 256 should be 0
-#>0xF	ubyte		x		\b, Checksum 0x%x
+#>0xF	ubyte		x		\b, Checksum %#x
 # Signature: DSKIMG 0x00 or DSDIMG 0x00 for demo map 
 >0x10	string		!DSKIMG		\b, signature "%.7s"
 >0x39	use		garmin-date
@@ -99,20 +99,20 @@
 # MBR signature
 >0x1FE	leshort		!0xAA55		\b, invalid MBR
 # 512 zeros
->0x200 	uquad		!0		\b, zeroes 0x%llx
+>0x200 	uquad		!0		\b, zeroes %#llx
 # First sub-file offset (absolute); sometimes NO/UNKNOWN sub file!
->0x40C	ulelong		>0		\b, at 0x%x
+>0x40C	ulelong		>0		\b, at %#x
 # sub-file Header length
-#>>(0x40C.l)	uleshort	x	\b, header len 0x%x
+#>>(0x40C.l)	uleshort	x	\b, header len %#x
 >>(0x40C.l)	uleshort	x	%u bytes
 # sub-file Type[10] like "GARMIN RGN" "GARMIN TRE", "GARMIN TYP", etc.
 >>(0x40C.l+2)	ubyte	>0x1F
 >>>(0x40C.l+2)	ubyte	<0xFF
 >>>>(0x40C.l+2)	string	x		"%.10s"
 # 0x00 for most maps, 0x80 for locked maps (City Nav, City Select, etc.) 
->>>>(0x40C.l+13)	ubyte	>0		\b, locked 0x%x
+>>>>(0x40C.l+13)	ubyte	>0		\b, locked %#x
 # Block sequence numbers like 0000 0100 0200 ... FFFF
-# >0x420	ubequad		>0	\b, seq. 0x%16.16llx
+# >0x420	ubequad		>0	\b, seq. %#16.16llx
 # >>0x428	ubequad		>0	\b%16.16llx
 # >>>0x430	ubequad	>0	\b%16.16llx
 # >>>>0x438	ubequad	>0	\b%16.16llx
@@ -147,12 +147,12 @@
 # ... xth FAT block
 #
 # 314 zeros but not in vpm and also gmaptz.img
->0x84 	uquad		!0		\b, at 0x84 0x%llx
+>0x84 	uquad		!0		\b, at 0x84 %#llx
 # display FileAllocationTable block entry in garmin map
 0	name				garmin-fat
 >0	ubyte		x		\b;
 # sub file part; 0x0003 seems to be garbage
->0x10	uleshort	!0		next 0x%4.4x
+>0x10	uleshort	!0		next %#4.4x
 >0x10	uleshort	=0
 # fat flag 0~dummy block 1~true sub file
 >>0	ubyte		!1		flag %u 
@@ -164,7 +164,7 @@
 # size of sub file
 >>>0xC	ulelong		x		\b, %u bytes
 # 32-bit block sequence numbers
-#>>>0x20	ubequad		x		\b, seq. 0x%16.16llx
+#>>>0x20	ubequad		x		\b, seq. %#16.16llx
 
 #	display date stored inside Garmin maps like yyyy-mm-dd h:mm:ss
 0	name				garmin-date
@@ -207,38 +207,38 @@
 !:mime			application/x-garmin-nod
 !:ext			nod
 >>>0x0E 		use		garmin-date
-#>>>0x15			ulelong		x	\b, at 0x%x
-#>>>0x19			ulelong		x	0x%x bytes NOD1
-#>>>0x25			ulelong		x	\b, at 0x%x
-#>>>0x29			ulelong		x	0x%x bytes NOD2
-#>>>0x31			ulelong		x	\b, at 0x%x
-#>>>0x35			ulelong		x	0x%x bytes NOD3
+#>>>0x15			ulelong		x	\b, at %#x
+#>>>0x19			ulelong		x	%#x bytes NOD1
+#>>>0x25			ulelong		x	\b, at %#x
+#>>>0x29			ulelong		x	%#x bytes NOD2
+#>>>0x31			ulelong		x	\b, at %#x
+#>>>0x35			ulelong		x	%#x bytes NOD3
 # URL: http://www.pinns.co.uk/osm/net.html
 # routable highways (length, direction, allowed speed,house address information)
 >>9	string	NET				highways
 !:mime			application/x-garmin-net
 !:ext			net
-#>>>0x15			ulelong		x	\b, at 0x%x
-#>>>0x19			ulelong		x	0x%x bytes NET1
+#>>>0x15			ulelong		x	\b, at %#x
+#>>>0x19			ulelong		x	%#x bytes NET1
 #>>>0x22			ulelong		>0
-#>>>>0x1E		ulelong		x	\b, at 0x%x
-#>>>>0x22		ulelong		x	0x%x bytes NET2
+#>>>>0x1E		ulelong		x	\b, at %#x
+#>>>>0x22		ulelong		x	%#x bytes NET2
 #>>>0x2B			ulelong		>0
-#>>>>0x27		ulelong		x	\b, at 0x%x
-#>>>>0x2B		ulelong		x	0x%x bytes NET3
+#>>>>0x27		ulelong		x	\b, at %#x
+#>>>>0x2B		ulelong		x	%#x bytes NET3
 # URL: https://wiki.openstreetmap.org/wiki/OSM_Map_On_Garmin/LBL_Subfile_Format
 >>9	string	LBL				labels
 !:mime			application/x-garmin-lbl
 !:ext			lbl
 >>>(0.s)		string	x	%s
 # Label coding type 6h 9h and ah
->>>0x1E			ubyte		x	\b, coding type 0x%x
-#>>>0x15			ulelong		x	\b, at 0x%x
-#>>>0x19			ulelong		x	0x%x bytes LBL1
-#>>>0x1F			ulelong		x	\b, at 0x%x
-#>>>0x23			ulelong		x	0x%x bytes LBL2
-#>>>0x2D			ulelong		x	\b, at 0x%x
-#>>>0x31			ulelong		x	0x%x bytes LBL3
+>>>0x1E			ubyte		x	\b, coding type %#x
+#>>>0x15			ulelong		x	\b, at %#x
+#>>>0x19			ulelong		x	%#x bytes LBL1
+#>>>0x1F			ulelong		x	\b, at %#x
+#>>>0x23			ulelong		x	%#x bytes LBL2
+#>>>0x2D			ulelong		x	\b, at %#x
+#>>>0x31			ulelong		x	%#x bytes LBL3
 # URL: https://wiki.openstreetmap.org/wiki/OSM_Map_On_Garmin/SRT_Subfile_Format
 # A lookup table of the chars in the map's codepage, and their collating sequence
 >>9	string	SRT				sort table
@@ -256,16 +256,16 @@
 # or http://www.openstreetmap.org/
 >>>>&1			string		x	%s
 >>>0x0E 		use		garmin-date
-#>>>0x21			ulelong		x	\b, at 0x%x
-#>>>0x25			ulelong		x	0x%x bytes TRE1
-#>>>0x29			ulelong		x	\b, at 0x%x
-#>>>0x2D			ulelong		x	0x%x bytes TRE2
-#>>>0x31			ulelong		x	\b, at 0x%x
-#>>>0x35			ulelong		x	0x%x bytes TRE3
+#>>>0x21			ulelong		x	\b, at %#x
+#>>>0x25			ulelong		x	%#x bytes TRE1
+#>>>0x29			ulelong		x	\b, at %#x
+#>>>0x2D			ulelong		x	%#x bytes TRE2
+#>>>0x31			ulelong		x	\b, at %#x
+#>>>0x35			ulelong		x	%#x bytes TRE3
 # Copyright record size
 #>>>0x39			uleshort	x	\b, copyright record size %u
 # Map ID
->>>0x74			ulelong		x	\b, ID 0x%x
+>>>0x74			ulelong		x	\b, ID %#x
 # URL: https://www.gpspower.net/garmin-tutorials/353310-basecamp-installing-free-desktop-map.html
 # For road traffic information service (RDS/TMS/TMC). Commonly seen in City Navigator maps
 >>9	string	TRF				traffic,
@@ -285,11 +285,11 @@
 # character set 1252 65001~UTF8
 >>>0x15			uleshort	x	\b, code page %u
 # POIs
-#>>>0x17			ulelong		x	\b, at 0x%x
-#>>>0x1B			ulelong		x	0x%x bytes TYP1
+#>>>0x17			ulelong		x	\b, at %#x
+#>>>0x1B			ulelong		x	%#x bytes TYP1
 # extra pois
-#>>>0x5B			ulelong		x	\b, at 0x%x
-#>>>0x5F			ulelong		x	0x%x bytes TYP8
+#>>>0x5B			ulelong		x	\b, at %#x
+#>>>0x5F			ulelong		x	%#x bytes TYP8
 # URL: https://wiki.openstreetmap.org/wiki/OSM_Map_On_Garmin/RGN_Subfile_Format
 # http://www.pinns.co.uk/osm/RGN.html
 # region data used by the Garmin software
@@ -297,24 +297,24 @@
 !:mime			application/x-garmin-rgn
 !:ext			rgn
 # POIs,Indexed POIs,Polylines or Polygons or first map level
-#>>>0x15			ulelong	       x	\b, at 0x%x
-#>>>0x19			ulelong	       x	0x%x bytes RGN1
+#>>>0x15			ulelong	       x	\b, at %#x
+#>>>0x19			ulelong	       x	%#x bytes RGN1
 # polygons with extended types
 #>>>0x21			ulelong	       >0
-#>>>>0x1D		ulelong	       x	\b, at 0x%x
-#>>>>0x21		ulelong	       x	0x%x bytes RGN2
+#>>>>0x1D		ulelong	       x	\b, at %#x
+#>>>>0x21		ulelong	       x	%#x bytes RGN2
 # polylines with extended types
 #>>>0x3D			ulelong	       >0
-#>>>>0x39		ulelong	       x	\b, at 0x%x
-#>>>>0x3D		ulelong	       x	0x%x bytes RGN3
+#>>>>0x39		ulelong	       x	\b, at %#x
+#>>>>0x3D		ulelong	       x	%#x bytes RGN3
 # extended POIs
 #>>>0x59			ulelong	       >0
-#>>>>0x55		ulelong	       x	\b, at 0x%x
-#>>>>0x59		ulelong	       x	0x%x bytes RGN3
+#>>>>0x55		ulelong	       x	\b, at %#x
+#>>>>0x59		ulelong	       x	%#x bytes RGN3
 #>>9	default		x		unknown map type
 # Header length; GMP:31h 35h 3Dh,MDR:11Eh 238h 2C4h 310h,NOD:3Fh 7Fh,NET:64h,
 # LBL:2A9h,SRT:1Dh 25h 27h,TRE:CFh 135h,TRF:5Ah,TYP:5Bh 6Eh 7Ch AEh,RGN:7Dh
->>0	uleshort	x		\b, header length 0x%x
+>>0	uleshort	x		\b, header length %#x
 
 # URL:		https://www.memotech.franken.de/FileFormats/
 # Reference:	https://www.memotech.franken.de/FileFormats/Garmin_RGN_Format.pdf
@@ -357,7 +357,7 @@
 #		display information of Garmin RGN record
 0	name	garmin-entry
 # record length: 2 for Data, for Application often 1Bh sometimes 1Dh, "big" for Region
-#>0	ulelong		x		\b, length 0x%x
+#>0	ulelong		x		\b, length %#x
 # data record (ID='D') with version content like 0064h~1.0
 >4	ubyte		=0x44
 >>5	uleshort	!0x0064		\b; Data
@@ -382,11 +382,11 @@
 # delay in ms: like 0, 500
 >>7	ulelong		!0		\b, %u ms
 # region size (is record length - 10)
-#>>11	ulelong		x		\b, length 0x%x
+#>>11	ulelong		x		\b, length %#x
 # region content like:
 # "KpGr"~recursiv embedded,"GARMIN BITMAP"~Garmin Bitmap *.srf, "PK"~ZIP archive
 #>>15	string		x		\b, content "%s"
->>15	ubequad		x		\b, content 0x%llx...
+>>15	ubequad		x		\b, content %#llx...
 # This does NOT WORK!
 #>>15	indirect	x		\b; contains 
 >4	default		x		\b; other

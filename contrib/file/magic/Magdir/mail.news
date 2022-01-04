@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.25 2019/06/21 20:06:05 christos Exp $
+# $File: mail.news,v 1.28 2021/09/11 19:20:15 christos Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
@@ -23,6 +23,8 @@
 0	string/t		Xref:		news text
 !:mime	message/news
 0	string/t		From:		news or mail text
+!:mime	message/rfc822
+0	string/t		Date:		news or mail text
 !:mime	message/rfc822
 0	string/t		Article 	saved news text
 !:mime	message/news
@@ -75,3 +77,10 @@
 >12     belong =1       version 1, big-endian
 >12     lelong =1       version 1, little-endian
 >12     belong x        version %d, network-endian
+
+# Dovecot mail server, version 2.2 and later.
+# Dovecot mailing list: dovecot@dovecot.org
+# File format spec: https://wiki.dovecot.org/Design/Dcrypt/#File_format
+# From: Stephen Gildea
+0	string	CRYPTED\003\007		Dovecot encrypted message
+>9	byte	x			\b, dcrypt version %d

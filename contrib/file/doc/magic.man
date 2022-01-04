@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.98 2020/05/09 18:55:23 christos Exp $
-.Dd May 9, 2020
+.\" $File: magic.man,v 1.99 2021/05/09 22:37:23 christos Exp $
+.Dd May 9, 2021
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -69,7 +69,7 @@ A 64-bit double precision IEEE floating point number in this machine's native by
 .It Dv string
 A string of bytes.
 The string type specification can be optionally followed
-by /[WwcCtbT]*.
+by /[WwcCtbTf]*.
 The
 .Dq W
 flag compacts whitespace in the target, which must
@@ -82,6 +82,9 @@ consecutive blanks to match.
 The
 .Dq w
 flag treats every blank in the magic as an optional blank.
+The
+.Dq f
+flags requires that the matched string is a full word, not a partial word match.
 The
 .Dq c
 flag specifies case insensitive matching: lower case

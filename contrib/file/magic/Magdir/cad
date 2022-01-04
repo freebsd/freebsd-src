@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.23 2020/05/30 23:58:07 christos Exp $
+# $File: cad,v 1.28 2021/04/26 15:56:00 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -32,8 +32,8 @@
 #>0	ubyte		&0x40			\b, reserved
 # type of element 9~TCB 8~Digitizer setup 5~Group Data Elements
 #>1	ubyte&0x7F	x			\b, type %u
-# words to follow in element: 17H~CEL libray 2FEh~DGN 9FEh,DFEh~CIT
-#>2	uleshort	x			\b, words 0x%4.4x to follow
+# words to follow in element: 17H~CEL library 2FEh~DGN 9FEh,DFEh~CIT
+#>2	uleshort	x			\b, words %#4.4x to follow
 # test for 3 reserved 0 bytes in CIT or "conversion" in ViewInfo structure (DGN CEL)
 #>508	ubelong		x			\b, RESERVED %8.8x
 >508	ubelong&0xFFffFF00	=0
@@ -58,7 +58,7 @@
 >>>>1120	string		x		\b, units %-.2s
 # 2 chars for name of master unit like IN in ML SU tn th TH HU mm "\0 "\040 \0\0
 >>>>1122	string		>\0		%-.2s
-#>>>>1120	ubelong		x		\b, units 0x%8.8x
+#>>>>1120	ubelong		x		\b, units %#8.8x
 # element range low,high x y z like xlow=0 08010000h 01080000h
 #>>>>4		ubelong	  	!0		\b, xlow %8.8x
 #>>>>8		ubelong	  	!0		\b, ylow %8.8x
@@ -67,7 +67,7 @@
 #>>>>20		ubelong	  	!0		\b, yhigh %8.8x
 #>>>>24		ubelong	  	!0		\b, zhigh %8.8x
 # graphic group number; all other elements in that group have same non-0 number
-#>>>>28		leshort		x		\b, grphgrp 0x%4.4x
+#>>>>28		leshort		x		\b, grphgrp %#4.4x
 # words to optional attribute linkage
 #>>>>30		ubyte		x		\b, attindx \%o
 #>>>>31		ubyte		x		\b\%o
@@ -91,11 +91,11 @@
 # >>30	string	\372\106			DGNFile
 # >>30	string	\376\103			DGNFile
 # elements properties indicator
-#>>>>32		uleshort	!0		\b, properties 0x%4.4x
+#>>>>32		uleshort	!0		\b, properties %#4.4x
 # class 0~Primary
-#>>>>>32		uleshort&0x000F	!0		\b, class 0x%4.4x
+#>>>>>32		uleshort&0x000F	!0		\b, class %#4.4x
 # Symbology
-#>>>>>34		uleshort	x		\b, Symbology 0x%4.4x
+#>>>>>34		uleshort	x		\b, Symbology %#4.4x
 # test for 2nd element type 1~library cell header
 >>&1		ubyte&0x7F	1
 # test for 1st element with level 8 and type 5 for cell library
@@ -151,13 +151,13 @@
 >194	ubyte		&0x04			horizontal
 >194	ubyte		^0x04			vertical
 # ScannableFlag; Scanline indexing method used
-#>195	ubyte		!0			\b, ScannableFlag 0x%x
+#>195	ubyte		!0			\b, ScannableFlag %#x
 # RotationAngle; Rotation angle of raster data
-#>196	ubequad		!0			\b, RotationAngle 0x%llx
+#>196	ubequad		!0			\b, RotationAngle %#llx
 # SkewAngle; Skew angle of raster data
 #>204	ubequad		!0			\b, SkewAngle %llx
 # DataTypeModifier; Additional raster data format info
-#>212	uleshort	!0			\b, DataTypeModifier 0x%4.4x
+#>212	uleshort	!0			\b, DataTypeModifier %#4.4x
 # DesignFile[66]; Name of the design file
 >214	string		>\0			\b, DesignFile %-.66s
 # DatabaseFile[66]; Name of the database file
@@ -167,9 +167,9 @@
 # FileDescription[80]; Text description of file and contents
 >412	string		>\0			\b, FileDescription %-.80s
 # MinValue
-#>492	ubequad		!0			\b, MinValue 0x%llx
+#>492	ubequad		!0			\b, MinValue %#llx
 # MaxValue
-#>500	ubequad		!0			\b, MaxValue 0x%llx
+#>500	ubequad		!0			\b, MaxValue %#llx
 # Reserved[3]; Unused (always 0)
 #>508	ubelong&0xFFffFF00	x		\b, RESERVED %8.8x
 # GridFileVersion; Grid File Version like 2 3
@@ -213,9 +213,11 @@
 # AutoCAD DWG versions R12/R13/R14 (www.autodesk.com)
 0	string	AC1012	DWG AutoDesk AutoCAD Release 13
 !:mime image/vnd.dwg
+0	string	AC1013	DWG AutoDesk AutoCAD Release 13c3
+!:mime image/vnd.dwg
 0	string	AC1014	DWG AutoDesk AutoCAD Release 14
 !:mime image/vnd.dwg
-0	string	AC1015	DWG AutoDesk AutoCAD 2000/2002
+0	string	AC1015	DWG AutoDesk AutoCAD 2000
 !:mime image/vnd.dwg
 
 # A new version of AutoCAD DWG
@@ -233,7 +235,9 @@
 !:mime image/vnd.dwg
 
 # From GNU LibreDWG
-0	string	AC1032	DWG AutoDesk AutoCAD 2018/2019
+0	string	AC1032	DWG AutoDesk AutoCAD 2018/2019/2020
+!:mime image/vnd.dwg
+0	string	AC1035	DWG AutoDesk AutoCAD 2021
 !:mime image/vnd.dwg
 
 # KOMPAS 2D drawing from ASCON
@@ -309,11 +313,15 @@
 >>>>&1	search/8192	AC1006			\b, R10
 >>>>&1	search/8192	AC1009			\b, R11/R12
 >>>>&1	search/8192	AC1012			\b, R13
+>>>>&1	search/8192	AC1013			\b, R13c3
 >>>>&1	search/8192	AC1014			\b, R14
 >>>>&1	search/8192	AC1015			\b, version 2000
 >>>>&1	search/8192	AC1018			\b, version 2004
 >>>>&1	search/8192	AC1021			\b, version 2007
 >>>>&1	search/8192	AC1024			\b, version 2010
+>>>>&1	search/8192	AC1027			\b, version 2013
+>>>>&1	search/8192	AC1032			\b, version 2018
+>>>>&1	search/8192	AC1035			\b, version 2021
 
 # The Sketchup 3D model format https://www.sketchup.com/
 0	string	\xff\xfe\xff\x0e\x53\x00\x6b\x00\x65\x00\x74\x00\x63\x00\x68\x00\x55\x00\x70\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00	SketchUp Model
@@ -322,3 +330,74 @@
 
 4	regex/b	P[0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9]	NAXOS CAD System file from version %s
 !:strength +40
+
+# glTF (GL Transmission Format) - by the Khronos Group
+# Reference: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#glb-file-format-specification
+0	string		glTF		glTF binary model
+>4	ulelong		x		\b, version %d
+>8	ulelong		x		\b, length %d bytes
+!:mime	model/gltf-binary
+!:ext	glb
+
+# FBX (FilmBoX) - by Kaydara/Autodesk
+# Reference: https://code.blender.org/2013/08/fbx-binary-file-format-specification
+0	string	Kaydara\ FBX\ Binary\ \ \0	Kaydara FBX model,
+>&2	ulelong	x	version %d
+!:ext	fbx
+
+# PLY (Polygon File Format/Stanford Triangle Format) - by Greg Turk
+# Reference: https://web.archive.org/web/20161204152348/http://www.dcs.ed.ac.uk/teaching/cs4/www/graphics/Web/ply.html
+0	string	ply\n          	PLY model,
+!:ext	ply
+>4	string	format\ ascii\ 	ASCII,
+>>&0	regex/6	[0-9.]+        	version %s
+>4	string	format\ binary  	binary,
+>>&0	string	_little_endian\ 	little endian,
+>>>&0	regex/6	[0-9.]+         	version %s
+>>&0	string	_big_endian\ 	big endian,
+>>>&0	regex/6	[0-9.]+      	version %s
+
+# VRML (Virtual Reality Modeling Language) - by the Web3D Consortium
+# From:      Michel Briand <michelbriand@free.fr>
+# Reference: https://www.web3d.org/standards
+0	string/w	#VRML\ V1.0\ ascii	VRML 1 file
+!:mime	model/vrml
+!:ext	wrl
+0	string/w	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
+!:mime	model/vrml
+!:ext	wrl
+# X3D, VRML encoded
+0	string	#X3D	X3D (Extensible 3D) model, VRML format
+>4	string	V
+>>5	regex/6	[0-9.]+	\b, version %s
+!:mime	model/x3d+vrml
+!:ext	x3dv
+
+## XML-based 3D CAD Formats
+# From: Michel Briand <michelbriand@free.fr>, Oliver Galvin <odg@riseup.net>
+0	string/w        \<?xml\ version=
+!:strength + 5
+# X3D (Extensible 3D)
+# Schema:    https://www.web3d.org/specifications/x3d-3.2.dtd
+# MIME Type: https://www.iana.org/assignments/media-types/model/x3d+xml
+# Example:   https://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
+>20	search/1000/w   \<!DOCTYPE\ X3D         X3D (Extensible 3D) model, XML document
+!:mime	model/x3d+xml
+!:ext	x3d
+# COLLADA (COLLAborative Design Activity) - by the Khronos Group
+# Schema:    http://www.collada.org/2005/11/COLLADASchema
+# Reference: https://www.khronos.org/collada
+>20	search/1000/w	\<COLLADA	COLLADA model, XML document
+!:mime	model/vnd.collada+xml
+!:ext	dae
+# 3MF (3D Manufacturing Format) - by the 3MF Consortium
+# Schema:    http://schemas.microsoft.com/3dmanufacturing/core/2015/02
+# Reference: https://3mf.io/specification
+>20	search/1000/w	xmlns="http://schemas.microsoft.com/3dmanufacturing	3MF (3D Manufacturing Format) model, XML document
+!:mime	model/3mf
+!:ext	3mf
+# AMF (Additive Manufacturing File)
+# Reference: https://www.astm.org/Standards/ISOASTM52915.htm
+>20	search/1000/w	\<amf	AMF (Additive Manufacturing Format) model, XML document
+!:mime	application/x-amf
+!:ext	amf

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: measure,v 1.2 2018/06/23 16:13:15 christos Exp $
+# $File: measure,v 1.3 2021/03/25 17:30:10 christos Exp $
 # measure: file(1) magic for measurement data
 
 # DIY-Thermocam raw data
@@ -37,3 +37,8 @@
 >>9600	default	x	(Lepton 2.x),
 >>>9600	use	diy-thermocam-parser
 
+# Becker & Hickl Photon Counting (PMS) data file
+# format documentation: https://www.becker-hickl.com/wp-content/uploads/2018/11/opm-pms400-v01.pdf (page 57)
+(0x02.l)	string	*IDENTIFICATION		Becker & Hickl PMS Data File
+>0x12		short	x			(%d data blocks)
+!:ext sdt

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: hitachi-sh,v 1.9 2018/08/21 12:48:41 christos Exp $
+# $File: hitachi-sh,v 1.10 2020/12/12 20:01:47 christos Exp $
 # hitach-sh: file(1) magic for Hitachi Super-H
 #
 # Super-H COFF
@@ -16,7 +16,7 @@
 # test for unused flag bits (0x8000,0x0800,0x0400,0x0200,x0080) in f_flags
 >18	ubeshort&0x8E80	0
 # use big endian variant of subroutine to display name+variables+flags
-# for common object formated files
+# for common object formatted files
 >>0	use				\^display-coff
 !:strength -10
 
@@ -24,7 +24,7 @@
 # test for unused flag bits in f_flags
 >18	uleshort&0x8E80	0
 # use little endian variant of subroutine to
-# display name+variables+flags for common object formated files
+# display name+variables+flags for common object formatted files
 >>0	use				display-coff
 !:strength -10
 

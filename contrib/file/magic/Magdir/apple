@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: apple,v 1.44 2019/10/18 15:21:02 christos Exp $
+# $File: apple,v 1.45 2021/04/26 15:56:00 christos Exp $
 # apple:  file(1) magic for Apple file formats
 #
 0	search/1/t	FiLeStArTfIlEsTaRt	binscii (apple ][) text
@@ -180,7 +180,7 @@
 # minimum version needed to read this files. SFMinVers (0 , 30~3.0 )
 >>>183	ubyte		30	3.0
 >>>183	ubyte		!30
->>>>183	ubyte		!0	0x%x
+>>>>183	ubyte		!0	%#x
 # usual tabstop start sequence "=====<"
 >>>5	string		x	\b, tabstop ruler "%6.6s"
 # tabstop ruler
@@ -299,7 +299,7 @@
 #  object is the first object (true for CoreFoundation implementation).
 # From: David Remahl <dremahl@apple.com>
 0		string	bplist
->6		byte	x	\bCoreFoundation binary property list data, version 0x%c
+>6		byte	x	\bCoreFoundation binary property list data, version %#c
 >>7		byte	x	\b%c
 >6		string		00		\b
 >>8		byte&0xF0	0x00	\b
@@ -358,7 +358,7 @@
 
 0	belong		0xfade0c02	Mac OS X Code Directory
 >8	belong		x			version %x
->12	belong		>0			flags 0x%x
+>12	belong		>0			flags %#x
 >4	belong		x			- %d bytes
 
 0	belong		0xfade0cc0	Mac OS X Detached Code Signature (non-executable)
@@ -438,7 +438,7 @@
 # descSize driver size in blocks
 >>4	ubeshort	x		\b, size %u
 # descType driver system type 1 701h F8FFh FFFFh
->>6	ubeshort	x		\b, type 0x%x
+>>6	ubeshort	x		\b, type %#x
 
 # URL: https://en.wikipedia.org/wiki/Apple_Partition_Map
 # Reference: https://opensource.apple.com/source/IOStorageFamily/IOStorageFamily-116/IOApplePartitionScheme.h

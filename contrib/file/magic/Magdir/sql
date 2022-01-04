@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sql,v 1.22 2019/04/19 00:42:27 christos Exp $
+# $File: sql,v 1.23 2021/07/30 14:53:38 christos Exp $
 # sql:  file(1) magic for SQL files
 #
 # From: "Marty Leisner" <mleisner@eng.mc.xerox.com>
@@ -91,32 +91,110 @@
 # Version 2 used this format:
 0	string	**\ This\ file\ contains\ an\ SQLite  SQLite 2.x database
 
+# URL:		https://en.wikipedia.org/wiki/SQLite
+# Reference:	https://www.sqlite.org/fileformat.html
+# Update:	Joerg Jenderek
 # Version 3 of SQLite allows applications to embed their own "user version"
 # number in the database at offset 60.  Later, SQLite added an "application id"
 # at offset 68 that is preferred over "user version" for indicating the
 # associated application.
 #
-0   string  SQLite\ format\ 3	SQLite 3.x database
-!:mime	application/x-sqlite3
+0   string  SQLite\ format\ 3
+# skip DROID fmt-729-signature-id-1053.sqlite by checking for valid page size
+>16 ubeshort >0                 SQLite 3.x
+# deprecated
+#!:mime	application/x-sqlite3
+!:mime	application/vnd.sqlite3
 # seldom found extension sqlite3 like in SyncData.sqlite3
 # db
+# db3 like: AddrBook.db3 cgipcrvp.db3
+# https://www.maplesoft.com/support/help/Maple/view.aspx?path=worksheet%2freference%2fhelpdatabase
+# help is used for newer Maple help database
+# SQLite database weewx.sdb used by weather software weewx
+# https://www.weewx.com/docs/usersguide.htm
 # Avira Antivir use extension "dbe" like in avevtdb.dbe, avguard_tchk.dbe
 # Unfortunately extension sqlite also used for other databases starting with string
 # "TTCONTAINER" like in tracks.sqlite contentconsumer.sqlite contentproducerrepository.sqlite
 # and with string "ZV-zlib" in like extra.sqlite
-!:ext sqlite/sqlite3/db/dbe
->60 belong  =0x5f4d544e  (Monotone source repository)
->68 belong  =0x0f055112  (Fossil checkout)
->68 belong  =0x0f055113  (Fossil global configuration)
->68 belong  =0x0f055111  (Fossil repository)
->68 belong  =0x42654462  (Bentley Systems BeSQLite Database)
->68 belong  =0x42654c6e  (Bentley Systems Localization File)
->68 belong  =0x47504b47  (OGC GeoPackage file)
->68 default x
->>68 belong  !0          \b, application id %u
->>60 belong  !0          \b, user version %d
->96 belong  x            \b, last written using SQLite version %d
-
+>>68 belong !0x5CDE09EF	database
+!:ext sqlite/sqlite3/db/db3/dbe/sdb/help
+>>68 belong =0x5CDE09EF  database
+# maple is used for Maple Workbook
+!:ext maple
+>>60 belong =0x5f4d544e  (Monotone source repository)
+# if no known user version then check for Application IDs with default clause
+>>60 belong !0x5f4d544e
+# The "Application ID" set by PRAGMA application_id
+>>>68 belong =0x0f055112 (Fossil checkout)
+>>>68 belong =0x0f055113 (Fossil global configuration)
+>>>68 belong =0x0f055111 (Fossil repository)
+>>>68 belong =0x42654462 (Bentley Systems BeSQLite Database)
+>>>68 belong =0x42654c6e (Bentley Systems Localization File)
+>>>68 belong =0x47504b47 (OGC GeoPackage file)
+#	https://www.sqlite.org/src/artifact?ci=trunk&filename=magic.txt
+>>>68 belong =0x47503130 (OGC GeoPackage version 1.0 file)
+>>>68 belong =0x45737269 (Esri Spatially-Enabled Database)
+>>>68 belong =0x4d504258 (MBTiles tileset)
+#	https://www.maplesoft.com/support/help/errors/view.aspx?path=Formats/Maple
+>>>68 belong =0x5CDE09EF (Maple Workbook)
+# unknown application ID
+>>>68 default x
+>>>>68 belong !0         \b, application id %u
+# The "user version" as read and set by the user_version pragma like:
+# 1 2 4 5 7 9 10 25 36 43 53 400 416 131073 131074 131075
+>>60 belong !0          \b, user version %d
+# SQLITE_VERSION_NUMBER like: 0 3008011 3016002 3007014 3017000 3022000 3028000 3031001
+>>96 belong  x           \b, last written using SQLite version %d
+# database page size in bytes; a power of two between 512 and 32768, or 1 for 65536
+# like: 512 1024 often 4096 32768
+>>16 ubeshort !4096      \b, page size %u
+# File format write version. 1 for legacy; 2 for WAL; 0 for corruptDB.sqlite
+>>18 ubyte   !1          \b, writer version %u
+# File format read version. 1 for legacy; 2 for WAL; 4 for corruptDB.sqlite
+>>19 ubyte   !1          \b, read version %u
+# Bytes of unused "reserved" space at the end of each page. Usually 0
+>>20 ubyte   !0          \b, unused bytes %u
+# maximum embedded payload fraction. Must be 64; 1 for corruptDB.sqlite
+>>21 ubyte   !64         \b, maximum payload %u
+# Minimum embedded payload fraction. Must be 32; 1 for corruptDB.sqlite
+>>22 ubyte   !32         \b, minimum payload %u
+# Leaf payload fraction. Must be 32; 0 for corruptDB.sqlite
+>>23 ubyte   !32         \b, leaf payload %u
+# file change counter
+>>24 ubelong x           \b, file counter %u
+# Size of the database file in pages
+>>28 ubelong x           \b, database pages %u
+# page number of the first freelist trunk page like: 0 2 3 4 5 9
+# 10 13 14 15 16 17 18 19 23 36 39 46 50 136 190 217 307 505 516 561 883 1659
+>>32 ubelong !0          \b, 1st free page %u
+# total number of freelist pages
+>>36 ubelong !0          \b, free pages %u
+# The schema cookie like: 2 3 4 6 7 9 A D E F 13 14 1C 25 2A 2F 33 44 4B 53 5A 5F 62 86 87 8F 91 A8
+>>40 ubelong x           \b, cookie %#x
+# the schema format number. Supported formats are 1 2 3 and often 4
+# 3328 for corruptDB.sqlite and 0 for 512 byte storage.sqlite (TorBrowser Firefox Thunderbird)
+>>44 ubelong x           \b, schema %u
+# Suggested cache size  like: 0 2000
+>>48 ubelong !0          \b, cache page size %u
+# The page number of the largest root b-tree page when in auto-vacuum or incremental-vacuum modes, or zero otherwise. 
+>>52 ubelong !0          \b, largest root page %u
+# The database text encoding; a value of 1 means UTF-8; 2 means UTF-16le; 3 means UTF-16be
+#>>56 ubelong x           \b, encoding %u
+>>56 ubelong x
+>>>56 ubelong =1         \b, UTF-8
+>>>56 ubelong =2         \b, UTF-16 little endian
+>>>56 ubelong =3         \b, UTF-16 big endian
+# 0 for corruptDB.sqlite and for storage.sqlite with database pages 1 (TorBrowser Firefox Thunderbird)
+# https://mozilla.github.io/firefox-browser-architecture/text/0010-firefox-data-stores.html
+>>>56 default x
+>>>>56 ubelong x         \b, unknown %#x encoding
+# True (non-zero) for incremental-vacuum mode; false (zero) otherwiseqy
+>>64 ubelong !0           \b, vacuum mode %u
+# Reserved for expansion. Must be zero
+>>72 uquad !0             \b, reserved %#llx
+# The version-valid-for number like:
+# 1 2 3 4 C F 68h 95h 266h A99h 3DCDh B7CEh
+>>92 ubelong x            \b, version-valid-for %u
 
 # SQLite Write-Ahead Log from SQLite version >= 3.7.0
 # https://www.sqlite.org/fileformat.html#walformat

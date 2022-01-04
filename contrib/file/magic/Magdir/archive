@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.138 2020/06/07 23:29:26 christos Exp $
+# $File: archive,v 1.151 2021/08/16 10:19:56 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -168,8 +168,11 @@
 0	short		0143561		byte-swapped cpio archive
 !:mime	application/x-cpio # encoding: swapped
 0	string		070707		ASCII cpio archive (pre-SVR4 or odc)
+!:mime	application/x-cpio
 0	string		070701		ASCII cpio archive (SVR4 with no CRC)
+!:mime	application/x-cpio
 0	string		070702		ASCII cpio archive (SVR4 with CRC)
+!:mime	application/x-cpio
 
 #
 # Various archive formats used by various versions of the "ar"
@@ -240,7 +243,7 @@
 !:ext	deb/udeb/ipk
 # This should not happen
 >14	default		x	Unknown Debian package
-# NL terminated version; for most Debian cases this is 2.0 or 2.1 for splitted
+# NL terminated version; for most Debian cases this is 2.0 or 2.1 for split
 >68	string		>\0		(format %s)
 #>68	string		!2.0\n
 #>>68	string		x		(format %.3s)
@@ -261,7 +264,7 @@
 >>>>>>>&-1	ubyte	!0x2f
 # display 4th character of file name extension like a of lzma
 >>>>>>>>&-1	ubyte	x		\b%c
-# splitted debian package case
+# split debian package case
 >68	string		=2.1\n
 # dpkg-1.18.25/dpkg-split/info.c
 # NL terminated ASCII package name like ckermit
@@ -447,36 +450,116 @@
 # look for first keyword of Panorama database *.pan
 >12	search/261	DESIGN
 # skip keyword with low entropy
->12	default		x	TTComp archive, binary, 4K dictionary
-# (version 5.25) labeled the above entry as "TTComp archive data"
+>12	default		x
+# skip DOS 2.0 backup id file, sequence 6 with many nils like BACKUPID_xx6.@@@ handled by ./msdos
+>>8	quad		!0
+>>>0	use	ttcomp
+# variant ASCII, 4K dictionary (strength=48=50-2). With strength=49 wrong order! WHY?
+0	string	\1\6
+# TODO:
+# skip VAX-order 68k Blit mpx/mux executable (strength=50) handled by ./blit
+!:strength	-2
+>0	use	ttcomp
+0	string	\0\5
+# skip some DOS 2.0 backup id file, sequence 5 with many nils like BACKUPID_075.@@@ handled by ./msdos
+>8	quad	!0
+>>0	use	ttcomp
+0	string	\1\5
+# TODO:
+# variant ASCII, 2K dictionary (strength=48=50-2). With strength=49 wrong order! WHY?
+# skip ctab data (strength=50) handled by ./ibm6000
+# skip locale data table (strength=50) handled by ./digital
+!:strength	-2
+>0	use	ttcomp
+0	string	\0\4
+# skip many Maple help database *.hdb with version tag handled by ./maple
+>1028	string	!version
+# skip veclib maple.hdb by looking for Mable keyword
+>>4	search/1091	Maple\040
+#>4	search/34090	Maple\040
+>>4	default		x
+# skip DOS 2.0-3.2 backed up sequence 4 with many nils like LOTUS5.RAR handled by ./msdos
+# skip xBASE Compound Index file *.CDX with many nils
+>>>0x54	quad		!0
+>>>>0	use	ttcomp
+0	string	\1\4
+# TODO:
+# skip Commodore PET BASIC 4.0 program *.prg
+# variant ASCII, 1K dictionary (strength=48=50-2). With strength=49 wrong order! WHY?
+# skip shared library (strength=50) handled by ./ibm6000
+!:strength	-2
+>0	use	ttcomp
+#	display information of TTComp archive
+0	name	ttcomp
+# (version 5.25) labeled the entry as "TTComp archive data"
+>0	ubyte	x	TTComp archive data
+!:mime	application/x-compress-ttcomp
+# PBACKSCR.PI1
+!:ext	$xe/$ts/pi1/__d
+# compression type: 0~binary compression 1~ASCII compression 
+>0	ubyte	0	\b, binary
+>0	ubyte	1	\b, ASCII
+# size of the dictionary:  4~1024 bytes 5~2048 bytes 6~4096 bytes 
+>1	ubyte	4	\b, 1K
+>1	ubyte	5	\b, 2K
+>1	ubyte	6	\b, 4K
+>1	ubyte	x	dictionary
+#	https://mark0.net/forum/index.php?topic=848
+# last 3 bytes probably have only 8 possible bit sequences
+# xxxxxxxx 0000000x 11111111	____FFh
+# xxxxxxxx 10000000 01111111	__807Fh	
+# 0xxxxxxx 11000000 00111111	__C03Fh
+# 00xxxxxx 11100000 00011111	__E01Fh
+# 000xxxxx 11110000 00001111	__F00Fh
+# 0000xxxx 11111000 00000111	__F807h
+# 00000xxx 11111100 00000011	__FC03h
+# 000000xx 11111110 00000001	__FE01h
+# but for quickgif.__d 0A7DD4h
+#>-3	ubyte		x	\b, last 3 bytes 0x%2.2x
+#>-2	ubeshort	x	\b%4.4x
 # From:		Joerg Jenderek
 # URL:		https://wiki.68kmla.org/DiskCopy_4.2_format_specification
 # reference:	http://nulib.com/library/FTN.e00005.htm
 0x52	ubeshort	0x0100
-# test for disk size equal or above 400k
->0x40	ubelong		>409599	Apple DiskCopy 4.2 image
+# test for disk image size equal or above 400k
+>0x40	ubelong		>409599
+# test also for disk image size equal or below 1440k to skip
+# windows7en.mbr UNICODE.DAT
+>>0x40	ubelong		<1474561
+# To skip Flags$StringJoiner.class with size 00106A61h test also for only 4 disk image sizes
+# 00064000 for  400k GCR disks
+# 000c8000 for  800k GCR disks
+# 000b4000 for  720k MFM disks
+# 00168000 for 1440k MFM disks
+>>>0x40	ubelong&0xffE03fFF	0
+>>>>0	use	dc42-floppy
+#	display information of Apple DiskCopy 4.2 floppy image
+0	name		dc42-floppy
+# image pascal name padded with NULs like Microsoft Mail
+>00	pstring/B	x	Apple DiskCopy 4.2 image %s
 #!:mime	application/octet-stream
+!:mime	application/x-dc42-floppy-image
 !:apple	dCpydImg
 !:ext	image/dc42
-# image pascal name padded with NULs like Microsoft Mail
->>00	pstring/B	x	%s
 # data size in bytes like 409600
->>0x40	ubelong		x	\b, %u bytes
+>0x40	ubelong		x	\b, %u bytes
+# for debugging purpose size in hexadecimal
+#>0x40	ubelong		x	(%#8.8x)
 # tag size in bytes
->>0x44	ubelong		>0	\b, 0x%x tag size
+>0x44	ubelong		>0	\b, %#x tag size
 # data checksum
-#>>0x48	ubelong		x	\b, 0x%x checksum
+#>0x48	ubelong		x	\b, %#x checksum
 # tag checksum
-#>>0x4c	ubelong		x	\b, 0x%x tag checksum
+#>0x4c	ubelong		x	\b, %#x tag checksum
 # disk encoding
->>0x50	ubyte		0	\b, GCR CLV ssdd (400k)
->>0x50	ubyte		1	\b, GCR CLV dsdd (800k)
->>0x50	ubyte		2	\b, MFM CAV dsdd (720k)
->>0x50	ubyte		3	\b, MFM CAV dshd (1440k)
->>0x50	ubyte		>3	\b, 0x%x encoding
+>0x50	ubyte		0	\b, GCR CLV ssdd (400k)
+>0x50	ubyte		1	\b, GCR CLV dsdd (800k)
+>0x50	ubyte		2	\b, MFM CAV dsdd (720k)
+>0x50	ubyte		3	\b, MFM CAV dshd (1440k)
+>0x50	ubyte		>3	\b, %#x encoding
 # format byte
->>0x51	ubyte		x	\b, 0x%x format
-#>>0x54	ubequad		x	\b, data 0x%16.16llx
+>0x51	ubyte		x	\b, %#x format
+#>0x54	ubequad		x	\b, data %#16.16llx
 # ESP, could this conflict with Easy Software Products' (e.g.ESP ghostscript) documentation?
 0	string	ESP ESP archive data
 # ZPack
@@ -509,11 +592,11 @@
 # compression method (0-4)
 >>8	uleshort	x	\b, %u method
 # offset of compressed data
->>10	uleshort	x	\b, 0x%x offset
+>>10	uleshort	x	\b, %#x offset
 #>>(10.s)	uleshort	x
 #>>>&-6		string	x	\b, TEST extension %-.3s
 # header flags to mark header extensions
->>12	uleshort	>0	\b, 0x%x flags
+>>12	uleshort	>0	\b, %#x flags
 # 4 bytes: decompressed length of file
 >>12	uleshort	&0x01
 >>>14	ulelong		x	\b, original size: %u bytes
@@ -602,6 +685,21 @@
 !:mime	application/x-ms-compress-sz
 !:ext	??$
 >>8	ulelong	>0		\b, original size: %u bytes
+
+# Summary:	FTCOMP compressed archive
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/FTCOMP
+# Reference:    http://mark0.net/download/triddefs_xml.7z/defs/a/ark-ftcomp.trid.xml
+# Note:		called by TrID "FTCOMP compressed archive"
+#		extracted by `unpack seahelp.hl_`
+24	string/b	FTCOMP		FTCOMP compressed archive
+#!:mime	application/octet-stream
+!:mime	application/x-compress-ftcomp
+!:ext	??_/??@/dll/drv/pk2/
+# probably A596FDFF magic at the beginning
+>0	ubelong		!0xA596FDFF	\b, at beginning %#x
+# probably original file name with directory like: \OS2\unpack.exe \SYSTEM\8514.DRV MAHJONGG.EXE
+>41	string		x		"%s"
 
 # MP3 (archiver, not lossy audio compression)
 0	string	MP3\x1a MP3-Archiver archive data
@@ -816,7 +914,7 @@
 !:ext	dz
 >>2	byte	x \b, version %i
 >>3	byte	x \b.%i
->>4	ulelong	x \b, offset 0x%x
+>>4	ulelong	x \b, offset %#x
 >>8	ulelong	x \b, %u files
 # ZZip archiver (.zz)
 0	string	ZZ\ \0\0 ZZip archive data
@@ -923,7 +1021,7 @@
 >>>>>>3	regex		\^lh[456]	LHa (2.x) archive data
 >>>>>>>2	string	-lh5		\b 
 # https://en.wikipedia.org/wiki/BIOS
-# Some mainboard BIOS like Award use LHa compression. So archives with unusal extension are found like
+# Some mainboard BIOS like Award use LHa compression. So archives with unusual extension are found like
 # bios.rom , kd7_v14.bin, 1010.004, ...
 !:ext lha/lzh/rom/bin
 # missing -lh?- variants (Joe Jared)
@@ -950,21 +1048,21 @@
 # compressed data size != compressed file size
 #>7	ulelong		x		\b, data size %d
 # attribute: 0x2~?? 0x10~symlink|target 0x20~normal
-#>19	ubyte		x		\b, 19_0x%x
+#>19	ubyte		x		\b, 19_%#x
 # level identifier 0 1 2 3
 #>20	ubyte		x		\b, level %d
 # time stamp
-#>15		ubelong	x		DATE 0x%8.8x
+#>15		ubelong	x		DATE %#8.8x
 # OS ID for level 1
 >20	ubyte		1
 # 0x20 types find for *.rom files
->>(21.b+24)	ubyte	<0x21		\b, 0x%x OS
+>>(21.b+24)	ubyte	<0x21		\b, %#x OS
 # ascii type like M for MSDOS
 >>(21.b+24)	ubyte	>0x20		\b, '%c' OS
 # OS ID for level 2
 >20	ubyte		2
-#>>23	ubyte		x		\b, OS ID 0x%x
->>23	ubyte		<0x21		\b, 0x%x OS
+#>>23	ubyte		x		\b, OS ID %#x
+>>23	ubyte		<0x21		\b, %#x OS
 >>23	ubyte		>0x20		\b, '%c' OS
 # filename only for level 0 and 1
 >20	ubyte		<2
@@ -1319,8 +1417,9 @@
 >>>>38		search/64       .app/   iOS App
 !:mime application/x-ios-app
 
->30	search/100/b application/epub+zip	EPUB document
-!:mime application/epub+zip
+# Dup, see above.
+#>30	search/100/b application/epub+zip	EPUB document
+#!:mime application/epub+zip
 
 # Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 #   Next line excludes specialized formats:
@@ -1331,6 +1430,8 @@
 >>>>4	beshort		x			\b, at least
 >>>>4	use		zipversion
 >>>>4	beshort		x			to extract
+>>>>8	beshort		x			\b, compression method=
+>>>>8	use		zipcompression
 >>>>0x161	string		WINZIP		\b, WinZIP self-extracting
 
 # StarView Metafile
@@ -1472,8 +1573,17 @@
 >>0x2A	string	>\0		: %s
 
 # DR-DOS 7.03 Packed File *.??_
-0	string	Packed\ File\ 	Personal NetWare Packed File
->12	string	x		\b, was "%.12s"
+# Reference: http://www.antonis.de/dos/dos-tuts/mpdostip/html/nwdostip.htm
+# Note:	unpacked by PNUNPACK.EXE
+0	string	Packed\ File\ 
+# by looking for Control-Z skip ASCII text starting with Packed File 
+>0x18	ubyte	0x1a		Personal NetWare Packed File
+!:mime	application/x-novell-compress
+!:ext	??_
+>>12	string	x		\b, was "%.12s"
+# 1 or 2
+#>>0x19	ubyte	x		\b, at 0x19 %u
+>>0x1b	ulelong	x		with %u bytes
 
 # EET archive
 # From: Tilman Sauerbeck <tilman@code-monkey.de>
@@ -1548,7 +1658,7 @@
 >24	belong	2		MD5 checksum
 >24	belong	3		SHA-256 checksum
 >24	belong	4		SHA-512 checksum
->24	belong	>4		unknown 0x%x checksum
+>24	belong	>4		unknown %#x checksum
 #>24	belong	>4		checksum
 #			For no compression jump 0 bytes
 >24	belong	0
@@ -1556,7 +1666,7 @@
 # jump more bytes forward by header size
 >>>&(4.S)	ubyte	x
 # jump more bytes forward by compressed table of contents size
-#>>>>&(8.Q)	ubequad	x	\b, heap data 0x%llx
+#>>>>&(8.Q)	ubequad	x	\b, heap data %#llx
 >>>>&(8.Q)	ubyte	x
 # look for data by ./compress after message with 1 space at end
 >>>>>&-3	indirect x	\b, contains 
@@ -1628,7 +1738,7 @@
 # *.GHS or *.[0-9] with cns program option
 >2		ubyte&0x08		0x08		\b, split file
 # part of split index interesting for *.ghs
->>4		ubyte			x		id=0x%x
+>>4		ubyte			x		id=%#x
 # compression tag minus one equals numeric compression command line switch z[1-9]
 >3		ubyte			0		\b, no compression
 >3		ubyte			2		\b, fast compression (Z1)
@@ -1676,9 +1786,9 @@
 !:mime	application/x-acronis-tib
 !:ext	tib
 # 01000000
-#>20	ubelong		x			\b, at 20 0x%x
+#>20	ubelong		x			\b, at 20 %#x
 # 20000000
-#>28	ubelong		x			\b, at 28 0x%x
+#>28	ubelong		x			\b, at 28 %#x
 # strings like "Generic- SD/MMC 1.00" "Unknown Disk" "Msft Virtual Disk 1.0"
 # ???
 # strings like "\Device\0000011e" "\Device\0000015a"
@@ -1719,3 +1829,24 @@
 # path[CXBTFFile[MaximumPathLength=256]
 >>9	string	x		\b, 1st %s
 
+# ALZIP archive
+# by Hyungjun Park <hyungjun.park@worksmobile.com>, Hajin Jang <hajin_jang@worksmobile.com>
+# http://kippler.com/win/unalz/
+# https://salsa.debian.org/l10n-korean-team/unalz
+0	string	ALZ\001		ALZ archive data
+!:ext   alz
+
+# https://cf-aldn.altools.co.kr/setup/EGG_Specification.zip
+0	string	EGGA		EGG archive data,
+!:ext   egg
+>5	byte	x		version %u
+>4	byte	x		\b.%u
+>>0x0E	ulelong	=0x08E28222
+>>0x0E	ulelong	=0x24F5A262	\b, split
+>>0x0E	ulelong	=0x24E5A060	\b, solid
+>>0x0E	default	x		\b, unknown
+
+# PAQ9A archive
+# URL: http://mattmahoney.net/dc/#paq9a
+# Note: Line 1186 of paq9a.cpp gives the magic bytes
+0	string	pQ9\001		PAQ9A archive

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: zip,v 1.4 2020/03/03 13:46:52 christos Exp $
+# $File: zip,v 1.7 2021/04/26 15:56:00 christos Exp $
 # zip:  file(1) magic for zip files; this is not use
 # Note the version of magic in archive is currently stronger, this is
 # just an example until negative offsets are supported better
@@ -7,6 +7,7 @@
 # Zip Central Directory record
 0	name		zipcd
 >0	string		PK\001\002	Zip archive data
+!:mime	application/zip
 >>4	leshort		x		\b, made by
 >>4	use		zipversion
 >>4	use		ziphost
@@ -18,7 +19,7 @@
 >>10	use		zipcompression
 
 # URL:		https://en.wikipedia.org/wiki/Zip_(file_format)
-# reference:	https://pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.6.TXT
+# reference:	https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT (Version: 6.3.9)
 # Zip known compressions
 0	name		zipcompression
 >0	leshort		0		\bstore
@@ -33,11 +34,12 @@
 #>0	leshort		13 		\bReserved by PKWARE
 >0	leshort		14		\blzma
 #>0	leshort		15 		\bReserved by PKWARE
->0	leshort		16		\bCMPSC Compression
+>0	leshort		16		\bCMPSC (IBM z/OS)
 #>0	leshort		17 		\bReserved by PKWARE
 >0	leshort		18		\bIBM TERSE
->0	leshort		19		\bIBM LZ77
-# https://support.winzip.com/hc/en-us/articles/115012122828-Compression-method-used-for-this-file-is-94
+>0	leshort		19		\bIBM LZ77 (z/Architecture)
+>0	leshort		20		\bZstd (deprecated)
+>0	leshort		93		\bZstd
 >0	leshort		94		\bMP3
 >0	leshort		95		\bxz
 >0	leshort		96		\bJpeg
@@ -97,7 +99,7 @@
 >1	ubyte		18		OS/400
 >1	ubyte		19		OS X
 # unused
-#>1	ubyte		>19		unused 0x%x
+#>1	ubyte		>19		unused %#x
 
 # Zip End Of Central Directory record
 -22	string		PK\005\006
