@@ -68,7 +68,7 @@ The ioctls which are for use with logging and don't affect the filter are:
 The SIOCIPFFB ioctl flushes the log buffer and returns the number of bytes
 flushed.  FIONREAD returns the number of bytes currently used for storing
 log data.  If IPFILTER_LOG is not defined when compiling, SIOCIPFFB is not
-available( and FIONREAD will return but not do anything.);
+available and FIONREAD will return but not do anything.
 .PP
 There is currently no support for non-blocking IO with this device, meaning
 all read operations should be considered blocking in nature (if there is no

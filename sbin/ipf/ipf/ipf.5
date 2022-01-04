@@ -108,7 +108,7 @@ auth
 rules cause the matching packet to be queued up for processing by a
 user space program. The user space program is responsible for making
 an ioctl system call to collect the information about the queued
-packet( and another ioctl system call to return the verdict (block,);
+packet and another ioctl system call to return the verdict (block,
 pass, etc) on what to do with the packet. In the event that the queue
 becomes full, the packets will end up being dropped.
 .HP
