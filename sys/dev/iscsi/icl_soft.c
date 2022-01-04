@@ -1463,8 +1463,8 @@ icl_soft_conn_task_done(struct icl_conn *ic, void *prv)
 }
 
 int
-icl_soft_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
-    uint32_t *transfer_tag, void **prvp)
+icl_soft_conn_transfer_setup(struct icl_conn *ic, struct icl_pdu *ip,
+    union ctl_io *io, uint32_t *transfer_tag, void **prvp)
 {
 
 	return (0);

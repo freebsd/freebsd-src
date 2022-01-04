@@ -129,11 +129,11 @@ icl_conn_task_done(struct icl_conn *ic, void *prv)
 }
 
 static inline int
-icl_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
-    uint32_t *transfer_tagp, void **prvp)
+icl_conn_transfer_setup(struct icl_conn *ic, struct icl_pdu *ip,
+    union ctl_io *io, uint32_t *transfer_tagp, void **prvp)
 {
 
-	return (ICL_CONN_TRANSFER_SETUP(ic, io, transfer_tagp, prvp));
+	return (ICL_CONN_TRANSFER_SETUP(ic, ip, io, transfer_tagp, prvp));
 }
 
 static inline void
