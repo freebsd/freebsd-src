@@ -45,7 +45,7 @@ MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
 
 SUBDIR = usb
 SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} \
-	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
+	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
 SUBDIR += atp cfumass uhid uhid_snes ukbd ums udbp uep wmt wsp ugold uled \
 	  usbhid
@@ -76,11 +76,8 @@ _zyd=		zyd
 _kue=		kue
 _run=		run
 _rsu=		rsu
-
-.if ${MACHINE_CPUARCH} != "mips"
 _rsufw=		rsufw
 _runfw=		runfw
-.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
@@ -100,10 +97,6 @@ _urtw=		urtw
 
 .if ${MACHINE_CPUARCH} == "avr32"
 _avr32dci=	avr32dci
-.endif
-
-.if ${MACHINE_CPUARCH} == "mips"
-_saf1761otg=	saf1761otg
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
