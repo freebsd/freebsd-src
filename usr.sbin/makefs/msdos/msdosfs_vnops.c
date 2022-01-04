@@ -637,7 +637,7 @@ msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
 	return dep;
 
 bad:
-	clusterfree(pmp, newcluster, NULL);
+	clusterfree(pmp, newcluster);
 bad2:
 	errno = error;
 	return NULL;
