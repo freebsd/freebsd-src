@@ -192,6 +192,13 @@ struct ccr_session {
 	struct mtx lock;
 
 	/*
+	 * A fallback software session is used for certain GCM/CCM
+	 * requests that the hardware can't handle such as requests
+	 * with only AAD and no payload.
+	 */
+	crypto_session_t sw_session;
+
+	/*
 	 * Pre-allocate S/G lists used when preparing a work request.
 	 * 'sg_input' contains an sglist describing the entire input
 	 * buffer for a 'struct cryptop'.  'sg_output' contains an
@@ -1379,151 +1386,6 @@ ccr_gcm_done(struct ccr_softc *sc, struct ccr_session *s,
 	return (error);
 }
 
-/*
- * Handle a GCM request that is not supported by the crypto engine by
- * performing the operation in software.  Derived from swcr_authenc().
- */
-static void
-ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
-{
-	const struct auth_hash *axf;
-	const struct enc_xform *exf;
-	void *auth_ctx, *kschedule;
-	char block[GMAC_BLOCK_LEN];
-	char digest[GMAC_DIGEST_LEN];
-	int error, i, len;
-
-	auth_ctx = NULL;
-	kschedule = NULL;
-
-	/* Initialize the MAC. */
-	switch (s->cipher.key_len) {
-	case 16:
-		axf = &auth_hash_nist_gmac_aes_128;
-		break;
-	case 24:
-		axf = &auth_hash_nist_gmac_aes_192;
-		break;
-	case 32:
-		axf = &auth_hash_nist_gmac_aes_256;
-		break;
-	default:
-		error = EINVAL;
-		goto out;
-	}
-	auth_ctx = malloc(axf->ctxsize, M_CCR, M_NOWAIT);
-	if (auth_ctx == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
-	axf->Init(auth_ctx);
-	axf->Setkey(auth_ctx, s->cipher.enckey, s->cipher.key_len);
-
-	/* Initialize the cipher. */
-	exf = &enc_xform_aes_nist_gcm;
-	kschedule = malloc(exf->ctxsize, M_CCR, M_NOWAIT);
-	if (kschedule == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
-	error = exf->setkey(kschedule, s->cipher.enckey,
-	    s->cipher.key_len);
-	if (error)
-		goto out;
-
-	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0) {
-		error = EINVAL;
-		goto out;
-	}
-
-	axf->Reinit(auth_ctx, crp->crp_iv, AES_GCM_IV_LEN);
-
-	/* MAC the AAD. */
-	if (crp->crp_aad != NULL) {
-		len = rounddown(crp->crp_aad_length, sizeof(block));
-		if (len != 0)
-			axf->Update(auth_ctx, crp->crp_aad, len);
-		if (crp->crp_aad_length != len) {
-			memset(block, 0, sizeof(block));
-			memcpy(block, (char *)crp->crp_aad + len,
-			    crp->crp_aad_length - len);
-			axf->Update(auth_ctx, block, sizeof(block));
-		}
-	} else {
-		for (i = 0; i < crp->crp_aad_length; i += sizeof(block)) {
-			len = imin(crp->crp_aad_length - i, sizeof(block));
-			crypto_copydata(crp, crp->crp_aad_start + i, len,
-			    block);
-			bzero(block + len, sizeof(block) - len);
-			axf->Update(auth_ctx, block, sizeof(block));
-		}
-	}
-
-	exf->reinit(kschedule, crp->crp_iv, AES_GCM_IV_LEN);
-
-	/* Do encryption with MAC */
-	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
-		len = imin(crp->crp_payload_length - i, sizeof(block));
-		crypto_copydata(crp, crp->crp_payload_start + i, len, block);
-		bzero(block + len, sizeof(block) - len);
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			exf->encrypt(kschedule, block, block);
-			axf->Update(auth_ctx, block, len);
-			crypto_copyback(crp, crp->crp_payload_start + i, len,
-			    block);
-		} else {
-			axf->Update(auth_ctx, block, len);
-		}
-	}
-
-	/* Length block. */
-	bzero(block, sizeof(block));
-	((uint32_t *)block)[1] = htobe32(crp->crp_aad_length * 8);
-	((uint32_t *)block)[3] = htobe32(crp->crp_payload_length * 8);
-	axf->Update(auth_ctx, block, sizeof(block));
-
-	/* Finalize MAC. */
-	axf->Final(digest, auth_ctx);
-
-	/* Inject or validate tag. */
-	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-		crypto_copyback(crp, crp->crp_digest_start, sizeof(digest),
-		    digest);
-		error = 0;
-	} else {
-		char digest2[GMAC_DIGEST_LEN];
-
-		crypto_copydata(crp, crp->crp_digest_start, sizeof(digest2),
-		    digest2);
-		if (timingsafe_bcmp(digest, digest2, sizeof(digest)) == 0) {
-			error = 0;
-
-			/* Tag matches, decrypt data. */
-			for (i = 0; i < crp->crp_payload_length;
-			     i += sizeof(block)) {
-				len = imin(crp->crp_payload_length - i,
-				    sizeof(block));
-				crypto_copydata(crp, crp->crp_payload_start + i,
-				    len, block);
-				bzero(block + len, sizeof(block) - len);
-				exf->decrypt(kschedule, block, block);
-				crypto_copyback(crp, crp->crp_payload_start + i,
-				    len, block);
-			}
-		} else
-			error = EBADMSG;
-		explicit_bzero(digest2, sizeof(digest2));
-	}
-
-out:
-	zfree(kschedule, M_CCR);
-	zfree(auth_ctx, M_CCR);
-	explicit_bzero(block, sizeof(block));
-	explicit_bzero(digest, sizeof(digest));
-	crp->crp_etype = error;
-	crypto_done(crp);
-}
-
 static int
 ccr_ccm_hmac_ctrl(unsigned int authsize)
 {
@@ -1892,208 +1754,47 @@ ccr_ccm_done(struct ccr_softc *sc, struct ccr_session *s,
 }
 
 /*
- * Handle a CCM request that is not supported by the crypto engine by
- * performing the operation in software.  Derived from swcr_ccm().
+ * Use the software session for requests not supported by the crypto
+ * engine (e.g. CCM and GCM requests with an empty payload).
  */
-static void
-build_ccm_b0(const char *nonce, u_int nonce_length, u_int aad_length,
-    u_int data_length, u_int tag_length, uint8_t *b0)
-{
-	uint8_t *bp;
-	uint8_t flags, L;
-
-	KASSERT(nonce_length >= 7 && nonce_length <= 13,
-	    ("nonce_length must be between 7 and 13 bytes"));
-
-	/*
-	 * Need to determine the L field value.  This is the number of
-	 * bytes needed to specify the length of the message; the length
-	 * is whatever is left in the 16 bytes after specifying flags and
-	 * the nonce.
-	 */
-	L = 15 - nonce_length;
-
-	flags = ((aad_length > 0) << 6) +
-	    (((tag_length - 2) / 2) << 3) +
-	    L - 1;
-
-	/*
-	 * Now we need to set up the first block, which has flags, nonce,
-	 * and the message length.
-	 */
-	b0[0] = flags;
-	memcpy(b0 + 1, nonce, nonce_length);
-	bp = b0 + 1 + nonce_length;
-
-	/* Need to copy L' [aka L-1] bytes of data_length */
-	for (uint8_t *dst = b0 + CCM_CBC_BLOCK_LEN - 1; dst >= bp; dst--) {
-		*dst = data_length;
-		data_length >>= 8;
-	}
-}
-
-/* NB: OCF only supports AAD lengths < 2^32. */
 static int
-build_ccm_aad_length(u_int aad_length, uint8_t *blk)
+ccr_soft_done(struct cryptop *crp)
 {
-	if (aad_length < ((1 << 16) - (1 << 8))) {
-		be16enc(blk, aad_length);
-		return (sizeof(uint16_t));
-	} else {
-		blk[0] = 0xff;
-		blk[1] = 0xfe;
-		be32enc(blk + 2, aad_length);
-		return (2 + sizeof(uint32_t));
-	}
+	struct cryptop *orig;
+
+	orig = crp->crp_opaque;
+	orig->crp_etype = crp->crp_etype;
+	crypto_freereq(crp);
+	crypto_done(orig);
+	return (0);
 }
 
 static void
-ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
+ccr_soft(struct ccr_session *s, struct cryptop *crp)
 {
-	const struct crypto_session_params *csp;
-	const struct auth_hash *axf;
-	const struct enc_xform *exf;
-	union authctx *auth_ctx;
-	void *kschedule;
-	char block[CCM_CBC_BLOCK_LEN];
-	char tag[AES_CBC_MAC_HASH_LEN];
-	u_int taglen;
-	int error, i, len;
+	struct cryptop *new;
+	int error;
 
-	auth_ctx = NULL;
-	kschedule = NULL;
-	taglen = s->ccm_mac.hash_len;
-
-	csp = crypto_get_params(crp->crp_session);
-	if (crp->crp_payload_length > ccm_max_payload_length(csp)) {
-		error = EMSGSIZE;
-		goto out;
+	new = crypto_clonereq(crp, s->sw_session, M_NOWAIT);
+	if (new == NULL) {
+		crp->crp_etype = ENOMEM;
+		crypto_done(crp);
+		return;
 	}
 
-	/* Initialize the MAC. */
-	switch (s->cipher.key_len) {
-	case 16:
-		axf = &auth_hash_ccm_cbc_mac_128;
-		break;
-	case 24:
-		axf = &auth_hash_ccm_cbc_mac_192;
-		break;
-	case 32:
-		axf = &auth_hash_ccm_cbc_mac_256;
-		break;
-	default:
-		error = EINVAL;
-		goto out;
+	/*
+	 * XXX: This only really needs CRYPTO_ASYNC_ORDERED if the
+	 * original request was dispatched that way.  There is no way
+	 * to know that though since crypto_dispatch_async() discards
+	 * the flag for async backends (such as ccr(4)).
+	 */
+	new->crp_opaque = crp;
+	new->crp_callback = ccr_soft_done;
+	error = crypto_dispatch_async(new, CRYPTO_ASYNC_ORDERED);
+	if (error != 0) {
+		crp->crp_etype = error;
+		crypto_done(crp);
 	}
-	auth_ctx = malloc(axf->ctxsize, M_CCR, M_NOWAIT);
-	if (auth_ctx == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
-	axf->Init(auth_ctx);
-	axf->Setkey(auth_ctx, s->cipher.enckey, s->cipher.key_len);
-
-	/* Initialize the cipher. */
-	exf = &enc_xform_ccm;
-	kschedule = malloc(exf->ctxsize, M_CCR, M_NOWAIT);
-	if (kschedule == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
-	error = exf->setkey(kschedule, s->cipher.enckey,
-	    s->cipher.key_len);
-	if (error)
-		goto out;
-
-	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0) {
-		error = EINVAL;
-		goto out;
-	}
-
-	axf->Reinit(auth_ctx, crp->crp_iv, csp->csp_ivlen);
-
-	/* Supply MAC with b0. */
-	build_ccm_b0(crp->crp_iv, csp->csp_ivlen, crp->crp_aad_length,
-	    crp->crp_payload_length, taglen, block);
-	axf->Update(auth_ctx, block, CCM_CBC_BLOCK_LEN);
-
-	/* MAC the AAD. */
-	if (crp->crp_aad_length != 0) {
-		len = build_ccm_aad_length(crp->crp_aad_length, block);
-		axf->Update(auth_ctx, block, len);
-		if (crp->crp_aad != NULL)
-			axf->Update(auth_ctx, crp->crp_aad,
-			    crp->crp_aad_length);
-		else
-			crypto_apply(crp, crp->crp_aad_start,
-			    crp->crp_aad_length, axf->Update, auth_ctx);
-
-		/* Pad the AAD (including length field) to a full block. */
-		len = (len + crp->crp_aad_length) % CCM_CBC_BLOCK_LEN;
-		if (len != 0) {
-			len = CCM_CBC_BLOCK_LEN - len;
-			memset(block, 0, CCM_CBC_BLOCK_LEN);
-			axf->Update(auth_ctx, block, len);
-		}
-	}
-
-	exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
-
-	/* Do encryption/decryption with MAC */
-	for (i = 0; i < crp->crp_payload_length; i += sizeof(block)) {
-		len = imin(crp->crp_payload_length - i, sizeof(block));
-		crypto_copydata(crp, crp->crp_payload_start + i, len, block);
-		bzero(block + len, sizeof(block) - len);
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			axf->Update(auth_ctx, block, len);
-			exf->encrypt(kschedule, block, block);
-			crypto_copyback(crp, crp->crp_payload_start + i, len,
-			    block);
-		} else {
-			exf->decrypt(kschedule, block, block);
-			axf->Update(auth_ctx, block, len);
-		}
-	}
-
-	/* Finalize MAC. */
-	axf->Final(tag, auth_ctx);
-
-	/* Inject or validate tag. */
-	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-		crypto_copyback(crp, crp->crp_digest_start, taglen, tag);
-		error = 0;
-	} else {
-		char tag2[AES_CBC_MAC_HASH_LEN];
-
-		crypto_copydata(crp, crp->crp_digest_start, taglen, tag2);
-		if (timingsafe_bcmp(tag, tag2, taglen) == 0) {
-			error = 0;
-
-			/* Tag matches, decrypt data. */
-			exf->reinit(kschedule, crp->crp_iv, csp->csp_ivlen);
-			for (i = 0; i < crp->crp_payload_length;
-			     i += sizeof(block)) {
-				len = imin(crp->crp_payload_length - i,
-				    sizeof(block));
-				crypto_copydata(crp, crp->crp_payload_start + i,
-				    len, block);
-				bzero(block + len, sizeof(block) - len);
-				exf->decrypt(kschedule, block, block);
-				crypto_copyback(crp, crp->crp_payload_start + i,
-				    len, block);
-			}
-		} else
-			error = EBADMSG;
-		explicit_bzero(tag2, sizeof(tag2));
-	}
-
-out:
-	zfree(kschedule, M_CCR);
-	zfree(auth_ctx, M_CCR);
-	explicit_bzero(block, sizeof(block));
-	explicit_bzero(tag, sizeof(tag));
-	crp->crp_etype = error;
-	crypto_done(crp);
 }
 
 static void
@@ -2603,6 +2304,7 @@ ccr_choose_port(struct ccr_softc *sc)
 static void
 ccr_delete_session(struct ccr_session *s)
 {
+	crypto_freesession(s->sw_session);
 	sglist_free(s->sg_input);
 	sglist_free(s->sg_output);
 	sglist_free(s->sg_ulptx);
@@ -2619,6 +2321,7 @@ ccr_newsession(device_t dev, crypto_session_t cses,
 	const struct auth_hash *auth_hash;
 	unsigned int auth_mode, cipher_mode, mk_size;
 	unsigned int partial_digest_len;
+	int error;
 
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1:
@@ -2708,6 +2411,15 @@ ccr_newsession(device_t dev, crypto_session_t cses,
 	    s->sg_ulptx == NULL || s->sg_dsgl == NULL) {
 		ccr_delete_session(s);
 		return (ENOMEM);
+	}
+
+	if (csp->csp_mode == CSP_MODE_AEAD) {
+		error = crypto_newsession(&s->sw_session, csp,
+		    CRYPTOCAP_F_SOFTWARE);
+		if (error) {
+			ccr_delete_session(s);
+			return (error);
+		}
 	}
 
 	sc = device_get_softc(dev);
@@ -2879,16 +2591,11 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			ccr_aes_setkey(s, crp->crp_cipher_key,
 			    csp->csp_cipher_klen);
 		}
-		if (crp->crp_payload_length == 0) {
-			mtx_unlock(&s->lock);
-			ccr_gcm_soft(s, crp);
-			return (0);
-		}
 		error = ccr_gcm(sc, s, crp);
 		if (error == EMSGSIZE || error == EFBIG) {
 			counter_u64_add(sc->stats_sw_fallback, 1);
 			mtx_unlock(&s->lock);
-			ccr_gcm_soft(s, crp);
+			ccr_soft(s, crp);
 			return (0);
 		}
 		if (error == 0) {
@@ -2907,7 +2614,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 		if (error == EMSGSIZE || error == EFBIG) {
 			counter_u64_add(sc->stats_sw_fallback, 1);
 			mtx_unlock(&s->lock);
-			ccr_ccm_soft(s, crp);
+			ccr_soft(s, crp);
 			return (0);
 		}
 		if (error == 0) {
