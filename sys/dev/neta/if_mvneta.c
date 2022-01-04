@@ -724,10 +724,8 @@ mvneta_attach(device_t self)
 		    mvneta_mediastatus, BMSR_DEFCAPMASK, sc->phy_addr,
 		    MII_OFFSET_ANY, 0);
 		if (error != 0) {
-			if (bootverbose) {
-				device_printf(self,
-				    "MII attach failed, error: %d\n", error);
-			}
+			device_printf(self, "MII attach failed, error: %d\n",
+			    error);
 			ether_ifdetach(sc->ifp);
 			mvneta_detach(self);
 			return (error);
