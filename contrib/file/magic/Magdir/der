@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: der,v 1.3 2020/02/16 20:45:21 christos Exp $
+# $File: der,v 1.4 2021/03/14 17:12:04 christos Exp $
 # der: file(1) magic for DER encoded files
 #
 
@@ -117,8 +117,9 @@
 
 0	der	seq
 >&0	der	seq
->>&0	der	eoc		Certificate
->>>&0	der	int1=02		\b, Version=3
+>>&0	der	eoc
+>>>&0	der	int1=02		Certificate, Version=3
+>>>&0	der	int1=x		Certificate, Version=%s
 >>&0	der	int9=x		\b, Serial=%s
 >>&0	der	seq		
 >>>&0	der     obj_id9=2a864886f70d01010b

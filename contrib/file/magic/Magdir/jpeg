@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.32 2018/10/01 18:58:29 christos Exp $
+# $File: jpeg,v 1.36 2021/08/28 12:30:52 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -9,11 +9,19 @@
 #
 # both of which turn into "JPEG image data" here.
 #
-0	beshort		0xffd8		JPEG image data
+0	belong			0xffd8fff7	JPEG-LS image data
+!:mime	image/jls
+!:ext jls
+>0	use			jpeg
+
+0	belong&0xffffff00	0xffd8ff00	JPEG image data
 !:mime	image/jpeg
 !:apple	8BIMJPEG
 !:strength *3
 !:ext jpeg/jpg/jpe/jfif
+>0	use			jpeg
+
+0	name		jpeg
 >6	string		JFIF		\b, JFIF standard
 # The following added by Erik Rossen <rossen@freesurf.ch> 1999-09-06
 # in a vain attempt to add image size reporting for JFIF.  Note that these
@@ -91,7 +99,7 @@
 >>0	beshort&0xFFE0	!0xFFE0
 >>>(2.S+2)	use			jpeg_segment
 
-#>0	beshort		x		unknown 0x%x
+#>0	beshort		x		unknown %#x
 #>>(2.S+2)	use			jpeg_segment
 
 # HSI is Handmade Software's proprietary JPEG encoding scheme
@@ -124,3 +132,14 @@
 >>4	lelong%2	0	JPEG-XR
 !:mime	image/jxr
 !:ext	jxr
+
+# JPEG XL
+# From: Ian Tester
+0	string	\xff\x0a				JPEG XL codestream
+!:mime  image/jxl
+!:ext jxl
+
+# JPEG XL (transcoded JPEG file)
+0	string	\x00\x00\x00\x0cJXL\x20\x0d\x0a\x87\x0a	JPEG XL container
+!:mime  image/jxl
+!:ext jxl

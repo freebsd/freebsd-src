@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: spectrum,v 1.8 2017/09/11 23:51:12 christos Exp $
+# $File: spectrum,v 1.9 2021/04/26 15:56:00 christos Exp $
 # spectrum:  file(1) magic for Spectrum emulator files.
 #
 # John Elliott <jce@seasip.demon.co.uk>
@@ -51,7 +51,7 @@
 
 # Hard disk images
 0      string          RS-IDE\x1a      Spectrum .HDF hard disk image
->7     byte            x               \b, version 0x%02x
+>7     byte            x               \b, version %#02x
 
 # SZX snapshots (fuse and spectaculator)
 # Martin M. S. Pedersen <martin@linux.com>

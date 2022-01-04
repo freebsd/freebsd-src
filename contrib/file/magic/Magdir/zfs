@@ -36,7 +36,7 @@
 # full 64-bit values.
 
 # Big-endian values
-8	string	\000\000\000\002\365\272\313\254 ZFS shapshot (big-endian machine),
+8	string	\000\000\000\002\365\272\313\254 ZFS snapshot (big-endian machine),
 >20	belong	x	version %u,
 >32	belong	0	type: NONE,
 >32	belong	1	type: META,
@@ -66,7 +66,7 @@
 >56	string	>\0	name: '%s'
 
 # Little-endian values
-8	string	\254\313\272\365\002\000\000\000	ZFS shapshot (little-endian machine),
+8	string	\254\313\272\365\002\000\000\000	ZFS snapshot (little-endian machine),
 >16	lelong	x	version %u,
 >32	lelong	0	type: NONE,
 >32	lelong	1	type: META,

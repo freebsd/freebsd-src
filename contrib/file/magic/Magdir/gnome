@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnome,v 1.6 2019/04/19 00:42:27 christos Exp $
+# $File: gnome,v 1.7 2020/06/23 16:17:08 christos Exp $
 # GNOME related files
 
 # Contributed by Josh Triplett
@@ -55,5 +55,5 @@
 0	string		GOBJ\nMETADATA\r\n\032	G-IR binary database
 >16	byte		x			\b, v%d
 >17	byte		x			\b.%d
->20	leshort		x			\b, %d entries
->22	leshort		x			\b/%d local
+>20	short		x			\b, %d entries
+>22	short		x			\b/%d local

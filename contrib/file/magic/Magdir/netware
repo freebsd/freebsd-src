@@ -1,7 +1,11 @@
 
 #------------------------------------------------------------------------------
-# $File: netware,v 1.4 2009/09/19 16:28:11 christos Exp $
+# $File: netware,v 1.5 2020/09/04 16:30:51 christos Exp $
 # netware:  file(1) magic for NetWare Loadable Modules (NLMs)
 # From: Mads Martin Joergensen <mmj@suse.de>
+# URL:		https://en.wikipedia.org/wiki/NetWare_Loadable_Module
 
 0	string	NetWare\ Loadable\ Module	NetWare Loadable Module
+#!:mime	application/octet-stream
+!:ext	nlm
+

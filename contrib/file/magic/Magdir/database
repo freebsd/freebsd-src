@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.59 2020/03/25 01:49:58 christos Exp $
+# $File: database,v 1.63 2021/10/04 00:44:30 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -181,7 +181,10 @@
 #!:mime	application/x-dbase
 >>>>>>>>>>>>0	use			xbase-type
 # database file
->>>>>>>>>>>>0	ubyte			x		\b DBF
+>>>>>>>>>>>>28	ubyte&0x04		=0		\b DBF
+!:ext	dbf
+>>>>>>>>>>>>28	ubyte&0x04		=4		\b DataBaseContainer
+!:ext	dbc
 >>>>>>>>>>>>4	lelong			0		\b, no records
 >>>>>>>>>>>>4	lelong			>0		\b, %d record
 # plural s appended
@@ -193,13 +196,14 @@
 >>>>>>>>>>>>1	ubyte			x		\b, update-date
 >>>>>>>>>>>>1	use			xbase-date
 # https://msdn.microsoft.com/de-de/library/cc483186(v=vs.71).aspx
-#>>>>>>>>>>>>29	ubyte			=0		\b, codepage ID=0x%x
+#>>>>>>>>>>>>29	ubyte			=0		\b, codepage ID=%#x
 # 2~cp850 , 3~cp1252 , 0x1b~?? ; what code page is 0x1b ?
->>>>>>>>>>>>29	ubyte			>0		\b, codepage ID=0x%x
+>>>>>>>>>>>>29	ubyte			>0		\b, codepage ID=%#x
 #>>>>>>>>>>>>28	ubyte&0x01		0		\b, no index file
+# MDX or CDX index
 >>>>>>>>>>>>28	ubyte&0x01		1		\b, with index file .MDX
 >>>>>>>>>>>>28	ubyte&0x02		2		\b, with memo .FPT
->>>>>>>>>>>>28	ubyte&0x04		4		\b, DataBaseContainer
+#>>>>>>>>>>>>28	ubyte&0x04		4		\b, DataBaseContainer
 # 1st record offset + 1 = header size
 >>>>>>>>>>>>8	uleshort		>0
 >>>>>>>>>>>>(8.s+1)	ubyte		>0
@@ -241,72 +245,111 @@
 # 1 < version
 >0	ubyte		>1
 >>0	ubyte		0x02		FoxBase
+!:mime	application/x-dbf
+# like: ACCESS.DBF USER.DBF dbase3date.dbf mitarbei.dbf produkte.dbf umlaut-test-v2.dbf
 # FoxBase+/dBaseIII+, no memo
 >>0	ubyte		0x03		FoxBase+/dBase III
 !:mime	application/x-dbf
+# like: 92DATA.DBF MSCATLOG.DBF SYLLABI2.DBF SYLLABUS.DBF T4.DBF Teleadr.dbf us_city.dbf
 # dBASE IV no memo file
 >>0	ubyte		0x04		dBase IV
 !:mime	application/x-dbf
+# like: Quattro-test11.dbf umlaut-test-v4.dbf
 # dBASE V no memo file
 >>0	ubyte		0x05		dBase V
 !:mime	application/x-dbf
+# like: dbase4double.dbf Quattro-test2.dbf umlaut-test7.dbf
+!:ext	dbf
+# probably Apollo Database Server 9.7? xBase (0x6)
+>>0	ubyte		0x06		Apollo
+!:mime	application/x-dbf
+# like: ALIAS.DBF CRYPT.DBF PROCS.DBF USERS.DBF
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
+>>0	ubyte		0x2F		FoxBase+/Dbase III plus, no memo
+!:mime	application/x-dbf
+# no example
 >>0	ubyte		0x30		Visual FoxPro
 !:mime	application/x-dbf
+# like: 26FRX.DBF 30DBC.DBF 30DBCPRO.DBF BEHINDSC.DBF USER_LEV.DBF
+# Microsoft Visual FoxPro Database Container File like: FOXPRO-DB-TEST.DBC TESTDATA.DBC TASTRADE.DBC
 >>0	ubyte		0x31		Visual FoxPro, autoincrement
 !:mime	application/x-dbf
+# like: AI_Table.DBF dbase_31.dbf w_cityFoxpro.dbf 
 # Visual FoxPro, with field type Varchar or Varbinary
 >>0	ubyte		0x32		Visual FoxPro, with field type Varchar
 !:mime	application/x-dbf
+# like: dbase_32.dbf
 # dBASE IV SQL, no memo;dbv memo var size (Flagship)
 >>0	ubyte		0x43		dBase IV, with SQL table
 !:mime	application/x-dbf
-# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
-#>>0	ubyte		0x62		dBase IV, with SQL table
+# like: ASSEMBLY.DBF INVENTRY.DBF STAFF.DBF
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
+>>0	ubyte		0x62		dBase IV, with SQL table
 #!:mime	application/x-dbf
+# no example
 # dBASE IV, with memo!!
 >>0	ubyte		0x7b		dBase IV, with memo
 !:mime	application/x-dbf
-# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
-#>>0	ubyte		0x82		dBase IV, with SQL system
+# like: test3memo.DBF dbase5.DBF
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
+>>0	ubyte		0x82		dBase IV, with SQL system
 #!:mime	application/x-dbf
+# no example
 # FoxBase+/dBaseIII+ with memo .DBT!
 >>0	ubyte		0x83		FoxBase+/dBase III, with memo .DBT
 !:mime	application/x-dbf
+# like: T2.DBF t3.DBF biblio.dbf dbase_83.dbf dbase3dbt0_4.dbf fsadress.dbf stop.dbf
 # VISUAL OBJECTS (first 1.0 versions) for the Dbase III files (NTX clipper driver); memo file
 >>0	ubyte		0x87		VISUAL OBJECTS, with memo file
 !:mime	application/x-dbf
-# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
-#>>0	ubyte		0x8A		FoxBase+/dBase III, with memo .DBT
+# like: ACCESS.DBF dbase3date.dbf dbase3float.dbf holdings.dbf mitarbei.dbf
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
+>>0	ubyte		0x8A		FoxBase+/dBase III, with memo .DBT
 #!:mime	application/x-dbf
+# no example
 # dBASE IV with memo!
 >>0	ubyte		0x8B		dBase IV, with memo .DBT
 !:mime	application/x-dbf
+# like: animals.dbf archive.dbf callin.dbf dbase_8b.dbf phnebook.dbf t6.dbf
 # dBase IV with SQL Table,no memo?
 >>0	ubyte		0x8E		dBase IV, with SQL table
 !:mime	application/x-dbf
+# like: dbase5.DBF test3memo.DBF test-memo.DBF
 # .dbv and .dbt memo (Flagship)?
 >>0	ubyte		0xB3		Flagship
-# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
-#>>0	ubyte		0xCA		dBase IV with memo .DBT
+!:mime	application/x-dbf
+# no example
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
+>>0	ubyte		0xCA		dBase IV with memo .DBT
 #!:mime	application/x-dbf
+# no example
 # dBASE IV with SQL table, with memo .DBT
 >>0	ubyte		0xCB		dBase IV with SQL table, with memo .DBT
 !:mime	application/x-dbf
+# like: dbase5.DBF test3memo.DBF test-memo.DBF
 # HiPer-Six format;Clipper SIX, with SMT memo file
 >>0	ubyte		0xE5		Clipper SIX with memo
 !:mime	application/x-dbf
-# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
-#>>0	ubyte		0xF4		dBase IV, with SQL table, with memo
+# like: dbase5.DBF test3memo.DBF test-memo.DBF testClipper.dbf DATA.DBF
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
+>>0	ubyte		0xF4		dBase IV, with SQL table, with memo
 #!:mime	application/x-dbf
+# no example
 >>0	ubyte		0xF5		FoxPro with memo
 !:mime	application/x-dbf
-# https://msdn.microsoft.com/en-US/library/st4a0s68(v=vs.80).aspx
+# like: CUSTOMER.DBF FOXUSER1.DBF Invoice.DBF NG.DBF OBJSAMP.DBF dbase_f5.dbf kunde.dbf
+# probably Apollo Database Server 9.7 with SQL and memo mask? xBase (0xF6)
+>>0	ubyte		0xF6		Apollo, with SQL table with memo
+!:mime	application/x-dbf
+# like: SCRIPTS.DBF
+# https://docs.microsoft.com/en-us/previous-versions/visualstudio/foxpro/st4a0s68(v=vs.80)
 #>>0	ubyte		0xFA		FoxPro 2.x, with memo
 #!:mime	application/x-dbf
+# no example
 # unknown version (should not happen)
 >>0	default		x		xBase
 !:mime	application/x-dbf
->>>0	ubyte		x		(0x%x)
+>>>0	ubyte		x		(%#x)
 # flags in version byte
 # DBT flag (with dBASE III memo .DBT)!!
 # >>0	ubyte&0x80	>0		DBT_FLAG=%x
@@ -393,7 +436,7 @@
 # Number of next available block for appending data
 #>0	lelong			=0		\b, next free block index %u
 >0	lelong			!0		\b, next free block index %u
-# no positiv block length
+# no positive block length
 #>20	uleshort		=0		\b, block length %u
 >20	uleshort		!0		\b, block length %u
 # dBase III memo field terminated by \032\032
@@ -404,7 +447,7 @@
 >0		lelong		x		dBase IV DBT
 !:mime	application/x-dbt
 !:ext dbt
-# 8 character shorted main name of coresponding dBASE IV DBF file
+# 8 character shorted main name of corresponding dBASE IV DBF file
 >8		ubelong		>0x20000000
 # skip unusual like for angest.dbt
 >>20		uleshort	>0
@@ -455,10 +498,131 @@
 >>516		belong		>0		\b, field length %d
 >>>520		string		>\0		\b, 1st item "%s"
 
+# Summary:	DBASE Compound Index file *.CDX and FoxPro index *.IDX
+# From:		Joerg Jenderek
+# URL:		https://www.clicketyclick.dk/databases/xbase/format/cdx.html
+#		https://www.clicketyclick.dk/databases/xbase/format/idx.html
+#		https://www.clicketyclick.dk/databases/xbase/format/idx_comp.html
+# Reference:	https://mark0.net/download/triddefs_xml.7z/defs/s/sybase-ianywhere-cdx.trid.xml
+#		https://mark0.net/download/triddefs_xml.7z/defs/c/cdx-vfp7.trid.xml
+# like: kunde.cdx
+0	ulelong		0x1C00
+>0	use			xbase-index
+# like: SYLLABI2.CDX SYLLABUS.CDX
+0	ulelong		0x0800
+>0	use			xbase-index
+# often in xBase index pointer to root node 400h
+0	ulelong		0x0400
+# skip most Maple help database *.hdb with version tag handled by ./maple
+>1028	string		!version
+# skip Maple help database hsum.hdb checking for valid reserved area
+>>492	quad		=0
+# skip remaining Maple help database *.hdb by checking key length
+#>>>12	uleshort	!0x000F			KEY_LENGTHVALID
+>>>0	use			xbase-index
+#	display information about dBase/FoxPro index
+0	name			xbase-index
+>0	ulelong		x			xBase
+!:mime	application/x-dbase-index
+>14	ubyte		&0x40			compound index
+# DCX for FoxPro database index like: TESTDATA.DCX
+!:ext	cdx/dcx
+>14	ubyte		^0x40			index
+# only 1 example like: TEST.IDX
+!:ext	idx
+# pointer to root node like: 1C00h 800h often 400h 
+>0	ulelong		!0x400			\b, root pointer %#x
+# Pointer to free node list: often 0 but -1 if not present
+>4	ulelong		!0			\b, free node pointer %#x
+# MAYBE number of pages in file (Foxbase, FoxPro 1.x) or
+# http://www.foxpert.com/foxpro/knowlbits/files/knowlbits_200708_1.HTM
+# Whenever Visual FoxPro updates the index file it increments this reserved field
+# Reserved for internal use like: 02000000h 03000000h 460c0000h 780f0000h 89000000h 9fdc0100h often 0
+>8	ulelong		!0			\b, reserved counter %#x
+# length of key like: mostly 000Ah 0028h (TEST.IDX)
+>12	uleshort	!0x000A			\b, key length %#x
+# index options like: 24h E0h E8h
+# 1~a unique index 8~index has FOR clause 32~compact index format 64~compound index header
+# 16~Bit vector (SoftC) 128~Structure index (FoxPro)
+>14	ubyte		x			\b, index options (%#x
+>14	ubyte		&0x01			\b, unique
+>14	ubyte		&0x08			\b, has FOR clause
+>14	ubyte		&0x10			\b, bit vector (SoftC)
+>14	ubyte		&0x20			\b, compact format
+#>14	ubyte		&0x40			\b, compound header
+>14	ubyte		&0x80			\b, structure
+>14	ubyte		x			\b)
+# WHAT EXACTLY IS THAT? index signature like: 0 (sybase-ianywhere-cdx.trid.xml) 1 (cdx-vfp7.trid.xml)
+>15	ubyte		!0			\b, index signature %u
+# reserved area (0-bytes) til about 500, but not for uncompressed Index files *.idx
+>16	quad		!0			\b, at 16 reserved %#llx
+>492	quad		!0			\b, at 492 reserved %#llx
+# for IDX variant
+#>14	ubyte		^0x40			IDX
+# for CDX variant
+>14	ubyte		&0x40
+# Ascending or descending: 0~ascending 1~descending
+>>502	uleshort	x			\b, sort order %u
+# Total expression length (FoxPro 2) like: 0 1
+>>504	uleshort	!0			\b, expression length %u
+# FOR expression pool length like: 1
+>>506	uleshort	!1			\b, FOR expression pool length %#x
+# reserved for internal use like: 0
+>>508	uleshort	!0			\b, at 0x508 reserved %#x
+# Key expression pool length like: 1
+>>510	uleshort	!1			\b, key expression pool length %#x
+# 512 - 1023 Key & FOR expression pool (uncompiled)
+>>512	quad		!0			\b, key expression pool %#llx
+#>>520	quad		!0			\b, key expression pool %#llx
+
+# Summary:	dBASE IV Printer Form *.PRF
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/.dbf#Other_file_types_found_in_dBASE	
+# Reference:	https://mark0.net/download/triddefs_xml.7z/defs/p/prf-dbase.trid.xml
+0	ubeshort	0x0400
+# skip some Xbase Index files *.ndx and Infocom (Z-machine 4) *.z4 handled by ./adventure
+# by looking for valid printer driver name extension
+>0x58	search/8	.PR2
+>>0	use			xbase-prf
+#	display information of dbase print form like printer driver *.PR2
+0	name			xbase-prf	dBase Printer Form
+!:mime	application/x-dbase-prf
+!:ext	prf
+# MAYBE version? like: 4~DBASE IV
+#>0	ubyte		x			\b, version %u
+# MAYBE flag like: 1~with output file name 0~not
+#>2	ubyte		!0			\b, flag %u
+# optional printer text output file name like E:\DBASE\IV\T6.txt
+>3	string		>\0			\b, output file %s
+# probably padding with nils til 0x53
+#>0x48	 uquad		!0			\b, at 0x48 padding %#llx
+# dBASE IV printer driver name like: Generic.PR2 ASCII.PR2
+>0x56	string		>\0			\b, using printer driver %s
+# 2 is probably last character of previous dBASE printer driver name
+#>0x60	ubyte		!0x32			\b, at 0x60 %#x
+# probably padding with nils til 0xa8
+#>0x61	uquad		!0			\b, at 0x61 padding %#llx
+# unknown 0x03020300 0x03020100 at 0xa8
+>0xa8	ubelong 	x			\b, at 0xa8 unknown %#8.8x
+# probably padding with nils til 0x2aa
+#>0x2a0	uquad		!0			\b, at 0x2a0 padding %#llx
+# unknown 0x100ff7f01000001 at 0x2AB
+>0x2ab	ubequad		!0x100ff7f01000001	\b, at 0x2ab unknown %#llx
+# unknown 0x0042 at 0x2b3
+>0x2b3	ubeshort 	!0x0042			\b, at 0x2b3 unknown %#4.4x
+# unknown last 4 bytes at 0x2b6 like: 0 0x23
+>0x2b6	ubelong		!0			\b, at 0x2b6 unknown %#8.8x
+
 # TODO:
 # DBASE index file *.NDX
-# DBASE Compound Index file *.CDX
-# dBASE IV Printer Driver *.PRF
+# dBASE compiled Format *.FMO
+# FoxPro Database memo file *.DCT
+# FoxPro Forms Memo *.SCT
+# FoxPro Generated Menu Program *.MPR
+# FoxPro Report *.FRX
+# FoxPro Report Memo *.FRT
+# Foxpro Generated Screen Program *.SPR
+# Foxpro memo *.PJT
 ## End of XBase database stuff
 
 # MS Access database
@@ -485,9 +649,9 @@
 >>12	ulelong		1		STreaMing
 !:ext	stm
 # format_version 620h
->>8	uleshort	x		\b, version 0x%x
->>10	uleshort	>0		revision 0x%4.4x
->>0	ubelong		x	 	\b, checksum 0x%8.8x
+>>8	uleshort	x		\b, version %#x
+>>10	uleshort	>0		revision %#4.4x
+>>0	ubelong		x	 	\b, checksum %#8.8x
 # Page size 4096 8192 32768
 >>236	ulequad		x		\b, page size %lld
 # database_state

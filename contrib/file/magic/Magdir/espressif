@@ -1,5 +1,5 @@
 
-# $File: espressif,v 1.2 2019/11/15 21:03:14 christos Exp $
+# $File: espressif,v 1.3 2021/04/26 15:56:00 christos Exp $
 # configuration dump of Tasmota firmware for ESP8266 based devices by Espressif
 # URL: https://github.com/arendst/Sonoff-Tasmota/
 # Reference: https://codeload.github.com/arendst/Sonoff-Tasmota/zip/release-6.2/
@@ -17,7 +17,7 @@
 >>10		ubyte^0x64	x			\b.%u
 >>9		ubyte^0x63	x			\b.%u
 >>8		ubyte^0x62	x			\b.%u
-#>8		ubelong		x			(0x%x)
+#>8		ubelong		x			(%#x)
 # hostname[33] XORed
 >>0x165		ubyte^0x1BF	x			\b, hostname %c
 >>0x166		ubyte^0x1C0	>037			\b%c

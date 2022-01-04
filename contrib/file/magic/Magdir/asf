@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: asf,v 1.1 2019/12/26 02:07:53 christos Exp $
+# $File: asf,v 1.2 2021/04/26 15:56:00 christos Exp $
 # asf:  file(1) magic for Microsoft Advanced Systems Format (ASF) files
 # http://www.staroceans.org/e-book/ASF_Specification.pdf
 
@@ -23,7 +23,7 @@
 #>>56	lequad	x		Time Offset %lld
 #>>64	lelong	x		Type-Specicic Data Length %d
 #>>68	lelong	x		Error Correction Data Length %d
-#>>72	leshort	x		Flags 0x%x
+#>>72	leshort	x		Flags %#x
 #>>74	lelong	x		Reserved %x
 # ASF_Audio_Media
 >>24	guid	F8699E40-5B4D-11CF-A8FD-00805F5C442B \b, Audio Media (
@@ -40,7 +40,7 @@
 #>>>85	leshort	x	\b, Format Data Size %x
 >>>93	lelong	x	\b, Image Width %d
 >>>97	lelong	x	\b, Image Height %d
-#>>>101	leshort	x	\b, Reserved 0x%x
+#>>>101	leshort	x	\b, Reserved %#x
 >>>103	leshort	x	\b, Bits Per Pixel Count %d
 #>>>105	lelong	x 	\b, Compression ID %d
 #>>>109	lelong	x	\b, Image Size %d

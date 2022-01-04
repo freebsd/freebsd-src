@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: terminfo,v 1.11 2019/04/19 00:42:27 christos Exp $
+# $File: terminfo,v 1.12 2021/02/23 00:51:10 christos Exp $
 # terminfo:  file(1) magic for terminfo
 #
 # URL: https://invisible-island.net/ncurses/man/term.5.html
@@ -30,7 +30,7 @@
 >>12	regex		\^[a-zA-Z0-9][a-zA-Z0-9.][^|]*	Compiled 32-bit terminfo entry "%-s"
 !:mime	application/x-terminfo2
 #
-# While the compiled terminfo uses little-endian format irregardless of
+# While the compiled terminfo uses little-endian format regardless of
 # platform, SystemV screen dumps do not.  They came later, and that detail was
 # overlooked.
 #

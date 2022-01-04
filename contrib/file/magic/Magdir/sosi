@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sosi,v 1.1 2019/05/20 17:25:09 christos Exp $
+# $File: sosi,v 1.2 2021/02/23 00:51:10 christos Exp $
 # SOSI
 # Summary: Systematic Organization of Spatial Information
 # Long description: Norwegian text based map format
@@ -23,7 +23,7 @@
 # version and a separator.
 #
 # FIXME figure out how to accept any of [space], [tab], [newline] and
-# [carrige return] as separators, not only line end.
+# [carriage return] as separators, not only line end.
 
 # Not searching for full "OMR=C3=85DE" to match also for non-UTF-8
 # character sets

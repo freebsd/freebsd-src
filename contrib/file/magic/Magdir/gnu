@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.22 2020/04/09 19:11:58 christos Exp $
+# $File: gnu,v 1.24 2021/04/26 15:56:00 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
@@ -33,48 +33,48 @@
 # size of hashing table
 #>20	ulelong		x		\b, %u hash
 #>20	ulelong		>1		\bes
-#>24	ulelong		x		at 0x%x
-# for revsion x.0 offset of table with originals is 1Ch if directly after header
+#>24	ulelong		x		at %#x
+# for revision x.0 offset of table with originals is 1Ch if directly after header
 >4	ulelong&0x0000FFff	=0
->>12	ulelong		!0x1C		\b, at 0x%x string table
+>>12	ulelong		!0x1C		\b, at %#x string table
 # but for x.1 table offset i found is 30h. That means directly after bigger header
 >4	ulelong&0x0000FFff	>0
->>12	ulelong		!0x30		\b, at 0x%x string table
+>>12	ulelong		!0x30		\b, at %#x string table
 # The following variables are only used in .mo files with minor revision >= 1
 # number of system dependent segments
 #>>28	ulelong		x		\b, %u segment
 #>>28	ulelong		>1		\bs
 # offset of table describing system dependent segments
-#>>32	ulelong		x		at 0x%x
+#>>32	ulelong		x		at %#x
 # number of system dependent strings pairs
 >>36	ulelong		x		\b, %u sysdep message
 >>36	ulelong		>1		\bs
 # offset of table with start offsets of original sysdep strings
-#>>40	ulelong		x		\b, at 0x%x sysdep strings
+#>>40	ulelong		x		\b, at %#x sysdep strings
 # offset of table with start offsets of translated sysdep strings
-#>>44	ulelong		x		\b, at 0x%x sysdep translations
-# >>(44.l)	ulelong	x		0x%x chars
-# >>>&0		ulelong	x		at 0x%x
+#>>44	ulelong		x		\b, at %#x sysdep translations
+# >>(44.l)	ulelong	x		%#x chars
+# >>>&0		ulelong	x		at %#x
 # >>>>(&-4)	string	x		"%s"
 # string table after big header
-#>>48	ubequad		x		\b, string table 0x%llx
+#>>48	ubequad		x		\b, string table %#llx
 #
 # 0th string length seems to be always 0
 #>(12.l)	ulelong	x		\b, %u chars
-#>>&0		ulelong	x		at 0x%x
-# if 1st string length positiv inspect offset and string
+#>>&0		ulelong	x		at %#x
+# if 1st string length positive inspect offset and string
 #>(12.l+8)	ulelong	>0		\b, %u chars
-#>>&0		ulelong	x		at 0x%x
-# if 2nd string length positiv inspect offset and string
+#>>&0		ulelong	x		at %#x
+# if 2nd string length positive inspect offset and string
 # >(12.l+16)	ulelong	>0		\b, %u chars
-# >>&0		ulelong	x		at 0x%x
+# >>&0		ulelong	x		at %#x
 # skip newline byte
 #>>>(&-4)	ubyte	=0x0A
 #>>>>&0		string	x		"%s"
 #>>>(&-4)	ubyte	!0x0A
 #>>>>&-1		string	x		'%s'
 # offset of table with translation strings
-#>16	ulelong		x		\b, at 0x%x translation table
+#>16	ulelong		x		\b, at %#x translation table
 # check translation 0 length and offset
 >(16.l)		ulelong	>0
 >>&0		ulelong	x
@@ -100,11 +100,11 @@
 # TODO: for big endian use same code as for little endian
 #>0	use		\^gettext-object
 # DEBUG code
-#>16	ubelong		x		\b, at 0x%x translation table
-#>(16.L)		ubelong	x		0x%x chars
-#>>&0		ubelong	x		at 0x%x
+#>16	ubelong		x		\b, at %#x translation table
+#>(16.L)		ubelong	x		%#x chars
+#>>&0		ubelong	x		at %#x
 # unexpected value HERE!
-#>>>(&-4)	ubequad	x		0x%llx
+#>>>(&-4)	ubequad	x		%#llx
 #
 >4	beshort		x		revision %d.
 >6	beshort		>0		\b%d,

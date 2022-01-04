@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.31 2020/03/15 16:44:37 christos Exp $
+# $File: windows,v 1.37 2021/04/26 15:56:00 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -67,53 +67,53 @@
 # \Boot\boot.sdi
 !:ext	sdi
 # MDBtype: 0~Unspecified 1~RAM 2~ROM
->>8	ulequad			!0		\b, MDBtype 0x%llx
+>>8	ulequad			!0		\b, MDBtype %#llx
 # BootCodeOffset
->>16	ulequad			!0		\b, BootCodeOffset 0x%llx
+>>16	ulequad			!0		\b, BootCodeOffset %#llx
 # BootCodeSize
->>24	ulequad			!0		\b, BootCodeSize 0x%llx
+>>24	ulequad			!0		\b, BootCodeSize %#llx
 # VendorID
->>32	ulequad			!0		\b, VendorID 0x%llx
+>>32	ulequad			!0		\b, VendorID %#llx
 # DeviceID
->>40	ulequad			!0		\b, DeviceID 0x%llx
+>>40	ulequad			!0		\b, DeviceID %#llx
 # DeviceModel
->>48	ulequad			!0		\b, DeviceModel 0x%llx
+>>48	ulequad			!0		\b, DeviceModel %#llx
 >>>56	ulequad			!0		\b%llx
 # DeviceRole
->>64	ulequad			!0		\b, DeviceRole 0x%llx
+>>64	ulequad			!0		\b, DeviceRole %#llx
 # Reserved1; reserved fields and gaps between BLOBs are padded with \0
-#>>72	ulequad			!0		\b, Reserved1 0x%llx
+#>>72	ulequad			!0		\b, Reserved1 %#llx
 # RuntimeGUID
->>80	ulequad			!0		\b, RuntimeGUID 0x%llx
+>>80	ulequad			!0		\b, RuntimeGUID %#llx
 >>>88	ulequad			!0		\b%llx
 # RuntimeOEMrev
->>96	ulequad			!0		\b, RuntimeOEMrev 0x%llx
+>>96	ulequad			!0		\b, RuntimeOEMrev %#llx
 # Reserved2
-#>>104	ulequad			!0		\b, Reserved2 0x%llx
+#>>104	ulequad			!0		\b, Reserved2 %#llx
 # BLOB alignment value in pages, as specified in sdimgr /pack: 1~4K 2~8k
 >>112	ulequad			!0		\b, PageAlignment %llu
 # Reserved3[48]
-#>>120	ulequad			!0		\b, Reserved3 0x%llx
+#>>120	ulequad			!0		\b, Reserved3 %#llx
 # SDI checksum 39h
->>0x1f8	ulequad			x		\b, checksum 0x%llx
+>>0x1f8	ulequad			x		\b, checksum %#llx
 # BLOBtype[8] \0-padded: PART, WIM , BOOT, LOAD, DISK
 >>0x400	string			>\0		\b, type %-3.8s
 # 0~non-filesystem 7~NTFS 6~BIGFAT
->>>0x420	ulequad		!0		(0x%llx)
+>>>0x420	ulequad		!0		(%#llx)
 # ATTRibutes
->>>0x408	ulequad		!0		0x%llx attributes
+>>>0x408	ulequad		!0		%#llx attributes
 # Offset
->>>0x410	ulequad		x		at 0x%llx
+>>>0x410	ulequad		x		at %#llx
 # print 1 space after size and then handles NTFS boot sector by ./filesystems
 >>>0x418	ulequad		>0		%llu bytes 
 >>>>(0x410.l)	indirect	x
 # 2nd BLOB: WIM
 >>0x440		string		>\0		\b, type %-3.8s
->>>0x428	ulequad		!0		(0x%llx)
+>>>0x428	ulequad		!0		(%#llx)
 # ATTRibutes
->>>0x448	ulequad		!0		0x%llx attributes
+>>>0x448	ulequad		!0		%#llx attributes
 # Offset
->>>0x450	ulequad		x		at 0x%llx
+>>>0x450	ulequad		x		at %#llx
 >>>0x458	ulequad		>0		%llu bytes 
 >>>>(0x450.l)	indirect	x
 # 3rd BLOB
@@ -139,13 +139,13 @@
 # apparently a version number: 2 for older like Vista, 3, 4 Windows 10
 >0		ulelong		>2		\b, version %u
 # apparently the size of the header: often 10h in older Windows, 14h, 18h
->4		ulelong		!0x10		\b, header size 0x%x
+>4		ulelong		!0x10		\b, header size %#x
 #>4		ulelong		!0x10		\b, header size %u
 # apparently the size of the file: always 0x00010000~64KiB
 # the file is acceptable to BOOTMGR only if it is exactly 64 KiB
->8		ulelong		!0x00010000	\b, file size 0x%x
+>8		ulelong		!0x00010000	\b, file size %#x
 # size of valid data, in bytes: C8h 50h 172h 5D5Ch
->0xc		ulelong		x		\b, 0x%x valid bytes
+>0xc		ulelong		x		\b, %#x valid bytes
 # skip header and jump to first bootstat entry and display information
 >(0x4.l-1)	ubyte		x
 >>&0		use		bootstat-entry
@@ -164,24 +164,24 @@
 #>0x00		ubequad		x		\b, ENTRY %16.16llx
 # size of entry, in bytes: 40h(init) 78h(launced) 9Ch
 #>0x18		ulelong		x		\b; entry size %u
->0x18		ulelong		x		\b; entry size 0x%x
+>0x18		ulelong		x		\b; entry size %#x
 # time stamp, in seconds 
->0x00		ulelong		x		\b, 0x%x seconds
+>0x00		ulelong		x		\b, %#x seconds
 # always zero, significance unknown
 >0x04		ulelong		!0		\b, not null %u
 # GUID of event source; but empty if event source is BOOTMGR 
->0x08		ubequad		!0		\b, GUID 0x%16.16llx
+>0x08		ubequad		!0		\b, GUID %#16.16llx
 >>0x10		ubequad		x		\b%16.16llx
 # severity code: 1~informational 3~errors
->0x1C		ulelong		!1		\b, severity 0x%x
+>0x1C		ulelong		!1		\b, severity %#x
 # apparently a version number: 2 
 >0x20		ulelong		!2		\b, version %u
 # event identifier 1~log file initialised 11h~boot application launched 
-#>0x24		ulelong		x		\b, event 0x%x
+#>0x24		ulelong		x		\b, event %#x
 >0x24		ulelong		!1
->>0x24		ulelong		!0x11		\b, event 0x%x
+>>0x24		ulelong		!0x11		\b, event %#x
 # entry data; size depends on event identifier  
-#>0x28		ubequad		x		\b, data 0x%16.16llx
+#>0x28		ubequad		x		\b, data %#16.16llx
 >0x24		ulelong		=0x1		\b, Init
 # always 0, significance unknown 
 >>0x34		uleshort	!0		\b, not null %u
@@ -248,7 +248,7 @@
 >>>2	leshort		0x27		x.y
 >>>2	leshort		0x33		95
 >>>2	default		x		y.z
->>>>2	leshort		x		0x%x
+>>>>2	leshort		x		%#x
 # to complete message string like "MS Windows 3.x help file"
 >>>2	leshort		x		help
 # GenDate often older than file creation date
@@ -307,39 +307,39 @@
 !:mime	application/x-winhelp
 !:ext	bmk
 ## FirstFreeBlock normally FFFFFFFFh 10h for *ANN
-##>>8	lelong			x		\b, FirstFreeBlock 0x%8.8x
+##>>8	lelong			x		\b, FirstFreeBlock %#8.8x
 # EntireFileSize
 >>12	lelong			x		\b, %d bytes
 ## ReservedSpace normally 042Fh AFh for *.ANN
-#>>(4.l)	lelong		x		\b, ReservedSpace 0x%8.8x
+#>>(4.l)	lelong		x		\b, ReservedSpace %#8.8x
 ## UsedSpace normally 0426h A6h for *.ANN
-#>>(4.l+4)	lelong		x		\b, UsedSpace 0x%8.8x
+#>>(4.l+4)	lelong		x		\b, UsedSpace %#8.8x
 ## FileFlags normally 04...
-#>>(4.l+5)	lelong		x		\b, FileFlags 0x%8.8x
+#>>(4.l+5)	lelong		x		\b, FileFlags %#8.8x
 ## file header magic 0x293B
-#>>(4.l+9)	uleshort	x		\b, file header magic 0x%4.4x
+#>>(4.l+9)	uleshort	x		\b, file header magic %#4.4x
 ## file header Flags		0x0402
-#>>(4.l+11)	uleshort	x		\b, file header Flags 0x%4.4x
+#>>(4.l+11)	uleshort	x		\b, file header Flags %#4.4x
 ## file header PageSize	0400h 80h for *.ANN
-#>>(4.l+13)	uleshort	x		\b, PageSize 0x%4.4x
+#>>(4.l+13)	uleshort	x		\b, PageSize %#4.4x
 ## Structure[16]		z4
 #>>(4.l+15)	string		>\0		\b, Structure_"%-.16s"
 ## MustBeZero			0
-#>>(4.l+31)	uleshort	x		\b, MustBeZero 0x%4.4x
+#>>(4.l+31)	uleshort	x		\b, MustBeZero %#4.4x
 ## PageSplits
-#>>(4.l+33)	uleshort	x		\b, PageSplits 0x%4.4x
+#>>(4.l+33)	uleshort	x		\b, PageSplits %#4.4x
 ## RootPage
-#>>(4.l+35)	uleshort	x		\b, RootPage 0x%4.4x
+#>>(4.l+35)	uleshort	x		\b, RootPage %#4.4x
 ## MustBeNegOne			0xffff
-#>>(4.l+37)	uleshort	x		\b, MustBeNegOne 0x%4.4x
+#>>(4.l+37)	uleshort	x		\b, MustBeNegOne %#4.4x
 ## TotalPages			1
-#>>(4.l+39)	uleshort	x		\b, TotalPages 0x%4.4x
+#>>(4.l+39)	uleshort	x		\b, TotalPages %#4.4x
 ## NLevels			0x0001
-#>>(4.l+41)	uleshort	x		\b, NLevels 0x%4.4x
+#>>(4.l+41)	uleshort	x		\b, NLevels %#4.4x
 ## TotalBtreeEntries
-#>>(4.l+43)	ulelong		x		\b, TotalBtreeEntries 0x%8.8x
+#>>(4.l+43)	ulelong		x		\b, TotalBtreeEntries %#8.8x
 ## pages of the B+ tree
-#>>(4.l+47)	ubequad		x		\b, PageStart 0x%16.16llx
+#>>(4.l+47)	ubequad		x		\b, PageStart %#16.16llx
 
 # start with colon or semicolon for comment line like Back2Life.cnt
 0		regex		\^(:|;)
@@ -576,6 +576,13 @@
 >>&0	regex/c		\^(options)]\r\n				Microsoft HTML Help Project
 !:mime text/plain
 !:ext	hhp
+# From:		Joerg Jenderek
+# URL:		https://documentation.basis.com/BASISHelp/WebHelp/b3odbc/obdcdriv_character_translation.htm
+# Reference:	https://www.garykessler.net/library/file_sigs.html
+# Note:		stored in directory %WINDIR%\SysWOW64 or %WINDIR%\system
+>>&0	regex/c		\^(Windows\ Latin)				Windows codepage translator
+!:mime	text/plain
+!:ext	cpx
 # unknown keyword after opening bracket
 >>&0	default				x
 #>>>&0	string/c			x	UNKNOWN [%s
@@ -590,7 +597,7 @@
 >>>>>&0	ubyte				x
 # characters, digits, underscore and white space followed by right bracket
 # terminated by CR implies section line to skip BOOTLOG.TXT DETLOG.TXT
->>>>>>&-1	regex			\^([A-Za-z0-9_\(\)\ ]+)\]\r	Generic INItialization configuration [%-.40s
+>>>>>>&-1	regex/T			\^([A-Za-z0-9_\(\)\ ]+)\]\r	Generic INItialization configuration [%-.40s
 # NETDEF.INF multiarc.ini 
 #!:mime	application/x-setupscript
 !:mime	application/x-wine-extension-ini
@@ -660,7 +667,7 @@
 #	UNKNOWN1			0x01000000
 #	UNKNOWN2			0x02000000
 >4	ulelong&0x03000180	>0		\b, flags
->>4	ulelong			x		0x%x
+>>4	ulelong			x		%#x
 >4	ulelong&0x00000001	0x00000001	\b, unicoded
 >4	ulelong&0x00000002	0x00000002	\b, has strings
 >4	ulelong&0x00000004	0x00000004	\b, src URL
@@ -671,16 +678,16 @@
 # >4	ulelong&0x00000100	0x00000100	\b, UNKNOWN
 # >4	ulelong&0x01000000	0x01000000	\b, UNKNOWN1
 # >4	ulelong&0x02000000	0x02000000	\b, UNKNOWN2
-#>8		ulelong		x		\b, InfSubstValueListOffset 0x%x
+#>8		ulelong		x		\b, InfSubstValueListOffset %#x
 # many 0, 1 lmouusb.PNF, 2 linkfx10.PNF , f webfdr16.PNF
 # , 6 bth.PNF, 9 usbport.PNF, d netnwifi.PNF, 10h nettcpip.PNF
-#>12		uleshort	x		\b, InfSubstValueCount 0x%x
+#>12		uleshort	x		\b, InfSubstValueCount %#x
 # only < 9 found: 8 hcw85b64.PNF
-#>14		uleshort	x		\b, InfVersionDatumCount 0x%x
+#>14		uleshort	x		\b, InfVersionDatumCount %#x
 # only found values lower 0x0000ffff ??
-#>16		ulelong		x		\b, InfVersionDataSize 0x%x
+#>16		ulelong		x		\b, InfVersionDataSize %#x
 # only found positive values lower 0x00ffFFff for InfVersionDataOffset
->20		ulelong		x		\b, at 0x%x
+>20		ulelong		x		\b, at %#x
 >4	ulelong&0x00000001	=0x00000001
 # case independent: CatalogFile Class DriverVer layoutfile LayoutFile SetupClass signature Signature
 >>(20.l)	lestring16	x		"%s"
@@ -693,18 +700,18 @@
 >0		uleshort	<0x0102
 # only found values lower 0x00ffFFff
 # often 70 but also 78h for corelist.PNF
-# >>32		ulelong		x		\b, StringTableBlockOffset 0x%x
-# >>36		ulelong		x		\b, StringTableBlockSize 0x%x
-# >>40		ulelong		x		\b, InfSectionCount 0x%x
-# >>44		ulelong		x		\b, InfSectionBlockOffset 0x%x
-# >>48		ulelong		x		\b, InfSectionBlockSize 0x%x
-# >>52		ulelong		x		\b, InfLineBlockOffset 0x%x
-# >>56		ulelong		x		\b, InfLineBlockSize 0x%x
-# >>60		ulelong		x		\b, InfValueBlockOffset 0x%x
-# >>64		ulelong		x		\b, InfValueBlockSize 0x%x
+# >>32		ulelong		x		\b, StringTableBlockOffset %#x
+# >>36		ulelong		x		\b, StringTableBlockSize %#x
+# >>40		ulelong		x		\b, InfSectionCount %#x
+# >>44		ulelong		x		\b, InfSectionBlockOffset %#x
+# >>48		ulelong		x		\b, InfSectionBlockSize %#x
+# >>52		ulelong		x		\b, InfLineBlockOffset %#x
+# >>56		ulelong		x		\b, InfLineBlockSize %#x
+# >>60		ulelong		x		\b, InfValueBlockOffset %#x
+# >>64		ulelong		x		\b, InfValueBlockSize %#x
 # WinDirPathOffset
 # like 58h, which means direct after PNF header
-#>>68		ulelong		x		\b, at 0x%x
+#>>68		ulelong		x		\b, at %#x
 >>68		ulelong		x
 >>>4	ulelong&0x00000001	=0x00000001
 #>>>>(68.l)	ubequad		=0x43003a005c005700
@@ -725,18 +732,18 @@
 # seldom C:\ instead empty
 >>>>>(72.l)	string		x		OsLoaderPath "%s"
 # 1fdh
-#>>>76		uleshort	x		\b, StringTableHashBucketCount 0x%x
+#>>>76		uleshort	x		\b, StringTableHashBucketCount %#x
 # only 407h found
 >>>78		uleshort	!0x409		\b, LanguageID %x
 #>>>78		uleshort	=0x409		\b, LanguageID %x
 # InfSourcePathOffset often 0
->>>80		ulelong		>0		\b, at 0x%x
+>>>80		ulelong		>0		\b, at %#x
 >>>>4	ulelong&0x00000001	=0x00000001
 >>>>>(80.l)	lestring16	x		SourcePath "%s"
 >>>>4	ulelong&0x00000001	!0x00000001
 >>>>>(80.l)	string		>\0		SourcePath "%s"
 # OriginalInfNameOffset often 0
->>>84		ulelong		>0		\b, at 0x%x
+>>>84		ulelong		>0		\b, at %#x
 >>>>4	ulelong&0x00000001	=0x00000001
 >>>>>(84.l)	lestring16	x		InfName "%s"
 >>>>4	ulelong&0x00000001	!0x00000001
@@ -744,7 +751,7 @@
 
 # for newer Windows like Vista, 7 , 8.1 , 10
 >0		uleshort	>0x0101
->>80	ulelong			x		\b, at 0x%x WinDirPath
+>>80	ulelong			x		\b, at %#x WinDirPath
 >>>4	ulelong&0x00000001	0x00000001
 # normally unicoded C:\Windows
 #>>>>(80.l)	ubequad		=0x43003a005c005700
@@ -754,7 +761,7 @@
 # language id: 0 407h~german 409h~English_US
 >>90		uleshort	!0x409		\b, LanguageID %x
 #>>90		uleshort	=0x409		\b, LanguageID %x
->>92	ulelong			>0		\b, at 0x%x
+>>92	ulelong			>0		\b, at %#x
 >>>4	ulelong&0x00000001	0x00000001
 # language string like: de-DE en-US
 >>>>(92.l)	lestring16	x		language %s
@@ -809,7 +816,7 @@
 # Media Sequence Number
 >>>>>60	uleshort		>1		\b, sequence %u
 # Password Encryption Algorithm (3)
->>>>>62	uleshort		>0		\b, 0x%x encrypted
+>>>>>62	uleshort		>0		\b, %#x encrypted
 # Soft Filemark Block Size * 512 (2)
 #>>>>>64	uleshort		=2		\b, soft size %u*512
 >>>>>64	uleshort		!2		\b, soft size %u*512
@@ -838,7 +845,7 @@
 # size of password name (0,1Ch)
 #>>>>>76	uleshort		>0		\b, password size %4.4x
 # Software Vendor ID (CBEh)
->>>>>86	uleshort		x		\b, software (0x%x)
+>>>>>86	uleshort		x		\b, software (%#x)
 # size of Software Name (6Eh)
 >>>>>80	uleshort		>0
 # offset of Software Name (1C8h,1CAh,1D0h)
@@ -890,9 +897,9 @@
 >0x40	ubyte		0x7b
 >>0x40	string		x				%-.38s
 # do not know how this log version correlates to program version
->0x140	ulelong		x				\b, version 0x%x
+>0x140	ulelong		x				\b, version %#x
 # NumRecs
-#>0x144	ulelong		x				\b, 0x%4.4x records
+#>0x144	ulelong		x				\b, %#4.4x records
 # EndOffset means files size
 >0x148	ulelong		x				\b, %u bytes
 # Flags 5 25h 35h
@@ -918,9 +925,39 @@
 # directory like C:\Program Files\GIMP 2
 >>>>&0	lestring16	x				\b, %-.42s
 
+# URL:      https://jrsoftware.org/ishelp/index.php?topic=setup_signeduninstaller
+# Reference:https://github.com/jrsoftware/issrc/blob/main/Projects/Struct.pas
+# From:     Joerg Jenderek
+0	string	Inno\ Setup\ Messages\ (
+# null padded til 0x40 boundary
+>0x38	quad		0				InnoSetup messages
+!:mime	application/x-innosetup-msg
+# unins000.msg, unins001.msg, ...
+!:ext	msg
+# version like 5.1.1 5.1.11 5.5.0 5.5.3 6.0.0
+>>0x15	string		x				\b, version %.5s
+# look for 6th char of version string or terminating right parentheses
+>>>0x1a	ubyte		!0x29				\b%c
+# NumMessages
+>>0x40	ulelong		x				\b, %u messages
+# TotalSize: Cardinal;
+#>>0x44	ulelong		x				\b, TotalSize %u
+# NotTotalSize: Cardinal;
+#>>0x48	ulelong		x				\b, NotTotalSize %u
+# CRCMessages: Longint;
+#>>0x4C	ulelong		x				\b, CRC %#x
+>>0x40	ulelong		x
+# (u) after version means unicoded messages
+>>>0x1c	search/2	(u)				(UTF-16),
+>>>>0x50 lestring16	x				%s
+# ASCII coded message
+>>>0x1c	default		x				(ASCII),
+>>>>0x50 string		x				%s
+
 # Windows Imaging (WIM) Image
-# Update: Joerg Jenderek at Mar 2019
+# Update: Joerg Jenderek at Mar 2019, 2021
 # URL: https://en.wikipedia.org/wiki/Windows_Imaging_Format
+#      http://fileformats.archiveteam.org/wiki/Windows_Imaging_Format
 # Reference: https://download.microsoft.com/download/f/e/f/
 # fefdc36e-392d-4678-9e4e-771ffa2692ab/Windows%20Imaging%20File%20Format.rtf
 # Note: verified by like `7z t boot.wim` `wiminfo install.esd --header`
@@ -936,21 +973,27 @@
 # TO avoid in file version 5.36 error like
 # Magdir/windows, 760: Warning: Current entry does not yet have a description
 # file: could not find any valid magic files! (No error)
-# splitted WIM
+# split WIM
 >16	ulelong		&0x00000008		(SWM
 !:ext	swm
 # usPartNumber; 1, unless the file was split into multiple parts
 >>40	uleshort	x			\b %u
 # usTotalParts; The total number of WIM file parts in a spanned set
 >>42	uleshort	x			\b of %u) image
-# non splitted WIM
+# non split WIM
 >16	ulelong		^0x00000008
 # https://wimlib.net/man1/wimmount.html
 # solid WIMs; version 3584; usually contain LZMS-compressed and the .esd extension
 >>12	ulelong		3584			(ESD) image
 !:ext	esd
->>12	ulelong		!3584			(WIM) image
-!:ext	wim
+>>12	ulelong		!3584			(
+# look for archive member RunTime.xml like in Microsoft.Windows.Cosa.Desktop.Client.ppkg
+>>>156	search/68233/s		RunTime.xml	\bWindows provisioning package)
+!:ext	ppkg
+# if is is not a Windows provisioning package, then it is a WIM
+>>>156	default			x		\bWIM) image
+# second disk image part created by Microsoft's RecoveryDrive.exe has name Reconstruct.WIM2
+!:ext	wim/wim2
 >0	string/b	WLPWM\000\000\000	\b, wimlib pipable format
 # cbSize size of the WIM header in bytes like 208
 #>8	ulelong		x			\b, headersize %u
@@ -963,7 +1006,7 @@
 # 1-based index of the bootable image of the WIM, or 0 if no image is bootable
 >0x78	ulelong		>0			\b, bootable no. %u
 # dwFlags
-#>16	ulelong		x			\b, flags 0x%8.8x
+#>16	ulelong		x			\b, flags %#8.8x
 #define FLAG_HEADER_COMPRESSION		0x00000002
 #define FLAG_HEADER_READONLY            0x00000004
 #define FLAG_HEADER_SPANNED		0x00000008
@@ -990,21 +1033,21 @@
 # dwCompressionSize; Uncompressed chunk size for resources or 0 if uncompressed
 #>20	ulelong		>0			\b, chunk size %u bytes
 # gWIMGuid
-#>24	ubequad		x			\b, GUID 0x%16.16llx
+#>24	ubequad		x			\b, GUID %#16.16llx
 #>>32	ubequad		x			\b%16.16llx
 # rhOffsetTable; the location of the resource lookup table
 # wim_reshdr_disk[24]= u8 size_in_wim[7] + u8 flags + le64 offset_in_wim + le64 uncompressed_size
-#>48	ubequad		x			\b, rhOffsetTable 0x%16.16llx
+#>48	ubequad		x			\b, rhOffsetTable %#16.16llx
 # rhXmlData; the location of the XML data
-#>0x50	ulelong		x			\b, at 0x%8.8x
+#>0x50	ulelong		x			\b, at %#8.8x
 # NOT WORKING \xff\xfe<\0W\0I\0M\0
 #>(0x50.l)	ubequad	x			\b, xml=%16.16llx
 # rhBootMetadata; the location of the metadata resource
-#>0x60	ubequad		x			\b, rhBootMetadata 0x%16.16llx
+#>0x60	ubequad		x			\b, rhBootMetadata %#16.16llx
 # rhIntegrity; the location of integrity table used to verify files
-#>0x7c	ubequad		x			\b, rhIntegrity 0x%16.16llx
+#>0x7c	ubequad		x			\b, rhIntegrity %#16.16llx
 # Unused[60]
-#>148	ubequad		!0			\b,unused 0x%16.16llx
+#>148	ubequad		!0			\b,unused %#16.16llx
 #
 
 # From:		Joerg Jenderek
@@ -1018,7 +1061,7 @@
 !:ext		mig
 >0x18		string		=MRTS	without password
 # data offset with 1 space at end
->>0x1c		ulelong+0x38	x	\b, at 0x%x 
+>>0x1c		ulelong+0x38	x	\b, at %#x 
 # look for zlib compressed data by ./compress
 >>(0x1c.l+0x38)	ubyte		x
 >>>&-1	indirect	x

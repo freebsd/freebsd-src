@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sinclair,v 1.6 2015/11/14 13:38:35 christos Exp $
+# $File: sinclair,v 1.7 2021/04/27 20:35:51 christos Exp $
 # sinclair:  file(1) sinclair QL
 
 # additions to /etc/magic by Thomas M. Ott (ThMO)
@@ -30,6 +30,8 @@
 
 # Sinclair QL executables (was ThMO)
 4	belong	0x4AFB		QDOS executable
+>9	pstring	x		'%s'
+6	beshort	0x4AFB		QDOS executable
 >9	pstring	x		'%s'
 
 # Sinclair QL ROM (ThMO)

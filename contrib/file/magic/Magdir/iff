@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: iff,v 1.14 2015/09/07 10:03:21 christos Exp $
+# $File: iff,v 1.17 2021/02/23 01:07:32 christos Exp $
 # iff:	file(1) magic for Interchange File Format (see also "audio" & "images")
 #
 # Daniel Quinlan (quinlan@yggdrasil.com) -- IFF was designed by Electronic
@@ -41,8 +41,10 @@
 >8	string		ANIM		\b, ANIM animation
 >8	string		YAFA		\b, YAFA animation
 >8	string		SSA\ 		\b, SSA super smooth animation
+>8	string		FANT		\b, Fantavision animation
 >8	string		ACBM		\b, ACBM continuous image
 >8	string		FAXX		\b, FAXX fax image
+>8	string		STFX		\b, ST-Fax image
 # other formats
 >8	string		FTXT		\b, FTXT formatted text
 >8	string		CTLG		\b, CTLG message catalog
@@ -51,7 +53,11 @@
 >8	string		PTCH		\b, PTCH binary patch
 >8	string		AMFF		\b, AMFF AmigaMetaFile format
 >8	string		WZRD		\b, WZRD StormWIZARD resource
->8	string		DOC\ 		\b, DOC desktop publishing document
+>8	string		DOC\040		\b, DOC desktop publishing document
+>8	string		SWRT		\b, SWRT Final Copy/Writer document
+>8	string		WORD		\b, ProWrite document
+>8	string 		WTXT		\b, WTXT Wordworth document
+>8	string 		WOWO		\b, WOWO Wordworth document
 >8	string		WVQA 		\b, Westwood Studios VQA Multimedia,
 >>24	leshort		x		%d video frames,
 >>26	leshort		x		%d x

@@ -33,7 +33,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.112 2020/06/08 19:44:10 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.115 2021/09/20 17:45:41 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -156,6 +156,7 @@ out:
 	free(dllpath);
 }
 
+#ifndef BUILD_AS_WINDOWS_STATIC_LIBARAY
 /* Placate GCC by offering a sacrificial previous prototype */
 BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID);
 
@@ -167,6 +168,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
 		_w32_dll_instance = hinstDLL;
 	return 1;
 }
+#endif
 #endif
 
 private const char *
@@ -436,7 +438,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 		_setmode(STDIN_FILENO, O_BINARY);
 #endif
 	if (inname != NULL) {
-		int flags = O_RDONLY|O_BINARY|O_NONBLOCK;
+		int flags = O_RDONLY|O_BINARY|O_NONBLOCK|O_CLOEXEC;
 		errno = 0;
 		if ((fd = open(inname, flags)) < 0) {
 			okstat = stat(inname, &sb) == 0;
@@ -460,6 +462,9 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 			rv = 0;
 			goto done;
 		}
+#if O_CLOEXEC == 0
+		(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
 	}
 
 	if (fd != -1) {
@@ -614,6 +619,9 @@ magic_setparam(struct magic_set *ms, int param, const void *val)
 	case MAGIC_PARAM_BYTES_MAX:
 		ms->bytes_max = *CAST(const size_t *, val);
 		return 0;
+	case MAGIC_PARAM_ENCODING_MAX:
+		ms->encoding_max = *CAST(const size_t *, val);
+		return 0;
 	default:
 		errno = EINVAL;
 		return -1;
@@ -646,6 +654,9 @@ magic_getparam(struct magic_set *ms, int param, void *val)
 		return 0;
 	case MAGIC_PARAM_BYTES_MAX:
 		*CAST(size_t *, val) = ms->bytes_max;
+		return 0;
+	case MAGIC_PARAM_ENCODING_MAX:
+		*CAST(size_t *, val) = ms->encoding_max;
 		return 0;
 	default:
 		errno = EINVAL;

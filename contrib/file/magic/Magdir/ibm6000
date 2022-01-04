@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ibm6000,v 1.14 2019/03/07 17:21:54 christos Exp $
+# $File: ibm6000,v 1.15 2021/07/03 14:01:46 christos Exp $
 # ibm6000:  file(1) magic for RS/6000 and the RT PC.
 #
 0	beshort		0x01df		executable (RISC System/6000 V3.1) or obj module
@@ -10,7 +10,9 @@
 #>2	byte		0x50		pure
 #>28	belong		>0		not stripped
 #>6	beshort		>0		- version %ld
+# GRR: line below is too general as it matches also TTComp archive, ASCII, 1K handled by ./archive
 0	beshort		0x0104		shared library
+# GRR: line below is too general as it matches also TTComp archive, ASCII, 2K handled by ./archive
 0	beshort		0x0105		ctab data
 0	beshort		0xfe04		structured file
 0	string		0xabcdef	AIX message catalog

@@ -1,0 +1,49 @@
+# How to get started developing
+
+@(#) $File: README.DEVELOPER,v 1.9 2021/09/20 14:04:39 christos Exp $
+
+## Auto files
+
+After checking out the source, run the following:
+
+	autoreconf -f -i
+	make distclean	# this can fail if you have not built before
+	./configure --disable-silent-rules
+	make -j4
+	make -C tests check
+
+If you see errors, make sure you have the latest libtool and autoconf
+This has been tested with autoconf-2.69 and libtool-2.4.2
+
+## Installing dependencies
+
+If your platform doesn't have the above tools, install the following
+packages first.
+
+### Debian
+
+	apt-get install \
+	    automake \
+	    gcc \
+	    libtool \
+	    make \
+	    python \
+	    zlib1g-dev \
+
+See also `.travis.yml`.
+
+### Mac OS X (MacPorts)
+
+	port install \
+	    autoconf \
+	    automake \
+	    libtool \
+
+### Mac OS X (HomeBrew)
+
+	brew install autoconf automake libtool
+
+Tested with:
+	autoconf 2.69
+	automake 1.16.1
+	libtool 2.4.6

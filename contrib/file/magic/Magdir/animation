@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.77 2020/04/26 15:23:43 christos Exp $
+# $File: animation,v 1.87 2021/08/24 09:25:11 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -32,7 +32,10 @@
 !:mime	application/x-quicktime-player
 4	string/W	jP		JPEG 2000 image
 !:mime	image/jp2
+
+#### MP4 ####
 # https://www.ftyps.com/ with local additions
+# https://cconcolato.github.io/mp4ra/filetype.html
 4	string		ftyp		ISO Media
 # https://aeroquartet.com/wordpress/2016/03/05/3-xavc-s/
 >8	string		XAVC		\b, MPEG v4 system, Sony XAVC Codec
@@ -53,11 +56,21 @@
 >>11	byte		0x63		\b C.S0050-0-B V1.0
 >8	string		3ge		\b, MPEG v4 system, 3GPP
 !:mime	video/3gpp
->>11	byte		6		\b, Release 6 MBMS Extended Presentations
->>11	byte		7		\b, Release 7 MBMS Extended Presentations
+>>11	byte		6		\b, Release %d MBMS Extended Presentations
+>>11	byte		7		\b, Release %d MBMS Extended Presentations
+>>11	byte		9		\b, Release %d MBMS Extended Presentations
+>8	string		3gf		\b, MPEG v4 system, 3GPP
+>>11	byte		9		\b, Release %d File-delivery profile
 >8	string		3gg		\b, MPEG v4 system, 3GPP
 !:mime	video/3gpp
->>11	byte		6		\b, Release 6 General Profile
+>>11	byte		6		\b, Release %d General Profile
+>>11	byte		9		\b, Release %d General Profile
+>8	string		3gh		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		9		\b, Release %d Adaptive Streaming Profile
+>8	string		3gm		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		9		\b, Release %d Media Segment Profile
 >8	string		3gp		\b, MPEG v4 system, 3GPP
 !:mime	video/3gpp
 >>11	byte		1		\b, Release %d (non existent)
@@ -67,16 +80,49 @@
 >>11	byte		5		\b, Release %d
 >>11	byte		6		\b, Release %d
 >>11	byte		7		\b, Release %d Streaming Servers
+>8	string		3gr		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		6		\b, Release %d Progressive Download Profile
+>>11	byte		9		\b, Release %d Progressive Download Profile
 >8	string		3gs		\b, MPEG v4 system, 3GPP
 !:mime	video/3gpp
+>>11	byte		6		\b, Release %d Streaming Servers
 >>11	byte		7		\b, Release %d Streaming Servers
+>>11	byte		9		\b, Release %d Streaming Servers
+>8	string		3gt		\b, MPEG v4 system, 3GPP
+!:mime	video/3gpp
+>>11	byte		8		\b, Release %d Media Stream Recording Profile
+>>11	byte		9		\b, Release %d Media Stream Recording Profile
+>8	string		ARRI		\b, MPEG v4 system, ARRI Digital Camera
+!:mime	video/mp4
 >8	string		avc1		\b, MPEG v4 system, 3GPP JVT AVC [ISO 14496-12:2005]
+!:mime	video/mp4
+>8	string		bbxm		\b, Blinkbox Master File: H.264 video/16-bit LE LPCM audio
 !:mime	video/mp4
 >8	string/W	qt		\b, Apple QuickTime movie
 !:mime	video/quicktime
 >8	string		CAEP		\b, Canon Digital Camera
 >8	string		caqv		\b, Casio Digital Camera
 >8	string		CDes		\b, Convergent Design
+>8	string		caaa		\b, CMAF Media Profile - AAC Adaptive Audio
+>8	string		caac		\b, CMAF Media Profile - AAC Core
+>8	string		caqv		\b, Casio Digital Camera	Casio
+>8	string		ccea		\b, CMAF Supplemental Data - CEA-608/708
+>8	string		ccff		\b, Common container file format
+>8	string		cfhd		\b, CMAF Media Profile - AVC HD
+>8	string		cfsd		\b, CMAF Media Profile - AVC SD
+>8	string		chd1		\b, CMAF Media Profile - HEVC HDR10
+>8	string		chdf		\b, CMAF Media Profile - AVC HDHF
+>8	string		chhd		\b, CMAF Media Profile - HEVC HHD8
+>8	string		chh1		\b, CMAF Media Profile - HEVC HHD10
+>8	string		clg1		\b, CMAF Media Profile - HEVC HLG10
+>8	string		cmfc		\b, CMAF Track Format
+>8	string		cmff		\b, CMAF Fragment Format
+>8	string		cmfl		\b, CMAF Chunk Format
+>8	string		cmfs		\b, CMAF Segment Format
+>8	string		cud1		\b, CMAF Media Profile - HEVC UHD10
+>8	string		cud8		\b, CMAF Media Profile - HEVC UHD8
+>8	string		cwvt		\b, CMAF Media Profile - WebVTT
 >8	string		da0a		\b, DMB MAF w/ MPEG Layer II aud, MOT slides, DLS, JPG/PNG/MNG
 >8	string		da0b		\b, DMB MAF, ext DA0A, with 3GPP timed text, DID, TVA, REL, IPMP
 >8	string		da1a		\b, DMB MAF audio with ER-BSAC audio, JPG/PNG/MNG images
@@ -87,6 +133,12 @@
 >8	string		da3b		\b, DMB MAF, ext da3a w/ BIFS, 3GPP, DID, TVA, REL, IPMP
 >8	string		dash		\b, MPEG v4 system, Dynamic Adaptive Streaming over HTTP
 !:mime	video/mp4
+>8	string		dby1		\b, MP4 files with Dolby content
+>8	string		dsms		\b, Media Segment DASH conformant
+>8	string		dts1		\b, MP4 track file with audio codecs dtsc dtsh or dtse
+>8	string		dts2		\b, MP4 track file with audio codec dtsx
+>8	string		dts3		\b, MP4 track file with audio codec dtsy
+>8	string		dxo$20		\b, DxO ONE camera
 >8	string		dmb1		\b, DMB MAF supporting all the components defined in the spec
 >8	string		dmpf		\b, Digital Media Project
 >8	string		drc1		\b, Dirac (wavelet compression), encap in ISO base media (MP4)
@@ -99,6 +151,7 @@
 >8	string		dvr1		\b, DVB (.DVB) over RTP
 !:mime	video/vnd.dvb.file
 >8	string		dvt1		\b, DVB (.DVB) over MPEG-2 Transport Stream
+>8	string		emsg		\b, Event message box present
 !:mime	video/vnd.dvb.file
 >8	string		F4V		\b, Video for Adobe Flash Player 9+ (.F4V)
 !:mime	video/mp4
@@ -108,12 +161,22 @@
 !:mime	audio/mp4
 >8	string		F4B		\b, Audio Book for Adobe Flash Player 9+ (.F4B)
 !:mime	audio/mp4
+>8	string		ifrm		\b, Apple iFrame Specification, Version 8.1 Jan 2013
+>8	string		im1i		\b, CMAF Media Profile - IMSC1 Image
+>8	string		im1t		\b, CMAF Media Profile - IMSC1 Text
 >8	string		isc2		\b, ISMACryp 2.0 Encrypted File
 #	?/enc-isoff-generic
->8	string		iso2		\b, MP4 Base Media v2 [ISO 14496-12:2005]
+>8	string		iso		\b, MP4 Base Media
 !:mime	video/mp4
->8	string		isom		\b, MP4 Base Media v1 [IS0 14496-12:2003]
+>>11	string		m 		v1 [ISO 14496-12:2003]
+>>11	string		2		v2 [ISO 14496-12:2005]
+>>11	string		4		v4
+>>11	string		5		v5 
+>>11	string		6		v6 
+>8	string		isml		\b, MP4 Base Media v2 [ISO 14496-12:2005]
 !:mime	video/mp4
+>8	string		J2P0		\b, JPEG2000 Profile 0
+>8	string		J2P1		\b, JPEG2000 Profile 1
 >8	string/W	jp2		\b, JPEG 2000
 !:mime	image/jp2
 >8	string		JP2		\b, JPEG 2000 Image (.JP2) [ISO 15444-1 ?]
@@ -121,10 +184,13 @@
 >8	string		JP20		\b, Unknown, from GPAC samples (prob non-existent)
 >8	string		jpm		\b, JPEG 2000 Compound Image (.JPM) [ISO 15444-6]
 !:mime	image/jpm
+>8	string		jpsi		\b, The JPSearch data interchange format
 >8	string		jpx		\b, JPEG 2000 w/ extensions (.JPX) [ISO 15444-2]
 !:mime	image/jpx
 >8	string		KDDI		\b, 3GPP2 EZmovie for KDDI 3G cellphones
 !:mime	video/3gpp2
+>8	string		LCAG		\b,  Leica digital camera
+>8	string		lmsg		\b, Last Media Segment indicator for ISO base media file format.
 >8	string		M4A 		\b, Apple iTunes ALAC/AAC-LC (.M4A) Audio
 !:mime	audio/x-m4a
 >8	string		M4B 		\b, Apple iTunes ALAC/AAC-LC (.M4B) Audio Book
@@ -140,6 +206,8 @@
 >8	string		mj2s		\b, Motion JPEG 2000 [ISO 15444-3] Simple Profile
 !:mime	video/mj2
 >8	string		mjp2		\b, Motion JPEG 2000 [ISO 15444-3] General Profile
+>8	string		MFSM		\b, Media File for Samsung video Metadata
+>8	string		MGSV		\b, Sony Home and Mobile Multimedia Platform (HMMP)
 !:mime	video/mj2
 >8	string		mmp4		\b, MPEG-4/3GPP Mobile Profile (.MP4 / .3GP) (for NTT)
 !:mime	video/mp4
@@ -153,13 +221,16 @@
 >8	string		mp71		\b, MP4 w/ MPEG-7 Metadata [per ISO 14496-12]
 >8	string		mp7t		\b, MPEG v4 system, MPEG v7 XML
 >8	string		mp7b		\b, MPEG v4 system, MPEG v7 binary XML
+>8	string		mpuf		\b, Compliance with the MMT Processing Unit format
+>8	string		msdh		\b, Media Segment conforming to ISO base media file format.
+>8	string		msix		\b, Media Segment conforming to ISO base media file format.
 >8	string		mmp4		\b, MPEG v4 system, 3GPP Mobile
 !:mime	video/mp4
 >8	string		MPPI		\b, Photo Player, MAF [ISO/IEC 23000-3]
 >8	string		mqt		\b, Sony / Mobile QuickTime (.MQV) US Pat 7,477,830
 !:mime	video/quicktime
 >8	string		MSNV		\b, MPEG-4 (.MP4) for SonyPSP
-!:mime	video/mp4
+!:mime	audio/mp4
 >8	string		NDAS		\b, MP4 v2 [ISO 14496-14] Nero Digital AAC Audio
 !:mime	audio/mp4
 >8	string		NDSC		\b, MPEG-4 (.MP4) Nero Cinema Profile
@@ -181,11 +252,14 @@
 >8	string		NDXP		\b, H.264/MPEG-4 AVC (.MP4) Nero Portable Profile
 !:mime	video/mp4
 >8	string		NDXS		\b, H.264/MPEG-4 AVC (.MP4) Nero Standard Profile
+>8	string		niko		\b, Nikon Digital Camera
 !:mime	video/mp4
 >8	string		odcf  		\b, OMA DCF DRM Format 2.0 (OMA-TS-DRM-DCF-V2_0-20060303-A)
 >8	string		opf2 		\b, OMA PDCF DRM Format 2.1 (OMA-TS-DRM-DCF-V2_1-20070724-C)
 >8	string		opx2  		\b, OMA PDCF DRM + XBS ext (OMA-TS-DRM_XBS-V1_0-20070529-C)
 >8	string		pana		\b, Panasonic Digital Camera
+>8	string		piff		\b, Protected Interoperable File Format
+>8	string		pnvi		]b, Panasonic Video Intercom
 >8	string		qt  		\b, Apple QuickTime (.MOV/QT)
 !:mime	video/quicktime
 # HEIF image format
@@ -217,11 +291,24 @@
 !:mime image/heif-sequence
 >8	string		avcs		\b, HEIF Image Sequence AVC
 !:mime image/heif-sequence
-
+# AVIF image format
+# see https://aomediacodec.github.io/av1-avif/
+>8	string		avif		\b, AVIF Image
+!:mime image/avif
+>8	string		avis		\b, AVIF Image Sequence
+!:mime image/avif
+>8	string		risx		\b, Representation Index Segment for MPEG-2 TS Segments
 >8	string		ROSS		\b, Ross Video
 >8	string		sdv		\b, SD Memory Card Video
 >8	string		ssc1		\b, Samsung stereo, single stream (patent pending)
 >8	string		ssc2		\b, Samsung stereo, dual stream (patent pending)
+>8	string		SEAU		\b, Sony Home and Mobile Multimedia Platform (HMMP)
+>8	string		SEBK		\b, Sony Home and Mobile Multimedia Platform (HMMP)
+>8	string		senv		\b, Video contents Sony Entertainment Network
+>8	string		sims		\b, Media Segment for Sub-Indexed Media Segment format
+>8	string		sisx		\b, Single Index Segment forindex MPEG-2 TS
+>8	string		ssss		\b, Subsegment Index Segment used to index MPEG-2 Segments
+>8	string		uvvu		\b, UltraViolet file brand for DECE Common Format
 
 # MPEG sequences
 # Scans for all common MPEG header start codes
@@ -234,6 +321,9 @@
 0        belong&0xFFFFFF00  0x00000100
 >3       byte               0xBA           MPEG sequence
 !:mime  video/mpeg
+# http://fileformats.archiveteam.org/wiki/Enhanced_VOB
+# https://reposcope.com/mimetype/video/mpeg
+!:ext	vob/evo/mpg/mpeg
 >>4      byte               &0x40          \b, v2, program multiplex
 >>4      byte               ^0x40          \b, v1, system multiplex
 >3       byte               0xBB           MPEG sequence, v1/2, multiplex (missing pack header)
@@ -877,21 +967,6 @@
 # ABC (alembic.io 3d models)
 0	string	0gawa		ABC 3d model
 
-# VRML (Virtual Reality Modelling Language)
-0       string/w        #VRML\ V1.0\ ascii	VRML 1 file
-!:mime	model/vrml
-0	string/w	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
-!:mime	model/vrml
-
-# X3D (Extensible 3D) [https://www.web3d.org/specifications/x3d-3.0.dtd]
-# From Michel Briand <michelbriand@free.fr>
-# mimetype from https://www.iana.org/assignments/media-types/model/x3d+xml
-# Example https://www.web3d.org/x3d/content/examples/Basic/course/CreateX3DFromStringRandomSpheres.x3d
-0	string/w	\<?xml\ version=
-!:strength + 5
->20	search/1000/w	\<!DOCTYPE\ X3D		X3D (Extensible 3D) model xml text
-!:mime model/x3d+xml
-
 #---------------------------------------------------------------------------
 # HVQM4: compressed movie format designed by Hudson for Nintendo GameCube
 # From Mark Sheppard <msheppard@climax.co.uk>, 2002-10-03
@@ -905,11 +980,21 @@
 >0x42	ubeshort	0		no audio
 >0x42	ubeshort	>0		%dHz audio
 
-# From: "Stefan A. Haubenthal" <polluks@web.de>
+# From: Stefan A. Haubenthal <polluks@sdf.lonestar.org>
+# Update: Joerg Jenderek
+# URL: https://en.wikipedia.org/wiki/VOB
 0	string		DVDVIDEO-VTS	Video title set,
+!:mime	video/x-ifo
+!:ext	ifo/bup
 >0x21	byte		x		v%x
 0	string		DVDVIDEO-VMG	Video manager,
+!:mime	video/x-ifo
+!:ext	ifo/bup
 >0x21	byte		x		v%x
+
+# From: Stefan A. Haubenthal <polluks@sdf.lonestar.org>
+0 string xMovieSetter MovieSetter movie
+0 string xSceneEditor MovieSetter movie
 
 # From: Behan Webster <behanw@websterwood.com>
 # NuppelVideo used by Mythtv (*.nuv)
@@ -1069,3 +1154,33 @@
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 0	string	CRID
 >32	string	@UTF	Scaleform video
+
+# http://www.jerrysguide.com/tips/demystify-tvs-file-format.html
+0	string	TVS\015\012
+>&0	string	Version\040	TeamViewer Session File
+>>&0	string	x		\b, version %s
+
+# SER file format - simple uncompressed video format for astronomical use
+# Initially developed by Lucam Recorder,
+# as of 2021 maintained by Heiko Wilkens, Grischa Hahn
+# Typical extensions: .SER
+# http://www.grischa-hahn.homepage.t-online.de/astro/ser/SER%20Doc%20V3b.pdf
+0	string	LUCAM-RECORDER	SER video sequence
+!:ext	ser
+>18	lelong	0	\b, bayer: mono
+>18	lelong	8	\b, bayer: RGGB
+>18	lelong	9	\b, bayer: GRBG
+>18	lelong	10	\b, bayer: GBRG
+>18	lelong	11	\b, bayer: BGGR
+>18	lelong	16	\b, bayer: CYYM
+>18	lelong	17	\b, bayer: YCMY
+>18	lelong	18	\b, bayer: YMCY
+>18	lelong	19	\b, bayer: MYYC
+>18	lelong	100	\b, bayer: RGB
+>18	lelong	101	\b, bayer: BGR
+>22	lelong	0	\b, big-endian
+>22	lelong	1	\b, little-endian
+>26	lelong	x	\b, width: %d
+>30	lelong	x	\b, height: %d
+>34	lelong	x	\b, %d bit
+>38	lelong	x	\b, frames: %d

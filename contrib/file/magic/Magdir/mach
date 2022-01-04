@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: mach,v 1.23 2015/10/15 21:51:22 christos Exp $
+# $File: mach,v 1.29 2021/04/26 15:56:00 christos Exp $
 # Mach has two magic numbers, 0xcafebabe and 0xfeedface.
 # Unfortunately the first, cafebabe, is shared with
 # Java ByteCode, so they are both handled in the file "cafebabe".
@@ -11,8 +11,11 @@
 # it's also separate from the "64-bit libraries" bit in the
 # upper 8 bits of the CPU subtype
 
+# Reference:	https://opensource.apple.com/source/cctools/cctools-949.0.1/
+#               include/mach-o/loader.h
+# display CPU type as string like: i386 x86_64 ... armv7 armv7k ...
 0	name	mach-o-cpu
->0	belong&0x01000000	0
+>0	belong&0xff000000	0
 #
 # 32-bit ABIs.
 #
@@ -51,37 +54,37 @@
 >>>>4	belong&0x00fffff0	0x30		pentium_2_m3
 >>>>4	belong&0x00fffff0	0x40		pentium_2_m0x40
 >>>>4	belong&0x00fffff0	0x50		pentium_2_m5
->>>>4	belong&0x00fffff0	>0x50		pentium_2_m0x%x
+>>>>4	belong&0x00fffff0	>0x50		pentium_2_m%#x
 >>>4	belong&0x0000000f	7		celeron
->>>>4	belong&0x00fffff0	0x00		\b_m0x%x
->>>>4	belong&0x00fffff0	0x10		\b_m0x%x
->>>>4	belong&0x00fffff0	0x20		\b_m0x%x
->>>>4	belong&0x00fffff0	0x30		\b_m0x%x
->>>>4	belong&0x00fffff0	0x40		\b_m0x%x
->>>>4	belong&0x00fffff0	0x50		\b_m0x%x
+>>>>4	belong&0x00fffff0	0x00		\b_m%#x
+>>>>4	belong&0x00fffff0	0x10		\b_m%#x
+>>>>4	belong&0x00fffff0	0x20		\b_m%#x
+>>>>4	belong&0x00fffff0	0x30		\b_m%#x
+>>>>4	belong&0x00fffff0	0x40		\b_m%#x
+>>>>4	belong&0x00fffff0	0x50		\b_m%#x
 >>>>4	belong&0x00fffff0	0x60
 >>>>4	belong&0x00fffff0	0x70		\b_mobile
->>>>4	belong&0x00fffff0	>0x70		\b_m0x%x
+>>>>4	belong&0x00fffff0	>0x70		\b_m%#x
 >>>4	belong&0x0000000f	8		pentium_3
 >>>>4	belong&0x00fffff0	0x00
 >>>>4	belong&0x00fffff0	0x10		\b_m
 >>>>4	belong&0x00fffff0	0x20		\b_xeon
->>>>4	belong&0x00fffff0	>0x20		\b_m0x%x
+>>>>4	belong&0x00fffff0	>0x20		\b_m%#x
 >>>4	belong&0x0000000f	9		pentiumM
 >>>>4	belong&0x00fffff0	0x00
->>>>4	belong&0x00fffff0	>0x00		\b_m0x%x
+>>>>4	belong&0x00fffff0	>0x00		\b_m%#x
 >>>4	belong&0x0000000f	10		pentium_4
 >>>>4	belong&0x00fffff0	0x00
 >>>>4	belong&0x00fffff0	0x10		\b_m
->>>>4	belong&0x00fffff0	>0x10		\b_m0x%x
+>>>>4	belong&0x00fffff0	>0x10		\b_m%#x
 >>>4	belong&0x0000000f	11		itanium
 >>>>4	belong&0x00fffff0	0x00
 >>>>4	belong&0x00fffff0	0x10		\b_2
->>>>4	belong&0x00fffff0	>0x10		\b_m0x%x
+>>>>4	belong&0x00fffff0	>0x10		\b_m%#x
 >>>4	belong&0x0000000f	12		xeon
 >>>>4	belong&0x00fffff0	0x00
 >>>>4	belong&0x00fffff0	0x10		\b_mp
->>>>4	belong&0x00fffff0	>0x10		\b_m0x%x
+>>>>4	belong&0x00fffff0	>0x10		\b_m%#x
 >>>4	belong&0x0000000f	>12		ia32 family=%d
 >>>>4	belong&0x00fffff0	0x00
 >>>>4	belong&0x00fffff0	>0x00		model=%x
@@ -139,13 +142,13 @@
 >>>4		belong&0x00ffffff	6	\b_604
 >>>4		belong&0x00ffffff	7	\b_604e
 >>>4		belong&0x00ffffff	8	\b_620
->>>4		belong&0x00ffffff	9	\b_650
+>>>4		belong&0x00ffffff	9	\b_750
 >>>4		belong&0x00ffffff	10	\b_7400
 >>>4		belong&0x00ffffff	11	\b_7450
 >>>4		belong&0x00ffffff	100	\b_970
 >>>4		belong&0x00ffffff	>100	subarchitecture=%d
 >>0	belong&0x00ffffff	>18	architecture=%d
->0	belong&0x01000000	0x01000000
+>0	belong&0xff000000	0x01000000
 #
 # 64-bit ABIs.
 #
@@ -171,6 +174,15 @@
 >>0	belong&0x00ffffff	12	arm64
 >>>4		belong&0x00ffffff	0
 >>>4		belong&0x00ffffff	1	\bv8
+>>>4		belong&0x00ffffff	2	\be
+>>>>7		ubyte&0xff		>0	(caps:
+>>>>7		ubyte&0xff		<0x80	%#02x
+>>>>7		ubyte&0xc0		0x80	PAC
+>>>>>7		ubyte&0x3f		x	\b%02d
+>>>>7		ubyte&0xc0		0xc0	PAK
+>>>>>7		ubyte&0x3f		x	\b%02d
+>>>>7		ubyte&0xff		x	\b)
+>>>4		belong&0x00ffffff	>2	subarchitecture=%d
 >>0	belong&0x00ffffff	13	64-bit architecture=%d
 >>0	belong&0x00ffffff	14	64-bit architecture=%d
 >>0	belong&0x00ffffff	15	64-bit architecture=%d
@@ -192,51 +204,91 @@
 >>>4		belong&0x00ffffff	100		\b_970
 >>>4		belong&0x00ffffff	>100		subarchitecture=%d
 >>0	belong&0x00ffffff	>18	64-bit architecture=%d
-
+>0	belong&0xff000000	0x02000000
+#
+# 64_32-bit ABIs.
+#
+>>0	belong&0x00ffffff	0	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	1	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	2	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	3	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	4	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	5	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	6	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	7	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	8	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	9	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	10	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	11	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	12	64_32-bit arm
+>>>4		belong&0x00ffffff	0
+>>>4		belong&0x00ffffff	1	\bv8
+>>>4		belong&0x00ffffff	>1	subarchitecture=%d
+>>0	belong&0x00ffffff	13	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	14	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	15	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	16	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	17	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	18	64_32-bit architecture=%d
+>>0	belong&0x00ffffff	>18	64_32-bit architecture=%d
 
 0	name		mach-o-be
 >0	byte		0xcf		64-bit
 >4	use		mach-o-cpu
 >12	belong		1		object
+# GRR: Does not work for Mach-O with 2 architectures; instead display oo
+#!:ext	o
+!:ext	o/
 >12	belong		2		executable
+# the executables normally have no file extension like perl,
+# but exceptions like perl5.18 perl5.16
+!:ext	16/18/
 >12	belong		3		fixed virtual memory shared library
 >12	belong		4		core
 >12	belong		5		preload executable
 >12	belong		6		dynamically linked shared library
+# GRR: Does not work for Mach-O with 2 architectures; instead display dylibdylib
+#!:ext	dylib
+!:ext	dylib/
 >12	belong		7		dynamic linker
 >12	belong		8		bundle
+# normally name extension bundle; but exceptions like: AMDil_r700.dylib 
+!:ext	bundle/dylib/
 >12	belong		9		dynamically linked shared library stub
 >12	belong		10		dSYM companion file
 >12	belong		11		kext bundle
 >12	belong		>11
 >>12	belong		x		filetype=%d
 >24	belong		>0		\b, flags:<
->>24	belong		&0x0000001	\bNOUNDEFS
->>24	belong		&0x0000002	\b|INCRLINK
->>24	belong		&0x0000004	\b|DYLDLINK
->>24	belong		&0x0000008	\b|BINDATLOAD
->>24	belong		&0x0000010	\b|PREBOUND
->>24	belong		&0x0000020	\b|SPLIT_SEGS
->>24	belong		&0x0000040	\b|LAZY_INIT
->>24	belong		&0x0000080	\b|TWOLEVEL
->>24	belong		&0x0000100	\b|FORCE_FLAT
->>24	belong		&0x0000200	\b|NOMULTIDEFS
->>24	belong		&0x0000400	\b|NOFIXPREBINDING
->>24	belong		&0x0000800	\b|PREBINDABLE
->>24	belong		&0x0001000	\b|ALLMODSBOUND
->>24	belong		&0x0002000	\b|SUBSECTIONS_VIA_SYMBOLS
->>24	belong		&0x0004000	\b|CANONICAL
->>24	belong		&0x0008000	\b|WEAK_DEFINES
->>24	belong		&0x0010000	\b|BINDS_TO_WEAK
->>24	belong		&0x0020000	\b|ALLOW_STACK_EXECUTION
->>24	belong		&0x0040000	\b|ROOT_SAFE
->>24	belong		&0x0080000	\b|SETUID_SAFE
->>24	belong		&0x0100000	\b|NO_REEXPORTED_DYLIBS
->>24	belong		&0x0200000	\b|PIE
->>24	belong		&0x0400000	\b|DEAD_STRIPPABLE_DYLIB
->>24	belong		&0x0800000	\b|HAS_TLV_DESCRIPTORS
->>24	belong		&0x1000000	\b|NO_HEAP_EXECUTION
->>24	belong		&0x2000000	\b|APP_EXTENSION_SAFE
+>>24	belong		&0x00000001	\bNOUNDEFS
+>>24	belong		&0x00000002	\b|INCRLINK
+>>24	belong		&0x00000004	\b|DYLDLINK
+>>24	belong		&0x00000008	\b|BINDATLOAD
+>>24	belong		&0x00000010	\b|PREBOUND
+>>24	belong		&0x00000020	\b|SPLIT_SEGS
+>>24	belong		&0x00000040	\b|LAZY_INIT
+>>24	belong		&0x00000080	\b|TWOLEVEL
+>>24	belong		&0x00000100	\b|FORCE_FLAT
+>>24	belong		&0x00000200	\b|NOMULTIDEFS
+>>24	belong		&0x00000400	\b|NOFIXPREBINDING
+>>24	belong		&0x00000800	\b|PREBINDABLE
+>>24	belong		&0x00001000	\b|ALLMODSBOUND
+>>24	belong		&0x00002000	\b|SUBSECTIONS_VIA_SYMBOLS
+>>24	belong		&0x00004000	\b|CANONICAL
+>>24	belong		&0x00008000	\b|WEAK_DEFINES
+>>24	belong		&0x00010000	\b|BINDS_TO_WEAK
+>>24	belong		&0x00020000	\b|ALLOW_STACK_EXECUTION
+>>24	belong		&0x00040000	\b|ROOT_SAFE
+>>24	belong		&0x00080000	\b|SETUID_SAFE
+>>24	belong		&0x00100000	\b|NO_REEXPORTED_DYLIBS
+>>24	belong		&0x00200000	\b|PIE
+>>24	belong		&0x00400000	\b|DEAD_STRIPPABLE_DYLIB
+>>24	belong		&0x00800000	\b|HAS_TLV_DESCRIPTORS
+>>24	belong		&0x01000000	\b|NO_HEAP_EXECUTION
+>>24	belong		&0x02000000	\b|APP_EXTENSION_SAFE
+>>24	belong		&0x04000000	\b|NLIST_OUTOFSYNC_WITH_DYLDINFO
+>>24	belong		&0x08000000	\b|SIM_SUPPORT
+>>24	belong		&0x80000000	\b|DYLIB_IN_CACHE
 >>24	belong		x		\b>
 
 #

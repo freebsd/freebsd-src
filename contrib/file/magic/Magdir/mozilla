@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: mozilla,v 1.10 2019/04/19 00:42:27 christos Exp $
+# $File: mozilla,v 1.12 2021/04/26 15:56:00 christos Exp $
 # mozilla:  file(1) magic for Mozilla XUL fastload files
 # (XUL.mfasl and XPC.mfasl)
 # URL:	https://www.mozilla.org/
@@ -14,7 +14,7 @@
 # Reference: https://github.com/avih/dejsonlz4/archive/master.zip/
 # dejsonlz4-master\src\dejsonlz4.c 
 # Note: mostly JSON compressed with a non-standard LZ4 header
-# can be unpacked by dejsonlz4 but not lz4 programm.
+# can be unpacked by dejsonlz4 but not lz4 program.
 0	string	mozLz40\0			Mozilla lz4 compressed data
 !:mime	application/x-lz4+json
 # mozlz4 extension seems to be used for search/store, while jsonlz4 for bookmarks
@@ -22,7 +22,7 @@
 # decomp_size
 >8	ulelong	x				\b, originally %u bytes
 # lz4 data
-#>12	ubequad	x				\b, lz4 data 0x%16.16llx
+#>12	ubequad	x				\b, lz4 data %#16.16llx
 
 # From: Joerg Jenderek
 # URL: https://en.wikipedia.org/wiki/Firefox_4

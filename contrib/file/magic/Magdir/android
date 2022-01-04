@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: android,v 1.16 2019/11/15 21:03:14 christos Exp $
+# $File: android,v 1.19 2021/04/26 15:56:00 christos Exp $
 # Various android related magic entries
 #------------------------------------------------------------
 
@@ -24,11 +24,11 @@
 >>1028	lelong	0			\b (boot)
 >>1028	lelong	1			\b (recovery)
 >8		lelong	>0			\b, kernel
->>12	lelong	>0			\b (0x%x)
+>>12	lelong	>0			\b (%#x)
 >16		lelong	>0			\b, ramdisk
->>20	lelong	>0			\b (0x%x)
+>>20	lelong	>0			\b (%#x)
 >24		lelong	>0			\b, second stage
->>28	lelong	>0			\b (0x%x)
+>>28	lelong	>0			\b (%#x)
 >36		lelong	>0			\b, page size: %d
 >38		string	>0			\b, name: %s
 >64		string	>0		 	\b, cmdline (%s)
@@ -64,7 +64,7 @@
 # look for backup content after line with encryption info
 #>>19	search/7	\n
 # data part after header for not encrypted Android Backup 
-#>>>&0	ubequad		x	\b, content 0x%16.16llx...
+#>>>&0	ubequad		x	\b, content %#16.16llx...
 # look for zlib compressed by ./compress after message with 1 space at end
 #>>>&0	indirect	x	\b; contains 
 # look for tar archive block by ./archive for package name manifest
@@ -155,9 +155,9 @@
 # flags
 >>>0x0C		ulelong&0x00000002		2			\b+RW
 # partition ID:
-# 0~IPL,MOVINAND,GANG;1~PIT,GPT;2~HIDDEN;3~SBL,HIDDEN;4~SBL2,HIDDEN;5~BOOT;6~KENREl,RECOVER,misc;7~RECOVER
+# 0~IPL,MOVINAND,GANG;1~PIT,GPT;2~HIDDEN;3~SBL,HIDDEN;4~SBL2,HIDDEN;5~BOOT;6~kernel,RECOVER,misc;7~RECOVER
 # ;11~MODEM;20~efs;21~PARAM;22~FACTORY,SYSTEM;23~DBDATAFS,USERDATA;24~CACHE;80~BOOTLOADER;81~TZSW
->>>0x08	ulelong		x			(0x%x)
+>>>0x08	ulelong		x			(%#x)
 # filename
 >>>0x44		string				>\0			"%-.64s"
 #>>>0x18	ulelong				>0
@@ -188,3 +188,22 @@
 0	lelong	0xd0b5b1c4	Android cryptfs footer
 >4	leshort	x	\b, version: %d
 >6	leshort	x	\b.%d
+
+# Android Vdex format
+# From https://android.googlesource.com/\
+# platform/art/+/master/runtime/vdex_file.h
+0	string	vdex	Android vdex file,
+>4	string	>000	verifier deps version: %s,
+>8	string	>000	dex section version: %s,
+>12	lelong	>0	number of dex files: %d,
+>16	lelong	>0	verifier deps size: %d
+
+# Android Vdex format, dexfile is currently being updated
+# by android system
+# From https://android.googlesource.com/\
+# platform/art/+/master/dex2oat/dex2oat.cc
+0	string	wdex	Android vdex file, being processed by dex2oat,
+>4	string	>000	verifier deps version: %s,
+>8	string	>000	dex section version: %s,
+>12	lelong	>0	number of dex files: %d,
+>16	lelong	>0	verifier deps size: %d

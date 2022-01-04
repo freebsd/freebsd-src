@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-EXTRA_DIST = MAINT
+EXTRA_DIST = MAINT RELEASE-PROCEDURE README.DEVELOPER m4/visibility.m4
 
 SUBDIRS = src magic tests doc python
 

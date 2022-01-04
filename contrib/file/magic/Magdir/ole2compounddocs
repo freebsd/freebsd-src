@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.8 2020/03/28 23:10:30 christos Exp $
+# $File: ole2compounddocs,v 1.12 2021/09/04 16:00:38 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -10,7 +10,7 @@
 # https://digital-preservation.github.io/droid/
 # skip droid skeleton like fmt-39-signature-id-128.doc by valid version
 >0x1A	ushort		!0xABAB		OLE 2 Compound Document
-#>0x1C	uleshort		x			\b, endnian 0x%4.4x
+#>0x1C	uleshort		x			\b, endnian %#4.4x
 # big endian not tested
 >>0x1C	ubeshort		=0xfffe			\b, big-endian
 >>>546	string	jbjb			: Microsoft Word Document
@@ -26,25 +26,25 @@
 # Minor Version 32h=50 3Bh=59 3Eh=62
 >>>0x18	uleshort		x			\b.%u
 # SecID of first sector of the directory stream is often 1 but high like 3144h
->>>48	ulelong			x			\b, SecID 0x%x
+>>>48	ulelong			x			\b, SecID %#x
 # Sector Shift Exponent in short-stream container stream: 6~64 bytes
 >>>32	uleshort		!6			\b, exponent of short stream %u
 # total number of sectors used for the FAT
 >>>44	ulelong			>1			\b, %u FAT sectors
 # SecID of first sector of the short-sector allocation table (Mini FAT)
 # or -2 (End Of ChainSecID) if not extant
->>>60	ulelong			!0xffFFffFE		\b, Mini FAT start sector 0x%x
+>>>60	ulelong			!0xffFFffFE		\b, Mini FAT start sector %#x
 # total number of sectors used for the short-sector allocation table
 >>>64	ulelong			!1			\b, %u Mini FAT sector
 # plural s
 >>>>64	ulelong			>1			\bs
 # SecID of first sector of the master sector allocation table (DIFAT)
 # or -2 (End Of Chain SecID) if no additional sectors used
->>>68	ulelong			!0xffFFffFE		\b, DIFAT start sector 0x%x
+>>>68	ulelong			!0xffFFffFE		\b, DIFAT start sector %#x
 # total number of sectors used for the master sector allocation table (DIFAT)
 >>>72	ulelong			>0			\b, %u DIFAT sectors
 # First part of the master sector allocation table (DIFAT) containing 109 SecIDs
-#>>>76 	ubequad			x			\b, DIFAT=0x%16.16llx
+#>>>76 	ubequad			x			\b, DIFAT=%#16.16llx
 #>>>84 	ubequad			x			\b%16.16llx...
 # pointer to root entry only works with standard configuration for SecID ~< 800h
 # Red-Carpet-presentation-1.0-1.sdd sg10.sdv 2000_GA_Annual_Review_Data.xls
@@ -87,8 +87,8 @@
 #	https://wikileaks.org/ciav7p1/cms/page_13762814.html
 #	https://m.blog.naver.com/superman4u/40047693679
 #	https://misc.daniel-marschall.de/projects/guid_analysis/guid.txt
-#	http://www.windowstricks.in/online-windows-guid-converter
-#>80 	ubequad		!0			\b, clsid 0x%16.16llx
+#	https://toolslick.com/conversion/data/guid
+#>80 	ubequad		!0			\b, clsid %#16.16llx
 #>>88 	ubequad		x			\b%16.16llx
 # test for "Root Entry" inside directory by type 5 value
 >66 	ubyte		5
@@ -210,6 +210,15 @@
 >>>>256 	lestring16	Thumbnail		: Corel PrintHouse image
 !:mime	application/x-corel-cph
 !:ext	cph
+# URL:	http://fileformats.archiveteam.org/wiki/Corel_Gallery
+# Note:	format since Gallery 2; sometimes called Corel Multimedia Manager Album
+# third directory entry name _INFO_
+>>>>256 	lestring16	_INFO_			: Corel Gallery
+# second directory entry name _ITEM_ or _DATA_
+# later directory entry names: _ALBUM_ _THUMBNAIL_
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-gal
+!:ext	gal
 #
 # URL:	https://en.wikipedia.org/wiki/Hangul_(word_processor)
 # Note:	"HWP Document File" signature found in FileHeader
@@ -231,7 +240,7 @@
 >>>>128 	lestring16	Current\ User		: SoftMaker
 # third directory entry name SMNativeObjData
 >>>>>256	lestring16	SMNativeObjData		
-# 5th directory entry nane PowerPoint
+# 5th directory entry name PowerPoint
 >>>>>>512	lestring16	PowerPoint		PowerPoint presentation or template
 !:mime	application/vnd.ms-powerpoint
 !:ext	ppt/pps/pot
@@ -251,6 +260,12 @@
 >>>>>>128 	lestring16	Pictures		with pictures
 #	remaining null clsid
 >>>>128 	default		x			: UNKNOWN
+# second directory entry name like VisioDocument Control000
+>>>>>128	lestring16	x with names %.20s
+# third directory entry like WordDocument
+>>>>>256	lestring16	x %.20s
+# forth
+>>>>>384	lestring16	x %.20s
 !:mime	application/x-ole-storage
 #	look for known clsid GUID
 # - Visio documents
@@ -315,7 +330,7 @@
 !:mime	application/vnd.ms-excel
 # https://www.macdisk.com/macsigen.php	XLS5 for Excel 5
 !:apple	????XLS9
-# 3nd directory entry name
+# 3rd directory entry name
 >>>>256 	lestring16	_VBA_PROJECT_CUR	addin
 !:ext	xla/
 # 4th directory entry name
@@ -365,6 +380,21 @@
 !:mime	application/vnd.ms-works
 !:apple	????AWWP
 !:ext	wps
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Works
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		probably version 6 and 7
+# organize pictures like JPFG images in streams __cf1 with names like
+# 001.JPG, 002.JPG ... in streams __fname
+>>88 	ubequad		0xa1c800c04f612452	: Microsoft
+>>>80 	ubequad		0xc0c7266eb98cd311	Works portfolio
+# 2nd directory entry name PfOrder, 3rd __LastID and 4th __SizeUsed
+#!:mime	application/x-ole-storage
+# https://www.iana.org/assignments/media-types/application/vnd.ms-works
+!:mime	application/vnd.ms-works
+# https://extension.nirsoft.net/wsb
+# like: wsbsamp.wsb WORKS2003_CD:\MSWorks\Common\Sammlung.wsb
+!:ext	wsb
 #??
 # URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Publisher
 >>88 	ubequad		0x00c0000000000046	: Microsoft
@@ -394,6 +424,25 @@
 >>>80 	ubequad		0x3a8fb774c8c8d111	Project
 !:mime	application/vnd.ms-project
 !:ext	mpp
+#
+# URL:		http://fileformats.archiveteam.org/wiki/WordPerfect
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+#		https://github.com/OneWingedShark/WordPerfect/
+#		blob/master/doc/SDK_Help/FileFormats/WPFF_DocumentStructure.htm
+# From:		Joerg Jenderek
+# Note:		internal version x.2 or 2.2 like in embedded ole6-PerfectOffice_MAIN.wpd
+# 3rd directory entry name PerfectOffice_OBJECT and 2nd PerfectOffice_MAIN,
+# which contains WordPerfect document \xffWPC signature handled by ./wordprocessors
+>>88 	ubequad		0x19370000929679cd	: WordPerfect 7
+>>>80 	ubequad		0xff739851ad2d2002	Document
+!:mime	application/vnd.wordperfect
+#!:apple	????WPC?
+# https://fossies.org/linux/wp2latex/test/ole6.wpd
+!:ext	wpd
+#>>>>0	search/0xc01/s	\xffWPC			\b, WPC SIGNATURE
+# inspect embedded WordPerfect document by ./wordprocessors with 1 space at end
+#>>>>>&0	indirect	x	\b; contains 
+# GRR: the above expression does not work correctly 
 #
 # URL:	http://fileformats.archiveteam.org/wiki/SHW_(Corel)
 #???
@@ -514,6 +563,6 @@
 # remaining non null clsid
 >>88 	default		x			: UNKNOWN
 !:mime	application/x-ole-storage
->>>80 	ubequad		!0			\b, clsid 0x%16.16llx
+>>>80 	ubequad		!0			\b, clsid %#16.16llx
 >>>88 	ubequad		x			\b%16.16llx
 

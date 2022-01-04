@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: motorola,v 1.11 2014/04/30 21:41:02 christos Exp $
+# $File: motorola,v 1.12 2021/04/26 15:56:00 christos Exp $
 # motorola:  file(1) magic for Motorola 68K and 88K binaries
 #
 # 68K
@@ -60,7 +60,7 @@
 >22     belong          &0x01           fastload flag,
 >22     belong          &0x02           may be loaded to alternate RAM,
 >22     belong          &0x04           malloc may be from alternate RAM,
->22     belong          x               flags: 0x%X,
+>22     belong          x               flags: %#X,
 >26     beshort         0               no relocation tab
 >26     beshort         !0              + relocation tab
 >30     string          SFX             [Self-Extracting LZH SFX archive]

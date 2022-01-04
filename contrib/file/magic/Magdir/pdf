@@ -1,15 +1,18 @@
 
 #------------------------------------------------------------------------------
-# $File: pdf,v 1.12 2020/01/30 01:48:44 christos Exp $
+# $File: pdf,v 1.16 2021/07/30 11:47:07 christos Exp $
 # pdf:  file(1) magic for Portable Document Format
 #
 
 0	name	pdf
->8	search/512	/Filter/FlateDecode/	(password protected)
+>8	search		/Count
+>>&0	regex		[0-9]+		\b, %s pages
+>8	search/512	/Filter/FlateDecode/	(zip deflate encoded)
 
 0	string		%PDF-		PDF document
 !:mime	application/pdf
 !:strength +60
+!:ext	pdf
 >5	byte		x		\b, version %c
 >7	byte		x		\b.%c
 >0	use		pdf
@@ -17,6 +20,7 @@
 0	string		\012%PDF-	PDF document
 !:mime	application/pdf
 !:strength +60
+!:ext	pdf
 >6	byte		x		\b, version %c
 >8	byte		x		\b.%c
 >0	use		pdf
@@ -24,6 +28,7 @@
 0	string		\xef\xbb\xbf%PDF-	PDF document (UTF-8)
 !:mime	application/pdf
 !:strength +60
+!:ext	pdf
 >6	byte		x		\b, version %c
 >8	byte		x		\b.%c
 >0	use		pdf
@@ -33,12 +38,14 @@
 0       string          %FDF-           FDF document
 !:mime application/vnd.fdf
 !:strength +60
+!:ext	pdf
 >5      byte            x               \b, version %c
 >7      byte            x               \b.%c
 
 0	search/256	%PDF-		PDF document
 !:mime	application/pdf
 !:strength +60
+!:ext	pdf
 >&0	byte		x		\b, version %c
 >&2	byte		x		\b.%c
 >0	use		pdf

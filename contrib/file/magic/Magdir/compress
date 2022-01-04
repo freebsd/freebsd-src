@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.79 2020/05/30 23:53:04 christos Exp $
+# $File: compress,v 1.82 2021/06/30 08:11:29 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -264,14 +264,19 @@
 >>5	lequad		!0xffffffffffffffff	non-streamed, size %lld
 
 # http://tukaani.org/xz/xz-file-format.txt
-0	ustring		\xFD7zXZ\x00		XZ compressed data
+0	ustring		\xFD7zXZ\x00		XZ compressed data, checksum
 !:strength * 2
 !:mime	application/x-xz
+>7	byte&0xf	0x0			NONE
+>7	byte&0xf	0x1			CRC32
+>7	byte&0xf	0x4			CRC64
+>7	byte&0xf	0xa			SHA-256
 
 # https://github.com/ckolivas/lrzip/blob/master/doc/magic.header.txt
 0	string		LRZI			LRZIP compressed data
 >4	byte		x			- version %d
 >5	byte		x			\b.%d
+>22	byte		1			\b, encrypted
 !:mime	application/x-lrzip
 
 # https://fastcompression.blogspot.fi/2013/04/lz4-streaming-format-final.html

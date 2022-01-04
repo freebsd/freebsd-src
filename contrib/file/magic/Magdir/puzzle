@@ -1,0 +1,17 @@
+
+#------------------------------------------------------------------------------
+# $File: puzzle,v 1.2 2021/10/07 15:40:40 christos Exp $
+# wsdl: Magic for various puzzles
+
+# PUZ crossword puzzles from Alan De Smet
+# Test files can be found at
+# https://theworld.com/~wij/puzzles/wij-themed.html or using the
+# "Universal" or "WS Journal" links on the right side of
+# https://www.cruciverb.com/ .
+
+2	string	ACROSS&DOWN	PUZ crossword puzzle
+>0x2c	byte	x		%d x
+>0x2d	byte	x		%d,
+>0x2e	leshort	x		%d clues,
+>0x1e	leshort	0x0000		plain text solution
+>0x1e	leshort	!0x0000		scrambled solution

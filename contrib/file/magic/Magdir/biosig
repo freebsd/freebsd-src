@@ -19,7 +19,7 @@
 0	string  ATES\x20MEDICA\x20SOFT.\x20EEG\x20for\x20Windows	Biosig/ATES MEDICA SOFT. EEG for Windows
 !:mime biosig/ates
 #
-0	string  ATF\x09					Biosig/Axon Text fomrat
+0	string  ATF\x09					Biosig/Axon Text format
 !:mime biosig/atf
 #
 0	string  ADU1					Biosig/Axona file format

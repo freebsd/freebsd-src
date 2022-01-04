@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: lisp,v 1.26 2019/04/19 00:42:27 christos Exp $
+# $File: lisp,v 1.27 2020/08/14 19:23:39 christos Exp $
 # lisp:  file(1) magic for lisp programs
 #
 # various lisp types, from Daniel Quinlan (quinlan@yggdrasil.com)
@@ -59,6 +59,9 @@
 !:mime	application/x-elc
 !:apple	EMAxTEXT
 !:ext elc
+
+# Files produced by GNU/Emacs pdumper
+0	string	DUMPEDGNUEMACS	GNU/Emacs pdumper image
 
 # Files produced by CLISP Common Lisp From: Bruno Haible <haible@ilog.fr>
 0	string	(SYSTEM::VERSION\040'	CLISP byte-compiled Lisp program (pre 2004-03-27)

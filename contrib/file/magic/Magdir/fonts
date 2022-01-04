@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.43 2019/07/16 11:11:31 christos Exp $
+# $File: fonts,v 1.46 2021/04/26 15:56:00 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -11,6 +11,7 @@
 0	string		%!PS-AdobeFont-1.	PostScript Type 1 font text
 >20	string		>\0			(%s)
 6	string		%!PS-AdobeFont-1.	PostScript Type 1 font program data
+>26	string		>\0			(%s)
 0	string		%!FontType1	PostScript Type 1 font program data
 6	string		%!FontType1	PostScript Type 1 font program data
 0	string		%!PS-Adobe-3.0\ Resource-Font	PostScript Type 1 font text
@@ -123,7 +124,15 @@
 >10	leshort		x		\b%d
 >40	string		x		%s
 # Misc. DOS VGA fonts, from Albert Cahalan (acahalan@cs.uml.edu)
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/CPI
+# Reference:	http://www.delorie.com/djgpp/doc/rbinter/it/58/17.html
 0	belong		0xff464f4e	DOS code page font data collection
+!:mime	font/x-dos-cpi
+!:ext	cpi
+0	string		\x7fDRFONT	DR-DOS code page font data collection
+!:mime	font/x-drdos-cpi
+!:ext	cpi
 7	belong		0x00454741	DOS code page font data
 7	belong		0x00564944	DOS code page font data (from Linux?)
 4098	string		DOSFONT		DOSFONT2 encrypted font data
@@ -158,7 +167,7 @@
 # face size in points 3-72 SLSS03CG.FNT H1CELT72.FNT
 >2	uleshort	x		%u
 # face ID (must be unique)
->0	uleshort	x		\b, ID 0x%4.4x
+>0	uleshort	x		\b, ID %#4.4x
 # lowest character index in face (4 but usually 32 for disk-loaded fonts)
 #>36	uleshort	!32		\b, unusual character index %u
 # width of the widest character like 0 8 10 12 16 24 32
@@ -168,21 +177,21 @@
 # thickening size in pixel like 0 1 2 3 4 5 6 7 8
 #>58	uleshort	x		\b, %u thick
 # lightening mask to eliminate pixels, usually 5555h
->62	uleshort	!0x5555		\b, lightening mask 0x%x
+>62	uleshort	!0x5555		\b, lightening mask %#x
 # skewing mask to determine when to perform additional rotation when skewing, usually 5555h
->64	uleshort	!0x5555		\b, skewing mask 0x%x
+>64	uleshort	!0x5555		\b, skewing mask %#x
 # offset to optional horizontal offset table 0 58h~88 5eh 252h
-#>68	ulelong		x		\b, 0x%x horizontal table offset
+#>68	ulelong		x		\b, %#x horizontal table offset
 # offset of character offset table 54h for many *.GFT 55h 58h 5Eh 120h 1D4h 202h 220h
-#>72	ulelong		x		\b, 0x%x coffset
+#>72	ulelong		x		\b, %#x coffset
 # offset to font data like 116h 118h 158 20Ah 20Eh
->76	ulelong		x		\b, 0x%x foffset
+>76	ulelong		x		\b, %#x foffset
 # form width in bytes like 58 67 156 190 227 317 345
 #>80	uleshort	x		\b, %u fwidth
 # form height in bytes like 4 8 11 17 26 56 70 90 120 146 150
 #>82	uleshort	x		\b, %u fheight
 # pointer to the next font like 0 10000h 20000h 30000h 40000h 60000h 80000h E0000h D0000h 
-#>84	ulelong		x		\b, 0x%x noffset
+#>84	ulelong		x		\b, %#x noffset
 
 # downloadable fonts for browser (prints type) anthon@mnt.org
 # https://tools.ietf.org/html/rfc3073
@@ -221,7 +230,7 @@
 # tag names consist of up to four characters padded with spaces at end like
 # BASE DSIG OS/2 Zapf acnt glyf cvt vmtx xref ...
 >>12	regex/4l	\^[A-Za-z][A-Za-z][A-Za-z/][A-Za-z2\ ]	
-#>>>0	ubelong	x	\b, sfnt version 0x%x
+#>>>0	ubelong	x	\b, sfnt version %#x
 >>>0	ubelong	!0x4f54544f	TrueType
 !:mime	font/sfnt
 !:apple	????tfil
@@ -253,7 +262,7 @@
 #>>>>&8	ubelong		>0x0100bd27	BIGGEST OFFSET
 >>&8	ubelong		>0x00100000	
 # offset of name table
->>>&-4	ubelong		x		\b, name offset 0x%x
+>>>&-4	ubelong		x		\b, name offset %#x
 # GRR: pointer to name table only works if offset ~< FILE_BYTES_MAX = 100000h defined in src\file.h
 >>&8	ubelong		<0x00100000	
 >>>&-16	ubelong		x		
@@ -284,7 +293,7 @@
 >>>>>&-2	ubeshort	1	\b, Macintosh
 >>>>>&-2	ubeshort	3	\b, Microsoft
 # languageID (0~english Macintosh, 0409h~english Microsoft, ...)
->>>>>&2		ubeshort	>0	\b, language 0x%x
+>>>>>&2		ubeshort	>0	\b, language %#x
 # name identifiers
 # often 0~copyright, 1~font, 2~font subfamily, 5~version, 13~license, 19~sample, ...
 >>>>>&4		ubeshort	>0	\b, type %d string
@@ -339,7 +348,7 @@
 # 0x44454947 = 'DSIG'
 >>>&4	belong		0x44534947	\b, digitally signed
 # offset to 1st font
->>12	ubelong		x		\b, at 0x%x
+>>12	ubelong		x		\b, at %#x
 # point to 1st font that starts with sfnt version
 >>(12.L) use		sfnt-font
 

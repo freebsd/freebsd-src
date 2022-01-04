@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.181 2020/05/30 23:49:03 christos Exp $
+# $File: images,v 1.205 2021/10/18 13:56:29 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -30,24 +30,29 @@
 # Conflict with MPEG sequences.
 !:strength -40
 # Prevent conflicts with CRI ADX.
->(2.S-2) belong	!0x28632943
+#>(2.S-2) belong	!0x28632943
+# above line does not work for rgb32_top_left_rle.tga
+# skip some MPEG sequence *.vob and some CRI ADX audio with improbable interleave bits
+>17	ubyte&0xC0		!0xC0
 # skip more garbage like *.iso by looking for positive image type
 >>2	ubyte			>0
 # skip some compiled terminfo like xterm+tmux by looking for image type less equal 33
 >>>2	ubyte			<34
+# skip some MPEG sequence *.vob HV001T01.EVO winnicki.mpg with unacceptable alpha channel depth 11
+>>>>17	ubyte&0x0F		!11
 # skip arches.3200 , Finder.Root , Slp.1 by looking for low pixel depth 1 8 15 16 24 32
->>>>16	ubyte			1
->>>>>0		use		tga-image
->>>>16	ubyte			8
->>>>>0		use		tga-image
->>>>16	ubyte			15
->>>>>0		use		tga-image
->>>>16	ubyte			16
->>>>>0		use		tga-image
->>>>16	ubyte			24
->>>>>0		use		tga-image
->>>>16	ubyte			32
->>>>>0		use		tga-image
+>>>>>16	ubyte			1
+>>>>>>0		use		tga-image
+>>>>>16	ubyte			8
+>>>>>>0		use		tga-image
+>>>>>16	ubyte			15
+>>>>>>0		use		tga-image
+>>>>>16	ubyte			16
+>>>>>>0		use		tga-image
+>>>>>16	ubyte			24
+>>>>>>0		use		tga-image
+>>>>>16	ubyte			32
+>>>>>>0		use		tga-image
 #	display tga bitmap image information
 0	name				tga-image
 >2	ubyte		<34		Targa image data
@@ -88,6 +93,7 @@
 # Y origin of image. 0 normal; positive for top
 >10	uleshort	>0		+%d
 # Image descriptor: bits 3-0 give the alpha channel depth, bits 5-4 give direction
+# alpha depth like: 1 8
 >17	ubyte&0x0F	>0		- %d-bit alpha
 # bits 5-4 give direction. normal bottom left
 >17	ubyte		&0x20		- top
@@ -146,7 +152,7 @@
 # VersionLetter
 >>>>>&42		ubyte			>0x20		\b%c
 # KeyColor
->>>>&468		ulelong			>0		- keycolor 0x%8.8x
+>>>>&468		ulelong			>0		- keycolor %#8.8x
 # Denominator of Pixel ratio. 0~no pixel aspect
 >>>>&474	uleshort			>0
 # Numerator
@@ -158,36 +164,47 @@
 >>>>>&-4		uleshort		>0		- gamma %d
 >>>>>&-2		uleshort		x		\b/%d
 # ColorOffset
-#>>>>&480	ulelong			x		- col offset 0x%8.8x
+#>>>>&480	ulelong			x		- col offset %#8.8x
 # StampOffset
-#>>>>&484	ulelong			x		- stamp offset 0x%8.8x
+#>>>>&484	ulelong			x		- stamp offset %#8.8x
 # ScanOffset
-#>>>>&488	ulelong			x		- scan offset 0x%8.8x
+#>>>>&488	ulelong			x		- scan offset %#8.8x
 # AttributesType
-#>>>>&492	ubyte			x		- Attributes 0x%x
+#>>>>&492	ubyte			x		- Attributes %#x
 ## EndOfTGA
 
 # PBMPLUS images
+# URL: 		https://en.wikipedia.org/wiki/Netpbm
 # The next byte following the magic is always whitespace.
-# strength is changed to try these patterns before "x86 boot sector"
+# adding 65 to strength so that Netpbm images comes before "x86 boot sector" or
+# "DOS/MBR boot sector" identified by ./filesystems
 0	name		netpbm
 >3	regex/s		=[0-9]{1,50}\ [0-9]{1,50}	Netpbm image data
 >>&0	regex		=[0-9]{1,50} 			\b, size = %s x
 >>>&0	regex		=[0-9]{1,50}			\b %s
 
 0	search/1	P1
->0	regex/4		P1[\040\t\f\r\n]
->>0	use		netpbm
->>0	string		x	\b, bitmap
+# test for whitespace after 2 byte magic
+>2	regex/2		[\040\t\f\r\n]
+# skip DROID x-fmt-164-signature-id-583.pbm with ten 0 digits
+>>3	string		!000000000
+>>>0	use		netpbm
+>>>0	string		x	\b, bitmap
 !:strength + 65
 !:mime	image/x-portable-bitmap
+!:ext	pbm
+# check for character # starting a comment line
+>>>3	ubyte		=0x23
+>>>>4	string		x	%s
 
 0	search/1	P2
 >0	regex/4		P2[\040\t\f\r\n]
 >>0	use		netpbm
 >>0	string		x	\b, greymap
 !:strength + 65
-!:mime	image/x-portable-greymap
+# american spelling gray
+!:mime	image/x-portable-graymap
+!:ext	pgm
 
 0	search/1	P3
 >0	regex/4		P3[\040\t\f\r\n]
@@ -195,6 +212,7 @@
 >>0	string		x	\b, pixmap
 !:strength + 65
 !:mime	image/x-portable-pixmap
+!:ext	ppm
 
 0	string		P4
 >0	regex/4		P4[\040\t\f\r\n]
@@ -202,6 +220,7 @@
 >>0	string		x	\b, rawbits, bitmap
 !:strength + 65
 !:mime	image/x-portable-bitmap
+!:ext	pbm
 
 0	string		P5
 >0	regex/4		P5[\040\t\f\r\n]
@@ -209,6 +228,7 @@
 >>0	string		x	\b, rawbits, greymap
 !:strength + 65
 !:mime	image/x-portable-greymap
+!:ext	pgm
 
 0	string		P6
 >0	regex/4		P6[\040\t\f\r\n]
@@ -216,9 +236,24 @@
 >>0	string		x	\b, rawbits, pixmap
 !:strength + 65
 !:mime	image/x-portable-pixmap
+!:ext	ppm/pnm
 
-0	string		P7		Netpbm PAM image file
-!:mime	image/x-portable-pixmap
+# URL: 		https://en.wikipedia.org/wiki/Netpbm#PAM_graphics_format
+# Reference:	http://fileformats.archiveteam.org/wiki/Portable_Arbitrary_Map
+# Update:	Joerg Jenderek
+0	string		P7
+# skip DROID fmt-405-signature-id-589.pam by looking for character like New Line 
+>2	ubyte		!0xAB
+#>2	ubyte		=0x0A
+>>3	search/256/b	WIDTH		Netpbm PAM image file, size =
+!:mime	image/x-portable-arbitrarymap
+!:ext	pam
+!:strength + 65
+>>>&1	string		x		%s
+>>>3	search/256/b	HEIGHT		x
+>>>>&1	string		x		%s
+# at offset 2 a New Line character (0xA) should appear
+>>>2	ubyte		!0x0A		\b, %#x at offset 2 instead new line
 
 # From: bryanh@giraffe-data.com (Bryan Henderson)
 0	string		\117\072	Solitaire Image Recorder format
@@ -256,16 +291,32 @@
 >10	byte		x	\b, version %d.
 >11	byte		x	\b%d
 
+# Fujifilm RAF RAW image files with embedded JPEG data and compressed
+# or uncompressed CFA RAW data. Byte order: Big Endian.
+# URL: https://libopenraw.freedesktop.org/formats/raf/
+# Useful info from http://fileformats.archiveteam.org/wiki/Fujifilm_RAF.
+# File extension: RAF
+# Works for both the FinePix S2 Pro and the X-T3. Anybody have some more Fuji
+# raw samples available?
+# -- David Dyer-Bennet <dd-b@dd-b.net> 9-Sep-2021
+0	string		FUJIFILMCCD-RAW		Fujifilm RAF raw image data
+!:mime  image/x-fuji-raf
+!:ext	raf
+>0x10	string		x			\b, format version %4.4s
+>0x1C	string		x			\b, camera %s
+
 # Tag Image File Format, from Daniel Quinlan (quinlan@yggdrasil.com)
 # The second word of TIFF files is the TIFF version number, 42, which has
 # never changed.  The TIFF specification recommends testing for it.
 0	string		MM\x00\x2a	TIFF image data, big-endian
 !:strength +70
 !:mime	image/tiff
+!:ext	tif,tiff
 >(4.L)	use		\^tiff_ifd
 0	string		II\x2a\x00	TIFF image data, little-endian
 !:mime	image/tiff
 !:strength +70
+!:ext	tif,tiff
 >(4.l)	use		tiff_ifd
 
 0	name		tiff_ifd
@@ -312,7 +363,7 @@
 >>>8	leshort		0x8798		\bJPEG2000
 >>>8	leshort		0x8799		\bNikon NEF Compressed
 >>>8	default		x
->>>>8	leshort		x		\b(unknown 0x%x)
+>>>>8	leshort		x		\b(unknown %#x)
 >>>12	use		tiff_entry
 >0	leshort		0x106		\b, PhotometricIntepretation=
 >>8	clear		x
@@ -325,7 +376,7 @@
 >>8	leshort		6		\bYCbCr
 >>8	leshort		8		\bCIELab
 >>8	default		x
->>>8	leshort		x		\b(unknown=0x%x)
+>>>8	leshort		x		\b(unknown=%#x)
 >>12	use		tiff_entry
 # FillOrder
 >0	leshort		0x10a
@@ -410,7 +461,7 @@
 >0	leshort		0x8825		\b, GPS-Data
 >>12	use		tiff_entry
 
-#>0	leshort		x		\b, unknown=0x%x
+#>0	leshort		x		\b, unknown=%#x
 #>>12	use		tiff_entry
 
 0	string		MM\x00\x2b	Big TIFF image data, big-endian
@@ -478,6 +529,7 @@
 !:strength +80
 !:mime	image/gif
 !:apple	8BIMGIFf
+!:ext	gif
 >4	string		7a		\b, version 8%s,
 >4	string		9a		\b, version 8%s,
 >6	leshort		>0		%d x
@@ -506,7 +558,7 @@
 # http://www.nationalarchives.gov.uk/pronom/fmt/930
 0	search/256/bc	id=imagemagick
 # skip bad ASCII text by following new line~0x0A or space~0x20 character
-#>&0	ubyte		x		\b, next character 0x%x
+#>&0	ubyte		x		\b, next character %#x
 # called by TriD ImageMagick Machine independent File Format bitmap
 >&0	ubyte&0xD5	0		MIFF image data
 # https://reposcope.com/mimetype/image/miff
@@ -580,18 +632,31 @@
 0	string		Sfff		structured fax file
 
 # From: Joerg Jenderek <joerg.jen.der.ek@gmx.net>
-# most files with the extension .EPA and some with .BMP
+# URL:	http://fileformats.archiveteam.org/wiki/Award_BIOS_logo
+# Note:	verified by XnView command `nconvert -fullinfo *.EPA`
 0	string		\x11\x06	Award BIOS Logo, 136 x 84
 !:mime	image/x-award-bioslogo
+!:ext	epa
 0	string		\x11\x09	Award BIOS Logo, 136 x 126
 !:mime	image/x-award-bioslogo
+!:ext	epa
+# https://telparia.com/fileFormatSamples/image/epa/IO.EPA
+# Note:	by bitmap-awbm-v1x1009.trid.xml called "Award BIOS logo bitmap (128x126) (v1)"
+#	verified by RECOIL `recoil2png -o tmp.png IO.EPA; file tmp.png`
+0	string		\x10\x09	Award BIOS Logo, 128 x 126
+!:mime	image/x-award-bioslogo
+!:ext	epa
 #0	string		\x07\x1f	BIOS Logo corrupted?
 # http://www.blackfiveservices.co.uk/awbmtools.shtml
 # http://biosgfx.narod.ru/v3/
 # http://biosgfx.narod.ru/abr-2/
 0	string		AWBM
->4	leshort		<1981		Award BIOS bitmap
-!:mime	image/x-award-bmp
+# Note:    by bitmap-awbm.trid.xml called "Award BIOS logo bitmap (v2)"
+>4	leshort		<1981		Award BIOS Logo, version 2
+#>4	leshort		<1981		Award BIOS bitmap
+!:mime	image/x-award-bioslogo2
+#!:mime	image/x-award-bmp
+!:ext	epa/bmp
 # image width is a multiple of 4
 >>4	leshort&0x0003	0
 >>>4		leshort	x		\b, %d
@@ -615,7 +680,7 @@
 0	leshort		40
 # skip bad samples like GAME by looking for valid number of color planes
 >12	uleshort	1		Device independent bitmap graphic
-!:mime	image/bmp
+!:mime	image/x-ms-bmp
 !:apple	????BMPp
 !:ext	dib
 >>4	lelong		x		\b, %d x
@@ -635,12 +700,104 @@
 #>>32	ulelong		>0		\b, %u colors
 # number of important colors used, or 0 when every color is important
 >>36	ulelong		>0		\b, %u important colors
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/VBM_(VDC_BitMap)
+# Reference:	http://csbruce.com/cbm/postings/csc19950906-1.txt
+#		http://mark0.net/download/triddefs_xml.7z
+#		defs/b/bitmap-vbm.trid.xml
+#		defs/b/bitmap-vbm-v3.trid.xml
+# Note:		called "VDC BitMap" by TrID
+#		verified by RECOIL `recoil2png -o tmp.png coke_can.vbm; file tmp.png`
+# begin with a signature of 'B' 'M' 0xCB, followed by a version byte 2 or 3
+# Similar to the unrelated Windows BMP format
+#	check for VDC bitmap and then display image dimension and version
+0	name		bitmap-vbm
+>2	ubyte		0xCB		VDC bitmap
+!:mime	image/x-commodore-vbm
+# http://recoil.sourceforge.net/formats.html
+!:ext	bm/vbm
+# the VBM format version number: 2 or 3
+>>3	ubyte		x		\b, version %u
+# width of the image in Hi/Lo format 
+>>4	ubeshort	x		\b, %u
+# height of the image
+>>6	ubeshort	x		x %u
+# version 3 images have the following additional header information 
+>>3	ubyte		=3
+# data-encoding type: 0~uncompressed 1~RLE-compressed 
+>>>8	ubyte		0		\b, uncompressed
+>>>8	ubyte		1		\b, RLE-compressed
+# byte code for general RLE repetitions
+#>>>9	ubyte		x		\b, RLE repetition code 0x%x
+# reserved := 0
+#>>>14	short		>0		\b, reserved 0x%x
+# length of comment text; 0~no comment text
+#>>>16	ubeshort	>0		\b, comment length %u
+>>>16	pstring/H	>0		\b, comment "%s"
+#
 0	string		BM
->14	leshort		12		PC bitmap, OS/2 1.x format
-!:mime	image/x-ms-bmp
+# check for magic and version 2 of VDC bitmap or BMP with cbSize=715=CB02
+>2	beshort		0xCB02
+>>6	short		=0
+>>>0	use     	bitmap-bmp
+# VDC bitmap height or maybe a few OS/2 BMP with nonzero "hotspot coordinates"
+>>6	short		!0
+>>>0	use     	bitmap-vbm
+# check for magic and version 3 of VDC bitmap or BMP with cbSize=971=CB03
+>2	beshort		0xCB03
+# check for reserved value (=0) of VDC bitmap
+>>14	short		=0
+>>>0	use     	bitmap-vbm
+# BMP with cbSize=????03CBh and dib header size != 0
+>>14	short		!0
+>>>0	use     	bitmap-bmp
+# cbSize is size of header or file size of Windows BMP bitmap
+>2	default		x
+>>0	use     	bitmap-bmp
+0	name		bitmap-bmp
+>14	lelong		12		PC bitmap, OS/2 1.x format
+!:mime	image/bmp
+!:ext	bmp
 >>18	leshort		x		\b, %d x
 >>20	leshort		x		%d
->14	leshort		64		PC bitmap, OS/2 2.x format
+# number of color planes (must be 1)
+#>>22	leshort		!1		\b, %u color planes
+# number of bits per pixel (color depth); found 4 8
+>>24	leshort		x		x %d
+# x, y coordinates of the hotspot
+>>6	uleshort	>0		\b, hotspot %ux
+>>>8	uleshort	x		\b%u
+# cbSize; size of file or header like 1Ah 228C8h
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%8.8x
+# offBits; offset to bitmap data like: 
+>>10	ulelong			x	\b, bits offset %u
+# http://fileformats.archiveteam.org/wiki/BMP#OS.2F2_BMP_2.0 no examples found
+>14	ulelong		48		PC bitmap, OS/2 2.x format (DIB header size=48)
+>14	ulelong		24		PC bitmap, OS/2 2.x format (DIB header size=24)
+# http://entropymine.com/jason/bmpsuite/bmpsuite/q/pal8os2v2-16.bmp
+# Note:    by bitmap-bmp-v2o.trid.xml called "Windows Bitmap (v2o)"
+>14	ulelong		16		PC bitmap, OS/2 2.x format (DIB header size=16)
+!:mime	image/bmp
+!:apple	????BMPp
+!:ext	bmp
+# image width and height fields are unsigned integers for OS/2
+>>18	ulelong		x		\b, %u x
+>>22	ulelong		x		%u
+# number of bits per pixel (color depth); found 8
+>>28	uleshort	>1		x %u
+# x, y coordinates of the hotspot
+>>6	uleshort	>0		\b, hotspot %ux
+>>>8	uleshort	x		\b%u
+# number of color planes (must be 1)
+#>>26	uleshort	>1		\b, %u color planes
+# cbSize; size of file like: 241E
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like: 41E
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
+>14	lelong		64		PC bitmap, OS/2 2.x format
 !:mime	image/bmp
 !:apple	????BMPp
 !:ext	bmp
@@ -655,30 +812,53 @@
 >>26	uleshort	>1		\b, %u color planes
 # cbSize; size of file or headers
 >>2	ulelong		x		\b, cbSize %u
-#>>2	ulelong		x		\b, cbSize 0x%x
+# BMP with cbSize 000002CBh=715 or 000003CBh=971 maybe misinterpreted as VDC bitmap
+#>>2	ulelong		x		\b, cbSize %#x
 # offBits; offset to bitmap data like 56h 5Eh 8Eh 43Eh
 >>10	ulelong			x	\b, bits offset %u
-#>>10	ulelong			x	\b, bits offset 0x%x
-#>>(10.l) ubequad		!0	\b, bits 0x%16.16llx
+#>>10	ulelong			x	\b, bits offset %#x
+#>>(10.l) ubequad		!0	\b, bits %#16.16llx
 # BITMAPV2INFOHEADER	adds RGB bit masks
->14	leshort		52		PC bitmap, Adobe Photoshop
+>14	lelong		52		PC bitmap, Adobe Photoshop
 !:mime	image/bmp
 !:apple	????BMPp
 !:ext	bmp
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
+# number of bits per pixel (color depth); found 16 32
 >>28	leshort		x		%d
+# x, y coordinates of the hotspot; should be zero for Windows variant
+>>6	uleshort	>0		\b, hotspot %ux
+>>>8	uleshort	x		\b%u
+# cbSize; size of file like: 14A 7F42
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like: 42h
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
 # BITMAPV3INFOHEADER	adds alpha channel bit mask
->14	leshort		56		PC bitmap, Adobe Photoshop with alpha channel mask
+>14	lelong		56		PC bitmap, Adobe Photoshop with alpha channel mask
 !:mime	image/bmp
 !:apple	????BMPp
 !:ext	bmp
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
+# number of bits per pixel (color depth); found 16 32
 >>28	leshort		x		%d
->14	leshort		40
+# x, y coordinates of the hotspot; should be zero for Windows variant
+>>6	uleshort	>0		\b, hotspot %ux
+>>>8	uleshort	x		\b%u
+# cbSize; size of file like: 4E 7F46 131DE 14046h
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like: 46h
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
+>14	lelong		40
 # jump 4 bytes before end of file/header to skip fmt-116-signature-id-118.dib
->>(2.l-4)	ulong	x		PC bitmap, Windows 3.x format
+# broken for large bitmaps
+#>>(2.l-4)	ulong	x		PC bitmap, Windows 3.x format
+>>14	lelong		40		PC bitmap, Windows 3.x format
 !:mime	image/bmp
 !:apple	????BMPp
 >>>18	lelong		x		\b, %d x
@@ -690,7 +870,16 @@
 # compression method 2~RLE 4-bit/pixel implies also extension rle
 >>>>30	ulelong		2		x
 !:ext	bmp/rle
->>>>30	default		x		x
+# not RLE compressed and not 320x400 dimension
+>>>>30	default		x
+# "small" dimensions like: 14x15 15x16 16x14 16x16 32x32
+#	https://en.wikipedia.org/wiki/Favicon
+>>>>>18	ulequad&0xffFFffC0ffFFffC0 =0	x
+# https://www.politi-kdigital.de/favicon.ico
+# http://forum.rpc1.org/favicon.ico
+!:ext	bmp/ico
+# "big" dimensions > 63
+>>>>>18	default		x		x
 !:ext	bmp
 # number of bits per pixel (color depth); found 1 2 4 8 16 24 32
 >>>28	leshort		x		%d
@@ -713,26 +902,45 @@
 >>>50	ulelong		>0		\b, %u important colors
 # cbSize; often size of file
 >>>2	ulelong		x		\b, cbSize %u
-#>>>2	ulelong		x		\b, cbSize 0x%x
+#>>>2	ulelong		x		\b, cbSize %#x
 # offBits; offset to bitmap data like 36h 76h BEh 236h 406h 436h 4E6h
 >>>10	ulelong			x	\b, bits offset %u
-#>>>10	ulelong			x	\b, bits offset 0x%x
-#>>>(10.l) ubequad		!0	\b, bits 0x%16.16llxd
->14	leshort		124		PC bitmap, Windows 98/2000 and newer format
-!:mime	image/x-ms-bmp
+#>>>10	ulelong			x	\b, bits offset %#x
+#>>>(10.l) ubequad		!0	\b, bits %#16.16llxd
+>14	lelong		124		PC bitmap, Windows 98/2000 and newer format
+!:mime	image/bmp
+!:ext	bmp
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
+# color planes; must be 1
+#>>>26	uleshort	>1		\b, %u color planes
+# number of bits per pixel (color depth); found 4 8 16 24 32 1 (fmt-119-signature-id-121.bmp) 0 (rgb24jpeg.bmp rgb24png.bmp)
 >>28	leshort		x		%d
->14	leshort		108		PC bitmap, Windows 95/NT4 and newer format
-!:mime	image/x-ms-bmp
+# x, y coordinates of the hotspot; should be zero for Windows variant
+>>6	leshort		>0		\b, hotspot %ux
+>>>8	leshort		x		\b%u
+# cbSize; size of file like: 8E AA 48A 999 247A 4F02 7F8A 3F88E B216E 1D4C8A 100008A
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like: 8A 47A ABABABAB (fmt-119-signature-id-121.bmp)
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
+>14	lelong		108		PC bitmap, Windows 95/NT4 and newer format
+!:mime	image/bmp
+!:ext	bmp
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
+# number of bits per pixel (color depth); found 8 24 32
 >>28	leshort		x		%d
->14	leshort		128		PC bitmap, Windows NT/2000 format
-!:mime	image/x-ms-bmp
->>18	lelong		x		\b, %d x
->>22	lelong		x		%d x
->>28	leshort		x		%d
+# x, y coordinates of the hotspot; should be zero for Windows variant
+>>6	leshort		>0		\b, hotspot %ux
+>>>8	leshort		x		\b%u
+# cbSize; size of file like: 82 8A 9A 9F86 1E07A 3007A 88B7A C007A 
+>>2	ulelong		x		\b, cbSize %u
+#>>2	ulelong		x		\b, cbSize 0x%x
+# offBits; offset to bitmap data like: 7A 7E 46A
+>>10	ulelong			x	\b, bits offset %u
+#>>10	ulelong			x	\b, bits offset 0x%x
 # Update:	Joerg Jenderek
 # URL:		http://fileformats.archiveteam.org/wiki/OS/2_Icon
 # Reference:	http://www.fileformat.info
@@ -752,7 +960,7 @@
 >>8	uleshort		x	\b%u
 # offBits; offset in bytes to the beginning of the bit-map pel data like 20h
 >>10	ulelong			x	\b, bits offset %u
-#>>(10.l) ubequad		x	\b, bits 0x%16.16llx
+#>>(10.l) ubequad		x	\b, bits %#16.16llx
 #0	string		PI		PC pointer image data
 #0	string		CI		PC color icon data
 0	string		CI
@@ -790,16 +998,24 @@
 #>>2	ulelong			x	\b, cbSize %x
 # offBits; offset to bitmap data (pixel array) like E4h 3Ah 66h 6Ah 33Ah 4A4h
 >>10	ulelong			x	\b, bits offset %u
-#>>10	ulelong			x	\b, bits offset 0x%x
-#>>(10.l) ubequad		!0	\b, bits 0x%16.16llx
+#>>10	ulelong			x	\b, bits offset %#x
+#>>(10.l) ubequad		!0	\b, bits %#16.16llx
 # dib header size: 12~Ch~OS/2 1.x 64~40h~OS/2 2.x
 #>>14	ulelong		x		\b, dib header size %u
 #0	string		CP		PC color pointer image data
 # URL:		http://fileformats.archiveteam.org/wiki/OS/2_Pointer
 # Reference:	http://www.fileformat.info/format/os2bmp/egff.htm
 0	string		CP
+# skip many Corel Photo-Paint image "CPT9FILE" by checking for positive bits offset
+>10	ulelong		>0
 # skip CPU-Z Report by checking for valid dib header sizes 12 or 64
->14	ulelong		<65		OS/2
+>>14	ulelong		=12
+>>>0		use		os2-ptr
+>>14	ulelong		=64
+>>>0		use		os2-ptr
+#	display information of OS/2 pointer bitmaps
+0	name		os2-ptr
+>14	ulelong		x		OS/2
 # http://extension.nirsoft.net/PTR
 !:mime	image/x-ibm-pointer
 !:ext	ptr
@@ -831,8 +1047,8 @@
 #>>2	ulelong			x	\b, cbSize %x
 # offBits; offset to bitmap data (pixel array) like 6Ah A4h E4h 4A4h
 >>10	ulelong			x	\b, bits offset %u
-#>>10	ulelong			x	\b, bits offset 0x%x
-#>>(10.l) ubequad		!0	\b, bits 0x%16.16llx
+#>>10	ulelong			x	\b, bits offset %#x
+#>>(10.l) ubequad		!0	\b, bits %#16.16llx
 # dib header size: 12~Ch~OS/2 1.x 64~40h~OS/2 2.x
 #>>14	ulelong		x		\b, dib header size %u
 # Conflicts with other entries [BABYL]
@@ -846,11 +1062,11 @@
 #!:apple	????BMPf
 # cbSize; size of header like 28h 5Ch
 >>2	ulelong			x	\b, cbSize %u
-#>>2	ulelong			x	\b, cbSize 0x%x
+#>>2	ulelong			x	\b, cbSize %#x
 # offNext; offset to data like 0 48h F2h 4Eh 64h C6h D2h D6h DAh E6h EAh 348h
 >>6	ulelong			>0	\b, data offset %u
-#>>6	ulelong			>0	\b, data offset 0x%x
-#>>(6.l) ubequad		!0	\b, data 0x%16.16llx
+#>>6	ulelong			>0	\b, data offset %#x
+#>>(6.l) ubequad		!0	\b, data %#16.16llx
 # dimensions of the intended device like 640 x 480 for VGA or 1024 x 768
 >>10	uleshort	>0		\b, display %u
 >>>12	uleshort	>0		x %u
@@ -1025,6 +1241,22 @@
 # https://www.atarimax.com/jindroush.atari.org/afmtatr.html
 0	leshort	0x0296		Atari ATR image
 
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/ImageLab/PrintTechnic
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-b_w.trid.xml
+# Note:		called "ImageLab bitmap" by TrID
+#		verfied by XnView `nconvert -fullinfo "MAEDCHEN.B&W"`
+0	string		B&W256	ImageLab bitmap
+!:mime	image/x-ilab
+#	https://www.xnview.com/de/image_formats/
+# GRR: add char & inside parse_ext in ../../src/apprentice.c to avoid in file version 5.40 error like:
+# Magdir\images, 1090: Warning: EXTENSION type `        b_w/b&w' has bad char '&'
+!:ext	b_w/b&w
+# Width
+>6	ubeshort	x	\b, %u
+# Height
+>8	ubeshort	x	x %u
+
 # XXX:
 # This is bad magic 0x5249 == 'RI' conflicts with RIFF and other
 # magic.
@@ -1082,30 +1314,63 @@
 
 # Adobe Photoshop
 # From: Asbjoern Sloth Toennesen <asbjorn@lila.io>
-0	string		8BPS Adobe Photoshop Image
+# URL: 		http://fileformats.archiveteam.org/wiki/PSD
+# Reference:	https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
+# Note:		verfied by XnView `nconvert -fullinfo *.psd *.psb *.pdd`
+#		and ImageMagick `identify -verbose *.pdd`
+0	string		8BPS
+# skip DROID x-fmt-92-signature-id-277.psd by checking valid width
+>18	belong		>0	Adobe Photoshop
 !:mime	image/vnd.adobe.photoshop
->4   beshort 2 (PSB)
->18  belong  x \b, %d x
->14  belong  x %d,
->24  beshort 0 bitmap
->24  beshort 1 grayscale
->>12 beshort 2 with alpha
->24  beshort 2 indexed
->24  beshort 3 RGB
->>12 beshort 4 \bA
->24  beshort 4 CMYK
->>12 beshort 5 \bA
->24  beshort 7 multichannel
->24  beshort 8 duotone
->24  beshort 9 lab
->12  beshort > 1
->>12  beshort x \b, %dx
->12  beshort 1 \b,
->22  beshort x %d-bit channel
->12  beshort > 1 \bs
+!:apple	????8BPS
+# version: always equal to 1, but 2 for PSB
+>>4   beshort 1
+# URL: 		http://fileformats.archiveteam.org/wiki/PhotoDeluxe
+# EXTRAS/PHOTOS/DEMOPIX/ORIGINAL.PDD
+>>>34	search/0xC0d7	PHUT	Image (PhotoDeluxe)
+!:ext	pdd
+>>>34	default		x	Image
+!:ext	psd
+# URL: 		http://fileformats.archiveteam.org/wiki/PSB
+>>4   beshort 2 Image (PSB)
+!:ext	psb
+# width in pixels: 1-30000 1-300000 for PSB
+>>18  belong  x \b, %d x
+>>14  belong  x %d,
+# The color mode; 0~Bitmap 1~Grayscale 2~Indexed 3~RGB 4~CMYK 7~Multichannel 9~Duotone 9~Lab
+>>24  beshort 0 bitmap
+>>24  beshort 1 grayscale
+# the number of channels; range is 1 to 56
+>>>12 beshort 2 with alpha
+>>24  beshort 2 indexed
+>>24  beshort 3 RGB
+>>>12 beshort 4 \bA
+>>24  beshort 4 CMYK
+>>>12 beshort 5 \bA
+>>24  beshort 7 multichannel
+>>24  beshort 8 duotone
+>>24  beshort 9 lab
+>>12  beshort > 1
+>>>12 beshort x \b, %dx
+>>12  beshort 1 \b,
+>>22  beshort x %d-bit channel
+>>12  beshort > 1 \bs
+# 6 reserved bytes; must be zero, but spaces inside ImageMagick input.psd
+# https://download.imagemagick.org/ImageMagick/download/ImageMagick-7.0.11-11.zip
+# ImageMagick-7.0.11-11\PerlMagick\t\input.psd
+>>6   bequad&0xFFffFFffFFff0000 !0 \b, at offset 6
+>>>6  belong  x	 0x%8.8x
+>>>6  beshort x   \b%4.4x
 
 # XV thumbnail indicator (ThMO)
+# URL:		https://en.wikipedia.org/wiki/Xv_(software)
+# Reference:	http://fileformats.archiveteam.org/wiki/XV_thumbnail
+# Update:	Joerg Jenderek
 0	string		P7\ 332		XV thumbnail image data
+#0	string		P7\ 332		XV "thumbnail file" (icon) data
+!:mime	image/x-xv-thumbnail
+# thumbnail .xvpic/foo.bar for graphic foo.bar
+!:ext	p7/gif/tif/xpm/jpg
 
 # NITF is defined by United States MIL-STD-2500A
 0	string	NITF	National Imagery Transmission Format
@@ -1211,10 +1476,6 @@
 
 0	string	Paint\ Shop\ Pro\ Image\ File	Paint Shop Pro Image File
 
-# "thumbnail file" (icon)
-# descended from "xv", but in use by other applications as well (Wolfram Kleff)
-0       string          P7\ 332         XV "thumbnail file" (icon) data
-
 # taken from fkiss: (<yav@mte.biglobe.ne.jp> ?)
 0       string          KiSS            KISS/GS
 >4      byte            16              color
@@ -1273,7 +1534,22 @@
 # DCX is multi-page PCX, using a simple header of up to 1024
 # offsets for the respective PCX components.
 # From: Joerg Wunsch <joerg_wunsch@uriah.heep.sax.de>
-0	lelong	987654321	DCX multi-page PCX image data
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/DCX
+0	lelong	987654321	DCX multi-page
+# http://www.nationalarchives.gov.uk/pronom/x-fmt/348
+!:mime	image/x-dcx
+!:ext	dcx
+# The first file offset usually starts at file offset 0x1004
+# print 1 space after 0x100? offset and then handles PCX images by ./images
+>4	lelong	x		\b, at %#x 
+>(4.l)	indirect		x
+# possible 2nd PCX image
+#>8	lelong	!0		\b, at %#x 
+#>>(8.l)	indirect		x
+# possible 3rd PCX image
+#>12	lelong	!0		\b, at %#x 
+#>>(12.l)	indirect		x
 
 # Simon Walton <simonw@matteworld.com>
 # Kodak Cineon format for scanned negatives
@@ -1383,36 +1659,72 @@
 >768	beshort		7	bottom to top/right to left
 
 # From: Tom Hilinski <tom.hilinski@comcast.net>
-# https://www.unidata.ucar.edu/packages/netcdf/
+# https://www.unidata.ucar.edu/software/netcdf/
 0	string	CDF\001			NetCDF Data Format data
 # 64-bit offset netcdf Classic https://www.unidata.ucar.edu/software/netcdf/docs/file_format_specifications
 0	string	CDF\002			NetCDF Data Format data (64-bit offset)
 
-#-----------------------------------------------------------------------
+# From: Michael Liu
+# https://en.wikipedia.org/wiki/Common_Data_Format
+0	belong	0xCDF30001	Common Data Format (Version 3 or later) data
+!:mime  application/x-cdf
+
+0	belong	0xCDF26002	Common Data Format (Version 2.6 or 2.7) data
+!:mime  application/x-cdf
+
+0	belong	0x0000FFFF	Common Data Format (Version 2.5 or earlier) data
+!:mime  application/x-cdf
+
 # Hierarchical Data Format, used to facilitate scientific data exchange
 # specifications at http://hdf.ncsa.uiuc.edu/
+# URL: 		http://fileformats.archiveteam.org/wiki/HDF
+#		https://en.wikipedia.org/wiki/Hierarchical_Data_Format
+# Reference:	https://portal.hdfgroup.org/download/attachments/52627880/HDF5_File_Format_Specification_Version-3.0.pdf
 0	belong	0x0e031301	Hierarchical Data Format (version 4) data
 !:mime	application/x-hdf
+!:ext	hdf/hdf4/h4
 0	string	\211HDF\r\n\032\n	Hierarchical Data Format (version 5) data
-!:mime	application/x-hdf
-512	string	\211HDF\r\n\032\n	Hierarchical Data Format (version 5) with 512 bytes user block
-!:mime	application/x-hdf
+#!:mime	application/x-hdf
+!:mime	application/x-hdf5
+!:ext	h5/hdf5/hdf/he5
+512	string	\211HDF\r\n\032\n
+# skip Matlab v5 mat-file testhdf5_7.4_GLNX86.mat handled by ./mathematica
+>0	string	!MATLAB			Hierarchical Data Format (version 5) with 512 bytes user block
+#!:mime	application/x-hdf
+!:mime	application/x-hdf5
+!:ext	h5/hdf5/hdf/he5
 1024	string	\211HDF\r\n\032\n	Hierarchical Data Format (version 5) with 1k user block
-!:mime	application/x-hdf
+#!:mime	application/x-hdf
+!:mime	application/x-hdf5
+!:ext	h5/hdf5/hdf/he5
 2048	string	\211HDF\r\n\032\n	Hierarchical Data Format (version 5) with 2k user block
-!:mime	application/x-hdf
+#!:mime	application/x-hdf
+!:mime	application/x-hdf5
+!:ext	h5/hdf5/hdf/he5
 4096	string	\211HDF\r\n\032\n	Hierarchical Data Format (version 5) with 4k user block
-!:mime	application/x-hdf
-
+#!:mime	application/x-hdf
+!:mime	application/x-hdf5
+!:ext	h5/hdf5/hdf/he5
 
 # From: Tobias Burnus <burnus@net-b.de>
 # Xara (for a while: Corel Xara) is a graphic package, see
 # http://www.xara.com/ for Windows and as GPL application for Linux
 0	string	XARA\243\243	Xara graphics file
 
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Corel_Gallery
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bmf-corel.trid.xml 
+# Note:		called "Corel Binary Material Format" by TrID and
+# 		"Corel Flow" by XnView
+0	string	@CorelBMF\n\rCorel\040Corporation 	Corel GALLERY Clipart
+!:mime	image/x-corel-bmf
+!:ext	bmf
+
 # https://www.cartesianinc.com/Tech/
+# Reference:	http://fileformats.archiveteam.org/wiki/Cartesian_Perceptual_Compression
 0	string	CPC\262		Cartesian Perceptual Compression image
 !:mime	image/x-cpi
+!:ext	cpi/cpc
 
 # From Albert Cahalan <acahalan@gmail.com>
 # puredigital used it for the CVS disposable camcorder
@@ -1600,7 +1912,7 @@
 >>101	beshort&0xf0	0x60			\bNCOMPONENT
 >>101	beshort&0xf0	0x70			\bRGB
 >>101	beshort&0xf0	0x80			\bRGBE
->>101	beshort&0xf0	>0x80			\b(reserved 0x%x)
+>>101	beshort&0xf0	>0x80			\b(reserved %#x)
 
 # From: Johan van der Knijff <johan.vanderknijff@kb.nl>
 #
@@ -1624,25 +1936,75 @@
 >>8	string		x		\b, "%4.4s" type
 
 # TIM images
-0		lelong		0x00000010	TIM image,
->4		lelong  	0x8		4-Bit,
->4		lelong  	0x9		8-Bit,
->4		lelong  	0x2		15-Bit,
->4		lelong  	0x3		24-Bit,
->4		lelong 		&8
->>(8.l+12)	leshort		x		Pixel at (%d,
->>(8.l+14)	leshort		x		\b%d)
->>(8.l+16)	leshort		x		Size=%dx
->>(8.l+18)	leshort		x		\b%d,
->>4		lelong 		0x8		16 CLUT Entries at
->>4		lelong 		0x9		256 CLUT Entries at
->>12		leshort		x		(%d,
->>14		leshort		x		\b%d)
->4		lelong		^8
->>12		leshort		x		Pixel at (%d,
->>14		leshort		x		\b%d)
->>16		leshort		x		Size=%dx
->>18		leshort		x		\b%d
+# URL:		http://fileformats.archiveteam.org/wiki/TIM_(PlayStation_graphics)
+# Reference:	https://mrclick.zophar.net/TilEd/download/timgfx.txt
+# Update:	Joerg Jenderek
+# Note:		called as "PSX TIM *bpp bitmap" by bitmap-tim-*.trid.xml
+#		verified as "TIM PSX" by XnView `nconvert -fullinfo *.tim` and
+#		by RECOIL `recoil2png -o TMP.PNG input.tim; file TMP.PNG` and often
+#		as "PSX TIM" by ImageMagick version 7.1.0-10 command `identify *.tim`
+#		here signed integers are used but according to Kaitai unsigned
+0		lelong		0x00000010
+# 32 Flag bits *cttt; c~CLUT flag t~type 000~4BPP 001~8BPP 010~16BPP 011~24BPP 100~Mixed
+#>4		lelong  	x		FLAGS=%#x
+# 12+Size of CLUT (2Ch for 4BPP; 20Ch 40Ch 60Ch 80Ch C0Ch for 8BPP) or
+# +image data size (800Ch 2000Ch 2580C for 16BPP) (02000003h for dBase memo test.dbt)
+#>8		lelong		x		\b, 12+CLUT or data size=%#8.8x
+# CLUT or data size remainder is 12 (Ch), but 03 for dBase memo test.dbt
+#>8		ubyte&0x0F	=0x0C		\b, SIZE REMAINDER IS 12
+# skip dBase III memo test.dbt with invalid flags 22D10189h
+>4		lelong&0xffFFffF0	=0	Sony PlayStation PSX image,
+# file (version 5.40) labeled the above entry as "TIM image"
+!:mime	image/x-sony-tim
+!:ext	tim
+#>>4		lelong&0x00000007	x	\b, BPP~%u
+# 4BPP and 8BPP examples exist with CLUT or without CLUT
+>>4		lelong&0x07	0x0		4-Bit,
+>>4		lelong&0x07	0x1		8-Bit,
+# 16BPP and 24BPP examples have no CLUT
+>>4		lelong  	0x2		15-Bit,
+>>4		lelong  	0x3		24-Bit,
+# no example
+>>4		lelong&0x07  	0x4		Mixed-Bit,
+# CLUT flag set
+>>4		lelong 		&8
+# 12 + size of CLUT like: 1000Ch 800Ch 400Ch 40Ch and 2FEh (KAGE.TIM)
+#>>>(8.l+8)	lelong		x		\b, 12+CLUT SIZE=%#8.8x
+>>>(8.l+12)	leshort		x		Pixel at (%d,
+>>>(8.l+14)	leshort		x		\b%d) Size=
+# image width (to get actual width multiply by 4 for 4BPP and by 2 for 8BPP)
+>>>>4		lelong  	0x8
+>>>>>(8.l+16)	leshort*4	x		\b%d
+>>>>4		lelong  	0x9
+>>>>>(8.l+16)	leshort*2	x		\b%d
+# image height like: 32 64 128 144 160 208 256
+>>>(8.l+18)	leshort		x		\bx%d,
+>>>4		lelong 		0x8		16 CLUT Entries at
+>>>4		lelong 		0x9		256 CLUT Entries at
+>>>12		leshort		x		(%d,
+>>>14		leshort		x		\b%d)
+# no Color LookUp Table (CLUT)
+>>4		lelong		^8
+# image orgin X Y
+>>>12		leshort		x		Pixel at (%d,
+>>>14		leshort		x		\b%d) Size=
+# real image width = multiply by 4 (4BPP) 2 (8BPP) 1 (16BPP) 2/3 (24BPP)
+>>>>4		lelong  	0x0
+>>>>>16		leshort*4	x		\b%d
+>>>>4		lelong  	0x1
+>>>>>16		leshort*2	x		\b%d
+>>>>4		lelong  	0x2
+>>>>>16		leshort		x		\b%d
+>>>>4		lelong  	0x3
+# GRR: NOT working
+#>>>>>16		leshort*2/3	x		\b%d
+>>>>>16		leshort		x		\b2/3*%d
+# mixed format width not explained!
+>>>>4		lelong  	0x4
+>>>>>16		leshort		x		\b%d
+# image height like: 64 240 256
+>>>18		leshort		x		\bx%d
+# TIM image data
 
 # MDEC streams
 0		lelong		0x80010160	MDEC video stream,
@@ -1984,8 +2346,9 @@
 
 # Supercompression enum.
 0	name	khronos-ktx2-supercompression
->0	lelong	1	Basis Universal
+>0	lelong	1	BasisLZ
 >0	lelong	2	Zstandard
+>0	lelong	3	ZLIB
 
 # Vulkan format identifier.
 # NOTE: Formats prohibited from KTX2 are commented out.
@@ -2567,3 +2930,134 @@
 >4	byte	0	Apple QuickTake 150 Raw Image
 >4	byte	>0	Apple QuickTake 200 Raw Image
 >0	use quicktake
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Corel_Photo-Paint_image
+# Reference:	http://blog.argasinski.eu/wp-content/uploads/2011/08/cpt-specification-0.01.pdf
+0	string	CPT
+>4	string	FILE		Corel Photo-Paint image, version
+# version like 7, 9 or 8
+>>3	ubyte	x		%c,
+!:mime	image/x-corel-cpt
+!:ext	cpt
+# if blocks_array_offset available jump blockNumber*8 bytes 
+>>0x34	ulelong		>0
+>>>(0x28.l*8)	ubyte	x
+# jump additional stored blocks_array_offset bytes forward to object block
+>>>>&(0x34.l-1) ulelong x	%u
+# object height in pixels
+>>>>>&0		ulelong	x	x %u
+# if no blocks_array_offset available jump blockNumber*8 bytes
+>>0x34	ulelong		=0
+>>>(0x28.l*8)	ubyte	x
+# jump additional 0x13C bytes forward to object block
+>>>>&0x13B	ulelong x	%u
+>>>>>&0	ulelong		x	x %u
+# image color model used
+>>0x8	ulelong	x
+>>>0x8	ulelong	0x1		RGB 24 bits
+>>>0x8	ulelong	0x3		CMYK 24 bits
+>>>0x8	ulelong	0x5		greyscale 8 bits
+>>>0x8	ulelong	0x6		black and white 1 bit
+>>>0x8	ulelong	0xA		RGB 8 bits
+# palette_length  number of colors * 3 in case of 8-bit RGB paletted image
+# 0 otherwise. Allowed values: 0 or [1..256] * 3
+#>>0xC	ulelong	>0		\b, palette length %u
+>>>>0xC	ulelong/3	<256	\b, %u colors
+>>>0x8	ulelong	0xB		LAB
+>>>0x8	ulelong	0xC		RGB 48 bits
+>>>0x8	ulelong	0xE		greyscale 16 bits
+# this should not happen
+>>>0x8	default	x		color model
+>>>>0x8	ulelong	x		%#x
+# bit 1 in CPT file flags: UCS-2 file comment present
+>>0x31	ubyte		&0x02
+# look for comment marker
+>>>0x100	search/0xc9d	\4\2\0\0
+# UCS-2 file comment
+>>>>&0		lestring16	x	"%s"
+# if no UCS-2 is present show ANSI file comment[112] if available
+>>0x31	ubyte&0x02	=0
+>>>0x3C string		>\0	"%-.112s"
+# reserved seems to be always 0
+#>>0x10	ulelong		>0	\b, reserved1 %u
+# horizontal real dpi = dpi_h * 25.4 / 10**6
+>>0x18	ulelong	x		\b, %u micro dots/mm
+# image vertical DPI in CPT DPI unit
+#>>0x1C	ulelong	x		\b, %u micro dots/mm
+# reserved seems to be always 0
+#>>0x20	ulelong		>0	\b, reserved2 %u
+#>>0x24	ulelong		>0	\b, reserved3 %u
+# blocks_count; number of CPT_Block blocks. Allowed values: > 0
+>>0x28	ulelong		x	\b, %u block
+# plural s
+>>0x28	ulelong		!1	\bs
+# CPT file flags
+# lower byte of CPT file flags: 0x94~CPT9FILE 0x01~often CPT7FILE 0x8C~CPT8FILE
+#>>0x30	ubyte		x	\b, lower flags %#x
+# upper byte of CPT file flags:
+#>>0x31	ubyte		>0	\b, upper flags %#x
+# bit 2 in CPT file flags: unknown
+#>>0x31	ubyte		&0x04	\b, with UNKNOWN
+# bits 3-7 in CPT file flags: unknown, seem to be often 0
+# show unusual flag combinations
+>>0x31	ubyte&0xFC	>0
+>>>0x30	uleshort	x	\b, flags %#4.4x
+# reserved seems to be always 0
+#>>0x32	uleshort	>0	\b, reserved4 %#x
+# blocks_array_offset is always 0 for CPT7 and CPT8 files created by PP7-PP8
+# typical values like: 13Ch 154h 43Ch 4F0h DA8h 
+>>0x34	ulelong	x		\b, array offset %#x
+# reserved seems to be often 0
+>>0x38	ulelong		>0	\b, reserved5 %#x
+# possible next master block
+#>>0x100	ubequad		!0	\b, next block=%#llx...
+# bit 0: ICC profile block present
+>>0x31	ubyte		&0x01	\b, with ICC profile
+# check for characteristic string acsp of color profile for DEBUGGING
+#>>>0x178	string	x	icc=%.4s
+#	display ICC/ICM color profile by ./icc
+#>>>0x154	use		color-profile
+
+# Type: Crunch compressed texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://github.com/BinomialLLC/crunch/blob/44c8402e24441c7524ca364941fd224ab3b971e9/inc/crn_decomp.h#L267
+0	ubelong		0x4878004A	Crunch compressed texture:
+>0x0C	ubeshort	x	%u x
+>0x0E	ubeshort	x	%u
+>0x12	ubyte		0	\b, DXT1
+>0x12	ubyte		1	\b, DXT3
+>0x12	ubyte		2	\b, DXT5
+>0x12	ubyte		3	\b, DXT5 CCxY
+>0x12	ubyte		4	\b, DXT5 xGxR
+>0x12	ubyte		5	\b, DXT5 xGBR
+>0x12	ubyte		6	\b, DXT5 AGBR
+>0x12	ubyte		7	\b, DXn XY
+>0x12	ubyte		8	\b, DXn YX
+>0x12	ubyte		9	\b, DXT5 Alpha
+>0x12	ubyte		10	\b, ETC1
+>0x10	ubyte		>1	\b, %u images
+>0x11	ubyte		>1	\b, %u faces
+# TODO: Flags at 0x13? (ubeshort)
+
+# Type: BasisLZ compressed texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://github.com/BinomialLLC/basis_universal/blob/master/spec/basis_spec.txt
+0	uleshort		0x4273
+>0x04	uleshort		0x4D	BasisLZ
+>>0x02	uleshort		x	v%x compressed texture:
+>>0x14	ubyte			0	ETC1S
+>>0x14	ubyte			1	UASTC 4x4
+>>0x0E	ulelong&0xFFFFFF	>1	\b, %u slices
+>>0x11	ulelong&0xFFFFFF	>1	\b, %u images
+>>0x15	uleshort&0x02		2	\b, Y-flipped
+
+# MIME registration: https://www.iana.org/assignments/media-types/model/e57
+# Sample files: http://www.libe57.org/data.html
+# Reference implementation: http://www.libe57.org/
+# https://www.ri.cmu.edu/pub_files/2011/1/2011-huber-e57-v3.pdf
+0	string		ASTM-E57	ASTM E57 three-dimensional model
+!:mime model/e57
+!:ext e57

@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.157 2020/05/21 16:22:47 christos Exp $
+# $File: Makefile.am,v 1.172 2021/10/07 15:41:22 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -7,12 +7,13 @@ MAGIC_FRAGMENT_DIR = $(MAGIC_DIR)/$(MAGIC_FRAGMENT_BASE)
 
 pkgdata_DATA = magic.mgc
 
-EXTRA_DIST = \
+MAGIC_FRAGMENTS = \
 $(MAGIC_DIR)/Header \
 $(MAGIC_DIR)/Localstuff \
 $(MAGIC_FRAGMENT_DIR)/acorn \
 $(MAGIC_FRAGMENT_DIR)/adi \
 $(MAGIC_FRAGMENT_DIR)/adventure \
+$(MAGIC_FRAGMENT_DIR)/aes \
 $(MAGIC_FRAGMENT_DIR)/algol68 \
 $(MAGIC_FRAGMENT_DIR)/allegro \
 $(MAGIC_FRAGMENT_DIR)/alliant \
@@ -28,11 +29,13 @@ $(MAGIC_FRAGMENT_DIR)/application \
 $(MAGIC_FRAGMENT_DIR)/applix \
 $(MAGIC_FRAGMENT_DIR)/apt \
 $(MAGIC_FRAGMENT_DIR)/archive \
+$(MAGIC_FRAGMENT_DIR)/arm \
 $(MAGIC_FRAGMENT_DIR)/asf \
 $(MAGIC_FRAGMENT_DIR)/assembler \
 $(MAGIC_FRAGMENT_DIR)/asterix \
 $(MAGIC_FRAGMENT_DIR)/att3b \
 $(MAGIC_FRAGMENT_DIR)/audio \
+$(MAGIC_FRAGMENT_DIR)/avm \
 $(MAGIC_FRAGMENT_DIR)/basis \
 $(MAGIC_FRAGMENT_DIR)/beetle \
 $(MAGIC_FRAGMENT_DIR)/ber \
@@ -44,10 +47,12 @@ $(MAGIC_FRAGMENT_DIR)/blackberry \
 $(MAGIC_FRAGMENT_DIR)/blcr \
 $(MAGIC_FRAGMENT_DIR)/blender \
 $(MAGIC_FRAGMENT_DIR)/blit \
+$(MAGIC_FRAGMENT_DIR)/bm \
 $(MAGIC_FRAGMENT_DIR)/bout \
 $(MAGIC_FRAGMENT_DIR)/bsdi \
 $(MAGIC_FRAGMENT_DIR)/bsi \
 $(MAGIC_FRAGMENT_DIR)/btsnoop \
+$(MAGIC_FRAGMENT_DIR)/bytecode \
 $(MAGIC_FRAGMENT_DIR)/c-lang \
 $(MAGIC_FRAGMENT_DIR)/c64 \
 $(MAGIC_FRAGMENT_DIR)/cad \
@@ -69,6 +74,7 @@ $(MAGIC_FRAGMENT_DIR)/console \
 $(MAGIC_FRAGMENT_DIR)/convex \
 $(MAGIC_FRAGMENT_DIR)/coverage \
 $(MAGIC_FRAGMENT_DIR)/cracklib \
+$(MAGIC_FRAGMENT_DIR)/crypto \
 $(MAGIC_FRAGMENT_DIR)/ctags \
 $(MAGIC_FRAGMENT_DIR)/ctf \
 $(MAGIC_FRAGMENT_DIR)/cubemap \
@@ -123,7 +129,6 @@ $(MAGIC_FRAGMENT_DIR)/gpu \
 $(MAGIC_FRAGMENT_DIR)/grace \
 $(MAGIC_FRAGMENT_DIR)/graphviz \
 $(MAGIC_FRAGMENT_DIR)/gringotts \
-$(MAGIC_FRAGMENT_DIR)/guile \
 $(MAGIC_FRAGMENT_DIR)/hardware \
 $(MAGIC_FRAGMENT_DIR)/hitachi-sh \
 $(MAGIC_FRAGMENT_DIR)/hp \
@@ -148,12 +153,14 @@ $(MAGIC_FRAGMENT_DIR)/keepass \
 $(MAGIC_FRAGMENT_DIR)/kerberos \
 $(MAGIC_FRAGMENT_DIR)/kicad \
 $(MAGIC_FRAGMENT_DIR)/kml \
+$(MAGIC_FRAGMENT_DIR)/lammps \
 $(MAGIC_FRAGMENT_DIR)/lecter \
 $(MAGIC_FRAGMENT_DIR)/lex \
 $(MAGIC_FRAGMENT_DIR)/lif \
 $(MAGIC_FRAGMENT_DIR)/linux \
 $(MAGIC_FRAGMENT_DIR)/lisp \
 $(MAGIC_FRAGMENT_DIR)/llvm \
+$(MAGIC_FRAGMENT_DIR)/locoscript \
 $(MAGIC_FRAGMENT_DIR)/lua \
 $(MAGIC_FRAGMENT_DIR)/luks \
 $(MAGIC_FRAGMENT_DIR)/m4 \
@@ -195,11 +202,11 @@ $(MAGIC_FRAGMENT_DIR)/music \
 $(MAGIC_FRAGMENT_DIR)/nasa \
 $(MAGIC_FRAGMENT_DIR)/natinst \
 $(MAGIC_FRAGMENT_DIR)/ncr \
-$(MAGIC_FRAGMENT_DIR)/neko \
 $(MAGIC_FRAGMENT_DIR)/netbsd \
 $(MAGIC_FRAGMENT_DIR)/netscape \
 $(MAGIC_FRAGMENT_DIR)/netware \
 $(MAGIC_FRAGMENT_DIR)/news \
+$(MAGIC_FRAGMENT_DIR)/nim-lang \
 $(MAGIC_FRAGMENT_DIR)/nitpicker \
 $(MAGIC_FRAGMENT_DIR)/numpy \
 $(MAGIC_FRAGMENT_DIR)/oasis \
@@ -221,11 +228,13 @@ $(MAGIC_FRAGMENT_DIR)/pbf \
 $(MAGIC_FRAGMENT_DIR)/pbm \
 $(MAGIC_FRAGMENT_DIR)/pc88 \
 $(MAGIC_FRAGMENT_DIR)/pc98 \
+$(MAGIC_FRAGMENT_DIR)/pcjr \
 $(MAGIC_FRAGMENT_DIR)/pdf \
 $(MAGIC_FRAGMENT_DIR)/pdp \
 $(MAGIC_FRAGMENT_DIR)/perl \
 $(MAGIC_FRAGMENT_DIR)/pgf \
 $(MAGIC_FRAGMENT_DIR)/pgp \
+$(MAGIC_FRAGMENT_DIR)/pgp-binary-keys \
 $(MAGIC_FRAGMENT_DIR)/pkgadd \
 $(MAGIC_FRAGMENT_DIR)/plan9 \
 $(MAGIC_FRAGMENT_DIR)/plus5 \
@@ -236,6 +245,7 @@ $(MAGIC_FRAGMENT_DIR)/project \
 $(MAGIC_FRAGMENT_DIR)/psdbms \
 $(MAGIC_FRAGMENT_DIR)/psl \
 $(MAGIC_FRAGMENT_DIR)/pulsar \
+$(MAGIC_FRAGMENT_DIR)/puzzle \
 $(MAGIC_FRAGMENT_DIR)/pwsafe \
 $(MAGIC_FRAGMENT_DIR)/pyramid \
 $(MAGIC_FRAGMENT_DIR)/python \
@@ -272,6 +282,7 @@ $(MAGIC_FRAGMENT_DIR)/spectrum \
 $(MAGIC_FRAGMENT_DIR)/sql \
 $(MAGIC_FRAGMENT_DIR)/ssh \
 $(MAGIC_FRAGMENT_DIR)/ssl \
+$(MAGIC_FRAGMENT_DIR)/statistics \
 $(MAGIC_FRAGMENT_DIR)/sun \
 $(MAGIC_FRAGMENT_DIR)/sylk \
 $(MAGIC_FRAGMENT_DIR)/symbos \
@@ -287,6 +298,7 @@ $(MAGIC_FRAGMENT_DIR)/tplink \
 $(MAGIC_FRAGMENT_DIR)/troff \
 $(MAGIC_FRAGMENT_DIR)/tuxedo \
 $(MAGIC_FRAGMENT_DIR)/typeset \
+$(MAGIC_FRAGMENT_DIR)/uf2 \
 $(MAGIC_FRAGMENT_DIR)/unicode \
 $(MAGIC_FRAGMENT_DIR)/unisig \
 $(MAGIC_FRAGMENT_DIR)/unknown \
@@ -325,6 +337,11 @@ $(MAGIC_FRAGMENT_DIR)/zilog \
 $(MAGIC_FRAGMENT_DIR)/zip \
 $(MAGIC_FRAGMENT_DIR)/zyxel
 
+EXTRA_DIST = \
+$(MAGIC_DIR)/scripts/create_filemagic_flac \
+$(MAGIC_FRAGMENTS)
+
+
 MAGIC = magic.mgc
 CLEANFILES = ${MAGIC} $(MAGIC_FRAGMENT_DIR)/Localstuff
 
@@ -338,9 +355,9 @@ FILE_COMPILE = $(top_builddir)/src/file${EXEEXT}
 FILE_COMPILE_DEP = $(FILE_COMPILE)
 endif
 
-${MAGIC}: $(EXTRA_DIST) $(FILE_COMPILE_DEP)
+${MAGIC}: $(MAGIC_FRAGMENTS) $(FILE_COMPILE_DEP)
 	@rm -fr magic
-	@mkdir magic && cp -p $(EXTRA_DIST) magic
+	@mkdir magic && cp -p $(MAGIC_FRAGMENTS) magic
 	@(if expr "${FILE_COMPILE}" : '.*/.*' > /dev/null; then \
 	    echo "Using ${FILE_COMPILE} to generate ${MAGIC}" > /dev/null; \
 	  else \

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: modem,v 1.9 2019/04/19 00:42:27 christos Exp $
+# $File: modem,v 1.10 2021/04/26 15:56:00 christos Exp $
 # modem:  file(1) magic for modem programs
 #
 # From: Florian La Roche <florian@knorke.saar.de>
@@ -59,7 +59,7 @@
 #
 0    string    RMD1      raw modem data
 >4   string    >\0       (%s /
->20  short     >0        compression type 0x%04x)
+>20  short     >0        compression type %#04x)
 
 #
 # portable voice format 1

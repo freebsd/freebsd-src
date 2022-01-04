@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([file],[5.39],[christos@astron.com])
+AC_INIT([file],[5.41],[christos@astron.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -88,7 +88,7 @@ AM_CONDITIONAL(FSECT5, test x$fsect = x5)
 AC_SUBST(WARNINGS)
 
 dnl Checks for programs.
-AC_PROG_CC_STDC
+AC_PROG_CC
 AC_USE_SYSTEM_EXTENSIONS
 AM_PROG_CC_C_O
 AC_C_BIGENDIAN
@@ -97,7 +97,6 @@ AC_PROG_LN_S
 LT_INIT([disable-static pic-only])
 gl_VISIBILITY
 dnl Checks for headers
-AC_HEADER_STDC
 AC_HEADER_MAJOR
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(stdint.h fcntl.h inttypes.h unistd.h)
@@ -166,7 +165,7 @@ else
 fi])
 
 dnl Checks for functions
-AC_CHECK_FUNCS(strndup mkstemp mkostemp utimes utime wcwidth strtof newlocale uselocale freelocale memmem)
+AC_CHECK_FUNCS(strndup mkstemp mkostemp utimes utime wcwidth strtof newlocale uselocale freelocale memmem pipe2)
 
 dnl Provide implementation of some required functions if necessary
 AC_REPLACE_FUNCS(getopt_long asprintf vasprintf strlcpy strlcat getline ctime_r asctime_r localtime_r gmtime_r pread strcasestr fmtcheck dprintf)
