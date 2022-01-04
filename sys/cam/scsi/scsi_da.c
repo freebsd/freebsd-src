@@ -2150,7 +2150,7 @@ daasync(void *callback_arg, u_int32_t code,
 		}
 		break;
 	}
-	case AC_UNIT_ATTENTION:
+	case AC_UNIT_ATTENTION:		/* Called for this path: periph locked */
 	{
 		union ccb *ccb;
 		int error_code, sense_key, asc, ascq;
@@ -2160,9 +2160,7 @@ daasync(void *callback_arg, u_int32_t code,
 
 		/*
 		 * Handle all UNIT ATTENTIONs except our own, as they will be
-		 * handled by daerror(). Since this comes from a different periph,
-		 * that periph's lock is held, not ours, so we have to take it ours
-		 * out to touch softc flags.
+		 * handled by daerror().
 		 */
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
@@ -2170,22 +2168,19 @@ daasync(void *callback_arg, u_int32_t code,
 			if (asc == 0x2A && ascq == 0x09) {
 				xpt_print(ccb->ccb_h.path,
 				    "Capacity data has changed\n");
-				cam_periph_lock(periph);
+				cam_periph_assert(periph, MA_OWNED);
 				softc->flags &= ~DA_FLAG_PROBED;
 				dareprobe(periph);
-				cam_periph_unlock(periph);
 			} else if (asc == 0x28 && ascq == 0x00) {
-				cam_periph_lock(periph);
+				cam_periph_assert(periph, MA_OWNED);
 				softc->flags &= ~DA_FLAG_PROBED;
-				cam_periph_unlock(periph);
 				disk_media_changed(softc->disk, M_NOWAIT);
 			} else if (asc == 0x3F && ascq == 0x03) {
 				xpt_print(ccb->ccb_h.path,
 				    "INQUIRY data has changed\n");
-				cam_periph_lock(periph);
+				cam_periph_assert(periph, MA_OWNED);
 				softc->flags &= ~DA_FLAG_PROBED;
 				dareprobe(periph);
-				cam_periph_unlock(periph);
 			}
 		}
 		break;
