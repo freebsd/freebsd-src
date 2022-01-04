@@ -95,11 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/trap.h>
 
-static void get_fpcontext(struct thread *td, mcontext_t *mcp,
-    char **xfpusave, size_t *xfpusave_len);
-static int set_fpcontext(struct thread *td, mcontext_t *mcp,
-    char *xfpustate, size_t xfpustate_len);
-
 /*
  * Send an interrupt to process.
  *
@@ -714,7 +709,7 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	return (0);
 }
 
-static void
+void
 get_fpcontext(struct thread *td, mcontext_t *mcp, char **xfpusave,
     size_t *xfpusave_len)
 {
@@ -735,7 +730,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char **xfpusave,
 	}
 }
 
-static int
+int
 set_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpustate,
     size_t xfpustate_len)
 {
