@@ -65,7 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#if defined(__aarch64__)
 #include <dev/extres/clk/clk.h>
+#endif
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
