@@ -1197,13 +1197,11 @@ ddp_sgl_check(struct ctl_sg_entry *sg, int entries, int xferlen)
 	return (true);
 }
 
-/* XXXNP: PDU should be passed in as parameter, like on the initiator. */
-#define io_to_request_pdu(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr)
 #define io_to_ddp_state(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr)
 
 int
-icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
-    uint32_t *tttp, void **arg)
+icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, struct icl_pdu *ip,
+    union ctl_io *io, uint32_t *tttp, void **arg)
 {
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 	struct toepcb *toep = icc->toep;
@@ -1226,7 +1224,6 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
 
 	if (ctsio->ext_data_filled == 0) {
 		int first_burst;
-		struct icl_pdu *ip = io_to_request_pdu(io);
 #ifdef INVARIANTS
 		struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 

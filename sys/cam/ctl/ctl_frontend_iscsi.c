@@ -1083,8 +1083,8 @@ cfiscsi_data_wait_new(struct cfiscsi_session *cs, union ctl_io *io,
 		return (NULL);
 	}
 
-	error = icl_conn_transfer_setup(cs->cs_conn, io, target_transfer_tagp,
-	    &cdw->cdw_icl_prv);
+	error = icl_conn_transfer_setup(cs->cs_conn, PRIV_REQUEST(io), io,
+	    target_transfer_tagp, &cdw->cdw_icl_prv);
 	if (error != 0) {
 		CFISCSI_SESSION_WARN(cs,
 		    "icl_conn_transfer_setup() failed with error %d", error);

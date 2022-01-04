@@ -115,6 +115,7 @@ METHOD void task_done {
 
 METHOD int transfer_setup {
 	struct icl_conn *_ic;
+	struct icl_pdu *_ip;
 	union ctl_io *_io;
 	uint32_t *_transfer_tag;
 	void **_prvp;
