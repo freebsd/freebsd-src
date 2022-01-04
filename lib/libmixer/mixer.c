@@ -25,7 +25,6 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
-#include <sys/soundcard.h>
 
 #include <errno.h>
 #include <fcntl.h>
