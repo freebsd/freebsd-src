@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: vorbis,v 1.24 2018/03/14 04:38:44 christos Exp $
+# $File: vorbis,v 1.26 2020/08/22 18:30:55 christos Exp $
 # vorbis:  file(1) magic for Ogg/Vorbis files
 #
 # From Felix von Leitner <leitner@fefe.de>
@@ -132,11 +132,11 @@
 >>>>>>(84.b+117)	string		20140122	(1.3.4)
 >>>>>>(84.b+117)	string		20150105	(1.3.5)
 
-# non-Vorbis content: Opus https://tools.ietf.org/html/draft-ietf-codec-oggopus-06#section-5
+# non-Vorbis content: Opus https://tools.ietf.org/html/rfc7845#section-5
 >>28		string		OpusHead	\b, Opus audio,
 !:mime		audio/ogg
 >>>36		ubyte		>0x0F		UNKNOWN VERSION %u,
->>>36		ubyte		&0x0F		version 0.%d
+>>>36		ubyte&0x0F	!0		version 0.%u,
 >>>>46		ubyte		>1
 >>>>>46		ubyte		!255		unknown channel mapping family %u,
 >>>>>37		ubyte		x		%u channels
@@ -152,4 +152,4 @@
 >>>>>37		ubyte		6		5.1 surround
 >>>>>37		ubyte		7		6.1 surround
 >>>>>37		ubyte		8		7.1 surround
->>>>40		lelong		!0		\b, %u Hz
+>>>>40		lelong		!0		\b, %u Hz (Input Sample Rate)

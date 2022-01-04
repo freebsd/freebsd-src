@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.15 2020/05/30 23:56:26 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.21 2021/09/24 14:17:24 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
@@ -35,6 +35,7 @@ FILE_RCSID("@(#)$File: seccomp.c,v 1.15 2020/05/30 23:56:26 christos Exp $")
 #include <sys/prctl.h> /* prctl */
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <termios.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -53,7 +54,8 @@ FILE_RCSID("@(#)$File: seccomp.c,v 1.15 2020/05/30 23:56:26 christos Exp $")
 #define ALLOW_IOCTL_RULE(param) \
     do \
 	if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, SCMP_SYS(ioctl), 1, \
-	    SCMP_CMP(1, SCMP_CMP_EQ, param)) == -1) \
+	    SCMP_CMP(1, SCMP_CMP_EQ, (scmp_datum_t)param, \
+		     (scmp_datum_t)0)) == -1) \
 		goto out; \
     while (/*CONSTCOND*/0)
 
@@ -170,13 +172,17 @@ enable_sandbox_full(void)
 	ALLOW_RULE(dup2);
 	ALLOW_RULE(exit);
 	ALLOW_RULE(exit_group);
+#ifdef __NR_faccessat
+	ALLOW_RULE(faccessat);
+#endif
 	ALLOW_RULE(fcntl);
  	ALLOW_RULE(fcntl64);
 	ALLOW_RULE(fstat);
  	ALLOW_RULE(fstat64);
-#ifdef XZLIBSUPPORT
-	ALLOW_RULE(futex);
+#ifdef __NR_fstatat64
+	ALLOW_RULE(fstatat64);
 #endif
+	ALLOW_RULE(futex);
 	ALLOW_RULE(getdents);
 #ifdef __NR_getdents64
 	ALLOW_RULE(getdents64);
@@ -219,12 +225,14 @@ enable_sandbox_full(void)
 	ALLOW_RULE(rt_sigreturn);
 	ALLOW_RULE(select);
 	ALLOW_RULE(stat);
+	ALLOW_RULE(statx);
 	ALLOW_RULE(stat64);
 	ALLOW_RULE(sysinfo);
 	ALLOW_RULE(umask);	// Used in file_pipe2file()
 	ALLOW_RULE(getpid);	// Used by glibc in file_pipe2file()
 	ALLOW_RULE(unlink);
 	ALLOW_RULE(write);
+	ALLOW_RULE(writev);
 
 
 #if 0

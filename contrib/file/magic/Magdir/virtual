@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: virtual,v 1.12 2020/02/15 01:20:15 christos Exp $
+# $File: virtual,v 1.14 2021/04/26 15:56:00 christos Exp $
 # From: James Nobis <quel@quelrod.net>
 # Microsoft hard disk images for:
 # Virtual Server
@@ -9,25 +9,25 @@
 # URL: http://fileformats.archiveteam.org/wiki/VHD_(Virtual_Hard_Disk)
 # Reference: https://download.microsoft.com/download/f/f/e/ffef50a5-07dd-4cf8-aaa3-442c0673a029/
 # Virtual%20Hard%20Disk%20Format%20Spec_10_18_06.doc
-0	string	conectix	Microsoft Disk Image, Virtual Server or Virtual PC
+0	string	connectix	Microsoft Disk Image, Virtual Server or Virtual PC
 # alternative shorter names
-#0	string	conectix	Microsoft Virtual Hard Disk image
-#0	string	conectix	Microsoft Virtual HD image
+#0	string	connectix	Microsoft Virtual Hard Disk image
+#0	string	connectix	Microsoft Virtual HD image
 !:mime	application/x-virtualbox-vhd
 !:ext   vhd
 # Features is a bit field used to indicate specific feature support
-#>8	ubelong		!0x00000002	\b, Features 0x%x
+#>8	ubelong		!0x00000002	\b, Features %#x
 # Reserved. This bit must always be set to 1.
-#>8	ubelong		&0x00000002	\b, Reserved 0x%x
+#>8	ubelong		&0x00000002	\b, Reserved %#x
 # File Format Version for the current specification 0x00010000
-#>12	ubelong		!0x00010000	\b, Version 0x%8.8x
+#>12	ubelong		!0x00010000	\b, Version %#8.8x
 # Data Offset only found 0x200
-#>16	ubequad		!0x200		\b, Data Offset 0x%llx
-#>16	ubequad		x		\b, at 0x%llx
+#>16	ubequad		!0x200		\b, Data Offset %#llx
+#>16	ubequad		x		\b, at %#llx
 # Dynamic Disk Header cookie like cxsparse
 #>(16.Q)	string		x		"%-.8s"
 # This field contains a Unicode string (UTF-16) of the parent hard disk filename
-#>(16.Q+64)	ubequad	x		\b, parent name 0x%llx
+#>(16.Q+64)	ubequad	x		\b, parent name %#llx
 # Creator Application
 # vpc~Microsoft Virtual PC, vs~Microsoft Virtual Server, vbox~VirtualBox, d2v~disk2vhd
 >28	string		x		\b, Creator %-4.4s
@@ -35,7 +35,7 @@
 # holds the major/minor version of the application that created the image
 >32	ubeshort	x		%x
 >34	ubeshort	x		\b.%x
-#>32	ubelong		x		\b, Version 0x%8.8x
+#>32	ubelong		x		\b, Version %#8.8x
 # Creator Host OS: 0x5769326B~Windows (Wi2k), 0x4D616320~Macintosh (Mac)
 >36	ubelong		x		(
 >>36	ubelong		0x5769326B	\bW2k
@@ -45,30 +45,30 @@
 # creation Time in seconds since 1 Jan 2000 UTC~946684800 sec. since Unix Epoch
 >24	bedate+946684800	x	\b) %s
 # Original Size
-#>40	ubequad		x		\b, o.-Size 0x%llx
+#>40	ubequad		x		\b, o.-Size %#llx
 # Current Size is same as original size, but change when disk is expanded
-#>48	ubequad		x		\b, Size 0x%llx
+#>48	ubequad		x		\b, Size %#llx
 >48	ubequad		x		\b, %llu bytes
 # Disk Geometry: cylinder, heads, and sectors/track for hard disk
-#>56	ubeshort	x		\b, Cylinder 0x%x
+#>56	ubeshort	x		\b, Cylinder %#x
 >56	ubeshort	x		\b, CHS %u
 # Heads
-#>58	ubyte		x		\b, Heads 0x%x
+#>58	ubyte		x		\b, Heads %#x
 >58	ubyte		x		\b/%u
 # Sectors per track
-#>59	ubyte		x		\b, Sectors 0x%x
+#>59	ubyte		x		\b, Sectors %#x
 >59	ubyte		x		\b/%u
 # Disk Type: 3~Dynamic hard disk
->60	ubelong		!0x3		\b, type 0x%x
+>60	ubelong		!0x3		\b, type %#x
 # Checksum
-#>64	ubelong		x		\b, cksum 0x%x
+#>64	ubelong		x		\b, cksum %#x
 # universally unique identifier (UUID) to associate a parent with its differencing image
-#>68	ubequad		x		\b, id 0x%16.16llx
+#>68	ubequad		x		\b, id %#16.16llx
 #>76	ubequad		x		\b-%16.16llx
 # Saved State: 1~Saved State
->84	ubyte		!0		\b, State 0x%x
+>84	ubyte		!0		\b, State %#x
 # Reserved 427 bytes with nils
-#>85	ubequad	!0			\b, Reserved 0x%16.16llx
+#>85	ubequad	!0			\b, Reserved %#16.16llx
 
 # From: Joerg Jenderek
 # URL: https://msdn.microsoft.com/en-us/library/mt740058.aspx
@@ -88,43 +88,43 @@
 # Creator[256] like "QEMU v3.0.0", "Microsoft Windows 6.3.9600.18512"
 >>8		lestring16		x	\b, by %.256s
 # The Checksum field is a CRC-32C hash over the entire 4 KB structure
-#>>0x10004	ulelong			x	\b, CRC 0x%x
+#>>0x10004	ulelong			x	\b, CRC %#x
 # SequenceNumber
->>0x10008	ulequad			x	\b, sequence 0x%llx
+>>0x10008	ulequad			x	\b, sequence %#llx
 # FileWriteGuid
-#>>0x10010	ubequad			x	\b, file id 0x%llx
+#>>0x10010	ubequad			x	\b, file id %#llx
 #>>>0x10018	ubequad			x	\b-%llx
 # DataWriteGuid
-#>>0x10020	ubequad			x	\b, data id 0x%llx
+#>>0x10020	ubequad			x	\b, data id %#llx
 #>>>0x10028	ubequad			x	\b-%llx
 # LogGuid. If this field is zero, then the log is empty or has no valid entries 
->>0x10030	ubequad			>0	\b, log id 0x%llx
+>>0x10030	ubequad			>0	\b, log id %#llx
 >>>0x10038	ubequad			x	\b-%llx
 # LogVersion. If not 0 there is a log to replay
->>0x10040	uleshort		>0	\b, LogVersion 0x%x
+>>0x10040	uleshort		>0	\b, LogVersion %#x
 # Version. This field must be set to 1
->>0x10042	uleshort		!1	\b, Version 0x%x
+>>0x10042	uleshort		!1	\b, Version %#x
 # LogLength must be multiples of 1 MB
 >>0x10044	ulelong/1048576		>1	\b, LogLength %u MB
 # LogOffset (normally 0x100000 when log direct after header); multiples of 1 MB
->>0x10048	ulequad			!0x100000 \b, LogOffset 0x%llx
+>>0x10048	ulequad			!0x100000 \b, LogOffset %#llx
 # Log Entry Signature must be 0x65676F6C~loge
 >>(0x10048.q)	ulelong			!0x65676F6C \b, NO Log Signature
 >>(0x10048.q)	ulelong			=0x65676F6C	\b; LOG
 # Log Entry Checksum
-#>>>(0x10048.q+4)	ulelong		x	\b, Log CRC 0x%x
+#>>>(0x10048.q+4)	ulelong		x	\b, Log CRC %#x
 # Log Entry Length must be a multiple of 4 KB
 >>>(0x10048.q+8)	ulelong/1024	>4	\b, EntryLength %u KB
 # Log Entry Tail must be a multiple of 4 KB
-#>>>(0x10048.q+12)	ulelong		x	\b, Tail 0x%x
+#>>>(0x10048.q+12)	ulelong		x	\b, Tail %#x
 # Log Entry SequenceNumber
-#>>>(0x10048.q+16)	ulequad		x	\b, # 0x%llx
+#>>>(0x10048.q+16)	ulequad		x	\b, # %#llx
 # Log Entry DescriptorCount may be zero. only 4 bytes in other docs instead 8
-#>>>(0x10048.q+24)	ulelong		x	\b, DescriptorCount 0x%llx
+#>>>(0x10048.q+24)	ulelong		x	\b, DescriptorCount %#llx
 # Log Entry Reserved must be set to 0
->>>(0x10048.q+28)	ulelong		!0	\b, Reserved 0x%x
+>>>(0x10048.q+28)	ulelong		!0	\b, Reserved %#x
 # Log Entry LogGuid
-#>>>(0x10048.q+32)	ubequad		x	\b, Log id 0x%llx
+#>>>(0x10048.q+32)	ubequad		x	\b, Log id %#llx
 #>>>(0x10048.q+40)	ubequad		x	\b-%llx
 # Log Entry FlushedFileOffset should VHDX size when entry is written.
 #>>>(0x10048.q+48)	ulequad		x	\b, FlushedFileOffset %llu
@@ -133,28 +133,28 @@
 # filling
 #>>>(0x10048.q+64)	ulequad		>0	\b, filling %llx
 # Reserved[4016]
-#>>0x10050	ulequad			>0	\b, Reserved 0x%llx
+#>>0x10050	ulequad			>0	\b, Reserved %#llx
 # VHDX_REGION_TABLE_HEADER Signature 0x69676572~regi at offset 192 KB and 256 KB
 >0x30000	ulelong			!0x69676572 \b, 1st region INVALID
 >0x30000	ulelong			=0x69676572 \b; region
 # region Checksum. CRC-32C hash over the entire 64-KB table
-#>>0x30004	ulelong			x	\b, CRC 0x%x
+#>>0x30004	ulelong			x	\b, CRC %#x
 # The EntryCount specifies number of valid entries; Found 2; This must be =< 2047. 
 >>0x30008	ulelong			x	\b, %u entries
 # reserved must be zero
-#>>0x3000C	ulelong			!0	\b, RESERVED 0x%x
+#>>0x3000C	ulelong			!0	\b, RESERVED %#x
 # Region Table Entry starts with identifier for the object. often BAT id
 >>0x30010	use			vhdx-id
 # FileOffset
->>0x30020	ulequad		x		\b, at 0x%llx
+>>0x30020	ulequad		x		\b, at %#llx
 # Length. Specifies the length of the object within the file
-#>>0x30028	ulelong		x		\b, Length 0x%x
+#>>0x30028	ulelong		x		\b, Length %#x
 # 1 means region entry is required. if region not recognized, then REFUSE to load VHDX
 >>0x3002C	ulelong		x		\b, Required %u
 # 2nd region entry often metadata id
 >>0x30030	use			vhdx-id
 # 2nd entry FileOffset
->>0x30040	ulequad		x		\b, at 0x%llx
+>>0x30040	ulequad		x		\b, at %#llx
 # 1 means region entry is required. if region not recognized, then REFUSE to load VHDX
 >>0x3004C	ulelong		x		\b, Required %u
 # 2nd region
@@ -189,7 +189,7 @@
 >>0	use		vhdx-id-hex
 # in vhdx images show id as hexadecimal
 0	name		vhdx-id-hex
->0	ubequad		x			\b, ID 0x%16.16llx
+>0	ubequad		x			\b, ID %#16.16llx
 >8	ubequad		x			\b-%16.16llx
 #
 # libvirt

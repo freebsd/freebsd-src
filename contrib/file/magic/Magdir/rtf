@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: rtf,v 1.8 2020/05/17 19:28:49 christos Exp $
+# $File: rtf,v 1.9 2020/12/12 20:01:47 christos Exp $
 # rtf:	file(1) magic for Rich Text Format (RTF)
 #
 # Duncan P. Simpson, D.P.Simpson@dcs.warwick.ac.uk
@@ -33,7 +33,7 @@
 #>6	search/105	\\ansi		\b, ANSI
 >6	search/502	\\ansi		\b, ANSI
 >6	default		x		\b, unknown character set
-# look for explict codepage keyword
+# look for explicit codepage keyword
 # "Burow, Steffanie - Im Tal des Schneeleoparden.rtf"
 #>5	search/110	\\ansicpg
 >5	search/500	\\ansicpg

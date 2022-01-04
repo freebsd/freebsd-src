@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: macintosh,v 1.30 2019/12/14 20:40:26 christos Exp $
+# $File: macintosh,v 1.32 2021/04/26 15:56:00 christos Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -17,7 +17,7 @@
 0	search/2652/b	(This\ file\ 
 >&0	use		binhex
 0	name				binhex
-# keep splitted search string format similar like in version 5.37
+# keep split search string format similar like in version 5.37
 >0	string	must\ be\ converted\ with\ BinHex\ 	BinHex binary text, version
 # http://www.macdisk.com/binhexen.php3
 !:apple	BNHQTEXT
@@ -141,7 +141,7 @@
 !:ext	bin/macbin
 # THIS SHOULD NEVER HAPPEN! Maybe another file type is misidetified as MacBinary
 #>1	ubyte	>63		\b, name length %u too BIG!
-#>122	ubeshort	x	\b, version 0x%x
+#>122	ubeshort	x	\b, version %#x
 # Finder flags if not 0
 # >73	byte		!0		\b, flags 0x
 # >73	byte		=0		
@@ -164,21 +164,21 @@
 # 77	beshort				# horiz posn in window
 #>77	beshort		!0		\b, h.pos %u
 # 79	beshort				# window or folder ID
->79	ubeshort	!0		\b, ID 0x%x
+>79	ubeshort	!0		\b, ID %#x
 # protected flag
->81	byte		!0		\b, protected 0x%x
+>81	byte		!0		\b, protected %#x
 # length of comment after resource
 >99	ubeshort	!0		\b, comment length %u
 # char. code of file name
->106	ubyte		!0		\b, char. code 0x%x
+>106	ubyte		!0		\b, char. code %#x
 # still more Finder flags
->107	ubyte		!0		\b, more flags 0x%x
+>107	ubyte		!0		\b, more flags %#x
 # length of total files when unpacked only used when pack and unpack on the fly
 >116	ubelong		!0		\b, total length %u
 # 120	beshort				# length of add'l header
 >120	ubeshort	!0		\b, 2nd header length %u
 # 124	beshort				# checksum
-#>124	ubeshort	!0		\b, CRC 0x%x
+#>124	ubeshort	!0		\b, CRC %#x
 # creation date in seconds since MacOS epoch start. So 1 Jan 1970 ~ 7C25B080
 >91	beldate-0x7C25B080	x	\b, %s
 # THIS SHOULD NEVER HAPPEN! Maybe another file type is misidetified or time overflow
@@ -204,7 +204,7 @@
 # Afterwards resource fork if length of resource segment not zero
 >87	ubelong			!0
 # calculate resource fork offset
->>83	ubelong+128		x	\b, at 0x%x
+>>83	ubelong+128		x	\b, at %#x
 # length of resource segment
 >>87	ubelong			!0	%u bytes
 >>(83.S+128)	ubequad		x	resource 

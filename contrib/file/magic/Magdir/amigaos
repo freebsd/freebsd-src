@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: amigaos,v 1.17 2018/10/16 18:57:19 christos Exp $
+# $File: amigaos,v 1.20 2021/09/20 00:42:19 christos Exp $
 # amigaos:  file(1) magic for AmigaOS binary formats:
 
 #
@@ -40,7 +40,62 @@
 #26	string		V.2		Brian Postma's Soundmon Module sound file v2
 
 # The following are from: "Stefan A. Haubenthal" <polluks@web.de>
-0	beshort		0x0f00		AmigaOS bitmap font
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Amiga_bitmap_font
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/f/font-amiga.trid.xml
+#		https://wiki.amigaos.net/wiki/Graphics_Library_and_Text
+# fch_FileID=FCH_ID=0x0f00
+0	beshort		0x0f00
+# skip some AVM powerline firmware images by check for positive number of font elements
+# https://download.avm.de/fritzpowerline/fritzpowerline-1000e-t/other/fritz.os/fritz.powerline_1000ET_01_05.image
+>2	ubeshort	>0		AmigaOS bitmap font
+#!:mime	application/octet-stream
+!:mime	font/x-amiga-font
+!:ext	font
+# struct FontContents fch_FC; 1st fc_FileName [MAXFONTPATH=256]; ~ filename "/" fc_YSize
+# like: topazb/6 suits/8  Excel/9e emerald/17 Franklin/23 DIAMONDS/60.8C
+>>4	string		x		"%.256s"
+# fc_YSize ~number after slash in fc_FileName; like: 6 7 8 9 11 12 16 17 21 23 45 60
+>>260	beshort		x		\b, fc_YSize %u
+# fch_NumEntries; number of FontContents elements like:
+# 1 (often) 2 3 (IconCondensed.font tempfont.font) 4 (Franklin.font) 6 (mcoop.font)
+>>2	ubeshort	>1		\b, %u elements
+#>>2	beshort		x		\b, %u element
+# plural s
+#>>2	beshort		!1		\bs
+# like: 6 7 8 9 11 12 16 17 21 23 45 60
+#>>262	beshort		x		\b, FLAGS_STYLE
+>>2	beshort		>1		\b, 2nd
+# 2nd fc_FileName like: Franklin/36
+>>>264	string		x		"%.256s"
+>>2	beshort		>2		\b, 3rd
+# 3rd fc_FileName like: Franklin/18
+>>>524	string		x		"%.256s"
+# URL:		http://fileformats.archiveteam.org/wiki/Amiga_bitmap_font
+# Reference:	https://wiki.amigaos.net/wiki/Graphics_Library_and_Text
+#		http://mark0.net/download/triddefs_xml.7z/defs/f/font-amiga-var2.trid.xml
+# Note:		called by TrID "Amiga bitmap Font (var.2)"
+# fch_FileID=TFCH_ID=0x0f02
+0	beshort		0x0f02
+# skip possible misidentified foo by check for positive number of font elements
+>2	ubeshort	>0		AmigaOS bitmap font (TFCH)
+#!:mime	application/octet-stream
+!:mime	font/x-amiga-font
+!:ext	font
+# struct TFontContents fch_TFC[]; 1st tfc_FileName [254]; ~ filename "/" fc_YSize
+# like: Abbey/45 XScript/75 XTriumvirate/45
+>>4	string		x		"%.254s"
+# tfc_TagCount; including the TAG_END tag like: 4
+>>258	ubeshort	x		\b, tfc_TagCount %u
+# tfc_YSize ~number after slash in tfc_FileName; like: 45 75
+>>260	beshort		x		\b, tfc_YSize %u
+# tfc_Style; tfc_Flags like: 8022h 8222h
+#>>262	ubeshort	x		\b, FLAGS_STYLE %#x
+# fch_NumEntries; number of FontContents elements like: 1 (abbey.font) 2 (xscript.font xtriumvirate.font)
+>>2	ubeshort	>1		\b, %u elements
+>>2	beshort		>1		\b, 2nd
+# 2nd tfc_FileName like: XScript/45 XTriumvirate/30
+>>>264	string		x		"%.254s"
 0	beshort		0x0f03		AmigaOS outline font
 0	belong		0x80001001	AmigaOS outline tag
 0	string		##\ version	catalog translation
@@ -49,15 +104,91 @@
 0	string/c	@database	AmigaGuide file
 
 # Amiga disk types
+#	display information like volume name of root block on Amiga (floppy) disk
+0	name   	adf-rootblock
+# block primary type = T_HEADER (value 2)
+>0x000	ubelong		!2		\b, type %u
+# header_key; unused in rootblock (value 0)
+>0x004	ubelong		!0		\b, header_key %u
+# high_seq; unused (value 0)
+>0x008	ubelong		!0		\b, high_seq %u
+# ht_size; hash table size; 0x48 for flopies
+>0x00c	ubelong		!0x48		\b, hash table size %#x
+# bm_flag; bitmap flag, -1 means VALID
+>0x138	belong		!-1		\b, bitmap flag %#x
+# bm_ext; first bitmap extension block (Hard disks only)
+>0x1A0	ubelong		!0		\b, bitmap extension block %#x
+# name_len; volume name length; diskname[30]; volume name
+>0x1B0	pstring		>\0		\b, "%s"
+# first directory cache block for FFS; otherwise 0
+>0x1F8	ubelong		!0		\b, directory cache block %#x
+# block secondary type = ST_ROOT (value 1)
+>0x1FC	ubelong		!1		\b, sec_type %#x
 #
 0	string		RDSK		Rigid Disk Block
 >160	string		x		on %.24s
-0	string		DOS\0		Amiga DOS disk
-0	string		DOS\1		Amiga FFS disk
-0	string		DOS\2		Amiga Inter DOS disk
-0	string		DOS\3		Amiga Inter FFS disk
-0	string		DOS\4		Amiga Fastdir DOS disk
-0	string		DOS\5		Amiga Fastdir FFS disk
+# URL:		http://fileformats.archiveteam.org/wiki/ADF_(Amiga)
+#		https://en.wikipedia.org/wiki/Amiga_Fast_File_System
+# Reference:	http://lclevy.free.fr/adflib/adf_info.html
+# Update:	Joerg Jenderek
+# Note:		created by ADFOpus.exe
+# 		and verified by `unadf -l TURBO_SILVER_SV.ADF`
+0	string		DOS
+# skip DOS Client Message Files like IPXODI.MSG DOSRQSTR.MSG
+>3	ubyte		<8		Amiga
+# https://reposcope.com/mimetype/application/x-amiga-disk-format
+!:mime	application/x-amiga-disk-format
+!:ext	adf
+>>3	ubyte		0		DOS disk
+>>3	ubyte		1		FFS disk
+>>3	ubyte		2		Inter DOS disk
+>>3	ubyte		3		Inter FFS disk
+# For Fastdir mode the international mode is also enabled,
+>>3	ubyte		4		Fastdir DOS disk
+>>3	ubyte		5		Fastdir FFS dis
+# called by TrID "Amiga Disk image File (OFS+INTL+DIRC)"
+>>3	ubyte		6		Inter Fastdir DOS disk
+# called by TrID "Amiga Disk image File (FFS+INTL+DIRC)"
+>>3	ubyte		7		Inter Fastdir FFS disk
+# but according to Wikipedia variants with long name support
+#>>3	ubyte		6		long name DOS disk
+#>>3	ubyte		7		long name FFS disk
+# DOES NOT only work! Partly for file size  ~< FILE_BYTES_MAX=1 MiB defined in ../../src/file.h
+#>>-0		offset	x		\b, %lld bytes
+# Correct file size, but next lines are NOT executed
+#>>-0		offset	901120		(DD 880 KiB floppy)
+# 880 KiB Double Density floppy disk by characteristic hash table size 0x48 and T_HEADER=2
+>>0x6E00C	ubelong	0x48
+>>>0x6E000	ubelong	2		(DD 880 KiB)
+# 1760 KiB High Density floppy disk (1802240 bytes) by characteristic hash table size 0x48
+>>0xDC00C	ubelong	0x48
+>>>0xDC000	ubelong	2		(HD 1760 KiB)
+# Chksum; special block checksum like: 0 0x44ccf4c0 0x51f32cac 0xe33d0e7d ...
+#>>4	ubelong		x		\b, CRC %#x
+# Rootblock: 0 880 (often for DD and HD) 1146049280 (IMAGINE_1_0_DISK_01.ADF TURBO_SILVER_SV.ADF)
+>>8	ubelong		>0		\b, probably root block %d
+# bootblock code
+>>12	quad		!0		\b, bootable
+# assembler instructions: lea exp(pc),a1; moveq 25h,d0; jsr -552(a6)
+>>>12	ubequad	=0x43fa003e70254eae	AmigaDOS 3.0
+>>>12	default	x
+>>>>12	ubequad	!0x43fa003e70254eae	%#llx..
+# 880 KiB Double Density floppy disk (901120 bytes)
+>>0x6E00C	ubelong	0x48
+>>>0x6E000	ubelong	2
+>>>>0x6E000	use			adf-rootblock
+# 1760 KiB High Density floppy disk (1802240 bytes)
+>>0xDC00C	ubelong	0x48
+>>>0xDC000	ubelong	2
+>>>>0xDC000	use			adf-rootblock
+# 1 MiB hard disc by test for T_HEADER=2 and header_key=0=high_seq 
+>>0x80000	ubelong	2
+>>>0x80004	quad	0
+>>>>0x80000	use			adf-rootblock
+# 2 MiB hard disc; only works if in ../../src/file.h FILE_BYTES_MAX is raised to 2 MiB 
+#>>0x100000	ubelong	x		2 MiB TEST
+#>>0x100000	ubelong	2		\b, 2 MiB hard disc rootblock
+#>>>0x100000	use			adf-rootblock
 0	string		KICK		Kickstart disk
 
 # From: Alex Beregszaszi <alex@fsn.hu>

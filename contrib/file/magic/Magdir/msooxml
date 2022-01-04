@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msooxml,v 1.13 2019/11/27 13:12:55 christos Exp $
+# $File: msooxml,v 1.16 2021/08/16 10:06:55 christos Exp $
 # msooxml:  file(1) magic for Microsoft Office XML
 # From: Ralf Brown <ralf.brown@gmail.com>
 
@@ -19,29 +19,32 @@
 !:mime application/vnd.openxmlformats-officedocument.presentationml.presentation
 >0		string		xl/		Microsoft Excel 2007+
 !:mime application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-0		string		visio/		Microsoft Visio 2013+
+>0		string		visio/		Microsoft Visio 2013+
 !:mime application/vnd.ms-visio.drawing.main+xml
+>0		string		AppManifest.xaml	Microsoft Silverlight Application
+!:mime application/x-silverlight-app
 
 # start by checking for ZIP local file header signature
 0		string		PK\003\004
 !:strength +10
 # make sure the first file is correct
 >0x1E		use		msooxml
->0x1E		regex		\\[Content_Types\\]\\.xml|_rels/\\.rels|docProps
+>0x1E		default		x
+>>0x1E		regex		\\[Content_Types\\]\\.xml|_rels/\\.rels|docProps
 # skip to the second local file header
 # since some documents include a 520-byte extra field following the file
 # header, we need to scan for the next header
->>(18.l+49)	search/6000	PK\003\004
+>>>(18.l+49)	search/6000	PK\003\004
 # now skip to the *third* local file header; again, we need to scan due to a
 # 520-byte extra field following the file header
->>>&26		search/6000	PK\003\004
+>>>>&26		search/6000	PK\003\004
 # and check the subdirectory name to determine which type of OOXML
 # file we have.  Correct the mimetype with the registered ones:
 # https://technet.microsoft.com/en-us/library/cc179224.aspx
->>>>&26		use		msooxml	
->>>>&26		default		x
+>>>>>&26		use		msooxml	
+>>>>>&26		default		x
 # OpenOffice/Libreoffice orders ZIP entry differently, so check the 4th file
->>>>>&26	search/6000	PK\003\004
->>>>>>&26	use		msooxml	
->>>>>>&26	default		x		Microsoft OOXML
+>>>>>>&26	search/6000	PK\003\004
+>>>>>>>&26	use		msooxml	
+>>>>>>>&26	default		x		Microsoft OOXML
 >>>>>&26	default		x		Microsoft OOXML

@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.187 2020/06/07 17:38:30 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.190 2021/09/24 14:14:26 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -132,26 +132,28 @@ private const struct {
 
 private struct {
 	const char *name;
-	int tag;
 	size_t value;
-	int set;
 	size_t def;
 	const char *desc;
+	int tag;
+	int set;
 } pm[] = {
-	{ "bytes",	MAGIC_PARAM_BYTES_MAX, 0, 0, FILE_BYTES_MAX,
-	    "max bytes to look inside file" },
-	{ "elf_notes",	MAGIC_PARAM_ELF_NOTES_MAX, 0, 0, FILE_ELF_NOTES_MAX,
-	    "max ELF notes processed" },
-	{ "elf_phnum",	MAGIC_PARAM_ELF_PHNUM_MAX, 0, 0, FILE_ELF_PHNUM_MAX,
-	    "max ELF prog sections processed" },
-	{ "elf_shnum",	MAGIC_PARAM_ELF_SHNUM_MAX, 0, 0, FILE_ELF_SHNUM_MAX,
-	    "max ELF sections processed" },
-	{ "indir",	MAGIC_PARAM_INDIR_MAX, 0, 0, FILE_INDIR_MAX,
-	    "recursion limit for indirection" },
-	{ "name",	MAGIC_PARAM_NAME_MAX, 0, 0, FILE_NAME_MAX,
-	    "use limit for name/use magic" },
-	{ "regex",	MAGIC_PARAM_REGEX_MAX, 0, 0, FILE_REGEX_MAX,
-	    "length limit for REGEX searches" },
+	{ "bytes", 0, FILE_BYTES_MAX, "max bytes to look inside file",
+	    MAGIC_PARAM_BYTES_MAX, 0 },
+	{ "elf_notes", 0, FILE_ELF_NOTES_MAX, "max ELF notes processed",
+	    MAGIC_PARAM_ELF_NOTES_MAX, 0 },
+	{ "elf_phnum", 0, FILE_ELF_PHNUM_MAX, "max ELF prog sections processed",
+	    MAGIC_PARAM_ELF_PHNUM_MAX, 0 },
+	{ "elf_shnum", 0, FILE_ELF_SHNUM_MAX, "max ELF sections processed",
+	    MAGIC_PARAM_ELF_SHNUM_MAX, 0 },
+	{ "encoding", 0, FILE_ENCODING_MAX, "max bytes to scan for encoding",
+	    MAGIC_PARAM_ENCODING_MAX, 0 },
+	{ "indir", 0, FILE_INDIR_MAX, "recursion limit for indirection",
+	    MAGIC_PARAM_INDIR_MAX, 0 },
+	{ "name", 0, FILE_NAME_MAX, "use limit for name/use magic",
+	    MAGIC_PARAM_NAME_MAX, 0 },
+	{ "regex", 0, FILE_REGEX_MAX, "length limit for REGEX searches",
+	    MAGIC_PARAM_REGEX_MAX, 0 },
 };
 
 private int posixly;
@@ -523,8 +525,6 @@ unwrap(struct magic_set *ms, const char *fn)
 		if (line[len - 1] == '\n')
 			line[len - 1] = '\0';
 		e |= process(ms, line, wid);
-		if(nobuffer)
-			(void)fflush(stdout);
 	}
 
 	free(line);
@@ -556,11 +556,12 @@ process(struct magic_set *ms, const char *inname, int wid)
 
 	if (type == NULL) {
 		(void)printf("ERROR: %s%c", magic_error(ms), c);
-		return 1;
 	} else {
 		(void)printf("%s%c", type, c);
-		return 0;
 	}
+	if (nobuffer)
+		(void)fflush(stdout);
+	return type == NULL;
 }
 
 protected size_t

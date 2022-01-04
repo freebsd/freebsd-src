@@ -1,0 +1,30 @@
+
+#------------------------------------------------------------
+# $File: bytecode,v 1.2 2021/06/30 11:57:32 christos Exp $
+# magic for various bytecodes
+
+# From: Mikhail Gusarov <dottedmag@dottedmag.net>
+# NekoVM (https://nekovm.org/) bytecode
+0	string		NEKO	NekoVM bytecode
+>4	lelong		x	(%d global symbols,
+>8	lelong		x	%d global fields,
+>12	lelong		x	%d bytecode ops)
+!:mime	application/x-nekovm-bytecode
+
+# https://www.iana.org/assignments/media-types/application/vnd.resilient.logic
+# From: Benedikt Muessig <benedikt@resilient-group.de>
+0	belong		0x07524c4d	Resilient Logic bytecode
+!:mime	application/vnd.resilient.logic
+>4	byte/16		x	\b, version %d
+>4	byte&0x0f	x	\b.%d
+
+# Guile file magic from <dalepsmith@gmail.com>
+# https://www.gnu.org/s/guile/
+# https://git.savannah.gnu.org/gitweb/?p=guile.git;f=libguile/_scm.h;hb=HEAD#l250
+
+0	string	GOOF----	Guile Object
+>8	string	LE		\b, little endian
+>8	string	BE		\b, big endian
+>11	string	4		\b, 32bit
+>11	string	8		\b, 64bit
+>13	regex	.\..		\b, bytecode v%s

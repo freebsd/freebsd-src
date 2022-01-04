@@ -1,0 +1,29 @@
+# HOW TO RELEASE FILE
+
+@(#) $File: RELEASE-PROCEDURE,v 1.7 2021/10/18 16:38:25 christos Exp $
+
+1)  Update version number in configure.ac
+2)  Note the new version in ChangeLog
+3)  Update README.md if applicable
+4)  Commit changes into CVS
+5)  Rebuild and run tests (see README.DEVELOPER)
+6)  Tag the release with FILEx_yy
+7)  Create the source tarball: make distcheck
+7a) Sign the source tarball.
+	gpg --armor --detach-sign mysoftware-0.4.tar.gz
+8)  Make the source tarball available on ftp
+9)  Add the new version to bugs.astron.com:
+    - Click: Manage > Manage Projects > file
+    - Scroll down to "Versions"
+    - Click on "Edit" next to the HEAD version
+    - Change the "Version" from HEAD to the newly released version
+    - Change the "Date Order" to the current time
+    - Check the "Released" box
+    - Click on "Update Version"
+    - Type HEAD into the box at the bottom of the version list and
+      click on "Add and Edit Version"
+    - Set the "Date Order" to 2030-01-01 (i.e. far in the future)
+    - Click on "Update Version"
+10) Mail an announcement to file@astron.com containing a summary of the
+    ChangeLog changes. Historically we don't mention magic changes in the
+    ChangeLog or the mail message, only source changes.
