@@ -444,7 +444,7 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc)
 	memset(&pbm, 0, sizeof(pbm));
 	pbm.pbm_sel = sc->psc_sel;
 	pbm.pbm_flags = PCIIO_BAR_MMAP_RW;
-	pbm.pbm_reg = PCIR_BAR(pi->pi_msix.pba_bar);
+	pbm.pbm_reg = PCIR_BAR(pi->pi_msix.table_bar);
 	pbm.pbm_memattr = VM_MEMATTR_DEVICE;
 
 	if (ioctl(pcifd, PCIOCBARMMAP, &pbm) != 0) {
