@@ -1433,7 +1433,7 @@ msdosfs_mkdir(struct vop_mkdir_args *ap)
 	return (0);
 
 bad:
-	clusterfree(pmp, newcluster, NULL);
+	clusterfree(pmp, newcluster);
 bad2:
 	return (error);
 }
