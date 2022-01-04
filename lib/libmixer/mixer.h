@@ -27,7 +27,6 @@
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
-#include <sys/soundcard.h>
 
 #include <limits.h>
 
