@@ -425,6 +425,7 @@ struct cryptop {
 					 * should always check and use the new
 					 * value on future requests.
 					 */
+#define	crp_startcopy	crp_flags
 	int		crp_flags;
 
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
@@ -457,6 +458,7 @@ struct cryptop {
 
 	const void	*crp_cipher_key; /* New cipher key if non-NULL. */
 	const void	*crp_auth_key;	/* New auth key if non-NULL. */
+#define	crp_endcopy	crp_opaque
 
 	void		*crp_opaque;	/* Opaque pointer, passed along */
 
@@ -622,6 +624,8 @@ void	crypto_dispatch_batch(struct cryptopq *crpq, int flags);
 int	crypto_unblock(uint32_t, int);
 void	crypto_done(struct cryptop *crp);
 
+struct cryptop *crypto_clonereq(struct cryptop *crp, crypto_session_t cses,
+    int how);
 void	crypto_destroyreq(struct cryptop *crp);
 void	crypto_initreq(struct cryptop *crp, crypto_session_t cses);
 void	crypto_freereq(struct cryptop *crp);
