@@ -90,7 +90,7 @@ u_32_t *passp;
 	frentry_t *fr = NULL;
 
 	fr = (frentry_t *)&in_rule__0;
-	return(fr);
+	return (fr);
 }
 
 frentry_t *ipfrule_match_out_(fin, passp)
@@ -100,7 +100,7 @@ u_32_t *passp;
 	frentry_t *fr = NULL;
 
 	fr = (frentry_t *)&out_rule__0;
-	return(fr);
+	return (fr);
 }
 static frentry_t ipfrule_out_;
 
@@ -137,7 +137,7 @@ int ipfrule_add_out_(void)
 	fp->fr_func = (ipfunc_t)ipfrule_match_out_;
 	err = frrequest(&V_ipfmain, IPL_LOGIPF, SIOCADDFR, (caddr_t)fp,
 			V_ipfmain.ipf_active, 0);
-	return(err);
+	return (err);
 }
 
 
@@ -166,10 +166,10 @@ int ipfrule_remove_out_(void)
 				(caddr_t)&ipfrule_out_,
 				V_ipfmain.ipf_active, 0);
 	if (err)
-		return(err);
+		return (err);
 
 
-	return(err);
+	return (err);
 }
 static frentry_t ipfrule_in_;
 
@@ -206,7 +206,7 @@ int ipfrule_add_in_(void)
 	fp->fr_func = (ipfunc_t)ipfrule_match_in_;
 	err = frrequest(&V_ipfmain, IPL_LOGIPF, SIOCADDFR, (caddr_t)fp,
 			V_ipfmain.ipf_active, 0);
-	return(err);
+	return (err);
 }
 
 
@@ -235,10 +235,10 @@ int ipfrule_remove_in_(void)
 				(caddr_t)&ipfrule_in_,
 				V_ipfmain.ipf_active, 0);
 	if (err)
-		return(err);
+		return (err);
 
 
-	return(err);
+	return (err);
 }
 
 int ipfrule_add(void)
@@ -247,11 +247,11 @@ int ipfrule_add(void)
 
 	err = ipfrule_add_out_();
 	if (err != 0)
-		return(err);
+		return (err);
 	err = ipfrule_add_in_();
 	if (err != 0)
-		return(err);
-	return(0);
+		return (err);
+	return (0);
 }
 
 
@@ -261,10 +261,10 @@ int ipfrule_remove(void)
 
 	err = ipfrule_remove_out_();
 	if (err != 0)
-		return(err);
+		return (err);
 	err = ipfrule_remove_in_();
 	if (err != 0)
-		return(err);
-	return(0);
+		return (err);
+	return (0);
 }
 #endif /* IPFILTER_COMPILED */
