@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.115 2020/02/20 15:50:20 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.122 2021/06/30 10:08:48 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -36,6 +36,9 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.115 2020/02/20 15:50:20 christos Exp $")
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>	/* for pipe2() */
+#endif
 #if defined(HAVE_WCHAR_H)
 #include <wchar.h>
 #endif
@@ -93,7 +96,7 @@ file_checkfmt(char *msg, size_t mlen, const char *fmt)
 		if (*++p == '%')
 			continue;
 		// Skip uninteresting.
-		while (strchr("0.'+- ", *p) != NULL)
+		while (strchr("#0.'+- ", *p) != NULL)
 			p++;
 		if (*p == '*') {
 			if (msg)
@@ -245,11 +248,31 @@ file_badread(struct magic_set *ms)
 }
 
 #ifndef COMPILE_ONLY
+#define FILE_SEPARATOR "\n- "
 
 protected int
 file_separator(struct magic_set *ms)
 {
-	return file_printf(ms, "\n- ");
+	return file_printf(ms, FILE_SEPARATOR);
+}
+
+static void
+trim_separator(struct magic_set *ms)
+{
+	size_t l;
+
+	if (ms->o.buf == NULL)
+		return;
+
+	l = strlen(ms->o.buf);
+	if (l < sizeof(FILE_SEPARATOR))
+		return;
+
+	l -= sizeof(FILE_SEPARATOR) - 1;
+	if (strcmp(ms->o.buf + l, FILE_SEPARATOR) != 0)
+		return;
+
+	ms->o.buf[l] = '\0';
 }
 
 static int
@@ -453,6 +476,7 @@ simple:
 				rv = -1;
 	}
  done:
+	trim_separator(ms);
 	if ((ms->flags & MAGIC_MIME_ENCODING) != 0) {
 		if (ms->flags & MAGIC_MIME_TYPE)
 			if (file_printf(ms, "; charset=") == -1)
@@ -732,14 +756,15 @@ file_pop_buffer(struct magic_set *ms, file_pushbuf_t *pb)
  * convert string to ascii printable format.
  */
 protected char *
-file_printable(char *buf, size_t bufsiz, const char *str, size_t slen)
+file_printable(struct magic_set *ms, char *buf, size_t bufsiz,
+    const char *str, size_t slen)
 {
 	char *ptr, *eptr = buf + bufsiz - 1;
 	const unsigned char *s = RCAST(const unsigned char *, str);
 	const unsigned char *es = s + slen;
 
 	for (ptr = buf;  ptr < eptr && s < es && *s; s++) {
-		if (isprint(*s)) {
+		if ((ms->flags & MAGIC_RAW) != 0 || isprint(*s)) {
 			*ptr++ = *s;
 			continue;
 		}
@@ -764,7 +789,7 @@ struct guid {
 protected int
 file_parse_guid(const char *s, uint64_t *guid)
 {
-	struct guid *g = CAST(struct guid *, guid);
+	struct guid *g = CAST(struct guid *, CAST(void *, guid));
 	return sscanf(s,
 	    "%8x-%4hx-%4hx-%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
 	    &g->data1, &g->data2, &g->data3, &g->data4[0], &g->data4[1],
@@ -775,11 +800,48 @@ file_parse_guid(const char *s, uint64_t *guid)
 protected int
 file_print_guid(char *str, size_t len, const uint64_t *guid)
 {
-	const struct guid *g = CAST(const struct guid *, guid);
+	const struct guid *g = CAST(const struct guid *,
+	    CAST(const void *, guid));
 
 	return snprintf(str, len, "%.8X-%.4hX-%.4hX-%.2hhX%.2hhX-"
 	    "%.2hhX%.2hhX%.2hhX%.2hhX%.2hhX%.2hhX",
 	    g->data1, g->data2, g->data3, g->data4[0], g->data4[1],
 	    g->data4[2], g->data4[3], g->data4[4], g->data4[5],
 	    g->data4[6], g->data4[7]);
+}
+
+protected int
+file_pipe_closexec(int *fds)
+{
+#ifdef HAVE_PIPE2
+	return pipe2(fds, O_CLOEXEC);
+#else
+	if (pipe(fds) == -1)
+		return -1;
+	(void)fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+	(void)fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+	return 0;
+#endif
+}
+
+protected int
+file_clear_closexec(int fd) {
+	return fcntl(fd, F_SETFD, 0);
+}
+
+protected char *
+file_strtrim(char *str)
+{
+	char *last;
+
+	while (isspace(CAST(unsigned char, *str)))
+		str++;
+	last = str;
+	while (*last)
+		last++;
+	--last;
+	while (isspace(CAST(unsigned char, *last)))
+		last--;
+	*++last = '\0';
+	return str;
 }

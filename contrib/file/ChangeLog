@@ -1,3 +1,81 @@
+2021-10-18  11:57  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.41
+
+2021-09-23  03:51  Christos Zoulas <christos@zoulas.com>
+
+	* Avinash Sonawane: Fix tzname detection
+
+2021-09-03  09:17  Christos Zoulas <christos@zoulas.com>
+
+	* Fix relationship tests with "search" magic, don't short circuit
+	  logic
+
+2021-07-13  01:06  Christos Zoulas <christos@zoulas.com>
+
+	* Fix memory leak in compile mode
+
+2021-07-01  03:51  Christos Zoulas <christos@zoulas.com>
+
+	* PR/272: kiefermat: Only set returnval = 1 when we printed something
+	  (in all cases print or !print). This simplifies the logic and fixes
+	  the issue in the PR with -k and --mime-type there was no continuation
+	  printed before the default case.
+
+2021-06-30  13:07  Christos Zoulas <christos@zoulas.com>
+
+	* PR/270: Don't translate unprintable characters in %s magic formats
+	  when -r
+	* PR/269: Avoid undefined behavior with clang (adding offset to NULL)
+
+2021-05-09  18:38  Christos Zoulas <christos@zoulas.com>
+
+	* Add a new flag (f) that requires that the match is a full word,
+	   not a partial word match.
+	* Add varint types (unused)
+
+2021-04-19  17:17  Christos Zoulas <christos@zoulas.com>
+
+	* PR/256: mutableVoid: If the file is less than 3 bytes, use the file
+	  length to determine type
+	* PR/259: aleksandr.v.novichkov: mime printing through indirect magic
+	  is not taken into account, use match directly so that it does.
+
+2021-04-04  17:02  Christos Zoulas <christos@zoulas.com>
+
+	* count the total bytes found not the total byte positions
+	  in order to determine encoding (Anatol Belski)
+
+2021-03-30  20:21  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.40
+
+2021-02-05  16:31  Christos Zoulas <christos@zoulas.com>
+
+	* PR/234: Add limit to the number of bytes to scan for encoding
+	* PR/230: Fix /T (trim flag) for regex
+
+2021-02-01  12:31  Christos Zoulas <christos@zoulas.com>
+	* PR/77: Trim trailing separator.
+
+2020-12-17  15:44  Christos Zoulas <christos@zoulas.com>
+
+	* PR/211: Convert system read errors from corrupt ELF
+	  files into human readable error messages
+
+2020-12-08  16:24  Christos Zoulas <christos@zoulas.com>
+	
+	* fix multithreaded decompression file descriptor issue
+	  by using close-on-exec (Denys Vlasenko)
+
+2020-06-27  11:58  Christos Zoulas <christos@zoulas.com>
+
+	* Exclude surrogate pairs from utf-8 detection (Michael Liu)
+
+2020-06-25  12:53  Christos Zoulas <christos@zoulas.com>
+	
+	* Include # to the list of ignored format chars (Werner Fink)
+
 2020-06-14  20:02  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.39

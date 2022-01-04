@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: os2,v 1.10 2017/03/17 21:35:28 christos Exp $
+# $File: os2,v 1.13 2021/04/26 15:56:00 christos Exp $
 # os2:  file(1) magic for OS/2 files
 #
 
@@ -25,6 +25,8 @@
 #>5	string	>\			(Local file) <%s>
 
 # >>>>> OS/2 INF/HLP <<<<<  (source: Daniel Dissett ddissett@netcom.com)
+# URL:		http://fileformats.archiveteam.org/wiki/INF/HLP_(OS/2)
+# Reference:	http://www.edm2.com/0308/inf.html
 # Carl Hauser (chauser.parc@xerox.com) and
 # Marcus Groeber (marcusg@ph-cip.uni-koeln.de)
 # list the following header format in inf02a.doc:
@@ -41,9 +43,142 @@
 #  int16 unknown2;     // unknown purpose
 #
 0   string  HSP\x01\x9b\x00 OS/2 INF
+!:mime	application/x-os2-inf
+!:ext	inf
 >107 string >0                      (%s)
 0   string  HSP\x10\x9b\x00     OS/2 HLP
+!:mime	application/x-os2-hlp
+!:ext	hlp
 >107 string >0                      (%s)
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/MSG_(OS/2)
+# Reference:	https://github.com/OS2World/UTIL-SYSTEM-MKMSGF/blob/master/mkmsgf.h
+# Note:		created by MKMSGF.EXE. Text source can be recreated by E_MSGF
+#		example like OS001H.MSG
+0	string			\xffMKMSGF\0	OS/2 help message
+!:mime	application/x-os2-msg
+!:ext	msg
+# identifier[3] like: DOS NET REX SYS ...
+>8	string				x	'%.3s'
+# msgnumber: number of messages
+>11	uleshort			x	\b, %u messages
+# firstmsgnumber; number of the first message like: some times 0 often 1 169 1000 3502
+>13	uleshort      			>1	\b, 1st number %u
+# offset16bit; 1~Index table has 16-bit offsets (files<64k) 0~Index table has 32-bit offsets
+>15	ubyte				=0	\b, 32-bit
+#>15	ubyte				=1	\b, 16-bit
+# version; file version: 2~new 0~old
+>16	uleshort      			!2	\b, version %u
+# indextaboffset; offset of index table: 1F~after header 0~no index table for version 0?
+>18	uleshort			>0
+>>18		uleshort		!0x1f	\b, at %#x index
+#	32-bit offset
+>>15		ubyte			=0
+# offset with message table
+>>>(18.s)		ulelong		x	\b, at %#x
+# 1st message
+# http://www.os2museum.com/files/docs/os210ptk/os2-1.0-ptk-tools-1988.pdf
+# message type: E~Error H~Help I~Information P~Prompt W~Warning ?
+>>>>(&-4.l)		ubyte		x	%c-type
+>>>>>&0			string		x	%s
+#	16-bit offset
+>>15		ubyte			=1
+# msgnum; message number
+>>>(18.s)		uleshort	x	\b, number %u
+# msgindex; offset of message from begin of file
+>>>(18.s+2)		uleshort	x	at %#x
+# message type E H I P W ?
+>>>>(&-2.s)		ubyte		x	%c-type
+# skip newline carriage return
+>>>>>&0			ubeshort	=0x0D0a
+>>>>>>&0		string		x	%s
+>>>>>&0			ubeshort	!0x0D0a
+>>>>>>&-2		string		x	%s
+#		for version 0 index table apparently at offset 1F
+>16	uleshort      			0
+>>15		ubyte			1
+# 1st message 16-bit
+>>>0x1F			uleshort	x	\b, at %#x
+# message type: E~Error H~Help I~Information P~Prompt W~Warning ?
+>>>>(0x1F.s)		ubyte		x	%c-type
+>>>>>&0			string		x	%s
+# 2nd message 16-bit
+>>>0x21			uleshort	x	\b, at %#x
+>>>>(0x21.s)		ubyte		x	%c-type
+>>>>>&0			string		x	%s
+# 3rd message 16-bit
+>>>0x23			uleshort	x	\b, at %#x
+>>>>(0x23.s)		ubyte		x	%c-type
+>>>>>&0			string		x	%s
+#		version 0 32-bit
+>>15		ubyte			0
+# 1st message 32-bit
+>>>0x1f			ulelong		x	\b, at %#x
+>>>>(0x1F.l)		ubyte		x	%c-type
+>>>>>&0			string		x	%s
+# 2nd message 32-bit
+>>>0x23			ulelong		x	\b, at %#x
+>>>>(0x23.l)		ubyte		x	%c-type
+>>>>>&0			string		x	%s
+# 3rd message 32-bit
+>>>0x27			ulelong		x	\b, AT %#x
+>>>>(0x27.l)		ubyte		x	 %c-type
+>>>>>&0			string		x	%s
+# countryinfo; offset of country info block: 0 for version 0
+>20	uleshort			!0	\b, at %#x countryinfo
+# nextcoutryinfo
+>>22		uleshort		>0	\b, at %#x next
+# reserved[5]; Must be 0
+>>25	ulelong		!0		\b, RESERVED %#x 
+>>(20.s) use				os2-msg-info
+#	display country info block of MKMSGF message file
+0	name		os2-msg-info
+# bytesperchar; bytes per char: 1~SBCS 2~DBCS
+>0	ubyte		>1		\b, %u bytes/char
+# reserved; Not known
+>1	uleshort	!0		\b, reserved %#x
+# langfamilyID; language family ID like: 0~? 1~Arabic ... 7~German ... 9~English  ... 34~Slovene
+>3	uleshort	>0		\b, language %u
+# langversionID; like: 7_1~German 7_2~Swiss German 12_1~French 12_3~Canadian French
+>>5	uleshort	x		\b_%u
+# langfamilyID too high. This should not happen
+>3	uleshort	>34		(invalid language)
+# codepagesnumber; number of codepages like: 1 2 ... 16
+>7	uleshort	x		\b, %u code page
+# plural s
+>7	uleshort	>1		\bs
+# too many number of codepages. This should not happen
+>7	uleshort	>16		(Too many)
+# codepages[16]; codepages list like 437 850 ...
+>7	uleshort	<17
+# 1st code page
+>>9	uleshort	>0		%u
+# possible 2nd code page number
+>>>7	uleshort	>1
+>>>>11	uleshort	x		%u
+# filename[260]; name of file like: dbaseos2.msg dde4c01e.msg os2ldr.mgr xdfh.msg ...
+>41	string		x	 	\b, %s
 
 # OS/2 INI (this is a guess)
 0  string   \xff\xff\xff\xff\x14\0\0\0  OS/2 INI
+!:mime	application/x-os2-ini
+!:ext	ini
+
+# From:		Joerg Jenderek
+# URL:		http://warpin.netlabs.org/
+# Reference:    http://mark0.net/download/triddefs_xml.7z/defs/a/ark-wpi.trid.xml
+# Note:		called by TrID "WarpIN Installer"
+# probably magic at the beginning
+0	ubelong		=0x770402BE	WarpIN Installer
+#>4	ubelong		=0x03000000
+#!:mime	application/octet-stream
+!:mime	application/x-os2-wpi
+!:ext	wpi
+# creator program name like: "reserved" or "WIC x.y.z"
+>0x106	string		x		\b, created by %s
+# name like: "reserved" or "OS/2 Netlabs"
+>0x146	string		x		\b, '%s'
+# name like: "N/A" "http://warpin.netlabs.org"
+>0x186	string		x		\b, URL %s
+

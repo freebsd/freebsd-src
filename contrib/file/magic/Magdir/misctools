@@ -1,22 +1,37 @@
 
 #-----------------------------------------------------------------------------
-# $File: misctools,v 1.18 2019/04/19 00:42:27 christos Exp $
+# $File: misctools,v 1.20 2021/05/25 15:13:55 christos Exp $
 # misctools:  file(1) magic for miscellaneous UNIX tools.
 #
 0	search/1	%%!!			X-Post-It-Note text
 0	string/c	BEGIN:VCALENDAR		vCalendar calendar file
 !:mime	text/calendar
-# updated by Joerg Jenderek at Apr 2015
-# Extension: .vcf
+# updated by Joerg Jenderek at Apr 2015, May 2021
 # https://en.wikipedia.org/wiki/VCard
-0	string/c	BEGIN:VCARD		vCard visiting card
+# URL: 	http://fileformats.archiveteam.org/wiki/VCard
+# https://datatracker.ietf.org/doc/html/rfc6350
+# the value is case-insensitive
+0	string/c	begin:vcard
+# skip DROID fmt-395-signature-id-634.vcf
+>13	string		!VERSION:END		vCard visiting card
 # deprecated
 #!:mime	text/x-vcard
 !:mime	text/vcard
+!:apple	????vCrd
+!:ext	vcf/vcard
 # VERSION must come right after BEGIN for 3.0 or 4.0 except in 2.1 , where it can be anywhere
->12	search/14000/c	VERSION:
+# Joerg_Jenderek_67.vcf
+>>12	search/0x113b4/c	version:
 # VERSION 2.1 , 3.0 or 4.0
->>&0	string		x			\b, version %-.3s
+>>>&0	string		x			\b, version %-.3s
+>>>&0	string		!2.1
+>>>>13	string		!VERSION:		\b, 2nd line does not start with VERSION:
+# downcase violates RFC 6350, but some "bad" software produce such vcards
+>>0	string		!BEGIN			\b, not up case
+# http://ftp.mozilla.org/pub/thunderbird/candidates/
+# 78.10.1-candidates/build1/source/thunderbird-78.10.1.source.tar.xz
+# thunderbird-78.10.1/comm/mailnews/import/test/unit/resources/basic_vcard_addressbook.vcf
+>>11	beshort		!0x0D0A			\b, lines not separated by CRLF
 
 # Summary: Libtool library file
 # Extension: .la
@@ -41,18 +56,18 @@
 !:ext	dmp/mdmp
 # The high-order word is an internal value that is implementation specific.
 # The low-order word is MINIDUMP_VERSION 0xA793
->4	ulelong&0x0000FFFF	!0xA793				\b, version 0x%4.4x
+>4	ulelong&0x0000FFFF	!0xA793				\b, version %#4.4x
 # NumberOfStreams 8,9,10,13
 >8	ulelong			x				\b, %d streams
 # StreamDirectoryRva 0x20
->12	ulelong			!0x20				\b, 0x%8.8x RVA
+>12	ulelong			!0x20				\b, %#8.8x RVA
 # CheckSum 0
->16	ulelong			!0				\b, CheckSum 0x%8.8x
+>16	ulelong			!0				\b, CheckSum %#8.8x
 # Reserved or TimeDateStamp
 >20	ledate			x				\b, %s
 # https://msdn.microsoft.com/en-us/library/windows/desktop/ms680519%28v=vs.85%29.aspx
 # Flags MINIDUMP_TYPE enumeration type 0 0x121 0x800
->24	ulelong			x				\b, 0x%x type
+>24	ulelong			x				\b, %#x type
 # >24	ulelong			>0				\b; include
 # >>24	ulelong			&0x00000001			\b data sections,
 # >>24	ulelong			&0x00000020			\b list of unloaded modules,

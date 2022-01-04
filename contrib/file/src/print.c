@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.88 2020/05/09 18:57:15 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.89 2021/06/30 10:08:48 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -197,6 +197,11 @@ file_mdump(struct magic *m)
 		case FILE_LEDOUBLE:
 			(void) fprintf(stderr, "%G", m->value.d);
 			break;
+		case FILE_LEVARINT:
+		case FILE_BEVARINT:
+			(void)fprintf(stderr, "%s", file_fmtvarint(
+			    m->value.us, m->type, tbuf, sizeof(tbuf)));
+			break;
 		case FILE_DEFAULT:
 			/* XXX - do anything here? */
 			break;
@@ -237,6 +242,13 @@ file_magwarn(struct magic_set *ms, const char *f, ...)
 	(void) vfprintf(stderr, f, va);
 	va_end(va);
 	(void) fputc('\n', stderr);
+}
+
+protected const char *
+file_fmtvarint(const unsigned char *us, int t, char *buf, size_t blen)
+{
+	snprintf(buf, blen, "%jd", file_varint2uintmax_t(us, t, NULL));
+	return buf;
 }
 
 protected const char *

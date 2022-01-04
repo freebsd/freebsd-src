@@ -1,0 +1,33 @@
+
+#------------------------------------------------------------------------------
+# $File: avm,v 1.1 2020/08/28 20:37:58 christos Exp $
+# avm:  file(1) magic for avm files; this is not use
+
+# Summary:	FRITZ!Box router configuration backup
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Fritz!Box
+# Reference:	http://www.mengelke.de/Projekte/FritzBoxTools2
+# Note:		only tested with models 4040 and 6490 Cable (lgi)
+0	string		****\ FRITZ!Box\ 	FRITZ!Box configuration backup
+#!:mime	text/plain
+!:mime	application/x-avm-export
+!:ext	export
+# router model name like "4040" , "6490 Cable (lgi)" followed by " CONFIGURATION EXPORT"
+>15	string		x			of %-.4s
+# on 2nd line hashed password
+#>41	search/54	Password=		\b, password
+# on 3rd line firmware version like: 141.06.24 141.06.50 141.07.10 ... 155.06.83
+>41	search/172	FirmwareVersion=	\b, firmware version
+>>&0	string		x			%s
+# on 5th line oem like: avme lgi
+>41	search/285	OEM=			\b, oem
+>>&0	string		x			%s
+# on 7th line language like: de en
+>41	search/305	Language=		\b, language
+>>&0	string		x			%s
+# on 10th line cfg file name like: /var/tmp.cfg
+>41	search/349	tmp.cfg
+# on 11th line date inside c-comment like: Thu Jun  4 22:25:19 2015
+>>&4	string		x			\b, %s
+#
+

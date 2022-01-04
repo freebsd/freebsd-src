@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fsav,v 1.19 2019/04/19 00:42:27 christos Exp $
+# $File: fsav,v 1.22 2021/04/26 15:56:00 christos Exp $
 # fsav:  file(1) magic for datafellows fsav virus definition files
 # Anthon van der Neut (anthon@mnt.org)
 
@@ -35,7 +35,7 @@
 #>>>3	ubyte		0x1
 #>>>>4	ubyte		0x0e
 #>>>>>13		ubyte	>0		fsav virus signatures
-#>>>>>>11	ubyte	x		size 0x%02x
+#>>>>>>11	ubyte	x		size %#02x
 #>>>>>>12	ubyte	x		\b%02x
 #>>>>>>13	ubyte	x		\b%02x bytes
 
@@ -59,7 +59,7 @@
 # file: could not find any valid magic files! (No error)
 >>10	default		x		(with buildtime)
 #>>10	default		x
-# clamtmp is used for temporily database like update process
+# clamtmp is used for temporarily database like update process
 # for pure tar database only cld extension found
 !:ext	cld/cvd/clamtmp/cud
 >511	default		x		file
@@ -86,16 +86,16 @@
 #>>>>>>>>>&1	regex	\^[^:]{1,10}	\b, %s
 >>>>>>>>>&1	regex	\^[^:]{1,10}	
 # padding with spaces
-#>>>>>>>>>>&1	ubequad	x		\b, padding 0x%16.16llx
+#>>>>>>>>>>&1	ubequad	x		\b, padding %#16.16llx
 >510	ubyte		=0x20
 # inspect real database content
-#>>512	ubeshort	x		\b, database MAGIC 0x%x
+#>>512	ubeshort	x		\b, database MAGIC %#x
 # ./archive handle pure tar archives
 >>1012	quad		=0		\b, with
 >>>512	use		tar-file
 # not pure tar
 >>1012	quad		!0
-# one space at the end of text and then handles gziped archives by ./compress
+# one space at the end of text and then handles gzipped archives by ./compress
 >>>512	string		\037\213	\b, with 
 >>>>512	indirect	x
 

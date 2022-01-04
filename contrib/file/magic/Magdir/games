@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: games,v 1.20 2020/02/01 16:32:33 christos Exp $
+# $File: games,v 1.24 2021/04/26 15:56:00 christos Exp $
 # games:  file(1) for games
 
 # Fabio Bonelli <fabiobonelli@libero.it>
@@ -53,11 +53,11 @@
 # dividing this by entry size (64) gives number of files
 >>>8	ulelong/64 x	\b, %u files
 # offset to the beginning of the file table
->>>4	ulelong	x	\b, offset 0x%x
+>>>4	ulelong	x	\b, offset %#x
 # 1st file entry
 >>>(4.l)	use	pak-entry
 # 2nd file entry
-#>>>4	ulelong+64	x	\b, offset 0x%x
+#>>>4	ulelong+64	x	\b, offset %#x
 #>>>(4.l+64)	use	pak-entry
 #
 #	display file table entry of Quake PAK archive
@@ -65,7 +65,7 @@
 # normally entry start after header which implies offset 12 or higher
 >56	ulelong	>11	
 # the offset from the beginning of pak to beginning of this entry file contents
->>56	ulelong	x	at 0x%x
+>>56	ulelong	x	at %#x
 # the size of file for this entry 
 >>60	ulelong	x	%u bytes
 # 56 byte null-terminated entry name string includes path like maps/e1m1.bsp
@@ -276,7 +276,7 @@
 # Summary: NetImmerse game engine file
 # Extension .nif
 # Created by: Abel Cheung <abelcheung@gmail.com>
-0		string		NetImmerse\ File\ Format,\ Versio
+0		string		NetImmerse\ File\ Format,\ Version
 >&0		string		n\ 					NetImmerse game engine file
 >>&0		regex		[0-9a-z.]+				\b, version %s
 
@@ -313,3 +313,208 @@
 >>12	regex	[0-9a-z.]+	saved by game version %s
 
 0	string	CIV6		Sid Meier's Civilization VI saved game
+
+# https://syzygy-tables.info/
+# From Michel Van den Bergh
+0	string	\327f\f\245	Syzygy DTZ tablebase
+!:mime	application/syzygy
+0	string	q\350#]		Syzygy WDL tablebase
+!:mime	application/syzygy
+
+##############################################################################
+# Grand Theft Auto (GTA) file formats.
+#
+# Summary:
+# Includes GTA-specific formats used in all games from 1997 to present. Games
+# and formats were created by Rockstar North, formerly DMA Design. Magic tests
+# were written based on a combination of official and community documentation.
+#
+# Created by: Oliver Galvin <odg@riseup.net>
+#
+# References:
+# * Classic GTA documentation and research:
+#    <https://gitlab.com/classic-gta/gta-data>
+# * Official RenderWare documentation available from EA:
+#    <https://github.com/electronicarts/RenderWare3Docs>
+# * Lots of community research in the GTAMods wiki:
+#    <https://gtamods.com/wiki>
+
+# GTA 2D-Era data - 'Classic' top down games (1/L/2)
+
+## GTA text
+
+0	string	\xbf\xf8\xbd\x49\x62\xbe	GTA1 in-game text (FXT),
+0	string	GBL	GTA2 in-game text (GXT),
+>3	string  	E	English,
+>>4	uleshort	x	version %d
+>3	string  	F	French,
+>>4	uleshort	x	version %d
+>3	string  	G	German,
+>>4	uleshort	x	version %d
+>3	string  	I	Italian,
+>>4	uleshort	x	version %d
+>3	string  	S	Spanish,
+>>4	uleshort	x	version %d
+>3	string  	J	Japanese,
+>>4	uleshort	x	version %d
+
+## GTA maps
+
+0	ulelong 	331	GTA1 map layout (CMP),
+>4	byte    	1	Level 1
+>4	byte    	2	Level 2
+>4	byte    	3	Level 3
+0	string  	GBMP	GTA2/GBH map layout (GMP),
+>4	uleshort	x	version %d
+0	string/t	[MapFiles]	GTA2 multiplayer map metadata (MMP)
+0	string/t	MainOrBonus\ =\ MAIN	GTA2 single player map listing (test1.seq)
+
+## GTA 2D sprites and textures
+
+0	ulelong 	290	GTA1 style data (GRX), 8 bit editor graphics
+0	ulelong 	325	GTA1 style data (GRY), 8 bit in-game graphics
+0	ulelong 	336	GTA1 style data (G24), 24 bit in-game graphics
+0	string  	GBST	GTA2/GBH style data (STY), in-game graphics,
+>4	uleshort	x	version %d
+
+## GTA audio index
+
+0	ulelong	0
+>4	ulelong	<0x40000
+>>8	ulelong	>4500
+>>>8	ulelong	<45000	GTA audio index data (SDT)
+
+## GTA scripts
+
+0	ulelong 	0x00080000
+>4	uleshort	0x0024    	GTA2 binary main script (SCR)
+
+0	uleshort	0x063c    	GTA2 binary mission script (SCR), Residential area (ste)
+0	uleshort	0x055b    	GTA2 binary mission script (SCR), Downtown area (wil)
+0	uleshort	0x0469    	GTA2 binary mission script (SCR), Industrial area (bil)
+
+0	string   	v9.6\0\0 	GTA2 replay file (REP),
+>8	regex/30c	[a-z0-9:\ ]+\0\0	created on %s
+
+# GTA 3D-Era (III/VC/SA/LCS/VCS) - used by the RenderWare engine by Criterion Games
+
+## GTA 3D models and textures - RenderWare binary streams
+
+8	ulelong	0x00000310	RenderWare data, v3.1.0.0, used in GTA III on PS2,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0401ffff	RenderWare data, v3.1.0.1, used in GTA III on PC/PS2,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0800ffff	RenderWare data, v3.2.0.0, used in GTA III on PC,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0c00ffff	RenderWare data, v3.3.0.0,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x0c02ffff	RenderWare data, v3.3.0.2, used in GTA III PC and GTA VC PS2,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1000ffff	RenderWare data, v3.4.0.0,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1003ffff	RenderWare data, v3.4.0.3, used in GTA VC PC,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1005ffff	RenderWare data, v3.4.0.5, used in GTA III/VC on Android,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1400ffff	RenderWare data, v3.5.0.0, used in GTA III/VC on Xbox,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+8	ulelong	0x1803ffff	RenderWare data, v3.6.0.3, used in GTA SA,
+>0	ulelong	0x00000016	texture archive (TXD)
+>0	ulelong 0x00000010	3D models (DFF)
+
+0	string	COL	RenderWare collision data (COL),
+>3	string	L	version 1, used in GTA III/VC/SA
+>3	string	2	version 2, used in GTA SA
+>3	string	3	version 3, used in GTA SA
+>3	string	4	version 4, used in GTA SA
+
+## GTA items and animations
+
+0	string/c	#\ ipl\ generated\ from\ max\ file	GTA Item Placement data (IPL), used in GTA III/VC
+0	string/b	bnry	GTA Item Placement data (IPL), used in GTA SA/IV,
+>4	ulelong 	x	%d items
+
+0	string	ANP	GTA animation data (IFP),
+>3	string	K	version 1, used in GTA III/VC
+>3	string	3	version 2, used in GTA SA
+
+0	string	GtaSA29	GTA Replay data (REP), used in GTA SA
+
+## GTA text
+
+0	string	TKEY	GTA in-game text (GXT), version 2, used in GTA III
+0	string	TABL	GTA in-game text (GXT), version 3, used in GTA VC/LS/VCS
+
+## GTA scripts
+
+0	string	\x02\x00\x01	GTA script (SCM), used in GTA III/VC/SA
+
+## GTA archives
+
+0	string	VER2	GTA archive (IMG), version 2, used in GTA SA,
+>4	ulelong	x	%d items
+
+# GTA HD-Era (IV/V) - used by the Rockstar Advanced Game Engine (RAGE)
+
+## GTA models and textures - RAGE resources
+# Note: GTA IV formats not yet documented - WAD, WBD, WBN, WHM, WPL
+
+0	ulelong	0x00695254	GTA Drawable data (WDR), model and weapon data, used in GTA IV
+0	ulelong	0x00695238	GTA Windows Frag Type (WFT), vehicle models, used in GTA IV
+0	ulelong	0x006953A4	GTA Ped and LOD models (WDD), used in GTA IV
+0	ulelong	0x00695384	GTA Windows Texture Dictionary (WTD), used in GTA IV
+
+## GTA text
+
+4	string  	TABL	GTA in-game text (GXT),
+>0	uleshort	x	version %d, used in GTA SA/IV
+0	string  	2GXT	GTA in-game text (GXT2), used in GTA V
+
+## GTA scripts
+
+0	ulelong	0x0d524353	GTA script (SCO), unencrypted, used in GTA IV,
+>4	ulelong	x         	%d code bytes,
+>>8	ulelong	x         	%d static variables,
+>>>12	ulelong	x         	%d global variables
+0	ulelong	0x0e726373	GTA script (SCO), encrypted, used in GTA IV
+>4	ulelong	x         	%d code bytes,
+>>8	ulelong	x         	%d static variables,
+>>>12	ulelong	x         	%d global variables
+
+## GTA archives
+
+0	ulelong	0xa94e2a52	GTA archive (IMG),
+>4	ulelong	x        	version %d, used in GTA IV,
+>>8	ulelong	x        	%d items
+
+0	uleshort	0x5250	RAGE Package Format (RPF),
+>2	uleshort	0x4630	version 0, used in Rockstar Table Tennis,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+>2	uleshort	0x4632	version 2, used in GTA IV,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+>2	uleshort	0x4633	version 3, used in GTA IV Audio & Midnight Club: LA,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+>2	uleshort	0x4634	version 4, used in Max Payne 3,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+>2	uleshort	0x4636	version 6, used in RDR,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+>2	uleshort	0x4637	version 7, used in GTA V,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
+>2	uleshort	0x4638	version 8, used in RDR 2,
+>>4	ulelong 	x	%d bytes,
+>>>8	ulelong 	x	%d entries
