@@ -45,13 +45,13 @@ int	resolve(char *host, char *address)
 		if (!(hp = gethostbyname(host)))
 		    {
 			fprintf(stderr, "unknown host: %s\n", host);
-			return(-1);
+			return (-1);
 		    }
 		bcopy((char *)hp->h_addr, (char *)address, 4);
-		return(0);
+		return (0);
 	}
 	bcopy((char*)&add, address, 4);
-	return(0);
+	return (0);
 }
 
 /*
@@ -72,11 +72,11 @@ int	arp(ip, ether)
 
 #ifdef	IPSEND
 	if (arp_getipv4(ip, ether) == 0)
-		return(0);
+		return (0);
 #endif
 	if (!bcmp(ipsave, ip, 4)) {
 		bcopy(ethersave, ether, 6);
-		return(0);
+		return (0);
 	}
 	fd = -1;
 	bzero((char *)&ar, sizeof(ar));
@@ -95,7 +95,7 @@ int	arp(ip, ether)
 		if ((sfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
 		    {
 			perror("arp: socket");
-			return(-1);
+			return (-1);
 		    }
 tryagain:
 	if (ioctl(sfd, SIOCGARP, (caddr_t)&ar) == -1)
@@ -116,19 +116,19 @@ tryagain:
 		fprintf(stderr, "(%s):", inet_ntoa(sin->sin_addr));
 		if (errno != ENXIO)
 			perror("SIOCGARP");
-		return(-1);
+		return (-1);
 	    }
 
 	if ((ar.arp_ha.sa_data[0] == 0) && (ar.arp_ha.sa_data[1] == 0) &&
 	    (ar.arp_ha.sa_data[2] == 0) && (ar.arp_ha.sa_data[3] == 0) &&
 	    (ar.arp_ha.sa_data[4] == 0) && (ar.arp_ha.sa_data[5] == 0)) {
 		fprintf(stderr, "(%s):", inet_ntoa(sin->sin_addr));
-		return(-1);
+		return (-1);
 	}
 
 	bcopy(ar.arp_ha.sa_data, ether, 6);
 savearp:
 	bcopy(ether, ethersave, 6);
 	bcopy(ip, ipsave, 4);
-	return(0);
+	return (0);
 }

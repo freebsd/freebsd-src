@@ -18,7 +18,7 @@ printhash_live(iphtable_t *hp, int fd, char *name, int opts, wordtab_t *fields)
 	ipfobj_t obj;
 
 	if ((name != NULL) && strncmp(name, hp->iph_name, FR_GROUPLEN))
-		return(hp->iph_next);
+		return (hp->iph_next);
 
 	if (fields == NULL)
 		printhashdata(hp, opts);
@@ -61,5 +61,5 @@ printhash_live(iphtable_t *hp, int fd, char *name, int opts, wordtab_t *fields)
 
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
-	return(hp->iph_next);
+	return (hp->iph_next);
 }

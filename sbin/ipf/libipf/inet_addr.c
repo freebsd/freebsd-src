@@ -108,7 +108,7 @@ inet_aton(register const char *cp, struct in_addr *addr)
 		 * 0x=hex, 0=octal, isdigit=decimal.
 		 */
 		if (!ISDIGIT(c))
-			return(0);
+			return (0);
 		val = 0; base = 10;
 		if (c == '0') {
 			c = *++cp;
@@ -136,7 +136,7 @@ inet_aton(register const char *cp, struct in_addr *addr)
 			 *	a.b	(with b treated as 24 bits)
 			 */
 			if (pp >= parts + 3)
-				return(0);
+				return (0);
 			*pp++ = val;
 			c = *++cp;
 		} else
@@ -146,7 +146,7 @@ inet_aton(register const char *cp, struct in_addr *addr)
 	 * Check for trailing characters.
 	 */
 	if (c != '\0' && (!ISASCII(c) || !ISSPACE(c)))
-		return(0);
+		return (0);
 	/*
 	 * Concoct the address according to
 	 * the number of parts specified.
@@ -155,32 +155,32 @@ inet_aton(register const char *cp, struct in_addr *addr)
 	switch (n) {
 
 	case 0:
-		return(0);		/* initial nondigit */
+		return (0);		/* initial nondigit */
 
 	case 1:				/* a -- 32 bits */
 		break;
 
 	case 2:				/* a.b -- 8.24 bits */
 		if (val > 0xffffff)
-			return(0);
+			return (0);
 		val |= parts[0] << 24;
 		break;
 
 	case 3:				/* a.b.c -- 8.8.16 bits */
 		if (val > 0xffff)
-			return(0);
+			return (0);
 		val |= (parts[0] << 24) | (parts[1] << 16);
 		break;
 
 	case 4:				/* a.b.c.d -- 8.8.8.8 bits */
 		if (val > 0xff)
-			return(0);
+			return (0);
 		val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
 		break;
 	}
 	if (addr)
 		addr->s_addr = htonl(val);
-	return(1);
+	return (1);
 }
 
 /* these are compatibility routines, not needed on recent BSD releases */
@@ -195,7 +195,7 @@ inet_addr(const char *cp)
 	struct in_addr val;
 
 	if (inet_aton(cp, &val))
-		return(val.s_addr);
-	return(0xffffffff);
+		return (val.s_addr);
+	return (0xffffffff);
 }
 #endif

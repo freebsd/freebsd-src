@@ -221,11 +221,11 @@ main(int argc, char *argv[])
 	if (opts & (OPT_FLUSH|OPT_CLEAR))
 		flushtable(fd, opts, natfilter);
 	if (file) {
-		return(ipnat_parsefile(fd, ipnat_addrule, ioctl, file));
+		return (ipnat_parsefile(fd, ipnat_addrule, ioctl, file));
 	}
 	if (opts & (OPT_LIST|OPT_STAT))
 		dostats(fd, nsp, opts, 1, natfilter);
-	return(0);
+	return (0);
 }
 
 
@@ -829,5 +829,5 @@ nat_matcharray(nat_t *nat, int *array)
 			break;
 	}
 
-	return(rv);
+	return (rv);
 }

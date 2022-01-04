@@ -85,20 +85,20 @@ ipcap_open(char *fname)
 	int fd, i;
 
 	if (pfd != -1)
-		return(pfd);
+		return (pfd);
 
 	if (!strcmp(fname, "-"))
 		fd = 0;
 	else if ((fd = open(fname, O_RDONLY)) == -1)
-		return(-1);
+		return (-1);
 
 	if (read(fd, (char *)&ph, sizeof(ph)) != sizeof(ph))
-		return(-2);
+		return (-2);
 
 	if (ph.id != 0xa1b2c3d4) {
 		if (SWAPLONG(ph.id) != 0xa1b2c3d4) {
 			(void) close(fd);
-			return(-2);
+			return (-2);
 		}
 		swapped = 1;
 		iswap_hdr(&ph);
@@ -112,7 +112,7 @@ ipcap_open(char *fname)
 
 	if (llcp == NULL) {
 		(void) close(fd);
-		return(-2);
+		return (-2);
 	}
 
 	pfd = fd;
@@ -120,14 +120,14 @@ ipcap_open(char *fname)
 	printf("\tid: %08x version: %d.%d type: %d snap %d\n",
 		ph.id, ph.major, ph.minor, ph.type, ph.snaplen);
 
-	return(fd);
+	return (fd);
 }
 
 
 static int
 ipcap_close(void)
 {
-	return(close(pfd));
+	return (close(pfd));
 }
 
 
@@ -145,7 +145,7 @@ ipcap_read_rec(packetheader_t *rec)
 	while (n > 0) {
 		i = read(pfd, (char *)rec, sizeof(*rec));
 		if (i <= 0)
-			return(-2);
+			return (-2);
 		n -= i;
 	}
 
@@ -158,11 +158,11 @@ ipcap_read_rec(packetheader_t *rec)
 	p = rec->caplen;
 	n = MIN(p, rec->wirelen);
 	if (!n || n < 0)
-		return(-3);
+		return (-3);
 
 	if (p < 0 || p > 65536)
-		return(-4);
-	return(p);
+		return (-4);
+	return (p);
 }
 
 
@@ -179,7 +179,7 @@ ipcap_read(char *buf, int cnt)
 	int	i, n;
 
 	if ((i = ipcap_read_rec(&rec)) <= 0)
-		return(i);
+		return (i);
 
 	if (!bufp)
 		bufp = malloc(i);
@@ -187,11 +187,11 @@ ipcap_read(char *buf, int cnt)
 		bufp = realloc(bufp, i);
 
 	if (read(pfd, bufp, i) != i)
-		return(-2);
+		return (-2);
 
 	n = MIN(i, cnt);
 	bcopy(bufp, buf, n);
-	return(n);
+	return (n);
 }
 #endif
 
@@ -220,7 +220,7 @@ ipcap_readip(mb_t *mb, char **ifn, int *dir)
 
 	/* do { */
 		if ((i = ipcap_read_rec(&rec)) <= 0)
-			return(i);
+			return (i);
 
 		if (!bufp)
 			bufp = malloc(i);
@@ -231,7 +231,7 @@ ipcap_readip(mb_t *mb, char **ifn, int *dir)
 		for (j = i, n = 0; j > 0; ) {
 			n = read(pfd, s, j);
 			if (n <= 0)
-				return(-2);
+				return (-2);
 			j -= n;
 			s += n;
 		}
@@ -245,5 +245,5 @@ ipcap_readip(mb_t *mb, char **ifn, int *dir)
 	n = MIN(i, cnt);
 	bcopy(s, buf, n);
 	mb->mb_len = n;
-	return(n);
+	return (n);
 }

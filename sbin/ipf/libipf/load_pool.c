@@ -23,7 +23,7 @@ load_pool(ip_pool_t *plp, ioctlfunc_t iocfunc)
 	ip_pool_t pool;
 
 	if (pool_open() == -1)
-		return(-1);
+		return (-1);
 
 	op.iplo_unit = plp->ipo_unit;
 	op.iplo_type = IPLT_POOL;
@@ -40,7 +40,7 @@ load_pool(ip_pool_t *plp, ioctlfunc_t iocfunc)
 	if ((opts & OPT_REMOVE) == 0) {
 		if (pool_ioctl(iocfunc, SIOCLOOKUPADDTABLE, &op)) {
 			if ((opts & OPT_DONOTHING) == 0) {
-				return(ipf_perror_fd(pool_fd(), iocfunc,
+				return (ipf_perror_fd(pool_fd(), iocfunc,
 						     "add lookup table"));
 			}
 		}
@@ -62,9 +62,9 @@ load_pool(ip_pool_t *plp, ioctlfunc_t iocfunc)
 	if ((opts & OPT_REMOVE) != 0) {
 		if (pool_ioctl(iocfunc, SIOCLOOKUPDELTABLE, &op))
 			if ((opts & OPT_DONOTHING) == 0) {
-				return(ipf_perror_fd(pool_fd(), iocfunc,
+				return (ipf_perror_fd(pool_fd(), iocfunc,
 						     "delete lookup table"));
 			}
 	}
-	return(0);
+	return (0);
 }

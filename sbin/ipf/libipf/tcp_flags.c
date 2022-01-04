@@ -43,5 +43,5 @@ u_char tcp_flags(char *flgs, u_char *mask, int linenum)
 			tcpfm = 0xff & ~(TH_ECN);
 	}
 	*mask = tcpfm;
-	return(tcpf);
+	return (tcpf);
 }
