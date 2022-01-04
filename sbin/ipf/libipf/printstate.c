@@ -207,7 +207,7 @@ printstate(ipstate_t *sp, int opts, u_long now)
 		if (kmemcpy((char *)&ipsync, (u_long)sp->is_sync,
 			    sizeof(ipsync))) {
 			PRINTF("status could not be retrieved\n");
-			return(NULL);
+			return (NULL);
 		}
 
 		PRINTF("idx %d num %d v %d pr %d rev %d\n",
@@ -217,5 +217,5 @@ printstate(ipstate_t *sp, int opts, u_long now)
 		PRINTF("not synchronized\n");
 	}
 
-	return(sp->is_next);
+	return (sp->is_next);
 }

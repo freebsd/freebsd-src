@@ -443,7 +443,7 @@ int main(int argc, char *argv[])
 	else
 		showstats(fiop, frf);
 
-	return(0);
+	return (0);
 }
 
 
@@ -807,7 +807,7 @@ printlivelist( struct friostat *fiop, int out, int set, frentry_t *fp,
 			ipferror(ipf_fd, "ioctl(SIOCIPFITER)");
 			num = IPFGENITER_IPF;
 			(void) ioctl(ipf_fd,SIOCIPFDELTOK, &num);
-			return(rules);
+			return (rules);
 		}
 		if (bcmp(fp, &zero, sizeof(zero)) == 0)
 			break;
@@ -891,7 +891,7 @@ printlivelist( struct friostat *fiop, int out, int set, frentry_t *fp,
 	num = IPFGENITER_IPF;
 	(void) ioctl(ipf_fd,SIOCIPFDELTOK, &num);
 
-	return(rules);
+	return (rules);
 }
 
 
@@ -1941,17 +1941,17 @@ static char *getip(int v, i6addr_t *addr)
 #endif
 
 	if (v == 0)
-		return("any");
+		return ("any");
 
 	if (v == 4)
-		return(inet_ntoa(addr->in4));
+		return (inet_ntoa(addr->in4));
 
 #ifdef  USE_INET6
 	(void) inet_ntop(AF_INET6, &addr->in6, hostbuf, sizeof(hostbuf) - 1);
 	hostbuf[MAXHOSTNAMELEN] = '\0';
-	return(hostbuf);
+	return (hostbuf);
 #else
-	return("IPv6");
+	return ("IPv6");
 #endif
 }
 
@@ -1973,7 +1973,7 @@ static char *ttl_to_string(long int ttl)
 		snprintf(ttlbuf, sizeof(ttlbuf), "%2d:%02d:%02d", hours, minutes, seconds);
 	else
 		snprintf(ttlbuf, sizeof(ttlbuf), "%2d:%02d", minutes, seconds);
-	return(ttlbuf);
+	return (ttlbuf);
 }
 
 
@@ -1984,10 +1984,10 @@ static int sort_pkts(const void *a, const void *b)
 	register const statetop_t *bp = b;
 
 	if (ap->st_pkts == bp->st_pkts)
-		return(0);
+		return (0);
 	else if (ap->st_pkts < bp->st_pkts)
-		return(1);
-	return(-1);
+		return (1);
+	return (-1);
 }
 
 
@@ -1997,10 +1997,10 @@ static int sort_bytes(const void *a, const void *b)
 	register const statetop_t *bp = b;
 
 	if (ap->st_bytes == bp->st_bytes)
-		return(0);
+		return (0);
 	else if (ap->st_bytes < bp->st_bytes)
-		return(1);
-	return(-1);
+		return (1);
+	return (-1);
 }
 
 
@@ -2010,10 +2010,10 @@ static int sort_p(const void *a, const void *b)
 	register const statetop_t *bp = b;
 
 	if (ap->st_p == bp->st_p)
-		return(0);
+		return (0);
 	else if (ap->st_p < bp->st_p)
-		return(1);
-	return(-1);
+		return (1);
+	return (-1);
 }
 
 
@@ -2023,10 +2023,10 @@ static int sort_ttl(const void *a, const void *b)
 	register const statetop_t *bp = b;
 
 	if (ap->st_age == bp->st_age)
-		return(0);
+		return (0);
 	else if (ap->st_age < bp->st_age)
-		return(1);
-	return(-1);
+		return (1);
+	return (-1);
 }
 
 static int sort_srcip(const void *a, const void *b)
@@ -2037,20 +2037,20 @@ static int sort_srcip(const void *a, const void *b)
 #ifdef USE_INET6
 	if (use_inet6 && !use_inet4) {
 		if (IP6_EQ(&ap->st_src, &bp->st_src))
-			return(0);
+			return (0);
 		else if (IP6_GT(&ap->st_src, &bp->st_src))
-			return(1);
+			return (1);
 	} else
 #endif
 	{
 		if (ntohl(ap->st_src.in4.s_addr) ==
 		    ntohl(bp->st_src.in4.s_addr))
-			return(0);
+			return (0);
 		else if (ntohl(ap->st_src.in4.s_addr) >
 		         ntohl(bp->st_src.in4.s_addr))
-			return(1);
+			return (1);
 	}
-	return(-1);
+	return (-1);
 }
 
 static int sort_srcpt(const void *a, const void *b)
@@ -2059,10 +2059,10 @@ static int sort_srcpt(const void *a, const void *b)
 	register const statetop_t *bp = b;
 
 	if (htons(ap->st_sport) == htons(bp->st_sport))
-		return(0);
+		return (0);
 	else if (htons(ap->st_sport) > htons(bp->st_sport))
-		return(1);
-	return(-1);
+		return (1);
+	return (-1);
 }
 
 static int sort_dstip(const void *a, const void *b)
@@ -2073,20 +2073,20 @@ static int sort_dstip(const void *a, const void *b)
 #ifdef USE_INET6
 	if (use_inet6 && !use_inet4) {
 		if (IP6_EQ(&ap->st_dst, &bp->st_dst))
-			return(0);
+			return (0);
 		else if (IP6_GT(&ap->st_dst, &bp->st_dst))
-			return(1);
+			return (1);
 	} else
 #endif
 	{
 		if (ntohl(ap->st_dst.in4.s_addr) ==
 		    ntohl(bp->st_dst.in4.s_addr))
-			return(0);
+			return (0);
 		else if (ntohl(ap->st_dst.in4.s_addr) >
 		         ntohl(bp->st_dst.in4.s_addr))
-			return(1);
+			return (1);
 	}
-	return(-1);
+	return (-1);
 }
 
 static int sort_dstpt(const void *a, const void *b)
@@ -2095,10 +2095,10 @@ static int sort_dstpt(const void *a, const void *b)
 	register const statetop_t *bp = b;
 
 	if (htons(ap->st_dport) == htons(bp->st_dport))
-		return(0);
+		return (0);
 	else if (htons(ap->st_dport) > htons(bp->st_dport))
-		return(1);
-	return(-1);
+		return (1);
+	return (-1);
 }
 
 #endif
@@ -2121,16 +2121,16 @@ ipstate_t *fetchstate(ipstate_t *src, ipstate_t *dst)
 		state.igi_data = dst;
 
 		if (ioctl(state_fd, SIOCGENITER, &obj) != 0)
-			return(NULL);
+			return (NULL);
 		if (dst->is_next == NULL) {
 			int n = IPFGENITER_STATE;
 			(void) ioctl(ipf_fd,SIOCIPFDELTOK, &n);
 		}
 	} else {
 		if (kmemcpy((char *)dst, (u_long)src, sizeof(*dst)))
-			return(NULL);
+			return (NULL);
 	}
-	return(dst);
+	return (dst);
 }
 
 
@@ -2149,8 +2149,8 @@ static int fetchfrag( int fd, int type, ipfr_t *frp)
 	frag.igi_data = frp;
 
 	if (ioctl(fd, SIOCGENITER, &obj))
-		return(EFAULT);
-	return(0);
+		return (EFAULT);
+	return (0);
 }
 
 
@@ -2295,7 +2295,7 @@ static int state_matcharray(ipstate_t *stp, int *array)
 			break;
 	}
 
-	return(rv);
+	return (rv);
 }
 
 

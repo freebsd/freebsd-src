@@ -17,8 +17,8 @@ getoptbyname(char *optname)
 
 	for (io = ionames; io->on_name; io++)
 		if (!strcasecmp(optname, io->on_name))
-			return(io->on_bit);
-	return(-1);
+			return (io->on_bit);
+	return (-1);
 }
 
 
@@ -29,6 +29,6 @@ getoptbyvalue(int optval)
 
 	for (io = ionames; io->on_name; io++)
 		if (io->on_value == optval)
-			return(io->on_bit);
-	return(-1);
+			return (io->on_bit);
+	return (-1);
 }

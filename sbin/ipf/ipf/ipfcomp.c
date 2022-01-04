@@ -249,9 +249,9 @@ int intcmp(c1, c2)
 	const mc_t *i1 = (const mc_t *)c1, *i2 = (const mc_t *)c2;
 
 	if (i1->n == i2->n) {
-		return(i1->c - i2->c);
+		return (i1->c - i2->c);
 	}
-	return(i2->n - i1->n);
+	return (i2->n - i1->n);
 }
 
 
@@ -414,10 +414,10 @@ int ipfrule_add()\n\
 		fprintf(cfile, "\
 	err = ipfrule_add_%s_%s();\n\
 	if (err != 0)\n\
-		return(err);\n",
+		return (err);\n",
 			(g->fg_flags & FR_INQUE) ? "in" : "out", g->fg_name);
 	fprintf(cfile, "\
-	return(0);\n");
+	return (0);\n");
 	fprintf(cfile, "}\n\
 \n");
 
@@ -430,10 +430,10 @@ int ipfrule_remove()\n\
 		fprintf(cfile, "\
 	err = ipfrule_remove_%s_%s();\n\
 	if (err != 0)\n\
-		return(err);\n",
+		return (err);\n",
 			(g->fg_flags & FR_INQUE) ? "in" : "out", g->fg_name);
 	fprintf(cfile, "\
-	return(0);\n");
+	return (0);\n");
 	fprintf(cfile, "}\n");
 }
 
@@ -467,7 +467,7 @@ static void emitGroup(num, dir, v, fr, group, incount, outcount)
 			fprintf(fp, "}\n");
 		}
 		if (openfunc == 1) {
-			fprintf(fp, "\treturn(fr);\n}\n");
+			fprintf(fp, "\treturn (fr);\n}\n");
 			openfunc = 0;
 			if (n != NULL) {
 				free(n);
@@ -488,7 +488,7 @@ static void emitGroup(num, dir, v, fr, group, incount, outcount)
 			fprintf(fp, "}\n");
 		}
 		if (openfunc == 1) {
-			fprintf(fp, "\treturn(fr);\n}\n");
+			fprintf(fp, "\treturn (fr);\n}\n");
 			openfunc = 0;
 		}
 	}
@@ -941,7 +941,7 @@ static void emitGroup(num, dir, v, fr, group, incount, outcount)
 
 	indent(fp, in);
 	if (fr->fr_flags & FR_QUICK) {
-		fprintf(fp, "return((frentry_t *)&%s_rule_%s_%d);\n",
+		fprintf(fp, "return ((frentry_t *)&%s_rule_%s_%d);\n",
 			fr->fr_flags & FR_INQUE ? "in" : "out",
 			FR_NAME(fr, fr_group), num);
 	} else {
@@ -1328,7 +1328,7 @@ int ipfrule_add_%s_%s()\n", instr, group);
 	err = frrequest(&ipfmain, IPL_LOGIPF, SIOCADDFR, (caddr_t)fp,\n\
 			ipfmain.ipf_active, 0);\n",
 			instr, group);
-	fprintf(fp, "\treturn(err);\n}\n");
+	fprintf(fp, "\treturn (err);\n}\n");
 
 	fprintf(fp, "\n\n\
 int ipfrule_remove_%s_%s()\n", instr, group);
@@ -1365,8 +1365,8 @@ int ipfrule_remove_%s_%s()\n", instr, group);
 		instr, group, instr, group, instr, group);
 	fprintf(fp, "\
 	if (err)\n\
-		return(err);\n\
+		return (err);\n\
 \n\n");
 
-	fprintf(fp, "\treturn(err);\n}\n");
+	fprintf(fp, "\treturn (err);\n}\n");
 }

@@ -307,19 +307,19 @@ find_icmpsubtype(int type, icmp_subtype_t *table, size_t tablesz)
 	int i;
 
 	if (tablesz < 2)
-		return(NULL);
+		return (NULL);
 
 	if ((type < 0) || (type > table[tablesz - 2].ist_val))
-		return(NULL);
+		return (NULL);
 
 	i = type;
 	if (table[type].ist_val == type)
-		return(table + type);
+		return (table + type);
 
 	for (i = 0, ist = table; ist->ist_val != -2; i++, ist++)
 		if (ist->ist_val == type)
-			return(ist);
-	return(NULL);
+			return (ist);
+	return (NULL);
 }
 
 
@@ -330,19 +330,19 @@ find_icmptype(int type, icmp_type_t *table, size_t tablesz)
 	int i;
 
 	if (tablesz < 2)
-		return(NULL);
+		return (NULL);
 
 	if ((type < 0) || (type > table[tablesz - 2].it_val))
-		return(NULL);
+		return (NULL);
 
 	i = type;
 	if (table[type].it_val == type)
-		return(table + type);
+		return (table + type);
 
 	for (i = 0, it = table; it->it_val != -2; i++, it++)
 		if (it->it_val == type)
-			return(it);
-	return(NULL);
+			return (it);
+	return (NULL);
 }
 
 
@@ -447,7 +447,7 @@ getlocalproto(u_int p)
 		sprintf(pnum, "%u", p);
 		s = pnum;
 	}
-	return(s);
+	return (s);
 }
 
 
@@ -461,11 +461,11 @@ read_log(int fd, int *lenp, char *buf, int bufsize)
 
 	nr = read(fd, buf, bufsize);
 	if (!nr)
-		return(2);
+		return (2);
 	if ((nr < 0) && (errno != EINTR))
-		return(-1);
+		return (-1);
 	*lenp = nr;
-	return(0);
+	return (0);
 }
 
 
@@ -482,7 +482,7 @@ portlocalname(res, proto, port)
 	port &= 0xffff;
 	sprintf(pname, "%u", port);
 	if (!res || (ipmonopts & IPMON_PORTNUM))
-		return(pname);
+		return (pname);
 	s = NULL;
 	if (!strcmp(proto, "tcp"))
 		s = tcp_ports[port];
@@ -490,7 +490,7 @@ portlocalname(res, proto, port)
 		s = udp_ports[port];
 	if (s == NULL)
 		s = pname;
-	return(s);
+	return (s);
 }
 
 
@@ -521,7 +521,7 @@ icmpname(u_int type, u_int code)
 	else
 		sprintf(name + strlen(name), "%d", code);
 
-	return(name);
+	return (name);
 }
 
 static char *
@@ -551,7 +551,7 @@ icmpname6(u_int type, u_int code)
 	else
 		sprintf(name + strlen(name), "%d", code);
 
-	return(name);
+	return (name);
 }
 
 
@@ -624,7 +624,7 @@ get_tm(time_t sec)
 
 	t = sec;
 	tm = localtime(&t);
-	return(tm);
+	return (tm);
 }
 
 static void
@@ -1717,7 +1717,7 @@ main(int argc, char *argv[])
 
 	unload_config();
 
-	return(0);
+	return (0);
 	/* NOTREACHED */
 }
 
@@ -1775,11 +1775,11 @@ read_loginfo(config_t *conf)
 
 	n = select(conf->maxfd + 1, &fdr, NULL, NULL, NULL);
 	if (n == 0)
-		return(1);
+		return (1);
 	if (n == -1) {
 		if (errno == EINTR)
-			return(1);
-		return(-1);
+			return (1);
+		return (-1);
 	}
 
 	for (i = 0, nr = 0; i < 3; i++) {
@@ -1792,7 +1792,7 @@ read_loginfo(config_t *conf)
 		if (l->regular) {
 			tr = (lseek(l->fd, 0, SEEK_CUR) < l->size);
 			if (!tr && !(ipmonopts & IPMON_TAIL))
-				return(0);
+				return (0);
 		}
 
 		n = 0;
@@ -1828,13 +1828,13 @@ read_loginfo(config_t *conf)
 			else {
 				ipferror(l->fd, "read");
 			}
-			return(0);
+			return (0);
 		case 1 :
 			if (ipmonopts & IPMON_SYSLOG)
 				syslog(LOG_CRIT, "aborting logging\n");
 			else if (conf->log != NULL)
 				fprintf(conf->log, "aborting logging\n");
-			return(0);
+			return (0);
 		case 2 :
 			break;
 		case 0 :
@@ -1851,5 +1851,5 @@ read_loginfo(config_t *conf)
 	if (!nr && (ipmonopts & IPMON_TAIL))
 		sleep(1);
 
-	return(1);
+	return (1);
 }

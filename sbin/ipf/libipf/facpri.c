@@ -82,13 +82,13 @@ fac_toname(int facpri)
 	j = fac >> 3;
 	if (j < (sizeof(facs)/sizeof(facs[0]))) {
 		if (facs[j].value == fac)
-			return(facs[j].name);
+			return (facs[j].name);
 	}
 	for (i = 0; facs[i].name; i++)
 		if (fac == facs[i].value)
-			return(facs[i].name);
+			return (facs[i].name);
 
-	return(NULL);
+	return (NULL);
 }
 
 
@@ -102,8 +102,8 @@ fac_findname(char *name)
 
 	for (i = 0; facs[i].name; i++)
 		if (!strcmp(facs[i].name, name))
-			return(facs[i].value);
-	return(-1);
+			return (facs[i].value);
+	return (-1);
 }
 
 
@@ -126,8 +126,8 @@ pri_findname(char *name)
 
 	for (i = 0; pris[i].name; i++)
 		if (!strcmp(pris[i].name, name))
-			return(pris[i].value);
-	return(-1);
+			return (pris[i].value);
+	return (-1);
 }
 
 
@@ -141,9 +141,9 @@ pri_toname(int facpri)
 
 	pri = facpri & LOG_PRIMASK;
 	if (pris[pri].value == pri)
-		return(pris[pri].name);
+		return (pris[pri].name);
 	for (i = 0; pris[i].name; i++)
 		if (pri == pris[i].value)
-			return(pris[i].name);
-	return(NULL);
+			return (pris[i].name);
+	return (NULL);
 }

@@ -42,7 +42,7 @@ load_http(char *url)
 	if (strlen(url) > MAX_URL_LEN) {
 		fprintf(stderr, "load_http has a URL > %d bytes?!\n",
 			MAX_URL_LEN);
-		return(NULL);
+		return (NULL);
 	}
 
 	fd = -1;
@@ -67,7 +67,7 @@ load_http(char *url)
 	if (t == NULL) {
 		fprintf(stderr, "load_http has a malformed URL '%s'\n", url);
 		free(myurl);
-		return(NULL);
+		return (NULL);
 	}
 	*t++ = '\0';
 
@@ -77,7 +77,7 @@ load_http(char *url)
 	if (strlen(s) + strlen(buffer) + 10 > sizeof(buffer)) {
 		fprintf(stderr, "load_http has a malformed URL '%s'\n", url);
 		free(myurl);
-		return(NULL);
+		return (NULL);
 	}
 
 	u = strchr(s, '@');
@@ -204,5 +204,5 @@ done:
 		free(myurl);
 	if (fd != -1)
 		close(fd);
-	return(rtop);
+	return (rtop);
 }

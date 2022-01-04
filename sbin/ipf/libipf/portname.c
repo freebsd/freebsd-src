@@ -28,16 +28,16 @@ portname(int pr, int port)
 				     NULL : sv1;
 			}
 			if (sv)
-				return(buf);
+				return (buf);
 		} else if ((pr != -2) && (p = getprotobynumber(pr))) {
 			if ((sv = getservbyport(htons(port), p->p_name))) {
 				strncpy(buf, sv->s_name, sizeof(buf)-1);
 				buf[sizeof(buf)-1] = '\0';
-				return(buf);
+				return (buf);
 			}
 		}
 	}
 
 	(void) snprintf(buf, sizeof(buf), "%d", port);
-	return(buf);
+	return (buf);
 }

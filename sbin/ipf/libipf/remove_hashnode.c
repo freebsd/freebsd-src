@@ -22,7 +22,7 @@ remove_hashnode(int unit, char *name, iphtent_t *node, ioctlfunc_t iocfunc)
 	iphtent_t ipe;
 
 	if (pool_open() == -1)
-		return(-1);
+		return (-1);
 
 	op.iplo_type = IPLT_HASH;
 	op.iplo_unit = unit;
@@ -44,9 +44,9 @@ remove_hashnode(int unit, char *name, iphtent_t *node, ioctlfunc_t iocfunc)
 
 	if (pool_ioctl(iocfunc, SIOCLOOKUPDELNODE, &op)) {
 		if (!(opts & OPT_DONOTHING)) {
-			return(ipf_perror_fd(pool_fd(), iocfunc,
+			return (ipf_perror_fd(pool_fd(), iocfunc,
 					     "remove lookup hash node"));
 		}
 	}
-	return(0);
+	return (0);
 }

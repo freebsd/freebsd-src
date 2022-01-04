@@ -15,5 +15,5 @@ size_t msgdsize(mb_t *orig)
 
 	for (m = orig; m != NULL; m = m->mb_next)
 		sz += m->mb_len;
-	return(sz);
+	return (sz);
 }

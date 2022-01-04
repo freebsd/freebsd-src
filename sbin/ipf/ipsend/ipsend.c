@@ -128,8 +128,8 @@ send_packets(char *dev, int mtu, ip_t *ip, struct in_addr gwip)
 
 	wfd = initdevice(dev, 5);
 	if (wfd == -1)
-		return(-1);
-	return(send_packet(wfd, mtu, ip, gwip));
+		return (-1);
+	return (send_packet(wfd, mtu, ip, gwip));
 }
 
 void
@@ -213,7 +213,7 @@ main(int argc, char **argv)
 				exit(1);
 			}
 			iplang(langfile);
-			return(0);
+			return (0);
 		case 'P' :
 		    {
 			struct	protoent	*p;
@@ -405,7 +405,7 @@ main(int argc, char **argv)
 	}
 #ifdef	DOSOCKET
 	if (ip->ip_p == IPPROTO_TCP && tcp->th_dport)
-		return(do_socket(dev, mtu, ip, gwip));
+		return (do_socket(dev, mtu, ip, gwip));
 #endif
-	return(send_packets(dev, mtu, ip, gwip));
+	return (send_packets(dev, mtu, ip, gwip));
 }

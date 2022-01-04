@@ -142,7 +142,7 @@ int changestateif(char *ifs, char *fname)
 	}
 	close(fd);
 
-	return(0);
+	return (0);
 }
 
 
@@ -198,7 +198,7 @@ int changenatif(char *ifs, char *fname)
 	}
 	close(fd);
 
-	return(0);
+	return (0);
 }
 
 
@@ -286,9 +286,9 @@ int main(int argc, char *argv[])
 		if (!filename || ns < 0)
 			usage();
 		if (ns == 0)
-			return(changenatif(ifs, filename));
+			return (changenatif(ifs, filename));
 		else
-			return(changestateif(ifs, filename));
+			return (changestateif(ifs, filename));
 	}
 
 	if ((ns >= 0) || (lock >= 0)) {
@@ -327,7 +327,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-	return(err);
+	return (err);
 }
 
 
@@ -336,7 +336,7 @@ int opendevice(char *ipfdev)
 	int fd = -1;
 
 	if (opts & OPT_DONOTHING)
-		return(-2);
+		return (-2);
 
 	if (!ipfdev)
 		ipfdev = IPL_NAME;
@@ -344,7 +344,7 @@ int opendevice(char *ipfdev)
 	if ((fd = open(ipfdev, O_RDWR)) == -1)
 		if ((fd = open(ipfdev, O_RDONLY)) == -1)
 			perror("open device");
-	return(fd);
+	return (fd);
 }
 
 
@@ -361,12 +361,12 @@ int setlock(int fd, int lock)
 	if (!(opts & OPT_DONOTHING)) {
 		if (ioctl(fd, SIOCSTLCK, &lock) == -1) {
 			perror("SIOCSTLCK");
-			return(1);
+			return (1);
 		}
 		if (opts & OPT_VERBOSE)
 			printf("Lock now %s\n", lock ? "on" : "off");
 	}
-	return(0);
+	return (0);
 }
 
 
@@ -383,7 +383,7 @@ int writestate(int fd, char *file)
 	if (wfd == -1) {
 		fprintf(stderr, "%s ", file);
 		perror("state:open");
-		return(1);
+		return (1);
 	}
 
 	ipsp = &ips;
@@ -404,19 +404,19 @@ int writestate(int fd, char *file)
 				break;
 			perror("state:SIOCSTGET");
 			close(wfd);
-			return(1);
+			return (1);
 		}
 		if (opts & OPT_VERBOSE)
 			printf("Got state next %p\n", ips.ips_next);
 		if (write(wfd, ipsp, sizeof(ips)) != sizeof(ips)) {
 			perror("state:write");
 			close(wfd);
-			return(1);
+			return (1);
 		}
 	} while (ips.ips_next != NULL);
 	close(wfd);
 
-	return(0);
+	return (0);
 }
 
 
@@ -433,7 +433,7 @@ int readstate(int fd, char *file)
 	if (sfd == -1) {
 		fprintf(stderr, "%s ", file);
 		perror("open");
-		return(1);
+		return (1);
 	}
 
 	bzero((char *)&ips, sizeof(ips));
@@ -522,7 +522,7 @@ int readstate(int fd, char *file)
 		free(is);
 	}
 
-	return(0);
+	return (0);
 
 freeipshead:
 	while ((is = ipshead) != NULL) {
@@ -531,7 +531,7 @@ freeipshead:
 	}
 	if (sfd != -1)
 		close(sfd);
-	return(1);
+	return (1);
 }
 
 
@@ -556,7 +556,7 @@ int readnat(int fd, char *file)
 	if (nfd == -1) {
 		fprintf(stderr, "%s ", file);
 		perror("nat:open");
-		return(1);
+		return (1);
 	}
 
 	bzero((char *)&ipn, sizeof(ipn));
@@ -652,7 +652,7 @@ int readnat(int fd, char *file)
 			if (ioctl(fd, SIOCSTPUT, &obj)) {
 				fprintf(stderr, "in=%p:", in);
 				perror("SIOCSTPUT");
-				return(1);
+				return (1);
 			}
 
 		if (nat->nat_flags & SI_NEWFR) {
@@ -667,7 +667,7 @@ int readnat(int fd, char *file)
 		free(in);
 	}
 
-	return(0);
+	return (0);
 
 freenathead:
 	while ((in = ipnhead) != NULL) {
@@ -676,7 +676,7 @@ freenathead:
 	}
 	if (nfd != -1)
 		close(nfd);
-	return(1);
+	return (1);
 }
 
 
@@ -694,7 +694,7 @@ int writenat(int fd, char *file)
 	if (nfd == -1) {
 		fprintf(stderr, "%s ", file);
 		perror("nat:open");
-		return(1);
+		return (1);
 	}
 
 	obj.ipfo_rev = IPFILTER_VERSION;
@@ -710,7 +710,7 @@ int writenat(int fd, char *file)
 			close(nfd);
 			if (ipnp != NULL)
 				free(ipnp);
-			return(1);
+			return (1);
 		}
 
 		if (opts & OPT_VERBOSE)
@@ -740,7 +740,7 @@ int writenat(int fd, char *file)
 			perror("nat:SIOCSTGET");
 			close(nfd);
 			free(ipnp);
-			return(1);
+			return (1);
 		}
 
 		if (opts & OPT_VERBOSE)
@@ -750,7 +750,7 @@ int writenat(int fd, char *file)
 			perror("nat:write");
 			close(nfd);
 			free(ipnp);
-			return(1);
+			return (1);
 		}
 		next = ipnp->ipn_next;
 	} while (ipnp && next);
@@ -758,7 +758,7 @@ int writenat(int fd, char *file)
 		free(ipnp);
 	close(nfd);
 
-	return(0);
+	return (0);
 }
 
 
@@ -772,15 +772,15 @@ int writeall(char *dirname)
 	if (chdir(dirname)) {
 		fprintf(stderr, "IPF_SAVEDIR=%s: ", dirname);
 		perror("chdir(IPF_SAVEDIR)");
-		return(1);
+		return (1);
 	}
 
 	fd = opendevice(NULL);
 	if (fd == -1)
-		return(1);
+		return (1);
 	if (setlock(fd, 1)) {
 		close(fd);
-		return(1);
+		return (1);
 	}
 
 	devfd = opendevice(IPSTATE_NAME);
@@ -799,16 +799,16 @@ int writeall(char *dirname)
 
 	if (setlock(fd, 0)) {
 		close(fd);
-		return(1);
+		return (1);
 	}
 
 	close(fd);
-	return(0);
+	return (0);
 
 bad:
 	setlock(fd, 0);
 	close(fd);
-	return(1);
+	return (1);
 }
 
 
@@ -821,35 +821,35 @@ int readall(char *dirname)
 
 	if (chdir(dirname)) {
 		perror("chdir(IPF_SAVEDIR)");
-		return(1);
+		return (1);
 	}
 
 	fd = opendevice(NULL);
 	if (fd == -1)
-		return(1);
+		return (1);
 	if (setlock(fd, 1)) {
 		close(fd);
-		return(1);
+		return (1);
 	}
 
 	devfd = opendevice(IPSTATE_NAME);
 	if (devfd == -1)
-		return(1);
+		return (1);
 	if (readstate(devfd, NULL))
-		return(1);
+		return (1);
 	close(devfd);
 
 	devfd = opendevice(IPNAT_NAME);
 	if (devfd == -1)
-		return(1);
+		return (1);
 	if (readnat(devfd, NULL))
-		return(1);
+		return (1);
 	close(devfd);
 
 	if (setlock(fd, 0)) {
 		close(fd);
-		return(1);
+		return (1);
 	}
 
-	return(0);
+	return (0);
 }

@@ -27,12 +27,12 @@ kvatoname(ipfunc_t func, ioctlfunc_t iocfunc)
 	if ((opts & OPT_DONTOPEN) == 0) {
 		fd = open(IPL_NAME, O_RDONLY);
 		if (fd == -1)
-			return(NULL);
+			return (NULL);
 	}
 	(void) (*iocfunc)(fd, SIOCFUNCL, &res);
 	if (fd >= 0)
 		close(fd);
 	strncpy(funcname, res.ipfu_name, sizeof(funcname));
 	funcname[sizeof(funcname) - 1] = '\0';
-	return(funcname);
+	return (funcname);
 }

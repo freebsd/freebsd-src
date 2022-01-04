@@ -27,5 +27,5 @@ load_url(char *url)
 		hosts = load_http(url);
 	}
 
-	return(hosts);
+	return (hosts);
 }

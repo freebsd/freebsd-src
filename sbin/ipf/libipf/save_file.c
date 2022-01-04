@@ -33,7 +33,7 @@ file_parse(char **strings)
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (ctx == NULL)
-		return(NULL);
+		return (NULL);
 
 	if (strings[0] != NULL && strings[0][0] != '\0') {
 		ctx->ref = 1;
@@ -53,7 +53,7 @@ file_parse(char **strings)
 		ctx = NULL;
 	}
 
-	return(ctx);
+	return (ctx);
 }
 
 
@@ -63,10 +63,10 @@ file_match(void *ctx1, void *ctx2)
 	file_opts_t *f1 = ctx1, *f2 = ctx2;
 
 	if (f1->raw != f2->raw)
-		return(1);
+		return (1);
 	if (strcmp(f1->path, f2->path))
-		return(1);
-	return(0);
+		return (1);
+	return (0);
 }
 
 
@@ -76,7 +76,7 @@ file_dup(void *ctx)
 	file_opts_t *f = ctx;
 
 	f->ref++;
-	return(f);
+	return (f);
 }
 
 
@@ -118,6 +118,6 @@ file_send(void *ctx, ipmon_msg_t *msg)
 	} else {
 		fprintf(file->fp, "%s", msg->imm_msg);
 	}
-	return(0);
+	return (0);
 }
 

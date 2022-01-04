@@ -24,7 +24,7 @@ ipf_perror_fd( int fd, ioctlfunc_t iocfunc, char *string)
 	errno = save;
 	fprintf(stderr, "%d:", realerr);
 	ipf_perror(realerr, string);
-	return(realerr ? realerr : save);
+	return (realerr ? realerr : save);
 
 }
 

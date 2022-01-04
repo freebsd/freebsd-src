@@ -19,7 +19,7 @@ parsewhoisline(char *line, addrfamily_t *addrp, addrfamily_t *maskp)
 	char *s = NULL;
 
 	if (line == NULL)
-		return(-1);
+		return (-1);
 
 	while (*src != '\0') {
 		s = strchr(src, '(');
@@ -33,7 +33,7 @@ parsewhoisline(char *line, addrfamily_t *addrp, addrfamily_t *maskp)
 	}
 
 	if (s == NULL)
-		return(-1);
+		return (-1);
 
 	memset(addrp, 0x00, sizeof(*maskp));
 	memset(maskp, 0x00, sizeof(*maskp));
@@ -44,20 +44,20 @@ parsewhoisline(char *line, addrfamily_t *addrp, addrfamily_t *maskp)
 
 		s = strchr(s, ')');
 		if (s == NULL || *++s != ' ')
-			return(-1);
+			return (-1);
 		/*
 		 * Parse the IPv6
 		 */
 		if (inet_pton(AF_INET6, s, &a61.in6) != 1)
-			return(-1);
+			return (-1);
 
 		s = strchr(s, ' ');
 		if (s == NULL || strncmp(s, " - ", 3))
-			return(-1);
+			return (-1);
 
 		s += 3;
 		if (inet_pton(AF_INET6, s, &a62) != 1)
-			return(-1);
+			return (-1);
 
 		addrp->adf_addr = a61;
 		addrp->adf_family = AF_INET6;
@@ -74,37 +74,37 @@ parsewhoisline(char *line, addrfamily_t *addrp, addrfamily_t *maskp)
 		 * then we can't add it into a pool.
 		 */
 		if (count6bits(maskp->adf_addr.i6) == -1)
-			return(-1);
+			return (-1);
 
 		maskp->adf_family = AF_INET6;
 		maskp->adf_len = addrp->adf_len;
 
 		if (IP6_MASKNEQ(&addrp->adf_addr.in6, &maskp->adf_addr.in6,
 				&addrp->adf_addr.in6)) {
-			return(-1);
+			return (-1);
 		}
-		return(0);
+		return (0);
 #else
-		return(-1);
+		return (-1);
 #endif
 	}
 
 	s = strchr(s, ')');
 	if (s == NULL || *++s != ' ')
-		return(-1);
+		return (-1);
 
 	s++;
 
 	if (inet_aton(s, &a1) != 1)
-		return(-1);
+		return (-1);
 
 	s = strchr(s, ' ');
 	if (s == NULL || strncmp(s, " - ", 3))
-		return(-1);
+		return (-1);
 
 	s += 3;
 	if (inet_aton(s, &a2) != 1)
-		return(-1);
+		return (-1);
 
 	addrp->adf_addr.in4 = a1;
 	addrp->adf_family = AF_INET;
@@ -117,13 +117,13 @@ parsewhoisline(char *line, addrfamily_t *addrp, addrfamily_t *maskp)
 	 * we can't add it into a pool.
 	 */
 	if (count4bits(maskp->adf_addr.in4.s_addr) == -1)
-		return(-1);
+		return (-1);
 
 	maskp->adf_family = AF_INET;
 	maskp->adf_len = addrp->adf_len;
 	bzero((char *)maskp + maskp->adf_len, sizeof(*maskp) - maskp->adf_len);
 	if ((addrp->adf_addr.in4.s_addr & maskp->adf_addr.in4.s_addr) !=
 	    addrp->adf_addr.in4.s_addr)
-		return(-1);
-	return(0);
+		return (-1);
+	return (0);
 }

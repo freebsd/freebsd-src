@@ -21,10 +21,10 @@ load_dstlist(ippool_dst_t *dst, ioctlfunc_t iocfunc, ipf_dstnode_t *nodes)
 	ippool_dst_t dest;
 
 	if (dst->ipld_name[0] == '\0')
-		return(-1);
+		return (-1);
 
 	if (pool_open() == -1)
-		return(-1);
+		return (-1);
 
 	op.iplo_unit = dst->ipld_unit;
 	op.iplo_type = IPLT_DSTLIST;
@@ -41,7 +41,7 @@ load_dstlist(ippool_dst_t *dst, ioctlfunc_t iocfunc, ipf_dstnode_t *nodes)
 	if ((opts & OPT_REMOVE) == 0) {
 		if (pool_ioctl(iocfunc, SIOCLOOKUPADDTABLE, &op))
 			if ((opts & OPT_DONOTHING) == 0) {
-				return(ipf_perror_fd(pool_fd(), iocfunc,
+				return (ipf_perror_fd(pool_fd(), iocfunc,
 						  "add destination list table"));
 			}
 	}
@@ -58,9 +58,9 @@ load_dstlist(ippool_dst_t *dst, ioctlfunc_t iocfunc, ipf_dstnode_t *nodes)
 	if ((opts & OPT_REMOVE) != 0) {
 		if (pool_ioctl(iocfunc, SIOCLOOKUPDELTABLE, &op))
 			if ((opts & OPT_DONOTHING) == 0) {
-				return(ipf_perror_fd(pool_fd(), iocfunc,
+				return (ipf_perror_fd(pool_fd(), iocfunc,
 					      "delete destination list table"));
 			}
 	}
-	return(0);
+	return (0);
 }

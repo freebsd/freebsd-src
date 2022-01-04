@@ -20,11 +20,11 @@ pool_open(void)
 {
 
 	if ((opts & OPT_DONTOPEN) != 0)
-		return(0);
+		return (0);
 
 	if (poolfd == -1)
 		poolfd = open(IPLOOKUP_NAME, O_RDWR);
-	return(poolfd);
+	return (poolfd);
 }
 
 int
@@ -33,7 +33,7 @@ pool_ioctl(iocfunc, cmd, ptr)
 	ioctlcmd_t cmd;
 	void *ptr;
 {
-	return(*iocfunc)(poolfd, cmd, ptr);
+	return (*iocfunc)(poolfd, cmd, ptr);
 }
 
 
@@ -49,5 +49,5 @@ pool_close(void)
 int
 pool_fd(void)
 {
-	return(poolfd);
+	return (poolfd);
 }

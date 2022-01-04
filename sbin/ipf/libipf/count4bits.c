@@ -35,6 +35,6 @@ count4bits(u_int ip)
 			ipn++;
 	}
 	if (ipn == ip)
-		return(cnt);
-	return(-1);
+		return (cnt);
+	return (-1);
 }

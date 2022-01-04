@@ -24,12 +24,12 @@ alist_new(int family, char *host)
 			family = AF_INET;
 	}
 	if (family != AF_INET && family != AF_INET6)
-		return(NULL);
+		return (NULL);
 
 	al = calloc(1, sizeof(*al));
 	if (al == NULL) {
 		fprintf(stderr, "alist_new out of memory\n");
-		return(NULL);
+		return (NULL);
 	}
 
 	while (ISSPACE(*host))
@@ -86,8 +86,8 @@ alist_new(int family, char *host)
 	al->al_family = family;
 	if (slash != NULL)
 		*slash = '/';
-	return(al);
+	return (al);
 bad:
 	free(al);
-	return(NULL);
+	return (NULL);
 }

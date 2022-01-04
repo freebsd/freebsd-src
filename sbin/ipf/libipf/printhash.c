@@ -19,10 +19,10 @@ printhash( iphtable_t *hp, copyfunc_t copyfunc, char *name, int opts,
 	size_t sz;
 
 	if ((*copyfunc)((char *)hp, (char *)&iph, sizeof(iph)))
-		return(NULL);
+		return (NULL);
 
 	if ((name != NULL) && strncmp(name, iph.iph_name, FR_GROUPLEN))
-		return(iph.iph_next);
+		return (iph.iph_next);
 
 	if (fields == NULL)
 		printhashdata(hp, opts);
@@ -36,7 +36,7 @@ printhash( iphtable_t *hp, copyfunc_t copyfunc, char *name, int opts,
 	sz = iph.iph_size * sizeof(*table);
 	table = malloc(sz);
 	if ((*copyfunc)((char *)iph.iph_table, (char *)table, sz))
-		return(NULL);
+		return (NULL);
 
 	for (printed = 0, ipep = iph.iph_list; ipep != NULL; ) {
 		ipep = printhashnode(&iph, ipep, copyfunc, opts, fields);
@@ -50,5 +50,5 @@ printhash( iphtable_t *hp, copyfunc_t copyfunc, char *name, int opts,
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
 
-	return(iph.iph_next);
+	return (iph.iph_next);
 }
