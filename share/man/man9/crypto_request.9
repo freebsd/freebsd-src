@@ -38,6 +38,8 @@
 .Nd symmetric cryptographic operations
 .Sh SYNOPSIS
 .In opencrypto/cryptodev.h
+.Ft "struct cryptop *"
+.Fn crypto_clonereq "crypto_session_t cses" "struct cryptop *crp" "int how"
 .Ft int
 .Fn crypto_dispatch "struct cryptop *crp"
 .Ft int
@@ -76,8 +78,10 @@ and is associated with an active session.
 .Pp
 Requests can either be allocated dynamically or use caller-supplied
 storage.
-Dynamically allocated requests should be allocated by
+Dynamically allocated requests should be allocated by either
 .Fn crypto_getreq
+or
+.Fn crypto_clonereq ,
 and freed by
 .Fn crypto_freereq
 once the request has completed.
@@ -87,13 +91,16 @@ at the start of each operation and destroyed by
 .Fn crypto_destroyreq
 once the request has completed.
 .Pp
-For both
-.Fn crypto_getreq
+For
+.Fn crypto_clonereq ,
+.Fn crypto_getreq ,
 and
 .Fn crypto_initreq ,
 .Fa cses
 is a reference to an active session.
 For
+.Fn crypto_clonereq
+and
 .Fn crypto_getreq ,
 .Fa how
 is passed to
@@ -102,6 +109,18 @@ and should be set to either
 .Dv M_NOWAIT
 or
 .Dv M_WAITOK .
+.Pp
+.Fn crypto_clonereq
+allocates a new request that inherits request inputs such as request buffers
+from the original
+.Fa crp
+request.
+However, the new request is associated with the
+.Fa cses
+session rather than inheriting the session from
+.Fa crp .
+.Fa crp
+must not be a completed request.
 .Pp
 Once a request has been initialized,
 the caller should set fields in the structure to describe
