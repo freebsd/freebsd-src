@@ -24,55 +24,67 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2021
+.Dd January 2, 2022
 .Dt LINUX 4
 .Os
 .Sh NAME
 .Nm linux
 .Nd Linux ABI support
 .Sh SYNOPSIS
-To load the ABI at boot time, place the following line in
-.Xr loader.conf 5 :
+To enable the Linux ABI at boot time, place the following line in
+.Xr rc.conf 5 :
 .Bd -literal -offset indent
-linux_load="YES"
+linux_enable="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 module provides limited Linux ABI (application binary interface) compatibility,
-making it possible to run many unmodified Linux applications and libraries
+making it possible to run many unmodified Linux applications
 without the need for virtualization or emulation.
 Some of the facilities provided are:
 .Bl -bullet
 .It
-An image activator
-for correctly branded
-.Xr elf 5
-executable images
-.It
-Special signal handling for activated images
-.It
 Linux to native system call translation
 .It
 Linux-specific system calls
+.It
+Special signal handling for Linux processes
+.It
+Path translation mechanism
+.It
+Linux-specific virtual file systems
 .El
 .Pp
-Note that dynamically linked Linux executables
-will require a suitable environment in
-.Pa /compat/linux .
-This includes native Linux shared libraries, and Linux-specific virtual
-filesystems.
-To set it up, install the
+The path translation mechanism makes Linux processes look up file paths
+under
+.Va emul_path
+(defaulting to
+.Pa /compat/linux )
+before
+.Pa / .
+For example, when Linux process attempts to open
+.Pa /etc/passwd ,
+it will really access
+.Pa /compat/linux/etc/passwd ,
+unless the latter does not exist.
+This is used to make sure Linux processes load Linux shared libraries
+instead of their similarly-named FreeBSD counterparts, and also
+to provide alternative versions of certain other files and virtual
+file systems.
+.Pp
+To install Linux shared libraries and system files into
+.Pa /compat/linux ,
+use the
 .Pa emulators/linux_base-c7
-port or the linux_base-c7
-package, and add the following line to the
+port or the
+.Dv linux_base-c7
+package.
+.Pp
+To avoid mounting Linux-specific filesystems at startup, add the following
+line to the
 .Xr rc.conf 5
 file:
-.Pp
-.Dl linux_enable="YES"
-.Pp
-To avoid mounting Linux-specific filesystems at startup, also add the following
-line:
 .Pp
 .Dl linux_mounts_enable="NO"
 .Sh SYSCTL VARIABLES
@@ -101,14 +113,16 @@ Defaults to
 .Pa /compat/linux .
 .It Va compat.linux.osname
 Linux kernel operating system name.
+Defaults to "Linux".
 .It Va compat.linux.osrelease
 Linux kernel operating system release.
 Changing this to something else is discouraged on non-development systems,
 because it may change the way Linux programs work.
-Recent versions of GNU libc are known to use different syscalls depending
+Some versions of GNU libc are known to use different syscalls depending
 on the value of this sysctl.
 .It Va compat.linux.oss_version
 Linux Open Sound System version.
+Defaults to 198144.
 .It Va compat.linux.preserve_vstatus
 When set to 1, it prevents Linux applications from resetting the
 .Xr termios 4
@@ -121,9 +135,10 @@ Defaults to 0.
 Disable handling of set-user-ID and set-group-ID mode bits for the new
 process image file when image is to be executed under Linux ABI.
 When set, new Linux images always use credentials of the program
-that issued
+that issued the
 .Xr execve 2
 call, regardless of the image file mode.
+Defaults to 1.
 .Pp
 This might be reasonable or even required, because
 .Fx
@@ -133,7 +148,7 @@ could become holes.
 .Sh FILES
 .Bl -tag -width /compat/linux/dev/shm -compact
 .It Pa /compat/linux
-minimal Linux run-time environment
+Linux run-time environment
 .It Pa /compat/linux/dev
 device file system, see
 .Xr devfs 5
@@ -163,6 +178,10 @@ Linux kernel objects file system, see
 .Sh HISTORY
 Linux ABI support first appeared in
 .Fx 2.1 .
+Support for amd64 binaries first appeared in
+.Fx 10.3 .
+Support for arm64 binaries first appeared in
+.Fx 12.0 .
 .Sh BUGS
 Support for some of the Linux-specific system calls and system call arguments
 is missing.
