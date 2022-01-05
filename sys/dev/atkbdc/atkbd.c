@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -72,6 +73,13 @@ typedef struct atkbd_state {
 	int		ks_evdev_state;
 #endif
 } atkbd_state_t;
+
+static SYSCTL_NODE(_hw, OID_AUTO, atkbd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "AT keyboard");
+
+static int atkbdhz = 1;
+SYSCTL_INT(_hw_atkbd, OID_AUTO, hz, CTLFLAG_RWTUN, &atkbdhz, 0,
+    "Polling frequency (in hz)");
 
 static void		atkbd_timeout(void *arg);
 static int		atkbd_reset(KBDC kbdc, int flags, int c);
@@ -198,8 +206,11 @@ atkbd_timeout(void *arg)
 			kbdd_intr(kbd, NULL);
 	}
 	splx(s);
-	state = (atkbd_state_t *)kbd->kb_data;
-	callout_reset(&state->ks_timer, hz / 10, atkbd_timeout, arg);
+	if (atkbdhz > 0) {
+		state = (atkbd_state_t *)kbd->kb_data;
+		callout_reset_sbt(&state->ks_timer, SBT_1S / atkbdhz, 0,
+		    atkbd_timeout, arg, C_PREL(1));
+	}
 }
 
 /* LOW-LEVEL */
