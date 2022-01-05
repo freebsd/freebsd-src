@@ -3897,7 +3897,8 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	pt_entry_t *pte;
 
 	pte = vtopte(va);
-	pte_store(pte, pa | X86_PG_RW | X86_PG_V | pg_g | pg_nx);
+	pte_store(pte, pa | pg_g | pg_nx | X86_PG_A | X86_PG_M |
+	    X86_PG_RW | X86_PG_V);
 }
 
 static __inline void
@@ -3908,7 +3909,8 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 
 	pte = vtopte(va);
 	cache_bits = pmap_cache_bits(kernel_pmap, mode, 0);
-	pte_store(pte, pa | X86_PG_RW | X86_PG_V | pg_g | pg_nx | cache_bits);
+	pte_store(pte, pa | pg_g | pg_nx | X86_PG_A | X86_PG_M |
+	    X86_PG_RW | X86_PG_V | cache_bits);
 }
 
 /*
@@ -3967,7 +3969,8 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pa = VM_PAGE_TO_PHYS(m) | cache_bits;
 		if ((*pte & (PG_FRAME | X86_PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
-			pte_store(pte, pa | pg_g | pg_nx | X86_PG_RW | X86_PG_V);
+			pte_store(pte, pa | pg_g | pg_nx | X86_PG_A |
+			    X86_PG_M | X86_PG_RW | X86_PG_V);
 		}
 		pte++;
 	}
