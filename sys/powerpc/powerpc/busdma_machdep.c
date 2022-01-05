@@ -146,40 +146,6 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 	return (retval);
 }
 
-/*
- * Convenience function for manipulating driver locks from busdma (during
- * busdma_swi, for example).
- */
-void
-busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
-{
-	struct mtx *dmtx;
-
-	dmtx = (struct mtx *)arg;
-	switch (op) {
-	case BUS_DMA_LOCK:
-		mtx_lock(dmtx);
-		break;
-	case BUS_DMA_UNLOCK:
-		mtx_unlock(dmtx);
-		break;
-	default:
-		panic("Unknown operation 0x%x for busdma_lock_mutex!", op);
-	}
-}
-
-/*
- * dflt_lock should never get called.  It gets put into the dma tag when
- * lockfunc == NULL, which is only valid if the maps that are associated
- * with the tag are meant to never be defered.
- * XXX Should have a way to identify which driver is responsible here.
- */
-static void
-dflt_lock(void *arg, bus_dma_lock_op_t op)
-{
-	panic("driver error: busdma dflt_lock called");
-}
-
 #define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
 #define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 /*
@@ -232,7 +198,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->lockfunc = lockfunc;
 		newtag->lockfuncarg = lockfuncarg;
 	} else {
-		newtag->lockfunc = dflt_lock;
+		newtag->lockfunc = _busdma_dflt_lock;
 		newtag->lockfuncarg = NULL;
 	}
 

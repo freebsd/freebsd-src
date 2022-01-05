@@ -150,6 +150,11 @@ typedef int bus_dma_filter_t(void *, bus_addr_t);
 void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
 
 /*
+ * Internal helper function used by tags that do not defer loads.
+ */
+void _busdma_dflt_lock(void *arg, bus_dma_lock_op_t op);
+
+/*
  * Allocate a device specific dma_tag encapsulating the constraints of
  * the parent tag in addition to other restrictions specified:
  *
