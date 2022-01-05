@@ -3924,6 +3924,9 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 				if (speed & FW_PORT_CAP32_SPEED_100G) {
 					fec |= FW_PORT_CAP32_FEC_RS;
 					fec |= FW_PORT_CAP32_FEC_NO_FEC;
+				} else if (speed & FW_PORT_CAP32_SPEED_50G) {
+					fec |= FW_PORT_CAP32_FEC_BASER_RS;
+					fec |= FW_PORT_CAP32_FEC_NO_FEC;
 				} else {
 					fec |= FW_PORT_CAP32_FEC_RS;
 					fec |= FW_PORT_CAP32_FEC_BASER_RS;
@@ -3937,6 +3940,19 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 				 * because we aren't setting FORCE_FEC here.
 				 */
 				fec |= fec_to_fwcap(lc->fec_hint);
+				MPASS(powerof2(fec));
+
+				/*
+				 * Override the hint if the FEC is not valid for
+				 * the potential top speed.  Request the best
+				 * FEC at that speed instead.
+				 */
+				if (speed & FW_PORT_CAP32_SPEED_100G &&
+				    fec == FW_PORT_CAP32_FEC_BASER_RS)
+					fec = FW_PORT_CAP32_FEC_RS;
+				else if (speed & FW_PORT_CAP32_SPEED_50G &&
+				    fec == FW_PORT_CAP32_FEC_RS)
+					fec = FW_PORT_CAP32_FEC_BASER_RS;
 			}
 		} else {
 			/*
