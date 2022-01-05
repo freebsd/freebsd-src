@@ -1516,40 +1516,28 @@ pmap_pt_page_count_adj(pmap_t pmap, int count)
 	}
 }
 
+pt_entry_t vtoptem __read_mostly = (1ul << (NPTEPGSHIFT + NPDEPGSHIFT +
+    NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1;
+pt_entry_t *PTmap __read_mostly = P4Tmap;
+
 PMAP_INLINE pt_entry_t *
 vtopte(vm_offset_t va)
 {
-	u_int64_t mask;
-
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("vtopte on a uva/gpa 0x%0lx", va));
 
-	if (la57) {
-		mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
-		    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1);
-		return (P5Tmap + ((va >> PAGE_SHIFT) & mask));
-	} else {
-		mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
-		    NPML4EPGSHIFT)) - 1);
-		return (P4Tmap + ((va >> PAGE_SHIFT) & mask));
-	}
+	return (PTmap + ((va >> PAGE_SHIFT) & vtoptem));
 }
+
+pd_entry_t vtopdem __read_mostly = (1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
+    NPML4EPGSHIFT)) - 1;
+pd_entry_t *PDmap __read_mostly = P4Dmap;
 
 static __inline pd_entry_t *
 vtopde(vm_offset_t va)
 {
-	u_int64_t mask;
-
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("vtopde on a uva/gpa 0x%0lx", va));
 
-	if (la57) {
-		mask = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
-		    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1);
-		return (P5Dmap + ((va >> PDRSHIFT) & mask));
-	} else {
-		mask = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
-		    NPML4EPGSHIFT)) - 1);
-		return (P4Dmap + ((va >> PDRSHIFT) & mask));
-	}
+	return (PDmap + ((va >> PDRSHIFT) & vtopdem));
 }
 
 static u_int64_t
@@ -2240,6 +2228,13 @@ pmap_bootstrap_la57(void *arg __unused)
 	 * PDmap.
 	 */
 	v_pml5[PML5PML5I] = KPML5phys | X86_PG_RW | X86_PG_V | pg_nx;
+
+	vtoptem = (1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT +
+	    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1;
+	PTmap = P5Tmap;
+	vtopdem = (1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
+	    NPML4EPGSHIFT + NPML5EPGSHIFT)) - 1;
+	PDmap = P5Dmap;
 
 	kernel_pmap->pm_cr3 = KPML5phys;
 	kernel_pmap->pm_pmltop = v_pml5;
