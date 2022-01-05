@@ -462,7 +462,7 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 	table_size = roundup2(table_size, 4096);
 
 	/*
-	 * Unmap any pages not covered by the table, we do not need to emulate
+	 * Unmap any pages not containing the table, we do not need to emulate
 	 * accesses to them.  Avoid releasing address space to help ensure that
 	 * a buggy out-of-bounds access causes a crash.
 	 */
@@ -471,7 +471,8 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 		    PROT_NONE) != 0)
 			warn("Failed to unmap MSI-X table BAR region");
 	if (table_offset + table_size != pi->pi_msix.mapped_size)
-		if (mprotect(pi->pi_msix.mapped_addr,
+		if (mprotect(
+		    pi->pi_msix.mapped_addr + table_offset + table_size,
 		    pi->pi_msix.mapped_size - (table_offset + table_size),
 		    PROT_NONE) != 0)
 			warn("Failed to unmap MSI-X table BAR region");
