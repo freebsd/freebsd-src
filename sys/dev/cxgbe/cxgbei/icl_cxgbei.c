@@ -784,7 +784,6 @@ int
 icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 {
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
-	struct cxgbei_data *ci;
 	struct find_ofld_adapter_rr fa;
 	struct file *fp;
 	struct socket *so;
@@ -836,7 +835,6 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	if (fa.sc == NULL)
 		return (EINVAL);
 	icc->sc = fa.sc;
-	ci = icc->sc->iscsi_ulp_softc;
 
 	max_rx_pdu_len = ISCSI_BHS_SIZE + ic->ic_max_recv_data_segment_length;
 	max_tx_pdu_len = ISCSI_BHS_SIZE + ic->ic_max_send_data_segment_length;
@@ -1178,19 +1176,25 @@ icl_cxgbei_conn_task_done(struct icl_conn *ic, void *arg)
 static inline bool
 ddp_sgl_check(struct ctl_sg_entry *sg, int entries, int xferlen)
 {
+#ifdef INVARIANTS
 	int total_len = 0;
+#endif
 
 	MPASS(entries > 0);
 	if (((vm_offset_t)sg[--entries].addr & 3U) != 0)
 		return (false);
 
+#ifdef INVARIANTS
 	total_len += sg[entries].len;
+#endif
 
 	while (--entries >= 0) {
 		if (((vm_offset_t)sg[entries].addr & PAGE_MASK) != 0 ||
 		    (sg[entries].len % PAGE_SIZE) != 0)
 			return (false);
+#ifdef INVARIANTS
 		total_len += sg[entries].len;
+#endif
 	}
 
 	MPASS(total_len == xferlen);

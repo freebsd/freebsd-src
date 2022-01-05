@@ -292,7 +292,10 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 	struct kaiocb *job;
 	size_t placed;
 	long copied;
-	unsigned int db_flag, db_idx;
+	unsigned int db_idx;
+#ifdef INVARIANTS
+	unsigned int db_flag;
+#endif
 
 	INP_WLOCK_ASSERT(inp);
 	DDP_ASSERT_LOCKED(toep);
@@ -307,7 +310,9 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 	while (toep->ddp.active_count > 0) {
 		MPASS(toep->ddp.active_id != -1);
 		db_idx = toep->ddp.active_id;
+#ifdef INVARIANTS
 		db_flag = db_idx == 1 ? DDP_BUF1_ACTIVE : DDP_BUF0_ACTIVE;
+#endif
 		MPASS((toep->ddp.flags & db_flag) != 0);
 		db = &toep->ddp.db[db_idx];
 		job = db->job;
@@ -694,7 +699,10 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 	struct ddp_buffer *db;
 	struct kaiocb *job;
 	long copied;
-	unsigned int db_flag, db_idx;
+	unsigned int db_idx;
+#ifdef INVARIANTS
+	unsigned int db_flag;
+#endif
 	int len, placed;
 
 	INP_WLOCK_ASSERT(toep->inp);
@@ -707,7 +715,9 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 	while (toep->ddp.active_count > 0) {
 		MPASS(toep->ddp.active_id != -1);
 		db_idx = toep->ddp.active_id;
+#ifdef INVARIANTS
 		db_flag = db_idx == 1 ? DDP_BUF1_ACTIVE : DDP_BUF0_ACTIVE;
+#endif
 		MPASS((toep->ddp.flags & db_flag) != 0);
 		db = &toep->ddp.db[db_idx];
 		job = db->job;
@@ -1798,7 +1808,9 @@ sbcopy:
 	while (m != NULL && resid > 0) {
 		struct iovec iov[1];
 		struct uio uio;
+#ifdef INVARIANTS
 		int error;
+#endif
 
 		iov[0].iov_base = mtod(m, void *);
 		iov[0].iov_len = m->m_len;
@@ -1810,8 +1822,12 @@ sbcopy:
 		uio.uio_resid = iov[0].iov_len;
 		uio.uio_segflg = UIO_SYSSPACE;
 		uio.uio_rw = UIO_WRITE;
+#ifdef INVARIANTS
 		error = uiomove_fromphys(ps->pages, offset + copied,
 		    uio.uio_resid, &uio);
+#else
+		uiomove_fromphys(ps->pages, offset + copied, uio.uio_resid, &uio);
+#endif
 		MPASS(error == 0 && uio.uio_resid == 0);
 		copied += uio.uio_offset;
 		resid -= uio.uio_offset;

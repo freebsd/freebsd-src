@@ -1322,10 +1322,14 @@ alloc_ep(int size, gfp_t gfp)
 void _c4iw_free_ep(struct kref *kref)
 {
 	struct c4iw_ep *ep;
+#if defined(KTR) || defined(INVARIANTS)
 	struct c4iw_ep_common *epc;
+#endif
 
 	ep = container_of(kref, struct c4iw_ep, com.kref);
+#if defined(KTR) || defined(INVARIANTS)
 	epc = &ep->com;
+#endif
 	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list",
 	    __func__, epc));
 	if (test_bit(QP_REFERENCED, &ep->com.flags))
@@ -2352,7 +2356,9 @@ err_out:
  */
 int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
+#ifdef KTR
 	int err;
+#endif
 	struct c4iw_ep *ep = to_ep(cm_id);
 	int abort = 0;
 
@@ -2380,7 +2386,11 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		abort = send_mpa_reject(ep, pdata, pdata_len);
 	}
 	STOP_EP_TIMER(ep);
+#ifdef KTR
 	err = c4iw_ep_disconnect(ep, abort != 0, GFP_KERNEL);
+#else
+	c4iw_ep_disconnect(ep, abort != 0, GFP_KERNEL);
+#endif
 	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	CTR3(KTR_IW_CXGBE, "%s:crc4 %p, err: %d", __func__, ep, err);

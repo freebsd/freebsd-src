@@ -488,6 +488,7 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct inpcb *inp = toep->inp;
 #ifdef INVARIANTS
 	uint16_t len = be16toh(cpl->len);
+	u_int data_digest_len;
 #endif
 	struct socket *so;
 	struct sockbuf *sb;
@@ -496,7 +497,7 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct icl_conn *ic;
 	struct iscsi_bhs_data_out *bhsdo;
 	u_int val = be32toh(cpl->ddpvld);
-	u_int npdus, pdu_len, data_digest_len, hdr_digest_len;
+	u_int npdus, pdu_len;
 	uint32_t prev_seg_len;
 
 	M_ASSERTPKTHDR(m);
@@ -598,11 +599,11 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		return (0);
 	}
 
+#ifdef INVARIANTS
 	data_digest_len = (icc->ulp_submode & ULP_CRC_DATA) ?
 	    ISCSI_DATA_DIGEST_SIZE : 0;
-	hdr_digest_len = (icc->ulp_submode & ULP_CRC_HEADER) ?
-	    ISCSI_HEADER_DIGEST_SIZE : 0;
 	MPASS(roundup2(ip->ip_data_len, 4) == pdu_len - len - data_digest_len);
+#endif
 
 	if (val & F_DDP_PDU && ip->ip_data_mbuf == NULL) {
 		MPASS((icp->icp_flags & ICPF_RX_FLBUF) == 0);
