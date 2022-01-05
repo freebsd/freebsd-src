@@ -126,7 +126,9 @@
 #endif
 
 /* Define to 1 if you have the `pipe2' function. */
+#ifndef __APPLE__ /* Cross building tools on macOS */
 #define HAVE_PIPE2 1
+#endif
 
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
