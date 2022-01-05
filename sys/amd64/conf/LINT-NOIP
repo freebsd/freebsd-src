@@ -13,6 +13,7 @@ nodevice bxe
 nodevice em
 nodevice fxp
 nodevice jme
+nodevice lio
 nodevice msk
 nodevice mxge
 nodevice sge
