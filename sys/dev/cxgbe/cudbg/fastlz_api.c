@@ -349,7 +349,6 @@ int decompress_buffer(struct cudbg_buffer *pc_buff,
 	unsigned long chunk_checksum;
 	unsigned long chunk_extra;
 	unsigned long checksum;
-	unsigned long total_extracted = 0;
 	unsigned long r;
 	unsigned long remaining;
 	unsigned long bytes_read;
@@ -409,8 +408,6 @@ int decompress_buffer(struct cudbg_buffer *pc_buff,
 				pc_buff->offset -= chunk_size + 16;
 				return CUDBG_STATUS_SMALL_BUFF;
 			}
-			total_extracted = 0;
-
 		}
 
 		if (chunk_size > CUDBG_BLOCK_SIZE) {
@@ -438,7 +435,6 @@ int decompress_buffer(struct cudbg_buffer *pc_buff,
 			switch (chunk_options) {
 				/* stored, simply copy to output */
 			case 0:
-				total_extracted += chunk_size;
 				remaining = chunk_size;
 				checksum = 1L;
 				for (;;) {
@@ -485,7 +481,6 @@ int decompress_buffer(struct cudbg_buffer *pc_buff,
 
 				checksum = update_adler32(1L, compressed_buffer,
 							  chunk_size);
-				total_extracted += chunk_extra;
 
 				/* verify that the chunk data is correct */
 				if (checksum != chunk_checksum) {
