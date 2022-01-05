@@ -68,6 +68,7 @@ makevfslist(char *fslist)
 
 	if (fslist == NULL)
 		return (NULL);
+	skipvfs = 0;
 	if (fslist[0] == 'n' && fslist[1] == 'o') {
 		fslist += 2;
 		skipvfs = 1;
