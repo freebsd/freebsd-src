@@ -518,6 +518,11 @@ vtnet_detach(device_t dev)
 	netmap_detach(ifp);
 #endif
 
+	if (sc->vtnet_pfil != NULL) {
+		pfil_head_unregister(sc->vtnet_pfil);
+		sc->vtnet_pfil = NULL;
+	}
+
 	vtnet_free_taskqueues(sc);
 
 	if (sc->vtnet_vlan_attach != NULL) {
