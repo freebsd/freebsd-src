@@ -42,8 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/memdesc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 
@@ -58,6 +60,43 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptodev.h>
 
 #include <machine/bus.h>
+
+/*
+ * Convenience function for manipulating driver locks from busdma (during
+ * busdma_swi, for example).
+ */
+void
+busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
+{
+	struct mtx *dmtx;
+
+	dmtx = (struct mtx *)arg;
+	switch (op) {
+	case BUS_DMA_LOCK:
+		mtx_lock(dmtx);
+		break;
+	case BUS_DMA_UNLOCK:
+		mtx_unlock(dmtx);
+		break;
+	default:
+		panic("Unknown operation 0x%x for busdma_lock_mutex!", op);
+	}
+}
+
+/*
+ * dflt_lock should never get called.  It gets put into the dma tag when
+ * lockfunc == NULL, which is only valid if the maps that are associated
+ * with the tag are meant to never be deferred.
+ *
+ * XXX Should have a way to identify which driver is responsible here.
+ */
+void
+_busdma_dflt_lock(void *arg, bus_dma_lock_op_t op)
+{
+
+	panic("driver error: _bus_dma_dflt_lock called");
+}
+
 
 /*
  * Load up data starting at offset within a region specified by a

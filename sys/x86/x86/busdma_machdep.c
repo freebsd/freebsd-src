@@ -56,41 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <x86/include/busdma_impl.h>
 
 /*
- * Convenience function for manipulating driver locks from busdma (during
- * busdma_swi, for example).
- */
-void
-busdma_lock_mutex(void *arg, bus_dma_lock_op_t op)
-{
-	struct mtx *dmtx;
-
-	dmtx = (struct mtx *)arg;
-	switch (op) {
-	case BUS_DMA_LOCK:
-		mtx_lock(dmtx);
-		break;
-	case BUS_DMA_UNLOCK:
-		mtx_unlock(dmtx);
-		break;
-	default:
-		panic("Unknown operation 0x%x for busdma_lock_mutex!", op);
-	}
-}
-
-/*
- * dflt_lock should never get called.  It gets put into the dma tag when
- * lockfunc == NULL, which is only valid if the maps that are associated
- * with the tag are meant to never be defered.
- * XXX Should have a way to identify which driver is responsible here.
- */
-void
-bus_dma_dflt_lock(void *arg, bus_dma_lock_op_t op)
-{
-
-	panic("driver error: busdma dflt_lock called");
-}
-
-/*
  * Return true if a match is made.
  *
  * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
@@ -161,7 +126,7 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 		common->lockfunc = lockfunc;
 		common->lockfuncarg = lockfuncarg;
 	} else {
-		common->lockfunc = bus_dma_dflt_lock;
+		common->lockfunc = _busdma_dflt_lock;
 		common->lockfuncarg = NULL;
 	}
 
