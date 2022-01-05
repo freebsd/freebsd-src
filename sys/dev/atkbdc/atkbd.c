@@ -77,7 +77,7 @@ typedef struct atkbd_state {
 static SYSCTL_NODE(_hw, OID_AUTO, atkbd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "AT keyboard");
 
-static int atkbdhz = 1;
+static int atkbdhz = 0;
 SYSCTL_INT(_hw_atkbd, OID_AUTO, hz, CTLFLAG_RWTUN, &atkbdhz, 0,
     "Polling frequency (in hz)");
 
