@@ -146,10 +146,9 @@ extern struct pmap	kernel_pmap_store;
 #define	ASID_RESERVED_FOR_PID_0	0
 #define	ASID_RESERVED_FOR_EFI	1
 #define	ASID_FIRST_AVAILABLE	(ASID_RESERVED_FOR_EFI + 1)
-#define	ASID_TO_OPERAND_SHIFT	48
 #define	ASID_TO_OPERAND(asid)	({					\
 	KASSERT((asid) != -1, ("invalid ASID"));			\
-	(uint64_t)(asid) << ASID_TO_OPERAND_SHIFT;			\
+	(uint64_t)(asid) << TTBR_ASID_SHIFT;			\
 })
 
 extern vm_offset_t virtual_avail;
