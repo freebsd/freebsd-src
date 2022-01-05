@@ -2060,7 +2060,10 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct tls_get_record *tgr;
 	struct mbuf *control;
 #endif
-	int len, pdu_length, rx_credits;
+	int pdu_length, rx_credits;
+#if defined(KTR) || defined(INVARIANTS)
+	int len;
+#endif
 
 	KASSERT(toep->tid == tid, ("%s: toep tid/atid mismatch", __func__));
 	KASSERT(!(toep->flags & TPF_SYNQE),
@@ -2068,7 +2071,9 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* strip off CPL header */
 	m_adj(m, sizeof(*cpl));
+#if defined(KTR) || defined(INVARIANTS)
 	len = m->m_pkthdr.len;
+#endif
 
 	toep->ofld_rxq->rx_toe_tls_records++;
 

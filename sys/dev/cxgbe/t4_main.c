@@ -1670,10 +1670,7 @@ notify_siblings(device_t dev, int detaching)
 static int
 t4_detach(device_t dev)
 {
-	struct adapter *sc;
 	int rc;
-
-	sc = device_get_softc(dev);
 
 	rc = notify_siblings(dev, 1);
 	if (rc) {

@@ -6649,7 +6649,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 {
 	int i, ofst = idx * 4;
 	u32 data_reg, mask_reg, cfg;
-	u32 multitrc = F_TRCMULTIFILTER;
 	u32 en = is_t4(adap) ? F_TFEN : F_T5_TFEN;
 
 	if (idx < 0 || idx >= NTRACE)
@@ -6684,7 +6683,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 		 * maximum packet capture size of 9600 bytes is recommended.
 		 * Also in this mode, only trace0 can be enabled and running.
 		 */
-		multitrc = 0;
 		if (tp->snap_len > 9600 || idx)
 			return -EINVAL;
 	}
@@ -9077,7 +9075,6 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 		int i;
 		int chan = G_FW_PORT_CMD_PORTID(be32_to_cpu(p->op_to_portid));
 		struct port_info *pi = NULL;
-		struct link_config *lc;
 
 		for_each_port(adap, i) {
 			pi = adap2pinfo(adap, i);
@@ -9085,7 +9082,6 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 				break;
 		}
 
-		lc = &pi->link_cfg;
 		PORT_LOCK(pi);
 		handle_port_info(pi, p, action, &mod_changed, &link_changed);
 		PORT_UNLOCK(pi);
