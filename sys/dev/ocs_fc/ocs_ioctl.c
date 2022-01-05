@@ -1107,50 +1107,48 @@ ocs_sysctl_init(ocs_t *ocs)
 			  0, "SLI Interface");
 
         SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "fw_upgrade",
-            CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, (void *)ocs, 0,
+            CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, (void *)ocs, 0,
 	    ocs_sys_fwupgrade, "A", "Firmware grp file");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "wwnn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "wwnn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_wwnn, "A",
 	    "World Wide Node Name, wwnn should be in the format 0x<XXXXXXXXXXXXXXXX>");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "wwpn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "wwpn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_wwpn, "A",
 	    "World Wide Port Name, wwpn should be in the format 0x<XXXXXXXXXXXXXXXX>");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "current_topology", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    "current_topology", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_current_topology, "IU",
 	    "Current Topology, 1-NPort; 2-Loop; 3-None");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "current_speed", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    "current_speed", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_current_speed, "IU",
 	    "Current Speed");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "configured_topology", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "configured_topology", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_config_topology, "IU",
 	    "Configured Topology, 0-Auto; 1-NPort; 2-Loop");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "configured_speed", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "configured_speed", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_config_speed, "IU",
 	    "Configured Speed, 0-Auto, 2000, 4000, 8000, 16000, 32000");
 
 	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"businfo", CTLFLAG_RD,
-			ocs->businfo,
-			0, "Bus Info");
+	    "businfo", CTLFLAG_RD, ocs->businfo, 0, "Bus Info");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "fcid", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    "fcid", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_fcid, "A", "Port FC ID");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "port_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "port_state", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ocs, 0, ocs_sysctl_port_state, "A", "configured port state");
 
 	for (i	= 0; i < ocs->num_vports; i++) {
@@ -1163,12 +1161,12 @@ ocs_sysctl_init(ocs_t *ocs)
 		    "Virtual port");
 
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(vtree), OID_AUTO,
-		    "wwnn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    "wwnn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    fcp, 0, ocs_sysctl_vport_wwnn, "A",
 		    "World Wide Node Name");
 
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(vtree), OID_AUTO,
-		    "wwpn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		    "wwpn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    fcp, 0, ocs_sysctl_vport_wwpn, "A", "World Wide Port Name");
 	}
 
