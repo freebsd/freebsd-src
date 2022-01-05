@@ -68,6 +68,7 @@ enum {
 	BF_COHERENT		= 0x10,
 };
 
+struct bounce_page;
 struct bounce_zone;
 
 struct bus_dma_tag {
@@ -78,44 +79,8 @@ struct bus_dma_tag {
 	struct bounce_zone	*bounce_zone;
 };
 
-struct bounce_page {
-	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	bus_addr_t	busaddr;	/* Physical address */
-	vm_offset_t	datavaddr;	/* kva of client data */
-	vm_page_t	datapage;	/* physical page of client data */
-	vm_offset_t	dataoffs;	/* page offset of client data */
-	bus_size_t	datacount;	/* client data count */
-	STAILQ_ENTRY(bounce_page) links;
-};
-
-struct bounce_zone {
-	STAILQ_ENTRY(bounce_zone) links;
-	STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
-	int		total_bpages;
-	int		free_bpages;
-	int		reserved_bpages;
-	int		active_bpages;
-	int		total_bounced;
-	int		total_deferred;
-	int		map_count;
-	bus_size_t	alignment;
-	bus_addr_t	lowaddr;
-	char		zoneid[8];
-	char		lowaddrid[20];
-	struct sysctl_ctx_list sysctl_tree;
-	struct sysctl_oid *sysctl_tree_top;
-};
-
-static struct mtx bounce_lock;
-static int total_bpages;
-static int busdma_zonecount;
-static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
-static void *busdma_ih;
-
 static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Busdma parameters");
-SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
-	   "Total bounce pages");
 
 struct sync_list {
 	vm_offset_t	vaddr;		/* kva of client data */
@@ -125,7 +90,7 @@ struct sync_list {
 };
 
 struct bus_dmamap {
-	struct bp_list	       bpages;
+	STAILQ_HEAD(, bounce_page) bpages;
 	int		       pagesneeded;
 	int		       pagesreserved;
 	bus_dma_tag_t	       dmat;
@@ -140,24 +105,21 @@ struct bus_dmamap {
 	struct sync_list	slist[];
 };
 
-static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
-static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
-
-static void init_bounce_pages(void *dummy);
-static int alloc_bounce_zone(bus_dma_tag_t dmat);
-static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
-static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
-    int commit);
-static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
-    vm_offset_t vaddr, bus_addr_t addr, bus_size_t size);
-static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     pmap_t pmap, void *buf, bus_size_t buflen, int flags);
 static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_paddr_t buf, bus_size_t buflen, int flags);
-static int _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
-    int flags);
+
+static MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
+
+#define	dmat_alignment(dmat)	((dmat)->common.alignment)
+#define	dmat_flags(dmat)	((dmat)->common.flags)
+#define	dmat_lowaddr(dmat)	((dmat)->common.lowaddr)
+#define	dmat_lockfunc(dmat)	((dmat)->common.lockfunc)
+#define	dmat_lockfuncarg(dmat)	((dmat)->common.lockfuncarg)
+
+#include "../../kern/subr_busdma_bounce.c"
 
 /*
  * Allocate a device specific dma_tag.
@@ -605,30 +567,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 	}
 }
 
-static int
-_bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
-{
-
-	/* Reserve Necessary Bounce Pages */
-	mtx_lock(&bounce_lock);
-	if (flags & BUS_DMA_NOWAIT) {
-		if (reserve_bounce_pages(dmat, map, 0) != 0) {
-			mtx_unlock(&bounce_lock);
-			return (ENOMEM);
-		}
-	} else {
-		if (reserve_bounce_pages(dmat, map, 1) != 0) {
-			/* Queue us for resources */
-			STAILQ_INSERT_TAIL(&bounce_map_waitinglist, map, links);
-			mtx_unlock(&bounce_lock);
-			return (EINPROGRESS);
-		}
-	}
-	mtx_unlock(&bounce_lock);
-
-	return (0);
-}
-
 /*
  * Add a single contiguous physical range to the segment list.
  */
@@ -1051,273 +989,6 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 		fence();
 	}
 }
-
-static void
-init_bounce_pages(void *dummy __unused)
-{
-
-	total_bpages = 0;
-	STAILQ_INIT(&bounce_zone_list);
-	STAILQ_INIT(&bounce_map_waitinglist);
-	STAILQ_INIT(&bounce_map_callbacklist);
-	mtx_init(&bounce_lock, "bounce pages lock", NULL, MTX_DEF);
-}
-SYSINIT(bpages, SI_SUB_LOCK, SI_ORDER_ANY, init_bounce_pages, NULL);
-
-static struct sysctl_ctx_list *
-busdma_sysctl_tree(struct bounce_zone *bz)
-{
-
-	return (&bz->sysctl_tree);
-}
-
-static struct sysctl_oid *
-busdma_sysctl_tree_top(struct bounce_zone *bz)
-{
-
-	return (bz->sysctl_tree_top);
-}
-
-static int
-alloc_bounce_zone(bus_dma_tag_t dmat)
-{
-	struct bounce_zone *bz;
-
-	/* Check to see if we already have a suitable zone */
-	STAILQ_FOREACH(bz, &bounce_zone_list, links) {
-		if ((dmat->common.alignment <= bz->alignment) &&
-		    (dmat->common.lowaddr >= bz->lowaddr)) {
-			dmat->bounce_zone = bz;
-			return (0);
-		}
-	}
-
-	if ((bz = (struct bounce_zone *)malloc(sizeof(*bz), M_DEVBUF,
-	    M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
-
-	STAILQ_INIT(&bz->bounce_page_list);
-	bz->free_bpages = 0;
-	bz->reserved_bpages = 0;
-	bz->active_bpages = 0;
-	bz->lowaddr = dmat->common.lowaddr;
-	bz->alignment = MAX(dmat->common.alignment, PAGE_SIZE);
-	bz->map_count = 0;
-	snprintf(bz->zoneid, 8, "zone%d", busdma_zonecount);
-	busdma_zonecount++;
-	snprintf(bz->lowaddrid, 18, "%#jx", (uintmax_t)bz->lowaddr);
-	STAILQ_INSERT_TAIL(&bounce_zone_list, bz, links);
-	dmat->bounce_zone = bz;
-
-	sysctl_ctx_init(&bz->sysctl_tree);
-	bz->sysctl_tree_top = SYSCTL_ADD_NODE(&bz->sysctl_tree,
-	    SYSCTL_STATIC_CHILDREN(_hw_busdma), OID_AUTO, bz->zoneid,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
-	if (bz->sysctl_tree_top == NULL) {
-		sysctl_ctx_free(&bz->sysctl_tree);
-		return (0);	/* XXX error code? */
-	}
-
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "total_bpages", CTLFLAG_RD, &bz->total_bpages, 0,
-	    "Total bounce pages");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "free_bpages", CTLFLAG_RD, &bz->free_bpages, 0,
-	    "Free bounce pages");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "reserved_bpages", CTLFLAG_RD, &bz->reserved_bpages, 0,
-	    "Reserved bounce pages");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "active_bpages", CTLFLAG_RD, &bz->active_bpages, 0,
-	    "Active bounce pages");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "total_bounced", CTLFLAG_RD, &bz->total_bounced, 0,
-	    "Total bounce requests");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "total_deferred", CTLFLAG_RD, &bz->total_deferred, 0,
-	    "Total bounce requests that were deferred");
-	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_UAUTO(busdma_sysctl_tree(bz),
-	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, "");
-
-	return (0);
-}
-
-static int
-alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
-{
-	struct bounce_zone *bz;
-	int count;
-
-	bz = dmat->bounce_zone;
-	count = 0;
-	while (numpages > 0) {
-		struct bounce_page *bpage;
-
-		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_DEVBUF,
-						     M_NOWAIT | M_ZERO);
-
-		if (bpage == NULL)
-			break;
-		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
-		    M_NOWAIT, 0ul, bz->lowaddr, PAGE_SIZE, 0);
-		if (bpage->vaddr == 0) {
-			free(bpage, M_DEVBUF);
-			break;
-		}
-		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		mtx_lock(&bounce_lock);
-		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);
-		total_bpages++;
-		bz->total_bpages++;
-		bz->free_bpages++;
-		mtx_unlock(&bounce_lock);
-		count++;
-		numpages--;
-	}
-	return (count);
-}
-
-static int
-reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int commit)
-{
-	struct bounce_zone *bz;
-	int pages;
-
-	mtx_assert(&bounce_lock, MA_OWNED);
-	bz = dmat->bounce_zone;
-	pages = MIN(bz->free_bpages, map->pagesneeded - map->pagesreserved);
-	if (commit == 0 && map->pagesneeded > (map->pagesreserved + pages))
-		return (map->pagesneeded - (map->pagesreserved + pages));
-	bz->free_bpages -= pages;
-	bz->reserved_bpages += pages;
-	map->pagesreserved += pages;
-	pages = map->pagesneeded - map->pagesreserved;
-
-	return (pages);
-}
-
-static bus_addr_t
-add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
-		bus_addr_t addr, bus_size_t size)
-{
-	struct bounce_zone *bz;
-	struct bounce_page *bpage;
-
-	KASSERT(dmat->bounce_zone != NULL, ("no bounce zone in dma tag"));
-	KASSERT((map->flags & DMAMAP_COULD_BOUNCE) != 0,
-	    ("add_bounce_page: bad map %p", map));
-
-	bz = dmat->bounce_zone;
-	if (map->pagesneeded == 0)
-		panic("add_bounce_page: map doesn't need any pages");
-	map->pagesneeded--;
-
-	if (map->pagesreserved == 0)
-		panic("add_bounce_page: map doesn't need any pages");
-	map->pagesreserved--;
-
-	mtx_lock(&bounce_lock);
-	bpage = STAILQ_FIRST(&bz->bounce_page_list);
-	if (bpage == NULL)
-		panic("add_bounce_page: free page list is empty");
-
-	STAILQ_REMOVE_HEAD(&bz->bounce_page_list, links);
-	bz->reserved_bpages--;
-	bz->active_bpages++;
-	mtx_unlock(&bounce_lock);
-
-	if (dmat->common.flags & BUS_DMA_KEEP_PG_OFFSET) {
-		/* Page offset needs to be preserved. */
-		bpage->vaddr |= addr & PAGE_MASK;
-		bpage->busaddr |= addr & PAGE_MASK;
-	}
-	bpage->datavaddr = vaddr;
-	bpage->datapage = PHYS_TO_VM_PAGE(addr);
-	bpage->dataoffs = addr & PAGE_MASK;
-	bpage->datacount = size;
-	STAILQ_INSERT_TAIL(&(map->bpages), bpage, links);
-	return (bpage->busaddr);
-}
-
-static void
-free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
-{
-	struct bus_dmamap *map;
-	struct bounce_zone *bz;
-	bool schedule_swi;
-
-	bz = dmat->bounce_zone;
-	bpage->datavaddr = 0;
-	bpage->datacount = 0;
-	if (dmat->common.flags & BUS_DMA_KEEP_PG_OFFSET) {
-		/*
-		 * Reset the bounce page to start at offset 0.  Other uses
-		 * of this bounce page may need to store a full page of
-		 * data and/or assume it starts on a page boundary.
-		 */
-		bpage->vaddr &= ~PAGE_MASK;
-		bpage->busaddr &= ~PAGE_MASK;
-	}
-
-	schedule_swi = false;
-	mtx_lock(&bounce_lock);
-	STAILQ_INSERT_HEAD(&bz->bounce_page_list, bpage, links);
-	bz->free_bpages++;
-	bz->active_bpages--;
-	if ((map = STAILQ_FIRST(&bounce_map_waitinglist)) != NULL) {
-		if (reserve_bounce_pages(map->dmat, map, 1) == 0) {
-			STAILQ_REMOVE_HEAD(&bounce_map_waitinglist, links);
-			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
-			    map, links);
-			bz->total_deferred++;
-			schedule_swi = true;
-		}
-	}
-	mtx_unlock(&bounce_lock);
-	if (schedule_swi)
-		swi_sched(busdma_ih, 0);
-}
-
-static void
-busdma_swi(void *dummy __unused)
-{
-	bus_dma_tag_t dmat;
-	struct bus_dmamap *map;
-
-	mtx_lock(&bounce_lock);
-	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
-		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
-		mtx_unlock(&bounce_lock);
-		dmat = map->dmat;
-		(dmat->common.lockfunc)(dmat->common.lockfuncarg, BUS_DMA_LOCK);
-		bus_dmamap_load_mem(map->dmat, map, &map->mem,
-		    map->callback, map->callback_arg, BUS_DMA_WAITOK);
-		(dmat->common.lockfunc)(dmat->common.lockfuncarg,
-		    BUS_DMA_UNLOCK);
-		mtx_lock(&bounce_lock);
-	}
-	mtx_unlock(&bounce_lock);
-}
-
-static void
-start_busdma_swi(void *dummy __unused)
-{
-	if (swi_add(NULL, "busdma", busdma_swi, NULL, SWI_BUSDMA, INTR_MPSAFE,
-	    &busdma_ih))
-		panic("died while creating busdma swi ithread");
-}
-SYSINIT(start_busdma_swi, SI_SUB_SOFTINTR, SI_ORDER_ANY, start_busdma_swi,
-    NULL);
 
 struct bus_dma_impl bus_dma_bounce_impl = {
 	.tag_create = bounce_bus_dma_tag_create,
