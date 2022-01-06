@@ -83,6 +83,7 @@ struct msdosfsmount {
 	mode_t pm_dirmask;	/* mask to and with file protection bits
 				   for directories */
 	struct vnode *pm_devvp;	/* vnode for character device mounted */
+	struct vnode *pm_odevvp;/* real devfs vnode */
 	struct cdev *pm_dev;	/* character device mounted */
 	struct bpb50 pm_bpb;	/* BIOS parameter blk for this fs */
 	u_long pm_BlkPerSec;	/* How many DEV_BSIZE blocks fit inside a physical sector */
