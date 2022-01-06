@@ -31,6 +31,7 @@
 #include <sys/conf.h>
 #include <sys/caprights.h>
 #include <sys/disk.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/kerneldump.h>
@@ -111,9 +112,15 @@ livedump_start(int fd, int flags, uint8_t compression)
 	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
+	EVENTHANDLER_INVOKE(livedumper_start, &error);
+	if (error != 0)
+		goto out;
+
 	dump_savectx();
 	error = minidumpsys(livedi, true);
 
+	EVENTHANDLER_INVOKE(livedumper_finish);
+out:
 	VOP_UNLOCK(vp);
 	vn_rangelock_unlock(vp, rl_cookie);
 	sx_xunlock(&livedump_sx);
@@ -161,6 +168,10 @@ vnode_dump(void *arg, void *virtual, vm_offset_t physical __unused,
 	vp = arg;
 	MPASS(vp != NULL);
 	ASSERT_VOP_LOCKED(vp, __func__);
+
+	EVENTHANDLER_INVOKE(livedumper_dump, virtual, offset, length, &error);
+	if (error != 0)
+		return (error);
 
 	/* Done? */
 	if (virtual == NULL)
