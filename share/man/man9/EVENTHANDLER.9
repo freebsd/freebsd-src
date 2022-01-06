@@ -318,8 +318,14 @@ Callbacks invoked after a linker file has been successfully unloaded.
 Callbacks invoked before a linker file is about to be unloaded.
 These callbacks may be used to return an error and prevent the unload from
 proceeding.
+.It Vt livedumper_start
+Callback invoked before beginning a kernel dump of the live system.
+.It Vt livedumper_dump
+Callback invoked for each dumped block of data during a live kernel dump.
+.It Vt livedumper_finish
+Callback invoked once a live kernel dump has completed.
 .It Vt lle_event
-Callback invoked when an link layer event has happened.
+Callback invoked when a link layer event has happened.
 .It Vt nmbclusters_change
 Callback invoked when the number of mbuf clusters has changed.
 .It Vt nmbufs_change

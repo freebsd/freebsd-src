@@ -164,6 +164,15 @@ extern int do_minidump;
 
 int livedump_start(int, int, uint8_t);
 
+/* Live minidump events */
+typedef void (*livedump_start_fn)(void *arg, int *errorp);
+typedef void (*livedump_dump_fn)(void *arg, void *virtual, off_t offset,
+    size_t len, int *errorp);
+typedef void (*livedump_finish_fn)(void *arg);
+EVENTHANDLER_DECLARE(livedumper_start, livedump_start_fn);
+EVENTHANDLER_DECLARE(livedumper_dump, livedump_dump_fn);
+EVENTHANDLER_DECLARE(livedumper_finish, livedump_finish_fn);
+
 #endif
 
 #endif /* _SYS_KERNELDUMP_H */
