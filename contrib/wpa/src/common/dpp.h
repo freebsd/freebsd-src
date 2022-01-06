@@ -25,7 +25,9 @@ struct dpp_reconfig_id;
 #define DPP_VERSION (dpp_version_override)
 extern int dpp_version_override;
 #else /* CONFIG_TESTING_OPTIONS */
-#ifdef CONFIG_DPP2
+#ifdef CONFIG_DPP3
+#define DPP_VERSION 3
+#elif defined(CONFIG_DPP2)
 #define DPP_VERSION 2
 #else
 #define DPP_VERSION 1
@@ -41,7 +43,7 @@ enum dpp_public_action_frame_type {
 	DPP_PA_AUTHENTICATION_CONF = 2,
 	DPP_PA_PEER_DISCOVERY_REQ = 5,
 	DPP_PA_PEER_DISCOVERY_RESP = 6,
-	DPP_PA_PKEX_EXCHANGE_REQ = 7,
+	DPP_PA_PKEX_V1_EXCHANGE_REQ = 7,
 	DPP_PA_PKEX_EXCHANGE_RESP = 8,
 	DPP_PA_PKEX_COMMIT_REVEAL_REQ = 9,
 	DPP_PA_PKEX_COMMIT_REVEAL_RESP = 10,
@@ -52,6 +54,7 @@ enum dpp_public_action_frame_type {
 	DPP_PA_RECONFIG_AUTH_REQ = 15,
 	DPP_PA_RECONFIG_AUTH_RESP = 16,
 	DPP_PA_RECONFIG_AUTH_CONF = 17,
+	DPP_PA_PKEX_EXCHANGE_REQ = 18,
 };
 
 enum dpp_attribute_id {
@@ -173,6 +176,7 @@ struct dpp_pkex {
 	unsigned int initiator:1;
 	unsigned int exchange_done:1;
 	unsigned int failed:1;
+	unsigned int v2:1;
 	struct dpp_bootstrap_info *own_bi;
 	u8 own_mac[ETH_ALEN];
 	u8 peer_mac[ETH_ALEN];
@@ -190,6 +194,7 @@ struct dpp_pkex {
 	unsigned int exch_req_wait_time;
 	unsigned int exch_req_tries;
 	unsigned int freq;
+	u8 peer_version;
 };
 
 enum dpp_akm {
@@ -372,6 +377,7 @@ struct dpp_introduction {
 	u8 pmkid[PMKID_LEN];
 	u8 pmk[PMK_LEN_MAX];
 	size_t pmk_len;
+	int peer_version;
 };
 
 struct dpp_relay_config {
@@ -491,6 +497,8 @@ enum dpp_test_behavior {
 	DPP_TEST_STOP_AT_AUTH_CONF = 89,
 	DPP_TEST_STOP_AT_CONF_REQ = 90,
 	DPP_TEST_REJECT_CONFIG = 91,
+	DPP_TEST_NO_PROTOCOL_VERSION_PEER_DISC_REQ = 92,
+	DPP_TEST_NO_PROTOCOL_VERSION_PEER_DISC_RESP = 93,
 };
 
 extern enum dpp_test_behavior dpp_test;
@@ -593,17 +601,18 @@ dpp_peer_intro(struct dpp_introduction *intro, const char *own_connector,
 	       const u8 *csign_key, size_t csign_key_len,
 	       const u8 *peer_connector, size_t peer_connector_len,
 	       os_time_t *expiry);
+int dpp_get_connector_version(const char *connector);
 struct dpp_pkex * dpp_pkex_init(void *msg_ctx, struct dpp_bootstrap_info *bi,
 				const u8 *own_mac,
-				const char *identifier,
-				const char *code);
+				const char *identifier, const char *code,
+				bool v2);
 struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 					   struct dpp_bootstrap_info *bi,
 					   const u8 *own_mac,
 					   const u8 *peer_mac,
 					   const char *identifier,
 					   const char *code,
-					   const u8 *buf, size_t len);
+					   const u8 *buf, size_t len, bool v2);
 struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 					  const u8 *peer_mac,
 					  const u8 *buf, size_t len);
