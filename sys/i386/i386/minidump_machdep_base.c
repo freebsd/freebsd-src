@@ -162,7 +162,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	uint64_t pa;
 	pd_entry_t *pd, pde;
 	pt_entry_t *pt, pte;
-	int j, k;
+	int k;
 	struct minidumphdr mdhdr;
 	struct msgbuf *mbp;
 
@@ -184,7 +184,6 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 		 */
 		ptesize += PAGE_SIZE;
 		pd = IdlePTD;	/* always mapped! */
-		j = va >> PDRSHIFT;
 		pde = pte_load(&pd[va >> PDRSHIFT]);
 		if ((pde & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is an entire 2M page. */
