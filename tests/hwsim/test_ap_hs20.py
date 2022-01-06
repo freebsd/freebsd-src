@@ -4180,12 +4180,12 @@ def test_ap_hs20_multi_network_and_cred_removal(dev, apdev):
     interworking_connect(dev[0], bssid, "PEAP")
     dev[0].add_network()
     if len(dev[0].list_networks()) != 5:
-        raise Exception("Unexpected number of networks prior to remove_crec")
+        raise Exception("Unexpected number of networks prior to remove_cred")
 
     dev[0].dump_monitor()
     dev[0].remove_cred(id)
     if len(dev[0].list_networks()) != 3:
-        raise Exception("Unexpected number of networks after to remove_crec")
+        raise Exception("Unexpected number of networks after to remove_cred")
     dev[0].wait_disconnected(timeout=10)
 
 def test_ap_hs20_interworking_add_network(dev, apdev):

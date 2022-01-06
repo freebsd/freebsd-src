@@ -27,7 +27,7 @@ static void usage(void)
 	       "[-P<RADIUS shared secret>]\n"
 	       "         [-n<write pcapng file>]\n"
 	       "         [-w<write pcap file>] [-f<MSK/PMK file>]\n"
-	       "         [-L<log file>] [-T<PTK file>]\n");
+	       "         [-L<log file>] [-T<PTK file>] [-W<WEP key>]\n");
 }
 
 
@@ -77,6 +77,13 @@ static void ptk_deinit(struct wlantest_ptk *ptk)
 }
 
 
+static void wep_deinit(struct wlantest_wep *wep)
+{
+	dl_list_del(&wep->list);
+	os_free(wep);
+}
+
+
 static void wlantest_deinit(struct wlantest *wt)
 {
 	struct wlantest_passphrase *p, *pn;
@@ -104,7 +111,7 @@ static void wlantest_deinit(struct wlantest *wt)
 	dl_list_for_each_safe(ptk, npt, &wt->ptk, struct wlantest_ptk, list)
 		ptk_deinit(ptk);
 	dl_list_for_each_safe(wep, nw, &wt->wep, struct wlantest_wep, list)
-		os_free(wep);
+		wep_deinit(wep);
 	write_pcap_deinit(wt);
 	write_pcapng_deinit(wt);
 	clear_notes(wt);
@@ -364,7 +371,7 @@ int wlantest_relog(struct wlantest *wt)
 
 int main(int argc, char *argv[])
 {
-	int c;
+	int c, ret = 0;
 	const char *read_file = NULL;
 	const char *read_wired_file = NULL;
 	const char *ifname = NULL;
@@ -372,6 +379,7 @@ int main(int argc, char *argv[])
 	const char *logfile = NULL;
 	struct wlantest wt;
 	int ctrl_iface = 0;
+	bool eloop_init_done = false;
 
 	wpa_debug_level = MSG_INFO;
 	wpa_debug_show_keys = 1;
@@ -397,15 +405,18 @@ int main(int argc, char *argv[])
 			wt.ethernet = 1;
 			break;
 		case 'f':
-			if (add_pmk_file(&wt, optarg) < 0)
-				return -1;
+			if (add_pmk_file(&wt, optarg) < 0) {
+				ret = -1;
+				goto deinit;
+			}
 			break;
 		case 'F':
 			wt.assume_fcs = 1;
 			break;
 		case 'h':
 			usage();
-			return 0;
+			ret = 0;
+			goto deinit;
 		case 'i':
 			ifname = optarg;
 			break;
@@ -440,54 +451,54 @@ int main(int argc, char *argv[])
 			wpa_debug_timestamp = 1;
 			break;
 		case 'T':
-			if (add_ptk_file(&wt, optarg) < 0)
-				return -1;
+			if (add_ptk_file(&wt, optarg) < 0) {
+				ret = -1;
+				goto deinit;
+			}
 			break;
 		case 'w':
 			wt.write_file = optarg;
 			break;
 		case 'W':
-			if (add_wep(&wt, optarg) < 0)
-				return -1;
+			if (add_wep(&wt, optarg) < 0) {
+				ret = -1;
+				goto deinit;
+			}
 			break;
 		default:
 			usage();
-			return -1;
+			ret = -1;
+			goto deinit;
 		}
 	}
 
 	if (ifname == NULL && ifname_wired == NULL &&
 	    read_file == NULL && read_wired_file == NULL) {
 		usage();
-		return 0;
+		ret = 0;
+		goto deinit;
 	}
 
-	if (eloop_init())
-		return -1;
+	if (eloop_init()) {
+		ret = -1;
+		goto deinit;
+	}
+	eloop_init_done = true;
 
 	if (logfile)
 		wpa_debug_open_file(logfile);
 
-	if (wt.write_file && write_pcap_init(&wt, wt.write_file) < 0)
-		return -1;
-
-	if (wt.pcapng_file && write_pcapng_init(&wt, wt.pcapng_file) < 0)
-		return -1;
-
-	if (read_wired_file && read_wired_cap_file(&wt, read_wired_file) < 0)
-		return -1;
-
-	if (read_file && read_cap_file(&wt, read_file) < 0)
-		return -1;
-
-	if (ifname && monitor_init(&wt, ifname) < 0)
-		return -1;
-
-	if (ifname_wired && monitor_init_wired(&wt, ifname_wired) < 0)
-		return -1;
-
-	if (ctrl_iface && ctrl_init(&wt) < 0)
-		return -1;
+	if ((wt.write_file && write_pcap_init(&wt, wt.write_file) < 0) ||
+	    (wt.pcapng_file && write_pcapng_init(&wt, wt.pcapng_file) < 0) ||
+	    (read_wired_file &&
+	     read_wired_cap_file(&wt, read_wired_file) < 0) ||
+	    (read_file && read_cap_file(&wt, read_file) < 0) ||
+	    (ifname && monitor_init(&wt, ifname) < 0) ||
+	    (ifname_wired && monitor_init_wired(&wt, ifname_wired) < 0) ||
+	    (ctrl_iface && ctrl_init(&wt) < 0)) {
+		ret = -1;
+		goto deinit;
+	}
 
 	eloop_register_signal_terminate(wlantest_terminate, &wt);
 
@@ -497,11 +508,13 @@ int main(int argc, char *argv[])
 		   "fcs_error=%u",
 		   wt.rx_mgmt, wt.rx_ctrl, wt.rx_data, wt.fcs_error);
 
+deinit:
 	wlantest_deinit(&wt);
 
 	wpa_debug_close_file();
-	eloop_destroy();
+	if (eloop_init_done)
+		eloop_destroy();
 	os_program_deinit();
 
-	return 0;
+	return ret;
 }

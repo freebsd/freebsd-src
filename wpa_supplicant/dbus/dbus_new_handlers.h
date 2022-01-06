@@ -144,6 +144,19 @@ DBusMessage * wpas_dbus_handler_eap_logoff(DBusMessage *message,
 DBusMessage * wpas_dbus_handler_eap_logon(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s);
 
+DBusMessage * wpas_dbus_handler_add_cred(DBusMessage *message,
+					 struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_remove_cred(DBusMessage *message,
+					    struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_remove_all_creds(DBusMessage *message,
+						 struct wpa_supplicant *wpa_s);
+
+DBusMessage *
+wpas_dbus_handler_interworking_select(DBusMessage *message,
+				      struct wpa_supplicant *wpa_s);
+
 DECLARE_ACCESSOR(wpas_dbus_getter_capabilities);
 DECLARE_ACCESSOR(wpas_dbus_getter_state);
 DECLARE_ACCESSOR(wpas_dbus_getter_scanning);

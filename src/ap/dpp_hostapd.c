@@ -1554,16 +1554,37 @@ skip_status:
 
 #ifdef CONFIG_TESTING_OPTIONS
 skip_connector:
+	if (dpp_test == DPP_TEST_NO_PROTOCOL_VERSION_PEER_DISC_RESP) {
+		wpa_printf(MSG_INFO, "DPP: TESTING - no Protocol Version");
+		goto skip_proto_ver;
+	}
 #endif /* CONFIG_TESTING_OPTIONS */
 
 #ifdef CONFIG_DPP2
 	if (DPP_VERSION > 1) {
+		u8 ver = DPP_VERSION;
+#ifdef CONFIG_DPP3
+		int conn_ver;
+
+		conn_ver = dpp_get_connector_version(hapd->conf->dpp_connector);
+		if (conn_ver > 0 && ver != conn_ver) {
+			wpa_printf(MSG_DEBUG,
+				   "DPP: Use Connector version %d instead of current protocol version %d",
+				   conn_ver, ver);
+			ver = conn_ver;
+		}
+#endif /* CONFIG_DPP3 */
+
 		/* Protocol Version */
 		wpabuf_put_le16(msg, DPP_ATTR_PROTOCOL_VERSION);
 		wpabuf_put_le16(msg, 1);
-		wpabuf_put_u8(msg, DPP_VERSION);
+		wpabuf_put_u8(msg, ver);
 	}
 #endif /* CONFIG_DPP2 */
+
+#ifdef CONFIG_TESTING_OPTIONS
+skip_proto_ver:
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	wpa_printf(MSG_DEBUG, "DPP: Send Peer Discovery Response to " MACSTR
 		   " status=%d", MAC2STR(src), status);
@@ -1648,6 +1669,28 @@ static void hostapd_dpp_rx_peer_disc_req(struct hostapd_data *hapd,
 		return;
 	}
 
+#ifdef CONFIG_DPP3
+	if (intro.peer_version && intro.peer_version >= 2) {
+		const u8 *version;
+		u16 version_len;
+		u8 attr_version = 1;
+
+		version = dpp_get_attr(buf, len, DPP_ATTR_PROTOCOL_VERSION,
+				       &version_len);
+		if (version && version_len >= 1)
+			attr_version = version[0];
+		if (attr_version != intro.peer_version) {
+			wpa_printf(MSG_INFO,
+				   "DPP: Protocol version mismatch (Connector: %d Attribute: %d",
+				   intro.peer_version, attr_version);
+			hostapd_dpp_send_peer_disc_resp(hapd, src, freq,
+							trans_id[0],
+							DPP_STATUS_NO_MATCH);
+			return;
+		}
+	}
+#endif /* CONFIG_DPP3 */
+
 	if (!expire || (os_time_t) hapd->conf->dpp_netaccesskey_expiry < expire)
 		expire = hapd->conf->dpp_netaccesskey_expiry;
 	if (expire)
@@ -1670,7 +1713,7 @@ static void hostapd_dpp_rx_peer_disc_req(struct hostapd_data *hapd,
 static void
 hostapd_dpp_rx_pkex_exchange_req(struct hostapd_data *hapd, const u8 *src,
 				 const u8 *buf, size_t len,
-				 unsigned int freq)
+				 unsigned int freq, bool v2)
 {
 	struct wpabuf *msg;
 
@@ -1698,7 +1741,7 @@ hostapd_dpp_rx_pkex_exchange_req(struct hostapd_data *hapd, const u8 *src,
 						  hapd->own_addr, src,
 						  hapd->dpp_pkex_identifier,
 						  hapd->dpp_pkex_code,
-						  buf, len);
+						  buf, len, v2);
 	if (!hapd->dpp_pkex) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Failed to process the request - ignore it");
@@ -1910,8 +1953,18 @@ void hostapd_dpp_rx_action(struct hostapd_data *hapd, const u8 *src,
 	case DPP_PA_PEER_DISCOVERY_REQ:
 		hostapd_dpp_rx_peer_disc_req(hapd, src, buf, len, freq);
 		break;
+#ifdef CONFIG_DPP3
 	case DPP_PA_PKEX_EXCHANGE_REQ:
-		hostapd_dpp_rx_pkex_exchange_req(hapd, src, buf, len, freq);
+		/* This is for PKEXv2, but for now, process only with
+		 * CONFIG_DPP3 to avoid issues with a capability that has not
+		 * been tested with other implementations. */
+		hostapd_dpp_rx_pkex_exchange_req(hapd, src, buf, len, freq,
+						 true);
+		break;
+#endif /* CONFIG_DPP3 */
+	case DPP_PA_PKEX_V1_EXCHANGE_REQ:
+		hostapd_dpp_rx_pkex_exchange_req(hapd, src, buf, len, freq,
+						 false);
 		break;
 	case DPP_PA_PKEX_EXCHANGE_RESP:
 		hostapd_dpp_rx_pkex_exchange_resp(hapd, src, buf, len, freq);
@@ -2118,15 +2171,16 @@ int hostapd_dpp_pkex_add(struct hostapd_data *hapd, const char *cmd)
 	if (!hapd->dpp_pkex_code)
 		return -1;
 
-	if (os_strstr(cmd, " init=1")) {
+	if (os_strstr(cmd, " init=1") || os_strstr(cmd, " init=2")) {
 		struct wpabuf *msg;
+		bool v2 = os_strstr(cmd, " init=2") != NULL;
 
 		wpa_printf(MSG_DEBUG, "DPP: Initiating PKEX");
 		dpp_pkex_free(hapd->dpp_pkex);
 		hapd->dpp_pkex = dpp_pkex_init(hapd->msg_ctx, own_bi,
 					       hapd->own_addr,
 					       hapd->dpp_pkex_identifier,
-					       hapd->dpp_pkex_code);
+					       hapd->dpp_pkex_code, v2);
 		if (!hapd->dpp_pkex)
 			return -1;
 
@@ -2134,7 +2188,8 @@ int hostapd_dpp_pkex_add(struct hostapd_data *hapd, const char *cmd)
 		/* TODO: Which channel to use? */
 		wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_TX "dst=" MACSTR
 			" freq=%u type=%d", MAC2STR(broadcast), 2437,
-			DPP_PA_PKEX_EXCHANGE_REQ);
+			v2 ? DPP_PA_PKEX_EXCHANGE_REQ :
+			DPP_PA_PKEX_V1_EXCHANGE_REQ);
 		hostapd_drv_send_action(hapd, 2437, 0, broadcast,
 					wpabuf_head(msg), wpabuf_len(msg));
 	}

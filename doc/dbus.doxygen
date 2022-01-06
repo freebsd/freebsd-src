@@ -553,6 +553,32 @@ fi.w1.wpa_supplicant1.CreateInterface.
 	<p>Abort ongoing scan operation.</p>
       </li>
       <li>
+	<h3>AddCred ( a{sv} : args ) -->  o : path</h3>
+	<p>Add an Interworking/Hotspot 2.0 credential.</p>
+	<h4>Arguments</h4>
+	<dl>
+	  <dt>a{sv} : args</dt>
+	  <dd>A dictionary with credential configuration. Dictionary entries are equivalent to entries in the "cred" block in wpa_supplicant configuration file.</dd>
+	</dl>
+	<h4>Returns</h4>
+	<dl>
+	  <dt>o : path</dt>
+	  <dd>A D-Bus path to an object representing the added credential</dd>
+	</dl>
+      </li>
+      <li>
+	<h3>RemoveCred ( o : path ) --> nothing</h3>
+	<p>Remove the specified Interworking/Hotspot 2.0 credential.</p>
+      </li>
+      <li>
+	<h3>RemoveAllCreds ( ) --> nothing</h3>
+	<p>Remove all configured Interworking/Hotspot 2.0 credentials.</p>
+      </li>
+      <li>
+	<h3>InterworkingSelect ( ) --> nothing</h3>
+	<p>Perform Interworking (Hotspot 2.0) network selection.</p>
+      </li>
+      <li>
 	<h3>EAPLogoff ( ) --> nothing</h3>
 	<p>IEEE 802.1X EAPOL state machine logoff.</p>
       </li>
@@ -1260,6 +1286,14 @@ fi.w1.wpa_supplicant1.CreateInterface.
 	  <dt>a{sv} : args</dt>
 	  <dd>A dictionary with pairs of field names and their values. Possible dictionary keys are: "addr", "dst", "bssid", "ies", "signal".</dd>
 	</dl>
+      </li>
+
+      <li>
+	<h3>InterworkingAPAdded ( o : bss, o : cred, a{sv} : args )</h3>
+      </li>
+
+      <li>
+	<h3>InterworkingSelectDone ( )</h3>
       </li>
     </ul>
 

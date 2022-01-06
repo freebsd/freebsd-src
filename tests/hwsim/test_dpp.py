@@ -126,8 +126,12 @@ def test_dpp_uri_version(dev, apdev):
     uri = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id1)
     info = dev[0].request("DPP_BOOTSTRAP_INFO %d" % id1)
     logger.info("Parsed URI info:\n" + info)
-    if "version=2" not in info.splitlines():
-        raise Exception("Unexpected version information (v2)")
+    capa = dev[0].request("GET_CAPABILITY dpp")
+    ver = 1
+    if capa.startswith("DPP="):
+        ver = int(capa[4:])
+    if "version=%d" % ver not in info.splitlines():
+        raise Exception("Unexpected version information (with indication)")
 
     dev[0].set("dpp_version_override", "1")
     id0 = dev[0].dpp_bootstrap_gen()
@@ -1877,7 +1881,7 @@ def test_dpp_auto_connect_2_conf_ver1(dev, apdev):
         dev[0].set("dpp_config_processing", "0", allow_fail=True)
 
 def run_dpp_auto_connect(dev, apdev, processing, ap_version=0, sta_version=0,
-                         sta1_version=0):
+                         sta1_version=0, stop_after_prov=False):
     check_dpp_capab(dev[0])
     check_dpp_capab(dev[1])
 
@@ -1916,6 +1920,8 @@ def run_dpp_auto_connect(dev, apdev, processing, ap_version=0, sta_version=0,
     if ev is None:
         raise Exception("DPP network profile not generated")
     id = ev.split(' ')[1]
+    if stop_after_prov:
+        return id, hapd
 
     if processing == 1:
         dev[0].select_network(id, freq=2412)
@@ -2262,6 +2268,10 @@ def test_dpp_pkex(dev, apdev):
     """DPP and PKEX"""
     run_dpp_pkex(dev, apdev)
 
+def test_dpp_pkex_v2(dev, apdev):
+    """DPP and PKEXv2"""
+    run_dpp_pkex(dev, apdev, v2=True)
+
 def test_dpp_pkex_p256(dev, apdev):
     """DPP and PKEX (P-256)"""
     run_dpp_pkex(dev, apdev, "P-256")
@@ -2315,13 +2325,14 @@ def test_dpp_pkex_identifier_mismatch3(dev, apdev):
 
 def run_dpp_pkex(dev, apdev, curve=None, init_extra=None, check_config=False,
                  identifier_i="test", identifier_r="test",
-                 expect_no_resp=False):
-    check_dpp_capab(dev[0], curve and "brainpool" in curve)
-    check_dpp_capab(dev[1], curve and "brainpool" in curve)
+                 expect_no_resp=False, v2=False):
+    min_ver = 3 if v2 else 1
+    check_dpp_capab(dev[0], curve and "brainpool" in curve, min_ver=min_ver)
+    check_dpp_capab(dev[1], curve and "brainpool" in curve, min_ver=min_ver)
     dev[0].dpp_pkex_resp(2437, identifier=identifier_r, code="secret",
                          curve=curve)
     dev[1].dpp_pkex_init(identifier=identifier_i, code="secret", curve=curve,
-                         extra=init_extra)
+                         extra=init_extra, v2=v2)
 
     if expect_no_resp:
         ev = dev[0].wait_event(["DPP-RX"], timeout=10)
@@ -2545,6 +2556,19 @@ def test_dpp_pkex_hostapd_responder(dev, apdev):
     wait_auth_success(hapd, dev[0], configurator=dev[0], enrollee=hapd,
                       stop_initiator=True)
 
+def test_dpp_pkex_v2_hostapd_responder(dev, apdev):
+    """DPP PKEXv2 with hostapd as responder"""
+    check_dpp_capab(dev[0], min_ver=3)
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd, min_ver=3)
+    hapd.dpp_pkex_resp(2437, identifier="test", code="secret")
+    conf_id = dev[0].dpp_configurator_add()
+    dev[0].dpp_pkex_init(identifier="test", code="secret",
+                         extra="conf=ap-dpp configurator=%d" % conf_id, v2=True)
+    wait_auth_success(hapd, dev[0], configurator=dev[0], enrollee=hapd,
+                      stop_initiator=True)
+
 def test_dpp_pkex_hostapd_initiator(dev, apdev):
     """DPP PKEX with hostapd as initiator"""
     check_dpp_capab(dev[0])
@@ -2557,6 +2581,22 @@ def test_dpp_pkex_hostapd_initiator(dev, apdev):
     dev[0].dpp_pkex_resp(2437, identifier="test", code="secret",
                          listen_role="configurator")
     hapd.dpp_pkex_init(identifier="test", code="secret", role="enrollee")
+    wait_auth_success(hapd, dev[0], configurator=dev[0], enrollee=hapd,
+                      stop_initiator=True)
+
+def test_dpp_pkex_v2_hostapd_initiator(dev, apdev):
+    """DPP PKEXv2 with hostapd as initiator"""
+    check_dpp_capab(dev[0], min_ver=3)
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd, min_ver=3)
+    conf_id = dev[0].dpp_configurator_add()
+    dev[0].set("dpp_configurator_params",
+               " conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].dpp_pkex_resp(2437, identifier="test", code="secret",
+                         listen_role="configurator")
+    hapd.dpp_pkex_init(identifier="test", code="secret", role="enrollee",
+                       v2=True)
     wait_auth_success(hapd, dev[0], configurator=dev[0], enrollee=hapd,
                       stop_initiator=True)
 

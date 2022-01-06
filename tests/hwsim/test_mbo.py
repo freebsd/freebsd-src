@@ -203,8 +203,8 @@ def test_mbo_assoc_disallow(dev, apdev, params):
     hapd2 = hostapd.add_ap(apdev[1], {"ssid": "MBO", "mbo": "1"})
 
     logger.debug("Set mbo_assoc_disallow with invalid value")
-    if "FAIL" not in hapd1.request("SET mbo_assoc_disallow 2"):
-        raise Exception("Set mbo_assoc_disallow for AP1 succeeded unexpectedly with value 2")
+    if "FAIL" not in hapd1.request("SET mbo_assoc_disallow 6"):
+        raise Exception("Set mbo_assoc_disallow for AP1 succeeded unexpectedly with value 6")
 
     logger.debug("Disallow associations to AP1 and allow association to AP2")
     if "OK" not in hapd1.request("SET mbo_assoc_disallow 1"):

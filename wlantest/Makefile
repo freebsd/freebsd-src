@@ -64,6 +64,7 @@ TOBJS += gcmp.o
 
 
 OBJS_cli = wlantest_cli.o
+OBJS_cli += ../src/common/cli.o
 
 _OBJS_VAR := OBJS
 include ../src/objs.mk

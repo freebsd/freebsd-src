@@ -26,7 +26,8 @@ size_t dpp_pkex_ephemeral_key_override_len = 0;
 #endif /* CONFIG_TESTING_OPTIONS */
 
 
-static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex)
+static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex,
+						   bool v2)
 {
 	struct crypto_ec *ec = NULL;
 	const struct crypto_ec_point *X;
@@ -36,10 +37,11 @@ static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex)
 	size_t attr_len;
 	const struct dpp_curve_params *curve = pkex->own_bi->curve;
 
-	wpa_printf(MSG_DEBUG, "DPP: Build PKEX Exchange Request");
+	wpa_printf(MSG_DEBUG, "DPP: Build PKEX %sExchange Request",
+		   v2 ? "" : "Version 1 ");
 
-	/* Qi = H(MAC-Initiator | [identifier |] code) * Pi */
-	Qi = dpp_pkex_derive_Qi(curve, pkex->own_mac, pkex->code,
+	/* Qi = H([MAC-Initiator |] [identifier |] code) * Pi */
+	Qi = dpp_pkex_derive_Qi(curve, v2 ? NULL : pkex->own_mac, pkex->code,
 				pkex->identifier, &ec);
 	if (!Qi)
 		goto fail;
@@ -76,12 +78,26 @@ static struct wpabuf * dpp_pkex_build_exchange_req(struct dpp_pkex *pkex)
 
 	/* Initiator -> Responder: group, [identifier,] M */
 	attr_len = 4 + 2;
+#ifdef CONFIG_DPP2
+	if (v2)
+		attr_len += 4 + 1;
+#endif /* CONFIG_DPP2 */
 	if (pkex->identifier)
 		attr_len += 4 + os_strlen(pkex->identifier);
 	attr_len += 4 + 2 * curve->prime_len;
-	msg = dpp_alloc_msg(DPP_PA_PKEX_EXCHANGE_REQ, attr_len);
+	msg = dpp_alloc_msg(v2 ? DPP_PA_PKEX_EXCHANGE_REQ :
+			    DPP_PA_PKEX_V1_EXCHANGE_REQ, attr_len);
 	if (!msg)
 		goto fail;
+
+#ifdef CONFIG_DPP2
+	if (v2) {
+		/* Protocol Version */
+		wpabuf_put_le16(msg, DPP_ATTR_PROTOCOL_VERSION);
+		wpabuf_put_le16(msg, 1);
+		wpabuf_put_u8(msg, DPP_VERSION);
+	}
+#endif /* CONFIG_DPP2 */
 
 #ifdef CONFIG_TESTING_OPTIONS
 	if (dpp_test == DPP_TEST_NO_FINITE_CYCLIC_GROUP_PKEX_EXCHANGE_REQ) {
@@ -154,8 +170,8 @@ static void dpp_pkex_fail(struct dpp_pkex *pkex, const char *txt)
 
 struct dpp_pkex * dpp_pkex_init(void *msg_ctx, struct dpp_bootstrap_info *bi,
 				const u8 *own_mac,
-				const char *identifier,
-				const char *code)
+				const char *identifier, const char *code,
+				bool v2)
 {
 	struct dpp_pkex *pkex;
 
@@ -172,6 +188,7 @@ struct dpp_pkex * dpp_pkex_init(void *msg_ctx, struct dpp_bootstrap_info *bi,
 		return NULL;
 	pkex->msg_ctx = msg_ctx;
 	pkex->initiator = 1;
+	pkex->v2 = v2;
 	pkex->own_bi = bi;
 	os_memcpy(pkex->own_mac, own_mac, ETH_ALEN);
 	if (identifier) {
@@ -182,7 +199,7 @@ struct dpp_pkex * dpp_pkex_init(void *msg_ctx, struct dpp_bootstrap_info *bi,
 	pkex->code = os_strdup(code);
 	if (!pkex->code)
 		goto fail;
-	pkex->exchange_req = dpp_pkex_build_exchange_req(pkex);
+	pkex->exchange_req = dpp_pkex_build_exchange_req(pkex, v2);
 	if (!pkex->exchange_req)
 		goto fail;
 	return pkex;
@@ -201,8 +218,13 @@ dpp_pkex_build_exchange_resp(struct dpp_pkex *pkex,
 	size_t attr_len;
 	const struct dpp_curve_params *curve = pkex->own_bi->curve;
 
-	/* Initiator -> Responder: DPP Status, [identifier,] N */
+	/* Initiator -> Responder: DPP Status, [Protocol Version,] [identifier,]
+	 * N */
 	attr_len = 4 + 1;
+#ifdef CONFIG_DPP2
+	if (pkex->v2)
+		attr_len += 4 + 1;
+#endif /* CONFIG_DPP2 */
 	if (pkex->identifier)
 		attr_len += 4 + os_strlen(pkex->identifier);
 	attr_len += 4 + 2 * curve->prime_len;
@@ -228,6 +250,15 @@ dpp_pkex_build_exchange_resp(struct dpp_pkex *pkex,
 #ifdef CONFIG_TESTING_OPTIONS
 skip_status:
 #endif /* CONFIG_TESTING_OPTIONS */
+
+#ifdef CONFIG_DPP2
+	if (pkex->v2) {
+		/* Protocol Version */
+		wpabuf_put_le16(msg, DPP_ATTR_PROTOCOL_VERSION);
+		wpabuf_put_le16(msg, 1);
+		wpabuf_put_u8(msg, DPP_VERSION);
+	}
+#endif /* CONFIG_DPP2 */
 
 	/* Code Identifier attribute */
 	if (pkex->identifier) {
@@ -310,7 +341,7 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 					   const u8 *peer_mac,
 					   const char *identifier,
 					   const char *code,
-					   const u8 *buf, size_t len)
+					   const u8 *buf, size_t len, bool v2)
 {
 	const u8 *attr_group, *attr_id, *attr_key;
 	u16 attr_group_len, attr_id_len, attr_key_len;
@@ -325,12 +356,31 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	u8 Kx[DPP_MAX_SHARED_SECRET_LEN];
 	size_t Kx_len;
 	int res;
+	u8 peer_version = 0;
 
 	if (bi->pkex_t >= PKEX_COUNTER_T_LIMIT) {
 		wpa_msg(msg_ctx, MSG_INFO, DPP_EVENT_FAIL
 			"PKEX counter t limit reached - ignore message");
 		return NULL;
 	}
+
+#ifdef CONFIG_DPP2
+	if (v2) {
+		const u8 *version;
+		u16 version_len;
+
+		version = dpp_get_attr(buf, len, DPP_ATTR_PROTOCOL_VERSION,
+				       &version_len);
+		if (!version || version_len < 1 || version[0] == 0) {
+			wpa_msg(msg_ctx, MSG_INFO,
+				"Missing or invalid Protocol Version attribute");
+			return NULL;
+		}
+		peer_version = version[0];
+		wpa_printf(MSG_DEBUG, "DPP: Peer protocol version %u",
+			   peer_version);
+	}
+#endif /* CONFIG_DPP2 */
 
 #ifdef CONFIG_TESTING_OPTIONS
 	if (!is_zero_ether_addr(dpp_pkex_peer_mac_override)) {
@@ -366,6 +416,8 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 		pkex = os_zalloc(sizeof(*pkex));
 		if (!pkex)
 			goto fail;
+		pkex->v2 = v2;
+		pkex->peer_version = peer_version;
 		pkex->own_bi = bi;
 		pkex->failed = 1;
 		pkex->exchange_resp = dpp_pkex_build_exchange_resp(
@@ -385,8 +437,9 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 		return NULL;
 	}
 
-	/* Qi = H(MAC-Initiator | [identifier |] code) * Pi */
-	Qi = dpp_pkex_derive_Qi(curve, peer_mac, code, identifier, &ec);
+	/* Qi = H([MAC-Initiator |] [identifier |] code) * Pi */
+	Qi = dpp_pkex_derive_Qi(curve, v2 ? NULL : peer_mac, code, identifier,
+				&ec);
 	if (!Qi)
 		goto fail;
 
@@ -411,6 +464,8 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	pkex = os_zalloc(sizeof(*pkex));
 	if (!pkex)
 		goto fail;
+	pkex->v2 = v2;
+	pkex->peer_version = peer_version;
 	pkex->t = bi->pkex_t;
 	pkex->msg_ctx = msg_ctx;
 	pkex->own_bi = bi;
@@ -438,8 +493,9 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	if (!pkex->x)
 		goto fail;
 
-	/* Qr = H(MAC-Responder | | [identifier | ] code) * Pr */
-	Qr = dpp_pkex_derive_Qr(curve, own_mac, code, identifier, NULL);
+	/* Qr = H([MAC-Responder |] [identifier |] code) * Pr */
+	Qr = dpp_pkex_derive_Qr(curve, v2 ? NULL : own_mac, code, identifier,
+				NULL);
 	if (!Qr)
 		goto fail;
 
@@ -487,9 +543,10 @@ struct dpp_pkex * dpp_pkex_rx_exchange_req(void *msg_ctx,
 	wpa_hexdump_key(MSG_DEBUG, "DPP: ECDH shared secret (K.x)",
 			Kx, Kx_len);
 
-	/* z = HKDF(<>, MAC-Initiator | MAC-Responder | M.x | N.x | code, K.x)
-	 */
-	res = dpp_pkex_derive_z(pkex->peer_mac, pkex->own_mac,
+	/* z = HKDF(<>, info | M.x | N.x | code, K.x) */
+	res = dpp_pkex_derive_z(pkex->v2 ? NULL : pkex->peer_mac,
+				pkex->v2 ? NULL : pkex->own_mac,
+				pkex->peer_version, DPP_VERSION,
 				pkex->Mx, curve->prime_len,
 				pkex->Nx, curve->prime_len, pkex->code,
 				Kx, Kx_len, pkex->z, curve->hash_len);
@@ -645,6 +702,7 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 	u8 Jx[DPP_MAX_SHARED_SECRET_LEN], Kx[DPP_MAX_SHARED_SECRET_LEN];
 	const u8 *addr[4];
 	size_t len[4];
+	size_t num_elem;
 	u8 u[DPP_MAX_HASH_LEN];
 	int res;
 
@@ -665,6 +723,24 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 		peer_mac = dpp_pkex_peer_mac_override;
 	}
 #endif /* CONFIG_TESTING_OPTIONS */
+
+#ifdef CONFIG_DPP2
+	if (pkex->v2) {
+		const u8 *version;
+		u16 version_len;
+
+		version = dpp_get_attr(buf, buflen, DPP_ATTR_PROTOCOL_VERSION,
+				       &version_len);
+		if (!version || version_len < 1 || version[0] == 0) {
+		dpp_pkex_fail(pkex,
+			      "Missing or invalid Protocol Version attribute");
+			return NULL;
+		}
+		pkex->peer_version = version[0];
+		wpa_printf(MSG_DEBUG, "DPP: Peer protocol version %u",
+			   pkex->peer_version);
+	}
+#endif /* CONFIG_DPP2 */
 
 	os_memcpy(pkex->peer_mac, peer_mac, ETH_ALEN);
 
@@ -710,9 +786,9 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 		return NULL;
 	}
 
-	/* Qr = H(MAC-Responder | [identifier |] code) * Pr */
-	Qr = dpp_pkex_derive_Qr(curve, pkex->peer_mac, pkex->code,
-				pkex->identifier, &ec);
+	/* Qr = H([MAC-Responder |] [identifier |] code) * Pr */
+	Qr = dpp_pkex_derive_Qr(curve, pkex->v2 ? NULL : pkex->peer_mac,
+				pkex->code, pkex->identifier, &ec);
 	if (!Qr)
 		goto fail;
 
@@ -751,21 +827,29 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 	wpa_hexdump_key(MSG_DEBUG, "DPP: ECDH shared secret (J.x)",
 			Jx, Jx_len);
 
-	/* u = HMAC(J.x, MAC-Initiator | A.x | Y'.x | X.x) */
+	/* u = HMAC(J.x, [MAC-Initiator |] A.x | Y'.x | X.x) */
 	A_pub = crypto_ec_key_get_pubkey_point(pkex->own_bi->pubkey, 0);
 	Y_pub = crypto_ec_key_get_pubkey_point(pkex->y, 0);
 	X_pub = crypto_ec_key_get_pubkey_point(pkex->x, 0);
 	if (!A_pub || !Y_pub || !X_pub)
 		goto fail;
-	addr[0] = pkex->own_mac;
-	len[0] = ETH_ALEN;
-	addr[1] = wpabuf_head(A_pub);
-	len[1] = wpabuf_len(A_pub) / 2;
-	addr[2] = wpabuf_head(Y_pub);
-	len[2] = wpabuf_len(Y_pub) / 2;
-	addr[3] = wpabuf_head(X_pub);
-	len[3] = wpabuf_len(X_pub) / 2;
-	if (dpp_hmac_vector(curve->hash_len, Jx, Jx_len, 4, addr, len, u) < 0)
+	num_elem = 0;
+	if (!pkex->v2) {
+		addr[num_elem] = pkex->own_mac;
+		len[num_elem] = ETH_ALEN;
+		num_elem++;
+	}
+	addr[num_elem] = wpabuf_head(A_pub);
+	len[num_elem] = wpabuf_len(A_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(Y_pub);
+	len[num_elem] = wpabuf_len(Y_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(X_pub);
+	len[num_elem] = wpabuf_len(X_pub) / 2;
+	num_elem++;
+	if (dpp_hmac_vector(curve->hash_len, Jx, Jx_len, num_elem, addr, len, u)
+	    < 0)
 		goto fail;
 	wpa_hexdump(MSG_DEBUG, "DPP: u", u, curve->hash_len);
 
@@ -776,9 +860,10 @@ struct wpabuf * dpp_pkex_rx_exchange_resp(struct dpp_pkex *pkex,
 	wpa_hexdump_key(MSG_DEBUG, "DPP: ECDH shared secret (K.x)",
 			Kx, Kx_len);
 
-	/* z = HKDF(<>, MAC-Initiator | MAC-Responder | M.x | N.x | code, K.x)
-	 */
-	res = dpp_pkex_derive_z(pkex->own_mac, pkex->peer_mac,
+	/* z = HKDF(<>, info | M.x | N.x | code, K.x) */
+	res = dpp_pkex_derive_z(pkex->v2 ? NULL : pkex->own_mac,
+				pkex->v2 ? NULL : pkex->peer_mac,
+				DPP_VERSION, pkex->peer_version,
 				pkex->Mx, curve->prime_len,
 				attr_key /* N.x */, attr_key_len / 2,
 				pkex->code, Kx, Kx_len,
@@ -933,6 +1018,7 @@ struct wpabuf * dpp_pkex_rx_commit_reveal_req(struct dpp_pkex *pkex,
 	u16 wrapped_data_len, b_key_len, peer_u_len = 0;
 	const u8 *addr[4];
 	size_t len[4];
+	size_t num_elem;
 	u8 octet;
 	u8 *unwrapped = NULL;
 	size_t unwrapped_len = 0;
@@ -1015,21 +1101,29 @@ struct wpabuf * dpp_pkex_rx_commit_reveal_req(struct dpp_pkex *pkex,
 	wpa_hexdump_key(MSG_DEBUG, "DPP: ECDH shared secret (J.x)",
 			Jx, Jx_len);
 
-	/* u' = HMAC(J'.x, MAC-Initiator | A'.x | Y.x | X'.x) */
+	/* u' = HMAC(J'.x, [MAC-Initiator |] A'.x | Y.x | X'.x) */
 	A_pub = crypto_ec_key_get_pubkey_point(pkex->peer_bootstrap_key, 0);
 	Y_pub = crypto_ec_key_get_pubkey_point(pkex->y, 0);
 	X_pub = crypto_ec_key_get_pubkey_point(pkex->x, 0);
 	if (!A_pub || !Y_pub || !X_pub)
 		goto fail;
-	addr[0] = pkex->peer_mac;
-	len[0] = ETH_ALEN;
-	addr[1] = wpabuf_head(A_pub);
-	len[1] = wpabuf_len(A_pub) / 2;
-	addr[2] = wpabuf_head(Y_pub);
-	len[2] = wpabuf_len(Y_pub) / 2;
-	addr[3] = wpabuf_head(X_pub);
-	len[3] = wpabuf_len(X_pub) / 2;
-	if (dpp_hmac_vector(curve->hash_len, Jx, Jx_len, 4, addr, len, u) < 0)
+	num_elem = 0;
+	if (!pkex->v2) {
+		addr[num_elem] = pkex->peer_mac;
+		len[num_elem] = ETH_ALEN;
+		num_elem++;
+	}
+	addr[num_elem] = wpabuf_head(A_pub);
+	len[num_elem] = wpabuf_len(A_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(Y_pub);
+	len[num_elem] = wpabuf_len(Y_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(X_pub);
+	len[num_elem] = wpabuf_len(X_pub) / 2;
+	num_elem++;
+	if (dpp_hmac_vector(curve->hash_len, Jx, Jx_len, num_elem, addr, len, u)
+	    < 0)
 		goto fail;
 
 	peer_u = dpp_get_attr(unwrapped, unwrapped_len, DPP_ATTR_I_AUTH_TAG,
@@ -1052,19 +1146,27 @@ struct wpabuf * dpp_pkex_rx_commit_reveal_req(struct dpp_pkex *pkex,
 	wpa_hexdump_key(MSG_DEBUG, "DPP: ECDH shared secret (L.x)",
 			Lx, Lx_len);
 
-	/* v = HMAC(L.x, MAC-Responder | B.x | X'.x | Y.x) */
+	/* v = HMAC(L.x, [MAC-Responder |] B.x | X'.x | Y.x) */
 	B_pub = crypto_ec_key_get_pubkey_point(pkex->own_bi->pubkey, 0);
 	if (!B_pub)
 		goto fail;
-	addr[0] = pkex->own_mac;
-	len[0] = ETH_ALEN;
-	addr[1] = wpabuf_head(B_pub);
-	len[1] = wpabuf_len(B_pub) / 2;
-	addr[2] = wpabuf_head(X_pub);
-	len[2] = wpabuf_len(X_pub) / 2;
-	addr[3] = wpabuf_head(Y_pub);
-	len[3] = wpabuf_len(Y_pub) / 2;
-	if (dpp_hmac_vector(curve->hash_len, Lx, Lx_len, 4, addr, len, v) < 0)
+	num_elem = 0;
+	if (!pkex->v2) {
+		addr[num_elem] = pkex->own_mac;
+		len[num_elem] = ETH_ALEN;
+		num_elem++;
+	}
+	addr[num_elem] = wpabuf_head(B_pub);
+	len[num_elem] = wpabuf_len(B_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(X_pub);
+	len[num_elem] = wpabuf_len(X_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(Y_pub);
+	len[num_elem] = wpabuf_len(Y_pub) / 2;
+	num_elem++;
+	if (dpp_hmac_vector(curve->hash_len, Lx, Lx_len, num_elem, addr, len, v)
+	    < 0)
 		goto fail;
 	wpa_hexdump(MSG_DEBUG, "DPP: v", v, curve->hash_len);
 
@@ -1094,6 +1196,7 @@ int dpp_pkex_rx_commit_reveal_resp(struct dpp_pkex *pkex, const u8 *hdr,
 	u16 wrapped_data_len, b_key_len, peer_v_len = 0;
 	const u8 *addr[4];
 	size_t len[4];
+	size_t num_elem;
 	u8 octet;
 	u8 *unwrapped = NULL;
 	size_t unwrapped_len = 0;
@@ -1177,21 +1280,29 @@ int dpp_pkex_rx_commit_reveal_resp(struct dpp_pkex *pkex, const u8 *hdr,
 	wpa_hexdump_key(MSG_DEBUG, "DPP: ECDH shared secret (L.x)",
 			Lx, Lx_len);
 
-	/* v' = HMAC(L.x, MAC-Responder | B'.x | X.x | Y'.x) */
+	/* v' = HMAC(L.x, [MAC-Responder |] B'.x | X.x | Y'.x) */
 	B_pub = crypto_ec_key_get_pubkey_point(pkex->peer_bootstrap_key, 0);
 	X_pub = crypto_ec_key_get_pubkey_point(pkex->x, 0);
 	Y_pub = crypto_ec_key_get_pubkey_point(pkex->y, 0);
 	if (!B_pub || !X_pub || !Y_pub)
 		goto fail;
-	addr[0] = pkex->peer_mac;
-	len[0] = ETH_ALEN;
-	addr[1] = wpabuf_head(B_pub);
-	len[1] = wpabuf_len(B_pub) / 2;
-	addr[2] = wpabuf_head(X_pub);
-	len[2] = wpabuf_len(X_pub) / 2;
-	addr[3] = wpabuf_head(Y_pub);
-	len[3] = wpabuf_len(Y_pub) / 2;
-	if (dpp_hmac_vector(curve->hash_len, Lx, Lx_len, 4, addr, len, v) < 0)
+	num_elem = 0;
+	if (!pkex->v2) {
+		addr[num_elem] = pkex->peer_mac;
+		len[num_elem] = ETH_ALEN;
+		num_elem++;
+	}
+	addr[num_elem] = wpabuf_head(B_pub);
+	len[num_elem] = wpabuf_len(B_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(X_pub);
+	len[num_elem] = wpabuf_len(X_pub) / 2;
+	num_elem++;
+	addr[num_elem] = wpabuf_head(Y_pub);
+	len[num_elem] = wpabuf_len(Y_pub) / 2;
+	num_elem++;
+	if (dpp_hmac_vector(curve->hash_len, Lx, Lx_len, num_elem, addr, len, v)
+	    < 0)
 		goto fail;
 
 	peer_v = dpp_get_attr(unwrapped, unwrapped_len, DPP_ATTR_R_AUTH_TAG,

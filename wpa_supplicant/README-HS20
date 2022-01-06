@@ -286,6 +286,12 @@ Credentials can be pre-configured for automatic network selection:
 #
 # sim_num: Identifier for which SIM to use in multi-SIM devices
 #
+# engine: Whether to use an engine for private key operations (0/1)
+# engine_id: String identifying the engine to use
+# ca_cert_id: The CA certificate identifier when using an engine
+# cert_id: The certificate identifier when using an engine
+# key_id: The private key identifier when using an engine
+#
 # for example:
 #
 #cred={

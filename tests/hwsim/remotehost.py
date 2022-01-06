@@ -24,7 +24,7 @@ def execute_thread(command, reply):
     err = tempfile.TemporaryFile()
     try:
         status = 0
-        buf = subprocess.check_output(command, stderr=err).decode()
+        buf = subprocess.check_output(command, stderr=err, bufsize=0).decode()
     except subprocess.CalledProcessError as e:
         status = e.returncode
         err.seek(0)
@@ -181,7 +181,8 @@ class Host():
         _cmd = self.name + " proc_run: " + ' '.join(cmd)
         logger.debug(_cmd)
         err = tempfile.TemporaryFile()
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=err,
+                                bufsize=0)
         proc.reaper_file = filename
         return proc
 
