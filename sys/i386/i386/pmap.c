@@ -619,7 +619,7 @@ static void
 __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 {
 	vm_offset_t va;
-	pt_entry_t *pte, *unused;
+	pt_entry_t *pte, *unused __unused;
 	struct pcpu *pc;
 	u_long res;
 	int i;
@@ -3493,7 +3493,7 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
-	vm_offset_t oldpteva;
+	vm_offset_t oldpteva __diagused;
 	vm_page_t mpte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -6252,7 +6252,6 @@ __CONCAT(PMTYPE, sysctl_kmaps)(SYSCTL_HANDLER_ARGS)
 	pd_entry_t pde;
 	pt_entry_t *pt, pte;
 	vm_offset_t sva;
-	vm_paddr_t pa;
 	int error;
 	u_int i, k;
 
@@ -6289,7 +6288,6 @@ __CONCAT(PMTYPE, sysctl_kmaps)(SYSCTL_HANDLER_ARGS)
 			i += NPTEPG;
 			continue;
 		}
-		pa = pde & PG_FRAME;
 		if ((pde & PG_PS) != 0) {
 			sysctl_kmaps_check(sb, &range, sva, pde, 0);
 			range.pdes++;
