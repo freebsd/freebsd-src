@@ -744,6 +744,7 @@ tsc_calibrate(void)
 	freq_khz = tc->tc_frequency * (tsc_end - tsc_start) / (t_end - t_start);
 
 	tsc_update_freq(freq_khz);
+calibrated:
 	tc_init(&tsc_timecounter);
 	set_cputicker(rdtsc, tsc_freq, !tsc_is_invariant);
 }
