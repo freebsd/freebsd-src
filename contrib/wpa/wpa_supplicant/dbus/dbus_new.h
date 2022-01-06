@@ -16,6 +16,8 @@
 struct wpa_global;
 struct wpa_supplicant;
 struct wpa_ssid;
+struct wpa_cred;
+struct wpa_bss;
 struct wps_event_m2d;
 struct wps_event_fail;
 struct wps_credential;
@@ -95,6 +97,9 @@ enum wpas_dbus_sta_prop {
 
 #define WPAS_DBUS_NEW_P2P_PEERS_PART	"Peers"
 #define	WPAS_DBUS_NEW_IFACE_P2P_PEER WPAS_DBUS_NEW_INTERFACE ".Peer"
+
+#define WPAS_DBUS_NEW_CREDENTIALS_PART "Credentials"
+#define WPAS_DBUS_NEW_IFACE_CREDENTIAL WPAS_DBUS_NEW_INTERFACE ".Credential"
 
 /* Top-level Errors */
 #define WPAS_DBUS_ERROR_UNKNOWN_ERROR \
@@ -264,6 +269,13 @@ void wpas_dbus_signal_mesh_peer_connected(struct wpa_supplicant *wpa_s,
 					  const u8 *peer_addr);
 void wpas_dbus_signal_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 					     const u8 *peer_addr, int reason);
+void wpas_dbus_signal_interworking_ap_added(struct wpa_supplicant *wpa_s,
+					    struct wpa_bss *bss,
+					    struct wpa_cred *cred,
+					    const char *type, int excluded,
+					    int bh, int bss_load,
+					    int conn_capab);
+void wpas_dbus_signal_interworking_select_done(struct wpa_supplicant *wpa_s);
 
 #else /* CONFIG_CTRL_IFACE_DBUS_NEW */
 
@@ -613,6 +625,21 @@ void wpas_dbus_signal_mesh_peer_connected(struct wpa_supplicant *wpa_s,
 static inline
 void wpas_dbus_signal_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 					     const u8 *peer_addr, int reason)
+{
+}
+
+static inline
+void wpas_dbus_signal_interworking_ap_added(struct wpa_supplicant *wpa_s,
+					    struct wpa_bss *bss,
+					    struct wpa_cred *cred,
+					    const char *type, int excluded,
+					    int bh, int bss_load,
+					    int conn_capab)
+{
+}
+
+static inline
+void wpas_dbus_signal_interworking_select_done(struct wpa_supplicant *wpa_s)
 {
 }
 

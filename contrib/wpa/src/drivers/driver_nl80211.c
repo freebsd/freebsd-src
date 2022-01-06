@@ -10475,6 +10475,9 @@ static int nl80211_put_mesh_config(struct nl_msg *msg,
 	if (((params->flags & WPA_DRIVER_MESH_CONF_FLAG_AUTO_PLINKS) &&
 	     nla_put_u8(msg, NL80211_MESHCONF_AUTO_OPEN_PLINKS,
 			params->auto_plinks)) ||
+	    ((params->flags & WPA_DRIVER_MESH_CONF_FLAG_FORWARDING) &&
+	     nla_put_u8(msg, NL80211_MESHCONF_FORWARDING,
+			params->forwarding)) ||
 	    ((params->flags & WPA_DRIVER_MESH_CONF_FLAG_MAX_PEER_LINKS) &&
 	     nla_put_u16(msg, NL80211_MESHCONF_MAX_PEER_LINKS,
 			 params->max_peer_links)) ||

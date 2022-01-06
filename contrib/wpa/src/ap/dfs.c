@@ -246,6 +246,9 @@ static int dfs_find_channel(struct hostapd_iface *iface,
 			continue;
 		}
 
+		if (chan->max_tx_power < iface->conf->min_tx_power)
+			continue;
+
 		if (ret_chan && idx == channel_idx) {
 			wpa_printf(MSG_DEBUG, "Selected channel %d (%d)",
 				   chan->freq, chan->chan);

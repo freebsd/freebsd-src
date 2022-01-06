@@ -957,6 +957,12 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
 	hapd->iconf->ch_switch_vht_config = 0;
 	hapd->iconf->ch_switch_he_config = 0;
 
+	if (width == CHAN_WIDTH_40 || width == CHAN_WIDTH_80 ||
+	    width == CHAN_WIDTH_80P80 || width == CHAN_WIDTH_160)
+		hapd->iconf->ht_capab |= HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET;
+	else if (width == CHAN_WIDTH_20 || width == CHAN_WIDTH_20_NOHT)
+		hapd->iconf->ht_capab &= ~HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET;
+
 	hapd->iconf->secondary_channel = offset;
 	hostapd_set_oper_chwidth(hapd->iconf, chwidth);
 	hostapd_set_oper_centr_freq_seg0_idx(hapd->iconf, seg0_idx);

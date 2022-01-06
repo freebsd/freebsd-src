@@ -1021,6 +1021,7 @@ void wpas_dpp_listen_stop(struct wpa_supplicant *wpa_s)
 	wpa_drv_dpp_listen(wpa_s, false);
 	wpa_s->dpp_listen_freq = 0;
 	wpas_dpp_listen_work_done(wpa_s);
+	radio_remove_works(wpa_s, "dpp-listen", 0);
 }
 
 
@@ -2462,6 +2463,16 @@ static void wpas_dpp_rx_peer_disc_resp(struct wpa_supplicant *wpa_s,
 			       &version_len);
 	if (version && version_len >= 1)
 		peer_version = version[0];
+#ifdef CONFIG_DPP3
+	if (intro.peer_version && intro.peer_version >= 2 &&
+	    peer_version != intro.peer_version) {
+		wpa_printf(MSG_INFO,
+			   "DPP: Protocol version mismatch (Connector: %d Attribute: %d",
+			   intro.peer_version, peer_version);
+		wpas_dpp_send_conn_status_result(wpa_s, DPP_STATUS_NO_MATCH);
+		goto fail;
+	}
+#endif /* CONFIG_DPP3 */
 	entry->dpp_pfs = peer_version >= 2;
 #endif /* CONFIG_DPP2 */
 	if (expiry) {
@@ -2568,7 +2579,9 @@ static void wpas_dpp_pkex_retry_timeout(void *eloop_ctx, void *timeout_ctx)
 	wpa_printf(MSG_DEBUG, "DPP: Retransmit PKEX Exchange Request (try %u)",
 		   pkex->exch_req_tries);
 	wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_TX "dst=" MACSTR " freq=%u type=%d",
-		MAC2STR(broadcast), pkex->freq, DPP_PA_PKEX_EXCHANGE_REQ);
+		MAC2STR(broadcast), pkex->freq,
+		pkex->v2 ? DPP_PA_PKEX_EXCHANGE_REQ :
+		DPP_PA_PKEX_V1_EXCHANGE_REQ);
 	offchannel_send_action(wpa_s, pkex->freq, broadcast,
 			       wpa_s->own_addr, broadcast,
 			       wpabuf_head(pkex->exchange_req),
@@ -2627,7 +2640,8 @@ wpas_dpp_tx_pkex_status(struct wpa_supplicant *wpa_s,
 
 static void
 wpas_dpp_rx_pkex_exchange_req(struct wpa_supplicant *wpa_s, const u8 *src,
-			      const u8 *buf, size_t len, unsigned int freq)
+			      const u8 *buf, size_t len, unsigned int freq,
+			      bool v2)
 {
 	struct wpabuf *msg;
 	unsigned int wait_time;
@@ -2655,7 +2669,7 @@ wpas_dpp_rx_pkex_exchange_req(struct wpa_supplicant *wpa_s, const u8 *src,
 						   wpa_s->own_addr, src,
 						   wpa_s->dpp_pkex_identifier,
 						   wpa_s->dpp_pkex_code,
-						   buf, len);
+						   buf, len, v2);
 	if (!wpa_s->dpp_pkex) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Failed to process the request - ignore it");
@@ -2878,8 +2892,17 @@ void wpas_dpp_rx_action(struct wpa_supplicant *wpa_s, const u8 *src,
 	case DPP_PA_PEER_DISCOVERY_RESP:
 		wpas_dpp_rx_peer_disc_resp(wpa_s, src, buf, len);
 		break;
+#ifdef CONFIG_DPP3
 	case DPP_PA_PKEX_EXCHANGE_REQ:
-		wpas_dpp_rx_pkex_exchange_req(wpa_s, src, buf, len, freq);
+		/* This is for PKEXv2, but for now, process only with
+		 * CONFIG_DPP3 to avoid issues with a capability that has not
+		 * been tested with other implementations. */
+		wpas_dpp_rx_pkex_exchange_req(wpa_s, src, buf, len, freq, true);
+		break;
+#endif /* CONFIG_DPP3 */
+	case DPP_PA_PKEX_V1_EXCHANGE_REQ:
+		wpas_dpp_rx_pkex_exchange_req(wpa_s, src, buf, len, freq,
+					      false);
 		break;
 	case DPP_PA_PKEX_EXCHANGE_RESP:
 		wpas_dpp_rx_pkex_exchange_resp(wpa_s, src, buf, len, freq);
@@ -3192,16 +3215,37 @@ skip_trans_id:
 
 #ifdef CONFIG_TESTING_OPTIONS
 skip_connector:
+	if (dpp_test == DPP_TEST_NO_PROTOCOL_VERSION_PEER_DISC_REQ) {
+		wpa_printf(MSG_INFO, "DPP: TESTING - no Protocol Version");
+		goto skip_proto_ver;
+	}
 #endif /* CONFIG_TESTING_OPTIONS */
 
 #ifdef CONFIG_DPP2
 	if (DPP_VERSION > 1) {
+		u8 ver = DPP_VERSION;
+#ifdef CONFIG_DPP3
+		int conn_ver;
+
+		conn_ver = dpp_get_connector_version(ssid->dpp_connector);
+		if (conn_ver > 0 && ver != conn_ver) {
+			wpa_printf(MSG_DEBUG,
+				   "DPP: Use Connector version %d instead of current protocol version %d",
+				   conn_ver, ver);
+			ver = conn_ver;
+		}
+#endif /* CONFIG_DPP3 */
+
 		/* Protocol Version */
 		wpabuf_put_le16(msg, DPP_ATTR_PROTOCOL_VERSION);
 		wpabuf_put_le16(msg, 1);
-		wpabuf_put_u8(msg, DPP_VERSION);
+		wpabuf_put_u8(msg, ver);
 	}
 #endif /* CONFIG_DPP2 */
+
+#ifdef CONFIG_TESTING_OPTIONS
+skip_proto_ver:
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	/* TODO: Timeout on AP response */
 	wait_time = wpa_s->max_remain_on_chan;
@@ -3270,15 +3314,16 @@ int wpas_dpp_pkex_add(struct wpa_supplicant *wpa_s, const char *cmd)
 	if (!wpa_s->dpp_pkex_code)
 		return -1;
 
-	if (os_strstr(cmd, " init=1")) {
+	if (os_strstr(cmd, " init=1") || os_strstr(cmd, " init=2")) {
 		struct dpp_pkex *pkex;
 		struct wpabuf *msg;
+		bool v2 = os_strstr(cmd, " init=2") != NULL;
 
 		wpa_printf(MSG_DEBUG, "DPP: Initiating PKEX");
 		dpp_pkex_free(wpa_s->dpp_pkex);
 		wpa_s->dpp_pkex = dpp_pkex_init(wpa_s, own_bi, wpa_s->own_addr,
 						wpa_s->dpp_pkex_identifier,
-						wpa_s->dpp_pkex_code);
+						wpa_s->dpp_pkex_code, v2);
 		pkex = wpa_s->dpp_pkex;
 		if (!pkex)
 			return -1;
@@ -3291,7 +3336,8 @@ int wpas_dpp_pkex_add(struct wpa_supplicant *wpa_s, const char *cmd)
 		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_TX "dst=" MACSTR
 			" freq=%u type=%d",
 			MAC2STR(broadcast), pkex->freq,
-			DPP_PA_PKEX_EXCHANGE_REQ);
+			v2 ? DPP_PA_PKEX_EXCHANGE_REQ :
+			DPP_PA_PKEX_V1_EXCHANGE_REQ);
 		offchannel_send_action(wpa_s, pkex->freq, broadcast,
 				       wpa_s->own_addr, broadcast,
 				       wpabuf_head(msg), wpabuf_len(msg),

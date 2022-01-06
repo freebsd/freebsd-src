@@ -1447,12 +1447,15 @@ dpp_pkex_derive_Qi(const struct dpp_curve_params *curve, const u8 *mac_init,
 	struct crypto_bignum *hash_bn = NULL;
 	struct crypto_ec *ec = NULL;
 
-	/* Qi = H(MAC-Initiator | [identifier |] code) * Pi */
+	/* Qi = H([MAC-Initiator |] [identifier |] code) * Pi */
 
-	wpa_printf(MSG_DEBUG, "DPP: MAC-Initiator: " MACSTR, MAC2STR(mac_init));
-	addr[num_elem] = mac_init;
-	len[num_elem] = ETH_ALEN;
-	num_elem++;
+	if (mac_init) {
+		wpa_printf(MSG_DEBUG, "DPP: MAC-Initiator: " MACSTR,
+			   MAC2STR(mac_init));
+		addr[num_elem] = mac_init;
+		len[num_elem] = ETH_ALEN;
+		num_elem++;
+	}
 	if (identifier) {
 		wpa_printf(MSG_DEBUG, "DPP: code identifier: %s",
 			   identifier);
@@ -1467,7 +1470,7 @@ dpp_pkex_derive_Qi(const struct dpp_curve_params *curve, const u8 *mac_init,
 	if (dpp_hash_vector(curve, num_elem, addr, len, hash) < 0)
 		goto fail;
 	wpa_hexdump_key(MSG_DEBUG,
-			"DPP: H(MAC-Initiator | [identifier |] code)",
+			"DPP: H([MAC-Initiator |] [identifier |] code)",
 			hash, curve->hash_len);
 	Pi_key = dpp_pkex_get_role_elem(curve, 1);
 	if (!Pi_key)
@@ -1519,12 +1522,15 @@ dpp_pkex_derive_Qr(const struct dpp_curve_params *curve, const u8 *mac_resp,
 	struct crypto_bignum *hash_bn = NULL;
 	struct crypto_ec *ec = NULL;
 
-	/* Qr = H(MAC-Responder | | [identifier | ] code) * Pr */
+	/* Qr = H([MAC-Responder |] [identifier |] code) * Pr */
 
-	wpa_printf(MSG_DEBUG, "DPP: MAC-Responder: " MACSTR, MAC2STR(mac_resp));
-	addr[num_elem] = mac_resp;
-	len[num_elem] = ETH_ALEN;
-	num_elem++;
+	if (mac_resp) {
+		wpa_printf(MSG_DEBUG, "DPP: MAC-Responder: " MACSTR,
+			   MAC2STR(mac_resp));
+		addr[num_elem] = mac_resp;
+		len[num_elem] = ETH_ALEN;
+		num_elem++;
+	}
 	if (identifier) {
 		wpa_printf(MSG_DEBUG, "DPP: code identifier: %s",
 			   identifier);
@@ -1539,7 +1545,7 @@ dpp_pkex_derive_Qr(const struct dpp_curve_params *curve, const u8 *mac_resp,
 	if (dpp_hash_vector(curve, num_elem, addr, len, hash) < 0)
 		goto fail;
 	wpa_hexdump_key(MSG_DEBUG,
-			"DPP: H(MAC-Responder | [identifier |] code)",
+			"DPP: H([MAC-Responder |] [identifier |] code)",
 			hash, curve->hash_len);
 	Pr_key = dpp_pkex_get_role_elem(curve, 0);
 	if (!Pr_key)
@@ -1578,6 +1584,7 @@ fail:
 
 
 int dpp_pkex_derive_z(const u8 *mac_init, const u8 *mac_resp,
+		      u8 ver_init, u8 ver_resp,
 		      const u8 *Mx, size_t Mx_len,
 		      const u8 *Nx, size_t Nx_len,
 		      const char *code,
@@ -1589,7 +1596,10 @@ int dpp_pkex_derive_z(const u8 *mac_init, const u8 *mac_resp,
 	u8 *info, *pos;
 	size_t info_len;
 
-	/* z = HKDF(<>, MAC-Initiator | MAC-Responder | M.x | N.x | code, K.x)
+	/*
+	 * v1: info = MAC-Initiator | MAC-Responder
+	 * v2: info = Protocol Version-Initiator | Protocol Version-Responder
+	 * z = HKDF(<>, info | M.x | N.x | code, K.x)
 	 */
 
 	/* HKDF-Extract(<>, IKM=K.x) */
@@ -1598,15 +1608,24 @@ int dpp_pkex_derive_z(const u8 *mac_init, const u8 *mac_resp,
 		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "DPP: PRK = HKDF-Extract(<>, IKM)",
 			prk, hash_len);
-	info_len = 2 * ETH_ALEN + Mx_len + Nx_len + os_strlen(code);
+	if (mac_init && mac_resp)
+		info_len = 2 * ETH_ALEN;
+	else
+		info_len = 2;
+	info_len += Mx_len + Nx_len + os_strlen(code);
 	info = os_malloc(info_len);
 	if (!info)
 		return -1;
 	pos = info;
-	os_memcpy(pos, mac_init, ETH_ALEN);
-	pos += ETH_ALEN;
-	os_memcpy(pos, mac_resp, ETH_ALEN);
-	pos += ETH_ALEN;
+	if (mac_init && mac_resp) {
+		os_memcpy(pos, mac_init, ETH_ALEN);
+		pos += ETH_ALEN;
+		os_memcpy(pos, mac_resp, ETH_ALEN);
+		pos += ETH_ALEN;
+	} else {
+		*pos++ = ver_init;
+		*pos++ = ver_resp;
+	}
 	os_memcpy(pos, Mx, Mx_len);
 	pos += Mx_len;
 	os_memcpy(pos, Nx, Nx_len);

@@ -26,6 +26,7 @@
 #include "../scan.h"
 #include "../autoscan.h"
 #include "../ap.h"
+#include "../interworking.h"
 #include "dbus_new_helpers.h"
 #include "dbus_new.h"
 #include "dbus_new_handlers.h"
@@ -148,6 +149,9 @@ static const char * const dont_quote[] = {
 #ifdef CONFIG_P2P
 	"go_p2p_dev_addr", "p2p_client_list", "psk_list",
 #endif /* CONFIG_P2P */
+#ifdef CONFIG_INTERWORKING
+	"roaming_consortium", "required_roaming_consortium",
+#endif /* CONFIG_INTERWORKING */
 	NULL
 };
 
@@ -312,6 +316,110 @@ dbus_bool_t set_network_properties(struct wpa_supplicant *wpa_s,
 			wpa_config_update_prio_list(wpa_s->conf);
 
 	skip_update:
+		os_free(value);
+		value = NULL;
+		wpa_dbus_dict_entry_clear(&entry);
+	}
+
+	return TRUE;
+
+error:
+	os_free(value);
+	wpa_dbus_dict_entry_clear(&entry);
+	dbus_set_error_const(error, DBUS_ERROR_INVALID_ARGS,
+			     "invalid message format");
+	return FALSE;
+}
+
+
+/**
+ * set_cred_properties - Set the properties of a configured credential
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * @cred: wpa_cred structure for a configured credential
+ * @iter: DBus message iterator containing dictionary of network
+ * properties to set.
+ * @error: On failure, an error describing the failure
+ * Returns: TRUE if the request succeeds, FALSE if it failed
+ */
+static dbus_bool_t set_cred_properties(struct wpa_supplicant *wpa_s,
+				       struct wpa_cred *cred,
+				       DBusMessageIter *iter,
+				       DBusError *error)
+{
+	struct wpa_dbus_dict_entry entry = { .type = DBUS_TYPE_STRING };
+	DBusMessageIter	iter_dict;
+	char *value = NULL;
+
+	if (!wpa_dbus_dict_open_read(iter, &iter_dict, error))
+		return FALSE;
+
+	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
+		size_t size = 50;
+		int ret;
+
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
+			goto error;
+
+		value = NULL;
+		if (entry.type == DBUS_TYPE_ARRAY &&
+		    entry.array_type == DBUS_TYPE_BYTE) {
+			if (entry.array_len <= 0)
+				goto error;
+
+			size = entry.array_len * 2 + 1;
+			value = os_zalloc(size);
+			if (!value)
+				goto error;
+
+			ret = wpa_snprintf_hex(value, size,
+					       (u8 *) entry.bytearray_value,
+					       entry.array_len);
+			if (ret <= 0)
+				goto error;
+		} else if (entry.type == DBUS_TYPE_STRING) {
+			if (should_quote_opt(entry.key)) {
+				size = os_strlen(entry.str_value);
+
+				size += 3;
+				value = os_zalloc(size);
+				if (!value)
+					goto error;
+
+				ret = os_snprintf(value, size, "\"%s\"",
+						  entry.str_value);
+				if (os_snprintf_error(size, ret))
+					goto error;
+			} else {
+				value = os_strdup(entry.str_value);
+				if (!value)
+					goto error;
+			}
+		} else if (entry.type == DBUS_TYPE_UINT32) {
+			value = os_zalloc(size);
+			if (!value)
+				goto error;
+
+			ret = os_snprintf(value, size, "%u",
+					  entry.uint32_value);
+			if (os_snprintf_error(size, ret))
+				goto error;
+		} else if (entry.type == DBUS_TYPE_INT32) {
+			value = os_zalloc(size);
+			if (!value)
+				goto error;
+
+			ret = os_snprintf(value, size, "%d",
+					  entry.int32_value);
+			if (os_snprintf_error(size, ret))
+				goto error;
+		} else {
+			goto error;
+		}
+
+		ret = wpa_config_set_cred(cred, entry.key, value, 0);
+		if (ret < 0)
+			goto error;
+
 		os_free(value);
 		value = NULL;
 		wpa_dbus_dict_entry_clear(&entry);
@@ -1512,6 +1620,185 @@ DBusMessage * wpas_dbus_handler_abort_scan(DBusMessage *message,
 			"Abort failed or no scan in progress");
 
 	return NULL;
+}
+
+
+/**
+ * wpas_dbus_new_iface_add_cred - Add a new credential
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: A dbus message containing the object path of the new credential
+ *
+ * Handler function for "AddCred" method call of a network interface.
+ */
+DBusMessage * wpas_dbus_handler_add_cred(DBusMessage *message,
+					 struct wpa_supplicant *wpa_s)
+{
+	DBusMessage *reply = NULL;
+	DBusMessageIter	iter;
+	struct wpa_cred *cred = NULL;
+	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
+	DBusError error;
+
+	dbus_message_iter_init(message, &iter);
+
+	if (wpa_s->dbus_new_path)
+		cred = wpa_config_add_cred(wpa_s->conf);
+	if (!cred) {
+		wpa_printf(MSG_ERROR, "%s[dbus]: can't add new credential.",
+			   __func__);
+		reply = wpas_dbus_error_unknown_error(
+			message,
+			"wpa_supplicant could not add a credential on this interface.");
+		goto err;
+	}
+
+	dbus_error_init(&error);
+	if (!set_cred_properties(wpa_s, cred, &iter, &error)) {
+		wpa_printf(MSG_DEBUG,
+			   "%s[dbus]: control interface couldn't set credential properties",
+			   __func__);
+		reply = wpas_dbus_reply_new_from_error(message, &error,
+						       DBUS_ERROR_INVALID_ARGS,
+						       "Failed to add credential");
+		dbus_error_free(&error);
+		goto err;
+	}
+
+	/* Construct the object path for this network. */
+	os_snprintf(path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_CREDENTIALS_PART "/%d",
+		    wpa_s->dbus_new_path, cred->id);
+
+	reply = dbus_message_new_method_return(message);
+	if (!reply) {
+		reply = wpas_dbus_error_no_memory(message);
+		goto err;
+	}
+	if (!dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &path,
+				      DBUS_TYPE_INVALID)) {
+		dbus_message_unref(reply);
+		reply = wpas_dbus_error_no_memory(message);
+		goto err;
+	}
+
+	return reply;
+
+err:
+	if (cred)
+		wpa_config_remove_cred(wpa_s->conf, cred->id);
+	return reply;
+}
+
+
+/**
+ * wpas_dbus_handler_remove_cred - Remove a configured credential
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL on success or dbus error on failure
+ *
+ * Handler function for "RemoveCred" method call of a network interface.
+ */
+DBusMessage * wpas_dbus_handler_remove_cred(DBusMessage *message,
+					    struct wpa_supplicant *wpa_s)
+{
+	DBusMessage *reply = NULL;
+	const char *op;
+	char *iface, *cred_id;
+	int id;
+	struct wpa_cred *cred;
+
+	dbus_message_get_args(message, NULL, DBUS_TYPE_OBJECT_PATH, &op,
+			      DBUS_TYPE_INVALID);
+
+	/* Extract the network ID and ensure the network is actually a child of
+	 * this interface */
+	iface = wpas_dbus_new_decompose_object_path(
+		op, WPAS_DBUS_NEW_CREDENTIALS_PART, &cred_id);
+	if (!iface || !cred_id || !wpa_s->dbus_new_path ||
+	    os_strcmp(iface, wpa_s->dbus_new_path) != 0) {
+		reply = wpas_dbus_error_invalid_args(message, op);
+		goto out;
+	}
+
+	errno = 0;
+	id = strtoul(cred_id, NULL, 10);
+	if (errno != 0) {
+		reply = wpas_dbus_error_invalid_args(message, op);
+		goto out;
+	}
+
+	cred = wpa_config_get_cred(wpa_s->conf, id);
+	if (!cred) {
+		wpa_printf(MSG_ERROR, "%s[dbus]: could not find credential %s",
+			   __func__, op);
+		reply = wpas_dbus_error_invalid_args(
+			message, "could not find credential");
+		goto out;
+	}
+
+	if (wpas_remove_cred(wpa_s, cred) < 0) {
+		wpa_printf(MSG_ERROR,
+			   "%s[dbus]: error occurred when removing cred %d",
+			   __func__, id);
+		reply = wpas_dbus_error_unknown_error(
+			message,
+			"error removing the specified credential on its interface.");
+		goto out;
+	}
+
+out:
+	os_free(iface);
+	return reply;
+}
+
+
+/**
+ * wpas_dbus_handler_remove_all_creds - Remove all the configured credentials
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL indicating success or DBus error message on failure
+ *
+ * Handler function for "RemoveAllCreds" method call of a network interface.
+ */
+DBusMessage * wpas_dbus_handler_remove_all_creds(DBusMessage *message,
+						 struct wpa_supplicant *wpa_s)
+{
+	int res;
+	DBusMessage *reply = NULL;
+
+	res = wpas_remove_all_creds(wpa_s);
+	if (res < 0) {
+		wpa_printf(MSG_ERROR,
+			   "%s[dbus]: failed to remove all credentials",
+			   __func__);
+		reply = wpas_dbus_error_unknown_error(
+			message, "failed to remove all credentials");
+	}
+
+	return reply;
+}
+
+
+DBusMessage *
+wpas_dbus_handler_interworking_select(DBusMessage *message,
+				      struct wpa_supplicant *wpa_s)
+{
+	int result;
+	DBusMessage *reply = NULL;
+
+	/* Automatic selection is disabled and no constraint on channels */
+	result = interworking_select(wpa_s, 0, NULL);
+	if (result < 0) {
+		wpa_printf(MSG_ERROR,
+			   "%s[dbus]: failed to start Interworking selection",
+			   __func__);
+		reply = wpas_dbus_error_scan_error(
+			message,
+			"error starting Interworking selection.");
+	}
+
+	return reply;
 }
 
 

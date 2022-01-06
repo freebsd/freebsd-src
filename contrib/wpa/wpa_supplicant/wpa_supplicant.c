@@ -4513,6 +4513,82 @@ void wpa_supplicant_select_network(struct wpa_supplicant *wpa_s,
 
 
 /**
+ * wpas_remove_cred - Remove the specified credential and all the network
+ * entries created based on the removed credential
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * @cred: The credential to remove
+ * Returns: 0 on success, -1 on failure
+ */
+int wpas_remove_cred(struct wpa_supplicant *wpa_s, struct wpa_cred *cred)
+{
+	struct wpa_ssid *ssid, *next;
+	int id;
+
+	if (!cred) {
+		wpa_printf(MSG_DEBUG, "Could not find cred");
+		return -1;
+	}
+
+	id = cred->id;
+	if (wpa_config_remove_cred(wpa_s->conf, id) < 0) {
+		wpa_printf(MSG_DEBUG, "Could not find cred %d", id);
+		return -1;
+	}
+
+	wpa_msg(wpa_s, MSG_INFO, CRED_REMOVED "%d", id);
+
+	/* Remove any network entry created based on the removed credential */
+	ssid = wpa_s->conf->ssid;
+	while (ssid) {
+		next = ssid->next;
+
+		if (ssid->parent_cred == cred) {
+			wpa_printf(MSG_DEBUG,
+				   "Remove network id %d since it used the removed credential",
+				   ssid->id);
+			if (wpa_supplicant_remove_network(wpa_s, ssid->id) ==
+			    -1) {
+				wpa_printf(MSG_DEBUG,
+					   "Could not find network id=%d",
+					   ssid->id);
+			}
+		}
+
+		ssid = next;
+	}
+
+	return 0;
+}
+
+
+/**
+ * wpas_remove_cred - Remove all the Interworking credentials
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: 0 on success, -1 on failure
+ */
+int wpas_remove_all_creds(struct wpa_supplicant *wpa_s)
+{
+	int res, ret = 0;
+	struct wpa_cred *cred, *prev;
+
+	cred = wpa_s->conf->cred;
+	while (cred) {
+		prev = cred;
+		cred = cred->next;
+		res = wpas_remove_cred(wpa_s, prev);
+		if (res < 0) {
+			wpa_printf(MSG_DEBUG,
+				   "Removal of all credentials failed - failed to remove credential id=%d",
+				   prev->id);
+			ret = -1;
+		}
+	}
+
+	return ret;
+}
+
+
+/**
  * wpas_set_pkcs11_engine_and_module_path - Set PKCS #11 engine and module path
  * @wpa_s: wpa_supplicant structure for a network interface
  * @pkcs11_engine_path: PKCS #11 engine path or NULL

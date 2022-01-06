@@ -28,7 +28,9 @@
 static const char * dpp_netrole_str(enum dpp_netrole netrole);
 
 #ifdef CONFIG_TESTING_OPTIONS
-#ifdef CONFIG_DPP2
+#ifdef CONFIG_DPP3
+int dpp_version_override = 3;
+#elif defined(CONFIG_DPP2)
 int dpp_version_override = 2;
 #else
 int dpp_version_override = 1;
@@ -306,6 +308,8 @@ int dpp_parse_uri_version(struct dpp_bootstrap_info *bi, const char *version)
 		bi->version = 1;
 	else if (*version == '2')
 		bi->version = 2;
+	else if (*version == '3')
+		bi->version = 3;
 	else
 		wpa_printf(MSG_DEBUG, "DPP: Unknown URI version");
 
@@ -628,7 +632,8 @@ int dpp_gen_uri(struct dpp_bootstrap_info *bi)
 		    macstr,
 		    bi->info ? "I:" : "", bi->info ? bi->info : "",
 		    bi->info ? ";" : "",
-		    DPP_VERSION == 2 ? "V:2;" : "",
+		    DPP_VERSION == 3 ? "V:3;" :
+		    (DPP_VERSION == 2 ? "V:2;" : ""),
 		    bi->pk);
 	return 0;
 }
@@ -1499,6 +1504,10 @@ skip_groups:
 		json_value_sep(dppcon);
 		json_add_string(dppcon, "expiry", expiry);
 	}
+#ifdef CONFIG_DPP3
+	json_value_sep(dppcon);
+	json_add_int(dppcon, "version", auth->peer_version);
+#endif /* CONFIG_DPP3 */
 	json_end_object(dppcon);
 	wpa_printf(MSG_DEBUG, "DPP: dppCon: %s",
 		   (const char *) wpabuf_head(dppcon));
@@ -3694,6 +3703,14 @@ dpp_peer_intro(struct dpp_introduction *intro, const char *own_connector,
 		}
 	}
 
+#ifdef CONFIG_DPP3
+	token = json_get_member(root, "version");
+	if (token && token->type == JSON_NUMBER) {
+		wpa_printf(MSG_DEBUG, "DPP: version = %d", token->number);
+		intro->peer_version = token->number;
+	}
+#endif /* CONFIG_DPP3 */
+
 	netkey = json_get_member(root, "netAccessKey");
 	if (!netkey || netkey->type != JSON_OBJECT) {
 		wpa_printf(MSG_DEBUG, "DPP: No netAccessKey object found");
@@ -3749,6 +3766,26 @@ fail:
 	json_free(own_root);
 	return ret;
 }
+
+
+#ifdef CONFIG_DPP3
+int dpp_get_connector_version(const char *connector)
+{
+	struct json_token *root, *token;
+	int ver = -1;
+
+	root = dpp_parse_own_connector(connector);
+	if (!root)
+		return -1;
+
+	token = json_get_member(root, "version");
+	if (token && token->type == JSON_NUMBER)
+		ver = token->number;
+
+	json_free(root);
+	return ver;
+}
+#endif /* CONFIG_DPP3 */
 
 
 unsigned int dpp_next_id(struct dpp_global *dpp)

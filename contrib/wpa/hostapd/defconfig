@@ -402,3 +402,11 @@ CONFIG_IPV6=y
 # production use.
 # This requires CONFIG_IEEE80211W=y to be enabled, too.
 #CONFIG_PASN=y
+
+# Device Provisioning Protocol (DPP) (also known as Wi-Fi Easy Connect)
+CONFIG_DPP=y
+# DPP version 2 support
+CONFIG_DPP2=y
+# DPP version 3 support (experimental and still changing; do not enable for
+# production use)
+#CONFIG_DPP3=y

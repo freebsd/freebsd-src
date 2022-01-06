@@ -570,9 +570,7 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 		pos = hostapd_eid_txpower_envelope(hapd, pos);
 #endif /* CONFIG_IEEE80211AX */
 
-	if ((hapd->iconf->ieee80211ac && !hapd->conf->disable_11ac) ||
-	    (hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax))
-		pos = hostapd_eid_wb_chsw_wrapper(hapd, pos);
+	pos = hostapd_eid_wb_chsw_wrapper(hapd, pos);
 
 	pos = hostapd_eid_rnr(hapd, pos, WLAN_FC_STYPE_PROBE_RESP);
 	pos = hostapd_eid_fils_indic(hapd, pos, 0);
@@ -1594,9 +1592,7 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
 		tailpos = hostapd_eid_txpower_envelope(hapd, tailpos);
 #endif /* CONFIG_IEEE80211AX */
 
-	if ((hapd->iconf->ieee80211ac && !hapd->conf->disable_11ac) ||
-	    (hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax))
-		tailpos = hostapd_eid_wb_chsw_wrapper(hapd, tailpos);
+	tailpos = hostapd_eid_wb_chsw_wrapper(hapd, tailpos);
 
 	tailpos = hostapd_eid_rnr(hapd, tailpos, WLAN_FC_STYPE_BEACON);
 	tailpos = hostapd_eid_fils_indic(hapd, tailpos, 0);

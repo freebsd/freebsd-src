@@ -306,9 +306,10 @@ static void mesh_mpm_send_plink_action(struct wpa_supplicant *wpa_s,
 		info = (bss->num_plinks > 63 ? 63 : bss->num_plinks) << 1;
 		/* TODO: Add Connected to Mesh Gate/AS subfields */
 		wpabuf_put_u8(buf, info);
-		/* always forwarding & accepting plinks for now */
+		/* Set forwarding based on configuration and always accept
+		 * plinks for now */
 		wpabuf_put_u8(buf, MESH_CAP_ACCEPT_ADDITIONAL_PEER |
-			      MESH_CAP_FORWARDING);
+			      (conf->mesh_fwding ? MESH_CAP_FORWARDING : 0));
 	} else {	/* Peer closing frame */
 		/* IE: Mesh ID */
 		wpabuf_put_u8(buf, WLAN_EID_MESH_ID);

@@ -1591,6 +1591,7 @@ static const char * const cred_fields[] = {
 	"min_dl_bandwidth_roaming", "min_ul_bandwidth_roaming", "max_bss_load",
 	"req_conn_capab", "ocsp", "sim_num", "realm", "username", "password",
 	"ca_cert", "client_cert", "private_key", "private_key_passwd", "imsi",
+	"ca_cert_id", "cert_id", "key_id", "engine_id", "engine",
 	"milenage", "domain_suffix_match", "domain", "phase1", "phase2",
 	"roaming_consortium", "required_roaming_consortium", "excluded_ssid",
 	"roaming_partner", "provisioning_sp"

@@ -2177,7 +2177,7 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
 	if (wnm_scan_process(wpa_s, 1) > 0)
 		goto scan_work_done;
 
-	if (sme_proc_obss_scan(wpa_s, scan_res) > 0)
+	if (sme_proc_obss_scan(wpa_s) > 0)
 		goto scan_work_done;
 
 	if (own_request && data &&

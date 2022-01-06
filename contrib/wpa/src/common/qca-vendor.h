@@ -622,7 +622,14 @@ enum qca_radiotap_vendor_ids {
  *	This new command is alternative to existing command
  *	QCA_NL80211_VENDOR_SUBCMD_AVOID_FREQUENCY since existing command/event
  *	is using stream of bytes instead of structured data using vendor
- *	attributes.
+ *	attributes. User space sends unsafe frequency ranges to the driver using
+ *	a nested attribute %QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_RANGE. On
+ *	reception of this command, the driver shall check if an interface is
+ *	operating on an unsafe frequency and the driver shall try to move to a
+ *	safe channel when needed. If the driver is not able to find a safe
+ *	channel the interface can keep operating on an unsafe channel with the
+ *	TX power limit derived based on internal configurations	like
+ *	regulatory/SAR rules.
  *
  * @QCA_NL80211_VENDOR_SUBCMD_ADD_STA_NODE: This vendor subcommand is used to
  *	add the STA node details in driver/firmware. Attributes for this event
@@ -10316,20 +10323,48 @@ enum qca_wlan_vendor_attr_oem_data_params {
  *
  * @QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_RANGE: Required
  * Nested attribute containing multiple ranges with following attributes:
- *	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_START and
- *	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_END.
+ *	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_START,
+ *	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_END, and
+ *	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_POWER_CAP_DBM.
  *
  * @QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_START: Required (u32)
  * Starting center frequency in MHz.
  *
  * @QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_END: Required (u32)
  * Ending center frequency in MHz.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_POWER_CAP_DBM:
+ * s32 attribute, optional. It is a per frequency range attribute.
+ * The maximum TX power limit from user space is to be applied on an
+ * unrestricted interface for corresponding frequency range. It is also
+ * possible that the actual TX power may be even lower than this cap due to
+ * other considerations such as regulatory compliance, SAR, etc. In absence of
+ * this attribute the driver shall follow current behavior which means
+ * interface (SAP/P2P) function can keep operating on an unsafe channel with TX
+ * power derived by the driver based on regulatory/SAR during interface up.
+ *
+ * @QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_IFACES_BITMASK:
+ * u32 attribute, optional. Indicates all the interface types which are
+ * restricted for all frequency ranges provided in
+ * %QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_START and
+ * %QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_END.
+ * This attribute encapsulates bitmasks of interface types defined in
+ * enum nl80211_iftype. If an interface is marked as restricted the driver must
+ * move to a safe channel and if no safe channel is available the driver shall
+ * terminate that interface functionality. In absence of this attribute,
+ * interface (SAP/P2P) can still continue operating on an unsafe channel with
+ * TX power limit derived from either
+ * %QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_POWER_CAP_DBM or based on
+ * regulatory/SAE limits if %QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_POWER_CAP_DBM
+ * is not provided.
  */
 enum qca_wlan_vendor_attr_avoid_frequency_ext {
 	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_INVALID = 0,
 	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_RANGE = 1,
 	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_START = 2,
 	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_END = 3,
+	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_POWER_CAP_DBM = 4,
+	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_IFACES_BITMASK = 5,
 
 	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_AVOID_FREQUENCY_MAX =

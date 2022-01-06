@@ -3193,6 +3193,16 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		conf->acs_freq_list_present = 1;
 	} else if (os_strcmp(buf, "acs_exclude_6ghz_non_psc") == 0) {
 		conf->acs_exclude_6ghz_non_psc = atoi(pos);
+	} else if (os_strcmp(buf, "min_tx_power") == 0) {
+		int val = atoi(pos);
+
+		if (val < 0 || val > 255) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: invalid min_tx_power %d (expected 0..255)",
+				   line, val);
+			return 1;
+		}
+		conf->min_tx_power = val;
 	} else if (os_strcmp(buf, "beacon_int") == 0) {
 		int val = atoi(pos);
 		/* MIB defines range as 1..65535, but very small values
