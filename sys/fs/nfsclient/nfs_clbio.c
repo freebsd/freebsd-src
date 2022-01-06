@@ -950,27 +950,33 @@ ncl_write(struct vop_write_args *ap)
 	 * Synchronously flush pending buffers if we are in synchronous
 	 * mode or if we are appending.
 	 */
-	if (ioflag & (IO_APPEND | IO_SYNC)) {
-		NFSLOCKNODE(np);
-		if (np->n_flag & NMODIFIED) {
-			NFSUNLOCKNODE(np);
-#ifdef notyet /* Needs matching nonblock semantics elsewhere, too. */
-			/*
-			 * Require non-blocking, synchronous writes to
-			 * dirty files to inform the program it needs
-			 * to fsync(2) explicitly.
-			 */
-			if (ioflag & IO_NDELAY)
-				return (EAGAIN);
-#endif
-			np->n_attrstamp = 0;
-			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-			error = ncl_vinvalbuf(vp, V_SAVE | ((ioflag &
-			    IO_VMIO) != 0 ? V_VMIO : 0), td, 1);
-			if (error != 0)
-				return (error);
-		} else
-			NFSUNLOCKNODE(np);
+	if ((ioflag & IO_APPEND) || ((ioflag & IO_SYNC) && (np->n_flag &
+	    NMODIFIED))) {
+		/*
+		 * For the case where IO_APPEND is being done using a
+		 * direct output (to the NFS server) RPC and
+		 * newnfs_directio_enable is 0, all buffer cache buffers,
+		 * including ones not modified, must be invalidated.
+		 * This ensures that stale data is not read out of the
+		 * buffer cache.  The call also invalidates all mapped
+		 * pages and, since the exclusive lock is held on the vnode,
+		 * new pages cannot be faulted in.
+		 *
+		 * For the case where newnfs_directio_enable is set
+		 * (which is not the default), it is not obvious that
+		 * stale data should be left in the buffer cache, but
+		 * the code has been this way for over a decade without
+		 * complaints.  Note that, unlike doing IO_APPEND via
+		 * a direct write RPC when newnfs_directio_enable is not set,
+		 * when newnfs_directio_enable is set, reading is done via
+		 * direct to NFS server RPCs as well.
+		 */
+		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+		error = ncl_vinvalbuf(vp, V_SAVE | ((ioflag &
+		    IO_VMIO) != 0 ? V_VMIO : 0), td, 1);
+		if (error != 0)
+			return (error);
 	}
 
 	orig_resid = uio->uio_resid;
@@ -1002,23 +1008,20 @@ ncl_write(struct vop_write_args *ap)
 		return (0);
 
 	/*
-	 * If the file in not mmap()'d, do IO_APPEND writing via a
-	 * synchronous direct write.  This can result in a significant
-	 * performance improvement.
-	 * If the file is mmap()'d, this cannot be done, since there
-	 * is no way to maintain consistency between the file on the
-	 * NFS server and the file's mmap()'d pages.
+	 * Do IO_APPEND writing via a synchronous direct write.
+	 * This can result in a significant performance improvement.
 	 */
-	NFSLOCKNODE(np);
-	if (vp->v_type == VREG && ((newnfs_directio_enable && (ioflag &
-	    IO_DIRECT)) || ((ioflag & IO_APPEND) &&
-	    (vp->v_object == NULL || !vm_object_is_active(vp->v_object))))) {
-		NFSUNLOCKNODE(np);
-		if ((ioflag & IO_APPEND) != 0)
-			ioflag |= IO_SYNC;
-		return nfs_directio_write(vp, uio, cred, ioflag);
+	if ((newnfs_directio_enable && (ioflag & IO_DIRECT)) ||
+	    (ioflag & IO_APPEND)) {
+		/*
+		 * Direct writes to the server must be done NFSWRITE_FILESYNC,
+		 * because the write data is not cached and, therefore, the
+		 * write cannot be redone after a server reboot.
+		 * Set IO_SYNC to make this happen.
+		 */
+		ioflag |= IO_SYNC;
+		return (nfs_directio_write(vp, uio, cred, ioflag));
 	}
-	NFSUNLOCKNODE(np);
 
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
