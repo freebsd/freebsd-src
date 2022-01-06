@@ -1002,10 +1002,6 @@ rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def)
 	return ((void *)target);
 }
 
-/*
- * NB: MIPS uses a private version of this function (_mips_rtld_bind).
- * Changes to this function should be applied there as well.
- */
 Elf_Addr
 _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 {
@@ -1465,19 +1461,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	    obj->fini_array_num = dynp->d_un.d_val / sizeof(Elf_Addr);
 	    break;
 
-	/*
-	 * Don't process DT_DEBUG on MIPS as the dynamic section
-	 * is mapped read-only. DT_MIPS_RLD_MAP is used instead.
-	 */
-
-#ifndef __mips__
-	case DT_DEBUG:
-	    if (!early)
-		dbg("Filling in DT_DEBUG entry");
-	    (__DECONST(Elf_Dyn *, dynp))->d_un.d_ptr = (Elf_Addr)&r_debug;
-	    break;
-#endif
-
 	case DT_FLAGS:
 		if (dynp->d_un.d_val & DF_ORIGIN)
 		    obj->z_origin = true;
@@ -1490,36 +1473,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		if (dynp->d_un.d_val & DF_STATIC_TLS)
 		    obj->static_tls = true;
 	    break;
-#ifdef __mips__
-	case DT_MIPS_LOCAL_GOTNO:
-		obj->local_gotno = dynp->d_un.d_val;
-		break;
-
-	case DT_MIPS_SYMTABNO:
-		obj->symtabno = dynp->d_un.d_val;
-		break;
-
-	case DT_MIPS_GOTSYM:
-		obj->gotsym = dynp->d_un.d_val;
-		break;
-
-	case DT_MIPS_RLD_MAP:
-		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
-		break;
-
-	case DT_MIPS_RLD_MAP_REL:
-		// The MIPS_RLD_MAP_REL tag stores the offset to the .rld_map
-		// section relative to the address of the tag itself.
-		*((Elf_Addr *)(__DECONST(char*, dynp) + dynp->d_un.d_val)) =
-		    (Elf_Addr) &r_debug;
-		break;
-
-	case DT_MIPS_PLTGOT:
-		obj->mips_pltgot = (Elf_Addr *)(obj->relocbase +
-		    dynp->d_un.d_ptr);
-		break;
-		
-#endif
 
 #ifdef __powerpc__
 #ifdef __powerpc64__
