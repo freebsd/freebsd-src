@@ -58,9 +58,6 @@
 
 typedef struct link_map {
 	caddr_t		l_base;			/* Base Address of library */
-#ifdef __mips__
-	caddr_t		l_xxx;			/* unused */
-#endif
 	const char	*l_name;		/* Absolute Path to Library */
 	const void	*l_ld;			/* Pointer to .dynamic in memory */
 	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
