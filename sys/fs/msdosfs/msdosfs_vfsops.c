@@ -53,6 +53,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/bufobj.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/iconv.h>
@@ -64,6 +65,7 @@
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/taskqueue.h>
 #include <sys/vnode.h>
@@ -229,7 +231,7 @@ msdosfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 static int
 msdosfs_mount(struct mount *mp)
 {
-	struct vnode *devvp;	  /* vnode for blk device to mount */
+	struct vnode *devvp, *odevvp;	  /* vnode for blk device to mount */
 	struct thread *td;
 	/* msdosfs specific mount control block */
 	struct msdosfsmount *pmp = NULL;
@@ -302,17 +304,17 @@ msdosfs_mount(struct mount *mp)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			devvp = pmp->pm_devvp;
-			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-			error = VOP_ACCESS(devvp, VREAD | VWRITE,
+			odevvp = pmp->pm_odevvp;
+			vn_lock(odevvp, LK_EXCLUSIVE | LK_RETRY);
+			error = VOP_ACCESS(odevvp, VREAD | VWRITE,
 			    td->td_ucred, td);
 			if (error)
 				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 			if (error) {
-				VOP_UNLOCK(devvp);
+				VOP_UNLOCK(odevvp);
 				return (error);
 			}
-			VOP_UNLOCK(devvp);
+			VOP_UNLOCK(odevvp);
 			g_topology_lock();
 			error = g_access(pmp->pm_cp, 0, 1, 0);
 			g_topology_unlock();
@@ -385,7 +387,7 @@ msdosfs_mount(struct mount *mp)
 #endif
 	} else {
 		vput(devvp);
-		if (devvp != pmp->pm_devvp)
+		if (devvp != pmp->pm_odevvp)
 			return (EINVAL);	/* XXX needs translation */
 	}
 	if (error) {
@@ -408,11 +410,12 @@ msdosfs_mount(struct mount *mp)
 }
 
 static int
-mountmsdosfs(struct vnode *devvp, struct mount *mp)
+mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 {
 	struct msdosfsmount *pmp;
 	struct buf *bp;
 	struct cdev *dev;
+	struct vnode *devvp;
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
@@ -427,10 +430,13 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	pmp = NULL;
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
+	devvp = mntfs_allocvp(mp, odevvp);
+	VOP_UNLOCK(odevvp);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	dev = devvp->v_rdev;
 	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
 	    (uintptr_t)mp) == 0) {
-		VOP_UNLOCK(devvp);
+		mntfs_freevp(devvp);
 		return (EBUSY);
 	}
 	g_topology_lock();
@@ -438,11 +444,14 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	g_topology_unlock();
 	if (error != 0) {
 		atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
-		VOP_UNLOCK(devvp);
+		mntfs_freevp(devvp);
 		return (error);
 	}
 	dev_ref(dev);
 	bo = &devvp->v_bufobj;
+	BO_LOCK(&odevvp->v_bufobj);
+	odevvp->v_bufobj.bo_flag |= BO_NOBUFS;
+	BO_UNLOCK(&odevvp->v_bufobj);
 	VOP_UNLOCK(devvp);
 	if (dev->si_iosize_max != 0)
 		mp->mnt_iosize_max = dev->si_iosize_max;
@@ -709,6 +718,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	 * fillinusemap() needs pm_devvp.
 	 */
 	pmp->pm_devvp = devvp;
+	pmp->pm_odevvp = odevvp;
 	pmp->pm_dev = dev;
 
 	/*
@@ -764,7 +774,12 @@ error_exit:
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
 	}
+	BO_LOCK(&odevvp->v_bufobj);
+	odevvp->v_bufobj.bo_flag &= ~BO_NOBUFS;
+	BO_UNLOCK(&odevvp->v_bufobj);
 	atomic_store_rel_ptr((uintptr_t *)&dev->si_mountpt, 0);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+	mntfs_freevp(devvp);
 	dev_rel(dev);
 	return (error);
 }
@@ -841,11 +856,16 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
 
+	vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY);
 	g_topology_lock();
 	g_vfs_close(pmp->pm_cp);
 	g_topology_unlock();
+	BO_LOCK(&pmp->pm_odevvp->v_bufobj);
+	pmp->pm_odevvp->v_bufobj.bo_flag &= ~BO_NOBUFS;
+	BO_UNLOCK(&pmp->pm_odevvp->v_bufobj);
 	atomic_store_rel_ptr((uintptr_t *)&pmp->pm_dev->si_mountpt, 0);
-	vrele(pmp->pm_devvp);
+	mntfs_freevp(pmp->pm_devvp);
+	vrele(pmp->pm_odevvp);
 	dev_rel(pmp->pm_dev);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	lockdestroy(&pmp->pm_fatlock);
