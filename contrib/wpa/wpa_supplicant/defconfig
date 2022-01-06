@@ -603,8 +603,13 @@ CONFIG_BGSCAN_SIMPLE=y
 # Experimental implementation of draft-harkins-owe-07.txt
 #CONFIG_OWE=y
 
-# Device Provisioning Protocol (DPP)
+# Device Provisioning Protocol (DPP) (also known as Wi-Fi Easy Connect)
 CONFIG_DPP=y
+# DPP version 2 support
+CONFIG_DPP2=y
+# DPP version 3 support (experimental and still changing; do not enable for
+# production use)
+#CONFIG_DPP3=y
 
 # Wired equivalent privacy (WEP)
 # WEP is an obsolete cryptographic data confidentiality algorithm that is not

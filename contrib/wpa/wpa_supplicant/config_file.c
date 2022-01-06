@@ -769,6 +769,7 @@ static void wpa_config_write_network(FILE *f, struct wpa_ssid *ssid)
 #endif /* IEEE8021X_EAPOL */
 	INT(mode);
 	INT(no_auto_peer);
+	INT(mesh_fwding);
 	INT(frequency);
 	INT(enable_edmg);
 	INT(edmg_channel);
@@ -1026,6 +1027,17 @@ static void wpa_config_write_cred(FILE *f, struct wpa_cred *cred)
 
 	if (cred->sim_num != DEFAULT_USER_SELECTED_SIM)
 		fprintf(f, "\tsim_num=%d\n", cred->sim_num);
+
+	if (cred->engine)
+		fprintf(f, "\tengine=%d\n", cred->engine);
+	if (cred->engine_id)
+		fprintf(f, "\tengine_id=\"%s\"\n", cred->engine_id);
+	if (cred->key_id)
+		fprintf(f, "\tkey_id=\"%s\"\n", cred->key_id);
+	if (cred->cert_id)
+		fprintf(f, "\tcert_id=\"%s\"\n", cred->cert_id);
+	if (cred->ca_cert_id)
+		fprintf(f, "\tca_cert_id=\"%s\"\n", cred->ca_cert_id);
 }
 
 
@@ -1461,6 +1473,9 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 	if (config->mesh_max_inactivity != DEFAULT_MESH_MAX_INACTIVITY)
 		fprintf(f, "mesh_max_inactivity=%d\n",
 			config->mesh_max_inactivity);
+
+	if (config->mesh_fwding != DEFAULT_MESH_FWDING)
+		fprintf(f, "mesh_fwding=%d\n", config->mesh_fwding);
 
 	if (config->dot11RSNASAERetransPeriod !=
 	    DEFAULT_DOT11_RSNA_SAE_RETRANS_PERIOD)
