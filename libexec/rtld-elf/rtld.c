@@ -1461,6 +1461,12 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	    obj->fini_array_num = dynp->d_un.d_val / sizeof(Elf_Addr);
 	    break;
 
+	case DT_DEBUG:
+	    if (!early)
+		dbg("Filling in DT_DEBUG entry");
+	    (__DECONST(Elf_Dyn *, dynp))->d_un.d_ptr = (Elf_Addr)&r_debug;
+	    break;
+
 	case DT_FLAGS:
 		if (dynp->d_un.d_val & DF_ORIGIN)
 		    obj->z_origin = true;
