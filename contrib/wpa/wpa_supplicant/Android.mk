@@ -279,6 +279,9 @@ NEED_ASN1=y
 ifdef CONFIG_DPP2
 L_CFLAGS += -DCONFIG_DPP2
 endif
+ifdef CONFIG_DPP3
+L_CFLAGS += -DCONFIG_DPP3
+endif
 endif
 
 ifdef CONFIG_OWE

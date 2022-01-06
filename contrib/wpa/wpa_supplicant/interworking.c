@@ -702,12 +702,14 @@ static struct nai_realm_eap * nai_realm_find_eap(struct wpa_supplicant *wpa_s,
 	    ((cred->password == NULL ||
 	      cred->password[0] == '\0') &&
 	     (cred->private_key == NULL ||
-	      cred->private_key[0] == '\0'))) {
+	      cred->private_key[0] == '\0') &&
+	     (!cred->key_id || cred->key_id[0] == '\0'))) {
 		wpa_msg(wpa_s, MSG_DEBUG,
-			"nai-realm-find-eap: incomplete cred info: username: %s  password: %s private_key: %s",
+			"nai-realm-find-eap: incomplete cred info: username: %s  password: %s private_key: %s key_id: %s",
 			cred->username ? cred->username : "NULL",
 			cred->password ? cred->password : "NULL",
-			cred->private_key ? cred->private_key : "NULL");
+			cred->private_key ? cred->private_key : "NULL",
+			cred->key_id ? cred->key_id : "NULL");
 		return NULL;
 	}
 
@@ -716,7 +718,8 @@ static struct nai_realm_eap * nai_realm_find_eap(struct wpa_supplicant *wpa_s,
 		if (cred->password && cred->password[0] &&
 		    nai_realm_cred_username(wpa_s, eap))
 			return eap;
-		if (cred->private_key && cred->private_key[0] &&
+		if (((cred->private_key && cred->private_key[0]) ||
+		     (cred->key_id && cred->key_id[0])) &&
 		    nai_realm_cred_cert(wpa_s, eap))
 			return eap;
 	}
@@ -1538,6 +1541,24 @@ static int interworking_set_eap_params(struct wpa_ssid *ssid,
 	    wpa_config_set_quoted(ssid, "private_key_passwd",
 				  cred->private_key_passwd) < 0)
 		return -1;
+
+	if (cred->ca_cert_id && cred->ca_cert_id[0] &&
+	    wpa_config_set_quoted(ssid, "ca_cert_id", cred->ca_cert_id) < 0)
+		return -1;
+
+	if (cred->cert_id && cred->cert_id[0] &&
+	    wpa_config_set_quoted(ssid, "cert_id", cred->cert_id) < 0)
+		return -1;
+
+	if (cred->key_id && cred->key_id[0] &&
+	    wpa_config_set_quoted(ssid, "key_id", cred->key_id) < 0)
+		return -1;
+
+	if (cred->engine_id && cred->engine_id[0] &&
+	    wpa_config_set_quoted(ssid, "engine_id", cred->engine_id) < 0)
+		return -1;
+
+	ssid->eap.cert.engine = cred->engine;
 
 	if (cred->phase1) {
 		os_free(ssid->eap.phase1);
@@ -2481,13 +2502,9 @@ static void interworking_select_network(struct wpa_supplicant *wpa_s)
 		bh = cred_below_min_backhaul(wpa_s, cred, bss);
 		bss_load = cred_over_max_bss_load(wpa_s, cred, bss);
 		conn_capab = cred_conn_capab_missing(wpa_s, cred, bss);
-		wpa_msg(wpa_s, MSG_INFO, "%s" MACSTR " type=%s%s%s%s id=%d priority=%d sp_priority=%d",
-			excluded ? INTERWORKING_EXCLUDED : INTERWORKING_AP,
-			MAC2STR(bss->bssid), type,
-			bh ? " below_min_backhaul=1" : "",
-			bss_load ? " over_max_bss_load=1" : "",
-			conn_capab ? " conn_capab_missing=1" : "",
-			cred->id, cred->priority, cred->sp_priority);
+		wpas_notify_interworking_ap_added(wpa_s, bss, cred, excluded,
+						  type, bh, bss_load,
+						  conn_capab);
 		if (excluded)
 			continue;
 		if (wpa_s->auto_select ||
@@ -2577,6 +2594,8 @@ static void interworking_select_network(struct wpa_supplicant *wpa_s)
 		if (wpa_s->wpa_state == WPA_SCANNING)
 			wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);
 	}
+
+	wpas_notify_interworking_select_done(wpa_s);
 
 	if (selected) {
 		wpa_printf(MSG_DEBUG, "Interworking: Selected " MACSTR,

@@ -38,6 +38,7 @@ struct wpa_bss;
 struct wpa_scan_results;
 struct hostapd_hw_modes;
 struct wpa_driver_associate_params;
+struct wpa_cred;
 
 /*
  * Forward declarations of private structures used within the ctrl_iface
@@ -1578,6 +1579,8 @@ void wpa_supplicant_disable_network(struct wpa_supplicant *wpa_s,
 				    struct wpa_ssid *ssid);
 void wpa_supplicant_select_network(struct wpa_supplicant *wpa_s,
 				   struct wpa_ssid *ssid);
+int wpas_remove_cred(struct wpa_supplicant *wpa_s, struct wpa_cred *cred);
+int wpas_remove_all_creds(struct wpa_supplicant *wpa_s);
 int wpas_set_pkcs11_engine_and_module_path(struct wpa_supplicant *wpa_s,
 					   const char *pkcs11_engine_path,
 					   const char *pkcs11_module_path);

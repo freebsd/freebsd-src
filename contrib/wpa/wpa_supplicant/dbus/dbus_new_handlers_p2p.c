@@ -744,6 +744,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 	unsigned int group_id = 0;
 	int persistent = 0;
 	struct wpa_ssid *ssid;
+	const char *group_ifname;
 
 	if (!wpa_dbus_p2p_check_enabled(wpa_s, message, &reply, NULL))
 		return reply;
@@ -777,6 +778,8 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 	    !p2p_peer_known(wpa_s->global->p2p, peer_addr))
 		goto err;
 
+	/* Capture the interface name for the group first */
+	group_ifname = wpa_s->ifname;
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
 
 	if (persistent) {
@@ -821,7 +824,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 		/*
 		 * No group ID means propose to a peer to join my active group
 		 */
-		if (wpas_p2p_invite_group(wpa_s, wpa_s->ifname,
+		if (wpas_p2p_invite_group(wpa_s, group_ifname,
 					  peer_addr, NULL, false)) {
 			reply = wpas_dbus_error_unknown_error(
 				message, "Failed to join to an active group");

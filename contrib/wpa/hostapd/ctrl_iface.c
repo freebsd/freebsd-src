@@ -1504,7 +1504,7 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
 			return -1;
 
 		val = atoi(value);
-		if (val < 0 || val > 1)
+		if (val < 0 || val > MBO_ASSOC_DISALLOW_REASON_LOW_RSSI)
 			return -1;
 
 		hapd->mbo_assoc_disallow = val;
@@ -3463,7 +3463,9 @@ static int hostapd_ctrl_iface_get_capability(struct hostapd_data *hapd,
 	if (os_strcmp(field, "dpp") == 0) {
 		int res;
 
-#ifdef CONFIG_DPP2
+#ifdef CONFIG_DPP3
+		res = os_snprintf(buf, buflen, "DPP=3");
+#elif defined(CONFIG_DPP2)
 		res = os_snprintf(buf, buflen, "DPP=2");
 #else /* CONFIG_DPP2 */
 		res = os_snprintf(buf, buflen, "DPP=1");
@@ -4492,7 +4494,9 @@ static void hostapd_ctrl_iface_flush(struct hapd_interfaces *interfaces)
 #ifdef CONFIG_TESTING_OPTIONS
 #ifdef CONFIG_DPP
 	dpp_test = DPP_TEST_DISABLED;
-#ifdef CONFIG_DPP2
+#ifdef CONFIG_DPP3
+	dpp_version_override = 3;
+#elif defined(CONFIG_DPP2)
 	dpp_version_override = 2;
 #else /* CONFIG_DPP2 */
 	dpp_version_override = 1;
