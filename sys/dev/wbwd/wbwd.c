@@ -295,10 +295,9 @@ static int
 sysctl_wb_force_test_nmi(SYSCTL_HANDLER_ARGS)
 {
 	struct wb_softc *sc;
-	int error, test, val;
+	int error, val;
 
 	sc = arg1;
-	test = arg2;
 
 #ifdef notyet
 	val = sc->test_nmi;
@@ -310,6 +309,8 @@ sysctl_wb_force_test_nmi(SYSCTL_HANDLER_ARGS)
                 return (error);
 
 #ifdef notyet
+	int test = arg2;
+
 	/* Manually clear the test for a value of 0 and do nothing else. */
 	if (test && val == 0) {
 		sc->test_nmi = 0;
