@@ -204,41 +204,6 @@ db_clear_breakpoints(void)
 	}
 }
 
-#ifdef SOFTWARE_SSTEP
-/*
- * Set a temporary breakpoint.
- * The instruction is changed immediately,
- * so the breakpoint does not have to be on the breakpoint list.
- */
-db_breakpoint_t
-db_set_temp_breakpoint(db_addr_t addr)
-{
-	register db_breakpoint_t	bkpt;
-
-	bkpt = db_breakpoint_alloc();
-	if (bkpt == 0) {
-	    db_printf("Too many breakpoints.\n");
-	    return 0;
-	}
-
-	bkpt->map = NULL;
-	bkpt->address = addr;
-	bkpt->flags = BKPT_TEMP;
-	bkpt->init_count = 1;
-	bkpt->count = 1;
-
-	BKPT_WRITE(bkpt->address, &bkpt->bkpt_inst);
-	return bkpt;
-}
-
-void
-db_delete_temp_breakpoint(db_breakpoint_t bkpt)
-{
-	BKPT_CLEAR(bkpt->address, &bkpt->bkpt_inst);
-	db_breakpoint_free(bkpt);
-}
-#endif /* SOFTWARE_SSTEP */
-
 /*
  * List breakpoints.
  */
