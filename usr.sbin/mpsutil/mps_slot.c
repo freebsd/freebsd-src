@@ -113,4 +113,4 @@ slot_set(int argc, char **argv)
 }
 
 MPS_COMMAND(slot, set, slot_set, "status <enclosure handle> <slot number> "
-    "<status>", "Set status of the slot in the directly attached enclosure");
+    "<status>", "\n      Set status of the slot in the directly attached enclosure");
