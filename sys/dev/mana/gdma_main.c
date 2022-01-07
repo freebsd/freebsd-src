@@ -1060,6 +1060,9 @@ mana_gd_destroy_queue(struct gdma_context *gc, struct gdma_queue *queue)
 	free(queue, M_DEVBUF);
 }
 
+#define OS_MAJOR_DIV		100000
+#define OS_BUILD_MOD		1000
+
 int
 mana_gd_verify_vf_version(device_t dev)
 {
@@ -1073,6 +1076,14 @@ mana_gd_verify_vf_version(device_t dev)
 
 	req.protocol_ver_min = GDMA_PROTOCOL_FIRST;
 	req.protocol_ver_max = GDMA_PROTOCOL_LAST;
+
+	req.drv_ver = 0;	/* Unused */
+	req.os_type = 0x30;	/* Other */
+	req.os_ver_major = osreldate / OS_MAJOR_DIV;
+	req.os_ver_minor = (osreldate % OS_MAJOR_DIV) / OS_BUILD_MOD;
+	req.os_ver_build = osreldate % OS_BUILD_MOD;
+	strncpy(req.os_ver_str1, ostype, sizeof(req.os_ver_str1) - 1);
+	strncpy(req.os_ver_str2, osrelease, sizeof(req.os_ver_str2) - 1);
 
 	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 	if (err || resp.hdr.status) {
