@@ -78,11 +78,12 @@ static pml4_entry_t *PT4;
 static pdp_entry_t *PT3;
 static pd_entry_t *PT2;
 
-static void (*trampoline)(uint64_t stack, void *copy_finish, uint64_t kernend,
-    uint64_t modulep, pml4_entry_t *pagetable, uint64_t entry);
+static void (*trampoline)(uint64_t stack, uint64_t kernend,
+    uint64_t modulep, pml4_entry_t *pagetable, uint64_t entry,
+    uint64_t copy_dst, uint64_t copy_src, uint64_t copy_src_end);
 
-extern uintptr_t amd64_tramp;
-extern uint32_t amd64_tramp_size;
+extern uintptr_t amd64_tramp_inline;
+extern uint32_t amd64_tramp_inline_size;
 
 /*
  * There is an ELF kernel and one or more ELF modules loaded.
@@ -95,6 +96,7 @@ elf64_exec(struct preloaded_file *fp)
 	struct file_metadata	*md;
 	Elf_Ehdr 		*ehdr;
 	vm_offset_t		modulep, kernend, trampcode, trampstack;
+	uint64_t		copy_dst, copy_src, copy_src_end;
 	int			err, i;
 	ACPI_TABLE_RSDP		*rsdp;
 	char			buf[24];
@@ -153,7 +155,7 @@ elf64_exec(struct preloaded_file *fp)
 	    (EFI_PHYSICAL_ADDRESS *)&trampcode);
 	bzero((void *)trampcode, EFI_PAGE_SIZE);
 	trampstack = trampcode + EFI_PAGE_SIZE - 8;
-	bcopy((void *)&amd64_tramp, (void *)trampcode, amd64_tramp_size);
+	bcopy((void *)&amd64_tramp_inline, (void *)trampcode, amd64_tramp_inline_size);
 	trampoline = (void *)trampcode;
 
 	PT4 = (pml4_entry_t *)0x0000000040000000;
@@ -194,8 +196,10 @@ elf64_exec(struct preloaded_file *fp)
 
 	dev_cleanup();
 
-	trampoline(trampstack, efi_copy_finish, kernend, modulep, PT4,
-	    ehdr->e_entry);
+	efi_copy_get_locations(&copy_dst, &copy_src, &copy_src_end);
+
+	trampoline(trampstack, kernend, modulep, PT4,
+	    ehdr->e_entry, copy_dst, copy_src, copy_src_end);
 
 	panic("exec returned");
 }

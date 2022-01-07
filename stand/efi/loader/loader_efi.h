@@ -44,5 +44,6 @@ ssize_t	efi_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 void * efi_translate(vm_offset_t ptr);
 
 void	efi_copy_finish(void);
+void	efi_copy_get_locations(uint64_t *dst, uint64_t *src, uint64_t *src_end);
 
 #endif	/* _LOADER_EFI_COPY_H_ */

@@ -361,3 +361,11 @@ efi_copy_finish(void)
 	while (src < last)
 		*dst++ = *src++;
 }
+
+void
+efi_copy_get_locations(uint64_t *dst, uint64_t *src, uint64_t *src_end)
+{
+	*src = (uint64_t)staging;
+	*dst = (uint64_t)(staging - stage_offset);
+	*src_end = (uint64_t)staging_end;
+}

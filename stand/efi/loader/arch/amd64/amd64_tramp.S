@@ -1,9 +1,11 @@
 /*-
  * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright 2021 David Sebek <dasebek@gmail.com>
  * All rights reserved.
  *
  * This software was developed by Benno Rice under sponsorship from
  * the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,34 +33,53 @@
 #include <machine/asmacros.h>
 
 	.text
-	.globl	amd64_tramp
+	.globl	amd64_tramp_inline
 
 /*
- * void amd64_tramp(uint64_t stack, void *copy_finish, uint64_t kernend,
- *		    uint64_t modulep, uint64_t pagetable, uint64_t entry)
+ * void amd64_tramp_inline(uint64_t stack %rdi, uint64_t kernend %rsi,
+ *    uint64_t modulep %rdx, uint64_t pagetable %rcx, uint64_t entry %r8,
+ *    uint64_t copy_dst %r9, uint64_t copy_src 8(%rsp),
+ *    uint64_t copy_src_end 16(%rsp))
  */
-amd64_tramp:
+amd64_tramp_inline:
 	cli			/* Make sure we don't get interrupted. */
+
+	/*
+	 * Copy the kernel from the staging area to the expected location
+	 * in memory. The following code is equivalent to the efi_copy_finish
+	 * function that amd64_tramp used to call. Inlining this code avoids
+	 * a scenario when the system froze because efi_copy_finish
+	 * overwrote its own code that just happened to be located somewhere
+	 * in the destination range.
+	 *
+	 * while (copy_src < copy_src_end) *copy_dst++ = *copy_src++;
+	 */
+	movq	8(%rsp), %rax	/* rax = copy_src */
+	movq	16(%rsp), %r10	/* r10 = copy_src_end */
+	cmpq	%r10, %rax
+	jnb	copy_done
+	subq	%rax, %r9	/* r9 = copy_dst - copy_src */
+loop:
+	movq	(%rax), %r11
+	movq	%r11, (%rax,%r9)
+	addq	$8, %rax
+	cmpq	%rax, %r10
+	ja	loop
+copy_done:
+
 	movq	%rdi,%rsp	/* Switch to our temporary stack. */
 
-	movq	%rdx,%r12	/* Stash the kernel values for later. */
-	movq	%rcx,%r13
-	movq	%r8,%r14
-	movq	%r9,%r15
-
-	callq	*%rsi		/* Call copy_finish so we're all ready to go. */
-
-	pushq	%r12		/* Push kernend. */
-	salq	$32,%r13	/* Shift modulep and push it. */
-	pushq	%r13
-	pushq	%r15		/* Push the entry address. */
-	movq	%r14,%cr3	/* Switch page tables. */
+	pushq	%rsi		/* Push kernend. */
+	salq	$32,%rdx	/* Shift modulep and push it. */
+	pushq	%rdx
+	pushq	%r8		/* Push the entry address. */
+	movq	%rcx,%cr3	/* Switch page tables. */
 	ret			/* "Return" to kernel entry. */
 
 	ALIGN_TEXT
-amd64_tramp_end:
+amd64_tramp_inline_end:
 
 	.data
-	.globl	amd64_tramp_size
-amd64_tramp_size:
-	.long	amd64_tramp_end-amd64_tramp
+	.globl	amd64_tramp_inline_size
+amd64_tramp_inline_size:
+	.long	amd64_tramp_inline_end-amd64_tramp_inline
