@@ -65,10 +65,10 @@ usage(void)
 		} else {
 			(*cmd)->handler(&args, &desc);
 			if (strncmp((*cmd)->set, "top", 3) == 0)
-				fprintf(stderr, "%s %-30s\t%s\n",
+				fprintf(stderr, "%-16s %-28s%s\n",
 				    (*cmd)->name, args, desc);
 			else
-				fprintf(stderr, "%s %s %-30s\t%s\n",
+				fprintf(stderr, "%-5s %-10s %-28s%s\n",
 				    (*cmd)->set, (*cmd)->name, args, desc);
 		}
 	}
@@ -87,7 +87,7 @@ version(int ac, char **av)
 	return (0);
 }
 
-MPS_COMMAND(top, version, version, "", "version")
+MPS_COMMAND(top, version, version, "", "Version number")
 
 int
 main(int ac, char **av)
