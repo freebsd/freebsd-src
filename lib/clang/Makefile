@@ -4,7 +4,7 @@
 
 # These have to be built in order.
 SUBDIR=		libllvm
-.if ${MK_CLANG} != "no"
+.if ${MK_CLANG} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=	libclang
 SUBDIR+=	headers
 .endif
