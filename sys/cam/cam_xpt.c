@@ -3043,7 +3043,7 @@ call_sim:
 			}
 
 			callout_reset_sbt(&dev->callout,
-			    SBT_1MS * crs->release_timeout, 0,
+			    SBT_1MS * crs->release_timeout, SBT_1MS,
 			    xpt_release_devq_timeout, dev, 0);
 
 			dev->flags |= CAM_DEV_REL_TIMEOUT_PENDING;
@@ -5099,8 +5099,8 @@ xpt_ch_done(void *arg)
 {
 
 	callout_init(&xsoftc.boot_callout, 1);
-	callout_reset_sbt(&xsoftc.boot_callout, SBT_1MS * xsoftc.boot_delay, 0,
-	    xpt_boot_delay, NULL, 0);
+	callout_reset_sbt(&xsoftc.boot_callout, SBT_1MS * xsoftc.boot_delay,
+	    SBT_1MS, xpt_boot_delay, NULL, 0);
 }
 SYSINIT(xpt_hw_delay, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY, xpt_ch_done, NULL);
 
