@@ -187,7 +187,7 @@ tpc_timeout(void *arg)
 		free(token, M_CTL);
 	}
 	mtx_unlock(&softc->tpc_lock);
-	callout_schedule(&softc->tpc_timeout, hz);
+	callout_schedule_sbt(&softc->tpc_timeout, SBT_1S, SBT_1S, 0);
 }
 
 void
@@ -197,7 +197,8 @@ ctl_tpc_init(struct ctl_softc *softc)
 	mtx_init(&softc->tpc_lock, "CTL TPC mutex", NULL, MTX_DEF);
 	TAILQ_INIT(&softc->tpc_tokens);
 	callout_init_mtx(&softc->tpc_timeout, &softc->ctl_lock, 0);
-	callout_reset(&softc->tpc_timeout, hz, tpc_timeout, softc);
+	callout_reset_sbt(&softc->tpc_timeout, SBT_1S, SBT_1S,
+	    tpc_timeout, softc, 0);
 }
 
 void
