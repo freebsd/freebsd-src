@@ -5903,7 +5903,7 @@ ctl_ie_timer(void *arg)
 		t = scsi_4btoul(lun->MODE_IE.interval_timer);
 		if (t == 0 || t == UINT32_MAX)
 			t = 3000;  /* 5 min */
-		callout_schedule(&lun->ie_callout, SBT_1S / 10 * t,
+		callout_schedule_sbt(&lun->ie_callout, SBT_1S / 10 * t,
 		    SBT_1S / 10, 0);
 	}
 }
