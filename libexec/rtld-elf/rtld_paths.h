@@ -75,12 +75,6 @@
 #define	LD_			"LD_"
 #endif
 
-#define	_PATH_SOFT_ELF_HINTS	"/var/run/ld-elf-soft.so.hints"
-#define	_PATH_SOFT_LIBMAP_CONF	"/etc/libmap-soft.conf"
-#define	_PATH_SOFT_RTLD		"/libexec/ld-elf.so.1"
-#define	SOFT_STANDARD_LIBRARY_PATH "/usr/libsoft"
-#define	LD_SOFT_		"LD_SOFT_"
-
 #ifdef IN_RTLD
 extern const char *ld_elf_hints_default;
 extern const char *ld_path_libmap_conf;
