@@ -5903,7 +5903,8 @@ ctl_ie_timer(void *arg)
 		t = scsi_4btoul(lun->MODE_IE.interval_timer);
 		if (t == 0 || t == UINT32_MAX)
 			t = 3000;  /* 5 min */
-		callout_schedule(&lun->ie_callout, t * hz / 10);
+		callout_schedule(&lun->ie_callout, SBT_1S / 10 * t,
+		    SBT_1S / 10, 0);
 	}
 }
 
@@ -5935,8 +5936,8 @@ ctl_ie_page_handler(struct ctl_scsiio *ctsio,
 			t = scsi_4btoul(pg->interval_timer);
 			if (t == 0 || t == UINT32_MAX)
 				t = 3000;  /* 5 min */
-			callout_reset(&lun->ie_callout, t * hz / 10,
-			    ctl_ie_timer, lun);
+			callout_reset_sbt(&lun->ie_callout, SBT_1S / 10 * t,
+			    SBT_1S / 10, ctl_ie_timer, lun, 0);
 		}
 	} else {
 		lun->ie_asc = 0;
