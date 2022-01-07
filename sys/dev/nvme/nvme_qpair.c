@@ -948,7 +948,6 @@ nvme_qpair_timeout(void *arg)
 	struct nvme_qpair	*qpair = arg;
 	struct nvme_controller	*ctrlr = qpair->ctrlr;
 	struct nvme_tracker	*tr;
-	struct nvme_tracker	*tr_temp;
 	sbintime_t		now;
 	bool			idle;
 	uint32_t		csts;
@@ -962,8 +961,12 @@ again:
 		if (idle)
 			break;
 		now = getsbinuptime();
-		TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
-			if (now > tr->deadline && tr->deadline != 0) {
+		idle = true;
+		TAILQ_FOREACH(tr, &qpair->outstanding_tr, tailq) {
+			if (tr->deadline == SBT_MAX)
+				continue;
+			idle = false;
+			if (now > tr->deadline) {
 				/*
 				 * We're now passed our earliest deadline. We
 				 * need to do expensive things to cope, but next
@@ -1028,7 +1031,7 @@ again:
 	 * Rearm the timeout.
 	 */
 	if (!idle) {
-		callout_schedule(&qpair->timer, hz / 2);
+		callout_schedule_sbt(&qpair->timer, SBT_1S / 2, SBT_1S / 2, 0);
 	} else {
 		qpair->timer_armed = false;
 	}
@@ -1061,8 +1064,8 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 		tr->deadline = getsbinuptime() + timeout * SBT_1S;
 		if (!qpair->timer_armed) {
 			qpair->timer_armed = true;
-			callout_reset_on(&qpair->timer, hz / 2,
-			    nvme_qpair_timeout, qpair, qpair->cpu);
+			callout_reset_sbt_on(&qpair->timer, SBT_1S / 2, SBT_1S / 2,
+			    nvme_qpair_timeout, qpair, qpair->cpu, 0);
 		}
 	} else
 		tr->deadline = SBT_MAX;
