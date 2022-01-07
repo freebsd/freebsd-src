@@ -2341,7 +2341,8 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _clang_tblgen= \
 	lib/clang/libllvmminimal \
 	usr.bin/clang/llvm-tblgen
-.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
+.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
+    ${MK_LLDB} != "no"
 _clang_tblgen+=	usr.bin/clang/clang-tblgen
 .endif
 .if ${MK_LLDB} != "no"
