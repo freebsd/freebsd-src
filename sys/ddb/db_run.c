@@ -70,30 +70,6 @@ int		db_inst_count;
 int		db_load_count;
 int		db_store_count;
 
-#ifdef SOFTWARE_SSTEP
-db_breakpoint_t	db_not_taken_bkpt = 0;
-db_breakpoint_t	db_taken_bkpt = 0;
-#endif
-
-#ifndef db_set_single_step
-void db_set_single_step(void);
-#endif
-#ifndef db_clear_single_step
-void db_clear_single_step(void);
-#endif
-#ifndef db_pc_is_singlestep
-static bool
-db_pc_is_singlestep(db_addr_t pc)
-{
-#ifdef SOFTWARE_SSTEP
-	if ((db_not_taken_bkpt != 0 && pc == db_not_taken_bkpt->address)
-	    || (db_taken_bkpt != 0 && pc == db_taken_bkpt->address))
-		return (true);
-#endif
-	return (false);
-}
-#endif
-
 bool
 db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 {
@@ -103,8 +79,6 @@ db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
 	*is_breakpoint = IS_BREAKPOINT_TRAP(type, code);
 	*is_watchpoint = IS_WATCHPOINT_TRAP(type, code);
 	pc = PC_REGS();
-	if (db_pc_is_singlestep(pc))
-		*is_breakpoint = false;
 
 	db_clear_single_step();
 	db_clear_breakpoints();
@@ -230,23 +204,10 @@ db_restart_at_pc(bool watchpt)
 	     * We are about to execute this instruction,
 	     * so count it now.
 	     */
-#ifdef	SOFTWARE_SSTEP
-	    db_expr_t		ins =
-#endif
 	    db_get_value(pc, sizeof(int), false);
 	    db_inst_count++;
 	    db_load_count += inst_load(ins);
 	    db_store_count += inst_store(ins);
-#ifdef	SOFTWARE_SSTEP
-	    /* XXX works on mips, but... */
-	    if (inst_branch(ins) || inst_call(ins)) {
-		ins = db_get_value(next_instr_address(pc,1),
-				   sizeof(int), false);
-		db_inst_count++;
-		db_load_count += inst_load(ins);
-		db_store_count += inst_store(ins);
-	    }
-#endif	/* SOFTWARE_SSTEP */
 	}
 
 	if (db_run_mode == STEP_CONTINUE) {
@@ -264,75 +225,6 @@ db_restart_at_pc(bool watchpt)
 	    db_set_single_step();
 	}
 }
-
-#ifdef	SOFTWARE_SSTEP
-/*
- *	Software implementation of single-stepping.
- *	If your machine does not have a trace mode
- *	similar to the vax or sun ones you can use
- *	this implementation, done for the mips.
- *	Just define the above conditional and provide
- *	the functions/macros defined below.
- *
- * extern bool
- *	inst_branch(),		returns true if the instruction might branch
- * extern unsigned
- *	branch_taken(),		return the address the instruction might
- *				branch to
- *	db_getreg_val();	return the value of a user register,
- *				as indicated in the hardware instruction
- *				encoding, e.g. 8 for r8
- *
- * next_instr_address(pc,bd)	returns the address of the first
- *				instruction following the one at "pc",
- *				which is either in the taken path of
- *				the branch (bd==1) or not.  This is
- *				for machines (mips) with branch delays.
- *
- *	A single-step may involve at most 2 breakpoints -
- *	one for branch-not-taken and one for branch taken.
- *	If one of these addresses does not already have a breakpoint,
- *	we allocate a breakpoint and save it here.
- *	These breakpoints are deleted on return.
- */
-
-void
-db_set_single_step(void)
-{
-	db_addr_t pc = PC_REGS(), brpc;
-	unsigned inst;
-
-	/*
-	 *	User was stopped at pc, e.g. the instruction
-	 *	at pc was not executed.
-	 */
-	inst = db_get_value(pc, sizeof(int), false);
-	if (inst_branch(inst) || inst_call(inst) || inst_return(inst)) {
-		brpc = branch_taken(inst, pc);
-		if (brpc != pc) {	/* self-branches are hopeless */
-			db_taken_bkpt = db_set_temp_breakpoint(brpc);
-		}
-		pc = next_instr_address(pc, 1);
-	}
-	pc = next_instr_address(pc, 0);
-	db_not_taken_bkpt = db_set_temp_breakpoint(pc);
-}
-
-void
-db_clear_single_step(void)
-{
-
-	if (db_not_taken_bkpt != 0) {
-		db_delete_temp_breakpoint(db_not_taken_bkpt);
-		db_not_taken_bkpt = 0;
-	}
-	if (db_taken_bkpt != 0) {
-		db_delete_temp_breakpoint(db_taken_bkpt);
-		db_taken_bkpt = 0;
-	}
-}
-
-#endif	/* SOFTWARE_SSTEP */
 
 /* single-step */
 /*ARGSUSED*/
