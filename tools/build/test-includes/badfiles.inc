@@ -157,6 +157,7 @@ BADHDRS= \
 	net/if_llc.h \
 	net/if_media.h \
 	net/if_mib.h \
+	net/if_pfsync.h \
 	net/if_tap.h \
 	net/if_tun.h \
 	net/if_var.h \
