@@ -745,9 +745,10 @@ cdregister(struct cam_periph *periph, void *arg)
 	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) &&
 	    (cgd->inq_flags & SID_AEN) == 0 &&
-	    cd_poll_period != 0)
-		callout_reset(&softc->mediapoll_c, cd_poll_period * hz,
-		    cdmediapoll, periph);
+	    cd_poll_period != 0) {
+		callout_reset_sbt(&softc->mediapoll_c, cd_poll_period * SBT_1S,
+		    0, cdmediapoll, periph, C_PREL(1));
+	}
 
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
 	return(CAM_REQ_CMP);
@@ -3134,9 +3135,12 @@ cdmediapoll(void *arg)
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 	}
+
 	/* Queue us up again */
-	if (cd_poll_period != 0)
-		callout_schedule(&softc->mediapoll_c, cd_poll_period * hz);
+	if (cd_poll_period != 0) {
+		callout_schedule_sbt(&softc->mediapoll_c,
+		    cd_poll_period * SBT_1S, 0, C_PREL(1));
+	}
 }
 
 /*

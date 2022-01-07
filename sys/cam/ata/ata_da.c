@@ -1937,9 +1937,9 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * ordered tag to a device.
 	 */
 	callout_init_mtx(&softc->sendordered_c, cam_periph_mtx(periph), 0);
-	callout_reset(&softc->sendordered_c,
-	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
-	    adasendorderedtag, softc);
+	callout_reset_sbt(&softc->sendordered_c,
+	    SBT_1S / ADA_ORDEREDTAG_INTERVAL * ada_default_timeout, 0,
+	    adasendorderedtag, softc, C_PREL(1));
 
 	if (ADA_RA >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD) {
 		softc->state = ADA_STATE_RAHEAD;
@@ -3505,10 +3505,11 @@ adasendorderedtag(void *arg)
 			softc->flags &= ~ADA_FLAG_WAS_OTAG;
 		}
 	}
+
 	/* Queue us up again */
-	callout_reset(&softc->sendordered_c,
-	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
-	    adasendorderedtag, softc);
+	callout_schedule_sbt(&softc->sendordered_c,
+	    SBT_1S / ADA_ORDEREDTAG_INTERVAL * ada_default_timeout, 0,
+	    C_PREL(1));
 }
 
 /*
