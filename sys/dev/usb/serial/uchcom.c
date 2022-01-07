@@ -329,6 +329,7 @@ uchcom_attach(device_t dev)
 		device_printf(dev, "CH340 detected\n");
 		break;
 	case USB_PRODUCT_WCH2_CH341SER_2:
+	case USB_PRODUCT_WCH2_CH341SER_3:
 		device_printf(dev, "CH341 detected\n");
 		break;
 	default:

@@ -4837,6 +4837,7 @@ product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
 product WCH2 DUMMY		0x0000	Dummy product
 product WCH2 CH341SER_2		0x5523	CH341/CH340 USB-Serial Bridge
+product WCH2 CH341SER_3		0x7522	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
 product WCH2 U2M		0X752d	CH345 USB2.0-MIDI
 
