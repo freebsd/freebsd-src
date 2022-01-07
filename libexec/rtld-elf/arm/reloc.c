@@ -18,46 +18,6 @@ __FBSDID("$FreeBSD$");
 #include "rtld.h"
 #include "rtld_paths.h"
 
-#ifdef __ARM_FP
-/*
- * On processors that have hard floating point supported, we also support
- * running soft float binaries. If we're being built with hard float support,
- * check the ELF headers to make sure that this is a hard float binary. If it is
- * a soft float binary, force the dynamic linker to use the alternative soft
- * float path.
- */
-void
-arm_abi_variant_hook(Elf_Auxinfo **aux_info)
-{
-	Elf_Word ehdr;
-
-	/*
-	 * If we're running an old kernel that doesn't provide any data fail
-	 * safe by doing nothing.
-	 */
-	if (aux_info[AT_EHDRFLAGS] == NULL)
-		return;
-	ehdr = aux_info[AT_EHDRFLAGS]->a_un.a_val;
-
-	/*
-	 * Hard float ABI binaries are the default, and use the default paths
-	 * and such.
-	 */
-	if ((ehdr & EF_ARM_VFP_FLOAT) != 0)
-		return;
-
-	/*
-	 * This is a soft float ABI binary. We need to use the soft float
-	 * settings.
-	 */
-	ld_elf_hints_default = _PATH_SOFT_ELF_HINTS;
-	ld_path_libmap_conf = _PATH_SOFT_LIBMAP_CONF;
-	ld_path_rtld = _PATH_SOFT_RTLD;
-	ld_standard_library_path = SOFT_STANDARD_LIBRARY_PATH;
-	ld_env_prefix = LD_SOFT_;
-}
-#endif
-
 void
 init_pltgot(Obj_Entry *obj)
 {       
