@@ -1538,6 +1538,12 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	if (error != 0)
 		return (error);
 
+	/*
+	 * Pass user-supplied recvmsg() flags in msg_flags field,
+	 * following sys_recvmsg() convention.
+	*/
+	linux_msghdr.msg_flags = flags;
+
 	error = linux_to_bsd_msghdr(msg, &linux_msghdr);
 	if (error != 0)
 		return (error);
