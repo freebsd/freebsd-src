@@ -1,8 +1,10 @@
 *.a
 *.core
 *.o
+*.orig
+*.rej
 *.so
-*.swp
+*.sw[nop]
 *~
 _.tinderbox.*
 _.universe-toolchain
