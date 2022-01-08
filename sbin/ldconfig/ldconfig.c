@@ -50,8 +50,6 @@
 #include "ldconfig.h"
 #include "rtld_paths.h"
 
-#define	_PATH_LD32_HINTS	"/var/run/ld32.so.hints"
-#define	_PATH_ELF32_HINTS	"/var/run/ld-elf32.so.hints"
 #define	_PATH_ELFSOFT_HINTS	"/var/run/ld-elf-soft.so.hints"
 
 static void usage(void);
