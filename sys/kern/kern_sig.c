@@ -2992,8 +2992,10 @@ sigprocess(struct thread *td, int sig)
 		 * and p_sigact are consistent.
 		 */
 		if ((p->p_flag & P_TRACED) == 0) {
-			ksi.ksi_flags |= KSI_HEAD;
-			sigqueue_add(queue, sig, &ksi);
+			if ((ksi.ksi_flags & KSI_PTRACE) == 0) {
+				ksi.ksi_flags |= KSI_HEAD;
+				sigqueue_add(queue, sig, &ksi);
+			}
 			return (SIGSTATUS_HANDLED);
 		}
 	}
