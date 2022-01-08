@@ -2121,7 +2121,7 @@ linux_ioctl_ifname(struct thread *td, struct l_ifreq *uifr)
 	error = ENODEV;
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifr.ifr_ifindex == index) {
-			if (IFP_IS_ETH(ifp))
+			if (!linux_use_real_ifname(ifp))
 				snprintf(ifr.ifr_name, LINUX_IFNAMSIZ,
 				    "eth%d", ethno);
 			else
@@ -2130,7 +2130,7 @@ linux_ioctl_ifname(struct thread *td, struct l_ifreq *uifr)
 			error = 0;
 			break;
 		}
-		if (IFP_IS_ETH(ifp))
+		if (!linux_use_real_ifname(ifp))
 			ethno++;
 		index++;
 	}

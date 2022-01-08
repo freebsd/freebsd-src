@@ -120,6 +120,15 @@ int	linux_vn_get_major_minor(const struct vnode *vn, int *major, int *minor);
 char	*linux_get_char_devices(void);
 void	linux_free_get_char_devices(char *string);
 
+/*
+ * Criteria for interface name translation
+ */
+#define	IFP_IS_ETH(ifp)		((ifp)->if_type == IFT_ETHER)
+#define	IFP_IS_LOOP(ifp)	((ifp)->if_type == IFT_LOOP)
+
+struct ifnet;
+bool	linux_use_real_ifname(const struct ifnet *ifp);
+
 #if defined(KTR)
 
 #define	KTR_LINUX				KTR_SUBSYS
