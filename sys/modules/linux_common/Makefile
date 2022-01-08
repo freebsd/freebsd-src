@@ -11,6 +11,7 @@ EXPORT_SYMS=
 EXPORT_SYMS+=	linux_emul_path
 EXPORT_SYMS+=	linux_get_osname
 EXPORT_SYMS+=	linux_get_osrelease
+EXPORT_SYMS+=	linux_use_real_ifname
 
 .if !defined(KERNBUILDDIR)
 .warning Building Linuxulator outside of a kernel does not make sense
