@@ -1414,11 +1414,6 @@ linprocfs_doprocmem(PFS_FILL_ARGS)
 	return (error);
 }
 
-/*
- * Criteria for interface name translation
- */
-#define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
-
 static int
 linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 {
@@ -1428,7 +1423,7 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 	IFNET_RLOCK_ASSERT();
 
 	/* Short-circuit non ethernet interfaces */
-	if (!IFP_IS_ETH(ifp))
+	if (linux_use_real_ifname(ifp))
 		return (strlcpy(buffer, ifp->if_xname, buflen));
 
 	/* Determine the (relative) unit number for ethernet interfaces */
@@ -1436,7 +1431,7 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 	CK_STAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
 		if (ifscan == ifp)
 			return (snprintf(buffer, buflen, "eth%d", ethno));
-		if (IFP_IS_ETH(ifscan))
+		if (!linux_use_real_ifname(ifscan))
 			ethno++;
 	}
 
