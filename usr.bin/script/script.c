@@ -45,6 +45,7 @@ static const char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 #include <sys/uio.h>
 #include <sys/endian.h>
 #include <dev/filemon/filemon.h>
@@ -70,6 +71,13 @@ struct stamp {
 	uint32_t scr_direction; /* 'i', 'o', etc (also indicates endianness) */
 };
 
+struct buf_elm {
+	TAILQ_ENTRY(buf_elm) link;
+	int rpos;
+	int len;
+	char ibuf[];
+};
+
 static FILE *fscript;
 static int master, slave;
 static int child;
@@ -77,6 +85,7 @@ static const char *fname;
 static char *fmfname;
 static int fflg, qflg, ttyflg;
 static int usesleep, rawout, showexit;
+static TAILQ_HEAD(, buf_elm) obuf_list = TAILQ_HEAD_INITIALIZER(obuf_list);
 
 static struct termios tt;
 
@@ -98,8 +107,9 @@ main(int argc, char *argv[])
 	time_t tvec, start;
 	char obuf[BUFSIZ];
 	char ibuf[BUFSIZ];
-	fd_set rfd;
-	int aflg, Fflg, kflg, pflg, ch, k, n;
+	fd_set rfd, wfd;
+	struct buf_elm *be;
+	int aflg, Fflg, kflg, pflg, ch, k, n, fcm;
 	int flushtime, readstdin;
 	int fm_fd, fm_log;
 
@@ -189,6 +199,12 @@ main(int argc, char *argv[])
 			err(1, "openpty");
 		ttyflg = 1;
 	}
+	fcm = fcntl(master, F_GETFL);
+	if (fcm == -1)
+		err(1, "master F_GETFL");
+	fcm |= O_NONBLOCK;
+	if (fcntl(master, F_SETFL, fcm) == -1)
+		err(1, "master F_SETFL");
 
 	if (rawout)
 		record(fscript, NULL, 0, 's');
@@ -243,9 +259,12 @@ main(int argc, char *argv[])
 	readstdin = 1;
 	for (;;) {
 		FD_ZERO(&rfd);
+		FD_ZERO(&wfd);
 		FD_SET(master, &rfd);
 		if (readstdin)
 			FD_SET(STDIN_FILENO, &rfd);
+		if (!TAILQ_EMPTY(&obuf_list))
+			FD_SET(master, &wfd);
 		if (!readstdin && ttyflg) {
 			tv.tv_sec = 1;
 			tv.tv_usec = 0;
@@ -258,7 +277,7 @@ main(int argc, char *argv[])
 		} else {
 			tvp = NULL;
 		}
-		n = select(master + 1, &rfd, 0, 0, tvp);
+		n = select(master + 1, &rfd, &wfd, NULL, tvp);
 		if (n < 0 && errno != EINTR)
 			break;
 		if (n > 0 && FD_ISSET(STDIN_FILENO, &rfd)) {
@@ -275,10 +294,37 @@ main(int argc, char *argv[])
 			if (cc > 0) {
 				if (rawout)
 					record(fscript, ibuf, cc, 'i');
-				(void)write(master, ibuf, cc);
+				be = malloc(sizeof(*be) + cc);
+				be->rpos = 0;
+				be->len = cc;
+				memcpy(be->ibuf, ibuf, cc);
+				TAILQ_INSERT_TAIL(&obuf_list, be, link);
+			}
+		}
+		if (n > 0 && FD_ISSET(master, &wfd)) {
+			while ((be = TAILQ_FIRST(&obuf_list)) != NULL) {
+				cc = write(master, be->ibuf + be->rpos,
+				    be->len);
+				if (cc == -1) {
+					if (errno == EWOULDBLOCK ||
+					    errno == EINTR)
+						break;
+					warn("write master");
+					done(1);
+				}
+				if (cc == 0)
+					break;		/* retry later ? */
 				if (kflg && tcgetattr(master, &stt) >= 0 &&
 				    ((stt.c_lflag & ECHO) == 0)) {
-					(void)fwrite(ibuf, 1, cc, fscript);
+					(void)fwrite(be->ibuf + be->rpos,
+					    1, cc, fscript);
+				}
+				be->len -= cc;
+				if (be->len == 0) {
+					TAILQ_REMOVE(&obuf_list, be, link);
+					free(be);
+				} else {
+					be->rpos += cc;
 				}
 			}
 		}
