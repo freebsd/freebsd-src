@@ -2092,7 +2092,8 @@ mps_periodic(void *arg)
 		mps_reinit(sc);
 	}
 
-	callout_reset(&sc->periodic, MPS_PERIODIC_DELAY * hz, mps_periodic, sc);
+	callout_reset_sbt(&sc->periodic, MPS_PERIODIC_DELAY * SBT_1S, 0,
+	    mps_periodic, sc, C_PREL(1));
 }
 
 static void
