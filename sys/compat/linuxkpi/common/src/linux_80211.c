@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2021 The FreeBSD Foundation
- * Copyright (c) 2020-2021 Bjoern A. Zeeb
+ * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -585,6 +585,26 @@ lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 }
 
 static void
+lkpi_hw_conf_idle(struct ieee80211_hw *hw, bool new)
+{
+	struct lkpi_hw *lhw;
+	int error;
+	bool old;
+
+	old = hw->conf.flags & IEEE80211_CONF_IDLE;
+	if (old == new)
+		return;
+
+	hw->conf.flags ^= IEEE80211_CONF_IDLE;
+	error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_IDLE);
+	if (error != 0 && error != EOPNOTSUPP) {
+		lhw = HW_TO_LHW(hw);
+		ic_printf(lhw->ic, "ERROR: %s: config %#0x returned %d\n",
+		    __func__, IEEE80211_CONF_CHANGE_IDLE, error);
+	}
+}
+
+static void
 lkpi_disassoc(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
     struct lkpi_hw *lhw)
 {
@@ -604,6 +624,8 @@ lkpi_disassoc(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
 		hw = LHW_TO_HW(lhw);
 		lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf,
 		    changed);
+
+		lkpi_hw_conf_idle(hw, true);
 	}
 }
 
@@ -1244,6 +1266,8 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lsta->in_mgd = false;
 	}
 
+	lkpi_hw_conf_idle(hw, false);
+
 	/*
 	 * And then:
 	 * - (more packets)?
@@ -1858,6 +1882,10 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
+
+		if (vap->iv_state == IEEE80211_S_SCAN)
+			lkpi_hw_conf_idle(hw, false);
+
 		lkpi_80211_mo_sw_scan_start(hw, vif, vif->addr);
 		/* net80211::scan_start() handled PS for us. */
 		IMPROVE();
@@ -1993,6 +2021,9 @@ lkpi_ic_scan_end(struct ieee80211com *ic)
 		lkpi_80211_mo_sw_scan_complete(hw, vif);
 
 		/* Send PS to stop buffering if n80211 does not for us? */
+
+		if (vap->iv_state == IEEE80211_S_SCAN)
+			lkpi_hw_conf_idle(hw, true);
 	}
 }
 
@@ -2056,12 +2087,6 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 
 		hw = LHW_TO_HW(lhw);
 		hw->conf.chandef = chandef;
-
-		hw->conf.flags &= ~IEEE80211_CONF_IDLE;
-		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_IDLE);
-		if (error != 0 && error != EOPNOTSUPP)
-			ic_printf(ic, "ERROR: %s: config %#0x returned %d\n",
-			    __func__, IEEE80211_CONF_CHANGE_IDLE, error);
 
 		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
 		if (error != 0 && error != EOPNOTSUPP) {
@@ -2696,6 +2721,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	 */
 	hw = LHW_TO_HW(lhw);
 	hw->wiphy = wiphy;
+	hw->conf.flags |= IEEE80211_CONF_IDLE;
 	hw->priv = (void *)(lhw + 1);
 
 	/* BSD Specific. */
