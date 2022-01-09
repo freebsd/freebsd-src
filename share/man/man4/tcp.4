@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2021
+.Dd January 8, 2022
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -339,6 +339,10 @@ This entry can only be specified on a per-host basis at this time.
 .Pp
 If an SADB entry cannot be found for the destination,
 the system does not send any outgoing segments and drops any inbound segments.
+However, during connection negotiation, a non-signed segment will be accepted if
+an SADB entry does not exist between hosts.
+When a non-signed segment is accepted, the established connection is not
+protected with MD5 digests.
 .It Dv TCP_STATS
 Manage collection of connection level statistics using the
 .Xr stats 3
