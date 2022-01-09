@@ -35,6 +35,7 @@
 
 #include <sys/types.h>
 
+#include <netinet/in.h>
 #include <netinet/ip.h>
 #include <machine/in_cksum.h>
 
