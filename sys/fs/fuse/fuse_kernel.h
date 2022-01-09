@@ -400,6 +400,12 @@ struct fuse_file_lock {
  */
 #define FUSE_FSYNC_FDATASYNC	(1 << 0)
 
+/**
+ * Fallocate flags.
+ */
+#define FUSE_FALLOC_FL_KEEP_SIZE	0x1
+#define FUSE_FALLOC_FL_PUNCH_HOLE	0x2
+
 enum fuse_opcode {
 	FUSE_LOOKUP		= 1,
 	FUSE_FORGET		= 2,  /* no reply */

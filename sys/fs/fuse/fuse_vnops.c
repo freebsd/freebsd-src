@@ -133,6 +133,7 @@ static vop_close_t fuse_fifo_close;
 static vop_close_t fuse_vnop_close;
 static vop_copy_file_range_t fuse_vnop_copy_file_range;
 static vop_create_t fuse_vnop_create;
+static vop_deallocate_t fuse_vnop_deallocate;
 static vop_deleteextattr_t fuse_vnop_deleteextattr;
 static vop_fdatasync_t fuse_vnop_fdatasync;
 static vop_fsync_t fuse_vnop_fsync;
@@ -189,6 +190,7 @@ struct vop_vector fuse_vnops = {
 	.vop_close = fuse_vnop_close,
 	.vop_copy_file_range = fuse_vnop_copy_file_range,
 	.vop_create = fuse_vnop_create,
+	.vop_deallocate = fuse_vnop_deallocate,
 	.vop_deleteextattr = fuse_vnop_deleteextattr,
 	.vop_fsync = fuse_vnop_fsync,
 	.vop_fdatasync = fuse_vnop_fdatasync,
@@ -621,11 +623,8 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 	} else if (err == EOPNOTSUPP) {
 		/*
 		 * The file system server does not support FUSE_FALLOCATE with
-		 * the supplied mode.  That's effectively the same thing as
-		 * ENOSYS since we only ever issue mode=0.
-		 * TODO: revise this section once we support fspacectl.
+		 * the supplied mode for this particular file.
 		 */
-		fsess_set_notimpl(mp, FUSE_FALLOCATE);
 		err = EINVAL;
 	} else if (!err) {
 		*offset += *len;
@@ -2898,6 +2897,114 @@ out:
 	free(bsd_list, M_TEMP);
 	fdisp_destroy(&fdi);
 	return (err);
+}
+
+/*
+    struct vop_deallocate_args {
+	struct vop_generic_args a_gen;
+	struct vnode *a_vp;
+	off_t *a_offset;
+	off_t *a_len;
+	int a_flags;
+	int a_ioflag;
+        struct ucred *a_cred;
+    };
+*/
+static int
+fuse_vnop_deallocate(struct vop_deallocate_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct mount *mp = vnode_mount(vp);
+	struct fuse_filehandle *fufh;
+	struct fuse_dispatcher fdi;
+	struct fuse_fallocate_in *ffi;
+	struct ucred *cred = ap->a_cred;
+	pid_t pid = curthread->td_proc->p_pid;
+	off_t *len = ap->a_len;
+	off_t *offset = ap->a_offset;
+	int ioflag = ap->a_ioflag;
+	off_t filesize;
+	int err;
+	bool closefufh = false;
+
+	if (fuse_isdeadfs(vp))
+		return (ENXIO);
+
+	if (vfs_isrdonly(mp))
+		return (EROFS);
+
+	if (fsess_not_impl(mp, FUSE_FALLOCATE))
+		goto fallback;
+
+	err = fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
+	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
+		/*
+		 * nfsd will do I/O without first doing VOP_OPEN.  We
+		 * must implicitly open the file here
+		 */
+		err = fuse_filehandle_open(vp, FWRITE, &fufh, curthread, cred);
+		closefufh = true;
+	}
+	if (err)
+		return (err);
+
+	fuse_vnode_update(vp, FN_MTIMECHANGE | FN_CTIMECHANGE);
+
+	err = fuse_vnode_size(vp, &filesize, cred, curthread);
+	if (err)
+		goto out;
+	fuse_inval_buf_range(vp, filesize, *offset, *offset + *len);
+
+	fdisp_init(&fdi, sizeof(*ffi));
+	fdisp_make_vp(&fdi, FUSE_FALLOCATE, vp, curthread, cred);
+	ffi = fdi.indata;
+	ffi->fh = fufh->fh_id;
+	ffi->offset = *offset;
+	ffi->length = *len;
+	/*
+	 * FreeBSD's fspacectl is equivalent to Linux's fallocate with
+	 * mode == FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE
+	 */
+	ffi->mode = FUSE_FALLOC_FL_PUNCH_HOLE | FUSE_FALLOC_FL_KEEP_SIZE;
+	err = fdisp_wait_answ(&fdi);
+
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_FALLOCATE);
+		goto fallback;
+	} else if (err == EOPNOTSUPP) {
+		/*
+		 * The file system server does not support FUSE_FALLOCATE with
+		 * the supplied mode for this particular file.
+		 */
+		goto fallback;
+	} else if (!err) {
+		/*
+		 * Clip the returned offset to EoF.  Do it here rather than
+		 * before FUSE_FALLOCATE just in case the kernel's cached file
+		 * size is out of date.  Unfortunately, FUSE does not return
+		 * any information about filesize from that operation.
+		 */
+		*offset = MIN(*offset + *len, filesize);
+		*len = 0;
+		fuse_vnode_undirty_cached_timestamps(vp, false);
+		fuse_internal_clear_suid_on_write(vp, cred, curthread);
+
+		if (ioflag & IO_SYNC)
+			err = fuse_internal_fsync(vp, curthread, MNT_WAIT,
+			    false);
+	}
+
+out:
+	if (closefufh)
+		fuse_filehandle_close(vp, fufh, curthread, cred);
+
+	return (err);
+
+fallback:
+	if (closefufh)
+		fuse_filehandle_close(vp, fufh, curthread, cred);
+
+	return (vop_stddeallocate(ap));
 }
 
 /*
