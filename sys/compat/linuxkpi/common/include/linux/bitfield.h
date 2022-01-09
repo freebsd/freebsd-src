@@ -86,12 +86,44 @@ _leX_encode_bits(64)
 _leX_encode_bits(32)
 _leX_encode_bits(16)
 
-static __inline void
-le32p_replace_bits(uint32_t *p, uint32_t v, uint32_t f)
-{
+#define	_leXp_replace_bits(_n)						\
+	static __inline void						\
+	le ## _n ## p_replace_bits(uint ## _n ## _t *p,			\
+	    uint ## _n ## _t v, uint ## _n ## _t f)			\
+	{								\
+		*p = (*p & ~(cpu_to_le ## _n(f))) |			\
+		     le ## _n ## _encode_bits(v, f);			\
+	}
 
-	*p = (*p & ~(cpu_to_le32(f))) | le32_encode_bits(v, f);
-}
+_leXp_replace_bits(64)
+_leXp_replace_bits(32)
+_leXp_replace_bits(16)
+
+#define	_uXp_replace_bits(_n)						\
+	static __inline void						\
+	u ## _n ## p_replace_bits(uint ## _n ## _t *p,			\
+	    uint ## _n ## _t v, uint ## _n ## _t f)			\
+	{								\
+		*p = (*p & ~f) | u ## _n ## _encode_bits(v, f);		\
+	}
+
+_uXp_replace_bits(64)
+_uXp_replace_bits(32)
+_uXp_replace_bits(16)
+_uXp_replace_bits(8)
+
+#define	_uX_replace_bits(_n)						\
+	static __inline uint ## _n ## _t				\
+	u ## _n ## _replace_bits(uint ## _n ## _t p,			\
+	    uint ## _n ## _t v, uint ## _n ## _t f)			\
+	{								\
+		return ((p & ~f) | u ## _n ## _encode_bits(v, f));	\
+	}
+
+_uX_replace_bits(64)
+_uX_replace_bits(32)
+_uX_replace_bits(16)
+_uX_replace_bits(8)
 
 #define	__bf_shf(x)	(__builtin_ffsll(x) - 1)
 
