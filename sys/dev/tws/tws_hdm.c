@@ -82,7 +82,7 @@ void tws_display_ctlr_info(struct tws_softc *sc);
 int 
 tws_init_ctlr(struct tws_softc *sc)
 {
-    u_int64_t reg __diagused;
+    u_int64_t reg __tws_debug;
     u_int32_t regh, regl;
 
     TWS_TRACE_DEBUG(sc, "entry", sc, sc->is64bit);
