@@ -269,6 +269,11 @@ tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
 		KMOD_TCPSTAT_INC(tcps_sig_err_buildsig);
 		return (ENOENT);
 	}
+	if (buf == NULL) {
+		key_freesav(&sav);
+		KMOD_TCPSTAT_INC(tcps_sig_err_nosigopt);
+		return (EACCES);
+	}
 	/*
 	 * tcp_input() operates with TCP header fields in host
 	 * byte order. We expect them in network byte order.
