@@ -251,7 +251,7 @@ setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
  * th		pointer to TCP header
  * buf		pointer to storage for computed MD5 digest
  *
- * Return 0 if successful, otherwise return -1.
+ * Return 0 if successful, otherwise return error code.
  */
 static int
 tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
@@ -267,7 +267,7 @@ tcp_ipsec_input(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	sav = key_allocsa_tcpmd5(&saidx);
 	if (sav == NULL) {
 		KMOD_TCPSTAT_INC(tcps_sig_err_buildsig);
-		return (EACCES);
+		return (ENOENT);
 	}
 	/*
 	 * tcp_input() operates with TCP header fields in host
@@ -307,7 +307,7 @@ tcp_ipsec_output(struct mbuf *m, struct tcphdr *th, u_char *buf)
 	sav = key_allocsa_tcpmd5(&saidx);
 	if (sav == NULL) {
 		KMOD_TCPSTAT_INC(tcps_sig_err_buildsig);
-		return (EACCES);
+		return (ENOENT);
 	}
 	tcp_signature_compute(m, th, sav, buf);
 	key_freesav(&sav);
