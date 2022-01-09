@@ -930,7 +930,6 @@ newnfs_init(void)
 	 * Initialize reply list and start timer
 	 */
 	TAILQ_INIT(&nfsd_reqq);
-	NFS_TIMERINIT;
 }
 
 /*

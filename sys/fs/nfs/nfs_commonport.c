@@ -67,12 +67,10 @@ struct nfsstatsv1 nfsstatsv1;
 int nfs_numnfscbd = 0;
 int nfscl_debuglevel = 0;
 char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
-struct callout newnfsd_callout;
 int nfsrv_lughashsize = 100;
 struct mtx nfsrv_dslock_mtx;
 struct nfsdevicehead nfsrv_devidhead;
 volatile int nfsrv_devidcnt = 0;
-void (*nfsd_call_servertimer)(void) = NULL;
 void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 vop_advlock_t *nfs_advlock_p = NULL;
 vop_reclaim_t *nfs_reclaim_p = NULL;
@@ -397,27 +395,6 @@ newnfs_getcred(void)
 	cred = crdup(td->td_ucred);
 	newnfs_setroot(cred);
 	return (cred);
-}
-
-/*
- * Nfs timer routine
- * Call the nfsd's timer function once/sec.
- */
-void
-newnfs_timer(void *arg)
-{
-	static time_t lasttime = 0;
-	/*
-	 * Call the server timer, if set up.
-	 * The argument indicates if it is the next second and therefore
-	 * leases should be checked.
-	 */
-	if (lasttime != NFSD_MONOSEC) {
-		lasttime = NFSD_MONOSEC;
-		if (nfsd_call_servertimer != NULL)
-			(*nfsd_call_servertimer)();
-	}
-	callout_reset(&newnfsd_callout, nfscl_ticks, newnfs_timer, NULL);
 }
 
 /*
@@ -895,7 +872,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		    MTX_DEF);
 		mtx_init(&nfsrv_dslock_mtx, "nfs4ds", NULL, MTX_DEF);
 		TAILQ_INIT(&nfsrv_devidhead);
-		callout_init(&newnfsd_callout, 1);
 		newnfs_init();
 		nfsd_call_nfscommon = nfssvc_nfscommon;
 		loaded = 1;
@@ -909,7 +885,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		}
 
 		nfsd_call_nfscommon = NULL;
-		callout_drain(&newnfsd_callout);
 		/* Clean out the name<-->id cache. */
 		nfsrv_cleanusergroup();
 		/* and get rid of the mutexes */
