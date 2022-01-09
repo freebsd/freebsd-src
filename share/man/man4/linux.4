@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2022
+.Dd January 9, 2022
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -39,8 +39,8 @@ linux_enable="YES"
 .Sh DESCRIPTION
 The
 .Nm
-module provides limited Linux ABI (application binary interface) compatibility,
-making it possible to run many unmodified Linux applications
+kernel module provides limited Linux ABI (application binary interface)
+compatibility, making it possible to run many unmodified Linux applications
 without the need for virtualization or emulation.
 Some of the facilities provided are:
 .Bl -bullet
@@ -75,11 +75,13 @@ file systems.
 .Pp
 To install Linux shared libraries and system files into
 .Pa /compat/linux ,
-use the
+either use the
 .Pa emulators/linux_base-c7
-port or the
-.Dv linux_base-c7
-package.
+port or package,
+or
+.Xr debootstrap 8
+installed from
+.Pa sysutils/debootstrap .
 .Pp
 To avoid mounting Linux-specific filesystems at startup, add the following
 line to the
@@ -132,18 +134,17 @@ From a user perspective, this makes
 work for Linux executables.
 Defaults to 0.
 .It Va compat.linux.setid_allowed
-Disable handling of set-user-ID and set-group-ID mode bits for the new
+Enable handling of set-user-ID and set-group-ID mode bits for the new
 process image file when image is to be executed under Linux ABI.
-When set, new Linux images always use credentials of the program
+When set to 0, new Linux images always use credentials of the program
 that issued the
 .Xr execve 2
 call, regardless of the image file mode.
-Defaults to 1.
-.Pp
 This might be reasonable or even required, because
 .Fx
-does not emulate Linux environment completely, and missed features
-could become holes.
+does not emulate the Linux environment completely, and missed features
+may result in security vulnerabilities.
+Defaults to 1.
 .El
 .Sh FILES
 .Bl -tag -width /compat/linux/dev/shm -compact
@@ -176,7 +177,7 @@ Linux kernel objects file system, see
 .Xr linsysfs 5 ,
 .Xr tmpfs 5
 .Sh HISTORY
-Linux ABI support first appeared in
+Linux ABI support first appeared for i386 in
 .Fx 2.1 .
 Support for amd64 binaries first appeared in
 .Fx 10.3 .
