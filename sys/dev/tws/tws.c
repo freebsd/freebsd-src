@@ -349,7 +349,7 @@ tws_detach(device_t dev)
 {
     struct tws_softc *sc = device_get_softc(dev);
     int i;
-    u_int32_t reg __diagused;
+    u_int32_t reg __tws_debug;
 
     TWS_TRACE_DEBUG(sc, "entry", 0, 0);
 
