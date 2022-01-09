@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2021 The FreeBSD Foundation
- * Copyright (c) 2020-2021 Bjoern A. Zeeb
+ * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -95,6 +95,7 @@ enum ieee80211_bss_changed {
 	BSS_CHANGED_PS			= BIT(16),
 	BSS_CHANGED_QOS			= BIT(17),
 	BSS_CHANGED_TXPOWER		= BIT(18),
+	BSS_CHANGED_HE_BSS_COLOR	= BIT(19),
 };
 
 /* 802.11 Figure 9-256 Suite selector format. [OUI(3), SUITE TYPE(1)] */
@@ -457,6 +458,7 @@ struct ieee80211_rx_status {
 #define	RATE_INFO_BW_160	0x08
 #define	RATE_INFO_BW_HE_RU	0x10
 	u8	encoding;
+#define	RX_ENC_LEGACY		0x00
 #define	RX_ENC_HE		0x01
 #define	RX_ENC_HT		0x02
 #define	RX_ENC_VHT		0x04
@@ -781,6 +783,8 @@ struct ieee80211_ops {
 	void (*stop_ap)(struct ieee80211_hw *, struct ieee80211_vif *);
 	int  (*join_ibss)(struct ieee80211_hw *, struct ieee80211_vif *);
 	void (*leave_ibss)(struct ieee80211_hw *, struct ieee80211_vif *);
+
+	int (*set_sar_specs)(struct ieee80211_hw *, const struct cfg80211_sar_specs *);
 
 	/* XXX TODO: get_et_sset_count, get_et_stats, get_et_strings */
 };
@@ -1830,6 +1834,13 @@ ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ieee80211_tx_status(hw, skb);
 }
 
+static __inline void
+ieee80211_tx_status_ni(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	IMPROVE();
+	ieee80211_tx_status(hw, skb);
+}
+
 static __inline int
 ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int x)
 {
@@ -1967,6 +1978,12 @@ ieee80211_txq_schedule_end(struct ieee80211_hw *hw, uint32_t ac)
 
 static __inline void
 ieee80211_txq_schedule_start(struct ieee80211_hw *hw, uint32_t ac)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 {
 	TODO();
 }

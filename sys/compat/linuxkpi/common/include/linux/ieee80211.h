@@ -72,6 +72,8 @@ extern int debug_80211;
 #define	IEEE80211_P2P_OPPPS_CTWINDOW_MASK	0x7f
 #define	IEEE80211_P2P_OPPPS_ENABLE_BIT		BIT(7)
 
+#define	IEEE80211_QOS_CTL_TAG1D_MASK		0x0007
+#define	IEEE80211_QOS_CTL_EOSP			0x0010
 #define	IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080	/* 9.2.4.5.1, Table 9-6 QoS Control Field */
 
 #define	IEEE80211_RATE_SHORT_PREAMBLE		BIT(0)
@@ -109,6 +111,7 @@ enum ieee80211_rate_control_changed_flags {
 
 /* 9.4.2.56.3, Table 9-163 Subfields of the A-MPDU Parameters field */
 enum ieee80211_min_mpdu_start_spacing {
+	IEEE80211_HT_MPDU_DENSITY_NONE		= 0,
 	IEEE80211_HT_MPDU_DENSITY_4		= 5,	/* 4us */
 	IEEE80211_HT_MPDU_DENSITY_16		= 7, 	/* 16us */
 };
@@ -117,6 +120,7 @@ enum ieee80211_min_mpdu_start_spacing {
 #define	IEEE80211_HT_STBC_PARAM_DUAL_CTS_PROT	0x0080	/* B24.. */
 
 #define	IEEE80211_FCTL_STYPE			IEEE80211_FC0_SUBTYPE_MASK
+#define	IEEE80211_FCTL_ORDER			(IEEE80211_FC1_ORDER << 8)
 
 #define	IEEE80211_STYPE_ASSOC_REQ		IEEE80211_FC0_SUBTYPE_ASSOC_REQ
 #define	IEEE80211_STYPE_REASSOC_REQ		IEEE80211_FC0_SUBTYPE_REASSOC_REQ
@@ -307,6 +311,8 @@ enum ieee80211_tx_rate_flags {
 	IEEE80211_TX_RC_SHORT_GI		= BIT(5),
 	IEEE80211_TX_RC_VHT_MCS			= BIT(6),
 };
+
+#define	IEEE80211_HT_CTL_LEN	4
 
 struct ieee80211_hdr {		/* net80211::ieee80211_frame */
         __le16		frame_control;

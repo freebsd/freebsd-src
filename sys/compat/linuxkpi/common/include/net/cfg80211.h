@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2021 The FreeBSD Foundation
- * Copyright (c) 2021 Bjoern A. Zeeb
+ * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -122,6 +122,7 @@ struct cfg80211_bitrate_mask {
 		uint64_t	legacy;		/* XXX? */
 		uint8_t		ht_mcs[16];	/* XXX? */
 		uint16_t	vht_mcs[16];	/* XXX? */
+		uint16_t	he_mcs[16];	/* XXX? */
 		uint8_t		gi;		/* NL80211_TXRATE_FORCE_LGI enum? */
 	} control[NUM_NL80211_BANDS];
 };
@@ -313,6 +314,28 @@ struct cfg80211_pmsr_result {
 	int	ap_tsf, ap_tsf_valid, final, host_time, status, type;
 	uint8_t					addr[ETH_ALEN];
 	struct cfg80211_pmsr_ftm_result		ftm;
+};
+
+struct cfg80211_sar_freq_ranges {
+	uint32_t				start_freq;
+	uint32_t				end_freq;
+};
+
+struct cfg80211_sar_sub_specs {
+	uint32_t				freq_range_index;
+	int					power;
+};
+
+struct cfg80211_sar_specs {
+	enum nl80211_sar_type			type;
+	uint32_t				num_sub_specs;
+	struct cfg80211_sar_sub_specs		sub_specs[];
+};
+
+struct cfg80211_sar_capa {
+	enum nl80211_sar_type			type;
+	uint32_t				num_freq_ranges;
+	const struct cfg80211_sar_freq_ranges	*freq_ranges;
 };
 
 struct cfg80211_ssid {
@@ -600,18 +623,21 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_MAC_CAP2_BSR			0x4
 #define	IEEE80211_HE_MAC_CAP2_LINK_ADAPTATION		0x8
 #define	IEEE80211_HE_MAC_CAP2_BCAST_TWT			0x10
+#define	IEEE80211_HE_MAC_CAP2_ALL_ACK			0x20
 
 #define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2	0x1
 #define	IEEE80211_HE_MAC_CAP3_OMI_CONTROL		0x2
 #define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_1	0x10
-#define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3	0x20
-#define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK	0x30
+#define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_2	0x20
+#define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3	0x40
+#define	IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_MASK	0x70
 #define	IEEE80211_HE_MAC_CAP3_RX_CTRL_FRAME_TO_MULTIBSS	0x80
 
 #define	IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU		0x1
 #define	IEEE80211_HE_MAC_CAP4_BQR			0x2
 #define	IEEE80211_HE_MAC_CAP4_MULTI_TID_AGG_TX_QOS_B39	0x4
 #define	IEEE80211_HE_MAC_CAP4_AMSDU_IN_AMPDU		0x8
+#define	IEEE80211_HE_MAC_CAP4_OPS			0x10
 
 #define	IEEE80211_HE_MAC_CAP5_HE_DYNAMIC_SM_PS		0x1
 #define	IEEE80211_HE_MAC_CAP5_HT_VHT_TRIG_FRAME_RX	0x2
@@ -633,35 +659,51 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G		0x1
 #define	IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G	0x2
 #define	IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G		0x4
+#define	IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G	0x8
 
 #define	IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A		0x1
 #define	IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD	0x2
 #define	IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS	0x4
 #define	IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_MASK	0x8
+#define	IEEE80211_HE_PHY_CAP1_HE_LTF_AND_GI_FOR_HE_PPDUS_0_8US	0x10
 
 #define	IEEE80211_HE_PHY_CAP2_MIDAMBLE_RX_TX_MAX_NSTS	0x1
 #define	IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US	0x2
 #define	IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ	0x4
 #define	IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ	0x8
+#define	IEEE80211_HE_PHY_CAP2_DOPPLER_TX		0x10
 
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_MASK	0x1
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_NO_DCM	0x2
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_NO_DCM	0x4
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_RX_NSS_1		0x8
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_1		0x10
+#define	IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER		0x20
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_16_QAM	0x40
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_16_QAM	0x80
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_2		0x100
+#define	IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU	0x200
 
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_8	0x1
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_8	0x2
 #define	IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE			0x4
+#define	IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER			0x8
+#define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_4	0x10
 
 #define	IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2	0x1
 #define	IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_2	0x2
+#define	IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK	0x4
+#define	IEEE80211_HE_PHY_CAP5_NG16_MU_FEEDBACK				0x8
+#define	IEEE80211_HE_PHY_CAP5_NG16_SU_FEEDBACK				0x10
 
 #define	IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT	0x1
 #define	IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMER_FB	0x2
 #define	IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMER_FB	0x4
-#define	IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMING_FB	0x10
+#define	IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMING_FB	0x8
 #define	IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMING_PARTIAL_BW_FB	0x20
+#define	IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_42_SU	0x40
+#define	IEEE80211_HE_PHY_CAP6_CODEBOOK_SIZE_75_MU	0x80
+#define	IEEE80211_HE_PHY_CAP6_PARTIAL_BW_EXT_RANGE	0x80
 
 #define	IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI	0x1
 #define	IEEE80211_HE_PHY_CAP7_MAX_NC_1				0x2
@@ -677,6 +719,8 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_2x996			0x8
 #define	IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242			0x10
 #define	IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI	0x20
+#define	IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_996			0x40
+#define	IEEE80211_HE_PHY_CAP8_HE_ER_SU_1XLTF_AND_08_US_GI	0x80
 
 #define	IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_0US		0x1
 #define	IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US		0x2
@@ -688,6 +732,7 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB	0x80
 #define	IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU	0x100
 #define	IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU	0x200
+#define	IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM	0x400
 
 #define	IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF		0x1
 
@@ -850,6 +895,7 @@ struct wiphy {
 
 	/* XXX TODO */
 	const struct cfg80211_pmsr_capabilities	*pmsr_capa;
+	const struct cfg80211_sar_capa		*sar_capa;
 	const struct wiphy_iftype_ext_capab	*iftype_ext_capab;
 	const struct linuxkpi_ieee80211_regdomain *regd;
 	char					fw_version[64];		/* XXX TODO */
@@ -1144,7 +1190,7 @@ regulatory_set_wiphy_regd(struct wiphy *wiphy,
 }
 
 static __inline int
-regulatory_hint(struct wiphy *wiphy, uint8_t *alpha2)
+regulatory_hint(struct wiphy *wiphy, const uint8_t *alpha2)
 {
 	TODO();
 	return (-ENXIO);
