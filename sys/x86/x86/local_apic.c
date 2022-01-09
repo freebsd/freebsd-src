@@ -1002,6 +1002,35 @@ native_lapic_disable_pmc(void)
 #endif
 }
 
+static int
+lapic_calibrate_initcount_cpuid_vm(void)
+{
+	u_int regs[4];
+	uint64_t freq;
+
+	/* Get value from CPUID leaf if possible. */
+	if (vm_guest == VM_GUEST_NO)
+		return (false);
+	if (hv_high < 0x40000010)
+		return (false);
+	do_cpuid(0x40000010, regs);
+	freq = (uint64_t)(regs[1]) * 1000;
+
+	/* Pick timer divisor. */
+	lapic_timer_divisor = 2;
+	do {
+		if (freq / lapic_timer_divisor < APIC_TIMER_MAX_COUNT)
+			break;
+		lapic_timer_divisor <<= 1;
+	} while (lapic_timer_divisor <= 128);
+	if (lapic_timer_divisor > 128)
+		return (false);
+
+	/* Record divided frequency. */
+	count_freq = freq / lapic_timer_divisor;
+	return (true);
+}
+
 static uint64_t
 cb_lapic_getcount(void)
 {
@@ -1013,6 +1042,9 @@ static void
 lapic_calibrate_initcount(struct lapic *la)
 {
 	uint64_t freq;
+
+	if (lapic_calibrate_initcount_cpuid_vm())
+		goto done;
 
 	/* Calibrate the APIC timer frequency. */
 	lapic_timer_set_divisor(2);
@@ -1031,6 +1063,7 @@ lapic_calibrate_initcount(struct lapic *la)
 	if (lapic_timer_divisor > 128)
 		panic("lapic: Divisor too big");
 	count_freq = freq * 2 / lapic_timer_divisor;
+done:
 	if (bootverbose) {
 		printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 		    lapic_timer_divisor, count_freq);
