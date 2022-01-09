@@ -649,6 +649,37 @@ linux_ratelimited(linux_ratelimit_t *rl)
 #define	TAINT_WARN	0
 #define	test_taint(x)	(0)
 
+static inline int
+_h2b(const char c)
+{
+
+	if (c >= '0' && c <= '9')
+		return (c - '0');
+	if (c >= 'a' && c <= 'f')
+		return (10 + c - 'a');
+	if (c >= 'A' && c <= 'F')
+		return (10 + c - 'A');
+	return (-EINVAL);
+}
+
+static inline int
+hex2bin(uint8_t *bindst, const char *hexsrc, size_t binlen)
+{
+	int hi4, lo4;
+
+	while (binlen > 0) {
+		hi4 = _h2b(*hexsrc++);
+		lo4 = _h2b(*hexsrc++);
+		if (hi4 < 0 || lo4 < 0)
+			return (-EINVAL);
+
+		*bindst++ = (hi4 << 4) | lo4;
+		binlen--;
+	}
+
+	return (0);
+}
+
 /*
  * Checking if an option is defined would be easy if we could do CPP inside CPP.
  * The defined case whether -Dxxx or -Dxxx=1 are easy to deal with.  In either
