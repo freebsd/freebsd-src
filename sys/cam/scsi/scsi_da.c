@@ -6002,6 +6002,8 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	case CAM_REQ_TERMIO:
 	case CAM_UNREC_HBA_ERROR:
 	case CAM_DATA_RUN_ERR:
+	case CAM_SCSI_STATUS_ERROR:
+	case CAM_ATA_STATUS_ERROR:
 		softc->errors++;
 		break;
 	default:
