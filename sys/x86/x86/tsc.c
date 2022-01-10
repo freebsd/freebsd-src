@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vdso.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <x86/vmware.h>
@@ -703,53 +704,18 @@ tsc_update_freq(uint64_t new_freq)
 void
 tsc_calibrate(void)
 {
-	struct timecounter *tc;
-	uint64_t freq, tsc_start, tsc_end;
-	u_int t_start, t_end;
-	register_t flags;
-	int cpu;
+	uint64_t freq;
 
 	if (tsc_disabled)
 		return;
 	if (tsc_early_calib_exact)
 		goto calibrated;
 
-	/*
-	 * Avoid using a low-quality timecounter to re-calibrate.  In
-	 * particular, old 32-bit platforms might only have the 8254 timer to
-	 * calibrate against.
-	 */
-	tc = atomic_load_ptr(&timecounter);
-	if (tc->tc_quality <= 0)
-		goto calibrated;
-
-	flags = intr_disable();
-	cpu = curcpu;
-	tsc_start = rdtsc_ordered();
-	t_start = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
-	intr_restore(flags);
-
-	DELAY(1000000);
-
-	thread_lock(curthread);
-	sched_bind(curthread, cpu);
-
-	flags = intr_disable();
-	tsc_end = rdtsc_ordered();
-	t_end = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
-	intr_restore(flags);
-
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	if (t_end <= t_start) {
-		/* Assume that the counter has wrapped around at most once. */
-		t_end += (uint64_t)tc->tc_counter_mask + 1;
-	}
-
-	freq = tc->tc_frequency * (tsc_end - tsc_start) / (t_end - t_start);
-
+	fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
+	freq = clockcalib(rdtsc_ordered, "TSC");
+	fpu_kern_leave(curthread, NULL);
 	tsc_update_freq(freq);
+
 calibrated:
 	tc_init(&tsc_timecounter);
 	set_cputicker(rdtsc, tsc_freq, !tsc_is_invariant);
