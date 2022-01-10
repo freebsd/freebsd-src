@@ -277,11 +277,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 		if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
 			if (chkhash == STDSB_NOMSG)
 				return (EINTEGRITY);
-			if (chkhash == STDSB_NOHASHFAIL_NOMSG) {
-				fs->fs_flags |= FS_NEEDSFSCK;
-				fs->fs_fmod = 1;
+			if (chkhash == STDSB_NOHASHFAIL_NOMSG)
 				return (0);
-			}
 #ifdef _KERNEL
 			res = uprintf("Superblock check-hash failed: recorded "
 			    "check-hash 0x%x != computed check-hash 0x%x%s\n",
@@ -303,8 +300,6 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 			if (chkhash == STDSB)
 				return (EINTEGRITY);
 			/* chkhash == STDSB_NOHASHFAIL */
-			fs->fs_flags |= FS_NEEDSFSCK;
-			fs->fs_fmod = 1;
 			return (0);
 		}
 		/* Have to set for old filesystems that predate this field */
