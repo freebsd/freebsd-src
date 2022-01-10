@@ -6461,8 +6461,6 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	if (!V_pf_status.running)
 		return (PF_PASS);
 
-	memset(&pd, 0, sizeof(pd));
-
 	kif = (struct pfi_kkif *)ifp->if_pf_kif;
 
 	if (kif == NULL) {
@@ -6476,6 +6474,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
 
+	memset(&pd, 0, sizeof(pd));
 	pd.pf_mtag = pf_find_mtag(m);
 
 	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
@@ -6962,9 +6961,6 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	if (!V_pf_status.running)
 		return (PF_PASS);
 
-	memset(&pd, 0, sizeof(pd));
-	pd.pf_mtag = pf_find_mtag(m);
-
 	kif = (struct pfi_kkif *)ifp->if_pf_kif;
 	if (kif == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
@@ -6976,6 +6972,9 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
+
+	memset(&pd, 0, sizeof(pd));
+	pd.pf_mtag = pf_find_mtag(m);
 
 	if (ip_dn_io_ptr != NULL && pd.pf_mtag != NULL &&
 	    pd.pf_mtag->flags & PF_TAG_DUMMYNET) {
