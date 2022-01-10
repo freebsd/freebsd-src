@@ -2513,6 +2513,7 @@ needs_vlan_insertion(struct mbuf *m)
 	return (m->m_flags & M_VLANTAG);
 }
 
+#if defined(INET) || defined(INET6)
 static void *
 m_advance(struct mbuf **pm, int *poffset, int len)
 {
@@ -2537,6 +2538,7 @@ m_advance(struct mbuf **pm, int *poffset, int len)
 	*pm = m;
 	return ((void *)p);
 }
+#endif
 
 static inline int
 count_mbuf_ext_pgs(struct mbuf *m, int skip, vm_paddr_t *nextaddr)
