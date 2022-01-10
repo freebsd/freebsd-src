@@ -219,8 +219,7 @@ arm64_read_pmc(int cpu, int ri, pmc_value_t *v)
 	if ((READ_SPECIALREG(pmovsclr_el0) & reg) != 0) {
 		/* Clear Overflow Flag */
 		WRITE_SPECIALREG(pmovsclr_el0, reg);
-		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-			pm->pm_pcpu_state[cpu].pps_overflowcnt++;
+		pm->pm_pcpu_state[cpu].pps_overflowcnt++;
 
 		/* Reread counter in case we raced. */
 		tmp = arm64_pmcn_read(ri);
@@ -229,10 +228,18 @@ arm64_read_pmc(int cpu, int ri, pmc_value_t *v)
 	intr_restore(s);
 
 	PMCDBG2(MDP, REA, 2, "arm64-read id=%d -> %jd", ri, tmp);
-	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-		*v = ARMV8_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
-	else
-		*v = tmp;
+	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+		/*
+		 * Clamp value to 0 if the counter just overflowed,
+		 * otherwise the returned reload count would wrap to a
+		 * huge value.
+		 */
+		if ((tmp & (1ull << 63)) == 0)
+			tmp = 0;
+		else
+			tmp = ARMV8_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
+	}
+	*v = tmp;
 
 	return (0);
 }
@@ -380,10 +387,10 @@ arm64_intr(struct trapframe *tf)
 
 		retval = 1; /* Found an interrupting PMC. */
 
-		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
-			pm->pm_pcpu_state[cpu].pps_overflowcnt += 1;
+		pm->pm_pcpu_state[cpu].pps_overflowcnt += 1;
+
+		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			continue;
-		}
 
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;

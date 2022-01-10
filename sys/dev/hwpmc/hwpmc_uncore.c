@@ -175,6 +175,10 @@ uncore_pcpu_fini(struct pmc_mdep *md, int cpu)
 static pmc_value_t
 ucf_perfctr_value_to_reload_count(pmc_value_t v)
 {
+
+	/* If the PMC has overflowed, return a reload count of zero. */
+	if ((v & (1ULL << (uncore_ucf_width - 1))) == 0)
+		return (0);
 	v &= (1ULL << uncore_ucf_width) - 1;
 	return (1ULL << uncore_ucf_width) - v;
 }
