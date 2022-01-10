@@ -337,6 +337,7 @@ struct iflib_txq {
 	uint64_t	ift_map_failed;
 	uint64_t	ift_txd_encap_efbig;
 	uint64_t	ift_pullups;
+	uint64_t	ift_last_timer_tick;
 
 	struct mtx	ift_mtx;
 	struct mtx	ift_db_mtx;
@@ -586,9 +587,9 @@ SYSCTL_INT(_net_iflib, OID_AUTO, min_tx_latency, CTLFLAG_RW,
 static int iflib_no_tx_batch = 0;
 SYSCTL_INT(_net_iflib, OID_AUTO, no_tx_batch, CTLFLAG_RW,
 		   &iflib_no_tx_batch, 0, "minimize transmit latency at the possible expense of throughput");
-static int iflib_timer_period = 500;
-SYSCTL_INT(_net_iflib, OID_AUTO, timer_period, CTLFLAG_RW,
-		   &iflib_timer_period, 0, "milliseconds between iflib_timer calls");
+static int iflib_timer_default = 1000;
+SYSCTL_INT(_net_iflib, OID_AUTO, timer_default, CTLFLAG_RW,
+		   &iflib_timer_default, 0, "number of ticks between iflib_timer calls");
 
 
 #if IFLIB_DEBUG_COUNTERS
@@ -2392,6 +2393,7 @@ iflib_timer(void *arg)
 	iflib_txq_t txq = arg;
 	if_ctx_t ctx = txq->ift_ctx;
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
+	uint64_t this_tick = ticks;
 
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
@@ -2401,28 +2403,30 @@ iflib_timer(void *arg)
 	** can be done without the lock because its RO
 	** and the HUNG state will be static if set.
 	*/
-	IFDI_TIMER(ctx, txq->ift_id);
-	if ((txq->ift_qstatus == IFLIB_QUEUE_HUNG) &&
-	    ((txq->ift_cleaned_prev == txq->ift_cleaned) ||
-	     (sctx->isc_pause_frames == 0)))
-		goto hung;
-	if (txq->ift_qstatus != IFLIB_QUEUE_IDLE &&
-	    ifmp_ring_is_stalled(txq->ift_br)) {
-		KASSERT(ctx->ifc_link_state == LINK_STATE_UP,
-		    ("queue can't be marked as hung if interface is down"));
-		txq->ift_qstatus = IFLIB_QUEUE_HUNG;
-	}
-	txq->ift_cleaned_prev = txq->ift_cleaned;
+	if (this_tick - txq->ift_last_timer_tick >= iflib_timer_default) {
+		txq->ift_last_timer_tick = this_tick;
+		IFDI_TIMER(ctx, txq->ift_id);
+		if ((txq->ift_qstatus == IFLIB_QUEUE_HUNG) &&
+		    ((txq->ift_cleaned_prev == txq->ift_cleaned) ||
+		     (sctx->isc_pause_frames == 0)))
+			goto hung;
 
+		if (txq->ift_qstatus != IFLIB_QUEUE_IDLE &&
+		    ifmp_ring_is_stalled(txq->ift_br)) {
+			KASSERT(ctx->ifc_link_state == LINK_STATE_UP,
+			    ("queue can't be marked as hung if interface is down"));
+			txq->ift_qstatus = IFLIB_QUEUE_HUNG;
+		}
+		txq->ift_cleaned_prev = txq->ift_cleaned;
+	}
 	/* handle any laggards */
 	if (txq->ift_db_pending)
 		GROUPTASK_ENQUEUE(&txq->ift_task);
 
 	sctx->isc_pause_frames = 0;
-	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)
-		callout_reset_sbt_on(&txq->ift_timer,
-		    iflib_timer_period * SBT_1MS, 0,
-		    iflib_timer, txq, txq->ift_timer.c_cpu, C_PREL(1));
+	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) 
+		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer,
+		    txq, txq->ift_timer.c_cpu);
 	return;
 
  hung:
@@ -2540,9 +2544,8 @@ done:
 	IFDI_INTR_ENABLE(ctx);
 	txq = ctx->ifc_txqs;
 	for (i = 0; i < sctx->isc_ntxqsets; i++, txq++)
-		callout_reset_sbt_on(&txq->ift_timer,
-		    iflib_timer_period * SBT_1MS, 0,
-		    iflib_timer, txq, txq->ift_timer.c_cpu, C_PREL(1));
+		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer, txq,
+			txq->ift_timer.c_cpu);
 
         /* Re-enable txsync/rxsync. */
 	netmap_enable_all_rings(ifp);
@@ -4064,9 +4067,8 @@ _task_fn_admin(void *context)
 	}
 	IFDI_UPDATE_ADMIN_STATUS(ctx);
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
-		callout_reset_sbt_on(&txq->ift_timer,
-		    iflib_timer_period * SBT_1MS, 0,
-		    iflib_timer, txq, txq->ift_timer.c_cpu, C_PREL(1));
+		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer, txq,
+		    txq->ift_timer.c_cpu);
 	}
 	IFDI_LINK_INTR_ENABLE(ctx);
 	if (do_reset)
@@ -5719,7 +5721,7 @@ iflib_device_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 static int
 iflib_module_init(void)
 {
-
+	iflib_timer_default = hz / 2;
 	return (0);
 }
 
