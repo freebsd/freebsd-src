@@ -2869,7 +2869,7 @@ fail:
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 	case SIOCGIFXMEDIA:
-		ifmedia_ioctl(ifp, ifr, &pi->media, cmd);
+		rc = ifmedia_ioctl(ifp, ifr, &pi->media, cmd);
 		break;
 
 	case SIOCGI2C: {
