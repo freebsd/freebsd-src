@@ -3947,12 +3947,13 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 				 * the potential top speed.  Request the best
 				 * FEC at that speed instead.
 				 */
-				if (speed & FW_PORT_CAP32_SPEED_100G &&
-				    fec == FW_PORT_CAP32_FEC_BASER_RS)
-					fec = FW_PORT_CAP32_FEC_RS;
-				else if (speed & FW_PORT_CAP32_SPEED_50G &&
-				    fec == FW_PORT_CAP32_FEC_RS)
-					fec = FW_PORT_CAP32_FEC_BASER_RS;
+				if (speed & FW_PORT_CAP32_SPEED_100G) {
+					if (fec == FW_PORT_CAP32_FEC_BASER_RS)
+						fec = FW_PORT_CAP32_FEC_RS;
+				} else if (speed & FW_PORT_CAP32_SPEED_50G) {
+					if (fec == FW_PORT_CAP32_FEC_RS)
+						fec = FW_PORT_CAP32_FEC_BASER_RS;
+				}
 			}
 		} else {
 			/*
