@@ -117,7 +117,7 @@ struct port_info {
 #define PORT_NAME_LEN 32
 	char            lockbuf[PORT_LOCK_NAME_LEN];
 	char            namebuf[PORT_NAME_LEN];
-} __aligned(L1_CACHE_BYTES);
+} __aligned(CACHE_LINE_SIZE);
 
 enum {
 	/* adapter flags */
