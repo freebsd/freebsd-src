@@ -834,14 +834,14 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 				break;
 #ifdef LINUXKPI_DEBUG_80211
 			if (count > 0)
-				ic_printf(vap->iv_ic, "%s: waiting for %d quuees "
+				ic_printf(vap->iv_ic, "%s: waiting for %d queues "
 				    "to be allocated by driver\n", __func__, count);
 #endif
 			pause("lkpi80211txq", hz/10);
 		}
 #ifdef LINUXKPI_DEBUG_80211
 		if (count > 0)
-			ic_printf(vap->iv_ic, "%s: %d quuees still not "
+			ic_printf(vap->iv_ic, "%s: %d queues still not "
 			    "allocated by driver\n", __func__, count);
 #endif
 	}
