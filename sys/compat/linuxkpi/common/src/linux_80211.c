@@ -573,11 +573,15 @@ lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 
 	hw = LHW_TO_HW(lhw);
 
+	IEEE80211_UNLOCK(lhw->ic);
+	LKPI_80211_LHW_LOCK(lhw);
 	/* Need to cancel the scan. */
 	lkpi_80211_mo_cancel_hw_scan(hw, vif);
 
 	/* Need to make sure we see ieee80211_scan_completed. */
 	error = msleep(lhw, &lhw->mtx, 0, "lhwscanstop", hz/2);
+	LKPI_80211_LHW_UNLOCK(lhw);
+	IEEE80211_LOCK(lhw->ic);
 
 	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) != 0)
 		ic_printf(lhw->ic, "%s: failed to cancel scan: %d (%p, %p)\n",
