@@ -19,7 +19,7 @@ __FBSDID("$FreeBSD$");
 static int
 cxgb_t3fw_modevent(module_t mod, int type, void *unused)
 {
-	const struct firmware *fp, *parent;
+	const struct firmware *fp;
 	int error;
 	switch (type) {
 	case MOD_LOAD:
@@ -29,7 +29,6 @@ cxgb_t3fw_modevent(module_t mod, int type, void *unused)
 				       0, NULL);
 		if (fp == NULL)
 			goto fail_0;
-		parent = fp;
 		return (0);
 	fail_0:
 		return (ENXIO);
@@ -52,7 +51,7 @@ MODULE_DEPEND(cxgb_t3fw, firmware, 1, 1, 1);
 static int
 cxgb_t3b_protocol_sram_modevent(module_t mod, int type, void *unused)
 {
-	const struct firmware *fp, *parent;
+	const struct firmware *fp;
 	int error;
 	switch (type) {
 	case MOD_LOAD:
@@ -62,7 +61,6 @@ cxgb_t3b_protocol_sram_modevent(module_t mod, int type, void *unused)
 				       0, NULL);
 		if (fp == NULL)
 			goto fail_0;
-		parent = fp;
 		return (0);
 	fail_0:
 		return (ENXIO);
@@ -85,7 +83,7 @@ MODULE_DEPEND(cxgb_t3b_protocol_sram, firmware, 1, 1, 1);
 static int
 cxgb_t3b_tp_eeprom_modevent(module_t mod, int type, void *unused)
 {
-	const struct firmware *fp, *parent;
+	const struct firmware *fp;
 	int error;
 	switch (type) {
 	case MOD_LOAD:
@@ -95,7 +93,6 @@ cxgb_t3b_tp_eeprom_modevent(module_t mod, int type, void *unused)
 				       0, NULL);
 		if (fp == NULL)
 			goto fail_0;
-		parent = fp;
 		return (0);
 	fail_0:
 		return (ENXIO);
@@ -118,7 +115,7 @@ MODULE_DEPEND(cxgb_t3b_tp_eeprom, firmware, 1, 1, 1);
 static int
 cxgb_t3c_protocol_sram_modevent(module_t mod, int type, void *unused)
 {
-	const struct firmware *fp, *parent;
+	const struct firmware *fp;
 	int error;
 	switch (type) {
 	case MOD_LOAD:
@@ -128,7 +125,6 @@ cxgb_t3c_protocol_sram_modevent(module_t mod, int type, void *unused)
 				       0, NULL);
 		if (fp == NULL)
 			goto fail_0;
-		parent = fp;
 		return (0);
 	fail_0:
 		return (ENXIO);
@@ -151,7 +147,7 @@ MODULE_DEPEND(cxgb_t3c_protocol_sram, firmware, 1, 1, 1);
 static int
 cxgb_t3c_tp_eeprom_modevent(module_t mod, int type, void *unused)
 {
-	const struct firmware *fp, *parent;
+	const struct firmware *fp;
 	int error;
 	switch (type) {
 	case MOD_LOAD:
@@ -161,7 +157,6 @@ cxgb_t3c_tp_eeprom_modevent(module_t mod, int type, void *unused)
 				       0, NULL);
 		if (fp == NULL)
 			goto fail_0;
-		parent = fp;
 		return (0);
 	fail_0:
 		return (ENXIO);
