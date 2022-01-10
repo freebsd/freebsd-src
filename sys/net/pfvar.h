@@ -551,6 +551,7 @@ struct pf_kpooladdr {
 TAILQ_HEAD(pf_kpalist, pf_kpooladdr);
 
 struct pf_kpool {
+	struct mtx		 mtx;
 	struct pf_kpalist	 list;
 	struct pf_kpooladdr	*cur;
 	struct pf_poolhashkey	 key;
