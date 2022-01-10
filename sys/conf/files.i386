@@ -171,3 +171,9 @@ x86/x86/local_apic.c		optional apic
 x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/msi.c			optional apic pci
+# Clock calibration subroutine; uses floating-point arithmetic
+subr_clockcalib.o		standard				\
+	dependency	"$S/kern/subr_clockcalib.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -m80387 ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"subr_clockcalib.o"

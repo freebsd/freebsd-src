@@ -407,3 +407,9 @@ contrib/openzfs/module/zfs/vdev_raidz_math_avx512bw.c		optional zfs compile-with
 contrib/openzfs/module/zfs/vdev_raidz_math_avx512f.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_raidz_math_sse2.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_raidz_math_ssse3.c		optional zfs compile-with "${ZFS_C}"
+# Clock calibration subroutine; uses floating-point arithmetic
+subr_clockcalib.o		standard				\
+	dependency	"$S/kern/subr_clockcalib.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse2 ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"subr_clockcalib.o"
