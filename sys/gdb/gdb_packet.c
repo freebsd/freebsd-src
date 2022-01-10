@@ -254,24 +254,16 @@ gdb_tx_end(void)
 					runlen--;
 				}
 			}
-			if (runlen == 1) {
+			/* Don't emit '$', '#', '+', '-' or a run length below 3. */
+			while (runlen == 1 || runlen == 2 ||
+			    runlen + 29 == '$' || runlen + 29 == '#' ||
+			    runlen + 29 == '+' || runlen + 29 == '-') {
 				gdb_cur->gdb_putc(c);
 				cksum += c;
 				runlen--;
 			}
 			if (runlen == 0)
 				continue;
-			/* Don't emit '$', '#', '+' or '-'. */
-			if (runlen == 7) {
-				gdb_cur->gdb_putc(c);
-				cksum += c;
-				runlen--;
-			}
-			if (runlen == 6 || runlen == 14 || runlen == 16) {
-				gdb_cur->gdb_putc(c);
-				cksum += c;
-				runlen--;
-			}
 			gdb_cur->gdb_putc('*');
 			cksum += '*';
 			gdb_cur->gdb_putc(runlen+29);
