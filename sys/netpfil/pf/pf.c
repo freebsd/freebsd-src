@@ -6965,9 +6965,6 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	memset(&pd, 0, sizeof(pd));
 	pd.pf_mtag = pf_find_mtag(m);
 
-	if (pd.pf_mtag && pd.pf_mtag->flags & PF_TAG_GENERATED)
-		return (PF_PASS);
-
 	kif = (struct pfi_kkif *)ifp->if_pf_kif;
 	if (kif == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
