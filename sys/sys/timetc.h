@@ -96,4 +96,11 @@ void	cpu_tick_calibration(void);
 SYSCTL_DECL(_kern_timecounter);
 #endif
 
+/**
+ * clockcalib(clk, clkname):
+ * Return the frequency of the provided timer, as calibrated against the
+ * current best-available timecounter.
+ */
+uint64_t clockcalib(uint64_t (*)(void), const char *);
+
 #endif /* !_SYS_TIMETC_H_ */
