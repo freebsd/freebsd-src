@@ -94,28 +94,19 @@ struct t3_mbuf_hdr {
 #define TX_WR_COUNT_MAX         7              /* the maximum total number of packets that can be
 						* aggregated into a single TX WR
 						*/
-#if defined(__i386__) || defined(__amd64__)  
 
-static __inline
-void prefetch(void *x) 
-{ 
-        __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-}
+#define prefetch(x) __builtin_prefetch(x)
 
+#if defined(__i386__) || defined(__amd64__)
 #define smp_mb() mb()
-
-#define L1_CACHE_BYTES 128
 #define WARN_ON(condition) do { \
 	if (__predict_false((condition)!=0)) {  \
                 log(LOG_WARNING, "BUG: warning at %s:%d/%s()\n", __FILE__, __LINE__, __FUNCTION__); \
                 kdb_backtrace(); \
         } \
 } while (0)
-
-#else 
+#else
 #define smp_mb()
-#define prefetch(x)
-#define L1_CACHE_BYTES 32
 #endif
 
 #define DBG_RX          (1 << 0)
