@@ -239,13 +239,14 @@ getnextcpuevent(int idle)
 	/* Handle hardclock() events, skipping some if CPU is idle. */
 	event = state->nexthard;
 	if (idle) {
-		hardfreq = (u_int)hz / 2;
-		if (tc_min_ticktock_freq > 2
+		if (tc_min_ticktock_freq > 1
 #ifdef SMP
 		    && curcpu == CPU_FIRST()
 #endif
 		    )
 			hardfreq = hz / tc_min_ticktock_freq;
+		else
+			hardfreq = hz;
 		if (hardfreq > 1)
 			event += tick_sbt * (hardfreq - 1);
 	}
