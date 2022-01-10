@@ -183,54 +183,10 @@
 	.stabs __STRING(sym),1,0,0,0
 #endif /* __STDC__ */
 
-/* Exactly one of the __ARM_ARCH_*__ macros will be defined by the compiler. */
-/* The _ARM_ARCH_* macros are deprecated and will be removed soon. */
-/* This should be moved into another header so it can be used in
- * both asm and C code. machine/asm.h cannot be included in C code. */
-#if defined (__ARM_ARCH_7__) || defined (__ARM_ARCH_7A__)
-#define _ARM_ARCH_7
-#define _HAVE_ARMv7_INSTRUCTIONS 1
-#endif
-
-#if defined (_HAVE_ARMv7_INSTRUCTIONS) || defined (__ARM_ARCH_6__) || \
-	defined (__ARM_ARCH_6J__) || defined (__ARM_ARCH_6K__) || \
-	defined (__ARM_ARCH_6KZ__) || \
-	defined (__ARM_ARCH_6Z__) || defined (__ARM_ARCH_6ZK__)
-#define _ARM_ARCH_6
-#define _HAVE_ARMv6_INSTRUCTIONS 1
-#endif
-
-#if defined (_HAVE_ARMv6_INSTRUCTIONS) || defined (__ARM_ARCH_5TE__) || \
-    defined (__ARM_ARCH_5TEJ__) || defined (__ARM_ARCH_5E__)
-#define _ARM_ARCH_5E
-#define _HAVE_ARMv5E_INSTRUCTIONS 1
-#endif
-
-#if defined (_HAVE_ARMv5E_INSTRUCTIONS) || defined (__ARM_ARCH_5__) || \
-    defined (__ARM_ARCH_5T__)
-#define _ARM_ARCH_5
-#define _HAVE_ARMv5_INSTRUCTIONS 1
-#endif
-
-#if defined (_HAVE_ARMv5_INSTRUCTIONS) || defined (__ARM_ARCH_4T__)
-#define _ARM_ARCH_4T
-#define _HAVE_ARMv4T_INSTRUCTIONS 1
-#endif
-
-/* FreeBSD requires ARMv4, so this is always set. */
-#define _HAVE_ARMv4_INSTRUCTIONS 1
-
-#if defined (_HAVE_ARMv4T_INSTRUCTIONS)
 # define RET	bx	lr
 # define RETeq	bxeq	lr
 # define RETne	bxne	lr
 # define RETc(c) bx##c	lr
-#else
-# define RET	mov	pc, lr
-# define RETeq	moveq	pc, lr
-# define RETne	movne	pc, lr
-# define RETc(c) mov##c	pc, lr
-#endif
 
 #if __ARM_ARCH >= 7
 #define ISB	isb
