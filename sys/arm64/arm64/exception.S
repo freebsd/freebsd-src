@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This is limited to 28 instructions as it's placed in the exception vector
  * slot that is 32 instructions long. We need one for the branch, and three
- * for the prolog.
+ * for the prologue.
  */
 .macro	save_registers_head el
 .if \el == 1
