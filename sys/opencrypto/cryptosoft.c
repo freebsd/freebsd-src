@@ -1330,6 +1330,7 @@ swcr_probesession(device_t dev, const struct crypto_session_params *csp)
 		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_AES_CCM_16:
 		case CRYPTO_CHACHA20_POLY1305:
+		case CRYPTO_XCHACHA20_POLY1305:
 			return (EINVAL);
 		default:
 			if (!swcr_cipher_supported(csp))
@@ -1355,6 +1356,7 @@ swcr_probesession(device_t dev, const struct crypto_session_params *csp)
 			}
 			break;
 		case CRYPTO_CHACHA20_POLY1305:
+		case CRYPTO_XCHACHA20_POLY1305:
 			break;
 		default:
 			return (EINVAL);
@@ -1366,6 +1368,7 @@ swcr_probesession(device_t dev, const struct crypto_session_params *csp)
 		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_AES_CCM_16:
 		case CRYPTO_CHACHA20_POLY1305:
+		case CRYPTO_XCHACHA20_POLY1305:
 			return (EINVAL);
 		}
 		switch (csp->csp_auth_alg) {
@@ -1422,6 +1425,7 @@ swcr_newsession(device_t dev, crypto_session_t cses,
 		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_AES_CCM_16:
 		case CRYPTO_CHACHA20_POLY1305:
+		case CRYPTO_XCHACHA20_POLY1305:
 			panic("bad cipher algo");
 #endif
 		default:
@@ -1446,6 +1450,7 @@ swcr_newsession(device_t dev, crypto_session_t cses,
 				ses->swcr_process = swcr_ccm;
 			break;
 		case CRYPTO_CHACHA20_POLY1305:
+		case CRYPTO_XCHACHA20_POLY1305:
 			error = swcr_setup_aead(ses, csp);
 			if (error == 0)
 				ses->swcr_process = swcr_chacha20_poly1305;
@@ -1462,6 +1467,7 @@ swcr_newsession(device_t dev, crypto_session_t cses,
 		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_AES_CCM_16:
 		case CRYPTO_CHACHA20_POLY1305:
+		case CRYPTO_XCHACHA20_POLY1305:
 			panic("bad eta cipher algo");
 		}
 		switch (csp->csp_auth_alg) {

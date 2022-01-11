@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2021
+.Dd January 11, 2022
 .Dt CRYPTO 7
 .Os
 .Sh NAME
@@ -169,6 +169,9 @@ AES Galois/Counter Mode
 AES Counter with CBC-MAC
 .It Dv CRYPTO_CHACHA20_POLY1305 Ta 12, 8 Ta 32 Ta 16 Ta
 ChaCha20-Poly1305
+.El
+.It Dv CRYPTO_XCHACHA20_POLY1305 Ta 24 Ta 32 Ta 16 Ta
+XChaCha20-Poly1305
 .El
 .Sh SEE ALSO
 .Xr crypto 4 ,
