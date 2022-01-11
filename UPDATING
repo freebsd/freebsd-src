@@ -11,6 +11,26 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220111:
+	13.0-RELEASE-p6	FreeBSD-EN-22:01.fsck_ffs
+			FreeBSD-EN-22:02.xsave
+			FreeBSD-EN-22:03.hyperv
+			FreeBSD-EN-22:05.tail
+			FreeBSD-EN-22:06.libalias
+			FreeBSD-SA-22:01.vt
+
+	Fix fsck_ffs bad inode number errors [EN-22:01.fsck_ffs]
+
+	Correct size of the amd64 SSE area in the xsave layout [FreeBSD-EN-22:02.xsave]
+
+	Prepopulate Hyper-V PCI device bars [FreeBSD-EN-22:03.hyperv]
+
+	Fix "tail -F" file rotation detection [FreeBSD-EN-22:05.tail]
+
+	Fix fragmented UDP packets handling [FreeBSD-EN-22:06.libalias]
+
+	Fix vt console buffer overflow [FreeBSD-SA-22:01.vt]
+
 20211103:
 	13.0-RELEASE-p5	FreeBSD-EN-21:26.libevent
 			FreeBSD-EN-21:27.caroot
