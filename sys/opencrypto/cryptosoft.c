@@ -106,7 +106,7 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	const struct swcr_encdec *sw;
 	void *ctx;
 	size_t inlen, outlen, todo;
-	int blks, resid;
+	int blksz, resid;
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const unsigned char *inblk;
 	unsigned char *outblk;
@@ -124,9 +124,9 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 		if ((crp->crp_payload_length % exf->blocksize) != 0)
 			return (EINVAL);
 
-		blks = exf->blocksize;
+		blksz = exf->blocksize;
 	} else
-		blks = exf->native_blocksize;
+		blksz = exf->native_blocksize;
 
 	if (exf == &enc_xform_aes_icm &&
 	    (crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
@@ -162,23 +162,23 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	 * 'outlen' is the remaining length of current segment in the
 	 * output buffer.
 	 */
-	for (resid = crp->crp_payload_length; resid >= blks; resid -= todo) {
+	for (resid = crp->crp_payload_length; resid >= blksz; resid -= todo) {
 		/*
 		 * If the current block is not contained within the
 		 * current input/output segment, use 'blk' as a local
 		 * buffer.
 		 */
-		if (inlen < blks) {
-			crypto_cursor_copydata(&cc_in, blks, blk);
+		if (inlen < blksz) {
+			crypto_cursor_copydata(&cc_in, blksz, blk);
 			inblk = blk;
-			inlen = blks;
+			inlen = blksz;
 		}
-		if (outlen < blks) {
+		if (outlen < blksz) {
 			outblk = blk;
-			outlen = blks;
+			outlen = blksz;
 		}
 
-		todo = rounddown2(MIN(resid, MIN(inlen, outlen)), blks);
+		todo = rounddown2(MIN(resid, MIN(inlen, outlen)), blksz);
 
 		if (encrypting)
 			exf->encrypt_multi(ctx, inblk, outblk, todo);
@@ -196,7 +196,7 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 		}
 
 		if (outblk == blk) {
-			crypto_cursor_copyback(&cc_out, blks, blk);
+			crypto_cursor_copyback(&cc_out, blksz, blk);
 			outblk = crypto_cursor_segment(&cc_out, &outlen);
 		} else {
 			crypto_cursor_advance(&cc_out, todo);
@@ -213,7 +213,7 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 		KASSERT(exf->native_blocksize != 0,
 		    ("%s: partial block of %d bytes for cipher %s",
 		    __func__, resid, exf->name));
-		KASSERT(resid < blks, ("%s: partial block too big", __func__));
+		KASSERT(resid < blksz, ("%s: partial block too big", __func__));
 
 		inblk = crypto_cursor_segment(&cc_in, &inlen);
 		outblk = crypto_cursor_segment(&cc_out, &outlen);
