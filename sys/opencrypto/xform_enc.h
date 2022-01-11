@@ -89,6 +89,7 @@ extern const struct enc_xform enc_xform_aes_xts;
 extern const struct enc_xform enc_xform_camellia;
 extern const struct enc_xform enc_xform_chacha20;
 extern const struct enc_xform enc_xform_chacha20_poly1305;
+extern const struct enc_xform enc_xform_xchacha20_poly1305;
 extern const struct enc_xform enc_xform_ccm;
 
 struct aes_icm_ctx {
