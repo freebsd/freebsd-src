@@ -42,7 +42,7 @@ static int nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
  */
 int
 nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
-    int *aceerrp, int *acesizep, NFSPROC_T *p)
+    bool server, int *aceerrp, int *acesizep, NFSPROC_T *p)
 {
 	u_int32_t *tl;
 	int len, gotid = 0, owner = 0, error = 0, aceerr = 0;
@@ -154,9 +154,9 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 			acep->ae_entry_type = ACL_ENTRY_TYPE_ALLOW;
 		else if (acetype == NFSV4ACE_DENIEDTYPE)
 			acep->ae_entry_type = ACL_ENTRY_TYPE_DENY;
-		else if (acetype == NFSV4ACE_AUDITTYPE)
+		else if (!server && acetype == NFSV4ACE_AUDITTYPE)
 			acep->ae_entry_type = ACL_ENTRY_TYPE_AUDIT;
-		else if (acetype == NFSV4ACE_ALARMTYPE)
+		else if (!server && acetype == NFSV4ACE_ALARMTYPE)
 			acep->ae_entry_type = ACL_ENTRY_TYPE_ALARM;
 		else
 			aceerr = NFSERR_ATTRNOTSUPP;
