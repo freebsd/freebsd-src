@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/regulator/regulator.h>
-#endif
 
 #include <dev/sdhci/sdhci.h>
 #include <dev/sdhci/sdhci_xenon.h>

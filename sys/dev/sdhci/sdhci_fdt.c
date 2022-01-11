@@ -52,13 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/ofw/ofw_subr.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/syscon/syscon.h>
 #include <dev/extres/phy/phy.h>
-#endif
 
 #include <dev/mmc/bridge.h>
 
@@ -69,10 +67,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_mmccam.h"
 
-#ifdef EXT_RESOURCES
 #include "clkdev_if.h"
 #include "syscon_if.h"
-#endif
 
 #define	MAX_SLOTS		6
 #define	SDHCI_FDT_ARMADA38X	1
@@ -81,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FDT_QUALCOMM	4
 #define	SDHCI_FDT_RK3399	5
 
-#ifdef EXT_RESOURCES
 #define	RK3399_GRF_EMMCCORE_CON0		0xf000
 #define	 RK3399_CORECFG_BASECLKFREQ		0xff00
 #define	 RK3399_CORECFG_TIMEOUTCLKUNIT		(1 << 7)
@@ -93,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #define	SHIFTIN(x, mask)	((x) * LOWEST_SET_BIT(mask))
 
 #define	EMMCCARDCLK_ID		1000
-#endif
 
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada-380-sdhci",	SDHCI_FDT_ARMADA38X },
@@ -120,14 +114,11 @@ struct sdhci_fdt_softc {
 	bool		wp_inverted;	/* WP pin is inverted */
 	bool		no_18v;		/* No 1.8V support */
 
-#ifdef EXT_RESOURCES
 	clk_t		clk_xin;	/* xin24m fixed clock */
 	clk_t		clk_ahb;	/* ahb clock */
 	phy_t		phy;		/* phy to be used */
-#endif
 };
 
-#ifdef EXT_RESOURCES
 struct rk3399_emmccardclk_sc {
 	device_t	clkdev;
 	bus_addr_t	reg;
@@ -320,7 +311,6 @@ sdhci_init_rk3399(device_t dev)
 
 	return (0);
 }
-#endif
 
 static uint8_t
 sdhci_fdt_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
@@ -488,7 +478,6 @@ sdhci_fdt_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-#ifdef EXT_RESOURCES
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
 	    SDHCI_FDT_RK3399) {
 		/* Initialize SDHCI */
@@ -498,7 +487,6 @@ sdhci_fdt_attach(device_t dev)
 			return (err);
 		}
 	}
-#endif
 
 	/* Scan all slots. */
 	slots = sc->num_slots;	/* number of slots determined in probe(). */
