@@ -847,9 +847,10 @@ ipf_nat_hostmapdel(ipf_main_softc_t *softc, struct hostmap **hmp)
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_fix_outcksum                                            */
 /* Returns:     Nil                                                         */
-/* Parameters:  fin(I) - pointer to packet information                      */
+/* Parameters:  cksum(I) - ipf_cksum_t, value of fin_cksum                  */
 /*              sp(I)  - location of 16bit checksum to update               */
 /*              n((I)  - amount to adjust checksum by                       */
+/*		partial(I) - partial checksum				    */
 /*                                                                          */
 /* Adjusts the 16bit checksum by "n" for packets going out.                 */
 /* ------------------------------------------------------------------------ */
@@ -885,9 +886,10 @@ ipf_fix_outcksum(int cksum, u_short *sp, u_32_t n, u_32_t partial)
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_fix_incksum                                             */
 /* Returns:     Nil                                                         */
-/* Parameters:  fin(I) - pointer to packet information                      */
+/* Parameters:  cksum(I) - ipf_cksum_t, value of fin_cksum                  */
 /*              sp(I)  - location of 16bit checksum to update               */
 /*              n((I)  - amount to adjust checksum by                       */
+/*		partial(I) - partial checksum				    */
 /*                                                                          */
 /* Adjusts the 16bit checksum by "n" for packets going in.                  */
 /* ------------------------------------------------------------------------ */
