@@ -61,6 +61,8 @@ struct aes_cbc_ctx {
 static	int aes_cbc_setkey(void *, const uint8_t *, int);
 static	void aes_cbc_encrypt(void *, const uint8_t *, uint8_t *);
 static	void aes_cbc_decrypt(void *, const uint8_t *, uint8_t *);
+static	void aes_cbc_encrypt_multi(void *, const uint8_t *, uint8_t *, size_t);
+static	void aes_cbc_decrypt_multi(void *, const uint8_t *, uint8_t *, size_t);
 static  void aes_cbc_reinit(void *, const uint8_t *, size_t);
 
 /* Encryption instances */
@@ -72,10 +74,12 @@ const struct enc_xform enc_xform_aes_cbc = {
 	.ivsize = AES_BLOCK_LEN,
 	.minkey = AES_MIN_KEY,
 	.maxkey = AES_MAX_KEY,
-	.encrypt = aes_cbc_encrypt,
-	.decrypt = aes_cbc_decrypt,
 	.setkey = aes_cbc_setkey,
 	.reinit = aes_cbc_reinit,
+	.encrypt = aes_cbc_encrypt,
+	.decrypt = aes_cbc_decrypt,
+	.encrypt_multi = aes_cbc_encrypt_multi,
+	.decrypt_multi = aes_cbc_decrypt_multi,
 };
 
 /*
@@ -103,6 +107,43 @@ aes_cbc_decrypt(void *vctx, const uint8_t *in, uint8_t *out)
 	for (u_int i = 0; i < AES_BLOCK_LEN; i++)
 		out[i] ^= ctx->iv[i];
 	memcpy(ctx->iv, block, AES_BLOCK_LEN);
+	explicit_bzero(block, sizeof(block));
+}
+
+static void
+aes_cbc_encrypt_multi(void *vctx, const uint8_t *in, uint8_t *out, size_t len)
+{
+	struct aes_cbc_ctx *ctx = vctx;
+
+	KASSERT(len % AES_BLOCK_LEN == 0, ("%s: invalid length", __func__));
+	while (len > 0) {
+		for (u_int i = 0; i < AES_BLOCK_LEN; i++)
+			out[i] = in[i] ^ ctx->iv[i];
+		rijndael_encrypt(&ctx->key, out, out);
+		memcpy(ctx->iv, out, AES_BLOCK_LEN);
+		out += AES_BLOCK_LEN;
+		in += AES_BLOCK_LEN;
+		len -= AES_BLOCK_LEN;
+	}
+}
+
+static void
+aes_cbc_decrypt_multi(void *vctx, const uint8_t *in, uint8_t *out, size_t len)
+{
+	struct aes_cbc_ctx *ctx = vctx;
+	char block[AES_BLOCK_LEN];
+
+	KASSERT(len % AES_BLOCK_LEN == 0, ("%s: invalid length", __func__));
+	while (len > 0) {
+		memcpy(block, in, AES_BLOCK_LEN);
+		rijndael_decrypt(&ctx->key, in, out);
+		for (u_int i = 0; i < AES_BLOCK_LEN; i++)
+			out[i] ^= ctx->iv[i];
+		memcpy(ctx->iv, block, AES_BLOCK_LEN);
+		out += AES_BLOCK_LEN;
+		in += AES_BLOCK_LEN;
+		len -= AES_BLOCK_LEN;
+	}
 	explicit_bzero(block, sizeof(block));
 }
 

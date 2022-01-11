@@ -61,6 +61,8 @@ struct camellia_cbc_ctx {
 static	int cml_setkey(void *, const uint8_t *, int);
 static	void cml_encrypt(void *, const uint8_t *, uint8_t *);
 static	void cml_decrypt(void *, const uint8_t *, uint8_t *);
+static	void cml_encrypt_multi(void *, const uint8_t *, uint8_t *, size_t);
+static	void cml_decrypt_multi(void *, const uint8_t *, uint8_t *, size_t);
 static	void cml_reinit(void *, const uint8_t *, size_t);
 
 /* Encryption instances */
@@ -72,10 +74,12 @@ const struct enc_xform enc_xform_camellia = {
 	.ivsize = CAMELLIA_BLOCK_LEN,
 	.minkey = CAMELLIA_MIN_KEY,
 	.maxkey = CAMELLIA_MAX_KEY,
-	.encrypt = cml_encrypt,
-	.decrypt = cml_decrypt,
 	.setkey = cml_setkey,
 	.reinit = cml_reinit,
+	.encrypt = cml_encrypt,
+	.decrypt = cml_decrypt,
+	.encrypt_multi = cml_encrypt_multi,
+	.decrypt_multi = cml_decrypt_multi,
 };
 
 /*
@@ -103,6 +107,45 @@ cml_decrypt(void *vctx, const uint8_t *in, uint8_t *out)
 	for (u_int i = 0; i < CAMELLIA_BLOCK_LEN; i++)
 		out[i] ^= ctx->iv[i];
 	memcpy(ctx->iv, block, CAMELLIA_BLOCK_LEN);
+	explicit_bzero(block, sizeof(block));
+}
+
+static void
+cml_encrypt_multi(void *vctx, const uint8_t *in, uint8_t *out, size_t len)
+{
+	struct camellia_cbc_ctx *ctx = vctx;
+
+	KASSERT(len % CAMELLIA_BLOCK_LEN == 0, ("%s: invalid length",
+	    __func__));
+	while (len > 0) {
+		for (u_int i = 0; i < CAMELLIA_BLOCK_LEN; i++)
+			out[i] = in[i] ^ ctx->iv[i];
+		camellia_encrypt(&ctx->state, out, out);
+		memcpy(ctx->iv, out, CAMELLIA_BLOCK_LEN);
+		out += CAMELLIA_BLOCK_LEN;
+		in += CAMELLIA_BLOCK_LEN;
+		len -= CAMELLIA_BLOCK_LEN;
+	}
+}
+
+static void
+cml_decrypt_multi(void *vctx, const uint8_t *in, uint8_t *out, size_t len)
+{
+	struct camellia_cbc_ctx *ctx = vctx;
+	char block[CAMELLIA_BLOCK_LEN];
+
+	KASSERT(len % CAMELLIA_BLOCK_LEN == 0, ("%s: invalid length",
+	    __func__));
+	while (len > 0) {
+		memcpy(block, in, CAMELLIA_BLOCK_LEN);
+		camellia_decrypt(&ctx->state, in, out);
+		for (u_int i = 0; i < CAMELLIA_BLOCK_LEN; i++)
+			out[i] ^= ctx->iv[i];
+		memcpy(ctx->iv, block, CAMELLIA_BLOCK_LEN);
+		out += CAMELLIA_BLOCK_LEN;
+		in += CAMELLIA_BLOCK_LEN;
+		len -= CAMELLIA_BLOCK_LEN;
+	}
 	explicit_bzero(block, sizeof(block));
 }
 

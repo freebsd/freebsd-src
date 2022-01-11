@@ -33,6 +33,14 @@ chacha20_xform_crypt(void *ctx, const uint8_t *in, uint8_t *out)
 }
 
 static void
+chacha20_xform_crypt_multi(void *ctx, const uint8_t *in, uint8_t *out,
+    size_t len)
+{
+	KASSERT(len % CHACHA_BLOCKLEN == 0, ("%s: invalid length", __func__));
+	chacha_encrypt_bytes(ctx, in, out, len);
+}
+
+static void
 chacha20_xform_crypt_last(void *ctx, const uint8_t *in, uint8_t *out,
     size_t len)
 {
@@ -49,10 +57,12 @@ const struct enc_xform enc_xform_chacha20 = {
 	.ivsize = CHACHA_NONCELEN + CHACHA_CTRLEN,
 	.minkey = CHACHA_MINKEYLEN,
 	.maxkey = 32,
-	.encrypt = chacha20_xform_crypt,
-	.decrypt = chacha20_xform_crypt,
 	.setkey = chacha20_xform_setkey,
 	.reinit = chacha20_xform_reinit,
+	.encrypt = chacha20_xform_crypt,
+	.decrypt = chacha20_xform_crypt,
+	.encrypt_multi = chacha20_xform_crypt_multi,
+	.decrypt_multi = chacha20_xform_crypt_multi,
 	.encrypt_last = chacha20_xform_crypt_last,
 	.decrypt_last = chacha20_xform_crypt_last,
 };
