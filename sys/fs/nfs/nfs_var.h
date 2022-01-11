@@ -331,7 +331,7 @@ int nfsm_advance(struct nfsrv_descript *, int, int);
 void *nfsm_dissct(struct nfsrv_descript *, int, int);
 void newnfs_copycred(struct nfscred *, struct ucred *);
 void newnfs_copyincred(struct ucred *, struct nfscred *);
-int nfsrv_dissectacl(struct nfsrv_descript *, NFSACL_T *, bool, int *,
+int nfsrv_dissectacl(struct nfsrv_descript *, NFSACL_T *, int *,
     int *, NFSPROC_T *);
 int nfsrv_getattrbits(struct nfsrv_descript *, nfsattrbit_t *, int *,
     int *);
@@ -435,9 +435,9 @@ int nfs_supportsnfsv4acls(vnode_t);
 
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
-    bool, int *, int *, NFSPROC_T *);
+    int *, int *, NFSPROC_T *);
 int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, enum vtype,
-    bool, NFSPROC_T *);
+    NFSPROC_T *);
 int nfsrv_compareacl(NFSACL_T *, NFSACL_T *);
 
 /* nfs_clrpcops.c */

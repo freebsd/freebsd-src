@@ -2992,8 +2992,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			attrsum += NFSX_HYPER;
 			break;
 		case NFSATTRBIT_ACL:
-			error = nfsrv_dissectacl(nd, aclp, false, &aceerr,
-			    &aclsize, p);
+			error = nfsrv_dissectacl(nd, aclp, &aceerr, &aclsize,
+			    p);
 			if (error)
 				goto nfsmout;
 			if (aceerr && !nd->nd_repstat)

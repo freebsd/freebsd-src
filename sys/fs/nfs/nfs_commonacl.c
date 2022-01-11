@@ -42,7 +42,7 @@ static int nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
  */
 int
 nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
-    bool dacl, int *aceerrp, int *acesizep, NFSPROC_T *p)
+    int *aceerrp, int *acesizep, NFSPROC_T *p)
 {
 	u_int32_t *tl;
 	int len, gotid = 0, owner = 0, error = 0, aceerr = 0;
@@ -146,10 +146,6 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 		if (flag & NFSV4ACE_FAILEDACCESS) {
 			flag &= ~NFSV4ACE_FAILEDACCESS;
 			acep->ae_flags |= ACL_ENTRY_FAILED_ACCESS;
-		}
-		if (dacl && (flag & NFSV4ACE_INHERITED)) {
-			flag &= ~NFSV4ACE_INHERITED;
-			acep->ae_flags |= ACL_ENTRY_INHERITED;
 		}
 		/*
 		 * Set ae_entry_type.
@@ -282,14 +278,14 @@ out:
 
 /* local functions */
 static int nfsrv_buildace(struct nfsrv_descript *, u_char *, int,
-    enum vtype, int, int, bool, struct acl_entry *);
+    enum vtype, int, int, struct acl_entry *);
 
 /*
  * This function builds an NFS ace.
  */
 static int
 nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
-    enum vtype type, int group, int owner, bool dacl, struct acl_entry *ace)
+    enum vtype type, int group, int owner, struct acl_entry *ace)
 {
 	u_int32_t *tl, aceflag = 0x0, acemask = 0x0, acetype;
 	int full_len;
@@ -325,8 +321,6 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 		aceflag |= NFSV4ACE_SUCCESSFULACCESS;
 	if (ace->ae_flags & ACL_ENTRY_FAILED_ACCESS)
 		aceflag |= NFSV4ACE_FAILEDACCESS;
-	if (dacl && (ace->ae_flags & ACL_ENTRY_INHERITED))
-		aceflag |= NFSV4ACE_INHERITED;
 	if (group)
 		aceflag |= NFSV4ACE_IDENTIFIERGROUP;
 	*tl++ = txdr_unsigned(aceflag);
@@ -400,7 +394,7 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
  */
 int
 nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
-    bool dacl, NFSPROC_T *p)
+    NFSPROC_T *p)
 {
 	int i, entrycnt = 0, retlen;
 	u_int32_t *entrycntp;
@@ -448,7 +442,7 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 			continue;
 		}
 		retlen += nfsrv_buildace(nd, name, namelen, type, isgroup,
-		    isowner, dacl, &aclp->acl_entry[i]);
+		    isowner, &aclp->acl_entry[i]);
 		entrycnt++;
 		if (malloced)
 			free(name, M_NFSSTRING);
