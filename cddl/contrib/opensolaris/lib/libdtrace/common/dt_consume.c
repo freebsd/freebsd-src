@@ -2621,7 +2621,7 @@ dt_unring_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf)
 	bcopy(buf->dtbd_data, ndp, buf->dtbd_oldest);
 
 	dt_free(dtp, buf->dtbd_data);
-	buf->dtbd_oldest = 0;
+	buf->dtbd_oldest = misalign;
 	buf->dtbd_data = newdata;
 	buf->dtbd_size += misalign;
 
