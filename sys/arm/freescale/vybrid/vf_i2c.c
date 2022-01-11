@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
-#endif
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -118,10 +116,8 @@ struct i2c_softc {
 	struct resource		*res[2];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
-#ifdef EXT_RESOURCES
 	clk_t			clock;
 	uint32_t		freq;
-#endif
 	device_t		dev;
 	device_t		iicbus;
 	struct mtx		mutex;
@@ -134,7 +130,6 @@ static struct resource_spec i2c_spec[] = {
 	{ -1, 0 }
 };
 
-#ifdef EXT_RESOURCES
 static struct i2c_div_type vf610_div_table[] = {
 	{ 0x00, 20 }, { 0x01, 22 }, { 0x02, 24 }, { 0x03, 26 },
 	{ 0x04, 28 }, { 0x05, 30 }, { 0x09, 32 }, { 0x06, 34 },
@@ -150,7 +145,6 @@ static struct i2c_div_type vf610_div_table[] = {
 	{ 0x3C, 2304 }, { 0x3D, 2560 }, { 0x3E, 3072 }, { 0x3F, 3840 },
 	{ 0x3F, 3840 }, { 0x7B, 4096 }, { 0x7D, 5120 }, { 0x7E, 6144 },
 };
-#endif
 
 static const struct ofw_compat_data i2c_compat_data[] = {
 	{"fsl,mvf600-i2c",	HW_MVF600},
@@ -176,15 +170,12 @@ static int
 i2c_attach(device_t dev)
 {
 	struct i2c_softc *sc;
-#ifdef EXT_RESOURCES
 	phandle_t node;
-#endif
 	int error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->hwtype = ofw_bus_search_compatible(dev, i2c_compat_data)->ocd_data;
-#ifdef EXT_RESOURCES
 	node = ofw_bus_get_node(dev);
 
 	error = clk_get_by_ofw_index(dev, node, 0, &sc->clock);
@@ -198,7 +189,6 @@ i2c_attach(device_t dev)
 		else
 			sc->freq = 100000;
 	}
-#endif
 
 	mtx_init(&sc->mutex, device_get_nameunit(dev), "I2C", MTX_DEF);
 
@@ -445,7 +435,6 @@ static uint32_t
 i2c_get_div_val(device_t dev)
 {
 	struct i2c_softc *sc;
-#ifdef EXT_RESOURCES
 	uint64_t clk_freq;
 	int error, i;
 
@@ -469,14 +458,6 @@ i2c_get_div_val(device_t dev)
 			break;
 
 	return vf610_div_table[i].reg_val;
-#else
-	sc = device_get_softc(dev);
-
-	if (sc->hwtype == HW_VF610)
-		return 0x3F;
-	else
-		return 20;
-#endif
 }
 
 static int
