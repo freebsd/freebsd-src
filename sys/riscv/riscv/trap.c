@@ -205,7 +205,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 			    frame->tf_scause & SCAUSE_CODE);
 			goto done;
 		}
-		map = &td->td_proc->p_vmspace->vm_map;
+		map = &p->p_vmspace->vm_map;
 	} else {
 		/*
 		 * Enable interrupts for the duration of the page fault. For
@@ -221,7 +221,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		} else {
 			if (pcb->pcb_onfault == 0)
 				goto fatal;
-			map = &td->td_proc->p_vmspace->vm_map;
+			map = &p->p_vmspace->vm_map;
 		}
 	}
 
