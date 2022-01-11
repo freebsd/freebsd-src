@@ -777,6 +777,7 @@ vendor ARDUINO		0x2341	Arduino SA
 vendor TPLINK		0x2357	TP-Link
 vendor WESTMOUNTAIN	0x2405	West Mountain Radio
 vendor TRIPPLITE	0x2478	Tripp-Lite
+vendor TENDA2		0x2604	Tenda
 vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
 vendor THINGM		0x27b8	ThingM
@@ -4662,6 +4663,9 @@ product TELIT UC864G		0x1004	UC864G 3G modem
 
 /* Ten X Technology, Inc. */
 product TENX UAUDIO0		0xf211	USB audio headset
+
+/* Tenda products */
+product TENDA2 U12		0x0012	Tenda U12
 
 /* ThingM products */
 product THINGM BLINK1		0x01ed	USB notification light
