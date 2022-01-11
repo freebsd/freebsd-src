@@ -85,6 +85,11 @@ struct rk8xx_rtc_reg {
 	uint8_t	ctrl_readsel_mask;
 };
 
+struct rk8xx_dev_ctrl {
+	uint8_t	dev_ctrl_reg;
+	uint8_t	pwr_off_mask;
+};
+
 struct rk8xx_softc {
 	device_t		dev;
 	struct mtx		mtx;
@@ -98,6 +103,7 @@ struct rk8xx_softc {
 	int			nregs;
 
 	struct rk8xx_rtc_reg	rtc_regs;
+	struct rk8xx_dev_ctrl	dev_ctrl;
 };
 
 int rk8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size);

@@ -107,6 +107,10 @@
 #define	RK808_LDO8_ON_VSEL	0x49
 #define	RK808_LDO8_SLEEP_VSEL	0x4A
 
+#define	RK808_DEV_CTRL		0x4B
+#define	 RK808_DEV_CTRL_OFF	(1 << 0)
+#define	 RK808_DEV_CTRL_SLP	(1 << 1)
+
 enum rk808_regulator {
 	RK808_BUCK1 = 0,
 	RK808_BUCK2,
