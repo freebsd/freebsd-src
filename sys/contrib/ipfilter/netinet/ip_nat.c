@@ -873,7 +873,7 @@ ipf_nat_hostmapdel(softc, hmp)
 /* Returns:     Nil                                                         */
 /* Parameters:  cksum(I) - ipf_cksum_t, value of fin_cksum                  */
 /*              sp(I)  - location of 16bit checksum to update               */
-/*              n((I)  - amount to adjust checksum by                       */
+/*              n(I)  - amount to adjust checksum by                        */
 /*		partial(I) - partial checksum				    */
 /*                                                                          */
 /* Adjusts the 16bit checksum by "n" for packets going out.                 */
@@ -915,7 +915,7 @@ ipf_fix_outcksum(cksum, sp, n, partial)
 /* Returns:     Nil                                                         */
 /* Parameters:  cksum(I) - ipf_cksum_t, value of fin_cksum                  */
 /*              sp(I)  - location of 16bit checksum to update               */
-/*              n((I)  - amount to adjust checksum by                       */
+/*              n(I)  - amount to adjust checksum by                        */
 /*		partial(I) - partial checksum				    */
 /*                                                                          */
 /* Adjusts the 16bit checksum by "n" for packets going in.                  */
@@ -957,7 +957,7 @@ ipf_fix_incksum(cksum, sp, n, partial)
 /* Function:    ipf_fix_datacksum                                           */
 /* Returns:     Nil                                                         */
 /* Parameters:  sp(I)  - location of 16bit checksum to update               */
-/*              n((I)  - amount to adjust checksum by                       */
+/*              n(I)  - amount to adjust checksum by                        */
 /*                                                                          */
 /* Fix_datacksum is used *only* for the adjustments of checksums in the     */
 /* data section of an IP packet.                                            */
@@ -1434,7 +1434,7 @@ done:
 /*              n(I)       - pointer to new NAT rule                        */
 /*              np(I)      - pointer to where to insert new NAT rule        */
 /*              getlock(I) - flag indicating if lock on  is held            */
-/* Mutex Locks: ipf_nat_io                                                   */
+/* Mutex Locks: ipf_nat_io                                                  */
 /*                                                                          */
 /* Handle SIOCADNAT.  Resolve and calculate details inside the NAT rule     */
 /* from information passed to the kernel, then add it  to the appropriate   */
