@@ -8988,7 +8988,6 @@ OLD_FILES+=usr/include/atf-c/macros.h
 OLD_FILES+=usr/include/atf-c/tc.h
 OLD_FILES+=usr/include/atf-c/tp.h
 OLD_FILES+=usr/include/atf-c/utils.h
-OLD_FILES+=usr/lib/debug/usr/bin/kyua.debug
 OLD_LIBS+=usr/lib/libprivateatf-c++.so.2
 OLD_LIBS+=usr/lib/libprivateatf-c.so.1
 OLD_FILES+=usr/share/examples/kyua/kyua.conf
