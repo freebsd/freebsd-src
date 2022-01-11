@@ -51,6 +51,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <opencrypto/xform_enc.h>
 
 static	int aes_xts_setkey(void *, const uint8_t *, int);
@@ -87,10 +88,8 @@ aes_xts_reinit(void *key, const uint8_t *iv, size_t ivlen)
 	uint64_t blocknum;
 	u_int i;
 
-#ifndef _STANDALONE
 	KASSERT(ivlen == sizeof(blocknum),
 	    ("%s: invalid IV length", __func__));
-#endif
 
 	/*
 	 * Prepare tweak as E_k2(IV). IV is specified as LE representation
