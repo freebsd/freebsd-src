@@ -23,8 +23,7 @@ options 	INTRNG			# Include INTRNG framework
 # RISC-V SBI console
 device		rcons
 
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
+# pseudo devices
 device		clk
 device		hwreset
 device		phy
