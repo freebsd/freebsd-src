@@ -103,10 +103,11 @@ struct nfhret {
 	long		fhsize;
 	u_char		nfh[NFS3_FHSIZE];
 };
-#define	BGRND	1
-#define	ISBGRND	2
-#define	OF_NOINET4	4
-#define	OF_NOINET6	8
+#define	BGRND		0x01
+#define	ISBGRND		0x02
+#define	OF_NOINET4	0x04
+#define	OF_NOINET6	0x08
+#define	BGRNDNOW	0x10
 static int retrycnt = -1;
 static int opflags = 0;
 static int nfsproto = IPPROTO_TCP;
@@ -241,6 +242,9 @@ main(int argc, char *argv[])
 				}
 				if (strcmp(opt, "bg") == 0) {
 					opflags |= BGRND;
+					pass_flag_to_nmount=0;
+				} else if (strcmp(opt, "bgnow") == 0) {
+					opflags |= BGRNDNOW;
 					pass_flag_to_nmount=0;
 				} else if (strcmp(opt, "fg") == 0) {
 					/* same as not specifying -o bg */
@@ -420,6 +424,9 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+
+	if ((opflags & (BGRND | BGRNDNOW)) == (BGRND | BGRNDNOW))
+		errx(1, "Options bg and bgnow are mutually exclusive");
 
 	if (argc != 2) {
 		usage();
@@ -647,6 +654,14 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 			build_iovec(iov, iovlen, "principal", pname,
 			    strlen(pname) + 1);
 		}
+	}
+
+	if ((opflags & (BGRNDNOW | ISBGRND)) == BGRNDNOW) {
+		warnx("Mount %s:%s, backgrounding",
+		    hostp, spec);
+		opflags |= ISBGRND;
+		if (daemon(0, 0) != 0)
+			err(1, "daemon");
 	}
 
 	ret = TRYRET_LOCALERR;

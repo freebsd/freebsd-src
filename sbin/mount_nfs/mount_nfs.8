@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2021
+.Dd January 11, 2022
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -129,6 +129,18 @@ trying the mount in the background.
 Useful for
 .Xr fstab 5 ,
 where the file system mount is not critical to multiuser operation.
+.It Cm bgnow
+Like
+.Cm bg ,
+fork off a child to keep trying the mount in the background,
+but do not attempt to mount in the foreground first.
+This eliminates a
+60+ second timeout when the server is not responding.
+Useful for speeding up the boot process of a client when the server is
+likely to be unavailable.
+This is often the case for interdependent servers
+such as cross-mounted servers (each of two servers is an NFS client of
+the other) and for cluster nodes that must boot before the file servers.
 .It Cm deadthresh Ns = Ns Aq Ar value
 Set the
 .Dq "dead server threshold"
