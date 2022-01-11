@@ -475,18 +475,18 @@ check_power_mode:
 	 || (ident->enabled2 & ATA_ENABLED_EPC)) {
 		if (mode_name != NULL)
 			printf("%s", mode_name);
-		else if (count == 0xff) {
+		else if (count == ATA_PM_ACTIVE_IDLE) {
 			printf("PM0:Active or PM1:Idle");
 		}
 	} else {
 		switch (count) {
-		case 0x00:
+		case ATA_PM_STANDBY:
 			printf("PM2:Standby");
 			break;
-		case 0x80:
+		case ATA_PM_IDLE:
 			printf("PM1:Idle");
 			break;
-		case 0xff:
+		case ATA_PM_ACTIVE_IDLE:
 			printf("PM0:Active or PM1:Idle");
 			break;
 		}
