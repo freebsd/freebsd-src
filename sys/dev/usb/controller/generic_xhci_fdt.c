@@ -53,9 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/phy/phy.h>
-#endif
 
 #include "generic_xhci.h"
 
@@ -85,7 +83,6 @@ generic_xhci_fdt_probe(device_t dev)
 static int
 generic_xhci_fdt_attach(device_t dev)
 {
-#ifdef EXT_RESOURCES
 	phandle_t node;
 	phy_t phy;
 
@@ -93,7 +90,6 @@ generic_xhci_fdt_attach(device_t dev)
 	if (phy_get_by_ofw_property(dev, node, "usb-phy", &phy) == 0)
 		if (phy_enable(phy) != 0)
 			device_printf(dev, "Cannot enable phy\n");
-#endif
 
 	return (generic_xhci_attach(dev));
 }
@@ -101,21 +97,17 @@ generic_xhci_fdt_attach(device_t dev)
 static int
 generic_xhci_fdt_detach(device_t dev)
 {
-#ifdef EXT_RESOURCES
 	phandle_t node;
 	phy_t phy;
-#endif
 	int err;
 
 	err = generic_xhci_detach(dev);
 	if (err != 0)
 		return (err);
 
-#ifdef EXT_RESOURCES
 	node = ofw_bus_get_node(dev);
 	if (phy_get_by_ofw_property(dev, node, "usb-phy", &phy) == 0)
 		phy_release(phy);
-#endif
 
 	return (0);
 }
