@@ -56,16 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ohci.h>
 #include <dev/usb/controller/ohcireg.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
 #include <dev/extres/phy/phy_usb.h>
-#endif
 
 #include "generic_usb_if.h"
 
-#ifdef EXT_RESOURCES
 struct clk_list {
 	TAILQ_ENTRY(clk_list)	next;
 	clk_t			clk;
@@ -78,16 +75,13 @@ struct hwrst_list {
 	TAILQ_ENTRY(hwrst_list)	next;
 	hwreset_t		rst;
 };
-#endif
 
 struct generic_ohci_softc {
 	ohci_softc_t	ohci_sc;
 
-#ifdef EXT_RESOURCES
 	TAILQ_HEAD(, clk_list)		clk_list;
 	TAILQ_HEAD(, phy_list)		phy_list;
 	TAILQ_HEAD(, hwrst_list)	rst_list;
-#endif
 };
 
 static int generic_ohci_detach(device_t);
@@ -112,7 +106,6 @@ generic_ohci_attach(device_t dev)
 {
 	struct generic_ohci_softc *sc = device_get_softc(dev);
 	int err, rid;
-#ifdef EXT_RESOURCES
 	int off;
 	struct clk_list *clkp;
 	struct phy_list *phyp;
@@ -120,7 +113,6 @@ generic_ohci_attach(device_t dev)
 	clk_t clk;
 	phy_t phy;
 	hwreset_t rst;
-#endif
 
 	sc->ohci_sc.sc_bus.parent = dev;
 	sc->ohci_sc.sc_bus.devices = sc->ohci_sc.sc_devices;
@@ -170,7 +162,6 @@ generic_ohci_attach(device_t dev)
 		goto error;
 	}
 
-#ifdef EXT_RESOURCES
 	TAILQ_INIT(&sc->clk_list);
 	/* Enable clock */
 	for (off = 0; clk_get_by_ofw_index(dev, 0, off, &clk) == 0; off++) {
@@ -215,7 +206,6 @@ generic_ohci_attach(device_t dev)
 		phyp->phy = phy;
 		TAILQ_INSERT_TAIL(&sc->phy_list, phyp, next);
 	}
-#endif
 
 	if (GENERIC_USB_INIT(dev) != 0) {
 		err = ENXIO;
@@ -239,11 +229,9 @@ generic_ohci_detach(device_t dev)
 {
 	struct generic_ohci_softc *sc = device_get_softc(dev);
 	int err;
-#ifdef EXT_RESOURCES
 	struct clk_list *clk, *clk_tmp;
 	struct phy_list *phy, *phy_tmp;
 	struct hwrst_list *rst, *rst_tmp;
-#endif
 
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
@@ -282,7 +270,6 @@ generic_ohci_detach(device_t dev)
 	}
 	usb_bus_mem_free_all(&sc->ohci_sc.sc_bus, &ohci_iterate_hw_softc);
 
-#ifdef EXT_RESOURCES
 	/* Disable phy */
 	TAILQ_FOREACH_SAFE(phy, &sc->phy_list, next, phy_tmp) {
 		err = phy_disable(phy->phy);
@@ -314,7 +301,6 @@ generic_ohci_detach(device_t dev)
 		TAILQ_REMOVE(&sc->clk_list, clk, next);
 		free(clk, M_DEVBUF);
 	}
-#endif
 
 	if (GENERIC_USB_DEINIT(dev) != 0)
 		return (ENXIO);
