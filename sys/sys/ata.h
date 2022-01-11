@@ -478,6 +478,13 @@ struct ata_params {
 #define ATA_READ_BUFFER                 0xe4    /* read buffer */
 #define ATA_READ_PM                     0xe4    /* read portmultiplier */
 #define ATA_CHECK_POWER_MODE            0xe5    /* device power mode */
+#define		ATA_PM_STANDBY		0x00	/* standby, also ATA_EPC_STANDBY_Z */
+#define		ATA_PM_STANDBY_Y	0x01	/* standby, also ATA_EPC_STANDBY_Y */
+#define		ATA_PM_IDLE		0x80	/* idle */
+#define		ATA_PM_IDLE_A		0x81	/* idle, also ATA_EPC_IDLE_A */
+#define		ATA_PM_IDLE_B		0x82	/* idle, also ATA_EPC_IDLE_B */
+#define		ATA_PM_IDLE_C		0x83	/* idle, also ATA_EPC_IDLE_C */
+#define		ATA_PM_ACTIVE_IDLE	0xff	/* active or idle */
 #define ATA_SLEEP                       0xe6    /* sleep */
 #define ATA_FLUSHCACHE                  0xe7    /* flush cache to disk */
 #define	ATA_WRITE_BUFFER		0xe8    /* write buffer */

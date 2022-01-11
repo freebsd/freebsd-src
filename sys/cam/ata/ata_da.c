@@ -3537,8 +3537,8 @@ adaspindown(uint8_t cmd, int flags)
 				}
 #endif
 				switch (mode) {
-				case 0x00:
-				case 0x01:
+				case ATA_PM_STANDBY:
+				case ATA_PM_STANDBY_Y:
 					if (bootverbose) {
 						xpt_print(periph->path,
 						    "already spun down\n");

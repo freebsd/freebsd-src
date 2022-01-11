@@ -9190,31 +9190,31 @@ atapm_proc_resp(struct cam_device *device, union ccb *ccb)
 
 	printf("%s%d: ", device->device_name, device->dev_unit_num);
 	switch (count) {
-	case 0x00:
+	case ATA_PM_STANDBY:
 		printf("Standby mode\n");
 		break;
-	case 0x01:
+	case ATA_PM_STANDBY_Y:
 		printf("Standby_y mode\n");
 		break;
-	case 0x40:
+	case 0x40:	/* obsolete since ACS-3 */
 		printf("NV Cache Power Mode and the spindle is spun down or spinning down\n");
 		break;
-	case 0x41:
+	case 0x41:	/* obsolete since ACS-3 */
 		printf("NV Cache Power Mode and the spindle is spun up or spinning up\n");
 		break;
-	case 0x80:
+	case ATA_PM_IDLE:
 		printf("Idle mode\n");
 		break;
-	case 0x81:
+	case ATA_PM_IDLE_A:
 		printf("Idle_a mode\n");
 		break;
-	case 0x82:
+	case ATA_PM_IDLE_B:
 		printf("Idle_b mode\n");
 		break;
-	case 0x83:
+	case ATA_PM_IDLE_C:
 		printf("Idle_c mode\n");
 		break;
-	case 0xff:
+	case ATA_PM_ACTIVE_IDLE:
 		printf("Active or Idle mode\n");
 		break;
 	default:
