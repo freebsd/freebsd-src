@@ -105,7 +105,7 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	const struct enc_xform *exf;
 	const struct swcr_encdec *sw;
 	void *ctx;
-	size_t inlen, outlen;
+	size_t inlen, outlen, todo;
 	int blks, resid;
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const unsigned char *inblk;
@@ -154,7 +154,6 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 		cc_out = cc_in;
 	outblk = crypto_cursor_segment(&cc_out, &outlen);
 
-	resid = crp->crp_payload_length;
 	encrypting = CRYPTO_OP_IS_ENCRYPT(crp->crp_op);
 
 	/*
@@ -163,7 +162,7 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	 * 'outlen' is the remaining length of current segment in the
 	 * output buffer.
 	 */
-	while (resid >= blks) {
+	for (resid = crp->crp_payload_length; resid >= blks; resid -= todo) {
 		/*
 		 * If the current block is not contained within the
 		 * current input/output segment, use 'blk' as a local
@@ -172,33 +171,41 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 		if (inlen < blks) {
 			crypto_cursor_copydata(&cc_in, blks, blk);
 			inblk = blk;
+			inlen = blks;
 		}
-		if (outlen < blks)
+		if (outlen < blks) {
 			outblk = blk;
+			outlen = blks;
+		}
+
+		todo = rounddown2(MIN(resid, MIN(inlen, outlen)), blks);
 
 		if (encrypting)
-			exf->encrypt(ctx, inblk, outblk);
+			exf->encrypt_multi(ctx, inblk, outblk, todo);
 		else
-			exf->decrypt(ctx, inblk, outblk);
+			exf->decrypt_multi(ctx, inblk, outblk, todo);
 
-		if (inlen < blks) {
+		if (inblk == blk) {
 			inblk = crypto_cursor_segment(&cc_in, &inlen);
 		} else {
-			crypto_cursor_advance(&cc_in, blks);
-			inlen -= blks;
-			inblk += blks;
+			crypto_cursor_advance(&cc_in, todo);
+			inlen -= todo;
+			inblk += todo;
+			if (inlen == 0)
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
 		}
 
-		if (outlen < blks) {
+		if (outblk == blk) {
 			crypto_cursor_copyback(&cc_out, blks, blk);
 			outblk = crypto_cursor_segment(&cc_out, &outlen);
 		} else {
-			crypto_cursor_advance(&cc_out, blks);
-			outlen -= blks;
-			outblk += blks;
+			crypto_cursor_advance(&cc_out, todo);
+			outlen -= todo;
+			outblk += todo;
+			if (outlen == 0)
+				outblk = crypto_cursor_segment(&cc_out,
+				    &outlen);
 		}
-
-		resid -= blks;
 	}
 
 	/* Handle trailing partial block for stream ciphers. */
