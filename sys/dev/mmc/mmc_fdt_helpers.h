@@ -33,9 +33,7 @@
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/regulator/regulator.h>
-#endif
 
 #include <dev/mmc/mmc_helpers.h>
 

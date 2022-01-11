@@ -41,9 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/regulator/regulator.h>
-#endif
 
 #include <dev/mmc/mmc_helpers.h>
 
@@ -61,7 +59,6 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_helper *helper,
 
 	helper->props = mmc_helper.props;
 
-#ifdef EXT_RESOURCES
 	/*
 	 * Get the regulators if they are supported and
 	 * clean the non supported modes based on the available voltages.
@@ -98,7 +95,6 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_helper *helper,
 			host->caps |= MMC_CAP_SIGNALING_330;
 	} else
 		host->caps |= MMC_CAP_SIGNALING_330;
-#endif
 
 	if (OF_hasprop(node, "mmc-pwrseq")) {
 		if (OF_getencprop(node, "mmc-pwrseq", &pwrseq_xref, sizeof(pwrseq_xref)) == -1) {
