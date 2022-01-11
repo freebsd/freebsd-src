@@ -148,41 +148,43 @@ SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 #define	VM_LAUNDER_RATE		10
 #define	VM_INACT_SCAN_RATE	10
 
-static int vm_pageout_oom_seq = 12;
-
-static int vm_pageout_update_period;
-static int disable_swap_pageouts;
-static int lowmem_period = 10;
 static int swapdev_enabled;
+int vm_pageout_page_count = 32;
 
 static int vm_panic_on_oom = 0;
-
 SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
-	CTLFLAG_RWTUN, &vm_panic_on_oom, 0,
-	"Panic on the given number of out-of-memory errors instead of killing the largest process");
+    CTLFLAG_RWTUN, &vm_panic_on_oom, 0,
+    "Panic on the given number of out-of-memory errors instead of "
+    "killing the largest process");
 
+static int vm_pageout_update_period;
 SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
-	CTLFLAG_RWTUN, &vm_pageout_update_period, 0,
-	"Maximum active LRU update period");
+    CTLFLAG_RWTUN, &vm_pageout_update_period, 0,
+    "Maximum active LRU update period");
 
 static int pageout_cpus_per_thread = 16;
 SYSCTL_INT(_vm, OID_AUTO, pageout_cpus_per_thread, CTLFLAG_RDTUN,
     &pageout_cpus_per_thread, 0,
     "Number of CPUs per pagedaemon worker thread");
   
+static int lowmem_period = 10;
 SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RWTUN, &lowmem_period, 0,
-	"Low memory callback period");
+    "Low memory callback period");
 
+static int disable_swap_pageouts;
 SYSCTL_INT(_vm, OID_AUTO, disable_swapspace_pageouts,
-	CTLFLAG_RWTUN, &disable_swap_pageouts, 0, "Disallow swapout of dirty pages");
+    CTLFLAG_RWTUN, &disable_swap_pageouts, 0,
+    "Disallow swapout of dirty pages");
 
 static int pageout_lock_miss;
 SYSCTL_INT(_vm, OID_AUTO, pageout_lock_miss,
-	CTLFLAG_RD, &pageout_lock_miss, 0, "vget() lock misses during pageout");
+    CTLFLAG_RD, &pageout_lock_miss, 0,
+    "vget() lock misses during pageout");
 
+static int vm_pageout_oom_seq = 12;
 SYSCTL_INT(_vm, OID_AUTO, pageout_oom_seq,
-	CTLFLAG_RWTUN, &vm_pageout_oom_seq, 0,
-	"back-to-back calls to oom detector to start OOM");
+    CTLFLAG_RWTUN, &vm_pageout_oom_seq, 0,
+    "back-to-back calls to oom detector to start OOM");
 
 static int act_scan_laundry_weight = 3;
 SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight, CTLFLAG_RWTUN,
@@ -196,9 +198,8 @@ SYSCTL_UINT(_vm, OID_AUTO, background_launder_rate, CTLFLAG_RWTUN,
 
 static u_int vm_background_launder_max = 20 * 1024;
 SYSCTL_UINT(_vm, OID_AUTO, background_launder_max, CTLFLAG_RWTUN,
-    &vm_background_launder_max, 0, "background laundering cap, in kilobytes");
-
-int vm_pageout_page_count = 32;
+    &vm_background_launder_max, 0,
+    "background laundering cap, in kilobytes");
 
 u_long vm_page_max_user_wired;
 SYSCTL_ULONG(_vm, OID_AUTO, max_user_wired, CTLFLAG_RW,
