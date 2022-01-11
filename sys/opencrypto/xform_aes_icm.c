@@ -66,6 +66,7 @@ struct aes_ccm_ctx {
 
 static	int aes_icm_setkey(void *, const uint8_t *, int);
 static	void aes_icm_crypt(void *, const uint8_t *, uint8_t *);
+static	void aes_icm_crypt_multi(void *, const uint8_t *, uint8_t *, size_t);
 static	void aes_icm_crypt_last(void *, const uint8_t *, uint8_t *, size_t);
 static	void aes_icm_reinit(void *, const uint8_t *, size_t);
 static	int aes_gcm_setkey(void *, const uint8_t *, int);
@@ -87,10 +88,12 @@ const struct enc_xform enc_xform_aes_icm = {
 	.ivsize = AES_BLOCK_LEN,
 	.minkey = AES_MIN_KEY,
 	.maxkey = AES_MAX_KEY,
-	.encrypt = aes_icm_crypt,
-	.decrypt = aes_icm_crypt,
 	.setkey = aes_icm_setkey,
 	.reinit = aes_icm_reinit,
+	.encrypt = aes_icm_crypt,
+	.decrypt = aes_icm_crypt,
+	.encrypt_multi = aes_icm_crypt_multi,
+	.decrypt_multi = aes_icm_crypt_multi,
 	.encrypt_last = aes_icm_crypt_last,
 	.decrypt_last = aes_icm_crypt_last,
 };
@@ -105,10 +108,12 @@ const struct enc_xform enc_xform_aes_nist_gcm = {
 	.minkey = AES_MIN_KEY,
 	.maxkey = AES_MAX_KEY,
 	.macsize = AES_GMAC_HASH_LEN,
-	.encrypt = aes_icm_crypt,
-	.decrypt = aes_icm_crypt,
 	.setkey = aes_gcm_setkey,
 	.reinit = aes_gcm_reinit,
+	.encrypt = aes_icm_crypt,
+	.decrypt = aes_icm_crypt,
+	.encrypt_multi = aes_icm_crypt_multi,
+	.decrypt_multi = aes_icm_crypt_multi,
 	.encrypt_last = aes_icm_crypt_last,
 	.decrypt_last = aes_icm_crypt_last,
 	.update = aes_gcm_update,
@@ -124,10 +129,12 @@ const struct enc_xform enc_xform_ccm = {
 	.ivsize = AES_CCM_IV_LEN,
 	.minkey = AES_MIN_KEY, .maxkey = AES_MAX_KEY,
 	.macsize = AES_CBC_MAC_HASH_LEN,
-	.encrypt = aes_icm_crypt,
-	.decrypt = aes_icm_crypt,
 	.setkey = aes_ccm_setkey,
 	.reinit = aes_ccm_reinit,
+	.encrypt = aes_icm_crypt,
+	.decrypt = aes_icm_crypt,
+	.encrypt_multi = aes_icm_crypt_multi,
+	.decrypt_multi = aes_icm_crypt_multi,
 	.encrypt_last = aes_icm_crypt_last,
 	.decrypt_last = aes_icm_crypt_last,
 	.update = aes_ccm_update,
@@ -195,6 +202,31 @@ aes_icm_crypt(void *key, const uint8_t *in, uint8_t *out)
 	     i >= 0; i--)
 		if (++ctx->ac_block[i])   /* continue on overflow */
 			break;
+}
+
+static void
+aes_icm_crypt_multi(void *key, const uint8_t *in, uint8_t *out, size_t len)
+{
+	struct aes_icm_ctx *ctx = key;
+	uint8_t keystream[AESICM_BLOCKSIZE];
+	int i;
+
+	KASSERT(len % AESICM_BLOCKSIZE == 0, ("%s: invalid length", __func__));
+	while (len > 0) {
+		rijndaelEncrypt(ctx->ac_ek, ctx->ac_nr, ctx->ac_block, keystream);
+		for (i = 0; i < AESICM_BLOCKSIZE; i++)
+			out[i] = in[i] ^ keystream[i];
+
+		/* increment counter */
+		for (i = AESICM_BLOCKSIZE - 1; i >= 0; i--)
+			if (++ctx->ac_block[i])   /* continue on overflow */
+				break;
+
+		out += AESICM_BLOCKSIZE;
+		in += AESICM_BLOCKSIZE;
+		len -= AESICM_BLOCKSIZE;
+	}
+	explicit_bzero(keystream, sizeof(keystream));
 }
 
 static void

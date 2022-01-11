@@ -99,6 +99,24 @@ chacha20_poly1305_crypt(void *vctx, const uint8_t *in, uint8_t *out)
 }
 
 static void
+chacha20_poly1305_crypt_multi(void *vctx, const uint8_t *in, uint8_t *out, size_t len)
+{
+	struct chacha20_poly1305_ctx *ctx = vctx;
+	int error __diagused;
+
+	KASSERT(len % CHACHA20_NATIVE_BLOCK_LEN == 0, ("%s: invalid length",
+	    __func__));
+	if (ctx->ietf)
+		error = crypto_stream_chacha20_ietf_xor_ic(out, in, len,
+		    ctx->nonce, ctx->ic, ctx->key);
+	else
+		error = crypto_stream_chacha20_xor_ic(out, in, len, ctx->nonce,
+		    ctx->ic, ctx->key);
+	KASSERT(error == 0, ("%s failed: %d", __func__, error));
+	ctx->ic += len / CHACHA20_NATIVE_BLOCK_LEN;
+}
+
+static void
 chacha20_poly1305_crypt_last(void *vctx, const uint8_t *in, uint8_t *out,
     size_t len)
 {
@@ -142,10 +160,12 @@ const struct enc_xform enc_xform_chacha20_poly1305 = {
 	.minkey = CHACHA20_POLY1305_KEY,
 	.maxkey = CHACHA20_POLY1305_KEY,
 	.macsize = POLY1305_HASH_LEN,
-	.encrypt = chacha20_poly1305_crypt,
-	.decrypt = chacha20_poly1305_crypt,
 	.setkey = chacha20_poly1305_setkey,
 	.reinit = chacha20_poly1305_reinit,
+	.encrypt = chacha20_poly1305_crypt,
+	.decrypt = chacha20_poly1305_crypt,
+	.encrypt_multi = chacha20_poly1305_crypt_multi,
+	.decrypt_multi = chacha20_poly1305_crypt_multi,
 	.encrypt_last = chacha20_poly1305_crypt_last,
 	.decrypt_last = chacha20_poly1305_crypt_last,
 	.update = chacha20_poly1305_update,
@@ -197,10 +217,12 @@ const struct enc_xform enc_xform_xchacha20_poly1305 = {
 	.minkey = XCHACHA20_POLY1305_KEY,
 	.maxkey = XCHACHA20_POLY1305_KEY,
 	.macsize = POLY1305_HASH_LEN,
-	.encrypt = chacha20_poly1305_crypt,
-	.decrypt = chacha20_poly1305_crypt,
 	.setkey = xchacha20_poly1305_setkey,
 	.reinit = xchacha20_poly1305_reinit,
+	.encrypt = chacha20_poly1305_crypt,
+	.decrypt = chacha20_poly1305_crypt,
+	.encrypt_multi = chacha20_poly1305_crypt_multi,
+	.decrypt_multi = chacha20_poly1305_crypt_multi,
 	.encrypt_last = chacha20_poly1305_crypt_last,
 	.decrypt_last = chacha20_poly1305_crypt_last,
 	.update = chacha20_poly1305_update,

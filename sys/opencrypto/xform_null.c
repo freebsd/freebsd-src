@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 static	int null_setkey(void *, const uint8_t *, int);
 static	void null_crypt(void *, const uint8_t *, uint8_t *);
+static	void null_crypt_multi(void *, const uint8_t *, uint8_t *, size_t);
 
 static	void null_init(void *);
 static	void null_reinit(void *ctx, const uint8_t *buf, u_int len);
@@ -70,9 +71,11 @@ const struct enc_xform enc_xform_null = {
 	.ivsize = 0,
 	.minkey = NULL_MIN_KEY,
 	.maxkey = NULL_MAX_KEY,
+	.setkey = null_setkey,
 	.encrypt = null_crypt,
 	.decrypt = null_crypt,
-	.setkey = null_setkey,
+	.encrypt_multi = null_crypt_multi,
+	.decrypt_multi = null_crypt_multi,
 };
 
 /* Authentication instances */
@@ -95,6 +98,11 @@ const struct auth_hash auth_hash_null = {
  */
 static void
 null_crypt(void *key, const uint8_t *in, uint8_t *out)
+{
+}
+
+static void
+null_crypt_multi(void *key, const uint8_t *in, uint8_t *out, size_t len)
 {
 }
 
