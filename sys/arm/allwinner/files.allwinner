@@ -14,13 +14,13 @@ arm/allwinner/aw_nmi.c			standard
 arm/allwinner/aw_r_intc.c		optional	aw_r_intc
 arm/allwinner/aw_rsb.c			optional	rsb | p2wi
 arm/allwinner/aw_rtc.c			optional	aw_rtc
-arm/allwinner/aw_syscon.c		optional	ext_resources syscon
+arm/allwinner/aw_syscon.c		optional	syscon
 arm/allwinner/aw_ts.c			optional	aw_thermal
 arm/allwinner/aw_usbphy.c		optional	ehci | ohci
 arm/allwinner/aw_wdog.c			optional	aw_wdog
 arm/allwinner/axp209.c			optional	axp209
 arm/allwinner/axp81x.c			optional	axp81x
-arm/allwinner/if_awg.c			optional	awg ext_resources syscon
+arm/allwinner/if_awg.c			optional	awg syscon
 arm/allwinner/if_emac.c			optional	emac
 arm/allwinner/sunxi_dma_if.m		optional	a10_dmac | a31_dmac
 dev/iicbus/twsi/a10_twsi.c		optional	twsi
