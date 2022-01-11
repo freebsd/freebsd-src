@@ -105,7 +105,6 @@ COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 EXPERIMENTAL	opt_global.h
-EXT_RESOURCES	opt_global.h
 DIRECTIO
 FILEMON		opt_dontuse.h
 FFCLOCK
