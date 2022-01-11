@@ -298,7 +298,7 @@ dev/usb/controller/generic_ehci_fdt.c		optional ehci fdt
 dev/usb/controller/generic_ohci.c		optional ohci fdt
 dev/usb/controller/generic_usb_if.m		optional ohci fdt
 dev/usb/controller/musb_otg_allwinner.c		optional musb fdt soc_allwinner_a64
-dev/usb/controller/usb_nop_xceiv.c		optional fdt ext_resources
+dev/usb/controller/usb_nop_xceiv.c		optional fdt
 dev/usb/controller/generic_xhci.c		optional xhci
 dev/usb/controller/generic_xhci_acpi.c		optional xhci acpi
 dev/usb/controller/generic_xhci_fdt.c		optional xhci fdt
@@ -337,13 +337,13 @@ arm/allwinner/aw_rsb.c				optional aw_rsb fdt
 arm/allwinner/aw_rtc.c				optional aw_rtc fdt
 arm/allwinner/aw_sid.c				optional aw_sid nvmem fdt
 arm/allwinner/aw_spi.c				optional aw_spi fdt
-arm/allwinner/aw_syscon.c			optional aw_syscon ext_resources syscon fdt
+arm/allwinner/aw_syscon.c			optional aw_syscon syscon fdt
 arm/allwinner/aw_thermal.c			optional aw_thermal nvmem fdt
 arm/allwinner/aw_usbphy.c			optional ehci aw_usbphy fdt
 arm/allwinner/aw_usb3phy.c			optional xhci aw_usbphy fdt
 arm/allwinner/aw_wdog.c				optional aw_wdog fdt
 arm/allwinner/axp81x.c				optional axp81x fdt
-arm/allwinner/if_awg.c				optional awg ext_resources syscon aw_sid nvmem fdt
+arm/allwinner/if_awg.c				optional awg syscon aw_sid nvmem fdt
 
 # Allwinner clock driver
 arm/allwinner/clkng/aw_ccung.c			optional aw_ccu fdt
