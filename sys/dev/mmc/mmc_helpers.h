@@ -30,9 +30,7 @@
 
 #include <dev/gpio/gpiobusvar.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/regulator/regulator.h>
-#endif
 
 struct mmc_helper {
 	device_t		dev;
@@ -56,10 +54,8 @@ struct mmc_helper {
 #define	MMC_PROP_NO_SD		(1 << 6)
 #define	MMC_PROP_NO_MMC		(1 << 7)
 
-#ifdef EXT_RESOURCES
 	regulator_t	vmmc_supply;
 	regulator_t	vqmmc_supply;
-#endif
 
 	device_t	mmc_pwrseq;
 };
