@@ -30,11 +30,13 @@ from __future__ import print_function
 import sys
 import re
 import random
-from Tkinter import *
+from operator import attrgetter, itemgetter
+from functools import total_ordering
+from tkinter import *
 
 # To use:
 # - Install the ports/x11-toolkits/py-tkinter package; e.g.
-#	portinstall x11-toolkits/py-tkinter package
+#	pkg install x11-toolkits/py-tkinter
 # - Add KTR_SCHED to KTR_COMPILE and KTR_MASK in your KERNCONF; e.g.
 #	options 	KTR
 #	options 	KTR_ENTRIES=32768
@@ -55,6 +57,8 @@ from Tkinter import *
 #   while the workload is still running is to avoid wasting log entries on
 #   "idle" time at the end.
 # - Dump the trace to a file: 'ktrdump -ct > ktr.out'
+# - Alternatively, use schedgraph.d script in this directory for getting
+#   the trace data by means of DTrace.  See the script for details.
 # - Run the python script: 'python schedgraph.py ktr.out' optionally provide
 #   your cpu frequency in ghz: 'python schedgraph.py ktr.out 2.4'
 #
@@ -444,10 +448,6 @@ class SourceConfigure(Toplevel):
 		for item in self.sconfig:
 			item.uncheck()
 
-# Reverse compare of second member of the tuple
-def cmp_counts(x, y):
-	return y[1] - x[1]
-
 class SourceStats(Toplevel):
 	def __init__(self, source):
 		self.source = source
@@ -473,7 +473,7 @@ class SourceStats(Toplevel):
 		for k, v in eventtypes.iteritems():
 			(c, d) = v
 			events.append((k, c, d))
-		events.sort(cmp=cmp_counts)
+		events.sort(key=itemgetter(1), reverse=True)
 
 		ypos = 0
 		for event in events:
@@ -793,10 +793,8 @@ class PadEvent(StateEvent):
 		Event.draw(self, canvas, xpos, ypos, None)
 		return (xpos + delta)
 
-# Sort function for start y address
-def source_cmp_start(x, y):
-	return x.y - y.y
 
+@total_ordering
 class EventSource:
 	def __init__(self, group, id):
 		self.name = id
@@ -808,12 +806,16 @@ class EventSource:
 		self.hidden = 0
 		self.tag = group + id
 
-	def __cmp__(self, other):
-		if (other == None):
-			return -1
-		if (self.group == other.group):
-			return cmp(self.name, other.name)
-		return cmp(self.group, other.group)
+	def __lt__(self, other):
+		if other is None:
+			return False
+		return (self.group < other.group or
+				self.group == other.group and self.name < other.name)
+
+	def __eq__(self, other):
+		if other is None:
+			return False
+		return self.group == other.group and self.name == other.name
 
 	# It is much faster to append items to a list then to insert them
 	# at the beginning.  As a result, we add events in reverse order
@@ -1478,7 +1480,7 @@ class SchedGraph(Frame):
 	# expensive due to python's canvas.move().
 	#
 	def sourceshowlist(self, srclist):
-		srclist.sort(cmp=source_cmp_start)
+		srclist.sort(key=attrgetter('y'))
 		startsize = []
 		for source in srclist:
 			if (source.hidden == 0):
@@ -1486,7 +1488,7 @@ class SchedGraph(Frame):
 			startsize.append((self.sourcepicky(source),
 			    self.sourcesize(source)))
 
-		sources.sort(cmp=source_cmp_start, reverse=True)
+		sources.sort(key=attrgetter('y'), reverse=True)
 		self.status.startup("Updating display...");
 		for source in sources:
 			if (source.hidden == 1):
@@ -1516,8 +1518,8 @@ class SchedGraph(Frame):
 	# expensive due to python's canvas.move().
 	#
 	def sourcehidelist(self, srclist):
-		srclist.sort(cmp=source_cmp_start)
-		sources.sort(cmp=source_cmp_start)
+		srclist.sort(key=attrgetter('y'))
+		sources.sort(key=attrgetter('y'))
 		startsize = []
 		off = len(sources) * 100
 		self.status.startup("Updating display...");
