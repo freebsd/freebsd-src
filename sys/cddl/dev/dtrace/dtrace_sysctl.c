@@ -96,5 +96,9 @@ SYSCTL_QUAD(_kern_dtrace, OID_AUTO, dof_maxsize, CTLFLAG_RW,
 SYSCTL_QUAD(_kern_dtrace, OID_AUTO, helper_actions_max, CTLFLAG_RW,
     &dtrace_helper_actions_max, 0, "maximum number of allowed helper actions");
 
+SYSCTL_INT(_kern_dtrace, OID_AUTO, bufsize_max, CTLFLAG_RWTUN,
+    &dtrace_bufsize_max_frac, 0,
+    "maximum fraction (1/n-th) of physical memory for principal buffers");
+
 SYSCTL_INT(_security_bsd, OID_AUTO, allow_destructive_dtrace, CTLFLAG_RDTUN,
     &dtrace_allow_destructive, 1, "Allow destructive mode DTrace scripts");
