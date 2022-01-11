@@ -36,8 +36,7 @@ options 	PLATFORM
 
 #options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
+# pseudo devices
 device		clk
 device		phy
 device		hwreset

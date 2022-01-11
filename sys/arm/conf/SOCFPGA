@@ -38,8 +38,7 @@ options 	SOC_ALTERA_CYCLONE5
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ue0
 
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
+# pseudo devices
 device		clk
 device		phy
 device		hwreset

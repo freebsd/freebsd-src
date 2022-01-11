@@ -34,8 +34,7 @@ device		gic
 # ARM Generic Timer
 device		generic_timer
 
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
+# pseudo devices
 device		clk
 device		phy
 device		hwreset

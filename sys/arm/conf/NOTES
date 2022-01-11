@@ -34,9 +34,8 @@ device		pmu		# PMU support (for CCNT).
 device		twsi		# i2c controller on Marvel and Allwinner
 device		xdma		# xDMA framework for SoC on-chip dma controllers
 
-# Add EXT_RESOURCES pseudo devices...
+# Add pseudo devices...
 
-options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset

@@ -12,8 +12,7 @@ files 		"../qualcomm/std.ipq4018"
 device 		uart
 device 		uart_msm	# Qualcomm MSM UART driver
 
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
+# pseudo devices
 device 		clk
 device 		phy
 device 		hwreset
