@@ -31,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/reboot.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
@@ -76,7 +78,6 @@ rk8xx_start(void *pdev)
 
 	dev = pdev;
 	sc = device_get_softc(dev);
-	sc->dev = dev;
 
 	/* No version register in RK808 */
 	if (bootverbose && sc->type == RK805) {
@@ -101,6 +102,30 @@ rk8xx_start(void *pdev)
 	config_intrhook_disestablish(&sc->intr_hook);
 }
 
+static void
+rk8xx_poweroff(void *arg, int howto)
+{
+	struct rk8xx_softc *sc = arg;
+	int error;
+	uint8_t val;
+
+	if ((howto & RB_POWEROFF) == 0)
+		return;
+
+	device_printf(sc->dev, "Powering off...\n");
+	error = rk8xx_read(sc->dev, sc->dev_ctrl.dev_ctrl_reg, &val, 1);
+	if (error == 0) {
+		val |= sc->dev_ctrl.pwr_off_mask;
+		error = rk8xx_write(sc->dev, sc->dev_ctrl.dev_ctrl_reg,
+		    &val, 1);
+
+		/* Wait a bit for the command to take effect. */
+		if (error == 0)
+			DELAY(100);
+	}
+	device_printf(sc->dev, "Power off failed\n");
+}
+
 int
 rk8xx_attach(struct rk8xx_softc *sc)
 {
@@ -116,6 +141,17 @@ rk8xx_attach(struct rk8xx_softc *sc)
 		return (ENOMEM);
 
 	rk8xx_attach_regulators(sc);
+
+	if (OF_hasprop(ofw_bus_get_node(sc->dev),
+	    "rockchip,system-power-controller")) {
+		/*
+		 * The priority is chosen to override PSCI and EFI shutdown
+		 * methods as those two just hang without powering off on Rock64
+		 * at least.
+		 */
+		EVENTHANDLER_REGISTER(shutdown_final, rk8xx_poweroff, sc,
+		    SHUTDOWN_PRI_LAST - 2);
+	}
 
 	return (0);
 }

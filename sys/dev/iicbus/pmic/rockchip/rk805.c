@@ -176,6 +176,8 @@ rk805_attach(device_t dev)
 	sc->rtc_regs.ctrl_ampm_mask = RK805_RTC_AMPM_MODE;
 	sc->rtc_regs.ctrl_gettime_mask = RK805_RTC_GET_TIME;
 	sc->rtc_regs.ctrl_readsel_mask = RK805_RTC_READSEL;
+	sc->dev_ctrl.dev_ctrl_reg = RK805_DEV_CTRL;
+	sc->dev_ctrl.pwr_off_mask = RK805_DEV_CTRL_OFF;
 
 	return (rk8xx_attach(sc));
 }
