@@ -193,12 +193,6 @@ static eventhandler_tag if_detach_event_tag = NULL;
 VNET_DEFINE_STATIC(struct callout, expire_upcalls_ch);
 #define	V_expire_upcalls_ch	VNET(expire_upcalls_ch)
 
-VNET_DEFINE_STATIC(struct mtx, upcall_thread_mtx);
-#define	V_upcall_thread_mtx	VNET(upcall_thread_mtx)
-
-VNET_DEFINE_STATIC(struct cv, upcall_thread_cv);
-#define	V_upcall_thread_cv	VNET(upcall_thread_cv)
-
 VNET_DEFINE_STATIC(struct mtx, buf_ring_mtx);
 #define	V_buf_ring_mtx	VNET(buf_ring_mtx)
 
