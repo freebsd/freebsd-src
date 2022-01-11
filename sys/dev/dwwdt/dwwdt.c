@@ -93,15 +93,20 @@ static struct ofw_compat_data compat_data[] = {
 
 SYSCTL_NODE(_dev, OID_AUTO, dwwdt, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Synopsys Designware watchdog timer");
-/* Setting this to 0 enables full restart mode. */
-static uint32_t dwwdt_prevent_restart = 1;
-SYSCTL_UINT(_dev_dwwdt, OID_AUTO, prevent_restart, CTLFLAG_RW | CTLFLAG_MPSAFE,
-    &dwwdt_prevent_restart, 1,
-    "Prevent system restart (0 - Disabled; 1 - Enabled)");
 
-static uint32_t dwwdt_debug_enabled = 0;
-SYSCTL_UINT(_dev_dwwdt, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_MPSAFE,
-    &dwwdt_debug_enabled, 1, "Debug mode (0 - Disabled; 1 - Enabled)");
+/* Setting this to true disables full restart mode. */
+static bool dwwdt_prevent_restart = false;
+SYSCTL_BOOL(_dev_dwwdt, OID_AUTO, prevent_restart, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &dwwdt_prevent_restart, 0, "Disable system reset on timeout");
+
+static bool dwwdt_debug_enabled = false;
+SYSCTL_BOOL(_dev_dwwdt, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &dwwdt_debug_enabled, 0, "Enable debug mode");
+
+static bool dwwdt_panic_first = true;
+SYSCTL_BOOL(_dev_dwwdt, OID_AUTO, panic_first, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &dwwdt_panic_first, 0,
+    "Try to panic on timeout, reset on another timeout");
 
 static int dwwdt_probe(device_t);
 static int dwwdt_attach(device_t);
@@ -181,13 +186,17 @@ dwwdt_intr(void *arg)
 	KASSERT((DWWDT_READ4(sc, DWWDT_STAT) & DWWDT_STAT_STATUS) != 0,
 	    ("Missing interrupt status bit?"));
 
-	if (dwwdt_prevent_restart != 0 || sc->sc_status == DWWDT_STOPPED) {
+	if (dwwdt_prevent_restart || sc->sc_status == DWWDT_STOPPED) {
 		/*
 		 * Confirm interrupt reception. Restart counter.
 		 * This also emulates stopping watchdog.
 		 */
 		(void)DWWDT_READ4(sc, DWWDT_EOI);
+		return;
 	}
+
+	if (dwwdt_panic_first)
+		panic("dwwdt pre-timeout interrupt");
 }
 
 static void
@@ -199,7 +208,7 @@ dwwdt_event(void *arg, unsigned int cmd, int *error)
 	int val;
 
 	timeout = cmd & WD_INTERVAL;
-	val = MAX(0, timeout + exponent - DWWDT_EXP_OFFSET);
+	val = MAX(0, timeout + exponent - DWWDT_EXP_OFFSET + 1);
 
 	dwwdt_stop(sc);
 	if (cmd == 0 || val > 0x0f) {
@@ -341,7 +350,7 @@ dwwdt_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Prevent restarts during shutdown. */
-	dwwdt_prevent_restart = 1;
+	dwwdt_prevent_restart = true;
 	dwwdt_stop(sc);
 	return (bus_generic_shutdown(dev));
 }
