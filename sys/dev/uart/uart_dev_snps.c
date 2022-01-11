@@ -43,21 +43,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
-#endif
 
 #include "uart_if.h"
 
 struct snps_softc {
 	struct ns8250_softc	ns8250;
 
-#ifdef EXT_RESOURCES
 	clk_t			baudclk;
 	clk_t			apb_pclk;
 	hwreset_t		reset;
-#endif
 };
 
 /*
@@ -131,7 +127,6 @@ static struct ofw_compat_data compat_data[] = {
 };
 UART_FDT_CLASS(compat_data);
 
-#ifdef EXT_RESOURCES
 static int
 snps_get_clocks(device_t dev, clk_t *baudclk, clk_t *apb_pclk)
 {
@@ -151,7 +146,6 @@ snps_get_clocks(device_t dev, clk_t *baudclk, clk_t *apb_pclk)
 
 	return (0);
 }
-#endif
 
 static int
 snps_probe(device_t dev)
@@ -162,10 +156,8 @@ snps_probe(device_t dev)
 	uint32_t shift, iowidth, clock;
 	uint64_t freq;
 	int error;
-#ifdef EXT_RESOURCES
 	clk_t baudclk, apb_pclk;
 	hwreset_t reset;
-#endif
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -187,7 +179,6 @@ snps_probe(device_t dev)
 	if (OF_getencprop(node, "clock-frequency", &clock, sizeof(clock)) <= 0)
 		clock = 0;
 
-#ifdef EXT_RESOURCES
 	if (hwreset_get_by_ofw_idx(dev, 0, 0, &reset) == 0) {
 		error = hwreset_deassert(reset);
 		if (error != 0) {
@@ -220,7 +211,6 @@ snps_probe(device_t dev)
 			clock = (uint32_t)freq;
 		}
 	}
-#endif
 
 	if (bootverbose && clock == 0)
 		device_printf(dev, "could not determine frequency\n");
@@ -229,7 +219,6 @@ snps_probe(device_t dev)
 	if (error != 0)
 		return (error);
 
-#ifdef EXT_RESOURCES
 	/* XXX uart_bus_probe has changed the softc, so refresh it */
 	sc = device_get_softc(dev);
 
@@ -237,7 +226,6 @@ snps_probe(device_t dev)
 	sc->baudclk = baudclk;
 	sc->apb_pclk = apb_pclk;
 	sc->reset = reset;
-#endif
 
 	return (0);
 }
@@ -245,25 +233,20 @@ snps_probe(device_t dev)
 static int
 snps_detach(device_t dev)
 {
-#ifdef EXT_RESOURCES
 	struct snps_softc *sc;
 	clk_t baudclk, apb_pclk;
 	hwreset_t reset;
-#endif
 	int error;
 
-#ifdef EXT_RESOURCES
 	sc = device_get_softc(dev);
 	baudclk = sc->baudclk;
 	apb_pclk = sc->apb_pclk;
 	reset = sc->reset;
-#endif
 
 	error = uart_bus_detach(dev);
 	if (error != 0)
 		return (error);
 
-#ifdef EXT_RESOURCES
 	if (reset != NULL) {
 		error = hwreset_assert(reset);
 		if (error != 0) {
@@ -286,7 +269,6 @@ snps_detach(device_t dev)
 			return (error);
 		}
 	}
-#endif
 
 	return (0);
 }
