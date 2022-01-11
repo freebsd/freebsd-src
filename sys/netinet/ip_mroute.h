@@ -365,11 +365,12 @@ extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_done)(void);
 extern int	(*mrt_ioctl)(u_long, caddr_t, int);
+extern int	ip_mrouter_critical_section_cnt;
 
-#define	MROUTER_RLOCK_TRACKER	struct epoch_tracker mrouter_et
-#define	MROUTER_RLOCK()	epoch_enter_preempt(net_epoch_preempt, &mrouter_et)
-#define	MROUTER_RUNLOCK()	epoch_exit_preempt(net_epoch_preempt, &mrouter_et)
-#define	MROUTER_WAIT()	epoch_wait_preempt(net_epoch_preempt)
+#define	MROUTER_RLOCK_TRACKER
+#define	MROUTER_RLOCK()		atomic_add_int(&ip_mrouter_critical_section_cnt, 1)
+#define	MROUTER_RUNLOCK()	atomic_subtract_int(&ip_mrouter_critical_section_cnt, 1)
+#define	MROUTER_WAIT()		do {} while (atomic_load_int(&ip_mrouter_critical_section_cnt) != 0)
 
 #endif /* _KERNEL */
 
