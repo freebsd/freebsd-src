@@ -3193,7 +3193,8 @@ SUBDIR_PARALLEL=
 .if make(check-old) || make(check-old-dirs) || \
     make(check-old-files) || make(check-old-libs) || \
     make(delete-old) || make(delete-old-dirs) || \
-    make(delete-old-files) || make(delete-old-libs)
+    make(delete-old-files) || make(delete-old-libs) || \
+    make(list-old-dirs) || make(list-old-files) || make(list-old-libs)
 
 #
 # check for / delete old files section
@@ -3212,6 +3213,11 @@ RM_I=-i
 RM_I=-v
 .endif
 
+list-old-files: .PHONY
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | sort
+
 delete-old-files: .PHONY
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
@@ -3221,8 +3227,7 @@ delete-old-files: .PHONY
 # the Makefile parser segfault.
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
-	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | sort | \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} list-old-files | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -3251,8 +3256,7 @@ delete-old-files: .PHONY
 check-old-files: .PHONY
 	@echo ">>> Checking for old files"
 	@cd ${.CURDIR}; \
-	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} list-old-files | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 		 	echo "${DESTDIR}/$${file}"; \
@@ -3262,7 +3266,7 @@ check-old-files: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done | sort
+	done
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
@@ -3273,13 +3277,17 @@ check-old-files: .PHONY
 	        fi; \
 	done | sort
 
+list-old-libs: .PHONY
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_LIBS | xargs -n1 | sort
+
 delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
-	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_LIBS | xargs -n1 | sort | \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} list-old-libs | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -3298,8 +3306,7 @@ delete-old-libs: .PHONY
 check-old-libs: .PHONY
 	@echo ">>> Checking for old libraries"
 	@cd ${.CURDIR}; \
-	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_LIBS | xargs -n1 | \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} list-old-libs | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
@@ -3309,13 +3316,17 @@ check-old-libs: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done | sort
+	done
+
+list-old-dirs: .PHONY
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_DIRS | xargs -n1 | sort -r
 
 delete-old-dirs: .PHONY
 	@echo ">>> Removing old directories"
 	@cd ${.CURDIR}; \
-	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | sort -r | \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} list-old-dirs | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \
@@ -3333,8 +3344,7 @@ delete-old-dirs: .PHONY
 check-old-dirs: .PHONY
 	@echo ">>> Checking for old directories"
 	@cd ${.CURDIR}; \
-	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | sort -r | \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} list-old-dirs | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \
