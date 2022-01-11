@@ -71,10 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/mii/mii_fdt.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
-#endif
 
 #include "if_dwc_if.h"
 #include "gpio_if.h"
@@ -1497,7 +1495,6 @@ dwc_reset(device_t dev)
 	return (0);
 }
 
-#ifdef EXT_RESOURCES
 static int
 dwc_clock_init(device_t dev)
 {
@@ -1534,7 +1531,6 @@ dwc_clock_init(device_t dev)
 
 	return (0);
 }
-#endif
 
 static int
 dwc_probe(device_t dev)
@@ -1601,10 +1597,8 @@ dwc_attach(device_t dev)
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
 
-#ifdef EXT_RESOURCES
 	if (dwc_clock_init(dev) != 0)
 		return (ENXIO);
-#endif
 
 	if (bus_alloc_resources(dev, dwc_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
