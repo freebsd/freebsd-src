@@ -182,9 +182,6 @@ device		aw_cir
 
 # Pseudo devices.
 options 	EFIRT		# EFI Runtime Services
-
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset

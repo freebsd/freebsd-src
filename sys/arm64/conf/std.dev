@@ -59,9 +59,6 @@ device		tuntap			# Packet tunnel.
 device		md			# Memory "disks"
 device		gif			# IPv6 and IPv4 tunneling
 device		firmware		# firmware assist module
-
-# EXT_RESOURCES pseudo devices
-options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset
