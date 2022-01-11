@@ -974,12 +974,12 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 	struct crypto_buffer_cursor cc_in, cc_out;
 	const u_char *inblk;
 	u_char *outblk;
+	size_t inlen, outlen, todo;
 	uint64_t *blkp;
 	const struct swcr_auth *swa;
 	const struct swcr_encdec *swe;
 	const struct enc_xform *exf;
 	void *ctx;
-	size_t len;
 	int blksz, error, r, resid;
 
 	swa = &ses->swcr_auth;
@@ -1017,45 +1017,71 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 	/* Do encryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
 	crypto_cursor_advance(&cc_in, crp->crp_payload_start);
+	inblk = crypto_cursor_segment(&cc_in, &inlen);
 	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
 		crypto_cursor_init(&cc_out, &crp->crp_obuf);
 		crypto_cursor_advance(&cc_out, crp->crp_payload_output_start);
 	} else
 		cc_out = cc_in;
-	for (resid = crp->crp_payload_length; resid >= blksz; resid -= blksz) {
-		inblk = crypto_cursor_segment(&cc_in, &len);
-		if (len < blksz) {
-			crypto_cursor_copydata(&cc_in, blksz, blk);
-			inblk = blk;
-		} else
-			crypto_cursor_advance(&cc_in, blksz);
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			outblk = crypto_cursor_segment(&cc_out, &len);
-			if (len < blksz)
+	outblk = crypto_cursor_segment(&cc_out, &outlen);
+
+	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		for (resid = crp->crp_payload_length; resid >= blksz;
+		     resid -= todo) {
+			if (inlen < blksz) {
+				crypto_cursor_copydata(&cc_in, blksz, blk);
+				inblk = blk;
+				inlen = blksz;
+			}
+
+			if (outlen < blksz) {
 				outblk = blk;
-			exf->encrypt(ctx, inblk, outblk);
-			exf->update(ctx, outblk, blksz);
-			if (outblk == blk)
+				outlen = blksz;
+			}
+
+			todo = rounddown2(MIN(resid, MIN(inlen, outlen)),
+			    blksz);
+
+			exf->encrypt_multi(ctx, inblk, outblk, todo);
+			exf->update(ctx, outblk, todo);
+
+			if (inblk == blk) {
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
+			} else {
+				crypto_cursor_advance(&cc_in, todo);
+				inlen -= todo;
+				inblk += todo;
+				if (inlen == 0)
+					inblk = crypto_cursor_segment(&cc_in,
+					    &inlen);
+			}
+
+			if (outblk == blk) {
 				crypto_cursor_copyback(&cc_out, blksz, blk);
-			else
-				crypto_cursor_advance(&cc_out, blksz);
-		} else {
-			exf->update(ctx, inblk, blksz);
+				outblk = crypto_cursor_segment(&cc_out, &outlen);
+			} else {
+				crypto_cursor_advance(&cc_out, todo);
+				outlen -= todo;
+				outblk += todo;
+				if (outlen == 0)
+					outblk = crypto_cursor_segment(&cc_out,
+					    &outlen);
+			}
 		}
-	}
-	if (resid > 0) {
-		crypto_cursor_copydata(&cc_in, resid, blk);
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		if (resid > 0) {
+			crypto_cursor_copydata(&cc_in, resid, blk);
 			exf->encrypt_last(ctx, blk, blk, resid);
 			crypto_cursor_copyback(&cc_out, resid, blk);
+			exf->update(ctx, blk, resid);
 		}
-		exf->update(ctx, blk, resid);
-		if (resid % POLY1305_BLOCK_LEN != 0) {
-			/* padding2 */
-			memset(blk, 0, POLY1305_BLOCK_LEN);
-			exf->update(ctx, blk, POLY1305_BLOCK_LEN -
-			    resid % POLY1305_BLOCK_LEN);
-		}
+	} else
+		crypto_apply(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, exf->update, ctx);
+	if (crp->crp_payload_length % POLY1305_BLOCK_LEN != 0) {
+		/* padding2 */
+		memset(blk, 0, POLY1305_BLOCK_LEN);
+		exf->update(ctx, blk, POLY1305_BLOCK_LEN -
+		    crp->crp_payload_length % POLY1305_BLOCK_LEN);
 	}
 
 	/* lengths */
@@ -1081,22 +1107,48 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 		/* tag matches, decrypt data */
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
+		inblk = crypto_cursor_segment(&cc_in, &inlen);
+
 		for (resid = crp->crp_payload_length; resid > blksz;
-		     resid -= blksz) {
-			inblk = crypto_cursor_segment(&cc_in, &len);
-			if (len < blksz) {
+		     resid -= todo) {
+			if (inlen < blksz) {
 				crypto_cursor_copydata(&cc_in, blksz, blk);
 				inblk = blk;
-			} else
-				crypto_cursor_advance(&cc_in, blksz);
-			outblk = crypto_cursor_segment(&cc_out, &len);
-			if (len < blksz)
+				inlen = blksz;
+			}
+			if (outlen < blksz) {
 				outblk = blk;
-			exf->decrypt(ctx, inblk, outblk);
-			if (outblk == blk)
+				outlen = blksz;
+			}
+
+			todo = rounddown2(MIN(resid, MIN(inlen, outlen)),
+			    blksz);
+
+			exf->decrypt_multi(ctx, inblk, outblk, todo);
+
+			if (inblk == blk) {
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
+			} else {
+				crypto_cursor_advance(&cc_in, todo);
+				inlen -= todo;
+				inblk += todo;
+				if (inlen == 0)
+					inblk = crypto_cursor_segment(&cc_in,
+					    &inlen);
+			}
+
+			if (outblk == blk) {
 				crypto_cursor_copyback(&cc_out, blksz, blk);
-			else
-				crypto_cursor_advance(&cc_out, blksz);
+				outblk = crypto_cursor_segment(&cc_out,
+				    &outlen);
+			} else {
+				crypto_cursor_advance(&cc_out, todo);
+				outlen -= todo;
+				outblk += todo;
+				if (outlen == 0)
+					outblk = crypto_cursor_segment(&cc_out,
+					    &outlen);
+			}
 		}
 		if (resid > 0) {
 			crypto_cursor_copydata(&cc_in, resid, blk);
