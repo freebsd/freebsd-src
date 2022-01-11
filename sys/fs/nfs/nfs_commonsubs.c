@@ -1090,8 +1090,8 @@ nfsmout:
  * If the aclp == NULL or won't fit in an acl, just discard the acl info.
  */
 int
-nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, int *aclerrp,
-    int *aclsizep, __unused NFSPROC_T *p)
+nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, bool server,
+    int *aclerrp, int *aclsizep, __unused NFSPROC_T *p)
 {
 	u_int32_t *tl;
 	int i, aclsize;
@@ -1122,7 +1122,7 @@ nfsrv_dissectacl(struct nfsrv_descript *nd, NFSACL_T *aclp, int *aclerrp,
 	for (i = 0; i < acecnt; i++) {
 		if (aclp && !aceerr)
 			error = nfsrv_dissectace(nd, &aclp->acl_entry[i],
-			    &aceerr, &acesize, p);
+			    server, &aceerr, &acesize, p);
 		else
 			error = nfsrv_skipace(nd, &acesize);
 		if (error)
@@ -1487,8 +1487,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				NFSACL_T *naclp;
 
 				naclp = acl_alloc(M_WAITOK);
-				error = nfsrv_dissectacl(nd, naclp, &aceerr,
-				    &cnt, p);
+				error = nfsrv_dissectacl(nd, naclp, true,
+				    &aceerr, &cnt, p);
 				if (error) {
 				    acl_free(naclp);
 				    goto nfsmout;
@@ -1498,8 +1498,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				    *retcmpp = NFSERR_NOTSAME;
 				acl_free(naclp);
 			    } else {
-				error = nfsrv_dissectacl(nd, NULL, &aceerr,
-				    &cnt, p);
+				error = nfsrv_dissectacl(nd, NULL, true,
+				    &aceerr, &cnt, p);
 				if (error)
 				    goto nfsmout;
 				*retcmpp = NFSERR_ATTRNOTSUPP;
@@ -1507,11 +1507,11 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			  }
 			} else {
 				if (vp != NULL && aclp != NULL)
-				    error = nfsrv_dissectacl(nd, aclp, &aceerr,
-					&cnt, p);
+				    error = nfsrv_dissectacl(nd, aclp, false,
+					&aceerr, &cnt, p);
 				else
-				    error = nfsrv_dissectacl(nd, NULL, &aceerr,
-					&cnt, p);
+				    error = nfsrv_dissectacl(nd, NULL, false,
+					&aceerr, &cnt, p);
 				if (error)
 				    goto nfsmout;
 			}
