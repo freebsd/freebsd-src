@@ -63,9 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
-#endif
 
 #include <dev/mmc/host/dwmmc_reg.h>
 #include <dev/mmc/host/dwmmc_var.h>
@@ -520,9 +518,7 @@ parse_fdt(struct dwmmc_softc *sc)
 	phandle_t node;
 	uint32_t bus_hz = 0;
 	int len;
-#ifdef EXT_RESOURCES
 	int error;
-#endif
 
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
@@ -553,8 +549,6 @@ parse_fdt(struct dwmmc_softc *sc)
 		OF_getencprop(node, "clock-frequency", dts_value, len);
 		bus_hz = dts_value[0];
 	}
-
-#ifdef EXT_RESOURCES
 
 	/* IP block reset is optional */
 	error = hwreset_get_by_ofw_name(sc->dev, 0, "reset", &sc->hwreset);
@@ -662,7 +656,6 @@ parse_fdt(struct dwmmc_softc *sc)
 			goto fail;
 		}
 	}
-#endif /* EXT_RESOURCES */
 
 	if (sc->bus_hz == 0) {
 		device_printf(sc->dev, "No bus speed provided\n");
@@ -804,7 +797,6 @@ dwmmc_detach(device_t dev)
 
 	DWMMC_LOCK_DESTROY(sc);
 
-#ifdef EXT_RESOURCES
 	if (sc->hwreset != NULL && hwreset_deassert(sc->hwreset) != 0)
 		device_printf(sc->dev, "cannot deassert reset\n");
 	if (sc->biu != NULL && clk_disable(sc->biu) != 0)
@@ -816,7 +808,6 @@ dwmmc_detach(device_t dev)
 		device_printf(sc->dev, "Cannot disable vmmc regulator\n");
 	if (sc->vqmmc && regulator_disable(sc->vqmmc) != 0)
 		device_printf(sc->dev, "Cannot disable vqmmc regulator\n");
-#endif
 
 #ifdef MMCCAM
 	mmc_cam_sim_free(&sc->mmc_sim);
