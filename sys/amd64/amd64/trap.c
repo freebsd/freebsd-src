@@ -1011,7 +1011,7 @@ cpu_fetch_syscall_args_fallback(struct thread *td, struct syscall_args *sa)
 {
 	struct proc *p;
 	struct trapframe *frame;
-	register_t *argp;
+	syscallarg_t *argp;
 	caddr_t params;
 	int reg, regcnt, error;
 

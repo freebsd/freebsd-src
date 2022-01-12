@@ -860,7 +860,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 			write_line("sysarg", "};\n")
 		else
 			write_line("sysarg", string.format(
-			    "struct %s {\n\tregister_t dummy;\n};\n", argalias))
+			    "struct %s {\n\tsyscallarg_t dummy;\n};\n", argalias))
 		end
 	end
 
@@ -986,7 +986,7 @@ local function handle_compat(sysnum, thr_flag, flags, sysflags, rettype,
 		write_line(out, "};\n")
 	elseif flags & nargflags == 0 then
 		write_line("sysarg", string.format(
-		    "struct %s {\n\tregister_t dummy;\n};\n", argalias))
+		    "struct %s {\n\tsyscallarg_t dummy;\n};\n", argalias))
 	end
 	if flags & dprotoflags == 0 then
 		write_line(outdcl, string.format(
@@ -1439,8 +1439,8 @@ struct proc;
 
 struct thread;
 
-#define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
-		0 : sizeof(register_t) - sizeof(t))
+#define	PAD_(t)	(sizeof(syscallarg_t) <= sizeof(t) ? \
+		0 : sizeof(syscallarg_t) - sizeof(t))
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	PADL_(t)	0
@@ -1530,7 +1530,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 process_sysfile(sysfile)
 
 write_line("sysinc",
-    "\n#define AS(name) (sizeof(struct name) / sizeof(register_t))\n")
+    "\n#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))\n")
 
 for _, v in pairs(compat_options) do
 	if v["count"] > 0 then
