@@ -290,7 +290,6 @@ void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
 void	ixl_handle_que(void *context, int pending);
 
 void	ixl_init(void *);
-void	ixl_local_timer(void *);
 void	ixl_register_vlan(void *, struct ifnet *, u16);
 void	ixl_unregister_vlan(void *, struct ifnet *, u16);
 int	ixl_intr(void *);
