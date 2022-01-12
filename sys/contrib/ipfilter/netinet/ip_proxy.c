@@ -914,7 +914,7 @@ ipf_proxy_check(fin, nat)
 	ip_t *ip;
 	short rv;
 	int err;
-#if !defined(_KERNEL) || SOLARIS
+#if !defined(_KERNEL) || SOLARIS || defined(__FreeBSD__)
 	u_32_t s1, s2, sd;
 #endif
 
@@ -1006,7 +1006,7 @@ ipf_proxy_check(fin, nat)
 		 * packet.
 		 */
 		adjlen = APR_INC(err);
-#if !defined(_KERNEL) || SOLARIS
+#if !defined(_KERNEL) || SOLARIS || defined(__FreeBSD__)
 		s1 = LONG_SUM(fin->fin_plen - adjlen);
 		s2 = LONG_SUM(fin->fin_plen);
 		CALC_SUMD(s1, s2, sd);
