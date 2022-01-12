@@ -420,7 +420,7 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	}
 
 	if (error == 0)
-		td->td_retval[0] = addr + pageoff;
+		td->td_retval[0] = (register_t) (addr + pageoff);
 done:
 	if (fp)
 		fdrop(fp, td);

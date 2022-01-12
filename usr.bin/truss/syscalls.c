@@ -1556,7 +1556,7 @@ user_ptr32_to_psaddr(int32_t user_pointer)
  * an array of all of the system call arguments.
  */
 char *
-print_arg(struct syscall_arg *sc, unsigned long *args, syscallarg_t *retval,
+print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
     struct trussinfo *trussinfo)
 {
 	FILE *fp;
@@ -2729,7 +2729,7 @@ print_syscall(struct trussinfo *trussinfo)
 }
 
 void
-print_syscall_ret(struct trussinfo *trussinfo, int error, syscallarg_t *retval)
+print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 {
 	struct timespec timediff;
 	struct threadinfo *t;

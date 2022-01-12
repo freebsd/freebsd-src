@@ -227,7 +227,7 @@ struct syscall {
 };
 
 struct syscall *get_syscall(struct threadinfo *, u_int, u_int);
-char *print_arg(struct syscall_arg *, unsigned long *, syscallarg_t *,
+char *print_arg(struct syscall_arg *, unsigned long *, register_t *,
     struct trussinfo *);
 
 /*
@@ -251,8 +251,8 @@ char *print_arg(struct syscall_arg *, unsigned long *, syscallarg_t *,
 #define LINUX_SENDMSG		16
 #define LINUX_RECVMSG		17
 
-#define PAD_(t) (sizeof(syscallarg_t) <= sizeof(t) ? \
-    0 : sizeof(syscallarg_t) - sizeof(t))
+#define PAD_(t) (sizeof(register_t) <= sizeof(t) ? \
+    0 : sizeof(register_t) - sizeof(t))
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define PADL_(t)	0
@@ -271,5 +271,5 @@ struct linux_socketcall_args {
 };
 
 void print_syscall(struct trussinfo *);
-void print_syscall_ret(struct trussinfo *, int, syscallarg_t *);
+void print_syscall_ret(struct trussinfo *, int, register_t *);
 void print_summary(struct trussinfo *trussinfo);
