@@ -92,7 +92,7 @@
 #define	BUS_SPACE_BARRIER_READ	0x01
 #define	BUS_SPACE_BARRIER_WRITE	0x02
 
-#ifdef SAN_NEEDS_INTERCEPTORS
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
 #include <sys/bus_san.h>
 #else
 
