@@ -52,3 +52,7 @@ METHOD int cam_request {
 	device_t dev;
 	union ccb *ccb;
 };
+
+METHOD void cam_poll {
+	device_t dev;
+};

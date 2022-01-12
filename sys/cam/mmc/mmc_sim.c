@@ -46,8 +46,10 @@ __FBSDID("$FreeBSD$");
 static void
 mmc_cam_default_poll(struct cam_sim *sim)
 {
+	struct mmc_sim *mmc_sim;
 
-	return;
+	mmc_sim = cam_sim_softc(sim);
+	MMC_SIM_CAM_POLL(mmc_sim->dev);
 }
 
 static void
@@ -96,12 +98,6 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 	int rv;
 
 	mmc_sim = cam_sim_softc(sim);
-
-	if (mmc_sim == NULL) {
-		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-		xpt_done(ccb);
-		return;
-	}
 
 	mtx_assert(&mmc_sim->mtx, MA_OWNED);
 
@@ -172,7 +168,6 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_MMC_IO:
 	{
-		ccb->ccb_h.status = CAM_REQ_INVALID;
 		rv = MMC_SIM_CAM_REQUEST(mmc_sim->dev, ccb);
 		if (rv != 0)
 			ccb->ccb_h.status = CAM_SIM_QUEUED;
@@ -191,6 +186,8 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 int
 mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 {
+	kobjop_desc_t kobj_desc;
+	kobj_method_t *kobj_method;
 
 	mmc_sim->dev = dev;
 
@@ -200,8 +197,13 @@ mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 
 	snprintf(mmc_sim->name, sizeof(mmc_sim->name), "%s_sim", name);
 	mtx_init(&mmc_sim->mtx, mmc_sim->name, NULL, MTX_DEF);
+
+	/* Provide sim_poll hook only if the device has the poll method. */
+	kobj_desc = &mmc_sim_cam_poll_desc;
+	kobj_method = kobj_lookup_method(((kobj_t)dev)->ops->cls, NULL,
+	    kobj_desc);
 	mmc_sim->sim = cam_sim_alloc(mmc_cam_sim_default_action,
-	    mmc_cam_default_poll,
+	    kobj_method == &kobj_desc->deflt ? NULL : mmc_cam_default_poll,
 	    mmc_sim->name, mmc_sim, device_get_unit(dev),
 	    &mmc_sim->mtx, 1, 1, mmc_sim->devq);
 
