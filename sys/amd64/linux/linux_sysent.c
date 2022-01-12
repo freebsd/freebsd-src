@@ -12,7 +12,7 @@
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
 
-#define AS(name) (sizeof(struct name) / sizeof(register_t))
+#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))
 
 /* The casts are bogus but will do for now. */
 struct sysent linux_sysent[] = {
