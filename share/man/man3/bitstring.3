@@ -68,14 +68,17 @@
 .Nm bit_decl ,
 .Nm bit_ffc ,
 .Nm bit_ffs ,
+.Nm bit_ff_at ,
 .Nm bit_ffc_at ,
 .Nm bit_ffs_at ,
 .Nm bit_ffc_area ,
 .Nm bit_ffs_area ,
+.Nm bit_ff_area_at ,
 .Nm bit_ffc_area_at ,
 .Nm bit_ffs_area_at ,
 .Nm bit_nclear ,
 .Nm bit_nset ,
+.Nm bit_ntest ,
 .Nm bit_set ,
 .Nm bit_test ,
 .Nm bitstr_size
@@ -99,6 +102,8 @@
 .Ft void
 .Fn bit_ffs_at "bitstr_t *name" "int start" "int nbits" "int *value"
 .Ft void
+.Fn bit_ff_at "bitstr_t *name" "int start" "int nbits" "int match" "int *value"
+.Ft void
 .Fn bit_ffc_area "bitstr_t *name" "int nbits" "int size" "int *value"
 .Ft void
 .Fn bit_ffs_area "bitstr_t *name" "int nbits" "int size" "int *value"
@@ -106,6 +111,8 @@
 .Fn bit_ffc_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
 .Ft void
 .Fn bit_ffs_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int *value"
+.Ft void
+.Fn bit_ff_area_at "bitstr_t *name" "int start" "int nbits" "int size" "int match" "int *value"
 .Fn bit_foreach "bitstr_t *name" "int nbits" "int var"
 .Fn bit_foreach_at "bitstr_t *name" "int start" "int nbits" "int var"
 .Fn bit_foreach_unset "bitstr_t *name" "int nbits" "int var"
@@ -114,6 +121,8 @@
 .Fn bit_nclear "bitstr_t *name" "int start" "int stop"
 .Ft void
 .Fn bit_nset "bitstr_t *name" "int start" "int stop"
+.Ft int
+.Fn bit_ntest "bitstr_t *name" "int start" "int stop" "int match"
 .Ft void
 .Fn bit_set "bitstr_t *name" "int bit"
 .Ft int
@@ -186,6 +195,18 @@ of bit string
 .Fa name
 is set, and zero otherwise.
 .Pp
+The
+.Fn bit_ntest
+function
+evaluates to non-zero if the zero-based numbered bits from
+.Fa start
+through
+.Fa stop
+in the bit string
+.Ar name
+all have the value
+.Ar match .
+.Pp
 The function
 .Fn bit_ffc
 stores in the location referenced by
@@ -241,6 +262,25 @@ at or after the zero-based bit index
 If no bits are set after
 .Fa start ,
 the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ff_at
+function
+stores in the location referenced by
+.Fa value
+the zero-based number of the first bit in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start
+that has value
+.Fa match .
+If no bits after
+.Fa start
+match that value, the location referenced by
 .Fa value
 is set to \-1.
 .Pp
@@ -313,6 +353,29 @@ bits referenced by
 at or after the zero-based bit index
 .Fa start .
 If no sequence of contiguous set bits of the specified
+.Fa size
+can be found at or after
+.Fa start ,
+the location referenced by
+.Fa value
+is set to \-1.
+.Pp
+The
+.Fn bit_ff_area_at
+function stores in the location referenced by
+.Fa value
+the zero-based number of the first bit beginning a sequence of bits of
+at least
+.Fa size
+bits in the array of
+.Fa nbits
+bits referenced by
+.Fa name ,
+at or after the zero-based bit index
+.Fa start 
+in which all bits have the value
+.Fa match .
+If no sequence of contiguous such bits of the specified
 .Fa size
 can be found at or after
 .Fa start ,

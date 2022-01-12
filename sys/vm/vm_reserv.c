@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/counter.h>
 #include <sys/ktr.h>
 #include <sys/vmmeter.h>
@@ -107,66 +108,10 @@ __FBSDID("$FreeBSD$");
     (((object)->pg_color + (pindex)) & (VM_LEVEL_0_NPAGES - 1))
 
 /*
- * The size of a population map entry
- */
-typedef	u_long		popmap_t;
-
-/*
- * The number of bits in a population map entry
- */
-#define	NBPOPMAP	(NBBY * sizeof(popmap_t))
-
-/*
- * The number of population map entries in a reservation
- */
-#define	NPOPMAP		howmany(VM_LEVEL_0_NPAGES, NBPOPMAP)
-#define	NPOPMAP_MAX	howmany(VM_LEVEL_0_NPAGES_MAX, NBPOPMAP)
-
-/*
  * Number of elapsed ticks before we update the LRU queue position.  Used
  * to reduce contention and churn on the list.
  */
 #define	PARTPOPSLOP	1
-
-/*
- * Clear a bit in the population map.
- */
-static __inline void
-popmap_clear(popmap_t popmap[], int i)
-{
-
-	popmap[i / NBPOPMAP] &= ~(1UL << (i % NBPOPMAP));
-}
-
-/*
- * Set a bit in the population map.
- */
-static __inline void
-popmap_set(popmap_t popmap[], int i)
-{
-
-	popmap[i / NBPOPMAP] |= 1UL << (i % NBPOPMAP);
-}
-
-/*
- * Is a bit in the population map clear?
- */
-static __inline boolean_t
-popmap_is_clear(popmap_t popmap[], int i)
-{
-
-	return ((popmap[i / NBPOPMAP] & (1UL << (i % NBPOPMAP))) == 0);
-}
-
-/*
- * Is a bit in the population map set?
- */
-static __inline boolean_t
-popmap_is_set(popmap_t popmap[], int i)
-{
-
-	return ((popmap[i / NBPOPMAP] & (1UL << (i % NBPOPMAP))) != 0);
-}
 
 /*
  * The reservation structure
@@ -199,7 +144,8 @@ struct vm_reserv {
 	uint8_t		domain;			/* (c) NUMA domain. */
 	char		inpartpopq;		/* (d, r) */
 	int		lasttick;		/* (r) last pop update tick. */
-	popmap_t	popmap[NPOPMAP_MAX];	/* (r) bit vector, used pages */
+	bitstr_t	bit_decl(popmap, VM_LEVEL_0_NPAGES_MAX);
+						/* (r) bit vector, used pages */
 };
 
 TAILQ_HEAD(vm_reserv_queue, vm_reserv);
@@ -415,7 +361,6 @@ vm_reserv_remove(vm_reserv_t rv)
 static void
 vm_reserv_insert(vm_reserv_t rv, vm_object_t object, vm_pindex_t pindex)
 {
-	int i;
 
 	vm_reserv_assert_locked(rv);
 	CTR6(KTR_VM,
@@ -428,9 +373,8 @@ vm_reserv_insert(vm_reserv_t rv, vm_object_t object, vm_pindex_t pindex)
 	    ("vm_reserv_insert: reserv %p's popcnt is corrupted", rv));
 	KASSERT(!rv->inpartpopq,
 	    ("vm_reserv_insert: reserv %p's inpartpopq is TRUE", rv));
-	for (i = 0; i < NPOPMAP; i++)
-		KASSERT(rv->popmap[i] == 0,
-		    ("vm_reserv_insert: reserv %p's popmap is corrupted", rv));
+	KASSERT(bit_ntest(rv->popmap, 0, VM_LEVEL_0_NPAGES - 1, 0),
+	    ("vm_reserv_insert: reserv %p's popmap is corrupted", rv));
 	vm_reserv_object_lock(object);
 	rv->pindex = pindex;
 	rv->object = object;
@@ -455,7 +399,7 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_depopulate: reserv %p is free", rv));
-	KASSERT(popmap_is_set(rv->popmap, index),
+	KASSERT(bit_test(rv->popmap, index),
 	    ("vm_reserv_depopulate: reserv %p's popmap[%d] is clear", rv,
 	    index));
 	KASSERT(rv->popcnt > 0,
@@ -469,7 +413,7 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 		    rv));
 		rv->pages->psind = 0;
 	}
-	popmap_clear(rv->popmap, index);
+	bit_clear(rv->popmap, index);
 	rv->popcnt--;
 	if ((unsigned)(ticks - rv->lasttick) >= PARTPOPSLOP ||
 	    rv->popcnt == 0) {
@@ -575,7 +519,7 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_populate: reserv %p is free", rv));
-	KASSERT(popmap_is_clear(rv->popmap, index),
+	KASSERT(!bit_test(rv->popmap, index),
 	    ("vm_reserv_populate: reserv %p's popmap[%d] is set", rv,
 	    index));
 	KASSERT(rv->popcnt < VM_LEVEL_0_NPAGES,
@@ -585,7 +529,7 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	KASSERT(rv->domain < vm_ndomains,
 	    ("vm_reserv_populate: reserv %p's domain is corrupted %d",
 	    rv, rv->domain));
-	popmap_set(rv->popmap, index);
+	bit_set(rv->popmap, index);
 	rv->popcnt++;
 	if ((unsigned)(ticks - rv->lasttick) < PARTPOPSLOP &&
 	    rv->inpartpopq && rv->popcnt != VM_LEVEL_0_NPAGES)
@@ -684,9 +628,8 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 		    !vm_addr_ok(pa, size, alignment, boundary))
 			goto out;
 		/* Handle vm_page_rename(m, new_object, ...). */
-		for (i = 0; i < npages; i++)
-			if (popmap_is_set(rv->popmap, index + i))
-				goto out;
+		if (!bit_ntest(rv->popmap, index, index + npages - 1, 0))
+			goto out;
 		if (!vm_domain_allocate(vmd, req, npages))
 			goto out;
 		for (i = 0; i < npages; i++)
@@ -854,7 +797,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 		/* Handle reclaim race. */
 		if (rv->object != object ||
 		    /* Handle vm_page_rename(m, new_object, ...). */
-		    popmap_is_set(rv->popmap, index)) {
+		    bit_test(rv->popmap, index)) {
 			m = NULL;
 			goto out;
 		}
@@ -948,8 +891,7 @@ out:
 static void
 vm_reserv_break(vm_reserv_t rv)
 {
-	u_long changes;
-	int bitpos, hi, i, lo;
+	int hi, lo, pos;
 
 	vm_reserv_assert_locked(rv);
 	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
@@ -957,39 +899,24 @@ vm_reserv_break(vm_reserv_t rv)
 	vm_reserv_remove(rv);
 	rv->pages->psind = 0;
 	hi = lo = -1;
-	for (i = 0; i <= NPOPMAP; i++) {
-		/*
-		 * "changes" is a bitmask that marks where a new sequence of
-		 * 0s or 1s begins in popmap[i], with last bit in popmap[i-1]
-		 * considered to be 1 if and only if lo == hi.  The bits of
-		 * popmap[-1] and popmap[NPOPMAP] are considered all 1s.
-		 */
-		if (i == NPOPMAP)
-			changes = lo != hi;
-		else {
-			changes = rv->popmap[i];
-			changes ^= (changes << 1) | (lo == hi);
-			rv->popmap[i] = 0;
+	pos = 0;
+	for (;;) {
+		bit_ff_at(rv->popmap, pos, VM_LEVEL_0_NPAGES, lo != hi, &pos);
+		if (lo == hi) {
+			if (pos == -1)
+				break;
+			lo = pos;
+			continue;
 		}
-		while (changes != 0) {
-			/*
-			 * If the next change marked begins a run of 0s, set
-			 * lo to mark that position.  Otherwise set hi and
-			 * free pages from lo up to hi.
-			 */
-			bitpos = ffsl(changes) - 1;
-			changes ^= 1UL << bitpos;
-			if (lo == hi)
-				lo = NBPOPMAP * i + bitpos;
-			else {
-				hi = NBPOPMAP * i + bitpos;
-				vm_domain_free_lock(VM_DOMAIN(rv->domain));
-				vm_phys_enqueue_contig(&rv->pages[lo], hi - lo);
-				vm_domain_free_unlock(VM_DOMAIN(rv->domain));
-				lo = hi;
-			}
-		}
+		if (pos == -1)
+			pos = VM_LEVEL_0_NPAGES;
+		hi = pos;
+		vm_domain_free_lock(VM_DOMAIN(rv->domain));
+		vm_phys_enqueue_contig(&rv->pages[lo], hi - lo);
+		vm_domain_free_unlock(VM_DOMAIN(rv->domain));
+		lo = hi;
 	}
+	bit_nclear(rv->popmap, 0, VM_LEVEL_0_NPAGES - 1);
 	rv->popcnt = 0;
 	counter_u64_add(vm_reserv_broken, 1);
 }
@@ -1068,7 +995,7 @@ vm_reserv_init(void)
 #ifdef VM_PHYSSEG_SPARSE
 	vm_pindex_t used;
 #endif
-	int i, j, segind;
+	int i, segind;
 
 	/*
 	 * Initialize the reservation array.  Specifically, initialize the
@@ -1110,8 +1037,7 @@ vm_reserv_init(void)
 		 * partially populated reservation queues.
 		 */
 		rvd->marker.popcnt = VM_LEVEL_0_NPAGES;
-		for (j = 0; j < VM_LEVEL_0_NPAGES; j++)
-			popmap_set(rvd->marker.popmap, j);
+		bit_nset(rvd->marker.popmap, 0, VM_LEVEL_0_NPAGES - 1);
 	}
 
 	for (i = 0; i < VM_RESERV_OBJ_LOCK_COUNT; i++)
@@ -1131,7 +1057,7 @@ vm_reserv_is_page_free(vm_page_t m)
 	rv = vm_reserv_from_page(m);
 	if (rv->object == NULL)
 		return (false);
-	return (popmap_is_clear(rv->popmap, m - rv->pages));
+	return (!bit_test(rv->popmap, m - rv->pages));
 }
 
 /*
@@ -1238,8 +1164,6 @@ static int
 vm_reserv_find_contig(vm_reserv_t rv, int npages, int lo,
     int hi, int ppn_align, int ppn_bound)
 {
-	u_long changes;
-	int bitpos, bits_left, i, n;
 
 	vm_reserv_assert_locked(rv);
 	KASSERT(npages <= VM_LEVEL_0_NPAGES - 1,
@@ -1252,56 +1176,18 @@ vm_reserv_find_contig(vm_reserv_t rv, int npages, int lo,
 	    ("ppn_align is not a positive power of 2"));
 	KASSERT(ppn_bound != 0 && powerof2(ppn_bound),
 	    ("ppn_bound is not a positive power of 2"));
-	i = lo / NBPOPMAP;
-	changes = rv->popmap[i] | ((1UL << (lo % NBPOPMAP)) - 1);
-	n = hi / NBPOPMAP;
-	bits_left = hi % NBPOPMAP;
-	hi = lo = -1;
-	for (;;) {
-		/*
-		 * "changes" is a bitmask that marks where a new sequence of
-		 * 0s or 1s begins in popmap[i], with last bit in popmap[i-1]
-		 * considered to be 1 if and only if lo == hi.  The bits of
-		 * popmap[-1] and popmap[NPOPMAP] are considered all 1s.
-		 */
-		changes ^= (changes << 1) | (lo == hi);
-		while (changes != 0) {
-			/*
-			 * If the next change marked begins a run of 0s, set
-			 * lo to mark that position.  Otherwise set hi and
-			 * look for a satisfactory first page from lo up to hi.
-			 */
-			bitpos = ffsl(changes) - 1;
-			changes ^= 1UL << bitpos;
-			if (lo == hi) {
-				lo = NBPOPMAP * i + bitpos;
-				continue;
-			}
-			hi = NBPOPMAP * i + bitpos;
-			if (lo < roundup2(lo, ppn_align)) {
-				/* Skip to next aligned page. */
-				lo = roundup2(lo, ppn_align);
-				if (lo >= VM_LEVEL_0_NPAGES)
-					return (-1);
-			}
-			if (lo + npages > roundup2(lo, ppn_bound)) {
-				/* Skip to next boundary-matching page. */
-				lo = roundup2(lo, ppn_bound);
-				if (lo >= VM_LEVEL_0_NPAGES)
-					return (-1);
-			}
-			if (lo + npages <= hi)
-				return (lo);
-			lo = hi;
+	while (bit_ffc_area_at(rv->popmap, lo, hi, npages, &lo), lo != -1) {
+		if (lo < roundup2(lo, ppn_align)) {
+			/* Skip to next aligned page. */
+			lo = roundup2(lo, ppn_align);
+		} else if (roundup2(lo + 1, ppn_bound) >= lo + npages)
+			return (lo);
+		if (roundup2(lo + 1, ppn_bound) < lo + npages) {
+			/* Skip to next boundary-matching page. */
+			lo = roundup2(lo + 1, ppn_bound);
 		}
-		if (++i < n)
-			changes = rv->popmap[i];
-		else if (i == n)
-			changes = bits_left == 0 ? -1UL :
-			    (rv->popmap[n] | (-1UL << bits_left));
-		else
-			return (-1);
 	}
+	return (-1);
 }
 
 /*
@@ -1389,8 +1275,7 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			vm_reserv_domain_scan_unlock(domain);
 			/* Allocate requested space */
 			rv->popcnt += npages;
-			while (npages-- > 0)
-				popmap_set(rv->popmap, posn + npages);
+			bit_nset(rv->popmap, posn, posn + npages - 1);
 			vm_reserv_reclaim(rv);
 			vm_reserv_unlock(rv);
 			m_ret = &rv->pages[posn];
