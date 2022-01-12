@@ -1257,7 +1257,7 @@ sdda_start_init(void *context, union ccb *start_ccb)
 		mmc_decode_cid_sd(mmcp->card_cid, &softc->cid);
 	}
 
-	softc->sector_count = softc->csd.capacity / 512;
+	softc->sector_count = softc->csd.capacity / MMC_SECTOR_SIZE;
 	softc->mediasize = softc->csd.capacity;
 	softc->cmd6_time = mmc_get_cmd6_timeout(periph);
 
@@ -1269,7 +1269,7 @@ sdda_start_init(void *context, union ccb *start_ccb)
 		    (softc->raw_ext_csd[EXT_CSD_SEC_CNT + 3] << 24);
 		if (sec_count != 0) {
 			softc->sector_count = sec_count;
-			softc->mediasize = softc->sector_count * 512;
+			softc->mediasize = softc->sector_count * MMC_SECTOR_SIZE;
 			/* FIXME: there should be a better name for this option...*/
 			mmcp->card_features |= CARD_FEATURE_SDHC;
 		}
@@ -1556,7 +1556,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk = disk_alloc();
 	part->disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 	part->disk->d_devstat = devstat_new_entry(part->name,
-	    cnt, 512,
+	    cnt, MMC_SECTOR_SIZE,
 	    DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT | XPORT_DEVSTAT_TYPE(cpi.transport),
 	    DEVSTAT_PRIORITY_DISK);
@@ -1838,7 +1838,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 	{
 		struct ccb_mmcio *mmcio;
 		uint64_t blockno = bp->bio_pblkno;
-		uint16_t count = bp->bio_bcount / 512;
+		uint16_t count = bp->bio_bcount / MMC_SECTOR_SIZE;
 		uint16_t opcode;
 
 		if (bp->bio_cmd == BIO_READ)
@@ -1875,7 +1875,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 		mmcio->cmd.data = softc->mmcdata;
 		memset(mmcio->cmd.data, 0, sizeof(struct mmc_data));
 		mmcio->cmd.data->data = bp->bio_data;
-		mmcio->cmd.data->len = 512 * count;
+		mmcio->cmd.data->len = MMC_SECTOR_SIZE * count;
 		mmcio->cmd.data->flags = (bp->bio_cmd == BIO_READ ? MMC_DATA_READ : MMC_DATA_WRITE);
 		/* Direct h/w to issue CMD12 upon completion */
 		if (count > 1) {
@@ -2025,7 +2025,7 @@ sddadump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	if (softc->state != SDDA_STATE_NORMAL)
 		return (ENXIO);
 
-	count = length / 512;
+	count = length / MMC_SECTOR_SIZE;
 	if (count == 0)
 		return (0);
 
@@ -2045,7 +2045,7 @@ sddadump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	else
 		opcode = MMC_WRITE_BLOCK;
 	mmcio.cmd.opcode = opcode;
-	mmcio.cmd.arg = offset / 512;
+	mmcio.cmd.arg = offset / MMC_SECTOR_SIZE;
 	if (!(mmcp->card_features & CARD_FEATURE_SDHC))
 		mmcio.cmd.arg <<= 9;
 
@@ -2053,7 +2053,7 @@ sddadump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	mmcio.cmd.data = softc->mmcdata;
 	memset(mmcio.cmd.data, 0, sizeof(struct mmc_data));
 	mmcio.cmd.data->data = virtual;
-	mmcio.cmd.data->len = 512 * count;
+	mmcio.cmd.data->len = MMC_SECTOR_SIZE * count;
 	mmcio.cmd.data->flags = MMC_DATA_WRITE;
 
 	/* Direct h/w to issue CMD12 upon completion */
