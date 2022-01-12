@@ -155,6 +155,34 @@ bit_clear(bitstr_t *_bitstr, int _bit)
 	_bitstr[_bit_idx(_bit)] &= ~_bit_mask(_bit);
 }
 
+/* Are bits in [start ... stop] in bit string all 0 or all 1? */
+static inline int
+bit_ntest(const bitstr_t *_bitstr, int _start, int _stop, int _match)
+{
+	const bitstr_t *_stopbitstr;
+	bitstr_t _mask;
+
+	_mask = (_match == 0) ? 0 : _BITSTR_MASK;
+	_stopbitstr = _bitstr + _bit_idx(_stop);
+	_bitstr += _bit_idx(_start);
+
+	if (_bitstr == _stopbitstr)
+		return (0 == ((*_bitstr ^ _mask) &
+		    _bit_make_mask(_start, _stop)));
+	if (_bit_offset(_start) != 0 &&
+	    0 != ((*_bitstr++ ^ _mask) &
+	    _bit_make_mask(_start, _BITSTR_BITS - 1)))
+		return (0);
+	if (_bit_offset(_stop) == _BITSTR_BITS - 1)
+		++_stopbitstr;
+	while (_bitstr < _stopbitstr) {
+		if (*_bitstr++ != _mask)
+			return (0);
+	}
+	return (_bit_offset(_stop) == _BITSTR_BITS - 1 ||
+	    0 == ((*_stopbitstr ^ _mask) & _bit_make_mask(0, _stop)));
+}
+
 /* Set bits start ... stop inclusive in bit string. */
 static inline void
 bit_nset(bitstr_t *_bitstr, int _start, int _stop)
@@ -167,10 +195,14 @@ bit_nset(bitstr_t *_bitstr, int _start, int _stop)
 	if (_bitstr == _stopbitstr) {
 		*_bitstr |= _bit_make_mask(_start, _stop);
 	} else {
-		*_bitstr |= _bit_make_mask(_start, _BITSTR_BITS - 1);
-		while (++_bitstr < _stopbitstr)
-	    		*_bitstr = _BITSTR_MASK;
-		*_stopbitstr |= _bit_make_mask(0, _stop);
+		if (_bit_offset(_start) != 0)
+			*_bitstr++ |= _bit_make_mask(_start, _BITSTR_BITS - 1);
+		if (_bit_offset(_stop) == _BITSTR_BITS - 1)
+			++_stopbitstr;
+		while (_bitstr < _stopbitstr)
+			*_bitstr++ = _BITSTR_MASK;
+		if (_bit_offset(_stop) != _BITSTR_BITS - 1)
+			*_stopbitstr |= _bit_make_mask(0, _stop);
 	}
 }
 
@@ -186,79 +218,62 @@ bit_nclear(bitstr_t *_bitstr, int _start, int _stop)
 	if (_bitstr == _stopbitstr) {
 		*_bitstr &= ~_bit_make_mask(_start, _stop);
 	} else {
-		*_bitstr &= ~_bit_make_mask(_start, _BITSTR_BITS - 1);
-		while (++_bitstr < _stopbitstr)
-			*_bitstr = 0;
-		*_stopbitstr &= ~_bit_make_mask(0, _stop);
+		if (_bit_offset(_start) != 0)
+			*_bitstr++ &= ~_bit_make_mask(_start, _BITSTR_BITS - 1);
+		if (_bit_offset(_stop) == _BITSTR_BITS - 1)
+			++_stopbitstr;
+		while (_bitstr < _stopbitstr)
+			*_bitstr++ = 0;
+		if (_bit_offset(_stop) != _BITSTR_BITS - 1)
+			*_stopbitstr &= ~_bit_make_mask(0, _stop);
 	}
+}
+
+/* Find the first '_match'-bit in bit string at or after bit start. */
+static inline void
+bit_ff_at(bitstr_t *_bitstr, int _start, int _nbits, int _match,
+    int *_result)
+{
+	bitstr_t *_curbitstr;
+	bitstr_t *_stopbitstr;
+	bitstr_t _mask;
+	bitstr_t _test;
+	int _value;
+
+	if (_start >= _nbits || _nbits <= 0) {
+		*_result = -1;
+		return;
+	}
+
+	_curbitstr = _bitstr + _bit_idx(_start);
+	_stopbitstr = _bitstr + _bit_idx(_nbits - 1);
+	_mask = _match ? 0 : _BITSTR_MASK;
+
+	_test = _mask ^ *_curbitstr;
+	if (_bit_offset(_start) != 0)
+		_test &= _bit_make_mask(_start, _BITSTR_BITS - 1);
+	while (_test == 0 && _curbitstr < _stopbitstr)
+		_test = _mask ^ *(++_curbitstr);
+
+	_value = ((_curbitstr - _bitstr) * _BITSTR_BITS) + ffsl(_test) - 1;
+	if (_test == 0 ||
+	    (_bit_offset(_nbits) != 0 && _value >= _nbits))
+		_value = -1;
+	*_result = _value;
 }
 
 /* Find the first bit set in bit string at or after bit start. */
 static inline void
 bit_ffs_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 {
-	bitstr_t *_curbitstr;
-	bitstr_t *_stopbitstr;
-	bitstr_t _test;
-	int _value, _offset;
-
-	if (_start >= _nbits) {
-		*_result = -1;
-		return;
-	}
-
-	if (_nbits > 0) {
-		_curbitstr = _bitstr + _bit_idx(_start);
-		_stopbitstr = _bitstr + _bit_idx(_nbits - 1);
-
-		_test = *_curbitstr;
-		if (_bit_offset(_start) != 0)
-			_test &= _bit_make_mask(_start, _BITSTR_BITS - 1);
-		while (_test == 0 && _curbitstr < _stopbitstr)
-			_test = *(++_curbitstr);
-
-		_offset = ffsl(_test);
-		_value = ((_curbitstr - _bitstr) * _BITSTR_BITS) + _offset - 1;
-		if (_offset == 0 || _value >= _nbits)
-			_value = -1;
-	} else {
-		_value = -1;
-	}
-	*_result = _value;
+	bit_ff_at(_bitstr, _start, _nbits, 1, _result);
 }
 
 /* Find the first bit clear in bit string at or after bit start. */
 static inline void
 bit_ffc_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 {
-	bitstr_t *_curbitstr;
-	bitstr_t *_stopbitstr;
-	bitstr_t _test;
-	int _value, _offset;
-
-	if (_start >= _nbits) {
-		*_result = -1;
-		return;
-	}
-
-	if (_nbits > 0) {
-		_curbitstr = _bitstr + _bit_idx(_start);
-		_stopbitstr = _bitstr + _bit_idx(_nbits - 1);
-
-		_test = *_curbitstr;
-		if (_bit_offset(_start) != 0)
-			_test |= _bit_make_mask(0, _start - 1);
-		while (_test == _BITSTR_MASK && _curbitstr < _stopbitstr)
-			_test = *(++_curbitstr);
-
-		_offset = ffsl(~_test);
-		_value = ((_curbitstr - _bitstr) * _BITSTR_BITS) + _offset - 1;
-		if (_offset == 0 || _value >= _nbits)
-			_value = -1;
-	} else {
-		_value = -1;
-	}
-	*_result = _value;
+	bit_ff_at(_bitstr, _start, _nbits, 0, _result);
 }
 
 /* Find the first bit set in bit string. */
@@ -275,51 +290,57 @@ bit_ffc(bitstr_t *_bitstr, int _nbits, int *_result)
 	bit_ffc_at(_bitstr, /*start*/0, _nbits, _result);
 }
 
-/* Find contiguous sequence of at least size set bits at or after start */
+/* Find contiguous sequence of at least size '_match'-bits at or after start */
 static inline void
-bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
-    int *_result)
+bit_ff_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
+    int _match, int *_result)
 {
-	bitstr_t *_curbitstr;
-	bitstr_t _test;
-	int _value, _offset, _logsize, _b;
+	bitstr_t *_curbitstr, _mask, _test;
+	int _value, _last, _shft, _maxshft;
 
 	if (_start + _size > _nbits || _nbits <= 0) {
 		*_result = -1;
 		return;
 	}
 
-	_logsize = fls(_size - 1);
-	_value = _start;
+	_mask = _match ? _BITSTR_MASK : 0;
+	_maxshft = _bit_idx(_size - 1) == 0 ? _size : _BITSTR_BITS;
+	_value = 0;
 	_curbitstr = _bitstr + _bit_idx(_start);
-	_test = ~*_curbitstr;
-	if (_bit_offset(_start) != 0)
-		_test |= _bit_make_mask(0, _start - 1);
-	for (_offset = 0;; _offset -= _BITSTR_BITS, _test = ~*++_curbitstr) {
-		if (_test != 0) {
-			/* If leading 0s in _test can finish 0-area, stop. */
-			if (_offset + _size < (int)_BITSTR_BITS &&
-			    (_test & _bit_make_mask(0, _offset + _size)) == 0)
-				break;
-			/* Shrink-left every 0-area in _test by size-1 bits. */
-			_b = _logsize;
-			while ((_test & (_test + 1)) != 0 && _b-- > 0)
-				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
-			/* Find the start of the first 0-area in _test. */
-			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
-			    ffsl(~_test) - 1;
-			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
-			    _offset;
-			/* If there's insufficient space left, give up. */
-			if (_value + _size > _nbits) {
-				_value = -1;
-				break;
-			}
-		}
-		if (_offset + _size <= (int)_BITSTR_BITS)
+	_test = ~(_BITSTR_MASK << _bit_offset(_start));
+	for (_last = _size - 1, _test |= _mask ^ *_curbitstr;
+	    !(_bit_idx(_last) == 0 &&
+	    (_test & _bit_make_mask(0, _last)) == 0);
+	    _last -= _BITSTR_BITS, _test = _mask ^ *++_curbitstr) {
+		if (_test == 0)
+			continue;
+		/* Shrink-left every 0-area in _test by maxshft-1 bits. */
+		for (_shft = _maxshft; _shft > 1 && (_test & (_test + 1)) != 0;
+		     _shft = (_shft + 1) / 2)
+			_test |= _test >> _shft / 2;
+		/* Find the start of the first 0-area in _test. */
+		_last = ffsl(~(_test >> 1));
+		_value = (_curbitstr - _bitstr) * _BITSTR_BITS + _last;
+		/* If there's insufficient space left, give up. */
+		if (_value + _size > _nbits) {
+			_value = -1;
 			break;
+		}
+		_last += _size - 1;
+		/* If a solution is contained in _test, success! */
+		if (_bit_idx(_last) == 0)
+			break;
+		/* A solution here needs bits from the next word. */
 	}
 	*_result = _value;
+}
+
+/* Find contiguous sequence of at least size set bits at or after start */
+static inline void
+bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
+    int *_result)
+{
+	bit_ff_area_at(_bitstr, _start, _nbits, _size, 1, _result);
 }
 
 /* Find contiguous sequence of at least size cleared bits at or after start */
@@ -327,46 +348,7 @@ static inline void
 bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
     int *_result)
 {
-	bitstr_t *_curbitstr;
-	bitstr_t _test;
-	int _value, _offset, _logsize, _b;
-
-	if (_start + _size > _nbits || _nbits <= 0) {
-		*_result = -1;
-		return;
-	}
-
-	_logsize = fls(_size - 1);
-	_value = _start;
-	_curbitstr = _bitstr + _bit_idx(_start);
-	_test = *_curbitstr;
-	if (_bit_offset(_start) != 0)
-		_test |= _bit_make_mask(0, _start - 1);
-	for (_offset = 0;; _offset -= _BITSTR_BITS, _test = *++_curbitstr) {
-		if (_test != 0) {
-			/* If leading 0s in _test can finish 0-area, stop. */
-			if (_offset + _size < (int)_BITSTR_BITS &&
-			    (_test & _bit_make_mask(0, _offset + _size)) == 0)
-				break;
-			/* Shrink-left every 0-area in _test by size-1 bits. */
-			_b = _logsize;
-			while ((_test & (_test + 1)) != 0 && _b-- > 0)
-				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
-			/* Find the start of the first 0-area in _test. */
-			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
-			    ffsl(~_test) - 1;
-			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
-			    _offset;
-			/* If there's insufficient space left, give up. */
-			if (_value + _size > _nbits) {
-				_value = -1;
-				break;
-			}
-		}
-		if (_offset + _size <= (int)_BITSTR_BITS)
-			break;
-	}
-	*_result = _value;
+	bit_ff_area_at(_bitstr, _start, _nbits, _size, 0, _result);
 }
 
 /* Find contiguous sequence of at least size set bits in bit string */
