@@ -5128,10 +5128,8 @@ ipf_nat_out(fin, nat, natadd, nflags)
     defined(BRIDGE_IPF) || defined(__FreeBSD__)
 	else {
 		/*
-		 * Strictly speaking, this isn't necessary on BSD
-		 * kernels because they do checksum calculation after
-		 * this code has run BUT if ipfilter is being used
-		 * to do NAT as a bridge, that code doesn't exist.
+		 * We always do this on FreeBSD because this code doesn't
+		 * exist in fastforward.
 		 */
 		switch (nat->nat_dir)
 		{
