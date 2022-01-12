@@ -284,7 +284,7 @@ void	ktrpsig(int, sig_t, sigset_t *, int);
 void	ktrfault(vm_offset_t, int);
 void	ktrfaultend(int);
 void	ktrgenio(int, enum uio_rw, struct uio *, int);
-void	ktrsyscall(int, int narg, syscallarg_t args[]);
+void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysctl(int *name, u_int namelen);
 void	ktrsysret(int, int, register_t);
 void	ktrprocctor(struct proc *);

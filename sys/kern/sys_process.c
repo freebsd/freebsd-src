@@ -474,7 +474,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
-		syscallarg_t args[nitems(td->td_sa.args)];
+		char args[sizeof(td->td_sa.args)];
 		struct ptrace_sc_ret psr;
 		int ptevents;
 	} r;
@@ -1010,7 +1010,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* See the explanation in linux_ptrace_get_syscall_info(). */
 		bcopy(td2->td_sa.args, addr, SV_PROC_ABI(td->td_proc) ==
 		    SV_ABI_LINUX ? sizeof(td2->td_sa.args) :
-		    td2->td_sa.callp->sy_narg * sizeof(syscallarg_t));
+		    td2->td_sa.callp->sy_narg * sizeof(register_t));
 		break;
 
 	case PT_GET_SC_RET:

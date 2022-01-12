@@ -270,8 +270,6 @@ typedef	__vm_size_t	vm_size_t;
 
 typedef __rman_res_t    rman_res_t;
 
-typedef __register_t	syscallarg_t;
-
 #ifdef _KERNEL
 typedef	int		boolean_t;
 typedef	struct _device	*device_t;

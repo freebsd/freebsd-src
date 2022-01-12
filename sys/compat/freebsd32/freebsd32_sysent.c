@@ -10,7 +10,7 @@
 #include <sys/sysproto.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-#define AS(name) (sizeof(struct name) / sizeof(syscallarg_t))
+#define AS(name) (sizeof(struct name) / sizeof(register_t))
 
 #ifdef COMPAT_43
 #define compat(n, name) .sy_narg = n, .sy_call = (sy_call_t *)__CONCAT(o, name)
