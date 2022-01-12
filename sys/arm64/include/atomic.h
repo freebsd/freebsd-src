@@ -53,7 +53,7 @@
 #define	wmb()	dmb(st)	/* Full system memory barrier store */
 #define	rmb()	dmb(ld)	/* Full system memory barrier load */
 
-#if defined(KCSAN) && !defined(KCSAN_RUNTIME)
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
 #include <sys/atomic_san.h>
 #else
 
