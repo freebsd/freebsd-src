@@ -2128,11 +2128,9 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 		fputs(strsig2(args[sc->offset]), fp);
 		break;
 	case Sigset: {
-		long sig;
 		sigset_t ss;
 		int i, first;
 
-		sig = args[sc->offset];
 		if (get_struct(pid, args[sc->offset], (void *)&ss,
 		    sizeof(ss)) == -1) {
 			print_pointer(fp, args[sc->offset]);
