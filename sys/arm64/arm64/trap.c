@@ -134,7 +134,7 @@ int
 cpu_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
-	register_t *ap, *dst_ap;
+	syscallarg_t *ap, *dst_ap;
 	struct syscall_args *sa;
 
 	p = td->td_proc;
@@ -159,7 +159,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	KASSERT(sa->callp->sy_narg <= nitems(sa->args),
 	    ("Syscall %d takes too many arguments", sa->code));
 
-	memcpy(dst_ap, ap, (nitems(sa->args) - 1) * sizeof(register_t));
+	memcpy(dst_ap, ap, (nitems(sa->args) - 1) * sizeof(*dst_ap));
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
