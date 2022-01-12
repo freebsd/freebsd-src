@@ -651,7 +651,6 @@ sddaasync(void *callback_arg, u_int32_t code,
 {
 	struct ccb_getdev cgd;
 	struct cam_periph *periph;
-	struct sdda_softc *softc;
 
 	periph = (struct cam_periph *)callback_arg;
         CAM_DEBUG(path, CAM_DEBUG_TRACE, ("sddaasync(code=%d)\n", code));
@@ -694,7 +693,6 @@ sddaasync(void *callback_arg, u_int32_t code,
 	case AC_GETDEV_CHANGED:
 	{
 		CAM_DEBUG(path, CAM_DEBUG_TRACE, ("=> AC_GETDEV_CHANGED\n"));
-		softc = (struct sdda_softc *)periph->softc;
 		memset(&cgd, 0, sizeof(cgd));
 		xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
@@ -755,7 +753,6 @@ sddaregister(struct cam_periph *periph, void *arg)
 {
 	struct sdda_softc *softc;
 	struct ccb_getdev *cgd;
-	union ccb *request_ccb;	/* CCB representing the probe request */
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaregister\n"));
 	cgd = (struct ccb_getdev *)arg;
@@ -784,7 +781,6 @@ sddaregister(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->periph = periph;
 
-	request_ccb = (union ccb*) arg;
 	xpt_schedule(periph, CAM_PRIORITY_XPT);
 	TASK_INIT(&softc->start_init_task, 0, sdda_start_init_task, periph);
 	taskqueue_enqueue(taskqueue_thread, &softc->start_init_task);
