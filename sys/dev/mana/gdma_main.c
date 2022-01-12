@@ -1808,9 +1808,6 @@ mana_gd_attach(device_t dev)
 
 err_clean_up_gdma:
 	mana_hwc_destroy_channel(gc);
-	if (gc->cq_table)
-		free(gc->cq_table, M_DEVBUF);
-	gc->cq_table = NULL;
 err_remove_irq:
 	mana_gd_remove_irqs(dev);
 err_free_pci_res:
@@ -1836,8 +1833,6 @@ mana_gd_detach(device_t dev)
 	mana_remove(&gc->mana);
 
 	mana_hwc_destroy_channel(gc);
-	free(gc->cq_table, M_DEVBUF);
-	gc->cq_table = NULL;
 
 	mana_gd_remove_irqs(dev);
 
