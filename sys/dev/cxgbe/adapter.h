@@ -159,7 +159,7 @@ enum {
 	FW_OK		= (1 << 1),
 	CHK_MBOX_ACCESS	= (1 << 2),
 	MASTER_PF	= (1 << 3),
-	ADAP_SYSCTL_CTX	= (1 << 4),
+	/* 1 << 4 is unused, was ADAP_SYSCTL_CTX */
 	ADAP_ERR	= (1 << 5),
 	BUF_PACKING_OK	= (1 << 6),
 	IS_VF		= (1 << 7),
@@ -174,7 +174,7 @@ enum {
 	/* VI flags */
 	DOOMED		= (1 << 0),
 	VI_INIT_DONE	= (1 << 1),
-	VI_SYSCTL_CTX	= (1 << 2),
+	/* 1 << 2 is unused, was VI_SYSCTL_CTX */
 	TX_USES_VM_WR 	= (1 << 3),
 	VI_SKIP_STATS 	= (1 << 4),
 
@@ -332,6 +332,8 @@ struct port_info {
 	u_int tx_parse_error;
 	int fcs_reg;
 	uint64_t fcs_base;
+
+	struct sysctl_ctx_list ctx;
 };
 
 #define	IS_MAIN_VI(vi)		((vi) == &((vi)->pi->vi[0]))

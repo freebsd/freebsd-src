@@ -249,6 +249,8 @@ struct ccr_softc {
 	counter_u64_t stats_sglist_error;
 	counter_u64_t stats_process_error;
 	counter_u64_t stats_sw_fallback;
+
+	struct sysctl_ctx_list ctx;
 };
 
 /*
@@ -1819,13 +1821,11 @@ ccr_probe(device_t dev)
 static void
 ccr_sysctls(struct ccr_softc *sc)
 {
-	struct sysctl_ctx_list *ctx;
+	struct sysctl_ctx_list *ctx = &sc->ctx;
 	struct sysctl_oid *oid, *port_oid;
 	struct sysctl_oid_list *children;
 	char buf[16];
 	int i;
-
-	ctx = device_get_sysctl_ctx(sc->dev);
 
 	/*
 	 * dev.ccr.X.
@@ -1952,6 +1952,7 @@ ccr_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sysctl_ctx_init(&sc->ctx);
 	sc->adapter = device_get_softc(device_get_parent(dev));
 	for_each_port(sc->adapter, i) {
 		ccr_init_port(sc, i);
@@ -2018,6 +2019,7 @@ ccr_detach(device_t dev)
 
 	crypto_unregister_all(sc->cid);
 
+	sysctl_ctx_free(&sc->ctx);
 	mtx_destroy(&sc->lock);
 	counter_u64_free(sc->stats_cipher_encrypt);
 	counter_u64_free(sc->stats_cipher_decrypt);
