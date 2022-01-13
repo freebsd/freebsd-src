@@ -47,12 +47,14 @@ rm -f radix.c
 cd $odir
 
 set -e
+trap "rm -f rendezvous" EXIT INT
 parallel=1
 usermem=`sysctl hw.usermem | sed 's/.* //'`
 pagesize=`pagesize`
 start=`date +%s`
 while true; do
-	/tmp/radix $parallel > $log; s=$?
+	timeout 2m /tmp/radix $parallel > $log; s=$?
+	[ $s -eq 124 ] && { echo "Timed out"; break; }
 	[ $s -ne 0 ] && cat $log
 	used=`awk '{print $4}' < $log`
 	[ -z "$used" ] && break
