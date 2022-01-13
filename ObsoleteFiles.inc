@@ -9194,7 +9194,6 @@ OLD_FILES+=usr/lib/libgpib.a
 OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib/libgpib.so
 OLD_LIBS+=usr/lib/libgpib.so.3
-OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib32/libgpib.a
 OLD_FILES+=usr/lib32/libgpib_p.a
 OLD_FILES+=usr/lib32/libgpib.so
