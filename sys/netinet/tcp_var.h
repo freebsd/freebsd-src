@@ -700,7 +700,12 @@ struct	tcpstat {
 	uint64_t tcps_tunneled_pkts;	/* Packets encap's in UDP received */
 	uint64_t tcps_tunneled_errs;	/* Packets that had errors that were UDP encaped */
 
-	uint64_t _pad[10];		/* 6 UTO, 6 TBD */
+	/* TCPS_TIME_WAIT usage stats */
+	uint64_t tcps_tw_recycles;	/* Times time-wait was recycled. */
+	uint64_t tcps_tw_resets;	/* Times time-wait sent a reset. */
+	uint64_t tcps_tw_responds;	/* Times time-wait sent a valid ack. */
+
+	uint64_t _pad[7];
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
