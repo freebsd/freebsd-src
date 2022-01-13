@@ -34,6 +34,9 @@ main() {
 	vital="false"
 
 	case "${outname}" in
+		bootloader)
+			pkgdeps=""
+			;;
 		clibs)
 			vital="true"
 			# clibs should not have any dependencies or anything
