@@ -168,9 +168,6 @@ madt_x2apic_disable_reason(void)
 			return ("inside VMWare without intr redirection");
 	}
 
-	if (vm_guest == VM_GUEST_XEN)
-		return ("due to running under XEN");
-
 	if (vm_guest == VM_GUEST_NO &&
 	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 	    CPUID_TO_MODEL(cpu_id) == 0x2a) {
