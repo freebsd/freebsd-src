@@ -38,6 +38,7 @@ newfs4.sh		watchdog fired. newbuf						20190225
 nfs10.sh		Double fault							20151013
 nfs13.sh		mount_nfs hangs in mntref					20191007
 nfs16.sh		panic: Failed to register NFS lock locally - error=11		20160608
+nullfs28.sh		Hang in "mount drain" seen					20220111
 oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
@@ -73,7 +74,11 @@ syzkaller43.sh		WiP								20210906
 syzkaller46.sh		WiP								20210925
 syzkaller47.sh		WiP								20210925
 truss3.sh		WiP								20200915
-unionfs7.sh		https://people.freebsd.org/~pho/stress/log/log0202.txt		20211215
+unionfs6.sh		https://people.freebsd.org/~pho/stress/log/log0231.txt		20220112
+unionfs7.sh		https://people.freebsd.org/~pho/stress/log/log0232.txt		20220113
+unionfs8.sh		panic: unionfs_noderem: vnode locked recursively		20220111
+unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0226.txt		20220111
+unionfs14.sh		WiP								20220111
 
 # Test not to run for other reasons:
 
