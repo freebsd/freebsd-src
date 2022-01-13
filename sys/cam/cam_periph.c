@@ -611,8 +611,9 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	unit = 0;
 	i = 0;
 	dname = periph_name;
-	while (resource_find_dev(&i, dname, &dunit, NULL, NULL) == 0) {
-		wired = false;
+
+	for (wired = false; resource_find_dev(&i, dname, &dunit, NULL, NULL) == 0;
+	     wired = false) {
 		if (resource_string_value(dname, dunit, "at", &strval) == 0) {
 			if (strcmp(strval, pathbuf) != 0)
 				continue;
