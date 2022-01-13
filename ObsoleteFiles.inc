@@ -4199,6 +4199,7 @@ OLD_FILES+=usr/include/ssp/stdio.h
 OLD_FILES+=usr/include/ssp/string.h
 OLD_FILES+=usr/include/ssp/unistd.h
 OLD_DIRS+=usr/include/ssp
+OLD_FILES+=usr/lib/libssp.a
 
 # 20191229: GEOM_SCHED class and gsched tool removed
 OLD_FILES+=sbin/gsched
