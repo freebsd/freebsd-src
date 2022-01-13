@@ -138,10 +138,11 @@ do_led(int fd, unsigned int idx, elm_type_t type, bool onoff, bool setfault)
 		close(fd);
 		xo_err(EXIT_FAILURE, "ENCIOC_GETELMSTAT");
 	}
-	slot = (struct ses_ctrl_dev_slot *) &o.cstat[0];
+	ses_status_to_ctrl(type, &o.cstat[0]);
 	switch (type) {
 	case ELMTYP_DEVICE:
 	case ELMTYP_ARRAY_DEV:
+		slot = (struct ses_ctrl_dev_slot *) &o.cstat[0];
 		ses_ctrl_common_set_select(&slot->common, 1);
 		if (setfault)
 			ses_ctrl_dev_slot_set_rqst_fault(slot, state);
