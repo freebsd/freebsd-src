@@ -398,6 +398,18 @@ passcleanup(struct cam_periph *periph)
 	 */
 	taskqueue_drain(taskqueue_thread, &softc->add_physpath_task);
 
+	/*
+	 * It should be safe to destroy the zones from here, because all
+	 * of the references to this peripheral have been freed, and all
+	 * I/O has been terminated and freed.  We check the zones for NULL
+	 * because they may not have been allocated yet if the device went
+	 * away before any asynchronous I/O has been issued.
+	 */
+	if (softc->pass_zone != NULL)
+		uma_zdestroy(softc->pass_zone);
+	if (softc->pass_io_zone != NULL)
+		uma_zdestroy(softc->pass_io_zone);
+
 	cam_periph_lock(periph);
 
 	free(softc, M_DEVBUF);
@@ -1076,7 +1088,7 @@ passcreatezone(struct cam_periph *periph)
 		/*
 		 * Set the flags appropriately and notify any other waiters.
 		 */
-		softc->flags &= PASS_FLAG_ZONE_INPROG;
+		softc->flags &= ~PASS_FLAG_ZONE_INPROG;
 		softc->flags |= PASS_FLAG_ZONE_VALID;
 		wakeup(&softc->pass_zone);
 	} else {
