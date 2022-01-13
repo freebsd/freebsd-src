@@ -57,13 +57,6 @@ xen_has_percpu_evtchn(void)
 }
 
 static inline bool
-xen_pv_shutdown_handler(void)
-{
-
-	return (xen_pv_domain());
-}
-
-static inline bool
 xen_pv_disks_disabled(void)
 {
 

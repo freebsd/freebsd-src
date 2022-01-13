@@ -347,17 +347,12 @@ xctrl_crash()
 }
 
 static void
-xen_pv_shutdown_final(void *arg, int howto)
+shutdown_final(void *arg, int howto)
 {
-	/*
-	 * Inform the hypervisor that shutdown is complete.
-	 * This is not necessary in HVM domains since Xen
-	 * emulates ACPI in that mode and FreeBSD's ACPI
-	 * support will request this transition.
-	 */
-	if (howto & (RB_HALT | RB_POWEROFF))
+	/* Inform the hypervisor that shutdown is complete. */
+	if (howto & RB_POWEROFF)
 		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-	else
+	else if (howto & RB_POWERCYCLE)
 		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 }
 
@@ -453,9 +448,8 @@ xctrl_attach(device_t dev)
 	xctrl->xctrl_watch.max_pending = 1;
 	xs_register_watch(&xctrl->xctrl_watch);
 
-	if (xen_pv_shutdown_handler())
-		EVENTHANDLER_REGISTER(shutdown_final, xen_pv_shutdown_final, NULL,
-		                      SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_final, shutdown_final, NULL,
+	    SHUTDOWN_PRI_LAST);
 
 	return (0);
 }
