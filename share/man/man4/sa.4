@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2017
+.Dd September 14, 2021
 .Dt SA 4
 .Os
 .Sh NAME
@@ -323,6 +323,97 @@ The
 driver does not currently use the
 RECOVER BUFFERED DATA command.
 .El
+.Sh TIMEOUTS
+The
+.Nm
+driver has a set of default timeouts for SCSI commands (READ, WRITE, TEST UNIT
+READY, etc.) that will likely work in most cases for many tape drives.
+.Pp
+For newer tape drives that claim to support the SPC-4
+standard (SCSI Primary Commands 4) or later standards, the
+.Nm
+driver will attempt to use the REPORT SUPPORTED OPERATION CODES command to
+fetch timeout descriptors from the drive.
+If the drive does report timeout descriptors, the
+.Nm
+driver will use the drive's recommended timeouts for commands.
+.Pp
+The timeouts in use are reported in units of THOUSANDTHS of a second via
+the 
+.Va kern.cam.sa.%d.timeout.*
+.Xr sysctl 8
+variables.
+.Pp
+To override either the default timeouts, or the timeouts recommended by the
+drive, you can set one of two sets of loader tunable values.
+If you have a drive that supports the REPORT SUPPORTED OPERATION CODES
+timeout descriptors (see the
+.Xr camcontrol 8
+.Va opcodes
+subcommand) it is generally best to use those values.
+The global
+.Va kern.cam.sa.timeout.*
+values will override the timeouts for all
+.Nm
+driver instances.
+If there are 5 tape drives in the system, they'll all get the same timeouts.
+The
+.Va kern.cam.sa.%d.timeout.*
+values (where %d is the numeric
+.Nm
+instance number) will override the global timeouts as well as either the
+default timeouts or the timeouts recommended by the drive.
+.Pp
+To set timeouts after boot, the per-instance timeout values, for example:
+.Va kern.cam.sa.0.timeout.read ,
+are available as sysctl variables.
+.Pp
+Loader tunables:
+.Pp
+.Bl -tag -compact
+.It kern.cam.sa.timeout.erase
+.It kern.cam.sa.timeout.load
+.It kern.cam.sa.timeout.locate
+.It kern.cam.sa.timeout.mode_select
+.It kern.cam.sa.timeout.mode_sense
+.It kern.cam.sa.timeout.prevent
+.It kern.cam.sa.timeout.read
+.It kern.cam.sa.timeout.read_position
+.It kern.cam.sa.timeout.read_block_limits
+.It kern.cam.sa.timeout.report_density
+.It kern.cam.sa.timeout.reserve
+.It kern.cam.sa.timeout.rewind
+.It kern.cam.sa.timeout.space
+.It kern.cam.sa.timeout.tur
+.It kern.cam.sa.timeout.write
+.It kern.cam.sa.timeout.write_filemarks
+.El
+.Pp
+Loader tunable values and
+.Xr sysctl 8
+values:
+.Pp
+.Bl -tag -compact
+.It kern.cam.sa.%d.timeout.erase
+.It kern.cam.sa.%d.timeout.load
+.It kern.cam.sa.%d.timeout.locate
+.It kern.cam.sa.%d.timeout.mode_select
+.It kern.cam.sa.%d.timeout.mode_sense
+.It kern.cam.sa.%d.timeout.prevent
+.It kern.cam.sa.%d.timeout.read
+.It kern.cam.sa.%d.timeout.read_position
+.It kern.cam.sa.%d.timeout.read_block_limits
+.It kern.cam.sa.%d.timeout.report_density
+.It kern.cam.sa.%d.timeout.reserve
+.It kern.cam.sa.%d.timeout.rewind
+.It kern.cam.sa.%d.timeout.space
+.It kern.cam.sa.%d.timeout.tur
+.It kern.cam.sa.%d.timeout.write
+.It kern.cam.sa.%d.timeout.write_filemarks
+.El
+.Pp
+As mentioned above, the timeouts are set and reported in THOUSANDTHS of a
+second, so be sure to account for that when setting them.
 .Sh IOCTLS
 The
 .Nm

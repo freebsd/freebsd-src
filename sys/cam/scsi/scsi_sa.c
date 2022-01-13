@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 1999, 2000 Matthew Jacob
- * Copyright (c) 2013, 2014, 2015 Spectra Logic Corporation
+ * Copyright (c) 2013, 2014, 2015, 2021 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #define SA_ERASE_TIMEOUT	4 * 60
 #endif
 #ifndef SA_REP_DENSITY_TIMEOUT
-#define SA_REP_DENSITY_TIMEOUT	90
+#define SA_REP_DENSITY_TIMEOUT	1
 #endif
 
 #define	SCSIOP_TIMEOUT		(60 * 1000)	/* not an option */
@@ -115,7 +115,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_SCSISA, "SCSI sa", "SCSI sequential access buffers");
 
 typedef enum {
-	SA_STATE_NORMAL, SA_STATE_ABNORMAL
+	SA_STATE_NORMAL, SA_STATE_PROBE, SA_STATE_ABNORMAL
 } sa_state;
 
 #define ccb_pflags	ppriv_field0
@@ -125,27 +125,28 @@ typedef enum {
 #define	SA_POSITION_UPDATED	0x1
 
 typedef enum {
-	SA_FLAG_OPEN		= 0x0001,
-	SA_FLAG_FIXED		= 0x0002,
-	SA_FLAG_TAPE_LOCKED	= 0x0004,
-	SA_FLAG_TAPE_MOUNTED	= 0x0008,
-	SA_FLAG_TAPE_WP		= 0x0010,
-	SA_FLAG_TAPE_WRITTEN	= 0x0020,
-	SA_FLAG_EOM_PENDING	= 0x0040,
-	SA_FLAG_EIO_PENDING	= 0x0080,
-	SA_FLAG_EOF_PENDING	= 0x0100,
+	SA_FLAG_OPEN		= 0x00001,
+	SA_FLAG_FIXED		= 0x00002,
+	SA_FLAG_TAPE_LOCKED	= 0x00004,
+	SA_FLAG_TAPE_MOUNTED	= 0x00008,
+	SA_FLAG_TAPE_WP		= 0x00010,
+	SA_FLAG_TAPE_WRITTEN	= 0x00020,
+	SA_FLAG_EOM_PENDING	= 0x00040,
+	SA_FLAG_EIO_PENDING	= 0x00080,
+	SA_FLAG_EOF_PENDING	= 0x00100,
 	SA_FLAG_ERR_PENDING	= (SA_FLAG_EOM_PENDING|SA_FLAG_EIO_PENDING|
 				   SA_FLAG_EOF_PENDING),
-	SA_FLAG_INVALID		= 0x0200,
-	SA_FLAG_COMP_ENABLED	= 0x0400,
-	SA_FLAG_COMP_SUPP	= 0x0800,
-	SA_FLAG_COMP_UNSUPP	= 0x1000,
-	SA_FLAG_TAPE_FROZEN	= 0x2000,
-	SA_FLAG_PROTECT_SUPP	= 0x4000,
+	SA_FLAG_INVALID		= 0x00200,
+	SA_FLAG_COMP_ENABLED	= 0x00400,
+	SA_FLAG_COMP_SUPP	= 0x00800,
+	SA_FLAG_COMP_UNSUPP	= 0x01000,
+	SA_FLAG_TAPE_FROZEN	= 0x02000,
+	SA_FLAG_PROTECT_SUPP	= 0x04000,
 
 	SA_FLAG_COMPRESSION	= (SA_FLAG_COMP_SUPP|SA_FLAG_COMP_ENABLED|
 				   SA_FLAG_COMP_UNSUPP),
-	SA_FLAG_SCTX_INIT	= 0x8000
+	SA_FLAG_SCTX_INIT	= 0x08000,
+	SA_FLAG_RSOC_TO_TRY	= 0x10000,
 } sa_flags;
 
 typedef enum {
@@ -153,6 +154,48 @@ typedef enum {
 	SA_MODE_NOREWIND	= 0x01,
 	SA_MODE_OFFLINE		= 0x02
 } sa_mode;
+
+typedef enum {
+	SA_TIMEOUT_ERASE,
+	SA_TIMEOUT_LOAD,
+	SA_TIMEOUT_LOCATE,
+	SA_TIMEOUT_MODE_SELECT,
+	SA_TIMEOUT_MODE_SENSE,
+	SA_TIMEOUT_PREVENT,
+	SA_TIMEOUT_READ,
+	SA_TIMEOUT_READ_BLOCK_LIMITS,
+	SA_TIMEOUT_READ_POSITION,
+	SA_TIMEOUT_REP_DENSITY,
+	SA_TIMEOUT_RESERVE,
+	SA_TIMEOUT_REWIND,
+	SA_TIMEOUT_SPACE,
+	SA_TIMEOUT_TUR,
+	SA_TIMEOUT_WRITE,
+	SA_TIMEOUT_WRITE_FILEMARKS,
+	SA_TIMEOUT_TYPE_MAX
+} sa_timeout_types;
+
+static struct sa_timeout_desc {
+	const char *desc;
+	int value;
+} sa_default_timeouts[SA_TIMEOUT_TYPE_MAX] = {
+	{"erase", 		ERASE_TIMEOUT},
+	{"load",		REWIND_TIMEOUT},
+	{"locate",		SPACE_TIMEOUT},
+	{"mode_select", 	SCSIOP_TIMEOUT},
+	{"mode_sense",		SCSIOP_TIMEOUT},
+	{"prevent",		SCSIOP_TIMEOUT},
+	{"read",		IO_TIMEOUT},
+	{"read_block_limits",	SCSIOP_TIMEOUT},
+	{"read_position",	SCSIOP_TIMEOUT},
+	{"report_density",	REP_DENSITY_TIMEOUT},
+	{"reserve",		SCSIOP_TIMEOUT},
+	{"rewind",		REWIND_TIMEOUT},
+	{"space",		SPACE_TIMEOUT},
+	{"tur",			SCSIOP_TIMEOUT},
+	{"write", 		IO_TIMEOUT},
+	{"write_filemarks",	IO_TIMEOUT},
+};
 
 typedef enum {
 	SA_PARAM_NONE		= 0x000,
@@ -355,6 +398,7 @@ struct sa_softc {
 	uint8_t		density_type_bits[SA_DENSITY_TYPES];
 	int		density_info_valid[SA_DENSITY_TYPES];
 	uint8_t		density_info[SA_DENSITY_TYPES][SRDS_MAX_LENGTH];
+	int		timeout_info[SA_TIMEOUT_TYPE_MAX];
 
 	struct sa_prot_info	prot_info;
 
@@ -413,6 +457,8 @@ struct sa_softc {
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
+	struct sysctl_ctx_list	sysctl_timeout_ctx;
+	struct sysctl_oid	*sysctl_timeout_tree;
 };
 
 struct sa_quirk_entry {
@@ -585,6 +631,8 @@ static int		saspace(struct cam_periph *periph, int count,
 				scsi_space_code code);
 static void		sadevgonecb(void *arg);
 static void		sasetupdev(struct sa_softc *softc, struct cdev *dev);
+static void		saloadtotunables(struct sa_softc *softc);
+static void		sasysctlinit(void *context, int pending);
 static int		samount(struct cam_periph *, int, struct cdev *);
 static int		saretension(struct cam_periph *periph);
 static int		sareservereleaseunit(struct cam_periph *periph,
@@ -602,6 +650,7 @@ static void		safilldenstypesb(struct sbuf *sb, int *indent,
 					 int is_density);
 static void		safilldensitysb(struct sa_softc *softc, int *indent,
 					struct sbuf *sb);
+static void		saloadtimeouts(struct sa_softc *softc, union ccb *ccb);
 
 #ifndef	SA_DEFAULT_IO_SPLIT
 #define	SA_DEFAULT_IO_SPLIT	0
@@ -2211,7 +2260,9 @@ sacleanup(struct cam_periph *periph)
 	cam_periph_unlock(periph);
 
 	if ((softc->flags & SA_FLAG_SCTX_INIT) != 0
-	 && sysctl_ctx_free(&softc->sysctl_ctx) != 0)
+	 && (((softc->sysctl_timeout_tree != NULL)
+	   && (sysctl_ctx_free(&softc->sysctl_timeout_ctx) != 0))
+	  || sysctl_ctx_free(&softc->sysctl_ctx) != 0))
 		xpt_print(periph->path, "can't remove sysctl context\n");
 
 	cam_periph_lock(periph);
@@ -2283,11 +2334,35 @@ sasetupdev(struct sa_softc *softc, struct cdev *dev)
 }
 
 static void
+saloadtotunables(struct sa_softc *softc)
+{
+	int i;
+	char tmpstr[80];
+
+	for (i = 0; i < SA_TIMEOUT_TYPE_MAX; i++) {
+		int tmpval, retval;
+
+		snprintf(tmpstr, sizeof(tmpstr), "kern.cam.sa.timeout.%s",
+		    sa_default_timeouts[i].desc);
+		retval = TUNABLE_INT_FETCH(tmpstr, &tmpval);
+		if (retval != 0)
+			softc->timeout_info[i] = tmpval;
+
+		snprintf(tmpstr, sizeof(tmpstr), "kern.cam.sa.%u.timeout.%s",
+		    softc->periph->unit_number, sa_default_timeouts[i].desc);
+		retval = TUNABLE_INT_FETCH(tmpstr, &tmpval);
+		if (retval != 0)
+			softc->timeout_info[i] = tmpval;
+	}
+}
+
+static void
 sasysctlinit(void *context, int pending)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
-	char tmpstr[32], tmpstr2[16];
+	char tmpstr[64], tmpstr2[16];
+	int i;
 
 	periph = (struct cam_periph *)context;
 	/*
@@ -2322,6 +2397,23 @@ sasysctlinit(void *context, int pending)
 	    OID_AUTO, "inject_eom", CTLFLAG_RW, 
 	    &softc->inject_eom, 0, "Queue EOM for the next write/read");
 
+	sysctl_ctx_init(&softc->sysctl_timeout_ctx);
+	softc->sysctl_timeout_tree = SYSCTL_ADD_NODE(&softc->sysctl_timeout_ctx,
+	    SYSCTL_CHILDREN(softc->sysctl_tree), OID_AUTO, "timeout",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Timeouts");
+	if (softc->sysctl_timeout_tree == NULL)
+		goto bailout;
+
+	for (i = 0; i < SA_TIMEOUT_TYPE_MAX; i++) {
+		snprintf(tmpstr, sizeof(tmpstr), "%s timeout",
+		    sa_default_timeouts[i].desc);
+
+		SYSCTL_ADD_INT(&softc->sysctl_timeout_ctx,
+		    SYSCTL_CHILDREN(softc->sysctl_timeout_tree),
+	            OID_AUTO, sa_default_timeouts[i].desc, CTLFLAG_RW, 
+		    &softc->timeout_info[i], 0, tmpstr);
+	}
+
 bailout:
 	/*
 	 * Release the reference that was held when this task was enqueued.
@@ -2339,6 +2431,7 @@ saregister(struct cam_periph *periph, void *arg)
 	caddr_t match;
 	char tmpstr[80];
 	int error;
+	int i;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -2383,6 +2476,15 @@ saregister(struct cam_periph *periph, void *arg)
 	} else
 		softc->quirks = SA_QUIRK_NONE;
 
+
+	/*
+	 * Initialize the default timeouts.  If this drive supports
+	 * timeout descriptors we'll overwrite these values with the
+	 * recommended timeouts from the drive.
+	 */
+	for (i = 0; i < SA_TIMEOUT_TYPE_MAX; i++)
+		softc->timeout_info[i] = sa_default_timeouts[i].value;
+
 	/*
 	 * Long format data for READ POSITION was introduced in SSC, which
 	 * was after SCSI-2.  (Roughly equivalent to SCSI-3.)  If the drive
@@ -2395,6 +2497,19 @@ saregister(struct cam_periph *periph, void *arg)
 	 */
 	if (cgd->inq_data.version <= SCSI_REV_CCS)
 		softc->quirks |= SA_QUIRK_NO_LONG_POS;
+
+	/*
+	 * The SCSI REPORT SUPPORTED OPERATION CODES command was added in
+	 * SPC-4.  That command optionally includes timeout data for
+	 * different commands.  Timeout values can vary wildly among
+	 * different drives, so if the drive itself has recommended values,
+	 * we will try to use them.  Set this flag to indicate we're going
+	 * to ask the drive for timeout data.  This flag also tells us to
+	 * wait on loading timeout tunables so we can properly override
+	 * timeouts with any user-specified values.
+	 */
+	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC4)
+		softc->flags |= SA_FLAG_RSOC_TO_TRY;
 
 	if (cgd->inq_data.spc3_flags & SPC3_SID_PROTECT) {
 		struct ccb_dev_advinfo cdai;
@@ -2556,8 +2671,28 @@ saregister(struct cam_periph *periph, void *arg)
 	 */
 	xpt_register_async(AC_LOST_DEVICE, saasync, periph, periph->path);
 
-	xpt_announce_periph(periph, NULL);
-	xpt_announce_quirks(periph, softc->quirks, SA_QUIRK_BIT_STRING);
+	/*
+	 * See comment above, try fetching timeout values for drives that
+	 * might support it.  Otherwise, use the defaults.
+	 */
+	if (softc->flags & SA_FLAG_RSOC_TO_TRY) {
+		/*
+		 * Bump the peripheral refcount while we are probing.
+		 */
+		cam_periph_acquire(periph);
+		softc->state = SA_STATE_PROBE;
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
+	} else {
+		/*
+		 * This drive doesn't support Report Supported Operation
+		 * Codes, so we load the tunables at this point to bring
+		 * in any user preferences.
+		 */
+		saloadtotunables(softc);
+
+		xpt_announce_periph(periph, NULL);
+		xpt_announce_quirks(periph, softc->quirks, SA_QUIRK_BIT_STRING);
+	}
 
 	return (CAM_REQ_CMP);
 }
@@ -2752,7 +2887,9 @@ again:
 			    (softc->flags & SA_FLAG_FIXED) != 0, length,
 			    (bp->bio_flags & BIO_UNMAPPED) != 0 ? (void *)bp :
 			    bp->bio_data, bp->bio_bcount, SSD_FULL_SIZE,
-			    IO_TIMEOUT);
+			    (bp->bio_cmd == BIO_READ) ? 
+			    softc->timeout_info[SA_TIMEOUT_READ] :
+			    softc->timeout_info[SA_TIMEOUT_WRITE]);
 			start_ccb->ccb_h.ccb_pflags &= ~SA_POSITION_UPDATED;
 			start_ccb->ccb_h.ccb_bp = bp;
 			bp = bioq_first(&softc->bio_queue);
@@ -2763,6 +2900,59 @@ again:
 			/* Have more work to do, so ensure we stay scheduled */
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
+		break;
+	}
+	case SA_STATE_PROBE: {
+		int num_opcodes;
+		size_t alloc_len;
+		uint8_t *params;
+
+		/*
+		 * This is an arbitrary number.  An IBM LTO-6 drive reports
+		 * 67 entries, and an IBM LTO-9 drive reports 71 entries.
+		 * There can theoretically be more than 256 because
+		 * service actions of a particular opcode are reported
+		 * separately, but we're far enough ahead of the practical
+		 * number here that we don't need to implement logic to
+		 * retry if we don't get all the timeout descriptors.
+		 */
+		num_opcodes = 256;
+
+		alloc_len = num_opcodes *
+		    (sizeof(struct scsi_report_supported_opcodes_descr) +
+		     sizeof(struct scsi_report_supported_opcodes_timeout));
+
+		params = malloc(alloc_len, M_SCSISA, M_NOWAIT| M_ZERO);
+		if (params == NULL) {
+			/*
+			 * If this happens, go with default
+			 * timeouts and announce the drive.
+			 */
+			saloadtotunables(softc);
+
+			softc->state = SA_STATE_NORMAL;
+
+			xpt_announce_periph(periph, NULL);
+			xpt_announce_quirks(periph, softc->quirks,
+					    SA_QUIRK_BIT_STRING);
+			xpt_release_ccb(start_ccb);
+			cam_periph_release_locked(periph);
+			return;
+		}
+
+		scsi_report_supported_opcodes(&start_ccb->csio,
+		    /*retries*/ 3,
+		    /*cbfcnp*/ sadone,
+		    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+		    /*options*/ RSO_RCTD,
+		    /*req_opcode*/ 0,
+		    /*req_service_action*/ 0,
+		    /*data_ptr*/ params,
+		    /*dxfer_len*/ alloc_len,
+		    /*sense_len*/ SSD_FULL_SIZE,
+		    /*timeout*/ softc->timeout_info[SA_TIMEOUT_TUR]);
+
+		xpt_action(start_ccb);
 		break;
 	}
 	case SA_STATE_ABNORMAL:
@@ -2782,17 +2972,79 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct sa_softc *)periph->softc;
 	csio = &done_ccb->csio;
-
-	softc->dsreg = MTIO_DSREG_REST;
-	bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 	error = 0;
-	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
-			/*
-			 * A retry was scheduled, so just return.
-			 */
-			return;
+
+	if (softc->state == SA_STATE_NORMAL) {
+		softc->dsreg = MTIO_DSREG_REST;
+		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
+
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
+				/*
+				 * A retry was scheduled, so just return.
+				 */
+				return;
+			}
 		}
+	} else if (softc->state == SA_STATE_PROBE) {
+		bp = NULL;
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			/*
+			 * Note that on probe, we just run through
+			 * cam_periph_error(), since saerror() has a lot of
+			 * special handling for I/O errors.  We don't need
+			 * that to get the opcodes.  We either succeed
+			 * after a retry or two, or give up.  We don't
+			 * print sense, we don't need to worry the user if
+			 * this drive doesn't support timeout descriptors.
+			 */
+			if ((error = cam_periph_error(done_ccb, 0,
+			     SF_NO_PRINT)) == ERESTART) {
+				/*
+				 * A retry was scheduled, so just return.
+				 */
+				return;
+			} else if (error != 0) {
+				/* We failed to get opcodes.  Give up. */
+
+				saloadtotunables(softc);
+
+				softc->state = SA_STATE_NORMAL;
+
+				xpt_release_ccb(done_ccb);
+
+				xpt_announce_periph(periph, NULL);
+				xpt_announce_quirks(periph, softc->quirks,
+						    SA_QUIRK_BIT_STRING);
+				cam_periph_release_locked(periph);
+				return;
+			}
+		}
+		/*
+		 * At this point, we have succeeded, so load the timeouts
+		 * and go into the normal state.
+		 */
+		softc->state = SA_STATE_NORMAL;
+
+		/*
+		 * First, load the timeouts we got from the drive.
+		 */
+		saloadtimeouts(softc, done_ccb);
+
+		/*
+		 * Next, overwrite the timeouts from the drive with any
+		 * loader tunables that the user set.
+		 */
+		saloadtotunables(softc);
+
+		xpt_release_ccb(done_ccb);
+		xpt_announce_periph(periph, NULL);
+		xpt_announce_quirks(periph, softc->quirks,
+				    SA_QUIRK_BIT_STRING);
+		cam_periph_release_locked(periph);
+		return;
+	} else {
+		panic("state 0x%x in sadone", softc->state);
 	}
 
 	if (error == EIO) {
@@ -2890,13 +3142,15 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 	if (softc->flags & SA_FLAG_TAPE_MOUNTED) {
 		ccb = cam_periph_getccb(periph, 1);
 		scsi_test_unit_ready(&ccb->csio, 0, NULL,
-		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, IO_TIMEOUT);
+		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE,
+		    softc->timeout_info[SA_TIMEOUT_TUR]);
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
 		if (error == ENXIO) {
 			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
 			scsi_test_unit_ready(&ccb->csio, 0, NULL,
-			    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, IO_TIMEOUT);
+			    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE,
+			    softc->timeout_info[SA_TIMEOUT_TUR]);
 			error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 			    softc->device_stats);
 		} else if (error) {
@@ -2917,7 +3171,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		}
 		ccb = cam_periph_getccb(periph, 1);
 		scsi_test_unit_ready(&ccb->csio, 0, NULL,
-		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, IO_TIMEOUT);
+		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE,
+		    softc->timeout_info[SA_TIMEOUT_TUR]);
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
 	}
@@ -2938,7 +3193,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		 * *Very* first off, make sure we're loaded to BOT.
 		 */
 		scsi_load_unload(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG, FALSE,
-		    FALSE, FALSE, 1, SSD_FULL_SIZE, REWIND_TIMEOUT);
+		    FALSE, FALSE, 1, SSD_FULL_SIZE,
+		    softc->timeout_info[SA_TIMEOUT_LOAD]);
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
 
@@ -2947,7 +3203,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		 */
 		if (error) {
 			scsi_rewind(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG,
-			    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
+			    FALSE, SSD_FULL_SIZE,
+			    softc->timeout_info[SA_TIMEOUT_REWIND]);
 			error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 				softc->device_stats);
 		}
@@ -2976,11 +3233,12 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			scsi_sa_read_write(&ccb->csio, 0, NULL,
 			    MSG_SIMPLE_Q_TAG, 1, FALSE, 0, 8192,
 			    (void *) rblim, 8192, SSD_FULL_SIZE,
-			    IO_TIMEOUT);
+			    softc->timeout_info[SA_TIMEOUT_READ]);
 			(void) cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 			    softc->device_stats);
 			scsi_rewind(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG,
-			    FALSE, SSD_FULL_SIZE, REWIND_TIMEOUT);
+			    FALSE, SSD_FULL_SIZE,
+			    softc->timeout_info[SA_TIMEOUT_REWIND]);
 			error = cam_periph_runccb(ccb, saerror, CAM_RETRY_SELTO,
 			    SF_NO_PRINT | SF_RETRY_UA,
 			    softc->device_stats);
@@ -2996,7 +3254,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		 * Next off, determine block limits.
 		 */
 		scsi_read_block_limits(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
-		    rblim, SSD_FULL_SIZE, SCSIOP_TIMEOUT);
+		    rblim, SSD_FULL_SIZE,
+		    softc->timeout_info[SA_TIMEOUT_READ_BLOCK_LIMITS]);
 
 		error = cam_periph_runccb(ccb, saerror, CAM_RETRY_SELTO,
 		    SF_NO_PRINT | SF_RETRY_UA, softc->device_stats);
@@ -3610,7 +3869,7 @@ retry:
 	scsi_mode_sense(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 	    SMS_PAGE_CTRL_CURRENT, (params_to_get & SA_PARAM_COMPRESSION) ?
 	    cpage : SMS_VENDOR_SPECIFIC_PAGE, mode_buffer, mode_buffer_len,
-	    SSD_FULL_SIZE, SCSIOP_TIMEOUT);
+	    SSD_FULL_SIZE, softc->timeout_info[SA_TIMEOUT_MODE_SENSE]);
 
 	error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 	    softc->device_stats);
@@ -3672,7 +3931,7 @@ retry:
 		scsi_mode_sense(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG, FALSE,
 		    SMS_PAGE_CTRL_CURRENT, SMS_VENDOR_SPECIFIC_PAGE,
 		    mode_buffer, mode_buffer_len, SSD_FULL_SIZE,
-		    SCSIOP_TIMEOUT);
+		    softc->timeout_info[SA_TIMEOUT_MODE_SENSE]);
 
 		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 		    softc->device_stats);
@@ -3739,7 +3998,8 @@ retry:
 			    /*data_ptr*/ softc->density_info[i],
 			    /*length*/ sizeof(softc->density_info[i]),
 			    /*sense_len*/ SSD_FULL_SIZE,
-			    /*timeout*/ REP_DENSITY_TIMEOUT);
+			    /*timeout*/
+			        softc->timeout_info[SA_TIMEOUT_REP_DENSITY]);
 			error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
 			    softc->device_stats);
 			status = ccb->ccb_h.status & CAM_STATUS_MASK;
@@ -3801,7 +4061,8 @@ retry:
 				    /*param_len*/ dp_len,
 				    /*minimum_cmd_size*/ 10,
 				    /*sense_len*/ SSD_FULL_SIZE,
-				    /*timeout*/ SCSIOP_TIMEOUT);
+				    /*timeout*/
+				    softc->timeout_info[SA_TIMEOUT_MODE_SENSE]);
 		/*
 		 * XXX KDM we need to be able to set the subpage in the
 		 * fill function.
@@ -4029,7 +4290,8 @@ retry_length:
 			     /*param_len*/ dp_len,
 			     /*minimum_cmd_size*/ 10,
 			     /*sense_len*/ SSD_FULL_SIZE,
-			     /*timeout*/ SCSIOP_TIMEOUT);
+			     /*timeout*/
+			           softc->timeout_info[SA_TIMEOUT_MODE_SELECT]);
 
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
 	if (error != 0)
@@ -4299,7 +4561,8 @@ retry:
 	/* It is safe to retry this operation */
 	scsi_mode_select(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
 	    (params_to_set & SA_PARAM_COMPRESSION)? TRUE : FALSE,
-	    FALSE, mode_buffer, mode_buffer_len, SSD_FULL_SIZE, SCSIOP_TIMEOUT);
+	    FALSE, mode_buffer, mode_buffer_len, SSD_FULL_SIZE,
+	    softc->timeout_info[SA_TIMEOUT_MODE_SELECT]);
 
 	error = cam_periph_runccb(ccb, saerror, 0,
 	    sense_flags, softc->device_stats);
@@ -4616,7 +4879,7 @@ saprevent(struct cam_periph *periph, int action)
 
 	/* It is safe to retry this operation */
 	scsi_prevent(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, action,
-	    SSD_FULL_SIZE, SCSIOP_TIMEOUT);
+	    SSD_FULL_SIZE, softc->timeout_info[SA_TIMEOUT_PREVENT]);
 
 	error = cam_periph_runccb(ccb, saerror, 0, sf, softc->device_stats);
 	if (error == 0) {
@@ -4642,7 +4905,7 @@ sarewind(struct cam_periph *periph)
 
 	/* It is safe to retry this operation */
 	scsi_rewind(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG, FALSE,
-	    SSD_FULL_SIZE, REWIND_TIMEOUT);
+	    SSD_FULL_SIZE, softc->timeout_info[SA_TIMEOUT_REWIND]);
 
 	softc->dsreg = MTIO_DSREG_REW;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
@@ -4674,7 +4937,7 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 	/* This cannot be retried */
 
 	scsi_space(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG, code, count,
-	    SSD_FULL_SIZE, SPACE_TIMEOUT);
+	    SSD_FULL_SIZE, softc->timeout_info[SA_TIMEOUT_SPACE]);
 
 	/*
 	 * Clear residual because we will be using it.
@@ -4755,7 +5018,8 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks, int immed)
 	softc->dsreg = MTIO_DSREG_FMK;
 	/* this *must* not be retried */
 	scsi_write_filemarks(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG,
-	    immed, setmarks, nmarks, SSD_FULL_SIZE, IO_TIMEOUT);
+	    immed, setmarks, nmarks, SSD_FULL_SIZE,
+	    softc->timeout_info[SA_TIMEOUT_WRITE_FILEMARKS]);
 	softc->dsreg = MTIO_DSREG_REST;
 
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
@@ -4822,7 +5086,8 @@ sagetpos(struct cam_periph *periph)
 			      /*data_ptr*/ (uint8_t *)&long_pos,
 			      /*length*/ sizeof(long_pos),
 			      /*sense_len*/ SSD_FULL_SIZE,
-			      /*timeout*/ SCSIOP_TIMEOUT);
+			      /*timeout*/
+				 softc->timeout_info[SA_TIMEOUT_READ_POSITION]);
 
 	softc->dsreg = MTIO_DSREG_RBSY;
 	error = cam_periph_runccb(ccb, saerror, 0, SF_QUIET_IR,
@@ -4918,7 +5183,8 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 
 	ccb = cam_periph_getccb(periph, 1);
 	scsi_read_position(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG,
-	    hard, &loc, SSD_FULL_SIZE, SCSIOP_TIMEOUT);
+	    hard, &loc, SSD_FULL_SIZE,
+	    softc->timeout_info[SA_TIMEOUT_READ_POSITION]);
 	softc->dsreg = MTIO_DSREG_RBSY;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
 	softc->dsreg = MTIO_DSREG_REST;
@@ -4986,7 +5252,8 @@ sasetpos(struct cam_periph *periph, int hard, struct mtlocate *locate_info)
 			       /*partition*/ locate_info->partition,
 			       /*logical_id*/ locate_info->logical_id,
 			       /*sense_len*/ SSD_FULL_SIZE,
-			       /*timeout*/ SPACE_TIMEOUT);
+			       /*timeout*/
+				   softc->timeout_info[SA_TIMEOUT_LOCATE]);
 	} else {
 		scsi_locate_10(&ccb->csio,
 			       /*retries*/ 1,
@@ -4998,7 +5265,8 @@ sasetpos(struct cam_periph *periph, int hard, struct mtlocate *locate_info)
 			       /*partition*/ locate_info->partition,
 			       /*block_address*/ locate_info->logical_id,
 			       /*sense_len*/ SSD_FULL_SIZE,
-			       /*timeout*/ SPACE_TIMEOUT);
+			       /*timeout*/
+				   softc->timeout_info[SA_TIMEOUT_LOCATE]);
 	}
 
 	softc->dsreg = MTIO_DSREG_POS;
@@ -5061,7 +5329,8 @@ saretension(struct cam_periph *periph)
 
 	/* It is safe to retry this operation */
 	scsi_load_unload(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, FALSE,
-	    FALSE, TRUE,  TRUE, SSD_FULL_SIZE, ERASE_TIMEOUT);
+	    FALSE, TRUE,  TRUE, SSD_FULL_SIZE,
+	    softc->timeout_info[SA_TIMEOUT_LOAD]);
 
 	softc->dsreg = MTIO_DSREG_TEN;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
@@ -5088,7 +5357,8 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 
 	/* It is safe to retry this operation */
 	scsi_reserve_release_unit(&ccb->csio, 2, NULL, MSG_SIMPLE_Q_TAG,
-	    FALSE,  0, SSD_FULL_SIZE,  SCSIOP_TIMEOUT, reserve);
+	    FALSE,  0, SSD_FULL_SIZE,  softc->timeout_info[SA_TIMEOUT_RESERVE],
+	    reserve);
 	softc->dsreg = MTIO_DSREG_RBSY;
 	error = cam_periph_runccb(ccb, saerror, 0,
 	    SF_RETRY_UA | SF_NO_PRINT, softc->device_stats);
@@ -5119,7 +5389,8 @@ saloadunload(struct cam_periph *periph, int load)
 
 	/* It is safe to retry this operation */
 	scsi_load_unload(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG, FALSE,
-	    FALSE, FALSE, load, SSD_FULL_SIZE, REWIND_TIMEOUT);
+	    FALSE, FALSE, load, SSD_FULL_SIZE,
+	    softc->timeout_info[SA_TIMEOUT_LOAD]);
 
 	softc->dsreg = (load)? MTIO_DSREG_LD : MTIO_DSREG_UNL;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
@@ -5151,7 +5422,7 @@ saerase(struct cam_periph *periph, int longerase)
 	ccb = cam_periph_getccb(periph, 1);
 
 	scsi_erase(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, FALSE, longerase,
-	    SSD_FULL_SIZE, ERASE_TIMEOUT);
+	    SSD_FULL_SIZE, softc->timeout_info[SA_TIMEOUT_ERASE]);
 
 	softc->dsreg = MTIO_DSREG_ZER;
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
@@ -5448,6 +5719,159 @@ safilldensitysb(struct sa_softc *softc, int *indent, struct sbuf *sb)
 		SASBENDNODE(sb, *indent, density_report);
 	}
 	SASBENDNODE(sb, *indent, mtdensity);
+}
+
+/*
+ * Given a completed REPORT SUPPORTED OPERATION CODES command with timeout
+ * descriptors, go through the descriptors and set the sa(4) driver
+ * timeouts to the recommended values.
+ */
+static void
+saloadtimeouts(struct sa_softc *softc, union ccb *ccb)
+{
+	uint32_t valid_len, avail_len = 0, used_len = 0;
+	struct scsi_report_supported_opcodes_all *hdr;
+	struct scsi_report_supported_opcodes_descr *desc;
+	uint8_t *buf;
+
+	hdr = (struct scsi_report_supported_opcodes_all *)ccb->csio.data_ptr;
+	valid_len = ccb->csio.dxfer_len - ccb->csio.resid;
+
+	if (valid_len < sizeof(*hdr))
+		return;
+
+	avail_len = scsi_4btoul(hdr->length) + sizeof(hdr->length);
+	if ((avail_len != 0)
+	 && (avail_len > valid_len)) {
+		xpt_print(softc->periph->path, "WARNING: available timeout "
+		    "descriptor len %zu > valid len %u\n", avail_len,valid_len);
+	}
+
+	used_len = sizeof(hdr->length);
+	avail_len = MIN(avail_len, valid_len - sizeof(*hdr));
+	buf = ccb->csio.data_ptr;
+	while ((avail_len - used_len) > sizeof(*desc)) {
+		struct scsi_report_supported_opcodes_timeout *td;
+		uint32_t td_len;
+		uint32_t rec_time;
+		uint8_t *cur_ptr;
+
+		cur_ptr = &buf[used_len];
+		desc = (struct scsi_report_supported_opcodes_descr *)cur_ptr;
+
+		used_len += sizeof(*desc);
+		/* If there's no timeout descriptor, keep going */
+		if ((desc->flags & RSO_CTDP) == 0)
+			continue;
+
+		/*
+		 * If we don't have enough space to fit a timeout
+		 * descriptor then we're done.
+		 */
+		if ((avail_len - used_len) < sizeof(*td)) {
+			used_len = avail_len;
+			continue;
+		}
+
+		cur_ptr = &buf[used_len];
+		td = (struct scsi_report_supported_opcodes_timeout *)cur_ptr;
+		td_len = scsi_2btoul(td->length);
+		td_len += sizeof(td->length);
+		used_len += td_len;
+
+		if (td_len < sizeof(*td))
+			continue;
+
+		/*
+		 * Use the recommended timeout.  The nominal time is the
+		 * time to wait before querying for status.
+		 */
+		rec_time = scsi_4btoul(td->recommended_time);
+
+		/*
+		 * Our timeouts are set in thousandths of a seconds.
+		 */
+		rec_time *= 1000;
+
+		switch(desc->opcode) {
+		case ERASE:
+			softc->timeout_info[SA_TIMEOUT_ERASE] = rec_time;
+			break;
+		case LOAD_UNLOAD:
+			softc->timeout_info[SA_TIMEOUT_LOAD] = rec_time;
+			break;
+		case LOCATE:
+		case LOCATE_16:
+			/*
+			 * We are assuming these are the same timeout.
+			 */
+			softc->timeout_info[SA_TIMEOUT_LOCATE] = rec_time;
+			break;
+		case MODE_SELECT_6:
+		case MODE_SELECT_10:
+			/*
+			 * We are assuming these are the same timeout.
+			 */
+			softc->timeout_info[SA_TIMEOUT_MODE_SELECT] = rec_time;
+			break;
+		case MODE_SENSE_6:
+		case MODE_SENSE_10:
+			/*
+			 * We are assuming these are the same timeout.
+			 */
+			softc->timeout_info[SA_TIMEOUT_MODE_SENSE] = rec_time;
+			break;
+		case PREVENT_ALLOW:
+			softc->timeout_info[SA_TIMEOUT_PREVENT] = rec_time;
+			break;
+		case SA_READ:
+			softc->timeout_info[SA_TIMEOUT_READ] = rec_time;
+			break;
+		case READ_BLOCK_LIMITS:
+			softc->timeout_info[SA_TIMEOUT_READ_BLOCK_LIMITS] =
+			    rec_time;
+			break;
+		case READ_POSITION:
+			/*
+			 * Note that this may show up multiple times for
+			 * the short form, long form and extended form
+			 * service actions.  We're assuming they are all
+			 * the same.
+			 */
+			softc->timeout_info[SA_TIMEOUT_READ_POSITION] =rec_time;
+			break;
+		case REPORT_DENSITY_SUPPORT:
+			softc->timeout_info[SA_TIMEOUT_REP_DENSITY] = rec_time;
+			break;
+		case RESERVE_UNIT:
+		case RELEASE_UNIT:
+			/* We are assuming these are the same timeout.*/
+			softc->timeout_info[SA_TIMEOUT_RESERVE] = rec_time;
+			break;
+		case REWIND:
+			softc->timeout_info[SA_TIMEOUT_REWIND] = rec_time;
+			break;
+		case SPACE:
+			softc->timeout_info[SA_TIMEOUT_SPACE] = rec_time;
+			break;
+		case TEST_UNIT_READY:
+			softc->timeout_info[SA_TIMEOUT_TUR] = rec_time;
+			break;
+		case SA_WRITE:
+			softc->timeout_info[SA_TIMEOUT_WRITE] = rec_time;
+			break;
+		case WRITE_FILEMARKS:
+			softc->timeout_info[SA_TIMEOUT_WRITE_FILEMARKS] =
+			    rec_time;
+			break;
+		default:
+			/*
+			 * We have explicit cases for all of the timeouts
+			 * we use.
+			 */
+			break;
+		}
+	}
 }
 
 #endif /* _KERNEL */
