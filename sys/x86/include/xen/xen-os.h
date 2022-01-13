@@ -49,6 +49,8 @@ extern int xen_disable_pv_disks;
 /* tunable for disabling PV nics */
 extern int xen_disable_pv_nics;
 
+extern uint32_t xen_cpuid_base;
+
 static inline bool
 xen_has_percpu_evtchn(void)
 {
