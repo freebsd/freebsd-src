@@ -1222,6 +1222,63 @@ out:
 }
 
 static int
+mana_fence_rq(struct mana_port_context *apc, struct mana_rxq *rxq)
+{
+	struct mana_fence_rq_resp resp = {};
+	struct mana_fence_rq_req req = {};
+	int err;
+
+	init_completion(&rxq->fence_event);
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_FENCE_RQ,
+	    sizeof(req), sizeof(resp));
+	req.wq_obj_handle = rxq->rxobj;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+	    sizeof(resp));
+	if (err) {
+		if_printf(apc->ndev, "Failed to fence RQ %u: %d\n",
+		    rxq->rxq_idx, err);
+		return err;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_FENCE_RQ, sizeof(resp));
+	if (err || resp.hdr.status) {
+		if_printf(apc->ndev, "Failed to fence RQ %u: %d, 0x%x\n",
+		    rxq->rxq_idx, err, resp.hdr.status);
+		if (!err)
+			err = EPROTO;
+
+		return err;
+	}
+
+	if (wait_for_completion_timeout(&rxq->fence_event, 10 * hz)) {
+		if_printf(apc->ndev, "Failed to fence RQ %u: timed out\n",
+		    rxq->rxq_idx);
+		return ETIMEDOUT;
+        }
+
+	return 0;
+}
+
+static void
+mana_fence_rqs(struct mana_port_context *apc)
+{
+	unsigned int rxq_idx;
+	struct mana_rxq *rxq;
+	int err;
+
+	for (rxq_idx = 0; rxq_idx < apc->num_queues; rxq_idx++) {
+		rxq = apc->rxqs[rxq_idx];
+		err = mana_fence_rq(apc, rxq);
+
+		/* In case of any error, use sleep instead. */
+		if (err)
+			gdma_msleep(100);
+	}
+}
+
+static int
 mana_move_wq_tail(struct gdma_queue *wq, uint32_t num_units)
 {
 	uint32_t used_space_old;
@@ -1564,7 +1621,7 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 		return;
 
 	case CQE_RX_OBJECT_FENCE:
-		if_printf(ndev, "RX Fencing is unsupported\n");
+		complete(&rxq->fence_event);
 		return;
 
 	default:
@@ -2368,6 +2425,7 @@ int mana_config_rss(struct mana_port_context *apc, enum TRI_STATE rx,
 		    bool update_hash, bool update_tab)
 {
 	uint32_t queue_idx;
+	int err;
 	int i;
 
 	if (update_tab) {
@@ -2377,7 +2435,13 @@ int mana_config_rss(struct mana_port_context *apc, enum TRI_STATE rx,
 		}
 	}
 
-	return mana_cfg_vport_steering(apc, rx, true, update_hash, update_tab);
+	err = mana_cfg_vport_steering(apc, rx, true, update_hash, update_tab);
+	if (err)
+		return err;
+
+	mana_fence_rqs(apc);
+
+	return 0;
 }
 
 static int
@@ -2531,9 +2595,6 @@ mana_dealloc_queues(struct ifnet *ndev)
 		if_printf(ndev, "Failed to disable vPort: %d\n", err);
 		return err;
 	}
-
-	/* TODO: Implement RX fencing */
-	gdma_msleep(1000);
 
 	mana_destroy_vport(apc);
 

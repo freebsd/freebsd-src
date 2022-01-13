@@ -414,6 +414,8 @@ struct mana_rxq {
 
 	mana_handle_t			rxobj;
 
+	struct completion		fence_event;
+
 	struct mana_cq			rx_cq;
 
 	struct ifnet			*ndev;
