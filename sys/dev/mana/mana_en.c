@@ -1935,7 +1935,8 @@ mana_create_txq(struct mana_port_context *apc, struct ifnet *net)
 
 		if (cq->gdma_id >= gc->max_num_cqs) {
 			if_printf(net, "CQ id %u too large.\n", cq->gdma_id);
-			return EINVAL;
+			err = EINVAL;
+			goto out;
 		}
 
 		gc->cq_table[cq->gdma_id] = cq->gdma_cq;
@@ -2249,8 +2250,10 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	if (err)
 		goto out;
 
-	if (cq->gdma_id >= gc->max_num_cqs)
+	if (cq->gdma_id >= gc->max_num_cqs) {
+		err = EINVAL;
 		goto out;
+	}
 
 	gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
@@ -2393,7 +2396,8 @@ mana_init_port(struct ifnet *ndev)
 	err = mana_query_vport_cfg(apc, port_idx, &max_txq, &max_rxq,
 	    &num_indirect_entries);
 	if (err) {
-		if_printf(ndev, "Failed to query info for vPort 0\n");
+		if_printf(ndev, "Failed to query info for vPort %d\n",
+		    port_idx);
 		goto reset_apc;
 	}
 
