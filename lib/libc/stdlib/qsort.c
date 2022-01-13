@@ -108,6 +108,8 @@ local_qsort(void *a, size_t n, size_t es, cmp_t *cmp, void *thunk)
 	int cmp_result;
 	int swap_cnt;
 
+	if (__predict_false(n == 0))
+		return;
 loop:
 	swap_cnt = 0;
 	if (n < 7) {
