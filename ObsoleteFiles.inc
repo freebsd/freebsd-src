@@ -5421,6 +5421,11 @@ OLD_FILES+=usr/share/man/man9/crypto_find_driver.9.gz
 OLD_FILES+=usr/share/man/man9/crypto_register.9.gz
 OLD_FILES+=usr/share/man/man9/crypto_unregister.9.gz
 
+# 20200326: compat libs for libl are no longer built
+OLD_FILES+=usr/lib32/libfl.a
+OLD_FILES+=usr/lib32/libl.a
+OLD_FILES+=usr/lib32/libln.a
+
 # 20200323: INTERNALLIB don't install headers anymore
 OLD_FILES+=usr/include/libelftc.h
 OLD_FILES+=usr/include/libifconfig.h
