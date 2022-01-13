@@ -57,13 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/arch-x86/cpuid.h>
 #include <xen/interface/vcpu.h>
 
-/*--------------------------------- Macros -----------------------------------*/
-
-#define XEN_APIC_UNSUPPORTED \
-	panic("%s: not available in Xen PV port.", __func__)
-
 /*--------------------------- Forward Declarations ---------------------------*/
-#ifdef SMP
 static driver_filter_t xen_smp_rendezvous_action;
 #ifdef __amd64__
 static driver_filter_t xen_invlop;
@@ -77,13 +71,11 @@ static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_ipi_swi_handler;
-#endif
 
 /*---------------------------------- Macros ----------------------------------*/
 #define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
 
 /*--------------------------------- Xen IPIs ---------------------------------*/
-#ifdef SMP
 struct xen_ipi_handler
 {
 	driver_filter_t	*filter;
@@ -106,7 +98,6 @@ static struct xen_ipi_handler xen_ipis[] =
 	[IPI_TO_IDX(IPI_SUSPEND)]	= { xen_cpususpend_handler,	"sp"  },
 	[IPI_TO_IDX(IPI_SWI)]		= { xen_ipi_swi_handler,	"sw"  },
 };
-#endif
 
 /*
  * Save previous (native) handler as a fallback. Xen < 4.7 doesn't support
@@ -117,169 +108,9 @@ static struct xen_ipi_handler xen_ipis[] =
 void (*native_ipi_vectored)(u_int, int);
 
 /*------------------------------- Per-CPU Data -------------------------------*/
-#ifdef SMP
 DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
-#endif
 
 /*------------------------------- Xen PV APIC --------------------------------*/
-
-static void
-xen_pv_lapic_create(u_int apic_id, int boot_cpu)
-{
-#ifdef SMP
-	cpu_add(apic_id, boot_cpu);
-#endif
-}
-
-static void
-xen_pv_lapic_init(vm_paddr_t addr)
-{
-
-}
-
-static void
-xen_pv_lapic_setup(int boot)
-{
-
-}
-
-static void
-xen_pv_lapic_dump(const char *str)
-{
-
-	printf("cpu%d %s XEN PV LAPIC\n", PCPU_GET(cpuid), str);
-}
-
-static void
-xen_pv_lapic_disable(void)
-{
-
-}
-
-static bool
-xen_pv_lapic_is_x2apic(void)
-{
-
-	return (false);
-}
-
-static void
-xen_pv_lapic_eoi(void)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static int
-xen_pv_lapic_id(void)
-{
-
-	return (PCPU_GET(apic_id));
-}
-
-static int
-xen_pv_lapic_intr_pending(u_int vector)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static u_int
-xen_pv_apic_cpuid(u_int apic_id)
-{
-#ifdef SMP
-	return (apic_cpuids[apic_id]);
-#else
-	return (0);
-#endif
-}
-
-static u_int
-xen_pv_apic_alloc_vector(u_int apic_id, u_int irq)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static u_int
-xen_pv_apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static void
-xen_pv_apic_disable_vector(u_int apic_id, u_int vector)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static void
-xen_pv_apic_enable_vector(u_int apic_id, u_int vector)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static void
-xen_pv_apic_free_vector(u_int apic_id, u_int vector, u_int irq)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static void
-xen_pv_lapic_calibrate_timer(void)
-{
-
-}
-
-static void
-xen_pv_lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static int
-xen_pv_lapic_enable_pmc(void)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static void
-xen_pv_lapic_disable_pmc(void)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static void
-xen_pv_lapic_reenable_pmc(void)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static void
-xen_pv_lapic_enable_cmc(void)
-{
-
-}
-
-#ifdef SMP
-static void
-xen_pv_lapic_ipi_raw(register_t icrlo, u_int dest)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
 
 #define PCPU_ID_GET(id, field) (pcpu_find(id)->pc_##field)
 static int
@@ -381,101 +212,6 @@ xen_pv_lapic_ipi_vectored(u_int vector, int dest)
 	}
 }
 
-static int
-xen_pv_lapic_ipi_wait(int delay)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-#endif	/* SMP */
-
-static int
-xen_pv_lapic_ipi_alloc(inthand_t *ipifunc)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (-1);
-}
-
-static void
-xen_pv_lapic_ipi_free(int vector)
-{
-
-	XEN_APIC_UNSUPPORTED;
-}
-
-static int
-xen_pv_lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static int
-xen_pv_lapic_set_lvt_mode(u_int apic_id, u_int lvt, uint32_t mode)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static int
-xen_pv_lapic_set_lvt_polarity(u_int apic_id, u_int lvt, enum intr_polarity pol)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-static int
-xen_pv_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
-    enum intr_trigger trigger)
-{
-
-	XEN_APIC_UNSUPPORTED;
-	return (0);
-}
-
-/* Xen apic_ops implementation */
-struct apic_ops xen_apic_ops = {
-	.create			= xen_pv_lapic_create,
-	.init			= xen_pv_lapic_init,
-	.xapic_mode		= xen_pv_lapic_disable,
-	.is_x2apic		= xen_pv_lapic_is_x2apic,
-	.setup			= xen_pv_lapic_setup,
-	.dump			= xen_pv_lapic_dump,
-	.disable		= xen_pv_lapic_disable,
-	.eoi			= xen_pv_lapic_eoi,
-	.id			= xen_pv_lapic_id,
-	.intr_pending		= xen_pv_lapic_intr_pending,
-	.set_logical_id		= xen_pv_lapic_set_logical_id,
-	.cpuid			= xen_pv_apic_cpuid,
-	.alloc_vector		= xen_pv_apic_alloc_vector,
-	.alloc_vectors		= xen_pv_apic_alloc_vectors,
-	.enable_vector		= xen_pv_apic_enable_vector,
-	.disable_vector		= xen_pv_apic_disable_vector,
-	.free_vector		= xen_pv_apic_free_vector,
-	.calibrate_timer	= xen_pv_lapic_calibrate_timer,
-	.enable_pmc		= xen_pv_lapic_enable_pmc,
-	.disable_pmc		= xen_pv_lapic_disable_pmc,
-	.reenable_pmc		= xen_pv_lapic_reenable_pmc,
-	.enable_cmc		= xen_pv_lapic_enable_cmc,
-#ifdef SMP
-	.ipi_raw		= xen_pv_lapic_ipi_raw,
-	.ipi_vectored		= xen_pv_lapic_ipi_vectored,
-	.ipi_wait		= xen_pv_lapic_ipi_wait,
-#endif
-	.ipi_alloc		= xen_pv_lapic_ipi_alloc,
-	.ipi_free		= xen_pv_lapic_ipi_free,
-	.set_lvt_mask		= xen_pv_lapic_set_lvt_mask,
-	.set_lvt_mode		= xen_pv_lapic_set_lvt_mode,
-	.set_lvt_polarity	= xen_pv_lapic_set_lvt_polarity,
-	.set_lvt_triggermode	= xen_pv_lapic_set_lvt_triggermode,
-};
-
-#ifdef SMP
 /*---------------------------- XEN PV IPI Handlers ---------------------------*/
 /*
  * These are C clones of the ASM functions found in apic_vector.
@@ -623,10 +359,9 @@ xen_setup_cpus(void)
 		xen_cpu_ipi_init(i);
 
 	/* Set the xen pv ipi ops to replace the native ones */
-	native_ipi_vectored = apic_ops.ipi_vectored;
-	apic_ops.ipi_vectored = xen_pv_lapic_ipi_vectored;
+	ipi_vectored = xen_pv_lapic_ipi_vectored;
+	native_ipi_vectored = ipi_vectored;
 }
 
 /* Switch to using PV IPIs as soon as the vcpu_id is set. */
 SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_SECOND, xen_setup_cpus, NULL);
-#endif /* SMP */
