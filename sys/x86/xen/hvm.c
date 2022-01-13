@@ -110,7 +110,7 @@ TUNABLE_INT("hw.xen.disable_pv_nics", &xen_disable_pv_nics);
 
 /*---------------------- XEN Hypervisor Probe and Setup ----------------------*/
 
-static uint32_t cpuid_base;
+uint32_t xen_cpuid_base;
 
 static uint32_t
 xen_hvm_cpuid_base(void)
@@ -153,7 +153,7 @@ hypervisor_version(void)
 	uint32_t regs[4];
 	int major, minor;
 
-	do_cpuid(cpuid_base + 1, regs);
+	do_cpuid(xen_cpuid_base + 1, regs);
 
 	major = regs[0] >> 16;
 	minor = regs[0] & 0xffff;
@@ -171,9 +171,9 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	uint32_t regs[4];
 
 	/* Legacy PVH will get here without the cpuid leaf being set. */
-	if (cpuid_base == 0)
-		cpuid_base = xen_hvm_cpuid_base();
-	if (cpuid_base == 0)
+	if (xen_cpuid_base == 0)
+		xen_cpuid_base = xen_hvm_cpuid_base();
+	if (xen_cpuid_base == 0)
 		return (ENXIO);
 
 	if (xen_domain() && init_type == XEN_HVM_INIT_LATE) {
@@ -192,7 +192,7 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	/*
 	 * Find the hypercall pages.
 	 */
-	do_cpuid(cpuid_base + 2, regs);
+	do_cpuid(xen_cpuid_base + 2, regs);
 	if (regs[0] != 1)
 		return (EINVAL);
 
@@ -448,8 +448,8 @@ xen_hvm_cpu_init(void)
 	 * Set vCPU ID. If available fetch the ID from CPUID, if not just use
 	 * the ACPI ID.
 	 */
-	KASSERT(cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
-	cpuid_count(cpuid_base + 4, 0, regs);
+	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(xen_cpuid_base + 4, 0, regs);
 	KASSERT((regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ||
 	    !xen_pv_domain(),
 	    ("Xen PV domain without vcpu_id in cpuid"));

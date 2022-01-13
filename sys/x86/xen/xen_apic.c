@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/hvm.h>
 #include <xen/xen_intr.h>
 
+#include <xen/interface/arch-x86/cpuid.h>
 #include <xen/interface/vcpu.h>
 
 /*--------------------------------- Macros -----------------------------------*/
@@ -601,9 +602,21 @@ xen_cpu_ipi_init(int cpu)
 static void
 xen_setup_cpus(void)
 {
+	uint32_t regs[4];
 	int i;
 
 	if (!xen_vector_callback_enabled)
+		return;
+
+	/*
+	 * Check whether the APIC virtualization is hardware assisted, as
+	 * that's faster than using event channels because it avoids the VM
+	 * exit.
+	 */
+	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(xen_cpuid_base + 4, 0, regs);
+	if ((x2apic_mode && (regs[0] & XEN_HVM_CPUID_X2APIC_VIRT)) ||
+	    (!x2apic_mode && (regs[0] & XEN_HVM_CPUID_APIC_ACCESS_VIRT)))
 		return;
 
 	CPU_FOREACH(i)
