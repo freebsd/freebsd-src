@@ -489,6 +489,7 @@ t4vf_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sysctl_ctx_init(&sc->ctx);
 	pci_enable_busmaster(dev);
 	pci_set_max_read_req(dev, 4096);
 	sc->params.pci.mps = pci_get_max_payload(dev);
