@@ -339,7 +339,7 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
 static void
 ia32_osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
-	struct ia32_sigframe3 sf, *fp;
+	struct ia32_osigframe sf, *fp;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
@@ -359,11 +359,11 @@ ia32_osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct ia32_sigframe3 *)((uintptr_t)td->td_sigstk.ss_sp +
+		fp = (struct ia32_osigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(sf));
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	} else
-		fp = (struct ia32_sigframe3 *)regs->tf_rsp - 1;
+		fp = (struct ia32_osigframe *)regs->tf_rsp - 1;
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
@@ -441,7 +441,7 @@ ia32_osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 static void
 freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
-	struct ia32_sigframe4 sf, *sfp;
+	struct ia32_freebsd4_sigframe sf, *sfp;
 	struct siginfo32 siginfo;
 	struct proc *p;
 	struct thread *td;
@@ -497,10 +497,10 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct ia32_sigframe4 *)((uintptr_t)td->td_sigstk.ss_sp +
+		sfp = (struct ia32_freebsd4_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(sf));
 	} else
-		sfp = (struct ia32_sigframe4 *)regs->tf_rsp - 1;
+		sfp = (struct ia32_freebsd4_sigframe *)regs->tf_rsp - 1;
 	PROC_UNLOCK(p);
 
 	/* Build the argument list for the signal handler. */
@@ -696,7 +696,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 int
 ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
 {
-	struct ia32_sigcontext3 sc, *scp;
+	struct ia32_osigcontext sc, *scp;
 	struct trapframe *regs;
 	int eflags, error;
 	ksiginfo_t ksi;
@@ -754,9 +754,9 @@ int
 freebsd4_freebsd32_sigreturn(struct thread *td,
     struct freebsd4_freebsd32_sigreturn_args *uap)
 {
-	struct ia32_ucontext4 uc;
+	struct ia32_freebsd4_ucontext uc;
 	struct trapframe *regs;
-	struct ia32_ucontext4 *ucp;
+	struct ia32_freebsd4_ucontext *ucp;
 	int cs, eflags, error;
 	ksiginfo_t ksi;
 
