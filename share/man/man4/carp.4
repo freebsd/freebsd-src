@@ -290,7 +290,7 @@ status change events can be set up by using the following devd.conf rule:
 .Bd -literal -offset indent
 notify 0 {
 	match "system"          "CARP";
-	match "subsystem"       "[0-9]+@[0-9a-z]+";
+	match "subsystem"       "[0-9]+@[0-9a-z\.]+";
 	match "type"            "(MASTER|BACKUP)";
 	action "/root/carpcontrol.sh $subsystem $type";
 };
