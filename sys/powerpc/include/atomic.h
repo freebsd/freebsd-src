@@ -1078,13 +1078,13 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
 static __inline int
 atomic_testandset_long(volatile u_long *p, u_int v)
 {
-	return (atomic_testandset_int((volatile u_int *)p, v);
+	return (atomic_testandset_int((volatile u_int *)p, v));
 }
 
 static __inline int
 atomic_testandclear_long(volatile u_long *p, u_int v)
 {
-	return (atomic_testandclear_int((volatile u_int *)p, v);
+	return (atomic_testandclear_int((volatile u_int *)p, v));
 }
 #endif
 
