@@ -112,7 +112,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 {
 	EVP_CIPHER_CTX *ctx;
 	const EVP_CIPHER *type;
-	u_char iv[keysize];
+	u_char iv[G_ELI_IVKEYLEN];
 	int outsize;
 
 	assert(algo != CRYPTO_AES_XTS);
