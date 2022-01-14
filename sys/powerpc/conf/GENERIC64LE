@@ -31,6 +31,7 @@ options 	MAMBO			# IBM Mambo Full System Simulator
 options		QEMU			# QEMU processor emulator
 options 	PSERIES			# PAPR-compliant systems (e.g. IBM p)
 options 	POWERNV			# Non-virtualized OpenPOWER systems
+options 	ISA_206_ATOMICS		# PowerISA v2.06 optimized subword atomics
 
 options		FDT			# Flattened Device Tree
 options 	SCHED_ULE		# ULE scheduler
