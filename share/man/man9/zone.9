@@ -35,8 +35,6 @@
 .In sys/param.h
 .In sys/queue.h
 .In vm/uma.h
-.Cd "options UMA_FIRSTTOUCH"
-.Cd "options UMA_XDOMAIN"
 .Bd -literal
 typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
 typedef void (*uma_dtor)(void *mem, int size, void *arg);
@@ -324,24 +322,6 @@ The zone is for the
 subsystem.
 .It Dv UMA_ZONE_VM
 The zone is for the VM subsystem.
-.It Dv UMA_ZONE_NUMA
-The zone should use a first-touch NUMA policy rather than the round-robin
-default.
-If the
-.Dv UMA_FIRSTTOUCH
-kernel option is configured, all zones implicitly use a first-touch policy,
-and the
-.Dv UMA_ZONE_NUMA
-flag has no effect.
-The
-.Dv UMA_XDOMAIN
-kernel option, when configured, causes UMA to do the extra tracking to ensure
-that allocations from first-touch zones are always local.
-Otherwise, consumers that do not free memory on the same domain from which it
-was allocated will cause mixing in per-CPU caches.
-See
-.Xr numa 4
-for more details.
 .It Dv UMA_ZONE_CONTIG
 Items in this zone must be contiguous in physical address space.
 Items will follow normal alignment constraints and may span page boundaries
