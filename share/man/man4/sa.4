@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2021
+.Dd January 14, 2022
 .Dt SA 4
 .Os
 .Sh NAME
@@ -367,6 +367,9 @@ default timeouts or the timeouts recommended by the drive.
 To set timeouts after boot, the per-instance timeout values, for example:
 .Va kern.cam.sa.0.timeout.read ,
 are available as sysctl variables.
+.Pp
+If a tape drive arrives after boot, the global tunables or per-instance
+tunables that apply to the newly arrived drive will be used.
 .Pp
 Loader tunables:
 .Pp
