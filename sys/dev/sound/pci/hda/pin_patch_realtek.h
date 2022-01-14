@@ -554,6 +554,21 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				}
 			}, { }
 		}
+	}, { /**** CODEC: HDA_CODEC_ALC285 ****/
+		.id = HDA_CODEC_ALC285,
+		.patches = (struct model_pin_patch_t[]){
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(LENOVO_X120KH_SUBVENDOR),
+					PIN_SUBVENDOR(LENOVO_X120QD_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_STRING(33, "seq=15 as=1 color=Black ctype=1/8 device=Headphones loc=Left"),
+					{ }
+				}
+			}, { }
+		}
 	}, { /**** CODEC: HDA_CODEC_ALC286 ****/
 		.id = HDA_CODEC_ALC286,
 		.patches = (struct model_pin_patch_t[]){
