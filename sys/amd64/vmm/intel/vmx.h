@@ -32,6 +32,7 @@
 #define	_VMX_H_
 
 #include "vmcs.h"
+#include "x86.h"
 
 struct pmap;
 
@@ -134,6 +135,7 @@ struct vmx {
 	uint64_t	eptp;
 	struct vm	*vm;
 	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
+	struct vm_mtrr  mtrr[VM_MAXCPU];
 };
 CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, msr_bitmap) & PAGE_MASK) == 0);
