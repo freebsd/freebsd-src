@@ -136,6 +136,17 @@ set_config_value_node(nvlist_t *parent, const char *name, const char *value)
 }
 
 void
+set_config_value_node_if_unset(nvlist_t *const parent, const char *const name,
+    const char *const value)
+{
+	if (get_config_value_node(parent, name) != NULL) {
+		return;
+	}
+
+	set_config_value_node(parent, name, value);
+}
+
+void
 set_config_value(const char *path, const char *value)
 {
 	const char *name;
@@ -165,6 +176,16 @@ set_config_value(const char *path, const char *value)
 		errx(4, "Attempting to add value %s to existing node %s",
 		    value, path);
 	set_config_value_node(nvl, name, value);
+}
+
+void
+set_config_value_if_unset(const char *const path, const char *const value)
+{
+	if (get_config_value(path) != NULL) {
+		return;
+	}
+
+	set_config_value(path, value);
 }
 
 static const char *
