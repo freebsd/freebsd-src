@@ -256,7 +256,7 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 static void
 freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
-	struct sigframe4 sf, *sfp;
+	struct freebsd4_sigframe sf, *sfp;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
@@ -291,13 +291,13 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe4 *)((uintptr_t)td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size - sizeof(struct sigframe4));
+		sfp = (struct freebsd4_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size - sizeof(struct freebsd4_sigframe));
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
-		sfp = (struct sigframe4 *)regs->tf_esp - 1;
+		sfp = (struct freebsd4_sigframe *)regs->tf_esp - 1;
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
