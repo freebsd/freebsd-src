@@ -345,7 +345,7 @@ geli_io(struct geli_dev *gdev, geli_op_t enc, off_t offset, u_char *buf,
 		g_eli_key_fill(&gdev->sc, &gkey, keyno);
 
 		error = geliboot_crypt(gdev->sc.sc_ealgo, enc, pbuf, secsize,
-		    gkey.gek_key, gdev->sc.sc_ekeylen, iv, sizeof(iv));
+		    gkey.gek_key, gdev->sc.sc_ekeylen, iv);
 
 		if (error != 0) {
 			explicit_bzero(&gkey, sizeof(gkey));
