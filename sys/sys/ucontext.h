@@ -39,20 +39,6 @@
 
 #define	UCF_SWAPPED	0x00000001	/* Used by swapcontext(3). */
 
-#if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
-#if defined(__i386__)
-struct freebsd4_ucontext {
-	sigset_t	uc_sigmask;
-	struct freebsd4_mcontext uc_mcontext;
-	struct freebsd4_ucontext *uc_link;
-	stack_t		uc_stack;
-	int		__spare__[8];
-};
-#else	/* __i386__ */
-#define freebsd4_ucontext ucontext
-#endif	/* __i386__ */
-#endif	/* _KERNEL */
-
 #ifndef _KERNEL
 
 __BEGIN_DECLS

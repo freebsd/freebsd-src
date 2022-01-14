@@ -58,6 +58,14 @@ struct freebsd4_mcontext {
 	__register_t	mc_fpregs[28];	/* env87 + fpacc87 + u_long */
 	__register_t	__spare__[17];
 };
+
+struct freebsd4_ucontext {
+	sigset_t	uc_sigmask;
+	struct freebsd4_mcontext uc_mcontext;
+	struct freebsd4_ucontext *uc_link;
+	stack_t		uc_stack;
+	int		__spare__[8];
+};
 #endif
 
 #include <x86/ucontext.h>
