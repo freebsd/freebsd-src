@@ -332,9 +332,6 @@ ATF_TC_BODY(stat_socket, tc)
 	uint32_t iaddr;
 	int fd, flags;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/240621");
-
 	(void)memset(&st, 0, sizeof(struct stat));
 	(void)memset(&addr, 0, sizeof(struct sockaddr_in));
 
@@ -353,14 +350,14 @@ ATF_TC_BODY(stat_socket, tc)
 
 	errno = 0;
 
-	ATF_REQUIRE_ERRNO(EINPROGRESS,
-	    connect(fd, (struct sockaddr *)&addr,
-		sizeof(struct sockaddr_in)) == -1);
+	ATF_REQUIRE(connect(fd, (struct sockaddr *)&addr,
+	    sizeof(struct sockaddr_in)) == -1);
+	ATF_REQUIRE(errno == EINPROGRESS || errno == ECONNREFUSED);
 
 	errno = 0;
 
 	if (fstat(fd, &st) != 0 || errno != 0)
-		atf_tc_fail("fstat(2) failed for a EINPROGRESS socket");
+		atf_tc_fail("fstat(2) failed for a socket");
 
 	(void)close(fd);
 }
