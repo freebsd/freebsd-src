@@ -39,16 +39,16 @@
 #include <sys/sysctl.h>
 
 typedef struct enc_element {
-	uint8_t	 elm_idx;		/* index of element */
+	u_int	 elm_idx;		/* index of element */
 	uint8_t	 elm_type;		/* element type */
 	uint8_t	 subenclosure;		/* subenclosure id */
 	uint8_t	 type_elm_idx;		/* index of element within type */
 	uint8_t	 svalid;		/* enclosure information valid */
-	uint16_t priv;			/* private data, per object */
 	uint8_t	 encstat[4];		/* state && stats */
+	u_int	 physical_path_len;	/* Length of device path data. */
 	uint8_t *physical_path;		/* Device physical path data. */
-	u_int    physical_path_len;	/* Length of device path data. */
 	void    *elm_private;		/* per-type object data */
+	uint16_t priv;
 } enc_element_t;
 
 typedef enum {
