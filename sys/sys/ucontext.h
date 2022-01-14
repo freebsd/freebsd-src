@@ -43,7 +43,7 @@
 #if defined(__i386__)
 struct freebsd4_ucontext {
 	sigset_t	uc_sigmask;
-	struct mcontext4 uc_mcontext;
+	struct freebsd4_mcontext uc_mcontext;
 	struct freebsd4_ucontext *uc_link;
 	stack_t		uc_stack;
 	int		__spare__[8];
