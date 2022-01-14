@@ -178,7 +178,7 @@ struct ia32_sigframe {
 
 #ifdef COMPAT_43
 struct ia32_osiginfo {
-	struct ia32_sigcontext3 si_sc;
+	struct ia32_osigcontext si_sc;
 	int			si_signo;
 	int			si_code;
 	union sigval32		si_value;
