@@ -75,7 +75,7 @@ struct osigframe {
 #endif
 #ifdef COMPAT_FREEBSD4
 /* FreeBSD 4.x */
-struct sigframe4 {
+struct freebsd4_sigframe {
 	register_t	sf_signum;
 	register_t	sf_siginfo;	/* code or pointer to sf_si */
 	register_t	sf_ucontext;	/* points to sf_uc */
