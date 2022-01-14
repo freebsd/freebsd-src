@@ -34,7 +34,7 @@
 #define	_MACHINE_UCONTEXT_H_
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
-struct mcontext4 {
+struct freebsd4_mcontext {
 	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
 	__register_t	mc_gs;		/* machine state (struct trapframe) */
 	__register_t	mc_fs;
