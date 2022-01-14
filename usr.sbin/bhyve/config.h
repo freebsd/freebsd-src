@@ -100,10 +100,22 @@ void	set_config_value_node(nvlist_t *parent, const char *name,
     const char *value);
 
 /*
+ * Similar to set_config_value_node but only sets value if it's unset yet.
+ */
+void 	set_config_value_node_if_unset(nvlist_t *const parent,
+    const char *const name, const char *const value);
+
+/*
  * Similar to set_config_value_node but expects a full path to the
  * leaf node.
  */
 void	set_config_value(const char *path, const char *value);
+
+/*
+ * Similar to set_config_value but only sets the value if it's unset yet.
+ */
+void 	set_config_value_if_unset(const char *const path,
+    const char *const value);
 
 /* Convenience wrappers for boolean variables. */
 bool	get_config_bool(const char *path);
