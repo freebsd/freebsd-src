@@ -1051,6 +1051,7 @@ cache_fetch_bucket(uma_zone_t zone, uma_cache_t cache, int domain)
 {
 	uma_zone_domain_t zdom;
 	uma_bucket_t bucket;
+	smr_seq_t seq;
 
 	/*
 	 * Avoid the lock if possible.
@@ -1060,7 +1061,8 @@ cache_fetch_bucket(uma_zone_t zone, uma_cache_t cache, int domain)
 		return (NULL);
 
 	if ((cache_uz_flags(cache) & UMA_ZONE_SMR) != 0 &&
-	    !smr_poll(zone->uz_smr, zdom->uzd_seq, false))
+	    (seq = atomic_load_32(&zdom->uzd_seq)) != SMR_SEQ_INVALID &&
+	    !smr_poll(zone->uz_smr, seq, false))
 		return (NULL);
 
 	/*
