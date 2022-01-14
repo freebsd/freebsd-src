@@ -886,16 +886,6 @@ sdhci_fsl_fdt_attach(device_t dev)
 	sc->gpio = sdhci_fdt_gpio_setup(dev, &sc->slot);
 
 	/*
-	 * Pulse width detection is not reliable on some boards. Perform
-	 * workaround by clearing register's bit according to errata.
-	 */
-	if (sc->soc_data->errata & SDHCI_FSL_UNRELIABLE_PULSE_DET) {
-		val = RD4(sc, SDHCI_FSL_DLLCFG1);
-		val &= ~SDHCI_FSL_DLLCFG1_PULSE_STRETCH;
-		WR4(sc, SDHCI_FSL_DLLCFG1, val);
-	}
-
-	/*
 	 * Set the buffer watermark level to 128 words (512 bytes) for both
 	 * read and write. The hardware has a restriction that when the read or
 	 * write ready status is asserted, that means you can read exactly the
@@ -1026,6 +1016,16 @@ sdhci_fsl_fdt_reset(device_t dev, struct sdhci_slot *slot, uint8_t mask)
 		val = RD4(sc, SDHCI_FSL_TBCTL);
 		val &= ~SDHCI_FSL_TBCTL_TBEN;
 		WR4(sc, SDHCI_FSL_TBCTL, val);
+	}
+
+	/*
+	 * Pulse width detection is not reliable on some boards. Perform
+	 * workaround by clearing register's bit according to errata.
+	 */
+	if (sc->soc_data->errata & SDHCI_FSL_UNRELIABLE_PULSE_DET) {
+		val = RD4(sc, SDHCI_FSL_DLLCFG1);
+		val &= ~SDHCI_FSL_DLLCFG1_PULSE_STRETCH;
+		WR4(sc, SDHCI_FSL_DLLCFG1, val);
 	}
 
 	sc->flags &= ~SDHCI_FSL_HS400_DONE;
