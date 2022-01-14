@@ -1902,6 +1902,7 @@ static struct mtx vm_oom_ratelim_mtx;
 void
 vm_pageout_oom(int shortage)
 {
+	const char *reason;
 	struct proc *p, *bigproc;
 	vm_offset_t size, bigsize;
 	struct thread *td;
@@ -2014,11 +2015,25 @@ vm_pageout_oom(int shortage)
 		}
 	}
 	sx_sunlock(&allproc_lock);
+
 	if (bigproc != NULL) {
+		switch (shortage) {
+		case VM_OOM_MEM:
+			reason = "failed to reclaim memory";
+			break;
+		case VM_OOM_MEM_PF:
+			reason = "a thread waited too long to allocate a page";
+			break;
+		case VM_OOM_SWAPZ:
+			reason = "out of swap space";
+			break;
+		default:
+			panic("unknown OOM reason %d", shortage);
+		}
 		if (vm_panic_on_oom != 0 && --vm_panic_on_oom == 0)
-			panic("out of swap space");
+			panic("%s", reason);
 		PROC_LOCK(bigproc);
-		killproc(bigproc, "out of swap space");
+		killproc(bigproc, reason);
 		sched_nice(bigproc, PRIO_MIN);
 		_PRELE(bigproc);
 		PROC_UNLOCK(bigproc);
