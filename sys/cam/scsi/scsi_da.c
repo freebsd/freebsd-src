@@ -346,6 +346,7 @@ struct da_softc {
 	da_flags flags;
 	da_quirks quirks;
 	int	 minimum_cmd_size;
+	int	 mode_page;
 	int	 error_inject;
 	int	 trim_max_ranges;
 	int	 delete_available;	/* Delete methods possibly available */
@@ -2908,6 +2909,9 @@ daregister(struct cam_periph *periph, void *arg)
 	else
 		softc->minimum_cmd_size = 6;
 
+	/* On first PROBE_WP request all more pages, then adjust. */
+	softc->mode_page = SMS_ALL_PAGES_PAGE;
+
 	/* Predict whether device may support READ CAPACITY(16). */
 	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 &&
 	    (softc->quirks & DA_Q_NO_RC16) == 0) {
@@ -3501,7 +3505,7 @@ out:
 		void  *mode_buf;
 		int    mode_buf_len;
 
-		if (da_disable_wp_detection) {
+		if (da_disable_wp_detection || softc->mode_page < 0) {
 			if ((softc->flags & DA_FLAG_CAN_RC16) != 0)
 				softc->state = DA_STATE_PROBE_RC16;
 			else
@@ -3525,7 +3529,7 @@ out:
 				    /*tag_action*/ MSG_SIMPLE_Q_TAG,
 				    /*dbd*/ FALSE,
 				    /*pc*/ SMS_PAGE_CTRL_CURRENT,
-				    /*page*/ SMS_ALL_PAGES_PAGE,
+				    /*page*/ softc->mode_page,
 				    /*param_buf*/ mode_buf,
 				    /*param_len*/ mode_buf_len,
 				    /*minimum_cmd_size*/ softc->minimum_cmd_size,
@@ -4685,12 +4689,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 static void
 dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 {
-	struct scsi_mode_header_6 *mode_hdr6;
-	struct scsi_mode_header_10 *mode_hdr10;
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
 	u_int32_t  priority;
-	uint8_t dev_spec;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probewp\n"));
 
@@ -4708,18 +4709,31 @@ dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 		(unsigned long)csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK, periph,
 		done_ccb));
 
-	if (softc->minimum_cmd_size > 6) {
-		mode_hdr10 = (struct scsi_mode_header_10 *)csio->data_ptr;
-		dev_spec = mode_hdr10->dev_spec;
-	} else {
-		mode_hdr6 = (struct scsi_mode_header_6 *)csio->data_ptr;
-		dev_spec = mode_hdr6->dev_spec;
-	}
 	if (cam_ccb_status(done_ccb) == CAM_REQ_CMP) {
+		int len, off;
+		uint8_t dev_spec;
+
+		if (csio->cdb_len > 6) {
+			struct scsi_mode_header_10 *mh =
+			    (struct scsi_mode_header_10 *)csio->data_ptr;
+			len = 2 + scsi_2btoul(mh->data_length);
+			off = sizeof(*mh) + scsi_2btoul(mh->blk_desc_len);
+			dev_spec = mh->dev_spec;
+		} else {
+			struct scsi_mode_header_6 *mh =
+			    (struct scsi_mode_header_6 *)csio->data_ptr;
+			len = 1 + mh->data_length;
+			off = sizeof(*mh) + mh->blk_desc_len;
+			dev_spec = mh->dev_spec;
+		}
 		if ((dev_spec & 0x80) != 0)
 			softc->disk->d_flags |= DISKFLAG_WRITE_PROTECT;
 		else
 			softc->disk->d_flags &= ~DISKFLAG_WRITE_PROTECT;
+
+		/* Next time request only the first of returned mode pages. */
+		if (off < len && off < csio->dxfer_len - csio->resid)
+			softc->mode_page = csio->data_ptr[off] & SMPH_PC_MASK;
 	} else {
 		int error;
 
@@ -4736,6 +4750,9 @@ dadone_probewp(struct cam_periph *periph, union ccb *done_ccb)
 						 /*timeout*/0,
 						 /*getcount_only*/0);
 			}
+
+			/* We don't depend on it, so don't try again. */
+			softc->mode_page = -1;
 		}
 	}
 
