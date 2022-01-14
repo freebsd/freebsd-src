@@ -68,6 +68,6 @@ struct geli_dev {
 };
 
 int geliboot_crypt(u_int algo, geli_op_t  enc, u_char *data, size_t datasize,
-    const u_char *key, size_t keysize, u_char *iv, size_t ivlen);
+    const u_char *key, size_t keysize, u_char *iv);
 
 #endif /* _GELIBOOT_INTERNAL_H_ */
