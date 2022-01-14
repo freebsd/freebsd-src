@@ -88,7 +88,6 @@ struct ia32_ucontext {
 	uint32_t		__spare__[4];
 };
 
-#if defined(COMPAT_FREEBSD4)
 struct ia32_freebsd4_mcontext {
 	uint32_t	mc_onstack;		/* XXX - sigcontext compat. */
 	uint32_t	mc_gs;			/* machine state (struct trapframe) */
@@ -121,9 +120,7 @@ struct ia32_freebsd4_ucontext {
 	struct sigaltstack32	uc_stack;
 	uint32_t		__spare__[8];
 };
-#endif
 
-#ifdef COMPAT_43
 struct ia32_osigcontext {
 	uint32_t	sc_onstack;
 	uint32_t	sc_mask;
@@ -147,13 +144,11 @@ struct ia32_osigcontext {
 	uint32_t	sc_trapno;
 	uint32_t	sc_err;
 };
-#endif
 
 /*
  * Signal frames, arguments passed to application signal handlers.
  */
 
-#ifdef COMPAT_FREEBSD4
 struct ia32_freebsd4_sigframe {
 	uint32_t		sf_signum;
 	uint32_t		sf_siginfo;	/* code or pointer to sf_si */
@@ -163,7 +158,6 @@ struct ia32_freebsd4_sigframe {
 	struct ia32_freebsd4_ucontext	sf_uc;		/* = *sf_ucontext */
 	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
-#endif
 
 struct ia32_sigframe {
 	uint32_t		sf_signum;
@@ -176,7 +170,6 @@ struct ia32_sigframe {
 	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
-#ifdef COMPAT_43
 struct ia32_osiginfo {
 	struct ia32_osigcontext si_sc;
 	int			si_signo;
@@ -191,7 +184,6 @@ struct ia32_osigframe {
 	uint32_t		sf_ah;		/* action/handler pointer */
 	struct ia32_osiginfo	sf_siginfo;
 };
-#endif
 
 struct ksiginfo;
 struct image_params;
