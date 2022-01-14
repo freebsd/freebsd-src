@@ -994,6 +994,117 @@ atomic_swap_64(volatile u_long *p, u_long v)
 #define	atomic_swap_ptr(p,v)	atomic_swap_32((volatile u_int *)(p), v)
 #endif
 
+static __inline int
+atomic_testandset_int(volatile u_int *p, u_int v)
+{
+	u_int m = (1 << (v & 0x1f));
+	u_int res;
+	u_int tmp;
+
+	__asm __volatile(
+	"1:	lwarx	%0,0,%3\n"
+	"	and.	%1,%0,%4\n"
+	"	or	%0,%0,%4\n"
+	"	stwcx.	%0,0,%3\n"
+	"	bne-	1b\n"
+	: "=&r"(tmp), "=&r"(res), "+m"(*p)
+	: "r"(p), "r"(m)
+	: "cr0", "memory");
+
+	return (res != 0);
+}
+
+static __inline int
+atomic_testandclear_int(volatile u_int *p, u_int v)
+{
+	u_int m = (1 << (v & 0x1f));
+	u_int res;
+	u_int tmp;
+
+	__asm __volatile(
+	"1:	lwarx	%0,0,%3\n"
+	"	and.	%1,%0,%4\n"
+	"	andc	%0,%0,%4\n"
+	"	stwcx.	%0,0,%3\n"
+	"	bne-	1b\n"
+	: "=&r"(tmp), "=&r"(res), "+m"(*p)
+	: "r"(p), "r"(m)
+	: "cr0", "memory");
+
+	return (res != 0);
+}
+
+#ifdef __powerpc64__
+static __inline int
+atomic_testandset_long(volatile u_long *p, u_int v)
+{
+	u_long m = (1 << (v & 0x3f));
+	u_long res;
+	u_long tmp;
+
+	__asm __volatile(
+	"1:	ldarx	%0,0,%3\n"
+	"	and.	%1,%0,%4\n"
+	"	or	%0,%0,%4\n"
+	"	stdcx.	%0,0,%3\n"
+	"	bne-	1b\n"
+	: "=&r"(tmp), "=&r"(res), "+m"(*(volatile u_long *)p)
+	: "r"(p), "r"(m)
+	: "cr0", "memory");
+
+	return (res != 0);
+}
+
+static __inline int
+atomic_testandclear_long(volatile u_long *p, u_int v)
+{
+	u_long m = (1 << (v & 0x3f));
+	u_long res;
+	u_long tmp;
+
+	__asm __volatile(
+	"1:	ldarx	%0,0,%3\n"
+	"	and.	%1,%0,%4\n"
+	"	andc	%0,%0,%4\n"
+	"	stdcx.	%0,0,%3\n"
+	"	bne-	1b\n"
+	: "=&r"(tmp), "=&r"(res), "+m"(*p)
+	: "r"(p), "r"(m)
+	: "cr0", "memory");
+
+	return (res != 0);
+}
+#else
+static __inline int
+atomic_testandset_long(volatile u_long *p, u_int v)
+{
+	return (atomic_testandset_int((volatile u_int *)p, v);
+}
+
+static __inline int
+atomic_testandclear_long(volatile u_long *p, u_int v)
+{
+	return (atomic_testandclear_int((volatile u_int *)p, v);
+}
+#endif
+
+#define	atomic_testandclear_32	atomic_testandclear_int
+#define	atomic_testandset_32	atomic_testandset_int
+
+static __inline int
+atomic_testandset_acq_long(volatile u_long *p, u_int v)
+{
+	u_int a = atomic_testandset_long(p, v);
+	__ATOMIC_ACQ();
+	return (a);
+}
+
+#define	atomic_testandclear_int		atomic_testandclear_int
+#define	atomic_testandset_int		atomic_testandset_int
+#define	atomic_testandclear_long	atomic_testandclear_long
+#define	atomic_testandset_long		atomic_testandset_long
+#define	atomic_testandset_acq_long	atomic_testandset_acq_long
+
 static __inline void
 atomic_thread_fence_acq(void)
 {
