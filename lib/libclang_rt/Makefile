@@ -30,6 +30,16 @@ SUBDIR+=	xray-fdr
 SUBDIR+=	xray-profiling
 .endif # amd64
 
+.if ${MACHINE_CPUARCH} == "riscv"
+SUBDIR+=	asan
+SUBDIR+=	asan-preinit
+SUBDIR+=	asan_cxx
+SUBDIR+=	asan_dynamic
+SUBDIR+=	ubsan_minimal
+SUBDIR+=	ubsan_standalone
+SUBDIR+=	ubsan_standalone_cxx
+.endif # riscv
+
 SUBDIR+=	profile
 
 SUBDIR_PARALLEL=
