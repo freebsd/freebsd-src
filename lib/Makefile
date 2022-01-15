@@ -187,7 +187,7 @@ SUBDIR.${MK_STATS}+=	libstats
     ${MACHINE_CPUARCH} == "powerpc")
 _libclang_rt=	libclang_rt
 .elif (${MK_ASAN} != "no" || ${MK_UBSAN} != "no") && make(all)
-.error "Requested build with sanitizers but cannot build runtime libraries!"
+.error Requested build with sanitizers but cannot build runtime libraries!
 .endif
 
 .if ${MK_CXX} != "no"

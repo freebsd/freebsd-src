@@ -65,7 +65,7 @@ RANLIBFLAGS:=
 # MacOS ships /usr/lib/libarchive.dylib but doesn't provide the headers
 CFLAGS+=	-idirafter ${SRCTOP}/contrib/libarchive/libarchive
 .else
-.error "Unsupported build OS: ${.MAKE.OS}"
+.error Unsupported build OS: ${.MAKE.OS}
 .endif
 .endif # ${.MAKE.OS} != "FreeBSD"
 

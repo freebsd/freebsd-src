@@ -34,7 +34,7 @@ _MACOS_SDK_DIR=${_XCODE_ROOT}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sd
 .endif
 HOST_INCLUDE_ROOT=${_MACOS_SDK_DIR}/usr/include
 .if !exists(${HOST_INCLUDE_ROOT}/stdio.h)
-.error "You must install the macOS SDK (try xcode-select --install)"
+.error You must install the macOS SDK (try xcode-select --install)
 .endif
 .else
 HOST_INCLUDE_ROOT=/usr/include
