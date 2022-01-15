@@ -148,7 +148,7 @@ typedef struct {
 	int		faults;
 	u_int		caps;
 	struct cam_periph *periph;
-} probe_softc;
+} aprobe_softc;
 
 static struct ata_quirk_entry ata_quirk_table[] =
 {
@@ -278,7 +278,7 @@ static cam_status
 aproberegister(struct cam_periph *periph, void *arg)
 {
 	union ccb *request_ccb;	/* CCB representing the probe request */
-	probe_softc *softc;
+	aprobe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
 	if (request_ccb == NULL) {
@@ -287,7 +287,7 @@ aproberegister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (probe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_ZERO | M_NOWAIT);
+	softc = (aprobe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_ZERO | M_NOWAIT);
 
 	if (softc == NULL) {
 		printf("proberegister: Unable to probe new device. "
@@ -314,9 +314,9 @@ static void
 aprobeschedule(struct cam_periph *periph)
 {
 	union ccb *ccb;
-	probe_softc *softc;
+	aprobe_softc *softc;
 
-	softc = (probe_softc *)periph->softc;
+	softc = (aprobe_softc *)periph->softc;
 	ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 
 	if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) ||
@@ -340,14 +340,14 @@ aprobestart(struct cam_periph *periph, union ccb *start_ccb)
 	struct ccb_trans_settings cts;
 	struct ccb_ataio *ataio;
 	struct ccb_scsiio *csio;
-	probe_softc *softc;
+	aprobe_softc *softc;
 	struct cam_path *path;
 	struct ata_params *ident_buf;
 	u_int oif;
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("aprobestart\n"));
 
-	softc = (probe_softc *)periph->softc;
+	softc = (aprobe_softc *)periph->softc;
 	path = start_ccb->ccb_h.path;
 	ataio = &start_ccb->ataio;
 	csio = &start_ccb->csio;
@@ -745,7 +745,7 @@ aprobedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_trans_settings cts;
 	struct ata_params *ident_buf;
 	struct scsi_inquiry_data *inq_buf;
-	probe_softc *softc;
+	aprobe_softc *softc;
 	struct cam_path *path;
 	cam_status status;
 	u_int32_t  priority;
@@ -757,7 +757,7 @@ aprobedone(struct cam_periph *periph, union ccb *done_ccb)
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("aprobedone\n"));
 
-	softc = (probe_softc *)periph->softc;
+	softc = (aprobe_softc *)periph->softc;
 	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
 	ident_buf = &path->device->ident_data;
@@ -1605,9 +1605,9 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		xpt_path_lock(path);
 	if ((old_periph = cam_periph_find(path, "aprobe")) != NULL) {
 		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
-			probe_softc *softc;
+			aprobe_softc *softc;
 
-			softc = (probe_softc *)old_periph->softc;
+			softc = (aprobe_softc *)old_periph->softc;
 			TAILQ_INSERT_TAIL(&softc->request_ccbs,
 				&request_ccb->ccb_h, periph_links.tqe);
 			softc->restart = 1;
