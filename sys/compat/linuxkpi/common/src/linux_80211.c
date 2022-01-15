@@ -779,6 +779,12 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	if (vif->bss_conf.beacon_int < 16)
 		vif->bss_conf.beacon_int = 16;
 	bss_changed |= BSS_CHANGED_BEACON_INT;
+	vif->bss_conf.dtim_period = vap->iv_dtim_period;
+	bss_changed |= BSS_CHANGED_BEACON_INFO;
+	vif->bss_conf.sync_dtim_count = vap->iv_dtim_count;
+	vif->bss_conf.sync_tsf = le64toh(ni->ni_tstamp.tsf);
+	/* vif->bss_conf.sync_device_ts = set in linuxkpi_ieee80211_rx. */
+
 	/* Should almost assert it is this. */
 	vif->bss_conf.assoc = false;
 	vif->bss_conf.aid = 0;
@@ -3077,7 +3083,6 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_rx_stats rx_stats;
 	struct ieee80211_node *ni;
 	struct ieee80211vap *vap;
-	struct ieee80211_frame_min *wh;
 	struct ieee80211_hdr *hdr;
 	struct lkpi_sta *lsta;
 	int i, offset, ok, type;
@@ -3127,11 +3132,11 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	/* Implement a dump_rxcb() !!! */
 	if (debug_80211 & D80211_TRACE_RX)
-		printf("TRACE %s: RXCB: %u %u %u, %#0x, %u, %#0x, %#0x, "
+		printf("TRACE %s: RXCB: %ju %ju %u, %#0x, %u, %#0x, %#0x, "
 		    "%u band %u, %u %u %u %u, %u, %#x %#x %#x %#x %u %u %u\n",
 			__func__,
-			rx_status->boottime_ns,
-			rx_status->mactime,
+			(uintmax_t)rx_status->boottime_ns,
+			(uintmax_t)rx_status->mactime,
 			rx_status->device_timestamp,
 			rx_status->flag,
 			rx_status->freq,
@@ -3186,6 +3191,8 @@ no_trace_beacons:
 		lsta = STA_TO_LSTA(sta);
 		ni = ieee80211_ref_node(lsta->ni);
 	} else {
+		struct ieee80211_frame_min *wh;
+
 		wh = mtod(m, struct ieee80211_frame_min *);
 		ni = ieee80211_find_rxnode(ic, wh);
 		if (ni != NULL)
@@ -3203,6 +3210,31 @@ no_trace_beacons:
 
 	if (debug_80211 & D80211_TRACE_RX)
 		printf("TRACE %s: sta %p lsta %p ni %p vap %p\n", __func__, sta, lsta, ni, vap);
+
+	if (ni != NULL && vap != NULL &&
+	    ieee80211_is_beacon(hdr->frame_control) &&
+	    rx_status->device_timestamp > 0 &&
+	    m->m_pkthdr.len >= sizeof(struct ieee80211_frame)) {
+		struct lkpi_vif *lvif;
+		struct ieee80211_vif *vif;
+		struct ieee80211_frame *wh;
+
+		wh = mtod(m, struct ieee80211_frame *);
+		if (!IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_bssid))
+			goto skip_device_ts;
+
+		lvif = VAP_TO_LVIF(vap);
+		vif = LVIF_TO_VIF(lvif);
+
+		IMPROVE("TIMING_BEACON_ONLY?");
+		/* mac80211 specific (not net80211) so keep it here. */
+		vif->bss_conf.sync_device_ts = rx_status->device_timestamp;
+		/*
+		 * net80211 should take care of the other information (sync_tsf,
+		 * sync_dtim_count) as otherwise we need to parse the beacon.
+		 */
+	}
+skip_device_ts:
 
 	if (vap != NULL && vap->iv_state > IEEE80211_S_INIT &&
 	    ieee80211_radiotap_active_vap(vap)) {
