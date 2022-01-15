@@ -3589,11 +3589,11 @@ linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *vif)
 	vap = LVIF_TO_VAP(lvif);
 
 	/*
-	 * Go to scan; otherwise we need to elaborately check state and
+	 * Go to init; otherwise we need to elaborately check state and
 	 * handle accordingly, e.g., if in RUN we could call iv_bmiss.
 	 * Let the statemachine handle all neccessary changes.
 	 */
-	nstate = IEEE80211_S_SCAN;
+	nstate = IEEE80211_S_INIT;
 	arg = 0;
 
 	if (debug_80211 & D80211_TRACE)
