@@ -38,7 +38,7 @@ PROGS+=		h_raw
 LDADD.h_raw+=	${SANITIZER_LDFLAGS}
 .else
 .if make(all)
-.info "Could not find runtime library ${_libclang_rt_ubsan}, skipping h_raw"
+.info Could not find runtime library ${_libclang_rt_ubsan}, skipping h_raw
 .endif
 .endif
 .endif

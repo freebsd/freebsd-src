@@ -15,7 +15,7 @@ LINKS=	${BINDIR}/mandoc ${BINDIR}/whatis \
 	${BINDIR}/mandoc ${BINDIR}/makewhatis \
 	${BINDIR}/mandoc ${BINDIR}/apropos
 .elif defined(BOOTSTRAPPING)
-.error "MK_MAN_UTILS should be set to yes when bootstrapping"
+.error MK_MAN_UTILS should be set to yes when bootstrapping
 .endif
 
 LIBMAN_SRCS=	man.c \
