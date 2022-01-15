@@ -129,11 +129,13 @@ __fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 	}
 
 	while (resid > (r = fp->_r)) {
-		(void)memcpy((void *)p, (void *)fp->_p, (size_t)r);
-		fp->_p += r;
-		/* fp->_r = 0 ... done in __srefill */
-		p += r;
-		resid -= r;
+		if (r != 0) {
+			(void)memcpy((void *)p, (void *)fp->_p, (size_t)r);
+			fp->_p += r;
+			/* fp->_r = 0 ... done in __srefill */
+			p += r;
+			resid -= r;
+		}
 		if (__srefill(fp)) {
 			/* no more input: return partial result */
 			return ((total - resid) / size);
