@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2012-2021 Marko Zec
+ * Copyright (c) 2012-2022 Marko Zec
  * Copyright (c) 2005, 2018 University of Zagreb
  * Copyright (c) 2005 International Computer Science Institute
  *
@@ -78,7 +78,6 @@ CTASSERT(DXR_TRIE_BITS >= 16 && DXR_TRIE_BITS <= 24);
 #else
 #define	DXR_D			(DXR_TRIE_BITS - 1)
 #endif
-#define	DXR_X			(DXR_TRIE_BITS - DXR_D)
 
 #define	D_TBL_SIZE		(1 << DXR_D)
 #define	DIRECT_TBL_SIZE		(1 << DXR_TRIE_BITS)
@@ -211,9 +210,6 @@ struct dxr_aux {
 
 struct dxr {
 	/* Lookup tables */
-	uint16_t		d_shift;
-	uint16_t		x_shift;
-	uint32_t		x_mask;
 	void			*d;
 	void			*x;
 	void			*r;
@@ -224,6 +220,9 @@ struct dxr {
 	struct fib_data		*fd;
 	struct epoch_context	epoch_ctx;
 	uint32_t		fibnum;
+	uint16_t		d_shift;
+	uint16_t		x_shift;
+	uint32_t		x_mask;
 };
 
 static MALLOC_DEFINE(M_DXRLPM, "dxr", "DXR LPM");
@@ -234,46 +233,6 @@ uma_zone_t trie_zone;
 
 VNET_DEFINE_STATIC(int, frag_limit) = 100;
 #define	V_frag_limit	VNET(frag_limit)
-
-SYSCTL_DECL(_net_route_algo);
-SYSCTL_NODE(_net_route_algo, OID_AUTO, dxr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "DXR tunables");
-
-static int
-sysctl_dxr_frag_limit(SYSCTL_HANDLER_ARGS)
-{
-	char buf[8];
-	int error, new, i;
-
-	snprintf(buf, sizeof(buf), "%d.%02d%%", V_frag_limit / 100,
-	    V_frag_limit % 100);
-	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (!isdigit(*buf) && *buf != '.')
-		return (EINVAL);
-	for (i = 0, new = 0; isdigit(buf[i]) && i < sizeof(buf); i++)
-		new = new * 10 + buf[i] - '0';
-	new *= 100;
-	if (buf[i++] == '.') {
-		if (!isdigit(buf[i]))
-			return (EINVAL);
-		new += (buf[i++] - '0') * 10;
-		if (isdigit(buf[i]))
-			new += buf[i++] - '0';
-	}
-	if (new > 1000)
-		return (EINVAL);
-	V_frag_limit = new;
-	snprintf(buf, sizeof(buf), "%d.%02d%%", V_frag_limit / 100,
-	    V_frag_limit % 100);
-	return (0);
-}
-
-SYSCTL_PROC(_net_route_algo_dxr, OID_AUTO, frag_limit,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_VNET,
-    0, 0, sysctl_dxr_frag_limit, "A",
-    "Fragmentation threshold to full rebuild");
 
 /* Binary search for a matching address range */
 #define	DXR_LOOKUP_STAGE					\
@@ -290,35 +249,14 @@ SYSCTL_PROC(_net_route_algo_dxr, OID_AUTO, frag_limit,
 		return (range[lowerbound].nexthop);
 
 static int
-dxr_lookup(struct dxr *dxr, uint32_t dst)
+range_lookup(struct range_entry_long *rt, struct direct_entry de, uint32_t dst)
 {
-#ifdef DXR2
-	uint16_t *dt = dxr->d;
-	struct direct_entry *xt = dxr->x;
-	int xi;
-#else
-	struct direct_entry *dt = dxr->d;
-#endif
-	struct direct_entry de;
-	struct range_entry_long	*rt;
 	uint32_t base;
 	uint32_t upperbound;
 	uint32_t middle;
 	uint32_t lowerbound;
 	uint32_t masked_dst;
 
-#ifdef DXR2
-	xi = (dt[dst >> dxr->d_shift] << dxr->x_shift) +
-	    ((dst >> DXR_RANGE_SHIFT) & dxr->x_mask);
-	de = xt[xi];
-#else
-	de = dt[dst >> DXR_RANGE_SHIFT];
-#endif
-
-	if (__predict_true(de.fragments == FRAGS_MARK_HIT))
-		return (de.base);
-
-	rt = dxr->r;
 	base = de.base;
 	lowerbound = 0;
 	masked_dst = dst & DXR_RANGE_MASK;
@@ -353,6 +291,65 @@ dxr_lookup(struct dxr *dxr, uint32_t dst)
 		DXR_LOOKUP_STAGE
 		DXR_LOOKUP_STAGE
 	}
+}
+
+#define DXR_LOOKUP_DEFINE(D)						\
+	static int inline						\
+	dxr_lookup_##D(struct dxr *dxr, uint32_t dst)			\
+	{								\
+		struct direct_entry de;					\
+		uint16_t *dt = dxr->d;					\
+		struct direct_entry *xt = dxr->x;			\
+									\
+		de = xt[(dt[dst >> (32 - (D))] << (DXR_TRIE_BITS - (D))) \
+		    + ((dst >> DXR_RANGE_SHIFT) &			\
+		    (0xffffffffU >> (32 - DXR_TRIE_BITS + (D))))];	\
+		if (__predict_true(de.fragments == FRAGS_MARK_HIT))	\
+			return (de.base);				\
+		return (range_lookup(dxr->r, de, dst));			\
+	}								\
+									\
+	static struct nhop_object *					\
+	dxr_fib_lookup_##D(void *algo_data,				\
+	    const struct flm_lookup_key key, uint32_t scopeid __unused)	\
+	{								\
+		struct dxr *dxr = algo_data;				\
+									\
+		return (dxr->nh_tbl[dxr_lookup_##D(dxr,			\
+		    ntohl(key.addr4.s_addr))]);				\
+	}
+
+#ifdef DXR2
+#if DXR_TRIE_BITS > 16
+DXR_LOOKUP_DEFINE(16)
+#endif
+DXR_LOOKUP_DEFINE(15)
+DXR_LOOKUP_DEFINE(14)
+DXR_LOOKUP_DEFINE(13)
+DXR_LOOKUP_DEFINE(12)
+DXR_LOOKUP_DEFINE(11)
+DXR_LOOKUP_DEFINE(10)
+DXR_LOOKUP_DEFINE(9)
+#endif /* DXR2 */
+
+static int inline
+dxr_lookup(struct dxr *dxr, uint32_t dst)
+{
+	struct direct_entry de;
+#ifdef DXR2
+	uint16_t *dt = dxr->d;
+	struct direct_entry *xt = dxr->x;
+
+	de = xt[(dt[dst >> dxr->d_shift] << dxr->x_shift) +
+	    ((dst >> DXR_RANGE_SHIFT) & dxr->x_mask)];
+#else /* !DXR2 */
+	struct direct_entry *dt = dxr->d;
+
+	de = dt[dst >> DXR_RANGE_SHIFT];
+#endif /* !DXR2 */
+	if (__predict_true(de.fragments == FRAGS_MARK_HIT))
+		return (de.base);
+	return (range_lookup(dxr->r, de, dst));
 }
 
 static void
@@ -1111,11 +1108,8 @@ dxr_fib_lookup(void *algo_data, const struct flm_lookup_key key,
     uint32_t scopeid)
 {
 	struct dxr *dxr = algo_data;
-	uint32_t nh;
 
-	nh = dxr_lookup(dxr, ntohl(key.addr4.s_addr));
-
-	return (dxr->nh_tbl[nh]);
+	return (dxr->nh_tbl[dxr_lookup(dxr, ntohl(key.addr4.s_addr))]);
 }
 
 static enum flm_op_result
@@ -1183,6 +1177,35 @@ epoch_dxr_destroy(epoch_context_t ctx)
 	dxr_destroy(dxr);
 }
 
+static void *
+choose_lookup_fn(struct dxr_aux *da)
+{
+
+#ifdef DXR2
+	switch (da->d_bits) {
+#if DXR_TRIE_BITS > 16
+	case 16:
+		return (dxr_fib_lookup_16);
+#endif
+	case 15:
+		return (dxr_fib_lookup_15);
+	case 14:
+		return (dxr_fib_lookup_14);
+	case 13:
+		return (dxr_fib_lookup_13);
+	case 12:
+		return (dxr_fib_lookup_12);
+	case 11:
+		return (dxr_fib_lookup_11);
+	case 10:
+		return (dxr_fib_lookup_10);
+	case 9:
+		return (dxr_fib_lookup_9);
+	}
+#endif /* DXR2 */
+	return (dxr_fib_lookup);
+}
+
 static enum flm_op_result
 dxr_dump_end(void *data, struct fib_dp *dp)
 {
@@ -1203,7 +1226,7 @@ dxr_dump_end(void *data, struct fib_dp *dp)
 	if (dxr->d == NULL)
 		return (FLM_REBUILD);
 
-	dp->f = dxr_fib_lookup;
+	dp->f = choose_lookup_fn(da);
 	dp->arg = dxr;
 
 	return (FLM_SUCCESS);
@@ -1300,7 +1323,7 @@ dxr_change_rib_batch(struct rib_head *rnh, struct fib_change_queue *q,
 		return (FLM_REBUILD);
 	}
 
-	new_dp.f = dxr_fib_lookup;
+	new_dp.f = choose_lookup_fn(da);
 	new_dp.arg = new_dxr;
 	if (fib_set_datapath_ptr(dxr->fd, &new_dp)) {
 		fib_set_algo_ptr(dxr->fd, new_dxr);
@@ -1319,6 +1342,46 @@ dxr_get_pref(const struct rib_rtable_info *rinfo)
 	/* Below bsearch4 up to 10 prefixes. Always supersedes dpdk_lpm4. */
 	return (251);
 }
+
+SYSCTL_DECL(_net_route_algo);
+SYSCTL_NODE(_net_route_algo, OID_AUTO, dxr, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "DXR tunables");
+
+static int
+sysctl_dxr_frag_limit(SYSCTL_HANDLER_ARGS)
+{
+	char buf[8];
+	int error, new, i;
+
+	snprintf(buf, sizeof(buf), "%d.%02d%%", V_frag_limit / 100,
+	    V_frag_limit % 100);
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (!isdigit(*buf) && *buf != '.')
+		return (EINVAL);
+	for (i = 0, new = 0; isdigit(buf[i]) && i < sizeof(buf); i++)
+		new = new * 10 + buf[i] - '0';
+	new *= 100;
+	if (buf[i++] == '.') {
+		if (!isdigit(buf[i]))
+			return (EINVAL);
+		new += (buf[i++] - '0') * 10;
+		if (isdigit(buf[i]))
+			new += buf[i++] - '0';
+	}
+	if (new > 1000)
+		return (EINVAL);
+	V_frag_limit = new;
+	snprintf(buf, sizeof(buf), "%d.%02d%%", V_frag_limit / 100,
+	    V_frag_limit % 100);
+	return (0);
+}
+
+SYSCTL_PROC(_net_route_algo_dxr, OID_AUTO, frag_limit,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_VNET,
+    0, 0, sysctl_dxr_frag_limit, "A",
+    "Fragmentation threshold to full rebuild");
 
 static struct fib_lookup_module fib_dxr_mod = {
 	.flm_name = "dxr",
