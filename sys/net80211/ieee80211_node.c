@@ -2619,9 +2619,10 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 }
 
 void
-ieee80211_dump_node(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
+ieee80211_dump_node(struct ieee80211_node_table *nt __unused,
+    struct ieee80211_node *ni)
 {
-	printf("0x%p: mac %s refcnt %d\n", ni,
+	printf("%p: mac %s refcnt %d\n", ni,
 		ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni));
 	printf("\tauthmode %u flags 0x%x\n",
 		ni->ni_authmode, ni->ni_flags);
