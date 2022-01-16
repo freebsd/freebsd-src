@@ -713,6 +713,38 @@ unlock_mp:
 }
 
 /*
+ * Check if the object is active.  Non-anonymous swap objects are
+ * always referenced by the owner, for them require ref_count > 1 in
+ * order to ignore the ownership ref.
+ *
+ * Perform an unsynchronized object ref count check.  While
+ * the page lock ensures that the page is not reallocated to
+ * another object, in particular, one with unmanaged mappings
+ * that cannot support pmap_ts_referenced(), two races are,
+ * nonetheless, possible:
+ * 1) The count was transitioning to zero, but we saw a non-
+ *    zero value.  pmap_ts_referenced() will return zero
+ *    because the page is not mapped.
+ * 2) The count was transitioning to one, but we saw zero.
+ *    This race delays the detection of a new reference.  At
+ *    worst, we will deactivate and reactivate the page.
+ */
+static bool
+vm_pageout_object_act(vm_object_t object)
+{
+	return (object->ref_count >
+	    ((object->flags & (OBJ_SWAP | OBJ_ANON)) == OBJ_SWAP ? 1 : 0));
+}
+
+static int
+vm_pageout_page_ts_referenced(vm_object_t object, vm_page_t m)
+{
+	if (!vm_pageout_object_act(object))
+		return (0);
+	return (pmap_ts_referenced(m));
+}
+
+/*
  * Attempt to launder the specified number of pages.
  *
  * Returns the number of pages successfully laundered.
@@ -806,7 +838,7 @@ scan:
 		if (vm_page_none_valid(m))
 			goto free_page;
 
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		refs = vm_pageout_page_ts_referenced(object, m);
 
 		for (old = vm_page_astate_load(m);;) {
 			/*
@@ -826,7 +858,7 @@ scan:
 			}
 			if (act_delta == 0) {
 				;
-			} else if (object->ref_count != 0) {
+			} else if (vm_pageout_object_act(object)) {
 				/*
 				 * Increase the activation count if the page was
 				 * referenced while in the laundry queue.  This
@@ -1263,20 +1295,8 @@ act_scan:
 		 * Test PGA_REFERENCED after calling pmap_ts_referenced() so
 		 * that a reference from a concurrently destroyed mapping is
 		 * observed here and now.
-		 *
-		 * Perform an unsynchronized object ref count check.  While
-		 * the page lock ensures that the page is not reallocated to
-		 * another object, in particular, one with unmanaged mappings
-		 * that cannot support pmap_ts_referenced(), two races are,
-		 * nonetheless, possible:
-		 * 1) The count was transitioning to zero, but we saw a non-
-		 *    zero value.  pmap_ts_referenced() will return zero
-		 *    because the page is not mapped.
-		 * 2) The count was transitioning to one, but we saw zero.
-		 *    This race delays the detection of a new reference.  At
-		 *    worst, we will deactivate and reactivate the page.
 		 */
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		refs = vm_pageout_page_ts_referenced(object, m);
 
 		old = vm_page_astate_load(m);
 		do {
@@ -1526,7 +1546,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int page_shortage)
 		if (vm_page_none_valid(m))
 			goto free_page;
 
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		refs = vm_pageout_page_ts_referenced(object, m);
 
 		for (old = vm_page_astate_load(m);;) {
 			/*
@@ -1546,7 +1566,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int page_shortage)
 			}
 			if (act_delta == 0) {
 				;
-			} else if (object->ref_count != 0) {
+			} else if (vm_pageout_object_act(object)) {
 				/*
 				 * Increase the activation count if the
 				 * page was referenced while in the
@@ -1584,7 +1604,7 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int page_shortage)
 		 * mappings allow write access, then the page may still be
 		 * modified until the last of those mappings are removed.
 		 */
-		if (object->ref_count != 0) {
+		if (vm_pageout_object_act(object)) {
 			vm_page_test_dirty(m);
 			if (m->dirty == 0 && !vm_page_try_remove_all(m))
 				goto skip_page;
