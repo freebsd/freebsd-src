@@ -1970,6 +1970,8 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	int			 rs_num;
 	int			 error = 0;
 
+	mtx_init(&rule->rpool.mtx, "pf_krule_pool", NULL, MTX_DEF);
+
 	if ((rule->return_icmp >> 8) > ICMP_MAXTYPE) {
 		error = EINVAL;
 		goto errout_unlocked;
@@ -2110,7 +2112,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	    rule, entries);
 	ruleset->rules[rs_num].inactive.rcount++;
 
-	mtx_init(&rule->rpool.mtx, "pf_krule_pool", NULL, MTX_DEF);
 	PF_RULES_WUNLOCK();
 
 	return (0);
