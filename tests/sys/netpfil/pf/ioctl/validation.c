@@ -832,6 +832,44 @@ ATF_TC_CLEANUP(tag, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(rpool_mtx);
+ATF_TC_HEAD(rpool_mtx, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(rpool_mtx, tc)
+{
+	struct pfioc_rule rule;
+
+	COMMON_HEAD();
+
+	memset(&rule, 0, sizeof(rule));
+
+	rule.ticket = 0;
+	rule.pool_ticket = 0;
+	rule.anchor[0] = 0;
+
+	rule.rule.return_icmp = 0;
+	bzero(&rule.rule.src, sizeof(rule.rule.src));
+	bzero(&rule.rule.dst, sizeof(rule.rule.dst));
+
+	rule.rule.ifname[0] = 0;
+	rule.rule.action = 0;
+	rule.rule.rtableid = 0;
+
+	rule.rule.tagname[0] = 0;
+	rule.rule.action = 42;
+
+	ioctl(dev, DIOCADDRULE, &rule);
+}
+
+ATF_TC_CLEANUP(rpool_mtx, tc)
+{
+	COMMON_CLEANUP();
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, addtables);
@@ -854,6 +892,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, commit);
 	ATF_TP_ADD_TC(tp, getsrcnodes);
 	ATF_TP_ADD_TC(tp, tag);
+	ATF_TP_ADD_TC(tp, rpool_mtx);
 
 	return (atf_no_error());
 }
