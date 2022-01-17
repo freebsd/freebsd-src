@@ -160,19 +160,18 @@ static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
-	int error;
+	vm_offset_t ps_strings;
 
 	p = curproc;
 #ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		unsigned int val;
-		val = (unsigned int)p->p_sysent->sv_psstrings;
-		error = SYSCTL_OUT(req, &val, sizeof(val));
-	} else
+		val = (unsigned int)PROC_PS_STRINGS(p);
+		return (SYSCTL_OUT(req, &val, sizeof(val)));
+	}
 #endif
-		error = SYSCTL_OUT(req, &p->p_sysent->sv_psstrings,
-		   sizeof(p->p_sysent->sv_psstrings));
-	return error;
+	ps_strings = PROC_PS_STRINGS(p);
+	return (SYSCTL_OUT(req, &ps_strings, sizeof(ps_strings)));
 }
 
 static int
@@ -1669,9 +1668,8 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	p = imgp->proc;
 	sysent = p->p_sysent;
 
-	arginfo = (struct ps_strings *)sysent->sv_psstrings;
-	destp =	(uintptr_t)arginfo;
-	imgp->ps_strings = arginfo;
+	destp =	PROC_PS_STRINGS(p);
+	arginfo = imgp->ps_strings = (void *)destp;
 
 	/*
 	 * Install sigcode.

@@ -266,7 +266,7 @@ setup_lcall_gate(void)
 	bzero(&uap, sizeof(uap));
 	uap.start = 0;
 	uap.num = 1;
-	lcall_addr = curproc->p_sysent->sv_psstrings -
+	lcall_addr = PROC_PS_STRINGS(curproc) -
 	    (_binary_elf_vdso32_so_1_end - _binary_elf_vdso32_so_1_start) +
 	    VDSO_LCALL_TRAMP_OFFSET;
 	bzero(&desc, sizeof(desc));

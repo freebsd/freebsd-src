@@ -27,7 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/exec.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -41,6 +42,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/freebsd32/freebsd32_signal.h>
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 
@@ -394,7 +400,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if (sysent->sv_sigcode_base != 0)
 		tf->tf_x[14] = (register_t)sysent->sv_sigcode_base;
 	else
-		tf->tf_x[14] = (register_t)(sysent->sv_psstrings -
+		tf->tf_x[14] = (register_t)(PROC_PS_STRINGS(p) -
 		    *(sysent->sv_szsigcode));
 	/* Set the mode to enter in the signal handler */
 	if ((register_t)catcher & 1)
