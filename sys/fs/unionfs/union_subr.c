@@ -334,12 +334,6 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		}
 	}
 
-	if ((uppervp == NULLVP || ump->um_uppervp != uppervp) ||
-	    (lowervp == NULLVP || ump->um_lowervp != lowervp)) {
-		/* dvp will be NULLVP only in case of root vnode. */
-		if (dvp == NULLVP)
-			return (EINVAL);
-	}
 	unp = malloc(sizeof(struct unionfs_node),
 	    M_UNIONFSNODE, M_WAITOK | M_ZERO);
 
@@ -381,9 +375,18 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	vp->v_type = vt;
 	vp->v_data = unp;
 
-	if ((uppervp != NULLVP && ump->um_uppervp == uppervp) &&
-	    (lowervp != NULLVP && ump->um_lowervp == lowervp))
+	/*
+	 * TODO: This is an imperfect check, as there's no guarantee that
+	 * the underlying filesystems will always return vnode pointers
+	 * for the root inodes that match our cached values.  To reduce
+	 * the likelihood of failure, for example in the case where either
+	 * vnode has been forcibly doomed, we check both pointers and set
+	 * VV_ROOT if either matches.
+	 */
+	if (ump->um_uppervp == uppervp || ump->um_lowervp == lowervp)
 		vp->v_vflag |= VV_ROOT;
+	KASSERT(dvp != NULL || (vp->v_vflag & VV_ROOT) != 0,
+	    ("%s: NULL dvp for non-root vp %p", __func__, vp));
 
 	vn_lock_pair(lowervp, false, uppervp, false); 
 	error = insmntque1(vp, mp, NULL, NULL);
