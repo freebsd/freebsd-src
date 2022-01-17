@@ -957,6 +957,10 @@ void * tls_init(const struct tls_config *conf)
 	const char *ciphers;
 
 	if (tls_openssl_ref_count == 0) {
+		void openssl_load_legacy_provider(void);
+
+		openssl_load_legacy_provider();
+
 		tls_global = context = tls_context_new(conf);
 		if (context == NULL)
 			return NULL;
@@ -3019,13 +3023,23 @@ static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L && \
 	!defined(LIBRESSL_VERSION_NUMBER) && \
 	!defined(OPENSSL_IS_BORINGSSL)
-	if ((flags & (TLS_CONN_ENABLE_TLSv1_0 | TLS_CONN_ENABLE_TLSv1_1)) &&
-	    SSL_get_security_level(ssl) >= 2) {
-		/*
-		 * Need to drop to security level 1 to allow TLS versions older
-		 * than 1.2 to be used when explicitly enabled in configuration.
-		 */
-		SSL_set_security_level(conn->ssl, 1);
+	{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+		int need_level = 0;
+#else
+		int need_level = 1;
+#endif
+
+		if ((flags &
+		     (TLS_CONN_ENABLE_TLSv1_0 | TLS_CONN_ENABLE_TLSv1_1)) &&
+		    SSL_get_security_level(ssl) > need_level) {
+			/*
+			 * Need to drop to security level 1 (or 0  with OpenSSL
+			 * 3.0) to allow TLS versions older than 1.2 to be used
+			 * when explicitly enabled in configuration.
+			 */
+			SSL_set_security_level(conn->ssl, need_level);
+		}
 	}
 #endif
 
