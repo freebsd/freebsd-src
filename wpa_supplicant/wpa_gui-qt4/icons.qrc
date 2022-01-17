@@ -1,9 +1,0 @@
-<RCC>
- <qresource prefix="/icons" >
-  <file alias="wpa_gui.svg">icons/wpa_gui.svg</file>
-  <file alias="ap.svg">icons/ap.svg</file>
-  <file alias="laptop.svg">icons/laptop.svg</file>
-  <file alias="group.svg">icons/group.svg</file>
-  <file alias="invitation.svg">icons/invitation.svg</file>
- </qresource>
-</RCC>
