@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -74,27 +76,20 @@ copyin_checker2(uintptr_t uaddr)
 static uintptr_t
 get_maxuser_address(void)
 {
+	struct kinfo_vm_layout kvm;
 	size_t len;
-	uintptr_t psstrings;
 	int error, mib[4];
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_PS_STRINGS;
+	mib[2] = KERN_PROC_VM_LAYOUT;
 	mib[3] = getpid();
-	len = sizeof(psstrings);
-	error = sysctl(mib, nitems(mib), &psstrings, &len, NULL, 0);
+	len = sizeof(kvm);
+	error = sysctl(mib, nitems(mib), &kvm, &len, NULL, 0);
 	if (error != 0)
 		return (0);
 
-	if (psstrings == PS_STRINGS_LA57)
-		return (VM_MAXUSER_ADDRESS_LA57);
-	if (psstrings == PS_STRINGS_LA48)
-		return (VM_MAXUSER_ADDRESS_LA48);
-	/* AMD LA48 with clipped UVA */
-	if (psstrings == PS_STRINGS_LA48 - PAGE_SIZE)
-		return (VM_MAXUSER_ADDRESS_LA48 - PAGE_SIZE);
-	return (0);
+	return (kvm.kvm_max_user_addr);
 }
 #endif
 
