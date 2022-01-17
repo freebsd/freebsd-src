@@ -86,7 +86,7 @@ int linux_ignore_ip_recverr = 1;
 SYSCTL_INT(_compat_linux, OID_AUTO, ignore_ip_recverr, CTLFLAG_RWTUN,
     &linux_ignore_ip_recverr, 0, "Ignore enabling IP_RECVERR");
 
-int linux_preserve_vstatus = 0;
+int linux_preserve_vstatus = 1;
 SYSCTL_INT(_compat_linux, OID_AUTO, preserve_vstatus, CTLFLAG_RWTUN,
     &linux_preserve_vstatus, 0, "Preserve VSTATUS termios(4) flag");
 
