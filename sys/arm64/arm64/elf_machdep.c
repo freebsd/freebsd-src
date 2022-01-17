@@ -94,7 +94,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
-	.sv_stackgap	= elf64_stackgap,
 	.sv_hwcap	= &elf_hwcap,
 	.sv_hwcap2	= &elf_hwcap2,
 	.sv_onexec_old	= exec_onexec_old,
