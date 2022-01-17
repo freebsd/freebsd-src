@@ -84,7 +84,6 @@ struct image_params {
 	int pagesizeslen;
 	vm_prot_t stack_prot;
 	u_long stack_sz;
-	u_long eff_stack_sz;
 	struct ucred *newcred;		/* new credentials if changing */
 #define IMGACT_SHELL	0x1
 #define IMGACT_BINMISC	0x2
@@ -122,7 +121,6 @@ int	exec_copyin_args(struct image_args *, const char *, enum uio_seg,
 	char **, char **);
 int	exec_copyin_data_fds(struct thread *, struct image_args *, const void *,
 	size_t, const int *, size_t);
-void	exec_stackgap(struct image_params *imgp, uintptr_t *dp);
 int	pre_execve(struct thread *td, struct vmspace **oldvmspace);
 void	post_execve(struct thread *td, int error, struct vmspace *oldvmspace);
 #endif

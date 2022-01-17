@@ -3755,7 +3755,6 @@ static struct flag_desc note_feature_ctl_flags[] = {
 	{ NT_FREEBSD_FCTL_STKGAP_DISABLE,	"STKGAP_DISABLE" },
 	{ NT_FREEBSD_FCTL_WXNEEDED,		"WXNEEDED" },
 	{ NT_FREEBSD_FCTL_LA48,			"LA48" },
-	{ NT_FREEBSD_FCTL_ASG_DISABLE,		"ASG_DISABLE" },
 	{ 0, NULL }
 };
 

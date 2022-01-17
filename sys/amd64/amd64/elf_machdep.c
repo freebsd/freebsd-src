@@ -89,7 +89,6 @@ struct sysentvec elf64_freebsd_sysvec_la48 = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
-	.sv_stackgap	= elf64_stackgap,
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
 };
@@ -128,7 +127,6 @@ struct sysentvec elf64_freebsd_sysvec_la57 = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
-	.sv_stackgap	= elf64_stackgap,
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
 };
