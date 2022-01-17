@@ -776,6 +776,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
 	.sv_usrstack	= LINUX_USRSTACK_LA48,
 	.sv_psstrings	= LINUX_PS_STRINGS_LA48,
+	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
 	.sv_copyout_strings = linux_copyout_strings,
