@@ -1908,8 +1908,6 @@ unionfs_revlock(struct vnode *vp, int flags)
 static int
 unionfs_lock(struct vop_lock1_args *ap)
 {
-	struct mount   *mp;
-	struct unionfs_mount *ump;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
 	struct vnode   *uvp;
@@ -1944,13 +1942,8 @@ unionfs_lock(struct vop_lock1_args *ap)
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 
-	mp = vp->v_mount;
-	if (mp == NULL)
-		goto unionfs_lock_null_vnode;
-
-	ump = MOUNTTOUNIONFSMOUNT(mp);
 	unp = VTOUNIONFS(vp);
-	if (ump == NULL || unp == NULL)
+	if (unp == NULL)
 		goto unionfs_lock_null_vnode;
 	lvp = unp->un_lowervp;
 	uvp = unp->un_uppervp;
@@ -1967,7 +1960,7 @@ unionfs_lock(struct vop_lock1_args *ap)
 	 * (ex. vfs_domount: mounted vnode is already locked.)
 	 */
 	if ((flags & LK_TYPE_MASK) == LK_EXCLUSIVE &&
-	    vp == ump->um_rootvp)
+	    (vp->v_vflag & VV_ROOT) != 0)
 		flags |= LK_CANRECURSE;
 
 	if (lvp != NULLVP) {
