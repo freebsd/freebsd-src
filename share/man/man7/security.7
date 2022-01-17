@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2021
+.Dd January 14, 2022
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -1062,19 +1062,19 @@ position-independent (PIE) 32bit binaries.
 .It Dv kern.elf32.aslr.honor_sbrk
 Makes ASLR less aggressive and more compatible with old binaries
 relying on the sbrk area.
-.It Dv kern.elf32.aslr.stack_gap
-If ASLR is enabled for a binary, a non-zero value creates a randomized
-stack gap between strings and the end of the aux vector.
-The value is the maximum percentage of main stack to waste on the gap.
-Cannot be greater than 50, i.e., at most half of the stack.
+.It Dv kern.elf32.aslr.stack
+If ASLR is enabled for a binary, a non-zero value enables randomization
+of the stack.
+Otherwise, the stack is mapped at a fixed location determined by the
+process ABI.
 .It Dv kern.elf64.aslr.enable
 64bit binaries ASLR control.
 .It Dv kern.elf64.aslr.pie_enable
 64bit PIE binaries ASLR control.
 .It Dv kern.elf64.aslr.honor_sbrk
 64bit binaries ASLR sbrk compatibility control.
-.It Dv kern.elf64.aslr.stack_gap
-Controls stack gap for 64bit binaries.
+.It Dv kern.elf64.aslr.stack
+Controls stack address randomization for 64bit binaries.
 .It Dv kern.elf32.nxstack
 Enables non-executable stack for 32bit processes.
 Enabled by default if supported by hardware and corresponding binary.

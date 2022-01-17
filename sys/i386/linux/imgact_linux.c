@@ -213,6 +213,10 @@ exec_linux_imgact(struct image_params *imgp)
 	vmspace->vm_daddr =
 	    (caddr_t)(void *)(uintptr_t)(virtual_offset + a_out->a_text);
 
+	error = exec_map_stack(imgp);
+	if (error != 0)
+		goto fail;
+
 	/* Fill in image_params */
 	imgp->interpreted = 0;
 	imgp->entry_addr = a_out->a_entry;
