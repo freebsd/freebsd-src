@@ -127,11 +127,6 @@ vlan_parse_ethervid(const char *name)
 	if ((cp = strrchr(ifname, '.')) == NULL)
 		return;
 	/*
-	 * Don't mix vlan/vlandev parameters with dot notation.
-	 */
-	if (params.vlr_tag != NOTAG || params.vlr_parent[0] != '\0')
-		errx(1, "ambiguous vlan specification");
-	/*
 	 * Derive params from interface name: "parent.vid".
 	 */
 	*cp++ = '\0';
@@ -144,8 +139,20 @@ vlan_parse_ethervid(const char *name)
 	if ((*cp != '\0') || (vid & ~0xFFF))
 		errx(1, "invalid vlan tag");
 
-	strlcpy(params.vlr_parent, ifname, IFNAMSIZ);
-	params.vlr_tag = (vid & 0xFFF);
+	/*
+	 * allow "devX.Y vlandev devX vlan Y" syntax
+	 */
+	if (params.vlr_tag == NOTAG || params.vlr_tag == vid)
+		params.vlr_tag = vid;
+	else
+		errx(1, "ambiguous vlan specification");
+
+	/* Restrict overriding interface name */
+	if (params.vlr_parent[0] == '\0' || !strcmp(params.vlr_parent, ifname))
+		strlcpy(params.vlr_parent, ifname, IFNAMSIZ);
+	else
+		errx(1, "ambiguous vlan specification");
+	printf("CR: %s %d\n", params.vlr_parent, params.vlr_tag);
 }
 
 static void
