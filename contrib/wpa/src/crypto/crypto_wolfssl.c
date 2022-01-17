@@ -1630,30 +1630,6 @@ int crypto_ec_point_invert(struct crypto_ec *e, struct crypto_ec_point *p)
 }
 
 
-int crypto_ec_point_solve_y_coord(struct crypto_ec *e,
-				  struct crypto_ec_point *p,
-				  const struct crypto_bignum *x, int y_bit)
-{
-	byte buf[1 + 2 * MAX_ECC_BYTES];
-	int ret;
-	int prime_len = crypto_ec_prime_len(e);
-
-	if (TEST_FAIL())
-		return -1;
-
-	buf[0] = y_bit ? ECC_POINT_COMP_ODD : ECC_POINT_COMP_EVEN;
-	ret = crypto_bignum_to_bin(x, buf + 1, prime_len, prime_len);
-	if (ret <= 0)
-		return -1;
-	ret = wc_ecc_import_point_der(buf, 1 + 2 * ret, e->key.idx,
-				      (ecc_point *) p);
-	if (ret != 0)
-		return -1;
-
-	return 0;
-}
-
-
 struct crypto_bignum *
 crypto_ec_point_compute_y_sqr(struct crypto_ec *e,
 			      const struct crypto_bignum *x)
