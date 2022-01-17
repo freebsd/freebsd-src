@@ -432,6 +432,19 @@ struct kinfo_sigtramp32 {
 	uint32_t ksigtramp_spare[4];
 };
 
+struct kinfo_vm_layout32 {
+	uint32_t	kvm_min_user_addr;
+	uint32_t	kvm_max_user_addr;
+	uint32_t	kvm_text_addr;
+	uint32_t	kvm_text_size;
+	uint32_t	kvm_data_addr;
+	uint32_t	kvm_data_size;
+	uint32_t	kvm_stack_addr;
+	uint32_t	kvm_stack_size;
+	int		kvm_map_flags;
+	uint32_t	kvm_spare[14];
+};
+
 struct kld_file_stat_1_32 {
 	int	version;	/* set to sizeof(struct kld_file_stat_1) */
 	char	name[MAXPATHLEN];

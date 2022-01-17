@@ -598,6 +598,25 @@ struct kinfo_sigtramp {
 	void	*ksigtramp_spare[4];
 };
 
+#define	KMAP_FLAG_WIREFUTURE	0x01	/* all future mappings wil be wired */
+#define	KMAP_FLAG_ASLR		0x02	/* ASLR is applied to mappings */
+#define	KMAP_FLAG_ASLR_IGNSTART	0x04	/* ASLR may map into sbrk grow region */
+#define	KMAP_FLAG_WXORX		0x08	/* W^X mapping policy is enforced */
+#define	KMAP_FLAG_ASLR_STACK	0x10	/* the stack location is randomized */
+
+struct kinfo_vm_layout {
+	uintptr_t	kvm_min_user_addr;
+	uintptr_t	kvm_max_user_addr;
+	uintptr_t	kvm_text_addr;
+	size_t		kvm_text_size;
+	uintptr_t	kvm_data_addr;
+	size_t		kvm_data_size;
+	uintptr_t	kvm_stack_addr;
+	size_t		kvm_stack_size;
+	int		kvm_map_flags;
+	uintptr_t	kvm_spare[14];
+};
+
 #ifdef _KERNEL
 /* Flags for kern_proc_out function. */
 #define KERN_PROC_NOTHREADS	0x1
