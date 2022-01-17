@@ -361,7 +361,7 @@ linux_pci_probe(device_t dev)
 	if (device_get_driver(dev) != &pdrv->bsddriver)
 		return (ENXIO);
 	device_set_desc(dev, pdrv->name);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
