@@ -2052,9 +2052,6 @@ sysctl_posix_shm_list(SYSCTL_HANDLER_ARGS)
 			if (error != 0)
 				break;
 			pack_kinfo(&kif);
-			if (req->oldptr != NULL &&
-			    kif.kf_structsize + curlen > req->oldlen)
-				break;
 			error = sbuf_bcat(&sb, &kif, kif.kf_structsize) == 0 ?
 			    0 : ENOMEM;
 			if (error != 0)
