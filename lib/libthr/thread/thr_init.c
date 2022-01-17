@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "thr_private.h"
 
-char		*_stacktop;
+char		*_usrstack;
 struct pthread	*_thr_initial;
 int		_libthr_debug;
 int		_thread_event_mask;
@@ -388,7 +388,7 @@ init_main_thread(struct pthread *thread)
 	 * resource limits, so this stack needs an explicitly mapped
 	 * red zone to protect the thread stack that is just beyond.
 	 */
-	if (mmap(_stacktop - _thr_stack_initial -
+	if (mmap(_usrstack - _thr_stack_initial -
 	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
 	    -1, 0) == MAP_FAILED)
 		PANIC("Cannot allocate red zone for initial thread");
@@ -402,7 +402,7 @@ init_main_thread(struct pthread *thread)
 	 *       actually free() it; it just puts it in the free
 	 *       stack queue for later reuse.
 	 */
-	thread->attr.stackaddr_attr = _stacktop - _thr_stack_initial;
+	thread->attr.stackaddr_attr = _usrstack - _thr_stack_initial;
 	thread->attr.stacksize_attr = _thr_stack_initial;
 	thread->attr.guardsize_attr = _thr_guard_default;
 	thread->attr.flags |= THR_STACK_USER;
@@ -427,7 +427,7 @@ init_main_thread(struct pthread *thread)
 	thread->attr.prio = sched_param.sched_priority;
 
 #ifdef _PTHREAD_FORCED_UNWIND
-	thread->unwind_stackend = _stacktop;
+	thread->unwind_stackend = _usrstack;
 #endif
 
 	/* Others cleared to zero by thr_alloc() */
@@ -464,13 +464,10 @@ init_private(void)
 		__thr_malloc_init();
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
-		mib[1] = KERN_STACKTOP;
-		len = sizeof (_stacktop);
-		if (sysctl(mib, 2, &_stacktop, &len, NULL, 0) == -1) {
-			mib[1] = KERN_USRSTACK;
-			if (sysctl(mib, 2, &_stacktop, &len, NULL, 0) == -1)
-				PANIC("Cannot get kern.usrstack from sysctl");
-		}
+		mib[1] = KERN_USRSTACK;
+		len = sizeof (_usrstack);
+		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
+			PANIC("Cannot get kern.usrstack from sysctl");
 		env_bigstack = getenv("LIBPTHREAD_BIGSTACK_MAIN");
 		env_splitstack = getenv("LIBPTHREAD_SPLITSTACK_MAIN");
 		if (env_bigstack != NULL || env_splitstack == NULL) {
