@@ -1050,15 +1050,14 @@ instructions do not incur serialization overhead for shared buffer accesses,
 and do not serialize off-core memory accessses.
 .It Dv kern.elf32.aslr.enable
 Controls system-global Address Space Layout Randomization (ASLR) for
-normal non-PIE (Position Independent Executable) 32bit binaries.
-See also
+normal non-PIE (Position Independent Executable) 32-bit ELF binaries.
+See also the
 .Xr proccontrol 1
-mode
-.Dv aslr ,
-also affected by the per-image control note flag.
+.Dv aslr
+mode, also affected by the per-image control note flag.
 .It Dv kern.elf32.aslr.pie_enable
 Controls system-global Address Space Layout Randomization for
-position-independent (PIE) 32bit binaries.
+position-independent (PIE) 32-bit binaries.
 .It Dv kern.elf32.aslr.honor_sbrk
 Makes ASLR less aggressive and more compatible with old binaries
 relying on the sbrk area.
@@ -1068,24 +1067,24 @@ of the stack.
 Otherwise, the stack is mapped at a fixed location determined by the
 process ABI.
 .It Dv kern.elf64.aslr.enable
-64bit binaries ASLR control.
+ASLR control for 64-bit ELF binaries.
 .It Dv kern.elf64.aslr.pie_enable
-64bit PIE binaries ASLR control.
+ASLR control for 64-bit ELF PIEs.
 .It Dv kern.elf64.aslr.honor_sbrk
-64bit binaries ASLR sbrk compatibility control.
+ASLR sbrk compatibility control for 64-bit binaries.
 .It Dv kern.elf64.aslr.stack
-Controls stack address randomization for 64bit binaries.
+Controls stack address randomization for 64-bit binaries.
 .It Dv kern.elf32.nxstack
-Enables non-executable stack for 32bit processes.
+Enables non-executable stack for 32-bit processes.
 Enabled by default if supported by hardware and corresponding binary.
 .It Dv kern.elf64.nxstack
-Enables non-executable stack for 64bit processes.
+Enables non-executable stack for 64-bit processes.
 .It Dv kern.elf32.allow_wx
 Enables mapping of simultaneously writable and executable pages for
-32bit processes.
+32-bit processes.
 .It Dv kern.elf64.allow_wx
 Enables mapping of simultaneously writable and executable pages for
-64bit processes.
+64-bit processes.
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,
