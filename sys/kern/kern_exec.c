@@ -119,7 +119,6 @@ SYSCTL_INT(_kern, OID_AUTO, coredump_pack_vmmapinfo, CTLFLAG_RWTUN,
 
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
-static int sysctl_kern_stacktop(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int do_execve(struct thread *td, struct image_args *args,
     struct mac *mac_p, struct vmspace *oldvmspace);
@@ -133,10 +132,6 @@ SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD|
 SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD|
     CTLFLAG_CAPRD|CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_usrstack, "LU",
     "Top of process stack");
-
-SYSCTL_PROC(_kern, KERN_STACKTOP, stacktop, CTLTYPE_ULONG | CTLFLAG_RD |
-    CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_stacktop, "LU",
-    "Top of process stack with stack gap.");
 
 SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_MPSAFE,
     NULL, 0, sysctl_kern_stackprot, "I",
@@ -196,31 +191,7 @@ sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 #endif
 		error = SYSCTL_OUT(req, &p->p_sysent->sv_usrstack,
 		    sizeof(p->p_sysent->sv_usrstack));
-	return (error);
-}
-
-static int
-sysctl_kern_stacktop(SYSCTL_HANDLER_ARGS)
-{
-	vm_offset_t stacktop;
-	struct proc *p;
-	int error;
-
-	p = curproc;
-#ifdef SCTL_MASK32
-	if (req->flags & SCTL_MASK32) {
-		unsigned int val;
-
-		val = (unsigned int)(p->p_sysent->sv_usrstack -
-		    p->p_vmspace->vm_stkgap);
-		error = SYSCTL_OUT(req, &val, sizeof(val));
-	} else
-#endif
-	{
-		stacktop = p->p_sysent->sv_usrstack - p->p_vmspace->vm_stkgap;
-		error = SYSCTL_OUT(req, &stacktop, sizeof(stacktop));
-	}
-	return (error);
+	return error;
 }
 
 static int
