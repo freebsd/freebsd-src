@@ -75,6 +75,7 @@ int	 pfctl_get_skip_ifaces(void);
 int	 pfctl_check_skip_ifaces(char *);
 int	 pfctl_adjust_skip_ifaces(struct pfctl *);
 int	 pfctl_clear_interface_flags(int, int);
+int	 pfctl_clear_eth_rules(int, int, char *);
 int	 pfctl_clear_rules(int, int, char *);
 int	 pfctl_clear_nat(int, int, char *);
 int	 pfctl_clear_altq(int, int);
@@ -227,7 +228,8 @@ static const struct {
 
 static const char * const clearopt_list[] = {
 	"nat", "queue", "rules", "Sources",
-	"states", "info", "Tables", "osfp", "all", NULL
+	"states", "info", "Tables", "osfp", "all",
+	"ethernet", NULL
 };
 
 static const char * const showopt_list[] = {
@@ -454,6 +456,22 @@ pfctl_clear_interface_flags(int dev, int opts)
 		if ((opts & PF_OPT_QUIET) == 0)
 			fprintf(stderr, "pf: interface flags reset\n");
 	}
+	return (0);
+}
+
+int
+pfctl_clear_eth_rules(int dev, int opts, char *anchorname)
+{
+	struct pfr_buffer t;
+
+	memset(&t, 0, sizeof(t));
+	t.pfrb_type = PFRB_TRANS;
+	if (pfctl_add_trans(&t, PF_RULESET_ETH, anchorname) ||
+	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
+	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+		err(1, "pfctl_clear_eth_rules");
+	if ((opts & PF_OPT_QUIET) == 0)
+		fprintf(stderr, "Ethernet rules cleared\n");
 	return (0);
 }
 
@@ -2873,6 +2891,9 @@ main(int argc, char *argv[])
 			    "be modified from the command line");
 
 		switch (*clearopt) {
+		case 'e':
+			pfctl_clear_eth_rules(dev, opts, anchorname);
+			break;
 		case 'r':
 			pfctl_clear_rules(dev, opts, anchorname);
 			break;
@@ -2892,6 +2913,7 @@ main(int argc, char *argv[])
 			pfctl_clear_stats(dev, opts);
 			break;
 		case 'a':
+			pfctl_clear_eth_rules(dev, opts, anchorname);
 			pfctl_clear_rules(dev, opts, anchorname);
 			pfctl_clear_nat(dev, opts, anchorname);
 			pfctl_clear_tables(anchorname, opts);
