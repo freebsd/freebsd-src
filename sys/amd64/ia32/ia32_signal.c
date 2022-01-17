@@ -422,7 +422,7 @@ ia32_osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_rsp = (uintptr_t)fp;
-	regs->tf_rip = p->p_sysent->sv_psstrings -
+	regs->tf_rip = PROC_PS_STRINGS(p) -
 	    (_binary_elf_vdso32_so_1_end - _binary_elf_vdso32_so_1_start) +
 	    VDSO_IA32_OSIGCODE_OFFSET;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
