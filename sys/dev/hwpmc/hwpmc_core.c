@@ -1077,7 +1077,7 @@ core_intr(struct trapframe *tf)
 	int error, found_interrupt, ri;
 	uint64_t msr;
 
-	PMCDBG3(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", curcpu, (void *) tf,
+	PMCDBG3(MDP,INT, 1, "cpu=%d tf=%p um=%d", curcpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	found_interrupt = 0;
