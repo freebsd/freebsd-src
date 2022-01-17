@@ -1,0 +1,152 @@
+<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+
+<refentry>
+  <refentryinfo>
+    <date>07 August 2019</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle>wpa_priv</refentrytitle>
+    <manvolnum>8</manvolnum>
+  </refmeta>
+  <refnamediv>
+    <refname>wpa_priv</refname>
+
+    <refpurpose>wpa_supplicant privilege separation helper</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>wpa_priv</command>
+      <arg>-c <replaceable>ctrl path</replaceable></arg>
+      <arg>-Bdd</arg>
+      <arg>-P <replaceable>pid file</replaceable></arg>
+      <arg>driver:ifname <replaceable>[driver:ifname ...]</replaceable></arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Overview</title>
+
+    <para><command>wpa_priv</command> is a privilege separation helper that
+    minimizes the size of <command>wpa_supplicant</command> code that needs
+    to be run with root privileges.</para>
+
+    <para>If enabled, privileged operations are done in the wpa_priv process
+    while leaving rest of the code (e.g., EAP authentication and WPA
+    handshakes) to operate in an unprivileged process (wpa_supplicant) that
+    can be run as non-root user. Privilege separation restricts the effects
+    of potential software errors by containing the majority of the code in an
+    unprivileged process to avoid the possibility of a full system
+    compromise.</para>
+
+    <para><command>wpa_priv</command> needs to be run with network admin
+    privileges (usually, root user). It opens a UNIX domain socket for each
+    interface that is included on the command line; any other interface will
+    be off limits for <command>wpa_supplicant</command> in this kind of
+    configuration. After this, <command>wpa_supplicant</command> can be run as
+    a non-root user (e.g., all standard users on a laptop or as a special
+    non-privileged user account created just for this purpose to limit access
+    to user files even further).</para>
+  </refsect1>
+  <refsect1>
+    <title>Example configuration</title>
+
+    <para>The following steps are an example of how to configure
+    <command>wpa_priv</command> to allow users in the
+    <emphasis>wpapriv</emphasis> group to communicate with
+    <command>wpa_supplicant</command> with privilege separation:</para>
+
+    <para>Create user group (e.g., wpapriv) and assign users that
+    should be able to use wpa_supplicant into that group.</para>
+
+    <para>Create /var/run/wpa_priv directory for UNIX domain sockets and
+    control user access by setting it accessible only for the wpapriv
+    group:</para>
+
+<blockquote><programlisting>
+mkdir /var/run/wpa_priv
+chown root:wpapriv /var/run/wpa_priv
+chmod 0750 /var/run/wpa_priv
+</programlisting></blockquote>
+
+    <para>Start <command>wpa_priv</command> as root (e.g., from system
+    startup scripts) with the enabled interfaces configured on the
+    command line:</para>
+
+<blockquote><programlisting>
+wpa_priv -B -c /var/run/wpa_priv -P /var/run/wpa_priv.pid wext:wlan0
+</programlisting></blockquote>
+
+    <para>Run <command>wpa_supplicant</command> as non-root with a user
+    that is in the wpapriv group:</para>
+
+<blockquote><programlisting>
+wpa_supplicant -i ath0 -c wpa_supplicant.conf
+</programlisting></blockquote>
+
+  </refsect1>
+  <refsect1>
+    <title>Command Arguments</title>
+    <variablelist>
+      <varlistentry>
+	<term>-c ctrl path</term>
+
+	<listitem><para>Specify the path to wpa_priv control directory
+	(Default: /var/run/wpa_priv/).</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-B</term>
+	<listitem><para>Run as a daemon in the background.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-P file</term>
+
+	<listitem><para>Set the location of the PID
+	file.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>driver:ifname [driver:ifname ...]</term>
+
+	<listitem><para>The &lt;driver&gt; string dictates which of the
+	supported <command>wpa_supplicant</command> driver backends is to be
+	used. To get a list of supported driver types see wpa_supplicant help
+	(e.g, wpa_supplicant -h). The driver backend supported by most good
+	drivers is <emphasis>wext</emphasis>.</para>
+
+	<para>The &lt;ifname&gt; string specifies which network
+	interface is to be managed by <command>wpa_supplicant</command>
+	(e.g., wlan0 or ath0).</para>
+
+	<para><command>wpa_priv</command> does not use the network interface
+	before <command>wpa_supplicant</command> is started, so it is fine to
+	include network interfaces that are not available at the time wpa_priv
+	is started. wpa_priv can control multiple interfaces with one process,
+	but it is also possible to run multiple <command>wpa_priv</command>
+	processes at the same time, if desired.</para></listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+  <refsect1>
+    <title>See Also</title>
+    <para>
+      <citerefentry>
+	<refentrytitle>wpa_supplicant</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>
+    </para>
+  </refsect1>
+  <refsect1>
+    <title>Legal</title>
+    <para>wpa_supplicant is copyright (c) 2003-2022,
+    Jouni Malinen <email>j@w1.fi</email> and
+    contributors.
+    All Rights Reserved.</para>
+
+    <para>This program is licensed under the BSD license (the one with
+    advertisement clause removed).</para>
+  </refsect1>
+</refentry>
