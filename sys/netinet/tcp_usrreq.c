@@ -1935,10 +1935,8 @@ tcp_ctloutput_get(struct inpcb *inp, struct sockopt *sopt)
 int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	int	error;
 	struct	inpcb *inp;
 
-	error = 0;
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_ctloutput: inp == NULL"));
 

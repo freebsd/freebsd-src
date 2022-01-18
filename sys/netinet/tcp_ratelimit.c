@@ -1529,10 +1529,8 @@ tcp_log_pacing_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, uint32_t new
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
-		uint32_t cts;
 
 		memset(&log, 0, sizeof(log));
-		cts = tcp_get_usecs(&tv);
 		log.u_bbr.flex1 = segsiz;
 		log.u_bbr.flex2 = new_tso;
 		log.u_bbr.flex3 = time_between;
