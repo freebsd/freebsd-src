@@ -667,14 +667,24 @@ blockif_resized(int fd, enum ev_type type, void *arg)
 {
 	struct blockif_ctxt *bc;
 	struct stat sb;
+	off_t mediasize;
 
 	if (fstat(fd, &sb) != 0)
 		return;
 
+	if (S_ISCHR(sb.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) < 0) {
+			EPRINTLN("blockif_resized: get mediasize failed: %s",
+			    strerror(errno));
+			return;
+		}
+	} else
+		mediasize = sb.st_size;
+
 	bc = arg;
 	pthread_mutex_lock(&bc->bc_mtx);
-	if (sb.st_size != bc->bc_size) {
-		bc->bc_size = sb.st_size;
+	if (mediasize != bc->bc_size) {
+		bc->bc_size = mediasize;
 		bc->bc_resize_cb(bc, bc->bc_resize_cb_arg, bc->bc_size);
 	}
 	pthread_mutex_unlock(&bc->bc_mtx);
