@@ -2066,7 +2066,7 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	 *    and respond to dead vnodes by returning ESTALE.
 	 */
 	VOP_LOCK(vp, vp_locked | LK_RETRY);
-	if (!VN_IS_DOOMED(vp))
+	if (IS_UFS(vp))
 		return (0);
 
 	/*
