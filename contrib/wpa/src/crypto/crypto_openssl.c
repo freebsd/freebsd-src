@@ -24,9 +24,6 @@
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #endif /* CONFIG_ECC */
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#include <openssl/provider.h>
-#endif /* OpenSSL version >= 3.0 */
 
 #include "common.h"
 #include "utils/const_time.h"
@@ -119,26 +116,6 @@ static const unsigned char * ASN1_STRING_get0_data(const ASN1_STRING *x)
 	return ASN1_STRING_data((ASN1_STRING *) x);
 }
 #endif /* OpenSSL version < 1.1.0 */
-
-
-void openssl_load_legacy_provider(void)
-{
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	static bool loaded = false;
-	OSSL_PROVIDER *legacy;
-
-	if (loaded)
-		return;
-
-	legacy = OSSL_PROVIDER_load(NULL, "legacy");
-
-	if (legacy) {
-		OSSL_PROVIDER_load(NULL, "default");
-		loaded = true;
-	}
-#endif /* OpenSSL version >= 3.0 */
-}
-
 
 static BIGNUM * get_group5_prime(void)
 {
@@ -246,7 +223,6 @@ static int openssl_digest_vector(const EVP_MD *type, size_t num_elem,
 #ifndef CONFIG_FIPS
 int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
-	openssl_load_legacy_provider();
 	return openssl_digest_vector(EVP_md4(), num_elem, addr, len, mac);
 }
 #endif /* CONFIG_FIPS */
@@ -257,8 +233,6 @@ int des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 	u8 pkey[8], next, tmp;
 	int i, plen, ret = -1;
 	EVP_CIPHER_CTX *ctx;
-
-	openssl_load_legacy_provider();
 
 	/* Add parity bits to the key */
 	next = 0;
@@ -296,8 +270,6 @@ int rc4_skip(const u8 *key, size_t keylen, size_t skip,
 	int outl;
 	int res = -1;
 	unsigned char skip_buf[16];
-
-	openssl_load_legacy_provider();
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (!ctx ||
@@ -1951,27 +1923,48 @@ int crypto_ec_point_invert(struct crypto_ec *e, struct crypto_ec_point *p)
 }
 
 
+int crypto_ec_point_solve_y_coord(struct crypto_ec *e,
+				  struct crypto_ec_point *p,
+				  const struct crypto_bignum *x, int y_bit)
+{
+	if (TEST_FAIL())
+		return -1;
+	if (!EC_POINT_set_compressed_coordinates_GFp(e->group, (EC_POINT *) p,
+						     (const BIGNUM *) x, y_bit,
+						     e->bnctx) ||
+	    !EC_POINT_is_on_curve(e->group, (EC_POINT *) p, e->bnctx))
+		return -1;
+	return 0;
+}
+
+
 struct crypto_bignum *
 crypto_ec_point_compute_y_sqr(struct crypto_ec *e,
 			      const struct crypto_bignum *x)
 {
-	BIGNUM *tmp;
+	BIGNUM *tmp, *tmp2, *y_sqr = NULL;
 
 	if (TEST_FAIL())
 		return NULL;
 
 	tmp = BN_new();
+	tmp2 = BN_new();
 
-	/* y^2 = x^3 + ax + b = (x^2 + a)x + b */
-	if (tmp &&
+	/* y^2 = x^3 + ax + b */
+	if (tmp && tmp2 &&
 	    BN_mod_sqr(tmp, (const BIGNUM *) x, e->prime, e->bnctx) &&
-	    BN_mod_add_quick(tmp, e->a, tmp, e->prime) &&
 	    BN_mod_mul(tmp, tmp, (const BIGNUM *) x, e->prime, e->bnctx) &&
-	    BN_mod_add_quick(tmp, tmp, e->b, e->prime))
-		return (struct crypto_bignum *) tmp;
+	    BN_mod_mul(tmp2, e->a, (const BIGNUM *) x, e->prime, e->bnctx) &&
+	    BN_mod_add_quick(tmp2, tmp2, tmp, e->prime) &&
+	    BN_mod_add_quick(tmp2, tmp2, e->b, e->prime)) {
+		y_sqr = tmp2;
+		tmp2 = NULL;
+	}
 
 	BN_clear_free(tmp);
-	return NULL;
+	BN_clear_free(tmp2);
+
+	return (struct crypto_bignum *) y_sqr;
 }
 
 
@@ -2487,13 +2480,12 @@ struct crypto_ec_key * crypto_ec_key_gen(int group)
 		goto fail;
 	}
 
-	eckey = EVP_PKEY_get1_EC_KEY(key);
+	eckey = EVP_PKEY_get0_EC_KEY(key);
 	if (!eckey) {
 		key = NULL;
 		goto fail;
 	}
 	EC_KEY_set_conv_form(eckey, POINT_CONVERSION_COMPRESSED);
-	EC_KEY_free(eckey);
 
 fail:
 	EC_KEY_free(ec_params);
@@ -2603,34 +2595,12 @@ fail:
 	unsigned char *der = NULL;
 	int der_len;
 	struct wpabuf *buf;
-	EC_KEY *eckey;
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	EVP_PKEY *tmp;
-#endif /* OpenSSL version >= 3.0 */
-
-	eckey = EVP_PKEY_get1_EC_KEY((EVP_PKEY *) key);
-	if (!eckey)
-		return NULL;
 
 	/* For now, all users expect COMPRESSED form */
-	EC_KEY_set_conv_form(eckey, POINT_CONVERSION_COMPRESSED);
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	tmp = EVP_PKEY_new();
-	if (!tmp)
-		return NULL;
-	if (EVP_PKEY_set1_EC_KEY(tmp, eckey) != 1) {
-		EVP_PKEY_free(tmp);
-		return NULL;
-	}
-	key = (struct crypto_ec_key *) tmp;
-#endif /* OpenSSL version >= 3.0 */
+	EC_KEY_set_conv_form(EVP_PKEY_get0_EC_KEY((EVP_PKEY *) key),
+			     POINT_CONVERSION_COMPRESSED);
 
 	der_len = i2d_PUBKEY((EVP_PKEY *) key, &der);
-	EC_KEY_free(eckey);
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	EVP_PKEY_free(tmp);
-#endif /* OpenSSL version >= 3.0 */
 	if (der_len <= 0) {
 		wpa_printf(MSG_INFO, "OpenSSL: i2d_PUBKEY() failed: %s",
 			   ERR_error_string(ERR_get_error(), NULL));
@@ -2653,7 +2623,7 @@ struct wpabuf * crypto_ec_key_get_ecprivate_key(struct crypto_ec_key *key,
 	struct wpabuf *buf;
 	unsigned int key_flags;
 
-	eckey = EVP_PKEY_get1_EC_KEY((EVP_PKEY *) key);
+	eckey = EVP_PKEY_get0_EC_KEY((EVP_PKEY *) key);
 	if (!eckey)
 		return NULL;
 
@@ -2667,7 +2637,6 @@ struct wpabuf * crypto_ec_key_get_ecprivate_key(struct crypto_ec_key *key,
 	EC_KEY_set_conv_form(eckey, POINT_CONVERSION_UNCOMPRESSED);
 
 	der_len = i2d_ECPrivateKey(eckey, &der);
-	EC_KEY_free(eckey);
 	if (der_len <= 0)
 		return NULL;
 	buf = wpabuf_alloc_copy(der, der_len);
@@ -2728,7 +2697,7 @@ struct wpabuf * crypto_ec_key_get_pubkey_point(struct crypto_ec_key *key,
 const struct crypto_ec_point *
 crypto_ec_key_get_public_key(struct crypto_ec_key *key)
 {
-	const EC_KEY *eckey;
+	EC_KEY *eckey;
 
 	eckey = EVP_PKEY_get0_EC_KEY((EVP_PKEY *) key);
 	if (!eckey)
@@ -2740,7 +2709,7 @@ crypto_ec_key_get_public_key(struct crypto_ec_key *key)
 const struct crypto_bignum *
 crypto_ec_key_get_private_key(struct crypto_ec_key *key)
 {
-	const EC_KEY *eckey;
+	EC_KEY *eckey;
 
 	eckey = EVP_PKEY_get0_EC_KEY((EVP_PKEY *) key);
 	if (!eckey)

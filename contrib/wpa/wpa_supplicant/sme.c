@@ -946,9 +946,6 @@ static void sme_auth_start_cb(struct wpa_radio_work *work, int deinit)
 	struct wpa_supplicant *wpa_s = work->wpa_s;
 
 	wpa_s->roam_in_progress = false;
-#ifdef CONFIG_WNM
-	wpa_s->bss_trans_mgmt_in_progress = false;
-#endif /* CONFIG_WNM */
 
 	if (deinit) {
 		if (work->started)
@@ -995,13 +992,6 @@ void sme_authenticate(struct wpa_supplicant *wpa_s,
 			"SME: Reject sme_authenticate() in favor of explicit roam request");
 		return;
 	}
-#ifdef CONFIG_WNM
-	if (wpa_s->bss_trans_mgmt_in_progress) {
-		wpa_dbg(wpa_s, MSG_DEBUG,
-			"SME: Reject sme_authenticate() in favor of BSS transition management request");
-		return;
-	}
-#endif /* CONFIG_WNM */
 	if (radio_work_pending(wpa_s, "sme-connect")) {
 		/*
 		 * The previous sme-connect work might no longer be valid due to

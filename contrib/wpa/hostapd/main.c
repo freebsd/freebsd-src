@@ -1,6 +1,6 @@
 /*
  * hostapd / main()
- * Copyright (c) 2002-2022, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -454,7 +454,7 @@ static void show_version(void)
 		"hostapd v%s\n"
 		"User space daemon for IEEE 802.11 AP management,\n"
 		"IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator\n"
-		"Copyright (c) 2002-2022, Jouni Malinen <j@w1.fi> "
+		"Copyright (c) 2002-2019, Jouni Malinen <j@w1.fi> "
 		"and contributors\n",
 		VERSION_STR);
 }

@@ -883,6 +883,18 @@ int crypto_ec_point_mul(struct crypto_ec *e, const struct crypto_ec_point *p,
 int crypto_ec_point_invert(struct crypto_ec *e, struct crypto_ec_point *p);
 
 /**
+ * crypto_ec_point_solve_y_coord - Solve y coordinate for an x coordinate
+ * @e: EC context from crypto_ec_init()
+ * @p: EC point to use for the returning the result
+ * @x: x coordinate
+ * @y_bit: y-bit (0 or 1) for selecting the y value to use
+ * Returns: 0 on success, -1 on failure
+ */
+int crypto_ec_point_solve_y_coord(struct crypto_ec *e,
+				  struct crypto_ec_point *p,
+				  const struct crypto_bignum *x, int y_bit);
+
+/**
  * crypto_ec_point_compute_y_sqr - Compute y^2 = x^3 + ax + b
  * @e: EC context from crypto_ec_init()
  * @x: x coordinate

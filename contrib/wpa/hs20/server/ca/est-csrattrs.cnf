@@ -1,0 +1,17 @@
+asn1 = SEQUENCE:attrs
+
+[attrs]
+#oid1 = OID:challengePassword
+attr1 = SEQUENCE:extreq
+oid2 = OID:sha256WithRSAEncryption
+
+[extreq]
+oid = OID:extensionRequest
+vals = SET:extreqvals
+
+[extreqvals]
+
+oid1 = OID:macAddress
+#oid2 = OID:imei
+#oid3 = OID:meid
+#oid4 = OID:DevId

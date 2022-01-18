@@ -198,7 +198,7 @@ eapol_test -ctest.conf -a127.0.0.1 -p1812 -ssecret -r1
   </refsect1>
   <refsect1>
     <title>Legal</title>
-    <para>wpa_supplicant is copyright (c) 2003-2022,
+    <para>wpa_supplicant is copyright (c) 2003-2019,
     Jouni Malinen <email>j@w1.fi</email> and
     contributors.
     All Rights Reserved.</para>
