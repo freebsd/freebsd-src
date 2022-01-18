@@ -99,6 +99,10 @@ mac_body()
 	pft_set_rules alcatraz \
 		"ether block out on ${epair}b to { ! 00:01:02:03:04:05 }"
 	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	# Check '-F ethernet' works
+	jexec alcatraz pfctl -F ethernet
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
 }
 
 mac_cleanup()
