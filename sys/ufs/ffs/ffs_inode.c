@@ -179,7 +179,7 @@ loop:
 		pause("ffsupd", 1);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		vrele(vp);
-		if (VN_IS_DOOMED(vp))
+		if (!IS_UFS(vp))
 			return (ENOENT);
 
 		/*
