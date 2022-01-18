@@ -175,6 +175,22 @@ typedef enum {
 	SA_TIMEOUT_TYPE_MAX
 } sa_timeout_types;
 
+/*
+ * These are the default timeout values that apply to all tape drives.  
+ *
+ * We get timeouts from the following places in order of increasing
+ * priority:
+ * 1. Driver default timeouts. (Set in the structure below.)
+ * 2. Timeouts loaded from the drive via REPORT SUPPORTED OPERATION
+ *    CODES.  (If the drive supports it, SPC-4/LTO-5 and newer should.)
+ * 3. Global loader tunables, used for all sa(4) driver instances on
+ *    a machine.
+ * 4. Instance-specific loader tunables, used for say sa5.
+ * 5. On the fly user sysctl changes.
+ * 
+ * Each step will overwrite the timeout value set from the one
+ * before, so you go from general to most specific.
+ */
 static struct sa_timeout_desc {
 	const char *desc;
 	int value;
@@ -2333,6 +2349,12 @@ sasetupdev(struct sa_softc *softc, struct cdev *dev)
 		softc->num_devs_to_destroy++;
 }
 
+/*
+ * Load the global (for all sa(4) instances) and per-instance tunable
+ * values for timeouts for various sa(4) commands.  This should be run
+ * after the default timeouts are fetched from the drive, so the user's
+ * preference will override the drive's defaults.
+ */
 static void
 saloadtotunables(struct sa_softc *softc)
 {
@@ -2342,12 +2364,17 @@ saloadtotunables(struct sa_softc *softc)
 	for (i = 0; i < SA_TIMEOUT_TYPE_MAX; i++) {
 		int tmpval, retval;
 
+		/* First grab any global timeout setting */
 		snprintf(tmpstr, sizeof(tmpstr), "kern.cam.sa.timeout.%s",
 		    sa_default_timeouts[i].desc);
 		retval = TUNABLE_INT_FETCH(tmpstr, &tmpval);
 		if (retval != 0)
 			softc->timeout_info[i] = tmpval;
 
+		/*
+		 * Then overwrite any global timeout settings with
+		 * per-instance timeout settings.
+		 */
 		snprintf(tmpstr, sizeof(tmpstr), "kern.cam.sa.%u.timeout.%s",
 		    softc->periph->unit_number, sa_default_timeouts[i].desc);
 		retval = TUNABLE_INT_FETCH(tmpstr, &tmpval);
@@ -2408,6 +2435,15 @@ sasysctlinit(void *context, int pending)
 		snprintf(tmpstr, sizeof(tmpstr), "%s timeout",
 		    sa_default_timeouts[i].desc);
 
+		/*
+		 * Do NOT change this sysctl declaration to also load any
+		 * tunable values for this sa(4) instance.  In other words,
+		 * do not change this to CTLFLAG_RWTUN.  This function is
+		 * run in parallel with the probe routine that fetches
+		 * recommended timeout values from the tape drive, and we
+		 * don't want the values from the drive to override the
+		 * user's preference.
+		 */
 		SYSCTL_ADD_INT(&softc->sysctl_timeout_ctx,
 		    SYSCTL_CHILDREN(softc->sysctl_timeout_tree),
 	            OID_AUTO, sa_default_timeouts[i].desc, CTLFLAG_RW, 
@@ -2660,7 +2696,9 @@ saregister(struct cam_periph *periph, void *arg)
 	softc->density_type_bits[3] = SRDS_MEDIUM_TYPE | SRDS_MEDIA;
 	/*
 	 * Bump the peripheral refcount for the sysctl thread, in case we
-	 * get invalidated before the thread has a chance to run.
+	 * get invalidated before the thread has a chance to run.  Note
+	 * that this runs in parallel with the probe for the timeout
+	 * values.
 	 */
 	cam_periph_acquire(periph);
 	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
@@ -2673,7 +2711,20 @@ saregister(struct cam_periph *periph, void *arg)
 
 	/*
 	 * See comment above, try fetching timeout values for drives that
-	 * might support it.  Otherwise, use the defaults.
+	 * might support it.  Otherwise, use the defaults.  
+	 *
+	 * We get timeouts from the following places in order of increasing
+	 * priority:
+	 * 1. Driver default timeouts.
+	 * 2. Timeouts loaded from the drive via REPORT SUPPORTED OPERATION
+	 *    CODES. (We kick that off here if SA_FLAG_RSOC_TO_TRY is set.)
+	 * 3. Global loader tunables, used for all sa(4) driver instances on
+	 *    a machine.
+	 * 4. Instance-specific loader tunables, used for say sa5.
+	 * 5. On the fly user sysctl changes.
+	 * 
+	 * Each step will overwrite the timeout value set from the one
+	 * before, so you go from general to most specific.
 	 */
 	if (softc->flags & SA_FLAG_RSOC_TO_TRY) {
 		/*
