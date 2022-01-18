@@ -55,6 +55,7 @@ CWARNFLAGS.blake2b-ref.c	+= -Wno-cast-qual -Wno-unused-function
 CWARNFLAGS.blake2s-ref.c	+= -Wno-cast-qual -Wno-unused-function
 SRCS	+= chacha.c
 SRCS	+= chacha-sw.c
+SRCS	+= chacha20_poly1305.c
 
 LIBSODIUM_INC=${LIBSODIUM}/include
 LIBSODIUM_COMPAT=${SRCTOP}/sys/crypto/libsodium
