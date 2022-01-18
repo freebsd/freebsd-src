@@ -1286,6 +1286,7 @@ struct wpa_supplicant {
 	struct os_reltime wnm_cand_valid_until;
 	u8 wnm_cand_from_bss[ETH_ALEN];
 	enum bss_trans_mgmt_status_code bss_tm_status;
+	bool bss_trans_mgmt_in_progress;
 	struct wpabuf *coloc_intf_elems;
 	u8 coloc_intf_dialog_token;
 	u8 coloc_intf_auto_report;
