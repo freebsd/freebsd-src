@@ -1428,47 +1428,44 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 			fl = (*seg->free_queues)[pind];
 			TAILQ_FOREACH(m_ret, &fl[oind].pl, listq) {
 				/*
-				 * Is the size of this allocation request
-				 * larger than the largest block size?
-				 */
-				if (order >= VM_NFREEORDER) {
-					/*
-					 * Determine if a sufficient number of
-					 * subsequent blocks to satisfy the
-					 * allocation request are free.
-					 */
-					pa = VM_PAGE_TO_PHYS(m_ret);
-					pa_end = pa + size;
-					if (pa_end < pa)
-						continue;
-					for (;;) {
-						pa += 1 << (PAGE_SHIFT +
-						    VM_NFREEORDER - 1);
-						if (pa >= pa_end ||
-						    pa < seg->start ||
-						    pa >= seg->end)
-							break;
-						m = &seg->first_page[atop(pa -
-						    seg->start)];
-						if (m->order != VM_NFREEORDER -
-						    1)
-							break;
-					}
-					/* If not, go to the next block. */
-					if (pa < pa_end)
-						continue;
-				}
-
-				/*
-				 * Determine if the blocks are within the
-				 * given range, satisfy the given alignment,
-				 * and do not cross the given boundary.
+				 * Determine if the address range starting at pa
+				 * is within the given range, satisfies the
+				 * given alignment, and does not cross the given
+				 * boundary.
 				 */
 				pa = VM_PAGE_TO_PHYS(m_ret);
 				pa_end = pa + size;
-				if (pa >= low && pa_end <= high &&
-				    vm_addr_ok(pa, size, alignment, boundary))
+				if (pa < low || pa_end > high ||
+				    !vm_addr_ok(pa, size, alignment, boundary))
+					continue;
+
+				/*
+				 * Is the size of this allocation request
+				 * no more than the largest block size?
+				 */
+				if (order < VM_NFREEORDER)
 					goto done;
+
+				/*
+				 * Determine if the address range is valid
+				 * (without overflow in pa_end calculation)
+				 * and fits within the segment.
+				 */
+				if (pa_end < pa || pa_end > seg->end)
+					continue;
+
+				/*
+				 * Determine if a sufficient number of
+				 * subsequent blocks to satisfy the
+				 * allocation request are free.
+				 */
+				do {
+					pa += 1 <<
+					    (PAGE_SHIFT + VM_NFREEORDER - 1);
+					if (pa >= pa_end)
+						goto done;
+				} while (VM_NFREEORDER - 1 == seg->first_page[
+				    atop(pa - seg->start)].order);
 			}
 		}
 	}
