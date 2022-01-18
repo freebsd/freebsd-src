@@ -221,6 +221,8 @@ ntpd_fetch_leapfile() {
 	if ntpd_needfetch_leapfile ; then
 		for url in $ntp_leapfile_sources ; do
 			$verbose fetching $url
+			# Circumvent umask 027 and 077 in login.conf(5)
+			umask 022
 			fetch $ntp_leapfile_fetch_opts -o $_ntp_tmp_leapfile $url && break
 		done
 		ntp_ver_no_tmp=$(get_ntp_leapfile_ver $_ntp_tmp_leapfile)
