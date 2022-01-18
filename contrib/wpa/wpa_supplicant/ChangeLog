@@ -1,5 +1,58 @@
 ChangeLog for wpa_supplicant
 
+2022-01-16 - v2.10
+	* SAE changes
+	  - improved protection against side channel attacks
+	    [https://w1.fi/security/2022-1/]
+	  - added support for the hash-to-element mechanism (sae_pwe=1 or
+	    sae_pwe=2); this is currently disabled by default, but will likely
+	    get enabled by default in the future
+	  - fixed PMKSA caching with OKC
+	  - added support for SAE-PK
+	* EAP-pwd changes
+	  - improved protection against side channel attacks
+	  [https://w1.fi/security/2022-1/]
+	* fixed P2P provision discovery processing of a specially constructed
+	  invalid frame
+	  [https://w1.fi/security/2021-1/]
+	* fixed P2P group information processing of a specially constructed
+	  invalid frame
+	  [https://w1.fi/security/2020-2/]
+	* fixed PMF disconnection protection bypass in AP mode
+	  [https://w1.fi/security/2019-7/]
+	* added support for using OpenSSL 3.0
+	* increased the maximum number of EAP message exchanges (mainly to
+	  support cases with very large certificates)
+	* fixed various issues in experimental support for EAP-TEAP peer
+	* added support for DPP release 2 (Wi-Fi Device Provisioning Protocol)
+	* a number of MKA/MACsec fixes and extensions
+	* added support for SAE (WPA3-Personal) AP mode configuration
+	* added P2P support for EDMG (IEEE 802.11ay) channels
+	* fixed EAP-FAST peer with TLS GCM/CCM ciphers
+	* improved throughput estimation and BSS selection
+	* dropped support for libnl 1.1
+	* added support for nl80211 control port for EAPOL frame TX/RX
+	* fixed OWE key derivation with groups 20 and 21; this breaks backwards
+	  compatibility for these groups while the default group 19 remains
+	  backwards compatible
+	* added support for Beacon protection
+	* added support for Extended Key ID for pairwise keys
+	* removed WEP support from the default build (CONFIG_WEP=y can be used
+	  to enable it, if really needed)
+	* added a build option to remove TKIP support (CONFIG_NO_TKIP=y)
+	* added support for Transition Disable mechanism to allow the AP to
+	  automatically disable transition mode to improve security
+	* extended D-Bus interface
+	* added support for PASN
+	* added a file-based backend for external password storage to allow
+	  secret information to be moved away from the main configuration file
+	  without requiring external tools
+	* added EAP-TLS peer support for TLS 1.3 (disabled by default for now)
+	* added support for SCS, MSCS, DSCP policy
+	* changed driver interface selection to default to automatic fallback
+	  to other compiled in options
+	* a large number of other fixes, cleanup, and extensions
+
 2019-08-07 - v2.9
 	* SAE changes
 	  - disable use of groups using Brainpool curves

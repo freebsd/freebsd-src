@@ -27,5 +27,7 @@ int dragonfly_generate_scalar(const struct crypto_bignum *order,
 			      struct crypto_bignum *_rand,
 			      struct crypto_bignum *_mask,
 			      struct crypto_bignum *scalar);
+int dragonfly_sqrt(struct crypto_ec *ec, const struct crypto_bignum *val,
+		   struct crypto_bignum *res);
 
 #endif /* DRAGONFLY_H */

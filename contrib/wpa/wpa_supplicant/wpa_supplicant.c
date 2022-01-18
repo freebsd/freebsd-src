@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant
- * Copyright (c) 2003-2019, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2022, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -71,7 +71,7 @@
 
 const char *const wpa_supplicant_version =
 "wpa_supplicant v" VERSION_STR "\n"
-"Copyright (c) 2003-2019, Jouni Malinen <j@w1.fi> and contributors";
+"Copyright (c) 2003-2022, Jouni Malinen <j@w1.fi> and contributors";
 
 const char *const wpa_supplicant_license =
 "This software may be distributed under the terms of the BSD license.\n"
@@ -3620,6 +3620,11 @@ static void wpas_start_assoc_cb(struct wpa_radio_work *work, int deinit)
        struct ieee80211_vht_capabilities vhtcaps;
        struct ieee80211_vht_capabilities vhtcaps_mask;
 #endif /* CONFIG_VHT_OVERRIDES */
+
+	wpa_s->roam_in_progress = false;
+#ifdef CONFIG_WNM
+	wpa_s->bss_trans_mgmt_in_progress = false;
+#endif /* CONFIG_WNM */
 
 	if (deinit) {
 		if (work->started) {
@@ -8173,6 +8178,10 @@ void wpas_request_disconnection(struct wpa_supplicant *wpa_s)
 	eloop_cancel_timeout(wpas_network_reenabled, wpa_s, NULL);
 	radio_remove_works(wpa_s, "connect", 0);
 	radio_remove_works(wpa_s, "sme-connect", 0);
+	wpa_s->roam_in_progress = false;
+#ifdef CONFIG_WNM
+	wpa_s->bss_trans_mgmt_in_progress = false;
+#endif /* CONFIG_WNM */
 }
 
 
