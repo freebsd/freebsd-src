@@ -740,6 +740,8 @@ crypto/camellia/camellia.c	optional crypto
 crypto/camellia/camellia-api.c	optional crypto
 crypto/chacha20/chacha.c	standard
 crypto/chacha20/chacha-sw.c	optional crypto
+crypto/chacha20_poly1305.c	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 crypto/des/des_ecb.c		optional netsmb
 crypto/des/des_setkey.c		optional netsmb
 crypto/openssl/ossl.c		optional ossl
