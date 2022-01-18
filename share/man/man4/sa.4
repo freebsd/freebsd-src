@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2022
+.Dd January 18, 2022
 .Dt SA 4
 .Os
 .Sh NAME
@@ -338,8 +338,9 @@ If the drive does report timeout descriptors, the
 .Nm
 driver will use the drive's recommended timeouts for commands.
 .Pp
-The timeouts in use are reported in units of THOUSANDTHS of a second via
-the 
+The timeouts in use are reported in units of
+.Sy thousandths
+of a second via the 
 .Va kern.cam.sa.%d.timeout.*
 .Xr sysctl 8
 variables.
@@ -375,7 +376,6 @@ Loader tunables:
 .Pp
 .Bl -tag -compact
 .It kern.cam.sa.timeout.erase
-.It kern.cam.sa.timeout.load
 .It kern.cam.sa.timeout.locate
 .It kern.cam.sa.timeout.mode_select
 .It kern.cam.sa.timeout.mode_sense
@@ -398,7 +398,6 @@ values:
 .Pp
 .Bl -tag -compact
 .It kern.cam.sa.%d.timeout.erase
-.It kern.cam.sa.%d.timeout.load
 .It kern.cam.sa.%d.timeout.locate
 .It kern.cam.sa.%d.timeout.mode_select
 .It kern.cam.sa.%d.timeout.mode_sense
@@ -415,8 +414,9 @@ values:
 .It kern.cam.sa.%d.timeout.write_filemarks
 .El
 .Pp
-As mentioned above, the timeouts are set and reported in THOUSANDTHS of a
-second, so be sure to account for that when setting them.
+As mentioned above, the timeouts are set and reported in
+.Sy thousandths
+of a second, so be sure to account for that when setting them.
 .Sh IOCTLS
 The
 .Nm
