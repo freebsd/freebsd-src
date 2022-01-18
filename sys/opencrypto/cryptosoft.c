@@ -146,13 +146,11 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
 	crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-	inblk = crypto_cursor_segment(&cc_in, &inlen);
 	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
 		crypto_cursor_init(&cc_out, &crp->crp_obuf);
 		crypto_cursor_advance(&cc_out, crp->crp_payload_output_start);
 	} else
 		cc_out = cc_in;
-	outblk = crypto_cursor_segment(&cc_out, &outlen);
 
 	encrypting = CRYPTO_OP_IS_ENCRYPT(crp->crp_op);
 
@@ -162,7 +160,13 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 	 * 'outlen' is the remaining length of current segment in the
 	 * output buffer.
 	 */
+	inlen = outlen = 0;
 	for (resid = crp->crp_payload_length; resid >= blksz; resid -= todo) {
+		if (inlen == 0)
+			inblk = crypto_cursor_segment(&cc_in, &inlen);
+		if (outlen == 0)
+			outblk = crypto_cursor_segment(&cc_out, &outlen);
+
 		/*
 		 * If the current block is not contained within the
 		 * current input/output segment, use 'blk' as a local
@@ -191,8 +195,6 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 			crypto_cursor_advance(&cc_in, todo);
 			inlen -= todo;
 			inblk += todo;
-			if (inlen == 0)
-				inblk = crypto_cursor_segment(&cc_in, &inlen);
 		}
 
 		if (outblk == blk) {
@@ -202,9 +204,6 @@ swcr_encdec(const struct swcr_session *ses, struct cryptop *crp)
 			crypto_cursor_advance(&cc_out, todo);
 			outlen -= todo;
 			outblk += todo;
-			if (outlen == 0)
-				outblk = crypto_cursor_segment(&cc_out,
-				    &outlen);
 		}
 	}
 
@@ -476,15 +475,19 @@ swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 	/* Do encryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
 	crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-	inblk = crypto_cursor_segment(&cc_in, &inlen);
 	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
 		crypto_cursor_init(&cc_out, &crp->crp_obuf);
 		crypto_cursor_advance(&cc_out, crp->crp_payload_output_start);
 	} else
 		cc_out = cc_in;
-	outblk = crypto_cursor_segment(&cc_out, &outlen);
 
+	inlen = outlen = 0;
 	for (resid = crp->crp_payload_length; resid >= blksz; resid -= todo) {
+		if (inlen == 0)
+			inblk = crypto_cursor_segment(&cc_in, &inlen);
+		if (outlen == 0)
+			outblk = crypto_cursor_segment(&cc_out, &outlen);
+
 		if (inlen < blksz) {
 			crypto_cursor_copydata(&cc_in, blksz, blk);
 			inblk = blk;
@@ -510,9 +513,6 @@ swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_out, todo);
 				outlen -= todo;
 				outblk += todo;
-				if (outlen == 0)
-					outblk = crypto_cursor_segment(&cc_out,
-					    &outlen);
 			}
 		} else {
 			todo = rounddown2(MIN(resid, inlen), blksz);
@@ -525,8 +525,6 @@ swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 			crypto_cursor_advance(&cc_in, todo);
 			inlen -= todo;
 			inblk += todo;
-			if (inlen == 0)
-				inblk = crypto_cursor_segment(&cc_in, &inlen);
 		}
 	}
 	if (resid > 0) {
@@ -563,10 +561,14 @@ swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 		/* tag matches, decrypt data */
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-		inblk = crypto_cursor_segment(&cc_in, &inlen);
 
+		inlen = 0;
 		for (resid = crp->crp_payload_length; resid > blksz;
 		     resid -= todo) {
+			if (inlen == 0)
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
+			if (outlen == 0)
+				outblk = crypto_cursor_segment(&cc_out, &outlen);
 			if (inlen < blksz) {
 				crypto_cursor_copydata(&cc_in, blksz, blk);
 				inblk = blk;
@@ -588,9 +590,6 @@ swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_in, todo);
 				inlen -= todo;
 				inblk += todo;
-				if (inlen == 0)
-					inblk = crypto_cursor_segment(&cc_in,
-					    &inlen);
 			}
 
 			if (outblk == blk) {
@@ -601,9 +600,6 @@ swcr_gcm(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_out, todo);
 				outlen -= todo;
 				outblk += todo;
-				if (outlen == 0)
-					outblk = crypto_cursor_segment(&cc_out,
-					    &outlen);
 			}
 		}
 		if (resid > 0) {
@@ -809,15 +805,19 @@ swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 	/* Do encryption/decryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
 	crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-	inblk = crypto_cursor_segment(&cc_in, &inlen);
 	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
 		crypto_cursor_init(&cc_out, &crp->crp_obuf);
 		crypto_cursor_advance(&cc_out, crp->crp_payload_output_start);
 	} else
 		cc_out = cc_in;
-	outblk = crypto_cursor_segment(&cc_out, &outlen);
 
+	inlen = outlen = 0;
 	for (resid = crp->crp_payload_length; resid >= blksz; resid -= todo) {
+		if (inlen == 0)
+			inblk = crypto_cursor_segment(&cc_in, &inlen);
+		if (outlen == 0)
+			outblk = crypto_cursor_segment(&cc_out, &outlen);
+
 		if (inlen < blksz) {
 			crypto_cursor_copydata(&cc_in, blksz, blk);
 			inblk = blk;
@@ -843,9 +843,6 @@ swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_out, todo);
 				outlen -= todo;
 				outblk += todo;
-				if (outlen == 0)
-					outblk = crypto_cursor_segment(&cc_out,
-					    &outlen);
 			}
 		} else {
 			/*
@@ -867,8 +864,6 @@ swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 			crypto_cursor_advance(&cc_in, todo);
 			inlen -= todo;
 			inblk += todo;
-			if (inlen == 0)
-				inblk = crypto_cursor_segment(&cc_in, &inlen);
 		}
 	}
 	if (resid > 0) {
@@ -901,10 +896,16 @@ swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 		exf->reinit(ctx, crp->crp_iv, ivlen);
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-		inblk = crypto_cursor_segment(&cc_in, &inlen);
 
+		inlen = 0;
 		for (resid = crp->crp_payload_length; resid >= blksz;
 		     resid -= todo) {
+			if (inlen == 0)
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
+			if (outlen == 0)
+				outblk = crypto_cursor_segment(&cc_out,
+				    &outlen);
+
 			if (inlen < blksz) {
 				crypto_cursor_copydata(&cc_in, blksz, blk);
 				inblk = blk;
@@ -926,9 +927,6 @@ swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_in, todo);
 				inlen -= todo;
 				inblk += todo;
-				if (inlen == 0)
-					inblk = crypto_cursor_segment(&cc_in,
-					    &inlen);
 			}
 
 			if (outblk == blk) {
@@ -939,9 +937,6 @@ swcr_ccm(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_out, todo);
 				outlen -= todo;
 				outblk += todo;
-				if (outlen == 0)
-					outblk = crypto_cursor_segment(&cc_out,
-					    &outlen);
 			}
 		}
 		if (resid > 0) {
@@ -1017,17 +1012,22 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 	/* Do encryption with MAC */
 	crypto_cursor_init(&cc_in, &crp->crp_buf);
 	crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-	inblk = crypto_cursor_segment(&cc_in, &inlen);
 	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
 		crypto_cursor_init(&cc_out, &crp->crp_obuf);
 		crypto_cursor_advance(&cc_out, crp->crp_payload_output_start);
 	} else
 		cc_out = cc_in;
-	outblk = crypto_cursor_segment(&cc_out, &outlen);
 
+	inlen = outlen = 0;
 	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
 		for (resid = crp->crp_payload_length; resid >= blksz;
 		     resid -= todo) {
+			if (inlen == 0)
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
+			if (outlen == 0)
+				outblk = crypto_cursor_segment(&cc_out,
+				    &outlen);
+
 			if (inlen < blksz) {
 				crypto_cursor_copydata(&cc_in, blksz, blk);
 				inblk = blk;
@@ -1051,9 +1051,6 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_in, todo);
 				inlen -= todo;
 				inblk += todo;
-				if (inlen == 0)
-					inblk = crypto_cursor_segment(&cc_in,
-					    &inlen);
 			}
 
 			if (outblk == blk) {
@@ -1063,9 +1060,6 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_out, todo);
 				outlen -= todo;
 				outblk += todo;
-				if (outlen == 0)
-					outblk = crypto_cursor_segment(&cc_out,
-					    &outlen);
 			}
 		}
 		if (resid > 0) {
@@ -1107,10 +1101,15 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 		/* tag matches, decrypt data */
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
-		inblk = crypto_cursor_segment(&cc_in, &inlen);
 
+		inlen = 0;
 		for (resid = crp->crp_payload_length; resid > blksz;
 		     resid -= todo) {
+			if (inlen == 0)
+				inblk = crypto_cursor_segment(&cc_in, &inlen);
+			if (outlen == 0)
+				outblk = crypto_cursor_segment(&cc_out,
+				    &outlen);
 			if (inlen < blksz) {
 				crypto_cursor_copydata(&cc_in, blksz, blk);
 				inblk = blk;
@@ -1132,9 +1131,6 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_in, todo);
 				inlen -= todo;
 				inblk += todo;
-				if (inlen == 0)
-					inblk = crypto_cursor_segment(&cc_in,
-					    &inlen);
 			}
 
 			if (outblk == blk) {
@@ -1145,9 +1141,6 @@ swcr_chacha20_poly1305(const struct swcr_session *ses, struct cryptop *crp)
 				crypto_cursor_advance(&cc_out, todo);
 				outlen -= todo;
 				outblk += todo;
-				if (outlen == 0)
-					outblk = crypto_cursor_segment(&cc_out,
-					    &outlen);
 			}
 		}
 		if (resid > 0) {
