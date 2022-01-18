@@ -1229,7 +1229,7 @@ again:
 		struct inpcb *inp, *ninp;
 		TAILQ_HEAD(, inpcb) head = TAILQ_HEAD_INITIALIZER(head);
 		struct hptsh *hptsh;
-		uint32_t runningslot, gencnt;
+		uint32_t runningslot;
 
 		/*
 		 * Calculate our delay, if there are no extra ticks there
@@ -1243,7 +1243,7 @@ again:
 		TAILQ_SWAP(&head, &hptsh->head, inpcb, inp_hpts);
 		hpts->p_on_queue_cnt -= hptsh->count;
 		hptsh->count = 0;
-		gencnt = hptsh->gencnt++;
+		hptsh->gencnt++;
 
 		HPTS_UNLOCK(hpts);
 

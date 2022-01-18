@@ -1013,7 +1013,7 @@ void
 tcp_sack_lost_retransmission(struct tcpcb *tp, struct tcphdr *th)
 {
 	struct sackhole *temp;
-	uint32_t prev_cwnd;
+
 	if (IN_RECOVERY(tp->t_flags) &&
 	    SEQ_GT(tp->snd_fack, tp->snd_recover) &&
 	    ((temp = TAILQ_FIRST(&tp->snd_holes)) != NULL) &&
@@ -1037,7 +1037,6 @@ tcp_sack_lost_retransmission(struct tcpcb *tp, struct tcphdr *th)
 		 * prior to invoking another cwnd reduction by the CC
 		 * module, to not shrink it excessively.
 		 */
-		prev_cwnd = tp->snd_cwnd;
 		tp->snd_cwnd = tp->snd_ssthresh;
 		/*
 		 * Formally exit recovery, and let the CC module adjust

@@ -6492,7 +6492,7 @@ bbr_nf_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, u
 		/* We log only when not in persist */
 		/* Translate to a Bytes Per Second */
 		uint64_t tim, bw, ts_diff, ts_bw;
-		uint32_t upper, lower, delivered;
+		uint32_t delivered;
 
 		if (TSTMP_GT(bbr->r_ctl.rc_del_time, rsm->r_del_time))
 			tim = (uint64_t)(bbr->r_ctl.rc_del_time - rsm->r_del_time);
@@ -6511,8 +6511,6 @@ bbr_nf_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, u
 			/* We must have a calculatable amount */
 			return;
 		}
-		upper = (bw >> 32) & 0x00000000ffffffff;
-		lower = bw & 0x00000000ffffffff;
 		/*
 		 * If we are using this b/w shove it in now so we
 		 * can see in the trace viewer if it gets over-ridden.
@@ -6608,7 +6606,7 @@ bbr_google_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rt
 		/* We log only when not in persist */
 		/* Translate to a Bytes Per Second */
 		uint64_t tim, bw;
-		uint32_t upper, lower, delivered;
+		uint32_t delivered;
 		int no_apply = 0;
 
 		if (TSTMP_GT(bbr->r_ctl.rc_del_time, rsm->r_del_time))
@@ -6630,8 +6628,6 @@ bbr_google_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rt
 
 			no_apply = 1;
 		}
-		upper = (bw >> 32) & 0x00000000ffffffff;
-		lower = bw & 0x00000000ffffffff;
 		/*
 		 * If we are using this b/w shove it in now so we
 		 * can see in the trace viewer if it gets over-ridden.
@@ -6999,12 +6995,11 @@ bbr_proc_sack_blk(struct tcpcb *tp, struct tcp_bbr *bbr, struct sackblk *sack,
     struct tcpopt *to, struct bbr_sendmap **prsm, uint32_t cts)
 {
 	int32_t times = 0;
-	uint32_t start, end, maxseg, changed = 0;
+	uint32_t start, end, changed = 0;
 	struct bbr_sendmap *rsm, *nrsm;
 	int32_t used_ref = 1;
 	uint8_t went_back = 0, went_fwd = 0;
 
-	maxseg = tp->t_maxseg - bbr->rc_last_options;
 	start = sack->start;
 	end = sack->end;
 	rsm = *prsm;
@@ -10359,10 +10354,9 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 	 * Now what state are we going into now? Is there adjustments
 	 * needed?
 	 */
-	int32_t old_state, old_gain;
+	int32_t old_state;
 
 	old_state = bbr_state_val(bbr);
-	old_gain = bbr->r_ctl.rc_bbr_hptsi_gain;
 	if (bbr_state_val(bbr) == BBR_SUB_LEVEL1) {
 		/* Save the lowest srtt we saw in our end of the sub-state */
 		bbr->rc_hit_state_1 = 0;
@@ -11361,7 +11355,6 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct bbr_sendmap *rsm;
 	struct timeval ltv;
 	int32_t did_out = 0;
-	int32_t in_recovery;
 	uint16_t nsegs;
 	int32_t prev_state;
 	uint32_t lost;
@@ -11581,7 +11574,6 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_do_dropwithreset_conn(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return (1);
 	}
-	in_recovery = IN_RECOVERY(tp->t_flags);
 	if (tiwin > bbr->r_ctl.rc_high_rwnd)
 		bbr->r_ctl.rc_high_rwnd = tiwin;
 #ifdef BBR_INVARIANTS
@@ -11947,7 +11939,6 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	uint8_t more_to_rxt=0;
 	int32_t prefetch_so_done = 0;
 	int32_t prefetch_rsm = 0;
- 	uint32_t what_we_can = 0;
 	uint32_t tot_len = 0;
 	uint32_t rtr_cnt = 0;
 	uint32_t maxseg, pace_max_segs, p_maxseg;
@@ -12428,7 +12419,7 @@ recheck_resend:
 			}
 			bbr->rc_tlp_new_data = 0;
 		} else {
-			what_we_can = len = bbr_what_can_we_send(tp, bbr, sendwin, avail, sb_offset, cts);
+			len = bbr_what_can_we_send(tp, bbr, sendwin, avail, sb_offset, cts);
 			if ((len < p_maxseg) &&
 			    (bbr->rc_in_persist == 0) &&
 			    (ctf_outstanding(tp) >= (2 * p_maxseg)) &&
@@ -13172,7 +13163,6 @@ send:
 	 */
 	if (len) {
 		uint32_t moff;
-		uint32_t orig_len;
 
 		/*
 		 * We place a limit on sending with hptsi.
@@ -13276,7 +13266,6 @@ send:
 				}
 			}
 #endif
-			orig_len = len;
 			m->m_next = tcp_m_copym(
 				mb, moff, &len,
 				if_hw_tsomaxsegcount,
@@ -14162,11 +14151,9 @@ bbr_output(struct tcpcb *tp)
 {
 	int32_t ret;
 	struct timeval tv;
-	struct tcp_bbr *bbr;
 
 	NET_EPOCH_ASSERT();
 
-	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	(void)tcp_get_usecs(&tv);
 	ret = bbr_output_wtime(tp, &tv);
