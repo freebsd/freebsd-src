@@ -1,0 +1,262 @@
+Hotspot 2.0 OSU server
+======================
+
+The information in this document is based on the assumption that Ubuntu
+16.04 server (64-bit) distribution is used and the web server is
+Apache2. Neither of these are requirements for the installation, but if
+other combinations are used, the package names and configuration
+parameters may need to be adjusted.
+
+NOTE: This implementation and the example configuration here is meant
+only for testing purposes in a lab environment. This design is not
+secure to be installed in a publicly available Internet server without
+considerable amount of modification and review for security issues.
+
+
+Build dependencies
+------------------
+
+Ubuntu 16.04 server
+- default installation
+- upgraded to latest package versions
+  sudo apt-get update
+  sudo apt-get upgrade
+
+Packages needed for running the service:
+  sudo apt-get install sqlite3
+  sudo apt-get install apache2
+  sudo apt-get install php-sqlite3 php-xml libapache2-mod-php
+
+Additional packages needed for building the components:
+  sudo apt-get install build-essential
+  sudo apt-get install libsqlite3-dev
+  sudo apt-get install libssl-dev
+  sudo apt-get install libxml2-dev
+
+
+Installation location
+---------------------
+
+Select a location for the installation root directory. The example here
+assumes /home/user/hs20-server to be used, but this can be changed by
+editing couple of files as indicated below.
+
+sudo mkdir -p /home/user/hs20-server
+sudo chown $USER /home/user/hs20-server
+mkdir -p /home/user/hs20-server/spp
+mkdir -p /home/user/hs20-server/AS
+
+
+Build
+-----
+
+# hostapd as RADIUS server
+cd hostapd
+
+#example build configuration
+cat > .config <<EOF
+CONFIG_DRIVER_NONE=y
+CONFIG_PKCS12=y
+CONFIG_RADIUS_SERVER=y
+CONFIG_EAP=y
+CONFIG_EAP_TLS=y
+CONFIG_EAP_MSCHAPV2=y
+CONFIG_EAP_PEAP=y
+CONFIG_EAP_GTC=y
+CONFIG_EAP_TTLS=y
+CONFIG_EAP_SIM=y
+CONFIG_EAP_AKA=y
+CONFIG_EAP_AKA_PRIME=y
+CONFIG_SQLITE=y
+CONFIG_HS20=y
+EOF
+
+make hostapd hlr_auc_gw
+cp hostapd hlr_auc_gw /home/user/hs20-server/AS
+
+# build hs20_spp_server
+cd ../hs20/server
+make clean
+make
+cp hs20_spp_server /home/user/hs20-server/spp
+# prepare database (web server user/group needs to have write access)
+mkdir -p /home/user/hs20-server/AS/DB
+sudo chgrp www-data /home/user/hs20-server/AS/DB
+sudo chmod g+w /home/user/hs20-server/AS/DB
+sqlite3 /home/user/hs20-server/AS/DB/eap_user.db < sql.txt
+sudo chgrp www-data /home/user/hs20-server/AS/DB/eap_user.db
+sudo chmod g+w /home/user/hs20-server/AS/DB/eap_user.db
+# add example configuration (note: need to update URLs to match the system)
+sqlite3 /home/user/hs20-server/AS/DB/eap_user.db < sql-example.txt
+
+# copy PHP scripts
+# Modify config.php if different installation directory is used.
+# Modify PHP scripts to get the desired behavior for user interaction (or use
+# the examples as-is for initial testing).
+cp -r www /home/user/hs20-server
+
+# Create /home/user/hs20-server/terms-and-conditions file (HTML segment to be
+# inserted within the BODY section of the page).
+cat > /home/user/hs20-server/terms-and-conditions <<EOF
+<P>Terms and conditions..</P>
+EOF
+
+# Build local keys and certs
+cd ca
+# Display help options.
+./setup.sh -h
+
+# Remove old keys, fill in appropriate values, and generate your keys.
+# For instance:
+./clean.sh
+rm -fr rootCA"
+old_hostname=myserver.local
+./setup.sh -C "Hotspot 2.0 Trust Root CA - CT" \
+   -o $old_hostname-osu-client \
+   -O $old_hostname-oscp -p lanforge -S $old_hostname \
+   -V $old_hostname-osu-revoked \
+   -m local -u http://$old_hostname:8888/
+
+# Configure subscription policies
+mkdir -p /home/user/hs20-server/spp/policy
+cat > /home/user/hs20-server/spp/policy/default.xml <<EOF
+<Policy>
+	<PolicyUpdate>
+		<UpdateInterval>30</UpdateInterval>
+		<UpdateMethod>ClientInitiated</UpdateMethod>
+		<Restriction>Unrestricted</Restriction>
+		<URI>https://policy-server.osu.example.com/hs20/spp.php</URI>
+	</PolicyUpdate>
+</Policy>
+EOF
+
+
+# Install Hotspot 2.0 SPP and OMA DM XML schema/DTD files
+
+# XML schema for SPP
+# Copy the latest XML schema into /home/user/hs20-server/spp/spp.xsd
+
+# OMA DM Device Description Framework DTD
+# Copy into /home/user/hs20-server/spp/dm_ddf-v1_2.dtd
+# http://www.openmobilealliance.org/tech/DTD/dm_ddf-v1_2.dtd
+
+
+# Configure RADIUS authentication service
+# Note: Change the URL to match the setup
+# Note: Install AAA server key/certificate and root CA in Key directory
+
+cat > /home/user/hs20-server/AS/as-sql.conf <<EOF
+driver=none
+radius_server_clients=as.radius_clients
+eap_server=1
+eap_user_file=sqlite:DB/eap_user.db
+ca_cert=Key/ca.pem
+server_cert=Key/server.pem
+private_key=Key/server.key
+private_key_passwd=passphrase
+eap_sim_db=unix:/tmp/hlr_auc_gw.sock db=eap_sim.db
+subscr_remediation_url=https://subscription-server.osu.example.com/hs20/spp.php
+EOF
+
+# Set RADIUS passphrase for the APs
+# Note: Modify to match the setup
+cat > /home/user/hs20-server/AS/as.radius_clients <<EOF
+0.0.0.0/0	radius
+EOF
+
+
+Start RADIUS authentication server
+----------------------------------
+
+cd /home/user/hs20-server/AS
+./hostapd -B as-sql.conf
+
+
+OSEN RADIUS server configuration notes
+
+The OSEN RADIUS server config file should have the 'ocsp_stapling_response'
+configuration in it. For example:
+
+# hostapd-radius config for the radius used by the OSEN AP
+interface=eth0#0
+driver=none
+logger_syslog=-1
+logger_syslog_level=2
+logger_stdout=-1
+logger_stdout_level=2
+ctrl_interface=/var/run/hostapd
+ctrl_interface_group=0
+eap_server=1
+eap_user_file=/home/user/hs20-server/AS/hostapd-osen.eap_user
+server_id=ben-ota-2-osen
+radius_server_auth_port=1811
+radius_server_clients=/home/user/hs20-server/AS/hostap.radius_clients
+
+ca_cert=/home/user/hs20-server/ca/ca.pem
+server_cert=/home/user/hs20-server/ca/server.pem
+private_key=/home/user/hs20-server/ca/server.key
+private_key_passwd=whatever
+
+ocsp_stapling_response=/home/user/hs20-server/ca/ocsp-server-cache.der
+
+The /home/user/hs20-server/AS/hostapd-osen.eap_user file should look
+similar to this, and should coorelate with the osu_nai entry in
+the non-OSEN VAP config file.  For instance:
+
+# cat hostapd-osen.eap_user
+# For OSEN authentication (Hotspot 2.0 Release 2)
+"osen@w1.fi"      WFA-UNAUTH-TLS
+
+
+# Run OCSP server:
+cd /home/user/hs20-server/ca
+./ocsp-responder.sh&
+
+# Update cache (This should be run periodically)
+./ocsp-update-cache.sh
+
+
+Configure web server
+--------------------
+
+Edit /etc/apache2/sites-available/default-ssl
+
+Add following block just before "SSL Engine Switch" line":
+
+        Alias /hs20/ "/home/user/hs20-server/www/"
+        <Directory "/home/user/hs20-server/www/">
+                Options Indexes MultiViews FollowSymLinks
+                AllowOverride None
+		Require all granted
+		SSLOptions +StdEnvVars
+        </Directory>
+
+Update SSL configuration to use the OSU server certificate/key.
+They keys and certs are called 'server.key' and 'server.pem' from
+ca/setup.sh.
+
+To support subscription remediation using client certificates, set
+"SSLVerifyClient optional" and configure the trust root CA(s) for the
+client certificates with SSLCACertificateFile.
+
+Enable default-ssl site and restart Apache2:
+  sudo a2ensite default-ssl
+  sudo a2enmod ssl
+  sudo service apache2 restart
+
+
+Management UI
+-------------
+
+The sample PHP scripts include a management UI for testing
+purposes. That is available at https://<server>/hs20/users.php
+
+
+AP configuration
+----------------
+
+APs can now be configured to use the OSU server as the RADIUS
+authentication server. In addition, the OSU Provider List ANQP element
+should be configured to use the SPP (SOAP+XML) option and with the
+following Server URL:
+https://<server>/hs20/spp.php/signup?realm=example.com

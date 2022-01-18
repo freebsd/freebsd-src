@@ -213,37 +213,3 @@ int dragonfly_generate_scalar(const struct crypto_bignum *order,
 		   "dragonfly: Unable to get randomness for own scalar");
 	return -1;
 }
-
-
-/* res = sqrt(val) */
-int dragonfly_sqrt(struct crypto_ec *ec, const struct crypto_bignum *val,
-		   struct crypto_bignum *res)
-{
-	const struct crypto_bignum *prime;
-	struct crypto_bignum *tmp, *one;
-	int ret = 0;
-	u8 prime_bin[DRAGONFLY_MAX_ECC_PRIME_LEN];
-	size_t prime_len;
-
-	/* For prime p such that p = 3 mod 4, sqrt(w) = w^((p+1)/4) mod p */
-
-	prime = crypto_ec_get_prime(ec);
-	prime_len = crypto_ec_prime_len(ec);
-	tmp = crypto_bignum_init();
-	one = crypto_bignum_init_uint(1);
-
-	if (crypto_bignum_to_bin(prime, prime_bin, sizeof(prime_bin),
-				 prime_len) < 0 ||
-	    (prime_bin[prime_len - 1] & 0x03) != 3 ||
-	    !tmp || !one ||
-	    /* tmp = (p+1)/4 */
-	    crypto_bignum_add(prime, one, tmp) < 0 ||
-	    crypto_bignum_rshift(tmp, 2, tmp) < 0 ||
-	    /* res = sqrt(val) */
-	    crypto_bignum_exptmod(val, tmp, prime, res) < 0)
-		ret = -1;
-
-	crypto_bignum_deinit(tmp, 0);
-	crypto_bignum_deinit(one, 0);
-	return ret;
-}

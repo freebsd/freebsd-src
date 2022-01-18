@@ -290,16 +290,14 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 	int pwd_seed_odd = 0;
 	u8 prime[SAE_MAX_ECC_PRIME_LEN];
 	size_t prime_len;
-	struct crypto_bignum *x = NULL, *y = NULL, *qr = NULL, *qnr = NULL;
+	struct crypto_bignum *x = NULL, *qr = NULL, *qnr = NULL;
 	u8 x_bin[SAE_MAX_ECC_PRIME_LEN];
 	u8 x_cand_bin[SAE_MAX_ECC_PRIME_LEN];
 	u8 qr_bin[SAE_MAX_ECC_PRIME_LEN];
 	u8 qnr_bin[SAE_MAX_ECC_PRIME_LEN];
-	u8 x_y[2 * SAE_MAX_ECC_PRIME_LEN];
 	int res = -1;
 	u8 found = 0; /* 0 (false) or 0xff (true) to be used as const_time_*
 		       * mask */
-	unsigned int is_eq;
 
 	os_memset(x_bin, 0, sizeof(x_bin));
 
@@ -398,42 +396,25 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 		goto fail;
 	}
 
-	/* y = sqrt(x^3 + ax + b) mod p
-	 * if LSB(save) == LSB(y): PWE = (x, y)
-	 * else: PWE = (x, p - y)
-	 *
-	 * Calculate y and the two possible values for PWE and after that,
-	 * use constant time selection to copy the correct alternative.
-	 */
-	y = crypto_ec_point_compute_y_sqr(sae->tmp->ec, x);
-	if (!y ||
-	    dragonfly_sqrt(sae->tmp->ec, y, y) < 0 ||
-	    crypto_bignum_to_bin(y, x_y, SAE_MAX_ECC_PRIME_LEN,
-				 prime_len) < 0 ||
-	    crypto_bignum_sub(sae->tmp->prime, y, y) < 0 ||
-	    crypto_bignum_to_bin(y, x_y + SAE_MAX_ECC_PRIME_LEN,
-				 SAE_MAX_ECC_PRIME_LEN, prime_len) < 0) {
-		wpa_printf(MSG_DEBUG, "SAE: Could not solve y");
-		goto fail;
-	}
-
-	is_eq = const_time_eq(pwd_seed_odd, x_y[prime_len - 1] & 0x01);
-	const_time_select_bin(is_eq, x_y, x_y + SAE_MAX_ECC_PRIME_LEN,
-			      prime_len, x_y + prime_len);
-	os_memcpy(x_y, x_bin, prime_len);
-	wpa_hexdump_key(MSG_DEBUG, "SAE: PWE", x_y, 2 * prime_len);
-	crypto_ec_point_deinit(sae->tmp->pwe_ecc, 1);
-	sae->tmp->pwe_ecc = crypto_ec_point_from_bin(sae->tmp->ec, x_y);
-	if (!sae->tmp->pwe_ecc) {
-		wpa_printf(MSG_DEBUG, "SAE: Could not generate PWE");
+	if (!sae->tmp->pwe_ecc)
+		sae->tmp->pwe_ecc = crypto_ec_point_init(sae->tmp->ec);
+	if (!sae->tmp->pwe_ecc)
 		res = -1;
+	else
+		res = crypto_ec_point_solve_y_coord(sae->tmp->ec,
+						    sae->tmp->pwe_ecc, x,
+						    pwd_seed_odd);
+	if (res < 0) {
+		/*
+		 * This should not happen since we already checked that there
+		 * is a result.
+		 */
+		wpa_printf(MSG_DEBUG, "SAE: Could not solve y");
 	}
 
 fail:
-	forced_memzero(x_y, sizeof(x_y));
 	crypto_bignum_deinit(qr, 0);
 	crypto_bignum_deinit(qnr, 0);
-	crypto_bignum_deinit(y, 1);
 	os_free(stub_password);
 	bin_clear_free(tmp_password, password_len);
 	crypto_bignum_deinit(x, 1);
@@ -766,9 +747,19 @@ static struct crypto_ec_point * sswu(struct crypto_ec *ec, int group,
 	const_time_select_bin(is_qr, bin1, bin2, prime_len, x_y);
 	wpa_hexdump_key(MSG_DEBUG, "SSWU: x = CSEL(l, x1, x2)", x_y, prime_len);
 
-	/* y = sqrt(v) */
+	/* y = sqrt(v)
+	 * For prime p such that p = 3 mod 4 --> v^((p+1)/4) */
+	if (crypto_bignum_to_bin(prime, bin1, sizeof(bin1), prime_len) < 0)
+		goto fail;
+	if ((bin1[prime_len - 1] & 0x03) != 3) {
+		wpa_printf(MSG_DEBUG, "SSWU: prime does not have p = 3 mod 4");
+		goto fail;
+	}
 	y = crypto_bignum_init();
-	if (!y || dragonfly_sqrt(ec, v, y) < 0)
+	if (!y ||
+	    crypto_bignum_add(prime, one, t1) < 0 ||
+	    crypto_bignum_rshift(t1, 2, t1) < 0 ||
+	    crypto_bignum_exptmod(v, t1, prime, y) < 0)
 		goto fail;
 	debug_print_bignum("SSWU: y = sqrt(v)", y, prime_len);
 

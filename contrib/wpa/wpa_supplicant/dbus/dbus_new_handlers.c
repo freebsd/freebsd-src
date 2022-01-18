@@ -1780,7 +1780,6 @@ DBusMessage * wpas_dbus_handler_remove_all_creds(DBusMessage *message,
 }
 
 
-#ifdef CONFIG_INTERWORKING
 DBusMessage *
 wpas_dbus_handler_interworking_select(DBusMessage *message,
 				      struct wpa_supplicant *wpa_s)
@@ -1801,7 +1800,6 @@ wpas_dbus_handler_interworking_select(DBusMessage *message,
 
 	return reply;
 }
-#endif /* CONFIG_INTERWORKING */
 
 
 /**
