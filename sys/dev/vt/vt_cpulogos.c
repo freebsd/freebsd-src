@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/terminal.h>
 
 #include <dev/vt/vt.h>
@@ -43,7 +44,7 @@ extern const unsigned char vt_beastie_vga16[];
 extern const unsigned char vt_beastie2_vga16[];
 extern const unsigned char vt_orb_vga16[];
 
-static struct callout vt_splash_cpu_callout;
+static struct timeout_task vt_splash_cpu_fini_task;
 
 static inline unsigned char
 vt_vga2bsd(unsigned char vga)
@@ -149,7 +150,7 @@ vtterm_draw_cpu_logos(struct vt_device *vd)
 }
 
 static void
-vt_fini_logos(void *dummy __unused)
+vt_fini_logos(void *dummy __unused, int pending __unused)
 {
 	struct vt_device *vd;
 	struct vt_window *vw;
@@ -260,11 +261,12 @@ vt_init_logos(void *dummy)
 		vt_resume_flush_timer(vw, 0);
 	}
 
-	callout_init(&vt_splash_cpu_callout, 1);
-	callout_reset(&vt_splash_cpu_callout, vt_splash_cpu_duration * hz,
+	TIMEOUT_TASK_INIT(taskqueue_thread, &vt_splash_cpu_fini_task, 0,
 	    vt_fini_logos, NULL);
+	taskqueue_enqueue_timeout(taskqueue_thread, &vt_splash_cpu_fini_task,
+	    vt_splash_cpu_duration * hz);
 
 out:
 	VT_UNLOCK(vd);
 }
-SYSINIT(vt_logos, SI_SUB_CPU + 1, SI_ORDER_ANY, vt_init_logos, NULL);
+SYSINIT(vt_logos, SI_SUB_TASKQ, SI_ORDER_ANY, vt_init_logos, NULL);
