@@ -46,7 +46,9 @@
 
 #if SANITIZER_FREEBSD
 #include <pthread_np.h>
+#include <stdlib.h>
 #include <osreldate.h>
+#include <sys/auxv.h>
 #include <sys/sysctl.h>
 #define pthread_getattr_np pthread_attr_get_np
 // The MAP_NORESERVE define has been removed in FreeBSD 11.x, and even before
@@ -865,7 +867,14 @@ u64 MonotonicNanoTime() {
 void ReExec() {
   const char *pathname = "/proc/self/exe";
 
-#if SANITIZER_NETBSD
+#if SANITIZER_FREEBSD
+  char exe_path[PATH_MAX];
+  if (elf_aux_info(AT_EXECPATH, exe_path, sizeof(exe_path)) == 0) {
+    char link_path[PATH_MAX];
+    if (realpath(exe_path, link_path))
+      pathname = link_path;
+  }
+#elif SANITIZER_NETBSD
   static const int name[] = {
       CTL_KERN,
       KERN_PROC_ARGS,
