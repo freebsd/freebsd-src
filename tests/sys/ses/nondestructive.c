@@ -42,7 +42,9 @@
 
 #include "common.h"
 
-static bool do_getelmdesc(const char *devname, int fd) {
+static bool
+do_getelmdesc(const char *devname, int fd)
+{
 	regex_t re;
 	FILE *pipe;
 	char cmd[256];
@@ -125,11 +127,13 @@ ATF_TC_BODY(getelmdesc, tc)
 	for_each_ses_dev(do_getelmdesc, O_RDONLY);
 }
 
-static bool do_getelmdevnames(const char *devname __unused, int fd) {
+static bool
+do_getelmdevnames(const char *devname __unused, int fd)
+{
 	encioc_element_t *map;
 	unsigned nobj;
 	const size_t namesize = 128;
-	int r;
+	int r, status;
 	char *namebuf;
 	unsigned elm_idx;
 
@@ -164,8 +168,10 @@ static bool do_getelmdevnames(const char *devname __unused, int fd) {
 		elmdn.elm_devnames = namebuf;
 		namebuf[0] = '\0';
 		r = ioctl(fd, ENCIOC_GETELMDEVNAMES, (caddr_t) &elmdn);
-		if (e_status.cstat[0] != SES_OBJSTAT_UNSUPPORTED &&
-		    e_status.cstat[0] != SES_OBJSTAT_NOTINSTALLED &&
+		status = ses_status_common_get_element_status_code(
+			(struct ses_status_common*)&e_status.cstat[0]);
+		if (status != SES_OBJSTAT_UNSUPPORTED &&
+		    status != SES_OBJSTAT_NOTINSTALLED &&
 		    (map[elm_idx].elm_type == ELMTYP_DEVICE ||
 		     map[elm_idx].elm_type == ELMTYP_ARRAY_DEV))
 		{
@@ -176,8 +182,7 @@ static bool do_getelmdevnames(const char *devname __unused, int fd) {
 
 		if (r == 0) {
 			size_t z = 0;
-			int da = 0, ada = 0, pass = 0, nvd = 0;
-			int nvme = 0, unknown = 0;
+			int da = 0, ada = 0, pass = 0, nda = 0, unknown = 0;
 
 			while(elmdn.elm_devnames[z] != '\0') {
 				size_t e;
@@ -193,16 +198,14 @@ static bool do_getelmdevnames(const char *devname __unused, int fd) {
 					ada++;
 				else if (0 == strncmp("pass", s, e))
 					pass++;
-				else if (0 == strncmp("nvd", s, e))
-					nvd++;
-				else if (0 == strncmp("nvme", s, e))
-					nvme++;
+				else if (0 == strncmp("nda", s, e))
+					nda++;
 				else
 					unknown++;
 				z += strcspn(elmdn.elm_devnames + z, ",");
 			}
 			/* There should be one pass dev for each non-pass dev */
-			ATF_CHECK_EQ(pass, da + ada + nvd + nvme);
+			ATF_CHECK_EQ(pass, da + ada + nda);
 			ATF_CHECK_EQ_MSG(0, unknown,
 			    "Unknown device names %s", elmdn.elm_devnames);
 		}
@@ -229,7 +232,8 @@ ATF_TC_BODY(getelmdevnames, tc)
 }
 
 static int
-elm_type_name2int(const char *name) {
+elm_type_name2int(const char *name)
+{
 	const char *elm_type_names[] = ELM_TYPE_NAMES;
 	int i;
 
@@ -241,7 +245,9 @@ elm_type_name2int(const char *name) {
 	return (-1);
 }
 
-static bool do_getelmmap(const char *devname, int fd) {
+static bool
+do_getelmmap(const char *devname, int fd)
+{
 	encioc_element_t *map;
 	FILE *pipe;
 	char cmd[256];
@@ -320,7 +326,9 @@ ATF_TC_BODY(getelmmap, tc)
 	for_each_ses_dev(do_getelmmap, O_RDONLY);
 }
 
-static bool do_getelmstat(const char *devname, int fd) {
+static bool
+do_getelmstat(const char *devname, int fd)
+{
 	encioc_element_t *map;
 	unsigned elm_idx;
 	unsigned nobj;
@@ -391,7 +399,9 @@ ATF_TC_BODY(getelmstat, tc)
 	for_each_ses_dev(do_getelmstat, O_RDONLY);
 }
 
-static bool do_getencid(const char *devname, int fd) {
+static bool
+do_getencid(const char *devname, int fd)
+{
 	encioc_string_t stri;
 	FILE *pipe;
 	char cmd[256];
@@ -441,7 +451,9 @@ ATF_TC_BODY(getencid, tc)
 	for_each_ses_dev(do_getencid, O_RDONLY);
 }
 
-static bool do_getencname(const char *devname, int fd) {
+static bool
+do_getencname(const char *devname, int fd)
+{
 	encioc_string_t stri;
 	FILE *pipe;
 	char cmd[256];
@@ -487,7 +499,9 @@ ATF_TC_BODY(getencname, tc)
 	for_each_ses_dev(do_getencname, O_RDONLY);
 }
 
-static bool do_getencstat(const char *devname, int fd) {
+static bool
+do_getencstat(const char *devname, int fd)
+{
 	FILE *pipe;
 	char cmd[256];
 	unsigned char e, estat, invop, info, noncrit, crit, unrecov;
@@ -530,7 +544,9 @@ ATF_TC_BODY(getencstat, tc)
 	for_each_ses_dev(do_getencstat, O_RDONLY);
 }
 
-static bool do_getnelm(const char *devname, int fd) {
+static bool
+do_getnelm(const char *devname, int fd)
+{
 	FILE *pipe;
 	char cmd[256];
 	char line[256];
@@ -578,7 +594,9 @@ ATF_TC_BODY(getnelm, tc)
 	for_each_ses_dev(do_getnelm, O_RDONLY);
 }
 
-static bool do_getstring(const char *devname, int fd) {
+static bool
+do_getstring(const char *devname, int fd)
+{
 	FILE *pipe;
 	char cmd[256];
 	char *sg_ses_buf, *ses_buf;
