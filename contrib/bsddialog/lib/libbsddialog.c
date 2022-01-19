@@ -57,11 +57,12 @@ extern struct bsddialog_theme t;
 int bsddialog_init(void)
 {
 	int i, j, c, error;
+	enum bsddialog_default_theme theme;
 
 	set_error_string("");
 
-	if(initscr() == NULL)
-		RETURN_ERROR("Cannot init ncurses (initscr)");
+	if (initscr() == NULL)
+		RETURN_ERROR("Cannot init curses (initscr)");
 
 	error = OK;
 	error += keypad(stdscr, TRUE);
@@ -69,9 +70,9 @@ int bsddialog_init(void)
 	error += cbreak();
 	error += noecho();
 	curs_set(0);
-	if(error != OK) {
+	if (error != OK) {
 		bsddialog_end();
-		RETURN_ERROR("Cannot init ncurses (keypad and cursor)");
+		RETURN_ERROR("Cannot init curses (keypad and cursor)");
 	}
 
 	c = 1;
@@ -81,12 +82,13 @@ int bsddialog_init(void)
 			error += init_pair(c, i, j);
 			c++;
 	}
-	if(error != OK) {
-		bsddialog_end();
-		RETURN_ERROR("Cannot init ncurses (colors)");
-	}
 
-	if (bsddialog_set_default_theme(BSDDIALOG_THEME_DEFAULT) != 0) {
+	if (error == OK)
+		theme = BSDDIALOG_THEME_DEFAULT;
+	else
+		theme = BSDDIALOG_THEME_BLACKWHITE;
+
+	if (bsddialog_set_default_theme(theme) != 0) {
 		bsddialog_end();
 		return (BSDDIALOG_ERROR);
 	}
