@@ -48,10 +48,10 @@ statistic (fp, path_fcodes)
 	FILE *fp;               /* open database */
 	char *path_fcodes;  	/* for error message */
 {
-	register int lines, chars, size, big, zwerg;
+	long lines, chars, size, big, zwerg, umlaut;
 	register u_char *p, *s;
 	register int c;
-	int count, umlaut;
+	int count;
 	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN];
 
 	for (c = 0, p = bigram1, s = bigram2; c < NBG; c++) {
@@ -95,12 +95,12 @@ statistic (fp, path_fcodes)
 	(void)printf("Bigram: %2.2f%%, ", (size - big) / (size / (float)100));
 	(void)printf("Total: %2.2f%%\n", 
 		     (size - (2 * NBG)) / (chars / (float)100));
-	(void)printf("Filenames: %d, ", lines);
-	(void)printf("Characters: %d, ", chars);
-	(void)printf("Database size: %d\n", size);
-	(void)printf("Bigram characters: %d, ", big);
-	(void)printf("Integers: %d, ", zwerg);
-	(void)printf("8-Bit characters: %d\n", umlaut);
+	(void)printf("Filenames: %ld, ", lines);
+	(void)printf("Characters: %ld, ", chars);
+	(void)printf("Database size: %ld\n", size);
+	(void)printf("Bigram characters: %ld, ", big);
+	(void)printf("Integers: %ld, ", zwerg);
+	(void)printf("8-Bit characters: %ld\n", umlaut);
 
 }
 #endif /* _LOCATE_STATISTIC_ */
