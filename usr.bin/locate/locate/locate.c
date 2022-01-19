@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-4-Clause
  *
- * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+ * Copyright (c) 1995-2022 Wolfram Schneider <wosch@FreeBSD.org>
  * Copyright (c) 1989, 1993
  *      The Regents of the University of California.  All rights reserved.
  *
@@ -122,8 +122,8 @@ void    usage(void);
 void    statistic(FILE *, char *);
 void    fastfind(FILE *, char *, char *);
 void    fastfind_icase(FILE *, char *, char *);
-void    fastfind_mmap(char *, caddr_t, int, char *);
-void    fastfind_mmap_icase(char *, caddr_t, int, char *);
+void    fastfind_mmap(char *, caddr_t, off_t, char *);
+void    fastfind_mmap_icase(char *, caddr_t, off_t, char *);
 void	search_mmap(char *, char **);
 void	search_fopen(char *, char **);
 unsigned long cputime(void);
@@ -314,9 +314,9 @@ search_mmap(char *db, char **s)
 		t0 = cputime();
 #endif
 		if (f_icase)
-			fastfind_mmap_icase(*s, p, (int)len, db);
+			fastfind_mmap_icase(*s, p, len, db);
 		else
-			fastfind_mmap(*s, p, (int)len, db);
+			fastfind_mmap(*s, p, len, db);
 #ifdef DEBUG
 		warnx("fastfind %ld ms", cputime () - t0);
 #endif
