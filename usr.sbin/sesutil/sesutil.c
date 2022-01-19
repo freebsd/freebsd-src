@@ -525,6 +525,7 @@ objmap(int argc, char **argv __unused)
 			}
 			print_extra_status(e_ptr[j].elm_type, e_status.cstat, PRINT_STYLE_DASHED);
 			xo_close_instance("elements");
+			free(e_desc.elm_desc_str);
 			free(e_devname.elm_devnames);
 		}
 		xo_close_list("elements");
@@ -617,7 +618,7 @@ static void
 show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t e_desc)
 {
 	encioc_elm_devnames_t e_devname;
-	char *model, *serial;
+	char *model = NULL, *serial = NULL;
 	off_t size;
 
 	/* Get the device name(s) of the element */
@@ -634,8 +635,6 @@ show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t
 	    (caddr_t) &e_devname) < 0) {
 		/* We don't care if this fails */
 		e_devname.elm_devnames[0] = '\0';
-		model = NULL;
-		serial = NULL;
 		size = -1;
 	} else {
 		skip_pass_devices(e_devname.elm_devnames, 128);
@@ -660,6 +659,8 @@ show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t
 	print_extra_status(ELMTYP_ARRAY_DEV, e_status.cstat, PRINT_STYLE_CSV);
 	xo_emit("\n");
 	xo_close_instance("elements");
+	free(serial);
+	free(model);
 	free(e_devname.elm_devnames);
 }
 
@@ -852,6 +853,7 @@ show(int argc, char **argv __unused)
 				 */
 				break;
 			}
+			free(e_desc.elm_desc_str);
 		}
 		if (prev_type != (elm_type_t)-1 &&
 		    prev_type != ELMTYP_DEVICE && prev_type != ELMTYP_ARRAY_DEV)
