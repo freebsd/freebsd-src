@@ -4,7 +4,7 @@
 CONFS=	locate.rc
 PROG=	locate
 SRCS=	util.c locate.c
-CFLAGS+= -I${.CURDIR} -DMMAP # -DDEBUG (print time) -O2 (10% faster)
+CFLAGS+= -I${.CURDIR} -DMMAP
 SCRIPTS=updatedb.sh mklocatedb.sh concatdb.sh
 MAN=	locate.1 locate.updatedb.8
 
