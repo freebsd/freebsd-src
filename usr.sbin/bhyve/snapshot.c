@@ -1520,7 +1520,7 @@ init_checkpoint_thread(struct vmctx *ctx)
 	int socket_fd;
 	pthread_t checkpoint_pthread;
 	char vmname_buf[MAX_VMNAME];
-	int ret, err = 0;
+	int err;
 
 	memset(&addr, 0, sizeof(addr));
 
@@ -1555,12 +1555,10 @@ init_checkpoint_thread(struct vmctx *ctx)
 	checkpoint_info->ctx = ctx;
 	checkpoint_info->socket_fd = socket_fd;
 
-	ret = pthread_create(&checkpoint_pthread, NULL, checkpoint_thread,
+	err = pthread_create(&checkpoint_pthread, NULL, checkpoint_thread,
 		checkpoint_info);
-	if (ret < 0) {
-		err = ret;
+	if (err != 0)
 		goto fail;
-	}
 
 	return (0);
 fail:
