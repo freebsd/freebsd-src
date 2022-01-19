@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2021
+.Dd January 20, 2022
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -479,7 +479,9 @@ The events to monitor are:
 .It Dv NOTE_EXIT
 The process has exited.
 The exit status will be stored in
-.Va data .
+.Va data
+in the same format as the status returned by
+.Xr wait 2 .
 .It Dv NOTE_FORK
 The process has called
 .Fn fork .
