@@ -1451,7 +1451,8 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 				 * (without overflow in pa_end calculation)
 				 * and fits within the segment.
 				 */
-				if (pa_end < pa || pa_end > seg->end)
+				if (pa_end < pa ||
+				    pa < seg->start || seg->end < pa_end)
 					continue;
 
 				/*
