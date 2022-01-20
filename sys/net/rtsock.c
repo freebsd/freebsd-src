@@ -219,6 +219,7 @@ static void	send_rtm_reply(struct socket *so, struct rt_msghdr *rtm,
 			int rtm_errno);
 static bool	can_export_rte(struct ucred *td_ucred, bool rt_is_host,
 			const struct sockaddr *rt_dst);
+static void	rtsock_notify_event(uint32_t fibnum, const struct rib_cmd_info *rc);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -273,6 +274,45 @@ vnet_rts_uninit(void)
 VNET_SYSUNINIT(vnet_rts_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     vnet_rts_uninit, 0);
 #endif
+
+static void
+report_route_event(const struct rib_cmd_info *rc, void *_cbdata)
+{
+	uint32_t fibnum = (uint32_t)(uintptr_t)_cbdata;
+	struct nhop_object *nh;
+
+	nh = rc->rc_cmd == RTM_DELETE ? rc->rc_nh_old : rc->rc_nh_new;
+	rt_routemsg(rc->rc_cmd, rc->rc_rt, nh, fibnum);
+}
+
+static void
+rts_handle_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
+{
+#ifdef ROUTE_MPATH
+	if ((rc->rc_nh_new && NH_IS_NHGRP(rc->rc_nh_new)) ||
+	    (rc->rc_nh_old && NH_IS_NHGRP(rc->rc_nh_old))) {
+		rib_decompose_notification(rc, report_route_event,
+		    (void *)(uintptr_t)fibnum);
+	} else
+#endif
+		report_route_event(rc, (void *)(uintptr_t)fibnum);
+}
+static struct rtbridge rtsbridge = { .route_f = rts_handle_route_event };
+static struct rtbridge *rtsbridge_orig_p;
+
+static void
+rtsock_notify_event(uint32_t fibnum, const struct rib_cmd_info *rc)
+{
+	netlink_callback_p->route_f(fibnum, rc);
+}
+
+static void
+rtsock_init(void)
+{
+	rtsbridge_orig_p = rtsock_callback_p;
+	rtsock_callback_p = &rtsbridge;
+}
+SYSINIT(rtsock_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rtsock_init, NULL);
 
 static void
 rts_handle_ifnet_arrival(void *arg __unused, struct ifnet *ifp)
@@ -1074,6 +1114,7 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 		}
 		error = rib_action(fibnum, rtm->rtm_type, &info, &rc);
 		if (error == 0) {
+			rtsock_notify_event(fibnum, &rc);
 #ifdef ROUTE_MPATH
 			if (NH_IS_NHGRP(rc.rc_nh_new) ||
 			    (rc.rc_nh_old && NH_IS_NHGRP(rc.rc_nh_old))) {
@@ -1095,6 +1136,7 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 	case RTM_DELETE:
 		error = rib_action(fibnum, RTM_DELETE, &info, &rc);
 		if (error == 0) {
+			rtsock_notify_event(fibnum, &rc);
 #ifdef ROUTE_MPATH
 			if (NH_IS_NHGRP(rc.rc_nh_old) ||
 			    (rc.rc_nh_new && NH_IS_NHGRP(rc.rc_nh_new))) {
