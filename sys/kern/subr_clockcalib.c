@@ -108,7 +108,7 @@ clockcalib(uint64_t (*clk)(void), const char *clkname)
 		clk1 = clk() - clk0;
 		t1 = tc->tc_get_timecount(tc) & tc->tc_counter_mask;
 		while (t1 + tadj < tlast)
-			tadj += tc->tc_counter_mask + 1;
+			tadj += (uint64_t)tc->tc_counter_mask + 1;
 		tlast = t1 + tadj;
 		t1 += tadj - t0;
 
