@@ -1,18 +1,23 @@
 #
 # $FreeBSD$
 #
-# This file lists old files (OLD_FILES), libraries (OLD_LIBS) and
-# directories (OLD_DIRS) which should get removed after an update.
+# This file lists old files (OLD_FILES), libraries (OLD_LIBS, MOVED_LIBS)
+# and directories (OLD_DIRS) which should get removed after an update.
 # Recently removed entries should be listed first (with the date as a
-# comment). OLD_LIBS should only list dynamic libraries. Static libraries,
-# links to dynamic libraries (lib*.so), and linker scripts should be listed
-# in OLD_FILES. OLD_LIBS are removed by the delete-old-libs target, whereas
-# OLD_FILES and OLD_DIRS are removed by the delete-old target. This
-# separation allows users to avoid deleting old dynamic libraries still
-# required by existing binaries.
+# comment). OLD_LIBS and MOVED_LIBS should only list dynamic libraries.
+# Static libraries, links to dynamic libraries (lib*.so), and linker scripts
+# should be listed in OLD_FILES. OLD_LIBS and MOVED_LIBS are removed by the
+# delete-old-libs target, whereas OLD_FILES and OLD_DIRS are removed by the
+# delete-old target. This separation allows users to avoid deleting old
+# dynamic libraries still required by existing binaries.
 #
-# For files listed in OLD_FILES and OLD_LIBS, the check-old* and
-# delete-old* targets will also delete associated debug symbols from
+# MOVED_LIBS should be used instead of OLD_LIBS when a library is moved
+# from usr/lib to lib or vice versa.  This avoids removing libraries for
+# alternate ABIs (such as lib32) which store all libraries in a single
+# directory (e.g. usr/lib32).
+#
+# For files listed in OLD_FILES, OLD_LIBS, and MOVED_LIBS, the check-old*
+# and delete-old* targets will also delete associated debug symbols from
 # usr/lib/debug.
 #
 # In case of a complete directory hierarchy the sorting is in depth first
@@ -35,7 +40,7 @@
 # also use something that will not give you false positives, e.g.:
 # for t in `make -V TARGETS universe`; do
 #   __MAKE_CONF=/dev/null make -f Makefile.inc1 TARGET=$t \
-#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   -V OLD_FILES -V OLD_LIBS -V MOVED_LIBS -V OLD_DIRS check-old | \
 #   xargs -n1 | sort | uniq -d;
 # done
 #
@@ -43,12 +48,12 @@
 # in OptionalObsoleteFiles.inc have been obsoleted by ObsoleteFiles.inc
 # for o in tools/build/options/WITH*; do
 #   __MAKE_CONF=/dev/null make -f Makefile.inc1 -D${o##*/} \
-#   -V OLD_FILES -V OLD_LIBS -V OLD_DIRS check-old | \
+#   -V OLD_FILES -V OLD_LIBS -V MOVED_LIBS -V OLD_DIRS check-old | \
 #   xargs -n1 | sort | uniq -d;
 # done
 
 # 20211229 libc++ moved to /lib
-OLD_LIBS+=usr/lib/libc++.so.1
+MOVED_LIBS+=usr/lib/libc++.so.1
 
 # 20211221 efi_set_variables_supported.3 should be efi_variables_supported.3
 OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
@@ -7719,7 +7724,7 @@ OLD_LIBS+=usr/lib32/libsureware.so
 OLD_LIBS+=usr/lib32/libubsec.so
 OLD_LIBS+=usr/lib32/libssl.so.8
 # 20180824: libbe(3) SHLIBDIR fixed to reflect correct location
-OLD_LIBS+=usr/lib/libbe.so.1
+MOVED_LIBS+=usr/lib/libbe.so.1
 # 20180819: Remove deprecated arc4random(3) stir/addrandom interfaces
 OLD_FILES+=usr/share/man/man3/arc4random_addrandom.3.gz
 OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz
@@ -7738,8 +7743,8 @@ OLD_FILES+=usr/bin/indent/tests/sac.0
 OLD_FILES+=usr/bin/indent/tests/sac.0.pro
 OLD_FILES+=usr/bin/indent/tests/sac.0.stdout
 # 20180721: move of libmlx5.so.1 and libibverbs.so.1
-OLD_LIBS+=usr/lib/libmlx5.so.1
-OLD_LIBS+=usr/lib/libibverbs.so.1
+MOVED_LIBS+=usr/lib/libmlx5.so.1
+MOVED_LIBS+=usr/lib/libibverbs.so.1
 # 20180720: zfsloader.8 merged into loader.8
 OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 # 20180710: old numa cleanup
@@ -11398,7 +11403,7 @@ OLD_FILES+=usr/share/man/man4/gpib.4.gz
 OLD_FILES+=usr/share/man/man4/pcii.4.gz
 OLD_FILES+=usr/share/man/man4/tnt4882.4.gz
 # 20141224: libxo moved to /lib
-OLD_LIBS+=usr/lib/libxo.so.0
+MOVED_LIBS+=usr/lib/libxo.so.0
 # 20141223: remove in6_gif.h and in_gif.h
 OLD_FILES+=usr/include/netinet/in_gif.h
 OLD_FILES+=usr/include/netinet6/in6_gif.h
@@ -11451,7 +11456,7 @@ OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
 # 20140917: hv_kvpd rc.d script removed in favor of devd configuration
 OLD_FILES+=etc/rc.d/hv_kvpd
 # 20140917: libnv was accidentally being installed to /usr/lib instead of /lib
-OLD_LIBS+=usr/lib/libnv.so.0
+MOVED_LIBS+=usr/lib/libnv.so.0
 # 20140829: rc.d/kerberos removed
 OLD_FILES+=etc/rc.d/kerberos
 # 20140814: libopie version bump
@@ -11737,8 +11742,8 @@ OLD_FILES+=usr/include/machine/apicvar.h
 # 20131215: libcam version bumped
 OLD_LIBS+=lib/libcam.so.6 usr/lib32/libcam.so.6
 # 20131202: libcapsicum and libcasper moved to /lib/
-OLD_LIBS+=usr/lib/libcapsicum.so.0
-OLD_LIBS+=usr/lib/libcasper.so.0
+MOVED_LIBS+=usr/lib/libcapsicum.so.0
+MOVED_LIBS+=usr/lib/libcasper.so.0
 # 20131109: extattr(2) mlinks fixed
 OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
 OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
@@ -12883,7 +12888,7 @@ OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
 # 20101208: libbsnmp was moved to usr/lib
-OLD_LIBS+=lib/libbsnmp.so.5
+MOVED_LIBS+=lib/libbsnmp.so.5
 # 20090719: library version bump for 8.0
 OLD_LIBS+=lib/libalias.so.6
 OLD_LIBS+=lib/libavl.so.1
@@ -15970,11 +15975,11 @@ OLD_LIBS+=usr/lib32/libatm.so.3
 OLD_LIBS+=usr/lib32/libc.so.6
 OLD_LIBS+=usr/lib32/libutil.so.5
 # 20060413: shared library moved to /usr/lib
-OLD_LIBS+=lib/libgpib.so.1
+MOVED_LIBS+=lib/libgpib.so.1
 # 20060413: libpcap.so.4 moved to /lib/
-OLD_LIBS+=usr/lib/libpcap.so.4
+MOVED_LIBS+=usr/lib/libpcap.so.4
 # 20060412: libpthread.so.2 moved to /lib/
-OLD_LIBS+=usr/lib/libpthread.so.2
+MOVED_LIBS+=usr/lib/libpthread.so.2
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
 # 20051027: libc_r discontinued (removed 20101113)
