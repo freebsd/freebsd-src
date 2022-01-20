@@ -702,7 +702,7 @@ ufs_setattr(ap)
 			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
-			if ((ip->i_flags & SF_SNAPSHOT) != 0)
+			if (IS_SNAPSHOT(ip))
 				return (EPERM);
 			break;
 		default:
@@ -726,7 +726,7 @@ ufs_setattr(ap)
 	    vap->va_birthtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if ((ip->i_flags & SF_SNAPSHOT) != 0)
+		if (IS_SNAPSHOT(ip))
 			return (EPERM);
 		error = vn_utimes_perm(vp, vap, cred, td);
 		if (error != 0)
@@ -754,8 +754,8 @@ ufs_setattr(ap)
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if ((ip->i_flags & SF_SNAPSHOT) != 0 && (vap->va_mode &
-		   (S_IXUSR | S_IWUSR | S_IXGRP | S_IWGRP | S_IXOTH | S_IWOTH)))
+		if (IS_SNAPSHOT(ip) && (vap->va_mode & (S_IXUSR | S_IWUSR |
+		    S_IXGRP | S_IWGRP | S_IXOTH | S_IWOTH)) != 0)
 			return (EPERM);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, td);
 	}
@@ -1022,7 +1022,7 @@ ufs_remove(ap)
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
 	if (ip->i_nlink <= 0)
 		vp->v_vflag |= VV_NOSYNC;
-	if ((ip->i_flags & SF_SNAPSHOT) != 0) {
+	if (IS_SNAPSHOT(ip)) {
 		/*
 		 * Avoid deadlock where another thread is trying to
 		 * update the inodeblock for dvp and is waiting on
