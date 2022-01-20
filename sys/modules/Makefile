@@ -271,6 +271,7 @@ SUBDIR=	\
 	my \
 	${_nctgpio} \
 	${_ndis} \
+	netlink \
 	${_netgraph} \
 	${_nfe} \
 	nfscl \
