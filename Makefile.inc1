@@ -3280,7 +3280,7 @@ check-old-files: .PHONY
 list-old-libs: .PHONY
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_LIBS | xargs -n1 | sort
+	    -V OLD_LIBS -V MOVED_LIBS | xargs -n1 | sort
 
 delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
