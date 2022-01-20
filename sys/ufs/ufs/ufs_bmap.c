@@ -217,14 +217,12 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 		 * return a request for a zeroed out buffer if attempts
 		 * are made to read a BLK_NOCOPY or BLK_SNAP block.
 		 */
-		if ((ip->i_flags & SF_SNAPSHOT) && DIP(ip, i_db[bn]) > 0 &&
+		if (IS_SNAPSHOT(ip) && DIP(ip, i_db[bn]) > 0 &&
 		    DIP(ip, i_db[bn]) < ump->um_seqinc) {
 			*bnp = -1;
 		} else if (*bnp == 0) {
-			if (ip->i_flags & SF_SNAPSHOT)
-				*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
-			else
-				*bnp = -1;
+			*bnp = IS_SNAPSHOT(ip) ? blkptrtodb(ump,
+			    bn * ump->um_seqinc) : -1;
 		} else if (runp) {
 			ufs2_daddr_t bnb = bn;
 			for (++bn; bn < UFS_NDADDR && *runp < maxrun &&
@@ -320,13 +318,13 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 	 * return a request for a zeroed out buffer if attempts are made
 	 * to read a BLK_NOCOPY or BLK_SNAP block.
 	 */
-	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc){
+	if (IS_SNAPSHOT(ip) && daddr > 0 && daddr < ump->um_seqinc){
 		*bnp = -1;
 		return (0);
 	}
 	*bnp = blkptrtodb(ump, daddr);
 	if (*bnp == 0) {
-		if (ip->i_flags & SF_SNAPSHOT)
+		if (IS_SNAPSHOT(ip))
 			*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
 		else
 			*bnp = -1;
@@ -367,7 +365,7 @@ ufs_bmap_seekdata(vp, offp)
 	mp = vp->v_mount;
 	ump = VFSTOUFS(mp);
 
-	if (vp->v_type != VREG || (ip->i_flags & SF_SNAPSHOT) != 0)
+	if (vp->v_type != VREG || IS_SNAPSHOT(ip))
 		return (EINVAL);
 	if (*offp < 0 || *offp >= ip->i_size)
 		return (ENXIO);
