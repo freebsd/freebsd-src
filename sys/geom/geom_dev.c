@@ -654,19 +654,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			error = EINVAL;
 			break;
 		}
-		if ((pp->mediasize > 0) && (offset >= pp->mediasize)) {
-			/*
-			 * Catch out-of-bounds requests here. The problem is
-			 * that due to historical GEOM I/O implementation
-			 * peculatities, g_delete_data() would always return
-			 * success for requests starting just the next byte
-			 * after providers media boundary. Condition check on
-			 * non-zero media size, since that condition would
-			 * (most likely) cause ENXIO instead.
-			 */
-			error = EIO;
-			break;
-		}
 		while (length > 0) {
 			chunk = length;
 			if (g_dev_del_max_sectors != 0 &&
