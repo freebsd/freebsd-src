@@ -14261,16 +14261,17 @@ OLD_FILES+=usr/bin/objformat
 OLD_FILES+=usr/share/man/man1/objformat.1.gz
 OLD_FILES+=usr/include/objformat.h
 OLD_FILES+=usr/share/man/man3/getobjformat.3.gz
-# 20061201: remove symlink to *.so.4 libalias modules
-OLD_FILES+=usr/lib/libalias_cuseeme.so
-OLD_FILES+=usr/lib/libalias_dummy.so
-OLD_FILES+=usr/lib/libalias_ftp.so
-OLD_FILES+=usr/lib/libalias_irc.so
-OLD_FILES+=usr/lib/libalias_nbt.so
-OLD_FILES+=usr/lib/libalias_pptp.so
-OLD_FILES+=usr/lib/libalias_skinny.so
-OLD_FILES+=usr/lib/libalias_smedia.so
-# 20061201: remove old *.so.4 libalias modules
+# 20061008: rename *.so.4 libalias modules to *.so and move to /lib
+# This uses MOVED_LIBS because the new files are libraries even though
+# the old files to remove are symlinks
+MOVED_LIBS+=usr/lib/libalias_cuseeme.so
+MOVED_LIBS+=usr/lib/libalias_dummy.so
+MOVED_LIBS+=usr/lib/libalias_ftp.so
+MOVED_LIBS+=usr/lib/libalias_irc.so
+MOVED_LIBS+=usr/lib/libalias_nbt.so
+MOVED_LIBS+=usr/lib/libalias_pptp.so
+MOVED_LIBS+=usr/lib/libalias_skinny.so
+MOVED_LIBS+=usr/lib/libalias_smedia.so
 OLD_LIBS+=lib/libalias_cuseeme.so.4
 OLD_LIBS+=lib/libalias_dummy.so.4
 OLD_LIBS+=lib/libalias_ftp.so.4
