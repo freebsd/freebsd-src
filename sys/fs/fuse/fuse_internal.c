@@ -169,14 +169,12 @@ fuse_internal_access(struct vnode *vp,
 	int err = 0;
 	uint32_t mask = F_OK;
 	int dataflags;
-	int vtype;
 	struct mount *mp;
 	struct fuse_dispatcher fdi;
 	struct fuse_access_in *fai;
 	struct fuse_data *data;
 
 	mp = vnode_mount(vp);
-	vtype = vnode_vtype(vp);
 
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
@@ -1170,18 +1168,14 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	struct mount *mp;
 	pid_t pid = td->td_proc->p_pid;
 	struct fuse_data *data;
-	int dataflags;
 	int err = 0;
 	enum vtype vtyp;
-	int sizechanged = -1;
-	uint64_t newsize = 0;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	mp = vnode_mount(vp);
 	fvdat = VTOFUD(vp);
 	data = fuse_get_mpdata(mp);
-	dataflags = data->dataflags;
 
 	fdisp_init(&fdi, sizeof(*fsai));
 	fdisp_make_vp(&fdi, FUSE_SETATTR, vp, td, cred);
@@ -1205,8 +1199,6 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 
 		/*Truncate to a new value. */
 		fsai->size = vap->va_size;
-		sizechanged = 1;
-		newsize = vap->va_size;
 		fsai->valid |= FATTR_SIZE;
 
 		fuse_filehandle_getrw(vp, FWRITE, &fufh, cred, pid);
