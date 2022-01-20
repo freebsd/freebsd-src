@@ -579,6 +579,7 @@ union pf_keth_rule_ptr {
 
 struct pf_keth_rule_addr {
 	uint8_t	addr[ETHER_ADDR_LEN];
+	uint8_t	mask[ETHER_ADDR_LEN];
 	bool neg;
 	uint8_t	isset;
 };

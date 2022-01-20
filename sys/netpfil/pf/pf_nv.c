@@ -1013,6 +1013,9 @@ pf_nveth_rule_addr_to_keth_rule_addr(const nvlist_t *nvl,
 
 	PFNV_CHK(pf_nvbinary(nvl, "addr", &krule->addr, sizeof(krule->addr)));
 	PFNV_CHK(pf_nvbool(nvl, "neg", &krule->neg));
+	if (nvlist_exists_binary(nvl, "mask"))
+		PFNV_CHK(pf_nvbinary(nvl, "mask", &krule->mask,
+		    sizeof(krule->mask)));
 
 	/* To make checks for 'is this address set?' easier. */
 	if (memcmp(krule->addr, EMPTY_MAC, ETHER_ADDR_LEN) != 0)
@@ -1032,6 +1035,7 @@ pf_keth_rule_addr_to_nveth_rule_addr(const struct pf_keth_rule_addr *krule)
 		return (NULL);
 
 	nvlist_add_binary(nvl, "addr", &krule->addr, sizeof(krule->addr));
+	nvlist_add_binary(nvl, "mask", &krule->mask, sizeof(krule->mask));
 	nvlist_add_bool(nvl, "neg", krule->neg);
 
 	return (nvl);

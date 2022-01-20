@@ -73,6 +73,7 @@ struct pfctl_eth_rules_info {
 
 struct pfctl_eth_addr {
 	uint8_t	addr[ETHER_ADDR_LEN];
+	uint8_t	mask[ETHER_ADDR_LEN];
 	bool	neg;
 	bool	isset;
 };

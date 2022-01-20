@@ -3809,14 +3809,20 @@ pf_tcp_iss(struct pf_pdesc *pd)
 static bool
 pf_match_eth_addr(const uint8_t *a, const struct pf_keth_rule_addr *r)
 {
+	bool match = true;
+
 	/* Always matches if not set */
 	if (! r->isset)
 		return (!r->neg);
 
-	if (memcmp(a, r->addr, ETHER_ADDR_LEN) == 0)
-		return (!r->neg);
+	for (int i = 0; i < ETHER_ADDR_LEN; i++) {
+		if ((a[i] & r->mask[i]) != (r->addr[i] & r->mask[i])) {
+			match = false;
+			break;
+		}
+	}
 
-	return (r->neg);
+	return (match ^ r->neg);
 }
 
 static int
