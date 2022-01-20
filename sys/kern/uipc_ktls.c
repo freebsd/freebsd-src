@@ -2066,6 +2066,7 @@ ktls_decrypt(struct socket *so)
 		}
 
 		/* Allocate the control mbuf. */
+		memset(&tgr, 0, sizeof(tgr));
 		tgr.tls_type = record_type;
 		tgr.tls_vmajor = hdr->tls_vmajor;
 		tgr.tls_vminor = hdr->tls_vminor;
