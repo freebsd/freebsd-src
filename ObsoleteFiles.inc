@@ -2,17 +2,24 @@
 # $FreeBSD$
 #
 # This file lists old files (OLD_FILES), libraries (OLD_LIBS) and
-# directories (OLD_DIRS) which should get removed at an update. Recently
-# removed entries first (with the date as a comment). Dynamic libraries are
-# special cased (OLD_LIBS). Static libraries or the generic links to
-# the dynamic libraries (lib*.so) should (if you don't know why to make an
-# exception, make this a "must") be viewed as normal files (OLD_FILES).
+# directories (OLD_DIRS) which should get removed after an update.
+# Recently removed entries should be listed first (with the date as a
+# comment). OLD_LIBS should only list dynamic libraries. Static libraries,
+# links to dynamic libraries (lib*.so), and linker scripts should be listed
+# in OLD_FILES. OLD_LIBS are removed by the delete-old-libs target, whereas
+# OLD_FILES and OLD_DIRS are removed by the delete-old target. This
+# separation allows users to avoid deleting old dynamic libraries still
+# required by existing binaries.
+#
+# For files listed in OLD_FILES and OLD_LIBS, the check-old* and
+# delete-old* targets will also delete associated debug symbols from
+# usr/lib/debug.
 #
 # In case of a complete directory hierarchy the sorting is in depth first
 # order.
 #
 # Files that are installed or removed depending on some build option
-# are to be listed in /usr/src/tools/build/mk/OptionalObsoleteFiles.inc
+# should be listed in /usr/src/tools/build/mk/OptionalObsoleteFiles.inc
 # instead of in this file.
 #
 # Before you commit changes to this file please check if any entries in
