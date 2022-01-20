@@ -266,6 +266,7 @@ SUBDIR=	\
 	my \
 	${_nctgpio} \
 	${_neta} \
+	netlink \
 	${_netgraph} \
 	${_nfe} \
 	nfscl \

@@ -189,4 +189,11 @@ void rib_unsubscribe_locked(struct rib_subscription *rs);
 void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
 
+/* Event bridge */
+typedef void route_event_f(uint32_t fibnum, const struct rib_cmd_info *rc);
+struct rtbridge{
+	route_event_f	*route_f;
+};
+extern struct rtbridge *rtsock_callback_p;
+extern struct rtbridge *netlink_callback_p;
 #endif
