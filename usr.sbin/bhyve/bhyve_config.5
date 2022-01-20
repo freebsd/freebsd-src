@@ -133,6 +133,12 @@ will listen for connections on this port.
 .It Va gdb.wait Ta bool Ta false Ta
 If the debug server is enabled, wait for a debugger to connect
 before starting the guest.
+.It Va keyboard.layout Ta string Ta Ta
+Specify the keyboard layout name with the file name in
+.Ar /usr/share/bhyve/kbdlayout .
+This value only works when loaded with UEFI mode for VNC, and
+used a VNC client that don't support QEMU Extended Key Event
+Message (e.g. TightVNC).
 .It Va rtc.use_localtime Ta bool Ta true Ta
 The real time clock uses the local time of the host.
 If this is set to false, the real time clock uses UTC.

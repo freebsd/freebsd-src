@@ -1,0 +1,9 @@
+# bhyve ps2kbd keyboard layout file
+#   (us_emacs : United States of America Emacs optimized layout)
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+# $FreeBSD$
+
+0xffff,0x66;	Del
+

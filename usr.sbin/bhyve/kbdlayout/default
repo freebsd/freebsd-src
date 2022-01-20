@@ -1,0 +1,248 @@
+# bhyve ps2kbd keyboard layout file (US - default)
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+# $FreeBSD$
+
+# for those who create the Keyboard Layout File. ******************************
+#  To create the keyboard layout file, first copy this 'default' file into the
+#  same dir. with the layout name as the file name.
+#  The file name is a character string that can be specified as it is in the
+#  -k option of the bhyve command, so a normal language name is desirable.
+#  Then, it is necessary to define the difference between the standard US keyboard
+#  and the keyboard for each language according to the setting method described
+#  in the comment below.
+#
+#  Note that lines starting with '#' and blank lines are ignored.
+#  In addition, the definition of the standard layout setting (US keyboard)
+#  is described as a comment line below for reference.
+#  So you usually only need to remove the '#' and fix it to the correct ScanCode
+#  only on the lines of the key that you can't type correctly with the standard
+#  US keyboard settings.
+
+
+# Alphabet/Number/Sign Keys ---------------------------------------------------
+#   Format:
+#     'Chr',ScanCode(Hex); <Comment>
+#       or
+#     AsciiCode(Hex),ScanCode(Hex); <Comment>
+#
+#  If there are ASCII characters that cannot be entered correctly with the
+#  standard settings(US Keyboard layout), delete the "#" at the beginning of the
+#  relevant line below and set the correct ScanCode.
+#
+#  For example, when a Japanese Keyboard is used, the '@' sign cannot be input
+#  correctly and the number '2' is input.
+#  This is because the US keyboard can input the '@' sign with the Shift + number'2'
+#  keys, and the ScanCode of the '@' sign is the number '2' key by default.
+#  In this case, remove the '#' at the beginning of the line with the '@' sign
+#  below and correct the ScanCode from 0x1e to 0x54 so that you can enter it
+#  correctly.
+#  ScanCode differs depending on the keyboard of eash language, so check it on
+#  the Internet.
+#  Note that keys that have no problems with input have the same settings as
+#  the US keyboard, so you do not need to set anything below.
+#  See the "/usr/share/bhyve/kbdlayout/jp106" file for the specific setting method.
+
+# '!',0x16;	!  (0x21)
+# '"',0x52;	"  (0x22)
+# '#',0x26;	#  (0x23)
+# '$',0x25;	$  (0x24)
+# '%',0x2e;	%  (0x25)
+# '&',0x3d;	&  (0x26)
+# ''',0x52;	'  (0x27)
+# '(',0x46;	(  (0x28)
+# ')',0x45;	)  (0x29)
+# '*',0x3e;	*  (0x2a)
+# '+',0x55;	+  (0x2b)
+# ',',0x41;	,  (0x2c)
+# '-',0x4e;	-  (0x2d)
+# '.',0x49;	.  (0x2e)
+# '/',0x4a;	/  (0x2f)
+
+# '0',0x45;	0  (0x30)
+# '1',0x16;	1  (0x31)
+# '2',0x1e;	2  (0x32)
+# '3',0x26;	3  (0x33)
+# '4',0x25;	4  (0x34)
+# '5',0x2e;	5  (0x35)
+# '6',0x36;	6  (0x36)
+# '7',0x3d;	7  (0x37)
+# '8',0x3e;	8  (0x38)
+# '9',0x46;	9  (0x39)
+# ':',0x4c;	:  (0x3a)
+# ';',0x4c;	;  (0x3b)
+# '<',0x41;	<  (0x3c)
+# '=',0x55;	=  (0x3d)
+# '>',0x49;	>  (0x3e)
+# '?',0x4a;	?  (0x3f)
+
+# '@',0x1e;	@  (0x40)
+# 'A',0x1c;	A  (0x41)
+# 'B',0x32;	B  (0x42)
+# 'C',0x21;	C  (0x43)
+# 'D',0x23;	D  (0x44)
+# 'E',0x24;	E  (0x45)
+# 'F',0x2b;	F  (0x46)
+# 'G',0x34;	G  (0x47)
+# 'H',0x33;	H  (0x48)
+# 'I',0x43;	I  (0x49)
+# 'J',0x3b;	J  (0x4a)
+# 'K',0x42;	K  (0x4b)
+# 'L',0x4b;	L  (0x4c)
+# 'M',0x3a;	M  (0x4d)
+# 'N',0x31;	N  (0x4e)
+# 'O',0x44;	O  (0x4f)
+
+# 'P',0x4d;	P  (0x50)
+# 'Q',0x15;	Q  (0x51)
+# 'R',0x2d;	R  (0x52)
+# 'S',0x1b;	S  (0x53)
+# 'T',0x2c;	T  (0x54)
+# 'U',0x3c;	U  (0x55)
+# 'V',0x2a;	V  (0x56)
+# 'W',0x1d;	W  (0x57)
+# 'X',0x22;	X  (0x58)
+# 'Y',0x35;	Y  (0x59)
+# 'Z',0x1a;	Z  (0x5a)
+# '[',0x54;	[  (0x5b)
+# '\',0x5d;	\  (0x5c)
+# ']',0x5b;	]  (0x5d)
+# '^',0x36;	^  (0x5e)
+# '_',0x4e;	_  (0x5f)
+
+# '`',0x0e;	`  (0x60)
+# 'a',0x1c;	a  (0x61)
+# 'b',0x32;	b  (0x62)
+# 'c',0x21;	c  (0x63)
+# 'd',0x23;	d  (0x64)
+# 'e',0x24;	e  (0x65)
+# 'f',0x2b;	f  (0x66)
+# 'g',0x34;	g  (0x67)
+# 'h',0x33;	h  (0x68)
+# 'i',0x43;	i  (0x69)
+# 'j',0x3b;	j  (0x6a)
+# 'k',0x42;	k  (0x6b)
+# 'l',0x4b;	l  (0x6c)
+# 'm',0x3a;	m  (0x6d)
+# 'n',0x31;	n  (0x6e)
+# 'o',0x44;	o  (0x6f)
+
+# 'p',0x4d;	p  (0x70)
+# 'q',0x15;	q  (0x71)
+# 'r',0x2d;	r  (0x72)
+# 's',0x1b;	s  (0x73)
+# 't',0x2c;	t  (0x74)
+# 'u',0x3c;	u  (0x75)
+# 'v',0x2a;	v  (0x76)
+# 'w',0x1d;	w  (0x77)
+# 'x',0x22;	x  (0x78)
+# 'y',0x35;	y  (0x79)
+# 'z',0x1a;	z  (0x7a)
+# '{',0x54;	{  (0x7b)
+# '|',0x5d;	|  (0x7c)
+# '}',0x5b;	}  (0x7d)
+# '~',0x0e;	~  (0x7e)
+
+
+# Functional Keys -------------------------------------------------------------
+#   Format:
+#     Xorg KeySym(Hex:2Byte),ScanCode(Hex); <Comment>
+#       or
+#     Xorg KeySym(Hex:2Byte),ScanCode(Hex),Prefix(Hex); <Comment>
+#
+#  Key definitions other than alphanumeric characters such as Enter and Escape
+#  are set in this section.
+#  If there is a key that can not be entered correctly with the standard settings
+#  (US Keyboard layout),, delete the '#' at the beginning of the corresponding
+#  line and set the correct scan code.
+#  The Xorg KeySym Code can be checked by using the 'xev' command from X window
+#  on the guest OS.
+#  In addition, some keys have ScanCodes that have a Prefix Byte.
+#  In this case, define '0xe0' as the third argument.(example Home Key,etc)
+#  Note that keys that have no problems with input have the same settings as
+#  the US keyboard, so you do not need to set anything below.
+#  See the "/usr/share/bhyve/kbdlayout/jp106" file for the specific setting method.
+
+# 0xff08,0x66;		Back space
+# 0xff09,0x0d;		Tab
+# 0xff0d,0x5a;		Return
+# 0xff1b,0x76;		Escape
+# 0xff50,0x6c,0xe0; 	Home
+# 0xff51,0x6b,0xe0; 	Left arrow
+# 0xff52,0x75,0xe0; 	Up arrow
+# 0xff53,0x74,0xe0; 	Right arrow
+# 0xff54,0x72,0xe0; 	Down arrow
+# 0xff55,0x7d,0xe0; 	PgUp
+# 0xff56,0x7a,0xe0; 	PgDown
+# 0xff57,0x69,0xe0; 	End
+# 0xff63,0x70,0xe0; 	Ins
+# 0xff8d,0x5a,0xe0; 	Keypad Enter
+# 0xffe1,0x12;		Left shift
+# 0xffe2,0x59;		Right shift
+# 0xffe3,0x14;		Left control
+# 0xffe4,0x14,0xe0; 	Right control
+# 0xffe9,0x11;		Left alt
+# 0xfe03,0x11,0xe0; 	AltGr
+# 0xffea,0x11,0xe0; 	Right alt
+# 0xffeb,0x1f,0xe0; 	Left Windows
+# 0xffec,0x27,0xe0; 	Right Windows
+# 0xffbe,0x05;		F1
+# 0xffbf,0x06;		F2
+# 0xffc0,0x04;		F3
+# 0xffc1,0x0c;		F4
+# 0xffc2,0x03;		F5
+# 0xffc3,0x0b;		F6
+# 0xffc4,0x83;		F7
+# 0xffc5,0x0a;		F8
+# 0xffc6,0x01;		F9
+# 0xffc7,0x09;		F10
+# 0xffc8,0x78;		F11
+# 0xffc9,0x07;		F12
+# 0xffff,0x71,0xe0;	Del
+# 0xff14,0x7e;		ScrollLock
+
+
+# NumLock and Keypads ---------------------------------------------------------
+#
+#  The numeric keypad settings are the same as the Functional Key section above.
+
+# 0xff7f,0x77; 		NumLock
+# 0xffaf,0x4a,0xe0; 	Keypad slash
+# 0xffaa,0x7c; 		Keypad asterisk
+# 0xffad,0x7b; 		Keypad minus
+# 0xffab,0x79;	 	Keypad plus
+# 0xffb7,0x6c; 		Keypad 7
+# 0xff95,0x6c; 		Keypad home
+# 0xffb8,0x75; 		Keypad 8
+# 0xff97,0x75; 		Keypad up arrow
+# 0xffb9,0x7d; 		Keypad 9
+# 0xff9a,0x7d; 		Keypad PgUp
+# 0xffb4,0x6b; 		Keypad 4
+# 0xff96,0x6b; 		Keypad left arrow
+# 0xffb5,0x73; 		Keypad 5
+# 0xff9d,0x73; 		Keypad empty
+# 0xffb6,0x74; 		Keypad 6
+# 0xff98,0x74; 		Keypad right arrow
+# 0xffb1,0x69; 		Keypad 1
+# 0xff9c,0x69; 		Keypad end
+# 0xffb2,0x72; 		Keypad 2
+# 0xff99,0x72; 		Keypad down arrow
+# 0xffb3,0x7a; 		Keypad 3
+# 0xff9b,0x7a; 		Keypad PgDown
+# 0xffb0,0x70; 		Keypad 0
+# 0xff9e,0x70; 		Keypad ins
+# 0xffae,0x71; 		Keypad .
+# 0xff9f,0x71; 		Keypad del
+
+
+# Language Specific Keys -------------------------------------------------------
+#
+#  If a key not exist in the US keyboard is added to the keyboard of each language,
+#  it is necessary to add the combination of Xorg KeySym and ScanCode of the
+#  corresponding key.
+#  The setting format is the same as the Functional Key section above.
+#   example:
+#     0xff2a,0x0e;   Hankaku/Zenkaku|Kanji (Japanese 106 keyboard original Key)
+
+

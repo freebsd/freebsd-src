@@ -1,0 +1,14 @@
+# bhyve ps2kbd keyboard layout file
+#   (ru : Russian)
+#
+# Created by: Koine Yuusuke(koinec) <koinec@users.osdn.me>
+#
+# $FreeBSD$
+
+'!',0x82;	!  (0x21)
+'"',0x00;	"  (0x22)
+'(',0x8a;	(  (0x28)
+')',0x8b;	)  (0x29)
+'*',0x85;	*  (0x2a)
+':',0x86;	:  (0x3a)
+
