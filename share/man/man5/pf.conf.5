@@ -3178,6 +3178,8 @@ protospec      = "proto" ( proto-name | proto-number |
 proto-list     = ( proto-name | proto-number ) [ [ "," ] proto-list ]
 
 etherhosts     = "from" macaddress "to" macaddress
+macaddress     = mac | mac "/" masklen | mac "&" mask
+
 hosts          = "all" |
                  "from" ( "any" | "no-route" | "urpf-failed" | "self" | host |
                  "{" host-list "}" ) [ port ] [ os ]

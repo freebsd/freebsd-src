@@ -557,6 +557,10 @@ pfctl_nveth_addr_to_eth_addr(const nvlist_t *nvl, struct pfctl_eth_addr *addr)
 	assert(len == sizeof(addr->addr));
 	memcpy(addr->addr, data, sizeof(addr->addr));
 
+	data = nvlist_get_binary(nvl, "mask", &len);
+	assert(len == sizeof(addr->mask));
+	memcpy(addr->mask, data, sizeof(addr->mask));
+
 	addr->neg = nvlist_get_bool(nvl, "neg");
 
 	/* To make checks for 'is this address set?' easier. */
@@ -574,6 +578,7 @@ pfctl_eth_addr_to_nveth_addr(const struct pfctl_eth_addr *addr)
 
 	nvlist_add_bool(nvl, "neg", addr->neg);
 	nvlist_add_binary(nvl, "addr", &addr->addr, ETHER_ADDR_LEN);
+	nvlist_add_binary(nvl, "mask", &addr->mask, ETHER_ADDR_LEN);
 
 	return (nvl);
 }

@@ -377,6 +377,9 @@ int	 invalid_redirect(struct node_host *, sa_family_t);
 u_int16_t parseicmpspec(char *, sa_family_t);
 int	 kw_casecmp(const void *, const void *);
 int	 map_tos(char *string, int *);
+struct node_mac* node_mac_from_string(const char *);
+struct node_mac* node_mac_from_string_masklen(const char *, int);
+struct node_mac* node_mac_from_string_mask(const char *, const char *);
 
 static TAILQ_HEAD(loadanchorshead, loadanchors)
     loadanchorshead = TAILQ_HEAD_INITIALIZER(loadanchorshead);
@@ -3277,22 +3280,25 @@ etherto		: /* empty */			{
 		}
 		;
 
-mac		: string			{
-			$$ = calloc(1, sizeof(struct node_mac));
+mac		: string '/' NUMBER		{
+			$$ = node_mac_from_string_masklen($1, $3);
+			free($1);
 			if ($$ == NULL)
-				err(1, "mac: calloc");
-
-			if (sscanf($1, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
-			    &$$->mac[0], &$$->mac[1], &$$->mac[2], &$$->mac[3], &$$->mac[4],
-			    &$$->mac[5]) != 6) {
-				free($$);
-				free($1);
-				yyerror("invalid MAC address");
 				YYERROR;
+		}
+		| string			{
+			if (strchr($1, '&')) {
+				/* mac&mask */
+				char *mac = strtok($1, "&");
+				char *mask = strtok(NULL, "&");
+				$$ = node_mac_from_string_mask(mac, mask);
+			} else {
+				$$ = node_mac_from_string($1);
 			}
 			free($1);
-			$$->next = NULL;
-			$$->tail = $$;
+			if ($$ == NULL)
+				YYERROR;
+
 		}
 xmac		: not mac {
 			struct node_mac	*n;
@@ -5741,8 +5747,10 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 		r->ifnot = interface->not;
 		r->proto = proto->proto;
 		bcopy(src->mac, r->src.addr, ETHER_ADDR_LEN);
+		bcopy(src->mask, r->src.mask, ETHER_ADDR_LEN);
 		r->src.neg = src->neg;
 		bcopy(dst->mac, r->dst.addr, ETHER_ADDR_LEN);
+		bcopy(dst->mask, r->dst.mask, ETHER_ADDR_LEN);
 		r->dst.neg = dst->neg;
 		r->nr = pf->eastack[pf->asd]->match++;
 
@@ -6898,4 +6906,69 @@ rt_tableid_max(void)
 #else
 	return (RT_TABLEID_MAX);
 #endif
+}
+
+struct node_mac*
+node_mac_from_string(const char *str)
+{
+	struct node_mac *m;
+
+	m = calloc(1, sizeof(struct node_mac));
+	if (m == NULL)
+		err(1, "mac: calloc");
+
+	if (sscanf(str, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+	    &m->mac[0], &m->mac[1], &m->mac[2], &m->mac[3], &m->mac[4],
+	    &m->mac[5]) != 6) {
+		free(m);
+		yyerror("invalid MAC address");
+		return (NULL);
+	}
+
+	memset(m->mask, 0xff, ETHER_ADDR_LEN);
+	m->next = NULL;
+	m->tail = m;
+
+	return (m);
+}
+
+struct node_mac*
+node_mac_from_string_masklen(const char *str, int masklen)
+{
+	struct node_mac *m;
+
+	if (masklen < 0 || masklen > (ETHER_ADDR_LEN * 8)) {
+		yyerror("invalid MAC mask length");
+		return (NULL);
+	}
+
+	m = node_mac_from_string(str);
+	if (m == NULL)
+		return (NULL);
+
+	memset(m->mask, 0, ETHER_ADDR_LEN);
+	for (int i = 0; i < masklen; i++)
+		m->mask[i / 8] |= 1 << (i % 8);
+
+	return (m);
+}
+
+struct node_mac*
+node_mac_from_string_mask(const char *str, const char *mask)
+{
+	struct node_mac *m;
+
+	m = node_mac_from_string(str);
+	if (m == NULL)
+		return (NULL);
+
+	if (sscanf(mask, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+	    &m->mask[0], &m->mask[1], &m->mask[2], &m->mask[3], &m->mask[4],
+	    &m->mask[5]) != 6) {
+		free(m);
+		yyerror("invalid MAC mask");
+		return (NULL);
+	}
+
+	return (m);
 }

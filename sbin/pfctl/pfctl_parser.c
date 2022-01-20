@@ -694,7 +694,9 @@ print_src_node(struct pf_src_node *sn, int opts)
 static void
 print_eth_addr(const struct pfctl_eth_addr *a)
 {
-	int i;
+	int i, masklen = ETHER_ADDR_LEN * 8;
+	bool seen_unset = false;
+
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		if (a->addr[i] != 0)
 			break;
@@ -707,6 +709,35 @@ print_eth_addr(const struct pfctl_eth_addr *a)
 	printf("%s%02x:%02x:%02x:%02x:%02x:%02x", a->neg ? "! " : "",
 	    a->addr[0], a->addr[1], a->addr[2], a->addr[3], a->addr[4],
 	    a->addr[5]);
+
+	for (i = 0; i < (ETHER_ADDR_LEN * 8); i++) {
+		bool isset = a->mask[i / 8] & (1 << i % 8);
+
+		if (! seen_unset) {
+			if (isset)
+				continue;
+			seen_unset = true;
+			masklen = i;
+		} else {
+			/* Not actually a continuous mask, so print the whole
+			 * thing. */
+			if (isset)
+				break;
+			continue;
+		}
+	}
+
+	if (masklen == (ETHER_ADDR_LEN * 8))
+		return;
+
+	if (i == (ETHER_ADDR_LEN * 8)) {
+		printf("/%d", masklen);
+		return;
+	}
+
+	printf("&%02x:%02x:%02x:%02x:%02x:%02x",
+	    a->mask[0], a->mask[1], a->mask[2], a->mask[3], a->mask[4],
+	    a->mask[5]);
 }
 
 void

@@ -138,6 +138,7 @@ struct node_host {
 
 struct node_mac {
 	u_int8_t	 mac[ETHER_ADDR_LEN];
+	u_int8_t	 mask[ETHER_ADDR_LEN];
 	bool		 neg;
 	struct node_mac	*next;
 	struct node_mac	*tail;
