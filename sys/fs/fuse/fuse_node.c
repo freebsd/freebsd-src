@@ -448,9 +448,8 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize, bool from_server)
 		 * The FUSE server changed the file size behind our back.  We
 		 * should invalidate the entire cache.
 		 */
-		daddr_t left_lbn, end_lbn;
+		daddr_t end_lbn;
 
-		left_lbn = oldsize / iosize;
 		end_lbn = howmany(newsize, iosize);
 		v_inval_buf_range(vp, 0, end_lbn, iosize);
 	}

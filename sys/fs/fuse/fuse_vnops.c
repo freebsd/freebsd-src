@@ -1391,7 +1391,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	bool did_lookup = false;
 	struct fuse_entry_out *feo = NULL;
 	enum vtype vtyp;	/* vnode type of target */
-	off_t filesize;		/* filesize of target */
 
 	uint64_t nid;
 
@@ -1424,12 +1423,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			return ENOENT;
 		/* .. is obviously a directory */
 		vtyp = VDIR;
-		filesize = 0;
 	} else if (cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.') {
 		nid = VTOI(dvp);
 		/* . is obviously a directory */
 		vtyp = VDIR;
-		filesize = 0;
 	} else {
 		struct timespec timeout;
 		int ncpticks; /* here to accomodate for API contract */
@@ -1503,7 +1500,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				}
 			}
 			vtyp = IFTOVT(feo->attr.mode);
-			filesize = feo->attr.size;
 		}
 		if (lookup_err && (!fdi.answ_stat || lookup_err != ENOENT)) {
 			fdisp_destroy(&fdi);
@@ -1688,7 +1684,6 @@ fuse_vnop_open(struct vop_open_args *ap)
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
 	pid_t pid = td->td_proc->p_pid;
-	struct fuse_vnode_data *fvdat;
 
 	if (fuse_isdeadfs(vp))
 		return ENXIO;
@@ -1696,8 +1691,6 @@ fuse_vnop_open(struct vop_open_args *ap)
 		return (EOPNOTSUPP);
 	if ((a_mode & (FREAD | FWRITE | FEXEC)) == 0)
 		return EINVAL;
-
-	fvdat = VTOFUD(vp);
 
 	if (fuse_filehandle_validrw(vp, a_mode, cred, pid)) {
 		fuse_vnode_open(vp, 0, td);
