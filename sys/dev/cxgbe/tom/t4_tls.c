@@ -1052,6 +1052,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tgr = (struct tls_get_record *)
 	    CMSG_DATA(mtod(control, struct cmsghdr *));
+	memset(tgr, 0, sizeof(*tgr));
 	tgr->tls_type = tls_hdr_pkt->type;
 	tgr->tls_vmajor = be16toh(tls_hdr_pkt->version) >> 8;
 	tgr->tls_vminor = be16toh(tls_hdr_pkt->version) & 0xff;
