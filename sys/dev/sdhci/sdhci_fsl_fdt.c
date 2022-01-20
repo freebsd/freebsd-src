@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/syscon/syscon.h>
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcbrvar.h>
 #include <dev/mmc/mmc_fdt_helpers.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
+#include "syscon_if.h"
 
 #define	RD4	(sc->read)
 #define	WR4	(sc->write)
@@ -142,6 +144,13 @@ __FBSDID("$FreeBSD$");
 #define SDHCI_FSL_ESDHC_CTRL_FAF	(1 << 18)
 #define	SDHCI_FSL_ESDHC_CTRL_CLK_DIV2	(1 << 19)
 
+#define SCFG_SDHCIOVSELCR		0x408
+#define SCFG_SDHCIOVSELCR_TGLEN		(1 << 0)
+#define SCFG_SDHCIOVSELCR_VS		(1 << 31)
+#define SCFG_SDHCIOVSELCR_VSELVAL_MASK	(3 << 1)
+#define SCFG_SDHCIOVSELCR_VSELVAL_1_8	0x0
+#define SCFG_SDHCIOVSELCR_VSELVAL_3_3	0x2
+
 #define SDHCI_FSL_CAN_VDD_MASK		\
     (SDHCI_CAN_VDD_180 | SDHCI_CAN_VDD_300 | SDHCI_CAN_VDD_330)
 
@@ -161,6 +170,12 @@ __FBSDID("$FreeBSD$");
  * Use the smallest value, bigger than requested in that case.
  */
 #define SDHCI_FSL_HS400_LIMITED_CLK_DIV	(1 << 4)
+
+/*
+ * Some SoCs don't have a fixed regulator. Switching voltage
+ * requires special routine including syscon registers.
+ */
+#define SDHCI_FSL_MISSING_VCCQ_REG	(1 << 5)
 
 /*
  * HS400 tuning is done in HS200 mode, but it has to be done using
@@ -197,12 +212,14 @@ struct sdhci_fsl_fdt_soc_data {
 	int quirks;
 	int baseclk_div;
 	uint8_t errata;
+	char *syscon_compat;
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1012a_soc_data = {
 	.quirks = 0,
 	.baseclk_div = 1,
-	.errata = SDHCI_FSL_UNSUPP_1_8V,
+	.errata = SDHCI_FSL_MISSING_VCCQ_REG | SDHCI_FSL_TUNING_ERRATUM_TYPE2,
+	.syscon_compat = "fsl,ls1012a-scfg",
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
@@ -216,7 +233,8 @@ static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
 	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT | SDHCI_QUIRK_BROKEN_AUTO_STOP,
 	.baseclk_div = 2,
-	.errata = SDHCI_FSL_UNSUPP_1_8V | SDHCI_FSL_TUNING_ERRATUM_TYPE2,
+	.errata = SDHCI_FSL_MISSING_VCCQ_REG | SDHCI_FSL_TUNING_ERRATUM_TYPE2,
+	.syscon_compat = "fsl,ls1046a-scfg",
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_lx2160a_soc_data = {
@@ -622,13 +640,67 @@ sdhci_fsl_fdt_update_ios(device_t brdev, device_t reqdev)
 }
 
 static int
+sdhci_fsl_fdt_switch_syscon_voltage(device_t dev,
+    struct sdhci_fsl_fdt_softc *sc, enum mmc_vccq vccq)
+{
+	struct syscon *syscon;
+	phandle_t syscon_node;
+	uint32_t reg;
+
+	if (sc->soc_data->syscon_compat == NULL) {
+		device_printf(dev, "Empty syscon compat string.\n");
+		return (ENXIO);
+	}
+
+	syscon_node = ofw_bus_find_compatible(OF_finddevice("/"),
+	    sc->soc_data->syscon_compat);
+
+	if (syscon_get_by_ofw_node(dev, syscon_node, &syscon) != 0) {
+		device_printf(dev, "Could not find syscon node.\n");
+		return (ENXIO);
+	}
+
+	reg = SYSCON_READ_4(syscon, SCFG_SDHCIOVSELCR);
+	reg &= ~SCFG_SDHCIOVSELCR_VSELVAL_MASK;
+	reg |= SCFG_SDHCIOVSELCR_TGLEN;
+
+	switch (vccq) {
+	case vccq_180:
+		reg |= SCFG_SDHCIOVSELCR_VSELVAL_1_8;
+		SYSCON_WRITE_4(syscon, SCFG_SDHCIOVSELCR, reg);
+
+		DELAY(5000);
+
+		reg = SYSCON_READ_4(syscon, SCFG_SDHCIOVSELCR);
+		reg |= SCFG_SDHCIOVSELCR_VS;
+		break;
+	case vccq_330:
+		reg |= SCFG_SDHCIOVSELCR_VSELVAL_3_3;
+		SYSCON_WRITE_4(syscon, SCFG_SDHCIOVSELCR, reg);
+
+		DELAY(5000);
+
+		reg = SYSCON_READ_4(syscon, SCFG_SDHCIOVSELCR);
+		reg &= ~SCFG_SDHCIOVSELCR_VS;
+		break;
+	default:
+		device_printf(dev, "Unsupported voltage requested.\n");
+		return (ENXIO);
+	}
+
+	SYSCON_WRITE_4(syscon, SCFG_SDHCIOVSELCR, reg);
+
+	return (0);
+}
+
+static int
 sdhci_fsl_fdt_switch_vccq(device_t brdev, device_t reqdev)
 {
 	struct sdhci_fsl_fdt_softc *sc;
 	struct sdhci_slot *slot;
 	regulator_t vqmmc_supply;
 	uint32_t val_old, val;
-	int uvolt, err;
+	int uvolt, err = 0;
 
 	sc = device_get_softc(brdev);
 	slot = device_get_ivars(reqdev);
@@ -653,6 +725,13 @@ sdhci_fsl_fdt_switch_vccq(device_t brdev, device_t reqdev)
 
 	WR4(sc, SDHCI_FSL_PROT_CTRL, val);
 
+	if (sc->soc_data->errata & SDHCI_FSL_MISSING_VCCQ_REG) {
+		err = sdhci_fsl_fdt_switch_syscon_voltage(brdev, sc,
+		    slot->host.ios.vccq);
+		if (err != 0)
+			goto vccq_fail;
+	}
+
 	vqmmc_supply = sc->fdt_helper.vqmmc_supply;
 	/*
 	 * Even though we expect to find a fixed regulator in this controller
@@ -660,15 +739,17 @@ sdhci_fsl_fdt_switch_vccq(device_t brdev, device_t reqdev)
 	 */
 	if (vqmmc_supply != NULL) {
 		err = regulator_set_voltage(vqmmc_supply, uvolt, uvolt);
-		if (err != 0) {
-			device_printf(sc->dev,
-			    "Cannot set vqmmc to %d<->%d\n", uvolt, uvolt);
-			WR4(sc, SDHCI_FSL_PROT_CTRL, val_old);
-			return (err);
-		}
+		if (err != 0)
+			goto vccq_fail;
 	}
 
 	return (0);
+
+vccq_fail:
+	device_printf(sc->dev, "Cannot set vqmmc to %d<->%d\n", uvolt, uvolt);
+	WR4(sc, SDHCI_FSL_PROT_CTRL, val_old);
+
+	return (err);
 }
 
 static int
