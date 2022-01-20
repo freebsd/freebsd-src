@@ -39,6 +39,54 @@ dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_opal.c		optional	powernv ipmi
+dev/ice/if_ice_iflib.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_lib.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_osdep.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_resmgr.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_strings.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_iflib_recovery_txrx.c	optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_iflib_txrx.c	optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_common.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_controlq.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_dcb.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_flex_pipe.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_flow.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_nvm.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_sched.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_sriov.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_switch.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_vlan_mode.c		optional	ice pci powerpc64 \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+ice_ddp.c			optional	ice_ddp powerpc64 \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031800 -mice_ddp -c${.TARGET}"   \
+	no-ctfconvert no-implicit-rule before-depend local  \
+	clean		"ice_ddp.c"
+ice_ddp.fwo			optional	ice_ddp powerpc64 \
+	dependency	"ice_ddp.fw"			\
+	compile-with	"${NORMAL_FWO}"			\
+	no-implicit-rule				\
+	clean		"ice_ddp.fwo"
+ice_ddp.fw			optional	ice_ddp powerpc64 \
+	dependency	"$S/contrib/dev/ice/ice-1.3.24.0.pkg" \
+	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.24.0.pkg ice_ddp.fw" \
+	no-obj no-implicit-rule				\
+	clean		"ice_ddp.fw"
 dev/ixl/if_ixl.c		optional	ixl pci powerpc64 \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/ixl_pf_main.c		optional	ixl pci powerpc64 \

@@ -169,6 +169,7 @@ device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		ix		# Intel PRO/10GbE PCIE PF Ethernet Family
 device		ixl		# Intel 700 Series Physical Function
 device		ixv		# Intel PRO/10GbE PCIE VF Ethernet Family
+device		ice		# Intel 800 Series Physical Function
 device		llan		# IBM pSeries Virtual Ethernet
 device		cxgbe		# Chelsio 10/25G NIC
 
