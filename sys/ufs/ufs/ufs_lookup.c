@@ -1245,8 +1245,7 @@ out:
 	 * drop its snapshot reference so that it will be reclaimed
 	 * when last open reference goes away.
 	 */
-	if (ip != NULL && (ip->i_flags & SF_SNAPSHOT) != 0 &&
-	    ip->i_effnlink == 0)
+	if (ip != NULL && IS_SNAPSHOT(ip) && ip->i_effnlink == 0)
 		UFS_SNAPGONE(ip);
 	return (error);
 }
@@ -1320,7 +1319,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	 * drop its snapshot reference so that it will be reclaimed
 	 * when last open reference goes away.
 	 */
-	if ((oip->i_flags & SF_SNAPSHOT) != 0 && oip->i_effnlink == 0)
+	if (IS_SNAPSHOT(oip) && oip->i_effnlink == 0)
 		UFS_SNAPGONE(oip);
 	return (error);
 }
