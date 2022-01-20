@@ -54,6 +54,7 @@
 .Sm on
 .Oc
 .Op Fl k Ar config_file
+.Op Fl K Ar layout
 .Oo Fl l
 .Sm off
 .Ar lpcdev Op Cm \&, Ar conf
@@ -172,6 +173,13 @@ Print help message and exit.
 Set configuration variables from a simple, key-value config file.
 Each line of the config file is expected to consist of a config variable
 name, an equals sign
+.It Fl K Ar layout
+Specify the keyboard layout.
+The value that can be specified sets the file name in
+.Ar /usr/share/bhyve/kbdlayout .
+This specification only works when loaded with UEFI mode for VNC.
+When using a VNC client that supports QEMU Extended Key Event Message (e.g. TigerVNC), this option isn't needed.
+When using a VNC client that doesn't support QEMU Extended Key Event Message (e.g. tightVNC), the layout defaults to the US keyboard unless specified otherwise.
 .Pq Sq = ,
 and a value.
 No spaces are permitted between the variable name, equals sign, or
