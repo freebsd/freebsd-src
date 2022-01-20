@@ -100,6 +100,21 @@ mac_body()
 		"ether block out on ${epair}b to { ! 00:01:02:03:04:05 }"
 	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
 
+	# Block with a masked address
+	pft_set_rules alcatraz \
+		"ether block out on ${epair}b to { ! 00:01:02:03:00:00/32 }"
+	jexec alcatraz pfctl -se
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	epair_prefix=$(echo $epair_a_mac | cut -c-8)
+	pft_set_rules alcatraz \
+		"ether block out on ${epair}b to { ${epair_prefix}:00:00:00/24 }"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"ether block out on ${epair}b to { ${epair_prefix}:00:00:00&ff:ff:ff:00:00:00 }"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+
 	# Check '-F ethernet' works
 	jexec alcatraz pfctl -F ethernet
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
