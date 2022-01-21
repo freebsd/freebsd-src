@@ -2260,6 +2260,15 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		/* Never disable PCI link devices. */
 		if (acpi_MatchHid(handle, "PNP0C0F"))
 		    break;
+
+		/*
+		 * RTC Device should be enabled for CMOS register space
+		 * unless FADT indicate it is not present.
+		 * (checked in RTC probe routine.)
+		 */
+		if (acpi_MatchHid(handle, "PNP0B00"))
+		    break;
+
 		/*
 		 * Docking stations should remain enabled since the system
 		 * may be undocked at boot.
