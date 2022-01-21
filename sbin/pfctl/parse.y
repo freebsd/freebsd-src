@@ -5749,9 +5749,11 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 		bcopy(src->mac, r->src.addr, ETHER_ADDR_LEN);
 		bcopy(src->mask, r->src.mask, ETHER_ADDR_LEN);
 		r->src.neg = src->neg;
+		r->src.isset = src->isset;
 		bcopy(dst->mac, r->dst.addr, ETHER_ADDR_LEN);
 		bcopy(dst->mask, r->dst.mask, ETHER_ADDR_LEN);
 		r->dst.neg = dst->neg;
+		r->dst.isset = dst->isset;
 		r->nr = pf->eastack[pf->asd]->match++;
 
 		pfctl_append_eth_rule(pf, r, anchor_call);
@@ -6926,6 +6928,7 @@ node_mac_from_string(const char *str)
 	}
 
 	memset(m->mask, 0xff, ETHER_ADDR_LEN);
+	m->isset = true;
 	m->next = NULL;
 	m->tail = m;
 
