@@ -5059,10 +5059,7 @@ sync_fsync(struct vop_fsync_args *ap)
 	 */
 	if (vfs_busy(mp, MBF_NOWAIT) != 0)
 		return (0);
-	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {
-		vfs_unbusy(mp);
-		return (0);
-	}
+	VOP_UNLOCK(syncvp);
 	save = curthread_pflags_set(TDP_SYNCIO);
 	/*
 	 * The filesystem at hand may be idle with free vnodes stored in the
@@ -5071,7 +5068,7 @@ sync_fsync(struct vop_fsync_args *ap)
 	vfs_periodic(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
 	curthread_pflags_restore(save);
-	vn_finished_write(mp);
+	vn_lock(syncvp, LK_EXCLUSIVE | LK_RETRY);
 	vfs_unbusy(mp);
 	return (error);
 }
