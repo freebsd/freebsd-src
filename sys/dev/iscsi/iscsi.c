@@ -1540,6 +1540,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		ISCSI_SESSION_LOCK(is);
 		is->is_devq = cam_simq_alloc(ic->ic_maxtags);
 		if (is->is_devq == NULL) {
+			ISCSI_SESSION_UNLOCK(is);
 			ISCSI_SESSION_WARN(is, "failed to allocate simq");
 			iscsi_session_terminate(is);
 			return (ENOMEM);
