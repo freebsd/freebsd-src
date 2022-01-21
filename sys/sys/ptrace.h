@@ -243,6 +243,8 @@ int	proc_write_dbregs32(struct thread *_td, struct dbreg32 *_dbreg32);
 
 void	ptrace_unsuspend(struct proc *p);
 
+extern bool allow_ptrace;
+
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
