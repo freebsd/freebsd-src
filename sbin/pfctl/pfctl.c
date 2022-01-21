@@ -1698,7 +1698,8 @@ pfctl_load_eth_ruleset(struct pfctl *pf, char *path,
 			if ((error = pfctl_load_eth_ruleset(pf, path,
 			    &r->anchor->ruleset, depth + 1)))
 				return (error);
-		}
+		} else if (pf->opts & PF_OPT_VERBOSE)
+			printf("\n");
 		free(r);
 	}
 	if (brace && pf->opts & PF_OPT_VERBOSE) {
@@ -1742,6 +1743,12 @@ pfctl_load_eth_rule(struct pfctl *pf, char *path, struct pfctl_eth_rule *r,
 		if (pfctl_add_eth_rule(pf->dev, r, anchor, name,
 		    pf->eth_ticket))
 			err(1, "DIOCADDETHRULENV");
+
+	if (pf->opts & PF_OPT_VERBOSE) {
+		INDENT(depth, !(pf->opts & PF_OPT_VERBOSE2));
+		print_eth_rule(r, r->anchor ? r->anchor->name : "",
+		    pf->opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG));
+	}
 
 	path[len] = '\0';
 
