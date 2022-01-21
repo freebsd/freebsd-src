@@ -371,7 +371,10 @@ atrtc_reg_acpi_cmos_handler(device_t dev)
 	if (acpi_disabled("atrtc"))
 		return (ENXIO);
 
-	sc->acpi_handle = acpi_get_handle(dev);
+	if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sc->acpi_handle))) {
+		return (ENXIO);
+	}
+
 	if (sc->acpi_handle == NULL ||
 	    ACPI_FAILURE(AcpiInstallAddressSpaceHandler(sc->acpi_handle,
 	      ACPI_ADR_SPACE_CMOS, atrtc_acpi_cmos_handler, NULL, dev))) {
