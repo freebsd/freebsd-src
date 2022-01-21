@@ -366,7 +366,6 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 #define time_after(a,b)	((long)((unsigned long)(b) - (unsigned long)(a)) < 0)
 
 #define VLAN_HLEN 	sizeof(struct ether_vlan_header)
-#define CSUM_OFFLOAD 	(CSUM_IP|CSUM_TCP|CSUM_UDP)
 
 #define prefetch(x)	(void)(x)
 #define prefetchw(x)	(void)(x)
