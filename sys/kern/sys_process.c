@@ -479,7 +479,11 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		int ptevents;
 	} r;
 	void *addr;
-	int error = 0;
+	int error;
+
+	if (!allow_ptrace)
+		return (ENOSYS);
+	error = 0;
 
 	AUDIT_ARG_PID(uap->pid);
 	AUDIT_ARG_CMD(uap->req);

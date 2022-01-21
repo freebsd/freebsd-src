@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/loginclass.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/ptrace.h>
 #include <sys/refcount.h>
 #include <sys/sx.h>
 #include <sys/priv.h>
@@ -2485,3 +2486,8 @@ change_svgid(struct ucred *newcred, gid_t svgid)
 
 	newcred->cr_svgid = svgid;
 }
+
+bool allow_ptrace = true;
+SYSCTL_BOOL(_security_bsd, OID_AUTO, allow_ptrace, CTLFLAG_RWTUN,
+    &allow_ptrace, 0,
+    "Deny ptrace(2) use by returning ENOSYS");
