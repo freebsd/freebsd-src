@@ -300,7 +300,7 @@ VNET_DEFINE_STATIC(struct ifnet *, multicast_register_if);
 static u_long	X_ip_mcast_src(int);
 static int	X_ip_mforward(struct ip *, struct ifnet *, struct mbuf *,
 		    struct ip_moptions *);
-static int	X_ip_mrouter_done(void);
+static int	X_ip_mrouter_done(void *);
 static int	X_ip_mrouter_get(struct socket *, struct sockopt *);
 static int	X_ip_mrouter_set(struct socket *, struct sockopt *);
 static int	X_legal_vif_num(int);
@@ -431,7 +431,7 @@ X_ip_mrouter_set(struct socket *so, struct sockopt *sopt)
 	break;
 
     case MRT_DONE:
-	error = ip_mrouter_done();
+	error = ip_mrouter_done(NULL);
 	break;
 
     case MRT_ADD_VIF:
@@ -734,7 +734,7 @@ ip_mrouter_init(struct socket *so, int version)
  * Disable multicast forwarding.
  */
 static int
-X_ip_mrouter_done(void)
+X_ip_mrouter_done(void *locked)
 {
     struct ifnet *ifp;
     u_long i;
@@ -750,6 +750,11 @@ X_ip_mrouter_done(void)
     V_ip_mrouter = NULL;
     atomic_subtract_int(&ip_mrouter_cnt, 1);
     V_mrt_api_config = 0;
+
+    if (locked) {
+	struct epoch_tracker *mrouter_et = locked;
+	MROUTER_RUNLOCK_PARAM(mrouter_et);
+    }
 
     MROUTER_WAIT();
 

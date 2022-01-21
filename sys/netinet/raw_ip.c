@@ -119,7 +119,7 @@ VNET_DEFINE(struct socket *, ip_mrouter);
  */
 int (*ip_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip_mrouter_get)(struct socket *, struct sockopt *);
-int (*ip_mrouter_done)(void);
+int (*ip_mrouter_done)(void *locked);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *);
 int (*mrt_ioctl)(u_long, caddr_t, int);
@@ -879,18 +879,23 @@ static void
 rip_detach(struct socket *so)
 {
 	struct inpcb *inp;
+	MROUTER_RLOCK_TRACKER;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip_detach: inp == NULL"));
 	KASSERT(inp->inp_faddr.s_addr == INADDR_ANY,
 	    ("rip_detach: not closed"));
 
+	/* Disable mrouter first, lock released inside ip_mrouter_done */
+	MROUTER_RLOCK();
+	if (so == V_ip_mrouter && ip_mrouter_done)
+		ip_mrouter_done(MROUTER_RLOCK_PARAM_PTR);
+
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(&V_ripcbinfo);
 	rip_delhash(inp);
 	INP_HASH_WUNLOCK(&V_ripcbinfo);
-	if (so == V_ip_mrouter && ip_mrouter_done)
-		ip_mrouter_done();
+
 	if (ip_rsvp_force_done)
 		ip_rsvp_force_done(so);
 	if (so == V_ip_rsvpd)
