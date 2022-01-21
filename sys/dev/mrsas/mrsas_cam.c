@@ -1075,7 +1075,6 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		if (fp_possible &&
 				(io_info.r1_alt_dev_handle != MR_DEVHANDLE_INVALID) &&
 				(raid->level == 1) && !io_info.isRead) {
-			r1_cmd = mrsas_get_mpt_cmd(sc);
 			if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->max_scsi_cmds) {
 				fp_possible = FALSE;
 				mrsas_atomic_dec(&sc->fw_outstanding); 
