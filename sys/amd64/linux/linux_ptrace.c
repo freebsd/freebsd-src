@@ -573,6 +573,9 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	pid_t pid;
 	int error, sig;
 
+	if (!allow_ptrace)
+		return (ENOSYS);
+
 	pid  = (pid_t)uap->pid;
 	addr = (void *)uap->addr;
 
