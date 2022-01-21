@@ -188,7 +188,7 @@ pfctl_get_status(int dev)
 	status->running = nvlist_get_bool(nvl, "running");
 	status->since = nvlist_get_number(nvl, "since");
 	status->debug = nvlist_get_number(nvl, "debug");
-	status->hostid = nvlist_get_number(nvl, "hostid");
+	status->hostid = ntohl(nvlist_get_number(nvl, "hostid"));
 	status->states = nvlist_get_number(nvl, "states");
 	status->src_nodes = nvlist_get_number(nvl, "src_nodes");
 
@@ -815,7 +815,7 @@ pf_state_export_to_state(struct pfctl_state *ps, const struct pf_state_export *s
 	ps->packets[1] = s->packets[1];
 	ps->bytes[0] = s->bytes[0];
 	ps->bytes[1] = s->bytes[1];
-	ps->creatorid = s->creatorid;
+	ps->creatorid = ntohl(s->creatorid);
 	ps->key[0].proto = s->proto;
 	ps->key[1].proto = s->proto;
 	ps->key[0].af = s->af;

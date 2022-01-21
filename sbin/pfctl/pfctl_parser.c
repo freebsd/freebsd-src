@@ -541,7 +541,7 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	}
 
 	if (opts & PF_OPT_VERBOSE) {
-		printf("Hostid:   0x%08x\n", ntohl(s->hostid));
+		printf("Hostid:   0x%08x\n", s->hostid);
 
 		for (i = 0; i < PF_MD5_DIGEST_LENGTH; i++) {
 			buf[i + i] = hex[s->pf_chksum[i] >> 4];
