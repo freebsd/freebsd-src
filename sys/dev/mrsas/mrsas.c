@@ -1166,6 +1166,7 @@ mrsas_shutdown(device_t dev)
 		if (sc->reset_in_progress) {
 			mrsas_dprint(sc, MRSAS_INFO,
 			    "gave up waiting for OCR to be finished\n");
+			return (0);
 		}
 	}
 
