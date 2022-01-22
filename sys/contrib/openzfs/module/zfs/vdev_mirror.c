@@ -121,7 +121,7 @@ typedef struct mirror_map {
 	mirror_child_t	mm_child[];
 } mirror_map_t;
 
-static int vdev_mirror_shift = 21;
+static const int vdev_mirror_shift = 21;
 
 /*
  * The load configuration settings below are tuned by default for
@@ -880,6 +880,8 @@ static uint64_t
 vdev_mirror_rebuild_asize(vdev_t *vd, uint64_t start, uint64_t asize,
     uint64_t max_segment)
 {
+	(void) start;
+
 	uint64_t psize = MIN(P2ROUNDUP(max_segment, 1 << vd->vdev_ashift),
 	    SPA_MAXBLOCKSIZE);
 

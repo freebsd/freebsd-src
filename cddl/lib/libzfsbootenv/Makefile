@@ -29,5 +29,8 @@ CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccomp
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/zfs
+CFLAGS.lzbe_device.c=	-Wno-cast-qual
+CFLAGS.lzbe_util.c=	-Wno-cast-qual
+CFLAGS.lzbe_pair.c=	-Wno-cast-qual
 
 .include <bsd.lib.mk>

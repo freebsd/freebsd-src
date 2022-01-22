@@ -14,7 +14,6 @@ ASM_SOURCES_AS = \
         asm-x86_64/aes/aes_aesni.S \
         asm-x86_64/modes/gcm_pclmulqdq.S \
         asm-x86_64/modes/aesni-gcm-x86_64.S \
-        asm-x86_64/sha1/sha1-x86_64.S \
         asm-x86_64/sha2/sha256_impl.S \
         asm-x86_64/sha2/sha512_impl.S
 
@@ -46,28 +45,19 @@ KERNEL_C = \
         algs/modes/ctr.c \
         algs/modes/ccm.c \
         algs/modes/ecb.c \
-        algs/sha1/sha1.c \
         algs/sha2/sha2.c \
         algs/skein/skein_block.c \
         illumos-crypto.c \
         io/aes.c \
-        io/edonr_mod.c \
-        io/sha1_mod.c \
         io/sha2_mod.c \
         io/skein_mod.c \
         os/modhash.c \
-        os/modconf.c \
         core/kcf_sched.c \
         core/kcf_prov_lib.c \
         core/kcf_callprov.c \
         core/kcf_mech_tabs.c \
         core/kcf_prov_tabs.c \
         $(ASM_SOURCES_C)
-
-
-
-
-
 
 SRCS= $(ASM_SOURCES_AS) $(KERNEL_C)
 
@@ -91,7 +81,6 @@ CFLAGS.aes_aesni.S+= -DLOCORE
 CFLAGS.gcm_pclmulqdq.S+= -DLOCORE
 CFLAGS.aesni-gcm-x86_64.S+= -DLOCORE
 CFLAGS.ghash-x86_64.S+= -DLOCORE
-CFLAGS.sha1-x86_64.S+= -DLOCORE
 CFLAGS.sha256_impl.S+= -DLOCORE
 CFLAGS.sha512_impl.S+= -DLOCORE
 CFLAGS.gcm.c+= -UCAN_USE_GCM_ASM

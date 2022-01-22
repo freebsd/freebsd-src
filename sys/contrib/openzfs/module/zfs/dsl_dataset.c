@@ -79,7 +79,7 @@
  * of this setting.
  */
 int zfs_max_recordsize = 1 * 1024 * 1024;
-int zfs_allow_redacted_dataset_mount = 0;
+static int zfs_allow_redacted_dataset_mount = 0;
 
 #define	SWITCH64(x, y) \
 	{ \
@@ -896,14 +896,14 @@ dsl_dataset_own(dsl_pool_t *dp, const char *name, ds_hold_flags_t flags,
  * and accessed.
  */
 void
-dsl_dataset_long_hold(dsl_dataset_t *ds, void *tag)
+dsl_dataset_long_hold(dsl_dataset_t *ds, const void *tag)
 {
 	ASSERT(dsl_pool_config_held(ds->ds_dir->dd_pool));
 	(void) zfs_refcount_add(&ds->ds_longholds, tag);
 }
 
 void
-dsl_dataset_long_rele(dsl_dataset_t *ds, void *tag)
+dsl_dataset_long_rele(dsl_dataset_t *ds, const void *tag)
 {
 	(void) zfs_refcount_remove(&ds->ds_longholds, tag);
 }
@@ -2943,11 +2943,11 @@ typedef struct dsl_dataset_rename_snapshot_arg {
 	dmu_tx_t *ddrsa_tx;
 } dsl_dataset_rename_snapshot_arg_t;
 
-/* ARGSUSED */
 static int
 dsl_dataset_rename_snapshot_check_impl(dsl_pool_t *dp,
     dsl_dataset_t *hds, void *arg)
 {
+	(void) dp;
 	dsl_dataset_rename_snapshot_arg_t *ddrsa = arg;
 	int error;
 	uint64_t val;
@@ -4305,7 +4305,6 @@ typedef struct dsl_dataset_set_qr_arg {
 } dsl_dataset_set_qr_arg_t;
 
 
-/* ARGSUSED */
 static int
 dsl_dataset_set_refquota_check(void *arg, dmu_tx_t *tx)
 {
@@ -4512,7 +4511,6 @@ typedef struct dsl_dataset_set_compression_arg {
 	uint64_t ddsca_value;
 } dsl_dataset_set_compression_arg_t;
 
-/* ARGSUSED */
 static int
 dsl_dataset_set_compression_check(void *arg, dmu_tx_t *tx)
 {

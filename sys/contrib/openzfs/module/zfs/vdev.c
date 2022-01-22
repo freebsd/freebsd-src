@@ -81,22 +81,22 @@
  * 1 << (spa_slop_shift + 1), on small pools the usable space may be reduced
  * (by more than 1<<spa_slop_shift) due to the embedded slog metaslab.
  */
-int zfs_embedded_slog_min_ms = 64;
+static int zfs_embedded_slog_min_ms = 64;
 
 /* default target for number of metaslabs per top-level vdev */
-int zfs_vdev_default_ms_count = 200;
+static int zfs_vdev_default_ms_count = 200;
 
 /* minimum number of metaslabs per top-level vdev */
-int zfs_vdev_min_ms_count = 16;
+static int zfs_vdev_min_ms_count = 16;
 
 /* practical upper limit of total metaslabs per top-level vdev */
-int zfs_vdev_ms_count_limit = 1ULL << 17;
+static int zfs_vdev_ms_count_limit = 1ULL << 17;
 
 /* lower limit for metaslab size (512M) */
-int zfs_vdev_default_ms_shift = 29;
+static int zfs_vdev_default_ms_shift = 29;
 
 /* upper limit for metaslab size (16G) */
-int zfs_vdev_max_ms_shift = 34;
+static const int zfs_vdev_max_ms_shift = 34;
 
 int vdev_validate_skip = B_FALSE;
 
@@ -109,18 +109,18 @@ int zfs_vdev_dtl_sm_blksz = (1 << 12);
 /*
  * Rate limit slow IO (delay) events to this many per second.
  */
-unsigned int zfs_slow_io_events_per_second = 20;
+static unsigned int zfs_slow_io_events_per_second = 20;
 
 /*
  * Rate limit checksum events after this many checksum errors per second.
  */
-unsigned int zfs_checksum_events_per_second = 20;
+static unsigned int zfs_checksum_events_per_second = 20;
 
 /*
  * Ignore errors during scrub/resilver.  Allows to work around resilver
  * upon import when there are pool errors.
  */
-int zfs_scan_ignore_errors = 0;
+static int zfs_scan_ignore_errors = 0;
 
 /*
  * vdev-wide space maps that have lots of entries written to them at
@@ -216,7 +216,7 @@ vdev_dbgmsg_print_tree(vdev_t *vd, int indent)
  * Virtual device management.
  */
 
-static vdev_ops_t *vdev_ops_table[] = {
+static const vdev_ops_t *const vdev_ops_table[] = {
 	&vdev_root_ops,
 	&vdev_raidz_ops,
 	&vdev_draid_ops,
@@ -238,7 +238,7 @@ static vdev_ops_t *vdev_ops_table[] = {
 static vdev_ops_t *
 vdev_getops(const char *type)
 {
-	vdev_ops_t *ops, **opspp;
+	const vdev_ops_t *ops, *const *opspp;
 
 	for (opspp = vdev_ops_table; (ops = *opspp) != NULL; opspp++)
 		if (strcmp(ops->vdev_op_type, type) == 0)
@@ -263,11 +263,12 @@ vdev_get_mg(vdev_t *vd, metaslab_class_t *mc)
 		return (vd->vdev_mg);
 }
 
-/* ARGSUSED */
 void
 vdev_default_xlate(vdev_t *vd, const range_seg64_t *logical_rs,
     range_seg64_t *physical_rs, range_seg64_t *remain_rs)
 {
+	(void) vd, (void) remain_rs;
+
 	physical_rs->rs_start = logical_rs->rs_start;
 	physical_rs->rs_end = logical_rs->rs_end;
 }
@@ -1778,6 +1779,7 @@ vdev_uses_zvols(vdev_t *vd)
 static boolean_t
 vdev_default_open_children_func(vdev_t *vd)
 {
+	(void) vd;
 	return (B_TRUE);
 }
 
@@ -2859,6 +2861,8 @@ boolean_t
 vdev_default_need_resilver(vdev_t *vd, const dva_t *dva, size_t psize,
     uint64_t phys_birth)
 {
+	(void) dva, (void) psize;
+
 	/* Set by sequential resilver. */
 	if (phys_birth == TXG_UNKNOWN)
 		return (B_TRUE);
@@ -4308,6 +4312,8 @@ vdev_get_child_stat(vdev_t *cvd, vdev_stat_t *vs, vdev_stat_t *cvs)
 static void
 vdev_get_child_stat_ex(vdev_t *cvd, vdev_stat_ex_t *vsx, vdev_stat_ex_t *cvsx)
 {
+	(void) cvd;
+
 	int t, b;
 	for (t = 0; t < ZIO_TYPES; t++) {
 		for (b = 0; b < ARRAY_SIZE(vsx->vsx_disk_histo[0]); b++)
@@ -4743,6 +4749,7 @@ void
 vdev_space_update(vdev_t *vd, int64_t alloc_delta, int64_t defer_delta,
     int64_t space_delta)
 {
+	(void) defer_delta;
 	int64_t dspace_delta;
 	spa_t *spa = vd->vdev_spa;
 	vdev_t *rvd = spa->spa_root_vdev;
@@ -5469,7 +5476,10 @@ vdev_props_set_sync(void *arg, dmu_tx_t *tx)
 	vdev_guid = fnvlist_lookup_uint64(nvp, ZPOOL_VDEV_PROPS_SET_VDEV);
 	nvprops = fnvlist_lookup_nvlist(nvp, ZPOOL_VDEV_PROPS_SET_PROPS);
 	vd = spa_lookup_by_guid(spa, vdev_guid, B_TRUE);
-	VERIFY(vd != NULL);
+
+	/* this vdev could get removed while waiting for this sync task */
+	if (vd == NULL)
+		return;
 
 	mutex_enter(&spa->spa_props_lock);
 

@@ -200,6 +200,7 @@ SRCS+=	abd.c \
 	gzip.c \
 	lzjb.c \
 	lz4.c \
+	lz4_zfs.c \
 	metaslab.c \
 	mmp.c \
 	multilist.c \
@@ -321,6 +322,7 @@ CFLAGS.dsl_prop.c= -Wno-cast-qual
 CFLAGS.edonr.c= -Wno-cast-qual
 CFLAGS.fm.c= -Wno-cast-qual
 CFLAGS.lz4.c= -Wno-cast-qual
+CFLAGS.lz4_zfs.c= -Wno-cast-qual
 CFLAGS.spa.c= -Wno-cast-qual
 CFLAGS.spa_misc.c= -Wno-cast-qual
 CFLAGS.sysctl_os.c= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h

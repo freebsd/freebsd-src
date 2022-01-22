@@ -35,6 +35,7 @@ CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
 CFLAGS.zfs.c+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS.zfs.c+= -DHAVE_ISSETUGID
 CFLAGS.zfs.c+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+CFLAGS.zfs.c+= -Wno-cast-qual
 .endif
 
 .for src in ${SRCS}

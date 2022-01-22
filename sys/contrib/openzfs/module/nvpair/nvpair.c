@@ -146,12 +146,12 @@ static int nvlist_add_common(nvlist_t *nvl, const char *name, data_type_t type,
 	((i_nvp_t *)((size_t)(nvp) - offsetof(i_nvp_t, nvi_nvp)))
 
 #ifdef _KERNEL
-int nvpair_max_recursion = 20;
+static const int nvpair_max_recursion = 20;
 #else
-int nvpair_max_recursion = 100;
+static const int nvpair_max_recursion = 100;
 #endif
 
-uint64_t nvlist_hashtable_init_size = (1 << 4);
+static const uint64_t nvlist_hashtable_init_size = (1 << 4);
 
 int
 nv_alloc_init(nv_alloc_t *nva, const nv_alloc_ops_t *nvo, /* args */ ...)
@@ -576,6 +576,7 @@ nvlist_nv_alloc(int kmflag)
 		return (nv_alloc_pushpage);
 	}
 #else
+	(void) kmflag;
 	return (nv_alloc_nosleep);
 #endif /* _KERNEL */
 }
@@ -2296,10 +2297,11 @@ nvlist_add_nvpair(nvlist_t *nvl, nvpair_t *nvp)
  * the values are taken from nvl in the case of duplicates.
  * Return 0 on success.
  */
-/*ARGSUSED*/
 int
 nvlist_merge(nvlist_t *dst, nvlist_t *nvl, int flag)
 {
+	(void) flag;
+
 	if (nvl == NULL || dst == NULL)
 		return (EINVAL);
 
@@ -2803,10 +2805,10 @@ nvs_native_create(nvstream_t *nvs, nvs_native_t *native, char *buf,
 	}
 }
 
-/*ARGSUSED*/
 static void
 nvs_native_destroy(nvstream_t *nvs)
 {
+	(void) nvs;
 }
 
 static int

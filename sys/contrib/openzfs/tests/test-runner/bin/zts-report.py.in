@@ -15,7 +15,7 @@
 # Copyright (c) 2017 by Delphix. All rights reserved.
 # Copyright (c) 2018 by Lawrence Livermore National Security, LLC.
 #
-# This script must remain compatible with Python 2.6+ and Python 3.4+.
+# This script must remain compatible with Python 3.6+.
 #
 
 import os
@@ -62,13 +62,13 @@ known_reason = 'Known issue'
 exec_reason = 'Test user execute permissions required for utilities'
 
 #
-# Some tests require a minimum python version of 3.5 and will be skipped when
+# Some tests require a minimum python version of 3.6 and will be skipped when
 # the default system version is too old.  There may also be tests which require
-# additional python modules be installed, for example python-cffi is required
+# additional python modules be installed, for example python3-cffi is required
 # by the pyzfs tests.
 #
-python_reason = 'Python v3.5 or newer required'
-python_deps_reason = 'Python modules missing: python-cffi'
+python_reason = 'Python v3.6 or newer required'
+python_deps_reason = 'Python modules missing: python3-cffi'
 
 #
 # Some tests require the O_TMPFILE flag which was first introduced in the
@@ -250,12 +250,6 @@ maybe = {
     'removal/removal_condense_export': ['FAIL', known_reason],
     'reservation/reservation_008_pos': ['FAIL', '7741'],
     'reservation/reservation_018_pos': ['FAIL', '5642'],
-    'rsend/rsend_019_pos': ['FAIL', '6086'],
-    'rsend/rsend_020_pos': ['FAIL', '6446'],
-    'rsend/rsend_021_pos': ['FAIL', '6446'],
-    'rsend/rsend_024_pos': ['FAIL', '5665'],
-    'rsend/send-c_volume': ['FAIL', '6087'],
-    'rsend/send_partial_dataset': ['FAIL', known_reason],
     'snapshot/clone_001_pos': ['FAIL', known_reason],
     'snapshot/snapshot_009_pos': ['FAIL', '7961'],
     'snapshot/snapshot_010_pos': ['FAIL', '7961'],
@@ -289,11 +283,6 @@ if sys.platform.startswith('freebsd'):
     })
 elif sys.platform.startswith('linux'):
     maybe.update({
-        'alloc_class/alloc_class_009_pos': ['FAIL', known_reason],
-        'alloc_class/alloc_class_010_pos': ['FAIL', known_reason],
-        'alloc_class/alloc_class_011_neg': ['FAIL', known_reason],
-        'alloc_class/alloc_class_012_pos': ['FAIL', known_reason],
-        'alloc_class/alloc_class_013_pos': ['FAIL', '11888'],
         'cli_root/zfs_rename/zfs_rename_002_pos': ['FAIL', known_reason],
         'cli_root/zpool_expand/zpool_expand_001_pos': ['FAIL', known_reason],
         'cli_root/zpool_expand/zpool_expand_005_pos': ['FAIL', known_reason],
@@ -305,11 +294,6 @@ elif sys.platform.startswith('linux'):
         'mmp/mmp_active_import': ['FAIL', known_reason],
         'mmp/mmp_exported_import': ['FAIL', known_reason],
         'mmp/mmp_inactive_import': ['FAIL', known_reason],
-        'refreserv/refreserv_raidz': ['FAIL', known_reason],
-        'rsend/rsend_007_pos': ['FAIL', known_reason],
-        'rsend/rsend_010_pos': ['FAIL', known_reason],
-        'rsend/rsend_011_pos': ['FAIL', known_reason],
-        'snapshot/rollback_003_pos': ['FAIL', known_reason],
         'zvol/zvol_misc/zvol_misc_snapdev': ['FAIL', '12621'],
         'zvol/zvol_misc/zvol_misc_volmode': ['FAIL', known_reason],
     })
