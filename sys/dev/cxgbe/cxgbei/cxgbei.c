@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TCP_OFFLOAD
 #include <sys/errno.h>
+#include <sys/gsb_crc32.h>
 #include <sys/kthread.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
@@ -300,6 +301,136 @@ do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m
 }
 
 static int
+mbuf_crc32c_helper(void *arg, void *data, u_int len)
+{
+	uint32_t *digestp = arg;
+
+	*digestp = calculate_crc32c(*digestp, data, len);
+	return (0);
+}
+
+static bool
+parse_pdus(struct toepcb *toep, struct icl_cxgbei_conn *icc, struct sockbuf *sb)
+{
+	struct iscsi_bhs bhs;
+	struct mbuf *m;
+	struct icl_pdu *ip;
+	u_int ahs_len, data_len, header_len, pdu_len, total_len;
+	uint32_t calc_digest, wire_digest;
+
+	total_len = sbused(sb);
+	CTR3(KTR_CXGBE, "%s: tid %u, %u bytes in so_rcv", __func__, toep->tid,
+	    total_len);
+
+	m = sbcut_locked(sb, total_len);
+	KASSERT(m_length(m, NULL) == total_len,
+	    ("sbcut returned less data (%u vs %u)", total_len,
+	    m_length(m, NULL)));
+
+	header_len = sizeof(struct iscsi_bhs);
+	if (icc->ic.ic_header_crc32c)
+		header_len += ISCSI_HEADER_DIGEST_SIZE;
+	for (;;) {
+		if (total_len < sizeof(struct iscsi_bhs)) {
+			ICL_WARN("truncated pre-offload PDU with len %u",
+			    total_len);
+			m_freem(m);
+			return (false);
+		}
+		m_copydata(m, 0, sizeof(struct iscsi_bhs), (caddr_t)&bhs);
+
+		ahs_len = bhs.bhs_total_ahs_len * 4;
+		data_len = bhs.bhs_data_segment_len[0] << 16 |
+		    bhs.bhs_data_segment_len[1] << 8 |
+		    bhs.bhs_data_segment_len[0];
+		pdu_len = header_len + ahs_len + roundup2(data_len, 4);
+		if (icc->ic.ic_data_crc32c && data_len != 0)
+			pdu_len += ISCSI_DATA_DIGEST_SIZE;
+
+		if (total_len < pdu_len) {
+			ICL_WARN("truncated pre-offload PDU len %u vs %u",
+			    total_len, pdu_len);
+			m_freem(m);
+			return (false);
+		}
+
+		if (ahs_len != 0) {
+			ICL_WARN("received pre-offload PDU with AHS");
+			m_freem(m);
+			return (false);
+		}
+
+		if (icc->ic.ic_header_crc32c) {
+			m_copydata(m, sizeof(struct iscsi_bhs),
+			    sizeof(wire_digest), (caddr_t)&wire_digest);
+
+			calc_digest = calculate_crc32c(0xffffffff,
+			    (caddr_t)&bhs, sizeof(bhs));
+			calc_digest ^= 0xffffffff;
+			if (calc_digest != wire_digest) {
+				ICL_WARN("received pre-offload PDU 0x%02x "
+				    "with invalid header digest (0x%x vs 0x%x)",
+				    bhs.bhs_opcode, wire_digest, calc_digest);
+				toep->ofld_rxq->rx_iscsi_header_digest_errors++;
+				m_free(m);
+				return (false);
+			}
+		}
+
+		m_adj(m, header_len);
+
+		if (icc->ic.ic_data_crc32c && data_len != 0) {
+			m_copydata(m, data_len, sizeof(wire_digest),
+			    (caddr_t)&wire_digest);
+
+			calc_digest = 0xffffffff;
+			m_apply(m, 0, roundup2(data_len, 4), mbuf_crc32c_helper,
+			    &calc_digest);
+			calc_digest ^= 0xffffffff;
+			if (calc_digest != wire_digest) {
+				ICL_WARN("received pre-offload PDU 0x%02x "
+				    "with invalid data digest (0x%x vs 0x%x)",
+				    bhs.bhs_opcode, wire_digest, calc_digest);
+				toep->ofld_rxq->rx_iscsi_data_digest_errors++;
+				m_free(m);
+				return (false);
+			}
+		}
+
+		ip = icl_cxgbei_new_pdu(M_NOWAIT);
+		if (ip == NULL)
+			CXGBE_UNIMPLEMENTED("PDU allocation failure");
+		icl_cxgbei_new_pdu_set_conn(ip, &icc->ic);
+		*ip->ip_bhs = bhs;
+		ip->ip_data_len = data_len;
+		if (data_len != 0)
+			ip->ip_data_mbuf = m;
+
+		STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
+
+		total_len -= pdu_len;
+		if (total_len == 0) {
+			if (data_len == 0)
+				m_freem(m);
+			return (true);
+		}
+
+		if (data_len != 0) {
+			m = m_split(m, roundup2(data_len, 4), M_NOWAIT);
+			if (m == NULL) {
+				ICL_WARN("failed to split mbuf chain for "
+				    "pre-offload PDU");
+
+				/* Don't free the mbuf chain as 'ip' owns it. */
+				return (false);
+			}
+			if (icc->ic.ic_data_crc32c)
+				m_adj(m, ISCSI_DATA_DIGEST_SIZE);
+		}
+	}
+}
+
+static int
 do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
@@ -419,39 +550,24 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		ic->ic_error(ic);
 		return (0);
 	}
-	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
-	MPASS(m == NULL); /* was unused, we'll use it now. */
-	m = sbcut_locked(sb, sbused(sb)); /* XXXNP: toep->sb_cc accounting? */
-	if (__predict_false(m != NULL)) {
-		int len = m_length(m, NULL);
-
+	if (__predict_false(sbused(sb)) != 0) {
 		/*
 		 * PDUs were received before the tid transitioned to ULP mode.
 		 * Convert them to icl_cxgbei_pdus and send them to ICL before
 		 * the PDU in icp/ip.
 		 */
-		CTR3(KTR_CXGBE, "%s: tid %u, %u bytes in so_rcv", __func__, tid,
-		    len);
+		if (!parse_pdus(toep, icc, sb)) {
+			SOCKBUF_UNLOCK(sb);
+			INP_WUNLOCK(inp);
 
-		/* XXXNP: needs to be rewritten. */
-		if (len == sizeof(struct iscsi_bhs) || len == 4 + sizeof(struct
-		    iscsi_bhs)) {
-			struct icl_cxgbei_pdu *icp0;
-			struct icl_pdu *ip0;
-
-			ip0 = icl_cxgbei_new_pdu(M_NOWAIT);
-			if (ip0 == NULL)
-				CXGBE_UNIMPLEMENTED("PDU allocation failure");
-			icl_cxgbei_new_pdu_set_conn(ip0, ic);
-			icp0 = ip_to_icp(ip0);
-			icp0->icp_seq = 0; /* XXX */
-			icp0->icp_flags = ICPF_RX_HDR | ICPF_RX_STATUS;
-			m_copydata(m, 0, sizeof(struct iscsi_bhs), (void *)ip0->ip_bhs);
-			STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip0, ip_next);
+			icl_cxgbei_conn_pdu_free(NULL, ip);
+			toep->ulpcb2 = NULL;
+			ic->ic_error(ic);
+			return (0);
 		}
-		m_freem(m);
 	}
+	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
 	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
@@ -699,6 +815,23 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		toep->ulpcb2 = NULL;
 		m_freem(m);
 		return (0);
+	}
+
+	if (__predict_false(sbused(sb)) != 0) {
+		/*
+		 * PDUs were received before the tid transitioned to ULP mode.
+		 * Convert them to icl_cxgbei_pdus and send them to ICL before
+		 * the PDU in icp/ip.
+		 */
+		if (!parse_pdus(toep, icc, sb)) {
+			SOCKBUF_UNLOCK(sb);
+			INP_WUNLOCK(inp);
+
+			icl_cxgbei_conn_pdu_free(NULL, ip);
+			toep->ulpcb2 = NULL;
+			ic->ic_error(ic);
+			return (0);
+		}
 	}
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
