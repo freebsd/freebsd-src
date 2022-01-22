@@ -10,15 +10,15 @@ SHLIBDIR?=	/lib
 
 LIB=		cxxrt
 
-SRCS+=		libelftc_dem_gnu3.c\
-		terminate.cc\
-		dynamic_cast.cc\
-		memory.cc\
-		auxhelper.cc\
-		exception.cc\
-		stdexcept.cc\
-		typeinfo.cc\
-		guard.cc
+SRCS+=		auxhelper.cc
+SRCS+=		dynamic_cast.cc
+SRCS+=		exception.cc
+SRCS+=		guard.cc
+SRCS+=		libelftc_dem_gnu3.c
+SRCS+=		memory.cc
+SRCS+=		stdexcept.cc
+SRCS+=		terminate.cc
+SRCS+=		typeinfo.cc
 
 WARNS?=		0
 CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
