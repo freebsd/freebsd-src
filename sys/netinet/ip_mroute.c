@@ -741,8 +741,13 @@ X_ip_mrouter_done(void *locked)
     vifi_t vifi;
     struct bw_upcall *bu;
 
-    if (V_ip_mrouter == NULL)
+    if (V_ip_mrouter == NULL) {
+	if (locked) {
+		struct epoch_tracker *mrouter_et = locked;
+		MROUTER_RUNLOCK_PARAM(mrouter_et);
+	}
 	return EINVAL;
+    }
 
     /*
      * Detach/disable hooks to the reset of the system.
