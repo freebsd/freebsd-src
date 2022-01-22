@@ -890,6 +890,8 @@ rip_detach(struct socket *so)
 	MROUTER_RLOCK();
 	if (so == V_ip_mrouter && ip_mrouter_done)
 		ip_mrouter_done(MROUTER_RLOCK_PARAM_PTR);
+	else
+		MROUTER_RUNLOCK();
 
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(&V_ripcbinfo);
