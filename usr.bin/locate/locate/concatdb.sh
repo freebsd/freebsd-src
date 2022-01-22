@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
-# Copyright (c) September 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+# Copyright (c) September 1995-2022 Wolfram Schneider <wosch@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,10 @@
 # Sequence of databases is important.
 #
 # $FreeBSD$
+
+# stop on first error
+set -e
+set -o pipefail
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
