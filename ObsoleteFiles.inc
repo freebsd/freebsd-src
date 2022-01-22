@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20211222: new clang import which bumps version from 12.0.1 to 13.0.0.
+# 20211222: new clang import which bumps version from 12.0.1 to 13.0.0
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/new
@@ -329,7 +329,7 @@ OLD_DIRS+=usr/lib/clang/12.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/12.0.1/lib
 OLD_DIRS+=usr/lib/clang/12.0.1
 
-# 20211222: new libc++ import which bumps version from 12.0.1 to 13.0.0.
+# 20211222: new libc++ import which bumps version from 12.0.1 to 13.0.0
 OLD_FILES+=usr/include/c++/v1/__functional_03
 OLD_FILES+=usr/include/c++/v1/__functional_base_03
 OLD_FILES+=usr/include/c++/v1/__memory/base.h
@@ -481,7 +481,7 @@ OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/lldb-tblgen
 OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
-# 20211222: new clang import which bumps version from 12.0.0 to 12.0.1.
+# 20211222: new clang import which bumps version from 12.0.0 to 12.0.1
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/new
@@ -772,7 +772,7 @@ OLD_DIRS+=usr/lib/clang/12.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/12.0.0/lib
 OLD_DIRS+=usr/lib/clang/12.0.0
 
-# 20211222: new clang import which bumps version from 11.0.1 to 12.0.0.
+# 20211222: new clang import which bumps version from 11.0.1 to 12.0.0
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/new
@@ -1059,7 +1059,7 @@ OLD_DIRS+=usr/lib/clang/11.0.1
 # 20211221 efi_set_variables_supported.3 should be efi_variables_supported.3
 OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
 
-# 20211214: new clang import which bumps version from 11.0.0 to 11.0.1.
+# 20211214: new clang import which bumps version from 11.0.0 to 11.0.1
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/new
@@ -1325,7 +1325,7 @@ OLD_DIRS+=usr/lib/clang/11.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/11.0.0/lib
 OLD_DIRS+=usr/lib/clang/11.0.0
 
-# 20211214: new clang import which bumps version from 10.0.1 to 11.0.0.
+# 20211214: new clang import which bumps version from 10.0.1 to 11.0.0
 OLD_FILES+=usr/lib/clang/10.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/10.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/10.0.1/include/cuda_wrappers/new
@@ -1586,7 +1586,7 @@ OLD_FILES+=boot/lua/logo-fbsdbw.lua
 OLD_FILES+=boot/lua/logo-orb.lua
 OLD_FILES+=boot/lua/logo-orbbw.lua
 
-# 20200722: new clang import which bumps version from 10.0.0 to 10.0.1.
+# 20200722: new clang import which bumps version from 10.0.0 to 10.0.1
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/new
@@ -1844,7 +1844,7 @@ OLD_FILES+=usr/share/man/man9/devstat_add_entry.9.gz
 OLD_FILES+=usr/share/man/man3/getauusernam_R.3.gz
 OLD_FILES+=usr/share/man/man3/getauclassnam_3.3.gz
 
-# 20200501: new clang import which bumps version from 9.0.1 to 10.0.0.
+# 20200501: new clang import which bumps version from 9.0.1 to 10.0.0
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/9.0.1/include/cuda_wrappers/new
@@ -2088,7 +2088,7 @@ OLD_FILES+=usr/include/ssp/string.h
 OLD_FILES+=usr/include/ssp/unistd.h
 OLD_DIRS+=usr/include/ssp
 
-# 20200107: new clang import which bumps version from 9.0.0 to 9.0.1.
+# 20200107: new clang import which bumps version from 9.0.0 to 9.0.1
 OLD_FILES+=usr/lib/clang/9.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/9.0.0/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/9.0.0/include/cuda_wrappers/new
@@ -2324,7 +2324,7 @@ OLD_FILES+=usr/lib/clang/9.0.0/lib/freebsd/libclang_rt.xray-x86_64.a
 OLD_DIRS+=usr/lib/clang/9.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/9.0.0/lib
 OLD_DIRS+=usr/lib/clang/9.0.0
-# 20200107: new clang import which bumps version from 8.0.1 to 9.0.0.
+# 20200107: new clang import which bumps version from 8.0.1 to 9.0.0
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/common_interface_defs.h
@@ -2491,7 +2491,7 @@ OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_014_n
 OLD_FILES+=usr/tests/sys/cddl/zfs/tests/cli_root/zpool_create/zpool_create_016_pos.ksh
 # 20190811: sys/pwm.h renamed to dev/pwmc.h and pwm(9) removed
 OLD_FILES+=usr/include/sys/pwm.h usr/share/man/man9/pwm.9
-# 20190723: new clang import which bumps version from 8.0.0 to 8.0.1.
+# 20190723: new clang import which bumps version from 8.0.0 to 8.0.1
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/8.0.0/include/sanitizer/common_interface_defs.h
@@ -2644,12 +2644,12 @@ OLD_DIRS+=usr/lib/clang/8.0.0
 # 20190817: pft_ping.py and sniffer.py moved to /usr/tests/sys/netpfil/common
 OLD_FILES+=usr/tests/sys/netpfil/pf/sniffer.py
 OLD_FILES+=usr/tests/sys/netpfil/pf/pft_ping.py
-# 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
+# 20190509: tests/sys/opencrypto requires the net/py-dpkt package
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
-# 20190412: new libc++ import which bumps version from 7.0.1 to 8.0.0.
+# 20190412: new libc++ import which bumps version from 7.0.1 to 8.0.0
 OLD_FILES+=usr/include/c++/v1/experimental/dynarray
-# 20190412: new clang import which bumps version from 7.0.1 to 8.0.0.
+# 20190412: new clang import which bumps version from 7.0.1 to 8.0.0
 OLD_FILES+=usr/lib/clang/7.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/7.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/7.0.1/include/sanitizer/common_interface_defs.h
@@ -2799,7 +2799,7 @@ OLD_FILES+=usr/lib/clang/7.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/7.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/7.0.1/lib
 OLD_DIRS+=usr/lib/clang/7.0.1
-# 20190216: new clang import which bumps version from 6.0.1 to 7.0.1.
+# 20190216: new clang import which bumps version from 6.0.1 to 7.0.1
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/common_interface_defs.h
@@ -2935,9 +2935,9 @@ OLD_FILES+=usr/lib/clang/6.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/6.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/6.0.1/lib
 OLD_DIRS+=usr/lib/clang/6.0.1
-# 20181116: Rename test file.
+# 20181116: Rename test file
 OLD_FILES+=usr/tests/sys/netinet/reuseport_lb
-# 20181112: Cleanup old libcap_dns.
+# 20181112: Cleanup old libcap_dns
 OLD_LIBS+=lib/casper/libcap_dns.so.1
 OLD_LIBS+=usr/lib32/libcap_dns.so.1
 # 20181030: malloc_domain(9) KPI change
@@ -3217,7 +3217,7 @@ OLD_FILES+=usr/share/man/man2/numa_getaffinity.2.gz
 OLD_FILES+=usr/share/man/man2/numa_setaffinity.2.gz
 OLD_FILES+=usr/share/man/man1/numactl.1.gz
 OLD_FILES+=usr/bin/numactl
-# 20180630: new clang import which bumps version from 6.0.0 to 6.0.1.
+# 20180630: new clang import which bumps version from 6.0.0 to 6.0.1
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/6.0.0/include/sanitizer/common_interface_defs.h
@@ -3433,7 +3433,7 @@ OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
 OLD_FILES+=usr/bin/gdbtui
 # 20180201: Obsolete forth files
 OLD_FILES+=boot/pcibios.4th
-# 20180114: new clang import which bumps version from 5.0.1 to 6.0.0.
+# 20180114: new clang import which bumps version from 5.0.1 to 6.0.0
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/common_interface_defs.h
@@ -3575,12 +3575,12 @@ OLD_FILES+=tests/sys/geom/class/eli/onetime_d_test.sh
 OLD_DIRS+=/etc/skel
 # 20171208: Remove basename_r(3)
 OLD_FILES+=usr/share/man/man3/basename_r.3.gz
-# 20171204: Move fdformat man page from volume 1 to volume 8.
+# 20171204: Move fdformat man page from volume 1 to volume 8
 OLD_FILES+=usr/share/man/man1/fdformat.1.gz
 # 20171203: libproc version bump
 OLD_LIBS+=usr/lib/libproc.so.4
 OLD_LIBS+=usr/lib32/libproc.so.4
-# 20171203: new clang import which bumps version from 5.0.0 to 5.0.1.
+# 20171203: new clang import which bumps version from 5.0.0 to 5.0.1
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/5.0.0/include/sanitizer/common_interface_defs.h
@@ -3736,7 +3736,7 @@ OLD_FILES+=usr/share/man/man7/mailaddr.7.gz
 OLD_FILES+=sbin/badsect
 OLD_FILES+=rescue/badsect
 OLD_FILES+=usr/share/man/man8/badsect.8.gz
-# 20171105: fixing lib/libclang_rt CRTARCH for arm:armv[67].
+# 20171105: fixing lib/libclang_rt CRTARCH for arm:armv[67]
 .if ${MACHINE_ARCH:Marmv[67]*} != "" && \
     (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 OLD_FILES+=usr/lib/clang/5.0.0/lib/freebsd/libclang_rt.asan-preinit-arm.a
@@ -3946,7 +3946,7 @@ OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat3
 OLD_FILES+=usr/include/sys/ksyms.h
 # 20170729: the iicbus/pcf8563 driver is replaced with iicbus/nxprtc
 OLD_FILES+=usr/include/dev/iicbus/pcf8563reg.h
-# 20170722: new clang import which bumps version from 4.0.0 to 5.0.0.
+# 20170722: new clang import which bumps version from 4.0.0 to 5.0.0
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/4.0.0/include/sanitizer/common_interface_defs.h
@@ -4752,7 +4752,7 @@ OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext
 # 20170322: garbage collect old references to igb(4)
 OLD_FILES+=usr/share/man/man4/if_igb.4.gz
 OLD_FILES+=usr/share/man/man4/igb.4.gz
-# 20170319: io_test requires zh_TW.Big5 locale.
+# 20170319: io_test requires zh_TW.Big5 locale
 OLD_FILES+=usr/tests/lib/libc/locale/io_test
 # 20170319: remove nls for non supported Big5* locales
 OLD_DIRS+=usr/share/nls/zh_HK.Big5HKSCS
@@ -4763,7 +4763,7 @@ OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/Kyuafile
 OLD_FILES+=usr/tests/sys/geom/eli/Kyuafile
 OLD_DIRS+=usr/tests/sys/geom/eli/pbkdf2
 OLD_DIRS+=usr/tests/sys/geom/eli
-# 20170313: sbin/ipftest and ipresend temporarily disconnected.
+# 20170313: sbin/ipftest and ipresend temporarily disconnected
 OLD_FILES+=sbin/ipftest
 OLD_FILES+=sbin/ipresend
 # 20170311: Remove WITHOUT_MANDOCDB option
@@ -4773,10 +4773,10 @@ OLD_FILES+=usr/tests/bin/pwait/pwait
 OLD_FILES+=usr/tests/usr.bin/timeout/timeout
 # 20170307: remove pcap-int.h
 OLD_FILES+=usr/include/pcap-int.h
-# 20170302: new libc++ import which bumps version from 3.9.1 to 4.0.0.
+# 20170302: new libc++ import which bumps version from 3.9.1 to 4.0.0
 OLD_FILES+=usr/include/c++/v1/__undef___deallocate
 OLD_FILES+=usr/include/c++/v1/tr1/__undef___deallocate
-# 20170302: new clang import which bumps version from 3.9.1 to 4.0.0.
+# 20170302: new clang import which bumps version from 3.9.1 to 4.0.0
 OLD_FILES+=usr/lib/clang/3.9.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.9.1/include/sanitizer/common_interface_defs.h
@@ -4935,7 +4935,7 @@ OLD_FILES+=usr/tests/lib/libarchive/test_acl_pax.tar.uu
 OLD_FILES+=usr/tests/sys/geom/class/nop/1_test
 OLD_FILES+=usr/tests/sys/geom/class/nop/2_test
 OLD_FILES+=usr/tests/sys/geom/class/nop/conf.sh
-# 20161217: new clang import which bumps version from 3.9.0 to 3.9.1.
+# 20161217: new clang import which bumps version from 3.9.0 to 3.9.1
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.9.0/include/sanitizer/common_interface_defs.h
@@ -5049,7 +5049,7 @@ OLD_LIBS+=usr/lib/libproc.so.3
 OLD_LIBS+=usr/lib32/libproc.so.3
 # 20161127: Remove vm_page_cache(9)
 OLD_FILES+=usr/share/man/man9/vm_page_cache.9.gz
-# 20161124: new clang import which bumps version from 3.8.0 to 3.9.0.
+# 20161124: new clang import which bumps version from 3.8.0 to 3.9.0
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.8.0/include/sanitizer/common_interface_defs.h
@@ -5141,7 +5141,7 @@ OLD_FILES+=usr/lib/clang/3.8.0/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.8.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.8.0/lib
 OLD_DIRS+=usr/lib/clang/3.8.0
-# 20161121: Hyper-V manuals only apply to amd64 and i386.
+# 20161121: Hyper-V manuals only apply to amd64 and i386
 .if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386"
 OLD_FILES+=usr/share/man/man4/hv_kvp.4.gz
 OLD_FILES+=usr/share/man/man4/hv_netvsc.4.gz
@@ -5403,7 +5403,7 @@ OLD_DIRS+=usr/share/locale/zh_Hant_HK.Big5HKSCS
 # 20160317: rman_res_t size bump to uintmax_t
 OLD_LIBS+=usr/lib/libdevinfo.so.5
 OLD_LIBS+=usr/lib32/libdevinfo.so.5
-# 20160305: new clang import which bumps version from 3.7.1 to 3.8.0.
+# 20160305: new clang import which bumps version from 3.7.1 to 3.8.0
 OLD_FILES+=usr/bin/macho-dump
 OLD_FILES+=usr/bin/tblgen
 OLD_FILES+=usr/lib/clang/3.7.1/include/sanitizer/allocator_interface.h
@@ -5491,7 +5491,7 @@ OLD_DIRS+=usr/lib/clang/3.7.1/lib
 OLD_DIRS+=usr/lib/clang/3.7.1
 # 20160301: Remove taskqueue_enqueue_fast
 OLD_FILES+=usr/share/man/man9/taskqueue_enqueue_fast.9.gz
-# 20160225: Remove casperd and libcapsicum.
+# 20160225: Remove casperd and libcapsicum
 OLD_FILES+=sbin/casperd
 OLD_FILES+=etc/rc.d/casperd
 OLD_FILES+=usr/share/man/man8/casperd.8.gz
@@ -5541,7 +5541,7 @@ OLD_DIRS+=usr/share/mdocml
 OLD_FILES+=usr/share/examples/etc/snmpd.config
 # 20160107: GNU ld installed as ld.bfd and linked as ld
 OLD_FILES+=usr/lib/debug/usr/bin/ld.debug
-# 20151225: new clang import which bumps version from 3.7.0 to 3.7.1.
+# 20151225: new clang import which bumps version from 3.7.0 to 3.7.1
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/3.7.0/include/sanitizer/common_interface_defs.h
@@ -6169,7 +6169,7 @@ OLD_FILES+=usr/share/doc/legal/intel_wpi/LICENSE
 OLD_FILES+=usr/include/c++/__tuple_03
 OLD_FILES+=usr/include/c++/v1/__tuple_03
 OLD_FILES+=usr/include/c++/v1/tr1/__tuple_03
-# 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
+# 20151006: new clang import which bumps version from 3.6.1 to 3.7.0
 OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
@@ -6248,7 +6248,7 @@ OLD_FILES+=usr/share/man/man3/sallocm.3.gz
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_test
 # 20150719: Remove libarchive.pc
 OLD_FILES+=usr/libdata/pkgconfig/libarchive.pc
-# 20150705: Rename DTrace provider man pages.
+# 20150705: Rename DTrace provider man pages
 OLD_FILES+=usr/share/man/man4/dtrace-io.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-ip.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
@@ -6262,7 +6262,7 @@ OLD_FILES+=usr/include/sys/nvpair_impl.h
 # 20150624
 OLD_LIBS+=usr/lib/libugidfw.so.4
 OLD_LIBS+=usr/lib32/libugidfw.so.4
-# 20150604: Move nvlist man pages to section 9.
+# 20150604: Move nvlist man pages to section 9
 OLD_FILES+=usr/share/man/man3/libnv.3.gz
 OLD_FILES+=usr/share/man/man3/nv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist.3.gz
@@ -6326,14 +6326,14 @@ OLD_FILES+=usr/share/man/man3/nvlist_take_nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_take_string.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_unpack.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_xfer.3.gz
-# 20150702: Remove duplicated nvlist includes.
+# 20150702: Remove duplicated nvlist includes
 OLD_FILES+=usr/include/dnv.h
 OLD_FILES+=usr/include/nv.h
-# 20150528: PCI IOV device driver methods moved to a separate kobj interface.
+# 20150528: PCI IOV device driver methods moved to a separate kobj interface
 OLD_FILES+=usr/share/man/man9/PCI_ADD_VF.9.gz
 OLD_FILES+=usr/share/man/man9/PCI_INIT_IOV.9.gz
 OLD_FILES+=usr/share/man/man9/PCI_UNINIT_IOV.9.gz
-# 20150525: new clang import which bumps version from 3.6.0 to 3.6.1.
+# 20150525: new clang import which bumps version from 3.6.0 to 3.6.1
 OLD_FILES+=usr/lib/clang/3.6.0/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_aes.h
 OLD_FILES+=usr/lib/clang/3.6.0/include/__wmmintrin_pclmul.h
@@ -6438,7 +6438,7 @@ OLD_DIRS+=usr/lib/private
 # 20150501
 OLD_FILES+=usr/bin/soeliminate
 OLD_FILES+=usr/share/man/man1/soeliminate.1.gz
-# 20150501: Remove the nvlist_.*[vf] functions manpages.
+# 20150501: Remove the nvlist_.*[vf] functions manpages
 OLD_FILES+=usr/share/man/man3/nvlist_addf_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addf_bool.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_addf_descriptor.3.gz
@@ -6588,7 +6588,7 @@ OLD_FILES+=usr/include/bootconfig.h
 .endif
 # 20150326
 OLD_FILES+=usr/share/man/man1/pmcstudy.1.gz
-# 20150315: new clang import which bumps version from 3.5.1 to 3.6.0.
+# 20150315: new clang import which bumps version from 3.5.1 to 3.6.0
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.5.1/altivec.h
@@ -6688,7 +6688,7 @@ OLD_FILES+=usr/share/man/man9/splvm.9.gz
 OLD_FILES+=usr/share/man/man9/splx.9.gz
 # 20150118: toeplitz.c moved from netinet to net
 OLD_FILES+=usr/include/netinet/toeplitz.h
-# 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
+# 20150118: new clang import which bumps version from 3.5.0 to 3.5.1
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.5.0/altivec.h
@@ -6782,7 +6782,7 @@ OLD_FILES+=usr/share/man/man1/texindex.1.gz
 OLD_FILES+=usr/share/man/man5/info.5.gz
 OLD_FILES+=usr/share/man/man5/texinfo.5.gz
 OLD_DIRS+=usr/share/info
-# 20141231: new clang import which bumps version from 3.4.1 to 3.5.0.
+# 20141231: new clang import which bumps version from 3.4.1 to 3.5.0
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.4.1/altivec.h
@@ -6917,7 +6917,7 @@ OLD_LIBS+=usr/lib32/libopie.so.7
 # 20140811: otp-sha renamed to otp-sha1
 OLD_FILES+=usr/bin/otp-sha
 OLD_FILES+=usr/share/man/man1/otp-sha.1.gz
-# 20140807: Remove private lib files that should not be installed.
+# 20140807: Remove private lib files that should not be installed
 OLD_FILES+=usr/lib32/private/libatf-c.a
 OLD_FILES+=usr/lib32/private/libatf-c.so
 OLD_FILES+=usr/lib32/private/libatf-c_p.a
@@ -6976,7 +6976,7 @@ OLD_FILES+=usr/lib/private/libucl_p.a
 OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
 # 20140731
 OLD_FILES+=usr/share/man/man9/SYSCTL_ADD_OID.9.gz
-# 20140728: libsbuf restored to old version.
+# 20140728: libsbuf restored to old version
 OLD_LIBS+=lib/libsbuf.so.7
 OLD_LIBS+=usr/lib32/libsbuf.so.7
 # 20140728: Remove an obsolete man page
@@ -7045,7 +7045,7 @@ OLD_FILES+=usr/share/man/man1/send-pr.1.gz
 OLD_FILES+=usr/share/man/man1/sendbug.1.gz
 OLD_FILES+=etc/gnats/freefall
 OLD_DIRS+=etc/gnats
-# 20140512: new clang import which bumps version from 3.4 to 3.4.1.
+# 20140512: new clang import which bumps version from 3.4 to 3.4.1
 OLD_FILES+=usr/include/clang/3.4/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.4/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.4/altivec.h
@@ -7142,7 +7142,7 @@ OLD_FILES+=usr/lib32/private/libyaml.a
 OLD_FILES+=usr/lib32/private/libyaml.so
 OLD_LIBS+=usr/lib32/private/libyaml.so.1
 OLD_FILES+=usr/lib32/private/libyaml_p.a
-# 20140216: new clang import which bumps version from 3.3 to 3.4.
+# 20140216: new clang import which bumps version from 3.3 to 3.4
 OLD_FILES+=usr/bin/llvm-prof
 OLD_FILES+=usr/include/clang/3.3/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.3/__wmmintrin_pclmul.h
@@ -7210,7 +7210,7 @@ OLD_FILES+=usr/lib32/libiconv.a
 OLD_FILES+=usr/lib32/libiconv.so
 OLD_FILES+=usr/lib32/libiconv.so.3
 OLD_FILES+=usr/lib32/libiconv_p.a
-# 20131103: removal of utxrm(8), use 'utx rm' instead.
+# 20131103: removal of utxrm(8), use 'utx rm' instead
 OLD_FILES+=usr/sbin/utxrm
 OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 # 20131031: pkg_install has been removed
@@ -7587,7 +7587,7 @@ OLD_FILES+=lib/libufs.so.6.symbols
 OLD_FILES+=usr/lib32/libufs.so.6.symbols
 # 20130417: nfs fha moved from nfsserver to nfs
 OLD_FILES+=usr/include/nfsserver/nfs_fha.h
-# 20130411: new clang import which bumps version from 3.2 to 3.3.
+# 20130411: new clang import which bumps version from 3.2 to 3.3
 OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.2/altivec.h
@@ -7845,7 +7845,7 @@ OLD_FILES+=usr/include/machine/legacyvar.h
 OLD_FILES+=usr/include/dev/mpt/mpilib/mpi_inb.h
 # 20120322: hwpmc_mips24k.h removed
 OLD_FILES+=usr/include/dev/hwpmc/hwpmc_mips24k.h
-# 20120322: Update heimdal to 1.5.1.
+# 20120322: Update heimdal to 1.5.1
 OLD_FILES+=usr/include/krb5-v4compat.h \
 	usr/include/krb_err.h \
 	usr/include/hdb-private.h \
@@ -7886,7 +7886,7 @@ OLD_LIBS+=usr/lib/libasn1.so.10 \
 	usr/lib32/libkafs5.so.10 \
 	usr/lib32/libkrb5.so.10 \
 	usr/lib32/libroken.so.10
-# 20120309: Remove fifofs header files.
+# 20120309: Remove fifofs header files
 OLD_FILES+=usr/include/fs/fifofs/fifo.h
 OLD_DIRS+=usr/include/fs/fifofs
 # 20120304: xlocale cleanup
@@ -7980,7 +7980,7 @@ OLD_FILES+=usr/share/doc/bind9/README.idnkit
 OLD_FILES+=usr/share/doc/bind9/README.pkcs11
 # 20110709: vm_map_clean.9 -> vm_map_sync.9
 OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
-# 20110709: Catch up with removal of these functions.
+# 20110709: Catch up with removal of these functions
 OLD_FILES+=usr/share/man/man9/vm_page_copy.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_protect.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_zero_fill.9.gz
@@ -8054,7 +8054,7 @@ OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
 OLD_DIRS+=usr/include/clang/2.8
 # 20110119: netinet/sctp_cc_functions.h removed
 OLD_FILES+=usr/include/netinet/sctp_cc_functions.h
-# 20110119: Remove SYSCTL_*X* sysctl additions.
+# 20110119: Remove SYSCTL_*X* sysctl additions
 OLD_FILES+=usr/share/man/man9/SYSCTL_XINT.9.gz \
     usr/share/man/man9/SYSCTL_XLONG.9.gz
 
@@ -8138,7 +8138,7 @@ OLD_FILES+=usr/share/man/man3/ascftime.3.gz
 OLD_FILES+=usr/share/man/man3/cfree.3.gz
 OLD_FILES+=usr/share/man/man3/cftime.3.gz
 OLD_FILES+=usr/share/man/man3/getpw.3.gz
-# 20100725: acpi_aiboost(4) removal.
+# 20100725: acpi_aiboost(4) removal
 OLD_FILES+=usr/share/man/man4/acpi_aiboost.4.gz
 # 20100724: nfsclient/nfs_lock.h moved to nfs/nfs_lock.h
 OLD_FILES+=usr/include/nfsclient/nfs_lock.h
@@ -8265,7 +8265,7 @@ OLD_FILES+=usr/share/examples/startslip/sldown.sh
 OLD_FILES+=usr/share/examples/startslip/slip.sh
 OLD_FILES+=usr/share/examples/startslip/slup.sh
 OLD_DIRS+=usr/share/examples/startslip
-# 20091202: unify rc.firewall and rc.firewall6.
+# 20091202: unify rc.firewall and rc.firewall6
 OLD_FILES+=etc/rc.d/ip6fw
 OLD_FILES+=etc/rc.firewall6
 OLD_FILES+=usr/share/examples/etc/rc.firewall6
@@ -8544,11 +8544,11 @@ OLD_LIBS+=usr/lib32/pam_self.so.4
 OLD_LIBS+=usr/lib32/pam_ssh.so.4
 OLD_LIBS+=usr/lib32/pam_tacplus.so.4
 OLD_LIBS+=usr/lib32/pam_unix.so.4
-# 20090718: the gdm pam.d file is no longer required.
+# 20090718: the gdm pam.d file is no longer required
 OLD_FILES+=etc/pam.d/gdm
 # 20090714: net_add_domain(9) renamed to domain_add(9)
 OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
-# 20090713: vimage container structs removed.
+# 20090713: vimage container structs removed
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h
 OLD_FILES+=usr/include/netipsec/vipsec.h
@@ -9102,7 +9102,7 @@ OLD_FILES+=etc/rc.d/cached
 OLD_FILES+=usr/sbin/cached
 OLD_FILES+=usr/share/man/man5/cached.conf.5.gz
 OLD_FILES+=usr/share/man/man8/cached.8.gz
-# 20070807: removal of PowerPC specific header file.
+# 20070807: removal of PowerPC specific header file
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=usr/include/machine/interruptvar.h
 .endif
@@ -10309,7 +10309,7 @@ OLD_FILES+=usr/include/c++/3.3/typeinfo
 OLD_FILES+=usr/include/c++/3.3/utility
 OLD_FILES+=usr/include/c++/3.3/valarray
 OLD_FILES+=usr/include/c++/3.3/vector
-# 20040713: fla(4) removed.
+# 20040713: fla(4) removed
 OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 200407XX
 OLD_FILES+=usr/sbin/kernbb
