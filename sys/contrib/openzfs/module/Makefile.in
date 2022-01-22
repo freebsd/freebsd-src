@@ -51,10 +51,8 @@ endif
 FMAKE = env -u MAKEFLAGS make $(FMAKEFLAGS)
 
 modules-Linux:
-	list='$(SUBDIR_TARGETS)'; for targetdir in $$list; do \
-		$(MAKE) -C $$targetdir; \
-	done
-	$(MAKE) -C @LINUX_OBJ@ M=`pwd` @KERNEL_MAKE@ CONFIG_ZFS=m modules
+	list='$(SUBDIR_TARGETS)'; for td in $$list; do $(MAKE) -C $$td; done
+	$(MAKE) -C @LINUX_OBJ@ M="$$PWD" @KERNEL_MAKE@ CONFIG_ZFS=m modules
 
 modules-FreeBSD:
 	+$(FMAKE)
@@ -67,7 +65,7 @@ modules: modules-@ac_system@
 clean-Linux:
 	@# Only cleanup the kernel build directories when CONFIG_KERNEL
 	@# is defined.  This indicates that kernel modules should be built.
-@CONFIG_KERNEL_TRUE@	$(MAKE) -C @LINUX_OBJ@ M=`pwd` @KERNEL_MAKE@ clean
+@CONFIG_KERNEL_TRUE@	$(MAKE) -C @LINUX_OBJ@ M="$$PWD" @KERNEL_MAKE@ clean
 
 	if [ -f @LINUX_SYMBOLS@ ]; then $(RM) @LINUX_SYMBOLS@; fi
 	if [ -f Module.markers ]; then $(RM) Module.markers; fi
@@ -81,7 +79,7 @@ clean: clean-@ac_system@
 
 modules_install-Linux:
 	@# Install the kernel modules
-	$(MAKE) -C @LINUX_OBJ@ M=`pwd` modules_install \
+	$(MAKE) -C @LINUX_OBJ@ M="$$PWD" modules_install \
 		INSTALL_MOD_PATH=$(INSTALL_MOD_PATH) \
 		INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) \
 		KERNELRELEASE=@LINUX_VERSION@
@@ -90,7 +88,15 @@ modules_install-Linux:
 	if [ -n "$(DESTDIR)" ]; then \
 		find $$kmoddir -name 'modules.*' | xargs $(RM); \
 	fi
+	@# Debian ships tiny fake System.map files that are
+	@# syntactically valid but just say
+	@# "if you want system.map go install this package"
+	@# Naturally, depmod is less than amused by this.
+	@# So if we find it missing or with one of these present,
+	@# we check for the alternate path for the System.map
 	sysmap=$(INSTALL_MOD_PATH)/boot/System.map-@LINUX_VERSION@; \
+	{ [ -f "$$sysmap" ] && [ $$(wc -l < "$$sysmap") -ge 100 ]; } || \
+		sysmap=$(INSTALL_MOD_PATH)/usr/lib/debug/boot/System.map-@LINUX_VERSION@; \
 	if [ -f $$sysmap ]; then \
 		depmod -ae -F $$sysmap @LINUX_VERSION@; \
 	fi

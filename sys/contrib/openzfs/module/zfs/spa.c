@@ -150,7 +150,7 @@ static const char *const zio_taskq_types[ZIO_TASKQ_TYPES] = {
  * and interrupt) and then to reserve threads for ZIO_PRIORITY_NOW I/Os that
  * need to be handled with minimum delay.
  */
-const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
+static const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	/* ISSUE	ISSUE_HIGH	INTR		INTR_HIGH */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* NULL */
 	{ ZTI_N(8),	ZTI_NULL,	ZTI_SCALE,	ZTI_NULL }, /* READ */
@@ -167,12 +167,12 @@ static boolean_t spa_has_active_shared_spare(spa_t *spa);
 static int spa_load_impl(spa_t *spa, spa_import_type_t type, char **ereport);
 static void spa_vdev_resilver_done(spa_t *spa);
 
-uint_t		zio_taskq_batch_pct = 80;	/* 1 thread per cpu in pset */
-uint_t		zio_taskq_batch_tpq;		/* threads per taskq */
-boolean_t	zio_taskq_sysdc = B_TRUE;	/* use SDC scheduling class */
-uint_t		zio_taskq_basedc = 80;		/* base duty cycle */
+static uint_t	zio_taskq_batch_pct = 80;	  /* 1 thread per cpu in pset */
+static uint_t	zio_taskq_batch_tpq;		  /* threads per taskq */
+static const boolean_t	zio_taskq_sysdc = B_TRUE; /* use SDC scheduling class */
+static const uint_t	zio_taskq_basedc = 80;	  /* base duty cycle */
 
-boolean_t	spa_create_process = B_TRUE;	/* no process ==> no sysdc */
+static const boolean_t spa_create_process = B_TRUE; /* no process => no sysdc */
 
 /*
  * Report any spa_load_verify errors found, but do not fail spa_load.
@@ -195,7 +195,7 @@ boolean_t	spa_mode_readable_spacemaps = B_FALSE;
 /*
  * For debugging purposes: print out vdev tree during pool import.
  */
-int		spa_load_print_vdev_tree = B_FALSE;
+static int		spa_load_print_vdev_tree = B_FALSE;
 
 /*
  * A non-zero value for zfs_max_missing_tvds means that we allow importing
@@ -244,28 +244,28 @@ uint64_t	zfs_max_missing_tvds_scan = 0;
 /*
  * Debugging aid that pauses spa_sync() towards the end.
  */
-boolean_t	zfs_pause_spa_sync = B_FALSE;
+static const boolean_t	zfs_pause_spa_sync = B_FALSE;
 
 /*
  * Variables to indicate the livelist condense zthr func should wait at certain
  * points for the livelist to be removed - used to test condense/destroy races
  */
-int zfs_livelist_condense_zthr_pause = 0;
-int zfs_livelist_condense_sync_pause = 0;
+static int zfs_livelist_condense_zthr_pause = 0;
+static int zfs_livelist_condense_sync_pause = 0;
 
 /*
  * Variables to track whether or not condense cancellation has been
  * triggered in testing.
  */
-int zfs_livelist_condense_sync_cancel = 0;
-int zfs_livelist_condense_zthr_cancel = 0;
+static int zfs_livelist_condense_sync_cancel = 0;
+static int zfs_livelist_condense_zthr_cancel = 0;
 
 /*
  * Variable to track whether or not extra ALLOC blkptrs were added to a
  * livelist entry while it was being condensed (caused by the way we track
  * remapped blkptrs in dbuf_remap_impl)
  */
-int zfs_livelist_condense_new_alloc = 0;
+static int zfs_livelist_condense_new_alloc = 0;
 
 /*
  * ==========================================================================
@@ -840,7 +840,6 @@ spa_prop_clear_bootfs(spa_t *spa, uint64_t dsobj, dmu_tx_t *tx)
 	}
 }
 
-/*ARGSUSED*/
 static int
 spa_change_guid_check(void *arg, dmu_tx_t *tx)
 {
@@ -1049,6 +1048,7 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 			if (batch)
 				flags |= TASKQ_DC_BATCH;
 
+			(void) zio_taskq_basedc;
 			tq = taskq_create_sysdc(name, value, 50, INT_MAX,
 			    spa->spa_proc, zio_taskq_basedc, flags);
 		} else {
@@ -1250,12 +1250,12 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	spa->spa_mode = mode;
 	spa->spa_read_spacemaps = spa_mode_readable_spacemaps;
 
-	spa->spa_normal_class = metaslab_class_create(spa, zfs_metaslab_ops);
-	spa->spa_log_class = metaslab_class_create(spa, zfs_metaslab_ops);
+	spa->spa_normal_class = metaslab_class_create(spa, &zfs_metaslab_ops);
+	spa->spa_log_class = metaslab_class_create(spa, &zfs_metaslab_ops);
 	spa->spa_embedded_log_class =
-	    metaslab_class_create(spa, zfs_metaslab_ops);
-	spa->spa_special_class = metaslab_class_create(spa, zfs_metaslab_ops);
-	spa->spa_dedup_class = metaslab_class_create(spa, zfs_metaslab_ops);
+	    metaslab_class_create(spa, &zfs_metaslab_ops);
+	spa->spa_special_class = metaslab_class_create(spa, &zfs_metaslab_ops);
+	spa->spa_dedup_class = metaslab_class_create(spa, &zfs_metaslab_ops);
 
 	/* Try to create a covering process */
 	mutex_enter(&spa->spa_proc_lock);
@@ -1263,6 +1263,7 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	ASSERT(spa->spa_proc == &p0);
 	spa->spa_did = 0;
 
+	(void) spa_create_process;
 #ifdef HAVE_SPA_THREAD
 	/* Only create a process if we're going to be around a while. */
 	if (spa_create_process && strcmp(spa->spa_name, TRYIMPORT_NAME) != 0) {
@@ -2282,15 +2283,16 @@ spa_load_verify_done(zio_t *zio)
  * Maximum number of inflight bytes is the log2 fraction of the arc size.
  * By default, we set it to 1/16th of the arc.
  */
-int spa_load_verify_shift = 4;
-int spa_load_verify_metadata = B_TRUE;
-int spa_load_verify_data = B_TRUE;
+static int spa_load_verify_shift = 4;
+static int spa_load_verify_metadata = B_TRUE;
+static int spa_load_verify_data = B_TRUE;
 
-/*ARGSUSED*/
 static int
 spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
+	(void) zilog, (void) dnp;
+
 	if (zb->zb_level == ZB_DNODE_LEVEL || BP_IS_HOLE(bp) ||
 	    BP_IS_EMBEDDED(bp) || BP_IS_REDACTED(bp))
 		return (0);
@@ -2322,10 +2324,11 @@ spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	return (0);
 }
 
-/* ARGSUSED */
 static int
 verify_dataset_name_len(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 {
+	(void) dp, (void) arg;
+
 	if (dsl_dataset_namelen(ds) >= ZFS_MAX_DATASET_NAME_LEN)
 		return (SET_ERROR(ENAMETOOLONG));
 
@@ -2455,10 +2458,10 @@ spa_livelist_delete_check(spa_t *spa)
 	return (spa->spa_livelists_to_delete != 0);
 }
 
-/* ARGSUSED */
 static boolean_t
 spa_livelist_delete_cb_check(void *arg, zthr_t *z)
 {
+	(void) z;
 	spa_t *spa = arg;
 	return (spa_livelist_delete_check(spa));
 }
@@ -2550,7 +2553,6 @@ livelist_delete_sync(void *arg, dmu_tx_t *tx)
  * be freed. Then, call a synctask which performs the actual frees and updates
  * the pool-wide livelist data.
  */
-/* ARGSUSED */
 static void
 spa_livelist_delete_cb(void *arg, zthr_t *z)
 {
@@ -2796,7 +2798,6 @@ spa_livelist_condense_cb(void *arg, zthr_t *t)
 		zfs_livelist_condense_zthr_cancel++;
 }
 
-/* ARGSUSED */
 /*
  * Check that there is something to condense but that a condense is not
  * already in progress and that condensing has not been cancelled.
@@ -2804,6 +2805,7 @@ spa_livelist_condense_cb(void *arg, zthr_t *t)
 static boolean_t
 spa_livelist_condense_cb_check(void *arg, zthr_t *z)
 {
+	(void) z;
 	spa_t *spa = arg;
 	if ((spa->spa_to_condense.ds != NULL) &&
 	    (spa->spa_to_condense.syncing == B_FALSE) &&
@@ -2996,6 +2998,8 @@ vdev_count_verify_zaps(vdev_t *vd)
 
 	return (total);
 }
+#else
+#define	vdev_count_verify_zaps(vd) ((void) sizeof (vd), 0)
 #endif
 
 /*
@@ -9463,6 +9467,7 @@ spa_upgrade(spa_t *spa, uint64_t version)
 static boolean_t
 spa_has_aux_vdev(spa_t *spa, uint64_t guid, spa_aux_vdev_t *sav)
 {
+	(void) spa;
 	int i;
 	uint64_t vdev_guid;
 
@@ -9826,6 +9831,8 @@ spa_event_create(spa_t *spa, vdev_t *vd, nvlist_t *hist_nvl, const char *name)
 		ev = kmem_alloc(sizeof (sysevent_t), KM_SLEEP);
 		ev->resource = resource;
 	}
+#else
+	(void) spa, (void) vd, (void) hist_nvl, (void) name;
 #endif
 	return (ev);
 }
@@ -9838,6 +9845,8 @@ spa_event_post(sysevent_t *ev)
 		zfs_zevent_post(ev->resource, NULL, zfs_zevent_post_cb);
 		kmem_free(ev, sizeof (*ev));
 	}
+#else
+	(void) ev;
 #endif
 }
 

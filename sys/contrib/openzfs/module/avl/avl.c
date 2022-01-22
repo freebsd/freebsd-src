@@ -119,7 +119,7 @@
  * additional memory reference. Since the translation arrays are both very
  * small the data should remain efficiently in cache.
  */
-static const int  avl_child2balance[2]	= {-1, 1};
+static const int  avl_child2balance[]	= {-1, 1};
 static const int  avl_balance2child[]	= {0, 0, 1};
 
 
@@ -908,7 +908,6 @@ avl_create(avl_tree_t *tree, int (*compar) (const void *, const void *),
 /*
  * Delete a tree.
  */
-/* ARGSUSED */
 void
 avl_destroy(avl_tree_t *tree)
 {

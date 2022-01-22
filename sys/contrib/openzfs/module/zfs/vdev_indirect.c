@@ -172,7 +172,7 @@
  * object.
  */
 
-int zfs_condense_indirect_vdevs_enable = B_TRUE;
+static int zfs_condense_indirect_vdevs_enable = B_TRUE;
 
 /*
  * Condense if at least this percent of the bytes in the mapping is
@@ -181,7 +181,7 @@ int zfs_condense_indirect_vdevs_enable = B_TRUE;
  * condenses.  Higher values will condense less often (causing less
  * i/o); lower values will reduce the mapping size more quickly.
  */
-int zfs_condense_indirect_obsolete_pct = 25;
+static int zfs_condense_indirect_obsolete_pct = 25;
 
 /*
  * Condense if the obsolete space map takes up more than this amount of
@@ -189,14 +189,14 @@ int zfs_condense_indirect_obsolete_pct = 25;
  * consumed by the obsolete space map; the default of 1GB is small enough
  * that we typically don't mind "wasting" it.
  */
-unsigned long zfs_condense_max_obsolete_bytes = 1024 * 1024 * 1024;
+static unsigned long zfs_condense_max_obsolete_bytes = 1024 * 1024 * 1024;
 
 /*
  * Don't bother condensing if the mapping uses less than this amount of
  * memory.  The default of 128KB is considered a "trivial" amount of
  * memory and not worth reducing.
  */
-unsigned long zfs_condense_min_mapping_bytes = 128 * 1024;
+static unsigned long zfs_condense_min_mapping_bytes = 128 * 1024;
 
 /*
  * This is used by the test suite so that it can ensure that certain
@@ -204,7 +204,7 @@ unsigned long zfs_condense_min_mapping_bytes = 128 * 1024;
  * complete too quickly).  If used to reduce the performance impact of
  * condensing in production, a maximum value of 1 should be sufficient.
  */
-int zfs_condense_indirect_commit_entry_delay_ms = 0;
+static int zfs_condense_indirect_commit_entry_delay_ms = 0;
 
 /*
  * If an indirect split block contains more than this many possible unique
@@ -637,16 +637,15 @@ spa_condense_indirect_generate_new_mapping(vdev_t *vd,
 	}
 }
 
-/* ARGSUSED */
 static boolean_t
 spa_condense_indirect_thread_check(void *arg, zthr_t *zthr)
 {
+	(void) zthr;
 	spa_t *spa = arg;
 
 	return (spa->spa_condensing_indirect != NULL);
 }
 
-/* ARGSUSED */
 static void
 spa_condense_indirect_thread(void *arg, zthr_t *zthr)
 {
@@ -941,13 +940,12 @@ vdev_obsolete_counts_are_precise(vdev_t *vd, boolean_t *are_precise)
 	return (error);
 }
 
-/* ARGSUSED */
 static void
 vdev_indirect_close(vdev_t *vd)
 {
+	(void) vd;
 }
 
-/* ARGSUSED */
 static int
 vdev_indirect_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
     uint64_t *logical_ashift, uint64_t *physical_ashift)

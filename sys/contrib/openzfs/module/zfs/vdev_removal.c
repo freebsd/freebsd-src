@@ -94,7 +94,7 @@ typedef struct vdev_copy_arg {
  * doing a device removal.  This determines how much i/o we can have
  * in flight concurrently.
  */
-int zfs_remove_max_copy_bytes = 64 * 1024 * 1024;
+static const int zfs_remove_max_copy_bytes = 64 * 1024 * 1024;
 
 /*
  * The largest contiguous segment that we will attempt to allocate when
@@ -112,7 +112,7 @@ int zfs_remove_max_segment = SPA_MAXBLOCKSIZE;
  * not be cancelled.  This can result in a normally recoverable block
  * becoming permanently damaged and is not recommended.
  */
-int zfs_removal_ignore_errors = 0;
+static int zfs_removal_ignore_errors = 0;
 
 /*
  * Allow a remap segment to span free chunks of at most this size. The main
@@ -1820,10 +1820,10 @@ vdev_prop_allocating_off(vdev_t *vd)
 	return (allocating == 0);
 }
 
-/* ARGSUSED */
 static int
 spa_vdev_remove_cancel_check(void *arg, dmu_tx_t *tx)
 {
+	(void) arg;
 	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
 
 	if (spa->spa_vdev_removal == NULL)
@@ -1835,10 +1835,10 @@ spa_vdev_remove_cancel_check(void *arg, dmu_tx_t *tx)
  * Cancel a removal by freeing all entries from the partial mapping
  * and marking the vdev as no longer being removing.
  */
-/* ARGSUSED */
 static void
 spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 {
+	(void) arg;
 	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
 	spa_vdev_removal_t *svr = spa->spa_vdev_removal;
 	vdev_t *vd = vdev_lookup_top(spa, svr->svr_vdev_id);

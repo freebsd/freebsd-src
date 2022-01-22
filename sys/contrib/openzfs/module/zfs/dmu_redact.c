@@ -40,13 +40,14 @@
  * This controls the number of entries in the buffer the redaction_list_update
  * synctask uses to buffer writes to the redaction list.
  */
-int redact_sync_bufsize = 1024;
+static const int redact_sync_bufsize = 1024;
 
 /*
  * Controls how often to update the redaction list when creating a redaction
  * list.
  */
-uint64_t redaction_list_update_interval_ns = 1000 * 1000 * 1000ULL; /* NS */
+static const uint64_t redaction_list_update_interval_ns =
+    1000 * 1000 * 1000ULL; /* 1s */
 
 /*
  * This tunable controls the length of the queues that zfs redact worker threads
@@ -56,7 +57,7 @@ uint64_t redaction_list_update_interval_ns = 1000 * 1000 * 1000ULL; /* NS */
  * available IO resources, or the queues are consuming too much memory, this
  * variable may need to be decreased.
  */
-int zfs_redact_queue_length = 1024 * 1024;
+static const int zfs_redact_queue_length = 1024 * 1024;
 
 /*
  * These tunables control the fill fraction of the queues by zfs redact. The
@@ -65,7 +66,7 @@ int zfs_redact_queue_length = 1024 * 1024;
  * should be tuned down.  If the queues empty before the signalled thread can
  * catch up, then these should be tuned up.
  */
-uint64_t zfs_redact_queue_ff = 20;
+static const uint64_t zfs_redact_queue_ff = 20;
 
 struct redact_record {
 	bqueue_node_t		ln;
@@ -249,11 +250,11 @@ zfs_get_deleteq(objset_t *os)
  * Third, if there is a deleted object, we need to create a redaction record for
  * all of the blocks in that object.
  */
-/*ARGSUSED*/
 static int
 redact_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const struct dnode_phys *dnp, void *arg)
 {
+	(void) spa, (void) zilog;
 	struct redact_thread_arg *rta = arg;
 	struct redact_record *record;
 

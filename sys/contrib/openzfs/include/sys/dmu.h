@@ -664,7 +664,6 @@ typedef struct dmu_buf_user {
  * NOTE: This function should only be called once on a given dmu_buf_user_t.
  *       To allow enforcement of this, dbu must already be zeroed on entry.
  */
-/*ARGSUSED*/
 static inline void
 dmu_buf_init_user(dmu_buf_user_t *dbu, dmu_buf_evict_func_t *evict_func_sync,
     dmu_buf_evict_func_t *evict_func_async,
@@ -863,7 +862,6 @@ int dmu_assign_arcbuf_by_dnode(dnode_t *dn, uint64_t offset,
 int dmu_assign_arcbuf_by_dbuf(dmu_buf_t *handle, uint64_t offset,
     struct arc_buf *buf, dmu_tx_t *tx);
 #define	dmu_assign_arcbuf	dmu_assign_arcbuf_by_dbuf
-extern int zfs_prefetch_disable;
 extern int zfs_max_recordsize;
 
 /*

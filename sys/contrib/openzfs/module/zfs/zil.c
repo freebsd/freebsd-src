@@ -89,12 +89,12 @@
  * committed to stable storage. Please refer to the zil_commit_waiter()
  * function (and the comments within it) for more details.
  */
-int zfs_commit_timeout_pct = 5;
+static int zfs_commit_timeout_pct = 5;
 
 /*
  * See zil.h for more information about these fields.
  */
-zil_stats_t zil_stats = {
+static zil_stats_t zil_stats = {
 	{ "zil_commit_count",			KSTAT_DATA_UINT64 },
 	{ "zil_commit_writer_count",		KSTAT_DATA_UINT64 },
 	{ "zil_itx_count",			KSTAT_DATA_UINT64 },
@@ -123,14 +123,14 @@ int zil_replay_disable = 0;
  * will cause ZIL corruption on power loss if a volatile out-of-order
  * write cache is enabled.
  */
-int zil_nocacheflush = 0;
+static int zil_nocacheflush = 0;
 
 /*
  * Limit SLOG write size per commit executed with synchronous priority.
  * Any writes above that will be executed with lower (asynchronous) priority
  * to limit potential SLOG device abuse by single active ZIL writer.
  */
-unsigned long zil_slog_bulk = 768 * 1024;
+static unsigned long zil_slog_bulk = 768 * 1024;
 
 static kmem_cache_t *zil_lwb_cache;
 static kmem_cache_t *zil_zcw_cache;
@@ -432,11 +432,11 @@ done:
 	return (error);
 }
 
-/* ARGSUSED */
 static int
 zil_clear_log_block(zilog_t *zilog, const blkptr_t *bp, void *tx,
     uint64_t first_txg)
 {
+	(void) tx;
 	ASSERT(!BP_IS_HOLE(bp));
 
 	/*
@@ -455,11 +455,11 @@ zil_clear_log_block(zilog_t *zilog, const blkptr_t *bp, void *tx,
 	return (0);
 }
 
-/* ARGSUSED */
 static int
 zil_noop_log_record(zilog_t *zilog, const lr_t *lrc, void *tx,
     uint64_t first_txg)
 {
+	(void) zilog, (void) lrc, (void) tx, (void) first_txg;
 	return (0);
 }
 
@@ -507,11 +507,12 @@ zil_claim_log_record(zilog_t *zilog, const lr_t *lrc, void *tx,
 	return (zil_claim_log_block(zilog, &lr->lr_blkptr, tx, first_txg));
 }
 
-/* ARGSUSED */
 static int
 zil_free_log_block(zilog_t *zilog, const blkptr_t *bp, void *tx,
     uint64_t claim_txg)
 {
+	(void) claim_txg;
+
 	zio_free(zilog->zl_spa, dmu_tx_get_txg(tx), bp);
 
 	return (0);
@@ -911,10 +912,10 @@ zil_claim(dsl_pool_t *dp, dsl_dataset_t *ds, void *txarg)
  * Checksum errors are ok as they indicate the end of the chain.
  * Any other error (no device or read failure) returns an error.
  */
-/* ARGSUSED */
 int
 zil_check_log_chain(dsl_pool_t *dp, dsl_dataset_t *ds, void *tx)
 {
+	(void) dp;
 	zilog_t *zilog;
 	objset_t *os;
 	blkptr_t *bp;
@@ -1450,7 +1451,7 @@ zil_lwb_write_open(zilog_t *zilog, lwb_t *lwb)
  * aligned to 4KB) actually gets written. However, we can't always just
  * allocate SPA_OLD_MAXBLOCKSIZE as the slog space could be exhausted.
  */
-struct {
+static const struct {
 	uint64_t	limit;
 	uint64_t	blksz;
 } zil_block_buckets[] = {
@@ -1468,7 +1469,7 @@ struct {
  * initialized.  Otherwise this should not be used directly; see
  * zl_max_block_size instead.
  */
-int zil_maxblocksize = SPA_OLD_MAXBLOCKSIZE;
+static int zil_maxblocksize = SPA_OLD_MAXBLOCKSIZE;
 
 /*
  * Start a log block write and advance to the next log block.
@@ -3127,10 +3128,10 @@ zil_sync(zilog_t *zilog, dmu_tx_t *tx)
 	mutex_exit(&zilog->zl_lock);
 }
 
-/* ARGSUSED */
 static int
 zil_lwb_cons(void *vbuf, void *unused, int kmflag)
 {
+	(void) unused, (void) kmflag;
 	lwb_t *lwb = vbuf;
 	list_create(&lwb->lwb_itxs, sizeof (itx_t), offsetof(itx_t, itx_node));
 	list_create(&lwb->lwb_waiters, sizeof (zil_commit_waiter_t),
@@ -3141,10 +3142,10 @@ zil_lwb_cons(void *vbuf, void *unused, int kmflag)
 	return (0);
 }
 
-/* ARGSUSED */
 static void
 zil_lwb_dest(void *vbuf, void *unused)
 {
+	(void) unused;
 	lwb_t *lwb = vbuf;
 	mutex_destroy(&lwb->lwb_vdev_lock);
 	avl_destroy(&lwb->lwb_vdev_tree);
@@ -3508,7 +3509,7 @@ zil_resume(void *cookie)
 }
 
 typedef struct zil_replay_arg {
-	zil_replay_func_t **zr_replay;
+	zil_replay_func_t *const *zr_replay;
 	void		*zr_arg;
 	boolean_t	zr_byteswap;
 	char		*zr_lr;
@@ -3615,10 +3616,11 @@ zil_replay_log_record(zilog_t *zilog, const lr_t *lr, void *zra,
 	return (0);
 }
 
-/* ARGSUSED */
 static int
 zil_incr_blks(zilog_t *zilog, const blkptr_t *bp, void *arg, uint64_t claim_txg)
 {
+	(void) bp, (void) arg, (void) claim_txg;
+
 	zilog->zl_replay_blks++;
 
 	return (0);
@@ -3628,7 +3630,8 @@ zil_incr_blks(zilog_t *zilog, const blkptr_t *bp, void *arg, uint64_t claim_txg)
  * If this dataset has a non-empty intent log, replay it and destroy it.
  */
 void
-zil_replay(objset_t *os, void *arg, zil_replay_func_t *replay_func[TX_MAX_TYPE])
+zil_replay(objset_t *os, void *arg,
+    zil_replay_func_t *const replay_func[TX_MAX_TYPE])
 {
 	zilog_t *zilog = dmu_objset_zil(os);
 	const zil_header_t *zh = zilog->zl_header;
@@ -3677,13 +3680,12 @@ zil_replaying(zilog_t *zilog, dmu_tx_t *tx)
 	return (B_FALSE);
 }
 
-/* ARGSUSED */
 int
 zil_reset(const char *osname, void *arg)
 {
-	int error;
+	(void) arg;
 
-	error = zil_suspend(osname, NULL);
+	int error = zil_suspend(osname, NULL);
 	/* EACCES means crypto key not loaded */
 	if ((error == EACCES) || (error == EBUSY))
 		return (SET_ERROR(error));

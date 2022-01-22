@@ -51,7 +51,7 @@
  * operation, we will try to write this amount of data to a top-level vdev
  * before moving on to the next one.
  */
-unsigned long metaslab_aliquot = 512 << 10;
+static unsigned long metaslab_aliquot = 512 << 10;
 
 /*
  * For testing, make some blocks above a certain size be gang blocks.
@@ -96,7 +96,7 @@ int zfs_condense_pct = 200;
  * uncondensed size consumes greater than zfs_metaslab_condense_block_threshold
  * blocks.
  */
-int zfs_metaslab_condense_block_threshold = 4;
+static const int zfs_metaslab_condense_block_threshold = 4;
 
 /*
  * The zfs_mg_noalloc_threshold defines which metaslab groups should
@@ -111,7 +111,7 @@ int zfs_metaslab_condense_block_threshold = 4;
  * eligible to allocate on any metaslab group. The default value of 0 means
  * no metaslab group will be excluded based on this criterion.
  */
-int zfs_mg_noalloc_threshold = 0;
+static int zfs_mg_noalloc_threshold = 0;
 
 /*
  * Metaslab groups are considered eligible for allocations if their
@@ -135,7 +135,7 @@ int zfs_mg_noalloc_threshold = 0;
  * enough to avoid hitting the speed bump on pools that are being pushed
  * to the edge.
  */
-int zfs_mg_fragmentation_threshold = 95;
+static int zfs_mg_fragmentation_threshold = 95;
 
 /*
  * Allow metaslabs to keep their active state as long as their fragmentation
@@ -143,17 +143,17 @@ int zfs_mg_fragmentation_threshold = 95;
  * active metaslab that exceeds this threshold will no longer keep its active
  * status allowing better metaslabs to be selected.
  */
-int zfs_metaslab_fragmentation_threshold = 70;
+static int zfs_metaslab_fragmentation_threshold = 70;
 
 /*
  * When set will load all metaslabs when pool is first opened.
  */
-int metaslab_debug_load = 0;
+int metaslab_debug_load = B_FALSE;
 
 /*
  * When set will prevent metaslabs from being unloaded.
  */
-int metaslab_debug_unload = 0;
+static int metaslab_debug_unload = B_FALSE;
 
 /*
  * Minimum size which forces the dynamic allocator to change
@@ -184,14 +184,14 @@ int metaslab_df_free_pct = 4;
  * With the default setting of 16MB this is 16*1024 (with ashift=9) or
  * 2048 (with ashift=12).
  */
-int metaslab_df_max_search = 16 * 1024 * 1024;
+static int metaslab_df_max_search = 16 * 1024 * 1024;
 
 /*
  * Forces the metaslab_block_picker function to search for at least this many
  * segments forwards until giving up on finding a segment that the allocation
  * will fit into.
  */
-uint32_t metaslab_min_search_count = 100;
+static const uint32_t metaslab_min_search_count = 100;
 
 /*
  * If we are not searching forward (due to metaslab_df_max_search,
@@ -200,7 +200,7 @@ uint32_t metaslab_min_search_count = 100;
  * segment.  If it is not set, we will use a segment of exactly the requested
  * size (or larger).
  */
-int metaslab_df_use_largest_segment = B_FALSE;
+static int metaslab_df_use_largest_segment = B_FALSE;
 
 /*
  * Percentage of all cpus that can be used by the metaslab taskq.
@@ -215,8 +215,8 @@ int metaslab_load_pct = 50;
  * unloaded sooner.  These settings are intended to be generous -- to keep
  * metaslabs loaded for a long time, reducing the rate of metaslab loading.
  */
-int metaslab_unload_delay = 32;
-int metaslab_unload_delay_ms = 10 * 60 * 1000; /* ten minutes */
+static int metaslab_unload_delay = 32;
+static int metaslab_unload_delay_ms = 10 * 60 * 1000; /* ten minutes */
 
 /*
  * Max number of metaslabs per group to preload.
@@ -226,45 +226,45 @@ int metaslab_preload_limit = 10;
 /*
  * Enable/disable preloading of metaslab.
  */
-int metaslab_preload_enabled = B_TRUE;
+static int metaslab_preload_enabled = B_TRUE;
 
 /*
  * Enable/disable fragmentation weighting on metaslabs.
  */
-int metaslab_fragmentation_factor_enabled = B_TRUE;
+static int metaslab_fragmentation_factor_enabled = B_TRUE;
 
 /*
  * Enable/disable lba weighting (i.e. outer tracks are given preference).
  */
-int metaslab_lba_weighting_enabled = B_TRUE;
+static int metaslab_lba_weighting_enabled = B_TRUE;
 
 /*
  * Enable/disable metaslab group biasing.
  */
-int metaslab_bias_enabled = B_TRUE;
+static int metaslab_bias_enabled = B_TRUE;
 
 /*
  * Enable/disable remapping of indirect DVAs to their concrete vdevs.
  */
-boolean_t zfs_remap_blkptr_enable = B_TRUE;
+static const boolean_t zfs_remap_blkptr_enable = B_TRUE;
 
 /*
  * Enable/disable segment-based metaslab selection.
  */
-int zfs_metaslab_segment_weight_enabled = B_TRUE;
+static int zfs_metaslab_segment_weight_enabled = B_TRUE;
 
 /*
  * When using segment-based metaslab selection, we will continue
  * allocating from the active metaslab until we have exhausted
  * zfs_metaslab_switch_threshold of its buckets.
  */
-int zfs_metaslab_switch_threshold = 2;
+static int zfs_metaslab_switch_threshold = 2;
 
 /*
  * Internal switch to enable/disable the metaslab allocation tracing
  * facility.
  */
-boolean_t metaslab_trace_enabled = B_FALSE;
+static const boolean_t metaslab_trace_enabled = B_FALSE;
 
 /*
  * Maximum entries that the metaslab allocation tracing facility will keep
@@ -274,32 +274,32 @@ boolean_t metaslab_trace_enabled = B_FALSE;
  * to every exceed this value. In debug mode, the system will panic if this
  * limit is ever reached allowing for further investigation.
  */
-uint64_t metaslab_trace_max_entries = 5000;
+static const uint64_t metaslab_trace_max_entries = 5000;
 
 /*
  * Maximum number of metaslabs per group that can be disabled
  * simultaneously.
  */
-int max_disabled_ms = 3;
+static const int max_disabled_ms = 3;
 
 /*
  * Time (in seconds) to respect ms_max_size when the metaslab is not loaded.
  * To avoid 64-bit overflow, don't set above UINT32_MAX.
  */
-unsigned long zfs_metaslab_max_size_cache_sec = 3600; /* 1 hour */
+static unsigned long zfs_metaslab_max_size_cache_sec = 1 * 60 * 60; /* 1 hour */
 
 /*
  * Maximum percentage of memory to use on storing loaded metaslabs. If loading
  * a metaslab would take it over this percentage, the oldest selected metaslab
  * is automatically unloaded.
  */
-int zfs_metaslab_mem_limit = 25;
+static int zfs_metaslab_mem_limit = 25;
 
 /*
  * Force the per-metaslab range trees to use 64-bit integers to store
  * segments. Used for debugging purposes.
  */
-boolean_t zfs_metaslab_force_large_segs = B_FALSE;
+static const boolean_t zfs_metaslab_force_large_segs = B_FALSE;
 
 /*
  * By default we only store segments over a certain size in the size-sorted
@@ -308,7 +308,7 @@ boolean_t zfs_metaslab_force_large_segs = B_FALSE;
  * improves load and unload times at the cost of causing us to use slightly
  * larger segments than we would otherwise in some cases.
  */
-uint32_t metaslab_by_size_min_shift = 14;
+static const uint32_t metaslab_by_size_min_shift = 14;
 
 /*
  * If not set, we will first try normal allocation.  If that fails then
@@ -321,7 +321,7 @@ uint32_t metaslab_by_size_min_shift = 14;
  * allocation.  If that fails we will do a "try hard" gang allocation.  If
  * that fails then we will have a multi-layer gang block.
  */
-int zfs_metaslab_try_hard_before_gang = B_FALSE;
+static int zfs_metaslab_try_hard_before_gang = B_FALSE;
 
 /*
  * When not trying hard, we only consider the best zfs_metaslab_find_max_tries
@@ -337,7 +337,7 @@ int zfs_metaslab_try_hard_before_gang = B_FALSE;
  * subsequent metaslab has ms_max_size >60KB (but fewer segments in this
  * bucket, and therefore a lower weight).
  */
-int zfs_metaslab_find_max_tries = 100;
+static int zfs_metaslab_find_max_tries = 100;
 
 static uint64_t metaslab_weight(metaslab_t *, boolean_t);
 static void metaslab_set_fragmentation(metaslab_t *, boolean_t);
@@ -370,7 +370,7 @@ static metaslab_stats_t metaslab_stats = {
 	atomic_inc_64(&metaslab_stats.stat.value.ui64);
 
 
-kstat_t *metaslab_ksp;
+static kstat_t *metaslab_ksp;
 
 void
 metaslab_stat_init(void)
@@ -406,7 +406,7 @@ metaslab_stat_fini(void)
  * ==========================================================================
  */
 metaslab_class_t *
-metaslab_class_create(spa_t *spa, metaslab_ops_t *ops)
+metaslab_class_create(spa_t *spa, const metaslab_ops_t *ops)
 {
 	metaslab_class_t *mc;
 
@@ -1406,7 +1406,6 @@ metaslab_size_tree_full_load(range_tree_t *rt)
  * Create any block allocator specific components. The current allocators
  * rely on using both a size-ordered range_tree_t and an array of uint64_t's.
  */
-/* ARGSUSED */
 static void
 metaslab_rt_create(range_tree_t *rt, void *arg)
 {
@@ -1431,10 +1430,10 @@ metaslab_rt_create(range_tree_t *rt, void *arg)
 	mrap->mra_floor_shift = metaslab_by_size_min_shift;
 }
 
-/* ARGSUSED */
 static void
 metaslab_rt_destroy(range_tree_t *rt, void *arg)
 {
+	(void) rt;
 	metaslab_rt_arg_t *mrap = arg;
 	zfs_btree_t *size_tree = mrap->mra_bt;
 
@@ -1442,7 +1441,6 @@ metaslab_rt_destroy(range_tree_t *rt, void *arg)
 	kmem_free(mrap, sizeof (*mrap));
 }
 
-/* ARGSUSED */
 static void
 metaslab_rt_add(range_tree_t *rt, range_seg_t *rs, void *arg)
 {
@@ -1456,7 +1454,6 @@ metaslab_rt_add(range_tree_t *rt, range_seg_t *rs, void *arg)
 	zfs_btree_add(size_tree, rs);
 }
 
-/* ARGSUSED */
 static void
 metaslab_rt_remove(range_tree_t *rt, range_seg_t *rs, void *arg)
 {
@@ -1470,7 +1467,6 @@ metaslab_rt_remove(range_tree_t *rt, range_seg_t *rs, void *arg)
 	zfs_btree_remove(size_tree, rs);
 }
 
-/* ARGSUSED */
 static void
 metaslab_rt_vacate(range_tree_t *rt, void *arg)
 {
@@ -1482,7 +1478,7 @@ metaslab_rt_vacate(range_tree_t *rt, void *arg)
 	metaslab_rt_create(rt, arg);
 }
 
-static range_tree_ops_t metaslab_rt_ops = {
+static const range_tree_ops_t metaslab_rt_ops = {
 	.rtop_create = metaslab_rt_create,
 	.rtop_destroy = metaslab_rt_destroy,
 	.rtop_add = metaslab_rt_add,
@@ -1716,11 +1712,9 @@ metaslab_df_alloc(metaslab_t *msp, uint64_t size)
 	return (offset);
 }
 
-static metaslab_ops_t metaslab_df_ops = {
+const metaslab_ops_t zfs_metaslab_ops = {
 	metaslab_df_alloc
 };
-
-metaslab_ops_t *zfs_metaslab_ops = &metaslab_df_ops;
 #endif /* WITH_DF_BLOCK_ALLOCATOR */
 
 #if defined(WITH_CF_BLOCK_ALLOCATOR)
@@ -1766,11 +1760,9 @@ metaslab_cf_alloc(metaslab_t *msp, uint64_t size)
 	return (offset);
 }
 
-static metaslab_ops_t metaslab_cf_ops = {
+const metaslab_ops_t zfs_metaslab_ops = {
 	metaslab_cf_alloc
 };
-
-metaslab_ops_t *zfs_metaslab_ops = &metaslab_cf_ops;
 #endif /* WITH_CF_BLOCK_ALLOCATOR */
 
 #if defined(WITH_NDF_BLOCK_ALLOCATOR)
@@ -1830,11 +1822,9 @@ metaslab_ndf_alloc(metaslab_t *msp, uint64_t size)
 	return (-1ULL);
 }
 
-static metaslab_ops_t metaslab_ndf_ops = {
+const metaslab_ops_t zfs_metaslab_ops = {
 	metaslab_ndf_alloc
 };
-
-metaslab_ops_t *zfs_metaslab_ops = &metaslab_ndf_ops;
 #endif /* WITH_NDF_BLOCK_ALLOCATOR */
 
 
@@ -2240,6 +2230,8 @@ metaslab_potentially_evict(metaslab_class_t *mc)
 			inuse = spl_kmem_cache_inuse(zfs_btree_leaf_cache);
 		}
 	}
+#else
+	(void) mc, (void) zfs_metaslab_mem_limit;
 #endif
 }
 
@@ -2857,7 +2849,7 @@ metaslab_fini(metaslab_t *msp)
  * of the table. Since the fragmentation value is never stored on disk, it
  * is possible to change these calculations in the future.
  */
-int zfs_frag_table[FRAGMENTATION_TABLE_SIZE] = {
+static const int zfs_frag_table[FRAGMENTATION_TABLE_SIZE] = {
 	100,	/* 512B	*/
 	100,	/* 1K	*/
 	98,	/* 2K	*/
@@ -4721,7 +4713,6 @@ metaslab_active_mask_verify(metaslab_t *msp)
 	}
 }
 
-/* ARGSUSED */
 static uint64_t
 metaslab_group_alloc_normal(metaslab_group_t *mg, zio_alloc_list_t *zal,
     uint64_t asize, uint64_t txg, boolean_t want_unique, dva_t *dva, int d,
@@ -5347,11 +5338,11 @@ metaslab_free_concrete(vdev_t *vd, uint64_t offset, uint64_t asize,
 	mutex_exit(&msp->ms_lock);
 }
 
-/* ARGSUSED */
 void
 metaslab_free_impl_cb(uint64_t inner_offset, vdev_t *vd, uint64_t offset,
     uint64_t size, void *arg)
 {
+	(void) inner_offset;
 	boolean_t *checkpoint = arg;
 
 	ASSERT3P(checkpoint, !=, NULL);
@@ -5717,11 +5708,11 @@ typedef struct metaslab_claim_cb_arg_t {
 	int		mcca_error;
 } metaslab_claim_cb_arg_t;
 
-/* ARGSUSED */
 static void
 metaslab_claim_impl_cb(uint64_t inner_offset, vdev_t *vd, uint64_t offset,
     uint64_t size, void *arg)
 {
+	(void) inner_offset;
 	metaslab_claim_cb_arg_t *mcca_arg = arg;
 
 	if (mcca_arg->mcca_error == 0) {
@@ -5973,11 +5964,12 @@ metaslab_fastwrite_unmark(spa_t *spa, const blkptr_t *bp)
 	spa_config_exit(spa, SCL_VDEV, FTAG);
 }
 
-/* ARGSUSED */
 static void
 metaslab_check_free_impl_cb(uint64_t inner, vdev_t *vd, uint64_t offset,
     uint64_t size, void *arg)
 {
+	(void) inner, (void) arg;
+
 	if (vd->vdev_ops == &vdev_indirect_ops)
 		return;
 
