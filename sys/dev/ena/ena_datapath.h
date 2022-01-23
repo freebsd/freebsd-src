@@ -39,4 +39,6 @@ void	ena_qflush(if_t ifp);
 int	ena_mq_start(if_t ifp, struct mbuf *m);
 void	ena_deferred_mq_start(void *arg, int pending);
 
+#define CSUM_OFFLOAD 	(CSUM_IP|CSUM_TCP|CSUM_UDP)
+
 #endif /* ENA_TXRX_H */

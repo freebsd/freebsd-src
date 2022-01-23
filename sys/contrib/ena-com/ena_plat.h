@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <sys/condvar.h>
+#include <sys/domainset.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -170,6 +171,8 @@ static inline long PTR_ERR(const void *ptr)
 #define ENA_COM_TIMER_EXPIRED	ETIMEDOUT
 #define ENA_COM_EIO		EIO
 
+#define ENA_NODE_ANY		(-1)
+
 #define ENA_MSLEEP(x) 		pause_sbt("ena", SBT_1MS * (x), SBT_1MS, 0)
 #define ENA_USLEEP(x) 		pause_sbt("ena", SBT_1US * (x), SBT_1US, 0)
 #define ENA_UDELAY(x) 		DELAY(x)
@@ -277,7 +280,7 @@ typedef struct ifnet ena_netdev;
 void	ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
 int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
-    int mapflags, bus_size_t alignment);
+    int mapflags, bus_size_t alignment, int domain);
 
 static inline uint32_t
 ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
@@ -299,16 +302,27 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 	} while (0)
 
 #define ENA_MEM_ALLOC(dmadev, size) malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO)
-#define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) (virt = NULL)
+
+#define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node)		\
+	do {								\
+		(virt) = malloc_domainset((size), M_DEVBUF,		\
+		    (node) < 0 ? DOMAINSET_RR() : DOMAINSET_PREF(node),	\
+		    M_NOWAIT | M_ZERO);					\
+		(void)(dev_node);					\
+	} while (0)
+
 #define ENA_MEM_FREE(dmadev, ptr, size)					\
 	do { 								\
 		(void)(size);						\
 		free(ptr, M_DEVBUF);					\
 	} while (0)
 #define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt, phys,	\
-    handle, node, dev_node, alignment) 					\
+    dma, node, dev_node, alignment) 					\
 	do {								\
-		((virt) = NULL);					\
+		ena_dma_alloc((dmadev), (size), &(dma), 0, (alignment),	\
+		    (node));						\
+		(virt) = (void *)(dma).vaddr;				\
+		(phys) = (dma).paddr;					\
 		(void)(dev_node);					\
 	} while (0)
 
@@ -320,7 +334,8 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 #define ENA_MEM_ALLOC_COHERENT_ALIGNED(dmadev, size, virt, phys, dma,	\
     alignment)								\
 	do {								\
-		ena_dma_alloc((dmadev), (size), &(dma), 0, alignment);	\
+		ena_dma_alloc((dmadev), (size), &(dma), 0, (alignment),	\
+		    ENA_NODE_ANY);					\
 		(virt) = (void *)(dma).vaddr;				\
 		(phys) = (dma).paddr;					\
 	} while (0)
@@ -366,7 +381,6 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 #define time_after(a,b)	((long)((unsigned long)(b) - (unsigned long)(a)) < 0)
 
 #define VLAN_HLEN 	sizeof(struct ether_vlan_header)
-#define CSUM_OFFLOAD 	(CSUM_IP|CSUM_TCP|CSUM_UDP)
 
 #define prefetch(x)	(void)(x)
 #define prefetchw(x)	(void)(x)

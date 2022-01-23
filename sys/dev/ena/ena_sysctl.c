@@ -208,6 +208,14 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 
 		adapter->que[i].oid = queue_node;
 
+#ifdef RSS
+		/* Common stats */
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "cpu",
+		    CTLFLAG_RD, &adapter->que[i].cpu, 0, "CPU affinity");
+		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "domain",
+		    CTLFLAG_RD, &adapter->que[i].domain, 0, "NUMA domain");
+#endif
+
 		/* TX specific stats */
 		tx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
 		    "tx_ring", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TX ring");
