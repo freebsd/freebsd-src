@@ -587,6 +587,8 @@ waitcmdloop(struct job *job)
 				return retval;
 			}
 		} else {
+			if (njobs == 0)
+				return 0;
 			for (jp = jobtab ; jp < jobtab + njobs; jp++)
 				if (jp->used && jp->state == JOBDONE) {
 					if (! iflag || ! jp->changed)
