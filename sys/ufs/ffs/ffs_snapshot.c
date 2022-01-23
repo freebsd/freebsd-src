@@ -1800,9 +1800,15 @@ retry:
 		VI_UNLOCK(devvp);
 		return (0);
 	}
+
+	/*
+	 * Use LK_SLEEPFAIL because sn might be freed under us while
+	 * both devvp interlock and snaplk are not owned.
+	 */
 	if (lockmgr(&sn->sn_lock, LK_INTERLOCK | LK_EXCLUSIVE | LK_SLEEPFAIL,
 	    VI_MTX(devvp)) != 0)
 		goto retry;
+
 	TAILQ_FOREACH(ip, &sn->sn_head, i_nextsnap) {
 		vp = ITOV(ip);
 		if (DOINGSOFTDEP(vp))
