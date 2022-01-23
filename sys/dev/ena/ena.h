@@ -222,6 +222,7 @@ struct ena_que {
 	int cpu;
 	cpuset_t cpu_mask;
 #endif
+	int domain;
 	struct sysctl_oid *oid;
 };
 
@@ -439,6 +440,7 @@ struct ena_adapter {
 	uint32_t buf_ring_size;
 
 	/* RSS*/
+	int first_bind;
 	struct ena_indir *rss_indir;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];

@@ -198,7 +198,7 @@ ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 int
 ena_dma_alloc(device_t dmadev, bus_size_t size,
-    ena_mem_handle_t *dma, int mapflags, bus_size_t alignment)
+    ena_mem_handle_t *dma, int mapflags, bus_size_t alignment, int domain)
 {
 	struct ena_adapter* adapter = device_get_softc(dmadev);
 	device_t pdev = adapter->pdev;
@@ -227,6 +227,13 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 	if (unlikely(error != 0)) {
 		ena_log(pdev, ERR, "bus_dma_tag_create failed: %d\n", error);
 		goto fail_tag;
+	}
+
+	error = bus_dma_tag_set_domain(dma->tag, domain);
+	if (unlikely(error != 0)) {
+		ena_log(pdev, ERR, "bus_dma_tag_set_domain failed: %d\n",
+		    error);
+		goto fail_map_create;
 	}
 
 	error = bus_dmamem_alloc(dma->tag, (void**) &dma->vaddr,
@@ -1445,6 +1452,8 @@ ena_create_io_queues(struct ena_adapter *adapter)
 		ctx.queue_size = adapter->requested_tx_ring_size;
 		ctx.msix_vector = msix_vector;
 		ctx.qid = ena_qid;
+		ctx.numa_node = adapter->que[i].domain;
+
 		rc = ena_com_create_io_queue(ena_dev, &ctx);
 		if (rc != 0) {
 			ena_log(adapter->pdev, ERR,
@@ -1462,6 +1471,11 @@ ena_create_io_queues(struct ena_adapter *adapter)
 			ena_com_destroy_io_queue(ena_dev, ena_qid);
 			goto err_tx;
 		}
+
+		if (ctx.numa_node >= 0) {
+			ena_com_update_numa_node(ring->ena_com_io_cq,
+			    ctx.numa_node);
+		}
 	}
 
 	/* Create RX queues */
@@ -1473,6 +1487,8 @@ ena_create_io_queues(struct ena_adapter *adapter)
 		ctx.queue_size = adapter->requested_rx_ring_size;
 		ctx.msix_vector = msix_vector;
 		ctx.qid = ena_qid;
+		ctx.numa_node = adapter->que[i].domain;
+
 		rc = ena_com_create_io_queue(ena_dev, &ctx);
 		if (unlikely(rc != 0)) {
 			ena_log(adapter->pdev, ERR,
@@ -1490,6 +1506,11 @@ ena_create_io_queues(struct ena_adapter *adapter)
 			    " %d rc: %d\n", i, rc);
 			ena_com_destroy_io_queue(ena_dev, ena_qid);
 			goto err_rx;
+		}
+
+		if (ctx.numa_node >= 0) {
+			ena_com_update_numa_node(ring->ena_com_io_cq,
+			    ctx.numa_node);
 		}
 	}
 
@@ -1646,11 +1667,21 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 #ifdef RSS
 	int num_buckets = rss_getnumbuckets();
 	static int last_bind = 0;
+	int cur_bind;
+	int idx;
 #endif
 	int irq_idx;
 
 	if (adapter->msix_entries == NULL)
 		return (EINVAL);
+
+#ifdef RSS
+	if (adapter->first_bind < 0) {
+		adapter->first_bind = last_bind;
+		last_bind = (last_bind + adapter->num_io_queues) % num_buckets;
+	}
+	cur_bind = adapter->first_bind;
+#endif
 
 	for (int i = 0; i < adapter->num_io_queues; i++) {
 		irq_idx = ENA_IO_IRQ_IDX(i);
@@ -1666,9 +1697,17 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 
 #ifdef RSS
 		adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
-		    rss_getcpu(last_bind);
-		last_bind = (last_bind + 1) % num_buckets;
+		    rss_getcpu(cur_bind);
+		cur_bind = (cur_bind + 1) % num_buckets;
 		CPU_SETOF(adapter->que[i].cpu, &adapter->que[i].cpu_mask);
+
+		for (idx = 0; idx < MAXMEMDOM; ++idx) {
+			if (CPU_ISSET(adapter->que[i].cpu, &cpuset_domain[idx]))
+				break;
+		}
+		adapter->que[i].domain = idx;
+#else
+		adapter->que[i].domain = -1;
 #endif
 	}
 
@@ -3459,6 +3498,7 @@ ena_attach(device_t pdev)
 
 	adapter = device_get_softc(pdev);
 	adapter->pdev = pdev;
+	adapter->first_bind = -1;
 
 	/*
 	 * Set up the timer service - driver is responsible for avoiding
