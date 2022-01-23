@@ -292,16 +292,14 @@ struct buf {
 /*
  * Buffer locking
  */
-extern const char *buf_wmesg;		/* Default buffer lock message */
-#define BUF_WMESG "bufwait"
 #include <sys/proc.h>			/* XXX for curthread */
 #include <sys/mutex.h>
 
 /*
  * Initialize a lock.
  */
-#define BUF_LOCKINIT(bp)						\
-	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, LK_NEW)
+#define BUF_LOCKINIT(bp, wmesg)						\
+	lockinit(&(bp)->b_lock, PRIBIO + 4, wmesg, 0, LK_NEW)
 /*
  *
  * Get a lock sleeping non-interruptably until it becomes available.

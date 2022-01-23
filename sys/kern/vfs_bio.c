@@ -400,12 +400,6 @@ struct bufqueue __exclusive_cache_line bqempty;
  */
 uma_zone_t buf_zone;
 
-/*
- * Single global constant for BUF_WMESG, to avoid getting multiple references.
- * buf_wmesg is referred from macros.
- */
-const char *buf_wmesg = BUF_WMESG;
-
 static int
 sysctl_runningspace(SYSCTL_HANDLER_ARGS)
 {
@@ -1184,6 +1178,12 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	return (v);
 }
 
+/*
+ * Single global constant for BUF_WMESG, to avoid getting multiple
+ * references.
+ */
+static const char buf_wmesg[] = "bufwait";
+
 /* Initialize the buffer subsystem.  Called before use of any buffers. */
 void
 bufinit(void)
@@ -1214,7 +1214,7 @@ bufinit(void)
 		bp->b_xflags = 0;
 		bp->b_data = bp->b_kvabase = unmapped_buf;
 		LIST_INIT(&bp->b_dep);
-		BUF_LOCKINIT(bp);
+		BUF_LOCKINIT(bp, buf_wmesg);
 		bq_insert(&bqempty, bp, false);
 	}
 
