@@ -105,8 +105,8 @@ __weak_reference(__fflush, fflush_unlocked);
 int
 __sflush(FILE *fp)
 {
-	unsigned char *p;
-	int n, t;
+	unsigned char *p, *old_p;
+	int n, t, old_w;
 
 	t = fp->_flags;
 	if ((t & __SWR) == 0)
@@ -121,7 +121,9 @@ __sflush(FILE *fp)
 	 * Set these immediately to avoid problems with longjmp and to allow
 	 * exchange buffering (via setvbuf) in user write function.
 	 */
+	old_p = fp->_p;
 	fp->_p = p;
+	old_w = fp->_w;
 	fp->_w = t & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
 
 	for (; n > 0; n -= t, p += t) {
@@ -134,6 +136,9 @@ __sflush(FILE *fp)
 				fp->_p += n;
 				if ((fp->_flags & (__SLBF | __SNBF)) == 0)
 					fp->_w -= n;
+			} else if (p == fp->_p) { /* cond. to handle setvbuf */
+				fp->_p = old_p;
+				fp->_w = old_w;
 			}
 			fp->_flags |= __SERR;
 			return (EOF);
