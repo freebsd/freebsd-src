@@ -480,6 +480,8 @@ pbuf_dtor(void *mem, int size, void *arg)
 	BUF_UNLOCK(bp);
 }
 
+static const char pbuf_wmesg[] = "pbufwait";
+
 static int
 pbuf_init(void *mem, int size, int flags)
 {
@@ -489,7 +491,7 @@ pbuf_init(void *mem, int size, int flags)
 	if (bp->b_kvabase == NULL)
 		return (ENOMEM);
 	bp->b_kvasize = ptoa(PBUF_PAGES);
-	BUF_LOCKINIT(bp);
+	BUF_LOCKINIT(bp, pbuf_wmesg);
 	LIST_INIT(&bp->b_dep);
 	bp->b_rcred = bp->b_wcred = NOCRED;
 	bp->b_xflags = 0;
