@@ -6,6 +6,7 @@
  * 
  * Copyright (c) 2004, K A Fraser
  * Copyright (c) 2012, Spectra Logic Corporation
+ * Copyright © 2022, Elliott Mitchell
  *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
@@ -48,6 +49,12 @@ enum evtchn_type {
 /** Submit a port notification for delivery to a userland evtchn consumer */
 void evtchn_device_upcall(evtchn_port_t port);
 
+/* Macros for accessing event channel values */
+#define	EVTCHN_PTR(type, port) \
+	(HYPERVISOR_shared_info->evtchn_##type + ((port) / __LONG_BIT))
+#define	EVTCHN_BIT(port)	((port) & (__LONG_BIT - 1))
+#define	EVTCHN_MASK(port)	(1UL << EVTCHN_BIT(port))
+
 /**
  * Disable signal delivery for an event channel port, returning its
  * previous mask state.
@@ -59,8 +66,9 @@ void evtchn_device_upcall(evtchn_port_t port);
 static inline int
 evtchn_test_and_set_mask(evtchn_port_t port)
 {
-	shared_info_t *s = HYPERVISOR_shared_info;
-	return synch_test_and_set_bit(port, s->evtchn_mask);
+
+	return (atomic_testandset_long(EVTCHN_PTR(mask, port),
+	    EVTCHN_BIT(port)));
 }
 
 /**
@@ -71,8 +79,8 @@ evtchn_test_and_set_mask(evtchn_port_t port)
 static inline void 
 evtchn_clear_port(evtchn_port_t port)
 {
-	shared_info_t *s = HYPERVISOR_shared_info;
-	synch_clear_bit(port, &s->evtchn_pending[0]);
+
+	atomic_clear_long(EVTCHN_PTR(pending, port), EVTCHN_MASK(port));
 }
 
 /**
@@ -83,9 +91,8 @@ evtchn_clear_port(evtchn_port_t port)
 static inline void
 evtchn_mask_port(evtchn_port_t port)
 {
-	shared_info_t *s = HYPERVISOR_shared_info;
 
-	synch_set_bit(port, &s->evtchn_mask[0]);
+	atomic_set_long(EVTCHN_PTR(mask, port), EVTCHN_MASK(port));
 }
 
 /**
