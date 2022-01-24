@@ -433,11 +433,11 @@ fetch(char *URL, const char *path)
 	struct xferstat xs;
 	FILE *f, *of;
 	size_t size, readcnt, wr;
-	off_t count;
+	off_t count, size_prev;
 	char flags[8];
 	const char *slash;
 	char *tmppath;
-	int r;
+	int r, tries;
 	unsigned timeout;
 	char *ptr;
 
@@ -537,6 +537,9 @@ fetch(char *URL, const char *path)
 		goto success;
 	}
 
+	tries = 1;
+again:
+	r = 0;
 	/*
 	 * If the -r flag was specified, we have to compare the local
 	 * and remote files, so we should really do a fetchStat()
@@ -553,7 +556,7 @@ fetch(char *URL, const char *path)
 	sb.st_size = -1;
 	if (!o_stdout) {
 		r = stat(path, &sb);
-		if (r == 0 && r_flag && S_ISREG(sb.st_mode)) {
+		if (r == 0 && (r_flag || tries > 1) && S_ISREG(sb.st_mode)) {
 			url->offset = sb.st_size;
 		} else if (r == -1 || !S_ISREG(sb.st_mode)) {
 			/*
@@ -568,6 +571,7 @@ fetch(char *URL, const char *path)
 			goto failure;
 		}
 	}
+	size_prev = sb.st_size;
 
 	/* start the transfer */
 	if (timeout)
@@ -629,7 +633,7 @@ fetch(char *URL, const char *path)
 		of = stdout;
 	} else if (r_flag && sb.st_size != -1) {
 		/* resume mode, local file exists */
-		if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
+		if (!F_flag && us.mtime && sb.st_mtime != us.mtime && tries == 1) {
 			/* no match! have to refetch */
 			fclose(f);
 			/* if precious, warn the user and give up */
@@ -717,6 +721,8 @@ fetch(char *URL, const char *path)
 				slash = path;
 			else
 				++slash;
+			if(tmppath != NULL)
+				free(tmppath);
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
 			if (tmppath != NULL) {
@@ -829,6 +835,13 @@ fetch(char *URL, const char *path)
 	if (us.size != -1 && count < us.size) {
 		warnx("%s appears to be truncated: %jd/%jd bytes",
 		    path, (intmax_t)count, (intmax_t)us.size);
+		if(!o_stdout && a_flag && us.size > size_prev) {
+			fclose(f);
+			if (w_secs)
+				sleep(w_secs);
+			tries++;
+			goto again;
+		}
 		goto failure_keep;
 	}
 
