@@ -425,7 +425,7 @@ query_auth(struct url *URL)
  * Fetch a file
  */
 static int
-fetch(char *URL, const char *path)
+fetch(char *URL, const char *path, int *is_http)
 {
 	struct url *url;
 	struct url_stat us;
@@ -474,6 +474,9 @@ fetch(char *URL, const char *path)
 		else if (strncasecmp(url->host, "www.", 4) == 0)
 			strcpy(url->scheme, SCHEME_HTTP);
 	}
+
+	/* for both of http and https */
+	*is_http = strncmp(url->scheme, SCHEME_HTTP, sizeof(SCHEME_HTTP)) == 0;
 
 	/* common flags */
 	switch (family) {
@@ -911,7 +914,7 @@ main(int argc, char *argv[])
 	struct sigaction sa;
 	const char *p, *s;
 	char *end, *q;
-	int c, e, r;
+	int c, e, is_http, r;
 
 
 	while ((c = getopt_long(argc, argv,
@@ -1176,16 +1179,16 @@ main(int argc, char *argv[])
 
 		if (o_flag) {
 			if (o_stdout) {
-				e = fetch(*argv, "-");
+				e = fetch(*argv, "-", &is_http);
 			} else if (o_directory) {
 				asprintf(&q, "%s/%s", o_filename, p);
-				e = fetch(*argv, q);
+				e = fetch(*argv, q, &is_http);
 				free(q);
 			} else {
-				e = fetch(*argv, o_filename);
+				e = fetch(*argv, o_filename, &is_http);
 			}
 		} else {
-			e = fetch(*argv, p);
+			e = fetch(*argv, p, &is_http);
 		}
 
 		if (sigint)
@@ -1201,7 +1204,13 @@ main(int argc, char *argv[])
 			    && fetchLastErrCode != FETCH_MOVED
 			    && fetchLastErrCode != FETCH_URL
 			    && fetchLastErrCode != FETCH_RESOLV
-			    && fetchLastErrCode != FETCH_UNKNOWN)) {
+			    && fetchLastErrCode != FETCH_UNKNOWN
+			    && (is_http
+			    	&& fetchLastErrCode != FETCH_PROTO
+			    	&& fetchLastErrCode != FETCH_SERVER
+			    	&& fetchLastErrCode != FETCH_TEMP
+			    	&& fetchLastErrCode != FETCH_TIMEOUT
+			    ))) {
 				if (w_secs && v_level)
 					fprintf(stderr, "Waiting %ld seconds "
 					    "before retrying\n", w_secs);
