@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/syscall.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
@@ -93,6 +94,8 @@ static struct sysentvec elf_freebsd_sysvec = {
 	.sv_trap	= NULL,
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
+	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
+	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 
 static __ElfN(Brandinfo) freebsd_brand_info = {
