@@ -30,7 +30,7 @@
 # 
 # usage: concatdb database1 ... databaseN > newdb
 #
-# Sequence of databases is important.
+# Please note: the sequence of databases is important.
 #
 # $FreeBSD$
 
@@ -42,11 +42,7 @@ set -o pipefail
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
 
 PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
-
-umask 077			# protect temp files
-
 : ${TMPDIR:=/var/tmp}; export TMPDIR;
-test -d "$TMPDIR" || TMPDIR=/var/tmp
 
 # utilities to built locate database
 : ${bigram:=locate.bigram}
@@ -54,15 +50,12 @@ test -d "$TMPDIR" || TMPDIR=/var/tmp
 : ${sort:=sort}
 : ${locate:=locate}
 
+if [ $# -lt 2 ]; then
+	echo 'usage: concatdb databases1 ... databaseN > newdb'
+	exit 1
+fi
 
-case $# in 
-        [01]) 	echo 'usage: concatdb databases1 ... databaseN > newdb'
-		exit 1
-		;;
-esac
-
-
-bigrams=`mktemp ${TMPDIR=/tmp}/_bigrams.XXXXXXXXXX` || exit 1
+bigrams=$(mktemp -t bigrams)
 trap 'rm -f $bigrams' 0 1 2 3 5 10 15
 
 for db 
@@ -75,3 +68,5 @@ for db
 do
 	$locate -d $db /
 done | $code $bigrams
+
+#EOF
