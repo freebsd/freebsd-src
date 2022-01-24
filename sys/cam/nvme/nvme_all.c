@@ -91,11 +91,14 @@ nvme_print_ident(const struct nvme_controller_data *cdata,
 {
 
 	sbuf_printf(sb, "<");
-	cam_strvis_sbuf(sb, cdata->mn, sizeof(cdata->mn), 0);
+	cam_strvis_sbuf(sb, cdata->mn, sizeof(cdata->mn),
+	    CAM_STRVIS_FLAG_NONASCII_SPC);
 	sbuf_printf(sb, " ");
-	cam_strvis_sbuf(sb, cdata->fr, sizeof(cdata->fr), 0);
+	cam_strvis_sbuf(sb, cdata->fr, sizeof(cdata->fr),
+	    CAM_STRVIS_FLAG_NONASCII_SPC);
 	sbuf_printf(sb, " ");
-	cam_strvis_sbuf(sb, cdata->sn, sizeof(cdata->sn), 0);
+	cam_strvis_sbuf(sb, cdata->sn, sizeof(cdata->sn),
+	    CAM_STRVIS_FLAG_NONASCII_SPC);
 	sbuf_printf(sb, ">\n");
 }
 
