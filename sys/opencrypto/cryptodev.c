@@ -302,6 +302,8 @@ SYSCTL_BOOL(_kern_crypto, OID_AUTO, cryptodev_separate_aad, CTLFLAG_RW,
     &use_separate_aad, 0,
     "Use separate AAD buffer for /dev/crypto requests.");
 
+static MALLOC_DEFINE(M_CRYPTODEV, "cryptodev", "/dev/crypto data buffers");
+
 /*
  * Check a crypto identifier to see if it requested
  * a software device/driver.  This can be done either
@@ -423,7 +425,7 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 			goto bail;
 		}
 
-		key = malloc(csp.csp_cipher_klen, M_XDATA, M_WAITOK);
+		key = malloc(csp.csp_cipher_klen, M_CRYPTODEV, M_WAITOK);
 		error = copyin(sop->key, key, csp.csp_cipher_klen);
 		if (error) {
 			CRYPTDEB("invalid key");
@@ -443,7 +445,8 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 		}
 
 		if (csp.csp_auth_klen != 0) {
-			mackey = malloc(csp.csp_auth_klen, M_XDATA, M_WAITOK);
+			mackey = malloc(csp.csp_auth_klen, M_CRYPTODEV,
+			    M_WAITOK);
 			error = copyin(sop->mackey, mackey, csp.csp_auth_klen);
 			if (error) {
 				CRYPTDEB("invalid mac key");
@@ -493,7 +496,7 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 		goto bail;
 	}
 
-	cse = malloc(sizeof(struct csession), M_XDATA, M_WAITOK | M_ZERO);
+	cse = malloc(sizeof(struct csession), M_CRYPTODEV, M_WAITOK | M_ZERO);
 	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);
 	refcount_init(&cse->refs, 1);
 	cse->key = key;
@@ -528,8 +531,8 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	sop->crid = crypto_ses2hid(cse->cses);
 bail:
 	if (error) {
-		free(key, M_XDATA);
-		free(mackey, M_XDATA);
+		free(key, M_CRYPTODEV);
+		free(mackey, M_CRYPTODEV);
 	}
 	return (error);
 }
@@ -560,10 +563,10 @@ cse_free(struct csession *cse)
 	crypto_freesession(cse->cses);
 	mtx_destroy(&cse->lock);
 	if (cse->key)
-		free(cse->key, M_XDATA);
+		free(cse->key, M_CRYPTODEV);
 	if (cse->mackey)
-		free(cse->mackey, M_XDATA);
-	free(cse, M_XDATA);
+		free(cse->mackey, M_CRYPTODEV);
+	free(cse, M_CRYPTODEV);
 }
 
 static bool
@@ -589,17 +592,18 @@ cod_alloc(struct csession *cse, size_t aad_len, size_t len)
 {
 	struct cryptop_data *cod;
 
-	cod = malloc(sizeof(struct cryptop_data), M_XDATA, M_WAITOK | M_ZERO);
+	cod = malloc(sizeof(struct cryptop_data), M_CRYPTODEV, M_WAITOK |
+	    M_ZERO);
 
 	cod->cse = cse;
 	if (crypto_get_params(cse->cses)->csp_flags & CSP_F_SEPARATE_AAD) {
 		if (aad_len != 0)
-			cod->aad = malloc(aad_len, M_XDATA, M_WAITOK);
-		cod->buf = malloc(len, M_XDATA, M_WAITOK);
+			cod->aad = malloc(aad_len, M_CRYPTODEV, M_WAITOK);
+		cod->buf = malloc(len, M_CRYPTODEV, M_WAITOK);
 	} else
-		cod->buf = malloc(aad_len + len, M_XDATA, M_WAITOK);
+		cod->buf = malloc(aad_len + len, M_CRYPTODEV, M_WAITOK);
 	if (crypto_get_params(cse->cses)->csp_flags & CSP_F_SEPARATE_OUTPUT)
-		cod->obuf = malloc(len, M_XDATA, M_WAITOK);
+		cod->obuf = malloc(len, M_CRYPTODEV, M_WAITOK);
 	return (cod);
 }
 
@@ -607,10 +611,10 @@ static void
 cod_free(struct cryptop_data *cod)
 {
 
-	free(cod->aad, M_XDATA);
-	free(cod->obuf, M_XDATA);
-	free(cod->buf, M_XDATA);
-	free(cod, M_XDATA);
+	free(cod->aad, M_CRYPTODEV);
+	free(cod->obuf, M_CRYPTODEV);
+	free(cod->buf, M_CRYPTODEV);
+	free(cod, M_CRYPTODEV);
 }
 
 static int
@@ -1097,7 +1101,7 @@ fcrypt_dtor(void *data)
 		cse_free(cse);
 	}
 	mtx_destroy(&fcr->lock);
-	free(fcr, M_XDATA);
+	free(fcr, M_CRYPTODEV);
 }
 
 static int
@@ -1106,7 +1110,7 @@ crypto_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct fcrypt *fcr;
 	int error;
 
-	fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK | M_ZERO);
+	fcr = malloc(sizeof(struct fcrypt), M_CRYPTODEV, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&fcr->csessions);
 	mtx_init(&fcr->lock, "fcrypt", NULL, MTX_DEF);
 	error = devfs_set_cdevpriv(fcr, fcrypt_dtor);
