@@ -26,7 +26,10 @@ LIBSODIUM=${SRCTOP}/sys/contrib/libsodium/src/libsodium
 
 KMOD	= crypto
 SRCS	= crypto.c cryptodev_if.c
-SRCS	+= criov.c cryptosoft.c xform.c
+SRCS	+= criov.c cryptosoft.c
+SRCS	+= xform_aes_cbc.c xform_aes_icm.c xform_aes_xts.c xform_cml.c
+SRCS	+= xform_deflate.c xform_gmac.c xform_null.c xform_rmd160.c
+SRCS	+= xform_sha1.c xform_sha2.c
 SRCS	+= cryptodeflate.c rmd160.c rijndael-alg-fst.c rijndael-api.c rijndael-api-fst.c
 SRCS	+= camellia.c camellia-api.c
 SRCS	+= des_ecb.c des_enc.c des_setkey.c
