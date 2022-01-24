@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
-#include <machine/xen/synch_bitops.h>
-
 #include <xen/xen-os.h>
 #include <xen/hvm.h>
 #include <xen/hypervisor.h>
@@ -576,7 +574,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 
 			/* process port */
 			port = (l1i * LONG_BIT) + l2i;
-			synch_clear_bit(port, &s->evtchn_pending[0]);
+			evtchn_clear_port(port);
 
 			isrc = xen_intr_port_to_isrc[port];
 			if (__predict_false(isrc == NULL))
