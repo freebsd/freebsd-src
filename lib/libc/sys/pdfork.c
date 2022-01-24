@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <unistd.h>
+#include <sys/procdesc.h>
 #include "libc_private.h"
 
 #pragma weak pdfork
