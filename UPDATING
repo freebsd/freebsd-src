@@ -38,6 +38,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	A number of the kernel include files are able to be included by
 	themselves.  A test has been added to buildworld to enforce this.
 
+20211209:
+	Remove mips as a recognized target. This starts the decommissioning of
+	mips support in FreeBSD. mips related items will be removed wholesale in
+	the coming days and weeks.
+
+	This broke the NO_CLEAN build for some people. Either do a clean build
+	or touch
+		lib/clang/include/llvm/Config/Targets.def
+		lib/clang/include/llvm/Config/AsmParsers.def
+		lib/clang/include/llvm/Config/Disassemblers.def
+		lib/clang/include/llvm/Config/AsmPrinters.def
+	before the build to force everything to rebuild that needs to.
+
 20211202:
 	Unbound support for RFC8375: The special-use domain 'home.arpa' is
 	by default blocked. To unblock it use a local-zone nodefault
@@ -52,19 +65,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	to tell, using a standard DNS query, in which homenet scope an answer
 	belongs.  Consequently, users may experience surprising results with
 	such names when roaming to different homenets.
-
-20211209:
-	Remove mips as a recognized target. This starts the decommissioning of
-	mips support in FreeBSD. mips related items will be removed wholesale in
-	the coming days and weeks.
-
-	This broke the NO_CLEAN build for some people. Either do a clean build
-	or touch
-		lib/clang/include/llvm/Config/Targets.def
-		lib/clang/include/llvm/Config/AsmParsers.def
-		lib/clang/include/llvm/Config/Disassemblers.def
-		lib/clang/include/llvm/Config/AsmPrinters.def
-	before the build to force everything to rebuild that needs to.
 
 20211110:
 	Commit b8d60729deef changed the TCP congestion control framework so
