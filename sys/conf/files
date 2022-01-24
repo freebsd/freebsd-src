@@ -4943,12 +4943,21 @@ opencrypto/gmac.c		optional crypto
 opencrypto/gfmult.c		optional crypto
 opencrypto/ktls_ocf.c		optional kern_tls
 opencrypto/rmd160.c		optional crypto
-opencrypto/xform.c		optional crypto
+opencrypto/xform_aes_cbc.c	optional crypto
+opencrypto/xform_aes_icm.c	optional crypto
+opencrypto/xform_aes_xts.c	optional crypto
 opencrypto/xform_cbc_mac.c	optional crypto
 opencrypto/xform_chacha20_poly1305.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
+opencrypto/xform_cml.c		optional crypto
+opencrypto/xform_deflate.c	optional crypto
+opencrypto/xform_gmac.c		optional crypto
+opencrypto/xform_null.c		optional crypto
 opencrypto/xform_poly1305.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
+opencrypto/xform_rmd160.c	optional crypto
+opencrypto/xform_sha1.c		optional crypto
+opencrypto/xform_sha2.c		optional crypto
 contrib/libsodium/src/libsodium/crypto_core/ed25519/ref10/ed25519_ref10.c \
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
