@@ -704,16 +704,16 @@ contrib/zstd/lib/decompress/zstd_decompress_block.c	optional zstdio \
 	compile-with "${ZSTD_C} ${ZSTD_DECOMPRESS_BLOCK_FLAGS}"
 contrib/zstd/lib/decompress/huf_decompress.c	optional zstdio compile-with ${ZSTD_C}
 # Blake 2
-contrib/libb2/blake2b-ref.c	optional crypto | ipsec | ipsec_support | !random_loadable random_fenestrasx \
+contrib/libb2/blake2b-ref.c	optional crypto | !random_loadable random_fenestrasx \
 	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
-contrib/libb2/blake2s-ref.c	optional crypto | ipsec | ipsec_support \
+contrib/libb2/blake2s-ref.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual -DSUFFIX=_ref -Wno-unused-function"
-crypto/blake2/blake2-sw.c	optional crypto | ipsec | ipsec_support \
+crypto/blake2/blake2-sw.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/crypto/blake2 -Wno-cast-qual"
-crypto/camellia/camellia.c	optional crypto | ipsec | ipsec_support
-crypto/camellia/camellia-api.c	optional crypto | ipsec | ipsec_support
+crypto/camellia/camellia.c	optional crypto
+crypto/camellia/camellia-api.c	optional crypto
 crypto/chacha20/chacha.c	standard
-crypto/chacha20/chacha-sw.c	optional crypto | ipsec | ipsec_support
+crypto/chacha20/chacha-sw.c	optional crypto
 crypto/chacha20_poly1305.c	optional crypto
 crypto/curve25519.c		optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
@@ -728,16 +728,14 @@ crypto/openssl/ossl_sha256.c	optional ossl
 crypto/openssl/ossl_sha512.c	optional ossl
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
 crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | geom_bde | \
-	ipsec | ipsec_support | !random_loadable | wlan_ccmp
+	!random_loadable | wlan_ccmp
 crypto/rijndael/rijndael-api-fst.c optional ekcd | geom_bde | !random_loadable
-crypto/rijndael/rijndael-api.c	optional crypto | ipsec | ipsec_support | \
-	wlan_ccmp
-crypto/sha1.c			optional carp | crypto | ether | ipsec | \
-	ipsec_support | netgraph_mppc_encryption | sctp
-crypto/sha2/sha256c.c		optional crypto | ekcd | geom_bde | ipsec | \
-	ipsec_support | !random_loadable | sctp | zfs
-crypto/sha2/sha512c.c		optional crypto | geom_bde | ipsec | \
-	ipsec_support | zfs
+crypto/rijndael/rijndael-api.c	optional crypto | wlan_ccmp
+crypto/sha1.c			optional carp | crypto | ether | \
+	netgraph_mppc_encryption | sctp
+crypto/sha2/sha256c.c		optional crypto | ekcd | geom_bde | \
+	!random_loadable | sctp | zfs
+crypto/sha2/sha512c.c		optional crypto | geom_bde | zfs
 crypto/skein/skein.c		optional crypto | zfs
 crypto/skein/skein_block.c	optional crypto | zfs
 crypto/siphash/siphash.c	optional inet | inet6
@@ -4074,33 +4072,33 @@ libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
 libkern/timingsafe_bcmp.c	standard
-contrib/zlib/adler32.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-contrib/zlib/compress.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+contrib/zlib/adler32.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/compress.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib \
 	compile-with "${NORMAL_C} -Wno-cast-qual"
-contrib/zlib/crc32.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-contrib/zlib/deflate.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+contrib/zlib/crc32.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/deflate.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib \
 	compile-with "${NORMAL_C} -Wno-cast-qual"
-contrib/zlib/inffast.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-contrib/zlib/inflate.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-contrib/zlib/inftrees.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-contrib/zlib/trees.c		optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-contrib/zlib/uncompr.c	optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib \
+contrib/zlib/inffast.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/inflate.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/inftrees.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/trees.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/uncompr.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib \
 	compile-with "${NORMAL_C} -Wno-cast-qual"
-contrib/zlib/zutil.c		optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-dev/zlib/zlib_mod.c		optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
-dev/zlib/zcalloc.c		optional crypto | geom_uzip | ipsec | \
-	ipsec_support | mxge | ddb_ctf | gzio | zfs | zlib
+contrib/zlib/zutil.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+dev/zlib/zlib_mod.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
+dev/zlib/zcalloc.c		optional crypto | geom_uzip | \
+	mxge | ddb_ctf | gzio | zfs | zlib
 net/altq/altq_cbq.c		optional altq
 net/altq/altq_codel.c		optional altq
 net/altq/altq_hfsc.c		optional altq
@@ -4935,17 +4933,17 @@ dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6	\
 
 # crypto support
 opencrypto/cbc_mac.c		optional crypto
-opencrypto/criov.c		optional crypto | ipsec | ipsec_support
-opencrypto/crypto.c		optional crypto | ipsec | ipsec_support
+opencrypto/criov.c		optional crypto
+opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
-opencrypto/cryptodev_if.m	optional crypto | ipsec | ipsec_support
-opencrypto/cryptosoft.c		optional crypto | ipsec | ipsec_support
-opencrypto/cryptodeflate.c	optional crypto | ipsec | ipsec_support
-opencrypto/gmac.c		optional crypto | ipsec | ipsec_support
-opencrypto/gfmult.c		optional crypto | ipsec | ipsec_support
+opencrypto/cryptodev_if.m	optional crypto
+opencrypto/cryptosoft.c		optional crypto
+opencrypto/cryptodeflate.c	optional crypto
+opencrypto/gmac.c		optional crypto
+opencrypto/gfmult.c		optional crypto
 opencrypto/ktls_ocf.c		optional kern_tls
-opencrypto/rmd160.c		optional crypto | ipsec | ipsec_support
-opencrypto/xform.c		optional crypto | ipsec | ipsec_support
+opencrypto/rmd160.c		optional crypto
+opencrypto/xform.c		optional crypto
 opencrypto/xform_cbc_mac.c	optional crypto
 opencrypto/xform_chacha20_poly1305.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
