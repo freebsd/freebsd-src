@@ -835,7 +835,7 @@ again:
 	if (us.size != -1 && count < us.size) {
 		warnx("%s appears to be truncated: %jd/%jd bytes",
 		    path, (intmax_t)count, (intmax_t)us.size);
-		if(!o_stdout && a_flag && us.size > size_prev) {
+		if(!o_stdout && a_flag && count > size_prev) {
 			fclose(f);
 			if (w_secs)
 				sleep(w_secs);
