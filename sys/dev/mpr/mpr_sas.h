@@ -91,9 +91,7 @@ struct mprsas_softc {
 	u_int			flags;
 #define MPRSAS_IN_DISCOVERY	(1 << 0)
 #define MPRSAS_IN_STARTUP	(1 << 1)
-#define MPRSAS_DISCOVERY_TIMEOUT_PENDING	(1 << 2)
 #define MPRSAS_QUEUE_FROZEN	(1 << 3)
-#define	MPRSAS_SHUTDOWN		(1 << 4)
 #define	MPRSAS_TOREMOVE		(1 << 5)
 	u_int			maxtargets;
 	struct mprsas_target	*targets;
@@ -101,7 +99,6 @@ struct mprsas_softc {
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct intr_config_hook	sas_ich;
-	struct callout		discovery_callout;
 	struct mpr_event_handle	*mprsas_eh;
 
 	u_int                   startup_refcount;
