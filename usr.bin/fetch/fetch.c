@@ -476,7 +476,7 @@ fetch(char *URL, const char *path, int *is_http)
 	}
 
 	/* for both of http and https */
-	*is_http = strncmp(url->scheme, SCHEME_HTTP, sizeof(SCHEME_HTTP)) == 0;
+	*is_http = strncmp(url->scheme, "http", 4) == 0;
 
 	/* common flags */
 	switch (family) {
