@@ -376,8 +376,11 @@ device_fail:	if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
 		path->device->serial_num = (u_int8_t *)
 		    malloc(NVME_SERIAL_NUMBER_LENGTH + 1, M_CAMXPT, M_NOWAIT);
 		if (path->device->serial_num != NULL) {
-			cam_strvis(path->device->serial_num, nvme_cdata->sn,
-			    NVME_SERIAL_NUMBER_LENGTH, NVME_SERIAL_NUMBER_LENGTH + 1);
+			cam_strvis_flag(path->device->serial_num,
+			    nvme_cdata->sn, sizeof(nvme_cdata->sn),
+			    NVME_SERIAL_NUMBER_LENGTH + 1,
+			    CAM_STRVIS_FLAG_NONASCII_SPC);
+
 			path->device->serial_num_len =
 			    strlen(path->device->serial_num);
 		}
