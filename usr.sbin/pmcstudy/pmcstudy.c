@@ -2865,7 +2865,7 @@ main(int argc, char **argv)
 			       argv[0]);
 			printf("-i inputfile -- use source as inputfile not stdin (if stdin collect)\n");
 			printf("-v -- verbose dump debug type things -- you don't want this\n");
-			printf("-m N -- maximum to collect is N measurments\n");
+			printf("-m N -- maximum to collect is N measurements\n");
 			printf("-e expr-name -- Do expression expr-name\n");
 			printf("-E 'your expression' -- Do your expression\n");
 			printf("-h -- Don't do the expression I put in -e xxx just explain what it does and exit\n");
