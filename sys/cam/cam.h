@@ -378,6 +378,8 @@ caddr_t	cam_quirkmatch(caddr_t target, caddr_t quirk_table, int num_entries,
 		       int entry_size, cam_quirkmatch_t *comp_func);
 
 void	cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen);
+void	cam_strvis_flag(u_int8_t *dst, const u_int8_t *src, int srclen,
+			int dstlen, uint32_t flags);
 void	cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
 			uint32_t flags);
 
