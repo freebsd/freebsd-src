@@ -425,7 +425,7 @@ query_auth(struct url *URL)
  * Fetch a file
  */
 static int
-fetch(char *URL, const char *path)
+fetch(char *URL, const char *path, int *is_http)
 {
 	struct url *url;
 	struct url_stat us;
@@ -433,11 +433,11 @@ fetch(char *URL, const char *path)
 	struct xferstat xs;
 	FILE *f, *of;
 	size_t size, readcnt, wr;
-	off_t count;
+	off_t count, size_prev;
 	char flags[8];
 	const char *slash;
 	char *tmppath;
-	int r;
+	int r, tries;
 	unsigned timeout;
 	char *ptr;
 
@@ -474,6 +474,9 @@ fetch(char *URL, const char *path)
 		else if (strncasecmp(url->host, "www.", 4) == 0)
 			strcpy(url->scheme, SCHEME_HTTP);
 	}
+
+	/* for both of http and https */
+	*is_http = strncmp(url->scheme, "http", 4) == 0;
 
 	/* common flags */
 	switch (family) {
@@ -537,6 +540,9 @@ fetch(char *URL, const char *path)
 		goto success;
 	}
 
+	tries = 1;
+again:
+	r = 0;
 	/*
 	 * If the -r flag was specified, we have to compare the local
 	 * and remote files, so we should really do a fetchStat()
@@ -553,7 +559,7 @@ fetch(char *URL, const char *path)
 	sb.st_size = -1;
 	if (!o_stdout) {
 		r = stat(path, &sb);
-		if (r == 0 && r_flag && S_ISREG(sb.st_mode)) {
+		if (r == 0 && (r_flag || tries > 1) && S_ISREG(sb.st_mode)) {
 			url->offset = sb.st_size;
 		} else if (r == -1 || !S_ISREG(sb.st_mode)) {
 			/*
@@ -568,6 +574,7 @@ fetch(char *URL, const char *path)
 			goto failure;
 		}
 	}
+	size_prev = sb.st_size;
 
 	/* start the transfer */
 	if (timeout)
@@ -629,7 +636,7 @@ fetch(char *URL, const char *path)
 		of = stdout;
 	} else if (r_flag && sb.st_size != -1) {
 		/* resume mode, local file exists */
-		if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
+		if (!F_flag && us.mtime && sb.st_mtime != us.mtime && tries == 1) {
 			/* no match! have to refetch */
 			fclose(f);
 			/* if precious, warn the user and give up */
@@ -717,6 +724,8 @@ fetch(char *URL, const char *path)
 				slash = path;
 			else
 				++slash;
+			if(tmppath != NULL)
+				free(tmppath);
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
 			if (tmppath != NULL) {
@@ -829,6 +838,13 @@ fetch(char *URL, const char *path)
 	if (us.size != -1 && count < us.size) {
 		warnx("%s appears to be truncated: %jd/%jd bytes",
 		    path, (intmax_t)count, (intmax_t)us.size);
+		if(!o_stdout && a_flag && count > size_prev) {
+			fclose(f);
+			if (w_secs)
+				sleep(w_secs);
+			tries++;
+			goto again;
+		}
 		goto failure_keep;
 	}
 
@@ -898,7 +914,7 @@ main(int argc, char *argv[])
 	struct sigaction sa;
 	const char *p, *s;
 	char *end, *q;
-	int c, e, r;
+	int c, e, is_http, r;
 
 
 	while ((c = getopt_long(argc, argv,
@@ -1163,16 +1179,16 @@ main(int argc, char *argv[])
 
 		if (o_flag) {
 			if (o_stdout) {
-				e = fetch(*argv, "-");
+				e = fetch(*argv, "-", &is_http);
 			} else if (o_directory) {
 				asprintf(&q, "%s/%s", o_filename, p);
-				e = fetch(*argv, q);
+				e = fetch(*argv, q, &is_http);
 				free(q);
 			} else {
-				e = fetch(*argv, o_filename);
+				e = fetch(*argv, o_filename, &is_http);
 			}
 		} else {
-			e = fetch(*argv, p);
+			e = fetch(*argv, p, &is_http);
 		}
 
 		if (sigint)
@@ -1184,11 +1200,18 @@ main(int argc, char *argv[])
 		if (e) {
 			r = 1;
 			if ((fetchLastErrCode
+			    && fetchLastErrCode != FETCH_AUTH
 			    && fetchLastErrCode != FETCH_UNAVAIL
 			    && fetchLastErrCode != FETCH_MOVED
 			    && fetchLastErrCode != FETCH_URL
 			    && fetchLastErrCode != FETCH_RESOLV
-			    && fetchLastErrCode != FETCH_UNKNOWN)) {
+			    && fetchLastErrCode != FETCH_UNKNOWN
+			    && (!is_http || (
+			    	   fetchLastErrCode != FETCH_PROTO
+			    	&& fetchLastErrCode != FETCH_SERVER
+			    	&& fetchLastErrCode != FETCH_TEMP
+			    	&& fetchLastErrCode != FETCH_TIMEOUT
+			    )))) {
 				if (w_secs && v_level)
 					fprintf(stderr, "Waiting %ld seconds "
 					    "before retrying\n", w_secs);
