@@ -1419,7 +1419,7 @@ ogetsockname(struct thread *td, struct ogetsockname_args *uap)
 
 static int
 user_getpeername(struct thread *td, int fdes, struct sockaddr *asa,
-    socklen_t *alen, int compat)
+    socklen_t *alen, bool compat)
 {
 	struct sockaddr *sa;
 	socklen_t len;
@@ -1493,14 +1493,14 @@ done:
 int
 sys_getpeername(struct thread *td, struct getpeername_args *uap)
 {
-	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, 0));
+	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, false));
 }
 
 #ifdef COMPAT_OLDSOCK
 int
 ogetpeername(struct thread *td, struct ogetpeername_args *uap)
 {
-	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, 1));
+	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, true));
 }
 #endif /* COMPAT_OLDSOCK */
 
