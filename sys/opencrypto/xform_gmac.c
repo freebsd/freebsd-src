@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/gmac.h>
 #include <opencrypto/xform_auth.h>
+#include <opencrypto/xform_enc.h>
 
 /* Encryption instances */
 const struct enc_xform enc_xform_aes_nist_gmac = {
