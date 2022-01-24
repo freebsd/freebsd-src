@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #endif
 
+/* Assert it's safe to unlock a process, e.g. to allocate working memory */
+#define	PROC_ASSERT_TRACEREQ(p)	MPASS(((p)->p_flag2 & P2_PTRACEREQ) != 0)
+
 /*
  * Functions implemented using PROC_ACTION():
  *
@@ -151,6 +154,125 @@ proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
 	PROC_ACTION(set_fpregs(td, fpregs));
+}
+
+static struct regset *
+proc_find_regset(struct thread *td, int note)
+{
+	struct regset **regsetp, **regset_end, *regset;
+	struct sysentvec *sv;
+
+	sv = td->td_proc->p_sysent;
+	regsetp = sv->sv_regset_begin;
+	if (regsetp == NULL)
+		return (NULL);
+	regset_end = sv->sv_regset_end;
+	MPASS(regset_end != NULL);
+	for (; regsetp < regset_end; regsetp++) {
+		regset = *regsetp;
+		if (regset->note != note)
+			continue;
+
+		return (regset);
+	}
+
+	return (NULL);
+}
+
+static int
+proc_read_regset(struct thread *td, int note, struct iovec *iov)
+{
+	struct regset *regset;
+	struct proc *p;
+	void *buf;
+	size_t size;
+	int error;
+
+	regset = proc_find_regset(td, note);
+	if (regset == NULL)
+		return (EINVAL);
+
+	if (iov->iov_base == NULL) {
+		iov->iov_len = regset->size;
+		if (iov->iov_len == 0)
+			return (EINVAL);
+
+		return (0);
+	}
+
+	/* The length is wrong, return an error */
+	if (iov->iov_len != regset->size)
+		return (EINVAL);
+
+	if (regset->get == NULL)
+		return (EINVAL);
+
+	error = 0;
+	size = regset->size;
+	p = td->td_proc;
+
+	/* Drop the proc lock while allocating the temp buffer */
+	PROC_ASSERT_TRACEREQ(p);
+	PROC_UNLOCK(p);
+	buf = malloc(size, M_TEMP, M_WAITOK);
+	PROC_LOCK(p);
+
+	if (!regset->get(regset, td, buf, &size)) {
+		error = EINVAL;
+	} else {
+		KASSERT(size == regset->size,
+		    ("%s: Getter function changed the size", __func__));
+
+		iov->iov_len = size;
+		PROC_UNLOCK(p);
+		error = copyout(buf, iov->iov_base, size);
+		PROC_LOCK(p);
+	}
+
+	free(buf, M_TEMP);
+
+	return (error);
+}
+
+static int
+proc_write_regset(struct thread *td, int note, struct iovec *iov)
+{
+	struct regset *regset;
+	struct proc *p;
+	void *buf;
+	size_t size;
+	int error;
+
+	regset = proc_find_regset(td, note);
+	if (regset == NULL)
+		return (EINVAL);
+
+	/* The length is wrong, return an error */
+	if (iov->iov_len != regset->size)
+		return (EINVAL);
+
+	if (regset->set == NULL)
+		return (EINVAL);
+
+	size = regset->size;
+	p = td->td_proc;
+
+	/* Drop the proc lock while allocating the temp buffer */
+	PROC_ASSERT_TRACEREQ(p);
+	PROC_UNLOCK(p);
+	buf = malloc(size, M_TEMP, M_WAITOK);
+	error = copyin(iov->iov_base, buf, size);
+	PROC_LOCK(p);
+
+	if (error == 0) {
+		if (!regset->set(regset, td, buf, size)) {
+			error = EINVAL;
+		}
+	}
+
+	free(buf, M_TEMP);
+
+	return (error);
 }
 
 #ifdef COMPAT_FREEBSD32
@@ -474,6 +596,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
+		struct iovec vec;
 		char args[sizeof(td->td_sa.args)];
 		struct ptrace_sc_ret psr;
 		int ptevents;
@@ -503,6 +626,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 	case PT_GETDBREGS:
 		bzero(&r.dbreg, sizeof(r.dbreg));
+		break;
+	case PT_SETREGSET:
+		error = copyin(uap->addr, &r.vec, sizeof(r.vec));
+		break;
+	case PT_GETREGSET:
+		error = copyin(uap->addr, &r.vec, sizeof(r.vec));
 		break;
 	case PT_SETREGS:
 		error = copyin(uap->addr, &r.reg, sizeof(r.reg));
@@ -557,6 +686,9 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 	case PT_GETDBREGS:
 		error = copyout(&r.dbreg, uap->addr, sizeof(r.dbreg));
+		break;
+	case PT_GETREGSET:
+		error = copyout(&r.vec, uap->addr, sizeof(r.vec));
 		break;
 	case PT_GET_EVENT_MASK:
 		/* NB: The size in uap->data is validated in kern_ptrace(). */
@@ -1289,6 +1421,18 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		CTR2(KTR_PTRACE, "PT_GETDBREGS: tid %d (pid %d)", td2->td_tid,
 		    p->p_pid);
 		error = PROC_READ(dbregs, td2, addr);
+		break;
+
+	case PT_SETREGSET:
+		CTR2(KTR_PTRACE, "PT_SETREGSET: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
+		error = proc_write_regset(td2, data, addr);
+		break;
+
+	case PT_GETREGSET:
+		CTR2(KTR_PTRACE, "PT_GETREGSET: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
+		error = proc_read_regset(td2, data, addr);
 		break;
 
 	case PT_LWPINFO:

@@ -2186,16 +2186,16 @@ __elfN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 	*sizep = sizeof(*psinfo);
 }
 
-static void
-__elfN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
+static bool
+__elfN(get_prstatus)(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
 {
-	struct thread *td;
 	elf_prstatus_t *status;
 
-	td = arg;
-	if (sb != NULL) {
-		KASSERT(*sizep == sizeof(*status), ("invalid size"));
-		status = malloc(sizeof(*status), M_TEMP, M_ZERO | M_WAITOK);
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(*status), ("%s: invalid size",
+		    __func__));
+		status = buf;
 		status->pr_version = PRSTATUS_VERSION;
 		status->pr_statussz = sizeof(elf_prstatus_t);
 		status->pr_gregsetsz = sizeof(elf_gregset_t);
@@ -2208,11 +2208,96 @@ __elfN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
 #else
 		fill_regs(td, &status->pr_reg);
 #endif
+	}
+	*sizep = sizeof(*status);
+	return (true);
+}
+
+static bool
+__elfN(set_prstatus)(struct regset *rs, struct thread *td, void *buf,
+    size_t size)
+{
+	elf_prstatus_t *status;
+
+	KASSERT(size == sizeof(*status), ("%s: invalid size", __func__));
+	status = buf;
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+	set_regs32(td, &status->pr_reg);
+#else
+	set_regs(td, &status->pr_reg);
+#endif
+	return (true);
+}
+
+static struct regset __elfN(regset_prstatus) = {
+	.note = NT_PRSTATUS,
+	.size = sizeof(elf_prstatus_t),
+	.get = __elfN(get_prstatus),
+	.set = __elfN(set_prstatus),
+};
+ELF_REGSET(__elfN(regset_prstatus));
+
+static void
+__elfN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct thread *td;
+	elf_prstatus_t *status;
+
+	td = arg;
+	if (sb != NULL) {
+		KASSERT(*sizep == sizeof(*status), ("%s: invalid size",
+		    __func__));
+		status = malloc(sizeof(*status), M_TEMP, M_ZERO | M_WAITOK);
+		__elfN(get_prstatus)(NULL, td, status, sizep);
 		sbuf_bcat(sb, status, sizeof(*status));
 		free(status, M_TEMP);
 	}
 	*sizep = sizeof(*status);
 }
+
+static bool
+__elfN(get_fpregset)(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	elf_prfpregset_t *fpregset;
+
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(*fpregset), ("%s: invalid size",
+		    __func__));
+		fpregset = buf;
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+		fill_fpregs32(td, fpregset);
+#else
+		fill_fpregs(td, fpregset);
+#endif
+	}
+	*sizep = sizeof(fpregset);
+	return (true);
+}
+
+static bool
+__elfN(set_fpregset)(struct regset *rs, struct thread *td, void *buf,
+    size_t size)
+{
+	elf_prfpregset_t *fpregset;
+
+	fpregset = buf;
+	KASSERT(size == sizeof(*fpregset), ("%s: invalid size", __func__));
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+	set_fpregs32(td, fpregset);
+#else
+	set_fpregs(td, fpregset);
+#endif
+	return (true);
+}
+
+static struct regset __elfN(regset_fpregset) = {
+	.note = NT_FPREGSET,
+	.size = sizeof(elf_prfpregset_t),
+	.get = __elfN(get_fpregset),
+	.set = __elfN(set_fpregset),
+};
+ELF_REGSET(__elfN(regset_fpregset));
 
 static void
 __elfN(note_fpregset)(void *arg, struct sbuf *sb, size_t *sizep)
@@ -2224,11 +2309,7 @@ __elfN(note_fpregset)(void *arg, struct sbuf *sb, size_t *sizep)
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(*fpregset), ("invalid size"));
 		fpregset = malloc(sizeof(*fpregset), M_TEMP, M_ZERO | M_WAITOK);
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-		fill_fpregs32(td, fpregset);
-#else
-		fill_fpregs(td, fpregset);
-#endif
+		__elfN(get_fpregset)(NULL, td, fpregset, sizep);
 		sbuf_bcat(sb, fpregset, sizeof(*fpregset));
 		free(fpregset, M_TEMP);
 	}

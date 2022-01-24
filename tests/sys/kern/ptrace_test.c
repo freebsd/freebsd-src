@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/cpuset.h>
+#include <sys/elf.h>
 #include <sys/event.h>
 #include <sys/file.h>
 #include <sys/time.h>
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procdesc.h>
 #define	_WANT_MIPS_REGNUM
 #include <sys/ptrace.h>
+#include <sys/procfs.h>
 #include <sys/queue.h>
 #include <sys/runq.h>
 #include <sys/syscall.h>
@@ -3196,6 +3198,64 @@ ATF_TC_BODY(ptrace__PT_CONTINUE_with_signal_thread_sigmask, tc)
 	REQUIRE_EQ(errno, ECHILD);
 }
 
+/*
+ * Verify that PT_GETREGSET returns registers and PT_SETREGSET updates them.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__PT_REGSET);
+ATF_TC_BODY(ptrace__PT_REGSET, tc)
+{
+	struct prstatus prstatus;
+	struct iovec vec;
+	pid_t child, wpid;
+	int status;
+
+	ATF_REQUIRE((child = fork()) != -1);
+	if (child == 0) {
+		trace_me();
+		exit(1);
+	}
+
+	/* The first wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(child, &status, 0);
+	REQUIRE_EQ(wpid, child);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	/* Check the size is returned when vec.iov_base is NULL */
+	vec.iov_base = NULL;
+	vec.iov_len = 0;
+	ATF_REQUIRE(ptrace(PT_GETREGSET, wpid, (caddr_t)&vec, NT_PRSTATUS) !=
+	    -1);
+	ATF_REQUIRE(vec.iov_len == sizeof(prstatus));
+	ATF_REQUIRE(vec.iov_base == NULL);
+
+	/* Read the registers. */
+	memset(&prstatus, 0, sizeof(prstatus));
+	vec.iov_base = &prstatus;
+	ATF_REQUIRE(ptrace(PT_GETREGSET, wpid, (caddr_t)&vec, NT_PRSTATUS) !=
+	    -1);
+	ATF_REQUIRE(vec.iov_len == sizeof(prstatus));
+	ATF_REQUIRE(vec.iov_base == &prstatus);
+	ATF_REQUIRE(prstatus.pr_statussz == sizeof(prstatus));
+
+	/* Write the registers back. */
+	ATF_REQUIRE(ptrace(PT_SETREGSET, wpid, (caddr_t)&vec, NT_PRSTATUS) !=
+	    -1);
+
+	REQUIRE_EQ(ptrace(PT_CONTINUE, child, (caddr_t)1, 0), 0);
+
+	/* The second wait() should report the exit status. */
+	wpid = waitpid(child, &status, 0);
+	REQUIRE_EQ(wpid, child);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 1);
+
+	/* The child should no longer exist. */
+	wpid = waitpid(child, &status, 0);
+	REQUIRE_EQ(wpid, -1);
+	REQUIRE_EQ(errno, ECHILD);
+}
+
 static void *
 raise_sigstop_thread(void *arg __unused)
 {
@@ -4302,6 +4362,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__killed_with_sigmask);
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_sigmask);
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_signal_thread_sigmask);
+	ATF_TP_ADD_TC(tp, ptrace__PT_REGSET);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop1);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop2);
 	ATF_TP_ADD_TC(tp, ptrace__event_mask_sigkill_discard);

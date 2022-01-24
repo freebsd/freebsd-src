@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/linker.h>
 #include <sys/proc.h>
+#include <sys/reg.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
@@ -102,6 +103,8 @@ struct sysentvec elf64_freebsd_sysvec = {
 	.sv_machine_arch = riscv_machine_arch,
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
+	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
+	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
 
