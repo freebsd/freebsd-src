@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #define __ELF_WORD_SIZE 32
 
 #include <sys/param.h>
+#include <sys/elf.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
+#include <sys/reg.h>
 #include <sys/resourcevar.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
@@ -141,6 +143,8 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
 	.sv_set_fork_retval = x86_set_fork_retval,
+	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
+	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 INIT_SYSENTVEC(elf_ia32_sysvec, &ia32_freebsd_sysvec);
 

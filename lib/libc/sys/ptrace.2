@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd January 22, 2022
+.Dd January 27, 2022
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -511,6 +511,40 @@ it loads the traced process's debug registers from the
 .In machine/reg.h )
 pointed to by
 .Fa addr .
+.It Dv PT_GETREGSET
+This request reads the registers from the traced process.
+The
+.Fa data
+argument specifies the register set to read, with the
+.Fa addr
+argument pointing at a
+.Vt "struct iovec"
+where the
+.Va iov_base
+field points to a register set specific structure to hold the registers,
+and the
+.Va iov_len
+field holds the length of the structure.
+.It Dv PT_SETREGSET
+This request writes to the registers of the traced process.
+The
+.Fa data
+argument specifies the register set to write to, with the
+.Fa addr
+argument pointing at a
+.Vt "struct iovec"
+where the
+.Va iov_base
+field points to a register set specific structure to hold the registers,
+and the
+.Va iov_len
+field holds the length of the structure.
+If
+.Va iov_base
+is NULL the kernel will return the expected length of the register set
+specific structure in the
+.Va iov_len
+field and not change the target register set.
 .It Dv PT_LWPINFO
 This request can be used to obtain information about the kernel thread,
 also known as light-weight process, that caused the traced process to stop.

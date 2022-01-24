@@ -160,6 +160,8 @@ struct sysentvec {
 			    struct image_params *imgp);
 	void		(*sv_set_fork_retval)(struct thread *);
 					/* Only used on x86 */
+	struct regset	**sv_regset_begin;
+	struct regset	**sv_regset_end;
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */
