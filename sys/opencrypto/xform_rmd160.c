@@ -50,6 +50,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <opencrypto/rmd160.h>
 #include <opencrypto/xform_auth.h>
 

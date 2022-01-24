@@ -50,6 +50,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <crypto/rijndael/rijndael.h>
 #include <opencrypto/xform_enc.h>
 
