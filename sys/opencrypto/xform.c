@@ -69,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
-MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
-
 /* Include the encryption algorithms */
 #include "xform_null.c"
 #include "xform_aes_cbc.c"

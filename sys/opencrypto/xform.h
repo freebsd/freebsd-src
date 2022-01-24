@@ -42,8 +42,4 @@
 #include <opencrypto/xform_comp.h>
 #include <opencrypto/xform_enc.h>
 
-#ifdef _KERNEL
-#include <sys/malloc.h>
-MALLOC_DECLARE(M_XDATA);
-#endif
 #endif /* _CRYPTO_XFORM_H_ */
