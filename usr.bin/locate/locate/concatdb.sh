@@ -68,7 +68,8 @@ trap 'rm -f $bigrams' 0 1 2 3 5 10 15
 for db 
 do
        $locate -d $db /
-done | $bigram | $sort -nr | awk 'NR <= 128 { printf $2 }' > $bigrams
+done | $bigram | $sort -nr | \
+  awk 'NR <= 128 && /^[ \t]*[1-9][0-9]*[ \t]+..$/ { printf("%s", substr($0, length($0)-1, 2)) }' > $bigrams
 
 for db
 do
