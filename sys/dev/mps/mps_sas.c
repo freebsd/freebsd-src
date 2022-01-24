@@ -86,9 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mps/mps_table.h>
 #include <dev/mps/mps_sas.h>
 
-#define MPSSAS_DISCOVERY_TIMEOUT	20
-#define MPSSAS_MAX_DISCOVERY_TIMEOUTS	10 /* 200 seconds */
-
 /*
  * static array to check SCSI OpCode for EEDP protection bits
  */
@@ -773,8 +770,6 @@ mps_attach_sas(struct mps_softc *sc)
 	sc->sassc->startup_refcount = 0;
 	mpssas_startup_increment(sassc);
 
-	callout_init(&sassc->discovery_callout, 1 /*mpsafe*/);
-
 	mps_unlock(sc);
 
 	/*
@@ -888,9 +883,6 @@ mpssas_discovery_end(struct mpssas_softc *sassc)
 	struct mps_softc *sc = sassc->sc;
 
 	MPS_FUNCTRACE(sc);
-
-	if (sassc->flags & MPSSAS_DISCOVERY_TIMEOUT_PENDING)
-		callout_stop(&sassc->discovery_callout);
 
 	/*
 	 * After discovery has completed, check the mapping table for any

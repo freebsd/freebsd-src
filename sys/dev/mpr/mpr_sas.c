@@ -820,8 +820,6 @@ mpr_attach_sas(struct mpr_softc *sc)
 	sc->sassc->startup_refcount = 0;
 	mprsas_startup_increment(sassc);
 
-	callout_init(&sassc->discovery_callout, 1 /*mpsafe*/);
-
 	mpr_unlock(sc);
 
 	/*
@@ -936,9 +934,6 @@ mprsas_discovery_end(struct mprsas_softc *sassc)
 	struct mpr_softc *sc = sassc->sc;
 
 	MPR_FUNCTRACE(sc);
-
-	if (sassc->flags & MPRSAS_DISCOVERY_TIMEOUT_PENDING)
-		callout_stop(&sassc->discovery_callout);
 
 	/*
 	 * After discovery has completed, check the mapping table for any
