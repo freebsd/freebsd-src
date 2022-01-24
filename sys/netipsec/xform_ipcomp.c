@@ -37,6 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -89,6 +90,8 @@ SYSCTL_INT(_net_inet_ipcomp, OID_AUTO, ipcomp_enable,
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipcomp, IPSECCTL_STATS, stats,
     struct ipcompstat, ipcompstat,
     "IPCOMP statistics (struct ipcompstat, netipsec/ipcomp_var.h");
+
+static MALLOC_DEFINE(M_IPCOMP, "ipcomp", "IPCOMP");
 
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
@@ -235,7 +238,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		goto bad;
 	}
 	/* Get IPsec-specific opaque pointer */
-	xd = malloc(sizeof(*xd), M_XDATA, M_NOWAIT | M_ZERO);
+	xd = malloc(sizeof(*xd), M_IPCOMP, M_NOWAIT | M_ZERO);
 	if (xd == NULL) {
 		DPRINTF(("%s: cannot allocate xform_data\n", __func__));
 		IPCOMPSTAT_INC(ipcomps_crypto);
@@ -328,7 +331,7 @@ ipcomp_input_cb(struct cryptop *crp)
 	clen = crp->crp_olen;		/* Length of data after processing */
 
 	/* Release the crypto descriptors */
-	free(xd, M_XDATA), xd = NULL;
+	free(xd, M_IPCOMP), xd = NULL;
 	crypto_freereq(crp), crp = NULL;
 
 	/* In case it's not done already, adjust the size of the mbuf chain */
@@ -382,7 +385,7 @@ bad:
 	if (m != NULL)
 		m_freem(m);
 	if (xd != NULL)
-		free(xd, M_XDATA);
+		free(xd, M_IPCOMP);
 	if (crp != NULL)
 		crypto_freereq(crp);
 	return error;
@@ -486,7 +489,7 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_payload_length = ralen;
 
 	/* IPsec-specific opaque crypto info */
-	xd =  malloc(sizeof(struct xform_data), M_XDATA, M_NOWAIT | M_ZERO);
+	xd =  malloc(sizeof(struct xform_data), M_IPCOMP, M_NOWAIT | M_ZERO);
 	if (xd == NULL) {
 		IPCOMPSTAT_INC(ipcomps_crypto);
 		DPRINTF(("%s: failed to allocate xform_data\n", __func__));
@@ -641,7 +644,7 @@ ipcomp_output_cb(struct cryptop *crp)
 	}
 
 	/* Release the crypto descriptor */
-	free(xd, M_XDATA);
+	free(xd, M_IPCOMP);
 	crypto_freereq(crp);
 
 	/* NB: m is reclaimed by ipsec_process_done. */
@@ -652,7 +655,7 @@ bad:
 	if (m)
 		m_freem(m);
 	CURVNET_RESTORE();
-	free(xd, M_XDATA);
+	free(xd, M_IPCOMP);
 	crypto_freereq(crp);
 	key_freesav(&sav);
 	key_freesp(&sp);
