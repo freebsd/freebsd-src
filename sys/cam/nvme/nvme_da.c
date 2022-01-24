@@ -930,10 +930,12 @@ ndaregister(struct cam_periph *periph, void *arg)
 	 * d_ident and d_descr are both far bigger than the length of either
 	 *  the serial or model number strings.
 	 */
-	cam_strvis(disk->d_descr, cd->mn,
-	    NVME_MODEL_NUMBER_LENGTH, sizeof(disk->d_descr));
-	cam_strvis(disk->d_ident, cd->sn,
-	    NVME_SERIAL_NUMBER_LENGTH, sizeof(disk->d_ident));
+	cam_strvis_flag(disk->d_descr, cd->mn, NVME_MODEL_NUMBER_LENGTH,
+	    sizeof(disk->d_descr), CAM_STRVIS_FLAG_NONASCII_SPC);
+
+	cam_strvis_flag(disk->d_ident, cd->sn, NVME_SERIAL_NUMBER_LENGTH,
+	    sizeof(disk->d_ident), CAM_STRVIS_FLAG_NONASCII_SPC);
+
 	disk->d_hba_vendor = cpi.hba_vendor;
 	disk->d_hba_device = cpi.hba_device;
 	disk->d_hba_subvendor = cpi.hba_subvendor;

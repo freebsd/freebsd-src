@@ -123,38 +123,19 @@ SYSCTL_INT(_kern_cam, OID_AUTO, sort_io_queues, CTLFLAG_RWTUN,
 void
 cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen)
 {
+	cam_strvis_flag(dst, src, srclen, dstlen,
+	    CAM_STRVIS_FLAG_NONASCII_ESC);
+}
 
-	/* Trim leading/trailing spaces, nulls. */
-	while (srclen > 0 && src[0] == ' ')
-		src++, srclen--;
-	while (srclen > 0
-	    && (src[srclen-1] == ' ' || src[srclen-1] == '\0'))
-		srclen--;
+void
+cam_strvis_flag(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen,
+		uint32_t flags)
+{
+	struct sbuf sb;
 
-	while (srclen > 0 && dstlen > 1) {
-		u_int8_t *cur_pos = dst;
-
-		if (*src < 0x20 || *src >= 0x80) {
-			/* SCSI-II Specifies that these should never occur. */
-			/* non-printable character */
-			if (dstlen > 4) {
-				*cur_pos++ = '\\';
-				*cur_pos++ = ((*src & 0300) >> 6) + '0';
-				*cur_pos++ = ((*src & 0070) >> 3) + '0';
-				*cur_pos++ = ((*src & 0007) >> 0) + '0';
-			} else {
-				*cur_pos++ = '?';
-			}
-		} else {
-			/* normal character */
-			*cur_pos++ = *src;
-		}
-		src++;
-		srclen--;
-		dstlen -= cur_pos - dst;
-		dst = cur_pos;
-	}
-	*dst = '\0';
+	sbuf_new(&sb, dst, dstlen, SBUF_FIXEDLEN);
+	cam_strvis_sbuf(&sb, src, srclen, flags);
+	sbuf_finish(&sb);
 }
 
 void
