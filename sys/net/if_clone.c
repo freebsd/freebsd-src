@@ -525,49 +525,48 @@ done:
 	return (err);
 }
 
+#ifdef VIMAGE
 /*
- * if_clone_findifc() looks up ifnet from the current
- * cloner list, and returns ifc if found.  Note that ifc_refcnt
- * is incremented.
+ * if_clone_restoregroup() is used in context of if_vmove().
+ *
+ * Since if_detach_internal() has removed the interface from ALL groups, we
+ * need to "restore" interface membership in the cloner's group.  Note that
+ * interface belongs to cloner in its home vnet, so we first find the original
+ * cloner, and then we confirm that cloner with the same name exists in the
+ * current vnet.
  */
-struct if_clone *
-if_clone_findifc(struct ifnet *ifp)
+void
+if_clone_restoregroup(struct ifnet *ifp)
 {
-	struct if_clone *ifc, *ifc0;
+	struct if_clone *ifc;
 	struct ifnet *ifcifp;
+	char ifc_name[IFCLOSIZ] = { [0] = '\0' };
 
-	ifc0 = NULL;
+	CURVNET_SET_QUIET(ifp->if_home_vnet);
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 		IF_CLONE_LOCK(ifc);
 		LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
 			if (ifp == ifcifp) {
-				ifc0 = ifc;
-				IF_CLONE_ADDREF_LOCKED(ifc);
+				strncpy(ifc_name, ifc->ifc_name, IFCLOSIZ-1);
 				break;
 			}
 		}
 		IF_CLONE_UNLOCK(ifc);
-		if (ifc0 != NULL)
+		if (ifc_name[0] != '\0')
 			break;
 	}
+	CURVNET_RESTORE();
+	LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
+		if (strcmp(ifc->ifc_name, ifc_name) == 0 &&
+		    ((ifc->ifc_flags & IFC_NOGROUP) == 0))
+			break;
 	IF_CLONERS_UNLOCK();
 
-	return (ifc0);
+	if (ifc != NULL)
+		if_addgroup(ifp, ifc_name);
 }
-
-/*
- * if_clone_addgroup() decrements ifc_refcnt because it is called after
- * if_clone_findifc().
- */
-void
-if_clone_addgroup(struct ifnet *ifp, struct if_clone *ifc)
-{
-	if ((ifc->ifc_flags & IFC_NOGROUP) == 0) {
-		if_addgroup(ifp, ifc->ifc_name);
-		IF_CLONE_REMREF(ifc);
-	}
-}
+#endif
 
 /*
  * A utility function to extract unit numbers from interface names of
