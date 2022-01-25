@@ -444,6 +444,9 @@ bus_dma_tag_t
 bus_space_tag_t
 	bus_generic_get_bus_tag(device_t dev, device_t child);
 int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
+ssize_t bus_generic_get_property(device_t dev, device_t child,
+				 const char *propname, void *propvalue,
+				 size_t size);
 struct resource_list *
 	bus_generic_get_resource_list(device_t, device_t);
 int	bus_generic_map_resource(device_t dev, device_t child, int type,

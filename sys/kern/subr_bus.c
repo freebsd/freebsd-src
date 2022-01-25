@@ -4126,6 +4126,23 @@ bus_generic_write_ivar(device_t dev, device_t child, int index,
 }
 
 /**
+ * @brief Helper function for implementing BUS_GET_PROPERTY().
+ *
+ * This simply calls the BUS_GET_PROPERTY of the parent of dev,
+ * until a non-default implementation is found.
+ */
+ssize_t
+bus_generic_get_property(device_t dev, device_t child, const char *propname,
+    void *propvalue, size_t size)
+{
+	if (device_get_parent(dev) != NULL)
+		return (BUS_GET_PROPERTY(device_get_parent(dev), child,
+		    propname, propvalue, size));
+
+	return (-1);
+}
+
+/**
  * @brief Stub function for implementing BUS_GET_RESOURCE_LIST().
  *
  * @returns NULL
