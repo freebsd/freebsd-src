@@ -82,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
-#include <netinet/ip_mroute.h>
 
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
@@ -321,7 +320,6 @@ int
 ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
-	MROUTER_RLOCK_TRACKER;
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -609,7 +607,6 @@ again:
 			 * above, will be forwarded by the ip_input() routine,
 			 * if necessary.
 			 */
-			MROUTER_RLOCK();
 			if (V_ip_mrouter && (flags & IP_FORWARDING) == 0) {
 				/*
 				 * If rsvp daemon is not running, do not
@@ -621,12 +618,10 @@ again:
 					imo = NULL;
 				if (ip_mforward &&
 				    ip_mforward(ip, ifp, m, imo) != 0) {
-					MROUTER_RUNLOCK();
 					m_freem(m);
 					goto done;
 				}
 			}
-			MROUTER_RUNLOCK();
 		}
 
 		/*
