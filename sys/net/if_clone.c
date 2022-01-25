@@ -189,20 +189,6 @@ if_clone_create(char *name, size_t len, caddr_t params)
 			if (ifc->ifc_match(ifc, name))
 				break;
 		}
-#ifdef VIMAGE
-	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
-		CURVNET_SET_QUIET(vnet0);
-		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-			if (ifc->ifc_type == SIMPLE) {
-				if (ifc_simple_match(ifc, name))
-					break;
-			} else {
-				if (ifc->ifc_match(ifc, name))
-					break;
-			}
-		CURVNET_RESTORE();
-	}
-#endif
 	IF_CLONERS_UNLOCK();
 
 	if (ifc == NULL)
@@ -266,27 +252,15 @@ if_clone_destroy(const char *name)
 		return (ENXIO);
 
 	/* Find the cloner for this interface */
+	CURVNET_SET_QUIET(ifp->if_home_vnet);
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 		if (strcmp(ifc->ifc_name, ifp->if_dname) == 0) {
 			break;
 		}
 	}
-#ifdef VIMAGE
-	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
-		CURVNET_SET_QUIET(vnet0);
-		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
-			if (ifc->ifc_type == SIMPLE) {
-				if (ifc_simple_match(ifc, name))
-					break;
-			} else {
-				if (ifc->ifc_match(ifc, name))
-					break;
-			}
-		CURVNET_RESTORE();
-	}
-#endif
 	IF_CLONERS_UNLOCK();
+	CURVNET_RESTORE();
 	if (ifc == NULL) {
 		if_rele(ifp);
 		return (EINVAL);
