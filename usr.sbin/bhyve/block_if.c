@@ -481,7 +481,7 @@ blockif_open(nvlist_t *nvl, const char *ident)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-	cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE };
+	cap_ioctl_t cmds[] = { DIOCGFLUSH, DIOCGDELETE, DIOCGMEDIASIZE };
 #endif
 
 	pthread_once(&blockif_once, blockif_init);
