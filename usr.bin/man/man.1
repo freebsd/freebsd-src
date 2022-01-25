@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2021
+.Dd January 26, 2022
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -42,6 +42,9 @@
 .Op Fl p Op Ar eprtv
 .Op Ar mansect
 .Ar page ...
+.Nm
+.Fl K
+.Ar regexp ...
 .Nm
 .Fl f
 .Ar keyword ...
@@ -93,6 +96,14 @@ Options that
 .Nm
 understands:
 .Bl -tag -width indent
+.It Fl K Ar regexp
+Does a full text search in all manual pages.
+.Ar regexp
+is a regular expression as understood by
+.Dq Li "grep -E" .
+This option requires
+.Xr mandoc 1 .
+This is a slow operation.
 .It Fl M Ar manpath
 Forces a specific colon separated manual path instead of the default
 search path.
@@ -392,8 +403,14 @@ manual page:
 $ man -w ls
 .Ed
 .Pp
+Show the location of manual pages in sections 1 and 8 which contain the word
+.Ql arm :
+.Bd -literal -offset indent
+$ ./man -w -K '\e<arm\e>' -S 1:8
+.Ed
 .Sh SEE ALSO
 .Xr apropos 1 ,
+.Xr egrep 1 ,
 .Xr intro 1 ,
 .Xr mandoc 1 ,
 .Xr manpath 1 ,

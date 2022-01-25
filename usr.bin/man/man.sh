@@ -548,8 +548,10 @@ man_parse_args() {
 	local IFS cmd_arg
 
 	OPTIND=1
-	while getopts 'M:P:S:adfhkm:op:tw' cmd_arg; do
+	while getopts 'K:M:P:S:adfhkm:op:tw' cmd_arg; do
 		case "${cmd_arg}" in
+		K)	Kflag=Kflag
+			REGEXP=$OPTARG ;;
 		M)	MANPATH=$OPTARG ;;
 		P)	MANPAGER=$OPTARG ;;
 		S)	MANSECT=$OPTARG ;;
@@ -570,7 +572,11 @@ man_parse_args() {
 	shift $(( $OPTIND - 1 ))
 
 	# Check the args for incompatible options.
-	case "${fflag}${kflag}${tflag}${wflag}" in
+
+	case "${Kflag}${fflag}${kflag}${tflag}${wflag}" in
+	Kflagfflag*)	echo "Incompatible options: -K and -f"; man_usage ;;
+	Kflag*kflag*)	echo "Incompatible options: -K and -k"; man_usage ;;
+	Kflag*tflag)	echo "Incompatible options: -K and -t"; man_usage ;;
 	fflagkflag*)	echo "Incompatible options: -f and -k"; man_usage ;;
 	fflag*tflag*)	echo "Incompatible options: -f and -t"; man_usage ;;
 	fflag*wflag)	echo "Incompatible options: -f and -w"; man_usage ;;
@@ -711,7 +717,7 @@ man_setup_locale() {
 # Display usage for the man utility.
 man_usage() {
 	echo 'Usage:'
-	echo ' man [-adho] [-t | -w] [-M manpath] [-P pager] [-S mansect]'
+	echo ' man [-adho] [-t | -w] [-K regexp] [-M manpath] [-P pager] [-S mansect]'
 	echo '     [-m arch[:machine]] [-p [eprtv]] [mansect] page [...]'
 	echo ' man -f page [...] -- Emulates whatis(1)'
 	echo ' man -k page [...] -- Emulates apropos(1)'
@@ -965,13 +971,48 @@ do_apropos() {
 	search_whatis apropos "$@"
 }
 
+# Usage: do_full_search reg_exp
+# Do a full search of the regular expression passed
+# as parameter in all man pages
+do_full_search() {
+	local gflags re
+	re=${1}
+
+	# Build grep(1) flags
+	gflags="-H"
+
+	# wflag implies -l for grep(1)
+	if [ -n "$wflag" ]; then
+		gflags="${gflags} -l"
+	fi
+
+	gflags="${gflags} --label"
+
+	set +f
+	for mpath in $(echo "${MANPATH}" | tr : [:blank:]); do
+		for section in $(echo "${MANSECT}" | tr : [:blank:]); do
+			for manfile in ${mpath}/man${section}/*.${section}*; do
+				mandoc "${manfile}" 2>/dev/null |
+					grep -E ${gflags} "${manfile}" -e ${re}
+			done
+		done
+	done
+	set -f
+}
+
 do_man() {
 	man_parse_args "$@"
-	if [ -z "$pages" ]; then
+	if [ -z "$pages" -a -z "${Kflag}" ]; then
 		echo 'What manual page do you want?' >&2
 		exit 1
 	fi
 	man_setup
+
+	if [ ! -z "${Kflag}" ]; then
+		# Short circuit because -K flag does a sufficiently
+		# different thing like not showing the man page at all
+		do_full_search "${REGEXP}"
+	fi
 
 	for page in $pages; do
 		decho "Searching for $page"
