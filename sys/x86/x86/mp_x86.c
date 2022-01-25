@@ -1669,6 +1669,10 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	uint32_t generation;
 	int cpu;
 
+#ifdef __i386__
+	sched_pin();
+#endif
+
 	/*
 	 * It is not necessary to signal other CPUs while booting or
 	 * when in the debugger.
