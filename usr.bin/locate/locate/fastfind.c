@@ -66,6 +66,12 @@ statistic (fp, path_fcodes)
 		} else
 			count += c - OFFSET;
 		
+		if (count < 0 || count > MAXPATHLEN) {
+			/* stop on error and display the statstics anyway */
+			warnx("corrupted database: %s", path_fcodes);
+			break;
+		}
+
 		for (p = path + count; (c = getc(fp)) > SWITCH; size++)
 			if (c < PARITY) {
 				if (c == UMLAUT) {
