@@ -195,9 +195,73 @@ negative_demotion_cleanup()
 	vnet_cleanup
 }
 
+
+
+atf_test_case "nd6_ns_source_mac" "cleanup"
+nd6_ns_source_mac_head()
+{
+        atf_set descr 'CARP ndp neighbor solicitation MAC source test (IPv6)'
+        atf_set require.user root
+}
+
+nd6_ns_source_mac_body()
+{
+        carp_init
+
+        bridge=$(vnet_mkbridge)
+        epair_one=$(vnet_mkepair)
+        epair_two=$(vnet_mkepair)
+
+        vnet_mkjail carp_ndp_v6_bridge ${bridge} ${epair_one}a ${epair_two}a
+        vnet_mkjail carp_ndp_v6_master ${epair_one}b
+        vnet_mkjail carp_ndp_v6_slave ${epair_two}b
+
+        jexec carp_ndp_v6_bridge ifconfig ${bridge} inet6 2001:db8::0:4/64 up \
+            no_dad
+        jexec carp_ndp_v6_bridge ifconfig ${bridge} addm ${epair_one}a \
+            addm ${epair_two}a
+        jexec carp_ndp_v6_bridge ifconfig ${epair_one}a up
+        jexec carp_ndp_v6_bridge ifconfig ${epair_two}a up
+
+        jexec carp_ndp_v6_master ifconfig ${epair_one}b inet6 \
+            2001:db8::1:2/64 up no_dad
+        jexec carp_ndp_v6_master ifconfig ${epair_one}b inet6 add vhid 1 \
+            advskew 0 2001:db8::0:1/64
+
+        jexec carp_ndp_v6_slave ifconfig ${epair_two}b inet6 \
+	    2001:db8::1:3/64 up no_dad
+        jexec carp_ndp_v6_slave ifconfig ${epair_two}b inet6 add vhid 1 \
+            advskew 100 2001:db8::0:1/64
+
+        wait_for_carp carp_ndp_v6_master ${epair_one}b \
+            carp_ndp_v6_slave ${epair_two}b
+
+	# carp_ndp_v6_master is MASTER
+
+	# trigger a NS from the virtual IP from the BACKUP
+        atf_check -s exit:2 -o ignore jexec carp_ndp_v6_slave \
+            ping -6 -c 3 -S 2001:db8::0:1 2001:db8::0:4
+
+	# trigger a NS from the virtual IP from the MASTER,
+	# this ping should work
+        atf_check -s exit:0 -o ignore jexec carp_ndp_v6_master \
+            ping -6 -c 3 -S 2001:db8::0:1 2001:db8::0:4
+
+        # ndp entry should be for the virtual mac
+        atf_check -o match:'2001:db8::1 +00:00:5e:00:01:01' \
+	    jexec carp_ndp_v6_bridge ndp -an
+}
+
+nd6_ns_source_mac_cleanup()
+{
+        vnet_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "basic_v6"
 	atf_add_test_case "negative_demotion"
+	atf_add_test_case "nd6_ns_source_mac"
 }
