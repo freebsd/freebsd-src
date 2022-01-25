@@ -197,10 +197,10 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	    CTLFLAG_RW, &ci->ddp_threshold, 0, "Rx zero copy threshold");
 
 	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "max_rx_data_len",
-	    CTLFLAG_RD, &ci->max_rx_data_len, 0,
+	    CTLFLAG_RW, &ci->max_rx_data_len, 0,
 	    "Maximum receive data segment length");
 	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "max_tx_data_len",
-	    CTLFLAG_RD, &ci->max_tx_data_len, 0,
+	    CTLFLAG_RW, &ci->max_tx_data_len, 0,
 	    "Maximum transmit data segment length");
 
 	return (0);
