@@ -411,7 +411,6 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	struct ip6_moptions im6o;
 	int icmp6len;
 	int maxlen;
-	caddr_t mac;
 
 	NET_EPOCH_ASSERT();
 
@@ -534,19 +533,30 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	 *	Multicast NS		MUST add one	add the option
 	 *	Unicast NS		SHOULD add one	add the option
 	 */
-	if (nonce == NULL && (mac = nd6_ifptomac(ifp))) {
-		int optlen = sizeof(struct nd_opt_hdr) + ifp->if_addrlen;
-		struct nd_opt_hdr *nd_opt = (struct nd_opt_hdr *)(nd_ns + 1);
-		/* 8 byte alignments... */
-		optlen = (optlen + 7) & ~7;
+	if (nonce == NULL) {
+		struct nd_opt_hdr *nd_opt;
+		char *mac;
+		int optlen;
 
-		m->m_pkthdr.len += optlen;
-		m->m_len += optlen;
-		icmp6len += optlen;
-		bzero((caddr_t)nd_opt, optlen);
-		nd_opt->nd_opt_type = ND_OPT_SOURCE_LINKADDR;
-		nd_opt->nd_opt_len = optlen >> 3;
-		bcopy(mac, (caddr_t)(nd_opt + 1), ifp->if_addrlen);
+		mac = NULL;
+		if (ifp->if_carp)
+			mac = (*carp_macmatch6_p)(ifp, m, &ip6->ip6_src);
+		if (mac == NULL)
+			mac = nd6_ifptomac(ifp);
+
+		if (mac != NULL) {
+			nd_opt = (struct nd_opt_hdr *)(nd_ns + 1);
+			optlen = sizeof(struct nd_opt_hdr) + ifp->if_addrlen;
+			/* 8 byte alignments... */
+			optlen = (optlen + 7) & ~7;
+			m->m_pkthdr.len += optlen;
+			m->m_len += optlen;
+			icmp6len += optlen;
+			bzero(nd_opt, optlen);
+			nd_opt->nd_opt_type = ND_OPT_SOURCE_LINKADDR;
+			nd_opt->nd_opt_len = optlen >> 3;
+			bcopy(mac, nd_opt + 1, ifp->if_addrlen);
+		}
 	}
 	/*
 	 * Add a Nonce option (RFC 3971) to detect looped back NS messages.
