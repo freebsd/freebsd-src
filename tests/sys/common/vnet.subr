@@ -1,6 +1,15 @@
-# $FreeBSD$
-# VNAT/jail utility functions
+# VNET/jail utility functions
 ##
+
+list_interface()
+{
+	echo $1 >> created_interfaces.lst
+}
+
+unlist_interface()
+{
+	sed -i "" /^$1\$/d created_interfaces.lst
+}
 
 vnet_init()
 {
@@ -12,29 +21,29 @@ vnet_init()
 vnet_mkepair()
 {
 	ifname=$(ifconfig epair create)
-	echo $ifname >> created_interfaces.lst
-	echo ${ifname%a}b >> created_interfaces.lst
+	list_interface $ifname
+	list_interface ${ifname%a}b
 	echo ${ifname%a}
 }
 
 vnet_mkbridge()
 {
 	ifname=$(ifconfig bridge create)
-	echo $ifname >> created_interfaces.lst
+	list_interface $ifname
 	echo ${ifname}
 }
 
 vnet_mkvlan()
 {
 	ifname=$(ifconfig vlan create)
-	echo ${ifname} >> created_interfaces.lst
+	list_interface $ifname
 	echo ${ifname}
 }
 
 vnet_mkloopback()
 {
 	ifname=$(ifconfig lo create)
-	echo $ifname >> created_interfaces.lst
+	list_interface $ifname
 	echo ${ifname}
 }
 
@@ -47,19 +56,32 @@ vnet_mkjail()
 	for ifname in $@
 	do
 		vnet_interfaces="${vnet_interfaces} vnet.interface=${ifname}"
+		unlist_interface $ifname
 	done
 	jail -c name=${jailname} persist vnet ${vnet_interfaces}
 
-	echo $jailname >> created_jails.lst
+	echo $jailname $@ >> created_jails.lst
+}
+
+vnet_ifmove()
+{
+	ifname=$1
+	jailname=$2
+
+	ifconfig ${ifname} vnet ${jailname}
+	unlist_interface $ifname
+	sed -i "" "/^${jailname}/s/\$/ ${ifname}/" created_jails.lst
 }
 
 vnet_cleanup()
 {
 	if [ -f created_jails.lst ]; then
-		for jailname in `cat created_jails.lst`
-		do
+		while read jailname ifnames; do
+			for ifname in ${ifnames}; do
+				jexec ${jailname} ifconfig ${ifname} destroy
+			done
 			jail -r ${jailname}
-		done
+		done < created_jails.lst
 		rm created_jails.lst
 	fi
 

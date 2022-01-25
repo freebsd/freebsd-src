@@ -105,7 +105,7 @@ set_skip_dynamic_body()
 
 	epair=$(vnet_mkepair)
 	ifconfig ${epair}a 192.0.2.2/24 up
-	ifconfig ${epair}b vnet alcatraz
+	vnet_ifmove ${epair}b alcatraz
 
 	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
 
