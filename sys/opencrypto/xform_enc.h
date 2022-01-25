@@ -31,8 +31,8 @@
 #ifndef _CRYPTO_XFORM_ENC_H_
 #define _CRYPTO_XFORM_ENC_H_
 
-#include <sys/malloc.h>
-#include <sys/errno.h>
+#include <sys/types.h>
+
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/cryptodev.h>
