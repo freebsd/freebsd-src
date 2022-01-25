@@ -1637,6 +1637,15 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	targ = &sassc->targets[csio->ccb_h.target_id];
 	mps_dprint(sc, MPS_TRACE, "ccb %p target flag %x\n", ccb, targ->flags);
 	if (targ->handle == 0x0) {
+		if (targ->flags & MPSSAS_TARGET_INDIAGRESET) {
+			mps_dprint(sc, MPS_ERROR,
+			    "%s NULL handle for target %u in diag reset freezing queue\n",
+			    __func__, csio->ccb_h.target_id);
+			ccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_DEV_QFRZN;
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
+			xpt_done(ccb);
+			return;
+		}
 		mps_dprint(sc, MPS_ERROR, "%s NULL handle for target %u\n", 
 		    __func__, csio->ccb_h.target_id);
 		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
