@@ -1200,17 +1200,18 @@ main(int argc, char *argv[])
 		if (e) {
 			r = 1;
 			if ((fetchLastErrCode
+			    && fetchLastErrCode != FETCH_AUTH
 			    && fetchLastErrCode != FETCH_UNAVAIL
 			    && fetchLastErrCode != FETCH_MOVED
 			    && fetchLastErrCode != FETCH_URL
 			    && fetchLastErrCode != FETCH_RESOLV
 			    && fetchLastErrCode != FETCH_UNKNOWN
-			    && (is_http
-			    	&& fetchLastErrCode != FETCH_PROTO
+			    && (!is_http || (
+			    	   fetchLastErrCode != FETCH_PROTO
 			    	&& fetchLastErrCode != FETCH_SERVER
 			    	&& fetchLastErrCode != FETCH_TEMP
 			    	&& fetchLastErrCode != FETCH_TIMEOUT
-			    ))) {
+			    )))) {
 				if (w_secs && v_level)
 					fprintf(stderr, "Waiting %ld seconds "
 					    "before retrying\n", w_secs);
