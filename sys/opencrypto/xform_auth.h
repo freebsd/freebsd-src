@@ -31,8 +31,7 @@
 #ifndef _CRYPTO_XFORM_AUTH_H_
 #define _CRYPTO_XFORM_AUTH_H_
 
-#include <sys/malloc.h>
-#include <sys/errno.h>
+#include <sys/types.h>
 
 #include <crypto/sha1.h>
 #include <crypto/sha2/sha224.h>
