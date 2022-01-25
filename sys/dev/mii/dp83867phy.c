@@ -101,7 +101,8 @@ struct dp83867_softc {
 };
 
 static const struct mii_phydesc dpphys[] = {
-	MII_PHY_DESC(xxTI, DP83867)
+	MII_PHY_DESC(xxTI, DP83867),
+	MII_PHY_END
 };
 
 static const struct mii_phy_funcs dpphy_funcs = {
