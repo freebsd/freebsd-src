@@ -349,6 +349,12 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	    args->begin_envv - args->begin_argv);
 	AUDIT_ARG_ENVV(args->begin_envv, args->envc,
 	    args->endp - args->begin_envv);
+
+	/* Must have at least one argument. */
+	if (args->argc == 0) {
+		exec_free_args(args);
+		return (EINVAL);
+	}
 	return (do_execve(td, args, mac_p, oldvmspace));
 }
 
