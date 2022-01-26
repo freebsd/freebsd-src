@@ -588,7 +588,6 @@ SUBDIR+=	zfs
 _syscons=	syscons
 .endif
 
-# intr_disable() is a macro, causes problems
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cxgb=		cxgb
 .endif
