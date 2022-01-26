@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+ * Copyright (c) 1995-2022 Wolfram Schneider <wosch@FreeBSD.org>
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -64,7 +64,7 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 
 u_char buf1[MAXPATHLEN] = " ";
 u_char buf2[MAXPATHLEN];
-u_int bigram[UCHAR_MAX + 1][UCHAR_MAX + 1];
+unsigned long bigram[UCHAR_MAX + 1][UCHAR_MAX + 1];
 
 int
 main(void)
@@ -109,7 +109,7 @@ main(void)
 	for (i = ASCII_MIN; i <= ASCII_MAX; i++)
 		for (j = ASCII_MIN; j <= ASCII_MAX; j++)
 			if (bigram[i][j] != 0)
-				(void)printf("%4u %c%c\n", bigram[i][j], i, j);
+				printf("%lu %c%c\n", bigram[i][j], i, j);
 
 	exit(0);
 }
