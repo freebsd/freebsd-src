@@ -826,7 +826,7 @@ tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
  * Need to clear v_object for insmntque failure.
  */
 static void
-tmpfs_insmntque_dtr(struct vnode *vp, void *dtr_arg)
+tmpfs_insmntque_dtr(struct vnode *vp)
 {
 
 	tmpfs_destroy_vobject(vp, vp->v_object);
@@ -983,9 +983,11 @@ loop:
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
 
-	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
-	if (error != 0)
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		tmpfs_insmntque_dtr(vp);
 		vp = NULL;
+	}
 
 unlock:
 	TMPFS_NODE_LOCK(node);
