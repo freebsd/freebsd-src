@@ -120,6 +120,8 @@ ATF_TC_HEAD(getelmdesc, tc)
 }
 ATF_TC_BODY(getelmdesc, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getelmdesc, O_RDONLY);
 }
 
@@ -221,6 +223,8 @@ ATF_TC_HEAD(getelmdevnames, tc)
 }
 ATF_TC_BODY(getelmdevnames, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getelmdevnames, O_RDONLY);
 }
 
@@ -311,6 +315,8 @@ ATF_TC_HEAD(getelmmap, tc)
 }
 ATF_TC_BODY(getelmmap, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getelmmap, O_RDONLY);
 }
 
@@ -380,6 +386,8 @@ ATF_TC_HEAD(getelmstat, tc)
 }
 ATF_TC_BODY(getelmstat, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getelmstat, O_RDONLY);
 }
 
@@ -428,6 +436,8 @@ ATF_TC_HEAD(getencid, tc)
 }
 ATF_TC_BODY(getencid, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getencid, O_RDONLY);
 }
 
@@ -472,6 +482,8 @@ ATF_TC_HEAD(getencname, tc)
 }
 ATF_TC_BODY(getencname, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getencname, O_RDONLY);
 }
 
@@ -513,6 +525,8 @@ ATF_TC_HEAD(getencstat, tc)
 }
 ATF_TC_BODY(getencstat, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getencstat, O_RDONLY);
 }
 
@@ -559,6 +573,8 @@ ATF_TC_HEAD(getnelm, tc)
 }
 ATF_TC_BODY(getnelm, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	for_each_ses_dev(do_getnelm, O_RDONLY);
 }
 
@@ -609,6 +625,8 @@ ATF_TC_HEAD(getstring, tc)
 }
 ATF_TC_BODY(getstring, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
 	atf_tc_expect_fail("Bug 258188 ENCIO_GETSTRING does not set the string's returned size");
 	for_each_ses_dev(do_getstring, O_RDWR);
 }
