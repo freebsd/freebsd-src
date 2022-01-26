@@ -102,8 +102,8 @@ int f_icase;            /* ignore case */
 int f_stdin;            /* read database from stdin */
 int f_statistic;        /* print statistic */
 int f_silent;           /* suppress output, show only count of matches */
-int f_limit;            /* limit number of output lines, 0 == infinite */
-u_int counter;          /* counter for matches [-c] */
+long f_limit;           /* limit number of output lines, 0 == infinite */
+long counter;           /* counter for matches [-c] */
 char separator='\n';	/* line separator */
 
 u_char myctype[UCHAR_MAX + 1];
@@ -119,7 +119,6 @@ void	search_fopen(char *, char **);
 unsigned long cputime(void);
 
 extern char     **colon(char **, char*, char*);
-extern void     print_matches(u_int);
 extern int      getwm(caddr_t);
 extern int      getwf(FILE *);
 extern u_char   *tolower_word(u_char *);
@@ -146,7 +145,9 @@ main(int argc, char **argv)
                         f_statistic = 1;
                         break;
                 case 'l': /* limit number of output lines, 0 == infinite */
-                        f_limit = atoi(optarg);
+                        f_limit = atol(optarg);
+			if (f_limit < 0 ) 
+				errx(1, "invalid argument for -l: '%s'", optarg);
                         break;
                 case 'd':	/* database */
                         dbv = colon(dbv, optarg, _PATH_FCODES);
@@ -211,7 +212,7 @@ main(int argc, char **argv)
         }
 
         if (f_silent)
-                print_matches(counter);
+		printf("%ld\n", counter);
         exit(0);
 }
 
