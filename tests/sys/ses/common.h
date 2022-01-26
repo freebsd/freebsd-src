@@ -34,26 +34,36 @@ for_each_ses_dev(ses_cb cb, int oflags)
 	glob_t g;
 	int r;
 	unsigned i;
-	bool tested = false;
 
 	g.gl_pathc = 0;
 	g.gl_pathv = NULL;
 	g.gl_offs = 0;
 
-	r = glob("/dev/ses*", GLOB_NOSORT, NULL, &g);
+	r = glob("/dev/ses*", GLOB_NOCHECK | GLOB_NOSORT, NULL, &g);
 	ATF_REQUIRE_EQ(r, 0);
+	if (g.gl_matchc == 0)
+		return;
 
-	for(i = 0; i < g.gl_pathc; i++) {
+	for(i = 0; i < g.gl_matchc; i++) {
 		int fd;
 
 		fd = open(g.gl_pathv[i], oflags);
 		ATF_REQUIRE(fd >= 0);
-		tested |= cb(g.gl_pathv[i], fd);
+		cb(g.gl_pathv[i], fd);
 		close(fd);
 	}
 
-	if (!tested)
-		atf_tc_skip("No supported devices found");
-
 	globfree(&g);
+}
+
+static bool
+has_ses()
+{
+	glob_t g;
+	int r;
+
+	r = glob("/dev/ses*", GLOB_NOCHECK | GLOB_NOSORT, NULL, &g);
+	ATF_REQUIRE_EQ(r, 0);
+
+	return (g.gl_matchc != 0);
 }

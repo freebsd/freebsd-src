@@ -53,10 +53,10 @@ for_one_ses_dev(ses_cb cb)
 	g.gl_pathv = NULL;
 	g.gl_offs = 0;
 
-	r = glob("/dev/ses*", GLOB_NOSORT, NULL, &g);
+	r = glob("/dev/ses*", GLOB_NOCHECK | GLOB_NOSORT, NULL, &g);
 	ATF_REQUIRE_EQ(r, 0);
-	if (g.gl_pathc == 0)
-		atf_tc_skip("No ses devices found");
+	if (g.gl_matchc == 0)
+		return;
 
 	fd = open(g.gl_pathv[0], O_RDWR);
 	ATF_REQUIRE(fd >= 0);
@@ -84,7 +84,6 @@ static bool do_setelmstat(const char *devname __unused, int fd) {
 	for (elm_idx = 0; elm_idx < nobj; elm_idx++) {
 		encioc_elm_status_t elmstat;
 		struct ses_ctrl_dev_slot *cslot;
-		struct ses_status_dev_slot *sslot;
 
 		if (last_elm_type != map[elm_idx].elm_type) {
 			/* skip overall elements */
@@ -99,7 +98,6 @@ static bool do_setelmstat(const char *devname __unused, int fd) {
 			ATF_REQUIRE_EQ(r, 0);
 
 			cslot = (struct ses_ctrl_dev_slot*)&elmstat.cstat[0];
-			sslot = (struct ses_status_dev_slot*)&elmstat.cstat[0];
 
 			ses_ctrl_common_set_select(&cslot->common, 1);
 			ses_ctrl_dev_slot_set_rqst_ident(cslot, 1);
@@ -203,10 +201,16 @@ ATF_TC_HEAD(setelmstat, tc)
 }
 ATF_TC_BODY(setelmstat, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
+
 	for_one_ses_dev(do_setelmstat);
 }
 ATF_TC_CLEANUP(setelmstat, tc)
 {
+	if (!has_ses())
+		return;
+
 	for_one_ses_dev(do_setelmstat_cleanup);
 }
 
@@ -262,6 +266,9 @@ ATF_TC_HEAD(setencstat, tc)
 }
 ATF_TC_BODY(setencstat, tc)
 {
+	if (!has_ses())
+		atf_tc_skip("No ses devices found");
+
 	for_each_ses_dev(do_setencstat, O_RDWR);
 }
 ATF_TC_CLEANUP(setencstat, tc)
