@@ -217,7 +217,7 @@ amd10h_update(const struct ucode_update_params *params)
 		fw_size -= sizeof(*section_header);
 		if (section_header->type != AMD_10H_uCODE_TYPE) {
 			WARNX(2, "%s is not a valid amd firmware: "
-			    "section has incorret type", path);
+			    "section has incorrect type", path);
 			goto done;
 		}
 		if (section_header->size > fw_size) {
