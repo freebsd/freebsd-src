@@ -323,7 +323,7 @@ host-symlinks:
 	@source_path="${_tool:S/:/ /:[1]}"; \
 	target_path="${DESTDIR}/bin/${_tool:S/:/ /:[2]}"; \
 	if [ ! -e "$${source_path}" ] ; then \
-		echo "Host tool '${src_path}' is missing"; false; \
+		echo "Host tool '$${source_path}' is missing"; false; \
 	fi; \
 	rm -f "$${target_path}"; \
 	${_COPY_HOST_TOOL} "$${source_path}" "$${target_path}"
