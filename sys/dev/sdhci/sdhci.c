@@ -2608,7 +2608,7 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 void
 sdhci_cam_poll(struct cam_sim *sim)
 {
-	return;
+	sdhci_generic_intr(cam_sim_softc(sim));
 }
 
 static int
@@ -2769,12 +2769,6 @@ sdhci_cam_request(struct sdhci_slot *slot, union ccb *ccb)
 	slot->flags = 0;
 	sdhci_start(slot);
 	SDHCI_UNLOCK(slot);
-	if (dumping) {
-		while (slot->ccb != NULL) {
-			sdhci_generic_intr(slot);
-			DELAY(10);
-		}
-	}
 	return (0);
 }
 #endif /* MMCCAM */
