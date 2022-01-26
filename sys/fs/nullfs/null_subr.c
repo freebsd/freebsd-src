@@ -182,14 +182,6 @@ null_destroy_proto(struct vnode *vp, void *xp)
 	free(xp, M_NULLFSNODE);
 }
 
-static void
-null_insmntque_dtr(struct vnode *vp, void *xp)
-{
-
-	vput(((struct null_node *)xp)->null_lowervp);
-	null_destroy_proto(vp, xp);
-}
-
 /*
  * Make a new or get existing nullfs node.
  * Vp is the alias vnode, lowervp is the lower vnode.
@@ -219,7 +211,7 @@ null_nodeget(mp, lowervp, vpp)
 	}
 
 	/*
-	 * The insmntque1() call below requires the exclusive lock on
+	 * The insmntque() call below requires the exclusive lock on
 	 * the nullfs vnode.  Upgrade the lock now if hash failed to
 	 * provide ready to use vnode.
 	 */
@@ -252,9 +244,12 @@ null_nodeget(mp, lowervp, vpp)
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
-	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
-	if (error != 0)
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		vput(lowervp);
+		null_destroy_proto(vp, xp);
 		return (error);
+	}
 	if (lowervp == MOUNTTONULLMOUNT(mp)->nullm_lowerrootvp)
 		vp->v_vflag |= VV_ROOT;
 
