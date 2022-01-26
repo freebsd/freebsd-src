@@ -202,11 +202,9 @@ void
 linux_wake_up(wait_queue_head_t *wqh, unsigned int state, int nr, bool locked)
 {
 	wait_queue_t *pos, *next;
-	unsigned long flags;
 
 	if (!locked)
-		spin_lock_irqsave(&wqh->lock, flags);
-
+		spin_lock(&wqh->lock);
 	list_for_each_entry_safe(pos, next, &wqh->task_list, task_list) {
 		if (pos->func == NULL) {
 			if (wake_up_task(pos->private, state) != 0 && --nr == 0)
@@ -217,7 +215,7 @@ linux_wake_up(wait_queue_head_t *wqh, unsigned int state, int nr, bool locked)
 		}
 	}
 	if (!locked)
-		spin_unlock_irqrestore(&wqh->lock, flags);
+		spin_unlock(&wqh->lock);
 }
 
 void
