@@ -620,10 +620,14 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		userret(td, frame);
 		break;
 	case EXCP_SOFTSTP_EL0:
-		td->td_frame->tf_spsr &= ~PSR_SS;
-		td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
-		WRITE_SPECIALREG(mdscr_el1,
-		    READ_SPECIALREG(mdscr_el1) & ~MDSCR_SS);
+		PROC_LOCK(td->td_proc);
+		if ((td->td_dbgflags & TDB_STEP) != 0) {
+			td->td_frame->tf_spsr &= ~PSR_SS;
+			td->td_pcb->pcb_flags &= ~PCB_SINGLE_STEP;
+			WRITE_SPECIALREG(mdscr_el1,
+			    READ_SPECIALREG(mdscr_el1) & ~MDSCR_SS);
+		}
+		PROC_UNLOCK(td->td_proc);
 		call_trapsignal(td, SIGTRAP, TRAP_TRACE,
 		    (void *)frame->tf_elr, exception);
 		userret(td, frame);
