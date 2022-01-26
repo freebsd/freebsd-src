@@ -99,6 +99,23 @@ trunc_aout_body()
 	    -x "cd $(atf_get_srcdir) && ./execve_helper trunc_aout"
 }
 
+empty_args_head()
+{
+	atf_set "descr" "Empty argv behavior"
+}
+empty_args_body()
+{
+	atf_check -o inline:"1\n" \
+	    -x "cd $(atf_get_srcdir) && ./execve_helper execve_argc_helper"
+
+	# Historically we allowed argc == 0, while execve(2) claimed we didn't.
+	# execve() should kick back an EINVAL now.  We verified the helper was
+	# there/working in the check just above.
+	atf_check -s exit:1 \
+	    -e match:".+Invalid argument$" \
+	    -x "cd $(atf_get_srcdir) && ./execve_helper -n execve_argc_helper"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case bad_interp_len
@@ -111,5 +128,6 @@ atf_init_test_cases()
 	atf_add_test_case script_arg_nospace
 	atf_add_test_case sparse_aout
 	atf_add_test_case trunc_aout
+	atf_add_test_case empty_args
 
 }

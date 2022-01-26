@@ -10,6 +10,7 @@ ATF_TESTS_SH+=	execve_test
 
 PROGS+=		good_aout
 PROGS+=		execve_helper
+PROGS+=		execve_argc_helper
 
 LDFLAGS.goodaout+=	-static
 
