@@ -256,9 +256,8 @@ unionfs_rem_cached_vnode(struct unionfs_node *unp, struct vnode *dvp)
  * This function will return with the caller's locks and references undone.
  */
 static void
-unionfs_nodeget_cleanup(struct vnode *vp, void *arg)
+unionfs_nodeget_cleanup(struct vnode *vp, struct unionfs_node *unp)
 {
-	struct unionfs_node *unp;
 
 	/*
 	 * Lock and reset the default vnode lock; vgone() expects a locked
@@ -278,7 +277,6 @@ unionfs_nodeget_cleanup(struct vnode *vp, void *arg)
 	vgone(vp);
 	vput(vp);
 
-	unp = arg;
 	if (unp->un_dvp != NULLVP)
 		vrele(unp->un_dvp);
 	if (unp->un_uppervp != NULLVP)
@@ -388,9 +386,11 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		vp->v_vflag |= VV_ROOT;
 
 	vn_lock_pair(lowervp, false, uppervp, false); 
-	error = insmntque1(vp, mp, unionfs_nodeget_cleanup, unp);
-	if (error != 0)
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		unionfs_nodeget_cleanup(vp, unp);
 		return (error);
+	}
 	if (lowervp != NULL && VN_IS_DOOMED(lowervp)) {
 		vput(lowervp);
 		unp->un_lowervp = NULL;
