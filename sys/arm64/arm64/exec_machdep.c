@@ -241,10 +241,10 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 		 * constrained undefined behaviour. If the user mis-programs
 		 * these, there is no risk to the system.
 		 */
-		ctrl &= DBG_BCR_EN | DBG_BCR_PMC | DBG_BCR_BAS;
-		if ((ctrl & DBG_BCR_EN) != 0) {
+		ctrl &= DBGBCR_EN | DBGBCR_PMC | DBGBCR_BAS;
+		if ((ctrl & DBGBCR_EN) != 0) {
 			/* Only target EL0. */
-			if ((ctrl & DBG_BCR_PMC) != DBG_BCR_PMC_EL0)
+			if ((ctrl & DBGBCR_PMC) != DBGBCR_PMC_EL0)
 				return (EINVAL);
 
 			monitor->dbg_enable_count++;
@@ -269,24 +269,24 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 		 * Some control fields are ignored, and other bits reserved.
 		 * Only unlinked watchpoints are supported.
 		 */
-		ctrl &= DBG_WCR_EN | DBG_WCR_PAC | DBG_WCR_LSC | DBG_WCR_BAS |
-		    DBG_WCR_MASK;
+		ctrl &= DBGWCR_EN | DBGWCR_PAC | DBGWCR_LSC | DBGWCR_BAS |
+		    DBGWCR_MASK;
 
-		if ((ctrl & DBG_WCR_EN) != 0) {
+		if ((ctrl & DBGWCR_EN) != 0) {
 			/* Only target EL0. */
-			if ((ctrl & DBG_WCR_PAC) != DBG_WCR_PAC_EL0)
+			if ((ctrl & DBGWCR_PAC) != DBGWCR_PAC_EL0)
 				return (EINVAL);
 
 			/* Must set at least one of the load/store bits. */
-			if ((ctrl & DBG_WCR_LSC) == 0)
+			if ((ctrl & DBGWCR_LSC) == 0)
 				return (EINVAL);
 
 			/*
 			 * When specifying the address range with BAS, the MASK
 			 * field must be zero.
 			 */
-			if ((ctrl & DBG_WCR_BAS) != DBG_WCR_BAS_MASK &&
-			    (ctrl & DBG_WCR_MASK) != 0)
+			if ((ctrl & DBGWCR_BAS) != DBGWCR_BAS &&
+			    (ctrl & DBGWCR_MASK) != 0)
 				return (EINVAL);
 
 			monitor->dbg_enable_count++;
