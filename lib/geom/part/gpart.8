@@ -216,13 +216,13 @@ The
 command accepts these options:
 .Bl -tag -width 10n
 .It Fl N
-Don't preserve the Volume Serial Number for MBR.
+Do not preserve the Volume Serial Number for MBR.
 MBR bootcode contains Volume Serial Number by default, and
 .Nm
 tries to preserve it when installing new bootstrap code.
-This option allows to skip the preservation to help with some versions of
+This option skips preservation to help with some versions of
 .Xr boot0 8
-that don't support Volume Serial Number.
+that do not support Volume Serial Number.
 .It Fl b Ar bootcode
 Embed bootstrap code from the file
 .Ar bootcode
@@ -763,7 +763,8 @@ for GPT.
 An Apple Mac OS X partition that contains a ZFS volume.
 The scheme-specific type is
 .Qq Li "!6a898cc3-1dd2-11b2-99a6-080020736631"
-for GPT. The same GUID is being used also for
+for GPT.
+The same GUID is being used also for
 .Sy illumos/Solaris /usr partition .
 See
 .Sx CAVEATS
