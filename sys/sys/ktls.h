@@ -219,6 +219,7 @@ void ktls_enqueue_to_free(struct mbuf *m);
 int ktls_get_rx_mode(struct socket *so, int *modep);
 int ktls_set_tx_mode(struct socket *so, int mode);
 int ktls_get_tx_mode(struct socket *so, int *modep);
+int ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq);
 int ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls);
 #ifdef RATELIMIT
 int ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate);
