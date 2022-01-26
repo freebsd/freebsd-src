@@ -1775,7 +1775,7 @@ snmp_discover_engine(char *passwd)
 	}
 
 	if (resp.error_status != SNMP_ERR_NOERROR) {
-		seterr(&snmp_client, "Error %d in responce", resp.error_status);
+		seterr(&snmp_client, "Error %d in response", resp.error_status);
 		return (-1);
 	}
 
@@ -1821,7 +1821,7 @@ snmp_discover_engine(char *passwd)
 	}
 
 	if (resp.error_status != SNMP_ERR_NOERROR) {
-		seterr(&snmp_client, "Error %d in responce", resp.error_status);
+		seterr(&snmp_client, "Error %d in response", resp.error_status);
 		return (-1);
 	}
 
