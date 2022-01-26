@@ -326,7 +326,7 @@ fastfind
 							if (f_limit >= counter)
 								(void)printf("%s%c",path,separator);
 							else 
-								errx(0, "[show only %d lines]", counter - 1);
+								errx(0, "[show only %ld lines]", counter - 1);
 						} else
 							(void)printf("%s%c",path,separator);
 					}

@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+ * Copyright (c) 1995-2022 Wolfram Schneider <wosch@FreeBSD.org>
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -47,7 +47,6 @@
 
 char 	**colon(char **, char*, char*);
 char 	*patprep(char *);
-void print_matches(u_int);
 u_char 	*tolower_word(u_char *);
 int 	getwm(caddr_t);
 int 	getwf(FILE *);
@@ -130,14 +129,6 @@ colon(char **dbv, char *path, char *dot)
 	}
 	return (dbv);
 }
-
-void 
-print_matches(counter)
-	u_int counter;
-{
-	(void)printf("%d\n", counter);
-}
-
 
 /*
  * extract last glob-free subpattern in name for fast pre-match; prepend
