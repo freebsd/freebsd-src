@@ -1144,6 +1144,7 @@ sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
 	m->m_len = asa->sa_len;
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
 	if (m0) {
+		M_ASSERT_NO_SND_TAG(m0);
 		m_clrprotoflags(m0);
 		m_tag_delete_chain(m0, NULL);
 		/*
