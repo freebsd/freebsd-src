@@ -10,6 +10,20 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#if defined(__aarch64__)
+#include <machine/armreg.h>
+#define	SET_TRACE_FLAG(ucp)	(ucp)->uc_mcontext.mc_gpregs.gp_spsr |= PSR_SS
+#define	CLR_TRACE_FLAG(ucp)	(ucp)->uc_mcontext.mc_gpregs.gp_spsr &= ~PSR_SS
+#elif defined(__amd64__)
+#include <machine/psl.h>
+#define	SET_TRACE_FLAG(ucp)	(ucp)->uc_mcontext.mc_rflags |= PSL_T
+#define	CLR_TRACE_FLAG(ucp)	(ucp)->uc_mcontext.mc_rflags &= ~PSL_T
+#elif defined(__i386__)
+#include <machine/psl.h>
+#define	SET_TRACE_FLAG(ucp)	(ucp)->uc_mcontext.mc_eflags |= PSL_T
+#define	CLR_TRACE_FLAG(ucp)	(ucp)->uc_mcontext.mc_eflags &= ~PSL_T
+#endif
+
 static volatile sig_atomic_t signal_fired = 0;
 
 static void
@@ -61,6 +75,55 @@ ATF_TC_BODY(signal_test, tc)
 	ATF_REQUIRE(errno == EINTR);
 	ATF_CHECK(signal_fired == 3);
 }
+
+/*
+ * Check setting the machine dependent single step flag works when supported.
+ */
+#ifdef SET_TRACE_FLAG
+static volatile sig_atomic_t trap_signal_fired = 0;
+
+static void
+trap_sig_handler(int signo, siginfo_t *info __unused, void *_ucp)
+{
+	ucontext_t *ucp = _ucp;
+
+	if (trap_signal_fired < 9) {
+		SET_TRACE_FLAG(ucp);
+	} else {
+		CLR_TRACE_FLAG(ucp);
+	}
+	trap_signal_fired++;
+}
+
+ATF_TC(trap_signal_test);
+
+ATF_TC_HEAD(trap_signal_test, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr",
+	    "Testing signal handler setting the MD single step flag");
+}
+
+ATF_TC_BODY(trap_signal_test, tc)
+{
+	/*
+	 * Setup the signal handlers
+	 */
+	struct sigaction sa = {
+		.sa_sigaction = trap_sig_handler,
+		.sa_flags = SA_SIGINFO,
+	};
+	ATF_REQUIRE(sigemptyset(&sa.sa_mask) == 0);
+	ATF_REQUIRE(sigaction(SIGTRAP, &sa, NULL) == 0);
+
+	/*
+	 * Fire SIGTRAP
+	 */
+	ATF_CHECK(trap_signal_fired == 0);
+	ATF_REQUIRE(raise(SIGTRAP) == 0);
+	ATF_CHECK(trap_signal_fired == 10);
+}
+#endif
 
 /*
  * Special tests for 32-bit arm. We can call thumb code (really just t32) from
@@ -150,6 +213,9 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, signal_test);
+#ifdef SET_TRACE_FLAG
+	ATF_TP_ADD_TC(tp, trap_signal_test);
+#endif
 #ifdef __arm__
 	ATF_TP_ADD_TC(tp, signal_test_T32_to_A32);
 	ATF_TP_ADD_TC(tp, signal_test_A32_to_T32);
