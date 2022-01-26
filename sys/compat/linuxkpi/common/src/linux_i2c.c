@@ -127,6 +127,7 @@ driver_t lkpi_iic_driver = {
 
 DRIVER_MODULE(lkpi_iic, drmn, lkpi_iic_driver, lkpi_iic_devclass, 0, 0);
 DRIVER_MODULE(iicbus, lkpi_iic, iicbus_driver, iicbus_devclass, 0, 0);
+MODULE_DEPEND(linuxkpi, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 
 static int
 lkpi_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
