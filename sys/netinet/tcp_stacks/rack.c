@@ -5073,7 +5073,7 @@ rack_cc_after_idle(struct tcp_rack *rack, struct tcpcb *tp)
 		i_cwnd = rc_init_window(rack);
 
 	/*
-	 * Being idle is no differnt than the initial window. If the cc
+	 * Being idle is no different than the initial window. If the cc
 	 * clamps it down below the initial window raise it to the initial
 	 * window.
 	 */

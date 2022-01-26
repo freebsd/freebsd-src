@@ -1098,7 +1098,7 @@ int32_t bbr_clear_lost = 0;
  * If cts is smaller than earlier, we could have
  * had a sequence wrap (our counter wraps every
  * 70 min or so) or it could be just clock skew
- * getting us two differnt time values. Clock skew
+ * getting us two different time values. Clock skew
  * will show up within 10ms or so. So in such
  * a case (where cts is behind earlier time by
  * less than 10ms) we return 0. Otherwise we
