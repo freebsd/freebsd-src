@@ -1278,7 +1278,7 @@ for COMPSYMLINK in `find . -type l | sort`; do
       continue
     else
       echo ''
-      echo " *** Target of temp symbolic link is differnt from that of installed one"
+      echo " *** Target of temp symbolic link is different from that of installed one"
       echo "     Temp (${COMPSYMLINK}): $(readlink ${COMPSYMLINK})"
       echo "     Installed (${DESTDIR}${COMPSYMLINK#.})): $(readlink ${DESTDIR}${COMPSYMLINK#.})"
       echo ''
