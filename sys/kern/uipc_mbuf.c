@@ -253,6 +253,7 @@ m_demote_pkthdr(struct mbuf *m)
 {
 
 	M_ASSERTPKTHDR(m);
+	M_ASSERT_NO_SND_TAG(m);
 
 	m_tag_delete_chain(m, NULL);
 	m->m_flags &= ~M_PKTHDR;

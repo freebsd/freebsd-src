@@ -1109,6 +1109,12 @@ m_extrefcnt(struct mbuf *m)
 	KASSERT((m) != NULL && (m)->m_flags & M_PKTHDR,			\
 	    ("%s: no mbuf packet header!", __func__))
 
+/* Check if the supplied mbuf has no send tag, or else panic. */
+#define	M_ASSERT_NO_SND_TAG(m)						\
+	KASSERT((m) == NULL || ((m)->m_flags & M_PKTHDR) == 0 ||	\
+	       ((m)->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0,		\
+	    ("%s: receive mbuf has send tag!", __func__))
+
 /* Check if mbuf is multipage. */
 #define M_ASSERTEXTPG(m)						\
 	KASSERT(((m)->m_flags & (M_EXTPG|M_PKTHDR)) == M_EXTPG,		\
