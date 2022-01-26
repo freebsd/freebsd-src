@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 .macro clear_step_flag pcbflags, tmp
 	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
 	mrs	\tmp, mdscr_el1
-	bic	\tmp, \tmp, #1
+	bic	\tmp, \tmp, #MDSCR_SS
 	msr	mdscr_el1, \tmp
 	isb
 999:
@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 .macro set_step_flag pcbflags, tmp
 	tbz	\pcbflags, #PCB_SINGLE_STEP_SHIFT, 999f
 	mrs	\tmp, mdscr_el1
-	orr	\tmp, \tmp, #1
+	orr	\tmp, \tmp, #MDSCR_SS
 	msr	mdscr_el1, \tmp
 	isb
 999:
