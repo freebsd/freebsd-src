@@ -191,7 +191,7 @@ static int32_t bbr_hptsi_max_div = 2;	/* time, 0 means turned off. We need this
 static int32_t bbr_policer_call_from_rack_to = 0;
 static int32_t bbr_policer_detection_enabled = 1;
 static int32_t bbr_min_measurements_req = 1;	/* We need at least 2
-						 * measurement before we are
+						 * measurements before we are
 						 * "good" note that 2 == 1.
 						 * This is because we use a >
 						 * comparison. This means if
@@ -6462,7 +6462,7 @@ tcp_bbr_commit_bw(struct tcp_bbr *bbr, uint32_t cts)
 	uint64_t orig_bw;
 
 	if (bbr->r_ctl.rc_bbr_cur_del_rate == 0) {
-		/* We never apply a zero measurment */
+		/* We never apply a zero measurement */
 		bbr_log_type_bbrupd(bbr, 20, cts, 0, 0,
 				    0, 0, 0, 0, 0, 0);
 		return;
@@ -11059,7 +11059,7 @@ bbr_state_startup(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_
 	    (bbr->r_ctl.rc_lost_at_startup == bbr->r_ctl.rc_lost) &&
 	    (!IN_RECOVERY(bbr->rc_tp->t_flags))) {
 		/*
-		 * We only assess if we have a new measurment when
+		 * We only assess if we have a new measurement when
 		 * we have no loss and are not in recovery.
 		 * Drag up by one our last_startup epoch so we will hold
 		 * the number of non-gain we have already accumulated.
