@@ -52,7 +52,7 @@ fi
 : ${sort:=sort}
 
 
-sortopt="-u -T $TMPDIR"
+sortopt="-u -T $TMPDIR -S 20%"
 sortcmd=$sort
 
 
