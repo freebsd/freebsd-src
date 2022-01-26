@@ -508,11 +508,9 @@ devfs_allocv_drop_refs(int drop_dm_lock, struct devfs_mount *dmp,
 }
 
 static void
-devfs_insmntque_dtr(struct vnode *vp, void *arg)
+devfs_insmntque_dtr(struct vnode *vp, struct devfs_dirent *de)
 {
-	struct devfs_dirent *de;
 
-	de = (struct devfs_dirent *)arg;
 	mtx_lock(&devfs_de_interlock);
 	vp->v_data = NULL;
 	de->de_vnode = NULL;
@@ -617,8 +615,9 @@ loop:
 	vp->v_data = de;
 	de->de_vnode = vp;
 	mtx_unlock(&devfs_de_interlock);
-	error = insmntque1(vp, mp, devfs_insmntque_dtr, de);
+	error = insmntque(vp, mp);
 	if (error != 0) {
+		devfs_insmntque_dtr(vp, de);
 		(void) devfs_allocv_drop_refs(1, dmp, de);
 		return (error);
 	}
@@ -681,7 +680,7 @@ devfs_close(struct vop_close_args *ap)
 
 	/*
 	 * XXX: Don't call d_close() if we were called because of
-	 * XXX: insmntque1() failure.
+	 * XXX: insmntque() failure.
 	 */
 	if (vp->v_data == NULL)
 		return (0);
