@@ -353,7 +353,7 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, mtxpoolsize, CTLFLAG_RDTUN,
  */
 
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, threadfreelist_entries, CTLFLAG_RD,
-    &pmc_threadfreelist_entries, 0, "number of avalable thread entries");
+    &pmc_threadfreelist_entries, 0, "number of available thread entries");
 
 
 /*
