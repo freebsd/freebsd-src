@@ -1315,6 +1315,9 @@
 #define	PSR_Z		0x40000000
 #define	PSR_N		0x80000000
 #define	PSR_FLAGS	0xf0000000
+/* PSR fields that can be set from 32-bit and 64-bit processes */
+#define	PSR_SETTABLE_32	PSR_FLAGS
+#define	PSR_SETTABLE_64	(PSR_FLAGS | PSR_SS)
 
 /* TCR_EL1 - Translation Control Register */
 /* Bits 63:59 are reserved */
