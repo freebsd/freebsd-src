@@ -37,7 +37,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/kdb.h>
-#include <sys/proc.h>
 
 #include <linux/compiler.h>
 #include <linux/rwlock.h>
@@ -118,32 +117,14 @@ typedef struct {
 	local_bh_disable();			\
 } while (0)
 
-#define	__spin_trylock_nested(_l, _n) ({		\
-	int __ret;					\
-	if (SPIN_SKIP()) {				\
-		__ret = 1;				\
-	} else {					\
-		__ret = mtx_trylock_flags(&(_l)->m, MTX_DUPOK);	\
-		if (likely(__ret != 0))			\
-			local_bh_disable();		\
-	}						\
-	__ret;						\
-})
-
-#define	spin_lock_irqsave(_l, flags) do {		\
-	(flags) = 0;					\
-	if (unlikely(curthread->td_critnest != 0))	\
-		while (!spin_trylock(_l)) {}		\
-	else						\
-		spin_lock(_l);				\
+#define	spin_lock_irqsave(_l, flags) do {	\
+	(flags) = 0;				\
+	spin_lock(_l);				\
 } while (0)
 
 #define	spin_lock_irqsave_nested(_l, flags, _n) do {	\
 	(flags) = 0;					\
-	if (unlikely(curthread->td_critnest != 0))	\
-		while (!__spin_trylock_nested(_l, _n)) {}	\
-	else						\
-		spin_lock_nested(_l, _n);		\
+	spin_lock_nested(_l, _n);			\
 } while (0)
 
 #define	spin_unlock_irqrestore(_l, flags) do {		\
