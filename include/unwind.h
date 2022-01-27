@@ -124,7 +124,7 @@ extern unsigned long _Unwind_GetBSP (struct _Unwind_Context *);
 
 /* Return the "canonical frame address" for the given context.
    This is used by NPTL... */
-extern unsigned long _Unwind_GetCFA (struct _Unwind_Context *);
+extern uintptr_t _Unwind_GetCFA (struct _Unwind_Context *);
 
 /* Return the base-address for data references.  */
 extern unsigned long _Unwind_GetDataRelBase (struct _Unwind_Context *);
