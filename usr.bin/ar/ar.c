@@ -330,7 +330,7 @@ main(int argc, char **argv)
 		exitcode = ar_write_archive(bsdar, bsdar->mode);
 		break;
 	case 'p': case 't': case 'x':
-		exitcode = ar_read_archive(bsdar, bsdar->mode);
+		exitcode = ar_read_archive(bsdar, bsdar->mode, stdout);
 		break;
 	default:
 		bsdar_usage();

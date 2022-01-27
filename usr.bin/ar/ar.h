@@ -115,7 +115,7 @@ struct bsdar {
 };
 
 void	ar_mode_script(struct bsdar *ar);
-int	ar_read_archive(struct bsdar *ar, int mode);
+int	ar_read_archive(struct bsdar *ar, int mode, FILE *out);
 int	ar_write_archive(struct bsdar *ar, int mode);
 void	bsdar_errc(struct bsdar *, int _code, const char *fmt, ...) __dead2;
 void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
