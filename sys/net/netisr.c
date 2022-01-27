@@ -700,9 +700,11 @@ netisr_register_vnet(const struct netisr_handler *nhp)
 static void
 netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 {
+	struct epoch_tracker et;
 	struct netisr_workstream *nwsp;
 	struct netisr_work *npwp;
 	struct mbuf *m, *mp, *n, *ne;
+	struct ifnet *ifp;
 	u_int i;
 
 	KASSERT(vnet != NULL, ("%s: vnet is NULL", __func__));
@@ -723,11 +725,14 @@ netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 		 */
 		m = npwp->nw_head;
 		n = ne = NULL;
+		NET_EPOCH_ENTER(et);
 		while (m != NULL) {
 			mp = m;
 			m = m->m_nextpkt;
 			mp->m_nextpkt = NULL;
-			if (mp->m_pkthdr.rcvif->if_vnet != vnet) {
+			if ((ifp = ifnet_byindexgen(mp->m_pkthdr.rcvidx,
+			    mp->m_pkthdr.rcvgen)) != NULL &&
+			    ifp->if_vnet != vnet) {
 				if (n == NULL) {
 					n = ne = mp;
 				} else {
@@ -736,10 +741,12 @@ netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
 				}
 				continue;
 			}
-			/* This is a packet in the selected vnet. Free it. */
+			/* This is a packet in the selected vnet, or belongs
+			   to destroyed interface. Free it. */
 			npwp->nw_len--;
 			m_freem(mp);
 		}
+		NET_EPOCH_EXIT(et);
 		npwp->nw_head = n;
 		npwp->nw_tail = ne;
 		NWS_UNLOCK(nwsp);
@@ -913,8 +920,10 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 		if (local_npw.nw_head == NULL)
 			local_npw.nw_tail = NULL;
 		local_npw.nw_len--;
-		VNET_ASSERT(m->m_pkthdr.rcvif != NULL,
-		    ("%s:%d rcvif == NULL: m=%p", __func__, __LINE__, m));
+		if (__predict_false(m_rcvif_restore(m) == NULL)) {
+			m_freem(m);
+			continue;
+		}
 		CURVNET_SET(m->m_pkthdr.rcvif->if_vnet);
 		netisr_proto[proto].np_handler(m);
 		CURVNET_RESTORE();
@@ -986,6 +995,7 @@ netisr_queue_workstream(struct netisr_workstream *nwsp, u_int proto,
 
 	*dosignalp = 0;
 	if (npwp->nw_len < npwp->nw_qlimit) {
+		m_rcvif_serialize(m);
 		m->m_nextpkt = NULL;
 		if (npwp->nw_head == NULL) {
 			npwp->nw_head = m;
