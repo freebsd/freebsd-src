@@ -581,7 +581,7 @@ fqpie_callout_cleanup(void *x)
 	mtx_destroy(&pst->lock_mtx);
 	psi_extra = q->psi_extra;
 
-	DN_BH_WLOCK();
+	dummynet_sched_lock();
 	psi_extra->nr_active_q--;
 
 	/* when all sub-queues are destroyed, free flows fq_pie extra vars memory */
@@ -590,7 +590,7 @@ fqpie_callout_cleanup(void *x)
 		free(psi_extra, M_DUMMYNET);
 		fq_pie_desc.ref_count--;
 	}
-	DN_BH_WUNLOCK();
+	dummynet_sched_unlock();
 }
 
 /* 
@@ -1061,7 +1061,9 @@ fq_pie_new_sched(struct dn_sch_inst *_si)
 		pie_init(&flows[i], schk);
 	}
 
+	dummynet_sched_lock();
 	fq_pie_desc.ref_count++;
+	dummynet_sched_unlock();
 
 	return 0;
 }

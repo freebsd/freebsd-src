@@ -399,6 +399,8 @@ VNET_DECLARE(struct dn_parms, dn_cfg);
 #define V_dn_cfg	VNET(dn_cfg)
 
 int dummynet_io(struct mbuf **, struct ip_fw_args *);
+void dummynet_sched_lock(void);
+void dummynet_sched_unlock(void);
 void dummynet_task(void *context, int pending);
 void dn_reschedule(void);
 struct dn_pkt_tag * dn_tag_get(struct mbuf *m);
