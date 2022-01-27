@@ -2356,10 +2356,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     objtmp.dynamic = rtld_dynamic(&objtmp);
     digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
     assert(objtmp.needed == NULL);
-#if !defined(__mips__)
-    /* MIPS has a bogus DT_TEXTREL. */
-    assert(!objtmp.textrel);
-#endif
+    assert(objtmp.textrel == NULL);
     /*
      * Temporarily put the dynamic linker entry into the object list, so
      * that symbols can be found.
@@ -4736,11 +4733,9 @@ matched_symbol(SymLook *req, const Obj_Entry *obj, Sym_Match_Result *result,
 	case STT_TLS:
 		if (symp->st_shndx != SHN_UNDEF)
 			break;
-#ifndef __mips__
 		else if (((req->flags & SYMLOOK_IN_PLT) == 0) &&
 		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC))
 			break;
-#endif
 		/* fallthrough */
 	default:
 		return (false);
