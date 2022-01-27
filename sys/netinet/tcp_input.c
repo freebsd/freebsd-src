@@ -1648,9 +1648,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		to.to_tsecr -= tp->ts_offset;
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
-		else if (tp->t_flags & TF_PREVVALID &&
-			 tp->t_rxtshift == 1 &&
-			 tp->t_badrxtwin != 0 && SEQ_LT(to.to_tsecr, tp->t_badrxtwin))
+		else if (tp->t_rxtshift == 1 &&
+			 tp->t_flags & TF_PREVVALID &&
+			 tp->t_badrxtwin != 0 &&
+			 TSTMP_LT(to.to_tsecr, tp->t_badrxtwin))
 			cc_cong_signal(tp, th, CC_RTO_ERR);
 	}
 	/*
@@ -1807,7 +1808,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				if ((to.to_flags & TOF_TS) == 0 &&
 				    tp->t_rxtshift == 1 &&
 				    tp->t_flags & TF_PREVVALID &&
-				    (int)(ticks - tp->t_badrxtwin) < 0) {
+				    tp->t_badrxtwin != 0 &&
+				    TSTMP_LT(ticks, tp->t_badrxtwin)) {
 					cc_cong_signal(tp, th, CC_RTO_ERR);
 				}
 
@@ -2884,8 +2886,10 @@ process_ACK:
 		 */
 		if (tp->t_rxtshift == 1 &&
 		    tp->t_flags & TF_PREVVALID &&
-		    tp->t_badrxtwin &&
-		    SEQ_LT(to.to_tsecr, tp->t_badrxtwin))
+		    tp->t_badrxtwin != 0 &&
+		    to.to_flags & TOF_TS &&
+		    to.to_tsecr != 0 &&
+		    TSTMP_LT(to.to_tsecr, tp->t_badrxtwin))
 			cc_cong_signal(tp, th, CC_RTO_ERR);
 
 		/*
