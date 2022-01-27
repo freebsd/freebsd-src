@@ -2169,14 +2169,12 @@ rt_dispatch(struct mbuf *m, sa_family_t saf)
 		*(unsigned short *)(tag + 1) = saf;
 		m_tag_prepend(m, tag);
 	}
-#ifdef VIMAGE
 	if (V_loif)
 		m->m_pkthdr.rcvif = V_loif;
 	else {
 		m_freem(m);
 		return;
 	}
-#endif
 	netisr_queue(NETISR_ROUTE, m);	/* mbuf is free'd on failure. */
 }
 
