@@ -1481,7 +1481,7 @@ finish_hs_tests:
 	/* MMC partitions support */
 	if (mmcp->card_features & CARD_FEATURE_MMC && mmc_get_spec_vers(periph) >= 4) {
 		sdda_process_mmc_partitions(periph, start_ccb);
-	} else if (mmcp->card_features & CARD_FEATURE_SD20) {
+	} else if (mmcp->card_features & CARD_FEATURE_MEMORY) {
 		/* For SD[HC] cards, just add one partition that is the whole card */
 		if (sdda_add_part(periph, 0, "sdda",
 		    periph->unit_number,
