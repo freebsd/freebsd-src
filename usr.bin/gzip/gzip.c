@@ -1655,10 +1655,13 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	case FT_XZ:
 		if (lflag) {
 			size = unxz_len(fd);
-			print_list_out(in_size, size, file);
-			return -1;
-		}
-		size = unxz(fd, zfd, NULL, 0, NULL);
+			if (!tflag) {
+				print_list_out(in_size, size, file);
+				close(fd);
+				return -1;
+			}
+		} else
+			size = unxz(fd, zfd, NULL, 0, NULL);
 		break;
 #endif
 
@@ -1683,8 +1686,10 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 	default:
 		if (lflag) {
 			print_list(fd, in_size, outfile, isb.st_mtime);
-			close(fd);
-			return -1;	/* XXX */
+			if (!tflag) {
+				close(fd);
+				return -1;	/* XXX */
+			}
 		}
 
 		size = gz_uncompress(fd, zfd, NULL, 0, NULL, file);
