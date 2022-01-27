@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
@@ -91,7 +92,7 @@ volatile sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
-static int copy(char *[], enum op, int);
+static int copy(char *[], enum op, int, struct stat *);
 static void siginfo(int __unused);
 
 int
@@ -259,18 +260,26 @@ main(int argc, char *argv[])
 		 */
 		type = FILE_TO_DIR;
 
-	exit (copy(argv, type, fts_options));
+	/*
+	 * For DIR_TO_DNE, we could provide copy() with the to_stat we've
+	 * already allocated on the stack here that isn't being used for
+	 * anything.  Not doing so, though, simplifies later logic a little bit
+	 * as we need to skip checking root_stat on the first iteration and
+	 * ensure that we set it with the first mkdir().
+	 */
+	exit (copy(argv, type, fts_options, (type == DIR_TO_DNE ? NULL :
+	    &to_stat)));
 }
 
 static int
-copy(char *argv[], enum op type, int fts_options)
+copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 {
-	struct stat to_stat;
+	struct stat created_root_stat, to_stat;
 	FTS *ftsp;
 	FTSENT *curr;
 	int base = 0, dne, badcp, rval;
 	size_t nlen;
-	char *p, *target_mid;
+	char *p, *recurse_path, *target_mid;
 	mode_t mask, mode;
 
 	/*
@@ -280,6 +289,7 @@ copy(char *argv[], enum op type, int fts_options)
 	mask = ~umask(0777);
 	umask(~mask);
 
+	recurse_path = NULL;
 	if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL)
 		err(1, "fts_open");
 	for (badcp = rval = 0; errno = 0, (curr = fts_read(ftsp)) != NULL;
@@ -298,6 +308,47 @@ copy(char *argv[], enum op type, int fts_options)
 			continue;
 		default:
 			;
+		}
+
+		if (curr->fts_info == FTS_D && type != FILE_TO_FILE &&
+		    root_stat != NULL &&
+		    root_stat->st_dev == curr->fts_statp->st_dev &&
+		    root_stat->st_ino == curr->fts_statp->st_ino) {
+			assert(recurse_path == NULL);
+			if (curr->fts_level > FTS_ROOTLEVEL) {
+				/*
+				 * If the recursion isn't at the immediate
+				 * level, we can just not traverse into this
+				 * directory.
+				 */
+				fts_set(ftsp, curr, FTS_SKIP);
+				continue;
+			} else {
+				const char *slash;
+
+				/*
+				 * Grab the last path component and double it,
+				 * to make life easier later and ensure that
+				 * we work even with fts_level == 0 is a couple
+				 * of components deep in fts_path.  No path
+				 * separators are fine and expected in the
+				 * common case, though.
+				 */
+				slash = strrchr(curr->fts_path, '/');
+				if (slash != NULL)
+					slash++;
+				else
+					slash = curr->fts_path;
+				if (asprintf(&recurse_path, "%s/%s",
+				    curr->fts_path, slash) == -1)
+					err(1, "asprintf");
+			}
+		}
+
+		if (recurse_path != NULL &&
+		    strcmp(curr->fts_path, recurse_path) == 0) {
+			fts_set(ftsp, curr, FTS_SKIP);
+			continue;
 		}
 
 		/*
@@ -448,6 +499,19 @@ copy(char *argv[], enum op type, int fts_options)
 				if (mkdir(to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
 					err(1, "%s", to.p_path);
+				/*
+				 * First DNE with a NULL root_stat is the root
+				 * path, so set root_stat.  We can't really
+				 * tell in all cases if the target path is
+				 * within the src path, so we just stat() the
+				 * first directory we created and use that.
+				 */
+				if (root_stat == NULL &&
+				    stat(to.p_path, &created_root_stat) == -1) {
+					err(1, "stat");
+				} else if (root_stat == NULL) {
+					root_stat = &created_root_stat;
+				}
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
 				err(1, "%s", to.p_path);
@@ -493,6 +557,7 @@ copy(char *argv[], enum op type, int fts_options)
 	if (errno)
 		err(1, "fts_read");
 	fts_close(ftsp);
+	free(recurse_path);
 	return (rval);
 }
 
