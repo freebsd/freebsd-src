@@ -1035,9 +1035,19 @@ g_mirror_regular_request(struct g_mirror_softc *sc, struct bio *bp)
 	case BIO_READ:
 		if (pbp->bio_inbed < pbp->bio_children)
 			break;
-		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 1)
+
+		/*
+		 * If there is only one active disk we want to double-check that
+		 * it is, in fact, the disk that we already tried.  This is
+		 * necessary because we might have just lost a race with a
+		 * removal of the tried disk (likely because of the same error)
+		 * and the only remaining disk is still viable for a retry.
+		 */
+		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 1 &&
+		    disk != NULL &&
+		    disk->d_state == G_MIRROR_DISK_STATE_ACTIVE) {
 			g_io_deliver(pbp, pbp->bio_error);
-		else {
+		} else {
 			pbp->bio_error = 0;
 			mtx_lock(&sc->sc_queue_mtx);
 			TAILQ_INSERT_TAIL(&sc->sc_queue, pbp, bio_queue);
