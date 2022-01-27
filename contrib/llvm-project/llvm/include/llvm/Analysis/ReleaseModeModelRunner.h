@@ -10,6 +10,10 @@
 // Only inference is supported.
 //
 //===----------------------------------------------------------------------===//
+
+#ifndef LLVM_ANALYSIS_RELEASEMODEMODELRUNNER_H
+#define LLVM_ANALYSIS_RELEASEMODEMODELRUNNER_H
+
 #include "llvm/Analysis/MLModelRunner.h"
 
 #include <memory>
@@ -29,7 +33,8 @@ public:
   ReleaseModeModelRunner(LLVMContext &Ctx, const FType &FeatureNames,
                          StringRef DecisionName, StringRef FeedPrefix = "feed_",
                          StringRef FetchPrefix = "fetch_")
-      : MLModelRunner(Ctx), CompiledModel(std::make_unique<TGen>()) {
+      : MLModelRunner(Ctx, MLModelRunner::Kind::Release),
+        CompiledModel(std::make_unique<TGen>()) {
     assert(CompiledModel && "The CompiledModel should be valid");
 
     const size_t FeatureCount = FeatureNames.size();
@@ -49,6 +54,10 @@ public:
 
   virtual ~ReleaseModeModelRunner() = default;
 
+  static bool classof(const MLModelRunner *R) {
+    return R->getKind() == MLModelRunner::Kind::Release;
+  }
+
 private:
   void *evaluateUntyped() override {
     CompiledModel->Run();
@@ -65,3 +74,5 @@ private:
   std::unique_ptr<TGen> CompiledModel;
 };
 } // namespace llvm
+
+#endif // LLVM_ANALYSIS_RELEASEMODEMODELRUNNER_H

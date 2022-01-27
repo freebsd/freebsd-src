@@ -626,7 +626,8 @@ bool RegBankSelect::assignInstr(MachineInstr &MI) {
   unsigned Opc = MI.getOpcode();
   if (isPreISelGenericOptimizationHint(Opc)) {
     assert((Opc == TargetOpcode::G_ASSERT_ZEXT ||
-            Opc == TargetOpcode::G_ASSERT_SEXT) &&
+            Opc == TargetOpcode::G_ASSERT_SEXT ||
+            Opc == TargetOpcode::G_ASSERT_ALIGN) &&
            "Unexpected hint opcode!");
     // The only correct mapping for these is to always use the source register
     // bank.
@@ -856,7 +857,7 @@ void RegBankSelect::RepairingPlacement::addInsertPoint(
 
 RegBankSelect::InstrInsertPoint::InstrInsertPoint(MachineInstr &Instr,
                                                   bool Before)
-    : InsertPoint(), Instr(Instr), Before(Before) {
+    : Instr(Instr), Before(Before) {
   // Since we do not support splitting, we do not need to update
   // liveness and such, so do not do anything with P.
   assert((!Before || !Instr.isPHI()) &&

@@ -116,10 +116,6 @@ def warn_drv_unsupported_option_for_target : Warning<
   "ignoring '%0' option as it is not currently supported for target '%1'">,
   InGroup<OptionIgnored>;
 
-def warn_drv_spirv_linking_multiple_inputs_unsupported: Warning<
-  "Linking multiple input files is not supported for SPIR-V yet">,
-  InGroup<OptionIgnored>;
-
 def err_drv_invalid_thread_model_for_target : Error<
   "invalid thread model '%0' in '%1' for this target">;
 def err_drv_invalid_linker_name : Error<
@@ -384,6 +380,9 @@ def warn_drv_deprecated_arg : Warning<
   "argument '%0' is deprecated, use '%1' instead">, InGroup<Deprecated>;
 def warn_drv_assuming_mfloat_abi_is : Warning<
   "unknown platform, assuming -mfloat-abi=%0">;
+def warn_drv_unsupported_float_abi_by_lib : Warning<
+  "float ABI '%0' is not supported by current library">,
+  InGroup<DiagGroup<"unsupported-abi">>;
 def warn_ignoring_ftabstop_value : Warning<
   "ignoring invalid -ftabstop value '%0', using default value %1">;
 def warn_drv_overriding_flag_option : Warning<

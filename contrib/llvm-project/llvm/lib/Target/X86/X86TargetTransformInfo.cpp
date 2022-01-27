@@ -43,6 +43,7 @@
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Support/Debug.h"
 
@@ -3429,6 +3430,20 @@ X86TTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
   if (ICA.isTypeBasedOnly())
     return getTypeBasedIntrinsicInstrCost(ICA, CostKind);
 
+  static const CostTblEntry AVX512BWCostTbl[] = {
+    { ISD::ROTL,       MVT::v32i16,  2 },
+    { ISD::ROTL,       MVT::v16i16,  2 },
+    { ISD::ROTL,       MVT::v8i16,   2 },
+    { ISD::ROTL,       MVT::v64i8,   5 },
+    { ISD::ROTL,       MVT::v32i8,   5 },
+    { ISD::ROTL,       MVT::v16i8,   5 },
+    { ISD::ROTR,       MVT::v32i16,  2 },
+    { ISD::ROTR,       MVT::v16i16,  2 },
+    { ISD::ROTR,       MVT::v8i16,   2 },
+    { ISD::ROTR,       MVT::v64i8,   5 },
+    { ISD::ROTR,       MVT::v32i8,   5 },
+    { ISD::ROTR,       MVT::v16i8,   5 }
+  };
   static const CostTblEntry AVX512CostTbl[] = {
     { ISD::ROTL,       MVT::v8i64,   1 },
     { ISD::ROTL,       MVT::v4i64,   1 },
@@ -3506,6 +3521,10 @@ X86TTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
     MVT MTy = LT.second;
 
     // Attempt to lookup cost.
+    if (ST->hasBWI())
+      if (const auto *Entry = CostTableLookup(AVX512BWCostTbl, ISD, MTy))
+        return LT.first * Entry->Cost;
+
     if (ST->hasAVX512())
       if (const auto *Entry = CostTableLookup(AVX512CostTbl, ISD, MTy))
         return LT.first * Entry->Cost;
@@ -4976,9 +4995,13 @@ InstructionCost X86TTIImpl::getGatherScatterOpCost(
     const Instruction *I = nullptr) {
   if (CostKind != TTI::TCK_RecipThroughput) {
     if ((Opcode == Instruction::Load &&
-         isLegalMaskedGather(SrcVTy, Align(Alignment))) ||
+         isLegalMaskedGather(SrcVTy, Align(Alignment)) &&
+         !forceScalarizeMaskedGather(cast<VectorType>(SrcVTy),
+                                     Align(Alignment))) ||
         (Opcode == Instruction::Store &&
-         isLegalMaskedScatter(SrcVTy, Align(Alignment))))
+         isLegalMaskedScatter(SrcVTy, Align(Alignment)) &&
+         !forceScalarizeMaskedScatter(cast<VectorType>(SrcVTy),
+                                      Align(Alignment))))
       return 1;
     return BaseT::getGatherScatterOpCost(Opcode, SrcVTy, Ptr, VariableMask,
                                          Alignment, CostKind, I);
@@ -4993,9 +5016,13 @@ InstructionCost X86TTIImpl::getGatherScatterOpCost(
   unsigned AddressSpace = PtrTy->getAddressSpace();
 
   if ((Opcode == Instruction::Load &&
-       !isLegalMaskedGather(SrcVTy, Align(Alignment))) ||
+       (!isLegalMaskedGather(SrcVTy, Align(Alignment)) ||
+        forceScalarizeMaskedGather(cast<VectorType>(SrcVTy),
+                                   Align(Alignment)))) ||
       (Opcode == Instruction::Store &&
-       !isLegalMaskedScatter(SrcVTy, Align(Alignment))))
+       (!isLegalMaskedScatter(SrcVTy, Align(Alignment)) ||
+        forceScalarizeMaskedScatter(cast<VectorType>(SrcVTy),
+                                    Align(Alignment)))))
     return getGSScalarCost(Opcode, SrcVTy, VariableMask, Alignment,
                            AddressSpace);
 
@@ -5118,35 +5145,21 @@ bool X86TTIImpl::supportsGather() const {
   return ST->hasAVX512() || (ST->hasFastGather() && ST->hasAVX2());
 }
 
+bool X86TTIImpl::forceScalarizeMaskedGather(VectorType *VTy, Align Alignment) {
+  // Gather / Scatter for vector 2 is not profitable on KNL / SKX
+  // Vector-4 of gather/scatter instruction does not exist on KNL. We can extend
+  // it to 8 elements, but zeroing upper bits of the mask vector will add more
+  // instructions. Right now we give the scalar cost of vector-4 for KNL. TODO:
+  // Check, maybe the gather/scatter instruction is better in the VariableMask
+  // case.
+  unsigned NumElts = cast<FixedVectorType>(VTy)->getNumElements();
+  return NumElts == 1 ||
+         (ST->hasAVX512() && (NumElts == 2 || (NumElts == 4 && !ST->hasVLX())));
+}
+
 bool X86TTIImpl::isLegalMaskedGather(Type *DataTy, Align Alignment) {
   if (!supportsGather())
     return false;
-
-  // This function is called now in two cases: from the Loop Vectorizer
-  // and from the Scalarizer.
-  // When the Loop Vectorizer asks about legality of the feature,
-  // the vectorization factor is not calculated yet. The Loop Vectorizer
-  // sends a scalar type and the decision is based on the width of the
-  // scalar element.
-  // Later on, the cost model will estimate usage this intrinsic based on
-  // the vector type.
-  // The Scalarizer asks again about legality. It sends a vector type.
-  // In this case we can reject non-power-of-2 vectors.
-  // We also reject single element vectors as the type legalizer can't
-  // scalarize it.
-  if (auto *DataVTy = dyn_cast<FixedVectorType>(DataTy)) {
-    unsigned NumElts = DataVTy->getNumElements();
-    if (NumElts == 1)
-      return false;
-    // Gather / Scatter for vector 2 is not profitable on KNL / SKX
-    // Vector-4 of gather/scatter instruction does not exist on KNL.
-    // We can extend it to 8 elements, but zeroing upper bits of
-    // the mask vector will add more instructions. Right now we give the scalar
-    // cost of vector-4 for KNL. TODO: Check, maybe the gather/scatter
-    // instruction is better in the VariableMask case.
-    if (ST->hasAVX512() && (NumElts == 2 || (NumElts == 4 && !ST->hasVLX())))
-      return false;
-  }
   Type *ScalarTy = DataTy->getScalarType();
   if (ScalarTy->isPointerTy())
     return true;
@@ -5187,9 +5200,48 @@ bool X86TTIImpl::areInlineCompatible(const Function *Caller,
   const FeatureBitset &CalleeBits =
       TM.getSubtargetImpl(*Callee)->getFeatureBits();
 
+  // Check whether features are the same (apart from the ignore list).
   FeatureBitset RealCallerBits = CallerBits & ~InlineFeatureIgnoreList;
   FeatureBitset RealCalleeBits = CalleeBits & ~InlineFeatureIgnoreList;
-  return (RealCallerBits & RealCalleeBits) == RealCalleeBits;
+  if (RealCallerBits == RealCalleeBits)
+    return true;
+
+  // If the features are a subset, we need to additionally check for calls
+  // that may become ABI-incompatible as a result of inlining.
+  if ((RealCallerBits & RealCalleeBits) != RealCalleeBits)
+    return false;
+
+  for (const Instruction &I : instructions(Callee)) {
+    if (const auto *CB = dyn_cast<CallBase>(&I)) {
+      SmallVector<Type *, 8> Types;
+      for (Value *Arg : CB->args())
+        Types.push_back(Arg->getType());
+      if (!CB->getType()->isVoidTy())
+        Types.push_back(CB->getType());
+
+      // Simple types are always ABI compatible.
+      auto IsSimpleTy = [](Type *Ty) {
+        return !Ty->isVectorTy() && !Ty->isAggregateType();
+      };
+      if (all_of(Types, IsSimpleTy))
+        continue;
+
+      if (Function *NestedCallee = CB->getCalledFunction()) {
+        // Assume that intrinsics are always ABI compatible.
+        if (NestedCallee->isIntrinsic())
+          continue;
+
+        // Do a precise compatibility check.
+        if (!areTypesABICompatible(Caller, NestedCallee, Types))
+          return false;
+      } else {
+        // We don't know the target features of the callee,
+        // assume it is incompatible.
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 bool X86TTIImpl::areTypesABICompatible(const Function *Caller,

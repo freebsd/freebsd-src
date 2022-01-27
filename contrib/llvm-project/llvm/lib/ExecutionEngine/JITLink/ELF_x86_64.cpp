@@ -59,8 +59,8 @@ public:
     // the TLS Info entry's key value will be written by the fixTLVSectionByName
     // pass, so create mutable content.
     auto &TLSInfoEntry = G.createMutableContentBlock(
-        getTLSInfoSection(G), G.allocateContent(getTLSInfoEntryContent()), 0, 8,
-        0);
+        getTLSInfoSection(G), G.allocateContent(getTLSInfoEntryContent()),
+        orc::ExecutorAddr(), 8, 0);
     TLSInfoEntry.addEdge(x86_64::Pointer64, 8, Target, 0);
     return G.addAnonymousSymbol(TLSInfoEntry, 0, 16, false, false);
   }
@@ -172,7 +172,7 @@ private:
 
   Error addSingleRelocation(const typename ELFT::Rela &Rel,
                             const typename ELFT::Shdr &FixupSection,
-                            Section &GraphSection) {
+                            Block &BlockToFix) {
     using Base = ELFLinkGraphBuilder<ELFT>;
 
     uint32_t SymbolIndex = Rel.getSymbol(false);
@@ -248,17 +248,16 @@ private:
     }
     }
 
-    Block *BlockToFix = *(GraphSection.blocks().begin());
-    JITTargetAddress FixupAddress = FixupSection.sh_addr + Rel.r_offset;
-    Edge::OffsetT Offset = FixupAddress - BlockToFix->getAddress();
+    auto FixupAddress = orc::ExecutorAddr(FixupSection.sh_addr) + Rel.r_offset;
+    Edge::OffsetT Offset = FixupAddress - BlockToFix.getAddress();
     Edge GE(Kind, Offset, *GraphSymbol, Addend);
     LLVM_DEBUG({
       dbgs() << "    ";
-      printEdge(dbgs(), *BlockToFix, GE, x86_64::getEdgeKindName(Kind));
+      printEdge(dbgs(), BlockToFix, GE, x86_64::getEdgeKindName(Kind));
       dbgs() << "\n";
     });
 
-    BlockToFix->addEdge(std::move(GE));
+    BlockToFix.addEdge(std::move(GE));
     return Error::success();
   }
 
@@ -322,8 +321,9 @@ private:
       // If there's no defined symbol then create one.
       SectionRange SR(*GOTSection);
       if (SR.empty())
-        GOTSymbol = &G.addAbsoluteSymbol(ELFGOTSymbolName, 0, 0,
-                                         Linkage::Strong, Scope::Local, true);
+        GOTSymbol =
+            &G.addAbsoluteSymbol(ELFGOTSymbolName, orc::ExecutorAddr(), 0,
+                                 Linkage::Strong, Scope::Local, true);
       else
         GOTSymbol =
             &G.addDefinedSymbol(*SR.getFirstBlock(), 0, ELFGOTSymbolName, 0,

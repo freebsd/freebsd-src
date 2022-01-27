@@ -32,17 +32,8 @@ namespace elf {
 // add*() functions, which are called by input files as they are parsed. There
 // is one add* function per symbol type.
 class SymbolTable {
-  struct FilterOutPlaceholder {
-    bool operator()(Symbol *S) const { return !S->isPlaceholder(); }
-  };
-  using iterator =
-      llvm::filter_iterator<SmallVector<Symbol *, 0>::const_iterator,
-                            FilterOutPlaceholder>;
-
 public:
-  llvm::iterator_range<iterator> symbols() const {
-    return llvm::make_filter_range(symVector, FilterOutPlaceholder());
-  }
+  ArrayRef<Symbol *> symbols() const { return symVector; }
 
   void wrap(Symbol *sym, Symbol *real, Symbol *wrap);
 
@@ -57,7 +48,7 @@ public:
   void handleDynamicList();
 
   // Set of .so files to not link the same shared object file more than once.
-  llvm::DenseMap<StringRef, SharedFile *> soNames;
+  llvm::DenseMap<llvm::CachedHashStringRef, SharedFile *> soNames;
 
   // Comdat groups define "link once" sections. If two comdat groups have the
   // same name, only one of them is linked, and the other is ignored. This map

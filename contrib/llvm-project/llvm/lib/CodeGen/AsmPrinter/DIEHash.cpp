@@ -207,6 +207,18 @@ void DIEHash::hashDIEEntry(dwarf::Attribute Attribute, dwarf::Tag Tag,
   computeHash(Entry);
 }
 
+void DIEHash::hashRawTypeReference(const DIE &Entry) {
+  unsigned &DieNumber = Numbering[&Entry];
+  if (DieNumber) {
+    addULEB128('R');
+    addULEB128(DieNumber);
+    return;
+  }
+  DieNumber = Numbering.size();
+  addULEB128('T');
+  computeHash(Entry);
+}
+
 // Hash all of the values in a block like set of values. This assumes that
 // all of the data is going to be added as integers.
 void DIEHash::hashBlockData(const DIE::const_value_range &Values) {
@@ -298,10 +310,10 @@ void DIEHash::hashAttribute(const DIEValue &Value, dwarf::Tag Tag) {
     addULEB128(Attribute);
     addULEB128(dwarf::DW_FORM_block);
     if (Value.getType() == DIEValue::isBlock) {
-      addULEB128(Value.getDIEBlock().ComputeSize(AP));
+      addULEB128(Value.getDIEBlock().computeSize(AP->getDwarfFormParams()));
       hashBlockData(Value.getDIEBlock().values());
     } else if (Value.getType() == DIEValue::isLoc) {
-      addULEB128(Value.getDIELoc().ComputeSize(AP));
+      addULEB128(Value.getDIELoc().computeSize(AP->getDwarfFormParams()));
       hashBlockData(Value.getDIELoc().values());
     } else {
       // We could add the block length, but that would take

@@ -27,7 +27,7 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
-#include "lld/Common/Memory.h"
+#include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Strings.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Object/ELF.h"
@@ -68,8 +68,8 @@ private:
   SmallVector<InputSection *, 0> queue;
 
   // There are normally few input sections whose names are valid C
-  // identifiers, so we just store a std::vector instead of a multimap.
-  DenseMap<StringRef, std::vector<InputSectionBase *>> cNamedSections;
+  // identifiers, so we just store a SmallVector instead of a multimap.
+  DenseMap<StringRef, SmallVector<InputSectionBase *, 0>> cNamedSections;
 };
 } // namespace
 
@@ -177,11 +177,12 @@ static bool isReserved(InputSectionBase *sec) {
     // SHT_NOTE sections in a group are subject to garbage collection.
     return !sec->nextInSectionGroup;
   default:
-    // Support SHT_PROGBITS .init_array for a while
-    // (https://golang.org/issue/50295).
+    // Support SHT_PROGBITS .init_array (https://golang.org/issue/50295) and
+    // .init_array.N (https://github.com/rust-lang/rust/issues/92181) for a
+    // while.
     StringRef s = sec->name;
-    return s == ".init" || s == ".fini" || s == ".init_array" || s == ".jcr" ||
-           s.startswith(".ctors") || s.startswith(".dtors");
+    return s == ".init" || s == ".fini" || s.startswith(".init_array") ||
+           s == ".jcr" || s.startswith(".ctors") || s.startswith(".dtors");
   }
 }
 
@@ -307,8 +308,8 @@ template <class ELFT> void MarkLive<ELFT>::run() {
       // As a workaround for glibc libc.a before 2.34
       // (https://sourceware.org/PR27492), retain __libc_atexit and similar
       // sections regardless of zStartStopGC.
-      cNamedSections[saver.save("__start_" + sec->name)].push_back(sec);
-      cNamedSections[saver.save("__stop_" + sec->name)].push_back(sec);
+      cNamedSections[saver().save("__start_" + sec->name)].push_back(sec);
+      cNamedSections[saver().save("__stop_" + sec->name)].push_back(sec);
     }
   }
 

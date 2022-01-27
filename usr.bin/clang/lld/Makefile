@@ -29,6 +29,7 @@ CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 
 SRCDIR=		lld
 SRCS+=		Common/Args.cpp
+SRCS+=		Common/CommonLinkerContext.cpp
 SRCS+=		Common/DWARF.cpp
 SRCS+=		Common/ErrorHandler.cpp
 SRCS+=		Common/Filesystem.cpp
@@ -75,12 +76,6 @@ SRCS+=		ELF/SyntheticSections.cpp
 SRCS+=		ELF/Target.cpp
 SRCS+=		ELF/Thunks.cpp
 SRCS+=		ELF/Writer.cpp
-SRCS+=		lib/Core/Error.cpp
-SRCS+=		lib/Core/File.cpp
-SRCS+=		lib/Core/LinkingContext.cpp
-SRCS+=		lib/Core/Reader.cpp
-SRCS+=		lib/Core/Resolver.cpp
-SRCS+=		lib/Core/SymbolTable.cpp
 SRCS+=		tools/lld/lld.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.build.mk"

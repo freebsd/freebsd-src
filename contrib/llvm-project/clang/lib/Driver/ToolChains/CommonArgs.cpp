@@ -286,13 +286,13 @@ void tools::addLinkerCompressDebugSectionsOption(
     const ToolChain &TC, const llvm::opt::ArgList &Args,
     llvm::opt::ArgStringList &CmdArgs) {
   // GNU ld supports --compress-debug-sections=none|zlib|zlib-gnu|zlib-gabi
-  // whereas zlib is an alias to zlib-gabi. Therefore -gz=none|zlib|zlib-gnu
-  // are translated to --compress-debug-sections=none|zlib|zlib-gnu.
-  // -gz is not translated since ld --compress-debug-sections option requires an
+  // whereas zlib is an alias to zlib-gabi and zlib-gnu is obsoleted. Therefore
+  // -gz=none|zlib are translated to --compress-debug-sections=none|zlib. -gz
+  // is not translated since ld --compress-debug-sections option requires an
   // argument.
   if (const Arg *A = Args.getLastArg(options::OPT_gz_EQ)) {
     StringRef V = A->getValue();
-    if (V == "none" || V == "zlib" || V == "zlib-gnu")
+    if (V == "none" || V == "zlib")
       CmdArgs.push_back(Args.MakeArgString("--compress-debug-sections=" + V));
     else
       TC.getDriver().Diag(diag::err_drv_unsupported_option_argument)
@@ -832,6 +832,10 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
     return;
   }
 
+  // Always link the static runtime for executable.
+  if (SanArgs.needsAsanRt())
+    HelperStaticRuntimes.push_back("asan_static");
+
   // Each static runtime that has a DSO counterpart above is excluded below,
   // but runtimes that exist only as static are not affected by needsSharedRt.
 
@@ -1186,10 +1190,9 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
                                     options::OPT_fpic, options::OPT_fno_pic,
                                     options::OPT_fPIE, options::OPT_fno_PIE,
                                     options::OPT_fpie, options::OPT_fno_pie);
-  if (Triple.isOSWindows() && LastPICArg &&
-      LastPICArg ==
-          Args.getLastArg(options::OPT_fPIC, options::OPT_fpic,
-                          options::OPT_fPIE, options::OPT_fpie)) {
+  if (Triple.isOSWindows() && !Triple.isOSCygMing() && LastPICArg &&
+      LastPICArg == Args.getLastArg(options::OPT_fPIC, options::OPT_fpic,
+                                    options::OPT_fPIE, options::OPT_fpie)) {
     ToolChain.getDriver().Diag(diag::err_drv_unsupported_opt_for_target)
         << LastPICArg->getSpelling() << Triple.str();
     if (Triple.getArch() == llvm::Triple::x86_64)
@@ -1724,7 +1727,7 @@ bool tools::GetSDLFromOffloadArchive(
     std::string OutputLib = D.GetTemporaryPath(
         Twine(Prefix + Lib + "-" + Arch + "-" + Target).str(), "a");
 
-    C.addTempFile(C.getArgs().MakeArgString(OutputLib.c_str()));
+    C.addTempFile(C.getArgs().MakeArgString(OutputLib));
 
     ArgStringList CmdArgs;
     SmallString<128> DeviceTriple;
@@ -1747,20 +1750,20 @@ bool tools::GetSDLFromOffloadArchive(
         T.getToolChain().GetProgramPath("clang-offload-bundler"));
 
     ArgStringList UBArgs;
-    UBArgs.push_back(C.getArgs().MakeArgString(UnbundleArg.c_str()));
-    UBArgs.push_back(C.getArgs().MakeArgString(TypeArg.c_str()));
-    UBArgs.push_back(C.getArgs().MakeArgString(InputArg.c_str()));
-    UBArgs.push_back(C.getArgs().MakeArgString(OffloadArg.c_str()));
-    UBArgs.push_back(C.getArgs().MakeArgString(OutputArg.c_str()));
+    UBArgs.push_back(C.getArgs().MakeArgString(UnbundleArg));
+    UBArgs.push_back(C.getArgs().MakeArgString(TypeArg));
+    UBArgs.push_back(C.getArgs().MakeArgString(InputArg));
+    UBArgs.push_back(C.getArgs().MakeArgString(OffloadArg));
+    UBArgs.push_back(C.getArgs().MakeArgString(OutputArg));
 
     // Add this flag to not exit from clang-offload-bundler if no compatible
     // code object is found in heterogenous archive library.
     std::string AdditionalArgs("-allow-missing-bundles");
-    UBArgs.push_back(C.getArgs().MakeArgString(AdditionalArgs.c_str()));
+    UBArgs.push_back(C.getArgs().MakeArgString(AdditionalArgs));
 
     C.addCommand(std::make_unique<Command>(
         JA, T, ResponseFileSupport::AtFileCurCP(), UBProgram, UBArgs, Inputs,
-        InputInfo(&JA, C.getArgs().MakeArgString(OutputLib.c_str()))));
+        InputInfo(&JA, C.getArgs().MakeArgString(OutputLib))));
     if (postClangLink)
       CC1Args.push_back("-mlink-builtin-bitcode");
 

@@ -62,6 +62,7 @@ SRCS+=		Support/Triple.cpp
 SRCS+=		Support/Twine.cpp
 SRCS+=		Support/TypeSize.cpp
 SRCS+=		Support/Unicode.cpp
+SRCS+=		Support/VersionTuple.cpp
 SRCS+=		Support/VirtualFileSystem.cpp
 SRCS+=		Support/Watchdog.cpp
 SRCS+=		Support/WithColor.cpp

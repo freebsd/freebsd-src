@@ -13,6 +13,7 @@
 
 #include "CSKYISelLowering.h"
 #include "CSKYCallingConv.h"
+#include "CSKYConstantPoolValue.h"
 #include "CSKYMachineFunctionInfo.h"
 #include "CSKYRegisterInfo.h"
 #include "CSKYSubtarget.h"
@@ -37,6 +38,18 @@ CSKYTargetLowering::CSKYTargetLowering(const TargetMachine &TM,
   // Register Class
   addRegisterClass(MVT::i32, &CSKY::GPRRegClass);
 
+  if (STI.useHardFloat()) {
+    if (STI.hasFPUv2SingleFloat())
+      addRegisterClass(MVT::f32, &CSKY::sFPR32RegClass);
+    else if (STI.hasFPUv3SingleFloat())
+      addRegisterClass(MVT::f32, &CSKY::FPR32RegClass);
+
+    if (STI.hasFPUv2DoubleFloat())
+      addRegisterClass(MVT::f64, &CSKY::sFPR64RegClass);
+    else if (STI.hasFPUv3DoubleFloat())
+      addRegisterClass(MVT::f64, &CSKY::FPR64RegClass);
+  }
+
   setOperationAction(ISD::ADDCARRY, MVT::i32, Legal);
   setOperationAction(ISD::SUBCARRY, MVT::i32, Legal);
   setOperationAction(ISD::BITREVERSE, MVT::i32, Legal);
@@ -53,15 +66,28 @@ CSKYTargetLowering::CSKYTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SRA_PARTS, MVT::i32, Expand);
   setOperationAction(ISD::UMUL_LOHI, MVT::i32, Expand);
   setOperationAction(ISD::SMUL_LOHI, MVT::i32, Expand);
+  setOperationAction(ISD::SELECT_CC, MVT::i32, Expand);
+  setOperationAction(ISD::BR_CC, MVT::i32, Expand);
+  setOperationAction(ISD::BR_JT, MVT::Other, Expand);
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
   setOperationAction(ISD::STACKSAVE, MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE, MVT::Other, Expand);
   setOperationAction(ISD::MULHS, MVT::i32, Expand);
   setOperationAction(ISD::MULHU, MVT::i32, Expand);
+  setOperationAction(ISD::VAARG, MVT::Other, Expand);
+  setOperationAction(ISD::VACOPY, MVT::Other, Expand);
+  setOperationAction(ISD::VAEND, MVT::Other, Expand);
 
   setLoadExtAction(ISD::EXTLOAD, MVT::i32, MVT::i1, Promote);
   setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i1, Promote);
   setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i1, Promote);
+
+  setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
+  setOperationAction(ISD::ExternalSymbol, MVT::i32, Custom);
+  setOperationAction(ISD::GlobalTLSAddress, MVT::i32, Custom);
+  setOperationAction(ISD::BlockAddress, MVT::i32, Custom);
+  setOperationAction(ISD::JumpTable, MVT::i32, Custom);
+  setOperationAction(ISD::VASTART, MVT::Other, Custom);
 
   if (!Subtarget.hasE2()) {
     setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i8, Expand);
@@ -77,6 +103,44 @@ CSKYTargetLowering::CSKYTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::UDIV, MVT::i32, Expand);
   }
 
+  if (!Subtarget.has3r2E3r3()) {
+    setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Expand);
+  }
+
+  // Float
+
+  ISD::CondCode FPCCToExtend[] = {
+      ISD::SETONE, ISD::SETUEQ, ISD::SETUGT,
+      ISD::SETUGE, ISD::SETULT, ISD::SETULE,
+  };
+
+  ISD::NodeType FPOpToExpand[] = {ISD::FSIN, ISD::FCOS, ISD::FSINCOS,
+                                  ISD::FPOW, ISD::FREM, ISD::FCOPYSIGN};
+
+  if (STI.useHardFloat()) {
+
+    MVT AllVTy[] = {MVT::f32, MVT::f64};
+
+    for (auto VT : AllVTy) {
+      setOperationAction(ISD::FREM, VT, Expand);
+      setOperationAction(ISD::SELECT_CC, VT, Expand);
+      setOperationAction(ISD::BR_CC, VT, Expand);
+
+      for (auto CC : FPCCToExtend)
+        setCondCodeAction(CC, VT, Expand);
+      for (auto Op : FPOpToExpand)
+        setOperationAction(Op, VT, Expand);
+    }
+
+    if (STI.hasFPUv2SingleFloat() || STI.hasFPUv3SingleFloat()) {
+      setOperationAction(ISD::ConstantFP, MVT::f32, Legal);
+    }
+    if (STI.hasFPUv2DoubleFloat() || STI.hasFPUv3DoubleFloat()) {
+      setLoadExtAction(ISD::EXTLOAD, MVT::f64, MVT::f32, Expand);
+      setTruncStoreAction(MVT::f64, MVT::f32, Expand);
+    }
+  }
+
   // Compute derived properties from the register classes.
   computeRegisterProperties(STI.getRegisterInfo());
 
@@ -90,6 +154,30 @@ CSKYTargetLowering::CSKYTargetLowering(const TargetMachine &TM,
   const Align FunctionAlignment(2);
   setMinFunctionAlignment(FunctionAlignment);
   setSchedulingPreference(Sched::Source);
+}
+
+SDValue CSKYTargetLowering::LowerOperation(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  switch (Op.getOpcode()) {
+  default:
+    llvm_unreachable("unimplemented op");
+  case ISD::GlobalAddress:
+    return LowerGlobalAddress(Op, DAG);
+  case ISD::ExternalSymbol:
+    return LowerExternalSymbol(Op, DAG);
+  case ISD::GlobalTLSAddress:
+    return LowerGlobalTLSAddress(Op, DAG);
+  case ISD::JumpTable:
+    return LowerJumpTable(Op, DAG);
+  case ISD::BlockAddress:
+    return LowerBlockAddress(Op, DAG);
+  case ISD::VASTART:
+    return LowerVASTART(Op, DAG);
+  case ISD::FRAMEADDR:
+    return LowerFRAMEADDR(Op, DAG);
+  case ISD::RETURNADDR:
+    return LowerRETURNADDR(Op, DAG);
+  }
 }
 
 EVT CSKYTargetLowering::getSetCCResultType(const DataLayout &DL,
@@ -145,6 +233,14 @@ static SDValue unpackFromRegLoc(const CSKYSubtarget &Subtarget,
   case MVT::i32:
     RC = &CSKY::GPRRegClass;
     break;
+  case MVT::f32:
+    RC = Subtarget.hasFPUv2SingleFloat() ? &CSKY::sFPR32RegClass
+                                         : &CSKY::FPR32RegClass;
+    break;
+  case MVT::f64:
+    RC = Subtarget.hasFPUv2DoubleFloat() ? &CSKY::sFPR64RegClass
+                                         : &CSKY::FPR64RegClass;
+    break;
   }
 
   Register VReg = RegInfo.createVirtualRegister(RC);
@@ -181,6 +277,44 @@ static SDValue unpackFromMemLoc(SelectionDAG &DAG, SDValue Chain,
   return Val;
 }
 
+static SDValue unpack64(SelectionDAG &DAG, SDValue Chain, const CCValAssign &VA,
+                        const SDLoc &DL) {
+  assert(VA.getLocVT() == MVT::i32 &&
+         (VA.getValVT() == MVT::f64 || VA.getValVT() == MVT::i64) &&
+         "Unexpected VA");
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MachineRegisterInfo &RegInfo = MF.getRegInfo();
+
+  if (VA.isMemLoc()) {
+    // f64/i64 is passed on the stack.
+    int FI = MFI.CreateFixedObject(8, VA.getLocMemOffset(), /*Immutable=*/true);
+    SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
+    return DAG.getLoad(VA.getValVT(), DL, Chain, FIN,
+                       MachinePointerInfo::getFixedStack(MF, FI));
+  }
+
+  assert(VA.isRegLoc() && "Expected register VA assignment");
+
+  Register LoVReg = RegInfo.createVirtualRegister(&CSKY::GPRRegClass);
+  RegInfo.addLiveIn(VA.getLocReg(), LoVReg);
+  SDValue Lo = DAG.getCopyFromReg(Chain, DL, LoVReg, MVT::i32);
+  SDValue Hi;
+  if (VA.getLocReg() == CSKY::R3) {
+    // Second half of f64/i64 is passed on the stack.
+    int FI = MFI.CreateFixedObject(4, 0, /*Immutable=*/true);
+    SDValue FIN = DAG.getFrameIndex(FI, MVT::i32);
+    Hi = DAG.getLoad(MVT::i32, DL, Chain, FIN,
+                     MachinePointerInfo::getFixedStack(MF, FI));
+  } else {
+    // Second half of f64/i64 is passed in another GPR.
+    Register HiVReg = RegInfo.createVirtualRegister(&CSKY::GPRRegClass);
+    RegInfo.addLiveIn(VA.getLocReg() + 1, HiVReg);
+    Hi = DAG.getCopyFromReg(Chain, DL, HiVReg, MVT::i32);
+  }
+  return DAG.getNode(CSKYISD::BITCAST_FROM_LOHI, DL, VA.getValVT(), Lo, Hi);
+}
+
 // Transform physical registers into virtual registers.
 SDValue CSKYTargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
@@ -210,7 +344,11 @@ SDValue CSKYTargetLowering::LowerFormalArguments(
     CCValAssign &VA = ArgLocs[i];
     SDValue ArgValue;
 
-    if (VA.isRegLoc())
+    bool IsF64OnCSKY = VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64;
+
+    if (IsF64OnCSKY)
+      ArgValue = unpack64(DAG, Chain, VA, DL);
+    else if (VA.isRegLoc())
       ArgValue = unpackFromRegLoc(Subtarget, DAG, Chain, VA, DL);
     else
       ArgValue = unpackFromMemLoc(DAG, Chain, VA, DL);
@@ -354,6 +492,255 @@ CSKYTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(CSKYISD::RET, DL, MVT::Other, RetOps);
 }
 
+// Lower a call to a callseq_start + CALL + callseq_end chain, and add input
+// and output parameter nodes.
+SDValue CSKYTargetLowering::LowerCall(CallLoweringInfo &CLI,
+                                      SmallVectorImpl<SDValue> &InVals) const {
+  SelectionDAG &DAG = CLI.DAG;
+  SDLoc &DL = CLI.DL;
+  SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
+  SmallVectorImpl<SDValue> &OutVals = CLI.OutVals;
+  SmallVectorImpl<ISD::InputArg> &Ins = CLI.Ins;
+  SDValue Chain = CLI.Chain;
+  SDValue Callee = CLI.Callee;
+  bool &IsTailCall = CLI.IsTailCall;
+  CallingConv::ID CallConv = CLI.CallConv;
+  bool IsVarArg = CLI.IsVarArg;
+  EVT PtrVT = getPointerTy(DAG.getDataLayout());
+  MVT XLenVT = MVT::i32;
+
+  MachineFunction &MF = DAG.getMachineFunction();
+
+  // Analyze the operands of the call, assigning locations to each operand.
+  SmallVector<CCValAssign, 16> ArgLocs;
+  CCState ArgCCInfo(CallConv, IsVarArg, MF, ArgLocs, *DAG.getContext());
+
+  ArgCCInfo.AnalyzeCallOperands(Outs, CCAssignFnForCall(CallConv, IsVarArg));
+
+  // Check if it's really possible to do a tail call.
+  if (IsTailCall)
+    IsTailCall = false; // TODO: TailCallOptimization;
+
+  if (IsTailCall)
+    ++NumTailCalls;
+  else if (CLI.CB && CLI.CB->isMustTailCall())
+    report_fatal_error("failed to perform tail call elimination on a call "
+                       "site marked musttail");
+
+  // Get a count of how many bytes are to be pushed on the stack.
+  unsigned NumBytes = ArgCCInfo.getNextStackOffset();
+
+  // Create local copies for byval args
+  SmallVector<SDValue, 8> ByValArgs;
+  for (unsigned i = 0, e = Outs.size(); i != e; ++i) {
+    ISD::ArgFlagsTy Flags = Outs[i].Flags;
+    if (!Flags.isByVal())
+      continue;
+
+    SDValue Arg = OutVals[i];
+    unsigned Size = Flags.getByValSize();
+    Align Alignment = Flags.getNonZeroByValAlign();
+
+    int FI =
+        MF.getFrameInfo().CreateStackObject(Size, Alignment, /*isSS=*/false);
+    SDValue FIPtr = DAG.getFrameIndex(FI, getPointerTy(DAG.getDataLayout()));
+    SDValue SizeNode = DAG.getConstant(Size, DL, XLenVT);
+
+    Chain = DAG.getMemcpy(Chain, DL, FIPtr, Arg, SizeNode, Alignment,
+                          /*IsVolatile=*/false,
+                          /*AlwaysInline=*/false, IsTailCall,
+                          MachinePointerInfo(), MachinePointerInfo());
+    ByValArgs.push_back(FIPtr);
+  }
+
+  if (!IsTailCall)
+    Chain = DAG.getCALLSEQ_START(Chain, NumBytes, 0, CLI.DL);
+
+  // Copy argument values to their designated locations.
+  SmallVector<std::pair<Register, SDValue>, 8> RegsToPass;
+  SmallVector<SDValue, 8> MemOpChains;
+  SDValue StackPtr;
+  for (unsigned i = 0, j = 0, e = ArgLocs.size(); i != e; ++i) {
+    CCValAssign &VA = ArgLocs[i];
+    SDValue ArgValue = OutVals[i];
+    ISD::ArgFlagsTy Flags = Outs[i].Flags;
+
+    bool IsF64OnCSKY = VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64;
+
+    if (IsF64OnCSKY && VA.isRegLoc()) {
+      SDValue Split64 =
+          DAG.getNode(CSKYISD::BITCAST_TO_LOHI, DL,
+                      DAG.getVTList(MVT::i32, MVT::i32), ArgValue);
+      SDValue Lo = Split64.getValue(0);
+      SDValue Hi = Split64.getValue(1);
+
+      Register RegLo = VA.getLocReg();
+      RegsToPass.push_back(std::make_pair(RegLo, Lo));
+
+      if (RegLo == CSKY::R3) {
+        // Second half of f64/i64 is passed on the stack.
+        // Work out the address of the stack slot.
+        if (!StackPtr.getNode())
+          StackPtr = DAG.getCopyFromReg(Chain, DL, CSKY::R14, PtrVT);
+        // Emit the store.
+        MemOpChains.push_back(
+            DAG.getStore(Chain, DL, Hi, StackPtr, MachinePointerInfo()));
+      } else {
+        // Second half of f64/i64 is passed in another GPR.
+        assert(RegLo < CSKY::R31 && "Invalid register pair");
+        Register RegHigh = RegLo + 1;
+        RegsToPass.push_back(std::make_pair(RegHigh, Hi));
+      }
+      continue;
+    }
+
+    ArgValue = convertValVTToLocVT(DAG, ArgValue, VA, DL);
+
+    // Use local copy if it is a byval arg.
+    if (Flags.isByVal())
+      ArgValue = ByValArgs[j++];
+
+    if (VA.isRegLoc()) {
+      // Queue up the argument copies and emit them at the end.
+      RegsToPass.push_back(std::make_pair(VA.getLocReg(), ArgValue));
+    } else {
+      assert(VA.isMemLoc() && "Argument not register or memory");
+      assert(!IsTailCall && "Tail call not allowed if stack is used "
+                            "for passing parameters");
+
+      // Work out the address of the stack slot.
+      if (!StackPtr.getNode())
+        StackPtr = DAG.getCopyFromReg(Chain, DL, CSKY::R14, PtrVT);
+      SDValue Address =
+          DAG.getNode(ISD::ADD, DL, PtrVT, StackPtr,
+                      DAG.getIntPtrConstant(VA.getLocMemOffset(), DL));
+
+      // Emit the store.
+      MemOpChains.push_back(
+          DAG.getStore(Chain, DL, ArgValue, Address, MachinePointerInfo()));
+    }
+  }
+
+  // Join the stores, which are independent of one another.
+  if (!MemOpChains.empty())
+    Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, MemOpChains);
+
+  SDValue Glue;
+
+  // Build a sequence of copy-to-reg nodes, chained and glued together.
+  for (auto &Reg : RegsToPass) {
+    Chain = DAG.getCopyToReg(Chain, DL, Reg.first, Reg.second, Glue);
+    Glue = Chain.getValue(1);
+  }
+
+  SmallVector<SDValue, 8> Ops;
+  EVT Ty = getPointerTy(DAG.getDataLayout());
+  bool IsRegCall = false;
+
+  Ops.push_back(Chain);
+
+  if (GlobalAddressSDNode *S = dyn_cast<GlobalAddressSDNode>(Callee)) {
+    const GlobalValue *GV = S->getGlobal();
+    bool IsLocal =
+        getTargetMachine().shouldAssumeDSOLocal(*GV->getParent(), GV);
+
+    if (isPositionIndependent() || !Subtarget.has2E3()) {
+      IsRegCall = true;
+      Ops.push_back(getAddr<GlobalAddressSDNode, true>(S, DAG, IsLocal));
+    } else {
+      Ops.push_back(getTargetNode(cast<GlobalAddressSDNode>(Callee), DL, Ty,
+                                  DAG, CSKYII::MO_None));
+      Ops.push_back(getTargetConstantPoolValue(
+          cast<GlobalAddressSDNode>(Callee), Ty, DAG, CSKYII::MO_None));
+    }
+  } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee)) {
+    bool IsLocal = getTargetMachine().shouldAssumeDSOLocal(
+        *MF.getFunction().getParent(), nullptr);
+
+    if (isPositionIndependent() || !Subtarget.has2E3()) {
+      IsRegCall = true;
+      Ops.push_back(getAddr<ExternalSymbolSDNode, true>(S, DAG, IsLocal));
+    } else {
+      Ops.push_back(getTargetNode(cast<ExternalSymbolSDNode>(Callee), DL, Ty,
+                                  DAG, CSKYII::MO_None));
+      Ops.push_back(getTargetConstantPoolValue(
+          cast<ExternalSymbolSDNode>(Callee), Ty, DAG, CSKYII::MO_None));
+    }
+  } else {
+    IsRegCall = true;
+    Ops.push_back(Callee);
+  }
+
+  // Add argument registers to the end of the list so that they are
+  // known live into the call.
+  for (auto &Reg : RegsToPass)
+    Ops.push_back(DAG.getRegister(Reg.first, Reg.second.getValueType()));
+
+  if (!IsTailCall) {
+    // Add a register mask operand representing the call-preserved registers.
+    const TargetRegisterInfo *TRI = Subtarget.getRegisterInfo();
+    const uint32_t *Mask = TRI->getCallPreservedMask(MF, CallConv);
+    assert(Mask && "Missing call preserved mask for calling convention");
+    Ops.push_back(DAG.getRegisterMask(Mask));
+  }
+
+  // Glue the call to the argument copies, if any.
+  if (Glue.getNode())
+    Ops.push_back(Glue);
+
+  // Emit the call.
+  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
+
+  if (IsTailCall) {
+    MF.getFrameInfo().setHasTailCall();
+    return DAG.getNode(IsRegCall ? CSKYISD::TAILReg : CSKYISD::TAIL, DL,
+                       NodeTys, Ops);
+  }
+
+  Chain = DAG.getNode(IsRegCall ? CSKYISD::CALLReg : CSKYISD::CALL, DL, NodeTys,
+                      Ops);
+  DAG.addNoMergeSiteInfo(Chain.getNode(), CLI.NoMerge);
+  Glue = Chain.getValue(1);
+
+  // Mark the end of the call, which is glued to the call itself.
+  Chain = DAG.getCALLSEQ_END(Chain, DAG.getConstant(NumBytes, DL, PtrVT, true),
+                             DAG.getConstant(0, DL, PtrVT, true), Glue, DL);
+  Glue = Chain.getValue(1);
+
+  // Assign locations to each value returned by this call.
+  SmallVector<CCValAssign, 16> CSKYLocs;
+  CCState RetCCInfo(CallConv, IsVarArg, MF, CSKYLocs, *DAG.getContext());
+  RetCCInfo.AnalyzeCallResult(Ins, CCAssignFnForReturn(CallConv, IsVarArg));
+
+  // Copy all of the result registers out of their specified physreg.
+  for (auto &VA : CSKYLocs) {
+    // Copy the value out
+    SDValue RetValue =
+        DAG.getCopyFromReg(Chain, DL, VA.getLocReg(), VA.getLocVT(), Glue);
+    // Glue the RetValue to the end of the call sequence
+    Chain = RetValue.getValue(1);
+    Glue = RetValue.getValue(2);
+
+    bool IsF64OnCSKY = VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::f64;
+
+    if (IsF64OnCSKY) {
+      assert(VA.getLocReg() == GPRArgRegs[0] && "Unexpected reg assignment");
+      SDValue RetValue2 =
+          DAG.getCopyFromReg(Chain, DL, GPRArgRegs[1], MVT::i32, Glue);
+      Chain = RetValue2.getValue(1);
+      Glue = RetValue2.getValue(2);
+      RetValue = DAG.getNode(CSKYISD::BITCAST_FROM_LOHI, DL, VA.getValVT(),
+                             RetValue, RetValue2);
+    }
+
+    RetValue = convertLocVTToValVT(DAG, RetValue, VA, DL);
+
+    InVals.push_back(RetValue);
+  }
+
+  return Chain;
+}
+
 CCAssignFn *CSKYTargetLowering::CCAssignFnForReturn(CallingConv::ID CC,
                                                     bool IsVarArg) const {
   if (IsVarArg || !Subtarget.useHardFloatABI())
@@ -370,6 +757,165 @@ CCAssignFn *CSKYTargetLowering::CCAssignFnForCall(CallingConv::ID CC,
     return CC_CSKY_ABIV2_FP;
 }
 
+static CSKYCP::CSKYCPModifier getModifier(unsigned Flags) {
+
+  if (Flags == CSKYII::MO_ADDR32)
+    return CSKYCP::ADDR;
+  else if (Flags == CSKYII::MO_GOT32)
+    return CSKYCP::GOT;
+  else if (Flags == CSKYII::MO_GOTOFF)
+    return CSKYCP::GOTOFF;
+  else if (Flags == CSKYII::MO_PLT32)
+    return CSKYCP::PLT;
+  else if (Flags == CSKYII::MO_None)
+    return CSKYCP::NO_MOD;
+  else
+    assert(0 && "unknown CSKYII Modifier");
+  return CSKYCP::NO_MOD;
+}
+
+SDValue CSKYTargetLowering::getTargetConstantPoolValue(GlobalAddressSDNode *N,
+                                                       EVT Ty,
+                                                       SelectionDAG &DAG,
+                                                       unsigned Flags) const {
+  CSKYConstantPoolValue *CPV = CSKYConstantPoolConstant::Create(
+      N->getGlobal(), CSKYCP::CPValue, 0, getModifier(Flags), false);
+
+  return DAG.getTargetConstantPool(CPV, Ty);
+}
+
+static MachineBasicBlock *
+emitSelectPseudo(MachineInstr &MI, MachineBasicBlock *BB, unsigned Opcode) {
+
+  const TargetInstrInfo &TII = *BB->getParent()->getSubtarget().getInstrInfo();
+  DebugLoc DL = MI.getDebugLoc();
+
+  // To "insert" a SELECT instruction, we actually have to insert the
+  // diamond control-flow pattern.  The incoming instruction knows the
+  // destination vreg to set, the condition code register to branch on, the
+  // true/false values to select between, and a branch opcode to use.
+  const BasicBlock *LLVM_BB = BB->getBasicBlock();
+  MachineFunction::iterator It = ++BB->getIterator();
+
+  //  thisMBB:
+  //  ...
+  //   TrueVal = ...
+  //   bt32 c, sinkMBB
+  //   fallthrough --> copyMBB
+  MachineBasicBlock *thisMBB = BB;
+  MachineFunction *F = BB->getParent();
+  MachineBasicBlock *copyMBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *sinkMBB = F->CreateMachineBasicBlock(LLVM_BB);
+  F->insert(It, copyMBB);
+  F->insert(It, sinkMBB);
+
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), BB,
+                  std::next(MachineBasicBlock::iterator(MI)), BB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(BB);
+
+  // Next, add the true and fallthrough blocks as its successors.
+  BB->addSuccessor(copyMBB);
+  BB->addSuccessor(sinkMBB);
+
+  // bt32 condition, sinkMBB
+  BuildMI(BB, DL, TII.get(Opcode))
+      .addReg(MI.getOperand(1).getReg())
+      .addMBB(sinkMBB);
+
+  //  copyMBB:
+  //   %FalseValue = ...
+  //   # fallthrough to sinkMBB
+  BB = copyMBB;
+
+  // Update machine-CFG edges
+  BB->addSuccessor(sinkMBB);
+
+  //  sinkMBB:
+  //   %Result = phi [ %TrueValue, thisMBB ], [ %FalseValue, copyMBB ]
+  //  ...
+  BB = sinkMBB;
+
+  BuildMI(*BB, BB->begin(), DL, TII.get(CSKY::PHI), MI.getOperand(0).getReg())
+      .addReg(MI.getOperand(2).getReg())
+      .addMBB(thisMBB)
+      .addReg(MI.getOperand(3).getReg())
+      .addMBB(copyMBB);
+
+  MI.eraseFromParent(); // The pseudo instruction is gone now.
+
+  return BB;
+}
+
+MachineBasicBlock *
+CSKYTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
+                                                MachineBasicBlock *BB) const {
+  switch (MI.getOpcode()) {
+  default:
+    llvm_unreachable("Unexpected instr type to insert");
+  case CSKY::ISEL32:
+    return emitSelectPseudo(MI, BB, CSKY::BT32);
+  case CSKY::ISEL16:
+    return emitSelectPseudo(MI, BB, CSKY::BT16);
+  }
+}
+
+SDValue CSKYTargetLowering::getTargetConstantPoolValue(ExternalSymbolSDNode *N,
+                                                       EVT Ty,
+                                                       SelectionDAG &DAG,
+                                                       unsigned Flags) const {
+  CSKYConstantPoolValue *CPV =
+      CSKYConstantPoolSymbol::Create(Type::getInt32Ty(*DAG.getContext()),
+                                     N->getSymbol(), 0, getModifier(Flags));
+
+  return DAG.getTargetConstantPool(CPV, Ty);
+}
+
+SDValue CSKYTargetLowering::getTargetConstantPoolValue(JumpTableSDNode *N,
+                                                       EVT Ty,
+                                                       SelectionDAG &DAG,
+                                                       unsigned Flags) const {
+  CSKYConstantPoolValue *CPV =
+      CSKYConstantPoolJT::Create(Type::getInt32Ty(*DAG.getContext()),
+                                 N->getIndex(), 0, getModifier(Flags));
+  return DAG.getTargetConstantPool(CPV, Ty);
+}
+
+SDValue CSKYTargetLowering::getTargetConstantPoolValue(BlockAddressSDNode *N,
+                                                       EVT Ty,
+                                                       SelectionDAG &DAG,
+                                                       unsigned Flags) const {
+  CSKYConstantPoolValue *CPV = CSKYConstantPoolConstant::Create(
+      N->getBlockAddress(), CSKYCP::CPBlockAddress, 0, getModifier(Flags),
+      false);
+  return DAG.getTargetConstantPool(CPV, Ty);
+}
+
+SDValue CSKYTargetLowering::getTargetNode(GlobalAddressSDNode *N, SDLoc DL,
+                                          EVT Ty, SelectionDAG &DAG,
+                                          unsigned Flags) const {
+  return DAG.getTargetGlobalAddress(N->getGlobal(), DL, Ty, 0, Flags);
+}
+
+SDValue CSKYTargetLowering::getTargetNode(ExternalSymbolSDNode *N, SDLoc DL,
+                                          EVT Ty, SelectionDAG &DAG,
+                                          unsigned Flags) const {
+  return DAG.getTargetExternalSymbol(N->getSymbol(), Ty, Flags);
+}
+
+SDValue CSKYTargetLowering::getTargetNode(JumpTableSDNode *N, SDLoc DL, EVT Ty,
+                                          SelectionDAG &DAG,
+                                          unsigned Flags) const {
+  return DAG.getTargetJumpTable(N->getIndex(), Ty, Flags);
+}
+
+SDValue CSKYTargetLowering::getTargetNode(BlockAddressSDNode *N, SDLoc DL,
+                                          EVT Ty, SelectionDAG &DAG,
+                                          unsigned Flags) const {
+  return DAG.getTargetBlockAddress(N->getBlockAddress(), Ty, N->getOffset(),
+                                   Flags);
+}
+
 const char *CSKYTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (Opcode) {
   default:
@@ -380,7 +926,243 @@ const char *CSKYTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "CSKYISD::NIR";
   case CSKYISD::RET:
     return "CSKYISD::RET";
+  case CSKYISD::CALL:
+    return "CSKYISD::CALL";
+  case CSKYISD::CALLReg:
+    return "CSKYISD::CALLReg";
+  case CSKYISD::TAIL:
+    return "CSKYISD::TAIL";
+  case CSKYISD::TAILReg:
+    return "CSKYISD::TAILReg";
+  case CSKYISD::LOAD_ADDR:
+    return "CSKYISD::LOAD_ADDR";
   case CSKYISD::BITCAST_TO_LOHI:
     return "CSKYISD::BITCAST_TO_LOHI";
+  case CSKYISD::BITCAST_FROM_LOHI:
+    return "CSKYISD::BITCAST_FROM_LOHI";
   }
+}
+
+SDValue CSKYTargetLowering::LowerGlobalAddress(SDValue Op,
+                                               SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+  EVT Ty = Op.getValueType();
+  GlobalAddressSDNode *N = cast<GlobalAddressSDNode>(Op);
+  int64_t Offset = N->getOffset();
+
+  const GlobalValue *GV = N->getGlobal();
+  bool IsLocal = getTargetMachine().shouldAssumeDSOLocal(*GV->getParent(), GV);
+  SDValue Addr = getAddr<GlobalAddressSDNode, false>(N, DAG, IsLocal);
+
+  // In order to maximise the opportunity for common subexpression elimination,
+  // emit a separate ADD node for the global address offset instead of folding
+  // it in the global address node. Later peephole optimisations may choose to
+  // fold it back in when profitable.
+  if (Offset != 0)
+    return DAG.getNode(ISD::ADD, DL, Ty, Addr,
+                       DAG.getConstant(Offset, DL, MVT::i32));
+  return Addr;
+}
+
+SDValue CSKYTargetLowering::LowerExternalSymbol(SDValue Op,
+                                                SelectionDAG &DAG) const {
+  ExternalSymbolSDNode *N = cast<ExternalSymbolSDNode>(Op);
+
+  return getAddr(N, DAG, false);
+}
+
+SDValue CSKYTargetLowering::LowerJumpTable(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  JumpTableSDNode *N = cast<JumpTableSDNode>(Op);
+
+  return getAddr<JumpTableSDNode, false>(N, DAG);
+}
+
+SDValue CSKYTargetLowering::LowerBlockAddress(SDValue Op,
+                                              SelectionDAG &DAG) const {
+  BlockAddressSDNode *N = cast<BlockAddressSDNode>(Op);
+
+  return getAddr(N, DAG);
+}
+
+SDValue CSKYTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  CSKYMachineFunctionInfo *FuncInfo = MF.getInfo<CSKYMachineFunctionInfo>();
+
+  SDLoc DL(Op);
+  SDValue FI = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(),
+                                 getPointerTy(MF.getDataLayout()));
+
+  // vastart just stores the address of the VarArgsFrameIndex slot into the
+  // memory location argument.
+  const Value *SV = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
+  return DAG.getStore(Op.getOperand(0), DL, FI, Op.getOperand(1),
+                      MachinePointerInfo(SV));
+}
+
+SDValue CSKYTargetLowering::LowerFRAMEADDR(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  const CSKYRegisterInfo &RI = *Subtarget.getRegisterInfo();
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MFI.setFrameAddressIsTaken(true);
+
+  EVT VT = Op.getValueType();
+  SDLoc dl(Op);
+  unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
+  Register FrameReg = RI.getFrameRegister(MF);
+  SDValue FrameAddr = DAG.getCopyFromReg(DAG.getEntryNode(), dl, FrameReg, VT);
+  while (Depth--)
+    FrameAddr = DAG.getLoad(VT, dl, DAG.getEntryNode(), FrameAddr,
+                            MachinePointerInfo());
+  return FrameAddr;
+}
+
+SDValue CSKYTargetLowering::LowerRETURNADDR(SDValue Op,
+                                            SelectionDAG &DAG) const {
+  const CSKYRegisterInfo &RI = *Subtarget.getRegisterInfo();
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MFI.setReturnAddressIsTaken(true);
+
+  if (verifyReturnAddressArgumentIsConstant(Op, DAG))
+    return SDValue();
+
+  EVT VT = Op.getValueType();
+  SDLoc dl(Op);
+  unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
+  if (Depth) {
+    SDValue FrameAddr = LowerFRAMEADDR(Op, DAG);
+    SDValue Offset = DAG.getConstant(4, dl, MVT::i32);
+    return DAG.getLoad(VT, dl, DAG.getEntryNode(),
+                       DAG.getNode(ISD::ADD, dl, VT, FrameAddr, Offset),
+                       MachinePointerInfo());
+  }
+  // Return the value of the return address register, marking it an implicit
+  // live-in.
+  unsigned Reg = MF.addLiveIn(RI.getRARegister(), getRegClassFor(MVT::i32));
+  return DAG.getCopyFromReg(DAG.getEntryNode(), dl, Reg, VT);
+}
+
+Register CSKYTargetLowering::getExceptionPointerRegister(
+    const Constant *PersonalityFn) const {
+  return CSKY::R0;
+}
+
+Register CSKYTargetLowering::getExceptionSelectorRegister(
+    const Constant *PersonalityFn) const {
+  return CSKY::R1;
+}
+
+SDValue CSKYTargetLowering::LowerGlobalTLSAddress(SDValue Op,
+                                                  SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+  EVT Ty = Op.getValueType();
+  GlobalAddressSDNode *N = cast<GlobalAddressSDNode>(Op);
+  int64_t Offset = N->getOffset();
+  MVT XLenVT = MVT::i32;
+
+  TLSModel::Model Model = getTargetMachine().getTLSModel(N->getGlobal());
+  SDValue Addr;
+  switch (Model) {
+  case TLSModel::LocalExec:
+    Addr = getStaticTLSAddr(N, DAG, /*UseGOT=*/false);
+    break;
+  case TLSModel::InitialExec:
+    Addr = getStaticTLSAddr(N, DAG, /*UseGOT=*/true);
+    break;
+  case TLSModel::LocalDynamic:
+  case TLSModel::GeneralDynamic:
+    Addr = getDynamicTLSAddr(N, DAG);
+    break;
+  }
+
+  // In order to maximise the opportunity for common subexpression elimination,
+  // emit a separate ADD node for the global address offset instead of folding
+  // it in the global address node. Later peephole optimisations may choose to
+  // fold it back in when profitable.
+  if (Offset != 0)
+    return DAG.getNode(ISD::ADD, DL, Ty, Addr,
+                       DAG.getConstant(Offset, DL, XLenVT));
+  return Addr;
+}
+
+SDValue CSKYTargetLowering::getStaticTLSAddr(GlobalAddressSDNode *N,
+                                             SelectionDAG &DAG,
+                                             bool UseGOT) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  CSKYMachineFunctionInfo *CFI = MF.getInfo<CSKYMachineFunctionInfo>();
+
+  unsigned CSKYPCLabelIndex = CFI->createPICLabelUId();
+
+  SDLoc DL(N);
+  EVT Ty = getPointerTy(DAG.getDataLayout());
+
+  CSKYCP::CSKYCPModifier Flag = UseGOT ? CSKYCP::TLSIE : CSKYCP::TLSLE;
+  bool AddCurrentAddr = UseGOT ? true : false;
+  unsigned char PCAjust = UseGOT ? 4 : 0;
+
+  CSKYConstantPoolValue *CPV =
+      CSKYConstantPoolConstant::Create(N->getGlobal(), CSKYCP::CPValue, PCAjust,
+                                       Flag, AddCurrentAddr, CSKYPCLabelIndex);
+  SDValue CAddr = DAG.getTargetConstantPool(CPV, Ty);
+
+  SDValue Load;
+  if (UseGOT) {
+    SDValue PICLabel = DAG.getTargetConstant(CSKYPCLabelIndex, DL, MVT::i32);
+    auto *LRWGRS = DAG.getMachineNode(CSKY::PseudoTLSLA32, DL, {Ty, Ty},
+                                      {CAddr, PICLabel});
+    auto LRWADDGRS =
+        DAG.getNode(ISD::ADD, DL, Ty, SDValue(LRWGRS, 0), SDValue(LRWGRS, 1));
+    Load = DAG.getLoad(Ty, DL, DAG.getEntryNode(), LRWADDGRS,
+                       MachinePointerInfo(N->getGlobal()));
+  } else {
+    Load = SDValue(DAG.getMachineNode(CSKY::LRW32, DL, Ty, CAddr), 0);
+  }
+
+  // Add the thread pointer.
+  SDValue TPReg = DAG.getRegister(CSKY::R31, MVT::i32);
+  return DAG.getNode(ISD::ADD, DL, Ty, Load, TPReg);
+}
+
+SDValue CSKYTargetLowering::getDynamicTLSAddr(GlobalAddressSDNode *N,
+                                              SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  CSKYMachineFunctionInfo *CFI = MF.getInfo<CSKYMachineFunctionInfo>();
+
+  unsigned CSKYPCLabelIndex = CFI->createPICLabelUId();
+
+  SDLoc DL(N);
+  EVT Ty = getPointerTy(DAG.getDataLayout());
+  IntegerType *CallTy = Type::getIntNTy(*DAG.getContext(), Ty.getSizeInBits());
+
+  CSKYConstantPoolValue *CPV =
+      CSKYConstantPoolConstant::Create(N->getGlobal(), CSKYCP::CPValue, 4,
+                                       CSKYCP::TLSGD, true, CSKYPCLabelIndex);
+  SDValue Addr = DAG.getTargetConstantPool(CPV, Ty);
+  SDValue PICLabel = DAG.getTargetConstant(CSKYPCLabelIndex, DL, MVT::i32);
+
+  auto *LRWGRS =
+      DAG.getMachineNode(CSKY::PseudoTLSLA32, DL, {Ty, Ty}, {Addr, PICLabel});
+
+  auto Load =
+      DAG.getNode(ISD::ADD, DL, Ty, SDValue(LRWGRS, 0), SDValue(LRWGRS, 1));
+
+  // Prepare argument list to generate call.
+  ArgListTy Args;
+  ArgListEntry Entry;
+  Entry.Node = Load;
+  Entry.Ty = CallTy;
+  Args.push_back(Entry);
+
+  // Setup call to __tls_get_addr.
+  TargetLowering::CallLoweringInfo CLI(DAG);
+  CLI.setDebugLoc(DL)
+      .setChain(DAG.getEntryNode())
+      .setLibCallee(CallingConv::C, CallTy,
+                    DAG.getExternalSymbol("__tls_get_addr", Ty),
+                    std::move(Args));
+  SDValue V = LowerCallTo(CLI).first;
+
+  return V;
 }

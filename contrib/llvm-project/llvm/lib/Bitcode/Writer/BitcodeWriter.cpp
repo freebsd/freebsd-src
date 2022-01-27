@@ -948,7 +948,7 @@ void ModuleBitcodeWriter::writeTypeTable() {
       } else {
         // POINTER: [pointee type, address space]
         Code = bitc::TYPE_CODE_POINTER;
-        TypeVals.push_back(VE.getTypeID(PTy->getElementType()));
+        TypeVals.push_back(VE.getTypeID(PTy->getNonOpaquePointerElementType()));
         TypeVals.push_back(AddressSpace);
         if (AddressSpace == 0)
           AbbrevToUse = PtrAbbrev;
@@ -1657,6 +1657,7 @@ void ModuleBitcodeWriter::writeDIStringType(const DIStringType *N,
   Record.push_back(VE.getMetadataOrNullID(N->getRawName()));
   Record.push_back(VE.getMetadataOrNullID(N->getStringLength()));
   Record.push_back(VE.getMetadataOrNullID(N->getStringLengthExp()));
+  Record.push_back(VE.getMetadataOrNullID(N->getStringLocationExp()));
   Record.push_back(N->getSizeInBits());
   Record.push_back(N->getAlignInBits());
   Record.push_back(N->getEncoding());
@@ -2458,6 +2459,7 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
     }
 
     if (const InlineAsm *IA = dyn_cast<InlineAsm>(V)) {
+      Record.push_back(VE.getTypeID(IA->getFunctionType()));
       Record.push_back(
           unsigned(IA->hasSideEffects()) | unsigned(IA->isAlignStack()) << 1 |
           unsigned(IA->getDialect() & 1) << 2 | unsigned(IA->canThrow()) << 3);
