@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RegAllocEvictionAdvisor.h"
+#include "RegAllocGreedy.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
@@ -42,6 +43,9 @@ static cl::opt<bool> EnableLocalReassignment(
     cl::init(false));
 
 #define DEBUG_TYPE "regalloc"
+#ifdef LLVM_HAVE_TF_AOT_REGALLOCEVICTMODEL
+#define LLVM_HAVE_TF_AOT
+#endif
 
 char RegAllocEvictionAdvisorAnalysis::ID = 0;
 INITIALIZE_PASS(RegAllocEvictionAdvisorAnalysis, "regalloc-evict",
@@ -62,12 +66,8 @@ public:
 
 private:
   std::unique_ptr<RegAllocEvictionAdvisor>
-  getAdvisor(const MachineFunction &MF, LiveRegMatrix *Matrix,
-             LiveIntervals *LIS, VirtRegMap *VRM,
-             const RegisterClassInfo &RegClassInfo,
-             ExtraRegInfo *ExtraInfo) override {
-    return std::make_unique<DefaultEvictionAdvisor>(MF, Matrix, LIS, VRM,
-                                                    RegClassInfo, ExtraInfo);
+  getAdvisor(const MachineFunction &MF, const RAGreedy &RA) override {
+    return std::make_unique<DefaultEvictionAdvisor>(MF, RA);
   }
   bool doInitialization(Module &M) override {
     if (NotAsRequested)
@@ -86,10 +86,14 @@ template <> Pass *llvm::callDefaultCtor<RegAllocEvictionAdvisorAnalysis>() {
     Ret = new DefaultEvictionAdvisorAnalysis(/*NotAsRequested*/ false);
     break;
   case RegAllocEvictionAdvisorAnalysis::AdvisorMode::Development:
-    // TODO(mtrofin): add implementation
+#if defined(LLVM_HAVE_TF_API)
+    Ret = createDevelopmentModeAdvisor();
+#endif
     break;
   case RegAllocEvictionAdvisorAnalysis::AdvisorMode::Release:
-    // TODO(mtrofin): add implementation
+#if defined(LLVM_HAVE_TF_AOT)
+    Ret = createReleaseModeAdvisor();
+#endif
     break;
   }
   if (Ret)
@@ -109,13 +113,12 @@ StringRef RegAllocEvictionAdvisorAnalysis::getPassName() const {
   llvm_unreachable("Unknown advisor kind");
 }
 
-RegAllocEvictionAdvisor::RegAllocEvictionAdvisor(
-    const MachineFunction &MF, LiveRegMatrix *Matrix, LiveIntervals *LIS,
-    VirtRegMap *VRM, const RegisterClassInfo &RegClassInfo,
-    ExtraRegInfo *ExtraInfo)
-    : MF(MF), Matrix(Matrix), LIS(LIS), VRM(VRM), MRI(&VRM->getRegInfo()),
-      TRI(MF.getSubtarget().getRegisterInfo()), RegClassInfo(RegClassInfo),
-      RegCosts(TRI->getRegisterCosts(MF)), ExtraInfo(ExtraInfo),
+RegAllocEvictionAdvisor::RegAllocEvictionAdvisor(const MachineFunction &MF,
+                                                 const RAGreedy &RA)
+    : MF(MF), RA(RA), Matrix(RA.getInterferenceMatrix()),
+      LIS(RA.getLiveIntervals()), VRM(RA.getVirtRegMap()),
+      MRI(&VRM->getRegInfo()), TRI(MF.getSubtarget().getRegisterInfo()),
+      RegClassInfo(RA.getRegClassInfo()), RegCosts(TRI->getRegisterCosts(MF)),
       EnableLocalReassign(EnableLocalReassignment ||
                           MF.getSubtarget().enableRALocalReassignment(
                               MF.getTarget().getOptLevel())) {}

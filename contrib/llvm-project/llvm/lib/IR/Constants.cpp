@@ -739,15 +739,8 @@ static bool constantIsDead(const Constant *C, bool RemoveDeadUsers) {
       ++I;
   }
 
-  if (RemoveDeadUsers) {
-    // If C is only used by metadata, it should not be preserved but should
-    // have its uses replaced.
-    if (C->isUsedByMetadata()) {
-      const_cast<Constant *>(C)->replaceAllUsesWith(
-          UndefValue::get(C->getType()));
-    }
+  if (RemoveDeadUsers)
     const_cast<Constant *>(C)->destroyConstant();
-  }
 
   return true;
 }
@@ -779,18 +772,22 @@ void Constant::removeDeadConstantUsers() const {
   }
 }
 
-bool Constant::hasOneLiveUse() const {
+bool Constant::hasOneLiveUse() const { return hasNLiveUses(1); }
+
+bool Constant::hasZeroLiveUses() const { return hasNLiveUses(0); }
+
+bool Constant::hasNLiveUses(unsigned N) const {
   unsigned NumUses = 0;
-  for (const Use &use : uses()) {
-    const Constant *User = dyn_cast<Constant>(use.getUser());
+  for (const Use &U : uses()) {
+    const Constant *User = dyn_cast<Constant>(U.getUser());
     if (!User || !constantIsDead(User, /* RemoveDeadUsers= */ false)) {
       ++NumUses;
 
-      if (NumUses > 1)
+      if (NumUses > N)
         return false;
     }
   }
-  return NumUses == 1;
+  return NumUses == N;
 }
 
 Constant *Constant::replaceUndefsWith(Constant *C, Constant *Replacement) {
@@ -1489,28 +1486,6 @@ bool ConstantExpr::isCast() const {
 
 bool ConstantExpr::isCompare() const {
   return getOpcode() == Instruction::ICmp || getOpcode() == Instruction::FCmp;
-}
-
-bool ConstantExpr::isGEPWithNoNotionalOverIndexing() const {
-  if (getOpcode() != Instruction::GetElementPtr) return false;
-
-  gep_type_iterator GEPI = gep_type_begin(this), E = gep_type_end(this);
-  User::const_op_iterator OI = std::next(this->op_begin());
-
-  // The remaining indices may be compile-time known integers within the bounds
-  // of the corresponding notional static array types.
-  for (; GEPI != E; ++GEPI, ++OI) {
-    if (isa<UndefValue>(*OI))
-      continue;
-    auto *CI = dyn_cast<ConstantInt>(*OI);
-    if (!CI || (GEPI.isBoundedSequential() &&
-                (CI->getValue().getActiveBits() > 64 ||
-                 CI->getZExtValue() >= GEPI.getSequentialNumElements())))
-      return false;
-  }
-
-  // All the indices checked out.
-  return true;
 }
 
 bool ConstantExpr::hasIndices() const {
@@ -2546,11 +2521,11 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
 
 Constant *ConstantExpr::getICmp(unsigned short pred, Constant *LHS,
                                 Constant *RHS, bool OnlyIfReduced) {
+  auto Predicate = static_cast<CmpInst::Predicate>(pred);
   assert(LHS->getType() == RHS->getType());
-  assert(CmpInst::isIntPredicate((CmpInst::Predicate)pred) &&
-         "Invalid ICmp Predicate");
+  assert(CmpInst::isIntPredicate(Predicate) && "Invalid ICmp Predicate");
 
-  if (Constant *FC = ConstantFoldCompareInstruction(pred, LHS, RHS))
+  if (Constant *FC = ConstantFoldCompareInstruction(Predicate, LHS, RHS))
     return FC;          // Fold a few common cases...
 
   if (OnlyIfReduced)
@@ -2559,7 +2534,7 @@ Constant *ConstantExpr::getICmp(unsigned short pred, Constant *LHS,
   // Look up the constant in the table first to ensure uniqueness
   Constant *ArgVec[] = { LHS, RHS };
   // Get the key type with both the opcode and predicate
-  const ConstantExprKeyType Key(Instruction::ICmp, ArgVec, pred);
+  const ConstantExprKeyType Key(Instruction::ICmp, ArgVec, Predicate);
 
   Type *ResultTy = Type::getInt1Ty(LHS->getContext());
   if (VectorType *VT = dyn_cast<VectorType>(LHS->getType()))
@@ -2571,11 +2546,11 @@ Constant *ConstantExpr::getICmp(unsigned short pred, Constant *LHS,
 
 Constant *ConstantExpr::getFCmp(unsigned short pred, Constant *LHS,
                                 Constant *RHS, bool OnlyIfReduced) {
+  auto Predicate = static_cast<CmpInst::Predicate>(pred);
   assert(LHS->getType() == RHS->getType());
-  assert(CmpInst::isFPPredicate((CmpInst::Predicate)pred) &&
-         "Invalid FCmp Predicate");
+  assert(CmpInst::isFPPredicate(Predicate) && "Invalid FCmp Predicate");
 
-  if (Constant *FC = ConstantFoldCompareInstruction(pred, LHS, RHS))
+  if (Constant *FC = ConstantFoldCompareInstruction(Predicate, LHS, RHS))
     return FC;          // Fold a few common cases...
 
   if (OnlyIfReduced)
@@ -2584,7 +2559,7 @@ Constant *ConstantExpr::getFCmp(unsigned short pred, Constant *LHS,
   // Look up the constant in the table first to ensure uniqueness
   Constant *ArgVec[] = { LHS, RHS };
   // Get the key type with both the opcode and predicate
-  const ConstantExprKeyType Key(Instruction::FCmp, ArgVec, pred);
+  const ConstantExprKeyType Key(Instruction::FCmp, ArgVec, Predicate);
 
   Type *ResultTy = Type::getInt1Ty(LHS->getContext());
   if (VectorType *VT = dyn_cast<VectorType>(LHS->getType()))

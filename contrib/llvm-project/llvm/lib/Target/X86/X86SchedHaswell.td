@@ -257,6 +257,7 @@ defm : X86WriteRes<WriteFMaskedStore64Y, [HWPort0,HWPort4,HWPort237,HWPort15], 5
 defm : X86WriteRes<WriteFMove,         [HWPort5], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveX,        [HWPort5], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveY,        [HWPort5], 1, [1], 1>;
+defm : X86WriteResUnsupported<WriteFMoveZ>;
 defm : X86WriteRes<WriteEMMS,          [HWPort01,HWPort15,HWPort015,HWPort0156], 31, [8,1,21,1], 31>;
 
 defm : HWWriteResPair<WriteFAdd,    [HWPort1],  3, [1], 1, 5>;
@@ -416,6 +417,7 @@ defm : X86WriteRes<WriteVecMaskedStore64Y, [HWPort0,HWPort4,HWPort237,HWPort15],
 defm : X86WriteRes<WriteVecMove,         [HWPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveX,        [HWPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveY,        [HWPort015], 1, [1], 1>;
+defm : X86WriteResUnsupported<WriteVecMoveZ>;
 defm : X86WriteRes<WriteVecMoveToGpr,    [HWPort0], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveFromGpr,  [HWPort5], 1, [1], 1>;
 
@@ -2029,5 +2031,41 @@ def HWSETA_SETBErm :  SchedWriteVariant<[
 
 def : InstRW<[HWSETA_SETBErr], (instrs SETCCr)>;
 def : InstRW<[HWSETA_SETBErm], (instrs SETCCm)>;
+
+///////////////////////////////////////////////////////////////////////////////
+// Dependency breaking instructions.
+///////////////////////////////////////////////////////////////////////////////
+
+def : IsZeroIdiomFunction<[
+  // GPR Zero-idioms.
+  DepBreakingClass<[ SUB32rr, SUB64rr, XOR32rr, XOR64rr ], ZeroIdiomPredicate>,
+
+  // SSE Zero-idioms.
+  DepBreakingClass<[
+    // fp variants.
+    XORPSrr, XORPDrr,
+
+    // int variants.
+    PXORrr,
+    PSUBBrr, PSUBWrr, PSUBDrr, PSUBQrr,
+    PCMPGTBrr, PCMPGTDrr, PCMPGTQrr, PCMPGTWrr
+  ], ZeroIdiomPredicate>,
+
+  // AVX Zero-idioms.
+  DepBreakingClass<[
+    // xmm fp variants.
+    VXORPSrr, VXORPDrr,
+
+    // xmm int variants.
+    VPXORrr,
+    VPSUBBrr, VPSUBWrr, VPSUBDrr, VPSUBQrr,
+    VPCMPGTBrr, VPCMPGTWrr, VPCMPGTDrr, VPCMPGTQrr,
+
+    // ymm variants.
+    VXORPSYrr, VXORPDYrr, VPXORYrr,
+    VPSUBBYrr, VPSUBWYrr, VPSUBDYrr, VPSUBQYrr,
+    VPCMPGTBYrr, VPCMPGTWYrr, VPCMPGTDYrr
+  ], ZeroIdiomPredicate>,
+]>;
 
 } // SchedModel

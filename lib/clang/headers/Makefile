@@ -34,6 +34,7 @@ INCS+=		amxintrin.h
 INCS+=		arm64intr.h
 INCS+=		arm_acle.h
 INCS+=		arm_cmse.h
+INCS+=		arm_neon_sve_bridge.h
 INCS+=		armintr.h
 INCS+=		avx2intrin.h
 INCS+=		avx512bf16intrin.h

@@ -30,7 +30,6 @@ namespace AMDGPU {
 struct ImageDimIntrinsicInfo;
 }
 
-class AMDGPUInstrInfo;
 class AMDGPURegisterBankInfo;
 class AMDGPUTargetMachine;
 class BlockFrequencyInfo;
@@ -42,7 +41,6 @@ class MachineOperand;
 class MachineRegisterInfo;
 class RegisterBank;
 class SIInstrInfo;
-class SIMachineFunctionInfo;
 class SIRegisterInfo;
 class TargetRegisterClass;
 
@@ -147,6 +145,7 @@ private:
   bool selectGlobalAtomicFadd(MachineInstr &I, MachineOperand &AddrOp,
                               MachineOperand &DataOp) const;
   bool selectBVHIntrinsic(MachineInstr &I) const;
+  bool selectWaveAddress(MachineInstr &I) const;
 
   std::pair<Register, unsigned> selectVOP3ModsImpl(MachineOperand &Root,
                                                    bool AllowAbs = true) const;

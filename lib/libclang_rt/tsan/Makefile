@@ -49,7 +49,6 @@ SRCS+=		sanitizer_common/sanitizer_thread_registry.cpp
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cpp
 SRCS+=		sanitizer_common/sanitizer_type_traits.cpp
 SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cpp
-SRCS+=		tsan/rtl/tsan_clock.cpp
 SRCS+=		tsan/rtl/tsan_debugging.cpp
 SRCS+=		tsan/rtl/tsan_external.cpp
 SRCS+=		tsan/rtl/tsan_fd.cpp

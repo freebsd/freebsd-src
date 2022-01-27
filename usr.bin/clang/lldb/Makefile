@@ -37,6 +37,7 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 LIBADD=		tinfow
 LIBADD+=	edit
 LIBADD+=	execinfo
+LIBADD+=	kvm
 LIBADD+=	lua
 LIBADD+=	lzma
 LIBADD+=	ncursesw

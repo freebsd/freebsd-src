@@ -26,16 +26,9 @@ using namespace llvm::ELF;
 using namespace lld;
 using namespace lld::elf;
 
-// Returns a symbol for an error message.
-static std::string demangle(StringRef symName) {
-  if (elf::config->demangle)
-    return demangleItanium(symName);
-  return std::string(symName);
-}
-
 std::string lld::toString(const elf::Symbol &sym) {
   StringRef name = sym.getName();
-  std::string ret = demangle(name);
+  std::string ret = demangle(name, config->demangle);
 
   const char *suffix = sym.getVersionSuffix();
   if (*suffix == '@')
@@ -44,7 +37,7 @@ std::string lld::toString(const elf::Symbol &sym) {
 }
 
 std::string lld::toELFString(const Archive::Symbol &b) {
-  return demangle(b.getName());
+  return demangle(b.getName(), config->demangle);
 }
 
 Defined *ElfSym::bss;
@@ -66,6 +59,7 @@ DenseMap<const Symbol *, std::pair<const InputFile *, const InputFile *>>
     elf::backwardReferences;
 SmallVector<std::tuple<std::string, const InputFile *, const Symbol &>, 0>
     elf::whyExtract;
+SmallVector<SymbolAux, 0> elf::symAux;
 
 static uint64_t getSymVA(const Symbol &sym, int64_t addend) {
   switch (sym.kind()) {
@@ -140,8 +134,7 @@ static uint64_t getSymVA(const Symbol &sym, int64_t addend) {
     return 0;
   case Symbol::LazyArchiveKind:
   case Symbol::LazyObjectKind:
-    assert(sym.isUsedInRegularObj && "lazy symbol reached writer");
-    return 0;
+    llvm_unreachable("lazy symbol reached writer");
   case Symbol::CommonKind:
     llvm_unreachable("common symbol reached writer");
   case Symbol::PlaceholderKind:
@@ -161,7 +154,7 @@ uint64_t Symbol::getGotVA() const {
 }
 
 uint64_t Symbol::getGotOffset() const {
-  return gotIndex * target->gotEntrySize;
+  return getGotIdx() * target->gotEntrySize;
 }
 
 uint64_t Symbol::getGotPltVA() const {
@@ -172,15 +165,15 @@ uint64_t Symbol::getGotPltVA() const {
 
 uint64_t Symbol::getGotPltOffset() const {
   if (isInIplt)
-    return pltIndex * target->gotEntrySize;
-  return (pltIndex + target->gotPltHeaderEntriesNum) * target->gotEntrySize;
+    return getPltIdx() * target->gotEntrySize;
+  return (getPltIdx() + target->gotPltHeaderEntriesNum) * target->gotEntrySize;
 }
 
 uint64_t Symbol::getPltVA() const {
   uint64_t outVA = isInIplt
-                       ? in.iplt->getVA() + pltIndex * target->ipltEntrySize
+                       ? in.iplt->getVA() + getPltIdx() * target->ipltEntrySize
                        : in.plt->getVA() + in.plt->headerSize +
-                             pltIndex * target->pltEntrySize;
+                             getPltIdx() * target->pltEntrySize;
 
   // While linking microMIPS code PLT code are always microMIPS
   // code. Set the less-significant bit to track that fact.
@@ -216,11 +209,12 @@ void Symbol::parseSymbolVersion() {
   if (pos == StringRef::npos)
     return;
   StringRef verstr = s.substr(pos + 1);
-  if (verstr.empty())
-    return;
 
   // Truncate the symbol name so that it doesn't include the version string.
   nameSize = pos;
+
+  if (verstr.empty())
+    return;
 
   // If this is not in this DSO, it is not a definition.
   if (!isDefined())
@@ -274,19 +268,15 @@ MemoryBufferRef LazyArchive::getMemberBuffer() {
 }
 
 uint8_t Symbol::computeBinding() const {
-  if (config->relocatable)
-    return binding;
   if ((visibility != STV_DEFAULT && visibility != STV_PROTECTED) ||
-      (versionId == VER_NDX_LOCAL && !isLazy()))
+      versionId == VER_NDX_LOCAL)
     return STB_LOCAL;
-  if (!config->gnuUnique && binding == STB_GNU_UNIQUE)
+  if (binding == STB_GNU_UNIQUE && !config->gnuUnique)
     return STB_GLOBAL;
   return binding;
 }
 
 bool Symbol::includeInDynsym() const {
-  if (!config->hasDynSymTab)
-    return false;
   if (computeBinding() == STB_LOCAL)
     return false;
   if (!isDefined() && !isCommon())
@@ -294,7 +284,7 @@ bool Symbol::includeInDynsym() const {
     // expects undefined weak symbols not to exist in .dynsym, e.g.
     // __pthread_mutex_lock reference in _dl_add_to_namespace_list,
     // __pthread_initialize_minimal reference in csu/libc-start.c.
-    return !(config->noDynamicLinker && isUndefWeak());
+    return !(isUndefWeak() && config->noDynamicLinker);
 
   return exportDynamic || inDynamicList;
 }
@@ -354,7 +344,7 @@ void elf::maybeWarnUnorderableSymbol(const Symbol *sym) {
 // Returns true if a symbol can be replaced at load-time by a symbol
 // with the same name defined in other ELF executable or DSO.
 bool elf::computeIsPreemptible(const Symbol &sym) {
-  assert(!sym.isLocal());
+  assert(!sym.isLocal() || sym.isPlaceholder());
 
   // Only symbols with default visibility that appear in dynsym can be
   // preempted. Symbols with protected visibility cannot be preempted.

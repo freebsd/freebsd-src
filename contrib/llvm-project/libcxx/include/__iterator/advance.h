@@ -12,13 +12,12 @@
 
 #include <__config>
 #include <__debug>
-#include <__function_like.h>
 #include <__iterator/concepts.h>
 #include <__iterator/incrementable_traits.h>
 #include <__iterator/iterator_traits.h>
 #include <__utility/move.h>
-#include <cstdlib>
 #include <concepts>
+#include <cstdlib>
 #include <limits>
 #include <type_traits>
 
@@ -67,17 +66,13 @@ void advance(_InputIter& __i, _Distance __orig_n) {
 
 #if !defined(_LIBCPP_HAS_NO_RANGES)
 
-namespace ranges {
 // [range.iter.op.advance]
-// TODO(varconst): rename `__advance_fn` to `__fn`.
-struct __advance_fn final : private __function_like {
-private:
-  template <class _Tp>
-  _LIBCPP_HIDE_FROM_ABI
-  static constexpr _Tp __magnitude_geq(_Tp __a, _Tp __b) noexcept {
-    return __a < 0 ? (__a <= __b) : (__a >= __b);
-  }
 
+namespace ranges {
+namespace __advance {
+
+struct __fn {
+private:
   template <class _Ip>
   _LIBCPP_HIDE_FROM_ABI
   static constexpr void __advance_forward(_Ip& __i, iter_difference_t<_Ip> __n) {
@@ -97,8 +92,6 @@ private:
   }
 
 public:
-  constexpr explicit __advance_fn(__tag __x) noexcept : __function_like(__x) {}
-
   // Preconditions: If `I` does not model `bidirectional_iterator`, `n` is not negative.
   template <input_or_output_iterator _Ip>
   _LIBCPP_HIDE_FROM_ABI
@@ -156,6 +149,12 @@ public:
     // If `S` and `I` model `sized_sentinel_for<S, I>`:
     if constexpr (sized_sentinel_for<_Sp, _Ip>) {
       // If |n| >= |bound - i|, equivalent to `ranges::advance(i, bound)`.
+      // __magnitude_geq(a, b) returns |a| >= |b|, assuming they have the same sign.
+      auto __magnitude_geq = [](auto __a, auto __b) {
+        return __a == 0 ? __b == 0 :
+               __a > 0  ? __a >= __b :
+                          __a <= __b;
+      };
       if (const auto __M = __bound - __i; __magnitude_geq(__n, __M)) {
         (*this)(__i, __bound);
         return __n - __M;
@@ -186,7 +185,11 @@ public:
   }
 };
 
-inline constexpr auto advance = __advance_fn(__function_like::__tag());
+} // namespace __advance
+
+inline namespace __cpo {
+  inline constexpr auto advance = __advance::__fn{};
+} // namespace __cpo
 } // namespace ranges
 
 #endif // !defined(_LIBCPP_HAS_NO_RANGES)

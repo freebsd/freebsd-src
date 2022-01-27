@@ -58,7 +58,8 @@ public:
     auto &DSOHandleSection =
         G->createSection(".data.__dso_handle", jitlink::MemProt::Read);
     auto &DSOHandleBlock = G->createContentBlock(
-        DSOHandleSection, getDSOHandleContent(PointerSize), 0, 8, 0);
+        DSOHandleSection, getDSOHandleContent(PointerSize), orc::ExecutorAddr(),
+        8, 0);
     auto &DSOHandleSymbol = G->addDefinedSymbol(
         DSOHandleBlock, 0, *R->getInitializerSymbol(), DSOHandleBlock.getSize(),
         jitlink::Linkage::Strong, jitlink::Scope::Default, false, true);
@@ -152,6 +153,10 @@ ELFNixPlatform::Create(ExecutionSession &ES,
 Error ELFNixPlatform::setupJITDylib(JITDylib &JD) {
   return JD.define(
       std::make_unique<DSOHandleMaterializationUnit>(*this, DSOHandleSymbol));
+}
+
+Error ELFNixPlatform::teardownJITDylib(JITDylib &JD) {
+  return Error::success();
 }
 
 Error ELFNixPlatform::notifyAdding(ResourceTracker &RT,
@@ -315,9 +320,14 @@ void ELFNixPlatform::getInitializersLookupPhase(
     SendInitializerSequenceFn SendResult, JITDylib &JD) {
 
   auto DFSLinkOrder = JD.getDFSLinkOrder();
+  if (!DFSLinkOrder) {
+    SendResult(DFSLinkOrder.takeError());
+    return;
+  }
+
   DenseMap<JITDylib *, SymbolLookupSet> NewInitSymbols;
   ES.runSessionLocked([&]() {
-    for (auto &InitJD : DFSLinkOrder) {
+    for (auto &InitJD : *DFSLinkOrder) {
       auto RISItr = RegisteredInitSymbols.find(InitJD.get());
       if (RISItr != RegisteredInitSymbols.end()) {
         NewInitSymbols[InitJD.get()] = std::move(RISItr->second);
@@ -330,7 +340,7 @@ void ELFNixPlatform::getInitializersLookupPhase(
   // phase.
   if (NewInitSymbols.empty()) {
     getInitializersBuildSequencePhase(std::move(SendResult), JD,
-                                      std::move(DFSLinkOrder));
+                                      std::move(*DFSLinkOrder));
     return;
   }
 
@@ -375,7 +385,7 @@ void ELFNixPlatform::rt_getDeinitializers(
 
   {
     std::lock_guard<std::mutex> Lock(PlatformMutex);
-    auto I = HandleAddrToJITDylib.find(Handle.getValue());
+    auto I = HandleAddrToJITDylib.find(Handle);
     if (I != HandleAddrToJITDylib.end())
       JD = I->second;
   }
@@ -406,7 +416,7 @@ void ELFNixPlatform::rt_lookupSymbol(SendSymbolAddressFn SendResult,
 
   {
     std::lock_guard<std::mutex> Lock(PlatformMutex);
-    auto I = HandleAddrToJITDylib.find(Handle.getValue());
+    auto I = HandleAddrToJITDylib.find(Handle);
     if (I != HandleAddrToJITDylib.end())
       JD = I->second;
   }
@@ -630,12 +640,11 @@ void ELFNixPlatform::ELFNixPlatformPlugin::addDSOHandleSupportPasses(
     assert(I != G.defined_symbols().end() && "Missing DSO handle symbol");
     {
       std::lock_guard<std::mutex> Lock(MP.PlatformMutex);
-      JITTargetAddress HandleAddr = (*I)->getAddress();
+      auto HandleAddr = (*I)->getAddress();
       MP.HandleAddrToJITDylib[HandleAddr] = &JD;
       assert(!MP.InitSeqs.count(&JD) && "InitSeq entry for JD already exists");
       MP.InitSeqs.insert(std::make_pair(
-          &JD,
-          ELFNixJITDylibInitializers(JD.getName(), ExecutorAddr(HandleAddr))));
+          &JD, ELFNixJITDylibInitializers(JD.getName(), HandleAddr)));
     }
     return Error::success();
   });

@@ -4106,7 +4106,8 @@ void __kmp_unregister_root_current_thread(int gtid) {
   kmp_task_team_t *task_team = thread->th.th_task_team;
 
   // we need to wait for the proxy tasks before finishing the thread
-  if (task_team != NULL && task_team->tt.tt_found_proxy_tasks) {
+  if (task_team != NULL && (task_team->tt.tt_found_proxy_tasks ||
+                            task_team->tt.tt_hidden_helper_task_encountered)) {
 #if OMPT_SUPPORT
     // the runtime is shutting down so we won't report any events
     thread->th.ompt_thread_info.state = ompt_state_undefined;
@@ -6894,7 +6895,9 @@ static void __kmp_check_mic_type() {
 static void __kmp_user_level_mwait_init() {
   struct kmp_cpuid buf;
   __kmp_x86_cpuid(7, 0, &buf);
-  __kmp_umwait_enabled = ((buf.ecx >> 5) & 1) && __kmp_user_level_mwait;
+  __kmp_waitpkg_enabled = ((buf.ecx >> 5) & 1);
+  __kmp_umwait_enabled = __kmp_waitpkg_enabled && __kmp_user_level_mwait;
+  __kmp_tpause_enabled = __kmp_waitpkg_enabled && (__kmp_tpause_state > 0);
   KF_TRACE(30, ("__kmp_user_level_mwait_init: __kmp_umwait_enabled = %d\n",
                 __kmp_umwait_enabled));
 }

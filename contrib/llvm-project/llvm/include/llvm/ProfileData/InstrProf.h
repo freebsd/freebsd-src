@@ -293,7 +293,6 @@ enum class instrprof_error {
   missing_debug_info_for_correlation,
   unexpected_debug_info_for_correlation,
   unable_to_correlate_profile,
-  unsupported_debug_format,
   unknown_function,
   invalid_prof,
   hash_mismatch,
@@ -530,6 +529,12 @@ public:
 
   /// Return the name section data.
   inline StringRef getNameData() const { return Data; }
+
+  /// Dump the symbols in this table.
+  void dumpNames(raw_ostream &OS) const {
+    for (StringRef S : NameTab.keys())
+      OS << S << "\n";
+  }
 };
 
 Error InstrProfSymtab::create(StringRef D, uint64_t BaseAddr) {
