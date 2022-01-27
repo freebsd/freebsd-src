@@ -110,6 +110,18 @@ dummynet(void *arg)
 }
 
 void
+dummynet_sched_lock(void)
+{
+	mtx_lock(&sched_mtx);
+}
+
+void
+dummynet_sched_unlock(void)
+{
+	mtx_unlock(&sched_mtx);
+}
+
+void
 dn_reschedule(void)
 {
 
