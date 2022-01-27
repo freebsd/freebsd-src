@@ -239,6 +239,7 @@ ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
 		 * packet.
 		 */
 		if (mst == NULL) {
+			m_freem(m);
 			error = EAGAIN;
 			goto done;
 		}
@@ -263,6 +264,7 @@ ip_output_send(struct inpcb *inp, struct ifnet *ifp, struct mbuf *m,
 		KASSERT(m->m_pkthdr.rcvif == NULL,
 		    ("trying to add a send tag to a forwarded packet"));
 		if (mst->ifp != ifp) {
+			m_freem(m);
 			error = EAGAIN;
 			goto done;
 		}
