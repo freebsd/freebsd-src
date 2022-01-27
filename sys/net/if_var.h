@@ -334,7 +334,7 @@ struct ifnet {
 	const char *if_dname;		/* driver name */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
 	u_short	if_index;		/* numeric abbreviation for this if  */
-	short	if_index_reserved;	/* spare space to grow if_index */
+	u_short	if_idxgen;		/* ... and its generation count */
 	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
 	char	*if_description;	/* interface description */
 
@@ -643,6 +643,13 @@ extern	struct sx ifnet_sxlock;
  */
 struct ifnet	*ifnet_byindex(u_int);
 struct ifnet	*ifnet_byindex_ref(u_int);
+
+/*
+ * ifnet_byindexgen() looks up ifnet by index and generation count,
+ * attempting to restore a weak pointer that had been stored across
+ * the epoch.
+ */
+struct ifnet   *ifnet_byindexgen(uint16_t idx, uint16_t gen);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only
