@@ -270,8 +270,10 @@ g_shsec_done(struct bio *bp)
 			    (ssize_t)pbp->bio_length);
 		}
 	}
-	explicit_bzero(bp->bio_data, bp->bio_length);
-	uma_zfree(g_shsec_zone, bp->bio_data);
+	if (bp->bio_data != NULL) {
+		explicit_bzero(bp->bio_data, bp->bio_length);
+		uma_zfree(g_shsec_zone, bp->bio_data);
+	}
 	g_destroy_bio(bp);
 	pbp->bio_inbed++;
 	if (pbp->bio_children == pbp->bio_inbed) {
@@ -349,20 +351,22 @@ g_shsec_start(struct bio *bp)
 		 * Fill in the component buf structure.
 		 */
 		cbp->bio_done = g_shsec_done;
-		cbp->bio_data = uma_zalloc(g_shsec_zone, M_NOWAIT);
-		if (cbp->bio_data == NULL) {
-			g_shsec_alloc_failed++;
-			error = ENOMEM;
-			goto failure;
-		}
 		cbp->bio_caller2 = sc->sc_disks[no];
-		if (bp->bio_cmd == BIO_WRITE) {
-			if (no == 0) {
-				dst = (uint32_t *)cbp->bio_data;
-				bcopy(bp->bio_data, dst, len);
-			} else {
-				g_shsec_xor2((uint32_t *)cbp->bio_data, dst,
-				    len);
+		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+			cbp->bio_data = uma_zalloc(g_shsec_zone, M_NOWAIT);
+			if (cbp->bio_data == NULL) {
+				g_shsec_alloc_failed++;
+				error = ENOMEM;
+				goto failure;
+			}
+			if (bp->bio_cmd == BIO_WRITE) {
+				if (no == 0) {
+					dst = (uint32_t *)cbp->bio_data;
+					bcopy(bp->bio_data, dst, len);
+				} else {
+					g_shsec_xor2((uint32_t *)cbp->bio_data,
+					    dst, len);
+				}
 			}
 		}
 	}
