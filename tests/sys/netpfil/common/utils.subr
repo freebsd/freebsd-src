@@ -111,10 +111,6 @@ dummynet_init()
 		atf_skip "This test requires dummynet"
 	fi
 
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "Skip to avoid dummynet_send() panic. See https://reviews.freebsd.org/D33064"
-	fi
-
 	case $firewall in
 	ipfw|pf)
 		# Nothing. This is okay.
