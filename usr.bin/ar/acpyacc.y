@@ -406,7 +406,7 @@ arscp_extract(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_read_archive(bsdar, 'x');
+	ar_read_archive(bsdar, 'x', stdout);
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -422,7 +422,7 @@ arscp_list(void)
 	bsdar->argv = NULL;
 	/* Always verbose. */
 	bsdar->options |= AR_V;
-	ar_read_archive(bsdar, 't');
+	ar_read_archive(bsdar, 't', stdout);
 	bsdar->options &= ~AR_V;
 }
 
@@ -433,10 +433,9 @@ arscp_dir(char *archive, struct list *list, char *rlt)
 	FILE	*out;
 
 	/* If rlt != NULL, redirect output to it */
-	out = NULL;
+	out = stdout;
 	if (rlt) {
-		out = stdout;
-		if ((stdout = fopen(rlt, "w")) == NULL)
+		if ((out = fopen(rlt, "w")) == NULL)
 			bsdar_errc(bsdar, errno, "fopen %s failed", rlt);
 	}
 
@@ -449,13 +448,12 @@ arscp_dir(char *archive, struct list *list, char *rlt)
 	}
 	if (verbose)
 		bsdar->options |= AR_V;
-	ar_read_archive(bsdar, 't');
+	ar_read_archive(bsdar, 't', out);
 	bsdar->options &= ~AR_V;
 
 	if (rlt) {
-		if (fclose(stdout) == EOF)
+		if (fclose(out) == EOF)
 			bsdar_errc(bsdar, errno, "fclose %s failed", rlt);
-		stdout = out;
 		free(rlt);
 	}
 	free(archive);

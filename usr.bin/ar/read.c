@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * Handle read modes: 'x', 't' and 'p'.
  */
 int
-ar_read_archive(struct bsdar *bsdar, int mode)
+ar_read_archive(struct bsdar *bsdar, int mode, FILE *out)
 {
 	struct archive		 *a;
 	struct archive_entry	 *entry;
@@ -123,18 +123,18 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 				size = archive_entry_size(entry);
 				mtime = archive_entry_mtime(entry);
 				(void)strmode(md, buf);
-				(void)fprintf(stdout, "%s %6d/%-6d %8ju ",
+				(void)fprintf(out, "%s %6d/%-6d %8ju ",
 				    buf + 1, uid, gid, (uintmax_t)size);
 				tp = localtime(&mtime);
 				(void)strftime(buf, sizeof(buf),
 				    "%b %e %H:%M %Y", tp);
-				(void)fprintf(stdout, "%s %s", buf, name);
+				(void)fprintf(out, "%s %s", buf, name);
 			} else
-				(void)fprintf(stdout, "%s", name);
+				(void)fprintf(out, "%s", name);
 			r = archive_read_data_skip(a);
 			if (r == ARCHIVE_WARN || r == ARCHIVE_RETRY ||
 			    r == ARCHIVE_FATAL) {
-				(void)fprintf(stdout, "\n");
+				(void)fprintf(out, "\n");
 				bsdar_warnc(bsdar, archive_errno(a), "%s",
 				    archive_error_string(a));
 			}
@@ -142,14 +142,14 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 			if (r == ARCHIVE_FATAL)
 				break;
 
-			(void)fprintf(stdout, "\n");
+			(void)fprintf(out, "\n");
 		} else {
 			/* mode == 'x' || mode = 'p' */
 			if (mode == 'p') {
 				if (bsdar->options & AR_V) {
-					(void)fprintf(stdout, "\n<%s>\n\n",
+					(void)fprintf(out, "\n<%s>\n\n",
 					    name);
-					fflush(stdout);
+					fflush(out);
 				}
 				r = archive_read_data_into_fd(a, 1);
 			} else {
@@ -172,7 +172,7 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 				}
 
 				if (bsdar->options & AR_V)
-					(void)fprintf(stdout, "x - %s\n", name);
+					(void)fprintf(out, "x - %s\n", name);
 				/* Disallow absolute paths. */
 				if (name[0] == '/') {
 					bsdar_warnc(bsdar, 0,
