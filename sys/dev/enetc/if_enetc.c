@@ -364,7 +364,6 @@ enetc_setup_phy(struct enetc_softc *sc)
 static int
 enetc_attach_pre(if_ctx_t ctx)
 {
-	struct ifnet *ifp;
 	if_softc_ctx_t scctx;
 	struct enetc_softc *sc;
 	int error, rid;
@@ -374,7 +373,6 @@ enetc_attach_pre(if_ctx_t ctx)
 	sc->ctx = ctx;
 	sc->dev = iflib_get_dev(ctx);
 	sc->shared = scctx;
-	ifp = iflib_get_ifp(ctx);
 
 	mtx_init(&sc->mii_lock, "enetc_mdio", NULL, MTX_DEF);
 
@@ -959,6 +957,29 @@ enetc_init(if_ctx_t ctx)
 }
 
 static void
+enetc_disable_txq(struct enetc_softc *sc, int qid)
+{
+	qidx_t cidx, pidx;
+	int timeout = 10000;	/* this * DELAY(100) = 1s */
+
+	/* At this point iflib shouldn't be enquing any more frames. */
+	pidx = ENETC_TXQ_RD4(sc, qid, ENETC_TBPIR);
+	cidx = ENETC_TXQ_RD4(sc, qid, ENETC_TBCIR);
+
+	while (pidx != cidx && timeout--) {
+		DELAY(100);
+		cidx = ENETC_TXQ_RD4(sc, qid, ENETC_TBCIR);
+	}
+
+	if (timeout == 0)
+		device_printf(sc->dev,
+		    "Timeout while waiting for txq%d to stop transmitting packets\n",
+		    qid);
+
+	ENETC_TXQ_WR4(sc, qid, ENETC_TBMR, 0);
+}
+
+static void
 enetc_stop(if_ctx_t ctx)
 {
 	struct enetc_softc *sc;
@@ -966,11 +987,11 @@ enetc_stop(if_ctx_t ctx)
 
 	sc = iflib_get_softc(ctx);
 
-	for (i = 0; i < sc->tx_num_queues; i++)
-		ENETC_TXQ_WR4(sc, i, ENETC_TBMR, 0);
-
 	for (i = 0; i < sc->rx_num_queues; i++)
 		ENETC_RXQ_WR4(sc, i, ENETC_RBMR, 0);
+
+	for (i = 0; i < sc->tx_num_queues; i++)
+		enetc_disable_txq(sc, i);
 }
 
 static int
