@@ -52,8 +52,7 @@ struct enetc_tx_queue {
 	union enetc_tx_bd	*ring;
 	uint64_t		ring_paddr;
 
-	qidx_t			next_to_clean;
-	bool			ring_full;
+	qidx_t			cidx;
 
 	struct if_irq		irq;
 };
