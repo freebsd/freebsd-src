@@ -386,7 +386,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		vp->v_vflag |= VV_ROOT;
 
 	vn_lock_pair(lowervp, false, uppervp, false); 
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, NULL, NULL);
 	if (error != 0) {
 		unionfs_nodeget_cleanup(vp, unp);
 		return (error);

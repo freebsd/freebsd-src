@@ -191,7 +191,7 @@ loop:
 	fd->fd_ix = ix;
 	if (ftype == Fdesc && fmp->flags & FMNT_LINRDLNKF)
 		vp->v_vflag |= VV_READLINK;
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, NULL, NULL);
 	if (error != 0) {
 		vgone(vp);
 		vput(vp);

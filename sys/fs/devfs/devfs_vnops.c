@@ -615,7 +615,7 @@ loop:
 	vp->v_data = de;
 	de->de_vnode = vp;
 	mtx_unlock(&devfs_de_interlock);
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, NULL, NULL);
 	if (error != 0) {
 		devfs_insmntque_dtr(vp, de);
 		(void) devfs_allocv_drop_refs(1, dmp, de);

@@ -202,7 +202,7 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	}
 
 	/*
-	 * The insmntque() call below requires the exclusive lock on
+	 * The insmntque1() call below requires the exclusive lock on
 	 * the nullfs vnode.  Upgrade the lock now if hash failed to
 	 * provide ready to use vnode.
 	 */
@@ -235,7 +235,7 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, NULL, NULL);
 	if (error != 0) {
 		vput(lowervp);
 		null_destroy_proto(vp, xp);

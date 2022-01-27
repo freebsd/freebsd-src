@@ -983,7 +983,7 @@ loop:
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
 
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, NULL, NULL);
 	if (error != 0) {
 		tmpfs_insmntque_dtr(vp);
 		vp = NULL;
