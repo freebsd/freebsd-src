@@ -521,7 +521,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		KASSERT(bp->bio_data != NULL,
 		    ("NULL bp->data in g_io_request(cmd=%hu)", bp->bio_cmd));
 	}
-	if (cmd == BIO_DELETE || cmd == BIO_FLUSH) {
+	if (cmd == BIO_DELETE || cmd == BIO_FLUSH || cmd == BIO_SPEEDUP) {
 		KASSERT(bp->bio_data == NULL,
 		    ("non-NULL bp->data in g_io_request(cmd=%hu)",
 		    bp->bio_cmd));
