@@ -117,17 +117,14 @@ ATF_TC_BODY(posix_spawnp_enoexec_fallback_null_argv0, tc)
 {
 	char buf[FILENAME_MAX];
 	char *myargs[1];
-	int error, status;
-	pid_t pid, waitres;
+	int error;
+	pid_t pid;
 
 	snprintf(buf, sizeof(buf), "%s/spawnp_enoexec.sh",
 	    atf_tc_get_config_var(tc, "srcdir"));
 	myargs[0] = NULL;
 	error = posix_spawnp(&pid, buf, NULL, NULL, myargs, myenv);
-	ATF_REQUIRE(error == 0);
-	waitres = waitpid(pid, &status, 0);
-	ATF_REQUIRE(waitres == pid);
-	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
+	ATF_REQUIRE(error == EINVAL);
 }
 
 ATF_TP_ADD_TCS(tp)
