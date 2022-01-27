@@ -338,8 +338,9 @@ __inline static struct mbuf *
 fq_pie_extract_head(struct fq_pie_flow *q, aqm_time_t *pkt_ts,
 	struct fq_pie_si *si, int getts)
 {
-	struct mbuf *m = q->mq.head;
+	struct mbuf *m;
 
+next:	m = q->mq.head;
 	if (m == NULL)
 		return m;
 	q->mq.head = m->m_nextpkt;
@@ -360,6 +361,11 @@ fq_pie_extract_head(struct fq_pie_flow *q, aqm_time_t *pkt_ts,
 			*pkt_ts = *(aqm_time_t *)(mtag + 1);
 			m_tag_delete(m,mtag); 
 		}
+	}
+	if (m->m_pkthdr.rcvif != NULL &&
+	    __predict_false(m_rcvif_restore(m) == NULL)) {
+		m_freem(m);
+		goto next;
 	}
 	return m;
 }
