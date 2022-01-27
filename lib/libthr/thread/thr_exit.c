@@ -67,7 +67,7 @@ static _Unwind_Reason_Code thread_unwind_stop(int version,
 /* unwind library pointers */
 static _Unwind_Reason_Code (*uwl_forcedunwind)(struct _Unwind_Exception *,
 	_Unwind_Stop_Fn, void *);
-static unsigned long (*uwl_getcfa)(struct _Unwind_Context *);
+static uintptr_t (*uwl_getcfa)(struct _Unwind_Context *);
 
 static void
 thread_uw_init(void)
@@ -109,7 +109,7 @@ _Unwind_ForcedUnwind(struct _Unwind_Exception *ex, _Unwind_Stop_Fn stop_func,
 	return (*uwl_forcedunwind)(ex, stop_func, stop_arg);
 }
 
-unsigned long
+uintptr_t
 _Unwind_GetCFA(struct _Unwind_Context *context)
 {
 	return (*uwl_getcfa)(context);
