@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220127: terasic_mtl.4 removed
+OLD_FILES+=usr/share/man/man4/terasic_mtl.4.gz
+
 # 20211229: libc++ moved to /lib
 MOVED_LIBS+=usr/lib/libc++.so.1
 
