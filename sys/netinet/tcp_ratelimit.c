@@ -1411,6 +1411,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 			 * tags if it didn't allocate one when an
 			 * existing rate was present, so ignore.
 			 */
+			tcp_rel_pacing_rate(crte, tp);
 			if (error)
 				*error = EOPNOTSUPP;
 			return (NULL);
@@ -1419,6 +1420,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 #endif
 	if (tp->t_inpcb->inp_snd_tag == NULL) {
 		/* Wrong interface */
+		tcp_rel_pacing_rate(crte, tp);
 		if (error)
 			*error = EINVAL;
 		return (NULL);
@@ -1457,10 +1459,29 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 #endif
 		err = in_pcbmodify_txrtlmt(tp->t_inpcb, nrte->rate);
 	if (err) {
+		struct tcp_rate_set *lrs;
+		uint64_t pre;
+
 		rl_decrement_using(nrte);
+		lrs = __DECONST(struct tcp_rate_set *, rs);
+		pre = atomic_fetchadd_64(&lrs->rs_flows_using, -1);
 		/* Do we still have a snd-tag attached? */
 		if (tp->t_inpcb->inp_snd_tag)
 			in_pcbdetach_txrtlmt(tp->t_inpcb);
+
+		if (pre == 1) {
+			struct epoch_tracker et;
+
+			NET_EPOCH_ENTER(et);
+			mtx_lock(&rs_mtx);
+			/*
+			 * Is it dead?
+			 */
+			if (lrs->rs_flags & RS_IS_DEAD)
+				rs_defer_destroy(lrs);
+			mtx_unlock(&rs_mtx);
+			NET_EPOCH_EXIT(et);
+		}
 		if (error)
 			*error = err;
 		return (NULL);
