@@ -1402,10 +1402,14 @@ void CGOpenMPRuntimeGPU::emitGenericVarsProlog(CodeGenFunction &CGF,
 
     // Allocate space for the variable to be globalized
     llvm::Value *AllocArgs[] = {CGF.getTypeSize(VD->getType())};
-    llvm::Instruction *VoidPtr =
+    llvm::CallBase *VoidPtr =
         CGF.EmitRuntimeCall(OMPBuilder.getOrCreateRuntimeFunction(
                                 CGM.getModule(), OMPRTL___kmpc_alloc_shared),
                             AllocArgs, VD->getName());
+    // FIXME: We should use the variables actual alignment as an argument.
+    VoidPtr->addRetAttr(llvm::Attribute::get(
+        CGM.getLLVMContext(), llvm::Attribute::Alignment,
+        CGM.getContext().getTargetInfo().getNewAlign() / 8));
 
     // Cast the void pointer and get the address of the globalized variable.
     llvm::PointerType *VarPtrTy = CGF.ConvertTypeForMem(VarTy)->getPointerTo();
@@ -1438,10 +1442,13 @@ void CGOpenMPRuntimeGPU::emitGenericVarsProlog(CodeGenFunction &CGF,
 
     // Allocate space for this VLA object to be globalized.
     llvm::Value *AllocArgs[] = {CGF.getTypeSize(VD->getType())};
-    llvm::Instruction *VoidPtr =
+    llvm::CallBase *VoidPtr =
         CGF.EmitRuntimeCall(OMPBuilder.getOrCreateRuntimeFunction(
                                 CGM.getModule(), OMPRTL___kmpc_alloc_shared),
                             AllocArgs, VD->getName());
+    VoidPtr->addRetAttr(
+        llvm::Attribute::get(CGM.getLLVMContext(), llvm::Attribute::Alignment,
+                             CGM.getContext().getTargetInfo().getNewAlign()));
 
     I->getSecond().EscapedVariableLengthDeclsAddrs.emplace_back(
         std::pair<llvm::Value *, llvm::Value *>(
@@ -1791,8 +1798,9 @@ static void shuffleAndStore(CodeGenFunction &CGF, Address SrcAddr,
       Ptr = Address(PhiSrc, Ptr.getAlignment());
       ElemPtr = Address(PhiDest, ElemPtr.getAlignment());
       llvm::Value *PtrDiff = Bld.CreatePtrDiff(
-          PtrEnd.getPointer(), Bld.CreatePointerBitCastOrAddrSpaceCast(
-                                   Ptr.getPointer(), CGF.VoidPtrTy));
+          CGF.Int8Ty, PtrEnd.getPointer(),
+          Bld.CreatePointerBitCastOrAddrSpaceCast(Ptr.getPointer(),
+                                                  CGF.VoidPtrTy));
       Bld.CreateCondBr(Bld.CreateICmpSGT(PtrDiff, Bld.getInt64(IntSize - 1)),
                        ThenBB, ExitBB);
       CGF.EmitBlock(ThenBB);
@@ -3394,12 +3402,13 @@ CGOpenMPRuntimeGPU::getParameterAddress(CodeGenFunction &CGF,
       LocalAddr, /*Volatile=*/false, TargetTy, SourceLocation());
   // First cast to generic.
   TargetAddr = CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(
-      TargetAddr, TargetAddr->getType()->getPointerElementType()->getPointerTo(
-                      /*AddrSpace=*/0));
+      TargetAddr, llvm::PointerType::getWithSamePointeeType(
+          cast<llvm::PointerType>(TargetAddr->getType()), /*AddrSpace=*/0));
   // Cast from generic to native address space.
   TargetAddr = CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(
-      TargetAddr, TargetAddr->getType()->getPointerElementType()->getPointerTo(
-                      NativePointeeAddrSpace));
+      TargetAddr, llvm::PointerType::getWithSamePointeeType(
+          cast<llvm::PointerType>(TargetAddr->getType()),
+                                  NativePointeeAddrSpace));
   Address NativeParamAddr = CGF.CreateMemTemp(NativeParamType);
   CGF.EmitStoreOfScalar(TargetAddr, NativeParamAddr, /*Volatile=*/false,
                         NativeParamType);
@@ -3424,8 +3433,8 @@ void CGOpenMPRuntimeGPU::emitOutlinedFunctionCall(
       continue;
     }
     llvm::Value *TargetArg = CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(
-        NativeArg,
-        NativeArg->getType()->getPointerElementType()->getPointerTo());
+        NativeArg, llvm::PointerType::getWithSamePointeeType(
+            cast<llvm::PointerType>(NativeArg->getType()), /*AddrSpace*/ 0));
     TargetArgs.emplace_back(
         CGF.Builder.CreatePointerBitCastOrAddrSpaceCast(TargetArg, TargetType));
   }

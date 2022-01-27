@@ -530,8 +530,8 @@ public:
   Value *getRHS() const { return const_cast<Value *>(getArgOperand(1)); }
 
   /// Returns the comparison predicate underlying the intrinsic.
-  ICmpInst::Predicate getPredicate() const {
-    switch (getIntrinsicID()) {
+  static ICmpInst::Predicate getPredicate(Intrinsic::ID ID) {
+    switch (ID) {
     case Intrinsic::umin:
       return ICmpInst::Predicate::ICMP_ULT;
     case Intrinsic::umax:
@@ -545,8 +545,58 @@ public:
     }
   }
 
+  /// Returns the comparison predicate underlying the intrinsic.
+  ICmpInst::Predicate getPredicate() const {
+    return getPredicate(getIntrinsicID());
+  }
+
   /// Whether the intrinsic is signed or unsigned.
-  bool isSigned() const { return ICmpInst::isSigned(getPredicate()); };
+  static bool isSigned(Intrinsic::ID ID) {
+    return ICmpInst::isSigned(getPredicate(ID));
+  };
+
+  /// Whether the intrinsic is signed or unsigned.
+  bool isSigned() const { return isSigned(getIntrinsicID()); };
+
+  /// Min/max intrinsics are monotonic, they operate on a fixed-bitwidth values,
+  /// so there is a certain threshold value, upon reaching which,
+  /// their value can no longer change. Return said threshold.
+  static APInt getSaturationPoint(Intrinsic::ID ID, unsigned numBits) {
+    switch (ID) {
+    case Intrinsic::umin:
+      return APInt::getMinValue(numBits);
+    case Intrinsic::umax:
+      return APInt::getMaxValue(numBits);
+    case Intrinsic::smin:
+      return APInt::getSignedMinValue(numBits);
+    case Intrinsic::smax:
+      return APInt::getSignedMaxValue(numBits);
+    default:
+      llvm_unreachable("Invalid intrinsic");
+    }
+  }
+
+  /// Min/max intrinsics are monotonic, they operate on a fixed-bitwidth values,
+  /// so there is a certain threshold value, upon reaching which,
+  /// their value can no longer change. Return said threshold.
+  APInt getSaturationPoint(unsigned numBits) const {
+    return getSaturationPoint(getIntrinsicID(), numBits);
+  }
+
+  /// Min/max intrinsics are monotonic, they operate on a fixed-bitwidth values,
+  /// so there is a certain threshold value, upon reaching which,
+  /// their value can no longer change. Return said threshold.
+  static Constant *getSaturationPoint(Intrinsic::ID ID, Type *Ty) {
+    return Constant::getIntegerValue(
+        Ty, getSaturationPoint(ID, Ty->getScalarSizeInBits()));
+  }
+
+  /// Min/max intrinsics are monotonic, they operate on a fixed-bitwidth values,
+  /// so there is a certain threshold value, upon reaching which,
+  /// their value can no longer change. Return said threshold.
+  Constant *getSaturationPoint(Type *Ty) const {
+    return getSaturationPoint(getIntrinsicID(), Ty);
+  }
 };
 
 /// This class represents an intrinsic that is based on a binary operation.
@@ -1126,8 +1176,26 @@ public:
   Value *getSrc() const { return const_cast<Value *>(getArgOperand(1)); }
 };
 
-/// This represents the llvm.instrprof_increment intrinsic.
-class InstrProfIncrementInst : public IntrinsicInst {
+/// A base class for all instrprof intrinsics.
+class InstrProfInstBase : public IntrinsicInst {
+public:
+  // The name of the instrumented function.
+  GlobalVariable *getName() const {
+    return cast<GlobalVariable>(
+        const_cast<Value *>(getArgOperand(0))->stripPointerCasts());
+  }
+  // The hash of the CFG for the instrumented function.
+  ConstantInt *getHash() const {
+    return cast<ConstantInt>(const_cast<Value *>(getArgOperand(1)));
+  }
+  // The number of counters for the instrumented function.
+  ConstantInt *getNumCounters() const;
+  // The index of the counter that this instruction acts on.
+  ConstantInt *getIndex() const;
+};
+
+/// This represents the llvm.instrprof.increment intrinsic.
+class InstrProfIncrementInst : public InstrProfInstBase {
 public:
   static bool classof(const IntrinsicInst *I) {
     return I->getIntrinsicID() == Intrinsic::instrprof_increment;
@@ -1135,27 +1203,10 @@ public:
   static bool classof(const Value *V) {
     return isa<IntrinsicInst>(V) && classof(cast<IntrinsicInst>(V));
   }
-
-  GlobalVariable *getName() const {
-    return cast<GlobalVariable>(
-        const_cast<Value *>(getArgOperand(0))->stripPointerCasts());
-  }
-
-  ConstantInt *getHash() const {
-    return cast<ConstantInt>(const_cast<Value *>(getArgOperand(1)));
-  }
-
-  ConstantInt *getNumCounters() const {
-    return cast<ConstantInt>(const_cast<Value *>(getArgOperand(2)));
-  }
-
-  ConstantInt *getIndex() const {
-    return cast<ConstantInt>(const_cast<Value *>(getArgOperand(3)));
-  }
-
   Value *getStep() const;
 };
 
+/// This represents the llvm.instrprof.increment.step intrinsic.
 class InstrProfIncrementInstStep : public InstrProfIncrementInst {
 public:
   static bool classof(const IntrinsicInst *I) {
@@ -1166,23 +1217,14 @@ public:
   }
 };
 
-/// This represents the llvm.instrprof_value_profile intrinsic.
-class InstrProfValueProfileInst : public IntrinsicInst {
+/// This represents the llvm.instrprof.value.profile intrinsic.
+class InstrProfValueProfileInst : public InstrProfInstBase {
 public:
   static bool classof(const IntrinsicInst *I) {
     return I->getIntrinsicID() == Intrinsic::instrprof_value_profile;
   }
   static bool classof(const Value *V) {
     return isa<IntrinsicInst>(V) && classof(cast<IntrinsicInst>(V));
-  }
-
-  GlobalVariable *getName() const {
-    return cast<GlobalVariable>(
-        const_cast<Value *>(getArgOperand(0))->stripPointerCasts());
-  }
-
-  ConstantInt *getHash() const {
-    return cast<ConstantInt>(const_cast<Value *>(getArgOperand(1)));
   }
 
   Value *getTargetValue() const {

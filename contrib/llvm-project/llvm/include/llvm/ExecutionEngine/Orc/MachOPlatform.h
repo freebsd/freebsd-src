@@ -97,6 +97,7 @@ public:
   ObjectLinkingLayer &getObjectLinkingLayer() const { return ObjLinkingLayer; }
 
   Error setupJITDylib(JITDylib &JD) override;
+  Error teardownJITDylib(JITDylib &JD) override;
   Error notifyAdding(ResourceTracker &RT,
                      const MaterializationUnit &MU) override;
   Error notifyRemoving(ResourceTracker &RT) override;
@@ -239,7 +240,7 @@ private:
   std::mutex PlatformMutex;
   DenseMap<JITDylib *, MachOJITDylibInitializers> InitSeqs;
 
-  DenseMap<JITTargetAddress, JITDylib *> HeaderAddrToJITDylib;
+  DenseMap<ExecutorAddr, JITDylib *> HeaderAddrToJITDylib;
   DenseMap<JITDylib *, uint64_t> JITDylibToPThreadKey;
 };
 

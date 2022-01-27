@@ -12,6 +12,7 @@
 #ifndef LLVM_PROFILEDATA_INSTRPROFCORRELATOR_H
 #define LLVM_PROFILEDATA_INSTRPROFCORRELATOR_H
 
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/ObjectFile.h"
@@ -33,6 +34,20 @@ public:
   /// Construct a ProfileData vector used to correlate raw instrumentation data
   /// to their functions.
   virtual Error correlateProfileData() = 0;
+
+  /// Return the number of ProfileData elements.
+  llvm::Optional<size_t> getDataSize() const;
+
+  /// Return a pointer to the names string that this class constructs.
+  const char *getNamesPointer() const { return Names.c_str(); }
+
+  /// Return the number of bytes in the names string.
+  size_t getNamesSize() const { return Names.size(); }
+
+  /// Return the size of the counters section in bytes.
+  uint64_t getCountersSectionSize() const {
+    return Ctx->CountersSectionEnd - Ctx->CountersSectionStart;
+  }
 
   static const char *FunctionNameAttributeName;
   static const char *CFGHashAttributeName;
@@ -58,6 +73,9 @@ protected:
   InstrProfCorrelator(InstrProfCorrelatorKind K, std::unique_ptr<Context> Ctx)
       : Ctx(std::move(Ctx)), Kind(K) {}
 
+  std::string Names;
+  std::vector<std::string> NamesVec;
+
 private:
   static llvm::Expected<std::unique_ptr<InstrProfCorrelator>>
   get(std::unique_ptr<MemoryBuffer> Buffer);
@@ -82,22 +100,12 @@ public:
   /// Return the number of ProfileData elements.
   size_t getDataSize() const { return Data.size(); }
 
-  /// Return a pointer to the compressed names string that this class
-  /// constructs.
-  const char *getCompressedNamesPointer() const {
-    return CompressedNames.c_str();
-  }
-
-  /// Return the number of bytes in the compressed names string.
-  size_t getCompressedNamesSize() const { return CompressedNames.size(); }
-
   static llvm::Expected<std::unique_ptr<InstrProfCorrelatorImpl<IntPtrT>>>
   get(std::unique_ptr<InstrProfCorrelator::Context> Ctx,
       const object::ObjectFile &Obj);
 
 protected:
   std::vector<RawInstrProf::ProfileData<IntPtrT>> Data;
-  std::string CompressedNames;
 
   Error correlateProfileData() override;
   virtual void correlateProfileDataImpl() = 0;
@@ -109,7 +117,7 @@ private:
   InstrProfCorrelatorImpl(InstrProfCorrelatorKind Kind,
                           std::unique_ptr<InstrProfCorrelator::Context> Ctx)
       : InstrProfCorrelator(Kind, std::move(Ctx)){};
-  std::vector<std::string> Names;
+  llvm::DenseSet<IntPtrT> CounterOffsets;
 
   // Byte-swap the value if necessary.
   template <class T> T maybeSwap(T Value) const {
@@ -138,7 +146,7 @@ private:
   static bool isDIEOfProbe(const DWARFDie &Die);
 
   /// Iterate over DWARF DIEs to find those that symbolize instrumentation
-  /// probes and construct the ProfileData vector and CompressedNames string.
+  /// probes and construct the ProfileData vector and Names string.
   ///
   /// Here is some example DWARF for an instrumentation probe we are looking
   /// for:

@@ -13,11 +13,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_HTTP_CLIENT_H
-#define LLVM_SUPPORT_HTTP_CLIENT_H
+#ifndef LLVM_DEBUGINFOD_HTTPCLIENT_H
+#define LLVM_DEBUGINFOD_HTTPCLIENT_H
 
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
+
+#include <chrono>
 
 namespace llvm {
 
@@ -116,4 +118,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_SUPPORT_HTTP_CLIENT_H
+#endif // LLVM_DEBUGINFOD_HTTPCLIENT_H

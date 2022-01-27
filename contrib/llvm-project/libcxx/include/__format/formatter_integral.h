@@ -10,15 +10,15 @@
 #ifndef _LIBCPP___FORMAT_FORMATTER_INTEGRAL_H
 #define _LIBCPP___FORMAT_FORMATTER_INTEGRAL_H
 
+#include <__algorithm/copy.h>
+#include <__algorithm/copy_n.h>
+#include <__algorithm/fill_n.h>
+#include <__algorithm/transform.h>
 #include <__config>
 #include <__format/format_error.h>
 #include <__format/format_fwd.h>
 #include <__format/formatter.h>
 #include <__format/parser_std_format_spec.h>
-#include <__algorithm/copy.h>
-#include <__algorithm/copy_n.h>
-#include <__algorithm/fill_n.h>
-#include <__algorithm/transform.h>
 #include <array>
 #include <charconv>
 #include <concepts>
@@ -82,7 +82,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __format_spec {
 
 /** Wrapper around @ref to_chars, returning the output pointer. */
-template <class _Tp>
+template <integral _Tp>
 _LIBCPP_HIDE_FROM_ABI char* __to_buffer(char* __first, char* __last,
                                         _Tp __value, int __base) {
   // TODO FMT Evaluate code overhead due to not calling the internal function

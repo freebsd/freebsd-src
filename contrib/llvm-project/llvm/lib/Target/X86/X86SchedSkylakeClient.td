@@ -244,6 +244,7 @@ defm : X86WriteRes<WriteFMaskedStore64Y, [SKLPort237,SKLPort0], 2, [1,1], 2>;
 defm : X86WriteRes<WriteFMove,         [SKLPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveX,        [SKLPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveY,        [SKLPort015], 1, [1], 1>;
+defm : X86WriteResUnsupported<WriteFMoveZ>;
 defm : X86WriteRes<WriteEMMS,          [SKLPort05,SKLPort0156], 10, [9,1], 10>;
 
 defm : SKLWriteResPair<WriteFAdd,     [SKLPort01],  4, [1], 1, 5>; // Floating point add/sub.
@@ -359,6 +360,7 @@ defm : X86WriteRes<WriteVecMaskedStore64Y, [SKLPort237,SKLPort0], 2, [1,1], 2>;
 defm : X86WriteRes<WriteVecMove,         [SKLPort05],  1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveX,        [SKLPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveY,        [SKLPort015], 1, [1], 1>;
+defm : X86WriteResUnsupported<WriteVecMoveZ>;
 defm : X86WriteRes<WriteVecMoveToGpr,    [SKLPort0], 2, [1], 1>;
 defm : X86WriteRes<WriteVecMoveFromGpr,  [SKLPort5], 1, [1], 1>;
 
@@ -1900,5 +1902,41 @@ def SKLSETA_SETBErm :  SchedWriteVariant<[
 
 def : InstRW<[SKLSETA_SETBErr], (instrs SETCCr)>;
 def : InstRW<[SKLSETA_SETBErm], (instrs SETCCm)>;
+
+///////////////////////////////////////////////////////////////////////////////
+// Dependency breaking instructions.
+///////////////////////////////////////////////////////////////////////////////
+
+def : IsZeroIdiomFunction<[
+  // GPR Zero-idioms.
+  DepBreakingClass<[ SUB32rr, SUB64rr, XOR32rr, XOR64rr ], ZeroIdiomPredicate>,
+
+  // SSE Zero-idioms.
+  DepBreakingClass<[
+    // fp variants.
+    XORPSrr, XORPDrr,
+
+    // int variants.
+    PXORrr,
+    PSUBBrr, PSUBWrr, PSUBDrr, PSUBQrr,
+    PCMPGTBrr, PCMPGTDrr, PCMPGTQrr, PCMPGTWrr
+  ], ZeroIdiomPredicate>,
+
+  // AVX Zero-idioms.
+  DepBreakingClass<[
+    // xmm fp variants.
+    VXORPSrr, VXORPDrr,
+
+    // xmm int variants.
+    VPXORrr,
+    VPSUBBrr, VPSUBWrr, VPSUBDrr, VPSUBQrr,
+    VPCMPGTBrr, VPCMPGTWrr, VPCMPGTDrr, VPCMPGTQrr,
+
+    // ymm variants.
+    VXORPSYrr, VXORPDYrr, VPXORYrr,
+    VPSUBBYrr, VPSUBWYrr, VPSUBDYrr, VPSUBQYrr,
+    VPCMPGTBYrr, VPCMPGTWYrr, VPCMPGTDYrr, VPCMPGTQYrr
+  ], ZeroIdiomPredicate>,
+]>;
 
 } // SchedModel

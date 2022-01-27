@@ -67,8 +67,7 @@ public:
 
   // Constructors and Destructors
   SymbolFile(lldb::ObjectFileSP objfile_sp)
-      : m_objfile_sp(std::move(objfile_sp)), m_abilities(0),
-        m_calculated_abilities(false) {}
+      : m_objfile_sp(std::move(objfile_sp)) {}
 
   ~SymbolFile() override = default;
 
@@ -317,14 +316,37 @@ public:
   ///
   /// \returns 0.0 if no information has been parsed or if there is
   /// no computational cost to parsing the debug information.
-  virtual StatsDuration GetDebugInfoParseTime() { return StatsDuration(0.0); }
+  virtual StatsDuration::Duration GetDebugInfoParseTime() { return {}; }
 
   /// Return the time it took to index the debug information in the object
   /// file.
   ///
   /// \returns 0.0 if the file doesn't need to be indexed or if it
   /// hasn't been indexed yet, or a valid duration if it has.
-  virtual StatsDuration GetDebugInfoIndexTime() { return StatsDuration(0.0); }
+  virtual StatsDuration::Duration GetDebugInfoIndexTime() { return {}; }
+
+  /// Accessors for the bool that indicates if the debug info index was loaded
+  /// from, or saved to the module index cache.
+  ///
+  /// In statistics it is handy to know if a module's debug info was loaded from
+  /// or saved to the cache. When the debug info index is loaded from the cache
+  /// startup times can be faster. When the cache is enabled and the debug info
+  /// index is saved to the cache, debug sessions can be slower. These accessors
+  /// can be accessed by the statistics and emitted to help track these costs.
+  /// \{
+  bool GetDebugInfoIndexWasLoadedFromCache() const {
+    return m_index_was_loaded_from_cache;
+  }
+  void SetDebugInfoIndexWasLoadedFromCache() {
+    m_index_was_loaded_from_cache = true;
+  }
+  bool GetDebugInfoIndexWasSavedToCache() const {
+    return m_index_was_saved_to_cache;
+  }
+  void SetDebugInfoIndexWasSavedToCache() {
+    m_index_was_saved_to_cache = true;
+  }
+  /// \}
 
 protected:
   void AssertModuleLock();
@@ -341,8 +363,10 @@ protected:
   llvm::Optional<std::vector<lldb::CompUnitSP>> m_compile_units;
   TypeList m_type_list;
   Symtab *m_symtab = nullptr;
-  uint32_t m_abilities;
-  bool m_calculated_abilities;
+  uint32_t m_abilities = 0;
+  bool m_calculated_abilities = false;
+  bool m_index_was_loaded_from_cache = false;
+  bool m_index_was_saved_to_cache = false;
 
 private:
   SymbolFile(const SymbolFile &) = delete;

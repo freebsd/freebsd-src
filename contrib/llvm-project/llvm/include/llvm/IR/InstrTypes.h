@@ -1544,7 +1544,7 @@ public:
   }
 
   /// Removes the attributes from the function
-  void removeFnAttrs(const AttrBuilder &AttrsToRemove) {
+  void removeFnAttrs(const AttributeMask &AttrsToRemove) {
     Attrs = Attrs.removeFnAttributes(getContext(), AttrsToRemove);
   }
 
@@ -1559,7 +1559,7 @@ public:
   }
 
   /// Removes the attributes from the return value
-  void removeRetAttrs(const AttrBuilder &AttrsToRemove) {
+  void removeRetAttrs(const AttributeMask &AttrsToRemove) {
     Attrs = Attrs.removeRetAttributes(getContext(), AttrsToRemove);
   }
 
@@ -1576,7 +1576,7 @@ public:
   }
 
   /// Removes the attributes from the given argument
-  void removeParamAttrs(unsigned ArgNo, const AttrBuilder &AttrsToRemove) {
+  void removeParamAttrs(unsigned ArgNo, const AttributeMask &AttrsToRemove) {
     Attrs = Attrs.removeParamAttributes(getContext(), ArgNo, AttrsToRemove);
   }
 
@@ -1717,13 +1717,19 @@ public:
 
   // FIXME: Once this API is no longer duplicated in `CallSite`, rename this to
   // better indicate that this may return a conservative answer.
-  bool doesNotReadMemory(unsigned OpNo) const {
+  bool onlyWritesMemory(unsigned OpNo) const {
     return dataOperandHasImpliedAttr(OpNo, Attribute::WriteOnly) ||
            dataOperandHasImpliedAttr(OpNo, Attribute::ReadNone);
   }
 
   /// Extract the alignment of the return value.
-  MaybeAlign getRetAlign() const { return Attrs.getRetAlignment(); }
+  MaybeAlign getRetAlign() const {
+    if (auto Align = Attrs.getRetAlignment())
+      return Align;
+    if (const Function *F = getCalledFunction())
+      return F->getAttributes().getRetAlignment();
+    return None;
+  }
 
   /// Extract the alignment for a call or parameter (0=unknown).
   MaybeAlign getParamAlign(unsigned ArgNo) const {
@@ -1818,16 +1824,16 @@ public:
 
   /// Determine if the call does not access or only reads memory.
   bool onlyReadsMemory() const {
-    return doesNotAccessMemory() || hasFnAttr(Attribute::ReadOnly);
+    return hasImpliedFnAttr(Attribute::ReadOnly);
   }
 
   void setOnlyReadsMemory() { addFnAttr(Attribute::ReadOnly); }
 
   /// Determine if the call does not access or only writes memory.
-  bool doesNotReadMemory() const {
-    return doesNotAccessMemory() || hasFnAttr(Attribute::WriteOnly);
+  bool onlyWritesMemory() const {
+    return hasImpliedFnAttr(Attribute::WriteOnly);
   }
-  void setDoesNotReadMemory() { addFnAttr(Attribute::WriteOnly); }
+  void setOnlyWritesMemory() { addFnAttr(Attribute::WriteOnly); }
 
   /// Determine if the call can access memmory only using pointers based
   /// on its arguments.
@@ -2087,8 +2093,8 @@ public:
   /// Is the function attribute S disallowed by some operand bundle on
   /// this operand bundle user?
   bool isFnAttrDisallowedByOpBundle(StringRef S) const {
-    // Operand bundles only possibly disallow readnone, readonly and argmemonly
-    // attributes.  All String attributes are fine.
+    // Operand bundles only possibly disallow memory access attributes.  All
+    // String attributes are fine.
     return false;
   }
 
@@ -2113,6 +2119,9 @@ public:
 
     case Attribute::ReadOnly:
       return hasClobberingOperandBundles();
+
+    case Attribute::WriteOnly:
+      return hasReadingOperandBundles();
     }
 
     llvm_unreachable("switch has a default case!");
@@ -2283,6 +2292,26 @@ private:
       return false;
 
     return hasFnAttrOnCalledFunction(Kind);
+  }
+
+  /// A specialized version of hasFnAttrImpl for when the caller wants to
+  /// know if an attribute's semantics are implied, not whether the attribute
+  /// is actually present.  This distinction only exists when checking whether
+  /// something is readonly or writeonly since readnone implies both.  The case
+  /// which motivates the specialized code is a callee with readnone, and an
+  /// operand bundle on the call which disallows readnone but not either
+  /// readonly or writeonly.
+  bool hasImpliedFnAttr(Attribute::AttrKind Kind) const {
+    assert((Kind == Attribute::ReadOnly || Kind == Attribute::WriteOnly) &&
+           "use hasFnAttrImpl instead");
+    if (Attrs.hasFnAttr(Kind) || Attrs.hasFnAttr(Attribute::ReadNone))
+      return true;
+
+    if (isFnAttrDisallowedByOpBundle(Kind))
+      return false;
+
+    return hasFnAttrOnCalledFunction(Kind) ||
+      hasFnAttrOnCalledFunction(Attribute::ReadNone);
   }
 
   /// Determine whether the return value has the given attribute. Supports

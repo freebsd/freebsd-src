@@ -779,7 +779,7 @@ FunctionModRefBehavior BasicAAResult::getModRefBehavior(const CallBase *Call) {
   // than that.
   if (Call->onlyReadsMemory())
     Min = FMRB_OnlyReadsMemory;
-  else if (Call->doesNotReadMemory())
+  else if (Call->onlyWritesMemory())
     Min = FMRB_OnlyWritesMemory;
 
   if (Call->onlyAccessesArgMemory())
@@ -812,7 +812,7 @@ FunctionModRefBehavior BasicAAResult::getModRefBehavior(const Function *F) {
   // If the function declares it only reads memory, go with that.
   if (F->onlyReadsMemory())
     Min = FMRB_OnlyReadsMemory;
-  else if (F->doesNotReadMemory())
+  else if (F->onlyWritesMemory())
     Min = FMRB_OnlyWritesMemory;
 
   if (F->onlyAccessesArgMemory())
@@ -972,7 +972,7 @@ ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call,
         continue;
       }
       // Operand aliases 'Object' but call only writes into it.
-      if (Call->doesNotReadMemory(OperandNo)) {
+      if (Call->onlyWritesMemory(OperandNo)) {
         Result = setMod(Result);
         continue;
       }
@@ -1020,9 +1020,9 @@ ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call,
         getBestAAResults().alias(MemoryLocation::getForDest(Inst), Loc, AAQI);
     // It's also possible for Loc to alias both src and dest, or neither.
     ModRefInfo rv = ModRefInfo::NoModRef;
-    if (SrcAA != AliasResult::NoAlias)
+    if (SrcAA != AliasResult::NoAlias || Call->hasReadingOperandBundles())
       rv = setRef(rv);
-    if (DestAA != AliasResult::NoAlias)
+    if (DestAA != AliasResult::NoAlias || Call->hasClobberingOperandBundles())
       rv = setMod(rv);
     return rv;
   }
@@ -1248,8 +1248,8 @@ AliasResult BasicAAResult::aliasGEP(
     else
       GCD = APIntOps::GreatestCommonDivisor(GCD, ScaleForGCD.abs());
 
-    ConstantRange CR =
-        computeConstantRange(Index.Val.V, true, &AC, Index.CxtI);
+    ConstantRange CR = computeConstantRange(Index.Val.V, /* ForSigned */ false,
+                                            true, &AC, Index.CxtI);
     KnownBits Known =
         computeKnownBits(Index.Val.V, DL, 0, &AC, Index.CxtI, DT);
     CR = CR.intersectWith(

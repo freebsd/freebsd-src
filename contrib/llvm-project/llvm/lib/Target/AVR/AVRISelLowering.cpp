@@ -359,6 +359,11 @@ SDValue AVRTargetLowering::LowerShifts(SDValue Op, SelectionDAG &DAG) const {
       Victim = DAG.getNode(AVRISD::LSRBN, dl, VT, Victim,
                            DAG.getConstant(7, dl, VT));
       ShiftAmount = 0;
+    } else if (Op.getOpcode() == ISD::SRA && ShiftAmount == 6) {
+      // Optimize ASR when ShiftAmount == 6.
+      Victim = DAG.getNode(AVRISD::ASRBN, dl, VT, Victim,
+                           DAG.getConstant(6, dl, VT));
+      ShiftAmount = 0;
     } else if (Op.getOpcode() == ISD::SRA && ShiftAmount == 7) {
       // Optimize ASR when ShiftAmount == 7.
       Victim = DAG.getNode(AVRISD::ASRBN, dl, VT, Victim,
@@ -387,16 +392,22 @@ SDValue AVRTargetLowering::LowerShifts(SDValue Op, SelectionDAG &DAG) const {
         Victim = DAG.getNode(AVRISD::LSLWN, dl, VT, Victim,
                              DAG.getConstant(8, dl, VT));
         ShiftAmount -= 8;
+        // Only operate on the higher byte for remaining shift bits.
+        Opc8 = AVRISD::LSLHI;
         break;
       case ISD::SRL:
         Victim = DAG.getNode(AVRISD::LSRWN, dl, VT, Victim,
                              DAG.getConstant(8, dl, VT));
         ShiftAmount -= 8;
+        // Only operate on the lower byte for remaining shift bits.
+        Opc8 = AVRISD::LSRLO;
         break;
       case ISD::SRA:
         Victim = DAG.getNode(AVRISD::ASRWN, dl, VT, Victim,
                              DAG.getConstant(8, dl, VT));
         ShiftAmount -= 8;
+        // Only operate on the lower byte for remaining shift bits.
+        Opc8 = AVRISD::ASRLO;
         break;
       default:
         break;
@@ -407,11 +418,22 @@ SDValue AVRTargetLowering::LowerShifts(SDValue Op, SelectionDAG &DAG) const {
         Victim = DAG.getNode(AVRISD::LSLWN, dl, VT, Victim,
                              DAG.getConstant(12, dl, VT));
         ShiftAmount -= 12;
+        // Only operate on the higher byte for remaining shift bits.
+        Opc8 = AVRISD::LSLHI;
         break;
       case ISD::SRL:
         Victim = DAG.getNode(AVRISD::LSRWN, dl, VT, Victim,
                              DAG.getConstant(12, dl, VT));
         ShiftAmount -= 12;
+        // Only operate on the lower byte for remaining shift bits.
+        Opc8 = AVRISD::LSRLO;
+        break;
+      case ISD::SRA:
+        Victim = DAG.getNode(AVRISD::ASRWN, dl, VT, Victim,
+                             DAG.getConstant(8, dl, VT));
+        ShiftAmount -= 8;
+        // Only operate on the lower byte for remaining shift bits.
+        Opc8 = AVRISD::ASRLO;
         break;
       default:
         break;
@@ -874,7 +896,8 @@ bool AVRTargetLowering::isLegalAddressingMode(const DataLayout &DL,
   // Allow reg+<6bit> offset.
   if (Offs < 0)
     Offs = -Offs;
-  if (AM.BaseGV == 0 && AM.HasBaseReg && AM.Scale == 0 && isUInt<6>(Offs)) {
+  if (AM.BaseGV == nullptr && AM.HasBaseReg && AM.Scale == 0 &&
+      isUInt<6>(Offs)) {
     return true;
   }
 
@@ -1169,7 +1192,7 @@ SDValue AVRTargetLowering::LowerFormalArguments(
         llvm_unreachable("Unknown argument type!");
       }
 
-      unsigned Reg = MF.addLiveIn(VA.getLocReg(), RC);
+      Register Reg = MF.addLiveIn(VA.getLocReg(), RC);
       ArgValue = DAG.getCopyFromReg(Chain, dl, Reg, RegVT);
 
       // :NOTE: Clang should not promote any i8 into i16 but for safety the
@@ -1672,6 +1695,18 @@ MachineBasicBlock *AVRTargetLowering::insertMul(MachineInstr &MI,
   return BB;
 }
 
+// Insert a read from R1, which almost always contains the value 0.
+MachineBasicBlock *
+AVRTargetLowering::insertCopyR1(MachineInstr &MI, MachineBasicBlock *BB) const {
+  const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
+  MachineBasicBlock::iterator I(MI);
+  BuildMI(*BB, I, MI.getDebugLoc(), TII.get(AVR::COPY))
+      .add(MI.getOperand(0))
+      .addReg(AVR::R1);
+  MI.eraseFromParent();
+  return BB;
+}
+
 MachineBasicBlock *
 AVRTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
                                                MachineBasicBlock *MBB) const {
@@ -1694,6 +1729,8 @@ AVRTargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   case AVR::MULRdRr:
   case AVR::MULSRdRr:
     return insertMul(MI, MBB);
+  case AVR::CopyR1:
+    return insertCopyR1(MI, MBB);
   }
 
   assert((Opc == AVR::Select16 || Opc == AVR::Select8) &&
@@ -2012,7 +2049,7 @@ void AVRTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
                                                      std::string &Constraint,
                                                      std::vector<SDValue> &Ops,
                                                      SelectionDAG &DAG) const {
-  SDValue Result(0, 0);
+  SDValue Result;
   SDLoc DL(Op);
   EVT Ty = Op.getValueType();
 

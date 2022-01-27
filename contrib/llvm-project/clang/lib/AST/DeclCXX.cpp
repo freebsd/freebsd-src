@@ -79,10 +79,9 @@ CXXRecordDecl::DefinitionData::DefinitionData(CXXRecordDecl *D)
       HasBasesWithFields(false), HasBasesWithNonStaticDataMembers(false),
       HasPrivateFields(false), HasProtectedFields(false),
       HasPublicFields(false), HasMutableFields(false), HasVariantMembers(false),
-      HasOnlyCMembers(true), HasInClassInitializer(false),
+      HasOnlyCMembers(true), HasInitMethod(false), HasInClassInitializer(false),
       HasUninitializedReferenceMember(false), HasUninitializedFields(false),
-      HasInheritedConstructor(false),
-      HasInheritedDefaultConstructor(false),
+      HasInheritedConstructor(false), HasInheritedDefaultConstructor(false),
       HasInheritedAssignment(false),
       NeedOverloadResolutionForCopyConstructor(false),
       NeedOverloadResolutionForMoveConstructor(false),
@@ -3272,7 +3271,7 @@ void MSGuidDecl::anchor() {}
 
 MSGuidDecl::MSGuidDecl(DeclContext *DC, QualType T, Parts P)
     : ValueDecl(Decl::MSGuid, DC, SourceLocation(), DeclarationName(), T),
-      PartVal(P), APVal() {}
+      PartVal(P) {}
 
 MSGuidDecl *MSGuidDecl::Create(const ASTContext &C, QualType T, Parts P) {
   DeclContext *DC = C.getTranslationUnitDecl();

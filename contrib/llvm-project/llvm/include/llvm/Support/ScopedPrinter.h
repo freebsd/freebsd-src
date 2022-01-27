@@ -18,7 +18,6 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
 
 namespace llvm {
 
@@ -123,7 +122,7 @@ public:
   void indent(int Levels = 1) { IndentLevel += Levels; }
 
   void unindent(int Levels = 1) {
-    IndentLevel = std::max(0, IndentLevel - Levels);
+    IndentLevel = IndentLevel > Levels ? IndentLevel - Levels : 0;
   }
 
   void resetIndent() { IndentLevel = 0; }
@@ -799,7 +798,7 @@ struct DelimitedScope {
 };
 
 struct DictScope : DelimitedScope {
-  explicit DictScope() : DelimitedScope() {}
+  explicit DictScope() {}
   explicit DictScope(ScopedPrinter &W) : DelimitedScope(W) { W.objectBegin(); }
 
   DictScope(ScopedPrinter &W, StringRef N) : DelimitedScope(W) {
@@ -818,7 +817,7 @@ struct DictScope : DelimitedScope {
 };
 
 struct ListScope : DelimitedScope {
-  explicit ListScope() : DelimitedScope() {}
+  explicit ListScope() {}
   explicit ListScope(ScopedPrinter &W) : DelimitedScope(W) { W.arrayBegin(); }
 
   ListScope(ScopedPrinter &W, StringRef N) : DelimitedScope(W) {

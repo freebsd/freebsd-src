@@ -246,6 +246,8 @@ module std [system] {
       module generate                 { private header "__algorithm/generate.h" }
       module generate_n               { private header "__algorithm/generate_n.h" }
       module half_positive            { private header "__algorithm/half_positive.h" }
+      module in_in_result             { private header "__algorithm/in_in_result.h" }
+      module in_out_result            { private header "__algorithm/in_out_result.h" }
       module includes                 { private header "__algorithm/includes.h" }
       module inplace_merge            { private header "__algorithm/inplace_merge.h" }
       module is_heap                  { private header "__algorithm/is_heap.h" }
@@ -362,6 +364,17 @@ module std [system] {
   module chrono {
     header "chrono"
     export *
+
+    module __chrono {
+      module calendar              { private header "__chrono/calendar.h" }
+      module convert_to_timespec   { private header "__chrono/convert_to_timespec.h" }
+      module duration              { private header "__chrono/duration.h" }
+      module file_clock            { private header "__chrono/file_clock.h" }
+      module high_resolution_clock { private header "__chrono/high_resolution_clock.h" }
+      module steady_clock          { private header "__chrono/steady_clock.h" }
+      module system_clock          { private header "__chrono/system_clock.h" }
+      module time_point            { private header "__chrono/time_point.h" }
+    }
   }
   module codecvt {
     header "codecvt"
@@ -430,8 +443,8 @@ module std [system] {
     module __coroutine {
       module coroutine_handle           { private header "__coroutine/coroutine_handle.h" }
       module coroutine_traits           { private header "__coroutine/coroutine_traits.h" }
-      module trivial_awaitables         { private header "__coroutine/trivial_awaitables.h" }
       module noop_coroutine_handle      { private header "__coroutine/noop_coroutine_handle.h" }
+      module trivial_awaitables         { private header "__coroutine/trivial_awaitables.h" }
     }
   }
   module deque {
@@ -461,8 +474,8 @@ module std [system] {
       module file_type                    { private header "__filesystem/file_type.h" }
       module filesystem_error             { private header "__filesystem/filesystem_error.h" }
       module operations                   { private header "__filesystem/operations.h" }
-      module path_iterator                { private header "__filesystem/path_iterator.h" }
       module path                         { private header "__filesystem/path.h" }
+      module path_iterator                { private header "__filesystem/path_iterator.h" }
       module perm_options                 { private header "__filesystem/perm_options.h" }
       module perms                        { private header "__filesystem/perms.h" }
       module recursive_directory_iterator { private header "__filesystem/recursive_directory_iterator.h" }
@@ -475,25 +488,27 @@ module std [system] {
     export *
 
     module __format {
-      module format_arg             { private header "__format/format_arg.h" }
-      module format_args            { private header "__format/format_args.h" }
+      module format_arg               { private header "__format/format_arg.h" }
+      module format_args              { private header "__format/format_args.h" }
       module format_context {
         private header "__format/format_context.h"
         export optional
         export locale
       }
-      module format_error           { private header "__format/format_error.h" }
-      module format_fwd             { private header "__format/format_fwd.h" }
-      module format_parse_context   { private header "__format/format_parse_context.h" }
-      module format_string          { private header "__format/format_string.h" }
-      module format_to_n_result     { private header "__format/format_to_n_result.h" }
-      module formatter              { private header "__format/formatter.h" }
-      module formatter_bool         { private header "__format/formatter_bool.h" }
-      module formatter_char         { private header "__format/formatter_char.h" }
-      module formatter_integer      { private header "__format/formatter_integer.h" }
-      module formatter_integral     { private header "__format/formatter_integral.h" }
-      module formatter_string       { private header "__format/formatter_string.h" }
-      module parser_std_format_spec { private header "__format/parser_std_format_spec.h" }
+      module format_error             { private header "__format/format_error.h" }
+      module format_fwd               { private header "__format/format_fwd.h" }
+      module format_parse_context     { private header "__format/format_parse_context.h" }
+      module format_string            { private header "__format/format_string.h" }
+      module format_to_n_result       { private header "__format/format_to_n_result.h" }
+      module formatter                { private header "__format/formatter.h" }
+      module formatter_bool           { private header "__format/formatter_bool.h" }
+      module formatter_char           { private header "__format/formatter_char.h" }
+      module formatter_floating_point { private header "__format/formatter_floating_point.h" }
+      module formatter_integer        { private header "__format/formatter_integer.h" }
+      module formatter_integral       { private header "__format/formatter_integral.h" }
+      module formatter_pointer        { private header "__format/formatter_pointer.h" }
+      module formatter_string         { private header "__format/formatter_string.h" }
+      module parser_std_format_spec   { private header "__format/parser_std_format_spec.h" }
     }
   }
   module forward_list {
@@ -579,10 +594,7 @@ module std [system] {
 
     module __iterator {
       module access                { private header "__iterator/access.h" }
-      module advance               {
-        private header "__iterator/advance.h"
-        export __function_like
-      }
+      module advance               { private header "__iterator/advance.h" }
       module back_insert_iterator  { private header "__iterator/back_insert_iterator.h" }
       module common_iterator       { private header "__iterator/common_iterator.h" }
       module concepts              { private header "__iterator/concepts.h" }
@@ -594,6 +606,7 @@ module std [system] {
       module erase_if_container    { private header "__iterator/erase_if_container.h" }
       module front_insert_iterator { private header "__iterator/front_insert_iterator.h" }
       module incrementable_traits  { private header "__iterator/incrementable_traits.h" }
+      module indirectly_comparable { private header "__iterator/indirectly_comparable.h" }
       module insert_iterator       { private header "__iterator/insert_iterator.h" }
       module istream_iterator      { private header "__iterator/istream_iterator.h" }
       module istreambuf_iterator   { private header "__iterator/istreambuf_iterator.h" }
@@ -602,16 +615,10 @@ module std [system] {
       module iterator              { private header "__iterator/iterator.h" }
       module iterator_traits       { private header "__iterator/iterator_traits.h" }
       module move_iterator         { private header "__iterator/move_iterator.h" }
-      module next                  {
-        private header "__iterator/next.h"
-        export __function_like
-      }
+      module next                  { private header "__iterator/next.h" }
       module ostream_iterator      { private header "__iterator/ostream_iterator.h" }
       module ostreambuf_iterator   { private header "__iterator/ostreambuf_iterator.h" }
-      module prev                  {
-        private header "__iterator/prev.h"
-        export __function_like
-      }
+      module prev                  { private header "__iterator/prev.h" }
       module projected             { private header "__iterator/projected.h" }
       module readable_traits       { private header "__iterator/readable_traits.h" }
       module reverse_access        { private header "__iterator/reverse_access.h" }
@@ -659,10 +666,8 @@ module std [system] {
       module concepts                        { private header "__memory/concepts.h" }
       module construct_at                    { private header "__memory/construct_at.h" }
       module pointer_traits                  { private header "__memory/pointer_traits.h" }
-      module ranges_uninitialized_algorithms {
-        private header "__memory/ranges_uninitialized_algorithms.h"
-        export __function_like
-      }
+      module ranges_construct_at             { private header "__memory/ranges_construct_at.h" }
+      module ranges_uninitialized_algorithms { private header "__memory/ranges_uninitialized_algorithms.h" }
       module raw_storage_iterator            { private header "__memory/raw_storage_iterator.h" }
       module shared_ptr                      { private header "__memory/shared_ptr.h" }
       module temporary_buffer                { private header "__memory/temporary_buffer.h" }
@@ -793,11 +798,12 @@ module std [system] {
       module iota_view              { private header "__ranges/iota_view.h" }
       module join_view              { private header "__ranges/join_view.h" }
       module non_propagating_cache  { private header "__ranges/non_propagating_cache.h" }
+      module owning_view            { private header "__ranges/owning_view.h" }
       module range_adaptor          { private header "__ranges/range_adaptor.h" }
       module ref_view               { private header "__ranges/ref_view.h" }
       module reverse_view           { private header "__ranges/reverse_view.h" }
-      module size                   { private header "__ranges/size.h" }
       module single_view            { private header "__ranges/single_view.h" }
+      module size                   { private header "__ranges/size.h" }
       module subrange               { private header "__ranges/subrange.h" }
       module take_view              { private header "__ranges/take_view.h" }
       module transform_view         {
@@ -884,7 +890,8 @@ module std [system] {
     export *
 
     module __thread {
-      module poll_with_backoff { private header "__thread/poll_with_backoff.h" }
+      module poll_with_backoff    { private header "__thread/poll_with_backoff.h" }
+      module timed_backoff_policy { private header "__thread/timed_backoff_policy.h" }
     }
   }
   module tuple {
@@ -968,10 +975,9 @@ module std [system] {
   module __bits              { private header "__bits"              export * }
   module __debug             {         header "__debug"             export * }
   module __errc              { private header "__errc"              export * }
-  module __function_like     { private header "__function_like.h"   export * }
   module __hash_table        {         header "__hash_table"        export * }
   module __locale            { private header "__locale"            export * }
-  module __mbstate           { private header "__mbstate_t.h"       export * }
+  module __mbstate_t         { private header "__mbstate_t.h"       export * }
   module __mutex_base        { private header "__mutex_base"        export * }
   module __node_handle       { private header "__node_handle"       export * }
   module __nullptr           {         header "__nullptr"           export * }

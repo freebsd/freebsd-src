@@ -175,11 +175,6 @@
 #define HAVE_MALLOC_ZONE_STATISTICS 1
 #endif
 
-/* Define to 1 if you have the `posix_fallocate' function. */
-#if !defined(__APPLE__)
-#define HAVE_POSIX_FALLOCATE 1
-#endif
-
 /* Define to 1 if you have the `posix_spawn' function. */
 #define HAVE_POSIX_SPAWN 1
 

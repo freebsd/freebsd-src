@@ -10,11 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Config/config.h" // C_INCLUDE_DIRS
-#include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Frontend/Utils.h"
 #include "clang/Lex/HeaderMap.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -354,7 +353,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     break;
   case llvm::Triple::PS4: {
     // <isysroot> gets prepended later in AddPath().
-    std::string BaseSDKPath = "";
+    std::string BaseSDKPath;
     if (!HasSysroot) {
       const char *envValue = getenv("SCE_ORBIS_SDK_DIR");
       if (envValue)

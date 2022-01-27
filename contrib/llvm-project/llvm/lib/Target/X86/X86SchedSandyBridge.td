@@ -223,6 +223,7 @@ defm : X86WriteRes<WriteFMaskedStore64Y, [SBPort4,SBPort01,SBPort23], 5, [1,1,1]
 defm : X86WriteRes<WriteFMove,         [SBPort5], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveX,        [SBPort5], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveY,        [SBPort5], 1, [1], 1>;
+defm : X86WriteRes<WriteFMoveZ,        [SBPort5], 1, [1], 1>;
 defm : X86WriteRes<WriteEMMS,          [SBPort015], 31, [31], 31>;
 
 defm : SBWriteResPair<WriteFAdd,    [SBPort1],  3, [1], 1, 6>;
@@ -380,6 +381,7 @@ defm : X86WriteRes<WriteVecMaskedStore64Y, [SBPort4,SBPort01,SBPort23], 5, [1,1,
 defm : X86WriteRes<WriteVecMove,         [SBPort05], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveX,        [SBPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveY,        [SBPort05], 1, [1], 1>;
+defm : X86WriteRes<WriteVecMoveZ,        [SBPort05], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveToGpr,    [SBPort0], 2, [1], 1>;
 defm : X86WriteRes<WriteVecMoveFromGpr,  [SBPort5], 1, [1], 1>;
 
@@ -1229,5 +1231,36 @@ def SBSETA_SETBErm :  SchedWriteVariant<[
 
 def : InstRW<[SBSETA_SETBErr], (instrs SETCCr)>;
 def : InstRW<[SBSETA_SETBErm], (instrs SETCCm)>;
+
+///////////////////////////////////////////////////////////////////////////////
+// Dependency breaking instructions.
+///////////////////////////////////////////////////////////////////////////////
+
+def : IsZeroIdiomFunction<[
+  // GPR Zero-idioms.
+  DepBreakingClass<[ SUB32rr, SUB64rr, XOR32rr, XOR64rr ], ZeroIdiomPredicate>,
+
+  // SSE Zero-idioms.
+  DepBreakingClass<[
+    // fp variants.
+    XORPSrr, XORPDrr,
+
+    // int variants.
+    PXORrr,
+    PSUBBrr, PSUBWrr, PSUBDrr, PSUBQrr,
+    PCMPGTBrr, PCMPGTDrr, PCMPGTQrr, PCMPGTWrr
+  ], ZeroIdiomPredicate>,
+
+  // AVX Zero-idioms.
+  DepBreakingClass<[
+    // xmm fp variants.
+    VXORPSrr, VXORPDrr,
+
+    // xmm int variants.
+    VPXORrr,
+    VPSUBBrr, VPSUBWrr, VPSUBDrr, VPSUBQrr,
+    VPCMPGTBrr, VPCMPGTWrr, VPCMPGTDrr, VPCMPGTQrr,
+  ], ZeroIdiomPredicate>,
+]>;
 
 } // SchedModel

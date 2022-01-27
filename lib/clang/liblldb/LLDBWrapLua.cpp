@@ -2695,18 +2695,6 @@ SWIG_Lua_dostring(lua_State *L, const char *str) {
 /* ------------------------------ end luarun.swg  ------------------------------ */
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void LLDBSwigLuaCallLuaLogOutputCallback(const char *str, void *baton);
-int LLDBSwigLuaCloseFileHandle(lua_State *L);
-
-#ifdef __cplusplus
-}
-#endif
-
-
 /* -------- TYPES TABLE (BEGIN) -------- */
 
 #define SWIGTYPE_p_bool swig_types[0]
@@ -3202,6 +3190,7 @@ SWIGINTERN void SWIG_write_ptr_array(lua_State* L,void **array,int size,swig_typ
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "../bindings/lua/lua-swigsafecast.swig"
+#include "../source/Plugins/ScriptInterpreter/Lua/SWIGLuaBridge.h"
 
 // required headers for typemaps
 #include "lldb/Host/File.h"
@@ -3662,9 +3651,89 @@ SWIGINTERN std::string lldb_SBWatchpoint___str__(lldb::SBWatchpoint *self){
   }
 
 
-template <typename T>
-void
-PushSBClass(lua_State* L, T* obj);
+template <typename T> void PushSBClass(lua_State * L, T * obj);
+
+// This function is called from Lua::CallBreakpointCallback
+llvm::Expected<bool> lldb_private::LLDBSwigLuaBreakpointCallbackFunction(
+    lua_State * L, lldb::StackFrameSP stop_frame_sp,
+    lldb::BreakpointLocationSP bp_loc_sp,
+    const StructuredDataImpl &extra_args_impl) {
+  lldb::SBFrame sb_frame(stop_frame_sp);
+  lldb::SBBreakpointLocation sb_bp_loc(bp_loc_sp);
+  int nargs = 2;
+
+  lldb::SBStructuredData extra_args(extra_args_impl);
+
+  // Push the Lua wrappers
+  PushSBClass(L, &sb_frame);
+  PushSBClass(L, &sb_bp_loc);
+
+  if (extra_args.IsValid()) {
+    PushSBClass(L, &extra_args);
+    nargs++;
+  }
+
+  // Call into the Lua callback passing 'sb_frame' and 'sb_bp_loc'.
+  // Expects a boolean return.
+  if (lua_pcall(L, nargs, 1, 0) != LUA_OK) {
+    llvm::Error E = llvm::make_error<llvm::StringError>(
+        llvm::formatv("{0}\n", lua_tostring(L, -1)),
+        llvm::inconvertibleErrorCode());
+    // Pop error message from the stack.
+    lua_pop(L, 1);
+    return std::move(E);
+  }
+
+  // Boolean return from the callback
+  bool stop = lua_toboolean(L, -1);
+  lua_pop(L, 1);
+
+  return stop;
+}
+
+// This function is called from Lua::CallWatchpointCallback
+llvm::Expected<bool> lldb_private::LLDBSwigLuaWatchpointCallbackFunction(
+    lua_State * L, lldb::StackFrameSP stop_frame_sp, lldb::WatchpointSP wp_sp) {
+  lldb::SBFrame sb_frame(stop_frame_sp);
+  lldb::SBWatchpoint sb_wp(wp_sp);
+  int nargs = 2;
+
+  // Push the Lua wrappers
+  PushSBClass(L, &sb_frame);
+  PushSBClass(L, &sb_wp);
+
+  // Call into the Lua callback passing 'sb_frame' and 'sb_wp'.
+  // Expects a boolean return.
+  if (lua_pcall(L, nargs, 1, 0) != LUA_OK) {
+    llvm::Error E = llvm::make_error<llvm::StringError>(
+        llvm::formatv("{0}\n", lua_tostring(L, -1)),
+        llvm::inconvertibleErrorCode());
+    // Pop error message from the stack.
+    lua_pop(L, 1);
+    return std::move(E);
+  }
+
+  // Boolean return from the callback
+  bool stop = lua_toboolean(L, -1);
+  lua_pop(L, 1);
+
+  return stop;
+}
+
+static void LLDBSwigLuaCallLuaLogOutputCallback(const char *str, void *baton) {
+  lua_State *L = (lua_State *)baton;
+
+  lua_pushlightuserdata(L, (void *)&LLDBSwigLuaCallLuaLogOutputCallback);
+  lua_gettable(L, LUA_REGISTRYINDEX);
+
+  // FIXME: There's no way to report errors back to the user
+  lua_pushstring(L, str);
+  lua_pcall(L, 1, 0, 0);
+}
+
+static int LLDBSwigLuaCloseFileHandle(lua_State * L) {
+  return luaL_error(L, "You cannot close a file handle used by lldb.");
+}
 
 
 #ifdef __cplusplus
@@ -14517,8 +14586,7 @@ static int _wrap_SBCommandReturnObject_PutCString(lua_State* L) {
     if (lua_isnil(L, 2)) {
       arg2 = NULL;
       arg3 = 0;
-    }
-    else {
+    } else {
       arg2 = (char *)luaL_checklstring(L, 2, (size_t *)&arg3);
     }
   }
@@ -16635,7 +16703,7 @@ static int _wrap_SBData_ReadRawData(lua_State* L) {
     if (arg5 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg4 = (char *) malloc(arg5);
+    arg4 = (char *)malloc(arg5);
   }
   result = (arg1)->ReadRawData(*arg2,arg3,arg4,arg5);
   lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
@@ -16689,6 +16757,47 @@ static int _wrap_SBData_SetData(lua_State* L) {
   arg5 = (lldb::ByteOrder)lua_tointeger(L, 4); 
   arg6 = (uint8_t)lua_tointeger(L, 5); 
   (arg1)->SetData(*arg2,(void const *)arg3,arg4,arg5,arg6);
+  
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBData_SetDataWithOwnership(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBData *arg1 = (lldb::SBData *) 0 ;
+  lldb::SBError *arg2 = 0 ;
+  void *arg3 = (void *) 0 ;
+  size_t arg4 ;
+  lldb::ByteOrder arg5 ;
+  uint8_t arg6 ;
+  
+  SWIG_check_num_args("lldb::SBData::SetDataWithOwnership",5,5)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetDataWithOwnership",1,"lldb::SBData *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::SetDataWithOwnership",2,"lldb::SBError &");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::SetDataWithOwnership",4,"lldb::ByteOrder");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBData::SetDataWithOwnership",5,"uint8_t");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
+    SWIG_fail_ptr("SBData_SetDataWithOwnership",1,SWIGTYPE_p_lldb__SBData);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+    SWIG_fail_ptr("SBData_SetDataWithOwnership",2,SWIGTYPE_p_lldb__SBError);
+  }
+  
+  {
+    arg3 = (void *)luaL_checklstring(L, 3, &arg4);
+  }
+  arg5 = (lldb::ByteOrder)lua_tointeger(L, 4); 
+  arg6 = (uint8_t)lua_tointeger(L, 5); 
+  (arg1)->SetDataWithOwnership(*arg2,(void const *)arg3,arg4,arg5,arg6);
   
   return SWIG_arg;
   
@@ -16786,7 +16895,7 @@ static int _wrap_SBData_CreateDataFromUInt64Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg3[j++] = (uint64_t)lua_tonumber(L, -1);
+        arg3[j++] = (uint64_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 3)) {
@@ -16845,7 +16954,7 @@ static int _wrap_SBData_CreateDataFromUInt32Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg3[j++] = (uint32_t)lua_tonumber(L, -1);
+        arg3[j++] = (uint32_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 3)) {
@@ -16904,7 +17013,7 @@ static int _wrap_SBData_CreateDataFromSInt64Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg3[j++] = (int64_t)lua_tonumber(L, -1);
+        arg3[j++] = (int64_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 3)) {
@@ -16963,7 +17072,7 @@ static int _wrap_SBData_CreateDataFromSInt32Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg3[j++] = (int32_t)lua_tonumber(L, -1);
+        arg3[j++] = (int32_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 3)) {
@@ -17022,7 +17131,7 @@ static int _wrap_SBData_CreateDataFromDoubleArray(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg3[j++] = (double)lua_tonumber(L, -1);
+        arg3[j++] = (double) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 3)) {
@@ -17109,7 +17218,7 @@ static int _wrap_SBData_SetDataFromUInt64Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg2[j++] = (uint64_t)lua_tonumber(L, -1);
+        arg2[j++] = (uint64_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 2)) {
@@ -17166,7 +17275,7 @@ static int _wrap_SBData_SetDataFromUInt32Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg2[j++] = (uint32_t)lua_tonumber(L, -1);
+        arg2[j++] = (uint32_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 2)) {
@@ -17223,7 +17332,7 @@ static int _wrap_SBData_SetDataFromSInt64Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg2[j++] = (int64_t)lua_tonumber(L, -1);
+        arg2[j++] = (int64_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 2)) {
@@ -17280,7 +17389,7 @@ static int _wrap_SBData_SetDataFromSInt32Array(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg2[j++] = (int32_t)lua_tonumber(L, -1);
+        arg2[j++] = (int32_t) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 2)) {
@@ -17337,7 +17446,7 @@ static int _wrap_SBData_SetDataFromDoubleArray(lua_State* L) {
           lua_pop(L, 1);
           return luaL_error(L, "List should only contain numbers");
         }
-        arg2[j++] = (double)lua_tonumber(L, -1);
+        arg2[j++] = (double) lua_tonumber(L, -1);
         lua_pop(L, 1);
       }
     } else if (lua_isnil(L, 2)) {
@@ -17430,6 +17539,7 @@ static swig_lua_method swig_SBData_methods[]= {
     { "GetDescription", _wrap_SBData_GetDescription},
     { "ReadRawData", _wrap_SBData_ReadRawData},
     { "SetData", _wrap_SBData_SetData},
+    { "SetDataWithOwnership", _wrap_SBData_SetDataWithOwnership},
     { "Append", _wrap_SBData_Append},
     { "SetDataFromCString", _wrap_SBData_SetDataFromCString},
     { "SetDataFromUInt64Array", _wrap_SBData_SetDataFromUInt64Array},
@@ -34662,6 +34772,30 @@ fail:
 }
 
 
+static int _wrap_SBModule_IsFileBacked(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBModule::IsFileBacked",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::IsFileBacked",1,"lldb::SBModule const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
+    SWIG_fail_ptr("SBModule_IsFileBacked",1,SWIGTYPE_p_lldb__SBModule);
+  }
+  
+  result = (bool)((lldb::SBModule const *)arg1)->IsFileBacked();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBModule_GetFileSpec(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBModule *arg1 = (lldb::SBModule *) 0 ;
@@ -36124,6 +36258,7 @@ static swig_lua_attribute swig_SBModule_attributes[] = {
 static swig_lua_method swig_SBModule_methods[]= {
     { "IsValid", _wrap_SBModule_IsValid},
     { "Clear", _wrap_SBModule_Clear},
+    { "IsFileBacked", _wrap_SBModule_IsFileBacked},
     { "GetFileSpec", _wrap_SBModule_GetFileSpec},
     { "GetPlatformFileSpec", _wrap_SBModule_GetPlatformFileSpec},
     { "SetPlatformFileSpec", _wrap_SBModule_SetPlatformFileSpec},
@@ -38490,6 +38625,32 @@ fail:
 }
 
 
+static int _wrap_SBPlatform_SetSDKRoot(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBPlatform *arg1 = (lldb::SBPlatform *) 0 ;
+  char *arg2 = (char *) 0 ;
+  
+  SWIG_check_num_args("lldb::SBPlatform::SetSDKRoot",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::SetSDKRoot",1,"lldb::SBPlatform *");
+  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBPlatform::SetSDKRoot",2,"char const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
+    SWIG_fail_ptr("SBPlatform_SetSDKRoot",1,SWIGTYPE_p_lldb__SBPlatform);
+  }
+  
+  arg2 = (char *)lua_tostring(L, 2);
+  (arg1)->SetSDKRoot((char const *)arg2);
+  
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBPlatform_Get(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBPlatform *arg1 = (lldb::SBPlatform *) 0 ;
@@ -38978,6 +39139,7 @@ static swig_lua_method swig_SBPlatform_methods[]= {
     { "GetOSMajorVersion", _wrap_SBPlatform_GetOSMajorVersion},
     { "GetOSMinorVersion", _wrap_SBPlatform_GetOSMinorVersion},
     { "GetOSUpdateVersion", _wrap_SBPlatform_GetOSUpdateVersion},
+    { "SetSDKRoot", _wrap_SBPlatform_SetSDKRoot},
     { "Get", _wrap_SBPlatform_Get},
     { "Put", _wrap_SBPlatform_Put},
     { "Install", _wrap_SBPlatform_Install},
@@ -39306,7 +39468,7 @@ static int _wrap_SBProcess_GetSTDOUT(lua_State* L) {
     if (arg3 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg2 = (char *) malloc(arg3);
+    arg2 = (char *)malloc(arg3);
   }
   result = ((lldb::SBProcess const *)arg1)->GetSTDOUT(arg2,arg3);
   lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
@@ -39349,7 +39511,7 @@ static int _wrap_SBProcess_GetSTDERR(lua_State* L) {
     if (arg3 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg2 = (char *) malloc(arg3);
+    arg2 = (char *)malloc(arg3);
   }
   result = ((lldb::SBProcess const *)arg1)->GetSTDERR(arg2,arg3);
   lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
@@ -39392,7 +39554,7 @@ static int _wrap_SBProcess_GetAsyncProfileData(lua_State* L) {
     if (arg3 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg2 = (char *) malloc(arg3);
+    arg2 = (char *)malloc(arg3);
   }
   result = ((lldb::SBProcess const *)arg1)->GetAsyncProfileData(arg2,arg3);
   lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
@@ -40550,7 +40712,7 @@ static int _wrap_SBProcess_ReadMemory(lua_State* L) {
     if (arg4 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg3 = (char *) malloc(arg4);
+    arg3 = (char *)malloc(arg4);
   }
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
@@ -40642,7 +40804,7 @@ static int _wrap_SBProcess_ReadCStringFromMemory(lua_State* L) {
     if (arg4 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg3 = (char *) malloc(arg4);
+    arg3 = (char *)malloc(arg4);
   }
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
@@ -45411,7 +45573,7 @@ static int _wrap_SBStructuredData_GetStringValue(lua_State* L) {
     if (arg3 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg2 = (char *) malloc(arg3);
+    arg2 = (char *)malloc(arg3);
   }
   result = ((lldb::SBStructuredData const *)arg1)->GetStringValue(arg2,arg3);
   lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
@@ -49740,7 +49902,7 @@ static int _wrap_SBTarget_ReadMemory(lua_State* L) {
     if (arg4 <= 0) {
       return luaL_error(L, "Positive integer expected");
     }
-    arg3 = (char *) malloc(arg4);
+    arg3 = (char *)malloc(arg4);
   }
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
@@ -56667,6 +56829,40 @@ fail:
 }
 
 
+static int _wrap_SBThread_GetSiginfo(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
+  lldb::SBError *arg2 = 0 ;
+  lldb::SBValue result;
+  
+  SWIG_check_num_args("lldb::SBThread::GetSiginfo",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetSiginfo",1,"lldb::SBThread *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThread::GetSiginfo",2,"lldb::SBError &");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
+    SWIG_fail_ptr("SBThread_GetSiginfo",1,SWIGTYPE_p_lldb__SBThread);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+    SWIG_fail_ptr("SBThread_GetSiginfo",2,SWIGTYPE_p_lldb__SBError);
+  }
+  
+  result = (arg1)->GetSiginfo(*arg2);
+  {
+    lldb::SBValue * resultptr = new lldb::SBValue((const lldb::SBValue &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBThread___tostring(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
@@ -56751,6 +56947,7 @@ static swig_lua_method swig_SBThread_methods[]= {
     { "GetCurrentException", _wrap_SBThread_GetCurrentException},
     { "GetCurrentExceptionBacktrace", _wrap_SBThread_GetCurrentExceptionBacktrace},
     { "SafeToCallFunctions", _wrap_SBThread_SafeToCallFunctions},
+    { "GetSiginfo", _wrap_SBThread_GetSiginfo},
     { "__tostring", _wrap_SBThread___tostring},
     {0,0}
 };
@@ -71162,122 +71359,6 @@ static swig_lua_namespace swig_SBWatchpoint_Sf_SwigStatic = {
 static swig_lua_class *swig_SBWatchpoint_bases[] = {0};
 static const char *swig_SBWatchpoint_base_names[] = {0};
 static swig_lua_class _wrap_class_SBWatchpoint = { "SBWatchpoint", "SBWatchpoint", &SWIGTYPE_p_lldb__SBWatchpoint,_proxy__wrap_new_SBWatchpoint, swig_delete_SBWatchpoint, swig_SBWatchpoint_methods, swig_SBWatchpoint_attributes, &swig_SBWatchpoint_Sf_SwigStatic, swig_SBWatchpoint_meta, swig_SBWatchpoint_bases, swig_SBWatchpoint_base_names };
-
-
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
-
-// Disable warning C4190: 'LLDBSwigPythonBreakpointCallbackFunction' has
-// C-linkage specified, but returns UDT 'llvm::Expected<bool>' which is
-// incompatible with C
-#if _MSC_VER
-#pragma warning (push)
-#pragma warning (disable : 4190)
-#endif
-
-// This function is called from Lua::CallBreakpointCallback
-SWIGEXPORT llvm::Expected<bool>
-LLDBSwigLuaBreakpointCallbackFunction
-(
-   lua_State *L,
-   lldb::StackFrameSP stop_frame_sp,
-   lldb::BreakpointLocationSP bp_loc_sp,
-   StructuredDataImpl *extra_args_impl
-)
-{
-   lldb::SBFrame sb_frame(stop_frame_sp);
-   lldb::SBBreakpointLocation sb_bp_loc(bp_loc_sp);
-   int nargs = 2;
-
-   llvm::Optional<lldb::SBStructuredData> extra_args;
-   if (extra_args_impl)
-      extra_args = lldb::SBStructuredData(extra_args_impl);
-
-   // Push the Lua wrappers
-   PushSBClass(L, &sb_frame);
-   PushSBClass(L, &sb_bp_loc);
-
-   if (extra_args.hasValue()) {
-      PushSBClass(L, extra_args.getPointer());
-      nargs++;
-   }
-
-   // Call into the Lua callback passing 'sb_frame' and 'sb_bp_loc'.
-   // Expects a boolean return.
-   if (lua_pcall(L, nargs, 1, 0) != LUA_OK) {
-      llvm::Error E = llvm::make_error<llvm::StringError>(
-            llvm::formatv("{0}\n", lua_tostring(L, -1)),
-            llvm::inconvertibleErrorCode());
-      // Pop error message from the stack.
-      lua_pop(L, 1);
-      return std::move(E);
-   }
-
-   // Boolean return from the callback
-   bool stop = lua_toboolean(L, -1);
-   lua_pop(L, 1);
-
-   return stop;
-}
-
-// This function is called from Lua::CallWatchpointCallback
-SWIGEXPORT llvm::Expected<bool>
-LLDBSwigLuaWatchpointCallbackFunction
-(
-   lua_State *L,
-   lldb::StackFrameSP stop_frame_sp,
-   lldb::WatchpointSP wp_sp
-)
-{
-   lldb::SBFrame sb_frame(stop_frame_sp);
-   lldb::SBWatchpoint sb_wp(wp_sp);
-   int nargs = 2;
-
-   // Push the Lua wrappers
-   PushSBClass(L, &sb_frame);
-   PushSBClass(L, &sb_wp);
-
-   // Call into the Lua callback passing 'sb_frame' and 'sb_wp'.
-   // Expects a boolean return.
-   if (lua_pcall(L, nargs, 1, 0) != LUA_OK) {
-      llvm::Error E = llvm::make_error<llvm::StringError>(
-            llvm::formatv("{0}\n", lua_tostring(L, -1)),
-            llvm::inconvertibleErrorCode());
-      // Pop error message from the stack.
-      lua_pop(L, 1);
-      return std::move(E);
-   }
-
-   // Boolean return from the callback
-   bool stop = lua_toboolean(L, -1);
-   lua_pop(L, 1);
-
-   return stop;
-}
-
-#if _MSC_VER
-#pragma warning (pop)
-#endif
-
-#pragma clang diagnostic pop
-
-SWIGEXPORT void
-LLDBSwigLuaCallLuaLogOutputCallback(const char *str, void *baton) {
-   lua_State *L = (lua_State *)baton;
-
-   lua_pushlightuserdata(L, (void *)&LLDBSwigLuaCallLuaLogOutputCallback);
-   lua_gettable(L, LUA_REGISTRYINDEX);
-
-   // FIXME: There's no way to report errors back to the user
-   lua_pushstring(L, str);
-   lua_pcall(L, 1, 0, 0);
-}
-
-int LLDBSwigLuaCloseFileHandle(lua_State *L) {
-   return luaL_error(L, "You cannot close a file handle used by lldb.");
-}
-
 
 static swig_lua_attribute swig_SwigModule_attributes[] = {
     {0,0,0}

@@ -1,4 +1,4 @@
-//== M68kInstrInfo.td - Main M68k Instruction Definition -*- tablegen -*-=//
+//===-- M68kInstrInfo.td - Main M68k Instruction Definition -*- tablegen -*-==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -137,7 +137,7 @@ def MxSMul : SDNode<"M68kISD::SMUL", MxSDT_BiArithCCROut, [SDNPCommutative]>;
 def MxUMul : SDNode<"M68kISD::UMUL", MxSDT_2BiArithCCROut, [SDNPCommutative]>;
 
 def MxCmp     : SDNode<"M68kISD::CMP", MxSDT_CmpTest>;
-def MxBt      : SDNode<"M68kISD::BT",  MxSDT_CmpTest>;
+def MxBtst    : SDNode<"M68kISD::BTST", MxSDT_CmpTest>;
 
 def MxCmov    : SDNode<"M68kISD::CMOV",        MxSDT_Cmov>;
 def MxBrCond  : SDNode<"M68kISD::BRCOND",      MxSDT_BrCond, [SDNPHasChain]>;
@@ -587,8 +587,8 @@ class MxType<ValueType vt, string prefix, string postfix,
              // qOp:  Supported PCD operand
              // qPat: What PCD pattern is used
              MxOperand qOp, ComplexPattern qPat,
-             // kOp:  Supported PCD operand
-             // kPat: What PCD pattern is used
+             // kOp:  Supported PCI operand
+             // kPat: What PCI pattern is used
              MxOperand kOp, ComplexPattern kPat,
              // iOp:  Supported immediate operand
              // iPat: What immediate pattern is used

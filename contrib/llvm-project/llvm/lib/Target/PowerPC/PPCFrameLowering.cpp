@@ -674,7 +674,8 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
                                                            : PPC::MFCR);
   const MCInstrDesc &StoreWordInst = TII.get(isPPC64 ? PPC::STW8 : PPC::STW);
   const MCInstrDesc &HashST =
-      TII.get(HasPrivileged ? PPC::HASHSTP : PPC::HASHST);
+      TII.get(isPPC64 ? (HasPrivileged ? PPC::HASHSTP8 : PPC::HASHST8)
+                      : (HasPrivileged ? PPC::HASHSTP : PPC::HASHST));
 
   // Regarding this assert: Even though LR is saved in the caller's frame (i.e.,
   // LROffset is positive), that slot is callee-owned. Because PPC32 SVR4 has no
@@ -1172,7 +1173,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
     // CFA.
     const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
     for (const CalleeSavedInfo &I : CSI) {
-      unsigned Reg = I.getReg();
+      Register Reg = I.getReg();
       if (Reg == PPC::LR || Reg == PPC::LR8 || Reg == PPC::RM) continue;
 
       // This is a bit of a hack: CR2LT, CR2GT, CR2EQ and CR2UN are just
@@ -1195,7 +1196,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF,
         // In the ELFv1 ABI, only CR2 is noted in CFI and stands in for
         // the whole CR word.  In the ELFv2 ABI, every CR that was
         // actually saved gets its own CFI record.
-        unsigned CRReg = isELFv2ABI? Reg : (unsigned) PPC::CR2;
+        Register CRReg = isELFv2ABI? Reg : PPC::CR2;
         unsigned CFIIndex = MF.addFrameInst(MCCFIInstruction::createOffset(
             nullptr, MRI->getDwarfRegNum(CRReg, true), CRSaveOffset));
         BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
@@ -1590,7 +1591,8 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
   const MCInstrDesc& MoveToCRInst = TII.get( isPPC64 ? PPC::MTOCRF8
                                                      : PPC::MTOCRF);
   const MCInstrDesc &HashChk =
-      TII.get(HasPrivileged ? PPC::HASHCHKP : PPC::HASHCHK);
+      TII.get(isPPC64 ? (HasPrivileged ? PPC::HASHCHKP8 : PPC::HASHCHK8)
+                      : (HasPrivileged ? PPC::HASHCHKP : PPC::HASHCHK));
   int64_t LROffset = getReturnSaveOffset();
 
   int64_t FPOffset = 0;
@@ -2085,7 +2087,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
   SmallVector<CalleeSavedInfo, 18> VRegs;
 
   for (const CalleeSavedInfo &I : CSI) {
-    unsigned Reg = I.getReg();
+    Register Reg = I.getReg();
     assert((!MF.getInfo<PPCFunctionInfo>()->mustSaveTOC() ||
             (Reg != PPC::X2 && Reg != PPC::R2)) &&
            "Not expecting to try to spill R2 in a function that must save TOC");
@@ -2337,7 +2339,7 @@ bool PPCFrameLowering::assignCalleeSavedSpillSlots(
     if (BVAllocatable.none())
       return false;
 
-    unsigned Reg = CS.getReg();
+    Register Reg = CS.getReg();
 
     if (!PPC::G8RCRegClass.contains(Reg)) {
       AllSpilledToReg = false;
@@ -2395,7 +2397,7 @@ bool PPCFrameLowering::spillCalleeSavedRegisters(
   });
 
   for (const CalleeSavedInfo &I : CSI) {
-    unsigned Reg = I.getReg();
+    Register Reg = I.getReg();
 
     // CR2 through CR4 are the nonvolatile CR fields.
     bool IsCRField = PPC::CR2 <= Reg && Reg <= PPC::CR4;
@@ -2581,7 +2583,7 @@ bool PPCFrameLowering::restoreCalleeSavedRegisters(
     --BeforeI;
 
   for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
-    unsigned Reg = CSI[i].getReg();
+    Register Reg = CSI[i].getReg();
 
     if ((Reg == PPC::X2 || Reg == PPC::R2) && MustSaveTOC)
       continue;

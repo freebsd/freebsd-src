@@ -286,7 +286,7 @@ void ScheduleDAGSDNodes::ClusterNeighboringLoads(SDNode *Node) {
   // Cluster loads by adding MVT::Glue outputs and inputs. This also
   // ensure they are scheduled in order of increasing addresses.
   SDNode *Lead = Loads[0];
-  SDValue InGlue = SDValue(nullptr, 0);
+  SDValue InGlue;
   if (AddGlue(Lead, InGlue, true, DAG))
     InGlue = SDValue(Lead, Lead->getNumValues() - 1);
   for (unsigned I = 1, E = Loads.size(); I != E; ++I) {
@@ -1057,11 +1057,12 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
            "first terminator cannot be a debug value");
     for (MachineInstr &MI : make_early_inc_range(
              make_range(std::next(FirstTerm), InsertBB->end()))) {
+      // Only scan up to insertion point.
+      if (&MI == InsertPos)
+        break;
+
       if (!MI.isDebugValue())
         continue;
-
-      if (&MI == InsertPos)
-        InsertPos = std::prev(InsertPos->getIterator());
 
       // The DBG_VALUE was referencing a value produced by a terminator. By
       // moving the DBG_VALUE, the referenced value also needs invalidating.

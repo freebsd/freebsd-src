@@ -242,7 +242,7 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
 
   if (onlyReadsMemory(MRB))
     Result = clearMod(Result);
-  else if (doesNotReadMemory(MRB))
+  else if (onlyWritesMemory(MRB))
     Result = clearRef(Result);
 
   if (onlyAccessesArgPointees(MRB) || onlyAccessesInaccessibleOrArgMem(MRB)) {
@@ -320,7 +320,7 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call1,
   // from Call1 reading memory written by Call2.
   if (onlyReadsMemory(Call1B))
     Result = clearMod(Result);
-  else if (doesNotReadMemory(Call1B))
+  else if (onlyWritesMemory(Call1B))
     Result = clearRef(Result);
 
   // If Call2 only access memory through arguments, accumulate the mod/ref
@@ -986,6 +986,29 @@ bool llvm::isIdentifiedObject(const Value *V) {
 
 bool llvm::isIdentifiedFunctionLocal(const Value *V) {
   return isa<AllocaInst>(V) || isNoAliasCall(V) || isNoAliasOrByValArgument(V);
+}
+
+bool llvm::isNotVisibleOnUnwind(const Value *Object,
+                                bool &RequiresNoCaptureBeforeUnwind) {
+  RequiresNoCaptureBeforeUnwind = false;
+
+  // Alloca goes out of scope on unwind.
+  if (isa<AllocaInst>(Object))
+    return true;
+
+  // Byval goes out of scope on unwind.
+  if (auto *A = dyn_cast<Argument>(Object))
+    return A->hasByValAttr();
+
+  // A noalias return is not accessible from any other code. If the pointer
+  // does not escape prior to the unwind, then the caller cannot access the
+  // memory either.
+  if (isNoAliasCall(Object)) {
+    RequiresNoCaptureBeforeUnwind = true;
+    return true;
+  }
+
+  return false;
 }
 
 void llvm::getAAResultsAnalysisUsage(AnalysisUsage &AU) {

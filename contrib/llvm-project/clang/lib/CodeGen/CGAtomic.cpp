@@ -307,7 +307,7 @@ static RValue emitAtomicLibcall(CodeGenFunction &CGF,
   const CGFunctionInfo &fnInfo =
     CGF.CGM.getTypes().arrangeBuiltinFunctionCall(resultType, args);
   llvm::FunctionType *fnTy = CGF.CGM.getTypes().GetFunctionType(fnInfo);
-  llvm::AttrBuilder fnAttrB;
+  llvm::AttrBuilder fnAttrB(CGF.getLLVMContext());
   fnAttrB.addAttribute(llvm::Attribute::NoUnwind);
   fnAttrB.addAttribute(llvm::Attribute::WillReturn);
   llvm::AttributeList fnAttrs = llvm::AttributeList::get(
@@ -351,12 +351,12 @@ bool AtomicInfo::requiresMemSetZero(llvm::Type *type) const {
 
 bool AtomicInfo::emitMemSetZeroIfNecessary() const {
   assert(LVal.isSimple());
-  llvm::Value *addr = LVal.getPointer(CGF);
-  if (!requiresMemSetZero(addr->getType()->getPointerElementType()))
+  Address addr = LVal.getAddress(CGF);
+  if (!requiresMemSetZero(addr.getElementType()))
     return false;
 
   CGF.Builder.CreateMemSet(
-      addr, llvm::ConstantInt::get(CGF.Int8Ty, 0),
+      addr.getPointer(), llvm::ConstantInt::get(CGF.Int8Ty, 0),
       CGF.getContext().toCharUnitsFromBits(AtomicSizeInBits).getQuantity(),
       LVal.getAlignment().getAsAlign());
   return true;
@@ -1522,7 +1522,7 @@ RValue AtomicInfo::ConvertIntToValueOrAtomic(llvm::Value *IntVal,
        !AsValue)) {
     auto *ValTy = AsValue
                       ? CGF.ConvertTypeForMem(ValueTy)
-                      : getAtomicAddress().getType()->getPointerElementType();
+                      : getAtomicAddress().getElementType();
     if (ValTy->isIntegerTy()) {
       assert(IntVal->getType() == ValTy && "Different integer types.");
       return RValue::get(CGF.EmitFromMemory(IntVal, ValueTy));

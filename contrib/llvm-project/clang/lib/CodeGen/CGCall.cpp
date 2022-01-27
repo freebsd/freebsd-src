@@ -1892,7 +1892,7 @@ void CodeGenModule::getDefaultFunctionAttributes(StringRef Name,
 }
 
 void CodeGenModule::addDefaultFunctionDefinitionAttributes(llvm::Function &F) {
-  llvm::AttrBuilder FuncAttrs;
+  llvm::AttrBuilder FuncAttrs(F.getContext());
   getDefaultFunctionAttributes(F.getName(), F.hasOptNone(),
                                /* AttrOnCallSite = */ false, FuncAttrs);
   // TODO: call GetCPUAndFeaturesAttributes?
@@ -2014,8 +2014,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
                                            llvm::AttributeList &AttrList,
                                            unsigned &CallingConv,
                                            bool AttrOnCallSite, bool IsThunk) {
-  llvm::AttrBuilder FuncAttrs;
-  llvm::AttrBuilder RetAttrs;
+  llvm::AttrBuilder FuncAttrs(getLLVMContext());
+  llvm::AttrBuilder RetAttrs(getLLVMContext());
 
   // Collect function IR attributes from the CC lowering.
   // We'll collect the paramete and result attributes later.
@@ -2243,7 +2243,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
                      getLangOpts().Sanitize.has(SanitizerKind::Return);
 
   // Determine if the return type could be partially undef
-  if (CodeGenOpts.EnableNoundefAttrs && HasStrictReturn) {
+  if (!CodeGenOpts.DisableNoundefAttrs && HasStrictReturn) {
     if (!RetTy->isVoidType() && RetAI.getKind() != ABIArgInfo::Indirect &&
         DetermineNoUndef(RetTy, getTypes(), DL, RetAI))
       RetAttrs.addAttribute(llvm::Attribute::NoUndef);
@@ -2302,7 +2302,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
 
   // Attach attributes to sret.
   if (IRFunctionArgs.hasSRetArg()) {
-    llvm::AttrBuilder SRETAttrs;
+    llvm::AttrBuilder SRETAttrs(getLLVMContext());
     SRETAttrs.addStructRetAttr(getTypes().ConvertTypeForMem(RetTy));
     hasUsedSRet = true;
     if (RetAI.getInReg())
@@ -2314,7 +2314,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
 
   // Attach attributes to inalloca argument.
   if (IRFunctionArgs.hasInallocaArg()) {
-    llvm::AttrBuilder Attrs;
+    llvm::AttrBuilder Attrs(getLLVMContext());
     Attrs.addInAllocaAttr(FI.getArgStruct());
     ArgAttrs[IRFunctionArgs.getInallocaArgNo()] =
         llvm::AttributeSet::get(getLLVMContext(), Attrs);
@@ -2329,7 +2329,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
 
     assert(IRArgs.second == 1 && "Expected only a single `this` pointer.");
 
-    llvm::AttrBuilder Attrs;
+    llvm::AttrBuilder Attrs(getLLVMContext());
 
     QualType ThisTy =
         FI.arg_begin()->type.castAs<PointerType>()->getPointeeType();
@@ -2364,7 +2364,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
        I != E; ++I, ++ArgNo) {
     QualType ParamType = I->type;
     const ABIArgInfo &AI = I->info;
-    llvm::AttrBuilder Attrs;
+    llvm::AttrBuilder Attrs(getLLVMContext());
 
     // Add attribute for padding argument, if necessary.
     if (IRFunctionArgs.hasPaddingArg(ArgNo)) {
@@ -2372,14 +2372,15 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         ArgAttrs[IRFunctionArgs.getPaddingArgNo(ArgNo)] =
             llvm::AttributeSet::get(
                 getLLVMContext(),
-                llvm::AttrBuilder().addAttribute(llvm::Attribute::InReg));
+                llvm::AttrBuilder(getLLVMContext()).addAttribute(llvm::Attribute::InReg));
       }
     }
 
     // Decide whether the argument we're handling could be partially undef
-    bool ArgNoUndef = DetermineNoUndef(ParamType, getTypes(), DL, AI);
-    if (CodeGenOpts.EnableNoundefAttrs && ArgNoUndef)
+    if (!CodeGenOpts.DisableNoundefAttrs &&
+        DetermineNoUndef(ParamType, getTypes(), DL, AI)) {
       Attrs.addAttribute(llvm::Attribute::NoUndef);
+    }
 
     // 'restrict' -> 'noalias' is done in EmitFunctionProlog when we
     // have the corresponding parameter variable.  It doesn't make
@@ -2519,8 +2520,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       unsigned FirstIRArg, NumIRArgs;
       std::tie(FirstIRArg, NumIRArgs) = IRFunctionArgs.getIRArgs(ArgNo);
       for (unsigned i = 0; i < NumIRArgs; i++)
-        ArgAttrs[FirstIRArg + i] =
-            llvm::AttributeSet::get(getLLVMContext(), Attrs);
+        ArgAttrs[FirstIRArg + i] = ArgAttrs[FirstIRArg + i].addAttributes(
+            getLLVMContext(), llvm::AttributeSet::get(getLLVMContext(), Attrs));
     }
   }
   assert(ArgNo == FI.arg_size());
@@ -2747,11 +2748,11 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
               QualType ETy = ArrTy->getElementType();
               llvm::Align Alignment =
                   CGM.getNaturalTypeAlignment(ETy).getAsAlign();
-              AI->addAttrs(llvm::AttrBuilder().addAlignmentAttr(Alignment));
+              AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(Alignment));
               uint64_t ArrSize = ArrTy->getSize().getZExtValue();
               if (!ETy->isIncompleteType() && ETy->isConstantSizeType() &&
                   ArrSize) {
-                llvm::AttrBuilder Attrs;
+                llvm::AttrBuilder Attrs(getLLVMContext());
                 Attrs.addDereferenceableAttr(
                     getContext().getTypeSizeInChars(ETy).getQuantity() *
                     ArrSize);
@@ -2771,7 +2772,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
               QualType ETy = ArrTy->getElementType();
               llvm::Align Alignment =
                   CGM.getNaturalTypeAlignment(ETy).getAsAlign();
-              AI->addAttrs(llvm::AttrBuilder().addAlignmentAttr(Alignment));
+              AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(Alignment));
               if (!getContext().getTargetAddressSpace(ETy) &&
                   !CGM.getCodeGenOpts().NullPointerIsValid)
                 AI->addAttr(llvm::Attribute::NonNull);
@@ -2793,7 +2794,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
                 AlignmentCI->getLimitedValue(llvm::Value::MaximumAlignment);
             if (AI->getParamAlign().valueOrOne() < AlignmentInt) {
               AI->removeAttr(llvm::Attribute::AttrKind::Alignment);
-              AI->addAttrs(llvm::AttrBuilder().addAlignmentAttr(
+              AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(
                   llvm::Align(AlignmentInt)));
             }
           }
@@ -3879,9 +3880,8 @@ static void emitWritebackArg(CodeGenFunction &CGF, CallArgList &args,
   }
 
   // Create the temporary.
-  Address temp = CGF.CreateTempAlloca(destType->getElementType(),
-                                      CGF.getPointerAlign(),
-                                      "icr.temp");
+  Address temp = CGF.CreateTempAlloca(destType->getPointerElementType(),
+                                      CGF.getPointerAlign(), "icr.temp");
   // Loading an l-value can introduce a cleanup if the l-value is __weak,
   // and that cleanup will be conditional if we can't prove that the l-value
   // isn't null, so we need to register a dominating point so that the cleanups
@@ -3891,9 +3891,8 @@ static void emitWritebackArg(CodeGenFunction &CGF, CallArgList &args,
   // Zero-initialize it if we're not doing a copy-initialization.
   bool shouldCopy = CRE->shouldCopy();
   if (!shouldCopy) {
-    llvm::Value *null =
-      llvm::ConstantPointerNull::get(
-        cast<llvm::PointerType>(destType->getElementType()));
+    llvm::Value *null = llvm::ConstantPointerNull::get(
+        cast<llvm::PointerType>(destType->getPointerElementType()));
     CGF.Builder.CreateStore(null, temp);
   }
 
@@ -3935,7 +3934,7 @@ static void emitWritebackArg(CodeGenFunction &CGF, CallArgList &args,
     assert(srcRV.isScalar());
 
     llvm::Value *src = srcRV.getScalarVal();
-    src = CGF.Builder.CreateBitCast(src, destType->getElementType(),
+    src = CGF.Builder.CreateBitCast(src, destType->getPointerElementType(),
                                     "icr.cast");
 
     // Use an ordinary store, not a store-to-lvalue.
@@ -5074,8 +5073,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 #ifndef NDEBUG
         // Assert that these structs have equivalent element types.
         llvm::StructType *FullTy = CallInfo.getArgStruct();
-        llvm::StructType *DeclaredTy = cast<llvm::StructType>(
-            cast<llvm::PointerType>(LastParamTy)->getElementType());
+        llvm::StructType *DeclaredTy =
+            cast<llvm::StructType>(LastParamTy->getPointerElementType());
         assert(DeclaredTy->getNumElements() == FullTy->getNumElements());
         for (llvm::StructType::element_iterator DI = DeclaredTy->element_begin(),
                                                 DE = DeclaredTy->element_end(),
