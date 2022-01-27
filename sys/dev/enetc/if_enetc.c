@@ -933,7 +933,7 @@ enetc_init(if_ctx_t ctx)
 		ENETC_PORT_WR4(sc, ENETC_PSIPVMR,
 		    ENETC_PSIPVMR_SET_VUTA(1));
 
-	sc->rbmr = ENETC_RBMR_EN | ENETC_RBMR_AL;
+	sc->rbmr = ENETC_RBMR_EN;
 
 	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING)
 		sc->rbmr |= ENETC_RBMR_VTE;
@@ -1255,8 +1255,7 @@ enetc_isc_rxd_pkt_get(void *data, if_rxd_info_t ri)
 		desc = &queue->ring[cidx];
 	}
 	ri->iri_nfrags = i + 1;
-	ri->iri_len = pkt_size + ENETC_RX_IP_ALIGN;
-	ri->iri_pad = ENETC_RX_IP_ALIGN;
+	ri->iri_len = pkt_size;
 
 	MPASS(desc->r.lstatus & ENETC_RXBD_LSTATUS_F);
 	if (status & ENETC_RXBD_LSTATUS(ENETC_RXBD_ERR_MASK))
