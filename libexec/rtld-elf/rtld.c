@@ -2356,7 +2356,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     objtmp.dynamic = rtld_dynamic(&objtmp);
     digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
     assert(objtmp.needed == NULL);
-    assert(objtmp.textrel == NULL);
+    assert(!objtmp.textrel);
     /*
      * Temporarily put the dynamic linker entry into the object list, so
      * that symbols can be found.
