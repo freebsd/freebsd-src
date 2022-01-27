@@ -500,6 +500,8 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 		goto drop;
 	if (f->plr && random() < f->plr)
 		goto drop;
+	if (m->m_pkthdr.rcvif != NULL)
+		m_rcvif_serialize(m);
 #ifdef NEW_AQM
 	/* Call AQM enqueue function */
 	if (q->fs->aqmfp)
@@ -548,7 +550,11 @@ transmit_event(struct mq *q, struct delay_line *dline, uint64_t now)
 			break;
 		dline->mq.head = m->m_nextpkt;
 		dline->mq.count--;
-		mq_append(q, m);
+		if (m->m_pkthdr.rcvif != NULL &&
+		  __predict_false(m_rcvif_restore(m) == NULL))
+			m_freem(m);
+		else
+			mq_append(q, m);
 	}
 	if (m != NULL) {
 		dline->oid.subtype = 1; /* in heap */
@@ -617,6 +623,8 @@ serve_sched(struct mq *q, struct dn_sch_inst *si, uint64_t now)
 		si->credit -= len_scaled;
 		/* Move packet in the delay line */
 		dn_tag_get(m)->output_time = V_dn_cfg.curr_time + s->link.delay ;
+		if (m->m_pkthdr.rcvif != NULL)
+			m_rcvif_serialize(m);
 		mq_append(&si->dline.mq, m);
 	}
 

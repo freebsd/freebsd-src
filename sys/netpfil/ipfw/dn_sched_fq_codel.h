@@ -138,8 +138,9 @@ fq_update_stats(struct fq_codel_flow *q, struct fq_codel_si *si, int len,
 __inline static struct mbuf *
 fq_codel_extract_head(struct fq_codel_flow *q, aqm_time_t *pkt_ts, struct fq_codel_si *si)
 {
-	struct mbuf *m = q->mq.head;
+	struct mbuf *m;
 
+next:	m = q->mq.head;
 	if (m == NULL)
 		return m;
 	q->mq.head = m->m_nextpkt;
@@ -159,7 +160,11 @@ fq_codel_extract_head(struct fq_codel_flow *q, aqm_time_t *pkt_ts, struct fq_cod
 		*pkt_ts = *(aqm_time_t *)(mtag + 1);
 		m_tag_delete(m,mtag); 
 	}
-
+	if (m->m_pkthdr.rcvif != NULL &&
+	    __predict_false(m_rcvif_restore(m) == NULL)) {
+		m_freem(m);
+		goto next;
+	}
 	return m;
 }
 
