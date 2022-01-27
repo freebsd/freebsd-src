@@ -568,6 +568,7 @@ public:
   const SCEV *getTruncateExpr(const SCEV *Op, Type *Ty, unsigned Depth = 0);
   const SCEV *getZeroExtendExpr(const SCEV *Op, Type *Ty, unsigned Depth = 0);
   const SCEV *getSignExtendExpr(const SCEV *Op, Type *Ty, unsigned Depth = 0);
+  const SCEV *getCastExpr(SCEVTypes Kind, const SCEV *Op, Type *Ty);
   const SCEV *getAnyExtendExpr(const SCEV *Op, Type *Ty);
   const SCEV *getAddExpr(SmallVectorImpl<const SCEV *> &Ops,
                          SCEV::NoWrapFlags Flags = SCEV::FlagAnyWrap,
@@ -629,14 +630,18 @@ public:
   const SCEV *getAbsExpr(const SCEV *Op, bool IsNSW);
   const SCEV *getMinMaxExpr(SCEVTypes Kind,
                             SmallVectorImpl<const SCEV *> &Operands);
+  const SCEV *getSequentialMinMaxExpr(SCEVTypes Kind,
+                                      SmallVectorImpl<const SCEV *> &Operands);
   const SCEV *getSMaxExpr(const SCEV *LHS, const SCEV *RHS);
   const SCEV *getSMaxExpr(SmallVectorImpl<const SCEV *> &Operands);
   const SCEV *getUMaxExpr(const SCEV *LHS, const SCEV *RHS);
   const SCEV *getUMaxExpr(SmallVectorImpl<const SCEV *> &Operands);
   const SCEV *getSMinExpr(const SCEV *LHS, const SCEV *RHS);
   const SCEV *getSMinExpr(SmallVectorImpl<const SCEV *> &Operands);
-  const SCEV *getUMinExpr(const SCEV *LHS, const SCEV *RHS);
-  const SCEV *getUMinExpr(SmallVectorImpl<const SCEV *> &Operands);
+  const SCEV *getUMinExpr(const SCEV *LHS, const SCEV *RHS,
+                          bool Sequential = false);
+  const SCEV *getUMinExpr(SmallVectorImpl<const SCEV *> &Operands,
+                          bool Sequential = false);
   const SCEV *getUnknown(Value *V);
   const SCEV *getCouldNotCompute();
 
@@ -728,11 +733,13 @@ public:
 
   /// Promote the operands to the wider of the types using zero-extension, and
   /// then perform a umin operation with them.
-  const SCEV *getUMinFromMismatchedTypes(const SCEV *LHS, const SCEV *RHS);
+  const SCEV *getUMinFromMismatchedTypes(const SCEV *LHS, const SCEV *RHS,
+                                         bool Sequential = false);
 
   /// Promote the operands to the wider of the types using zero-extension, and
   /// then perform a umin operation with them. N-ary function.
-  const SCEV *getUMinFromMismatchedTypes(SmallVectorImpl<const SCEV *> &Ops);
+  const SCEV *getUMinFromMismatchedTypes(SmallVectorImpl<const SCEV *> &Ops,
+                                         bool Sequential = false);
 
   /// Transitively follow the chain of pointer-type operands until reaching a
   /// SCEV that does not have a single pointer operand. This returns a
@@ -1713,6 +1720,15 @@ private:
                                      bool IsSubExpr,
                                      bool AllowPredicates = false);
 
+  /// Variant of previous which takes the components representing an ICmp
+  /// as opposed to the ICmpInst itself.  Note that the prior version can
+  /// return more precise results in some cases and is preferred when caller
+  /// has a materialized ICmp.
+  ExitLimit computeExitLimitFromICmp(const Loop *L, ICmpInst::Predicate Pred,
+                                     const SCEV *LHS, const SCEV *RHS,
+                                     bool IsSubExpr,
+                                     bool AllowPredicates = false);
+
   /// Compute the number of times the backedge of the specified loop will
   /// execute if its exit condition were a switch with a single exiting case
   /// to ExitingBB.
@@ -1881,6 +1897,15 @@ private:
                          const SCEV *LHS, const SCEV *RHS,
                          const SCEV *FoundLHS, const SCEV *FoundRHS,
                          unsigned Depth);
+
+  /// Test whether the condition described by Pred, LHS, and RHS is true
+  /// whenever the condition described by Pred, FoundLHS, and FoundRHS is
+  /// true.
+  ///
+  /// This routine tries to reason about shifts.
+  bool isImpliedCondOperandsViaShift(ICmpInst::Predicate Pred, const SCEV *LHS,
+                                     const SCEV *RHS, const SCEV *FoundLHS,
+                                     const SCEV *FoundRHS);
 
   /// If we know that the specified Phi is in the header of its containing
   /// loop, we know the loop executes a constant number of times, and the PHI

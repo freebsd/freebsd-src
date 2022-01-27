@@ -1011,13 +1011,21 @@ def : GCNPat <
 }
 
 def : GCNPat <
-  (i32 (ctpop i32:$popcnt)),
+  (i32 (DivergentUnaryFrag<ctpop> i32:$popcnt)),
   (V_BCNT_U32_B32_e64 VSrc_b32:$popcnt, (i32 0))
 >;
 
 def : GCNPat <
   (i16 (add (i16 (trunc (i32 (getDivergentFrag<ctpop>.ret i32:$popcnt)))), i16:$val)),
   (V_BCNT_U32_B32_e64 $popcnt, $val)
+>;
+
+def : GCNPat <
+  (i64 (DivergentUnaryFrag<ctpop> i64:$src)),
+  (REG_SEQUENCE VReg_64,
+    (V_BCNT_U32_B32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub1)),
+      (i32 (V_BCNT_U32_B32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0)))), sub0,
+      (i32 (V_MOV_B32_e32 (i32 0))), sub1)
 >;
 
 /********** ============================================ **********/
@@ -1184,6 +1192,26 @@ def : Pat <
   (v2f16 (EXTRACT_SUBREG v4f16:$vec, sub1))
 >;
 
+def : Pat <
+  (extract_subvector v8i16:$vec, (i32 0)),
+  (v4i16 (EXTRACT_SUBREG v8i16:$vec, sub0_sub1))
+>;
+
+def : Pat <
+  (extract_subvector v8i16:$vec, (i32 4)),
+  (v4i16 (EXTRACT_SUBREG v8i16:$vec, sub2_sub3))
+>;
+
+def : Pat <
+  (extract_subvector v8f16:$vec, (i32 0)),
+  (v4f16 (EXTRACT_SUBREG v8f16:$vec, sub0_sub1))
+>;
+
+def : Pat <
+  (extract_subvector v8f16:$vec, (i32 4)),
+  (v4f16 (EXTRACT_SUBREG v8f16:$vec, sub2_sub3))
+>;
+
 foreach Index = 0-31 in {
   def Extract_Element_v32i32_#Index : Extract_Element <
     i32, v32i32, Index, !cast<SubRegIndex>(sub#Index)
@@ -1279,6 +1307,26 @@ def : BitConvert <v2i64, v2f64, VReg_128>;
 def : BitConvert <v2f64, v2i64, VReg_128>;
 def : BitConvert <v4f32, v2i64, VReg_128>;
 def : BitConvert <v2i64, v4f32, VReg_128>;
+def : BitConvert <v8i16, v4i32, SReg_128>;
+def : BitConvert <v4i32, v8i16, SReg_128>;
+def : BitConvert <v8f16, v4f32, VReg_128>;
+def : BitConvert <v8f16, v4i32, VReg_128>;
+def : BitConvert <v4f32, v8f16, VReg_128>;
+def : BitConvert <v4i32, v8f16, VReg_128>;
+def : BitConvert <v8i16, v8f16, VReg_128>;
+def : BitConvert <v8f16, v8i16, VReg_128>;
+def : BitConvert <v4f32, v8i16, VReg_128>;
+def : BitConvert <v8i16, v4f32, VReg_128>;
+def : BitConvert <v8i16, v8f16, SReg_128>;
+def : BitConvert <v8i16, v2i64, SReg_128>;
+def : BitConvert <v8i16, v2f64, SReg_128>;
+def : BitConvert <v8f16, v2i64, SReg_128>;
+def : BitConvert <v8f16, v2f64, SReg_128>;
+def : BitConvert <v8f16, v8i16, SReg_128>;
+def : BitConvert <v2i64, v8i16, SReg_128>;
+def : BitConvert <v2f64, v8i16, SReg_128>;
+def : BitConvert <v2i64, v8f16, SReg_128>;
+def : BitConvert <v2f64, v8f16, SReg_128>;
 
 // 160-bit bitcast
 def : BitConvert <v5i32, v5f32, SReg_160>;
@@ -1762,44 +1810,44 @@ def BFIImm32 : PatFrag<
 // (y & x) | (z & ~x)
 def : AMDGPUPat <
   (DivergentBinFrag<or> (and i32:$y, i32:$x), (and i32:$z, (not i32:$x))),
-  (V_BFI_B32_e64 $x, $y, $z)
+  (V_BFI_B32_e64 VSrc_b32:$x, VSrc_b32:$y, VSrc_b32:$z)
 >;
 
 // (y & C) | (z & ~C)
 def : AMDGPUPat <
   (BFIImm32 i32:$x, i32:$y, i32:$z),
-  (V_BFI_B32_e64 $x, $y, $z)
+  (V_BFI_B32_e64 VSrc_b32:$x, VSrc_b32:$y, VSrc_b32:$z)
 >;
 
 // 64-bit version
 def : AMDGPUPat <
   (DivergentBinFrag<or> (and i64:$y, i64:$x), (and i64:$z, (not i64:$x))),
-  (REG_SEQUENCE SReg_64,
-    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG SReg_64:$x, sub0)),
-               (i32 (EXTRACT_SUBREG SReg_64:$y, sub0)),
-               (i32 (EXTRACT_SUBREG SReg_64:$z, sub0))), sub0,
-    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG SReg_64:$x, sub1)),
-               (i32 (EXTRACT_SUBREG SReg_64:$y, sub1)),
-               (i32 (EXTRACT_SUBREG SReg_64:$z, sub1))), sub1)
+  (REG_SEQUENCE VReg_64,
+    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$x, sub0)),
+               (i32 (EXTRACT_SUBREG VReg_64:$y, sub0)),
+               (i32 (EXTRACT_SUBREG VReg_64:$z, sub0))), sub0,
+    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$x, sub1)),
+               (i32 (EXTRACT_SUBREG VReg_64:$y, sub1)),
+               (i32 (EXTRACT_SUBREG VReg_64:$z, sub1))), sub1)
 >;
 
 // SHA-256 Ch function
 // z ^ (x & (y ^ z))
 def : AMDGPUPat <
   (DivergentBinFrag<xor> i32:$z, (and i32:$x, (xor i32:$y, i32:$z))),
-  (V_BFI_B32_e64 $x, $y, $z)
+  (V_BFI_B32_e64 VSrc_b32:$x, VSrc_b32:$y, VSrc_b32:$z)
 >;
 
 // 64-bit version
 def : AMDGPUPat <
   (DivergentBinFrag<xor> i64:$z, (and i64:$x, (xor i64:$y, i64:$z))),
-  (REG_SEQUENCE SReg_64,
-    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG SReg_64:$x, sub0)),
-               (i32 (EXTRACT_SUBREG SReg_64:$y, sub0)),
-               (i32 (EXTRACT_SUBREG SReg_64:$z, sub0))), sub0,
-    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG SReg_64:$x, sub1)),
-               (i32 (EXTRACT_SUBREG SReg_64:$y, sub1)),
-               (i32 (EXTRACT_SUBREG SReg_64:$z, sub1))), sub1)
+  (REG_SEQUENCE VReg_64,
+    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$x, sub0)),
+               (i32 (EXTRACT_SUBREG VReg_64:$y, sub0)),
+               (i32 (EXTRACT_SUBREG VReg_64:$z, sub0))), sub0,
+    (V_BFI_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$x, sub1)),
+               (i32 (EXTRACT_SUBREG VReg_64:$y, sub1)),
+               (i32 (EXTRACT_SUBREG VReg_64:$z, sub1))), sub1)
 >;
 
 def : AMDGPUPat <
@@ -2725,21 +2773,21 @@ def : AMDGPUPat <
 def : AMDGPUPat <
   (DivergentBinFrag<or> (and i32:$x, i32:$z),
                         (and i32:$y, (or i32:$x, i32:$z))),
-  (V_BFI_B32_e64 (V_XOR_B32_e64 i32:$x, i32:$y), i32:$z, i32:$y)
+  (V_BFI_B32_e64 (V_XOR_B32_e64 VSrc_b32:$x, VSrc_b32:$y), VSrc_b32:$z, VSrc_b32:$y)
 >;
 
 def : AMDGPUPat <
   (DivergentBinFrag<or> (and i64:$x, i64:$z),
                         (and i64:$y, (or i64:$x, i64:$z))),
-  (REG_SEQUENCE SReg_64,
-    (V_BFI_B32_e64 (V_XOR_B32_e64 (i32 (EXTRACT_SUBREG SReg_64:$x, sub0)),
-                    (i32 (EXTRACT_SUBREG SReg_64:$y, sub0))),
-               (i32 (EXTRACT_SUBREG SReg_64:$z, sub0)),
-               (i32 (EXTRACT_SUBREG SReg_64:$y, sub0))), sub0,
-    (V_BFI_B32_e64 (V_XOR_B32_e64 (i32 (EXTRACT_SUBREG SReg_64:$x, sub1)),
-                    (i32 (EXTRACT_SUBREG SReg_64:$y, sub1))),
-               (i32 (EXTRACT_SUBREG SReg_64:$z, sub1)),
-               (i32 (EXTRACT_SUBREG SReg_64:$y, sub1))), sub1)
+  (REG_SEQUENCE VReg_64,
+    (V_BFI_B32_e64 (V_XOR_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$x, sub0)),
+                    (i32 (EXTRACT_SUBREG VReg_64:$y, sub0))),
+               (i32 (EXTRACT_SUBREG VReg_64:$z, sub0)),
+               (i32 (EXTRACT_SUBREG VReg_64:$y, sub0))), sub0,
+    (V_BFI_B32_e64 (V_XOR_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$x, sub1)),
+                    (i32 (EXTRACT_SUBREG VReg_64:$y, sub1))),
+               (i32 (EXTRACT_SUBREG VReg_64:$z, sub1)),
+               (i32 (EXTRACT_SUBREG VReg_64:$y, sub1))), sub1)
 >;
 
 multiclass IntMed3Pat<Instruction med3Inst,
@@ -2823,6 +2871,15 @@ defm : Int16Med3Pat<V_MED3_U16_e64, umin, umax, umax_oneuse, umin_oneuse>;
 
 class AMDGPUGenericInstruction : GenericInstruction {
   let Namespace = "AMDGPU";
+}
+
+// Convert a wave address to a swizzled vector address (i.e. this is
+// for copying the stack pointer to a vector address appropriate to
+// use in the offset field of mubuf instructions).
+def G_AMDGPU_WAVE_ADDRESS : AMDGPUGenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type0:$src);
+  let hasSideEffects = 0;
 }
 
 // Returns -1 if the input is zero.
@@ -3027,9 +3084,26 @@ def G_AMDGPU_INTRIN_IMAGE_LOAD : AMDGPUGenericInstruction {
   let mayStore = 1;
 }
 
+def G_AMDGPU_INTRIN_IMAGE_LOAD_D16 : AMDGPUGenericInstruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins unknown:$intrin, variable_ops);
+  let hasSideEffects = 0;
+  let mayLoad = 1;
+
+  // FIXME: Use separate opcode for atomics.
+  let mayStore = 1;
+}
+
 // This is equivalent to the G_INTRINSIC*, but the operands may have
 // been legalized depending on the subtarget requirements.
 def G_AMDGPU_INTRIN_IMAGE_STORE : AMDGPUGenericInstruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins unknown:$intrin, variable_ops);
+  let hasSideEffects = 0;
+  let mayStore = 1;
+}
+
+def G_AMDGPU_INTRIN_IMAGE_STORE_D16 : AMDGPUGenericInstruction {
   let OutOperandList = (outs);
   let InOperandList = (ins unknown:$intrin, variable_ops);
   let hasSideEffects = 0;

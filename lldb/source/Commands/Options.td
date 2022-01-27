@@ -18,8 +18,7 @@ let Command = "help" in {
 }
 
 let Command = "settings set" in {
-  def setset_global : Option<"global", "g">, Arg<"Filename">,
-    Completion<"DiskFile">,
+  def setset_global : Option<"global", "g">,
     Desc<"Apply the new value to the global default value.">;
   def setset_force : Option<"force", "f">,
     Desc<"Force an empty value to be accepted as the default.">;
@@ -489,6 +488,8 @@ let Command = "memory read" in {
     "display data.">;
   def memory_read_force : Option<"force", "r">, Groups<[1,2,3]>,
     Desc<"Necessary if reading over target.max-memory-read-size bytes.">;
+  def memory_read_show_tags : Option<"show-tags", "\\x01">, Group<1>,
+    Desc<"Include memory tags in output (does not apply to binary output).">;
 }
 
 let Command = "memory find" in {

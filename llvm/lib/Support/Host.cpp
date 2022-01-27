@@ -83,12 +83,12 @@ StringRef sys::detail::getHostCPUNameForPowerPC(StringRef ProcCpuinfoContent) {
 
   StringRef::const_iterator CIP = CPUInfoStart;
 
-  StringRef::const_iterator CPUStart = 0;
+  StringRef::const_iterator CPUStart = nullptr;
   size_t CPULen = 0;
 
   // We need to find the first line which starts with cpu, spaces, and a colon.
   // After the colon, there may be some additional spaces and then the cpu type.
-  while (CIP < CPUInfoEnd && CPUStart == 0) {
+  while (CIP < CPUInfoEnd && CPUStart == nullptr) {
     if (CIP < CPUInfoEnd && *CIP == '\n')
       ++CIP;
 
@@ -118,12 +118,12 @@ StringRef sys::detail::getHostCPUNameForPowerPC(StringRef ProcCpuinfoContent) {
       }
     }
 
-    if (CPUStart == 0)
+    if (CPUStart == nullptr)
       while (CIP < CPUInfoEnd && *CIP != '\n')
         ++CIP;
   }
 
-  if (CPUStart == 0)
+  if (CPUStart == nullptr)
     return generic;
 
   return StringSwitch<const char *>(StringRef(CPUStart, CPULen))
@@ -213,6 +213,7 @@ StringRef sys::detail::getHostCPUNameForARM(StringRef ProcCpuinfoContent) {
         .Case("0xd44", "cortex-x1")
         .Case("0xd0c", "neoverse-n1")
         .Case("0xd49", "neoverse-n2")
+        .Case("0xd40", "neoverse-v1")
         .Default("generic");
   }
 

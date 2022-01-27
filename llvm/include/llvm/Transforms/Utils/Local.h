@@ -42,9 +42,7 @@ class BasicBlock;
 class BranchInst;
 class CallBase;
 class CallInst;
-class DbgDeclareInst;
 class DbgVariableIntrinsic;
-class DbgValueInst;
 class DIBuilder;
 class DomTreeUpdater;
 class Function;
@@ -243,7 +241,7 @@ inline Align getKnownAlignment(Value *V, const DataLayout &DL,
 CallInst *createCallMatchingInvoke(InvokeInst *II);
 
 /// This function converts the specified invoek into a normall call.
-void changeToCall(InvokeInst *II, DomTreeUpdater *DTU = nullptr);
+CallInst *changeToCall(InvokeInst *II, DomTreeUpdater *DTU = nullptr);
 
 ///===---------------------------------------------------------------------===//
 ///  Dbg Intrinsic utilities

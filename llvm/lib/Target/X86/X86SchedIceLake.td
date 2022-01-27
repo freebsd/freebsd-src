@@ -252,6 +252,7 @@ defm : X86WriteRes<WriteFMaskedStore64Y, [ICXPort237,ICXPort0], 2, [1,1], 2>;
 defm : X86WriteRes<WriteFMove,         [ICXPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveX,        [ICXPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteFMoveY,        [ICXPort015], 1, [1], 1>;
+defm : X86WriteRes<WriteFMoveZ,        [ICXPort05],  1, [1], 1>;
 defm : X86WriteRes<WriteEMMS,          [ICXPort05,ICXPort0156], 10, [9,1], 10>;
 
 defm : ICXWriteResPair<WriteFAdd,      [ICXPort01],  4, [1], 1, 5>; // Floating point add/sub.
@@ -367,6 +368,7 @@ defm : X86WriteRes<WriteVecMaskedStore64Y, [ICXPort237,ICXPort0], 2, [1,1], 2>;
 defm : X86WriteRes<WriteVecMove,         [ICXPort05],  1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveX,        [ICXPort015], 1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveY,        [ICXPort015], 1, [1], 1>;
+defm : X86WriteRes<WriteVecMoveZ,        [ICXPort05],  1, [1], 1>;
 defm : X86WriteRes<WriteVecMoveToGpr,    [ICXPort0], 2, [1], 1>;
 defm : X86WriteRes<WriteVecMoveFromGpr,  [ICXPort5], 1, [1], 1>;
 
@@ -2629,5 +2631,49 @@ def ICXSETA_SETBErm :  SchedWriteVariant<[
 
 def : InstRW<[ICXSETA_SETBErr], (instrs SETCCr)>;
 def : InstRW<[ICXSETA_SETBErm], (instrs SETCCm)>;
+
+///////////////////////////////////////////////////////////////////////////////
+// Dependency breaking instructions.
+///////////////////////////////////////////////////////////////////////////////
+
+def : IsZeroIdiomFunction<[
+  // GPR Zero-idioms.
+  DepBreakingClass<[ SUB32rr, SUB64rr, XOR32rr, XOR64rr ], ZeroIdiomPredicate>,
+
+  // SSE Zero-idioms.
+  DepBreakingClass<[
+    // fp variants.
+    XORPSrr, XORPDrr,
+
+    // int variants.
+    PXORrr,
+    PSUBBrr, PSUBWrr, PSUBDrr, PSUBQrr,
+    PCMPGTBrr, PCMPGTDrr, PCMPGTQrr, PCMPGTWrr
+  ], ZeroIdiomPredicate>,
+
+  // AVX Zero-idioms.
+  DepBreakingClass<[
+    // xmm fp variants.
+    VXORPSrr, VXORPDrr,
+
+    // xmm int variants.
+    VPXORrr,
+    VPSUBBrr, VPSUBWrr, VPSUBDrr, VPSUBQrr,
+    VPCMPGTBrr, VPCMPGTWrr, VPCMPGTDrr, VPCMPGTQrr,
+
+    // ymm variants.
+    VXORPSYrr, VXORPDYrr, VPXORYrr,
+    VPSUBBYrr, VPSUBWYrr, VPSUBDYrr, VPSUBQYrr,
+    VPCMPGTBYrr, VPCMPGTWYrr, VPCMPGTDYrr, VPCMPGTQYrr,
+
+    // zmm variants.
+    VXORPSZrr, VXORPDZrr, VPXORDZrr, VPXORQZrr,
+    VXORPSZ128rr, VXORPDZ128rr, VPXORDZ128rr, VPXORQZ128rr,
+    VXORPSZ256rr, VXORPDZ256rr, VPXORDZ256rr, VPXORQZ256rr,
+    VPSUBBZrr, VPSUBWZrr, VPSUBDZrr, VPSUBQZrr,
+    VPSUBBZ128rr, VPSUBWZ128rr, VPSUBDZ128rr, VPSUBQZ128rr,
+    VPSUBBZ256rr, VPSUBWZ256rr, VPSUBDZ256rr, VPSUBQZ256rr,
+  ], ZeroIdiomPredicate>,
+]>;
 
 } // SchedModel

@@ -13,9 +13,9 @@
 #include <__debug>
 #include <__iterator/concepts.h>
 #include <__iterator/default_sentinel.h>
+#include <__iterator/incrementable_traits.h>
 #include <__iterator/iter_move.h>
 #include <__iterator/iter_swap.h>
-#include <__iterator/incrementable_traits.h>
 #include <__iterator/iterator_traits.h>
 #include <__iterator/readable_traits.h>
 #include <__memory/pointer_traits.h>
@@ -96,7 +96,7 @@ public:
   }
 
   _LIBCPP_HIDE_FROM_ABI
-  constexpr const _Iter& base() const& { return __current_; }
+  constexpr const _Iter& base() const& noexcept { return __current_; }
 
   _LIBCPP_HIDE_FROM_ABI
   constexpr _Iter base() && { return _VSTD::move(__current_); }

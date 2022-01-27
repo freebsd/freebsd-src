@@ -12,7 +12,6 @@
 
 #include <__config>
 #include <__debug>
-#include <__function_like.h>
 #include <__iterator/advance.h>
 #include <__iterator/concepts.h>
 #include <__iterator/incrementable_traits.h>
@@ -37,12 +36,12 @@ inline _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
 
 #if !defined(_LIBCPP_HAS_NO_RANGES)
 
-namespace ranges {
-// TODO(varconst): rename `__prev_fn` to `__fn`.
-struct __prev_fn final : private __function_like {
-  _LIBCPP_HIDE_FROM_ABI
-  constexpr explicit __prev_fn(__tag __x) noexcept : __function_like(__x) {}
+// [range.iter.op.prev]
 
+namespace ranges {
+namespace __prev {
+
+struct __fn {
   template <bidirectional_iterator _Ip>
   _LIBCPP_HIDE_FROM_ABI
   constexpr _Ip operator()(_Ip __x) const {
@@ -65,7 +64,11 @@ struct __prev_fn final : private __function_like {
   }
 };
 
-inline constexpr auto prev = __prev_fn(__function_like::__tag());
+} // namespace __prev
+
+inline namespace __cpo {
+  inline constexpr auto prev = __prev::__fn{};
+} // namespace __cpo
 } // namespace ranges
 
 #endif // !defined(_LIBCPP_HAS_NO_RANGES)

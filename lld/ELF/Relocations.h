@@ -11,6 +11,7 @@
 
 #include "lld/Common/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include <map>
 #include <vector>
 
@@ -117,8 +118,8 @@ struct Relocation {
 // jump instruction opcodes at basic block boundaries and are particularly
 // useful when basic block sections are enabled.
 struct JumpInstrMod {
-  JumpModType original;
   uint64_t offset;
+  JumpModType original;
   unsigned size;
 };
 

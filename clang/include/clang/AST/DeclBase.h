@@ -52,14 +52,8 @@ enum Linkage : unsigned char;
 class LinkageSpecDecl;
 class Module;
 class NamedDecl;
-class ObjCCategoryDecl;
-class ObjCCategoryImplDecl;
 class ObjCContainerDecl;
-class ObjCImplDecl;
-class ObjCImplementationDecl;
-class ObjCInterfaceDecl;
 class ObjCMethodDecl;
-class ObjCProtocolDecl;
 struct PrintingPolicy;
 class RecordDecl;
 class SourceManager;
@@ -612,6 +606,20 @@ public:
   bool isModulePrivate() const {
     return getModuleOwnershipKind() == ModuleOwnershipKind::ModulePrivate;
   }
+
+  /// Whether this declaration was exported in a lexical context.
+  /// e.g.:
+  ///
+  ///   export namespace A {
+  ///      void f1();        // isInExportDeclContext() == true
+  ///   }
+  ///   void A::f1();        // isInExportDeclContext() == false
+  ///
+  ///   namespace B {
+  ///      void f2();        // isInExportDeclContext() == false
+  ///   }
+  ///   export void B::f2(); // isInExportDeclContext() == true
+  bool isInExportDeclContext() const;
 
   /// Return true if this declaration has an attribute which acts as
   /// definition of the entity, such as 'alias' or 'ifunc'.

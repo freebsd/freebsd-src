@@ -99,15 +99,12 @@ class CXXMethodDecl;
 class CXXRecordDecl;
 class DiagnosticsEngine;
 class ParentMapContext;
-class DynTypedNode;
 class DynTypedNodeList;
 class Expr;
 enum class FloatModeKind;
 class GlobalDecl;
-class ItaniumMangleContext;
 class MangleContext;
 class MangleNumberingContext;
-class MaterializeTemporaryExpr;
 class MemberSpecializationInfo;
 class Module;
 struct MSGuidDeclParts;
@@ -126,7 +123,6 @@ class ObjCTypeParamDecl;
 class OMPTraitInfo;
 struct ParsedTargetAttr;
 class Preprocessor;
-class Stmt;
 class StoredDeclsMap;
 class TargetAttr;
 class TargetInfo;
@@ -2626,6 +2622,18 @@ public:
   /// template.
   bool hasSameTemplateName(TemplateName X, TemplateName Y);
 
+  /// Determine whether the two declarations refer to the same entity.
+  bool isSameEntity(NamedDecl *X, NamedDecl *Y);
+
+  /// Determine whether two template parameter lists are similar enough
+  /// that they may be used in declarations of the same template.
+  bool isSameTemplateParameterList(TemplateParameterList *X,
+                                   TemplateParameterList *Y);
+
+  /// Determine whether two template parameters are similar enough
+  /// that they may be used in declarations of the same template.
+  bool isSameTemplateParameter(NamedDecl *X, NamedDecl *Y);
+
   /// Retrieve the "canonical" template argument.
   ///
   /// The canonical template argument is the simplest template argument
@@ -2730,13 +2738,9 @@ public:
   QualType getFloatingTypeOfSizeWithinDomain(QualType typeSize,
                                              QualType typeDomain) const;
 
-  unsigned getTargetAddressSpace(QualType T) const {
-    return getTargetAddressSpace(T.getQualifiers());
-  }
+  unsigned getTargetAddressSpace(QualType T) const;
 
-  unsigned getTargetAddressSpace(Qualifiers Q) const {
-    return getTargetAddressSpace(Q.getAddressSpace());
-  }
+  unsigned getTargetAddressSpace(Qualifiers Q) const;
 
   unsigned getTargetAddressSpace(LangAS AS) const;
 

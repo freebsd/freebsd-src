@@ -142,7 +142,6 @@ using namespace clang;
 using namespace clang::serialization;
 using namespace clang::serialization::reader;
 using llvm::BitstreamCursor;
-using llvm::RoundingMode;
 
 //===----------------------------------------------------------------------===//
 // ChainedASTReaderListener implementation
@@ -1888,10 +1887,6 @@ HeaderFileInfoTrait::ReadData(internal_key_ref key, const unsigned char *d,
   HFI.isPragmaOnce |= (Flags >> 4) & 0x01;
   HFI.DirInfo = (Flags >> 1) & 0x07;
   HFI.IndexHeaderMapHeader = Flags & 0x01;
-  // FIXME: Find a better way to handle this. Maybe just store a
-  // "has been included" flag?
-  HFI.NumIncludes = std::max(endian::readNext<uint16_t, little, unaligned>(d),
-                             HFI.NumIncludes);
   HFI.ControllingMacroID = Reader.getGlobalIdentifierID(
       M, endian::readNext<uint32_t, little, unaligned>(d));
   if (unsigned FrameworkOffset =
@@ -2963,6 +2958,22 @@ ASTReader::ReadControlBlock(ModuleFile &F,
   }
 }
 
+void ASTReader::readIncludedFiles(ModuleFile &F, StringRef Blob,
+                                  Preprocessor &PP) {
+  using namespace llvm::support;
+
+  const unsigned char *D = (const unsigned char *)Blob.data();
+  unsigned FileCount = endian::readNext<uint32_t, little, unaligned>(D);
+
+  for (unsigned I = 0; I < FileCount; ++I) {
+    size_t ID = endian::readNext<uint32_t, little, unaligned>(D);
+    InputFileInfo IFI = readInputFileInfo(F, ID);
+    if (llvm::ErrorOr<const FileEntry *> File =
+            PP.getFileManager().getFile(IFI.Filename))
+      PP.getIncludedFiles().insert(*File);
+  }
+}
+
 llvm::Error ASTReader::ReadASTBlock(ModuleFile &F,
                                     unsigned ClientLoadCapabilities) {
   BitstreamCursor &Stream = F.Stream;
@@ -3700,6 +3711,10 @@ llvm::Error ASTReader::ReadASTBlock(ModuleFile &F,
       }
       break;
     }
+
+    case PP_INCLUDED_FILES:
+      readIncludedFiles(F, Blob, PP);
+      break;
 
     case LATE_PARSED_TEMPLATE:
       LateParsedTemplates.emplace_back(
@@ -4762,11 +4777,11 @@ ASTReader::ASTReadResult ASTReader::readUnhashedControlBlockImpl(
         break;
       unsigned Count = Record[0];
       const char *Byte = Blob.data();
-      F->SearchPathUsage = llvm::BitVector(Count, 0);
+      F->SearchPathUsage = llvm::BitVector(Count, false);
       for (unsigned I = 0; I < Count; ++Byte)
         for (unsigned Bit = 0; Bit < 8 && I < Count; ++Bit, ++I)
           if (*Byte & (1 << Bit))
-            F->SearchPathUsage[I] = 1;
+            F->SearchPathUsage[I] = true;
       break;
     }
   }
@@ -6629,7 +6644,8 @@ void TypeLocReader::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
 }
 
 void TypeLocReader::VisitDecltypeTypeLoc(DecltypeTypeLoc TL) {
-  TL.setNameLoc(readSourceLocation());
+  TL.setDecltypeLoc(readSourceLocation());
+  TL.setRParenLoc(readSourceLocation());
 }
 
 void TypeLocReader::VisitUnaryTransformTypeLoc(UnaryTransformTypeLoc TL) {
@@ -6652,6 +6668,8 @@ void TypeLocReader::VisitAutoTypeLoc(AutoTypeLoc TL) {
       TL.setArgLocInfo(i, Reader.readTemplateArgumentLocInfo(
                               TL.getTypePtr()->getArg(i).getKind()));
   }
+  if (Reader.readBool())
+    TL.setRParenLoc(readSourceLocation());
 }
 
 void TypeLocReader::VisitDeducedTemplateSpecializationTypeLoc(

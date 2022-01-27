@@ -2140,7 +2140,8 @@ void SymbolFileDWARF::FindGlobalVariables(
 
   llvm::StringRef basename;
   llvm::StringRef context;
-  bool name_is_mangled = (bool)Mangled(name);
+  bool name_is_mangled = Mangled::GetManglingScheme(name.GetStringRef()) !=
+                         Mangled::eManglingSchemeNone;
 
   if (!CPlusPlusLanguage::ExtractContextAndIdentifier(name.GetCString(),
                                                       context, basename))
@@ -4085,8 +4086,8 @@ LanguageType SymbolFileDWARF::GetLanguageFamily(DWARFUnit &unit) {
   return LanguageTypeFromDWARF(lang);
 }
 
-StatsDuration SymbolFileDWARF::GetDebugInfoIndexTime() {
+StatsDuration::Duration SymbolFileDWARF::GetDebugInfoIndexTime() {
   if (m_index)
     return m_index->GetIndexTime();
-  return StatsDuration(0.0);
+  return {};
 }

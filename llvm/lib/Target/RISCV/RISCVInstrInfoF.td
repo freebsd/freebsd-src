@@ -20,36 +20,38 @@ def SDT_RISCVFMV_W_X_RV64
 def SDT_RISCVFMV_X_ANYEXTW_RV64
     : SDTypeProfile<1, 1, [SDTCisVT<0, i64>, SDTCisVT<1, f32>]>;
 def SDT_RISCVFCVT_W_RV64
-    : SDTypeProfile<1, 1, [SDTCisVT<0, i64>, SDTCisFP<1>]>;
+    : SDTypeProfile<1, 2, [SDTCisVT<0, i64>, SDTCisFP<1>,
+                           SDTCisVT<2, i64>]>;
 def SDT_RISCVFCVT_X
-    : SDTypeProfile<1, 1, [SDTCisVT<0, XLenVT>, SDTCisFP<1>]>;
+    : SDTypeProfile<1, 2, [SDTCisVT<0, XLenVT>, SDTCisFP<1>,
+                           SDTCisVT<2, XLenVT>]>;
 
 def riscv_fmv_w_x_rv64
     : SDNode<"RISCVISD::FMV_W_X_RV64", SDT_RISCVFMV_W_X_RV64>;
 def riscv_fmv_x_anyextw_rv64
     : SDNode<"RISCVISD::FMV_X_ANYEXTW_RV64", SDT_RISCVFMV_X_ANYEXTW_RV64>;
-def riscv_fcvt_w_rtz_rv64
-    : SDNode<"RISCVISD::FCVT_W_RTZ_RV64", SDT_RISCVFCVT_W_RV64>;
-def riscv_fcvt_wu_rtz_rv64
-    : SDNode<"RISCVISD::FCVT_WU_RTZ_RV64", SDT_RISCVFCVT_W_RV64>;
-def riscv_fcvt_x_rtz
-    : SDNode<"RISCVISD::FCVT_X_RTZ", SDT_RISCVFCVT_X>;
-def riscv_fcvt_xu_rtz
-    : SDNode<"RISCVISD::FCVT_XU_RTZ", SDT_RISCVFCVT_X>;
+def riscv_fcvt_w_rv64
+    : SDNode<"RISCVISD::FCVT_W_RV64", SDT_RISCVFCVT_W_RV64>;
+def riscv_fcvt_wu_rv64
+    : SDNode<"RISCVISD::FCVT_WU_RV64", SDT_RISCVFCVT_W_RV64>;
+def riscv_fcvt_x
+    : SDNode<"RISCVISD::FCVT_X", SDT_RISCVFCVT_X>;
+def riscv_fcvt_xu
+    : SDNode<"RISCVISD::FCVT_XU", SDT_RISCVFCVT_X>;
 
-def riscv_strict_fcvt_w_rtz_rv64
-    : SDNode<"RISCVISD::STRICT_FCVT_W_RTZ_RV64", SDT_RISCVFCVT_W_RV64,
+def riscv_strict_fcvt_w_rv64
+    : SDNode<"RISCVISD::STRICT_FCVT_W_RV64", SDT_RISCVFCVT_W_RV64,
              [SDNPHasChain]>;
-def riscv_strict_fcvt_wu_rtz_rv64
-    : SDNode<"RISCVISD::STRICT_FCVT_WU_RTZ_RV64", SDT_RISCVFCVT_W_RV64,
+def riscv_strict_fcvt_wu_rv64
+    : SDNode<"RISCVISD::STRICT_FCVT_WU_RV64", SDT_RISCVFCVT_W_RV64,
              [SDNPHasChain]>;
 
-def riscv_any_fcvt_w_rtz_rv64 : PatFrags<(ops node:$src),
-                                         [(riscv_strict_fcvt_w_rtz_rv64 node:$src),
-                                          (riscv_fcvt_w_rtz_rv64 node:$src)]>;
-def riscv_any_fcvt_wu_rtz_rv64 : PatFrags<(ops node:$src),
-                                          [(riscv_strict_fcvt_wu_rtz_rv64 node:$src),
-                                           (riscv_fcvt_wu_rtz_rv64 node:$src)]>;
+def riscv_any_fcvt_w_rv64 : PatFrags<(ops node:$src, node:$frm),
+                                     [(riscv_strict_fcvt_w_rv64 node:$src, node:$frm),
+                                      (riscv_fcvt_w_rv64 node:$src, node:$frm)]>;
+def riscv_any_fcvt_wu_rv64 : PatFrags<(ops node:$src, node:$frm),
+                                      [(riscv_strict_fcvt_wu_rv64 node:$src, node:$frm),
+                                       (riscv_fcvt_wu_rv64 node:$src, node:$frm)]>;
 
 //===----------------------------------------------------------------------===//
 // Operand and SDNode transformation definitions.
@@ -72,6 +74,22 @@ def frmarg : Operand<XLenVT> {
 //===----------------------------------------------------------------------===//
 // Instruction class templates
 //===----------------------------------------------------------------------===//
+
+let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
+class FPLoad_r<bits<3> funct3, string opcodestr, RegisterClass rty,
+               SchedWrite sw>
+    : RVInstI<funct3, OPC_LOAD_FP, (outs rty:$rd),
+              (ins GPR:$rs1, simm12:$imm12),
+              opcodestr, "$rd, ${imm12}(${rs1})">,
+      Sched<[sw, ReadFMemBase]>;
+
+let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
+class FPStore_r<bits<3> funct3, string opcodestr, RegisterClass rty,
+                SchedWrite sw>
+    : RVInstS<funct3, OPC_STORE_FP, (outs),
+              (ins rty:$rs2, GPR:$rs1, simm12:$imm12),
+              opcodestr, "$rs2, ${imm12}(${rs1})">,
+      Sched<[sw, ReadStoreData, ReadFMemBase]>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, mayRaiseFPException = 1,
     UseNamedOperandTable = 1, hasPostISelHook = 1 in
@@ -138,20 +156,12 @@ class FPCmp_rr<bits<7> funct7, bits<3> funct3, string opcodestr,
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtF] in {
-let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
-def FLW : RVInstI<0b010, OPC_LOAD_FP, (outs FPR32:$rd),
-                  (ins GPR:$rs1, simm12:$imm12),
-                   "flw", "$rd, ${imm12}(${rs1})">,
-          Sched<[WriteFLD32, ReadFMemBase]>;
+def FLW : FPLoad_r<0b010, "flw", FPR32, WriteFLD32>;
 
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
-let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
-def FSW : RVInstS<0b010, OPC_STORE_FP, (outs),
-                  (ins FPR32:$rs2, GPR:$rs1, simm12:$imm12),
-                   "fsw", "$rs2, ${imm12}(${rs1})">,
-          Sched<[WriteFST32, ReadStoreData, ReadFMemBase]>;
+def FSW : FPStore_r<0b010, "fsw", FPR32, WriteFST32>;
 
 let SchedRW = [WriteFMA32, ReadFMA32, ReadFMA32, ReadFMA32] in {
 def FMADD_S  : FPFMA_rrr_frm<OPC_MADD,  0b00, "fmadd.s",  FPR32>;
@@ -299,6 +309,10 @@ def : MnemonicAlias<"fmv.x.s", "fmv.x.w">;
 
 def PseudoFLW  : PseudoFloatLoad<"flw", FPR32>;
 def PseudoFSW  : PseudoStore<"fsw", FPR32>;
+let usesCustomInserter = 1 in {
+def PseudoQuietFLE_S : PseudoQuietFCMP<FPR32>;
+def PseudoQuietFLT_S : PseudoQuietFCMP<FPR32>;
+}
 } // Predicates = [HasStdExtF]
 
 //===----------------------------------------------------------------------===//
@@ -306,9 +320,13 @@ def PseudoFSW  : PseudoStore<"fsw", FPR32>;
 //===----------------------------------------------------------------------===//
 
 /// Floating point constants
-def fpimm0 : PatLeaf<(fpimm), [{ return N->isExactlyValue(+0.0); }]>;
+def fpimm0    : PatLeaf<(fpimm), [{ return N->isExactlyValue(+0.0); }]>;
+def fpimmneg0 : PatLeaf<(fpimm), [{ return N->isExactlyValue(-0.0); }]>;
 
 /// Generic pattern classes
+class PatSetCC<RegisterClass Ty, SDPatternOperator OpNode, CondCode Cond, RVInst Inst>
+    : Pat<(OpNode Ty:$rs1, Ty:$rs2, Cond), (Inst $rs1, $rs2)>;
+
 class PatFpr32Fpr32<SDPatternOperator OpNode, RVInstR Inst>
     : Pat<(OpNode FPR32:$rs1, FPR32:$rs2), (Inst $rs1, $rs2)>;
 
@@ -319,6 +337,7 @@ let Predicates = [HasStdExtF] in {
 
 /// Float constants
 def : Pat<(f32 (fpimm0)), (FMV_W_X X0)>;
+def : Pat<(f32 (fpimmneg0)), (FSGNJN_S (FMV_W_X X0), (FMV_W_X X0))>;
 
 /// Float conversion operations
 
@@ -363,13 +382,34 @@ def : PatFpr32Fpr32<fminnum, FMIN_S>;
 def : PatFpr32Fpr32<fmaxnum, FMAX_S>;
 
 /// Setcc
+// FIXME: SETEQ/SETLT/SETLE imply nonans, can we pick better instructions for
+// strict versions of those.
 
-def : PatFpr32Fpr32<seteq, FEQ_S>;
-def : PatFpr32Fpr32<setoeq, FEQ_S>;
-def : PatFpr32Fpr32<setlt, FLT_S>;
-def : PatFpr32Fpr32<setolt, FLT_S>;
-def : PatFpr32Fpr32<setle, FLE_S>;
-def : PatFpr32Fpr32<setole, FLE_S>;
+// Match non-signaling FEQ_S
+def : PatSetCC<FPR32, any_fsetcc, SETEQ, FEQ_S>;
+def : PatSetCC<FPR32, any_fsetcc, SETOEQ, FEQ_S>;
+def : PatSetCC<FPR32, strict_fsetcc, SETLT, PseudoQuietFLT_S>;
+def : PatSetCC<FPR32, strict_fsetcc, SETOLT, PseudoQuietFLT_S>;
+def : PatSetCC<FPR32, strict_fsetcc, SETLE, PseudoQuietFLE_S>;
+def : PatSetCC<FPR32, strict_fsetcc, SETOLE, PseudoQuietFLE_S>;
+
+// Match signaling FEQ_S
+def : Pat<(strict_fsetccs FPR32:$rs1, FPR32:$rs2, SETEQ),
+          (AND (FLE_S $rs1, $rs2),
+               (FLE_S $rs2, $rs1))>;
+def : Pat<(strict_fsetccs FPR32:$rs1, FPR32:$rs2, SETOEQ),
+          (AND (FLE_S $rs1, $rs2),
+               (FLE_S $rs2, $rs1))>;
+// If both operands are the same, use a single FLE.
+def : Pat<(strict_fsetccs FPR32:$rs1, FPR32:$rs1, SETEQ),
+          (FLE_S $rs1, $rs1)>;
+def : Pat<(strict_fsetccs FPR32:$rs1, FPR32:$rs1, SETOEQ),
+          (FLE_S $rs1, $rs1)>;
+
+def : PatSetCC<FPR32, any_fsetccs, SETLT, FLT_S>;
+def : PatSetCC<FPR32, any_fsetccs, SETOLT, FLT_S>;
+def : PatSetCC<FPR32, any_fsetccs, SETLE, FLE_S>;
+def : PatSetCC<FPR32, any_fsetccs, SETOLE, FLE_S>;
 
 def Select_FPR32_Using_CC_GPR : SelectCC_rrirr<FPR32, GPR>;
 
@@ -393,14 +433,14 @@ def : Pat<(i32 (any_fp_to_sint FPR32:$rs1)), (FCVT_W_S $rs1, 0b001)>;
 def : Pat<(i32 (any_fp_to_uint FPR32:$rs1)), (FCVT_WU_S $rs1, 0b001)>;
 
 // Saturating float->[u]int32.
-def : Pat<(i32 (riscv_fcvt_x_rtz FPR32:$rs1)), (FCVT_W_S $rs1, 0b001)>;
-def : Pat<(i32 (riscv_fcvt_xu_rtz FPR32:$rs1)), (FCVT_WU_S $rs1, 0b001)>;
+def : Pat<(i32 (riscv_fcvt_x FPR32:$rs1, timm:$frm)), (FCVT_W_S $rs1, timm:$frm)>;
+def : Pat<(i32 (riscv_fcvt_xu FPR32:$rs1, timm:$frm)), (FCVT_WU_S $rs1, timm:$frm)>;
 
 // float->int32 with current rounding mode.
-def : Pat<(i32 (lrint FPR32:$rs1)), (FCVT_W_S $rs1, 0b111)>;
+def : Pat<(i32 (any_lrint FPR32:$rs1)), (FCVT_W_S $rs1, 0b111)>;
 
 // float->int32 rounded to nearest with ties rounded away from zero.
-def : Pat<(i32 (lround FPR32:$rs1)), (FCVT_W_S $rs1, 0b100)>;
+def : Pat<(i32 (any_lround FPR32:$rs1)), (FCVT_W_S $rs1, 0b100)>;
 
 // [u]int->float. Match GCC and default to using dynamic rounding mode.
 def : Pat<(any_sint_to_fp (i32 GPR:$rs1)), (FCVT_S_W $rs1, 0b111)>;
@@ -417,24 +457,24 @@ def : Pat<(sext_inreg (riscv_fmv_x_anyextw_rv64 FPR32:$src), i32),
 // Use target specific isd nodes to help us remember the result is sign
 // extended. Matching sext_inreg+fptoui/fptosi may cause the conversion to be
 // duplicated if it has another user that didn't need the sign_extend.
-def : Pat<(riscv_any_fcvt_w_rtz_rv64 FPR32:$rs1),  (FCVT_W_S $rs1, 0b001)>;
-def : Pat<(riscv_any_fcvt_wu_rtz_rv64 FPR32:$rs1), (FCVT_WU_S $rs1, 0b001)>;
+def : Pat<(riscv_any_fcvt_w_rv64 FPR32:$rs1, timm:$frm),  (FCVT_W_S $rs1, timm:$frm)>;
+def : Pat<(riscv_any_fcvt_wu_rv64 FPR32:$rs1, timm:$frm), (FCVT_WU_S $rs1, timm:$frm)>;
 
 // float->[u]int64. Round-to-zero must be used.
 def : Pat<(i64 (any_fp_to_sint FPR32:$rs1)), (FCVT_L_S $rs1, 0b001)>;
 def : Pat<(i64 (any_fp_to_uint FPR32:$rs1)), (FCVT_LU_S $rs1, 0b001)>;
 
 // Saturating float->[u]int64.
-def : Pat<(i64 (riscv_fcvt_x_rtz FPR32:$rs1)), (FCVT_L_S $rs1, 0b001)>;
-def : Pat<(i64 (riscv_fcvt_xu_rtz FPR32:$rs1)), (FCVT_LU_S $rs1, 0b001)>;
+def : Pat<(i64 (riscv_fcvt_x FPR32:$rs1, timm:$frm)), (FCVT_L_S $rs1, timm:$frm)>;
+def : Pat<(i64 (riscv_fcvt_xu FPR32:$rs1, timm:$frm)), (FCVT_LU_S $rs1, timm:$frm)>;
 
 // float->int64 with current rounding mode.
-def : Pat<(i64 (lrint FPR32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
-def : Pat<(i64 (llrint FPR32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
+def : Pat<(i64 (any_lrint FPR32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
+def : Pat<(i64 (any_llrint FPR32:$rs1)), (FCVT_L_S $rs1, 0b111)>;
 
 // float->int64 rounded to neartest with ties rounded away from zero.
-def : Pat<(i64 (lround FPR32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
-def : Pat<(i64 (llround FPR32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
+def : Pat<(i64 (any_lround FPR32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
+def : Pat<(i64 (any_llround FPR32:$rs1)), (FCVT_L_S $rs1, 0b100)>;
 
 // [u]int->fp. Match GCC and default to using dynamic rounding mode.
 def : Pat<(any_sint_to_fp (i64 (sexti32 (i64 GPR:$rs1)))), (FCVT_S_W $rs1, 0b111)>;

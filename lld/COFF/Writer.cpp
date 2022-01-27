@@ -485,7 +485,7 @@ static bool createThunks(OutputSection *os, int margin) {
     MutableArrayRef<coff_relocation> newRelocs;
     if (originalRelocs.data() == curRelocs.data()) {
       newRelocs = makeMutableArrayRef(
-          bAlloc.Allocate<coff_relocation>(originalRelocs.size()),
+          bAlloc().Allocate<coff_relocation>(originalRelocs.size()),
           originalRelocs.size());
     } else {
       newRelocs = makeMutableArrayRef(
@@ -1246,7 +1246,7 @@ void Writer::mergeSections() {
     if (p.first == toName)
       continue;
     StringSet<> names;
-    while (1) {
+    while (true) {
       if (!names.insert(toName).second)
         fatal("/merge: cycle found for section '" + p.first + "'");
       auto i = config->merge.find(toName);

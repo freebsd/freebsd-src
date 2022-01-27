@@ -18,7 +18,6 @@
 #include "clang/Sema/Template.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Initialization.h"
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ExprConcepts.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Basic/OperatorPrecedence.h"
@@ -1058,7 +1057,7 @@ concepts::ExprRequirement::ExprRequirement(
 
 concepts::ExprRequirement::ReturnTypeRequirement::
 ReturnTypeRequirement(TemplateParameterList *TPL) :
-    TypeConstraintInfo(TPL, 0) {
+    TypeConstraintInfo(TPL, false) {
   assert(TPL->size() == 1);
   const TypeConstraint *TC =
       cast<TemplateTypeParmDecl>(TPL->getParam(0))->getTypeConstraint();
@@ -1070,7 +1069,7 @@ ReturnTypeRequirement(TemplateParameterList *TPL) :
       Constraint->getTemplateArgsAsWritten() &&
       TemplateSpecializationType::anyInstantiationDependentTemplateArguments(
           Constraint->getTemplateArgsAsWritten()->arguments().drop_front(1));
-  TypeConstraintInfo.setInt(Dependent ? 1 : 0);
+  TypeConstraintInfo.setInt(Dependent ? true : false);
 }
 
 concepts::TypeRequirement::TypeRequirement(TypeSourceInfo *T) :

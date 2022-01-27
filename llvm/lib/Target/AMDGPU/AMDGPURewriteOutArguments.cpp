@@ -353,7 +353,7 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
   // off any return attributes, e.g. zeroext doesn't make sense with a struct.
   NewFunc->stealArgumentListFrom(F);
 
-  AttrBuilder RetAttrs;
+  AttributeMask RetAttrs;
   RetAttrs.addAttribute(Attribute::SExt);
   RetAttrs.addAttribute(Attribute::ZExt);
   RetAttrs.addAttribute(Attribute::NoAlias);
@@ -433,7 +433,7 @@ bool AMDGPURewriteOutArguments::runOnFunction(Function &F) {
 
     PointerType *ArgType = cast<PointerType>(Arg.getType());
 
-    auto *EltTy = ArgType->getElementType();
+    auto *EltTy = ArgType->getPointerElementType();
     const auto Align =
         DL->getValueOrABITypeAlignment(Arg.getParamAlign(), EltTy);
 
