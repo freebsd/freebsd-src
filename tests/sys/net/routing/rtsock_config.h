@@ -159,8 +159,6 @@ config_generic_cleanup(const atf_tc_t *tc)
 	char cmd[512];
 	int ret;
 
-	/* XXX: sleep 100ms to avoid epair qflush panic */
-	usleep(1000 * 100);
 	snprintf(cmd, sizeof(cmd), "%s/generic_cleanup.sh", srcdir);
 	ret = system(cmd);
 	if (ret != 0)
