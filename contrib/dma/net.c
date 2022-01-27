@@ -95,25 +95,29 @@ send_remote_command(int fd, const char* fmt, ...)
 	strcat(cmd, "\r\n");
 	len = strlen(cmd);
 
-	if (((config.features & SECURETRANSFER) != 0) &&
-	    ((config.features & NOSSL) == 0)) {
-		while ((s = SSL_write(config.ssl, (const char*)cmd, len)) <= 0) {
-			s = SSL_get_error(config.ssl, s);
-			if (s != SSL_ERROR_WANT_READ &&
-			    s != SSL_ERROR_WANT_WRITE) {
-				strlcpy(neterr, ssl_errstr(), sizeof(neterr));
-				return (-1);
+	pos = 0;
+	while (pos < len) {
+		if (((config.features & SECURETRANSFER) != 0) &&
+		    ((config.features & NOSSL) == 0)) {
+			if ((n = SSL_write(config.ssl, (const char*)(cmd + pos), len - pos)) <= 0) {
+				s = SSL_get_error(config.ssl, n);
+				if (s == SSL_ERROR_ZERO_RETURN ||
+				    s == SSL_ERROR_SYSCALL ||
+				    s == SSL_ERROR_SSL) {
+					strlcpy(neterr, ssl_errstr(), sizeof(neterr));
+					return (-1);
+				}
+				n = 0;
+			}
+		} else {
+			n = write(fd, cmd + pos, len - pos);
+			if (n < 0) {
+				if ((errno != EAGAIN) && (errno != EINTR))
+					return (-1);
+				n = 0;
 			}
 		}
-	}
-	else {
-		pos = 0;
-		while (pos < len) {
-			n = write(fd, cmd + pos, len - pos);
-			if (n < 0)
-				return (-1);
-			pos += n;
-		}
+		pos += n;
 	}
 
 	return (len);
@@ -150,9 +154,18 @@ read_remote(int fd, int extbufsize, char *extbuf)
 			pos = 0;
 			if (((config.features & SECURETRANSFER) != 0) &&
 			    (config.features & NOSSL) == 0) {
-				if ((rlen = SSL_read(config.ssl, buff + len, sizeof(buff) - len)) == -1) {
-					strlcpy(neterr, ssl_errstr(), sizeof(neterr));
-					goto error;
+				if ((rlen = SSL_read(config.ssl, buff + len, sizeof(buff) - len)) <= 0) {
+					switch (SSL_get_error(config.ssl, rlen)) {
+					case SSL_ERROR_ZERO_RETURN:
+					case SSL_ERROR_SYSCALL:
+					case SSL_ERROR_SSL:
+						strlcpy(neterr, ssl_errstr(), sizeof(neterr));
+						goto error;
+					default:
+						/* in case of recoverable error, retry after short sleep */
+						usleep(10000);
+						continue;
+					}
 				}
 			} else {
 				if ((rlen = read(fd, buff + len, sizeof(buff) - len)) == -1) {
