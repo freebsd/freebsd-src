@@ -1147,7 +1147,7 @@ m_extrefcnt(struct mbuf *m)
 
 /* Check if the supplied mbuf has no send tag, or else panic. */
 #define	M_ASSERT_NO_SND_TAG(m)						\
-	KASSERT((m) == NULL || ((m)->m_flags & M_PKTHDR) == 0 ||	\
+	KASSERT((m) != NULL && (m)->m_flags & M_PKTHDR &&		\
 	       ((m)->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0,		\
 	    ("%s: receive mbuf has send tag!", __func__))
 
