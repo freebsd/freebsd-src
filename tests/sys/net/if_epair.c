@@ -64,7 +64,11 @@ ATF_TC_BODY(params, tc)
 	ifr.ifr_data = (caddr_t)-1;
         (void) strlcpy(ifr.ifr_name, "epair", sizeof(ifr.ifr_name));
 
-	ioctl(s, SIOCIFCREATE2, &ifr);
+	if (ioctl(s, SIOCIFCREATE2, &ifr) < 0)
+		atf_tc_fail("Failed to create interface");
+
+	if (ioctl(s, SIOCIFDESTROY, &ifr) < 0)
+		atf_tc_fail("Failed to destroy interface");
 }
 
 ATF_TP_ADD_TCS(tp)
