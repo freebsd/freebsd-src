@@ -159,6 +159,10 @@ struct pkthdr {
 	union {
 		struct m_snd_tag *snd_tag;	/* send tag, if any */
 		struct ifnet	*rcvif;		/* rcv interface */
+		struct {
+			uint16_t rcvidx;	/* rcv interface index ... */
+			uint16_t rcvgen;	/* ... and generation count */
+		};
 	};
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 	int32_t		 len;		/* total packet length */
@@ -862,6 +866,8 @@ int		 m_snd_tag_alloc(struct ifnet *,
 void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *,
 		    const struct if_snd_tag_sw *);
 void		 m_snd_tag_destroy(struct m_snd_tag *);
+void		 m_rcvif_serialize(struct mbuf *);
+struct ifnet	*m_rcvif_restore(struct mbuf *);
 
 static __inline int
 m_gettype(int size)
