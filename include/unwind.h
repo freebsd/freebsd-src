@@ -70,7 +70,7 @@ typedef void (*_Unwind_Exception_Cleanup_Fn) (_Unwind_Reason_Code,
 					      struct _Unwind_Exception *);
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn) (int, _Unwind_Action,
-						__int64_t,
+						__uint64_t,
 						struct _Unwind_Exception *,
 						struct _Unwind_Context *,
 						void *);
@@ -82,7 +82,7 @@ typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn) (int, _Unwind_Action,
    IA-64, while being more general.  */
 struct _Unwind_Exception
   {
-    __int64_t exception_class;
+    __uint64_t exception_class;
     _Unwind_Exception_Cleanup_Fn exception_cleanup;
     unsigned long private_1;
     unsigned long private_2;
