@@ -1948,7 +1948,8 @@ insmntque_stddtr(struct vnode *vp, void *dtr_arg)
  * Insert into list of vnodes for the new mount point, if available.
  */
 int
-insmntque(struct vnode *vp, struct mount *mp)
+insmntque1(struct vnode *vp, struct mount *mp,
+	void (*dtr)(struct vnode *, void *), void *dtr_arg)
 {
 
 	KASSERT(vp->v_mount == NULL,
@@ -1973,6 +1974,8 @@ insmntque(struct vnode *vp, struct mount *mp)
 	    (vp->v_vflag & VV_FORCEINSMQ) == 0) {
 		VI_UNLOCK(vp);
 		MNT_IUNLOCK(mp);
+		if (dtr != NULL)
+			dtr(vp, dtr_arg);
 		return (EBUSY);
 	}
 	vp->v_mount = mp;
@@ -1984,6 +1987,13 @@ insmntque(struct vnode *vp, struct mount *mp)
 	VI_UNLOCK(vp);
 	MNT_IUNLOCK(mp);
 	return (0);
+}
+
+int
+insmntque(struct vnode *vp, struct mount *mp)
+{
+
+	return (insmntque1(vp, mp, insmntque_stddtr, NULL));
 }
 
 /*
