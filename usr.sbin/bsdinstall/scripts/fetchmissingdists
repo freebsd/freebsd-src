@@ -30,7 +30,7 @@
 
 error()
 {
-	dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox $1 0 0
+	dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox "$1" 0 0
 	exit 1
 }
 
