@@ -61,7 +61,7 @@ static void thread_unwind(void) __dead2;
 static void thread_uw_init(void);
 static _Unwind_Reason_Code thread_unwind_stop(int version,
 	_Unwind_Action actions,
-	int64_t exc_class,
+	uint64_t exc_class,
 	struct _Unwind_Exception *exc_obj,
 	struct _Unwind_Context *context, void *stop_parameter);
 /* unwind library pointers */
@@ -133,7 +133,7 @@ thread_unwind_cleanup(_Unwind_Reason_Code code __unused,
 
 static _Unwind_Reason_Code
 thread_unwind_stop(int version __unused, _Unwind_Action actions,
-	int64_t exc_class __unused,
+	uint64_t exc_class __unused,
 	struct _Unwind_Exception *exc_obj __unused,
 	struct _Unwind_Context *context, void *stop_parameter __unused)
 {
