@@ -328,8 +328,9 @@ static struct mbuf *
 pie_extract_head(struct dn_queue *q, aqm_time_t *pkt_ts, int getts)
 {
 	struct m_tag *mtag;
-	struct mbuf *m = q->mq.head;
+	struct mbuf *m;
 
+next:	m = q->mq.head;
 	if (m == NULL)
 		return m;
 	q->mq.head = m->m_nextpkt;
@@ -350,6 +351,11 @@ pie_extract_head(struct dn_queue *q, aqm_time_t *pkt_ts, int getts)
 			*pkt_ts = *(aqm_time_t *)(mtag + 1);
 			m_tag_delete(m,mtag); 
 		}
+	}
+	if (m->m_pkthdr.rcvif != NULL &&
+	    __predict_false(m_rcvif_restore(m) == NULL)) {
+		m_freem(m);
+		goto next;
 	}
 	return m;
 }
