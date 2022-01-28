@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220128: mips pmc events removed
+OLD_FILES+=usr/share/man/man3/pmc.mips24k.3
+OLD_FILES+=usr/share/man/man3/pmc.octeon.3
+
 # 20220127: terasic_mtl.4 removed
 OLD_FILES+=usr/share/man/man4/terasic_mtl.4.gz
 
