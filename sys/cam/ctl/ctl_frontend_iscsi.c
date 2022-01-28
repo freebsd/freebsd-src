@@ -84,6 +84,9 @@ __FBSDID("$FreeBSD$");
 FEATURE(cfiscsi_kernel_proxy, "iSCSI target built with ICL_KERNEL_PROXY");
 #endif
 
+/* Used for internal nexus reset task. */
+#define ISCSI_BHS_OPCODE_INTERNAL	0x3e
+
 static MALLOC_DEFINE(M_CFISCSI, "cfiscsi", "Memory used for CTL iSCSI frontend");
 static uma_zone_t cfiscsi_data_wait_zone;
 
@@ -1131,14 +1134,17 @@ static void
 cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 {
 	struct cfiscsi_data_wait *cdw;
+	struct icl_pdu *ip;
 	union ctl_io *io;
 	int error, last, wait;
 
 	if (cs->cs_target == NULL)
 		return;		/* No target yet, so nothing to do. */
+	ip = icl_pdu_new(cs->cs_conn, M_WAITOK);
+	ip->ip_bhs->bhs_opcode = ISCSI_BHS_OPCODE_INTERNAL;
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
 	ctl_zero_io(io);
-	PRIV_REQUEST(io) = cs;
+	PRIV_REQUEST(io) = ip;
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
@@ -1152,6 +1158,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		CFISCSI_SESSION_WARN(cs, "ctl_run() failed; error %d", error);
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		ctl_free_io(io);
+		icl_pdu_free(ip);
 	}
 
 	CFISCSI_SESSION_LOCK(cs);
@@ -3041,19 +3048,6 @@ cfiscsi_done(union ctl_io *io)
 	KASSERT(((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE),
 		("invalid CTL status %#x", io->io_hdr.status));
 
-	if (io->io_hdr.io_type == CTL_IO_TASK &&
-	    io->taskio.task_action == CTL_TASK_I_T_NEXUS_RESET) {
-		/*
-		 * Implicit task termination has just completed; nothing to do.
-		 */
-		cs = PRIV_REQUEST(io);
-		cs->cs_tasks_aborted = true;
-		refcount_release(&cs->cs_outstanding_ctl_pdus);
-		wakeup(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus));
-		ctl_free_io(io);
-		return;
-	}
-
 	request = PRIV_REQUEST(io);
 	cs = PDU_SESSION(request);
 
@@ -3064,6 +3058,16 @@ cfiscsi_done(union ctl_io *io)
 	case ISCSI_BHS_OPCODE_TASK_REQUEST:
 		cfiscsi_task_management_done(io);
 		break;
+	case ISCSI_BHS_OPCODE_INTERNAL:
+		/*
+		 * Implicit task termination has just completed; nothing to do.
+		 */
+		cs->cs_tasks_aborted = true;
+		refcount_release(&cs->cs_outstanding_ctl_pdus);
+		wakeup(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus));
+		ctl_free_io(io);
+		icl_pdu_free(request);
+		return;
 	default:
 		panic("cfiscsi_done called with wrong opcode 0x%x",
 		    request->ip_bhs->bhs_opcode);
