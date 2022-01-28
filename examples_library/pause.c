@@ -18,12 +18,13 @@ int main()
 	int output;
 	struct bsddialog_conf conf;
 
+	if (bsddialog_init() == BSDDIALOG_ERROR) {
+		printf("Error: %s\n", bsddialog_geterror());
+		return (1);
+	}
+
 	bsddialog_initconf(&conf);
 	conf.title = "pause";
-	
-	if (bsddialog_init() < 0)
-		return -1;
-
 	output = bsddialog_pause(&conf, "Example", 8, 50, 10);
 
 	bsddialog_end();
@@ -31,9 +32,6 @@ int main()
 	switch (output) {
 	case BSDDIALOG_OK:
 		printf("OK\n");
-		break;
-	case BSDDIALOG_ESC:
-		printf("ESC\n");
 		break;
 	case BSDDIALOG_CANCEL:
 		printf("Cancel\n");
@@ -46,5 +44,5 @@ int main()
 		break;
 	}
 
-	return output;
+	return (output);
 }

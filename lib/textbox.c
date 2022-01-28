@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,57 +25,34 @@
  * SUCH DAMAGE.
  */
 
-
 #include <sys/param.h>
 
-#ifdef PORTNCURSES
-#include <ncurses/ncurses.h>
-#else
-#include <ncurses.h>
-#endif
+#include <curses.h>
 #include <string.h>
 
 #include "bsddialog.h"
-#include "lib_util.h"
 #include "bsddialog_theme.h"
-
-/* "Text": textbox */
-
-#define BUTTON_TEXTBOX "EXIT"
+#include "lib_util.h"
 
 extern struct bsddialog_theme t;
 
 static void
-textbox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
-    int hpad, int wpad)
+textbox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
+    int *w, int hpad, int wpad, struct buttons bs)
 {
+	if (cols == BSDDIALOG_AUTOSIZE)
+		*w = widget_min_width(conf, 0, wpad, &bs);
 
-	if (cols == BSDDIALOG_AUTOSIZE) {
-		*w = VBORDERS;
-		/* buttons size */
-		*w += strlen(BUTTON_TEXTBOX) + 2 /* text delims*/;
-		/* text size */
-		*w = MAX(*w, wpad + VBORDERS);
-		/* conf.auto_minwidth */
-		*w = MAX(*w, (int)conf->auto_minwidth);
-		/* avoid terminal overflow */
-		*w = MIN(*w, widget_max_width(conf)-1); /* again -1, fix util.c */
-	}
-
-	if (rows == BSDDIALOG_AUTOSIZE) {
-		*h = hpad + 4; /* HBORDERS + button border */
-		/* conf.auto_minheight */
-		*h = MAX(*h, (int)conf->auto_minheight);
-		/* avoid terminal overflow */
-		*h = MIN(*h, widget_max_height(conf));
-	}
+	if (rows == BSDDIALOG_AUTOSIZE)
+		*h = widget_min_height(conf, 0, hpad, true);
 }
 
-static int textbox_checksize(int rows, int cols, int hpad)
+static int
+textbox_checksize(int rows, int cols, int hpad, struct buttons bs)
 {
 	int mincols;
 
-	mincols = VBORDERS + strlen(BUTTON_TEXTBOX) + 2 /* text delims */;
+	mincols = VBORDERS + bs.sizebutton;
 
 	if (cols < mincols)
 		RETURN_ERROR("Few cols for the textbox");
@@ -83,18 +60,21 @@ static int textbox_checksize(int rows, int cols, int hpad)
 	if (rows < 4 /* HBORDERS + button*/ + (hpad > 0 ? 1 : 0))
 		RETURN_ERROR("Few rows for the textbox");
 
-	return 0;
+	return (0);
 }
 
+/* API */
 int
-bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
+bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
+    int cols)
 {
-	WINDOW *widget, *pad, *shadow;
-	int i, input, y, x, h, w, hpad, wpad, ypad, xpad, ys, ye, xs, xe, printrows;
-	char buf[BUFSIZ], *exitbutt;
-	FILE *fp;
 	bool loop;
-	int output;
+	int i, output, input;
+	int y, x, h, w, hpad, wpad, ypad, xpad, ys, ye, xs, xe, printrows;
+	char buf[BUFSIZ];
+	FILE *fp;
+	struct buttons bs;
+	WINDOW *shadow, *widget, *pad;
 
 	if ((fp = fopen(file, "r")) == NULL)
 		RETURN_ERROR("Cannot open file");
@@ -104,7 +84,7 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 	pad = newpad(hpad, wpad);
 	wbkgd(pad, t.dialog.color);
 	i = 0;
-	while(fgets(buf, BUFSIZ, fp) != NULL) {
+	while (fgets(buf, BUFSIZ, fp) != NULL) {
 		if ((int) strlen(buf) > wpad) {
 			wpad = strlen(buf);
 			wresize(pad, hpad, wpad);
@@ -118,23 +98,25 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 	}
 	fclose(fp);
 
+	bs.nbuttons = 1;
+	bs.label[0] = "EXIT";
+	if (conf->button.ok_label != NULL)
+		bs.label[0] = conf->button.ok_label;
+	bs.value[0] = BSDDIALOG_OK;
+	bs.curr = 0;
+	bs.sizebutton = strlen(bs.label[0]) + 2;
+
 	if (set_widget_size(conf, rows, cols, &h, &w) != 0)
-		return BSDDIALOG_ERROR;
-	textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad);
-	if (textbox_checksize(h, w, hpad) != 0)
-		return BSDDIALOG_ERROR;
+		return (BSDDIALOG_ERROR);
+	textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad, bs);
+	if (textbox_checksize(h, w, hpad, bs) != 0)
+		return (BSDDIALOG_ERROR);
 	if (set_widget_position(conf, &y, &x, h, w) != 0)
-		return BSDDIALOG_ERROR;
+		return (BSDDIALOG_ERROR);
 
-	if (new_widget_withtextpad(conf, &shadow, &widget, y, x, h, w, RAISED,
-	    NULL, NULL, NULL, true) != 0)
-		return BSDDIALOG_ERROR;
-
-	exitbutt = conf->button.exit_label == NULL ? BUTTON_TEXTBOX : conf->button.exit_label;
-	draw_button(widget, h-2, (w-2)/2 - strlen(exitbutt)/2, strlen(exitbutt)+2,
-	    exitbutt, true, false);
-
-	wrefresh(widget);
+	if (new_dialog(conf, &shadow, &widget, y, x, h, w, NULL, NULL, &bs,
+	    true) != 0)
+		return (BSDDIALOG_ERROR);
 
 	ys = y + 1;
 	xs = x + 1;
@@ -143,8 +125,10 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 	ypad = xpad = 0;
 	printrows = h-4;
 	loop = true;
-	while(loop) {
-		prefresh(pad, ypad, xpad, ys, xs, ye, xe);
+	while (loop) {
+		wnoutrefresh(widget);
+		pnoutrefresh(pad, ypad, xpad, ys, xs, ye, xe);
+		doupdate();
 		input = getch();
 		switch(input) {
 		case KEY_ENTER:
@@ -153,8 +137,10 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 			loop = false;
 			break;
 		case 27: /* Esc */
-			output = BSDDIALOG_ESC;
-			loop = false;
+			if (conf->key.enable_esc) {
+				output = BSDDIALOG_ESC;
+				loop = false;
+			}
 			break;
 		case KEY_HOME:
 			ypad = 0;
@@ -169,7 +155,8 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 			break;
 		case KEY_NPAGE:
 			ypad += printrows;
-			ypad = ypad + printrows > hpad ? hpad - printrows : ypad;
+			if (ypad + printrows > hpad)
+				ypad = hpad - printrows;
 			break;
 		case '0':
 			xpad = 0;
@@ -193,32 +180,21 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
-				return BSDDIALOG_ERROR;
-			/* No break! the terminal size can change */
+				return (BSDDIALOG_ERROR);
+			/* No break, screen size can change */
 		case KEY_RESIZE:
-			hide_widget(y, x, h, w,conf->shadow);
-
-			/*
-			 * Unnecessary, but, when the columns decrease the
-			 * following "refresh" seem not work
-			 */
+			/* Important for decreasing screen */
+			hide_widget(y, x, h, w, conf->shadow);
 			refresh();
 
 			if (set_widget_size(conf, rows, cols, &h, &w) != 0)
-				return BSDDIALOG_ERROR;
-			textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad);
-			if (textbox_checksize(h, w, hpad) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
+			textbox_autosize(conf, rows, cols, &h, &w, hpad, wpad,
+			    bs);
+			if (textbox_checksize(h, w, hpad, bs) != 0)
+				return (BSDDIALOG_ERROR);
 			if (set_widget_position(conf, &y, &x, h, w) != 0)
-				return BSDDIALOG_ERROR;
-
-			wclear(shadow);
-			mvwin(shadow, y + t.shadow.h, x + t.shadow.w);
-			wresize(shadow, h, w);
-
-			wclear(widget);
-			mvwin(widget, y, x);
-			wresize(widget, h, w);
+				return (BSDDIALOG_ERROR);
 
 			ys = y + 1;
 			xs = x + 1;
@@ -227,22 +203,22 @@ bsddialog_textbox(struct bsddialog_conf *conf, char* file, int rows, int cols)
 			ypad = xpad = 0;
 			printrows = h - 4;
 
-			if(update_widget_withtextpad(conf, shadow, widget, h, w,
-			    RAISED, NULL, NULL, NULL, true) != 0)
-			return BSDDIALOG_ERROR;
-
-			draw_button(widget, h-2, (w-2)/2 - strlen(exitbutt)/2,
-			    strlen(exitbutt)+2, exitbutt, true, false);
-
-			wrefresh(widget); /* for button */
+			if (update_dialog(conf, shadow, widget, y, x, h, w,
+			    NULL, NULL, &bs, true) != 0)
+				return (BSDDIALOG_ERROR);
 
 			/* Important to fix grey lines expanding screen */
 			refresh();
 			break;
+		default:
+			if (shortcut_buttons(input, &bs)) {
+				output = bs.value[bs.curr];
+				loop = false;
+			}
 		}
 	}
 
-	end_widget_withtextpad(conf, widget, h, w, pad, shadow);
+	end_dialog(conf, shadow, widget, pad);
 
-	return output;
+	return (output);
 }

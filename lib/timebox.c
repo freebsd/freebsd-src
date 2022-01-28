@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,66 +28,41 @@
 #include <sys/param.h>
 
 #include <ctype.h>
-#ifdef PORTNCURSES
-#include <ncurses/ncurses.h>
-#else
-#include <ncurses.h>
-#endif
+#include <curses.h>
 #include <string.h>
 
 #include "bsddialog.h"
-#include "lib_util.h"
 #include "bsddialog_theme.h"
+#include "lib_util.h"
 
-#define MINWDATE 25 /* 23 wins + 2 VBORDERS */
-#define MINWTIME 16 /*14 wins + 2 VBORDERS */
-#define MINHEIGHT 8 /* 2 for text */
-
-/* "Time": timebox - datebox */
+#define MINWDATE   23 /* 3 windows and their borders */
+#define MINWTIME   14 /* 3 windows and their borders */
 
 extern struct bsddialog_theme t;
 
 static int
 datetime_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
-    int *w, int minw, char *text, struct buttons bs)
+    int *w, int minw, const char *text, struct buttons bs)
 {
-	int maxword, maxline, nlines, line;
+	int htext, wtext;
 
-	if (get_text_properties(conf, text, &maxword, &maxline, &nlines) != 0)
-		return BSDDIALOG_ERROR;
-
-	if (cols == BSDDIALOG_AUTOSIZE) {
-		*w = VBORDERS;
-		/* buttons size */
-		*w += bs.nbuttons * bs.sizebutton;
-		*w += bs.nbuttons > 0 ? (bs.nbuttons-1) * t.button.space : 0;
-		/* text size */
-		line = maxline + VBORDERS + t.text.hmargin * 2;
-		line = MAX(line, (int) (maxword + VBORDERS + t.text.hmargin * 2));
-		*w = MAX(*w, line);
-		/* date windows */
-		*w = MAX(*w, minw);
-		/* conf.auto_minwidth */
-		*w = MAX(*w, (int)conf->auto_minwidth);
-		/* avoid terminal overflow */
-		*w = MIN(*w, widget_max_width(conf) -1);
+	if (cols == BSDDIALOG_AUTOSIZE || rows == BSDDIALOG_AUTOSIZE) {
+		if (text_size(conf, rows, cols, text, &bs, 3, minw, &htext,
+		    &wtext) != 0)
+			return (BSDDIALOG_ERROR);
 	}
 
-	if (rows == BSDDIALOG_AUTOSIZE) {
-		*h = MINHEIGHT;
-		if (maxword > 0)
-			*h += MAX(nlines, (int)(*w / GET_ASPECT_RATIO(conf)));
-		/* conf.auto_minheight */
-		*h = MAX(*h, (int)conf->auto_minheight);
-		/* avoid terminal overflow */
-		*h = MIN(*h, widget_max_height(conf) -1);
-	}
+	if (cols == BSDDIALOG_AUTOSIZE)
+		*w = widget_min_width(conf, htext,minw, &bs);
 
-	return 0;
+	if (rows == BSDDIALOG_AUTOSIZE)
+		*h = widget_min_height(conf, htext, 3 /* windows */, true);
+
+	return (0);
 }
 
 static int
-datetime_checksize(int rows, int cols, char *text, int minw, struct buttons bs)
+datetime_checksize(int rows, int cols, int minw, struct buttons bs)
 {
 	int mincols;
 
@@ -99,19 +74,20 @@ datetime_checksize(int rows, int cols, char *text, int minw, struct buttons bs)
 	if (cols < mincols)
 		RETURN_ERROR("Few cols for this timebox/datebox");
 
-	if (rows < MINHEIGHT + (strlen(text) > 0 ? 1 : 0))
-		RETURN_ERROR("Few rows for this timebox/datebox");
+	if (rows < 7) /* 2 button + 2 borders + 3 windows */
+		RETURN_ERROR("Few rows for this timebox/datebox, at least 7");
 
-	return 0;
+	return (0);
 }
 
-int bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
-    unsigned int *hh, unsigned int *mm, unsigned int *ss)
+int
+bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
+    int cols, unsigned int *hh, unsigned int *mm, unsigned int *ss)
 {
-	WINDOW *widget, *textpad, *shadow;
-	int i, input, output, y, x, h, w, sel, htextpad;
-	struct buttons bs;
 	bool loop;
+	int i, input, output, y, x, h, w, sel;
+	WINDOW *widget, *textpad, *shadow;
+	struct buttons bs;
 	struct myclockstruct {
 		unsigned int max;
 		unsigned int value;
@@ -132,41 +108,38 @@ int bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int col
 			c[i].value = c[i].max;
 	}
 
-	get_buttons(conf, &bs, BUTTONLABEL(ok_label), BUTTONLABEL(extra_label),
-	    BUTTONLABEL(cancel_label), BUTTONLABEL(help_label));
+	get_buttons(conf, &bs, BUTTON_OK_LABEL, BUTTON_CANCEL_LABEL);
 
 	if (set_widget_size(conf, rows, cols, &h, &w) != 0)
-		return BSDDIALOG_ERROR;
-	if (datetime_autosize(conf, rows, cols, &h, &w, MINWTIME, text, bs) != 0)
-		return BSDDIALOG_ERROR;
-	if (datetime_checksize(h, w, text, MINWTIME, bs) != 0)
-		return BSDDIALOG_ERROR;
+		return (BSDDIALOG_ERROR);
+	if (datetime_autosize(conf, rows, cols, &h, &w, MINWTIME, text,
+	    bs) != 0)
+		return (BSDDIALOG_ERROR);
+	if (datetime_checksize(h, w, MINWTIME, bs) != 0)
+		return (BSDDIALOG_ERROR);
 	if (set_widget_position(conf, &y, &x, h, w) != 0)
-		return BSDDIALOG_ERROR;
+		return (BSDDIALOG_ERROR);
 
-	if (new_widget_withtextpad(conf, &shadow, &widget, y, x, h, w, RAISED,
-	    &textpad, &htextpad, text, true) != 0)
-		return BSDDIALOG_ERROR;
-	
-	draw_buttons(widget, h-2, w, bs, true);
+	if (new_dialog(conf, &shadow, &widget, y, x, h, w, &textpad, text, &bs,
+	    true) != 0)
+		return (BSDDIALOG_ERROR);
 
-	wrefresh(widget);
+	pnoutrefresh(textpad, 0, 0, y+1, x+2, y+h-7, x+w-2);
+	doupdate();
 
-	prefresh(textpad, 0, 0, y+1, x+2, y+h-7, x+w-2);
-
-	c[0].win = new_boxed_window(conf, y + h - 6, x + w/2 - 7, 3, 4, LOWERED);
+	c[0].win = new_boxed_window(conf, y+h-6, x + w/2 - 7, 3, 4, LOWERED);
 	mvwaddch(widget, h - 5, w/2 - 3, ':');
-	c[1].win = new_boxed_window(conf, y + h - 6, x + w/2 - 2, 3, 4, LOWERED);
+	c[1].win = new_boxed_window(conf, y+h-6, x + w/2 - 2, 3, 4, LOWERED);
 	mvwaddch(widget, h - 5, w/2 + 2, ':');
-	c[2].win = new_boxed_window(conf, y + h - 6, x + w/2 + 3, 3, 4, LOWERED);
+	c[2].win = new_boxed_window(conf, y+h-6, x + w/2 + 3, 3, 4, LOWERED);
 
 	wrefresh(widget);
 
 	sel = 0;
 	curs_set(2);
 	loop = true;
-	while(loop) {
-		for (i=0; i<3; i++) {
+	while (loop) {
+		for (i = 0; i < 3; i++) {
 			mvwprintw(c[i].win, 1, 1, "%2d", c[i].value);
 			wrefresh(c[i].win);
 		}
@@ -186,79 +159,61 @@ int bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int col
 			loop = false;
 			break;
 		case 27: /* Esc */
-			output = BSDDIALOG_ESC;
-			loop = false;
+			if (conf->key.enable_esc) {
+				output = BSDDIALOG_ESC;
+				loop = false;
+			}
 			break;
 		case '\t': /* TAB */
-			sel = (sel + 1) % 3;
+			bs.curr = (bs.curr + 1) % bs.nbuttons;
+			draw_buttons(widget, bs, true);
+			wrefresh(widget);
 			break;
 		case KEY_LEFT:
-			if (bs.curr > 0) {
-				bs.curr--;
-				draw_buttons(widget, h-2, w, bs, true);
-				wrefresh(widget);
-			}
+			sel = sel == 0 ? 2 : (sel - 1);
 			break;
 		case KEY_RIGHT:
-			if (bs.curr < (int) bs.nbuttons - 1) {
-				bs.curr++;
-				draw_buttons(widget, h-2, w, bs, true);
-				wrefresh(widget);
-			}
+			sel = (sel + 1) % 3;
 			break;
 		case KEY_UP:
-			c[sel].value = c[sel].value < c[sel].max ? c[sel].value + 1 : 0;
+			c[sel].value = c[sel].value < c[sel].max ?
+			    c[sel].value + 1 : 0;
 			break;
 		case KEY_DOWN:
-			c[sel].value = c[sel].value > 0 ? c[sel].value - 1 : c[sel].max;
+			c[sel].value = c[sel].value > 0 ?
+			    c[sel].value - 1 : c[sel].max;
 			break;
 		case KEY_F(1):
 			if (conf->f1_file == NULL && conf->f1_message == NULL)
 				break;
 			curs_set(0);
 			if (f1help(conf) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
 			curs_set(2);
-			/* No break! the terminal size can change */
+			/* No break, screen size can change */
 		case KEY_RESIZE:
-			hide_widget(y, x, h, w,conf->shadow);
-
-			/*
-			 * Unnecessary, but, when the columns decrease the
-			 * following "refresh" seem not work
-			 */
+			/* Important for decreasing screen */
+			hide_widget(y, x, h, w, conf->shadow);
 			refresh();
 
 			if (set_widget_size(conf, rows, cols, &h, &w) != 0)
-				return BSDDIALOG_ERROR;
-			if (datetime_autosize(conf, rows, cols, &h, &w, MINWTIME, text, bs) != 0)
-				return BSDDIALOG_ERROR;
-			if (datetime_checksize(h, w, text, MINWTIME, bs) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
+			if (datetime_autosize(conf, rows, cols, &h, &w,
+			    MINWTIME, text, bs) != 0)
+				return (BSDDIALOG_ERROR);
+			if (datetime_checksize(h, w, MINWTIME, bs) != 0)
+				return (BSDDIALOG_ERROR);
 			if (set_widget_position(conf, &y, &x, h, w) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
 
-			wclear(shadow);
-			mvwin(shadow, y + t.shadow.h, x + t.shadow.w);
-			wresize(shadow, h, w);
+			if (update_dialog(conf, shadow, widget, y, x, h, w,
+			    textpad, text, &bs, true) != 0)
+				return (BSDDIALOG_ERROR);
 
-			wclear(widget);
-			mvwin(widget, y, x);
-			wresize(widget, h, w);
+			doupdate();
 
-			htextpad = 1;
-			wclear(textpad);
-			wresize(textpad, 1, w - HBORDERS - t.text.hmargin * 2);
-
-			if(update_widget_withtextpad(conf, shadow, widget, h, w,
-			    RAISED, textpad, &htextpad, text, true) != 0)
-				return BSDDIALOG_ERROR;
-				
 			mvwaddch(widget, h - 5, w/2 - 3, ':');
 			mvwaddch(widget, h - 5, w/2 + 2, ':');
-			
-			draw_buttons(widget, h-2, w, bs, true);
-
 			wrefresh(widget);
 
 			prefresh(textpad, 0, 0, y+1, x+2, y+h-7, x+w-2);
@@ -282,31 +237,30 @@ int bsddialog_timebox(struct bsddialog_conf *conf, char* text, int rows, int col
 			refresh();
 			break;
 		default:
-			for (i = 0; i < (int) bs.nbuttons; i++)
-				if (tolower(input) == tolower((bs.label[i])[0])) {
-					output = bs.value[i];
-					loop = false;
+			if (shortcut_buttons(input, &bs)) {
+				output = bs.value[bs.curr];
+				loop = false;
 			}
 		}
 	}
 
 	curs_set(0);
 
-	for (i=0; i<3; i++)
+	for (i = 0; i < 3; i++)
 		delwin(c[i].win);
-	end_widget_withtextpad(conf, widget, h, w, textpad, shadow);
+	end_dialog(conf, shadow, widget, textpad);
 
-	return output;
+	return (output);
 }
 
 int
-bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
-    unsigned int *yy, unsigned int *mm, unsigned int *dd)
+bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
+    int cols, unsigned int *yy, unsigned int *mm, unsigned int *dd)
 {
-	WINDOW *widget, *textpad, *shadow;
-	int i, input, output, y, x, h, w, sel, htextpad;
-	struct buttons bs;
 	bool loop;
+	int i, input, output, y, x, h, w, sel;
+	WINDOW *widget, *textpad, *shadow;
+	struct buttons bs;
 	struct calendar {
 		int max;
 		int value;
@@ -348,44 +302,41 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 	if (c[2].value > c[2].max)
 		c[2].value = c[2].max;
 
-	get_buttons(conf, &bs, BUTTONLABEL(ok_label), BUTTONLABEL(extra_label),
-	    BUTTONLABEL(cancel_label), BUTTONLABEL(help_label));
+	get_buttons(conf, &bs, BUTTON_OK_LABEL, BUTTON_CANCEL_LABEL);
 
 	if (set_widget_size(conf, rows, cols, &h, &w) != 0)
-		return BSDDIALOG_ERROR;
-	if (datetime_autosize(conf, rows, cols, &h, &w, MINWDATE, text, bs) != 0)
-		return BSDDIALOG_ERROR;
-	if (datetime_checksize(h, w, text, MINWDATE, bs) != 0)
-		return BSDDIALOG_ERROR;
+		return (BSDDIALOG_ERROR);
+	if (datetime_autosize(conf, rows, cols, &h, &w, MINWDATE, text,
+	    bs) != 0)
+		return (BSDDIALOG_ERROR);
+	if (datetime_checksize(h, w, MINWDATE, bs) != 0)
+		return (BSDDIALOG_ERROR);
 	if (set_widget_position(conf, &y, &x, h, w) != 0)
-		return BSDDIALOG_ERROR;
+		return (BSDDIALOG_ERROR);
 
-	if (new_widget_withtextpad(conf, &shadow, &widget, y, x, h, w, RAISED,
-	    &textpad, &htextpad, text, true) != 0)
-		return BSDDIALOG_ERROR;
+	if (new_dialog(conf, &shadow, &widget, y, x, h, w, &textpad, text, &bs,
+	    true) != 0)
+		return (BSDDIALOG_ERROR);
 
-	draw_buttons(widget, h-2, w, bs, true);
+	pnoutrefresh(textpad, 0, 0, y+1, x+2, y+h-7, x+w-2);
+	doupdate();
 
-	wrefresh(widget);
-
-	prefresh(textpad, 0, 0, y+1, x+2, y+h-7, x+w-2);
-
-	c[0].win = new_boxed_window(conf, y + h - 6, x + w/2 - 11, 3, 6, LOWERED);
+	c[0].win = new_boxed_window(conf, y+h-6, x + w/2 - 11, 3, 6, LOWERED);
 	mvwaddch(widget, h - 5, w/2 - 5, '/');
-	c[1].win = new_boxed_window(conf, y + h - 6, x + w/2 - 4, 3, 11, LOWERED);
+	c[1].win = new_boxed_window(conf, y+h-6, x + w/2 - 4, 3, 11, LOWERED);
 	mvwaddch(widget, h - 5, w/2 + 7, '/');
-	c[2].win = new_boxed_window(conf, y + h - 6, x + w/2 + 8, 3, 4, LOWERED);
-	
+	c[2].win = new_boxed_window(conf, y+h-6, x + w/2 + 8, 3, 4, LOWERED);
+
 	wrefresh(widget);
 
 	sel = 2;
 	curs_set(2);
 	loop = true;
-	while(loop) {
+	while (loop) {
 		mvwprintw(c[0].win, 1, 1, "%4d", c[0].value);
 		mvwprintw(c[1].win, 1, 1, "%9s", m[c[1].value-1].name);
 		mvwprintw(c[2].win, 1, 1, "%2d", c[2].value);
-		for (i=0; i<3; i++) {
+		for (i = 0; i < 3; i++) {
 			wrefresh(c[i].win);
 		}
 		wmove(c[sel].win, 1, c[sel].x);
@@ -404,28 +355,25 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			loop = false;
 			break;
 		case 27: /* Esc */
-			output = BSDDIALOG_ESC;
-			loop = false;
+			if (conf->key.enable_esc) {
+				output = BSDDIALOG_ESC;
+				loop = false;
+			}
 			break;
 		case '\t': /* TAB */
-			sel = (sel + 1) % 3;
+			bs.curr = (bs.curr + 1) % bs.nbuttons;
+			draw_buttons(widget, bs, true);
+			wrefresh(widget);
 			break;
 		case KEY_LEFT:
-			if (bs.curr > 0) {
-				bs.curr--;
-				draw_buttons(widget, h-2, w, bs, true);
-				wrefresh(widget);
-			}
+			sel = sel == 0 ? 2 : (sel - 1);
 			break;
 		case KEY_RIGHT:
-			if (bs.curr < (int) bs.nbuttons - 1) {
-				bs.curr++;
-				draw_buttons(widget, h-2, w, bs, true);
-				wrefresh(widget);
-			}
+			sel = (sel + 1) % 3;
 			break;
 		case KEY_UP:
-			c[sel].value = c[sel].value > 1 ? c[sel].value - 1 : c[sel].max ;
+			c[sel].value = c[sel].value > 1 ?
+			    c[sel].value - 1 : c[sel].max ;
 			/* if mount change */
 			c[2].max = m[c[1].value -1].days;
 			/* if year change */
@@ -436,7 +384,8 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 				c[2].value = c[2].max;
 			break;
 		case KEY_DOWN:
-			c[sel].value = c[sel].value < c[sel].max ? c[sel].value + 1 : 1;
+			c[sel].value = c[sel].value < c[sel].max ?
+			    c[sel].value + 1 : 1;
 			/* if mount change */
 			c[2].max = m[c[1].value -1].days;
 			/* if year change */
@@ -451,48 +400,31 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 				break;
 			curs_set(0);
 			if (f1help(conf) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
 			curs_set(2);
-			/* No break! the terminal size can change */
+			/* No break, screen size can change */
 		case KEY_RESIZE:
-			hide_widget(y, x, h, w,conf->shadow);
-
-			/*
-			 * Unnecessary, but, when the columns decrease the
-			 * following "refresh" seem not work
-			 */
+			/* Important for decreasing screen */
+			hide_widget(y, x, h, w, conf->shadow);
 			refresh();
 
 			if (set_widget_size(conf, rows, cols, &h, &w) != 0)
-				return BSDDIALOG_ERROR;
-			if (datetime_autosize(conf, rows, cols, &h, &w, MINWDATE, text, bs) != 0)
-				return BSDDIALOG_ERROR;
-			if (datetime_checksize(h, w, text, MINWDATE, bs) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
+			if (datetime_autosize(conf, rows, cols, &h, &w,
+			    MINWDATE, text, bs) != 0)
+				return (BSDDIALOG_ERROR);
+			if (datetime_checksize(h, w, MINWDATE, bs) != 0)
+				return (BSDDIALOG_ERROR);
 			if (set_widget_position(conf, &y, &x, h, w) != 0)
-				return BSDDIALOG_ERROR;
+				return (BSDDIALOG_ERROR);
 
-			wclear(shadow);
-			mvwin(shadow, y + t.shadow.h, x + t.shadow.w);
-			wresize(shadow, h, w);
+			if (update_dialog(conf, shadow, widget, y, x, h, w,
+			    textpad, text, &bs, true) != 0)
+				return (BSDDIALOG_ERROR);
+			doupdate();
 
-			wclear(widget);
-			mvwin(widget, y, x);
-			wresize(widget, h, w);
-
-			htextpad = 1;
-			wclear(textpad);
-			wresize(textpad, 1, w - HBORDERS - t.text.hmargin * 2);
-
-			if(update_widget_withtextpad(conf, shadow, widget, h, w,
-			    RAISED, textpad, &htextpad, text, true) != 0)
-				return BSDDIALOG_ERROR;
-				
 			mvwaddch(widget, h - 5, w/2 - 5, '/');
 			mvwaddch(widget, h - 5, w/2 + 7, '/');
-			
-			draw_buttons(widget, h-2, w, bs, true);
-
 			wrefresh(widget);
 
 			prefresh(textpad, 0, 0, y+1, x+2, y+h-7, x+w-2);
@@ -516,19 +448,18 @@ bsddialog_datebox(struct bsddialog_conf *conf, char* text, int rows, int cols,
 			refresh();
 			break;
 		default:
-			for (i = 0; i < (int) bs.nbuttons; i++)
-				if (tolower(input) == tolower((bs.label[i])[0])) {
-					output = bs.value[i];
-					loop = false;
+			if (shortcut_buttons(input, &bs)) {
+				output = bs.value[bs.curr];
+				loop = false;
 			}
 		}
 	}
 
 	curs_set(0);
 
-	for (i=0; i<3; i++)
+	for (i = 0; i < 3; i++)
 		delwin(c[i].win);
-	end_widget_withtextpad(conf, widget, h, w, textpad, shadow);
+	end_dialog(conf, shadow, widget, textpad);
 
-	return output;
+	return (output);
 }

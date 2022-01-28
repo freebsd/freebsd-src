@@ -1,55 +1,54 @@
-# Any copyright is dedicated to the Public Domain, see:
+# PUBLIC DOMAIN - NO WARRANTY, see:
 #     <http://creativecommons.org/publicdomain/zero/1.0/>
 #
 # Written in 2021 by Alfonso Sabato Siciliano
 
-VERSION = 0.0.2
+VERSION = 0.1
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
+LIBRARY_A = lib${LIBRARY:=.a}
 HEADERS = bsddialog.h bsddialog_theme.h bsddialog_progressview.h
 SOURCES = barbox.c formbox.c infobox.c libbsddialog.c lib_util.c menubox.c \
 	messagebox.c textbox.c theme.c timebox.c
-OBJECTS= ${SOURCES:.c=.o}
-CFLAGS = -I/usr/local/include -fPIC -Wall -Wextra
-LDFLAGS = -fstack-protector-strong -shared -Wl,-x -Wl,--fatal-warnings \
-	-Wl,--warn-shared-textrel -Wl,-soname,${LIBRARY_SO}.${VERSION} 
+OBJECTS = ${SOURCES:.c=.o}
+CFLAGS += -fPIC -Wall -Wextra
+LDFLAGS += -fstack-protector-strong -shared -Wl,-x -Wl,--fatal-warnings \
+	-Wl,--warn-shared-textrel -Wl,-soname,${LIBRARY_SO}.${VERSION} \
+	-L/usr/lib -lformw -lncursesw -ltinfow
 
 .if defined(DEBUG)
 # `make -DDEBUG`
-CFLAGS += -g
+CFLAGS = -g -fPIC -Wall -Wextra
 .else
 CFLAGS += -O2 -pipe -std=gnu99 -Wno-format-zero-length \
 	-fstack-protector-strong -Qunused-arguments
 .endif
 
-.if defined(PORTNCURSES)
-# PORT ncurses `make -DPORTNCURSES`
-CFLAGS += -DPORTNCURSES -I/usr/local/include
-LDFLAGS += -L/usr/local/lib -lformw -lncursesw -ltinfow
-.else
-# BASE ncurses
-LDFLAGS += -L/usr/lib -lformw -lncursesw -ltinfow
-.endif
-
-INSTALL_PREFIX=/usr/local
+LOCALBASE = /usr/local
 LN = ln -s -f
 RM = rm -f
 CP = cp
 GZIP = gzip -cn
 LDCONFIG = /sbin/ldconfig -m
-MAN= ${OUTPUT}.3
-GZIP= gzip -cn
-MANDIR= /usr/local/share/man/man3
-INSTALL= install
-RM= rm -f
+MAN = ${OUTPUT}.3
+GZIP = gzip -cn
+MANDIR = ${LOCALBASE}/share/man/man3
+INSTALL = install
+RM = rm -f
 
-#all : man ${LIBRARY}
-all : ${LIBRARY}
+all : man ${LIBRARY}
 
-${LIBRARY}: ${OBJECTS}
+${LIBRARY}: ${LIBRARY_SO} ${LIBRARY_A}
+
+${LIBRARY_SO}.${VERSION}: ${OBJECTS}
 	${CC} ${LDFLAGS} ${.ALLSRC} -o ${LIBRARY_SO}.${VERSION}
-	# LN for devel
+
+${LIBRARY_SO}: ${LIBRARY_SO}.${VERSION}
 	${LN} ${LIBRARY_SO}.${VERSION} ${LIBRARY_SO}
+
+${LIBRARY_A}: ${OBJECTS}
+	${AR} cr ${.TARGET} ${OBJECTS}
+	${RANLIB} ${.TARGET}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -58,19 +57,20 @@ man:
 	${GZIP} ${LIBRARY}.3 > ${LIBRARY}.3.gz
 
 clean:
-	${RM} ${LIBRARY_SO}* *.o *~ *.gz
+	${RM} ${LIBRARY_SO}* *.o *~ *.gz ${LIBRARY_A}
 
 
 install:
-	${CP} ${LIBRARY}.h ${INSTALL_PREFIX}/include
-	${CP} ${LIBRARY_SO}.${VERSION} ${INSTALL_PREFIX}/lib/
-	${LN} ${INSTALL_PREFIX}/lib/${LIBRARY_SO}.${VERSION} ${INSTALL_PREFIX}/lib/${LIBRARY_SO}
-	${LDCONFIG} ${INSTALL_PREFIX}/lib
-	${CP} ${LIBRARY}.3.gz ${INSTALL_PREFIX}/man/man3/
+	${INSTALL} -m 644 ${HEADERS} ${LOCALBASE}/include
+	${INSTALL} -m 644 -s ${LIBRARY_SO}.${VERSION} ${LOCALBASE}/lib/
+	${INSTALL} -l rs ${LOCALBASE}/lib/${LIBRARY_SO}.${VERSION} ${LOCALBASE}/lib/${LIBRARY_SO}
+	${INSTALL} -m 644 ${LIBRARY_A} ${LOCALBASE}/lib
+	${LDCONFIG} ${LOCALBASE}/lib
+	${INSTALL} -m 644 ${LIBRARY}.3.gz ${MNADIR}
 
 unistall:
-	${RM} ${INSTALL_PREFIX}/include/${LIBRARY}.h
-	${RM} ${INSTALL_PREFIX}/lib/${LIBRARY_SO}
-	${RM} ${INSTALL_PREFIX}/lib/${LIBRARY_SO}.${VERSION}
-	${LDCONFIG} ${INSTALL_PREFIX}/lib
-	${RM} ${INSTALL_PREFIX}/man/man3/${LIBRARY}.3.gz
+	${RM} ${LOCALBASE}/include/${LIBRARY}*.h
+	${RM} ${LOCALBASE}/lib/${LIBRARY_SO}
+	${RM} ${LOCALBASE}/lib/${LIBRARY_SO}.${VERSION}
+	${LDCONFIG} ${LOCALBASE}/lib
+	${RM} ${MANDIR}/${LIBRARY}.3.gz
