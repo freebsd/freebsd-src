@@ -145,7 +145,8 @@ dp_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mii_sc = &sc->mii_sc;
 
-	size = device_get_property(dev, "max-speed", &maxspeed, sizeof(maxspeed));
+	size = device_get_property(dev, "max-speed", &maxspeed,
+	    sizeof(maxspeed), DEVICE_PROP_UINT32);
 	if (size <= 0)
 		maxspeed = 0;
 

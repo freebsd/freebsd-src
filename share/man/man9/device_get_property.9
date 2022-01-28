@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2021
+.Dd February 18, 2022
 .Dt DEVICE_GET_PROPERTY 9
 .Os
 .Sh NAME
@@ -36,13 +36,35 @@
 .In sys/param.h
 .In sys/bus.h
 .Ft ssize_t
-.Fn device_get_property "device_t dev" "const char *prop" "void *val" "size_t sz"
+.Fn device_get_property "device_t dev" "const char *prop" "void *val" "size_t sz" \
+    "device_property_type_t type"
 .Ft bool
 .Fn device_has_property "device_t dev" "const char *prop"
 .Sh DESCRIPTION
 Access device specific data provided by the parent bus.
 Drivers can use these properties to obtain device capabilities and set
 necessary quirks.
+.Pp
+The underlying property type is specified with the
+.Fa type
+argument.
+Currently the following types are supported:
+.Bl -tag -width ".Dv DEVICE_PROP_BUFFER"
+.It Dv DEVICE_PROP_BUFFER
+The underlying property is a string of bytes.
+.It Dv DEVICE_PROP_ANY
+Wildcard property type.
+.It Dv DEVICE_PROP_UINT32
+The underlying property is an array of unsigned 32 bit integers.
+The
+.Fa sz
+argument shall be a multiple of 4.
+.It Dv DEVICE_PROP_UINT64
+The underlying property is an array of unsigned 64 bit integers.
+The
+.Fa sz
+argument shall be a multiple of 8.
+.El
 .Sh NOTES
 You can pass NULL as pointer to property's value when calling
 .Fn device_get_property

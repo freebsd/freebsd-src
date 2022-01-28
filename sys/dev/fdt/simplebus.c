@@ -56,7 +56,8 @@ static struct resource_list *simplebus_get_resource_list(device_t bus,
     device_t child);
 
 static ssize_t		simplebus_get_property(device_t bus, device_t child,
-    const char *propname, void *propvalue, size_t size);
+    const char *propname, void *propvalue, size_t size,
+    device_property_type_t type);
 /*
  * ofw_bus interface
  */
@@ -356,14 +357,56 @@ simplebus_get_resource_list(device_t bus __unused, device_t child)
 
 static ssize_t
 simplebus_get_property(device_t bus, device_t child, const char *propname,
-    void *propvalue, size_t size)
+    void *propvalue, size_t size, device_property_type_t type)
 {
 	phandle_t node = ofw_bus_get_node(child);
+	ssize_t ret, i;
+	uint32_t *buffer;
+	uint64_t val;
+
+	switch (type) {
+	case DEVICE_PROP_ANY:
+	case DEVICE_PROP_BUFFER:
+	case DEVICE_PROP_UINT32:
+	case DEVICE_PROP_UINT64:
+		break;
+	default:
+		return (-1);
+	}
 
 	if (propvalue == NULL || size == 0)
 		return (OF_getproplen(node, propname));
 
-	return (OF_getencprop(node, propname, propvalue, size));
+	/*
+	 * Integer values are stored in BE format.
+	 * If caller declared that the underlying property type is uint32_t
+	 * we need to do the conversion to match host endianness.
+	 */
+	if (type == DEVICE_PROP_UINT32)
+		return (OF_getencprop(node, propname, propvalue, size));
+
+	/*
+	 * uint64_t also requires endianness handling.
+	 * In FDT every 8 byte value is stored using two uint32_t variables
+	 * in BE format. Now, since the upper bits are stored as the first
+	 * of the pair, both halves require swapping.
+	 */
+	 if (type == DEVICE_PROP_UINT64) {
+		ret = OF_getencprop(node, propname, propvalue, size);
+		if (ret <= 0) {
+			return (ret);
+		}
+
+		buffer = (uint32_t *)propvalue;
+
+		for (i = 0; i < size / 4; i += 2) {
+			val = (uint64_t)buffer[i] << 32 | buffer[i + 1];
+			((uint64_t *)buffer)[i / 2] = val;
+		}
+		return (ret);
+	 }
+
+	return (OF_getprop(node, propname, propvalue, size));
 }
 
 static struct resource *
