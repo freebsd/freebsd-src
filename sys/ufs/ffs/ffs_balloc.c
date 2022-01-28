@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 
@@ -612,7 +613,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	int deallocated, osize, nsize, num, i, error;
 	int unwindidx = -1;
 	int saved_inbdflush;
-	int gbflags, reclaimed;
+	int gbflags, gbwflag, reclaimed;
 
 	ip = VTOI(vp);
 	dp = ip->i_din2;
@@ -628,6 +629,12 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	if (lbn < 0)
 		return (EFBIG);
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
+#ifdef WITNESS
+	gbwflag = IS_SNAPSHOT(ip) ? GB_NOWITNESS : 0;
+	gbflags |= gbwflag;
+#else
+	gbwflag = 0;
+#endif
 
 	vn_seqc_write_begin(vp);
 
@@ -889,7 +896,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[1].in_lbn;
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0,
-		    GB_UNMAPPED);
+		    GB_UNMAPPED | gbwflag);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
 		if (DOINGSOFTDEP(vp)) {
@@ -914,8 +921,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	 */
 retry:
 	for (i = 1;;) {
-		error = bread(vp,
-		    indirs[i].in_lbn, (int)fs->fs_bsize, NOCRED, &bp);
+		error = bread_gb(vp, indirs[i].in_lbn, (int)fs->fs_bsize,
+		    NOCRED, gbwflag, &bp);
 		if (error) {
 			goto fail;
 		}
@@ -1138,7 +1145,7 @@ fail:
 		 * buffer object lists.
 		 */
 		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
-		    GB_NOCREAT | GB_UNMAPPED);
+		    GB_NOCREAT | GB_UNMAPPED | gbwflag);
 		if (bp != NULL) {
 			KASSERT(bp->b_blkno == fsbtodb(fs, *blkp),
 			    ("mismatch2 l %jd %jd b %ju %ju",
@@ -1156,8 +1163,8 @@ fail:
 	} else if (unwindidx >= 0) {
 		int r;
 
-		r = bread(vp, indirs[unwindidx].in_lbn, 
-		    (int)fs->fs_bsize, NOCRED, &bp);
+		r = bread_gb(vp, indirs[unwindidx].in_lbn,
+		    (int)fs->fs_bsize, NOCRED, gbwflag, &bp);
 		if (r) {
 			panic("Could not unwind indirect block, error %d", r);
 			brelse(bp);
@@ -1193,7 +1200,7 @@ fail:
 		if (blkp == allociblk)
 			lbns_remfree = lbns;
 		bp = getblk(vp, *lbns_remfree, fs->fs_bsize, 0, 0,
-		    GB_NOCREAT | GB_UNMAPPED);
+		    GB_NOCREAT | GB_UNMAPPED | gbwflag);
 		if (bp != NULL) {
 			panic("zombie2 %jd %ju %ju",
 			    (intmax_t)bp->b_lblkno, (uintmax_t)bp->b_blkno,

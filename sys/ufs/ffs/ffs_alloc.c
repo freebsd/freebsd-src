@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -270,6 +271,9 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	fs = ump->um_fs;
 	bp = NULL;
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
+#ifdef WITNESS
+	gbflags |= IS_SNAPSHOT(ip) ? GB_NOWITNESS : 0;
+#endif
 
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 #ifdef INVARIANTS
