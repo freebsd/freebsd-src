@@ -412,20 +412,6 @@ ifnet_byindexgen(uint16_t idx, uint16_t gen)
 		return (NULL);
 }
 
-struct ifaddr *
-ifaddr_byindex(u_short idx)
-{
-	struct ifnet *ifp;
-	struct ifaddr *ifa = NULL;
-
-	NET_EPOCH_ASSERT();
-
-	ifp = ifnet_byindex(idx);
-	if (ifp != NULL && (ifa = ifp->if_addr) != NULL)
-		ifa_ref(ifa);
-	return (ifa);
-}
-
 /*
  * Network interface utility routines.
  *

@@ -373,7 +373,7 @@ struct ifnet {
 		 * addresses which store the link-level address and the name
 		 * of the interface.
 		 * However, access to the AF_LINK address through this
-		 * field is deprecated. Use if_addr or ifaddr_byindex() instead.
+		 * field is deprecated. Use if_addr instead.
 		 */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
@@ -650,13 +650,6 @@ struct ifnet	*ifnet_byindex_ref(u_int);
  * the epoch.
  */
 struct ifnet   *ifnet_byindexgen(uint16_t idx, uint16_t gen);
-
-/*
- * Given the index, ifaddr_byindex() returns the one and only
- * link-level ifaddr for the interface. You are not supposed to use
- * it to traverse the list of addresses associated to the interface.
- */
-struct ifaddr	*ifaddr_byindex(u_short idx);
 
 VNET_DECLARE(struct ifnethead, ifnet);
 VNET_DECLARE(struct ifgrouphead, ifg_head);
