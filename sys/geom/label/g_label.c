@@ -402,6 +402,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->access = g_label_access_taste;
 	gp->orphan = g_label_orphan_taste;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	if (g_attach(cp, pp) != 0)
 		goto end2;
 	if (g_access(cp, 1, 0, 0) != 0)
