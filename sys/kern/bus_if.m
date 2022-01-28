@@ -955,4 +955,5 @@ METHOD ssize_t get_property {
 	const char *_propname;
 	void *_propvalue;
 	size_t _size;
+	device_property_type_t type;
 } DEFAULT bus_generic_get_property;
