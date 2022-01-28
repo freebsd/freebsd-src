@@ -69,6 +69,8 @@ void g_io_schedule_up(struct thread *tp);
 
 /* geom_kern.c / geom_kernsim.c */
 void g_init(void);
+extern struct thread *g_up_td;
+extern struct thread *g_down_td;
 extern int g_shutdown;
 extern int g_notaste;
 

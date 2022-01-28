@@ -561,7 +561,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	direct = (cp->flags & G_CF_DIRECT_SEND) != 0 &&
 	    (pp->flags & G_PF_DIRECT_RECEIVE) != 0 &&
-	    !g_is_geom_thread(curthread) &&
+	    curthread != g_down_td &&
 	    ((pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ||
 	    (bp->bio_flags & BIO_UNMAPPED) == 0 || THREAD_CAN_SLEEP()) &&
 	    pace == 0;
@@ -653,7 +653,7 @@ g_io_deliver(struct bio *bp, int error)
 
 	direct = (pp->flags & G_PF_DIRECT_SEND) &&
 		 (cp->flags & G_CF_DIRECT_RECEIVE) &&
-		 !g_is_geom_thread(curthread);
+		 curthread != g_up_td;
 	if (direct) {
 		/* Block direct execution if less then half of stack left. */
 		size_t	st, su;

@@ -61,8 +61,8 @@ MALLOC_DEFINE(M_GEOM, "GEOM", "Geom data structures");
 struct sx topology_lock;
 
 static struct proc *g_proc;
-static struct thread __read_mostly *g_up_td;
-static struct thread __read_mostly *g_down_td;
+struct thread __read_mostly *g_up_td;
+struct thread __read_mostly *g_down_td;
 static struct thread __read_mostly *g_event_td;
 
 int __read_mostly g_debugflags;
