@@ -61,11 +61,9 @@ main(void)
 {
 	char *chrootdir;
 	char *distributions;
-	char *path;
+	char *distribs, *distrib;
 	int retval;
-	unsigned int i;
 	size_t minibar_size = sizeof(struct bsddialog_fileminibar);
-	size_t span;
 	unsigned int nminibars;
 	struct bsddialog_fileminibar *dists;
 	struct bsddialog_progviewconf pvconf;
@@ -77,6 +75,8 @@ main(void)
 		errx(EXIT_FAILURE, "DISTRIBUTIONS variable is not set");
 	if ((distdir = getenv("BSDINSTALL_DISTDIR")) == NULL)
 		distdir = __DECONST(char *, "");
+	if ((distribs = strdup(distributions)) == NULL)
+		errx(EXIT_FAILURE, "memory error");
 
 	if (bsddialog_init() == BSDDIALOG_ERROR)
 		errx(EXIT_FAILURE, "Error libbsdialog: %s",
@@ -89,12 +89,9 @@ main(void)
 	/* Parse $DISTRIBUTIONS */
 	nminibars = 0;
 	dists = NULL;
-	while (*distributions != '\0') {
-		span = strcspn(distributions, "\t\n\v\f\r ");
-		if (span < 1) { /* currently on whitespace */
-			distributions++;
+	while ((distrib = strsep(&distribs, "\t\n\v\f\r ")) != NULL) {
+		if (strlen(distrib) == 0)
 			continue;
-		}
 
 		/* Allocate a new struct for the distribution */
 		dists = realloc(dists, (nminibars + 1) * minibar_size);
@@ -102,11 +99,7 @@ main(void)
 			_errx(EXIT_FAILURE, "Out of memory!");
 
 		/* Set file path */
-		if ((path = malloc(span + 1)) == NULL)
-			_errx(EXIT_FAILURE, "Out of memory!");
-		snprintf(path, span + 1, "%s", distributions);
-		path[span] = '\0';
-		dists[nminibars].path = path;
+		dists[nminibars].path = distrib;
 
 		/* Set mini bar label */
 		dists[nminibars].label = strrchr(dists[nminibars].path, '/');
@@ -126,7 +119,6 @@ main(void)
 		/* Set initial read */
 		dists[nminibars].read = 0;
 
-		distributions += span;
 		nminibars += 1;
 	}
 
@@ -164,12 +156,8 @@ main(void)
 
 	bsddialog_end();
 
-	for (i = 0; i < nminibars; i++) {
-		if (dists[i].path != NULL)
-			free(__DECONST(char *, dists[i].path));
-	}
-	if (dists != NULL)
-		free(dists);
+	free(distribs);
+	free(dists);
 
 	return (retval);
 }
