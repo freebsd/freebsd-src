@@ -49,7 +49,8 @@
 #include <nl_types.h>
 
 extern nl_catd catalog;
-#define	getstr(n)	 catgets(catalog, 1, n, nlsstr[n])
+#define	getstr(n)	\
+	(catalog == (nl_catd)-1 ? nlsstr[n] : catgets(catalog, 1, n, nlsstr[n]))
 #endif
 
 extern const char *nlsstr[];
