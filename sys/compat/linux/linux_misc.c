@@ -2880,3 +2880,19 @@ linux_poll(struct thread *td, struct linux_poll_args *args)
 	    tsp, NULL, 0));
 }
 #endif /* __i386__ || __amd64__ */
+
+int
+linux_seccomp(struct thread *td, struct linux_seccomp_args *args)
+{
+
+	switch (args->op) {
+	case LINUX_SECCOMP_GET_ACTION_AVAIL:
+		return (EOPNOTSUPP);
+	default:
+		/*
+		 * Ignore unknown operations, just like Linux kernel built
+		 * without CONFIG_SECCOMP.
+		 */
+		return (EINVAL);
+	}
+}

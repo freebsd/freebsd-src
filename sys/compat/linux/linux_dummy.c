@@ -112,8 +112,6 @@ DUMMY(kcmp);
 DUMMY(finit_module);
 DUMMY(sched_setattr);
 DUMMY(sched_getattr);
-/* Linux 3.17: */
-DUMMY(seccomp);
 /* Linux 3.18: */
 DUMMY(bpf);
 /* Linux 3.19: */
