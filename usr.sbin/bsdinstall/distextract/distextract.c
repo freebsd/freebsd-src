@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 /* Data to process */
-static char *distdir = NULL;
+static const char *distdir = NULL;
 static struct archive *archive = NULL;
 
 /* Function prototypes */
@@ -74,7 +74,7 @@ main(void)
 	if ((distributions = getenv("DISTRIBUTIONS")) == NULL)
 		errx(EXIT_FAILURE, "DISTRIBUTIONS variable is not set");
 	if ((distdir = getenv("BSDINSTALL_DISTDIR")) == NULL)
-		distdir = __DECONST(char *, "");
+		distdir = "";
 	if ((distribs = strdup(distributions)) == NULL)
 		errx(EXIT_FAILURE, "memory error");
 
@@ -128,7 +128,7 @@ main(void)
 		snprintf(error, sizeof(error),
 		    "Could not change to directory %s: %s\n",
 		    chrootdir, strerror(errno));
-		conf.title = __DECONST(char *, "Error");
+		conf.title = "Error";
 		bsddialog_msgbox(&conf, error, 0, 0);
 		bsddialog_end();
 		return (EXIT_FAILURE);
