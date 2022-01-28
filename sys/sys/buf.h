@@ -497,6 +497,7 @@ buf_track(struct buf *bp __unused, const char *location __unused)
 #define	GB_CKHASH	0x0020		/* If reading, calc checksum hash */
 #define	GB_NOSPARSE	0x0040		/* Do not instantiate holes */
 #define	GB_CVTENXIO	0x0080		/* Convert errors to ENXIO */
+#define	GB_NOWITNESS	0x0100		/* Do not record for WITNESS */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */

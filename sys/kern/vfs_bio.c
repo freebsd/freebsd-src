@@ -3987,7 +3987,10 @@ loop:
 		 * it must be on a queue.
 		 */
 		lockflags = LK_EXCLUSIVE | LK_INTERLOCK |
-		    ((flags & GB_LOCK_NOWAIT) ? LK_NOWAIT : LK_SLEEPFAIL);
+		    ((flags & GB_LOCK_NOWAIT) != 0 ? LK_NOWAIT : LK_SLEEPFAIL);
+#ifdef WITNESS
+		lockflags |= (flags & GB_NOWITNESS) != 0 ? LK_NOWITNESS : 0;
+#endif
 
 		error = BUF_TIMELOCK(bp, lockflags,
 		    BO_LOCKPTR(bo), "getblk", slpflag, slptimeo);
