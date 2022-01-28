@@ -1204,7 +1204,7 @@ xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(descr, sizeof(descr), fmt, ap);
 	va_end(ap);
-	return (intr_describe(isrc->xi_vector, isrc->xi_cookie, descr));
+	return (intr_describe(&isrc->xi_intsrc, isrc->xi_cookie, descr));
 }
 
 void
@@ -1271,7 +1271,7 @@ xen_intr_add_handler(const char *name, driver_filter_t filter,
 	if (isrc == NULL || isrc->xi_cookie != NULL)
 		return (EINVAL);
 
-	error = intr_add_handler(name, isrc->xi_vector,filter, handler, arg,
+	error = intr_add_handler(name, &isrc->xi_intsrc, filter, handler, arg,
 	    flags|INTR_EXCL, &isrc->xi_cookie, 0);
 	if (error != 0)
 		printf("%s: %s: add handler failed: %d\n", name, __func__,
