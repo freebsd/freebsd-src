@@ -42,6 +42,8 @@ struct vnode;
 struct vmem;
 
 #ifdef _KERNEL
+#include <sys/systm.h>
+
 struct cdev;
 struct cdevsw;
 struct domainset;
@@ -140,11 +142,8 @@ u_int vm_wait_count(void);
 static inline bool
 vm_addr_align_ok(vm_paddr_t pa, u_long alignment)
 {
-#ifdef INVARIANTS
-	if (!powerof2(alignment))
-		panic("%s: alignment is not a power of 2: %#lx",
-		    __func__, alignment);
-#endif
+	KASSERT(powerof2(alignment), ("%s: alignment is not a power of 2: %#lx",
+	    __func__, alignment));
 	return ((pa & (alignment - 1)) == 0);
 }
 
@@ -155,11 +154,8 @@ vm_addr_align_ok(vm_paddr_t pa, u_long alignment)
 static inline bool
 vm_addr_bound_ok(vm_paddr_t pa, vm_paddr_t size, vm_paddr_t boundary)
 {
-#ifdef INVARIANTS
-	if (!powerof2(boundary))
-		panic("%s: boundary is not a power of 2: %#jx",
-		    __func__, (uintmax_t)boundary);
-#endif
+	KASSERT(powerof2(boundary), ("%s: boundary is not a power of 2: %#jx",
+	    __func__, (uintmax_t)boundary));
 	return (((pa ^ (pa + size - 1)) & -boundary) == 0);
 }
 
