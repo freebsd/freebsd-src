@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+
 #include <archive.h>
 #include <ctype.h>
 #include <bsddialog.h>
@@ -60,8 +61,9 @@ main(void)
 {
 	char *chrootdir;
 	char *distributions;
-	unsigned int i;
+	char *path;
 	int retval;
+	unsigned int i;
 	size_t minibar_size = sizeof(struct bsddialog_fileminibar);
 	size_t span;
 	unsigned int nminibars;
@@ -77,12 +79,12 @@ main(void)
 		distdir = __DECONST(char *, "");
 
 	if (bsddialog_init() == BSDDIALOG_ERROR)
-		errx(EXIT_FAILURE, "Cannot init libbsdialog");
+		errx(EXIT_FAILURE, "Error libbsdialog: %s",
+		    bsddialog_geterror());
 	bsddialog_initconf(&conf);
-	bsddialog_backtitle(&conf, __DECONST(char *, "FreeBSD Installer"));
+	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	bsddialog_infobox(&conf,
-	    __DECONST(char *, "Checking distribution archives.\n"
-	    "Please wait..."), 4, 35);
+	    "Checking distribution archives.\nPlease wait...", 4, 35);
 
 	/* Parse $DISTRIBUTIONS */
 	nminibars = 0;
@@ -100,10 +102,11 @@ main(void)
 			_errx(EXIT_FAILURE, "Out of memory!");
 
 		/* Set file path */
-		if ((dists[nminibars].path = malloc(span + 1)) == NULL)
+		if ((path = malloc(span + 1)) == NULL)
 			_errx(EXIT_FAILURE, "Out of memory!");
-		snprintf(dists[nminibars].path, span + 1, "%s", distributions);
-		dists[nminibars].path[span] = '\0';
+		snprintf(path, span + 1, "%s", distributions);
+		path[span] = '\0';
+		dists[nminibars].path = path;
 
 		/* Set mini bar label */
 		dists[nminibars].label = strrchr(dists[nminibars].path, '/');
@@ -117,8 +120,8 @@ main(void)
 			return (EXIT_FAILURE);
 		}
 
-		/* Set initial status to pending */
-		/* dists[nminibars].status = 10; */
+		/* Set initial status and implicitly miniperc to pending */
+		dists[nminibars].status = BSDDIALOG_MG_PENDING;
 
 		/* Set initial read */
 		dists[nminibars].read = 0;
@@ -143,20 +146,27 @@ main(void)
 	act.sa_handler = sig_int;
 	sigaction(SIGINT, &act, 0);
 
-	conf.title = __DECONST(char *, "Archive Extraction");
+	conf.title = "Archive Extraction";
+	conf.auto_minwidth = 40;
 	pvconf.callback	= extract_files;
 	pvconf.refresh = 1;
-	pvconf.fmtbottomstr = __DECONST(char *, "%10lli files read @ %'9.1f files/sec.");
+	pvconf.fmtbottomstr = "%10lli files read @ %'9.1f files/sec.";
 	bsddialog_total_progview = 0;
 	bsddialog_interruptprogview = bsddialog_abortprogview = false;
 	retval = bsddialog_progressview(&conf,
-	    __DECONST(char *, "Extracting distribution files..."), 0, 0, &pvconf, nminibars, dists);
+	    "\nExtracting distribution files...\n", 0, 0,
+	    &pvconf, nminibars, dists);
+
+	if (retval == BSDDIALOG_ERROR) {
+		fprintf(stderr, "progressview error: %s\n",
+		    bsddialog_geterror());
+	}
 
 	bsddialog_end();
 
-	for (i=0; i<nminibars; i++) {
+	for (i = 0; i < nminibars; i++) {
 		if (dists[i].path != NULL)
-			free(dists[i].path);
+			free(__DECONST(char *, dists[i].path));
 	}
 	if (dists != NULL)
 		free(dists);
@@ -224,7 +234,7 @@ count_files(const char *file)
 	if ((archive = archive_read_new()) == NULL) {
 		snprintf(errormsg, sizeof(errormsg),
 		    "Error: %s\n", archive_error_string(NULL));
-		conf.title = __DECONST(char *, "Extract Error");
+		conf.title = "Extract Error";
 		bsddialog_msgbox(&conf, errormsg, 0, 0);
 		return (-1);
 	}
@@ -236,7 +246,7 @@ count_files(const char *file)
 		snprintf(errormsg, sizeof(errormsg),
 		    "Error while extracting %s: %s\n", file,
 		    archive_error_string(archive));
-		conf.title = __DECONST(char *, "Extract Error");
+		conf.title = "Extract Error";
 		bsddialog_msgbox(&conf, errormsg, 0, 0);
 		archive = NULL;
 		return (-1);
@@ -267,7 +277,7 @@ extract_files(struct bsddialog_fileminibar *file)
 		if ((archive = archive_read_new()) == NULL) {
 			snprintf(errormsg, sizeof(errormsg),
 			    "Error: %s\n", archive_error_string(NULL));
-			conf.title = __DECONST(char *, "Extract Error");
+			conf.title = "Extract Error";
 			bsddialog_msgbox(&conf, errormsg, 0, 0);
 			bsddialog_abortprogview = true;
 			return (-1);
@@ -280,9 +290,9 @@ extract_files(struct bsddialog_fileminibar *file)
 			snprintf(errormsg, sizeof(errormsg),
 			    "Error opening %s: %s\n", file->label,
 			    archive_error_string(archive));
-			conf.title = __DECONST(char *, "Extract Error");
+			conf.title = "Extract Error";
 			bsddialog_msgbox(&conf, errormsg, 0, 0);
-			file->status = 1; /* Failed */
+			file->status = BSDDIALOG_MG_FAILED;
 			bsddialog_abortprogview = true;
 			return (-1);
 		}
@@ -302,7 +312,7 @@ extract_files(struct bsddialog_fileminibar *file)
 	if (retval == ARCHIVE_EOF) {
 		archive_read_free(archive);
 		archive = NULL;
-		file->status = 5; /*Done*/;
+		file->status = BSDDIALOG_MG_DONE; /*Done*/;
 		return (100);
 	} else if (retval != ARCHIVE_OK &&
 	    !(retval == ARCHIVE_WARN &&
@@ -316,9 +326,9 @@ extract_files(struct bsddialog_fileminibar *file)
 		snprintf(errormsg, sizeof(errormsg),
 		    "Error while extracting %s: %s\n", file->label,
 		    archive_error_string(archive));
-		conf.title = __DECONST(char *, "Extract Error");
+		conf.title = "Extract Error";
 		bsddialog_msgbox(&conf, errormsg, 0, 0);
-		file->status = 1; /* Failed */
+		file->status = BSDDIALOG_MG_FAILED; /* Failed */
 		bsddialog_abortprogview = true;
 		return (-1);
 	}

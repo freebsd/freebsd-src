@@ -1,17 +1,17 @@
 # PUBLIC DOMAIN - NO WARRANTY, see:
-# 	<http://creativecommons.org/publicdomain/zero/1.0/>
+#     <http://creativecommons.org/publicdomain/zero/1.0/>
 #
 # Written in 2021 by Alfonso Sabato Siciliano
 
-VERSION = 0.0.2
+VERSION = 0.1
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
 HEADERS = bsddialog.h bsddialog_theme.h bsddialog_progressview.h
 SOURCES = barbox.c formbox.c infobox.c libbsddialog.c lib_util.c menubox.c \
 	messagebox.c textbox.c theme.c timebox.c
 OBJECTS = $(SOURCES:.c=.o)
-CFLAGS = -g -Wall -Werror -fpic
-LDFLAGS = -lform -lncurses -ltinfo
+CFLAGS = -Wall -Werror -fpic
+LDFLAGS = -lformw -lncursesw -ltinfo
 LIBFLAG = -shared
 
 RM = rm -f

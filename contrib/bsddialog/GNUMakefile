@@ -1,14 +1,14 @@
 # PUBLIC DOMAIN - NO WARRANTY, see:
-# 	<http://creativecommons.org/publicdomain/zero/1.0/>
+#     <http://creativecommons.org/publicdomain/zero/1.0/>
 #
-# Written by Alfonso Sabato Siciliano
+# Written in 2021 by Alfonso Sabato Siciliano
 
 OUTPUT=  bsddialog
 SOURCES= bsddialog.c
 OBJECTS= $(SOURCES:.c=.o)
 LIBPATH= ./lib
 LIBBSDDIALOG= $(LIBPATH)/libbsddialog.so
-CFLAGS= -g -Wall -I$(LIBPATH)
+CFLAGS= -Wall -I$(LIBPATH)
 LDFLAGS= -Wl,-rpath=$(LIBPATH) -L$(LIBPATH) -lbsddialog
 RM = rm -f
 

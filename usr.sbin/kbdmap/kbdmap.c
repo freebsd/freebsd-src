@@ -355,10 +355,8 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	struct bsddialog_menuitem *listitems;
 	int i, result;
 
-	bsddialog_initconf(&conf);
-	conf.clear = true;
-	if (bsddialog_init() < 0) {
-		fprintf(stderr, "Failed to initialize bsddialog");
+	if (bsddialog_init() == BSDDIALOG_ERROR) {
+		fprintf(stderr, "Error bsddialog: %s\n", bsddialog_geterror());
 		exit(1);
 	}
 	conf.title = __DECONST(char *, title);
@@ -366,6 +364,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	listitems = calloc(num_keymaps + 1, sizeof(struct bsddialog_menuitem));
 	if (listitems == NULL) {
 		fprintf(stderr, "Failed to allocate memory in show_dialog");
+		bsddialog_end();
 		exit(1);
 	}
 
@@ -381,16 +380,23 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 
 	/* Build up the menu */
 	for (i=0; i<num_keymaps; i++) {
-		listitems[i].prefix = __DECONST(char *, "");
+		listitems[i].prefix = "";
 		listitems[i].depth = 0;
-		listitems[i].bottomdesc = __DECONST(char *, "");
+		listitems[i].bottomdesc = "";
 		listitems[i].on = false;
 		listitems[i].name = km_sorted[i]->desc;
-		listitems[i].desc = __DECONST(char *, "");
+		listitems[i].desc = "";
 	}
-	result = bsddialog_menu(&conf, __DECONST(char *, menu), 0, 0, 0,
-	    num_keymaps, listitems, NULL);
+	bsddialog_initconf(&conf);
+	conf.title = title;
+	conf.clear = true;
+	conf.key.enable_esc = true;
+	result = bsddialog_menu(&conf, menu, 0, 0, 0, num_keymaps, listitems,
+	    NULL);
+	if (result == BSDDIALOG_ERROR)
+		fprintf(stderr, "Error bsddialog: %s\n", bsddialog_geterror());
 	bsddialog_end();
+
 	switch (result) {
 	case BSDDIALOG_OK:
 		for (i = 0; i < num_keymaps; i++) {

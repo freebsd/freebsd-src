@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,26 +28,32 @@
 #ifndef _LIBBSDDIALOG_PROGRESSVIEW_H_
 #define _LIBBSDDIALOG_PROGRESSVIEW_H_
 
+/*
+ * Undocumented API, DO NOT USE!
+ * Please consider this file private: it is used by bsdinstall/distextract,
+ * could be deleted or changed in the future.
+ */
+
 extern bool bsddialog_interruptprogview;
 extern bool bsddialog_abortprogview;
 extern int  bsddialog_total_progview;
 
 struct bsddialog_fileminibar {
-	char *path;
-	char *label;
-	int  status; /* mixedgauge: 1 failed - 5 done - 7 in progress*/
+	const char *path;
+	const char *label;
+	int status; /* next if BSDDIALOG_MG_DONE or BSDDIALOG_MG_FAILED */
 	long long size;
 	long long read;
 };
 
 struct bsddialog_progviewconf {
-	char *fmtbottomstr;
+	const char *fmtbottomstr;
 	unsigned int refresh; /* in seconds */
 	int (*callback)(struct bsddialog_fileminibar *minibar);
 };
 
 int
-bsddialog_progressview (struct bsddialog_conf *conf, char * text, int rows,
+bsddialog_progressview (struct bsddialog_conf *conf, const char *text, int rows,
     int cols, struct bsddialog_progviewconf *pvconf, unsigned int nminibar,
     struct bsddialog_fileminibar *minibar);
 

@@ -18,15 +18,28 @@ int main()
 	int output;
 	struct bsddialog_conf conf;
 
+	if (bsddialog_init() == BSDDIALOG_ERROR) {
+		printf("Error: %s\n", bsddialog_geterror());
+		return (1);
+	}
+
 	bsddialog_initconf(&conf);
 	conf.title = "yesno";
-	
-	if (bsddialog_init() < 0)
-		return -1;
-
 	output = bsddialog_yesno(&conf, "Example", 7, 25);
 
 	bsddialog_end();
 
-	return output;
+	switch (output) {
+	case BSDDIALOG_ERROR:
+		printf("Error %s\n", bsddialog_geterror());
+		break;
+	case BSDDIALOG_YES:
+		printf("YES\n");
+		break;
+	case BSDDIALOG_NO:
+		printf("NO\n");
+		break;
+	}
+
+	return (output);
 }

@@ -18,15 +18,22 @@ int main()
 	int output;
 	struct bsddialog_conf conf;
 
+	if (bsddialog_init() == BSDDIALOG_ERROR) {
+		printf("Error: %s\n", bsddialog_geterror());
+		return (1);
+	}
+
 	bsddialog_initconf(&conf);
 	conf.title = "infobox";
-	
-	if (bsddialog_init() < 0)
-		return -1;
-
-	output = bsddialog_infobox(&conf, "Example", 7, 20);
+	conf.sleep = 3;
+	output = bsddialog_infobox(&conf, "Example\n(3 seconds)", 7, 20);
 
 	bsddialog_end();
 
-	return output;
+	if (output == BSDDIALOG_ERROR) {
+		printf("Error: %s\n", bsddialog_geterror());
+		return (1);
+	}
+
+	return (output);
 }
