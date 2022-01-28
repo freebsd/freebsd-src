@@ -16,47 +16,60 @@
 
 int main()
 {
-	int output;
+	int output, focusitem;
 	struct bsddialog_conf conf;
 	enum bsddialog_default_theme theme;
-	struct bsddialog_menuitem items[4] = {
-	    {"", false, 0, "Dialog",    "Current dialog theme",  "BSDDIALOG_THEME_DIALOG" },
-	    {"", false, 0, "BSDDialog", "Future default theme",  "BSDDIALOG_THEME_DEFAULT"},
-	    {"", false, 0, "BlackWhite","Black and White theme", "BSDDIALOG_THEME_BLACKWHITE"},
-	    {"", false, 0, "Quit",      "Exit",                  "Quit or Cancel to exit" }
+	struct bsddialog_menuitem items[5] = {
+		{"", false, 0, "Default", "dialog-like",
+		    "BSDDIALOG_THEME_DEFAULT" },
+		{"", false, 0, "Dialog", "dialog clone",
+		    "BSDDIALOG_THEME_DIALOG" },
+		{"", false, 0, "BSDDialog", "new theme",
+		    "BSDDIALOG_THEME_BSDDIALOG" },
+		{"", false, 0, "BlackWhite","black and white",
+		    "BSDDIALOG_THEME_BLACKWHITE" },
+		{"", false, 0, "Quit", "Exit", "Quit or Cancel to exit" }
 	};
 
+	if (bsddialog_init() == BSDDIALOG_ERROR) {
+		printf("Error: %s\n", bsddialog_geterror());
+		return (1);
+	}
+
 	bsddialog_initconf(&conf);
+
+	bsddialog_backtitle(&conf, "Theme Example");
+
 	conf.title = " Theme ";
-	
-	if (bsddialog_init() == BSDDIALOG_ERROR)
-		return BSDDIALOG_ERROR;
-
+	focusitem = -1;
 	while (true) {
-		bsddialog_backtitle(&conf, "Theme Example");
+		output = bsddialog_menu(&conf, "Choose theme", 15, 40, 5, 5,
+		    items, &focusitem);
 
-		output = bsddialog_menu(&conf, "Choose theme", 15, 40, 4, 4, items, NULL);
-
-		if (output != BSDDIALOG_OK || items[3].on)
+		if (output != BSDDIALOG_OK || items[4].on)
 			break;
 
 		if (items[0].on) {
-			theme = BSDDIALOG_THEME_DIALOG;
-			conf.menu.default_item = items[0].name;
+			theme = BSDDIALOG_THEME_DEFAULT;
+			focusitem = 0;
 		}
 		else if (items[1].on) {
-			theme = BSDDIALOG_THEME_BSDDIALOG;
-			conf.menu.default_item = items[1].name;
+			theme = BSDDIALOG_THEME_DIALOG;
+			focusitem = 1;
 		}
 		else if (items[2].on) {
+			theme = BSDDIALOG_THEME_BSDDIALOG;
+			focusitem = 2;
+		}
+		else if (items[3].on) {
 			theme = BSDDIALOG_THEME_BLACKWHITE;
-			conf.menu.default_item = items[2].name;
+			focusitem = 3;
 		}
 
 		bsddialog_set_default_theme(theme);
 	}
 
-	bsddialog_end();	
+	bsddialog_end();
 
-	return output;
+	return (output);
 }

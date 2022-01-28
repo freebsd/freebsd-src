@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,32 +25,14 @@
  * SUCH DAMAGE.
  */
 
-#ifdef PORTNCURSES
-#include <ncurses/ncurses.h>
-#else
-#include <ncurses.h>
-#endif
+#include <curses.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "bsddialog.h"
-#include "lib_util.h"
 #include "bsddialog_theme.h"
-
-/*
- * This file implements public functions not related to a specific dialog.
- * lib_utils.h/c: private functions to implement the library.
- * theme.h/c: public API related to themes.
- * Dialogs implementation:
- *  infobox.c    infobox
- *  messgebox.c  msgbox - yesno
- *  menubox.c    buildlist - checklist - menu - mixedlist - radiolist
- *  formbox.c    inputbox - passwordbox - form - passwordform - mixedform
- *  barbox.c     gauge - mixedgauge - rangebox - pause - progressview
- *  textbox.c    textbox
- *  timebox.c    timebox - calendar
- */
+#include "lib_util.h"
 
 extern struct bsddialog_theme t;
 
@@ -77,8 +59,8 @@ int bsddialog_init(void)
 
 	c = 1;
 	error += start_color();
-	for (i=0; i<8; i++)
-		for(j=0; j<8; j++) {
+	for (i = 0; i < 8; i++)
+		for (j = 0; j < 8; j++) {
 			error += init_pair(c, i, j);
 			c++;
 	}
@@ -99,16 +81,17 @@ int bsddialog_init(void)
 int bsddialog_end(void)
 {
 	if (endwin() != OK)
-		RETURN_ERROR("Cannot end ncurses (endwin)");
+		RETURN_ERROR("Cannot end curses (endwin)");
 
 	return (BSDDIALOG_OK);
 }
 
-int bsddialog_backtitle(struct bsddialog_conf *conf, char *backtitle)
+int bsddialog_backtitle(struct bsddialog_conf *conf, const char *backtitle)
 {
 	mvaddstr(0, 1, backtitle);
 	if (conf->no_lines != true)
-		mvhline(1, 1, conf->ascii_lines ? '-' : ACS_HLINE, COLS-2);
+		mvhline(1, 1, conf->ascii_lines ? '-' : ACS_HLINE,
+		    SCREENCOLS - 2);
 
 	refresh();
 

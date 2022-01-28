@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021 Alfonso Sabato Siciliano
+ * Copyright (c) 2021-2022 Alfonso Sabato Siciliano
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,21 +28,10 @@
 #ifndef _LIBBSDDIALOG_UTIL_H_
 #define _LIBBSDDIALOG_UTIL_H_
 
-/*
- * Utils to implement widgets - Internal library  API - Dafult values
- */
-
-#define HBORDER		1
-#define HBORDERS	(HBORDER + HBORDER)
-#define VBORDER		1
-#define VBORDERS	(VBORDER + VBORDER)
-#define PADDING(p)	(p)
-
-/* ncurses has not a Ctrl key macro */
-#define KEY_CTRL(x) ((x) & 0x1f)
-
-/* Set default aspect ratio to 9 */
-#define GET_ASPECT_RATIO(conf) (conf->aspect_ratio > 0 ? conf->aspect_ratio : 9)
+#define HBORDERS	2
+#define VBORDERS	2
+#define TEXTHMARGIN     1
+#define TEXTHMARGINS    (TEXTHMARGIN + TEXTHMARGIN)
 
 /* debug */
 #define BSDDIALOG_DEBUG(y,x,fmt, ...) do {	\
@@ -56,36 +45,29 @@ void set_error_string(char *string);
 
 #define RETURN_ERROR(str) do {			\
 	set_error_string(str);			\
-	return BSDDIALOG_ERROR;			\
+	return (BSDDIALOG_ERROR);		\
 } while (0)
 
-/* Buttons */
-#define LABEL_cancel_label	"Cancel"
-#define LABEL_exit_label	"EXIT"
-#define LABEL_extra_label	"Extra"
-#define LABEL_help_label	"Help"
-#define LABEL_ok_label		"OK"
-#define BUTTONLABEL(l) (conf->button.l != NULL ? conf->button.l : LABEL_ ##l)
-
-#define MAXBUTTONS	6 /* yes|ok + extra + no|cancel + help + 2 generics */
+/* buttons */
 struct buttons {
 	unsigned int nbuttons;
-	char *label[MAXBUTTONS];
+#define MAXBUTTONS 6 /* ok + extra + cancel + help + 2 generics */
+	const char *label[MAXBUTTONS];
 	int value[MAXBUTTONS];
 	int curr;
 	unsigned int sizebutton; /* including left and right delimiters */
 };
 
+#define BUTTON_OK_LABEL      "OK"
+#define BUTTON_CANCEL_LABEL  "Cancel"
 void
 get_buttons(struct bsddialog_conf *conf, struct buttons *bs, char *yesoklabel,
-    char *extralabel, char *nocancellabel, char *helplabel);
+    char *nocancellabel);
 
 void
-draw_button(WINDOW *window, int y, int x, int size, char *text, bool selected,
-    bool shortkey);
+draw_buttons(WINDOW *window, struct buttons bs, bool shortcut);
 
-void
-draw_buttons(WINDOW *window, int y, int cols, struct buttons bs, bool shortkey);
+bool shortcut_buttons(int key, struct buttons *bs);
 
 /* help window with F1 key */
 int f1help(struct bsddialog_conf *conf);
@@ -94,24 +76,32 @@ int f1help(struct bsddialog_conf *conf);
 int hide_widget(int y, int x, int h, int w, bool withshadow);
 
 /* (auto) size and (auto) position */
+#define SCREENLINES (getmaxy(stdscr))
+#define SCREENCOLS  (getmaxx(stdscr))
+
 int
-get_text_properties(struct bsddialog_conf *conf, char *text, int *maxword,
-    int *maxline, int *nlines);
+text_size(struct bsddialog_conf *conf, int rows, int cols, const char *text,
+    struct buttons *bs, int rowsnotext, int startwtext, int *htext, int *wtext);
 
 int widget_max_height(struct bsddialog_conf *conf);
 int widget_max_width(struct bsddialog_conf *conf);
 
 int
-set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w);
+widget_min_height(struct bsddialog_conf *conf, int htext, int minwidget,
+    bool withbuttons);
+
+int
+widget_min_width(struct bsddialog_conf *conf, int wtext, int minwidget,
+    struct buttons *bs);
+
+int
+set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h,
+    int *w);
 
 int
 set_widget_position(struct bsddialog_conf *conf, int *y, int *x, int h, int w);
 
 /* widget builders */
-int
-print_textpad(struct bsddialog_conf *conf, WINDOW *pad, int *rows, int cols,
-    char *text);
-
 enum elevation { RAISED, LOWERED };
 
 void
@@ -123,17 +113,17 @@ new_boxed_window(struct bsddialog_conf *conf, int y, int x, int rows, int cols,
     enum elevation elev);
 
 int
-new_widget_withtextpad(struct bsddialog_conf *conf, WINDOW **shadow,
-    WINDOW **widget, int y, int x, int h, int w, enum elevation elev,
-    WINDOW **textpad, int *htextpad, char *text, bool buttons);
+new_dialog(struct bsddialog_conf *conf, WINDOW **shadow, WINDOW **widget, int y,
+    int x, int h, int w, WINDOW **textpad, const char *text, struct buttons *bs,
+    bool shortcutbuttons);
 
 int
-update_widget_withtextpad(struct bsddialog_conf *conf, WINDOW *shadow,
-    WINDOW *widget, int h, int w, enum elevation elev, WINDOW *textpad,
-    int *htextpad, char *text, bool buttons);
+update_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
+    int y, int x, int h, int w, WINDOW *textpad, const char *text,
+    struct buttons *bs, bool shortcutbuttons);
 
 void
-end_widget_withtextpad(struct bsddialog_conf *conf, WINDOW *window, int h, int w,
-    WINDOW *textpad, WINDOW *shadow);
+end_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
+    WINDOW *textpad);
 
 #endif

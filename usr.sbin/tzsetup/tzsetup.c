@@ -127,13 +127,9 @@ xdialog_menu(char *title, char *cprompt, int height, int width,
 	}
 
 again:
-	conf.menu.default_item = listitems[choice].name;
 	conf.title = title;
 	result = bsddialog_menu(&conf, cprompt, height, width,
-	    menu_height, item_no, listitems, NULL);
-	for (i = 0; i < item_no; i++)
-		if (listitems[i].on)
-			choice = i;
+	    menu_height, item_no, listitems, &choice);
 	switch (result) {
 	case BSDDIALOG_ESC:
 		result = -1;
@@ -970,9 +966,12 @@ main(int argc, char **argv)
 
 	bsddialog_initconf(&conf);
 	conf.clear = true;
+	conf.key.enable_esc = true;
 
-	if (bsddialog_init() < 0)
+	if (bsddialog_init() == BSDDIALOG_ERROR) {
+		printf("Error bsddialog: %s\n", bsddialog_geterror());
 		return (1);
+	}
 
 	if (skiputc == 0) {
 		int yesno;

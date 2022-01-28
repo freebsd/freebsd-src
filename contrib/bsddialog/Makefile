@@ -1,7 +1,7 @@
-# Any copyright is dedicated to the Public Domain, see:
+# PUBLIC DOMAIN - NO WARRANTY, see:
 #     <http://creativecommons.org/publicdomain/zero/1.0/>
 #
-# Written by Alfonso Sabato Siciliano
+# Written in 2021 by Alfonso Sabato Siciliano
 
 OUTPUT=  bsddialog
 SOURCES= bsddialog.c
@@ -9,8 +9,19 @@ OBJECTS= ${SOURCES:.c=.o}
 LIBPATH= ${.CURDIR}/lib
 LIBBSDDIALOG= ${LIBPATH}/libbsddialog.so
 
-CFLAGS= -Wall -I${LIBPATH}
-LDFLAGS= -Wl,-rpath=${LIBPATH} -L${LIBPATH} -lbsddialog
+CFLAGS+= -I${LIBPATH} -std=gnu99 -Wno-format-zero-length \
+-fstack-protector-strong -Wsystem-headers -Werror -Wall -Wno-format-y2k -W \
+-Wno-unused-parameter -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith \
+-Wno-uninitialized -Wno-pointer-sign -Wno-empty-body -Wno-string-plus-int \
+-Wno-unused-const-variable -Wno-tautological-compare -Wno-unused-value \
+-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion \
+-Wno-unused-local-typedef -Wno-address-of-packed-member -Qunused-arguments
+# `make -DDEBUG`
+.if defined(DEBUG)
+CFLAGS= -g -Wall -I${LIBPATH}
+LIBDEBUG= -DDEBUG
+.endif
+LDFLAGS+= -Wl,-rpath=${LIBPATH} -L${LIBPATH} -lbsddialog
 
 BINDIR= /usr/local/bin
 MAN= ${OUTPUT}.1
@@ -26,11 +37,7 @@ ${OUTPUT}: ${LIBBSDDIALOG} ${OBJECTS}
 	${CC} ${LDFLAGS} ${OBJECTS} -o ${.PREFIX}
 
 ${LIBBSDDIALOG}:
-.if defined(PORTNCURSES)
-	make -C ${LIBPATH} -DPORTNCURSES
-.else
-	make -C ${LIBPATH}
-.endif
+	make -C ${LIBPATH} ${LIBDEBUG}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
