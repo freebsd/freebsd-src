@@ -261,12 +261,17 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	struct ufsmount *ump;
 	struct buf *bp, *nbp;
 	ufs_lbn_t lbn;
-	int error, passes;
+	int error, passes, wflag;
 	bool still_dirty, unlocked, wait;
 
 	ip = VTOI(vp);
 	bo = &vp->v_bufobj;
 	ump = VFSTOUFS(vp->v_mount);
+#ifdef WITNESS
+	wflag = IS_SNAPSHOT(ip) ? LK_NOWITNESS : 0;
+#else
+	wflag = 0;
+#endif
 
 	/*
 	 * When doing MNT_WAIT we must first flush all dependencies
@@ -318,9 +323,8 @@ loop:
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
 			BO_UNLOCK(bo);
 		} else if (wait) {
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) != 0) {
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
+			    LK_INTERLOCK | wflag, BO_LOCKPTR(bo)) != 0) {
 				BO_LOCK(bo);
 				bp->b_vflags &= ~BV_SCANNED;
 				goto next_locked;
