@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #ifndef WITHOUT_NLS
 #include <nl_types.h>
-nl_catd catalog;
+nl_catd catalog = (nl_catd)-1;
 #endif
 
 #define	OPTIONS	"bcCdfghik:Mmno:RrsS:t:T:uVz"
@@ -1011,6 +1011,10 @@ main(int argc, char **argv)
 	set_tmpdir();
 	set_sort_opts();
 
+#ifndef WITHOUT_NLS
+	catalog = catopen("sort", NL_CAT_LOCALE);
+#endif
+
 	fix_obsolete_keys(&argc, argv);
 
 	while (((c = getopt_long(argc, argv, OPTIONS, long_options, NULL))
@@ -1194,16 +1198,8 @@ main(int argc, char **argv)
 		argv = argv_from_file0;
 	}
 
-#ifndef WITHOUT_NLS
-	catalog = catopen("sort", NL_CAT_LOCALE);
-#endif
-
 	if (sort_opts_vals.cflag && sort_opts_vals.mflag)
 		errx(1, "%c:%c: %s", 'm', 'c', getstr(1));
-
-#ifndef WITHOUT_NLS
-	catclose(catalog);
-#endif
 
 	if (keys_num == 0) {
 		keys_num = 1;
@@ -1342,6 +1338,11 @@ main(int argc, char **argv)
 	}
 
 	sort_free(outfile);
+
+#ifndef WITHOUT_NLS
+	if (catalog != (nl_catd)-1)
+		catclose(catalog);
+#endif
 
 	return (result);
 }
