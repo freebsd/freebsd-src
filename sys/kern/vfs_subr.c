@@ -1934,22 +1934,8 @@ delmntque(struct vnode *vp)
 	MNT_IUNLOCK(mp);
 }
 
-static void
-insmntque_stddtr(struct vnode *vp, void *dtr_arg)
-{
-
-	vp->v_data = NULL;
-	vp->v_op = &dead_vnodeops;
-	vgone(vp);
-	vput(vp);
-}
-
-/*
- * Insert into list of vnodes for the new mount point, if available.
- */
-int
-insmntque1(struct vnode *vp, struct mount *mp,
-	void (*dtr)(struct vnode *, void *), void *dtr_arg)
+static int
+insmntque1_int(struct vnode *vp, struct mount *mp, bool dtr)
 {
 
 	KASSERT(vp->v_mount == NULL,
@@ -1974,8 +1960,12 @@ insmntque1(struct vnode *vp, struct mount *mp,
 	    (vp->v_vflag & VV_FORCEINSMQ) == 0) {
 		VI_UNLOCK(vp);
 		MNT_IUNLOCK(mp);
-		if (dtr != NULL)
-			dtr(vp, dtr_arg);
+		if (dtr) {
+			vp->v_data = NULL;
+			vp->v_op = &dead_vnodeops;
+			vgone(vp);
+			vput(vp);
+		}
 		return (EBUSY);
 	}
 	vp->v_mount = mp;
@@ -1989,11 +1979,21 @@ insmntque1(struct vnode *vp, struct mount *mp,
 	return (0);
 }
 
+/*
+ * Insert into list of vnodes for the new mount point, if available.
+ * insmntque() reclaims the vnode on insertion failure, insmntque1()
+ * leaves handling of the vnode to the caller.
+ */
 int
 insmntque(struct vnode *vp, struct mount *mp)
 {
+	return (insmntque1_int(vp, mp, true));
+}
 
-	return (insmntque1(vp, mp, insmntque_stddtr, NULL));
+int
+insmntque1(struct vnode *vp, struct mount *mp)
+{
+	return (insmntque1_int(vp, mp, false));
 }
 
 /*
