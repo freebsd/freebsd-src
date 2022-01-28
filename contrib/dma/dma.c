@@ -428,6 +428,9 @@ main(int argc, char **argv)
 	int nodot = 0, showq = 0, queue_only = 0, newaliases = 0;
 	int recp_from_header = 0;
 
+	if (argc == 0)
+		errx(EX_OSERR, "invalid argc");
+
 	set_username();
 
 	/*
