@@ -823,21 +823,6 @@ tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 }
 
 /*
- * Need to clear v_object for insmntque failure.
- */
-static void
-tmpfs_insmntque_dtr(struct vnode *vp)
-{
-
-	tmpfs_destroy_vobject(vp, vp->v_object);
-	vp->v_object = NULL;
-	vp->v_data = NULL;
-	vp->v_op = &dead_vnodeops;
-	vgone(vp);
-	vput(vp);
-}
-
-/*
  * Allocates a new vnode for the node node or returns a new reference to
  * an existing one if the node had already a vnode referencing it.  The
  * resulting locked vnode is returned in *vpp.
@@ -983,9 +968,15 @@ loop:
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
 
-	error = insmntque1(vp, mp, NULL, NULL);
+	error = insmntque1(vp, mp);
 	if (error != 0) {
-		tmpfs_insmntque_dtr(vp);
+		/* Need to clear v_object for insmntque failure. */
+		tmpfs_destroy_vobject(vp, vp->v_object);
+		vp->v_object = NULL;
+		vp->v_data = NULL;
+		vp->v_op = &dead_vnodeops;
+		vgone(vp);
+		vput(vp);
 		vp = NULL;
 	}
 
