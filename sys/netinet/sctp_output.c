@@ -7491,7 +7491,7 @@ dont_do_it:
 	if (chk->data == NULL) {
 		/* HELP, TSNH since we assured it would not above? */
 #ifdef INVARIANTS
-		panic("prepend failes HELP?");
+		panic("prepend fails HELP?");
 #else
 		SCTP_PRINTF("prepend fails HELP?\n");
 		sctp_free_a_chunk(stcb, chk, so_locked);
@@ -10421,7 +10421,7 @@ sctp_fill_in_rest:
 	/*-
 	 * Now populate the strseq list. This is done blindly
 	 * without pulling out duplicate stream info. This is
-	 * inefficent but won't harm the process since the peer will
+	 * inefficient but won't harm the process since the peer will
 	 * look at these in sequence and will thus release anything.
 	 * It could mean we exceed the PMTU and chop off some that
 	 * we could have included.. but this is unlikely (aka 1432/4
