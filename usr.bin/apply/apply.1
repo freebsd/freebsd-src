@@ -28,7 +28,7 @@
 .\"     @(#)apply.1	8.2 (Berkeley) 4/4/94
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2006
+.Dd January 28, 2022
 .Dt APPLY 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nm
 .Op Fl a Ar c
 .Op Fl d
-.Op Fl #
+.Op Cm - Ns Ar #
 .Ar command argument ...
 .Sh DESCRIPTION
 The
@@ -66,9 +66,9 @@ each execution of
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl #
+.It Cm - Ns Ar #
 Normally arguments are taken singly; the optional number
-.Fl #
+.Ar #
 specifies the number of arguments to be passed to
 .Ar command .
 If the number is zero,
