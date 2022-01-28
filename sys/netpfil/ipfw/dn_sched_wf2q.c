@@ -243,6 +243,8 @@ wf2qp_dequeue(struct dn_sch_inst *_si)
 	q = HEAP_TOP(sch)->object;
 	alg_fq = (struct wf2qp_queue *)q;
 	m = dn_dequeue(q);
+	if (m == NULL)
+		return NULL;
 	heap_extract(sch, NULL); /* Remove queue from heap. */
 	si->V += (uint64_t)(m->m_pkthdr.len) * si->inv_wsum;
 	alg_fq->S = alg_fq->F;  /* Update start time. */
