@@ -255,16 +255,12 @@ intr_lookup_source(int vector)
 }
 
 int
-intr_add_handler(const char *name, int vector, driver_filter_t filter,
+intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep,
     int domain)
 {
-	struct intsrc *isrc;
 	int error;
 
-	isrc = intr_lookup_source(vector);
-	if (isrc == NULL)
-		return (EINVAL);
 	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
 	    arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
@@ -303,13 +299,10 @@ intr_remove_handler(void *cookie)
 }
 
 int
-intr_config_intr(int vector, enum intr_trigger trig, enum intr_polarity pol)
+intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol)
 {
-	struct intsrc *isrc;
 
-	isrc = intr_lookup_source(vector);
-	if (isrc == NULL)
-		return (EINVAL);
 	return (isrc->is_pic->pic_config_intr(isrc, trig, pol));
 }
 
@@ -513,14 +506,10 @@ atpic_reset(void)
 
 /* Add a description to an active interrupt handler. */
 int
-intr_describe(u_int vector, void *ih, const char *descr)
+intr_describe(struct intsrc *isrc, void *ih, const char *descr)
 {
-	struct intsrc *isrc;
 	int error;
 
-	isrc = intr_lookup_source(vector);
-	if (isrc == NULL)
-		return (EINVAL);
 	error = intr_event_describe_handler(isrc->is_event, ih, descr);
 	if (error)
 		return (error);
