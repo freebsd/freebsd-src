@@ -2227,7 +2227,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 */
 	gp->orphan = g_raid_taste_orphan;
 	cp = g_new_consumer(gp);
-	cp->flags |= G_CF_DIRECT_RECEIVE;
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	if (g_attach(cp, pp) != 0)
 		goto ofail2;
 	if (g_access(cp, 1, 0, 0) != 0)
