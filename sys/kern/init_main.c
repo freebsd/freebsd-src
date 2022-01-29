@@ -568,7 +568,7 @@ proc0_init(void *dummy __unused)
 
 	/* Create the file descriptor table. */
 	p->p_pd = pdinit(NULL, false);
-	p->p_fd = fdinit(NULL, false, NULL);
+	p->p_fd = fdinit();
 	p->p_fdtol = NULL;
 
 	/* Create the limits structures. */
