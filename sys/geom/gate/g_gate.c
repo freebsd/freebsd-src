@@ -861,11 +861,10 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 				mtx_unlock(&sc->sc_queue_mtx);
 				goto start_end;
 			}
-			if (msleep(sc, &sc->sc_queue_mtx,
-			    PPAUSE | PDROP | PCATCH, "ggwait", 0) != 0) {
-				ggio->gctl_error = ECANCELED;
+			error = msleep(sc, &sc->sc_queue_mtx,
+				PPAUSE | PDROP | PCATCH, "ggwait", 0);
+			if (error != 0)
 				goto start_end;
-			}
 		}
 		ggio->gctl_cmd = bp->bio_cmd;
 		if (bp->bio_cmd == BIO_WRITE &&
