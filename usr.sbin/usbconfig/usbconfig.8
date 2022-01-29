@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 21, 2021
+.Dd January 29, 2022
 .Dt USBCONFIG 8
 .Os
 .Sh NAME
@@ -35,36 +35,46 @@
 .Op Fl a Ar addr
 .Op Fl i Ar interface_index
 .Op Fl v
-.Op cmds...
+.Op Ar cmds ...
 .Nm
-.Fl d Ar [[/dev/]ugen]<unit>.<addr>
+.Fl d
+.Sm off
+.Oo Oo Cm /dev/ Oc Cm ugen Oc Ar unit Cm \&. Ar addr
+.Sm on
 .Op Fl i Ar interface_index
 .Op Fl v
-.Op cmds...
+.Op Ar cmds ...
 .Sh DESCRIPTION
 The
 .Nm
 utility is used to configure and dump information about the USB subsystem.
 .Pp
 The options are as follows:
-.Bl -tag -width "        "
+.Bl -tag -width "-u unit"
 .It Fl u Ar unit
 Limit device range to USB devices connected to the given USBUS unit.
 .It Fl a Ar addr
 Limit device range to the given USB device index.
 Should only be used in conjunction with the unit argument.
-.It Fl d Ar [[/dev/]ugen]<unit>.<addr>
+.It Xo
+.Fl d
+.Sm off
+.Oo Oo Cm /dev/ Oc Cm ugen Oc Ar unit Cm \&. Ar addr
+.Sm on
+.Xc
 Limit device range to USB devices connected to the given unit and address.
-The unit and address coordinates may be prefixed by the lowercased word "ugen",
+The unit and address coordinates may be prefixed by the lowercased word
+.Cm ugen ,
 or the full path name
-.Pa /dev/ugen .
+.Cm /dev/ugen .
 .It Fl h
 Show help and available commands.
 .It Fl i Ar interface_index
 Specify interface index as indicated by the command description.
-If this argument is not specified a value of zero will be used for the interface index.
+If this argument is not specified
+a value of zero will be used for the interface index.
 .It Fl v
-Shortcut to activate the
+Activate the
 .Cm dump_device_desc ,
 .Cm dump_curr_config_desc ,
 and
@@ -179,15 +189,15 @@ List all connected USB devices and their attached interface drivers:
 .Pp
 Dump device and configuration descriptors for device on USB bus 1 at address 2:
 .Pp
-.Dl usbconfig ugen1.2 dump_all_desc
+.Dl usbconfig -d ugen1.2 dump_all_desc
 .Pp
 Dump HID descriptor for device on USB bus 1 at address 2:
 .Pp
-.Dl usbconfig ugen1.2 do_request 0x81 0x06 0x2200 0 0x100
+.Dl usbconfig -d ugen1.2 do_request 0x81 0x06 0x2200 0 0x100
 .Pp
 Power off the device on USB bus 1 at address 2:
 .Pp
-.Dl usbconfig ugen1.2 power_off
+.Dl usbconfig -d ugen1.2 power_off
 .Sh SEE ALSO
 .Xr usb 4 ,
 .Xr usb_quirk 4 ,
