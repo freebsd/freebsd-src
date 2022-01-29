@@ -276,19 +276,18 @@ intr_event_update(struct intr_event *ie)
 }
 
 int
-intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
-    void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
-    const char *fmt, ...)
+intr_event_initv_(struct intr_event *ie, void (*pre_ithread)(void *),
+    void (*post_ithread)(void *), void (*post_filter)(void *),
+    int (*assign_cpu)(void *, int), u_int irq, int flags,
+    const char *fmt, __va_list ap)
 {
-	struct intr_event *ie;
-	va_list ap;
+
+	MPASS(ie != NULL && !intr_event_is_valid(ie));
 
 	/* The only valid flag during creation is IE_SOFT. */
 	if ((flags & ~IE_SOFT) != 0)
 		return (EINVAL);
-	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
-	ie->ie_source = source;
+	ie->ie_source = ie;
 	ie->ie_pre_ithread = pre_ithread;
 	ie->ie_post_ithread = post_ithread;
 	ie->ie_post_filter = post_filter;
@@ -299,17 +298,58 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
-	va_start(ap, fmt);
 	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
-	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
 	mtx_lock(&event_lock);
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
 	mtx_unlock(&event_lock);
-	if (event != NULL)
-		*event = ie;
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
 	return (0);
+}
+
+int
+intr_event_init_(struct intr_event *ie, void (*pre_ithread)(void *),
+    void (*post_ithread)(void *), void (*post_filter)(void *),
+    int (*assign_cpu)(void *, int), u_int irq, int flags,
+    const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = intr_event_initv_(ie, pre_ithread, post_ithread, post_filter,
+	    assign_cpu, irq, flags, fmt, ap);
+	va_end(ap);
+
+	return (res);
+}
+
+int
+intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
+    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
+    const char *fmt, ...)
+{
+	struct intr_event *ie;
+	va_list ap;
+	int res;
+
+	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
+	va_start(ap, fmt);
+	res = intr_event_initv_(ie, pre_ithread, post_ithread, post_filter,
+	    assign_cpu, irq, flags, fmt, ap);
+	va_end(ap);
+
+	if (res != 0) {
+		free(ie, M_ITHREAD);
+		return (res);
+	}
+
+	ie->ie_source = source;
+
+	if (event != NULL)
+		*event = ie;
+	return (res);
 }
 
 /*
@@ -527,10 +567,10 @@ intr_getaffinity(int irq, int mode, void *m)
 }
 
 int
-intr_event_destroy_(struct intr_event *ie)
+intr_event_shutdown_(struct intr_event *ie)
 {
 
-	MPASS(ie != NULL);
+	MPASS(ie != NULL && intr_event_is_valid(ie));
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
@@ -545,15 +585,32 @@ intr_event_destroy_(struct intr_event *ie)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
-	free(ie, M_ITHREAD);
 	return (0);
+}
+
+int
+intr_event_destroy_(struct intr_event *ie)
+{
+	int res;
+
+	MPASS(ie != NULL && intr_event_is_valid(ie));
+
+	res = intr_event_shutdown_(ie);
+	if (res == 0)
+		free(ie, M_ITHREAD);
+	return (res);
 }
 
 int
 intr_event_destroy(struct intr_event *ie)
 {
 
-	return (ie != NULL ? intr_event_destroy_(ie) : EINVAL);
+	if (ie == NULL)
+		return (EINVAL);
+
+	MPASS(intr_event_is_valid(ie));
+
+	return (intr_event_destroy_(ie));
 }
 
 static struct intr_thread *
