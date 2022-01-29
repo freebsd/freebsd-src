@@ -275,19 +275,16 @@ intr_event_update(struct intr_event *ie)
 	CTR2(KTR_INTR, "%s: updated %s", __func__, ie->ie_fullname);
 }
 
-int
-intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
-    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+static int
+intr_event_initv(struct intr_event *ie, void *source, int flags,
+    u_int irq, void (*pre_ithread)(void *), void (*post_ithread)(void *),
     void (*post_filter)(void *), int (*assign_cpu)(void *, int),
-    const char *fmt, ...)
+    const char *fmt, __va_list ap)
 {
-	struct intr_event *ie;
-	va_list ap;
 
 	/* The only valid flag during creation is IE_SOFT. */
 	if ((flags & ~IE_SOFT) != 0)
 		return (EINVAL);
-	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
 	ie->ie_source = source;
 	ie->ie_pre_ithread = pre_ithread;
 	ie->ie_post_ithread = post_ithread;
@@ -299,17 +296,39 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
-	va_start(ap, fmt);
 	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
-	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
 	mtx_lock(&event_lock);
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
 	mtx_unlock(&event_lock);
-	if (event != NULL)
-		*event = ie;
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
 	return (0);
+}
+
+int
+intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
+    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
+    const char *fmt, ...)
+{
+	struct intr_event *ie;
+	va_list ap;
+	int res;
+
+	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
+	va_start(ap, fmt);
+	res = intr_event_initv(ie, source, flags, irq, pre_ithread,
+	    post_ithread, post_filter, assign_cpu, fmt, ap);
+	va_end(ap);
+
+	if (res != 0) {
+		free(ie, M_ITHREAD);
+		return (res);
+	}
+
+	if (event != NULL)
+		*event = ie;
+	return (res);
 }
 
 /*
