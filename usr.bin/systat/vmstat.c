@@ -290,7 +290,7 @@ fetchkre(void)
 	time(&now);
 	tp = localtime(&now);
 	(void) strftime(buf, sizeof(buf),
-			d_first ? "%e %b %R" : "%b %e %R", tp);
+			d_first ? "%e %b %T" : "%b %e %T", tp);
 	getinfo(&s);
 }
 
