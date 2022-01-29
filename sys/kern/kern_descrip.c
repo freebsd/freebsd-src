@@ -2150,15 +2150,10 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
  * If fdp is not NULL, return with it shared locked.
  */
 struct filedesc *
-fdinit(struct filedesc *fdp, bool prepfiles, int *lastfile)
+fdinit(void)
 {
 	struct filedesc0 *newfdp0;
 	struct filedesc *newfdp;
-
-	if (prepfiles)
-		MPASS(lastfile != NULL);
-	else
-		MPASS(lastfile == NULL);
 
 	newfdp0 = uma_zalloc(filedesc0_zone, M_WAITOK | M_ZERO);
 	newfdp = &newfdp0->fd_fd;
@@ -2170,24 +2165,6 @@ fdinit(struct filedesc *fdp, bool prepfiles, int *lastfile)
 	newfdp->fd_map = newfdp0->fd_dmap;
 	newfdp->fd_files = (struct fdescenttbl *)&newfdp0->fd_dfiles;
 	newfdp->fd_files->fdt_nfiles = NDFILE;
-
-	if (fdp == NULL)
-		return (newfdp);
-
-	FILEDESC_SLOCK(fdp);
-	if (!prepfiles) {
-		FILEDESC_SUNLOCK(fdp);
-		return (newfdp);
-	}
-
-	for (;;) {
-		*lastfile = fdlastfile(fdp);
-		if (*lastfile < newfdp->fd_nfiles)
-			break;
-		FILEDESC_SUNLOCK(fdp);
-		fdgrowtable(newfdp, *lastfile + 1);
-		FILEDESC_SLOCK(fdp);
-	}
 
 	return (newfdp);
 }
@@ -2368,7 +2345,16 @@ fdcopy(struct filedesc *fdp)
 
 	MPASS(fdp != NULL);
 
-	newfdp = fdinit(fdp, true, &lastfile);
+	newfdp = fdinit();
+	FILEDESC_SLOCK(fdp);
+	for (;;) {
+		lastfile = fdlastfile(fdp);
+		if (lastfile < newfdp->fd_nfiles)
+			break;
+		FILEDESC_SUNLOCK(fdp);
+		fdgrowtable(newfdp, lastfile + 1);
+		FILEDESC_SLOCK(fdp);
+	}
 	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= lastfile; ++i) {
