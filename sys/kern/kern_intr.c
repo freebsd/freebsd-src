@@ -275,20 +275,19 @@ intr_event_update(struct intr_event *ie)
 	CTR2(KTR_INTR, "%s: updated %s", __func__, ie->ie_fullname);
 }
 
-int
-intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
-    void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
-    const char *fmt, ...)
+static int
+intr_event_initv(struct intr_event *ie, void (*pre_ithread)(void *),
+    void (*post_ithread)(void *), void (*post_filter)(void *),
+    int (*assign_cpu)(void *, int), u_int irq, int flags,
+    const char *fmt, __va_list ap)
 {
-	struct intr_event *ie;
-	va_list ap;
+
+	MPASS(ie != NULL);
+	MPASS(!mtx_initialized(&ie->ie_lock));
 
 	/* The only valid flag during creation is IE_SOFT. */
 	if ((flags & ~IE_SOFT) != 0)
 		return (EINVAL);
-	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
-	ie->ie_source = source;
 	ie->ie_pre_ithread = pre_ithread;
 	ie->ie_post_ithread = post_ithread;
 	ie->ie_post_filter = post_filter;
@@ -299,17 +298,58 @@ intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
 	CK_SLIST_INIT(&ie->ie_handlers);
 	mtx_init(&ie->ie_lock, "intr event", NULL, MTX_DEF);
 
-	va_start(ap, fmt);
 	vsnprintf(ie->ie_name, sizeof(ie->ie_name), fmt, ap);
-	va_end(ap);
 	strlcpy(ie->ie_fullname, ie->ie_name, sizeof(ie->ie_fullname));
 	mtx_lock(&event_lock);
 	TAILQ_INSERT_TAIL(&event_list, ie, ie_list);
 	mtx_unlock(&event_lock);
-	if (event != NULL)
-		*event = ie;
 	CTR2(KTR_INTR, "%s: created %s", __func__, ie->ie_name);
 	return (0);
+}
+
+int
+intr_event_init(struct intr_event *ie, void (*pre_ithread)(void *),
+    void (*post_ithread)(void *), void (*post_filter)(void *),
+    int (*assign_cpu)(void *, int), u_int irq, int flags,
+    const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = intr_event_initv(ie, pre_ithread, post_ithread, post_filter,
+	    assign_cpu, irq, flags, fmt, ap);
+	va_end(ap);
+
+	return (res);
+}
+
+int
+intr_event_create(struct intr_event **event, void *source, int flags, u_int irq,
+    void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
+    const char *fmt, ...)
+{
+	struct intr_event *ie;
+	va_list ap;
+	int res;
+
+	ie = malloc(sizeof(struct intr_event), M_ITHREAD, M_WAITOK | M_ZERO);
+	va_start(ap, fmt);
+	res = intr_event_initv(ie, pre_ithread, post_ithread, post_filter,
+	    assign_cpu, irq, flags, fmt, ap);
+	va_end(ap);
+
+	if (res != 0) {
+		free(ie, M_ITHREAD);
+		return (res);
+	}
+
+	ie->ie_source = source;
+
+	if (event != NULL)
+		*event = ie;
+	return (res);
 }
 
 /*
@@ -529,9 +569,23 @@ intr_getaffinity(int irq, int mode, void *m)
 int
 intr_event_destroy(struct intr_event *ie)
 {
+	int res;
 
 	if (ie == NULL)
 		return (EINVAL);
+
+	res = intr_event_shutdown(ie);
+	if (res == 0)
+		free(ie, M_ITHREAD);
+	return (res);
+}
+
+int
+intr_event_shutdown(struct intr_event *ie)
+{
+
+	MPASS(ie != NULL);
+	MPASS(mtx_initialized(&ie->ie_lock));
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
@@ -546,7 +600,6 @@ intr_event_destroy(struct intr_event *ie)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
-	free(ie, M_ITHREAD);
 	return (0);
 }
 
@@ -737,11 +790,11 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 }
 
 /*
- * Return the ie_source field from the intr_event an intr_handler is
+ * Return the intr_event cast to an interrupt_t an intr_handler is
  * associated with.
  */
-void *
-intr_handler_source(void *cookie)
+interrupt_t *
+intr_handler_interrupt(void *cookie)
 {
 	struct intr_handler *ih;
 	struct intr_event *ie;
@@ -753,7 +806,19 @@ intr_handler_source(void *cookie)
 	KASSERT(ie != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt event",
 	    ih->ih_name));
-	return (ie->ie_source);
+	return ((interrupt_t *)ie);
+}
+
+/*
+ * Return the ie_source field from the intr_event an intr_handler is
+ * associated with.
+ */
+void *
+intr_handler_source(void *cookie)
+{
+	void *ie = intr_handler_interrupt(cookie);
+
+	return (((struct intr_event *)ie)->ie_source);
 }
 
 /*
