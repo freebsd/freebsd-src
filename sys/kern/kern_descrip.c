@@ -2356,13 +2356,13 @@ fdcopy(struct filedesc *fdp)
 		FILEDESC_SLOCK(fdp);
 	}
 	/* copy all passable descriptors (i.e. not kqueue) */
-	newfdp->fd_freefile = -1;
+	newfdp->fd_freefile = fdp->fd_freefile;
 	for (i = 0; i <= lastfile; ++i) {
 		ofde = &fdp->fd_ofiles[i];
 		if (ofde->fde_file == NULL ||
 		    (ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0 ||
 		    !fhold(ofde->fde_file)) {
-			if (newfdp->fd_freefile == -1)
+			if (newfdp->fd_freefile == fdp->fd_freefile)
 				newfdp->fd_freefile = i;
 			continue;
 		}
@@ -2371,8 +2371,7 @@ fdcopy(struct filedesc *fdp)
 		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
 		fdused_init(newfdp, i);
 	}
-	if (newfdp->fd_freefile == -1)
-		newfdp->fd_freefile = i;
+	MPASS(newfdp->fd_freefile != -1);
 	FILEDESC_SUNLOCK(fdp);
 	return (newfdp);
 }
