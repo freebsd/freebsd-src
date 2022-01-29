@@ -44,6 +44,7 @@
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <sys/callout.h>
+#include <sys/kassert.h>
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
 
@@ -53,9 +54,6 @@ __NULLABILITY_PRAGMA_PUSH
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
-extern const char *panicstr;	/* panic message */
-extern bool panicked;
-#define	KERNEL_PANICKED()	__predict_false(panicked)
 extern char version[];		/* system version */
 extern char compiler_version[];	/* compiler version */
 extern char copyright[];	/* system copyright */
@@ -86,85 +84,7 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
 		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
 		VM_GUEST_PARALLELS, VM_LAST };
 
-#ifdef	INVARIANTS		/* The option is always available */
-#define	VNASSERT(exp, vp, msg) do {					\
-	if (__predict_false(!(exp))) {					\
-		vn_printf(vp, "VNASSERT failed: %s not true at %s:%d (%s)\n",\
-		   #exp, __FILE__, __LINE__, __func__);	 		\
-		kassert_panic msg;					\
-	}								\
-} while (0)
-#define	VNPASS(exp, vp)	do {						\
-	const char *_exp = #exp;					\
-	VNASSERT(exp, vp, ("condition %s not met at %s:%d (%s)",	\
-	    _exp, __FILE__, __LINE__, __func__));			\
-} while (0)
-#define	__assert_unreachable() \
-	panic("executing segment marked as unreachable at %s:%d (%s)\n", \
-	    __FILE__, __LINE__, __func__)
-#else
-#define	VNASSERT(exp, vp, msg) do { \
-} while (0)
-#define	VNPASS(exp, vp) do { \
-} while (0)
-#define	__assert_unreachable()	__unreachable()
-#endif
-
-#ifndef CTASSERT	/* Allow lint to override */
-#define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
-#endif
 #endif /* KERNEL */
-
-/*
- * These functions need to be declared before the KASSERT macro is invoked in
- * !KASSERT_PANIC_OPTIONAL builds, so their declarations are sort of out of
- * place compared to other function definitions in this header.  On the other
- * hand, this header is a bit disorganized anyway.
- */
-void	panic(const char *, ...) __dead2 __printflike(1, 2);
-void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
-
-
-#if defined(_STANDALONE)
-struct ucred;
-/*
- * Until we have more experience with KASSERTS that are called
- * from the boot loader, they are off. The bootloader does this
- * a little differently than the kernel (we just call printf atm).
- * we avoid most of the common functions in the boot loader, so
- * declare printf() here too.
- */
-int	printf(const char *, ...) __printflike(1, 2);
-#  define kassert_panic printf
-#else /* !_STANDALONE */
-#  if defined(WITNESS) || defined(INVARIANT_SUPPORT)
-#    ifdef KASSERT_PANIC_OPTIONAL
-void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
-#    else
-#      define kassert_panic	panic
-#    endif /* KASSERT_PANIC_OPTIONAL */
-#  endif /* defined(WITNESS) || defined(INVARIANT_SUPPORT) */
-#endif /* _STANDALONE */
-
-#if defined(INVARIANTS) || defined(_STANDALONE)
-#define	KASSERT(exp,msg) do {						\
-	if (__predict_false(!(exp)))					\
-		kassert_panic msg;					\
-} while (0)
-#else /* !INVARIANTS && !_STANDALONE */
-#define	KASSERT(exp,msg) do { \
-} while (0)
-#endif /* INVARIANTS || _STANDALONE */
-
-/*
- * Helpful macros for quickly coming up with assertions with informative
- * panic messages.
- */
-#define MPASS(ex)		MPASS4(ex, #ex, __FILE__, __LINE__)
-#define MPASS2(ex, what)	MPASS4(ex, what, __FILE__, __LINE__)
-#define MPASS3(ex, file, line)	MPASS4(ex, #ex, file, line)
-#define MPASS4(ex, what, file, line)					\
-	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
 
 /*
  * Align variables.
@@ -173,39 +93,14 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define	__read_frequently	__section(".data.read_frequently")
 #define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
 				    __section(".data.exclusive_cache_line")
+#if defined(_STANDALONE)
+struct ucred;
+#endif
+
 #ifdef _KERNEL
 #include <sys/param.h>		/* MAXCPU */
 #include <sys/pcpu.h>		/* curthread */
 #include <sys/kpilite.h>
-
-/*
- * Assert that a pointer can be loaded from memory atomically.
- *
- * This assertion enforces stronger alignment than necessary.  For example,
- * on some architectures, atomicity for unaligned loads will depend on
- * whether or not the load spans multiple cache lines.
- */
-#define	ASSERT_ATOMIC_LOAD_PTR(var, msg)				\
-	KASSERT(sizeof(var) == sizeof(void *) &&			\
-	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
-
-/*
- * Assert that a thread is in critical(9) section.
- */
-#define	CRITICAL_ASSERT(td)						\
-	KASSERT((td)->td_critnest >= 1, ("Not in critical section"))
-
-/*
- * If we have already panic'd and this is the thread that called
- * panic(), then don't block on any mutexes but silently succeed.
- * Otherwise, the kernel will deadlock since the scheduler isn't
- * going to run the thread that holds any lock we need.
- */
-#define	SCHEDULER_STOPPED_TD(td)  ({					\
-	MPASS((td) == curthread);					\
-	__predict_false((td)->td_stopsched);				\
-})
-#define	SCHEDULER_STOPPED() SCHEDULER_STOPPED_TD(curthread)
 
 extern int osreldate;
 
