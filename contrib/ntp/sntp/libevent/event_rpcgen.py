@@ -811,7 +811,7 @@ class EntryStruct(Entry):
             '  had_error = 1;',
             '  goto done;',
             '}',
-            'done:'
+            'done:',
             'if (tmp != NULL)',
             '  evbuffer_free(tmp);',
             'if (had_error) {',
