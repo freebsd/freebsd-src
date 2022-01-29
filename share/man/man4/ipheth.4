@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2019
+.Dd January 29, 2022
 .Dt IPHETH 4
 .Os
 .Sh NAME
@@ -98,7 +98,7 @@ and its configuration index is 0
 .Pp
 Secondly, check what other configurations are available for the device:
 .Bd -literal -offset 2n
-.Li # Ic usbconfig 0.2 dump_all_config_desc | awk '/^ Conf/{print} /iConf/{print}'
+.Li # Ic usbconfig -d 0.2 dump_all_config_desc | awk '/^ Conf/{print} /iConf/{print}'
  Configuration index 0
     iConfiguration = 0x0005  <PTP>
  Configuration index 1
@@ -113,7 +113,7 @@ In this example, there are 4 different configurations available.
 The configuration with index 3 seems to be related to Ethernet.
 It is time to configure the device:
 .Bd -literal -offset 2n
-.Li # Ic usbconfig 0.2 set_config 3
+.Li # Ic usbconfig -d 0.2 set_config 3
 .Li # Ic usbconfig | grep 'Apple.*cfg=3'
 ugen0.2: <Apple Inc. iPhone> at usbus0, cfg=3 md=HOST spd=HIGH (480Mbps) pwr=ON (500mA)
 .Ed
