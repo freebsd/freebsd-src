@@ -152,7 +152,6 @@ vlan_parse_ethervid(const char *name)
 		strlcpy(params.vlr_parent, ifname, IFNAMSIZ);
 	else
 		errx(1, "ambiguous vlan specification");
-	printf("CR: %s %d\n", params.vlr_parent, params.vlr_tag);
 }
 
 static void
