@@ -47,7 +47,7 @@ statistic (fp, path_fcodes)
 	long lines, chars, size, big, zwerg, umlaut;
 	register u_char *p, *s;
 	register int c;
-	int count;
+	int count, longest_path;
 	int error = 0;
 	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN];
 
@@ -56,7 +56,7 @@ statistic (fp, path_fcodes)
 		s[c] = check_bigram_char(getc(fp));
 	}
 
-	lines = chars = big = zwerg = umlaut = 0;
+	lines = chars = big = zwerg = umlaut = longest_path = 0;
 	size = NBG + NBG;
 
 	for (c = getc(fp), count = 0; c != EOF; size++) {
@@ -91,6 +91,8 @@ statistic (fp, path_fcodes)
 		p++;
 		lines++;
 		chars += (p - path);
+		if ((p - path) > longest_path)
+			longest_path = p - path;
 	}
 
 	(void)printf("\nDatabase: %s\n", path_fcodes);
@@ -105,6 +107,7 @@ statistic (fp, path_fcodes)
 	(void)printf("Bigram characters: %ld, ", big);
 	(void)printf("Integers: %ld, ", zwerg);
 	(void)printf("8-Bit characters: %ld\n", umlaut);
+	printf("Longest path: %d\n", longest_path - 1);
 
 	/* non zero exit on corrupt database */
 	if (error)
