@@ -74,10 +74,6 @@ struct fdescenttbl {
 };
 #define	fd_seqc(fdt, fd)	(&(fdt)->fdt_ofiles[(fd)].fde_seqc)
 
-/*
- * This structure is used for the management of descriptors.  It may be
- * shared by multiple processes.
- */
 #define NDSLOTTYPE	u_long
 
 /*
@@ -87,20 +83,24 @@ struct fdescenttbl {
  * Check pwd_* routines for usage.
  */
 struct pwd {
-	volatile u_int pwd_refcount;
-	struct	vnode *pwd_cdir;		/* current directory */
-	struct	vnode *pwd_rdir;		/* root directory */
-	struct	vnode *pwd_jdir;		/* jail root directory */
+	u_int		pwd_refcount;
+	struct	vnode	*pwd_cdir;	/* current directory */
+	struct	vnode	*pwd_rdir;	/* root directory */
+	struct	vnode	*pwd_jdir;	/* jail root directory */
 };
 typedef SMR_POINTER(struct pwd *) smrpwd_t;
 
 struct pwddesc {
 	struct mtx	pd_lock;	/* protects members of this struct */
 	smrpwd_t	pd_pwd;		/* directories */
-	volatile u_int	pd_refcount;
+	u_int		pd_refcount;
 	u_short		pd_cmask;	/* mask for file creation */
 };
 
+/*
+ * This structure is used for the management of descriptors.  It may be
+ * shared by multiple processes.
+ */
 struct filedesc {
 	struct	fdescenttbl *fd_files;	/* open files table */
 	NDSLOTTYPE *fd_map;		/* bitmap of free fds */
