@@ -98,7 +98,7 @@ and its configuration index is 0
 .Pp
 Secondly, check what other configurations are available for the device:
 .Bd -literal -offset 2n
-.Li # Ic usbconfig -d 0.2 dump_all_config_desc | awk '/^ Conf/{print} /iConf/{print}'
+.Li # Ic usbconfig -d 0.2 dump_all_config_desc | grep -E '(^ Conf|iConf)'
  Configuration index 0
     iConfiguration = 0x0005  <PTP>
  Configuration index 1
