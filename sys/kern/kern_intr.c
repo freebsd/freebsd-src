@@ -304,6 +304,20 @@ intr_event_initv(struct intr_event *ie, device_t pic, u_int irq, int flags,
 	return (0);
 }
 
+int
+intr_event_init(struct intr_event *ie, device_t pic, u_int irq, int flags,
+    const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = intr_event_initv(ie, pic, irq, flags, fmt, ap);
+	va_end(ap);
+
+	return (res);
+}
+
 struct	intr_event_compat {
 	struct	intr_event	ie;
 	void			(*ie_pre_ithread)(void *);
@@ -617,9 +631,23 @@ intr_getaffinity(int irq, int mode, void *m)
 int
 intr_event_destroy(struct intr_event *ie)
 {
+	int res;
 
 	if (ie == NULL)
 		return (EINVAL);
+
+	res = intr_event_shutdown(ie);
+	if (res == 0)
+		free(ie, M_ITHREAD);
+	return (res);
+}
+
+int
+intr_event_shutdown(struct intr_event *ie)
+{
+
+	MPASS(ie != NULL);
+	MPASS(mtx_initialized(&ie->ie_lock));
 
 	mtx_lock(&event_lock);
 	mtx_lock(&ie->ie_lock);
@@ -634,7 +662,6 @@ intr_event_destroy(struct intr_event *ie)
 		ithread_destroy(ie->ie_thread);
 	mtx_unlock(&ie->ie_lock);
 	mtx_destroy(&ie->ie_lock);
-	free(ie, M_ITHREAD);
 	return (0);
 }
 
