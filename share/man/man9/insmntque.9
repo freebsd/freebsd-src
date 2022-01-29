@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2008
+.Dd January 29, 2022
 .Dt INSMNTQUE 9
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Ft int
 .Fn insmntque "struct vnode *vp" "struct mount *mp"
 .Ft int
-.Fn insmntque1 "struct vnode *vp" "struct mount *mp" "void (*dtr)(struct vnode *, void *)" "void *dtr_arg"
+.Fn insmntque1 "struct vnode *vp" "struct mount *mp"
 .Sh DESCRIPTION
 The
 .Fn insmntque
@@ -48,32 +48,36 @@ This includes updating
 .Va v_mount
 for the vnode, and inserting the vnode into the mount's vnode list.
 .Pp
-The mount reference count is incremented for each vnode added to the
+The indirect mount reference count, maintained as the count of the
+vnodes owned by it, is incremented for each vnode added to the
 mount, and that reference is decremented by
 .Xr vgone 9 .
 .Pp
 The mount's interlock is held while the vnode is inserted.
-For MP-safe file systems, the vnode must be exclusively locked.
+The vnode must be exclusively locked.
 .Pp
 On failure,
 .Fn insmntque
-calls
+resets vnode' operation vector to the vector of
+.Xr deadfs 9 ,
+clears
+.Va v_data ,
+and then calls
 .Xr vgone 9
-on the supplied vnode, and then drops the vnode lock and reference.
+and
+.Xr vput 9 .
 If more elaborated cleanup after
 .Fn insmntque
 failure is needed, the
 .Fn insmntque1
 function may be used instead.
-The
-.Fa dtr
-argument is a pointer to a function that is called on failure.
-This function may perform any custom cleanup.
-The vnode pointer is supplied as the first argument to
-.Fa dtr .
-The
-.Fa dtr_arg
-argument is the second, supplying any additional context needed.
+It does not do any cleanup following a failure, leaving all
+the work to the caller.
+In particular, the operation vector
+.Va v_op
+and
+.Va v_data
+fields of the vnode are kept intact.
 .Sh RETURN VALUES
 The
 .Fn insmntque
