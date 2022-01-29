@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 .\"
-.\" Copyright (c) 2018-2021 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2018-2022 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2021
+.Dd January 29, 2022
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -119,6 +119,42 @@ The following command does something different.
 .Pp
 It is good to know this command.
 .El
+.Ed
+.El
+.Ss Lists
+.Bl -dash -width ""
+.It
+The
+.Fl width
+argument to the
+.Sy \&.Bl
+macro should match the length of the longest item in the list, e.g.:
+.Bd -literal -offset indent
+\&.Bl -tag -width "-a address"
+\&.It Fl a Ar address
+Set the address.
+\&.It Fl v
+Print the version.
+\&.El
+.Ed
+.Pp
+In case the longest item is too long and hurts readability,
+the recommendation is to set
+the
+.Fl width
+argument
+to
+.Ql indent ,
+e.g.:
+.Bd -literal -offset indent
+\&.Bl -tag -width "indent"
+\&.It Cm build
+Build the port.
+\&.It Cm install
+Install the port.
+\&.It Fl install-missing-packages
+Install the missing packages.
+\&.El
 .Ed
 .El
 .Ss Synopsis Formatting
