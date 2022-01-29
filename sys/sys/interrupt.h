@@ -31,8 +31,8 @@
 
 #include <sys/_interrupt.h>
 #include <sys/_lock.h>
-#include <sys/_mutex.h>
 #include <sys/ck.h>
+#include <sys/mutex.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/types.h>
@@ -179,6 +179,16 @@ int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
+int	intr_event_initv(struct intr_event *ie, void (*pre_ithread)(void *),
+	    void (*post_ithread)(void *), void (*post_filter)(void *),
+	    int (*assign_cpu)(void *, int), u_int irq, int flags,
+	    const char *fmt, __va_list ap) __printflike(8, 0)
+	    __result_use_check;
+int	intr_event_init(struct intr_event *ie, void (*pre_ithread)(void *),
+	    void (*post_ithread)(void *), void (*post_filter)(void *),
+	    int (*assign_cpu)(void *, int), u_int irq, int flags,
+	    const char *fmt, ...) __printflike(8, 9)
+	    __result_use_check;
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, u_int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
@@ -186,6 +196,7 @@ int	intr_event_create(struct intr_event **event, void *source,
 	    __printflike(9, 10);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
+int	intr_event_shutdown(struct intr_event *ie) __result_use_check;
 int	intr_event_destroy(struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(struct intr_event *ie,
@@ -200,6 +211,14 @@ int	swi_add(struct intr_event **eventp, const char *name,
 	    void **cookiep);
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
+
+#ifdef	_KERNEL
+static inline bool
+intr_event_is_valid(struct intr_event *ie)
+{
+	return (mtx_initialized(&ie->ie_lock));
+}
+#endif
 
 static inline bool
 intr_event_has_handlers(struct intr_event *ie)
