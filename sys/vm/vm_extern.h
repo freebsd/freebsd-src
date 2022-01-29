@@ -42,7 +42,7 @@ struct vnode;
 struct vmem;
 
 #ifdef _KERNEL
-#include <sys/systm.h>
+#include <sys/kassert.h>
 
 struct cdev;
 struct cdevsw;
