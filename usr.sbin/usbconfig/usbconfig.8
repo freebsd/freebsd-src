@@ -31,18 +31,18 @@
 .Nd configure the USB subsystem
 .Sh SYNOPSIS
 .Nm
-.Op Fl u Ar unit
+.Op Fl v
 .Op Fl a Ar addr
 .Op Fl i Ar interface_index
-.Op Fl v
+.Op Fl u Ar unit
 .Op Ar cmds ...
 .Nm
 .Fl d
 .Sm off
 .Oo Oo Cm /dev/ Oc Cm ugen Oc Ar unit Cm \&. Ar addr
 .Sm on
-.Op Fl i Ar interface_index
 .Op Fl v
+.Op Fl i Ar interface_index
 .Op Ar cmds ...
 .Sh DESCRIPTION
 The
@@ -51,8 +51,6 @@ utility is used to configure and dump information about the USB subsystem.
 .Pp
 The options are as follows:
 .Bl -tag -width "-u unit"
-.It Fl u Ar unit
-Limit device range to USB devices connected to the given USBUS unit.
 .It Fl a Ar addr
 Limit device range to the given USB device index.
 Should only be used in conjunction with the unit argument.
@@ -73,6 +71,8 @@ Show help and available commands.
 Specify interface index as indicated by the command description.
 If this argument is not specified
 a value of zero will be used for the interface index.
+.It Fl u Ar unit
+Limit device range to USB devices connected to the given USBUS unit.
 .It Fl v
 Activate the
 .Cm dump_device_desc ,
