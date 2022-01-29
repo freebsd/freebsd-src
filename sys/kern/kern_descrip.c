@@ -2347,7 +2347,7 @@ pdunshare(struct thread *td)
 
 	p = td->td_proc;
 	/* Not shared. */
-	if (p->p_pd->pd_refcount == 1)
+	if (refcount_load(&p->p_pd->pd_refcount) == 1)
 		return;
 
 	pdp = pdcopy(p->p_pd);
