@@ -42,6 +42,8 @@ struct vnode;
 struct vmem;
 
 #ifdef _KERNEL
+#include <sys/kassert.h>
+
 struct cdev;
 struct cdevsw;
 struct domainset;

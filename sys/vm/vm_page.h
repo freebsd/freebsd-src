@@ -472,8 +472,7 @@ extern struct mtx_padalign pa_lock[];
 
 #ifdef _KERNEL
 
-#include <sys/systm.h>
-
+#include <sys/kassert.h>
 #include <machine/atomic.h>
 
 /*
