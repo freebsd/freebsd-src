@@ -182,6 +182,16 @@ int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
+int	intr_event_initv(struct intr_event *ie, void (*pre_ithread)(void *),
+	    void (*post_ithread)(void *), void (*post_filter)(void *),
+	    int (*assign_cpu)(void *, int), u_int irq, int flags,
+	    const char *fmt, __va_list ap) __printflike(8, 0)
+	    __result_use_check;
+int	intr_event_init(struct intr_event *ie, void (*pre_ithread)(void *),
+	    void (*post_ithread)(void *), void (*post_filter)(void *),
+	    int (*assign_cpu)(void *, int), u_int irq, int flags,
+	    const char *fmt, ...) __printflike(8, 9)
+	    __result_use_check;
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, u_int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
@@ -189,12 +199,14 @@ int	intr_event_create(struct intr_event **event, void *source,
 	    __printflike(9, 10);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
+int	intr_event_shutdown(struct intr_event *ie) __result_use_check;
 int	intr_event_destroy(struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
 int	intr_getaffinity(int irq, int mode, void *mask);
+interrupt_t *intr_handler_interrupt(void *cookie);
 void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, int mode, const void *mask);
 void	_intr_drain(int irq);  /* LinuxKPI only. */
