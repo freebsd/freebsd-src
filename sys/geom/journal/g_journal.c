@@ -2481,6 +2481,7 @@ g_journal_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/* This orphan function should be never called. */
 	gp->orphan = g_journal_taste_orphan;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error == 0) {
 		error = g_journal_metadata_read(cp, &md);

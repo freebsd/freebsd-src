@@ -3269,6 +3269,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 */
 	gp->orphan = g_mirror_taste_orphan;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error == 0) {
 		error = g_mirror_read_metadata(cp, &md);
