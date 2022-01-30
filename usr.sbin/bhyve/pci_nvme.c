@@ -1773,7 +1773,8 @@ nvme_opc_format_nvm(struct pci_nvme_softc* sc, struct nvme_command* command,
 			pci_nvme_status_genc(&compl->status,
 			    NVME_SC_INTERNAL_DEVICE_ERROR);
 			pci_nvme_release_ioreq(sc, req);
-		}
+		} else
+			compl->status = NVME_NO_STATUS;
 	}
 
 	return (1);
@@ -1900,8 +1901,8 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			if ((sc->ctrldata.oacs &
 			    (1 << NVME_CTRLR_DATA_OACS_FORMAT_SHIFT)) == 0) {
 				pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
+				break;
 			}
-			compl.status = NVME_NO_STATUS;
 			nvme_opc_format_nvm(sc, cmd, &compl);
 			break;
 		default:
