@@ -116,6 +116,9 @@ static int nvme_debug = 0;
 #define NVME_NO_STATUS		0xffff
 #define NVME_COMPLETION_VALID(c)	((c).status != NVME_NO_STATUS)
 
+/* Reported temperature in Kelvin (i.e. room temperature) */
+#define NVME_TEMPERATURE 296
+
 /* helpers */
 
 /* Convert a zero-based value into a one-based value */
@@ -392,6 +395,10 @@ static void nvme_feature_invalid_cb(struct pci_nvme_softc *,
     struct nvme_feature_obj *,
     struct nvme_command *,
     struct nvme_completion *);
+static void nvme_feature_temperature(struct pci_nvme_softc *,
+    struct nvme_feature_obj *,
+    struct nvme_command *,
+    struct nvme_completion *);
 static void nvme_feature_num_queues(struct pci_nvme_softc *,
     struct nvme_feature_obj *,
     struct nvme_command *,
@@ -523,6 +530,7 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 
 	/* Warning Composite Temperature Threshold */
 	cd->wctemp = 0x0157;
+	cd->cctemp = 0x0157;
 
 	cd->sqes = (6 << NVME_CTRLR_DATA_SQES_MAX_SHIFT) |
 	    (6 << NVME_CTRLR_DATA_SQES_MIN_SHIFT);
@@ -658,7 +666,7 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 	sc->write_dunits_remainder = 999;
 
 	/* Set nominal Health values checked by implementations */
-	sc->health_log.temperature = 310;
+	sc->health_log.temperature = NVME_TEMPERATURE;
 	sc->health_log.available_spare = 100;
 	sc->health_log.available_spare_threshold = 10;
 }
@@ -672,13 +680,15 @@ pci_nvme_init_features(struct pci_nvme_softc *sc)
 		switch (fid) {
 		case NVME_FEAT_ARBITRATION:
 		case NVME_FEAT_POWER_MANAGEMENT:
-		case NVME_FEAT_TEMPERATURE_THRESHOLD:
 		case NVME_FEAT_INTERRUPT_COALESCING: //XXX
 		case NVME_FEAT_WRITE_ATOMICITY:
 			/* Mandatory but no special handling required */
 		//XXX hang - case NVME_FEAT_PREDICTABLE_LATENCY_MODE_CONFIG:
 		//XXX hang - case NVME_FEAT_HOST_BEHAVIOR_SUPPORT:
 		//		  this returns a data buffer
+			break;
+		case NVME_FEAT_TEMPERATURE_THRESHOLD:
+			sc->feat[fid].set = nvme_feature_temperature;
 			break;
 		case NVME_FEAT_ERROR_RECOVERY:
 			sc->feat[fid].namespace_specific = true;
@@ -1005,7 +1015,6 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 	sc->regs.vs = NVME_REV(1,4);	/* NVMe v1.4 */
 
 	sc->regs.cc = 0;
-	sc->regs.csts = 0;
 
 	assert(sc->submit_queues != NULL);
 
@@ -1030,6 +1039,12 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 
 	pci_nvme_aer_destroy(sc);
 	pci_nvme_aen_destroy(sc);
+
+	/*
+	 * Clear CSTS.RDY last to prevent the host from enabling Controller
+	 * before cleanup completes
+	 */
+	sc->regs.csts = 0;
 }
 
 static void
@@ -1630,7 +1645,53 @@ nvme_feature_iv_config(struct pci_nvme_softc *sc,
 			pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
 		}
 	}
+}
 
+#define NVME_TEMP_THRESH_OVER	0
+#define NVME_TEMP_THRESH_UNDER	1
+static void
+nvme_feature_temperature(struct pci_nvme_softc *sc,
+    struct nvme_feature_obj *feat,
+    struct nvme_command *command,
+    struct nvme_completion *compl)
+{
+	uint16_t	tmpth;	/* Temperature Threshold */
+	uint8_t		tmpsel; /* Threshold Temperature Select */
+	uint8_t		thsel;  /* Threshold Type Select */
+	bool		set_crit = false;
+
+	tmpth  = command->cdw11 & 0xffff;
+	tmpsel = (command->cdw11 >> 16) & 0xf;
+	thsel  = (command->cdw11 >> 20) & 0x3;
+
+	DPRINTF("%s: tmpth=%#x tmpsel=%#x thsel=%#x", __func__, tmpth, tmpsel, thsel);
+
+	/* Check for unsupported values */
+	if (((tmpsel != 0) && (tmpsel != 0xf)) ||
+	    (thsel > NVME_TEMP_THRESH_UNDER)) {
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return;
+	}
+
+	if (((thsel == NVME_TEMP_THRESH_OVER)  && (NVME_TEMPERATURE >= tmpth)) ||
+	    ((thsel == NVME_TEMP_THRESH_UNDER) && (NVME_TEMPERATURE <= tmpth)))
+		set_crit = true;
+
+	pthread_mutex_lock(&sc->mtx);
+	if (set_crit)
+		sc->health_log.critical_warning |=
+		    NVME_CRIT_WARN_ST_TEMPERATURE;
+	else
+		sc->health_log.critical_warning &=
+		    ~NVME_CRIT_WARN_ST_TEMPERATURE;
+	pthread_mutex_unlock(&sc->mtx);
+
+	if (set_crit)
+		pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_SMART,
+		    sc->health_log.critical_warning);
+
+
+	DPRINTF("%s: set_crit=%c critical_warning=%#x status=%#x", __func__, set_crit ? 'T':'F', sc->health_log.critical_warning, compl->status);
 }
 
 static void
