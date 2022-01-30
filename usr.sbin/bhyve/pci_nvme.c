@@ -744,9 +744,6 @@ pci_nvme_aer_add(struct pci_nvme_softc *sc, uint16_t cid)
 {
 	struct pci_nvme_aer *aer = NULL;
 
-	if (pci_nvme_aer_limit_reached(sc))
-		return (-1);
-
 	aer = calloc(1, sizeof(struct pci_nvme_aer));
 	if (aer == NULL)
 		return (-1);
