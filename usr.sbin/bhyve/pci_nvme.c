@@ -561,6 +561,8 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->fna = NVME_CTRLR_DATA_FNA_FORMAT_ALL_MASK <<
 	    NVME_CTRLR_DATA_FNA_FORMAT_ALL_SHIFT;
 
+	cd->vwc = NVME_CTRLR_DATA_VWC_ALL_NO << NVME_CTRLR_DATA_VWC_ALL_SHIFT;
+
 	cd->power_state[0].mp = 10;
 }
 
