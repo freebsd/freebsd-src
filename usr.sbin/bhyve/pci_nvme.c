@@ -508,7 +508,7 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 
 	cd->mdts = NVME_MDTS;	/* max data transfer size (2^mdts * CAP.MPSMIN) */
 
-	cd->ver = 0x00010300;
+	cd->ver = NVME_REV(1,4);
 
 	cd->oacs = 1 << NVME_CTRLR_DATA_OACS_FORMAT_SHIFT;
 	cd->acl = 2;
@@ -988,7 +988,7 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 
 	sc->regs.cap_hi = 1 << NVME_CAP_HI_REG_CSS_NVM_SHIFT;
 
-	sc->regs.vs = 0x00010300;	/* NVMe v1.3 */
+	sc->regs.vs = NVME_REV(1,4);	/* NVMe v1.4 */
 
 	sc->regs.cc = 0;
 	sc->regs.csts = 0;
