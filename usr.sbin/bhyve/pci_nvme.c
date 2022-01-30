@@ -1482,6 +1482,12 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 	switch (command->cdw10 & 0xFF) {
 	case 0x00: /* return Identify Namespace data structure */
+		/* Global NS only valid with NS Management */
+		if (command->nsid == NVME_GLOBAL_NAMESPACE_TAG) {
+			pci_nvme_status_genc(&status,
+			    NVME_SC_INVALID_NAMESPACE_OR_FORMAT);
+			break;
+		}
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->nsdata, sizeof(sc->nsdata),
 		    NVME_COPY_TO_PRP);
