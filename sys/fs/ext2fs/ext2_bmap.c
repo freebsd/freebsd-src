@@ -308,17 +308,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	if (bp)
 		bqrelse(bp);
 
-	/*
-	 * Since this is FFS independent code, we are out of scope for the
-	 * definitions of BLK_NOCOPY and BLK_SNAP, but we do know that they
-	 * will fall in the range 1..um_seqinc, so we use that test and
-	 * return a request for a zeroed out buffer if attempts are made
-	 * to read a BLK_NOCOPY or BLK_SNAP block.
-	 */
-	if ((ip->i_flags & SF_SNAPSHOT) && daddr > 0 && daddr < ump->um_seqinc) {
-		*bnp = -1;
-		return (0);
-	}
 	*bnp = blkptrtodb(ump, daddr);
 	if (*bnp == 0) {
 		*bnp = -1;
@@ -356,7 +345,7 @@ ext2_bmap_seekdata(struct vnode *vp, off_t *offp)
 	mp = vp->v_mount;
 	ump = VFSTOEXT2(mp);
 
-	if (vp->v_type != VREG || (ip->i_flags & SF_SNAPSHOT) != 0)
+	if (vp->v_type != VREG)
 		return (EINVAL);
 	if (*offp < 0 || *offp >= ip->i_size)
 		return (ENXIO);
