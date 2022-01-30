@@ -1936,6 +1936,13 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			}
 			nvme_opc_format_nvm(sc, cmd, &compl);
 			break;
+		case NVME_OPC_SECURITY_SEND:
+		case NVME_OPC_SECURITY_RECEIVE:
+		case NVME_OPC_SANITIZE:
+		case NVME_OPC_GET_LBA_STATUS:
+			/* Valid but unsupported opcodes */
+			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_FIELD);
+			break;
 		default:
 			DPRINTF("0x%x command is not implemented",
 			    cmd->opc);
