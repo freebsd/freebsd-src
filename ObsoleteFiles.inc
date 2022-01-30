@@ -10080,7 +10080,7 @@ OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.0/lib
 OLD_DIRS+=usr/lib/clang/3.7.0
 # 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
-OLD_LIBS+=usr/lib/libelf.so.2
+MOVED_LIBS+=usr/lib/libelf.so.2
 # 20151115: Fox bad upgrade scheme
 OLD_FILES+=usr/share/locale/zh_CN.GB18030/zh_Hans_CN.GB18030
 OLD_FILES+=usr/share/locale/zh_CN.GB2312/zh_Hans_CN.GB2312
