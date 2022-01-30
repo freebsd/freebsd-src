@@ -1329,6 +1329,7 @@ static int
 nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
+	uint64_t logoff;
 	uint32_t logsize;
 	uint8_t logpage = command->cdw10 & 0xFF;
 
@@ -1342,15 +1343,28 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	 */
 	logsize = ((command->cdw11 << 16) | (command->cdw10 >> 16)) + 1;
 	logsize *= sizeof(uint32_t);
+	logoff  = ((uint64_t)(command->cdw13) << 32) | command->cdw12;
 
 	switch (logpage) {
 	case NVME_LOG_ERROR:
+		if (logoff >= sizeof(sc->err_log)) {
+			pci_nvme_status_genc(&compl->status,
+			    NVME_SC_INVALID_FIELD);
+			break;
+		}
+
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->err_log,
-		    MIN(logsize, sizeof(sc->err_log)),
+		    command->prp2, (uint8_t *)&sc->err_log + logoff,
+		    MIN(logsize - logoff, sizeof(sc->err_log)),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_HEALTH_INFORMATION:
+		if (logoff >= sizeof(sc->health_log)) {
+			pci_nvme_status_genc(&compl->status,
+			    NVME_SC_INVALID_FIELD);
+			break;
+		}
+
 		pthread_mutex_lock(&sc->mtx);
 		memcpy(&sc->health_log.data_units_read, &sc->read_data_units,
 		    sizeof(sc->health_log.data_units_read));
@@ -1363,20 +1377,32 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 		pthread_mutex_unlock(&sc->mtx);
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->health_log,
-		    MIN(logsize, sizeof(sc->health_log)),
+		    command->prp2, (uint8_t *)&sc->health_log + logoff,
+		    MIN(logsize - logoff, sizeof(sc->health_log)),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_FIRMWARE_SLOT:
+		if (logoff >= sizeof(sc->fw_log)) {
+			pci_nvme_status_genc(&compl->status,
+			    NVME_SC_INVALID_FIELD);
+			break;
+		}
+
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->fw_log,
-		    MIN(logsize, sizeof(sc->fw_log)),
+		    command->prp2, (uint8_t *)&sc->fw_log + logoff,
+		    MIN(logsize - logoff, sizeof(sc->fw_log)),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_CHANGED_NAMESPACE:
+		if (logoff >= sizeof(sc->ns_log)) {
+			pci_nvme_status_genc(&compl->status,
+			    NVME_SC_INVALID_FIELD);
+			break;
+		}
+
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->ns_log,
-		    MIN(logsize, sizeof(sc->ns_log)),
+		    command->prp2, (uint8_t *)&sc->ns_log + logoff,
+		    MIN(logsize - logoff, sizeof(sc->ns_log)),
 		    NVME_COPY_TO_PRP);
 		memset(&sc->ns_log, 0, sizeof(sc->ns_log));
 		break;
