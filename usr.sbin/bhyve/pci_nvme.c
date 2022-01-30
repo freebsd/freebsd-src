@@ -287,6 +287,13 @@ struct pci_nvme_aen {
 	bool		posted;
 };
 
+/*
+ * By default, enable all Asynchrnous Event Notifications:
+ *     SMART / Health Critical Warnings
+ *     Namespace Attribute Notices
+ */
+#define PCI_NVME_AEN_DEFAULT_MASK	0x11f
+
 typedef enum {
 	NVME_CNTRLTYPE_IO = 1,
 	NVME_CNTRLTYPE_DISCOVERY = 2,
@@ -410,6 +417,10 @@ static void nvme_feature_num_queues(struct pci_nvme_softc *,
     struct nvme_command *,
     struct nvme_completion *);
 static void nvme_feature_iv_config(struct pci_nvme_softc *,
+    struct nvme_feature_obj *,
+    struct nvme_command *,
+    struct nvme_completion *);
+static void nvme_feature_async_event(struct pci_nvme_softc *,
     struct nvme_feature_obj *,
     struct nvme_command *,
     struct nvme_completion *);
@@ -710,8 +721,9 @@ pci_nvme_init_features(struct pci_nvme_softc *sc)
 			sc->feat[fid].set = nvme_feature_iv_config;
 			break;
 		case NVME_FEAT_ASYNC_EVENT_CONFIGURATION:
+			sc->feat[fid].set = nvme_feature_async_event;
 			/* Enable all AENs by default */
-			sc->feat[fid].cdw11 = 0x31f;
+			sc->feat[fid].cdw11 = PCI_NVME_AEN_DEFAULT_MASK;
 			break;
 		default:
 			sc->feat[fid].set = nvme_feature_invalid_cb;
@@ -1655,6 +1667,18 @@ nvme_feature_iv_config(struct pci_nvme_softc *sc,
 			pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
 		}
 	}
+}
+
+#define NVME_ASYNC_EVENT_ENDURANCE_GROUP		(0x4000)
+static void
+nvme_feature_async_event(struct pci_nvme_softc *sc,
+    struct nvme_feature_obj *feat,
+    struct nvme_command *command,
+    struct nvme_completion *compl)
+{
+
+	if (command->cdw11 & NVME_ASYNC_EVENT_ENDURANCE_GROUP)
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 }
 
 #define NVME_TEMP_THRESH_OVER	0
