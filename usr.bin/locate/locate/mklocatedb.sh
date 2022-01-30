@@ -45,6 +45,7 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 # utilities to built locate database
 : ${bigram:=locate.bigram}
 : ${code:=locate.code}
+: ${locate:=locate}
 : ${sort:=sort}
 
 sort_opt="-u -T $TMPDIR -S 20%"
@@ -66,9 +67,9 @@ if [ X"$1" = "X-presort" ]; then
     # This scheme avoid large temporary files in /tmp
 
     $code $bigrams > $filelist
-    locate -d $filelist / | $bigram | $sort -nr | \
+    $locate -d $filelist / | $bigram | $sort -nr | \
       awk 'NR <= 128 && /^[ \t]*[1-9][0-9]*[ \t]+..$/ { printf("%s", substr($0, length($0)-1, 2)) }' > $bigrams
-    locate -d $filelist / | $code $bigrams
+    $locate -d $filelist / | $code $bigrams
 else
     $sort $sort_opt > $filelist
     $bigram < $filelist | $sort -nr | \
