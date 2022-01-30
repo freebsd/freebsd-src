@@ -2103,8 +2103,8 @@ pci_nvme_stats_write_read_update(struct pci_nvme_softc *sc, uint8_t opc,
 }
 
 /*
- * Check if the combination of Starting LBA (slba) and Number of Logical
- * Blocks (nlb) exceeds the range of the underlying storage.
+ * Check if the combination of Starting LBA (slba) and number of blocks
+ * exceeds the range of the underlying storage.
  *
  * Because NVMe specifies the SLBA in blocks as a uint64_t and blockif stores
  * the capacity in bytes as a uint64_t, care must be taken to avoid integer
@@ -2112,7 +2112,7 @@ pci_nvme_stats_write_read_update(struct pci_nvme_softc *sc, uint8_t opc,
  */
 static bool
 pci_nvme_out_of_range(struct pci_nvme_blockstore *nvstore, uint64_t slba,
-    uint32_t nlb)
+    uint32_t nblocks)
 {
 	size_t	offset, bytes;
 
@@ -2121,10 +2121,10 @@ pci_nvme_out_of_range(struct pci_nvme_blockstore *nvstore, uint64_t slba,
 		return (true);
 
 	offset = slba << nvstore->sectsz_bits;
-	bytes = nlb << nvstore->sectsz_bits;
+	bytes = nblocks << nvstore->sectsz_bits;
 
 	/* Overflow check of Number of Logical Blocks */
-	if ((nvstore->size - offset) < bytes)
+	if ((nvstore->size <= offset) || ((nvstore->size - offset) < bytes))
 		return (true);
 
 	return (false);
@@ -2433,7 +2433,8 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 	nblocks = (cmd->cdw12 & 0xFFFF) + 1;
 
 	if (pci_nvme_out_of_range(nvstore, lba, nblocks)) {
-		WPRINTF("%s command would exceed LBA range", __func__);
+		WPRINTF("%s command would exceed LBA range(slba=%#lx nblocks=%#lx)",
+		    __func__, lba, nblocks);
 		pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
 		goto out;
 	}
