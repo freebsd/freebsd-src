@@ -9,26 +9,7 @@ For the import of sendmail, the following directories were renamed:
 
 Imported using the instructions at:
 
-http://www.freebsd.org/doc/en_US.ISO8859-1/articles/committers-guide/subversion-primer.html
-
-Then merged using:
-
-% set FSVN=svn+ssh://repo.freebsd.org/base
-% svn checkout $FSVN/head/contrib/sendmail head
-% cd head
-### Replace XXXXXX with import revision number in next command:
-% svn merge -c rXXXXXX --accept=postpone '^/vendor/sendmail/dist' .
-% svn resolve --accept working cf/cf/Build \
-    cf/cf/generic-{bsd4.4,hpux{9,10},linux,mpeix,nextstep3.3,osf1,solaris,sunos4.1,ultrix4}.cf \
-    devtools doc/op/op.ps editmap/editmap.0 mail.local/mail.local.0 mailstats/mailstats.0 \
-    makemap/makemap.0 praliases/praliases.0 rmail/rmail.0 smrsh/smrsh.0 \
-    src/{aliases,mailq,newaliases,sendmail}.0 vacation/vacation.0
-% svn propset -R svn:keywords FreeBSD=%H .
-% svn propdel svn:keywords libmilter/docs/*.jpg
-% svn diff --no-diff-deleted --old=$FSVN/vendor/sendmail/dist --new=.
-% svn status
-% svn diff
-% svn commit
+https://docs.freebsd.org/en/articles/committers-guide/#git-primer
 
 After importing, bump the version of src/etc/sendmail/freebsd*mc
 so mergemaster will merge /etc/mail/freebsd*cf by making a minor
