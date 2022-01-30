@@ -1660,6 +1660,11 @@ nvme_opc_set_features(struct pci_nvme_softc *sc, struct nvme_command *command,
 	}
 	feat = &sc->feat[fid];
 
+	if (feat->namespace_specific && (nsid == NVME_GLOBAL_NAMESPACE_TAG)) {
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return (1);
+	}
+
 	if (!feat->namespace_specific &&
 	    !((nsid == 0) || (nsid == NVME_GLOBAL_NAMESPACE_TAG))) {
 		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
