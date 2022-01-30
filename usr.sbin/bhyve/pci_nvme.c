@@ -1798,12 +1798,16 @@ nvme_opc_set_features(struct pci_nvme_softc *sc, struct nvme_command *command,
 	return (0);
 }
 
+#define NVME_FEATURES_SEL_SUPPORTED	0x3
+#define NVME_FEATURES_NS_SPECIFIC	(1 << 1)
+
 static int
 nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
 	struct nvme_feature_obj *feat;
 	uint8_t fid = command->cdw10 & 0xFF;
+	uint8_t sel = (command->cdw10 >> 8) & 0x7;
 
 	DPRINTF("%s: Feature ID 0x%x (%s)", __func__, fid, nvme_fid_to_name(fid));
 
@@ -1822,7 +1826,10 @@ nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	}
 
 	if (compl->status == NVME_SC_SUCCESS) {
-		compl->cdw0 = feat->cdw11;
+		if ((sel == NVME_FEATURES_SEL_SUPPORTED) && feat->namespace_specific)
+			compl->cdw0 = NVME_FEATURES_NS_SPECIFIC;
+		else
+			compl->cdw0 = feat->cdw11;
 	}
 
 	return (0);
