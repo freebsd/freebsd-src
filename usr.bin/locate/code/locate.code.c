@@ -144,7 +144,8 @@ main(int argc, char *argv[])
 		err(1, "%s", argv[0]);
 
 	/* First copy bigram array to stdout. */
-	(void)fgets(bigrams, BGBUFSIZE + 1, fp);
+	if (fgets(bigrams, BGBUFSIZE + 1, fp) == NULL)
+		err(1, "get bigram array");
 
 	if (fwrite(bigrams, 1, BGBUFSIZE, stdout) != BGBUFSIZE)
 		err(1, "stdout");
@@ -246,9 +247,11 @@ main(int argc, char *argv[])
 			oldpath = buf2;
 		}
 	}
+
 	/* Non-zero status if there were errors */
 	if (fflush(stdout) != 0 || ferror(stdout))
-		exit(1);
+		errx(1, "stdout");
+
 	exit(0);
 }
 
