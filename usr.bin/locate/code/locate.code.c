@@ -144,8 +144,10 @@ main(int argc, char *argv[])
 		err(1, "%s", argv[0]);
 
 	/* First copy bigram array to stdout. */
-	if (fgets(bigrams, BGBUFSIZE + 1, fp) == NULL)
-		err(1, "get bigram array");
+	if (fgets(bigrams, BGBUFSIZE + 1, fp) == NULL) {
+		if (!feof(fp) || ferror(fp))
+			err(1, "get bigram array");
+	}
 
 	if (fwrite(bigrams, 1, BGBUFSIZE, stdout) != BGBUFSIZE)
 		err(1, "stdout");
