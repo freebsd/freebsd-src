@@ -1952,10 +1952,6 @@ unionfs_lock(struct vop_lock1_args *ap)
 	if ((revlock = unionfs_get_llt_revlock(vp, flags)) == 0)
 		panic("unknown lock type: 0x%x", flags & LK_TYPE_MASK);
 
-	if ((flags & LK_TYPE_MASK) != LK_DOWNGRADE &&
-	    (vp->v_iflag & VI_OWEINACT) != 0)
-		flags |= LK_NOWAIT;
-
 	/*
 	 * During unmount, the root vnode lock may be taken recursively,
 	 * because it may share the same v_vnlock field as the vnode covered by
