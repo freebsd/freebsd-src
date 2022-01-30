@@ -59,7 +59,7 @@ void g_do_wither(void);
 
 /* geom_subr.c */
 extern struct class_list_head g_classes;
-extern char *g_wait_event, *g_wait_sim, *g_wait_up, *g_wait_down;
+extern char *g_wait_event, *g_wait_up, *g_wait_down;
 void g_wither_washer(void);
 
 /* geom_io.c */

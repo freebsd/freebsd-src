@@ -71,7 +71,7 @@ SDT_PROVIDER_DEFINE(geom);
 
 struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
-char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
+char *g_wait_event, *g_wait_up, *g_wait_down;
 
 struct g_hh00 {
 	struct g_class		*mp;
