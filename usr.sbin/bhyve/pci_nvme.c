@@ -666,21 +666,38 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 static void
 pci_nvme_init_features(struct pci_nvme_softc *sc)
 {
+	enum nvme_feature	fid;
 
-	sc->feat[0].set = nvme_feature_invalid_cb;
-	sc->feat[0].get = nvme_feature_invalid_cb;
-
-	sc->feat[NVME_FEAT_LBA_RANGE_TYPE].namespace_specific = true;
-	sc->feat[NVME_FEAT_ERROR_RECOVERY].namespace_specific = true;
-	sc->feat[NVME_FEAT_NUMBER_OF_QUEUES].set = nvme_feature_num_queues;
-	sc->feat[NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION].set =
-	    nvme_feature_iv_config;
-	/* Enable all AENs by default */
-	sc->feat[NVME_FEAT_ASYNC_EVENT_CONFIGURATION].cdw11 = 0x31f;
-	sc->feat[NVME_FEAT_PREDICTABLE_LATENCY_MODE_CONFIG].get =
-	    nvme_feature_invalid_cb;
-	sc->feat[NVME_FEAT_PREDICTABLE_LATENCY_MODE_WINDOW].get =
-	    nvme_feature_invalid_cb;
+	for (fid = 0; fid < NVME_FID_MAX; fid++) {
+		switch (fid) {
+		case NVME_FEAT_ARBITRATION:
+		case NVME_FEAT_POWER_MANAGEMENT:
+		case NVME_FEAT_TEMPERATURE_THRESHOLD:
+		case NVME_FEAT_INTERRUPT_COALESCING: //XXX
+		case NVME_FEAT_WRITE_ATOMICITY:
+			/* Mandatory but no special handling required */
+		//XXX hang - case NVME_FEAT_PREDICTABLE_LATENCY_MODE_CONFIG:
+		//XXX hang - case NVME_FEAT_HOST_BEHAVIOR_SUPPORT:
+		//		  this returns a data buffer
+			break;
+		case NVME_FEAT_ERROR_RECOVERY:
+			sc->feat[fid].namespace_specific = true;
+			break;
+		case NVME_FEAT_NUMBER_OF_QUEUES:
+			sc->feat[fid].set = nvme_feature_num_queues;
+			break;
+		case NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION:
+			sc->feat[fid].set = nvme_feature_iv_config;
+			break;
+		case NVME_FEAT_ASYNC_EVENT_CONFIGURATION:
+			/* Enable all AENs by default */
+			sc->feat[fid].cdw11 = 0x31f;
+			break;
+		default:
+			sc->feat[fid].set = nvme_feature_invalid_cb;
+			sc->feat[fid].get = nvme_feature_invalid_cb;
+		}
+	}
 }
 
 static void
@@ -1937,11 +1954,14 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 		case NVME_OPC_SECURITY_RECEIVE:
 		case NVME_OPC_SANITIZE:
 		case NVME_OPC_GET_LBA_STATUS:
+			DPRINTF("%s command OPC=%#x (unsupported)", __func__,
+			    cmd->opc);
 			/* Valid but unsupported opcodes */
 			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_FIELD);
 			break;
 		default:
-			DPRINTF("0x%x command is not implemented",
+			DPRINTF("%s command OPC=%#X (not implemented)",
+			    __func__,
 			    cmd->opc);
 			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
 		}
