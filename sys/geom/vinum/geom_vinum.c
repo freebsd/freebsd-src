@@ -599,6 +599,7 @@ gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	sc = gp->softc;
 
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	if (g_attach(cp, pp) != 0) {
 		g_destroy_consumer(cp);
 		return (NULL);

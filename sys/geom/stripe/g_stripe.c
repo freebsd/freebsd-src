@@ -954,6 +954,7 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->access = g_stripe_access;
 	gp->orphan = g_stripe_orphan;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error == 0) {
 		error = g_stripe_read_metadata(cp, &md);
