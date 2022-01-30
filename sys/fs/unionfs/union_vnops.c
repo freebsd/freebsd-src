@@ -76,8 +76,8 @@
 #endif
 
 #define KASSERT_UNIONFS_VNODE(vp) \
-	KASSERT(((vp)->v_op == &unionfs_vnodeops), \
-	    ("unionfs: it is not unionfs-vnode"))
+	VNASSERT(((vp)->v_op == &unionfs_vnodeops), vp, \
+	    ("%s: non-unionfs vnode", __func__))
 
 static int
 unionfs_lookup(struct vop_cachedlookup_args *ap)
@@ -1918,8 +1918,6 @@ unionfs_lock(struct vop_lock1_args *ap)
 	int		interlock;
 	int		uhold;
 
-	KASSERT_UNIONFS_VNODE(ap->a_vp);
-
 	/*
 	 * TODO: rework the unionfs locking scheme.
 	 * It's not guaranteed to be safe to blindly lock two vnodes on
@@ -1945,6 +1943,9 @@ unionfs_lock(struct vop_lock1_args *ap)
 	unp = VTOUNIONFS(vp);
 	if (unp == NULL)
 		goto unionfs_lock_null_vnode;
+
+	KASSERT_UNIONFS_VNODE(ap->a_vp);
+
 	lvp = unp->un_lowervp;
 	uvp = unp->un_uppervp;
 
