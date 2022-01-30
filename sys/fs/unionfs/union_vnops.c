@@ -1957,8 +1957,11 @@ unionfs_lock(struct vop_lock1_args *ap)
 		flags |= LK_NOWAIT;
 
 	/*
-	 * Sometimes, lower or upper is already exclusive locked.
-	 * (ex. vfs_domount: mounted vnode is already locked.)
+	 * During unmount, the root vnode lock may be taken recursively,
+	 * because it may share the same v_vnlock field as the vnode covered by
+	 * the unionfs mount.  The covered vnode is locked across VFS_UNMOUNT(),
+	 * and the same lock may be taken recursively here during vflush()
+	 * issued by unionfs_unmount().
 	 */
 	if ((flags & LK_TYPE_MASK) == LK_EXCLUSIVE &&
 	    (vp->v_vflag & VV_ROOT) != 0)

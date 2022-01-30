@@ -442,7 +442,16 @@ unionfs_noderem(struct vnode *vp)
 	int		count;
 	int		writerefs;
 
-	KASSERT(vp->v_vnlock->lk_recurse == 0,
+	/*
+	 * The root vnode lock may be recursed during forcible, because
+	 * it may share the same lock as the unionfs mount's covered vnode,
+	 * which is locked across VFS_UNMOUNT().  This lock will then be
+	 * recursively taken during the vflush() issued by unionfs_unmount().
+	 * But we still only need to lock the unionfs lock once, because only
+	 * one of those lock operations was taken against a unionfs vnode and
+	 * will be undone against a unionfs vnode.
+	 */
+	KASSERT(vp->v_vnlock->lk_recurse == 0 || (vp->v_vflag & VV_ROOT) != 0,
 	    ("%s: vnode %p locked recursively", __func__, vp));
 	if (lockmgr(&vp->v_lock, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 		panic("%s: failed to acquire lock for vnode lock", __func__);
@@ -821,7 +830,7 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 	VNASSERT(vp->v_writecount == 0, vp,
 	    ("%s: non-zero writecount", __func__));
 	/*
-	 * Uppdate the upper vnode's lock state to match the lower vnode,
+	 * Update the upper vnode's lock state to match the lower vnode,
 	 * and then switch the unionfs vnode's lock to the upper vnode.
 	 */
 	lockrec = lvp->v_vnlock->lk_recurse;
