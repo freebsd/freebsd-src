@@ -223,16 +223,20 @@ getwm(p)
 	} u;
 	register int i, hi;
 
+	/* the integer is stored by an offset of 14 (!!!) */
+        int i_max = MAXPATHLEN + OFFSET;
+        int i_min = -(MAXPATHLEN - OFFSET);
+
 	for (i = 0; i < (int)INTSIZE; i++)
 		u.buf[i] = *p++;
 
 	i = u.i;
 
-	if (i > MAXPATHLEN || i < -(MAXPATHLEN)) {
+	if (i >= i_max || i <= i_min) {
 		hi = ntohl(i);
-		if (hi > MAXPATHLEN || hi < -(MAXPATHLEN))
-			errx(1, "integer out of +-MAXPATHLEN (%d): %u",
-			    MAXPATHLEN, abs(i) < abs(hi) ? i : hi);
+		if (hi >= i_max || hi <= i_min)
+			errx(1, "integer out of range: %d < %d < %d",
+			    i_min, abs(i) < abs(hi) ? i : hi, i_max);
 		return(hi);
 	}
 	return(i);
@@ -251,14 +255,16 @@ getwf(fp)
 	FILE *fp;
 {
 	register int word, hword;
+        int i_max = MAXPATHLEN + OFFSET;
+        int i_min = -(MAXPATHLEN - OFFSET);
 
 	word = getw(fp);
 
-	if (word > MAXPATHLEN || word < -(MAXPATHLEN)) {
+	if (word >= i_max || word <= i_min) {
 		hword = ntohl(word);
-		if (hword > MAXPATHLEN || hword < -(MAXPATHLEN))
-			errx(1, "integer out of +-MAXPATHLEN (%d): %u",
-			    MAXPATHLEN, abs(word) < abs(hword) ? word : hword);
+		if (hword >= i_max || hword <= i_min)
+			errx(1, "integer out of range: %d < %d < %d",
+			    i_min, abs(word) < abs(hword) ? word : hword, i_max);
 		return(hword);
 	}
 	return(word);
