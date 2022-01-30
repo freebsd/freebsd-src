@@ -342,7 +342,7 @@ ext2_access(struct vop_access_args *ap)
 	}
 
 	/* If immutable bit set, nobody gets to write it. */
-	if ((accmode & VWRITE) && (ip->i_flags & (SF_IMMUTABLE | SF_SNAPSHOT)))
+	if ((accmode & VWRITE) && (ip->i_flags & SF_IMMUTABLE))
 		return (EPERM);
 
 	error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
