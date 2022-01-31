@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
+ * Copyright (c) 1995-2022 Wolfram Schneider <wosch@FreeBSD.org>
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -102,8 +102,8 @@ static char sccsid[] = "@(#)locate.code.c	8.1 (Berkeley) 6/6/93";
 
 #define	BGBUFSIZE	(NBG * 2)	/* size of bigram buffer */
 
-u_char buf1[MAXPATHLEN] = " ";	
-u_char buf2[MAXPATHLEN];
+u_char buf1[LOCATE_PATH_MAX] = " ";
+u_char buf2[LOCATE_PATH_MAX];
 u_char bigrams[BGBUFSIZE + 1] = { 0 };
 
 #define LOOKUP 1 /* use a lookup array instead a function, 3x faster */
