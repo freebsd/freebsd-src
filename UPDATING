@@ -70,9 +70,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	Commit b8d60729deef changed the TCP congestion control framework so
 	that any of the included congestion control modules could be
 	the single module built into the kernel. Previously newreno
-	was automatically built in through direct reference. Has of
+	was automatically built in through direct reference. As of
 	this commit you are required to declare at least one congestion
-	control module (e.g. 'options CC_NEWRENO') and to also delcare a 
+	control module (e.g. 'options CC_NEWRENO') and to also declare a
 	default using the CC_DEFAULT option (e.g. options CC_DEFAULT="newreno\").
 	The GENERIC configuation includes CC_NEWRENO and defines newreno
 	as the default. If no congestion control option is built into the
