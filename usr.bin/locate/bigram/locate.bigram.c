@@ -103,6 +103,9 @@ main(void)
 			oldpath = buf2;
 		}
    	}
+	if (!feof(stdin) || ferror(stdin))
+		err(1, "stdin");
+
 
 	/* output, boundary check */
 	for (i = ASCII_MIN; i <= ASCII_MAX; i++)
