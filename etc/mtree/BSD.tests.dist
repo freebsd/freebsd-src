@@ -442,6 +442,8 @@
         ..
         mdconfig
         ..
+        newfs_msdos
+        ..
         nvmecontrol
         ..
         pfctl
