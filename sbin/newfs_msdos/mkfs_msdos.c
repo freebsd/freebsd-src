@@ -842,10 +842,10 @@ check_mounted(const char *fname, mode_t mode)
 static ssize_t
 getchunksize(void)
 {
-	static int chunksize;
+	static ssize_t chunksize;
 
 	if (chunksize != 0)
-		return ((ssize_t)chunksize);
+		return (chunksize);
 
 #ifdef	KERN_MAXPHYS
 	int mib[2];
@@ -874,7 +874,7 @@ getchunksize(void)
 	assert(powerof2(chunksize));
 	assert(chunksize > MAXBPS);
 
-	return ((ssize_t)chunksize);
+	return (chunksize);
 }
 
 /*
