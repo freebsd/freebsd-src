@@ -49,7 +49,7 @@ statistic (fp, path_fcodes)
 	int c;
 	int count, longest_path;
 	int error = 0;
-	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN];
+	u_char bigram1[NBG], bigram2[NBG], path[LOCATE_PATH_MAX];
 
 	for (c = 0, p = bigram1, s = bigram2; c < NBG; c++) {
 		p[c] = check_bigram_char(getc(fp));
@@ -67,9 +67,9 @@ statistic (fp, path_fcodes)
 		} else
 			count += c - OFFSET;
 		
-		if (count < 0 || count >= MAXPATHLEN) {
+		if (count < 0 || count >= LOCATE_PATH_MAX) {
 			/* stop on error and display the statstics anyway */
-			warnx("corrupted database: %s", path_fcodes);
+			warnx("corrupted database: %s %d", path_fcodes, count);
 			error = 1;
 			break;
 		}
@@ -157,7 +157,7 @@ fastfind
 	int c, cc;
 	int count, found, globflag;
 	u_char *cutoff;
-	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN + 2];
+	u_char bigram1[NBG], bigram2[NBG], path[LOCATE_PATH_MAX + 2];
 
 #ifdef FF_ICASE
 	/* use a lookup table for case insensitive search */
@@ -233,7 +233,7 @@ fastfind
 			count += c - OFFSET;
 		}
 
-		if (count < 0 || count >= MAXPATHLEN)
+		if (count < 0 || count >= LOCATE_PATH_MAX)
 			errx(1, "corrupted database: %s %d", database, count);
 
 		/* overlay old path */
@@ -295,8 +295,8 @@ fastfind
 				*p++ = bigram2[c];
 			}
 
-			if (p - path >= MAXPATHLEN) 
-				errx(1, "corrupted database: %s", database);
+			if (p - path >= LOCATE_PATH_MAX) 
+				errx(1, "corrupted database: %s %ld", database, p - path);
 
 		}
 		

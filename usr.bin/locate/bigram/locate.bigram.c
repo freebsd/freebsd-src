@@ -59,11 +59,10 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/param.h>			/* for MAXPATHLEN */
 #include "locate.h"
 
-u_char buf1[MAXPATHLEN] = " ";
-u_char buf2[MAXPATHLEN];
+u_char buf1[LOCATE_PATH_MAX] = " ";
+u_char buf2[LOCATE_PATH_MAX];
 unsigned long bigram[UCHAR_MAX + 1][UCHAR_MAX + 1];
 
 int
