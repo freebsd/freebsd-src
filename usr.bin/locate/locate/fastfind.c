@@ -45,8 +45,8 @@ statistic (fp, path_fcodes)
 	char *path_fcodes;  	/* for error message */
 {
 	long lines, chars, size, big, zwerg, umlaut;
-	register u_char *p, *s;
-	register int c;
+	u_char *p, *s;
+	int c;
 	int count, longest_path;
 	int error = 0;
 	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN];
@@ -151,8 +151,8 @@ fastfind
 #endif /* MMAP */
 
 {
-	register u_char *p, *s, *patend, *q, *foundchar;
-	register int c, cc;
+	u_char *p, *s, *patend, *q, *foundchar;
+	int c, cc;
 	int count, found, globflag;
 	u_char *cutoff;
 	u_char bigram1[NBG], bigram2[NBG], path[MAXPATHLEN + 2];

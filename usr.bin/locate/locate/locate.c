@@ -128,7 +128,7 @@ extern char 	*patprep(char *);
 int
 main(int argc, char **argv)
 {
-        register int ch;
+        int ch;
         char **dbv = NULL;
 	char *path_fcodes;      /* locate database */
 #ifdef MMAP

@@ -140,7 +140,7 @@ char *
 patprep(name)
 	char *name;
 {
-	register char *endmark, *p, *subp;
+	char *endmark, *p, *subp;
 
 	subp = globfree;
 	*subp++ = '\0';   /* set first element to '\0' */
@@ -194,7 +194,7 @@ u_char *
 tolower_word(word)
 	u_char *word;
 {
-	register u_char *p;
+	u_char *p;
 
 	for(p = word; *p != '\0'; p++)
 		*p = TOLOWER(*p);
@@ -221,7 +221,7 @@ getwm(p)
 		char buf[INTSIZE];
 		int i;
 	} u;
-	register int i, hi;
+	int i, hi;
 
 	/* the integer is stored by an offset of 14 (!!!) */
         int i_max = MAXPATHLEN + OFFSET;
@@ -254,7 +254,7 @@ int
 getwf(fp)
 	FILE *fp;
 {
-	register int word, hword;
+	int word, hword;
         int i_max = MAXPATHLEN + OFFSET;
         int i_min = -(MAXPATHLEN - OFFSET);
 
