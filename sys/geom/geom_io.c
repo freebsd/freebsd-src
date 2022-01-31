@@ -1017,6 +1017,8 @@ g_format_bio(struct sbuf *sb, const struct bio *bp)
 
 	if (bp->bio_to != NULL)
 		pname = bp->bio_to->name;
+	else if (bp->bio_parent != NULL && bp->bio_parent->bio_to != NULL)
+		pname = bp->bio_parent->bio_to->name;
 	else
 		pname = "[unknown]";
 
