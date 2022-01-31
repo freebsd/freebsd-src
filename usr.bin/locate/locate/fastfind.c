@@ -44,7 +44,7 @@ statistic (fp, path_fcodes)
 	FILE *fp;               /* open database */
 	char *path_fcodes;  	/* for error message */
 {
-	long lines, chars, size, big, zwerg, umlaut;
+	long lines, chars, size, size_nbg, big, zwerg, umlaut;
 	u_char *p, *s;
 	int c;
 	int count, longest_path;
@@ -95,19 +95,21 @@ statistic (fp, path_fcodes)
 			longest_path = p - path;
 	}
 
+	/* size without bigram db */
+	size_nbg = size - (2 * NBG); 
+
 	(void)printf("\nDatabase: %s\n", path_fcodes);
-	(void)printf("Compression: Front: %2.2f%%, ",
-		     (size + big - (2 * NBG)) / (chars / (float)100));
-	(void)printf("Bigram: %2.2f%%, ", (size - big) / (size / (float)100));
-	(void)printf("Total: %2.2f%%\n", 
-		     (size - (2 * NBG)) / (chars / (float)100));
+	(void)printf("Compression: Front: %2.2f%%, ", chars > 0 ?  (size_nbg + big) / (chars / (float)100) : 0);
+	(void)printf("Bigram: %2.2f%%, ", big > 0 ? (size_nbg - big) / (size_nbg / (float)100) : 0);
+	/* incl. bigram db overhead */
+	(void)printf("Total: %2.2f%%\n", chars > 0 ?  size / (chars / (float)100) : 0);
 	(void)printf("Filenames: %ld, ", lines);
 	(void)printf("Characters: %ld, ", chars);
 	(void)printf("Database size: %ld\n", size);
 	(void)printf("Bigram characters: %ld, ", big);
 	(void)printf("Integers: %ld, ", zwerg);
 	(void)printf("8-Bit characters: %ld\n", umlaut);
-	printf("Longest path: %d\n", longest_path - 1);
+	printf("Longest path: %d\n", longest_path > 0 ? longest_path - 1 : 0);
 
 	/* non zero exit on corrupt database */
 	if (error)
