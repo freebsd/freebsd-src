@@ -33,6 +33,8 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
+ * locate.bigram - list bigrams for /usr/libexec/locate.mklocatedb script
  */
 
 #if 0
@@ -47,13 +49,6 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
 
-/*
- *  bigram < sorted_file_names | sort -nr | 
- *  	awk 'NR <= 128 { printf $2 }' > bigrams
- *
- * List bigrams for 'updatedb' script.
- * Use 'code' to encode a file using this output.
- */
 
 #include <capsicum_helpers.h>
 #include <err.h>
