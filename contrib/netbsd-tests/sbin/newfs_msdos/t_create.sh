@@ -31,11 +31,21 @@ validfat32_head() {
 }
 validfat32_body() {
 
-	atf_check -s eq:0 -o ignore -e ignore \
+	if true; then
+		# FreeBSD
+		exp_err=empty
+		fsck=fsck_msdosfs
+	else
+		# NetBSD
+		exp_err=ignore
+		fsck=fsck_msdos
+	fi
+
+	atf_check -s eq:0 -o ignore -e $exp_err \
 	    newfs_msdos -b 512 -C 33m -F 32 msdos.img
 #	fsck_msdos/newfs_msdos have been fixed
 #	atf_expect_fail "PR bin/46743"
-	atf_check -s eq:0 -o not-match:FIXED -e empty fsck_msdos -p msdos.img
+	atf_check -s eq:0 -o not-match:FIXED -e empty $fsck -p msdos.img
 	atf_expect_pass
 }
 
