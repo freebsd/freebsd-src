@@ -764,7 +764,7 @@ pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
 	nv = nvlist_create(0);
 
 	nvlist_add_number(nv, "id", cmp->id);
-	nvlist_add_number(nv, "creatorid", cmp->creatorid);
+	nvlist_add_number(nv, "creatorid", htonl(cmp->creatorid));
 	nvlist_add_number(nv, "direction", cmp->direction);
 
 	nvlist_add_nvlist(nvl, name, nv);
