@@ -130,8 +130,14 @@ debugfs_fill(PFS_FILL_ARGS)
 	if ((rc = linux_set_current_flags(curthread, M_NOWAIT)))
 		return (rc);
 	vn.v_data = d->dm_data;
-	buf = uio->uio_iov[0].iov_base;
-	len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
+	if (uio->uio_rw == UIO_READ) {
+		buf = uio->uio_iov[0].iov_base;
+		len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
+	} else {
+		sbuf_finish(sb);
+		buf = sbuf_data(sb);
+		len = sbuf_len(sb);
+	}
 	off = 0;
 	lf.private_data = NULL;
 	rc = d->dm_fops->open(&vn, &lf);
