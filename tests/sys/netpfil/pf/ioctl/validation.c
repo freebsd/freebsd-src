@@ -869,6 +869,32 @@ ATF_TC_CLEANUP(rpool_mtx, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(rpool_mtx2);
+ATF_TC_HEAD(rpool_mtx2, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(rpool_mtx2, tc)
+{
+	struct pfioc_rule rule;
+
+	COMMON_HEAD();
+
+	memset(&rule, 0, sizeof(rule));
+
+	rule.pool_ticket = 1000000;
+	rule.action = PF_CHANGE_ADD_HEAD;
+	rule.rule.af = AF_INET;
+
+	ioctl(dev, DIOCCHANGERULE, &rule);
+}
+
+ATF_TC_CLEANUP(rpool_mtx2, tc)
+{
+	COMMON_CLEANUP();
+}
+
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -893,6 +919,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, getsrcnodes);
 	ATF_TP_ADD_TC(tp, tag);
 	ATF_TP_ADD_TC(tp, rpool_mtx);
+	ATF_TP_ADD_TC(tp, rpool_mtx2);
 
 	return (atf_no_error());
 }
