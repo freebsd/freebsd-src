@@ -223,8 +223,6 @@ pf_nvpool_to_pool(const nvlist_t *nvl, struct pf_kpool *kpool)
 {
 	int error = 0;
 
-	bzero(kpool, sizeof(*kpool));
-
 	PFNV_CHK(pf_nvbinary(nvl, "key", &kpool->key, sizeof(kpool->key)));
 
 	if (nvlist_exists_nvlist(nvl, "counter")) {
