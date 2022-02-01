@@ -72,6 +72,8 @@
 #include <dev/mlx5/mlx5_core/transobj.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 
+#define	MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
+
 #define	MLX5E_MAX_PRIORITY 8
 
 #define	MLX5E_MAX_FEC_10X_25X 4
@@ -1015,6 +1017,18 @@ struct mlx5e_flow_table {
 	struct mlx5_flow_group **g;
 };
 
+enum accel_fs_tcp_type {
+	MLX5E_ACCEL_FS_IPV4_TCP,
+	MLX5E_ACCEL_FS_IPV6_TCP,
+	MLX5E_ACCEL_FS_TCP_NUM_TYPES,
+};
+
+struct mlx5e_accel_fs_tcp {
+	struct mlx5_flow_namespace *ns;
+	struct mlx5e_flow_table tables[MLX5E_ACCEL_FS_TCP_NUM_TYPES];
+	struct mlx5_flow_rule *default_rules[MLX5E_ACCEL_FS_TCP_NUM_TYPES];
+};
+
 struct mlx5e_flow_tables {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5e_flow_table vlan;
@@ -1024,6 +1038,7 @@ struct mlx5e_flow_tables {
 	struct mlx5e_flow_table main_vxlan;
 	struct mlx5_flow_rule *main_vxlan_rule[MLX5E_NUM_TT];
 	struct mlx5e_flow_table inner_rss;
+	struct mlx5e_accel_fs_tcp accel_tcp;
 };
 
 struct mlx5e_xmit_args {

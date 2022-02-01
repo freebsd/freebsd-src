@@ -33,28 +33,44 @@
 #include <linux/list.h>
 #include <dev/mlx5/fs.h>
 #include <dev/mlx5/mpfs.h>
+#include <dev/mlx5/mlx5_core/fs_tcp.h>
 
 /*
  * The flow tables with rules define the packet processing on receive.
- * Currently, the following structure is set up to handle different offloads
- * like VLAN decapsulation, packet classification, RSS hashing, VxLAN checksum
- * offloading:
+ * Currently the following structure is set up to handle different
+ * offloads like TLS RX offload, VLAN decapsulation, packet
+ * classification, RSS hashing, VxLAN checksum offloading:
  *
- *
- *   +=========+       +=========+	+=================+
- *   |VLAN ft: |       |VxLAN	 |	|VxLAN Main    	  |
+ *   +=========+       +=========+      +=================+
+ *   |TCP/IPv4 |       |TCP/IPv4 |      |TCP/IPv4 Match   |
+ *   |Flowtable|------>|         |----->|Outer Proto Match|=====> TLS TIR n
+ *   |         |       |Catch-all|\     |                 |
+ *   +=========+       +=========+|     +=================+
+ *                                |
+ *       +------------------------+
+ *       V
+ *   +=========+       +=========+      +=================+
+ *   |TCP/IPv6 |       |TCP/IPv6 |      |TCP/IPv6 Match   |
+ *   |Flowtable|------>|         |----->|Outer Proto Match|=====> TLS TIR n
+ *   |         |       |Catch-all|\     |                 |
+ *   +=========+       +=========+|     +=================+
+ *                                |
+ *       +------------------------+
+ *       V
+ *   +=========+       +=========+      +=================+
+ *   |VLAN ft: |       |VxLAN    |      |VxLAN Main       |
  *   |CTAG/STAG|------>|      VNI|----->|Inner Proto Match|=====> Inner TIR n
- *   |VID/noVID|/      |Catch-all|\	|		  |
- *   +=========+       +=========+|	+=================+
- *     	       	       	     	  |
- *			     	  |
- *			     	  |
- *			     	  v
- *		       	+=================+
- *			|Main             |
- *			|Outer Proto Match|=====> TIR n
- *			|	          |
- *     	       	       	+=================+
+ *   |VID/noVID|/      |Catch-all|\     |                 |
+ *   +=========+       +=========+|     +=================+
+ *                                |
+ *                                |
+ *                                |
+ *                                v
+ *                      +=================+
+ *                      |Main             |
+ *                      |Outer Proto Match|=====> TIR n
+ *                      |                 |
+ *                      +=================+
  *
  * The path through flow rules directs each packet into an appropriate TIR,
  * according to the:
@@ -2292,8 +2308,14 @@ mlx5e_open_flow_tables(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_inner_rss_flow_table;
 
+	err = mlx5e_accel_fs_tcp_create(priv);
+	if (err)
+		goto err_del_vxlan_catchall_rule;
+
 	return (0);
 
+err_del_vxlan_catchall_rule:
+	mlx5e_del_vxlan_catchall_rule(priv);
 err_destroy_inner_rss_flow_table:
 	mlx5e_destroy_inner_rss_flow_table(priv);
 err_destroy_main_vxlan_flow_table:
@@ -2311,6 +2333,7 @@ err_destroy_vlan_flow_table:
 void
 mlx5e_close_flow_tables(struct mlx5e_priv *priv)
 {
+	mlx5e_accel_fs_tcp_destroy(priv);
 	mlx5e_del_vxlan_catchall_rule(priv);
 	mlx5e_destroy_inner_rss_flow_table(priv);
 	mlx5e_destroy_main_vxlan_flow_table(priv);
