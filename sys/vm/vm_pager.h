@@ -44,7 +44,7 @@
 #ifndef	_VM_PAGER_
 #define	_VM_PAGER_
 
-#include <sys/queue.h>
+#include <sys/systm.h>
 
 TAILQ_HEAD(pagerlst, vm_object);
 struct vnode;
