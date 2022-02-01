@@ -1216,6 +1216,26 @@ lim_hold(struct plimit *limp)
 	return (limp);
 }
 
+struct plimit *
+lim_cowsync(void)
+{
+	struct thread *td;
+	struct proc *p;
+	struct plimit *oldlimit;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (td->td_limit == p->p_limit)
+		return (NULL);
+
+	oldlimit = td->td_limit;
+	td->td_limit = lim_hold(p->p_limit);
+
+	return (oldlimit);
+}
+
 void
 lim_fork(struct proc *p1, struct proc *p2)
 {
