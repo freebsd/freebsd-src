@@ -2292,21 +2292,21 @@ mlx5e_open_flow_tables(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_vlan_flow_table;
 
-	err = mlx5e_create_main_flow_table(priv, false);
+	err = mlx5e_create_main_flow_table(priv, true);
 	if (err)
 		goto err_destroy_vxlan_flow_table;
 
-	err = mlx5e_create_main_flow_table(priv, true);
-	if (err)
-		goto err_destroy_main_flow_table;
-
 	err = mlx5e_create_inner_rss_flow_table(priv);
 	if (err)
-		goto err_destroy_main_vxlan_flow_table;
+		goto err_destroy_main_flow_table_true;
+
+	err = mlx5e_create_main_flow_table(priv, false);
+	if (err)
+		goto err_destroy_inner_rss_flow_table;
 
 	err = mlx5e_add_vxlan_catchall_rule(priv);
 	if (err)
-		goto err_destroy_inner_rss_flow_table;
+		goto err_destroy_main_flow_table_false;
 
 	err = mlx5e_accel_fs_tcp_create(priv);
 	if (err)
@@ -2316,12 +2316,12 @@ mlx5e_open_flow_tables(struct mlx5e_priv *priv)
 
 err_del_vxlan_catchall_rule:
 	mlx5e_del_vxlan_catchall_rule(priv);
+err_destroy_main_flow_table_false:
+	mlx5e_destroy_main_flow_table(priv);
 err_destroy_inner_rss_flow_table:
 	mlx5e_destroy_inner_rss_flow_table(priv);
-err_destroy_main_vxlan_flow_table:
+err_destroy_main_flow_table_true:
 	mlx5e_destroy_main_vxlan_flow_table(priv);
-err_destroy_main_flow_table:
-	mlx5e_destroy_main_flow_table(priv);
 err_destroy_vxlan_flow_table:
 	mlx5e_destroy_vxlan_flow_table(priv);
 err_destroy_vlan_flow_table:
@@ -2335,9 +2335,9 @@ mlx5e_close_flow_tables(struct mlx5e_priv *priv)
 {
 	mlx5e_accel_fs_tcp_destroy(priv);
 	mlx5e_del_vxlan_catchall_rule(priv);
+	mlx5e_destroy_main_flow_table(priv);
 	mlx5e_destroy_inner_rss_flow_table(priv);
 	mlx5e_destroy_main_vxlan_flow_table(priv);
-	mlx5e_destroy_main_flow_table(priv);
 	mlx5e_destroy_vxlan_flow_table(priv);
 	mlx5e_destroy_vlan_flow_table(priv);
 }
