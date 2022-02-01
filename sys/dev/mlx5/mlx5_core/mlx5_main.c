@@ -532,6 +532,17 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int mlx5_core_set_hca_defaults(struct mlx5_core_dev *dev)
+{
+	int ret = 0;
+
+	/* Disable local_lb by default */
+	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH)
+		ret = mlx5_nic_vport_update_local_lb(dev, false);
+
+       return ret;
+}
+
 static int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
 	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {0};
@@ -1132,6 +1143,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = mlx5_init_fs(dev);
 	if (err) {
 		mlx5_core_err(dev, "flow steering init %d\n", err);
+		goto err_free_comp_eqs;
+	}
+
+	err = mlx5_core_set_hca_defaults(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to set HCA defaults %d\n", err);
 		goto err_free_comp_eqs;
 	}
 

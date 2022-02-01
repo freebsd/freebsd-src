@@ -1230,6 +1230,12 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		break;
 
 	case MLX5_PARAM_OFFSET(mc_local_lb):
+		/* check if mlx5ib is managing this feature */
+		if (MLX5_CAP_GEN(priv->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) {
+			error = EOPNOTSUPP;
+			break;
+		}
+
 		priv->params_ethtool.mc_local_lb =
 		    priv->params_ethtool.mc_local_lb ? 1 : 0;
 
@@ -1242,6 +1248,12 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		break;
 
 	case MLX5_PARAM_OFFSET(uc_local_lb):
+		/* check if mlx5ib is managing this feature */
+		if (MLX5_CAP_GEN(priv->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) {
+			error = EOPNOTSUPP;
+			break;
+		}
+
 		priv->params_ethtool.uc_local_lb =
 		    priv->params_ethtool.uc_local_lb ? 1 : 0;
 

@@ -1206,7 +1206,22 @@ static int mlx5_ib_alloc_transport_domain(struct mlx5_ib_dev *dev, u32 *tdn,
 	if (err)
 		return err;
 
-	return 0;
+	if ((MLX5_CAP_GEN(dev->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) ||
+	    (!MLX5_CAP_GEN(dev->mdev, disable_local_lb_uc) &&
+	     !MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
+		return 0;
+
+	mutex_lock(&dev->lb_mutex);
+	dev->user_td++;
+
+	if (dev->user_td == 2)
+		err = mlx5_nic_vport_update_local_lb(dev->mdev, true);
+
+	mutex_unlock(&dev->lb_mutex);
+
+	if (err != 0)
+		mlx5_dealloc_transport_domain(dev->mdev, *tdn, uid);
+	return err;
 }
 
 static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn,
@@ -1216,6 +1231,19 @@ static void mlx5_ib_dealloc_transport_domain(struct mlx5_ib_dev *dev, u32 tdn,
 		return;
 
 	mlx5_dealloc_transport_domain(dev->mdev, tdn, uid);
+
+	if ((MLX5_CAP_GEN(dev->mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH) ||
+	    (!MLX5_CAP_GEN(dev->mdev, disable_local_lb_uc) &&
+	     !MLX5_CAP_GEN(dev->mdev, disable_local_lb_mc)))
+		return;
+
+	mutex_lock(&dev->lb_mutex);
+	dev->user_td--;
+
+	if (dev->user_td < 2)
+		mlx5_nic_vport_update_local_lb(dev->mdev, false);
+
+	mutex_unlock(&dev->lb_mutex);
 }
 
 static int mlx5_ib_alloc_ucontext(struct ib_ucontext *uctx,
@@ -3283,6 +3311,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 		get_ext_port_caps(dev);
 
 	MLX5_INIT_DOORBELL_LOCK(&dev->uar_lock);
+
+	mutex_init(&dev->lb_mutex);
 
 	INIT_IB_DEVICE_OPS(&dev->ib_dev.ops, mlx5, MLX5);
 	snprintf(dev->ib_dev.name, IB_DEVICE_NAME_MAX, "mlx5_%d", device_get_unit(mdev->pdev->dev.bsddev));
