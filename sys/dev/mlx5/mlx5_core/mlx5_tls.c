@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2019, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2019-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -119,4 +119,33 @@ void mlx5_tls_close_tis(struct mlx5_core_dev *mdev, u32 tisn)
 {
 
 	mlx5_core_destroy_tis(mdev, tisn, 0);
+}
+
+int mlx5_tls_open_tir(struct mlx5_core_dev *mdev, int tdn, int rqtn, u32 *p_tirn)
+{
+	u32 in[MLX5_ST_SZ_DW(create_tir_in)] = {};
+	void *tirc = MLX5_ADDR_OF(create_tir_in, in, tir_context);
+	int err;
+
+        MLX5_SET(tirc, tirc, transport_domain, tdn);
+        MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
+        MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_TIRC_RX_HASH_FN_HASH_INVERTED_XOR8);
+        MLX5_SET(tirc, tirc, indirect_table, rqtn);
+        MLX5_SET(tirc, tirc, tls_en, 1);
+        MLX5_SET(tirc, tirc, self_lb_en,
+                 MLX5_TIRC_SELF_LB_EN_ENABLE_UNICAST |
+                 MLX5_TIRC_SELF_LB_EN_ENABLE_MULTICAST);
+
+	err = mlx5_core_create_tir(mdev, in, sizeof(in), p_tirn);
+	if (err)
+		return (err);
+	else if (*p_tirn == 0)
+		return (-EINVAL);
+	else
+		return (0);	/* success */
+}
+
+void mlx5_tls_close_tir(struct mlx5_core_dev *mdev, u32 tirn)
+{
+	mlx5_core_destroy_tir(mdev, tirn, 0);
 }
