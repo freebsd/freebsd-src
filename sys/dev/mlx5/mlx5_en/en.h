@@ -207,7 +207,9 @@ typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *, struct mlx5_eqe *);
   m(+1, u64, tx_defragged, "tx_defragged", "Transmit queue defragged") \
   m(+1, u64, rx_wqe_err, "rx_wqe_err", "Receive WQE errors") \
   m(+1, u64, tx_jumbo_packets, "tx_jumbo_packets", "TX packets greater than 1518 octets") \
-  m(+1, u64, rx_steer_missed_packets, "rx_steer_missed_packets", "RX packets dropped by steering rule(s)")
+  m(+1, u64, rx_steer_missed_packets, "rx_steer_missed_packets", "RX packets dropped by steering rule(s)") \
+  m(+1, u64, rx_decrypted_ok_packets, "rx_decrypted_ok_packets", "RX packets successfully decrypted by steering rule(s)") \
+  m(+1, u64, rx_decrypted_error_packets, "rx_decrypted_error_packets", "RX packets not decrypted by steering rule(s)")
 
 #define	MLX5E_VPORT_STATS_NUM (0 MLX5E_VPORT_STATS(MLX5E_STATS_COUNT))
 
@@ -608,7 +610,9 @@ struct mlx5e_port_stats_debug {
   m(+1, u64, lro_bytes, "lro_bytes", "Received LRO bytes")	\
   m(+1, u64, sw_lro_queued, "sw_lro_queued", "Packets queued for SW LRO")	\
   m(+1, u64, sw_lro_flushed, "sw_lro_flushed", "Packets flushed from SW LRO")	\
-  m(+1, u64, wqe_err, "wqe_err", "Received packets")
+  m(+1, u64, wqe_err, "wqe_err", "Received packets") \
+  m(+1, u64, decrypted_ok_packets, "decrypted_ok_packets", "Received packets successfully decrypted by steering rule(s)") \
+  m(+1, u64, decrypted_error_packets, "decrypted_error_packets", "Received packets not decrypted by steering rule(s)")
 
 #define	MLX5E_RQ_STATS_NUM (0 MLX5E_RQ_STATS(MLX5E_STATS_COUNT))
 
@@ -1050,6 +1054,7 @@ struct mlx5e_xmit_args {
 
 #include <dev/mlx5/mlx5_en/en_rl.h>
 #include <dev/mlx5/mlx5_en/en_hw_tls.h>
+#include <dev/mlx5/mlx5_en/en_hw_tls_rx.h>
 
 #define	MLX5E_TSTMP_PREC 10
 
@@ -1131,6 +1136,7 @@ struct mlx5e_priv {
 	struct mlx5e_rl_priv_data rl;
 
 	struct mlx5e_tls tls;
+	struct mlx5e_tls_rx tls_rx;
 
 	struct callout tstmp_clbr;
 	int	clbr_done;
