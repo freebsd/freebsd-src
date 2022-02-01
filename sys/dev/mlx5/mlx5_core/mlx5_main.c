@@ -178,6 +178,30 @@ static struct mlx5_profile profiles[] = {
 	},
 };
 
+static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
+{
+	const size_t driver_ver_sz =
+	    MLX5_FLD_SZ_BYTES(set_driver_version_in, driver_version);
+	u8 in[MLX5_ST_SZ_BYTES(set_driver_version_in)] = {};
+	u8 out[MLX5_ST_SZ_BYTES(set_driver_version_out)] = {};
+	char *string;
+
+	if (!MLX5_CAP_GEN(dev, driver_version))
+		return;
+
+	string = MLX5_ADDR_OF(set_driver_version_in, in, driver_version);
+
+	snprintf(string, driver_ver_sz, "FreeBSD,mlx5_core,%u.%u.%u," DRIVER_VERSION,
+	    __FreeBSD_version / 100000, (__FreeBSD_version / 1000) % 100,
+	    __FreeBSD_version % 1000);
+
+	/* Send the command */
+	MLX5_SET(set_driver_version_in, in, opcode,
+	    MLX5_CMD_OP_SET_DRIVER_VERSION);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 #ifdef PCI_IOV
 static const char iov_mac_addr_name[] = "mac-addr";
 static const char iov_node_guid_name[] = "node-guid";
@@ -1107,6 +1131,8 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		mlx5_core_err(dev, "init hca failed\n");
 		goto reclaim_boot_pages;
 	}
+
+	mlx5_set_driver_version(dev);
 
 	mlx5_start_health_poll(dev);
 
