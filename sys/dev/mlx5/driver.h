@@ -388,9 +388,7 @@ struct mlx5_core_psv {
 struct mlx5_core_sig_ctx {
 	struct mlx5_core_psv	psv_memory;
 	struct mlx5_core_psv	psv_wire;
-#if (__FreeBSD_version >= 1100000)
 	struct ib_sig_err       err_item;
-#endif
 	bool			sig_status_checked;
 	bool			sig_err_exists;
 	u32			sigerr_count;
