@@ -1233,7 +1233,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		priv->params_ethtool.mc_local_lb =
 		    priv->params_ethtool.mc_local_lb ? 1 : 0;
 
-		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb_mc)) {
 			error = mlx5_nic_vport_modify_local_lb(priv->mdev,
 			    MLX5_LOCAL_MC_LB, priv->params_ethtool.mc_local_lb);
 		} else {
@@ -1245,7 +1245,7 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		priv->params_ethtool.uc_local_lb =
 		    priv->params_ethtool.uc_local_lb ? 1 : 0;
 
-		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+		if (MLX5_CAP_GEN(priv->mdev, disable_local_lb_uc)) {
 			error = mlx5_nic_vport_modify_local_lb(priv->mdev,
 			    MLX5_LOCAL_UC_LB, priv->params_ethtool.uc_local_lb);
 		} else {
@@ -1446,7 +1446,8 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	mlx5e_ethtool_sync_tx_completion_fact(priv);
 
 	/* get default values for local loopback, if any */
-	if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+	if (MLX5_CAP_GEN(priv->mdev, disable_local_lb_mc) ||
+	    MLX5_CAP_GEN(priv->mdev, disable_local_lb_uc)) {
 		int err;
 		u8 val;
 
