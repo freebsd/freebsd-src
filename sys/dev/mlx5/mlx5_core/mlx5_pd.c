@@ -31,7 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <dev/mlx5/driver.h>
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn, u16 uid)
 {

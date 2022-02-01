@@ -32,7 +32,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <dev/mlx5/driver.h>
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 CTASSERT((uintptr_t)PAGE_MASK > (uintptr_t)PAGE_SIZE);
 

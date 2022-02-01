@@ -29,8 +29,8 @@
 #include "opt_ratelimit.h"
 
 #include <dev/mlx5/driver.h>
-#include "wq.h"
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/wq.h>
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq)
 {

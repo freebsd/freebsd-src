@@ -31,7 +31,7 @@
 #include <linux/etherdevice.h>
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/vport.h>
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 static int mlx5_modify_nic_vport_context(struct mlx5_core_dev *mdev, void *in,
 					 int inlen);

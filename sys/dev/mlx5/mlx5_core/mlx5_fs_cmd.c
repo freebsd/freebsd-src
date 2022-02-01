@@ -34,8 +34,8 @@
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/fs.h>
 
-#include "fs_core.h"
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/fs_core.h>
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 int mlx5_cmd_update_root_ft(struct mlx5_core_dev *dev,
 			    enum fs_ft_type type,
