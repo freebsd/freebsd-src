@@ -1339,7 +1339,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: sockstat [-46ciLlSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
+	    "usage: sockstat [-46CciLlnqSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
