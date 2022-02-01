@@ -1195,12 +1195,6 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 		return (error);
 	}
 
-#ifdef TCP_OFFLOAD
-	error = ktls_try_toe(so, tls, KTLS_RX);
-	if (error)
-#endif
-		ktls_use_sw(tls);
-
 	/* Mark the socket as using TLS offload. */
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_tls_seqno = be64dec(en->rec_seq);
@@ -1208,11 +1202,15 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	so->so_rcv.sb_flags |= SB_TLS_RX;
 
 	/* Mark existing data as not ready until it can be decrypted. */
-	if (tls->mode != TCP_TLS_MODE_TOE) {
-		sb_mark_notready(&so->so_rcv);
-		ktls_check_rx(&so->so_rcv);
-	}
+	sb_mark_notready(&so->so_rcv);
+	ktls_check_rx(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_rcv);
+
+#ifdef TCP_OFFLOAD
+	error = ktls_try_toe(so, tls, KTLS_RX);
+	if (error)
+#endif
+		ktls_use_sw(tls);
 
 	counter_u64_add(ktls_offload_total, 1);
 
