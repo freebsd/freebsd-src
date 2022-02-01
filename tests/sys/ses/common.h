@@ -57,7 +57,7 @@ for_each_ses_dev(ses_cb cb, int oflags)
 }
 
 static bool
-has_ses()
+has_ses(void)
 {
 	glob_t g;
 	int r;
