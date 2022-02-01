@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,13 +67,19 @@
 #define FS_REQUIRED_CAPS(...) {.arr_sz = INIT_CAPS_ARRAY_SIZE(__VA_ARGS__), \
 			       .caps = (long[]) {__VA_ARGS__}}
 
-#define BYPASS_MAX_FT 5
-#define BYPASS_PRIO_MAX_FT 1
-#define KERNEL_MAX_FT 5
-#define LEFTOVER_MAX_FT 1
-#define KERNEL_MIN_LEVEL 3
-#define LEFTOVER_MIN_LEVEL KERNEL_MIN_LEVEL + 1
-#define BYPASS_MIN_LEVEL MLX5_NUM_BYPASS_FTS + LEFTOVER_MIN_LEVEL
+/* Flowtable sizes: */
+#define	BYPASS_MAX_FT 5
+#define	BYPASS_PRIO_MAX_FT 1
+#define	OFFLOADS_MAX_FT 2
+#define	KERNEL_MAX_FT 5
+#define	LEFTOVER_MAX_FT 1
+
+/* Flowtable levels: */
+#define	OFFLOADS_MIN_LEVEL 3
+#define	KERNEL_MIN_LEVEL (OFFLOADS_MIN_LEVEL + 1)
+#define	LEFTOVER_MIN_LEVEL (KERNEL_MIN_LEVEL + 1)
+#define	BYPASS_MIN_LEVEL (MLX5_NUM_BYPASS_FTS + LEFTOVER_MIN_LEVEL)
+
 struct node_caps {
 	size_t	arr_sz;
 	long	*caps;
@@ -92,7 +98,7 @@ struct init_tree_node {
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
 	.name = "root",
-	.ar_size = 3,
+	.ar_size = 4,
 	.children = (struct init_tree_node[]) {
 		ADD_PRIO("by_pass_prio", 0, BYPASS_MIN_LEVEL, 0,
 			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
@@ -116,6 +122,10 @@ struct init_tree_node {
 					    BYPASS_PRIO_MAX_FT),
 				ADD_FT_PRIO("prio-mcast", 0,
 					    BYPASS_PRIO_MAX_FT))),
+		ADD_PRIO("offloads_prio", 0, OFFLOADS_MIN_LEVEL, 0, {},
+			 ADD_NS("offloads_ns",
+				ADD_FT_PRIO("prio_offloads-0", 0,
+					    OFFLOADS_MAX_FT))),
 		ADD_PRIO("kernel_prio", 0, KERNEL_MIN_LEVEL, 0, {},
 			 ADD_NS("kernel_ns",
 				ADD_FT_PRIO("prio_kernel-0", 0,
@@ -2375,11 +2385,14 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 	case MLX5_FLOW_NAMESPACE_BYPASS:
 		prio = 0;
 		break;
-	case MLX5_FLOW_NAMESPACE_KERNEL:
+	case MLX5_FLOW_NAMESPACE_OFFLOADS:
 		prio = 1;
 		break;
-	case MLX5_FLOW_NAMESPACE_LEFTOVERS:
+	case MLX5_FLOW_NAMESPACE_KERNEL:
 		prio = 2;
+		break;
+	case MLX5_FLOW_NAMESPACE_LEFTOVERS:
+		prio = 3;
 		break;
 	case MLX5_FLOW_NAMESPACE_FDB:
 		if (dev->fdb_root_ns)
