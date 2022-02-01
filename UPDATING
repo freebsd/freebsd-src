@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220201:	p13	FreeBSD-EN-22:08.i386
+
+	Fix regression in i386 TLB invalidation logic. [FreeBSD-EN-22:08.i386]
+
 20220111:	p12	FreeBSD-EN-22:02.xsave
 			FreeBSD-EN-22:03.hyperv
 			FreeBSD-EN-22:04.pcid
