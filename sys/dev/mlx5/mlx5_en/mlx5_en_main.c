@@ -2918,37 +2918,32 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxla
 	if (inner_vxlan)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
 
-	/* setup parameters for hashing TIR type, if any */
-	switch (tt) {
-	case MLX5E_TT_ANY:
-		MLX5_SET(tirc, tirc, disp_type,
-		    MLX5_TIRC_DISP_TYPE_DIRECT);
-		MLX5_SET(tirc, tirc, inline_rqn,
-		    priv->channel[0].rq.rqn);
-		break;
-	default:
-		MLX5_SET(tirc, tirc, disp_type,
-		    MLX5_TIRC_DISP_TYPE_INDIRECT);
-		MLX5_SET(tirc, tirc, indirect_table,
-		    priv->rqtn);
-		MLX5_SET(tirc, tirc, rx_hash_fn,
-		    MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ);
-		hkey = (__be32 *) MLX5_ADDR_OF(tirc, tirc, rx_hash_toeplitz_key);
+	/*
+	 * All packets must go through the indirection table, RQT,
+	 * because it is not possible to modify the RQN of the TIR
+	 * for direct dispatchment after it is created, typically
+	 * when the link goes up and down.
+	 */
+	MLX5_SET(tirc, tirc, disp_type,
+	    MLX5_TIRC_DISP_TYPE_INDIRECT);
+	MLX5_SET(tirc, tirc, indirect_table,
+	    priv->rqtn);
+	MLX5_SET(tirc, tirc, rx_hash_fn,
+		 MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ);
+	hkey = (__be32 *) MLX5_ADDR_OF(tirc, tirc, rx_hash_toeplitz_key);
 
-		CTASSERT(MLX5_FLD_SZ_BYTES(tirc, rx_hash_toeplitz_key) >=
-		    MLX5E_RSS_KEY_SIZE);
+	CTASSERT(MLX5_FLD_SZ_BYTES(tirc, rx_hash_toeplitz_key) >=
+		 MLX5E_RSS_KEY_SIZE);
 #ifdef RSS
-		/*
-		 * The FreeBSD RSS implementation does currently not
-		 * support symmetric Toeplitz hashes:
-		 */
-		MLX5_SET(tirc, tirc, rx_hash_symmetric, 0);
+	/*
+	 * The FreeBSD RSS implementation does currently not
+	 * support symmetric Toeplitz hashes:
+	 */
+	MLX5_SET(tirc, tirc, rx_hash_symmetric, 0);
 #else
-		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
+	MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
 #endif
-		mlx5e_get_rss_key(hkey);
-		break;
-	}
+	mlx5e_get_rss_key(hkey);
 
 	switch (tt) {
 	case MLX5E_TT_IPV4_TCP:
