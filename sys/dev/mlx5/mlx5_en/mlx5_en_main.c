@@ -4552,16 +4552,16 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_open_drop_rq;
 	}
 
-	err = mlx5e_open_flow_tables(priv);
-	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_flow_tables failed (%d)\n", __func__, err);
-		goto err_open_rqt;
-	}
-
 	err = mlx5e_open_tirs(priv);
 	if (err) {
 		mlx5_en_err(ifp, "mlx5e_open_tirs() failed, %d\n", err);
-		goto err_open_flow_tables;
+		goto err_open_rqt;
+	}
+
+	err = mlx5e_open_flow_tables(priv);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_open_flow_tables failed (%d)\n", __func__, err);
+		goto err_open_tirs;
 	}
 
 	/* set default MTU */
@@ -4699,8 +4699,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	return (priv);
 
-err_open_flow_tables:
-	mlx5e_close_flow_tables(priv);
+err_open_tirs:
+	mlx5e_close_tirs(priv);
 
 err_open_rqt:
 	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
@@ -4807,8 +4807,8 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
 
-	mlx5e_close_tirs(priv);
 	mlx5e_close_flow_tables(priv);
+	mlx5e_close_tirs(priv);
 	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_tls_cleanup(priv);
