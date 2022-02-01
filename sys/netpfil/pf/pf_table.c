@@ -103,7 +103,8 @@ struct pfr_walktree {
 		PFRW_GET_ADDRS,
 		PFRW_GET_ASTATS,
 		PFRW_POOL_GET,
-		PFRW_DYNADDR_UPDATE
+		PFRW_DYNADDR_UPDATE,
+		PFRW_COUNTERS
 	}	 pfrw_op;
 	union {
 		struct pfr_addr		*pfrw1_addr;
@@ -1032,7 +1033,8 @@ pfr_copyout_astats(struct pfr_astats *as, const struct pfr_kentry *ke,
 	pfr_copyout_addr(&as->pfras_a, ke);
 	as->pfras_tzero = kc->pfrkc_tzero;
 
-	if (! (w->pfrw_flags & PFR_TFLAG_COUNTERS)) {
+	if (! (w->pfrw_flags & PFR_TFLAG_COUNTERS) ||
+	    kc->pfrkc_counters == NULL) {
 		bzero(as->pfras_packets, sizeof(as->pfras_packets));
 		bzero(as->pfras_bytes, sizeof(as->pfras_bytes));
 		as->pfras_a.pfra_fback = PFR_FB_NOCOUNT;
@@ -1111,6 +1113,21 @@ pfr_walktree(struct radix_node *rn, void *arg)
 			    AF_INET6);
 			w->pfrw_dyn->pfid_mask6 = *SUNION2PF(&pfr_mask,
 			    AF_INET6);
+		}
+		break;
+	    }
+	case PFRW_COUNTERS:
+	    {
+		if (w->pfrw_flags & PFR_TFLAG_COUNTERS) {
+			if (ke->pfrke_counters.pfrkc_counters != NULL)
+				break;
+			ke->pfrke_counters.pfrkc_counters =
+			    uma_zalloc_pcpu(V_pfr_kentry_counter_z,
+			    M_NOWAIT | M_ZERO);
+		} else {
+			uma_zfree_pcpu(V_pfr_kentry_counter_z,
+			    ke->pfrke_counters.pfrkc_counters);
+			ke->pfrke_counters.pfrkc_counters = NULL;
 		}
 		break;
 	    }
@@ -1818,6 +1835,7 @@ static void
 pfr_setflags_ktable(struct pfr_ktable *kt, int newf)
 {
 	struct pfr_kentryworkq	addrq;
+	struct pfr_walktree	w;
 
 	PF_RULES_WASSERT();
 
@@ -1837,6 +1855,20 @@ pfr_setflags_ktable(struct pfr_ktable *kt, int newf)
 		pfr_destroy_ktable(kt, 1);
 		V_pfr_ktable_cnt--;
 		return;
+	}
+	if (newf & PFR_TFLAG_COUNTERS && ! (kt->pfrkt_flags & PFR_TFLAG_COUNTERS)) {
+		bzero(&w, sizeof(w));
+		w.pfrw_op = PFRW_COUNTERS;
+		w.pfrw_flags |= PFR_TFLAG_COUNTERS;
+		kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w);
+		kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh, pfr_walktree, &w);
+	}
+	if (! (newf & PFR_TFLAG_COUNTERS) && (kt->pfrkt_flags & PFR_TFLAG_COUNTERS)) {
+		bzero(&w, sizeof(w));
+		w.pfrw_op = PFRW_COUNTERS;
+		w.pfrw_flags |= 0;
+		kt->pfrkt_ip4->rnh_walktree(&kt->pfrkt_ip4->rh, pfr_walktree, &w);
+		kt->pfrkt_ip6->rnh_walktree(&kt->pfrkt_ip6->rh, pfr_walktree, &w);
 	}
 	if (!(newf & PFR_TFLAG_ACTIVE) && kt->pfrkt_cnt) {
 		pfr_enqueue_addrs(kt, &addrq, NULL, 0);
