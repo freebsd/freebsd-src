@@ -3060,13 +3060,19 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		fde = &fdt->fdt_ofiles[fd];
 		haverights = *cap_rights_fde_inline(fde);
 		fp = fde->fde_file;
-		if (!seqc_consistent(fd_seqc(fdt, fd), seq))
+		if (__predict_false(fp == NULL)) {
+			if (seqc_consistent(fd_seqc(fdt, fd), seq))
+				return (EBADF);
+			fdt = atomic_load_ptr(&fdp->fd_files);
 			continue;
-		if (__predict_false(fp == NULL))
-			return (EBADF);
+		}
 		error = cap_check_inline(&haverights, needrightsp);
-		if (__predict_false(error != 0))
-			return (error);
+		if (__predict_false(error != 0)) {
+			if (seqc_consistent(fd_seqc(fdt, fd), seq))
+				return (error);
+			fdt = atomic_load_ptr(&fdp->fd_files);
+			continue;
+		}
 		if (__predict_false(!refcount_acquire_if_not_zero(&fp->f_count))) {
 			fdt = atomic_load_ptr(&fdp->fd_files);
 			continue;
