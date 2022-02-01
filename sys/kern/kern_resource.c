@@ -656,7 +656,7 @@ int
 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
     struct rlimit *limp)
 {
-	struct plimit *newlim, *oldlim;
+	struct plimit *newlim, *oldlim, *oldlim_td;
 	struct rlimit *alimp;
 	struct rlimit oldssiz;
 	int error;
@@ -738,8 +738,18 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	*alimp = *limp;
 	p->p_limit = newlim;
 	PROC_UPDATE_COW(p);
+	oldlim_td = NULL;
+	if (td == curthread && PROC_COW_CHANGECOUNT(td, p) == 1) {
+		oldlim_td = lim_cowsync();
+		thread_cow_synced(td);
+	}
 	PROC_UNLOCK(p);
-	lim_free(oldlim);
+	if (oldlim_td != NULL) {
+		MPASS(oldlim_td == oldlim);
+		lim_freen(oldlim, 2);
+	} else {
+		lim_free(oldlim);
+	}
 
 	if (which == RLIMIT_STACK &&
 	    /*
