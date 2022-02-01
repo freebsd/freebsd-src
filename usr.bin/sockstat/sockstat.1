@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2021
+.Dd February 2, 2022
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46CcLlnqSsUuvw
+.Op Fl 46CciLlnqSsUuvw
 .Op Fl j Ar jail
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -61,6 +61,9 @@ Display the congestion control module, if applicable.
 This is currently only implemented for TCP.
 .It Fl c
 Show connected sockets.
+.It Fl i
+Display the
+.Dv inp_gencnt .
 .It Fl j Ar jail
 Show only sockets belonging to the specified jail ID or name.
 .It Fl L
@@ -160,6 +163,10 @@ if the endpoint could not be determined.
 (Internet sockets only)
 The address the foreign end of the socket is bound to (see
 .Xr getpeername 2 ) .
+.It Li ID
+The inp_gencnt if
+.Fl i
+is specified (only for TCP or UDP).
 .It Li ENCAPS
 The remote UDP encapsulation port number if
 .Fl U
