@@ -1955,7 +1955,7 @@ mlx5e_add_all_vxlan_rules(struct mlx5e_priv *priv)
 		err = mlx5e_add_vxlan_rule_from_db(priv, el);
 		if (err != 0)
 			break;
-		el->installed = false;
+		el->installed = true;
 	}
 
 	return (err);
