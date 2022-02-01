@@ -1350,7 +1350,6 @@ mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 
 	memcpy(rqc, param->rqc, sizeof(param->rqc));
 
-	MLX5_SET(rqc, rqc, cqn, c->rq.cq.mcq.cqn);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RST);
 	MLX5_SET(rqc, rqc, ts_format, ts_format);
 	MLX5_SET(rqc, rqc, flush_in_error_en, 1);
@@ -1437,6 +1436,9 @@ mlx5e_open_rq(struct mlx5e_channel *c,
 	err = mlx5e_create_rq(c, param, rq);
 	if (err)
 		return (err);
+
+	/* set CQN in RQ parameters */
+	MLX5_SET(rqc, param->rqc, cqn, c->rq.cq.mcq.cqn);
 
 	err = mlx5e_enable_rq(rq, param);
 	if (err)
@@ -1534,6 +1536,9 @@ mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 	    &drop_rq->wq_ctrl);
 	if (err)
 		goto err_close_cq;
+
+	/* set CQN in RQ parameters */
+	MLX5_SET(rqc, param_rq.rqc, cqn, drop_rq->cq.mcq.cqn);
 
 	err = mlx5e_enable_rq(drop_rq, &param_rq);
 	if (err)
