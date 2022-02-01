@@ -42,20 +42,20 @@
 
 /*
  * Flags for ACK entry for compression
- * the bottom 8 bits has the th_flags.
+ * the bottom 12 bits has the th_x2|th_flags.
  * LRO itself adds only the TSTMP flags
  * to indicate if either of the types
  * of timestamps are filled and the
  * HAS_TSTMP option to indicate if the
  * TCP timestamp option is valid.
  *
- * The other 5 flag bits are for processing
+ * The other 1 flag bits are for processing
  * by a stack.
  *
  */
-#define TSTMP_LRO		0x0100
-#define TSTMP_HDWR		0x0200
-#define HAS_TSTMP		0x0400
+#define TSTMP_LRO		0x1000
+#define TSTMP_HDWR		0x2000
+#define HAS_TSTMP		0x4000
 /*
  * Default number of interrupts on the same cpu in a row
  * that will cause us to declare a "affinity cpu".
@@ -146,9 +146,10 @@ struct lro_entry {
 	uint16_t		compressed;
 	uint16_t		uncompressed;
 	uint16_t		window;
-	uint8_t			flags;
-	uint8_t			timestamp : 1;
-	uint8_t			needs_merge : 1;
+	uint16_t		flags : 12,	/* 12 TCP header bits */
+				timestamp : 1,
+				needs_merge : 1,
+				reserved : 2;	/* unused */
 	struct bintime		alloc_time;	/* time when entry was allocated */
 };
 
