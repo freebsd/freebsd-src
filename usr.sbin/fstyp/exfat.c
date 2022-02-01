@@ -111,7 +111,7 @@ struct exfat_dirent {
 	} u;
 	uint32_t	xde_first_cluster;
 	uint64_t	xde_data_len;
-} __packed;
+};
 #define	xde_generic		u.xde_generic_
 #define	xde_secondary_count	u.xde_primary_.xde_secondary_count
 #define	xde_set_chksum		u.xde_primary_.xde_set_chksum_
@@ -124,7 +124,7 @@ struct exfat_de_label {
 	uint8_t		xdel_char_cnt;	/* Length of UCS-2 label */
 	uint16_t	xdel_vol_lbl[11];
 	uint8_t		xdel_reserved[8];
-} __packed;
+};
 _Static_assert(sizeof(struct exfat_de_label) == 32, "spec");
 
 #define	MAIN_BOOT_REGION_SECT	0
