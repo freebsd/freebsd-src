@@ -206,9 +206,9 @@ badoff:
 	/*
 	 * Copy the directory entry into the denode area of the vnode.
 	 */
-	if ((dirclust == MSDOSFSROOT
-	     || (FAT32(pmp) && dirclust == pmp->pm_rootdirblk))
-	    && diroffset == MSDOSFSROOT_OFS) {
+	if ((dirclust == MSDOSFSROOT ||
+	    (FAT32(pmp) && dirclust == pmp->pm_rootdirblk)) &&
+	    diroffset == MSDOSFSROOT_OFS) {
 		/*
 		 * Directory entry for the root directory. There isn't one,
 		 * so we manufacture one. We should probably rummage
@@ -387,7 +387,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 
 	if (dep->de_FileSize < length) {
 		vnode_pager_setsize(DETOV(dep), length);
-		return deextend(dep, length, cred);
+		return (deextend(dep, length, cred));
 	}
 
 	/*
@@ -477,7 +477,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 			return (error);
 		}
 		fc_setcache(dep, FC_LASTFC, de_cluster(pmp, length - 1),
-			    eofentry);
+		    eofentry);
 	}
 
 	/*
