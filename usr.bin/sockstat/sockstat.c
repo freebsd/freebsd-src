@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <jail.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -83,6 +84,7 @@ static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_C;		/* Show congestion control */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_i;		/* Show inp_gencnt */
 static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
@@ -120,6 +122,7 @@ struct addr {
 struct sock {
 	kvaddr_t socket;
 	kvaddr_t pcb;
+	uint64_t inp_gencnt;
 	int shown;
 	int vflag;
 	int family;
@@ -713,6 +716,7 @@ gather_inet(int proto)
 			err(1, "malloc()");
 		sock->socket = so->xso_so;
 		sock->proto = proto;
+		sock->inp_gencnt = xip->inp_gencnt;
 		if (xip->inp_vflag & INP_IPV4) {
 			sock->family = AF_INET;
 			sockaddr(&laddr->address, sock->family,
@@ -1107,6 +1111,15 @@ displaysock(struct sock *s, int pos)
 		default:
 			abort();
 		}
+		if (opt_i) {
+			if (s->proto == IPPROTO_TCP ||
+			    s->proto == IPPROTO_UDP) {
+				while (pos < offset)
+					pos += xprintf(" ");
+				pos += xprintf("%" PRIu64, s->inp_gencnt);
+			}
+			offset += 9;
+		}
 		if (opt_U) {
 			if (faddr != NULL &&
 			    ((s->proto == IPPROTO_SCTP &&
@@ -1204,6 +1217,8 @@ display(void)
 		    "USER", "COMMAND", "PID", "FD", "PROTO",
 		    opt_w ? 45 : 21, "LOCAL ADDRESS",
 		    opt_w ? 45 : 21, "FOREIGN ADDRESS");
+		if (opt_i)
+			printf(" %-8s", "ID");
 		if (opt_U)
 			printf(" %-6s", "ENCAPS");
 		if (opt_s) {
@@ -1324,7 +1339,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: sockstat [-46cLlSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
+	    "usage: sockstat [-46ciLlSsUuvw] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
@@ -1339,7 +1354,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46Ccj:Llnp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46Ccij:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1352,6 +1367,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'i':
+			opt_i = 1;
 			break;
 		case 'j':
 			opt_j = jail_getid(optarg);
