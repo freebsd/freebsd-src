@@ -33,7 +33,6 @@
 
 #include <sys/types.h>
 
-#include <net/bpf.h>
 #include <net/if.h>
 
 #define	PFLOGIFS_MAX	16
@@ -60,7 +59,9 @@ struct pfloghdr {
 	u_int8_t	pad2[3];
 };
 
-#define	PFLOG_HDRLEN		BPF_WORDALIGN(offsetof(struct pfloghdr, pad2))
+#define PFLOG_ALIGNMENT		sizeof(uint32_t)
+#define PFLOG_ALIGN(x)		(((x) + PFLOG_ALIGNMENT - 1) & ~(PFLOG_ALIGNMENT - 1))
+#define	PFLOG_HDRLEN		PFLOG_ALIGN(offsetof(struct pfloghdr, pad2))
 /* minus pad, also used as a signature */
 #define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad2)
 
