@@ -262,6 +262,16 @@ mlx5e_iq_enable(struct mlx5e_iq *iq, struct mlx5e_sq_param *param,
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
 	MLX5_SET(sqc, sqc, allow_swp, 1);
 
+	/* SQ remap support requires reg_umr privileges level */
+	if (MLX5_CAP_QOS(iq->priv->mdev, qos_remap_pp)) {
+		MLX5_SET(sqc, sqc, qos_remap_en, 1);
+		if (MLX5_CAP_ETH(iq->priv->mdev, reg_umr_sq))
+			MLX5_SET(sqc, sqc, reg_umr, 1);
+		 else
+			mlx5_en_err(iq->priv->ifp,
+			    "No reg umr SQ capability, SQ remap disabled\n");
+	}
+
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
 	MLX5_SET(wq, wq, uar_page, bfreg->index);
 	MLX5_SET(wq, wq, log_wq_pg_sz, iq->wq_ctrl.buf.page_shift -

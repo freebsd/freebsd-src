@@ -880,6 +880,7 @@ struct mlx5e_sq {
 	u16	max_inline;
 	u8	min_inline_mode;
 	u8	min_insert_caps;
+	u32	queue_handle; /* SQ remap support */
 #define	MLX5E_INSERT_VLAN 1
 #define	MLX5E_INSERT_NON_VLAN 2
 
@@ -1143,6 +1144,11 @@ struct mlx5e_tx_umr_wqe {
 struct mlx5e_tx_psv_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
 	struct mlx5_seg_set_psv psv;
+};
+
+struct mlx5e_tx_qos_remap_wqe {
+	struct mlx5_wqe_ctrl_seg ctrl;
+	struct mlx5_wqe_qos_remap_seg qos_remap;
 };
 
 struct mlx5e_rx_wqe {
