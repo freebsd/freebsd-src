@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -566,6 +566,7 @@ wq_ll_pop:
 void
 mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 {
+	struct mlx5e_channel *c = container_of(mcq, struct mlx5e_channel, rq.cq.mcq);
 	struct mlx5e_rq *rq = container_of(mcq, struct mlx5e_rq, cq.mcq);
 	int i = 0;
 
@@ -584,6 +585,11 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 		rq->ifp->if_input(rq->ifp, mb);
 	}
 #endif
+	for (int j = 0; j != MLX5E_MAX_TX_NUM_TC; j++) {
+		mtx_lock(&c->sq[j].lock);
+		c->sq[j].db_inhibit++;
+		mtx_unlock(&c->sq[j].lock);
+	}
 
 	mtx_lock(&rq->mtx);
 
@@ -607,4 +613,12 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 	mlx5e_cq_arm(&rq->cq, MLX5_GET_DOORBELL_LOCK(&rq->channel->priv->doorbell_lock));
 	tcp_lro_flush_all(&rq->lro);
 	mtx_unlock(&rq->mtx);
+
+	for (int j = 0; j != MLX5E_MAX_TX_NUM_TC; j++) {
+		mtx_lock(&c->sq[j].lock);
+		c->sq[j].db_inhibit--;
+		/* Update the doorbell record, if any. */
+		mlx5e_tx_notify_hw(c->sq + j, true);
+		mtx_unlock(&c->sq[j].lock);
+	}
 }

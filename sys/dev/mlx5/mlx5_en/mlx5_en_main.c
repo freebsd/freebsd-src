@@ -1807,11 +1807,7 @@ mlx5e_sq_send_nops_locked(struct mlx5e_sq *sq, int can_sleep)
 		atomic_thread_fence_rel();
 	}
 done:
-	/* Check if we need to write the doorbell */
-	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
-		sq->doorbell.d64 = 0;
-	}
+	mlx5e_tx_notify_hw(sq, false);
 }
 
 void
@@ -3867,8 +3863,7 @@ mlx5e_reset_sq_doorbell_record(struct mlx5e_sq *sq)
 
 	sq->doorbell.d32[0] = cpu_to_be32(MLX5_OPCODE_NOP);
 	sq->doorbell.d32[1] = cpu_to_be32(sq->sqn << 8);
-	mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
-	sq->doorbell.d64 = 0;
+	mlx5e_tx_notify_hw(sq, true);
 }
 
 void
@@ -4785,10 +4780,8 @@ mlx5_en_debugnet_transmit(struct ifnet *dev, struct mbuf *m)
 		err = 0;
 	}
 
-	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
-		sq->doorbell.d64 = 0;
-	}
+	mlx5e_tx_notify_hw(sq, true);
+
 	return (err);
 }
 

@@ -797,6 +797,7 @@ struct mlx5e_sq {
 	struct	mtx comp_lock;
 	struct	mlx5e_sq_stats stats;
 	struct	callout cev_callout;
+	int	db_inhibit;
 
 	/* data path */
 #define	mlx5e_sq_zero_start dma_tag
@@ -1154,8 +1155,13 @@ int	mlx5e_add_all_vxlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vxlan_rules(struct mlx5e_priv *priv);
 
 static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, bool force)
 {
+	if (unlikely((force == false && sq->db_inhibit != 0) || sq->doorbell.d64 == 0)) {
+		/* skip writing the doorbell record */
+		return;
+	}
+
 	/* ensure wqe is visible to device before updating doorbell record */
 	wmb();
 
@@ -1167,8 +1173,10 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
 	 */
 	wmb();
 
-	mlx5_write64(wqe, sq->uar_map,
+	mlx5_write64(sq->doorbell.d32, sq->uar_map,
 	    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
+
+	sq->doorbell.d64 = 0;
 }
 
 static inline void

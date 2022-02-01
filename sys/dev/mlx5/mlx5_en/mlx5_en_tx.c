@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1122,11 +1122,8 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 		err = ENOBUFS;
 	}
 
-	/* Check if we need to write the doorbell */
-	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
-		sq->doorbell.d64 = 0;
-	}
+	/* Write the doorbell record, if any. */
+	mlx5e_tx_notify_hw(sq, false);
 
 	/*
 	 * Check if we need to start the event timer which flushes the
