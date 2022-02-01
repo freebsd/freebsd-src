@@ -778,6 +778,52 @@ struct mlx5e_rq {
 	struct mlx5e_channel *channel;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
+typedef void (mlx5e_iq_callback_t)(void *arg);
+
+struct mlx5e_iq_data {
+	bus_dmamap_t dma_map;
+	mlx5e_iq_callback_t *callback;
+	void *arg;
+	volatile s32 *p_refcount;	/* in use refcount, if any */
+	u32 num_wqebbs;
+	u32 dma_sync;
+};
+
+struct mlx5e_iq {
+	/* persistant fields */
+	struct mtx lock;
+	struct mtx comp_lock;
+	int	db_inhibit;
+
+	/* data path */
+#define	mlx5e_iq_zero_start dma_tag
+	bus_dma_tag_t dma_tag;
+
+	u16 cc;	/* consumer counter */
+	u16 pc __aligned(MLX5E_CACHELINE_SIZE);
+	u16 running;
+
+	union {
+		u32 d32[2];
+		u64 d64;
+	} doorbell;
+
+	struct mlx5e_cq cq;
+
+	/* pointers to per request info: write@xmit, read@completion */
+	struct mlx5e_iq_data *data;
+
+	/* read only */
+	struct mlx5_wq_cyc wq;
+	void __iomem *uar_map;
+	u32 sqn;
+	u32 mkey_be;
+
+	/* control path */
+	struct mlx5_wq_ctrl wq_ctrl;
+	struct mlx5e_priv *priv;
+};
+
 struct mlx5e_sq_mbuf {
 	bus_dmamap_t dma_map;
 	struct mbuf *mbuf;
@@ -873,6 +919,7 @@ struct mlx5e_channel {
 	struct m_snd_tag tag;
 	struct mlx5_sq_bfreg bfreg;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
+	struct mlx5e_iq iq;
 	struct mlx5e_priv *priv;
 	struct completion completion;
 	int	ix;
@@ -1222,5 +1269,15 @@ void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
 int	mlx5e_fec_update(struct mlx5e_priv *priv);
 int	mlx5e_hw_temperature_update(struct mlx5e_priv *priv);
+
+/* Internal Queue, IQ, API functions */
+void	mlx5e_iq_send_nop(struct mlx5e_iq *, u32);
+int	mlx5e_iq_open(struct mlx5e_channel *, struct mlx5e_sq_param *, struct mlx5e_cq_param *, struct mlx5e_iq *);
+void	mlx5e_iq_close(struct mlx5e_iq *);
+void	mlx5e_iq_static_init(struct mlx5e_iq *);
+void	mlx5e_iq_static_destroy(struct mlx5e_iq *);
+void	mlx5e_iq_notify_hw(struct mlx5e_iq *);
+int	mlx5e_iq_get_producer_index(struct mlx5e_iq *);
+void	mlx5e_iq_load_memory_single(struct mlx5e_iq *, u16, void *, size_t, u64 *, u32);
 
 #endif					/* _MLX5_EN_H_ */
