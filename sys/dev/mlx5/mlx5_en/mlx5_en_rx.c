@@ -372,6 +372,19 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 		mb->m_pkthdr.rcv_tstmp = tstmp;
 		mb->m_flags |= M_TSTMP;
 	}
+
+	switch (get_cqe_tls_offload(cqe)) {
+	case CQE_TLS_OFFLOAD_DECRYPTED:
+		/* set proper checksum flag for decrypted packets */
+		mb->m_pkthdr.csum_flags |= CSUM_TLS_DECRYPTED;
+		rq->stats.decrypted_ok_packets++;
+		break;
+	case CQE_TLS_OFFLOAD_ERROR:
+		rq->stats.decrypted_error_packets++;
+		break;
+	default:
+		break;
+	}
 }
 
 static inline void

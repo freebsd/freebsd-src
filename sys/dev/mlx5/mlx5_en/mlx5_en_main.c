@@ -827,6 +827,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	u64 rx_wqe_err = 0;
 	u64 rx_packets = 0;
 	u64 rx_bytes = 0;
+	u64 rx_decrypted_error = 0;
+	u64 rx_decrypted_ok = 0;
 	u32 rx_out_of_buffer = 0;
 	int error;
 	int i;
@@ -853,6 +855,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 		rx_wqe_err += rq_stats->wqe_err;
 		rx_packets += rq_stats->packets;
 		rx_bytes += rq_stats->bytes;
+		rx_decrypted_error += rq_stats->decrypted_error_packets;
+		rx_decrypted_ok += rq_stats->decrypted_ok_packets;
 
 		for (j = 0; j < priv->num_tc; j++) {
 			sq_stats = &pch->sq[j].stats;
@@ -903,6 +907,8 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	s->rx_wqe_err = rx_wqe_err;
 	s->rx_packets = rx_packets;
 	s->rx_bytes = rx_bytes;
+	s->rx_decrypted_error_packets = rx_decrypted_error;
+	s->rx_decrypted_ok_packets = rx_decrypted_ok;
 
 	mlx5e_grp_vnic_env_update_stats(priv);
 
@@ -4388,6 +4394,8 @@ mlx5e_snd_tag_alloc(struct ifnet *ifp,
 #ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS:
 		return (mlx5e_tls_snd_tag_alloc(ifp, params, ppmt));
+	case IF_SND_TAG_TYPE_TLS_RX:
+		return (mlx5e_tls_rx_snd_tag_alloc(ifp, params, ppmt));
 #endif
 	default:
 		return (EOPNOTSUPP);
@@ -4644,6 +4652,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_open_tirs;
 	}
 
+	err = mlx5e_tls_rx_init(priv);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_tls_rx_init() failed, %d\n", __func__, err);
+		goto err_open_flow_tables;
+	}
+
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
@@ -4779,6 +4793,9 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	return (priv);
 
+err_open_flow_tables:
+	mlx5e_close_flow_tables(priv);
+
 err_open_tirs:
 	mlx5e_close_tirs(priv);
 
@@ -4853,6 +4870,14 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 		    "Waiting for all TLS connections to terminate\n");
 		pause("W", hz);
 	}
+
+	/* wait for all TLS RX tags to get freed */
+	while (priv->tls_rx.init != 0 &&
+	    uma_zone_get_cur(priv->tls_rx.zone) != 0)  {
+		mlx5_en_err(priv->ifp,
+		    "Waiting for all TLS RX connections to terminate\n");
+		pause("W", hz);
+	}
 #endif
 	/* wait for all unlimited send tags to complete */
 	mlx5e_priv_wait_for_completion(priv, mdev->priv.eq_table.num_comp_vectors);
@@ -4887,6 +4912,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
 
+	mlx5e_tls_rx_cleanup(priv);
 	mlx5e_close_flow_tables(priv);
 	mlx5e_close_tirs(priv);
 	mlx5e_close_rqts(priv);

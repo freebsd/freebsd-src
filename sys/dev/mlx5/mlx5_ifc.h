@@ -1366,7 +1366,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_480[0x1];
 	u8         tls_tx[0x1];
-	u8         reserved_at_482[0x1];
+	u8         tls_rx[0x1];
 	u8         log_max_l2_table[0x5];
 	u8         reserved_64[0x8];
 	u8         log_uar_page_sz[0x10];
