@@ -1403,18 +1403,30 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 #ifdef KERN_TLS
 	if (tp->t_inpcb->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
 		tls = tp->t_inpcb->inp_socket->so_snd.sb_tls_info;
-		MPASS(tls->mode == TCP_TLS_MODE_IFNET);
-		if (tls->snd_tag != NULL &&
+		if (tls->mode != TCP_TLS_MODE_IFNET)
+			tls = NULL;
+		else if (tls->snd_tag != NULL &&
 		    tls->snd_tag->sw->type != IF_SND_TAG_TYPE_TLS_RATE_LIMIT) {
+			if (!tls->reset_pending) {
+				/*
+				 * NIC probably doesn't support
+				 * ratelimit TLS tags if it didn't
+				 * allocate one when an existing rate
+				 * was present, so ignore.
+				 */
+				tcp_rel_pacing_rate(crte, tp);
+				if (error)
+					*error = EOPNOTSUPP;
+				return (NULL);
+			}
+
 			/*
-			 * NIC probably doesn't support ratelimit TLS
-			 * tags if it didn't allocate one when an
-			 * existing rate was present, so ignore.
+			 * The send tag is being converted, so set the
+			 * rate limit on the inpcb tag.  There is a
+			 * race that the new NIC send tag might use
+			 * the current rate instead of this one.
 			 */
-			tcp_rel_pacing_rate(crte, tp);
-			if (error)
-				*error = EOPNOTSUPP;
-			return (NULL);
+			tls = NULL;
 		}
 	}
 #endif
