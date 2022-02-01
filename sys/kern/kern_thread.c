@@ -868,6 +868,19 @@ thread_cow_update(struct thread *td)
 		lim_free(oldlimit);
 }
 
+void
+thread_cow_synced(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	MPASS(td->td_cowgen != p->p_cowgen);
+	MPASS(td->td_ucred == p->p_ucred);
+	MPASS(td->td_limit == p->p_limit);
+	td->td_cowgen = p->p_cowgen;
+}
+
 /*
  * Discard the current thread and exit from its context.
  * Always called with scheduler locked.
