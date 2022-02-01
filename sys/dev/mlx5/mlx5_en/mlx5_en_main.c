@@ -1508,6 +1508,9 @@ mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 	void *rqc_wq = MLX5_ADDR_OF(rqc, param_rq.rqc, wq);
 	int err;
 
+	/* set channel pointer */
+	drop_rq->channel = priv->channel;
+
 	/* set basic CQ parameters needed */
 	MLX5_SET(cqc, param_cq.cqc, log_cq_size, 0);
 	MLX5_SET(cqc, param_cq.cqc, uar_page, priv->mdev->priv.uar->index);
