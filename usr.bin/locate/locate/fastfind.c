@@ -296,7 +296,7 @@ fastfind
 			}
 
 			if (p - path >= LOCATE_PATH_MAX) 
-				errx(1, "corrupted database: %s %d", database, (int)(p - path));
+				errx(1, "corrupted database: %s %zu", database, (size_t)(p - path));
 
 		}
 		
