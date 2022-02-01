@@ -75,7 +75,6 @@ mlx5e_send_nop(struct mlx5e_sq *sq, u32 ds_cnt)
 	sq->pc += sq->mbuf[pi].num_wqebbs;
 }
 
-#if (__FreeBSD_version >= 1100000)
 static uint32_t mlx5e_hash_value;
 
 static void
@@ -86,7 +85,6 @@ mlx5e_hash_init(void *arg)
 
 /* Make kernel call mlx5e_hash_init after the random stack finished initializing */
 SYSINIT(mlx5e_hash_init, SI_SUB_RANDOM, SI_ORDER_ANY, &mlx5e_hash_init, NULL);
-#endif
 
 static struct mlx5e_sq *
 mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
@@ -166,16 +164,8 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 #endif
 			ch = (mb->m_pkthdr.flowid % 128) % ch;
 	} else {
-#if (__FreeBSD_version >= 1100000)
 		ch = m_ether_tcpip_hash(MBUF_HASHFLAG_L3 |
 		    MBUF_HASHFLAG_L4, mb, mlx5e_hash_value) % ch;
-#else
-		/*
-		 * m_ether_tcpip_hash not present in stable, so just
-		 * throw unhashed mbufs on queue 0
-		 */
-		ch = 0;
-#endif
 	}
 
 	/* check if send queue is running */
