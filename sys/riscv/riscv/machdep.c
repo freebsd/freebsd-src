@@ -587,6 +587,10 @@ initriscv(struct riscv_bootparams *rvbp)
 	mutex_init();
 	init_param2(physmem);
 	kdb_init();
+#ifdef KDB
+	if ((boothowto & RB_KDB) != 0)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
 
 	env = kern_getenv("kernelname");
 	if (env != NULL)
