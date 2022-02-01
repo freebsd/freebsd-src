@@ -12,6 +12,7 @@ mlx5_diagnostics.c \
 mlx5_eq.c \
 mlx5_eswitch.c \
 mlx5_fs_cmd.c \
+mlx5_fs_tcp.c \
 mlx5_fs_tree.c \
 mlx5_fw.c \
 mlx5_fwdump.c \
