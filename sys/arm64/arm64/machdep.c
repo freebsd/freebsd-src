@@ -847,6 +847,10 @@ initarm(struct arm64_bootparams *abp)
 
 	dbg_init();
 	kdb_init();
+#ifdef KDB
+	if ((boothowto & RB_KDB) != 0)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
 	pan_enable();
 
 	kcsan_cpu_init(0);
