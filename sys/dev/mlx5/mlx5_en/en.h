@@ -978,6 +978,7 @@ struct mlx5e_eth_addr_db {
 enum {
 	MLX5E_STATE_ASYNC_EVENTS_ENABLE,
 	MLX5E_STATE_OPENED,
+	MLX5E_STATE_FLOW_RULES_READY,
 };
 
 enum {
@@ -1188,23 +1189,21 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 void	mlx5e_dim_work(struct work_struct *);
 void	mlx5e_dim_build_cq_param(struct mlx5e_priv *, struct mlx5e_cq_param *);
 
-int	mlx5e_open_flow_table(struct mlx5e_priv *priv);
-void	mlx5e_close_flow_table(struct mlx5e_priv *priv);
-void	mlx5e_set_rx_mode_core(struct mlx5e_priv *priv);
+int	mlx5e_open_flow_tables(struct mlx5e_priv *priv);
+void	mlx5e_close_flow_tables(struct mlx5e_priv *priv);
+int	mlx5e_open_flow_rules(struct mlx5e_priv *priv);
+void	mlx5e_close_flow_rules(struct mlx5e_priv *priv);
 void	mlx5e_set_rx_mode_work(struct work_struct *work);
 
 void	mlx5e_vlan_rx_add_vid(void *, struct ifnet *, u16);
 void	mlx5e_vlan_rx_kill_vid(void *, struct ifnet *, u16);
 void	mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void	mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
-int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
-void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 void	mlx5e_vxlan_start(void *arg, struct ifnet *ifp, sa_family_t family,
 	    u_int port);
 void	mlx5e_vxlan_stop(void *arg, struct ifnet *ifp, sa_family_t family,
 	    u_int port);
-
 int	mlx5e_add_all_vxlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vxlan_rules(struct mlx5e_priv *priv);
 
