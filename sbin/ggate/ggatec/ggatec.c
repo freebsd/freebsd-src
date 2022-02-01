@@ -534,7 +534,7 @@ g_gatec_rescue(void)
 }
 
 static void
-init_initial_buffer_size()
+init_initial_buffer_size(void)
 {
 	int value;
 	size_t intsize;
