@@ -59,7 +59,10 @@ pft_onerror()
 
 pft_init()
 {
-	trap pft_onerror EXIT
+	if [ "$1" == "debug" ]
+	then
+		trap pft_onerror EXIT
+	fi
 
 	vnet_init
 
