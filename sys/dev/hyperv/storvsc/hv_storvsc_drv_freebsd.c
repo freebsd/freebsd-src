@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <sys/lock.h>
 #include <sys/sema.h>
-#include <sys/sglist.h>
 #include <sys/eventhandler.h>
 #include <machine/bus.h>
 
@@ -110,9 +109,15 @@ __FBSDID("$FreeBSD$");
 
 struct storvsc_softc;
 
+struct hv_sglist {
+	struct iovec sg_iov[STORVSC_DATA_SEGCNT_MAX];
+	u_short	sg_nseg;
+	u_short	sg_maxseg;
+};
+
 struct hv_sgl_node {
 	LIST_ENTRY(hv_sgl_node) link;
-	struct sglist *sgl_data;
+	struct hv_sglist *sgl_data;
 };
 
 struct hv_sgl_page_pool{
@@ -186,7 +191,7 @@ struct hv_storvsc_request {
 	struct storvsc_softc		*softc;
 	struct callout			callout;
 	struct sema			synch_sema; /*Synchronize the request/response if needed */
-	struct sglist			*bounce_sgl;
+	struct hv_sglist		*bounce_sgl;
 	unsigned int			bounce_sgl_count;
 	uint64_t			not_aligned_seg_bits;
 	bus_dmamap_t			data_dmap;
@@ -344,13 +349,13 @@ static void hv_storvsc_on_iocompletion( struct storvsc_softc *sc,
 					struct hv_storvsc_request *request);
 static int hv_storvsc_connect_vsp(struct storvsc_softc *);
 static void storvsc_io_done(struct hv_storvsc_request *reqp);
-static void storvsc_copy_sgl_to_bounce_buf(struct sglist *bounce_sgl,
+static void storvsc_copy_sgl_to_bounce_buf(struct hv_sglist *bounce_sgl,
 				bus_dma_segment_t *orig_sgl,
 				unsigned int orig_sgl_count,
 				uint64_t seg_bits);
 void storvsc_copy_from_bounce_buf_to_sgl(bus_dma_segment_t *dest_sgl,
 				unsigned int dest_sgl_count,
-				struct sglist* src_sgl,
+				struct hv_sglist *src_sgl,
 				uint64_t seg_bits);
 
 static device_method_t storvsc_methods[] = {
@@ -1112,16 +1117,15 @@ storvsc_attach(device_t dev)
 	        	sgl_node = malloc(sizeof(struct hv_sgl_node),
 			    M_DEVBUF, M_WAITOK|M_ZERO);
 
-			sgl_node->sgl_data =
-			    sglist_alloc(STORVSC_DATA_SEGCNT_MAX,
-			    M_WAITOK|M_ZERO);
+			sgl_node->sgl_data = malloc(sizeof(struct hv_sglist),
+			    M_DEVBUF, M_WAITOK|M_ZERO);
 
 			for (j = 0; j < STORVSC_DATA_SEGCNT_MAX; j++) {
 				tmp_buff = malloc(PAGE_SIZE,
 				    M_DEVBUF, M_WAITOK|M_ZERO);
 
-				sgl_node->sgl_data->sg_segs[j].ss_paddr =
-				    (vm_paddr_t)tmp_buff;
+				sgl_node->sgl_data->sg_iov[j].iov_base =
+				    tmp_buff;
 			}
 
 			LIST_INSERT_HEAD(&g_hv_sgl_page_pool.free_sgl_list,
@@ -1210,12 +1214,9 @@ cleanup:
 		sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.free_sgl_list);
 		LIST_REMOVE(sgl_node, link);
 		for (j = 0; j < STORVSC_DATA_SEGCNT_MAX; j++) {
-			if (NULL !=
-			    (void*)sgl_node->sgl_data->sg_segs[j].ss_paddr) {
-				free((void*)sgl_node->sgl_data->sg_segs[j].ss_paddr, M_DEVBUF);
-			}
+			free(sgl_node->sgl_data->sg_iov[j].iov_base, M_DEVBUF);
 		}
-		sglist_free(sgl_node->sgl_data);
+		free(sgl_node->sgl_data, M_DEVBUF);
 		free(sgl_node, M_DEVBUF);
 	}
 
@@ -1273,12 +1274,9 @@ storvsc_detach(device_t dev)
 		sgl_node = LIST_FIRST(&g_hv_sgl_page_pool.free_sgl_list);
 		LIST_REMOVE(sgl_node, link);
 		for (j = 0; j < STORVSC_DATA_SEGCNT_MAX; j++){
-			if (NULL !=
-			    (void*)sgl_node->sgl_data->sg_segs[j].ss_paddr) {
-				free((void*)sgl_node->sgl_data->sg_segs[j].ss_paddr, M_DEVBUF);
-			}
+			free(sgl_node->sgl_data->sg_iov[j].iov_base, M_DEVBUF);
 		}
-		sglist_free(sgl_node->sgl_data);
+		free(sgl_node->sgl_data, M_DEVBUF);
 		free(sgl_node, M_DEVBUF);
 	}
 	
@@ -1621,7 +1619,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
  *
  */
 static void
-storvsc_destroy_bounce_buffer(struct sglist *sgl)
+storvsc_destroy_bounce_buffer(struct hv_sglist *sgl)
 {
 	struct hv_sgl_node *sgl_node = NULL;
 	if (LIST_EMPTY(&g_hv_sgl_page_pool.in_use_sgl_list)) {
@@ -1646,15 +1644,15 @@ storvsc_destroy_bounce_buffer(struct sglist *sgl)
  *
  * return NULL if create failed
  */
-static struct sglist *
+static struct hv_sglist *
 storvsc_create_bounce_buffer(uint16_t seg_count, int write)
 {
 	int i = 0;
-	struct sglist *bounce_sgl = NULL;
+	struct hv_sglist *bounce_sgl = NULL;
 	unsigned int buf_len = ((write == WRITE_TYPE) ? 0 : PAGE_SIZE);
 	struct hv_sgl_node *sgl_node = NULL;	
 
-	/* get struct sglist from free_sgl_list */
+	/* get struct hv_sglist from free_sgl_list */
 	if (LIST_EMPTY(&g_hv_sgl_page_pool.free_sgl_list)) {
 		printf("storvsc error: not enough free sgl\n");
 		return NULL;
@@ -1672,7 +1670,7 @@ storvsc_create_bounce_buffer(uint16_t seg_count, int write)
 		bounce_sgl->sg_nseg = seg_count;
 
 	for (i = 0; i < seg_count; i++)
-	        bounce_sgl->sg_segs[i].ss_len = buf_len;
+	        bounce_sgl->sg_iov[i].iov_len = buf_len;
 
 	return bounce_sgl;
 }
@@ -1691,7 +1689,7 @@ storvsc_create_bounce_buffer(uint16_t seg_count, int write)
  *
  */
 static void
-storvsc_copy_sgl_to_bounce_buf(struct sglist *bounce_sgl,
+storvsc_copy_sgl_to_bounce_buf(struct hv_sglist *bounce_sgl,
 			       bus_dma_segment_t *orig_sgl,
 			       unsigned int orig_sgl_count,
 			       uint64_t seg_bits)
@@ -1700,11 +1698,11 @@ storvsc_copy_sgl_to_bounce_buf(struct sglist *bounce_sgl,
 
 	for (src_sgl_idx = 0; src_sgl_idx < orig_sgl_count; src_sgl_idx++) {
 		if (seg_bits & (1 << src_sgl_idx)) {
-			memcpy((void*)bounce_sgl->sg_segs[src_sgl_idx].ss_paddr,
+			memcpy(bounce_sgl->sg_iov[src_sgl_idx].iov_base,
 			    (void*)orig_sgl[src_sgl_idx].ds_addr,
 			    orig_sgl[src_sgl_idx].ds_len);
 
-			bounce_sgl->sg_segs[src_sgl_idx].ss_len =
+			bounce_sgl->sg_iov[src_sgl_idx].iov_len =
 			    orig_sgl[src_sgl_idx].ds_len;
 		}
 	}
@@ -1725,7 +1723,7 @@ storvsc_copy_sgl_to_bounce_buf(struct sglist *bounce_sgl,
 void
 storvsc_copy_from_bounce_buf_to_sgl(bus_dma_segment_t *dest_sgl,
 				    unsigned int dest_sgl_count,
-				    struct sglist* src_sgl,
+				    struct hv_sglist* src_sgl,
 				    uint64_t seg_bits)
 {
 	int sgl_idx = 0;
@@ -1733,8 +1731,8 @@ storvsc_copy_from_bounce_buf_to_sgl(bus_dma_segment_t *dest_sgl,
 	for (sgl_idx = 0; sgl_idx < dest_sgl_count; sgl_idx++) {
 		if (seg_bits & (1 << sgl_idx)) {
 			memcpy((void*)(dest_sgl[sgl_idx].ds_addr),
-			    (void*)(src_sgl->sg_segs[sgl_idx].ss_paddr),
-			    src_sgl->sg_segs[sgl_idx].ss_len);
+			    src_sgl->sg_iov[sgl_idx].iov_base,
+			    src_sgl->sg_iov[sgl_idx].iov_len);
 		}
 	}
 }
@@ -2024,7 +2022,7 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 			/* transfer virtual address to physical frame number */
 			if (reqp->not_aligned_seg_bits & 0x1){
  				phys_addr =
-				    vtophys(reqp->bounce_sgl->sg_segs[0].ss_paddr);
+				    vtophys(reqp->bounce_sgl->sg_iov[0].iov_base);
 			}else{
  				phys_addr =
 					vtophys(storvsc_sglist[0].ds_addr);
@@ -2037,7 +2035,7 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 			for (i = 1; i < storvsc_sg_count; i++) {
 				if (reqp->not_aligned_seg_bits & (1 << i)) {
 					phys_addr =
-					    vtophys(reqp->bounce_sgl->sg_segs[i].ss_paddr);
+					    vtophys(reqp->bounce_sgl->sg_iov[i].iov_base);
 				} else {
 					phys_addr =
 					    vtophys(storvsc_sglist[i].ds_addr);
