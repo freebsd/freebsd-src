@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220201:
+	13.0-RELEASE-p7 FreeBSD-EN-22:07.la57
+
+	Fix Intel CPU LA57 boot failure [EN-22:07.la57]
+
 20220111:
 	13.0-RELEASE-p6	FreeBSD-EN-22:01.fsck_ffs
 			FreeBSD-EN-22:02.xsave
