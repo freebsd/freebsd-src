@@ -36,7 +36,7 @@
 #include <dev/mlx5/mpfs.h>
 #include <dev/mlx5/driver.h>
 
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 #define	MPFS_LOCK(dev) spin_lock(&(dev)->mpfs.spinlock)
 #define	MPFS_UNLOCK(dev) spin_unlock(&(dev)->mpfs.spinlock)

@@ -40,8 +40,7 @@
 #include <linux/ktime.h>
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/cmd.h>
-
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 static int mlx5_copy_from_msg(void *to, struct mlx5_cmd_msg *from, int size);
 static void mlx5_free_cmd_msg(struct mlx5_core_dev *dev,

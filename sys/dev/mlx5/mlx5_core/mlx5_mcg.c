@@ -32,7 +32,7 @@
 #include <linux/module.h>
 #include <dev/mlx5/driver.h>
 #include <rdma/ib_verbs.h>
-#include "mlx5_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
 
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn)
 {
