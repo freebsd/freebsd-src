@@ -591,6 +591,10 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 		mtx_unlock(&c->sq[j].lock);
 	}
 
+	mtx_lock(&c->iq.lock);
+	c->iq.db_inhibit++;
+	mtx_unlock(&c->iq.lock);
+
 	mtx_lock(&rq->mtx);
 
 	/*
@@ -621,4 +625,9 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 		mlx5e_tx_notify_hw(c->sq + j, true);
 		mtx_unlock(&c->sq[j].lock);
 	}
+
+	mtx_lock(&c->iq.lock);
+	c->iq.db_inhibit--;
+	mlx5e_iq_notify_hw(&c->iq);
+	mtx_unlock(&c->iq.lock);
 }
