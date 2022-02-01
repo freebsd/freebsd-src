@@ -32,9 +32,8 @@
 #include <linux/module.h>
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/tls.h>
-
-#include "mlx5_core.h"
-#include "transobj.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
+#include <dev/mlx5/mlx5_core/transobj.h>
 
 int mlx5_encryption_key_create(struct mlx5_core_dev *mdev, u32 pdn,
     const void *p_key, u32 key_len, u32 *p_obj_id)

@@ -47,9 +47,9 @@
 #include <dev/mlx5/mlx5_ifc.h>
 #include <dev/mlx5/mlx5_fpga/core.h>
 #include <dev/mlx5/mlx5_lib/mlx5.h>
-#include "mlx5_core.h"
-#include "eswitch.h"
-#include "fs_core.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
+#include <dev/mlx5/mlx5_core/eswitch.h>
+#include <dev/mlx5/mlx5_core/fs_core.h>
 #ifdef PCI_IOV
 #include <sys/nv.h>
 #include <dev/pci/pci_iov.h>

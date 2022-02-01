@@ -33,8 +33,8 @@
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/srq.h>
 #include <rdma/ib_verbs.h>
-#include "mlx5_core.h"
-#include "transobj.h"
+#include <dev/mlx5/mlx5_core/mlx5_core.h>
+#include <dev/mlx5/mlx5_core/transobj.h>
 
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type)
 {
