@@ -6,11 +6,12 @@ UNI = ../uni
 UCS2ANY = $(INT) $(BIN)/ucstoany.$(EXT)
 BDF2FNT = $(INT) $(BIN)/bdftofnt.$(EXT) -fModern
 
-RC32     = windres -F pe-i386
-CC32     = i686-w64-mingw32-gcc
-CFLAGS   = -O2 -Wall -Wextra
-LDFLAGS  = -mwindows -s
+CC32 = i686-w64-mingw32-gcc
+CFLAGS = -O2 -Wall -Wextra
+LDFLAGS = -mwindows -s
 FONFLAGS = -shared -nostdlib -nostartfiles
+RC32 = windres -F pe-i386
+RM = rm -f
 
 REG_MS_1252 = Microsoft CP1252
 REG_MS_1250 = Microsoft CP1250
@@ -72,7 +73,7 @@ $(FNT_IBM_437): ter-i%.fnt : ter-u%.bdf $(WIN_IBM_437)
 $(FNT_BG_MIK): ter-m%.fnt : ter-u%.bdf $(WIN_BG_MIK)
 	$(UCS2ANY) -F Terminal $< $(REG_BG_MIK) $(WIN_BG_MIK) | $(BDF2FNT) -o $@
 
-fnt: $(FNT) 
+fnt: $(FNT)
 
 fnt-255: $(FNT_IBM_437) $(FNT_BG_MIK)
 
@@ -86,6 +87,6 @@ fcpw.exe: fcp.c
 	$(CC32) -DFCPW $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 clean:
-	@./make-clean.cmd
+	$(RM) ter-*.bdf ter-*.fnt *.txt ter-*.o terminus.fon fcpw.exe
 
-.PHONY: all fnt clean
+.PHONY: all fnt fnt-255 clean

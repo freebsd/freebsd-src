@@ -1,25 +1,28 @@
-//
-// Copyright (c) 2018 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
+/*
+  Copyright (C) 2017-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 'use strict';
 
 const fnutil = require('./fnutil.js');
 
-
-const WIDTH_MAX = 127;
-const HEIGHT_MAX = 255;
-const SWIDTH_MAX = 32000;
+// -- Width --
+const DPARSE_LIMIT = 512;
+const SPARSE_LIMIT = 32000;
 
 class Width {
 	constructor(x, y) {
@@ -27,23 +30,27 @@ class Width {
 		this.y = y;
 	}
 
-	static _parse(name, value,  limitX, limitY) {
+	static parse(name, value, limit) {
 		const words = fnutil.splitWords(name, value, 2);
 
-		return new Width(fnutil.parseDec(name + ' X', words[0], -limitX, limitX),
-			fnutil.parseDec(name + ' Y', words[1], -limitY, limitY));
+		return new Width(fnutil.parseDec(name + '.x', words[0], -limit, limit),
+			fnutil.parseDec(name + '.y', words[1], -limit, limit));
 	}
 
-	static parseS(value) {
-		return Width._parse('SWIDTH', value, SWIDTH_MAX, SWIDTH_MAX);
+	static parseS(name, value) {
+		return Width.parse(name, value, SPARSE_LIMIT);
 	}
 
-	static parseD(value) {
-		return Width._parse('DWIDTH', value, WIDTH_MAX, HEIGHT_MAX);
+	static parseD(name, value) {
+		return Width.parse(name, value, DPARSE_LIMIT);
+	}
+
+	toString() {
+		return `${this.x} ${this.y}`;
 	}
 }
 
-
+// -- BBX --
 class BBX {
 	constructor(width, height, xoff, yoff) {
 		this.width = width;
@@ -55,10 +62,10 @@ class BBX {
 	static parse(name, value) {
 		const words = fnutil.splitWords(name, value, 4);
 
-		return new BBX(fnutil.parseDec('width', words[0], 1, WIDTH_MAX),
-			fnutil.parseDec('height', words[1], 1, HEIGHT_MAX),
-			fnutil.parseDec('bbxoff', words[2], -WIDTH_MAX, WIDTH_MAX),
-			fnutil.parseDec('bbyoff', words[3], -WIDTH_MAX, WIDTH_MAX));
+		return new BBX(fnutil.parseDec(name + '.width', words[0], 1, DPARSE_LIMIT),
+			fnutil.parseDec(name + '.height', words[1], 1, DPARSE_LIMIT),
+			fnutil.parseDec(name + '.xoff', words[2], -DPARSE_LIMIT, DPARSE_LIMIT),
+			fnutil.parseDec(name + '.yoff', words[3], -DPARSE_LIMIT, DPARSE_LIMIT));
 	}
 
 	rowSize() {
@@ -70,93 +77,45 @@ class BBX {
 	}
 }
 
+// -- Props --
+function skipComments(line) {
+	return line.startsWith('COMMENT') ? null : line;
+}
 
-class Props {
-	constructor() {
-		this.names = [];
-		this.values = [];
-	}
-
-	add(name, value) {
-		this.names.push(name);
-		this.values.push(value);
-	}
-
-	clone() {
-		let props = new Props();
-
-		props.names = this.names.slice();
-		props.values = this.values.slice();
-		return props;
-	}
-
+class Props extends Map {
 	forEach(callback) {
-		for (let index = 0; index < this.names.length; index++) {
-			callback(this.names[index], this.values[index]);
-		}
+		super.forEach((value, name) => callback(name, value));
 	}
 
-	get(name) {
-		return this.values[this.names.indexOf(name)];
+	read(input, name, callback) {
+		return this.parse(input.readLines(skipComments), name, callback);
 	}
 
 	parse(line, name, callback) {
-		if (line === null || !line.startsWith(name)) {
+		if (line == null || !line.startsWith(name)) {
 			throw new Error(name + ' expected');
 		}
 
-		let value = line.substring(name.length).trimLeft();
+		const value = line.substring(name.length).trimLeft();
 
-		this.add(name, value);
+		this.set(name, value);
 		return callback == null ? value : callback(name, value);
 	}
 
-	push(line) {
-		this.add('', line);
-	}
-
 	set(name, value) {
-		let index = this.names.indexOf(name);
-
-		if (index !== -1) {
-			this.values[index] = value;
-		} else {
-			this.add(name, value);
-		}
+		super.set(name, value.toString());
 	}
 }
 
-
+// -- Base --
 class Base {
 	constructor() {
 		this.props = new Props();
 		this.bbx = null;
-		this.finis = [];
-	}
-
-	readFinish(input, endText) {
-		if (this.readNext(input, this.finis) !== endText) {
-			throw new Error(endText + ' expected');
-		}
-		this.finis.push(endText);
-	}
-
-	readNext(input, comout = this.props) {
-		return input.readLines(line => {
-			if (line.startsWith('COMMENT')) {
-				comout.push(line);
-				return null;
-			}
-			return line;
-		});
-	}
-
-	readProp(input, name, callback) {
-		return this.props.parse(this.readNext(input), name, callback);
 	}
 }
 
-
+// -- Char --
 class Char extends Base {
 	constructor() {
 		super();
@@ -166,25 +125,25 @@ class Char extends Base {
 		this.data = null;
 	}
 
-	static bitmap(data, rowSize) {
-		const bitmap = data.toString('hex').toUpperCase();
-		const regex = new RegExp(`.{${rowSize << 1}}`, 'g');
+	bitmap() {
+		const bitmap = this.data.toString('hex').toUpperCase();
+		const regex = new RegExp(`.{${this.bbx.rowSize() << 1}}`, 'g');
 		return bitmap.replace(regex, '$&\n');
 	}
 
 	_read(input) {
 		// HEADER
-		this.readProp(input, 'STARTCHAR');
-		this.code = this.readProp(input, 'ENCODING', fnutil.parseDec);
-		this.swidth = this.readProp(input, 'SWIDTH', (name, value) => Width.parseS(value));
-		this.dwidth = this.readProp(input, 'DWIDTH', (name, value) => Width.parseD(value));
-		this.bbx = this.readProp(input, 'BBX', BBX.parse);
+		this.props.read(input, 'STARTCHAR');
+		this.code = this.props.read(input, 'ENCODING', fnutil.parseDec);
+		this.swidth = this.props.read(input, 'SWIDTH', Width.parseS);
+		this.dwidth = this.props.read(input, 'DWIDTH', Width.parseD);
+		this.bbx = this.props.read(input, 'BBX', BBX.parse);
 
-		let line = this.readNext(input);
+		let line = input.readLines(skipComments);
 
-		if (line !== null && line.startsWith('ATTRIBUTES')) {
+		if (line != null && line.startsWith('ATTRIBUTES')) {
 			this.props.parse(line, 'ATTRIBUTES');
-			line = this.readNext(input);
+			line = input.readLines(skipComments);
 		}
 
 		// BITMAP
@@ -196,10 +155,13 @@ class Char extends Base {
 		let bitmap = '';
 
 		for (let y = 0; y < this.bbx.height; y++) {
-			line = this.readNext(input);
+			line = input.readLines(skipComments);
 
-			if (line === null) {
+			if (line == null) {
 				throw new Error('bitmap data expected');
+			}
+			if (line.match(/^[\dA-Fa-f]+$/) == null) {
+				throw new Error('invalid bitmap character(s)');
 			}
 			if (line.length === rowLen) {
 				bitmap += line;
@@ -208,13 +170,11 @@ class Char extends Base {
 			}
 		}
 
-		// FINAL
-		this.readFinish(input, 'ENDCHAR');
+		this.data = Buffer.from(bitmap, 'hex');
 
-		if (bitmap.match(/^[\dA-Fa-f]+$/) != null) {
-			this.data = Buffer.from(bitmap, 'hex');
-		} else {
-			throw new Error('invalid BITMAP data characters');
+		// FINAL
+		if (input.readLines(skipComments) !== 'ENDCHAR') {
+			throw new Error('ENDCHAR expected');
 		}
 		return this;
 	}
@@ -229,11 +189,11 @@ class Char extends Base {
 		this.props.forEach((name, value) => {
 			header += (name + ' ' + value).trim() + '\n';
 		});
-		output.writeLine(header + Char.bitmap(this.data, this.bbx.rowSize()) + this.finis.join('\n'));
+		output.writeLine(header + this.bitmap() + 'ENDCHAR');
 	}
 }
 
-
+// -- Font --
 const XLFD = {
 	FOUNDRY:          1,
 	FAMILY_NAME:      2,
@@ -260,73 +220,70 @@ class Font extends Base {
 		this.defaultCode = -1;
 	}
 
-	getAscent() {
-		let ascent = this.props.get('FONT_ASCENT');
-
-		if (ascent != null) {
-			return fnutil.parseDec('FONT_ASCENT', ascent, -HEIGHT_MAX, HEIGHT_MAX);
-		}
-		return this.bbx.height + this.bbx.yoff;
+	get bold() {
+		return this.xlfd[XLFD.WEIGHT_NAME].toLowerCase().includes('bold');
 	}
 
-	getBold() {
-		return Number(this.xlfd[XLFD.WEIGHT_NAME].toLowerCase().includes('bold'));
+	get italic() {
+		return ['I', 'O'].indexOf(this.xlfd[XLFD.SLANT]) !== -1;
 	}
 
-	getItalic() {
-		return Number(this.xlfd[XLFD.SLANT].match(/^[IO]/) != null);
+	get proportional() {
+		return this.xlfd[XLFD.SPACING] === 'P';
 	}
 
 	_read(input) {
 		// HEADER
-		let line = input.readLines(Font.skipEmpty);
+		let line = input.readLine();
 
 		if (this.props.parse(line, 'STARTFONT') !== '2.1') {
 			throw new Error('STARTFONT 2.1 expected');
 		}
-		this.xlfd = this.readProp(input, 'FONT', (name, value) => value.split('-', 16));
+		this.xlfd = this.props.read(input, 'FONT', (name, value) => value.split('-', 16));
 
 		if (this.xlfd.length !== 15 || this.xlfd[0] !== '') {
 			throw new Error('non-XLFD font names are not supported');
 		}
-		this.readProp(input, 'SIZE');
-		this.bbx = this.readProp(input, 'FONTBOUNDINGBOX', BBX.parse);
-		line = this.readNext(input);
+		this.props.read(input, 'SIZE');
+		this.bbx = this.props.read(input, 'FONTBOUNDINGBOX', BBX.parse);
+		line = input.readLines(skipComments);
 
-		if (line !== null && line.startsWith('STARTPROPERTIES')) {
+		if (line != null && line.startsWith('STARTPROPERTIES')) {
 			const numProps = this.props.parse(line, 'STARTPROPERTIES', fnutil.parseDec);
 
 			for (let i = 0; i < numProps; i++) {
-				line = this.readNext(input);
+				line = input.readLines(skipComments);
 
-				if (line === null) {
+				if (line == null) {
 					throw new Error('property expected');
 				}
 
-				let match = line.match(/^(\w+)\s+([-\d"].*)$/);
+				const match = line.match(/^(\w+)\s+([-\d"].*)$/);
 
 				if (match == null) {
 					throw new Error('invalid property format');
 				}
 
-				let name = match[1];
-				let value = match[2];
+				const name = match[1];
+				const value = match[2];
 
+				if (this.props.get(name) != null) {
+					throw new Error('duplicate property');
+				}
 				if (name === 'DEFAULT_CHAR') {
 					this.defaultCode = fnutil.parseDec(name, value);
 				}
-
-				this.props.add(name, value);
+				this.props.set(name, value);
 			}
 
-			if (this.readProp(input, 'ENDPROPERTIES') !== '') {
+			if (this.props.read(input, 'ENDPROPERTIES') !== '') {
 				throw new Error('ENDPROPERTIES expected');
 			}
-			line = this.readNext(input);
+			line = input.readLines(skipComments);
 		}
 
 		// GLYPHS
-		const numChars = this.props.parse(line, 'CHARS', (name, value) => fnutil.parseDec(name, value, 1, CHARS_MAX));
+		const numChars = fnutil.parseDec('CHARS', this.props.parse(line, 'CHARS'), 1, CHARS_MAX);
 
 		for (let i = 0; i < numChars; i++) {
 			this.chars.push(Char.read(input));
@@ -337,36 +294,35 @@ class Font extends Base {
 		}
 
 		// FINAL
-		this.readFinish(input, 'ENDFONT');
-
-		if (input.readLines(Font.skipEmpty) != null) {
+		if (input.readLines(skipComments) !== 'ENDFONT') {
+			throw new Error('ENDFONT expected');
+		}
+		if (input.readLine() != null) {
 			throw new Error('garbage after ENDFONT');
 		}
 		return this;
 	}
 
 	static read(input) {
-		return (new Font())._read(input);
-	}
-
-	static skipEmpty(line) {
-		return line.length > 0 ? line : null;
+		return (new Font())._read(input, false);
 	}
 
 	write(output) {
 		this.props.forEach((name, value) => output.writeProp(name, value));
 		this.chars.forEach(char => char.write(output));
-		output.writeLine(this.finis.join('\n'));
+		output.writeLine('ENDFONT');
 	}
 }
 
-
+// -- Export --
 module.exports = Object.freeze({
-	WIDTH_MAX,
-	HEIGHT_MAX,
-	SWIDTH_MAX,
+	DPARSE_LIMIT,
+	SPARSE_LIMIT,
 	Width,
 	BBX,
+	skipComments,
+	Props,
+	Base,
 	Char,
 	XLFD,
 	CHARS_MAX,

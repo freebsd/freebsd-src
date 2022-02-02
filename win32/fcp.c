@@ -60,20 +60,24 @@ static void error(const char *s)
 #define main wrap
 #endif
 
-static const char *usage =
+static const char *USAGE =
 	"usage: " FCP " [OFFSET] FILE PATCH\n"
 	"\n"
 	FCP " 0.10.2, Copyright (C) 2017 Dimitar Toshkov Zhekov\n"
 	"\n"
-	"This program is free software; you can redistribute it and/or\n"
-	"modify it under the terms of the GNU General Public License as\n"
-	"published by the Free Software Foundation; either version 2 of\n"
-	"the License, or (at your option) any later version.\n"
+	"This program is free software; you can redistribute it and/or modify it\n"
+	"under the terms of the GNU General Public License as published by the Free\n"
+	"Software Foundation; either version 2 of the License, or (at your option)\n"
+	"any later version.\n"
 	"\n"
-	"This program is distributed in the hope that it will be useful,\n"
-	"but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-	"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-	"GNU General Public License for more details.\n";
+	"This program is distributed in the hope that it will be useful, but\n"
+	"WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY\n"
+	"or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n"
+	"for more details.\n"
+	"\n"
+	"You should have received a copy of the GNU General Public License along\n"
+	"with this program; if not, write to the Free Software Foundation, Inc.,\n"
+	"51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.\n";
 
 int main(int argc, char **argv)
 {
@@ -94,9 +98,9 @@ int main(int argc, char **argv)
 	else if (argc != 3)
 	{
 	#ifdef FCPW
-		MessageBox(NULL, usage, FCP, MB_OK);
+		MessageBox(NULL, USAGE, FCP, MB_OK);
 	#else
-		fputs(usage, stderr);
+		fputs(USAGE, stderr);
 	#endif
 		return 1;
 	}

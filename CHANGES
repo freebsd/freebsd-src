@@ -1,3 +1,11 @@
+Version 4.49.1:
+   * Fixed install-otb and uninstall-otb to use otbdir instead of x11dir.
+
+Version 4.49:
+   * Added Open Type Bitmap support.
+   * Altered ascii grave in some sizes to be more useful as a back quote.
+   * Fixed 21B5, added 21B2 and 21B3.
+
 Version 4.48:
 
    * Added the basic 27 hebrew letters and sheqel, with uppercase height.

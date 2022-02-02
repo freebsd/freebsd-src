@@ -4,8 +4,10 @@ BIN = ./bin
 
 UCS2ANY = $(INT) $(BIN)/ucstoany.$(EXT)
 BDF2PSF = $(INT) $(BIN)/bdftopsf.$(EXT)
-UCS2X11	= $(INT) $(BIN)/ucstoany.$(EXT) -f
-BDF2PCF	= bdftopcf
+UCS2X11 = $(INT) $(BIN)/ucstoany.$(EXT) -f
+BDF2PCF = bdftopcf
+#BDF2OTB = fontforge -lang=ff -c 'Open($$3); ScaleToEm(1024); Generate($$2)'
+BDF2OTB = $(INT) $(BIN)/otb1cli.$(EXT)
 
 REG_8859_1  = ISO8859 1
 REG_8859_2  = ISO8859 2
@@ -76,14 +78,17 @@ PCF_10646_1 = ter-x12n.pcf ter-x12b.pcf ter-x14n.pcf ter-x14b.pcf ter-x16n.pcf t
 PCF_8BIT = $(PCF_8859_1) $(PCF_8859_2) $(PCF_8859_5) $(PCF_8859_7) $(PCF_8859_9) $(PCF_MS_1251) $(PCF_8859_13) $(PCF_8859_15) $(PCF_8859_16) $(PCF_IBM_437) $(PCF_KOI8_R) $(PCF_PT_154) $(PCF_KOI8_U)
 PCF = $(PCF_10646_1)
 
+OTB = ter-u12n.otb ter-u12b.otb ter-u14n.otb ter-u14b.otb ter-u16n.otb ter-u16b.otb ter-u18n.otb ter-u18b.otb ter-u20n.otb ter-u20b.otb ter-u22n.otb ter-u22b.otb ter-u24n.otb ter-u24b.otb ter-u28n.otb ter-u28b.otb ter-u32n.otb ter-u32b.otb
+
 # Default
 
 all: $(PSF) $(PCF)
 
-DESTDIR	=
-prefix	= /usr/local
-psfdir	= $(prefix)/share/consolefonts
-x11dir	= $(prefix)/share/fonts/terminus
+DESTDIR =
+prefix  = /usr/local
+psfdir  = $(prefix)/share/consolefonts
+x11dir  = $(prefix)/share/fonts/terminus
+otbdir  = $(prefix)/share/fonts/terminus
 
 install: $(PSF) $(PCF)
 	mkdir -p $(DESTDIR)$(psfdir)
@@ -288,9 +293,23 @@ install-pcf-8bit: $(PCF_8BIT)
 uninstall-pcf-8bit:
 	for i in $(PCF_8BIT) ; do rm -f $(DESTDIR)$(x11dir)/$$i.gz ; done
 
+# Open Type Bitmap
+
+$(OTB): ter-u%.otb : ter-u%.bdf
+	$(BDF2OTB) -o $@ $<
+
+otb: $(OTB)
+
+install-otb: $(OTB)
+	mkdir -p $(DESTDIR)$(otbdir)
+	cp -f $(OTB) $(DESTDIR)$(otbdir)
+
+uninstall-otb:
+	for i in $(OTB) ; do rm -f $(DESTDIR)$(otbdir)/$$i ; done
+
 # Cleanup
 
 clean:
-	rm -f $(PSF) $(PSF_VGAW) $(PCF) $(PCF_8BIT) $(FNT)
+	rm -f $(PSF) $(PSF_VGAW) $(PCF) $(PCF_8BIT) $(OTB)
 
-.PHONY: all install uninstall fontdir psf install-psf uninstall-psf psf-vgaw install-psf-vgaw uninstall-psf-vgaw install-psf-ref uninstall-psf-ref pcf install-pcf uninstall-pcf pcf-8bit install-pcf-8bit uninstall-pcf-8bit clean
+.PHONY: all install uninstall fontdir psf install-psf uninstall-psf psf-vgaw install-psf-vgaw uninstall-psf-vgaw install-psf-ref uninstall-psf-ref pcf install-pcf uninstall-pcf pcf-8bit install-pcf-8bit uninstall-pcf-8bit otb install-otb uninstall-otb clean

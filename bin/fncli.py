@@ -1,27 +1,32 @@
 #
-# Copyright (c) 2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+# Copyright (C) 2018-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; either version 2 of
-# the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 import sys
 import os
 import re
 
-
+# -- Params --
 class Params:
 	def __init__(self):
 		self.excstk = False
 
 
+# -- Options --
 class Options:
 	def __init__(self, need_args, help_text, version_text):
 		for name in need_args:
@@ -126,10 +131,12 @@ class Options:
 				return (name, value)
 
 
+# -- Main --
 def start(program_name, options, params, main_program):
 	parsed = Params() if params is None else params
 
 	try:
+
 		if sys.hexversion < 0x3050000:
 			raise Exception('python 3.5.0 or later required')
 
@@ -148,7 +155,8 @@ def start(program_name, options, params, main_program):
 
 	except Exception as ex:
 		if parsed.excstk:
-			raise
+			raise  # loses the message information, but preserves the start() caller stack info
 
-		sys.stderr.write('%s: %s\n' % (sys.argv[0] if sys.argv[0] else program_name, str(ex)))
+		message = getattr(ex, 'message', str(ex))
+		sys.stderr.write('%s: %s\n' % (sys.argv[0] if sys.argv[0] else program_name, message))
 		sys.exit(1)

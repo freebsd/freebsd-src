@@ -1,23 +1,26 @@
 #
-# Copyright (c) 2018 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+# Copyright (C) 2017-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; either version 2 of
-# the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 import sys
-import re
 
-
+# -- Various --
 UNICODE_MAX = 1114111  # 0x10FFFF
-
+UNICODE_BMP_MAX = 65535  # 0xFFFF
 
 def parse_dec(name, s, min_value=0, max_value=UNICODE_MAX):
 	try:
@@ -62,17 +65,16 @@ def unquote(bstr, name=None):
 	return bstr
 
 
-def warning(prefix, message):
-	if prefix.endswith(':'):
-		prefix += ' '
-	elif prefix and not prefix.endswith(': '):
-		prefix += ': '
-
-	sys.stderr.write('%swarning: %s\n' % (prefix, message))
+def message(prefix, severity, text):
+	sys.stderr.write('%s%s%s\n' % (prefix, severity + ': ' if severity else '', text))
 
 
-def split_words(name, bstr, count):
-	words = re.split(br'\s+', bstr, count)
+def warning(prefix, text):
+	message(prefix, 'warning', text)
+
+
+def split_words(name, value, count):
+	words = value.split(None, count)
 
 	if len(words) != count:
 		raise Exception('%s must contain %d values' % (name, count))
@@ -81,12 +83,16 @@ def split_words(name, bstr, count):
 
 
 GPL2PLUS_LICENSE = ('' +
-	'This program is free software; you can redistribute it and/or\n' +
-	'modify it under the terms of the GNU General Public License as\n' +
-	'published by the Free Software Foundation; either version 2 of\n' +
-	'the License, or (at your option) any later version.\n' +
+	'This program is free software; you can redistribute it and/or modify it\n' +
+	'under the terms of the GNU General Public License as published by the Free\n' +
+	'Software Foundation; either version 2 of the License, or (at your option)\n' +
+	'any later version.\n' +
 	'\n' +
-	'This program is distributed in the hope that it will be useful,\n' +
-	'but WITHOUT ANY WARRANTY; without even the implied warranty of\n' +
-	'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n' +
-	'GNU General Public License for more details.\n')
+	'This program is distributed in the hope that it will be useful, but\n' +
+	'WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY\n' +
+	'or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n' +
+	'for more details.\n' +
+	'\n' +
+	'You should have received a copy of the GNU General Public License along\n' +
+	'with this program; if not, write to the Free Software Foundation, Inc.,\n' +
+	'51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.\n')

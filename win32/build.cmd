@@ -2,7 +2,7 @@ if errorlevel 1 type nul
 if not exist dup\nul mkdir dup
 if errorlevel 1 exit /b
 
-if not errorlevel 1 copy /y ..\*.bdf
+if not errorlevel 1 copy /y ..\ter-*.bdf
 if not errorlevel 1 make -B -j8 terminus.fon
 if not errorlevel 1 move /y terminus.fon terminus.bak
 
@@ -29,7 +29,7 @@ if not errorlevel 1 call :difftofcp hi2-ka2
 
 if not errorlevel 1 make -B -j8 terminus.fon
 if not errorlevel 1 make fcpw.exe
-if not errorlevel 1 del /q *.bdf *.fnt terminus.bak ter-font.o
+if not errorlevel 1 del ter-*.bdf ter-*.fnt terminus.bak ter-*.o dup\xos4-2.dup
 exit /b
 
 :difftofcp
@@ -38,4 +38,4 @@ if not errorlevel 1 make -B -j8 fnt
 if not errorlevel 1 make terminus.fon
 if not errorlevel 1 fc /b terminus.bak terminus.fon > %1.txt
 rem fc sets errorlevel 1 on differences
-if not errorlevel 2 copy /y ..\*.bdf
+if not errorlevel 2 copy /y ..\ter-*.bdf

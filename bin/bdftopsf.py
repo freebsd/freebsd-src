@@ -1,33 +1,36 @@
 #
-# Copyright (c) 2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+# Copyright (C) 2017-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; either version 2 of
-# the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
 #
-
-import re
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
 
 import fnutil
 import fncli
 import fnio
-import bmpf
+import bdfexp
 
-
+# -- Params --
 class Params(fncli.Params):
 	def __init__(self):
 		fncli.Params.__init__(self)
 		self.version = -1
 		self.exchange = -1
-		self.output = None
+		self.output_name = None
 
 
+# -- Options --
 HELP = ('' +
 	'usage: bdftopsf [-1|-2|-r] [-g|-G] [-o OUTPUT] [INPUT.bdf] [TABLE...]\n' +
 	'Convert a BDF font to PC Screen Font or raw font\n' +
@@ -38,7 +41,7 @@ HELP = ('' +
 	'              192...223 (default for VGA text mode compliant PSF fonts\n' +
 	'              with 224 to 512 characters starting with unicode 00A3)\n' +
 	'  -G          do not exchange characters 0...31 and 192...223\n' +
-	'  -o OUTPUT   output file (default = stdout, must not be a terminal)\n' +
+	'  -o OUTPUT   output file (default = stdout, may not be a terminal)\n' +
 	'  --help      display this help and exit\n' +
 	'  --version   display the program version and license, and exit\n' +
 	'  --excstk    display the exception stack on error\n' +
@@ -50,7 +53,7 @@ HELP = ('' +
 	'are stored sequentially in the PSF unicode table for their character.\n' +
 	'<ss> is always specified as FFFE, although it is stored as FE in PSF2.\n')
 
-VERSION = 'bdftopsf 1.50, Copyright (C) 2019 Dimitar Toshkov Zhekov\n\n' + fnutil.GPL2PLUS_LICENSE
+VERSION = 'bdftopsf 1.62, Copyright (C) 2017-2020 Dimitar Toshkov Zhekov\n\n' + fnutil.GPL2PLUS_LICENSE
 
 class Options(fncli.Options):
 	def __init__(self):
@@ -67,11 +70,12 @@ class Options(fncli.Options):
 		elif name == '-G':
 			params.exchange = False
 		elif name == '-o':
-			params.output = value
+			params.output_name = value
 		else:
 			self.fallback(name, params)
 
 
+# -- Main --
 def main_program(nonopt, parsed):
 	version = parsed.version
 	exchange = parsed.exchange
@@ -79,16 +83,14 @@ def main_program(nonopt, parsed):
 	ver1_unicodes = True
 
 	# READ INPUT
-	ifs = fnio.InputStream(nonopt[0] if bdfile else None)
+	ifs = fnio.InputFileStream(nonopt[0] if bdfile else None)
+	font = ifs.process(bdfexp.Font.read)
 
 	try:
-		font = bmpf.Font.read(ifs)
-		ifs.close()
-
 		for char in font.chars:
 			prefix = 'char %d: ' % char.code
 
-			if char.width != font.bbx.width:
+			if char.bbx.width != font.bbx.width:
 				raise Exception(prefix + 'output width not equal to maximum output width')
 
 			if char.code == 65534:
@@ -121,15 +123,15 @@ def main_program(nonopt, parsed):
 				raise Exception('-g/--vga requires an 8x8, 8x14 or 8x16 font')
 
 	except Exception as ex:
-		raise Exception(ifs.location() + str(ex))
+		ex.message = ifs.location() + getattr(ex, 'message', str(ex))
+		raise
 
 	# READ TABLES
 	tables = dict()
 
 	def load_extra(line):
 		nonlocal ver1_unicodes
-
-		words = re.split(br'\s+', line)
+		words = line.split()
 
 		if len(words) < 2:
 			raise Exception('invalid format')
@@ -140,7 +142,7 @@ def main_program(nonopt, parsed):
 			raise Exception('FFFE is not a character')
 
 		if next((char for char in font.chars if char.code == uni), None):
-			if uni >= 0x10000:
+			if uni > fnutil.UNICODE_BMP_MAX:
 				ver1_unicodes = False
 
 			if uni not in tables:
@@ -154,23 +156,17 @@ def main_program(nonopt, parsed):
 				if dup == 0xFFFF:
 					raise Exception('FFFF is not a character')
 
-				if dup >= 0x10000:
+				if dup > fnutil.UNICODE_BMP_MAX:
 					ver1_unicodes = False
 
 				if not dup in table or 0xFFFE in table:
 					tables[uni].append(dup)
 
 			if version == 1 and not ver1_unicodes:
-				raise Exception('-1 requires unicodes <= FFFF')
+				raise Exception('-1 requires unicodes <= %X' % fnutil.UNICODE_BMP_MAX)
 
-	for name in nonopt[int(bdfile):]:
-		ifs = fnio.InputStream(name)
-
-		try:
-			ifs.read_lines(load_extra)
-			ifs.close()
-		except Exception as ex:
-			raise Exception(ifs.location() + str(ex))
+	for table_name in nonopt[int(bdfile):]:
+		fnio.read_file(table_name, lambda ifs: ifs.read_lines(load_extra))
 
 	# VERSION
 	if version == -1:
@@ -184,54 +180,49 @@ def main_program(nonopt, parsed):
 		font.chars = font.chars[192:224] + font.chars[32:192] + font.chars[0:32] + font.chars[224:]
 
 	# WRITE
-	ofs = fnio.OutputStream(parsed.output)
-
-	if ofs.file.isatty():
-		raise Exception('binary output may not be send to a terminal, use -o or redirect/pipe it')
-
-	try:
+	def write_psf(output):
 		# HEADER
 		if version == 1:
-			ofs.write8(0x36)
-			ofs.write8(0x04)
-			ofs.write8((len(font.chars) >> 8) + 1)
-			ofs.write8(font.bbx.height)
+			output.write8(0x36)
+			output.write8(0x04)
+			output.write8((len(font.chars) >> 8) + 1)
+			output.write8(font.bbx.height)
 		elif version == 2:
-			ofs.write32(0x864AB572)
-			ofs.write32(0x00000000)
-			ofs.write32(0x00000020)
-			ofs.write32(0x00000001)
-			ofs.write32(len(font.chars))
-			ofs.write32(len(font.chars[0].data))
-			ofs.write32(font.bbx.height)
-			ofs.write32(font.bbx.width)
+			output.write32(0x864AB572)
+			output.write32(0x00000000)
+			output.write32(0x00000020)
+			output.write32(0x00000001)
+			output.write32(len(font.chars))
+			output.write32(len(font.chars[0].data))
+			output.write32(font.bbx.height)
+			output.write32(font.bbx.width)
 
 		# GLYPHS
 		for char in font.chars:
-			ofs.write(char.data)
+			output.write(char.data)
 
 		# UNICODES
 		if version > 0:
 			def write_unicode(code):
 				if version == 1:
-					ofs.write16(code)
+					output.write16(code)
 				elif code <= 0x7F:
-					ofs.write8(code)
+					output.write8(code)
 				elif code in [0xFFFE, 0xFFFF]:
-					ofs.write8(code & 0xFF)
+					output.write8(code & 0xFF)
 				else:
 					if code <= 0x7FF:
-						ofs.write8(0xC0 + (code >> 6))
+						output.write8(0xC0 + (code >> 6))
 					else:
 						if code <= 0xFFFF:
-							ofs.write8(0xE0 + (code >> 12))
+							output.write8(0xE0 + (code >> 12))
 						else:
-							ofs.write8(0xF0 + (code >> 18))
-							ofs.write8(0x80 + ((code >> 12) & 0x3F))
+							output.write8(0xF0 + (code >> 18))
+							output.write8(0x80 + ((code >> 12) & 0x3F))
 
-						ofs.write8(0x80 + ((code >> 6) & 0x3F))
+						output.write8(0x80 + ((code >> 6) & 0x3F))
 
-					ofs.write8(0x80 + (code & 0x3F))
+					output.write8(0x80 + (code & 0x3F))
 
 			for char in font.chars:
 				if char.code != 0xFFFF:
@@ -243,11 +234,7 @@ def main_program(nonopt, parsed):
 
 				write_unicode(0xFFFF)
 
-		# FINISH
-		ofs.close()
-
-	except Exception as ex:
-		raise Exception(ofs.location() + str(ex) + ofs.destroy())
+	fnio.write_file(parsed.output_name, write_psf, encoding=None)
 
 
 if __name__ == '__main__':

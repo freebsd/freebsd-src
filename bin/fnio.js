@@ -1,43 +1,31 @@
-//
-// Copyright (c) 2018 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
+/*
+  Copyright (C) 2017-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 'use strict';
 
+const tty = require('tty');
 const fs = require('fs');
 
-
-const BINARY_ENCODING = 'latin1';
-
-(function() {
-	let orig = Buffer.alloc(256);
-
-	for (let i = 0; i < 256; i++) {
-		orig[i] = i;
-	}
-
-	const test = Buffer.from(orig.toString(BINARY_ENCODING), BINARY_ENCODING);
-
-	if (orig.compare(test) !== 0) {
-		throw new Error(`the ${BINARY_ENCODING} encoding is not 8-bit clean`);
-	}
-})();
-
-
+// -- InputFileStream --
 const BLOCK_SIZE = 4096;
 
-class InputStream {
-	constructor(fileName, encoding = BINARY_ENCODING) {
+class InputFileStream {
+	constructor(fileName, encoding = 'binary') {
 		if (fileName != null) {
 			this.fd = fs.openSync(fileName, 'r');
 			this.stName = fileName;
@@ -46,8 +34,7 @@ class InputStream {
 			this.stName = '<stdin>';
 		}
 		this.encoding = encoding;
-		this.lineNo = 0;
-		this.eof = false;
+		this.unseek();
 		this.lines = [];
 		this.index = 0;
 		this.buffer = Buffer.alloc(BLOCK_SIZE);
@@ -55,9 +42,12 @@ class InputStream {
 	}
 
 	close() {
-		this.lineNo = 0;
-		this.eof = false;
+		this.unseek();
 		fs.closeSync(this.fd);
+	}
+
+	fstat() {
+		return (this.fd === process.stdin.fd || tty.isatty(this.fd)) ? null : fs.fstatSync(this.fd);
 	}
 
 	location() {
@@ -81,8 +71,7 @@ class InputStream {
 					return 0;
 				}
 				if (e.code !== 'EAGAIN') {
-					this.lineNo = 0;
-					this.eof = false;
+					this.unseek();
 					throw e;
 				}
 			}
@@ -125,11 +114,16 @@ class InputStream {
 
 		return line;
 	}
+
+	unseek() {
+		this.lineNo = 0;
+		this.eof = false;
+	}
 }
 
-
-class OutputStream {
-	constructor(fileName) {
+// -- OutputFileStream --
+class OutputFileStream {
+	constructor(fileName, encoding = 'binary') {
 		if (fileName != null) {
 			this.fd = fs.openSync(fileName, 'w');
 			this.stName = fileName;
@@ -137,6 +131,10 @@ class OutputStream {
 			this.fd = process.stdout.fd;
 			this.stName = '<stdout>';
 		}
+		if (encoding == null && tty.isatty(this.fd)) {
+			throw new Error(this.location() + 'binary output may not be send to a terminal');
+		}
+		this.encoding = (encoding == null ? 'binary' : encoding);
 		this.fbbuf = Buffer.alloc(4);
 		this.closeAttempt = false;
 	}
@@ -191,23 +189,22 @@ class OutputStream {
 		fs.writeSync(this.fd, this.fbbuf, 0, 4);
 	}
 
-	writeLine(bstr) {
-		fs.writeSync(this.fd, bstr + '\n', null, BINARY_ENCODING);
+	writeLine(text) {
+		fs.writeSync(this.fd, text + '\n', null, this.encoding);
 	}
 
 	writeProp(name, value) {
-		this.writeLine((name + ' ' + value).trim());
+		this.writeLine((name + ' ' + value).trimRight());
 	}
 
 	writeZStr(bstr, numZeros) {
-		fs.writeSync(this.fd, bstr, null, BINARY_ENCODING);
+		fs.writeSync(this.fd, bstr, null, 'binary');
 		this.write(Buffer.alloc(numZeros));
 	}
 }
 
-
+// -- Export --
 module.exports = Object.freeze({
-	BINARY_ENCODING,
-	InputStream,
-	OutputStream
+	InputFileStream,
+	OutputFileStream
 });

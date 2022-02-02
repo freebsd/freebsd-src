@@ -19,28 +19,33 @@ Contents:
 3.1. Installation.
 3.2. Notes.
 
-4. Microsoft Windows.
-4.1. Installation package.
-4.2. Font file only.
-4.3. Notes.
+4. Open Type Bitmap.
+4.1. Installation.
+4.2. Notes.
 
-5. Frequently Asked Questions.
+5. Microsoft Windows.
+5.1. Installation package.
+5.2. Font file only.
+5.3. Notes.
 
-6. Legal information.
-6.1. Licenses.
-6.2. Copyright.
+6. Frequently Asked Questions.
+
+7. Legal information.
+7.1. Licenses.
+7.2. Copyright.
 
 --
 
 1. About.
 
 This archive contains source code for generating and installing Terminus
-Font for Linux console, X11 Window System and Microsoft Windows.
+Font for Linux console, X11 Window System, Microsoft Windows and Open Type
+Bitmap capable systems.
 
-- version	4.48
+- version	4.49.1
 - sizes		6x12, 8x14, 8x16, 10x18, 10x20, 11x22, 12x24, 14x28, 16x32
 - weights	normal, bold, CRT VGA bold
-- characters	1354
+- characters	1356
 - format	Bitmap Distribution Format (BDF) version 2.1
 
 The character set covers about 120 language sets and supports ISO8859-1/2/5/
@@ -52,9 +57,10 @@ pseudographic characters.
 1.1. Build requirements.
 
 - GNU make
-- Python 3.5.0+ (or node.js 6.9.0+ as an alternative)
+- Python 3.5.0+ (or node.js 6.9.0+ as alternative)
 - for X11 only: bdftopcf
-- for the Windows installer only: GCC for Win32/i686, NSIS and patch.
+- for Windows only: GCC for Win32/i686
+- for the Windows installer only: NSIS and patch(1).
 
 
 1.2. Quick installation.
@@ -118,7 +124,7 @@ If your Python 3 executable is named python instead if python3:
 
 $ ./configure INT=python
 
-To use node.js instead of python (slower):
+To use node.js instead of python:
 
 $ ./configure INT=node EXT=js
 
@@ -258,14 +264,47 @@ can be used as Windows-1252 and Windows-1254 respectively.
 
 --
 
-4. Microsoft Windows.
+4. Open Type Bitmap.
+
+- weights	normal, bold
+- code pages	ISO10646-1 (unicode)
+- format	Linux/UNIX bitmap-only TrueType
+
+
+4.1. Installation.
+
+$ ./configure [--prefix=PREFIX | --otbdir=DIRECTORY]
+$ make otb
+# make install-otb
+
+The files are installed in DIRECTORY.
+The default DIRECTORY is PREFIX/share/fonts/terminus.
+
+
+4.2. Notes
+
+An OTB file is generated for each BDF file, instead of combining sizes by
+weight, for the following reasons:
+
+- KDE compatibility. With combined files, only the first size is available.
+
+- Correct global font metrics. For example, the base line and character
+  width for 8x14 and 8x16 (relative to height) may never be identical.
+
+otb1cli is NOT a full-featured BDF to sfnt convertor. It expands the bitmaps
+first, uses the expanded widths, does not support overlapping characters,
+and targets Linux/UNIX only.
+
+--
+
+5. Microsoft Windows.
 
 - weights	normal, bold
 - code pages	Windows-1252, 1250, 1253, 1254, 1251 and 1257
 - format	Font File Format version 2.0, compiled into FON
 
 
-4.1. Installation package.
+5.1. Installation package.
 
 Make sure that no variant patches are applied to the font (p.1.4).
 
@@ -276,7 +315,7 @@ Be patient, the process may take several minutes.
 After that, open terminus.nsi and compile it.
 
 
-4.2. Font file only.
+5.2. Font file only.
 
 > copy *.bdf win32
 > cd win32
@@ -285,14 +324,14 @@ After that, open terminus.nsi and compile it.
 You can install terminus.fon via the regular means.
 
 
-4.3. Notes.
+5.3. Notes.
 
 The Windows code pages contain a total of 384 characters. All other
 characters (math, pseudographics etc.) are not currently available.
 
 --
 
-5. Frequently Asked Questions.
+6. Frequently Asked Questions.
 
 Q. Italic version?
 
@@ -325,15 +364,15 @@ xlsfonts(1), fonts-conf(5) etc.
 
 Q. My terminal emulator does not display cyrillic/pseudographics/...
 A. If you have the 8-bit X11 code pages installed, and your emulator uses
-"XLFD" font names, make sure hat name ends with "-10616-1" instead of
-"-*-*".
+"XLFD" font names, make sure that the font name ends with "-10616-1" instead
+of "-*-*".
 
 --
 
-6. Legal information.
+7. Legal information.
 
 
-6.1. Licenses.
+7.1. Licenses.
 
 Terminus Font is licensed under the SIL Open Font License, Version 1.1.
 The license is included as OFL.TXT, and is also available with a FAQ at:
@@ -347,9 +386,9 @@ the GNU General Public License version 2.0 or (at your choice) any later
 version.
 
 
-6.2. Copyright.
+7.2. Copyright.
 
-Terminus Font 4.48, Copyright (C) 2019 Dimitar Toshkov Zhekov.
+Terminus Font 4.49.1, Copyright (C) 2020 Dimitar Toshkov Zhekov.
 Report bugs to <dimitar.zhekov@gmail.com>
 
 Thanks to Anton Zinoviev, Tim Allen, Kir Koliushkin, Antonios Galanopoulos

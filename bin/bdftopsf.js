@@ -1,27 +1,29 @@
-//
-// Copyright (c) 2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
+/*
+  Copyright (C) 2017-2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 'use strict';
-
-const tty = require('tty');
 
 const fnutil = require('./fnutil.js');
 const fncli = require('./fncli.js');
 const fnio = require('./fnio.js');
-const bmpf = require('./bmpf.js');
+const bdfexp = require('./bdfexp.js');
 
-
+// -- Params --
 class Params extends fncli.Params {
 	constructor() {
 		super();
@@ -31,7 +33,7 @@ class Params extends fncli.Params {
 	}
 }
 
-
+// -- Options --
 const HELP = ('' +
 	'usage: bdftopsf [-1|-2|-r] [-g|-G] [-o OUTPUT] [INPUT.bdf] [TABLE...]\n' +
 	'Convert a BDF font to PC Screen Font or raw font\n' +
@@ -42,7 +44,7 @@ const HELP = ('' +
 	'              192...223 (default for VGA text mode compliant PSF fonts\n' +
 	'              with 224 to 512 characters starting with unicode 00A3)\n' +
 	'  -G          do not exchange characters 0...31 and 192...223\n' +
-	'  -o OUTPUT   output file (default = stdout, must not be a terminal)\n' +
+	'  -o OUTPUT   output file (default = stdout, may not be a terminal)\n' +
 	'  --help      display this help and exit\n' +
 	'  --version   display the program version and license, and exit\n' +
 	'  --excstk    display the exception stack on error\n' +
@@ -54,7 +56,7 @@ const HELP = ('' +
 	'are stored sequentially in the PSF unicode table for their character.\n' +
 	'<ss> is always specified as FFFE, although it is stored as FE in PSF2.\n');
 
-const VERSION = 'bdftopsf 1.50, Copyright (C) 2019 Dimitar Toshkov Zhekov\n\n' + fnutil.GPL2PLUS_VERSION;
+const VERSION = 'bdftopsf 1.58, Copyright (C) 2017-2019 Dimitar Toshkov Zhekov\n\n' + fnutil.GPL2PLUS_VERSION;
 
 class Options extends fncli.Options {
 	constructor() {
@@ -87,7 +89,7 @@ class Options extends fncli.Options {
 	}
 }
 
-
+// -- Main --
 function mainProgram(nonopt, parsed) {
 	const bdfile = nonopt.length > 0 && nonopt[0].toLowerCase().endsWith('.bdf');
 	let version = parsed.version;
@@ -95,16 +97,16 @@ function mainProgram(nonopt, parsed) {
 	let ver1Unicodes = true;
 
 	// READ INPUT
-	let ifs = new fnio.InputStream(bdfile ? nonopt[0] : null);
+	let ifs = new fnio.InputFileStream(bdfile ? nonopt[0] : null);
 
 	try {
-		var font = bmpf.Font.read(ifs);
+		var font = bdfexp.Font.read(ifs);
 
 		ifs.close();
 		font.chars.forEach(char => {
 			const prefix = `char ${char.code}: `;
 
-			if (char.width !== font.bbx.width) {
+			if (char.bbx.width !== font.bbx.width) {
 				throw new Error(prefix + 'output width not equal to maximum output width');
 			}
 			if (char.code === 65534) {
@@ -165,7 +167,7 @@ function mainProgram(nonopt, parsed) {
 		}
 
 		if (font.chars.findIndex(char => char.code === uni) !== -1) {
-			if (uni >= 0x10000) {
+			if (uni > fnutil.UNICODE_BMP_MAX) {
 				ver1Unicodes = false;
 			}
 			if (table == null) {
@@ -178,7 +180,7 @@ function mainProgram(nonopt, parsed) {
 				if (dup === 0xFFFF) {
 					throw new Error('FFFF is not a character');
 				}
-				if (dup >= 0x10000) {
+				if (dup > fnutil.UNICODE_BMP_MAX) {
 					ver1Unicodes = false;
 				}
 				if (table.indexOf(dup) === -1 || table.indexOf(0xFFFE) !== -1) {
@@ -186,13 +188,13 @@ function mainProgram(nonopt, parsed) {
 				}
 			});
 			if (version === 1 && !ver1Unicodes) {
-				throw new Error('-1 requires unicodes <= FFFF');
+				throw new Error('-1 requires unicodes <= ' + fnutil.UNICODE_BMP_MAX.toString(16));
 			}
 		}
 	}
 
 	nonopt.slice(Number(bdfile)).forEach(name => {
-		ifs = new fnio.InputStream(name);
+		ifs = new fnio.InputFileStream(name);
 
 		try {
 			ifs.readLines(loadExtra);
@@ -219,11 +221,7 @@ function mainProgram(nonopt, parsed) {
 	}
 
 	// WRITE
-	let ofs = new fnio.OutputStream(parsed.output);
-
-	if (tty.isatty(ofs.fd)) {
-		throw new Error('binary output may not be send to a terminal, use -o or redirect/pipe it');
-	}
+	let ofs = new fnio.OutputFileStream(parsed.output, null);
 
 	try {
 		// HEADER
@@ -289,7 +287,6 @@ function mainProgram(nonopt, parsed) {
 		throw e;
 	}
 }
-
 
 if (require.main === module) {
 	fncli.start('bdftopsf.js', new Options(), new Params(), mainProgram);

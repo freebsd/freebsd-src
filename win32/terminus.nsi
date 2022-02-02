@@ -1,15 +1,19 @@
 #
-# Copyright (c) 2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+# Copyright (c) 2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; either version 2 of
-# the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 !include nsDialogs.nsh
@@ -18,16 +22,14 @@
 !include WinVer.nsh
 
 Name "Terminus Font"
-OutFile terminus-font-4.48.exe
+OutFile terminus-font-4.49.exe
 
 XPStyle on
 CRCCheck force
 RequestExecutionLevel admin
 
-InstallDir "$EXEDIR\terminus-font-4.48"
+InstallDir "$EXEDIR\terminus-font-4.49"
 InstallButtonText "Proceed"
-
-Var ter_dialog
 
 Var apply_ao2
 Var apply_dv1
@@ -61,44 +63,39 @@ Page custom ter_dialog_page ter_dialog_page_leave
 Page instfiles
 
 Function install_clicked
-
 	EnableWindow $directory 0
 	EnableWindow $browse 0
-	${NSD_SetText} $directory "$FONTS"
-
+	${NSD_SetText} $directory $FONTS
 FunctionEnd
 
 Function unpack_clicked
-
-	${NSD_SetText} $directory "$INSTDIR"
+	${NSD_SetText} $directory $INSTDIR
 	EnableWindow $directory 1
 	EnableWindow $browse 1
-
 FunctionEnd
 
 Function hamster_clicked
-
 	ExecShell "open" "http://terminus-font.sourceforge.net#variants"
 	ToolTips::Classic $hamster "http://terminus-font.sourceforge.net#variants"
-
 FunctionEnd
 
 Function browse_clicked
-
 	nsDialogs::SelectFolderDialog Directory $INSTDIR
 
 	Pop $0
 	${If} $0 != error
-		StrCpy $INSTDIR "$0"
-		${NSD_SetText} $directory "$INSTDIR"
+		StrCpy $INSTDIR $0
+		${NSD_SetText} $directory $INSTDIR
 	${EndIf}
-
 FunctionEnd
 
 Function ter_dialog_page
-
 	nsDialogs::Create 1018
-	Pop $ter_dialog
+	Pop $0
+	${If} $0 == error
+		MessageBox MB_ICONSTOP|MB_OK "Failed to create installation dialog."
+		Abort
+	${EndIf}
 
 	${NSD_CreateLink} 2% 1 11% 10u "Variants"
 	Pop $hamster
@@ -148,19 +145,17 @@ Function ter_dialog_page
 	${NSD_CreateLabel} 2% 71u 96% 12u "The license is available with a \
 		FAQ at: http://scripts.sil.org/OFL"
 	${NSD_CreateLabel} 2% 83u 96% 24u "Note: the Windows code pages \
-		contain a total of 356 characters. All other characters \
+		contain a total of 384 characters. All other characters \
 		(math, pseudographics etc.) are not currently available."
-	${NSD_CreateLabel} 2% 107u 96% 12u "Terminus Font 4.48, \
-		Copyright (C) 2019 Dimitar Toshkov Zhekov."
+	${NSD_CreateLabel} 2% 107u 96% 12u "Terminus Font 4.49, \
+		Copyright (C) 2020 Dimitar Toshkov Zhekov."
 	${NSD_CreateLabel} 2% 119u 96% 12u "Report bugs to \
 		<dimitar.zhekov@gmail.com>"
 
 	nsDialogs::Show
-
 FunctionEnd
 
 Function ter_dialog_page_leave
-
 	${NSD_GetState} $apply_ao2 $0
 	${IfThen} $0 == ${BST_CHECKED} ${|} StrCpy $ao2 "ao2" ${|}
 	${NSD_GetState} $apply_dv1 $0
@@ -193,13 +188,12 @@ Function ter_dialog_page_leave
 			Abort
 		${EndIf}
 	${EndIf}
-
 FunctionEnd
 
 Function patch
-
 	Pop $1
 	${If} $1 != ""
+		ClearErrors
 		ExecWait '"$OUTDIR\fcpw.exe" 4100 terminus.fon $1.txt' $R0
 		${If} ${Errors}
 			MessageBox MB_OK|MB_ICONEXCLAMATION "Can't run $OUTDIR\fcpw.exe"
@@ -207,7 +201,6 @@ Function patch
 		${EndIf}
 		${IfThen} $R0 != 0 ${|} Abort "fcpw.exe failed with exit code $R0" ${|}
 	${EndIf}
-
 FunctionEnd
 
 !macro PATCH arg
@@ -218,12 +211,11 @@ FunctionEnd
 !define Patch `!insertmacro PATCH`
 
 Section "Install"
-
 	${If} $instate == ${BST_CHECKED}
 		InitPluginsDir
-		SetOutPath "$PLUGINSDIR"
+		SetOutPath $PLUGINSDIR
 	${Else}
-		SetOutPath "$INSTDIR"
+		SetOutPath $INSTDIR
 	${EndIf}
 
 	File "terminus.fon"
@@ -280,8 +272,8 @@ Section "Install"
 		${Else}
 			StrCpy $1 "SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts"
 		${EndIf}
-		WriteRegStr HKLM "$1" "Terminus" "terminus.fon"
-		ReadRegStr $0 HKLM "$1" "Terminus"
+		WriteRegStr HKLM $1 "Terminus" "terminus.fon"
+		ReadRegStr $0 HKLM $1 "Terminus"
 
 		StrCpy $1 ""
 		${If} $0 != "terminus.fon"
@@ -303,5 +295,4 @@ Section "Install"
 		File "..\CHANGES"
 		File "..\OFL.TXT"
 	${EndIf}
-
 SectionEnd

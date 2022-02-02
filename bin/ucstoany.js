@@ -1,16 +1,20 @@
-//
-// Copyright (c) 2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
+/*
+  Copyright (C) 2017-2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 'use strict';
 
@@ -19,7 +23,7 @@ const fncli = require('./fncli.js');
 const fnio = require('./fnio.js');
 const bdf = require('./bdf.js');
 
-
+// -- Params --
 class Params extends fncli.Params {
 	constructor() {
 		super();
@@ -29,7 +33,7 @@ class Params extends fncli.Params {
 	}
 }
 
-
+// -- Options --
 const HELP = ('' +
 	'usage: ucstoany [-f] [-F FAMILY] [-o OUTPUT] INPUT REGISTRY ENCODING TABLE...\n' +
 	'Generate a BDF font subset.\n' +
@@ -44,7 +48,7 @@ const HELP = ('' +
 	'  --version      display the program version and license, and exit\n' +
 	'  --excstk       display the exception stack on error\n' +
 	'\n' +
-	'The input must be a BDF 2.1 font encoded in the unicode range.\n' +
+	'The input must be a BDF 2.1 font with unicode encoding.\n' +
 	'Unlike ucs2any, all TABLE-s form a single subset of the input font.\n');
 
 const VERSION = 'ucstoany 1.55, Copyright (C) 2019 Dimitar Toshkov Zhekov\n\n' + fnutil.GPL2PLUS_LICENSE;
@@ -62,7 +66,7 @@ class Options extends fncli.Options {
 			break;
 		case '-F':
 			if (value.includes('-')) {
-				throw new Error('family name may not contain "-"');
+				throw new Error('FAMILY may not contain "-"');
 			}
 			params.family = value;
 			break;
@@ -75,7 +79,7 @@ class Options extends fncli.Options {
 	}
 }
 
-
+// -- Main --
 function mainProgram(nonopt, parsed) {
 	if (nonopt.length < 4) {
 		throw new Error('invalid number of arguments, try --help');
@@ -91,7 +95,7 @@ function mainProgram(nonopt, parsed) {
 	}
 
 	// READ INPUT
-	let ifs = new fnio.InputStream(input);
+	let ifs = new fnio.InputFileStream(input);
 
 	try {
 		var oldFont = bdf.Font.read(ifs);
@@ -103,7 +107,7 @@ function mainProgram(nonopt, parsed) {
 
 	// READ TABLES
 	nonopt.slice(3).forEach(name => {
-		ifs = new fnio.InputStream(name);
+		ifs = new fnio.InputFileStream(name);
 
 		try {
 			ifs.readLines(line => {
@@ -121,8 +125,8 @@ function mainProgram(nonopt, parsed) {
 	}
 
 	// CREATE GLYPHS
-	let newFont = new bdf.Font();
-	let charMap = [];
+	const newFont = new bdf.Font();
+	const charMap = [];
 	let index = 0;
 	let unstart = 0;
 
@@ -135,7 +139,7 @@ function mainProgram(nonopt, parsed) {
 
 	newCodes.forEach(code => {
 		let oldChar = charMap[code];
-		let uniFFFF = (oldChar == null);
+		const uniFFFF = (oldChar == null);
 
 		if (code === 0xFFFF && parsed.filter) {
 			index++;
@@ -158,12 +162,13 @@ function mainProgram(nonopt, parsed) {
 			}
 		}
 
-		let newChar = Object.assign(new bdf.Char(), oldChar);
+		const newChar = Object.assign(new bdf.Char(), oldChar);
 
 		newChar.code = index >= unstart ? code : index;
 		index++;
-		newChar.props = newChar.props.clone();
-		newChar.props.set('ENCODING', newChar.code.toString());
+		newChar.props = new bdf.Props();
+		oldChar.props.forEach((name, value) => newChar.props.set(name, value));
+		newChar.props.set('ENCODING', newChar.code);
 		newFont.chars.push(newChar);
 
 		if (uniFFFF) {
@@ -175,7 +180,7 @@ function mainProgram(nonopt, parsed) {
 
 	// CREATE HEADER
 	let numProps;
-	let family = (parsed.family !== null) ? parsed.family : oldFont.xlfd[bdf.XLFD.FAMILY_NAME];
+	const family = (parsed.family != null) ? parsed.family : oldFont.xlfd[bdf.XLFD.FAMILY_NAME];
 
 	oldFont.props.forEach((name, value) => {
 		switch (name) {
@@ -200,7 +205,7 @@ function mainProgram(nonopt, parsed) {
 			break;
 		case 'DEFAULT_CHAR':
 			if (newFont.defaultCode !== -1) {
-				value = newFont.defaultCode.toString();
+				value = newFont.defaultCode;
 			} else {
 				numProps -= 1;
 				return;
@@ -208,24 +213,23 @@ function mainProgram(nonopt, parsed) {
 			break;
 		case 'ENDPROPERTIES':
 			if (newFont.defaultCode !== -1 && newFont.props.get('DEFAULT_CHAR') == null) {
-				newFont.props.add('DEFAULT_CHAR', newFont.defaultCode.toString());
+				newFont.props.set('DEFAULT_CHAR', newFont.defaultCode);
 				numProps += 1;
 			}
-			newFont.props.set('STARTPROPERTIES', numProps.toString());
+			newFont.props.set('STARTPROPERTIES', numProps);
 			break;
 		case 'CHARS':
-			value = newFont.chars.length.toString();
+			value = newFont.chars.length;
 			break;
 		}
-		newFont.props.add(name, value);
+		newFont.props.set(name, value);
 	});
 
 	// COPY FIELDS
 	newFont.bbx = oldFont.bbx;
-	newFont.finis = oldFont.finis;
 
 	// WRITE OUTPUT
-	let ofs = new fnio.OutputStream(parsed.output);
+	let ofs = new fnio.OutputFileStream(parsed.output);
 
 	try {
 		newFont.write(ofs);
@@ -235,7 +239,6 @@ function mainProgram(nonopt, parsed) {
 		throw e;
 	}
 }
-
 
 if (require.main === module) {
 	fncli.start('ucstoany.js', new Options(), new Params(), mainProgram);

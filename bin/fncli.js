@@ -1,27 +1,31 @@
-//
-// Copyright (c) 2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
+/*
+  Copyright (C) 2018-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 'use strict';
 
-
+// -- Params --
 class Params {
 	constructor() {
 		this.excstk = false;
 	}
 }
 
-
+// -- Options --
 class Options {
 	constructor(needArgs, helpText, versionText) {
 		needArgs.forEach(name => {
@@ -63,7 +67,6 @@ class Options {
 		return new Options.Reader(this, args, skip);
 	}
 }
-
 
 Options.Reader = class {
 	constructor(options, args, skip) {
@@ -111,7 +114,7 @@ Options.Reader = class {
 					value = null;
 				}
 
-				if (value === null && Number(this.options.needsArg(name)) > 0) {
+				if (value == null && Number(this.options.needsArg(name)) > 0) {
 					if (++optind === this.args.length) {
 						throw new Error(`option "${name}" requires an argument`);
 					}
@@ -128,9 +131,9 @@ Options.Reader = class {
 Object.defineProperty(Options, 'Reader', { 'enumerable': false });
 Object.defineProperty(Options.Reader, 'name', { value: 'Reader' });
 
-
+// -- Main --
 function start(programName, options, params, mainProgram) {  // eslint-disable-line consistent-return
-	let parsed = (params != null) ? params : new Params();
+	const parsed = (params != null) ? params : new Params();
 
 	try {
 		const version = process.version.match(/^v?(\d+)\.(\d+)/);
@@ -157,15 +160,19 @@ function start(programName, options, params, mainProgram) {  // eslint-disable-l
 		}
 	} catch (e) {
 		if (parsed.excstk) {
-			throw e;
+			if (e.stack != null) {
+				process.stderr.write(e.stack + '\n');
+			} else {
+				throw e;
+			}
 		} else {
 			process.stderr.write(`${process.argv.length >= 2 ? process.argv[1] : programName}: ${e.message}\n`);
-			process.exit(1);
 		}
+		process.exit(1);
 	}
 }
 
-
+// -- Exports --
 module.exports = Object.freeze({
 	Params,
 	Options,

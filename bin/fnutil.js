@@ -1,21 +1,26 @@
-//
-// Copyright (c) 2018 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
+/*
+  Copyright (C) 2017-2019 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 'use strict';
 
-
+// -- Various --
 const UNICODE_MAX = 1114111;  // 0x10FFFF
+const UNICODE_BMP_MAX = 65535;  // 0xFFFF
 
 function parseDec(name, s, minValue = 0, maxValue = UNICODE_MAX) {
 	if (s.match(/^\s*-?\d+\s*$/) == null) {
@@ -56,9 +61,9 @@ function unihex(code) {
 }
 
 function round(value) {
-	let result = Math.round(value);
+	const esround = Math.round(value);
 
-	return result - Number(result % 2 !== 0 && result - value === 0.5);
+	return esround - Number(esround % 2 !== 0 && esround - value === 0.5);
 }
 
 function quote(s) {
@@ -75,13 +80,12 @@ function unquote(s, name) {
 	return s;
 }
 
-function warning(prefix, message) {
-	if (prefix.endsWith(':')) {
-		prefix += ' ';
-	} else if (prefix.length > 0 && !prefix.endsWith(': ')) {
-		prefix += ': ';
-	}
-	process.stderr.write(`${prefix}warning: ${message}\n`);
+function message(prefix, severity, text) {
+	process.stderr.write(`${prefix}${severity ? severity + ': ' : ''}${text}\n`);
+}
+
+function warning(prefix, text) {
+	message(prefix, 'warning', text);
 }
 
 function splitWords(name, value, count) {
@@ -95,25 +99,31 @@ function splitWords(name, value, count) {
 }
 
 const GPL2PLUS_LICENSE = ('' +
-	'This program is free software; you can redistribute it and/or\n' +
-	'modify it under the terms of the GNU General Public License as\n' +
-	'published by the Free Software Foundation; either version 2 of\n' +
-	'the License, or (at your option) any later version.\n' +
+	'This program is free software; you can redistribute it and/or modify it\n' +
+	'under the terms of the GNU General Public License as published by the Free\n' +
+	'Software Foundation; either version 2 of the License, or (at your option)\n' +
+	'any later version.\n' +
 	'\n' +
-	'This program is distributed in the hope that it will be useful,\n' +
-	'but WITHOUT ANY WARRANTY; without even the implied warranty of\n' +
-	'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n' +
-	'GNU General Public License for more details.\n');
+	'This program is distributed in the hope that it will be useful, but\n' +
+	'WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY\n' +
+	'or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n' +
+	'for more details.\n' +
+	'\n' +
+	'You should have received a copy of the GNU General Public License along\n' +
+	'with this program; if not, write to the Free Software Foundation, Inc.,\n' +
+	'51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.\n');
 
-
+// -- Exports --
 module.exports = Object.freeze({
 	UNICODE_MAX,
+	UNICODE_BMP_MAX,
 	parseDec,
 	parseHex,
 	unihex,
 	round,
 	quote,
 	unquote,
+	message,
 	warning,
 	splitWords,
 	GPL2PLUS_LICENSE

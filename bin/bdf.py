@@ -1,27 +1,31 @@
 #
-# Copyright (c) 2018 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
+# Copyright (C) 2017-2020 Dimitar Toshkov Zhekov <dimitar.zhekov@gmail.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; either version 2 of
-# the License, or (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 import re
 import codecs
+from collections import OrderedDict
 from enum import IntEnum, unique
 
 import fnutil
 
-
-WIDTH_MAX = 127
-HEIGHT_MAX = 255
-SWIDTH_MAX = 32000
+# -- Width --
+DPARSE_LIMIT = 512
+SPARSE_LIMIT = 32000
 
 class Width:
 	def __init__(self, x, y):
@@ -30,25 +34,27 @@ class Width:
 
 
 	@staticmethod
-	def _parse(name, value, limit_x, limit_y):
+	def parse(name, value, limit):
 		words = fnutil.split_words(name, value, 2)
-		return Width(fnutil.parse_dec('width x', words[0], -limit_x, limit_x),
-			fnutil.parse_dec('width y', words[1], -limit_y, limit_y))
+		return Width(fnutil.parse_dec(name + '.x', words[0], -limit, limit),
+			fnutil.parse_dec(name + '.y', words[1], -limit, limit))
 
 
 	@staticmethod
-	def parse_s(value):
-		return Width._parse('SWIDTH', value, SWIDTH_MAX, SWIDTH_MAX)
+	def parse_s(name, value):
+		return Width.parse(name, value, SPARSE_LIMIT)
 
 
 	@staticmethod
-	def parse_d(value):
-		return Width._parse('DWIDTH', value, WIDTH_MAX, HEIGHT_MAX)
+	def parse_d(name, value):
+		return Width.parse(name, value, DPARSE_LIMIT)
 
 
-OFFSET_MIN = -128
-OFFSET_MAX = 127
+	def __str__(self):
+		return '%d %d' % (self.x, self.y)
 
+
+# -- BXX --
 class BBX:
 	def __init__(self, width, height, xoff, yoff):
 		self.width = width
@@ -60,10 +66,10 @@ class BBX:
 	@staticmethod
 	def parse(name, value):
 		words = fnutil.split_words(name, value, 4)
-		return BBX(fnutil.parse_dec('width', words[0], 1, WIDTH_MAX),
-			fnutil.parse_dec('height', words[1], 1, HEIGHT_MAX),
-			fnutil.parse_dec('bbxoff', words[2], -WIDTH_MAX, WIDTH_MAX),
-			fnutil.parse_dec('bbyoff', words[3], -WIDTH_MAX, WIDTH_MAX))
+		return BBX(fnutil.parse_dec('width', words[0], 1, DPARSE_LIMIT),
+			fnutil.parse_dec('height', words[1], 1, DPARSE_LIMIT),
+			fnutil.parse_dec('bbxoff', words[2], -DPARSE_LIMIT, DPARSE_LIMIT),
+			fnutil.parse_dec('bbyoff', words[3], -DPARSE_LIMIT, DPARSE_LIMIT))
 
 
 	def row_size(self):
@@ -74,48 +80,18 @@ class BBX:
 		return '%d %d %d %d' % (self.width, self.height, self.xoff, self.yoff)
 
 
-class Props:
-	def __init__(self):
-		self.names = []
-		self.values = []
+# -- Props --
+def skip_comments(line):
+	return None if line[:7] == b'COMMENT' else line
 
 
-	def add(self, name, value):
-		self.names.append(name)
-		self.values.append(value)
-
-
-	def clone(self):
-		props = Props()
-		props.names = self.names[:]
-		props.values = self.values[:]
-		return props
-
-
-	def get(self, name):
-		try:
-			return self.values[self.names.index(name)]
-		except ValueError:
-			return None
-
-
-	class Iter:
-		def __init__(self, props):
-			self.index = 0
-			self.props = props
-
-
-		def __next__(self):
-			if self.index == len(self.props.names):
-				raise StopIteration
-
-			result = (self.props.names[self.index], self.props.values[self.index])
-			self.index += 1
-			return result
-
-
+class Props(OrderedDict):
 	def __iter__(self):
-		return Props.Iter(self)
+		return self.items().__iter__()
+
+
+	def read(self, input, name, callback=None):
+		return self.parse(input.read_lines(skip_comments), name, callback)
 
 
 	def parse(self, line, name, callback=None):
@@ -123,36 +99,23 @@ class Props:
 			raise Exception(name + ' expected')
 
 		value = line[len(name):].lstrip()
-		self.add(name, value)
+		self[name] = value
 		return value if callback is None else callback(name, value)
 
 
 	def set(self, name, value):
-		try:
-			self.values[self.names.index(name)] = value
-		except ValueError:
-			self.add(name, value)
+		self[name] = value if isinstance(value, (bytes, bytearray)) else bytes(str(value), 'ascii')
 
 
+# -- Base --
 class Base:
 	def __init__(self):
 		self.props = Props()
 		self.bbx = None
-		self.finis = []
 
 
-	def keep_comments(self, line):
-		if not line.startswith(b'COMMENT'):
-			return line
-
-		self.props.add('', line)
-		return None
-
-
-	def keep_finishes(self, line):
-		self.finis.append(line)
-		return None if line.startswith(b'COMMENT') else line
-
+# -- Char
+HEX_BYTES = (48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70)
 
 class Char(Base):
 	def __init__(self):
@@ -163,55 +126,51 @@ class Char(Base):
 		self.data = None
 
 
-	@staticmethod
-	def bitmap(data, row_size):
+	def bitmap(self):
 		bitmap = ''
+		row_size = self.bbx.row_size()
 
-		for index in range(0, len(data), row_size):
-			bitmap += data[index : index + row_size].hex() + '\n'
+		for index in range(0, len(self.data), row_size):
+			bitmap += self.data[index : index + row_size].hex() + '\n'
 
 		return bytes(bitmap, 'ascii').upper()
 
 
 	def _read(self, input):
 		# HEADER
-		read_next = lambda: input.read_lines(lambda line: self.keep_comments(line))
-		read_prop = lambda name, callback=None: self.props.parse(read_next(), name, callback)
-
-		read_prop('STARTCHAR')
-		self.code = read_prop('ENCODING', fnutil.parse_dec)
-		self.swidth = read_prop('SWIDTH', lambda _, value: Width.parse_s(value))
-		self.dwidth = read_prop('DWIDTH', lambda _, value: Width.parse_d(value))
-		self.bbx = read_prop('BBX', BBX.parse)
-		line = read_next()
+		self.props.read(input, 'STARTCHAR')
+		self.code = self.props.read(input, 'ENCODING', fnutil.parse_dec)
+		self.swidth = self.props.read(input, 'SWIDTH', Width.parse_s)
+		self.dwidth = self.props.read(input, 'DWIDTH', Width.parse_d)
+		self.bbx = self.props.read(input, 'BBX', BBX.parse)
+		line = input.read_lines(skip_comments)
 
 		if line and line.startswith(b'ATTRIBUTES'):
 			self.props.parse(line, 'ATTRIBUTES')
-			line = read_next()
+			line = input.read_lines(skip_comments)
 
 		# BITMAP
-		if self.props.parse(line, 'BITMAP') != b'':
+		if self.props.parse(line, 'BITMAP'):
 			raise Exception('BITMAP expected')
 
 		row_len = self.bbx.row_size() * 2
-		bitmap = b''
+		self.data = bytearray()
 
 		for _ in range(0, self.bbx.height):
-			line = read_next()
+			line = input.read_lines(skip_comments)
 
 			if not line:
 				raise Exception('bitmap data expected')
 
 			if len(line) == row_len:
-				bitmap += line
+				self.data += codecs.decode(line, 'hex')
 			else:
 				raise Exception('invalid bitmap length')
 
 		# FINAL
-		if input.read_lines(lambda line: self.keep_finishes(line)) != b'ENDCHAR':
+		if input.read_lines(skip_comments) != b'ENDCHAR':
 			raise Exception('ENDCHAR expected')
 
-		self.data = codecs.decode(bitmap, 'hex')  # no spaces allowed
 		return self
 
 
@@ -224,9 +183,10 @@ class Char(Base):
 		for [name, value] in self.props:
 			output.write_prop(name, value)
 
-		output.write_line(Char.bitmap(self.data, self.bbx.row_size()) + b'\n'.join(self.finis))
+		output.write_line(self.bitmap() + b'ENDCHAR')
 
 
+# -- Font --
 @unique
 class XLFD(IntEnum):
 	FOUNDRY = 1
@@ -254,48 +214,44 @@ class Font(Base):
 		self.default_code = -1
 
 
-	def get_ascent(self):
-		ascent = self.props.get('FONT_ASCENT')
-
-		if ascent is not None:
-			return fnutil.parse_dec('FONT_ASCENT', ascent, -HEIGHT_MAX, HEIGHT_MAX)
-
-		return self.bbx.height + self.bbx.yoff
+	@property
+	def bold(self):
+		return b'bold' in self.xlfd[XLFD.WEIGHT_NAME].lower()
 
 
-	def get_bold(self):
-		return int(b'bold' in self.xlfd[XLFD.WEIGHT_NAME].lower())
+	@property
+	def italic(self):
+		return self.xlfd[XLFD.SLANT] in [b'I', b'O']
 
 
-	def get_italic(self):
-		return int(re.search(b'^[IO]', self.xlfd[XLFD.SLANT]) is not None)
+	@property
+	def proportional(self):
+		return self.xlfd[XLFD.SPACING] == b'P'
 
 
 	def _read(self, input):
 		# HEADER
-		read_next = lambda: input.read_lines(lambda line: self.keep_comments(line))
-		read_prop = lambda name, callback=None: self.props.parse(read_next(), name, callback)
-		line = input.read_lines(Font.skip_empty)
+		line = input.read_line()
 
 		if self.props.parse(line, 'STARTFONT') != b'2.1':
 			raise Exception('STARTFONT 2.1 expected')
 
-		self.xlfd = read_prop('FONT', lambda name, value: value.split(b'-', 15))
+		self.xlfd = self.props.read(input, 'FONT', lambda name, value: value.split(b'-', 15))
 
 		if len(self.xlfd) != 15 or self.xlfd[0] != b'':
 			raise Exception('non-XLFD font names are not supported')
 
-		read_prop('SIZE')
-		self.bbx = read_prop('FONTBOUNDINGBOX', BBX.parse)
-		line = read_next()
+		self.props.read(input, 'SIZE')
+		self.bbx = self.props.read(input, 'FONTBOUNDINGBOX', BBX.parse)
+		line = input.read_lines(skip_comments)
 
 		if line and line.startswith(b'STARTPROPERTIES'):
 			num_props = self.props.parse(line, 'STARTPROPERTIES', fnutil.parse_dec)
 
 			for _ in range(0, num_props):
-				line = read_next()
+				line = input.read_lines(skip_comments)
 
-				if not line:
+				if line is None:
 					raise Exception('property expected')
 
 				match = re.fullmatch(br'(\w+)\s+([-\d"].*)', line)
@@ -306,18 +262,21 @@ class Font(Base):
 				name = str(match.group(1), 'ascii')
 				value = match.group(2)
 
+				if self.props.get(name) is not None:
+					raise Exception('duplicate property')
+
 				if name == 'DEFAULT_CHAR':
 					self.default_code = fnutil.parse_dec(name, value)
 
-				self.props.add(name, value)
+				self.props[name] = value
 
-			if read_prop('ENDPROPERTIES') != b'':
+			if self.props.read(input, 'ENDPROPERTIES') != b'':
 				raise Exception('ENDPROPERTIES expected')
 
-			line = read_next()
+			line = input.read_lines(skip_comments)
 
 		# GLYPHS
-		num_chars = self.props.parse(line, 'CHARS', lambda name, value: fnutil.parse_dec(name, value, 1, CHARS_MAX))
+		num_chars = fnutil.parse_dec('CHARS', self.props.parse(line, 'CHARS'), 1, CHARS_MAX)
 
 		for _ in range(0, num_chars):
 			self.chars.append(Char.read(input))
@@ -326,10 +285,10 @@ class Font(Base):
 			raise Exception('invalid DEFAULT_CHAR')
 
 		# FINAL
-		if input.read_lines(lambda line: self.keep_finishes(line)) != b'ENDFONT':
+		if input.read_lines(skip_comments) != b'ENDFONT':
 			raise Exception('ENDFONT expected')
 
-		if input.read_lines(Font.skip_empty):
+		if input.read_line() is not None:
 			raise Exception('garbage after ENDFONT')
 
 		return self
@@ -340,11 +299,6 @@ class Font(Base):
 		return Font()._read(input)  # pylint: disable=protected-access
 
 
-	@staticmethod
-	def skip_empty(line):
-		return line if line else None
-
-
 	def write(self, output):
 		for [name, value] in self.props:
 			output.write_prop(name, value)
@@ -352,4 +306,4 @@ class Font(Base):
 		for char in self.chars:
 			char.write(output)
 
-		output.write_line(b'\n'.join(self.finis))
+		output.write_line(b'ENDFONT')
