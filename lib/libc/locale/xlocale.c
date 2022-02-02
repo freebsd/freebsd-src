@@ -117,11 +117,16 @@ static locale_t thread_local_locale;
 static void
 init_key(void)
 {
+	int error;
 
-	pthread_key_create(&locale_info_key, xlocale_release);
-	pthread_setspecific(locale_info_key, (void*)42);
-	if (pthread_getspecific(locale_info_key) == (void*)42) {
-		pthread_setspecific(locale_info_key, 0);
+	error = pthread_key_create(&locale_info_key, xlocale_release);
+	if (error == 0) {
+		pthread_setspecific(locale_info_key, (void*)42);
+		if (pthread_getspecific(locale_info_key) == (void*)42) {
+			pthread_setspecific(locale_info_key, 0);
+		} else {
+			fake_tls = 1;
+		}
 	} else {
 		fake_tls = 1;
 	}
