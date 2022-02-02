@@ -468,12 +468,6 @@ mpi_pre_fw_download(struct mps_command *cm, struct mps_usr_command *cmd)
 	MPI2_FW_DOWNLOAD_TCSGE tc;
 	int error;
 
-	/*
-	 * This code assumes there is room in the request's SGL for
-	 * the TransactionContext plus at least a SGL chain element.
-	 */
-	CTASSERT(sizeof req->SGL >= sizeof tc + MPS_SGC_SIZE);
-
 	if (cmd->req_len != sizeof *req)
 		return (EINVAL);
 	if (cmd->rpl_len != sizeof *rpl)
@@ -520,12 +514,6 @@ mpi_pre_fw_upload(struct mps_command *cm, struct mps_usr_command *cmd)
 	MPI2_FW_UPLOAD_REQUEST *req = (void *)cm->cm_req;
 	MPI2_FW_UPLOAD_REPLY *rpl;
 	MPI2_FW_UPLOAD_TCSGE tc;
-
-	/*
-	 * This code assumes there is room in the request's SGL for
-	 * the TransactionContext plus at least a SGL chain element.
-	 */
-	CTASSERT(sizeof req->SGL >= sizeof tc + MPS_SGC_SIZE);
 
 	if (cmd->req_len != sizeof *req)
 		return (EINVAL);
