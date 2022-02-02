@@ -101,6 +101,8 @@ __messages_load(const char *name, locale_t l)
 {
 	struct xlocale_messages *new = calloc(sizeof(struct xlocale_messages),
 	    1);
+	if (new == NULL)
+		return (NULL);
 	new->header.header.destructor = destruct_messages;
 	if (messages_load_locale(new, &l->using_messages_locale, name) ==
 	    _LDP_ERROR) {
