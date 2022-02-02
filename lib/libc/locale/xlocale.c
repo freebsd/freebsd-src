@@ -198,6 +198,9 @@ alloc_locale(void)
 {
 	locale_t new = calloc(sizeof(struct _xlocale), 1);
 
+	if (new == NULL)
+		return (NULL);
+
 	new->header.destructor = destruct_locale;
 	new->monetary_locale_changed = 1;
 	new->numeric_locale_changed = 1;
