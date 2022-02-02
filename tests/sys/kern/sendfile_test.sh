@@ -51,6 +51,10 @@ io_success_head()
 }
 io_success_body()
 {
+	if [ "$(atf_config_get qemu false)" = "true" ]; then
+	    atf_skip "Sendfile(4) unimplemented. https://github.com/qemu-bsd-user/qemu-bsd-user/issues/25"
+	fi
+
 	md=$(alloc_md)
 	common_body_setup $md
 
@@ -70,6 +74,10 @@ io_fail_sync_head()
 }
 io_fail_sync_body()
 {
+	if [ "$(atf_config_get qemu false)" = "true" ]; then
+	    atf_skip "Sendfile(4) unimplemented. https://github.com/qemu-bsd-user/qemu-bsd-user/issues/25"
+	fi
+
 	md=$(alloc_md)
 	common_body_setup $md
 
@@ -90,6 +98,10 @@ io_fail_async_head()
 }
 io_fail_async_body()
 {
+	if [ "$(atf_config_get qemu false)" = "true" ]; then
+	    atf_skip "Sendfile(4) unimplemented. https://github.com/qemu-bsd-user/qemu-bsd-user/issues/25"
+	fi
+
 	md=$(alloc_md)
 	common_body_setup $md
 
