@@ -4971,7 +4971,7 @@ opencrypto/xform_sha1.c		optional crypto
 opencrypto/xform_sha2.c		optional crypto
 contrib/libsodium/src/libsodium/crypto_core/ed25519/ref10/ed25519_ref10.c \
 	optional crypto \
-	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium -Wno-unused-function"
 contrib/libsodium/src/libsodium/crypto_core/hchacha20/core_hchacha20.c \
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
@@ -4986,7 +4986,7 @@ contrib/libsodium/src/libsodium/crypto_scalarmult/curve25519/scalarmult_curve255
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
 contrib/libsodium/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.c \
 	optional crypto \
-	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium -Wno-unused-function"
 contrib/libsodium/src/libsodium/crypto_stream/chacha20/stream_chacha20.c \
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
