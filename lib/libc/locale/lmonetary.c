@@ -98,15 +98,15 @@ destruct_monetary(void *v)
 
 static int
 monetary_load_locale_l(struct xlocale_monetary *loc, int *using_locale,
-		int *changed, const char *name)
+    int *changed, const char *name)
 {
 	int ret;
 	struct lc_monetary_T *l = &loc->locale;
 
 	ret = __part_load_locale(name, using_locale,
-		&loc->buffer, "LC_MONETARY",
-		LCMONETARY_SIZE_FULL, LCMONETARY_SIZE_MIN,
-		(const char **)l);
+	    &loc->buffer, "LC_MONETARY",
+	    LCMONETARY_SIZE_FULL, LCMONETARY_SIZE_MIN,
+	    (const char **)l);
 	if (ret == _LDP_LOADED) {
 		l->mon_grouping =
 		     __fix_locale_grouping_str(l->mon_grouping);
@@ -148,38 +148,40 @@ monetary_load_locale_l(struct xlocale_monetary *loc, int *using_locale,
 		atomic_store_rel_int(changed, 1);
 	return (ret);
 }
+
 int
 __monetary_load_locale(const char *name)
 {
-	return monetary_load_locale_l(&__xlocale_global_monetary,
-			&__xlocale_global_locale.using_monetary_locale,
-			&__xlocale_global_locale.monetary_locale_changed, name);
-}
-void* __monetary_load(const char *name, locale_t l)
-{
-	struct xlocale_monetary *new = calloc(sizeof(struct xlocale_monetary), 1);
-	new->header.header.destructor = destruct_monetary;
-	if (monetary_load_locale_l(new, &l->using_monetary_locale,
-				&l->monetary_locale_changed, name) == _LDP_ERROR)
-	{
-		xlocale_release(new);
-		return NULL;
-	}
-	return new;
+	return (monetary_load_locale_l(&__xlocale_global_monetary,
+	    &__xlocale_global_locale.using_monetary_locale,
+	    &__xlocale_global_locale.monetary_locale_changed, name));
 }
 
+void *
+__monetary_load(const char *name, locale_t l)
+{
+	struct xlocale_monetary *new = calloc(sizeof(struct xlocale_monetary),
+	    1);
+	new->header.header.destructor = destruct_monetary;
+	if (monetary_load_locale_l(new, &l->using_monetary_locale,
+	    &l->monetary_locale_changed, name) == _LDP_ERROR) {
+		xlocale_release(new);
+		return (NULL);
+	}
+	return (new);
+}
 
 struct lc_monetary_T *
 __get_current_monetary_locale(locale_t loc)
 {
-	return (loc->using_monetary_locale
-		? &((struct xlocale_monetary*)loc->components[XLC_MONETARY])->locale
-		: (struct lc_monetary_T *)&_C_monetary_locale);
+	return (loc->using_monetary_locale ?
+	    &((struct xlocale_monetary*)loc->components[XLC_MONETARY])->locale :
+	    (struct lc_monetary_T *)&_C_monetary_locale);
 }
 
 #ifdef LOCALE_DEBUG
 void
-monetdebug() {
+monetdebug(void) {
 printf(	"int_curr_symbol = %s\n"
 	"currency_symbol = %s\n"
 	"mon_decimal_point = %s\n"
