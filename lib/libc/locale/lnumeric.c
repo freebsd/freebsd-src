@@ -63,16 +63,16 @@ destruct_numeric(void *v)
 struct xlocale_numeric __xlocale_global_numeric;
 
 static int
-numeric_load_locale(struct xlocale_numeric *loc, int *using_locale, int *changed,
-		const char *name)
+numeric_load_locale(struct xlocale_numeric *loc, int *using_locale,
+    int *changed, const char *name)
 {
 	int ret;
 	struct lc_numeric_T *l = &loc->locale;
 
 	ret = __part_load_locale(name, using_locale,
-		&loc->buffer, "LC_NUMERIC",
-		LCNUMERIC_SIZE, LCNUMERIC_SIZE,
-		(const char**)l);
+	    &loc->buffer, "LC_NUMERIC",
+	    LCNUMERIC_SIZE, LCNUMERIC_SIZE,
+	    (const char**)l);
 	if (ret != _LDP_ERROR)
 		*changed= 1;
 	if (ret == _LDP_LOADED) {
@@ -89,30 +89,31 @@ numeric_load_locale(struct xlocale_numeric *loc, int *using_locale, int *changed
 int
 __numeric_load_locale(const char *name)
 {
-	return numeric_load_locale(&__xlocale_global_numeric,
-			&__xlocale_global_locale.using_numeric_locale,
-			&__xlocale_global_locale.numeric_locale_changed, name);
+	return (numeric_load_locale(&__xlocale_global_numeric,
+       	    &__xlocale_global_locale.using_numeric_locale,
+	    &__xlocale_global_locale.numeric_locale_changed, name));
 }
+
 void *
 __numeric_load(const char *name, locale_t l)
 {
-	struct xlocale_numeric *new = calloc(sizeof(struct xlocale_numeric), 1);
+	struct xlocale_numeric *new = calloc(sizeof(struct xlocale_numeric),
+	    1);
 	new->header.header.destructor = destruct_numeric;
 	if (numeric_load_locale(new, &l->using_numeric_locale,
-				&l->numeric_locale_changed, name) == _LDP_ERROR)
-	{
+	    &l->numeric_locale_changed, name) == _LDP_ERROR) {
 		xlocale_release(new);
-		return NULL;
+		return (NULL);
 	}
-	return new;
+	return (new);
 }
 
 struct lc_numeric_T *
 __get_current_numeric_locale(locale_t loc)
 {
-	return (loc->using_numeric_locale
-		? &((struct xlocale_numeric *)loc->components[XLC_NUMERIC])->locale
-		: (struct lc_numeric_T *)&_C_numeric_locale);
+	return (loc->using_numeric_locale ?
+	    &((struct xlocale_numeric *)loc->components[XLC_NUMERIC])->locale :
+	    (struct lc_numeric_T *)&_C_numeric_locale);
 }
 
 #ifdef LOCALE_DEBUG
