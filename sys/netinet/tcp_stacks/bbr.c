@@ -519,8 +519,7 @@ bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
     uint32_t cts, uint32_t usecs, uint64_t bw, uint32_t override, int mod);
 
 static int
-bbr_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp,
-    struct tcpcb *tp);
+bbr_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 
 static inline uint8_t
 bbr_state_val(struct tcp_bbr *bbr)
@@ -14235,16 +14234,17 @@ struct tcp_function_block __tcp_bbr = {
  * option.
  */
 static int
-bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
-		struct inpcb *inp, struct tcpcb *tp, struct tcp_bbr *bbr)
+bbr_set_sockopt(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct epoch_tracker et;
+	struct tcpcb *tp;
+	struct tcp_bbr *bbr;
 	int32_t error = 0, optval;
 
 	switch (sopt->sopt_level) {
 	case IPPROTO_IPV6:
 	case IPPROTO_IP:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 	}
 
 	switch (sopt->sopt_name) {
@@ -14293,7 +14293,7 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 	case TCP_BBR_RETRAN_WTSO:
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 	INP_WUNLOCK(inp);
@@ -14629,7 +14629,7 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 		}
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 #ifdef NETFLIX_STATS
@@ -14643,11 +14643,18 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
  * return 0 on success, error-num on failure
  */
 static int
-bbr_get_sockopt(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp, struct tcp_bbr *bbr)
+bbr_get_sockopt(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct tcpcb *tp;
+	struct tcp_bbr *bbr;
 	int32_t error, optval;
 
+	tp = intotcpcb(inp);
+	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
+	if (bbr == NULL) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
 	/*
 	 * Because all our options are either boolean or an int, we can just
 	 * pull everything into optval and then unlock and copy. If we ever
@@ -14781,7 +14788,7 @@ bbr_get_sockopt(struct socket *so, struct sockopt *sopt,
 			optval |= BBR_INCL_ENET_OH;
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 	INP_WUNLOCK(inp);
@@ -14793,24 +14800,15 @@ bbr_get_sockopt(struct socket *so, struct sockopt *sopt,
  * return 0 on success, error-num on failure
  */
 static int
-bbr_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp)
+bbr_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 {
-	int32_t error = EINVAL;
-	struct tcp_bbr *bbr;
-
-	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
-	if (bbr == NULL) {
-		/* Huh? */
-		goto out;
-	}
 	if (sopt->sopt_dir == SOPT_SET) {
-		return (bbr_set_sockopt(so, sopt, inp, tp, bbr));
+		return (bbr_set_sockopt(inp, sopt));
 	} else if (sopt->sopt_dir == SOPT_GET) {
-		return (bbr_get_sockopt(so, sopt, inp, tp, bbr));
+		return (bbr_get_sockopt(inp, sopt));
+	} else {
+		panic("%s: sopt_dir $%d", __func__, sopt->sopt_dir);
 	}
-out:
-	INP_WUNLOCK(inp);
-	return (error);
 }
 
 static const char *bbr_stack_names[] = {
