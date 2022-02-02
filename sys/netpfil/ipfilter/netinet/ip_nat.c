@@ -1710,7 +1710,7 @@ ipf_nat_getsz(ipf_main_softc_t *softc, caddr_t data, int getlock)
 	}
 
 	/*
-	 * Incluse any space required for proxy data structures.
+	 * Include any space required for proxy data structures.
 	 */
 	ng.ng_sz = sizeof(nat_save_t);
 	aps = nat->nat_aps;
