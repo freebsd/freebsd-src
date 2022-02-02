@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
- * Copyright (c) 2008-2010 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2669,18 +2669,15 @@ usb_dev_resume_peer(struct usb_device *udev)
 		/* resume current port (Valid in Host and Device Mode) */
 		err = usbd_req_clear_port_feature(udev->parent_hub,
 		    NULL, udev->port_no, UHF_PORT_SUSPEND);
-		if (err) {
-			DPRINTFN(0, "Resuming port failed\n");
-			return;
-		}
 	} else {
 		/* resume current port (Valid in Host and Device Mode) */
 		err = usbd_req_set_port_link_state(udev->parent_hub,
 		    NULL, udev->port_no, UPS_PORT_LS_U0);
-		if (err) {
-			DPRINTFN(0, "Resuming port failed\n");
-			return;
-		}
+	}
+
+	if (err != 0) {
+		DPRINTFN(0, "Resuming port failed: %s (ignored)\n",
+		    usbd_errstr(err));
 	}
 
 	/* resume settle time */
