@@ -214,6 +214,8 @@ void *
 __ctype_load(const char *locale, locale_t unused __unused)
 {
 	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
+	if (l == NULL)
+		return (NULL);
 
 	l->header.header.destructor = destruct_ctype;
 	if (__setrunelocale(l, locale)) {
