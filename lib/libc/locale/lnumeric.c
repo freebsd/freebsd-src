@@ -99,6 +99,8 @@ __numeric_load(const char *name, locale_t l)
 {
 	struct xlocale_numeric *new = calloc(sizeof(struct xlocale_numeric),
 	    1);
+	if (new == NULL)
+		return (NULL);
 	new->header.header.destructor = destruct_numeric;
 	if (numeric_load_locale(new, &l->using_numeric_locale,
 	    &l->numeric_locale_changed, name) == _LDP_ERROR) {
