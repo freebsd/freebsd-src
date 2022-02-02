@@ -6,6 +6,7 @@ nooptions	INVARIANTS
 nooptions	INVARIANT_SUPPORT
 nooptions	WITNESS
 nooptions	WITNESS_SKIPSPIN
+nooptions	DEBUG_VFS_LOCKS
 nooptions	BUF_TRACKING
 nooptions	FULL_BUF_TRACKING
 nooptions	DEADLKRES
