@@ -257,12 +257,12 @@ newlocale(int mask, const char *locale, locale_t base)
 	int useenv = 0;
 	int success = 1;
 
-	_once(&once_control, init_key);
-
 	locale_t new = alloc_locale();
 	if (NULL == new) {
 		return (NULL);
 	}
+
+	_once(&once_control, init_key);
 
 	orig_base = base;
 	FIX_LOCALE(base);
@@ -312,12 +312,12 @@ duplocale(locale_t base)
 	locale_t new = alloc_locale();
 	int type;
 
-	_once(&once_control, init_key);
-
 	if (NULL == new) {
 		return (NULL);
 	}
 	
+	_once(&once_control, init_key);
+
 	FIX_LOCALE(base);
 	copyflags(new, base);
 
