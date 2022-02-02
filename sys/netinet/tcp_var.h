@@ -358,8 +358,7 @@ struct tcp_function_block {
 			    struct socket *, struct tcpcb *,
 			    int, int, uint8_t,
 			    int, struct timeval *);
-	int     (*tfb_tcp_ctloutput)(struct socket *so, struct sockopt *sopt,
-			    struct inpcb *inp, struct tcpcb *tp);
+	int     (*tfb_tcp_ctloutput)(struct inpcb *inp, struct sockopt *sopt);
 	/* Optional memory allocation/free routine */
 	int	(*tfb_tcp_fb_init)(struct tcpcb *);
 	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
@@ -1128,7 +1127,7 @@ int find_tcp_function_alias(struct tcp_function_block *blk, struct tcp_function_
 void tcp_switch_back_to_default(struct tcpcb *tp);
 struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);
-int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp);
+int tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 
 extern counter_u64_t tcp_inp_lro_direct_queue;
 extern counter_u64_t tcp_inp_lro_wokeup_queue;

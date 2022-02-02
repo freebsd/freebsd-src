@@ -449,8 +449,7 @@ rack_cong_signal(struct tcpcb *tp,
 		 uint32_t type, uint32_t ack);
 static void rack_counter_destroy(void);
 static int
-rack_ctloutput(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp);
+rack_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 static int32_t rack_ctor(void *mem, int32_t size, void *arg, int32_t how);
 static void
 rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line, uint64_t *fill_override);
@@ -477,8 +476,7 @@ static struct rack_sendmap *rack_find_lowest_rsm(struct tcp_rack *rack);
 static void rack_free(struct tcp_rack *rack, struct rack_sendmap *rsm);
 static void rack_fini(struct tcpcb *tp, int32_t tcb_is_purged);
 static int
-rack_get_sockopt(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack);
+rack_get_sockopt(struct sockopt *sopt, struct inpcb *inp);
 static void
 rack_do_goodput_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 			    tcp_seq th_ack, int line, uint8_t quality);
@@ -508,8 +506,7 @@ rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack,
 static void rack_post_recovery(struct tcpcb *tp, uint32_t th_seq);
 static void rack_remxt_tmr(struct tcpcb *tp);
 static int
-rack_set_sockopt(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack);
+rack_set_sockopt(struct inpcb *inp, struct sockopt *sopt);
 static void rack_set_state(struct tcpcb *tp, struct tcp_rack *rack);
 static int32_t rack_stopall(struct tcpcb *tp);
 static void
@@ -20437,17 +20434,31 @@ static struct tcp_function_block __tcp_rack = {
  * option.
  */
 static int
-rack_set_sockopt(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack)
+rack_set_sockopt(struct inpcb *inp, struct sockopt *sopt)
 {
 #ifdef INET6
-	struct ip6_hdr *ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
+	struct ip6_hdr *ip6;
 #endif
 #ifdef INET
-	struct ip *ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
+	struct ip *ip;
 #endif
+	struct tcpcb *tp;
+	struct tcp_rack *rack;
 	uint64_t loptval;
 	int32_t error = 0, optval;
+
+	tp = intotcpcb(inp);
+	rack = (struct tcp_rack *)tp->t_fb_ptr;
+	if (rack == NULL) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
+#ifdef INET6
+	ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
+#endif
+#ifdef INET
+	ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
+#endif
 
 	switch (sopt->sopt_level) {
 #ifdef INET6
@@ -20545,7 +20556,7 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	default:
 		/* Filter off all unknown options to the base stack */
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 	INP_WUNLOCK(inp);
@@ -20648,9 +20659,10 @@ rack_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 }
 
 static int
-rack_get_sockopt(struct socket *so, struct sockopt *sopt,
-    struct inpcb *inp, struct tcpcb *tp, struct tcp_rack *rack)
+rack_get_sockopt(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct tcpcb *tp;
+	struct tcp_rack *rack;
 	int32_t error, optval;
 	uint64_t val, loptval;
 	struct	tcp_info ti;
@@ -20661,6 +20673,12 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 	 * impact to this routine.
 	 */
 	error = 0;
+	tp = intotcpcb(inp);
+	rack = (struct tcp_rack *)tp->t_fb_ptr;
+	if (rack == NULL) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
 	switch (sopt->sopt_name) {
 	case TCP_INFO:
 		/* First get the info filled */
@@ -20901,7 +20919,7 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 		optval = rack->r_ctl.timer_slop;
 		break;
 	default:
-		return (tcp_default_ctloutput(so, sopt, inp, tp));
+		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
 	INP_WUNLOCK(inp);
@@ -20915,24 +20933,15 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 }
 
 static int
-rack_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp, struct tcpcb *tp)
+rack_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 {
-	int32_t error = EINVAL;
-	struct tcp_rack *rack;
-
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
-	if (rack == NULL) {
-		/* Huh? */
-		goto out;
-	}
 	if (sopt->sopt_dir == SOPT_SET) {
-		return (rack_set_sockopt(so, sopt, inp, tp, rack));
+		return (rack_set_sockopt(inp, sopt));
 	} else if (sopt->sopt_dir == SOPT_GET) {
-		return (rack_get_sockopt(so, sopt, inp, tp, rack));
+		return (rack_get_sockopt(inp, sopt));
+	} else {
+		panic("%s: sopt_dir $%d", __func__, sopt->sopt_dir);
 	}
-out:
-	INP_WUNLOCK(inp);
-	return (error);
 }
 
 static const char *rack_stack_names[] = {
