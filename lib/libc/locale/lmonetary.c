@@ -162,6 +162,8 @@ __monetary_load(const char *name, locale_t l)
 {
 	struct xlocale_monetary *new = calloc(sizeof(struct xlocale_monetary),
 	    1);
+	if (new == NULL)
+		return (NULL);
 	new->header.header.destructor = destruct_monetary;
 	if (monetary_load_locale_l(new, &l->using_monetary_locale,
 	    &l->monetary_locale_changed, name) == _LDP_ERROR) {
