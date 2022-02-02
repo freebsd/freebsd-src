@@ -3133,12 +3133,14 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 * operation's results to be consistent with NFSv3, but that is
 	 * not what the current Linux client appears to be doing.
 	 * Since both the Linux and OpenSolaris NFSv4 servers do this check,
-	 * I have enabled it by default.
+	 * I have enabled it by default.  Since Linux does not apply this
+	 * check for claim_delegate_cur, this code does the same.
 	 * If this semantic change causes a problem, it can be disabled by
 	 * setting the sysctl vfs.nfsd.v4openaccess to 0 to re-enable the
 	 * previous semantics.
 	 */
-	if (nfsrv_openaccess && create == NFSV4OPEN_NOCREATE)
+	if (nfsrv_openaccess && create == NFSV4OPEN_NOCREATE &&
+	    (stp->ls_flags & NFSLCK_DELEGCUR) == 0)
 		override = NFSACCCHK_NOOVERRIDE;
 	else
 		override = NFSACCCHK_ALLOWOWNER;
