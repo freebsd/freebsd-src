@@ -99,6 +99,9 @@ LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
 
 LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
+.if ${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23400
+LDFLAGS+=	-Wl,--no-dynamic-linker
+.endif
 
 CLEANFILES+=	loader.efi
 

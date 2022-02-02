@@ -67,6 +67,9 @@ FILESMODE_${BOOT1}.efi=	${BINMODE}
 
 LDSCRIPT=	${EFISRC}/loader/arch/${MACHINE}/ldscript.${MACHINE}
 LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
+.if ${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23400
+LDFLAGS+=	-Wl,--no-dynamic-linker
+.endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only
