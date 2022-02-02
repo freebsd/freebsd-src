@@ -475,8 +475,7 @@ rack_find_high_nonack(struct tcp_rack *rack,
 static struct rack_sendmap *rack_find_lowest_rsm(struct tcp_rack *rack);
 static void rack_free(struct tcp_rack *rack, struct rack_sendmap *rsm);
 static void rack_fini(struct tcpcb *tp, int32_t tcb_is_purged);
-static int
-rack_get_sockopt(struct sockopt *sopt, struct inpcb *inp);
+static int rack_get_sockopt(struct inpcb *inp, struct sockopt *sopt);
 static void
 rack_do_goodput_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 			    tcp_seq th_ack, int line, uint8_t quality);
@@ -505,8 +504,7 @@ rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack,
     uint32_t cts, int *moved_two);
 static void rack_post_recovery(struct tcpcb *tp, uint32_t th_seq);
 static void rack_remxt_tmr(struct tcpcb *tp);
-static int
-rack_set_sockopt(struct inpcb *inp, struct sockopt *sopt);
+static int rack_set_sockopt(struct inpcb *inp, struct sockopt *sopt);
 static void rack_set_state(struct tcpcb *tp, struct tcp_rack *rack);
 static int32_t rack_stopall(struct tcpcb *tp);
 static void
