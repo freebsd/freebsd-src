@@ -32,7 +32,14 @@
  * Linker script for ia32 (32bit) vdso on amd64.
  */
 
+/*
+ * The OUTPUT_ARCH and TARGET lines are for ld.bfd, which cannot determine
+ * the output format based on the first input file.
+ * lld doesn't do much with them, the only thing it does is produce ELF
+ * or binary based on TARGET.
+ */
 OUTPUT_ARCH(i386)
+TARGET(elf32-i386-freebsd)
 
 PHDRS
 {
