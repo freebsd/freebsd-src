@@ -371,8 +371,9 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	uint8_t *buf = copy ? ge->copybuf : ge->buf;
 	ACPI_HEST_GENERIC_STATUS *ges = (ACPI_HEST_GENERIC_STATUS *)buf;
 	ACPI_HEST_GENERIC_DATA *ged;
+	size_t off, len;
 	uint32_t sev;
-	int i, c, off;
+	int i, c;
 
 	if (ges == NULL || ges->BlockStatus == 0)
 		return (0);
@@ -381,8 +382,11 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	sev = ges->ErrorSeverity;
 
 	/* Process error entries. */
-	for (off = i = 0; i < c && off + sizeof(*ged) <= ges->DataLength; i++) {
+	len = MIN(ge->v1.ErrorBlockLength - sizeof(*ges), ges->DataLength);
+	for (off = i = 0; i < c && off + sizeof(*ged) <= len; i++) {
 		ged = (ACPI_HEST_GENERIC_DATA *)&buf[sizeof(*ges) + off];
+		if ((uint64_t)GED_SIZE(ged) + ged->ErrorDataLength > len - off)
+			break;
 		apei_ged_handler(ged);
 		off += GED_SIZE(ged) + ged->ErrorDataLength;
 	}
