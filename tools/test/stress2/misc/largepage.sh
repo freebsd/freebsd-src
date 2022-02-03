@@ -78,7 +78,7 @@ work(int idx)
 	size_t len;
 	int i,r;
 	char *p;
-	volatile char val;
+	volatile char val __unused;
 	char path[PATH_MAX];
 
 	len = ps[idx];

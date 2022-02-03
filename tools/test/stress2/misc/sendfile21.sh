@@ -124,7 +124,7 @@ static void
 test(void)
 {
 	struct stat st;
-	off_t i, j, k, rd, written, pos;
+	off_t i, j, k __unused, rd, written, pos;
 	pid_t pid;
 	int error, from, n, status, sv[2], to;
 	char buf[4086], *cp;

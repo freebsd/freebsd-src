@@ -59,7 +59,7 @@ int
 main(void) {
 
 	struct sockaddr_un addr;
-	int bytes, sockfd;
+	int sockfd;
 	char buf[1024];
 
 	unlink(filename);
@@ -78,7 +78,7 @@ main(void) {
 	    sizeof(addr)) == -1)
 		err(1, "connect");
 
-	bytes = read(sockfd, buf, sizeof(buf));
+	(void)read(sockfd, buf, sizeof(buf));
 
 	return (0);
 }

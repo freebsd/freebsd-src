@@ -79,9 +79,7 @@ EOF
 int
 main(void)
 {
-	void *p;
-
-	p = mmap(NULL, SIZ, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+	(void)mmap(NULL, SIZ, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	usleep(1000);
 	raise(SIGSEGV);
 

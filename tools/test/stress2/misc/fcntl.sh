@@ -80,7 +80,7 @@ add(int n, int increment)
 {
         struct flock fl;
 	off_t pos;
-	long val, oval;
+	long val, oval __unused;
 	int r;
 
 	pos = n * sizeof(val);

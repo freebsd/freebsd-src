@@ -176,7 +176,7 @@ server(void)
 	struct sockaddr_in inetaddr, inetpeer;
 	socklen_t len;
 	int tcpsock, msgsock;
-	int *buf, fd, idx, n, on, t;
+	int *buf, fd, idx, n, on, t __unused;
 	char ofile[128], nfile[128];
 
 	setproctitle("%s", __func__);

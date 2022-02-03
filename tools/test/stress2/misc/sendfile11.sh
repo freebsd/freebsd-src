@@ -37,7 +37,7 @@
 odir=`pwd`
 cd /tmp
 sed '1,/^EOF/d' < $odir/$0 > sendfile11.c
-mycc -o sendfile11 -Wall sendfile11.c -pthread || exit 1
+mycc -o sendfile11 -Wall -O0 sendfile11.c -pthread || exit 1
 rm -f sendfile11.c
 
 set -e
@@ -100,7 +100,7 @@ reader(void) {
 	struct sockaddr_in inetaddr, inetpeer;
 	socklen_t len;
 	int tcpsock, msgsock;
-	int *buf, fd, n, on, t;
+	int *buf, fd, n, on, t __unused;
 
 	on = 1;
 	if ((tcpsock = socket(AF_INET, SOCK_STREAM, 0)) < 0)

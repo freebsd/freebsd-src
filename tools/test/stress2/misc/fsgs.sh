@@ -88,7 +88,7 @@ test(void)
 	for (i = 0; i < 100; i++) {
 		if ((pid = fork()) == 0) {
 			cp = malloc(2);
-			_exit(0);
+			_exit(cp == NULL);
 		}
 		if (waitpid(pid, &status, 0) != pid)
 			err(1, "waitpid(%d)", pid);

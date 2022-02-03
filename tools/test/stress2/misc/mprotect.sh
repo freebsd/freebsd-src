@@ -43,7 +43,7 @@ cat > mprotect.c <<EOF
 int
 main(void)
 {
-	char *addr, c;
+	char *addr, c __unused;
 	size_t i, len;
 
 	len = 2 * 1024 * 1024;
@@ -67,7 +67,7 @@ main(void)
 	return (0);
 }
 EOF
-mycc -o mprotect -Wall -Wextra -O2 mprotect.c || exit 1
+mycc -o mprotect -Wall -Wextra -O0 mprotect.c || exit 1
 
 ./mprotect; s=$?
 

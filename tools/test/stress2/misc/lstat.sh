@@ -129,7 +129,7 @@ test(int idx)
 	struct stat sb;
 	pid_t fpid, pd, pid;
 	size_t len;
-	int i, n, r;
+	int i, r;
 	char dir[128], path[128];
 
 	atomic_add_int(&share[R1], 1);
@@ -156,7 +156,6 @@ test(int idx)
 		while (share[R2] == 0) {
 			snprintf(path, sizeof(path), "%s/d.%d.%d", arg, pid,
 			    i);
-			n = 0;
 			while (dirs[0] > MXDIRS && share[R2] == 0)
 				usleep(SLPTIME);
 			while ((r = mkdir(path, 0777)) == -1) {
@@ -179,7 +178,6 @@ test(int idx)
 	i = 0;
 	setproctitle("rmdir");
 	while (dirs[0] > 0 || share[R2] == 0) {
-		n = 0;
 		if (dirs[0] < MXDIRS / 2)
 			usleep(SLPTIME);
 		snprintf(path, sizeof(path), "%s/d.%d.%d", arg, pid, i);

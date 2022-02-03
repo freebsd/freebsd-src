@@ -38,7 +38,7 @@ dir=/tmp
 odir=`pwd`
 cd $dir
 sed '1,/^EOF/d' < $odir/$0 > $dir/wire_no_page.c
-mycc -o mmap7 -Wall -Wextra wire_no_page.c -lpthread || exit 1
+mycc -o mmap7 -Wall -Wextra -O0 wire_no_page.c -lpthread || exit 1
 rm -f wire_no_page.c
 cd $odir
 
@@ -75,7 +75,7 @@ struct stat st;
 void *
 test2(void *arg __unused)
 {
-	int error, i;
+	int error, i __unused;
 
 	p1[arc4random() % len] = 1;
 	p2[arc4random() % len] = 1;
