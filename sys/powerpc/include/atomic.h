@@ -997,13 +997,13 @@ atomic_swap_64(volatile u_long *p, u_long v)
 static __inline int
 atomic_testandset_int(volatile u_int *p, u_int v)
 {
-	u_int m = (1 << (v & 0x1f));
+	u_int m = (1u << (v & 0x1f));
 	u_int res;
 	u_int tmp;
 
 	__asm __volatile(
 	"1:	lwarx	%0,0,%3\n"
-	"	and.	%1,%0,%4\n"
+	"	and	%1,%0,%4\n"
 	"	or	%0,%0,%4\n"
 	"	stwcx.	%0,0,%3\n"
 	"	bne-	1b\n"
@@ -1017,13 +1017,13 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 static __inline int
 atomic_testandclear_int(volatile u_int *p, u_int v)
 {
-	u_int m = (1 << (v & 0x1f));
+	u_int m = (1u << (v & 0x1f));
 	u_int res;
 	u_int tmp;
 
 	__asm __volatile(
 	"1:	lwarx	%0,0,%3\n"
-	"	and.	%1,%0,%4\n"
+	"	and	%1,%0,%4\n"
 	"	andc	%0,%0,%4\n"
 	"	stwcx.	%0,0,%3\n"
 	"	bne-	1b\n"
@@ -1038,13 +1038,13 @@ atomic_testandclear_int(volatile u_int *p, u_int v)
 static __inline int
 atomic_testandset_long(volatile u_long *p, u_int v)
 {
-	u_long m = (1 << (v & 0x3f));
+	u_long m = (1ul << (v & 0x3f));
 	u_long res;
 	u_long tmp;
 
 	__asm __volatile(
 	"1:	ldarx	%0,0,%3\n"
-	"	and.	%1,%0,%4\n"
+	"	and	%1,%0,%4\n"
 	"	or	%0,%0,%4\n"
 	"	stdcx.	%0,0,%3\n"
 	"	bne-	1b\n"
@@ -1058,13 +1058,13 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 static __inline int
 atomic_testandclear_long(volatile u_long *p, u_int v)
 {
-	u_long m = (1 << (v & 0x3f));
+	u_long m = (1ul << (v & 0x3f));
 	u_long res;
 	u_long tmp;
 
 	__asm __volatile(
 	"1:	ldarx	%0,0,%3\n"
-	"	and.	%1,%0,%4\n"
+	"	and	%1,%0,%4\n"
 	"	andc	%0,%0,%4\n"
 	"	stdcx.	%0,0,%3\n"
 	"	bne-	1b\n"
