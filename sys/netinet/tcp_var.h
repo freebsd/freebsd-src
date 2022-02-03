@@ -88,7 +88,7 @@ struct tseg_qent {
 	struct  mbuf   *tqe_last;	/* last mbuf in chain */
 	tcp_seq tqe_start;		/* TCP Sequence number start */
 	int	tqe_len;		/* TCP segment data length */
-	uint32_t tqe_flags;		/* The flags from the th->th_flags */
+	uint32_t tqe_flags;		/* The flags from tcp_get_flags() */
 	uint32_t tqe_mbuf_cnt;		/* Count of mbuf overhead */
 };
 TAILQ_HEAD(tsegqe_head, tseg_qent);
@@ -1255,6 +1255,19 @@ tcp_fields_to_net(struct tcphdr *th)
 	th->th_ack = htonl(th->th_ack);
 	th->th_win = htons(th->th_win);
 	th->th_urp = htons(th->th_urp);
+}
+
+static inline uint16_t
+tcp_get_flags(const struct tcphdr *th)
+{
+        return (((uint16_t)th->th_x2 << 8) | th->th_flags);
+}
+
+static inline void
+tcp_set_flags(struct tcphdr *th, uint16_t flags)
+{
+        th->th_x2    = (flags >> 8) & 0x0f;
+        th->th_flags = flags & 0xff;
 }
 
 static inline void

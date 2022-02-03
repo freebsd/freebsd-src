@@ -409,7 +409,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	if (tw == NULL)
 		goto drop;
 
-	thflags = th->th_flags;
+	thflags = tcp_get_flags(th);
 #ifdef INVARIANTS
 	if ((thflags & (TH_SYN | TH_ACK)) == TH_SYN)
 		INP_RLOCK_ASSERT(inp);
@@ -475,13 +475,13 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 * Send RST if UDP port numbers don't match
 	 */
 	if (tw->t_port != m->m_pkthdr.tcp_tun_port) {
-		if (th->th_flags & TH_ACK) {
+		if (tcp_get_flags(th) & TH_ACK) {
 			tcp_respond(NULL, mtod(m, void *), th, m,
 			    (tcp_seq)0, th->th_ack, TH_RST);
 		} else {
-			if (th->th_flags & TH_SYN)
+			if (tcp_get_flags(th) & TH_SYN)
 				tlen++;
-			if (th->th_flags & TH_FIN)
+			if (tcp_get_flags(th) & TH_FIN)
 				tlen++;
 			tcp_respond(NULL, mtod(m, void *), th, m,
 			    th->th_seq+tlen, (tcp_seq)0, TH_RST|TH_ACK);
@@ -692,7 +692,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	th->th_seq = htonl(tw->snd_nxt);
 	th->th_ack = htonl(tw->rcv_nxt);
 	th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	th->th_win = htons(tw->last_win);
 
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)

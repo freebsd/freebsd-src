@@ -548,7 +548,7 @@ cc_ecnpkt_handler_flags(struct tcpcb *tp, uint16_t flags, uint8_t iptos)
 void inline
 cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
 {
-	cc_ecnpkt_handler_flags(tp, th->th_flags, iptos);
+	cc_ecnpkt_handler_flags(tp, tcp_get_flags(th), iptos);
 }
 
 /*
@@ -799,7 +799,7 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 		optlen = off - sizeof (struct tcphdr);
 		optp = (u_char *)(th + 1);
 	}
-	thflags = th->th_flags;
+	thflags = tcp_get_flags(th);
 
 	/*
 	 * Convert TCP protocol specific fields to host format.
@@ -1537,7 +1537,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	struct tcphdr tcp_savetcp;
 	short ostate = 0;
 #endif
-	thflags = th->th_flags;
+	thflags = tcp_get_flags(th);
 	inc = &tp->t_inpcb->inp_inc;
 	tp->sackhint.last_sack_ack = 0;
 	sack_changed = 0;
@@ -3176,7 +3176,7 @@ dodata:							/* XXX */
 				if (tp->t_fbyte_out && tp->t_fbyte_in)
 					tp->t_flags2 |= TF2_FBYTES_COMPLETE;
 			}
-			thflags = th->th_flags & TH_FIN;
+			thflags = tcp_get_flags(th) & TH_FIN;
 			TCPSTAT_INC(tcps_rcvpack);
 			TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			SOCKBUF_LOCK(&so->so_rcv);
@@ -3401,7 +3401,7 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 	}
 
 	/* Don't bother if destination was broadcast/multicast. */
-	if ((th->th_flags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST))
+	if ((tcp_get_flags(th) & TH_RST) || m->m_flags & (M_BCAST|M_MCAST))
 		goto drop;
 #ifdef INET6
 	if (mtod(m, struct ip *)->ip_v == 6) {
@@ -3431,13 +3431,13 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 		goto drop;
 
 	/* tcp_respond consumes the mbuf chain. */
-	if (th->th_flags & TH_ACK) {
+	if (tcp_get_flags(th) & TH_ACK) {
 		tcp_respond(tp, mtod(m, void *), th, m, (tcp_seq)0,
 		    th->th_ack, TH_RST);
 	} else {
-		if (th->th_flags & TH_SYN)
+		if (tcp_get_flags(th) & TH_SYN)
 			tlen++;
-		if (th->th_flags & TH_FIN)
+		if (tcp_get_flags(th) & TH_FIN)
 			tlen++;
 		tcp_respond(tp, mtod(m, void *), th, m, th->th_seq+tlen,
 		    (tcp_seq)0, TH_RST|TH_ACK);

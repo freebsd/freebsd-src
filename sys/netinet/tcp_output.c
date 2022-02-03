@@ -1287,7 +1287,7 @@ send:
 		bcopy(opt, th + 1, optlen);
 		th->th_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	/*
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
