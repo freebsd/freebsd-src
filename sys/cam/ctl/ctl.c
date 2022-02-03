@@ -879,7 +879,7 @@ alloc:
 		i += sizeof(pr_key);
 	}
 	mtx_unlock(&lun->lun_lock);
-	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->port, sizeof(msg->port) + i,
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->lun, sizeof(msg->lun) + i,
 	    M_WAITOK);
 	free(msg, M_CTL);
 
@@ -994,8 +994,8 @@ ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
     uint8_t page, uint8_t subpage)
 {
 	struct ctl_softc *softc = lun->ctl_softc;
-	union ctl_ha_msg msg;
-	u_int i;
+	union ctl_ha_msg *msg;
+	u_int i, l;
 
 	if (softc->ha_link != CTL_HA_LINK_ONLINE)
 		return;
@@ -1011,19 +1011,20 @@ ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
 	if (lun->mode_pages.index[i].page_data == NULL)
 		return;
 
-	bzero(&msg.mode, sizeof(msg.mode));
-	msg.hdr.msg_type = CTL_MSG_MODE_SYNC;
-	msg.hdr.nexus.targ_port = initidx / CTL_MAX_INIT_PER_PORT;
-	msg.hdr.nexus.initid = initidx % CTL_MAX_INIT_PER_PORT;
-	msg.hdr.nexus.targ_lun = lun->lun;
-	msg.hdr.nexus.targ_mapped_lun = lun->lun;
-	msg.mode.page_code = page;
-	msg.mode.subpage = subpage;
-	msg.mode.page_len = lun->mode_pages.index[i].page_len;
-	memcpy(msg.mode.data, lun->mode_pages.index[i].page_data,
-	    msg.mode.page_len);
-	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg.mode, sizeof(msg.mode),
-	    M_WAITOK);
+	l = sizeof(msg->mode) + lun->mode_pages.index[i].page_len;
+	msg = malloc(l, M_CTL, M_WAITOK | M_ZERO);
+	msg->hdr.msg_type = CTL_MSG_MODE_SYNC;
+	msg->hdr.nexus.targ_port = initidx / CTL_MAX_INIT_PER_PORT;
+	msg->hdr.nexus.initid = initidx % CTL_MAX_INIT_PER_PORT;
+	msg->hdr.nexus.targ_lun = lun->lun;
+	msg->hdr.nexus.targ_mapped_lun = lun->lun;
+	msg->mode.page_code = page;
+	msg->mode.subpage = subpage;
+	msg->mode.page_len = lun->mode_pages.index[i].page_len;
+	memcpy(msg->mode.data, lun->mode_pages.index[i].page_data,
+	    msg->mode.page_len);
+	ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg->mode, l, M_WAITOK);
+	free(msg, M_CTL);
 }
 
 static void
