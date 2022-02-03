@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -1759,6 +1760,8 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		case IPPROTO_IP:
 			switch (sopt->sopt_name) {
 			case IP_TOS:
+				inp->inp_ip_tos &= ~IPTOS_ECN_MASK;
+				break;
 			case IP_TTL:
 				/* Notify tcp stacks that care (e.g. RACK). */
 				break;

@@ -79,7 +79,7 @@ struct ip {
 #define	IPTOS_LOWDELAY		0x10
 #define	IPTOS_THROUGHPUT	0x08
 #define	IPTOS_RELIABILITY	0x04
-#define	IPTOS_MINCOST		0x02
+#define	IPTOS_MINCOST		IPTOS_DSCP_CS0
 
 /*
  * Definitions for IP precedence (also in ip_tos) (deprecated).

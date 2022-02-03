@@ -90,10 +90,13 @@ setsockopt(s, IPPROTO_IP, IP_OPTIONS, NULL, 0);
 .Ed
 .Pp
 .Dv IP_TOS
-and
+may be used to set the differential service codepoint (DSCP) and the
+explicit congestion notfication (ECN) codepoint.
+Setting the ECN codepoint - the two least significant bits - on a
+socket using a transport protocol implementing ECN has no effect.
+.Pp
 .Dv IP_TTL
-may be used to set the type-of-service and time-to-live
-fields in the
+configures the time-to-live (TTL) field in the
 .Tn IP
 header for
 .Dv SOCK_STREAM , SOCK_DGRAM ,
@@ -102,7 +105,7 @@ and certain types of
 sockets.
 For example,
 .Bd -literal
-int tos = IPTOS_LOWDELAY;       /* see <netinet/ip.h> */
+int tos = IPTOS_DSCP_EF;       /* see <netinet/ip.h> */
 setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
 
 int ttl = 60;                   /* max = 255 */
