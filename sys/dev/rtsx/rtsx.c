@@ -3536,9 +3536,9 @@ rtsx_attach(device_t dev)
 		      &sc->rtsx_force_timing, 0, "Force bus_timing_uhs_sdr50");
 	SYSCTL_ADD_U8(ctx, tree, OID_AUTO, "debug", CTLFLAG_RWTUN,
 		      &sc->rtsx_debug, 0, "Debugging flag");
-	SYSCTL_ADD_U64(ctx, tree, OID_AUTO, "read_count", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, tree, OID_AUTO, "read_count", CTLFLAG_RD | CTLFLAG_STATS,
 		       &sc->rtsx_read_count, 0, "Count of read operations");
-	SYSCTL_ADD_U64(ctx, tree, OID_AUTO, "write_count", CTLFLAG_RD,
+	SYSCTL_ADD_U64(ctx, tree, OID_AUTO, "write_count", CTLFLAG_RD | CTLFLAG_STATS,
 		       &sc->rtsx_write_count, 0, "Count of write operations");
 
 	if (bootverbose || sc->rtsx_debug)
