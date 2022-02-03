@@ -16537,11 +16537,16 @@ again:
 		 */
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max)) {
 #ifdef INET6
-			if (rack->r_is_v6)
+			if (rack->r_is_v6) {
+				ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
 				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
+			}
 			else
 #endif
+			{
+				ip->ip_tos &= ~IPTOS_ECN_MASK;
 				ip->ip_tos |= IPTOS_ECN_ECT0;
+			}
 			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
 			/*
 			 * Reply with proper ECN notifications.
@@ -18614,11 +18619,16 @@ send:
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
 		    (sack_rxmit == 0)) {
 #ifdef INET6
-			if (isipv6)
+			if (isipv6) {
+				ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
 				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
+			}
 			else
 #endif
+			{
+				ip->ip_tos &= IPTOS_ECN_MASK;
 				ip->ip_tos |= IPTOS_ECN_ECT0;
+			}
 			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
 			/*
 			 * Reply with proper ECN notifications.
