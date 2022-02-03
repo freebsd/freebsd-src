@@ -138,7 +138,7 @@ uint64_t	atomic_fetchadd_64(volatile uint64_t *, uint64_t);
 void		atomic_add_64(volatile uint64_t *, uint64_t);
 void		atomic_subtract_64(volatile uint64_t *, uint64_t);
 
-#else /* !KLD_MODULE && __GNUCLIKE_ASM */
+#else /* !__GNUCLIKE_ASM */
 
 /*
  * For userland, always use lock prefixes so that the binaries will run
@@ -650,7 +650,7 @@ atomic_subtract_64(volatile uint64_t *p, uint64_t v)
 
 #endif /* _KERNEL */
 
-#endif /* KLD_MODULE || !__GNUCLIKE_ASM */
+#endif /* !__GNUCLIKE_ASM */
 
 ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
 ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v);
