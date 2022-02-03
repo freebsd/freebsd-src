@@ -359,9 +359,10 @@ static int
 filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
     struct thread *td)
 {
-	int error = 0;
 	struct filemon *filemon;
+	struct file *fp;
 	struct proc *p;
+	int error;
 
 	if ((error = devfs_get_cdevpriv((void **) &filemon)) != 0)
 		return (error);
@@ -376,12 +377,21 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 			break;
 		}
 
-		error = fget_write(td, *(int *)data,
-		    &cap_pwrite_rights,
-		    &filemon->fp);
-		if (error == 0)
+		error = fget_write(td, *(int *)data, &cap_pwrite_rights, &fp);
+		if (error == 0) {
+			/*
+			 * The filemon handle may be passed to another process,
+			 * so the underlying file handle must support this.
+			 */
+			if ((fp->f_ops->fo_flags & DFLAG_PASSABLE) == 0) {
+				fdrop(fp, curthread);
+				error = EINVAL;
+				break;
+			}
+			filemon->fp = fp;
 			/* Write the file header. */
 			filemon_write_header(filemon);
+		}
 		break;
 
 	/* Set the monitored process ID. */
