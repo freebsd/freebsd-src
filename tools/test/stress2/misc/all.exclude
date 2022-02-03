@@ -74,9 +74,6 @@ syzkaller43.sh		WiP								20210906
 syzkaller46.sh		WiP								20210925
 syzkaller47.sh		WiP								20210925
 truss3.sh		WiP								20200915
-unionfs6.sh		https://people.freebsd.org/~pho/stress/log/log0231.txt		20220112
-unionfs7.sh		https://people.freebsd.org/~pho/stress/log/log0232.txt		20220113
-unionfs8.sh		panic: unionfs_noderem: vnode locked recursively		20220111
 unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0226.txt		20220111
 unionfs14.sh		WiP								20220111
 
