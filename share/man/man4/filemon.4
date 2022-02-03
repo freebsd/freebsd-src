@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2019
+.Dd February 1, 2022
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -51,10 +51,10 @@ calls.
 .Pp
 .Nm
 is not intended to be a security auditing tool.
-Many system calls are not tracked and binaries of foreign ABI will not be fully
-audited.
-It is intended for auditing of processes for the purpose of determining its
-dependencies in an efficient and easily parsable format.
+Many system calls are not tracked and binaries using a non-native ABI may not
+be fully audited.
+It is intended for auditing of processes for the purpose of determining their
+dependencies using an efficient and easily parsable format.
 An example of this is
 .Xr make 1
 which uses this module with
@@ -145,6 +145,11 @@ will fail if:
 The
 .Nm
 handle is already associated with a file descriptor.
+.It Bq Er EINVAL
+The file descriptor has an invalid type and cannot be used for
+tracing.
+.It Bq Er EBADF
+The file descriptor is invalid or not opened for writing.
 .El
 .Pp
 The
