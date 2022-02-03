@@ -169,7 +169,7 @@ struct rtsx_softc {
 #define	RTSX_RTL8411		0x5289
 #define	RTSX_RTL8411B		0x5287
 
-#define	RTSX_VERSION		"2.1b"
+#define	RTSX_VERSION		"2.1c"
 
 static const struct rtsx_device {
 	uint16_t	vendor_id;
