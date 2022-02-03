@@ -18626,7 +18626,7 @@ send:
 			else
 #endif
 			{
-				ip->ip_tos &= IPTOS_ECN_MASK;
+				ip->ip_tos &= ~IPTOS_ECN_MASK;
 				ip->ip_tos |= IPTOS_ECN_ECT0;
 			}
 			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
