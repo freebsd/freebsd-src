@@ -86,7 +86,8 @@ enum random_entropy_source {
 	RANDOM_SWI,
 	RANDOM_FS_ATIME,
 	RANDOM_UMA,	/* Special!! UMA/SLAB Allocator */
-	RANDOM_ENVIRONMENTAL_END = RANDOM_UMA,
+	RANDOM_CALLOUT,
+	RANDOM_ENVIRONMENTAL_END = RANDOM_CALLOUT,
 	/* Fast hardware random-number sources from here on. */
 	RANDOM_PURE_START,
 	RANDOM_PURE_OCTEON = RANDOM_PURE_START,
