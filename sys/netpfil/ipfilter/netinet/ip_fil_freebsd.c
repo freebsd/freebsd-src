@@ -931,7 +931,7 @@ ipf_verifysrc(fin)
 
 
 /*
-* return the first IP Address associated with an interface
+ * return the first IP Address associated with an interface
  */
 int
 ipf_ifpaddr(ipf_main_softc_t *softc, int v, int atype, void *ifptr,
