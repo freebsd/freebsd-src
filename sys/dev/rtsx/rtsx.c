@@ -2905,14 +2905,14 @@ rtsx_set_tran_settings(device_t dev, struct ccb_trans_settings_mmc *cts)
 		if (bootverbose || sc->rtsx_debug)
 			device_printf(sc->rtsx_dev, "rtsx_set_tran_settings() - bus mode: %d\n", ios->bus_mode);
 	}
-#if  __FreeBSD__ > 12
+#if  __FreeBSD_version >= 1300000
 	if (cts->ios_valid & MMC_VCCQ) {
 		ios->vccq = new_ios->vccq;
 		sc->rtsx_ios_vccq = -1;		/* To be updated by rtsx_mmcbr_update_ios(). */
 		if (bootverbose || sc->rtsx_debug)
 			device_printf(sc->rtsx_dev, "rtsx_set_tran_settings() - vccq: %d\n", ios->vccq);
 	}
-#endif /* __FreeBSD__ > 12 */
+#endif /* __FreeBSD_version >= 1300000 */
 	if (rtsx_mmcbr_update_ios(sc->rtsx_dev, NULL) == 0)
 		return (CAM_REQ_CMP);
 	else
