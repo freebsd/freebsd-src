@@ -62,7 +62,7 @@ void
 test(int argc, char *argv[])
 {
 	long mw, size;
-	int i, no, ps, res;
+	int no, ps, res;
 	char *cp;
 
 	if (argc == 3) {
@@ -77,7 +77,6 @@ test(int argc, char *argv[])
 		fprintf(stderr, "max_user_wired too small for this test\n");
 		exit (0);
 	}
-	i = 0;
 	size = round_page(MAXBUF);
 	res = syscall(no, TALLOC, &cp, &size);
 	if (res == -1) {

@@ -75,13 +75,12 @@ EOF
 int
 main(void)
 {
-	int fd;
 
 	if (mkfifo("fifo", 0644) == -1)
 		err(1, "mkfifo");
 
-	fd = open("fifo", O_RDWR | O_SHLOCK | O_EXLOCK);
-	fd = open("fifo", 0x60e9f2, 0xc74c65b1db4be370, 0xb64a34df72368759);
+	(void)open("fifo", O_RDWR | O_SHLOCK | O_EXLOCK);
+	(void)open("fifo", 0x60e9f2, 0xc74c65b1db4be370, 0xb64a34df72368759);
 
 	return (0);
 }

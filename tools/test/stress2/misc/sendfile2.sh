@@ -102,7 +102,7 @@ main () {
                 warn ("fail to connect");
         flags = fcntl(s, F_GETFL);
         flags |= O_NONBLOCK;
-        fcntl(s, F_SETFL);
+        fcntl(s, F_SETFL, flags);
 
         f = open("large", O_RDONLY);
         if (f < 0)

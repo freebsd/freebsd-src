@@ -78,7 +78,7 @@ work(void)
 	int i;
 	char *p;
 	char path[128];
-	volatile char val;
+	volatile char val __unused;
 
 	if ((rfd = open("/dev/random", O_RDONLY)) == -1)
 		err(1, "open(/dev/random)");

@@ -147,11 +147,10 @@ int
 main(void)
 {
 	pid_t pids[INCARNATIONS];
-	int i, verbose;
+	int i;
 
 	runtime = 120;	/* 2 minutes */
 	utime = 1000;	/* 0.001 sec */
-	verbose = 0;
 	size = 512 * 1024 * 1024;
 	setup();
 

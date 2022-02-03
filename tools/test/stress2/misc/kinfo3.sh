@@ -35,7 +35,7 @@
 odir=`pwd`
 cd /tmp
 sed '1,/^EOF/d' < $odir/$0 > kinfo3.c
-mycc -o kinfo3 -Wall -Wextra kinfo3.c -lutil -pthread || exit 1
+mycc -o kinfo3 -Wall -Wextra -O0 kinfo3.c -lutil -pthread || exit 1
 rm -f kinfo3.c
 
 s=0
@@ -131,7 +131,7 @@ list(void)
 {
 	struct kinfo_proc *kipp;
 	struct kinfo_vmentry *freep_vm;
-        struct kinfo_file *freep, *kif;
+        struct kinfo_file *freep, *kif __unused;
 	size_t len;
 	long i, j;
 	int cnt, name[4];

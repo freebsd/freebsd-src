@@ -111,7 +111,7 @@ mess(void)
 
 static void
 reader(void) {
-	off_t t;
+	off_t t __unused;
 	int tcpsock, msgsock;
 	int on;
 	socklen_t len;

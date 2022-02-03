@@ -184,7 +184,7 @@ server(void)
 	struct sockaddr_in inetaddr, inetpeer;
 	socklen_t len;
 	int tcpsock, msgsock;
-	int *buf, fd, idx, n, on, t;
+	int *buf, fd, idx, n, on, t __unused;
 	char ofile[128], nfile[128];
 
         sa.sa_handler = SIG_IGN;

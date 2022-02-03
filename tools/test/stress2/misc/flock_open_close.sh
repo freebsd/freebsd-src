@@ -124,9 +124,8 @@ child(const char *binary)
 static void
 exec_child(char **av)
 {
-	int fd;
 
-	fd = open(av[0], O_RDONLY | O_SHLOCK);
+	(void)open(av[0], O_RDONLY | O_SHLOCK);
 	execv(av[0], av);
 	/* "flock_open_close: execv(/mnt/test): Text file busy" seen */
 	err(127, "execv(%s)", av[0]);

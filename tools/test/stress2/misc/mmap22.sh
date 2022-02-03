@@ -41,7 +41,7 @@
 here=`pwd`
 cd /tmp
 sed '1,/^EOF/d' < $here/$0 > mmap22.c
-mycc -o mmap22 -Wall -Wextra -O2 -g mmap22.c -lpthread || exit 1
+mycc -o mmap22 -Wall -Wextra -O0 -g mmap22.c -lpthread || exit 1
 rm -f mmap22.c
 
 su $testuser -c /tmp/mmap22 &
@@ -78,7 +78,7 @@ void *
 tmmap(void *arg __unused)
 {
 	size_t len;
-	void *p;
+	void *p __unused;
 	int i;
 
 	len = SIZ;

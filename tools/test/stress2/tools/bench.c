@@ -305,7 +305,7 @@ main(int argc, char *argv[])
 	pid_t *pids;
 	struct timeval t1, t2, diff;
 	size_t len;
-	time_t start;
+	time_t start __unused;
 	int ch, i, status, timing;
 
 	timing = 0;
@@ -334,8 +334,8 @@ main(int argc, char *argv[])
 			start = time(NULL);
 			spawn(functions[i], i);
 #if defined(DEBUG)
-			fprintf(stderr, "%d: %d elapsed\n", i ,
-			    time(NULL) - start);
+			fprintf(stderr, "%d: %ld elapsed\n", i ,
+			    (long)(time(NULL) - start));
 #endif
 			_exit(0);
 		}

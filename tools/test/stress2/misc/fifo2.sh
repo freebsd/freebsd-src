@@ -133,7 +133,7 @@ static void *
 calls(void *arg __unused)
 {
 	unsigned long arg1, arg2, arg3, arg4, arg5, arg6, arg7;
-	int i, num;
+	int i;
 
 	for (i = 0;; i++) {
 		arg1 = (unsigned long)(void *)"f";
@@ -151,7 +151,6 @@ calls(void *arg __unused)
 #endif
 		alarm(1);
 		syscall(SYS_open, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-		num = 0;
 	}
 
 	return (0);

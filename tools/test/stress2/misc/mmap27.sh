@@ -76,7 +76,7 @@ work(void)
 	size_t left, len;
 	int i;
 	char *p;
-	volatile char val;
+	volatile char val __unused;
 
 	if ((fd = open("/dev/mem", O_RDWR)) == -1)
 		err(1,"open()");
