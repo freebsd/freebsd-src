@@ -140,7 +140,7 @@ u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
 #define	ATOMIC_STORE(TYPE)					\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#else /* !KLD_MODULE && __GNUCLIKE_ASM */
+#else /* !__GNUCLIKE_ASM */
 
 /*
  * For userland, always use lock prefixes so that the binaries will run
@@ -428,7 +428,7 @@ atomic_thread_fence_seq_cst(void)
 	__storeload_barrier();
 }
 
-#endif /* KLD_MODULE || !__GNUCLIKE_ASM */
+#endif /* !__GNUCLIKE_ASM */
 
 ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
 ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v);
