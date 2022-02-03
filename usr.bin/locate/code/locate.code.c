@@ -106,20 +106,12 @@ u_char buf1[LOCATE_PATH_MAX] = " ";
 u_char buf2[LOCATE_PATH_MAX];
 u_char bigrams[BGBUFSIZE + 1] = { 0 };
 
-#define LOOKUP 1 /* use a lookup array instead a function, 3x faster */
-
-#ifdef LOOKUP
+/* use a lookup array instead a function, 3x faster than linear search */
 #define BGINDEX(x) (big[(u_char)*x][(u_char)*(x + 1)])
 typedef short bg_t;
 bg_t big[UCHAR_MAX + 1][UCHAR_MAX + 1];
-#else
-#define BGINDEX(x) bgindex(x)
-typedef int bg_t;
-int	bgindex(char *);
-#endif /* LOOKUP */
 
-
-void	usage(void);
+void   usage(void);
 
 int
 main(int argc, char *argv[])
@@ -153,7 +145,6 @@ main(int argc, char *argv[])
 		err(1, "stdout");
 	(void)fclose(fp);
 
-#ifdef LOOKUP
 	/* init lookup table */
 	for (i = 0; i < UCHAR_MAX + 1; i++)
 	    	for (j = 0; j < UCHAR_MAX + 1; j++) 
@@ -161,8 +152,6 @@ main(int argc, char *argv[])
 
 	for (cp = bigrams, i = 0; *cp != '\0'; i += 2, cp += 2)
 	        big[(u_char)*cp][(u_char)*(cp + 1)] = (bg_t)i;
-
-#endif /* LOOKUP */
 
 	oldpath = buf1;
 	path = buf2;
@@ -176,13 +165,6 @@ main(int argc, char *argv[])
 
 		/* remove newline */
 		for (cp = path; *cp != '\0'; cp++) {
-#ifndef LOCATE_CHAR30
-			/* old locate implementations core'd for char 30 */
-			if (*cp == SWITCH)
-				*cp = '?';
-			else
-#endif /* !LOCATE_CHAR30 */
-
 			/* chop newline */
 			if (*cp == '\n')
 				*cp = '\0';
@@ -256,21 +238,6 @@ main(int argc, char *argv[])
 
 	exit(0);
 }
-
-#ifndef LOOKUP
-int
-bgindex(char *bg)		/* Return location of bg in bigrams or -1. */
-{
-	char bg0, bg1, *p;
-
-	bg0 = bg[0];
-	bg1 = bg[1];
-	for (p = bigrams; *p != NULL; p++)
-		if (*p++ == bg0 && *p == bg1)
-			break;
-	return (*p == NULL ? -1 : (--p - bigrams));
-}
-#endif /* !LOOKUP */
 
 void
 usage(void)
