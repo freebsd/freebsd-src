@@ -46,8 +46,8 @@ extern const char *__fix_locale_grouping_str(const char *);
 static char	numempty[] = { CHAR_MAX, '\0' };
 
 static const struct lc_numeric_T _C_numeric_locale = {
-	".",     	/* decimal_point */
-	"",     	/* thousands_sep */
+	".",		/* decimal_point */
+	"",		/* thousands_sep */
 	numempty	/* grouping */
 };
 
@@ -90,7 +90,7 @@ int
 __numeric_load_locale(const char *name)
 {
 	return (numeric_load_locale(&__xlocale_global_numeric,
-       	    &__xlocale_global_locale.using_numeric_locale,
+	    &__xlocale_global_locale.using_numeric_locale,
 	    &__xlocale_global_locale.numeric_locale_changed, name));
 }
 
