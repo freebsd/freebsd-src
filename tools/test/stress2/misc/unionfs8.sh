@@ -62,15 +62,12 @@ umount $mp1
 mdconfig -d -u $md1
 mdconfig -a -t vnode -f $I -u $md1
 mount -t cd9660 /dev/md$mdstart $mp1
-ls -l $mp1
 mount /dev/md$md2 $mp2
 chmod 777 $mp2
 
 mount -t unionfs -o below $mp1 $mp2
 set +e
 mount | grep -E "$mp1|$mp2"
-ls -ld $mp1 $mp2
-ls -l  $mp1 $mp2
 
 export CTRLDIR=$mp2/stressX.control
 export INCARNATIONS=10
@@ -100,14 +97,23 @@ testcases/swap/swap
 export TESTPROGS=`echo $TESTPROGS | sed 's/\n/ /g'`
 
 set +e
-###su $testuser -c \
-###	"(cd $mp2/stress2; ./testcases/run/run $TESTPROGS)"
+su $testuser -c \
+	"(cd $mp2/stress2; ./testcases/run/run $TESTPROGS)"
 
-umount $mp2	# The unionfs mount
-umount $mp2
-n=`find $mp1/stressX | wc -l`
-[ $n -eq 1 ] && s=0 || { find $mp1/stressX -ls | head -12; s=1; }
-umount $mp1
+n=`find $mp2/stressX 2>/dev/null | wc -l`
+[ $n -eq 1 ] && s=0 || { find $mp2/stressX -ls 2>/dev/null | head -12; s=1; }
+
+while mount | grep "on $mp2" | grep -q unionfs; do
+	umount $mp2 && break
+done
+for i in `jot 5`; do
+	umount $mp2 && break
+	sleep .5
+done
+for i in `jot 5`; do
+	umount $mp1 && break
+	sleep .5
+done
 mdconfig -d -u $md2
 mdconfig -d -u $md1
 rm -f $I
