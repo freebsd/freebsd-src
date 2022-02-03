@@ -32,6 +32,14 @@
  * Linker script for amd64 vdso.
  */
 
+/*
+ * The OUTPUT_ARCH and TARGET lines are for ld.bfd.
+ * lld doesn't do much with them, the only thing it does is producing ELF
+ * or binary based on TARGET.
+ */
+OUTPUT_ARCH(i386:x86-64)
+TARGET(elf64-x86-64-freebsd)
+
 PHDRS
 {
 	text		PT_LOAD		FILEHDR PHDRS FLAGS(5); /* PF_R|PF_X */
