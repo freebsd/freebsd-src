@@ -189,11 +189,11 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 		else
 			printf("%x", seq);
 		printf("@%x, urp=%x", ack, th->th_urp);
-		flags = th->th_flags;
+		flags = tcp_get_flags(th);
 		if (flags) {
 			char *cp = "<";
 #define pf(f) {					\
-	if (th->th_flags & TH_##f) {		\
+	if (tcp_get_flags(th) & TH_##f) {	\
 		printf("%s%s", cp, #f);		\
 		cp = ",";			\
 	}					\

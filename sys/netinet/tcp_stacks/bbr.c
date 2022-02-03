@@ -5907,7 +5907,7 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 
 static void
 bbr_log_output(struct tcp_bbr *bbr, struct tcpcb *tp, struct tcpopt *to, int32_t len,
-    uint32_t seq_out, uint8_t th_flags, int32_t err, uint32_t cts,
+    uint32_t seq_out, uint16_t th_flags, int32_t err, uint32_t cts,
     struct mbuf *mb, int32_t * abandon, struct bbr_sendmap *hintrsm, uint32_t delay_calc,
     struct sockbuf *sb)
 {
@@ -7337,7 +7337,7 @@ bbr_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th,
 	uint32_t p_maxseg, maxseg, p_acked = 0;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
-	if (th->th_flags & TH_RST) {
+	if (tcp_get_flags(th) & TH_RST) {
 		/* We don't log resets */
 		return (0);
 	}
@@ -8282,7 +8282,7 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				if (tp->t_fbyte_out && tp->t_fbyte_in)
 					tp->t_flags2 |= TF2_FBYTES_COMPLETE;
 			}
-			thflags = th->th_flags & TH_FIN;
+			thflags = tcp_get_flags(th) & TH_FIN;
 			KMOD_TCPSTAT_ADD(tcps_rcvpack, (int)nsegs);
 			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			SOCKBUF_LOCK(&so->so_rcv);
@@ -11363,7 +11363,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/* add in our stats */
 	kern_prefetch(bbr, &prev_state);
 	prev_state = 0;
-	thflags = th->th_flags;
+	thflags = tcp_get_flags(th);
 	/*
 	 * If this is either a state-changing packet or current state isn't
 	 * established, we require a write lock on tcbinfo.  Otherwise, we
@@ -13450,7 +13450,7 @@ send:
 		bcopy(opt, th + 1, optlen);
 		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
 	}
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	/*
 	 * Calculate receive window.  Don't shrink window, but avoid silly
 	 * window syndrome.

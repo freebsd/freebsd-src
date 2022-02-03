@@ -921,7 +921,7 @@ tcp_set_entry_to_mbuf(struct lro_ctrl *lc, struct lro_entry *le,
 	le->next_seq = ntohl(th->th_seq) + tcp_data_len;
 	le->ack_seq = th->th_ack;
 	le->window = th->th_win;
-	le->flags = (th->th_x2 << 8) | th->th_flags;
+	le->flags = tcp_get_flags(th);
 	le->needs_merge = 0;
 
 	/* Setup new data pointers. */
@@ -1033,7 +1033,7 @@ again:
 		tcp_push_and_replace(lc, le, m);
 		goto again;
 	}
-	if ((((th->th_x2 << 8) | th->th_flags) & ~(TH_ACK | TH_PUSH)) != 0) {
+	if ((tcp_get_flags(th) & ~(TH_ACK | TH_PUSH)) != 0) {
 		/*
 		 * Make sure that previously seen segments/ACKs are delivered
 		 * before this segment, e.g. FIN.
@@ -1077,7 +1077,7 @@ again:
 			tcp_push_and_replace(lc, le, m);
 			goto again;
 		}
-		if ((((th->th_x2 << 8) | th->th_flags) & ~(TH_ACK | TH_PUSH)) != 0) {
+		if ((tcp_get_flags(th) & ~(TH_ACK | TH_PUSH)) != 0) {
 			tcp_push_and_replace(lc, le, m);
 			goto again;
 		}
@@ -1093,7 +1093,7 @@ again:
 		}
 		/* Try to append the new segment. */
 		if (__predict_false(ntohl(th->th_seq) != le->next_seq ||
-				    ((th->th_flags & TH_ACK) !=
+				    ((tcp_get_flags(th) & TH_ACK) !=
 				      (le->flags & TH_ACK)) ||
 				    (tcp_data_len == 0 &&
 				     le->ack_seq == th->th_ack &&
@@ -1265,14 +1265,14 @@ tcp_lro_ack_valid(struct mbuf *m, struct tcphdr *th, uint32_t **ppts, bool *othe
 		break;
 	}
 	/* For ACKCMP we only accept ACK, PUSH, ECE and CWR. */
-	if ((((th->th_x2 << 8) | th->th_flags) & ~(TH_ACK | TH_PUSH | TH_ECE | TH_CWR)) != 0)
+	if ((tcp_get_flags(th) & ~(TH_ACK | TH_PUSH | TH_ECE | TH_CWR)) != 0)
 		ret = false;
 	/* If it has data on it we cannot compress it */
 	if (m->m_pkthdr.lro_tcp_d_len)
 		ret = false;
 
 	/* ACK flag must be set. */
-	if (!(th->th_flags & TH_ACK))
+	if (!(tcp_get_flags(th) & TH_ACK))
 		ret = false;
 	return (ret);
 }
@@ -1576,7 +1576,7 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
 		ae->flags = TSTMP_HDWR;
 	ae->seq = ntohl(th->th_seq);
 	ae->ack = ntohl(th->th_ack);
-	ae->flags |= (th->th_x2 << 8) | th->th_flags;
+	ae->flags |= tcp_get_flags(th);
 	if (ts_ptr != NULL) {
 		ae->ts_value = ntohl(ts_ptr[1]);
 		ae->ts_echo = ntohl(ts_ptr[2]);
@@ -1831,7 +1831,7 @@ tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, bool use_h
 	th = pa->tcp;
 
 	/* Don't process SYN packets. */
-	if (__predict_false(th->th_flags & TH_SYN))
+	if (__predict_false(tcp_get_flags(th) & TH_SYN))
 		return (TCP_LRO_CANNOT);
 
 	/* Get total TCP header length and compute payload length. */

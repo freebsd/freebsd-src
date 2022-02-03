@@ -489,7 +489,7 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to,
     struct tcphdr *th, int entered_rec, int dup_ack_struck);
 static void
 rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
-    uint32_t seq_out, uint8_t th_flags, int32_t err, uint64_t ts,
+    uint32_t seq_out, uint16_t th_flags, int32_t err, uint64_t ts,
     struct rack_sendmap *hintrsm, uint16_t add_flags, struct mbuf *s_mb, uint32_t s_moff, int hw_tls);
 
 static void
@@ -7413,7 +7413,7 @@ rack_update_entry(struct tcpcb *tp, struct tcp_rack *rack,
 
 static void
 rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
-		uint32_t seq_out, uint8_t th_flags, int32_t err, uint64_t cts,
+		uint32_t seq_out, uint16_t th_flags, int32_t err, uint64_t cts,
 		struct rack_sendmap *hintrsm, uint16_t add_flag, struct mbuf *s_mb, uint32_t s_moff, int hw_tls)
 {
 	struct tcp_rack *rack;
@@ -9648,7 +9648,7 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th, int entered
 
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
-	if (th->th_flags & TH_RST) {
+	if (tcp_get_flags(th) & TH_RST) {
 		/* We don't log resets */
 		return;
 	}
@@ -10800,7 +10800,7 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				if (tp->t_fbyte_out && tp->t_fbyte_in)
 					tp->t_flags2 |= TF2_FBYTES_COMPLETE;
 			}
-			thflags = th->th_flags & TH_FIN;
+			thflags = tcp_get_flags(th) & TH_FIN;
 			KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
 			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
 			SOCKBUF_LOCK(&so->so_rcv);
@@ -13409,7 +13409,7 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		/* Now fill in the ports */
 		th->th_sport = tp->t_inpcb->inp_fport;
 		th->th_dport = tp->t_inpcb->inp_lport;
-		th->th_flags = ae->flags & 0xff;
+		tcp_set_flags(th, ae->flags);
 		/* Now do we have a timestamp option? */
 		if (ae->flags & HAS_TSTMP) {
 			u_char *cp;
@@ -14242,7 +14242,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	ms_cts =  tcp_tv_to_mssectick(tv);
 	nsegs = m->m_pkthdr.lro_nsegs;
 	counter_u64_add(rack_proc_non_comp_ack, 1);
-	thflags = th->th_flags;
+	thflags = tcp_get_flags(th);
 #ifdef TCP_ACCOUNTING
 	sched_pin();
 	if (thflags & TH_ACK)
@@ -14598,7 +14598,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	}
 	rack_clear_rate_sample(rack);
 	if ((rack->forced_ack) &&
-	    ((th->th_flags & TH_RST) == 0)) {
+	    ((tcp_get_flags(th) & TH_RST) == 0)) {
 		rack_handle_probe_response(rack, tiwin, us_cts);
 	}
 	/*
@@ -16006,7 +16006,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	if ((rsm->r_flags & RACK_HAD_PUSH) &&
 	    (len == (rsm->r_end - rsm->r_start)))
 		flags |= TH_PUSH;
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	th->th_win = htons((u_short)(rack->r_ctl.fsb.recwin >> tp->rcv_scale));
 	if (th->th_win == 0) {
 		tp->t_sndzerowin++;
@@ -16483,7 +16483,7 @@ again:
 	sb_offset = tp->snd_max - tp->snd_una;
 	th->th_seq = htonl(tp->snd_max);
 	th->th_ack = htonl(tp->rcv_nxt);
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	th->th_win = htons((u_short)(rack->r_ctl.fsb.recwin >> tp->rcv_scale));
 	if (th->th_win == 0) {
 		tp->t_sndzerowin++;
@@ -16514,7 +16514,7 @@ again:
 	}
 	if (rack->r_ctl.fsb.rfo_apply_push &&
 	    (len == rack->r_ctl.fsb.left_to_send)) {
-		th->th_flags |= TH_PUSH;
+		tcp_set_flags(th, flags | TH_PUSH);
 		add_flag |= RACK_HAD_PUSH;
 	}
 	if ((m->m_next == NULL) || (len <= 0)){
@@ -18656,7 +18656,7 @@ send:
 		rack_seq = rsm->r_start;
 	}
 	th->th_ack = htonl(tp->rcv_nxt);
-	th->th_flags = flags;
+	tcp_set_flags(th, flags);
 	/*
 	 * Calculate receive window.  Don't shrink window, but avoid silly
 	 * window syndrome.

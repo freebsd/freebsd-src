@@ -627,7 +627,7 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th, struct mbuf *m,
 	 * Any RST to our SYN|ACK must not carry ACK, SYN or FIN flags.
 	 * See RFC 793 page 65, section SEGMENT ARRIVES.
 	 */
-	if (th->th_flags & (TH_ACK|TH_SYN|TH_FIN)) {
+	if (tcp_get_flags(th) & (TH_ACK|TH_SYN|TH_FIN)) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: Spurious RST with ACK, SYN or "
 			    "FIN flag set, segment ignored\n", s, __func__);
@@ -1097,7 +1097,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	bool locked;
 
 	NET_EPOCH_ASSERT();
-	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
+	KASSERT((tcp_get_flags(th) & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
 	    ("%s: can handle only ACK", __func__));
 
 	if (syncache_cookiesonly()) {
@@ -1426,7 +1426,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	bool locked;
 
 	INP_RLOCK_ASSERT(inp);			/* listen socket */
-	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_SYN,
+	KASSERT((tcp_get_flags(th) & (TH_RST|TH_ACK|TH_SYN)) == TH_SYN,
 	    ("%s: unexpected tcp flags", __func__));
 
 	/*
@@ -1579,7 +1579,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * Disable ECN if needed.
 		 */
 		if ((sc->sc_flags & SCF_ECN) &&
-		    ((th->th_flags & (TH_ECE|TH_CWR)) != (TH_ECE|TH_CWR))) {
+		    ((tcp_get_flags(th) & (TH_ECE|TH_CWR)) != (TH_ECE|TH_CWR))) {
 			sc->sc_flags &= ~SCF_ECN;
 		}
 #ifdef MAC
@@ -1743,7 +1743,7 @@ skip_alloc:
 		sc->sc_peer_mss = to->to_mss;	/* peer mss may be zero */
 	if (ltflags & TF_NOOPT)
 		sc->sc_flags |= SCF_NOOPT;
-	if (((th->th_flags & (TH_ECE|TH_CWR)) == (TH_ECE|TH_CWR)) &&
+	if (((tcp_get_flags(th) & (TH_ECE|TH_CWR)) == (TH_ECE|TH_CWR)) &&
 	    V_tcp_do_ecn)
 		sc->sc_flags |= SCF_ECN;
 
@@ -1935,15 +1935,14 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 		th->th_seq = htonl(sc->sc_iss + 1);
 	th->th_ack = htonl(sc->sc_irs + 1);
 	th->th_off = sizeof(struct tcphdr) >> 2;
-	th->th_x2 = 0;
-	th->th_flags = flags;
 	th->th_win = htons(sc->sc_wnd);
 	th->th_urp = 0;
 
 	if ((flags & TH_SYN) && (sc->sc_flags & SCF_ECN)) {
-		th->th_flags |= TH_ECE;
+		flags |= TH_ECE;
 		TCPSTAT_INC(tcps_ecn_shs);
 	}
+	tcp_set_flags(th, flags);
 
 	/* Tack on the TCP options. */
 	if ((sc->sc_flags & SCF_NOOPT) == 0) {
