@@ -151,16 +151,10 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 #else /* !__GNUCLIKE_ASM */
 
 /*
- * For userland, always use lock prefixes so that the binaries will run
- * on both SMP and !SMP systems.
- */
-#if defined(SMP) || !defined(_KERNEL) || defined(KLD_MODULE)
-#define	MPLOCKED	"lock ; "
-#else
-#define	MPLOCKED
-#endif
-
-/*
+ * Always use lock prefixes.  The result is slighly less optimal for
+ * UP systems, but it matters less now, and sometimes UP is emulated
+ * over SMP.
+ *
  * The assembly is volatilized to avoid code chunk removal by the compiler.
  * GCC aggressively reorders operations and memory clobbering is necessary
  * in order to avoid that for memory barriers.
@@ -169,7 +163,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile(MPLOCKED OP			\
+	__asm __volatile("lock; " OP			\
 	: "+m" (*p)					\
 	: CONS (V)					\
 	: "cc");					\
@@ -178,7 +172,7 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 static __inline void					\
 atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile(MPLOCKED OP			\
+	__asm __volatile("lock; " OP			\
 	: "+m" (*p)					\
 	: CONS (V)					\
 	: "memory", "cc");				\
@@ -207,8 +201,7 @@ atomic_cmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE expect, u_##TYPE src) \
 	u_char res;					\
 							\
 	__asm __volatile(				\
-	"	" MPLOCKED "		"		\
-	"	cmpxchg %3,%1 ;	"			\
+	" lock; cmpxchg %3,%1 ;	"			\
 	"# atomic_cmpset_" #TYPE "	"		\
 	: "=@cce" (res),		/* 0 */		\
 	  "+m" (*dst),			/* 1 */		\
@@ -224,8 +217,7 @@ atomic_fcmpset_##TYPE(volatile u_##TYPE *dst, u_##TYPE *expect, u_##TYPE src) \
 	u_char res;					\
 							\
 	__asm __volatile(				\
-	"	" MPLOCKED "		"		\
-	"	cmpxchg %3,%1 ;		"		\
+	" lock; cmpxchg %3,%1 ;		"		\
 	"# atomic_fcmpset_" #TYPE "	"		\
 	: "=@cce" (res),		/* 0 */		\
 	  "+m" (*dst),			/* 1 */		\
@@ -249,8 +241,7 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 {
 
 	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	xaddl	%0,%1 ;		"
+	" lock; xaddl	%0,%1 ;		"
 	"# atomic_fetchadd_int"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -267,8 +258,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 {
 
 	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	xaddq	%0,%1 ;		"
+	" lock;	xaddq	%0,%1 ;		"
 	"# atomic_fetchadd_long"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -282,8 +272,7 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 	u_char res;
 
 	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	btsl	%2,%1 ;		"
+	" lock;	btsl	%2,%1 ;		"
 	"# atomic_testandset_int"
 	: "=@ccc" (res),		/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -298,8 +287,7 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 	u_char res;
 
 	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	btsq	%2,%1 ;		"
+	" lock;	btsq	%2,%1 ;		"
 	"# atomic_testandset_long"
 	: "=@ccc" (res),		/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -314,8 +302,7 @@ atomic_testandclear_int(volatile u_int *p, u_int v)
 	u_char res;
 
 	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	btrl	%2,%1 ;		"
+	" lock;	btrl	%2,%1 ;		"
 	"# atomic_testandclear_int"
 	: "=@ccc" (res),		/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -330,8 +317,7 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
 	u_char res;
 
 	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	btrq	%2,%1 ;		"
+	" lock;	btrq	%2,%1 ;		"
 	"# atomic_testandclear_long"
 	: "=@ccc" (res),		/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -352,39 +338,18 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
  * special address for "mem".  In the kernel, we use a private per-cpu
  * cache line.  In user space, we use a word in the stack's red zone
  * (-8(%rsp)).
- *
- * For UP kernels, however, the memory of the single processor is
- * always consistent, so we only need to stop the compiler from
- * reordering accesses in a way that violates the semantics of acquire
- * and release.
  */
 
-#if defined(_KERNEL)
-
-#if defined(SMP) || defined(KLD_MODULE)
 static __inline void
 __storeload_barrier(void)
 {
-
+#if defined(_KERNEL)
 	__asm __volatile("lock; addl $0,%%gs:%0"
 	    : "+m" (*(u_int *)OFFSETOF_MONITORBUF) : : "memory", "cc");
-}
-#else /* _KERNEL && UP */
-static __inline void
-__storeload_barrier(void)
-{
-
-	__compiler_membar();
-}
-#endif /* SMP */
 #else /* !_KERNEL */
-static __inline void
-__storeload_barrier(void)
-{
-
 	__asm __volatile("lock; addl $0,-8(%%rsp)" : : : "memory", "cc");
-}
 #endif /* _KERNEL*/
+}
 
 #define	ATOMIC_LOAD(TYPE)					\
 static __inline u_##TYPE					\
