@@ -76,98 +76,39 @@ static int chkrecovery(int devfd);
 int
 setup(char *dev)
 {
-	long cg, asked, i, j;
-	long bmapsize;
-	struct stat statb;
+	long cg, bmapsize;
 	struct fs proto;
-	size_t size;
 
-	havesb = 0;
-	fswritefd = -1;
-	cursnapshot = 0;
-	if (stat(dev, &statb) < 0) {
-		printf("Can't stat %s: %s\n", dev, strerror(errno));
-		if (bkgrdflag) {
-			unlink(snapname);
-			bkgrdflag = 0;
-		}
+	/*
+	 * We are expected to have an open file descriptor
+	 */
+	if (fsreadfd < 0)
 		return (0);
-	}
-	if ((statb.st_mode & S_IFMT) != S_IFCHR &&
-	    (statb.st_mode & S_IFMT) != S_IFBLK) {
-		if (bkgrdflag != 0 && (statb.st_flags & SF_SNAPSHOT) == 0) {
-			unlink(snapname);
-			printf("background fsck lacks a snapshot\n");
-			exit(EEXIT);
+	/*
+	 * If we do not yet have a superblock, read it in looking
+	 * for alternates if necessary.
+	 */
+	if (havesb == 0 && readsb(1) == 0) {
+		skipclean = 0;
+		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
+			return(0);
+		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
+			return (0);
+		for (cg = 0; cg < proto.fs_ncg; cg++) {
+			bflag = fsbtodb(&proto, cgsblock(&proto, cg));
+			if (readsb(0) != 0)
+				break;
 		}
-		if ((statb.st_flags & SF_SNAPSHOT) != 0 && cvtlevel == 0) {
-			cursnapshot = statb.st_ino;
-		} else {
-			if (cvtlevel == 0 ||
-			    (statb.st_flags & SF_SNAPSHOT) == 0) {
-				if (preen && bkgrdflag) {
-					unlink(snapname);
-					bkgrdflag = 0;
-				}
-				pfatal("%s is not a disk device", dev);
-				if (reply("CONTINUE") == 0) {
-					if (bkgrdflag) {
-						unlink(snapname);
-						bkgrdflag = 0;
-					}
-					return (0);
-				}
-			} else {
-				if (bkgrdflag) {
-					unlink(snapname);
-					bkgrdflag = 0;
-				}
-				pfatal("cannot convert a snapshot");
-				exit(EEXIT);
-			}
+		if (cg >= proto.fs_ncg) {
+			printf("SEARCH FOR ALTERNATE SUPER-BLOCK FAILED. "
+			    "YOU MUST USE THE\n-b OPTION TO FSCK TO SPECIFY "
+			    "THE LOCATION OF AN ALTERNATE\nSUPER-BLOCK TO "
+			    "SUPPLY NEEDED INFORMATION; SEE fsck_ffs(8).\n");
+			bflag = 0;
+			return(0);
 		}
-	}
-	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
-		if (bkgrdflag) {
-			unlink(snapname);
-			bkgrdflag = 0;
-		}
-		printf("Can't open %s: %s\n", dev, strerror(errno));
-		return (0);
-	}
-	if (bkgrdflag) {
-		unlink(snapname);
-		size = MIBSIZE;
-		if (sysctlnametomib("vfs.ffs.adjrefcnt", adjrefcnt, &size) < 0||
-		    sysctlnametomib("vfs.ffs.adjblkcnt", adjblkcnt, &size) < 0||
-		    sysctlnametomib("vfs.ffs.setsize", setsize, &size) < 0 ||
-		    sysctlnametomib("vfs.ffs.freefiles", freefiles, &size) < 0||
-		    sysctlnametomib("vfs.ffs.freedirs", freedirs, &size) < 0 ||
-		    sysctlnametomib("vfs.ffs.freeblks", freeblks, &size) < 0) {
-			pfatal("kernel lacks background fsck support\n");
-			exit(EEXIT);
-		}
-		/*
-		 * When kernel is lack of runtime bgfsck superblock summary
-		 * adjustment functionality, it does not mean we can not
-		 * continue, as old kernels will recompute the summary at
-		 * mount time.  However, it will be an unexpected softupdates
-		 * inconsistency if it turns out that the summary is still
-		 * incorrect.  Set a flag so subsequent operation can know
-		 * this.
-		 */
-		bkgrdsumadj = 1;
-		if (sysctlnametomib("vfs.ffs.adjndir", adjndir, &size) < 0 ||
-		    sysctlnametomib("vfs.ffs.adjnbfree", adjnbfree, &size) < 0 ||
-		    sysctlnametomib("vfs.ffs.adjnifree", adjnifree, &size) < 0 ||
-		    sysctlnametomib("vfs.ffs.adjnffree", adjnffree, &size) < 0 ||
-		    sysctlnametomib("vfs.ffs.adjnumclusters", adjnumclusters, &size) < 0) {
-			bkgrdsumadj = 0;
-			pwarn("kernel lacks runtime superblock summary adjustment support");
-		}
-		cmd.version = FFS_CMD_VERSION;
-		cmd.handle = fsreadfd;
-		fswritefd = -1;
+		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
+		bflag = 0;
 	}
 	if (preen == 0)
 		printf("** %s", dev);
@@ -180,33 +121,16 @@ setup(char *dev)
 	}
 	if (preen == 0)
 		printf("\n");
-	/*
-	 * Read in the superblock, looking for alternates if necessary
-	 */
-	if (readsb(1) == 0) {
-		skipclean = 0;
-		if (bflag || preen || calcsb(dev, fsreadfd, &proto) == 0)
-			return(0);
-		if (reply("LOOK FOR ALTERNATE SUPERBLOCKS") == 0)
-			return (0);
-		for (cg = 0; cg < proto.fs_ncg; cg++) {
-			bflag = fsbtodb(&proto, cgsblock(&proto, cg));
-			if (readsb(0) != 0)
-				break;
+	if (sbhashfailed != 0) {
+		pwarn("SUPERBLOCK CHECK HASH FAILED");
+		if (fswritefd == -1)
+			pwarn("OPENED READONLY SO CANNOT CORRECT CHECK HASH\n");
+		else if (preen || reply("CORRECT CHECK HASH") != 0) {
+			if (preen)
+				printf(" (CORRECTED)\n");
+			sblock.fs_clean = 0;
+			sbdirty();
 		}
-		if (cg >= proto.fs_ncg) {
-			printf("%s %s\n%s %s\n%s %s\n",
-				"SEARCH FOR ALTERNATE SUPER-BLOCK",
-				"FAILED. YOU MUST USE THE",
-				"-b OPTION TO FSCK TO SPECIFY THE",
-				"LOCATION OF AN ALTERNATE",
-				"SUPER-BLOCK TO SUPPLY NEEDED",
-				"INFORMATION; SEE fsck_ffs(8).");
-			bflag = 0;
-			return(0);
-		}
-		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
-		bflag = 0;
 	}
 	if (skipclean && ckclean && sblock.fs_clean) {
 		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
@@ -247,30 +171,6 @@ setup(char *dev)
 	    fswritefd != -1 && chkrecovery(fsreadfd) == 0 &&
 	    reply("SAVE DATA TO FIND ALTERNATE SUPERBLOCKS") != 0)
 		saverecovery(fsreadfd, fswritefd);
-	/*
-	 * read in the summary info.
-	 */
-	asked = 0;
-	sblock.fs_csp = Calloc(1, sblock.fs_cssize);
-	if (sblock.fs_csp == NULL) {
-		printf("cannot alloc %u bytes for cg summary info\n",
-		    (unsigned)sblock.fs_cssize);
-		goto badsb;
-	}
-	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
-		size = MIN(sblock.fs_cssize - i, sblock.fs_bsize);
-		readcnt[sblk.b_type]++;
-		if (blread(fsreadfd, (char *)sblock.fs_csp + i,
-		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
-		    size) != 0 && !asked) {
-			pfatal("BAD SUMMARY INFORMATION");
-			if (reply("CONTINUE") == 0) {
-				ckfini(0);
-				exit(EEXIT);
-			}
-			asked++;
-		}
-	}
 	/*
 	 * allocate and initialize the necessary maps
 	 */
@@ -320,13 +220,17 @@ readsb(int listerr)
 	int bad, ret;
 	struct fs *fs;
 
-	super = bflag ? bflag * dev_bsize : STDSB_NOHASHFAIL;
+	super = bflag ? bflag * dev_bsize :
+	    sbhashfailed ? STDSB_NOHASHFAIL_NOMSG : STDSB_NOMSG;
 	readcnt[sblk.b_type]++;
-	if ((ret = sbget(fsreadfd, &fs, super)) != 0) {
+	while ((ret = sbget(fsreadfd, &fs, super)) != 0) {
 		switch (ret) {
-		case EINVAL:
-			/* Superblock check-hash failed */
-			return (0);
+		case EINTEGRITY:
+			if (bflag || super == STDSB_NOHASHFAIL_NOMSG)
+				return (0);
+			super = STDSB_NOHASHFAIL_NOMSG;
+			sbhashfailed = 1;
+			continue;
 		case ENOENT:
 			if (bflag)
 				printf("%jd is not a file system "
