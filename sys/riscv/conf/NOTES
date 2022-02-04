@@ -99,3 +99,8 @@ nodevice	snd_cmi
 # Don't yet have hwpmc(4)
 nodevice	hwpmc
 nooptions 	HWPMC_HOOKS
+
+# riscv doesn't yet have atomic_testandset_int and atomic_testandclear_int.
+nodevice	ccr
+nodevice	cxgbe
+nodevice	cxgbev
