@@ -46,6 +46,25 @@ __FBSDID("$FreeBSD$");
 extern int __sysctl(const int *name, u_int namelen, void *oldp,
     size_t *oldlenp, const void *newp, size_t newlen);
 
+static int
+set_user_str(void *dstp, size_t *dstlenp, const char *src, size_t len,
+    size_t maxlen)
+{
+	int retval;
+
+	retval = 0;
+	if (dstp != NULL) {
+		if (len > maxlen) {
+			len = maxlen;
+			errno = ENOMEM;
+			retval = -1;
+		}
+		memcpy(dstp, src, len);
+	}
+	*dstlenp = len;
+	return (retval);
+}
+
 int
 sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
     const void *newp, size_t newlen)
@@ -74,17 +93,10 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 	/* Variables under CLT_USER that may be overridden by kernel values */
 	switch (name[1]) {
 	case USER_LOCALBASE:
-		if (oldlenp == NULL || *oldlenp != 1)
+		if (oldlenp == NULL || *oldlenp > sizeof(""))
 			return (0);
-		if (oldp != NULL) {
-			if (orig_oldlen < sizeof(_PATH_LOCALBASE)) {
-				errno = ENOMEM;
-				return (-1);
-			}
-			memmove(oldp, _PATH_LOCALBASE, sizeof(_PATH_LOCALBASE));
-		}
-		*oldlenp = sizeof(_PATH_LOCALBASE);
-		return (0);
+		return (set_user_str(oldp, oldlenp, _PATH_LOCALBASE,
+			sizeof(_PATH_LOCALBASE), orig_oldlen));
 	}
 
 	/* Variables under CLT_USER whose values are immutably defined below */
@@ -95,14 +107,8 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 
 	switch (name[1]) {
 	case USER_CS_PATH:
-		if (oldp != NULL && orig_oldlen < sizeof(_PATH_STDPATH)) {
-			errno = ENOMEM;
-			return (-1);
-		}
-		*oldlenp = sizeof(_PATH_STDPATH);
-		if (oldp != NULL)
-			memmove(oldp, _PATH_STDPATH, sizeof(_PATH_STDPATH));
-		return (0);
+		return (set_user_str(oldp, oldlenp, _PATH_STDPATH,
+		    sizeof(_PATH_STDPATH), orig_oldlen));
 	}
 
 	if (oldp != NULL && *oldlenp < sizeof(int)) {
