@@ -25,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2020
+.Dd February 2, 2022
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -49,7 +49,6 @@ is silent on an issue.
  * Style guide for FreeBSD.  Based on the CSRG's KNF (Kernel Normal Form).
  *
  *	@(#)style	1.14 (Berkeley) 4/28/95
- * $FreeBSD$
  */
 
 /*
@@ -113,15 +112,12 @@ lines should only be added when making substantial changes to the file,
 not for trivial changes.
 .Pp
 After any copyright and license comment, there is a blank line.
-If your code needs to be merged into stable/12 or earlier, it
-needs to have the
+Include
 .Li $\&FreeBSD$
-tag.
-Otherwise, this tag should be omitted in new code.
-Legacy code will have the tag removed in the future.
-For non C/C++ language source files,
-.Li $\&FreeBSD$
-is next, if applicable.
+or
+.Li __FBSDID("$\&FreeBSD$");
+only if you are certain the new code will be merged to stable/12.
+The tag will be removed from legacy code in the future.
 Non-C/C++ source files follow the example above, while C/C++ source files
 follow the one below.
 Version control system ID tags should only exist once in a file
@@ -146,9 +142,6 @@ from another FreeBSD file and include relevant copyright info
 from the original file.
 .Bd -literal
 /* From: @(#)style	1.14 (Berkeley) 4/28/95 */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 .Ed
 .Pp
 Leave one blank line before the header files.
