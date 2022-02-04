@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2009
+.Dd February 17, 2022
 .Dt FREEBSD-UPDATE.CONF 5
 .Os FreeBSD
 .Sh NAME
@@ -218,6 +218,59 @@ backup kernel, the
 .Cm freebsd-update
 rollback command will recreate the symbol files along with the old
 kernel.
+.It Cm CreateBootEnv
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+will create a new boot environment using
+.Xr bectl 8
+when installing patches.
+.Pp
+The name of the new boot environment consists of the current
+.Fx
+version:
+.Bd -literal -offset indent
+freebsd-version -ku | sort -V | tail -n 1
+.Ed
+.Pp
+and a timestamp:
+.Bd -literal -offset indent
+date +"%Y-%m-%d_%H%M%S"
+.Ed
+.Pp
+separated by a single dash, e.g.:
+.Bd -literal -offset indent
+13.0-RELEASE-p7_2022-02-16_141502
+.Ed
+.Pp
+.Cm freebsd-update
+does not attempt to create a boot environment
+if any of the following applies:
+.Pp
+.Bl -dash -compact
+.It
+ZFS is not used.
+.It
+The ZFS root is not set up for boot environments
+.Po see the check command of
+.Xr bectl 8
+for details
+.Pc .
+.It
+.Cm freebsd-update
+is running in a
+.Xr jail 8 .
+.It
+.Cm freebsd-update
+is updating a root directory selected via
+the basedir
+.Pq Fl b
+or jail
+.Pq Fl j
+flags.
 .El
 .Sh FILES
 .Bl -tag -width "/etc/freebsd-update.conf"
@@ -228,6 +281,7 @@ configuration file.
 .El
 .Sh SEE ALSO
 .Xr sha256 1 ,
+.Xr bectl 8 ,
 .Xr freebsd-update 8
 .Sh AUTHORS
 .An Colin Percival Aq Mt cperciva@FreeBSD.org
