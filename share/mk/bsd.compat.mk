@@ -71,9 +71,9 @@ LIB32WMAKEFLAGS+=	-DCOMPAT_32BIT
 # In the program linking case, select LIBCOMPAT
 .if defined(NEED_COMPAT)
 .ifndef HAS_COMPAT
-.warning NEED_COMPAT defined, but no LIBCOMPAT is available (COMPAT_ARCH == ${COMPAT_ARCH}
+.warning NEED_COMPAT defined, but no LIBCOMPAT is available (COMPAT_ARCH == ${COMPAT_ARCH})
 .elif !${HAS_COMPAT:M${NEED_COMPAT}} && ${NEED_COMPAT} != "any"
-.error NEED_COMPAT (${NEED_COMPAT}) defined, but not in HAS_COMPAT ($HAS_COMPAT)
+.error NEED_COMPAT (${NEED_COMPAT}) defined, but not in HAS_COMPAT (${HAS_COMPAT})
 .elif ${NEED_COMPAT} == "any"
 .endif
 .ifdef WANT_COMPAT
@@ -89,7 +89,6 @@ _LIBCOMPAT:=	${HAS_COMPAT:[1]}
 _LIBCOMPAT:=	${WANT_COMPAT}
 .endif
 .endif
-
 
 # -------------------------------------------------------------------
 # Generic code for each type.
