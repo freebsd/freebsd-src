@@ -96,6 +96,7 @@ char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
 int	returntosingle;		/* 1 => return to single user mode on exit */
 char	resolved;		/* cleared if unresolved changes => not clean */
+int	sbhashfailed;		/* when reading superblock check hash failed */
 char	havesb;			/* superblock has been read */
 char	skipclean;		/* skip clean file systems if preening */
 int	fsmodified;		/* 1 => write done to file system */
@@ -155,8 +156,9 @@ fsckinit(void)
 	resolved = 0;
 	havesb = 0;
 	fsmodified = 0;
-	fsreadfd = 0;
-	fswritefd = 0;
+	sbhashfailed = 0;
+	fsreadfd = -1;
+	fswritefd = -1;
 	maxfsblock = 0;
 	maxino = 0;
 	lfdir = 0;
