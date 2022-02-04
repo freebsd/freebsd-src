@@ -582,6 +582,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 			    int size, void *rpl, bool sleep_ok, int timeout);
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok);
+void t4_report_fw_error(struct adapter *adap);
 
 static inline int t4_wr_mbox_timeout(struct adapter *adap, int mbox,
 				     const void *cmd, int size, void *rpl,
@@ -617,7 +618,7 @@ struct fw_filter_wr;
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 void t4_intr_clear(struct adapter *adapter);
-int t4_slow_intr_handler(struct adapter *adapter, bool verbose);
+bool t4_slow_intr_handler(struct adapter *adapter, bool verbose);
 
 int t4_hash_mac_addr(const u8 *addr);
 int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
