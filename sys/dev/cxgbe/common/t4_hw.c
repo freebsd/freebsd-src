@@ -196,7 +196,7 @@ u32 t4_hw_pci_read_cfg4(adapter_t *adap, int reg)
  * If the firmware has indicated an error, print out the reason for
  * the firmware error.
  */
-static void t4_report_fw_error(struct adapter *adap)
+void t4_report_fw_error(struct adapter *adap)
 {
 	static const char *const reason[] = {
 		"Crash",			/* PCIE_FW_EVAL_CRASH */
@@ -212,11 +212,8 @@ static void t4_report_fw_error(struct adapter *adap)
 
 	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
 	if (pcie_fw & F_PCIE_FW_ERR) {
-		adap->flags &= ~FW_OK;
 		CH_ERR(adap, "firmware reports adapter error: %s (0x%08x)\n",
 		    reason[G_PCIE_FW_EVAL(pcie_fw)], pcie_fw);
-		if (pcie_fw != 0xffffffff)
-			t4_os_dump_devlog(adap);
 	}
 }
 
@@ -374,6 +371,12 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	/*
 	 * Attempt to gain access to the mailbox.
 	 */
+	pcie_fw = 0;
+	if (!(adap->flags & IS_VF)) {
+		pcie_fw = t4_read_reg(adap, A_PCIE_FW);
+		if (pcie_fw & F_PCIE_FW_ERR)
+			goto failed;
+	}
 	for (i = 0; i < 4; i++) {
 		ctl = t4_read_reg(adap, ctl_reg);
 		v = G_MBOWNER(ctl);
@@ -385,7 +388,11 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	 * If we were unable to gain access, report the error to our caller.
 	 */
 	if (v != X_MBOWNER_PL) {
-		t4_report_fw_error(adap);
+		if (!(adap->flags & IS_VF)) {
+			pcie_fw = t4_read_reg(adap, A_PCIE_FW);
+			if (pcie_fw & F_PCIE_FW_ERR)
+				goto failed;
+		}
 		ret = (v == X_MBOWNER_FW) ? -EBUSY : -ETIMEDOUT;
 		return ret;
 	}
@@ -436,7 +443,6 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	 * Loop waiting for the reply; bail out if we time out or the firmware
 	 * reports an error.
 	 */
-	pcie_fw = 0;
 	for (i = 0; i < timeout; i += ms) {
 		if (!(adap->flags & IS_VF)) {
 			pcie_fw = t4_read_reg(adap, A_PCIE_FW);
@@ -494,15 +500,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	    *(const u8 *)cmd, mbox, pcie_fw);
 	CH_DUMP_MBOX(adap, mbox, 0, "cmdsent", cmd_rpl, true);
 	CH_DUMP_MBOX(adap, mbox, data_reg, "current", NULL, true);
-
-	if (pcie_fw & F_PCIE_FW_ERR) {
-		ret = -ENXIO;
-		t4_report_fw_error(adap);
-	} else {
-		ret = -ETIMEDOUT;
-		t4_os_dump_devlog(adap);
-	}
-
+failed:
+	adap->flags &= ~FW_OK;
+	ret = pcie_fw & F_PCIE_FW_ERR ? -ENXIO : -ETIMEDOUT;
 	t4_fatal_err(adap, true);
 	return ret;
 }
@@ -4464,10 +4464,6 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
  */
 static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 {
-	static const struct intr_action cim_host_intr_actions[] = {
-		{ F_TIMER0INT, 0, t4_os_dump_cimla },
-		{ 0 },
-	};
 	static const struct intr_details cim_host_intr_details[] = {
 		/* T6+ */
 		{ F_PCIE2CIMINTFPARERR, "CIM IBQ PCIe interface parity error" },
@@ -4513,7 +4509,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.fatal = 0x007fffe6,
 		.flags = NONFATAL_IF_DISABLED,
 		.details = cim_host_intr_details,
-		.actions = cim_host_intr_actions,
+		.actions = NULL,
 	};
 	static const struct intr_details cim_host_upacc_intr_details[] = {
 		{ F_EEPROMWRINT, "CIM EEPROM came out of busy state" },
@@ -4578,10 +4574,6 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 	u32 val, fw_err;
 	bool fatal;
 
-	fw_err = t4_read_reg(adap, A_PCIE_FW);
-	if (fw_err & F_PCIE_FW_ERR)
-		t4_report_fw_error(adap);
-
 	/*
 	 * When the Firmware detects an internal error which normally wouldn't
 	 * raise a Host Interrupt, it forces a CIM Timer0 interrupt in order
@@ -4589,16 +4581,19 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 	 * Timer0 interrupt and don't see a Firmware Crash, ignore the Timer0
 	 * interrupt.
 	 */
+	fw_err = t4_read_reg(adap, A_PCIE_FW);
 	val = t4_read_reg(adap, A_CIM_HOST_INT_CAUSE);
 	if (val & F_TIMER0INT && (!(fw_err & F_PCIE_FW_ERR) ||
 	    G_PCIE_FW_EVAL(fw_err) != PCIE_FW_EVAL_CRASH)) {
 		t4_write_reg(adap, A_CIM_HOST_INT_CAUSE, F_TIMER0INT);
 	}
 
-	fatal = false;
+	fatal = (fw_err & F_PCIE_FW_ERR) != 0;
 	fatal |= t4_handle_intr(adap, &cim_host_intr_info, 0, verbose);
 	fatal |= t4_handle_intr(adap, &cim_host_upacc_intr_info, 0, verbose);
 	fatal |= t4_handle_intr(adap, &cim_pf_host_intr_info, 0, verbose);
+	if (fatal)
+		t4_os_cim_err(adap);
 
 	return (fatal);
 }
@@ -5297,7 +5292,7 @@ static bool plpl_intr_handler(struct adapter *adap, int arg, bool verbose)
  *	The designation 'slow' is because it involves register reads, while
  *	data interrupts typically don't involve any MMIOs.
  */
-int t4_slow_intr_handler(struct adapter *adap, bool verbose)
+bool t4_slow_intr_handler(struct adapter *adap, bool verbose)
 {
 	static const struct intr_details pl_intr_details[] = {
 		{ F_MC1, "MC1" },
@@ -5376,7 +5371,6 @@ int t4_slow_intr_handler(struct adapter *adap, bool verbose)
 		.details = pl_intr_details,
 		.actions = pl_intr_action,
 	};
-	bool fatal;
 	u32 perr;
 
 	perr = t4_read_reg(adap, pl_perr_cause.cause_reg);
@@ -5387,11 +5381,8 @@ int t4_slow_intr_handler(struct adapter *adap, bool verbose)
 		if (verbose)
 			perr |= t4_read_reg(adap, pl_intr_info.enable_reg);
 	}
-	fatal = t4_handle_intr(adap, &pl_intr_info, perr, verbose);
-	if (fatal)
-		t4_fatal_err(adap, false);
 
-	return (0);
+	return (t4_handle_intr(adap, &pl_intr_info, perr, verbose));
 }
 
 #define PF_INTR_MASK (F_PFSW | F_PFCIM)
@@ -7521,8 +7512,6 @@ retry:
 	if (ret != FW_SUCCESS) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
-		if (t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_ERR)
-			t4_report_fw_error(adap);
 		return ret;
 	}
 
