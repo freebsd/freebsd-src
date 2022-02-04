@@ -590,7 +590,7 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 	struct iovec *iov;
 	char errmsg[255];
 	int iovlen;
-	unsigned int size;
+	size_t size;
 
 	/* Get the mount point information of the file system */
 	if (mntp == NULL) {
