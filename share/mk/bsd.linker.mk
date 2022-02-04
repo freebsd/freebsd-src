@@ -46,7 +46,7 @@ _can_export=	yes
 .for var in ${_exported_vars}
 .if defined(${var}) && (!defined(${var}__${${X_}_ld_hash}) || ${${var}__${${X_}_ld_hash}} != ${${var}})
 .if defined(${var}__${${X_}_ld_hash})
-.info "Cannot import ${X_}LINKER variables since cached ${var} is different: ${${var}__${${X_}_ld_hash}} != ${${var}}"
+.info Cannot import ${X_}LINKER variables since cached ${var} is different: ${${var}__${${X_}_ld_hash}} != ${${var}}
 .endif
 _can_export=	no
 .endif

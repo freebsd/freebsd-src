@@ -16,7 +16,7 @@ TARGET_ENDIANNESS= 4321
 CAP_MKDB_ENDIAN= -b
 LOCALEDEF_ENDIAN= -b
 .elif ${.MAKE.OS} == "FreeBSD"
-.error "Don't know the endian of this architecture"
+.error Don't know the endian of this architecture
 .else
 #
 # During bootstrapping on !FreeBSD OSes, we need to define some value.  Short of

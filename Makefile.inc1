@@ -626,7 +626,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 .if ${BUILD_WITH_STRICT_TMPPATH} != 0
 MKTEMP=${WORLDTMP}/legacy/usr/bin/mktemp
 .if !exists(${MKTEMP})
-.error "mktemp binary doesn't exist in expected location: ${MKTEMP}"
+.error mktemp binary doesn't exist in expected location: ${MKTEMP}
 .endif
 .else
 MKTEMP=mktemp
