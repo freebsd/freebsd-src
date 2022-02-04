@@ -74,17 +74,18 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 	/* Variables under CLT_USER that may be overridden by kernel values */
 	switch (name[1]) {
 	case USER_LOCALBASE:
-		if (oldlenp == NULL || *oldlenp != 1)
-			return (0);
-		if (oldp != NULL) {
-			if (orig_oldlen < sizeof(_PATH_LOCALBASE)) {
-				errno = ENOMEM;
-				return (-1);
+		if (oldlenp != NULL && *oldlenp == 1) {
+			*oldlenp = sizeof(_PATH_LOCALBASE);
+			if (oldp != NULL) {
+				if (*oldlenp > orig_oldlen) {
+					*oldlenp = orig_oldlen;
+					errno = ENOMEM;
+					retval = -1;
+				}
+				memmove(oldp, _PATH_LOCALBASE, *oldlenp);
 			}
-			memmove(oldp, _PATH_LOCALBASE, sizeof(_PATH_LOCALBASE));
 		}
-		*oldlenp = sizeof(_PATH_LOCALBASE);
-		return (0);
+		return (retval);
 	}
 
 	/* Variables under CLT_USER whose values are immutably defined below */
