@@ -356,6 +356,7 @@ extern char	preen;			/* just fix normal inconsistencies */
 extern char	rerun;			/* rerun fsck. Only used in non-preen mode */
 extern int	returntosingle;		/* 1 => return to single user mode on exit */
 extern char	resolved;		/* cleared if unresolved changes => not clean */
+extern int	sbhashfailed;		/* when reading superblock check hash failed */
 extern char	havesb;			/* superblock has been read */
 extern char	skipclean;		/* skip clean file systems if preening */
 extern int	fsmodified;		/* 1 => write done to file system */

@@ -250,6 +250,7 @@ cglookup(int cg)
 	if (cgp == NULL) {
 		if (sujrecovery)
 			errx(EEXIT,"Ran out of memory during journal recovery");
+		flush(fswritefd, &cgblk);
 		getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
 		return (&cgblk);
 	}
@@ -564,7 +565,7 @@ ckfini(int markclean)
 			cmd.size = markclean ? -1 : 1;
 			if (sysctlbyname("vfs.ffs.setflags", 0, 0,
 			    &cmd, sizeof cmd) == -1)
-				rwerror("SET FILE SYSTEM FLAGS", FS_UNCLEAN);
+				pwarn("CANNOT SET FILE SYSTEM DIRTY FLAG\n");
 			if (!preen) {
 				printf("\n***** FILE SYSTEM MARKED %s *****\n",
 				    markclean ? "CLEAN" : "DIRTY");
@@ -575,6 +576,7 @@ ckfini(int markclean)
 			printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
 			rerun = 1;
 		}
+		bkgrdflag = 0;
 	}
 	if (debug && cachelookups > 0)
 		printf("cache with %d buffers missed %d of %d (%d%%)\n",
