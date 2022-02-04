@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/uio.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -309,79 +310,95 @@ mbuf_crc32c_helper(void *arg, void *data, u_int len)
 	return (0);
 }
 
-static bool
-parse_pdus(struct toepcb *toep, struct icl_cxgbei_conn *icc, struct sockbuf *sb)
+static struct icl_pdu *
+parse_pdu(struct socket *so, struct toepcb *toep, struct icl_cxgbei_conn *icc,
+    struct sockbuf *sb, u_int total_len)
 {
+	struct uio uio;
+	struct iovec iov[2];
 	struct iscsi_bhs bhs;
 	struct mbuf *m;
 	struct icl_pdu *ip;
-	u_int ahs_len, data_len, header_len, pdu_len, total_len;
+	u_int ahs_len, data_len, header_len, pdu_len;
 	uint32_t calc_digest, wire_digest;
+	int error;
 
-	total_len = sbused(sb);
-	CTR3(KTR_CXGBE, "%s: tid %u, %u bytes in so_rcv", __func__, toep->tid,
-	    total_len);
-
-	m = sbcut_locked(sb, total_len);
-	KASSERT(m_length(m, NULL) == total_len,
-	    ("sbcut returned less data (%u vs %u)", total_len,
-	    m_length(m, NULL)));
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = curthread;
 
 	header_len = sizeof(struct iscsi_bhs);
 	if (icc->ic.ic_header_crc32c)
 		header_len += ISCSI_HEADER_DIGEST_SIZE;
-	for (;;) {
-		if (total_len < sizeof(struct iscsi_bhs)) {
-			ICL_WARN("truncated pre-offload PDU with len %u",
-			    total_len);
-			m_freem(m);
-			return (false);
+
+	if (total_len < header_len) {
+		ICL_WARN("truncated pre-offload PDU with len %u", total_len);
+		return (NULL);
+	}
+
+	iov[0].iov_base = &bhs;
+	iov[0].iov_len = sizeof(bhs);
+	iov[1].iov_base = &wire_digest;
+	iov[1].iov_len = sizeof(wire_digest);
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = header_len;
+	error = soreceive(so, NULL, &uio, NULL, NULL, NULL);
+	if (error != 0) {
+		ICL_WARN("failed to read BHS from pre-offload PDU: %d", error);
+		return (NULL);
+	}
+
+	ahs_len = bhs.bhs_total_ahs_len * 4;
+	data_len = bhs.bhs_data_segment_len[0] << 16 |
+	    bhs.bhs_data_segment_len[1] << 8 |
+	    bhs.bhs_data_segment_len[2];
+	pdu_len = header_len + ahs_len + roundup2(data_len, 4);
+	if (icc->ic.ic_data_crc32c && data_len != 0)
+		pdu_len += ISCSI_DATA_DIGEST_SIZE;
+
+	if (total_len < pdu_len) {
+		ICL_WARN("truncated pre-offload PDU len %u vs %u", total_len,
+		    pdu_len);
+		return (NULL);
+	}
+
+	if (ahs_len != 0) {
+		ICL_WARN("received pre-offload PDU with AHS");
+		return (NULL);
+	}
+
+	if (icc->ic.ic_header_crc32c) {
+		calc_digest = calculate_crc32c(0xffffffff, (caddr_t)&bhs,
+		    sizeof(bhs));
+		calc_digest ^= 0xffffffff;
+		if (calc_digest != wire_digest) {
+			ICL_WARN("received pre-offload PDU 0x%02x with "
+			    "invalid header digest (0x%x vs 0x%x)",
+			    bhs.bhs_opcode, wire_digest, calc_digest);
+			toep->ofld_rxq->rx_iscsi_header_digest_errors++;
+			return (NULL);
 		}
-		m_copydata(m, 0, sizeof(struct iscsi_bhs), (caddr_t)&bhs);
+	}
 
-		ahs_len = bhs.bhs_total_ahs_len * 4;
-		data_len = bhs.bhs_data_segment_len[0] << 16 |
-		    bhs.bhs_data_segment_len[1] << 8 |
-		    bhs.bhs_data_segment_len[0];
-		pdu_len = header_len + ahs_len + roundup2(data_len, 4);
-		if (icc->ic.ic_data_crc32c && data_len != 0)
-			pdu_len += ISCSI_DATA_DIGEST_SIZE;
+	m = NULL;
+	if (data_len != 0) {
+		uio.uio_iov = NULL;
+		uio.uio_resid = roundup2(data_len, 4);
+		if (icc->ic.ic_data_crc32c)
+			uio.uio_resid += ISCSI_DATA_DIGEST_SIZE;
 
-		if (total_len < pdu_len) {
-			ICL_WARN("truncated pre-offload PDU len %u vs %u",
-			    total_len, pdu_len);
-			m_freem(m);
-			return (false);
+		error = soreceive(so, NULL, &uio, &m, NULL, NULL);
+		if (error != 0) {
+			ICL_WARN("failed to read data payload from "
+			    "pre-offload PDU: %d", error);
+			return (NULL);
 		}
 
-		if (ahs_len != 0) {
-			ICL_WARN("received pre-offload PDU with AHS");
-			m_freem(m);
-			return (false);
-		}
-
-		if (icc->ic.ic_header_crc32c) {
-			m_copydata(m, sizeof(struct iscsi_bhs),
+		if (icc->ic.ic_data_crc32c) {
+			m_copydata(m, roundup2(data_len, 4),
 			    sizeof(wire_digest), (caddr_t)&wire_digest);
-
-			calc_digest = calculate_crc32c(0xffffffff,
-			    (caddr_t)&bhs, sizeof(bhs));
-			calc_digest ^= 0xffffffff;
-			if (calc_digest != wire_digest) {
-				ICL_WARN("received pre-offload PDU 0x%02x "
-				    "with invalid header digest (0x%x vs 0x%x)",
-				    bhs.bhs_opcode, wire_digest, calc_digest);
-				toep->ofld_rxq->rx_iscsi_header_digest_errors++;
-				m_free(m);
-				return (false);
-			}
-		}
-
-		m_adj(m, header_len);
-
-		if (icc->ic.ic_data_crc32c && data_len != 0) {
-			m_copydata(m, data_len, sizeof(wire_digest),
-			    (caddr_t)&wire_digest);
 
 			calc_digest = 0xffffffff;
 			m_apply(m, 0, roundup2(data_len, 4), mbuf_crc32c_helper,
@@ -392,41 +409,55 @@ parse_pdus(struct toepcb *toep, struct icl_cxgbei_conn *icc, struct sockbuf *sb)
 				    "with invalid data digest (0x%x vs 0x%x)",
 				    bhs.bhs_opcode, wire_digest, calc_digest);
 				toep->ofld_rxq->rx_iscsi_data_digest_errors++;
-				m_free(m);
-				return (false);
-			}
-		}
-
-		ip = icl_cxgbei_new_pdu(M_NOWAIT);
-		if (ip == NULL)
-			CXGBE_UNIMPLEMENTED("PDU allocation failure");
-		icl_cxgbei_new_pdu_set_conn(ip, &icc->ic);
-		*ip->ip_bhs = bhs;
-		ip->ip_data_len = data_len;
-		if (data_len != 0)
-			ip->ip_data_mbuf = m;
-
-		STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
-
-		total_len -= pdu_len;
-		if (total_len == 0) {
-			if (data_len == 0)
 				m_freem(m);
-			return (true);
-		}
-
-		if (data_len != 0) {
-			m = m_split(m, roundup2(data_len, 4), M_NOWAIT);
-			if (m == NULL) {
-				ICL_WARN("failed to split mbuf chain for "
-				    "pre-offload PDU");
-
-				/* Don't free the mbuf chain as 'ip' owns it. */
-				return (false);
+				return (NULL);
 			}
-			if (icc->ic.ic_data_crc32c)
-				m_adj(m, ISCSI_DATA_DIGEST_SIZE);
 		}
+	}
+
+	ip = icl_cxgbei_new_pdu(M_WAITOK);
+	icl_cxgbei_new_pdu_set_conn(ip, &icc->ic);
+	*ip->ip_bhs = bhs;
+	ip->ip_data_len = data_len;
+	ip->ip_data_mbuf = m;
+	return (ip);
+}
+
+static void
+parse_pdus(struct icl_cxgbei_conn *icc, struct sockbuf *sb)
+{
+	struct icl_conn *ic = &icc->ic;
+	struct socket *so = ic->ic_socket;
+	struct toepcb *toep = icc->toep;
+	struct icl_pdu *ip, *lastip;
+	u_int total_len;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	CTR3(KTR_CXGBE, "%s: tid %u, %u bytes in so_rcv", __func__, toep->tid,
+	    sbused(sb));
+
+	lastip = NULL;
+	while (sbused(sb) != 0 && (sb->sb_state & SBS_CANTRCVMORE) == 0) {
+		total_len = sbused(sb);
+		SOCKBUF_UNLOCK(sb);
+
+		ip = parse_pdu(so, toep, icc, sb, total_len);
+
+		if (ip == NULL) {
+			ic->ic_error(ic);
+			SOCKBUF_LOCK(sb);
+			return;
+		}
+
+		if (lastip == NULL)
+			STAILQ_INSERT_HEAD(&icc->rcvd_pdus, ip, ip_next);
+		else
+			STAILQ_INSERT_AFTER(&icc->rcvd_pdus, lastip, ip,
+			    ip_next);
+		lastip = ip;
+
+		SOCKBUF_LOCK(sb);
 	}
 }
 
@@ -551,22 +582,6 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		return (0);
 	}
 
-	if (__predict_false(sbused(sb)) != 0) {
-		/*
-		 * PDUs were received before the tid transitioned to ULP mode.
-		 * Convert them to icl_cxgbei_pdus and send them to ICL before
-		 * the PDU in icp/ip.
-		 */
-		if (!parse_pdus(toep, icc, sb)) {
-			SOCKBUF_UNLOCK(sb);
-			INP_WUNLOCK(inp);
-
-			icl_cxgbei_conn_pdu_free(NULL, ip);
-			toep->ulpcb2 = NULL;
-			ic->ic_error(ic);
-			return (0);
-		}
-	}
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
@@ -817,22 +832,6 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		return (0);
 	}
 
-	if (__predict_false(sbused(sb)) != 0) {
-		/*
-		 * PDUs were received before the tid transitioned to ULP mode.
-		 * Convert them to icl_cxgbei_pdus and send them to ICL before
-		 * the PDU in icp/ip.
-		 */
-		if (!parse_pdus(toep, icc, sb)) {
-			SOCKBUF_UNLOCK(sb);
-			INP_WUNLOCK(inp);
-
-			icl_cxgbei_conn_pdu_free(NULL, ip);
-			toep->ulpcb2 = NULL;
-			ic->ic_error(ic);
-			return (0);
-		}
-	}
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	/* Enqueue the PDU to the received pdus queue. */
@@ -971,6 +970,15 @@ cwt_main(void *arg)
 			sb = &ic->ic_socket->so_rcv;
 
 			SOCKBUF_LOCK(sb);
+			if (__predict_false(sbused(sb)) != 0) {
+				/*
+				 * PDUs were received before the tid
+				 * transitioned to ULP mode.  Convert
+				 * them to icl_cxgbei_pdus and insert
+				 * them into the head of rcvd_pdus.
+				 */
+				parse_pdus(icc, sb);
+			}
 			MPASS(icc->rx_flags & RXF_ACTIVE);
 			if (__predict_true(!(sb->sb_state & SBS_CANTRCVMORE))) {
 				MPASS(STAILQ_EMPTY(&rx_pdus));
