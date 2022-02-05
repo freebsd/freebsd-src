@@ -56832,23 +56832,16 @@ fail:
 static int _wrap_SBThread_GetSiginfo(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBThread *arg1 = (lldb::SBThread *) 0 ;
-  lldb::SBError *arg2 = 0 ;
   lldb::SBValue result;
   
-  SWIG_check_num_args("lldb::SBThread::GetSiginfo",2,2)
+  SWIG_check_num_args("lldb::SBThread::GetSiginfo",1,1)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetSiginfo",1,"lldb::SBThread *");
-  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThread::GetSiginfo",2,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_GetSiginfo",1,SWIGTYPE_p_lldb__SBThread);
   }
   
-  
-  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
-    SWIG_fail_ptr("SBThread_GetSiginfo",2,SWIGTYPE_p_lldb__SBError);
-  }
-  
-  result = (arg1)->GetSiginfo(*arg2);
+  result = (arg1)->GetSiginfo();
   {
     lldb::SBValue * resultptr = new lldb::SBValue((const lldb::SBValue &) result);
     SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBValue,1); SWIG_arg++;

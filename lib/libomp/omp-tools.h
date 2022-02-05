@@ -1,4 +1,3 @@
-// $FreeBSD$
 /*
  * include/omp-tools.h.var
  */

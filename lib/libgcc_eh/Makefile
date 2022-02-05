@@ -14,6 +14,8 @@ SRCS_EXC+=	int_util.c
 INCS+=		${UNWINDINCDIR}/__libunwind_config.h
 INCS+=		${UNWINDINCDIR}/libunwind.h
 INCS+=		${UNWINDINCDIR}/unwind.h
+INCS+=		${UNWINDINCDIR}/unwind_arm_ehabi.h
+INCS+=		${UNWINDINCDIR}/unwind_itanium.h
 
 .if ${.MAKE.LEVEL} > 0
 # avoid circular dependencies
