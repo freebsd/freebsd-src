@@ -114,7 +114,7 @@ tcp_ecn_input_syn_sent(struct tcpcb *tp, uint16_t thflags, int iptos)
 	if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
 	    V_tcp_do_ecn) {
 		tp->t_flags2 |= TF2_ECN_PERMIT;
-		KMOD_TCPSTAT_INC(tcps_ecn_shs);
+		TCPSTAT_INC(tcps_ecn_shs);
 	}
 }
 
@@ -133,7 +133,7 @@ tcp_ecn_input_parallel_syn(struct tcpcb *tp, uint16_t thflags, int iptos)
 		if ((thflags & (TH_CWR | TH_ECE)) == (TH_CWR | TH_ECE)) {
 			tp->t_flags2 |= TF2_ECN_PERMIT;
 			tp->t_flags2 |= TF2_ECN_SND_ECE;
-			KMOD_TCPSTAT_INC(tcps_ecn_shs);
+			TCPSTAT_INC(tcps_ecn_shs);
 		}
 	}
 }
@@ -149,13 +149,13 @@ tcp_ecn_input_segment(struct tcpcb *tp, uint16_t thflags, int iptos)
 	if (tp->t_flags2 & TF2_ECN_PERMIT) {
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
-			KMOD_TCPSTAT_INC(tcps_ecn_ce);
+			TCPSTAT_INC(tcps_ecn_ce);
 			break;
 		case IPTOS_ECN_ECT0:
-			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
+			TCPSTAT_INC(tcps_ecn_ect0);
 			break;
 		case IPTOS_ECN_ECT1:
-			KMOD_TCPSTAT_INC(tcps_ecn_ect1);
+			TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
 
@@ -216,7 +216,7 @@ tcp_ecn_output_established(struct tcpcb *tp, uint16_t *thflags, int len)
 		    !((tp->t_flags & TF_FORCEDATA) && len == 1));
 	if (newdata) {
 		ipecn = IPTOS_ECN_ECT0;
-		KMOD_TCPSTAT_INC(tcps_ecn_ect0);
+		TCPSTAT_INC(tcps_ecn_ect0);
 	}
 	/*
 	 * Reply with proper ECN notifications.
@@ -286,7 +286,7 @@ tcp_ecn_syncache_respond(uint16_t thflags, struct syncache *sc)
 		switch (sc->sc_flags & SCF_ECN) {
 		case SCF_ECN:
 			thflags |= (0 | TH_ECE);
-			KMOD_TCPSTAT_INC(tcps_ecn_shs);
+			TCPSTAT_INC(tcps_ecn_shs);
 			break;
 		/* undefined SCF codepoint */
 		default:
