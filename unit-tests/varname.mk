@@ -1,4 +1,4 @@
-# $NetBSD: varname.mk,v 1.8 2020/11/02 22:59:48 rillig Exp $
+# $NetBSD: varname.mk,v 1.9 2022/01/27 10:42:02 rillig Exp $
 #
 # Tests for special variables, such as .MAKE or .PARSEDIR.
 # And for variable names in general.
@@ -40,5 +40,47 @@ ${:UVAR\(\(\(}=	try2
 ${VARNAME}=	try3
 
 .MAKEFLAGS: -d0
+
+# All variable names of a scope are stored in the same hash table, using a
+# simple hash function.  Ensure that HashEntry_KeyEquals handles collisions
+# correctly and that the correct variable is looked up.  The strings "0x" and
+# "1Y" have the same hash code, as 31 * '0' + 'x' == 31 * '1' + 'Y'.
+V.0x=	0x
+V.1Y=	1Y
+.if ${V.0x} != "0x" || ${V.1Y} != "1Y"
+.  error
+.endif
+
+# The string "ASDZguv", when used as a prefix of a variable name, keeps the
+# hash code unchanged, its own hash code is 0.
+ASDZguvV.0x=	0x
+ASDZguvV.1Y=	1Y
+.if ${ASDZguvV.0x} != "0x"
+.  error
+.elif ${ASDZguvV.1Y} != "1Y"
+.  error
+.endif
+
+# Ensure that variables with the same hash code whose name is a prefix of the
+# other can be accessed.  In this case, the shorter variable name is defined
+# first to make it appear later in the bucket of the hash table.
+ASDZguv=	once
+ASDZguvASDZguv=	twice
+.if ${ASDZguv} != "once"
+.  error
+.elif ${ASDZguvASDZguv} != "twice"
+.  error
+.endif
+
+# Ensure that variables with the same hash code whose name is a prefix of the
+# other can be accessed.  In this case, the longer variable name is defined
+# first to make it appear later in the bucket of the hash table.
+ASDZguvASDZguv.param=	twice
+ASDZguv.param=		once
+.if ${ASDZguv.param} != "once"
+.  error
+.elif ${ASDZguvASDZguv.param} != "twice"
+.  error
+.endif
 
 all:

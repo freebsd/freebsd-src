@@ -1,12 +1,19 @@
 make: "var-recursive.mk" line 20: still there
 Variable DIRECT is recursive.
+	in var-recursive.mk:21
 
 make: stopped in unit-tests
 Variable INDIRECT1 is recursive.
+	in var-recursive.mk:28
 
 make: stopped in unit-tests
 make: "var-recursive.mk" line 35: ok
 Variable V is recursive.
+	in var-recursive.mk:43
+
+make: stopped in unit-tests
+: OK
+In a command near "var-recursive.mk" line 55: Variable VAR is recursive.
 
 make: stopped in unit-tests
 exit status 0

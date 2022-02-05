@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.10 2022/01/23 21:48:59 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -80,6 +80,52 @@ WORDS=	one two three four five six
 .  warning The :ts modifier followed by an :S modifier does not work.
 .endif
 
+# After the modifier ':ts/', the expression value is a single word since all
+# spaces have been replaced with '/'.  This single word does not start with
+# 'two', which makes the modifier ':S' a no-op.
+.if ${WORDS:ts/:S/^two/2/} != "one/two/three/four/five/six"
+.  error
+.endif
+
+# After the :ts modifier, the whole string is interpreted as a single
+# word since all spaces have been replaced with x.  Because of this single
+# word, only the first 'b' is replaced with 'B'.
+.if ${aa bb aa bb aa bb:L:tsx:S,b,B,} != "aaxBbxaaxbbxaaxbb"
+.  error
+.endif
+
+# The :ts modifier also applies to word separators that are added
+# afterwards.  First, the modifier ':tsx' joins the 3 words, then the modifier
+# ':S' replaces the 2 'b's with spaces.  These spaces are part of the word,
+# so when the words are joined at the end of the modifier ':S', there is only
+# a single word, and the custom separator from the modifier ':tsx' has no
+# effect.
+.if ${a ababa c:L:tsx:S,b, ,g} != "axa a axc"
+.  error
+.endif
+
+# Adding the modifier ':M*' at the end of the above chain splits the
+# expression value and then joins it again.  At this point of splitting, the
+# newly added spaces are treated as word separators, resulting in 3 words.
+# When these 3 words are joined, the separator from the modifier ':tsx' is
+# used.
+.if ${a ababa c:L:tsx:S,b, ,g:M*} != "axaxaxaxc"
+.  error
+.endif
+
+# Not all modifiers use the separator from the previous modifier ':ts' though.
+# The modifier ':@' always uses a space as word separator instead.  This has
+# probably been an oversight during implementation.  For consistency, the
+# result should rather be "axaxaxaxc", as in the previous example.
+.if ${a ababa c:L:tsx:S,b, ,g:@v@$v@} != "axa a axc"
+.  error
+.endif
+
+# Adding a final :M* modifier applies the :ts separator again, though.
+.if ${a ababa c:L:tsx:S,b, ,g:@v@${v}@:M*} != "axaxaxaxc"
+.  error
+.endif
+
 # The separator can be \n, which is a newline.
 .if ${WORDS:[1..3]:ts\n} != "one${.newline}two${.newline}three"
 .  warning The separator \n does not produce a newline.
@@ -155,9 +201,19 @@ WORDS=	one two three four five six
 
 
 # In the :t modifier, the :t must be followed by any of A, l, s, u.
-.if ${WORDS:tx} != "anything"
-.  info This line is not reached because of the malformed condition.
-.  info If this line were reached, it would be visible in the -dcpv log.
+# expect: make: Bad modifier ":tx" for variable "WORDS"
+.if ${WORDS:tx}
+.  error
+.else
+.  error
+.endif
+
+# The word separator must be can only be a single character.
+# expect: make: Bad modifier ":ts\X" for variable "WORDS"
+.if ${WORDS:ts\X}
+.  error
+.else
+.  error
 .endif
 
 # After the backslash, only n, t, an octal number, or x and a hexadecimal
@@ -166,10 +222,29 @@ WORDS=	one two three four five six
 .  info This line is not reached.
 .endif
 
-# TODO: This modifier used to accept decimal numbers as well, in the form
-# ':ts\120'.  When has this been changed to octal, and what happens now
-# for ':ts\90' ('Z' in decimal ASCII, undefined in octal)?
 
-# TODO: :ts\x1F600
+# Since 2003.07.23.18.06.46 and before 2016.03.07.20.20.35, the modifier ':ts'
+# interpreted an "octal escape" as decimal if the first digit was not '0'.
+.if ${:Ua b:ts\61} != "a1b"	# decimal would have been "a=b"
+.  error
+.endif
 
-all:
+# Since the character escape is always interpreted as octal, let's see what
+# happens for non-octal digits.  From 2003.07.23.18.06.46 to
+# 2016.02.27.16.20.06, the result was '1E2', since 2016.03.07.20.20.35 make no
+# longer accepts this escape and complains.
+# expect: make: Bad modifier ":ts\69" for variable ""
+.if ${:Ua b:ts\69}
+.  error
+.else
+.  error
+.endif
+
+# Try whether bmake is Unicode-ready.
+# expect+2: Invalid character number at "1F60E}"
+# expect+1: Malformed conditional (${:Ua b:ts\x1F60E})
+.if ${:Ua b:ts\x1F60E}		# U+1F60E "smiling face with sunglasses"
+.  error
+.else
+.  error
+.endif

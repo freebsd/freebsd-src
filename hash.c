@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.66 2021/12/07 21:58:01 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.71 2022/01/27 11:00:07 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.66 2021/12/07 21:58:01 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.71 2022/01/27 11:00:07 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -84,7 +84,7 @@ MAKE_RCSID("$NetBSD: hash.c,v 1.66 2021/12/07 21:58:01 rillig Exp $");
 
 /* This hash function matches Gosling's Emacs and java.lang.String. */
 static unsigned int
-Hash_String(const char *key, size_t *out_keylen)
+Hash_String(const char *key, const char **out_keyEnd)
 {
 	unsigned int h;
 	const char *p;
@@ -93,8 +93,7 @@ Hash_String(const char *key, size_t *out_keylen)
 	for (p = key; *p != '\0'; p++)
 		h = 31 * h + (unsigned char)*p;
 
-	if (out_keylen != NULL)
-		*out_keylen = (size_t)(p - key);
+	*out_keyEnd = p;
 	return h;
 }
 
@@ -112,53 +111,22 @@ Hash_Substring(Substring key)
 }
 
 static HashEntry *
-HashTable_Find(HashTable *t, unsigned int h, const char *key)
+HashTable_Find(HashTable *t, Substring key, unsigned int h)
 {
 	HashEntry *e;
 	unsigned int chainlen = 0;
+	size_t keyLen = Substring_Length(key);
 
 #ifdef DEBUG_HASH_LOOKUP
-	DEBUG4(HASH, "%s: %p h=%08x key=%s\n", __func__, t, h, key);
+	DEBUG4(HASH, "HashTable_Find: %p h=%08x key=%.*s\n",
+	    t, h, (int)keyLen, key.start);
 #endif
 
 	for (e = t->buckets[h & t->bucketsMask]; e != NULL; e = e->next) {
 		chainlen++;
-		if (e->key_hash == h && strcmp(e->key, key) == 0)
-			break;
-	}
-
-	if (chainlen > t->maxchain)
-		t->maxchain = chainlen;
-
-	return e;
-}
-
-static bool
-HashEntry_KeyEquals(const HashEntry *he, Substring key)
-{
-	const char *heKey, *p;
-
-	heKey = he->key;
-	for (p = key.start; p != key.end; p++, heKey++)
-		if (*p != *heKey || *heKey == '\0')
-			return false;
-	return *heKey == '\0';
-}
-
-static HashEntry *
-HashTable_FindEntryBySubstring(HashTable *t, Substring key, unsigned int h)
-{
-	HashEntry *e;
-	unsigned int chainlen = 0;
-
-#ifdef DEBUG_HASH_LOOKUP
-	DEBUG5(HASH, "%s: %p h=%08x key=%.*s\n", __func__, t, h,
-	    (int)Substring_Length(key), key.start);
-#endif
-
-	for (e = t->buckets[h & t->bucketsMask]; e != NULL; e = e->next) {
-		chainlen++;
-		if (e->key_hash == h && HashEntry_KeyEquals(e, key))
+		if (e->key_hash == h &&
+		    strncmp(e->key, key.start, keyLen) == 0 &&
+		    e->key[keyLen] == '\0')
 			break;
 	}
 
@@ -213,8 +181,9 @@ HashTable_Done(HashTable *t)
 HashEntry *
 HashTable_FindEntry(HashTable *t, const char *key)
 {
-	unsigned int h = Hash_String(key, NULL);
-	return HashTable_Find(t, h, key);
+	const char *keyEnd;
+	unsigned int h = Hash_String(key, &keyEnd);
+	return HashTable_Find(t, Substring_Init(key, keyEnd), h);
 }
 
 /* Find the value corresponding to the key, or return NULL. */
@@ -232,7 +201,7 @@ HashTable_FindValue(HashTable *t, const char *key)
 void *
 HashTable_FindValueBySubstringHash(HashTable *t, Substring key, unsigned int h)
 {
-	HashEntry *he = HashTable_FindEntryBySubstring(t, key, h);
+	HashEntry *he = HashTable_Find(t, key, h);
 	return he != NULL ? he->value : NULL;
 }
 
@@ -268,8 +237,8 @@ HashTable_Enlarge(HashTable *t)
 	t->bucketsSize = newSize;
 	t->bucketsMask = newMask;
 	t->buckets = newBuckets;
-	DEBUG5(HASH, "%s: %p size=%d entries=%d maxchain=%d\n",
-	    __func__, (void *)t, t->bucketsSize, t->numEntries, t->maxchain);
+	DEBUG4(HASH, "HashTable_Enlarge: %p size=%d entries=%d maxchain=%d\n",
+	    (void *)t, t->bucketsSize, t->numEntries, t->maxchain);
 	t->maxchain = 0;
 }
 
@@ -280,9 +249,9 @@ HashTable_Enlarge(HashTable *t)
 HashEntry *
 HashTable_CreateEntry(HashTable *t, const char *key, bool *out_isNew)
 {
-	size_t keylen;
-	unsigned int h = Hash_String(key, &keylen);
-	HashEntry *he = HashTable_Find(t, h, key);
+	const char *keyEnd;
+	unsigned int h = Hash_String(key, &keyEnd);
+	HashEntry *he = HashTable_Find(t, Substring_Init(key, keyEnd), h);
 
 	if (he != NULL) {
 		if (out_isNew != NULL)
@@ -293,10 +262,10 @@ HashTable_CreateEntry(HashTable *t, const char *key, bool *out_isNew)
 	if (t->numEntries >= rebuildLimit * t->bucketsSize)
 		HashTable_Enlarge(t);
 
-	he = bmake_malloc(sizeof *he + keylen);
+	he = bmake_malloc(sizeof *he + (size_t)(keyEnd - key));
 	he->value = NULL;
 	he->key_hash = h;
-	memcpy(he->key, key, keylen + 1);
+	memcpy(he->key, key, (size_t)(keyEnd - key) + 1);
 
 	he->next = t->buckets[h & t->bucketsMask];
 	t->buckets[h & t->bucketsMask] = he;
@@ -307,12 +276,11 @@ HashTable_CreateEntry(HashTable *t, const char *key, bool *out_isNew)
 	return he;
 }
 
-HashEntry *
+void
 HashTable_Set(HashTable *t, const char *key, void *value)
 {
 	HashEntry *he = HashTable_CreateEntry(t, key, NULL);
 	HashEntry_Set(he, value);
-	return he;
 }
 
 /* Delete the entry from the table and free the associated memory. */
@@ -361,5 +329,5 @@ void
 HashTable_DebugStats(HashTable *t, const char *name)
 {
 	DEBUG4(HASH, "HashTable %s: size=%u numEntries=%u maxchain=%u\n",
-	       name, t->bucketsSize, t->numEntries, t->maxchain);
+	    name, t->bucketsSize, t->numEntries, t->maxchain);
 }

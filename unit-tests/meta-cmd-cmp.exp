@@ -34,4 +34,20 @@ vs
 Building .meta-cmd-cmp.cmp2
 This line not compared FLAGS=
 Skipping meta for .END: .SPECIAL
+filter0:
+Building .meta-cmd-cmp.filter
+Skipping meta for .END: .SPECIAL
+filter1:
+.meta-cmd-cmp.filter.meta: 2: a build command has changed
+@echo ccache cc -c foo.c > .meta-cmd-cmp.filter
+vs
+@echo  cc -c foo.c > .meta-cmd-cmp.filter
+Building .meta-cmd-cmp.filter
+Skipping meta for .END: .SPECIAL
+filter2:
+`.meta-cmd-cmp.filter' is up to date.
+Skipping meta for .END: .SPECIAL
+filter3:
+`.meta-cmd-cmp.filter' is up to date.
+Skipping meta for .END: .SPECIAL
 exit status 0

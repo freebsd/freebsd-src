@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.302 2021/12/12 09:36:00 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.327 2022/01/29 01:12:36 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -95,10 +95,10 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.302 2021/12/12 09:36:00 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.327 2022/01/29 01:12:36 rillig Exp $");
 
 /*
- * The parsing of conditional expressions is based on this grammar:
+ * Conditional expressions conform to this grammar:
  *	Or -> And ('||' And)*
  *	And -> Term ('&&' Term)*
  *	Term -> Function '(' Argument ')'
@@ -109,13 +109,13 @@ MAKE_RCSID("$NetBSD: cond.c,v 1.302 2021/12/12 09:36:00 rillig Exp $");
  *	Leaf -> "string"
  *	Leaf -> Number
  *	Leaf -> VariableExpression
- *	Leaf -> Symbol
+ *	Leaf -> BareWord
  *	Operator -> '==' | '!=' | '>' | '<' | '>=' | '<='
  *
- * 'Symbol' is an unquoted string literal to which the default function is
- * applied.
+ * BareWord is an unquoted string literal, its evaluation depends on the kind
+ * of '.if' directive.
  *
- * The tokens are scanned by CondToken, which returns:
+ * The tokens are scanned by CondParser_Token, which returns:
  *	TOK_AND		for '&&'
  *	TOK_OR		for '||'
  *	TOK_NOT		for '!'
@@ -123,17 +123,13 @@ MAKE_RCSID("$NetBSD: cond.c,v 1.302 2021/12/12 09:36:00 rillig Exp $");
  *	TOK_RPAREN	for ')'
  *
  * Other terminal symbols are evaluated using either the default function or
- * the function given in the terminal, they return either TOK_TRUE or
- * TOK_FALSE.
+ * the function given in the terminal, they return either TOK_TRUE, TOK_FALSE
+ * or TOK_ERROR.
  */
 typedef enum Token {
 	TOK_FALSE, TOK_TRUE, TOK_AND, TOK_OR, TOK_NOT,
 	TOK_LPAREN, TOK_RPAREN, TOK_EOF, TOK_NONE, TOK_ERROR
 } Token;
-
-typedef enum CondResult {
-	CR_FALSE, CR_TRUE, CR_ERROR
-} CondResult;
 
 typedef enum ComparisonOp {
 	LT, LE, GT, GE, EQ, NE
@@ -186,10 +182,14 @@ static unsigned int cond_min_depth = 0;	/* depth at makefile open */
 /* Names for ComparisonOp. */
 static const char opname[][3] = { "<", "<=", ">", ">=", "==", "!=" };
 
-static bool
-is_token(const char *str, const char *tok, unsigned char len)
+MAKE_INLINE bool
+skip_string(const char **pp, const char *str)
 {
-	return strncmp(str, tok, (size_t)len) == 0 && !ch_isalpha(str[len]);
+	size_t len = strlen(str);
+	bool ok = strncmp(*pp, str, len) == 0;
+	if (ok)
+		*pp += len;
+	return ok;
 }
 
 static Token
@@ -208,31 +208,13 @@ CondParser_SkipWhitespace(CondParser *par)
  * Parse a single word, taking into account balanced parentheses as well as
  * embedded expressions.  Used for the argument of a built-in function as
  * well as for bare words, which are then passed to the default function.
- *
- * Arguments:
- *	*pp initially points at the '(',
- *	upon successful return it points right after the ')'.
- *
- *	*out_arg receives the argument as string.
- *
- *	func says whether the argument belongs to an actual function, or
- *	NULL when parsing a bare word.
- *
- * Return the length of the argument, or an ambiguous 0 on error.
  */
-static size_t
-ParseWord(CondParser *par, const char **pp, bool doEval, const char *func,
-	     char **out_arg)
+static char *
+ParseWord(const char **pp, bool doEval)
 {
 	const char *p = *pp;
 	Buffer argBuf;
 	int paren_depth;
-	size_t argLen;
-
-	if (func != NULL)
-		p++;		/* Skip opening '(' - verified by caller */
-
-	cpp_skip_hspace(&p);
 
 	Buf_InitSize(&argBuf, 16);
 
@@ -243,7 +225,7 @@ ParseWord(CondParser *par, const char **pp, bool doEval, const char *func,
 			break;
 		if ((ch == '&' || ch == '|') && paren_depth == 0)
 			break;
-		if (*p == '$') {
+		if (ch == '$') {
 			/*
 			 * Parse the variable expression and install it as
 			 * part of the argument if it's valid. We tell
@@ -266,58 +248,73 @@ ParseWord(CondParser *par, const char **pp, bool doEval, const char *func,
 			paren_depth++;
 		else if (ch == ')' && --paren_depth < 0)
 			break;
-		Buf_AddByte(&argBuf, *p);
+		Buf_AddByte(&argBuf, ch);
 		p++;
 	}
 
-	argLen = argBuf.len;
-	*out_arg = Buf_DoneData(&argBuf);
+	cpp_skip_hspace(&p);
+	*pp = p;
 
+	return Buf_DoneData(&argBuf);
+}
+
+/* Parse the function argument, including the surrounding parentheses. */
+static char *
+ParseFuncArg(CondParser *par, const char **pp, bool doEval, const char *func)
+{
+	const char *p = *pp;
+	char *res;
+
+	p++;			/* Skip opening '(' - verified by caller */
+	cpp_skip_hspace(&p);
+	res = ParseWord(&p, doEval);
 	cpp_skip_hspace(&p);
 
-	if (func != NULL && *p++ != ')') {
+	if (*p++ != ')') {
+		int len = 0;
+		while (ch_isalpha(func[len]))
+			len++;
+
 		Parse_Error(PARSE_FATAL,
-		    "Missing closing parenthesis for %s()", func);
+		    "Missing closing parenthesis for %.*s()", len, func);
 		par->printedError = true;
-		return 0;
+		free(res);
+		return NULL;
 	}
 
 	*pp = p;
-	return argLen;
+	return res;
 }
 
 /* Test whether the given variable is defined. */
 static bool
-FuncDefined(const char *arg)
+FuncDefined(const char *var)
 {
-	FStr value = Var_Value(SCOPE_CMDLINE, arg);
-	bool result = value.str != NULL;
-	FStr_Done(&value);
-	return result;
+	return Var_Exists(SCOPE_CMDLINE, var);
 }
 
 /* See if the given target is requested to be made. */
 static bool
-FuncMake(const char *arg)
+FuncMake(const char *target)
 {
 	StringListNode *ln;
 
 	for (ln = opts.create.first; ln != NULL; ln = ln->next)
-		if (Str_Match(ln->datum, arg))
+		if (Str_Match(ln->datum, target))
 			return true;
 	return false;
 }
 
 /* See if the given file exists. */
 static bool
-FuncExists(const char *arg)
+FuncExists(const char *file)
 {
 	bool result;
 	char *path;
 
-	path = Dir_FindFile(arg, &dirSearchPath);
+	path = Dir_FindFile(file, &dirSearchPath);
 	DEBUG2(COND, "exists(%s) result is \"%s\"\n",
-	       arg, path != NULL ? path : "");
+	    file, path != NULL ? path : "");
 	result = path != NULL;
 	free(path);
 	return result;
@@ -325,9 +322,9 @@ FuncExists(const char *arg)
 
 /* See if the given node exists and is an actual target. */
 static bool
-FuncTarget(const char *arg)
+FuncTarget(const char *node)
 {
-	GNode *gn = Targ_FindNode(arg);
+	GNode *gn = Targ_FindNode(node);
 	return gn != NULL && GNode_IsTarget(gn);
 }
 
@@ -336,20 +333,16 @@ FuncTarget(const char *arg)
  * associated with it.
  */
 static bool
-FuncCommands(const char *arg)
+FuncCommands(const char *node)
 {
-	GNode *gn = Targ_FindNode(arg);
-	return gn != NULL && GNode_IsTarget(gn) && !Lst_IsEmpty(&gn->commands);
+	GNode *gn = Targ_FindNode(node);
+	return gn != NULL && GNode_IsTarget(gn) &&
+	       !Lst_IsEmpty(&gn->commands);
 }
 
 /*
- * Convert the given number into a double.
- * We try a base 10 or 16 integer conversion first, if that fails
- * then we try a floating point conversion instead.
- *
- * Results:
- *	Returns true if the conversion succeeded.
- *	Sets 'out_value' to the converted number.
+ * Convert the string into a floating-point number.  Accepted formats are
+ * base-10 integer, base-16 integer and finite floating point numbers.
  */
 static bool
 TryParseNumber(const char *str, double *out_value)
@@ -399,7 +392,7 @@ CondParser_StringExpr(CondParser *par, const char *start,
 		      Buffer *buf, FStr *inout_str)
 {
 	VarEvalMode emode;
-	const char *nested_p;
+	const char *p;
 	bool atStart;
 	VarParseResult parseResult;
 
@@ -407,9 +400,9 @@ CondParser_StringExpr(CondParser *par, const char *start,
 	    : doEval ? VARE_UNDEFERR
 	    : VARE_PARSE_ONLY;
 
-	nested_p = par->p;
-	atStart = nested_p == start;
-	parseResult = Var_Parse(&nested_p, SCOPE_CMDLINE, emode, inout_str);
+	p = par->p;
+	atStart = p == start;
+	parseResult = Var_Parse(&p, SCOPE_CMDLINE, emode, inout_str);
 	/* TODO: handle errors */
 	if (inout_str->str == var_Error) {
 		if (parseResult == VPR_ERR) {
@@ -433,7 +426,7 @@ CondParser_StringExpr(CondParser *par, const char *start,
 		*inout_str = FStr_InitRefer(NULL);
 		return false;
 	}
-	par->p = nested_p;
+	par->p = p;
 
 	/*
 	 * If the '$' started the string literal (which means no quotes), and
@@ -445,17 +438,16 @@ CondParser_StringExpr(CondParser *par, const char *start,
 
 	Buf_AddStr(buf, inout_str->str);
 	FStr_Done(inout_str);
-	*inout_str = FStr_InitRefer(NULL); /* not finished yet */
+	*inout_str = FStr_InitRefer(NULL);	/* not finished yet */
 	return true;
 }
 
 /*
- * Parse a string from a variable expression or an optionally quoted
- * string.  This is called for the left-hand and right-hand sides of
- * comparisons.
+ * Parse a string from a variable expression or an optionally quoted string,
+ * on the left-hand and right-hand sides of comparisons.
  *
  * Results:
- *	Returns the string, absent any quotes, or NULL on error.
+ *	Returns the string without any enclosing quotes, or NULL on error.
  *	Sets out_quoted if the leaf was a quoted string literal.
  */
 static void
@@ -486,7 +478,7 @@ CondParser_Leaf(CondParser *par, bool doEval, bool unquotedOK,
 		case '"':
 			par->p++;
 			if (quoted)
-				goto got_str;	/* skip the closing quote */
+				goto return_buf;	/* skip the closing quote */
 			Buf_AddByte(&buf, '"');
 			continue;
 		case ')':	/* see is_separator */
@@ -497,14 +489,14 @@ CondParser_Leaf(CondParser *par, bool doEval, bool unquotedOK,
 		case ' ':
 		case '\t':
 			if (!quoted)
-				goto got_str;
+				goto return_buf;
 			Buf_AddByte(&buf, par->p[0]);
 			par->p++;
 			continue;
 		case '$':
 			if (!CondParser_StringExpr(par,
 			    start, doEval, quoted, &buf, &str))
-				goto cleanup;
+				goto return_str;
 			continue;
 		default:
 			if (!unquotedOK && !quoted && *start != '$' &&
@@ -514,26 +506,19 @@ CondParser_Leaf(CondParser *par, bool doEval, bool unquotedOK,
 				 * a variable expression or a number.
 				 */
 				str = FStr_InitRefer(NULL);
-				goto cleanup;
+				goto return_str;
 			}
 			Buf_AddByte(&buf, par->p[0]);
 			par->p++;
 			continue;
 		}
 	}
-got_str:
+return_buf:
 	str = FStr_InitOwn(buf.data);
 	buf.data = NULL;
-cleanup:
+return_str:
 	Buf_Done(&buf);
 	*out_str = str;
-}
-
-static bool
-EvalBare(const CondParser *par, const char *arg)
-{
-	bool res = par->evalBare(arg);
-	return par->negateEvalBare ? !res : res;
 }
 
 /*
@@ -553,9 +538,11 @@ EvalNotEmpty(CondParser *par, const char *value, bool quoted)
 	if (TryParseNumber(value, &num))
 		return num != 0.0;
 
-	/* For .if ${...}, check for non-empty string.  This is different from
-	 * the evaluation function from that .if variant, which would test
-	 * whether a variable of the given name were defined. */
+	/*
+	 * For .if ${...}, check for non-empty string.  This is different
+	 * from the evaluation function from that .if variant, which would
+	 * test whether a variable of the given name were defined.
+	 */
 	/*
 	 * XXX: Whitespace should count as empty, just as in
 	 * CondParser_FuncCallEmpty.
@@ -563,7 +550,7 @@ EvalNotEmpty(CondParser *par, const char *value, bool quoted)
 	if (par->plain)
 		return value[0] != '\0';
 
-	return EvalBare(par, value);
+	return par->evalBare(value) != par->negateEvalBare;
 }
 
 /* Evaluate a numerical comparison, such as in ".if ${VAR} >= 9". */
@@ -623,33 +610,19 @@ CondParser_ComparisonOp(CondParser *par, ComparisonOp *out_op)
 {
 	const char *p = par->p;
 
-	if (p[0] == '<' && p[1] == '=') {
-		*out_op = LE;
-		goto length_2;
-	} else if (p[0] == '<') {
-		*out_op = LT;
-		goto length_1;
-	} else if (p[0] == '>' && p[1] == '=') {
-		*out_op = GE;
-		goto length_2;
-	} else if (p[0] == '>') {
-		*out_op = GT;
-		goto length_1;
-	} else if (p[0] == '=' && p[1] == '=') {
-		*out_op = EQ;
-		goto length_2;
-	} else if (p[0] == '!' && p[1] == '=') {
-		*out_op = NE;
-		goto length_2;
-	}
+	if (p[0] == '<' && p[1] == '=')
+		return par->p += 2, *out_op = LE, true;
+	if (p[0] == '<')
+		return par->p += 1, *out_op = LT, true;
+	if (p[0] == '>' && p[1] == '=')
+		return par->p += 2, *out_op = GE, true;
+	if (p[0] == '>')
+		return par->p += 1, *out_op = GT, true;
+	if (p[0] == '=' && p[1] == '=')
+		return par->p += 2, *out_op = EQ, true;
+	if (p[0] == '!' && p[1] == '=')
+		return par->p += 2, *out_op = NE, true;
 	return false;
-
-length_2:
-	par->p = p + 2;
-	return true;
-length_1:
-	par->p = p + 1;
-	return true;
 }
 
 /*
@@ -718,9 +691,8 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 	Token tok;
 	FStr val;
 
-	if (!is_token(cp, "empty", 5))
+	if (!skip_string(&cp, "empty"))
 		return false;
-	cp += 5;
 
 	cpp_skip_whitespace(&cp);
 	if (*cp != '(')
@@ -735,7 +707,7 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 		tok = TOK_ERROR;
 	else {
 		cpp_skip_whitespace(&val.str);
-		tok = val.str[0] != '\0' && doEval ? TOK_FALSE : TOK_TRUE;
+		tok = ToToken(doEval && val.str[0] == '\0');
 	}
 
 	FStr_Done(&val);
@@ -748,37 +720,34 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 static bool
 CondParser_FuncCall(CondParser *par, bool doEval, Token *out_token)
 {
-	static const struct fn_def {
-		const char fn_name[9];
-		unsigned char fn_name_len;
-		bool (*fn_eval)(const char *);
-	} fns[] = {
-		{ "defined",  7, FuncDefined },
-		{ "make",     4, FuncMake },
-		{ "exists",   6, FuncExists },
-		{ "target",   6, FuncTarget },
-		{ "commands", 8, FuncCommands }
-	};
-	const struct fn_def *fn;
-	char *arg = NULL;
-	size_t arglen;
-	const char *cp = par->p;
-	const struct fn_def *last_fn = fns + sizeof fns / sizeof fns[0] - 1;
+	char *arg;
+	const char *p = par->p;
+	bool (*fn)(const char *);
+	const char *fn_name = p;
 
-	for (fn = fns; !is_token(cp, fn->fn_name, fn->fn_name_len); fn++)
-		if (fn == last_fn)
-			return false;
-
-	cp += fn->fn_name_len;
-	cpp_skip_whitespace(&cp);
-	if (*cp != '(')
+	if (skip_string(&p, "defined"))
+		fn = FuncDefined;
+	else if (skip_string(&p, "make"))
+		fn = FuncMake;
+	else if (skip_string(&p, "exists"))
+		fn = FuncExists;
+	else if (skip_string(&p, "target"))
+		fn = FuncTarget;
+	else if (skip_string(&p, "commands"))
+		fn = FuncCommands;
+	else
 		return false;
 
-	arglen = ParseWord(par, &cp, doEval, fn->fn_name, &arg);
-	*out_token = ToToken(arglen != 0 && (!doEval || fn->fn_eval(arg)));
+	cpp_skip_whitespace(&p);
+	if (*p != '(')
+		return false;
 
+	arg = ParseFuncArg(par, &p, doEval, fn_name);
+	*out_token = ToToken(doEval &&
+	    arg != NULL && arg[0] != '\0' && fn(arg));
 	free(arg);
-	par->p = cp;
+
+	par->p = p;
 	return true;
 }
 
@@ -793,9 +762,8 @@ static Token
 CondParser_ComparisonOrLeaf(CondParser *par, bool doEval)
 {
 	Token t;
-	char *arg = NULL;
+	char *arg;
 	const char *cp;
-	const char *cp1;
 
 	/* Push anything numeric through the compare expression */
 	cp = par->p;
@@ -811,13 +779,13 @@ CondParser_ComparisonOrLeaf(CondParser *par, bool doEval)
 	 * as an expression.
 	 */
 	/*
-	 * XXX: Is it possible to have a variable expression evaluated twice
-	 *  at this point?
+	 * XXX: In edge cases, a variable expression may be evaluated twice,
+	 *  see cond-token-plain.mk, keyword 'twice'.
 	 */
-	(void)ParseWord(par, &cp, doEval, NULL, &arg);
-	cp1 = cp;
-	cpp_skip_whitespace(&cp1);
-	if (*cp1 == '=' || *cp1 == '!' || *cp1 == '<' || *cp1 == '>')
+	arg = ParseWord(&cp, doEval);
+	assert(arg[0] != '\0');
+
+	if (*cp == '=' || *cp == '!' || *cp == '<' || *cp == '>')
 		return CondParser_Comparison(par, doEval);
 	par->p = cp;
 
@@ -827,7 +795,7 @@ CondParser_ComparisonOrLeaf(CondParser *par, bool doEval)
 	 * after .if must have been taken literally, so the argument cannot
 	 * be empty - even if it contained a variable expansion.
 	 */
-	t = ToToken(!doEval || EvalBare(par, arg));
+	t = ToToken(doEval && par->evalBare(arg) != par->negateEvalBare);
 	free(arg);
 	return t;
 }
@@ -998,42 +966,32 @@ CondParser_Or(CondParser *par, bool doEval)
 	return res;
 }
 
-static CondEvalResult
-CondParser_Eval(CondParser *par, bool *out_value)
+static CondResult
+CondParser_Eval(CondParser *par)
 {
 	CondResult res;
 
 	DEBUG1(COND, "CondParser_Eval: %s\n", par->p);
 
 	res = CondParser_Or(par, true);
-	if (res == CR_ERROR)
-		return COND_INVALID;
+	if (res != CR_ERROR && CondParser_Token(par, false) != TOK_EOF)
+		return CR_ERROR;
 
-	if (CondParser_Token(par, false) != TOK_EOF)
-		return COND_INVALID;
-
-	*out_value = res == CR_TRUE;
-	return COND_PARSE;
+	return res;
 }
 
 /*
  * Evaluate the condition, including any side effects from the variable
  * expressions in the condition. The condition consists of &&, ||, !,
  * function(arg), comparisons and parenthetical groupings thereof.
- *
- * Results:
- *	COND_PARSE	if the condition was valid grammatically
- *	COND_INVALID	if not a valid conditional.
- *
- *	*out_value	is set to the boolean value of the condition
  */
-static CondEvalResult
-CondEvalExpression(const char *cond, bool *out_value, bool plain,
+static CondResult
+CondEvalExpression(const char *cond, bool plain,
 		   bool (*evalBare)(const char *), bool negate,
 		   bool eprint, bool leftUnquotedOK)
 {
 	CondParser par;
-	CondEvalResult rval;
+	CondResult rval;
 
 	cpp_skip_hspace(&cond);
 
@@ -1045,9 +1003,9 @@ CondEvalExpression(const char *cond, bool *out_value, bool plain,
 	par.curr = TOK_NONE;
 	par.printedError = false;
 
-	rval = CondParser_Eval(&par, out_value);
+	rval = CondParser_Eval(&par);
 
-	if (rval == COND_INVALID && eprint && !par.printedError)
+	if (rval == CR_ERROR && eprint && !par.printedError)
 		Parse_Error(PARSE_FATAL, "Malformed conditional (%s)", cond);
 
 	return rval;
@@ -1057,10 +1015,10 @@ CondEvalExpression(const char *cond, bool *out_value, bool plain,
  * Evaluate a condition in a :? modifier, such as
  * ${"${VAR}" == value:?yes:no}.
  */
-CondEvalResult
-Cond_EvalCondition(const char *cond, bool *out_value)
+CondResult
+Cond_EvalCondition(const char *cond)
 {
-	return CondEvalExpression(cond, out_value, true,
+	return CondEvalExpression(cond, true,
 	    FuncDefined, false, false, true);
 }
 
@@ -1076,36 +1034,33 @@ DetermineKindOfConditional(const char **pp, bool *out_plain,
 			   bool (**out_evalBare)(const char *),
 			   bool *out_negate)
 {
-	const char *p = *pp;
+	const char *p = *pp + 2;
 
-	p += 2;
 	*out_plain = false;
 	*out_evalBare = FuncDefined;
-	*out_negate = false;
-	if (*p == 'n') {
-		p++;
-		*out_negate = true;
-	}
-	if (is_token(p, "def", 3)) {		/* .ifdef and .ifndef */
-		p += 3;
-	} else if (is_token(p, "make", 4)) {	/* .ifmake and .ifnmake */
-		p += 4;
+	*out_negate = skip_string(&p, "n");
+
+	if (skip_string(&p, "def")) {		/* .ifdef and .ifndef */
+	} else if (skip_string(&p, "make"))	/* .ifmake and .ifnmake */
 		*out_evalBare = FuncMake;
-	} else if (is_token(p, "", 0) && !*out_negate) { /* plain .if */
+	else if (!*out_negate)			/* plain .if */
 		*out_plain = true;
-	} else {
-		/*
-		 * TODO: Add error message about unknown directive,
-		 * since there is no other known directive that starts
-		 * with 'el' or 'if'.
-		 *
-		 * Example: .elifx 123
-		 */
-		return false;
-	}
+	else
+		goto unknown_directive;
+	if (ch_isalpha(*p))
+		goto unknown_directive;
 
 	*pp = p;
 	return true;
+
+unknown_directive:
+	/*
+	 * TODO: Add error message about unknown directive, since there is no
+	 * other known directive that starts with 'el' or 'if'.
+	 *
+	 * Example: .elifx 123
+	 */
+	return false;
 }
 
 /*
@@ -1129,16 +1084,16 @@ DetermineKindOfConditional(const char **pp, bool *out_plain,
  * parenthetical groupings thereof.
  *
  * Results:
- *	COND_PARSE	to continue parsing the lines that follow the
+ *	CR_TRUE		to continue parsing the lines that follow the
  *			conditional (when <cond> evaluates to true)
- *	COND_SKIP	to skip the lines after the conditional
+ *	CR_FALSE	to skip the lines after the conditional
  *			(when <cond> evaluates to false, or when a previous
  *			branch has already been taken)
- *	COND_INVALID	if the conditional was not valid, either because of
+ *	CR_ERROR	if the conditional was not valid, either because of
  *			a syntax error or because some variable was undefined
  *			or because the condition could not be evaluated
  */
-CondEvalResult
+CondResult
 Cond_EvalLine(const char *line)
 {
 	typedef enum IfState {
@@ -1146,8 +1101,10 @@ Cond_EvalLine(const char *line)
 		/* None of the previous <cond> evaluated to true. */
 		IFS_INITIAL	= 0,
 
-		/* The previous <cond> evaluated to true.
-		 * The lines following this condition are interpreted. */
+		/*
+		 * The previous <cond> evaluated to true. The lines following
+		 * this condition are interpreted.
+		 */
 		IFS_ACTIVE	= 1 << 0,
 
 		/* The previous directive was an '.else'. */
@@ -1165,7 +1122,7 @@ Cond_EvalLine(const char *line)
 	bool (*evalBare)(const char *);
 	bool negate;
 	bool isElif;
-	bool value;
+	CondResult res;
 	IfState state;
 	const char *p = line;
 
@@ -1186,13 +1143,13 @@ Cond_EvalLine(const char *line)
 
 		if (cond_depth == cond_min_depth) {
 			Parse_Error(PARSE_FATAL, "if-less endif");
-			return COND_PARSE;
+			return CR_TRUE;
 		}
 
 		/* Return state for previous conditional */
 		cond_depth--;
 		return cond_states[cond_depth] & IFS_ACTIVE
-		    ? COND_PARSE : COND_SKIP;
+		    ? CR_TRUE : CR_FALSE;
 	}
 
 	/* Parse the name of the directive, such as 'if', 'elif', 'endif'. */
@@ -1203,13 +1160,12 @@ Cond_EvalLine(const char *line)
 			 * transformation rule like '.err.txt',
 			 * therefore no error message here.
 			 */
-			return COND_INVALID;
+			return CR_ERROR;
 		}
 
 		/* Quite likely this is 'else' or 'elif' */
 		p += 2;
-		if (is_token(p, "se", 2)) {	/* It is an 'else'. */
-
+		if (strncmp(p, "se", 2) == 0 && !ch_isalpha(p[2])) {
 			if (p[2] != '\0')
 				Parse_Error(PARSE_FATAL,
 				    "The .else directive "
@@ -1217,7 +1173,7 @@ Cond_EvalLine(const char *line)
 
 			if (cond_depth == cond_min_depth) {
 				Parse_Error(PARSE_FATAL, "if-less else");
-				return COND_PARSE;
+				return CR_TRUE;
 			}
 
 			state = cond_states[cond_depth];
@@ -1226,12 +1182,12 @@ Cond_EvalLine(const char *line)
 			} else {
 				if (state & IFS_SEEN_ELSE)
 					Parse_Error(PARSE_WARNING,
-						    "extra else");
+					    "extra else");
 				state = IFS_WAS_ACTIVE | IFS_SEEN_ELSE;
 			}
 			cond_states[cond_depth] = state;
 
-			return state & IFS_ACTIVE ? COND_PARSE : COND_SKIP;
+			return state & IFS_ACTIVE ? CR_TRUE : CR_FALSE;
 		}
 		/* Assume for now it is an elif */
 		isElif = true;
@@ -1243,27 +1199,27 @@ Cond_EvalLine(const char *line)
 		 * Unknown directive.  It might still be a transformation rule
 		 * like '.elisp.scm', therefore no error message here.
 		 */
-		return COND_INVALID;	/* Not an ifxxx or elifxxx line */
+		return CR_ERROR;	/* Not an ifxxx or elifxxx line */
 	}
 
 	if (!DetermineKindOfConditional(&p, &plain, &evalBare, &negate))
-		return COND_INVALID;
+		return CR_ERROR;
 
 	if (isElif) {
 		if (cond_depth == cond_min_depth) {
 			Parse_Error(PARSE_FATAL, "if-less elif");
-			return COND_PARSE;
+			return CR_TRUE;
 		}
 		state = cond_states[cond_depth];
 		if (state & IFS_SEEN_ELSE) {
 			Parse_Error(PARSE_WARNING, "extra elif");
 			cond_states[cond_depth] =
 			    IFS_WAS_ACTIVE | IFS_SEEN_ELSE;
-			return COND_SKIP;
+			return CR_FALSE;
 		}
 		if (state != IFS_INITIAL) {
 			cond_states[cond_depth] = IFS_WAS_ACTIVE;
-			return COND_SKIP;
+			return CR_FALSE;
 		}
 	} else {
 		/* Normal .if */
@@ -1275,8 +1231,7 @@ Cond_EvalLine(const char *line)
 			 */
 			cond_states_cap += 32;
 			cond_states = bmake_realloc(cond_states,
-						    cond_states_cap *
-						    sizeof *cond_states);
+			    cond_states_cap * sizeof *cond_states);
 		}
 		state = cond_states[cond_depth];
 		cond_depth++;
@@ -1286,26 +1241,22 @@ Cond_EvalLine(const char *line)
 			 * treat as always false.
 			 */
 			cond_states[cond_depth] = IFS_WAS_ACTIVE;
-			return COND_SKIP;
+			return CR_FALSE;
 		}
 	}
 
 	/* And evaluate the conditional expression */
-	if (CondEvalExpression(p, &value, plain, evalBare, negate,
-	    true, false) == COND_INVALID) {
-		/* Syntax error in conditional, error message already output. */
-		/* Skip everything to matching .endif */
-		/* XXX: An extra '.else' is not detected in this case. */
+	res = CondEvalExpression(p, plain, evalBare, negate, true, false);
+	if (res == CR_ERROR) {
+		/* Syntax error, error message already output. */
+		/* Skip everything to the matching '.endif'. */
+		/* An extra '.else' is not detected in this case. */
 		cond_states[cond_depth] = IFS_WAS_ACTIVE;
-		return COND_SKIP;
+		return CR_FALSE;
 	}
 
-	if (!value) {
-		cond_states[cond_depth] = IFS_INITIAL;
-		return COND_SKIP;
-	}
-	cond_states[cond_depth] = IFS_ACTIVE;
-	return COND_PARSE;
+	cond_states[cond_depth] = res == CR_TRUE ? IFS_ACTIVE : IFS_INITIAL;
+	return res;
 }
 
 void
@@ -1315,7 +1266,7 @@ Cond_restore_depth(unsigned int saved_depth)
 
 	if (open_conds != 0 || saved_depth > cond_depth) {
 		Parse_Error(PARSE_FATAL, "%u open conditional%s",
-			    open_conds, open_conds == 1 ? "" : "s");
+		    open_conds, open_conds == 1 ? "" : "s");
 		cond_depth = cond_min_depth;
 	}
 

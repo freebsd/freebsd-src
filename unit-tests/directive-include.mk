@@ -1,4 +1,4 @@
-# $NetBSD: directive-include.mk,v 1.7 2021/12/03 22:48:07 rillig Exp $
+# $NetBSD: directive-include.mk,v 1.11 2022/01/15 12:35:18 rillig Exp $
 #
 # Tests for the .include directive, which includes another file.
 
@@ -50,5 +50,36 @@ DQUOT=	"
 # expression is skipped and the file is included nevertheless.
 # FIXME: Add proper error handling, no file must be included here.
 .include "nonexistent${:U123:Z}.mk"
+
+# The traditional include directive is seldom used.
+include /dev/null		# comment
+# expect+1: Cannot open /nonexistent
+include /nonexistent		# comment
+sinclude /nonexistent		# comment
+include ${:U/dev/null}		# comment
+include /dev/null /dev/null
+# expect+1: Invalid line type
+include
+
+# XXX: trailing whitespace in diagnostic, missing quotes around filename
+### TODO: expect+1: Could not find
+# The following include directive behaves differently, depending on whether
+# the current file has a slash or is a relative filename.  In the first case,
+# make opens the directory of the current file and tries to read from it,
+# resulting in the error message """ line 1: Zero byte read from file".
+# In the second case, the error message is "Could not find ", without quotes
+# or any other indicator for the empty filename at the end of the line.
+#include ${:U}
+
+
+# Since parse.c 1.612 from 2022-01-01 and before parse.c 1.620 from
+# 2022-01-07, including an empty regular file called bmake_malloc(0), which
+# may return a null pointer.  On OpenBSD, this led to a segmentation fault in
+# Buf_InitSize, which assumes that bmake_malloc never returns NULL, just like
+# all other places in the code.
+_!=		> directive-include-empty
+.include "${.CURDIR}/directive-include-empty"
+_!=		rm directive-include-empty
+
 
 all:

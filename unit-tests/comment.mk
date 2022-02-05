@@ -1,4 +1,4 @@
-# $NetBSD: comment.mk,v 1.3 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: comment.mk,v 1.4 2022/01/23 18:00:53 rillig Exp $
 #
 # Demonstrate how comments are written in makefiles.
 
@@ -15,7 +15,9 @@ on and on.
  # Comments can be indented with spaces, but that is rather unusual.
 
 	# Comments can be indented with a tab.
-	# These are not shell commands, they are just makefile comments.
+	# Since parse.c 1.127 from 2007-01-01, these are not shell commands,
+	# they are just makefile comments.  Before that commit, these comments
+	# triggered the error message "Unassociated shell command".
 
 .if 1			# There can be comments after conditions.
 .endif			# And after the closing directive.

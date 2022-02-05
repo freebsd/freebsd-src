@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.300 2021/12/12 20:45:48 sjg Exp $
+.\"	$NetBSD: make.1,v 1.304 2022/01/29 20:54:58 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd December 12, 2021
+.Dd January 28, 2022
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -691,10 +691,38 @@ Variables defined as part of the command line.
 Variables that are defined specific to a certain target.
 .El
 .Pp
-Local variables are all built in and their values vary magically from
-target to target.
-It is not currently possible to define new local variables.
-The seven local variables are as follows:
+Local variables can be set on a dependency line, if
+.Va .MAKE.TARGET_LOCAL_VARIABLES ,
+is not set to
+.Ql false .
+The rest of the line
+(which will already have had Global variables expanded),
+is the variable value.
+For example:
+.Bd -literal -offset indent
+COMPILER_WRAPPERS+= ccache distcc icecc
+
+${OBJS}: .MAKE.META.CMP_FILTER=${COMPILER_WRAPPERS:S,^,N,}
+.Ed
+.Pp
+Only the targets
+.Ql ${OBJS}
+will be impacted by that filter (in "meta" mode) and
+simply enabling/disabling any of the wrappers will not render all
+of those targets out-of-date.
+.Pp
+.Em NOTE :
+target local variable assignments behave differently in that;
+.Bl -tag -width Ds -offset indent
+.It Ic \&+=
+Only appends to a previous local assignment
+for the same target and variable.
+.It Ic \&:=
+Is redundant with respect to Global variables,
+which have already been expanded.
+.El
+.Pp
+The seven built-in local variables are as follows:
 .Bl -tag -width ".ARCHIVE" -offset indent
 .It Va .ALLSRC
 The list of all sources for this target; also known as
@@ -846,6 +874,11 @@ For example:
 would produce tokens like
 .Ql ---make[1234] target ---
 making it easier to track the degree of parallelism being achieved.
+.It .MAKE.TARGET_LOCAL_VARIABLES
+If set to
+.Ql false ,
+apparent variable assignments in dependency lines are
+treated as normal sources.
 .It Ev MAKEFLAGS
 The environment variable
 .Ql Ev MAKEFLAGS
@@ -954,6 +987,12 @@ If a file that was generated outside of
 .Va .OBJDIR
 but within said bailiwick is missing,
 the current target is considered out-of-date.
+.It Va .MAKE.META.CMP_FILTER
+In "meta" mode, it can (very rarely!) be useful to filter command
+lines before comparison.
+This variable can be set to a set of modifiers that will be applied to
+each line of the old and new command that differ, if the filtered
+commands still differ, the target is considered out-of-date.
 .It Va .MAKE.META.CREATED
 In "meta" mode, this variable contains a list of all the meta files
 updated.

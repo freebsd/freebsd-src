@@ -27,7 +27,7 @@ lhs = "var&&name", rhs = "var&&name", op = !=
 CondParser_Eval: ${:Uvar}||name != "var||name"
 lhs = "var||name", rhs = "var||name", op = !=
 CondParser_Eval: bare
-make: "cond-token-plain.mk" line 106: A bare word is treated like defined(...), and the variable 'bare' is not defined.
+make: "cond-token-plain.mk" line 105: A bare word is treated like defined(...), and the variable 'bare' is not defined.
 CondParser_Eval: VAR
 make: "cond-token-plain.mk" line 111: A bare word is treated like defined(...).
 CondParser_Eval: V${:UA}R
@@ -56,6 +56,7 @@ CondParser_Eval: 0
 make: "cond-token-plain.mk" line 201: Malformed conditional (${0:?:} || left == right)
 CondParser_Eval: left == right || ${0:?:}
 make: "cond-token-plain.mk" line 206: Malformed conditional (left == right || ${0:?:})
+make: "cond-token-plain.mk" line 225: Malformed conditional (VAR.${IF_COUNT::+=1} != "")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

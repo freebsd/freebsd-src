@@ -8,4 +8,8 @@ make: "directive-ifmake.mk" line 75: ok
 : first
 : second
 : late-target
-exit status 0
+make: don't know how to make !edge (continuing)
+
+Stop.
+make: stopped in unit-tests
+exit status 1

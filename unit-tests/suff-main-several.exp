@@ -1,11 +1,11 @@
-ParseReadLine (8): '.1.2 .1.3 .1.4:'
+Parsing line 8: .1.2 .1.3 .1.4:
 ParseDependency(.1.2 .1.3 .1.4:)
 Setting main node to ".1.2"
-ParseReadLine (9): '	: Making ${.TARGET} from ${.IMPSRC}.'
-ParseReadLine (14): 'next-main:'
+Parsing line 9: 	: Making ${.TARGET} from ${.IMPSRC}.
+Parsing line 14: next-main:
 ParseDependency(next-main:)
-ParseReadLine (15): '	: Making ${.TARGET}'
-ParseReadLine (19): '.SUFFIXES: .1 .2 .3 .4'
+Parsing line 15: 	: Making ${.TARGET}
+Parsing line 19: .SUFFIXES: .1 .2 .3 .4
 ParseDependency(.SUFFIXES: .1 .2 .3 .4)
 Adding suffix ".1"
 Adding suffix ".2"
@@ -26,42 +26,42 @@ defining transformation from `.1' to `.4'
 inserting ".1" (1) at end of list
 inserting ".4" (4) at end of list
 Setting main node to "next-main"
-ParseReadLine (24): '.SUFFIXES:'
+Parsing line 24: .SUFFIXES:
 ParseDependency(.SUFFIXES:)
 Clearing all suffixes
-ParseReadLine (32): '.SUFFIXES: .4 .3 .2 .1'
+Parsing line 32: .SUFFIXES: .4 .3 .2 .1
 ParseDependency(.SUFFIXES: .4 .3 .2 .1)
 Adding suffix ".4"
 Adding suffix ".3"
 Adding suffix ".2"
 Adding suffix ".1"
-ParseReadLine (33): '.SUFFIXES:'
+Parsing line 33: .SUFFIXES:
 ParseDependency(.SUFFIXES:)
 Clearing all suffixes
-ParseReadLine (34): '.SUFFIXES: .1 .2 .3 .4'
+Parsing line 34: .SUFFIXES: .1 .2 .3 .4
 ParseDependency(.SUFFIXES: .1 .2 .3 .4)
 Adding suffix ".1"
 Adding suffix ".2"
 Adding suffix ".3"
 Adding suffix ".4"
-ParseReadLine (35): '.SUFFIXES:'
+Parsing line 35: .SUFFIXES:
 ParseDependency(.SUFFIXES:)
 Clearing all suffixes
-ParseReadLine (36): '.SUFFIXES: .4 .3 .2 .1'
+Parsing line 36: .SUFFIXES: .4 .3 .2 .1
 ParseDependency(.SUFFIXES: .4 .3 .2 .1)
 Adding suffix ".4"
 Adding suffix ".3"
 Adding suffix ".2"
 Adding suffix ".1"
-ParseReadLine (38): 'suff-main-several.1:'
+Parsing line 38: suff-main-several.1:
 ParseDependency(suff-main-several.1:)
-ParseReadLine (39): '	: Making ${.TARGET} out of nothing.'
-ParseReadLine (40): 'next-main: suff-main-several.{2,3,4}'
+Parsing line 39: 	: Making ${.TARGET} out of nothing.
+Parsing line 40: next-main: suff-main-several.{2,3,4}
 ParseDependency(next-main: suff-main-several.{2,3,4})
 # LinkSource: added child next-main - suff-main-several.{2,3,4}
 # next-main, unmade, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
 # suff-main-several.{2,3,4}, unmade, type none, flags none
-ParseReadLine (42): '.MAKEFLAGS: -d0 -dg1'
+Parsing line 42: .MAKEFLAGS: -d0 -dg1
 ParseDependency(.MAKEFLAGS: -d0 -dg1)
 #*** Input graph:
 # .1.2, unmade, type OP_TRANSFORM, flags none

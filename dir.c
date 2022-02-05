@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.275 2021/11/28 21:46:17 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.278 2022/02/04 23:22:19 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -138,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.275 2021/11/28 21:46:17 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.278 2022/02/04 23:22:19 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -672,8 +672,8 @@ DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
 
 		{
 			char *fullName = isDot
-					 ? bmake_strdup(base)
-					 : str_concat3(dirName, "/", base);
+			    ? bmake_strdup(base)
+			    : str_concat3(dirName, "/", base);
 			Lst_Append(expansions, fullName);
 		}
 	}
@@ -792,7 +792,7 @@ DirExpandCurly(const char *word, const char *brace, SearchPath *path,
 		size_t piece_len = (size_t)(piece_end - piece);
 
 		char *file = concat3(prefix, prefix_len, piece, piece_len,
-				     suffix, suffix_len);
+		    suffix, suffix_len);
 
 		if (contains_wildcard(file)) {
 			SearchPath_Expand(path, file, expansions);
@@ -984,8 +984,9 @@ static char *
 DirLookupSubdir(CachedDir *dir, const char *name)
 {
 	struct cached_stat cst;
-	char *file = dir == dot ? bmake_strdup(name)
-				: str_concat3(dir->name, "/", name);
+	char *file = dir == dot
+	    ? bmake_strdup(name)
+	    : str_concat3(dir->name, "/", name);
 
 	DEBUG1(DIR, "checking %s ...\n", file);
 
@@ -1424,9 +1425,9 @@ ResolveMovedDepends(GNode *gn)
 	gn->path = bmake_strdup(fullName);
 	if (!Job_RunTarget(".STALE", gn->fname))
 		fprintf(stdout,	/* XXX: Why stdout? */
-			"%s: %s, %d: ignoring stale %s for %s, found %s\n",
-			progname, gn->fname, gn->lineno,
-			makeDependfile, gn->name, fullName);
+		    "%s: %s, %u: ignoring stale %s for %s, found %s\n",
+		    progname, gn->fname, gn->lineno,
+		    makeDependfile, gn->name, fullName);
 
 	return fullName;
 }
