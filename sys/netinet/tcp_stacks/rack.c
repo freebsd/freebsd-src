@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_syncache.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_ratelimit.h>
 #include <netinet/tcp_accounting.h>
@@ -113,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
+#include <netinet/tcp_ecn.h>
 
 #include <netipsec/ipsec_support.h>
 
@@ -11406,11 +11408,9 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags |= TF_ACKNOW;
 			rack->rc_dack_toggle = 0;
 		}
-		if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
-		    (V_tcp_do_ecn == 1)) {
-			tp->t_flags2 |= TF2_ECN_PERMIT;
-			KMOD_TCPSTAT_INC(tcps_ecn_shs);
-		}
+
+		tcp_ecn_input_syn_sent(tp, thflags, iptos);
+
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
 			/*
 			 * We advance snd_una for the
@@ -13683,31 +13683,8 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		}
 		tp->t_rcvtime = ticks;
 		/* Now what about ECN? */
-		if (tp->t_flags2 & TF2_ECN_PERMIT) {
-			if (ae->flags & TH_CWR) {
-				tp->t_flags2 &= ~TF2_ECN_SND_ECE;
-				tp->t_flags |= TF_ACKNOW;
-			}
-			switch (ae->codepoint & IPTOS_ECN_MASK) {
-			case IPTOS_ECN_CE:
-				tp->t_flags2 |= TF2_ECN_SND_ECE;
-				KMOD_TCPSTAT_INC(tcps_ecn_ce);
-				break;
-			case IPTOS_ECN_ECT0:
-				KMOD_TCPSTAT_INC(tcps_ecn_ect0);
-				break;
-			case IPTOS_ECN_ECT1:
-				KMOD_TCPSTAT_INC(tcps_ecn_ect1);
-				break;
-			}
-
-			/* Process a packet differently from RFC3168. */
-			cc_ecnpkt_handler_flags(tp, ae->flags, ae->codepoint);
-			/* Congestion experienced. */
-			if (ae->flags & TH_ECE) {
-				rack_cong_signal(tp,  CC_ECN, ae->ack);
-			}
-		}
+		if (tcp_ecn_input_segment(tp, ae->flags, ae->codepoint))
+			rack_cong_signal(tp, CC_ECN, ae->ack);
 #ifdef TCP_ACCOUNTING
 		/* Count for the specific type of ack in */
 		counter_u64_add(tcp_cnt_counters[ae->ack_val_set], 1);
@@ -14457,32 +14434,8 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * TCP ECN processing. XXXJTL: If we ever use ECN, we need to move
 	 * this to occur after we've validated the segment.
 	 */
-	if (tp->t_flags2 & TF2_ECN_PERMIT) {
-		if (thflags & TH_CWR) {
-			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
-			tp->t_flags |= TF_ACKNOW;
-		}
-		switch (iptos & IPTOS_ECN_MASK) {
-		case IPTOS_ECN_CE:
-			tp->t_flags2 |= TF2_ECN_SND_ECE;
-			KMOD_TCPSTAT_INC(tcps_ecn_ce);
-			break;
-		case IPTOS_ECN_ECT0:
-			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
-			break;
-		case IPTOS_ECN_ECT1:
-			KMOD_TCPSTAT_INC(tcps_ecn_ect1);
-			break;
-		}
-
-		/* Process a packet differently from RFC3168. */
-		cc_ecnpkt_handler(tp, th, iptos);
-
-		/* Congestion experienced. */
-		if (thflags & TH_ECE) {
-			rack_cong_signal(tp, CC_ECN, th->th_ack);
-		}
-	}
+	if (tcp_ecn_input_segment(tp, thflags, iptos))
+		rack_cong_signal(tp, CC_ECN, th->th_ack);
 
 	/*
 	 * If echoed timestamp is later than the current time, fall back to
@@ -14516,13 +14469,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		if (tp->t_state == TCPS_SYN_SENT && (thflags & TH_SYN)) {
 			/* Handle parallel SYN for ECN */
-			if (!(thflags & TH_ACK) &&
-			    ((thflags & (TH_CWR | TH_ECE)) == (TH_CWR | TH_ECE)) &&
-			    ((V_tcp_do_ecn == 1) || (V_tcp_do_ecn == 2))) {
-				tp->t_flags2 |= TF2_ECN_PERMIT;
-				tp->t_flags2 |= TF2_ECN_SND_ECE;
-				TCPSTAT_INC(tcps_ecn_shs);
-			}
+			tcp_ecn_input_parallel_syn(tp, thflags, iptos);
 			if ((to.to_flags & TOF_SCALE) &&
 			    (tp->t_flags & TF_REQ_SCALE)) {
 				tp->t_flags |= TF_RCVD_SCALE;
@@ -15879,7 +15826,8 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	struct tcpopt to;
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
-	int32_t slot, segsiz, max_val, tso = 0, error, flags, ulen = 0;
+	int32_t slot, segsiz, max_val, tso = 0, error, ulen = 0;
+	uint16_t flags;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
 
@@ -16006,7 +15954,6 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	if ((rsm->r_flags & RACK_HAD_PUSH) &&
 	    (len == (rsm->r_end - rsm->r_start)))
 		flags |= TH_PUSH;
-	tcp_set_flags(th, flags);
 	th->th_win = htons((u_short)(rack->r_ctl.fsb.recwin >> tp->rcv_scale));
 	if (th->th_win == 0) {
 		tp->t_sndzerowin++;
@@ -16056,6 +16003,25 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		udp->uh_ulen = htons(ulen);
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
+	if (TCPS_HAVERCVDSYN(tp->t_state) &&
+	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
+		int ect = tcp_ecn_output_established(tp, &flags, len);
+		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
+		    (tp->t_flags2 & TF2_ECN_SND_ECE))
+		    tp->t_flags2 &= ~TF2_ECN_SND_ECE;
+#ifdef INET6
+		if (rack->r_is_v6) {
+		    ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
+		    ip6->ip6_flow |= htonl(ect << 20);
+		}
+		else
+#endif
+		{
+		    ip->ip_tos &= ~IPTOS_ECN_MASK;
+		    ip->ip_tos |= ect;
+		}
+	}
+	tcp_set_flags(th, flags);
 	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #ifdef INET6
 	if (rack->r_is_v6) {
@@ -16379,7 +16345,8 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
 	int cnt_thru = 1;
-	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error, flags, ulen = 0;
+	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error, ulen = 0;
+	uint16_t flags;
 	uint32_t s_soff;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
@@ -16528,37 +16495,23 @@ again:
 		udp->uh_ulen = htons(ulen);
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
-	if (tp->t_state == TCPS_ESTABLISHED &&
+	if (TCPS_HAVERCVDSYN(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		/*
-		 * If the peer has ECN, mark data packets with ECN capable
-		 * transmission (ECT). Ignore pure ack packets,
-		 * retransmissions.
-		 */
-		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max)) {
+		int ect = tcp_ecn_output_established(tp, &flags, len);
+		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
+		    (tp->t_flags2 & TF2_ECN_SND_ECE))
+			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 #ifdef INET6
-			if (rack->r_is_v6) {
-				ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
-				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
-			}
-			else
-#endif
-			{
-				ip->ip_tos &= ~IPTOS_ECN_MASK;
-				ip->ip_tos |= IPTOS_ECN_ECT0;
-			}
-			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
-			/*
-			 * Reply with proper ECN notifications.
-			 * Only set CWR on new data segments.
-			 */
-			if (tp->t_flags2 & TF2_ECN_SND_CWR) {
-				flags |= TH_CWR;
-				tp->t_flags2 &= ~TF2_ECN_SND_CWR;
-			}
+		if (rack->r_is_v6) {
+			ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
+			ip6->ip6_flow |= htonl(ect << 20);
 		}
-		if (tp->t_flags2 & TF2_ECN_SND_ECE)
-			flags |= TH_ECE;
+		else
+#endif
+		{
+			ip->ip_tos &= ~IPTOS_ECN_MASK;
+			ip->ip_tos |= ect;
+		}
 	}
 	m->m_pkthdr.len = hdrlen + len;	/* in6_cksum() need this */
 #ifdef INET6
@@ -16786,7 +16739,8 @@ rack_output(struct tcpcb *tp)
 	struct socket *so;
 	uint32_t recwin;
 	uint32_t sb_offset, s_moff = 0;
-	int32_t len, flags, error = 0;
+	int32_t len, error = 0;
+	uint16_t flags;
 	struct mbuf *m, *s_mb = NULL;
 	struct mbuf *mb;
 	uint32_t if_hw_tsomaxsegcount = 0;
@@ -18596,51 +18550,27 @@ send:
 	 * are on a retransmit, we may resend those bits a number of times
 	 * as per RFC 3168.
 	 */
-	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn == 1) {
-		if (tp->t_rxtshift >= 1) {
-			if (tp->t_rxtshift <= V_tcp_ecn_maxretries)
-				flags |= TH_ECE | TH_CWR;
-		} else
-			flags |= TH_ECE | TH_CWR;
+	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn) {
+		flags |= tcp_ecn_output_syn_sent(tp);
 	}
-	/* Handle parallel SYN for ECN */
-	if ((tp->t_state == TCPS_SYN_RECEIVED) &&
-	    (tp->t_flags2 & TF2_ECN_SND_ECE)) {
-		flags |= TH_ECE;
-		tp->t_flags2 &= ~TF2_ECN_SND_ECE;
-	}
-	if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+	/* Also handle parallel SYN for ECN */
+	if (TCPS_HAVERCVDSYN(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		/*
-		 * If the peer has ECN, mark data packets with ECN capable
-		 * transmission (ECT). Ignore pure ack packets,
-		 * retransmissions.
-		 */
-		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
-		    (sack_rxmit == 0)) {
+		int ect = tcp_ecn_output_established(tp, &flags, len);
+		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
+		    (tp->t_flags2 & TF2_ECN_SND_ECE))
+			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 #ifdef INET6
-			if (isipv6) {
-				ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
-				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
-			}
-			else
-#endif
-			{
-				ip->ip_tos &= ~IPTOS_ECN_MASK;
-				ip->ip_tos |= IPTOS_ECN_ECT0;
-			}
-			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
-			/*
-			 * Reply with proper ECN notifications.
-			 * Only set CWR on new data segments.
-			 */
-			if (tp->t_flags2 & TF2_ECN_SND_CWR) {
-				flags |= TH_CWR;
-				tp->t_flags2 &= ~TF2_ECN_SND_CWR;
-			}
+		if (isipv6) {
+			ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
+			ip6->ip6_flow |= htonl(ect << 20);
 		}
-		if (tp->t_flags2 & TF2_ECN_SND_ECE)
-			flags |= TH_ECE;
+		else
+#endif
+		{
+			ip->ip_tos &= ~IPTOS_ECN_MASK;
+			ip->ip_tos |= ect;
+		}
 	}
 	/*
 	 * If we are doing retransmissions, then snd_nxt will not reflect

@@ -84,8 +84,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_seq.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_syncache.h>
+#include <netinet/tcp_timer.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_fastopen.h>
@@ -98,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
+#include <netinet/tcp_ecn.h>
 
 #include <netipsec/ipsec_support.h>
 
@@ -199,7 +201,8 @@ tcp_default_output(struct tcpcb *tp)
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int32_t len;
 	uint32_t recwin, sendwin;
-	int off, flags, error = 0;	/* Keep compiler happy */
+	uint16_t flags;
+	int off, error = 0;	/* Keep compiler happy */
 	u_int if_hw_tsomaxsegcount = 0;
 	u_int if_hw_tsomaxsegsize = 0;
 	struct mbuf *m;
@@ -1197,54 +1200,27 @@ send:
 	 * resend those bits a number of times as per
 	 * RFC 3168.
 	 */
-	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn == 1) {
-		if (tp->t_rxtshift >= 1) {
-			if (tp->t_rxtshift <= V_tcp_ecn_maxretries)
-				flags |= TH_ECE|TH_CWR;
-		} else
-			flags |= TH_ECE|TH_CWR;
+	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn) {
+		flags |= tcp_ecn_output_syn_sent(tp);
 	}
-	/* Handle parallel SYN for ECN */
-	if ((tp->t_state == TCPS_SYN_RECEIVED) &&
-	    (tp->t_flags2 & TF2_ECN_SND_ECE)) {
-			flags |= TH_ECE;
-			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
-	}
-
-	if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+	/* Also handle parallel SYN for ECN */
+	if ((TCPS_HAVERCVDSYN(tp->t_state)) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		/*
-		 * If the peer has ECN, mark data packets with
-		 * ECN capable transmission (ECT).
-		 * Ignore pure ack packets, retransmissions and window probes.
-		 */
-		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
-		    (sack_rxmit == 0) &&
-		    !((tp->t_flags & TF_FORCEDATA) && len == 1 &&
-		    SEQ_LT(tp->snd_una, tp->snd_max))) {
+		int ect = tcp_ecn_output_established(tp, &flags, len);
+		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
+		    (tp->t_flags2 & TF2_ECN_SND_ECE))
+			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 #ifdef INET6
-			if (isipv6) {
-				ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
-				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
-			}
-			else
-#endif
-			{
-				ip->ip_tos &= ~IPTOS_ECN_MASK;
-				ip->ip_tos |= IPTOS_ECN_ECT0;
-			}
-			TCPSTAT_INC(tcps_ecn_ect0);
-			/*
-			 * Reply with proper ECN notifications.
-			 * Only set CWR on new data segments.
-			 */
-			if (tp->t_flags2 & TF2_ECN_SND_CWR) {
-				flags |= TH_CWR;
-				tp->t_flags2 &= ~TF2_ECN_SND_CWR;
-			}
+		if (isipv6) {
+			ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
+			ip6->ip6_flow |= htonl(ect << 20);
 		}
-		if (tp->t_flags2 & TF2_ECN_SND_ECE)
-			flags |= TH_ECE;
+		else
+#endif
+		{
+			ip->ip_tos &= ~IPTOS_ECN_MASK;
+			ip->ip_tos |= ect;
+		}
 	}
 
 	/*
