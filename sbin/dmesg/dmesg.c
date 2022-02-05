@@ -184,10 +184,6 @@ main(int argc, char *argv[])
 		/* Strip leading \0's */
 		while (*p == '\0')
 			p++;
-	} else if (!all) {
-		/* Skip the first line, since it is probably incomplete. */
-		p = memchr(p, '\n', ep - p);
-		p++;
 	}
 	for (; p < ep; p = nextp) {
 		nextp = memchr(p, '\n', ep - p);
