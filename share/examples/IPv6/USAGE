@@ -389,7 +389,7 @@ Refer to inetd(8) for more details.
 <<<IPsec>>>
 
 IPsec requires fairly complex configuration, so here we show transport
-mode only.  http://www.kame.net/newsletter/ has more comprehensive
+mode only.  https://www.kame.net/newsletter/ has more comprehensive
 examples.
 
 Let us setup security association to deploy a secure channel between
@@ -524,6 +524,6 @@ Caveats:
 http://www.netbsd.org/Documentation/network/ipv6/
 	Even if you are on non-netbsd operating system, the URL should be
 	useful.
-http://www.kame.net/
+https://www.kame.net/
 
 							<end of USAGE>
