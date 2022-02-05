@@ -695,6 +695,9 @@ ffs_read(ap)
 		return (EOVERFLOW);
 
 	bflag = GB_UNMAPPED | (uio->uio_segflg == UIO_NOCOPY ? 0 : GB_NOSPARSE);
+#ifdef WITNESS
+	bflag |= IS_SNAPSHOT(ip) ? GB_NOWITNESS : 0;
+#endif
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
