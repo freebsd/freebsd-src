@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 This is an experimental build system.
 For details see
-http://www.crufty.net/sjg/docs/freebsd-meta-mode.htm.
+https://www.crufty.net/sjg/docs/freebsd-meta-mode.htm.
 Build commands can be seen from the top-level with:
 .Dl make show-valid-targets
 The build is driven by dirdeps.mk using
