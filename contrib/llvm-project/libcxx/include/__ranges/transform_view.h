@@ -20,7 +20,6 @@
 #include <__functional/bind_back.h>
 #include <__functional/invoke.h>
 #include <__iterator/concepts.h>
-#include <__iterator/iter_swap.h>
 #include <__iterator/iterator_traits.h>
 #include <__memory/addressof.h>
 #include <__ranges/access.h>
@@ -42,7 +41,7 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-#if !defined(_LIBCPP_HAS_NO_RANGES)
+#if !defined(_LIBCPP_HAS_NO_CONCEPTS)
 
 namespace ranges {
 
@@ -425,16 +424,16 @@ namespace __transform {
       noexcept(is_nothrow_constructible_v<decay_t<_Fn>, _Fn>)
     { return __range_adaptor_closure_t(_VSTD::__bind_back(*this, _VSTD::forward<_Fn>(__f))); }
   };
-}
+} // namespace __transform
 
 inline namespace __cpo {
   inline constexpr auto transform = __transform::__fn{};
-}
+} // namespace __cpo
 } // namespace views
 
 } // namespace ranges
 
-#endif // !defined(_LIBCPP_HAS_NO_RANGES)
+#endif // !defined(_LIBCPP_HAS_NO_CONCEPTS)
 
 _LIBCPP_END_NAMESPACE_STD
 

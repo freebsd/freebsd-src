@@ -3836,7 +3836,7 @@ multiclass VPatConversionVF_WF <string intrinsic, string instruction> {
 }
 
 multiclass VPatCompare_VI<string intrinsic, string inst,
-                          ImmLeaf ImmType = simm5_plus1> {
+                          ImmLeaf ImmType> {
   foreach vti = AllIntegerVectors in {
     defvar Intr = !cast<Intrinsic>(intrinsic);
     defvar Pseudo = !cast<Instruction>(inst#"_VI_"#vti.LMul.MX);
@@ -3899,11 +3899,13 @@ let hasSideEffects = 0, mayLoad = 1, mayStore = 0, isCodeGenOnly = 1 in {
 foreach lmul = MxList in {
   foreach nf = NFSet<lmul>.L in {
     defvar vreg = SegRegClass<lmul, nf>.RC;
-    let hasSideEffects = 0, mayLoad = 0, mayStore = 1, isCodeGenOnly = 1 in {
+    let hasSideEffects = 0, mayLoad = 0, mayStore = 1, isCodeGenOnly = 1,
+        Size = !mul(4, !sub(!mul(nf, 2), 1)) in {
       def "PseudoVSPILL" # nf # "_" # lmul.MX :
         Pseudo<(outs), (ins vreg:$rs1, GPR:$rs2, GPR:$vlenb), []>;
     }
-    let hasSideEffects = 0, mayLoad = 1, mayStore = 0, isCodeGenOnly = 1 in {
+    let hasSideEffects = 0, mayLoad = 1, mayStore = 0, isCodeGenOnly = 1,
+        Size = !mul(4, !sub(!mul(nf, 2), 1)) in {
       def "PseudoVRELOAD" # nf # "_" # lmul.MX :
         Pseudo<(outs vreg:$rs1), (ins GPR:$rs2, GPR:$vlenb), []>;
     }
@@ -4657,13 +4659,15 @@ defm : VPatBinarySwappedM_VV<"int_riscv_vmsgt", "PseudoVMSLT", AllIntegerVectors
 defm : VPatBinarySwappedM_VV<"int_riscv_vmsgeu", "PseudoVMSLEU", AllIntegerVectors>;
 defm : VPatBinarySwappedM_VV<"int_riscv_vmsge", "PseudoVMSLE", AllIntegerVectors>;
 
-// Match vmslt(u).vx intrinsics to vmsle(u).vi if the scalar is -15 to 16. This
-// avoids the user needing to know that there is no vmslt(u).vi instruction.
-// Similar for vmsge(u).vx intrinsics using vmslt(u).vi.
-defm : VPatCompare_VI<"int_riscv_vmslt", "PseudoVMSLE">;
+// Match vmslt(u).vx intrinsics to vmsle(u).vi if the scalar is -15 to 16 and
+// non-zero. Zero can be .vx with x0. This avoids the user needing to know that
+// there is no vmslt(u).vi instruction. Similar for vmsge(u).vx intrinsics
+// using vmslt(u).vi.
+defm : VPatCompare_VI<"int_riscv_vmslt", "PseudoVMSLE", simm5_plus1_nonzero>;
 defm : VPatCompare_VI<"int_riscv_vmsltu", "PseudoVMSLEU", simm5_plus1_nonzero>;
 
-defm : VPatCompare_VI<"int_riscv_vmsge", "PseudoVMSGT">;
+// We need to handle 0 for vmsge.vi using vmslt.vi because there is no vmsge.vx.
+defm : VPatCompare_VI<"int_riscv_vmsge", "PseudoVMSGT", simm5_plus1>;
 defm : VPatCompare_VI<"int_riscv_vmsgeu", "PseudoVMSGTU", simm5_plus1_nonzero>;
 
 //===----------------------------------------------------------------------===//

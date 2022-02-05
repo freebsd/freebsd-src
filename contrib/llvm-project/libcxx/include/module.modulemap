@@ -246,6 +246,7 @@ module std [system] {
       module generate                 { private header "__algorithm/generate.h" }
       module generate_n               { private header "__algorithm/generate_n.h" }
       module half_positive            { private header "__algorithm/half_positive.h" }
+      module in_in_out_result         { private header "__algorithm/in_in_out_result.h" }
       module in_in_result             { private header "__algorithm/in_in_result.h" }
       module in_out_result            { private header "__algorithm/in_out_result.h" }
       module includes                 { private header "__algorithm/includes.h" }
@@ -385,16 +386,19 @@ module std [system] {
     export *
 
     module __compare {
-      module common_comparison_category { private header "__compare/common_comparison_category.h" }
-      module compare_three_way          { private header "__compare/compare_three_way.h" }
-      module compare_three_way_result   { private header "__compare/compare_three_way_result.h" }
-      module is_eq                      { private header "__compare/is_eq.h" }
-      module ordering                   { private header "__compare/ordering.h" }
-      module partial_order              { private header "__compare/partial_order.h" }
-      module strong_order               { private header "__compare/strong_order.h" }
-      module synth_three_way            { private header "__compare/synth_three_way.h" }
-      module three_way_comparable       { private header "__compare/three_way_comparable.h" }
-      module weak_order                 { private header "__compare/weak_order.h" }
+      module common_comparison_category     { private header "__compare/common_comparison_category.h" }
+      module compare_partial_order_fallback { private header "__compare/compare_partial_order_fallback.h" }
+      module compare_strong_order_fallback  { private header "__compare/compare_strong_order_fallback.h" }
+      module compare_three_way              { private header "__compare/compare_three_way.h" }
+      module compare_three_way_result       { private header "__compare/compare_three_way_result.h" }
+      module compare_weak_order_fallback    { private header "__compare/compare_weak_order_fallback.h" }
+      module is_eq                          { private header "__compare/is_eq.h" }
+      module ordering                       { private header "__compare/ordering.h" }
+      module partial_order                  { private header "__compare/partial_order.h" }
+      module strong_order                   { private header "__compare/strong_order.h" }
+      module synth_three_way                { private header "__compare/synth_three_way.h" }
+      module three_way_comparable           { private header "__compare/three_way_comparable.h" }
+      module weak_order                     { private header "__compare/weak_order.h" }
     }
   }
   module complex {
