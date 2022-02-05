@@ -107,9 +107,8 @@ u_char buf2[LOCATE_PATH_MAX];
 u_char bigrams[BGBUFSIZE + 1] = { 0 };
 
 /* use a lookup array instead a function, 3x faster than linear search */
+int big [UCHAR_MAX + 1][UCHAR_MAX + 1];
 #define BGINDEX(x) (big[(u_char)*x][(u_char)*(x + 1)])
-typedef short bg_t;
-bg_t big[UCHAR_MAX + 1][UCHAR_MAX + 1];
 
 void   usage(void);
 
@@ -148,10 +147,10 @@ main(int argc, char *argv[])
 	/* init lookup table */
 	for (i = 0; i < UCHAR_MAX + 1; i++)
 	    	for (j = 0; j < UCHAR_MAX + 1; j++) 
-			big[i][j] = (bg_t)-1;
+			big[i][j] = -1;
 
 	for (cp = bigrams, i = 0; *cp != '\0'; i += 2, cp += 2)
-	        big[(u_char)*cp][(u_char)*(cp + 1)] = (bg_t)i;
+	        big[(u_char)*cp][(u_char)*(cp + 1)] = i;
 
 	oldpath = buf1;
 	path = buf2;
@@ -189,7 +188,7 @@ main(int argc, char *argv[])
 		while (*cp != '\0') {
 			/* print *two* characters */
 
-			if ((code = BGINDEX(cp)) != (bg_t)-1) {
+			if ((code = BGINDEX(cp)) != -1) {
 				/*
 				 * print *one* as bigram
 				 * Found, so mark byte with 
