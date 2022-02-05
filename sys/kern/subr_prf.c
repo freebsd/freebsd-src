@@ -1058,9 +1058,10 @@ msgbufinit(void *ptr, int size)
 static int
 sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 {
-	char buf[128];
+	char buf[128], *bp;
 	u_int seq;
 	int error, len;
+	bool wrap;
 
 	error = priv_check(req->td, PRIV_MSGBUF);
 	if (error)
@@ -1069,13 +1070,29 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	/* Read the whole buffer, one chunk at a time. */
 	mtx_lock(&msgbuf_lock);
 	msgbuf_peekbytes(msgbufp, NULL, 0, &seq);
+	wrap = (seq != 0);
 	for (;;) {
 		len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq);
 		mtx_unlock(&msgbuf_lock);
 		if (len == 0)
 			return (SYSCTL_OUT(req, "", 1)); /* add nulterm */
-
-		error = sysctl_handle_opaque(oidp, buf, len, req);
+		if (wrap) {
+			/* Skip the first line, as it is probably incomplete. */
+			bp = memchr(buf, '\n', len);
+			if (bp == NULL) {
+				mtx_lock(&msgbuf_lock);
+				continue;
+			}
+			wrap = false;
+			bp++;
+			len -= bp - buf;
+			if (len == 0) {
+				mtx_lock(&msgbuf_lock);
+				continue;
+			}
+		} else
+			bp = buf;
+		error = sysctl_handle_opaque(oidp, bp, len, req);
 		if (error)
 			return (error);
 
