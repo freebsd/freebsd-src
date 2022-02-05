@@ -2718,7 +2718,6 @@ void bc_program_exec(BcProgram *p) {
 	while (ip->idx < func->code.len)
 #endif // !BC_HAS_COMPUTED_GOTO
 	{
-
 		BC_SIG_ASSERT_NOT_LOCKED;
 
 #if BC_HAS_COMPUTED_GOTO
