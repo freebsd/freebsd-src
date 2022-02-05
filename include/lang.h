@@ -37,6 +37,9 @@
 #define BC_LANG_H
 
 #include <stdbool.h>
+#if BC_C11
+#include <assert.h>
+#endif // BC_C11
 
 #include <status.h>
 #include <vector.h>
@@ -323,6 +326,11 @@ typedef enum BcInst {
 	BC_INST_INVALID,
 
 } BcInst;
+
+#if BC_C11
+static_assert(BC_INST_INVALID <= UCHAR_MAX,
+              "Too many instructions to fit into an unsigned char");
+#endif // BC_C11
 
 /// Used by maps to identify where items are in the array.
 typedef struct BcId {

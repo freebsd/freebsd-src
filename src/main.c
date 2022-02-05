@@ -37,7 +37,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if BC_ENABLE_NLS
 #include <locale.h>
+#endif // BC_ENABLE_NLS
 
 #ifndef _WIN32
 #include <libgen.h>
@@ -56,16 +58,34 @@ int main(int argc, char *argv[]) {
 	char *name;
 	size_t len = strlen(BC_EXECPREFIX);
 
+#if BC_ENABLE_NLS
 	// Must set the locale properly in order to have the right error messages.
 	vm.locale = setlocale(LC_ALL, "");
+#endif // BC_ENABLE_NLS
 
 	// Set the start pledge().
 	bc_pledge(bc_pledge_start, NULL);
 
-	// Figure out the name of the calculator we are using. We can't use basename
-	// because it's not portable, but yes, this is stripping off the directory.
-	name = strrchr(argv[0], BC_FILE_SEP);
-	vm.name = (name == NULL) ? argv[0] : name + 1;
+	// Sometimes, argv[0] can be NULL. Better make sure to be robust against it.
+	if (argv[0] != NULL) {
+
+		// Figure out the name of the calculator we are using. We can't use
+		// basename because it's not portable, but yes, this is stripping off
+		// the directory.
+		name = strrchr(argv[0], BC_FILE_SEP);
+		vm.name = (name == NULL) ? argv[0] : name + 1;
+	}
+	else
+	{
+#if !DC_ENABLED
+		vm.name = "bc";
+#elif !BC_ENABLED
+		vm.name = "dc";
+#else
+		// Just default to bc in that case.
+		vm.name = "bc";
+#endif
+	}
 
 	// If the name is longer than the length of the prefix, skip the prefix.
 	if (strlen(vm.name) > len) vm.name += len;
