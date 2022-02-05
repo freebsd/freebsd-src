@@ -1,4 +1,4 @@
-# $NetBSD: var-class-cmdline.mk,v 1.5 2021/02/23 21:59:31 rillig Exp $
+# $NetBSD: var-scope-cmdline.mk,v 1.1 2022/01/23 16:25:54 rillig Exp $
 #
 # Tests for variables specified on the command line.
 #

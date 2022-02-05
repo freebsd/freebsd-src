@@ -1,4 +1,4 @@
-# $NetBSD: varparse-errors.mk,v 1.4 2021/03/15 12:15:03 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.5 2022/01/24 22:59:49 rillig Exp $
 
 # Tests for parsing and evaluating all kinds of variable expressions.
 #
@@ -47,5 +47,25 @@ VAR.${:U:Z}post=	unknown modifier with text in the variable name
 .if ${VAR.post} != "unknown modifier with text in the variable name"
 .  error
 .endif
+
+# Demonstrate an edge case in which the 'static' for 'errorReported' in
+# Var_Subst actually makes a difference, preventing "a plethora of messages".
+# Given that this is an edge case and the error message is wrong and thus
+# misleading anyway, that piece of code is probably not necessary.  The wrong
+# condition was added in var.c 1.185 from 2014-05-19.
+#
+# To trigger this difference, the variable assignment must use the assignment
+# operator ':=' to make VarEvalMode_ShouldKeepUndef return true.  There must
+# be 2 expressions that create a parse error, which in this case is ':OX'.
+# These expressions must be nested in some way.  The below expressions are
+# minimal, that is, removing any part of it destroys the effect.
+#
+# Without the 'static', there would be one more message like this:
+#	Undefined variable "${:U:OX"
+#
+#.MAKEFLAGS: -dv
+IND=	${:OX}
+_:=	${:U:OX:U${IND}} ${:U:OX:U${IND}}
+#.MAKEFLAGS: -d0
 
 all:

@@ -1,9 +1,9 @@
-/*	$NetBSD: util.c,v 1.76 2021/02/03 08:00:36 rillig Exp $	*/
+/*	$NetBSD: util.c,v 1.78 2021/12/15 12:58:01 rillig Exp $	*/
 
 /*
  * Missing stuff from OS's
  *
- *	$Id: util.c,v 1.49 2021/10/14 19:26:52 sjg Exp $
+ *	$Id: util.c,v 1.50 2021/12/21 18:47:24 sjg Exp $
  */
 
 #include <sys/param.h>
@@ -13,7 +13,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: util.c,v 1.76 2021/02/03 08:00:36 rillig Exp $");
+MAKE_RCSID("$NetBSD: util.c,v 1.78 2021/12/15 12:58:01 rillig Exp $");
 
 #if !defined(MAKE_NATIVE) && !defined(HAVE_STRERROR)
 extern int errno, sys_nerr;
@@ -22,12 +22,12 @@ extern char *sys_errlist[];
 char *
 strerror(int e)
 {
-    static char buf[100];
-    if (e < 0 || e >= sys_nerr) {
-	snprintf(buf, sizeof buf, "Unknown error %d", e);
-	return buf;
-    } else
-	return sys_errlist[e];
+	static char buf[100];
+	if (e < 0 || e >= sys_nerr) {
+		snprintf(buf, sizeof buf, "Unknown error %d", e);
+		return buf;
+	} else
+		return sys_errlist[e];
 }
 #endif
 
@@ -57,9 +57,9 @@ findenv(const char *name, int *offset)
 char *
 getenv(const char *name)
 {
-    int offset;
+	int offset;
 
-    return findenv(name, &offset);
+	return findenv(name, &offset);
 }
 
 int
@@ -73,7 +73,7 @@ unsetenv(const char *name)
 		return -1;
 	}
 
-	while (findenv(name, &offset))	{ /* if set multiple times */
+	while (findenv(name, &offset)) {	/* if set multiple times */
 		for (p = &environ[offset];; p++)
 			if (!(*p = *(p + 1)))
 				break;
@@ -94,7 +94,7 @@ setenv(const char *name, const char *value, int rewrite)
 		return -1;
 	}
 
-	if (*value == '=')			/* no `=' in value */
+	if (*value == '=')	/* no `=' in value */
 		value++;
 	l_value = strlen(value);
 
@@ -160,16 +160,15 @@ main(int argc, char *argv[])
 static char *
 strrcpy(char *ptr, char *str)
 {
-    int len = strlen(str);
+	int len = strlen(str);
 
-    while (len != 0)
-	*--ptr = str[--len];
+	while (len != 0)
+		*--ptr = str[--len];
 
-    return ptr;
-} /* end strrcpy */
+	return ptr;
+}
 
-
-char    *sys_siglist[] = {
+char *sys_siglist[] = {
 	"Signal 0",
 	"Hangup",			/* SIGHUP    */
 	"Interrupt",			/* SIGINT    */
@@ -218,7 +217,7 @@ char    *sys_siglist[] = {
 int
 killpg(int pid, int sig)
 {
-    return kill(-pid, sig);
+	return kill(-pid, sig);
 }
 
 #if !defined(BSD) && !defined(d_fileno)
@@ -393,7 +392,7 @@ vsnprintf(char *s, size_t n, const char *fmt, va_list args)
 	fakebuf._cnt++;
 	putc('\0', &fakebuf);
 	if (fakebuf._cnt < 0)
-	    fakebuf._cnt = 0;
+		fakebuf._cnt = 0;
 	return n - fakebuf._cnt - 1;
 #else
 #ifndef _PATH_DEVNULL

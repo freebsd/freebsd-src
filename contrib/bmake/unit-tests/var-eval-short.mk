@@ -1,12 +1,13 @@
-# $NetBSD: var-eval-short.mk,v 1.7 2021/09/07 20:41:58 rillig Exp $
+# $NetBSD: var-eval-short.mk,v 1.8 2021/12/27 18:54:19 rillig Exp $
 #
 # Tests for each variable modifier to ensure that they only do the minimum
-# necessary computations.  If the result of the expression is not needed, they
-# should only parse the modifier but not actually evaluate it.
+# necessary computations.  If the result of the expression is irrelevant,
+# the modifier should only be parsed.  The modifier should not be evaluated,
+# but if it is evaluated for simplicity of the code (such as ':ts'), it must
+# not have any observable side effects.
 #
 # See also:
 #	var.c, the comment starting with 'The ApplyModifier functions'
-#	ApplyModifier, for the order of the modifiers
 #	ParseModifierPart, for evaluating nested expressions
 #	cond-short.mk
 
@@ -16,6 +17,8 @@ FAIL=	${:!echo unexpected 1>&2!}
 # They cannot ensure that any unexpanded text returned from ParseModifierPart
 # is ignored as well.  To do that, it is necessary to step through the code of
 # each modifier.
+
+# TODO: Test the modifiers in the same order as they appear in ApplyModifier.
 
 .if 0 && ${FAIL}
 .endif

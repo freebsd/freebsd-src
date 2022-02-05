@@ -1,3 +1,158 @@
+2022-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220204
+	Merge with NetBSD make, pick up
+	o use unsigned consistently for line numbers, avoid the need for %z
+	o parse.c: do not step off end of input in Parse_IsVar
+	when checking for target local variable assignments
+
+2022-02-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220202
+	Merge with NetBSD make, pick up
+	o remove redundant declaration of HashIter_Init
+	o make DEBUG0 simpler
+
+2022-01-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* cast gn->lineno to avoid %z
+
+	* VERSION (_MAKE_VERSION): 20220130
+	Merge with NetBSD make, pick up
+	o more unit tests
+	o make GNode lineno unsigned to please lint
+	o print location of recursive variable references in commands
+	o print "stack trace" (makefile includes) on fatal errors
+	o make.1: refine documentation for target local assignments
+
+2022-01-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220128
+	Merge with NetBSD make, pick up
+	o inline functions called only once
+	o for.c: clean up AddEscape for building the body of a .for loop
+	o hash.c: merge duplicate code for finding an entry in a hash table
+	replace HashEntry_KeyEquals with strncmp
+	o make.1: document quirks of target local variable assignments.
+	o parse.c: cleanup white-space
+
+2022-01-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220126
+	Merge with NetBSD make, pick up
+	o allow setting target local variables
+	o more unit tests
+	o add missing newline after "cannot continue" message
+	o meta.c: clean up eat_dots
+	o parse.c: fix filename in warning about duplicate script
+	o var.c: when expanding nested variables, check simple things first
+
+2022-01-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220116
+	Merge with NetBSD make, pick up
+	o fix for unit-tests/varname-makeflags on non-BSD systems
+	o use Var_Exists rather than Var_Value where appropriate
+	o remove unnecessary functions for expanding variable names
+	o cond.c: inline EvalBare
+	o main.c: lint cleanup
+	o parse.c: condense code in Parse_IsVar
+	use islower for parsing directives (none have upper case)
+
+2022-01-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220112
+	Merge with NetBSD make, pick up
+	o meta.c: add .MAKE.META.CMP_FILTER for filtering commands before
+	comparion, rarely needed but useful when it is.
+
+2022-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220110
+	Merge with NetBSD make, pick up
+	o inline Buf_Clear
+	o remove redundant braces
+	o rename and inline Targ_Precious
+	o cond.c: remove redundant initializer in CondParser_ComparisonOrLeaf
+	o for.c: clean up handling of .for loops
+	fix reported line numbers of continuation lines
+	add details about .for loop variables to stack traces
+	o job.c: reduce code for initializing error handling in shell
+	o main.c: in Cmd_Exec, return error message instead of format string
+	have as few statements as possible between va_start and va_end
+	add debug logging for capturing the output of external commands
+	o make.c: use consistent variable names for varargs
+	o make_malloc.c: remove duplicate code from bmake_strdup
+	o parse.c: add missing printflike annotations
+	remove redundant lines from stack traces
+	fix stack traces in -dp mode
+	reduce confusing code in ParseForLoop
+	fix line number in debug log after returning from a file
+	rename IFile and its fields to match their actual content
+	clean up ParseDependencySources
+	o var.c: shorten ApplyModifier_Assign
+	rename is_shell_metachar, fix character conversion warning
+	merge calls to ApplyModifier_Time
+	merge duplicate code for modifiers 'gmtime' and 'localtime'
+
+2022-01-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* parse.c: loadfile restore extra byte in buffer.
+
+2022-01-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220101
+	Merge with NetBSD make, pick up
+	o more unit-tests
+	o remove unnecessary words from command line options in CmdOpts
+	o rename eunlink to unlink_file
+	o cond.c: make ParseWord in condition parser simpler
+	internally return false for irrelevant leaves in conditions
+	replace table for function lookup in conditions with simple code
+	merge duplicate types CondEvalResult and CondResult
+	o for.c: clean up handling of .for loops and .include directives
+	o main.c: constify cached_realpath
+	clean up Cmd_Exec
+	o parse.c: sync API documentation
+	fix error message when reading more than 1 GB from stdin
+	clean up parsing of makefiles
+	fix line number in error message about open conditionals
+	unexport types VarAssignOp and VarAssign
+	clean up function names
+	remove redundant parameters in dependency parsing functions
+	reduce scope of the list of wildcard target names
+	extract OP_NOTARGET into separate function
+	clean up variable names for parsing dependency lines
+	make debug logging a bit more human-friendly
+	o var.c: condense code in ApplyModifier_Assign
+
+2021-12-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20211221
+	Merge with NetBSD make, pick up
+	o more unit-tests
+	o style cleanup
+	o in CLEANUP mode, free interned strings at the very end
+	o fix memory leak for filenames in .for loops
+	o buf.c: avoid memory leak
+	o cond.c: condense CondParser_ComparisonOp
+	o hash.c: change return type of HashTable_Set to void
+	o job.c: change return type of Compat_RunCommand from int to bool
+	o main.c: remove bmake_free
+	o parse.c: condense repetetive code in ParseDirective
+	remove dead code for handling traditional include directives
+	clean up parsing of variable assignments
+	remove unreachable code for parsing the dependency operator
+	clean up loading of files
+	fix memory leak in IncludeFile
+	o var.c: fix memory leak when parsing a variable name
+	fix memory leak from ${.SUFFIXES}
+	reduce memory allocation in modifier ':?' and ':C'
+	condense RegexReplace for the modifier ':C' and avoid strlen
+	merge duplicate code for memory handling in Var_Parse
+	distinguish between short-lived and environment variables
+	rename VarFreeEnv to VarFreeShortLived
+
 2021-12-15  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* cond.c: fix mem leak in CondParser_Leaf

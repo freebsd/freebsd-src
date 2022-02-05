@@ -1,4 +1,4 @@
-# $NetBSD: directive-for.mk,v 1.10 2020/12/27 09:58:35 rillig Exp $
+# $NetBSD: directive-for.mk,v 1.13 2022/01/15 12:35:18 rillig Exp $
 #
 # Tests for the .for directive.
 #
@@ -11,7 +11,7 @@
 
 # Using the .for loop, lists of values can be produced.
 # In simple cases, the :@var@${var}@ variable modifier can be used to
-# reach the same effects.
+# achieve the same effects.
 #
 .undef NUMBERS
 .for num in 1 2 3
@@ -135,7 +135,7 @@ EXPANSION${plus}=	value
 
 # Ensure that braces and parentheses are properly escaped by the .for loop.
 # Each line must print the same word 3 times.
-# See GetEscapes.
+# See ForLoop_SubstBody.
 .for v in ( [ { ) ] } (()) [[]] {{}} )( ][ }{
 .  info $v ${v} $(v)
 .endfor
@@ -155,5 +155,76 @@ var=	outer
 .  info XXX: Not reached ${var}
 .endfor
 
-all:
-	@:;
+
+# An empty list of variables to the left of the 'in' is a parse error.
+.for in value			# expect+0: no iteration variables in for
+# XXX: The loop body is evaluated once, even with the parse error above.
+.  error			# expect+0: Missing argument for ".error"
+.endfor				# expect+0: for-less endfor
+
+# An empty list of iteration values to the right of the 'in' is accepted.
+# Unlike in the shell, it is not a parse error.
+.for var in
+.  error
+.endfor
+
+# If the iteration values become empty after expanding the expressions, the
+# body of the loop is not evaluated.  It is not a parse error.
+.for var in ${:U}
+.  error
+.endfor
+
+
+# The loop body can be empty.
+.for var in 1 2 3
+.endfor
+
+
+# A mismatched .if inside a .for loop is detected each time when the loop body
+# is processed.
+.for var in value
+.  if 0
+.endfor				# expect+0: 1 open conditional
+
+# If there are no iteration values, the loop body is not processed, and the
+# check for mismatched conditionals is not performed.
+.for var in ${:U}
+.  if 0
+.endfor
+
+
+# When a .for without the corresponding .endfor occurs in an inactive branch
+# of an .if, the .for directive is just skipped, it does not even need a
+# corresponding .endfor.  In other words, the behavior of the parser depends
+# on the actual values of the conditions in the .if clauses.
+.if 0
+.  for var in value		# does not need a corresponding .endfor
+.endif
+.endfor				# expect+0: for-less endfor
+.endif				# expect+0: if-less endif
+
+
+# When a .for without the corresponding .endfor occurs in an active branch of
+# an .if, the parser just counts the number of .for and .endfor directives,
+# without looking at any other directives.
+.if 1
+.  for var in value
+.    endif			# expect+0: if-less endif
+.  endfor			# no 'for-less endfor'
+.endif				# no 'if-less endif'
+
+
+# When make parses a .for loop, it assumes that there is no line break between
+# the '.' and the 'for' or 'endfor', as there is no practical reason to break
+# the line at this point.  When make scans the outer .for loop, it does not
+# recognize the inner directives as such.  When make scans the inner .for
+# loop, it recognizes the '.\n for' but does not recognize the '.\n endfor',
+# as LK_FOR_BODY preserves the backslash-newline sequences.
+.MAKEFLAGS: -df
+.for outer in o
+.\
+   for inner in i
+.\
+   endfor
+.endfor
+.MAKEFLAGS: -d0

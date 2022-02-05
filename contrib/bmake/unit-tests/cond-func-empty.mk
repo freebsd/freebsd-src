@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-empty.mk,v 1.16 2021/12/11 10:41:31 rillig Exp $
+# $NetBSD: cond-func-empty.mk,v 1.17 2021/12/28 22:13:56 rillig Exp $
 #
 # Tests for the empty() function in .if conditions, which tests a variable
 # expression for emptiness.
@@ -189,5 +189,16 @@ VARNAME=	${VARNAME${:U1}}
 .if defined(VARNAME${:U2}) && !empty(VARNAME${:U2})
 .endif
 
-all:
-	@:;
+
+# If the word 'empty' is not followed by '(', it is not a function call but an
+# ordinary bare word.  This bare word is interpreted as 'defined(empty)', and
+# since there is no variable named 'empty', the condition evaluates to false.
+.if empty
+.  error
+.endif
+
+empty=		# defined but empty
+.if empty
+.else
+.  error
+.endif

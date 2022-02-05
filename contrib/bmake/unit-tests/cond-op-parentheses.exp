@@ -1,6 +1,7 @@
-make: "cond-op-parentheses.mk" line 13: Parentheses can be nested at least to depth 112.
-make: "cond-op-parentheses.mk" line 19: Malformed conditional (()
-make: "cond-op-parentheses.mk" line 29: Malformed conditional ())
+make: "cond-op-parentheses.mk" line 19: String comparison operator must be either == or !=
+make: "cond-op-parentheses.mk" line 22: Malformed conditional ((3) > 2)
+make: "cond-op-parentheses.mk" line 40: Malformed conditional (()
+make: "cond-op-parentheses.mk" line 53: Malformed conditional ())
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -1,4 +1,4 @@
-# $NetBSD: directive-unexport-env.mk,v 1.7 2020/12/12 18:11:42 rillig Exp $
+# $NetBSD: directive-unexport-env.mk,v 1.8 2022/01/23 16:09:38 rillig Exp $
 #
 # Tests for the .unexport-env directive.
 #
@@ -21,5 +21,4 @@ UT_UNEXPORTED=	value
 .unexport-env UT_EXPORTED UT_UNEXPORTED
 .MAKEFLAGS: -d0
 
-all:
-	@:;
+all: .PHONY

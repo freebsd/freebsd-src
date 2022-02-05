@@ -1,4 +1,4 @@
-/*	$NetBSD: make_malloc.c,v 1.25 2021/01/19 20:51:46 rillig Exp $	*/
+/*	$NetBSD: make_malloc.c,v 1.26 2022/01/07 08:30:04 rillig Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: make_malloc.c,v 1.25 2021/01/19 20:51:46 rillig Exp $");
+MAKE_RCSID("$NetBSD: make_malloc.c,v 1.26 2022/01/07 08:30:04 rillig Exp $");
 
 #ifndef USE_EMALLOC
 
@@ -57,12 +57,12 @@ bmake_malloc(size_t len)
 char *
 bmake_strdup(const char *str)
 {
-	size_t len;
+	size_t size;
 	char *p;
 
-	len = strlen(str) + 1;
-	p = bmake_malloc(len);
-	return memcpy(p, str, len);
+	size = strlen(str) + 1;
+	p = bmake_malloc(size);
+	return memcpy(p, str, size);
 }
 
 /* Allocate a string starting from str with exactly len characters. */

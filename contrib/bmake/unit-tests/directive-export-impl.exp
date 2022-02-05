@@ -1,8 +1,8 @@
-ParseReadLine (21): 'UT_VAR=		<${REF}>'
+Parsing line 21: UT_VAR=		<${REF}>
 Global: UT_VAR = <${REF}>
-ParseReadLine (28): '.export UT_VAR'
+Parsing line 28: .export UT_VAR
 Global: .MAKE.EXPORTED = UT_VAR
-ParseReadLine (32): ': ${UT_VAR:N*}'
+Parsing line 32: : ${UT_VAR:N*}
 Var_Parse: ${UT_VAR:N*} (eval-defined)
 Var_Parse: ${REF}> (eval-defined)
 Evaluating modifier ${UT_VAR:N...} on value "<>"
@@ -14,6 +14,7 @@ CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<>"
 Var_Parse: ${:!echo "\$UT_VAR"!} != "<>" (eval-defined)
 Evaluating modifier ${:!...} on value "" (eval-defined, undefined)
 Modifier part: "echo "$UT_VAR""
+Capturing the output of command "echo "$UT_VAR""
 Var_Parse: ${.MAKE.EXPORTED:O:u} (eval)
 Evaluating modifier ${.MAKE.EXPORTED:O} on value "UT_VAR"
 Result of ${.MAKE.EXPORTED:O} is "UT_VAR"
@@ -23,7 +24,7 @@ Var_Parse: ${UT_VAR} (eval)
 Var_Parse: ${REF}> (eval)
 Result of ${:!echo "\$UT_VAR"!} is "<>" (eval-defined, defined)
 lhs = "<>", rhs = "<>", op = !=
-ParseReadLine (50): ': ${UT_VAR:N*}'
+Parsing line 50: : ${UT_VAR:N*}
 Var_Parse: ${UT_VAR:N*} (eval-defined)
 Var_Parse: ${REF}> (eval-defined)
 Evaluating modifier ${UT_VAR:N...} on value "<>"
@@ -31,12 +32,13 @@ Pattern for ':N' is "*"
 ModifyWords: split "<>" into 1 word
 Result of ${UT_VAR:N*} is ""
 ParseDependency(: )
-ParseReadLine (54): 'REF=		defined'
+Parsing line 54: REF=		defined
 Global: REF = defined
 CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<defined>"
 Var_Parse: ${:!echo "\$UT_VAR"!} != "<defined>" (eval-defined)
 Evaluating modifier ${:!...} on value "" (eval-defined, undefined)
 Modifier part: "echo "$UT_VAR""
+Capturing the output of command "echo "$UT_VAR""
 Var_Parse: ${.MAKE.EXPORTED:O:u} (eval)
 Evaluating modifier ${.MAKE.EXPORTED:O} on value "UT_VAR"
 Result of ${.MAKE.EXPORTED:O} is "UT_VAR"
@@ -46,10 +48,10 @@ Var_Parse: ${UT_VAR} (eval)
 Var_Parse: ${REF}> (eval)
 Result of ${:!echo "\$UT_VAR"!} is "<defined>" (eval-defined, defined)
 lhs = "<defined>", rhs = "<defined>", op = !=
-ParseReadLine (62): 'all:'
+Parsing line 62: all:
 ParseDependency(all:)
 Global: .ALLTARGETS =  all
-ParseReadLine (63): '.MAKEFLAGS: -d0'
+Parsing line 63: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 Global: .MAKEFLAGS =  -r -k -d cpv -d
 Global: .MAKEFLAGS =  -r -k -d cpv -d 0

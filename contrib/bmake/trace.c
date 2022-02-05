@@ -1,4 +1,4 @@
-/*	$NetBSD: trace.c,v 1.29 2021/09/21 23:06:18 rillig Exp $	*/
+/*	$NetBSD: trace.c,v 1.31 2022/02/05 00:26:21 rillig Exp $	*/
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -48,7 +48,7 @@
 #include "job.h"
 #include "trace.h"
 
-MAKE_RCSID("$NetBSD: trace.c,v 1.29 2021/09/21 23:06:18 rillig Exp $");
+MAKE_RCSID("$NetBSD: trace.c,v 1.31 2022/02/05 00:26:21 rillig Exp $");
 
 static FILE *trfile;
 static pid_t trpid;
@@ -69,8 +69,10 @@ Trace_Init(const char *pathname)
 	if (pathname != NULL) {
 		FStr curDir;
 		trpid = getpid();
-		/* XXX: This variable may get overwritten later, which
-		 * would make trwd point to undefined behavior. */
+		/*
+		 * XXX: This variable may get overwritten later, which would
+		 * make trwd point to undefined behavior.
+		 */
 		curDir = Var_Value(SCOPE_GLOBAL, ".CURDIR");
 		trwd = curDir.str;
 
@@ -88,10 +90,17 @@ Trace_Log(TrEvent event, Job *job)
 
 	gettimeofday(&rightnow, NULL);
 
+#if __STDC__ >= 199901L
 	fprintf(trfile, "%lld.%06ld %d %s %d %s",
 	    (long long)rightnow.tv_sec, (long)rightnow.tv_usec,
 	    jobTokensRunning,
 	    evname[event], trpid, trwd);
+#else
+	fprintf(trfile, "%ld.%06ld %d %s %d %s",
+	    (long)rightnow.tv_sec, (long)rightnow.tv_usec,
+	    jobTokensRunning,
+	    evname[event], trpid, trwd);
+#endif
 	if (job != NULL) {
 		char flags[4];
 

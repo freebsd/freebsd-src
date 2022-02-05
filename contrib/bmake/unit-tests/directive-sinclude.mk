@@ -1,4 +1,4 @@
-# $NetBSD: directive-sinclude.mk,v 1.2 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: directive-sinclude.mk,v 1.4 2022/01/23 21:48:59 rillig Exp $
 #
 # Tests for the .sinclude directive, which includes another file,
 # silently skipping it if it cannot be opened.
@@ -7,7 +7,17 @@
 # opened.  Parse errors and other errors are handled the same way as in the
 # other .include directives.
 
-# TODO: Implementation
+# No complaint that there is no such file.
+.sinclude "${.CURDIR}/directive-include-nonexistent.inc"
 
-all:
-	@:;
+# No complaint either, even though the operating system error is ENOTDIR, not
+# ENOENT.
+.sinclude "${MAKEFILE}/subdir"
+
+# Errors that are not related to opening the file are still reported.
+# expect: make: "directive-include-error.inc" line 1: Invalid line type
+_!=	echo 'syntax error' > directive-include-error.inc
+.sinclude "${.CURDIR}/directive-include-error.inc"
+_!=	rm directive-include-error.inc
+
+all: .PHONY

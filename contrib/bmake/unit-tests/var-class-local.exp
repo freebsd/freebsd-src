@@ -1,5 +1,0 @@
-: Making var-class-local.c out of nothing.
-: Making var-class-local.o from var-class-local.c.
-: Making basename "var-class-local.o" in "." from "var-class-local.c" in ".".
-: all overwritten
-exit status 0

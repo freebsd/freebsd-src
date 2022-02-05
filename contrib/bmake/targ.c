@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.173 2021/11/28 19:51:06 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.176 2022/01/07 20:50:35 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -78,10 +78,8 @@
  *
  *	Targ_List	Return the list of all targets so far.
  *
- *	GNode_New	Create a new GNode for the passed target
- *			(string). The node is *not* placed in the
- *			hash table, though all its fields are
- *			initialized.
+ *	GNode_New	Create a new GNode with the given name, don't add it
+ *			to allNodes.
  *
  *	Targ_FindNode	Find the node, or return NULL.
  *
@@ -93,9 +91,6 @@
  *	Targ_FindList	Given a list of names, find nodes for all
  *			of them, creating them as necessary.
  *
- *	Targ_Precious	Return true if the target is precious and
- *			should not be removed if we are interrupted.
- *
  *	Targ_Propagate	Propagate information between related nodes.
  *			Should be called after the makefiles are parsed
  *			but before any action is taken.
@@ -103,8 +98,7 @@
  * Debugging:
  *	Targ_PrintGraph
  *			Print out the entire graph, all variables and
- *			statistics for the directory cache. Should print
- *			something for suffixes, too, but...
+ *			statistics for the directory cache.
  */
 
 #include <time.h>
@@ -113,7 +107,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.173 2021/11/28 19:51:06 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.176 2022/01/07 20:50:35 rillig Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -346,27 +340,6 @@ Targ_FindList(GNodeList *gns, StringList *names)
 	}
 }
 
-/* See if the given target is precious. */
-bool
-Targ_Precious(const GNode *gn)
-{
-	/* XXX: Why are '::' targets precious? */
-	return allPrecious || gn->type & (OP_PRECIOUS | OP_DOUBLEDEP);
-}
-
-/*
- * The main target to be made; only for debugging output.
- * See mainNode in parse.c for the definitive source.
- */
-static GNode *mainTarg;
-
-/* Remember the main target to make; only used for debugging. */
-void
-Targ_SetMain(GNode *gn)
-{
-	mainTarg = gn;
-}
-
 static void
 PrintNodeNames(GNodeList *gnodes)
 {
@@ -508,7 +481,7 @@ Targ_PrintNode(GNode *gn, int pass)
 		return;
 
 	debug_printf("#\n");
-	if (gn == mainTarg)
+	if (gn == mainNode)
 		debug_printf("# *** MAIN TARGET ***\n");
 
 	if (pass >= 2) {
@@ -556,7 +529,6 @@ Targ_PrintNodes(GNodeList *gnodes, int pass)
 		Targ_PrintNode(ln->datum, pass);
 }
 
-/* Print only those targets that are just a source. */
 static void
 PrintOnlySources(void)
 {

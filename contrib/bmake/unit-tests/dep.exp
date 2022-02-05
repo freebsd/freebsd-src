@@ -1,1 +1,5 @@
-exit status 0
+make: "dep.mk" line 11: Inconsistent operator for only-colon
+make: "dep.mk" line 13: Inconsistent operator for only-colon
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1
