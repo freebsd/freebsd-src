@@ -267,14 +267,13 @@ WANT_LINKER_TYPE=
 .if !defined(WANT_LINKER_FREEBSD_VERSION) && !make(showconfig) && \
     !make(test-system-compiler)
 .if ${WANT_LINKER_TYPE} == "lld"
-WANT_LINKER_FREEBSD_VERSION_FILE= lib/clang/include/VCSVersion.inc
-_WANT_LINKER_FREEBSD_VERSION!= \
-	awk '$$2 == "LLD_REVISION" {gsub(/"/, "", $$3); print $$3}' \
+WANT_LINKER_FREEBSD_VERSION_FILE= lib/clang/include/lld/Common/Version.inc
+WANT_LINKER_FREEBSD_VERSION!= \
+	awk '$$2 == "LLD_FREEBSD_VERSION" {print $$3}' \
 	${SRCDIR}/${WANT_LINKER_FREEBSD_VERSION_FILE} || echo unknown
-WANT_LINKER_FREEBSD_VERSION=${_WANT_LINKER_FREEBSD_VERSION:C/.*-(.*)/\1/}
 WANT_LINKER_VERSION_FILE= lib/clang/include/lld/Common/Version.inc
 WANT_LINKER_VERSION!= \
-	awk '$$2 == "LLD_VERSION_STRING" { gsub("\"", "", $$3); split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
+	awk '$$2 == "LLD_VERSION_STRING" {gsub("\"", "", $$3); split($$3, a, "."); print a[1] * 10000 + a[2] * 100 + a[3]}' \
 	${SRCDIR}/${WANT_LINKER_VERSION_FILE} || echo unknown
 .else
 WANT_LINKER_FREEBSD_VERSION_FILE=
