@@ -1,4 +1,4 @@
-# $NetBSD: varmod-order-numeric.mk,v 1.5 2021/08/03 04:46:49 rillig Exp $
+# $NetBSD: varmod-order-numeric.mk,v 1.6 2022/02/04 23:43:10 rillig Exp $
 #
 # Tests for the variable modifiers ':On', which returns the words, sorted in
 # ascending numeric order, and for ':Orn' and ':Onr', which additionally
@@ -8,9 +8,8 @@
 # from 2021-07-30.
 
 # This list contains only 32-bit numbers since the make code needs to conform
-# to C90, which does not provide integer types larger than 32 bit.  It uses
-# 'long long' by default, but that type is overridable if necessary to support
-# older environments.
+# to C90, which does not necessarily provide integer types larger than 32 bit.
+# Make uses 'long long' for C99 or later, and 'long' for older C versions.
 #
 # To get 53-bit integers even in C90, it would be possible to switch to
 # 'double' instead, but that would allow floating-point numbers as well, which

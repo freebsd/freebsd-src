@@ -2,4 +2,6 @@ Skipping meta for actual-test: no commands
 Skipping meta for .END: .SPECIAL
 Targets from meta mode:
 | TARGET depsrc-meta-target
+Targets from meta mode in jobs mode:
+| TARGET depsrc-meta-target
 exit status 0

@@ -1,1 +1,26 @@
+Parse_PushInput: .for loop in opt-debug-parse.mk, line 16
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
+Parsing line 20: .info trace with multi-line .for loop head
+make: "opt-debug-parse.mk" line 20: trace with multi-line .for loop head
+	in .for loop from opt-debug-parse.mk:16 with var = value
+ParseEOF: returning to file opt-debug-parse.mk, line 22
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
+Parsing line 25: .include "/dev/null"
+Parse_PushInput: file /dev/null, line 1
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `null'
+SetFilenameVars: ${.INCLUDEDFROMDIR} = <some-dir> ${.INCLUDEDFROMFILE} = `opt-debug-parse.mk'
+ParseEOF: returning to file opt-debug-parse.mk, line 26
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
+Parse_PushInput: .for loop in opt-debug-parse.mk, line 30
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
+Parsing line 31: .info trace
+make: "opt-debug-parse.mk" line 31: trace
+	in .for loop from opt-debug-parse.mk:30 with a = 1, b = 2, c = 3
+Parsing line 31: .info trace
+make: "opt-debug-parse.mk" line 31: trace
+	in .for loop from opt-debug-parse.mk:30 with a = 4, b = 5, c = 6
+ParseEOF: returning to file opt-debug-parse.mk, line 33
+SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `opt-debug-parse.mk'
+Parsing line 35: .MAKEFLAGS: -d0
+ParseDependency(.MAKEFLAGS: -d0)
 exit status 0

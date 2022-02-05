@@ -443,9 +443,28 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      Local variables
              Variables that are defined specific to a certain target.
 
-     Local variables are all built in and their values vary magically from
-     target to target.  It is not currently possible to define new local vari-
-     ables.  The seven local variables are as follows:
+     Local variables can be set on a dependency line, if
+     [4m.MAKE.TARGET_LOCAL_VARIABLES[24m, is not set to `false'.  The rest of the
+     line (which will already have had Global variables expanded), is the
+     variable value.  For example:
+
+           COMPILER_WRAPPERS+= ccache distcc icecc
+
+           ${OBJS}: .MAKE.META.CMP_FILTER=${COMPILER_WRAPPERS:S,^,N,}
+
+     Only the targets `${OBJS}' will be impacted by that filter (in "meta"
+     mode) and simply enabling/disabling any of the wrappers will not render
+     all of those targets out-of-date.
+
+     [4mNOTE[24m: target local variable assignments behave differently in that;
+
+           [1m+=      [22mOnly appends to a previous local assignment for the same
+                   target and variable.
+
+           [1m:=      [22mIs redundant with respect to Global variables, which have
+                   already been expanded.
+
+     The seven built-in local variables are as follows:
 
            [4m.ALLSRC[24m   The list of all sources for this target; also known as
                      `[4m>[24m'.
@@ -538,6 +557,10 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                      ing it easier to track the degree of parallelism being
                      achieved.
 
+     .MAKE.TARGET_LOCAL_VARIABLES
+                     If set to `false', apparent variable assignments in de-
+                     pendency lines are treated as normal sources.
+
      MAKEFLAGS       The environment variable `MAKEFLAGS' may contain anything
                      that may be specified on [1mbmake[22m's command line.  Anything
                      specified on [1mbmake[22m's command line is appended to the
@@ -615,6 +638,14 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                      the directories controlled by [1mbmake[22m.  If a file that was
                      generated outside of [4m.OBJDIR[24m but within said bailiwick is
                      missing, the current target is considered out-of-date.
+
+     [4m.MAKE.META.CMP_FILTER[0m
+                     In "meta" mode, it can (very rarely!) be useful to filter
+                     command lines before comparison.  This variable can be
+                     set to a set of modifiers that will be applied to each
+                     line of the old and new command that differ, if the fil-
+                     tered commands still differ, the target is considered
+                     out-of-date.
 
      [4m.MAKE.META.CREATED[0m
                      In "meta" mode, this variable contains a list of all the
@@ -1591,4 +1622,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 13.0                   December 12, 2021                  FreeBSD 13.0
+FreeBSD 13.0                   January 28, 2022                   FreeBSD 13.0

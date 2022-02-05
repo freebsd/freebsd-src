@@ -1,7 +1,12 @@
-# $NetBSD: depsrc-use.mk,v 1.4 2020/08/22 12:30:57 rillig Exp $
+# $NetBSD: depsrc-use.mk,v 1.5 2021/12/28 14:22:51 rillig Exp $
 #
 # Tests for the special source .USE in dependency declarations,
 # which allows to append common commands to other targets.
+
+# Before make.h 1.280 from 2021-12-28, a .USEBEFORE target was accidentally
+# regarded as a candidate for the main target.  On the other hand, a .USE
+# target was not.
+not-a-main-candidate: .USE
 
 all: action directly
 

@@ -143,6 +143,8 @@ examples/sys.clean-env.mk
 host-target.mk
 	Is used to set macros like ``HOST_TARGET``, ``HOST_OS`` and
 	``host_os`` which are used to find the next step.
+	Note: since 20130303 bmake provides ``.MAKE.OS`` set to
+	the equivalent of ``HOST_OS``.
 
 sys/\*.mk
 	Platform specific additions, such as ``Darwin.mk`` or ``SunOS.mk``
@@ -159,27 +161,40 @@ local.sys.mk
 The above arrangement makes it easy for the mk files to be part of a
 src tree on an NFS volume and to allow building on multiple platforms.
 
+options.mk
+----------
+
+Inspired by FreeBSD's ``bsd.own.mk`` but more flexible.
+FreeBSD now have similar functionality in ``bsd.mkopt.mk``.
+
+It allows users to express their intent with respect to options
+``MK_*`` by setting ``WITH_*`` or ``WITHOUT_*``.
+
+Note: ``WITHOUT_*`` wins if both are set, and makefiles can set
+``NO_*`` to say they cannot handle that option, or even ``MK_*`` if
+they really need to.
+
 lib.mk
 ------
 
 This file is used to build a number of different libraries from the
 same SRCS.
 
-lib${LIB}.a
+``lib${LIB}.a``
 	An archive lib of ``.o`` files, this is the default
 
-lib${LIB}_p.a
+``lib${LIB}_p.a``
 	A profiled lib of ``.po`` files.
 	Still an archive lib, but all the objects are built with
 	profiling in mind - hence the different extension.
-	It is skipped if ``MKPROFILE`` is "no".
+	It is skipped if ``MK_PROFILE`` is "no".
 
-lib${LIB}_pic.a
+``lib${LIB}_pic.a``
 	An archive of ``.so`` objects compiled for relocation.
 	On NetBSD this is the input to ``lib${LIB}.${LD_so}``, it is
-	skipped if ``MKPICLIB`` is "no".
+	skipped if ``MK_PIC`` or ``MK_PICLIB`` are "no".
 
-lib${LIB}.${LD_so}
+``lib${LIB}.${LD_so}``
 	A shared library.  The value of ``LD_so`` is very platform
 	specific.  For example::
 
@@ -190,7 +205,7 @@ lib${LIB}.${LD_so}
 		libsslfd.1.dylib
 
 	This library will only be built if ``SHLIB_MAJOR`` has
-	a value, and ``MKPIC`` is not set to "no".
+	a value, and ``MK_PIC`` is not set to "no".
 
 There is a lot of platform specific tweaking in ``lib.mk``, largely the
 result of the original distributions trying to avoid interfering with
@@ -202,7 +217,7 @@ libnames.mk
 This is included by both ``prog.mk`` and ``lib.mk`` and tries to
 include ``*.libnames.mk`` of which:
 
-local.libnames.mk
+``local.libnames.mk``
 	does not exist unless you create it.  It is a handy way for you
 	to customize without touching the distributed files.
 	For example, on a test machine I needed to build openssl but
@@ -217,7 +232,7 @@ local.libnames.mk
 	The makefile created an openssl dir in ``${OBJ_libcrypto}`` to
 	gather all the headers. dpadd.mk_ did the rest.
 
-host.libnames.mk
+``host.libnames.mk``
 	contains logic to find any libs named in ``HOST_LIBS`` in
 	``HOST_LIBDIRS``.
 
@@ -256,15 +271,15 @@ else in various ways::
 Any library (referenced by its full path) in any of the above, is
 added to ``DPMAGIC_LIBS`` with the following results, for each lib *foo*.
 
-SRC_libfoo
+``SRC_libfoo``
 	Is set to indicate where the src for libfoo is.
 	By default it is derived from ``LIBFOO`` by replacing
 	``${OBJTOP}`` with ``${SRCTOP}``.
 
-OBJ_libfoo
+``OBJ_libfoo``
 	Not very exciting, is just the dir where libfoo lives.
 
-INCLUDES_libfoo
+``INCLUDES_libfoo``
 	What to add to ``CFLAGS`` to find the public headers.
 	The default varies.  If ``${SRC_libfoo}/h`` exists, it is assumed
 	to be the home of all public headers and thus the default is
@@ -273,7 +288,7 @@ INCLUDES_libfoo
 	Otherwise we make no assumptions and the default is
 	``-I${SRC_libfoo} -I${OBJ_libfoo}``
 
-LDADD_libfoo
+``LDADD_libfoo``
 	This only applies to libs reference via ``DPLIBS``.
 	The default is ``-lfoo``, ``LDADD_*`` provides a hook to
 	instantiate other linker flags at the appropriate point
@@ -303,13 +318,16 @@ object files from the src tree.  This is also the source of much
 confusion to some.
 
 Traditionally one had to do a separate ``make obj`` pass through the
-tree.  If ``MKOBJDIRS`` is "auto", we include auto.obj.mk_.
+tree.  If ``MK_AUTO_OBJ`` is set we include auto.obj.mk_.
+
+In fact if ``MKOBJDIRS`` is set to "auto", `sys.mk`_ will set
+``MK_AUTO_OBJ=yes`` and include auto.obj.mk_ since it is best done early.
 
 auto.obj.mk
 -----------
 
 This leverages the ``.OBJDIR`` target introduced some years ago to
-NetBSD make, to automatically create the desired object dir.
+NetBSD make, to automatically create and use the desired object dir.
 
 subdir.mk
 ---------
@@ -333,6 +351,8 @@ you can suppress that - or enhance it by setting ``ECHO_DIR``::
 	ECHO_DIR=:
 	# print time stamps
 	ECHO_DIR=echo @ `date "+%s [%Y-%m-%d %T] "`
+
+I prefer to use `dirdeps.mk`_ which makes ``subdir.mk`` irrelevant.
 
 links.mk
 --------
@@ -367,9 +387,12 @@ dep.mk
 
 Deals with collecting dependencies.  Another useful feature of BSD
 make is the separation of this sort of information into a ``.depend``
-file.  ``MKDEP`` needs to point to a suitable tool (like mkdeps.sh_)
+file.  ``MKDEP_CMD`` needs to point to a suitable tool (like mkdeps.sh_)
 
-If ``USE_AUTODEP_MK`` is "yes" includes autodep.mk_
+If ``MK_AUTODEP`` is "yes" it sets ``MKDEP_MK`` to autodep.mk_ by default.
+
+``MKDEP_MK`` can also be set to `auto.dep.mk`_ which is more efficient
+but does not support an explicit ``depend`` target.
 
 autodep.mk
 ----------
@@ -397,19 +420,9 @@ to avoid possible conflicts during parallel builds.
 This precludes the use of suffix rules to drive ``make depend``, so
 dep.mk_ handles that if specifically requested.
 
-options.mk
-----------
-
-Inspired by FreeBSD's ``bsd.own.mk`` more flexible.
-FreeBSD now have similar functionality in ``bsd.mkopt.mk``.
-
-It allows users to express their intent with respect to options
-``MK_*`` by setting ``WITH_*`` or ``WITHOUT_*``.
-
-Note: ``WITHOUT_*`` wins if both are set, and makefiles can set
-``NO_*`` to say they cannot handle that option, or even ``MK_*`` if
-they really need to.
-
+If ``bmake`` is 20160218 or newer, ``auto.dep.mk`` uses ``.dinclude``
+to includes the ``*.d`` files directly thus avoiding the need to
+create a ``.depend`` file from them.
 
 own.mk
 ------
@@ -424,7 +437,7 @@ ldorder.mk
 
 Leverages ``bmake`` to compute optimal link order for libraries.
 This works nicely and makes refactoring a breeze - so long as you
-have not (or few) cicular dependencies between libraries.
+have no (or few) cicular dependencies between libraries.
 
 man.mk
 ------
@@ -463,6 +476,22 @@ Logic to build Python C interface modules using Cython_
 
 .. _Cython: http://www.cython.org/
 
+cc-wrap.mk
+----------
+
+This makefile leverages two new features in bmake 20220126 and later.
+
+First is the ablity to set target local variables (GNU make has done
+this for ages).
+
+The second (only intersting if using `meta mode`_)
+allows filtering commands before comparison with previous run to
+decide if a target is out-of-date.
+
+In the past, making use of compiler wrappers like ``ccache``,
+``distcc`` or the newer ``icecc`` could get quite ugly.
+Using ``cc-wrap.mk`` it could not be simpler.
+
 Meta mode
 =========
 
@@ -496,5 +525,5 @@ where you unpacked the tar file, you can::
 .. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.20 2020/08/19 17:51:53 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.21 2022/02/04 19:01:05 sjg Exp $
 :Copyright: Crufty.NET

@@ -9,7 +9,7 @@ make: "directive-info.mk" line 22: Missing argument for ".info"
 make: "directive-info.mk" line 23: Missing argument for ".info"
 make: "directive-info.mk" line 26: Unknown directive "info-message"
 make: "directive-info.mk" line 27: no-target: no-source
-make: "directive-info.mk" line 36: expect line 30 for multi-line message
+make: "directive-info.mk" line 35: expect line 35 for multi-line message
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

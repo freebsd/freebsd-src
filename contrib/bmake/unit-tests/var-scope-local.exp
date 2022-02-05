@@ -1,0 +1,21 @@
+Global: .ALLTARGETS =  one
+Global: .ALLTARGETS =  one two
+Var_Parse: ${.MAKE.TARGET_LOCAL_VARIABLES} (eval)
+Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
+Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
+Global: one two = 
+Global: one two = three
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
+: Making var-scope-local.c out of nothing.
+: Making var-scope-local.o from var-scope-local.c.
+: Making basename "var-scope-local.o" in "." from "var-scope-local.c" in ".".
+: Making var-scope-local-assign.o with VAR="local".
+: Making var-scope-local-append.o with VAR="local to var-scope-local-append.o".
+: Making var-scope-local-append-global.o with VAR="global+local".
+: Making var-scope-local-default.o with VAR="global".
+: Making var-scope-local-subst.o with VAR="global+local".
+: Making var-scope-local-shell.o with VAR="output".
+: var-scope-local-use.o uses .USE VAR="global"
+: all overwritten
+exit status 0

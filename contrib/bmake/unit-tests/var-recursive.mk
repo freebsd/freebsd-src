@@ -1,9 +1,9 @@
-# $NetBSD: var-recursive.mk,v 1.2 2020/10/31 13:45:00 rillig Exp $
+# $NetBSD: var-recursive.mk,v 1.4 2022/01/29 10:21:26 rillig Exp $
 #
 # Tests for variable expressions that refer to themselves and thus
 # cannot be evaluated.
 
-TESTS=	direct indirect conditional short
+TESTS=	direct indirect conditional short target
 
 # Since make exits immediately when it detects a recursive expression,
 # the actual tests are run in sub-makes.
@@ -41,6 +41,18 @@ CONDITIONAL=	${1:?ok:${CONDITIONAL}}
 # name.  Ensure that these are checked as well.
 V=	$V
 .  info $V
+
+.elif ${TEST} == target
+
+# If a recursive variable is accessed in a command of a target, the makefiles
+# are not parsed anymore, so there is no location information from the
+# .includes and .for directives.  In such a case, use the location of the last
+# command of the target to provide at least a hint to the location.
+VAR=	${VAR}
+target:
+	: OK
+	: ${VAR}
+	: OK
 
 .else
 .  error Unknown test "${TEST}"

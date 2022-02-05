@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.17 2021/06/11 13:01:28 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.18 2022/01/15 20:16:55 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -11,9 +11,9 @@
 # TODO: Implementation
 
 # The variable name of the expression is expanded and then taken as the
-# condition.  In this case it becomes:
+# condition.  In the below example it becomes:
 #
-#	variable expression == "variable expression"
+#	variable expression == "literal"
 #
 # This confuses the parser, which expects an operator instead of the bare
 # word "expression".  If the name were expanded lazily, everything would be

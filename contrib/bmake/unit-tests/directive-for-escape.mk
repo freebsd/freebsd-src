@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-escape.mk,v 1.12 2021/12/05 11:40:03 rillig Exp $
+# $NetBSD: directive-for-escape.mk,v 1.15 2022/01/27 20:15:14 rillig Exp $
 #
 # Test escaping of special characters in the iteration values of a .for loop.
 # These values get expanded later using the :U variable modifier, and this
@@ -50,7 +50,22 @@ VALUES=		$$ $${V} $${V:=-with-modifier} $$(V) $$(V:=-with-modifier)
 # being that each '$' is written as '$$'.
 #
 # The .for loop splits ${VALUES} into 3 words, at the space characters, since
-# these are not escaped.
+# the '$$' is an ordinary character and the spaces are not escaped.
+#	Word 1 is '${UNDEF:U\$\$'
+#	Word 2 is '{{}}'
+#	Word 3 is 'end}'
+# The first iteration expands the body of the .for loop to:
+# expect: .  info ${:U\${UNDEF\:U\\$\\$}
+# The modifier ':U' unescapes the '\$' to a simple '$'.
+# The modifier ':U' unescapes the '\:' to a simple ':'.
+# The modifier ':U' unescapes the '\\' to a simple '\'.
+# The modifier ':U' resolves the expression '$\' to the word 'backslash', due
+# to the following variable definition.
+${:U\\}=	backslash
+# FIXME: There was no expression '$\' in the original text of the previous
+# line, that's a surprise in the parser.
+# The modifier ':U' unescapes the '\$' to a simple '$'.
+# expect+4: ${UNDEF:U\backslash$
 VALUES=		$${UNDEF:U\$$\$$ {{}} end}
 # XXX: Where in the code does the '\$\$' get converted into a single '\$'?
 .for i in ${VALUES}
@@ -138,5 +153,48 @@ ${closing-brace}=	<closing-brace>	# alternative interpretation
 .  info short: $i
 .  info long: ${i}
 .endfor
+
+# No error since the newline character is not actually used.
+.for i in "${.newline}"
+.endfor
+
+# Between for.c 1.161 from 2022-01-08 and before for.c 1.163 from 2022-01-09,
+# a newline character in a .for loop led to a crash since at the point where
+# the error message including the stack trace is printed, the body of the .for
+# loop is assembled, and at that point, ForLoop.nextItem had already been
+# advanced.
+.MAKEFLAGS: -dp
+.for i in "${.newline}"
+: $i
+.endfor
+.MAKEFLAGS: -d0
+
+.MAKEFLAGS: -df
+.for i in \# \\\#
+# $i
+.endfor
+
+.for i in $$ $$i $$(i) $${i} $$$$ $$$$$$$$ $${:U\$$\$$}
+# $i
+.endfor
+
+# The expression '${.TARGET}' must be preserved as it is one of the 7 built-in
+# target-local variables.  See for.c 1.45 from 2009-01-14.
+.for i in ${.TARGET} $${.TARGET} $$${.TARGET} $$$${.TARGET}
+# $i
+.endfor
+# expect: # ${:U${.TARGET}}
+# XXX: Why does '$' result in the same text as '$$'?
+# expect: # ${:U${.TARGET}}
+# XXX: Why does the '$$' before the '${.TARGET}' lead to an escaped '}'?
+# expect: # ${:U$${.TARGET\}}
+# XXX: Why does '$' result in the same text as '$$'?
+# XXX: Why does the '$$' before the '${.TARGET}' lead to an escaped '}'?
+# expect: # ${:U$${.TARGET\}}
+
+.for i in ((( {{{ ))) }}}
+# $i
+.endfor
+.MAKEFLAGS: -d0
 
 all:

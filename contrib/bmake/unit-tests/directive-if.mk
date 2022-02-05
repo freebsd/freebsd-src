@@ -1,4 +1,4 @@
-# $NetBSD: directive-if.mk,v 1.9 2020/12/19 22:33:11 rillig Exp $
+# $NetBSD: directive-if.mk,v 1.11 2022/01/23 21:48:59 rillig Exp $
 #
 # Tests for the .if directive.
 #
@@ -37,13 +37,19 @@
 # longer interpreted as a variant of '.if', therefore the '.error' and '.else'
 # are interpreted as ordinary directives, producing the error messages
 # "if-less else" and "if-less endif".
+# expect+1: Unknown directive "ifx"
 .ifx 123
+# expect+1: This is not conditional.
 .info This is not conditional.
+# expect+1: if-less else
 .else
+# expect+1: This is not conditional.
 .info This is not conditional.
+# expect+1: if-less endif
 .endif
 
 # Missing condition.
+# expect+1: Malformed conditional ()
 .if
 .  error
 .else
@@ -86,4 +92,9 @@
 .  info Don't do this, always put a space after a directive.
 .endif
 
-all:
+
+# The directives '.ifdef' and '.ifmake' can be negated by inserting an 'n'.
+# This doesn't work for a plain '.if' though.
+#
+# expect+1: Unknown directive "ifn"
+.ifn 0

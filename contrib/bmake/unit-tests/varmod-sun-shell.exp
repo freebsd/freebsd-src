@@ -1,2 +1,13 @@
 make: "echo word; false" returned non-zero status
+Global: _ = 
+Var_Parse: ${echo word; ${:Ufalse}:L:sh} (eval-keep-dollar-and-undefined)
+Evaluating modifier ${echo word; false:L} on value "" (eval-keep-dollar-and-undefined, undefined)
+Result of ${echo word; false:L} is "echo word; false" (eval-keep-dollar-and-undefined, defined)
+Evaluating modifier ${echo word; false:s...} on value "echo word; false" (eval-keep-dollar-and-undefined, defined)
+Capturing the output of command "echo word; false"
+make: "echo word; false" returned non-zero status
+Result of ${echo word; false:sh} is "word" (eval-keep-dollar-and-undefined, defined)
+Global: _ = word
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
 exit status 0

@@ -1,16 +1,16 @@
-make: "var-eval-short.mk" line 41: In the :@ modifier of "", the variable name "${FAIL}" must not contain a dollar
-make: "var-eval-short.mk" line 41: Malformed conditional (0 && ${:Uword:@${FAIL}@expr@})
-make: "var-eval-short.mk" line 81: Invalid time value at "${FAIL}}"
-make: "var-eval-short.mk" line 81: Malformed conditional (0 && ${:Uword:gmtime=${FAIL}})
-make: "var-eval-short.mk" line 95: Invalid time value at "${FAIL}}"
-make: "var-eval-short.mk" line 95: Malformed conditional (0 && ${:Uword:localtime=${FAIL}})
+make: "var-eval-short.mk" line 44: In the :@ modifier of "", the variable name "${FAIL}" must not contain a dollar
+make: "var-eval-short.mk" line 44: Malformed conditional (0 && ${:Uword:@${FAIL}@expr@})
+make: "var-eval-short.mk" line 84: Invalid time value at "${FAIL}}"
+make: "var-eval-short.mk" line 84: Malformed conditional (0 && ${:Uword:gmtime=${FAIL}})
+make: "var-eval-short.mk" line 98: Invalid time value at "${FAIL}}"
+make: "var-eval-short.mk" line 98: Malformed conditional (0 && ${:Uword:localtime=${FAIL}})
 CondParser_Eval: 0 && ${0:?${FAIL}then:${FAIL}else}
 Var_Parse: ${0:?${FAIL}then:${FAIL}else} (parse-only)
 Parsing modifier ${0:?...}
 Modifier part: "${FAIL}then"
 Modifier part: "${FAIL}else"
 Result of ${0:?${FAIL}then:${FAIL}else} is "" (parse-only, defined)
-ParseReadLine (160): 'DEFINED=	defined'
+Parsing line 163: DEFINED=	defined
 Global: DEFINED = defined
 CondParser_Eval: 0 && ${DEFINED:L:?${FAIL}then:${FAIL}else}
 Var_Parse: ${DEFINED:L:?${FAIL}then:${FAIL}else} (parse-only)
@@ -20,7 +20,7 @@ Parsing modifier ${DEFINED:?...}
 Modifier part: "${FAIL}then"
 Modifier part: "${FAIL}else"
 Result of ${DEFINED:?${FAIL}then:${FAIL}else} is "defined" (parse-only, regular)
-ParseReadLine (163): '.MAKEFLAGS: -d0'
+Parsing line 166: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 Global: .MAKEFLAGS =  -r -k -d cpv -d
 Global: .MAKEFLAGS =  -r -k -d cpv -d 0

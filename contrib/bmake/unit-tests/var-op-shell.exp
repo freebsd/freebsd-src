@@ -1,7 +1,11 @@
-make: "var-op-shell.mk" line 28: warning: "echo "failed"; false" returned non-zero status
-make: "var-op-shell.mk" line 34: warning: "false" returned non-zero status
-make: "var-op-shell.mk" line 56: warning: "kill $$" exited on a signal
+make: "var-op-shell.mk" line 31: warning: "echo "failed"; false" returned non-zero status
+make: "var-op-shell.mk" line 37: warning: "false" returned non-zero status
+make: "var-op-shell.mk" line 59: warning: "kill $$" exited on a signal
 /bin/no/such/command: not found
-make: "var-op-shell.mk" line 62: warning: "/bin/no/such/command" returned non-zero status
+make: "var-op-shell.mk" line 65: warning: "/bin/no/such/command" returned non-zero status
 stderr
+Capturing the output of command "echo '$$$$'"
+Global: OUTPUT = $$$$
+Global: .MAKEFLAGS = -r -k -d v -d
+Global: .MAKEFLAGS = -r -k -d v -d 0
 exit status 0

@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.11 2021/04/04 10:13:09 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.12 2021/12/13 23:38:54 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -44,6 +44,15 @@ ${:U}: empty-source
 # targets.  This in turn would be such an extreme and unreliable edge case
 # that nobody uses it.
 $$$$$$$${:U:Z}:
+
+# expect+1: warning: Extra target ignored
+.END ordinary:
+
+# expect+1: warning: Extra target (ordinary) ignored
+.PATH ordinary:
+
+# expect+1: Special and mundane targets don't mix. Mundane ones ignored
+ordinary .PATH:
 
 all:
 	@:;

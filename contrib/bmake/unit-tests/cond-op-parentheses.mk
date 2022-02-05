@@ -1,8 +1,26 @@
-# $NetBSD: cond-op-parentheses.mk,v 1.4 2021/01/19 17:49:13 rillig Exp $
+# $NetBSD: cond-op-parentheses.mk,v 1.5 2022/01/22 21:50:41 rillig Exp $
 #
-# Tests for parentheses in .if conditions.
+# Tests for parentheses in .if conditions, which group expressions to override
+# the precedence of the operators '!', '&&' and '||'.  Parentheses cannot be
+# used to form arithmetic expressions such as '(3+4)' though.
 
-# TODO: Implementation
+# Contrary to the C family of programming languages, the outermost condition
+# does not have to be enclosed in parentheses.
+.if defined(VAR)
+.  error
+.elif !1
+.  error
+.endif
+
+# Parentheses cannot enclose numbers as there is no need for it.  Make does
+# not implement any arithmetic functions in its condition parser.  If
+# absolutely necessary, use expr(1).
+# expect+1: String comparison operator must be either == or !=
+.if 3 > (2)
+.endif
+# expect+1: Malformed conditional ((3) > 2)
+.if (3) > 2
+.endif
 
 # Test for deeply nested conditions.
 .if	((((((((((((((((((((((((((((((((((((((((((((((((((((((((	\
@@ -10,7 +28,10 @@
 	1								\
 	))))))))))))))))))))))))))))))))))))))))))))))))))))))))	\
 	))))))))))))))))))))))))))))))))))))))))))))))))))))))))
-.  info Parentheses can be nested at least to depth 112.
+# Parentheses can be nested at least to depth 112.  There is nothing special
+# about this number though, much higher numbers work as well, at least on
+# NetBSD.  The actual limit depends on the allowed call stack depth for C code
+# of the platform.  Anyway, 112 should be enough for all practical purposes.
 .else
 .  error
 .endif
@@ -24,8 +45,11 @@
 
 # An unbalanced closing parenthesis is a parse error.
 #
-# As of 2021-01-19, CondParser_Term returned TOK_RPAREN even though this
-# function promised to only ever return TOK_TRUE, TOK_FALSE or TOK_ERROR.
+# Before cond.c 1.237 from 2021-01-19, CondParser_Term returned TOK_RPAREN
+# even though the documentation of that function promised to only ever return
+# TOK_TRUE, TOK_FALSE or TOK_ERROR.  In cond.c 1.241, the return type of that
+# function was changed to a properly restricted enum type, to prevent this bug
+# from occurring again.
 .if )
 .  error
 .else

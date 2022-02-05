@@ -1,10 +1,10 @@
-# $NetBSD: hanoi-include.mk,v 1.1 2020/10/03 17:30:54 rillig Exp $
+# $NetBSD: hanoi-include.mk,v 1.2 2022/01/08 22:13:43 rillig Exp $
 #
 # Implements the Towers of Hanoi puzzle, thereby demonstrating a bunch of
-# useful programming techniques:
+# more or less useful programming techniques:
 #
 # * default assignment using the ?= assignment operator
-# * including the same file recursively
+# * including the same file recursively (rather unusual)
 # * extracting the current value of a variable using the .for loop
 # * using shell commands for calculations since make is a text processor
 # * using the :: dependency operator for adding commands to a target

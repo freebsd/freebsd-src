@@ -1,4 +1,4 @@
-# $NetBSD: posix.mk,v 1.2 2020/10/24 08:34:59 rillig Exp $
+# $NetBSD: posix.mk,v 1.3 2022/01/23 18:15:29 rillig Exp $
 
 all:	x plus subs err
 
@@ -14,11 +14,10 @@ plus:
 
 subs:
 	@echo make -n
-	@${.MAKE} -f ${MAKEFILE} -n plus
+	@${.MAKE} -r -f ${MAKEFILE} -n plus
 	@echo make -n -j1
-	@${.MAKE} -f ${MAKEFILE} -n -j1 plus
+	@${.MAKE} -r -f ${MAKEFILE} -n -j1 plus
 
 err:
 	@(echo Now we expect an error...; exit 1)
 	@echo "Oops! you shouldn't see this!"
-

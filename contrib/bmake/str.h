@@ -1,4 +1,4 @@
-/*	$NetBSD: str.h,v 1.12 2021/12/12 13:43:47 rillig Exp $	*/
+/*	$NetBSD: str.h,v 1.15 2021/12/15 10:57:01 rillig Exp $	*/
 
 /*
  Copyright (c) 2021 Roland Illig <rillig@NetBSD.org>
@@ -38,12 +38,6 @@ typedef struct FStr {
 	const char *str;
 	void *freeIt;
 } FStr;
-
-/* A modifiable string that may need to be freed after use. */
-typedef struct MFStr {
-	char *str;
-	void *freeIt;
-} MFStr;
 
 /* A read-only range of a character array, NOT null-terminated. */
 typedef struct Substring {
@@ -107,40 +101,6 @@ FStr_Done(FStr *fstr)
 #ifdef CLEANUP
 	fstr->str = NULL;
 	fstr->freeIt = NULL;
-#endif
-}
-
-
-MAKE_INLINE MFStr
-MFStr_Init(char *str, void *freeIt)
-{
-	MFStr mfstr;
-	mfstr.str = str;
-	mfstr.freeIt = freeIt;
-	return mfstr;
-}
-
-/* Return a string that is the sole owner of str. */
-MAKE_INLINE MFStr
-MFStr_InitOwn(char *str)
-{
-	return MFStr_Init(str, str);
-}
-
-/* Return a string that refers to the shared str. */
-MAKE_INLINE MFStr
-MFStr_InitRefer(char *str)
-{
-	return MFStr_Init(str, NULL);
-}
-
-MAKE_INLINE void
-MFStr_Done(MFStr *mfstr)
-{
-	free(mfstr->freeIt);
-#ifdef CLEANUP
-	mfstr->str = NULL;
-	mfstr->freeIt = NULL;
 #endif
 }
 
@@ -383,3 +343,7 @@ char *str_concat2(const char *, const char *);
 char *str_concat3(const char *, const char *, const char *);
 
 bool Str_Match(const char *, const char *);
+
+void Str_Intern_Init(void);
+void Str_Intern_End(void);
+const char *Str_Intern(const char *);

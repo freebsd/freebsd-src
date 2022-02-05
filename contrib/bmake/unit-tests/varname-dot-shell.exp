@@ -1,31 +1,31 @@
-ParseReadLine (10): 'ORIG_SHELL:=	${.SHELL}'
+Parsing line 10: ORIG_SHELL:=	${.SHELL}
 Global: ORIG_SHELL = 
 Var_Parse: ${.SHELL} (eval-keep-dollar-and-undefined)
 Global:delete .SHELL (not found)
 Command: .SHELL = (details omitted)
 Global: ORIG_SHELL = (details omitted)
-ParseReadLine (12): '.SHELL=		overwritten'
+Parsing line 12: .SHELL=		overwritten
 Global: .SHELL = overwritten
 CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined)
 Var_Parse: ${ORIG_SHELL} (eval-defined)
 lhs = "(details omitted)", rhs = "(details omitted)", op = !=
-ParseReadLine (19): '.MAKEFLAGS: .SHELL+=appended'
+Parsing line 19: .MAKEFLAGS: .SHELL+=appended
 ParseDependency(.MAKEFLAGS: .SHELL+=appended)
 Ignoring append to .SHELL since it is read-only
 CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined)
 Var_Parse: ${ORIG_SHELL} (eval-defined)
 lhs = "(details omitted)", rhs = "(details omitted)", op = !=
-ParseReadLine (27): '.undef .SHELL'
+Parsing line 27: .undef .SHELL
 Global:delete .SHELL
-ParseReadLine (28): '.SHELL=		newly overwritten'
+Parsing line 28: .SHELL=		newly overwritten
 Global: .SHELL = newly overwritten
 CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} (eval-defined)
 Var_Parse: ${ORIG_SHELL} (eval-defined)
 lhs = "(details omitted)", rhs = "(details omitted)", op = !=
-ParseReadLine (33): '.MAKEFLAGS: -d0'
+Parsing line 33: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 Global: .MAKEFLAGS =  -r -k -d cpv -d
 Global: .MAKEFLAGS =  -r -k -d cpv -d 0

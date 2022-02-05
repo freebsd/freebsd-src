@@ -1,8 +1,8 @@
-# $NetBSD: opt-debug-curdir.mk,v 1.1 2020/09/05 06:20:51 rillig Exp $
+# $NetBSD: opt-debug-curdir.mk,v 1.2 2022/01/23 16:09:38 rillig Exp $
 #
-# Tests for the -dC command line option, which does nothing, as of 2020-09-05.
+# Tests for the -dC command line option, which does nothing, as of 2020-09-05,
+# as the string "DEBUG(CWD" does not occur in the source code.
 
-# TODO: Implementation
+.MAKEFLAGS: -dC
 
-all:
-	@:;
+all: .PHONY

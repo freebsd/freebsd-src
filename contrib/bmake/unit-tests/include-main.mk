@@ -1,11 +1,11 @@
-# $NetBSD: include-main.mk,v 1.6 2021/01/22 00:44:55 rillig Exp $
+# $NetBSD: include-main.mk,v 1.7 2022/01/08 23:41:43 rillig Exp $
 #
 # Until 2020-09-05, the .INCLUDEDFROMFILE magic variable did not behave
 # as described in the manual page.
 #
 # The manual page says that it is the "filename of the file this Makefile
 # was included from", while before 2020-09-05 it was the "filename in which
-# the latest .include happened". See parse.c, function ParseSetIncludeFile.
+# the latest .include happened". See parse.c, function SetParseFile.
 #
 # Since 2020-09-05, the .INCLUDEDFROMDIR and .INCLUDEDFROMFILE variables
 # properly handle nested includes and even .for loops.

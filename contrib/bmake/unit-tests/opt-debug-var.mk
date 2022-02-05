@@ -1,9 +1,31 @@
-# $NetBSD: opt-debug-var.mk,v 1.1 2020/09/05 06:20:51 rillig Exp $
+# $NetBSD: opt-debug-var.mk,v 1.2 2022/01/23 16:09:38 rillig Exp $
 #
 # Tests for the -dv command line option, which adds debug logging about
 # variable assignment and evaluation.
 
-# TODO: Implementation
+.MAKEFLAGS: -dv
 
-all:
-	@:;
+# expect: Global: ASSIGNED = value
+ASSIGNED=	value
+
+# TODO: Explain why the empty assignment "Global: SUBST = " is needed.
+# expect: Global: SUBST = value
+SUBST:=		value
+
+.if defined(ASSIGNED)
+.endif
+
+# The usual form of variable expressions is ${VAR}.  The form $(VAR) is used
+# less often as it can be visually confused with the shell construct for
+# capturing the output of a subshell, which looks the same.
+#
+# In conditions, a call to the function 'empty' is syntactically similar to
+# the form $(VAR), only that the initial '$' is the 'y' of 'empty'.
+#
+# expect: Var_Parse: y(ASSIGNED) (eval)
+.if !empty(ASSIGNED)
+.endif
+
+.MAKEFLAGS: -d0
+
+all: .PHONY

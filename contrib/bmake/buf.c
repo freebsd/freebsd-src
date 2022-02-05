@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.c,v 1.53 2021/11/28 22:48:06 rillig Exp $	*/
+/*	$NetBSD: buf.c,v 1.55 2022/01/08 17:25:19 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -75,7 +75,7 @@
 #include "make.h"
 
 /*	"@(#)buf.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: buf.c,v 1.53 2021/11/28 22:48:06 rillig Exp $");
+MAKE_RCSID("$NetBSD: buf.c,v 1.55 2022/01/08 17:25:19 rillig Exp $");
 
 /* Make space in the buffer for adding at least 16 more bytes. */
 void
@@ -136,14 +136,6 @@ Buf_AddFlag(Buffer *buf, bool flag, const char *name)
 			Buf_AddByte(buf, '|');
 		Buf_AddBytes(buf, name, strlen(name));
 	}
-}
-
-/* Mark the buffer as empty, so it can be filled with data again. */
-void
-Buf_Empty(Buffer *buf)
-{
-	buf->len = 0;
-	buf->data[0] = '\0';
 }
 
 /* Initialize a buffer. */
@@ -214,8 +206,9 @@ Buf_DoneDataCompact(Buffer *buf)
 	if (buf->cap - buf->len >= BUF_COMPACT_LIMIT) {
 		/* We trust realloc to be smart */
 		char *data = bmake_realloc(buf->data, buf->len + 1);
+		buf->data = NULL;
 		data[buf->len] = '\0';	/* XXX: unnecessary */
-		Buf_DoneData(buf);
+		Buf_Done(buf);
 		return data;
 	}
 #endif

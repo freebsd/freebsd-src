@@ -1,12 +1,12 @@
-# $NetBSD: directive-ifmake.mk,v 1.8 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: directive-ifmake.mk,v 1.9 2022/01/22 16:23:56 rillig Exp $
 #
 # Tests for the .ifmake directive, which provides a shortcut for asking
 # whether a certain target is requested to be made from the command line.
 #
 # TODO: Describe why the shortcut may be useful (if it's useful at all),
-# instead of sticking to the simple '.if' only.
+# instead of using the more versatile '.if make(target)'.
 
-# The targets 'first' and 'second' are passed in on the command line.
+.MAKEFLAGS: first second
 
 # This is the most basic form.
 .ifmake first
@@ -15,9 +15,9 @@
 .  warning positive condition fails
 .endif
 
-# The not operator works as expected.
-# An alternative interpretation were that this condition is asking whether
-# the target "!first" was requested.  To distinguish this, see the next test.
+# The '!' is interpreted as 'not'.  A possible alternative interpretation of
+# this condition is whether the target named "!first" was requested.  To
+# distinguish these cases, see the next test.
 .ifmake !first
 .  warning unexpected
 .else
@@ -78,5 +78,30 @@
 .endif
 
 
-first second unmentioned late-target:
+# As an edge case, a target can actually be named "!first" on the command
+# line.  There is no way to define a target of this name though since in a
+# dependency line, a plain '!' is interpreted as a dependency operator.
+
+.MAKEFLAGS: !edge
+.ifmake edge
+.  error
+.endif
+
+# The '\!edge' in the following condition is parsed as a bare word.  For such
+# a bare word, there is no escaping mechanism so the backslash passes through.
+# Since the condition function 'make' accepts a pattern instead of a plain
+# target name, the '\' is finally discarded in Str_Match.
+.ifmake \!edge
+.else
+.  error
+.endif
+
+# In a dependency line, a plain '!' is interpreted as a dependency operator
+# (the other two are ':' and '::').  If the '!' is escaped by a '\', as
+# implemented in ParseDependencyTargetWord, the additional backslash is never
+# removed though.  The target name thus becomes '\!edge' instead of the
+# intended '!edge'.  Defining a target whose name contains a '!' will either
+# require additional tricks, or it may even be impossible.
+
+first second unmentioned late-target \!edge:
 	: $@
