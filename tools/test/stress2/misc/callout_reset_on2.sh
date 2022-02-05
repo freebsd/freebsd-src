@@ -201,11 +201,9 @@ writer(void) {
 	struct hostent *hostent;
 	int i, r;
 	char line[1024], ack[80];;
-	pid_t ppid;
 
 	setproctitle("writer - init");
 	share[SYNC] = 1;
-	ppid = getppid();
 	signal(SIGUSR1, handler);
 	signal(SIGALRM, ahandler);
 	alarm(60);

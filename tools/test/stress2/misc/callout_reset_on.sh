@@ -230,10 +230,8 @@ writer(void) {
 	struct hostent *hostent;
 	int i, r;
 	char line[1024], ack[80];;
-	pid_t ppid;
 
 	setproctitle("writer - init");
-	ppid = getppid();
 	signal(SIGUSR1, handler);
 	alarm(60);
 	on = 1;
