@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
-#include <netinet/tcp_ecn.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -1028,7 +1027,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			tp->t_flags |= TF_SACK_PERMIT;
 	}
 
-	tcp_ecn_syncache_socket(tp, sc);
+	if (sc->sc_flags & SCF_ECN)
+		tp->t_flags2 |= TF2_ECN_PERMIT;
 
 	/*
 	 * Set up MSS and get cached values from tcp_hostcache.
@@ -1743,9 +1743,9 @@ skip_alloc:
 		sc->sc_peer_mss = to->to_mss;	/* peer mss may be zero */
 	if (ltflags & TF_NOOPT)
 		sc->sc_flags |= SCF_NOOPT;
-	/* ECN Handshake */
-	if (V_tcp_do_ecn)
-		sc->sc_flags |= tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
+	if (((tcp_get_flags(th) & (TH_ECE|TH_CWR)) == (TH_ECE|TH_CWR)) &&
+	    V_tcp_do_ecn)
+		sc->sc_flags |= SCF_ECN;
 
 	if (V_tcp_syncookies)
 		sc->sc_iss = syncookie_generate(sch, sc);
@@ -1938,7 +1938,10 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 	th->th_win = htons(sc->sc_wnd);
 	th->th_urp = 0;
 
-	flags = tcp_ecn_syncache_respond(flags, sc);
+	if ((flags & TH_SYN) && (sc->sc_flags & SCF_ECN)) {
+		flags |= TH_ECE;
+		TCPSTAT_INC(tcps_ecn_shs);
+	}
 	tcp_set_flags(th, flags);
 
 	/* Tack on the TCP options. */
