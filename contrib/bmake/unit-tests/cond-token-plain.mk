@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-plain.mk,v 1.14 2021/12/12 09:36:00 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.15 2021/12/30 02:14:55 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
 # in .if conditions.  These are also called bare words.
@@ -209,5 +209,48 @@ ${:U\\\\}=	backslash
 # See cond-token-string.mk for similar tests where the condition is enclosed
 # in "quotes".
 
-all:
-	@:;
+.MAKEFLAGS: -d0
+
+
+# As of cond.c 1.320 from 2021-12-30, the code in CondParser_ComparisonOrLeaf
+# looks suspicious of evaluating the expression twice: first for parsing a
+# bare word and second for parsing the left-hand side of a comparison.
+#
+# In '.if' directives, the left-hand side of a comparison must not be a bare
+# word though, and this keeps CondParser_Leaf from evaluating the expression
+# for the second time.  The right-hand side of a comparison may be a bare
+# word, but that side has no risk of being parsed more than once.
+#
+# expect+1: Malformed conditional (VAR.${IF_COUNT::+=1} != "")
+.if VAR.${IF_COUNT::+=1} != ""
+.  error
+.else
+.  error
+.endif
+.if ${IF_COUNT} != "1"
+.  error
+.endif
+
+# A different situation is when CondParser.leftUnquotedOK is true.  This
+# situation arises in expressions of the form ${cond:?yes:no}.  As of
+# 2021-12-30, the condition in such an expression is evaluated before parsing
+# the condition, see varmod-ifelse.mk.  To pass a variable expression to the
+# condition parser, it needs to be escaped.  This rarely happens in practice,
+# in most cases the conditions are simple enough that it doesn't matter
+# whether the condition is first evaluated and then parsed, or vice versa.
+# A half-baked attempt at hiding this implementation detail is
+# CondParser.leftUnquotedOK, but that is a rather leaky abstraction.
+
+#.MAKEFLAGS: -dcv
+COND=	VAR.$${MOD_COUNT::+=1}
+.if ${${COND} == "VAR.":?yes:no} != "yes"
+.  error
+.endif
+
+# The value "1 1" demonstrates that the expression ${MOD_COUNT::+=1} was
+# evaluated twice.  In practice, expressions that occur in conditions do not
+# have side effects, making this problem rather academic, but it is there.
+.if ${MOD_COUNT} != "1 1"
+.  error
+.endif
+#.MAKEFLAGS: -d0

@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.164 2021/12/12 22:50:00 sjg Exp $
+# $Id: Makefile,v 1.171 2022/01/28 21:33:18 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.288 2021/12/12 22:16:48 rillig Exp $
+# $NetBSD: Makefile,v 1.302 2022/01/27 21:50:50 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -91,8 +91,10 @@ TESTS+=		dep-colon
 TESTS+=		dep-colon-bug-cross-file
 TESTS+=		dep-double-colon
 TESTS+=		dep-double-colon-indep
+TESTS+=		dep-duplicate
 TESTS+=		dep-exclam
 TESTS+=		dep-none
+TESTS+=		dep-op-missing
 TESTS+=		dep-percent
 TESTS+=		dep-var
 TESTS+=		dep-wildcards
@@ -189,7 +191,6 @@ TESTS+=		directive-warning
 TESTS+=		dollar
 TESTS+=		doterror
 TESTS+=		dotwait
-TESTS+=		envfirst
 TESTS+=		error
 TESTS+=		# escape	# broken by reverting POSIX changes
 TESTS+=		export
@@ -216,8 +217,6 @@ TESTS+=		meta-cmd-cmp
 TESTS+=		moderrs
 TESTS+=		modmatch
 TESTS+=		modmisc
-TESTS+=		modts
-TESTS+=		modword
 .if ${.MAKE.UID} > 0
 TESTS+=		objdir-writable
 .endif
@@ -273,10 +272,12 @@ TESTS+=		opt-touch-jobs
 TESTS+=		opt-tracefile
 TESTS+=		opt-var-expanded
 TESTS+=		opt-var-literal
+TESTS+=		opt-version
 TESTS+=		opt-warnings-as-errors
 TESTS+=		opt-where-am-i
 TESTS+=		opt-x-reduce-exported
 TESTS+=		order
+TESTS+=		parse
 TESTS+=		parse-var
 TESTS+=		phony-end
 TESTS+=		posix
@@ -319,12 +320,12 @@ TESTS+=		ternary
 TESTS+=		unexport
 TESTS+=		unexport-env
 TESTS+=		use-inference
-TESTS+=		var-class
-TESTS+=		var-class-cmdline
-TESTS+=		var-class-env
-TESTS+=		var-class-global
-TESTS+=		var-class-local
-TESTS+=		var-class-local-legacy
+TESTS+=		var-scope
+TESTS+=		var-scope-cmdline
+TESTS+=		var-scope-env
+TESTS+=		var-scope-global
+TESTS+=		var-scope-local
+TESTS+=		var-scope-local-legacy
 TESTS+=		var-eval-short
 TESTS+=		var-op
 TESTS+=		var-op-append
@@ -340,6 +341,7 @@ TESTS+=		varfind
 TESTS+=		varmisc
 TESTS+=		varmod
 TESTS+=		varmod-assign
+TESTS+=		varmod-assign-shell
 TESTS+=		varmod-defined
 TESTS+=		varmod-edge
 TESTS+=		varmod-exclam-shell
@@ -498,7 +500,6 @@ ENV.varname-vpath+=	VPATH=varname-vpath.dir:varname-vpath.dir2
 # If possible, write ".MAKEFLAGS: -dv" in the test .mk file instead of
 # settings FLAGS.test=-dv here, since that is closer to the test code.
 FLAGS.cond-func-make=		via-cmdline
-FLAGS.directive-ifmake=		first second
 FLAGS.doterror=			# none, especially not -k
 FLAGS.jobs-error-indirect=	# none, especially not -k
 FLAGS.jobs-error-nested=	# none, especially not -k
@@ -531,6 +532,7 @@ SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,' \
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
 SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
 SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
+SED_CMDS.opt-debug-hash=	-e 's,\(numEntries\)=[1-9][0-9],\1=<entries>,'
 SED_CMDS.opt-debug-jobs=	-e 's,([0-9][0-9]*),(<pid>),'
 SED_CMDS.opt-debug-jobs+=	-e 's,pid [0-9][0-9]*,pid <pid>,'
 SED_CMDS.opt-debug-jobs+=	-e 's,Process [0-9][0-9]*,Process <pid>,'
@@ -541,6 +543,7 @@ SED_CMDS.opt-debug-jobs+=	-e 's,^\(.Command: <shell>\) -q,\1,'
 SED_CMDS.opt-debug-lint+=	${STD_SED_CMDS.regex}
 SED_CMDS.opt-jobs-no-action=	${STD_SED_CMDS.hide-from-output}
 SED_CMDS.opt-no-action-runflags= ${STD_SED_CMDS.hide-from-output}
+SED_CMDS.opt-where-am-i=	-e '/usr.obj/d'
 # For Compat_RunCommand, useShell == false.
 SED_CMDS.sh-dots=		-e 's,^.*\.\.\.:.*,<not found: ...>,'
 # For Compat_RunCommand, useShell == true.
@@ -736,6 +739,9 @@ _SED_CMDS+=	-e 's,${TEST_MAKE:T:S,.,\\.,g}[][0-9]* warning,make warning,'
 _SED_CMDS+=	-e 's,^usage: ${TEST_MAKE:T:S,.,\\.,g} ,usage: make ,'
 # replace anything after 'stopped in' with unit-tests
 _SED_CMDS+=	-e '/stopped/s, /.*, unit-tests,'
+# Allow the test files to be placed anywhere.
+_SED_CMDS+=	-e 's,\(\.PARSEDIR}\) = `'"/[^']*'"',\1 = <some-dir>,'
+_SED_CMDS+=	-e 's,\(\.INCLUDEDFROMDIR}\) = `'"/[^']*'"',\1 = <some-dir>,'
 _SED_CMDS+=	-e 's,${TMPDIR},TMPDIR,g'
 # canonicalize ${.OBJDIR} and ${.CURDIR}
 .if ${.OBJDIR} != ${.CURDIR}

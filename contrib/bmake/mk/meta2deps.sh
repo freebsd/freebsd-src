@@ -75,7 +75,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.15 2020/11/08 06:31:08 sjg Exp $
+#	$Id: meta2deps.sh,v 1.18 2022/01/28 21:17:43 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -239,8 +239,8 @@ meta2deps() {
 	;;
     *) cat /dev/null "$@";;
     esac 2> /dev/null |
-    sed -e 's,^CWD,C C,;/^[CREFLMV] /!d' -e "s,',,g" |
-    $_excludes | ( version=no
+    sed -e 's,^CWD,C C,;/^[CREFLMVX] /!d' -e "s,',,g" |
+    $_excludes | ( version=no epids= xpids=
     while read op pid path junk
     do
 	: op=$op pid=$pid path=$path
@@ -271,8 +271,9 @@ meta2deps() {
 	    ;;
 	esac
 
+	: op=$op path=$path
 	case "$op,$path" in
-	V,*) version=$path; continue;;
+	V,*) version=$pid; continue;;
 	W,*srcrel|*.dirdep) continue;;
 	C,*)
 	    case "$path" in
@@ -289,6 +290,15 @@ meta2deps() {
 	    continue
 	    ;;
 	*)  dir=${path%/*}
+	    case "$op" in
+	    E)	# setid apps get no tracing so we won't see eXit
+		case `'ls' -l $path 2> /dev/null | sed 's, .*,,'` in
+		*s*) ;;
+		*) epids="$epids $pid";;
+		esac
+		;;
+	    X) xpids="$xpids $pid"; continue;;
+	    esac
 	    case "$path" in
 	    $src_re|$obj_re) ;;
 	    /*/stage/*) ;;
@@ -378,9 +388,18 @@ meta2deps() {
 	    echo $dir;;
 	esac
     done > $tf.dirdep
+    : version=$version
     case "$version" in
     0) error "no filemon data";;
-    esac ) || exit 1
+    esac
+    for p in $epids
+    do
+	: p=$p
+	case " $xpids " in
+	*" $p "*) ;;
+	*) error "missing eXit for pid $p";;
+	esac
+    done ) || exit 1
     _nl=echo
     for f in $tf.dirdep $tf.qual $tf.srcdep
     do

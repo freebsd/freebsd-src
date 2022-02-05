@@ -1,4 +1,4 @@
-# $NetBSD: cond-short.mk,v 1.18 2021/12/12 09:49:09 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.19 2021/12/27 18:54:19 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
@@ -14,14 +14,14 @@
 # relevant variable expressions was that in the irrelevant variable
 # expressions, undefined variables were allowed.  This allowed for conditions
 # like 'defined(VAR) && ${VAR:S,from,to,} != ""', which no longer produced an
-# error message 'Malformed conditional', but it still evaluated the
-# expression, even though the expression was irrelevant.
+# error message 'Malformed conditional', but the irrelevant expression was
+# still evaluated.
 #
 # Since the initial commit on 1993-03-21, the manual page has been saying that
 # make 'will only evaluate a conditional as far as is necessary to determine',
 # but that was wrong.  The code in cond.c 1.1 from 1993-03-21 looks good since
 # it calls Var_Parse(condExpr, VAR_CMD, doEval,&varSpecLen,&doFree), but the
-# definition of Var_Parse does not call the third parameter 'doEval', as would
+# definition of Var_Parse did not call the third parameter 'doEval', as would
 # be expected, but instead 'err', accompanied by the comment 'TRUE if
 # undefined variables are an error'.  This subtle difference between 'do not
 # evaluate at all' and 'allow undefined variables' led to the unexpected
@@ -122,7 +122,9 @@ VAR=	# empty again, for the following tests
 .if 0 || empty(${echo "expected or empty" 1>&2 :L:sh})
 .endif
 
-# Unreachable nested conditions are skipped completely as well.
+# Unreachable nested conditions are skipped completely as well.  These skipped
+# lines may even contain syntax errors.  This allows to skip syntactically
+# incompatible new features in older versions of make.
 
 .if 0
 .  if ${echo "unexpected nested and" 1>&2 :L:sh}

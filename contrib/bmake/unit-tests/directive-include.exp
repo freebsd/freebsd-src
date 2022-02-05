@@ -6,6 +6,8 @@ make: "directive-include.mk" line 25: Could not find nonexistent.mk
 make: "directive-include.mk" line 47: Could not find "
 make: "directive-include.mk" line 52: Unknown modifier "Z"
 make: "directive-include.mk" line 52: Could not find nonexistent.mk
+make: "directive-include.mk" line 57: Cannot open /nonexistent
+make: "directive-include.mk" line 62: Invalid line type
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

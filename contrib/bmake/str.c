@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.86 2021/06/21 16:59:18 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.88 2021/12/15 10:57:01 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,11 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.86 2021/06/21 16:59:18 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.88 2021/12/15 10:57:01 rillig Exp $");
+
+
+static HashTable interned_strings;
+
 
 /* Return the concatenation of s1 and s2, freshly allocated. */
 char *
@@ -394,4 +398,25 @@ Str_Match(const char *str, const char *pat)
 		pat++;
 		str++;
 	}
+}
+
+void
+Str_Intern_Init(void)
+{
+	HashTable_Init(&interned_strings);
+}
+
+void
+Str_Intern_End(void)
+{
+#ifdef CLEANUP
+	HashTable_Done(&interned_strings);
+#endif
+}
+
+/* Return a canonical instance of str, with unlimited lifetime. */
+const char *
+Str_Intern(const char *str)
+{
+	return HashTable_CreateEntry(&interned_strings, str, NULL)->key;
 }

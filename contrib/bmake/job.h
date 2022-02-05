@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.73 2021/04/03 11:08:40 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.77 2021/12/15 12:58:01 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -80,7 +80,7 @@
 #ifndef MAKE_JOB_H
 #define MAKE_JOB_H
 
-#define TMPPAT	"makeXXXXXX"		/* relative to tmpdir */
+#define TMPPAT	"makeXXXXXX"	/* relative to tmpdir */
 
 #ifdef USE_SELECT
 /*
@@ -92,16 +92,15 @@
 #define pollfd emul_pollfd
 
 struct emul_pollfd {
-    int fd;
-    short events;
-    short revents;
+	int fd;
+	short events;
+	short revents;
 };
 
 #define POLLIN		0x0001
 #define POLLOUT		0x0004
 
-int
-emul_poll(struct pollfd *fd, int nfd, int timeout);
+int emul_poll(struct pollfd *, int, int);
 #endif
 
 /*
@@ -145,9 +144,11 @@ typedef struct Job {
 	/* The target the child is making */
 	GNode *node;
 
-	/* If one of the shell commands is "...", all following commands are
-	* delayed until the .END node is made.  This list node points to the
-	* first of these commands, if any. */
+	/*
+	 * If one of the shell commands is "...", all following commands are
+	 * delayed until the .END node is made.  This list node points to the
+	 * first of these commands, if any.
+	 */
 	StringListNode *tailCmds;
 
 	/* This is where the shell commands go. */
@@ -187,24 +188,25 @@ extern char *shellErrFlag;
 extern int jobTokensRunning;	/* tokens currently "out" */
 
 void Shell_Init(void);
-const char *Shell_GetNewline(void);
+const char *Shell_GetNewline(void) MAKE_ATTR_USE;
 void Job_Touch(GNode *, bool);
-bool Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
+bool Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...))
+    MAKE_ATTR_USE;
 void Job_CatchChildren(void);
 void Job_CatchOutput(void);
 void Job_Make(GNode *);
 void Job_Init(void);
-bool Job_ParseShell(char *);
+bool Job_ParseShell(char *) MAKE_ATTR_USE;
 int Job_Finish(void);
 void Job_End(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
 void Job_TokenReturn(void);
-bool Job_TokenWithdraw(void);
+bool Job_TokenWithdraw(void) MAKE_ATTR_USE;
 void Job_ServerStart(int, int, int);
 void Job_SetPrefix(void);
 bool Job_RunTarget(const char *, const char *);
 void Job_FlagsToString(const Job *, char *, size_t);
-int Job_TempFile(const char *, char *, size_t);
+int Job_TempFile(const char *, char *, size_t) MAKE_ATTR_USE;
 
-#endif /* MAKE_JOB_H */
+#endif

@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.h,v 1.44 2021/04/03 11:08:40 rillig Exp $	*/
+/*	$NetBSD: dir.h,v 1.46 2021/12/15 12:08:25 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -82,18 +82,18 @@ void Dir_InitCur(const char *);
 void Dir_InitDot(void);
 void Dir_End(void);
 void Dir_SetPATH(void);
-bool Dir_HasWildcards(const char *);
+bool Dir_HasWildcards(const char *) MAKE_ATTR_USE;
 void SearchPath_Expand(SearchPath *, const char *, StringList *);
-char *Dir_FindFile(const char *, SearchPath *);
-char *Dir_FindHereOrAbove(const char *, const char *);
+char *Dir_FindFile(const char *, SearchPath *) MAKE_ATTR_USE;
+char *Dir_FindHereOrAbove(const char *, const char *) MAKE_ATTR_USE;
 void Dir_UpdateMTime(GNode *, bool);
 CachedDir *SearchPath_Add(SearchPath *, const char *);
-char *SearchPath_ToFlags(SearchPath *, const char *);
+char *SearchPath_ToFlags(SearchPath *, const char *) MAKE_ATTR_USE;
 void SearchPath_Clear(SearchPath *);
 void SearchPath_AddAll(SearchPath *, SearchPath *);
 void Dir_PrintDirectories(void);
 void SearchPath_Print(const SearchPath *);
-SearchPath *Dir_CopyDirSearchPath(void);
+SearchPath *Dir_CopyDirSearchPath(void) MAKE_ATTR_USE;
 
 /* Stripped-down variant of struct stat. */
 struct cached_stat {
@@ -104,4 +104,4 @@ struct cached_stat {
 int cached_lstat(const char *, struct cached_stat *);
 int cached_stat(const char *, struct cached_stat *);
 
-#endif /* MAKE_DIR_H */
+#endif

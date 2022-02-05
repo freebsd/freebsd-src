@@ -1,1 +1,4 @@
-exit status 0
+make: "deptgt-path-suffix.mk" line 8: Suffix '.c' not defined (yet)
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

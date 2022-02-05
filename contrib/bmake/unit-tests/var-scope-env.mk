@@ -1,4 +1,4 @@
-# $NetBSD: var-class-env.mk,v 1.2 2020/08/16 14:25:16 rillig Exp $
+# $NetBSD: var-scope-env.mk,v 1.1 2022/01/23 16:25:54 rillig Exp $
 #
 # Tests for variables specified in the process environment.
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.229 2021/11/28 23:12:51 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.238 2022/01/22 18:59:23 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -99,7 +99,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.229 2021/11/28 23:12:51 rillig Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.238 2022/01/22 18:59:23 rillig Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -112,10 +112,10 @@ static int compatSigno;
 static void
 CompatDeleteTarget(GNode *gn)
 {
-	if (gn != NULL && !Targ_Precious(gn)) {
+	if (gn != NULL && !GNode_IsPrecious(gn)) {
 		const char *file = GNode_VarTarget(gn);
 
-		if (!opts.noExecute && eunlink(file) != -1) {
+		if (!opts.noExecute && unlink_file(file)) {
 			Error("*** %s removed", file);
 		}
 	}
@@ -135,7 +135,7 @@ CompatInterrupt(int signo)
 {
 	CompatDeleteTarget(curTarg);
 
-	if (curTarg != NULL && !Targ_Precious(curTarg)) {
+	if (curTarg != NULL && !GNode_IsPrecious(curTarg)) {
 		/*
 		 * Run .INTERRUPT only if hit with interrupt signal
 		 */
@@ -168,10 +168,12 @@ DebugFailedTarget(const char *cmd, const GNode *gn)
 {
 	const char *p = cmd;
 	debug_printf("\n*** Failed target:  %s\n*** Failed command: ",
-		     gn->name);
+	    gn->name);
 
-	/* Replace runs of whitespace with a single space, to reduce
-	 * the amount of whitespace for multi-line command lines. */
+	/*
+	 * Replace runs of whitespace with a single space, to reduce the
+	 * amount of whitespace for multi-line command lines.
+	 */
 	while (*p != '\0') {
 		if (ch_isspace(*p)) {
 			debug_printf(" ");
@@ -220,24 +222,24 @@ UseShell(const char *cmd MAKE_ATTR_UNUSED)
  *	ln		List node that contains the command
  *
  * Results:
- *	0 if the command succeeded, 1 if an error occurred.
+ *	true if the command succeeded.
  */
-int
+bool
 Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 {
 	char *cmdStart;		/* Start of expanded command */
 	char *bp;
 	bool silent;		/* Don't print command */
 	bool doIt;		/* Execute even if -n */
-	volatile bool errCheck; /* Check errors */
+	volatile bool errCheck;	/* Check errors */
 	WAIT_T reason;		/* Reason for child's death */
 	WAIT_T status;		/* Description of child's death */
 	pid_t cpid;		/* Child actually found */
 	pid_t retstat;		/* Result of wait */
 	const char **volatile av; /* Argument vector for thing to exec */
 	char **volatile mav;	/* Copy of the argument vector for freeing */
-	bool useShell;		/* True if command should be executed
-				 * using a shell */
+	bool useShell;		/* True if command should be executed using a
+				 * shell */
 	const char *volatile cmd = cmdp;
 
 	silent = (gn->type & OP_SILENT) != OP_NONE;
@@ -249,7 +251,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 
 	if (cmdStart[0] == '\0') {
 		free(cmdStart);
-		return 0;
+		return true;
 	}
 	cmd = cmdStart;
 	LstNode_Set(ln, cmdStart);
@@ -269,12 +271,12 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 			 * usual '$$'.
 			 */
 			Lst_Append(&endNode->commands, cmdStart);
-			return 0;
+			return true;
 		}
 	}
 	if (strcmp(cmdStart, "...") == 0) {
 		gn->type |= OP_SAVE_CMDS;
-		return 0;
+		return true;
 	}
 
 	for (;;) {
@@ -298,7 +300,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	 * If we did not end up with a command, just skip it.
 	 */
 	if (cmd[0] == '\0')
-		return 0;
+		return true;
 
 	useShell = UseShell(cmd);
 	/*
@@ -315,7 +317,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	 * we go...
 	 */
 	if (!doIt && !GNode_ShouldExecute(gn))
-		return 0;
+		return true;
 
 	DEBUG1(JOB, "Execute: '%s'\n", cmd);
 
@@ -350,25 +352,20 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	}
 
 #ifdef USE_META
-	if (useMeta) {
+	if (useMeta)
 		meta_compat_start();
-	}
 #endif
 
 	Var_ReexportVars();
 
-	/*
-	 * Fork and execute the single command. If the fork fails, we abort.
-	 */
 	compatChild = cpid = vfork();
-	if (cpid < 0) {
+	if (cpid < 0)
 		Fatal("Could not fork");
-	}
+
 	if (cpid == 0) {
 #ifdef USE_META
-		if (useMeta) {
+		if (useMeta)
 			meta_compat_child();
-		}
 #endif
 		(void)execvp(av[0], (char *const *)UNCONST(av));
 		execDie("exec", av[0]);
@@ -382,9 +379,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	LstNode_SetNull(ln);
 
 #ifdef USE_META
-	if (useMeta) {
+	if (useMeta)
 		meta_compat_parent(cpid);
-	}
 #endif
 
 	/*
@@ -406,9 +402,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	} else if (WIFEXITED(reason)) {
 		status = WEXITSTATUS(reason);	/* exited */
 #if defined(USE_META) && defined(USE_FILEMON_ONCE)
-		if (useMeta) {
-		    meta_cmd_finish(NULL);
-		}
+		if (useMeta)
+			meta_cmd_finish(NULL);
 #endif
 		if (status != 0) {
 			if (DEBUG(ERROR))
@@ -424,9 +419,8 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	if (!WIFEXITED(reason) || status != 0) {
 		if (errCheck) {
 #ifdef USE_META
-			if (useMeta) {
+			if (useMeta)
 				meta_job_error(NULL, gn, false, status);
-			}
 #endif
 			gn->made = ERROR;
 			if (opts.keepgoing) {
@@ -457,7 +451,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 		kill(myPid, compatSigno);
 	}
 
-	return status;
+	return status == 0;
 }
 
 static void
@@ -467,7 +461,7 @@ RunCommands(GNode *gn)
 
 	for (ln = gn->commands.first; ln != NULL; ln = ln->next) {
 		const char *cmd = ln->datum;
-		if (Compat_RunCommand(cmd, gn, ln) != 0)
+		if (!Compat_RunCommand(cmd, gn, ln))
 			break;
 	}
 }
@@ -532,7 +526,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	 * to tell him/her "yes".
 	 */
 	DEBUG0(MAKE, "out-of-date.\n");
-	if (opts.queryFlag)
+	if (opts.query)
 		exit(1);
 
 	/*
@@ -547,7 +541,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	 */
 	if (opts.ignoreErrors)
 		gn->type |= OP_IGNORE;
-	if (opts.beSilent)
+	if (opts.silent)
 		gn->type |= OP_SILENT;
 
 	if (Job_CheckCommands(gn, Fatal)) {
@@ -555,12 +549,11 @@ MakeUnmade(GNode *gn, GNode *pgn)
 		 * Our commands are ok, but we still have to worry about
 		 * the -t flag.
 		 */
-		if (!opts.touchFlag || (gn->type & OP_MAKE)) {
+		if (!opts.touch || (gn->type & OP_MAKE)) {
 			curTarg = gn;
 #ifdef USE_META
-			if (useMeta && GNode_ShouldExecute(gn)) {
+			if (useMeta && GNode_ShouldExecute(gn))
 				meta_job_start(NULL, gn);
-			}
 #endif
 			RunCommands(gn);
 			curTarg = NULL;
@@ -593,7 +586,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	} else if (opts.keepgoing) {
 		pgn->flags.remake = false;
 	} else {
-		PrintOnError(gn, "\nStop.");
+		PrintOnError(gn, "\nStop.\n");
 		exit(1);
 	}
 	return true;
@@ -681,7 +674,7 @@ MakeBeginNode(void)
 
 	Compat_Make(gn, gn);
 	if (GNode_IsError(gn)) {
-		PrintOnError(gn, "\nStop.");
+		PrintOnError(gn, "\nStop.\n");
 		exit(1);
 	}
 }
@@ -715,12 +708,14 @@ Compat_Run(GNodeList *targs)
 
 	InitSignals();
 
-	/* Create the .END node now, to keep the (debug) output of the
-	 * counter.mk test the same as before 2020-09-23.  This implementation
-	 * detail probably doesn't matter though. */
+	/*
+	 * Create the .END node now, to keep the (debug) output of the
+	 * counter.mk test the same as before 2020-09-23.  This
+	 * implementation detail probably doesn't matter though.
+	 */
 	(void)Targ_GetEndNode();
 
-	if (!opts.queryFlag)
+	if (!opts.query)
 		MakeBeginNode();
 
 	/*
@@ -737,7 +732,7 @@ Compat_Run(GNodeList *targs)
 			printf("`%s' is up to date.\n", gn->name);
 		} else if (gn->made == ABORTED) {
 			printf("`%s' not remade because of errors.\n",
-			       gn->name);
+			    gn->name);
 		}
 		if (GNode_IsError(gn) && errorNode == NULL)
 			errorNode = gn;
@@ -756,7 +751,7 @@ Compat_Run(GNodeList *targs)
 			Targ_PrintGraph(2);
 		else if (DEBUG(GRAPH3))
 			Targ_PrintGraph(3);
-		PrintOnError(errorNode, "\nStop.");
+		PrintOnError(errorNode, "\nStop.\n");
 		exit(1);
 	}
 }

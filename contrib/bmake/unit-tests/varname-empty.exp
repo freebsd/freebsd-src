@@ -13,6 +13,7 @@ Var_SetExpand: variable name "" expands to empty string, with value "assigned" -
 SetVar: variable name is empty - ignored
 Var_SetExpand: variable name "" expands to empty string, with value "" - ignored
 Var_SetExpand: variable name "" expands to empty string, with value "subst" - ignored
+Capturing the output of command "echo 'shell-output'"
 Var_SetExpand: variable name "" expands to empty string, with value "shell-output" - ignored
 Var_SetExpand: variable name "${:U}" expands to empty string, with value "assigned indirectly" - ignored
 Var_AppendExpand: variable name "${:U}" expands to empty string, with value "appended indirectly" - ignored

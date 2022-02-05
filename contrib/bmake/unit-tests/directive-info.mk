@@ -1,4 +1,4 @@
-# $NetBSD: directive-info.mk,v 1.8 2020/12/19 22:33:11 rillig Exp $
+# $NetBSD: directive-info.mk,v 1.9 2022/01/08 20:21:34 rillig Exp $
 #
 # Tests for the .info directive.
 #
@@ -27,11 +27,12 @@
 .info no-target: no-source	# This is a .info directive, not a dependency.
 # See directive.mk for more tests of this kind.
 
-# Since at least 2002-01-01, the line number that is used in error messages
-# and the .info directives is the number of completely read lines.  For the
-# following multi-line directive, this means that the reported line number is
-# the one of the last line, not the first line.
-.info expect line 30 for\
+# Since at least 2002-01-01 and before parse.c 1.639 from 2022-01-08, the line
+# number that is used in error messages and the .info directives was the
+# number of completely read lines.  For the following multi-line directive,
+# this meant that the reported line number was the one of the last line, not
+# of the first line.
+.info expect line 35 for\
 	multi$\
 	-line message
 

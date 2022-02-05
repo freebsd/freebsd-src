@@ -1,5 +1,11 @@
 make: "varparse-errors.mk" line 38: Unknown modifier "Z"
 make: "varparse-errors.mk" line 46: Unknown modifier "Z"
+make: Bad modifier ":OX" for variable ""
+make: "varparse-errors.mk" line 68: Undefined variable "${:U:OX"
+make: Bad modifier ":OX" for variable ""
+make: Bad modifier ":OX" for variable ""
+make: "varparse-errors.mk" line 68: Undefined variable "${:U:OX"
+make: Bad modifier ":OX" for variable ""
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -1,4 +1,4 @@
-# $NetBSD: varname-dot-suffixes.mk,v 1.1 2021/12/12 22:16:48 rillig Exp $
+# $NetBSD: varname-dot-suffixes.mk,v 1.2 2022/01/15 12:35:18 rillig Exp $
 #
 # Tests for the special "variable" .SUFFIXES, which lists the suffixes that
 # have been registered for use in suffix transformation rules.  Suffixes are
@@ -67,7 +67,7 @@
 .SUFFIXES+=	append
 # expect: Global: .SUFFIXES = assign ignored (read-only)
 _:=		${.SUFFIXES::=assign}
-# expect: Command: .SUFFIXES = preserve ignored (read-only)
+# expect: Global: .SUFFIXES = preserve ignored (read-only)
 _:=		${preserve:L:_=.SUFFIXES}
 .MAKEFLAGS: -d0
 
@@ -96,6 +96,8 @@ _:=		${preserve:L:_=.SUFFIXES}
 .MAKEFLAGS: -dv
 # expect: Command: .SUFFIXES = 1 ignored (read-only)
 # expect: Command: .SUFFIXES = 2 ignored (read-only)
+# XXX: Missing space after ':'
+# expect: Command:delete .SUFFIXES (not found)
 .if ${1 2:L:@.SUFFIXES@${.SUFFIXES}@} != ".c .o .1 .err .tar.gz .c .o .1 .err .tar.gz"
 .  error
 .endif

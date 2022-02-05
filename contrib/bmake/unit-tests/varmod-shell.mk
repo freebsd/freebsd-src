@@ -1,4 +1,4 @@
-# $NetBSD: varmod-shell.mk,v 1.6 2021/02/14 20:16:17 rillig Exp $
+# $NetBSD: varmod-shell.mk,v 1.7 2022/01/10 20:32:29 rillig Exp $
 #
 # Tests for the ':!cmd!' variable modifier, which runs the shell command
 # given by the variable modifier and returns its output.
@@ -20,13 +20,17 @@
 #
 # Between 2000-04-29 and 2020-11-17, the error message mentioned the previous
 # value of the expression (which is usually an empty string) instead of the
-# command that was executed.  It's strange that such a simple bug could
-# survive such a long time.
+# command that was executed.
 .if ${:!echo word; false!} != "word"
 .  error
 .endif
 .if ${:Uprevious value:!echo word; false!} != "word"
 .  error
 .endif
+
+
+.MAKEFLAGS: -dv			# to see the actual command
+_:=	${:!echo word; ${:Ufalse}!}
+.MAKEFLAGS: -d0
 
 all:

@@ -1,8 +1,14 @@
-# $NetBSD: opt-raw.mk,v 1.2 2020/08/16 14:25:16 rillig Exp $
+# $NetBSD: opt-raw.mk,v 1.3 2022/01/23 16:09:38 rillig Exp $
 #
-# Tests for the -r command line option.
+# Tests for the -r command line option, which skips the system-defined default
+# rules from <sys.mk>.
 
-# TODO: Implementation
+# To provide a clean testing environment without unintended side effects,
+# these unit tests run make with the option '-r' by default.  This means there
+# are no predefined suffixes and no predefined tools.
 
-all:
-	@:;
+.if defined(CC)
+.  error
+.endif
+
+all: .PHONY

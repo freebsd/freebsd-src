@@ -1,3 +1,60 @@
+2022-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220204
+
+	* host-target.mk: use .MAKE.OS if available
+
+2022-02-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220202
+
+	* cc-wrap.mk: allow other entries in CC_WRAP_FILTER
+	We add our filter on extensions last, so prior filters
+	can apply to the whole value of .IMPSRC
+
+2022-02-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* cc-wrap.mk: take advantage of target local variables to
+	wrap compilers like CC CXX with wrappers like ccache distcc etc
+
+2022-01-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta2deps: we do not expect any trace data for setid apps
+
+2022-01-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: ensure TARGET_SPEC and TARGET_SPEC_VARS are passed
+	to sub-make using DIRDEPS_CACHE
+
+2022-01-07  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: use _cache_script to minimize the number of shells
+	forked when generating dirdeps.cache
+
+2022-01-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220101
+
+	* dirdeps.mk: initialize DEP_* and _debug_reldir earlier.
+	If initial DIRDEPS are from command line, create the target
+	_dirdeps_cmdline as an indication.
+
+2022-01-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* init.mk (_SKIP_BUILD): when doing DIRDEPS_BUILD
+	at top-level only some targets are allowed at level 0,
+	for leaf makefiles only the default (all) target is restricted
+
+2021-12-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20211228
+	
+	* meta2deps.py: filemon on Linux is not as reliable as we might
+	like, we do not want to update DIRDEPS if filemon output is
+	incomplete.   Track pids that we 'E'xec and make sure we see an
+	e'X'it for each one.  Throw an error if we are missing any 'X'
+	records.
+
 2021-12-12  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* sys.mk: simplify; include meta.sys.mk if MK_META_MODE is yes.

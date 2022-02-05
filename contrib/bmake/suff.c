@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.357 2021/12/12 20:45:48 sjg Exp $	*/
+/*	$NetBSD: suff.c,v 1.364 2022/01/07 20:54:45 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.357 2021/12/12 20:45:48 sjg Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.364 2022/01/07 20:54:45 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -207,20 +207,26 @@ typedef struct Suffix {
 typedef struct Candidate {
 	/* The file or node to look for. */
 	char *file;
-	/* The prefix from which file was formed.
-	 * Its memory is shared among all candidates. */
+	/*
+	 * The prefix from which file was formed. Its memory is shared among
+	 * all candidates.
+	 */
 	char *prefix;
 	/* The suffix on the file. */
 	Suffix *suff;
 
-	/* The candidate that can be made from this,
-	 * or NULL for the top-level candidate. */
+	/*
+	 * The candidate that can be made from this, or NULL for the
+	 * top-level candidate.
+	 */
 	struct Candidate *parent;
 	/* The node describing the file. */
 	GNode *node;
 
-	/* Count of existing children, only used for memory management, so we
-	 * don't free this candidate too early or too late. */
+	/*
+	 * Count of existing children, only used for memory management, so we
+	 * don't free this candidate too early or too late.
+	 */
 	int numChildren;
 #ifdef DEBUG_SRC
 	CandidateList childrenList;
@@ -240,7 +246,7 @@ typedef struct CandidateSearcher {
 
 
 /* TODO: Document the difference between nullSuff and emptySuff. */
-/* The NULL suffix for this run */
+/* The NULL suffix is used when a file has no known suffix */
 static Suffix *nullSuff;
 /* The empty suffix required for POSIX single-suffix transformation rules */
 static Suffix *emptySuff;
@@ -692,7 +698,9 @@ RebuildGraph(GNode *transform, Suffix *suff)
 	size_t nameLen = strlen(name);
 	const char *toName;
 
-	/* See if it is a transformation from this suffix to another suffix. */
+	/*
+	 * See if it is a transformation from this suffix to another suffix.
+	 */
 	toName = StrTrimPrefix(suff->name, name);
 	if (toName != NULL) {
 		Suffix *to = FindSuffixByName(toName);
@@ -702,7 +710,9 @@ RebuildGraph(GNode *transform, Suffix *suff)
 		}
 	}
 
-	/* See if it is a transformation from another suffix to this suffix. */
+	/*
+	 * See if it is a transformation from another suffix to this suffix.
+	 */
 	toName = Suffix_TrimSuffix(suff, nameLen, name + nameLen);
 	if (toName != NULL) {
 		Suffix *from = FindSuffixByNameLen(name,
@@ -724,17 +734,15 @@ RebuildGraph(GNode *transform, Suffix *suff)
  *	true iff a new main target has been selected.
  */
 static bool
-UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
-	     bool *inout_removedMain)
+UpdateTarget(GNode *target, Suffix *suff, bool *inout_removedMain)
 {
 	Suffix *srcSuff, *targSuff;
 	char *ptr;
 
-	if (*inout_main == NULL && *inout_removedMain &&
-	    !(target->type & OP_NOTARGET)) {
+	if (mainNode == NULL && *inout_removedMain &&
+	    GNode_IsMainCandidate(target)) {
 		DEBUG1(MAKE, "Setting main node to \"%s\"\n", target->name);
-		*inout_main = target;
-		Targ_SetMain(target);
+		mainNode = target;
 		/*
 		 * XXX: Why could it be a good idea to return true here?
 		 * The main task of this function is to turn ordinary nodes
@@ -772,13 +780,12 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
 		return false;
 
 	if (ParseTransform(target->name, &srcSuff, &targSuff)) {
-		if (*inout_main == target) {
+		if (mainNode == target) {
 			DEBUG1(MAKE,
 			    "Setting main node from \"%s\" back to null\n",
 			    target->name);
 			*inout_removedMain = true;
-			*inout_main = NULL;
-			Targ_SetMain(NULL);
+			mainNode = NULL;
 		}
 		Lst_Done(&target->children);
 		Lst_Init(&target->children);
@@ -802,14 +809,14 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
  * suffix rules.
  */
 static void
-UpdateTargets(GNode **inout_main, Suffix *suff)
+UpdateTargets(Suffix *suff)
 {
 	bool removedMain = false;
 	GNodeListNode *ln;
 
 	for (ln = Targ_List()->first; ln != NULL; ln = ln->next) {
 		GNode *gn = ln->datum;
-		if (UpdateTarget(gn, inout_main, suff, &removedMain))
+		if (UpdateTarget(gn, suff, &removedMain))
 			break;
 	}
 }
@@ -828,7 +835,7 @@ UpdateTargets(GNode **inout_main, Suffix *suff)
  *	name		the name of the suffix to add
  */
 void
-Suff_AddSuffix(const char *name, GNode **inout_main)
+Suff_AddSuffix(const char *name)
 {
 	GNodeListNode *ln;
 
@@ -840,7 +847,7 @@ Suff_AddSuffix(const char *name, GNode **inout_main)
 	Lst_Append(&sufflist, suff);
 	DEBUG1(SUFF, "Adding suffix \"%s\"\n", suff->name);
 
-	UpdateTargets(inout_main, suff);
+	UpdateTargets(suff);
 
 	/*
 	 * Look for any existing transformations from or to this suffix.
@@ -1197,7 +1204,9 @@ FindCmds(Candidate *targ, CandidateSearcher *cs)
 		base = str_basename(sgn->name);
 		if (strncmp(base, targ->prefix, prefLen) != 0)
 			continue;
-		/* The node matches the prefix, see if it has a known suffix. */
+		/*
+		 * The node matches the prefix, see if it has a known suffix.
+		 */
 		suff = FindSuffixByName(base + prefLen);
 		if (suff == NULL)
 			continue;
@@ -1254,7 +1263,7 @@ ExpandWildcards(GNodeListNode *cln, GNode *pgn)
 		DEBUG1(SUFF, "%s...", cp);
 		gn = Targ_GetNode(cp);
 
-		/* Add gn to the parents child list before the original child */
+		/* Insert gn before the original child. */
 		Lst_InsertBefore(&pgn->children, cln, gn);
 		Lst_Append(&gn->parents, pgn);
 		pgn->unmade++;
@@ -1767,8 +1776,7 @@ FindDepsRegularPath(GNode *gn, Candidate *targ)
 
 	free(gn->path);
 	gn->path = Dir_FindFile(gn->name,
-	    (targ == NULL ? &dirSearchPath :
-		targ->suff->searchPath));
+	    targ == NULL ? &dirSearchPath : targ->suff->searchPath);
 	if (gn->path == NULL)
 		return;
 
@@ -2178,7 +2186,7 @@ Suff_PrintAll(void)
 	}
 }
 
-const char *
+char *
 Suff_NamesStr(void)
 {
 	Buffer buf;

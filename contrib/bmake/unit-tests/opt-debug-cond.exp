@@ -1,1 +1,6 @@
+CondParser_Eval: ${:U12345} > ${:U55555}
+lhs = 12345.000000, rhs = 55555.000000, op = >
+CondParser_Eval: "string" != "string"
+lhs = "string", rhs = "string", op = !=
+CondParser_Eval: "nonempty"
 exit status 0

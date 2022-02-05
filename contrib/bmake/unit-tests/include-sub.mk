@@ -1,4 +1,4 @@
-# $NetBSD: include-sub.mk,v 1.7 2020/11/02 19:07:09 rillig Exp $
+# $NetBSD: include-sub.mk,v 1.9 2022/01/08 23:41:43 rillig Exp $
 
 .if ${.INCLUDEDFROMFILE} == "include-main.mk"
 .  info sub-before-ok
@@ -20,11 +20,11 @@
 # To see the variable 'includes' in action:
 #
 # Breakpoints:
-#	Parse_File		at "Vector_Push(&includes)"
-#	ParseMessage		at entry
+#	Parse_PushInput		at "Vector_Push(&includes)"
+#	HandleMessage		at entry
 # Watches:
-#	((const IFile *[10])(*includes.items))
-#	*curFile
+#	((const IncludedFile *[10])(*includes.items))
+#	*CurFile()
 
 .for i in deeply
 .  for i in nested

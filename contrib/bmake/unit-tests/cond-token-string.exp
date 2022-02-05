@@ -6,9 +6,9 @@ make: "cond-token-string.mk" line 37: Expected.
 CondParser_Eval: "UNDEF"
 make: "cond-token-string.mk" line 46: The string literal "UNDEF" is not empty.
 CondParser_Eval: " "
-make: "cond-token-string.mk" line 55: The string literal " " is not empty, even though it consists of whitespace only.
+make: "cond-token-string.mk" line 54: The string literal " " is not empty, even though it consists of whitespace only.
 CondParser_Eval: "${UNDEF}"
-make: "cond-token-string.mk" line 64: An undefined variable in quotes expands to an empty string, which then evaluates to false.
+make: "cond-token-string.mk" line 63: An undefined variable in quotes expands to an empty string, which then evaluates to false.
 CondParser_Eval: "${:Uvalue}"
 make: "cond-token-string.mk" line 68: A nonempty variable expression evaluates to true.
 CondParser_Eval: "${:U}"

@@ -19,6 +19,24 @@ make: "directive-for.mk" line 148: outer "quoted" \"quoted\"
 make: "directive-for.mk" line 154: Unknown modifier "Z"
 make: "directive-for.mk" line 155: XXX: Not reached word1
 make: "directive-for.mk" line 155: XXX: Not reached word3
+make: "directive-for.mk" line 160: no iteration variables in for
+make: "directive-for.mk" line 162: Missing argument for ".error"
+make: "directive-for.mk" line 163: for-less endfor
+make: "directive-for.mk" line 187: 1 open conditional
+make: "directive-for.mk" line 203: for-less endfor
+make: "directive-for.mk" line 204: if-less endif
+make: "directive-for.mk" line 212: if-less endif
+For: end for 1
+For: loop body:
+.\
+   for inner in i
+.\
+   endfor
+make: "directive-for.mk" line 229: Unexpected end of file in .for loop
+For: loop body:
+.\
+   endfor
+make: "directive-for.mk" line 227: for-less endfor
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.h,v 1.10 2021/04/03 11:08:40 rillig Exp $ */
+/*      $NetBSD: meta.h,v 1.11 2021/12/15 09:53:41 rillig Exp $ */
 
 /*
  * Things needed for 'meta' mode.
@@ -46,13 +46,13 @@ void meta_mode_init(const char *);
 void meta_job_start(struct Job *, GNode *);
 void meta_job_child(struct Job *);
 void meta_job_parent(struct Job *, pid_t);
-int  meta_job_fd(struct Job *);
-int  meta_job_event(struct Job *);
+int  meta_job_fd(struct Job *) MAKE_ATTR_USE;
+int  meta_job_event(struct Job *) MAKE_ATTR_USE;
 void meta_job_error(struct Job *, GNode *, bool, int);
 void meta_job_output(struct Job *, char *, const char *);
 int  meta_cmd_finish(void *);
 int  meta_job_finish(struct Job *);
-bool meta_oodate(GNode *, bool);
+bool meta_oodate(GNode *, bool) MAKE_ATTR_USE;
 void meta_compat_start(void);
 void meta_compat_child(void);
 void meta_compat_parent(pid_t);

@@ -6,6 +6,7 @@ auto.obj.mk
 autoconf.mk
 autodep.mk
 auto.dep.mk
+cc-wrap.mk
 compiler.mk
 cython.mk
 dep.mk

@@ -1,8 +1,9 @@
-# $NetBSD: opt-jobs-internal.mk,v 1.2 2020/08/16 14:25:16 rillig Exp $
+# $NetBSD: opt-jobs-internal.mk,v 1.3 2022/01/23 16:09:38 rillig Exp $
 #
 # Tests for the (intentionally undocumented) -J command line option.
+#
+# Only test the error handling here, the happy path is covered in other tests
+# as a side effect.
 
-# TODO: Implementation
-
-all:
-	@:;
+# expect: make: internal error -- J option malformed (garbage)
+.MAKEFLAGS: -Jgarbage

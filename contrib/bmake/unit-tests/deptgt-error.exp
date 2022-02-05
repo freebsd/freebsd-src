@@ -1,1 +1,9 @@
-exit status 0
+false fails
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped in unit-tests
+ERROR_INFO='This information is printed on 'errors'.'
+Making sub-error as prerequisite.
+Making .ERROR out of nothing.
+exit status 1
