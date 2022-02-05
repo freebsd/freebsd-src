@@ -545,8 +545,10 @@ typedef struct BcVm {
 	/// The messages for each error.
 	const char *err_msgs[BC_ERR_NELEMS];
 
+#if BC_ENABLE_NLS
 	/// The locale.
 	const char *locale;
+#endif // BC_ENABLE_NLS
 
 #endif // !BC_ENABLE_LIBRARY
 

@@ -36,7 +36,7 @@ builddir=$(pwd)
 . "$scriptdir/scripts/functions.sh"
 
 # Simply prints the help message and quits based on the argument.
-# @param val  The value to pass to exit. Must be an integer.
+# @param msg  The help message to print.
 usage() {
 
 	if [ $# -gt 0 ]; then
@@ -95,7 +95,7 @@ usage() {
 	printf '    -f, --force\n'
 	printf '        Force use of all enabled options, even if they do not work. This\n'
 	printf '        option is to allow the maintainer a way to test that certain options\n'
-	printf '        are not failing invisibly. (Development only.)'
+	printf '        are not failing invisibly. (Development only.)\n'
 	printf '    -g, --debug\n'
 	printf '        Build in debug mode. Adds the "-g" flag, and if there are no\n'
 	printf '        other CFLAGS, and "-O" was not given, this also adds the "-O0"\n'
@@ -535,7 +535,7 @@ gen_std_test_targets() {
 # This allows `make test_bc_errors` and `make test_dc_errors` to run in
 # parallel.
 #
-# @param name        Which calculator to generate tests for.
+# @param name  Which calculator to generate tests for.
 gen_err_tests() {
 
 	_gen_err_tests_name="$1"
