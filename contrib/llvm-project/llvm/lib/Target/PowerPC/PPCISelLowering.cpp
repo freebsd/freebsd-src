@@ -1252,7 +1252,6 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
         setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v8i16, Legal);
         setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v16i8, Legal);
         setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v4i32, Legal);
-        setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v4f32, Legal);
       } else {
         setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v8i16, Custom);
         setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v16i8, Custom);
@@ -9093,22 +9092,30 @@ bool llvm::checkConvertToNonDenormSingle(APFloat &ArgAPFloat) {
 
 static bool isValidSplatLoad(const PPCSubtarget &Subtarget, const SDValue &Op,
                              unsigned &Opcode) {
-  const SDNode *InputNode = Op.getOperand(0).getNode();
-  if (!InputNode || !ISD::isUNINDEXEDLoad(InputNode))
-    return false;
-
-  if (!Subtarget.hasVSX())
+  LoadSDNode *InputNode = dyn_cast<LoadSDNode>(Op.getOperand(0));
+  if (!InputNode || !Subtarget.hasVSX() || !ISD::isUNINDEXEDLoad(InputNode))
     return false;
 
   EVT Ty = Op->getValueType(0);
-  if (Ty == MVT::v2f64 || Ty == MVT::v4f32 || Ty == MVT::v4i32 ||
-      Ty == MVT::v8i16 || Ty == MVT::v16i8)
+  // For v2f64, v4f32 and v4i32 types, we require the load to be non-extending
+  // as we cannot handle extending loads for these types.
+  if ((Ty == MVT::v2f64 || Ty == MVT::v4f32 || Ty == MVT::v4i32) &&
+      ISD::isNON_EXTLoad(InputNode))
+    return true;
+
+  EVT MemVT = InputNode->getMemoryVT();
+  // For v8i16 and v16i8 types, extending loads can be handled as long as the
+  // memory VT is the same vector element VT type.
+  // The loads feeding into the v8i16 and v16i8 types will be extending because
+  // scalar i8/i16 are not legal types.
+  if ((Ty == MVT::v8i16 || Ty == MVT::v16i8) && ISD::isEXTLoad(InputNode) &&
+      (MemVT == Ty.getVectorElementType()))
     return true;
 
   if (Ty == MVT::v2i64) {
     // Check the extend type, when the input type is i32, and the output vector
     // type is v2i64.
-    if (cast<LoadSDNode>(Op.getOperand(0))->getMemoryVT() == MVT::i32) {
+    if (MemVT == MVT::i32) {
       if (ISD::isZEXTLoad(InputNode))
         Opcode = PPCISD::ZEXT_LD_SPLAT;
       if (ISD::isSEXTLoad(InputNode))
@@ -10754,6 +10761,26 @@ SDValue PPCTargetLowering::LowerINSERT_VECTOR_ELT(SDValue Op,
 
   if (VT == MVT::v2f64 && C)
     return Op;
+
+  if (Subtarget.hasP9Vector()) {
+    // A f32 load feeding into a v4f32 insert_vector_elt is handled in this way
+    // because on P10, it allows this specific insert_vector_elt load pattern to
+    // utilize the refactored load and store infrastructure in order to exploit
+    // prefixed loads.
+    // On targets with inexpensive direct moves (Power9 and up), a
+    // (insert_vector_elt v4f32:$vec, (f32 load)) is always better as an integer
+    // load since a single precision load will involve conversion to double
+    // precision on the load followed by another conversion to single precision.
+    if ((VT == MVT::v4f32) && (V2.getValueType() == MVT::f32) &&
+        (isa<LoadSDNode>(V2))) {
+      SDValue BitcastVector = DAG.getBitcast(MVT::v4i32, V1);
+      SDValue BitcastLoad = DAG.getBitcast(MVT::i32, V2);
+      SDValue InsVecElt =
+          DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, MVT::v4i32, BitcastVector,
+                      BitcastLoad, Op.getOperand(2));
+      return DAG.getBitcast(MVT::v4f32, InsVecElt);
+    }
+  }
 
   if (Subtarget.isISA3_1()) {
     if ((VT == MVT::v2i64 || VT == MVT::v2f64) && !Subtarget.isPPC64())
