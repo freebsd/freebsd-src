@@ -1868,9 +1868,8 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	tresid = uio->uio_resid;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
 	if (err == EBADF && mp->mnt_flag & MNT_EXPORTED) {
-		struct fuse_data *data = fuse_get_mpdata(mp);
-
-		KASSERT(data->dataflags & FSESS_NO_OPENDIR_SUPPORT,
+		KASSERT(fuse_get_mpdata(mp)->dataflags
+				& FSESS_NO_OPENDIR_SUPPORT,
 			("FUSE file systems that don't set "
 			 "FUSE_NO_OPENDIR_SUPPORT should not be exported"));
 		/* 
