@@ -34,7 +34,7 @@ extern const char *bootpfile;
 
 static struct hostent *he;
 static char buffer[MAXLEN];
-static char hostname[MAX_MACHINE_NAME];
+static char hostname[MAX_MACHINE_NAME + 1];
 static char askname[MAX_MACHINE_NAME];
 static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
