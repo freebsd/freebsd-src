@@ -1345,7 +1345,7 @@ devfs_pathconf(struct vop_pathconf_args *ap)
 #ifdef MAC
 		/*
 		 * If MAC is enabled, devfs automatically supports
-		 * trivial non-persistant label storage.
+		 * trivial non-persistent label storage.
 		 */
 		*ap->a_retval = 1;
 #else
