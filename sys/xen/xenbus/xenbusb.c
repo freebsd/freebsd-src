@@ -429,7 +429,7 @@ xenbusb_release_confighook(struct xenbusb_softc *xbs)
 }
 
 /**
- * \brief Verify the existance of attached device instances and perform
+ * \brief Verify the existence of attached device instances and perform
  *        probe/attach processing for newly arrived devices.
  *
  * \param dev  The NewBus device representing this XenBus bus.
