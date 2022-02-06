@@ -351,7 +351,7 @@ print_espstats(const struct espstat *espstat)
 	p(esps_input, "received-packets", "packet%s in");
 	p(esps_output, "sent-packets", "packet%s out");
 	p(esps_invalid, "dropped-bad-tdb", "packet%s dropped; invalid TDB");
-	p(esps_ibytes, "receieve-bytes", "byte%s in");
+	p(esps_ibytes, "receive-bytes", "byte%s in");
 	p(esps_obytes, "sent-bytes", "byte%s out");
 	p(esps_toobig, "dropped-too-large",
 	    "packet%s dropped; larger than IP_MAXPACKET");
@@ -402,10 +402,10 @@ print_ipcompstats(const struct ipcompstat *ipcompstat)
 	p(ipcomps_noxform, "dropped-no-transform",
 	    "packet%s dropped; no transform");
 	p(ipcomps_wrap, "replay-counter-wraps", "replay counter wrap%s");
-	p(ipcomps_input, "receieve-packets", "packet%s in");
+	p(ipcomps_input, "receive-packets", "packet%s in");
 	p(ipcomps_output, "sent-packets", "packet%s out");
 	p(ipcomps_invalid, "dropped-bad-tdb", "packet%s dropped; invalid TDB");
-	p(ipcomps_ibytes, "receieved-bytes", "byte%s in");
+	p(ipcomps_ibytes, "received-bytes", "byte%s in");
 	p(ipcomps_obytes, "sent-bytes", "byte%s out");
 	p(ipcomps_toobig, "dropped-too-large",
 	    "packet%s dropped; larger than IP_MAXPACKET");
