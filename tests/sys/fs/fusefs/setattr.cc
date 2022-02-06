@@ -34,6 +34,7 @@ extern "C" {
 #include <sys/stat.h>
 
 #include <fcntl.h>
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
