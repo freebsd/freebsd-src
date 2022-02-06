@@ -314,11 +314,11 @@ static symtab_t pnpprod[] = {
     { "PNP0F0A",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS PnP BallPoint serial */
     { "PNP0F0B",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
-    /* MS serial comatible */
+    /* MS serial compatible */
     { "PNP0F0C",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
-    /* MS PS/2 comatible */
+    /* MS PS/2 compatible */
     { "PNP0F0E",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
-    /* MS BallPoint comatible */
+    /* MS BallPoint compatible */
     { "PNP0F0F",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
 #if notyet
     /* TI QuickPort */
