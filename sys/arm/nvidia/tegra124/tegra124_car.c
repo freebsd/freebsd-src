@@ -191,7 +191,7 @@ PLIST(mux_plld_out0_plld2_out0) = {"pllD_out0", "pllD2_out0"};
 PLIST(mux_xusb_hs) = {"xusb_ss_div2", "pllU_60"};
 PLIST(mux_xusb_ss) = {"pc_xusb_ss", "osc_div_clk"};
 
-/* Clocks ajusted online. */
+/* Clocks adjusted online. */
 static struct clk_fixed_def fixed_clk_m =
 	FRATE(TEGRA124_CLK_CLK_M, "clk_m", 12000000);
 static struct clk_fixed_def fixed_osc_div_clk =
