@@ -92,7 +92,7 @@ camq_init(struct camq *camq, int size)
 
 /*
  * Free a camq structure.  This should only be called if a controller
- * driver failes somehow during its attach routine or is unloaded and has
+ * driver fails somehow during its attach routine or is unloaded and has
  * obtained a camq structure.  The XPT should ensure that the queue
  * is empty before calling this routine.
  */
