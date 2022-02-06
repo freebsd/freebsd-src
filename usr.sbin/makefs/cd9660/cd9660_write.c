@@ -97,7 +97,7 @@ cd9660_write_image(iso9660_disk *diskStructure, const char* image)
 
 	/*
 	 * Write the path tables: there are actually four, but right
-	 * now we are only concearned with two.
+	 * now we are only concerned with two.
 	 */
 	status = cd9660_write_path_tables(diskStructure, fd);
 	if (status == 0) {
