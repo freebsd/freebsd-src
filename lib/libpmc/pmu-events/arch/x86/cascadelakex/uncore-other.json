@@ -1499,7 +1499,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.A2I",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from A (SnoopAll) to I (Invalid)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from A (SnoopAll) to I (Invalid)",
         "UMask": "0x20",
         "Unit": "M2M"
     },
@@ -1509,7 +1509,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.A2S",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from A (SnoopAll) to S (Shared)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from A (SnoopAll) to S (Shared)",
         "UMask": "0x40",
         "Unit": "M2M"
     },
@@ -1529,7 +1529,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.I2A",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from I (Invalid) to A (SnoopAll)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from I (Invalid) to A (SnoopAll)",
         "UMask": "0x4",
         "Unit": "M2M"
     },
@@ -1539,7 +1539,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.I2S",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from I (Invalid) to S (Shared)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from I (Invalid) to S (Shared)",
         "UMask": "0x2",
         "Unit": "M2M"
     },
@@ -1549,7 +1549,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.S2A",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from S (Shared) to A (SnoopAll)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from S (Shared) to A (SnoopAll)",
         "UMask": "0x10",
         "Unit": "M2M"
     },
@@ -1559,7 +1559,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.S2I",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from S (Shared) to I (Invalid)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from S (Shared) to I (Invalid)",
         "UMask": "0x8",
         "Unit": "M2M"
     },
