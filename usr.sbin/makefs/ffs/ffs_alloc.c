@@ -80,13 +80,13 @@ static int32_t ffs_mapsearch(struct fs *, struct cg *, daddr_t, int);
  *   1) allocate the requested block.
  *   2) allocate a rotationally optimal block in the same cylinder.
  *   3) allocate a block in the same cylinder group.
- *   4) quadradically rehash into other cylinder groups, until an
+ *   4) quadratically rehash into other cylinder groups, until an
  *      available block is located.
  * If no block preference is given the following hierarchy is used
  * to allocate a block:
  *   1) allocate a block in the cylinder group that contains the
  *      inode for the file.
- *   2) quadradically rehash into other cylinder groups, until an
+ *   2) quadratically rehash into other cylinder groups, until an
  *      available block is located.
  */
 int
@@ -235,7 +235,7 @@ ffs_blkpref_ufs2(struct inode *ip, daddr_t lbn, int indx, int64_t *bap)
  *
  * The policy implemented by this algorithm is:
  *   1) allocate the block in its requested cylinder group.
- *   2) quadradically rehash on the cylinder group number.
+ *   2) quadratically rehash on the cylinder group number.
  *   3) brute force search for a free block.
  *
  * `size':	size for data blocks, mode for inodes
