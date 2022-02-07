@@ -627,10 +627,8 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETDBREGS:
 		bzero(&r.dbreg, sizeof(r.dbreg));
 		break;
-	case PT_SETREGSET:
-		error = copyin(uap->addr, &r.vec, sizeof(r.vec));
-		break;
 	case PT_GETREGSET:
+	case PT_SETREGSET:
 		error = copyin(uap->addr, &r.vec, sizeof(r.vec));
 		break;
 	case PT_SETREGS:

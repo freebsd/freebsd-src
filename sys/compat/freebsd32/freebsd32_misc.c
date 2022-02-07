@@ -1026,15 +1026,8 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 	case PT_SETDBREGS:
 		error = copyin(uap->addr, &r.dbreg, sizeof(r.dbreg));
 		break;
-	case PT_SETREGSET:
-		error = copyin(uap->addr, &r32.vec, sizeof(r32.vec));
-		if (error != 0)
-			break;
-
-		r.vec.iov_len = r32.vec.iov_len;
-		r.vec.iov_base = PTRIN(r32.vec.iov_base);
-		break;
 	case PT_GETREGSET:
+	case PT_SETREGSET:
 		error = copyin(uap->addr, &r32.vec, sizeof(r32.vec));
 		if (error != 0)
 			break;
