@@ -99,7 +99,7 @@ enum ieee80211_bss_changed {
 };
 
 /* 802.11 Figure 9-256 Suite selector format. [OUI(3), SUITE TYPE(1)] */
-#define	WLAN_CIPHER_SUITE_OUI(_oui, _x)	((_oui) << 8 | (_x) & 0xff)
+#define	WLAN_CIPHER_SUITE_OUI(_oui, _x)	(((_oui) << 8) | ((_x) & 0xff))
 
 /* 802.11 Table 9-131 Cipher suite selectors. */
 /* 802.1x suite B			11 */
