@@ -305,7 +305,7 @@ struct bwi_fw_iv {
 	union {
 		uint32_t	val32;
 		uint16_t	val16;
-	} 			iv_val;
+	} __packed		iv_val;
 } __packed;
 
 #define BWI_FW_IV_OFS_MASK	__BITS(14, 0)
