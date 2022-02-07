@@ -15,9 +15,9 @@ LOADER_DISK_SUPPORT?=	yes
 
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 
-.if ${MK_PIE} == "yes"
+LOADER_UBLDR_BIN?=	yes
+.if ${LOADER_UBLDR_BIN} != "no"
 FILES+=		ubldr ubldr.bin
-OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 .else
 PROG=		ubldr
 .endif
@@ -73,6 +73,11 @@ CFLAGS+=	-I${FDTSRC}
 .ifdef(BOOT_DISK_DEBUG)
 # Make the disk code more talkative
 CFLAGS+= -DDISK_DEBUG
+.endif
+
+.if ${LOADER_UBLDR_BIN} != "no"
+OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
+ubldr ubldr.bin ubldr.pie: ${OBJS}
 .endif
 
 DPADD=		${LDR_INTERP} ${LIBFDT} ${LIBSA}
