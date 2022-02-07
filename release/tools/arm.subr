@@ -244,11 +244,6 @@ arm_install_boot() {
 	chroot ${CHROOTDIR} mount_msdosfs ${dospart} ${FATMOUNT}
 	chroot ${CHROOTDIR} mount ${ufspart} ${UFSMOUNT}
 
-	if [ "${EMBEDDED_TARGET}" = "arm" ]; then
-	chroot ${CHROOTDIR} cp -p ${UFSMOUNT}/boot/ubldr.bin \
-		${FATMOUNT}/ubldr.bin
-	fi
-
 	BOOTFILES="$(chroot ${CHROOTDIR} \
 		env TARGET=${EMBEDDED_TARGET} TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
 		WITH_UNIFIED_OBJDIR=yes \
