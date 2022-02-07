@@ -69,6 +69,18 @@ __FBSDID("$FreeBSD$");
 #include "io/vhpet.h"
 #include "io/vrtc.h"
 
+#ifdef COMPAT_FREEBSD13
+struct vm_stats_old {
+	int		cpuid;				/* in */
+	int		num_entries;			/* out */
+	struct timeval	tv;
+	uint64_t	statbuf[MAX_VM_STATS];
+};
+
+#define	VM_STATS_OLD \
+	_IOWR('v', IOCNUM_VM_STATS, struct vm_stats_old)
+#endif
+
 struct devmem_softc {
 	int	segid;
 	char	*name;
@@ -376,6 +388,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_pptdev_msi *pptmsi;
 	struct vm_pptdev_msix *pptmsix;
 	struct vm_nmi *vmnmi;
+#ifdef COMPAT_FREEBSD13
+	struct vm_stats_old *vmstats_old;
+#endif
 	struct vm_stats *vmstats;
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
@@ -501,11 +516,21 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 					statdesc->desc, sizeof(statdesc->desc));
 		break;
 	}
+#ifdef COMPAT_FREEBSD13
+	case VM_STATS_OLD:
+		vmstats_old = (struct vm_stats_old *)data;
+		getmicrotime(&vmstats_old->tv);
+		error = vmm_stat_copy(sc->vm, vmstats_old->cpuid, 0,
+				      nitems(vmstats_old->statbuf),
+				      &vmstats_old->num_entries,
+				      vmstats_old->statbuf);
+		break;
+#endif
 	case VM_STATS: {
-		CTASSERT(MAX_VM_STATS >= MAX_VMM_STAT_ELEMS);
 		vmstats = (struct vm_stats *)data;
 		getmicrotime(&vmstats->tv);
-		error = vmm_stat_copy(sc->vm, vmstats->cpuid,
+		error = vmm_stat_copy(sc->vm, vmstats->cpuid, vmstats->index,
+				      nitems(vmstats->statbuf),
 				      &vmstats->num_entries, vmstats->statbuf);
 		break;
 	}

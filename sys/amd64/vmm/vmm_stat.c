@@ -82,14 +82,28 @@ vmm_stat_register(void *arg)
 }
 
 int
-vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
+vmm_stat_copy(struct vm *vm, int vcpu, int index, int count, int *num_stats,
+    uint64_t *buf)
 {
 	struct vmm_stat_type *vst;
 	uint64_t *stats;
-	int i;
+	int i, tocopy;
 
 	if (vcpu < 0 || vcpu >= vm_get_maxcpus(vm))
 		return (EINVAL);
+
+	if (index < 0 || count < 0)
+		return (EINVAL);
+
+	if (index > vst_num_elems)
+		return (ENOENT);
+
+	if (index == vst_num_elems) {
+		*num_stats = 0;
+		return (0);
+	}
+
+	tocopy = min(vst_num_elems - index, count);
 
 	/* Let stats functions update their counters */
 	for (i = 0; i < vst_num_types; i++) {
@@ -100,9 +114,8 @@ vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 
 	/* Copy over the stats */
 	stats = vcpu_stats(vm, vcpu);
-	for (i = 0; i < vst_num_elems; i++)
-		buf[i] = stats[i];
-	*num_stats = vst_num_elems;
+	memcpy(buf, stats + index, tocopy * sizeof(stats[0]));
+	*num_stats = tocopy;
 	return (0);
 }
 
