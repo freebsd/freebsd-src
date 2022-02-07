@@ -32,7 +32,7 @@
  *
  * The standard defines 'storage elements' as the generic way of referring to a
  * disk drive head. Each storage element has an identifier and an active status.
- * The health of an element can be querried. Active elements may be removed from
+ * The health of an element can be queried. Active elements may be removed from
  * service with a REMOVE ELEMENT AND TRUNCATE (RET) command. Inactive element
  * may be returned to service with a RESTORE ELEMENTS AND REBUILD (RER)
  * command. GET PHYSICAL ELEMENT STATUS (GPES) will return a list of elements,
