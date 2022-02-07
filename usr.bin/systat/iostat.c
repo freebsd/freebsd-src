@@ -72,6 +72,7 @@ static const char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include <nlist.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -81,8 +82,8 @@ static const char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 
 static  int linesperregion;
 static  double etime;
-static  int numbers = 0;		/* default display bar graphs */
-static  int kbpt = 0;			/* default ms/seek shown */
+static  bool numbers = false;		/* default display bar graphs */
+static  bool kbpt = false;		/* default ms/seek shown */
 
 static int barlabels(int);
 static void histogram(long double, int, double);
@@ -377,9 +378,9 @@ cmdiostat(const char *cmd, const char *args)
 	if (prefix(cmd, "kbpt"))
 		kbpt = !kbpt;
 	else if (prefix(cmd, "numbers"))
-		numbers = 1;
+		numbers = true;
 	else if (prefix(cmd, "bars"))
-		numbers = 0;
+		numbers = false;
 	else if (!dscmd(cmd, args, 100, &cur_dev))
 		return (0);
 	wclear(wnd);
