@@ -452,11 +452,6 @@ dos_boot_part ( ) (
 	chdir $f
 	cp ${d}/* .
 
-	# Also copy ubldr. u-boot will load it and it will load the kernel
-	# from the ufs partition
-	cp ${NANO_WORLDDIR}/boot/ubldr .
-	cp ${NANO_WORLDDIR}/boot/ubldr.bin .
-
 	# We have to touch the saveenv file
 	touch uEnv.txt
 
