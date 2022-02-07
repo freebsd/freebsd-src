@@ -502,7 +502,7 @@ ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 
 	/* 
 	 * Consider the filesystem to be mounted if:
-	 * It has the same mountpoint as a mounted filesytem, and
+	 * It has the same mountpoint as a mounted filesystem, and
 	 * It has the same type as that same mounted filesystem, and
 	 * It has the same device name as that same mounted filesystem, OR
 	 *     It is a nonremountable filesystem
