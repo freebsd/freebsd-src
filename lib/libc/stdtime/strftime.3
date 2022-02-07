@@ -87,7 +87,7 @@ terminating NUL.
 Otherwise, zero is returned and the buffer contents are indeterminate.
 .Pp
 The conversion specifications are copied to the buffer after expansion
-as follows:-
+as follows:
 .Bl -tag -width "xxxx"
 .It Cm \&%A
 is replaced by national representation of the full weekday name.
@@ -274,7 +274,8 @@ The peculiar week number and year in the replacements of
 .Ql %g
 and
 .Ql \&%V
-are defined in ISO 8601: 1988.
+are defined in
+.St -iso8601 .
 The
 .Fn strftime_l
 function conforms to
