@@ -116,14 +116,6 @@ struct cc_algo newreno_cc_algo = {
 	.cc_data_sz = newreno_data_sz,
 };
 
-static uint32_t hystart_lowcwnd = 16;
-static uint32_t hystart_minrtt_thresh = 4000;
-static uint32_t hystart_maxrtt_thresh = 16000;
-static uint32_t hystart_n_rttsamples = 8;
-static uint32_t hystart_css_growth_div = 4;
-static uint32_t hystart_css_rounds = 5;
-static uint32_t hystart_bblogs = 0;
-
 static void
 newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod, uint32_t flex1)
 {
@@ -137,6 +129,10 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 	 * 6 - We enter CA ssthresh is also in flex1.
 	 * 7 - Socket option to change hystart executed opt.val in flex1.
 	 * 8 - Back out of CSS into SS, flex1 is the css_baseline_minrtt
+	 * 9 - We enter CA, via an ECN mark.
+	 * 10 - We enter CA, via a loss.
+	 * 11 - We have slipped out of SS into CA via cwnd growth.
+	 * 12 - After idle has re-enabled hystart++
 	 */
 	struct tcpcb *tp;
 
@@ -162,6 +158,7 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 		log.u_bbr.lt_epoch = nreno->css_fas_at_css_entry;
 		log.u_bbr.pkts_out = nreno->css_last_fas;
 		log.u_bbr.delivered = nreno->css_lowrtt_fas;
+		log.u_bbr.pkt_epoch = ccv->flags;
 		TCP_LOG_EVENTP(tp, NULL,
 		    &tp->t_inpcb->inp_socket->so_rcv,
 		    &tp->t_inpcb->inp_socket->so_snd,
@@ -265,6 +262,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
 				/* Disable use of CSS in the future except long idle  */
 				nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
+				newreno_log_hystart_event(ccv, nreno, 11, CCV(ccv, snd_ssthresh));
 			}
 			if (V_tcp_do_rfc3465) {
 				if (ccv->flags & CCF_ABC_SENTAWND)
@@ -290,7 +288,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				abc_val = ccv->labc;
 			else
 				abc_val = V_tcp_abc_l_var;
-			if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_ALLOWED) &&
+			if ((ccv->flags & CCF_HYSTART_ALLOWED) &&
 			    (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) &&
 			    ((nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) == 0)) {
 				/*
@@ -299,8 +297,8 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 				 * if we need to go into CSS.
 				 */
 				if ((nreno->css_rttsample_count >= hystart_n_rttsamples) &&
-				    (CCV(ccv, snd_cwnd) >
-				     (hystart_lowcwnd * tcp_fixed_maxseg(ccv->ccvc.tcp)))) {
+				    (nreno->css_current_round_minrtt != 0xffffffff) &&
+				    (nreno->css_lastround_minrtt != 0xffffffff)) {
 					uint32_t rtt_thresh;
 
 					/* Clamp (minrtt_thresh, lastround/8, maxrtt_thresh) */
@@ -314,6 +312,13 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 						/* Enter CSS */
 						nreno->newreno_flags |= CC_NEWRENO_HYSTART_IN_CSS;
 						nreno->css_fas_at_css_entry = nreno->css_lowrtt_fas;
+						/*
+						 * The draft (v4) calls for us to set baseline to css_current_round_min
+						 * but that can cause an oscillation. We probably shoudl be using
+						 * css_lastround_minrtt, but the authors insist that will cause
+						 * issues on exiting early. We will leave the draft version for now
+						 * but I suspect this is incorrect.
+						 */
 						nreno->css_baseline_minrtt = nreno->css_current_round_minrtt;
 						nreno->css_entered_at_round = nreno->css_current_round;
 						newreno_log_hystart_event(ccv, nreno, 2, rtt_thresh);
@@ -348,14 +353,12 @@ newreno_after_idle(struct cc_var *ccv)
 	nreno = ccv->cc_data;
 	newreno_cc_after_idle(ccv);
 	if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED) == 0) {
-		if (CCV(ccv, snd_cwnd) <= (hystart_lowcwnd * tcp_fixed_maxseg(ccv->ccvc.tcp))) {
-			/*
-			 * Re-enable hystart if our cwnd has fallen below
-			 * the hystart lowcwnd point.
-			 */
-			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
-			nreno->newreno_flags |= CC_NEWRENO_HYSTART_ENABLED;
-		}
+		/*
+		 * Re-enable hystart if we have been idle.
+		 */
+		nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
+		nreno->newreno_flags |= CC_NEWRENO_HYSTART_ENABLED;
+		newreno_log_hystart_event(ccv, nreno, 12, CCV(ccv, snd_ssthresh));
 	}
 }
 
@@ -400,6 +403,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 			/* Make sure the flags are all off we had a loss */
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
+			newreno_log_hystart_event(ccv, nreno, 10, CCV(ccv, snd_ssthresh));
 		}
 		if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 			if (IN_CONGRECOVERY(CCV(ccv, t_flags) &&
@@ -418,6 +422,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 			/* Make sure the flags are all off we had a loss */
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_ENABLED;
 			nreno->newreno_flags &= ~CC_NEWRENO_HYSTART_IN_CSS;
+			newreno_log_hystart_event(ccv, nreno, 9, CCV(ccv, snd_ssthresh));
 		}
 		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
 			CCV(ccv, snd_ssthresh) = cwin;
@@ -460,18 +465,6 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 			nreno->beta_ecn = opt->val;
 			nreno->newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
 			break;
-		case CC_NEWRENO_ENABLE_HYSTART:
-			/* Allow hystart on this connection */
-			if (opt->val != 0) {
-				nreno->newreno_flags |= CC_NEWRENO_HYSTART_ALLOWED;
-				if (opt->val > 1)
-					nreno->newreno_flags |= CC_NEWRENO_HYSTART_CAN_SH_CWND;
-				if (opt->val > 2)
-					nreno->newreno_flags |= CC_NEWRENO_HYSTART_CONS_SSTH;
-			} else
-				nreno->newreno_flags &= ~(CC_NEWRENO_HYSTART_ALLOWED|CC_NEWRENO_HYSTART_CAN_SH_CWND|CC_NEWRENO_HYSTART_CONS_SSTH);
-			newreno_log_hystart_event(ccv, nreno, 7, opt->val);
-			break;
 		default:
 			return (ENOPROTOOPT);
 		}
@@ -485,17 +478,6 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 		case CC_NEWRENO_BETA_ECN:
 			opt->val = (nreno == NULL) ?
 			    V_newreno_beta_ecn : nreno->beta_ecn;
-			break;
-		case CC_NEWRENO_ENABLE_HYSTART:
-			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ALLOWED) {
-				if (nreno->newreno_flags & CC_NEWRENO_HYSTART_CONS_SSTH)
-					opt->val = 3;
-				else if (nreno->newreno_flags & CC_NEWRENO_HYSTART_CAN_SH_CWND)
-					opt->val = 2;
-				else
-					opt->val = 1;
-			} else
-				opt->val = 0;
 			break;
 		default:
 			return (ENOPROTOOPT);
@@ -542,14 +524,14 @@ newreno_newround(struct cc_var *ccv, uint32_t round_cnt)
 	if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) &&
 	    ((round_cnt - nreno->css_entered_at_round) >= hystart_css_rounds)) {
 		/* Enter CA */
-		if (nreno->newreno_flags & CC_NEWRENO_HYSTART_CAN_SH_CWND) {
+		if (ccv->flags & CCF_HYSTART_CAN_SH_CWND) {
 			/*
 			 * We engage more than snd_ssthresh, engage
 			 * the brakes!! Though we will stay in SS to
 			 * creep back up again, so lets leave CSS active
 			 * and give us hystart_css_rounds more rounds.
 			 */
-			if (nreno->newreno_flags & CC_NEWRENO_HYSTART_CONS_SSTH) {
+			if (ccv->flags & CCF_HYSTART_CONS_SSTH) {
 				CCV(ccv, snd_ssthresh) = ((nreno->css_lowrtt_fas + nreno->css_fas_at_css_entry) / 2);
 			} else {
 				CCV(ccv, snd_ssthresh) = nreno->css_lowrtt_fas;
@@ -565,7 +547,8 @@ newreno_newround(struct cc_var *ccv, uint32_t round_cnt)
 		}
 		newreno_log_hystart_event(ccv, nreno, 6, CCV(ccv, snd_ssthresh));
 	}
-	newreno_log_hystart_event(ccv, nreno, 4, round_cnt);
+	if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED)
+		newreno_log_hystart_event(ccv, nreno, 4, round_cnt);
 }
 
 static void
@@ -586,9 +569,9 @@ newreno_rttsample(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32
 		nreno->css_current_round_minrtt = usec_rtt;
 		nreno->css_lowrtt_fas = nreno->css_last_fas;
 	}
-	if ((nreno->newreno_flags & CC_NEWRENO_HYSTART_IN_CSS) &&
-	    (nreno->css_rttsample_count >= hystart_n_rttsamples) &&
-	    (nreno->css_baseline_minrtt > nreno->css_current_round_minrtt)) {
+	if ((nreno->css_rttsample_count >= hystart_n_rttsamples) &&
+	    (nreno->css_current_round_minrtt != 0xffffffff) &&
+	    (nreno->css_lastround_minrtt != 0xffffffff)) {
 		/*
 		 * We were in CSS and the RTT is now less, we
 		 * entered CSS erroneously.
@@ -597,7 +580,8 @@ newreno_rttsample(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32
 		newreno_log_hystart_event(ccv, nreno, 8, nreno->css_baseline_minrtt);
 		nreno->css_baseline_minrtt = 0xffffffff;
 	}
-	newreno_log_hystart_event(ccv, nreno, 5, usec_rtt);
+	if (nreno->newreno_flags & CC_NEWRENO_HYSTART_ENABLED)
+		newreno_log_hystart_event(ccv, nreno, 5, usec_rtt);
 }
 
 SYSCTL_DECL(_net_inet_tcp_cc_newreno);
@@ -614,46 +598,6 @@ SYSCTL_PROC(_net_inet_tcp_cc_newreno, OID_AUTO, beta_ecn,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &VNET_NAME(newreno_beta_ecn), 3, &newreno_beta_handler, "IU",
     "New Reno beta ecn, specified as number between 1 and 100");
-
-SYSCTL_NODE(_net_inet_tcp_cc_newreno, OID_AUTO, hystartplusplus,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    "New Reno related HyStart++ settings");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, lowcwnd,
-    CTLFLAG_RW,
-    &hystart_lowcwnd, 16,
-   "The number of MSS in the CWND before HyStart++ is active");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, minrtt_thresh,
-    CTLFLAG_RW,
-    &hystart_minrtt_thresh, 4000,
-   "HyStarts++ minimum RTT thresh used in clamp (in microseconds)");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, maxrtt_thresh,
-    CTLFLAG_RW,
-    &hystart_maxrtt_thresh, 16000,
-   "HyStarts++ maximum RTT thresh used in clamp (in microseconds)");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, n_rttsamples,
-    CTLFLAG_RW,
-    &hystart_n_rttsamples, 8,
-   "The number of RTT samples that must be seen to consider HyStart++");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, css_growth_div,
-    CTLFLAG_RW,
-    &hystart_css_growth_div, 4,
-   "The divisor to the growth when in Hystart++ CSS");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, css_rounds,
-    CTLFLAG_RW,
-    &hystart_css_rounds, 5,
-   "The number of rounds HyStart++ lasts in CSS before falling to CA");
-
-SYSCTL_UINT(_net_inet_tcp_cc_newreno_hystartplusplus, OID_AUTO, bblogs,
-    CTLFLAG_RW,
-    &hystart_bblogs, 0,
-   "Do we enable HyStart++ Black Box logs to be generated if BB logging is on");
-
 
 DECLARE_CC_MODULE(newreno, &newreno_cc_algo);
 MODULE_VERSION(newreno, 2);

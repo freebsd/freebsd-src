@@ -84,6 +84,13 @@ __FBSDID("$FreeBSD$");
 #define CC_DEFAULT "newreno"
 #endif
 
+uint32_t hystart_minrtt_thresh = 4000;
+uint32_t hystart_maxrtt_thresh = 16000;
+uint32_t hystart_n_rttsamples = 8;
+uint32_t hystart_css_growth_div = 4;
+uint32_t hystart_css_rounds = 5;
+uint32_t hystart_bblogs = 0;
+
 MALLOC_DEFINE(M_CC_MEM, "CC Mem", "Congestion Control State memory");
 
 /*
@@ -581,6 +588,40 @@ SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, available,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     NULL, 0, cc_list_available, "A",
     "List available congestion control algorithms");
+
+SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, hystartplusplus,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
+    "New Reno related HyStart++ settings");
+
+SYSCTL_UINT(_net_inet_tcp_cc_hystartplusplus, OID_AUTO, minrtt_thresh,
+    CTLFLAG_RW,
+    &hystart_minrtt_thresh, 4000,
+   "HyStarts++ minimum RTT thresh used in clamp (in microseconds)");
+
+SYSCTL_UINT(_net_inet_tcp_cc_hystartplusplus, OID_AUTO, maxrtt_thresh,
+    CTLFLAG_RW,
+    &hystart_maxrtt_thresh, 16000,
+   "HyStarts++ maximum RTT thresh used in clamp (in microseconds)");
+
+SYSCTL_UINT(_net_inet_tcp_cc_hystartplusplus, OID_AUTO, n_rttsamples,
+    CTLFLAG_RW,
+    &hystart_n_rttsamples, 8,
+   "The number of RTT samples that must be seen to consider HyStart++");
+
+SYSCTL_UINT(_net_inet_tcp_cc_hystartplusplus, OID_AUTO, css_growth_div,
+    CTLFLAG_RW,
+    &hystart_css_growth_div, 4,
+   "The divisor to the growth when in Hystart++ CSS");
+
+SYSCTL_UINT(_net_inet_tcp_cc_hystartplusplus, OID_AUTO, css_rounds,
+    CTLFLAG_RW,
+    &hystart_css_rounds, 5,
+   "The number of rounds HyStart++ lasts in CSS before falling to CA");
+
+SYSCTL_UINT(_net_inet_tcp_cc_hystartplusplus, OID_AUTO, bblogs,
+    CTLFLAG_RW,
+    &hystart_bblogs, 0,
+   "Do we enable HyStart++ Black Box logs to be generated if BB logging is on");
 
 VNET_DEFINE(int, cc_do_abe) = 0;
 SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe, CTLFLAG_VNET | CTLFLAG_RW,
