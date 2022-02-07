@@ -62,7 +62,7 @@ CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN !NO_WCAST_ALIGN.${COMPILER_TYPE}
 .endif # WARNS >= 4
 .if ${WARNS} >= 6
-CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
+CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs \
 		-Wold-style-definition
 .if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
 CWARNFLAGS.clang+=	-Wmissing-variable-declarations
