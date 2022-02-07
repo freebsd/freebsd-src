@@ -129,6 +129,8 @@ xhci_pci_match(device_t self)
 		return ("ASMedia ASM1042 USB 3.0 controller");
 	case 0x11421b21:
 		return ("ASMedia ASM1042A USB 3.0 controller");
+	case 0x13431b21:
+		return ("ASMedia ASM1143 USB 3.1 controller");
 	case 0x32421b21:
 		return ("ASMedia ASM3242 USB 3.2 controller");
 
