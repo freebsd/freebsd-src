@@ -207,7 +207,6 @@ static long pps_errcnt;			/* calibration errors */
  * End of phase/frequency-lock loop (PLL/FLL) definitions
  */
 
-static void ntp_init(void);
 static void hardupdate(long offset);
 static void ntp_gettime1(struct ntptimeval *ntvp);
 static bool ntp_is_time_error(int tsl);
@@ -631,39 +630,6 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 
 	NTP_UNLOCK();
 }
-
-/*
- * ntp_init() - initialize variables and structures
- *
- * This routine must be called after the kernel variables hz and tick
- * are set or changed and before the next tick interrupt. In this
- * particular implementation, these values are assumed set elsewhere in
- * the kernel. The design allows the clock frequency and tick interval
- * to be changed while the system is running. So, this routine should
- * probably be integrated with the code that does that.
- */
-static void
-ntp_init(void)
-{
-
-	/*
-	 * The following variables are initialized only at startup. Only
-	 * those structures not cleared by the compiler need to be
-	 * initialized, and these only in the simulator. In the actual
-	 * kernel, any nonzero values here will quickly evaporate.
-	 */
-	L_CLR(time_offset);
-	L_CLR(time_freq);
-#ifdef PPS_SYNC
-	pps_tf[0].tv_sec = pps_tf[0].tv_nsec = 0;
-	pps_tf[1].tv_sec = pps_tf[1].tv_nsec = 0;
-	pps_tf[2].tv_sec = pps_tf[2].tv_nsec = 0;
-	pps_fcount = 0;
-	L_CLR(pps_freq);
-#endif /* PPS_SYNC */	   
-}
-
-SYSINIT(ntpclocks, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, ntp_init, NULL);
 
 /*
  * hardupdate() - local clock update
