@@ -3523,10 +3523,10 @@ vxlan_sysctl_setup(struct vxlan_softc *sc)
 	    OID_AUTO, "ftable", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO, "count",
 	    CTLFLAG_RD, &sc->vxl_ftable_cnt, 0,
-	    "Number of entries in fowarding table");
+	    "Number of entries in forwarding table");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO, "max",
 	     CTLFLAG_RD, &sc->vxl_ftable_max, 0,
-	    "Maximum number of entries allowed in fowarding table");
+	    "Maximum number of entries allowed in forwarding table");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO, "timeout",
 	    CTLFLAG_RD, &sc->vxl_ftable_timeout, 0,
 	    "Number of seconds between prunes of the forwarding table");
