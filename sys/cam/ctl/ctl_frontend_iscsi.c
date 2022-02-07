@@ -3062,11 +3062,11 @@ cfiscsi_done(union ctl_io *io)
 		/*
 		 * Implicit task termination has just completed; nothing to do.
 		 */
+		icl_pdu_free(request);
 		cs->cs_tasks_aborted = true;
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		wakeup(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus));
 		ctl_free_io(io);
-		icl_pdu_free(request);
 		return;
 	default:
 		panic("cfiscsi_done called with wrong opcode 0x%x",
