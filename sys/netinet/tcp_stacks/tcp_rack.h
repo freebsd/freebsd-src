@@ -525,6 +525,14 @@ struct rack_control {
 #define RACK_TIMELY_CNT_BOOST 5	/* At 5th increase boost */
 #define RACK_MINRTT_FILTER_TIM 10 /* Seconds */
 
+#define RACK_HYSTART_OFF	0
+#define RACK_HYSTART_ON		1	/* hystart++ on */
+#define RACK_HYSTART_ON_W_SC	2	/* hystart++ on +Slam Cwnd */
+#define RACK_HYSTART_ON_W_SC_C	3	/* hystart++ on,
+					 * Conservative ssthresh and 
+					 * +Slam cwnd 
+					 */
+
 #ifdef _KERNEL
 
 struct tcp_rack {

@@ -78,6 +78,55 @@
  */
 #define	CUBED_ROOT_MAX_ULONG	448845
 
+/* Flags used in the cubic structure */
+#define CUBICFLAG_CONG_EVENT		0x00000001	/* congestion experienced */
+#define CUBICFLAG_IN_SLOWSTART		0x00000002	/* in slow start */
+#define CUBICFLAG_IN_APPLIMIT		0x00000004	/* application limited */
+#define CUBICFLAG_RTO_EVENT		0x00000008	/* RTO experienced */
+#define CUBICFLAG_HYSTART_ENABLED	0x00000010	/* Hystart++ is enabled */
+#define CUBICFLAG_HYSTART_IN_CSS	0x00000020	/* We are in Hystart++ CSS */
+
+/* Kernel only bits */
+#ifdef _KERNEL
+struct cubic {
+	/* Cubic K in fixed point form with CUBIC_SHIFT worth of precision. */
+	int64_t		K;
+	/* Sum of RTT samples across an epoch in ticks. */
+	int64_t		sum_rtt_ticks;
+	/* cwnd at the most recent congestion event. */
+	unsigned long	max_cwnd;
+	/* cwnd at the previous congestion event. */
+	unsigned long	prev_max_cwnd;
+	/* A copy of prev_max_cwnd. Used for CC_RTO_ERR */
+	unsigned long	prev_max_cwnd_cp;
+	/* various flags */
+	uint32_t	flags;
+	/* Minimum observed rtt in ticks. */
+	int		min_rtt_ticks;
+	/* Mean observed rtt between congestion epochs. */
+	int		mean_rtt_ticks;
+	/* ACKs since last congestion event. */
+	int		epoch_ack_count;
+	/* Timestamp (in ticks) of arriving in congestion avoidance from last
+	 * congestion event.
+	 */
+	int		t_last_cong;
+	/* Timestamp (in ticks) of a previous congestion event. Used for
+	 * CC_RTO_ERR.
+	 */
+	int		t_last_cong_prev;
+	uint32_t css_baseline_minrtt;
+	uint32_t css_current_round_minrtt;
+	uint32_t css_lastround_minrtt;
+	uint32_t css_rttsample_count;
+	uint32_t css_entered_at_round;
+	uint32_t css_current_round;
+	uint32_t css_fas_at_css_entry;
+	uint32_t css_lowrtt_fas;
+	uint32_t css_last_fas;
+};
+#endif
+
 /* Userland only bits. */
 #ifndef _KERNEL
 

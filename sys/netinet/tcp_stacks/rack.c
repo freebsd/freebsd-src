@@ -12858,15 +12858,11 @@ rack_init(struct tcpcb *tp)
 	rack_convert_rtts(tp);
 	tp->t_rttlow = TICKS_2_USEC(tp->t_rttlow);
 	if (rack_do_hystart) {
-		struct sockopt sopt;
-		struct cc_newreno_opts opt;
-
-		sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
-		sopt.sopt_dir = SOPT_SET;
-		opt.name = CC_NEWRENO_ENABLE_HYSTART;
-		opt.val = rack_do_hystart;
-		if (CC_ALGO(tp)->ctl_output != NULL)
-			(void)CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
+		tp->ccv->flags |= CCF_HYSTART_ALLOWED;
+		if (rack_do_hystart > 1) 
+			tp->ccv->flags |= CCF_HYSTART_CAN_SH_CWND;
+		if (rack_do_hystart > 2) 
+			tp->ccv->flags |= CCF_HYSTART_CONS_SSTH;
 	}
 	if (rack_def_profile)
 		rack_set_profile(rack, rack_def_profile);
@@ -13515,7 +13511,6 @@ rack_handle_probe_response(struct tcp_rack *rack, uint32_t tiwin, uint32_t us_ct
 	}
 }
 
-
 static int
 rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mbuf *m, int nxt_pkt, struct timeval *tv)
 {
@@ -13766,7 +13761,29 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 						(((ae->ack - high_seq) + segsiz - 1) / segsiz));
 #endif
 				high_seq = ae->ack;
-				if (SEQ_GEQ(high_seq, rack->r_ctl.roundends)) {
+				if (rack_verbose_logging && (rack->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+					union tcp_log_stackspecific log;
+					struct timeval tv;
+
+					memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+					log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+					log.u_bbr.flex1 = high_seq;
+					log.u_bbr.flex2 = rack->r_ctl.roundends;
+					log.u_bbr.flex3 = rack->r_ctl.current_round;
+					log.u_bbr.rttProp = (uint64_t)CC_ALGO(tp)->newround;
+					log.u_bbr.flex8 = 8;
+					tcp_log_event_(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
+						       0, &log, false, NULL, NULL, 0, &tv);
+				}
+				/* 
+				 * The draft (v3) calls for us to use SEQ_GEQ, but that
+				 * causes issues when we are just going app limited. Lets
+				 * instead use SEQ_GT <or> where its equal but more data
+				 * is outstanding.
+				 */
+				if ((SEQ_GT(high_seq, rack->r_ctl.roundends)) ||
+				    ((high_seq == rack->r_ctl.roundends) &&
+				     SEQ_GT(tp->snd_max, tp->snd_una))) {
 					rack->r_ctl.current_round++;
 					rack->r_ctl.roundends = tp->snd_max;
 					if (CC_ALGO(tp)->newround != NULL) {
@@ -14194,7 +14211,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * us_cts - is the time that LRO or hardware actually got the packet in microseconds.
 	 */
 	uint32_t cts, us_cts, ms_cts;
-	uint32_t tiwin;
+	uint32_t tiwin, high_seq;
 	struct timespec ts;
 	struct tcpopt to;
 	struct tcp_rack *rack;
@@ -14301,6 +14318,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags &= ~TF_GPUTINPROG;
 		}
 	}
+	high_seq = th->th_ack;
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
 		union tcp_log_stackspecific log;
 		struct timeval ltv;
@@ -14627,7 +14645,28 @@ do_output_now:
 			rack_free_trim(rack);
 		}
 		/* Update any rounds needed */
-		if (SEQ_GEQ(tp->snd_una, rack->r_ctl.roundends)) {
+		if (rack_verbose_logging &&  (rack->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+			union tcp_log_stackspecific log;
+			struct timeval tv;
+
+			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+			log.u_bbr.flex1 = high_seq;
+			log.u_bbr.flex2 = rack->r_ctl.roundends;
+			log.u_bbr.flex3 = rack->r_ctl.current_round;
+			log.u_bbr.rttProp = (uint64_t)CC_ALGO(tp)->newround;
+			log.u_bbr.flex8 = 9;
+			tcp_log_event_(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
+				       0, &log, false, NULL, NULL, 0, &tv);
+		}
+		/* 
+		 * The draft (v3) calls for us to use SEQ_GEQ, but that
+		 * causes issues when we are just going app limited. Lets
+		 * instead use SEQ_GT <or> where its equal but more data
+		 * is outstanding.
+		 */
+		if ((SEQ_GT(tp->snd_una, rack->r_ctl.roundends)) ||
+		    ((tp->snd_una == rack->r_ctl.roundends) && SEQ_GT(tp->snd_max, tp->snd_una))) {
 			rack->r_ctl.current_round++;
 			rack->r_ctl.roundends = tp->snd_max;
 			if (CC_ALGO(tp)->newround != NULL) {
@@ -20204,17 +20243,15 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 		break;
 	case TCP_RACK_ENABLE_HYSTART:
 	{
-		struct sockopt sopt;
-		struct cc_newreno_opts opt;
-
-		sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
-		sopt.sopt_dir = SOPT_SET;
-		opt.name = CC_NEWRENO_ENABLE_HYSTART;
-		opt.val = optval;
-		if (CC_ALGO(tp)->ctl_output != NULL)
-			error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
-		else
-			error = EINVAL;
+		if (optval) {
+			tp->ccv->flags |= CCF_HYSTART_ALLOWED;
+			if (rack_do_hystart > RACK_HYSTART_ON) 
+				tp->ccv->flags |= CCF_HYSTART_CAN_SH_CWND;
+			if (rack_do_hystart > RACK_HYSTART_ON_W_SC) 
+				tp->ccv->flags |= CCF_HYSTART_CONS_SSTH;
+		} else {
+			tp->ccv->flags &= ~(CCF_HYSTART_ALLOWED|CCF_HYSTART_CAN_SH_CWND|CCF_HYSTART_CONS_SSTH);
+		}
 	}
 	break;
 	case TCP_RACK_REORD_THRESH:
@@ -20684,17 +20721,15 @@ rack_get_sockopt(struct inpcb *inp, struct sockopt *sopt)
 		break;
  	case TCP_RACK_ENABLE_HYSTART:
 	{
-		struct sockopt sopt;
-		struct cc_newreno_opts opt;
-
-		sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
-		sopt.sopt_dir = SOPT_GET;
-		opt.name = CC_NEWRENO_ENABLE_HYSTART;
-		if (CC_ALGO(tp)->ctl_output != NULL)
-			error = CC_ALGO(tp)->ctl_output(tp->ccv, &sopt, &opt);
-		else
-			error = EINVAL;
-		optval = opt.val;
+		if (tp->ccv->flags & CCF_HYSTART_ALLOWED) {
+			optval = RACK_HYSTART_ON;
+			if (tp->ccv->flags & CCF_HYSTART_CAN_SH_CWND)
+				optval = RACK_HYSTART_ON_W_SC;
+			if (tp->ccv->flags & CCF_HYSTART_CONS_SSTH)
+				optval = RACK_HYSTART_ON_W_SC_C;
+		} else {
+			optval = RACK_HYSTART_OFF;
+		}
 	}
 	break;
 	case TCP_FAST_RSM_HACK:

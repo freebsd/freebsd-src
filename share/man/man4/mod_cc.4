@@ -83,7 +83,7 @@ The framework exposes the following variables in the
 branch of the
 .Xr sysctl 3
 MIB:
-.Bl -tag -width ".Va abe_frlossreduce"
+.Bl -tag -width ".Va hystartplusplus.css_growth_div"
 .It Va available
 Read-only list of currently available congestion control algorithms by name.
 .It Va algorithm
@@ -102,10 +102,33 @@ support for ABE and for configuration details.
 .It Va abe_frlossreduce
 If non-zero, apply standard beta instead of ABE-beta during ECN-signalled
 congestion recovery episodes if loss also needs to be repaired.
+.It Va hystartplusplus.bblogs
+This boolean controls if black box logging will be done for hystart++ events.
+If set to zero (the default) no logging is performed.
+If set to one then black box logs will be generated on all hystart++ events.
+.It Va hystartplusplus.css_rounds
+This value controls the number of rounds that CSS runs for.
+The default value matches the current internet-draft of 5.
+.It Va hystartplusplus.css_growth_div
+This value controls the divisor applied to slowstart during CSS.
+The default value matches the current internet-draft of 4.
+.It Va hystartplusplus.n_rttsamples
+This value controls how many rtt samples must be collected in each round for
+hystart++ to be active.
+The default value matches the current internet-draft of 8.
+.It Va hystartplusplus.maxrtt_thresh
+This value controls the maximum rtt variance clamp when considering if CSS is needed.
+The default value matches the current internet-draft of 16000 (in microseconds).
+For further explanation please see the internet-draft.
+.It Va hystartplusplus.minrtt_thresh
+This value controls the minimum rtt variance clamp when considering if CSS is needed.
+The default value matches the current internet-draft of 4000 (in microseconds).
+For further explanation please see the internet-draft.
 .El
 .Pp
 Each congestion control module may also expose other MIB variables
 to control their behaviour.
+Note that both newreno and cubic now support hystart++ based on the version 3 of the internet-draft.
 .Sh Kernel Configuration
 .Pp
 All of the available congestion control modules may also be loaded

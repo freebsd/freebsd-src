@@ -75,21 +75,10 @@ the congestion window in response to an ECN congestion signal when
 .Va net.inet.tcp.cc.abe=1
 per: cwnd = (cwnd * CC_NEWRENO_BETA_ECN) / 100.
 Default is 80.
-.It Va CC_NEWRENO_ENABLE_HYSTART
-will enable or disable the application of Hystart++.
-The current implementation allows the values 0, 1, 2 and 3.
-A value of 0 (the default) disables the use of Hystart++.
-Setting the value to 1 enables Hystart++.
-Setting the value to 2 enables Hystart++ but also will cause, on exit from Hystart++'s CSS, to
-set the cwnd to the value of where the increase in RTT first began as
-well as setting ssthresh to the flight at send when we exit CSS.
-Setting a value of 3 will keep the setting of the cwnd the same as 2, but will cause ssthresh
-to be set to the average value between the lowest fas rtt (the value cwnd is
-set to) and the fas value at exit of CSS.
 .PP
 Note that currently the only way to enable
 hystart++ is to enable it via socket option.
-When enabling it a value of 1 will enable precise internet-draft behavior
+When enabling it a value of 1 will enable precise internet-draft (version 4) behavior
 (subject to any MIB variable settings), other setting (2 and 3) are experimental.
 .El
 .PP
@@ -120,32 +109,6 @@ the congestion window in response to an ECN congestion signal when
 .Va net.inet.tcp.cc.abe=1
 per: cwnd = (cwnd * beta_ecn) / 100.
 Default is 80.
-.It Va hystartplusplus.bblogs
-This boolean controls if black box logging will be done for hystart++ events. If set
-to zero (the default) no logging is performed.
-If set to one then black box logs will be generated on all hystart++ events.
-.It Va hystartplusplus.css_rounds
-This value controls the number of rounds that CSS runs for.
-The default value matches the current internet-draft of 5.
-.It Va hystartplusplus.css_growth_div
-This value controls the divisor applied to slowstart during CSS.
-The default value matches the current internet-draft of 4.
-.It Va hystartplusplus.n_rttsamples
-This value controls how many rtt samples must be collected in each round for
-hystart++ to be active.
-The default value matches the current internet-draft of 8.
-.It Va hystartplusplus.maxrtt_thresh
-This value controls the maximum rtt variance clamp when considering if CSS is needed.
-The default value matches the current internet-draft of 16000 (in microseconds).
-For further explanation please see the internet-draft.
-.It Va hystartplusplus.minrtt_thresh
-This value controls the minimum rtt variance clamp when considering if CSS is needed.
-The default value matches the current internet-draft of 4000 (in microseconds).
-For further explanation please see the internet-draft.
-.It Va hystartplusplus.lowcwnd
-This value controls what is the lowest congestion window that the tcp
-stack must be at before hystart++ engages.
-The default value matches the current internet-draft of 16.
 .El
 .Sh SEE ALSO
 .Xr cc_cdg 4 ,
