@@ -762,7 +762,7 @@ vbe_set_mode(int modenum)
 }
 
 /*
- * Verify existance of mode number or find mode by
+ * Verify existence of mode number or find mode by
  * dimensions. If depth is not given, walk values 32, 24, 16, 8.
  */
 static int
