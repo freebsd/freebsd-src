@@ -165,7 +165,7 @@ geli_taste(geli_readfunc readfunc, void *readpriv, daddr_t lastsector,
 
 	/*
 	 * We have a new known_device.  Whether it's geli-encrypted or not,
-	 * record its existance so we can avoid doing IO to probe it next time.
+	 * record its existence so we can avoid doing IO to probe it next time.
 	 */
 	if ((kdev = malloc(sizeof(*kdev))) == NULL)
 		goto out;
