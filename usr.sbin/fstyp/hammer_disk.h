@@ -765,7 +765,7 @@ typedef struct hammer_volume_ondisk {
 
 	/*
 	 * These fields are initialized and space is reserved in every
-	 * volume making up a HAMMER filesytem, but only the root volume
+	 * volume making up a HAMMER filesystem, but only the root volume
 	 * contains valid data.  Note that vol0_stat_bigblocks does not
 	 * include big-blocks for freemap and undomap initially allocated
 	 * by newfs_hammer(8).
