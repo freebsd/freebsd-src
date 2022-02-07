@@ -105,7 +105,7 @@ gdb_trapper(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGTRAP;
-			ksi.ksi_code = TRAP_TRACE;
+			ksi.ksi_code = TRAP_BRKPT;
 			ksi.ksi_addr = (void *)va;
 			trapsignal(td, &ksi);
 			return 1;
