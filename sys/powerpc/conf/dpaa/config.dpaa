@@ -6,7 +6,6 @@ makeoptions DPAA_COMPILE_CMD="${LINUXKPI_C} ${DPAAWARNFLAGS} \
 	-Wno-cast-qual -Wno-unused-function -Wno-init-self -fms-extensions \
 	-include $S/contrib/ncsw/build/dflags.h \
 	-Wno-error=missing-prototypes \
-	-Wno-redundant-decls \
 	-I$S/contrib/ncsw/build/ \
 	-I$S/contrib/ncsw/inc \
 	-I$S/contrib/ncsw/inc/cores \

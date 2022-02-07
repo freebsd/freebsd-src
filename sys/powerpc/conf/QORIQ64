@@ -14,7 +14,7 @@ machine		powerpc	powerpc64
 include 	"dpaa/config.dpaa"
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1
-#makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
+#makeoptions	WERROR="-Werror -Wno-format"
 
 options 	FPU_EMU
 

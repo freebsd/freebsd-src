@@ -228,7 +228,6 @@ CDDL_CFLAGS=	\
 	-Wno-nested-externs \
 	-Wno-parentheses \
 	-Wno-pointer-arith \
-	-Wno-redundant-decls \
 	-Wno-strict-prototypes \
 	-Wno-switch \
 	-Wno-undef \
@@ -298,7 +297,7 @@ LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
 OFEDINCLUDES=	-I$S/ofed/include -I$S/ofed/include/uapi ${LINUXKPI_INCLUDES}
-OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -Wno-redundant-decls
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} -DCONFIG_INFINIBAND_USER_MEM \
 		${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR}
