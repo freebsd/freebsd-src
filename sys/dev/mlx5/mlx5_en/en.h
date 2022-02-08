@@ -1018,6 +1018,7 @@ struct mlx5e_priv {
 #define	PRIV_LOCKED(priv) sx_xlocked(&(priv)->state_lock)
 #define	PRIV_ASSERT_LOCKED(priv) sx_assert(&(priv)->state_lock, SA_XLOCKED)
 	struct sx state_lock;		/* Protects Interface state */
+	struct mlx5e_rq	drop_rq;
 	u32	pdn;
 	u32	tdn;
 	struct mlx5_core_mr mr;

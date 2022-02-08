@@ -1471,6 +1471,88 @@ mlx5e_close_rq_wait(struct mlx5e_rq *rq)
 	mlx5e_destroy_rq(rq);
 }
 
+/*
+ * What is a drop RQ and why is it needed?
+ *
+ * The RSS indirection table, also called the RQT, selects the
+ * destination RQ based on the receive queue number, RQN. The RQT is
+ * frequently referred to by flow steering rules to distribute traffic
+ * among multiple RQs. The problem is that the RQs cannot be destroyed
+ * before the RQT referring them is destroyed too. Further, TLS RX
+ * rules may still be referring to the RQT even if the link went
+ * down. Because there is no magic RQN for dropping packets, we create
+ * a dummy RQ, also called drop RQ, which sole purpose is to drop all
+ * received packets. When the link goes down this RQN is filled in all
+ * RQT entries, of the main RQT, so the real RQs which are about to be
+ * destroyed can be released and the TLS RX rules can be sustained.
+ */
+static void
+mlx5e_open_drop_rq_comp(struct mlx5_core_cq *mcq __unused, struct mlx5_eqe *eqe __unused)
+{
+}
+
+static int
+mlx5e_open_drop_rq(struct mlx5e_priv *priv,
+    struct mlx5e_rq *drop_rq)
+{
+	struct mlx5e_cq_param param_cq = {};
+	struct mlx5e_rq_param param_rq = {};
+	void *rqc_wq = MLX5_ADDR_OF(rqc, param_rq.rqc, wq);
+	int err;
+
+	/* set basic CQ parameters needed */
+	MLX5_SET(cqc, param_cq.cqc, log_cq_size, 0);
+	MLX5_SET(cqc, param_cq.cqc, uar_page, priv->mdev->priv.uar->index);
+
+	/* open receive completion queue */
+	err = mlx5e_open_cq(priv, &param_cq, &drop_rq->cq,
+	    &mlx5e_open_drop_rq_comp, 0);
+	if (err)
+		goto err_done;
+
+	/* set basic WQ parameters needed */
+	MLX5_SET(wq, rqc_wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST);
+	MLX5_SET(wq, rqc_wq, end_padding_mode, MLX5_WQ_END_PAD_MODE_ALIGN);
+	MLX5_SET(wq, rqc_wq, log_wq_stride, ilog2(sizeof(struct mlx5e_rx_wqe) + sizeof(struct mlx5_wqe_data_seg)));
+	MLX5_SET(wq, rqc_wq, log_wq_sz, 0);
+	MLX5_SET(wq, rqc_wq, pd, priv->pdn);
+
+	param_rq.wq.linear = 1;
+
+	err = mlx5_wq_ll_create(priv->mdev, &param_rq.wq, rqc_wq, &drop_rq->wq,
+	    &drop_rq->wq_ctrl);
+	if (err)
+		goto err_close_cq;
+
+	err = mlx5e_enable_rq(drop_rq, &param_rq);
+	if (err)
+		goto err_wq_destroy;
+
+	err = mlx5e_modify_rq(drop_rq, MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY);
+	if (err)
+		goto err_disable_rq;
+
+	return (err);
+
+err_disable_rq:
+	mlx5e_disable_rq(drop_rq);
+err_wq_destroy:
+	mlx5_wq_destroy(&drop_rq->wq_ctrl);
+err_close_cq:
+	mlx5e_close_cq(&drop_rq->cq);
+err_done:
+	return (err);
+}
+
+static void
+mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq)
+{
+	mlx5e_modify_rq(drop_rq, MLX5_RQC_STATE_RDY, MLX5_RQC_STATE_ERR);
+	mlx5e_disable_rq(drop_rq);
+	mlx5_wq_destroy(&drop_rq->wq_ctrl);
+	mlx5e_close_cq(&drop_rq->cq);
+}
+
 void
 mlx5e_free_sq_db(struct mlx5e_sq *sq)
 {
@@ -4519,6 +4601,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_rl_init;
 	}
 
+	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_open_drop_rq failed\n", __func__);
+		goto err_tls_init;
+	}
+
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
@@ -4646,6 +4734,9 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	return (priv);
 
+err_tls_init:
+	mlx5e_tls_cleanup(priv);
+
 err_rl_init:
 	mlx5e_rl_cleanup(priv);
 
@@ -4741,6 +4832,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
 
+	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_tls_cleanup(priv);
 	mlx5e_rl_cleanup(priv);
 
