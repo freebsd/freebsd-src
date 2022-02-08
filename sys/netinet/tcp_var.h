@@ -1128,6 +1128,7 @@ void tcp_switch_back_to_default(struct tcpcb *tp);
 struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);
 int tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt);
+int tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt);
 
 extern counter_u64_t tcp_inp_lro_direct_queue;
 extern counter_u64_t tcp_inp_lro_wokeup_queue;
