@@ -2743,16 +2743,13 @@ mlx5e_close_tises(struct mlx5e_priv *priv)
 }
 
 static int
-mlx5e_open_rqt(struct mlx5e_priv *priv)
+mlx5e_open_default_rqt(struct mlx5e_priv *priv, u32 *prqtn, int sz)
 {
 	u32 *in;
 	void *rqtc;
 	int inlen;
 	int err;
-	int sz;
 	int i;
-
-	sz = 1 << priv->params.rx_hash_log_tbl_sz;
 
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
 	in = mlx5_vzalloc(inlen);
@@ -2766,10 +2763,49 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 	for (i = 0; i != sz; i++)
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->drop_rq.rqn);
 
-	err = mlx5_core_create_rqt(priv->mdev, in, inlen, &priv->rqtn);
+	err = mlx5_core_create_rqt(priv->mdev, in, inlen, prqtn);
 	kvfree(in);
 
 	return (err);
+}
+
+static int
+mlx5e_open_rqts(struct mlx5e_priv *priv)
+{
+	int err;
+	int i;
+
+	err = mlx5e_open_default_rqt(priv, &priv->rqtn,
+	    1 << priv->params.rx_hash_log_tbl_sz);
+	if (err)
+		goto err_default;
+
+	for (i = 0; i != priv->mdev->priv.eq_table.num_comp_vectors; i++) {
+		err = mlx5e_open_default_rqt(priv, &priv->channel[i].rqtn, 1);
+		if (err)
+			goto err_channel;
+	}
+	return (0);
+
+err_channel:
+	while (i--)
+		mlx5_core_destroy_rqt(priv->mdev, priv->channel[i].rqtn);
+
+	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn);
+
+err_default:
+	return (err);
+}
+
+static void
+mlx5e_close_rqts(struct mlx5e_priv *priv)
+{
+	int i;
+
+	for (i = 0; i != priv->mdev->priv.eq_table.num_comp_vectors; i++)
+		mlx5_core_destroy_rqt(priv->mdev, priv->channel[i].rqtn);
+
+	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn);
 }
 
 static int
@@ -2795,9 +2831,11 @@ mlx5e_activate_rqt(struct mlx5e_priv *priv)
 	MLX5_SET(modify_rqt_in, in, bitmask.rqn_list, 1);
 
 	for (i = 0; i != sz; i++) {
-		int ix = i;
+		int ix;
 #ifdef RSS
-		ix = rss_get_indirection_to_bucket(ix);
+		ix = rss_get_indirection_to_bucket(i);
+#else
+		ix = i;
 #endif
 		/* ensure we don't overflow */
 		ix %= priv->params.num_channels;
@@ -2809,8 +2847,35 @@ mlx5e_activate_rqt(struct mlx5e_priv *priv)
 	}
 
 	err = mlx5_core_modify_rqt(priv->mdev, priv->rqtn, in, inlen);
-	kvfree(in);
+	if (err)
+		goto err_modify;
 
+	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + sizeof(u32);
+
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, 1);
+
+	for (i = 0; i != priv->mdev->priv.eq_table.num_comp_vectors; i++) {
+		int ix;
+#ifdef RSS
+		ix = rss_get_indirection_to_bucket(i);
+#else
+		ix = i;
+#endif
+		/* ensure we don't overflow */
+		ix %= priv->params.num_channels;
+
+		/* apply receive side scaling stride, if any */
+		ix -= ix % (int)priv->params.channels_rsss;
+
+		MLX5_SET(rqtc, rqtc, rq_num[0], priv->channel[ix].rq.rqn);
+
+		err = mlx5_core_modify_rqt(priv->mdev, priv->channel[i].rqtn, in, inlen);
+		if (err)
+			goto err_modify;
+	}
+
+err_modify:
+	kvfree(in);
 	return (err);
 }
 
@@ -2840,8 +2905,23 @@ mlx5e_deactivate_rqt(struct mlx5e_priv *priv)
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->drop_rq.rqn);
 
 	err = mlx5_core_modify_rqt(priv->mdev, priv->rqtn, in, inlen);
-	kvfree(in);
+	if (err)
+		goto err_modify;
 
+	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + sizeof(u32);
+
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, 1);
+
+	for (i = 0; i != priv->mdev->priv.eq_table.num_comp_vectors; i++) {
+		MLX5_SET(rqtc, rqtc, rq_num[0], priv->drop_rq.rqn);
+
+		err = mlx5_core_modify_rqt(priv->mdev, priv->channel[i].rqtn, in, inlen);
+		if (err)
+			goto err_modify;
+	}
+
+err_modify:
+	kvfree(in);
 	return (err);
 }
 
@@ -4615,16 +4695,16 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_tls_init;
 	}
 
-	err = mlx5e_open_rqt(priv);
+	err = mlx5e_open_rqts(priv);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_rqt failed (%d)\n", __func__, err);
+		if_printf(ifp, "%s: mlx5e_open_rqts failed (%d)\n", __func__, err);
 		goto err_open_drop_rq;
 	}
 
 	err = mlx5e_open_tirs(priv);
 	if (err) {
 		mlx5_en_err(ifp, "mlx5e_open_tirs() failed, %d\n", err);
-		goto err_open_rqt;
+		goto err_open_rqts;
 	}
 
 	err = mlx5e_open_flow_tables(priv);
@@ -4771,8 +4851,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 err_open_tirs:
 	mlx5e_close_tirs(priv);
 
-err_open_rqt:
-	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
+err_open_rqts:
+	mlx5e_close_rqts(priv);
 
 err_open_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
@@ -4878,7 +4958,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 
 	mlx5e_close_flow_tables(priv);
 	mlx5e_close_tirs(priv);
-	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
+	mlx5e_close_rqts(priv);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_tls_cleanup(priv);
 	mlx5e_rl_cleanup(priv);

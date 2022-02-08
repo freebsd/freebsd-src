@@ -926,6 +926,7 @@ struct mlx5e_channel {
 	struct mlx5e_priv *priv;
 	struct completion completion;
 	int	ix;
+	u32	rqtn;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 enum mlx5e_traffic_types {
