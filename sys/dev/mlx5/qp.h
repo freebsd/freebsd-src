@@ -322,6 +322,13 @@ struct mlx5_seg_set_psv {
 	__be32		ref_tag;
 };
 
+struct mlx5_wqe_qos_remap_seg {
+	u8		rsvd0[4];
+	u8		rsvd1[4];
+	__be32		qos_handle;
+	__be32		queue_handle;
+};
+
 struct mlx5_seg_get_psv {
 	u8		rsvd[19];
 	u8		num_psv;
