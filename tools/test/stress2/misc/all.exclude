@@ -7,6 +7,7 @@ backingstore3.sh	g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111230
 dd.sh			CAM stuck in vmwait						20200116
 devfs4.sh		Hang seen							20210210
 force4.sh		https://people.freebsd.org/~pho/stress/log/log0082.txt		20210328
+force7.sh		https://people.freebsd.org/~pho/stress/log/log0266.txt		20220207
 fsync.sh		panic: Journal overflow						20190208
 fuse.sh			Memory corruption seen in log file kostik734.txt		20141114
 fuse2.sh		Deadlock seen							20121129
