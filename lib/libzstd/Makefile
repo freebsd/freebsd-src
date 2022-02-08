@@ -49,6 +49,8 @@ ZSTDDIR=	${SRCTOP}/sys/contrib/zstd
 
 .include <bsd.compiler.mk>
 
+CFLAGS.huf_decompress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+
 # https://github.com/facebook/zstd/commit/812e8f2a [zstd 1.4.1]
 # "Note that [GCC] autovectorization still does not do a good job on the
 # optimized version, so it's turned off via attribute and flag.  I found
