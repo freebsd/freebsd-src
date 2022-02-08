@@ -370,6 +370,9 @@ tcp_lro_parser(struct mbuf *m, struct lro_parser *po, struct lro_parser *pi, boo
 			po->data.vlan_id =
 			    htons(m->m_pkthdr.ether_vtag) & htons(EVL_VLID_MASK);
 		}
+		/* Store decrypted flag, if any. */
+		if (__predict_false(m->m_flags & M_DECRYPTED))
+			po->data.lro_flags |= LRO_FLAG_DECRYPTED;
 	}
 
 	switch (po->data.lro_type) {
@@ -1558,7 +1561,7 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 	uint32_t *ts_ptr;
 	int32_t n_mbuf;
 	bool other_opts, can_compress;
-	uint16_t lro_type;
+	uint8_t lro_type;
 	uint16_t iptos;
 	int tcp_hdr_offset;
 	int idx;
