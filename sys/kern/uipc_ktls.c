@@ -1691,19 +1691,18 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		 * All mbufs in the chain should be TLS records whose
 		 * payload does not exceed the maximum frame length.
 		 *
-		 * Empty TLS records are permitted when using CBC.
+		 * Empty TLS 1.0 records are permitted when using CBC.
 		 */
-		KASSERT(m->m_len <= maxlen &&
-		    (tls->params.cipher_algorithm == CRYPTO_AES_CBC ?
-		    m->m_len >= 0 : m->m_len > 0),
-		    ("ktls_frame: m %p len %d\n", m, m->m_len));
+		KASSERT(m->m_len <= maxlen && m->m_len >= 0 &&
+		    (m->m_len > 0 || ktls_permit_empty_frames(tls)),
+		    ("ktls_frame: m %p len %d", m, m->m_len));
 
 		/*
 		 * TLS frames require unmapped mbufs to store session
 		 * info.
 		 */
 		KASSERT((m->m_flags & M_EXTPG) != 0,
-		    ("ktls_frame: mapped mbuf %p (top = %p)\n", m, top));
+		    ("ktls_frame: mapped mbuf %p (top = %p)", m, top));
 
 		tls_len = m->m_len;
 
@@ -1795,6 +1794,13 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 			*enq_cnt += m->m_epg_nrdy;
 		}
 	}
+}
+
+bool
+ktls_permit_empty_frames(struct ktls_session *tls)
+{
+	return (tls->params.cipher_algorithm == CRYPTO_AES_CBC &&
+	    tls->params.tls_vminor == TLS_MINOR_VER_ZERO);
 }
 
 void

@@ -1105,9 +1105,19 @@ test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
 	fd_set_blocking(sockets[0]);
 	fd_set_blocking(sockets[1]);
 
-	/* A write of zero bytes should send an empty fragment. */
+	/*
+	 * A write of zero bytes should send an empty fragment only for
+	 * TLS 1.0, otherwise an error should be raised.
+	 */
 	rv = write(sockets[1], NULL, 0);
-	ATF_REQUIRE(rv == 0);
+	if (rv == 0) {
+		ATF_REQUIRE(en->cipher_algorithm == CRYPTO_AES_CBC);
+		ATF_REQUIRE(en->tls_vminor == TLS_MINOR_VER_ZERO);
+	} else {
+		ATF_REQUIRE(rv == -1);
+		ATF_REQUIRE(errno == EINVAL);
+		goto out;
+	}
 
 	/*
 	 * First read the header to determine how much additional data
@@ -1129,6 +1139,7 @@ test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
 	    "read %zd decrypted bytes for an empty fragment", rv);
 	ATF_REQUIRE(record_type == TLS_RLTYPE_APP);
 
+out:
 	free(outbuf);
 
 	ATF_REQUIRE(close(sockets[1]) == 0);
@@ -1369,7 +1380,7 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_##name, tc)			\
 	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_##name);
 
 #define GEN_TRANSMIT_EMPTY_FRAGMENT_TEST(cipher_name, cipher_alg,	\
-	    key_size, auth_alg)						\
+	    key_size, auth_alg, minor)					\
 ATF_TC_WITHOUT_HEAD(ktls_transmit_##cipher_name##_empty_fragment);	\
 ATF_TC_BODY(ktls_transmit_##cipher_name##_empty_fragment, tc)		\
 {									\
@@ -1378,14 +1389,14 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_empty_fragment, tc)		\
 									\
 	ATF_REQUIRE_KTLS();						\
 	seqno = random();						\
-	build_tls_enable(cipher_alg, key_size, auth_alg,		\
-	    TLS_MINOR_VER_ZERO,	seqno, &en);				\
+	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
+	    &en);							\
 	test_ktls_transmit_empty_fragment(&en, seqno);			\
 	free_tls_enable(&en);						\
 }
 
 #define ADD_TRANSMIT_EMPTY_FRAGMENT_TEST(cipher_name, cipher_alg,	\
-	    key_size, auth_alg)						\
+	    key_size, auth_alg, minor)					\
 	ATF_TP_ADD_TC(tp, ktls_transmit_##cipher_name##_empty_fragment);
 
 #define GEN_TRANSMIT_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
@@ -1506,7 +1517,9 @@ AES_CBC_TESTS(GEN_TRANSMIT_PADDING_TESTS);
  * Test "empty fragments" which are TLS records with no payload that
  * OpenSSL can send for TLS 1.0 connections.
  */
-TLS_10_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
+AES_CBC_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
+AES_GCM_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
+CHACHA20_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
 
 static void
 test_ktls_invalid_transmit_cipher_suite(struct tls_enable *en)
@@ -1768,7 +1781,9 @@ ATF_TP_ADD_TCS(tp)
 	AES_GCM_TESTS(ADD_TRANSMIT_TESTS);
 	CHACHA20_TESTS(ADD_TRANSMIT_TESTS);
 	AES_CBC_TESTS(ADD_TRANSMIT_PADDING_TESTS);
-	TLS_10_TESTS(ADD_TRANSMIT_EMPTY_FRAGMENT_TEST);
+	AES_CBC_TESTS(ADD_TRANSMIT_EMPTY_FRAGMENT_TEST);
+	AES_GCM_TESTS(ADD_TRANSMIT_EMPTY_FRAGMENT_TEST);
+	CHACHA20_TESTS(ADD_TRANSMIT_EMPTY_FRAGMENT_TEST);
 	INVALID_CIPHER_SUITES(ADD_INVALID_TRANSMIT_TEST);
 
 	/* Receive tests */
