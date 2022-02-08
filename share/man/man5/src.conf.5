@@ -92,38 +92,38 @@ This list provides a name and short description for variables
 that can be used for source builds.
 .Bl -tag -width indent
 .It Va WITHOUT_ACCT
-Set to not build process accounting tools such as
+Do not build process accounting tools such as
 .Xr accton 8
 and
 .Xr sa 8 .
 .It Va WITHOUT_ACPI
-Set to not build
+Do not build
 .Xr acpiconf 8 ,
 .Xr acpidump 8
 and related programs.
 .It Va WITHOUT_APM
-Set to not build
+Do not build
 .Xr apm 8 ,
 .Xr apmd 8
 and related programs.
 .It Va WITHOUT_ASSERT_DEBUG
-Set to compile programs and libraries without the
+Compile programs and libraries without the
 .Xr assert 3
 checks.
 .It Va WITHOUT_AT
-Set to not build
+Do not build
 .Xr at 1
 and related utilities.
 .It Va WITHOUT_ATM
-Set to not build
+Do not build
 programs and libraries related to ATM networking.
 .It Va WITHOUT_AUDIT
-Set to not build audit support into system programs.
+Do not build audit support into system programs.
 .It Va WITHOUT_AUTHPF
-Set to not build
+Do not build
 .Xr authpf 8 .
 .It Va WITHOUT_AUTOFS
-Set to not build
+Do not build
 .Xr autofs 5
 related programs, libraries, and kernel modules.
 .It Va WITHOUT_AUTO_OBJ
@@ -166,13 +166,13 @@ is set explicitly)
 is set explicitly)
 .El
 .It Va WITHOUT_BHYVE
-Set to not build or install
+Do not build or install
 .Xr bhyve 8 ,
 associated utilities, and examples.
 .Pp
 This option only affects amd64/amd64.
 .It Va WITH_BHYVE_SNAPSHOT
-Set to include support for save and restore (snapshots) in
+Include support for save and restore (snapshots) in
 .Xr bhyve 8
 and
 .Xr bhyvectl 8 .
@@ -197,7 +197,7 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_BLACKLIST_SUPPORT
-Set to build some programs without
+Build some programs without
 .Xr libblacklist 3
 support, like
 .Xr fingerd 8 ,
@@ -205,29 +205,29 @@ support, like
 and
 .Xr sshd 8 .
 .It Va WITHOUT_BLUETOOTH
-Set to not build Bluetooth related kernel modules, programs and libraries.
+Do not build Bluetooth related kernel modules, programs and libraries.
 .It Va WITHOUT_BOOT
-Set to not build the boot blocks and loader.
+Do not build the boot blocks and loader.
 .It Va WITHOUT_BOOTPARAMD
-Set to not build or install
+Do not build or install
 .Xr bootparamd 8 .
 .It Va WITHOUT_BOOTPD
-Set to not build or install
+Do not build or install
 .Xr bootpd 8 .
 .It Va WITHOUT_BSDINSTALL
-Set to not build
+Do not build
 .Xr bsdinstall 8 ,
 .Xr sade 8 ,
 and related programs.
 .It Va WITHOUT_BSD_CPIO
-Set to not build the BSD licensed version of cpio based on
+Do not build the BSD licensed version of cpio based on
 .Xr libarchive 3 .
 .It Va WITHOUT_BSNMP
-Set to not build or install
+Do not build or install
 .Xr bsnmpd 1
 and related libraries and data files.
 .It Va WITHOUT_BZIP2
-Set to not build contributed bzip2 software as a part of the base system.
+Do not build contributed bzip2 software as a part of the base system.
 .Bf -symbolic
 The option has no effect yet.
 .Ef
@@ -240,12 +240,12 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_BZIP2_SUPPORT
-Set to build some programs without optional bzip2 support.
+Build some programs without optional bzip2 support.
 .It Va WITHOUT_CALENDAR
-Set to not build
+Do not build
 .Xr calendar 1 .
 .It Va WITHOUT_CAPSICUM
-Set to not build Capsicum support into system programs.
+Do not build Capsicum support into system programs.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -253,12 +253,12 @@ When set, it enforces these options:
 .Va WITHOUT_CASPER
 .El
 .It Va WITHOUT_CAROOT
-Set to not add the trusted certificates from the Mozilla NSS bundle to
+Do not add the trusted certificates from the Mozilla NSS bundle to
 base.
 .It Va WITHOUT_CASPER
-Set to not build Casper program and related libraries.
+Do not build Casper program and related libraries.
 .It Va WITH_CCACHE_BUILD
-Set to use
+Use
 .Xr ccache 1
 for the build.
 No configuration is required except to install the
@@ -297,11 +297,11 @@ See
 .Xr ccache 1
 for more configuration options.
 .It Va WITHOUT_CCD
-Set to not build
+Do not build
 .Xr geom_ccd 4
 and related utilities.
 .It Va WITHOUT_CDDL
-Set to not build code licensed under Sun's CDDL.
+Do not build code licensed under Sun's CDDL.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -313,7 +313,7 @@ When set, it enforces these options:
 .Va WITHOUT_ZFS
 .El
 .It Va WITHOUT_CLANG
-Set to not build the Clang C/C++ compiler during the regular phase of the build.
+Do not build the Clang C/C++ compiler during the regular phase of the build.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -327,17 +327,17 @@ When set, it enforces these options:
 .Va WITHOUT_LLVM_COV
 .El
 .It Va WITHOUT_CLANG_BOOTSTRAP
-Set to not build the Clang C/C++ compiler during the bootstrap phase of
+Do not build the Clang C/C++ compiler during the bootstrap phase of
 the build.
 To be able to build the system, either gcc or clang bootstrap must be
 enabled unless an alternate compiler is provided via XCC.
 .It Va WITH_CLANG_EXTRAS
-Set to build additional clang and llvm tools, such as bugpoint and
+Build additional clang and llvm tools, such as bugpoint and
 clang-format.
 .It Va WITH_CLANG_FORMAT
-Set to build clang-format.
+Build clang-format.
 .It Va WITHOUT_CLANG_FULL
-Set to avoid building the ARCMigrate, Rewriter and StaticAnalyzer components of
+Avoid building the ARCMigrate, Rewriter and StaticAnalyzer components of
 the Clang C/C++ compiler.
 .It Va WITHOUT_CLANG_IS_CC
 Do not install links to the Clang C/C++ compiler as
@@ -348,10 +348,10 @@ and
 .It Va WITHOUT_CLEAN
 Do not clean before building world and/or kernel.
 .It Va WITHOUT_CPP
-Set to not build
+Do not build
 .Xr cpp 1 .
 .It Va WITHOUT_CROSS_COMPILER
-Set to not build any cross compiler in the cross-tools stage of buildworld.
+Do not build any cross compiler in the cross-tools stage of buildworld.
 When compiling a different version of
 .Fx
 than what is installed on the system, provide an alternate
@@ -374,7 +374,7 @@ When set, it enforces these options:
 .Va WITHOUT_LLD_BOOTSTRAP
 .El
 .It Va WITHOUT_CRYPT
-Set to not build any crypto code.
+Do not build any crypto code.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -415,19 +415,19 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITH_CTF
-Set to compile with CTF (Compact C Type Format) data.
+Compile with CTF (Compact C Type Format) data.
 CTF data encapsulates a reduced form of debugging information
 similar to DWARF and the venerable stabs and is required for DTrace.
 .It Va WITHOUT_CUSE
-Set to not build CUSE-related programs and libraries.
+Do not build CUSE-related programs and libraries.
 .It Va WITHOUT_CXGBETOOL
-Set to not build
+Do not build
 .Xr cxgbetool 8
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_CXGBETOOL
-Set to build
+Build
 .Xr cxgbetool 8
 .Pp
 This is a default setting on
@@ -465,10 +465,10 @@ When set, it enforces these options:
 .Va WITHOUT_TESTS
 .El
 .It Va WITHOUT_DEBUG_FILES
-Set to avoid building or installing standalone debug files for each
+Avoid building or installing standalone debug files for each
 executable binary and shared library.
 .It Va WITHOUT_DIALOG
-Set to not build
+Do not build
 .Xr dialog 1 ,
 .Xr dialog 3 ,
 .Xr dpv 1 ,
@@ -481,7 +481,7 @@ When set, it enforces these options:
 .Va WITHOUT_BSDINSTALL
 .El
 .It Va WITHOUT_DICT
-Set to not build the Webster dictionary files.
+Do not build the Webster dictionary files.
 .It Va WITH_DIRDEPS_BUILD
 This is an experimental build system.
 For details see
@@ -565,12 +565,12 @@ This must be set in the environment, make command line, or
 not
 .Pa /etc/src.conf .
 .It Va WITHOUT_DMAGENT
-Set to not build dma Mail Transport Agent.
+Do not build dma Mail Transport Agent.
 .It Va WITHOUT_DOCCOMPRESS
-Set to not install compressed system documentation.
+Do not install compressed system documentation.
 Only the uncompressed version will be installed.
 .It Va WITH_DTRACE_TESTS
-Set to build and install the DTrace test suite in
+Build and install the DTrace test suite in
 .Pa /usr/tests/cddl/usr.sbin/dtrace .
 This test suite is considered experimental on architectures other than
 amd64/amd64 and running it may cause system instability.
@@ -581,7 +581,7 @@ and
 .Pa /sbin
 dynamically.
 .It Va WITHOUT_EE
-Set to not build and install
+Do not build and install
 .Xr edit 1 ,
 .Xr ee 1 ,
 and related programs.
@@ -594,7 +594,7 @@ and
 This is a default setting on
 mips/mips, mips/mips64, powerpc/powerpc and powerpc/powerpc64.
 .It Va WITH_EFI
-Set to build
+Build
 .Xr efivar 3
 and
 .Xr efivar 8 .
@@ -602,24 +602,24 @@ and
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_ELFTOOLCHAIN_BOOTSTRAP
-Set to not build ELF Tool Chain tools
+Do not build ELF Tool Chain tools
 (addr2line, nm, size, strings and strip)
 as part of the bootstrap process.
 .Bf -symbolic
 An alternate bootstrap tool chain must be provided.
 .Ef
 .It Va WITHOUT_EXAMPLES
-Set to avoid installing examples to
+Avoid installing examples to
 .Pa /usr/share/examples/ .
 .It Va WITH_EXPERIMENTAL
-Set to include experimental features in the build.
+Include experimental features in the build.
 .It Va WITH_EXTRA_TCP_STACKS
-Set to build extra TCP stack modules.
+Build extra TCP stack modules.
 .It Va WITHOUT_FDT
-Set to not build Flattened Device Tree support as part of the base system.
+Do not build Flattened Device Tree support as part of the base system.
 This includes the device tree compiler (dtc) and libfdt support library.
 .It Va WITHOUT_FILE
-Set to not build
+Do not build
 .Xr file 1
 and related programs.
 When set, it enforces these options:
@@ -629,48 +629,48 @@ When set, it enforces these options:
 .Va WITHOUT_SVNLITE
 .El
 .It Va WITHOUT_FINGER
-Set to not build or install
+Do not build or install
 .Xr finger 1
 and
 .Xr fingerd 8 .
 .It Va WITHOUT_FLOPPY
-Set to not build or install programs
+Do not build or install programs
 for operating floppy disk driver.
 .It Va WITHOUT_FMTREE
 Set to not build and install
 .Pa /usr/sbin/fmtree .
 .It Va WITHOUT_FORMAT_EXTENSIONS
-Set to not enable
+Do not enable
 .Fl fformat-extensions
 when compiling the kernel.
 Also disables all format checking.
 .It Va WITHOUT_FORTH
-Set to build bootloaders without Forth support.
+Build bootloaders without Forth support.
 .It Va WITHOUT_FP_LIBC
-Set to build
+Build
 .Nm libc
 without floating-point support.
 .It Va WITHOUT_FREEBSD_UPDATE
-Set to not build
+Do not build
 .Xr freebsd-update 8 .
 .It Va WITHOUT_FTP
-Set to not build or install
+Do not build or install
 .Xr ftp 1
 and
 .Xr ftpd 8 .
 .It Va WITHOUT_GAMES
-Set to not build games.
+Do not build games.
 .It Va WITHOUT_GH_BC
-Set to not build and install the enhanced
+Install the traditional FreeBSD
 .Xr bc 1
 and
 .Xr dc 1
-programs instead of the traditional FreeBSD versions.
+programs instead of the enhanced versions.
 .It Va WITHOUT_GNU_DIFF
-Set to not build GNU
+Do not build GNU
 .Xr diff3 1 .
 .It Va WITHOUT_GOOGLETEST
-Set to neither build nor install
+Neither build nor install
 .Lb libgmock ,
 .Lb libgtest ,
 and dependent tests.
@@ -678,7 +678,7 @@ and dependent tests.
 This is a default setting on
 mips/mips and mips/mips64.
 .It Va WITH_GOOGLETEST
-Set to build and install
+Build and install
 .Lb libgmock ,
 .Lb libgtest ,
 and dependent tests.
@@ -686,40 +686,40 @@ and dependent tests.
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_GPIO
-Set to not build
+Do not build
 .Xr gpioctl 8
 as part of the base system.
 .It Va WITHOUT_GSSAPI
-Set to not build libgssapi.
+Do not build libgssapi.
 .It Va WITHOUT_HAST
-Set to not build
+Do not build
 .Xr hastd 8
 and related utilities.
 .It Va WITH_HESIOD
-Set to build Hesiod support.
+Build Hesiod support.
 .It Va WITHOUT_HTML
-Set to not build HTML docs.
+Do not build HTML docs.
 .It Va WITHOUT_HYPERV
-Set to not build or install HyperV utilities.
+Do not build or install HyperV utilities.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, arm64/aarch64, mips/mips, mips/mips64, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_HYPERV
-Set to build or install HyperV utilities.
+Build or install HyperV utilities.
 .Pp
 This is a default setting on
 amd64/amd64 and i386/i386.
 .It Va WITHOUT_ICONV
-Set to not build iconv as part of libc.
+Do not build iconv as part of libc.
 .It Va WITHOUT_INCLUDES
-Set to not install header files.
+Do not install header files.
 This option used to be spelled
 .Va NO_INCS .
 .Bf -symbolic
 The option does not work for build targets.
 .Ef
 .It Va WITHOUT_INET
-Set to not build programs and libraries related to IPv4 networking.
+Do not build programs and libraries related to IPv4 networking.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -727,7 +727,7 @@ When set, it enforces these options:
 .Va WITHOUT_INET_SUPPORT
 .El
 .It Va WITHOUT_INET6
-Set to not build
+Do not build
 programs and libraries related to IPv6 networking.
 When set, it enforces these options:
 .Pp
@@ -736,19 +736,19 @@ When set, it enforces these options:
 .Va WITHOUT_INET6_SUPPORT
 .El
 .It Va WITHOUT_INET6_SUPPORT
-Set to build libraries, programs, and kernel modules without IPv6 support.
+Build libraries, programs, and kernel modules without IPv6 support.
 .It Va WITHOUT_INETD
-Set to not build
+Do not build
 .Xr inetd 8 .
 .It Va WITHOUT_INET_SUPPORT
-Set to build libraries, programs, and kernel modules without IPv4 support.
+Build libraries, programs, and kernel modules without IPv4 support.
 .It Va WITH_INIT_ALL_PATTERN
-Set to build the base system or kernel with stack variables initialized to
+Build the base system or kernel with stack variables initialized to
 .Pq compiler defined
 debugging patterns on function entry.
 This option requires the clang compiler.
 .It Va WITH_INIT_ALL_ZERO
-Set to build the base system or kernel with stack variables initialized
+Build the base system or kernel with stack variables initialized
 to zero on function entry.
 This option requires that the clang compiler be used.
 .It Va WITHOUT_INSTALLLIB
@@ -760,7 +760,7 @@ image.
 The option does not work for build targets.
 .Ef
 .It Va WITH_INSTALL_AS_USER
-Set to make install targets succeed for non-root users by installing
+Make install targets succeed for non-root users by installing
 files with owner and group attributes set to that of the user running
 the
 .Xr make 1
@@ -769,11 +769,11 @@ The user still must set the
 .Va DESTDIR
 variable to point to a directory where the user has write permissions.
 .It Va WITHOUT_IPFILTER
-Set to not build IP Filter package.
+Do not build IP Filter package.
 .It Va WITHOUT_IPFW
-Set to not build IPFW tools.
+Do not build IPFW tools.
 .It Va WITHOUT_IPSEC_SUPPORT
-Set to not build the kernel with
+Do not build the kernel with
 .Xr ipsec 4
 support.
 This option is needed for
@@ -781,14 +781,14 @@ This option is needed for
 and
 .Xr tcpmd5 4 .
 .It Va WITHOUT_ISCSI
-Set to not build
+Do not build
 .Xr iscsid 8
 and related utilities.
 .It Va WITHOUT_JAIL
-Set to not build tools for the support of jails; e.g.,
+Do not build tools for the support of jails; e.g.,
 .Xr jail 8 .
 .It Va WITHOUT_KDUMP
-Set to not build
+Do not build
 .Xr kdump 1
 and
 .Xr truss 1 .
@@ -807,19 +807,19 @@ is set explicitly)
 is set explicitly)
 .El
 .It Va WITHOUT_KERBEROS_SUPPORT
-Set to build some programs without Kerberos support, like
+Build some programs without Kerberos support, like
 .Xr ssh 1 ,
 .Xr telnet 1 ,
 .Xr sshd 8 ,
 and
 .Xr telnetd 8 .
 .It Va WITH_KERNEL_RETPOLINE
-Set to enable the "retpoline" mitigation for CVE-2017-5715 in the kernel
+Enable the "retpoline" mitigation for CVE-2017-5715 in the kernel
 build.
 .It Va WITHOUT_KERNEL_SYMBOLS
 Do not install kernel debug symbol files.
 .It Va WITHOUT_KVM
-Set to not build the
+Do not build the
 .Nm libkvm
 library as a part of the base system.
 .Bf -symbolic
@@ -834,7 +834,7 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_KVM_SUPPORT
-Set to build some programs without optional
+Build some programs without optional
 .Nm libkvm
 support.
 .It Va WITHOUT_LDNS
@@ -853,12 +853,12 @@ Setting this variable will prevent building the LDNS utilities
 and
 .Xr host 1 .
 .It Va WITHOUT_LEGACY_CONSOLE
-Set to not build programs that support a legacy PC console; e.g.,
+Do not build programs that support a legacy PC console; e.g.,
 .Xr kbdcontrol 1
 and
 .Xr vidcontrol 1 .
 .It Va WITHOUT_LIB32
-On 64-bit platforms, set to not build 32-bit library set and a
+On 64-bit platforms, do not build 32-bit library set and a
 .Nm ld-elf32.so.1
 runtime linker.
 .Pp
@@ -867,22 +867,22 @@ arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mips, powerpc/powerpc, risc
 .It Va WITHOUT_LIBCPLUSPLUS
 Set to avoid building libcxxrt and libc++.
 .It Va WITH_LIBSOFT
-On armv6 only, set to enable soft float ABI compatibility libraries.
+On armv6 only, enable soft float ABI compatibility libraries.
 This option is for transitioning to the new hard float ABI.
 .It Va WITHOUT_LLD
-Set to not build LLVM's lld linker.
+Do not build LLVM's lld linker.
 .It Va WITHOUT_LLDB
-Set to not build the LLDB debugger.
+Do not build the LLDB debugger.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_LLDB
-Set to build the LLDB debugger.
+Build the LLDB debugger.
 .Pp
 This is a default setting on
 amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc and powerpc/powerpc64.
 .It Va WITHOUT_LLD_BOOTSTRAP
-Set to not build the LLD linker during the bootstrap phase of
+Do not build the LLD linker during the bootstrap phase of
 the build.
 To be able to build the system an alternate linker must be provided via XLD.
 .It Va WITHOUT_LLD_IS_LD
@@ -893,22 +893,22 @@ to
 The system will not have a usable tool chain unless a linker is provided
 some other way.
 .It Va WITH_LLVM_ASSERTIONS
-Set to enable debugging assertions in LLVM.
+Enable debugging assertions in LLVM.
 .It Va WITH_LLVM_BINUTILS
 Install LLVM's binutils (ar, addr2line, nm, etc.) instead of ELF Tool Chain's.
 .It Va WITHOUT_LLVM_COV
-Set to not build the
+Do not build the
 .Xr llvm-cov 1
 tool.
 .It Va WITHOUT_LLVM_CXXFILT
 Install ELF Tool Chain's cxxfilt as c++filt, instead of LLVM's llvm-cxxfilt.
 .It Va WITHOUT_LLVM_TARGET_AARCH64
-Set to not build LLVM target support for AArch64.
+Do not build LLVM target support for AArch64.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_ALL
-Set to only build the required LLVM target support.
+Only build the required LLVM target support.
 This option is preferred to specific target support options.
 When set, these options are also in effect:
 .Pp
@@ -935,32 +935,32 @@ is set explicitly)
 is set explicitly)
 .El
 .It Va WITHOUT_LLVM_TARGET_ARM
-Set to not build LLVM target support for ARM.
+Do not build LLVM target support for ARM.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITH_LLVM_TARGET_BPF
-Set to build LLVM target support for BPF.
+Build LLVM target support for BPF.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_MIPS
-Set to not build LLVM target support for MIPS.
+Do not build LLVM target support for MIPS.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_POWERPC
-Set to not build LLVM target support for PowerPC.
+Do not build LLVM target support for PowerPC.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_RISCV
-Set to not build LLVM target support for RISC-V.
+Do not build LLVM target support for RISC-V.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
 .It Va WITHOUT_LLVM_TARGET_X86
-Set to not build LLVM target support for X86.
+Do not build LLVM target support for X86.
 The
 .Va LLVM_TARGET_ALL
 option should be used rather than this in most cases.
@@ -978,17 +978,17 @@ Disable inclusion of GELI crypto support in the boot chain binaries.
 This is a default setting on
 powerpc/powerpc and powerpc/powerpc64.
 .It Va WITH_LOADER_GELI
-Set to build GELI bootloader support.
+Build GELI bootloader support.
 .Pp
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mips, mips/mips64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_LOADER_LUA
-Set to not build LUA bindings for the boot loader.
+Do not build LUA bindings for the boot loader.
 .Pp
 This is a default setting on
 powerpc/powerpc and powerpc/powerpc64.
 .It Va WITH_LOADER_LUA
-Set to build LUA bindings for the boot loader.
+Build LUA bindings for the boot loader.
 .Pp
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mips, mips/mips64, riscv/riscv64 and riscv/riscv64sf.
@@ -998,7 +998,7 @@ Disable building of openfirmware bootloader components.
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mips, mips/mips64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_LOADER_OFW
-Set to build openfirmware bootloader components.
+Build openfirmware bootloader components.
 .Pp
 This is a default setting on
 powerpc/powerpc and powerpc/powerpc64.
@@ -1008,12 +1008,12 @@ Disable building of ubldr.
 This is a default setting on
 amd64/amd64, arm64/aarch64, i386/i386, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_LOADER_UBOOT
-Set to build ubldr.
+Build ubldr.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64, powerpc/powerpc and powerpc/powerpc64.
 .It Va WITH_LOADER_VERBOSE
-Set to build with extra verbose debugging in the loader.
+Build with extra verbose debugging in the loader.
 May explode already nearly too large loader over the limit.
 Use with care.
 .It Va WITH_LOADER_VERIEXEC
@@ -1044,24 +1044,24 @@ The kernel has to be built with a module to parse the manifest.
 Depends on
 .Va WITH_LOADER_VERIEXEC .
 .It Va WITHOUT_LOADER_ZFS
-Set to not build ZFS file system boot loader support.
+Do not build ZFS file system boot loader support.
 .It Va WITHOUT_LOCALES
-Set to not build localization files; see
+Do not build localization files; see
 .Xr locale 1 .
 .It Va WITHOUT_LOCATE
-Set to not build
+Do not build
 .Xr locate 1
 and related programs.
 .It Va WITHOUT_LPR
-Set to not build
+Do not build
 .Xr lpr 1
 and related programs.
 .It Va WITHOUT_LS_COLORS
-Set to build
+Build
 .Xr ls 1
 without support for colors to distinguish file types.
 .It Va WITHOUT_MAIL
-Set to not build any mail support (MUA or MTA).
+Do not build any mail support (MUA or MTA).
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1073,15 +1073,15 @@ When set, it enforces these options:
 .Va WITHOUT_SENDMAIL
 .El
 .It Va WITHOUT_MAILWRAPPER
-Set to not build the
+Do not build the
 .Xr mailwrapper 8
 MTA selector.
 .It Va WITHOUT_MAKE
-Set to not install
+Do not install
 .Xr make 1
 and related support files.
 .It Va WITHOUT_MAKE_CHECK_USE_SANDBOX
-Set to not execute
+Do not execute
 .Dq Li "make check"
 in limited sandbox mode.
 This option should be paired with
@@ -1091,11 +1091,11 @@ See
 .Xr tests 7
 for more details.
 .It Va WITHOUT_MALLOC_PRODUCTION
-Set to enable assertions and statistics gathering in
+Enable assertions and statistics gathering in
 .Xr malloc 3 .
 It also defaults the A and J runtime options to on.
 .It Va WITHOUT_MAN
-Set to not build manual pages.
+Do not build manual pages.
 When set, these options are also in effect:
 .Pp
 .Bl -inset -compact
@@ -1105,12 +1105,12 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_MANCOMPRESS
-Set to not to install compressed man pages.
+Do not install compressed man pages.
 Only the uncompressed versions will be installed.
 .It Va WITH_MANSPLITPKG
-Set to split man pages into their own packages during make package.
+Split man pages into their own packages during make package.
 .It Va WITHOUT_MAN_UTILS
-Set to not build utilities for manual pages,
+Do not build utilities for manual pages,
 .Xr apropos 1 ,
 .Xr makewhatis 1 ,
 .Xr man 1 ,
@@ -1174,13 +1174,13 @@ This must be set in the environment, make command line, or
 not
 .Pa /etc/src.conf .
 .It Va WITHOUT_MLX5TOOL
-Set to not build
+Do not build
 .Xr mlx5tool 8
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_MLX5TOOL
-Set to build
+Build
 .Xr mlx5tool 8
 .Pp
 This is a default setting on
@@ -1189,11 +1189,11 @@ amd64/amd64, arm64/aarch64, i386/i386 and powerpc/powerpc64.
 Set to not build programs and libraries
 related to NDIS emulation support.
 .It Va WITHOUT_NETCAT
-Set to not build
+Do not build
 .Xr nc 1
 utility.
 .It Va WITHOUT_NETGRAPH
-Set to not build applications to support
+Do not build applications to support
 .Xr netgraph 4 .
 When set, it enforces these options:
 .Pp
@@ -1213,9 +1213,9 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_NETGRAPH_SUPPORT
-Set to build libraries, programs, and kernel modules without netgraph support.
+Build libraries, programs, and kernel modules without netgraph support.
 .It Va WITHOUT_NIS
-Set to not build
+Do not build
 .Xr NIS 8
 support and related programs.
 If set, you might need to adopt your
@@ -1224,7 +1224,7 @@ and remove
 .Sq nis
 entries.
 .It Va WITHOUT_NLS
-Set to not build NLS catalogs.
+Do not build NLS catalogs.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1232,31 +1232,31 @@ When set, it enforces these options:
 .Va WITHOUT_NLS_CATALOGS
 .El
 .It Va WITHOUT_NLS_CATALOGS
-Set to not build NLS catalog support for
+Do not build NLS catalog support for
 .Xr csh 1 .
 .It Va WITHOUT_NS_CACHING
-Set to disable name caching in the
+Disable name caching in the
 .Pa nsswitch
 subsystem.
 The generic caching daemon,
 .Xr nscd 8 ,
 will not be built either if this option is set.
 .It Va WITHOUT_NTP
-Set to not build
+Do not build
 .Xr ntpd 8
 and related programs.
 .It Va WITHOUT_NVME
-Set to not build nvme related tools and kernel modules.
+Do not build nvme related tools and kernel modules.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_NVME
-Set to build nvme related tools and kernel modules.
+Build nvme related tools and kernel modules.
 .Pp
 This is a default setting on
 amd64/amd64, arm64/aarch64, i386/i386 and powerpc/powerpc64.
 .It Va WITHOUT_OFED
-Set to disable the build of the
+Disable the build of the
 .Dq "OpenFabrics Enterprise Distribution"
 Infiniband software stack, including kernel modules and userspace libraries.
 When set, it enforces these options:
@@ -1266,25 +1266,25 @@ When set, it enforces these options:
 .Va WITHOUT_OFED_EXTRA
 .El
 .It Va WITH_OFED_EXTRA
-Set to build the non-essential components of the
+Build the non-essential components of the
 .Dq "OpenFabrics Enterprise Distribution"
 Infiniband software stack, mostly examples.
 .It Va WITH_OPENLDAP
 Enable building LDAP support for kerberos using an openldap client from ports.
 .It Va WITHOUT_OPENMP
-Set to not build LLVM's OpenMP runtime.
+Do not build LLVM's OpenMP runtime.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64 and powerpc/powerpc.
 .It Va WITH_OPENMP
-Set to build LLVM's OpenMP runtime.
+Build LLVM's OpenMP runtime.
 .Pp
 This is a default setting on
 amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_OPENSSH
-Set to not build OpenSSH.
+Do not build OpenSSH.
 .It Va WITHOUT_OPENSSL
-Set to not build OpenSSL.
+Do not build OpenSSL.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1323,17 +1323,17 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_OPENSSL_KTLS
-Set to not include kernel TLS support in OpenSSL.
+Do not include kernel TLS support in OpenSSL.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, i386/i386, mips/mips, mips/mips64, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_OPENSSL_KTLS
-Set to include kernel TLS support in OpenSSL.
+Include kernel TLS support in OpenSSL.
 .Pp
 This is a default setting on
 amd64/amd64 and arm64/aarch64.
 .It Va WITHOUT_PAM
-Set to not build PAM library and modules.
+Do not build PAM library and modules.
 .Bf -symbolic
 This option is deprecated and does nothing.
 .Ef
@@ -1346,12 +1346,12 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_PAM_SUPPORT
-Set to build some programs without PAM support, particularly
+Build some programs without PAM support, particularly
 .Xr ftpd 8
 and
 .Xr ppp 8 .
 .It Va WITHOUT_PF
-Set to not build PF firewall package.
+Do not build PF firewall package.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1362,29 +1362,29 @@ When set, it enforces these options:
 Do not build dynamically linked binaries as
 Position-Independent Executable (PIE).
 .It Va WITHOUT_PKGBOOTSTRAP
-Set to not build
+Do not build
 .Xr pkg 7
 bootstrap tool.
 .It Va WITHOUT_PMC
-Set to not build
+Do not build
 .Xr pmccontrol 8
 and related programs.
 .It Va WITHOUT_PORTSNAP
-Set to not build or install
+Do not build or install
 .Xr portsnap 8
 and related files.
 .It Va WITHOUT_PPP
-Set to not build
+Do not build
 .Xr ppp 8
 and related programs.
 .It Va WITHOUT_PROFILE
-Set to not build profiled libraries for use with
+Do not build profiled libraries for use with
 .Xr gprof 8 .
 .Pp
 This is a default setting on
 mips/mips64.
 .It Va WITH_PROFILE
-Set to build profiled libraries for use with
+Build profiled libraries for use with
 .Xr gprof 8 .
 This option is deprecated and is not present in
 .Fx 14 .
@@ -1392,16 +1392,16 @@ This option is deprecated and is not present in
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mips, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_QUOTAS
-Set to not build
+Do not build
 .Xr quota 1
 and related programs.
 .It Va WITHOUT_RADIUS_SUPPORT
-Set to not build radius support into various applications, like
+Do not build radius support into various applications, like
 .Xr pam_radius 8
 and
 .Xr ppp 8 .
 .It Va WITH_RATELIMIT
-Set to build the system with rate limit support.
+Build the system with rate limit support.
 .Pp
 This makes
 .Dv SO_MAX_PACING_RATE
@@ -1413,52 +1413,52 @@ support in
 .Xr ifconfig 8 ,
 by proxy.
 .It Va WITHOUT_RBOOTD
-Set to not build or install
+Do not build or install
 .Xr rbootd 8 .
 .It Va WITH_REPRODUCIBLE_BUILD
-Set to exclude build metadata (such as the build time, user, or host)
+Exclude build metadata (such as the build time, user, or host)
 from the kernel, boot loaders, and uname output, so that builds produce
 bit-for-bit identical output.
 .It Va WITHOUT_RESCUE
-Set to not build
+Do not build
 .Xr rescue 8 .
 .It Va WITH_RETPOLINE
-Set to build the base system with the retpoline speculative execution
+Build the base system with the retpoline speculative execution
 vulnerability mitigation for CVE-2017-5715.
 .It Va WITHOUT_ROUTED
-Set to not build
+Do not build
 .Xr routed 8
 utility.
 .It Va WITH_RPCBIND_WARMSTART_SUPPORT
-Set to build
+Build
 .Xr rpcbind 8
 with warmstart support.
 .It Va WITHOUT_SENDMAIL
-Set to not build
+Do not build
 .Xr sendmail 8
 and related programs.
 .It Va WITHOUT_SERVICESDB
-Set to not install
+Do not install
 .Pa /var/db/services.db .
 .It Va WITHOUT_SETUID_LOGIN
 Set this to disable the installation of
 .Xr login 1
 as a set-user-ID root program.
 .It Va WITHOUT_SHAREDOCS
-Set to not build the
+Do not build the
 .Bx 4.4
 legacy docs.
 .It Va WITHOUT_SHARED_TOOLCHAIN
-Set to build the toolchain binaries as statically linked executables.
+Build the toolchain binaries as statically linked executables.
 The set includes
 .Xr cc 1 ,
 .Xr make 1
 and necessary utilities like assembler, linker and library archive manager.
 .It Va WITH_SORT_THREADS
-Set to enable threads in
+Enable threads in
 .Xr sort 1 .
 .It Va WITHOUT_SOURCELESS
-Set to not build kernel modules that include sourceless code (either microcode or native code for host CPU).
+Do not build kernel modules that include sourceless code (either microcode or native code for host CPU).
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1468,16 +1468,16 @@ When set, it enforces these options:
 .Va WITHOUT_SOURCELESS_UCODE
 .El
 .It Va WITHOUT_SOURCELESS_HOST
-Set to not build kernel modules that include sourceless native code for host CPU.
+Do not build kernel modules that include sourceless native code for host CPU.
 .It Va WITHOUT_SOURCELESS_UCODE
-Set to not build kernel modules that include sourceless microcode.
+Do not build kernel modules that include sourceless microcode.
 .It Va WITHOUT_SSP
-Set to not build world with propolice stack smashing protection.
+Do not build world with propolice stack smashing protection.
 .Pp
 This is a default setting on
 mips/mips and mips/mips64.
 .It Va WITH_SSP
-Set to build world with propolice stack smashing protection.
+Build world with propolice stack smashing protection.
 .Pp
 This is a default setting on
 amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
@@ -1512,11 +1512,11 @@ Enable staging of PROGs to stage tree.
 .It Va WITH_STALE_STAGED
 Check staged files are not stale.
 .It Va WITHOUT_STATS
-Set to neither build nor install
+Neither build nor install
 .Lb libstats
 and dependent binaries.
 .It Va WITH_SVN
-Set to install
+Install
 .Xr svnlite 1
 as
 .Xr svn 1 .
@@ -1525,7 +1525,7 @@ Build
 .Xr svnlite 1
 and related programs.
 .It Va WITHOUT_SYSCONS
-Set to not build
+Do not build
 .Xr syscons 4
 support files such as keyboard maps, fonts, and screen output maps.
 .It Va WITH_SYSROOT
@@ -1538,7 +1538,7 @@ This must be set in the environment, make command line, or
 not
 .Pa /etc/src.conf .
 .It Va WITHOUT_SYSTEM_COMPILER
-Set to not opportunistically skip building a cross-compiler during the
+Do not opportunistically skip building a cross-compiler during the
 bootstrap phase of the build.
 Normally, if the currently installed compiler matches the planned bootstrap
 compiler type and revision, then it will not be built.
@@ -1548,7 +1548,7 @@ The
 .Va WITHOUT_CLANG
 option controls that.
 .It Va WITHOUT_SYSTEM_LINKER
-Set to not opportunistically skip building a cross-linker during the
+Do not opportunistically skip building a cross-linker during the
 bootstrap phase of the build.
 Normally, if the currently installed linker matches the planned bootstrap
 linker type and revision, then it will not be built.
@@ -1562,25 +1562,25 @@ This option is only relevant when
 .Va WITH_LLD_BOOTSTRAP
 is set.
 .It Va WITHOUT_TALK
-Set to not build or install
+Do not build or install
 .Xr talk 1
 and
 .Xr talkd 8 .
 .It Va WITHOUT_TCP_WRAPPERS
-Set to not build or install
+Do not build or install
 .Xr tcpd 8 ,
 and related utilities.
 .It Va WITHOUT_TCSH
-Set to not build and install
+Do not build and install
 .Pa /bin/csh
 (which is
 .Xr tcsh 1 ) .
 .It Va WITHOUT_TELNET
-Set to not build
+Do not build
 .Xr telnet 1
 and related programs.
 .It Va WITHOUT_TESTS
-Set to not build nor install the
+Do not build nor install the
 .Fx
 Test Suite in
 .Pa /usr/tests/ .
@@ -1608,7 +1608,7 @@ is set explicitly)
 is set explicitly)
 .El
 .It Va WITHOUT_TESTS_SUPPORT
-Set to disables the build of all test-related dependencies, including ATF.
+Disable the build of all test-related dependencies, including ATF.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1616,15 +1616,15 @@ When set, it enforces these options:
 .Va WITHOUT_GOOGLETEST
 .El
 .It Va WITHOUT_TEXTPROC
-Set to not build
+Do not build
 programs used for text processing.
 .It Va WITHOUT_TFTP
-Set to not build or install
+Do not build or install
 .Xr tftp 1
 and
 .Xr tftpd 8 .
 .It Va WITHOUT_TOOLCHAIN
-Set to not install header or
+Do not install header or
 programs used for program development,
 compilers, debuggers etc.
 When set, it enforces these options:
@@ -1650,11 +1650,11 @@ When set, it enforces these options:
 .Va WITHOUT_LLVM_COV
 .El
 .It Va WITHOUT_UNBOUND
-Set to not build
+Do not build
 .Xr unbound 8
 and related programs.
 .It Va WITHOUT_UNIFIED_OBJDIR
-Set to use the historical object directory format for
+Use the historical object directory format for
 .Xr build 7
 targets.
 For native-builds and builds done directly in sub-directories the format of
@@ -1674,11 +1674,11 @@ This must be set in the environment, make command line, or
 not
 .Pa /etc/src.conf .
 .It Va WITHOUT_USB
-Set to not build USB-related programs and libraries.
+Do not build USB-related programs and libraries.
 .It Va WITHOUT_USB_GADGET_EXAMPLES
-Set to not build USB gadget kernel modules.
+Do not build USB gadget kernel modules.
 .It Va WITHOUT_UTMPX
-Set to not build user accounting tools such as
+Do not build user accounting tools such as
 .Xr last 1 ,
 .Xr users 1 ,
 .Xr who 1 ,
@@ -1696,9 +1696,9 @@ for use by
 Depends on
 .Va WITH_BEARSSL .
 .It Va WITHOUT_VI
-Set to not build and install vi, view, ex and related programs.
+Do not build and install vi, view, ex and related programs.
 .It Va WITHOUT_VT
-Set to not build
+Do not build
 .Xr vt 4
 support files (fonts and keymaps).
 .It Va WITHOUT_WARNS
@@ -1711,7 +1711,7 @@ Set this to not treat compiler warnings as errors.
 Useful as a temporary workaround when working on fixing compiler warnings.
 When set, warnings are still printed in the build log but do not fail the build.
 .It Va WITHOUT_WIRELESS
-Set to not build programs used for 802.11 wireless networks; especially
+Do not build programs used for 802.11 wireless networks; especially
 .Xr wpa_supplicant 8
 and
 .Xr hostapd 8 .
@@ -1724,7 +1724,7 @@ When set, these options are also in effect:
 is set explicitly)
 .El
 .It Va WITHOUT_WIRELESS_SUPPORT
-Set to build libraries, programs, and kernel modules without
+Build libraries, programs, and kernel modules without
 802.11 wireless support.
 .It Va WITHOUT_WPA_SUPPLICANT_EAPOL
 Build
@@ -1733,9 +1733,9 @@ without support for the IEEE 802.1X protocol and without
 support for EAP-PEAP, EAP-TLS, EAP-LEAP, and EAP-TTLS
 protocols (usable only via 802.1X).
 .It Va WITHOUT_ZFS
-Set to not build ZFS file system kernel module, libraries, and user commands.
+Do not build ZFS file system kernel module, libraries, and user commands.
 .It Va WITHOUT_ZONEINFO
-Set to not build the timezone database.
+Do not build the timezone database.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
@@ -1743,7 +1743,7 @@ When set, it enforces these options:
 .Va WITHOUT_ZONEINFO_LEAPSECONDS_SUPPORT
 .El
 .It Va WITH_ZONEINFO_LEAPSECONDS_SUPPORT
-Set to build leapsecond information in to the timezone database.
+Build leapsecond information in to the timezone database.
 .El
 .Sh FILES
 .Bl -tag -compact -width Pa
