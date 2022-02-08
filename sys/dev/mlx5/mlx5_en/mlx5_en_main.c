@@ -2197,6 +2197,8 @@ mlx5e_chan_static_init(struct mlx5e_priv *priv, struct mlx5e_channel *c, int ix)
 
 		callout_init_mtx(&sq->cev_callout, &sq->lock, 0);
 	}
+
+	mlx5e_iq_static_init(&c->iq);
 }
 
 static void
@@ -2230,6 +2232,8 @@ mlx5e_chan_static_destroy(struct mlx5e_channel *c)
 		mtx_destroy(&c->sq[tc].lock);
 		mtx_destroy(&c->sq[tc].comp_lock);
 	}
+
+	mlx5e_iq_static_destroy(&c->iq);
 }
 
 static int
@@ -2244,6 +2248,7 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
 	MLX5E_ZERO(&c->rq, mlx5e_rq_zero_start);
 	for (i = 0; i != priv->num_tc; i++)
 		MLX5E_ZERO(&c->sq[i], mlx5e_sq_zero_start);
+	MLX5E_ZERO(&c->iq, mlx5e_iq_zero_start);
 
 	/* open transmit completion queue */
 	err = mlx5e_open_tx_cqs(c, cparam);
@@ -2260,9 +2265,13 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
 	if (err)
 		goto err_close_rx_cq;
 
-	err = mlx5e_open_rq(c, &cparam->rq, &c->rq);
+	err = mlx5e_iq_open(c, &cparam->sq, &cparam->tx_cq, &c->iq);
 	if (err)
 		goto err_close_sqs;
+
+	err = mlx5e_open_rq(c, &cparam->rq, &c->rq);
+	if (err)
+		goto err_close_iq;
 
 	/* poll receive queue initially */
 	NET_EPOCH_ENTER(et);
@@ -2270,6 +2279,9 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
 	NET_EPOCH_EXIT(et);
 
 	return (0);
+
+err_close_iq:
+	mlx5e_iq_close(&c->iq);
 
 err_close_sqs:
 	mlx5e_close_sqs_wait(c);
@@ -2294,6 +2306,7 @@ static void
 mlx5e_close_channel_wait(struct mlx5e_channel *c)
 {
 	mlx5e_close_rq_wait(&c->rq);
+	mlx5e_iq_close(&c->iq);
 	mlx5e_close_sqs_wait(c);
 	mlx5e_close_tx_cqs(c);
 }
