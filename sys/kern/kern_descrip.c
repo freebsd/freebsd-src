@@ -115,6 +115,8 @@ static void	fdgrowtable(struct filedesc *fdp, int nfd);
 static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
+static int	fget_unlocked_seq(struct filedesc *fdp, int fd,
+		    cap_rights_t *needrightsp, struct file **fpp, seqc_t *seqp);
 static int	getmaxfd(struct thread *td);
 static u_long	*filecaps_copy_prep(const struct filecaps *src);
 static void	filecaps_copy_finish(const struct filecaps *src,
@@ -2843,6 +2845,7 @@ fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
+	*fpp = NULL;
 	fde = fdeget_locked(fdp, fd);
 	if (fde == NULL) {
 		error = EBADF;
@@ -3014,7 +3017,7 @@ fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsear
 }
 #endif
 
-int
+static int
 fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seqc_t *seqp)
 {
@@ -3112,8 +3115,10 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 #endif
 
 	fdt = fdp->fd_files;
-	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles)) {
+		*fpp = NULL;
 		return (EBADF);
+	}
 #ifdef CAPABILITIES
 	seq = seqc_read_notmodify(fd_seqc(fdt, fd));
 	fde = &fdt->fdt_ofiles[fd];
@@ -3148,6 +3153,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 out_fdrop:
 	fdrop(fp, curthread);
 out_fallback:
+	*fpp = NULL;
 	return (fget_unlocked_seq(fdp, fd, needrightsp, fpp, NULL));
 }
 
@@ -3173,6 +3179,7 @@ fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 
 	MPASS(FILEDESC_IS_ONLY_USER(fdp));
 
+	*fpp = NULL;
 	if (__predict_false(fd >= fdp->fd_nfiles))
 		return (EBADF);
 
@@ -3198,6 +3205,7 @@ fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 
 	MPASS(FILEDESC_IS_ONLY_USER(fdp));
 
+	*fpp = NULL;
 	if (__predict_false(fd >= fdp->fd_nfiles))
 		return (EBADF);
 
