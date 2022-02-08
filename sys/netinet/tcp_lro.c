@@ -371,7 +371,8 @@ tcp_lro_parser(struct mbuf *m, struct lro_parser *po, struct lro_parser *pi, boo
 			    htons(m->m_pkthdr.ether_vtag) & htons(EVL_VLID_MASK);
 		}
 		/* Store decrypted flag, if any. */
-		if (__predict_false(m->m_flags & M_DECRYPTED))
+		if (__predict_false((m->m_pkthdr.csum_flags &
+		    CSUM_TLS_MASK) == CSUM_TLS_DECRYPTED))
 			po->data.lro_flags |= LRO_FLAG_DECRYPTED;
 	}
 
@@ -807,6 +808,8 @@ tcp_flush_out_entry(struct lro_ctrl *lc, struct lro_entry *le)
 			le->m_head->m_pkthdr.csum_flags = CSUM_DATA_VALID |
 			    CSUM_PSEUDO_HDR | CSUM_IP_CHECKED | CSUM_IP_VALID;
 			le->m_head->m_pkthdr.csum_data = 0xffff;
+			if (__predict_false(le->outer.data.lro_flags & LRO_FLAG_DECRYPTED))
+				le->m_head->m_pkthdr.csum_flags |= CSUM_TLS_DECRYPTED;
 			break;
 		case LRO_TYPE_IPV6_TCP:
 			csum = tcp_lro_update_checksum(&le->inner, le,
@@ -818,6 +821,8 @@ tcp_flush_out_entry(struct lro_ctrl *lc, struct lro_entry *le)
 			le->m_head->m_pkthdr.csum_flags = CSUM_DATA_VALID |
 			    CSUM_PSEUDO_HDR;
 			le->m_head->m_pkthdr.csum_data = 0xffff;
+			if (__predict_false(le->outer.data.lro_flags & LRO_FLAG_DECRYPTED))
+				le->m_head->m_pkthdr.csum_flags |= CSUM_TLS_DECRYPTED;
 			break;
 		case LRO_TYPE_NONE:
 			switch (le->outer.data.lro_type) {
@@ -828,6 +833,8 @@ tcp_flush_out_entry(struct lro_ctrl *lc, struct lro_entry *le)
 				le->m_head->m_pkthdr.csum_flags = CSUM_DATA_VALID |
 				    CSUM_PSEUDO_HDR | CSUM_IP_CHECKED | CSUM_IP_VALID;
 				le->m_head->m_pkthdr.csum_data = 0xffff;
+				if (__predict_false(le->outer.data.lro_flags & LRO_FLAG_DECRYPTED))
+					le->m_head->m_pkthdr.csum_flags |= CSUM_TLS_DECRYPTED;
 				break;
 			case LRO_TYPE_IPV6_TCP:
 				csum = tcp_lro_update_checksum(&le->outer, le,
@@ -836,6 +843,8 @@ tcp_flush_out_entry(struct lro_ctrl *lc, struct lro_entry *le)
 				le->m_head->m_pkthdr.csum_flags = CSUM_DATA_VALID |
 				    CSUM_PSEUDO_HDR;
 				le->m_head->m_pkthdr.csum_data = 0xffff;
+				if (__predict_false(le->outer.data.lro_flags & LRO_FLAG_DECRYPTED))
+					le->m_head->m_pkthdr.csum_flags |= CSUM_TLS_DECRYPTED;
 				break;
 			default:
 				break;
