@@ -30,6 +30,9 @@
 # "mdconfig -o force" test scenario.
 # fsck_ffs core dump seen
 
+# "panic: buf_alloc: BUF_LOCK on free buf 0xfffffe003c9f8360: 16." seen:
+# https://people.freebsd.org/~pho/stress/log/log0266.txt
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
 
