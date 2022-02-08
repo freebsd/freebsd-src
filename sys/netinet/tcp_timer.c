@@ -210,17 +210,14 @@ inp_to_cpuid(struct inpcb *inp)
 {
 	u_int cpuid;
 
-#ifdef	RSS
 	if (per_cpu_timers) {
+#ifdef	RSS
 		cpuid = rss_hash2cpuid(inp->inp_flowid, inp->inp_flowtype);
 		if (cpuid == NETISR_CPUID_NONE)
 			return (curcpu);	/* XXX */
 		else
 			return (cpuid);
-	}
-#else
-	/* Legacy, pre-RSS behaviour */
-	if (per_cpu_timers) {
+#endif
 		/*
 		 * We don't have a flowid -> cpuid mapping, so cheat and
 		 * just map unknown cpuids to curcpu.  Not the best, but
@@ -230,10 +227,7 @@ inp_to_cpuid(struct inpcb *inp)
 		if (! CPU_ABSENT(cpuid))
 			return (cpuid);
 		return (curcpu);
-	}
-#endif
-	/* Default for RSS and non-RSS - cpuid 0 */
-	else {
+	} else {
 		return (0);
 	}
 }

@@ -1165,7 +1165,7 @@ static uint16_t
 hpts_cpuid(struct inpcb *inp, int *failed)
 {
 	u_int cpuid;
-#if !defined(RSS) && defined(NUMA)
+#ifdef NUMA
 	struct hpts_domain_info *di;
 #endif
 
@@ -1197,7 +1197,7 @@ hpts_cpuid(struct inpcb *inp, int *failed)
 		return (hpts_random_cpu(inp));
 	else
 		return (cpuid);
-#else
+#endif
 	/*
 	 * We don't have a flowid -> cpuid mapping, so cheat and just map
 	 * unknown cpuids to curcpu.  Not the best, but apparently better
@@ -1220,7 +1220,6 @@ hpts_cpuid(struct inpcb *inp, int *failed)
 		cpuid = inp->inp_flowid % mp_ncpus;
 	counter_u64_add(cpu_uses_flowid, 1);
 	return (cpuid);
-#endif
 }
 
 static void
