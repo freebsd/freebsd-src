@@ -94,11 +94,6 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
 
-static int worker_thread_count;
-static struct cxgbei_worker_thread *cwt_rx_threads, *cwt_tx_threads;
-
-static void cwt_queue_for_rx(struct icl_cxgbei_conn *icc);
-
 static void
 read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
     uint32_t *max_rx_data_len, struct ppod_region *pr)
@@ -424,7 +419,7 @@ parse_pdu(struct socket *so, struct toepcb *toep, struct icl_cxgbei_conn *icc,
 	return (ip);
 }
 
-static void
+void
 parse_pdus(struct icl_cxgbei_conn *icc, struct sockbuf *sb)
 {
 	struct icl_conn *ic = &icc->ic;
@@ -588,7 +583,7 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
 	if (!icc->rx_active) {
 		icc->rx_active = true;
-		cwt_queue_for_rx(icc);
+		wakeup(&icc->rx_active);
 	}
 	SOCKBUF_UNLOCK(sb);
 	INP_WUNLOCK(inp);
@@ -831,7 +826,7 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
 	if (!icc->rx_active) {
 		icc->rx_active = true;
-		cwt_queue_for_rx(icc);
+		wakeup(&icc->rx_active);
 	}
 	SOCKBUF_UNLOCK(sb);
 	INP_WUNLOCK(inp);
@@ -928,222 +923,6 @@ static struct uld_info cxgbei_uld_info = {
 	.deactivate = cxgbei_deactivate,
 };
 
-static void
-cwt_rx_main(void *arg)
-{
-	struct cxgbei_worker_thread *cwt = arg;
-	struct icl_cxgbei_conn *icc = NULL;
-	struct icl_conn *ic;
-	struct icl_pdu *ip;
-	struct sockbuf *sb;
-	STAILQ_HEAD(, icl_pdu) rx_pdus = STAILQ_HEAD_INITIALIZER(rx_pdus);
-
-	MPASS(cwt != NULL);
-
-	mtx_lock(&cwt->cwt_lock);
-	MPASS(cwt->cwt_state == 0);
-	cwt->cwt_state = CWT_RUNNING;
-	cv_signal(&cwt->cwt_cv);
-
-	while (__predict_true(cwt->cwt_state != CWT_STOP)) {
-		cwt->cwt_state = CWT_RUNNING;
-		while ((icc = TAILQ_FIRST(&cwt->icc_head)) != NULL) {
-			TAILQ_REMOVE(&cwt->icc_head, icc, rx_link);
-			mtx_unlock(&cwt->cwt_lock);
-
-			ic = &icc->ic;
-			sb = &ic->ic_socket->so_rcv;
-
-			SOCKBUF_LOCK(sb);
-			if (__predict_false(sbused(sb)) != 0) {
-				/*
-				 * PDUs were received before the tid
-				 * transitioned to ULP mode.  Convert
-				 * them to icl_cxgbei_pdus and insert
-				 * them into the head of rcvd_pdus.
-				 */
-				parse_pdus(icc, sb);
-			}
-			MPASS(icc->rx_active);
-			if (__predict_true(!(sb->sb_state & SBS_CANTRCVMORE))) {
-				MPASS(STAILQ_EMPTY(&rx_pdus));
-				STAILQ_SWAP(&icc->rcvd_pdus, &rx_pdus, icl_pdu);
-				SOCKBUF_UNLOCK(sb);
-
-				/* Hand over PDUs to ICL. */
-				while ((ip = STAILQ_FIRST(&rx_pdus)) != NULL) {
-					STAILQ_REMOVE_HEAD(&rx_pdus, ip_next);
-					ic->ic_receive(ip);
-				}
-
-				SOCKBUF_LOCK(sb);
-				MPASS(STAILQ_EMPTY(&rx_pdus));
-			}
-			MPASS(icc->rx_active);
-			if (STAILQ_EMPTY(&icc->rcvd_pdus) ||
-			    __predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
-				icc->rx_active = false;
-				SOCKBUF_UNLOCK(sb);
-
-				mtx_lock(&cwt->cwt_lock);
-			} else {
-				SOCKBUF_UNLOCK(sb);
-
-				/*
-				 * More PDUs were received while we were busy
-				 * handing over the previous batch to ICL.
-				 * Re-add this connection to the end of the
-				 * queue.
-				 */
-				mtx_lock(&cwt->cwt_lock);
-				TAILQ_INSERT_TAIL(&cwt->icc_head, icc,
-				    rx_link);
-			}
-		}
-
-		/* Inner loop doesn't check for CWT_STOP, do that first. */
-		if (__predict_false(cwt->cwt_state == CWT_STOP))
-			break;
-		cwt->cwt_state = CWT_SLEEPING;
-		cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
-	}
-
-	MPASS(TAILQ_FIRST(&cwt->icc_head) == NULL);
-	mtx_unlock(&cwt->cwt_lock);
-	kthread_exit();
-}
-
-static void
-cwt_queue_for_rx(struct icl_cxgbei_conn *icc)
-{
-	struct cxgbei_worker_thread *cwt = &cwt_rx_threads[icc->cwt];
-
-	mtx_lock(&cwt->cwt_lock);
-	TAILQ_INSERT_TAIL(&cwt->icc_head, icc, rx_link);
-	if (cwt->cwt_state == CWT_SLEEPING) {
-		cwt->cwt_state = CWT_RUNNING;
-		cv_signal(&cwt->cwt_cv);
-	}
-	mtx_unlock(&cwt->cwt_lock);
-}
-
-void
-cwt_queue_for_tx(struct icl_cxgbei_conn *icc)
-{
-	struct cxgbei_worker_thread *cwt = &cwt_tx_threads[icc->cwt];
-
-	mtx_lock(&cwt->cwt_lock);
-	TAILQ_INSERT_TAIL(&cwt->icc_head, icc, tx_link);
-	if (cwt->cwt_state == CWT_SLEEPING) {
-		cwt->cwt_state = CWT_RUNNING;
-		cv_signal(&cwt->cwt_cv);
-	}
-	mtx_unlock(&cwt->cwt_lock);
-}
-
-static int
-start_worker_threads(void)
-{
-	struct proc *cxgbei_proc;
-	int i, rc;
-	struct cxgbei_worker_thread *cwt;
-
-	worker_thread_count = min(mp_ncpus, 32);
-	cwt_rx_threads = malloc(worker_thread_count * sizeof(*cwt), M_CXGBE,
-	    M_WAITOK | M_ZERO);
-	cwt_tx_threads = malloc(worker_thread_count * sizeof(*cwt), M_CXGBE,
-	    M_WAITOK | M_ZERO);
-
-	for (i = 0, cwt = &cwt_rx_threads[0]; i < worker_thread_count;
-	     i++, cwt++) {
-		mtx_init(&cwt->cwt_lock, "cwt lock", NULL, MTX_DEF);
-		cv_init(&cwt->cwt_cv, "cwt cv");
-		TAILQ_INIT(&cwt->icc_head);
-	}
-
-	for (i = 0, cwt = &cwt_tx_threads[0]; i < worker_thread_count;
-	     i++, cwt++) {
-		mtx_init(&cwt->cwt_lock, "cwt lock", NULL, MTX_DEF);
-		cv_init(&cwt->cwt_cv, "cwt cv");
-		TAILQ_INIT(&cwt->icc_head);
-	}
-
-	cxgbei_proc = NULL;
-	for (i = 0, cwt = &cwt_rx_threads[0]; i < worker_thread_count;
-	     i++, cwt++) {
-		rc = kproc_kthread_add(cwt_rx_main, cwt, &cxgbei_proc,
-		    &cwt->cwt_td, 0, 0, "cxgbei", "rx %d", i);
-		if (rc != 0) {
-			printf("cxgbei: failed to start rx thread #%d/%d (%d)\n",
-			    i + 1, worker_thread_count, rc);
-			return (rc);
-		}
-	}
-
-	for (i = 0, cwt = &cwt_tx_threads[0]; i < worker_thread_count;
-	     i++, cwt++) {
-		rc = kproc_kthread_add(cwt_tx_main, cwt, &cxgbei_proc,
-		    &cwt->cwt_td, 0, 0, "cxgbei", "tx %d", i);
-		if (rc != 0) {
-			printf("cxgbei: failed to start tx thread #%d/%d (%d)\n",
-			    i + 1, worker_thread_count, rc);
-			return (rc);
-		}
-	}
-
-	return (0);
-}
-
-static void
-stop_worker_threads1(struct cxgbei_worker_thread *threads)
-{
-	struct cxgbei_worker_thread *cwt;
-	int i;
-
-	for (i = 0, cwt = &threads[0]; i < worker_thread_count; i++, cwt++) {
-		mtx_lock(&cwt->cwt_lock);
-		if (cwt->cwt_td != NULL) {
-			MPASS(cwt->cwt_state == CWT_RUNNING ||
-			    cwt->cwt_state == CWT_SLEEPING);
-			cwt->cwt_state = CWT_STOP;
-			cv_signal(&cwt->cwt_cv);
-			mtx_sleep(cwt->cwt_td, &cwt->cwt_lock, 0, "cwtstop", 0);
-		}
-		mtx_unlock(&cwt->cwt_lock);
-		mtx_destroy(&cwt->cwt_lock);
-		cv_destroy(&cwt->cwt_cv);
-	}
-	free(threads, M_CXGBE);
-}
-
-static void
-stop_worker_threads(void)
-{
-
-	MPASS(worker_thread_count >= 0);
-	stop_worker_threads1(cwt_rx_threads);
-	stop_worker_threads1(cwt_tx_threads);
-}
-
-/* Select a worker thread for a connection. */
-u_int
-cxgbei_select_worker_thread(struct icl_cxgbei_conn *icc)
-{
-	struct adapter *sc = icc->sc;
-	struct toepcb *toep = icc->toep;
-	u_int i, n;
-
-	n = worker_thread_count / sc->sge.nofldrxq;
-	if (n > 0)
-		i = toep->vi->pi->port_id * n + arc4random() % n;
-	else
-		i = arc4random() % worker_thread_count;
-
-	CTR3(KTR_CXGBE, "%s: tid %u, cwt %u", __func__, toep->tid, i);
-
-	return (i);
-}
-
 static int
 cxgbei_mod_load(void)
 {
@@ -1154,15 +933,9 @@ cxgbei_mod_load(void)
 	t4_register_cpl_handler(CPL_RX_ISCSI_DDP, do_rx_iscsi_ddp);
 	t4_register_cpl_handler(CPL_RX_ISCSI_CMP, do_rx_iscsi_cmp);
 
-	rc = start_worker_threads();
+	rc = t4_register_uld(&cxgbei_uld_info);
 	if (rc != 0)
 		return (rc);
-
-	rc = t4_register_uld(&cxgbei_uld_info);
-	if (rc != 0) {
-		stop_worker_threads();
-		return (rc);
-	}
 
 	t4_iterate(cxgbei_activate_all, NULL);
 
@@ -1177,8 +950,6 @@ cxgbei_mod_unload(void)
 
 	if (t4_unregister_uld(&cxgbei_uld_info) == EBUSY)
 		return (EBUSY);
-
-	stop_worker_threads();
 
 	t4_register_cpl_handler(CPL_ISCSI_HDR, NULL);
 	t4_register_cpl_handler(CPL_ISCSI_DATA, NULL);
