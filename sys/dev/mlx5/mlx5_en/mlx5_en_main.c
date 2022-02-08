@@ -3078,13 +3078,13 @@ mlx5e_close_tir(struct mlx5e_priv *priv, int tt, bool inner_vxlan)
 }
 
 static int
-mlx5e_open_tirs(struct mlx5e_priv *priv, bool inner_vxlan)
+mlx5e_open_tirs(struct mlx5e_priv *priv)
 {
 	int err;
 	int i;
 
-	for (i = 0; i < MLX5E_NUM_TT; i++) {
-		err = mlx5e_open_tir(priv, i, inner_vxlan);
+	for (i = 0; i != 2 * MLX5E_NUM_TT; i++) {
+		err = mlx5e_open_tir(priv, i / 2, (i % 2) ? true : false);
 		if (err)
 			goto err_close_tirs;
 	}
@@ -3093,18 +3093,18 @@ mlx5e_open_tirs(struct mlx5e_priv *priv, bool inner_vxlan)
 
 err_close_tirs:
 	for (i--; i >= 0; i--)
-		mlx5e_close_tir(priv, i, inner_vxlan);
+		mlx5e_close_tir(priv, i / 2, (i % 2) ? true : false);
 
 	return (err);
 }
 
 static void
-mlx5e_close_tirs(struct mlx5e_priv *priv, bool inner_vxlan)
+mlx5e_close_tirs(struct mlx5e_priv *priv)
 {
 	int i;
 
-	for (i = 0; i < MLX5E_NUM_TT; i++)
-		mlx5e_close_tir(priv, i, inner_vxlan);
+	for (i = 0; i != 2 * MLX5E_NUM_TT; i++)
+		mlx5e_close_tir(priv, i / 2, (i % 2) ? true : false);
 }
 
 /*
@@ -3212,61 +3212,12 @@ mlx5e_open_locked(struct ifnet *ifp)
 		mlx5_en_err(ifp, "mlx5e_activate_rqt failed, %d\n", err);
 		goto err_close_channels;
 	}
-	err = mlx5e_open_tirs(priv, false);
-	if (err) {
-		mlx5_en_err(ifp, "mlx5e_open_tir(main) failed, %d\n", err);
-		goto err_close_rqls;
-	}
-	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
-		err = mlx5e_open_tirs(priv, true);
-		if (err) {
-			mlx5_en_err(ifp, "mlx5e_open_tir(inner) failed, %d\n",
-			    err);
-			goto err_close_tirs;
-		}
-	}
-	err = mlx5e_open_flow_table(priv);
-	if (err) {
-		mlx5_en_err(ifp,
-		    "mlx5e_open_flow_table failed, %d\n", err);
-		goto err_close_tirs_inner;
-	}
-	err = mlx5e_add_all_vlan_rules(priv);
-	if (err) {
-		mlx5_en_err(ifp,
-		    "mlx5e_add_all_vlan_rules failed, %d\n", err);
-		goto err_close_flow_table;
-	}
-	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
-		err = mlx5e_add_all_vxlan_rules(priv);
-		if (err) {
-			mlx5_en_err(ifp,
-			    "mlx5e_add_all_vxlan_rules failed, %d\n", err);
-			goto err_del_vlan_rules;
-		}
-	}
+
 	set_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	mlx5e_update_carrier(priv);
-	mlx5e_set_rx_mode_core(priv);
 
 	return (0);
-
-err_del_vlan_rules:
-	mlx5e_del_all_vlan_rules(priv);
-
-err_close_flow_table:
-	mlx5e_close_flow_table(priv);
-
-err_close_tirs_inner:
-	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
-		mlx5e_close_tirs(priv, true);
-
-err_close_tirs:
-	mlx5e_close_tirs(priv, false);
-
-err_close_rqls:
-	mlx5e_deactivate_rqt(priv);
 
 err_close_channels:
 	mlx5e_close_channels(priv);
@@ -3307,15 +3258,8 @@ mlx5e_close_locked(struct ifnet *ifp)
 
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	mlx5e_set_rx_mode_core(priv);
-	mlx5e_del_all_vlan_rules(priv);
-	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
-		mlx5e_del_all_vxlan_rules(priv);
 	if_link_state_change(priv->ifp, LINK_STATE_DOWN);
-	mlx5e_close_flow_table(priv);
-	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
-		mlx5e_close_tirs(priv, true);
-	mlx5e_close_tirs(priv, false);
+
 	mlx5e_deactivate_rqt(priv);
 	mlx5e_close_channels(priv);
 	mlx5_vport_dealloc_q_counter(priv->mdev,
@@ -3553,16 +3497,21 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_WOL_MAGIC)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		if (mask & IFCAP_VXLAN_HWCSUM) {
-			int was_opened = test_bit(MLX5E_STATE_OPENED,
-			    &priv->state);
-			if (was_opened)
-				mlx5e_close_locked(ifp);
+			const bool was_enabled =
+			    (ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0;
+			if (was_enabled)
+				mlx5e_del_all_vxlan_rules(priv);
 			ifp->if_capenable ^= IFCAP_VXLAN_HWCSUM;
 			ifp->if_hwassist ^= CSUM_INNER_IP | CSUM_INNER_IP_UDP |
 			    CSUM_INNER_IP_TCP | CSUM_INNER_IP6_UDP |
 			    CSUM_INNER_IP6_TCP;
-			if (was_opened)
-				mlx5e_open_locked(ifp);
+			if (!was_enabled) {
+				int err = mlx5e_add_all_vxlan_rules(priv);
+				if (err != 0) {
+					mlx5_en_err(ifp,
+					    "mlx5e_add_all_vxlan_rules() failed, %d (ignored)\n", err);
+				}
+			}
 		}
 		if (mask & IFCAP_VXLAN_HWTSO) {
 			ifp->if_capenable ^= IFCAP_VXLAN_HWTSO;
@@ -4672,6 +4621,18 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_open_drop_rq;
 	}
 
+	err = mlx5e_open_flow_tables(priv);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_open_flow_tables failed (%d)\n", __func__, err);
+		goto err_open_rqt;
+	}
+
+	err = mlx5e_open_tirs(priv);
+	if (err) {
+		mlx5_en_err(ifp, "mlx5e_open_tirs() failed, %d\n", err);
+		goto err_open_flow_tables;
+	}
+
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
@@ -4797,7 +4758,21 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	pa.pa_headname = ifp->if_xname;
 	priv->pfil = pfil_head_register(&pa);
 
+	PRIV_LOCK(priv);
+	err = mlx5e_open_flow_rules(priv);
+	if (err) {
+		mlx5_en_err(ifp,
+		    "mlx5e_open_flow_rules() failed, %d (ignored)\n", err);
+	}
+	PRIV_UNLOCK(priv);
+
 	return (priv);
+
+err_open_flow_tables:
+	mlx5e_close_flow_tables(priv);
+
+err_open_rqt:
+	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
 
 err_open_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
@@ -4888,6 +4863,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	/* make sure device gets closed */
 	PRIV_LOCK(priv);
 	mlx5e_close_locked(ifp);
+	mlx5e_close_flow_rules(priv);
 	PRIV_UNLOCK(priv);
 
 	/* deregister pfil */
@@ -4900,6 +4876,8 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
 
+	mlx5e_close_tirs(priv);
+	mlx5e_close_flow_tables(priv);
 	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_tls_cleanup(priv);
