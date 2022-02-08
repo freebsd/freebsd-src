@@ -1667,6 +1667,11 @@ sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
 				atomic = 1;
 			}
 		}
+
+		if (resid == 0 && !ktls_permit_empty_frames(tls)) {
+			error = EINVAL;
+			goto release;
+		}
 	}
 #endif
 
