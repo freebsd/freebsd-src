@@ -95,8 +95,9 @@ __FBSDID("$FreeBSD$");
 #include "cxgbei.h"
 
 static int worker_thread_count;
-static struct cxgbei_worker_thread_softc *cwt_softc;
-static struct proc *cxgbei_proc;
+static struct cxgbei_worker_thread *cwt_rx_threads, *cwt_tx_threads;
+
+static void cwt_queue_for_rx(struct icl_cxgbei_conn *icc);
 
 static void
 read_pdu_limits(struct adapter *sc, uint32_t *max_tx_data_len,
@@ -585,17 +586,9 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	icl_cxgbei_new_pdu_set_conn(ip, ic);
 
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
-	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
-		struct cxgbei_worker_thread_softc *cwt = &cwt_softc[icc->cwt];
-
-		mtx_lock(&cwt->cwt_lock);
-		icc->rx_flags |= RXF_ACTIVE;
-		TAILQ_INSERT_TAIL(&cwt->rx_head, icc, rx_link);
-		if (cwt->cwt_state == CWT_SLEEPING) {
-			cwt->cwt_state = CWT_RUNNING;
-			cv_signal(&cwt->cwt_cv);
-		}
-		mtx_unlock(&cwt->cwt_lock);
+	if (!icc->rx_active) {
+		icc->rx_active = true;
+		cwt_queue_for_rx(icc);
 	}
 	SOCKBUF_UNLOCK(sb);
 	INP_WUNLOCK(inp);
@@ -836,17 +829,9 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* Enqueue the PDU to the received pdus queue. */
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
-	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
-		struct cxgbei_worker_thread_softc *cwt = &cwt_softc[icc->cwt];
-
-		mtx_lock(&cwt->cwt_lock);
-		icc->rx_flags |= RXF_ACTIVE;
-		TAILQ_INSERT_TAIL(&cwt->rx_head, icc, rx_link);
-		if (cwt->cwt_state == CWT_SLEEPING) {
-			cwt->cwt_state = CWT_RUNNING;
-			cv_signal(&cwt->cwt_cv);
-		}
-		mtx_unlock(&cwt->cwt_lock);
+	if (!icc->rx_active) {
+		icc->rx_active = true;
+		cwt_queue_for_rx(icc);
 	}
 	SOCKBUF_UNLOCK(sb);
 	INP_WUNLOCK(inp);
@@ -944,9 +929,9 @@ static struct uld_info cxgbei_uld_info = {
 };
 
 static void
-cwt_main(void *arg)
+cwt_rx_main(void *arg)
 {
-	struct cxgbei_worker_thread_softc *cwt = arg;
+	struct cxgbei_worker_thread *cwt = arg;
 	struct icl_cxgbei_conn *icc = NULL;
 	struct icl_conn *ic;
 	struct icl_pdu *ip;
@@ -962,8 +947,8 @@ cwt_main(void *arg)
 
 	while (__predict_true(cwt->cwt_state != CWT_STOP)) {
 		cwt->cwt_state = CWT_RUNNING;
-		while ((icc = TAILQ_FIRST(&cwt->rx_head)) != NULL) {
-			TAILQ_REMOVE(&cwt->rx_head, icc, rx_link);
+		while ((icc = TAILQ_FIRST(&cwt->icc_head)) != NULL) {
+			TAILQ_REMOVE(&cwt->icc_head, icc, rx_link);
 			mtx_unlock(&cwt->cwt_lock);
 
 			ic = &icc->ic;
@@ -979,7 +964,7 @@ cwt_main(void *arg)
 				 */
 				parse_pdus(icc, sb);
 			}
-			MPASS(icc->rx_flags & RXF_ACTIVE);
+			MPASS(icc->rx_active);
 			if (__predict_true(!(sb->sb_state & SBS_CANTRCVMORE))) {
 				MPASS(STAILQ_EMPTY(&rx_pdus));
 				STAILQ_SWAP(&icc->rcvd_pdus, &rx_pdus, icl_pdu);
@@ -994,11 +979,16 @@ cwt_main(void *arg)
 				SOCKBUF_LOCK(sb);
 				MPASS(STAILQ_EMPTY(&rx_pdus));
 			}
-			MPASS(icc->rx_flags & RXF_ACTIVE);
+			MPASS(icc->rx_active);
 			if (STAILQ_EMPTY(&icc->rcvd_pdus) ||
 			    __predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
-				icc->rx_flags &= ~RXF_ACTIVE;
+				icc->rx_active = false;
+				SOCKBUF_UNLOCK(sb);
+
+				mtx_lock(&cwt->cwt_lock);
 			} else {
+				SOCKBUF_UNLOCK(sb);
+
 				/*
 				 * More PDUs were received while we were busy
 				 * handing over the previous batch to ICL.
@@ -1006,13 +996,9 @@ cwt_main(void *arg)
 				 * queue.
 				 */
 				mtx_lock(&cwt->cwt_lock);
-				TAILQ_INSERT_TAIL(&cwt->rx_head, icc,
+				TAILQ_INSERT_TAIL(&cwt->icc_head, icc,
 				    rx_link);
-				mtx_unlock(&cwt->cwt_lock);
 			}
-			SOCKBUF_UNLOCK(sb);
-
-			mtx_lock(&cwt->cwt_lock);
 		}
 
 		/* Inner loop doesn't check for CWT_STOP, do that first. */
@@ -1022,84 +1008,121 @@ cwt_main(void *arg)
 		cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
 	}
 
-	MPASS(TAILQ_FIRST(&cwt->rx_head) == NULL);
-	mtx_assert(&cwt->cwt_lock, MA_OWNED);
-	cwt->cwt_state = CWT_STOPPED;
-	cv_signal(&cwt->cwt_cv);
+	MPASS(TAILQ_FIRST(&cwt->icc_head) == NULL);
 	mtx_unlock(&cwt->cwt_lock);
 	kthread_exit();
+}
+
+static void
+cwt_queue_for_rx(struct icl_cxgbei_conn *icc)
+{
+	struct cxgbei_worker_thread *cwt = &cwt_rx_threads[icc->cwt];
+
+	mtx_lock(&cwt->cwt_lock);
+	TAILQ_INSERT_TAIL(&cwt->icc_head, icc, rx_link);
+	if (cwt->cwt_state == CWT_SLEEPING) {
+		cwt->cwt_state = CWT_RUNNING;
+		cv_signal(&cwt->cwt_cv);
+	}
+	mtx_unlock(&cwt->cwt_lock);
+}
+
+void
+cwt_queue_for_tx(struct icl_cxgbei_conn *icc)
+{
+	struct cxgbei_worker_thread *cwt = &cwt_tx_threads[icc->cwt];
+
+	mtx_lock(&cwt->cwt_lock);
+	TAILQ_INSERT_TAIL(&cwt->icc_head, icc, tx_link);
+	if (cwt->cwt_state == CWT_SLEEPING) {
+		cwt->cwt_state = CWT_RUNNING;
+		cv_signal(&cwt->cwt_cv);
+	}
+	mtx_unlock(&cwt->cwt_lock);
 }
 
 static int
 start_worker_threads(void)
 {
+	struct proc *cxgbei_proc;
 	int i, rc;
-	struct cxgbei_worker_thread_softc *cwt;
+	struct cxgbei_worker_thread *cwt;
 
 	worker_thread_count = min(mp_ncpus, 32);
-	cwt_softc = malloc(worker_thread_count * sizeof(*cwt), M_CXGBE,
+	cwt_rx_threads = malloc(worker_thread_count * sizeof(*cwt), M_CXGBE,
+	    M_WAITOK | M_ZERO);
+	cwt_tx_threads = malloc(worker_thread_count * sizeof(*cwt), M_CXGBE,
 	    M_WAITOK | M_ZERO);
 
-	MPASS(cxgbei_proc == NULL);
-	for (i = 0, cwt = &cwt_softc[0]; i < worker_thread_count; i++, cwt++) {
+	for (i = 0, cwt = &cwt_rx_threads[0]; i < worker_thread_count;
+	     i++, cwt++) {
 		mtx_init(&cwt->cwt_lock, "cwt lock", NULL, MTX_DEF);
 		cv_init(&cwt->cwt_cv, "cwt cv");
-		TAILQ_INIT(&cwt->rx_head);
-		rc = kproc_kthread_add(cwt_main, cwt, &cxgbei_proc, NULL, 0, 0,
-		    "cxgbei", "%d", i);
-		if (rc != 0) {
-			printf("cxgbei: failed to start thread #%d/%d (%d)\n",
-			    i + 1, worker_thread_count, rc);
-			mtx_destroy(&cwt->cwt_lock);
-			cv_destroy(&cwt->cwt_cv);
-			bzero(cwt, sizeof(*cwt));
-			if (i == 0) {
-				free(cwt_softc, M_CXGBE);
-				worker_thread_count = 0;
-
-				return (rc);
-			}
-
-			/* Not fatal, carry on with fewer threads. */
-			worker_thread_count = i;
-			rc = 0;
-			break;
-		}
-
-		/* Wait for thread to start before moving on to the next one. */
-		mtx_lock(&cwt->cwt_lock);
-		while (cwt->cwt_state == 0)
-			cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
-		mtx_unlock(&cwt->cwt_lock);
+		TAILQ_INIT(&cwt->icc_head);
 	}
 
-	MPASS(cwt_softc != NULL);
-	MPASS(worker_thread_count > 0);
+	for (i = 0, cwt = &cwt_tx_threads[0]; i < worker_thread_count;
+	     i++, cwt++) {
+		mtx_init(&cwt->cwt_lock, "cwt lock", NULL, MTX_DEF);
+		cv_init(&cwt->cwt_cv, "cwt cv");
+		TAILQ_INIT(&cwt->icc_head);
+	}
+
+	cxgbei_proc = NULL;
+	for (i = 0, cwt = &cwt_rx_threads[0]; i < worker_thread_count;
+	     i++, cwt++) {
+		rc = kproc_kthread_add(cwt_rx_main, cwt, &cxgbei_proc,
+		    &cwt->cwt_td, 0, 0, "cxgbei", "rx %d", i);
+		if (rc != 0) {
+			printf("cxgbei: failed to start rx thread #%d/%d (%d)\n",
+			    i + 1, worker_thread_count, rc);
+			return (rc);
+		}
+	}
+
+	for (i = 0, cwt = &cwt_tx_threads[0]; i < worker_thread_count;
+	     i++, cwt++) {
+		rc = kproc_kthread_add(cwt_tx_main, cwt, &cxgbei_proc,
+		    &cwt->cwt_td, 0, 0, "cxgbei", "tx %d", i);
+		if (rc != 0) {
+			printf("cxgbei: failed to start tx thread #%d/%d (%d)\n",
+			    i + 1, worker_thread_count, rc);
+			return (rc);
+		}
+	}
+
 	return (0);
+}
+
+static void
+stop_worker_threads1(struct cxgbei_worker_thread *threads)
+{
+	struct cxgbei_worker_thread *cwt;
+	int i;
+
+	for (i = 0, cwt = &threads[0]; i < worker_thread_count; i++, cwt++) {
+		mtx_lock(&cwt->cwt_lock);
+		if (cwt->cwt_td != NULL) {
+			MPASS(cwt->cwt_state == CWT_RUNNING ||
+			    cwt->cwt_state == CWT_SLEEPING);
+			cwt->cwt_state = CWT_STOP;
+			cv_signal(&cwt->cwt_cv);
+			mtx_sleep(cwt->cwt_td, &cwt->cwt_lock, 0, "cwtstop", 0);
+		}
+		mtx_unlock(&cwt->cwt_lock);
+		mtx_destroy(&cwt->cwt_lock);
+		cv_destroy(&cwt->cwt_cv);
+	}
+	free(threads, M_CXGBE);
 }
 
 static void
 stop_worker_threads(void)
 {
-	int i;
-	struct cxgbei_worker_thread_softc *cwt = &cwt_softc[0];
 
 	MPASS(worker_thread_count >= 0);
-
-	for (i = 0, cwt = &cwt_softc[0]; i < worker_thread_count; i++, cwt++) {
-		mtx_lock(&cwt->cwt_lock);
-		MPASS(cwt->cwt_state == CWT_RUNNING ||
-		    cwt->cwt_state == CWT_SLEEPING);
-		cwt->cwt_state = CWT_STOP;
-		cv_signal(&cwt->cwt_cv);
-		do {
-			cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
-		} while (cwt->cwt_state != CWT_STOPPED);
-		mtx_unlock(&cwt->cwt_lock);
-		mtx_destroy(&cwt->cwt_lock);
-		cv_destroy(&cwt->cwt_cv);
-	}
-	free(cwt_softc, M_CXGBE);
+	stop_worker_threads1(cwt_rx_threads);
+	stop_worker_threads1(cwt_tx_threads);
 }
 
 /* Select a worker thread for a connection. */
