@@ -4603,7 +4603,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
 	if (err) {
-		if_printf(ifp, "%s: mlx5e_open_drop_rq failed\n", __func__);
+		if_printf(ifp, "%s: mlx5e_open_drop_rq failed (%d)\n", __func__, err);
 		goto err_tls_init;
 	}
 
