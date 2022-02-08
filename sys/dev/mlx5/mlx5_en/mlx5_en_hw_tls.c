@@ -121,7 +121,8 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	struct sysctl_oid *node;
 	uint32_t x;
 
-	if (MLX5_CAP_GEN(priv->mdev, tls_tx) == 0)
+	if (MLX5_CAP_GEN(priv->mdev, tls_tx) == 0 ||
+	    MLX5_CAP_GEN(priv->mdev, log_max_dek) == 0)
 		return (0);
 
 	ptls->wq = create_singlethread_workqueue("mlx5-tls-wq");
@@ -136,7 +137,8 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	ptls->zone = uma_zcreate(ptls->zname, sizeof(struct mlx5e_tls_tag),
 	    NULL, NULL, mlx5e_tls_tag_zinit, mlx5e_tls_tag_zfini, UMA_ALIGN_CACHE, 0);
 
-	ptls->max_resources = 1U << MLX5_CAP_GEN(priv->mdev, log_max_dek);
+	/* shared between RX and TX TLS */
+	ptls->max_resources = 1U << (MLX5_CAP_GEN(priv->mdev, log_max_dek) - 1);
 
 	for (x = 0; x != MLX5E_TLS_STATS_NUM; x++)
 		ptls->stats.arg[x] = counter_u64_alloc(M_WAITOK);
@@ -163,7 +165,7 @@ mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 	struct mlx5e_tls *ptls = &priv->tls;
 	uint32_t x;
 
-	if (MLX5_CAP_GEN(priv->mdev, tls_tx) == 0)
+	if (ptls->init == 0)
 		return;
 
 	ptls->init = 0;
