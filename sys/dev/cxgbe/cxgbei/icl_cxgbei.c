@@ -421,6 +421,128 @@ finalize_pdu(struct icl_cxgbei_conn *icc, struct icl_cxgbei_pdu *icp)
 	return (m);
 }
 
+static void
+cwt_push_pdus(struct icl_cxgbei_conn *icc, struct socket *so, struct mbufq *mq)
+{
+	struct epoch_tracker et;
+	struct icl_conn *ic = &icc->ic;
+	struct toepcb *toep = icc->toep;
+	struct inpcb *inp;
+
+	/*
+	 * Do not get inp from toep->inp as the toepcb might have
+	 * detached already.
+	 */
+	inp = sotoinpcb(so);
+	CURVNET_SET(toep->vnet);
+	NET_EPOCH_ENTER(et);
+	INP_WLOCK(inp);
+
+	ICL_CONN_UNLOCK(ic);
+	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) ||
+	    __predict_false((toep->flags & TPF_ATTACHED) == 0)) {
+		mbufq_drain(mq);
+	} else {
+		mbufq_concat(&toep->ulp_pduq, mq);
+		t4_push_pdus(icc->sc, toep, 0);
+	}
+	INP_WUNLOCK(inp);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
+
+	ICL_CONN_LOCK(ic);
+}
+
+void
+cwt_tx_main(void *arg)
+{
+	struct cxgbei_worker_thread *cwt = arg;
+	struct icl_cxgbei_conn *icc;
+	struct icl_conn *ic;
+	struct icl_pdu *ip;
+	struct socket *so;
+	struct mbuf *m;
+	struct mbufq mq;
+	STAILQ_HEAD(, icl_pdu) tx_pdus = STAILQ_HEAD_INITIALIZER(tx_pdus);
+
+	MPASS(cwt != NULL);
+
+	mtx_lock(&cwt->cwt_lock);
+	MPASS(cwt->cwt_state == 0);
+	cwt->cwt_state = CWT_RUNNING;
+	cv_signal(&cwt->cwt_cv);
+
+	mbufq_init(&mq, INT_MAX);
+	while (__predict_true(cwt->cwt_state != CWT_STOP)) {
+		cwt->cwt_state = CWT_RUNNING;
+		while ((icc = TAILQ_FIRST(&cwt->icc_head)) != NULL) {
+			TAILQ_REMOVE(&cwt->icc_head, icc, tx_link);
+			mtx_unlock(&cwt->cwt_lock);
+
+			ic = &icc->ic;
+
+			ICL_CONN_LOCK(ic);
+			MPASS(icc->tx_active);
+			STAILQ_SWAP(&icc->sent_pdus, &tx_pdus, icl_pdu);
+			ICL_CONN_UNLOCK(ic);
+
+			while ((ip = STAILQ_FIRST(&tx_pdus)) != NULL) {
+				STAILQ_REMOVE_HEAD(&tx_pdus, ip_next);
+
+				m = finalize_pdu(icc, ip_to_icp(ip));
+				M_ASSERTPKTHDR(m);
+				MPASS((m->m_pkthdr.len & 3) == 0);
+
+				mbufq_enqueue(&mq, m);
+			}
+
+			ICL_CONN_LOCK(ic);
+			so = ic->ic_socket;
+			if (__predict_false(ic->ic_disconnecting) ||
+			    __predict_false(so == NULL)) {
+				mbufq_drain(&mq);
+				icc->tx_active = false;
+				ICL_CONN_UNLOCK(ic);
+
+				mtx_lock(&cwt->cwt_lock);
+				continue;
+			}
+
+			cwt_push_pdus(icc, so, &mq);
+
+			MPASS(icc->tx_active);
+			if (STAILQ_EMPTY(&icc->sent_pdus)) {
+				icc->tx_active = false;
+				ICL_CONN_UNLOCK(ic);
+
+				mtx_lock(&cwt->cwt_lock);
+			} else {
+				ICL_CONN_UNLOCK(ic);
+
+				/*
+				 * More PDUs were queued while we were
+				 * busy sending the previous batch.
+				 * Re-add this connection to the end
+				 * of the queue.
+				 */
+				mtx_lock(&cwt->cwt_lock);
+				TAILQ_INSERT_TAIL(&cwt->icc_head, icc,
+				    tx_link);
+			}
+		}
+
+		/* Inner loop doesn't check for CWT_STOP, do that first. */
+		if (__predict_false(cwt->cwt_state == CWT_STOP))
+			break;
+		cwt->cwt_state = CWT_SLEEPING;
+		cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
+	}
+
+	MPASS(TAILQ_FIRST(&cwt->icc_head) == NULL);
+	mtx_unlock(&cwt->cwt_lock);
+	kthread_exit();
+}
+
 int
 icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
     const void *addr, size_t len, int flags)
@@ -534,13 +656,9 @@ void
 icl_cxgbei_conn_pdu_queue_cb(struct icl_conn *ic, struct icl_pdu *ip,
 			     icl_pdu_cb cb)
 {
-	struct epoch_tracker et;
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 	struct socket *so = ic->ic_socket;
-	struct toepcb *toep = icc->toep;
-	struct inpcb *inp;
-	struct mbuf *m;
 
 	MPASS(ic == ip->ip_conn);
 	MPASS(ip->ip_bhs_mbuf != NULL);
@@ -557,28 +675,11 @@ icl_cxgbei_conn_pdu_queue_cb(struct icl_conn *ic, struct icl_pdu *ip,
 		return;
 	}
 
-	m = finalize_pdu(icc, icp);
-	M_ASSERTPKTHDR(m);
-	MPASS((m->m_pkthdr.len & 3) == 0);
-
-	/*
-	 * Do not get inp from toep->inp as the toepcb might have detached
-	 * already.
-	 */
-	inp = sotoinpcb(so);
-	CURVNET_SET(toep->vnet);
-	NET_EPOCH_ENTER(et);
-	INP_WLOCK(inp);
-	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) ||
-	    __predict_false((toep->flags & TPF_ATTACHED) == 0))
-		m_freem(m);
-	else {
-		mbufq_enqueue(&toep->ulp_pduq, m);
-		t4_push_pdus(icc->sc, toep, 0);
+	STAILQ_INSERT_TAIL(&icc->sent_pdus, ip, ip_next);
+	if (!icc->tx_active) {
+		icc->tx_active = true;
+		cwt_queue_for_tx(icc);
 	}
-	INP_WUNLOCK(inp);
-	NET_EPOCH_EXIT(et);
-	CURVNET_RESTORE();
 }
 
 static struct icl_conn *
@@ -593,6 +694,7 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 	    M_WAITOK | M_ZERO);
 	icc->icc_signature = CXGBEI_CONN_SIGNATURE;
 	STAILQ_INIT(&icc->rcvd_pdus);
+	STAILQ_INIT(&icc->sent_pdus);
 
 	icc->cmp_table = hashinit(64, M_CXGBEI, &icc->cmp_hash_mask);
 	mtx_init(&icc->cmp_lock, "cxgbei_cmp", NULL, MTX_DEF);
@@ -935,21 +1037,33 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 	if (toep != NULL) {	/* NULL if connection was never offloaded. */
 		toep->ulpcb = NULL;
 
+		/*
+		 * Wait for the cwt threads to stop processing this
+		 * connection for transmit.
+		 */
+		while (icc->tx_active)
+			rw_sleep(inp, &inp->inp_lock, 0, "conclo", 1);
+
 		/* Discard PDUs queued for TX. */
+		while (!STAILQ_EMPTY(&icc->sent_pdus)) {
+			ip = STAILQ_FIRST(&icc->sent_pdus);
+			STAILQ_REMOVE_HEAD(&icc->sent_pdus, ip_next);
+			icl_cxgbei_pdu_done(ip, ENOTCONN);
+		}
 		mbufq_drain(&toep->ulp_pduq);
 
 		/*
 		 * Wait for the cwt threads to stop processing this
-		 * connection.
+		 * connection for receive.
 		 */
 		SOCKBUF_LOCK(sb);
-		if (icc->rx_flags & RXF_ACTIVE) {
-			volatile u_int *p = &icc->rx_flags;
+		if (icc->rx_active) {
+			volatile bool *p = &icc->rx_active;
 
 			SOCKBUF_UNLOCK(sb);
 			INP_WUNLOCK(inp);
 
-			while (*p & RXF_ACTIVE)
+			while (*p)
 				pause("conclo", 1);
 
 			INP_WLOCK(inp);
