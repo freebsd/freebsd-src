@@ -803,10 +803,6 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_vport_stats *s = &priv->stats.vport;
 	struct mlx5e_sq_stats *sq_stats;
-#if (__FreeBSD_version < 1100000)
-	struct ifnet *ifp = priv->ifp;
-#endif
-
 	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)];
 	u32 *out;
 	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
@@ -978,24 +974,6 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 	    priv->stats.port_stats_debug.tx_stat_p2048to4095octets +
 	    priv->stats.port_stats_debug.tx_stat_p4096to8191octets +
 	    priv->stats.port_stats_debug.tx_stat_p8192to10239octets;
-
-#if (__FreeBSD_version < 1100000)
-	/* no get_counters interface in fbsd 10 */
-	ifp->if_ipackets = s->rx_packets;
-	ifp->if_ierrors = priv->stats.pport.in_range_len_errors +
-	    priv->stats.pport.out_of_range_len +
-	    priv->stats.pport.too_long_errors +
-	    priv->stats.pport.check_seq_err +
-	    priv->stats.pport.alignment_err;
-	ifp->if_iqdrops = s->rx_out_of_buffer;
-	ifp->if_opackets = s->tx_packets;
-	ifp->if_oerrors = priv->stats.port_stats_debug.out_discards;
-	ifp->if_snd.ifq_drops = s->tx_queue_dropped;
-	ifp->if_ibytes = s->rx_bytes;
-	ifp->if_obytes = s->tx_bytes;
-	ifp->if_collisions =
-	    priv->stats.pport.collisions;
-#endif
 
 free_out:
 	kvfree(out);
@@ -3206,7 +3184,6 @@ mlx5e_close_locked(struct ifnet *ifp)
 	return (0);
 }
 
-#if (__FreeBSD_version >= 1100000)
 static uint64_t
 mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
@@ -3259,7 +3236,6 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 	/* PRIV_UNLOCK(priv); XXX not allowed */
 	return (retval);
 }
-#endif
 
 static void
 mlx5e_set_rx_mode(struct ifnet *ifp)
@@ -4098,9 +4074,6 @@ done:
 static void
 mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 {
-#if (__FreeBSD_version < 1100000)
-	char path[96];
-#endif
 	int error;
 
 	/* enable pauseframes by default */
@@ -4110,22 +4083,6 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	/* disable ports flow control, PFC, by default */
 	priv->params.tx_priority_flow_control = 0;
 	priv->params.rx_priority_flow_control = 0;
-
-#if (__FreeBSD_version < 1100000)
-	/* compute path for sysctl */
-	snprintf(path, sizeof(path), "dev.mce.%d.tx_pauseframe_control",
-	    device_get_unit(priv->mdev->pdev->dev.bsddev));
-
-	/* try to fetch tunable, if any */
-	TUNABLE_INT_FETCH(path, &priv->params.tx_pauseframe_control);
-
-	/* compute path for sysctl */
-	snprintf(path, sizeof(path), "dev.mce.%d.rx_pauseframe_control",
-	    device_get_unit(priv->mdev->pdev->dev.bsddev));
-
-	/* try to fetch tunable, if any */
-	TUNABLE_INT_FETCH(path, &priv->params.rx_pauseframe_control);
-#endif
 
 	/* register pauseframe SYSCTLs */
 	SYSCTL_ADD_INT(&priv->sysctl_ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
@@ -4443,9 +4400,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_ioctl = mlx5e_ioctl;
 	ifp->if_transmit = mlx5e_xmit;
 	ifp->if_qflush = if_qflush;
-#if (__FreeBSD_version >= 1100000)
 	ifp->if_get_counter = mlx5e_get_counter;
-#endif
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	/*
          * Set driver features
@@ -4900,8 +4855,6 @@ mlx5e_cleanup(void)
 module_init_order(mlx5e_init, SI_ORDER_SIXTH);
 module_exit_order(mlx5e_cleanup, SI_ORDER_SIXTH);
 
-#if (__FreeBSD_version >= 1100000)
 MODULE_DEPEND(mlx5en, linuxkpi, 1, 1, 1);
-#endif
 MODULE_DEPEND(mlx5en, mlx5, 1, 1, 1);
 MODULE_VERSION(mlx5en, 1);
