@@ -1713,26 +1713,30 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 } while(0)
 #define INP_WLOCK_RECHECK(inp) INP_WLOCK_RECHECK_CLEANUP((inp), /* noop */)
 
-static int
+int
 tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct	tcpcb *tp = intotcpcb(inp);
+	struct socket *so = inp->inp_socket;
+	struct tcpcb *tp = intotcpcb(inp);
 	int error = 0;
 
 	MPASS(sopt->sopt_dir == SOPT_SET);
 	INP_WLOCK_ASSERT(inp);
+	KASSERT((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0,
+	    ("inp_flags == %x", inp->inp_flags));
+	KASSERT(so != NULL, ("inp_socket == NULL"));
 
 	if (sopt->sopt_level != IPPROTO_TCP) {
 		INP_WUNLOCK(inp);
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6PROTO)
-			error = ip6_ctloutput(inp->inp_socket, sopt);
+			error = ip6_ctloutput(so, sopt);
 #endif
 #if defined(INET6) && defined(INET)
 		else
 #endif
 #ifdef INET
-			error = ip_ctloutput(inp->inp_socket, sopt);
+			error = ip_ctloutput(so, sopt);
 #endif
 		/*
 		 * When an IP-level socket option affects TCP, pass control
@@ -1862,8 +1866,8 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 					if((*tp->t_fb->tfb_tcp_fb_init)(tp) != 0)  {
 						/* Fall back failed, drop the connection */
 						INP_WUNLOCK(inp);
-						soabort(inp->inp_socket);
-						return(error);
+						soabort(so);
+						return (error);
 					}
 				}
 				goto err_out;
@@ -1882,8 +1886,6 @@ err_out:
 		return (error);
 	}
 
-	tp = intotcpcb(inp);
-
 	/* Pass in the INP locked, callee must unlock it. */
 	return (tp->t_fb->tfb_tcp_ctloutput(inp, sopt));
 }
@@ -1891,27 +1893,30 @@ err_out:
 static int
 tcp_ctloutput_get(struct inpcb *inp, struct sockopt *sopt)
 {
-	int	error = 0;
-	struct	tcpcb *tp;
+	struct socket *so = inp->inp_socket;
+	struct tcpcb *tp = intotcpcb(inp);
+	int error = 0;
 
 	MPASS(sopt->sopt_dir == SOPT_GET);
 	INP_WLOCK_ASSERT(inp);
+	KASSERT((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0,
+	    ("inp_flags == %x", inp->inp_flags));
+	KASSERT(so != NULL, ("inp_socket == NULL"));
 
 	if (sopt->sopt_level != IPPROTO_TCP) {
 		INP_WUNLOCK(inp);
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6PROTO)
-			error = ip6_ctloutput(inp->inp_socket, sopt);
+			error = ip6_ctloutput(so, sopt);
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
 		else
 #endif
 #ifdef INET
-			error = ip_ctloutput(inp->inp_socket, sopt);
+			error = ip_ctloutput(so, sopt);
 #endif
 		return (error);
 	}
-	tp = intotcpcb(inp);
 	if (((sopt->sopt_name == TCP_FUNCTION_BLK) ||
 	     (sopt->sopt_name == TCP_FUNCTION_ALIAS))) {
 		struct tcp_function_set fsn;
@@ -2114,7 +2119,8 @@ no_mem_needed:
 int
 tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct tcpcb *tp;
+	struct socket *so = inp->inp_socket;
+	struct tcpcb *tp = intotcpcb(inp);
 	int	error, opt, optval;
 	u_int	ui;
 	struct	tcp_info ti;
@@ -2128,8 +2134,10 @@ tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 	size_t	len;
 
 	INP_WLOCK_ASSERT(inp);
+	KASSERT((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0,
+	    ("inp_flags == %x", inp->inp_flags));
+	KASSERT(so != NULL, ("inp_socket == NULL"));
 
-	tp = intotcpcb(inp);
 	switch (sopt->sopt_level) {
 #ifdef INET6
 	case IPPROTO_IPV6:
@@ -2347,7 +2355,7 @@ unlock_and_done:
 			error = copyin_tls_enable(sopt, &tls);
 			if (error)
 				break;
-			error = ktls_enable_tx(inp->inp_socket, &tls);
+			error = ktls_enable_tx(so, &tls);
 			break;
 		case TCP_TXTLS_MODE:
 			INP_WUNLOCK(inp);
@@ -2356,7 +2364,7 @@ unlock_and_done:
 				return (error);
 
 			INP_WLOCK_RECHECK(inp);
-			error = ktls_set_tx_mode(inp->inp_socket, ui);
+			error = ktls_set_tx_mode(so, ui);
 			INP_WUNLOCK(inp);
 			break;
 		case TCP_RXTLS_ENABLE:
@@ -2365,7 +2373,7 @@ unlock_and_done:
 			    sizeof(tls));
 			if (error)
 				break;
-			error = ktls_enable_rx(inp->inp_socket, &tls);
+			error = ktls_enable_rx(so, &tls);
 			break;
 #endif
 
@@ -2710,14 +2718,14 @@ unhold:
 #endif
 #ifdef KERN_TLS
 		case TCP_TXTLS_MODE:
-			error = ktls_get_tx_mode(inp->inp_socket, &optval);
+			error = ktls_get_tx_mode(so, &optval);
 			INP_WUNLOCK(inp);
 			if (error == 0)
 				error = sooptcopyout(sopt, &optval,
 				    sizeof(optval));
 			break;
 		case TCP_RXTLS_MODE:
-			error = ktls_get_rx_mode(inp->inp_socket, &optval);
+			error = ktls_get_rx_mode(so, &optval);
 			INP_WUNLOCK(inp);
 			if (error == 0)
 				error = sooptcopyout(sopt, &optval,
