@@ -2732,9 +2732,7 @@ mlx5e_close_tises(struct mlx5e_priv *priv)
 static int
 mlx5e_open_rqt(struct mlx5e_priv *priv)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 *in;
-	u32 out[MLX5_ST_SZ_DW(create_rqt_out)] = {0};
 	void *rqtc;
 	int inlen;
 	int err;
@@ -2752,7 +2750,38 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
 	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
 
-	for (i = 0; i < sz; i++) {
+	for (i = 0; i != sz; i++)
+		MLX5_SET(rqtc, rqtc, rq_num[i], priv->drop_rq.rqn);
+
+	err = mlx5_core_create_rqt(priv->mdev, in, inlen, &priv->rqtn);
+	kvfree(in);
+
+	return (err);
+}
+
+static int
+mlx5e_activate_rqt(struct mlx5e_priv *priv)
+{
+	u32 *in;
+	void *rqtc;
+	int inlen;
+	int err;
+	int sz;
+	int i;
+
+	sz = 1 << priv->params.rx_hash_log_tbl_sz;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + sizeof(u32) * sz;
+	in = mlx5_vzalloc(inlen);
+	if (in == NULL)
+		return (-ENOMEM);
+
+	rqtc = MLX5_ADDR_OF(modify_rqt_in, in, ctx);
+
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
+	MLX5_SET(modify_rqt_in, in, bitmask.rqn_list, 1);
+
+	for (i = 0; i != sz; i++) {
 		int ix = i;
 #ifdef RSS
 		ix = rss_get_indirection_to_bucket(ix);
@@ -2766,27 +2795,41 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix].rq.rqn);
 	}
 
-	MLX5_SET(create_rqt_in, in, opcode, MLX5_CMD_OP_CREATE_RQT);
-
-	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
-	if (!err)
-		priv->rqtn = MLX5_GET(create_rqt_out, out, rqtn);
-
+	err = mlx5_core_modify_rqt(priv->mdev, priv->rqtn, in, inlen);
 	kvfree(in);
 
 	return (err);
 }
 
-static void
-mlx5e_close_rqt(struct mlx5e_priv *priv)
+static int
+mlx5e_deactivate_rqt(struct mlx5e_priv *priv)
 {
-	u32 in[MLX5_ST_SZ_DW(destroy_rqt_in)] = {0};
-	u32 out[MLX5_ST_SZ_DW(destroy_rqt_out)] = {0};
+	u32 *in;
+	void *rqtc;
+	int inlen;
+	int err;
+	int sz;
+	int i;
 
-	MLX5_SET(destroy_rqt_in, in, opcode, MLX5_CMD_OP_DESTROY_RQT);
-	MLX5_SET(destroy_rqt_in, in, rqtn, priv->rqtn);
+	sz = 1 << priv->params.rx_hash_log_tbl_sz;
 
-	mlx5_cmd_exec(priv->mdev, in, sizeof(in), out, sizeof(out));
+	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + sizeof(u32) * sz;
+	in = mlx5_vzalloc(inlen);
+	if (in == NULL)
+		return (-ENOMEM);
+
+	rqtc = MLX5_ADDR_OF(modify_rqt_in, in, ctx);
+
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, sz);
+	MLX5_SET(modify_rqt_in, in, bitmask.rqn_list, 1);
+
+	for (i = 0; i != sz; i++)
+		MLX5_SET(rqtc, rqtc, rq_num[i], priv->drop_rq.rqn);
+
+	err = mlx5_core_modify_rqt(priv->mdev, priv->rqtn, in, inlen);
+	kvfree(in);
+
+	return (err);
 }
 
 #define	MLX5E_RSS_KEY_SIZE (10 * 4)	/* bytes */
@@ -3156,9 +3199,9 @@ mlx5e_open_locked(struct ifnet *ifp)
 		    "mlx5e_open_channels failed, %d\n", err);
 		goto err_dalloc_q_counter;
 	}
-	err = mlx5e_open_rqt(priv);
+	err = mlx5e_activate_rqt(priv);
 	if (err) {
-		mlx5_en_err(ifp, "mlx5e_open_rqt failed, %d\n", err);
+		mlx5_en_err(ifp, "mlx5e_activate_rqt failed, %d\n", err);
 		goto err_close_channels;
 	}
 	err = mlx5e_open_tirs(priv, false);
@@ -3215,7 +3258,7 @@ err_close_tirs:
 	mlx5e_close_tirs(priv, false);
 
 err_close_rqls:
-	mlx5e_close_rqt(priv);
+	mlx5e_deactivate_rqt(priv);
 
 err_close_channels:
 	mlx5e_close_channels(priv);
@@ -3265,7 +3308,7 @@ mlx5e_close_locked(struct ifnet *ifp)
 	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
 		mlx5e_close_tirs(priv, true);
 	mlx5e_close_tirs(priv, false);
-	mlx5e_close_rqt(priv);
+	mlx5e_deactivate_rqt(priv);
 	mlx5e_close_channels(priv);
 	mlx5_vport_dealloc_q_counter(priv->mdev,
 	    MLX5_INTERFACE_PROTOCOL_ETH, priv->counter_set_id);
@@ -4615,6 +4658,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		goto err_tls_init;
 	}
 
+	err = mlx5e_open_rqt(priv);
+	if (err) {
+		if_printf(ifp, "%s: mlx5e_open_rqt failed (%d)\n", __func__, err);
+		goto err_open_drop_rq;
+	}
+
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
@@ -4742,6 +4791,9 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	return (priv);
 
+err_open_drop_rq:
+	mlx5e_close_drop_rq(&priv->drop_rq);
+
 err_tls_init:
 	mlx5e_tls_cleanup(priv);
 
@@ -4840,6 +4892,7 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	ifmedia_removeall(&priv->media);
 	ether_ifdetach(ifp);
 
+	mlx5_core_destroy_rqt(priv->mdev, priv->rqtn, 0);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_tls_cleanup(priv);
 	mlx5e_rl_cleanup(priv);
