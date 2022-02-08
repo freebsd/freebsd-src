@@ -83,9 +83,9 @@ binuptime(struct bintime *bt, struct vdso_timekeep *tk, bool abs)
 			return (error);
 		scale = th->th_scale;
 #ifdef _LP64
-		scale_bits = ffsl(scale);
+		scale_bits = flsl(scale);
 #else
-		scale_bits = ffsll(scale);
+		scale_bits = flsll(scale);
 #endif
 		if (__predict_false(scale_bits + fls(delta) > 63)) {
 			x = (scale >> 32) * delta;
