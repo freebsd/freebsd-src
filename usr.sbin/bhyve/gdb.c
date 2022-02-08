@@ -1858,8 +1858,9 @@ init_gdb(struct vmctx *_ctx)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 
-	if (getaddrinfo(saddr, sport, &hints, &gdbaddr) != 0)
-		err(1, "gdb address resolve");
+	error = getaddrinfo(saddr, sport, &hints, &gdbaddr);
+	if (error != 0)
+		errx(1, "gdb address resolution: %s", gai_strerror(error));
 
 	ctx = _ctx;
 	s = socket(gdbaddr->ai_family, gdbaddr->ai_socktype, 0);
