@@ -56,6 +56,7 @@ enum mlx5_local_lb_selection {
 int mlx5_nic_vport_query_local_lb(struct mlx5_core_dev *mdev,
 				  enum mlx5_local_lb_selection selection,
 				  u8 *value);
+int mlx5_nic_vport_update_local_lb(struct mlx5_core_dev *mdev, bool enable);
 int mlx5_nic_vport_modify_local_lb(struct mlx5_core_dev *mdev,
 				   enum mlx5_local_lb_selection selection,
 				   u8 value);
