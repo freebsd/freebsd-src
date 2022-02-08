@@ -41,6 +41,7 @@ enum {
       MLX5E_TLS_CONTINUE = 3,
 };
 
+struct mlx5e_tls;
 struct mlx5e_tls_tag {
 	struct m_snd_tag tag;
 	volatile s32 refs;	/* number of pending mbufs */
