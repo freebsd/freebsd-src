@@ -46,6 +46,7 @@ LINT: ${NOTES} ${MAKELINT_SED}
 	echo "nodevice em"		>> ${.TARGET}-NOIP
 	echo "nodevice fxp"		>> ${.TARGET}-NOIP
 	echo "nodevice jme"		>> ${.TARGET}-NOIP
+	echo "nodevice lio"		>> ${.TARGET}-NOIP
 	echo "nodevice msk"		>> ${.TARGET}-NOIP
 	echo "nodevice mxge"		>> ${.TARGET}-NOIP
 	echo "nodevice sge"		>> ${.TARGET}-NOIP
