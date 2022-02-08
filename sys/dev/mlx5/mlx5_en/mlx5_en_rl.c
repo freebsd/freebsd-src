@@ -414,7 +414,8 @@ mlx5e_rl_find_best_rate_locked(struct mlx5e_rl_priv_data *rl, uint64_t user_rate
 }
 
 static int
-mlx5e_rl_post_sq_remap_wqe(struct mlx5e_iq *iq, u32 scq_handle, u32 sq_handle)
+mlx5e_rl_post_sq_remap_wqe(struct mlx5e_iq *iq, u32 scq_handle, u32 sq_handle,
+    struct mlx5e_rl_channel *sq_channel)
 {
 	const u32 ds_cnt = DIV_ROUND_UP(sizeof(struct mlx5e_tx_qos_remap_wqe),
 	            MLX5_SEND_WQE_DS);
@@ -444,6 +445,8 @@ mlx5e_rl_post_sq_remap_wqe(struct mlx5e_iq *iq, u32 scq_handle, u32 sq_handle)
 	memcpy(iq->doorbell.d32, &wqe->ctrl, sizeof(iq->doorbell.d32));
 
 	iq->data[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
+	iq->data[pi].p_refcount = &sq_channel->refcount;
+	atomic_add_int(iq->data[pi].p_refcount, 1);
 	iq->pc += iq->data[pi].num_wqebbs;
 
 	mlx5e_iq_notify_hw(iq);
@@ -454,7 +457,8 @@ mlx5e_rl_post_sq_remap_wqe(struct mlx5e_iq *iq, u32 scq_handle, u32 sq_handle)
 }
 
 static int
-mlx5e_rl_remap_sq(struct mlx5e_sq *sq, uint16_t index)
+mlx5e_rl_remap_sq(struct mlx5e_sq *sq, uint16_t index,
+    struct mlx5e_rl_channel *sq_channel)
 {
 	struct mlx5e_channel *iq_channel;
 	u32	scq_handle;
@@ -467,10 +471,12 @@ mlx5e_rl_remap_sq(struct mlx5e_sq *sq, uint16_t index)
 	sq_handle = sq->queue_handle;
 	scq_handle = mlx5_rl_get_scq_handle(sq->priv->mdev, index);
 
-	if (sq_handle == -1U || scq_handle == -1U)
+	if (sq_handle == MLX5_INVALID_QUEUE_HANDLE ||
+	    scq_handle == MLX5_INVALID_QUEUE_HANDLE)
 		error = -1;
 	else
-		error = mlx5e_rl_post_sq_remap_wqe(&iq_channel->iq, scq_handle, sq_handle);
+		error = mlx5e_rl_post_sq_remap_wqe(&iq_channel->iq, scq_handle,
+		    sq_handle, sq_channel);
 
 	return (error);
 }
@@ -558,7 +564,11 @@ mlx5e_rlw_channel_set_rate_locked(struct mlx5e_rl_worker *rlw,
 	/* set new rate, if SQ is running */
 	sq = channel->sq;
 	if (sq != NULL && READ_ONCE(sq->running) != 0) {
-		if (!use_sq_remap || mlx5e_rl_remap_sq(sq, index)) {
+		if (!use_sq_remap || mlx5e_rl_remap_sq(sq, index, channel)) {
+			while (atomic_load_int(&channel->refcount) != 0 &&
+			    rlw->priv->mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR &&
+		            pci_channel_offline(rlw->priv->mdev->pdev) == 0)
+				pause("W", 1);
 			error = mlx5e_rl_modify_sq(sq, index);
 			if (error != 0)
 				atomic_add_64(&rlw->priv->rl.stats.tx_modify_rate_failure, 1ULL);
