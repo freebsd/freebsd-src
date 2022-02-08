@@ -1980,7 +1980,8 @@ mlx5e_del_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 		return (0);
 	}
 
-	mlx5_del_flow_rule(el->vxlan_ft_rule);
+	if (el->installed)
+		mlx5_del_flow_rule(el->vxlan_ft_rule);
 	TAILQ_REMOVE(&priv->vxlan.head, el, link);
 	kvfree(el);
 	return (0);
