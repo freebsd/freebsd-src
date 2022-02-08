@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2021
+.Dd February 8, 2022
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -340,10 +340,6 @@ of the release build.
 .Va WITH_VMIMAGES
 may also be specified as an environment variable passed to
 .Xr make 1 .
-.Pp
-The option requires
-.Xr mkimg 1
-version 20140927 or later.
 .It Va WITH_COMPRESSED_VMIMAGES
 Set to a non-null value to compress the virtual machine disk images with
 .Xr xz 1
@@ -381,8 +377,7 @@ and
 formats are created.
 See
 .Xr mkimg 1
-for valid format values
-.Pq requires version 20140927 or later .
+for valid format values.
 .El
 .Pp
 For a list of supported
@@ -687,6 +682,7 @@ are therefore no longer supported.
 .Xr git 1 Pq Pa ports/devel/git ,
 .Xr install 1 ,
 .Xr make 1 ,
+.Xr mkimg 1 ,
 .Xr uname 1 ,
 .Xr md 4 ,
 .Xr make.conf 5 ,
