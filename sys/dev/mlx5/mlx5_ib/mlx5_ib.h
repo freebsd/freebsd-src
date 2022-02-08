@@ -769,6 +769,10 @@ struct mlx5_ib_dev {
 	struct mlx5_ib_congestion congestion;
 
 	struct mlx5_async_ctx	async_ctx;
+
+	/* protect the user_td */
+	struct mutex		lb_mutex;
+	u32			user_td;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
