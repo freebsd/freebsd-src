@@ -794,7 +794,7 @@ static void
 tcp_flush_out_entry(struct lro_ctrl *lc, struct lro_entry *le)
 {
 	/* Check if we need to recompute any checksums. */
-	if (le->m_head->m_pkthdr.lro_nsegs > 1) {
+	if (le->needs_merge) {
 		uint16_t csum;
 
 		switch (le->inner.data.lro_type) {
@@ -895,6 +895,7 @@ tcp_set_entry_to_mbuf(struct lro_ctrl *lc, struct lro_entry *le,
 	le->next_seq = ntohl(th->th_seq) + tcp_data_len;
 	le->ack_seq = th->th_ack;
 	le->window = th->th_win;
+	le->needs_merge = 0;
 
 	/* Setup new data pointers. */
 	le->m_head = m;
@@ -936,10 +937,12 @@ tcp_push_and_replace(struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m)
 }
 
 static void
-tcp_lro_mbuf_append_pkthdr(struct mbuf *m, const struct mbuf *p)
+tcp_lro_mbuf_append_pkthdr(struct lro_entry *le, const struct mbuf *p)
 {
+	struct mbuf *m;
 	uint32_t csum;
 
+	m = le->m_head;
 	if (m->m_pkthdr.lro_nsegs == 1) {
 		/* Compute relative checksum. */
 		csum = p->m_pkthdr.lro_tcp_d_csum;
@@ -956,6 +959,7 @@ tcp_lro_mbuf_append_pkthdr(struct mbuf *m, const struct mbuf *p)
 	m->m_pkthdr.lro_tcp_d_csum = csum;
 	m->m_pkthdr.lro_tcp_d_len += p->m_pkthdr.lro_tcp_d_len;
 	m->m_pkthdr.lro_nsegs += p->m_pkthdr.lro_nsegs;
+	le->needs_merge = 1;
 }
 
 static void
@@ -1074,8 +1078,12 @@ again:
 			le->next_seq += tcp_data_len;
 			le->ack_seq = th->th_ack;
 			le->window = th->th_win;
+			le->needs_merge = 1;
 		} else if (th->th_ack == le->ack_seq) {
-			le->window = WIN_MAX(le->window, th->th_win);
+			if (WIN_GT(th->th_win, le->window)) {
+				le->window = th->th_win;
+				le->needs_merge = 1;
+			}
 		}
 
 		if (tcp_data_len == 0) {
@@ -1084,7 +1092,7 @@ again:
 		}
 
 		/* Merge TCP data checksum and length to head mbuf. */
-		tcp_lro_mbuf_append_pkthdr(le->m_head, m);
+		tcp_lro_mbuf_append_pkthdr(le, m);
 
 		/*
 		 * Adjust the mbuf so that m_data points to the first byte of
