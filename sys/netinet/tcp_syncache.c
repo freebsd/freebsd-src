@@ -1848,7 +1848,9 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 
 	/* XXX: Assume that the entire packet will fit in a header mbuf. */
 	KASSERT(max_linkhdr + tlen + TCP_MAXOLEN <= MHLEN,
-	    ("syncache: mbuf too small"));
+	    ("syncache: mbuf too small: hlen %u, sc_port %u, max_linkhdr %d + "
+	    "tlen %d + TCP_MAXOLEN %ju <= MHLEN %d", hlen, sc->sc_port,
+	    max_linkhdr, tlen, (uintmax_t)TCP_MAXOLEN, MHLEN));
 
 	/* Create the IP+TCP header from scratch. */
 	m = m_gethdr(M_NOWAIT, MT_DATA);
