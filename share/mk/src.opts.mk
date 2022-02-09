@@ -325,7 +325,7 @@ __DEFAULT_NO_OPTIONS+=OPENSSL_KTLS
 .endif
 
 .if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && \
-    ${__T} != "powerpc64"
+    ${__T:Mpowerpc64*} == ""
 BROKEN_OPTIONS+=CXGBETOOL
 BROKEN_OPTIONS+=MLX5TOOL
 .endif
