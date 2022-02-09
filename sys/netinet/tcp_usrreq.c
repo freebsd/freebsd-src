@@ -2119,13 +2119,13 @@ no_mem_needed:
 int
 tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 {
-	struct socket *so = inp->inp_socket;
 	struct tcpcb *tp = intotcpcb(inp);
 	int	error, opt, optval;
 	u_int	ui;
 	struct	tcp_info ti;
 #ifdef KERN_TLS
 	struct tls_enable tls;
+	struct socket *so = inp->inp_socket;
 #endif
 	char	*pbuf, buf[TCP_LOG_ID_LEN];
 #ifdef STATS
@@ -2136,7 +2136,7 @@ tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 	INP_WLOCK_ASSERT(inp);
 	KASSERT((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0,
 	    ("inp_flags == %x", inp->inp_flags));
-	KASSERT(so != NULL, ("inp_socket == NULL"));
+	KASSERT(inp->inp_socket != NULL, ("inp_socket == NULL"));
 
 	switch (sopt->sopt_level) {
 #ifdef INET6
