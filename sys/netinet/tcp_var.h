@@ -249,6 +249,8 @@ struct tcpcb {
 	int	t_dupacks;		/* consecutive dup acks recd */
 	int	t_lognum;		/* Number of log entries */
 	int	t_loglimit;		/* Maximum number of log entries */
+	uint32_t r_cep;			/* Number of received CE marked packets */
+	uint32_t s_cep;			/* Synced number of delivered CE packets */
 	int64_t	t_pacing_rate;		/* bytes / sec, -1 => unlimited */
 	struct tcp_log_stailq t_logs;	/* Log buffer */
 	struct tcp_log_id_node *t_lin;
@@ -562,7 +564,7 @@ tcp_unlock_or_drop(struct tcpcb *tp, int tcp_output_retval)
 #define	TF2_PLPMTU_PMTUD	0x00000002 /* Allowed to attempt PLPMTUD. */
 #define	TF2_PLPMTU_MAXSEGSNT	0x00000004 /* Last seg sent was full seg. */
 #define	TF2_LOG_AUTO		0x00000008 /* Session is auto-logging. */
-#define TF2_DROP_AF_DATA 	0x00000010 /* Drop after all data ack'd */
+#define	TF2_DROP_AF_DATA	0x00000010 /* Drop after all data ack'd */
 #define	TF2_ECN_PERMIT		0x00000020 /* connection ECN-ready */
 #define	TF2_ECN_SND_CWR		0x00000040 /* ECN CWR in queue */
 #define	TF2_ECN_SND_ECE		0x00000080 /* ECN ECE in queue */
@@ -818,7 +820,13 @@ struct	tcpstat {
 	uint64_t tcps_tw_resets;	/* Times time-wait sent a reset. */
 	uint64_t tcps_tw_responds;	/* Times time-wait sent a valid ack. */
 
-	uint64_t _pad[6];		/* 3 UTO, 3 TBD */
+	/* Accurate ECN Handshake stats */
+	uint64_t tcps_ace_nect;		/* ACE SYN packet with Non-ECT */
+	uint64_t tcps_ace_ect1;		/* ACE SYN packet with ECT1 */
+	uint64_t tcps_ace_ect0;		/* ACE SYN packet with ECT0 */
+	uint64_t tcps_ace_ce;		/* ACE SYN packet with CE */
+
+	uint64_t _pad[2];		/* 2 TBD */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */

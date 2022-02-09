@@ -834,6 +834,15 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_ecn_rcwnd, "\t{:congestion-reductions/%ju} "
 	    "{N:/time%s ECN reduced the congestion window}\n");
 
+	p(tcps_ace_nect, "\t{:ace-nonect-syn/%ju} "
+	    "{N:/ACE SYN packet%s with Non-ECT}\n");
+	p(tcps_ace_ect0, "\t{:ace-ect0-syn/%ju} "
+	    "{N:/ACE SYN packet%s with ECT0}\n");
+	p(tcps_ace_ect1, "\t{:ace-ect1-syn/%ju} "
+	    "{N:/ACE SYN packet%s with ECT1}\n");
+	p(tcps_ace_ce, "\t{:ace-ce-syn/%ju} "
+	    "{N:/ACE SYN packet%s with CE}\n");
+
 	xo_close_container("ecn");
 	xo_open_container("tcp-signature");
 	p(tcps_sig_rcvgoodsig, "\t{:received-good-signature/%ju} "
