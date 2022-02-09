@@ -428,6 +428,10 @@ DEFINE_TEST(test_fuzz_tar)
 		NULL
 	};
 #endif
+	static const char *fileset11[] = {
+		"test_compat_tar_directory_1.tar",
+		NULL
+	};
 	static const struct files filesets[] = {
 		{0, fileset1}, /* Exercise bzip2 decompressor. */
 		{1, fileset1},
@@ -444,6 +448,7 @@ DEFINE_TEST(test_fuzz_tar)
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
 		{0, fileset10}, /* Exercise zstd decompressor. */
 #endif
+		{0, fileset11},
 		{1, NULL}
 	};
 	test_fuzz(filesets);

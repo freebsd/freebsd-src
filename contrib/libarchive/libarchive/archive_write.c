@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_write_private.h"
 
-static struct archive_vtable *archive_write_vtable(void);
-
 static int	_archive_filter_code(struct archive *, int);
 static const char *_archive_filter_name(struct archive *, int);
 static int64_t	_archive_filter_bytes(struct archive *, int);
@@ -79,26 +77,18 @@ struct archive_none {
 	char *next;
 };
 
-static struct archive_vtable *
-archive_write_vtable(void)
-{
-	static struct archive_vtable av;
-	static int inited = 0;
-
-	if (!inited) {
-		av.archive_close = _archive_write_close;
-		av.archive_filter_bytes = _archive_filter_bytes;
-		av.archive_filter_code = _archive_filter_code;
-		av.archive_filter_name = _archive_filter_name;
-		av.archive_filter_count = _archive_write_filter_count;
-		av.archive_free = _archive_write_free;
-		av.archive_write_header = _archive_write_header;
-		av.archive_write_finish_entry = _archive_write_finish_entry;
-		av.archive_write_data = _archive_write_data;
-		inited = 1;
-	}
-	return (&av);
-}
+static const struct archive_vtable
+archive_write_vtable = {
+	.archive_close = _archive_write_close,
+	.archive_filter_bytes = _archive_filter_bytes,
+	.archive_filter_code = _archive_filter_code,
+	.archive_filter_name = _archive_filter_name,
+	.archive_filter_count = _archive_write_filter_count,
+	.archive_free = _archive_write_free,
+	.archive_write_header = _archive_write_header,
+	.archive_write_finish_entry = _archive_write_finish_entry,
+	.archive_write_data = _archive_write_data,
+};
 
 /*
  * Allocate, initialize and return an archive object.
@@ -114,7 +104,7 @@ archive_write_new(void)
 		return (NULL);
 	a->archive.magic = ARCHIVE_WRITE_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
-	a->archive.vtable = archive_write_vtable();
+	a->archive.vtable = &archive_write_vtable;
 	/*
 	 * The value 10240 here matches the traditional tar default,
 	 * but is otherwise arbitrary.

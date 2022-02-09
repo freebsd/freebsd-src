@@ -48,8 +48,8 @@ DEFINE_TEST(test_read_pax_truncated)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	for (i = 0; i < filedata_size; i++)
-		filedata[i] = (unsigned char)rand();
+	fill_with_pseudorandom_data(filedata, filedata_size);
+
 	archive_entry_set_atime(ae, 1, 2);
 	archive_entry_set_ctime(ae, 3, 4);
 	archive_entry_set_mtime(ae, 5, 6);

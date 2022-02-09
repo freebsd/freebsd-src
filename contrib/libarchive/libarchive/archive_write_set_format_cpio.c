@@ -1,3 +1,4 @@
+#include "archive_platform.h"
 #include "archive.h"
 
 /*

@@ -95,7 +95,7 @@ get_format_code(const char *suffix)
 		{ ".7z",	"7zip" },
 		{ ".ar",	"arbsd" },
 		{ ".cpio",	"cpio" },
-		{ ".iso",	"iso9960" },
+		{ ".iso",	"iso9660" },
 		{ ".mtree",	"mtree" },
 		{ ".shar",	"shar" },
 		{ ".tar",	"paxr" },

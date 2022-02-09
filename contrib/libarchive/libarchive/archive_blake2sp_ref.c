@@ -21,6 +21,7 @@
 #include <omp.h>
 #endif
 
+#include "archive_platform.h"
 #include "archive_blake2.h"
 #include "archive_blake2_impl.h"
 

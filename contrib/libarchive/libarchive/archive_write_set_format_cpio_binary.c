@@ -124,7 +124,7 @@ PACKED(struct cpio_binary_header {
  * ...but it feels a little better to do it like this:
  */
 
-static uint16_t swap16(uint16_t in) {
+static uint16_t la_swap16(uint16_t in) {
 	union {
 		uint16_t s[2];
 		uint8_t c[4];
@@ -141,7 +141,7 @@ static uint16_t swap16(uint16_t in) {
 	/* NOTREACHED */
 }
 
-static uint32_t swap32(uint32_t in) {
+static uint32_t la_swap32(uint32_t in) {
 	union {
 		uint32_t l;
 		uint16_t s[2];
@@ -156,8 +156,8 @@ static uint32_t swap32(uint32_t in) {
 		U.s[1] = t;
 	} else if (U.c[3]) {	/* Big-endian */
 		U.l = in;
-		U.s[0] = swap16(U.s[0]);
-		U.s[1] = swap16(U.s[1]);
+		U.s[0] = la_swap16(U.s[0]);
+		U.s[1] = la_swap16(U.s[1]);
 	} else {		/* PDP-endian */
 		U.l = in;
 	}
@@ -426,8 +426,8 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	/* Include trailing null */
 	pathlength = (int)len + 1;
 
-	h.h_magic = swap16(070707);
-	h.h_dev = swap16(archive_entry_dev(entry));
+	h.h_magic = la_swap16(070707);
+	h.h_dev = la_swap16(archive_entry_dev(entry));
 
 	ino = synthesize_ino_value(cpio, entry);
 	if (ino < 0) {
@@ -441,7 +441,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		ret_final = ARCHIVE_FATAL;
 		goto exit_write_header;
 	}
-	h.h_ino = swap16(ino);
+	h.h_ino = la_swap16((uint16_t)ino);
 
 	h.h_mode = archive_entry_mode(entry);
 	if (((h.h_mode & AE_IFMT) == AE_IFSOCK) || ((h.h_mode & AE_IFMT) == AE_IFIFO)) {
@@ -460,20 +460,20 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		/* we could turn off AE_IFREG here, but it does no harm, */
 		/* and allows v7 cpio to read the entry without confusion */
 	}
-	h.h_mode = swap16(h.h_mode);
+	h.h_mode = la_swap16(h.h_mode);
 
-	h.h_uid = swap16(archive_entry_uid(entry));
-	h.h_gid = swap16(archive_entry_gid(entry));
-	h.h_nlink = swap16(archive_entry_nlink(entry));
+	h.h_uid = la_swap16((uint16_t)archive_entry_uid(entry));
+	h.h_gid = la_swap16((uint16_t)archive_entry_gid(entry));
+	h.h_nlink = la_swap16((uint16_t)archive_entry_nlink(entry));
 
 	if (archive_entry_filetype(entry) == AE_IFBLK
 	    || archive_entry_filetype(entry) == AE_IFCHR)
-		h.h_majmin = swap16(archive_entry_rdev(entry));
+		h.h_majmin = la_swap16(archive_entry_rdev(entry));
 	else
 		h.h_majmin = 0;
 
-	h.h_mtime = swap32(archive_entry_mtime(entry));
-	h.h_namesize = swap16(pathlength);
+	h.h_mtime = la_swap32((uint32_t)archive_entry_mtime(entry));
+	h.h_namesize = la_swap16(pathlength);
 
 	/* Non-regular files don't store bodies. */
 	if (archive_entry_filetype(entry) != AE_IFREG)
@@ -502,7 +502,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 			ret_final = ARCHIVE_FATAL;
 			goto exit_write_header;
 		}
-		h.h_filesize = swap32(strlen(p)); /* symlink */
+		h.h_filesize = la_swap32((uint32_t)strlen(p)); /* symlink */
 	} else {
 		if ((a->archive.archive_format == ARCHIVE_FORMAT_CPIO_PWB) &&
 		    (archive_entry_size(entry) > 256*256*256-1)) {
@@ -516,7 +516,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 			ret_final = ARCHIVE_FAILED;
 			goto exit_write_header;
 		}
-		h.h_filesize = swap32(archive_entry_size(entry)); /* file */
+		h.h_filesize = la_swap32((uint32_t)archive_entry_size(entry)); /* file */
 	}
 
 	ret = __archive_write_output(a, &h, HSIZE);
