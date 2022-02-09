@@ -2387,17 +2387,20 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	KASSERT(cnp->cn_namelen <= NAME_MAX,
 	    ("%s: passed len %ld exceeds NAME_MAX (%d)", __func__, cnp->cn_namelen,
 	    NAME_MAX));
-#ifdef notyet
-	/*
-	 * Not everything doing this is weeded out yet.
-	 */
-	VNPASS(dvp != vp, dvp);
-#endif
 	VNPASS(!VN_IS_DOOMED(dvp), dvp);
 	VNPASS(dvp->v_type != VNON, dvp);
 	if (vp != NULL) {
 		VNPASS(!VN_IS_DOOMED(vp), vp);
 		VNPASS(vp->v_type != VNON, vp);
+	}
+	if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
+		KASSERT(dvp == vp,
+		    ("%s: different vnodes for dot entry (%p; %p)\n", __func__,
+		    dvp, vp));
+	} else {
+		KASSERT(dvp != vp,
+		    ("%s: same vnode for non-dot entry [%s] (%p)\n", __func__,
+		    cnp->cn_nameptr, dvp));
 	}
 
 #ifdef DEBUG_CACHE
