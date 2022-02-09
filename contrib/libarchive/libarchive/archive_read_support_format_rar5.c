@@ -632,7 +632,7 @@ static int run_arm_filter(struct rar5* rar, struct filter_info* flt) {
 			/* 0xEB = ARM's BL (branch + link) instruction. */
 			offset = read_filter_data(rar,
 			    (rar->cstate.solid_offset + flt->block_start + i) &
-			     rar->cstate.window_mask) & 0x00ffffff;
+			     (uint32_t)rar->cstate.window_mask) & 0x00ffffff;
 
 			offset -= (uint32_t) ((i + flt->block_start) / 4);
 			offset = (offset & 0x00ffffff) | 0xeb000000;
@@ -1012,7 +1012,16 @@ static int read_var_sized(struct archive_read* a, size_t* pvalue,
 	return ret;
 }
 
-static int read_bits_32(struct rar5* rar, const uint8_t* p, uint32_t* value) {
+static int read_bits_32(struct archive_read* a, struct rar5* rar,
+	const uint8_t* p, uint32_t* value)
+{
+	if(rar->bits.in_addr >= rar->cstate.cur_block_size) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_PROGRAMMER,
+			"Premature end of stream during extraction of data (#1)");
+		return ARCHIVE_FATAL;
+	}
+
 	uint32_t bits = ((uint32_t) p[rar->bits.in_addr]) << 24;
 	bits |= p[rar->bits.in_addr + 1] << 16;
 	bits |= p[rar->bits.in_addr + 2] << 8;
@@ -1023,7 +1032,16 @@ static int read_bits_32(struct rar5* rar, const uint8_t* p, uint32_t* value) {
 	return ARCHIVE_OK;
 }
 
-static int read_bits_16(struct rar5* rar, const uint8_t* p, uint16_t* value) {
+static int read_bits_16(struct archive_read* a, struct rar5* rar,
+	const uint8_t* p, uint16_t* value)
+{
+	if(rar->bits.in_addr >= rar->cstate.cur_block_size) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_PROGRAMMER,
+			"Premature end of stream during extraction of data (#2)");
+		return ARCHIVE_FATAL;
+	}
+
 	int bits = (int) ((uint32_t) p[rar->bits.in_addr]) << 16;
 	bits |= (int) p[rar->bits.in_addr + 1] << 8;
 	bits |= (int) p[rar->bits.in_addr + 2];
@@ -1039,8 +1057,8 @@ static void skip_bits(struct rar5* rar, int bits) {
 }
 
 /* n = up to 16 */
-static int read_consume_bits(struct rar5* rar, const uint8_t* p, int n,
-    int* value)
+static int read_consume_bits(struct archive_read* a, struct rar5* rar,
+	const uint8_t* p, int n, int* value)
 {
 	uint16_t v;
 	int ret, num;
@@ -1051,7 +1069,7 @@ static int read_consume_bits(struct rar5* rar, const uint8_t* p, int n,
 		return ARCHIVE_FATAL;
 	}
 
-	ret = read_bits_16(rar, p, &v);
+	ret = read_bits_16(a, rar, p, &v);
 	if(ret != ARCHIVE_OK)
 		return ret;
 
@@ -1099,6 +1117,44 @@ static int bid_standard(struct archive_read* a) {
 	return -1;
 }
 
+static int bid_sfx(struct archive_read *a)
+{
+	const char *p;
+
+	if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
+		return -1;
+
+	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0) {
+		/* This is a PE file */
+		char signature[sizeof(rar5_signature_xor)];
+		ssize_t offset = 0x10000;
+		ssize_t window = 4096;
+		ssize_t bytes_avail;
+
+		rar5_signature(signature);
+
+		while (offset + window <= (1024 * 512)) {
+			const char *buff = __archive_read_ahead(a, offset + window, &bytes_avail);
+			if (buff == NULL) {
+				/* Remaining bytes are less than window. */
+				window >>= 1;
+				if (window < 0x40)
+					return 0;
+				continue;
+			}
+			p = buff + offset;
+			while (p + 8 < buff + bytes_avail) {
+				if (memcmp(p, signature, sizeof(signature)) == 0)
+					return 30;
+				p += 0x10;
+			}
+			offset = p - buff;
+		}
+	}
+
+	return 0;
+}
+
 static int rar5_bid(struct archive_read* a, int best_bid) {
 	int my_bid;
 
@@ -1107,6 +1163,10 @@ static int rar5_bid(struct archive_read* a, int best_bid) {
 
 	my_bid = bid_standard(a);
 	if(my_bid > -1) {
+		return my_bid;
+	}
+	my_bid = bid_sfx(a);
+	if (my_bid > -1) {
 		return my_bid;
 	}
 
@@ -1712,13 +1772,28 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
 		}
 	}
 
-	/* If we're currently switching volumes, ignore the new definition of
-	 * window_size. */
-	if(rar->cstate.switch_multivolume == 0) {
-		/* Values up to 64M should fit into ssize_t on every
-		 * architecture. */
-		rar->cstate.window_size = (ssize_t) window_size;
+	if(rar->cstate.window_size < (ssize_t) window_size &&
+	    rar->cstate.window_buf)
+	{
+		/* If window_buf has been allocated before, reallocate it, so
+		 * that its size will match new window_size. */
+
+		uint8_t* new_window_buf =
+			realloc(rar->cstate.window_buf, window_size);
+
+		if(!new_window_buf) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+				"Not enough memory when trying to realloc the window "
+				"buffer.");
+			return ARCHIVE_FATAL;
+		}
+
+		rar->cstate.window_buf = new_window_buf;
 	}
+
+	/* Values up to 64M should fit into ssize_t on every
+	 * architecture. */
+	rar->cstate.window_size = (ssize_t) window_size;
 
 	if(rar->file.solid > 0 && rar->file.solid_window_size == 0) {
 		/* Solid files have to have the same window_size across
@@ -2273,6 +2348,62 @@ static int skip_base_block(struct archive_read* a) {
 		return ret;
 }
 
+static int try_skip_sfx(struct archive_read *a)
+{
+	const char *p;
+
+	if ((p = __archive_read_ahead(a, 7, NULL)) == NULL)
+		return ARCHIVE_EOF;
+
+	if ((p[0] == 'M' && p[1] == 'Z') || memcmp(p, "\x7F\x45LF", 4) == 0)
+	{
+		char signature[sizeof(rar5_signature_xor)];
+		const void *h;
+		const char *q;
+		size_t skip, total = 0;
+		ssize_t bytes, window = 4096;
+
+		rar5_signature(signature);
+
+		while (total + window <= (1024 * 512)) {
+			h = __archive_read_ahead(a, window, &bytes);
+			if (h == NULL) {
+				/* Remaining bytes are less than window. */
+				window >>= 1;
+				if (window < 0x40)
+					goto fatal;
+				continue;
+			}
+			if (bytes < 0x40)
+				goto fatal;
+			p = h;
+			q = p + bytes;
+
+			/*
+			 * Scan ahead until we find something that looks
+			 * like the RAR header.
+			 */
+			while (p + 8 < q) {
+				if (memcmp(p, signature, sizeof(signature)) == 0) {
+					skip = p - (const char *)h;
+					__archive_read_consume(a, skip);
+					return (ARCHIVE_OK);
+				}
+				p += 0x10;
+			}
+			skip = p - (const char *)h;
+			__archive_read_consume(a, skip);
+			total += skip;
+		}
+	}
+
+	return ARCHIVE_OK;
+fatal:
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			"Couldn't find out RAR header");
+	return (ARCHIVE_FATAL);
+}
+
 static int rar5_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
@@ -2281,6 +2412,8 @@ static int rar5_read_header(struct archive_read *a,
 
 	if(rar->header_initialized == 0) {
 		init_header(a);
+		if ((ret = try_skip_sfx(a)) < ARCHIVE_WARN)
+			return ret;
 		rar->header_initialized = 1;
 	}
 
@@ -2425,13 +2558,13 @@ static int create_decode_tables(uint8_t* bit_length,
 static int decode_number(struct archive_read* a, struct decode_table* table,
     const uint8_t* p, uint16_t* num)
 {
-	int i, bits, dist;
+	int i, bits, dist, ret;
 	uint16_t bitfield;
 	uint32_t pos;
 	struct rar5* rar = get_context(a);
 
-	if(ARCHIVE_OK != read_bits_16(rar, p, &bitfield)) {
-		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != (ret = read_bits_16(a, rar, p, &bitfield))) {
+		return ret;
 	}
 
 	bitfield &= 0xfffe;
@@ -2537,14 +2670,6 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 	for(i = 0; i < HUFF_TABLE_SIZE;) {
 		uint16_t num;
 
-		if((rar->bits.in_addr + 6) >= rar->cstate.cur_block_size) {
-			/* Truncated data, can't continue. */
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated data in huffman tables (#2)");
-			return ARCHIVE_FATAL;
-		}
-
 		ret = decode_number(a, &rar->cstate.bd, p, &num);
 		if(ret != ARCHIVE_OK) {
 			archive_set_error(&a->archive,
@@ -2561,8 +2686,8 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 			/* 16..17: repeat previous code */
 			uint16_t n;
 
-			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
-				return ARCHIVE_EOF;
+			if(ARCHIVE_OK != (ret = read_bits_16(a, rar, p, &n)))
+				return ret;
 
 			if(num == 16) {
 				n >>= 13;
@@ -2590,8 +2715,8 @@ static int parse_tables(struct archive_read* a, struct rar5* rar,
 			/* other codes: fill with zeroes `n` times */
 			uint16_t n;
 
-			if(ARCHIVE_OK != read_bits_16(rar, p, &n))
-				return ARCHIVE_EOF;
+			if(ARCHIVE_OK != (ret = read_bits_16(a, rar, p, &n)))
+				return ret;
 
 			if(num == 18) {
 				n >>= 13;
@@ -2707,22 +2832,22 @@ static int parse_block_header(struct archive_read* a, const uint8_t* p,
 }
 
 /* Convenience function used during filter processing. */
-static int parse_filter_data(struct rar5* rar, const uint8_t* p,
-    uint32_t* filter_data)
+static int parse_filter_data(struct archive_read* a, struct rar5* rar,
+	const uint8_t* p, uint32_t* filter_data)
 {
-	int i, bytes;
+	int i, bytes, ret;
 	uint32_t data = 0;
 
-	if(ARCHIVE_OK != read_consume_bits(rar, p, 2, &bytes))
-		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != (ret = read_consume_bits(a, rar, p, 2, &bytes)))
+		return ret;
 
 	bytes++;
 
 	for(i = 0; i < bytes; i++) {
 		uint16_t byte;
 
-		if(ARCHIVE_OK != read_bits_16(rar, p, &byte)) {
-			return ARCHIVE_EOF;
+		if(ARCHIVE_OK != (ret = read_bits_16(a, rar, p, &byte))) {
+			return ret;
 		}
 
 		/* Cast to uint32_t will ensure the shift operation will not
@@ -2765,16 +2890,17 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	uint16_t filter_type;
 	struct filter_info* filt = NULL;
 	struct rar5* rar = get_context(ar);
+	int ret;
 
 	/* Read the parameters from the input stream. */
-	if(ARCHIVE_OK != parse_filter_data(rar, p, &block_start))
-		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != (ret = parse_filter_data(ar, rar, p, &block_start)))
+		return ret;
 
-	if(ARCHIVE_OK != parse_filter_data(rar, p, &block_length))
-		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != (ret = parse_filter_data(ar, rar, p, &block_length)))
+		return ret;
 
-	if(ARCHIVE_OK != read_bits_16(rar, p, &filter_type))
-		return ARCHIVE_EOF;
+	if(ARCHIVE_OK != (ret = read_bits_16(ar, rar, p, &filter_type)))
+		return ret;
 
 	filter_type >>= 13;
 	skip_bits(rar, 3);
@@ -2814,8 +2940,8 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	if(filter_type == FILTER_DELTA) {
 		int channels;
 
-		if(ARCHIVE_OK != read_consume_bits(rar, p, 5, &channels))
-			return ARCHIVE_EOF;
+		if(ARCHIVE_OK != (ret = read_consume_bits(ar, rar, p, 5, &channels)))
+			return ret;
 
 		filt->channels = channels + 1;
 	}
@@ -2823,10 +2949,11 @@ static int parse_filter(struct archive_read* ar, const uint8_t* p) {
 	return ARCHIVE_OK;
 }
 
-static int decode_code_length(struct rar5* rar, const uint8_t* p,
-    uint16_t code)
+static int decode_code_length(struct archive_read* a, struct rar5* rar,
+	const uint8_t* p, uint16_t code)
 {
 	int lbits, length = 2;
+
 	if(code < 8) {
 		lbits = 0;
 		length += code;
@@ -2838,7 +2965,7 @@ static int decode_code_length(struct rar5* rar, const uint8_t* p,
 	if(lbits > 0) {
 		int add;
 
-		if(ARCHIVE_OK != read_consume_bits(rar, p, lbits, &add))
+		if(ARCHIVE_OK != read_consume_bits(a, rar, p, lbits, &add))
 			return -1;
 
 		length += add;
@@ -2933,7 +3060,7 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 			continue;
 		} else if(num >= 262) {
 			uint16_t dist_slot;
-			int len = decode_code_length(rar, p, num - 262),
+			int len = decode_code_length(a, rar, p, num - 262),
 				dbits,
 				dist = 1;
 
@@ -2975,12 +3102,12 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 					uint16_t low_dist;
 
 					if(dbits > 4) {
-						if(ARCHIVE_OK != read_bits_32(
-						    rar, p, &add)) {
+						if(ARCHIVE_OK != (ret = read_bits_32(
+						    a, rar, p, &add))) {
 							/* Return EOF if we
 							 * can't read more
 							 * data. */
-							return ARCHIVE_EOF;
+							return ret;
 						}
 
 						skip_bits(rar, dbits - 4);
@@ -3015,11 +3142,11 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 					/* dbits is one of [0,1,2,3] */
 					int add;
 
-					if(ARCHIVE_OK != read_consume_bits(rar,
-					     p, dbits, &add)) {
+					if(ARCHIVE_OK != (ret = read_consume_bits(a, rar,
+					     p, dbits, &add))) {
 						/* Return EOF if we can't read
 						 * more data. */
-						return ARCHIVE_EOF;
+						return ret;
 					}
 
 					dist += add;
@@ -3076,7 +3203,11 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 				return ARCHIVE_FATAL;
 			}
 
-			len = decode_code_length(rar, p, len_slot);
+			len = decode_code_length(a, rar, p, len_slot);
+			if (len == -1) {
+				return ARCHIVE_FATAL;
+			}
+
 			rar->cstate.last_len = len;
 
 			if(ARCHIVE_OK != copy_string(a, len, dist))
@@ -3598,6 +3729,16 @@ static int do_uncompress_file(struct archive_read* a) {
 		}
 
 		rar->cstate.initialized = 1;
+	}
+
+	/* Don't allow extraction if window_size is invalid. */
+	if(rar->cstate.window_size == 0) {
+		archive_set_error(&a->archive,
+			ARCHIVE_ERRNO_FILE_FORMAT,
+			"Invalid window size declaration in this file");
+
+		/* This should never happen in valid files. */
+		return ARCHIVE_FATAL;
 	}
 
 	if(rar->cstate.all_filters_applied == 1) {
