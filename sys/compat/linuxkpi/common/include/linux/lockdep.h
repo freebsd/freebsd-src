@@ -50,6 +50,11 @@ struct pin_cookie {
 #define	lockdep_init_map(_map, _name, _key, _x) do { } while(0)
 
 #ifdef INVARIANTS
+#define	lockdep_assert_not_held(m) do {					\
+	struct lock_object *__lock = (struct lock_object *)(m);		\
+	LOCK_CLASS(__lock)->lc_assert(__lock, LA_UNLOCKED);		\
+} while (0)
+
 #define	lockdep_assert_held(m) do {					\
 	struct lock_object *__lock = (struct lock_object *)(m);		\
 	LOCK_CLASS(__lock)->lc_assert(__lock, LA_LOCKED);		\
@@ -72,6 +77,7 @@ lockdep_is_held(void *__m)
 #define	lockdep_is_held_type(_m, _t) lockdep_is_held(_m)
 
 #else
+#define	lockdep_assert_not_held(m) do { (void)(m); } while (0)
 #define	lockdep_assert_held(m) do { (void)(m); } while (0)
 
 #define	lockdep_assert_held_once(m) do { (void)(m); } while (0)
