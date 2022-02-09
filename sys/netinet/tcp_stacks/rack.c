@@ -330,22 +330,9 @@ static uint64_t rack_bw_rate_cap = 0;
 /* Weird delayed ack mode */
 static int32_t rack_use_imac_dack = 0;
 /* Rack specific counters */
-counter_u64_t rack_badfr;
-counter_u64_t rack_badfr_bytes;
-counter_u64_t rack_rtm_prr_retran;
-counter_u64_t rack_rtm_prr_newdata;
-counter_u64_t rack_timestamp_mismatch;
-counter_u64_t rack_reorder_seen;
-counter_u64_t rack_paced_segments;
-counter_u64_t rack_unpaced_segments;
-counter_u64_t rack_calc_zero;
-counter_u64_t rack_calc_nonzero;
 counter_u64_t rack_saw_enobuf;
 counter_u64_t rack_saw_enobuf_hw;
 counter_u64_t rack_saw_enetunreach;
-counter_u64_t rack_per_timer_hole;
-counter_u64_t rack_large_ackcmp;
-counter_u64_t rack_small_ackcmp;
 counter_u64_t rack_persists_sends;
 counter_u64_t rack_persists_acks;
 counter_u64_t rack_persists_loss;
@@ -358,10 +345,7 @@ counter_u64_t rack_tlp_tot;
 counter_u64_t rack_tlp_newdata;
 counter_u64_t rack_tlp_retran;
 counter_u64_t rack_tlp_retran_bytes;
-counter_u64_t rack_tlp_retran_fail;
 counter_u64_t rack_to_tot;
-counter_u64_t rack_to_arm_rack;
-counter_u64_t rack_to_arm_tlp;
 counter_u64_t rack_hot_alloc;
 counter_u64_t rack_to_alloc;
 counter_u64_t rack_to_alloc_hard;
@@ -370,8 +354,6 @@ counter_u64_t rack_to_alloc_limited;
 counter_u64_t rack_alloc_limited_conns;
 counter_u64_t rack_split_limited;
 
-#define MAX_NUM_OF_CNTS 13
-counter_u64_t rack_proc_comp_ack[MAX_NUM_OF_CNTS];
 counter_u64_t rack_multi_single_eq;
 counter_u64_t rack_proc_non_comp_ack;
 
@@ -396,22 +378,12 @@ counter_u64_t rack_sack_total;
 counter_u64_t rack_move_none;
 counter_u64_t rack_move_some;
 
-counter_u64_t rack_used_tlpmethod;
-counter_u64_t rack_used_tlpmethod2;
-counter_u64_t rack_enter_tlp_calc;
 counter_u64_t rack_input_idle_reduces;
 counter_u64_t rack_collapsed_win;
-counter_u64_t rack_tlp_does_nada;
 counter_u64_t rack_try_scwnd;
 counter_u64_t rack_hw_pace_init_fail;
 counter_u64_t rack_hw_pace_lost;
-counter_u64_t rack_sbsndptr_right;
-counter_u64_t rack_sbsndptr_wrong;
 
-/* Temp CPU counters */
-counter_u64_t rack_find_high;
-
-counter_u64_t rack_progress_drops;
 counter_u64_t rack_out_size[TCP_MSS_ACCT_SIZE];
 counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
 
@@ -737,7 +709,6 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 {
 	uint32_t stat;
 	int32_t error;
-	int i;
 
 	error = SYSCTL_OUT(req, &rack_clear_counter, sizeof(uint32_t));
 	if (error || req->newptr == NULL)
@@ -750,30 +721,14 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 #ifdef INVARIANTS
 		printf("Clearing RACK counters\n");
 #endif
-		counter_u64_zero(rack_badfr);
-		counter_u64_zero(rack_badfr_bytes);
-		counter_u64_zero(rack_rtm_prr_retran);
-		counter_u64_zero(rack_rtm_prr_newdata);
-		counter_u64_zero(rack_timestamp_mismatch);
-		counter_u64_zero(rack_reorder_seen);
 		counter_u64_zero(rack_tlp_tot);
 		counter_u64_zero(rack_tlp_newdata);
 		counter_u64_zero(rack_tlp_retran);
 		counter_u64_zero(rack_tlp_retran_bytes);
-		counter_u64_zero(rack_tlp_retran_fail);
 		counter_u64_zero(rack_to_tot);
-		counter_u64_zero(rack_to_arm_rack);
-		counter_u64_zero(rack_to_arm_tlp);
-		counter_u64_zero(rack_paced_segments);
-		counter_u64_zero(rack_calc_zero);
-		counter_u64_zero(rack_calc_nonzero);
-		counter_u64_zero(rack_unpaced_segments);
 		counter_u64_zero(rack_saw_enobuf);
 		counter_u64_zero(rack_saw_enobuf_hw);
 		counter_u64_zero(rack_saw_enetunreach);
-		counter_u64_zero(rack_per_timer_hole);
-		counter_u64_zero(rack_large_ackcmp);
-		counter_u64_zero(rack_small_ackcmp);
 		counter_u64_zero(rack_persists_sends);
 		counter_u64_zero(rack_persists_acks);
 		counter_u64_zero(rack_persists_loss);
@@ -789,8 +744,6 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_extended_rfo);
 		counter_u64_zero(rack_hw_pace_init_fail);
 		counter_u64_zero(rack_hw_pace_lost);
-		counter_u64_zero(rack_sbsndptr_wrong);
-		counter_u64_zero(rack_sbsndptr_right);
 		counter_u64_zero(rack_non_fto_send);
 		counter_u64_zero(rack_nfto_resend);
 		counter_u64_zero(rack_sack_proc_short);
@@ -799,12 +752,8 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_to_alloc_limited);
 		counter_u64_zero(rack_alloc_limited_conns);
 		counter_u64_zero(rack_split_limited);
-		for (i = 0; i < MAX_NUM_OF_CNTS; i++) {
-			counter_u64_zero(rack_proc_comp_ack[i]);
-		}
 		counter_u64_zero(rack_multi_single_eq);
 		counter_u64_zero(rack_proc_non_comp_ack);
-		counter_u64_zero(rack_find_high);
 		counter_u64_zero(rack_sack_attacks_detected);
 		counter_u64_zero(rack_sack_attacks_reversed);
 		counter_u64_zero(rack_sack_used_next_merge);
@@ -816,11 +765,6 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_sack_total);
 		counter_u64_zero(rack_move_none);
 		counter_u64_zero(rack_move_some);
-		counter_u64_zero(rack_used_tlpmethod);
-		counter_u64_zero(rack_used_tlpmethod2);
-		counter_u64_zero(rack_enter_tlp_calc);
-		counter_u64_zero(rack_progress_drops);
-		counter_u64_zero(rack_tlp_does_nada);
 		counter_u64_zero(rack_try_scwnd);
 		counter_u64_zero(rack_collapsed_win);
 	}
@@ -831,7 +775,6 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 static void
 rack_init_sysctls(void)
 {
-	int i;
 	struct sysctl_oid *rack_counters;
 	struct sysctl_oid *rack_attack;
 	struct sysctl_oid *rack_pacing;
@@ -1596,46 +1539,6 @@ rack_init_sysctls(void)
 	    SYSCTL_CHILDREN(rack_counters),
 	    OID_AUTO, "hwpace_lost", CTLFLAG_RD,
 	    &rack_hw_pace_lost, "Total number of times we failed to initialize hw pacing");
-	rack_badfr = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "badfr", CTLFLAG_RD,
-	    &rack_badfr, "Total number of bad FRs");
-	rack_badfr_bytes = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "badfr_bytes", CTLFLAG_RD,
-	    &rack_badfr_bytes, "Total number of bad FRs");
-	rack_rtm_prr_retran = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "prrsndret", CTLFLAG_RD,
-	    &rack_rtm_prr_retran,
-	    "Total number of prr based retransmits");
-	rack_rtm_prr_newdata = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "prrsndnew", CTLFLAG_RD,
-	    &rack_rtm_prr_newdata,
-	    "Total number of prr based new transmits");
-	rack_timestamp_mismatch = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tsnf", CTLFLAG_RD,
-	    &rack_timestamp_mismatch,
-	    "Total number of timestamps that we could not find the reported ts");
-	rack_find_high = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "findhigh", CTLFLAG_RD,
-	    &rack_find_high,
-	    "Total number of FIN causing find-high");
-	rack_reorder_seen = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "reordering", CTLFLAG_RD,
-	    &rack_reorder_seen,
-	    "Total number of times we added delay due to reordering");
 	rack_tlp_tot = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -1660,54 +1563,12 @@ rack_init_sysctls(void)
 	    OID_AUTO, "tlp_retran_bytes", CTLFLAG_RD,
 	    &rack_tlp_retran_bytes,
 	    "Total bytes of tail loss probe sending retransmitted data");
-	rack_tlp_retran_fail = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tlp_retran_fail", CTLFLAG_RD,
-	    &rack_tlp_retran_fail,
-	    "Total number of tail loss probe sending retransmitted data that failed (wait for t3)");
 	rack_to_tot = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
 	    OID_AUTO, "rack_to_tot", CTLFLAG_RD,
 	    &rack_to_tot,
 	    "Total number of times the rack to expired");
-	rack_to_arm_rack = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "arm_rack", CTLFLAG_RD,
-	    &rack_to_arm_rack,
-	    "Total number of times the rack timer armed");
-	rack_to_arm_tlp = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "arm_tlp", CTLFLAG_RD,
-	    &rack_to_arm_tlp,
-	    "Total number of times the tlp timer armed");
-	rack_calc_zero = counter_u64_alloc(M_WAITOK);
-	rack_calc_nonzero = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "calc_zero", CTLFLAG_RD,
-	    &rack_calc_zero,
-	    "Total number of times pacing time worked out to zero");
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "calc_nonzero", CTLFLAG_RD,
-	    &rack_calc_nonzero,
-	    "Total number of times pacing time worked out to non-zero");
-	rack_paced_segments = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "paced", CTLFLAG_RD,
-	    &rack_paced_segments,
-	    "Total number of times a segment send caused hptsi");
-	rack_unpaced_segments = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "unpaced", CTLFLAG_RD,
-	    &rack_unpaced_segments,
-	    "Total number of times a segment did not cause hptsi");
 	rack_saw_enobuf = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -1768,23 +1629,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "split_limited", CTLFLAG_RD,
 	    &rack_split_limited,
 	    "Split allocations dropped due to limit");
-
-	for (i = 0; i < MAX_NUM_OF_CNTS; i++) {
-		char name[32];
-		sprintf(name, "cmp_ack_cnt_%d", i);
-		rack_proc_comp_ack[i] = counter_u64_alloc(M_WAITOK);
-		SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-				       SYSCTL_CHILDREN(rack_counters),
-				       OID_AUTO, name, CTLFLAG_RD,
-				       &rack_proc_comp_ack[i],
-				       "Number of compressed acks we processed");
-	}
-	rack_large_ackcmp = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "cmp_large_mbufs", CTLFLAG_RD,
-	    &rack_large_ackcmp,
-	    "Number of TCP connections with large mbuf's for compressed acks");
 	rack_persists_sends = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -1809,12 +1653,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "persist_loss_ends", CTLFLAG_RD,
 	    &rack_persists_lost_ends,
 	    "Number of lost persist probe (no ack) that the run ended with a PERSIST abort");
-	rack_small_ackcmp = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "cmp_small_mbufs", CTLFLAG_RD,
-	    &rack_small_ackcmp,
-	    "Number of TCP connections with small mbuf's for compressed acks");
 #ifdef INVARIANTS
 	rack_adjust_map_bw = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
@@ -1855,24 +1693,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "sack_short", CTLFLAG_RD,
 	    &rack_sack_proc_short,
 	    "Total times we took shortcut for sack processing");
-	rack_enter_tlp_calc = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tlp_calc_entered", CTLFLAG_RD,
-	    &rack_enter_tlp_calc,
-	    "Total times we called calc-tlp");
-	rack_used_tlpmethod = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "hit_tlp_method", CTLFLAG_RD,
-	    &rack_used_tlpmethod,
-	    "Total number of runt sacks");
-	rack_used_tlpmethod2 = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "hit_tlp_method2", CTLFLAG_RD,
-	    &rack_used_tlpmethod2,
-	    "Total number of times we hit TLP method 2");
 	rack_sack_skipped_acked = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_attack),
@@ -1885,12 +1705,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "ofsplit", CTLFLAG_RD,
 	    &rack_sack_splits,
 	    "Total number of times we did the old fashion tree split");
-	rack_progress_drops = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "prog_drops", CTLFLAG_RD,
-	    &rack_progress_drops,
-	    "Total number of progress drops");
 	rack_input_idle_reduces = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -1903,37 +1717,12 @@ rack_init_sysctls(void)
 	    OID_AUTO, "collapsed_win", CTLFLAG_RD,
 	    &rack_collapsed_win,
 	    "Total number of collapsed windows");
-	rack_tlp_does_nada = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tlp_nada", CTLFLAG_RD,
-	    &rack_tlp_does_nada,
-	    "Total number of nada tlp calls");
 	rack_try_scwnd = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
 	    OID_AUTO, "tried_scwnd", CTLFLAG_RD,
 	    &rack_try_scwnd,
 	    "Total number of scwnd attempts");
-
-	rack_per_timer_hole = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "timer_hole", CTLFLAG_RD,
-	    &rack_per_timer_hole,
-	    "Total persists start in timer hole");
-
-	rack_sbsndptr_wrong = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "sndptr_wrong", CTLFLAG_RD,
-	    &rack_sbsndptr_wrong, "Total number of times the saved sbsndptr was incorrect");
-	rack_sbsndptr_right = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "sndptr_right", CTLFLAG_RD,
-	    &rack_sbsndptr_right, "Total number of times the saved sbsndptr was correct");
-
 	COUNTER_ARRAY_ALLOC(rack_out_size, TCP_MSS_ACCT_SIZE, M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64_ARRAY(&rack_sysctl_ctx, SYSCTL_CHILDREN(rack_sysctl_root),
 	    OID_AUTO, "outsize", CTLFLAG_RD,
@@ -2894,8 +2683,6 @@ rack_log_sad(struct tcp_rack *rack, int event)
 static void
 rack_counter_destroy(void)
 {
-	int i;
-
 	counter_u64_free(rack_fto_send);
 	counter_u64_free(rack_fto_rsm_send);
 	counter_u64_free(rack_nfto_resend);
@@ -2912,25 +2699,11 @@ rack_counter_destroy(void)
 	counter_u64_free(rack_sack_attacks_reversed);
 	counter_u64_free(rack_sack_used_next_merge);
 	counter_u64_free(rack_sack_used_prev_merge);
-	counter_u64_free(rack_badfr);
-	counter_u64_free(rack_badfr_bytes);
-	counter_u64_free(rack_rtm_prr_retran);
-	counter_u64_free(rack_rtm_prr_newdata);
-	counter_u64_free(rack_timestamp_mismatch);
-	counter_u64_free(rack_find_high);
-	counter_u64_free(rack_reorder_seen);
 	counter_u64_free(rack_tlp_tot);
 	counter_u64_free(rack_tlp_newdata);
 	counter_u64_free(rack_tlp_retran);
 	counter_u64_free(rack_tlp_retran_bytes);
-	counter_u64_free(rack_tlp_retran_fail);
 	counter_u64_free(rack_to_tot);
-	counter_u64_free(rack_to_arm_rack);
-	counter_u64_free(rack_to_arm_tlp);
-	counter_u64_free(rack_calc_zero);
-	counter_u64_free(rack_calc_nonzero);
-	counter_u64_free(rack_paced_segments);
-	counter_u64_free(rack_unpaced_segments);
 	counter_u64_free(rack_saw_enobuf);
 	counter_u64_free(rack_saw_enobuf_hw);
 	counter_u64_free(rack_saw_enetunreach);
@@ -2941,27 +2714,16 @@ rack_counter_destroy(void)
 	counter_u64_free(rack_to_alloc_limited);
 	counter_u64_free(rack_alloc_limited_conns);
 	counter_u64_free(rack_split_limited);
-	for (i = 0; i < MAX_NUM_OF_CNTS; i++) {
-		counter_u64_free(rack_proc_comp_ack[i]);
-	}
 	counter_u64_free(rack_multi_single_eq);
 	counter_u64_free(rack_proc_non_comp_ack);
 	counter_u64_free(rack_sack_proc_all);
 	counter_u64_free(rack_sack_proc_restart);
 	counter_u64_free(rack_sack_proc_short);
-	counter_u64_free(rack_enter_tlp_calc);
-	counter_u64_free(rack_used_tlpmethod);
-	counter_u64_free(rack_used_tlpmethod2);
 	counter_u64_free(rack_sack_skipped_acked);
 	counter_u64_free(rack_sack_splits);
-	counter_u64_free(rack_progress_drops);
 	counter_u64_free(rack_input_idle_reduces);
 	counter_u64_free(rack_collapsed_win);
-	counter_u64_free(rack_tlp_does_nada);
 	counter_u64_free(rack_try_scwnd);
-	counter_u64_free(rack_per_timer_hole);
-	counter_u64_free(rack_large_ackcmp);
-	counter_u64_free(rack_small_ackcmp);
 	counter_u64_free(rack_persists_sends);
 	counter_u64_free(rack_persists_acks);
 	counter_u64_free(rack_persists_loss);
@@ -3085,8 +2847,6 @@ rack_free(struct tcp_rack *rack, struct rack_sendmap *rsm)
 	}
 	if (rsm == rack->r_ctl.rc_resend)
 		rack->r_ctl.rc_resend = NULL;
-	if (rsm == rack->r_ctl.rc_rsm_at_retran)
-		rack->r_ctl.rc_rsm_at_retran = NULL;
 	if (rsm == rack->r_ctl.rc_end_appl)
 		rack->r_ctl.rc_end_appl = NULL;
 	if (rack->r_ctl.rc_tlpsend == rsm)
@@ -5126,7 +4886,6 @@ rack_find_high_nonack(struct tcp_rack *rack, struct rack_sendmap *rsm)
 	 * the highest seq not acked. In theory when this is called it
 	 * should be the last segment (which it was not).
 	 */
-	counter_u64_add(rack_find_high, 1);
 	prsm = rsm;
 	RB_FOREACH_REVERSE_FROM(prsm, rack_rb_tree_head, rsm) {
 		if (prsm->r_flags & (RACK_ACKED | RACK_HAS_FIN)) {
@@ -5240,7 +4999,6 @@ rack_calc_thresh_tlp(struct tcpcb *tp, struct tcp_rack *rack,
 
 	/* Get the previous sent packet, if any */
 	segsiz = min(ctf_fixed_maxseg(tp), rack->r_ctl.rc_pace_min_segs);
-	counter_u64_add(rack_enter_tlp_calc, 1);
 	len = rsm->r_end - rsm->r_start;
 	if (rack->rack_tlp_threshold_use == TLP_USE_ID) {
 		/* Exactly like the ID */
@@ -5291,7 +5049,6 @@ rack_calc_thresh_tlp(struct tcpcb *tp, struct tcp_rack *rack,
 			/*
 			 * Compensate for delayed-ack with the d-ack time.
 			 */
-			counter_u64_add(rack_used_tlpmethod, 1);
 			alt_thresh = srtt + (srtt / 2) + rack_delayed_ack_time;
 			if (alt_thresh > thresh)
 				thresh = alt_thresh;
@@ -5366,15 +5123,6 @@ rack_check_recovery_mode(struct tcpcb *tp, uint32_t tsused)
 		return (NULL);
 	}
 	/* Ok if we reach here we are over-due and this guy can be sent */
-	if (IN_RECOVERY(tp->t_flags) == 0) {
-		/*
-		 * For the one that enters us into recovery record undo
-		 * info.
-		 */
-		rack->r_ctl.rc_rsm_start = rsm->r_start;
-		rack->r_ctl.rc_cwnd_at = tp->snd_cwnd;
-		rack->r_ctl.rc_ssthresh_at = tp->snd_ssthresh;
-	}
 	rack_cong_signal(tp, CC_NDUPACK, tp->snd_una);
 	return (rsm);
 }
@@ -5966,7 +5714,6 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		 */
 		slot = hpts_timeout;
 	}
-	rack->r_ctl.last_pacing_time = slot;
 	/**
 	 * Turn off all the flags for queuing by default. The
 	 * flags have important meanings to what happens when
@@ -6409,7 +6156,6 @@ need_retran:
 			}
 		}
 		if (rsm == NULL) {
-			counter_u64_add(rack_tlp_does_nada, 1);
 #ifdef TCP_BLACKBOX
 			tcp_log_dump_tp_logbuf(tp, "nada counter trips", M_NOWAIT, true);
 #endif
@@ -6430,7 +6176,6 @@ need_retran:
 			/* None? if so send the first */
 			rsm = RB_MIN(rack_rb_tree_head, &rack->r_ctl.rc_mtree);
 			if (rsm == NULL) {
-				counter_u64_add(rack_tlp_does_nada, 1);
 #ifdef TCP_BLACKBOX
 				tcp_log_dump_tp_logbuf(tp, "nada counter trips", M_NOWAIT, true);
 #endif
@@ -6450,7 +6195,6 @@ need_retran:
 			 * No memory to split, we will just exit and punt
 			 * off to the RXT timer.
 			 */
-			counter_u64_add(rack_tlp_does_nada, 1);
 			goto out;
 		}
 		rack_clone_rsm(rack, nrsm, rsm,
@@ -7502,7 +7246,6 @@ rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
 		/* We don't log zero window probes */
 		return;
 	}
-	rack->r_ctl.rc_time_last_sent = cts;
 	if (IN_FASTRECOVERY(tp->t_flags)) {
 		rack->r_ctl.rc_prr_out += len;
 	}
@@ -7571,9 +7314,7 @@ again:
 							     __func__, rack, s_moff, s_mb, rsm->soff));
 				}
 				rsm->m = lm;
-				counter_u64_add(rack_sbsndptr_wrong, 1);
-			} else
-				counter_u64_add(rack_sbsndptr_right, 1);
+			}
 			rsm->orig_m_len = rsm->m->m_len;
 		} else
 			rsm->orig_m_len = 0;
@@ -7953,12 +7694,6 @@ rack_apply_updated_usrtt(struct tcp_rack *rack, uint32_t us_rtt, uint32_t us_cts
 	old_rtt = get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt);
 	apply_filter_min_small(&rack->r_ctl.rc_gp_min_rtt,
 			       us_rtt, us_cts);
-	if (rack->r_ctl.last_pacing_time &&
-	    rack->rc_gp_dyn_mul &&
-	    (rack->r_ctl.last_pacing_time > us_rtt))
-		rack->pacing_longer_than_rtt = 1;
-	else
-		rack->pacing_longer_than_rtt = 0;
 	if (old_rtt > us_rtt) {
 		/* We just hit a new lower rtt time */
 		rack_log_rtt_shrinks(rack,  us_cts,  old_rtt,
@@ -8095,9 +7830,6 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 		    (!IN_FASTRECOVERY(tp->t_flags))) {
 			/* Segment was a TLP and our retrans matched */
 			if (rack->r_ctl.rc_tlp_cwnd_reduce) {
-				rack->r_ctl.rc_rsm_start = tp->snd_max;
-				rack->r_ctl.rc_cwnd_at = tp->snd_cwnd;
-				rack->r_ctl.rc_ssthresh_at = tp->snd_ssthresh;
 				rack_cong_signal(tp, CC_NDUPACK, tp->snd_una);
 			}
 		}
@@ -8539,7 +8271,6 @@ do_rest_ofb:
 				changed += (nrsm->r_end - nrsm->r_start);
 				rack->r_ctl.rc_sacked += (nrsm->r_end - nrsm->r_start);
 				if (nrsm->r_flags & RACK_SACK_PASSED) {
-					counter_u64_add(rack_reorder_seen, 1);
 					rack->r_ctl.rc_reorder_ts = cts;
 				}
 				/*
@@ -8703,7 +8434,6 @@ do_rest_ofb:
 			/* Is Reordering occuring? */
 			if (rsm->r_flags & RACK_SACK_PASSED) {
 				rsm->r_flags &= ~RACK_SACK_PASSED;
-				counter_u64_add(rack_reorder_seen, 1);
 				rack->r_ctl.rc_reorder_ts = cts;
 			}
 			if (rack->app_limited_needs_set)
@@ -8827,7 +8557,6 @@ do_rest_ofb:
 			changed += (nrsm->r_end - nrsm->r_start);
 			rack->r_ctl.rc_sacked += (nrsm->r_end - nrsm->r_start);
 			if (nrsm->r_flags & RACK_SACK_PASSED) {
-				counter_u64_add(rack_reorder_seen, 1);
 				rack->r_ctl.rc_reorder_ts = cts;
 			}
 			rack_log_map_chg(tp, rack, prev, &stack_map, rsm, MAP_SACK_M4, end, __LINE__);
@@ -8924,7 +8653,6 @@ do_rest_ofb:
 			/* Is Reordering occuring? */
 			if (rsm->r_flags & RACK_SACK_PASSED) {
 				rsm->r_flags &= ~RACK_SACK_PASSED;
-				counter_u64_add(rack_reorder_seen, 1);
 				rack->r_ctl.rc_reorder_ts = cts;
 			}
 			if (rack->app_limited_needs_set)
@@ -9265,7 +8993,6 @@ more:
 			 * reordering.
 			 */
 			rsm->r_flags &= ~RACK_SACK_PASSED;
-			counter_u64_add(rack_reorder_seen, 1);
 			rsm->r_ack_arrival = rack_to_usec_ts(&rack->r_ctl.act_rcv_time);
 			rsm->r_flags |= RACK_ACKED;
 			rack->r_ctl.rc_reorder_ts = cts;
@@ -9408,7 +9135,6 @@ rack_handle_might_revert(struct tcpcb *tp, struct tcp_rack *rack)
 
 			rack->r_ent_rec_ns = 0;
 			orig_cwnd = tp->snd_cwnd;
-			tp->snd_cwnd = rack->r_ctl.rc_cwnd_at_erec;
 			tp->snd_ssthresh = rack->r_ctl.rc_ssthresh_at_erec;
 			tp->snd_recover = tp->snd_una;
 			rack_log_to_prr(rack, 14, orig_cwnd);
@@ -9955,9 +9681,6 @@ out:
 	if ((!IN_FASTRECOVERY(tp->t_flags)) &&
 	    rsm) {
 		/* Enter recovery */
-		rack->r_ctl.rc_rsm_start = rsm->r_start;
-		rack->r_ctl.rc_cwnd_at = tp->snd_cwnd;
-		rack->r_ctl.rc_ssthresh_at = tp->snd_ssthresh;
 		entered_recovery = 1;
 		rack_cong_signal(tp, CC_NDUPACK, tp->snd_una);
 		/*
@@ -10331,7 +10054,6 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * less than and we have not closed our window.
 		 */
 		if (SEQ_LT(th->th_ack, tp->snd_una) && (sbspace(&so->so_rcv) > ctf_fixed_maxseg(tp))) {
-			counter_u64_add(rack_reorder_seen, 1);
 			rack->r_ctl.rc_reorder_ts = tcp_tv_to_usectick(&rack->r_ctl.act_rcv_time);
 		}
 		return (0);
@@ -12736,8 +12458,6 @@ rack_init(struct tcpcb *tp)
 	rack->r_ctl.rc_min_to = rack_min_to;
 	microuptime(&rack->r_ctl.act_rcv_time);
 	rack->r_ctl.rc_last_time_decay = rack->r_ctl.act_rcv_time;
-	rack->r_running_late = 0;
-	rack->r_running_early = 0;
 	rack->rc_init_win = rack_default_init_window;
 	rack->r_ctl.rack_per_of_gp_ss = rack_per_of_gp_ss;
 	if (rack_hw_up_only)
@@ -12859,9 +12579,9 @@ rack_init(struct tcpcb *tp)
 	tp->t_rttlow = TICKS_2_USEC(tp->t_rttlow);
 	if (rack_do_hystart) {
 		tp->ccv->flags |= CCF_HYSTART_ALLOWED;
-		if (rack_do_hystart > 1) 
+		if (rack_do_hystart > 1)
 			tp->ccv->flags |= CCF_HYSTART_CAN_SH_CWND;
-		if (rack_do_hystart > 2) 
+		if (rack_do_hystart > 2)
 			tp->ccv->flags |= CCF_HYSTART_CONS_SSTH;
 	}
 	if (rack_def_profile)
@@ -12953,8 +12673,6 @@ rack_handoff_ok(struct tcpcb *tp)
 static void
 rack_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 {
-	int ack_cmp = 0;
-
 	if (tp->t_fb_ptr) {
 		struct tcp_rack *rack;
 		struct rack_sendmap *rsm, *nrsm;
@@ -12982,16 +12700,6 @@ rack_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 				m->m_nextpkt = NULL;
 				m_freem(m);
 				m = save;
-			}
-			if ((tp->t_inpcb) &&
-			    (tp->t_inpcb->inp_flags2 & INP_MBUF_ACKCMP))
-				ack_cmp = 1;
-			if (ack_cmp) {
-				/* Total if we used large or small (if ack-cmp was used). */
-				if (rack->rc_inp->inp_flags2 & INP_MBUF_L_ACKS)
-					counter_u64_add(rack_large_ackcmp, 1);
-				else
-					counter_u64_add(rack_small_ackcmp, 1);
 			}
 		}
 		tp->t_flags &= ~TF_FORCEDATA;
@@ -13545,7 +13253,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	int nsegs = 0;
 	int under_pacing = 1;
 	int recovery = 0;
-	int idx;
 #ifdef TCP_ACCOUNTING
 	sched_pin();
 #endif
@@ -13589,10 +13296,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	KASSERT((m->m_len >= sizeof(struct tcp_ackent)),
 		("tp:%p m_cmpack:%p with invalid len:%u", tp, m, m->m_len));
 	cnt = m->m_len / sizeof(struct tcp_ackent);
-	idx = cnt / 5;
-	if (idx >= MAX_NUM_OF_CNTS)
-		idx = MAX_NUM_OF_CNTS - 1;
-	counter_u64_add(rack_proc_comp_ack[idx], 1);
 	counter_u64_add(rack_multi_single_eq, cnt);
 	high_seq = tp->snd_una;
 	the_win = tp->snd_wnd;
@@ -13600,6 +13303,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 	win_upd_ack = tp->snd_wl2;
 	cts = tcp_tv_to_usectick(tv);
 	ms_cts = tcp_tv_to_mssectick(tv);
+	rack->r_ctl.rc_rcvtime = cts;
 	segsiz = ctf_fixed_maxseg(tp);
 	if ((rack->rc_gp_dyn_mul) &&
 	    (rack->use_fixed_rate == 0) &&
@@ -13615,6 +13319,8 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		ae = ((mtod(m, struct tcp_ackent *)) + i);
 		/* Setup the window */
 		tiwin = ae->win << tp->snd_scale;
+		if (tiwin > rack->r_ctl.rc_high_rwnd)
+			rack->r_ctl.rc_high_rwnd = tiwin;
 		/* figure out the type of ack */
 		if (SEQ_LT(ae->ack, high_seq)) {
 			/* Case B*/
@@ -13704,7 +13410,6 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			 * or it could be a keep-alive or persists
 			 */
 			if (SEQ_LT(ae->ack, tp->snd_una) && (sbspace(&so->so_rcv) > segsiz)) {
-				counter_u64_add(rack_reorder_seen, 1);
 				rack->r_ctl.rc_reorder_ts = tcp_tv_to_usectick(&rack->r_ctl.act_rcv_time);
 			}
 		} else if (ae->ack_val_set == ACK_DUPACK) {
@@ -13775,7 +13480,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 					tcp_log_event_(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
 						       0, &log, false, NULL, NULL, 0, &tv);
 				}
-				/* 
+				/*
 				 * The draft (v3) calls for us to use SEQ_GEQ, but that
 				 * causes issues when we are just going app limited. Lets
 				 * instead use SEQ_GT <or> where its equal but more data
@@ -14659,7 +14364,7 @@ do_output_now:
 			tcp_log_event_(tp, NULL, NULL, NULL, BBR_LOG_CWND, 0,
 				       0, &log, false, NULL, NULL, 0, &tv);
 		}
-		/* 
+		/*
 		 * The draft (v3) calls for us to use SEQ_GEQ, but that
 		 * causes issues when we are just going app limited. Lets
 		 * instead use SEQ_GT <or> where its equal but more data
@@ -15355,10 +15060,6 @@ done_w_hdwr:
 			hw_boost_delay = rack_enobuf_hw_min;
 		slot += hw_boost_delay;
 	}
-	if (slot)
-		counter_u64_add(rack_calc_nonzero, 1);
-	else
-		counter_u64_add(rack_calc_zero, 1);
 	return (slot);
 }
 
@@ -17105,9 +16806,6 @@ again:
 		if ((!IN_FASTRECOVERY(tp->t_flags)) &&
 		    ((tp->t_flags & TF_WASFRECOVERY) == 0)) {
 			/* Enter recovery if not induced by a time-out */
-			rack->r_ctl.rc_rsm_start = rsm->r_start;
-			rack->r_ctl.rc_cwnd_at = tp->snd_cwnd;
-			rack->r_ctl.rc_ssthresh_at = tp->snd_ssthresh;
 			rack_cong_signal(tp, CC_NDUPACK, tp->snd_una);
 		}
 #ifdef INVARIANTS
@@ -17130,7 +16828,6 @@ again:
 			KMOD_TCPSTAT_INC(tcps_sack_rexmits);
 			KMOD_TCPSTAT_ADD(tcps_sack_rexmit_bytes,
 			    min(len, segsiz));
-			counter_u64_add(rack_rtm_prr_retran, 1);
 		}
 	} else if (rack->r_ctl.rc_tlpsend) {
 		/* Tail loss probe */
@@ -17239,10 +16936,6 @@ again:
 			flags &= ~TH_FIN;
 		}
 	}
-#ifdef INVARIANTS
-	/* For debugging */
-	rack->r_ctl.rc_rsm_at_retran = rsm;
-#endif
 	if (rsm && rack->r_fsb_inited && rack_use_rsm_rfo &&
 	    ((rsm->r_flags & RACK_HAS_FIN) == 0)) {
 		int ret;
@@ -17400,7 +17093,6 @@ again:
 				}
 				if (len > 0) {
 					sub_from_prr = 1;
-					counter_u64_add(rack_rtm_prr_newdata, 1);
 				}
 			}
 			if (len > segsiz) {
@@ -18039,12 +17731,6 @@ just_return_nolock:
 								   rack->r_ctl.rc_app_limited_cnt, seq,
 								   tp->gput_ack, 0, 0, 4, __LINE__, NULL, 0);
 			}
-		}
-		if (slot) {
-			/* set the rack tcb into the slot N */
-			counter_u64_add(rack_paced_segments, 1);
-		} else if (tot_len_this_send) {
-			counter_u64_add(rack_unpaced_segments, 1);
 		}
 		/* Check if we need to go into persists or not */
 		if ((tp->snd_max == tp->snd_una) &&
@@ -19310,7 +18996,6 @@ enobufs:
 	}
 	if (slot) {
 		/* set the rack tcb into the slot N */
-		counter_u64_add(rack_paced_segments, 1);
 		if ((error == 0) &&
 		    rack_use_rfo &&
 		    ((flags & (TH_SYN|TH_FIN)) == 0) &&
@@ -19358,8 +19043,6 @@ enobufs:
 	} else if (sendalot) {
 		int ret;
 
-		if (len)
-			counter_u64_add(rack_unpaced_segments, 1);
 		sack_rxmit = 0;
 		if ((error == 0) &&
 		    rack_use_rfo &&
@@ -19413,8 +19096,6 @@ enobufs:
 			}
 		}
 		goto again;
-	} else if (len) {
-		counter_u64_add(rack_unpaced_segments, 1);
 	}
 	/* Assure when we leave that snd_nxt will point to top */
 	if (SEQ_GT(tp->snd_max, tp->snd_nxt))
@@ -20245,9 +19926,9 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 	{
 		if (optval) {
 			tp->ccv->flags |= CCF_HYSTART_ALLOWED;
-			if (rack_do_hystart > RACK_HYSTART_ON) 
+			if (rack_do_hystart > RACK_HYSTART_ON)
 				tp->ccv->flags |= CCF_HYSTART_CAN_SH_CWND;
-			if (rack_do_hystart > RACK_HYSTART_ON_W_SC) 
+			if (rack_do_hystart > RACK_HYSTART_ON_W_SC)
 				tp->ccv->flags |= CCF_HYSTART_CONS_SSTH;
 		} else {
 			tp->ccv->flags &= ~(CCF_HYSTART_ALLOWED|CCF_HYSTART_CAN_SH_CWND|CCF_HYSTART_CONS_SSTH);
