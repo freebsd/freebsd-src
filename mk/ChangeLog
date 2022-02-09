@@ -1,3 +1,14 @@
+2022-02-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220206
+
+	* cc-wrap.mk: docuement how CCACHE etc might be set for
+	maximum flexibility
+
+2022-02-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.vars.mk: use JOT_CMD (jot or seq) if available for M_JOT
+
 2022-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20220204

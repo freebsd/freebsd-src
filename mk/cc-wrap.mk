@@ -1,4 +1,4 @@
-# $Id: cc-wrap.mk,v 1.4 2022/02/02 17:41:56 sjg Exp $
+# $Id: cc-wrap.mk,v 1.5 2022/02/07 19:02:55 sjg Exp $
 #
 #	@(#) Copyright (c) 2022, Simon J. Gerraty
 #
@@ -30,6 +30,11 @@ CC_WRAP_LIST := ${CC_WRAP_LIST:O:u}
 # what might we wrap them with?
 CC_WRAPPERS += ccache distcc icecc
 CC_WRAPPERS := ${CC_WRAPPERS:O:u}
+# $W can be as simple or complicated as you like (default is just $w)
+# eg.
+# CCACHE ?= ${CCACHE_ENV_VARS:@v@$v='${$v}'@} ${CCACHE_CMD} ${CCACHE_FLAGS}
+# or if you want global vars to be used modifiable after this include:
+# CCACHE ?= $${CCACHE_ENV_VARS:@v@$$v='$${$$v}'@} $${CCACHE_CMD} $${CCACHE_FLAGS}
 .for w in ${CC_WRAPPERS}
 ${w:tu} ?= $w
 .endfor
