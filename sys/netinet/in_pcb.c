@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
-#include <sys/sysctl.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
@@ -2831,6 +2830,7 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 	sopt.sopt_val = params->sop_optval;
 	sopt.sopt_valsize = req->newlen - sizeof(struct sockopt_parameters);
 	sopt.sopt_td = NULL;
+#ifdef INET6
 	if (params->sop_inc.inc_flags & INC_ISIPV6) {
 		if (IN6_IS_SCOPE_LINKLOCAL(&params->sop_inc.inc6_laddr))
 			params->sop_inc.inc6_laddr.s6_addr16[1] =
@@ -2839,11 +2839,13 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 			params->sop_inc.inc6_faddr.s6_addr16[1] =
 			    htons(params->sop_inc.inc6_zoneid & 0xffff);
 	}
+#endif
 	if (params->sop_inc.inc_lport != htons(0)) {
 		if (params->sop_inc.inc_fport == htons(0))
 			inpi.hash = INP_PCBHASH_WILD(params->sop_inc.inc_lport,
 			    pcbinfo->ipi_hashmask);
 		else
+#ifdef INET6
 			if (params->sop_inc.inc_flags & INC_ISIPV6)
 				inpi.hash = INP6_PCBHASH(
 				    &params->sop_inc.inc6_faddr,
@@ -2851,6 +2853,7 @@ sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 				    params->sop_inc.inc_fport,
 				    pcbinfo->ipi_hashmask);
 			else
+#endif
 				inpi.hash = INP_PCBHASH(
 				    &params->sop_inc.inc_faddr,
 				    params->sop_inc.inc_lport,
