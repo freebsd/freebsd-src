@@ -5007,7 +5007,6 @@ rack_calc_thresh_tlp(struct tcpcb *tp, struct tcp_rack *rack,
 			/*
 			 * Compensate for delayed-ack with the d-ack time.
 			 */
-			counter_u64_add(rack_used_tlpmethod, 1);
 			alt_thresh = srtt + (srtt / 2) + rack_delayed_ack_time;
 			if (alt_thresh > thresh)
 				thresh = alt_thresh;
@@ -5023,7 +5022,6 @@ rack_calc_thresh_tlp(struct tcpcb *tp, struct tcp_rack *rack,
 			uint32_t inter_gap = 0;
 			int idx, nidx;
 
-			counter_u64_add(rack_used_tlpmethod, 1);
 			idx = rsm->r_rtr_cnt - 1;
 			nidx = prsm->r_rtr_cnt - 1;
 			if (rsm->r_tim_lastsent[nidx] >= prsm->r_tim_lastsent[idx]) {
@@ -5037,7 +5035,6 @@ rack_calc_thresh_tlp(struct tcpcb *tp, struct tcp_rack *rack,
 			 */
 			uint32_t alt_thresh;
 
-			counter_u64_add(rack_used_tlpmethod2, 1);
 			alt_thresh = srtt + (srtt / 2) + rack_delayed_ack_time;
 			if (alt_thresh > thresh)
 				thresh = alt_thresh;
