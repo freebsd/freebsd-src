@@ -21,8 +21,10 @@
 
 #if defined(_MSC_VER)
 #define BLAKE2_PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))
-#else
+#elif defined(__GNUC__)
 #define BLAKE2_PACKED(x) x __attribute__((packed))
+#else
+#define BLAKE2_PACKED(x) _Pragma("pack 1") x _Pragma("pack 0")
 #endif
 
 #if defined(__cplusplus)

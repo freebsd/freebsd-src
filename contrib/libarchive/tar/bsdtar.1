@@ -470,6 +470,11 @@ This is the reverse of
 and the default behavior if
 .Nm
 is run as non-root in x mode.
+.It Fl Fl no-read-sparse
+(c, r, u modes only)
+Do not read sparse file information from disk.
+This is the reverse of
+.Fl Fl read-sparse .
 .It Fl Fl no-safe-writes
 (x mode only)
 Do not create temporary files and use
@@ -633,10 +638,20 @@ a compression dictionary to improve compression ratio.
 .It Cm zstd:compression-level
 A decimal integer specifying the zstd compression level. Supported values depend
 on the library version, common values are from 1 to 22.
+.It Cm zstd:threads
+Specify the number of worker threads to use.
+Setting threads to a special value 0 makes
+.Xr zstd 1
+use as many threads as there are CPU cores on the system.
 .It Cm lzop:compression-level
 A decimal integer from 1 to 9 specifying the lzop compression level.
 .It Cm xz:compression-level
 A decimal integer from 0 to 9 specifying the xz compression level.
+.It Cm xz:threads
+Specify the number of worker threads to use.
+Setting threads to a special value 0 makes
+.Xr xz 1
+use as many threads as there are CPU cores on the system.
 .It Cm mtree: Ns Ar keyword
 The mtree writer module allows you to specify which mtree keywords
 will be included in the output.
@@ -730,6 +745,12 @@ By default, the archive is always read to the very end, since
 there can be multiple entries with the same name and, by convention,
 later entries overwrite earlier entries.
 This option is provided as a performance optimization.
+.It Fl Fl read-sparse
+(c, r, u modes only)
+Read sparse file information from disk.
+This is the reverse of
+.Fl Fl no-read-sparse
+and the default behavior.
 .It Fl S
 (x mode only)
 Extract files as sparse files.

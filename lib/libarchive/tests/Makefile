@@ -19,6 +19,8 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR:H} -I${.OBJDIR}
 CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive -I${_LIBARCHIVEDIR}/libarchive/test
 CFLAGS+= -I${_LIBARCHIVEDIR}/test_utils
 
+CFLAGS.test_utils.c+=	-Wno-cast-align
+
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
@@ -79,6 +81,7 @@ TESTS_SRCS= \
 	test_compat_solaris_tar_acl.c		\
 	test_compat_solaris_pax_sparse.c	\
 	test_compat_star_acl.c			\
+	test_compat_tar_directory.c		\
 	test_compat_tar_hardlink.c		\
 	test_compat_uudecode.c			\
 	test_compat_uudecode_large.c		\
@@ -167,6 +170,7 @@ TESTS_SRCS= \
 	test_read_format_rar_encryption_data.c	\
 	test_read_format_rar_encryption_header.c	\
 	test_read_format_rar_encryption_partially.c	\
+	test_read_format_rar_filter.c		\
 	test_read_format_rar_invalid1.c		\
 	test_read_format_raw.c			\
 	test_read_format_tar.c			\
@@ -291,6 +295,7 @@ TESTS_SRCS= \
 	test_write_format_zip_compression_store.c	\
 	test_write_format_zip_empty.c		\
 	test_write_format_zip_empty_zip64.c	\
+	test_write_format_zip_entry_size_unset.c	\
 	test_write_format_zip_file.c		\
 	test_write_format_zip_file_zip64.c	\
 	test_write_format_zip_large.c		\
@@ -380,6 +385,7 @@ ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_2.pax.Z.uu
 ${PACKAGE}FILES+=	test_compat_solaris_tar_acl.tar.uu
 ${PACKAGE}FILES+=	test_compat_star_acl_nfs4.tar.uu
 ${PACKAGE}FILES+=	test_compat_star_acl_posix1e.tar.uu
+${PACKAGE}FILES+=	test_compat_tar_directory_1.tar.uu
 ${PACKAGE}FILES+=	test_compat_tar_hardlink_1.tar.uu
 ${PACKAGE}FILES+=	test_compat_uudecode_large.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_xz_1.txz.uu
@@ -517,6 +523,7 @@ ${PACKAGE}FILES+=	test_read_format_rar_compress_normal.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_data.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_header.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_encryption_partially.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar_filter.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_invalid1.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multi_lzss_blocks.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_multivolume.part0001.rar.uu
@@ -533,9 +540,11 @@ ${PACKAGE}FILES+=	test_read_format_rar_unicode.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar_windows.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_arm.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_arm_filter_on_window_boundary.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_bad_window_sz_in_mltarc_file.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_blake2.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_block_size_is_too_small.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_compressed.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_decode_number_out_of_bounds_read.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_solid_window_size.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_window_size.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_different_winsize_on_merge.rar.uu
@@ -563,12 +572,14 @@ ${PACKAGE}FILES+=	test_read_format_rar5_multiple_files_solid.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_nonempty_dir_stream.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_owner.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_readtables_overflow.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_sfx.exe.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_solid.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_stored.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_stored_manyfiles.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_symlink.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_truncated_huff.rar.uu
 ${PACKAGE}FILES+=	test_read_format_rar5_win32.rar.uu
+${PACKAGE}FILES+=	test_read_format_rar5_window_buf_and_size_desync.rar.uu
 ${PACKAGE}FILES+=	test_read_format_raw.bufr.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.Z.uu
 ${PACKAGE}FILES+=	test_read_format_raw.data.gz.uu
@@ -632,6 +643,8 @@ ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes256_stored.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_xz_multi.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_zip64a.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_zip64b.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_zstd.zipx.uu
+${PACKAGE}FILES+=	test_read_format_zip_zstd_multi.zipx.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_aa.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ab.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_ac.uu

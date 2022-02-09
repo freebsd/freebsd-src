@@ -573,11 +573,15 @@ archive_read_format_tar_read_header(struct archive_read *a,
 			l = wcslen(wp);
 			if (l > 0 && wp[l - 1] == L'/') {
 				archive_entry_set_filetype(entry, AE_IFDIR);
+				tar->entry_bytes_remaining = 0;
+				tar->entry_padding = 0;
 			}
 		} else if ((p = archive_entry_pathname(entry)) != NULL) {
 			l = strlen(p);
 			if (l > 0 && p[l - 1] == '/') {
 				archive_entry_set_filetype(entry, AE_IFDIR);
+				tar->entry_bytes_remaining = 0;
+				tar->entry_padding = 0;
 			}
 		}
 	}
@@ -1396,6 +1400,7 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, size_t *unconsumed)
 {
 	int64_t size;
+	size_t msize;
 	const void *data;
 	const char *p, *name;
 	const wchar_t *wp, *wname;
@@ -1434,6 +1439,11 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 
  	/* Read the body as a Mac OS metadata blob. */
 	size = archive_entry_size(entry);
+	msize = (size_t)size;
+	if (size < 0 || (uintmax_t)msize != (uintmax_t)size) {
+		*unconsumed = 0;
+		return (ARCHIVE_FATAL);
+	}
 
 	/*
 	 * TODO: Look beyond the body here to peek at the next header.
@@ -1447,13 +1457,13 @@ read_mac_metadata_blob(struct archive_read *a, struct tar *tar,
 	 * Q: Is the above idea really possible?  Even
 	 * when there are GNU or pax extension entries?
 	 */
-	data = __archive_read_ahead(a, (size_t)size, NULL);
+	data = __archive_read_ahead(a, msize, NULL);
 	if (data == NULL) {
 		*unconsumed = 0;
 		return (ARCHIVE_FATAL);
 	}
-	archive_entry_copy_mac_metadata(entry, data, (size_t)size);
-	*unconsumed = (size_t)((size + 511) & ~ 511);
+	archive_entry_copy_mac_metadata(entry, data, msize);
+	*unconsumed = (msize + 511) & ~ 511;
 	tar_flush_unconsumed(a, unconsumed);
 	return (tar_read_header(a, tar, entry, unconsumed));
 }

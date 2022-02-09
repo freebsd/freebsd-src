@@ -740,12 +740,16 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		/* We may know the size, but never the CRC. */
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 	} else {
-		/* We don't know the size.  In this case, we prefer
-		 * deflate (it has a clear end-of-data marker which
-		 * makes length-at-end more reliable) and will
-		 * enable Zip64 extensions unless we're told not to.
+		/* We don't know the size. Use the default
+		 * compression unless specified otherwise.
+		 * We enable Zip64 extensions unless we're told not to.
 		 */
-		zip->entry_compression = COMPRESSION_DEFAULT;
+
+		zip->entry_compression = zip->requested_compression;
+		if(zip->entry_compression == COMPRESSION_UNSPECIFIED){
+			zip->entry_compression = COMPRESSION_DEFAULT;
+		}
+
 		zip->entry_flags |= ZIP_ENTRY_FLAG_LENGTH_AT_END;
 		if ((zip->flags & ZIP_FLAG_AVOID_ZIP64) == 0) {
 			zip->entry_uses_zip64 = 1;

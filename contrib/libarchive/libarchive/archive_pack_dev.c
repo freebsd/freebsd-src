@@ -77,7 +77,7 @@ static	pack_t	pack_12_20;
 static	pack_t	pack_14_18;
 static	pack_t	pack_8_24;
 static	pack_t	pack_bsdos;
-static	int	compare_format(const void *, const void *);
+static	int	__LA_LIBC_CC compare_format(const void *, const void *);
 
 static const char iMajorError[] = "invalid major number";
 static const char iMinorError[] = "invalid minor number";
@@ -310,6 +310,7 @@ static const struct format {
 };
 
 static int
+__LA_LIBC_CC
 compare_format(const void *key, const void *element)
 {
 	const char		*name;

@@ -107,13 +107,10 @@ struct archive {
 	 * Some public API functions depend on the "real" type of the
 	 * archive object.
 	 */
-	struct archive_vtable *vtable;
+	const struct archive_vtable *vtable;
 
 	int		  archive_format;
 	const char	 *archive_format_name;
-
-	int	  compression_code;	/* Currently active compression. */
-	const char *compression_name;
 
 	/* Number of file entries processed. */
 	int		  file_count;

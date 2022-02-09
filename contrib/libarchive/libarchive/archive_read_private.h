@@ -42,6 +42,16 @@ struct archive_read;
 struct archive_read_filter_bidder;
 struct archive_read_filter;
 
+struct archive_read_filter_bidder_vtable {
+	/* Taste the upstream filter to see if we handle this. */
+	int (*bid)(struct archive_read_filter_bidder *,
+	    struct archive_read_filter *);
+	/* Initialize a newly-created filter. */
+	int (*init)(struct archive_read_filter *);
+	/* Release the bidder's configuration data. */
+	void (*free)(struct archive_read_filter_bidder *);
+};
+
 /*
  * How bidding works for filters:
  *   * The bid manager initializes the client-provided reader as the
@@ -62,16 +72,16 @@ struct archive_read_filter_bidder {
 	void *data;
 	/* Name of the filter */
 	const char *name;
-	/* Taste the upstream filter to see if we handle this. */
-	int (*bid)(struct archive_read_filter_bidder *,
-	    struct archive_read_filter *);
-	/* Initialize a newly-created filter. */
-	int (*init)(struct archive_read_filter *);
-	/* Set an option for the filter bidder. */
-	int (*options)(struct archive_read_filter_bidder *,
-	    const char *key, const char *value);
-	/* Release the bidder's configuration data. */
-	int (*free)(struct archive_read_filter_bidder *);
+	const struct archive_read_filter_bidder_vtable *vtable;
+};
+
+struct archive_read_filter_vtable {
+	/* Return next block. */
+	ssize_t (*read)(struct archive_read_filter *, const void **);
+	/* Close (just this filter) and free(self). */
+	int (*close)(struct archive_read_filter *self);
+	/* Read any header metadata if available. */
+	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
 };
 
 /*
@@ -86,25 +96,14 @@ struct archive_read_filter {
 	struct archive_read_filter_bidder *bidder; /* My bidder. */
 	struct archive_read_filter *upstream; /* Who I read from. */
 	struct archive_read *archive; /* Associated archive. */
-	/* Open a block for reading */
-	int (*open)(struct archive_read_filter *self);
-	/* Return next block. */
-	ssize_t (*read)(struct archive_read_filter *, const void **);
-	/* Skip forward this many bytes. */
-	int64_t (*skip)(struct archive_read_filter *self, int64_t request);
-	/* Seek to an absolute location. */
-	int64_t (*seek)(struct archive_read_filter *self, int64_t offset, int whence);
-	/* Close (just this filter) and free(self). */
-	int (*close)(struct archive_read_filter *self);
-	/* Function that handles switching from reading one block to the next/prev */
-	int (*sswitch)(struct archive_read_filter *self, unsigned int iindex);
-	/* Read any header metadata if available. */
-	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
+	const struct archive_read_filter_vtable *vtable;
 	/* My private data. */
 	void *data;
 
 	const char	*name;
 	int		 code;
+	int		 can_skip;
+	int		 can_seek;
 
 	/* Used by reblocking logic. */
 	char		*buffer;
@@ -242,8 +241,10 @@ int	__archive_read_register_format(struct archive_read *a,
 		int (*format_capabilities)(struct archive_read *),
 		int (*has_encrypted_entries)(struct archive_read *));
 
-int __archive_read_get_bidder(struct archive_read *a,
-    struct archive_read_filter_bidder **bidder);
+int __archive_read_register_bidder(struct archive_read *a,
+		void *bidder_data,
+		const char *name,
+		const struct archive_read_filter_bidder_vtable *vtable);
 
 const void *__archive_read_ahead(struct archive_read *, size_t, ssize_t *);
 const void *__archive_read_filter_ahead(struct archive_read_filter *,

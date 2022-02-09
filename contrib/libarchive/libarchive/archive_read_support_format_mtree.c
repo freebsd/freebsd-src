@@ -1629,11 +1629,11 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		    || strcmp(key, "contents") == 0) {
 			parse_escapes(val, NULL);
 			archive_strcpy(&mtree->contents_name, val);
-			break;
+			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "cksum") == 0)
-			break;
-		__LA_FALLTHROUGH;
+			return (ARCHIVE_OK);
+		break;
 	case 'd':
 		if (strcmp(key, "device") == 0) {
 			/* stat(2) st_rdev field, e.g. the major/minor IDs
@@ -1647,65 +1647,64 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 				archive_entry_set_rdev(entry, dev);
 			return r;
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'f':
 		if (strcmp(key, "flags") == 0) {
 			*parsed_kws |= MTREE_HAS_FFLAGS;
 			archive_entry_copy_fflags_text(entry, val);
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'g':
 		if (strcmp(key, "gid") == 0) {
 			*parsed_kws |= MTREE_HAS_GID;
 			archive_entry_set_gid(entry, mtree_atol(&val, 10));
-			break;
+			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "gname") == 0) {
 			*parsed_kws |= MTREE_HAS_GNAME;
 			archive_entry_copy_gname(entry, val);
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'i':
 		if (strcmp(key, "inode") == 0) {
 			archive_entry_set_ino(entry, mtree_atol(&val, 10));
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'l':
 		if (strcmp(key, "link") == 0) {
+			parse_escapes(val, NULL);
 			archive_entry_copy_symlink(entry, val);
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'm':
 		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0) {
 			return parse_digest(a, entry, val,
 			    ARCHIVE_ENTRY_DIGEST_MD5);
 		}
 		if (strcmp(key, "mode") == 0) {
-			if (val[0] >= '0' && val[0] <= '7') {
-				*parsed_kws |= MTREE_HAS_PERM;
-				archive_entry_set_perm(entry,
-				    (mode_t)mtree_atol(&val, 8));
-			} else {
+			if (val[0] < '0' || val[0] > '7') {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
 				    "Symbolic or non-octal mode \"%s\" unsupported", val);
-				return ARCHIVE_WARN;
+				return (ARCHIVE_WARN);
 			}
-			break;
+			*parsed_kws |= MTREE_HAS_PERM;
+			archive_entry_set_perm(entry, (mode_t)mtree_atol(&val, 8));
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'n':
 		if (strcmp(key, "nlink") == 0) {
 			*parsed_kws |= MTREE_HAS_NLINK;
 			archive_entry_set_nlink(entry,
 				(unsigned int)mtree_atol(&val, 10));
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'r':
 		if (strcmp(key, "resdevice") == 0) {
 			/* stat(2) st_dev field, e.g. the device ID where the
@@ -1723,7 +1722,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			return parse_digest(a, entry, val,
 			    ARCHIVE_ENTRY_DIGEST_RMD160);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 's':
 		if (strcmp(key, "sha1") == 0 ||
 		    strcmp(key, "sha1digest") == 0) {
@@ -1747,9 +1746,9 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		if (strcmp(key, "size") == 0) {
 			archive_entry_set_size(entry, mtree_atol(&val, 10));
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 't':
 		if (strcmp(key, "tags") == 0) {
 			/*
@@ -1757,7 +1756,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			 * Ignore the tags for now, but the interface
 			 * should be extended to allow inclusion/exclusion.
 			 */
-			break;
+			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "time") == 0) {
 			int64_t m;
@@ -1783,79 +1782,85 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			else if (m < my_time_t_min)
 				m = my_time_t_min;
 			archive_entry_set_mtime(entry, (time_t)m, ns);
-			break;
+			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "type") == 0) {
 			switch (val[0]) {
 			case 'b':
 				if (strcmp(val, "block") == 0) {
-					archive_entry_set_filetype(entry, AE_IFBLK);
-					break;
+					*parsed_kws |= MTREE_HAS_TYPE;
+					archive_entry_set_filetype(entry,
+						AE_IFBLK);
+					return (ARCHIVE_OK);
 				}
-				__LA_FALLTHROUGH;
+				break;
 			case 'c':
 				if (strcmp(val, "char") == 0) {
+					*parsed_kws |= MTREE_HAS_TYPE;
 					archive_entry_set_filetype(entry,
 						AE_IFCHR);
-					break;
+					return (ARCHIVE_OK);
 				}
-				__LA_FALLTHROUGH;
+				break;
 			case 'd':
 				if (strcmp(val, "dir") == 0) {
+					*parsed_kws |= MTREE_HAS_TYPE;
 					archive_entry_set_filetype(entry,
 						AE_IFDIR);
-					break;
+					return (ARCHIVE_OK);
 				}
-				__LA_FALLTHROUGH;
+				break;
 			case 'f':
 				if (strcmp(val, "fifo") == 0) {
+					*parsed_kws |= MTREE_HAS_TYPE;
 					archive_entry_set_filetype(entry,
 						AE_IFIFO);
-					break;
+					return (ARCHIVE_OK);
 				}
 				if (strcmp(val, "file") == 0) {
+					*parsed_kws |= MTREE_HAS_TYPE;
 					archive_entry_set_filetype(entry,
 						AE_IFREG);
-					break;
+					return (ARCHIVE_OK);
 				}
-				__LA_FALLTHROUGH;
+				break;
 			case 'l':
 				if (strcmp(val, "link") == 0) {
+					*parsed_kws |= MTREE_HAS_TYPE;
 					archive_entry_set_filetype(entry,
 						AE_IFLNK);
-					break;
+					return (ARCHIVE_OK);
 				}
-				__LA_FALLTHROUGH;
+				break;
 			default:
-				archive_set_error(&a->archive,
-				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Unrecognized file type \"%s\"; "
-				    "assuming \"file\"", val);
-				archive_entry_set_filetype(entry, AE_IFREG);
-				return (ARCHIVE_WARN);
+				break;
 			}
-			*parsed_kws |= MTREE_HAS_TYPE;
-			break;
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Unrecognized file type \"%s\"; "
+			    "assuming \"file\"", val);
+			archive_entry_set_filetype(entry, AE_IFREG);
+			return (ARCHIVE_WARN);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	case 'u':
 		if (strcmp(key, "uid") == 0) {
 			*parsed_kws |= MTREE_HAS_UID;
 			archive_entry_set_uid(entry, mtree_atol(&val, 10));
-			break;
+			return (ARCHIVE_OK);
 		}
 		if (strcmp(key, "uname") == 0) {
 			*parsed_kws |= MTREE_HAS_UNAME;
 			archive_entry_copy_uname(entry, val);
-			break;
+			return (ARCHIVE_OK);
 		}
-		__LA_FALLTHROUGH;
+		break;
 	default:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Unrecognized key %s=%s", key, val);
-		return (ARCHIVE_WARN);
+		break;
 	}
-	return (ARCHIVE_OK);
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+	    "Unrecognized key %s=%s", key, val);
+	return (ARCHIVE_WARN);
 }
 
 static int
