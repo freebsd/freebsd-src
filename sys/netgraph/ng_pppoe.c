@@ -2031,6 +2031,7 @@ ng_pppoe_disconnect(hook_p hook)
 				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
 				    "mbufs\n", node->nd_ID);
 			else {
+				struct epoch_tracker et;
 				struct pppoe_full_hdr *wh;
 				struct pppoe_tag *tag;
 				int	msglen = strlen(SIGNOFF);
@@ -2061,8 +2062,11 @@ ng_pppoe_disconnect(hook_p hook)
 				m->m_pkthdr.len = m->m_len = sizeof(*wh) + sizeof(*tag) +
 				    msglen;
 				wh->ph.length = htons(sizeof(*tag) + msglen);
+
+				NET_EPOCH_ENTER(et);
 				NG_SEND_DATA_ONLY(error,
 					privp->ethernet_hook, m);
+				NET_EPOCH_EXIT(et);
 			}
 		}
 		if (sp->state == PPPOE_LISTENING)
