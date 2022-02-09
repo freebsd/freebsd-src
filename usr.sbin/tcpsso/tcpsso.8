@@ -225,9 +225,9 @@ To switch all TCP endpoints from using the freebsd stack to the rack stack use:
 .Pp
 The following command will set the congestion control module of all TCP
 endpoints currently using cubic as its congestion control algorithm to the
-congestion control algorithm new-reno:
+congestion control algorithm newreno:
 .Bd -literal -offset indent
-# tcpsso -C cubic TCP_CONGESTION new-reno
+# tcpsso -C cubic TCP_CONGESTION newreno
 .Ed
 .Sh SEE ALSO
 .Xr sockstat 1 ,
