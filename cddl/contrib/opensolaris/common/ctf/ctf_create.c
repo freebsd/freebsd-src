@@ -1233,7 +1233,7 @@ static long
 soucmp(ctf_file_t *src_fp, ctf_id_t src_type, ctf_file_t *dst_fp,
     ctf_id_t dst_type)
 {
-	const struct ctf_type *src_tp, *dst_tp;
+	const ctf_type_t *src_tp, *dst_tp;
 	const char *src_name, *dst_name;
 	ssize_t src_sz, dst_sz, src_inc, dst_inc;
 	uint_t kind, n;
