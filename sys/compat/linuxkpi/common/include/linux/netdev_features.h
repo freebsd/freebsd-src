@@ -42,6 +42,7 @@ typedef	uint32_t		netdev_features_t;
 #define NETIF_F_TSO             BIT(4)
 #define NETIF_F_TSO6            BIT(5)
 #define NETIF_F_RXCSUM          BIT(6)
+#define	NETIF_F_HW_CSUM		BIT(7)
 
 #define NETIF_F_CSUM_MASK       (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)
 
