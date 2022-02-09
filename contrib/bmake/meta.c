@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.196 2022/02/04 23:22:19 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.197 2022/02/08 22:36:02 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -1055,36 +1055,31 @@ append_if_new(StringList *list, const char *str)
     Lst_Append(list, bmake_strdup(str));
 }
 
+/* A "reserved" variable to store the command to be filtered */
+#define META_CMD_FILTER_VAR ".MAKE.cmd_filtered"
+
 static char *
-meta_filter_cmd(Buffer *buf, GNode *gn, char *s)
+meta_filter_cmd(GNode *gn, char *s)
 {
-    Buf_Clear(buf);
-    Buf_AddStr(buf, "${");
-    Buf_AddStr(buf, s);
-    Buf_AddStr(buf, ":L:${" MAKE_META_CMP_FILTER ":ts:}}");
-    Var_Subst(buf->data, gn, VARE_WANTRES, &s);
+    Var_Set(gn, META_CMD_FILTER_VAR, s);
+    Var_Subst("${" META_CMD_FILTER_VAR ":${" MAKE_META_CMP_FILTER ":ts:}}", gn, VARE_WANTRES, &s);
     return s;
 }
 
 static int
 meta_cmd_cmp(GNode *gn, char *a, char *b, bool filter)
 {
-    static bool once = false;
-    static Buffer buf;
     int rc;
 
     rc = strcmp(a, b);
     if (rc == 0 || !filter)
 	return rc;
-    if (!once) {
-	once = true;
-	Buf_Init(&buf);
-    }
-    a = meta_filter_cmd(&buf, gn, a);
-    b = meta_filter_cmd(&buf, gn, b);
+    a = meta_filter_cmd(gn, a);
+    b = meta_filter_cmd(gn, b);
     rc = strcmp(a, b);
     free(a);
     free(b);
+    Var_Delete(gn, META_CMD_FILTER_VAR);
     return rc;
 }
 

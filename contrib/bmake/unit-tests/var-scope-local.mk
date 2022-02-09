@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-local.mk,v 1.3 2022/01/29 00:52:53 rillig Exp $
+# $NetBSD: var-scope-local.mk,v 1.4 2022/02/05 10:41:15 rillig Exp $
 #
 # Tests for target-local variables, such as ${.TARGET} or $@.  These variables
 # are relatively short-lived as they are created just before making the
@@ -198,3 +198,32 @@ a_use: .USE VAR=use
 
 all: var-scope-local-use.o
 var-scope-local-use.o: a_use
+
+
+# Since parse.c 1.656 from 2022-01-27 and before parse.c 1.662 from
+# 2022-02-05, there was an out-of-bounds read in Parse_IsVar when looking for
+# a variable assignment in a dependency line with trailing whitespace.  Lines
+# without trailing whitespace were not affected.  Global variable assignments
+# were guaranteed to have no trailing whitespace and were thus not affected.
+#
+# Try to reproduce some variants that may lead to a crash, depending on the
+# memory allocator.  To get a crash, the terminating '\0' of the line must be
+# the last byte of a memory page.  The expression '${:U}' forces this trailing
+# whitespace.
+
+# On FreeBSD x86_64, a crash could in some cases be forced using the following
+# line, which has length 47, so the terminating '\0' may end up at an address
+# of the form 0xXXXX_XXXX_XXXX_Xfff:
+Try_to_crash_FreeBSD.xxxxxxxxxxxxxxxxxx: 12345 ${:U}
+
+# The following line has length 4095, so line[4095] == '\0'.  If the line is
+# allocated on a page boundary and the following page is not mapped, this line
+# leads to a segmentation fault.
+${:U:range=511:@_@1234567@:ts.}: 12345 ${:U}
+
+# The following line has length 8191, so line[8191] == '\0'.  If the line is
+# allocated on a page boundary and the following page is not mapped, this line
+# leads to a segmentation fault.
+${:U:range=1023:@_@1234567@:ts.}: 12345 ${:U}
+
+12345:

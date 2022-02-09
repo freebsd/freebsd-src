@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.7 2021/12/08 05:56:50 sjg Exp $
+# $Id: sys.vars.mk,v 1.9 2022/02/05 19:04:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -57,12 +57,26 @@ _type_sh = which
 M_type = @x@(${_type_sh:Utype} $$x) 2> /dev/null; echo;@:sh:[0]:N* found*:[@]:C,[()],,g
 M_whence = ${M_type}:M/*:[1]
 
-# produce similar output to jot(1)
+# produce similar output to jot(1) or seq(1)
 # eg. ${LIST:[#]:${M_JOT}}
 # would be 1 2 3 4 5 if LIST has 5 words
 # ${9:L:${M_JOT}}
 # would be 1 2 3 4 5 6 7 8 9
-M_JOT = @x@i=1;while [ $$$$i -le $$x ]; do echo $$$$i; i=$$$$((i + 1)); done;@:sh
+.if ${.MAKE.LEVEL} == 0
+.for x in jot seq
+.if empty(JOT_CMD)
+JOT_CMD := ${$x:L:${M_whence}}
+.endif
+.endfor
+.if !empty(JOT_CMD)
+.export JOT_CMD
+.endif
+.endif
+.if !empty(JOT_CMD)
+M_JOT = [1]:S,^,${JOT_CMD} ,:sh
+.else
+M_JOT = [1]:@x@i=1;while [ $$$$i -le $$x ]; do echo $$$$i; i=$$$$((i + 1)); done;@:sh
+.endif
 
 # ${LIST:${M_RANGE}} is 1 2 3 4 5 if LIST has 5 words
 .if ${MAKE_VERSION} >= 20170130
