@@ -111,4 +111,6 @@
 #define	__same_type(a, b)	__builtin_types_compatible_p(typeof(a), typeof(b))
 #define	__must_be_array(a)	__same_type(a, &(a)[0])
 
+#define	sizeof_field(_s, _m)	sizeof(((_s *)0)->_m)
+
 #endif	/* _LINUXKPI_LINUX_COMPILER_H_ */
