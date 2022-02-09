@@ -36,6 +36,13 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
+static __inline uint16_t
+get_unaligned_le16(const void *p)
+{
+
+	return (le16_to_cpup((const __le16 *)p));
+}
+
 static __inline uint32_t
 get_unaligned_le32(const void *p)
 {
