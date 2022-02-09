@@ -41,8 +41,17 @@ sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
     const void *newp, size_t newlen)
 {
 	size_t len;
+	int oid[2];
 
-	len = strlen(name);
-	return (__sysctlbyname(name, len, oldp, oldlenp, newp,
-	    newlen));
+	if (__predict_true(strncmp(name, "user.", 5) != 0)) {
+		len = strlen(name);
+		return (__sysctlbyname(name, len, oldp, oldlenp, newp,
+			newlen));
+	} else {
+		len = nitems(oid);
+		if (sysctlnametomib(name, oid, &len) == -1)
+			return (-1);
+		return (sysctl(oid, (u_int)len, oldp, oldlenp, newp,
+		    newlen));
+	}
 }
