@@ -89,6 +89,7 @@ SUBDIR=	adduser \
 	sysrc \
 	tcpdrop \
 	tcpdump \
+	tcpsso \
 	traceroute \
 	trim \
 	trpt \
