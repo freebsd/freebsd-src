@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
@@ -2797,6 +2798,81 @@ in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
 	xi->inp_ip_ttl = inp->inp_ip_ttl;
 	xi->inp_ip_p = inp->inp_ip_p;
 	xi->inp_ip_minttl = inp->inp_ip_minttl;
+}
+
+int
+sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
+    int (*ctloutput_set)(struct inpcb *, struct sockopt *))
+{
+	struct sockopt sopt;
+	struct inpcb_iterator inpi = INP_ALL_ITERATOR(pcbinfo,
+	    INPLOOKUP_WLOCKPCB);
+	struct inpcb *inp;
+	struct sockopt_parameters *params;
+	struct socket *so;
+	int error;
+	char buf[1024];
+
+	if (req->oldptr != NULL || req->oldlen != 0)
+		return (EINVAL);
+	if (req->newptr == NULL)
+		return (EPERM);
+	if (req->newlen > sizeof(buf))
+		return (ENOMEM);
+	error = SYSCTL_IN(req, buf, req->newlen);
+	if (error != 0)
+		return (error);
+	if (req->newlen < sizeof(struct sockopt_parameters))
+		return (EINVAL);
+	params = (struct sockopt_parameters *)buf;
+	sopt.sopt_level = params->sop_level;
+	sopt.sopt_name = params->sop_optname;
+	sopt.sopt_dir = SOPT_SET;
+	sopt.sopt_val = params->sop_optval;
+	sopt.sopt_valsize = req->newlen - sizeof(struct sockopt_parameters);
+	sopt.sopt_td = NULL;
+	if (params->sop_inc.inc_flags & INC_ISIPV6) {
+		if (IN6_IS_SCOPE_LINKLOCAL(&params->sop_inc.inc6_laddr))
+			params->sop_inc.inc6_laddr.s6_addr16[1] =
+			    htons(params->sop_inc.inc6_zoneid & 0xffff);
+		if (IN6_IS_SCOPE_LINKLOCAL(&params->sop_inc.inc6_faddr))
+			params->sop_inc.inc6_faddr.s6_addr16[1] =
+			    htons(params->sop_inc.inc6_zoneid & 0xffff);
+	}
+	if (params->sop_inc.inc_lport != htons(0)) {
+		if (params->sop_inc.inc_fport == htons(0))
+			inpi.hash = INP_PCBHASH_WILD(params->sop_inc.inc_lport,
+			    pcbinfo->ipi_hashmask);
+		else
+			if (params->sop_inc.inc_flags & INC_ISIPV6)
+				inpi.hash = INP6_PCBHASH(
+				    &params->sop_inc.inc6_faddr,
+				    params->sop_inc.inc_lport,
+				    params->sop_inc.inc_fport,
+				    pcbinfo->ipi_hashmask);
+			else
+				inpi.hash = INP_PCBHASH(
+				    &params->sop_inc.inc_faddr,
+				    params->sop_inc.inc_lport,
+				    params->sop_inc.inc_fport,
+				    pcbinfo->ipi_hashmask);
+	}
+	while ((inp = inp_next(&inpi)) != NULL)
+		if (inp->inp_gencnt == params->sop_id) {
+			if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+				INP_WUNLOCK(inp);
+				return (ECONNRESET);
+			}
+			so = inp->inp_socket;
+			KASSERT(so != NULL, ("inp_socket == NULL"));
+			soref(so);
+			error = (*ctloutput_set)(inp, &sopt);
+			sorele(so);
+			break;
+		}
+	if (inp == NULL)
+		error = ESRCH;
+	return (error);
 }
 
 #ifdef DDB

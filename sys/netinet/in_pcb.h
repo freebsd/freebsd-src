@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/smr.h>
+#include <sys/sysctl.h>
 #include <net/vnet.h>
 #include <vm/uma.h>
 #endif
@@ -368,7 +369,18 @@ struct xinpgen {
 	so_gen_t	xig_sogen;	/* socket generation count this time */
 	uint64_t	_xig_spare64[4];
 } __aligned(8);
+
+struct sockopt_parameters {
+	struct in_conninfo sop_inc;
+	uint64_t sop_id;
+	int sop_level;
+	int sop_optname;
+	char sop_optval[];
+};
+
 #ifdef	_KERNEL
+int	sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
+	    int (*ctloutput_set)(struct inpcb *, struct sockopt *));
 void	in_pcbtoxinpcb(const struct inpcb *, struct xinpcb *);
 #endif
 #endif /* _SYS_SOCKETVAR_H_ */

@@ -3834,6 +3834,18 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
     CTLFLAG_NEEDGIANT, NULL, 0, sysctl_drop, "",
     "Drop TCP connection");
 
+static int
+tcp_sysctl_setsockopt(SYSCTL_HANDLER_ARGS)
+{
+	return (sysctl_setsockopt(oidp, arg1, arg2, req, &V_tcbinfo,
+	    &tcp_ctloutput_set));
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, setsockopt,
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP |
+    CTLFLAG_MPSAFE, NULL, 0, tcp_sysctl_setsockopt, "",
+    "Set socket option for TCP endpoint");
+
 #ifdef KERN_TLS
 static int
 sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
