@@ -239,8 +239,8 @@ tcp_ecn_output_established(struct tcpcb *tp, uint16_t *thflags, int len)
 void
 tcp_ecn_syncache_socket(struct tcpcb *tp, struct syncache *sc)
 {
-	if (sc->sc_flags & SCF_ECN) {
-		switch (sc->sc_flags & SCF_ECN) {
+	if (sc->sc_flags & SCF_ECN_MASK) {
+		switch (sc->sc_flags & SCF_ECN_MASK) {
 		case SCF_ECN:
 			tp->t_flags2 |= TF2_ECN_PERMIT;
 			break;
@@ -282,8 +282,8 @@ uint16_t
 tcp_ecn_syncache_respond(uint16_t thflags, struct syncache *sc)
 {
 	if ((thflags & TH_SYN) &&
-	    (sc->sc_flags & SCF_ECN)) {
-		switch (sc->sc_flags & SCF_ECN) {
+	    (sc->sc_flags & SCF_ECN_MASK)) {
+		switch (sc->sc_flags & SCF_ECN_MASK) {
 		case SCF_ECN:
 			thflags |= (0 | TH_ECE);
 			TCPSTAT_INC(tcps_ecn_shs);

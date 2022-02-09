@@ -91,11 +91,12 @@ struct syncache {
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
-#define SCF_ECN		0x100			/* send ECN setup packet */
-#define SCF_ACE_N	0x200			/* send ACE non-ECT setup */
-#define SCF_ACE_0	0x400			/* send ACE ECT0 setup */
-#define SCF_ACE_1	0x800			/* send ACE ECT1 setup */
-#define SCF_ACE_CE	0x1000			/* send ACE CE setup */
+#define SCF_ECN_MASK	0x700			/* ECN codepoint mask */
+#define SCF_ECN 	0x100			/* send ECN setup packet */
+#define SCF_ACE_N	0x400			/* send ACE non-ECT setup */
+#define SCF_ACE_0	0x500			/* send ACE ECT0 setup */
+#define SCF_ACE_1	0x600			/* send ACE ECT1 setup */
+#define SCF_ACE_CE	0x700			/* send ACE CE setup */
 
 struct syncache_head {
 	struct mtx	sch_mtx;
