@@ -86,6 +86,12 @@ __ffsl(long mask)
 	return (ffsl(mask) - 1);
 }
 
+static inline unsigned long
+__ffs64(uint64_t mask)
+{
+	return (ffsll(mask) - 1);
+}
+
 static inline int
 __flsl(long mask)
 {
