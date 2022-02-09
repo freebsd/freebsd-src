@@ -7581,6 +7581,11 @@ ocs_hw_get_profile_list_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg
 	int num_descriptors;
 
 	list = ocs_malloc(hw->os, sizeof(ocs_hw_profile_list_t), OCS_M_ZERO);
+	if (list == NULL) {
+		ocs_log_err(hw->os, "failed to malloc list\n");
+		return OCS_HW_RTN_NO_MEMORY;
+	}
+
 	list->num_descriptors = response->profile_descriptor_count;
 
 	num_descriptors = list->num_descriptors;
