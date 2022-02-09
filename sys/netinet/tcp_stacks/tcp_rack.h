@@ -158,23 +158,6 @@ struct rack_rtt_sample {
 #define RACK_LOG_TYPE_ALLOC     0x04
 #define RACK_LOG_TYPE_FREE      0x05
 
-struct rack_log {
-	union {
-		struct rack_sendmap *rsm;	/* For alloc/free */
-		uint64_t sb_acc;/* For out/ack or t-o */
-	};
-	uint32_t th_seq;
-	uint32_t th_ack;
-	uint32_t snd_una;
-	uint32_t snd_nxt;	/* th_win for TYPE_ACK */
-	uint32_t snd_max;
-	uint32_t blk_start[4];
-	uint32_t blk_end[4];
-	uint8_t type;
-	uint8_t n_sackblks;
-	uint16_t len;		/* Timeout T3=1, TLP=2, RACK=3 */
-};
-
 /*
  * Magic numbers for logging timeout events if the
  * logging is enabled.
@@ -373,8 +356,6 @@ struct rack_control {
 	uint64_t last_hw_bw_req;
 	uint64_t crte_prev_rate;
 	uint64_t bw_rate_cap;
-	uint32_t rc_time_last_sent;	/* Time we last sent some data and
-					 * logged it Lock(a). */
 	uint32_t rc_reorder_ts;	/* Last time we saw reordering Lock(a) */
 
 	uint32_t rc_tlp_new_data;	/* we need to send new-data on a TLP
@@ -402,11 +383,6 @@ struct rack_control {
 	uint32_t rc_rack_tmit_time;	/* Rack transmit time Lock(a) */
 	uint32_t rc_holes_rxt;	/* Tot retraned from scoreboard Lock(a) */
 
-	/* Variables to track bad retransmits and recover */
-	uint32_t rc_rsm_start;	/* RSM seq number we retransmitted Lock(a) */
-	uint32_t rc_cwnd_at;	/* cwnd at the retransmit Lock(a) */
-
-	uint32_t rc_ssthresh_at;/* ssthresh at the retransmit Lock(a) */
 	uint32_t rc_num_maps_alloced;	/* Number of map blocks (sacks) we
 					 * have allocated */
 	uint32_t rc_rcvtime;	/* When we last received data */
@@ -418,16 +394,12 @@ struct rack_control {
 	struct rack_sendmap *rc_sacklast;	/* sack remembered place
 						 * Lock(a) */
 
-	struct rack_sendmap *rc_rsm_at_retran;	/* Debug variable kept for
-						 * cache line alignment
-						 * Lock(a) */
 	struct rack_sendmap *rc_first_appl;	/* Pointer to first app limited */
 	struct rack_sendmap *rc_end_appl;	/* Pointer to last app limited */
 	/* Cache line split 0x100 */
 	struct sack_filter rack_sf;
 	/* Cache line split 0x140 */
 	/* Flags for various things */
-	uint32_t last_pacing_time;
 	uint32_t rc_pace_max_segs;
 	uint32_t rc_pace_min_segs;
 	uint32_t rc_app_limited_cnt;
@@ -518,7 +490,6 @@ struct rack_control {
 	uint8_t rc_tlp_cwnd_reduce;	/* Socket option value Lock(a) */
 	uint8_t rc_prr_sendalot;/* Socket option value Lock(a) */
 	uint8_t rc_rate_sample_method;
-	uint8_t rc_gp_hist_idx;
 };
 #endif
 
@@ -529,8 +500,8 @@ struct rack_control {
 #define RACK_HYSTART_ON		1	/* hystart++ on */
 #define RACK_HYSTART_ON_W_SC	2	/* hystart++ on +Slam Cwnd */
 #define RACK_HYSTART_ON_W_SC_C	3	/* hystart++ on,
-					 * Conservative ssthresh and 
-					 * +Slam cwnd 
+					 * Conservative ssthresh and
+					 * +Slam cwnd
 					 */
 
 #ifdef _KERNEL
@@ -605,8 +576,8 @@ struct tcp_rack {
 		rc_dragged_bottom: 1,
 		rc_dack_mode : 1,		/* Mac O/S emulation of d-ack */
 		rc_dack_toggle : 1,		/* For Mac O/S emulation of d-ack */
-		pacing_longer_than_rtt : 1,
-		rc_gp_filled : 1;
+		rc_gp_filled : 1,
+		rc_is_spare : 1;
 	uint8_t r_state;	/* Current rack state Lock(a) */
 	uint8_t rc_tmr_stopped : 7,
 		t_timers_stopped : 1;
@@ -642,13 +613,11 @@ struct tcp_rack {
 		sack_attack_disable : 1,
 		do_detection : 1,
 		rc_force_max_seg : 1;
-	uint8_t rack_cwnd_limited : 1,
-		r_early : 1,
+	uint8_t r_early : 1,
 		r_late : 1,
-		r_running_early : 1,
-		r_running_late : 1,
 		r_wanted_output: 1,
-		r_rr_config : 2;
+		r_rr_config : 2,
+		rc_avail_bit : 3;
 	uint16_t rc_init_win : 8,
 		rc_gp_rtt_set : 1,
 		rc_gp_dyn_mul : 1,
