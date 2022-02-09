@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.662 2022/02/05 00:37:19 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.663 2022/02/07 23:24:26 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.662 2022/02/05 00:37:19 sjg Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.663 2022/02/07 23:24:26 rillig Exp $");
 
 /*
  * A file being read.
@@ -722,7 +722,6 @@ ApplyDependencySourceWait(bool isSpecial)
 		RememberLocation(gn);
 	gn->type = OP_WAIT | OP_PHONY | OP_DEPENDS | OP_NOTMAIN;
 	LinkToTargets(gn, isSpecial);
-
 }
 
 static bool

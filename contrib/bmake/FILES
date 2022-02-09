@@ -616,6 +616,8 @@ unit-tests/suff-transform-expand.exp
 unit-tests/suff-transform-expand.mk
 unit-tests/suff-transform-select.exp
 unit-tests/suff-transform-select.mk
+unit-tests/suff-use.exp
+unit-tests/suff-use.mk
 unit-tests/sunshcmd.exp
 unit-tests/sunshcmd.mk
 unit-tests/ternary.exp

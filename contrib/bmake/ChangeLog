@@ -1,3 +1,14 @@
+2022-02-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/Makefile: disable opt-debug-x-trace on Linux if there
+	is any chance we have dash as .SHELL
+
+	* VERSION (_MAKE_VERSION): 20220208
+	Merge with NetBSD make, pick up
+	o more unit tests
+	o meta.c: use a variable to hold command line to be filtered
+	to avoid any side effects from content of command line.
+
 2022-02-04  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20220204
