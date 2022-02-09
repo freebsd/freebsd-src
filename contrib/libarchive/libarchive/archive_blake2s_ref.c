@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "archive_platform.h"
 #include "archive_blake2.h"
 #include "archive_blake2_impl.h"
 

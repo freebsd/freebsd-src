@@ -2610,7 +2610,7 @@ canLzma(void)
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("lzma %s", redirectArgs) == 0)
+		if (systemf("lzma --help %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -3462,6 +3462,12 @@ assertion_entry_compare_acls(const char *file, int line,
  *      DEFINE_TEST(test_function)
  * for each test.
  */
+struct test_list_t
+{
+	void (*func)(void);
+	const char *name;
+	int failures;
+};
 
 /* Use "list.h" to declare all of the test functions. */
 #undef DEFINE_TEST
@@ -3751,6 +3757,100 @@ success:
 	p = strdup(buff);
 	free(buff);
 	return p;
+}
+
+/* Filter tests against a glob pattern. Returns non-zero if test matches
+ * pattern, zero otherwise. A '^' at the beginning of the pattern negates
+ * the return values (i.e. returns zero for a match, non-zero otherwise.
+ */
+static int
+test_filter(const char *pattern, const char *test)
+{
+	int retval = 0;
+	int negate = 0;
+	const char *p = pattern;
+	const char *t = test;
+
+	if (p[0] == '^')
+	{
+		negate = 1;
+		p++;
+	}
+
+	while (1)
+	{
+		if (p[0] == '\\')
+			p++;
+		else if (p[0] == '*')
+		{
+			while (p[0] == '*')
+				p++;
+			if (p[0] == '\\')
+				p++;
+			if ((t = strchr(t, p[0])) == 0)
+				break;
+		}
+		if (p[0] != t[0])
+			break;
+		if (p[0] == '\0') {
+			retval = 1;
+			break;
+		}
+		p++;
+		t++;
+	}
+
+	return (negate) ? !retval : retval;
+}
+
+static int
+get_test_set(int *test_set, int limit, const char *test)
+{
+	int start, end;
+	int idx = 0;
+
+	if (test == NULL) {
+		/* Default: Run all tests. */
+		for (;idx < limit; idx++)
+			test_set[idx] = idx;
+		return (limit);
+	}
+	if (*test >= '0' && *test <= '9') {
+		const char *vp = test;
+		start = 0;
+		while (*vp >= '0' && *vp <= '9') {
+			start *= 10;
+			start += *vp - '0';
+			++vp;
+		}
+		if (*vp == '\0') {
+			end = start;
+		} else if (*vp == '-') {
+			++vp;
+			if (*vp == '\0') {
+				end = limit - 1;
+			} else {
+				end = 0;
+				while (*vp >= '0' && *vp <= '9') {
+					end *= 10;
+					end += *vp - '0';
+					++vp;
+				}
+			}
+		} else
+			return (-1);
+		if (start < 0 || end >= limit || start > end)
+			return (-1);
+		while (start <= end)
+			test_set[idx++] = start++;
+	} else {
+		for (start = 0; start < limit; ++start) {
+			const char *name = tests[start].name;
+			if (test_filter(test, name))
+				test_set[idx++] = start;
+		}
+	}
+	return ((idx == 0)?-1:idx);
 }
 
 int
@@ -4049,7 +4149,7 @@ main(int argc, char **argv)
 		do {
 			int test_num;
 
-			test_num = get_test_set(test_set, limit, *argv, tests);
+			test_num = get_test_set(test_set, limit, *argv);
 			if (test_num < 0) {
 				printf("*** INVALID Test %s\n", *argv);
 				free(refdir_alloc);

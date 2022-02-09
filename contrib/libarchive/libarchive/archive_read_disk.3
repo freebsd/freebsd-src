@@ -29,6 +29,8 @@
 .Os
 .Sh NAME
 .Nm archive_read_disk_new ,
+.Nm archive_read_disk_open ,
+.Nm archive_read_disk_open_w ,
 .Nm archive_read_disk_set_behavior ,
 .Nm archive_read_disk_set_symlink_logical ,
 .Nm archive_read_disk_set_symlink_physical ,
@@ -38,7 +40,14 @@
 .Nm archive_read_disk_uname ,
 .Nm archive_read_disk_set_uname_lookup ,
 .Nm archive_read_disk_set_gname_lookup ,
-.Nm archive_read_disk_set_standard_lookup
+.Nm archive_read_disk_set_standard_lookup ,
+.Nm archive_read_disk_descend ,
+.Nm archive_read_disk_can_descend ,
+.Nm archive_read_disk_current_filesystem ,
+.Nm archive_read_disk_current_filesystem_is_synthetic ,
+.Nm archive_read_disk_current_filesystem_is_remote ,
+.Nm archive_read_disk_set_matching ,
+.Nm archive_read_disk_set_metadata_filter_callback ,
 .Nd functions for reading objects from disk
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -46,6 +55,10 @@ Streaming Archive Library (libarchive, -larchive)
 .In archive.h
 .Ft struct archive *
 .Fn archive_read_disk_new "void"
+.Ft int
+.Fn archive_read_disk_open "struct archive *" "const char *"
+.Ft int
+.Fn archive_read_disk_open_w "struct archive *" "const wchar_t *" 
 .Ft int
 .Fn archive_read_disk_set_behavior "struct archive *" "int"
 .Ft int
@@ -81,6 +94,29 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "int fd"
 .Fa "const struct stat *"
 .Fc
+.Ft int
+.Fn archive_read_disk_descend "struct archive *"
+.Ft int
+.Fn archive_read_disk_can_descend "struct archive *"
+.Ft int
+.Fn archive_read_disk_current_filesystem "struct archive *"
+.Ft int
+.Fn archive_read_disk_current_filesystem_is_synthetic "struct archive *"
+.Ft int
+.Fn archive_read_disk_current_filesystem_is_remote "struct archive *"
+.Ft int
+.Fo archive_read_disk_set_matching
+.Fa "struct archive *"
+.Fa "struct archive *"
+.Fa "void (*excluded_func)(struct archive *, void *, struct archive entry *)"
+.Fa "void *"
+.Fc
+.Ft int 
+.Fo archive_read_disk_set_metadata_filter_callback
+.Fa "struct archive *"
+.Fa "int (*metadata_filter_func)(struct archive *, void*, struct archive_entry *)"
+.Fa "void *"
+.Fc
 .Sh DESCRIPTION
 These functions provide an API for reading information about
 objects on disk.
@@ -92,6 +128,14 @@ objects.
 Allocates and initializes a
 .Tn struct archive
 object suitable for reading object information from disk.
+.It Fn archive_read_disk_open
+Opens the file or directory from the given path and prepares the
+.Tn struct archive
+to read it from disk.
+.It Fn archive_read_disk_open_w
+Opens the file or directory from the given path as a wide character string and prepares the
+.Tn struct archive
+to read it from disk.
 .It Fn archive_read_disk_set_behavior
 Configures various behavior options when reading entries from disk.
 The flags field consists of a bitwise OR of one or more of the
@@ -137,6 +181,9 @@ for more information on extended file attributes.
 .It Cm ARCHIVE_READDISK_RESTORE_ATIME
 Restore access time of traversed files.
 By default, access time of traversed files is not restored.
+.It Cm ARCHIVE_READDISK_NO_SPARSE
+Do not read sparse file information.
+By default, sparse file information is read from disk.
 .El
 .It Xo
 .Fn archive_read_disk_set_symlink_logical ,
@@ -221,6 +268,37 @@ using the currently-registered lookup functions above.
 This affects the file ownership fields and ACL values in the
 .Tn struct archive_entry
 object.
+.It Fn archive_read_disk_descend
+If the current entry can be descended, this function will mark the directory as the next entry for 
+.Xr archive_read_header 3
+to visit.
+.It Fn archive_read_disk_can_descend
+Returns 1 if the current entry is an unvisited directory and 0 otherwise.
+.It Fn archive_read_disk_current_filesystem
+Returns the index of the most recent filesystem entry that has been visited through archive_read_disk
+.It Fn archive_read_disk_current_filesystem_is_synthetic
+Returns 1 if the current filesystem is a virtual filesystem. Returns 0 if the current filesystem is not a virtual filesystem. Returns -1 if it is unknown.
+.It Fn archive_read_disk_current_filesystem_is_remote
+Returns 1 if the current filesystem is a remote filesystem. Returns 0 if the current filesystem is not a remote filesystem. Returns -1 if it is unknown.
+.It Fn archive_read_disk_set_matching
+Allows the caller to set
+.Tn struct archive
+*_ma to compare each entry during
+.Xr archive_read_header 3
+calls. If matched based on calls to
+.Tn archive_match_path_excluded ,
+.Tn archive_match_time_excluded ,
+or
+.Tn archive_match_owner_excluded ,
+then the callback function specified by the _excluded_func parameter will execute. This function will recieve data provided to the fourth parameter, void *_client_data.
+.It Fn archive_read_disk_set_metadata_filter_callback
+Allows the caller to set a callback function during calls to
+.Xr archive_read_header 3
+to filter out metadata for each entry. The callback function recieves the
+.Tn struct archive
+object, void* custom filter data, and the 
+.Tn struct archive_entry .
+If the callback function returns an error, ARCHIVE_RETRY will be returned and the entry will not be further processed.
 .El
 More information about the
 .Va struct archive

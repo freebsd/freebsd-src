@@ -69,8 +69,16 @@
  * either Windows or Posix APIs. */
 #if (defined(__WIN32__) || defined(_WIN32) || defined(__WIN32)) && !defined(__CYGWIN__)
 #include "archive_windows.h"
+/* The C library on Windows specifies a calling convention for callback
+ * functions and exports; when we interact with them (capture pointers,
+ * call and pass function pointers) we need to match their calling
+ * convention.
+ * This only matters when libarchive is built with /Gr, /Gz or /Gv
+ * (which change the default calling convention.) */
+#define __LA_LIBC_CC __cdecl
 #else
 #define la_stat(path,stref)		stat(path,stref)
+#define __LA_LIBC_CC
 #endif
 
 /*
@@ -154,6 +162,28 @@
 #if !HAVE_DECL_INTMAX_MIN
 #define	INTMAX_MIN ((intmax_t)(~INTMAX_MAX))
 #endif
+
+/* Some platforms lack the standard PRIxN/PRIdN definitions. */
+#if !HAVE_INTTYPES_H || !defined(PRIx32) || !defined(PRId32)
+#ifndef PRIx32
+#if SIZEOF_INT == 4
+#define PRIx32 "x"
+#elif SIZEOF_LONG == 4
+#define PRIx32 "lx"
+#else
+#error No suitable 32-bit unsigned integer type found for this platform
+#endif
+#endif // PRIx32
+#ifndef PRId32
+#if SIZEOF_INT == 4
+#define PRId32 "d"
+#elif SIZEOF_LONG == 4
+#define PRId32 "ld"
+#else
+#error No suitable 32-bit signed integer type found for this platform
+#endif
+#endif // PRId32
+#endif // !HAVE_INTTYPES_H || !defined(PRIx32) || !defined(PRId32)
 
 /*
  * If we can't restore metadata using a file descriptor, then
