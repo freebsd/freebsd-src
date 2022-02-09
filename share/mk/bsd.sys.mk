@@ -75,6 +75,7 @@ CWARNFLAGS.clang+=	-Wthread-safety
 CWARNFLAGS+=	-Wno-uninitialized
 .endif # WARNS >=2 && WARNS <= 4
 CWARNFLAGS+=	-Wno-pointer-sign
+CWARNFLAGS+=	-Wdate-time
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
 .if ${WARNS} <= 6
