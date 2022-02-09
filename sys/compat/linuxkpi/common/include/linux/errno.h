@@ -64,5 +64,8 @@
 #define	EIOCBQUEUED	529
 #define	ERFKILL		530
 #define	EBADE		531
+#define	ENOMEDIUM	532
+#define	ENOSR		533
+#define	ELNRNG		534
 
 #endif					/* _LINUXKPI_LINUX_ERRNO_H_ */
