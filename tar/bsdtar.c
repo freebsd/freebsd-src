@@ -70,24 +70,20 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #include "bsdtar.h"
 #include "err.h"
 
-/*
- * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
- * the default tape device for the system.  Pick something reasonable here.
- */
-#ifdef __linux
-#define	_PATH_DEFTAPE "/dev/st0"
+#if ARCHIVE_VERSION_NUMBER < 4000000 && !defined(_PATH_DEFTAPE)
+// Libarchive 4.0 and later will NOT define _PATH_DEFTAPE
+// but will honor it if it's set in the build.
+// Until then, we'll continue to set it by default on certain platforms:
+#if defined(__linux)
+#define _PATH_DEFTAPE "/dev/st0"
+#elif defined(_WIN32) && !defined(__CYGWIN__)
+#define _PATH_DEFTAPE "\\\\.\\tape0"
+#elif !defined(__APPLE__)
+#define _PATH_DEFTAPE "/dev/tape"
 #endif
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#define	_PATH_DEFTAPE "\\\\.\\tape0"
-#endif
-#if defined(__APPLE__)
-#undef _PATH_DEFTAPE
-#define	_PATH_DEFTAPE "-"  /* Mac OS has no tape support, default to stdio. */
 #endif
 
-#ifndef _PATH_DEFTAPE
-#define	_PATH_DEFTAPE "/dev/tape"
-#endif
+#define _PATH_STDIO "-"
 
 #ifdef __MINGW32__
 int _CRT_glob = 0; /* Disable broken CRT globbing. */
@@ -217,8 +213,21 @@ main(int argc, char **argv)
 
 	/* Default: open tape drive. */
 	bsdtar->filename = getenv("TAPE");
-	if (bsdtar->filename == NULL)
-		bsdtar->filename = _PATH_DEFTAPE;
+#if defined(_PATH_DEFTAPE)
+	if (bsdtar->filename == NULL) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		int tapeExists = !_access(_PATH_DEFTAPE, 0);
+#else
+		int tapeExists = !access(_PATH_DEFTAPE, F_OK);
+#endif
+		if (tapeExists) {
+			bsdtar->filename = _PATH_DEFTAPE;
+		}
+	}
+#endif
+	if (bsdtar->filename == NULL) {
+		bsdtar->filename = _PATH_STDIO;
+	}
 
 	/* Default block size settings. */
 	bsdtar->bytes_per_block = DEFAULT_BYTES_PER_BLOCK;
@@ -542,6 +551,10 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_MAC_METADATA;
 			bsdtar->flags |= OPTFLAG_NO_MAC_METADATA;
 			break;
+		case OPTION_NO_READ_SPARSE:
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_NO_SPARSE;
+			bsdtar->flags |= OPTFLAG_NO_READ_SPARSE;
+			break;
 		case OPTION_NO_SAFE_WRITES:
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_SAFE_WRITES;
 			break;
@@ -648,6 +661,10 @@ main(int argc, char **argv)
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
+			break;
+		case OPTION_READ_SPARSE:
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_NO_SPARSE;
+			bsdtar->flags |= OPTFLAG_READ_SPARSE;
 			break;
 		case 'S': /* NetBSD pax-as-tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_SPARSE;
@@ -796,8 +813,14 @@ main(int argc, char **argv)
 		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
-	if (bsdtar->flags & OPTFLAG_AUTO_COMPRESS)
-		only_mode(bsdtar, "-a", "c");
+	if (bsdtar->flags & OPTFLAG_AUTO_COMPRESS) {
+		only_mode(bsdtar, "-a", "cx");
+		if (bsdtar->mode == 'x') {
+			bsdtar->flags &= ~OPTFLAG_AUTO_COMPRESS;
+			lafe_warnc(0,
+			    "Ignoring option -a in mode -x");
+		}
+	}
 	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->flags & OPTFLAG_FAST_READ)

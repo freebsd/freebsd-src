@@ -43,6 +43,7 @@ while getopts a:b:c:d:s: opt; do
 				install) ;;
 				distcheck) ;;
 				artifact) ;;
+				dist-artifact) ;;
 				*) inputerror "Invalid action (-a)" ;;
 			esac
 			ACTIONS="${ACTIONS} ${OPTARG}"
@@ -151,12 +152,22 @@ for action in ${ACTIONS}; do
 			cd "${BUILDDIR}/destdir" && ls -lR .
 		;;
 		distcheck)
-			${MAKE} ${MAKE_ARGS} distcheck
+			${MAKE} ${MAKE_ARGS} distcheck || (
+				RET="$?"
+				find . -name 'test-suite.log' -print -exec cat {} \;
+				find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+				exit "${RET}"
+			)
 			RET="$?"
 		;;
 		artifact)
 			tar -c -J -C "${BUILDDIR}/destdir" -f "${CURDIR}/libarchive.tar.xz" usr
 			ls -l "${CURDIR}/libarchive.tar.xz"
+		;;
+		dist-artifact)
+			tar -c -C "${BUILDDIR}" -f "${CURDIR}/libarchive-dist.tar" \
+				libarchive-*.tar.gz libarchive-*.tar.xz libarchive-*.zip
+			ls -l "${CURDIR}/libarchive-dist.tar"
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then

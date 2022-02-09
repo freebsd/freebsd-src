@@ -51,7 +51,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop
+      run: sudo apt-get install -y autoconf automake build-essential cmake git libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zlib1g-dev
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
       env:
@@ -87,7 +87,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install dependencies
-      run: sudo apt-get install -y build-essential cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop groff ghostscript
+      run: sudo apt-get install -y autoconf automake bsdmainutils build-essential cmake ghostscript git groff libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zip zlib1g-dev
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
     - name: Configure
@@ -96,6 +96,12 @@ jobs:
       run: ./build/ci/build.sh -a distcheck
       env:
         SKIP_OPEN_FD_ERR_TEST: 1
+    - name: Dist-Artifact
+      run: ./build/ci/build.sh -a dist-artifact
+    - uses: actions/upload-artifact@v1
+      with:
+        name: libarchive-${{ github.sha }}
+        path: libarchive-dist.tar
 
   Windows:
     runs-on: windows-latest

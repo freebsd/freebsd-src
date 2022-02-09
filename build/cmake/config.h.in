@@ -23,14 +23,14 @@
 #cmakedefine HAVE_UNSIGNED___INT64
 
 /* The sizes of various standard integer types. */
-@SIZE_OF_SHORT_CODE@
-@SIZE_OF_INT_CODE@
-@SIZE_OF_LONG_CODE@
-@SIZE_OF_LONG_LONG_CODE@
-@SIZE_OF_UNSIGNED_SHORT_CODE@
-@SIZE_OF_UNSIGNED_CODE@
-@SIZE_OF_UNSIGNED_LONG_CODE@
-@SIZE_OF_UNSIGNED_LONG_LONG_CODE@
+@SIZEOF_SHORT_CODE@
+@SIZEOF_INT_CODE@
+@SIZEOF_LONG_CODE@
+@SIZEOF_LONG_LONG_CODE@
+@SIZEOF_UNSIGNED_SHORT_CODE@
+@SIZEOF_UNSIGNED_CODE@
+@SIZEOF_UNSIGNED_LONG_CODE@
+@SIZEOF_UNSIGNED_LONG_LONG_CODE@
 
 /*
  * If we lack int64_t, define it to the first of __int64, int, long, and long long
@@ -41,17 +41,17 @@ typedef __int64 int64_t;
 #define HAVE_INT64_T
 #endif
 
-#if !defined(HAVE_INT64_T) && SIZE_OF_INT == 8
+#if !defined(HAVE_INT64_T) && SIZEOF_INT == 8
 typedef int int64_t;
 #define HAVE_INT64_T
 #endif
 
-#if !defined(HAVE_INT64_T) && SIZE_OF_LONG == 8
+#if !defined(HAVE_INT64_T) && SIZEOF_LONG == 8
 typedef long int64_t;
 #define HAVE_INT64_T
 #endif
 
-#if !defined(HAVE_INT64_T) && SIZE_OF_LONG_LONG == 8
+#if !defined(HAVE_INT64_T) && SIZEOF_LONG_LONG == 8
 typedef long long int64_t;
 #define HAVE_INT64_T
 #endif
@@ -63,12 +63,12 @@ typedef long long int64_t;
 /*
  * Similarly for int32_t
  */
-#if !defined(HAVE_INT32_T) && SIZE_OF_INT == 4
+#if !defined(HAVE_INT32_T) && SIZEOF_INT == 4
 typedef int int32_t;
 #define HAVE_INT32_T
 #endif
 
-#if !defined(HAVE_INT32_T) && SIZE_OF_LONG == 4
+#if !defined(HAVE_INT32_T) && SIZEOF_LONG == 4
 typedef long int32_t;
 #define HAVE_INT32_T
 #endif
@@ -80,12 +80,12 @@ typedef long int32_t;
 /*
  * Similarly for int16_t
  */
-#if !defined(HAVE_INT16_T) && SIZE_OF_INT == 2
+#if !defined(HAVE_INT16_T) && SIZEOF_INT == 2
 typedef int int16_t;
 #define HAVE_INT16_T
 #endif
 
-#if !defined(HAVE_INT16_T) && SIZE_OF_SHORT == 2
+#if !defined(HAVE_INT16_T) && SIZEOF_SHORT == 2
 typedef short int16_t;
 #define HAVE_INT16_T
 #endif
@@ -102,17 +102,17 @@ typedef unsigned __int64 uint64_t;
 #define HAVE_UINT64_T
 #endif
 
-#if !defined(HAVE_UINT64_T) && SIZE_OF_UNSIGNED == 8
+#if !defined(HAVE_UINT64_T) && SIZEOF_UNSIGNED == 8
 typedef unsigned uint64_t;
 #define HAVE_UINT64_T
 #endif
 
-#if !defined(HAVE_UINT64_T) && SIZE_OF_UNSIGNED_LONG == 8
+#if !defined(HAVE_UINT64_T) && SIZEOF_UNSIGNED_LONG == 8
 typedef unsigned long uint64_t;
 #define HAVE_UINT64_T
 #endif
 
-#if !defined(HAVE_UINT64_T) && SIZE_OF_UNSIGNED_LONG_LONG == 8
+#if !defined(HAVE_UINT64_T) && SIZEOF_UNSIGNED_LONG_LONG == 8
 typedef unsigned long long uint64_t;
 #define HAVE_UINT64_T
 #endif
@@ -125,12 +125,12 @@ typedef unsigned long long uint64_t;
 /*
  * Similarly for uint32_t
  */
-#if !defined(HAVE_UINT32_T) && SIZE_OF_UNSIGNED == 4
+#if !defined(HAVE_UINT32_T) && SIZEOF_UNSIGNED == 4
 typedef unsigned uint32_t;
 #define HAVE_UINT32_T
 #endif
 
-#if !defined(HAVE_UINT32_T) && SIZE_OF_UNSIGNED_LONG == 4
+#if !defined(HAVE_UINT32_T) && SIZEOF_UNSIGNED_LONG == 4
 typedef unsigned long uint32_t;
 #define HAVE_UINT32_T
 #endif
@@ -142,12 +142,12 @@ typedef unsigned long uint32_t;
 /*
  * Similarly for uint16_t
  */
-#if !defined(HAVE_UINT16_T) && SIZE_OF_UNSIGNED == 2
+#if !defined(HAVE_UINT16_T) && SIZEOF_UNSIGNED == 2
 typedef unsigned uint16_t;
 #define HAVE_UINT16_T
 #endif
 
-#if !defined(HAVE_UINT16_T) && SIZE_OF_UNSIGNED_SHORT == 2
+#if !defined(HAVE_UINT16_T) && SIZEOF_UNSIGNED_SHORT == 2
 typedef unsigned short uint16_t;
 #define HAVE_UINT16_T
 #endif
@@ -737,6 +737,10 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the `zstd' library (-lzstd). */
 #cmakedefine HAVE_LIBZSTD 1
+
+/* Define to 1 if you have the `zstd' library (-lzstd) with compression
+   support. */
+#cmakedefine HAVE_LIBZSTD_COMPRESSOR 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H 1

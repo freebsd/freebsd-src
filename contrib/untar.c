@@ -36,6 +36,10 @@
 /* This is for mkdir(); this may need to be changed for some platforms. */
 #include <sys/stat.h>  /* For mkdir() */
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include <windows.h>
+#endif
+
 /* Parse an octal number, ignoring leading and trailing nonsense. */
 static int
 parseoct(const char *p, size_t n)
@@ -78,7 +82,11 @@ create_dir(char *pathname, int mode)
 		pathname[strlen(pathname) - 1] = '\0';
 
 	/* Try creating the directory. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	r = _mkdir(pathname);
+#else
 	r = mkdir(pathname, mode);
+#endif
 
 	if (r != 0) {
 		/* On failure, try creating parent directory. */
@@ -87,7 +95,11 @@ create_dir(char *pathname, int mode)
 			*p = '\0';
 			create_dir(pathname, 0755);
 			*p = '/';
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			r = _mkdir(pathname);
+#else
 			r = mkdir(pathname, mode);
+#endif
 		}
 	}
 	if (r != 0)

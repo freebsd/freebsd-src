@@ -94,24 +94,21 @@ archive_read_support_compression_gzip(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+gzip_bidder_vtable = {
+	.bid = gzip_bidder_bid,
+	.init = gzip_bidder_init,
+};
+
 int
 archive_read_support_filter_gzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *bidder;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_gzip");
-
-	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
+	if (__archive_read_register_bidder(a, NULL, "gzip",
+				&gzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	bidder->data = NULL;
-	bidder->name = "gzip";
-	bidder->bid = gzip_bidder_bid;
-	bidder->init = gzip_bidder_init;
-	bidder->options = NULL;
-	bidder->free = NULL; /* No data, so no cleanup necessary. */
 	/* Signal the extent of gzip support with the return value here. */
 #if HAVE_ZLIB_H
 	return (ARCHIVE_OK);
@@ -291,6 +288,15 @@ gzip_read_header(struct archive_read_filter *self, struct archive_entry *entry)
 	return (ARCHIVE_OK);
 }
 
+static const struct archive_read_filter_vtable
+gzip_reader_vtable = {
+	.read = gzip_filter_read,
+	.close = gzip_filter_close,
+#ifdef HAVE_ZLIB_H
+	.read_header = gzip_read_header,
+#endif
+};
+
 /*
  * Initialize the filter object.
  */
@@ -317,12 +323,7 @@ gzip_bidder_init(struct archive_read_filter *self)
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->read = gzip_filter_read;
-	self->skip = NULL; /* not supported */
-	self->close = gzip_filter_close;
-#ifdef HAVE_ZLIB_H
-	self->read_header = gzip_read_header;
-#endif
+	self->vtable = &gzip_reader_vtable;
 
 	state->in_stream = 0; /* We're not actually within a stream yet. */
 

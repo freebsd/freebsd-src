@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.5.2])
-m4_define([LIBARCHIVE_VERSION_N],[3005002])
+m4_define([LIBARCHIVE_VERSION_S],[3.6.0])
+m4_define([LIBARCHIVE_VERSION_N],[3006000])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -400,7 +400,9 @@ AC_ARG_WITH([zstd],
 
 if test "x$with_zstd" != "xno"; then
   AC_CHECK_HEADERS([zstd.h])
-  AC_CHECK_LIB(zstd,ZSTD_compressStream)
+  AC_CHECK_LIB(zstd,ZSTD_decompressStream)
+  AC_CHECK_LIB(zstd,ZSTD_compressStream,
+    AC_DEFINE([HAVE_LIBZSTD_COMPRESSOR], [1], [Define to 1 if you have the `zstd' library (-lzstd) with compression support.]))
 fi
 
 AC_ARG_WITH([lzma],
@@ -540,6 +542,22 @@ fi
 # Checks for supported compiler flags
 AX_APPEND_COMPILE_FLAGS([-Wall -Wformat -Wformat-security])
 
+# Place the functions and data into separate sections, allowing the linker
+# to garbage collect the unused ones.
+save_LDFLAGS=$LDFLAGS
+LDFLAGS="$LDFLAGS -Wl,--gc-sections"
+AC_MSG_CHECKING([whether ld supports --gc-sections])
+AC_LINK_IFELSE(
+    [AC_LANG_SOURCE([static char UnusedFunc() { return 5; } int main() { return 0;}])],
+    [AC_MSG_RESULT([yes])
+        GC_SECTIONS="-Wl,--gc-sections";
+        AX_APPEND_COMPILE_FLAGS([-ffunction-sections -fdata-sections])],
+    [AC_MSG_RESULT([no])
+        GC_SECTIONS="";])
+LDFLAGS=$save_LDFLAGS
+
+AC_SUBST(GC_SECTIONS)
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 # la_TYPE_UID_T defaults to "int", which is incorrect for MinGW
@@ -632,6 +650,9 @@ AC_CHECK_TYPE([wchar_t],
 	        [AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_[]wchar_t), 1, [Define to 1 if the system has the type `wchar_t'.])dnl
 		AC_CHECK_SIZEOF([wchar_t])],
 		[])
+
+AX_COMPILE_CHECK_SIZEOF(int)
+AX_COMPILE_CHECK_SIZEOF(long)
 
 AC_HEADER_TIME
 

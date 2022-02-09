@@ -44,6 +44,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_fflags.c
     test_option_gid_gname.c
     test_option_grzip.c
+    test_option_ignore_zeros.c
     test_option_j.c
     test_option_k.c
     test_option_keep_newer_files.c

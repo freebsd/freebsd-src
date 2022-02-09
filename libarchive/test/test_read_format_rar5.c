@@ -1206,6 +1206,23 @@ DEFINE_TEST(test_read_format_rar5_different_window_size)
 	EPILOGUE();
 }
 
+DEFINE_TEST(test_read_format_rar5_window_buf_and_size_desync)
+{
+	/* oss fuzz 30442 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_window_buf_and_size_desync.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, 46)) {}
+
+	EPILOGUE();
+}
+
 DEFINE_TEST(test_read_format_rar5_arm_filter_on_window_boundary)
 {
 	char buf[4096];
@@ -1268,6 +1285,65 @@ DEFINE_TEST(test_read_format_rar5_block_size_is_too_small)
 
 	assertA(archive_read_next_header(a, &ae) != ARCHIVE_OK);
 	assertA(archive_read_data(a, buf, sizeof(buf)) <= 0);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_sfx)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	int bs = 10240;
+	char buff[32];
+	const char reffile[] = "test_read_format_rar5_sfx.exe";
+	const char test_txt[] = "123";
+	int size = sizeof(test_txt) - 1;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+	assertA(0 == archive_read_support_format_all(a));
+	assertA(0 == archive_read_open_filename(a, reffile, bs));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("test.txt.txt", archive_entry_pathname(ae));
+
+	assertA(size == archive_read_data(a, buff, size));
+	assertEqualMem(buff, test_txt, size);
+}
+
+DEFINE_TEST(test_read_format_rar5_decode_number_out_of_bounds_read)
+{
+	/* oss fuzz 30448 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_decode_number_out_of_bounds_read.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_bad_window_size_in_multiarchive_file)
+{
+	/* oss fuzz 30459 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_bad_window_sz_in_mltarc_file.rar");
+
+	/* This file is damaged, so those functions should return failure.
+	 * Additionally, SIGSEGV shouldn't be raised during execution
+	 * of those functions. */
+
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
+	(void) archive_read_next_header(a, &ae);
+	while(0 < archive_read_data(a, buf, sizeof(buf))) {}
 
 	EPILOGUE();
 }

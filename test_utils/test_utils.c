@@ -26,99 +26,86 @@
 
 #include "test_utils.h"
 
+#include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
-/* Filter tests against a glob pattern. Returns non-zero if test matches
- * pattern, zero otherwise. A '^' at the beginning of the pattern negates
- * the return values (i.e. returns zero for a match, non-zero otherwise.
- */
-static int
-test_filter(const char *pattern, const char *test)
+static inline uint64_t
+xorshift64(uint64_t *state)
 {
-	int retval = 0;
-	int negate = 0;
-	const char *p = pattern;
-	const char *t = test;
-
-	if (p[0] == '^')
-	{
-		negate = 1;
-		p++;
-	}
-
-	while (1)
-	{
-		if (p[0] == '\\')
-			p++;
-		else if (p[0] == '*')
-		{
-			while (p[0] == '*')
-				p++;
-			if (p[0] == '\\')
-				p++;
-			if ((t = strchr(t, p[0])) == 0)
-				break;
-		}
-		if (p[0] != t[0])
-			break;
-		if (p[0] == '\0') {
-			retval = 1;
-			break;
-		}
-		p++;
-		t++;
-	}
-
-	return (negate) ? !retval : retval;
+	uint64_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	*state = x;
+	return (x);
 }
 
-int get_test_set(int *test_set, int limit, const char *test,
-	struct test_list_t *tests)
+/*
+ * Fill a buffer with reproducible pseudo-random data using a simple xorshift
+ * algorithm. Originally, most tests filled buffers with a loop that calls
+ * rand() once for each byte. However, this initialization can be extremely
+ * slow when running on emulated platforms such as QEMU where 16M calls to
+ * rand() take a long time: Before the test_write_format_7zip_large_copy test
+ * took ~22 seconds, whereas using a xorshift random number generator (that can
+ * be inlined) reduces it to ~17 seconds on QEMU RISC-V.
+ */
+static void
+fill_with_pseudorandom_data_seed(uint64_t seed, void *buffer, size_t size)
 {
-	int start, end;
-	int idx = 0;
-
-	if (test == NULL) {
-		/* Default: Run all tests. */
-		for (;idx < limit; idx++)
-			test_set[idx] = idx;
-		return (limit);
-	}
-	if (*test >= '0' && *test <= '9') {
-		const char *vp = test;
-		start = 0;
-		while (*vp >= '0' && *vp <= '9') {
-			start *= 10;
-			start += *vp - '0';
-			++vp;
-		}
-		if (*vp == '\0') {
-			end = start;
-		} else if (*vp == '-') {
-			++vp;
-			if (*vp == '\0') {
-				end = limit - 1;
-			} else {
-				end = 0;
-				while (*vp >= '0' && *vp <= '9') {
-					end *= 10;
-					end += *vp - '0';
-					++vp;
-				}
-			}
-		} else
-			return (-1);
-		if (start < 0 || end >= limit || start > end)
-			return (-1);
-		while (start <= end)
-			test_set[idx++] = start++;
+	uint64_t *aligned_buffer;
+	size_t num_values;
+	size_t i;
+	size_t unaligned_suffix;
+	size_t unaligned_prefix = 0;
+	/*
+	 * To avoid unaligned stores we only fill the aligned part of the buffer
+	 * with pseudo-random data and fill the unaligned prefix with 0xab and
+	 * the suffix with 0xcd.
+	 */
+	if ((uintptr_t)buffer % sizeof(uint64_t)) {
+		unaligned_prefix =
+		    sizeof(uint64_t) - (uintptr_t)buffer % sizeof(uint64_t);
+		aligned_buffer =
+		    (uint64_t *)((char *)buffer + unaligned_prefix);
+		memset(buffer, 0xab, unaligned_prefix);
 	} else {
-		for (start = 0; start < limit; ++start) {
-			const char *name = tests[start].name;
-			if (test_filter(test, name))
-				test_set[idx++] = start;
-		}
+		aligned_buffer = (uint64_t *)buffer;
 	}
-	return ((idx == 0)?-1:idx);
+	assert((uintptr_t)aligned_buffer % sizeof(uint64_t) == 0);
+	num_values = (size - unaligned_prefix) / sizeof(uint64_t);
+	unaligned_suffix =
+	    size - unaligned_prefix - num_values * sizeof(uint64_t);
+	for (i = 0; i < num_values; i++) {
+		aligned_buffer[i] = xorshift64(&seed);
+	}
+	if (unaligned_suffix) {
+		memset((char *)buffer + size - unaligned_suffix, 0xcd,
+		    unaligned_suffix);
+	}
+}
+
+void
+fill_with_pseudorandom_data(void *buffer, size_t size)
+{
+	uint64_t seed;
+	const char* seed_str;
+	/*
+	 * Check if a seed has been specified in the environment, otherwise fall
+	 * back to using rand() as a seed.
+	 */
+	if ((seed_str = getenv("TEST_RANDOM_SEED")) != NULL) {
+		errno = 0;
+		seed = strtoull(seed_str, NULL, 10);
+		if (errno != 0) {
+			fprintf(stderr, "strtoull(%s) failed: %s", seed_str,
+			    strerror(errno));
+			seed = rand();
+		}
+	} else {
+		seed = rand();
+	}
+	fill_with_pseudorandom_data_seed(seed, buffer, size);
 }

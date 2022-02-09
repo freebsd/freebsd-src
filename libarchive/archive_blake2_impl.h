@@ -154,7 +154,7 @@ static BLAKE2_INLINE uint64_t rotr64( const uint64_t w, const unsigned c )
 /* prevents compiler optimizing out memset() */
 static BLAKE2_INLINE void secure_zero_memory(void *v, size_t n)
 {
-  static void *(*const volatile memset_v)(void *, int, size_t) = &memset;
+  static void *(__LA_LIBC_CC *const volatile memset_v)(void *, int, size_t) = &memset;
   memset_v(v, 0, n);
 }
 

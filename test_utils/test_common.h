@@ -471,4 +471,6 @@ void assertVersion(const char *prog, const char *base);
 #include <dmalloc.h>
 #endif
 
+#include "test_utils.h"
+
 #endif	/* TEST_COMMON_H */

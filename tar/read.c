@@ -371,10 +371,9 @@ read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 				r = archive_read_extract2(a, entry, writer);
 			if (r != ARCHIVE_OK) {
 				if (!bsdtar->verbose)
-					safe_fprintf(stderr, "%s",
-					    archive_entry_pathname(entry));
-				safe_fprintf(stderr, ": %s",
-				    archive_error_string(a));
+					safe_fprintf(stderr, "%s", archive_entry_pathname(entry));
+				fprintf(stderr, ": %s: ", archive_error_string(a));
+				fprintf(stderr, "%s", strerror(errno));
 				if (!bsdtar->verbose)
 					fprintf(stderr, "\n");
 				bsdtar->return_value = 1;

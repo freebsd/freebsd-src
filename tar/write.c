@@ -196,6 +196,10 @@ set_reader_options(struct bsdtar *bsdtar, struct archive *a)
 		else
 			archive_clear_error(a);
 	}
+	if (bsdtar->flags & OPTFLAG_IGNORE_ZEROS)
+		if (archive_read_set_options(a,
+		    "read_concatenated_archives") != ARCHIVE_OK)
+			lafe_errc(1, 0, "%s", archive_error_string(a));
 }
 
 void

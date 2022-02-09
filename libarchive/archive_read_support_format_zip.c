@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_zip.c 201102
 #ifdef HAVE_LZMA_H
 #include <lzma.h>
 #endif
+#ifdef HAVE_ZSTD_H
+#include <zstd.h>
+#endif
 
 #include "archive.h"
 #include "archive_digest_private.h"
@@ -189,6 +192,11 @@ struct zip {
 #ifdef HAVE_BZLIB_H
 	bz_stream		bzstream;
 	char            bzstream_valid;
+#endif
+
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	ZSTD_DStream	*zstdstream;
+	char            zstdstream_valid;
 #endif
 
 	IByteIn			zipx_ppmd_stream;
@@ -435,6 +443,7 @@ static const struct {
 	{17, "reserved"}, /* Reserved by PKWARE */
 	{18, "ibm-terse-new"}, /* File is compressed using IBM TERSE (new) */
 	{19, "ibm-lz777"},/* IBM LZ77 z Architecture (PFS) */
+	{93, "zstd"},     /*  Zstandard (zstd) Compression */
 	{95, "xz"},       /* XZ compressed data */
 	{96, "jpeg"},     /* JPEG compressed data */
 	{97, "wav-pack"}, /* WavPack compressed data */
@@ -1144,7 +1153,8 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 			    (intmax_t)zip_entry->compressed_size);
 			ret = ARCHIVE_WARN;
 		}
-		if (zip_entry->uncompressed_size == 0) {
+		if (zip_entry->uncompressed_size == 0 ||
+			zip_entry->uncompressed_size == 0xffffffff) {
 			zip_entry->uncompressed_size
 			    = zip_entry_central_dir.uncompressed_size;
 		} else if (zip_entry->uncompressed_size
@@ -1186,7 +1196,7 @@ zip_read_local_file_header(struct archive_read *a, struct archive_entry *entry,
 		{
 			// symlink target string appeared to be compressed
 			int status = ARCHIVE_FATAL;
-			const void *uncompressed_buffer;
+			const void *uncompressed_buffer = NULL;
 
 			switch (zip->entry->compression)
 			{
@@ -2238,6 +2248,140 @@ zip_read_data_zipx_bzip2(struct archive_read *a, const void **buff,
 
 #endif
 
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+static int
+zipx_zstd_init(struct archive_read *a, struct zip *zip)
+{
+	size_t r;
+
+	/* Deallocate already existing Zstd decompression context if it
+	 * exists. */
+	if(zip->zstdstream_valid) {
+		ZSTD_freeDStream(zip->zstdstream);
+		zip->zstdstream_valid = 0;
+	}
+
+	/* Allocate a new Zstd decompression context. */
+	zip->zstdstream = ZSTD_createDStream();
+
+	r = ZSTD_initDStream(zip->zstdstream);
+	if (ZSTD_isError(r)) {
+		 archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Error initializing zstd decompressor: %s",
+			ZSTD_getErrorName(r));
+
+		return ARCHIVE_FAILED;
+	}
+
+	/* Mark the zstdstream field to be released in cleanup phase. */
+	zip->zstdstream_valid = 1;
+
+	/* (Re)allocate the buffer that will contain decompressed bytes. */
+	free(zip->uncompressed_buffer);
+
+	zip->uncompressed_buffer_size = ZSTD_DStreamOutSize();
+	zip->uncompressed_buffer =
+	    (uint8_t*) malloc(zip->uncompressed_buffer_size);
+	if (zip->uncompressed_buffer == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+			"No memory for Zstd decompression");
+
+		return ARCHIVE_FATAL;
+	}
+
+	/* Initialization done. */
+	zip->decompress_init = 1;
+	return ARCHIVE_OK;
+}
+
+static int
+zip_read_data_zipx_zstd(struct archive_read *a, const void **buff,
+    size_t *size, int64_t *offset)
+{
+	struct zip *zip = (struct zip *)(a->format->data);
+	ssize_t bytes_avail = 0, in_bytes, to_consume;
+	const void *compressed_buff;
+	int r;
+	size_t ret;
+	uint64_t total_out;
+	ZSTD_outBuffer out;
+	ZSTD_inBuffer in;
+
+	(void) offset; /* UNUSED */
+
+	/* Initialize decompression context if we're here for the first time. */
+	if(!zip->decompress_init) {
+		r = zipx_zstd_init(a, zip);
+		if(r != ARCHIVE_OK)
+			return r;
+	}
+
+	/* Fetch more compressed bytes */
+	compressed_buff = __archive_read_ahead(a, 1, &bytes_avail);
+	if(bytes_avail < 0) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated zstd file body");
+		return (ARCHIVE_FATAL);
+	}
+
+	in_bytes = zipmin(zip->entry_bytes_remaining, bytes_avail);
+	if(in_bytes < 1) {
+		/* zstd doesn't complain when caller feeds avail_in == 0.
+		 * It will actually return success in this case, which is
+		 * undesirable. This is why we need to make this check
+		 * manually. */
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated zstd file body");
+		return (ARCHIVE_FATAL);
+	}
+
+	/* Setup buffer boundaries */
+	in.src = compressed_buff;
+	in.size = in_bytes;
+	in.pos = 0;
+	out = (ZSTD_outBuffer) { zip->uncompressed_buffer, zip->uncompressed_buffer_size, 0 };
+
+	/* Perform the decompression. */
+	ret = ZSTD_decompressStream(zip->zstdstream, &out, &in);
+	if (ZSTD_isError(ret)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Error during zstd decompression: %s",
+			ZSTD_getErrorName(ret));
+		return (ARCHIVE_FATAL);
+	}
+
+	/* Check end of the stream. */
+	if (ret == 0) {
+		if ((in.pos == in.size) && (out.pos < out.size)) {
+			zip->end_of_entry = 1;
+			ZSTD_freeDStream(zip->zstdstream);
+			zip->zstdstream_valid = 0;
+		}
+	}
+
+	/* Update the pointers so decompressor can continue decoding. */
+	to_consume = in.pos;
+	__archive_read_consume(a, to_consume);
+
+	total_out = out.pos;
+
+	zip->entry_bytes_remaining -= to_consume;
+	zip->entry_compressed_bytes_read += to_consume;
+	zip->entry_uncompressed_bytes_read += total_out;
+
+	/* Give libarchive its due. */
+	*size = total_out;
+	*buff = zip->uncompressed_buffer;
+
+	/* Seek for optional marker, like in other entries. */
+	r = consume_optional_marker(a, zip);
+	if(r != ARCHIVE_OK)
+		return r;
+
+	return ARCHIVE_OK;
+}
+#endif
+
 #ifdef HAVE_ZLIB_H
 static int
 zip_deflate_init(struct archive_read *a, struct zip *zip)
@@ -2858,6 +3002,11 @@ archive_read_format_zip_read_data(struct archive_read *a,
 		r = zip_read_data_zipx_xz(a, buff, size, offset);
 		break;
 #endif
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	case 93: /* ZIPx Zstd compression. */
+		r = zip_read_data_zipx_zstd(a, buff, size, offset);
+		break;
+#endif
 	/* PPMd support is built-in, so we don't need any #if guards. */
 	case 98: /* ZIPx PPMd compression. */
 		r = zip_read_data_zipx_ppmd(a, buff, size, offset);
@@ -2945,6 +3094,12 @@ archive_read_format_zip_cleanup(struct archive_read *a)
 #ifdef HAVE_BZLIB_H
 	if (zip->bzstream_valid) {
 		BZ2_bzDecompressEnd(&zip->bzstream);
+	}
+#endif
+
+#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	if (zip->zstdstream_valid) {
+		ZSTD_freeDStream(zip->zstdstream);
 	}
 #endif
 

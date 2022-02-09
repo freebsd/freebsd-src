@@ -99,7 +99,6 @@ static int	lz4_filter_close(struct archive_read_filter *);
  */
 static int	lz4_reader_bid(struct archive_read_filter_bidder *, struct archive_read_filter *);
 static int	lz4_reader_init(struct archive_read_filter *);
-static int	lz4_reader_free(struct archive_read_filter_bidder *);
 #if defined(HAVE_LIBLZ4)
 static ssize_t  lz4_filter_read_default_stream(struct archive_read_filter *,
 		    const void **);
@@ -107,24 +106,21 @@ static ssize_t  lz4_filter_read_legacy_stream(struct archive_read_filter *,
 		    const void **);
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+lz4_bidder_vtable = {
+	.bid = lz4_reader_bid,
+	.init = lz4_reader_init,
+};
+
 int
 archive_read_support_filter_lz4(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *reader;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_lz4");
-
-	if (__archive_read_get_bidder(a, &reader) != ARCHIVE_OK)
+	if (__archive_read_register_bidder(a, NULL, "lz4",
+				&lz4_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	reader->data = NULL;
-	reader->name = "lz4";
-	reader->bid = lz4_reader_bid;
-	reader->init = lz4_reader_init;
-	reader->options = NULL;
-	reader->free = lz4_reader_free;
 #if defined(HAVE_LIBLZ4)
 	return (ARCHIVE_OK);
 #else
@@ -132,12 +128,6 @@ archive_read_support_filter_lz4(struct archive *_a)
 	    "Using external lz4 program");
 	return (ARCHIVE_WARN);
 #endif
-}
-
-static int
-lz4_reader_free(struct archive_read_filter_bidder *self){
-	(void)self; /* UNUSED */
-	return (ARCHIVE_OK);
 }
 
 /*
@@ -218,6 +208,12 @@ lz4_reader_init(struct archive_read_filter *self)
 
 #else
 
+static const struct archive_read_filter_vtable
+lz4_reader_vtable = {
+	.read = lz4_filter_read,
+	.close = lz4_filter_close,
+};
+
 /*
  * Setup the callbacks.
  */
@@ -238,9 +234,7 @@ lz4_reader_init(struct archive_read_filter *self)
 
 	self->data = state;
 	state->stage = SELECT_STREAM;
-	self->read = lz4_filter_read;
-	self->skip = NULL; /* not supported */
-	self->close = lz4_filter_close;
+	self->vtable = &lz4_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

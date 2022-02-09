@@ -173,6 +173,7 @@ struct fixup_entry {
 	struct fixup_entry	*next;
 	struct archive_acl	 acl;
 	mode_t			 mode;
+	__LA_MODE_T		 filetype;
 	int64_t			 atime;
 	int64_t                  birthtime;
 	int64_t			 mtime;
@@ -357,6 +358,7 @@ struct archive_write_disk {
 
 static int	la_opendirat(int, const char *);
 static int	la_mktemp(struct archive_write_disk *);
+static int	la_verify_filetype(mode_t, __LA_MODE_T);
 static void	fsobj_error(int *, struct archive_string *, int, const char *,
 		    const char *);
 static int	check_symlinks_fsobj(char *, int *, struct archive_string *,
@@ -395,8 +397,6 @@ static int	set_times_from_entry(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 static ssize_t	write_data_block(struct archive_write_disk *,
 		    const char *, size_t);
-
-static struct archive_vtable *archive_write_disk_vtable(void);
 
 static int	_archive_write_disk_close(struct archive *);
 static int	_archive_write_disk_free(struct archive *);
@@ -465,6 +465,39 @@ la_opendirat(int fd, const char *path) {
 }
 
 static int
+la_verify_filetype(mode_t mode, __LA_MODE_T filetype) {
+	int ret = 0;
+
+	switch (filetype) {
+	case AE_IFREG:
+		ret = (S_ISREG(mode));
+		break;
+	case AE_IFDIR:
+		ret = (S_ISDIR(mode));
+		break;
+	case AE_IFLNK:
+		ret = (S_ISLNK(mode));
+		break;
+	case AE_IFSOCK:
+		ret = (S_ISSOCK(mode));
+		break;
+	case AE_IFCHR:
+		ret = (S_ISCHR(mode));
+		break;
+	case AE_IFBLK:
+		ret = (S_ISBLK(mode));
+		break;
+	case AE_IFIFO:
+		ret = (S_ISFIFO(mode));
+		break;
+	default:
+		break;
+	}
+
+	return (ret);
+}
+
+static int
 lazy_stat(struct archive_write_disk *a)
 {
 	if (a->pst != NULL) {
@@ -489,25 +522,16 @@ lazy_stat(struct archive_write_disk *a)
 	return (ARCHIVE_WARN);
 }
 
-static struct archive_vtable *
-archive_write_disk_vtable(void)
-{
-	static struct archive_vtable av;
-	static int inited = 0;
-
-	if (!inited) {
-		av.archive_close = _archive_write_disk_close;
-		av.archive_filter_bytes = _archive_write_disk_filter_bytes;
-		av.archive_free = _archive_write_disk_free;
-		av.archive_write_header = _archive_write_disk_header;
-		av.archive_write_finish_entry
-		    = _archive_write_disk_finish_entry;
-		av.archive_write_data = _archive_write_disk_data;
-		av.archive_write_data_block = _archive_write_disk_data_block;
-		inited = 1;
-	}
-	return (&av);
-}
+static const struct archive_vtable
+archive_write_disk_vtable = {
+	.archive_close = _archive_write_disk_close,
+	.archive_filter_bytes = _archive_write_disk_filter_bytes,
+	.archive_free = _archive_write_disk_free,
+	.archive_write_header = _archive_write_disk_header,
+	.archive_write_finish_entry = _archive_write_disk_finish_entry,
+	.archive_write_data = _archive_write_disk_data,
+	.archive_write_data_block = _archive_write_disk_data_block,
+};
 
 static int64_t
 _archive_write_disk_filter_bytes(struct archive *_a, int n)
@@ -822,6 +846,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		fe = current_fixup(a, archive_entry_pathname(entry));
 		if (fe == NULL)
 			return (ARCHIVE_FATAL);
+		fe->filetype = archive_entry_filetype(entry);
 		fe->fixup |= TODO_MODE_BASE;
 		fe->mode = a->mode;
 	}
@@ -832,6 +857,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		fe = current_fixup(a, archive_entry_pathname(entry));
 		if (fe == NULL)
 			return (ARCHIVE_FATAL);
+		fe->filetype = archive_entry_filetype(entry);
 		fe->mode = a->mode;
 		fe->fixup |= TODO_TIMES;
 		if (archive_entry_atime_is_set(entry)) {
@@ -865,6 +891,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		fe = current_fixup(a, archive_entry_pathname(entry));
 		if (fe == NULL)
 			return (ARCHIVE_FATAL);
+		fe->filetype = archive_entry_filetype(entry);
 		fe->fixup |= TODO_ACLS;
 		archive_acl_copy(&fe->acl, archive_entry_acl(entry));
 	}
@@ -877,6 +904,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 			fe = current_fixup(a, archive_entry_pathname(entry));
 			if (fe == NULL)
 				return (ARCHIVE_FATAL);
+			fe->filetype = archive_entry_filetype(entry);
 			fe->mac_metadata = malloc(metadata_size);
 			if (fe->mac_metadata != NULL) {
 				memcpy(fe->mac_metadata, metadata,
@@ -891,6 +919,7 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		fe = current_fixup(a, archive_entry_pathname(entry));
 		if (fe == NULL)
 			return (ARCHIVE_FATAL);
+		fe->filetype = archive_entry_filetype(entry);
 		fe->fixup |= TODO_FFLAGS;
 		/* TODO: Complete this.. defer fflags from below. */
 	}
@@ -1956,7 +1985,7 @@ archive_write_disk_new(void)
 	a->archive.magic = ARCHIVE_WRITE_DISK_MAGIC;
 	/* We're ready to write a header immediately. */
 	a->archive.state = ARCHIVE_STATE_HEADER;
-	a->archive.vtable = archive_write_disk_vtable();
+	a->archive.vtable = &archive_write_disk_vtable;
 	a->start_time = time(NULL);
 	/* Query and restore the umask. */
 	umask(a->user_umask = umask(0));
@@ -2463,7 +2492,7 @@ _archive_write_disk_close(struct archive *_a)
 	struct fixup_entry *next, *p;
 	struct stat st;
 	char *c;
-	int fd, ret;
+	int fd, ret, openflags;
 
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
@@ -2490,32 +2519,53 @@ _archive_write_disk_close(struct archive *_a)
 		if (p->fixup == 0)
 			goto skip_fixup_entry;
 		else {
-			fd = open(p->name, O_BINARY | O_NOFOLLOW | O_RDONLY
-#if defined(O_DIRECTORY)
-			    | O_DIRECTORY
-#endif
-			    | O_CLOEXEC);
 			/*
-		 `	 * If we don't support O_DIRECTORY,
-			 * or open() has failed, we must stat()
-			 * to verify that we are opening a directory
+			 * We need to verify if the type of the file
+			 * we are going to open matches the file type
+			 * of the fixup entry.
 			 */
+			openflags = O_BINARY | O_NOFOLLOW | O_RDONLY
+			    | O_CLOEXEC;
 #if defined(O_DIRECTORY)
-			if (fd == -1) {
+			if (p->filetype == AE_IFDIR)
+				openflags |= O_DIRECTORY;
+#endif
+			fd = open(p->name, openflags);
+
+#if defined(O_DIRECTORY)
+			/*
+			 * If we support O_DIRECTORY and open was
+			 * successful we can skip the file type check
+			 * for directories. For other file types
+			 * we need to verify via fstat() or lstat()
+			 */
+			if (fd == -1 || p->filetype != AE_IFDIR) {
+#if HAVE_FSTAT
+				if (fd > 0 && (
+				    fstat(fd, &st) != 0 ||
+				    la_verify_filetype(st.st_mode,
+				    p->filetype) == 0)) {
+					goto skip_fixup_entry;
+				} else
+#endif
 				if (lstat(p->name, &st) != 0 ||
-				    !S_ISDIR(st.st_mode)) {
+				    la_verify_filetype(st.st_mode,
+				    p->filetype) == 0) {
 					goto skip_fixup_entry;
 				}
 			}
 #else
 #if HAVE_FSTAT
 			if (fd > 0 && (
-			    fstat(fd, &st) != 0 || !S_ISDIR(st.st_mode))) {
+			    fstat(fd, &st) != 0 ||
+			    la_verify_filetype(st.st_mode,
+			    p->filetype) == 0)) {
 				goto skip_fixup_entry;
 			} else
 #endif
 			if (lstat(p->name, &st) != 0 ||
-			    !S_ISDIR(st.st_mode)) {
+			    la_verify_filetype(st.st_mode,
+			    p->filetype) == 0) {
 				goto skip_fixup_entry;
 			}
 #endif
@@ -2689,6 +2739,7 @@ new_fixup(struct archive_write_disk *a, const char *pathname)
 	fe->next = a->fixup_list;
 	a->fixup_list = fe;
 	fe->fixup = 0;
+	fe->filetype = 0;
 	fe->name = strdup(pathname);
 	return (fe);
 }
@@ -3811,6 +3862,7 @@ set_fflags(struct archive_write_disk *a)
 			le = current_fixup(a, a->name);
 			if (le == NULL)
 				return (ARCHIVE_FATAL);
+			le->filetype = archive_entry_filetype(a->entry);
 			le->fixup |= TODO_FFLAGS;
 			le->fflags_set = set;
 			/* Store the mode if it's not already there. */
