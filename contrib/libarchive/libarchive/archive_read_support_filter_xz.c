@@ -108,24 +108,21 @@ archive_read_support_compression_xz(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+xz_bidder_vtable = {
+	.bid = xz_bidder_bid,
+	.init = xz_bidder_init,
+};
+
 int
 archive_read_support_filter_xz(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *bidder;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_xz");
-
-	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
+	if (__archive_read_register_bidder(a, NULL, "xz",
+				&xz_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	bidder->data = NULL;
-	bidder->name = "xz";
-	bidder->bid = xz_bidder_bid;
-	bidder->init = xz_bidder_init;
-	bidder->options = NULL;
-	bidder->free = NULL;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
 #else
@@ -143,24 +140,21 @@ archive_read_support_compression_lzma(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+lzma_bidder_vtable = {
+	.bid = lzma_bidder_bid,
+	.init = lzma_bidder_init,
+};
+
 int
 archive_read_support_filter_lzma(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *bidder;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_lzma");
-
-	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
+	if (__archive_read_register_bidder(a, NULL, "lzma",
+				&lzma_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	bidder->data = NULL;
-	bidder->name = "lzma";
-	bidder->bid = lzma_bidder_bid;
-	bidder->init = lzma_bidder_init;
-	bidder->options = NULL;
-	bidder->free = NULL;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
 #else
@@ -179,24 +173,21 @@ archive_read_support_compression_lzip(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+lzip_bidder_vtable = {
+	.bid = lzip_bidder_bid,
+	.init = lzip_bidder_init,
+};
+
 int
 archive_read_support_filter_lzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *bidder;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_lzip");
-
-	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
+	if (__archive_read_register_bidder(a, NULL, "lzip",
+				&lzip_bidder_vtable) != ARCHIVE_OK)
 		return (ARCHIVE_FATAL);
 
-	bidder->data = NULL;
-	bidder->name = "lzip";
-	bidder->bid = lzip_bidder_bid;
-	bidder->init = lzip_bidder_init;
-	bidder->options = NULL;
-	bidder->free = NULL;
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 	return (ARCHIVE_OK);
 #else
@@ -293,8 +284,8 @@ lzma_bidder_bid(struct archive_read_filter_bidder *self,
 	/* Second through fifth bytes are dictionary size, stored in
 	 * little-endian order. The minimum dictionary size is
 	 * 1 << 12(4KiB) which the lzma of LZMA SDK uses with option
-	 * -d12 and the maximum dictionary size is 1 << 27(128MiB)
-	 * which the one uses with option -d27.
+	 * -d12 and the maximum dictionary size is 1 << 29(512MiB)
+	 * which the one uses with option -d29.
 	 * NOTE: A comment of LZMA SDK source code says this dictionary
 	 * range is from 1 << 12 to 1 << 30. */
 	dicsize = archive_le32dec(buffer+1);
@@ -377,7 +368,7 @@ lzip_has_member(struct archive_read_filter *filter)
 
 	/* Dictionary size. */
 	log2dic = buffer[5] & 0x1f;
-	if (log2dic < 12 || log2dic > 27)
+	if (log2dic < 12 || log2dic > 29)
 		return (0);
 	bits_checked += 8;
 
@@ -470,6 +461,12 @@ set_error(struct archive_read_filter *self, int ret)
 	}
 }
 
+static const struct archive_read_filter_vtable
+xz_lzma_reader_vtable = {
+	.read = xz_filter_read,
+	.close = xz_filter_close,
+};
+
 /*
  * Setup the callbacks.
  */
@@ -494,9 +491,7 @@ xz_lzma_bidder_init(struct archive_read_filter *self)
 	self->data = state;
 	state->out_block_size = out_block_size;
 	state->out_block = out_block;
-	self->read = xz_filter_read;
-	self->skip = NULL; /* not supported */
-	self->close = xz_filter_close;
+	self->vtable = &xz_lzma_reader_vtable;
 
 	state->stream.avail_in = 0;
 
@@ -562,7 +557,7 @@ lzip_init(struct archive_read_filter *self)
 
 	/* Get dictionary size. */
 	log2dic = h[5] & 0x1f;
-	if (log2dic < 12 || log2dic > 27)
+	if (log2dic < 12 || log2dic > 29)
 		return (ARCHIVE_FATAL);
 	dicsize = 1U << log2dic;
 	if (log2dic > 12)

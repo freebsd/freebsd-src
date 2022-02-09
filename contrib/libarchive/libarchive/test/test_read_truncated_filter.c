@@ -41,7 +41,7 @@ test_truncation(const char *compression,
 	char path[16];
 	char *buff, *data;
 	size_t buffsize, datasize, used1;
-	int i, j, r, use_prog;
+	int i, r, use_prog;
 
 	buffsize = 2000000;
 	assert(NULL != (buff = (char *)malloc(buffsize)));
@@ -91,9 +91,7 @@ test_truncation(const char *compression,
 			free(buff);
 			return;
 		}
-		for (j = 0; j < (int)datasize; ++j) {
-			data[j] = (char)(rand() % 256);
-		}
+		fill_with_pseudorandom_data(data, datasize);
 		failure("%s", path);
 		if (!assertEqualIntA(a, datasize,
 		    archive_write_data(a, data, datasize))) {
@@ -111,8 +109,13 @@ test_truncation(const char *compression,
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 
-	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_open_memory(a, buff, used1 - used1/64));
+	r = archive_read_open_memory(a, buff, used1 - used1/64);
+	if (r != ARCHIVE_OK) {
+		assertEqualStringA(a, "truncated bzip2 input",
+		    archive_error_string(a));
+		    goto out;
+	}
+
 	for (i = 0; i < 100; i++) {
 		if (ARCHIVE_OK != archive_read_next_header(a, &ae)) {
 			failure("Should have non-NULL error message for %s",
@@ -133,6 +136,7 @@ test_truncation(const char *compression,
 	    archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
+out:
 	free(data);
 	free(buff);
 }
@@ -154,12 +158,12 @@ DEFINE_TEST(test_read_truncated_filter_gzip)
 
 DEFINE_TEST(test_read_truncated_filter_lzip)
 {
-	test_truncation("lzip", archive_write_add_filter_lzip, 0);
+	test_truncation("lzip", archive_write_add_filter_lzip, canLzip());
 }
 
 DEFINE_TEST(test_read_truncated_filter_lzma)
 {
-	test_truncation("lzma", archive_write_add_filter_lzma, 0);
+	test_truncation("lzma", archive_write_add_filter_lzma, canLzma());
 }
 
 DEFINE_TEST(test_read_truncated_filter_lzop)
@@ -169,5 +173,5 @@ DEFINE_TEST(test_read_truncated_filter_lzop)
 
 DEFINE_TEST(test_read_truncated_filter_xz)
 {
-	test_truncation("xz", archive_write_add_filter_xz, 0);
+	test_truncation("xz", archive_write_add_filter_xz, canXz());
 }

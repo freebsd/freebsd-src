@@ -142,12 +142,6 @@ canAlways(void)
 	return 1;
 }
 
-static int
-cannot(void)
-{
-	return 0;
-}
-
 DEFINE_TEST(test_archive_write_add_filter_by_name_b64encode)
 {
 	test_filter_by_name("b64encode", ARCHIVE_FILTER_UU, canAlways);
@@ -185,12 +179,12 @@ DEFINE_TEST(test_archive_write_add_filter_by_name_lz4)
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_lzip)
 {
-	test_filter_by_name("lzip", ARCHIVE_FILTER_LZIP, cannot);
+	test_filter_by_name("lzip", ARCHIVE_FILTER_LZIP, canLzip);
 }
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_lzma)
 {
-	test_filter_by_name("lzma", ARCHIVE_FILTER_LZMA, cannot);
+	test_filter_by_name("lzma", ARCHIVE_FILTER_LZMA, canLzma);
 }
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_lzop)
@@ -205,7 +199,7 @@ DEFINE_TEST(test_archive_write_add_filter_by_name_uuencode)
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_xz)
 {
-	test_filter_by_name("xz", ARCHIVE_FILTER_XZ, cannot);
+	test_filter_by_name("xz", ARCHIVE_FILTER_XZ, canXz);
 }
 
 DEFINE_TEST(test_archive_write_add_filter_by_name_zstd)

@@ -72,25 +72,19 @@ archive_read_support_compression_rpm(struct archive *a)
 }
 #endif
 
+static const struct archive_read_filter_bidder_vtable
+rpm_bidder_vtable = {
+	.bid = rpm_bidder_bid,
+	.init = rpm_bidder_init,
+};
+
 int
 archive_read_support_filter_rpm(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct archive_read_filter_bidder *bidder;
 
-	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_NEW, "archive_read_support_filter_rpm");
-
-	if (__archive_read_get_bidder(a, &bidder) != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
-
-	bidder->data = NULL;
-	bidder->name = "rpm";
-	bidder->bid = rpm_bidder_bid;
-	bidder->init = rpm_bidder_init;
-	bidder->options = NULL;
-	bidder->free = NULL;
-	return (ARCHIVE_OK);
+	return __archive_read_register_bidder(a, NULL, "rpm",
+			&rpm_bidder_vtable);
 }
 
 static int
@@ -133,6 +127,12 @@ rpm_bidder_bid(struct archive_read_filter_bidder *self,
 	return (bits_checked);
 }
 
+static const struct archive_read_filter_vtable
+rpm_reader_vtable = {
+	.read = rpm_filter_read,
+	.close = rpm_filter_close,
+};
+
 static int
 rpm_bidder_init(struct archive_read_filter *self)
 {
@@ -140,9 +140,6 @@ rpm_bidder_init(struct archive_read_filter *self)
 
 	self->code = ARCHIVE_FILTER_RPM;
 	self->name = "rpm";
-	self->read = rpm_filter_read;
-	self->skip = NULL; /* not supported */
-	self->close = rpm_filter_close;
 
 	rpm = (struct rpm *)calloc(sizeof(*rpm), 1);
 	if (rpm == NULL) {
@@ -153,6 +150,7 @@ rpm_bidder_init(struct archive_read_filter *self)
 
 	self->data = rpm;
 	rpm->state = ST_LEAD;
+	self->vtable = &rpm_reader_vtable;
 
 	return (ARCHIVE_OK);
 }

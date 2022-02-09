@@ -36,7 +36,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3005002
+#define	ARCHIVE_VERSION_NUMBER 3006000
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -97,7 +97,7 @@ typedef ssize_t la_ssize_t;
 #endif
 
 /* Large file support for Android */
-#ifdef __ANDROID__
+#if defined(__LIBARCHIVE_BUILD) && defined(__ANDROID__)
 #include "android_lf.h"
 #endif
 
@@ -155,7 +155,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.5.2"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.6.0"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -1024,6 +1024,8 @@ __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
 #define	ARCHIVE_READDISK_NO_ACL			(0x0020)
 /* Default: File flags are read from disk. */
 #define	ARCHIVE_READDISK_NO_FFLAGS		(0x0040)
+/* Default: Sparse file information is read from disk. */
+#define	ARCHIVE_READDISK_NO_SPARSE		(0x0080)
 
 __LA_DECL int  archive_read_disk_set_behavior(struct archive *,
 		    int flags);

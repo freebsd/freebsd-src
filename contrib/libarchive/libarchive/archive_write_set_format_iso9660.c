@@ -6802,6 +6802,7 @@ isoent_rr_move(struct archive_write *a)
  * This comparing rule is according to ISO9660 Standard 6.9.1
  */
 static int
+__LA_LIBC_CC
 _compare_path_table(const void *v1, const void *v2)
 {
 	const struct isoent *p1, *p2;
@@ -6844,6 +6845,7 @@ _compare_path_table(const void *v1, const void *v2)
 }
 
 static int
+__LA_LIBC_CC
 _compare_path_table_joliet(const void *v1, const void *v2)
 {
 	const struct isoent *p1, *p2;

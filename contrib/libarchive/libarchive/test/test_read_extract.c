@@ -59,8 +59,7 @@ DEFINE_TEST(test_read_extract)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	for (i = 0; i < FILE_BUFF_SIZE; i++)
-		file_buff[i] = (unsigned char)rand();
+	fill_with_pseudorandom_data(file_buff, FILE_BUFF_SIZE);
 	archive_entry_set_size(ae, FILE_BUFF_SIZE);
 	assertA(0 == archive_write_header(a, ae));
 	assertA(FILE_BUFF_SIZE == archive_write_data(a, file_buff, FILE_BUFF_SIZE));

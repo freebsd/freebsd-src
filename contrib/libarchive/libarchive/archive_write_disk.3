@@ -163,14 +163,14 @@ caused by archives that (deliberately or otherwise) extract
 files outside of the current directory.
 The default is not to perform this check.
 If
-.It Cm ARCHIVE_EXTRACT_SPARSE
-Scan data for blocks of NUL bytes and try to recreate them with holes.
-This results in sparse files, independent of whether the archive format
-supports or uses them.
 .Cm ARCHIVE_EXTRACT_UNLINK
 is specified together with this option, the library will
 remove any intermediate symlinks it finds and return an
 error only if such symlink could not be removed.
+.It Cm ARCHIVE_EXTRACT_SPARSE
+Scan data for blocks of NUL bytes and try to recreate them with holes.
+This results in sparse files, independent of whether the archive format
+supports or uses them.
 .It Cm ARCHIVE_EXTRACT_TIME
 The timestamps (mtime, ctime, and atime) should be restored.
 By default, they are ignored.

@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD$");
 
 struct private_data {
 	int		 compression_level;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	int      threads;
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 	ZSTD_CStream	*cstream;
 	int64_t		 total_in;
 	ZSTD_outBuffer	 out;
@@ -76,7 +77,7 @@ static int archive_compressor_zstd_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_compressor_zstd_close(struct archive_write_filter *);
 static int archive_compressor_zstd_free(struct archive_write_filter *);
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 static int drive_compressor(struct archive_write_filter *,
 		    struct private_data *, int, const void *, size_t);
 #endif
@@ -107,7 +108,8 @@ archive_write_add_filter_zstd(struct archive *_a)
 	f->code = ARCHIVE_FILTER_ZSTD;
 	f->name = "zstd";
 	data->compression_level = CLEVEL_DEFAULT;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
+	data->threads = 0;
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 	data->cstream = ZSTD_createCStream();
 	if (data->cstream == NULL) {
 		free(data);
@@ -134,7 +136,7 @@ static int
 archive_compressor_zstd_free(struct archive_write_filter *f)
 {
 	struct private_data *data = (struct private_data *)f->data;
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 	ZSTD_freeCStream(data->cstream);
 	free(data->out.dst);
 #else
@@ -187,7 +189,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		if (string_is_numeric(value) != ARCHIVE_OK) {
 			return (ARCHIVE_WARN);
 		}
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 		maximum = ZSTD_maxCLevel();
 #if ZSTD_VERSION_NUMBER >= MINVER_MINCLEVEL
 		if (ZSTD_versionNumber() >= MINVER_MINCLEVEL) {
@@ -204,6 +206,20 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 		}
 		data->compression_level = level;
 		return (ARCHIVE_OK);
+	} else if (strcmp(key, "threads") == 0) {
+		int threads = atoi(value);
+		if (string_is_numeric(value) != ARCHIVE_OK) {
+			return (ARCHIVE_WARN);
+		}
+
+		int minimum = 0;
+
+		if (threads < minimum) {
+			return (ARCHIVE_WARN);
+		}
+
+		data->threads = threads;
+		return (ARCHIVE_OK);
 	}
 
 	/* Note: The "warn" return is just to inform the options
@@ -212,7 +228,7 @@ archive_compressor_zstd_options(struct archive_write_filter *f, const char *key,
 	return (ARCHIVE_WARN);
 }
 
-#if HAVE_ZSTD_H && HAVE_LIBZSTD
+#if HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR
 /*
  * Setup callback.
  */
@@ -251,6 +267,8 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 		    "Internal error initializing zstd compressor object");
 		return (ARCHIVE_FATAL);
 	}
+
+	ZSTD_CCtx_setParameter(data->cstream, ZSTD_c_nbWorkers, data->threads);
 
 	return (ARCHIVE_OK);
 }
@@ -335,7 +353,7 @@ drive_compressor(struct archive_write_filter *f,
 	}
 }
 
-#else /* HAVE_ZSTD_H && HAVE_LIBZSTD */
+#else /* HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR */
 
 static int
 archive_compressor_zstd_open(struct archive_write_filter *f)
@@ -366,6 +384,14 @@ archive_compressor_zstd_open(struct archive_write_filter *f)
 		archive_strcat(&as, " --ultra");
 	}
 
+	if (data->threads != 0) {
+		struct archive_string as2;
+		archive_string_init(&as2);
+		archive_string_sprintf(&as2, " --threads=%d", data->threads);
+		archive_string_concat(&as, &as2);
+		archive_string_free(&as2);
+	}
+
 	f->write = archive_compressor_zstd_write;
 	r = __archive_write_program_open(f, data->pdata, as.s);
 	archive_string_free(&as);
@@ -389,4 +415,4 @@ archive_compressor_zstd_close(struct archive_write_filter *f)
 	return __archive_write_program_close(f, data->pdata);
 }
 
-#endif /* HAVE_ZSTD_H && HAVE_LIBZSTD */
+#endif /* HAVE_ZSTD_H && HAVE_LIBZSTD_COMPRESSOR */

@@ -129,6 +129,10 @@ DEFINE_TEST(test_write_filter_zstd)
 	    archive_write_set_filter_option(a, NULL, "compression-level", "-1")); */
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "compression-level", "7"));
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_filter_option(a, NULL, "threads", "-1")); /* negative */
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_filter_option(a, NULL, "threads", "4"));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
 	for (i = 0; i < 100; i++) {
 		sprintf(path, "file%03d", i);
