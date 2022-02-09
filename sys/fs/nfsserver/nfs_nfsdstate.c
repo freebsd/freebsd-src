@@ -676,10 +676,11 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 	 * Perform any operations specified by the opflags.
 	 */
 	if (opflags & CLOPS_CONFIRM) {
-		if (((nd->nd_flag & ND_NFSV41) != 0 &&
-		     clp->lc_confirm.lval[0] != confirm.lval[0]) ||
-		    ((nd->nd_flag & ND_NFSV41) == 0 &&
-		     clp->lc_confirm.qval != confirm.qval))
+		if ((nd->nd_flag & ND_NFSV41) != 0 &&
+		     clp->lc_confirm.lval[0] != confirm.lval[0])
+			error = NFSERR_SEQMISORDERED;
+		else if ((nd->nd_flag & ND_NFSV41) == 0 &&
+		     clp->lc_confirm.qval != confirm.qval)
 			error = NFSERR_STALECLIENTID;
 		else if (nfsrv_notsamecredname(nd, clp))
 			error = NFSERR_CLIDINUSE;
