@@ -1,0 +1,7 @@
+: 'Making demo.c out of nothing'
+make: don't know how to make demo.o (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped in unit-tests
+exit status 1
