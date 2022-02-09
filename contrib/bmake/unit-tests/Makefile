@@ -441,6 +441,9 @@ TESTS+=		varquote
 .if ${.SHELL:T} == "ksh"
 BROKEN_TESTS+= sh-flags
 .endif
+.if ${.MAKE.OS} == "Linux"
+BROKEN_TESTS+= opt-debug-x-trace
+.endif
 .if ${.MAKE.OS:NDarwin} == ""
 BROKEN_TESTS+= shell-ksh
 .endif
