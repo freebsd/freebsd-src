@@ -1325,7 +1325,7 @@ vm_vcpu_resume(struct vmctx *ctx)
 }
 
 static int
-vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
+vm_checkpoint(struct vmctx *ctx, const char *checkpoint_file, bool stop_vm)
 {
 	int fd_checkpoint = 0, kdata_fd = 0;
 	int ret = 0;
@@ -1440,17 +1440,23 @@ done:
 	return (error);
 }
 
-int
-handle_message(struct ipc_message *imsg, struct vmctx *ctx)
+static int
+handle_message(struct vmctx *ctx, nvlist_t *nvl)
 {
-	int err;
+	int err, cmd;
 
-	switch (imsg->code) {
-		case START_CHECKPOINT:
-			err = vm_checkpoint(ctx, imsg->data.op.snapshot_filename, false);
-			break;
+	if (!nvlist_exists_number(nvl, "cmd"))
+		return (-1);
+
+	cmd = nvlist_get_number(nvl, "cmd");
+	switch (cmd) {
 		case START_SUSPEND:
-			err = vm_checkpoint(ctx, imsg->data.op.snapshot_filename, true);
+		case START_CHECKPOINT:
+			if (!nvlist_exists_string(nvl, "filename"))
+				err = -1;
+			else
+				err = vm_checkpoint(ctx, nvlist_get_string(nvl, "filename"),
+				    cmd == START_SUSPEND ? true : false);
 			break;
 		default:
 			EPRINTLN("Unrecognized checkpoint operation\n");
@@ -1460,6 +1466,7 @@ handle_message(struct ipc_message *imsg, struct vmctx *ctx)
 	if (err != 0)
 		EPRINTLN("Unable to perform the requested operation\n");
 
+	nvlist_destroy(nvl);
 	return (err);
 }
 
@@ -1469,25 +1476,18 @@ handle_message(struct ipc_message *imsg, struct vmctx *ctx)
 void *
 checkpoint_thread(void *param)
 {
-	struct ipc_message imsg;
 	struct checkpoint_thread_info *thread_info;
-	ssize_t n;
+	nvlist_t *nvl;
 
 	pthread_set_name_np(pthread_self(), "checkpoint thread");
 	thread_info = (struct checkpoint_thread_info *)param;
 
 	for (;;) {
-		n = recvfrom(thread_info->socket_fd, &imsg, sizeof(imsg), 0, NULL, 0);
-
-		/*
-		 * slight sanity check: see if there's enough data to at
-		 * least determine the type of message.
-		 */
-		if (n >= sizeof(imsg.code))
-			handle_message(&imsg, thread_info->ctx);
+		nvl = nvlist_recv(thread_info->socket_fd, 0);
+		if (nvl != NULL)
+			handle_message(thread_info->ctx, nvl);
 		else
-			EPRINTLN("Failed to receive message: %s\n",
-			    n == -1 ? strerror(errno) : "unknown error");
+			EPRINTLN("nvlist_recv() failed: %s", strerror(errno));
 	}
 
 	return (NULL);
