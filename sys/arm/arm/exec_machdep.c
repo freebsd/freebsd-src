@@ -69,6 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+_Static_assert(sizeof(mcontext_t) == 208, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 260, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 64, "siginfo_t size incorrect");
+
 /*
  * Clear registers on exec
  */
