@@ -239,9 +239,6 @@ STD+=		${HDRDIR}/${hdr}
 STD+=		${.CURDIR}/__config_site
 
 RT_HEADERS+=	cxxabi.h
-RT_HEADERS+=	unwind-arm.h
-RT_HEADERS+=	unwind-itanium.h
-RT_HEADERS+=	unwind.h
 .for hdr in ${RT_HEADERS}
 STD+=		${_LIBCXXRTDIR}/${hdr}
 .endfor
