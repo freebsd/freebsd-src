@@ -48,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+_Static_assert(sizeof(mcontext32_t) == 208, "mcontext32_t size incorrect");
+_Static_assert(sizeof(ucontext32_t) == 260, "ucontext32_t size incorrect");
+_Static_assert(sizeof(struct siginfo32) == 64, "struct siginfo32 size incorrect");
+
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 
 /*
