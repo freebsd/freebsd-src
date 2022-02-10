@@ -11,6 +11,10 @@ WARNS?=	2
 SRCS_EXC+=	int_util.c
 .include "Makefile.inc"
 
+INCS+=		${UNWINDINCDIR}/__libunwind_config.h
+INCS+=		${UNWINDINCDIR}/libunwind.h
+INCS+=		${UNWINDINCDIR}/unwind.h
+
 .if ${.MAKE.LEVEL} > 0
 # avoid circular dependencies
 GENDIRDEPS_FILTER+= Nlib/msun
