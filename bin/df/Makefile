@@ -2,16 +2,11 @@
 # $FreeBSD$
 
 PACKAGE=runtime
-MOUNT=	${SRCTOP}/sbin/mount
-.PATH: ${MOUNT}
 
 PROG=	df
-SRCS=	df.c vfslist.c
-
-CFLAGS+= -I${MOUNT}
+SRCS=	df.c
 
 CFLAGS+= -DMOUNT_CHAR_DEVS
-SRCS+=	getmntopts.c
 
 LIBADD=	xo util
 
