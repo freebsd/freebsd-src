@@ -694,7 +694,6 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 
 	va_copy(ap2, ap);
 	n = vfprintf(fp, format, ap2);
-	fflush(fp);
 	va_end(ap2);
 	va_end(ap);
 
