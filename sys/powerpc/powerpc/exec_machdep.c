@@ -130,6 +130,21 @@ static void	cleanup_power_extras(struct thread *);
 extern struct sysentvec elf64_freebsd_sysvec_v2;
 #endif
 
+#ifdef __powerpc64__
+_Static_assert(sizeof(mcontext_t) == 1392, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 1472, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
+#ifdef COMPAT_FREEBSD32
+_Static_assert(sizeof(mcontext32_t) == 1224, "mcontext32_t size incorrect");
+_Static_assert(sizeof(ucontext32_t) == 1280, "ucontext32_t size incorrect");
+_Static_assert(sizeof(struct siginfo32) == 64, "struct siginfo32 size incorrect");
+#endif /* COMPAT_FREEBSD32 */
+#else /* powerpc */
+_Static_assert(sizeof(mcontext_t) == 1224, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 1280, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 64, "siginfo_t size incorrect");
+#endif
+
 void
 sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
