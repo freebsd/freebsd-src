@@ -443,7 +443,7 @@ unionfs_noderem(struct vnode *vp)
 	int		writerefs;
 
 	/*
-	 * The root vnode lock may be recursed during forcible, because
+	 * The root vnode lock may be recursed during unmount, because
 	 * it may share the same lock as the unionfs mount's covered vnode,
 	 * which is locked across VFS_UNMOUNT().  This lock will then be
 	 * recursively taken during the vflush() issued by unionfs_unmount().
