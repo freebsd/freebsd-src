@@ -77,6 +77,10 @@ __FBSDID("$FreeBSD$");
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static void set_fpcontext(struct thread *td, mcontext_t *mcp);
 
+_Static_assert(sizeof(mcontext_t) == 864, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 936, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
+
 int
 fill_regs(struct thread *td, struct reg *regs)
 {
