@@ -522,7 +522,7 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.for _V in BRANCH REVISION
+.for _V in BRANCH REVISION TYPE
 .if !defined(_${_V})
 _${_V}!=	eval $$(awk '/^${_V}=/{print}' ${SRCTOP}/sys/conf/newvers.sh); echo $$${_V}
 .export _${_V}
@@ -1882,12 +1882,10 @@ _pkgbootstrap: .PHONY
 .endif
 
 #
-# Allow overriding PKG_ABI, this allow to create kernel packages without having
-# to build world first.
-# If it's not provided resolv it from the uname binary in the world stage.
+# Determine PKG_ABI from newvers.sh if not already set.
 #
 .if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages))
-PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
+PKG_ABI=${_TYPE}:${_REVISION:S/\..*$//}:${TARGET_ARCH}
 .endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
     awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
