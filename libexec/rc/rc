@@ -137,7 +137,7 @@ done
 # Note: this assumes firstboot_sentinel is on / when we have
 # a read-only /, or that it is on media that's writable.
 if [ -e ${firstboot_sentinel} ]; then
-	checkyesno root_rw_mount && mount -uw /
+	checkyesno root_rw_mount || mount -uw /
 	chflags -R 0 ${firstboot_sentinel}
 	rm -rf ${firstboot_sentinel}
 	if [ -e ${firstboot_sentinel}-reboot ]; then
