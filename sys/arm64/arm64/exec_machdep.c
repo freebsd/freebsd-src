@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
+_Static_assert(sizeof(mcontext_t) == 880, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 960, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
+
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static void set_fpcontext(struct thread *td, mcontext_t *mcp);
 
