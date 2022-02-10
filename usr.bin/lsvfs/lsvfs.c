@@ -51,7 +51,7 @@ main(int argc, char **argv)
 	fputs(DASHES, stdout);
 
 	if (argc > 0) {
-		for(; argc > 0; argc--, argv++) {
+		for (; argc > 0; argc--, argv++) {
 			if (getvfsbyname(*argv, &vfc) == 0) {
 				printf(FMT, vfc.vfc_name, vfc.vfc_typenum,
 				    vfc.vfc_refcount, fmt_flags(vfc.vfc_flags));
