@@ -115,6 +115,10 @@ static void freebsd4_sendsig(sig_t catcher, ksiginfo_t *, sigset_t *mask);
 
 extern struct sysentvec elf32_freebsd_sysvec;
 
+_Static_assert(sizeof(mcontext_t) == 640, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 704, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 64, "siginfo_t size incorrect");
+
 /*
  * Send an interrupt to process.
  *
