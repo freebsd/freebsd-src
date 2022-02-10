@@ -83,7 +83,6 @@ file_read(tdata_t *td, char *filename, int ignore_non_c)
 {
 	typedef int (*reader_f)(tdata_t *, Elf *, char *);
 	static reader_f readers[] = {
-		stabs_read,
 		dw_read,
 		NULL
 	};
@@ -165,8 +164,6 @@ main(int argc, char **argv)
 
 	if (getenv("CTFCONVERT_DEBUG_LEVEL"))
 		debug_level = atoi(getenv("CTFCONVERT_DEBUG_LEVEL"));
-	if (getenv("CTFCONVERT_DEBUG_PARSE"))
-		debug_parse = atoi(getenv("CTFCONVERT_DEBUG_PARSE"));
 
 	while ((c = getopt(argc, argv, ":l:L:o:givs")) != EOF) {
 		switch (c) {

@@ -18,8 +18,6 @@ SRCS=		alist.c \
 		memory.c \
 		merge.c \
 		output.c \
-		st_parse.c \
-		stabs.c \
 		stack.c \
 		strtab.c \
 		symbol.c \
