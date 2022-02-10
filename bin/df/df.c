@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <libxo/xo.h>
 
-#include "extern.h"
-
 #define UNITS_SI	1
 #define UNITS_2		2
 
@@ -82,13 +80,16 @@ struct maxwidths {
 
 static void	  addstat(struct statfs *, struct statfs *);
 static char	 *getmntpt(const char *);
+static const char **makevfslist(char *fslist, int *skip);
+static int	  checkvfsname(const char *vfsname, const char **vfslist, int skip);
+static int	  checkvfsselected(char *);
 static int	  int64width(int64_t);
 static char	 *makenetvfslist(void);
 static void	  prthuman(const struct statfs *, int64_t);
 static void	  prthumanval(const char *, int64_t);
 static intmax_t	  fsbtoblk(int64_t, uint64_t, u_long);
 static void	  prtstat(struct statfs *, struct maxwidths *);
-static size_t	  regetmntinfo(struct statfs **, long, const char **);
+static size_t	  regetmntinfo(struct statfs **, long);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
 static void	  usage(void);
 
@@ -98,8 +99,10 @@ imax(int a, int b)
 	return (a > b ? a : b);
 }
 
-static int	aflag = 0, cflag, hflag, iflag, kflag, lflag = 0, nflag, Tflag;
-static int	thousands;
+static int	  aflag = 0, cflag, hflag, iflag, kflag, lflag = 0, nflag, Tflag;
+static int	  thousands;
+static int	  skipvfs_l, skipvfs_t;
+static const char **vfslist_l, **vfslist_t;
 
 static const struct option long_options[] =
 {
@@ -115,7 +118,6 @@ main(int argc, char *argv[])
 	struct maxwidths maxwidths;
 	struct statfs *mntbuf;
 	char *mntpt;
-	const char **vfslist;
 	int i, mntsize;
 	int ch, rv;
 
@@ -124,7 +126,6 @@ main(int argc, char *argv[])
 	memset(&totalbuf, 0, sizeof(totalbuf));
 	totalbuf.f_bsize = DEV_BSIZE;
 	strlcpy(totalbuf.f_mntfromname, "total", MNAMELEN);
-	vfslist = NULL;
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -175,9 +176,7 @@ main(int argc, char *argv[])
 			/* Ignore duplicate -l */
 			if (lflag)
 				break;
-			if (vfslist != NULL)
-				xo_errx(1, "-l and -t are mutually exclusive.");
-			vfslist = makevfslist(makenetvfslist());
+			vfslist_l = makevfslist(makenetvfslist(), &skipvfs_l);
 			lflag = 1;
 			break;
 		case 'm':
@@ -188,11 +187,9 @@ main(int argc, char *argv[])
 			nflag = 1;
 			break;
 		case 't':
-			if (lflag)
-				xo_errx(1, "-l and -t are mutually exclusive.");
-			if (vfslist != NULL)
+			if (vfslist_t != NULL)
 				xo_errx(1, "only one -t option may be specified");
-			vfslist = makevfslist(optarg);
+			vfslist_t = makevfslist(optarg, &skipvfs_t);
 			break;
 		case 'T':
 			Tflag = 1;
@@ -211,7 +208,7 @@ main(int argc, char *argv[])
 	if (!*argv) {
 		/* everything (modulo -t) */
 		mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-		mntsize = regetmntinfo(&mntbuf, mntsize, vfslist);
+		mntsize = regetmntinfo(&mntbuf, mntsize);
 	} else {
 		/* just the filesystems specified on the command line */
 		mntbuf = malloc(argc * sizeof(*mntbuf));
@@ -259,7 +256,7 @@ main(int argc, char *argv[])
 		 * list a mount point that does not match the other args
 		 * we've been given (-l, -t, etc.).
 		 */
-		if (checkvfsname(statfsbuf.f_fstypename, vfslist)) {
+		if (checkvfsselected(statfsbuf.f_fstypename) != 0) {
 			rv = 1;
 			continue;
 		}
@@ -307,23 +304,95 @@ getmntpt(const char *name)
 	return (NULL);
 }
 
+static const char **
+makevfslist(char *fslist, int *skip)
+{
+	const char **av;
+	int i;
+	char *nextcp;
+
+	if (fslist == NULL)
+		return (NULL);
+	*skip = 0;
+	if (fslist[0] == 'n' && fslist[1] == 'o') {
+		fslist += 2;
+		*skip = 1;
+	}
+	for (i = 0, nextcp = fslist; *nextcp; nextcp++)
+		if (*nextcp == ',')
+			i++;
+	if ((av = malloc((size_t)(i + 2) * sizeof(char *))) == NULL) {
+		warnx("malloc failed");
+		return (NULL);
+	}
+	nextcp = fslist;
+	i = 0;
+	av[i++] = nextcp;
+	while ((nextcp = strchr(nextcp, ',')) != NULL) {
+		*nextcp++ = '\0';
+		av[i++] = nextcp;
+	}
+	av[i++] = NULL;
+	return (av);
+}
+
+static int
+checkvfsname(const char *vfsname, const char **vfslist, int skip)
+{
+
+	if (vfslist == NULL)
+		return (0);
+	while (*vfslist != NULL) {
+		if (strcmp(vfsname, *vfslist) == 0)
+			return (skip);
+		++vfslist;
+	}
+	return (!skip);
+}
+
+/*
+ * Without -l and -t option, all file system types are enabled.
+ * The -l option selects the local file systems, if present.
+ * A -t option modifies the selection by adding or removing further
+ * file system types, based on the argument that is passed.
+ */
+static int
+checkvfsselected(char *fstypename)
+{
+	int result;
+
+	if (vfslist_t) {
+		/* if -t option used then select passed types */
+		result = checkvfsname(fstypename, vfslist_t, skipvfs_t);
+		if (vfslist_l) {
+			/* if -l option then adjust selection */
+			if (checkvfsname(fstypename, vfslist_l, skipvfs_l) == skipvfs_t)
+				result = skipvfs_t;
+		}
+	} else {
+		/* no -t option then -l decides */
+		result = checkvfsname(fstypename, vfslist_l, skipvfs_l);
+	}
+	return (result);
+}
+
 /*
  * Make a pass over the file system info in ``mntbuf'' filtering out
- * file system types not in vfslist and possibly re-stating to get
+ * file system types not in vfslist_{l,t} and possibly re-stating to get
  * current (not cached) info.  Returns the new count of valid statfs bufs.
  */
 static size_t
-regetmntinfo(struct statfs **mntbufp, long mntsize, const char **vfslist)
+regetmntinfo(struct statfs **mntbufp, long mntsize)
 {
 	int error, i, j;
 	struct statfs *mntbuf;
 
-	if (vfslist == NULL)
+	if (vfslist_l == NULL && vfslist_t == NULL)
 		return (nflag ? mntsize : getmntinfo(mntbufp, MNT_WAIT));
 
 	mntbuf = *mntbufp;
 	for (j = 0, i = 0; i < mntsize; i++) {
-		if (checkvfsname(mntbuf[i].f_fstypename, vfslist))
+		if (checkvfsselected(mntbuf[i].f_fstypename) != 0)
 			continue;
 		/*
 		 * XXX statfs(2) can fail for various reasons. It may be
