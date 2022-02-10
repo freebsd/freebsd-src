@@ -41,42 +41,44 @@ static const char *fmt_flags(int);
 int
 main(int argc, char **argv)
 {
-  int cnt, rv = 0, i; 
-  struct xvfsconf vfc, *xvfsp;
-  size_t buflen;
-  argc--, argv++;
+	struct xvfsconf vfc, *xvfsp;
+	size_t buflen;
+	int cnt, i, rv = 0;
 
-  printf(HDRFMT, "Filesystem", "Num", "Refs", "Flags");
-  fputs(DASHES, stdout);
+	argc--, argv++;
 
-  if(argc) {
-    for(; argc; argc--, argv++) {
-      if (getvfsbyname(*argv, &vfc) == 0) {
-        printf(FMT, vfc.vfc_name, vfc.vfc_typenum, vfc.vfc_refcount,
-	    fmt_flags(vfc.vfc_flags));
-      } else {
-	warnx("VFS %s unknown or not loaded", *argv);
-        rv++;
-      }
-    }
-  } else {
-    if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
-      err(1, "sysctl(vfs.conflist)");
-    xvfsp = malloc(buflen);
-    if (xvfsp == NULL)
-      errx(1, "malloc failed");
-    if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
-      err(1, "sysctl(vfs.conflist)");
-    cnt = buflen / sizeof(struct xvfsconf);
+	printf(HDRFMT, "Filesystem", "Num", "Refs", "Flags");
+	fputs(DASHES, stdout);
 
-    for (i = 0; i < cnt; i++) {
-      printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
-	    xvfsp[i].vfc_refcount, fmt_flags(xvfsp[i].vfc_flags));
-    }
-    free(xvfsp);
-  }
+	if (argc > 0) {
+		for(; argc > 0; argc--, argv++) {
+			if (getvfsbyname(*argv, &vfc) == 0) {
+				printf(FMT, vfc.vfc_name, vfc.vfc_typenum,
+				    vfc.vfc_refcount, fmt_flags(vfc.vfc_flags));
+			} else {
+				warnx("VFS %s unknown or not loaded", *argv);
+				rv++;
+			}
+		}
+	} else {
+		if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
+			err(1, "sysctl(vfs.conflist)");
+		xvfsp = malloc(buflen);
+		if (xvfsp == NULL)
+			errx(1, "malloc failed");
+		if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
+			err(1, "sysctl(vfs.conflist)");
+		cnt = buflen / sizeof(struct xvfsconf);
 
-  return rv;
+		for (i = 0; i < cnt; i++) {
+			printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
+			    xvfsp[i].vfc_refcount,
+			    fmt_flags(xvfsp[i].vfc_flags));
+		}
+		free(xvfsp);
+	}
+
+	return (rv);
 }
 
 static const char *
@@ -86,11 +88,14 @@ fmt_flags(int flags)
 	int i;
 
 	buf[0] = '\0';
-	for (i = 0; i < (int)nitems(fl); i++)
-		if (flags & fl[i].flag) {
+	for (i = 0; i < (int)nitems(fl); i++) {
+		if ((flags & fl[i].flag) != 0) {
 			strlcat(buf, fl[i].str, sizeof(buf));
 			strlcat(buf, ", ", sizeof(buf));
 		}
+	}
+
+	/* Zap the trailing comma + space. */
 	if (buf[0] != '\0')
 		buf[strlen(buf) - 2] = '\0';
 	return (buf);
