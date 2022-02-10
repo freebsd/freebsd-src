@@ -117,7 +117,11 @@ option and any
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl l
-Only display information about locally-mounted file systems.
+Select locally-mounted file system for display.
+If used in combination with the
+.Fl t Ar type
+option, file system types will be added or excluded acccording to the
+parameters of that option.
 .It Fl m
 Use 1048576 byte (1 Mebibyte) blocks rather than the default.
 This overrides any
@@ -142,14 +146,20 @@ option.
 The
 .Fl k
 option overrides this option.
-.It Fl t
-Only print out statistics for file systems of the specified types.
+.It Fl t Ar type
+Select file systems to display.
 More than one type may be specified in a comma separated list.
 The list of file system types can be prefixed with
 .Dq no
 to specify the file system types for which action should
 .Em not
 be taken.
+If used in combination with the
+.Fl l
+option, the parameters of this option will modify the list of
+locally-mounted file systems selected by the
+.Fl l
+option.
 For example, the
 .Nm
 command:
