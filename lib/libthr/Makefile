@@ -29,6 +29,10 @@ CFLAGS.thr_stack.c+=	-Wno-cast-align
 CFLAGS.rtld_malloc.c+=	-Wno-cast-align
 CFLAGS.thr_symbols.c+=	-Wno-missing-variable-declarations
 
+.if ${MACHINE_CPUARCH} == "arm"
+NO_THREAD_UNWIND_STACK= yes
+.endif
+
 .ifndef NO_THREAD_UNWIND_STACK
 CFLAGS+=-fexceptions
 CFLAGS+=-D_PTHREAD_FORCED_UNWIND
