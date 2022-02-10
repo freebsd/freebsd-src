@@ -36,6 +36,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220220: unwind.h moved to /usr/include
+OLD_FILES+=usr/include/c++/v1/unwind-arm.h
+OLD_FILES+=usr/include/c++/v1/unwind-itanium.h
+OLD_FILES+=usr/include/c++/v1/unwind.h
+
 # 20211221 efi_set_variables_supported.3 should be efi_variables_supported.3
 OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
 
