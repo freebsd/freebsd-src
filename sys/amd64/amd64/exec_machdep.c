@@ -95,6 +95,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/trap.h>
 
+_Static_assert(sizeof(mcontext_t) == 800, "mcontext_t size incorrect");
+_Static_assert(sizeof(ucontext_t) == 880, "ucontext_t size incorrect");
+_Static_assert(sizeof(siginfo_t) == 80, "siginfo_t size incorrect");
+
 /*
  * Send an interrupt to process.
  *
