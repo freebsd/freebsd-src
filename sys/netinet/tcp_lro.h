@@ -34,6 +34,7 @@
 #define _TCP_LRO_H_
 
 #include <sys/time.h>
+#include <netinet/in.h>
 
 #ifndef TCP_LRO_ENTRIES
 /* Define default number of LRO entries per RX queue */
@@ -80,20 +81,12 @@ union lro_address {
 		uint16_t d_port;	/* destination TCP/UDP port */
 		uint32_t vxlan_vni;	/* VXLAN virtual network identifier */
 		union {
-#ifdef INET
 			struct in_addr v4;
-#endif
-#ifdef INET6
 			struct in6_addr v6;
-#endif
 		} s_addr;	/* source IPv4/IPv6 address */
 		union {
-#ifdef INET
 			struct in_addr v4;
-#endif
-#ifdef INET6
 			struct in6_addr v6;
-#endif
 		} d_addr;	/* destination IPv4/IPv6 address */
 	};
 } __aligned(sizeof(u_long));
