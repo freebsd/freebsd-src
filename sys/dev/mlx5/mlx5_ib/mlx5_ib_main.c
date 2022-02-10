@@ -2317,6 +2317,7 @@ static struct mlx5_ib_flow_handler *create_sniffer_rule(struct mlx5_ib_dev *dev,
 	int err;
 	static const struct ib_flow_attr flow_attr  = {
 		.num_of_specs = 0,
+		.type = IB_FLOW_ATTR_SNIFFER,
 		.size = sizeof(flow_attr)
 	};
 
@@ -2355,20 +2356,55 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	struct mlx5_flow_destination *dst = NULL;
 	struct mlx5_ib_flow_prio *ft_prio_tx = NULL;
 	struct mlx5_ib_flow_prio *ft_prio;
+	struct mlx5_ib_create_flow *ucmd = NULL, ucmd_hdr;
+	size_t min_ucmd_sz, required_ucmd_sz;
 	int err;
 
-	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO)
-		return ERR_PTR(-ENOSPC);
+	if (udata && udata->inlen) {
+		min_ucmd_sz = offsetofend(struct mlx5_ib_create_flow, reserved);
+		if (udata->inlen < min_ucmd_sz)
+			return ERR_PTR(-EOPNOTSUPP);
 
-	if (domain != IB_FLOW_DOMAIN_USER ||
-	    udata != NULL ||
-	    flow_attr->port > MLX5_CAP_GEN(dev->mdev, num_ports) ||
-	    (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP))
-		return ERR_PTR(-EINVAL);
+		err = ib_copy_from_udata(&ucmd_hdr, udata, min_ucmd_sz);
+		if (err)
+			return ERR_PTR(err);
+
+		/* currently supports only one counters data */
+		if (ucmd_hdr.ncounters_data > 1)
+			return ERR_PTR(-EINVAL);
+
+		required_ucmd_sz = min_ucmd_sz +
+			sizeof(struct mlx5_ib_flow_counters_data) *
+			ucmd_hdr.ncounters_data;
+		if (udata->inlen > required_ucmd_sz &&
+		    !ib_is_udata_cleared(udata, required_ucmd_sz,
+					 udata->inlen - required_ucmd_sz))
+			return ERR_PTR(-EOPNOTSUPP);
+
+		ucmd = kzalloc(required_ucmd_sz, GFP_KERNEL);
+		if (!ucmd)
+			return ERR_PTR(-ENOMEM);
+
+		err = ib_copy_from_udata(ucmd, udata, required_ucmd_sz);
+		if (err)
+			goto free_ucmd;
+	}
+
+	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO) {
+		err = -ENOMEM;
+		goto free_ucmd;
+	}
+
+	if (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP) {
+		err = -EINVAL;
+		goto free_ucmd;
+	}
 
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
-	if (!dst)
-		return ERR_PTR(-ENOMEM);
+	if (!dst) {
+		err = -ENOMEM;
+		goto free_ucmd;
+	}
 
 	mutex_lock(&dev->flow_db.lock);
 
@@ -2392,21 +2428,26 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	else
 		dst->tir_num = mqp->raw_packet_qp.rq.tirn;
 
-	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		if (flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP)  {
-			handler = create_dont_trap_rule(dev, ft_prio,
-							flow_attr, dst);
-		} else {
-			handler = create_flow_rule(dev, ft_prio, flow_attr,
-						   dst);
+	switch (flow_attr->type) {
+	case IB_FLOW_ATTR_NORMAL:
+		if (mqp->flags & IB_QP_CREATE_SOURCE_QPN) {
+			err = -EOPNOTSUPP;
+			goto destroy_ft;
 		}
-	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
-		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
-		handler = create_leftovers_rule(dev, ft_prio, flow_attr,
-						dst);
-	} else if (flow_attr->type == IB_FLOW_ATTR_SNIFFER) {
+		if (flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) {
+			handler = create_dont_trap_rule(dev, ft_prio, flow_attr, dst);
+		} else {
+			handler = create_flow_rule(dev, ft_prio, flow_attr, dst);
+		}
+		break;
+	case IB_FLOW_ATTR_ALL_DEFAULT:
+	case IB_FLOW_ATTR_MC_DEFAULT:
+		handler = create_leftovers_rule(dev, ft_prio, flow_attr, dst);
+		break;
+	case IB_FLOW_ATTR_SNIFFER:
 		handler = create_sniffer_rule(dev, ft_prio, ft_prio_tx, dst);
-	} else {
+		break;
+	default:
 		err = -EINVAL;
 		goto destroy_ft;
 	}
@@ -2419,6 +2460,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 
 	mutex_unlock(&dev->flow_db.lock);
 	kfree(dst);
+	kfree(ucmd);
 
 	return &handler->ibflow;
 
@@ -2429,7 +2471,8 @@ destroy_ft:
 unlock:
 	mutex_unlock(&dev->flow_db.lock);
 	kfree(dst);
-	kfree(handler);
+free_ucmd:
+	kfree(ucmd);
 	return ERR_PTR(err);
 }
 
