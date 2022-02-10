@@ -224,6 +224,7 @@ struct g_class g_md_class = {
 };
 
 DECLARE_GEOM_CLASS(g_md_class, g_md);
+MODULE_VERSION(geom_md, 0);
 
 static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(md_softc_list);
 
