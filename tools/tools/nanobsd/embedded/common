@@ -217,7 +217,7 @@ create_diskimage_mbr ( ) (
 		if [ -d ${NANO_FAT_DIR} ]; then
 			# Need to copy files from ${NANO_FATDIR} with mtools, or use
 			# makefs -t msdos once that's supported
-			mcopy -i ${NANO_LOG}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
+			mcopy -s -i ${NANO_LOG}/_.${NANO_SLICE_FAT} ${NANO_FAT_DIR}/* ::
 		fi
 	fi
 
