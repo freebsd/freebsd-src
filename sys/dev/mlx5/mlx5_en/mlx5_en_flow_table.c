@@ -1254,7 +1254,7 @@ mlx5e_apply_ifp_addr(struct mlx5e_priv *priv)
 }
 
 static void
-mlx5e_handle_ifp_addr(struct mlx5e_priv *priv)
+mlx5e_handle_ifp_addr(struct mlx5e_priv *priv, bool rx_mode_enable)
 {
 	struct mlx5e_eth_addr_hash_node *hn;
 	struct mlx5e_eth_addr_hash_node *tmp;
@@ -1265,7 +1265,7 @@ mlx5e_handle_ifp_addr(struct mlx5e_priv *priv)
 	mlx5e_for_each_hash_node(hn, tmp, priv->eth_addr.if_mc, i)
 	    hn->action = MLX5E_ACTION_DEL;
 
-	if (test_bit(MLX5E_STATE_FLOW_RULES_READY, &priv->state))
+	if (rx_mode_enable)
 		mlx5e_sync_ifp_addr(priv);
 
 	mlx5e_apply_ifp_addr(priv);
@@ -1302,7 +1302,7 @@ mlx5e_set_rx_mode_core(struct mlx5e_priv *priv, bool rx_mode_enable)
 	if (enable_broadcast)
 		mlx5e_add_eth_addr_rule(priv, &ea->broadcast, MLX5E_FULLMATCH);
 
-	mlx5e_handle_ifp_addr(priv);
+	mlx5e_handle_ifp_addr(priv, rx_mode_enable);
 
 	if (disable_broadcast)
 		mlx5e_del_eth_addr_from_flow_table(priv, &ea->broadcast);
