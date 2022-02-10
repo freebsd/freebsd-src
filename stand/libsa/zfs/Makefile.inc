@@ -30,6 +30,7 @@ CFLAGS.nvlist.c+= -I${ZFSOSINC}/spl
 CFLAGS.zfs.c+=	-I${ZFSOSINC}/spl 				\
 		-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 CFLAGS.zstd.c+=	-U__BMI__
+CFLAGS.zstd.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 CFLAGS.zstd_shim.c+= -DIN_BASE -I${OZFS}/include
 
 # Do not unroll skein loops, reduce code size
