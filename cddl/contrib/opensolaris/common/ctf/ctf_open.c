@@ -45,33 +45,15 @@ int _libctf_version = CTF_VERSION;	/* library client version */
 int _libctf_debug = 0;			/* debugging messages enabled */
 
 static ushort_t
-get_kind_v1(ushort_t info)
-{
-	return (CTF_INFO_KIND_V1(info));
-}
-
-static ushort_t
 get_kind_v2(ushort_t info)
 {
 	return (CTF_INFO_KIND(info));
 }
 
 static ushort_t
-get_root_v1(ushort_t info)
-{
-	return (CTF_INFO_ISROOT_V1(info));
-}
-
-static ushort_t
 get_root_v2(ushort_t info)
 {
 	return (CTF_INFO_ISROOT(info));
-}
-
-static ushort_t
-get_vlen_v1(ushort_t info)
-{
-	return (CTF_INFO_VLEN_V1(info));
 }
 
 static ushort_t
@@ -82,7 +64,7 @@ get_vlen_v2(ushort_t info)
 
 static const ctf_fileops_t ctf_fileops[] = {
 	{ NULL, NULL },
-	{ get_kind_v1, get_root_v1, get_vlen_v1 },
+	{ NULL, NULL },
 	{ get_kind_v2, get_root_v2, get_vlen_v2 },
 };
 
@@ -588,22 +570,6 @@ ctf_bufopen(const ctf_sect_t *ctfsect, const ctf_sect_t *symsect,
 		bcopy(ctfsect->cts_data, &hp, sizeof (hp));
 		hdrsz = sizeof (ctf_header_t);
 
-	} else if (pp->ctp_version == CTF_VERSION_1) {
-		const ctf_header_v1_t *h1p =
-		    (const ctf_header_v1_t *)ctfsect->cts_data;
-
-		if (ctfsect->cts_size < sizeof (ctf_header_v1_t))
-			return (ctf_set_open_errno(errp, ECTF_NOCTFBUF));
-
-		bzero(&hp, sizeof (hp));
-		hp.cth_preamble = h1p->cth_preamble;
-		hp.cth_objtoff = h1p->cth_objtoff;
-		hp.cth_funcoff = h1p->cth_funcoff;
-		hp.cth_typeoff = h1p->cth_typeoff;
-		hp.cth_stroff = h1p->cth_stroff;
-		hp.cth_strlen = h1p->cth_strlen;
-
-		hdrsz = sizeof (ctf_header_v1_t);
 	} else
 		return (ctf_set_open_errno(errp, ECTF_CTFVERS));
 
