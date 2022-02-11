@@ -3420,18 +3420,20 @@ builddtb: .PHONY
 #
 .if make(cleanworld)
 BW_CANONICALOBJDIR:=${OBJTOP}/
+.elif make(cleankernel)
+BW_CANONICALOBJDIR:=${KRNLOBJDIR}/${KERNCONF}/
 .elif make(cleanuniverse)
 BW_CANONICALOBJDIR:=${OBJROOT}
 .if ${MK_UNIFIED_OBJDIR} == "no"
 .error ${.TARGETS} only supported with WITH_UNIFIED_OBJDIR enabled.
 .endif
 .endif
-cleanworld cleanuniverse: .PHONY
+cleanworld cleanuniverse cleankernel: .PHONY
 .if !empty(BW_CANONICALOBJDIR) && exists(${BW_CANONICALOBJDIR}) && \
     ${.CURDIR:tA} != ${BW_CANONICALOBJDIR:tA}
-	-rm -rf ${BW_CANONICALOBJDIR}*
+	-(cd ${BW_CANONICALOBJDIR} && rm -rf *)
 	-chflags -R 0 ${BW_CANONICALOBJDIR}
-	rm -rf ${BW_CANONICALOBJDIR}*
+	-(cd ${BW_CANONICALOBJDIR} && rm -rf *)
 .endif
 .if make(cleanworld) && ${MK_AUTO_OBJ} == "no" && \
     (empty(BW_CANONICALOBJDIR) || ${.CURDIR:tA} == ${BW_CANONICALOBJDIR:tA})
