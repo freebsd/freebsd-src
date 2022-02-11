@@ -53,8 +53,7 @@ linux_fget(unsigned int fd)
 	struct file *file;
 
 	/* lookup file pointer by file descriptor index */
-	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    &cap_no_rights, &file) != 0)
+	if (fget_unlocked(curthread, fd, &cap_no_rights, &file) != 0)
 		return (NULL);
 
 	/* check if file handle really belongs to us */
@@ -89,8 +88,7 @@ put_unused_fd(unsigned int fd)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    &cap_no_rights, &file) != 0) {
+	if (fget_unlocked(curthread, fd, &cap_no_rights, &file) != 0) {
 		return;
 	}
 	/*
@@ -109,8 +107,7 @@ fd_install(unsigned int fd, struct linux_file *filp)
 {
 	struct file *file;
 
-	if (fget_unlocked(curthread->td_proc->p_fd, fd,
-	    &cap_no_rights, &file) != 0) {
+	if (fget_unlocked(curthread, fd, &cap_no_rights, &file) != 0) {
 		filp->_file = NULL;
 	} else {
 		filp->_file = file;
