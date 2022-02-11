@@ -187,7 +187,7 @@ To avoid this scenario, it is recommended that system calls updating the
 process credential be designed to avoid other authorization functions.
 .Pp
 If temporarily elevated privileges are required for a thread, the thread
-credential can by replaced for the duration of an activity, or for
+credential can be replaced for the duration of an activity, or for
 the remainder of the system call.
 However, as a thread credential is often shared, appropriate care should be
 taken to make sure modifications are made to a writable credential
