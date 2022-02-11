@@ -3165,7 +3165,7 @@ cxgbe_media_change(struct ifnet *ifp)
 		if (IFM_OPTIONS(ifm->ifm_media) & IFM_ETH_TXPAUSE)
 			lc->requested_fc |= PAUSE_TX;
 	}
-	if (pi->up_vis > 0) {
+	if (pi->up_vis > 0 && !hw_off_limits(sc)) {
 		fixup_link_config(pi);
 		rc = apply_link_config(pi);
 	}
@@ -3333,7 +3333,7 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	PORT_LOCK(pi);
 
-	if (pi->up_vis == 0) {
+	if (pi->up_vis == 0 && !hw_off_limits(sc)) {
 		/*
 		 * If all the interfaces are administratively down the firmware
 		 * does not report transceiver changes.  Refresh port info here
