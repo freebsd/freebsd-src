@@ -127,7 +127,7 @@ while getopts crRvV: opt; do
 		v=$OPTARG
 		eval val=\$${v}
 		echo ${v}=\"${val}\"
-		exit 0
+		VARS_ONLY=1
 		;;
 	esac
 done
