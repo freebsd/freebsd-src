@@ -1454,6 +1454,7 @@ ktls_set_tx_mode(struct socket *so, int mode)
 		return (EBUSY);
 	}
 
+	INP_WLOCK(inp);
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_tls_info = tls_new;
 	if (tls_new->mode != TCP_TLS_MODE_SW)
@@ -1475,7 +1476,6 @@ ktls_set_tx_mode(struct socket *so, int mode)
 	else
 		counter_u64_add(ktls_switch_to_sw, 1);
 
-	INP_WLOCK(inp);
 	return (0);
 }
 
