@@ -216,10 +216,15 @@ for native builds, and
 for cross builds and native builds with variable
 .Va CROSS_BUILD_TESTING
 set.
+.It Cm cleankernel
+Attempts to clean up targets built by a preceding
+.Cm buildkernel ,
+or similar step, built from the same source directory and
+.Va KERNCONF .
 .It Cm cleanworld
 Attempt to clean up targets built by a preceding
 .Cm buildworld ,
-or similar step built from this source directory.
+or similar step, built from this source directory.
 .It Cm cleanuniverse
 When
 .Va WITH_UNIFIED_OBJDIR

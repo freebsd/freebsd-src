@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# The user-driven targets are:
+# The common user-driven targets are (for a complete list, see build(7)):
 #
 # universe            - *Really* build *everything* (buildworld and
 #                       all kernels on all architectures).  Define
@@ -148,8 +148,8 @@ __DO_KERNELS?=yes
 
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check check-old check-old-dirs check-old-files check-old-libs \
-	checkdpadd checkworld clean cleandepend cleandir cleanworld \
-	cleanuniverse \
+	checkdpadd checkworld clean cleandepend cleandir cleankernel \
+	cleanworld cleanuniverse \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \
