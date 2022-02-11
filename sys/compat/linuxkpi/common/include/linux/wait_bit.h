@@ -64,4 +64,10 @@ wake_up_var(void *var)
 	wake_up(&linux_var_waitq);
 }
 
+static inline wait_queue_head_t *
+__var_waitqueue(void *p)
+{
+	return (&linux_var_waitq);
+}
+
 #endif	/* __LINUXKPI_LINUX_WAITBIT_H__ */
