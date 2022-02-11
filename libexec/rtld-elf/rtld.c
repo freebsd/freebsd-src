@@ -1179,10 +1179,22 @@ origin_subst_one(Obj_Entry *obj, char *real, const char *kw,
 	return (res);
 }
 
+static const struct {
+	const char *kw;
+	bool pass_obj;
+	const char *subst;
+} tokens[] = {
+	{ .kw = "$ORIGIN", .pass_obj = true, .subst = NULL },
+	{ .kw = "$OSNAME", .pass_obj = false, .subst = uts.sysname },
+	{ .kw = "$OSREL", .pass_obj = false, .subst = uts.release },
+	{ .kw = "$PLATFORM", .pass_obj = false, .subst = uts.machine },
+};
+
 static char *
 origin_subst(Obj_Entry *obj, const char *real)
 {
-	char *res1, *res2, *res3, *res4;
+	char *res;
+	int i;
 
 	if (obj == NULL || !trust)
 		return (xstrdup(real));
@@ -1192,13 +1204,14 @@ origin_subst(Obj_Entry *obj, const char *real)
 			return (NULL);
 		}
 	}
+
 	/* __DECONST is safe here since without may_free real is unchanged */
-	res1 = origin_subst_one(obj, __DECONST(char *, real), "$ORIGIN", NULL,
-	    false);
-	res2 = origin_subst_one(NULL, res1, "$OSNAME", uts.sysname, true);
-	res3 = origin_subst_one(NULL, res2, "$OSREL", uts.release, true);
-	res4 = origin_subst_one(NULL, res3, "$PLATFORM", uts.machine, true);
-	return (res4);
+	res = __DECONST(char *, real);
+	for (i = 0; i < (int)nitems(tokens); i++) {
+		res = origin_subst_one(tokens[i].pass_obj ? obj : NULL,
+		    res, tokens[i].kw, tokens[i].subst, i == 0);
+	}
+	return (res);
 }
 
 void
