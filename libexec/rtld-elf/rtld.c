@@ -1185,9 +1185,13 @@ static const struct {
 	const char *subst;
 } tokens[] = {
 	{ .kw = "$ORIGIN", .pass_obj = true, .subst = NULL },
+	{ .kw = "${ORIGIN}", .pass_obj = true, .subst = NULL },
 	{ .kw = "$OSNAME", .pass_obj = false, .subst = uts.sysname },
+	{ .kw = "${OSNAME}", .pass_obj = false, .subst = uts.sysname },
 	{ .kw = "$OSREL", .pass_obj = false, .subst = uts.release },
+	{ .kw = "${OSREL}", .pass_obj = false, .subst = uts.release },
 	{ .kw = "$PLATFORM", .pass_obj = false, .subst = uts.machine },
+	{ .kw = "${PLATFORM}", .pass_obj = false, .subst = uts.machine },
 };
 
 static char *
