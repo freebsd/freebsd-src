@@ -3027,56 +3027,47 @@ fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsear
 }
 #endif
 
+/*
+ * Fetch the descriptor locklessly.
+ *
+ * We avoid fdrop() races by never raising a refcount above 0.  To accomplish
+ * this we have to use a cmpset loop rather than an atomic_add.  The descriptor
+ * must be re-verified once we acquire a reference to be certain that the
+ * identity is still correct and we did not lose a race due to preemption.
+ *
+ * Force a reload of fdt when looping. Another thread could reallocate
+ * the table before this fd was closed, so it is possible that there is
+ * a stale fp pointer in cached version.
+ */
+#ifdef CAPABILITIES
 static int
 fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seqc_t *seqp)
 {
-#ifdef CAPABILITIES
 	const struct filedescent *fde;
-#endif
 	const struct fdescenttbl *fdt;
 	struct file *fp;
-#ifdef CAPABILITIES
 	seqc_t seq;
 	cap_rights_t haverights;
 	int error;
-#endif
 
 	fdt = fdp->fd_files;
 	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
 		return (EBADF);
-	/*
-	 * Fetch the descriptor locklessly.  We avoid fdrop() races by
-	 * never raising a refcount above 0.  To accomplish this we have
-	 * to use a cmpset loop rather than an atomic_add.  The descriptor
-	 * must be re-verified once we acquire a reference to be certain
-	 * that the identity is still correct and we did not lose a race
-	 * due to preemption.
-	 */
+
 	for (;;) {
-#ifdef CAPABILITIES
 		seq = seqc_read_notmodify(fd_seqc(fdt, fd));
 		fde = &fdt->fdt_ofiles[fd];
 		haverights = *cap_rights_fde_inline(fde);
 		fp = fde->fde_file;
 		if (!seqc_consistent(fd_seqc(fdt, fd), seq))
 			continue;
-#else
-		fp = fdt->fdt_ofiles[fd].fde_file;
-#endif
-		if (fp == NULL)
+		if (__predict_false(fp == NULL))
 			return (EBADF);
-#ifdef CAPABILITIES
 		error = cap_check_inline(&haverights, needrightsp);
-		if (error != 0)
+		if (__predict_false(error != 0))
 			return (error);
-#endif
 		if (__predict_false(!refcount_acquire_if_not_zero(&fp->f_count))) {
-			/*
-			 * Force a reload. Other thread could reallocate the
-			 * table before this fd was closed, so it is possible
-			 * that there is a stale fp pointer in cached version.
-			 */
 			fdt = atomic_load_ptr(&fdp->fd_files);
 			continue;
 		}
@@ -3086,22 +3077,50 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		 */
 		atomic_thread_fence_acq();
 		fdt = fdp->fd_files;
-#ifdef	CAPABILITIES
 		if (seqc_consistent_nomb(fd_seqc(fdt, fd), seq))
-#else
-		if (fp == fdt->fdt_ofiles[fd].fde_file)
-#endif
 			break;
 		fdrop(fp, curthread);
 	}
 	*fpp = fp;
 	if (seqp != NULL) {
-#ifdef CAPABILITIES
 		*seqp = seq;
-#endif
 	}
 	return (0);
 }
+#else
+static int
+fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+    struct file **fpp, seqc_t *seqp __unused)
+{
+	const struct fdescenttbl *fdt;
+	struct file *fp;
+
+	fdt = fdp->fd_files;
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
+		return (EBADF);
+
+	for (;;) {
+		fp = fdt->fdt_ofiles[fd].fde_file;
+		if (__predict_false(fp == NULL))
+			return (EBADF);
+		if (__predict_false(!refcount_acquire_if_not_zero(&fp->f_count))) {
+			fdt = atomic_load_ptr(&fdp->fd_files);
+			continue;
+		}
+		/*
+		 * Use an acquire barrier to force re-reading of fdt so it is
+		 * refreshed for verification.
+		 */
+		atomic_thread_fence_acq();
+		fdt = fdp->fd_files;
+		if (__predict_true(fp == fdt->fdt_ofiles[fd].fde_file))
+			break;
+		fdrop(fp, curthread);
+	}
+	*fpp = fp;
+	return (0);
+}
+#endif
 
 /*
  * See the comments in fget_unlocked_seq for an explanation of how this works.
