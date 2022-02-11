@@ -4318,7 +4318,7 @@ getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(td->td_proc->p_fd, fd, rightsp, &fp);
+	error = fget_unlocked(td, fd, rightsp, &fp);
 	if (error != 0)
 		return (error);
 

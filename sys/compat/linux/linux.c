@@ -633,8 +633,6 @@ void
 linux_to_bsd_poll_events(struct thread *td, int fd, short lev,
     short *bev)
 {
-	struct proc *p = td->td_proc;
-	struct filedesc *fdp;
 	struct file *fp;
 	int error;
 	short bits = 0;
@@ -666,8 +664,7 @@ linux_to_bsd_poll_events(struct thread *td, int fd, short lev,
 		 * on non-socket file descriptors unlike FreeBSD, where
 		 * events bits is more strictly checked (POLLSTANDARD).
 		 */
-		fdp = p->p_fd;
-		error = fget_unlocked(fdp, fd, &cap_no_rights, &fp);
+		error = fget_unlocked(td, fd, &cap_no_rights, &fp);
 		if (error == 0) {
 			/*
 			 * XXX. On FreeBSD POLLRDHUP applies only to
