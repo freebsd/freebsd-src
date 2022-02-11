@@ -2074,9 +2074,16 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
 	int error, ref;
 
 	/* Validate the file descriptor. */
+	/*
+	 * XXX this code inspects a file descriptor from a different process,
+	 * but there is no dedicated routine to do it in fd code, making the
+	 * ordeal highly questionable.
+	 */
 	fdp = p->p_fd;
-	error = fget_unlocked(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
-	    &fp);
+	FILEDESC_SLOCK(fdp);
+	error = fget_cap_locked(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
+	    &fp, NULL);
+	FILEDESC_SUNLOCK(fdp);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {
