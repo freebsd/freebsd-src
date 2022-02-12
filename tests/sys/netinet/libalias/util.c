@@ -109,9 +109,9 @@ ip_packet(u_char protocol, size_t len)
 
 struct udphdr *
 set_udp(struct ip *p, u_short sport, u_short dport) {
-	uint32_t *up = (void *)p;
-	struct udphdr *u = (void *)&(up[p->ip_hl]);
-	int payload = ntohs(p->ip_len) - 4*p->ip_hl;
+	int hlen = p->ip_hl << 2;
+	struct udphdr *u = (struct udphdr *)((uintptr_t)p + hlen);
+	int payload = ntohs(p->ip_len) - hlen;
 
 	REQUIRE(payload >= (int)sizeof(*u));
 	p->ip_p = IPPROTO_UDP;
