@@ -1005,8 +1005,9 @@ extern pid_t pid_max;
 } while (0)
 
 #define	PROC_UPDATE_COW(p) do {						\
-	PROC_LOCK_ASSERT((p), MA_OWNED);				\
-	(p)->p_cowgen++;						\
+	struct proc *_p = (p);						\
+	PROC_LOCK_ASSERT((_p), MA_OWNED);				\
+	atomic_store_int(&_p->p_cowgen, _p->p_cowgen + 1);		\
 } while (0)
 
 #define	PROC_COW_CHANGECOUNT(td, p) ({					\
