@@ -247,7 +247,7 @@ ast(struct trapframe *framep)
 	thread_unlock(td);
 	VM_CNT_INC(v_trap);
 
-	if (td->td_cowgen != p->p_cowgen)
+	if (td->td_cowgen != atomic_load_int(&p->p_cowgen))
 		thread_cow_update(td);
 	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {
 		addupc_task(td, td->td_profil_addr, td->td_profil_ticks);

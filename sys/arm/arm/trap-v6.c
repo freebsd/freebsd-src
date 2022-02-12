@@ -418,7 +418,7 @@ abort_handler(struct trapframe *tf, int prefetch)
 	p = td->td_proc;
 	if (usermode) {
 		td->td_pticks = 0;
-		if (td->td_cowgen != p->p_cowgen)
+		if (td->td_cowgen != atomic_load_int(&p->p_cowgen))
 			thread_cow_update(td);
 	}
 

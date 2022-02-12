@@ -68,7 +68,7 @@ syscallenter(struct thread *td)
 	sa = &td->td_sa;
 
 	td->td_pticks = 0;
-	if (__predict_false(td->td_cowgen != p->p_cowgen))
+	if (__predict_false(td->td_cowgen != atomic_load_int(&p->p_cowgen)))
 		thread_cow_update(td);
 	traced = (p->p_flag & P_TRACED) != 0;
 	if (__predict_false(traced || td->td_dbgflags & TDB_USERWR)) {
