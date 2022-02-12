@@ -111,7 +111,6 @@ icl_soft_proxy_connect(struct icl_conn *ic, int domain, int socktype,
 {
 	struct socket *so;
 	int error;
-	int interrupted = 0;
 
 	error = socreate(domain, &so, socktype, protocol,
 	    curthread->td_ucred, curthread);
@@ -136,11 +135,8 @@ icl_soft_proxy_connect(struct icl_conn *ic, int domain, int socktype,
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		error = msleep(&so->so_timeo, SOCK_MTX(so), PSOCK | PCATCH,
 		    "icl_connect", 0);
-		if (error) {
-			if (error == EINTR || error == ERESTART)
-				interrupted = 1;
+		if (error)
 			break;
-		}
 	}
 	if (error == 0) {
 		error = so->so_error;
