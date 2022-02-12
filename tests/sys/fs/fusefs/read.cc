@@ -503,7 +503,6 @@ TEST_F(Read, atime_during_setattr)
 	leak(fd);
 }
 
-/* The kernel should flush dirty atime values during close */
 /* 0-length reads shouldn't cause any confusion */
 TEST_F(Read, direct_io_read_nothing)
 {
