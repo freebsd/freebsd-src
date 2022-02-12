@@ -460,7 +460,11 @@ SYSCTL_PROC(_debug, OID_AUTO, ftry_reclaim_vnode,
     "Try to reclaim a vnode by its file descriptor");
 
 /* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
-static int vnsz2log;
+#define vnsz2log 8
+#ifndef DEBUG_LOCKS
+_Static_assert((sizeof(struct vnode) >= 256) && (sizeof(struct vnode) < 512),
+    "vnsz2log needs to be updated");
+#endif
 
 /*
  * Support for the bufobj clean & dirty pctrie.
@@ -657,7 +661,6 @@ vntblinit(void *dummy __unused)
 	uma_ctor ctor;
 	uma_dtor dtor;
 	int cpu, physvnodes, virtvnodes;
-	u_int i;
 
 	/*
 	 * Desiredvnodes is a function of the physical memory size and the
@@ -731,9 +734,6 @@ vntblinit(void *dummy __unused)
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
 	cv_init(&sync_wakeup, "syncer");
-	for (i = 1; i <= sizeof(struct vnode); i <<= 1)
-		vnsz2log++;
-	vnsz2log--;
 
 	CPU_FOREACH(cpu) {
 		vd = DPCPU_ID_PTR((cpu), vd);
