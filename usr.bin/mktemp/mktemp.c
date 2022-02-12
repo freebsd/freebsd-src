@@ -97,9 +97,9 @@ main(int argc, char **argv)
 	if (tflag) {
 		tmpdir = getenv("TMPDIR");
 		if (tmpdir == NULL)
-			asprintf(&name, "%s%s.XXXXXXXX", _PATH_TMP, prefix);
+			asprintf(&name, "%s%s.XXXXXXXXXX", _PATH_TMP, prefix);
 		else
-			asprintf(&name, "%s/%s.XXXXXXXX", tmpdir, prefix);
+			asprintf(&name, "%s/%s.XXXXXXXXXX", tmpdir, prefix);
 		/* if this fails, the program is in big trouble already */
 		if (name == NULL) {
 			if (qflag)
