@@ -124,6 +124,8 @@ extern int      getwf(FILE *);
 extern u_char   *tolower_word(u_char *);
 extern int	check_bigram_char(int);
 extern char 	*patprep(char *);
+extern void 	rebuild_message(char *db);
+extern int 	check_size(char *db);
 
 int
 main(int argc, char **argv)
@@ -216,7 +218,6 @@ main(int argc, char **argv)
         exit(0);
 }
 
-
 /*
  * Arguments:
  * db	database
@@ -235,8 +236,16 @@ search_fopen(char *db, char **s)
 			*(s+1) = NULL;
 		}
 	} 
-	else if ((fp = fopen(db, "r")) == NULL)
-		err(1,  "`%s'", db);
+	else { 
+		if (!check_size(db))
+			exit(1);
+
+		if ((fp = fopen(db, "r")) == NULL) {
+			warn("`%s'", db);
+			rebuild_message(db);
+			exit(1);
+		}
+	}
 
 	/* count only chars or lines */
 	if (f_statistic) {
@@ -261,6 +270,7 @@ search_fopen(char *db, char **s)
 } 
 
 #ifdef MMAP
+
 /*
  * Arguments:
  * db	database
@@ -273,14 +283,20 @@ search_mmap(char *db, char **s)
         int fd;
         caddr_t p;
         off_t len;
-	if ((fd = open(db, O_RDONLY)) == -1 ||
-	    fstat(fd, &sb) == -1)
-		err(1, "`%s'", db);
+
+	if (!check_size(db))
+		exit(1);
+
+	if (stat(db, &sb) == -1)
+		err(1, "stat");
+
 	len = sb.st_size;
-	if (len < (2*NBG))
-		errx(1,
-		    "database too small: %s\nRun /usr/libexec/locate.updatedb",
-		    db);
+
+	if ((fd = open(db, O_RDONLY)) == -1) {
+		warn("%s", db);
+		rebuild_message(db);
+		exit(1);
+        }
 
 	if ((p = mmap((caddr_t)0, (size_t)len,
 		      PROT_READ, MAP_SHARED,

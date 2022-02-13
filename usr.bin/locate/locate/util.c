@@ -41,8 +41,10 @@
 #include <err.h>
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "locate.h"
+#include "pathnames.h"
 
 char 	**colon(char **, char*, char*);
 char 	*patprep(char *);
@@ -268,3 +270,37 @@ getwf(fp)
 	}
 	return(word);
 }
+
+
+void
+rebuild_message(char *db)
+{
+	/* only for the default locate database */
+	if (strcmp(_PATH_FCODES, db) == 0) {
+		fprintf(stderr, "\nTo create a new database, please run the following command as root:\n\n");
+		fprintf(stderr, "  /etc/periodic/weekly/310.locate\n\n");
+	}
+}
+
+int
+check_size(char *db) 
+{
+        struct stat sb;
+        off_t len;
+
+	if (stat(db, &sb) == -1) {
+		warnx("the locate database '%s' does not exists.", db);
+		rebuild_message(db);
+		return(0);
+	}
+	len = sb.st_size;
+
+	if (len < (2 * NBG)) {
+		warnx("the locate database '%s' is less than %d bytes large.", db, (2 * NBG));
+		rebuild_message(db);
+		return(0);
+	}
+
+	return(1);
+}
+
