@@ -41,7 +41,6 @@ static char sccsid[] = "@(#) tli.c 1.15 97/03/21 19:27:25";
 #include <string.h>
 
 extern char *nc_sperror();
-extern int errno;
 extern char *sys_errlist[];
 extern int sys_nerr;
 extern int t_errno;

@@ -30,7 +30,6 @@ static char sccsid[] = "@(#) tli-sequent.c 1.1 94/12/28 17:42:51";
 #include <errno.h>
 #include <string.h>
 
-extern int errno;
 extern char *sys_errlist[];
 extern int sys_nerr;
 extern int t_errno;

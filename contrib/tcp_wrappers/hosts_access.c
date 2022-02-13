@@ -46,8 +46,6 @@ static char sccsid[] = "@(#) hosts_access.c 1.21 97/02/12 02:13:22";
 #endif
 #include <stdlib.h>
 
-extern int errno;
-
 #ifndef	INADDR_NONE
 #define	INADDR_NONE	(-1)		/* XXX should be 0xffffffff */
 #endif
