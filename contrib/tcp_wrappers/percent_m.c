@@ -12,7 +12,6 @@ static char sccsid[] = "@(#) percent_m.c 1.1 94/12/28 17:42:37";
 #include <errno.h>
 #include <string.h>
 
-extern int errno;
 #ifndef SYS_ERRLIST_DEFINED
 extern char *sys_errlist[];
 extern int sys_nerr;

@@ -27,8 +27,6 @@ char    sccsid[] = "@(#) workarounds.c 1.6 96/03/19 16:22:25";
 #include <unistd.h>
 #endif
 
-extern int errno;
-
 #include "tcpd.h"
 
  /*
