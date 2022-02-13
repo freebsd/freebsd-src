@@ -124,6 +124,14 @@ void cons_probe(void);
 bool		cons_update_mode(bool);
 void		autoload_font(bool);
 
+extern int module_verbose;
+enum {
+	MODULE_VERBOSE_SILENT,		/* say nothing */
+	MODULE_VERBOSE_SIZE,		/* print name and size */
+	MODULE_VERBOSE_TWIDDLE,		/* show progress */
+	MODULE_VERBOSE_FULL,		/* all we have */
+};
+
 /*
  * Plug-and-play enumerator/configurator interface.
  */

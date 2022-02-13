@@ -41,6 +41,28 @@ static int	cons_check(const char *string);
 static int	cons_change(const char *string);
 static int	twiddle_set(struct env_var *ev, int flags, const void *value);
 
+#ifndef MODULE_VERBOSE
+# define MODULE_VERBOSE MODULE_VERBOSE_TWIDDLE
+#endif
+int module_verbose = MODULE_VERBOSE;
+
+static int
+module_verbose_set(struct env_var *ev, int flags, const void *value)
+{
+	u_long v;
+	char *eptr;
+
+	v = strtoul(value, &eptr, 0);
+	if (*(const char *)value == 0 || *eptr != 0) {
+		printf("invalid module_verbose '%s'\n", (const char *)value);
+		return (CMD_ERROR);
+	}
+	module_verbose = (int)v;
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+
+	return (CMD_OK);
+}
+
 /*
  * Detect possible console(s) to use.  If preferred console(s) have been
  * specified, mark them as active. Else, mark the first probed console
@@ -52,10 +74,15 @@ cons_probe(void)
 	int	cons;
 	int	active;
 	char	*prefconsole;
+	char	module_verbose_buf[8];
 
 	TSENTER();
 
-	/* We want a callback to install the new value when this var changes. */
+	/* We want a callback to install the new value when these vars change. */
+	snprintf(module_verbose_buf, sizeof(module_verbose_buf), "%d",
+	    module_verbose);
+	env_setenv("module_verbose", EV_VOLATILE, module_verbose_buf,
+	    module_verbose_set, env_nounset);
 	env_setenv("twiddle_divisor", EV_VOLATILE, "16", twiddle_set,
 	    env_nounset);
 
