@@ -16,14 +16,22 @@ task:
     env:
       TARGET: amd64
       TARGET_ARCH: amd64
+      TOOLCHAIN_PKG: llvm13
   - name: World and kernel arm64 build and boot smoke test
     trigger_type: manual
     env:
       TARGET: arm64
       TARGET_ARCH: aarch64
+      TOOLCHAIN_PKG: llvm13
+  - name: World and kernel gcc9 amd64 build and boot smoke test
+    trigger_type: manual
+    env:
+      TARGET: amd64
+      TARGET_ARCH: amd64
+      TOOLCHAIN_PKG: amd64-gcc9
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu-nox11 llvm13
+  - sh .cirrus-ci/pkg-install.sh qemu-nox11 ${TOOLCHAIN_PKG}
   setup_script:
   - uname -a
   - df -m
@@ -32,9 +40,9 @@ task:
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
   script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
-  - su user -c "make CROSS_TOOLCHAIN=llvm13 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
   post_script:
