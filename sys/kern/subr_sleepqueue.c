@@ -833,7 +833,8 @@ sleepq_remove_thread(struct sleepqueue *sq, struct thread *td)
 		td->td_sleepqueue = LIST_FIRST(&sq->sq_free);
 	LIST_REMOVE(td->td_sleepqueue, sq_hash);
 
-	if ((td->td_flags & TDF_TIMEOUT) == 0 && td->td_sleeptimo != 0)
+	if ((td->td_flags & TDF_TIMEOUT) == 0 && td->td_sleeptimo != 0 &&
+	    td->td_lock == &sc->sc_lock) {
 		/*
 		 * We ignore the situation where timeout subsystem was
 		 * unable to stop our callout.  The struct thread is
@@ -843,8 +844,16 @@ sleepq_remove_thread(struct sleepqueue *sq, struct thread *td)
 		 * sleepq_timeout() ensure that the thread does not
 		 * get spurious wakeups, even if the callout was reset
 		 * or thread reused.
+		 *
+		 * We also cannot safely stop the callout if a scheduler
+		 * lock is held since softclock_thread() forces a lock
+		 * order of callout lock -> scheduler lock.  The thread
+		 * lock will be a scheduler lock only if the thread is
+		 * preparing to go to sleep, so this is hopefully a rare
+		 * scenario.
 		 */
 		callout_stop(&td->td_slpcallout);
+	}
 
 	td->td_wmesg = NULL;
 	td->td_wchan = NULL;
