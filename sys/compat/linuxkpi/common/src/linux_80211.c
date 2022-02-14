@@ -2579,7 +2579,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 #endif
 
 		channels = hw->wiphy->bands[NL80211_BAND_2GHZ]->channels;
-		for (i = 0; i < nchans; i++) {
+		for (i = 0; i < nchans && *n < maxchan; i++) {
 			uint32_t nflags = 0;
 			int cflags = chan_flags;
 
@@ -2606,14 +2606,15 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			    channels[i].hw_value, channels[i].center_freq,
 			    channels[i].max_power,
 			    nflags, bands, chan_flags);
-			if (error != 0) {
+			/* net80211::ENOBUFS: *n >= maxchans */
+			if (error != 0 && error != ENOBUFS)
 				printf("%s: %s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
 				    "returned error %d\n", ic->ic_name,
 				    __func__, channels[i].hw_value,
 				    channels[i].center_freq, channels[i].flags,
 				    nflags, chan_flags, cflags, error);
+			if (error != 0)
 				break;
-			}
 		}
 	}
 
@@ -2648,7 +2649,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 #endif
 
 		channels = hw->wiphy->bands[NL80211_BAND_5GHZ]->channels;
-		for (i = 0; i < nchans; i++) {
+		for (i = 0; i < nchans && *n < maxchan; i++) {
 			uint32_t nflags = 0;
 			int cflags = chan_flags;
 
@@ -2675,14 +2676,15 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			    channels[i].hw_value, channels[i].center_freq,
 			    channels[i].max_power,
 			    nflags, bands, chan_flags);
-			if (error != 0) {
+			/* net80211::ENOBUFS: *n >= maxchans */
+			if (error != 0 && error != ENOBUFS)
 				printf("%s: %s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
 				    "returned error %d\n", ic->ic_name,
 				    __func__, channels[i].hw_value,
 				    channels[i].center_freq, channels[i].flags,
 				    nflags, chan_flags, cflags, error);
+			if (error != 0)
 				break;
-			}
 		}
 	}
 }
