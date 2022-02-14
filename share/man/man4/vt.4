@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2021
+.Dd February 14, 2022
 .Dt "VT" 4
 .Os
 .Sh NAME
@@ -197,6 +197,9 @@ prompt or in
 Set to 1 to use virtual terminals in text mode instead of graphics mode.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
+.Pp
+If a KMS driver is loaded the console will switch to (and remain in)
+graphics mode.
 .It Va hw.vga.acpi_ignore_no_vga
 Set to 1 to force the usage of the VGA driver regardless of whether
 ACPI IAPC_BOOT_ARCH signals no VGA support.
