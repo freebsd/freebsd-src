@@ -2941,7 +2941,7 @@ fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsear
 	 */
 	atomic_thread_fence_acq();
 	fdt = fdp->fd_files;
-	if (__predict_false(!seqc_consistent_nomb(fd_seqc(fdt, fd), seq)))
+	if (__predict_false(!seqc_consistent_no_fence(fd_seqc(fdt, fd), seq)))
 		return (EAGAIN);
 	/*
 	 * If file descriptor doesn't have all rights,
@@ -3058,7 +3058,7 @@ fget_unlocked_seq(struct thread *td, int fd, cap_rights_t *needrightsp,
 		 */
 		atomic_thread_fence_acq();
 		fdt = fdp->fd_files;
-		if (seqc_consistent_nomb(fd_seqc(fdt, fd), seq))
+		if (seqc_consistent_no_fence(fd_seqc(fdt, fd), seq))
 			break;
 		fdrop(fp, td);
 	}
@@ -3157,7 +3157,7 @@ fget_unlocked(struct thread *td, int fd, cap_rights_t *needrightsp,
 	atomic_thread_fence_acq();
 	fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
-	if (__predict_false(!seqc_consistent_nomb(fd_seqc(fdt, fd), seq)))
+	if (__predict_false(!seqc_consistent_no_fence(fd_seqc(fdt, fd), seq)))
 #else
 	if (__predict_false(fp != fdt->fdt_ofiles[fd].fde_file))
 #endif

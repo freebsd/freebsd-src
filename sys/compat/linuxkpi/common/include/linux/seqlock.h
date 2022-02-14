@@ -71,7 +71,7 @@ write_seqcount_end(struct seqcount *seqcount)
  * XXX: Are predicts from inline functions still not honored by clang?
  */
 #define	__read_seqcount_retry(seqcount, gen)	\
-	(!seqc_consistent_nomb(&(seqcount)->seqc, gen))
+	(!seqc_consistent_no_fence(&(seqcount)->seqc, gen))
 #define	read_seqcount_retry(seqcount, gen)	\
 	(!seqc_consistent(&(seqcount)->seqc, gen))
 
