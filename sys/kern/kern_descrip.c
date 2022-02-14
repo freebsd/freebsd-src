@@ -3642,6 +3642,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		newfde = &fdp->fd_ofiles[indx];
 		oldfde = &fdp->fd_ofiles[dfd];
 #ifdef CAPABILITIES
+		seqc_write_begin(&oldfde->fde_seqc);
 		seqc_write_begin(&newfde->fde_seqc);
 #endif
 		memcpy(newfde, oldfde, fde_change_size);
@@ -3649,6 +3650,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		fdunused(fdp, dfd);
 #ifdef CAPABILITIES
 		seqc_write_end(&newfde->fde_seqc);
+		seqc_write_end(&oldfde->fde_seqc);
 #endif
 		break;
 	}
