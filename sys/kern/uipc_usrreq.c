@@ -1062,7 +1062,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			control = NULL;
 		} else {
 			soroverflow_locked(so2);
-			error = ENOBUFS;
+			error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
 		}
 		if (nam != NULL)
 			unp_disconnect(unp, unp2);
