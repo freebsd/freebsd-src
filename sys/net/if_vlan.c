@@ -213,7 +213,8 @@ static struct {
 	{0, NULL}
 };
 
-extern int vlan_mtag_pcp;
+VNET_DECLARE(int, vlan_mtag_pcp);
+#define	V_vlan_mtag_pcp	VNET(vlan_mtag_pcp)
 
 static const char vlanname[] = "vlan";
 static MALLOC_DEFINE(M_VLAN, vlanname, "802.1Q Virtual LAN Interface");
@@ -1430,7 +1431,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 
-	if (vlan_mtag_pcp) {
+	if (V_vlan_mtag_pcp) {
 		/*
 		 * While uncommon, it is possible that we will find a 802.1q
 		 * packet encapsulated inside another packet that also had an
