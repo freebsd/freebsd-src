@@ -770,12 +770,12 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 			if (limp->rlim_cur > oldssiz.rlim_cur) {
 				prot = p->p_sysent->sv_stackprot;
 				size = limp->rlim_cur - oldssiz.rlim_cur;
-				addr = p->p_sysent->sv_usrstack -
+				addr = round_page(p->p_vmspace->vm_stacktop) -
 				    limp->rlim_cur;
 			} else {
 				prot = VM_PROT_NONE;
 				size = oldssiz.rlim_cur - limp->rlim_cur;
-				addr = p->p_sysent->sv_usrstack -
+				addr = round_page(p->p_vmspace->vm_stacktop) -
 				    oldssiz.rlim_cur;
 			}
 			addr = trunc_page(addr);
