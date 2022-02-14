@@ -178,6 +178,15 @@ The
 macro sets the bit representing the CPU with atomic acquire semantics.
 .Pp
 The
+.Fn CPU_ISSET
+macro returns
+.Dv true
+if CPU
+.Fa cpu_idx
+is a member of the cpuset pointed to by
+.Fa cpuset .
+.Pp
+The
 .Fn CPU_ZERO
 macro removes all CPUs from
 .Fa cpuset .
