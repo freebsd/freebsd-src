@@ -23,7 +23,7 @@ task:
       TARGET_ARCH: aarch64
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu llvm13
+  - sh .cirrus-ci/pkg-install.sh qemu-nox11 llvm13
   setup_script:
   - uname -a
   - df -m
