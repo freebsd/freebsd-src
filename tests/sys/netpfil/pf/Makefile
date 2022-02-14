@@ -20,6 +20,7 @@ ATF_TESTS_SH+=	altq \
 		nat \
 		pass_block \
 		pfsync	\
+		prio \
 		proxy \
 		rdr \
 		ridentifier \
