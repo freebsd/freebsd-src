@@ -270,7 +270,6 @@ search_fopen(char *db, char **s)
 } 
 
 #ifdef MMAP
-
 /*
  * Arguments:
  * db	database

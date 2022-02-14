@@ -64,7 +64,7 @@ check_bigram_char(ch)
 	/* legal bigram: 0, ASCII_MIN ... ASCII_MAX */
 	if (ch == 0 ||
 	    (ch >= ASCII_MIN && ch <= ASCII_MAX))
-		return(ch);
+		return (ch);
 
 	errx(1,
 		"locate database header corrupt, bigram char outside 0, %d-%d: %d",  
@@ -96,7 +96,7 @@ colon(char **dbv, char *path, char *dot)
 	/* empty string */
 	if (*path == '\0') {
 		warnx("empty database name, ignored");
-		return(dbv);
+		return (dbv);
 	}
 
 	/* length of string vector */
@@ -187,7 +187,7 @@ patprep(name)
 			*subp++ = *p++;
 	}
 	*subp = '\0';
-	return(--subp);
+	return (--subp);
 }
 
 /* tolower word */
@@ -200,7 +200,7 @@ tolower_word(word)
 	for(p = word; *p != '\0'; p++)
 		*p = TOLOWER(*p);
 
-	return(word);
+	return (word);
 }
 
 
@@ -238,9 +238,9 @@ getwm(p)
 		if (hi >= i_max || hi <= i_min)
 			errx(1, "integer out of range: %d < %d < %d",
 			    i_min, abs(i) < abs(hi) ? i : hi, i_max);
-		return(hi);
+		return (hi);
 	}
-	return(i);
+	return (i);
 }
 
 /*
@@ -266,11 +266,10 @@ getwf(fp)
 		if (hword >= i_max || hword <= i_min)
 			errx(1, "integer out of range: %d < %d < %d",
 			    i_min, abs(word) < abs(hword) ? word : hword, i_max);
-		return(hword);
+		return (hword);
 	}
-	return(word);
+	return (word);
 }
-
 
 void
 rebuild_message(char *db)
@@ -291,16 +290,15 @@ check_size(char *db)
 	if (stat(db, &sb) == -1) {
 		warnx("the locate database '%s' does not exist.", db);
 		rebuild_message(db);
-		return(0);
+		return (0);
 	}
 	len = sb.st_size;
 
 	if (len < (2 * NBG)) {
 		warnx("the locate database '%s' is smaller than %d bytes large.", db, (2 * NBG));
 		rebuild_message(db);
-		return(0);
+		return (0);
 	}
 
-	return(1);
+	return (1);
 }
-
