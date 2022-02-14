@@ -230,10 +230,12 @@ kernel-clean:
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
 # in the a.out ld.  For now, this works.
-hack.pico: Makefile
-	:> hack.c
-	${CC} ${CCLDFLAGS} -shared ${CFLAGS} -nostdlib hack.c -o hack.pico
-	rm -f hack.c
+force-dynamic-hack.c:
+	:> ${.TARGET}
+
+force-dynamic-hack.pico: force-dynamic-hack.c Makefile
+	${CC} ${CCLDFLAGS} -shared ${CFLAGS} -nostdlib \
+	    force-dynamic-hack.c -o ${.TARGET}
 
 offset.inc: $S/kern/genoffset.sh genoffset.o
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genoffset.sh genoffset.o > ${.TARGET}
@@ -444,7 +446,7 @@ config.o env.o hints.o vers.o vnode_if.o:
 .if ${MK_REPRODUCIBLE_BUILD} != "no"
 REPRO_FLAG="-R"
 .endif
-vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
+vers.c: .NOMETA_CMP $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP:Nvers.*}
 	MAKE="${MAKE}" sh $S/conf/newvers.sh ${REPRO_FLAG} ${KERN_IDENT}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
