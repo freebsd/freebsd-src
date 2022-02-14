@@ -146,12 +146,12 @@ struct sleepqueue_chain {
 } __aligned(CACHE_LINE_SIZE);
 
 #ifdef SLEEPQUEUE_PROFILING
-u_int sleepq_max_depth;
 static SYSCTL_NODE(_debug, OID_AUTO, sleepq, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "sleepq profiling");
 static SYSCTL_NODE(_debug_sleepq, OID_AUTO, chains,
     CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "sleepq chain stats");
+static u_int sleepq_max_depth;
 SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
     0, "maxmimum depth achieved of a single chain");
 
