@@ -206,6 +206,10 @@ CWARNFLAGS+=	-Wno-error=overflow
 .endif
 .endif
 
+# GCC produces false positives for functions that switch on an
+# enum (GCC bug 87950)
+CWARNFLAGS+=	-Wno-return-type
+
 # GCC's own arm_neon.h triggers various warnings
 .if ${MACHINE_CPUARCH} == "aarch64"
 CWARNFLAGS+=	-Wno-system-headers
