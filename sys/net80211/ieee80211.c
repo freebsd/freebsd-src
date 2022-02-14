@@ -1287,8 +1287,8 @@ addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
 		return (ENOBUFS);
 
 #if 0
-	printf("%s: %d: ieee=%d, freq=%d, flags=0x%08x\n",
-	    __func__, *nchans, ieee, freq, flags);
+	printf("%s: %d of %d: ieee=%d, freq=%d, flags=0x%08x\n",
+	    __func__, *nchans, maxchans, ieee, freq, flags);
 #endif
 
 	c = &chans[(*nchans)++];
@@ -1317,8 +1317,8 @@ copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
 		return (ENOBUFS);
 
 #if 0
-	printf("%s: %d: flags=0x%08x\n",
-	    __func__, *nchans, flags);
+	printf("%s: %d of %d: flags=0x%08x\n",
+	    __func__, *nchans, maxchans, flags);
 #endif
 
 	c = &chans[(*nchans)++];
