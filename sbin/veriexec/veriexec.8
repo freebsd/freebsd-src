@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2018
+.Dd February 14, 2022
 .Dt VERIEXEC 8
 .Os
 .Sh NAME
@@ -101,6 +101,20 @@ unless verified.
 .It Ar locked
 prevent loading of any more manifests.
 .El
+.Pp
+When setting or querying the state, it is sufficient to provide
+a unique prefix of the desired state.
+So
+.Fl i
+.Ar a
+or
+.Fl z
+.Ar e
+are sufficient, but
+.Fl i
+.Ar loc
+is the minimum required to avoid confusion with
+.Ar loaded .
 .Sh MANIFESTS
 The manifest contains a mapping of relative pathnames to fingerprints
 with optional flags.
