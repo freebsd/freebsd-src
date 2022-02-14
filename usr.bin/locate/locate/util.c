@@ -289,14 +289,14 @@ check_size(char *db)
         off_t len;
 
 	if (stat(db, &sb) == -1) {
-		warnx("the locate database '%s' does not exists.", db);
+		warnx("the locate database '%s' does not exist.", db);
 		rebuild_message(db);
 		return(0);
 	}
 	len = sb.st_size;
 
 	if (len < (2 * NBG)) {
-		warnx("the locate database '%s' is less than %d bytes large.", db, (2 * NBG));
+		warnx("the locate database '%s' is smaller than %d bytes large.", db, (2 * NBG));
 		rebuild_message(db);
 		return(0);
 	}
