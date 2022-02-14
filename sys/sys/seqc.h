@@ -107,7 +107,7 @@ seqc_read(const seqc_t *seqcp)
 	return (ret);
 }
 
-#define seqc_consistent_nomb(seqcp, oldseqc)	({	\
+#define seqc_consistent_no_fence(seqcp, oldseqc)({	\
 	const seqc_t *__seqcp = (seqcp);		\
 	seqc_t __oldseqc = (oldseqc);			\
 							\
@@ -117,7 +117,7 @@ seqc_read(const seqc_t *seqcp)
 
 #define seqc_consistent(seqcp, oldseqc)		({	\
 	atomic_thread_fence_acq();			\
-	seqc_consistent_nomb(seqcp, oldseqc);		\
+	seqc_consistent_no_fence(seqcp, oldseqc);	\
 })
 
 /*
