@@ -89,7 +89,11 @@ CWARNEXTRA?=	-Wno-uninitialized
 # the few files that are already known to generate cast-qual warnings.
 NO_WCAST_QUAL= -Wno-cast-qual
 .endif
-.endif
+
+# GCC produces false positives for functions that switch on an
+# enum (GCC bug 87950)
+CWARNFLAGS+=	-Wno-return-type
+.endif	# gcc
 
 # This warning is utter nonsense
 CWARNFLAGS+=	-Wno-format-zero-length
