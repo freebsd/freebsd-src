@@ -854,7 +854,7 @@ ffs_write(ap)
 #ifdef notyet
 		return (ffs_extwrite(vp, uio, ioflag, ap->a_cred));
 #else
-		panic("ffs_write+IO_EXT");
+		panic("%s+IO_EXT", __func__);
 #endif
 
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
@@ -862,7 +862,7 @@ ffs_write(ap)
 
 #ifdef INVARIANTS
 	if (uio->uio_rw != UIO_WRITE)
-		panic("ffs_write: mode");
+		panic("%s: mode", __func__);
 #endif
 
 	switch (vp->v_type) {
@@ -875,17 +875,17 @@ ffs_write(ap)
 	case VLNK:
 		break;
 	case VDIR:
-		panic("ffs_write: dir write");
+		panic("%s: dir write", __func__);
 		break;
 	default:
-		panic("ffs_write: type %p %d (%d,%d)", vp, (int)vp->v_type,
+		panic("%s: type %p %d (%d,%d)", __func__, vp, (int)vp->v_type,
 			(int)uio->uio_offset,
 			(int)uio->uio_resid
 		);
 	}
 
-	KASSERT(uio->uio_resid >= 0, ("ffs_write: uio->uio_resid < 0"));
-	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
+	KASSERT(uio->uio_resid >= 0, ("%s: uio->uio_resid < 0", __func__));
+	KASSERT(uio->uio_offset >= 0, ("%s: uio->uio_offset < 0", __func__));
 	fs = ITOFS(ip);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
 		return (EFBIG);
