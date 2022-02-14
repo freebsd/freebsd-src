@@ -5,6 +5,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
+ * Copyright (c) 2021 Franco Fichtner <franco@opnsense.org>
  * Copyright (c) 1995, 1996, 1998, 1999
  * The Internet Software Consortium.    All rights reserved.
  *
@@ -187,20 +188,58 @@ if_register_send(struct interface_info *info)
  * Packet filter program...
  */
 static const struct bpf_insn dhcp_bpf_filter[] = {
+	/* Use relative index (0) for IP packet... */
+	BPF_STMT(BPF_LDX + BPF_W + BPF_IMM, 0),
+
+	/*
+	 * Test whether this is a VLAN packet...
+	 *
+	 * In case the server packet is using a VLAN ID
+	 * of 0, meaning an untagged priority was set, the
+	 * response shall be read and replied to.
+	 */
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 12),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_VLAN, 0, 4),
+
+	/* Test whether it has a VID of 0 */
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 14),
+	BPF_STMT(BPF_ALU + BPF_AND + BPF_K, EVL_VLID_MASK),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 0, 0, 17),
+
+	/* Correct the relative index for VLAN packet (4)... */
+	BPF_STMT(BPF_LDX + BPF_W + BPF_IMM, 4),
+
 	/* Make sure this is an IP packet... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 8),
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 12),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 14),
 
 	/* Make sure it's a UDP packet... */
-	BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 6),
+	BPF_STMT(BPF_LD + BPF_B + BPF_IND, 23),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 12),
 
 	/* Make sure this isn't a fragment... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 20),
-	BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, IP_MF|IP_OFFMASK, 4, 0),
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 20),
+	BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, IP_MF|IP_OFFMASK, 10, 0),
 
-	/* Get the IP header length... */
+	/*
+	 * Get the IP header length...
+	 *
+	 * To find the correct position of the IP header
+	 * length field store the index (0 or 4) in the
+	 * accumulator and compare it with 0.
+	 */
+	BPF_STMT(BPF_MISC + BPF_TXA, 0),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 0, 0, 2),
+	/* Store IP header length of IP packet in index. */
 	BPF_STMT(BPF_LDX + BPF_B + BPF_MSH, 14),
+	/* Skip over following VLAN handling instruction. */
+	BPF_JUMP(BPF_JMP + BPF_JA, 1, 0, 0),
+	/* Store IP header length of VLAN packet in index. */
+	BPF_STMT(BPF_LDX + BPF_B + BPF_MSH, 18),
+	/* Add IP header length to previous relative index. */
+	BPF_STMT(BPF_ALU + BPF_ADD + BPF_X, 0),
+	/* Move result back to index to reach UDP header below. */
+	BPF_STMT(BPF_MISC + BPF_TAX, 0),
 
 	/* Make sure it's to the right port... */
 	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 16),
