@@ -176,7 +176,7 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 			 * mmap's return value.
 			 */
 			PROC_LOCK(p);
-			vms->vm_maxsaddr = (char *)p->p_sysent->sv_usrstack -
+			vms->vm_maxsaddr = (char *)round_page(vms->vm_stacktop) -
 			    lim_cur_proc(p, RLIMIT_STACK);
 			PROC_UNLOCK(p);
 		}
