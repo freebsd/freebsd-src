@@ -66,7 +66,17 @@ struct filedescent {
 #define	fde_fcntls	fde_caps.fc_fcntls
 #define	fde_ioctls	fde_caps.fc_ioctls
 #define	fde_nioctls	fde_caps.fc_nioctls
-#define	fde_change_size	(offsetof(struct filedescent, fde_seqc))
+
+#ifdef _KERNEL
+static inline void
+fde_copy(struct filedescent *from, struct filedescent *to)
+{
+
+	to->fde_file = from->fde_file;
+	to->fde_caps = from->fde_caps;
+	to->fde_flags = from->fde_flags;
+}
+#endif
 
 struct fdescenttbl {
 	int	fdt_nfiles;		/* number of open files allocated */
