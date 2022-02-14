@@ -75,6 +75,10 @@ CWARNEXTRA+=	-Wno-error=packed-not-aligned
 CWARNEXTRA+=	-Wno-address-of-packed-member			\
 		-Wno-error=alloca-larger-than=
 .endif
+
+# GCC produces false positives for functions that switch on an
+# enum (GCC bug 87950)
+CWARNFLAGS+=	-Wno-return-type
 .endif	# gcc
 
 # This warning is utter nonsense
