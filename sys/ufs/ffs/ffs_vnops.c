@@ -840,7 +840,7 @@ ffs_write(ap)
 	off_t osize;
 	ssize_t resid;
 	int seqcount;
-	int blkoffset, error, flags, ioflag, size, xfersize;
+	int blkoffset, error, flags, ioflag, xfersize;
 
 	vp = ap->a_vp;
 	if (DOINGSUJ(vp))
@@ -938,11 +938,11 @@ ffs_write(ap)
 			DIP_SET(ip, i_size, ip->i_size);
 			UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE);
 		}
-
+/*
 		size = blksize(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
 			xfersize = size;
-
+*/
 		if (buf_mapped(bp)) {
 			error = vn_io_fault_uiomove((char *)bp->b_data +
 			    blkoffset, (int)xfersize, uio);
