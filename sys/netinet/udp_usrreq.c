@@ -1555,8 +1555,8 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f, udp_tun_icmp_t i, 
 	KASSERT(inp != NULL, ("udp_set_kernel_tunneling: inp == NULL"));
 	INP_WLOCK(inp);
 	up = intoudpcb(inp);
-	if ((up->u_tun_func != NULL) ||
-	    (up->u_icmp_func != NULL)) {
+	if ((f != NULL || i != NULL) && ((up->u_tun_func != NULL) ||
+	    (up->u_icmp_func != NULL))) {
 		INP_WUNLOCK(inp);
 		return (EBUSY);
 	}
