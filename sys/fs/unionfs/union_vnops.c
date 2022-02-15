@@ -1764,33 +1764,52 @@ unionfs_readlink(struct vop_readlink_args *ap)
 static int
 unionfs_getwritemount(struct vop_getwritemount_args *ap)
 {
+	struct unionfs_node *unp;
 	struct vnode   *uvp;
-	struct vnode   *vp;
+	struct vnode   *vp, *ovp;
 	int		error;
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_getwritemount: enter\n");
 
 	error = 0;
 	vp = ap->a_vp;
+	uvp = NULLVP;
 
-	if (vp == NULLVP || (vp->v_mount->mnt_flag & MNT_RDONLY))
-		return (EACCES);
+	VI_LOCK(vp);
+	unp = VTOUNIONFS(vp);
+	if (unp != NULL)
+		uvp = unp->un_uppervp;
 
-	KASSERT_UNIONFS_VNODE(vp);
-
-	uvp = UNIONFSVPTOUPPERVP(vp);
-	if (uvp == NULLVP && VREG == vp->v_type)
-		uvp = UNIONFSVPTOUPPERVP(VTOUNIONFS(vp)->un_dvp);
-
-	if (uvp != NULLVP)
-		error = VOP_GETWRITEMOUNT(uvp, ap->a_mpp);
-	else {
+	/*
+	 * If our node has no upper vnode, check the parent directory.
+	 * We may be initiating a write operation that will produce a
+	 * new upper vnode through CoW.
+	 */
+	if (uvp == NULLVP && unp != NULL) {
+		ovp = vp;
+		vp = unp->un_dvp;
+		/*
+		 * Only the root vnode should have an empty parent, but it
+		 * should not have an empty uppervp, so we shouldn't get here.
+		 */
+		VNASSERT(vp != NULL, ovp, ("%s: NULL parent vnode", __func__));
+		VI_UNLOCK(ovp);
 		VI_LOCK(vp);
-		if (vp->v_holdcnt == 0)
-			error = EOPNOTSUPP;
-		else
+		unp = VTOUNIONFS(vp);
+		if (unp != NULL)
+			uvp = unp->un_uppervp;
+		if (uvp == NULLVP)
 			error = EACCES;
+	}
+
+	if (uvp != NULLVP) {
+		vholdnz(uvp);
 		VI_UNLOCK(vp);
+		error = VOP_GETWRITEMOUNT(uvp, ap->a_mpp);
+		vdrop(uvp);
+	} else {
+		VI_UNLOCK(vp);
+		*(ap->a_mpp) = NULL;
 	}
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_getwritemount: leave (%d)\n", error);
