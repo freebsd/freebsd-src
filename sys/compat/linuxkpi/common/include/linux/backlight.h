@@ -92,6 +92,16 @@ backlight_force_update(struct backlight_device *bd, int reason)
 }
 
 static inline int
+backlight_device_set_brightness(struct backlight_device *bd, int brightness)
+{
+
+	if (brightness > bd->props.max_brightness)
+		return (EINVAL);
+	bd->props.brightness = brightness;
+	return (bd->ops->update_status(bd));
+}
+
+static inline int
 backlight_enable(struct backlight_device *bd)
 {
 	if (bd == NULL)
