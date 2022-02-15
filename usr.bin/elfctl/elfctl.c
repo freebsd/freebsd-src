@@ -116,6 +116,8 @@ main(int argc, char **argv)
 			lflag = true;
 			break;
 		case 'e':
+			if (features != NULL)
+				errx(1, "-e may be specified only once");
 			features = optarg;
 			editfeatures = true;
 			break;
