@@ -1223,10 +1223,12 @@ zone_timeout(uma_zone_t zone, void *unused)
 
 trim:
 	/* Trim caches not used for a long time. */
-	for (int i = 0; i < vm_ndomains; i++) {
-		if (bucket_cache_reclaim_domain(zone, false, false, i) &&
-		    (zone->uz_flags & UMA_ZFLAG_CACHE) == 0)
-			keg_drain(zone->uz_keg, i);
+	if ((zone->uz_flags & UMA_ZONE_UNMANAGED) == 0) {
+		for (int i = 0; i < vm_ndomains; i++) {
+			if (bucket_cache_reclaim_domain(zone, false, false, i) &&
+			    (zone->uz_flags & UMA_ZFLAG_CACHE) == 0)
+				keg_drain(zone->uz_keg, i);
+		}
 	}
 }
 
@@ -1733,24 +1735,6 @@ zone_reclaim(uma_zone_t zone, int domain, int waitok, bool drain)
 	if (zone->uz_reclaimers == 0)
 		wakeup(zone);
 	ZONE_UNLOCK(zone);
-}
-
-static void
-zone_drain(uma_zone_t zone, void *arg)
-{
-	int domain;
-
-	domain = (int)(uintptr_t)arg;
-	zone_reclaim(zone, domain, M_NOWAIT, true);
-}
-
-static void
-zone_trim(uma_zone_t zone, void *arg)
-{
-	int domain;
-
-	domain = (int)(uintptr_t)arg;
-	zone_reclaim(zone, domain, M_NOWAIT, false);
 }
 
 /*
@@ -3548,7 +3532,8 @@ uma_zalloc_debug(uma_zone_t zone, void **itemp, void *udata, int flags)
 			    zone->uz_ctor(item, zone->uz_size, udata,
 			    flags) != 0) {
 				counter_u64_add(zone->uz_fails, 1);
-			    	zone->uz_fini(item, zone->uz_size);
+				if (zone->uz_fini != NULL)
+					zone->uz_fini(item, zone->uz_size);
 				*itemp = NULL;
 				return (error);
 			}
@@ -5202,6 +5187,21 @@ uma_zone_memory(uma_zone_t zone)
 	return (sz * PAGE_SIZE);
 }
 
+struct uma_reclaim_args {
+	int	domain;
+	int	req;
+};
+
+static void
+uma_reclaim_domain_cb(uma_zone_t zone, void *arg)
+{
+	struct uma_reclaim_args *args;
+
+	args = arg;
+	if ((zone->uz_flags & UMA_ZONE_UNMANAGED) == 0)
+		uma_zone_reclaim_domain(zone, args->req, args->domain);
+}
+
 /* See uma.h */
 void
 uma_reclaim(int req)
@@ -5212,23 +5212,23 @@ uma_reclaim(int req)
 void
 uma_reclaim_domain(int req, int domain)
 {
-	void *arg;
+	struct uma_reclaim_args args;
 
 	bucket_enable();
 
-	arg = (void *)(uintptr_t)domain;
+	args.domain = domain;
+	args.req = req;
+
 	sx_slock(&uma_reclaim_lock);
 	switch (req) {
 	case UMA_RECLAIM_TRIM:
-		zone_foreach(zone_trim, arg);
-		break;
 	case UMA_RECLAIM_DRAIN:
-		zone_foreach(zone_drain, arg);
+		zone_foreach(uma_reclaim_domain_cb, &args);
 		break;
 	case UMA_RECLAIM_DRAIN_CPU:
-		zone_foreach(zone_drain, arg);
+		zone_foreach(uma_reclaim_domain_cb, &args);
 		pcpu_cache_drain_safe(NULL);
-		zone_foreach(zone_drain, arg);
+		zone_foreach(uma_reclaim_domain_cb, &args);
 		break;
 	default:
 		panic("unhandled reclamation request %d", req);
@@ -5239,8 +5239,8 @@ uma_reclaim_domain(int req, int domain)
 	 * we visit again so that we can free pages that are empty once other
 	 * zones are drained.  We have to do the same for buckets.
 	 */
-	zone_drain(slabzones[0], arg);
-	zone_drain(slabzones[1], arg);
+	uma_zone_reclaim_domain(slabzones[0], UMA_RECLAIM_DRAIN, domain);
+	uma_zone_reclaim_domain(slabzones[1], UMA_RECLAIM_DRAIN, domain);
 	bucket_zone_drain(domain);
 	sx_sunlock(&uma_reclaim_lock);
 }
@@ -5283,19 +5283,16 @@ uma_zone_reclaim(uma_zone_t zone, int req)
 void
 uma_zone_reclaim_domain(uma_zone_t zone, int req, int domain)
 {
-	void *arg;
-
-	arg = (void *)(uintptr_t)domain;
 	switch (req) {
 	case UMA_RECLAIM_TRIM:
-		zone_trim(zone, arg);
+		zone_reclaim(zone, domain, M_NOWAIT, false);
 		break;
 	case UMA_RECLAIM_DRAIN:
-		zone_drain(zone, arg);
+		zone_reclaim(zone, domain, M_NOWAIT, true);
 		break;
 	case UMA_RECLAIM_DRAIN_CPU:
 		pcpu_cache_drain_safe(zone);
-		zone_drain(zone, arg);
+		zone_reclaim(zone, domain, M_NOWAIT, true);
 		break;
 	default:
 		panic("unhandled reclamation request %d", req);

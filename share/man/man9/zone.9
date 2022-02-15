@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2021
+.Dd February 15, 2022
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -324,6 +324,12 @@ The zone is for the VM subsystem.
 Items in this zone must be contiguous in physical address space.
 Items will follow normal alignment constraints and may span page boundaries
 between pages with contiguous physical addresses.
+.It Dv UMA_ZONE_UNMANAGED
+By default, UMA zone caches are shrunk to help resolve free page shortages.
+Cached items that have not been used for a long period may also be freed from
+zone.
+When this flag is set, the system will not reclaim memory from the zone's
+caches.
 .El
 .Pp
 Zones can be destroyed using
