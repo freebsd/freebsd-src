@@ -826,7 +826,7 @@ struct	tcpstat {
 	uint64_t tcps_ace_ect0;		/* ACE SYN packet with ECT0 */
 	uint64_t tcps_ace_ce;		/* ACE SYN packet with CE */
 
-	uint64_t _pad[2];		/* 2 TBD */
+	uint64_t _pad[6];		/* 6 TBD placeholder for STABLE */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
