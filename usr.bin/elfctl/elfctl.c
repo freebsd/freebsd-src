@@ -82,7 +82,7 @@ static struct option long_opts[] = {
 #define	HOST_ENDIAN	ELFDATA2LSB
 #define	SWAP_ENDIAN	ELFDATA2MSB
 #else
-#define	HOST_ENDIAN 	ELFDATA2MSB
+#define	HOST_ENDIAN	ELFDATA2MSB
 #define	SWAP_ENDIAN	ELFDATA2LSB
 #endif
 
@@ -406,7 +406,7 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 
 			/*
 			 * XXX: Name and descriptor are 4 byte aligned, however,
-			 * 	the size given doesn't include the padding.
+			 * the size given doesn't include the padding.
 			 */
 			namesz = roundup2(note.n_namesz, 4);
 			name = malloc(namesz);
@@ -445,7 +445,7 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 
 			/*
 			 * XXX: For now we look at only 4 bytes of the
-			 * 	descriptor. This should respect descsz.
+			 * descriptor. This should respect descsz.
 			 */
 			if (note.n_descsz > sizeof(uint32_t))
 				warnx("Feature note is bigger than expected");
