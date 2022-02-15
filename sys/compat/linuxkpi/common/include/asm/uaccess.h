@@ -55,6 +55,9 @@ copy_from_user(void *to, const void *from, unsigned long n)
 #define	user_access_begin(ptr, len) access_ok(ptr, len)
 #define	user_access_end() do { } while (0)
 
+#define	user_write_access_begin(ptr, len) access_ok(ptr, len)
+#define	user_write_access_end() do { } while (0)
+
 #define	unsafe_get_user(x, ptr, err) do { \
 	if (unlikely(__get_user(x, ptr))) \
 		goto err; \
