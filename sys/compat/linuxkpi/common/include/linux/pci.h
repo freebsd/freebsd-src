@@ -95,7 +95,9 @@ struct pci_device_id {
 #define	PCI_EXP_LNKCTL		PCIER_LINK_CTL			/* Link Control */
 #define	PCI_EXP_LNKCTL_ASPM_L0S	PCIEM_LINK_CTL_ASPMC_L0S
 #define	PCI_EXP_LNKCTL_ASPM_L1	PCIEM_LINK_CTL_ASPMC_L1
+#define PCI_EXP_LNKCTL_ASPMC	PCIEM_LINK_CTL_ASPMC
 #define	PCI_EXP_LNKCTL_CLKREQ_EN PCIEM_LINK_CTL_ECPM		/* Enable clock PM */
+#define PCI_EXP_LNKCTL_HAWD	PCIEM_LINK_CTL_HAWD
 #define	PCI_EXP_FLAGS_TYPE	PCIEM_FLAGS_TYPE		/* Device/Port type */
 #define	PCI_EXP_DEVCAP		PCIER_DEVICE_CAP		/* Device capabilities */
 #define	PCI_EXP_DEVSTA		PCIER_DEVICE_STA		/* Device Status */
@@ -139,7 +141,6 @@ struct pci_device_id {
 #define	PCI_EXP_LNKCTL2_ENTER_COMP	0x0010	/* Enter Compliance */
 #define	PCI_EXP_LNKCTL2_TX_MARGIN	0x0380	/* Transmit Margin */
 
-#define PCI_EXP_LNKCTL_HAWD	PCIEM_LINK_CTL_HAWD
 #define PCI_EXP_LNKCAP_CLKPM	0x00040000
 #define PCI_EXP_DEVSTA_TRPND	0x0020
 
@@ -185,6 +186,10 @@ typedef int pci_power_t;
 #define	PCI_ERR_ROOT_ERR_SRC		PCIR_AER_COR_SOURCE_ID
 
 #define	PCI_EXT_CAP_ID_ERR		PCIZ_AER
+#define	PCI_EXT_CAP_ID_L1SS		PCIZ_L1PM
+
+#define	PCI_L1SS_CTL1			0x8
+#define	PCI_L1SS_CTL1_L1SS_MASK		0xf
 
 #define	PCI_IRQ_LEGACY			0x01
 #define	PCI_IRQ_MSI			0x02
