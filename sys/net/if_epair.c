@@ -784,7 +784,7 @@ VNET_SYSUNINIT(vnet_epair_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
     vnet_epair_uninit, NULL);
 
 static int
-epair_mod_init()
+epair_mod_init(void)
 {
 	char name[32];
 	epair_tasks.tasks = 0;
@@ -828,7 +828,7 @@ epair_mod_init()
 }
 
 static void
-epair_mod_cleanup()
+epair_mod_cleanup(void)
 {
 
 	for (int i = 0; i < epair_tasks.tasks; i++) {
