@@ -546,6 +546,7 @@ iscsi_callout(void *context)
 	struct iscsi_bhs_nop_out *bhsno;
 	struct iscsi_session *is;
 	bool reconnect_needed = false;
+	sbintime_t sbt, pr;
 
 	is = context;
 
@@ -555,7 +556,9 @@ iscsi_callout(void *context)
 		return;
 	}
 
-	callout_schedule(&is->is_callout, 1 * hz);
+	sbt = mstosbt(995);
+	pr  = mstosbt(10);
+	callout_schedule_sbt(&is->is_callout, sbt, pr, 0);
 
 	if (is->is_conf.isc_enable == 0)
 		goto out;
@@ -1835,6 +1838,7 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	struct iscsi_session *is;
 	const struct iscsi_session *is2;
 	int error;
+	sbintime_t sbt, pr;
 
 	iscsi_sanitize_session_conf(&isa->isa_conf);
 	if (iscsi_valid_session_conf(&isa->isa_conf) == false)
@@ -1912,7 +1916,9 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 		return (error);
 	}
 
-	callout_reset(&is->is_callout, 1 * hz, iscsi_callout, is);
+	sbt = mstosbt(995);
+	pr = mstosbt(10);
+	callout_reset_sbt(&is->is_callout, sbt, pr, iscsi_callout, is, 0);
 	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);
 
 	ISCSI_SESSION_LOCK(is);
