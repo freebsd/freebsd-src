@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2022 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -374,6 +374,30 @@ lkpi_get_lkpi80211_chan(struct ieee80211com *ic, struct ieee80211_node *ni)
 	}
 
 	return (chan);
+}
+
+struct linuxkpi_ieee80211_channel *
+linuxkpi_ieee80211_get_channel(struct wiphy *wiphy, uint32_t freq)
+{
+	enum nl80211_band band;
+
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *supband;
+		struct linuxkpi_ieee80211_channel *channels;
+		int i;
+
+		supband = wiphy->bands[band];
+		if (supband == NULL || supband->n_channels == 0)
+			continue;
+
+		channels = supband->channels;
+		for (i = 0; i < supband->n_channels; i++) {
+			if (channels[i].center_freq == freq)
+				return (&channels[i]);
+		}
+	}
+
+	return (NULL);
 }
 
 #ifdef TRY_HW_CRYPTO
@@ -2800,7 +2824,7 @@ lkpi_radiotap_attach(struct lkpi_hw *lhw)
 	    LKPI_RTAP_RX_FLAGS_PRESENT);
 }
 
-void
+int
 linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 {
 	struct ieee80211com *ic;
@@ -2908,6 +2932,8 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 	if (bootverbose)
 		ieee80211_announce(ic);
+
+	return (0);
 }
 
 void
@@ -3388,8 +3414,8 @@ linuxkpi_ieee80211_find_sta(struct ieee80211_vif *vif, const u8 *peer)
 }
 
 struct ieee80211_sta *
-linuxkpi_ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw, uint8_t *addr,
-    uint8_t *ourvifaddr)
+linuxkpi_ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
+    const uint8_t *addr, const uint8_t *ourvifaddr)
 {
 	struct lkpi_hw *lhw;
 	struct lkpi_vif *lvif;
