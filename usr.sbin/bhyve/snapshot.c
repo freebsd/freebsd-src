@@ -1443,24 +1443,23 @@ done:
 static int
 handle_message(struct vmctx *ctx, nvlist_t *nvl)
 {
-	int err, cmd;
+	int err;
+	const char *cmd;
 
-	if (!nvlist_exists_number(nvl, "cmd"))
+	if (!nvlist_exists_string(nvl, "cmd"))
 		return (-1);
 
-	cmd = nvlist_get_number(nvl, "cmd");
-	switch (cmd) {
-		case START_SUSPEND:
-		case START_CHECKPOINT:
-			if (!nvlist_exists_string(nvl, "filename"))
-				err = -1;
-			else
-				err = vm_checkpoint(ctx, nvlist_get_string(nvl, "filename"),
-				    cmd == START_SUSPEND ? true : false);
-			break;
-		default:
-			EPRINTLN("Unrecognized checkpoint operation\n");
+	cmd = nvlist_get_string(nvl, "cmd");
+	if (strcmp(cmd, "checkpoint") == 0) {
+		if (!nvlist_exists_string(nvl, "filename") ||
+		    !nvlist_exists_bool(nvl, "suspend"))
 			err = -1;
+		else
+			err = vm_checkpoint(ctx, nvlist_get_string(nvl, "filename"),
+			    nvlist_get_bool(nvl, "suspend"));
+	} else {
+		EPRINTLN("Unrecognized checkpoint operation\n");
+		err = -1;
 	}
 
 	if (err != 0)
