@@ -1613,8 +1613,11 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 		break;
 
 	case CQE_RX_TRUNCATED:
+		apc = if_getsoftc(ndev);
+		counter_u64_add(apc->port_stats.rx_drops, 1);
+		rxbuf_oob = &rxq->rx_oobs[rxq->buf_index];
 		if_printf(ndev, "Dropped a truncated packet\n");
-		return;
+		goto drop;
 
 	case CQE_RX_COALESCED_4:
 		if_printf(ndev, "RX coalescing is unsupported\n");
@@ -1680,6 +1683,7 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 
 	mana_rx_mbuf(old_mbuf, oob, rxq);
 
+drop:
 	mana_move_wq_tail(rxq->gdma_rq, rxbuf_oob->wqe_inf.wqe_size_in_bu);
 
 	mana_post_pkt_rxq(rxq);
