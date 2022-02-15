@@ -165,7 +165,8 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 
 	ptls->zone = uma_zcache_create(ptls->zname,
 	     sizeof(struct mlx5e_tls_tag), NULL, NULL, NULL, NULL,
-	     mlx5e_tls_tag_import, mlx5e_tls_tag_release, priv->mdev, 0);
+	     mlx5e_tls_tag_import, mlx5e_tls_tag_release, priv->mdev,
+	     UMA_ZONE_UNMANAGED);
 
 	/* shared between RX and TX TLS */
 	ptls->max_resources = 1U << (MLX5_CAP_GEN(priv->mdev, log_max_dek) - 1);
