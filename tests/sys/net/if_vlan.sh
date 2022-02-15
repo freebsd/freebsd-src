@@ -214,7 +214,6 @@ atf_test_case "bpf_pcp" "cleanup"
 bpf_pcp_head()
 {
 	atf_set descr 'Set VLAN PCP through BPF'
-	atf_set require.config 'allow_sysctl_side_effects'
 	atf_set require.user root
 	atf_set require.progs scapy
 }
@@ -233,7 +232,7 @@ bpf_pcp_body()
 	jexec alcatraz ifconfig ${vlan} up
 	jexec alcatraz ifconfig ${epair}b up
 
-	sysctl net.link.vlan.mtag_pcp=1
+	jexec alcatraz sysctl net.link.vlan.mtag_pcp=1
 
 	jexec alcatraz dhclient ${vlan} &
 	atf_check -s exit:1 -o ignore -e ignore $(atf_get_srcdir)/pcp.py \
