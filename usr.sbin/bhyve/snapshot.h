@@ -60,12 +60,6 @@ struct restore_state {
 	ucl_object_t *meta_root_obj;
 };
 
-/* Messages that a bhyve process understands. */
-enum ipc_opcode {
-	START_CHECKPOINT,
-	START_SUSPEND,
-};
-
 struct checkpoint_thread_info {
 	struct vmctx *ctx;
 	int socket_fd;

@@ -1725,13 +1725,14 @@ done:
 }
 
 static int
-snapshot_request(struct vmctx *ctx, const char *file, enum ipc_opcode code)
+snapshot_request(struct vmctx *ctx, const char *file, bool suspend)
 {
 	nvlist_t *nvl;
 
 	nvl = nvlist_create(0);
-	nvlist_add_number(nvl, "cmd", code);
+	nvlist_add_string(nvl, "cmd", "checkpoint");
 	nvlist_add_string(nvl, "filename", file);
+	nvlist_add_bool(nvl, "suspend", suspend);
 
 	return (send_message(ctx, nvl));
 }
@@ -2397,10 +2398,10 @@ main(int argc, char *argv[])
 
 #ifdef BHYVE_SNAPSHOT
 	if (!error && vm_checkpoint_opt)
-		error = snapshot_request(ctx, checkpoint_file, START_CHECKPOINT);
+		error = snapshot_request(ctx, checkpoint_file, false);
 
 	if (!error && vm_suspend_opt)
-		error = snapshot_request(ctx, suspend_file, START_SUSPEND);
+		error = snapshot_request(ctx, suspend_file, true);
 #endif
 
 	free (opts);
