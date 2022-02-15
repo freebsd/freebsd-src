@@ -173,6 +173,7 @@ void
 icl_listen_free(struct icl_listen *il)
 {
 	struct icl_listen_sock *ils;
+	sbintime_t sbt, pr;
 
 	sx_xlock(&il->il_lock);
 	while (!TAILQ_EMPTY(&il->il_sockets)) {
@@ -184,7 +185,9 @@ icl_listen_free(struct icl_listen *il)
 			ils->ils_socket->so_error = ENOTCONN;
 			SOLISTEN_UNLOCK(ils->ils_socket);
 			wakeup(&ils->ils_socket->so_timeo);
-			pause("icl_unlisten", 1 * hz);
+			sbt = mstosbt(995);
+			pr = mstosbt(10);
+			pause_sbt("icl_unlisten", sbt, pr, 0);
 			sx_xlock(&il->il_lock);
 		}
 
