@@ -69,6 +69,7 @@ MAN+=	pmc.soft.3
 # PMC-dependent manual pages
 MAN+=	pmc.atom.3
 MAN+=	pmc.atomsilvermont.3
+MAN+=	pmc.cmn-600.3
 MAN+=	pmc.core.3
 MAN+=	pmc.core2.3
 MAN+=	pmc.corei7.3
