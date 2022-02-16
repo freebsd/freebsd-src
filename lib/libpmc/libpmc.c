@@ -65,6 +65,10 @@ static int armv7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 #if defined(__aarch64__)
 static int arm64_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
+static int cmn600_pmu_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+static int dmc620_pmu_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
 #endif
 static int soft_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
@@ -134,6 +138,9 @@ PMC_CLASSDEP_TABLE(iaf, IAF);
 PMC_CLASSDEP_TABLE(k8, K8);
 PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(armv8, ARMV8);
+PMC_CLASSDEP_TABLE(cmn600_pmu, CMN600_PMU);
+PMC_CLASSDEP_TABLE(dmc620_pmu_cd2, DMC620_PMU_CD2);
+PMC_CLASSDEP_TABLE(dmc620_pmu_c, DMC620_PMU_C);
 PMC_CLASSDEP_TABLE(ppc7450, PPC7450);
 PMC_CLASSDEP_TABLE(ppc970, PPC970);
 PMC_CLASSDEP_TABLE(e500, E500);
@@ -210,6 +217,9 @@ PMC_CLASS_TABLE_DESC(cortex_a9, ARMV7, cortex_a9, armv7);
 PMC_CLASS_TABLE_DESC(cortex_a53, ARMV8, cortex_a53, arm64);
 PMC_CLASS_TABLE_DESC(cortex_a57, ARMV8, cortex_a57, arm64);
 PMC_CLASS_TABLE_DESC(cortex_a76, ARMV8, cortex_a76, arm64);
+PMC_CLASS_TABLE_DESC(cmn600_pmu, CMN600_PMU, cmn600_pmu, cmn600_pmu);
+PMC_CLASS_TABLE_DESC(dmc620_pmu_cd2, DMC620_PMU_CD2, dmc620_pmu_cd2, dmc620_pmu);
+PMC_CLASS_TABLE_DESC(dmc620_pmu_c, DMC620_PMU_C, dmc620_pmu_c, dmc620_pmu);
 #endif
 #if defined(__powerpc__)
 PMC_CLASS_TABLE_DESC(ppc7450, PPC7450, ppc7450, powerpc);
@@ -781,6 +791,146 @@ arm64_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 	return (0);
 }
+
+static int
+cmn600_pmu_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	uint32_t nodeid, occupancy, xpport, xpchannel;
+	char *e, *p, *q;
+	unsigned int i;
+	char *xpport_names[] = { "East", "West", "North", "South", "devport0",
+	    "devport1" };
+	char *xpchannel_names[] = { "REQ", "RSP", "SNP", "DAT" };
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+	pmc_config->pm_md.pm_cmn600.pma_cmn600_config = 0;
+	/*
+	 * CMN600 extra fields:
+	 * * nodeid - node coordinates x[2-3],y[2-3],p[1],s[2]
+	 * 		width of x and y fields depend on matrix size.
+	 * * occupancy - numeric value to select desired filter.
+	 * * xpport - East, West, North, South, devport0, devport1 (or 0, 1, ..., 5)
+	 * * xpchannel - REQ, RSP, SNP, DAT (or 0, 1, 2, 3)
+	 */
+
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWPREFIXMATCH(p, "nodeid=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			nodeid = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_md.pm_cmn600.pma_cmn600_nodeid |= nodeid;
+
+		} else if (KWPREFIXMATCH(p, "occupancy=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			occupancy = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_md.pm_cmn600.pma_cmn600_occupancy = occupancy;
+		} else if (KWPREFIXMATCH(p, "xpport=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			xpport = strtol(q, &e, 0);
+			if (e == q || *e != '\0') {
+				for (i = 0; i < nitems(xpport_names); i++) {
+					if (strcasecmp(xpport_names[i], q) == 0) {
+						xpport = i;
+						break;
+					}
+				}
+				if (i == nitems(xpport_names))
+					return (-1);
+			}
+
+			pmc_config->pm_md.pm_cmn600.pma_cmn600_config |= xpport << 2;
+		} else if (KWPREFIXMATCH(p, "xpchannel=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			xpchannel = strtol(q, &e, 0);
+			if (e == q || *e != '\0') {
+				for (i = 0; i < nitems(xpchannel_names); i++) {
+					if (strcasecmp(xpchannel_names[i], q) == 0) {
+						xpchannel = i;
+						break;
+					}
+				}
+				if (i == nitems(xpchannel_names))
+					return (-1);
+			}
+
+			pmc_config->pm_md.pm_cmn600.pma_cmn600_config |= xpchannel << 5;
+		} else
+			return (-1);
+	}
+
+	return (0);
+}
+
+static int
+dmc620_pmu_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	char		*e, *p, *q;
+	uint64_t	match, mask;
+	uint32_t	count;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+	pmc_config->pm_md.pm_dmc620.pm_dmc620_config = 0;
+
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWPREFIXMATCH(p, "count=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			count = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
+			pmc_config->pm_md.pm_dmc620.pm_dmc620_config |= count;
+
+		} else if (KWMATCH(p, "inv")) {
+			pmc_config->pm_caps |= PMC_CAP_INVERT;
+		} else if (KWPREFIXMATCH(p, "match=")) {
+			match = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
+			pmc_config->pm_md.pm_dmc620.pm_dmc620_match = match;
+		} else if (KWPREFIXMATCH(p, "mask=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+
+			mask = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+
+			pmc_config->pm_md.pm_dmc620.pm_dmc620_mask = mask;
+			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
+		} else
+			return (-1);
+	}
+
+	return (0);
+}
 #endif
 
 #if defined(__powerpc__)
@@ -1156,6 +1306,18 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			break;
 		}
 		break;
+	case PMC_CLASS_CMN600_PMU:
+		ev = cmn600_pmu_event_table;
+		count = PMC_EVENT_TABLE_SIZE(cmn600_pmu);
+		break;
+	case PMC_CLASS_DMC620_PMU_CD2:
+		ev = dmc620_pmu_cd2_event_table;
+		count = PMC_EVENT_TABLE_SIZE(dmc620_pmu_cd2);
+		break;
+	case PMC_CLASS_DMC620_PMU_C:
+		ev = dmc620_pmu_c_event_table;
+		count = PMC_EVENT_TABLE_SIZE(dmc620_pmu_c);
+		break;
 	case PMC_CLASS_PPC7450:
 		ev = ppc7450_event_table;
 		count = PMC_EVENT_TABLE_SIZE(ppc7450);
@@ -1313,6 +1475,10 @@ pmc_init(void)
 
 	/* Fill soft events information. */
 	pmc_class_table[n++] = &soft_class_table_descr;
+
+	pmc_class_table[n++] = &cmn600_pmu_class_table_descr;
+	pmc_class_table[n++] = &dmc620_pmu_cd2_class_table_descr;
+	pmc_class_table[n++] = &dmc620_pmu_c_class_table_descr;
 #if defined(__amd64__) || defined(__i386__)
 	if (cpu_info.pm_cputype != PMC_CPU_GENERIC)
 		pmc_class_table[n++] = &tsc_class_table_descr;
@@ -1481,6 +1647,21 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		default:	/* Unknown CPU type. */
 			break;
 		}
+	} else if (pe >= PMC_EV_CMN600_PMU_FIRST &&
+	    pe <= PMC_EV_CMN600_PMU_LAST) {
+		ev = cmn600_pmu_event_table;
+		evfence = cmn600_pmu_event_table +
+		    PMC_EVENT_TABLE_SIZE(cmn600_pmu);
+	} else if (pe >= PMC_EV_DMC620_PMU_CD2_FIRST &&
+	    pe <= PMC_EV_DMC620_PMU_CD2_LAST) {
+		ev = dmc620_pmu_cd2_event_table;
+		evfence = dmc620_pmu_cd2_event_table +
+		    PMC_EVENT_TABLE_SIZE(dmc620_pmu_cd2);
+	} else if (pe >= PMC_EV_DMC620_PMU_C_FIRST &&
+	    pe <= PMC_EV_DMC620_PMU_C_LAST) {
+		ev = dmc620_pmu_c_event_table;
+		evfence = dmc620_pmu_c_event_table +
+		    PMC_EVENT_TABLE_SIZE(dmc620_pmu_c);
 	} else if (pe >= PMC_EV_PPC7450_FIRST && pe <= PMC_EV_PPC7450_LAST) {
 		ev = ppc7450_event_table;
 		evfence = ppc7450_event_table + PMC_EVENT_TABLE_SIZE(ppc7450);

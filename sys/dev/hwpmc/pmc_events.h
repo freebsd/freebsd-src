@@ -1004,6 +1004,236 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
 	__PMC_EV_ALIAS("STREX_SPEC",		ARMV8_EVENT_6FH)	\
 	__PMC_EV_ALIAS("L3_CACHE_RD",		ARMV8_EVENT_A0H)
 
+/*
+ * ARM DMC-620 memory controller counters.
+ */
+
+#define	__PMC_EV_DMC620_PMU_CD2()					\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_cycle_count)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_allocate)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_queue_depth)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_waiting_for_wr_data)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_read_backlog)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_waiting_for_mi)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_hazard_resolution)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_enqueue)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_arbitrate)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_lrank_turnaround_activate)	\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_prank_turnaround_activate)	\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_read_depth)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_write_depth)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_highhigh_qos_depth)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_high_qos_depth)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_medium_qos_depth)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_low_qos_depth)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_activate)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_rdwr)				\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_refresh)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_training_request)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_t_mac_tracker)			\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_bk_fsm_tracker)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_bk_open_tracker)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_ranks_in_pwr_down)		\
+	__PMC_EV(DMC620_PMU_CD2, clkdiv2_ranks_in_sref)			\
+
+#define	__PMC_EV_DMC620_PMU_C()						\
+	__PMC_EV(DMC620_PMU_C, clk_cycle_count)				\
+	__PMC_EV(DMC620_PMU_C, clk_request)				\
+	__PMC_EV(DMC620_PMU_C, clk_upload_stall)
+
+#define	PMC_EV_DMC620_PMU_CD2_FIRST	PMC_EV_DMC620_PMU_CD2_clkdiv2_cycle_count
+#define	PMC_EV_DMC620_PMU_CD2_LAST	PMC_EV_DMC620_PMU_CD2_clkdiv2_ranks_in_sref
+#define	PMC_EV_DMC620_PMU_C_FIRST	PMC_EV_DMC620_PMU_C_clk_cycle_count
+#define	PMC_EV_DMC620_PMU_C_LAST	PMC_EV_DMC620_PMU_C_clk_upload_stall
+
+/*
+ * Arm CMN-600 Coherent Mesh Network controller counters.
+ */
+
+#define	__PMC_EV_CMN600_PMU()					\
+	__PMC_EV(CMN600_PMU, dn_rxreq_dvmop)			\
+	__PMC_EV(CMN600_PMU, dn_rxreq_dvmsync)			\
+	__PMC_EV(CMN600_PMU, dn_rxreq_dvmop_vmid_filtered)	\
+	__PMC_EV(CMN600_PMU, dn_rxreq_retried)			\
+	__PMC_EV(CMN600_PMU, dn_rxreq_trk_occupancy)		\
+	__PMC_EV(CMN600_PMU, dn_rxreq_tlbi_dvmop)		\
+	__PMC_EV(CMN600_PMU, dn_rxreq_bpi_dvmop)		\
+	__PMC_EV(CMN600_PMU, dn_rxreq_pici_dvmop)		\
+	__PMC_EV(CMN600_PMU, dn_rxreq_vivi_dvmop)		\
+	__PMC_EV(CMN600_PMU, dn_rxreq_dvmop_other_filtered)	\
+	__PMC_EV(CMN600_PMU, dn_rxreq_snp_sent)			\
+	__PMC_EV(CMN600_PMU, dn_rxreq_snp_stalled)		\
+	__PMC_EV(CMN600_PMU, dn_rxreq_trk_full)			\
+	__PMC_EV(CMN600_PMU, hnf_cache_miss)			\
+	__PMC_EV(CMN600_PMU, hnf_slc_sf_cache_access)		\
+	__PMC_EV(CMN600_PMU, hnf_cache_fill)			\
+	__PMC_EV(CMN600_PMU, hnf_pocq_retry)			\
+	__PMC_EV(CMN600_PMU, hnf_pocq_reqs_recvd)		\
+	__PMC_EV(CMN600_PMU, hnf_sf_hit)			\
+	__PMC_EV(CMN600_PMU, hnf_sf_evictions)			\
+	__PMC_EV(CMN600_PMU, hnf_dir_snoops_sent)		\
+	__PMC_EV(CMN600_PMU, hnf_brd_snoops_sent)		\
+	__PMC_EV(CMN600_PMU, hnf_slc_eviction)			\
+	__PMC_EV(CMN600_PMU, hnf_slc_fill_invalid_way)		\
+	__PMC_EV(CMN600_PMU, hnf_mc_retries)			\
+	__PMC_EV(CMN600_PMU, hnf_mc_reqs)			\
+	__PMC_EV(CMN600_PMU, hnf_qos_hh_retry)			\
+	__PMC_EV(CMN600_PMU, hnf_qos_pocq)			\
+	__PMC_EV(CMN600_PMU, hnf_pocq_addrhaz)			\
+	__PMC_EV(CMN600_PMU, hnf_pocq_atomic_addrhaz)		\
+	__PMC_EV(CMN600_PMU, hnf_ld_st_swp_adq_full)		\
+	__PMC_EV(CMN600_PMU, hnf_cmp_adq_full)			\
+	__PMC_EV(CMN600_PMU, hnf_txdat_stall)			\
+	__PMC_EV(CMN600_PMU, hnf_txrsp_stall)			\
+	__PMC_EV(CMN600_PMU, hnf_seq_full)			\
+	__PMC_EV(CMN600_PMU, hnf_seq_hit)			\
+	__PMC_EV(CMN600_PMU, hnf_snp_sent)			\
+	__PMC_EV(CMN600_PMU, hnf_sfbi_dir_snp_sent)		\
+	__PMC_EV(CMN600_PMU, hnf_sfbi_brd_snp_sent)		\
+	__PMC_EV(CMN600_PMU, hnf_snp_sent_untrk)		\
+	__PMC_EV(CMN600_PMU, hnf_intv_dirty)			\
+	__PMC_EV(CMN600_PMU, hnf_stash_snp_sent)		\
+	__PMC_EV(CMN600_PMU, hnf_stash_data_pull)		\
+	__PMC_EV(CMN600_PMU, hnf_snp_fwded)			\
+	__PMC_EV(CMN600_PMU, hni_rrt_rd_occ_cnt_ovfl)		\
+	__PMC_EV(CMN600_PMU, hni_rrt_wr_occ_cnt_ovfl)		\
+	__PMC_EV(CMN600_PMU, hni_rdt_rd_occ_cnt_ovfl)		\
+	__PMC_EV(CMN600_PMU, hni_rdt_wr_occ_cnt_ovfl)		\
+	__PMC_EV(CMN600_PMU, hni_wdb_occ_cnt_ovfl)		\
+	__PMC_EV(CMN600_PMU, hni_rrt_rd_alloc)			\
+	__PMC_EV(CMN600_PMU, hni_rrt_wr_alloc)			\
+	__PMC_EV(CMN600_PMU, hni_rdt_rd_alloc)			\
+	__PMC_EV(CMN600_PMU, hni_rdt_wr_alloc)			\
+	__PMC_EV(CMN600_PMU, hni_wdb_alloc)			\
+	__PMC_EV(CMN600_PMU, hni_txrsp_retryack)		\
+	__PMC_EV(CMN600_PMU, hni_arvalid_no_arready)		\
+	__PMC_EV(CMN600_PMU, hni_arready_no_arvalid)		\
+	__PMC_EV(CMN600_PMU, hni_awvalid_no_awready)		\
+	__PMC_EV(CMN600_PMU, hni_awready_no_awvalid)		\
+	__PMC_EV(CMN600_PMU, hni_wvalid_no_wready)		\
+	__PMC_EV(CMN600_PMU, hni_txdat_stall)			\
+	__PMC_EV(CMN600_PMU, hni_nonpcie_serialization)		\
+	__PMC_EV(CMN600_PMU, hni_pcie_serialization)		\
+	__PMC_EV(CMN600_PMU, xp_txflit_valid)			\
+	__PMC_EV(CMN600_PMU, xp_txflit_stall)			\
+	__PMC_EV(CMN600_PMU, xp_partial_dat_flit)		\
+	__PMC_EV(CMN600_PMU, sbsx_rd_req)			\
+	__PMC_EV(CMN600_PMU, sbsx_wr_req)			\
+	__PMC_EV(CMN600_PMU, sbsx_cmo_req)			\
+	__PMC_EV(CMN600_PMU, sbsx_txrsp_retryack)		\
+	__PMC_EV(CMN600_PMU, sbsx_txdat_flitv)			\
+	__PMC_EV(CMN600_PMU, sbsx_txrsp_flitv)			\
+	__PMC_EV(CMN600_PMU, sbsx_rd_req_trkr_occ_cnt_ovfl)	\
+	__PMC_EV(CMN600_PMU, sbsx_wr_req_trkr_occ_cnt_ovfl)	\
+	__PMC_EV(CMN600_PMU, sbsx_cmo_req_trkr_occ_cnt_ovfl)	\
+	__PMC_EV(CMN600_PMU, sbsx_wdb_occ_cnt_ovfl)		\
+	__PMC_EV(CMN600_PMU, sbsx_rd_axi_trkr_occ_cnt_ovfl)	\
+	__PMC_EV(CMN600_PMU, sbsx_cmo_axi_trkr_occ_cnt_ovfl)	\
+	__PMC_EV(CMN600_PMU, sbsx_arvalid_no_arready)		\
+	__PMC_EV(CMN600_PMU, sbsx_awvalid_no_awready)		\
+	__PMC_EV(CMN600_PMU, sbsx_wvalid_no_wready)		\
+	__PMC_EV(CMN600_PMU, sbsx_txdat_stall)			\
+	__PMC_EV(CMN600_PMU, sbsx_txrsp_stall)			\
+	__PMC_EV(CMN600_PMU, rnd_s0_rdata_beats)		\
+	__PMC_EV(CMN600_PMU, rnd_s1_rdata_beats)		\
+	__PMC_EV(CMN600_PMU, rnd_s2_rdata_beats)		\
+	__PMC_EV(CMN600_PMU, rnd_rxdat_flits)			\
+	__PMC_EV(CMN600_PMU, rnd_txdat_flits)			\
+	__PMC_EV(CMN600_PMU, rnd_txreq_flits_total)		\
+	__PMC_EV(CMN600_PMU, rnd_txreq_flits_retried)		\
+	__PMC_EV(CMN600_PMU, rnd_rrt_occ_ovfl)			\
+	__PMC_EV(CMN600_PMU, rnd_wrt_occ_ovfl)			\
+	__PMC_EV(CMN600_PMU, rnd_txreq_flits_replayed)		\
+	__PMC_EV(CMN600_PMU, rnd_wrcancel_sent)			\
+	__PMC_EV(CMN600_PMU, rnd_s0_wdata_beats)		\
+	__PMC_EV(CMN600_PMU, rnd_s1_wdata_beats)		\
+	__PMC_EV(CMN600_PMU, rnd_s2_wdata_beats)		\
+	__PMC_EV(CMN600_PMU, rnd_rrt_alloc)			\
+	__PMC_EV(CMN600_PMU, rnd_wrt_alloc)			\
+	__PMC_EV(CMN600_PMU, rnd_rdb_unord)			\
+	__PMC_EV(CMN600_PMU, rnd_rdb_replay)			\
+	__PMC_EV(CMN600_PMU, rnd_rdb_hybrid)			\
+	__PMC_EV(CMN600_PMU, rnd_rdb_ord)			\
+	__PMC_EV(CMN600_PMU, rni_s0_rdata_beats)		\
+	__PMC_EV(CMN600_PMU, rni_s1_rdata_beats)		\
+	__PMC_EV(CMN600_PMU, rni_s2_rdata_beats)		\
+	__PMC_EV(CMN600_PMU, rni_rxdat_flits)			\
+	__PMC_EV(CMN600_PMU, rni_txdat_flits)			\
+	__PMC_EV(CMN600_PMU, rni_txreq_flits_total)		\
+	__PMC_EV(CMN600_PMU, rni_txreq_flits_retried)		\
+	__PMC_EV(CMN600_PMU, rni_rrt_occ_ovfl)			\
+	__PMC_EV(CMN600_PMU, rni_wrt_occ_ovfl)			\
+	__PMC_EV(CMN600_PMU, rni_txreq_flits_replayed)		\
+	__PMC_EV(CMN600_PMU, rni_wrcancel_sent)			\
+	__PMC_EV(CMN600_PMU, rni_s0_wdata_beats)		\
+	__PMC_EV(CMN600_PMU, rni_s1_wdata_beats)		\
+	__PMC_EV(CMN600_PMU, rni_s2_wdata_beats)		\
+	__PMC_EV(CMN600_PMU, rni_rrt_alloc)			\
+	__PMC_EV(CMN600_PMU, rni_wrt_alloc)			\
+	__PMC_EV(CMN600_PMU, rni_rdb_unord)			\
+	__PMC_EV(CMN600_PMU, rni_rdb_replay)			\
+	__PMC_EV(CMN600_PMU, rni_rdb_hybrid)			\
+	__PMC_EV(CMN600_PMU, rni_rdb_ord)			\
+	__PMC_EV(CMN600_PMU, cxha_rddatbyp)			\
+	__PMC_EV(CMN600_PMU, cxha_chirsp_up_stall)		\
+	__PMC_EV(CMN600_PMU, cxha_chidat_up_stall)		\
+	__PMC_EV(CMN600_PMU, cxha_snppcrd_lnk0_stall)		\
+	__PMC_EV(CMN600_PMU, cxha_snppcrd_lnk1_stall)		\
+	__PMC_EV(CMN600_PMU, cxha_snppcrd_lnk2_stall)		\
+	__PMC_EV(CMN600_PMU, cxha_reqtrk_occ)			\
+	__PMC_EV(CMN600_PMU, cxha_rdb_occ)			\
+	__PMC_EV(CMN600_PMU, cxha_rdbbyp_occ)			\
+	__PMC_EV(CMN600_PMU, cxha_wdb_occ)			\
+	__PMC_EV(CMN600_PMU, cxha_snptrk_occ)			\
+	__PMC_EV(CMN600_PMU, cxha_sdb_occ)			\
+	__PMC_EV(CMN600_PMU, cxha_snphaz_occ)			\
+	__PMC_EV(CMN600_PMU, cxra_req_trk_occ)			\
+	__PMC_EV(CMN600_PMU, cxra_snp_trk_occ)			\
+	__PMC_EV(CMN600_PMU, cxra_rd_dat_buf_occ)		\
+	__PMC_EV(CMN600_PMU, cxra_wr_dat_buf_occ)		\
+	__PMC_EV(CMN600_PMU, cxra_snp_sink_buf_occ)		\
+	__PMC_EV(CMN600_PMU, cxra_snp_bcasts)			\
+	__PMC_EV(CMN600_PMU, cxra_req_chains)			\
+	__PMC_EV(CMN600_PMU, cxra_req_chain_avg_len)		\
+	__PMC_EV(CMN600_PMU, cxra_chi_rsp_upload_stalls)	\
+	__PMC_EV(CMN600_PMU, cxra_chi_dat_upload_stalls)	\
+	__PMC_EV(CMN600_PMU, cxra_dat_pcrd_stalls_lnk0)		\
+	__PMC_EV(CMN600_PMU, cxra_dat_pcrd_stalls_lnk1)		\
+	__PMC_EV(CMN600_PMU, cxra_dat_pcrd_stalls_lnk2)		\
+	__PMC_EV(CMN600_PMU, cxra_req_pcrd_stalls_lnk0)		\
+	__PMC_EV(CMN600_PMU, cxra_req_pcrd_stalls_lnk1)		\
+	__PMC_EV(CMN600_PMU, cxra_req_pcrd_stalls_lnk2)		\
+	__PMC_EV(CMN600_PMU, cxra_ext_rsp_stall)		\
+	__PMC_EV(CMN600_PMU, cxra_ext_dat_stall)		\
+	__PMC_EV(CMN600_PMU, cxla_rx_tlp_link0)			\
+	__PMC_EV(CMN600_PMU, cxla_rx_tlp_link1)			\
+	__PMC_EV(CMN600_PMU, cxla_rx_tlp_link2)			\
+	__PMC_EV(CMN600_PMU, cxla_tx_tlp_link0)			\
+	__PMC_EV(CMN600_PMU, cxla_tx_tlp_link1)			\
+	__PMC_EV(CMN600_PMU, cxla_tx_tlp_link2)			\
+	__PMC_EV(CMN600_PMU, cxla_rx_cxs_link0)			\
+	__PMC_EV(CMN600_PMU, cxla_rx_cxs_link1)			\
+	__PMC_EV(CMN600_PMU, cxla_rx_cxs_link2)			\
+	__PMC_EV(CMN600_PMU, cxla_tx_cxs_link0)			\
+	__PMC_EV(CMN600_PMU, cxla_tx_cxs_link1)			\
+	__PMC_EV(CMN600_PMU, cxla_tx_cxs_link2)			\
+	__PMC_EV(CMN600_PMU, cxla_avg_rx_tlp_sz_dws)		\
+	__PMC_EV(CMN600_PMU, cxla_avg_tx_tlp_sz_dws)		\
+	__PMC_EV(CMN600_PMU, cxla_avg_rx_tlp_sz_ccix_msg)	\
+	__PMC_EV(CMN600_PMU, cxla_avg_tx_tlp_sz_ccix_msg)	\
+	__PMC_EV(CMN600_PMU, cxla_avg_sz_rx_cxs_dw_beat)	\
+	__PMC_EV(CMN600_PMU, cxla_avg_sz_tx_cxs_dw_beat)	\
+	__PMC_EV(CMN600_PMU, cxla_tx_cxs_link_credit_backpressure) \
+	__PMC_EV(CMN600_PMU, cxla_rx_tlp_buffer_full)		\
+	__PMC_EV(CMN600_PMU, cxla_tx_tlp_buffer_full)		\
+	__PMC_EV(CMN600_PMU, cxla_avg_latency_process_rx_tlp)	\
+	__PMC_EV(CMN600_PMU, cxla_avg_latency_form_tx_tlp)
+
+
+#define	PMC_EV_CMN600_PMU_FIRST	PMC_EV_CMN600_PMU_dn_rxreq_dvmop
+#define	PMC_EV_CMN600_PMU_LAST	\
+		PMC_EV_CMN600_PMU_cxla_avg_latency_form_tx_tlp
+
 #define __PMC_EV_PPC7450()						\
 	__PMC_EV(PPC7450, CYCLE)					\
 	__PMC_EV(PPC7450, INSTR_COMPLETED)				\
@@ -1478,6 +1708,9 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
  * 0x13300	0x00FF		Freescale e500 events
  * 0x14000	0x0100		ARMv7 events
  * 0x14100	0x0100		ARMv8 events
+ * 0x14200	0x0020		ARM DMC-620 clkdiv2 events
+ * 0x14220	0x0080		ARM DMC-620 clk events
+ * 0x14300	0x0100		ARM CMN-600 events
  * 0x20000	0x1000		Software events
  */
 #define	__PMC_EVENTS()				\
@@ -1500,7 +1733,13 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
 	__PMC_EV_BLOCK(ARMV7,	0x14000)	\
 	__PMC_EV_ARMV7()			\
 	__PMC_EV_BLOCK(ARMV8,	0x14100)	\
-	__PMC_EV_ARMV8()
+	__PMC_EV_ARMV8()			\
+	__PMC_EV_BLOCK(DMC620_PMU_CD2, 0x14200)	\
+	__PMC_EV_DMC620_PMU_CD2()		\
+	__PMC_EV_BLOCK(DMC620_PMU_C, 0x14220)	\
+	__PMC_EV_DMC620_PMU_C()			\
+	__PMC_EV_BLOCK(CMN600_PMU, 0x14300)	\
+	__PMC_EV_CMN600_PMU()
 
 #define	PMC_EVENT_FIRST	PMC_EV_TSC_TSC
 #define	PMC_EVENT_LAST	PMC_EV_SOFT_LAST
