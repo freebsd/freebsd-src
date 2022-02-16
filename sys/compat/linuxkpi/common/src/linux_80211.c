@@ -2988,12 +2988,13 @@ linuxkpi_ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 	struct lkpi_hw *lhw;
 	struct lkpi_vif *lvif;
 	struct ieee80211_vif *vif;
-	bool active, atomic;
+	bool active, atomic, nin_drv;
 
 	lhw = HW_TO_LHW(hw);
 
 	if (flags & ~(IEEE80211_IFACE_ITER_NORMAL|
 	    IEEE80211_IFACE_ITER_RESUME_ALL|
+	    IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER|
 	    IEEE80211_IFACE_ITER__ACTIVE|IEEE80211_IFACE_ITER__ATOMIC)) {
 		ic_printf(lhw->ic, "XXX TODO %s flags(%#x) not yet supported.\n",
 		    __func__, flags);
@@ -3001,6 +3002,7 @@ linuxkpi_ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 
 	active = (flags & IEEE80211_IFACE_ITER__ACTIVE) != 0;
 	atomic = (flags & IEEE80211_IFACE_ITER__ATOMIC) != 0;
+	nin_drv = (flags & IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER) != 0;
 
 	if (atomic)
 		LKPI_80211_LHW_LOCK(lhw);
@@ -3017,6 +3019,13 @@ linuxkpi_ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 		 */
 		if (active && !lvif->added_to_drv &&
 		    (flags & IEEE80211_IFACE_ITER_RESUME_ALL) != 0)
+			continue;
+
+		/*
+		 * If we shall skip interfaces not added to the driver do so
+		 * if we haven't yet.
+		 */
+		if (nin_drv && !lvif->added_to_drv)
 			continue;
 
 		/*
