@@ -53,6 +53,12 @@ typedef struct {
 #define	atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
 
 static inline int64_t
+atomic64_fetch_add(int64_t i, atomic64_t *v)
+{
+	return (atomic_fetchadd_64(&v->counter, i));
+}
+
+static inline int64_t
 atomic64_add_return(int64_t i, atomic64_t *v)
 {
 	return i + atomic_fetchadd_64(&v->counter, i);
