@@ -202,6 +202,13 @@ SYSCTL_INT(_kern, OID_AUTO, cryptodevallowsoft, CTLFLAG_RWTUN,
 	   "Enable/disable use of software crypto by /dev/crypto");
 #endif
 
+#ifdef DIAGNOSTIC
+bool crypto_destroyreq_check;
+SYSCTL_BOOL(_kern_crypto, OID_AUTO, destroyreq_check, CTLFLAG_RWTUN,
+	   &crypto_destroyreq_check, 0,
+	   "Enable checks when destroying a request");
+#endif
+
 MALLOC_DEFINE(M_CRYPTO_DATA, "crypto", "crypto session records");
 
 static	void crypto_dispatch_thread(void *arg);
@@ -1579,6 +1586,9 @@ crypto_destroyreq(struct cryptop *crp)
 	{
 		struct cryptop *crp2;
 		struct crypto_ret_worker *ret_worker;
+
+		if (!crypto_destroyreq_check)
+			return;
 
 		CRYPTO_Q_LOCK();
 		TAILQ_FOREACH(crp2, &crp_q, crp_next) {
