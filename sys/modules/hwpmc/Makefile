@@ -3,6 +3,7 @@
 #
 
 .PATH: ${SRCTOP}/sys/dev/hwpmc
+.PATH: ${SRCTOP}/sys/arm64/arm64
 
 KMOD=	hwpmc
 
@@ -10,7 +11,8 @@ SRCS=	bus_if.h device_if.h hwpmc_mod.c hwpmc_logging.c hwpmc_soft.c
 SRCS+=	vnode_if.h
 
 .if ${MACHINE_CPUARCH} == "aarch64"
-SRCS+=  hwpmc_arm64.c hwpmc_arm64_md.c
+SRCS+=	hwpmc_arm64.c hwpmc_arm64_md.c
+SRCS+=	hwpmc_dmc620.c pmu_dmc620.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
