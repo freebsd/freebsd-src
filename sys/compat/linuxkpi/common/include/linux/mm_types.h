@@ -45,6 +45,7 @@ struct mm_struct {
 	atomic_t mm_count;
 	atomic_t mm_users;
 	size_t pinned_vm;
+	/* Renamed to mmap_lock in v5.8 */
 	struct rw_semaphore mmap_sem;
 };
 
