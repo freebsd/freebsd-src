@@ -2748,11 +2748,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 
 	lhw = wiphy_priv(wiphy);
 	lhw->ops = ops;
-	lhw->workq = alloc_ordered_workqueue(wiphy_name(wiphy), 0);
-	if (lhw->workq == NULL) {
-		wiphy_free(wiphy);
-		return (NULL);
-	}
+
 	mtx_init(&lhw->mtx, "lhw", NULL, MTX_DEF | MTX_RECURSE);
 	TAILQ_INIT(&lhw->lvif_head);
 
@@ -2840,6 +2836,11 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 	lhw = HW_TO_LHW(hw);
 	ic = lhw->ic;
+
+	/* We do it this late as wiphy->dev should be set for the name. */
+	lhw->workq = alloc_ordered_workqueue(wiphy_name(hw->wiphy), 0);
+	if (lhw->workq == NULL)
+		return (-EAGAIN);
 
 	/* XXX-BZ figure this out how they count his... */
 	if (!is_zero_ether_addr(hw->wiphy->perm_addr)) {
