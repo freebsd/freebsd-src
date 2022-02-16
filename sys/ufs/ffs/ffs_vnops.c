@@ -836,7 +836,6 @@ ffs_write(ap)
 	struct inode *ip;
 	struct fs *fs;
 	struct buf *bp;
-	ufs_lbn_t lbn;
 	off_t osize;
 	ssize_t resid;
 	int seqcount;
@@ -907,7 +906,6 @@ ffs_write(ap)
 	flags |= BA_UNMAPPED;
 
 	for (error = 0; uio->uio_resid > 0;) {
-		lbn = lblkno(fs, uio->uio_offset);
 		blkoffset = blkoff(fs, uio->uio_offset);
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
