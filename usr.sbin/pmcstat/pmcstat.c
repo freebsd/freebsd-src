@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <regex.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,6 +117,7 @@ static int	pmcstat_kq;
 static kvm_t	*pmcstat_kvm;
 static struct kinfo_proc *pmcstat_plist;
 struct pmcstat_args args;
+static bool	libpmc_initialized = false;
 
 static void
 pmcstat_get_cpumask(const char *cpuspec, cpuset_t *cpumask)
@@ -419,6 +421,22 @@ pmcstat_topexit(void)
 	endwin();
 }
 
+static inline void
+libpmc_initialize(int *npmc)
+{
+
+	if (libpmc_initialized)
+		return;
+	if (pmc_init() < 0)
+		err(EX_UNAVAILABLE, "ERROR: Initialization of the pmc(3)"
+		    " library failed");
+
+	/* assume all CPUs are identical */
+	if ((*npmc = pmc_npmc(0)) < 0)
+		err(EX_OSERR, "ERROR: Cannot determine the number of PMCs on "
+		    "CPU %d", 0);
+	libpmc_initialized = true;
+}
 /*
  * Main
  */
@@ -426,14 +444,14 @@ pmcstat_topexit(void)
 int
 main(int argc, char **argv)
 {
-	cpuset_t cpumask, rootmask;
+	cpuset_t cpumask, dommask, rootmask;
 	double interval;
 	double duration;
 	int option, npmc;
 	int c, check_driver_stats; 
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
-	int do_print, do_read, do_listcounters, do_descr;
-	int do_userspace;
+	int do_print, do_read, do_listcounters, do_descr, domains;
+	int do_userspace, i;
 	size_t len;
 	int graphdepth;
 	int pipefd[2], rfd;
@@ -450,6 +468,7 @@ main(int argc, char **argv)
 	struct winsize ws;
 	struct stat sb;
 	char buffer[PATH_MAX];
+	uint32_t caps;
 
 	check_driver_stats      = 0;
 	current_sampling_count  = 0;
@@ -460,6 +479,7 @@ main(int argc, char **argv)
 	do_logproccsw           = 0;
 	do_logprocexit          = 0;
 	do_listcounters         = 0;
+	domains			= 0;
 	use_cumulative_counts   = 0;
 	graphfilename		= "-";
 	args.pa_required	= 0;
@@ -489,7 +509,9 @@ main(int argc, char **argv)
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
 	event = NULL;
+	caps = 0;
 	CPU_ZERO(&cpumask);
+
 
 	/* Default to using the running system kernel. */
 	len = 0;
@@ -500,6 +522,9 @@ main(int argc, char **argv)
 		errx(EX_SOFTWARE, "ERROR: Out of memory.");
 	if (sysctlbyname("kern.bootfile", args.pa_kernel, &len, NULL, 0) == -1)
 		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
+	len = sizeof(domains);
+	if (sysctlbyname("vm.ndomains", &domains, &len, NULL, 0) == -1)
+		err(EX_OSERR, "ERROR: Cannot get number of domains");
 
 	/*
 	 * The initial CPU mask specifies the root mask of this process
@@ -640,6 +665,7 @@ main(int argc, char **argv)
 		case 's':	/* system-wide counting PMC */
 		case 'P':	/* process virtual sampling PMC */
 		case 'S':	/* system-wide sampling PMC */
+			caps = 0;
 			if ((ev = malloc(sizeof(*ev))) == NULL)
 				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 
@@ -707,12 +733,48 @@ main(int argc, char **argv)
 				errx(EX_SOFTWARE, "ERROR: Out of memory.");
 			(void) strncpy(ev->ev_name, optarg, c);
 			*(ev->ev_name + c) = '\0';
+			libpmc_initialize(&npmc);
+			if (args.pa_flags & FLAG_HAS_SYSTEM_PMCS) {
+				if (pmc_allocate(ev->ev_spec, ev->ev_mode,
+				    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid,
+				    ev->ev_count) < 0)
+					err(EX_OSERR, "ERROR: Cannot allocate "
+					    "system-mode pmc with specification"
+					    " \"%s\"", ev->ev_spec);
+				if (pmc_capabilities(ev->ev_pmcid, &caps)) {
+					pmc_release(ev->ev_pmcid);
+					err(EX_OSERR, "ERROR: Cannot get pmc "
+					    "capabilities");
+				}
+			}
+
 
 			STAILQ_INSERT_TAIL(&args.pa_events, ev, ev_next);
 
+			if ((caps & PMC_CAP_SYSWIDE) == PMC_CAP_SYSWIDE)
+				break;
+			if ((caps & PMC_CAP_DOMWIDE) == PMC_CAP_DOMWIDE) {
+				CPU_ZERO(&cpumask);
+				/*
+				 * Get number of domains and allocate one
+				 * counter in each.
+				 * First already allocated.
+				 */
+				for (i = 1; i < domains; i++) {
+					CPU_ZERO(&dommask);
+					cpuset_getaffinity(CPU_LEVEL_WHICH,
+					    CPU_WHICH_DOMAIN, i, sizeof(dommask),
+					    &dommask);
+					CPU_SET(CPU_FFS(&dommask) - 1, &cpumask);
+				}
+				args.pa_flags |= FLAGS_HAS_CPUMASK;
+			}
 			if (option == 's' || option == 'S') {
 				CPU_CLR(ev->ev_cpu, &cpumask);
+				pmc_id_t saved_pmcid = ev->ev_pmcid;
+				ev->ev_pmcid = PMC_ID_INVALID;
 				pmcstat_clone_event_descriptor(ev, &cpumask, &args);
+				ev->ev_pmcid = saved_pmcid;
 				CPU_SET(ev->ev_cpu, &cpumask);
 			}
 
@@ -1050,17 +1112,8 @@ main(int argc, char **argv)
 	}
 
 	/* if we've been asked to process a log file, skip init */
-	if ((args.pa_flags & FLAG_READ_LOGFILE) == 0) {
-		if (pmc_init() < 0)
-			err(EX_UNAVAILABLE,
-			    "ERROR: Initialization of the pmc(3) library failed"
-			    );
-
-		if ((npmc = pmc_npmc(0)) < 0) /* assume all CPUs are identical */
-			err(EX_OSERR,
-"ERROR: Cannot determine the number of PMCs on CPU %d",
-			    0);
-	}
+	if ((args.pa_flags & FLAG_READ_LOGFILE) == 0)
+		libpmc_initialize(&npmc);
 
 	/* Allocate a kqueue */
 	if ((pmcstat_kq = kqueue()) < 0)
@@ -1134,7 +1187,8 @@ main(int argc, char **argv)
 	 */
 
 	STAILQ_FOREACH(ev, &args.pa_events, ev_next) {
-		if (pmc_allocate(ev->ev_spec, ev->ev_mode,
+		if (ev->ev_pmcid == PMC_ID_INVALID &&
+		    pmc_allocate(ev->ev_spec, ev->ev_mode,
 			ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid,
 			ev->ev_count) < 0)
 			err(EX_OSERR,

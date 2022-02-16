@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2021
+.Dd May 28, 2022
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -200,6 +200,8 @@ Supported capabilities include:
 .Bl -tag -width "Li PMC_CAP_INTERRUPT" -compact
 .It Li PMC_CAP_CASCADE
 The ability to cascade counters.
+.It Li PMC_CAP_DOMWIDE
+Separate counters tied to each NUMA domain.
 .It Li PMC_CAP_EDGE
 The ability to count negated to asserted transitions of the hardware
 conditions being probed for.
@@ -218,6 +220,8 @@ The ability to read from performance counters.
 .It Li PMC_CAP_SYSTEM
 The ability to restrict counting of hardware events to when the CPU is
 running privileged code.
+.It Li PMC_CAP_SYSWIDE
+A single counter aggregating events for the whole system.
 .It Li PMC_CAP_THRESHOLD
 The ability to ignore simultaneous hardware events below a
 programmable threshold.
