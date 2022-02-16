@@ -1226,6 +1226,16 @@ note_type_linux_core(unsigned int nt)
 	case 0x304: return "NT_S390_CTRS (s390 control registers)";
 	case 0x305: return "NT_S390_PREFIX (s390 prefix register)";
 	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
+	case 0x401: return "NT_ARM_TLS (arm TLS register)";
+	case 0x402: return "NT_ARM_HW_BREAK (arm hardware breakpoint registers)";
+	case 0x403: return "NT_ARM_HW_WATCH (arm hardware watchpoint registers)";
+	case 0x404: return "NT_ARM_SYSTEM_CALL (arm system call number)";
+	case 0x405: return "NT_ARM_SVE (arm scalable vector extension registers)";
+	case 0x406: return "NT_ARM_PAC_MASK (arm pointer authentication code mask)";
+	case 0x407: return "NT_ARM_PACA_KEYS (arm pointer authentication address keys)";
+	case 0x408: return "NT_ARM_PACG_KEYS (arm pointer authentication generic keys)";
+	case 0x409: return "NT_ARM_TAGGED_ADDR_CTRL (arm64 tagged address control)";
+	case 0x40a: return "NT_ARM_PAC_ENABLED_KEYS (arm64 ptr auth enabled keys)";
 	case 0x46494c45UL: return "NT_FILE (mapped files)";
 	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
 	case 0x53494749UL: return "NT_SIGINFO (siginfo_t data)";
