@@ -2423,6 +2423,8 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	/*
 	 * net80211 should handle hw->extra_tx_headroom.
 	 * Though for as long as we are copying we don't mind.
+	 * XXX-BZ rtw88 asks for too much headroom for ipv6+tcp:
+	 * https://lists.freebsd.org/archives/freebsd-transport/2022-February/000012.html
 	 */
 	skb = dev_alloc_skb(hw->extra_tx_headroom + m->m_pkthdr.len);
 	if (skb == NULL) {
@@ -2852,7 +2854,10 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		ic_printf(ic, "%s: warning, no hardware address!\n", __func__);
 	}
 
+#ifdef __not_yet__
+	/* See comment in lkpi_80211_txq_tx_one(). */
 	ic->ic_headroom = hw->extra_tx_headroom;
+#endif
 
 	ic->ic_phytype = IEEE80211_T_OFDM;	/* not only, but not used */
 	ic->ic_opmode = IEEE80211_M_STA;
