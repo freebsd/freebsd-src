@@ -20,6 +20,8 @@
 #    ever read sources, credits must appear in the documentation.
 # 4. This notice may not be removed or altered.
 
+.include <src.opts.mk>
+
 SRCDIR=	${SRCTOP}/contrib/file
 .PATH: ${SRCDIR}/src
 .PATH: ${SRCDIR}/doc
@@ -37,6 +39,9 @@ FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${SRCTOP}/lib/libmagic/config.h
 
 CLEANFILES+=	${MAN}
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
 
