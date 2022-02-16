@@ -13,10 +13,10 @@
 
 #include "Test.cpp"
 
-pthread_mutex_t mtx;
-pthread_cond_t cv;
+static pthread_mutex_t mtx;
+static pthread_cond_t cv;
 
-void f()
+static void f()
 {
 	Test t;
 
@@ -26,13 +26,13 @@ void f()
 	printf("Bug, thread shouldn't be here.\n");
 }
 
-void g()
+static void g()
 {
 	f();
 }
 
-void *
-thr(void *arg)
+static void *
+thr(void *arg __unused)
 {
 	pthread_cleanup_push(cleanup_handler, NULL);
 	g();

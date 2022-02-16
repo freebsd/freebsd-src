@@ -8,11 +8,11 @@
 
 #include "Test.cpp"
 
-pthread_mutex_t mtx;
-pthread_cond_t cv;
+static pthread_mutex_t mtx;
+static pthread_cond_t cv;
 
-void *
-thr(void *arg)
+static void *
+thr(void *arg __unused)
 {
 	Test t;
 

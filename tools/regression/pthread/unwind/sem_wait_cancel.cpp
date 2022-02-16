@@ -8,10 +8,10 @@
 
 #include "Test.cpp"
 
-sem_t sem;
+static sem_t sem;
 
-void *
-thr(void *arg)
+static void *
+thr(void *arg __unused)
 {
 	Test t;
 
