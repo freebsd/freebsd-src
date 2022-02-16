@@ -73,14 +73,6 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_LKPI80211, "lkpi80211", "Linux KPI 80211 compat");
 
 /* -------------------------------------------------------------------------- */
-/* These are unrelated to 802.11 sysctl bug debugging during 802.11 work so   *
- * keep them here rather than in a more general file.                         */
-
-int debug_skb;
-SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug_skb, CTLFLAG_RWTUN,
-    &debug_skb, 0, "SKB debug level");
-
-/* -------------------------------------------------------------------------- */
 
 int debug_80211;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug_80211, CTLFLAG_RWTUN,
