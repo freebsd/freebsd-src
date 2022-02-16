@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int caught;
+static int caught;
 
-void *
-thr_routine(void *arg)
+static void *
+thr_routine(void *arg __unused)
 {
 	try {
 		pthread_exit(NULL);
