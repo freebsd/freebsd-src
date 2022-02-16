@@ -171,7 +171,10 @@ enum pmc_cputype {
 	__PMC_CLASS(MIPS74K,	0x12,	"MIPS 74K")			\
 	__PMC_CLASS(E500,	0x13,	"Freescale e500 class")		\
 	__PMC_CLASS(BERI,	0x14,	"MIPS BERI")			\
-	__PMC_CLASS(POWER8,	0x15,	"IBM POWER8 class")
+	__PMC_CLASS(POWER8,	0x15,	"IBM POWER8 class")		\
+	__PMC_CLASS(DMC620_PMU_CD2, 0x16, "ARM DMC620 Memory Controller PMU CLKDIV2") \
+	__PMC_CLASS(DMC620_PMU_C, 0x17, "ARM DMC620 Memory Controller PMU CLK") \
+	__PMC_CLASS(CMN600_PMU, 0x18,	"Arm CoreLink CMN600 Coherent Mesh Network PMU")
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -180,7 +183,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_POWER8
+#define	PMC_CLASS_LAST	PMC_CLASS_CMN600_PMU
 
 /*
  * A PMC can be in the following states:
@@ -308,7 +311,9 @@ enum pmc_disp {
 	__PMC_CAP(QUALIFIER,	8, "further qualify monitored events")	\
 	__PMC_CAP(PRECISE,	9, "perform precise sampling")		\
 	__PMC_CAP(TAGGING,	10, "tag upstream events")		\
-	__PMC_CAP(CASCADE,	11, "cascade counters")
+	__PMC_CAP(CASCADE,	11, "cascade counters")			\
+	__PMC_CAP(SYSWIDE,	12, "system wide counter")		\
+	__PMC_CAP(DOMWIDE,	13, "NUMA domain wide counter")
 
 enum pmc_caps
 {
@@ -318,7 +323,7 @@ enum pmc_caps
 };
 
 #define	PMC_CAP_FIRST		PMC_CAP_INTERRUPT
-#define	PMC_CAP_LAST		PMC_CAP_CASCADE
+#define	PMC_CAP_LAST		PMC_CAP_DOMWIDE
 
 /*
  * PMC Event Numbers
