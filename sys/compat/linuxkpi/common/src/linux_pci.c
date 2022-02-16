@@ -278,6 +278,11 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->class = pci_get_class(dev);
 	pdev->revision = pci_get_revid(dev);
 	pdev->bus = malloc(sizeof(*pdev->bus), M_DEVBUF, M_WAITOK | M_ZERO);
+	/*
+	 * This should be the upstream bridge; pci_upstream_bridge()
+	 * handles that case on demand as otherwise we'll shadow the
+	 * entire PCI hierarchy.
+	 */
 	pdev->bus->self = pdev;
 	pdev->bus->number = pci_get_bus(dev);
 	pdev->bus->domain = pci_get_domain(dev);
@@ -301,6 +306,8 @@ lkpinew_pci_dev_release(struct device *dev)
 	pdev = to_pci_dev(dev);
 	if (pdev->root != NULL)
 		pci_dev_put(pdev->root);
+	if (pdev->bus->self != pdev)
+		pci_dev_put(pdev->bus->self);
 	free(pdev->bus, M_DEVBUF);
 	free(pdev, M_DEVBUF);
 }

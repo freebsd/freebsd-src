@@ -478,6 +478,48 @@ pci_clear_master(struct pci_dev *pdev)
 	return (0);
 }
 
+static inline bool
+pci_is_root_bus(struct pci_bus *pbus)
+{
+
+	return (pbus->self == NULL);
+}
+
+static inline struct pci_dev *
+pci_upstream_bridge(struct pci_dev *pdev)
+{
+
+	if (pci_is_root_bus(pdev->bus))
+		return (NULL);
+
+	/*
+	 * If we do not have a (proper) "upstream bridge" set, e.g., we point
+	 * to ourselves, try to handle this case on the fly like we do
+	 * for pcie_find_root_port().
+	 */
+	if (pdev == pdev->bus->self) {
+		device_t bridge;
+
+		bridge = device_get_parent(pdev->dev.bsddev);
+		if (bridge == NULL)
+			goto done;
+		bridge = device_get_parent(bridge);
+		if (bridge == NULL)
+			goto done;
+		if (device_get_devclass(device_get_parent(bridge)) !=
+		    devclass_find("pci"))
+			goto done;
+
+		/*
+		 * "bridge" is a PCI-to-PCI bridge.  Create a Linux pci_dev
+		 * for it so it can be returned.
+		 */
+		pdev->bus->self = lkpinew_pci_dev(bridge);
+	}
+done:
+	return (pdev->bus->self);
+}
+
 static inline struct pci_devres *
 lkpi_pci_devres_get_alloc(struct pci_dev *pdev)
 {
@@ -1397,13 +1439,6 @@ pci_dev_present(const struct pci_device_id *cur)
 		cur++;
 	}
 	return (0);
-}
-
-static inline bool
-pci_is_root_bus(struct pci_bus *pbus)
-{
-
-	return (pbus->self == NULL);
 }
 
 struct pci_dev *lkpi_pci_get_domain_bus_and_slot(int domain,
