@@ -5600,6 +5600,16 @@ pmc_initialize(void)
 			return (ENOSYS);
         }
 
+	/*
+	 * Refresh classes base ri. Optional classes may come in different
+	 * order.
+	 */
+	for (ri = c = 0; c < md->pmd_nclass; c++) {
+		pcd = &md->pmd_classdep[c];
+		pcd->pcd_ri = ri;
+		ri += pcd->pcd_num;
+	}
+
 	KASSERT(md->pmd_nclass >= 1 && md->pmd_npmc >= 1,
 	    ("[pmc,%d] no classes or pmcs", __LINE__));
 
@@ -5642,7 +5652,9 @@ pmc_initialize(void)
 		if (md->pmd_pcpu_init)
 			error = md->pmd_pcpu_init(md, cpu);
 		for (n = 0; error == 0 && n < md->pmd_nclass; n++)
-			error = md->pmd_classdep[n].pcd_pcpu_init(md, cpu);
+			if (md->pmd_classdep[n].pcd_num > 0)
+				error = md->pmd_classdep[n].pcd_pcpu_init(md,
+				    cpu);
 	}
 	pmc_restore_cpu_binding(&pb);
 
@@ -5755,6 +5767,8 @@ pmc_initialize(void)
 	if (error == 0) {
 		printf(PMC_MODULE_NAME ":");
 		for (n = 0; n < (int) md->pmd_nclass; n++) {
+			if (md->pmd_classdep[n].pcd_num == 0)
+				continue;
 			pcd = &md->pmd_classdep[n];
 			printf(" %s/%d/%d/0x%b",
 			    pmc_name_of_pmcclass(pcd->pcd_class),
@@ -5877,7 +5891,9 @@ pmc_cleanup(void)
 				continue;
 			pmc_select_cpu(cpu);
 			for (c = 0; c < md->pmd_nclass; c++)
-				md->pmd_classdep[c].pcd_pcpu_fini(md, cpu);
+				if (md->pmd_classdep[c].pcd_num > 0)
+					md->pmd_classdep[c].pcd_pcpu_fini(md,
+					    cpu);
 			if (md->pmd_pcpu_fini)
 				md->pmd_pcpu_fini(md, cpu);
 		}
