@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -303,6 +304,15 @@ aw_mmc_cam_request(device_t dev, union ccb *ccb)
 	aw_mmc_request(sc->aw_dev, NULL, NULL);
 
 	return (0);
+}
+
+static void
+aw_mmc_cam_poll(device_t dev)
+{
+	struct aw_mmc_softc *sc;
+
+	sc = device_get_softc(dev);
+	aw_mmc_intr(sc);
 }
 #endif /* MMCCAM */
 
@@ -788,7 +798,8 @@ aw_mmc_req_done(struct aw_mmc_softc *sc)
 		aw_mmc_update_clock(sc, 1);
 	}
 
-	callout_stop(&sc->aw_timeoutc);
+	if (!dumping)
+		callout_stop(&sc->aw_timeoutc);
 	sc->aw_intr = 0;
 	sc->aw_resid = 0;
 	sc->aw_dma_map_err = 0;
@@ -1078,8 +1089,10 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 		AW_MMC_WRITE_4(sc, AW_MMC_CMDR, cmdreg | cmd->opcode);
 	}
 
-	callout_reset(&sc->aw_timeoutc, sc->aw_timeout * hz,
-	    aw_mmc_timeout, sc);
+	if (!dumping) {
+		callout_reset(&sc->aw_timeoutc, sc->aw_timeout * hz,
+		    aw_mmc_timeout, sc);
+	}
 	AW_MMC_UNLOCK(sc);
 
 	return (0);
@@ -1491,6 +1504,7 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD(mmc_sim_get_tran_settings,	aw_mmc_get_tran_settings),
 	DEVMETHOD(mmc_sim_set_tran_settings,	aw_mmc_set_tran_settings),
 	DEVMETHOD(mmc_sim_cam_request,		aw_mmc_cam_request),
+	DEVMETHOD(mmc_sim_cam_poll,		aw_mmc_cam_poll),
 #endif
 
 	DEVMETHOD_END
