@@ -686,6 +686,13 @@ void	crypto_cursor_copydata_noadv(struct crypto_buffer_cursor *cc, int size,
 	    void *vdst);
 
 static __inline void
+crypto_cursor_copy(const struct crypto_buffer_cursor *fromc,
+    struct crypto_buffer_cursor *toc)
+{
+	memcpy(toc, fromc, sizeof(*toc));
+}
+
+static __inline void
 crypto_read_iv(struct cryptop *crp, void *iv)
 {
 	const struct crypto_session_params *csp;
