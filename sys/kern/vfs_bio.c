@@ -1722,7 +1722,7 @@ buf_alloc(struct bufdomain *bd)
 	if (freebufs == bd->bd_lofreebuffers)
 		bufspace_daemon_wakeup(bd);
 
-	error = BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL);
+	error = BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	KASSERT(error == 0, ("%s: BUF_LOCK on free buf %p: %d.", __func__, bp,
 	    error));
 	(void)error;
