@@ -2830,9 +2830,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
-#ifdef TRY_HW_CRYPTO
-	int i;
-#endif
+	int band, i;
 
 	lhw = HW_TO_LHW(hw);
 	ic = lhw->ic;
@@ -2935,6 +2933,34 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_node_free = lkpi_ic_node_free;
 
 	lkpi_radiotap_attach(lhw);
+
+	/*
+	 * Assign the first possible channel for now;  seems Realtek drivers
+	 * expect one.
+	 */
+	for (band = 0; band < NUM_NL80211_BANDS &&
+	    hw->conf.chandef.chan == NULL; band++) {
+		struct ieee80211_supported_band *supband;
+		struct linuxkpi_ieee80211_channel *channels;
+
+		supband = hw->wiphy->bands[band];
+		if (supband == NULL || supband->n_channels == 0)
+			continue;
+
+		channels = supband->channels;
+		for (i = 0; i < supband->n_channels; i++) {
+			struct cfg80211_chan_def chandef;
+
+			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+				continue;
+
+			memset(&chandef, 0, sizeof(chandef));
+			cfg80211_chandef_create(&chandef, &channels[i],
+			    NL80211_CHAN_NO_HT);
+			hw->conf.chandef = chandef;
+			break;
+		}
+	}
 
 	if (bootverbose)
 		ieee80211_announce(ic);
