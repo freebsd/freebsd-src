@@ -221,14 +221,14 @@ readsb(int listerr)
 	struct fs *fs;
 
 	super = bflag ? bflag * dev_bsize :
-	    sbhashfailed ? STDSB_NOHASHFAIL_NOMSG : STDSB_NOMSG;
+	    sbhashfailed ? STDSB_NOHASHFAIL : STDSB;
 	readcnt[sblk.b_type]++;
 	while ((ret = sbget(fsreadfd, &fs, super)) != 0) {
 		switch (ret) {
 		case EINTEGRITY:
-			if (bflag || super == STDSB_NOHASHFAIL_NOMSG)
+			if (bflag || super == STDSB_NOHASHFAIL)
 				return (0);
-			super = STDSB_NOHASHFAIL_NOMSG;
+			super = STDSB_NOHASHFAIL;
 			sbhashfailed = 1;
 			continue;
 		case ENOENT:
