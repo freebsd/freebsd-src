@@ -43,7 +43,7 @@ s=0
 
 set -e
 mdconfig -a -t swap -s 5g -u $md1
-newfs $newfs_flags -n /dev/md$md1 > /dev/null
+newfs -n /dev/md$md1 > /dev/null
 mkdir -p $mp1 $mp2
 mount /dev/md$md1 $mp1
 cp -r ../../stress2 $mp1
@@ -84,8 +84,6 @@ chmod 777 $mntpoint
 su $testuser -c \
 	"(cd $mntpoint/stress2; ./testcases/run/run $TESTPROGS)" 
 
-n=`find $mntpoint/stressX | wc -l`
-[ $n -eq 1 ] && s=0 || s=1
 for i in `jot 6`; do
 	mount | grep -q "on $mntpoint " || break
 	umount $mntpoint && break || sleep 10
@@ -96,9 +94,10 @@ fsck_ffs -fyR /dev/md$md2-md$md1.union > $log 2>&1
 grep -Eq "IS CLEAN|MARKED CLEAN" $log || { s=2; cat $log; }
 set +e
 gunion commit /dev/md$md2-md$md1.union
+gunion list | egrep Block\|Current | egrep -v 0 && s=3
 gunion destroy /dev/md$md2-md$md1.union
 fsck_ffs -fyR /dev/md$md1 > $log 2>&1
-grep -Eq "IS CLEAN|MARKED CLEAN" $log || { s=3; cat $log; }
+grep -Eq "IS CLEAN|MARKED CLEAN" $log || { s=4; cat $log; }
 mdconfig -d -u $md2
 mdconfig -d -u $md1
 rm -f $log
