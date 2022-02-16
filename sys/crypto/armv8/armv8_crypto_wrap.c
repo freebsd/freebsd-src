@@ -249,6 +249,53 @@ struct armv8_gcm_state {
 	uint8_t aes_counter[AES_BLOCK_LEN];
 };
 
+static void
+armv8_aes_gmac_setup(struct armv8_gcm_state *s, AES_key_t *aes_key,
+    const uint8_t *authdata, size_t authdatalen,
+    const uint8_t iv[static AES_GCM_IV_LEN], const __uint128_val_t *Htable)
+{
+	uint8_t block[AES_BLOCK_LEN];
+	size_t trailer;
+
+	bzero(s->aes_counter, AES_BLOCK_LEN);
+	memcpy(s->aes_counter, iv, AES_GCM_IV_LEN);
+
+	/* Setup the counter */
+	s->aes_counter[AES_BLOCK_LEN - 1] = 1;
+
+	/* EK0 for a final GMAC round */
+	aes_v8_encrypt(s->aes_counter, s->EK0.c, aes_key);
+
+	/* GCM starts with 2 as counter, 1 is used for final xor of tag. */
+	s->aes_counter[AES_BLOCK_LEN - 1] = 2;
+
+	memset(s->Xi.c, 0, sizeof(s->Xi.c));
+	trailer = authdatalen % AES_BLOCK_LEN;
+	if (authdatalen - trailer > 0) {
+		gcm_ghash_v8(s->Xi.u, Htable, authdata, authdatalen - trailer);
+		authdata += authdatalen - trailer;
+	}
+	if (trailer > 0 || authdatalen == 0) {
+		memset(block, 0, sizeof(block));
+		memcpy(block, authdata, trailer);
+		gcm_ghash_v8(s->Xi.u, Htable, block, AES_BLOCK_LEN);
+	}
+}
+
+static void
+armv8_aes_gmac_finish(struct armv8_gcm_state *s, size_t len,
+    size_t authdatalen, const __uint128_val_t *Htable)
+{
+	/* Lengths block */
+	s->lenblock.u[0] = s->lenblock.u[1] = 0;
+	s->lenblock.d[1] = htobe32(authdatalen * 8);
+	s->lenblock.d[3] = htobe32(len * 8);
+	gcm_ghash_v8(s->Xi.u, Htable, s->lenblock.c, AES_BLOCK_LEN);
+
+	s->Xi.u[0] ^= s->EK0.u[0];
+	s->Xi.u[1] ^= s->EK0.u[1];
+}
+
 void
 armv8_aes_encrypt_gcm(AES_key_t *aes_key, size_t len,
     const uint8_t *from, uint8_t *to,
@@ -263,32 +310,10 @@ armv8_aes_encrypt_gcm(AES_key_t *aes_key, size_t len,
 	uint8_t block[AES_BLOCK_LEN];
 	size_t i, trailer;
 
-	bzero(&s.aes_counter, AES_BLOCK_LEN);
-	memcpy(s.aes_counter, iv, AES_GCM_IV_LEN);
+	armv8_aes_gmac_setup(&s, aes_key, authdata, authdatalen, iv, Htable);
 
-	/* Setup the counter */
-	s.aes_counter[AES_BLOCK_LEN - 1] = 1;
-
-	/* EK0 for a final GMAC round */
-	aes_v8_encrypt(s.aes_counter, s.EK0.c, aes_key);
-
-	/* GCM starts with 2 as counter, 1 is used for final xor of tag. */
-	s.aes_counter[AES_BLOCK_LEN - 1] = 2;
-
-	memset(s.Xi.c, 0, sizeof(s.Xi.c));
-	trailer = authdatalen % AES_BLOCK_LEN;
-	if (authdatalen - trailer > 0) {
-		gcm_ghash_v8(s.Xi.u, Htable, authdata, authdatalen - trailer);
-		authdata += authdatalen - trailer;
-	}
-	if (trailer > 0 || authdatalen == 0) {
-		memset(block, 0, sizeof(block));
-		memcpy(block, authdata, trailer);
-		gcm_ghash_v8(s.Xi.u, Htable, block, AES_BLOCK_LEN);
-	}
-
-	from64 = (const uint64_t*)from;
-	to64 = (uint64_t*)to;
+	from64 = (const uint64_t *)from;
+	to64 = (uint64_t *)to;
 	trailer = len % AES_BLOCK_LEN;
 
 	for (i = 0; i < (len - trailer); i += AES_BLOCK_LEN) {
@@ -316,14 +341,7 @@ armv8_aes_encrypt_gcm(AES_key_t *aes_key, size_t len,
 		gcm_ghash_v8(s.Xi.u, Htable, block, AES_BLOCK_LEN);
 	}
 
-	/* Lengths block */
-	s.lenblock.u[0] = s.lenblock.u[1] = 0;
-	s.lenblock.d[1] = htobe32(authdatalen * 8);
-	s.lenblock.d[3] = htobe32(len * 8);
-	gcm_ghash_v8(s.Xi.u, Htable, s.lenblock.c, AES_BLOCK_LEN);
-
-	s.Xi.u[0] ^= s.EK0.u[0];
-	s.Xi.u[1] ^= s.EK0.u[1];
+	armv8_aes_gmac_finish(&s, len, authdatalen, Htable);
 	memcpy(tag, s.Xi.c, GMAC_DIGEST_LEN);
 
 	explicit_bzero(&s, sizeof(s));
@@ -345,26 +363,8 @@ armv8_aes_decrypt_gcm(AES_key_t *aes_key, size_t len,
 	int error;
 
 	error = 0;
-	bzero(&s.aes_counter, AES_BLOCK_LEN);
-	memcpy(s.aes_counter, iv, AES_GCM_IV_LEN);
 
-	/* Setup the counter */
-	s.aes_counter[AES_BLOCK_LEN - 1] = 1;
-
-	/* EK0 for a final GMAC round */
-	aes_v8_encrypt(s.aes_counter, s.EK0.c, aes_key);
-
-	memset(s.Xi.c, 0, sizeof(s.Xi.c));
-	trailer = authdatalen % AES_BLOCK_LEN;
-	if (authdatalen - trailer > 0) {
-		gcm_ghash_v8(s.Xi.u, Htable, authdata, authdatalen - trailer);
-		authdata += authdatalen - trailer;
-	}
-	if (trailer > 0 || authdatalen == 0) {
-		memset(block, 0, sizeof(block));
-		memcpy(block, authdata, trailer);
-		gcm_ghash_v8(s.Xi.u, Htable, block, AES_BLOCK_LEN);
-	}
+	armv8_aes_gmac_setup(&s, aes_key, authdata, authdatalen, iv, Htable);
 
 	trailer = len % AES_BLOCK_LEN;
 	if (len - trailer > 0)
@@ -375,24 +375,15 @@ armv8_aes_decrypt_gcm(AES_key_t *aes_key, size_t len,
 		gcm_ghash_v8(s.Xi.u, Htable, block, AES_BLOCK_LEN);
 	}
 
-	/* Lengths block */
-	s.lenblock.u[0] = s.lenblock.u[1] = 0;
-	s.lenblock.d[1] = htobe32(authdatalen * 8);
-	s.lenblock.d[3] = htobe32(len * 8);
-	gcm_ghash_v8(s.Xi.u, Htable, s.lenblock.c, AES_BLOCK_LEN);
+	armv8_aes_gmac_finish(&s, len, authdatalen, Htable);
 
-	s.Xi.u[0] ^= s.EK0.u[0];
-	s.Xi.u[1] ^= s.EK0.u[1];
 	if (timingsafe_bcmp(tag, s.Xi.c, GMAC_DIGEST_LEN) != 0) {
 		error = EBADMSG;
 		goto out;
 	}
 
-	/* GCM starts with 2 as counter, 1 is used for final xor of tag. */
-	s.aes_counter[AES_BLOCK_LEN - 1] = 2;
-
-	from64 = (const uint64_t*)from;
-	to64 = (uint64_t*)to;
+	from64 = (const uint64_t *)from;
+	to64 = (uint64_t *)to;
 
 	for (i = 0; i < (len - trailer); i += AES_BLOCK_LEN) {
 		aes_v8_encrypt(s.aes_counter, s.EKi.c, aes_key);
