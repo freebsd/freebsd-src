@@ -39,6 +39,7 @@
 #include <linux/mm_types.h>
 #include <linux/pfn.h>
 #include <linux/list.h>
+#include <linux/mmap_lock.h>
 
 #include <asm/pgtable.h>
 
