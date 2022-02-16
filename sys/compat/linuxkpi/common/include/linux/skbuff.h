@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
- * Copyright (c) 2021 Bjoern A. Zeeb
+ * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -43,28 +43,39 @@
 #include <linux/netdev_features.h>
 #include <linux/list.h>
 #include <linux/gfp.h>
+#include <linux/compiler.h>
+#include <linux/spinlock.h>
 
 /* #define	SKB_DEBUG */
 #ifdef SKB_DEBUG
-
 #define	DSKB_TODO	0x01
-#define	DSKB_TRACE	0x02
-#define	DSKB_TRACEX	0x04
-extern int debug_skb;
+#define	DSKB_IMPROVE	0x02
+#define	DSKB_TRACE	0x10
+#define	DSKB_TRACEX	0x20
+extern int linuxkpi_debug_skb;
 
-#define	SKB_TRACE(_s)		if (debug_skb & DSKB_TRACE)		\
-    printf("SKB_TRACE %s:%d %p\n", __func__, __LINE__, _s)
-#define	SKB_TRACE2(_s, _p)	if (debug_skb & DSKB_TRACE)		\
-    printf("SKB_TRACE %s:%d %p, %p\n", __func__, __LINE__, _s, _p)
-#define	SKB_TRACE_FMT(_s, _fmt, ...)	if (debug_skb & DSKB_TRACE)	\
-    printf("SKB_TRACE %s:%d %p" _fmt "\n", __func__, __LINE__, _s, __VA_ARGS__)
-#define	SKB_TODO()		if (debug_skb & DSKB_TODO)		\
-    printf("SKB_TODO %s:%d\n", __func__, __LINE__)
+#define	SKB_TODO()							\
+    if (linuxkpi_debug_skb & DSKB_TODO)					\
+	printf("SKB_TODO %s:%d\n", __func__, __LINE__)
+#define	SKB_IMPROVE(...)						\
+    if (linuxkpi_debug_skb & DSKB_IMPROVE)				\
+	printf("SKB_IMPROVE %s:%d\n", __func__, __LINE__)
+#define	SKB_TRACE(_s)							\
+    if (linuxkpi_debug_skb & DSKB_TRACE)				\
+	printf("SKB_TRACE %s:%d %p\n", __func__, __LINE__, _s)
+#define	SKB_TRACE2(_s, _p)						\
+    if (linuxkpi_debug_skb & DSKB_TRACE)				\
+	printf("SKB_TRACE %s:%d %p, %p\n", __func__, __LINE__, _s, _p)
+#define	SKB_TRACE_FMT(_s, _fmt, ...)					\
+   if (linuxkpi_debug_skb & DSKB_TRACE)					\
+	printf("SKB_TRACE %s:%d %p " _fmt "\n", __func__, __LINE__, _s,	\
+	    __VA_ARGS__)
 #else
+#define	SKB_TODO()		do { } while(0)
+#define	SKB_IMPROVE(...)	do { } while(0)
 #define	SKB_TRACE(_s)		do { } while(0)
 #define	SKB_TRACE2(_s, _p)	do { } while(0)
 #define	SKB_TRACE_FMT(_s, ...)	do { } while(0)
-#define	SKB_TODO()		do { } while(0)
 #endif
 
 enum sk_buff_pkt_type {
@@ -80,7 +91,7 @@ struct sk_buff_head {
 	struct sk_buff		*next;
 	struct sk_buff		*prev;
 	size_t			qlen;
-	int			lock;	/* XXX TYPE */
+	spinlock_t		lock;
 };
 
 enum sk_checksum_flags {
@@ -107,6 +118,7 @@ struct skb_shared_info {
 	enum skb_shared_info_gso_type	gso_type;
 	uint16_t			gso_size;
 	uint16_t			nr_frags;
+	struct sk_buff			*frag_list;
 	skb_frag_t			frags[64];	/* XXX TODO, 16xpage? */
 };
 
@@ -171,12 +183,23 @@ alloc_skb(size_t size, gfp_t gfp)
 }
 
 static inline struct sk_buff *
+__dev_alloc_skb(size_t len, gfp_t gfp)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(len, gfp);
+	SKB_IMPROVE();
+	SKB_TRACE(skb);
+	return (skb);
+}
+
+static inline struct sk_buff *
 dev_alloc_skb(size_t len)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(len, GFP_KERNEL);
-	/* XXX TODO */
+	skb = alloc_skb(len, GFP_NOWAIT);
+	SKB_IMPROVE();
 	SKB_TRACE(skb);
 	return (skb);
 }
@@ -220,8 +243,15 @@ static inline void
 skb_reserve(struct sk_buff *skb, size_t len)
 {
 	SKB_TRACE(skb);
+#if 0
+	/* Apparently it is allowed to call skb_reserve multiple times in a row. */
 	KASSERT(skb->data == skb->head, ("%s: skb %p not empty head %p data %p "
 	    "tail %p\n", __func__, skb, skb->head, skb->data, skb->tail));
+#else
+	KASSERT(skb->len == 0 && skb->data == skb->tail, ("%s: skb %p not "
+	    "empty head %p data %p tail %p len %u\n", __func__, skb,
+	    skb->head, skb->data, skb->tail, skb->len));
+#endif
 	skb->data += len;
 	skb->tail += len;
 }
@@ -302,9 +332,9 @@ skb_put(struct sk_buff *skb, size_t len)
 	skb->tail += len;
 	skb->len += len;
 #ifdef SKB_DEBUG
-	if (debug_skb & DSKB_TRACEX)
+	if (linuxkpi_debug_skb & DSKB_TRACEX)
 	printf("%s: skb %p (%u) head %p data %p tail %p end %p, s %p len %zu\n",
-	    __func__, skb,skb->len, skb->head, skb->data, skb->tail, skb->end,
+	    __func__, skb, skb->len, skb->head, skb->data, skb->tail, skb->end,
 	    s, len);
 #endif
 	return (s);
@@ -392,7 +422,7 @@ skb_add_rx_frag(struct sk_buff *skb, int fragno, struct page *page,
 
 	SKB_TRACE(skb);
 #ifdef SKB_DEBUG
-	if (debug_skb & DSKB_TRACEX)
+	if (linuxkpi_debug_skb & DSKB_TRACEX)
 	printf("%s: skb %p head %p data %p tail %p end %p len %u fragno %d "
 	    "page %#jx offset %ju size %zu truesize %u\n", __func__,
 	    skb, skb->head, skb->data, skb->tail, skb->end, skb->len, fragno,
@@ -568,6 +598,14 @@ skb_dequeue_tail(struct sk_buff_head *q)
 }
 
 static inline void
+__skb_queue_head(struct sk_buff_head *q, struct sk_buff *skb)
+{
+
+	SKB_TRACE2(q, skb);
+	__skb_queue_after(q, (struct sk_buff *)q, skb);
+}
+
+static inline void
 skb_queue_head(struct sk_buff_head *q, struct sk_buff *skb)
 {
 
@@ -578,8 +616,17 @@ skb_queue_head(struct sk_buff_head *q, struct sk_buff *skb)
 static inline uint32_t
 skb_queue_len(struct sk_buff_head *head)
 {
+
 	SKB_TRACE(head);
 	return (head->qlen);
+}
+
+static inline uint32_t
+skb_queue_len_lockless(const struct sk_buff_head *head)
+{
+
+	SKB_TRACE(head);
+	return (READ_ONCE(head->qlen));
 }
 
 static inline void
@@ -715,10 +762,26 @@ skb_mark_not_on_list(struct sk_buff *skb)
 }
 
 static inline void
-skb_queue_splice_init(struct sk_buff_head *qa, struct sk_buff_head *qb)
+skb_queue_splice_init(struct sk_buff_head *q, struct sk_buff_head *h)
 {
-	SKB_TRACE2(qa, qb);
-	SKB_TODO();
+	struct sk_buff *b, *e;
+
+	SKB_TRACE2(q, h);
+
+	if (skb_queue_empty(q))
+		return;
+
+	/* XXX do we need a barrier around this? */
+	b = q->next;
+	e = q->prev;
+
+	b->prev = (struct sk_buff *)h;
+	h->next = b;
+	e->next = h->next;
+	h->next->prev = e;
+
+	h->qlen += q->qlen;
+	__skb_queue_head_init(q);
 }
 
 static inline void
@@ -753,12 +816,12 @@ __skb_linearize(struct sk_buff *skb)
 	return (ENXIO);
 }
 
-static inline bool
+static inline int
 pskb_expand_head(struct sk_buff *skb, int x, int len, gfp_t gfp)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
-	return (false);
+	return (-ENXIO);
 }
 
 /* Not really seen this one but need it as symmetric accessor function. */
@@ -821,6 +884,40 @@ csum_unfold(__sum16 sum)
 {
 	SKB_TODO();
 	return (sum);
+}
+
+static inline void
+skb_reset_tail_pointer(struct sk_buff *skb)
+{
+
+	SKB_TRACE(skb);
+	skb->tail = (uint8_t *)(uintptr_t)(skb->data - skb->head);
+	SKB_TRACE(skb);
+}
+
+static inline struct sk_buff *
+skb_get(struct sk_buff *skb)
+{
+
+	SKB_TODO();	/* XXX refcnt? as in get/put_device? */
+	return (skb);
+}
+
+static inline struct sk_buff *
+skb_realloc_headroom(struct sk_buff *skb, unsigned int headroom)
+{
+
+	SKB_TODO();
+	return (NULL);
+}
+
+static inline void
+skb_copy_from_linear_data(const struct sk_buff *skb, void *dst, size_t len)
+{
+
+	SKB_TRACE(skb);
+	/* Let us just hope the destination has len space ... */
+	memcpy(dst, skb->data, len);
 }
 
 #endif	/* _LINUXKPI_LINUX_SKBUFF_H */
