@@ -1899,13 +1899,13 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	ss = ic->ic_scan;
 	vap = ss->ss_vap;
 	if (vap->iv_state != IEEE80211_S_SCAN) {
-		/* Do not start a scan for now. */
+		IMPROVE("We need to be able to scan if not in S_SCAN");
 		return;
 	}
 
 	hw = LHW_TO_HW(lhw);
 	if ((ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) {
-
+sw_scan:
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
 
@@ -1965,6 +1965,10 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 		hw_req->req.ie_len = ;
 		hw_req->req.ie = ;
 #endif
+#if 0
+		hw->wiphy->max_scan_ie_len
+		hw->wiphy->max_scan_ssids
+#endif
 
 		hw_req->req.n_channels = nchan;
 		cpp = (struct linuxkpi_ieee80211_channel **)(hw_req + 1);
@@ -2010,12 +2014,21 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 		vif = LVIF_TO_VIF(lvif);
 		error = lkpi_80211_mo_hw_scan(hw, vif, hw_req);
 		if (error != 0) {
-			ic_printf(ic, "ERROR: %s: hw_scan returned %d\n",
-			    __func__, error);
-			ieee80211_cancel_scan(vap);
 			free(hw_req->ies.common_ies, M_80211_VAP);
 			free(hw_req, M_LKPI80211);
 			lhw->hw_req = NULL;
+
+			/*
+			 * XXX-SIGH magic number.
+			 * rtw88 has a magic "return 1" if offloading scan is
+			 * not possible.  Fall back to sw scan in that case.
+			 */
+			if (error == 1)
+				goto sw_scan;
+
+			ic_printf(ic, "ERROR: %s: hw_scan returned %d\n",
+			    __func__, error);
+			ieee80211_cancel_scan(vap);
 		}
 	}
 }
