@@ -1,0 +1,165 @@
+.\" Copyright (c) 2022 Ampere Computing.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Jul 22, 2022
+.Dt PMC.DMC-620 3
+.Os
+.Sh NAME
+.Nm pmc.dmc-620
+.Nd measure the
+.Tn Arm
+.Tn DMC-620
+Dynamic Memory Controller performance counter events.
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn DMC-620
+PMU counters may be configured to count any one of a defined set of hardware
+events.
+.Pp
+.Tn Arm
+.Tn CoreLink
+.Tn DMC-620 Dynamic Memory Controller performance counters are documented in
+.Rs
+.%B "ARM CoreLink DMC-620 Dynamic Memory Controller Technical Reference Manual"
+.%T "Revision: r0p0"
+.%D 2017
+.%Q "ARM Limited"
+.Re
+.Ss PMC Capabilities
+.Tn DMC-620
+PMU counters support the following capabilities:
+.Bl -column "PMC_CAP_INTERRUPT" "Support"
+.It Sy Capability Ta Em Support
+.It PMC_CAP_CASCADE Ta \&No
+.It PMC_CAP_EDGE Ta \&No
+.It PMC_CAP_INTERRUPT Ta Yes
+.It PMC_CAP_INVERT Ta Yes
+.It PMC_CAP_READ Ta Yes
+.It PMC_CAP_PRECISE Ta \&No
+.It PMC_CAP_SYSTEM Ta Yes
+.It PMC_CAP_TAGGING Ta \&No
+.It PMC_CAP_THRESHOLD Ta Yes
+.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_WRITE Ta Yes
+.El
+.Ss Event Qualifiers
+Event specifiers for these PMCs support the following common
+qualifiers:
+.Bl -tag -width indent
+.It Li inc= Ns Ar value
+Two-bit value that controls direction of count for PMC.
+Behavior depend on selected event.
+.It Li inv
+Invert the sense of comparison.
+.It Li match= Ns Ar value
+Count only events matched by
+.Ar value.
+.It Li mask= Ns Ar qualifier
+Allow to apply
+.Ar qualifier
+mask to compared
+.Ar value .
+.El
+.Ss Class Name Prefix
+These PMCs use a class name prefix of
+.Dq Li DMC620_CD2_
+or
+.Dq Li DMC620_C_ .
+.Ss Event Specifiers
+The following PMC events are available:
+.Bl -column
+.It Sy clkdiv2_cycle_count
+.It Sy clkdiv2_allocate
+.It Sy clkdiv2_queue_depth
+.It Sy clkdiv2_waiting_for_wr_data
+.It Sy clkdiv2_read_backlog
+.It Sy clkdiv2_waiting_for_mi
+.It Sy clkdiv2_hazard_resolution
+.It Sy clkdiv2_enqueue
+.It Sy clkdiv2_arbitrate
+.It Sy clkdiv2_lrank_turnaround_activate
+.It Sy clkdiv2_prank_turnaround_activate
+.It Sy clkdiv2_read_depth
+.It Sy clkdiv2_write_depth
+.It Sy clkdiv2_highhigh_qos_depth
+.It Sy clkdiv2_high_qos_depth
+.It Sy clkdiv2_medium_qos_depth
+.It Sy clkdiv2_low_qos_depth
+.It Sy clkdiv2_activate
+.It Sy clkdiv2_rdwr
+.It Sy clkdiv2_refresh
+.It Sy clkdiv2_training_request
+.It Sy clkdiv2_t_mac_tracker
+.It Sy clkdiv2_bk_fsm_tracker
+.It Sy clkdiv2_bk_open_tracker
+.It Sy clkdiv2_ranks_in_pwr_down
+.It Sy clkdiv2_ranks_in_sref
+.It Sy clk_cycle_count
+.It Sy clk_request
+.It Sy clk_upload_stall
+.El
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.corei7 3 ,
+.Xr pmc.corei7uc 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.iaf 3 ,
+.Xr pmc.k7 3 ,
+.Xr pmc.k8 3 ,
+.Xr pmc.p4 3 ,
+.Xr pmc.p5 3 ,
+.Xr pmc.p6 3 ,
+.Xr pmc.soft 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc.westmere 3 ,
+.Xr pmc.westmereuc 3 ,
+.Xr pmc_cpuinfo 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4
+.Sh HISTORY
+The
+.Nm pmc
+library first appeared in
+.Fx 6.0 .
+.br
+The
+.Nm pmc.dmc-620
+driver was added in
+.Fx 14.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Lb libpmc
+library was written by
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .
+.An Oleksandr Rybalko Aq Mt ray@FreeBSD.org .
+.br
+The DMC-620 PMU driver was sponsored by Ampere Computing LLC.
+This manual page was written by
+.An Oleksandr Rybalko Aq Mt ray@FreeBSD.org .
