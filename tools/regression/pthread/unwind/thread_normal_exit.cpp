@@ -7,8 +7,8 @@
 
 #include "Test.cpp"
 
-void *
-thr_routine(void *arg)
+static void *
+thr_routine(void *arg __unused)
 {
 	Test test;
 
