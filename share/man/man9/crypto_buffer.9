@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2021
+.Dd Feburary 11, 2022
 .Dt CRYPTO_BUFFER 9
 .Os
 .Sh NAME
@@ -95,6 +95,11 @@
 .Fc
 .Ft void *
 .Fn crypto_cursor_segment "struct crypto_buffer_cursor *cc" "size_t *len"
+.Ft void
+.Fo crypto_cursor_copy
+.Fa "const struct crypto_buffer_cursor *fromc"
+.Fa "struct crypto_buffer_cursor *toc"
+.Fc
 .Ft bool
 .Fn CRYPTO_HAS_OUTPUT_BUFFER "struct cryptop *crp"
 .Sh DESCRIPTION
@@ -314,6 +319,12 @@ returns the length of a buffer in bytes.
 .Pp
 .Fn crypto_cursor_seglen
 returns the length in bytes of a contiguous segment.
+.Pp
+.Fn crypto_cursor_copy
+makes a deep copy of the cursor
+.Fa fromc .
+The two copies do not share any state and can thus be used
+independently.
 .Pp
 .Fn CRYPTO_HAS_OUTPUT_BUFFER
 returns true if the request uses a separate output buffer.
