@@ -75,6 +75,19 @@ int pmu_cmn600_md8(void *arg, int nodeid, int node_type, off_t reg,
 #define		POR_CFGM_NODE_INFO_NODE_TYPE_MASK	0xffff
 #define		POR_CFGM_NODE_INFO_NODE_TYPE_SHIFT	0
 
+#define		NODE_ID_SUB_MASK		0x3
+#define		NODE_ID_SUB_SHIFT		0
+#define		NODE_ID_PORT_MASK		0x4
+#define		NODE_ID_PORT_SHIFT		2
+#define		NODE_ID_X2B_MASK		(0x3 << 3)
+#define		NODE_ID_X2B_SHIFT		3
+#define		NODE_ID_Y2B_MASK		(0x3 << 5)
+#define		NODE_ID_Y2B_SHIFT		5
+#define		NODE_ID_X3B_MASK		(0x7 << 3)
+#define		NODE_ID_X3B_SHIFT		3
+#define		NODE_ID_Y3B_MASK		(0x7 << 6)
+#define		NODE_ID_Y3B_SHIFT		6
+
 #define	NODE_TYPE_INVALID	0x000
 #define	NODE_TYPE_DVM		0x001
 #define	NODE_TYPE_CFG		0x002
@@ -265,6 +278,8 @@ int pmu_cmn600_md8(void *arg, int nodeid, int node_type, off_t reg,
 #define	POR_DT_PMEVCNTEF			0x2020	/* rw */
 #define	POR_DT_PMEVCNTGH			0x2030	/* rw */
 #define	POR_DT_PMEVCNT(x)			(0x2000 + ((x) * 0x10))
+#define		POR_DT_PMEVCNT_EVENCNT_SHIFT	0
+#define		POR_DT_PMEVCNT_ODDCNT_SHIFT	32
 #define	POR_DT_PMCCNTR				0x2040	/* rw */
 #define	POR_DT_PMEVCNTSRAB			0x2050	/* rw */
 #define	POR_DT_PMEVCNTSRCD			0x2060	/* rw */
@@ -512,6 +527,7 @@ int pmu_cmn600_md8(void *arg, int nodeid, int node_type, off_t reg,
 #define		POR_DTM_PMU_CONFIG_VCNT_INPUT_SEL_SHIFT	32
 #define		POR_DTM_PMU_CONFIG_VCNT_INPUT_SEL_WIDTH	8
 #define	POR_DTM_PMEVCNT				0x2220	/* rw */
+#define		POR_DTM_PMEVCNT_CNTR_WIDTH	16
 #define	POR_DTM_PMEVCNTSR			0x2240	/* rw */
 
 /* RN-D registers */
