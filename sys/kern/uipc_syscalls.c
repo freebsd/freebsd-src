@@ -785,8 +785,10 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	len = auio.uio_resid;
 	error = sosend(so, mp->msg_name, &auio, 0, control, flags, td);
 	if (error != 0) {
-		if (auio.uio_resid != len && (error == ERESTART ||
-		    error == EINTR || error == EWOULDBLOCK))
+		if (auio.uio_resid != len &&
+		    (so->so_proto->pr_flags & PR_ATOMIC) == 0 &&
+		    (error == ERESTART || error == EINTR ||
+		    error == EWOULDBLOCK))
 			error = 0;
 		/* Generation of SIGPIPE can be controlled per socket */
 		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
