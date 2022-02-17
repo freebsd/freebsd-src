@@ -73,4 +73,38 @@ else
 	exit 1
 fi
 
+rm -f outfile
+
+# test client unbound (no SSL towards it, but it does SSL to the SSL service)
+# test that forward-host notation also works.
+echo "> dig test.host. A IN"
+dig @127.0.0.1 -p $CLIE_PORT test.host. >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	echo "SSLSERVICE"
+	cat unboundserv.log
+	echo "SSLCLIENT"
+	cat unboundclie.log
+	echo "Not OK"
+	exit 1
+else
+	echo "exit status OK"
+fi
+echo "> cat logfiles"
+cat outfile
+echo "SSLSERVICE"
+cat unboundserv.log
+echo "SSLCLIENT"
+cat unboundclie.log
+echo "> check answer"
+if grep "1.2.3.4" outfile; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+rm -f outfile
 exit 0

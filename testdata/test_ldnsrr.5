@@ -172,3 +172,5 @@ uri.arpa.       3600    IN      ZONEMD  2018100702 1 1 ( 1291b78ddf7669b1a39d014
 root-servers.net.     3600000 IN  ZONEMD  2018091100 1 1 ( f1ca0ccd91bd5573d9f431c00ee0101b2545c97602be0a97 8a3b11dbfc1c776d5b3e86ae3d973d6b5349ba7f04340f79 )
 ; from ldns issue #121, 0.10m was parsed as 0.01m.
 foo.	12345	IN	LOC	12 45 52.333 N 105 40 33.452 W -24m 0.1m 0.1m 0.1m
+; from ldns issue #147, fix #148, tab between quoted strings.
+foo	12345	IN	HINFO	"hohum"	"weirdo"

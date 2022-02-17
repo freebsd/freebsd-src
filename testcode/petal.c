@@ -582,10 +582,9 @@ do_service(char* addr, int port, char* key, char* cert)
 {
 	SSL_CTX* sslctx = setup_ctx(key, cert);
 	int fd = setup_fd(addr, port);
-	int go = 1;
 	if(fd == -1) print_exit("could not setup sockets");
 	if(verb) {printf("petal start\n"); fflush(stdout);}
-	while(go) {
+	while(1) {
 		struct sockaddr_storage from;
 		socklen_t flen = (socklen_t)sizeof(from);
 		int s;

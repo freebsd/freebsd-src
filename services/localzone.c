@@ -56,6 +56,44 @@
  * with 16 bytes for an A record, a 64K packet has about 4000 max */
 #define LOCALZONE_RRSET_COUNT_MAX 4096
 
+/** print all RRsets in local zone */
+static void
+local_zone_out(struct local_zone* z)
+{
+	struct local_data* d;
+	struct local_rrset* p;
+	RBTREE_FOR(d, struct local_data*, &z->data) {
+		for(p = d->rrsets; p; p = p->next) {
+			log_nametypeclass(NO_VERBOSE, "rrset", d->name,
+				ntohs(p->rrset->rk.type),
+				ntohs(p->rrset->rk.rrset_class));
+		}
+	}
+}
+
+static void
+local_zone_print(struct local_zone* z)
+{
+	char buf[64];
+	lock_rw_rdlock(&z->lock);
+	snprintf(buf, sizeof(buf), "%s zone",
+		local_zone_type2str(z->type));
+	log_nametypeclass(NO_VERBOSE, buf, z->name, 0, z->dclass);
+	local_zone_out(z);
+	lock_rw_unlock(&z->lock);
+}
+
+void local_zones_print(struct local_zones* zones)
+{
+	struct local_zone* z;
+	lock_rw_rdlock(&zones->lock);
+	log_info("number of auth zones %u", (unsigned)zones->ztree.count);
+	RBTREE_FOR(z, struct local_zone*, &zones->ztree) {
+		local_zone_print(z);
+	}
+	lock_rw_unlock(&zones->lock);
+}
+
 struct local_zones* 
 local_zones_create(void)
 {
@@ -1010,6 +1048,38 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 		lock_rw_rdlock(&zones->lock);
 		if(!local_zones_lookup(zones, rr_name, len, labs, rr_class,
 			rr_type)) {
+			/* Check if there is a zone that this could go
+			 * under but for different class; created zones are
+			 * always for LDNS_RR_CLASS_IN. Create the zone with
+			 * a different class but the same configured
+			 * local_zone_type. */
+			struct local_zone* z = local_zones_lookup(zones,
+				rr_name, len, labs, LDNS_RR_CLASS_IN, rr_type);
+			if(z) {
+				uint8_t* name = memdup(z->name, z->namelen);
+				size_t znamelen = z->namelen;
+				int znamelabs = z->namelabs;
+				enum localzone_type ztype = z->type;
+				lock_rw_unlock(&zones->lock);
+				if(!name) {
+					log_err("out of memory");
+					free(rr_name);
+					return 0;
+				}
+				if(!(
+#ifndef THREADS_DISABLED
+					z =
+#endif
+					lz_enter_zone_dname(zones, name,
+						znamelen, znamelabs,
+						ztype, rr_class))) {
+					free(rr_name);
+					return 0;
+				}
+				lock_rw_unlock(&z->lock);
+				free(rr_name);
+				continue;
+			}
 			if(!have_name) {
 				dclass = rr_class;
 				nm = rr_name;
@@ -1218,38 +1288,6 @@ local_zones_find_le(struct local_zones* zones,
 	key.namelabs = labs;
 	*exact = rbtree_find_less_equal(&zones->ztree, &key, &node);
 	return (struct local_zone*)node;
-}
-
-/** print all RRsets in local zone */
-static void 
-local_zone_out(struct local_zone* z)
-{
-	struct local_data* d;
-	struct local_rrset* p;
-	RBTREE_FOR(d, struct local_data*, &z->data) {
-		for(p = d->rrsets; p; p = p->next) {
-			log_nametypeclass(NO_VERBOSE, "rrset", d->name,
-				ntohs(p->rrset->rk.type),
-				ntohs(p->rrset->rk.rrset_class));
-		}
-	}
-}
-
-void local_zones_print(struct local_zones* zones)
-{
-	struct local_zone* z;
-	lock_rw_rdlock(&zones->lock);
-	log_info("number of auth zones %u", (unsigned)zones->ztree.count);
-	RBTREE_FOR(z, struct local_zone*, &zones->ztree) {
-		char buf[64];
-		lock_rw_rdlock(&z->lock);
-		snprintf(buf, sizeof(buf), "%s zone",
-			local_zone_type2str(z->type));
-		log_nametypeclass(NO_VERBOSE, buf, z->name, 0, z->dclass);
-		local_zone_out(z);
-		lock_rw_unlock(&z->lock);
-	}
-	lock_rw_unlock(&zones->lock);
 }
 
 /** encode answer consisting of 1 rrset */

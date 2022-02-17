@@ -260,7 +260,7 @@ config_create(void)
 	cfg->val_log_level = 0;
 	cfg->val_log_squelch = 0;
 	cfg->val_permissive_mode = 0;
-	cfg->aggressive_nsec = 0;
+	cfg->aggressive_nsec = 1;
 	cfg->ignore_cd = 0;
 	cfg->serve_expired = 0;
 	cfg->serve_expired_ttl = 0;
@@ -328,9 +328,11 @@ config_create(void)
 	cfg->ratelimit_size = 4*1024*1024;
 	cfg->ratelimit_for_domain = NULL;
 	cfg->ratelimit_below_domain = NULL;
-	cfg->outbound_msg_retry = 5;
 	cfg->ip_ratelimit_factor = 10;
 	cfg->ratelimit_factor = 10;
+	cfg->ip_ratelimit_backoff = 0;
+	cfg->ratelimit_backoff = 0;
+	cfg->outbound_msg_retry = 5;
 	cfg->qname_minimisation = 1;
 	cfg->qname_minimisation_strict = 0;
 	cfg->shm_enable = 0;
@@ -531,11 +533,17 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("edns-tcp-keepalive:", do_tcp_keepalive)
 	else S_NUMBER_NONZERO("edns-tcp-keepalive-timeout:", tcp_keepalive_timeout)
 	else S_YNO("ssl-upstream:", ssl_upstream)
+	else S_YNO("tls-upstream:", ssl_upstream)
 	else S_STR("ssl-service-key:", ssl_service_key)
+	else S_STR("tls-service-key:", ssl_service_key)
 	else S_STR("ssl-service-pem:", ssl_service_pem)
+	else S_STR("tls-service-pem:", ssl_service_pem)
 	else S_NUMBER_NONZERO("ssl-port:", ssl_port)
+	else S_NUMBER_NONZERO("tls-port:", ssl_port)
+	else S_STR("ssl-cert-bundle:", tls_cert_bundle)
 	else S_STR("tls-cert-bundle:", tls_cert_bundle)
 	else S_YNO("tls-win-cert:", tls_win_cert)
+	else S_STRLIST("additional-ssl-port:", tls_additional_port)
 	else S_STRLIST("additional-tls-port:", tls_additional_port)
 	else S_STRLIST("tls-additional-ports:", tls_additional_port)
 	else S_STRLIST("tls-additional-port:", tls_additional_port)
@@ -753,6 +761,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_POW2("ratelimit-slabs:", ratelimit_slabs)
 	else S_NUMBER_OR_ZERO("ip-ratelimit-factor:", ip_ratelimit_factor)
 	else S_NUMBER_OR_ZERO("ratelimit-factor:", ratelimit_factor)
+	else S_YNO("ip-ratelimit-backoff:", ip_ratelimit_backoff)
+	else S_YNO("ratelimit-backoff:", ratelimit_backoff)
 	else S_NUMBER_NONZERO("outbound-msg-retry:", outbound_msg_retry)
 	else S_SIZET_NONZERO("fast-server-num:", fast_server_num)
 	else S_NUMBER_OR_ZERO("fast-server-permil:", fast_server_permil)
@@ -1029,11 +1039,19 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "edns-tcp-keepalive", do_tcp_keepalive)
 	else O_DEC(opt, "edns-tcp-keepalive-timeout", tcp_keepalive_timeout)
 	else O_YNO(opt, "ssl-upstream", ssl_upstream)
+	else O_YNO(opt, "tls-upstream", ssl_upstream)
 	else O_STR(opt, "ssl-service-key", ssl_service_key)
+	else O_STR(opt, "tls-service-key", ssl_service_key)
 	else O_STR(opt, "ssl-service-pem", ssl_service_pem)
+	else O_STR(opt, "tls-service-pem", ssl_service_pem)
 	else O_DEC(opt, "ssl-port", ssl_port)
+	else O_DEC(opt, "tls-port", ssl_port)
+	else O_STR(opt, "ssl-cert-bundle", tls_cert_bundle)
 	else O_STR(opt, "tls-cert-bundle", tls_cert_bundle)
 	else O_YNO(opt, "tls-win-cert", tls_win_cert)
+	else O_LST(opt, "additional-ssl-port", tls_additional_port)
+	else O_LST(opt, "additional-tls-port", tls_additional_port)
+	else O_LST(opt, "tls-additional-ports", tls_additional_port)
 	else O_LST(opt, "tls-additional-port", tls_additional_port)
 	else O_LST(opt, "tls-session-ticket-keys", tls_session_ticket_keys.first)
 	else O_STR(opt, "tls-ciphers", tls_ciphers)
@@ -1197,6 +1215,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_LS2(opt, "ratelimit-below-domain", ratelimit_below_domain)
 	else O_DEC(opt, "ip-ratelimit-factor", ip_ratelimit_factor)
 	else O_DEC(opt, "ratelimit-factor", ratelimit_factor)
+	else O_YNO(opt, "ip-ratelimit-backoff", ip_ratelimit_backoff)
+	else O_YNO(opt, "ratelimit-backoff", ratelimit_backoff)
 	else O_UNS(opt, "outbound-msg-retry", outbound_msg_retry)
 	else O_DEC(opt, "fast-server-num", fast_server_num)
 	else O_DEC(opt, "fast-server-permil", fast_server_permil)

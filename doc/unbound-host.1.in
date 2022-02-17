@@ -1,4 +1,4 @@
-.TH "unbound\-host" "1" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
+.TH "unbound\-host" "1" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
 .\"
 .\" unbound-host.1 -- unbound DNS lookup utility
 .\"
@@ -15,7 +15,7 @@
 .RB [ \-C
 .IR configfile ]
 .RB [ \-vdhr46D ]
-.RB [ \-c 
+.RB [ \-c
 .IR class ]
 .RB [ \-t
 .IR type ]
@@ -28,12 +28,12 @@
 .I hostname
 .SH "DESCRIPTION"
 .B Unbound\-host
-uses the unbound validating resolver to query for the hostname and display
-results. With the \fB\-v\fR option it displays validation 
+uses the Unbound validating resolver to query for the hostname and display
+results. With the \fB\-v\fR option it displays validation
 status: secure, insecure, bogus (security failure).
 .P
 By default it reads no configuration file whatsoever.  It attempts to reach
-the internet root servers.  With \fB\-C\fR an unbound config file and with
+the internet root servers.  With \fB\-C\fR an Unbound config file and with
 \fB\-r\fR resolv.conf can be read.
 .P
 The available options are:
@@ -73,7 +73,7 @@ For example \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546
 .TP
 .B \-D
 Enables DNSSEC validation.  Reads the root anchor from the default configured
-root anchor at the default location, \fI@UNBOUND_ROOTKEY_FILE@\fR. 
+root anchor at the default location, \fI@UNBOUND_ROOTKEY_FILE@\fR.
 .TP
 .B \-f \fIkeyfile
 Reads keys from a file. Every line has a DS or DNSKEY record, in the format
@@ -110,9 +110,9 @@ $ unbound\-host \-v \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325
 .P
 $ unbound\-host \-v \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD" 192.0.2.153
 .SH "EXIT CODE"
-The unbound\-host program exits with status code 1 on error, 
+The unbound\-host program exits with status code 1 on error,
 0 on no error. The data may not be available on exit code 0, exit code 1
 means the lookup encountered a fatal error.
 .SH "SEE ALSO"
-\fIunbound.conf\fR(5), 
+\fIunbound.conf\fR(5),
 \fIunbound\fR(8).

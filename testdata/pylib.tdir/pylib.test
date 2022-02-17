@@ -42,28 +42,10 @@ else
 	echo "Not OK (async resolve)"
 	exit 1
 fi
-if grep "Ratelimit-fg-on: pass" outfile; then
-	:
-else
-	echo "Not OK (ratelimit-fg-on)"
-	exit 1
-fi
-if grep "Ratelimit-fg-off: \[.\?10.20.30.40.\?\]" outfile; then
-	:
-else
-	echo "Not OK (ratelimit-fg-off)"
-	exit 1
-fi
 if grep "Ratelimit-bg-on: pass" outfile; then
 	:
 else
 	echo "Not OK (ratelimit-bg-on)"
-	exit 1
-fi
-if grep "Ratelimit-bg-off: \[.\?10.20.30.40.\?\]" outfile; then
-	:
-else
-	echo "Not OK (ratelimit-bg-off)"
 	exit 1
 fi
 

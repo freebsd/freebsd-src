@@ -45,8 +45,31 @@ server:
 	local-data: "b.c.implicit. A 20.30.45.50"
 	local-data: "c.c.implicit. A 20.30.44.50"
 
+        ; create implicit data in the ANY domain
+        ; this should inherit the local_zone_type of the already configured
+        ; zone 'refuse.top.' and not be transparent
+        local-data: "refuse.top. ANY TXT implicit_non_transparent"
+
+stub-zone:
+        name: "refuse.top"
+        stub-addr: 1.2.3.4
+
 CONFIG_END
 SCENARIO_BEGIN Test local data queries
+
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+; This entry should never be queried
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.refuse.top. IN A
+SECTION ANSWER
+www.refuse.top. IN A 5.5.5.5
+ENTRY_END
+RANGE_END
 
 ; id.server.
 STEP 1 QUERY
@@ -388,6 +411,37 @@ SECTION QUESTION
 foo.null.top. IN AAAA
 SECTION ANSWER
 foo.null.top. IN AAAA ::0
+ENTRY_END
+
+; refuse zone for implicit local-data with CLASS != IN
+STEP 64 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+refuse.top. ANY TXT
+ENTRY_END
+STEP 65 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+refuse.top. ANY TXT
+SECTION ANSWER
+refuse.top. ANY TXT implicit_non_transparent
+ENTRY_END
+
+; refuse zone for implicit local-data with CLASS != IN
+STEP 66 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.refuse.top. ANY A
+ENTRY_END
+STEP 67 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA RD AA REFUSED
+SECTION QUESTION
+www.refuse.top. ANY A
 ENTRY_END
 
 SCENARIO_END

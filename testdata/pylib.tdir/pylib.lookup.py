@@ -9,8 +9,10 @@ import time
 import unbound
 
 qname = "www.example.com"
+qname2 = "www2.example.com"
 qtype = unbound.RR_TYPE_A
 qclass = unbound.RR_CLASS_IN
+
 
 def create_context(config_file="ub.lookup.conf", asyncflag=False):
     """
@@ -69,32 +71,6 @@ def test_async_resolve(ctx):
         print("Failed async resolve with: {}".format(retval))
 
 
-def test_ratelimit_fg_on(ctx):
-    """
-    Test resolving a ratelimited domain with a foreground worker.
-
-    """
-    ctx.set_option("ratelimit:", "1")
-    ctx.set_option("ratelimit-factor:", "0")
-    status, result = ctx.resolve(qname, qtype, qclass)
-    if status == 0 and result.was_ratelimited:
-        print("Ratelimit-fg-on: pass")
-    else:
-        print("Failed ratelimit-fg-on with: {}".format(status))
-
-
-def test_ratelimit_fg_off(ctx):
-    """
-    Test resolving a non-ratelimited domain with a foreground worker.
-
-    """
-    status, result = ctx.resolve(qname, qtype, qclass)
-    if status == 0 and result.havedata:
-        print("Ratelimit-fg-off: {}".format(result.data.address_list))
-    else:
-        print("Failed ratelimit-fg-off with: {}".format(status))
-
-
 def test_ratelimit_bg_on(ctx):
     """
     Test resolving a ratelimited domain with a background worker.
@@ -102,40 +78,32 @@ def test_ratelimit_bg_on(ctx):
     """
     ctx.set_option("ratelimit:", "1")
     ctx.set_option("ratelimit-factor:", "0")
-    cb_data = dict(done=False)
-    retval, async_id = ctx.resolve_async(qname, cb_data, callback, qtype, qclass)
-    while retval == 0 and not cb_data['done']:
-        time.sleep(0.1)
-        retval = ctx.process()
+    total_runs = 6
+    success_threshold = 4  # 2/3*total_runs
+    successes = 0
+    for i in range(total_runs):
+        cb_data = dict(done=False)
+        cb_data2 = dict(done=False)
+        retval, async_id = ctx.resolve_async(qname, cb_data, callback, qtype, qclass)
+        retval, async_id = ctx.resolve_async(qname2, cb_data2, callback, qtype, qclass)
 
-    if cb_data.get('was_ratelimited'):
+        while retval == 0 and not (cb_data['done'] and cb_data['done']):
+            time.sleep(0.1)
+            retval = ctx.process()
+
+        if bool(cb_data.get('was_ratelimited')) ^ bool(cb_data2.get('was_ratelimited')):
+            successes += 1
+        if successes >= success_threshold:
+            break
+        time.sleep(1)
+    if successes >= success_threshold:
         print("Ratelimit-bg-on: pass")
     else:
-        print("Failed ratelimit-bg-on with: {}".format(status))
-
-
-def test_ratelimit_bg_off(ctx):
-    """
-    Test resolving a non-ratelimited domain with a background worker.
-
-    """
-    cb_data = dict(done=False)
-    retval, async_id = ctx.resolve_async(qname, cb_data, callback, qtype, qclass)
-    while retval == 0 and not cb_data['done']:
-        time.sleep(0.1)
-        retval = ctx.process()
-
-    if cb_data.get('data'):
-        print("Ratelimit-bg-off: {}".format(cb_data['data'].address_list))
-    else:
-        print("Failed ratelimit-bg-off with: {}".format(status))
+        print("Failed ratelimit-bg-on")
 
 
 test_resolve(create_context())
 test_async_resolve(create_context(asyncflag=True))
-test_ratelimit_fg_on(create_context())
-test_ratelimit_fg_off(create_context())
 test_ratelimit_bg_on(create_context(asyncflag=True))
-test_ratelimit_bg_off(create_context(asyncflag=True))
 
 sys.exit(0)

@@ -898,8 +898,9 @@ static void infra_ip_create_ratedata(struct infra_cache* infra,
 	slabhash_insert(infra->client_ip_rates, h, &k->entry, d, NULL);
 }
 
-/** find the second and return its rate counter, if none, remove oldest */
-static int* infra_rate_find_second(void* data, time_t t)
+/** Find the second and return its rate counter. If none and should_add, remove
+ *  oldest to accommodate. Else return none. */
+static int* infra_rate_find_second_or_none(void* data, time_t t, int should_add)
 {
 	struct rate_data* d = (struct rate_data*)data;
 	int i, oldest;
@@ -907,6 +908,7 @@ static int* infra_rate_find_second(void* data, time_t t)
 		if(d->timestamp[i] == t)
 			return &(d->qps[i]);
 	}
+	if(!should_add) return NULL;
 	/* remove oldest timestamp, and insert it at t with 0 qps */
 	oldest = 0;
 	for(i=0; i<RATE_WINDOW; i++) {
@@ -918,21 +920,41 @@ static int* infra_rate_find_second(void* data, time_t t)
 	return &(d->qps[oldest]);
 }
 
-int infra_rate_max(void* data, time_t now)
+/** find the second and return its rate counter, if none, remove oldest to
+ *  accommodate */
+static int* infra_rate_give_second(void* data, time_t t)
+{
+    return infra_rate_find_second_or_none(data, t, 1);
+}
+
+/** find the second and return its rate counter only if it exists. Caller
+ *  should check for NULL return value */
+static int* infra_rate_get_second(void* data, time_t t)
+{
+    return infra_rate_find_second_or_none(data, t, 0);
+}
+
+int infra_rate_max(void* data, time_t now, int backoff)
 {
 	struct rate_data* d = (struct rate_data*)data;
 	int i, max = 0;
 	for(i=0; i<RATE_WINDOW; i++) {
-		if(now-d->timestamp[i] <= RATE_WINDOW) {
-			if(d->qps[i] > max)
+		if(backoff) {
+			if(now-d->timestamp[i] <= RATE_WINDOW &&
+				d->qps[i] > max) {
 				max = d->qps[i];
+			}
+		} else {
+			if(now == d->timestamp[i]) {
+				return d->qps[i];
+			}
 		}
 	}
 	return max;
 }
 
 int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
-	size_t namelen, time_t timenow, struct query_info* qinfo,
+	size_t namelen, time_t timenow, int backoff, struct query_info* qinfo,
 	struct comm_reply* replylist)
 {
 	int lim, max;
@@ -949,13 +971,13 @@ int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
 	/* find or insert ratedata */
 	entry = infra_find_ratedata(infra, name, namelen, 1);
 	if(entry) {
-		int premax = infra_rate_max(entry->data, timenow);
-		int* cur = infra_rate_find_second(entry->data, timenow);
+		int premax = infra_rate_max(entry->data, timenow, backoff);
+		int* cur = infra_rate_give_second(entry->data, timenow);
 		(*cur)++;
-		max = infra_rate_max(entry->data, timenow);
+		max = infra_rate_max(entry->data, timenow, backoff);
 		lock_rw_unlock(&entry->lock);
 
-		if(premax < lim && max >= lim) {
+		if(premax <= lim && max > lim) {
 			char buf[257], qnm[257], ts[12], cs[12], ip[128];
 			dname_str(name, buf);
 			dname_str(qinfo->qname, qnm);
@@ -970,12 +992,12 @@ int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
 				verbose(VERB_OPS, "ratelimit exceeded %s %d query %s %s %s", buf, lim, qnm, cs, ts);
 			}
 		}
-		return (max < lim);
+		return (max <= lim);
 	}
 
 	/* create */
 	infra_create_ratedata(infra, name, namelen, timenow);
-	return (1 < lim);
+	return (1 <= lim);
 }
 
 void infra_ratelimit_dec(struct infra_cache* infra, uint8_t* name,
@@ -987,14 +1009,19 @@ void infra_ratelimit_dec(struct infra_cache* infra, uint8_t* name,
 		return; /* not enabled */
 	entry = infra_find_ratedata(infra, name, namelen, 1);
 	if(!entry) return; /* not cached */
-	cur = infra_rate_find_second(entry->data, timenow);
+	cur = infra_rate_get_second(entry->data, timenow);
+	if(cur == NULL) {
+		/* our timenow is not available anymore; nothing to decrease */
+		lock_rw_unlock(&entry->lock);
+		return;
+	}
 	if((*cur) > 0)
 		(*cur)--;
 	lock_rw_unlock(&entry->lock);
 }
 
 int infra_ratelimit_exceeded(struct infra_cache* infra, uint8_t* name,
-	size_t namelen, time_t timenow)
+	size_t namelen, time_t timenow, int backoff)
 {
 	struct lruhash_entry* entry;
 	int lim, max;
@@ -1010,7 +1037,7 @@ int infra_ratelimit_exceeded(struct infra_cache* infra, uint8_t* name,
 	entry = infra_find_ratedata(infra, name, namelen, 0);
 	if(!entry)
 		return 0; /* not cached */
-	max = infra_rate_max(entry->data, timenow);
+	max = infra_rate_max(entry->data, timenow, backoff);
 	lock_rw_unlock(&entry->lock);
 
 	return (max >= lim);
@@ -1027,7 +1054,8 @@ infra_get_mem(struct infra_cache* infra)
 }
 
 int infra_ip_ratelimit_inc(struct infra_cache* infra,
-  struct comm_reply* repinfo, time_t timenow, struct sldns_buffer* buffer)
+	struct comm_reply* repinfo, time_t timenow, int backoff,
+	struct sldns_buffer* buffer)
 {
 	int max;
 	struct lruhash_entry* entry;
@@ -1039,10 +1067,10 @@ int infra_ip_ratelimit_inc(struct infra_cache* infra,
 	/* find or insert ratedata */
 	entry = infra_find_ip_ratedata(infra, repinfo, 1);
 	if(entry) {
-		int premax = infra_rate_max(entry->data, timenow);
-		int* cur = infra_rate_find_second(entry->data, timenow);
+		int premax = infra_rate_max(entry->data, timenow, backoff);
+		int* cur = infra_rate_give_second(entry->data, timenow);
 		(*cur)++;
-		max = infra_rate_max(entry->data, timenow);
+		max = infra_rate_max(entry->data, timenow, backoff);
 		lock_rw_unlock(&entry->lock);
 
 		if(premax < infra_ip_ratelimit && max >= infra_ip_ratelimit) {

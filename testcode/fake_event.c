@@ -1187,12 +1187,13 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	struct query_info* qinfo, uint16_t flags, int dnssec,
 	int ATTR_UNUSED(want_dnssec), int ATTR_UNUSED(nocaps),
+	int ATTR_UNUSED(check_ratelimit),
 	int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
 	char* ATTR_UNUSED(tls_auth_name), struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen,
 	struct module_qstate* qstate, comm_point_callback_type* callback,
 	void* callback_arg, sldns_buffer* ATTR_UNUSED(buff),
-	struct module_env* env)
+	struct module_env* env, int* ATTR_UNUSED(was_ratelimited))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,
@@ -1222,10 +1223,36 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	if(1) {
 		struct edns_data edns;
 		struct edns_string_addr* client_string_addr;
+		struct edns_option* backed_up_opt_list =
+			qstate->edns_opts_back_out;
+		struct edns_option* per_upstream_opt_list = NULL;
+		/* If we have an already populated EDNS option list make a copy
+		 * since we may now add upstream specific EDNS options. */
+		if(qstate->edns_opts_back_out) {
+			per_upstream_opt_list = edns_opt_copy_region(
+				qstate->edns_opts_back_out, qstate->region);
+			if(!per_upstream_opt_list) {
+				free(pend);
+				fatal_exit("out of memory");
+			}
+			qstate->edns_opts_back_out = per_upstream_opt_list;
+		}
 		if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen,
 			zone, zonelen, qstate, qstate->region)) {
 			free(pend);
 			return NULL;
+		}
+		/* Restore the option list; we can explicitly use the copied
+		 * one from now on. */
+		per_upstream_opt_list = qstate->edns_opts_back_out;
+		qstate->edns_opts_back_out = backed_up_opt_list;
+		if((client_string_addr = edns_string_addr_lookup(
+			&env->edns_strings->client_strings,
+			addr, addrlen))) {
+			edns_opt_list_append(&per_upstream_opt_list,
+				env->edns_strings->client_string_opcode,
+				client_string_addr->string_len,
+				client_string_addr->string, qstate->region);
 		}
 		/* add edns */
 		edns.edns_present = 1;
@@ -1236,16 +1263,8 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		if(dnssec)
 			edns.bits = EDNS_DO;
 		edns.padding_block_size = 0;
-		if((client_string_addr = edns_string_addr_lookup(
-			&env->edns_strings->client_strings,
-			addr, addrlen))) {
-			edns_opt_list_append(&qstate->edns_opts_back_out,
-				env->edns_strings->client_string_opcode,
-				client_string_addr->string_len,
-				client_string_addr->string, qstate->region);
-		}
 		edns.opt_list_in = NULL;
-		edns.opt_list_out = qstate->edns_opts_back_out;
+		edns.opt_list_out = per_upstream_opt_list;
 		edns.opt_list_inplace_cb_out = NULL;
 		attach_edns_record(pend->buffer, &edns);
 	}
@@ -1420,6 +1439,11 @@ int outnet_tcp_cb(struct comm_point* ATTR_UNUSED(c),
 }
 
 void pending_udp_timer_cb(void *ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+
+void serviced_timer_cb(void *ATTR_UNUSED(arg))
 {
 	log_assert(0);
 }
