@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Jun 17, 2019" "NLnet Labs" "unbound 1.9.2"
+.TH "unbound-control" "8" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -32,7 +32,7 @@ Show the version and commandline option help.
 .TP
 .B \-c \fIcfgfile
 The config file to read with settings.  If not given the default
-config file /var/unbound/unbound.conf is used.
+config file @ub_conf_file@ is used.
 .TP
 .B \-s \fIserver[@port]
 IPv4 or IPv6 address of the server to contact.  If not given, the
@@ -89,8 +89,7 @@ it.  If the zone does not exist, the command succeeds.
 Add new local data, the given resource record. Like \fBlocal\-data\fR
 config statement, except for when no covering zone exists.  In that case
 this remote control command creates a transparent zone with the same 
-name as this record.  This command is not good at returning detailed syntax 
-errors.
+name as this record.
 .TP
 .B local_data_remove \fIname
 Remove all RR data from local name.  If the name already has no items,
@@ -305,6 +304,12 @@ Transfer the auth zone from master.  The auth zone probe sequence is started,
 where the masters are probed to see if they have an updated zone (with the SOA
 serial check).  And then the zone is transferred for a newer zone version.
 .TP
+.B rpz_enable \fIzone\fR
+Enable the RPZ zone if it had previously been disabled.
+.TP
+.B rpz_disable \fIzone\fR
+Disable the RPZ zone.
+.TP
 .B view_list_local_zones \fIview\fR
 \fIlist_local_zones\fR for given view.
 .TP
@@ -322,6 +327,9 @@ serial check).  And then the zone is transferred for a newer zone version.
 .TP
 .B view_local_data_remove \fIview\fR \fIname
 \fIlocal_data_remove\fR for given view.
+.TP
+.B view_local_datas_remove \fIview\fR
+Remove a list of \fIlocal_data\fR for given view from stdin. Like local_datas_remove.
 .TP
 .B view_local_datas \fIview\fR
 Add a list of \fIlocal_data\fR for given view from stdin.  Like local_datas.
@@ -379,8 +387,8 @@ and resulted in recursive processing, taking a slot in the requestlist.
 Not part of the recursivereplies (or the histogram thereof) or cachemiss,
 as a cache response was sent.
 .TP
-.I threadX.num.zero_ttl
-number of replies with ttl zero, because they served an expired cache entry.
+.I threadX.num.expired
+number of replies that served an expired cache entry.
 .TP
 .I threadX.num.recursivereplies
 The number of replies sent to queries that needed recursive processing. Could be smaller than threadX.num.cachemiss if due to timeouts no replies were sent for some queries.
@@ -443,7 +451,7 @@ summed over threads.
 .I total.num.prefetch
 summed over threads.
 .TP
-.I total.num.zero_ttl
+.I total.num.expired
 summed over threads.
 .TP
 .I total.num.recursivereplies
@@ -503,6 +511,14 @@ negative cache.
 Memory in bytes in used by the TCP and TLS stream wait buffers.  These are
 answers waiting to be written back to the clients.
 .TP
+.I mem.http.query_buffer
+Memory in bytes used by the HTTP/2 query buffers. Containing (partial) DNS
+queries waiting for request stream completion.
+.TP
+.I mem.http.response_buffer
+Memory in bytes used by the HTTP/2 response buffers. Containing DNS responses
+waiting to be written back to the clients.
+.TP
 .I histogram.<sec>.<usec>.to.<sec>.<usec>
 Shows a histogram, summed over all threads. Every element counts the
 recursive queries whose reply time fit between the lower and upper bound.
@@ -541,6 +557,11 @@ These are also counted in num.query.tcp, because TLS uses TCP.
 .I num.query.tls.resume
 Number of TLS session resumptions, these are queries over TLS towards
 the unbound server where the client negotiated a TLS session resumption key.
+.TP
+.I num.query.https
+Number of queries that were made using HTTPS towards the unbound server.
+These are also counted in num.query.tcp and num.query.tls, because HTTPS
+uses TLS and TCP.
 .TP
 .I num.query.ipv6
 Number of queries that were made using IPv6 towards the unbound server.
@@ -660,12 +681,17 @@ Number of queries that got an answer that contained EDNS client subnet data.
 Number of queries answered from the edns client subnet cache.  These are
 counted as cachemiss by the main counters, but hit the client subnet
 specific cache, after getting processed by the edns client subnet module.
+.TP
+.I num.rpz.action.<rpz_action>
+Number of queries answered using configured RPZ policy, per RPZ action type.
+Possible actions are: nxdomain, nodata, passthru, drop, tcp\-only, local\-data,
+disabled, and cname\-override.
 .SH "FILES"
 .TP
-.I /var/unbound/unbound.conf
+.I @ub_conf_file@
 unbound configuration file.
 .TP
-.I /var/unbound
+.I @UNBOUND_RUN_DIR@
 directory with private keys (unbound_server.key and unbound_control.key) and
 self\-signed certificates (unbound_server.pem and unbound_control.pem).
 .SH "SEE ALSO"
