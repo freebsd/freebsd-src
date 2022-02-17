@@ -351,6 +351,14 @@ function core.changeRewindCheckpoint()
 	end
 end
 
+function core.loadEntropy()
+	if core.isUEFIBoot() then
+		if (loader.getenv("entropy_efi_seed") or "no"):lower() == "yes" then
+			loader.perform("efi-seed-entropy")
+		end
+	end
+end
+
 function core.setDefaults()
 	core.setACPI(core.getACPIPresent(true))
 	core.setSafeMode(default_safe_mode)
@@ -363,6 +371,7 @@ function core.autoboot(argstr)
 	if loader.getenv("kernelname") == nil then
 		config.loadelf()
 	end
+	core.loadEntropy()
 	loader.perform(composeLoaderCmd("autoboot", argstr))
 end
 
@@ -371,6 +380,7 @@ function core.boot(argstr)
 	if loader.getenv("kernelname") == nil then
 		config.loadelf()
 	end
+	core.loadEntropy()
 	loader.perform(composeLoaderCmd("boot", argstr))
 end
 

@@ -488,6 +488,14 @@ random_harvestq_prime(void *unused __unused)
 		else
 			printf("random: no preloaded entropy cache\n");
 	}
+	size = random_prime_loader_file(RANDOM_PLATFORM_BOOT_ENTROPY_MODULE);
+	if (bootverbose) {
+		if (size > 0)
+			printf("random: read %zu bytes from platform bootloader\n",
+			    size);
+		else
+			printf("random: no platform bootloader entropy\n");
+	}
 }
 SYSINIT(random_device_prime, SI_SUB_RANDOM, SI_ORDER_MIDDLE, random_harvestq_prime, NULL);
 
