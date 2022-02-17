@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -665,8 +666,7 @@ mlx5e_sq_dump_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbu
 
 	/* store pointer to mbuf */
 	sq->mbuf[pi].mbuf = mb;
-	sq->mbuf[pi].p_refcount = parg->pref;
-	atomic_add_int(parg->pref, 1);
+	sq->mbuf[pi].mst = m_snd_tag_ref(parg->mst);
 
 	/* count all traffic going out */
 	sq->stats.packets++;
@@ -996,9 +996,11 @@ top:
 	/* Store pointer to mbuf */
 	sq->mbuf[pi].mbuf = mb;
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
-	sq->mbuf[pi].p_refcount = args.pref;
-	if (unlikely(args.pref != NULL))
-		atomic_add_int(args.pref, 1);
+	if (unlikely(args.mst != NULL))
+		sq->mbuf[pi].mst = m_snd_tag_ref(args.mst);
+	else
+		MPASS(sq->mbuf[pi].mst == NULL);
+
 	sq->pc += sq->mbuf[pi].num_wqebbs;
 
 	/* Count all traffic going out */
@@ -1028,6 +1030,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 	while (budget > 0) {
 		struct mlx5_cqe64 *cqe;
+		struct m_snd_tag *mst;
 		struct mbuf *mb;
 		bool match;
 		u16 sqcc_this;
@@ -1065,13 +1068,10 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 			match = (delta < sq->mbuf[ci].num_wqebbs);
 			mb = sq->mbuf[ci].mbuf;
 			sq->mbuf[ci].mbuf = NULL;
+			mst = sq->mbuf[ci].mst;
+			sq->mbuf[ci].mst = NULL;
 
-			if (unlikely(sq->mbuf[ci].p_refcount != NULL)) {
-				atomic_add_int(sq->mbuf[ci].p_refcount, -1);
-				sq->mbuf[ci].p_refcount = NULL;
-			}
-
-			if (mb == NULL) {
+			if (unlikely(mb == NULL)) {
 				if (unlikely(sq->mbuf[ci].num_bytes == 0))
 					sq->stats.nop++;
 			} else {
@@ -1082,6 +1082,10 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 				/* Free transmitted mbuf */
 				m_freem(mb);
 			}
+
+			if (unlikely(mst != NULL))
+				m_snd_tag_rele(mst);
+
 			sqcc += sq->mbuf[ci].num_wqebbs;
 		}
 	}

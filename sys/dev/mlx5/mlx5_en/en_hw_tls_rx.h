@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 NVIDIA corporation & affiliates.
+ * Copyright (c) 2021-2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,7 +60,6 @@ enum {
 struct mlx5e_tls_rx;
 struct mlx5e_tls_rx_tag {
 	struct m_snd_tag tag;
-	volatile s32 refs;	/* number of pending mbufs */
 	uint32_t tirn;		/* HW TIR context number */
 	uint32_t dek_index;	/* HW TLS context number */
 	struct mlx5e_tls_rx *tls_rx; /* parent pointer */

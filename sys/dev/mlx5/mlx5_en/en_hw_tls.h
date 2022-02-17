@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,7 +45,6 @@ enum {
 struct mlx5e_tls;
 struct mlx5e_tls_tag {
 	struct m_snd_tag tag;
-	volatile s32 refs;	/* number of pending mbufs */
 	uint32_t tisn;		/* HW TIS context number */
 	uint32_t dek_index;	/* HW TLS context number */
 	struct mlx5e_tls *tls;

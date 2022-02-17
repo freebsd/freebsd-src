@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1582,13 +1583,13 @@ mlx5e_free_sq_db(struct mlx5e_sq *sq)
 	int x;
 
 	for (x = 0; x != wq_sz; x++) {
-		if (unlikely(sq->mbuf[x].p_refcount != NULL)) {
-			atomic_add_int(sq->mbuf[x].p_refcount, -1);
-			sq->mbuf[x].p_refcount = NULL;
-		}
 		if (sq->mbuf[x].mbuf != NULL) {
 			bus_dmamap_unload(sq->dma_tag, sq->mbuf[x].dma_map);
 			m_freem(sq->mbuf[x].mbuf);
+		}
+		if (sq->mbuf[x].mst != NULL) {
+			m_snd_tag_rele(sq->mbuf[x].mst);
+			sq->mbuf[x].mst = NULL;
 		}
 		bus_dmamap_destroy(sq->dma_tag, sq->mbuf[x].dma_map);
 	}
