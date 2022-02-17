@@ -1357,6 +1357,7 @@ key_freesav(struct secasvar **psav)
 	struct secasvar *sav = *psav;
 
 	IPSEC_ASSERT(sav != NULL, ("null sav"));
+	CURVNET_ASSERT_SET();
 	if (SAV_DELREF(sav) == 0)
 		return;
 
@@ -1380,6 +1381,7 @@ key_unlinksav(struct secasvar *sav)
 	KEYDBG(KEY_STAMP,
 	    printf("%s: SA(%p)\n", __func__, sav));
 
+	CURVNET_ASSERT_SET();
 	SAHTREE_UNLOCK_ASSERT();
 	SAHTREE_WLOCK();
 	if (sav->state == SADB_SASTATE_DEAD) {
@@ -2889,6 +2891,8 @@ static void
 key_freesah(struct secashead **psah)
 {
 	struct secashead *sah = *psah;
+
+	CURVNET_ASSERT_SET();
 
 	if (SAH_DELREF(sah) == 0)
 		return;
