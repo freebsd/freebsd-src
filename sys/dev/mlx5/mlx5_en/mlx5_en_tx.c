@@ -1045,8 +1045,10 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 		mlx5_cqwq_pop(&sq->cq.wq);
 
 		/* check if the completion event indicates an error */
-		if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ))
+		if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ)) {
+			mlx5e_dump_err_cqe(&sq->cq, sq->sqn, (const void *)cqe);
 			sq->stats.cqe_err++;
+		}
 
 		/* setup local variables */
 		sqcc_this = be16toh(cqe->wqe_counter);
