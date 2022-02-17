@@ -118,6 +118,7 @@ arichardson [label="Alex Richardson\narichardson@FreeBSD.org\n2017/10/30"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
+asiciliano [label="Alfonso S. Siciliano\nasiciliano@FreeBSD.org\n2022/02/09"]
 asomers [label="Alan Somers\nasomers@FreeBSD.org\n2013/04/24"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 avos [label="Andriy Voskoboinyk\navos@FreeBSD.org\n2015/09/24"]
@@ -431,6 +432,7 @@ avg -> smh
 
 bapt -> allanjude
 bapt -> araujo
+bapt -> asiciliano
 bapt -> bdrewery
 bapt -> wulf
 
