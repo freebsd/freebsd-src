@@ -2879,9 +2879,14 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	/* Scanning is a different kind of beast to re-work. */
 	ic->ic_caps |= IEEE80211_C_BGSCAN;
 #endif
-	if (lhw->ops->hw_scan &&
-	    ieee80211_hw_check(hw, SINGLE_SCAN_ON_ALL_BANDS)) {
-		/* Advertise full-offload scanning */
+	if (lhw->ops->hw_scan) {
+		/*
+		 * Advertise full-offload scanning.
+		 *
+		 * Not limiting to SINGLE_SCAN_ON_ALL_BANDS here as otherwise
+		 * we essentially disable hw_scan for all drivers not setting
+		 * the flag.
+		 */
 		ic->ic_flags_ext |= IEEE80211_FEXT_SCAN_OFFLOAD;
 	}
 
