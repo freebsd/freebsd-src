@@ -1205,6 +1205,8 @@ int	mlx5e_open_locked(struct ifnet *);
 int	mlx5e_close_locked(struct ifnet *);
 
 void	mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event);
+void	mlx5e_dump_err_cqe(struct mlx5e_cq *, u32, const struct mlx5_err_cqe *);
+
 mlx5e_cq_comp_t mlx5e_rx_cq_comp;
 mlx5e_cq_comp_t mlx5e_tx_cq_comp;
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);

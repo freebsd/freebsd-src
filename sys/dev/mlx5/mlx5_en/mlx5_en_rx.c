@@ -495,6 +495,7 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 		    BUS_DMASYNC_POSTREAD);
 
 		if (unlikely((cqe->op_own >> 4) != MLX5_CQE_RESP_SEND)) {
+			mlx5e_dump_err_cqe(&rq->cq, rq->rqn, (const void *)cqe);
 			rq->stats.wqe_err++;
 			goto wq_ll_pop;
 		}
