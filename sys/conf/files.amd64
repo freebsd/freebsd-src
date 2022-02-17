@@ -235,6 +235,7 @@ dev/ixl/i40e_adminq.c		optional	ixl pci \
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/nctgpio/nctgpio.c		optional	nctgpio
+dev/ncthwm/ncthwm.c		optional	ncthwm superio
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
 dev/ntb/ntb_transport.c		optional	ntb_transport | if_ntb
