@@ -27,7 +27,7 @@
 .\"
 .Dd February 17, 2022
 .Dt FREEBSD-UPDATE.CONF 5
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm freebsd-update.conf
 .Nd configuration file for
@@ -47,7 +47,7 @@ Unless stated otherwise, specifying an option multiple times is an
 error.
 .Pp
 The possible options and their meanings are as follows:
-.Bl -tag -width ".Cm BackupKernelSymbolFiles"
+.Bl -tag -width "BackupKernelSymbolFiles"
 .It Cm KeyPrint
 The single parameter following this keyword is the SHA256 hash
 of the RSA key which will be trusted to sign updates.
@@ -91,7 +91,9 @@ accumulate.
 .It Cm IDSIgnorePaths
 The parameters following this keyword are regular expressions;
 paths which start with a string matching one of these regular
-expressions will be ignored by "freebsd-update IDS".
+expressions will be ignored by
+.Xr freebsd-update 8
+IDS.
 .Pp
 This option can be specified multiple times, and the parameters
 accumulate.
@@ -99,8 +101,9 @@ accumulate.
 The parameters following this keyword are regular expressions;
 updates to paths which start with a string matching one of
 these regular expressions will be ignored if the files have
-been modified locally (unless they are merged -- see MergeChanges
-below).
+been modified locally (unless they are merged \(em see the
+.Cm MergeChanges
+option).
 .Pp
 This option can be specified multiple times, and the parameters
 accumulate.
@@ -117,7 +120,7 @@ in which temporary files and downloaded updates will be stored.
 .It Cm MailTo
 The single parameter following this keyword is the address
 to which
-.Cm cron
+.Xr cron 8
 output will be mailed.
 .It Cm AllowAdd
 The single parameter following this keyword must be
@@ -125,11 +128,11 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 is allowed to create new files, directories, and symlinks if
 these are part of updates downloaded.
 Note that
-.Cm freebsd-update
+.Xr freebsd-update 8
 will not re-add files which have been deleted from a
 .Fx
 installation unless those files were previously added as part
@@ -140,7 +143,7 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 is allowed to delete files, directories, and symlinks as
 part of updates downloaded.
 .It Cm KeepModifiedMetadata
@@ -149,7 +152,7 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 should keep existing file ownership, permissions, and flags
 when installing updates if these have been modified locally.
 .It Cm StrictComponents
@@ -158,7 +161,7 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 should interpret the list of components of
 .Fx
 specified via the
@@ -168,7 +171,7 @@ should be upgraded when the
 .Cm upgrade
 command is used ("yes"), or merely as a list of components
 which might be installed, of which
-.Cm freebsd-update
+.Xr freebsd-update 8
 should identify which in fact are present ("no").
 .It Cm BackupKernel
 The single parameter following this keyword must be
@@ -176,19 +179,19 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 will create a backup of the old kernel before installing a new kernel.
 This backup kernel can be used to recover a system where the newly
 installed kernel somehow did not work.
 Note that the backup kernel is not reverted to its original state by
 the
-.Cm freebsd-update
+.Xr freebsd-update 8
 rollback command.
 .It Cm BackupKernelDir
 This keyword sets the directory which is used to store a backup
 kernel, if the BackupKernel feature is enabled.
 If the directory already exist, and it was not created by
-.Cm freebsd-update ,
+.Xr freebsd-update 8 ,
 the directory is skipped.
 In the case of the primary directory name not being usable, a number
 starting with
@@ -197,11 +200,11 @@ is appended to the directory name.
 Like with the primary directory name, the constructed directory name is
 only used if the path name does not exist, or if the directory was
 previously created by
-.Cm freebsd-update .
+.Xr freebsd-update 8 .
 If the constructed directory still exist the appended number is
 incremented with 1 and the directory search process restarted.
 Should the number increment go above 9,
-.Cm freebsd-update
+.Xr freebsd-update 8
 will abort.
 .It Cm BackupKernelSymbolFiles
 The single parameter following this keyword must be
@@ -209,13 +212,13 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 will also backup kernel symbol files, if they exist.
 The kernel symbol files takes up a lot of disk space and are not
 needed for recovery purposes.
 If the symbol files are needed, after recovering a system using the
 backup kernel, the
-.Cm freebsd-update
+.Xr freebsd-update 8
 rollback command will recreate the symbol files along with the old
 kernel.
 .It Cm CreateBootEnv
@@ -224,7 +227,7 @@ The single parameter following this keyword must be
 or
 .Dq no
 and specifies whether
-.Cm freebsd-update
+.Xr freebsd-update 8
 will create a new boot environment using
 .Xr bectl 8
 when installing patches.
@@ -246,7 +249,7 @@ separated by a single dash, e.g.:
 13.0-RELEASE-p7_2022-02-16_141502
 .Ed
 .Pp
-.Cm freebsd-update
+.Xr freebsd-update 8
 does not attempt to create a boot environment
 if any of the following applies:
 .Pp
@@ -260,11 +263,11 @@ The ZFS root is not set up for boot environments
 for details
 .Pc .
 .It
-.Cm freebsd-update
+.Xr freebsd-update 8
 is running in a
 .Xr jail 8 .
 .It
-.Cm freebsd-update
+.Xr freebsd-update 8
 is updating a root directory selected via
 the basedir
 .Pq Fl b
@@ -272,11 +275,12 @@ or jail
 .Pq Fl j
 flags.
 .El
+.El
 .Sh FILES
 .Bl -tag -width "/etc/freebsd-update.conf"
 .It Pa /etc/freebsd-update.conf
 Default location of the
-.Cm freebsd-update
+.Xr freebsd-update 8
 configuration file.
 .El
 .Sh SEE ALSO
