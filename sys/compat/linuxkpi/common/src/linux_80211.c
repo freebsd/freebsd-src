@@ -3165,6 +3165,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr;
 	struct lkpi_sta *lsta;
 	int i, offset, ok, type;
+	bool is_beacon;
 
 	if (skb->len < 2) {
 		/* Need 80211 stats here. */
@@ -3192,19 +3193,20 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
-#ifdef LINUXKPI_DEBUG_80211
 	hdr = (void *)skb->data;
-	if ((debug_80211 & D80211_TRACE_RX_BEACONS) == 0 &&
-	    ieee80211_is_beacon(hdr->frame_control))
+	is_beacon = ieee80211_is_beacon(hdr->frame_control);
+
+#ifdef LINUXKPI_DEBUG_80211
+	if (is_beacon && (debug_80211 & D80211_TRACE_RX_BEACONS) == 0)
 		goto no_trace_beacons;
 
 	if (debug_80211 & D80211_TRACE_RX)
 		printf("TRACE-RX: %s: skb %p a/l/d/t-len (%u/%u/%u/%u) "
-		    "h %p d %p t %p e %p sh %p (%u) m %p plen %u len %u\n",
+		    "h %p d %p t %p e %p sh %p (%u) m %p plen %u len %u%s\n",
 		    __func__, skb, skb->_alloc_len, skb->len, skb->data_len,
 		    skb->truesize, skb->head, skb->data, skb->tail, skb->end,
 		    shinfo, shinfo->nr_frags,
-		    m, m->m_pkthdr.len, m->m_len);
+		    m, m->m_pkthdr.len, m->m_len, is_beacon ? " beacon" : "");
 
 	if (debug_80211 & D80211_TRACE_RX_DUMP)
 		hexdump(mtod(m, const void *), m->m_len, "RX (raw) ", 0);
@@ -3288,10 +3290,11 @@ no_trace_beacons:
 		vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	if (debug_80211 & D80211_TRACE_RX)
-		printf("TRACE %s: sta %p lsta %p ni %p vap %p\n", __func__, sta, lsta, ni, vap);
+		printf("TRACE %s: sta %p lsta %p state %d ni %p vap %p%s\n",
+		    __func__, sta, lsta, (lsta != NULL) ? lsta->state : -1,
+		    ni, vap, is_beacon ? " beacon" : "");
 
-	if (ni != NULL && vap != NULL &&
-	    ieee80211_is_beacon(hdr->frame_control) &&
+	if (ni != NULL && vap != NULL && is_beacon &&
 	    rx_status->device_timestamp > 0 &&
 	    m->m_pkthdr.len >= sizeof(struct ieee80211_frame)) {
 		struct lkpi_vif *lvif;
