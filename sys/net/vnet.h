@@ -236,6 +236,10 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 	curvnet = saved_vnet;
 #endif /* VNET_DEBUG */
 
+#define	CURVNET_ASSERT_SET()						\
+	VNET_ASSERT(curvnet != NULL, ("vnet is not set at %s:%d %s()",  \
+	    __FILE__, __LINE__, __func__))
+
 extern struct vnet *vnet0;
 #define	IS_DEFAULT_VNET(arg)	((arg) == vnet0)
 
