@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #define _NETINET_SCTP_CRC32_H_
 
 #if defined(_KERNEL)
-uint32_t sctp_calculate_cksum(struct mbuf *, uint32_t);
+uint32_t sctp_calculate_cksum(struct mbuf *, int32_t);
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 void sctp_delayed_cksum(struct mbuf *, uint32_t offset);
 #endif

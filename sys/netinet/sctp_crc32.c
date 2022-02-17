@@ -90,7 +90,7 @@ sctp_calculate_cksum_cb(void *arg, void *data, u_int len)
  * it is compiled on a kernel with SCTP support.
  */
 uint32_t
-sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
+sctp_calculate_cksum(struct mbuf *m, int32_t offset)
 {
 	uint32_t base;
 	int len;
