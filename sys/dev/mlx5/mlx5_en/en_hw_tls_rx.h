@@ -70,7 +70,8 @@ struct mlx5e_tls_rx_tag {
 #define	MLX5E_TLS_RX_ST_INIT 0
 #define	MLX5E_TLS_RX_ST_SETUP 1
 #define	MLX5E_TLS_RX_ST_READY 2
-#define	MLX5E_TLS_RX_ST_FREED 3
+#define	MLX5E_TLS_RX_ST_RELEASE 3
+#define	MLX5E_TLS_RX_ST_FREED 4
 
 	/*
 	 * The following fields are used to store the TCP starting
