@@ -141,6 +141,10 @@ mlx5e_iq_free_db(struct mlx5e_iq *iq)
 			iq->data[x].callback(iq->data[x].arg);
 			iq->data[x].callback = NULL;
 		}
+		if (unlikely(iq->data[x].p_refcount != NULL)) {
+			atomic_add_int(iq->data[x].p_refcount, -1);
+			iq->data[x].p_refcount = NULL;
+		}
 		bus_dmamap_destroy(iq->dma_tag, iq->data[x].dma_map);
 	}
 	free(iq->data, M_MLX5EN);
