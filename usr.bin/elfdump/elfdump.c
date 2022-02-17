@@ -585,6 +585,11 @@ main(int ac, char **av)
 	if ((fd = open(*av, O_RDONLY)) < 0 ||
 	    fstat(fd, &sb) < 0)
 		err(1, "%s", *av);
+	if ((size_t)sb.st_size < sizeof(Elf32_Ehdr)) {
+		if (flags & ED_IS_ELF)
+			exit(1);
+		errx(1, "not an elf file");
+	}
 	cap_rights_init(&rights, CAP_MMAP_R);
 	if (caph_rights_limit(fd, &rights) < 0)
 		err(1, "unable to limit rights for %s", *av);
@@ -598,7 +603,7 @@ main(int ac, char **av)
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
 		err(1, NULL);
-	if (!IS_ELF(*(Elf32_Ehdr *)e)) {
+	if (!IS_ELF(*e)) {
 		if (flags & ED_IS_ELF)
 			exit(1);
 		errx(1, "not an elf file");
