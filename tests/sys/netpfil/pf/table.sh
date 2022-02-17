@@ -253,7 +253,6 @@ precreate_body()
 {
 	pft_init
 
-set -x
 	vnet_mkjail alcatraz
 
 	jexec alcatraz pfctl -t foo -T add 192.0.2.1
