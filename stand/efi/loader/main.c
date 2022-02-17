@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 #include <efichar.h>
+#include <efirng.h>
 
 #include <uuid.h>
 
@@ -1202,6 +1203,47 @@ main(int argc, CHAR16 *argv[])
 	interact();			/* doesn't return */
 
 	return (EFI_SUCCESS);		/* keep compiler happy */
+}
+
+COMMAND_SET(efi_seed_entropy, "efi-seed-entropy", "try to get entropy from the EFI RNG", command_seed_entropy);
+
+static int
+command_seed_entropy(int argc, char *argv[])
+{
+	EFI_STATUS status;
+	EFI_RNG_PROTOCOL *rng;
+	unsigned int size = 2048;
+	void *buf;
+
+	if (argc > 1) {
+		size = strtol(argv[1], NULL, 0);
+	}
+
+	status = BS->LocateProtocol(&rng_guid, NULL, (VOID **)&rng);
+	if (status != EFI_SUCCESS) {
+		command_errmsg = "RNG protocol not found";
+		return (CMD_ERROR);
+	}
+
+	if ((buf = malloc(size)) == NULL) {
+		command_errmsg = "out of memory";
+		return (CMD_ERROR);
+	}
+
+	status = rng->GetRNG(rng, NULL, size, (UINT8 *)buf);
+	if (status != EFI_SUCCESS) {
+		free(buf);
+		command_errmsg = "GetRNG failed";
+		return (CMD_ERROR);
+	}
+
+	if (file_addbuf("efi_rng_seed", "boot_entropy_platform", size, buf) != 0) {
+		free(buf);
+		return (CMD_ERROR);
+	}
+
+	free(buf);
+	return (CMD_OK);
 }
 
 COMMAND_SET(poweroff, "poweroff", "power off the system", command_poweroff);
