@@ -269,14 +269,12 @@ armv8_aes_crypt_xts(int rounds, const uint8x16_t *data_schedule,
 
 		seglen = ulmin(len, ulmin(fromseglen, toseglen));
 		if (seglen < AES_XTS_BLOCKSIZE) {
-			printf("%d seglen %zu\n", __LINE__, seglen);
 			crypto_cursor_copydata(fromc, AES_XTS_BLOCKSIZE, block);
 			armv8_aes_crypt_xts_block(rounds, data_schedule,
 			    &tweakreg, block, block, do_encrypt);
 			crypto_cursor_copyback(toc, AES_XTS_BLOCKSIZE, block);
 			seglen = AES_XTS_BLOCKSIZE;
 		} else {
-			printf("%d seglen %zu\n", __LINE__, seglen);
 			for (oseglen = seglen; seglen >= AES_XTS_BLOCKSIZE;
 			    seglen -= AES_XTS_BLOCKSIZE) {
 				armv8_aes_crypt_xts_block(rounds, data_schedule,
