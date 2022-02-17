@@ -427,8 +427,10 @@ mlx5e_tls_rx_tag_release(void *arg, void **store, int cnt)
 static void
 mlx5e_tls_rx_tag_zfree(struct mlx5e_tls_rx_tag *ptag)
 {
+	/* make sure any unhandled taskqueue events are ignored */
+	ptag->state = MLX5E_TLS_RX_ST_FREED;
+
 	/* reset some variables */
-	ptag->state = MLX5E_TLS_RX_ST_INIT;
 	ptag->dek_index = 0;
 	ptag->dek_index_ok = 0;
 	ptag->tirn = 0;
@@ -569,7 +571,7 @@ mlx5e_tls_rx_work(struct work_struct *work)
 		MLX5E_TLS_RX_TAG_UNLOCK(ptag);
 		break;
 
-	case MLX5E_TLS_RX_ST_FREED:
+	case MLX5E_TLS_RX_ST_RELEASE:
 		/* remove flow rule for incoming traffic, if any */
 		if (ptag->flow_rule != NULL)
 			mlx5e_accel_fs_del_inpcb(ptag->flow_rule);
@@ -676,7 +678,6 @@ mlx5e_tls_rx_snd_tag_alloc(struct ifnet *ifp,
 		return (ENOMEM);
 
 	/* sanity check default values */
-	MPASS(ptag->state == MLX5E_TLS_RX_ST_INIT);
 	MPASS(ptag->dek_index == 0);
 	MPASS(ptag->dek_index_ok == 0);
 
@@ -759,6 +760,9 @@ mlx5e_tls_rx_snd_tag_alloc(struct ifnet *ifp,
 	MPASS(ptag->tag.refcount == 0);
 	m_snd_tag_init(&ptag->tag, ifp, &mlx5e_tls_rx_snd_tag_sw);
 	*ppmt = &ptag->tag;
+
+	/* reset state */
+	ptag->state = MLX5E_TLS_RX_ST_INIT;
 
 	queue_work(priv->tls_rx.wq, &ptag->work);
 	flush_work(&ptag->work);
@@ -989,7 +993,7 @@ mlx5e_tls_rx_snd_tag_free(struct m_snd_tag *pmt)
 	struct mlx5e_priv *priv;
 
 	MLX5E_TLS_RX_TAG_LOCK(ptag);
-	ptag->state = MLX5E_TLS_RX_ST_FREED;
+	ptag->state = MLX5E_TLS_RX_ST_RELEASE;
 	MLX5E_TLS_RX_TAG_UNLOCK(ptag);
 
 	priv = ptag->tag.ifp->if_softc;
