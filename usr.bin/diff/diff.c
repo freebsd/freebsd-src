@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "xmalloc.h"
 
 bool	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
-bool	 ignore_file_case, suppress_common, color;
+bool	 ignore_file_case, suppress_common, color, noderef;
 int	 diff_format, diff_context, status;
 int	 tabsize = 8, width = 130;
 static int	colorflag = COLORFLAG_NEVER;
@@ -62,6 +62,7 @@ enum {
 	OPT_CHANGED_GROUP_FORMAT,
 	OPT_SUPPRESS_COMMON,
 	OPT_COLOR,
+	OPT_NO_DEREFERENCE,
 };
 
 static struct option longopts[] = {
@@ -97,6 +98,7 @@ static struct option longopts[] = {
 	{ "side-by-side",		no_argument,		NULL,	'y' },
 	{ "ignore-file-name-case",	no_argument,		NULL,	OPT_IGN_FN_CASE },
 	{ "horizon-lines",		required_argument,	NULL,	OPT_HORIZON_LINES },
+	{ "no-dereference",		no_argument,		NULL,	OPT_NO_DEREFERENCE},
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
 	{ "normal",			no_argument,		NULL,	OPT_NORMAL },
 	{ "strip-trailing-cr",		no_argument,		NULL,	OPT_STRIPCR },
@@ -327,6 +329,10 @@ main(int argc, char **argv)
 			else
 				errx(2, "unsupported --color value '%s' (must be always, auto, or never)",
 					optarg);
+			break;
+		case OPT_NO_DEREFERENCE:
+			rflag = true;
+			noderef = true;
 			break;
 		default:
 			usage();

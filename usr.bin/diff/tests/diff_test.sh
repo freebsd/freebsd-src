@@ -20,6 +20,7 @@ atf_test_case report_identical
 atf_test_case non_regular_file
 atf_test_case binary
 atf_test_case functionname
+atf_test_case noderef
 
 simple_body()
 {
@@ -296,6 +297,35 @@ functionname_body()
 		"$(atf_get_srcdir)/functionname.in" "$(atf_get_srcdir)/functionname_objcclassm.in"
 }
 
+noderef_body()
+{
+	atf_check mkdir A B
+
+	atf_check -x "echo 1 > A/test-file"
+	atf_check -x "echo 1 > test-file"
+	atf_check -x "echo 1 > test-file2"
+
+	atf_check ln -s $(pwd)/test-file B/test-file
+
+	atf_check -o empty -s exit:0 diff -r A B
+	atf_check -o inline:"File A/test-file is a file while file B/test-file is a symbolic link\n" \
+		-s exit:1 diff -r --no-dereference A B
+
+	# both test files are now the same symbolic link
+	atf_check rm A/test-file
+
+	atf_check ln -s $(pwd)/test-file A/test-file
+	atf_check -o empty -s exit:0 diff -r A B
+	atf_check -o empty -s exit:0 diff -r --no-dereference A B
+
+	# make test files different symbolic links, but same contents
+	atf_check unlink A/test-file
+	atf_check ln -s $(pwd)/test-file2 A/test-file
+
+	atf_check -o empty -s exit:0 diff -r A B
+	atf_check -o inline:"Symbolic links A/test-file and B/test-file differ\n" -s exit:1 diff -r --no-dereference A B
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -318,4 +348,5 @@ atf_init_test_cases()
 	atf_add_test_case non_regular_file
 	atf_add_test_case binary
 	atf_add_test_case functionname
+	atf_add_test_case noderef
 }
