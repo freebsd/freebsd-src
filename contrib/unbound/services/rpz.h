@@ -123,6 +123,8 @@ struct rpz {
 	struct ub_packed_rrset_key* cname_override;
 	int log;
 	char* log_name;
+	/** signal NXDOMAIN blocked with unset RA flag */
+	int signal_nxdomain_ra;
 	struct regional* region;
 	int disabled;
 };

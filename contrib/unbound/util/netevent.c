@@ -1146,6 +1146,8 @@ reclaim_tcp_handler(struct comm_point* c)
 	}
 	c->tcp_more_read_again = NULL;
 	c->tcp_more_write_again = NULL;
+	c->tcp_byte_count = 0;
+	sldns_buffer_clear(c->buffer);
 }
 
 /** do the callback when writing is done */

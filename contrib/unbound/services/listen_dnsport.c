@@ -1370,39 +1370,38 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		struct comm_point* cp = NULL;
 		if(ports->ftype == listen_type_udp ||
 		   ports->ftype == listen_type_udp_dnscrypt)
-			cp = comm_point_create_udp(base, ports->fd, 
+			cp = comm_point_create_udp(base, ports->fd,
 				front->udp_buff, cb, cb_arg, ports->socket);
 		else if(ports->ftype == listen_type_tcp ||
 				ports->ftype == listen_type_tcp_dnscrypt)
-			cp = comm_point_create_tcp(base, ports->fd, 
+			cp = comm_point_create_tcp(base, ports->fd,
 				tcp_accept_count, tcp_idle_timeout,
 				harden_large_queries, 0, NULL,
 				tcp_conn_limit, bufsize, front->udp_buff,
 				ports->ftype, cb, cb_arg, ports->socket);
 		else if(ports->ftype == listen_type_ssl ||
 			ports->ftype == listen_type_http) {
-			cp = comm_point_create_tcp(base, ports->fd, 
+			cp = comm_point_create_tcp(base, ports->fd,
 				tcp_accept_count, tcp_idle_timeout,
 				harden_large_queries,
 				http_max_streams, http_endpoint,
 				tcp_conn_limit, bufsize, front->udp_buff,
 				ports->ftype, cb, cb_arg, ports->socket);
-			if(http_notls && ports->ftype == listen_type_http)
-				cp->ssl = NULL;
-			else
-				cp->ssl = sslctx;
 			if(ports->ftype == listen_type_http) {
 				if(!sslctx && !http_notls) {
-				  log_warn("HTTPS port configured, but no TLS "
-					"tls-service-key or tls-service-pem "
-					"set");
+					log_warn("HTTPS port configured, but "
+						"no TLS tls-service-key or "
+						"tls-service-pem set");
 				}
 #ifndef HAVE_SSL_CTX_SET_ALPN_SELECT_CB
-				if(!http_notls)
-				  log_warn("Unbound is not compiled with an "
-					"OpenSSL version supporting ALPN "
-					" (OpenSSL >= 1.0.2). This is required "
-					"to use DNS-over-HTTPS");
+				if(!http_notls) {
+					log_warn("Unbound is not compiled "
+						"with an OpenSSL version "
+						"supporting ALPN "
+						"(OpenSSL >= 1.0.2). This "
+						"is required to use "
+						"DNS-over-HTTPS");
+				}
 #endif
 #ifndef HAVE_NGHTTP2_NGHTTP2_H
 				log_warn("Unbound is not compiled with "
@@ -1412,13 +1411,17 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			}
 		} else if(ports->ftype == listen_type_udpancil ||
 				  ports->ftype == listen_type_udpancil_dnscrypt)
-			cp = comm_point_create_udp_ancil(base, ports->fd, 
+			cp = comm_point_create_udp_ancil(base, ports->fd,
 				front->udp_buff, cb, cb_arg, ports->socket);
 		if(!cp) {
-			log_err("can't create commpoint");	
+			log_err("can't create commpoint");
 			listen_delete(front);
 			return NULL;
 		}
+		if(http_notls && ports->ftype == listen_type_http)
+			cp->ssl = NULL;
+		else
+			cp->ssl = sslctx;
 		cp->dtenv = dtenv;
 		cp->do_not_close = 1;
 #ifdef USE_DNSCRYPT

@@ -25,8 +25,10 @@
 #include <netdb.h>
 #endif
 
+/** bits for the offset */
+#define RET_OFFSET_MASK (((unsigned)(~LDNS_WIREPARSE_MASK))>>LDNS_WIREPARSE_SHIFT)
 /** return an error */
-#define RET_ERR(e, off) ((int)((e)|((off)<<LDNS_WIREPARSE_SHIFT)))
+#define RET_ERR(e, off) ((int)(((e)&LDNS_WIREPARSE_MASK)|(((off)&RET_OFFSET_MASK)<<LDNS_WIREPARSE_SHIFT)))
 /** Move parse error but keep its ID */
 #define RET_ERR_SHIFT(e, move) RET_ERR(LDNS_WIREPARSE_ERROR(e), LDNS_WIREPARSE_OFFSET(e)+(move));
 
@@ -543,9 +545,10 @@ sldns_parse_rdf_token(sldns_buffer* strbuf, char* token, size_t token_len,
 {
 	size_t slen;
 
-	/* skip spaces */
+	/* skip spaces and tabs */
 	while(sldns_buffer_remaining(strbuf) > 0 && !*quoted &&
-		*(sldns_buffer_current(strbuf)) == ' ') {
+		(*(sldns_buffer_current(strbuf)) == ' ' ||
+		*(sldns_buffer_current(strbuf)) == '\t')) {
 		sldns_buffer_skip(strbuf, 1);
 	}
 
@@ -601,7 +604,10 @@ sldns_affix_token(sldns_buffer* strbuf, char* token, size_t* token_len,
 	size_t addstrlen = 0;
 
 	/* add space */
-	if(addlen < 1) return 0;
+	/* when addlen < 2, the token buffer is full considering the NULL byte
+	 * from strlen and will lead to buffer overflow with the second
+	 * assignement below. */
+	if(addlen < 2) return 0;
 	token[*token_strlen] = ' ';
 	token[++(*token_strlen)] = 0;
 

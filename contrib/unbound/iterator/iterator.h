@@ -80,7 +80,7 @@ struct rbtree_type;
 /**
  * number of labels from QNAME that are always send individually when using
  * QNAME minimisation, even when the number of labels of the QNAME is bigger
- * tham MAX_MINIMISE_COUNT */
+ * than MAX_MINIMISE_COUNT */
 #define MINIMISE_ONE_LAB	4
 #define MINIMISE_MULTIPLE_LABS	(MAX_MINIMISE_COUNT - MINIMISE_ONE_LAB)
 /** at what query-sent-count to stop target fetch policy */
@@ -379,7 +379,7 @@ struct iter_qstate {
 	/** list of pending queries to authoritative servers. */
 	struct outbound_list outlist;
 
-	/** QNAME minimisation state, RFC7816 */
+	/** QNAME minimisation state, RFC9156 */
 	enum minimisation_state minimisation_state;
 
 	/** State for capsfail: QNAME minimisation state for comparisons. */

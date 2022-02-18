@@ -11,7 +11,7 @@ have any feedback, we would love to hear from you. Don’t hesitate to
 [create an issue on Github](https://github.com/NLnetLabs/unbound/issues/new)
 or post a message on the [Unbound mailing list](https://lists.nlnetlabs.nl/mailman/listinfo/unbound-users).
 You can learn more about Unbound by reading our
-[documentation](https://nlnetlabs.nl/documentation/unbound/).
+[documentation](https://unbound.docs.nlnetlabs.nl/).
 
 ## Compiling
 
@@ -33,7 +33,7 @@ support.
 
 All of Unbound's configuration options are described in the man pages, which
 will be installed and are available on the Unbound
-[documentation page](https://nlnetlabs.nl/documentation/unbound/).
+[documentation page](https://unbound.docs.nlnetlabs.nl/).
 
 An example configuration file is located in
 [doc/example.conf](https://github.com/NLnetLabs/unbound/blob/master/doc/example.conf.in).

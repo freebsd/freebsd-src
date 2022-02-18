@@ -1,5 +1,138 @@
+3 February 2022: Wouter
+	- Fix for #611: Integer overflow in sldns_wire2str_pkt_scan.
+
+2 February 2022: George
+	- Merge PR #532 from Shchelk: Fix: buffer overflow bug.
+	- Merge PR #616: Update ratelimit logic. It also introduces
+	  ratelimit-backoff and ip-ratelimit-backoff configuration options.
+	- Change aggressive-nsec default to yes.
+	- Merge PR #617: Update stub/forward-host notation to accept port and
+	  tls-auth-name.
+	- Update stream_ssl.tdir test to also use the new forward-host
+	  notation.
+
+2 February 2022: Wouter
+	- Update version number in repo to 1.15.0 for upcoming release,
+	  since it changes the aggressive-nsec default and the ratelimit change.
+	- Fix header comment for doxygen for authextstrtoaddr.
+	- please clang analyzer for loop in test code.
+	- Fix docker splint test to use more portable uname.
+	- Update contrib/aaaa-filter-iterator.patch with diff for current
+	  software version.
+
+1 February 2022: George
+	- Merge PR #603 from fobser: Use OpenSSL 1.1 API to access DSA and RSA
+	  internals.
+
+31 January 2022: George
+	- Fix review comment for use-after-free when failing to send UDP out.
+
+31 January 2022: Wouter
+	- iana portlist update.
+
+29 January 2022: George
+	- Fix tls-* and ssl-* documented alternate syntax to also be available
+	  through remote-control and unbound-checkconf.
+	- Better cleanup on failed DoT/DoH listening socket creation.
+
+26 January 2022: George
+	- Fix #599: [FR] RFC 9156 (obsoletes RFC 7816), by noting the new RFC
+	  document.
+
+26 January 2022: Wouter
+	- Test for NSID in SERVFAIL response due to DNSSEC bogus.
+
+25 January 2022: George
+	- Fix #588: Unbound 1.13.2 crashes due to p->pc is NULL in
+	  serviced_udp_callback.
+	- Merge PR #612: TCP race condition.
+
+25 January 2022: Wouter
+	- Fix #610: Undefine-shift in sldns_str2wire_hip_buf.
+
+19 January 2022: George
+	- For dnstap, do not wakeupnow right there. Instead zero the timer to
+	  force the wakeup callback asap.
+
+14 January 2022: George
+	- Merge PR #605:
+	  - Fix EDNS to upstream where the same option could be attached
+	     more than once.
+	  - Add a region to serviced_query for allocations.
+
+14 January 2022: Wouter
+	- Add rpz: for-downstream: yesno option, where the RPZ zone is
+	  authoritatively answered for, so the RPZ zone contents can be
+	  checked with DNS queries directed at the RPZ zone.
+	- For #602: Allow the module-config "subnetcache validator cachedb
+	  iterator".
+
+11 January 2022: George
+	- Fix prematurely terminated TCP queries when a reply has the same ID.
+
+7 January 2022: Wouter
+	- Merge #600 from pemensik: Change file mode before changing file
+	  owner.
+
+5 January 2022: Wouter
+	- Fix for #596: fix that rpz return message is returned and not just
+	  the rcode from the iterator return path. This fixes signal unset RA
+	  after a CNAME.
+	- Fix unit tests for rpz now that the AA flag returns successfully from
+	  the iterator loop.
+	- Fix for #596: add unit test for nsdname trigger and signal unset RA.
+	- Fix for #596: add unit test for nsip trigger and signal unset RA.
+	- Fix #598: Fix unbound-checkconf fatal error: module conf
+	  'respip dns64 validator iterator' is not known to work.
+	- Fix for #596: Fix rpz-signal-nxdomain-ra to work for clientip
+	  triggered operation.
+
+4 January 2022: Wouter
+	- Fix #596: unset the RA bit when a query is blocked by an unbound
+	  RPZ nxdomain reply. The option rpz-signal-nxdomain-ra allows to
+	  signal that a domain is externally blocked to clients when it
+	  is blocked with NXDOMAIN by unsetting RA.
+	- Fix to add test for rpz-signal-nxdomain-ra.
+	- Fix #596: only unset RA when NXDOMAIN is signalled.
+	- Fix that RPZ does not set RD flag on replies, it should be copied
+	  from the query.
+
+22 December 2021: George
+	- contrib/aaaa-filter-iterator.patch file renewed diff content to
+	  apply cleanly to the current coderepo for the current code version.
+
+20 December 2021: George
+	- Fix #591: Unbound-anchor manpage links to non-existent license file.
+
+13 December 2021: George
+	- Add missing configure flags for optional features in the
+	  documentation.
+	- Fix Unbound capitalization in the documentation.
+
+13 December 2021: Wouter
+	- Fix to pick up other class local zone information before unlock.
+
+10 December 2021: George
+	- Allow local-data for classes other than IN to inherit a configured
+	  local-zone's type if possible, instead of defaulting to type
+	  transparent as per the implicit rule.
+
+10 December 2021: Wouter
+	- Add code similar to fix for ldns for tab between strings, for
+	  consistency, the test case was not broken.
+
+6 December 2021: Wouter
+	- Merge PR #581 from fobser: Fix -Wmissing-prototypes and -Wshadow
+	  warnings in rpz.
+	- Fix validator debug output about DS support, print correct algorithm.
+
+3 December 2021: Wouter
+	- Fix compile warning for if_nametoindex on windows 64bit.
+
 1 December 2021: Wouter
 	- configure is set to 1.14.0, and release branch.
+	  This was released as version 1.14.0 on 9 Dec 2021, with the doxygen
+	  fix below included. The main branch continues as 1.14.1.
 	- Fix doc/unbound.doxygen to remove obsolete tag warning.
 
 1 December 2021: George

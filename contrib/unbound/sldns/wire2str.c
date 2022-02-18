@@ -817,6 +817,7 @@ int sldns_wire2str_dname_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 	unsigned i, counter=0;
 	unsigned maxcompr = MAX_COMPRESS_PTRS; /* loop detection, max compr ptrs */
 	int in_buf = 1;
+	size_t dname_len = 0;
 	if(comprloop) {
 		if(*comprloop != 0)
 			maxcompr = 30; /* for like ipv6 reverse name, per label */
@@ -872,6 +873,16 @@ int sldns_wire2str_dname_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 			labellen = (uint8_t)*dlen;
 		else if(!in_buf && pos+(size_t)labellen > pkt+pktlen)
 			labellen = (uint8_t)(pkt + pktlen - pos);
+		dname_len += ((size_t)labellen)+1;
+		if(dname_len > LDNS_MAX_DOMAINLEN) {
+			/* dname_len counts the uncompressed length we have
+			 * seen so far, and the domain name has become too
+			 * long, prevent the loop from printing overly long
+			 * content. */
+			w += sldns_str_print(s, slen,
+				"ErrorDomainNameTooLong");
+			return w;
+		}
 		for(i=0; i<(unsigned)labellen; i++) {
 			w += dname_char_print(s, slen, *pos++);
 		}

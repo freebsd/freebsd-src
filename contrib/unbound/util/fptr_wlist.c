@@ -138,6 +138,7 @@ fptr_whitelist_comm_timer(void (*fptr)(void*))
 	else if(fptr == &auth_xfer_probe_timer_callback) return 1;
 	else if(fptr == &auth_xfer_transfer_timer_callback) return 1;
 	else if(fptr == &mesh_serve_expired_callback) return 1;
+	else if(fptr == &serviced_timer_cb) return 1;
 #ifdef USE_DNSTAP
 	else if(fptr == &mq_wakeup_cb) return 1;
 #endif
@@ -334,9 +335,10 @@ fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_type fptr)
 int 
 fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
 	struct query_info* qinfo, uint16_t flags, int dnssec, int want_dnssec,
-	int nocaps, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct module_qstate* q))
+	int nocaps, int check_ratelimit, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen, int tcp_upstream,
+	int ssl_upstream, char* tls_auth_name, struct module_qstate* q,
+	int* was_ratelimited))
 {
 	if(fptr == &worker_send_query) return 1;
 	else if(fptr == &libworker_send_query) return 1;

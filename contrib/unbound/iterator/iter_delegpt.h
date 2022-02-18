@@ -126,6 +126,11 @@ struct delegpt_ns {
 	 * Also enabled if a parent-side cache entry exists, or a parent-side
 	 * negative-cache entry exists. */
 	uint8_t done_pside6;
+	/** the TLS authentication name, (if not NULL) to use. */
+	char* tls_auth_name;
+	/** the port to use; it should mosty be the default 53 but configured
+	 *  upstreams can provide nondefault ports. */
+	int port;
 };
 
 /**
@@ -191,10 +196,12 @@ int delegpt_set_name(struct delegpt* dp, struct regional* regional,
  * @param regional: where to allocate the info.
  * @param name: domain name in wire format.
  * @param lame: name is lame, disprefer it.
+ * @param tls_auth_name: TLS authentication name (or NULL).
+ * @param port: port to use for resolved addresses.
  * @return false on error.
  */
-int delegpt_add_ns(struct delegpt* dp, struct regional* regional, 
-	uint8_t* name, uint8_t lame);
+int delegpt_add_ns(struct delegpt* dp, struct regional* regional,
+	uint8_t* name, uint8_t lame, char* tls_auth_name, int port);
 
 /**
  * Add NS rrset; calls add_ns repeatedly.
@@ -271,12 +278,14 @@ int delegpt_add_rrset(struct delegpt* dp, struct regional* regional,
  * @param bogus: if address is bogus.
  * @param lame: if address is lame.
  * @param tls_auth_name: TLS authentication name (or NULL).
+ * @param port: the port to use; if -1 the port is taken from addr.
  * @param additions: will be set to 1 if a new address is added
  * @return false on error.
  */
-int delegpt_add_addr(struct delegpt* dp, struct regional* regional, 
+int delegpt_add_addr(struct delegpt* dp, struct regional* regional,
 	struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t bogus, uint8_t lame, char* tls_auth_name, int* additions);
+	uint8_t bogus, uint8_t lame, char* tls_auth_name, int port,
+	int* additions);
 
 /** 
  * Find NS record in name list of delegation point.
@@ -404,22 +413,27 @@ int delegpt_set_name_mlc(struct delegpt* dp, uint8_t* name);
  * @param dp: must have been created with delegpt_create_mlc. 
  * @param name: the name to add.
  * @param lame: the name is lame, disprefer.
+ * @param tls_auth_name: TLS authentication name (or NULL).
+ * @param port: port to use for resolved addresses.
  * @return false on error.
  */
-int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame);
+int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame,
+	char* tls_auth_name, int port);
 
 /**
  * add an address to a malloced delegation point.
- * @param dp: must have been created with delegpt_create_mlc. 
+ * @param dp: must have been created with delegpt_create_mlc.
  * @param addr: the address.
  * @param addrlen: the length of addr.
  * @param bogus: if address is bogus.
  * @param lame: if address is lame.
  * @param tls_auth_name: TLS authentication name (or NULL).
+ * @param port: the port to use; if -1 the port is taken from addr.
  * @return false on error.
  */
 int delegpt_add_addr_mlc(struct delegpt* dp, struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t bogus, uint8_t lame, char* tls_auth_name);
+	socklen_t addrlen, uint8_t bogus, uint8_t lame, char* tls_auth_name,
+	int port);
 
 /**
  * Add target address to the delegation point.

@@ -97,10 +97,12 @@ void worker_sighandler(int ATTR_UNUSED(sig), void* ATTR_UNUSED(arg))
 struct outbound_entry* worker_send_query(
 	struct query_info* ATTR_UNUSED(qinfo), uint16_t ATTR_UNUSED(flags),
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
-	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr),
+	int ATTR_UNUSED(nocaps), int ATTR_UNUSED(check_ratelimit),
+	struct sockaddr_storage* ATTR_UNUSED(addr),
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
-	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q))
+	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q),
+	int* ATTR_UNUSED(was_ratelimited))
 {
 	log_assert(0);
 	return 0;
@@ -129,10 +131,12 @@ worker_alloc_cleanup(void* ATTR_UNUSED(arg))
 struct outbound_entry* libworker_send_query(
 	struct query_info* ATTR_UNUSED(qinfo), uint16_t ATTR_UNUSED(flags),
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
-	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr),
+	int ATTR_UNUSED(nocaps), int ATTR_UNUSED(check_ratelimit),
+	struct sockaddr_storage* ATTR_UNUSED(addr),
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
-	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q))
+	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q),
+	int* ATTR_UNUSED(was_ratelimited))
 {
 	log_assert(0);
 	return 0;

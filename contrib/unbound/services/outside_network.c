@@ -94,6 +94,16 @@ static void waiting_list_remove(struct outside_network* outnet,
 static uint16_t tcp_select_id(struct outside_network* outnet,
 	struct reuse_tcp* reuse);
 
+/** Perform serviced query UDP sending operation */
+static int serviced_udp_send(struct serviced_query* sq, sldns_buffer* buff);
+
+/** Send serviced query over TCP return false on initial failure */
+static int serviced_tcp_send(struct serviced_query* sq, sldns_buffer* buff);
+
+/** call the callbacks for a serviced query */
+static void serviced_callbacks(struct serviced_query* sq, int error,
+	struct comm_point* c, struct comm_reply* rep);
+
 int 
 pending_cmp(const void* key1, const void* key2)
 {
@@ -836,6 +846,7 @@ outnet_add_tcp_waiting_first(struct outside_network* outnet,
 	if(w->on_tcp_waiting_list)
 		return;
 	w->next_waiting = outnet->tcp_wait_first;
+	log_assert(w->next_waiting != w);
 	if(!outnet->tcp_wait_last)
 		outnet->tcp_wait_last = w;
 	outnet->tcp_wait_first = w;
@@ -1136,6 +1147,22 @@ static void reuse_cb_readwait_for_failure(rbtree_type* tree_by_id, int err)
 	}
 }
 
+/** mark the entry for being in the cb_and_decommission stage */
+static void mark_for_cb_and_decommission(rbnode_type* node,
+	void* ATTR_UNUSED(arg))
+{
+	struct waiting_tcp* w = (struct waiting_tcp*)node->key;
+	/* Mark the waiting_tcp to signal later code (serviced_delete) that
+	 * this item is part of the backed up tree_by_id and will be deleted
+	 * later. */
+	w->in_cb_and_decommission = 1;
+	/* Mark the serviced_query for deletion so that later code through
+	 * callbacks (iter_clear .. outnet_serviced_query_stop) won't
+	 * prematurely delete it. */
+	if(w->cb)
+		((struct serviced_query*)w->cb_arg)->to_be_deleted = 1;
+}
+
 /** perform callbacks for failure and also decommission pending tcp.
  * the callbacks remove references in sq->pending to the waiting_tcp
  * members of the tree_by_id in the pending tcp.  The pending_tcp is
@@ -1151,6 +1178,9 @@ static void reuse_cb_and_decommission(struct outside_network* outnet,
 	pend->reuse.write_wait_first = NULL;
 	pend->reuse.write_wait_last = NULL;
 	decommission_pending_tcp(outnet, pend);
+	if(store.root != NULL && store.root != RBTREE_NULL) {
+		traverse_postorder(&store, &mark_for_cb_and_decommission, NULL);
+	}
 	reuse_cb_readwait_for_failure(&store, error);
 	reuse_del_readwait(&store);
 }
@@ -1248,6 +1278,12 @@ outnet_tcp_cb(struct comm_point* c, void* arg, int error,
 				c->buffer));
 			/* find the query the reply is for */
 			w = reuse_tcp_by_id_find(&pend->reuse, id);
+			/* Make sure that the reply we got is at least for a
+			 * sent query with the same ID; the waiting_tcp that
+			 * gets a reply is assumed to not be waiting to be
+			 * sent. */
+			if(w && (w->on_tcp_waiting_list || w->write_wait_queued))
+				w = NULL;
 		}
 	}
 	if(error == NETEVENT_NOERROR && !w) {
@@ -1265,6 +1301,8 @@ outnet_tcp_cb(struct comm_point* c, void* arg, int error,
 		}
 	}
 	if(w) {
+		log_assert(!w->on_tcp_waiting_list);
+		log_assert(!w->write_wait_queued);
 		reuse_tree_by_id_delete(&pend->reuse, w);
 		verbose(VERB_CLIENT, "outnet tcp callback query err %d buflen %d",
 			error, (int)sldns_buffer_limit(c->buffer));
@@ -1324,7 +1362,7 @@ outnet_send_wait_udp(struct outside_network* outnet)
 {
 	struct pending* pend;
 	/* process waiting queries */
-	while(outnet->udp_wait_first && outnet->unused_fds 
+	while(outnet->udp_wait_first && outnet->unused_fds
 		&& !outnet->want_to_quit) {
 		pend = outnet->udp_wait_first;
 		outnet->udp_wait_first = pend->next_waiting;
@@ -1333,8 +1371,10 @@ outnet_send_wait_udp(struct outside_network* outnet)
 		sldns_buffer_write(outnet->udp_buff, pend->pkt, pend->pkt_len);
 		sldns_buffer_flip(outnet->udp_buff);
 		free(pend->pkt); /* freeing now makes get_mem correct */
-		pend->pkt = NULL; 
+		pend->pkt = NULL;
 		pend->pkt_len = 0;
+		log_assert(!pend->sq->busy);
+		pend->sq->busy = 1;
 		if(!randomize_and_send_udp(pend, outnet->udp_buff,
 			pend->timeout)) {
 			/* callback error on pending */
@@ -1344,6 +1384,8 @@ outnet_send_wait_udp(struct outside_network* outnet)
 					NETEVENT_CLOSED, NULL);
 			}
 			pending_delete(outnet, pend);
+		} else {
+			pend->sq->busy = 0;
 		}
 	}
 }
@@ -1454,7 +1496,6 @@ calc_num46(char** ifs, int num_ifs, int do_ip4, int do_ip6,
 				(*num_ip4)++;
 		}
 	}
-
 }
 
 void
@@ -1708,16 +1749,9 @@ static void
 serviced_node_del(rbnode_type* node, void* ATTR_UNUSED(arg))
 {
 	struct serviced_query* sq = (struct serviced_query*)node;
-	struct service_callback* p = sq->cblist, *np;
-	free(sq->qbuf);
-	free(sq->zone);
-	free(sq->tls_auth_name);
-	edns_opt_list_free(sq->opt_list);
-	while(p) {
-		np = p->next;
-		free(p);
-		p = np;
-	}
+	alloc_reg_release(sq->alloc, sq->region);
+	if(sq->timer)
+		comm_timer_delete(sq->timer);
 	free(sq);
 }
 
@@ -2174,10 +2208,13 @@ pending_udp_query(struct serviced_query* sq, struct sldns_buffer* packet,
 		sq->outnet->udp_wait_last = pend;
 		return pend;
 	}
+	log_assert(!sq->busy);
+	sq->busy = 1;
 	if(!randomize_and_send_udp(pend, packet, timeout)) {
 		pending_delete(sq->outnet, pend);
 		return NULL;
 	}
+	sq->busy = 0;
 	return pend;
 }
 
@@ -2247,7 +2284,7 @@ reuse_tcp_select_id(struct reuse_tcp* reuse, struct outside_network* outnet)
 	}
 
 	/* equally pick a random unused element from the tree that is
-	 * not in use.  Pick a the n-th index of an ununused number,
+	 * not in use.  Pick a the n-th index of an unused number,
 	 * then loop over the empty spaces in the tree and find it */
 	log_assert(reuse->tree_by_id.count < 0xffff);
 	select = ub_random_max(outnet->rnd, 0xffff - reuse->tree_by_id.count);
@@ -2360,6 +2397,7 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 #ifdef USE_DNSTAP
 	w->sq = NULL;
 #endif
+	w->in_cb_and_decommission = 0;
 	if(pend) {
 		/* we have a buffer available right now */
 		if(reuse) {
@@ -2456,30 +2494,62 @@ lookup_serviced(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	return (struct serviced_query*)rbtree_search(outnet->serviced, &key);
 }
 
+void
+serviced_timer_cb(void* arg)
+{
+	struct serviced_query* sq = (struct serviced_query*)arg;
+	struct outside_network* outnet = sq->outnet;
+	verbose(VERB_ALGO, "serviced send timer");
+	/* By the time this cb is called, if we don't have any registered
+	 * callbacks for this serviced_query anymore; do not send. */
+	if(!sq->cblist)
+		goto delete;
+	/* perform first network action */
+	if(outnet->do_udp && !(sq->tcp_upstream || sq->ssl_upstream)) {
+		if(!serviced_udp_send(sq, outnet->udp_buff))
+			goto delete;
+	} else {
+		if(!serviced_tcp_send(sq, outnet->udp_buff))
+			goto delete;
+	}
+	/* Maybe by this time we don't have callbacks attached anymore. Don't
+	 * proactively try to delete; let it run and maybe another callback
+	 * will get attached by the time we get an answer. */
+	return;
+delete:
+	serviced_callbacks(sq, NETEVENT_CLOSED, NULL, NULL);
+}
+
 /** Create new serviced entry */
 static struct serviced_query*
 serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	int want_dnssec, int nocaps, int tcp_upstream, int ssl_upstream,
 	char* tls_auth_name, struct sockaddr_storage* addr, socklen_t addrlen,
 	uint8_t* zone, size_t zonelen, int qtype, struct edns_option* opt_list,
-	size_t pad_queries_block_size)
+	size_t pad_queries_block_size, struct alloc_cache* alloc,
+	struct regional* region)
 {
 	struct serviced_query* sq = (struct serviced_query*)malloc(sizeof(*sq));
+	struct timeval t;
 #ifdef UNBOUND_DEBUG
 	rbnode_type* ins;
 #endif
 	if(!sq) 
 		return NULL;
 	sq->node.key = sq;
-	sq->qbuf = memdup(sldns_buffer_begin(buff), sldns_buffer_limit(buff));
+	sq->alloc = alloc;
+	sq->region = region;
+	sq->qbuf = regional_alloc_init(region, sldns_buffer_begin(buff),
+		sldns_buffer_limit(buff));
 	if(!sq->qbuf) {
+		alloc_reg_release(alloc, region);
 		free(sq);
 		return NULL;
 	}
 	sq->qbuflen = sldns_buffer_limit(buff);
-	sq->zone = memdup(zone, zonelen);
+	sq->zone = regional_alloc_init(region, zone, zonelen);
 	if(!sq->zone) {
-		free(sq->qbuf);
+		alloc_reg_release(alloc, region);
 		free(sq);
 		return NULL;
 	}
@@ -2491,10 +2561,9 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	sq->tcp_upstream = tcp_upstream;
 	sq->ssl_upstream = ssl_upstream;
 	if(tls_auth_name) {
-		sq->tls_auth_name = strdup(tls_auth_name);
+		sq->tls_auth_name = regional_strdup(region, tls_auth_name);
 		if(!sq->tls_auth_name) {
-			free(sq->zone);
-			free(sq->qbuf);
+			alloc_reg_release(alloc, region);
 			free(sq);
 			return NULL;
 		}
@@ -2503,17 +2572,16 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	}
 	memcpy(&sq->addr, addr, addrlen);
 	sq->addrlen = addrlen;
-	sq->opt_list = NULL;
-	if(opt_list) {
-		sq->opt_list = edns_opt_copy_alloc(opt_list);
-		if(!sq->opt_list) {
-			free(sq->tls_auth_name);
-			free(sq->zone);
-			free(sq->qbuf);
-			free(sq);
-			return NULL;
-		}
+	sq->opt_list = opt_list;
+	sq->busy = 0;
+	sq->timer = comm_timer_create(outnet->base, serviced_timer_cb, sq);
+	if(!sq->timer) {
+		alloc_reg_release(alloc, region);
+		free(sq);
+		return NULL;
 	}
+	memset(&t, 0, sizeof(t));
+	comm_timer_set(sq->timer, &t);
 	sq->outnet = outnet;
 	sq->cblist = NULL;
 	sq->pending = NULL;
@@ -2522,7 +2590,7 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	sq->to_be_deleted = 0;
 	sq->padding_block_size = pad_queries_block_size;
 #ifdef UNBOUND_DEBUG
-	ins = 
+	ins =
 #else
 	(void)
 #endif
@@ -2620,29 +2688,38 @@ serviced_delete(struct serviced_query* sq)
 			struct waiting_tcp* w = (struct waiting_tcp*)
 				sq->pending;
 			verbose(VERB_CLIENT, "serviced_delete: TCP");
+			log_assert(!(w->write_wait_queued && w->on_tcp_waiting_list));
 			/* if on stream-write-waiting list then
 			 * remove from waiting list and waiting_tcp_delete */
 			if(w->write_wait_queued) {
 				struct pending_tcp* pend =
 					(struct pending_tcp*)w->next_waiting;
 				verbose(VERB_CLIENT, "serviced_delete: writewait");
-				reuse_tree_by_id_delete(&pend->reuse, w);
+				if(!w->in_cb_and_decommission)
+					reuse_tree_by_id_delete(&pend->reuse, w);
 				reuse_write_wait_remove(&pend->reuse, w);
-				waiting_tcp_delete(w);
+				if(!w->in_cb_and_decommission)
+					waiting_tcp_delete(w);
 			} else if(!w->on_tcp_waiting_list) {
 				struct pending_tcp* pend =
 					(struct pending_tcp*)w->next_waiting;
 				verbose(VERB_CLIENT, "serviced_delete: tcpreusekeep");
+				/* w needs to stay on tree_by_id to not assign
+				 * the same ID; remove the callback since its
+				 * serviced_query will be gone. */
+				w->cb = NULL;
 				if(!reuse_tcp_remove_serviced_keep(w, sq)) {
-					reuse_cb_and_decommission(sq->outnet,
-						pend, NETEVENT_CLOSED);
+					if(!w->in_cb_and_decommission)
+						reuse_cb_and_decommission(sq->outnet,
+							pend, NETEVENT_CLOSED);
 					use_free_buffer(sq->outnet);
 				}
 				sq->pending = NULL;
 			} else {
 				verbose(VERB_CLIENT, "serviced_delete: tcpwait");
 				waiting_list_remove(sq->outnet, w);
-				waiting_tcp_delete(w);
+				if(!w->in_cb_and_decommission)
+					waiting_tcp_delete(w);
 			}
 		}
 	}
@@ -2892,7 +2969,8 @@ serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 		 * use secondary buffer to store the query.
 		 * This is a data copy, but faster than packet to server */
 		backlen = sldns_buffer_limit(c->buffer);
-		backup_p = memdup(sldns_buffer_begin(c->buffer), backlen);
+		backup_p = regional_alloc_init(sq->region,
+			sldns_buffer_begin(c->buffer), backlen);
 		if(!backup_p) {
 			log_err("malloc failure in serviced query callbacks");
 			error = NETEVENT_CLOSED;
@@ -2910,10 +2988,8 @@ serviced_callbacks(struct serviced_query* sq, int error, struct comm_point* c,
 		}
 		fptr_ok(fptr_whitelist_serviced_query(p->cb));
 		(void)(*p->cb)(c, p->cb_arg, error, rep);
-		free(p);
 	}
 	if(backup_p) {
-		free(backup_p);
 		sq->outnet->svcd_overhead = 0;
 	}
 	verbose(VERB_ALGO, "svcd callbacks end");
@@ -2931,7 +3007,7 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 	struct waiting_tcp* w = (struct waiting_tcp*)sq->pending;
 	struct pending_tcp* pend_tcp = NULL;
 	struct port_if* pi = NULL;
-	if(!w->on_tcp_waiting_list && w->next_waiting) {
+	if(w && !w->on_tcp_waiting_list && w->next_waiting) {
 		pend_tcp = (struct pending_tcp*)w->next_waiting;
 		pi = pend_tcp->pi;
 	}
@@ -3027,8 +3103,11 @@ serviced_tcp_initiate(struct serviced_query* sq, sldns_buffer* buff)
 		sq->status==serviced_query_TCP_EDNS?"EDNS":"");
 	serviced_encode(sq, buff, sq->status == serviced_query_TCP_EDNS);
 	sq->last_sent_time = *sq->outnet->now_tv;
+	log_assert(!sq->busy);
+	sq->busy = 1;
 	sq->pending = pending_tcp_query(sq, buff, sq->outnet->tcp_auth_query_timeout,
 		serviced_tcp_callback, sq);
+	sq->busy = 0;
 	if(!sq->pending) {
 		/* delete from tree so that a retry by above layer does not
 		 * clash with this entry */
@@ -3060,8 +3139,11 @@ serviced_tcp_send(struct serviced_query* sq, sldns_buffer* buff)
 	} else {
 		timeout = sq->outnet->tcp_auth_query_timeout;
 	}
+	log_assert(!sq->busy);
+	sq->busy = 1;
 	sq->pending = pending_tcp_query(sq, buff, timeout,
 		serviced_tcp_callback, sq);
+	sq->busy = 0;
 	return sq->pending != NULL;
 }
 
@@ -3112,7 +3194,6 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 	struct timeval now = *sq->outnet->now_tv;
 #ifdef USE_DNSTAP
 	struct pending* p = (struct pending*)sq->pending;
-	struct port_if* pi = p->pc->pif;
 #endif
 
 	sq->pending = NULL; /* removed after callback */
@@ -3154,14 +3235,16 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 	/*
 	 * sending src (local service)/dst (upstream) addresses over DNSTAP
 	 */
-	if(error == NETEVENT_NOERROR && outnet->dtenv &&
-	   (outnet->dtenv->log_resolver_response_messages ||
-	    outnet->dtenv->log_forwarder_response_messages)) {
+	if(error == NETEVENT_NOERROR && outnet->dtenv && p->pc &&
+		(outnet->dtenv->log_resolver_response_messages ||
+		outnet->dtenv->log_forwarder_response_messages)) {
 		log_addr(VERB_ALGO, "response from upstream", &sq->addr, sq->addrlen);
-		log_addr(VERB_ALGO, "to local addr", &pi->addr, pi->addrlen);
-		dt_msg_send_outside_response(outnet->dtenv, &sq->addr, &pi->addr, c->type,
-		  sq->zone, sq->zonelen, sq->qbuf, sq->qbuflen,
-		  &sq->last_sent_time, sq->outnet->now_tv, c->buffer);
+		log_addr(VERB_ALGO, "to local addr", &p->pc->pif->addr,
+			p->pc->pif->addrlen);
+		dt_msg_send_outside_response(outnet->dtenv, &sq->addr,
+			&p->pc->pif->addr, c->type, sq->zone, sq->zonelen,
+			sq->qbuf, sq->qbuflen, &sq->last_sent_time,
+			sq->outnet->now_tv, c->buffer);
 	}
 #endif
 	if( (sq->status == serviced_query_UDP_EDNS 
@@ -3251,64 +3334,117 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 struct serviced_query* 
 outnet_serviced_query(struct outside_network* outnet,
 	struct query_info* qinfo, uint16_t flags, int dnssec, int want_dnssec,
-	int nocaps, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, struct module_qstate* qstate,
-	comm_point_callback_type* callback, void* callback_arg, sldns_buffer* buff,
-	struct module_env* env)
+	int nocaps, int check_ratelimit, int tcp_upstream, int ssl_upstream,
+	char* tls_auth_name, struct sockaddr_storage* addr, socklen_t addrlen,
+	uint8_t* zone, size_t zonelen, struct module_qstate* qstate,
+	comm_point_callback_type* callback, void* callback_arg,
+	sldns_buffer* buff, struct module_env* env, int* was_ratelimited)
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
 	struct edns_string_addr* client_string_addr;
+	struct regional* region;
+	struct edns_option* backed_up_opt_list = qstate->edns_opts_back_out;
+	struct edns_option* per_upstream_opt_list = NULL;
+	time_t timenow = 0;
 
-	if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen, zone, zonelen,
-		qstate, qstate->region))
+	/* If we have an already populated EDNS option list make a copy since
+	 * we may now add upstream specific EDNS options. */
+	/* Use a region that could be attached to a serviced_query, if it needs
+	 * to be created. If an existing one is found then this region will be
+	 * destroyed here. */
+	region = alloc_reg_obtain(env->alloc);
+	if(!region) return NULL;
+	if(qstate->edns_opts_back_out) {
+		per_upstream_opt_list = edns_opt_copy_region(
+			qstate->edns_opts_back_out, region);
+		if(!per_upstream_opt_list) {
+			alloc_reg_release(env->alloc, region);
 			return NULL;
+		}
+		qstate->edns_opts_back_out = per_upstream_opt_list;
+	}
+
+	if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen, zone,
+		zonelen, qstate, region)) {
+		alloc_reg_release(env->alloc, region);
+		return NULL;
+	}
+	/* Restore the option list; we can explicitly use the copied one from
+	 * now on. */
+	per_upstream_opt_list = qstate->edns_opts_back_out;
+	qstate->edns_opts_back_out = backed_up_opt_list;
 
 	if((client_string_addr = edns_string_addr_lookup(
 		&env->edns_strings->client_strings, addr, addrlen))) {
-		edns_opt_list_append(&qstate->edns_opts_back_out,
+		edns_opt_list_append(&per_upstream_opt_list,
 			env->edns_strings->client_string_opcode,
 			client_string_addr->string_len,
-			client_string_addr->string, qstate->region);
+			client_string_addr->string, region);
 	}
 
 	serviced_gen_query(buff, qinfo->qname, qinfo->qname_len, qinfo->qtype,
 		qinfo->qclass, flags);
 	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen,
-		qstate->edns_opts_back_out);
-	/* duplicate entries are included in the callback list, because
-	 * there is a counterpart registration by our caller that needs to
-	 * be doubly-removed (with callbacks perhaps). */
-	if(!(cb = (struct service_callback*)malloc(sizeof(*cb))))
-		return NULL;
+		per_upstream_opt_list);
 	if(!sq) {
+		/* Check ratelimit only for new serviced_query */
+		if(check_ratelimit) {
+			timenow = *env->now;
+			if(!infra_ratelimit_inc(env->infra_cache, zone,
+				zonelen, timenow, env->cfg->ratelimit_backoff,
+				&qstate->qinfo, qstate->reply)) {
+				/* Can we pass through with slip factor? */
+				if(env->cfg->ratelimit_factor == 0 ||
+					ub_random_max(env->rnd,
+					env->cfg->ratelimit_factor) != 1) {
+					*was_ratelimited = 1;
+					alloc_reg_release(env->alloc, region);
+					return NULL;
+				}
+				log_nametypeclass(VERB_ALGO,
+					"ratelimit allowed through for "
+					"delegation point", zone,
+					LDNS_RR_TYPE_NS, LDNS_RR_CLASS_IN);
+			}
+		}
 		/* make new serviced query entry */
 		sq = serviced_create(outnet, buff, dnssec, want_dnssec, nocaps,
 			tcp_upstream, ssl_upstream, tls_auth_name, addr,
 			addrlen, zone, zonelen, (int)qinfo->qtype,
-			qstate->edns_opts_back_out,
+			per_upstream_opt_list,
 			( ssl_upstream && env->cfg->pad_queries
-			? env->cfg->pad_queries_block_size : 0 ));
+			? env->cfg->pad_queries_block_size : 0 ),
+			env->alloc, region);
 		if(!sq) {
-			free(cb);
+			if(check_ratelimit) {
+				infra_ratelimit_dec(env->infra_cache,
+					zone, zonelen, timenow);
+			}
+			alloc_reg_release(env->alloc, region);
 			return NULL;
 		}
-		/* perform first network action */
-		if(outnet->do_udp && !(tcp_upstream || ssl_upstream)) {
-			if(!serviced_udp_send(sq, buff)) {
-				(void)rbtree_delete(outnet->serviced, sq);
-				serviced_node_del(&sq->node, NULL);
-				free(cb);
-				return NULL;
+		if(!(cb = (struct service_callback*)regional_alloc(
+			sq->region, sizeof(*cb)))) {
+			if(check_ratelimit) {
+				infra_ratelimit_dec(env->infra_cache,
+					zone, zonelen, timenow);
 			}
-		} else {
-			if(!serviced_tcp_send(sq, buff)) {
-				(void)rbtree_delete(outnet->serviced, sq);
-				serviced_node_del(&sq->node, NULL);
-				free(cb);
-				return NULL;
-			}
+			(void)rbtree_delete(outnet->serviced, sq);
+			serviced_node_del(&sq->node, NULL);
+			return NULL;
+		}
+		/* No network action at this point; it will be invoked with the
+		 * serviced_query timer instead to run outside of the mesh. */
+	} else {
+		/* We don't need this region anymore. */
+		alloc_reg_release(env->alloc, region);
+		/* duplicate entries are included in the callback list, because
+		 * there is a counterpart registration by our caller that needs
+		 * to be doubly-removed (with callbacks perhaps). */
+		if(!(cb = (struct service_callback*)regional_alloc(
+			sq->region, sizeof(*cb)))) {
+			return NULL;
 		}
 	}
 	/* add callback to list of callbacks */
@@ -3328,7 +3464,6 @@ callback_list_remove(struct serviced_query* sq, void* cb_arg)
 		if((*pp)->cb_arg == cb_arg) {
 			struct service_callback* del = *pp;
 			*pp = del->next;
-			free(del);
 			return;
 		}
 		pp = &(*pp)->next;
@@ -3337,13 +3472,13 @@ callback_list_remove(struct serviced_query* sq, void* cb_arg)
 
 void outnet_serviced_query_stop(struct serviced_query* sq, void* cb_arg)
 {
-	if(!sq) 
+	if(!sq)
 		return;
 	callback_list_remove(sq, cb_arg);
 	/* if callbacks() routine scheduled deletion, let it do that */
-	if(!sq->cblist && !sq->to_be_deleted) {
+	if(!sq->cblist && !sq->busy && !sq->to_be_deleted) {
 		(void)rbtree_delete(sq->outnet->serviced, sq);
-		serviced_delete(sq); 
+		serviced_delete(sq);
 	}
 }
 

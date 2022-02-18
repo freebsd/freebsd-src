@@ -691,6 +691,8 @@ morechecks(struct config_file* cfg)
 		&& strcmp(cfg->module_conf, "dns64 iterator") != 0
 		&& strcmp(cfg->module_conf, "respip iterator") != 0
 		&& strcmp(cfg->module_conf, "respip validator iterator") != 0
+		&& strcmp(cfg->module_conf, "respip dns64 validator iterator") != 0
+		&& strcmp(cfg->module_conf, "respip dns64 iterator") != 0
 #ifdef WITH_PYTHONMODULE
 		&& strcmp(cfg->module_conf, "python iterator") != 0
 		&& strcmp(cfg->module_conf, "python respip iterator") != 0
@@ -784,6 +786,10 @@ morechecks(struct config_file* cfg)
 		&& strcmp(cfg->module_conf, "respip validator cachedb python iterator") != 0
 		&& strcmp(cfg->module_conf, "validator python cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "respip validator python cachedb iterator") != 0
+#endif
+#if defined(CLIENT_SUBNET) && defined(USE_CACHEDB)
+		&& strcmp(cfg->module_conf, "respip subnetcache validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "subnetcache validator cachedb iterator") != 0
 #endif
 #ifdef CLIENT_SUBNET
 		&& strcmp(cfg->module_conf, "subnetcache iterator") != 0

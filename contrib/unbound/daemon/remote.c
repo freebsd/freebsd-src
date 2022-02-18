@@ -300,6 +300,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 		 */
 		if(fd != -1) {
 #ifdef HAVE_CHOWN
+			chmod(ip, (mode_t)(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
 			if (cfg->username && cfg->username[0] &&
 				cfg_uid != (uid_t)-1) {
 				if(chown(ip, cfg_uid, cfg_gid) == -1)
@@ -307,7 +308,6 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 					  (unsigned)cfg_uid, (unsigned)cfg_gid,
 					  ip, strerror(errno));
 			}
-			chmod(ip, (mode_t)(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
 #else
 			(void)cfg;
 #endif
@@ -2015,7 +2015,7 @@ print_root_fwds(RES* ssl, struct iter_forwards* fwds, uint8_t* root)
 
 /** parse args into delegpt */
 static struct delegpt*
-parse_delegpt(RES* ssl, char* args, uint8_t* nm, int allow_names)
+parse_delegpt(RES* ssl, char* args, uint8_t* nm)
 {
 	/* parse args and add in */
 	char* p = args;
@@ -2037,40 +2037,35 @@ parse_delegpt(RES* ssl, char* args, uint8_t* nm, int allow_names)
 		}
 		/* parse address */
 		if(!authextstrtoaddr(todo, &addr, &addrlen, &auth_name)) {
-			if(allow_names) {
-				uint8_t* n = NULL;
-				size_t ln;
-				int lb;
-				if(!parse_arg_name(ssl, todo, &n, &ln, &lb)) {
-					(void)ssl_printf(ssl, "error cannot "
-						"parse IP address or name "
-						"'%s'\n", todo);
-					delegpt_free_mlc(dp);
-					return NULL;
-				}
-				if(!delegpt_add_ns_mlc(dp, n, 0)) {
-					(void)ssl_printf(ssl, "error out of memory\n");
-					free(n);
-					delegpt_free_mlc(dp);
-					return NULL;
-				}
-				free(n);
-
-			} else {
+			uint8_t* dname= NULL;
+			int port;
+			dname = authextstrtodname(todo, &port, &auth_name);
+			if(!dname) {
 				(void)ssl_printf(ssl, "error cannot parse"
-					" IP address '%s'\n", todo);
+					" '%s'\n", todo);
+				delegpt_free_mlc(dp);
+				return NULL;
+			}
+#if ! defined(HAVE_SSL_SET1_HOST) && ! defined(HAVE_X509_VERIFY_PARAM_SET1_HOST)
+			if(auth_name)
+				log_err("no name verification functionality in "
+				"ssl library, ignored name for %s", todo);
+#endif
+			if(!delegpt_add_ns_mlc(dp, dname, 0, auth_name, port)) {
+				(void)ssl_printf(ssl, "error out of memory\n");
+				free(dname);
 				delegpt_free_mlc(dp);
 				return NULL;
 			}
 		} else {
 #if ! defined(HAVE_SSL_SET1_HOST) && ! defined(HAVE_X509_VERIFY_PARAM_SET1_HOST)
 			if(auth_name)
-			  log_err("no name verification functionality in "
+				log_err("no name verification functionality in "
 				"ssl library, ignored name for %s", todo);
 #endif
 			/* add address */
 			if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
-				auth_name)) {
+				auth_name, -1)) {
 				(void)ssl_printf(ssl, "error out of memory\n");
 				delegpt_free_mlc(dp);
 				return NULL;
@@ -2103,7 +2098,7 @@ do_forward(RES* ssl, struct worker* worker, char* args)
 		forwards_delete_zone(fwd, LDNS_RR_CLASS_IN, root);
 	} else {
 		struct delegpt* dp;
-		if(!(dp = parse_delegpt(ssl, args, root, 0)))
+		if(!(dp = parse_delegpt(ssl, args, root)))
 			return;
 		if(!forwards_add_zone(fwd, LDNS_RR_CLASS_IN, dp)) {
 			(void)ssl_printf(ssl, "error out of memory\n");
@@ -2149,7 +2144,7 @@ parse_fs_args(RES* ssl, char* args, uint8_t** nm, struct delegpt** dp,
 
 	/* parse dp */
 	if(dp) {
-		if(!(*dp = parse_delegpt(ssl, args, *nm, 1))) {
+		if(!(*dp = parse_delegpt(ssl, args, *nm))) {
 			free(*nm);
 			return 0;
 		}
@@ -2865,6 +2860,8 @@ struct ratelimit_list_arg {
 	int all;
 	/** current time */
 	time_t now;
+	/** if backoff is enabled */
+	int backoff;
 };
 
 #define ip_ratelimit_list_arg ratelimit_list_arg
@@ -2878,7 +2875,7 @@ rate_list(struct lruhash_entry* e, void* arg)
 	struct rate_data* d = (struct rate_data*)e->data;
 	char buf[257];
 	int lim = infra_find_ratelimit(a->infra, k->name, k->namelen);
-	int max = infra_rate_max(d, a->now);
+	int max = infra_rate_max(d, a->now, a->backoff);
 	if(a->all == 0) {
 		if(max < lim)
 			return;
@@ -2896,7 +2893,7 @@ ip_rate_list(struct lruhash_entry* e, void* arg)
 	struct ip_rate_key* k = (struct ip_rate_key*)e->key;
 	struct ip_rate_data* d = (struct ip_rate_data*)e->data;
 	int lim = infra_ip_ratelimit;
-	int max = infra_rate_max(d, a->now);
+	int max = infra_rate_max(d, a->now, a->backoff);
 	if(a->all == 0) {
 		if(max < lim)
 			return;
@@ -2914,6 +2911,7 @@ do_ratelimit_list(RES* ssl, struct worker* worker, char* arg)
 	a.infra = worker->env.infra_cache;
 	a.now = *worker->env.now;
 	a.ssl = ssl;
+	a.backoff = worker->env.cfg->ratelimit_backoff;
 	arg = skipwhite(arg);
 	if(strcmp(arg, "+a") == 0)
 		a.all = 1;
@@ -2932,6 +2930,7 @@ do_ip_ratelimit_list(RES* ssl, struct worker* worker, char* arg)
 	a.infra = worker->env.infra_cache;
 	a.now = *worker->env.now;
 	a.ssl = ssl;
+	a.backoff = worker->env.cfg->ip_ratelimit_backoff;
 	arg = skipwhite(arg);
 	if(strcmp(arg, "+a") == 0)
 		a.all = 1;

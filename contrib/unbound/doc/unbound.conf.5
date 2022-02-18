@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
+.TH "unbound.conf" "5" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -104,7 +104,7 @@ requestlist statistics are printed for every interval (but can be 0).
 This is because the median calculation requires data to be present.
 .TP
 .B statistics\-cumulative: \fI<yes or no>
-If enabled, statistics are cumulative since starting unbound, without clearing
+If enabled, statistics are cumulative since starting Unbound, without clearing
 the statistics counters after logging the statistics. Default is no.
 .TP
 .B extended\-statistics: \fI<yes or no>
@@ -136,7 +136,7 @@ Same as interface: (for ease of compatibility with nsd.conf).
 Listen on all addresses on all (current and future) interfaces, detect the
 source interface on UDP queries and copy them to replies.  This is a lot like
 ip\-transparent, but this option services all interfaces whilst with
-ip\-transparent you can select which (future) interfaces unbound provides
+ip\-transparent you can select which (future) interfaces Unbound provides
 service on.  This feature is experimental, and needs support in your OS for
 particular socket options.  Default value is no.
 .TP
@@ -154,7 +154,7 @@ sent via a random outgoing interface to counter spoofing.
 If an IPv6 netblock is specified instead of an individual IPv6 address,
 outgoing UDP queries will use a randomised source address taken from the
 netblock to counter spoofing. Requires the IPv6 netblock to be routed to the
-host running unbound, and requires OS support for unprivileged non-local binds
+host running Unbound, and requires OS support for unprivileged non-local binds
 (currently only supported on Linux). Several netblocks may be specified with
 multiple
 .B outgoing\-interface:
@@ -174,7 +174,7 @@ numbers need extra resources from the operating system.  For performance a
 very large value is best, use libevent to make this possible.
 .TP
 .B outgoing\-port\-permit: \fI<port number or range>
-Permit unbound to open this port or range of ports for use to send queries.
+Permit Unbound to open this port or range of ports for use to send queries.
 A larger number of permitted outgoing ports increases resilience against
 spoofing attempts. Make sure these ports are not needed by other daemons.
 By default only ports above 1024 that have not been assigned by IANA are used.
@@ -187,8 +187,8 @@ processing starts with the non IANA allocated ports above 1024 in the set
 of allowed ports.
 .TP
 .B outgoing\-port\-avoid: \fI<port number or range>
-Do not permit unbound to open this port or range of ports for use to send
-queries. Use this to make sure unbound does not grab a port that another
+Do not permit Unbound to open this port or range of ports for use to send
+queries. Use this to make sure Unbound does not grab a port that another
 daemon needs. The port is avoided on all outgoing interfaces, both IP4 and IP6.
 By default only ports above 1024 that have not been assigned by IANA are used.
 Give a port number or a range of the form "low\-high", without spaces.
@@ -289,7 +289,7 @@ If not 0, then set the SO_RCVBUF socket option to get more buffer
 space on UDP port 53 incoming queries.  So that short spikes on busy
 servers do not drop packets (see counter in netstat \-su).  Default is
 0 (use system value).  Otherwise, the number of bytes to ask for, try
-"4m" on a busy server.  The OS caps it at a maximum, on linux unbound
+"4m" on a busy server.  The OS caps it at a maximum, on linux Unbound
 needs root permission to bypass the limit, or the admin can use sysctl
 net.core.rmem_max.  On BSD change kern.ipc.maxsockbuf in /etc/sysctl.conf.
 On OpenBSD change header and recompile kernel. On Solaris ndd \-set
@@ -302,7 +302,7 @@ in answer traffic, otherwise 'send: resource temporarily unavailable'
 can get logged, the buffer overrun is also visible by netstat \-su.
 Default is 0 (use system value).  Specify the number of bytes to ask
 for, try "4m" on a very busy server.  The OS caps it at a maximum, on
-linux unbound needs root permission to bypass the limit, or the admin
+linux Unbound needs root permission to bypass the limit, or the admin
 can use sysctl net.core.wmem_max.  On BSD, Solaris changes are similar
 to so\-rcvbuf.
 .TP
@@ -319,18 +319,18 @@ At extreme load it could be better to turn it off to distribute the queries
 evenly, reported for Linux systems (4.4.x).
 .TP
 .B ip\-transparent: \fI<yes or no>
-If yes, then use IP_TRANSPARENT socket option on sockets where unbound
+If yes, then use IP_TRANSPARENT socket option on sockets where Unbound
 is listening for incoming traffic.  Default no.  Allows you to bind to
 non\-local interfaces.  For example for non\-existent IP addresses that
 are going to exist later on, with host failover configuration.  This is
 a lot like interface\-automatic, but that one services all interfaces
-and with this option you can select which (future) interfaces unbound
-provides service on.  This option needs unbound to be started with root
+and with this option you can select which (future) interfaces Unbound
+provides service on.  This option needs Unbound to be started with root
 permissions on some systems.  The option uses IP_BINDANY on FreeBSD systems
 and SO_BINDANY on OpenBSD systems.
 .TP
 .B ip\-freebind: \fI<yes or no>
-If yes, then use IP_FREEBIND socket option on sockets where unbound
+If yes, then use IP_FREEBIND socket option on sockets where Unbound
 is listening to incoming traffic.  Default no.  Allows you to bind to
 IP addresses that are nonlocal or do not exist, like when the network
 interface or IP address is down.  Exists only on Linux, where the similar
@@ -560,7 +560,7 @@ service.  Can list multiple, each on a new statement.
 .TP
 .B tls-session-ticket-keys: \fI<file>
 If not "", lists files with 80 bytes of random contents that are used to
-perform TLS session resumption for clients using the unbound server.
+perform TLS session resumption for clients using the Unbound server.
 These files contain the secret key for the TLS session tickets.
 First key use to encrypt and decrypt TLS session tickets.
 Other keys use to decrypt only.  With this you can roll over to new keys,
@@ -642,8 +642,8 @@ Enable or disable systemd socket activation.
 Default is no.
 .TP
 .B do\-daemonize: \fI<yes or no>
-Enable or disable whether the unbound server forks into the background as
-a daemon.  Set the value to \fIno\fR when unbound runs as systemd service.
+Enable or disable whether the Unbound server forks into the background as
+a daemon.  Set the value to \fIno\fR when Unbound runs as systemd service.
 Default is yes.
 .TP
 .B tcp\-connection\-limit: \fI<IP netblock> <limit>
@@ -670,7 +670,7 @@ what almost all clients need).  Nonrecursive queries are refused.
 .IP
 The \fIallow\fR action does allow nonrecursive queries to access the
 local\-data that is configured.  The reason is that this does not involve
-the unbound server recursive lookup algorithm, and static data is served
+the Unbound server recursive lookup algorithm, and static data is served
 in the reply.  This supports normal operations where nonrecursive queries
 are made for the authoritative data.  For nonrecursive queries any replies
 from the dynamic cache are refused.
@@ -742,7 +742,7 @@ to chroot and dropping permissions. This allows the pidfile to be
 Unbound is not able to remove the pidfile after termination when it is located
 outside of the chroot directory.
 .IP
-Additionally, unbound may need to access /dev/urandom (for entropy)
+Additionally, Unbound may need to access /dev/urandom (for entropy)
 from inside the chroot.
 .IP
 If given a chroot is done to the given directory. By default chroot is
@@ -776,7 +776,7 @@ The logfile is reopened (for append) when the config file is reread, on
 SIGHUP.
 .TP
 .B use\-syslog: \fI<yes or no>
-Sets unbound to send log messages to the syslogd, using
+Sets Unbound to send log messages to the syslogd, using
 \fIsyslog\fR(3).
 The log facility LOG_DAEMON is used, with identity "unbound".
 The logfile setting is overridden when use\-syslog is turned on.
@@ -786,7 +786,7 @@ The default is to log to syslog.
 If "" is given (default), then the name of the executable, usually "unbound"
 is used to report to the log.  Enter a string to override it
 with that, which is useful on systems that run more than one instance of
-unbound, with different configurations, so that the logs can be easily
+Unbound, with different configurations, so that the logs can be easily
 distinguished against.
 .TP
 .B log\-time\-ascii: \fI<yes or no>
@@ -874,12 +874,12 @@ with ascii_ prefix and then an ascii string.
 If enabled trustanchor.unbound queries are refused.
 .TP
 .B target\-fetch\-policy: \fI<"list of numbers">
-Set the target fetch policy used by unbound to determine if it should fetch
+Set the target fetch policy used by Unbound to determine if it should fetch
 nameserver target addresses opportunistically. The policy is described per
 dependency depth.
 .IP
 The number of values determines the maximum dependency depth
-that unbound will pursue in answering a query.
+that Unbound will pursue in answering a query.
 A value of \-1 means to fetch all targets opportunistically for that dependency
 depth. A value of 0 means to fetch on demand only. A positive value fetches
 that many targets opportunistically.
@@ -973,7 +973,7 @@ This option only has effect when qname-minimisation is enabled. Default is no.
 .B aggressive\-nsec: \fI<yes or no>
 Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
 and other denials, using information from previous NXDOMAINs answers.
-Default is no.  It helps to reduce the query rate towards targets that get
+Default is yes.  It helps to reduce the query rate towards targets that get
 a very high nonexistent name lookup rate.
 .TP
 .B private\-address: \fI<IP address or subnet>
@@ -1030,7 +1030,7 @@ a little more CPU.  Also if the cache is set to 0, it is no use. Default is no.
 .TP
 .B deny\-any: \fI<yes or no>
 If yes, deny queries of type ANY with an empty response.  Default is no.
-If disabled, unbound responds with a short list of resource records if some
+If disabled, Unbound responds with a short list of resource records if some
 can be found in the cache and makes the upstream type ANY query if there
 are none.
 .TP
@@ -1090,7 +1090,7 @@ File with trust anchor for one zone, which is tracked with RFC5011 probes.
 The probes are run several times per month, thus the machine must be online
 frequently.  The initial file can be one with contents as described in
 \fBtrust\-anchor\-file\fR.  The file is written to when the anchor is updated,
-so the unbound user must have write permission.  Write permission to the file,
+so the Unbound user must have write permission.  Write permission to the file,
 but also to the directory it is in (to create a temporary file, which is
 necessary to deal with filesystem full events), it must also be inside the
 chroot (if that is used).
@@ -1176,7 +1176,7 @@ the verbosity setting.  Default is 0, off.  At 1, for every user query
 that fails a line is printed to the logs.  This way you can monitor what
 happens with validation.  Use a diagnosis tool, such as dig or drill,
 to find out why validation is failing for these queries.  At 2, not only
-the query that failed is printed but also the reason why unbound thought
+the query that failed is printed but also the reason why Unbound thought
 it was wrong and which server sent the faulty data.
 .TP
 .B val\-permissive\-mode: \fI<yes or no>
@@ -1188,15 +1188,15 @@ is set in replies. Also logging is performed as for full validation.
 The default value is "no".
 .TP
 .B ignore\-cd\-flag: \fI<yes or no>
-Instruct unbound to ignore the CD flag from clients and refuse to
+Instruct Unbound to ignore the CD flag from clients and refuse to
 return bogus answers to them.  Thus, the CD (Checking Disabled) flag
 does not disable checking any more.  This is useful if legacy (w2008)
 servers that set the CD flag but cannot validate DNSSEC themselves are
-the clients, and then unbound provides them with DNSSEC protection.
+the clients, and then Unbound provides them with DNSSEC protection.
 The default value is "no".
 .TP
 .B serve\-expired: \fI<yes or no>
-If enabled, unbound attempts to serve old responses from cache with a
+If enabled, Unbound attempts to serve old responses from cache with a
 TTL of \fBserve\-expired\-reply\-ttl\fR in the response without waiting for the
 actual resolution to finish.  The actual resolution answer ends up in the cache
 later on.  Default is "no".
@@ -1227,14 +1227,14 @@ RFC 8767 is 1800.  Setting this to 0 will disable this
 behavior.  Default is 0.
 .TP
 .B serve\-original\-ttl: \fI<yes or no>
-If enabled, unbound will always return the original TTL as received from
+If enabled, Unbound will always return the original TTL as received from
 the upstream name server rather than the decrementing TTL as
-stored in the cache.  This feature may be useful if unbound serves as a 
-front-end to a hidden authoritative name server. Enabling this feature does 
-not impact cache expiry, it only changes the TTL unbound embeds in responses to 
+stored in the cache.  This feature may be useful if Unbound serves as a
+front-end to a hidden authoritative name server. Enabling this feature does
+not impact cache expiry, it only changes the TTL Unbound embeds in responses to
 queries. Note that enabling this feature implicitly disables enforcement of
-the configured minimum and maximum TTL, as it is assumed users who enable this 
-feature do not want unbound to change the TTL obtained from an upstream server. 
+the configured minimum and maximum TTL, as it is assumed users who enable this
+feature do not want Unbound to change the TTL obtained from an upstream server.
 Thus, the values set using \fBcache\-min\-ttl\fR and \fBcache\-max\-ttl\fR are
 ignored.
 Default is "no".
@@ -1295,11 +1295,11 @@ or gigabytes (1024*1024 bytes in a megabyte).
 .TP
 .B unblock\-lan\-zones: \fI<yes or no>
 Default is disabled.  If enabled, then for private address space,
-the reverse lookups are no longer filtered.  This allows unbound when
+the reverse lookups are no longer filtered.  This allows Unbound when
 running as dns service on a host where it provides service for that host,
 to put out all of the queries for the 'lan' upstream.  When enabled,
 only localhost, 127.0.0.1 reverse and ::1 reverse zones are configured
-with default local zones.  Disable the option when unbound is running
+with default local zones.  Disable the option when Unbound is running
 as a (DHCP-) DNS network resolver for a group of machines, where such
 lookups should be filtered (RFC compliance), this also stops potential
 data leakage about the local network to the upstream DNS servers.
@@ -1403,7 +1403,7 @@ Breaks out of that view and moves towards the global local zones for answer
 to the query.  If the view first is no, it'll resolve normally.  If view first
 is enabled, it'll break perform that step and check the global answers.
 For when the view has view specific overrides but some zone has to be
-answered from global local zone contents. 
+answered from global local zone contents.
 .TP 10
 \h'5'\fInodefault\fR
 Used to turn off default contents for AS112 zones. The other types
@@ -1647,8 +1647,9 @@ query names, but not spoofed reflection floods.  Cached responses are not
 ratelimited by this setting.  The zone of the query is determined by examining
 the nameservers for it, the zone name is used to keep track of the rate.
 For example, 1000 may be a suitable value to stop the server from being
-overloaded with random names, and keeps unbound from sending traffic to the
-nameservers for those zones.
+overloaded with random names, and keeps Unbound from sending traffic to the
+nameservers for those zones.  Configured forwarders are excluded from
+ratelimiting.
 .TP 5
 .B ratelimit\-size: \fI<memory size>
 Give the size of the data structure in which the current ongoing rates are
@@ -1670,6 +1671,15 @@ This can make ordinary queries complete (if repeatedly queried for),
 and enter the cache, whilst also mitigating the traffic flow by the
 factor given.
 .TP 5
+.B ratelimit\-backoff: \fI<yes or no>
+If enabled, the ratelimit is treated as a hard failure instead of the default
+maximum allowed constant rate.  When the limit is reached, traffic is
+ratelimited and demand continues to be kept track of for a 2 second rate
+window.  No traffic is allowed, except for ratelimit\-factor, until demand
+decreases below the configured ratelimit for a 2 second rate window.  Useful to
+set ratelimit to a suspicious rate to aggressively limit unusually high
+traffic.  Default is off.
+.TP 5
 .B ratelimit\-for\-domain: \fI<domain> <number qps or 0>
 Override the global ratelimit for an exact match domain name with the listed
 number.  You can give this for any number of names.  For example, for
@@ -1686,7 +1696,7 @@ to use different settings for a top\-level\-domain and subdomains.
 A value of 0 will disable ratelimiting for domain names that end in this name.
 .TP 5
 .B ip\-ratelimit: \fI<number or 0>
-Enable global ratelimiting of queries accepted per ip address.
+Enable global ratelimiting of queries accepted per IP address.
 If 0, the default, it is disabled.  This option is experimental at this time.
 The ratelimit is in queries per second that are allowed.  More queries are
 completely dropped and will not receive a reply, SERVFAIL or otherwise.
@@ -1713,8 +1723,17 @@ This can make ordinary queries complete (if repeatedly queried for),
 and enter the cache, whilst also mitigating the traffic flow by the
 factor given.
 .TP 5
+.B ip\-ratelimit\-backoff: \fI<yes or no>
+If enabled, the ratelimit is treated as a hard failure instead of the default
+maximum allowed constant rate.  When the limit is reached, traffic is
+ratelimited and demand continues to be kept track of for a 2 second rate
+window.  No traffic is allowed, except for ip\-ratelimit\-factor, until demand
+decreases below the configured ratelimit for a 2 second rate window.  Useful to
+set ip\-ratelimit to a suspicious rate to aggressively limit unusually high
+traffic.  Default is off.
+.TP 5
 .B outbound\-msg\-retry: \fI<number>
-The number of retries unbound will do in case of a non positive response is
+The number of retries Unbound will do in case of a non positive response is
 received. If a forward nameserver is used, this is the number of retries per
 forward nameserver in case of throwaway response.
 .TP 5
@@ -1747,7 +1766,7 @@ In the
 .B remote\-control:
 clause are the declarations for the remote control facility.  If this is
 enabled, the \fIunbound\-control\fR(8) utility can be used to send
-commands to the running unbound server.  The server uses these clauses
+commands to the running Unbound server.  The server uses these clauses
 to setup TLSv1 security for the connection.  The
 \fIunbound\-control\fR(8) utility also reads the \fBremote\-control\fR
 section for options.  To setup the correct self\-signed certificates use the
@@ -1767,7 +1786,7 @@ the server for the change to take effect.
 .IP
 If you set it to an absolute path, a local socket is used.  The local socket
 does not use the certificates and keys, so those files need not be present.
-To restrict access, unbound sets permissions on the file to the user and
+To restrict access, Unbound sets permissions on the file to the user and
 group that is configured, the access bits are set to allow the group members
 to access the control socket file.  Put users that need to access the socket
 in the that group.  To restrict access further, create a directory to put
@@ -1787,12 +1806,12 @@ and the value of this option is ignored.
 .B server\-key\-file: \fI<private key file>
 Path to the server private key, by default unbound_server.key.
 This file is generated by the \fIunbound\-control\-setup\fR utility.
-This file is used by the unbound server, but not by \fIunbound\-control\fR.
+This file is used by the Unbound server, but not by \fIunbound\-control\fR.
 .TP 5
 .B server\-cert\-file: \fI<certificate file.pem>
 Path to the server self signed certificate, by default unbound_server.pem.
 This file is generated by the \fIunbound\-control\-setup\fR utility.
-This file is used by the unbound server, and also by \fIunbound\-control\fR.
+This file is used by the Unbound server, and also by \fIunbound\-control\fR.
 .TP 5
 .B control\-key\-file: \fI<private key file>
 Path to the control client private key, by default unbound_control.key.
@@ -1810,24 +1829,24 @@ There may be multiple
 .B stub\-zone:
 clauses. Each with a name: and zero or more hostnames or IP addresses.
 For the stub zone this list of nameservers is used. Class IN is assumed.
-The servers should be authority servers, not recursors; unbound performs
+The servers should be authority servers, not recursors; Unbound performs
 the recursive processing itself for stub zones.
 .P
 The stub zone can be used to configure authoritative data to be used
 by the resolver that cannot be accessed using the public internet servers.
 This is useful for company\-local data or private zones. Setup an
 authoritative server on a different host (or different port). Enter a config
-entry for unbound with
+entry for Unbound with
 .B stub\-addr:
 <ip address of host[@port]>.
-The unbound resolver can then access the data, without referring to the
+The Unbound resolver can then access the data, without referring to the
 public internet for it.
 .P
 This setup allows DNSSEC signed zones to be served by that
 authoritative server, in which case a trusted key entry with the public key
-can be put in config, so that unbound can validate the data and set the AD
+can be put in config, so that Unbound can validate the data and set the AD
 bit on replies for the private zone (authoritative servers do not set the
-AD bit).  This setup makes unbound capable of answering queries for the
+AD bit).  This setup makes Unbound capable of answering queries for the
 private zone, and can even set the AD bit ('authentic'), but the AA
 ('authoritative') bit is not set on these replies.
 .P
@@ -1835,20 +1854,26 @@ Consider adding \fBserver:\fR statements for \fBdomain\-insecure:\fR and
 for \fBlocal\-zone:\fI name nodefault\fR for the zone if it is a locally
 served zone.  The insecure clause stops DNSSEC from invalidating the
 zone.  The local zone nodefault (or \fItransparent\fR) clause makes the
-(reverse\-) zone bypass unbound's filtering of RFC1918 zones.
+(reverse\-) zone bypass Unbound's filtering of RFC1918 zones.
 .TP
 .B name: \fI<domain name>
 Name of the stub zone. This is the full domain name of the zone.
 .TP
 .B stub\-host: \fI<domain name>
 Name of stub zone nameserver. Is itself resolved before it is used.
+To use a nondefault port for DNS communication append '@' with the port number.
+If tls is enabled, then you can append a '#' and a name, then it'll check the
+tls authentication certificates with that name.  If you combine the '@'
+and '#', the '@' comes first.  If only '#' is used the default port is the
+configured tls\-port.
 .TP
 .B stub\-addr: \fI<IP address>
 IP address of stub zone nameserver. Can be IP 4 or IP 6.
 To use a nondefault port for DNS communication append '@' with the port number.
-If tls is enabled, then you can append a '#' and a name, then it'll check
-the tls authentication certificates with that name.  If you combine
-the '@' and '#', the '@' comes first.
+If tls is enabled, then you can append a '#' and a name, then it'll check the
+tls authentication certificates with that name.  If you combine the '@'
+and '#', the '@' comes first.  If only '#' is used the default port is the
+configured tls\-port.
 .TP
 .B stub\-prime: \fI<yes or no>
 This option is by default no.  If enabled it performs NS set priming,
@@ -1884,10 +1909,10 @@ clauses. Each with a \fBname:\fR and zero or more hostnames or IP
 addresses.  For the forward zone this list of nameservers is used to
 forward the queries to. The servers listed as \fBforward\-host:\fR and
 \fBforward\-addr:\fR have to handle further recursion for the query.  Thus,
-those servers are not authority servers, but are (just like unbound is)
-recursive servers too; unbound does not perform recursion itself for the
+those servers are not authority servers, but are (just like Unbound is)
+recursive servers too; Unbound does not perform recursion itself for the
 forward zone, it lets the remote server do it.  Class IN is assumed.
-CNAMEs are chased by unbound itself, asking the remote server for every
+CNAMEs are chased by Unbound itself, asking the remote server for every
 name in the indirection chain, to protect the local cache from illegal
 indirect referenced items.
 A forward\-zone entry with name "." and a forward\-addr target will
@@ -1899,13 +1924,19 @@ Name of the forward zone. This is the full domain name of the zone.
 .TP
 .B forward\-host: \fI<domain name>
 Name of server to forward to. Is itself resolved before it is used.
+To use a nondefault port for DNS communication append '@' with the port number.
+If tls is enabled, then you can append a '#' and a name, then it'll check the
+tls authentication certificates with that name.  If you combine the '@'
+and '#', the '@' comes first.  If only '#' is used the default port is the
+configured tls\-port.
 .TP
 .B forward\-addr: \fI<IP address>
 IP address of server to forward to. Can be IP 4 or IP 6.
 To use a nondefault port for DNS communication append '@' with the port number.
-If tls is enabled, then you can append a '#' and a name, then it'll check
-the tls authentication certificates with that name.  If you combine
-the '@' and '#', the '@' comes first.
+If tls is enabled, then you can append a '#' and a name, then it'll check the
+tls authentication certificates with that name.  If you combine the '@'
+and '#', the '@' comes first.  If only '#' is used the default port is the
+configured tls\-port.
 .IP
 At high verbosity it logs the TLS certificate, with TLS enabled.
 If you leave out the '#' and auth name from the forward\-addr, any
@@ -1913,7 +1944,7 @@ name is accepted.  The cert must also match a CA from the tls\-cert\-bundle.
 .TP
 .B forward\-first: \fI<yes or no>
 If a forwarded query is met with a SERVFAIL error, and this option is
-enabled, unbound will fall back to normal recursive resolution for this
+enabled, Unbound will fall back to normal recursive resolution for this
 query as if no query forwarding had been specified.  The default is "no".
 .TP
 .B forward\-tls\-upstream: \fI<yes or no>
@@ -1939,7 +1970,7 @@ have a \fBname:\fR.  There can be multiple ones, by listing multiple auth\-zone 
 The authority zone with the name closest to the name looked up is used.
 Authority zones are processed after \fBlocal\-zones\fR and before
 cache (\fBfor\-downstream:\fR \fIyes\fR), and when used in this manner
-make unbound respond like an authority server.  Authority zones are also
+make Unbound respond like an authority server.  Authority zones are also
 processed after cache, just before going to the network to fetch
 information for recursion (\fBfor\-upstream:\fR \fIyes\fR), and when used
 in this manner provide a local copy of an authority server that speeds up
@@ -2000,25 +2031,25 @@ file is downloaded when notified.  The primaries from primary: statements are
 allowed notify by default.
 .TP
 .B fallback\-enabled: \fI<yes or no>
-Default no.  If enabled, unbound falls back to querying the internet as
+Default no.  If enabled, Unbound falls back to querying the internet as
 a resolver for this zone when lookups fail.  For example for DNSSEC
 validation failures.
 .TP
 .B for\-downstream: \fI<yes or no>
-Default yes.  If enabled, unbound serves authority responses to
-downstream clients for this zone.  This option makes unbound behave, for
+Default yes.  If enabled, Unbound serves authority responses to
+downstream clients for this zone.  This option makes Unbound behave, for
 the queries with names in this zone, like one of the authority servers for
-that zone.  Turn it off if you want unbound to provide recursion for the
+that zone.  Turn it off if you want Unbound to provide recursion for the
 zone but have a local copy of zone data.  If for\-downstream is no and
-for\-upstream is yes, then unbound will DNSSEC validate the contents of the
+for\-upstream is yes, then Unbound will DNSSEC validate the contents of the
 zone before serving the zone contents to clients and store validation
 results in the cache.
 .TP
 .B for\-upstream: \fI<yes or no>
-Default yes.  If enabled, unbound fetches data from this data collection
+Default yes.  If enabled, Unbound fetches data from this data collection
 for answering recursion queries.  Instead of sending queries over the internet
 to the authority servers for this zone, it'll fetch the data directly from
-the zone data.  Turn it on when you want unbound to provide recursion for
+the zone data.  Turn it on when you want Unbound to provide recursion for
 downstream clients, and use the zone data as a local copy to speed up lookups.
 .TP
 .B zonemd\-check: \fI<yes or no>
@@ -2042,14 +2073,14 @@ a ZONEMD is always a failure, also for nonDNSSEC signed zones.
 .TP
 .B zonefile: \fI<filename>
 The filename where the zone is stored.  If not given then no zonefile is used.
-If the file does not exist or is empty, unbound will attempt to fetch zone
+If the file does not exist or is empty, Unbound will attempt to fetch zone
 data (eg. from the primary servers).
 .SS "View Options"
 .LP
 There may be multiple
 .B view:
 clauses. Each with a \fBname:\fR and zero or more \fBlocal\-zone\fR and
-\fBlocal\-data\fR elements. Views can also contain view\-first, 
+\fBlocal\-data\fR elements. Views can also contain view\-first,
 response\-ip, response\-ip\-data and local\-data\-ptr elements.
 View can be mapped to requests by specifying the
 view name in an \fBaccess\-control\-view\fR element. Options from matching
@@ -2142,9 +2173,9 @@ underneath the name given.
 The
 .B dnscrypt:
 clause gives the settings of the dnscrypt channel. While those options are
-available, they are only meaningful if unbound was compiled with
+available, they are only meaningful if Unbound was compiled with
 \fB\-\-enable\-dnscrypt\fR.
-Currently certificate and secret/public keys cannot be generated by unbound.
+Currently certificate and secret/public keys cannot be generated by Unbound.
 You can use dnscrypt-wrapper to generate those: https://github.com/cofyc/\
 dnscrypt-wrapper/blob/master/README.md#usage
 .TP
@@ -2263,7 +2294,7 @@ of 0 is always accepted. Default is 0.
 .TP
 .B min\-client\-subnet\-ipv4: \fI<number>\fR
 Specifies the minimum prefix length of the IPv4 source mask we are willing to
-accept in queries. Shorter source masks result in REFUSED answers. Source mask 
+accept in queries. Shorter source masks result in REFUSED answers. Source mask
 of 0 is always accepted. Default is 0.
 .TP
 .B max\-ecs\-tree\-size\-ipv4: \fI<number>\fR
@@ -2276,12 +2307,13 @@ This number applies for each qname/qclass/qtype tuple. Defaults to 100.
 .SS "Opportunistic IPsec Support Module Options"
 .LP
 The IPsec module must be configured in the \fBmodule\-config:\fR "ipsecmod
-validator iterator" directive and be compiled into the daemon to be
-enabled.  These settings go in the \fBserver:\fR section.
+validator iterator" directive and be compiled into Unbound by using
+\fB\-\-enable\-ipsecmod\fR to be enabled.
+These settings go in the \fBserver:\fR section.
 .LP
-When unbound receives an A/AAAA query that is not in the cache and finds a
+When Unbound receives an A/AAAA query that is not in the cache and finds a
 valid answer, it will withhold returning the answer and instead will generate
-an IPSECKEY subquery for the same domain name.  If an answer was found, unbound
+an IPSECKEY subquery for the same domain name.  If an answer was found, Unbound
 will call an external hook passing the following arguments:
 .TP 10
 \h'5'\fIQNAME\fR
@@ -2310,19 +2342,19 @@ relevant for opportunistic IPsec.
 .B ipsecmod-enabled: \fI<yes or no>\fR
 Specifies whether the IPsec module is enabled or not.  The IPsec module still
 needs to be defined in the \fBmodule\-config:\fR directive.  This option
-facilitates turning on/off the module without restarting/reloading unbound.
+facilitates turning on/off the module without restarting/reloading Unbound.
 Defaults to yes.
 .TP
 .B ipsecmod\-hook: \fI<filename>\fR
-Specifies the external hook that unbound will call with \fIsystem\fR(3).  The
+Specifies the external hook that Unbound will call with \fIsystem\fR(3).  The
 file can be specified as an absolute/relative path.  The file needs the proper
-permissions to be able to be executed by the same user that runs unbound.  It
+permissions to be able to be executed by the same user that runs Unbound.  It
 must be present when the IPsec module is defined in the \fBmodule\-config:\fR
 directive.
 .TP
 .B ipsecmod-strict: \fI<yes or no>\fR
-If enabled unbound requires the external hook to return a success value of 0.
-Failing to do so unbound will reply with SERVFAIL.  The A/AAAA answer will also
+If enabled Unbound requires the external hook to return a success value of 0.
+Failing to do so Unbound will reply with SERVFAIL.  The A/AAAA answer will also
 not be cached.  Defaults to no.
 .TP
 .B ipsecmod\-max-ttl: \fI<seconds>\fR
@@ -2330,7 +2362,7 @@ Time to live maximum for A/AAAA cached records after calling the external hook.
 Defaults to 3600.
 .TP
 .B ipsecmod-ignore-bogus: \fI<yes or no>\fR
-Specifies the behaviour of unbound when the IPSECKEY answer is bogus.  If set
+Specifies the behaviour of Unbound when the IPSECKEY answer is bogus.  If set
 to yes, the hook will be called and the A/AAAA answer will be returned to the
 client.  If set to no, the hook will not be called and the answer to the
 A/AAAA query will be SERVFAIL.  Mainly used for testing.  Defaults to no.
@@ -2357,7 +2389,7 @@ If Unbound cannot even find an answer in the backend, it resolves the
 query as usual, and stores the answer in the backend.
 .P
 This module interacts with the \fBserve\-expired\-*\fR options and will reply
-with expired data if unbound is configured for that.  Currently the use
+with expired data if Unbound is configured for that.  Currently the use
 of \fBserve\-expired\-client\-timeout:\fR and
 \fBserve\-expired\-reply\-ttl:\fR is not consistent for data originating from
 the external cache as these will result in a reply with 0 TTL without trying to
@@ -2436,16 +2468,17 @@ re-establish a new connection later.
 This option defaults to 100 milliseconds.
 .TP
 .B redis-expire-records: \fI<yes or no>
-If Redis record expiration is enabled.  If yes, unbound sets timeout for Redis
+If Redis record expiration is enabled.  If yes, Unbound sets timeout for Redis
 records so that Redis can evict keys that have expired automatically.  If
-unbound is configured with \fBserve-expired\fR and \fBserve-expired-ttl\fR is 0,
+Unbound is configured with \fBserve-expired\fR and \fBserve-expired-ttl\fR is 0,
 this option is internally reverted to "no".  Redis SETEX support is required
 for this option (Redis >= 2.0.0).
 This option defaults to no.
 .SS DNSTAP Logging Options
-DNSTAP support, when compiled in, is enabled in the \fBdnstap:\fR section.
+DNSTAP support, when compiled in by using \fB\-\-enable\-dnstap\fR, is enabled
+in the \fBdnstap:\fR section.
 This starts an extra thread (when compiled with threading) that writes
-the log information to the destination.  If unbound is compiled without
+the log information to the destination.  If Unbound is compiled without
 threading it does not spawn a thread, but connects per-process to the
 destination.
 .TP
@@ -2503,19 +2536,19 @@ Default is "".
 .TP
 .B dnstap-log-resolver-query-messages: \fI<yes or no>
 Enable to log resolver query messages.  Default is no.
-These are messages from unbound to upstream servers.
+These are messages from Unbound to upstream servers.
 .TP
 .B dnstap-log-resolver-response-messages: \fI<yes or no>
 Enable to log resolver response messages.  Default is no.
-These are replies from upstream servers to unbound.
+These are replies from upstream servers to Unbound.
 .TP
 .B dnstap-log-client-query-messages: \fI<yes or no>
 Enable to log client query messages.  Default is no.
-These are client queries to unbound.
+These are client queries to Unbound.
 .TP
 .B dnstap-log-client-response-messages: \fI<yes or no>
 Enable to log client response messages.  Default is no.
-These are responses from unbound to clients.
+These are responses from Unbound to clients.
 .TP
 .B dnstap-log-forwarder-query-messages: \fI<yes or no>
 Enable to log forwarder query messages.  Default is no.
@@ -2614,7 +2647,7 @@ allowed notify by default.
 .TP
 .B zonefile: \fI<filename>
 The filename where the zone is stored.  If not given then no zonefile is used.
-If the file does not exist or is empty, unbound will attempt to fetch zone
+If the file does not exist or is empty, Unbound will attempt to fetch zone
 data (eg. from the primary servers).
 .TP
 .B rpz\-action\-override: \fI<action>
@@ -2630,6 +2663,17 @@ Log all applied RPZ actions for this RPZ zone. Default is no.
 .TP
 .B rpz\-log\-name: \fI<name>
 Specify a string to be part of the log line, for easy referencing.
+.TP
+.B rpz\-signal\-nxdomain\-ra: \fI<yes or no>
+Signal when a query is blocked by the RPZ with NXDOMAIN with an unset RA flag.
+This allows certain clients, like dnsmasq, to infer that the domain is
+externally blocked. Default is no.
+.TP
+.B for\-downstream: \fI<yes or no>
+If enabled the zone is authoritatively answered for and queries for the RPZ
+zone information are answered to downstream clients. This is useful for
+monitoring scripts, that can then access the SOA information to check if
+the rpz information is up to date. Default is no.
 .TP
 .B tags: \fI<list of tags>
 Limit the policies from this RPZ clause to clients with a matching tag. Tags
@@ -2671,7 +2715,7 @@ server:
 .SH "FILES"
 .TP
 .I @UNBOUND_RUN_DIR@
-default unbound working directory.
+default Unbound working directory.
 .TP
 .I @UNBOUND_CHROOT_DIR@
 default
@@ -2679,13 +2723,13 @@ default
 location.
 .TP
 .I @ub_conf_file@
-unbound configuration file.
+Unbound configuration file.
 .TP
 .I @UNBOUND_PIDFILE@
-default unbound pidfile with process ID of the running daemon.
+default Unbound pidfile with process ID of the running daemon.
 .TP
 .I unbound.log
-unbound log file. default is to log to
+Unbound log file. default is to log to
 \fIsyslog\fR(3).
 .SH "SEE ALSO"
 \fIunbound\fR(8),

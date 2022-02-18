@@ -210,16 +210,29 @@ int netblockstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 /**
  * Convert address string, with "@port" appendix, to sockaddr.
  * It can also have an "#tls-auth-name" appendix (after the port).
- * The returned tls-auth-name string is a pointer into the input string.
- * Uses DNS port by default.
+ * The returned auth_name string is a pointer into the input string.
+ * Uses DNS port by default; TLS port when a "#tls-auth-name" is configured.
  * @param str: the string
  * @param addr: where to store sockaddr.
  * @param addrlen: length of stored sockaddr is returned.
  * @param auth_name: returned pointer to tls_auth_name, or NULL if none.
  * @return 0 on error.
  */
-int authextstrtoaddr(char* str, struct sockaddr_storage* addr, 
+int authextstrtoaddr(char* str, struct sockaddr_storage* addr,
 	socklen_t* addrlen, char** auth_name);
+
+/**
+ * Convert domain string, with "@port" appendix, to dname.
+ * It can also have an "#tls-auth-name" appendix (after the port).
+ * The return port is the parsed port.
+ * Uses DNS port by default; TLS port when a "#tls-auth-name" is configured.
+ * The returned auth_name string is a pointer into the input string.
+ * @param str: the string
+ * @param port: pointer to be assigned the parsed port value.
+ * @param auth_name: returned pointer to tls_auth_name, or NULL if none.
+ * @return pointer to the dname.
+ */
+uint8_t* authextstrtodname(char* str, int* port, char** auth_name);
 
 /**
  * Store port number into sockaddr structure

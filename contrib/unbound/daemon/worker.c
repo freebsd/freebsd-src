@@ -1167,7 +1167,8 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 
 	/* check if this query should be dropped based on source ip rate limiting */
 	if(!infra_ip_ratelimit_inc(worker->env.infra_cache, repinfo,
-			*worker->env.now, c->buffer)) {
+			*worker->env.now,
+			worker->env.cfg->ip_ratelimit_backoff, c->buffer)) {
 		/* See if we are passed through with slip factor */
 		if(worker->env.cfg->ip_ratelimit_factor != 0 &&
 			ub_random_max(worker->env.rnd,
@@ -1967,9 +1968,10 @@ worker_delete(struct worker* worker)
 
 struct outbound_entry*
 worker_send_query(struct query_info* qinfo, uint16_t flags, int dnssec,
-	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t* zone, size_t zonelen, int tcp_upstream,
-	int ssl_upstream, char* tls_auth_name, struct module_qstate* q)
+	int want_dnssec, int nocaps, int check_ratelimit,
+	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
+	size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
+	struct module_qstate* q, int* was_ratelimited)
 {
 	struct worker* worker = q->env->worker;
 	struct outbound_entry* e = (struct outbound_entry*)regional_alloc(
@@ -1978,9 +1980,10 @@ worker_send_query(struct query_info* qinfo, uint16_t flags, int dnssec,
 		return NULL;
 	e->qstate = q;
 	e->qsent = outnet_serviced_query(worker->back, qinfo, flags, dnssec,
-		want_dnssec, nocaps, tcp_upstream,
+		want_dnssec, nocaps, check_ratelimit, tcp_upstream,
 		ssl_upstream, tls_auth_name, addr, addrlen, zone, zonelen, q,
-		worker_handle_service_reply, e, worker->back->udp_buff, q->env);
+		worker_handle_service_reply, e, worker->back->udp_buff, q->env,
+		was_ratelimited);
 	if(!e->qsent) {
 		return NULL;
 	}
@@ -2024,10 +2027,11 @@ struct outbound_entry* libworker_send_query(
 	struct query_info* ATTR_UNUSED(qinfo),
 	uint16_t ATTR_UNUSED(flags), int ATTR_UNUSED(dnssec),
 	int ATTR_UNUSED(want_dnssec), int ATTR_UNUSED(nocaps),
+	int ATTR_UNUSED(check_ratelimit),
 	struct sockaddr_storage* ATTR_UNUSED(addr), socklen_t ATTR_UNUSED(addrlen),
 	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
-	struct module_qstate* ATTR_UNUSED(q))
+	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited))
 {
 	log_assert(0);
 	return 0;
