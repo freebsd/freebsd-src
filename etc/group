@@ -31,6 +31,7 @@ dialer:*:68:
 network:*:69:
 audit:*:77:
 www:*:80:
+u2f:*:116:
 ntpd:*:123:
 _ypldap:*:160:
 hast:*:845:
