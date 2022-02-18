@@ -19,6 +19,7 @@ atf_test_case label
 atf_test_case report_identical
 atf_test_case non_regular_file
 atf_test_case binary
+atf_test_case functionname
 
 simple_body()
 {
@@ -278,6 +279,23 @@ binary_body()
 	atf_check -o inline:"176c\nx\n.\n" -s exit:1 diff -ae A B
 }
 
+functionname_body()
+{
+	atf_check -o empty -x "which diff"
+
+	atf_check -o file:$(atf_get_srcdir)/functionname_c.out -s exit:1 \
+		diff -u -p -L functionname.in -L functionname_c.in \
+		"$(atf_get_srcdir)/functionname.in" "$(atf_get_srcdir)/functionname_c.in"
+
+	atf_check -o file:$(atf_get_srcdir)/functionname_objcm.out -s exit:1 \
+		diff -u -p -L functionname.in -L functionname_objcm.in \
+		"$(atf_get_srcdir)/functionname.in" "$(atf_get_srcdir)/functionname_objcm.in"
+
+	atf_check -o file:$(atf_get_srcdir)/functionname_objcclassm.out -s exit:1 \
+		diff -u -p -L functionname.in -L functionname_objcclassm.in \
+		"$(atf_get_srcdir)/functionname.in" "$(atf_get_srcdir)/functionname_objcclassm.in"
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -299,4 +317,5 @@ atf_init_test_cases()
 	atf_add_test_case report_identical
 	atf_add_test_case non_regular_file
 	atf_add_test_case binary
+	atf_add_test_case functionname
 }
