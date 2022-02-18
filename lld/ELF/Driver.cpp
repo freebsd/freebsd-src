@@ -235,22 +235,28 @@ void LinkerDriver::addFile(StringRef path, bool withLOption) {
     // user is attempting LTO and using a default ar command that doesn't
     // understand the LLVM bitcode file. Treat the archive as a group of lazy
     // object files.
-    if (!file->isEmpty() && !file->hasSymbolTable()) {
-      for (const std::pair<MemoryBufferRef, uint64_t> &p :
-           getArchiveMembers(mbref)) {
-        auto magic = identify_magic(p.first.getBuffer());
-        if (magic == file_magic::bitcode ||
-            magic == file_magic::elf_relocatable)
-          files.push_back(createLazyFile(p.first, path, p.second));
-        else
-          error(path + ": archive member '" + p.first.getBufferIdentifier() +
-                "' is neither ET_REL nor LLVM bitcode");
-      }
+    if (file->isEmpty() || file->hasSymbolTable()) {
+      // Handle the regular case.
+      files.push_back(make<ArchiveFile>(std::move(file)));
       return;
     }
 
-    // Handle the regular case.
-    files.push_back(make<ArchiveFile>(std::move(file)));
+    // All files within the archive get the same group ID to allow mutual
+    // references for --warn-backrefs.
+    bool saved = InputFile::isInGroup;
+    InputFile::isInGroup = true;
+    for (const std::pair<MemoryBufferRef, uint64_t> &p :
+         getArchiveMembers(mbref)) {
+      auto magic = identify_magic(p.first.getBuffer());
+      if (magic == file_magic::bitcode || magic == file_magic::elf_relocatable)
+        files.push_back(createLazyFile(p.first, path, p.second));
+      else
+        error(path + ": archive member '" + p.first.getBufferIdentifier() +
+              "' is neither ET_REL nor LLVM bitcode");
+    }
+    InputFile::isInGroup = saved;
+    if (!saved)
+      ++InputFile::nextGroupId;
     return;
   }
   case file_magic::elf_shared_object:
@@ -1233,6 +1239,9 @@ static void readConfigs(opt::InputArgList &args) {
     else
       error(errPrefix + toString(pat.takeError()));
   }
+
+  if (args.hasArg(OPT_define_common, OPT_no_define_common))
+    warn("-d, -dc, -dp, and --[no-]define-common will be removed. See https://github.com/llvm/llvm-project/issues/53660");
 
   cl::ResetAllOptionOccurrences();
 
