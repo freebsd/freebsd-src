@@ -313,7 +313,7 @@ typedef struct callout sctp_os_timer_t;
 /*************************/
 /*      MTU              */
 /*************************/
-#define SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index) ((struct ifnet *)ifn)->if_mtu
+#define SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index) ((ifn != NULL) ? ((struct ifnet *)ifn)->if_mtu : 0)
 #define SCTP_GATHER_MTU_FROM_ROUTE(sctp_ifa, sa, nh) ((uint32_t)((nh != NULL) ? nh->nh_mtu : 0))
 
 /*************************/
