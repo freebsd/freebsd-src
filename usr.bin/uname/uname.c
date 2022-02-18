@@ -256,8 +256,12 @@ NATIVE_SYSCTL2_GET(version, CTL_KERN, KERN_VERSION) {
 	p = NATIVE_BUFFER;
 	n = NATIVE_LENGTH;
 	for (; n--; ++p)
-		if (*p == '\n' || *p == '\t')
-			*p = ' ';
+		if (*p == '\n' || *p == '\t') {
+			if (n > 1)
+				*p = ' ';
+			else
+				*p = '\0';
+		}
 } NATIVE_SET;
 
 NATIVE_SYSCTL2_GET(platform, CTL_HW, HW_MACHINE) {
