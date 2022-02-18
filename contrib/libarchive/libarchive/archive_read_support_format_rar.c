@@ -430,7 +430,7 @@ static int new_node(struct huffman_code *);
 static int make_table(struct archive_read *, struct huffman_code *);
 static int make_table_recurse(struct archive_read *, struct huffman_code *, int,
                               struct huffman_table_entry *, int, int);
-static int64_t expand(struct archive_read *, int64_t);
+static int expand(struct archive_read *, int64_t *);
 static int copy_from_lzss_window_to_unp(struct archive_read *, const void **,
                                         int64_t, int);
 static const void *rar_read_ahead(struct archive_read *, size_t, ssize_t *);
@@ -1988,7 +1988,7 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
     return (ARCHIVE_FATAL);
 
   struct rar *rar;
-  int64_t start, end, actualend;
+  int64_t start, end;
   size_t bs;
   int ret = (ARCHIVE_OK), sym, code, lzss_offset, length, i;
 
@@ -2179,11 +2179,12 @@ read_data_compressed(struct archive_read *a, const void **buff, size_t *size,
         end = rar->filters.filterstart;
       }
 
-      if ((actualend = expand(a, end)) < 0)
-        return ((int)actualend);
+      ret = expand(a, &end);
+      if (ret != ARCHIVE_OK)
+	      return (ret);
 
-      rar->bytes_uncopied = actualend - start;
-      rar->filters.lastend = actualend;
+      rar->bytes_uncopied = end - start;
+      rar->filters.lastend = end;
       if (rar->filters.lastend != rar->filters.filterstart && rar->bytes_uncopied == 0) {
           /* Broken RAR files cause this case.
           * NOTE: If this case were possible on a normal RAR file
@@ -2825,8 +2826,8 @@ make_table_recurse(struct archive_read *a, struct huffman_code *code, int node,
   return ret;
 }
 
-static int64_t
-expand(struct archive_read *a, int64_t end)
+static int
+expand(struct archive_read *a, int64_t *end)
 {
   static const unsigned char lengthbases[] =
     {   0,   1,   2,   3,   4,   5,   6,
@@ -2873,16 +2874,19 @@ expand(struct archive_read *a, int64_t end)
   struct rar *rar = (struct rar *)(a->format->data);
   struct rar_br *br = &(rar->br);
 
-  if (rar->filters.filterstart < end)
-    end = rar->filters.filterstart;
+  if (rar->filters.filterstart < *end)
+    *end = rar->filters.filterstart;
 
   while (1)
   {
-    if(lzss_position(&rar->lzss) >= end)
-      return end;
+    if(lzss_position(&rar->lzss) >= *end) {
+      return (ARCHIVE_OK);
+    }
 
-    if(rar->is_ppmd_block)
-      return lzss_position(&rar->lzss);
+    if(rar->is_ppmd_block) {
+      *end = lzss_position(&rar->lzss);
+      return (ARCHIVE_OK);
+    }
 
     if ((symbol = read_next_symbol(a, &rar->maincode)) < 0)
       return (ARCHIVE_FATAL);
@@ -2906,7 +2910,8 @@ expand(struct archive_read *a, int64_t end)
           goto truncated_data;
         rar->start_new_table = rar_br_bits(br, 1);
         rar_br_consume(br, 1);
-        return lzss_position(&rar->lzss);
+        *end = lzss_position(&rar->lzss);
+        return (ARCHIVE_OK);
       }
       else
       {
@@ -2917,7 +2922,7 @@ expand(struct archive_read *a, int64_t end)
     }
     else if(symbol==257)
     {
-      if (!read_filter(a, &end))
+      if (!read_filter(a, end))
           return (ARCHIVE_FATAL);
       continue;
     }
@@ -3325,12 +3330,19 @@ run_filters(struct archive_read *a)
   struct rar_filter *filter = filters->stack;
   size_t start = filters->filterstart;
   size_t end = start + filter->blocklength;
+  int64_t tend;
   uint32_t lastfilteraddress;
   uint32_t lastfilterlength;
   int ret;
 
   filters->filterstart = INT64_MAX;
-  end = (size_t)expand(a, end);
+  tend = (int64_t)end;
+  ret = expand(a, &tend);
+  if (ret != ARCHIVE_OK)
+    return (ret);
+  if (tend < 0)
+    return (ARCHIVE_FATAL);
+  end = (size_t)tend;
   if (end != start + filter->blocklength)
     return 0;
 

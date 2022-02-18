@@ -32,9 +32,9 @@ DEFINE_TEST(test_read_format_rar_filter)
     struct archive_entry *ae;
     char *buff[12];
     const char signature[12] = {
-        0xff, 0xd8, 0xff, 0xe0,
-        0x00, 0x10, 0x4a, 0x46,
-        0x49, 0x46, 0x00, 0x01,
+        0x4d, 0x5a, 0x90, 0x00,
+        0x03, 0x00, 0x00, 0x00,
+        0x04, 0x00, 0x00, 0x00,
     };
 
     extract_reference_file(refname);
@@ -44,9 +44,9 @@ DEFINE_TEST(test_read_format_rar_filter)
     assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 
     assertA(0 == archive_read_next_header(a, &ae));
-    assertEqualString("013.jpg", archive_entry_pathname(ae));
+    assertEqualString("bsdcat.exe", archive_entry_pathname(ae));
     assertA((int)archive_entry_mtime(ae));
-    assertEqualInt(1215721, archive_entry_size(ae));
+    assertEqualInt(204288, archive_entry_size(ae));
     assertA(12 == archive_read_data(a, buff, 12));
     assertEqualMem(buff, signature, 12);
 
