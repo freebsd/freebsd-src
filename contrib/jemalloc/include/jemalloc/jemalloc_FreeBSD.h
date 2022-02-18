@@ -63,9 +63,11 @@
 #ifdef __powerpc64__
 #  define LG_VADDR		64
 #  define LG_SIZEOF_PTR		3
+#  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #elif defined(__powerpc__)
 #  define LG_VADDR		32
 #  define LG_SIZEOF_PTR		2
+#  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 #endif
 #ifdef __riscv
 #  define LG_VADDR		48
