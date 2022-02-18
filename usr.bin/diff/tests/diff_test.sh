@@ -282,8 +282,6 @@ binary_body()
 
 functionname_body()
 {
-	atf_check -o empty -x "which diff"
-
 	atf_check -o file:$(atf_get_srcdir)/functionname_c.out -s exit:1 \
 		diff -u -p -L functionname.in -L functionname_c.in \
 		"$(atf_get_srcdir)/functionname.in" "$(atf_get_srcdir)/functionname_c.in"
