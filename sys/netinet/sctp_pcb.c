@@ -3969,7 +3969,12 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			net->src_addr_selected = 1;
 			/* Now get the interface MTU */
 			if (net->ro._s_addr->ifn_p != NULL) {
-				imtu = SCTP_GATHER_MTU_FROM_INTFC(net->ro._s_addr->ifn_p);
+				/*
+				 * XXX: Should we here just use
+				 * net->ro._s_addr->ifn_p->ifn_mtu
+				 */
+				imtu = SCTP_GATHER_MTU_FROM_IFN_INFO(net->ro._s_addr->ifn_p->ifn_p,
+				    net->ro._s_addr->ifn_p->ifn_index);
 			} else {
 				imtu = 0;
 			}
