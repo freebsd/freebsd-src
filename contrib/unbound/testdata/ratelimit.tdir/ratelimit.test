@@ -1,0 +1,183 @@
+# #-- ratelimit.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# These tests rely on second time precision. To combat false negatives the
+# tests run multiple times and we allow 1/3 of the runs to fail.
+total_runs=6
+success_threshold=4  # 2/3*total_runs
+
+successes=0
+echo "> Three parallel queries"
+# For this test we send three parallel queries and we expect only one of them
+# to be allowed through each second.
+for i in $(seq 1 $total_runs); do
+	$PRE/streamtcp -na -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN www2.example.com. A IN www3.example.com. A IN >outfile 2>&1
+	if test "$?" -ne 0; then
+		echo "exit status not OK"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+	cat outfile
+	if test `grep "rcode: SERVFAIL" outfile | wc -l` -eq 2; then
+		((successes++))
+	fi
+	# We don't have to wait for all the runs to complete if we know
+	# we passed the threshold.
+	if test $successes -ge $success_threshold; then
+		break
+	fi
+	sleep 1
+done
+if test $successes -ge $success_threshold; then
+	echo "Number of ratelimited queries OK for three parallel queries"
+else
+	echo "Number of ratelimited queries not OK for three parallel queries"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound.log
+	echo "Number of ratelimited queries not OK for three parallel queries"
+	exit 1
+fi
+
+echo "> Activating ratelimit-factor"
+echo "$PRE/unbound-control -c ub.conf set_option ratelimit-factor: 3"
+$PRE/unbound-control -c ub.conf set_option ratelimit-factor: 3
+if test $? -ne 0; then
+	echo "wrong exit value after success"
+	exit 1
+fi
+
+slipped_through=0
+echo "> Three parallel queries with ratelimit-factor"
+# For this test we send three parallel queries and we expect at least two of
+# them to be allowed through at a given second; one from the ratelimit itself
+# and one from the ratelimit-factor.
+for i in {1..10}; do
+	$PRE/streamtcp -na -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN www2.example.com. A IN www3.example.com. A IN >outfile 2>&1
+	if test "$?" -ne 0; then
+		echo "exit status not OK"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+	cat outfile
+	if test `grep "rcode: SERVFAIL" outfile | wc -l` -lt 2; then
+		slipped_through=1
+		break
+	fi
+	sleep 2
+done
+if test $slipped_through -eq 0; then
+	echo "ratelimit-factor did not work"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound.log
+	echo "ratelimit-factor did not work"
+	exit 1
+fi
+echo "ratelimit-factor OK"
+
+echo "> Disabling ratelimit-factor"
+echo "$PRE/unbound-control -c ub.conf set_option ratelimit-factor: 0"
+$PRE/unbound-control -c ub.conf set_option ratelimit-factor: 0
+if test $? -ne 0; then
+	echo "wrong exit value after success"
+	exit 1
+fi
+echo "> Activating ratelimit-backoff"
+echo "$PRE/unbound-control -c ub.conf set_option ratelimit-backoff: yes"
+$PRE/unbound-control -c ub.conf set_option ratelimit-backoff: yes
+if test $? -ne 0; then
+	echo "wrong exit value after success"
+	exit 1
+fi
+
+successes=0
+echo "> Three parallel queries with backoff"
+# For this test we send three parallel queries. The ratelimit should be reached
+# for that second. Then for the next second we again send three parallel
+# queries and we expect none of them to be allowed through because of the
+# backoff logic that keeps rolling the RATE_WINDOW based on demand.
+for i in $(seq 1 $total_runs); do
+	$PRE/streamtcp -na -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN www2.example.com. A IN www3.example.com. A IN >outfile 2>&1
+	if test "$?" -ne 0; then
+		echo "exit status not OK"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+	sleep 1  # Limit is reached; it should also be active for the next second
+	$PRE/streamtcp -na -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN www2.example.com. A IN www3.example.com. A IN >outfile 2>&1
+	if test "$?" -ne 0; then
+		echo "exit status not OK"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+	cat outfile
+	if test `grep "rcode: SERVFAIL" outfile | wc -l` -eq 3; then
+		((successes++))
+	fi
+	# We don't have to wait for all the runs to complete if we know
+	# we passed the threshold.
+	if test $successes -ge $success_threshold; then
+		break
+	fi
+done
+
+if test $successes -ge $success_threshold; then
+	echo "three parallel queries with backoff OK"
+else
+	echo "Number of ratelimited queries not OK for three parallel queries with backoff"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound.log
+	echo "Number of ratelimited queries not OK for three parallel queries with backoff"
+	exit 1
+fi
+
+echo "> Three parallel queries after backoff RATE_WINDOW"
+sleep 3  # Make sure the RATE_WINDOW is renewed
+# For this test we make three parallel queries after the RATE_WINDOW has passed
+# without any new demand and we expect at least one query to pass through. This
+# is to check that the backoff logic does not insist on past (outside of
+# RATE_WINDOW) limits.
+$PRE/streamtcp -na -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN www2.example.com. A IN www3.example.com. A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+cat outfile
+if test `grep "rcode: NOERROR" outfile | wc -l` -gt 0; then
+	echo "Number of ratelimited queries OK for three parallel queries after backoff RATE_WINDOW"
+else
+	echo "Number of ratelimited queries not OK for three parallel queries after backoff RATE_WINDOW"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound.log
+	echo "Number of ratelimited queries not OK for three parallel queries after backoff RATE_WINDOW"
+	exit 1
+fi
+exit 0
