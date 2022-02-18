@@ -211,6 +211,7 @@ struct pci_driver {
 	struct device_driver		driver;
 	const struct pci_error_handlers       *err_handler;
 	bool				isdrm;
+	int				bsd_probe_return;
 	int  (*bsd_iov_init)(device_t dev, uint16_t num_vfs,
 	    const nvlist_t *pf_config);
 	void  (*bsd_iov_uninit)(device_t dev);
