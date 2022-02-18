@@ -273,9 +273,7 @@
 /* #undef HAVE__CHSIZE_S */
 
 /* Define to 1 if you have the `_Unwind_Backtrace' function. */
-#if !defined(__FreeBSD__)
 #define HAVE__UNWIND_BACKTRACE 1
-#endif
 
 /* Have host's __alloca */
 /* #undef HAVE___ALLOCA */
@@ -334,9 +332,6 @@
 /* Target triple LLVM will generate code for by default */
 /* Doesn't use `cmakedefine` because it is allowed to be empty. */
 /* #undef LLVM_DEFAULT_TARGET_TRIPLE */
-
-/* Define if zlib compression is available */
-#define LLVM_ENABLE_ZLIB 1
 
 /* Define if overriding target triple is enabled */
 /* #undef LLVM_TARGET_TRIPLE_ENV */

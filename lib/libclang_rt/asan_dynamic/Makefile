@@ -20,9 +20,9 @@ SRCS+=		asan/asan_interceptors_memintrinsics.cpp
 SRCS+=		asan/asan_linux.cpp
 SRCS+=		asan/asan_malloc_linux.cpp
 SRCS+=		asan/asan_memory_profile.cpp
-SRCS+=		asan/asan_new_delete.cpp
 SRCS+=		asan/asan_poisoning.cpp
 SRCS+=		asan/asan_posix.cpp
+SRCS+=		asan/asan_preinit.cpp
 SRCS+=		asan/asan_premap_shadow.cpp
 SRCS+=		asan/asan_report.cpp
 SRCS+=		asan/asan_rtl.cpp
@@ -79,11 +79,8 @@ SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cpp
 SRCS+=		ubsan/ubsan_diag.cpp
 SRCS+=		ubsan/ubsan_flags.cpp
 SRCS+=		ubsan/ubsan_handlers.cpp
-SRCS+=		ubsan/ubsan_handlers_cxx.cpp
 SRCS+=		ubsan/ubsan_init.cpp
 SRCS+=		ubsan/ubsan_monitor.cpp
-SRCS+=		ubsan/ubsan_type_hash.cpp
-SRCS+=		ubsan/ubsan_type_hash_itanium.cpp
 SRCS+=		ubsan/ubsan_value.cpp
 
 # Kludge around a bsd.lib.mk shortcoming: when SHLIB_NAME is defined, but LIB
@@ -93,7 +90,3 @@ SRCS+=		ubsan/ubsan_value.cpp
 CC=		${CXX}
 
 .include <bsd.lib.mk>
-
-CXXFLAGS.ubsan_handlers_cxx.cpp=		-frtti
-CXXFLAGS.ubsan_type_hash.cpp=		-frtti
-CXXFLAGS.ubsan_type_hash_itanium.cpp=	-frtti
