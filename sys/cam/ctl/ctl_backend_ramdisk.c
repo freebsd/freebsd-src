@@ -386,6 +386,7 @@ ctl_backend_ramdisk_cmp(union ctl_io *io)
 		if (res < cbe_lun->blocksize)
 			break;
 	}
+	free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	if (lbas > 0) {
 		off += io->scsiio.kern_rel_offset - io->scsiio.kern_data_len;
 		scsi_u64to8b(off, info);
