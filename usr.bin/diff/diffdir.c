@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include "diff.h"
 
@@ -175,28 +176,87 @@ diffit(struct dirent *dp, char *path1, size_t plen1, char *path2, size_t plen2,
 {
 	flags |= D_HEADER;
 	strlcpy(path1 + plen1, dp->d_name, PATH_MAX - plen1);
-	if (stat(path1, &stb1) != 0) {
-		if (!(Nflag || Pflag) || errno != ENOENT) {
-			warn("%s", path1);
-			return;
-		}
-		flags |= D_EMPTY1;
-		memset(&stb1, 0, sizeof(stb1));
-	}
-
 	strlcpy(path2 + plen2, dp->d_name, PATH_MAX - plen2);
-	if (stat(path2, &stb2) != 0) {
-		if (!Nflag || errno != ENOENT) {
-			warn("%s", path2);
+
+	if (noderef) {
+		if (lstat(path1, &stb1) != 0) {
+			if (!(Nflag || Pflag) || errno != ENOENT) {
+				warn("%s", path1);
+				return;
+			}
+			flags |= D_EMPTY1;
+			memset(&stb1, 0, sizeof(stb1));
+		}
+
+		if (lstat(path2, &stb2) != 0) {
+			if (!Nflag || errno != ENOENT) {
+				warn("%s", path2);
+				return;
+			}
+			flags |= D_EMPTY2;
+			memset(&stb2, 0, sizeof(stb2));
+			stb2.st_mode = stb1.st_mode;
+		}
+		if (stb1.st_mode == 0)
+			stb1.st_mode = stb2.st_mode;
+		if (S_ISLNK(stb1.st_mode) || S_ISLNK(stb2.st_mode)) {
+			if  (S_ISLNK(stb1.st_mode) && S_ISLNK(stb2.st_mode)) {
+				char buf1[PATH_MAX];
+				char buf2[PATH_MAX];
+				ssize_t len1 = 0;
+				ssize_t len2 = 0;
+
+				len1 = readlink(path1, buf1, sizeof(buf1));
+				len2 = readlink(path2, buf2, sizeof(buf2));
+
+				if (len1 < 0 || len2 < 0) {
+					perror("reading links");
+					return;
+				}
+				buf1[len1] = '\0';
+				buf2[len2] = '\0';
+
+				if (len1 != len2 || strncmp(buf1, buf2, len1) != 0) {
+					printf("Symbolic links %s and %s differ\n",
+						path1, path2);
+					status |= 1;
+				}
+
+				return;
+			}
+
+			printf("File %s is a %s while file %s is a %s\n",
+				path1, S_ISLNK(stb1.st_mode) ? "symbolic link" :
+					(S_ISDIR(stb1.st_mode) ? "directory" :
+					(S_ISREG(stb1.st_mode) ? "file" : "error")),
+				path2, S_ISLNK(stb2.st_mode) ? "symbolic link" :
+					(S_ISDIR(stb2.st_mode) ? "directory" :
+					(S_ISREG(stb2.st_mode) ? "file" : "error")));
+			status |= 1;
 			return;
 		}
-		flags |= D_EMPTY2;
-		memset(&stb2, 0, sizeof(stb2));
-		stb2.st_mode = stb1.st_mode;
-	}
-	if (stb1.st_mode == 0)
-		stb1.st_mode = stb2.st_mode;
+	} else {
+		if (stat(path1, &stb1) != 0) {
+			if (!(Nflag || Pflag) || errno != ENOENT) {
+				warn("%s", path1);
+				return;
+			}
+			flags |= D_EMPTY1;
+			memset(&stb1, 0, sizeof(stb1));
+		}
 
+		if (stat(path2, &stb2) != 0) {
+			if (!Nflag || errno != ENOENT) {
+				warn("%s", path2);
+				return;
+			}
+			flags |= D_EMPTY2;
+			memset(&stb2, 0, sizeof(stb2));
+			stb2.st_mode = stb1.st_mode;
+		}
+		if (stb1.st_mode == 0)
+			stb1.st_mode = stb2.st_mode;
+	}
 	if (S_ISDIR(stb1.st_mode) && S_ISDIR(stb2.st_mode)) {
 		if (rflag)
 			diffdir(path1, path2, flags);
