@@ -89,6 +89,9 @@
 /* Define if we have curl and want to use it */
 /* #undef LLVM_ENABLE_CURL */
 
+/* Define if zlib compression is available */
+#define LLVM_ENABLE_ZLIB 1
+
 /* Define if LLVM was built with a dependency to the libtensorflow dynamic library */
 /* #undef LLVM_HAVE_TF_API */
 
@@ -108,5 +111,8 @@
 
 /* Define if building LLVM with BUILD_SHARED_LIBS */
 /* #undef LLVM_BUILD_SHARED_LIBS */
+
+/* Define if building LLVM with LLVM_FORCE_USE_OLD_TOOLCHAIN_LIBS */
+/* #undef LLVM_FORCE_USE_OLD_TOOLCHAIN */
 
 #endif
