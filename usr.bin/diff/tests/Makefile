@@ -27,7 +27,14 @@ ${PACKAGE}FILES+=	\
 	header_ns.out \
 	ifdef.out \
 	group-format.out \
-	strip_o.out
+	strip_o.out \
+	functionname.in \
+	functionname_c.in \
+	functionname_c.out \
+	functionname_objcclassm.in \
+	functionname_objcclassm.out \
+	functionname_objcm.in \
+	functionname_objcm.out
 
 NETBSD_ATF_TESTS_SH+=	netbsd_diff_test
 

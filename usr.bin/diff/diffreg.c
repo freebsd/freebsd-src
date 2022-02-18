@@ -1419,7 +1419,8 @@ match_function(const long *f, int pos, FILE *fp)
 			strlcpy(lastbuf, buf, sizeof(lastbuf));
 			lastmatchline = pos;
 			return (lastbuf);
-		} else if (isalpha(buf[0]) || buf[0] == '_' || buf[0] == '$') {
+		} else if (isalpha(buf[0]) || buf[0] == '_' || buf[0] == '$'
+			|| buf[0] == '-' || buf[0] == '+') {
 			if (begins_with(buf, "private:")) {
 				if (!state)
 					state = " (private)";
