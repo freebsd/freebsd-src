@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
+.TH "unbound-control" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -14,15 +14,15 @@
 .SH "SYNOPSIS"
 .B unbound\-control
 .RB [ \-hq ]
-.RB [ \-c 
+.RB [ \-c
 .IR cfgfile ]
-.RB [ \-s 
+.RB [ \-s
 .IR server ]
 .IR command
 .SH "DESCRIPTION"
 .B Unbound\-control
 performs remote administration on the \fIunbound\fR(8) DNS server.
-It reads the configuration file, contacts the unbound server over SSL
+It reads the configuration file, contacts the Unbound server over SSL
 sends the command and displays the result.
 .P
 The available options are:
@@ -44,8 +44,8 @@ quiet, if the option is given it does not print anything if it works ok.
 There are several commands that the server understands.
 .TP
 .B start
-Start the server. Simply execs \fIunbound\fR(8).  The unbound executable 
-is searched for in the \fBPATH\fR set in the environment.  It is started 
+Start the server. Simply execs \fIunbound\fR(8).  The Unbound executable
+is searched for in the \fBPATH\fR set in the environment.  It is started
 with the config file specified using \fI\-c\fR or the default config file.
 .TP
 .B stop
@@ -65,8 +65,8 @@ daemon release the file it is logging to.  If you are using syslog it will
 attempt to close and open the syslog (which may not work if chrooted).
 .TP
 .B stats
-Print statistics. Resets the internal counters to zero, this can be 
-controlled using the \fBstatistics\-cumulative\fR config statement. 
+Print statistics. Resets the internal counters to zero, this can be
+controlled using the \fBstatistics\-cumulative\fR config statement.
 Statistics are printed with one [name]: [value] per line.
 .TP
 .B stats_noreset
@@ -74,7 +74,7 @@ Peek at statistics. Prints them like the \fBstats\fR command does, but does not
 reset the internal counters to zero.
 .TP
 .B status
-Display server status. Exit code 3 if not running (the connection to the 
+Display server status. Exit code 3 if not running (the connection to the
 port is refused), 1 on error, 0 if running.
 .TP
 .B local_zone \fIname\fR \fItype
@@ -88,14 +88,14 @@ it.  If the zone does not exist, the command succeeds.
 .B local_data \fIRR data...
 Add new local data, the given resource record. Like \fBlocal\-data\fR
 config statement, except for when no covering zone exists.  In that case
-this remote control command creates a transparent zone with the same 
+this remote control command creates a transparent zone with the same
 name as this record.
 .TP
 .B local_data_remove \fIname
 Remove all RR data from local name.  If the name already has no items,
 nothing happens.  Often results in NXDOMAIN for the name (in a static zone),
-but if the name has become an empty nonterminal (there is still data in 
-domain names below the removed name), NOERROR nodata answers are the 
+but if the name has become an empty nonterminal (there is still data in
+domain names below the removed name), NOERROR nodata answers are the
 result for that name.
 .TP
 .B local_zones
@@ -125,22 +125,22 @@ in old or wrong data returned to clients.  Loading data into the cache
 in this way is supported in order to aid with debugging.
 .TP
 .B lookup \fIname
-Print to stdout the name servers that would be used to look up the 
+Print to stdout the name servers that would be used to look up the
 name specified.
 .TP
 .B flush \fIname
 Remove the name from the cache. Removes the types
 A, AAAA, NS, SOA, CNAME, DNAME, MX, PTR, SRV and NAPTR.
-Because that is fast to do. Other record types can be removed using 
-.B flush_type 
-or 
+Because that is fast to do. Other record types can be removed using
+.B flush_type
+or
 .B flush_zone\fR.
 .TP
 .B flush_type \fIname\fR \fItype
 Remove the name, type information from the cache.
 .TP
 .B flush_zone \fIname
-Remove all information at or below the name from the cache. 
+Remove all information at or below the name from the cache.
 The rrsets and key entries are removed so that new lookups will be performed.
 This needs to walk and inspect the entire cache, and is a slow operation.
 The entries are set to expired in the implementation of this command (so,
@@ -187,7 +187,7 @@ therefore not flushed.  The option must end with a ':' and whitespace
 must be between the option and the value.  Some values may not have an
 effect if set this way, the new values are not written to the config file,
 not all options are supported.  This is different from the set_option call
-in libunbound, where all values work because unbound has not been initialized.
+in libunbound, where all values work because Unbound has not been initialized.
 .IP
 The values that work are: statistics\-interval, statistics\-cumulative,
 do\-not\-query\-localhost, harden\-short\-bufsize, harden\-large\-queries,
@@ -227,36 +227,36 @@ List the local data RRs in use.  The resource records are printed.
 .TP
 .B insecure_add \fIzone
 Add a \fBdomain\-insecure\fR for the given zone, like the statement in unbound.conf.
-Adds to the running unbound without affecting the cache contents (which may
+Adds to the running Unbound without affecting the cache contents (which may
 still be bogus, use \fBflush_zone\fR to remove it), does not affect the config file.
 .TP
 .B insecure_remove \fIzone
 Removes domain\-insecure for the given zone.
 .TP
 .B forward_add \fR[\fI+i\fR] \fIzone addr ...
-Add a new forward zone to running unbound.  With +i option also adds a
+Add a new forward zone to running Unbound.  With +i option also adds a
 \fIdomain\-insecure\fR for the zone (so it can resolve insecurely if you have
 a DNSSEC root trust anchor configured for other names).
 The addr can be IP4, IP6 or nameserver names, like \fIforward-zone\fR config
 in unbound.conf.
 .TP
 .B forward_remove \fR[\fI+i\fR] \fIzone
-Remove a forward zone from running unbound.  The +i also removes a
+Remove a forward zone from running Unbound.  The +i also removes a
 \fIdomain\-insecure\fR for the zone.
 .TP
 .B stub_add \fR[\fI+ip\fR] \fIzone addr ...
-Add a new stub zone to running unbound.  With +i option also adds a
+Add a new stub zone to running Unbound.  With +i option also adds a
 \fIdomain\-insecure\fR for the zone.  With +p the stub zone is set to prime,
 without it it is set to notprime.  The addr can be IP4, IP6 or nameserver
 names, like the \fIstub-zone\fR config in unbound.conf.
 .TP
 .B stub_remove \fR[\fI+i\fR] \fIzone
-Remove a stub zone from running unbound.  The +i also removes a
+Remove a stub zone from running Unbound.  The +i also removes a
 \fIdomain\-insecure\fR for the zone.
 .TP
 .B forward \fR[\fIoff\fR | \fIaddr ...\fR ]
 Setup forwarding mode.  Configures if the server should ask other upstream
-nameservers, should go to the internet root nameservers itself, or show 
+nameservers, should go to the internet root nameservers itself, or show
 the current config.  You could pass the nameservers after a DHCP update.
 .IP
 Without arguments the current list of addresses used to forward all queries
@@ -296,7 +296,7 @@ status, indicating if the zone is expired and current serial number.
 Reload the auth zone from zonefile.  The zonefile is read in overwriting
 the current contents of the zone in memory.  This changes the auth zone
 contents itself, not the cache contents.  Such cache contents exists if
-you set unbound to validate with for-upstream yes and that can be cleared
+you set Unbound to validate with for-upstream yes and that can be cleared
 with \fBflush_zone\fR \fIzone\fR.
 .TP
 .B auth_zone_transfer \fIzone\fR
@@ -336,7 +336,7 @@ Add a list of \fIlocal_data\fR for given view from stdin.  Like local_datas.
 .SH "EXIT CODE"
 The unbound\-control program exits with status code 1 on error, 0 on success.
 .SH "SET UP"
-The setup requires a self\-signed certificate and private keys for both 
+The setup requires a self\-signed certificate and private keys for both
 the server and client.  The script \fIunbound\-control\-setup\fR generates
 these in the default run directory, or with \-d in another directory.
 If you change the access control permissions on the key files you can decide
@@ -350,7 +350,7 @@ If you have not configured
 a username in unbound.conf, the keys need read permission for the user
 credentials under which the daemon is started.
 The script preserves private keys present in the directory.
-After running the script as root, turn on \fBcontrol\-enable\fR in 
+After running the script as root, turn on \fBcontrol\-enable\fR in
 \fIunbound.conf\fR.
 .SH "STATISTIC COUNTERS"
 The \fIstats\fR command shows a number of statistic counters.
@@ -417,8 +417,8 @@ Average time it took to answer queries that needed recursive processing. Note th
 .TP
 .I threadX.recursion.time.median
 The median of the time it took to answer queries that needed recursive
-processing.  The median means that 50% of the user queries were answered in 
-less than this time.  Because of big outliers (usually queries to non 
+processing.  The median means that 50% of the user queries were answered in
+less than this time.  Because of big outliers (usually queries to non
 responsive servers), the average can be bigger than the median.  This median
 has been calculated by interpolation from a histogram.
 .TP
@@ -544,32 +544,32 @@ The total number of queries over all threads with query opcode QUERY.
 Also printed for other opcodes, UPDATE, ...
 .TP
 .I num.query.tcp
-Number of queries that were made using TCP towards the unbound server.
+Number of queries that were made using TCP towards the Unbound server.
 .TP
 .I num.query.tcpout
-Number of queries that the unbound server made using TCP outgoing towards
+Number of queries that the Unbound server made using TCP outgoing towards
 other servers.
 .TP
 .I num.query.tls
-Number of queries that were made using TLS towards the unbound server.
+Number of queries that were made using TLS towards the Unbound server.
 These are also counted in num.query.tcp, because TLS uses TCP.
 .TP
 .I num.query.tls.resume
 Number of TLS session resumptions, these are queries over TLS towards
-the unbound server where the client negotiated a TLS session resumption key.
+the Unbound server where the client negotiated a TLS session resumption key.
 .TP
 .I num.query.https
-Number of queries that were made using HTTPS towards the unbound server.
+Number of queries that were made using HTTPS towards the Unbound server.
 These are also counted in num.query.tcp and num.query.tls, because HTTPS
 uses TLS and TCP.
 .TP
 .I num.query.ipv6
-Number of queries that were made using IPv6 towards the unbound server.
+Number of queries that were made using IPv6 towards the Unbound server.
 .TP
 .I num.query.flags.RD
 The number of queries that had the RD flag set in the header.
 Also printed for flags QR, AA, TC, RA, Z, AD, CD.
-Note that queries with flags QR, AA or TC may have been rejected 
+Note that queries with flags QR, AA or TC may have been rejected
 because of that.
 .TP
 .I num.query.edns.present
@@ -603,7 +603,7 @@ These queries are also included in the num.answer.rcode.NOERROR number.
 Common for AAAA lookups when an A record exists, and no AAAA.
 .TP
 .I num.answer.secure
-Number of answers that were secure.  The answer validated correctly. 
+Number of answers that were secure.  The answer validated correctly.
 The AD bit might have been set in some of these answers, where the client
 signalled (with DO or AD bit in the query) that they were ready to accept
 the AD bit in the answer.
@@ -644,7 +644,7 @@ per delegation point, and their validation status.
 .I dnscrypt_shared_secret.cache.count
 The number of items in the shared secret cache. These are precomputed shared
 secrets for a given client public key/server secret key pair. Shared secrets
-are CPU intensive and this cache allows unbound to avoid recomputing the
+are CPU intensive and this cache allows Unbound to avoid recomputing the
 shared secret when multiple dnscrypt queries are sent from the same client.
 .TP
 .I dnscrypt_nonce.cache.count
@@ -689,11 +689,11 @@ disabled, and cname\-override.
 .SH "FILES"
 .TP
 .I @ub_conf_file@
-unbound configuration file.
+Unbound configuration file.
 .TP
 .I @UNBOUND_RUN_DIR@
 directory with private keys (unbound_server.key and unbound_control.key) and
 self\-signed certificates (unbound_server.pem and unbound_control.pem).
 .SH "SEE ALSO"
-\fIunbound.conf\fR(5), 
+\fIunbound.conf\fR(5),
 \fIunbound\fR(8).

@@ -1,4 +1,4 @@
-.TH "unbound-checkconf" "8" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
+.TH "unbound-checkconf" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
 .\"
 .\" unbound-checkconf.8 -- unbound configuration checker manual
 .\"
@@ -8,8 +8,8 @@
 .\"
 .\"
 .SH "NAME"
-.B unbound\-checkconf
-\- Check unbound configuration file for errors.
+unbound\-checkconf
+\- Check Unbound configuration file for errors.
 .SH "SYNOPSIS"
 .B unbound\-checkconf
 .RB [ \-h ]
@@ -21,8 +21,8 @@
 .B Unbound\-checkconf
 checks the configuration file for the
 \fIunbound\fR(8)
-DNS resolver for syntax and other errors. 
-The config file syntax is described in 
+DNS resolver for syntax and other errors.
+The config file syntax is described in
 \fIunbound.conf\fR(5).
 .P
 The available options are:
@@ -34,19 +34,19 @@ Show the version and commandline option help.
 Print full pathname, with chroot applied to it.  Use with the \-o option.
 .TP
 .B \-o\fI option
-If given, after checking the config file the value of this option is 
+If given, after checking the config file the value of this option is
 printed to stdout.  For "" (disabled) options an empty line is printed.
 .TP
 .I cfgfile
-The config file to read with settings for unbound. It is checked.
+The config file to read with settings for Unbound. It is checked.
 If omitted, the config file at the default location is checked.
 .SH "EXIT CODE"
-The unbound\-checkconf program exits with status code 1 on error, 
+The unbound\-checkconf program exits with status code 1 on error,
 0 for a correct config file.
 .SH "FILES"
 .TP
 .I @ub_conf_file@
-unbound configuration file.
+Unbound configuration file.
 .SH "SEE ALSO"
-\fIunbound.conf\fR(5), 
+\fIunbound.conf\fR(5),
 \fIunbound\fR(8).

@@ -187,7 +187,7 @@ uint8_t* sldns_wirerr_get_rdatawl(uint8_t* rr, size_t len, size_t dname_len);
 #define LDNS_WIREPARSE_MASK 0x0fff
 #define LDNS_WIREPARSE_SHIFT 12
 #define LDNS_WIREPARSE_ERROR(e) ((e)&LDNS_WIREPARSE_MASK)
-#define LDNS_WIREPARSE_OFFSET(e) (((e)&~LDNS_WIREPARSE_MASK)>>LDNS_WIREPARSE_SHIFT)
+#define LDNS_WIREPARSE_OFFSET(e) ((((unsigned)(e))&~LDNS_WIREPARSE_MASK)>>LDNS_WIREPARSE_SHIFT)
 /* use lookuptable to get error string, sldns_wireparse_errors */
 #define LDNS_WIREPARSE_ERR_OK 0
 #define LDNS_WIREPARSE_ERR_GENERAL 342

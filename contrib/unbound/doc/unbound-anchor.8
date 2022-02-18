@@ -1,4 +1,4 @@
-.TH "unbound-anchor" "8" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
+.TH "unbound-anchor" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
 .\"
 .\" unbound-anchor.8 -- unbound anchor maintenance utility manual
 .\"
@@ -41,7 +41,7 @@ update certificate files.
 .P
 It tests if the root anchor file works, and if not, and an update is possible,
 attempts to update the root anchor using the root update certificate.
-It performs a https fetch of root-anchors.xml and checks the results (RFC7958), 
+It performs a https fetch of root-anchors.xml and checks the results (RFC7958),
 if all checks are successful, it updates the root anchor file.  Otherwise
 the root anchor file is unchanged.  It performs RFC5011 tracking if the
 DNSSEC information available via the DNS makes that possible.
@@ -159,7 +159,7 @@ Or something more suitable for your operational environment.
 The root keys and update certificate included in this tool
 are provided for convenience and under the terms of our
 license (see the LICENSE file in the source distribution or
-http://unbound.nlnetlabs.nl/svn/trunk/LICENSE) and might be stale or
+https://github.com/NLnetLabs/unbound/blob/master/LICENSE) and might be stale or
 not suitable to your purpose.
 .P
 By running "unbound\-anchor \-l" the  keys and certificate that are
@@ -185,5 +185,5 @@ Source for the root key information.
 .I https://data.iana.org/root\-anchors/root\-anchors.p7s
 Signature on the root key information.
 .SH "SEE ALSO"
-\fIunbound.conf\fR(5), 
+\fIunbound.conf\fR(5),
 \fIunbound\fR(8).

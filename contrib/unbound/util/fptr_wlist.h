@@ -211,9 +211,10 @@ int fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_type fptr);
  */
 int fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
 	struct query_info* qinfo, uint16_t flags, int dnssec, int want_dnssec,
-	int nocaps, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct module_qstate* q));
+	int nocaps, int check_ratelimit, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen, int tcp_upstream,
+	int ssl_upstream, char* tls_auth_name, struct module_qstate* q,
+	int* was_ratelimited));
 
 /**
  * Check function pointer whitelist for module_env detach_subs callback values.
