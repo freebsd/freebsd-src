@@ -221,7 +221,7 @@ usb_linux_probe(device_t dev)
 	mtx_lock(&Giant);
 	LIST_FOREACH(udrv, &usb_linux_driver_list, linux_driver_list) {
 		if (usb_linux_lookup_id(udrv->id_table, uaa)) {
-			err = 0;
+			err = BUS_PROBE_DEFAULT;
 			break;
 		}
 	}
