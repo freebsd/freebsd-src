@@ -215,6 +215,7 @@ struct pci_driver {
 	void  (*bsd_iov_uninit)(device_t dev);
 	int  (*bsd_iov_add_vf)(device_t dev, uint16_t vfnum,
 	    const nvlist_t *vf_config);
+	int				bsd_probe_return;
 };
 
 struct pci_bus {
