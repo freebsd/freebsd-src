@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2009, 2014 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Ed Schouten under sponsorship from the
  * FreeBSD Foundation.
