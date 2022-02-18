@@ -1,4 +1,4 @@
-.TH "unbound" "8" "Dec  9, 2021" "NLnet Labs" "unbound 1.14.0"
+.TH "unbound" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
 .\"
 .\" unbound.8 -- unbound manual
 .\"
@@ -9,7 +9,7 @@
 .\"
 .SH "NAME"
 .B unbound
-\- Unbound DNS validating resolver 1.14.0.
+\- Unbound DNS validating resolver 1.15.0.
 .SH "SYNOPSIS"
 .B unbound
 .RB [ \-h ]
@@ -57,7 +57,7 @@ The available options are:
 Show the version number and commandline option help, and exit.
 .TP
 .B \-c\fI cfgfile
-Set the config file with settings for unbound to read instead of reading the
+Set the config file with settings for Unbound to read instead of reading the
 file at the default location, @ub_conf_file@. The syntax is
 described in \fIunbound.conf\fR(5).
 .TP
@@ -70,7 +70,7 @@ or to syslog, but the log messages are printed to stderr all the time.
 .TP
 .B \-p
 Don't use a pidfile.  This argument should only be used by supervision
-systems which can ensure that only one instance of unbound will run
+systems which can ensure that only one instance of Unbound will run
 concurrently.
 .TP
 .B \-v

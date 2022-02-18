@@ -44,6 +44,9 @@
 #ifdef HAVE_NET_IF_H
 #include <net/if.h>
 #endif
+#ifdef HAVE_NETIOAPI_H
+#include <netioapi.h>
+#endif
 #include "util/net_help.h"
 #include "util/log.h"
 #include "util/data/dname.h"
@@ -52,6 +55,7 @@
 #include "util/config_file.h"
 #include "sldns/parseutil.h"
 #include "sldns/wire2str.h"
+#include "sldns/str2wire.h"
 #include <fcntl.h>
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
@@ -474,6 +478,42 @@ int authextstrtoaddr(char* str, struct sockaddr_storage* addr,
 	}
 	*auth_name = NULL;
 	return ipstrtoaddr(str, port, addr, addrlen);
+}
+
+uint8_t* authextstrtodname(char* str, int* port, char** auth_name)
+{
+	char* s;
+	uint8_t* dname;
+	size_t dname_len;
+	*port = UNBOUND_DNS_PORT;
+	*auth_name = NULL;
+	if((s=strchr(str, '@'))) {
+		char* hash = strchr(s+1, '#');
+		if(hash) {
+			*auth_name = hash+1;
+		} else {
+			*auth_name = NULL;
+		}
+		*port = atoi(s+1);
+		if(*port == 0) {
+			if(!hash && strcmp(s+1,"0")!=0)
+				return 0;
+			if(hash && strncmp(s+1,"0#",2)!=0)
+				return 0;
+		}
+		*s = 0;
+		dname = sldns_str2wire_dname(str, &dname_len);
+		*s = '@';
+	} else if((s=strchr(str, '#'))) {
+		*port = UNBOUND_DNS_OVER_TLS_PORT;
+		*auth_name = s+1;
+		*s = 0;
+		dname = sldns_str2wire_dname(str, &dname_len);
+		*s = '#';
+	} else {
+		dname = sldns_str2wire_dname(str, &dname_len);
+	}
+	return dname;
 }
 
 /** store port number into sockaddr structure */

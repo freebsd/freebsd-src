@@ -200,21 +200,27 @@ read_fwds_name(struct config_stub* s)
 }
 
 /** set fwd host names */
-static int 
+static int
 read_fwds_host(struct config_stub* s, struct delegpt* dp)
 {
 	struct config_strlist* p;
 	uint8_t* dname;
-	size_t dname_len;
+	char* tls_auth_name;
+	int port;
 	for(p = s->hosts; p; p = p->next) {
 		log_assert(p->str);
-		dname = sldns_str2wire_dname(p->str, &dname_len);
+		dname = authextstrtodname(p->str, &port, &tls_auth_name);
 		if(!dname) {
 			log_err("cannot parse forward %s server name: '%s'", 
 				s->name, p->str);
 			return 0;
 		}
-		if(!delegpt_add_ns_mlc(dp, dname, 0)) {
+#if ! defined(HAVE_SSL_SET1_HOST) && ! defined(HAVE_X509_VERIFY_PARAM_SET1_HOST)
+		if(tls_auth_name)
+			log_err("no name verification functionality in "
+				"ssl library, ignored name for %s", p->str);
+#endif
+		if(!delegpt_add_ns_mlc(dp, dname, 0, tls_auth_name, port)) {
 			free(dname);
 			log_err("out of memory");
 			return 0;
@@ -245,7 +251,7 @@ read_fwds_addr(struct config_stub* s, struct delegpt* dp)
 				"ssl library, ignored name for %s", p->str);
 #endif
 		if(!delegpt_add_addr_mlc(dp, &addr, addrlen, 0, 0,
-			tls_auth_name)) {
+			tls_auth_name, -1)) {
 			log_err("out of memory");
 			return 0;
 		}

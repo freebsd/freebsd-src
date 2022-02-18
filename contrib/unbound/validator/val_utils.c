@@ -767,15 +767,15 @@ val_dsset_isusable(struct ub_packed_rrset_key* ds_rrset)
 		sldns_lookup_table *lt;
 		char herr[64], aerr[64];
 		lt = sldns_lookup_by_id(sldns_hashes,
-			(int)ds_get_digest_algo(ds_rrset, i));
+			(int)ds_get_digest_algo(ds_rrset, 0));
 		if(lt) snprintf(herr, sizeof(herr), "%s", lt->name);
 		else snprintf(herr, sizeof(herr), "%d",
-			(int)ds_get_digest_algo(ds_rrset, i));
+			(int)ds_get_digest_algo(ds_rrset, 0));
 		lt = sldns_lookup_by_id(sldns_algorithms,
-			(int)ds_get_key_algo(ds_rrset, i));
+			(int)ds_get_key_algo(ds_rrset, 0));
 		if(lt) snprintf(aerr, sizeof(aerr), "%s", lt->name);
 		else snprintf(aerr, sizeof(aerr), "%d",
-			(int)ds_get_key_algo(ds_rrset, i));
+			(int)ds_get_key_algo(ds_rrset, 0));
 		verbose(VERB_ALGO, "DS unsupported, hash %s %s, "
 			"key algorithm %s %s", herr,
 			(ds_digest_algo_is_supported(ds_rrset, 0)?

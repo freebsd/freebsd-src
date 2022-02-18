@@ -542,6 +542,7 @@ rpz_create(struct config_auth* p)
 		}
 	}
 	r->log = p->rpz_log;
+	r->signal_nxdomain_ra = p->rpz_signal_nxdomain_ra;
 	if(p->rpz_log_name) {
 		if(!(r->log_name = strdup(p->rpz_log_name))) {
 			log_err("malloc failure on RPZ log_name strdup");
@@ -836,7 +837,7 @@ rpz_report_rrset_error(const char* msg, uint8_t* rr, size_t rr_len) {
 }
 
 /* from localzone.c; difference is we don't have a dname */
-struct local_rrset*
+static struct local_rrset*
 rpz_clientip_new_rrset(struct regional* region,
 	struct clientip_synthesized_rr* raddr, uint16_t rrtype, uint16_t rrclass)
 {
@@ -1384,9 +1385,9 @@ log_rpz_apply(char* trigger, uint8_t* dname, struct addr_tree_node* addrnode,
 	if(dname) {
 		dname_str(dname, dnamestr);
 	} else if(addrnode) {
-		char a[128];
-		addr_to_str(&addrnode->addr, addrnode->addrlen, a, sizeof(a));
-		snprintf(dnamestr, sizeof(dnamestr), "%s/%d", a, addrnode->net);
+		char addrbuf[128];
+		addr_to_str(&addrnode->addr, addrnode->addrlen, addrbuf, sizeof(addrbuf));
+		snprintf(dnamestr, sizeof(dnamestr), "%s/%d", addrbuf, addrnode->net);
 	} else {
 		dnamestr[0]=0;
 	}
@@ -1697,7 +1698,7 @@ rpz_synthesize_nodata(struct rpz* ATTR_UNUSED(r), struct module_qstate* ms,
 	if(msg == NULL) { return msg; }
 	msg->qinfo = *qinfo;
 	msg->rep = construct_reply_info_base(ms->region,
-					     LDNS_RCODE_NOERROR | BIT_RD | BIT_QR | BIT_AA | BIT_RA,
+					     LDNS_RCODE_NOERROR | BIT_QR | BIT_AA | BIT_RA,
 					     1, /* qd */
 					     0, /* ttl */
 					     0, /* prettl */
@@ -1715,14 +1716,18 @@ rpz_synthesize_nodata(struct rpz* ATTR_UNUSED(r), struct module_qstate* ms,
 }
 
 static inline struct dns_msg*
-rpz_synthesize_nxdomain(struct rpz* ATTR_UNUSED(r), struct module_qstate* ms,
+rpz_synthesize_nxdomain(struct rpz* r, struct module_qstate* ms,
 	struct query_info* qinfo, struct auth_zone* az)
 {
 	struct dns_msg* msg = rpz_dns_msg_new(ms->region);
+	uint16_t flags;
 	if(msg == NULL) { return msg; }
 	msg->qinfo = *qinfo;
+	flags = LDNS_RCODE_NXDOMAIN | BIT_QR | BIT_AA | BIT_RA;
+	if(r->signal_nxdomain_ra)
+		flags &= ~BIT_RA;
 	msg->rep = construct_reply_info_base(ms->region,
-					     LDNS_RCODE_NXDOMAIN | BIT_RD | BIT_QR | BIT_AA | BIT_RA,
+					     flags,
 					     1, /* qd */
 					     0, /* ttl */
 					     0, /* prettl */
@@ -1752,7 +1757,7 @@ rpz_synthesize_localdata_from_rrset(struct rpz* ATTR_UNUSED(r), struct module_qs
 	if(msg == NULL) { return NULL; }
 
         new_reply_info = construct_reply_info_base(ms->region,
-                                                   LDNS_RCODE_NOERROR | BIT_RD | BIT_QR | BIT_AA | BIT_RA,
+                                                   LDNS_RCODE_NOERROR | BIT_QR | BIT_AA | BIT_RA,
                                                    1, /* qd */
                                                    0, /* ttl */
                                                    0, /* prettl */
@@ -1922,6 +1927,9 @@ rpz_synthesize_qname_localdata(struct module_env* env, struct rpz* r,
 
 	ret = local_zones_zone_answer(z, env, qinfo, edns, repinfo, buf, temp,
 		0 /* no local data used */, lzt);
+	if(r->signal_nxdomain_ra && LDNS_RCODE_WIRE(sldns_buffer_begin(buf))
+		== LDNS_RCODE_NXDOMAIN)
+		LDNS_RA_CLR(sldns_buffer_begin(buf));
 	if(r->log) {
 		log_rpz_apply("qname", z->name, NULL, localzone_type_to_rpz_action(lzt),
 			      qinfo, repinfo, NULL, r->log_name);
@@ -1930,7 +1938,7 @@ rpz_synthesize_qname_localdata(struct module_env* env, struct rpz* r,
 	return ret;
 }
 
-struct clientip_synthesized_rr*
+static struct clientip_synthesized_rr*
 rpz_delegation_point_ipbased_trigger_lookup(struct rpz* rpz, struct iter_qstate* is)
 {
 	struct delegpt_addr* cursor;
@@ -1947,7 +1955,7 @@ rpz_delegation_point_ipbased_trigger_lookup(struct rpz* rpz, struct iter_qstate*
 	return NULL;
 }
 
-struct dns_msg*
+static struct dns_msg*
 rpz_apply_nsip_trigger(struct module_qstate* ms, struct rpz* r,
 	struct clientip_synthesized_rr* raddr, struct auth_zone* az)
 {
@@ -2006,7 +2014,7 @@ done:
 	return ret;
 }
 
-struct dns_msg*
+static struct dns_msg*
 rpz_apply_nsdname_trigger(struct module_qstate* ms, struct rpz* r,
 	struct local_zone* z, struct matched_delegation_point const* match,
 	struct auth_zone* az)
@@ -2295,6 +2303,10 @@ rpz_apply_maybe_clientip_trigger(struct auth_zones* az, struct module_env* env,
 			local_zones_zone_answer(*z_out /*likely NULL, no zone*/, env, qinfo, edns,
 				repinfo, buf, temp, 0 /* no local data used */,
 				rpz_action_to_localzone_type(client_action));
+			if(*r_out && (*r_out)->signal_nxdomain_ra &&
+				LDNS_RCODE_WIRE(sldns_buffer_begin(buf))
+				== LDNS_RCODE_NXDOMAIN)
+				LDNS_RA_CLR(sldns_buffer_begin(buf));
 		}
 		ret = 1;
 		goto done;

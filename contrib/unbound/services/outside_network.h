@@ -43,7 +43,9 @@
 #ifndef OUTSIDE_NETWORK_H
 #define OUTSIDE_NETWORK_H
 
+#include "util/alloc.h"
 #include "util/rbtree.h"
+#include "util/regional.h"
 #include "util/netevent.h"
 #include "dnstap/dnstap_config.h"
 struct pending;
@@ -412,6 +414,8 @@ struct waiting_tcp {
 	char* tls_auth_name;
 	/** the packet was involved in an error, to stop looping errors */
 	int error_count;
+	/** if true, the item is at the cb_and_decommission stage */
+	int in_cb_and_decommission;
 #ifdef USE_DNSTAP
 	/** serviced query pointer for dnstap to get logging info, if nonNULL*/
 	struct serviced_query* sq;
@@ -512,6 +516,15 @@ struct serviced_query {
 	void* pending;
 	/** block size with which to pad encrypted queries (default: 128) */
 	size_t padding_block_size;
+	/** region for this serviced query. Will be cleared when this
+	 * serviced_query will be deleted */
+	struct regional* region;
+	/** allocation service for the region */
+	struct alloc_cache* alloc;
+	/** flash timer to start the net I/O as a separate event */
+	struct comm_timer* timer;
+	/** true if serviced_query is currently doing net I/O and may block */
+	int busy;
 };
 
 /**
@@ -619,6 +632,7 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
  * @param want_dnssec: signatures are needed, without EDNS the answer is
  * 	likely to be useless.
  * @param nocaps: ignore use_caps_for_id and use unperturbed qname.
+ * @param check_ratelimit: if set, will check ratelimit before sending out.
  * @param tcp_upstream: use TCP for upstream queries.
  * @param ssl_upstream: use SSL for upstream queries.
  * @param tls_auth_name: when ssl_upstream is true, use this name to check
@@ -635,16 +649,18 @@ void pending_delete(struct outside_network* outnet, struct pending* p);
  * @param callback_arg: user argument to callback function.
  * @param buff: scratch buffer to create query contents in. Empty on exit.
  * @param env: the module environment.
+ * @param was_ratelimited: it will signal back if the query failed to pass the
+ *	ratelimit check.
  * @return 0 on error, or pointer to serviced query that is used to answer
  *	this serviced query may be shared with other callbacks as well.
  */
 struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	struct query_info* qinfo, uint16_t flags, int dnssec, int want_dnssec,
-	int nocaps, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, struct module_qstate* qstate,
+	int nocaps, int check_ratelimit, int tcp_upstream, int ssl_upstream,
+	char* tls_auth_name, struct sockaddr_storage* addr, socklen_t addrlen,
+	uint8_t* zone, size_t zonelen, struct module_qstate* qstate,
 	comm_point_callback_type* callback, void* callback_arg,
-	struct sldns_buffer* buff, struct module_env* env);
+	struct sldns_buffer* buff, struct module_env* env, int* was_ratelimited);
 
 /**
  * Remove service query callback.
@@ -784,6 +800,9 @@ void pending_udp_timer_delay_cb(void *arg);
 
 /** callback for outgoing TCP timer event */
 void outnet_tcptimer(void* arg);
+
+/** callback to send serviced queries */
+void serviced_timer_cb(void *arg);
 
 /** callback for serviced query UDP answers */
 int serviced_udp_callback(struct comm_point* c, void* arg, int error,

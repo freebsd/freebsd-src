@@ -142,6 +142,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_OUTBOUND_MSG_RETRY
 %token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN
 %token VAR_IP_RATELIMIT_FACTOR VAR_RATELIMIT_FACTOR
+%token VAR_IP_RATELIMIT_BACKOFF VAR_RATELIMIT_BACKOFF
 %token VAR_SEND_CLIENT_SUBNET VAR_CLIENT_SUBNET_ZONE
 %token VAR_CLIENT_SUBNET_ALWAYS_FORWARD VAR_CLIENT_SUBNET_OPCODE
 %token VAR_MAX_CLIENT_SUBNET_IPV4 VAR_MAX_CLIENT_SUBNET_IPV6
@@ -187,6 +188,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DYNLIB VAR_DYNLIB_FILE VAR_EDNS_CLIENT_STRING
 %token VAR_EDNS_CLIENT_STRING_OPCODE VAR_NSID
 %token VAR_ZONEMD_PERMISSIVE_MODE VAR_ZONEMD_CHECK VAR_ZONEMD_REJECT_ABSENCE
+%token VAR_RPZ_SIGNAL_NXDOMAIN_RA
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -271,7 +273,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ip_ratelimit_size | server_ratelimit_size |
 	server_ratelimit_for_domain |
 	server_ratelimit_below_domain | server_ratelimit_factor |
-	server_ip_ratelimit_factor | server_outbound_msg_retry |
+	server_ip_ratelimit_factor | server_ratelimit_backoff |
+	server_ip_ratelimit_backoff | server_outbound_msg_retry |
 	server_send_client_subnet | server_client_subnet_zone |
 	server_client_subnet_always_forward | server_client_subnet_opcode |
 	server_max_client_subnet_ipv4 | server_max_client_subnet_ipv6 |
@@ -455,6 +458,15 @@ rpz_log_name: VAR_RPZ_LOG_NAME STRING_ARG
 		cfg_parser->cfg->auths->rpz_log_name = $2;
 	}
 	;
+rpz_signal_nxdomain_ra: VAR_RPZ_SIGNAL_NXDOMAIN_RA STRING_ARG
+	{
+		OUTYY(("P(rpz_signal_nxdomain_ra:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->auths->rpz_signal_nxdomain_ra = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 
 rpzstart: VAR_RPZ
 	{
@@ -478,7 +490,7 @@ contents_rpz: contents_rpz content_rpz
 	| ;
 content_rpz: auth_name | auth_zonefile | rpz_tag | auth_master | auth_url |
 	   auth_allow_notify | rpz_action_override | rpz_cname_override |
-	   rpz_log | rpz_log_name
+	   rpz_log | rpz_log_name | rpz_signal_nxdomain_ra | auth_for_downstream
 	;
 server_num_threads: VAR_NUM_THREADS STRING_ARG
 	{
@@ -2491,6 +2503,26 @@ server_ratelimit_factor: VAR_RATELIMIT_FACTOR STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->ratelimit_factor = atoi($2);
+		free($2);
+	}
+	;
+server_ip_ratelimit_backoff: VAR_IP_RATELIMIT_BACKOFF STRING_ARG
+	{
+		OUTYY(("P(server_ip_ratelimit_backoff:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ip_ratelimit_backoff =
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_ratelimit_backoff: VAR_RATELIMIT_BACKOFF STRING_ARG
+	{
+		OUTYY(("P(server_ratelimit_backoff:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ratelimit_backoff =
+			(strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
