@@ -13,6 +13,8 @@
    https://blake2.net.
 */
 
+#include "archive_platform.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -21,7 +23,6 @@
 #include <omp.h>
 #endif
 
-#include "archive_platform.h"
 #include "archive_blake2.h"
 #include "archive_blake2_impl.h"
 

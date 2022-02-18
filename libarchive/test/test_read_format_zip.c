@@ -1128,6 +1128,7 @@ DEFINE_TEST(test_read_format_zip_7z_deflate)
 	const char *refname = "test_read_format_zip_7z_deflate.zip";
 	struct archive_entry *ae;
 	struct archive *a;
+	int r;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -1137,15 +1138,33 @@ DEFINE_TEST(test_read_format_zip_7z_deflate)
 	assertEqualIntA(a, ARCHIVE_OK,
 		archive_read_open_filename(a, refname, 10240));
 	//read first symlink
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	r = archive_read_next_header(a, &ae);
+	if (archive_zlib_version() == NULL) {
+		assertEqualInt(ARCHIVE_FAILED, r);
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method during decompression "
+		    "of link entry (8: deflation)");
+		assert(archive_errno(a) != 0);
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK, r);
+		assertEqualString("libxkbcommon-x11.so.0.0.0",
+			archive_entry_symlink(ae));
+	}
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
-	assertEqualString("libxkbcommon-x11.so.0.0.0",
-		archive_entry_symlink(ae));
 	//read second symlink
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	r = archive_read_next_header(a, &ae);
+	if (archive_zlib_version() == NULL) {
+		assertEqualInt(ARCHIVE_FAILED, r);
+		assertEqualString(archive_error_string(a),
+		    "Unsupported ZIP compression method during decompression "
+		    "of link entry (8: deflation)");
+		assert(archive_errno(a) != 0);
+	} else {
+		assertEqualIntA(a, ARCHIVE_OK, r);
+		assertEqualString("libxkbcommon-x11.so.0.0.0",
+			archive_entry_symlink(ae));
+	}
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
-	assertEqualString("libxkbcommon-x11.so.0.0.0",
-		archive_entry_symlink(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }

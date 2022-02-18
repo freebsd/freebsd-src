@@ -104,7 +104,7 @@ jobs:
         path: libarchive-dist.tar
 
   Windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       matrix:
         be: [mingw-gcc, msvc]
