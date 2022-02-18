@@ -21,6 +21,7 @@ atf_test_case non_regular_file
 atf_test_case binary
 atf_test_case functionname
 atf_test_case noderef
+atf_test_case ignorecase
 
 simple_body()
 {
@@ -324,6 +325,17 @@ noderef_body()
 	atf_check -o inline:"Symbolic links A/test-file and B/test-file differ\n" -s exit:1 diff -r --no-dereference A B
 }
 
+ignorecase_body()
+{
+	atf_check mkdir A
+	atf_check mkdir B
+
+	atf_check -x "echo hello > A/foo"
+	atf_check -x "echo hello > B/FOO"
+
+	atf_check -o empty -s exit:0 diff -u -r --ignore-file-name-case A B
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -347,4 +359,5 @@ atf_init_test_cases()
 	atf_add_test_case binary
 	atf_add_test_case functionname
 	atf_add_test_case noderef
+	atf_add_test_case ignorecase
 }

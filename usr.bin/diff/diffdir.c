@@ -38,7 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "diff.h"
 
 static int selectfile(const struct dirent *);
-static void diffit(struct dirent *, char *, size_t, char *, size_t, int);
+static void diffit(struct dirent *, char *, size_t, struct dirent *,
+	char *, size_t, int);
 static void print_only(const char *, size_t, const char *);
 
 #define d_status	d_type		/* we need to store status for -l */
@@ -128,14 +129,14 @@ diffdir(char *p1, char *p2, int flags)
 		    strcmp(dent1->d_name, dent2->d_name) ;
 		if (pos == 0) {
 			/* file exists in both dirs, diff it */
-			diffit(dent1, path1, dirlen1, path2, dirlen2, flags);
+			diffit(dent1, path1, dirlen1, dent2, path2, dirlen2, flags);
 			dp1++;
 			dp2++;
 		} else if (pos < 0) {
 			/* file only in first dir, only diff if -N */
 			if (Nflag) {
-				diffit(dent1, path1, dirlen1, path2, dirlen2,
-				    flags);
+				diffit(dent1, path1, dirlen1, dent2, path2,
+					dirlen2, flags);
 			} else {
 				print_only(path1, dirlen1, dent1->d_name);
 				status |= 1;
@@ -144,8 +145,8 @@ diffdir(char *p1, char *p2, int flags)
 		} else {
 			/* file only in second dir, only diff if -N or -P */
 			if (Nflag || Pflag)
-				diffit(dent2, path1, dirlen1, path2, dirlen2,
-				    flags);
+				diffit(dent2, path1, dirlen1, dent1, path2,
+					dirlen2, flags);
 			else {
 				print_only(path2, dirlen2, dent2->d_name);
 				status |= 1;
@@ -171,12 +172,20 @@ closem:
  * Do the actual diff by calling either diffreg() or diffdir().
  */
 static void
-diffit(struct dirent *dp, char *path1, size_t plen1, char *path2, size_t plen2,
-    int flags)
+diffit(struct dirent *dp, char *path1, size_t plen1, struct dirent *dp2,
+	char *path2, size_t plen2, int flags)
 {
 	flags |= D_HEADER;
 	strlcpy(path1 + plen1, dp->d_name, PATH_MAX - plen1);
-	strlcpy(path2 + plen2, dp->d_name, PATH_MAX - plen2);
+
+	/*
+	 * If we are ignoring file case, use dent2s name here if both names are
+	 * the same apart from case.
+	 */
+	if (ignore_file_case && strcasecmp(dp2->d_name, dp2->d_name) == 0)
+		strlcpy(path2 + plen2, dp2->d_name, PATH_MAX - plen2);
+	else
+		strlcpy(path2 + plen2, dp->d_name, PATH_MAX - plen2);
 
 	if (noderef) {
 		if (lstat(path1, &stb1) != 0) {
