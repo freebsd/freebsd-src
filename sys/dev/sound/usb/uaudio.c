@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 static int uaudio_default_rate = 0;		/* use rate list */
 static int uaudio_default_bits = 32;
 static int uaudio_default_channels = 0;		/* use default */
-static int uaudio_buffer_ms = 8;
+static int uaudio_buffer_ms = 2;
 static bool uaudio_handle_hid = true;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
