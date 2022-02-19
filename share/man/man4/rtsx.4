@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2021
+.Dd February 10, 2022
 .Dt RTSX 4
 .Os
 .Sh NAME
@@ -70,6 +70,8 @@ RTS522A
 .It
 RTS525A
 .It
+RTS5260
+.It
 RTL8411B
 .El
 .Pp
@@ -103,10 +105,19 @@ with modifications found in Linux and
 .An Jesper Schmitz Mouridsen Aq Mt jsm@FreeBSD.org
 .Sh CONTRIBUTORS
 .An Lutz Bichler Aq Mt Lutz.Bichler@gmail.com
-.Sh BUGS
+.Sh DEBUGGING INFORMATION
+.Em dev.rtsx.0.debug_mask
+can be set with the following masks:
 .Bl -bullet
 .It
-The timeouts experienced during card insert and during I/O are solved in version 1.0g.
+0x01 - to show the basic flow of the driver,
+.It
+0x02 - to trace the SD commands,
+.It
+0x04 - to trace the tuning phase.
+.El
+.Sh BUGS
+.Bl -bullet
 .It
 RTS522A on Lenovo T470p, card detection and read-only switch are reversed.
 This is solved by adding in
