@@ -41,6 +41,7 @@
 .Op Fl @fhsv
 .Op Fl b Ar boot_cpu_id
 .Op Fl d Ar dependency_file
+.Op Fl i Ar include_path
 .Op Fl E Ar [no-]checker_name
 .Op Fl H Ar phandle_format
 .Op Fl I Ar input_format
@@ -79,6 +80,8 @@ This file can be included in a Makefile and will ensure that the output file
 depends on the input file and any files that it includes.
 This argument is only useful when the input is DTS, as only the source format
 has a notion of inclusions.
+.It Fl i Ar include_path
+Adds a path to search for include files.
 .It Fl E Ar [no-]checker_name
 Enable or disable a specified checker.
 The argument is the name of the checker.
