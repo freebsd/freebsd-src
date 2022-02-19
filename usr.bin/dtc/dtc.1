@@ -367,7 +367,10 @@ metadata required in overlays.
 This utility is intended to be compatible with the device tree compiler
 provided by elinux.org.
 Currently, it implements the subset of features
-required to build FreeBSD and others that have been requested by FreeBSD
+required to build
+.Fx
+and others that have been requested by
+.Fx
 developers.
 .Pp
 The
@@ -375,8 +378,9 @@ The
 input format is not supported.
 This builds a tree from a Linux
 .Pa  /proc/device-tree ,
-a file system hierarchy not found in FreeBSD, which instead exposes the DTB
-directly via a sysctl.
+a file system hierarchy not found in
+.Fx ,
+which instead exposes the DTB directly via a sysctl.
 .Pp
 The warnings and errors supported by the elinux.org tool are not documented.
 This tool supports the warnings described in the
