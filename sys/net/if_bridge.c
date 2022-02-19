@@ -2176,7 +2176,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 				used = 1;
 				mc = m;
 			} else {
-				mc = m_copypacket(m, M_NOWAIT);
+				mc = m_dup(m, M_NOWAIT);
 				if (mc == NULL) {
 					if_inc_counter(bifp, IFCOUNTER_OERRORS, 1);
 					continue;
@@ -2737,7 +2737,7 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
 		if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			continue;
 
-		mc = m_copypacket(m, M_NOWAIT);
+		mc = m_dup(m, M_NOWAIT);
 		if (mc == NULL) {
 			if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 			continue;
