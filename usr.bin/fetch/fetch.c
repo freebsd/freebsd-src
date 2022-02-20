@@ -1005,7 +1005,7 @@ main(int argc, char *argv[])
 			r_flag = 1;
 			break;
 		case 'S':
-			S_size = (off_t)strtol(optarg, &end, 10);
+			S_size = strtoll(optarg, &end, 10);
 			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid size (%s)", optarg);
 			break;
