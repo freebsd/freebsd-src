@@ -12716,6 +12716,8 @@ sctp_lower_sosend(struct socket *so,
 		} else {
 			SCTP_TCB_LOCK_ASSERT(stcb);
 			hold_tcblock = true;
+			SCTP_ASOC_CREATE_UNLOCK(inp);
+			create_lock_applied = false;
 		}
 		if (error) {
 			goto out_unlocked;
