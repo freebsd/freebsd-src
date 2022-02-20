@@ -345,7 +345,7 @@ LDADD		Additional loader objects.  Usually used for libraries.
 
 			LDADD=-lutil -lcompat
 
-LDADD.${TAREGT}
+LDADD.${TARGET}
 		Loader objects dependent on output file name.
 
 LDFLAGS		Additional loader flags. Passed to the loader via CC,
