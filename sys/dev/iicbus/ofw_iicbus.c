@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include "iicbus_if.h"
+#include "ofw_iicbus_if.h"
 
 /* Methods */
 static device_probe_t ofw_iicbus_probe;
@@ -50,6 +51,8 @@ static device_t ofw_iicbus_add_child(device_t dev, u_int order,
     const char *name, int unit);
 static const struct ofw_bus_devinfo *ofw_iicbus_get_devinfo(device_t bus,
     device_t dev);
+static int ofw_iicbus_set_devinfo(device_t bus, device_t dev,
+    phandle_t ofw_node, char *ofw_name, char *ofw_compat, int i2c_addr);
 
 static device_method_t ofw_iicbus_methods[] = {
 	/* Device interface */
@@ -67,6 +70,9 @@ static device_method_t ofw_iicbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
+	/* ofw_iicbus interface */
+	DEVMETHOD(ofw_iicbus_set_devinfo, ofw_iicbus_set_devinfo),
 
 	DEVMETHOD_END
 };
@@ -237,4 +243,27 @@ ofw_iicbus_get_devinfo(device_t bus, device_t dev)
 
 	dinfo = device_get_ivars(dev);
 	return (&dinfo->opd_obdinfo);
+}
+
+static int
+ofw_iicbus_set_devinfo(device_t bus, device_t dev, phandle_t ofw_node,
+    char *ofw_name, char *ofw_compat, int i2c_addr)
+{
+	struct ofw_iicbus_devinfo *devi;
+
+	/*
+	 * Setup OFW-related parts of the ivars for manually
+	 * created ofw_iicbus childern.
+	 */
+	devi = device_get_ivars(dev);
+	if (devi == NULL)
+		return (ENXIO);
+
+	devi->opd_obdinfo.obd_node = ofw_node;
+	if (ofw_name != NULL)
+		devi->opd_obdinfo.obd_name = strdup(ofw_name, M_OFWPROP);
+	if (ofw_compat != NULL)
+		devi->opd_obdinfo.obd_compat = strdup(ofw_compat, M_OFWPROP);
+	devi->opd_dinfo.addr = i2c_addr;
+	return (0);
 }
