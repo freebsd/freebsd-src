@@ -13321,6 +13321,10 @@ skip_preblock:
 					sp->processing = 0;
 				}
 				SCTP_TCB_SEND_UNLOCK(stcb);
+				if (!hold_tcblock) {
+					SCTP_TCB_LOCK(stcb);
+					hold_tcblock = true;
+				}
 				goto skip_out_eof;
 			}
 			/* What about the INIT, send it maybe */
@@ -13513,8 +13517,8 @@ skip_preblock:
 	if (error != 0) {
 		goto out;
 	}
-dataless_eof:
 
+dataless_eof:
 	KASSERT(stcb != NULL, ("stcb is NULL"));
 	KASSERT(hold_tcblock, ("hold_tcblock is false"));
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -13602,6 +13606,7 @@ dataless_eof:
 			}
 		}
 	}
+
 skip_out_eof:
 	KASSERT(stcb != NULL, ("stcb is NULL"));
 	KASSERT(hold_tcblock, ("hold_tcblock is false"));
