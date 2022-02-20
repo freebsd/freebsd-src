@@ -399,17 +399,19 @@ chkrecovery(int devfd)
 {
 	struct fsrecovery *fsr;
 	char *fsrbuf;
-	u_int secsize;
+	u_int secsize, rdsize;
 
 	/*
 	 * Could not determine if backup material exists, so do not
 	 * offer to create it.
 	 */
 	fsrbuf = NULL;
+	rdsize = sblock.fs_fsize;
 	if (ioctl(devfd, DIOCGSECTORSIZE, &secsize) == -1 ||
-	    (fsrbuf = Malloc(secsize)) == NULL ||
-	    blread(devfd, fsrbuf, (SBLOCK_UFS2 - secsize) / dev_bsize,
-	      secsize) != 0) {
+	    rdsize % secsize != 0 ||
+	    (fsrbuf = Malloc(rdsize)) == NULL ||
+	    blread(devfd, fsrbuf, (SBLOCK_UFS2 - rdsize) / dev_bsize,
+	      rdsize) != 0) {
 		free(fsrbuf);
 		return (1);
 	}
@@ -417,7 +419,7 @@ chkrecovery(int devfd)
 	 * Recovery material has already been created, so do not
 	 * need to create it again.
 	 */
-	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
+	fsr = (struct fsrecovery *)&fsrbuf[rdsize - sizeof *fsr];
 	if (fsr->fsr_magic == FS_UFS2_MAGIC) {
 		free(fsrbuf);
 		return (1);
@@ -430,8 +432,8 @@ chkrecovery(int devfd)
 }
 
 /*
- * Read the last sector of the boot block, replace the last
- * 20 bytes with the recovery information, then write it back.
+ * Read the last filesystem-size piece of the boot block, replace the
+ * last 20 bytes with the recovery information, then write it back.
  * The recovery information only works for UFS2 filesystems.
  */
 static void
@@ -439,24 +441,26 @@ saverecovery(int readfd, int writefd)
 {
 	struct fsrecovery *fsr;
 	char *fsrbuf;
-	u_int secsize;
+	u_int secsize, rdsize;
 
 	fsrbuf = NULL;
+	rdsize = sblock.fs_fsize;
 	if (sblock.fs_magic != FS_UFS2_MAGIC ||
 	    ioctl(readfd, DIOCGSECTORSIZE, &secsize) == -1 ||
-	    (fsrbuf = Malloc(secsize)) == NULL ||
-	    blread(readfd, fsrbuf, (SBLOCK_UFS2 - secsize) / dev_bsize,
-	      secsize) != 0) {
+	    rdsize % secsize != 0 ||
+	    (fsrbuf = Malloc(rdsize)) == NULL ||
+	    blread(readfd, fsrbuf, (SBLOCK_UFS2 - rdsize) / dev_bsize,
+	      rdsize) != 0) {
 		printf("RECOVERY DATA COULD NOT BE CREATED\n");
 		free(fsrbuf);
 		return;
 	}
-	fsr = (struct fsrecovery *)&fsrbuf[secsize - sizeof *fsr];
+	fsr = (struct fsrecovery *)&fsrbuf[rdsize - sizeof *fsr];
 	fsr->fsr_magic = sblock.fs_magic;
 	fsr->fsr_fpg = sblock.fs_fpg;
 	fsr->fsr_fsbtodb = sblock.fs_fsbtodb;
 	fsr->fsr_sblkno = sblock.fs_sblkno;
 	fsr->fsr_ncg = sblock.fs_ncg;
-	blwrite(writefd, fsrbuf, (SBLOCK_UFS2 - secsize) / secsize, secsize);
+	blwrite(writefd, fsrbuf, (SBLOCK_UFS2 - rdsize) / dev_bsize, rdsize);
 	free(fsrbuf);
 }
