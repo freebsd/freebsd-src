@@ -1095,6 +1095,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	int alloc, off;		/* alloc/off for RO/W arrays */
 	int cksumvalid;
 	int dflen;
+	int firstrecord;
 	uint8_t byte;
 	uint8_t byte2;
 
@@ -1110,14 +1111,16 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	alloc = off = 0;	/* shut up stupid gcc */
 	dflen = 0;		/* shut up stupid gcc */
 	cksumvalid = -1;
+	firstrecord = 1;
 	while (state >= 0) {
 		if (vpd_nextbyte(&vrs, &byte)) {
+			pci_printf(cfg, "VPD read timed out\n");
 			state = -2;
 			break;
 		}
 #if 0
-		printf("vpd: val: %#x, off: %d, bytesinval: %d, byte: %#hhx, " \
-		    "state: %d, remain: %d, name: %#x, i: %d\n", vrs.val,
+		pci_printf(cfg, "vpd: val: %#x, off: %d, bytesinval: %d, byte: "
+		    "%#hhx, state: %d, remain: %d, name: %#x, i: %d\n", vrs.val,
 		    vrs.off, vrs.bytesinval, byte, state, remain, name, i);
 #endif
 		switch (state) {
@@ -1138,6 +1141,15 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				remain = byte & 0x7;
 				name = (byte >> 3) & 0xf;
 			}
+			if (firstrecord) {
+				if (name != 0x2) {
+					pci_printf(cfg, "VPD data does not " \
+					    "start with ident (%#x)\n", name);
+					state = -2;
+					break;
+				}
+				firstrecord = 0;
+			}
 			if (vrs.off + remain - vrs.bytesinval > 0x8000) {
 				pci_printf(cfg,
 				    "VPD data overflow, remain %#x\n", remain);
@@ -1146,6 +1158,19 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			}
 			switch (name) {
 			case 0x2:	/* String */
+				if (cfg->vpd.vpd_ident != NULL) {
+					pci_printf(cfg,
+					    "duplicate VPD ident record\n");
+					state = -2;
+					break;
+				}
+				if (remain > 255) {
+					pci_printf(cfg,
+					    "VPD ident length %d exceeds 255\n",
+					    remain);
+					state = -2;
+					break;
+				}
 				cfg->vpd.vpd_ident = malloc(remain + 1,
 				    M_DEVBUF, M_WAITOK);
 				i = 0;
@@ -1171,7 +1196,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				state = 5;
 				break;
 			default:	/* Invalid data, abort */
-				state = -1;
+				pci_printf(cfg, "invalid VPD name: %#x\n", name);
+				state = -2;
 				break;
 			}
 			break;
@@ -1209,8 +1235,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				 * if this happens, we can't trust the rest
 				 * of the VPD.
 				 */
-				pci_printf(cfg, "bad keyword length: %d\n",
-				    dflen);
+				pci_printf(cfg, "invalid VPD RV record");
 				cksumvalid = 0;
 				state = -1;
 				break;
@@ -1326,9 +1351,14 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			state = -1;
 			break;
 		}
+
+		if (cfg->vpd.vpd_ident == NULL || cfg->vpd.vpd_ident[0] == '\0') {
+			pci_printf(cfg, "no valid vpd ident found\n");
+			state = -2;
+		}
 	}
 
-	if (cksumvalid == 0 || state < -1) {
+	if (cksumvalid <= 0 || state < -1) {
 		/* read-only data bad, clean up */
 		if (cfg->vpd.vpd_ros != NULL) {
 			for (off = 0; cfg->vpd.vpd_ros[off].value; off++)
