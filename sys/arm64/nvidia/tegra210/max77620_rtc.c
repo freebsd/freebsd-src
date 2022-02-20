@@ -40,9 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "clock_if.h"
+#include "ofw_iicbus_if.h"
 #include "max77620.h"
+
 #define	MAX77620_RTC_INT	0x00
 #define	MAX77620_RTC_INTM	0x01
 #define	MAX77620_RTC_CONTROLM	0x02
@@ -90,6 +93,8 @@ struct max77620_rtc_softc {
 	struct sx			lock;
 	int				bus_addr;
 };
+
+char max77620_rtc_compat[] = "maxim,max77620_rtc";
 
 /*
  * Raw register access function.
@@ -304,12 +309,16 @@ max77620_rtc_settime(device_t dev, struct timespec *ts)
 static int
 max77620_rtc_probe(device_t dev)
 {
-	struct iicbus_ivar *dinfo;
+	const char *compat;
 
-	dinfo = device_get_ivars(dev);
-	if (dinfo == NULL)
+	/*
+	 * TODO:
+	 * ofw_bus_is_compatible() should use compat string from devinfo cache
+	 * maximum size of OFW property should be defined in public header
+	 */
+	if ((compat = ofw_bus_get_compat(dev)) == NULL)
 		return (ENXIO);
-	if (dinfo->addr != MAX77620_RTC_I2C_ADDR << 1)
+	if (strncasecmp(compat, max77620_rtc_compat, 255) != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "MAX77620 RTC");
@@ -356,10 +365,6 @@ fail:
 	return (rv);
 }
 
-/*
- * The secondary address of MAX77620 (RTC function) is not in DTB,
- * add it manualy
- */
 static int
 max77620_rtc_detach(device_t dev)
 {
@@ -371,25 +376,31 @@ max77620_rtc_detach(device_t dev)
 	return (bus_generic_detach(dev));
 }
 
+/*
+ * The secondary address of MAX77620 (RTC function) is not in DT,
+ * add it manualy as subdevice
+ */
 int
 max77620_rtc_create(struct max77620_softc *sc, phandle_t node)
 {
 	device_t parent, child;
-	struct iicbus_ivar *dinfo;
+	int rv;
 
 	parent = device_get_parent(sc->dev);
+
 	child = BUS_ADD_CHILD(parent, 0, NULL, -1);
-	if (child == 0)	{
-		device_printf(sc->dev, "Cannot add MAX77620 RTC device.\n");
+	if (child == NULL)	{
+		device_printf(sc->dev, "Cannot create MAX77620 RTC device.\n");
 		return (ENXIO);
 	}
-	dinfo = device_get_ivars(child);
-	if (dinfo == NULL)	{
-		device_printf(sc->dev,
-		    "Cannot set I2Caddress for MAX77620 RTC.\n");
+
+	rv = OFW_IICBUS_SET_DEVINFO(parent, child, -1, "rtc@68",
+	     max77620_rtc_compat, MAX77620_RTC_I2C_ADDR << 1);
+	if (rv != 0)	{
+		device_printf(sc->dev, "Cannot setup MAX77620 RTC device.\n");
 		return (ENXIO);
 	}
-	dinfo->addr = MAX77620_RTC_I2C_ADDR << 1;
+
 	return (0);
 }
 
