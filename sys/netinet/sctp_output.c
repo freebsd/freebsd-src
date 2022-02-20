@@ -13696,8 +13696,6 @@ skip_out_eof:
 	KASSERT(stcb != NULL, ("stcb is NULL"));
 	KASSERT(hold_tcblock, ("hold_tcblock is false"));
 	SCTP_TCB_LOCK_ASSERT(stcb);
-	KASSERT((asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0,
-	    ("Association about to be freed"));
 
 out:
 out_unlocked:
