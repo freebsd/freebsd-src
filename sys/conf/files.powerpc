@@ -37,6 +37,7 @@ dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/iicbus/ofw_iicbus.c		optional	iicbus aim
+dev/iicbus/ofw_iicbus_if.m	optional	iicbus aim
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_opal.c		optional	powernv ipmi
 dev/ice/if_ice_iflib.c		optional	ice pci powerpc64 \
