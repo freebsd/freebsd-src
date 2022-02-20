@@ -39,5 +39,5 @@ METHOD int set_devinfo {
 	phandle_t ofw_node;
 	char *ofw_name;
 	char *ofw_compat;
-	int i2c_addr;
+	uint32_t i2c_addr;
 };

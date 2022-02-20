@@ -52,7 +52,7 @@ static device_t ofw_iicbus_add_child(device_t dev, u_int order,
 static const struct ofw_bus_devinfo *ofw_iicbus_get_devinfo(device_t bus,
     device_t dev);
 static int ofw_iicbus_set_devinfo(device_t bus, device_t dev,
-    phandle_t ofw_node, char *ofw_name, char *ofw_compat, int i2c_addr);
+    phandle_t ofw_node, char *ofw_name, char *ofw_compat, uint32_t i2c_addr);
 
 static device_method_t ofw_iicbus_methods[] = {
 	/* Device interface */
@@ -247,7 +247,7 @@ ofw_iicbus_get_devinfo(device_t bus, device_t dev)
 
 static int
 ofw_iicbus_set_devinfo(device_t bus, device_t dev, phandle_t ofw_node,
-    char *ofw_name, char *ofw_compat, int i2c_addr)
+    char *ofw_name, char *ofw_compat, uint32_t i2c_addr)
 {
 	struct ofw_iicbus_devinfo *devi;
 
