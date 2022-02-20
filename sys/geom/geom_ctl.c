@@ -91,18 +91,71 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 	if (sbuf_done(req->serror)) {
 		if (!req->nerror)
 			req->nerror = EEXIST;
+#ifdef DIAGNOSTIC
+		printf("gctl_error: buffer closed, message discarded.\n");
+#endif
 		return (req->nerror);
 	}
 	if (!req->nerror)
 		req->nerror = EINVAL;
 
+	/* If this is the last of several messages, indent it on a new line */
+	if (sbuf_len(req->serror) > 0)
+		sbuf_cat(req->serror, "\n\t");
 	va_start(ap, fmt);
 	sbuf_vprintf(req->serror, fmt, ap);
 	va_end(ap);
+	gctl_post_messages(req);
+	return (req->nerror);
+}
+
+/*
+ * The gctl_error() function will only report a single message.
+ * Commands that handle multiple devices may want to report a
+ * message for each of the devices. The gctl_msg() function
+ * can be called multiple times to post messages. When done
+ * the application must either call gctl_post_messages() or
+ * call gctl_error() to cause the messages to be reported to
+ * the calling process.
+ */
+void
+gctl_msg(struct gctl_req *req, const char *fmt, ...)
+{
+	va_list ap;
+
+	if (req == NULL)
+		return;
+	if (sbuf_done(req->serror)) {
+#ifdef DIAGNOSTIC
+		printf("gctl_msg: buffer closed, message discarded.\n");
+#endif
+		return;
+	}
+	/* Put second and later messages indented on a new line */
+	if (sbuf_len(req->serror) > 0)
+		sbuf_cat(req->serror, "\n\t");
+	va_start(ap, fmt);
+	sbuf_vprintf(req->serror, fmt, ap);
+	va_end(ap);
+}
+
+/*
+ * Post the messages to the user.
+ */
+void
+gctl_post_messages(struct gctl_req *req)
+{
+
+	if (sbuf_done(req->serror)) {
+#ifdef DIAGNOSTIC
+		printf("gctl_post_messages: message buffer already closed.\n");
+#endif
+		return;
+	}
 	sbuf_finish(req->serror);
 	if (g_debugflags & G_F_CTLDUMP)
-		printf("gctl %p error \"%s\"\n", req, sbuf_data(req->serror));
-	return (req->nerror);
+		printf("gctl %p message(s) \"%s\"\n", req,
+		    sbuf_data(req->serror));
 }
 
 /*
