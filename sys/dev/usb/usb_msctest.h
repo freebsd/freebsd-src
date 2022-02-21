@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,7 +44,7 @@ int usb_iface_is_cdrom(struct usb_device *udev,
 usb_error_t usb_msc_eject(struct usb_device *udev,
 	    uint8_t iface_index, int method);
 usb_error_t usb_msc_auto_quirk(struct usb_device *udev,
-	    uint8_t iface_index);
+	    uint8_t iface_index, const struct usb_attach_arg *uaa);
 usb_error_t usb_msc_read_10(struct usb_device *udev,
 	    uint8_t iface_index, uint32_t lba, uint32_t blocks,
 	    void *buffer);
