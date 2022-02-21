@@ -786,12 +786,19 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 				break;
 			}
 		}
+		/* No space - word extends to beginning of line. */
+		if (i == -1)
+			vb->vb_mark_start.tp_col = 0;
 		for (i = col; i < vb->vb_scr_size.tp_col; i ++) {
 			if (TCHAR_CHARACTER(r[i]) == ' ') {
 				vb->vb_mark_end.tp_col = i;
 				break;
 			}
 		}
+		/* No space - word extends to end of line. */
+		if (i == vb->vb_scr_size.tp_col)
+			vb->vb_mark_end.tp_col = i;
+
 		if (vb->vb_mark_start.tp_col > vb->vb_mark_end.tp_col)
 			vb->vb_mark_start.tp_col = vb->vb_mark_end.tp_col;
 		break;
