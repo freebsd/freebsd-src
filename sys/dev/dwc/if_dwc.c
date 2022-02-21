@@ -1288,13 +1288,11 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 static void
 dwc_rxfinish_locked(struct dwc_softc *sc)
 {
-	struct ifnet *ifp;
 	struct mbuf *m;
 	int error, idx;
 	struct dwc_hwdesc *desc;
 
 	DWC_ASSERT_LOCKED(sc);
-	ifp = sc->ifp;
 	for (;;) {
 		idx = sc->rx_idx;
 		desc = sc->rxdesc_ring + idx;
