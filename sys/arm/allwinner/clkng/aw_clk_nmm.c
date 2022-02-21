@@ -74,9 +74,6 @@ struct aw_clk_nmm_sc {
 static int
 aw_clk_nmm_init(struct clknode *clk, device_t dev)
 {
-	struct aw_clk_nmm_sc *sc;
-
-	sc = clknode_get_softc(clk);
 
 	clknode_init_parent_idx(clk, 0);
 	return (0);
