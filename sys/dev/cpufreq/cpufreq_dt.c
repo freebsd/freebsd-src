@@ -125,9 +125,6 @@ static void
 cpufreq_dt_opp_to_setting(device_t dev, const struct cpufreq_dt_opp *opp,
     struct cf_setting *set)
 {
-	struct cpufreq_dt_softc *sc;
-
-	sc = device_get_softc(dev);
 
 	memset(set, 0, sizeof(*set));
 	set->freq = opp->freq / 1000000;
