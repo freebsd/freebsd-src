@@ -207,12 +207,10 @@ static void *
 audio_soc_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct pcm_channel *c, int dir)
 {
-	struct audio_soc_softc *sc;
 	struct audio_soc_channel *ausoc_chan;
 	void *buffer;
 
 	ausoc_chan = devinfo;
-	sc = ausoc_chan->sc;
 	buffer = malloc(AUDIO_BUFFER_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	if (sndbuf_setup(b, buffer, AUDIO_BUFFER_SIZE) != 0) {
@@ -248,12 +246,10 @@ static int
 audio_soc_chan_free(kobj_t obj, void *data)
 {
 
-	struct audio_soc_softc *sc;
 	struct audio_soc_channel *ausoc_chan;
 	void *buffer;
 
 	ausoc_chan = (struct audio_soc_channel *)data;
-	sc = ausoc_chan->sc;
 
 	buffer = sndbuf_getbuf(ausoc_chan->buf);
 	if (buffer)
