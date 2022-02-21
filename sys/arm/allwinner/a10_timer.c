@@ -171,12 +171,9 @@ static struct ofw_compat_data compat_data[] = {
 static int
 a10_timer_probe(device_t dev)
 {
-	struct a10_timer_softc *sc;
 #if defined(__arm__)
 	u_int soc_family;
 #endif
-
-	sc = device_get_softc(dev);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
