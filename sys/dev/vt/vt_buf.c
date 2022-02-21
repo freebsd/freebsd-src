@@ -825,6 +825,10 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 				break;
 			}
 		}
+		/* No space - word extends to end of line. */
+		if (i == vb->vb_scr_size.tp_col)
+			vb->vb_mark_end.tp_col = i;
+
 		if (vb->vb_mark_start.tp_col > vb->vb_mark_end.tp_col)
 			vb->vb_mark_start.tp_col = vb->vb_mark_end.tp_col;
 		break;
