@@ -237,6 +237,35 @@
 #define NVME_CTRLR_DATA_MIC_ANAR_SHIFT			(3)
 #define NVME_CTRLR_DATA_MIC_ANAR_MASK			(0x1)
 
+/** OAES - Optional Asynchronous Events Supported */
+/* supports Namespace Attribute Notices event */
+#define NVME_CTRLR_DATA_OAES_NS_ATTR_SHIFT		(8)
+#define NVME_CTRLR_DATA_OAES_NS_ATTR_MASK		(0x1)
+/* supports Firmware Activation Notices event */
+#define NVME_CTRLR_DATA_OAES_FW_ACTIVATE_SHIFT		(9)
+#define NVME_CTRLR_DATA_OAES_FW_ACTIVATE_MASK		(0x1)
+/* supports Asymmetric Namespace Access Change Notices event */
+#define NVME_CTRLR_DATA_OAES_ASYM_NS_CHANGE_SHIFT	(11)
+#define NVME_CTRLR_DATA_OAES_ASYM_NS_CHANGE_MASK	(0x1)
+/* supports Predictable Latency Event Aggregate Log Change Notices event */
+#define NVME_CTRLR_DATA_OAES_PREDICT_LATENCY_SHIFT	(12)
+#define NVME_CTRLR_DATA_OAES_PREDICT_LATENCY_MASK	(0x1)
+/* supports LBA Status Information Notices event */
+#define NVME_CTRLR_DATA_OAES_LBA_STATUS_SHIFT		(13)
+#define NVME_CTRLR_DATA_OAES_LBA_STATUS_MASK		(0x1)
+/* supports Endurance Group Event Aggregate Log Page Changes Notices event */
+#define NVME_CTRLR_DATA_OAES_ENDURANCE_GROUP_SHIFT	(14)
+#define NVME_CTRLR_DATA_OAES_ENDURANCE_GROUP_MASK	(0x1)
+/* supports Normal NVM Subsystem Shutdown event */
+#define NVME_CTRLR_DATA_OAES_NORMAL_SHUTDOWN_SHIFT	(15)
+#define NVME_CTRLR_DATA_OAES_NORMAL_SHUTDOWN_MASK	(0x1)
+/* supports Zone Descriptor Changed Notices event */
+#define NVME_CTRLR_DATA_OAES_ZONE_DESC_CHANGE_SHIFT	(27)
+#define NVME_CTRLR_DATA_OAES_ZONE_DESC_CHANGE_MASK	(0x1)
+/* supports Discovery Log Page Change Notification event */
+#define NVME_CTRLR_DATA_OAES_LOG_PAGE_CHANGE_SHIFT	(31)
+#define NVME_CTRLR_DATA_OAES_LOG_PAGE_CHANGE_MASK	(0x1)
+
 /** OACS - optional admin command support */
 /* supports security send/receive commands */
 #define NVME_CTRLR_DATA_OACS_SECURITY_SHIFT		(0)
@@ -532,6 +561,9 @@ enum nvme_critical_warning_state {
 #define	NVME_SS_PAGE_SSTAT_PASSES_MASK			(0x1f)
 #define	NVME_SS_PAGE_SSTAT_GDE_SHIFT			(8)
 #define	NVME_SS_PAGE_SSTAT_GDE_MASK			(0x1)
+
+/* Helper macro to combine *_MASK and *_SHIFT defines */
+#define NVMEB(name)	(name##_MASK << name##_SHIFT)
 
 /* CC register SHN field values */
 enum shn_value {
