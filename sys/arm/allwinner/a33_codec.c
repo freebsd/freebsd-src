@@ -383,11 +383,8 @@ sun8i_codec_dai_trigger(device_t dev, int go, int pcm_dir)
 static int
 sun8i_codec_dai_setup_mixer(device_t dev, device_t pcmdev)
 {
-	struct sun8i_codec_softc *sc;
 
-	sc = device_get_softc(dev);
 	/* Do nothing for now */
-
 	return (0);
 }
 
