@@ -2032,7 +2032,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4128) },
 	{ PCI_VDEVICE(MELLANOX, 4129) }, /* ConnectX-7 */
 	{ PCI_VDEVICE(MELLANOX, 4130) },
-	{ PCI_VDEVICE(MELLANOX, 4131) },
+	{ PCI_VDEVICE(MELLANOX, 4131) }, /* ConnectX-8 */
 	{ PCI_VDEVICE(MELLANOX, 4132) },
 	{ PCI_VDEVICE(MELLANOX, 4133) },
 	{ PCI_VDEVICE(MELLANOX, 4134) },
@@ -2050,6 +2050,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0xa2d3) }, /* BlueField integrated ConnectX-5 network controller VF */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d6) }, /* BlueField-2 integrated ConnectX-6 Dx network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2dc) }, /* BlueField-3 integrated ConnectX-7 network controller */
+	{ PCI_VDEVICE(MELLANOX, 0xa2df) }, /* BlueField-4 integrated ConnectX-8 network controller */
 	{ }
 };
 
