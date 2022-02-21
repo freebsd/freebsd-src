@@ -2,7 +2,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008,2011 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky.
+ * Copyright (c) 2021-2022 Idwer Vollering.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,9 +30,6 @@
 /*
  * The following file contains code that will detect USB autoinstall
  * disks.
- *
- * TODO: Potentially we could add code to automatically detect USB
- * mass storage quirks for not supported SCSI commands!
  */
 
 #ifdef USB_GLOBAL_INCLUDE_FILE
@@ -97,7 +95,8 @@ enum {
 static uint8_t scsi_test_unit_ready[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_inquiry[] = { 0x12, 0x00, 0x00, 0x00, SCSI_INQ_LEN, 0x00 };
 static uint8_t scsi_rezero_init[] =     { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
-static uint8_t scsi_start_stop_unit[] = { 0x1b, 0x00, 0x00, 0x00, 0x02, 0x00 };
+static uint8_t scsi_start_unit[] = { 0x1b, 0x00, 0x00, 0x00, 0x01, 0x00 };
+static uint8_t scsi_stop_unit[] = { 0x1b, 0x00, 0x00, 0x00, 0x02, 0x00 };
 static uint8_t scsi_ztestor_eject[] =   { 0x85, 0x01, 0x01, 0x01, 0x18, 0x01,
 					  0x01, 0x01, 0x01, 0x01, 0x00, 0x00 };
 static uint8_t scsi_cmotech_eject[] =   { 0xff, 0x52, 0x44, 0x45, 0x56, 0x43,
@@ -759,18 +758,38 @@ usb_msc_get_max_lun(struct usb_device *udev, uint8_t iface_index)
 	return (buf);
 }
 
+#define	USB_ADD_QUIRK(udev, any, which) do { \
+	if (usb_get_manufacturer(udev) != NULL && usb_get_product(udev) != NULL) { \
+		DPRINTFN(0, #which " set for USB mass storage device %s %s (0x%04x:0x%04x)\n", \
+			usb_get_manufacturer(udev), \
+			usb_get_product(udev), \
+			UGETW(udev->ddesc.idVendor), \
+			UGETW(udev->ddesc.idProduct)); \
+	} else { \
+		DPRINTFN(0, #which " set for USB mass storage device, 0x%04x:0x%04x\n", \
+			UGETW(udev->ddesc.idVendor), \
+			UGETW(udev->ddesc.idProduct)); \
+	} \
+	usbd_add_dynamic_quirk(udev, which); \
+	any = 1; \
+} while (0)
+
 usb_error_t
-usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
+usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index,
+    const struct usb_attach_arg *uaa)
 {
 	struct bbb_transfer *sc;
 	uint8_t timeout;
 	uint8_t is_no_direct;
 	uint8_t sid_type;
+	uint8_t any_quirk;
 	int err;
 
 	sc = bbb_attach(udev, iface_index, UICLASS_MASS);
 	if (sc == NULL)
 		return (0);
+
+	any_quirk = 0;
 
 	/*
 	 * Some devices need a delay after that the configuration
@@ -778,9 +797,10 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 	 */
 	usb_pause_mtx(NULL, hz);
 
-	if (usb_msc_get_max_lun(udev, iface_index) == 0) {
+	if (usb_test_quirk(uaa, UQ_MSC_NO_GETMAXLUN) == 0 &&
+	    usb_msc_get_max_lun(udev, iface_index) == 0) {
 		DPRINTF("Device has only got one LUN.\n");
-		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_GETMAXLUN);
+		USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_GETMAXLUN);
 	}
 
 	is_no_direct = 1;
@@ -807,37 +827,40 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 		goto done;
 	}
 
-	err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
-	    &scsi_test_unit_ready, sizeof(scsi_test_unit_ready),
-	    USB_MS_HZ);
-
-	if (err != 0) {
-		if (err != ERR_CSW_FAILED)
-			goto error;
-		DPRINTF("Test unit ready failed\n");
-	}
-
-	err = bbb_command_start(sc, DIR_OUT, 0, NULL, 0,
-	    &scsi_prevent_removal, sizeof(scsi_prevent_removal),
-	    USB_MS_HZ);
-
-	if (err == 0) {
-		err = bbb_command_start(sc, DIR_OUT, 0, NULL, 0,
-		    &scsi_allow_removal, sizeof(scsi_allow_removal),
+	if (usb_test_quirk(uaa, UQ_MSC_NO_TEST_UNIT_READY) == 0) {
+		err = bbb_command_start(sc, DIR_NONE, 0, NULL, 0,
+		    &scsi_test_unit_ready, sizeof(scsi_test_unit_ready),
 		    USB_MS_HZ);
+
+		if (err != 0) {
+			if (err != ERR_CSW_FAILED)
+				goto error;
+			USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_TEST_UNIT_READY);
+		}
 	}
 
-	if (err != 0) {
-		if (err != ERR_CSW_FAILED)
-			goto error;
-		DPRINTF("Device doesn't handle prevent and allow removal\n");
-		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_PREVENT_ALLOW);
+	if (usb_test_quirk(uaa, UQ_MSC_NO_PREVENT_ALLOW) == 0) {
+		err = bbb_command_start(sc, DIR_NONE, 0, NULL, 0,
+		    &scsi_prevent_removal, sizeof(scsi_prevent_removal),
+		    USB_MS_HZ);
+
+		if (err == 0) {
+			err = bbb_command_start(sc, DIR_NONE, 0, NULL, 0,
+			    &scsi_allow_removal, sizeof(scsi_allow_removal),
+			    USB_MS_HZ);
+		}
+
+		if (err != 0) {
+			if (err != ERR_CSW_FAILED)
+				goto error;
+			USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_PREVENT_ALLOW);
+		}
 	}
 
 	timeout = 1;
 
 retry_sync_cache:
-	err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
+	err = bbb_command_start(sc, DIR_NONE, 0, NULL, 0,
 	    &scsi_sync_cache, sizeof(scsi_sync_cache),
 	    USB_MS_HZ);
 
@@ -845,9 +868,7 @@ retry_sync_cache:
 		if (err != ERR_CSW_FAILED)
 			goto error;
 
-		DPRINTF("Device doesn't handle synchronize cache\n");
-
-		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+		USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_SYNC_CACHE);
 	} else {
 		/*
 		 * Certain Kingston memory sticks fail the first
@@ -872,15 +893,23 @@ retry_sync_cache:
 				if (timeout--)
 					goto retry_sync_cache;
 
-				DPRINTF("Device most likely doesn't "
-				    "handle synchronize cache\n");
-
-				usbd_add_dynamic_quirk(udev,
-				    UQ_MSC_NO_SYNC_CACHE);
+				USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_SYNC_CACHE);
 			} else {
 				if (err != ERR_CSW_FAILED)
 					goto error;
 			}
+		}
+	}
+
+	if (usb_test_quirk(uaa, UQ_MSC_NO_START_STOP) == 0) {
+		err = bbb_command_start(sc, DIR_NONE, 0, NULL, 0,
+		    &scsi_start_unit, sizeof(scsi_start_unit),
+		    USB_MS_HZ);
+
+		if (err != 0) {
+			if (err != ERR_CSW_FAILED)
+				goto error;
+			USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_START_STOP);
 		}
 	}
 
@@ -907,24 +936,28 @@ retry_sync_cache:
 		if (err != ERR_CSW_FAILED)
 			goto error;
 	}
-
-done:
-	bbb_detach(sc);
-	return (0);
+	goto done;
 
 error:
- 	bbb_detach(sc);
+	/* Apply most quirks */
+	USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_SYNC_CACHE);
+	USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_PREVENT_ALLOW);
+	USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_TEST_UNIT_READY);
+	USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_START_STOP);
+done:
+	bbb_detach(sc);
 
-	DPRINTF("Device did not respond, enabling all quirks\n");
+	if (any_quirk) {
+		/* Unconfigure device, to clear software data toggle. */
+		usbd_set_config_index(udev, USB_UNCONFIG_INDEX);
 
-	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
-	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_PREVENT_ALLOW);
-	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_TEST_UNIT_READY);
+		/* Need to re-enumerate the device to clear its state. */
+		usbd_req_re_enumerate(udev, NULL);
+		return (USB_ERR_STALLED);
+	}
 
-	/* Need to re-enumerate the device */
-	usbd_req_re_enumerate(udev, NULL);
-
-	return (USB_ERR_STALLED);
+	/* No quirks were added, continue as usual. */
+	return (0);
 }
 
 usb_error_t
@@ -944,7 +977,7 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		    USB_MS_HZ);
 		DPRINTF("Test unit ready status: %s\n", usbd_errstr(err));
 		err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
-		    &scsi_start_stop_unit, sizeof(scsi_start_stop_unit),
+		    &scsi_stop_unit, sizeof(scsi_stop_unit),
 		    USB_MS_HZ);
 		break;
 	case MSC_EJECT_REZERO:
