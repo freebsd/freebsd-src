@@ -423,7 +423,7 @@ static int
 aw_i2s_dai_init(device_t dev, uint32_t format)
 {
 	struct aw_i2s_softc *sc;
-	int fmt, pol, clk;
+	int fmt, pol;
 	uint32_t ctl, fat0, chsel;
 	u_int offset;
 
@@ -431,7 +431,6 @@ aw_i2s_dai_init(device_t dev, uint32_t format)
 
 	fmt = AUDIO_DAI_FORMAT_FORMAT(format);
 	pol = AUDIO_DAI_FORMAT_POLARITY(format);
-	clk = AUDIO_DAI_FORMAT_CLOCK(format);
 
 	ctl = I2S_READ(sc, DA_CTL);
 	fat0 = I2S_READ(sc, DA_FAT0);
