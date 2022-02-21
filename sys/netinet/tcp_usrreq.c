@@ -2004,7 +2004,7 @@ copyin_tls_enable(struct sockopt *sopt, struct tls_enable *tls)
 extern struct cc_algo newreno_cc_algo;
 
 static int
-tcp_congestion(struct inpcb *inp, struct sockopt *sopt)
+tcp_set_cc_mod(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct cc_algo *algo;
 	void *ptr = NULL;
@@ -2020,7 +2020,7 @@ tcp_congestion(struct inpcb *inp, struct sockopt *sopt)
 		return(error);
 	buf[sopt->sopt_valsize] = '\0';
 	CC_LIST_RLOCK();
-	STAILQ_FOREACH(algo, &cc_list, entries)
+	STAILQ_FOREACH(algo, &cc_list, entries) {
 		if (strncmp(buf, algo->name,
 			    TCP_CA_NAME_MAX) == 0) {
 			if (algo->flags & CC_MODULE_BEING_REMOVED) {
@@ -2029,30 +2029,24 @@ tcp_congestion(struct inpcb *inp, struct sockopt *sopt)
 			}
 			break;
 		}
+	}
 	if (algo == NULL) {
 		CC_LIST_RUNLOCK();
 		return(ESRCH);
 	}
-do_over:
+	/* 
+	 * With a reference the algorithm cannot be removed
+	 * so we hold a reference through the change process.
+	 */
+	cc_refer(algo);
+	CC_LIST_RUNLOCK();
 	if (algo->cb_init != NULL) {
 		/* We can now pre-get the memory for the CC */
 		mem_sz = (*algo->cc_data_sz)();
 		if (mem_sz == 0) {
 			goto no_mem_needed;
 		}
-		CC_LIST_RUNLOCK();
 		ptr = malloc(mem_sz, M_CC_MEM, M_WAITOK);
-		CC_LIST_RLOCK();
-		STAILQ_FOREACH(algo, &cc_list, entries)
-			if (strncmp(buf, algo->name,
-				    TCP_CA_NAME_MAX) == 0)
-				break;
-		if (algo == NULL) {
-			if (ptr)
-				free(ptr, M_CC_MEM);
-			CC_LIST_RUNLOCK();
-			return(ESRCH);
-		}
 	} else {
 no_mem_needed:
 		mem_sz = 0;
@@ -2063,22 +2057,20 @@ no_mem_needed:
 	 * back the inplock.
 	 */
 	memset(&cc_mem, 0, sizeof(cc_mem));
-	if (mem_sz != (*algo->cc_data_sz)()) {
-		if (ptr)
-			free(ptr, M_CC_MEM);
-		goto do_over;
-	}
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
+		if (ptr)
+			free(ptr, M_CC_MEM);
+		/* Release our temp reference */
+		CC_LIST_RLOCK();
+		cc_release(algo);
 		CC_LIST_RUNLOCK();
-		free(ptr, M_CC_MEM);
 		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
 	if (ptr != NULL)
 		memset(ptr, 0, mem_sz);
-	CC_LIST_RUNLOCK();
 	cc_mem.ccvc.tcp = tp;
 	/*
 	 * We once again hold a write lock over the tcb so it's
@@ -2103,8 +2095,12 @@ no_mem_needed:
 		 */
 		if (CC_ALGO(tp)->cb_destroy != NULL)
 			CC_ALGO(tp)->cb_destroy(tp->ccv);
+		/* Detach the old CC from the tcpcb  */
+		cc_detach(tp);
+		/* Copy in our temp memory that was inited */
 		memcpy(tp->ccv, &cc_mem, sizeof(struct cc_var));
-		tp->cc_algo = algo;
+		/* Now attach the new, which takes a reference */
+		cc_attach(tp, algo);
 		/* Ok now are we where we have gotten past any conn_init? */
 		if (TCPS_HAVEESTABLISHED(tp->t_state) && (CC_ALGO(tp)->conn_init != NULL)) {
 			/* Yep run the connection init for the new CC */
@@ -2113,6 +2109,10 @@ no_mem_needed:
 	} else if (ptr)
 		free(ptr, M_CC_MEM);
 	INP_WUNLOCK(inp);
+	/* Now lets release our temp reference */
+	CC_LIST_RLOCK();
+	cc_release(algo);
+	CC_LIST_RUNLOCK();
 	return (error);
 }
 
@@ -2336,7 +2336,7 @@ unlock_and_done:
 			break;
 
 		case TCP_CONGESTION:
-			error = tcp_congestion(inp, sopt);
+			error = tcp_set_cc_mod(inp, sopt);
 			break;
 
 		case TCP_REUSPORT_LB_NUMA:
