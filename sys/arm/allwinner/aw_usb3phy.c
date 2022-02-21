@@ -192,11 +192,9 @@ static int
 awusb3phy_set_mode(struct phynode *phynode, int mode)
 {
 	device_t dev;
-	intptr_t phy;
 	struct awusb3phy_softc *sc;
 
 	dev = phynode_get_device(phynode);
-	phy = phynode_get_id(phynode);
 	sc = device_get_softc(dev);
 
 	if (mode != PHY_USB_MODE_HOST)
