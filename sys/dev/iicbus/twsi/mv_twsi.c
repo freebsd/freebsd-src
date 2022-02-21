@@ -138,9 +138,7 @@ mv_twsi_get_node(device_t bus, device_t dev)
 static int
 mv_twsi_probe(device_t dev)
 {
-	struct twsi_softc *sc;
 
-	sc = device_get_softc(dev);
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
