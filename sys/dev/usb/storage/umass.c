@@ -2294,6 +2294,13 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 						xpt_done(ccb);
 						goto done;
 					}
+				} else if (sc->sc_transfer.cmd_data[0] == START_STOP_UNIT) {
+					if (sc->sc_quirks & NO_START_STOP) {
+						ccb->csio.scsi_status = SCSI_STATUS_OK;
+						ccb->ccb_h.status = CAM_REQ_CMP;
+						xpt_done(ccb);
+						goto done;
+					}
 				}
 				umass_command_start(sc, dir, ccb->csio.data_ptr,
 				    ccb->csio.dxfer_len,
