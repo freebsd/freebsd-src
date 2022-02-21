@@ -2171,10 +2171,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	/*
 	 * Use the current system default CC algorithm.
 	 */
-	CC_LIST_RLOCK();
-	KASSERT(!STAILQ_EMPTY(&cc_list), ("cc_list is empty!"));
-	CC_ALGO(tp) = CC_DEFAULT_ALGO();
-	CC_LIST_RUNLOCK();
+	cc_attach(tp, CC_DEFAULT_ALGO());
 
 	/*
 	 * The tcpcb will hold a reference on its inpcb until tcp_discardcb()
@@ -2185,6 +2182,7 @@ tcp_newtcpcb(struct inpcb *inp)
 
 	if (CC_ALGO(tp)->cb_init != NULL)
 		if (CC_ALGO(tp)->cb_init(tp->ccv, NULL) > 0) {
+			cc_detach(tp);
 			if (tp->t_fb->tfb_tcp_fb_fini)
 				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
 			in_pcbrele_wlocked(inp);
@@ -2277,93 +2275,6 @@ tcp_newtcpcb(struct inpcb *inp)
 }
 
 /*
- * Switch the congestion control algorithm back to Vnet default for any active
- * control blocks using an algorithm which is about to go away. If the algorithm
- * has a cb_init function and it fails (no memory) then the operation fails and
- * the unload will not succeed.
- *
- */
-int
-tcp_ccalgounload(struct cc_algo *unload_algo)
-{
-	struct cc_algo *oldalgo, *newalgo;
-	struct inpcb *inp;
-	struct tcpcb *tp;
-	VNET_ITERATOR_DECL(vnet_iter);
-
-	/*
-	 * Check all active control blocks across all network stacks and change
-	 * any that are using "unload_algo" back to its default. If "unload_algo"
-	 * requires cleanup code to be run, call it.
-	 */
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
-		    INPLOOKUP_WLOCKPCB);
-		/*
-		 * XXXGL: would new accept(2)d connections use algo being
-		 * unloaded?
-		 */
-		newalgo = CC_DEFAULT_ALGO();
-		while ((inp = inp_next(&inpi)) != NULL) {
-			/* Important to skip tcptw structs. */
-			if (!(inp->inp_flags & INP_TIMEWAIT) &&
-			    (tp = intotcpcb(inp)) != NULL) {
-				/*
-				 * By holding INP_WLOCK here, we are assured
-				 * that the connection is not currently
-				 * executing inside the CC module's functions.
-				 * We attempt to switch to the Vnets default,
-				 * if the init fails then we fail the whole
-				 * operation and the module unload will fail.
-				 */
-				if (CC_ALGO(tp) == unload_algo) {
-					struct cc_var cc_mem;
-					int err;
-
-					oldalgo = CC_ALGO(tp);
-					memset(&cc_mem, 0, sizeof(cc_mem));
-					cc_mem.ccvc.tcp = tp;
-					if (newalgo->cb_init == NULL) {
-						/*
-						 * No init we can skip the
-						 * dance around a possible failure.
-						 */
-						CC_DATA(tp) = NULL;
-						goto proceed;
-					}
-					err = (newalgo->cb_init)(&cc_mem, NULL);
-					if (err) {
-						/*
-						 * Presumably no memory the caller will
-						 * need to try again.
-						 */
-						INP_WUNLOCK(inp);
-						CURVNET_RESTORE();
-						VNET_LIST_RUNLOCK();
-						return (err);
-					}
-proceed:
-					if (oldalgo->cb_destroy != NULL)
-						oldalgo->cb_destroy(tp->ccv);
-					CC_ALGO(tp) = newalgo;
-					memcpy(tp->ccv, &cc_mem, sizeof(struct cc_var));
-					if (TCPS_HAVEESTABLISHED(tp->t_state) &&
-					    (CC_ALGO(tp)->conn_init != NULL)) {
-						/* Yep run the connection init for the new CC */
-						CC_ALGO(tp)->conn_init(tp->ccv);
-					}
-				}
-			}
-		}
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK();
-	return (0);
-}
-
-/*
  * Drop a TCP connection, reporting
  * the specified error.  If connection is synchronized,
  * then send a RST to peer.
@@ -2443,6 +2354,8 @@ tcp_discardcb(struct tcpcb *tp)
 	if (CC_ALGO(tp)->cb_destroy != NULL)
 		CC_ALGO(tp)->cb_destroy(tp->ccv);
 	CC_DATA(tp) = NULL;
+	/* Detach from the CC algorithm */
+	cc_detach(tp);
 
 #ifdef TCP_HHOOK
 	khelp_destroy_osd(tp->osd);

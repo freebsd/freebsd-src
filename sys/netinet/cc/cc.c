@@ -107,6 +107,45 @@ VNET_DEFINE(struct cc_algo *, default_cc_ptr) = NULL;
 VNET_DEFINE(uint32_t, newreno_beta) = 50;
 #define V_newreno_beta VNET(newreno_beta)
 
+void
+cc_refer(struct cc_algo *algo)
+{
+	CC_LIST_LOCK_ASSERT();
+	refcount_acquire(&algo->cc_refcount);
+}
+
+void
+cc_release(struct cc_algo *algo)
+{
+	CC_LIST_LOCK_ASSERT();
+	refcount_release(&algo->cc_refcount);
+}
+
+
+void
+cc_attach(struct tcpcb *tp, struct cc_algo *algo)
+{
+	/*
+	 * Attach the tcpcb to the algorithm.
+	 */
+	CC_LIST_RLOCK();
+	CC_ALGO(tp) = algo;
+	cc_refer(algo);
+	CC_LIST_RUNLOCK();
+}
+
+void
+cc_detach(struct tcpcb *tp)
+{
+	struct cc_algo *algo;
+
+	CC_LIST_RLOCK();
+	algo = CC_ALGO(tp);
+	CC_ALGO(tp) = NULL;
+	cc_release(algo);
+	CC_LIST_RUNLOCK();
+}
+
 /*
  * Sysctl handler to show and change the default CC algorithm.
  */
@@ -137,6 +176,10 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 	STAILQ_FOREACH(funcs, &cc_list, entries) {
 		if (strncmp(default_cc, funcs->name, sizeof(default_cc)))
 			continue;
+		if (funcs->flags & CC_MODULE_BEING_REMOVED) {
+			/* Its being removed, its not eligible */
+			continue;
+		}
 		V_default_cc_ptr = funcs;
 		error = 0;
 		break;
@@ -153,12 +196,12 @@ static int
 cc_list_available(SYSCTL_HANDLER_ARGS)
 {
 	struct cc_algo *algo;
-	struct sbuf *s;
-	int err, first, nalgos;
+	int error, nalgos;
+	int linesz;
+	char *buffer, *cp;
+	size_t bufsz, outsz;
 
-	err = nalgos = 0;
-	first = 1;
-
+	error = nalgos = 0;
 	CC_LIST_RLOCK();
 	STAILQ_FOREACH(algo, &cc_list, entries) {
 		nalgos++;
@@ -167,37 +210,34 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 	if (nalgos == 0) {
 		return (ENOENT);
 	}
-	s = sbuf_new(NULL, NULL, nalgos * TCP_CA_NAME_MAX, SBUF_FIXEDLEN);
+	bufsz = (nalgos+2) * ((TCP_CA_NAME_MAX + 13) + 1);
+	buffer = malloc(bufsz, M_TEMP, M_WAITOK);
+	cp = buffer;
 
-	if (s == NULL)
-		return (ENOMEM);
-
-	/*
-	 * It is theoretically possible for the CC list to have grown in size
-	 * since the call to sbuf_new() and therefore for the sbuf to be too
-	 * small. If this were to happen (incredibly unlikely), the sbuf will
-	 * reach an overflow condition, sbuf_printf() will return an error and
-	 * the sysctl will fail gracefully.
-	 */
+	linesz = snprintf(cp, bufsz, "\n%-16s%c %s\n", "CCmod", 'D',
+	    "PCB count");
+	cp += linesz;
+	bufsz -= linesz;
+	outsz = linesz;
 	CC_LIST_RLOCK();
 	STAILQ_FOREACH(algo, &cc_list, entries) {
-		err = sbuf_printf(s, first ? "%s" : ", %s", algo->name);
-		if (err) {
-			/* Sbuf overflow condition. */
-			err = EOVERFLOW;
+		linesz = snprintf(cp, bufsz, "%-16s%c %u\n",
+		    algo->name,
+		    (algo == CC_DEFAULT_ALGO()) ? '*' : ' ',
+		    algo->cc_refcount);
+		if (linesz >= bufsz) {
+			error = EOVERFLOW;
 			break;
 		}
-		first = 0;
+		cp += linesz;
+		bufsz -= linesz;
+		outsz += linesz;
 	}
 	CC_LIST_RUNLOCK();
-
-	if (!err) {
-		sbuf_finish(s);
-		err = sysctl_handle_string(oidp, sbuf_data(s), 0, req);
-	}
-
-	sbuf_delete(s);
-	return (err);
+	if (error == 0)
+		error = sysctl_handle_string(oidp, buffer, outsz + 1, req);
+	free(buffer, M_TEMP);
+	return (error);
 }
 
 /*
@@ -243,41 +283,36 @@ cc_init(void)
 int
 cc_deregister_algo(struct cc_algo *remove_cc)
 {
-	struct cc_algo *funcs, *tmpfuncs;
-	int err;
-
-	err = ENOENT;
+	struct cc_algo *funcs;
+	int found = 0;
 
 	/* Remove algo from cc_list so that new connections can't use it. */
 	CC_LIST_WLOCK();
-	STAILQ_FOREACH_SAFE(funcs, &cc_list, entries, tmpfuncs) {
-		if (funcs == remove_cc) {
-			if (cc_check_default(remove_cc)) {
-				CC_LIST_WUNLOCK();
-				return(EBUSY);
-			}
-			break;
-		}
+	
+	/* This is unlikely to fail */
+	STAILQ_FOREACH(funcs, &cc_list, entries) {
+		if (funcs == remove_cc)
+			found = 1;
 	}
-	remove_cc->flags |= CC_MODULE_BEING_REMOVED;
-	CC_LIST_WUNLOCK();
-	err = tcp_ccalgounload(remove_cc);
-	/*
-	 * Now back through and we either remove the temp flag
-	 * or pull the registration.
-	 */
-	CC_LIST_WLOCK();
-	STAILQ_FOREACH_SAFE(funcs, &cc_list, entries, tmpfuncs) {
-		if (funcs == remove_cc) {
-			if (err == 0)
-				STAILQ_REMOVE(&cc_list, funcs, cc_algo, entries);
-			else
-				funcs->flags &= ~CC_MODULE_BEING_REMOVED;
-			break;
-		}
+	if (found == 0) {
+		/* Nothing to remove? */
+		CC_LIST_WUNLOCK();
+		return (ENOENT);
 	}
+	/* We assert it should have been MOD_QUIESCE'd */
+	KASSERT((remove_cc->flags & CC_MODULE_BEING_REMOVED),
+		("remove_cc:%p does not have CC_MODULE_BEING_REMOVED flag", remove_cc));
+	if (cc_check_default(remove_cc)) {
+		CC_LIST_WUNLOCK();
+		return(EBUSY);
+	}
+	if (remove_cc->cc_refcount != 0) {
+		CC_LIST_WUNLOCK();
+		return (EBUSY);
+	}
+	STAILQ_REMOVE(&cc_list, remove_cc, cc_algo, entries);
 	CC_LIST_WUNLOCK();
-	return (err);
+	return (0);
 }
 
 /*
@@ -304,6 +339,9 @@ cc_register_algo(struct cc_algo *add_cc)
 			break;
 		}
 	}
+	/* Init its reference count */
+	if (err == 0)
+		refcount_init(&add_cc->cc_refcount, 0);
 	/*
 	 * The first loaded congestion control module will become
 	 * the default until we find the "CC_DEFAULT" defined in
@@ -526,6 +564,20 @@ newreno_cc_ack_received(struct cc_var *ccv, uint16_t type)
 	}
 }
 
+static int
+cc_stop_new_assignments(struct cc_algo *algo)
+{
+	CC_LIST_WLOCK();
+	if (cc_check_default(algo)) {
+		/* A default cannot be removed */
+		CC_LIST_WUNLOCK();
+		return (EBUSY);
+	}
+	algo->flags |= CC_MODULE_BEING_REMOVED;
+	CC_LIST_WUNLOCK();
+	return (0);
+}
+
 /*
  * Handles kld related events. Returns 0 on success, non-zero on failure.
  */
@@ -555,16 +607,32 @@ cc_modevent(module_t mod, int event_type, void *data)
 			err = cc_register_algo(algo);
 		break;
 
-	case MOD_QUIESCE:
 	case MOD_SHUTDOWN:
-	case MOD_UNLOAD:
-		err = cc_deregister_algo(algo);
-		if (!err && algo->mod_destroy != NULL)
-			algo->mod_destroy();
-		if (err == ENOENT)
-			err = 0;
 		break;
-
+	case MOD_QUIESCE:
+		/* Stop any new assigments */
+		err = cc_stop_new_assignments(algo);
+		break;
+	case MOD_UNLOAD:
+		/* 
+		 * Deregister and remove the module from the list 
+		 */
+		CC_LIST_WLOCK();
+		/* Even with -f we can't unload if its the default */
+		if (cc_check_default(algo)) {
+			/* A default cannot be removed */
+			CC_LIST_WUNLOCK();
+			return (EBUSY);
+		}
+		/*
+		 * If -f was used and users are still attached to
+		 * the algorithm things are going to go boom.
+		 */
+		err = cc_deregister_algo(algo);
+		if ((err == 0) && (algo->mod_destroy != NULL)) {
+			algo->mod_destroy();
+		}
+		break;
 	default:
 		err = EINVAL;
 		break;
