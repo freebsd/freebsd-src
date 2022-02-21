@@ -758,11 +758,9 @@ axp8xx_write(device_t dev, uint8_t reg, uint8_t val)
 static int
 axp8xx_regnode_init(struct regnode *regnode)
 {
-	struct axp8xx_reg_sc *sc;
 	struct regnode_std_param *param;
 	int rv, udelay;
 
-	sc = regnode_get_softc(regnode);
 	param = regnode_get_stdparam(regnode);
 	if (param->min_uvolt == 0)
 		return (0);
