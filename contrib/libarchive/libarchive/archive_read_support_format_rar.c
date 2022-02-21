@@ -3328,20 +3328,25 @@ run_filters(struct archive_read *a)
   struct rar *rar = (struct rar *)(a->format->data);
   struct rar_filters *filters = &rar->filters;
   struct rar_filter *filter = filters->stack;
-  size_t start = filters->filterstart;
-  size_t end = start + filter->blocklength;
+  size_t start, end;
   int64_t tend;
   uint32_t lastfilteraddress;
   uint32_t lastfilterlength;
   int ret;
 
+  if (filters == NULL || filter == NULL)
+    return (0);
+
+  start = filters->filterstart;
+  end = start + filter->blocklength;
+
   filters->filterstart = INT64_MAX;
   tend = (int64_t)end;
   ret = expand(a, &tend);
   if (ret != ARCHIVE_OK)
-    return (ret);
+    return 0;
   if (tend < 0)
-    return (ARCHIVE_FATAL);
+    return 0;
   end = (size_t)tend;
   if (end != start + filter->blocklength)
     return 0;
