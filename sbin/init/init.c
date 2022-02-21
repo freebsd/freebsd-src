@@ -134,13 +134,11 @@ static state_func_t reroot_phase_two(void);
 static state_func_t run_script(const char *);
 
 static enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
-#define FALSE	0
-#define TRUE	1
 
-static int Reboot = FALSE;
+static bool Reboot = false;
 static int howto = RB_AUTOBOOT;
 
-static int devfs;
+static bool devfs = false;
 static char *init_path_argv0;
 
 static void transition(state_t);
@@ -190,7 +188,7 @@ static int setupargv(session_t *, struct ttyent *);
 #ifdef LOGIN_CAP
 static void setprocresources(const char *);
 #endif
-static int clang;
+static bool clang;
 
 static int start_session_db(void);
 static void add_session(session_t *);
@@ -287,7 +285,7 @@ invalid:
 	while ((c = getopt(argc, argv, "dsfr")) != -1)
 		switch (c) {
 		case 'd':
-			devfs = 1;
+			devfs = true;
 			break;
 		case 's':
 			initial_transition = single_user;
@@ -364,7 +362,7 @@ invalid:
 		if (stat("/dev", &stst) != 0)
 			warning("Can't stat /dev: %m");
 		else if (stst.st_dev == root_devno)
-			devfs++;
+			devfs = true;
 	}
 
 	if (devfs) {
@@ -1680,7 +1678,7 @@ transition_handler(int sig)
 	case SIGINT:
 		if (sig == SIGWINCH)
 			howto |= RB_POWERCYCLE;
-		Reboot = TRUE;
+		Reboot = true;
 	case SIGTERM:
 		if (current_state == read_ttys || current_state == multi_user ||
 		    current_state == clean_ttys || current_state == catatonia)
@@ -1859,7 +1857,7 @@ alrm_handler(int sig)
 {
 
 	(void)sig;
-	clang = 1;
+	clang = true;
 }
 
 /*
@@ -1915,12 +1913,12 @@ death_single(void)
 		if (kill(-1, death_sigs[i]) == -1 && errno == ESRCH)
 			return (state_func_t) single_user;
 
-		clang = 0;
+		clang = false;
 		alarm(DEATH_WATCH);
 		do
 			if ((pid = waitpid(-1, (int *)0, 0)) != -1)
 				collect_child(pid);
-		while (clang == 0 && errno != ECHILD);
+		while (!clang && errno != ECHILD);
 
 		if (errno == ECHILD)
 			return (state_func_t) single_user;
@@ -2001,7 +1999,7 @@ runshutdown(void)
 	    NULL, 0) == -1 || shutdowntimeout < 2)
 		shutdowntimeout = DEATH_SCRIPT;
 	alarm(shutdowntimeout);
-	clang = 0;
+	clang = false;
 	/*
 	 * Copied from single_user().  This is a bit paranoid.
 	 * Use the same ALRM handler.
@@ -2009,7 +2007,7 @@ runshutdown(void)
 	do {
 		if ((wpid = waitpid(-1, &status, WUNTRACED)) != -1)
 			collect_child(wpid);
-		if (clang == 1) {
+		if (clang) {
 			/* we were waiting for the sub-shell */
 			kill(wpid, SIGTERM);
 			warning("timeout expired for %s: %m; going to "
