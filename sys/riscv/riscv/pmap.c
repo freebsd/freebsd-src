@@ -1231,11 +1231,19 @@ pmap_pinit(pmap_t pmap)
 
 	CPU_ZERO(&pmap->pm_active);
 
+	/*
+	 * Copy L1 entries from the kernel pmap.  This must be done with the
+	 * allpmaps lock held to avoid races with pmap_distribute_l1().
+	 */
 	mtx_lock(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+	for (size_t i = pmap_l1_index(VM_MIN_KERNEL_ADDRESS);
+	    i < pmap_l1_index(VM_MAX_KERNEL_ADDRESS); i++)
+		pmap->pm_l1[i] = kernel_pmap->pm_l1[i];
+	for (size_t i = pmap_l1_index(DMAP_MIN_ADDRESS);
+	    i < pmap_l1_index(DMAP_MAX_ADDRESS); i++)
+		pmap->pm_l1[i] = kernel_pmap->pm_l1[i];
 	mtx_unlock(&allpmaps_lock);
-
-	memcpy(pmap->pm_l1, kernel_pmap->pm_l1, PAGE_SIZE);
 
 	vm_radix_init(&pmap->pm_root);
 
