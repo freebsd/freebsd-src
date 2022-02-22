@@ -1573,11 +1573,14 @@ dwc_attach(device_t dev)
 	case MII_CONTYPE_RGMII_ID:
 	case MII_CONTYPE_RGMII_RXID:
 	case MII_CONTYPE_RGMII_TXID:
-			sc->phy_mode = PHY_MODE_RGMII;
-			break;
+		sc->phy_mode = PHY_MODE_RGMII;
+		break;
 	case MII_CONTYPE_RMII:
-			sc->phy_mode = PHY_MODE_RMII;
-			break;
+		sc->phy_mode = PHY_MODE_RMII;
+		break;
+	case MII_CONTYPE_MII:
+		sc->phy_mode = PHY_MODE_MII;
+		break;
 	default:
 		device_printf(dev, "Unsupported MII type\n");
 		return (ENXIO);
