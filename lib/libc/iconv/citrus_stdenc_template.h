@@ -49,6 +49,11 @@
 #define _CE_TO_EI(_ce_)	(_TO_EI((_ce_)->ce_closure))
 #define _TO_STATE(_ps_)	((_ENCODING_STATE*)(_ps_))
 
+#ifndef _ENCODING_MB_CUR_MIN
+/* Assume one byte minimum unless otherwise specified. */
+#define	_ENCODING_MB_CUR_MIN(_ei_)	1
+#endif
+
 /* ----------------------------------------------------------------------
  * templates for public functions
  */
@@ -87,6 +92,7 @@ _FUNCNAME(stdenc_init)(struct _citrus_stdenc * __restrict ce,
 	ce->ce_closure = ei;
 	et->et_state_size = sizeof(_ENCODING_STATE);
 	et->et_mb_cur_max = _ENCODING_MB_CUR_MAX(_CE_TO_EI(ce));
+	et->et_mb_cur_min = _ENCODING_MB_CUR_MIN(_CE_TO_EI(ce));
 
 	return (0);
 }

@@ -223,6 +223,7 @@
 #define _stdenc_wctomb		_citrus_stdenc_wctomb
 #define _stdenc_put_state_reset	_citrus_stdenc_put_state_reset
 #define _stdenc_get_state_size	_citrus_stdenc_get_state_size
+#define _stdenc_get_mb_cur_min	_citrus_stdenc_get_mb_cur_min
 #define _stdenc_get_mb_cur_max	_citrus_stdenc_get_mb_cur_max
 #define _stdenc_get_state_desc	_citrus_stdenc_get_state_desc
 #define _STDENC_SDID_GENERIC	_CITRUS_STDENC_SDID_GENERIC

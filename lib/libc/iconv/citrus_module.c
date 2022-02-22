@@ -106,7 +106,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define	I18NMODULE_MAJOR	4
+#define	I18NMODULE_MAJOR	5
 
 #include "citrus_namespace.h"
 #include "citrus_bcs.h"

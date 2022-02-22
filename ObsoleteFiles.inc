@@ -52,6 +52,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220811: new iconv encoder trait added
+OLD_LIBS+=usr/lib/i18n/libBIG5.so.4
+OLD_LIBS+=usr/lib/i18n/libDECHanyu.so.4
+OLD_LIBS+=usr/lib/i18n/libEUC.so.4
+OLD_LIBS+=usr/lib/i18n/libEUCTW.so.4
+OLD_LIBS+=usr/lib/i18n/libGBK2K.so.4
+OLD_LIBS+=usr/lib/i18n/libHZ.so.4
+OLD_LIBS+=usr/lib/i18n/libISO2022.so.4
+OLD_LIBS+=usr/lib/i18n/libJOHAB.so.4
+OLD_LIBS+=usr/lib/i18n/libMSKanji.so.4
+OLD_LIBS+=usr/lib/i18n/libUES.so.4
+OLD_LIBS+=usr/lib/i18n/libUTF1632.so.4
+OLD_LIBS+=usr/lib/i18n/libUTF7.so.4
+OLD_LIBS+=usr/lib/i18n/libUTF8.so.4
+OLD_LIBS+=usr/lib/i18n/libVIQR.so.4
+OLD_LIBS+=usr/lib/i18n/libZW.so.4
+OLD_LIBS+=usr/lib/i18n/libiconv_none.so.4
+OLD_LIBS+=usr/lib/i18n/libiconv_std.so.4
+OLD_LIBS+=usr/lib/i18n/libmapper_646.so.4
+OLD_LIBS+=usr/lib/i18n/libmapper_none.so.4
+OLD_LIBS+=usr/lib/i18n/libmapper_parallel.so.4
+OLD_LIBS+=usr/lib/i18n/libmapper_serial.so.4
+OLD_LIBS+=usr/lib/i18n/libmapper_std.so.4
+OLD_LIBS+=usr/lib/i18n/libmapper_zone.so.4
+
 # 202208XX: raw socket layer removed
 OLD_FILES+=usr/include/net/raw_cb.h
 
