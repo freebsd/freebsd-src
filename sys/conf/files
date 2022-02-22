@@ -4141,6 +4141,7 @@ net/if_llatbl.c			standard
 net/if_me.c			optional me inet
 net/if_media.c			standard
 net/if_mib.c			standard
+net/if_ovpn.c			optional ovpn inet | ovpn inet6
 net/if_stf.c			optional stf inet inet6
 net/if_tuntap.c			optional tuntap
 net/if_vlan.c			optional vlan
