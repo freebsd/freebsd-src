@@ -771,12 +771,15 @@ bailout:
  * download.
  */
 static int
-fw_rescan_lun(struct cam_device *dev, bool printerrors)
+fw_rescan_target(struct cam_device *dev, bool printerrors, bool sim_mode)
 {
 	union ccb ccb;
 	int fd;
-	target_id_t target;
-	uint32_t bus;
+
+	printf("Rescanning target %d:%d:* to pick up new fw revision / parameters.\n",
+	    dev->path_id, dev->target_id);
+	if (sim_mode)
+		return (0);
 
 	/* Can only send XPT_SCAN_TGT via /dev/xpt, not pass device in *dev */
 	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
@@ -786,24 +789,11 @@ fw_rescan_lun(struct cam_device *dev, bool printerrors)
 		return (1);
 	}
 
-	/* Fill in the bus and target IDs as they don't seem to be in *dev */
-	bzero(&ccb, sizeof(union ccb));
-	ccb.ccb_h.func_code = XPT_GDEVLIST;
-	strlcpy(ccb.cgdl.periph_name, dev->device_name, sizeof(ccb.cgdl.periph_name));
-	ccb.cgdl.unit_number = dev->dev_unit_num;
-	if (cam_send_ccb(dev, &ccb) < 0) {
-		warn("send_ccb GDEVLIST failed\n");
-		close(fd);
-		return (1);
-	}
-	bus = ccb.ccb_h.path_id;
-	target = ccb.ccb_h.target_id;
-
 	/* Rescan the target */
 	bzero(&ccb, sizeof(union ccb));
 	ccb.ccb_h.func_code = XPT_SCAN_TGT;
-	ccb.ccb_h.path_id = bus;
-	ccb.ccb_h.target_id = target;
+	ccb.ccb_h.path_id = dev->path_id;
+	ccb.ccb_h.target_id = dev->target_id;
 	ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
 	ccb.crcn.flags = CAM_EXPECT_INQ_CHANGE;
 	ccb.ccb_h.pinfo.priority = 5;	/* run this at a low priority */
@@ -818,8 +808,10 @@ fw_rescan_lun(struct cam_device *dev, bool printerrors)
 		if (printerrors)
 			cam_error_print(dev, &ccb, CAM_ESF_ALL, CAM_EPF_ALL,
 			    stderr);
+		close(fd);
 		return (1);
 	}
+	close(fd);
 	return (0);
 }
 
@@ -976,8 +968,8 @@ bailout:
 	if (quiet == 0)
 		progress_complete(&progress, size - img_size);
 	cam_freeccb(ccb);
-	if (retval == 0 && !sim_mode) {
-		fw_rescan_lun(cam_dev, printerrors);
+	if (retval == 0) {
+		fw_rescan_target(cam_dev, printerrors, sim_mode);
 	}
 	return (retval);
 }
