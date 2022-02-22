@@ -56,6 +56,10 @@ extern int debug_80211;
 #define	IMPROVE(...)	if (debug_80211 & D80211_IMPROVE)		\
     printf("%s:%d: XXX LKPI80211 IMPROVE\n", __func__, __LINE__)
 
+enum rfkill_hard_block_reasons {
+	RFKILL_HARD_BLOCK_NOT_OWNER		= BIT(0),
+};
+
 #define	WIPHY_PARAM_FRAG_THRESHOLD			__LINE__ /* TODO FIXME brcmfmac */
 #define	WIPHY_PARAM_RETRY_LONG				__LINE__ /* TODO FIXME brcmfmac */
 #define	WIPHY_PARAM_RETRY_SHORT				__LINE__ /* TODO FIXME brcmfmac */
@@ -693,8 +697,11 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER		0x20
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_16_QAM	0x40
 #define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_16_QAM	0x80
-#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_2		0x100
-#define	IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU	0x200
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_TX_NSS_2		0x10
+#define	IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU	0x20
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_RX_BPSK	0x40
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_BPSK	0x80
+#define	IEEE80211_HE_PHY_CAP3_DCM_MAX_CONST_TX_MASK	0x80
 
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_8	0x1
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_8	0x2
@@ -739,12 +746,13 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_8US		0x4
 #define	IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK		0x8
 #define	IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_RESERVED	0x10
+#define	IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_POS		0x0
 #define	IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK	0x20
-#define	IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB	0x40
-#define	IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB	0x80
-#define	IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU	0x100
-#define	IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU	0x200
-#define	IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM	0x400
+#define	IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB	0x4
+#define	IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB	0x8
+#define	IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU	0x10
+#define	IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU	0x20
+#define	IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM	0x40
 
 #define	IEEE80211_HE_PHY_CAP10_HE_MU_M1RU_MAX_LTF		0x1
 
@@ -952,7 +960,7 @@ struct wiphy {
 	int	max_ap_assoc_sta, probe_resp_offload, software_iftypes;
 	int     bss_select_support, max_num_pmkids, retry_long, retry_short, signal_type;
 	int	max_data_retry_count;
-	int     tx_queue_len;
+	int     tx_queue_len, rfkill;
 
 	unsigned long				ext_features[BITS_TO_LONGS(NUM_NL80211_EXT_FEATURES)];
 	struct dentry				*debugfsdir;
@@ -1081,7 +1089,33 @@ wiphy_dereference(struct wiphy *wiphy,
         return (NULL);
 }
 
+static __inline void
+wiphy_lock(struct wiphy *wiphy)
+{
+	TODO();
+}
+
+static __inline void
+wiphy_unlock(struct wiphy *wiphy)
+{
+	TODO();
+}
+
+static __inline void
+wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
+    enum rfkill_hard_block_reasons reason)
+{
+	TODO();
+}
+
 /* -------------------------------------------------------------------------- */
+
+static __inline bool
+rfkill_blocked(int rfkill)		/* argument type? */
+{
+	TODO();
+	return (false);
+}
 
 static __inline int
 reg_query_regdb_wmm(uint8_t *alpha2, uint32_t center_freq,
@@ -1567,6 +1601,12 @@ get_random_mask_addr(uint8_t *dst, const uint8_t *addr, const uint8_t *mask)
 	get_random_bytes(dst, ETH_ALEN);
 	for (i = 0; i < ETH_ALEN; i++)
 		dst[i] = (dst[i] & ~(mask[i])) | (addr[i] & mask[i]);
+}
+
+static __inline void
+cfg80211_shutdown_all_interfaces(struct wiphy *wiphy)
+{
+	TODO();
 }
 
 #ifndef LINUXKPI_NET80211
