@@ -115,6 +115,20 @@ _citrus_stdenc_get_state_size(struct _citrus_stdenc *ce)
 	return (ce->ce_traits->et_state_size);
 }
 
+static __inline size_t
+_citrus_stdenc_get_mb_cur_min(struct _citrus_stdenc *ce)
+{
+
+	return (ce->ce_traits->et_mb_cur_min);
+}
+
+static __inline size_t
+_citrus_stdenc_get_mb_cur_max(struct _citrus_stdenc *ce)
+{
+
+	return (ce->ce_traits->et_mb_cur_max);
+}
+
 static __inline int
 _citrus_stdenc_get_state_desc(struct _citrus_stdenc * __restrict ce,
     void * __restrict ps, int id,
