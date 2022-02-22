@@ -2083,6 +2083,12 @@ ieee80211_disconnect(struct ieee80211_vif *vif, bool _x)
 	TODO();
 }
 
+static __inline void
+ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif, bool _x)
+{
+	TODO();
+}
+
 static __inline const struct ieee80211_sta_he_cap *
 ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *band,
     enum nl80211_iftype type)
