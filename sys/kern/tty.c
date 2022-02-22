@@ -2083,6 +2083,8 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
 	FILEDESC_SLOCK(fdp);
 	error = fget_cap_locked(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
 	    &fp, NULL);
+	if (error == 0 && !fhold(fp))
+		error = EBADF;
 	FILEDESC_SUNLOCK(fdp);
 	if (error != 0)
 		return (error);
