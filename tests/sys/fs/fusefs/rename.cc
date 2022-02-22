@@ -221,7 +221,8 @@ TEST_F(Rename, parent)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	const char FULLDSTPARENT[] = "mountpoint/dstdir/dst/..";
+	const char FULLDSTPARENT[] = "mountpoint/dstdir";
+	const char FULLDSTDOTDOT[] = "mountpoint/dstdir/dst/..";
 	Sequence seq;
 	uint64_t dst_dir_ino = 43;
 	uint64_t ino = 42;
@@ -229,13 +230,14 @@ TEST_F(Rename, parent)
 
 	expect_lookup(RELSRC, ino, S_IFDIR | 0755, 0, 1);
 	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDSTDIR)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out.body.entry.nodeid = dst_dir_ino;
 		out.body.entry.entry_valid = UINT64_MAX;
 		out.body.entry.attr_valid = UINT64_MAX;
 		out.body.entry.attr.mode = S_IFDIR | 0755;
 		out.body.entry.attr.ino = dst_dir_ino;
+		out.body.entry.attr.nlink = 2;
 	})));
 	EXPECT_LOOKUP(dst_dir_ino, RELDST)
 	.InSequence(seq)
@@ -252,6 +254,31 @@ TEST_F(Rename, parent)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(0)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in.header.opcode == FUSE_GETATTR &&
+				in.header.nodeid == 1);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, attr);
+		out.body.attr.attr_valid = UINT64_MAX;
+		out.body.attr.attr.ino = 1;
+		out.body.attr.attr.mode = S_IFDIR | 0755;
+		out.body.attr.attr.nlink = 2;
+	})));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDSTDIR)
+	.InSequence(seq)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.nodeid = dst_dir_ino;
+		out.body.entry.entry_valid = UINT64_MAX;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.attr.mode = S_IFDIR | 0755;
+		out.body.entry.attr.ino = dst_dir_ino;
+		out.body.entry.attr.nlink = 3;
+	})));
 	EXPECT_LOOKUP(dst_dir_ino, RELDST)
 	.InSequence(seq)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -263,7 +290,14 @@ TEST_F(Rename, parent)
 	})));
 
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
+
+	ASSERT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
+	EXPECT_EQ(2ul, sb.st_nlink);
+
 	ASSERT_EQ(0, stat(FULLDSTPARENT, &sb)) << strerror(errno);
+	EXPECT_EQ(3ul, sb.st_nlink);
+
+	ASSERT_EQ(0, stat(FULLDSTDOTDOT, &sb)) << strerror(errno);
 	ASSERT_EQ(dst_dir_ino, sb.st_ino);
 }
 
