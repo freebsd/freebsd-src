@@ -35,12 +35,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/reboot.h>
-#include <sys/systm.h>
 
 #include <dev/vt/vt.h>
 
@@ -542,7 +542,7 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 	 * is back to index 0, ie. the new buffer doesn't cycle.
 	 */
 	if (history_size > old_history_size) {
-		for (r = 0; r < old_history_size; r ++) {
+		for (r = 0; r < old_history_size; r++) {
 			row = rows[r];
 
 			/* Compute the corresponding row in the old buffer. */
@@ -606,7 +606,7 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 		 * (old_history_size - history_size) lines of history are
 		 * dropped.
 		 */
-		for (r = 0; r < history_size; r ++) {
+		for (r = 0; r < history_size; r++) {
 			row = rows[r];
 
 			/*
@@ -766,10 +766,10 @@ vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 	}
 
 	i = 0;
-	for (r = s.tp_row; r <= e.tp_row; r ++) {
+	for (r = s.tp_row; r <= e.tp_row; r++) {
 		cs = (r == s.tp_row)?s.tp_col:0;
 		ce = (r == e.tp_row)?e.tp_col:vb->vb_scr_size.tp_col;
-		for (c = cs; c < ce; c ++) {
+		for (c = cs; c < ce; c++) {
 			buf[i++] = vb->vb_rows[r][c];
 		}
 		/* Add new line for all rows, but not for last one. */
@@ -819,7 +819,7 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 		/* No space - word extends to beginning of line. */
 		if (i == -1)
 			vb->vb_mark_start.tp_col = 0;
-		for (i = col; i < vb->vb_scr_size.tp_col; i ++) {
+		for (i = col; i < vb->vb_scr_size.tp_col; i++) {
 			if (TCHAR_CHARACTER(r[i]) == ' ') {
 				vb->vb_mark_end.tp_col = i;
 				break;
