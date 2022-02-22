@@ -700,7 +700,7 @@ hex2bin(uint8_t *bindst, const char *hexsrc, size_t binlen)
 }
 
 #define	DECLARE_FLEX_ARRAY(_t, _n)					\
-    struct { struct { } __dummy_ ## _n; _t _n[]; }
+    struct { struct { } __dummy_ ## _n; _t _n[0]; }
 
 /*
  * Checking if an option is defined would be easy if we could do CPP inside CPP.
