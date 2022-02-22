@@ -56,8 +56,6 @@
 static iconv_t
 __bsd___iconv_open(const char *out, const char *in, struct _citrus_iconv *handle)
 {
-	const char *out_slashes;
-	char *out_noslashes;
 	int ret;
 
 	/*
@@ -66,19 +64,7 @@ __bsd___iconv_open(const char *out, const char *in, struct _citrus_iconv *handle
 	 * This is for compatibility with software that uses these
 	 * blindly.
 	 */
-	out_slashes = strstr(out, "//");
-	if (out_slashes != NULL) {
-		out_noslashes = strndup(out, out_slashes - out);
-		if (out_noslashes == NULL) {
-			errno = ENOMEM;
-			return ((iconv_t)-1);
-		}
-		ret = _citrus_iconv_open(&handle, in, out_noslashes);
-		free(out_noslashes);
-	} else {
-		ret = _citrus_iconv_open(&handle, in, out);
-	}
-
+	ret = _citrus_iconv_open(&handle, in, out);
 	if (ret) {
 		errno = ret == ENOENT ? EINVAL : ret;
 		return ((iconv_t)-1);
