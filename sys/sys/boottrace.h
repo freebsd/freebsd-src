@@ -36,9 +36,42 @@
 #define	BT_EVENT_NAMELEN	40
 #define	BT_MSGLEN		(BT_EVENT_NAMELEN + 1 + BT_EVENT_TDNAMELEN)
 
-#ifdef _KERNEL
+#ifndef _KERNEL
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/sysctl.h>
+
 /*
- * Convenience macros.
+ * Convenience macros. Userland API.
+ */
+#define	BOOTTRACE(...)		_boottrace(_BOOTTRACE_BOOTTRACE, __VA_ARGS__)
+#define	RUNTRACE(...)		_boottrace(_BOOTTRACE_RUNTRACE, __VA_ARGS__)
+#define	SHUTTRACE(...)		_boottrace(_BOOTTRACE_SHUTTRACE, __VA_ARGS__)
+
+/*
+ * Call the requested boottrace sysctl with provided va-formatted message.
+ */
+static __inline void
+_boottrace(const char *sysctlname, const char *fmt, ...)
+{
+	va_list ap;
+	char msg[BT_MSGLEN];
+	int len;
+
+	va_start(ap, fmt);
+	len = vsnprintf(msg, sizeof(msg), fmt, ap);
+	va_end(ap);
+
+	/* Log the event, even if truncated. */
+	if (len >= 0)
+		(void)sysctlbyname(sysctlname, NULL, NULL, msg, strlen(msg));
+}
+
+#else /* _KERNEL */
+
+/*
+ * Convenience macros. Kernel API.
  */
 #define	_BOOTTRACE(tdname, ...) do {					\
 		if (boottrace_enabled)					\
