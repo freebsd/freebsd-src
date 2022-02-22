@@ -126,7 +126,12 @@ open_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 	 * See gettext-0.18.3+ NEWS:
 	 *   msgfmt now checks PO file headers more strictly with less
 	 *   false-positives.
-	 * NetBSD don't do this either.
+	 * NetBSD, also, doesn't do the below pass-through.
+	 *
+	 * Also note that this currently falls short if dst options have been
+	 * specified. It may be the case that we want to ignore EILSEQ, in which
+	 * case we should also select iconv_std anyways.  This trick, while
+	 * clever, may not be worth it.
 	 */
 	module = (strcmp(src, dst) != 0) ? "iconv_std" : "iconv_none";
 #else
@@ -279,7 +284,7 @@ _citrus_iconv_open(struct _citrus_iconv * __restrict * __restrict rcv,
 {
 	struct _citrus_iconv *cv = NULL;
 	struct _citrus_iconv_shared *ci = NULL;
-	char realdst[PATH_MAX], realsrc[PATH_MAX];
+	char realdst[PATH_MAX], realsrc[PATH_MAX], *slashes;
 #ifdef _PATH_ICONV
 	char buf[PATH_MAX], path[PATH_MAX];
 #endif
@@ -293,16 +298,25 @@ _citrus_iconv_open(struct _citrus_iconv * __restrict * __restrict rcv,
 	if ((strcmp(dst, "") == 0) || (strcmp(dst, "char") == 0))
 		dst = nl_langinfo(CODESET);
 
+	strlcpy(realsrc, src, (size_t)PATH_MAX);
+	if ((slashes = strstr(realsrc, "//")) != NULL)
+		*slashes = '\0';
+	strlcpy(realdst, dst, (size_t)PATH_MAX);
+	if ((slashes = strstr(realdst, "//")) != NULL)
+		*slashes = '\0';
+
 	/* resolve codeset name aliases */
 #ifdef _PATH_ICONV
+	/*
+	 * Note that the below reads from realsrc and realdst while it's
+	 * repopulating (writing to) realsrc and realdst, but it's done so with
+	 * a trip through `buf`.
+	 */
 	snprintf(path, sizeof(path), "%s/%s", _PATH_ICONV, _CITRUS_ICONV_ALIAS);
-	strlcpy(realsrc, _lookup_alias(path, src, buf, (size_t)PATH_MAX,
+	strlcpy(realsrc, _lookup_alias(path, realsrc, buf, (size_t)PATH_MAX,
 	    _LOOKUP_CASE_IGNORE), (size_t)PATH_MAX);
-	strlcpy(realdst, _lookup_alias(path, dst, buf, (size_t)PATH_MAX,
+	strlcpy(realdst, _lookup_alias(path, realdst, buf, (size_t)PATH_MAX,
 	    _LOOKUP_CASE_IGNORE), (size_t)PATH_MAX);
-#else
-	strlcpy(realsrc, src, (size_t)PATH_MAX);
-	strlcpy(realdst, dst, (size_t)PATH_MAX);
 #endif
 
 	/* sanity check */
