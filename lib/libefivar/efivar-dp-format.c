@@ -255,7 +255,7 @@ DevPathToTextVendor (
         UefiDevicePathLibCatPrint (Str, "VenVt100Plus()");
         return ;
       } else if (CompareGuid (&Vendor->Guid, &gEfiVTUTF8Guid)) {
-        UefiDevicePathLibCatPrint (Str, "VenUft8()");
+        UefiDevicePathLibCatPrint (Str, "VenUtf8()");
         return ;
       } else if (CompareGuid (&Vendor->Guid, &gEfiUartDevicePathGuid)) {
         FlowControlMap = (((UART_FLOW_CONTROL_DEVICE_PATH *) Vendor)->FlowControlMap);
