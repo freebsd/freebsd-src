@@ -2081,7 +2081,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
 	 */
 	fdp = p->p_fd;
 	FILEDESC_SLOCK(fdp);
-	error = fget_cap_locked(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
+	error = fget_cap_noref(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
 	    &fp, NULL);
 	if (error == 0 && !fhold(fp))
 		error = EBADF;

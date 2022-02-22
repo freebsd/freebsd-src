@@ -748,7 +748,7 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 	}
 
 #ifdef CAPABILITIES
-	if ((fp = fget_locked(fdp, fd)) == NULL) {
+	if ((fp = fget_noref(fdp, fd)) == NULL) {
 		error = EBADF;
 		goto out;
 	}

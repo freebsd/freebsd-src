@@ -2350,7 +2350,7 @@ kern_kmq_notify(struct thread *td, int mqd, struct sigevent *sigev)
 		return (error);
 again:
 	FILEDESC_SLOCK(fdp);
-	fp2 = fget_locked(fdp, mqd);
+	fp2 = fget_noref(fdp, mqd);
 	if (fp2 == NULL) {
 		FILEDESC_SUNLOCK(fdp);
 		error = EBADF;
@@ -2482,7 +2482,7 @@ mq_proc_exit(void *arg __unused, struct proc *p)
 	fdp = p->p_fd;
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < fdp->fd_nfiles; ++i) {
-		fp = fget_locked(fdp, i);
+		fp = fget_noref(fdp, i);
 		if (fp != NULL && fp->f_ops == &mqueueops) {
 			mq = FPTOMQ(fp);
 			mtx_lock(&mq->mq_mutex);

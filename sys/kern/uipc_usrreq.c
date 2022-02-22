@@ -2262,7 +2262,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			fdp = data;
 			FILEDESC_SLOCK(fdesc);
 			for (i = 0; i < oldfds; i++, fdp++) {
-				fp = fget_locked(fdesc, *fdp);
+				fp = fget_noref(fdesc, *fdp);
 				if (fp == NULL) {
 					FILEDESC_SUNLOCK(fdesc);
 					error = EBADF;
