@@ -63,6 +63,8 @@ while [ $((` date +%s` - start)) -lt 180 ]; do
 	umount $mntpoint 2>/dev/null # busy umount
 	$dir/sendfile22
 	s=$?
+	[ $s -ne 0 ] &&
+	    pkill sendfile22
 	cmp -s input output || break
 	[ `stat -f '%z' input` -ne ` stat -f '%z' output` ] && break
 	n=$((n + 1))
