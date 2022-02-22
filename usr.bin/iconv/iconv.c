@@ -77,9 +77,16 @@ do_conv(FILE *fp, iconv_t cd, bool silent, bool hide_invalid)
 	unsigned long long invalids;
 	size_t inbytes, outbytes, ret;
 
-	int arg = (int)hide_invalid;
-	if (iconvctl(cd, ICONV_SET_DISCARD_ILSEQ, (void *)&arg) == -1)
-		err(EXIT_FAILURE, "iconvctl(DISCARD_ILSEQ, %d)", arg);
+	/*
+	 * Don't touch ICONV_SET_DISCARD_ILSEQ if -c wasn't specified.  It may
+	 * be that the user has specified //IGNORE in the -t specification, and
+	 * we don't want to clobber that.
+	 */
+	if (hide_invalid) {
+		int arg = (int)hide_invalid;
+		if (iconvctl(cd, ICONV_SET_DISCARD_ILSEQ, (void *)&arg) == -1)
+			err(EXIT_FAILURE, "iconvctl(DISCARD_ILSEQ, %d)", arg);
+	}
 
 	invalids = 0;
 	while ((inbytes = fread(inbuf, 1, INBUFSIZE, fp)) > 0) {
