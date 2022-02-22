@@ -52,6 +52,7 @@
 #define	MODULE_INFO(tag, info)
 #define	MODULE_FIRMWARE(firmware)
 #define	MODULE_SUPPORTED_DEVICE(name)
+#define	MODULE_IMPORT_NS(_name)
 
 #define	THIS_MODULE	((struct module *)0)
 
