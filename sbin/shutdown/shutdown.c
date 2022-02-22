@@ -44,9 +44,10 @@ static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
+#include <sys/boottrace.h>
 #include <sys/resource.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -221,10 +222,13 @@ poweroff:
 	}
 	mbuflen = strlen(mbuf);
 
-	if (offset)
+	if (offset) {
+		BOOTTRACE("Shutdown at %s", ctime(&shuttime));
 		(void)printf("Shutdown at %.24s.\n", ctime(&shuttime));
-	else
+	} else {
+		BOOTTRACE("Shutdown NOW!");
 		(void)printf("Shutdown NOW!\n");
+	}
 
 	if (!(whom = getlogin()))
 		whom = (pw = getpwuid(getuid())) ? pw->pw_name : "???";
@@ -360,12 +364,16 @@ die_you_gravy_sucking_pig_dog(void)
 {
 	char *empty_environ[] = { NULL };
 
+	BOOTTRACE("%s by %s",
+	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" :
+	    docycle ? "power-cycle" : "shutdown", whom);
 	syslog(LOG_NOTICE, "%s by %s: %s",
 	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" :
 	    docycle ? "power-cycle" : "shutdown", whom, mbuf);
 
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
 	if (killflg) {
+		BOOTTRACE("fake shutdown...");
 		(void)printf("\rbut you'll have to do it yourself\r\n");
 		exit(0);
 	}
@@ -383,6 +391,7 @@ die_you_gravy_sucking_pig_dog(void)
 	(void)printf("\nkill -HUP 1\n");
 #else
 	if (!oflag) {
+		BOOTTRACE("signal to init(8)...");
 		(void)kill(1, doreboot ? SIGINT :	/* reboot */
 			      dohalt ? SIGUSR1 :	/* halt */
 			      dopower ? SIGUSR2 :	/* power-down */
@@ -390,6 +399,7 @@ die_you_gravy_sucking_pig_dog(void)
 			      SIGTERM);			/* single-user */
 	} else {
 		if (doreboot) {
+			BOOTTRACE("exec reboot(8) -l...");
 			execle(_PATH_REBOOT, "reboot", "-l", nosync, 
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
@@ -397,6 +407,7 @@ die_you_gravy_sucking_pig_dog(void)
 			warn(_PATH_REBOOT);
 		}
 		else if (dohalt) {
+			BOOTTRACE("exec halt(8) -l...");
 			execle(_PATH_HALT, "halt", "-l", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
@@ -404,6 +415,7 @@ die_you_gravy_sucking_pig_dog(void)
 			warn(_PATH_HALT);
 		}
 		else if (dopower) {
+			BOOTTRACE("exec halt(8) -l -p...");
 			execle(_PATH_HALT, "halt", "-l", "-p", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
@@ -417,6 +429,7 @@ die_you_gravy_sucking_pig_dog(void)
 				_PATH_HALT);
 			warn(_PATH_HALT);
 		}
+		BOOTTRACE("SIGTERM to init(8)...");
 		(void)kill(1, SIGTERM);		/* to single-user */
 	}
 #endif
