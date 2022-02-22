@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/boottrace.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -196,6 +197,7 @@ static void
 linker_file_sysinit(linker_file_t lf)
 {
 	struct sysinit **start, **stop, **sipp, **xipp, *save;
+	int last;
 
 	KLD_DPF(FILE, ("linker_file_sysinit: calling SYSINITs for %s\n",
 	    lf->filename));
@@ -227,14 +229,20 @@ linker_file_sysinit(linker_file_t lf)
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
 	 */
+	last = SI_SUB_DUMMY;
 	sx_xunlock(&kld_sx);
 	mtx_lock(&Giant);
 	for (sipp = start; sipp < stop; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s) */
 
+		if ((*sipp)->subsystem > last)
+			BOOTTRACE("%s: sysinit 0x%7x", lf->filename,
+			    (*sipp)->subsystem);
+
 		/* Call function */
 		(*((*sipp)->func)) ((*sipp)->udata);
+		last = (*sipp)->subsystem;
 	}
 	mtx_unlock(&Giant);
 	sx_xlock(&kld_sx);
@@ -244,6 +252,7 @@ static void
 linker_file_sysuninit(linker_file_t lf)
 {
 	struct sysinit **start, **stop, **sipp, **xipp, *save;
+	int last;
 
 	KLD_DPF(FILE, ("linker_file_sysuninit: calling SYSUNINITs for %s\n",
 	    lf->filename));
@@ -279,12 +288,18 @@ linker_file_sysuninit(linker_file_t lf)
 	 */
 	sx_xunlock(&kld_sx);
 	mtx_lock(&Giant);
+	last = SI_SUB_DUMMY;
 	for (sipp = start; sipp < stop; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s) */
 
+		if ((*sipp)->subsystem > last)
+			BOOTTRACE("%s: sysuninit 0x%7x", lf->filename,
+			    (*sipp)->subsystem);
+
 		/* Call function */
 		(*((*sipp)->func)) ((*sipp)->udata);
+		last = (*sipp)->subsystem;
 	}
 	mtx_unlock(&Giant);
 	sx_xlock(&kld_sx);
