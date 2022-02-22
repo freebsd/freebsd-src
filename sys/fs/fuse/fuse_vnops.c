@@ -2084,7 +2084,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 		cache_purge(tvp);
 	}
 	if (vnode_isdir(fvp)) {
-		if ((tvp != NULL) && vnode_isdir(tvp)) {
+		if (((tvp != NULL) && vnode_isdir(tvp)) || vnode_isdir(fvp)) {
 			cache_purge(tdvp);
 		}
 		cache_purge(fdvp);
