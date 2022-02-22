@@ -518,7 +518,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_GETFD:
 		error = EBADF;
 		FILEDESC_SLOCK(fdp);
-		fde = fdeget_locked(fdp, fd);
+		fde = fdeget_noref(fdp, fd);
 		if (fde != NULL) {
 			td->td_retval[0] =
 			    (fde->fde_flags & UF_EXCLOSE) ? FD_CLOEXEC : 0;
@@ -530,7 +530,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	case F_SETFD:
 		error = EBADF;
 		FILEDESC_XLOCK(fdp);
-		fde = fdeget_locked(fdp, fd);
+		fde = fdeget_noref(fdp, fd);
 		if (fde != NULL) {
 			fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
 			    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
@@ -874,7 +874,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK | M_ZERO);
 		FILEDESC_SLOCK(fdp);
-		error = fget_cap_locked(fdp, fd, &cap_fcntl_rights, &fp, NULL);
+		error = fget_cap_noref(fdp, fd, &cap_fcntl_rights, &fp, NULL);
 		if (error == 0 && fhold(fp)) {
 			export_file_to_kinfo(fp, fd, NULL, kif, fdp, 0);
 			FILEDESC_SUNLOCK(fdp);
@@ -945,7 +945,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 
 	error = EBADF;
 	FILEDESC_XLOCK(fdp);
-	if (fget_locked(fdp, old) == NULL)
+	if (fget_noref(fdp, old) == NULL)
 		goto unlock;
 	if (mode == FDDUP_FIXED && old == new) {
 		td->td_retval[0] = new;
@@ -1383,7 +1383,7 @@ kern_close(struct thread *td, int fd)
 	fdp = td->td_proc->p_fd;
 
 	FILEDESC_XLOCK(fdp);
-	if ((fp = fget_locked(fdp, fd)) == NULL) {
+	if ((fp = fget_noref(fdp, fd)) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}
@@ -2812,7 +2812,7 @@ finit_vnode(struct file *fp, u_int flag, void *data, struct fileops *ops)
 }
 
 int
-fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+fget_cap_noref(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, struct filecaps *havecapsp)
 {
 	struct filedescent *fde;
@@ -2821,7 +2821,7 @@ fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	FILEDESC_LOCK_ASSERT(fdp);
 
 	*fpp = NULL;
-	fde = fdeget_locked(fdp, fd);
+	fde = fdeget_noref(fdp, fd);
 	if (fde == NULL) {
 		error = EBADF;
 		goto out;
@@ -2877,7 +2877,7 @@ fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 
 get_locked:
 	FILEDESC_SLOCK(fdp);
-	error = fget_cap_locked(fdp, fd, needrightsp, fpp, havecapsp);
+	error = fget_cap_noref(fdp, fd, needrightsp, fpp, havecapsp);
 	if (error == 0 && !fhold(*fpp))
 		error = EBADF;
 	FILEDESC_SUNLOCK(fdp);
@@ -3587,7 +3587,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	 * closed, then reject.
 	 */
 	FILEDESC_XLOCK(fdp);
-	if ((fp = fget_locked(fdp, dfd)) == NULL) {
+	if ((fp = fget_noref(fdp, dfd)) == NULL) {
 		FILEDESC_XUNLOCK(fdp);
 		return (EBADF);
 	}

@@ -287,7 +287,7 @@ int	getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
-int	fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+int	fget_cap_noref(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, struct filecaps *havecapsp);
 int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, struct filecaps *havecapsp);
@@ -304,7 +304,7 @@ int	fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
-fget_locked(struct filedesc *fdp, int fd)
+fget_noref(struct filedesc *fdp, int fd)
 {
 
 	FILEDESC_LOCK_ASSERT(fdp);
@@ -316,7 +316,7 @@ fget_locked(struct filedesc *fdp, int fd)
 }
 
 static __inline struct filedescent *
-fdeget_locked(struct filedesc *fdp, int fd)
+fdeget_noref(struct filedesc *fdp, int fd)
 {
 	struct filedescent *fde;
 

@@ -104,7 +104,7 @@ freebsd32_cap_ioctls_get(struct thread *td,
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 
-	if (fget_locked(fdp, fd) == NULL) {
+	if (fget_noref(fdp, fd) == NULL) {
 		error = EBADF;
 		goto out;
 	}

@@ -5664,7 +5664,10 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		}
 		fdp = curproc->p_fd;
 		FILEDESC_SLOCK(fdp);
-		fp = fget_locked(fdp, fd);
+		/*
+		 * XXXMJG this looks broken as no ref is taken.
+		 */
+		fp = fget_noref(fdp, fd);
 		mstate->dtms_getf = fp;
 		regs[rd] = (uintptr_t)fp;
 		FILEDESC_SUNLOCK(fdp);
