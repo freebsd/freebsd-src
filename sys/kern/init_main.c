@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/boottrace.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
 #include <sys/dtrace_bsd.h>
@@ -234,8 +235,8 @@ mi_startup(void)
 	struct sysinit **xipp;	/* interior loop of sort*/
 	struct sysinit *save;	/* bubble*/
 
-#if defined(VERBOSE_SYSINIT)
 	int last;
+#if defined(VERBOSE_SYSINIT)
 	int verbose;
 #endif
 
@@ -266,8 +267,8 @@ restart:
 		}
 	}
 
-#if defined(VERBOSE_SYSINIT)
 	last = SI_SUB_COPYRIGHT;
+#if defined(VERBOSE_SYSINIT)
 	verbose = 0;
 #if !defined(DDB)
 	printf("VERBOSE_SYSINIT: DDB not enabled, symbol lookups disabled.\n");
@@ -285,10 +286,12 @@ restart:
 		if ((*sipp)->subsystem == SI_SUB_DONE)
 			continue;
 
+		if ((*sipp)->subsystem > last)
+			BOOTTRACE_INIT("sysinit 0x%7x", (*sipp)->subsystem);
+
 #if defined(VERBOSE_SYSINIT)
 		if ((*sipp)->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
-			last = (*sipp)->subsystem;
 			printf("subsystem %x\n", last);
 		}
 		if (verbose) {
@@ -319,6 +322,7 @@ restart:
 #endif
 
 		/* Check off the one we're just done */
+		last = (*sipp)->subsystem;
 		(*sipp)->subsystem = SI_SUB_DONE;
 
 		/* Check if we've installed more sysinit items via KLD */
@@ -334,6 +338,7 @@ restart:
 	}
 
 	TSEXIT();	/* Here so we don't overlap with start_init. */
+	BOOTTRACE("mi_startup done");
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
