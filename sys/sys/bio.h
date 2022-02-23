@@ -126,7 +126,7 @@ struct bio {
 #ifdef DIAGNOSTIC
 	void	*_bio_caller1;
 	void	*_bio_caller2;
-	uint8_t	_bio_cflags;
+	uint16_t _bio_cflags;
 #endif
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 	struct buf *bio_track_bp;	/* Parent buf for tracking */
