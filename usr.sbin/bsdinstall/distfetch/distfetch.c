@@ -113,6 +113,8 @@ fetch_files(int nfiles, char **urls)
 	off_t current_bytes;
 	off_t fsize;
 	off_t total_bytes;
+	float file_perc;
+	float mainperc_file;
 	char status[8];
 	struct url_stat ustat;
 	char errormsg[PATH_MAX + 512];
@@ -137,16 +139,17 @@ fetch_files(int nfiles, char **urls)
 	/* Try to stat all the files */
 	total_bytes = 0;
 	for (i = 0; i < nfiles; i++) {
-		if (fetchStatURL(urls[i], &ustat, "") == 0 && ustat.size > 0)
+		if (fetchStatURL(urls[i], &ustat, "") == 0 && ustat.size > 0) {
 			total_bytes += ustat.size;
+		} else {
+			total_bytes = 0;
+			break;
+		}
 	}
 
+	mainperc_file = 100.0 / nfiles;
 	current_bytes = 0;
 	for (i = 0; i < nfiles; i++) {
-		last_progress = progress;
-		if (total_bytes == 0)
-			progress = (i*100)/nfiles;
-
 		fetchLastErrCode = 0;
 		fetch_out = fetchXGetURL(urls[i], &ustat, "");
 		if (fetch_out == NULL) {
@@ -156,6 +159,7 @@ fetch_files(int nfiles, char **urls)
 			items[i*2 + 1] = "Failed";
 			dialog_msgbox("Fetch Error", errormsg, 0, 0,
 			    TRUE);
+			total_bytes = 0;
 			continue;
 		}
 
@@ -170,6 +174,7 @@ fetch_files(int nfiles, char **urls)
 			dialog_msgbox("Fetch Error", errormsg, 0, 0,
 			    TRUE);
 			fclose(fetch_out);
+			total_bytes = 0;
 			continue;
 		}
 
@@ -180,10 +185,15 @@ fetch_files(int nfiles, char **urls)
 
 			current_bytes += chunk;
 			fsize += chunk;
-	
+
+			last_progress = progress;
 			if (total_bytes > 0) {
-				last_progress = progress;
-				progress = (current_bytes*100)/total_bytes; 
+				progress = (current_bytes*100)/total_bytes;
+			} else {
+				file_perc = ustat.size > 0 ?
+				    (fsize*100)/ustat.size : 0;
+				progress = (i * mainperc_file) +
+				    ((file_perc * mainperc_file) / 100);
 			}
 
 			if (ustat.size > 0) {
@@ -200,7 +210,7 @@ fetch_files(int nfiles, char **urls)
 		}
 
 		if (ustat.size > 0 && fsize < ustat.size) {
-			if (fetchLastErrCode == 0) 
+			if (fetchLastErrCode == 0)
 				snprintf(errormsg, sizeof(errormsg),
 				    "Error while fetching %s: %s\n",
 				    urls[i], strerror(errno));
@@ -211,6 +221,7 @@ fetch_files(int nfiles, char **urls)
 			items[i*2 + 1] = "Failed";
 			dialog_msgbox("Fetch Error", errormsg, 0, 0,
 				    TRUE);
+			total_bytes = 0;
 		} else {
 			items[i*2 + 1] = "Done";
 			nsuccess++;
@@ -219,6 +230,10 @@ fetch_files(int nfiles, char **urls)
 		fclose(fetch_out);
 		fclose(file_out);
 	}
+
+	dialog_mixedgauge("Fetching Distribution",
+	    "Fetching distribution completed", 0, 0, progress, nfiles,
+	    __DECONST(char **, items));
 
 	free(items);
 	return (nsuccess);
