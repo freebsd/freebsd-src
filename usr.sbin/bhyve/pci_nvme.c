@@ -269,16 +269,20 @@ struct pci_nvme_aer {
 	uint16_t	cid;	/* Command ID of the submitted AER */
 };
 
+/** Asynchronous Event Information - Notice */
 typedef enum {
-	PCI_NVME_AE_INFO_NS_ATTR_CHANGED = 0,
-	PCI_NVME_AE_INFO_FW_ACTIVATION,
-	PCI_NVME_AE_INFO_TELEMETRY_CHANGE,
-	PCI_NVME_AE_INFO_ANA_CHANGE,
-	PCI_NVME_AE_INFO_PREDICT_LATENCY_CHANGE,
-	PCI_NVME_AE_INFO_LBA_STATUS_ALERT,
-	PCI_NVME_AE_INFO_ENDURANCE_GROUP_CHANGE,
-	PCI_NVME_AE_INFO_MAX,
-} pci_nvme_async_info;
+	PCI_NVME_AEI_NOTICE_NS_ATTR_CHANGED = 0,
+	PCI_NVME_AEI_NOTICE_FW_ACTIVATION,
+	PCI_NVME_AEI_NOTICE_TELEMETRY_CHANGE,
+	PCI_NVME_AEI_NOTICE_ANA_CHANGE,
+	PCI_NVME_AEI_NOTICE_PREDICT_LATENCY_CHANGE,
+	PCI_NVME_AEI_NOTICE_LBA_STATUS_ALERT,
+	PCI_NVME_AEI_NOTICE_ENDURANCE_GROUP_CHANGE,
+	PCI_NVME_AEI_NOTICE_MAX,
+} pci_nvme_async_event_info_notice;
+
+#define PCI_NVME_AEI_NOTICE_SHIFT		8
+#define PCI_NVME_AEI_NOTICE_MASK(event)	(1 << (event + PCI_NVME_AEI_NOTICE_SHIFT))
 
 /* Asynchronous Event Notifications */
 struct pci_nvme_aen {
@@ -536,6 +540,7 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 
 	cd->cntrltype = NVME_CNTRLTYPE_IO;
 	cd->oacs = 1 << NVME_CTRLR_DATA_OACS_FORMAT_SHIFT;
+	cd->oaes = NVMEB(NVME_CTRLR_DATA_OAES_NS_ATTR);
 	cd->acl = 2;
 	cd->aerl = 4;
 
@@ -944,35 +949,34 @@ pci_nvme_aen_process(struct pci_nvme_softc *sc)
 			lid = NVME_LOG_HEALTH_INFORMATION;
 			break;
 		case PCI_NVME_AE_TYPE_NOTICE:
-			if (aen->event_data >= PCI_NVME_AE_INFO_MAX) {
+			if (aen->event_data >= PCI_NVME_AEI_NOTICE_MAX) {
 				EPRINTLN("%s unknown AEN notice type %u",
 				    __func__, aen->event_data);
 				status = NVME_SC_INTERNAL_DEVICE_ERROR;
 				break;
 			}
-			mask >>= 8;
-			if (((1 << aen->event_data) & mask) == 0)
+			if ((PCI_NVME_AEI_NOTICE_MASK(aen->event_data) & mask) == 0)
 				continue;
 			switch (aen->event_data) {
-			case PCI_NVME_AE_INFO_NS_ATTR_CHANGED:
+			case PCI_NVME_AEI_NOTICE_NS_ATTR_CHANGED:
 				lid = NVME_LOG_CHANGED_NAMESPACE;
 				break;
-			case PCI_NVME_AE_INFO_FW_ACTIVATION:
+			case PCI_NVME_AEI_NOTICE_FW_ACTIVATION:
 				lid = NVME_LOG_FIRMWARE_SLOT;
 				break;
-			case PCI_NVME_AE_INFO_TELEMETRY_CHANGE:
+			case PCI_NVME_AEI_NOTICE_TELEMETRY_CHANGE:
 				lid = NVME_LOG_TELEMETRY_CONTROLLER_INITIATED;
 				break;
-			case PCI_NVME_AE_INFO_ANA_CHANGE:
+			case PCI_NVME_AEI_NOTICE_ANA_CHANGE:
 				lid = NVME_LOG_ASYMMETRIC_NAMESPACE_ACCESS;
 				break;
-			case PCI_NVME_AE_INFO_PREDICT_LATENCY_CHANGE:
+			case PCI_NVME_AEI_NOTICE_PREDICT_LATENCY_CHANGE:
 				lid = NVME_LOG_PREDICTABLE_LATENCY_EVENT_AGGREGATE;
 				break;
-			case PCI_NVME_AE_INFO_LBA_STATUS_ALERT:
+			case PCI_NVME_AEI_NOTICE_LBA_STATUS_ALERT:
 				lid = NVME_LOG_LBA_STATUS_INFORMATION;
 				break;
-			case PCI_NVME_AE_INFO_ENDURANCE_GROUP_CHANGE:
+			case PCI_NVME_AEI_NOTICE_ENDURANCE_GROUP_CHANGE:
 				lid = NVME_LOG_ENDURANCE_GROUP_EVENT_AGGREGATE;
 				break;
 			default:
@@ -3171,7 +3175,7 @@ pci_nvme_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
 	sc->ns_log.ns[1] = 0;
 
 	pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_NOTICE,
-	    PCI_NVME_AE_INFO_NS_ATTR_CHANGED);
+	    PCI_NVME_AEI_NOTICE_NS_ATTR_CHANGED);
 }
 
 static int
