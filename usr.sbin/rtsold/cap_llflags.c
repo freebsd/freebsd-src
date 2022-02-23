@@ -91,7 +91,7 @@ llflags_get(const char *ifname, int *flagsp)
 		memset(&ifr6, 0, sizeof(ifr6));
 		if (strlcpy(ifr6.ifr_name, ifname, sizeof(ifr6.ifr_name)) >=
 		    sizeof(ifr6.ifr_name)) {
-			error = errno;
+			error = EINVAL;
 			goto out;
 		}
 		memcpy(&ifr6.ifr_ifru.ifru_addr, sin6, sin6->sin6_len);
