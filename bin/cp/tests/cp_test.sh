@@ -190,6 +190,16 @@ recursive_link_Lflag_body()
 	    '(' ! -L foo-mirror/foo/baz ')'
 }
 
+atf_test_case standalone_Pflag
+standalone_Pflag_body()
+{
+	echo "foo" > bar
+	ln -s bar foo
+
+	atf_check cp -P foo baz
+	atf_check -o inline:'Symbolic Link\n' stat -f %SHT baz
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -202,4 +212,5 @@ atf_init_test_cases()
 	atf_add_test_case recursive_link_dflt
 	atf_add_test_case recursive_link_Hflag
 	atf_add_test_case recursive_link_Lflag
+	atf_add_test_case standalone_Pflag
 }
