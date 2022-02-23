@@ -446,8 +446,7 @@ fbt_get_ctt_size(uint8_t version, const ctf_type_t *tp, ssize_t *sizep,
 {
 	ssize_t size, increment;
 
-	if (version > CTF_VERSION_1 &&
-	    tp->ctt_size == CTF_LSIZE_SENT) {
+	if (tp->ctt_size == CTF_LSIZE_SENT) {
 		size = CTF_TYPE_LSIZE(tp);
 		increment = sizeof (ctf_type_t);
 	} else {
