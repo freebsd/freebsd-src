@@ -485,9 +485,10 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
  *           events.
  */
 static inline u_long
-xen_intr_active_ports(struct xen_intr_pcpu_data *pcpu, shared_info_t *sh,
-    u_int idx)
+xen_intr_active_ports(const struct xen_intr_pcpu_data *const pcpu,
+    const u_int idx)
 {
+	volatile const shared_info_t *const sh = HYPERVISOR_shared_info;
 
 	CTASSERT(sizeof(sh->evtchn_mask[0]) == sizeof(sh->evtchn_pending[0]));
 	CTASSERT(sizeof(sh->evtchn_mask[0]) == sizeof(pcpu->evtchn_enabled[0]));
@@ -509,7 +510,6 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 	u_int l1i, l2i, port, cpu __diagused;
 	u_long masked_l1, masked_l2;
 	struct xenisrc *isrc;
-	shared_info_t *s;
 	vcpu_info_t *v;
 	struct xen_intr_pcpu_data *pc;
 	u_long l1, l2;
@@ -522,7 +522,6 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 
 	cpu = PCPU_GET(cpuid);
 	pc  = DPCPU_PTR(xen_intr_pcpu);
-	s   = HYPERVISOR_shared_info;
 	v   = DPCPU_GET(vcpu_info);
 
 	if (!xen_has_percpu_evtchn()) {
@@ -560,7 +559,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 		l1i = ffsl(masked_l1) - 1;
 
 		do {
-			l2 = xen_intr_active_ports(pc, s, l1i);
+			l2 = xen_intr_active_ports(pc, l1i);
 
 			l2i = (l2i + 1) % LONG_BIT;
 			masked_l2 = l2 & ((~0UL) << l2i);
@@ -596,7 +595,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 
 		} while (l2i != LONG_BIT - 1);
 
-		l2 = xen_intr_active_ports(pc, s, l1i);
+		l2 = xen_intr_active_ports(pc, l1i);
 		if (l2 == 0) {
 			/*
 			 * We handled all ports, so we can clear the
