@@ -6258,10 +6258,10 @@ static int
 rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 {
 	struct tcptemp *t_template;
-	struct inpcb *inp;
+#ifdef INVARIANTS
+	struct inpcb *inp = tp->t_inpcb;
+#endif
 	int32_t retval = 1;
-
-	inp = tp->t_inpcb;
 
 	if (tp->t_timers->tt_flags & TT_STOPPED) {
 		return (1);
@@ -16217,7 +16217,7 @@ again:
 	}
 	if (rack->r_ctl.fsb.rfo_apply_push &&
 	    (len == rack->r_ctl.fsb.left_to_send)) {
-		tcp_set_flags(th, flags | TH_PUSH);
+		flags |= TH_PUSH;
 		add_flag |= RACK_HAD_PUSH;
 	}
 	if ((m->m_next == NULL) || (len <= 0)){
