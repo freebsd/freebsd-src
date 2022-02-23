@@ -305,8 +305,8 @@ extern void ctf_decl_fini(ctf_decl_t *);
 extern void ctf_decl_push(ctf_decl_t *, ctf_file_t *, ctf_id_t);
 extern void ctf_decl_sprintf(ctf_decl_t *, const char *, ...);
 
-extern const char *ctf_strraw(ctf_file_t *, uint_t);
-extern const char *ctf_strptr(ctf_file_t *, uint_t);
+extern const char *ctf_strraw(const ctf_file_t *, uint_t);
+extern const char *ctf_strptr(const ctf_file_t *, uint_t);
 
 extern ctf_file_t *ctf_set_open_errno(int *, int);
 extern long ctf_set_errno(ctf_file_t *, int);
