@@ -42,6 +42,14 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 # Interrupt controller
 device		gic
 
+# pseudo devices
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
 # Cache controller
 device		pl310			# PL310 L2 cache controller
 # ARM MPCore timer
