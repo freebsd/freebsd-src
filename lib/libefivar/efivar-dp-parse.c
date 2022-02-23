@@ -2839,6 +2839,40 @@ DevPathFromTextWiFi (
 }
 
 /**
+  Converts a text device path node to Bluetooth LE device path structure.
+
+  @param TextDeviceNode  The input Text device path node.
+
+  @return A pointer to the newly-created Bluetooth LE device path structure.
+
+**/
+static
+EFI_DEVICE_PATH_PROTOCOL *
+DevPathFromTextBluetoothLE (
+  IN CHAR16 *TextDeviceNode
+  )
+{
+  CHAR16                     *BluetoothLeAddrStr;
+  CHAR16                     *BluetoothLeAddrTypeStr;
+  BLUETOOTH_LE_DEVICE_PATH   *BluetoothLeDp;
+
+  BluetoothLeAddrStr     = GetNextParamStr (&TextDeviceNode);
+  BluetoothLeAddrTypeStr = GetNextParamStr (&TextDeviceNode);
+  BluetoothLeDp = (BLUETOOTH_LE_DEVICE_PATH *) CreateDeviceNode (
+                                                 MESSAGING_DEVICE_PATH,
+                                                 MSG_BLUETOOTH_LE_DP,
+                                                 (UINT16) sizeof (BLUETOOTH_LE_DEVICE_PATH)
+                                                 );
+
+  BluetoothLeDp->Address.Type = (UINT8) Strtoi (BluetoothLeAddrTypeStr);
+  StrHexToBytes (
+    BluetoothLeAddrStr, sizeof (BluetoothLeDp->Address.Address) * 2,
+    BluetoothLeDp->Address.Address, sizeof (BluetoothLeDp->Address.Address)
+    );
+  return (EFI_DEVICE_PATH_PROTOCOL *) BluetoothLeDp;
+}
+
+/**
   Converts a text device path node to URI device path structure.
 
   @param TextDeviceNode  The input Text device path node.
@@ -3544,6 +3578,7 @@ GLOBAL_REMOVE_IF_UNREFERENCED DEVICE_PATH_FROM_TEXT_TABLE mUefiDevicePathLibDevP
   {"Uri",                     DevPathFromTextUri                     },
   {"Bluetooth",               DevPathFromTextBluetooth               },
   {"Wi-Fi",                   DevPathFromTextWiFi                    },
+  {"BluetoothLE",             DevPathFromTextBluetoothLE             },
   {"MediaPath",               DevPathFromTextMediaPath               },
   {"HD",                      DevPathFromTextHD                      },
   {"CDROM",                   DevPathFromTextCDROM                   },

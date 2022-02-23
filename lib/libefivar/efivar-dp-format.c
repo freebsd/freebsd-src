@@ -1722,6 +1722,43 @@ DevPathToTextWiFi (
 }
 
 /**
+  Converts a Bluetooth device path structure to its string representative.
+
+  @param Str             The string representative of input device.
+  @param DevPath         The input device path structure.
+  @param DisplayOnly     If DisplayOnly is TRUE, then the shorter text representation
+                         of the display node is used, where applicable. If DisplayOnly
+                         is FALSE, then the longer text representation of the display node
+                         is used.
+  @param AllowShortcuts  If AllowShortcuts is TRUE, then the shortcut forms of text
+                         representation for a device node can be used, where applicable.
+
+**/
+static VOID
+DevPathToTextBluetoothLE (
+  IN OUT POOL_PRINT  *Str,
+  IN VOID            *DevPath,
+  IN BOOLEAN         DisplayOnly,
+  IN BOOLEAN         AllowShortcuts
+  )
+{
+  BLUETOOTH_LE_DEVICE_PATH  *BluetoothLE;
+
+  BluetoothLE = DevPath;
+  UefiDevicePathLibCatPrint (
+    Str,
+    "BluetoothLE(%02x%02x%02x%02x%02x%02x,0x%02x)",
+    BluetoothLE->Address.Address[0],
+    BluetoothLE->Address.Address[1],
+    BluetoothLE->Address.Address[2],
+    BluetoothLE->Address.Address[3],
+    BluetoothLE->Address.Address[4],
+    BluetoothLE->Address.Address[5],
+    BluetoothLE->Address.Type
+    );
+}
+
+/**
   Converts a URI device path structure to its string representative.
 
   @param Str             The string representative of input device.
@@ -2257,6 +2294,7 @@ static const DEVICE_PATH_TO_TEXT_TABLE mUefiDevicePathLibToTextTable[] = {
   {MESSAGING_DEVICE_PATH, MSG_URI_DP,                       DevPathToTextUri            },
   {MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_DP,                 DevPathToTextBluetooth      },
   {MESSAGING_DEVICE_PATH, MSG_WIFI_DP,                      DevPathToTextWiFi           },
+  {MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_LE_DP,              DevPathToTextBluetoothLE    },
   {MEDIA_DEVICE_PATH,     MEDIA_HARDDRIVE_DP,               DevPathToTextHardDrive      },
   {MEDIA_DEVICE_PATH,     MEDIA_CDROM_DP,                   DevPathToTextCDROM          },
   {MEDIA_DEVICE_PATH,     MEDIA_VENDOR_DP,                  DevPathToTextVendor         },
