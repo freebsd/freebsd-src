@@ -96,9 +96,9 @@ ctf_list_delete(ctf_list_t *lp, void *existing)
  * up the appropriate string table buffer and then adding the offset.
  */
 const char *
-ctf_strraw(ctf_file_t *fp, uint_t name)
+ctf_strraw(const ctf_file_t *fp, uint_t name)
 {
-	ctf_strs_t *ctsp = &fp->ctf_str[CTF_NAME_STID(name)];
+	const ctf_strs_t *ctsp = &fp->ctf_str[CTF_NAME_STID(name)];
 
 	if (ctsp->cts_strs != NULL && CTF_NAME_OFFSET(name) < ctsp->cts_len)
 		return (ctsp->cts_strs + CTF_NAME_OFFSET(name));
@@ -108,7 +108,7 @@ ctf_strraw(ctf_file_t *fp, uint_t name)
 }
 
 const char *
-ctf_strptr(ctf_file_t *fp, uint_t name)
+ctf_strptr(const ctf_file_t *fp, uint_t name)
 {
 	const char *s = ctf_strraw(fp, name);
 	return (s != NULL ? s : "(?)");
