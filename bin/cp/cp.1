@@ -32,7 +32,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2015
+.Dd February 23, 2022
 .Dt CP 1
 .Os
 .Sh NAME
@@ -54,6 +54,14 @@
 .Oc
 .Op Fl f | i | n
 .Op Fl alpsvx
+.Ar source_file ... target_directory
+.Nm
+.Op Fl f | i | n
+.Op Fl alPpsvx
+.Ar source_file target_file
+.Nm
+.Op Fl f | i | n
+.Op Fl alPpsvx
 .Ar source_file ... target_directory
 .Sh DESCRIPTION
 In the first synopsis form, the
@@ -84,10 +92,10 @@ If the
 .Fl R
 option is specified, all symbolic links are followed.
 .It Fl P
-If the
+No symbolic links are followed.
+This is the default if the
 .Fl R
-option is specified, no symbolic links are followed.
-This is the default.
+option is specified.
 .It Fl R
 If
 .Ar source_file
