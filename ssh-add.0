@@ -4,8 +4,8 @@ NAME
      ssh-add M-bM-^@M-^S adds private key identities to the OpenSSH authentication agent
 
 SYNOPSIS
-     ssh-add [-cDdKkLlqvXx] [-E fingerprint_hash] [-S provider] [-t life]
-             [file ...]
+     ssh-add [-cDdKkLlqvXx] [-E fingerprint_hash] [-H hostkey_file]
+             [-h destination_constraint] [-S provider] [-t life] [file ...]
      ssh-add -s pkcs11
      ssh-add -e pkcs11
      ssh-add -T pubkey ...
@@ -13,11 +13,11 @@ SYNOPSIS
 DESCRIPTION
      ssh-add adds private key identities to the authentication agent,
      ssh-agent(1).  When run without arguments, it adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_dsa, ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk,
-     ~/.ssh/id_ed25519, and ~/.ssh/id_ed25519_sk.  After loading a private
-     key, ssh-add will try to load corresponding certificate information from
-     the filename obtained by appending -cert.pub to the name of the private
-     key file.  Alternative file names can be given on the command line.
+     ~/.ssh/id_rsa, ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
+     ~/.ssh/id_ed25519_sk, and ~/.ssh/id_dsa.  After loading a private key,
+     ssh-add will try to load corresponding certificate information from the
+     filename obtained by appending -cert.pub to the name of the private key
+     file.  Alternative file names can be given on the command line.
 
      If any file requires a passphrase, ssh-add asks for the passphrase from
      the user.  The passphrase is read from the user's tty.  ssh-add retries
@@ -54,6 +54,57 @@ DESCRIPTION
 
      -e pkcs11
              Remove keys provided by the PKCS#11 shared library pkcs11.
+
+     -H hostkey_file
+             Specifies a known hosts file to look up hostkeys when using
+             destination-constrained keys via the -h flag.  This option may be
+             specified multiple times to allow multiple files to be searched.
+             If no files are specified, ssh-add will use the default
+             ssh_config(5) known hosts files: ~/.ssh/known_hosts,
+             ~/.ssh/known_hosts2, /etc/ssh/ssh_known_hosts, and
+             /etc/ssh/ssh_known_hosts2.
+
+     -h destination_constraint
+             When adding keys, constrain them to be usable only through
+             specific hosts or to specific destinations.
+
+             Destination constraints of the form M-bM-^@M-^X[user@]dest-hostnameM-bM-^@M-^Y permit
+             use of the key only from the origin host (the one running
+             ssh-agent(1)) to the listed destination host, with optional user
+             name.
+
+             Constraints of the form M-bM-^@M-^Xsrc-hostname>[user@]dst-hostnameM-bM-^@M-^Y allow
+             a key available on a forwarded ssh-agent(1) to be used through a
+             particular host (as specified by M-bM-^@M-^Xsrc-hostnameM-bM-^@M-^Y) to authenticate
+             to a further host, specified by M-bM-^@M-^Xdst-hostnameM-bM-^@M-^Y.
+
+             Multiple destination constraints may be added when loading keys.
+             When attempting authentication with a key that has destination
+             constraints, the whole connection path, including ssh-agent(1)
+             forwarding, is tested against those constraints and each hop must
+             be permitted for the attempt to succeed.  For example, if key is
+             forwarded to a remote host, M-bM-^@M-^Xhost-bM-bM-^@M-^Y, and is attempting
+             authentication to another host, M-bM-^@M-^Xhost-cM-bM-^@M-^Y, then the operation will
+             be successful only if M-bM-^@M-^Xhost-bM-bM-^@M-^Y was permitted from the origin host
+             and the subsequent M-bM-^@M-^Xhost-b>host-cM-bM-^@M-^Y hop is also permitted by
+             destination constraints.
+
+             Hosts are identified by their host keys, and are looked up from
+             known hosts files by ssh-add.  Wildcards patterns may be used for
+             hostnames and certificate host keys are supported.  By default,
+             keys added by ssh-add are not destination constrained.
+
+             Destination constraints were added in OpenSSH release 8.9.
+             Support in both the remote SSH client and server is required when
+             using destination-constrained keys over a forwarded ssh-agent(1)
+             channel.
+
+             It is also important to note that destination constraints can
+             only be enforced by ssh-agent(1) when a key is used, or when it
+             is forwarded by a cooperating ssh(1).  Specifically, it does not
+             prevent an attacker with access to a remote SSH_AUTH_SOCK from
+             forwarding it again and using it on a different host (but only to
+             a permitted destination).
 
      -K      Load resident keys from a FIDO authenticator.
 
@@ -149,4 +200,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                      July 14, 2020                     OpenBSD 6.9
+OpenBSD 7.0                    February 4, 2022                    OpenBSD 7.0

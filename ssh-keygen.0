@@ -34,8 +34,9 @@ SYNOPSIS
      ssh-keygen -Q [-l] -f krl_file file ...
      ssh-keygen -Y find-principals [-O option] -s signature_file
                 -f allowed_signers_file
+     ssh-keygen -Y match-principals -I signer_identity -f allowed_signers_file
      ssh-keygen -Y check-novalidate [-O option] -n namespace -s signature_file
-     ssh-keygen -Y sign -f key_file -n namespace file ...
+     ssh-keygen -Y sign [-O option] -f key_file -n namespace file ...
      ssh-keygen -Y verify [-O option] -f allowed_signers_file
                 -I signer_identity -n namespace -s signature_file
                 [-r revocation_file]
@@ -172,11 +173,11 @@ DESCRIPTION
              hashed names.
 
      -h      When signing a key, create a host certificate instead of a user
-             certificate.  Please see the CERTIFICATES section for details.
+             certificate.  See the CERTIFICATES section for details.
 
      -I certificate_identity
-             Specify the key identity when signing a public key.  Please see
-             the CERTIFICATES section for details.
+             Specify the key identity when signing a public key.  See the
+             CERTIFICATES section for details.
 
      -i      This option will read an unencrypted private (or public) key file
              in the format specified by the -m option and print an OpenSSH
@@ -239,7 +240,7 @@ DESCRIPTION
      -n principals
              Specify one or more principals (user or host names) to be
              included in a certificate when signing a key.  Multiple
-             principals may be specified, separated by commas.  Please see the
+             principals may be specified, separated by commas.  See the
              CERTIFICATES section for details.
 
      -O option
@@ -301,12 +302,16 @@ DESCRIPTION
              write-attestation=path
                      May be used at key generation time to record the
                      attestation data returned from FIDO tokens during key
-                     generation.  Please note that this information is
-                     potentially sensitive.  By default, this information is
-                     discarded.
+                     generation.  This information is potentially sensitive.
+                     By default, this information is discarded.
 
              When performing signature-related options using the -Y flag, the
              following options are accepted:
+
+             hashalg=algorithm
+                     Selects the hash algorithm to use for hashing the message
+                     to be signed.  Valid algorithms are M-bM-^@M-^\sha256M-bM-^@M-^] and
+                     M-bM-^@M-^\sha512.M-bM-^@M-^] The default is M-bM-^@M-^\sha512.M-bM-^@M-^]
 
              print-pubkey
                      Print the full public key to standard output after
@@ -343,8 +348,8 @@ DESCRIPTION
              the specified public key file.
 
      -s ca_key
-             Certify (sign) a public key using the specified CA key.  Please
-             see the CERTIFICATES section for details.
+             Certify (sign) a public key using the specified CA key.  See the
+             CERTIFICATES section for details.
 
              When generating a KRL, -s specifies a path to a CA public key
              file used to revoke certificates directly by key ID or serial
@@ -408,6 +413,12 @@ DESCRIPTION
              signature, provided using the -s flag in an authorized signers
              file provided using the -f flag.  The format of the allowed
              signers file is documented in the ALLOWED SIGNERS section below.
+             If one or more matching principals are found, they are returned
+             on standard output.
+
+     -Y match-principals
+             Find principal matching the principal name provided using the -I
+             flag in the authorized signers file specified using the -f flag.
              If one or more matching principals are found, they are returned
              on standard output.
 
@@ -664,8 +675,8 @@ CERTIFICATES
      to the distant future.
 
      For certificates to be used for user or host authentication, the CA
-     public key must be trusted by sshd(8) or ssh(1).  Please refer to those
-     manual pages for details.
+     public key must be trusted by sshd(8) or ssh(1).  Refer to those manual
+     pages for details.
 
 KEY REVOCATION LISTS
      ssh-keygen is able to manage OpenSSH format Key Revocation Lists (KRLs).
@@ -835,4 +846,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                     August 11, 2021                    OpenBSD 6.9
+OpenBSD 7.0                    February 6, 2022                    OpenBSD 7.0

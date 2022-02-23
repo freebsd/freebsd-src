@@ -12,6 +12,9 @@ if config_defined HAVE_GETPEEREID HAVE_GETPEERUCRED HAVE_SO_PEERCRED ; then
 else
 	skip "skipped (not supported on this platform)"
 fi
+if test "x$USER" = "xroot"; then
+	skip "skipped (running as root)"
+fi
 case "x$SUDO" in
 	xsudo) sudo=1;;
 	xdoas|xdoas\ *) ;;

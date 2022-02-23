@@ -143,9 +143,9 @@ DESCRIPTION
              key authentication is read.  You can also specify a public key
              file to use the corresponding private key that is loaded in
              ssh-agent(1) when the private key file is not present locally.
-             The default is ~/.ssh/id_dsa, ~/.ssh/id_ecdsa,
+             The default is ~/.ssh/id_rsa, ~/.ssh/id_ecdsa,
              ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519, ~/.ssh/id_ed25519_sk and
-             ~/.ssh/id_rsa.  Identity files may also be specified on a per-
+             ~/.ssh/id_dsa.  Identity files may also be specified on a per-
              host basis in the configuration file.  It is possible to have
              multiple -i options (and multiple identities specified in
              configuration files).  If no certificates have been explicitly
@@ -448,9 +448,9 @@ DESCRIPTION
              to perform activities such as keystroke monitoring.
 
              For this reason, X11 forwarding is subjected to X11 SECURITY
-             extension restrictions by default.  Please refer to the ssh -Y
-             option and the ForwardX11Trusted directive in ssh_config(5) for
-             more information.
+             extension restrictions by default.  Refer to the ssh -Y option
+             and the ForwardX11Trusted directive in ssh_config(5) for more
+             information.
 
      -x      Disables X11 forwarding.
 
@@ -1013,4 +1013,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                   September 10, 2021                   OpenBSD 6.9
+OpenBSD 7.0                    February 6, 2022                    OpenBSD 7.0

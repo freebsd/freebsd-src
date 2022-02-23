@@ -19,6 +19,9 @@
 /* The system has incomplete BSM API */
 #undef BROKEN_BSM_API
 
+/* broken in chroots on older kernels */
+#undef BROKEN_CLOSEFROM
+
 /* Define if cmsg_type is not passed correctly */
 #undef BROKEN_CMSG_TYPE
 
@@ -27,6 +30,9 @@
 
 /* getgroups(0,NULL) will return -1 */
 #undef BROKEN_GETGROUPS
+
+/* getline is not what we expect */
+#undef BROKEN_GETLINE
 
 /* FreeBSD glob does not do what we need */
 #undef BROKEN_GLOB
@@ -37,6 +43,9 @@
 /* Define if your struct dirent expects you to allocate extra space for d_name
    */
 #undef BROKEN_ONE_BYTE_DIRENT_D_NAME
+
+/* System poll(2) implementation is broken */
+#undef BROKEN_POLL
 
 /* Can't do comparisons on readv */
 #undef BROKEN_READV_COMPARISON
@@ -281,6 +290,9 @@
 
 /* Define to 1 if you have the `closefrom' function. */
 #undef HAVE_CLOSEFROM
+
+/* Define to 1 if you have the `close_range' function. */
+#undef HAVE_CLOSE_RANGE
 
 /* Define if gai_strerror() returns const char * */
 #undef HAVE_CONST_GAI_STRERROR_PROTO
@@ -579,8 +591,14 @@
 /* Define to 1 if you have the <features.h> header file. */
 #undef HAVE_FEATURES_H
 
+/* Define to 1 if you have the `fido_assert_set_clientdata' function. */
+#undef HAVE_FIDO_ASSERT_SET_CLIENTDATA
+
 /* Define to 1 if you have the `fido_cred_prot' function. */
 #undef HAVE_FIDO_CRED_PROT
+
+/* Define to 1 if you have the `fido_cred_set_clientdata' function. */
+#undef HAVE_FIDO_CRED_SET_CLIENTDATA
 
 /* Define to 1 if you have the `fido_cred_set_prot' function. */
 #undef HAVE_FIDO_CRED_SET_PROT
@@ -943,12 +961,6 @@
 /* Define to 1 if you have the `mbtowc' function. */
 #undef HAVE_MBTOWC
 
-/* Define to 1 if you have the `md5_crypt' function. */
-#undef HAVE_MD5_CRYPT
-
-/* Define if you want to allow MD5 passwords */
-#undef HAVE_MD5_PASSWORDS
-
 /* Define to 1 if you have the `memmem' function. */
 #undef HAVE_MEMMEM
 
@@ -987,6 +999,9 @@
 
 /* Define if you are on NeXT */
 #undef HAVE_NEXT
+
+/* Define to 1 if the system has the type `nfds_t'. */
+#undef HAVE_NFDS_T
 
 /* Define to 1 if you have the `ngetaddrinfo' function. */
 #undef HAVE_NGETADDRINFO
@@ -1051,6 +1066,9 @@
 
 /* Define to 1 if you have the <poll.h> header file. */
 #undef HAVE_POLL_H
+
+/* Define to 1 if you have the `ppoll' function. */
+#undef HAVE_PPOLL
 
 /* Define to 1 if you have the `prctl' function. */
 #undef HAVE_PRCTL
@@ -1401,6 +1419,9 @@
 /* Define to 1 if `pw_gecos' is a member of `struct passwd'. */
 #undef HAVE_STRUCT_PASSWD_PW_GECOS
 
+/* Define to 1 if `fd' is a member of `struct pollfd'. */
+#undef HAVE_STRUCT_POLLFD_FD
+
 /* define if you have struct sockaddr_in6 data type */
 #undef HAVE_STRUCT_SOCKADDR_IN6
 
@@ -1481,6 +1502,9 @@
 
 /* Define if your system defines sys_nerr */
 #undef HAVE_SYS_NERR
+
+/* Define to 1 if you have the <sys/param.h> header file. */
+#undef HAVE_SYS_PARAM_H
 
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #undef HAVE_SYS_POLL_H

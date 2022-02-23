@@ -589,9 +589,9 @@ DESCRIPTION
      IdentityFile
              Specifies a file from which the user's DSA, ECDSA, authenticator-
              hosted ECDSA, Ed25519, authenticator-hosted Ed25519 or RSA
-             authentication identity is read.  The default is ~/.ssh/id_dsa,
+             authentication identity is read.  The default is ~/.ssh/id_rsa,
              ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
-             ~/.ssh/id_ed25519_sk and ~/.ssh/id_rsa.  Additionally, any
+             ~/.ssh/id_ed25519_sk and ~/.ssh/id_dsa.  Additionally, any
              identities represented by the authentication agent will be used
              for authentication unless IdentitiesOnly is set.  If no
              certificates have been explicitly specified by CertificateFile,
@@ -672,6 +672,7 @@ DESCRIPTION
 
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+                   sntrup761x25519-sha512@openssh.com,
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group16-sha512,
                    diffie-hellman-group18-sha512,
@@ -907,7 +908,11 @@ DESCRIPTION
 
      PubkeyAuthentication
              Specifies whether to try public key authentication.  The argument
-             to this keyword must be yes (the default) or no.
+             to this keyword must be yes (the default), no, unbound or
+             host-bound.  The final two options enable public key
+             authentication while respectively disabling or enabling the
+             OpenSSH host-bound authentication protocol extension required for
+             restricted ssh-agent(1) forwarding.
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
@@ -1303,4 +1308,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.9                   September 25, 2021                   OpenBSD 6.9
+OpenBSD 7.0                    February 15, 2022                   OpenBSD 7.0

@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.127 2021/01/26 00:46:17 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.129 2021/12/19 22:10:24 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -454,12 +454,63 @@ ssh_agent_sign(int sock, const struct sshkey *key,
 
 /* Encode key for a message to the agent. */
 
+static int
+encode_dest_constraint_hop(struct sshbuf *m,
+    const struct dest_constraint_hop *dch)
+{
+	struct sshbuf *b;
+	u_int i;
+	int r;
+
+	if ((b = sshbuf_new()) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	if ((r = sshbuf_put_cstring(b, dch->user)) != 0 ||
+	    (r = sshbuf_put_cstring(b, dch->hostname)) != 0 ||
+	    (r = sshbuf_put_string(b, NULL, 0)) != 0) /* reserved */
+		goto out;
+	for (i = 0; i < dch->nkeys; i++) {
+		if ((r = sshkey_puts(dch->keys[i], b)) != 0 ||
+		    (r = sshbuf_put_u8(b, dch->key_is_ca[i] != 0)) != 0)
+			goto out;
+	}
+	if ((r = sshbuf_put_stringb(m, b)) != 0)
+		goto out;
+	/* success */
+	r = 0;
+ out:
+	sshbuf_free(b);
+	return r;
+}
+
+static int
+encode_dest_constraint(struct sshbuf *m, const struct dest_constraint *dc)
+{
+	struct sshbuf *b;
+	int r;
+
+	if ((b = sshbuf_new()) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	if ((r = encode_dest_constraint_hop(b, &dc->from) != 0) ||
+	    (r = encode_dest_constraint_hop(b, &dc->to) != 0) ||
+	    (r = sshbuf_put_string(b, NULL, 0)) != 0) /* reserved */
+		goto out;
+	if ((r = sshbuf_put_stringb(m, b)) != 0)
+		goto out;
+	/* success */
+	r = 0;
+ out:
+	sshbuf_free(b);
+	return r;
+}
 
 static int
 encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign,
-    const char *provider)
+    const char *provider, struct dest_constraint **dest_constraints,
+    size_t ndest_constraints)
 {
 	int r;
+	struct sshbuf *b = NULL;
+	size_t i;
 
 	if (life != 0) {
 		if ((r = sshbuf_put_u8(m, SSH_AGENT_CONSTRAIN_LIFETIME)) != 0 ||
@@ -483,8 +534,26 @@ encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign,
 		    (r = sshbuf_put_cstring(m, provider)) != 0)
 			goto out;
 	}
+	if (dest_constraints != NULL && ndest_constraints > 0) {
+		if ((b = sshbuf_new()) == NULL) {
+			r = SSH_ERR_ALLOC_FAIL;
+			goto out;
+		}
+		for (i = 0; i < ndest_constraints; i++) {
+			if ((r = encode_dest_constraint(b,
+			    dest_constraints[i])) != 0)
+				goto out;
+		}
+		if ((r = sshbuf_put_u8(m,
+		    SSH_AGENT_CONSTRAIN_EXTENSION)) != 0 ||
+		    (r = sshbuf_put_cstring(m,
+		    "restrict-destination-v00@openssh.com")) != 0 ||
+		    (r = sshbuf_put_stringb(m, b)) != 0)
+			goto out;
+	}
 	r = 0;
  out:
+	sshbuf_free(b);
 	return r;
 }
 
@@ -495,10 +564,12 @@ encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign,
 int
 ssh_add_identity_constrained(int sock, struct sshkey *key,
     const char *comment, u_int life, u_int confirm, u_int maxsign,
-    const char *provider)
+    const char *provider, struct dest_constraint **dest_constraints,
+    size_t ndest_constraints)
 {
 	struct sshbuf *msg;
-	int r, constrained = (life || confirm || maxsign || provider);
+	int r, constrained = (life || confirm || maxsign ||
+	    provider || dest_constraints);
 	u_char type;
 
 	if ((msg = sshbuf_new()) == NULL)
@@ -536,7 +607,7 @@ ssh_add_identity_constrained(int sock, struct sshkey *key,
 	}
 	if (constrained &&
 	    (r = encode_constraints(msg, life, confirm, maxsign,
-	    provider)) != 0)
+	    provider, dest_constraints, ndest_constraints)) != 0)
 		goto out;
 	if ((r = ssh_request_reply_decode(sock, msg)) != 0)
 		goto out;
@@ -590,7 +661,8 @@ ssh_remove_identity(int sock, const struct sshkey *key)
  */
 int
 ssh_update_card(int sock, int add, const char *reader_id, const char *pin,
-    u_int life, u_int confirm)
+    u_int life, u_int confirm,
+    struct dest_constraint **dest_constraints, size_t ndest_constraints)
 {
 	struct sshbuf *msg;
 	int r, constrained = (life || confirm);
@@ -610,7 +682,8 @@ ssh_update_card(int sock, int add, const char *reader_id, const char *pin,
 	    (r = sshbuf_put_cstring(msg, pin)) != 0)
 		goto out;
 	if (constrained &&
-	    (r = encode_constraints(msg, life, confirm, 0, NULL)) != 0)
+	    (r = encode_constraints(msg, life, confirm, 0, NULL,
+	    dest_constraints, ndest_constraints)) != 0)
 		goto out;
 	if ((r = ssh_request_reply_decode(sock, msg)) != 0)
 		goto out;
@@ -641,6 +714,35 @@ ssh_remove_all_identities(int sock, int version)
 	if ((msg = sshbuf_new()) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	if ((r = sshbuf_put_u8(msg, type)) != 0)
+		goto out;
+	if ((r = ssh_request_reply_decode(sock, msg)) != 0)
+		goto out;
+	/* success */
+	r = 0;
+ out:
+	sshbuf_free(msg);
+	return r;
+}
+
+/* Binds a session ID to a hostkey via the initial KEX signature. */
+int
+ssh_agent_bind_hostkey(int sock, const struct sshkey *key,
+    const struct sshbuf *session_id, const struct sshbuf *signature,
+    int forwarding)
+{
+	struct sshbuf *msg;
+	int r;
+
+	if (key == NULL || session_id == NULL || signature == NULL)
+		return SSH_ERR_INVALID_ARGUMENT;
+	if ((msg = sshbuf_new()) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	if ((r = sshbuf_put_u8(msg, SSH_AGENTC_EXTENSION)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, "session-bind@openssh.com")) != 0 ||
+	    (r = sshkey_puts(key, msg)) != 0 ||
+	    (r = sshbuf_put_stringb(msg, session_id)) != 0 ||
+	    (r = sshbuf_put_stringb(msg, signature)) != 0 ||
+	    (r = sshbuf_put_u8(msg, forwarding ? 1 : 0)) != 0)
 		goto out;
 	if ((r = ssh_request_reply_decode(sock, msg)) != 0)
 		goto out;

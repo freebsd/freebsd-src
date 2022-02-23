@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.427 2021/09/10 10:26:02 dtucker Exp $
-.Dd $Mdocdate: September 10 2021 $
+.\" $OpenBSD: ssh.1,v 1.429 2022/02/06 00:29:03 jsg Exp $
+.Dd $Mdocdate: February 6 2022 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -298,13 +298,13 @@ private key that is loaded in
 .Xr ssh-agent 1
 when the private key file is not present locally.
 The default is
-.Pa ~/.ssh/id_dsa ,
+.Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ecdsa_sk ,
 .Pa ~/.ssh/id_ed25519 ,
 .Pa ~/.ssh/id_ed25519_sk
 and
-.Pa ~/.ssh/id_rsa .
+.Pa ~/.ssh/id_dsa .
 Identity files may also be specified on
 a per-host basis in the configuration file.
 It is possible to have multiple
@@ -825,7 +825,7 @@ An attacker may then be able to perform activities such as keystroke monitoring.
 .Pp
 For this reason, X11 forwarding is subjected to X11 SECURITY extension
 restrictions by default.
-Please refer to the
+Refer to the
 .Nm
 .Fl Y
 option and the

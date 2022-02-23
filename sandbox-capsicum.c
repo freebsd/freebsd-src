@@ -19,7 +19,6 @@
 #ifdef SANDBOX_CAPSICUM
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/capsicum.h>

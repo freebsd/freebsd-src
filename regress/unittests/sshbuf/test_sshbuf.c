@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf.c,v 1.1 2014/04/30 05:32:00 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf.c,v 1.2 2021/12/14 21:25:27 deraadt Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -9,7 +9,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 # include <stdint.h>
@@ -23,6 +22,10 @@
 #include "sshbuf.h"
 
 void sshbuf_tests(void);
+
+#ifndef roundup
+#define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+#endif
 
 void
 sshbuf_tests(void)

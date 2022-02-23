@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.145 2021/09/15 06:56:01 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.146 2021/12/19 22:14:47 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -178,6 +178,11 @@ typedef struct {
 
 	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
+
+#define SSH_PUBKEY_AUTH_NO	0x00
+#define SSH_PUBKEY_AUTH_UNBOUND	0x01
+#define SSH_PUBKEY_AUTH_HBOUND	0x02
+#define SSH_PUBKEY_AUTH_ALL	0x03
 
 #define SSH_CANONICALISE_NO	0
 #define SSH_CANONICALISE_YES	1

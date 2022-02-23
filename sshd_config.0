@@ -415,12 +415,11 @@ DESCRIPTION
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                rsa-sha2-512,rsa-sha2-256
 
              The list of available signature algorithms may also be obtained
              using "ssh -Q HostbasedAcceptedAlgorithms".  This was formerly
@@ -478,12 +477,11 @@ DESCRIPTION
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                rsa-sha2-512,rsa-sha2-256
 
              The list of available signature algorithms may also be obtained
              using "ssh -Q HostKeyAlgorithms".
@@ -581,6 +579,7 @@ DESCRIPTION
 
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+                   sntrup761x25519-sha512@openssh.com,
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
                    diffie-hellman-group14-sha256
@@ -707,16 +706,17 @@ DESCRIPTION
              AuthorizedKeysCommand, AuthorizedKeysCommandUser,
              AuthorizedKeysFile, AuthorizedPrincipalsCommand,
              AuthorizedPrincipalsCommandUser, AuthorizedPrincipalsFile,
-             Banner, ChrootDirectory, ClientAliveCountMax,
-             ClientAliveInterval, DenyGroups, DenyUsers, DisableForwarding,
-             ForceCommand, GatewayPorts, GSSAPIAuthentication,
-             HostbasedAcceptedAlgorithms, HostbasedAuthentication,
-             HostbasedUsesNameFromPacketOnly, IgnoreRhosts, Include, IPQoS,
-             KbdInteractiveAuthentication, KerberosAuthentication, LogLevel,
-             MaxAuthTries, MaxSessions, PasswordAuthentication,
-             PermitEmptyPasswords, PermitListen, PermitOpen, PermitRootLogin,
-             PermitTTY, PermitTunnel, PermitUserRC, PubkeyAcceptedAlgorithms,
-             PubkeyAuthentication, RekeyLimit, RevokedKeys, RDomain, SetEnv,
+             Banner, CASignatureAlgorithms, ChrootDirectory,
+             ClientAliveCountMax, ClientAliveInterval, DenyGroups, DenyUsers,
+             DisableForwarding, ExposeAuthInfo, ForceCommand, GatewayPorts,
+             GSSAPIAuthentication, HostbasedAcceptedAlgorithms,
+             HostbasedAuthentication, HostbasedUsesNameFromPacketOnly,
+             IgnoreRhosts, Include, IPQoS, KbdInteractiveAuthentication,
+             KerberosAuthentication, LogLevel, MaxAuthTries, MaxSessions,
+             PasswordAuthentication, PermitEmptyPasswords, PermitListen,
+             PermitOpen, PermitRootLogin, PermitTTY, PermitTunnel,
+             PermitUserRC, PubkeyAcceptedAlgorithms, PubkeyAuthentication,
+             PubkeyAuthOptions, RekeyLimit, RevokedKeys, RDomain, SetEnv,
              StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
              X11DisplayOffset, X11Forwarding and X11UseLocalhost.
 
@@ -898,12 +898,11 @@ DESCRIPTION
                 sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
                 ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                rsa-sha2-512,rsa-sha2-256
 
              The list of available signature algorithms may also be obtained
              using "ssh -Q PubkeyAcceptedAlgorithms".
@@ -1192,4 +1191,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.9                    September 3, 2021                   OpenBSD 6.9
+OpenBSD 7.0                    December 4, 2021                    OpenBSD 7.0

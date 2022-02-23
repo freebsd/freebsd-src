@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.43 2021/01/31 22:55:29 djm Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.44 2021/12/19 22:08:06 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -194,8 +194,16 @@ input_kex_dh_gex_init(int type, u_int32_t seq, struct ssh *ssh)
 	    (r = sshpkt_send(ssh)) != 0)
 		goto out;
 
-	if ((r = kex_derive_keys(ssh, hash, hashlen, shared_secret)) == 0)
-		r = kex_send_newkeys(ssh);
+	if ((r = kex_derive_keys(ssh, hash, hashlen, shared_secret)) != 0 ||
+	    (r = kex_send_newkeys(ssh)) != 0)
+		goto out;
+
+	/* retain copy of hostkey used at initial KEX */
+	if (kex->initial_hostkey == NULL &&
+	    (r = sshkey_from_private(server_host_public,
+	    &kex->initial_hostkey)) != 0)
+		goto out;
+	/* success */
  out:
 	explicit_bzero(hash, sizeof(hash));
 	DH_free(kex->dh);

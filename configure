@@ -645,7 +645,6 @@ SSHDLIBS
 SSH_PRIVSEP_USER
 LIBFIDO2
 SK_DUMMY_LIBRARY
-TEST_SSH_ECC
 PICFLAG
 LIBEDIT
 PKGCONFIG
@@ -776,7 +775,6 @@ with_xauth
 enable_strip
 with_maildir
 with_mantype
-with_md5_passwords
 with_shadow
 with_ipaddr_display
 enable_etc_default_login
@@ -1482,7 +1480,6 @@ Optional Packages:
   --with-xauth=PATH       Specify path to xauth program
   --with-maildir=/path/to/mail    Specify your system mail directory
   --with-mantype=man|cat|doc  Set man page type
-  --with-md5-passwords    Enable use of MD5 passwords
   --without-shadow        Disable shadow password support
   --with-ipaddr-display   Use ip address instead of hostname in $DISPLAY
   --with-default-path=    Specify default $PATH environment for server
@@ -2034,6 +2031,63 @@ $as_echo "$ac_res" >&6; }
 
 } # ac_fn_c_check_type
 
+# ac_fn_c_check_member LINENO AGGR MEMBER VAR INCLUDES
+# ----------------------------------------------------
+# Tries to find if the field MEMBER exists in type AGGR, after including
+# INCLUDES, setting cache variable VAR accordingly.
+ac_fn_c_check_member ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2.$3" >&5
+$as_echo_n "checking for $2.$3... " >&6; }
+if eval \${$4+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$5
+int
+main ()
+{
+static $2 ac_aggr;
+if (ac_aggr.$3)
+return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$4=yes"
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$5
+int
+main ()
+{
+static $2 ac_aggr;
+if (sizeof ac_aggr.$3)
+return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$4=yes"
+else
+  eval "$4=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$4
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_member
+
 # ac_fn_c_compute_int LINENO EXPR VAR INCLUDES
 # --------------------------------------------
 # Tries to find the compile-time value of EXPR in a program that includes
@@ -2216,63 +2270,6 @@ rm -f conftest.val
   as_fn_set_status $ac_retval
 
 } # ac_fn_c_compute_int
-
-# ac_fn_c_check_member LINENO AGGR MEMBER VAR INCLUDES
-# ----------------------------------------------------
-# Tries to find if the field MEMBER exists in type AGGR, after including
-# INCLUDES, setting cache variable VAR accordingly.
-ac_fn_c_check_member ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2.$3" >&5
-$as_echo_n "checking for $2.$3... " >&6; }
-if eval \${$4+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$5
-int
-main ()
-{
-static $2 ac_aggr;
-if (ac_aggr.$3)
-return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  eval "$4=yes"
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$5
-int
-main ()
-{
-static $2 ac_aggr;
-if (sizeof ac_aggr.$3)
-return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  eval "$4=yes"
-else
-  eval "$4=no"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-eval ac_res=\$$4
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_check_member
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -2642,7 +2639,7 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 if test -n "$ac_tool_prefix"; then
-  for ac_prog in cc gcc
+  for ac_prog in cc gcc clang
   do
     # Extract the first word of "$ac_tool_prefix$ac_prog", so it can be a program name with args.
 set dummy $ac_tool_prefix$ac_prog; ac_word=$2
@@ -2686,7 +2683,7 @@ fi
 fi
 if test -z "$CC"; then
   ac_ct_CC=$CC
-  for ac_prog in cc gcc
+  for ac_prog in cc gcc clang
 do
   # Extract the first word of "$ac_prog", so it can be a program name with args.
 set dummy $ac_prog; ac_word=$2
@@ -6326,6 +6323,114 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 }
 	{
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -Wmisleading-indentation" >&5
+$as_echo_n "checking if $CC supports compile flag -Wmisleading-indentation... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -Wmisleading-indentation"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-Wmisleading-indentation"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+	(void)argv;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+}
+	{
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -Wbitwise-instead-of-logical" >&5
+$as_echo_n "checking if $CC supports compile flag -Wbitwise-instead-of-logical... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -Wbitwise-instead-of-logical"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-Wbitwise-instead-of-logical"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+	(void)argv;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+}
+	{
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fno-strict-aliasing" >&5
 $as_echo_n "checking if $CC supports compile flag -fno-strict-aliasing... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -6722,6 +6827,114 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+}
+	{
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fzero-call-used-regs=all" >&5
+$as_echo_n "checking if $CC supports compile flag -fzero-call-used-regs=all... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -fzero-call-used-regs=all"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-fzero-call-used-regs=all"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+	(void)argv;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+}
+	{
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -ftrivial-auto-var-init=zero" >&5
+$as_echo_n "checking if $CC supports compile flag -ftrivial-auto-var-init=zero... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -ftrivial-auto-var-init=zero"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-ftrivial-auto-var-init=zero"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+	(void)argv;
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	/*
+	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
+	 * not understand comments and we don't use the "fallthrough" attribute
+	 * that it's looking for.
+	 */
+	switch(i){
+	case 0: j += i;
+		/* FALLTHROUGH */
+	default: j += k;
+	}
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 }
     fi
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking gcc version" >&5
@@ -7135,6 +7348,7 @@ for ac_header in  \
 	sys/mman.h \
 	sys/label.h \
 	sys/ndir.h \
+	sys/param.h \
 	sys/poll.h \
 	sys/prctl.h \
 	sys/procctl.h \
@@ -7896,6 +8110,11 @@ _ACEOF
 fi
 done
 
+	# poll(2) is broken for character-special devices (at least).
+	# cf. Apple bug 3710161 (not public, but searchable)
+
+$as_echo "#define BROKEN_POLL 1" >>confdefs.h
+
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS -lcrypt"
@@ -8028,6 +8247,9 @@ fi
 		if test -z "$GCC"; then
 			CFLAGS="$CFLAGS -Ae"
 		fi
+
+$as_echo "#define BROKEN_GETLINE 1" >>confdefs.h
+
 		;;
 	*-*-hpux11*)
 
@@ -8127,6 +8349,9 @@ $as_echo "#define USE_BTMP 1" >>confdefs.h
 	check_for_libcrypt_later=1
 	check_for_openpty_ctty_bug=1
 			CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE"
+
+$as_echo "#define BROKEN_CLOSEFROM 1" >>confdefs.h
+
 
 $as_echo "#define PAM_TTY_KLUDGE 1" >>confdefs.h
 
@@ -8345,6 +8570,14 @@ _ACEOF
 $as_echo "architecture not supported" >&6; }
 	fi
 	;;
+*-*-minix)
+	$as_echo "#define SETEUID_BREAKS_SETUID 1" >>confdefs.h
+
+	# poll(2) seems to choke on /dev/null; "Bad file descriptor"
+
+$as_echo "#define BROKEN_POLL 1" >>confdefs.h
+
+	;;
 mips-sony-bsd|mips-sony-newsos4)
 
 $as_echo "#define NEED_SETPGRP 1" >>confdefs.h
@@ -8405,6 +8638,11 @@ $as_echo "#define BROKEN_GLOB 1" >>confdefs.h
 
 $as_echo "#define SANDBOX_SKIP_RLIMIT_NOFILE 1" >>confdefs.h
 
+	case "$host" in
+	*-*-freebsd9.*|*-*-freebsd10.*)
+		# Capsicum on 9 and 10 do not allow ppoll() so don't auto-enable.
+		disable_capsicum=yes
+	esac
 	;;
 *-*-bsdi*)
 	$as_echo "#define SETEUID_BREAKS_SETUID 1" >>confdefs.h
@@ -11461,6 +11699,7 @@ for ac_func in  \
 	cap_rights_limit \
 	clock \
 	closefrom \
+	close_range \
 	dirfd \
 	endgrent \
 	err \
@@ -11503,7 +11742,6 @@ for ac_func in  \
 	localtime_r \
 	login_getcapbool \
 	login_getpwclass \
-	md5_crypt \
 	memmem \
 	memmove \
 	memset_s \
@@ -11514,6 +11752,7 @@ for ac_func in  \
 	openlog_r \
 	pledge \
 	poll \
+	ppoll \
 	prctl \
 	procctl \
 	pselect \
@@ -13240,23 +13479,17 @@ if test "${with_ssl_dir+set}" = set; then :
 				./*|../*)	withval="`pwd`/$withval"
 			esac
 			if test -d "$withval/lib"; then
-				if test -n "${rpath_opt}"; then
-					LDFLAGS="-L${withval}/lib ${rpath_opt}${withval}/lib ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval}/lib ${LDFLAGS}"
-				fi
+				libcrypto_path="${withval}/lib"
 			elif test -d "$withval/lib64"; then
-				if test -n "${rpath_opt}"; then
-					LDFLAGS="-L${withval}/lib64 ${rpath_opt}${withval}/lib64 ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval}/lib64 ${LDFLAGS}"
-				fi
+				libcrypto_path="$withval/lib64"
 			else
-				if test -n "${rpath_opt}"; then
-					LDFLAGS="-L${withval} ${rpath_opt}${withval} ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval} ${LDFLAGS}"
-				fi
+				# Built but not installed
+				libcrypto_path="${withval}"
+			fi
+			if test -n "${rpath_opt}"; then
+				LDFLAGS="-L${libcrypto_path} ${rpath_opt}${libcrypto_path} ${LDFLAGS}"
+			else
+				LDFLAGS="-L${libcrypto_path} ${LDFLAGS}"
 			fi
 			if test -d "$withval/include"; then
 				CPPFLAGS="-I${withval}/include ${CPPFLAGS}"
@@ -14173,8 +14406,6 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-	TEST_SSH_ECC=no
-
 	if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
 	    test x$enable_nistp521 = x1; then
 
@@ -14199,7 +14430,6 @@ done
 
 $as_echo "#define OPENSSL_HAS_NISTP256 1" >>confdefs.h
 
-		TEST_SSH_ECC=yes
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp256 \
@@ -14210,7 +14440,6 @@ $as_echo "#define OPENSSL_HAS_NISTP256 1" >>confdefs.h
 
 $as_echo "#define OPENSSL_HAS_NISTP384 1" >>confdefs.h
 
-		TEST_SSH_ECC=yes
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp384 \
@@ -14221,14 +14450,12 @@ $as_echo "#define OPENSSL_HAS_NISTP384 1" >>confdefs.h
 
 $as_echo "#define OPENSSL_HAS_NISTP521 1" >>confdefs.h
 
-		TEST_SSH_ECC=yes
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdh-sha2-nistp521 \
 			ecdsa-sha2-nistp521 \
 			ecdsa-sha2-nistp521-cert-v01@openssh.com"
 	fi
-
 
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for crypt in -lcrypt" >&5
@@ -14289,10 +14516,6 @@ enable_pkcs11=yes
 enable_sk=yes
 if test "x$openssl" != "xyes" ; then
 	enable_pkcs11="disabled; missing libcrypto"
-	enable_sk="disabled; missing libcrypto"
-fi
-if test "x$openssl_ecc" != "xyes" ; then
-	enable_sk="disabled; OpenSSL has no ECC support"
 fi
 if test "x$ac_cv_func_dlopen" != "xyes" ; then
 	enable_pkcs11="disabled; missing dlopen(3)"
@@ -14507,8 +14730,10 @@ fi
 	saved_LIBS="$LIBS"
 	LIBS="$LIBS $LIBFIDO2"
 	for ac_func in  \
+		fido_assert_set_clientdata \
 		fido_cred_prot \
 		fido_cred_set_prot \
+		fido_cred_set_clientdata \
 		fido_dev_get_touch_begin \
 		fido_dev_get_touch_status \
 		fido_dev_supports_cred_prot \
@@ -15097,11 +15322,12 @@ if test "${with_sandbox+set}" = set; then :
 fi
 
 
-# Some platforms (seems to be the ones that have a kernel poll(2)-type
-# function with which they implement select(2)) use an extra file descriptor
-# when calling select(2), which means we can't use the rlimit sandbox.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if select works with descriptor rlimit" >&5
-$as_echo_n "checking if select works with descriptor rlimit... " >&6; }
+# POSIX specifies that poll() "shall fail with EINVAL if the nfds argument
+# is greater than OPEN_MAX".  On some platforms that includes implementions
+# ofselect in userspace on top of poll() so check both work with rlimit NOFILES
+# so check that both work before enabling the rlimit sandbox.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if select and/or poll works with descriptor rlimit" >&5
+$as_echo_n "checking if select and/or poll works with descriptor rlimit... " >&6; }
 if test "$cross_compiling" = yes; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming yes" >&5
 $as_echo "$as_me: WARNING: cross compiling: assuming yes" >&2;}
@@ -15119,6 +15345,11 @@ else
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>
 #endif
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#elif HAVE_SYS_POLL_H
+# include <sys/poll.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -15131,6 +15362,9 @@ main ()
 	int fd, r;
 	fd_set fds;
 	struct timeval tv;
+#ifdef HAVE_POLL
+	struct pollfd pfd;
+#endif
 
 	fd = open("/dev/null", O_RDONLY);
 	FD_ZERO(&fds);
@@ -15141,7 +15375,16 @@ main ()
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	r = select(fd+1, &fds, NULL, NULL, &tv);
-	exit (r == -1 ? 1 : 0);
+	if (r == -1)
+		exit(1);
+#ifdef HAVE_POLL
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	r = poll(&pfd, 1, 1);
+	if (r == -1)
+		exit(2);
+#endif
+	exit(0);
 
   ;
   return 0;
@@ -15158,6 +15401,46 @@ $as_echo "no" >&6; }
 fi
 rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
+ac_fn_c_check_member "$LINENO" "struct pollfd" "fd" "ac_cv_member_struct_pollfd_fd" "
+#include <sys/types.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#endif
+
+"
+if test "x$ac_cv_member_struct_pollfd_fd" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_POLLFD_FD 1
+_ACEOF
+
+
+fi
+
+
+ac_fn_c_check_type "$LINENO" "nfds_t" "ac_cv_type_nfds_t" "
+#include <sys/types.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#endif
+
+"
+if test "x$ac_cv_type_nfds_t" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_NFDS_T 1
+_ACEOF
+
+
 fi
 
 
@@ -15300,6 +15583,7 @@ $as_echo "#define SANDBOX_SECCOMP_FILTER 1" >>confdefs.h
 
 elif test "x$sandbox_arg" = "xcapsicum" || \
      ( test -z "$sandbox_arg" && \
+       test "x$disable_capsicum" != "xyes" && \
        test "x$ac_cv_header_sys_capsicum_h" = "xyes" && \
        test "x$ac_cv_func_cap_rights_limit" = "xyes") ; then
        test "x$ac_cv_header_sys_capsicum_h" != "xyes" && \
@@ -19843,23 +20127,6 @@ else
 fi
 
 
-# Check whether to enable MD5 passwords
-MD5_MSG="no"
-
-# Check whether --with-md5-passwords was given.
-if test "${with_md5_passwords+set}" = set; then :
-  withval=$with_md5_passwords;
-		if test "x$withval" != "xno" ; then
-
-$as_echo "#define HAVE_MD5_PASSWORDS 1" >>confdefs.h
-
-			MD5_MSG="yes"
-		fi
-
-
-fi
-
-
 # Whether to disable shadow password support
 
 # Check whether --with-shadow was given.
@@ -21998,7 +22265,6 @@ echo "                       PAM support: $PAM_MSG"
 echo "                   OSF SIA support: $SIA_MSG"
 echo "                 KerberosV support: $KRB5_MSG"
 echo "                   SELinux support: $SELINUX_MSG"
-echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "                   libldns support: $LDNS_MSG"
 echo "  Solaris process contract support: $SPC_MSG"

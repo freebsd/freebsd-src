@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.228 2021/08/11 05:20:17 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.231 2022/01/28 06:18:42 guenther Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -790,7 +790,7 @@ mm_answer_pwnamallow(struct ssh *ssh, int sock, struct sshbuf *m)
 	if (auth2_setup_methods_lists(authctxt) != 0) {
 		/*
 		 * The monitor will continue long enough to let the child
-		 * run to it's packet_disconnect(), but it must not allow any
+		 * run to its packet_disconnect(), but it must not allow any
 		 * authentication to succeed.
 		 */
 		debug_f("no valid authentication method lists");
@@ -1246,11 +1246,12 @@ static int
 monitor_valid_userblob(struct ssh *ssh, const u_char *data, u_int datalen)
 {
 	struct sshbuf *b;
+	struct sshkey *hostkey = NULL;
 	const u_char *p;
 	char *userstyle, *cp;
 	size_t len;
 	u_char type;
-	int r, fail = 0;
+	int hostbound = 0, r, fail = 0;
 
 	if ((b = sshbuf_from(data, datalen)) == NULL)
 		fatal_f("sshbuf_from");
@@ -1291,19 +1292,34 @@ monitor_valid_userblob(struct ssh *ssh, const u_char *data, u_int datalen)
 	if ((r = sshbuf_skip_string(b)) != 0 ||	/* service */
 	    (r = sshbuf_get_cstring(b, &cp, NULL)) != 0)
 		fatal_fr(r, "parse method");
-	if (strcmp("publickey", cp) != 0)
-		fail++;
+	if (strcmp("publickey", cp) != 0) {
+		if (strcmp("publickey-hostbound-v00@openssh.com", cp) == 0)
+			hostbound = 1;
+		else
+			fail++;
+	}
 	free(cp);
 	if ((r = sshbuf_get_u8(b, &type)) != 0)
 		fatal_fr(r, "parse pktype");
 	if (type == 0)
 		fail++;
 	if ((r = sshbuf_skip_string(b)) != 0 ||	/* pkalg */
-	    (r = sshbuf_skip_string(b)) != 0)	/* pkblob */
+	    (r = sshbuf_skip_string(b)) != 0 ||	/* pkblob */
+	    (hostbound && (r = sshkey_froms(b, &hostkey)) != 0))
 		fatal_fr(r, "parse pk");
 	if (sshbuf_len(b) != 0)
 		fail++;
 	sshbuf_free(b);
+	if (hostkey != NULL) {
+		/*
+		 * Ensure this is actually one of our hostkeys; unfortunately
+		 * can't check ssh->kex->initial_hostkey directly at this point
+		 * as packet state has not yet been exported to monitor.
+		 */
+		if (get_hostkey_index(hostkey, 1, ssh) == -1)
+			fatal_f("hostbound hostkey does not match");
+		sshkey_free(hostkey);
+	}
 	return (fail == 0);
 }
 
@@ -1432,7 +1448,8 @@ mm_answer_keyverify(struct ssh *ssh, int sock, struct sshbuf *m)
 
 	ret = sshkey_verify(key, signature, signaturelen, data, datalen,
 	    sigalg, ssh->compat, &sig_details);
-	debug3_f("%s %s signature %s%s%s", auth_method, sshkey_type(key),
+	debug3_f("%s %s signature using %s %s%s%s", auth_method,
+	    sshkey_type(key), sigalg == NULL ? "default" : sigalg,
 	    (ret == 0) ? "verified" : "unverified",
 	    (ret != 0) ? ": " : "", (ret != 0) ? ssh_err(ret) : "");
 

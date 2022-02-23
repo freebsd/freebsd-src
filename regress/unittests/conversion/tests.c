@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.3 2021/01/18 11:43:34 dtucker Exp $ */
+/* 	$OpenBSD: tests.c,v 1.4 2021/12/14 21:25:27 deraadt Exp $ */
 /*
  * Regress test for conversions
  *
@@ -8,7 +8,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
