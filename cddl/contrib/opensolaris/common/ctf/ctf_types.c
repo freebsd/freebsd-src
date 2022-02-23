@@ -33,8 +33,7 @@ ctf_get_ctt_size(const ctf_file_t *fp, const ctf_type_t *tp, ssize_t *sizep,
 {
 	ssize_t size, increment;
 
-	if (fp->ctf_version > CTF_VERSION_1 &&
-	    tp->ctt_size == CTF_LSIZE_SENT) {
+	if (tp->ctt_size == CTF_LSIZE_SENT) {
 		size = CTF_TYPE_LSIZE(tp);
 		increment = sizeof (ctf_type_t);
 	} else {
@@ -75,7 +74,7 @@ ctf_member_iter(ctf_file_t *fp, ctf_id_t type, ctf_member_f *func, void *arg)
 	if (kind != CTF_K_STRUCT && kind != CTF_K_UNION)
 		return (ctf_set_errno(ofp, ECTF_NOTSOU));
 
-	if (fp->ctf_version == CTF_VERSION_1 || size < CTF_LSTRUCT_THRESH) {
+	if (size < CTF_LSTRUCT_THRESH) {
 		const ctf_member_t *mp = (const ctf_member_t *)
 		    ((uintptr_t)tp + increment);
 
@@ -425,8 +424,7 @@ ctf_type_align(ctf_file_t *fp, ctf_id_t type)
 		if (LCTF_INFO_KIND(fp, tp->ctt_info) == CTF_K_STRUCT)
 			n = MIN(n, 1); /* only use first member for structs */
 
-		if (fp->ctf_version == CTF_VERSION_1 ||
-		    size < CTF_LSTRUCT_THRESH) {
+		if (size < CTF_LSTRUCT_THRESH) {
 			const ctf_member_t *mp = vmp;
 			for (; n != 0; n--, mp++) {
 				ssize_t am = ctf_type_align(fp, mp->ctm_type);
@@ -665,7 +663,7 @@ _ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name, ulong_t off,
 	if (kind != CTF_K_STRUCT && kind != CTF_K_UNION)
 		return (ctf_set_errno(ofp, ECTF_NOTSOU));
 
-	if (fp->ctf_version == CTF_VERSION_1 || size < CTF_LSTRUCT_THRESH) {
+	if (size < CTF_LSTRUCT_THRESH) {
 		const ctf_member_t *mp = (const ctf_member_t *)
 		    ((uintptr_t)tp + increment);
 
@@ -849,7 +847,7 @@ ctf_type_rvisit(ctf_file_t *fp, ctf_id_t type, ctf_visit_f *func, void *arg,
 
 	(void) ctf_get_ctt_size(fp, tp, &size, &increment);
 
-	if (fp->ctf_version == CTF_VERSION_1 || size < CTF_LSTRUCT_THRESH) {
+	if (size < CTF_LSTRUCT_THRESH) {
 		const ctf_member_t *mp = (const ctf_member_t *)
 		    ((uintptr_t)tp + increment);
 
