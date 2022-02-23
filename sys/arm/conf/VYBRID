@@ -44,6 +44,14 @@ options 	NO_SWAPPING
 # Interrupt controller
 device		gic
 
+# pseudo devices
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
 # ARM MPCore timer
 device		mpcore_timer
 

@@ -23,6 +23,14 @@ options 	SMP
 
 options		VM_KMEM_SIZE_MAX=0x9CCD000
 
+# pseudo devices
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
 # Pseudo devices
 device		pty
 device		loop
