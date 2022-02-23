@@ -2453,7 +2453,7 @@ dev/mmc/mmc.c			optional mmc !mmccam
 dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd !mmccam
-dev/mmc/mmc_fdt_helpers.c	optional mmc fdt | mmccam fdt
+dev/mmc/mmc_fdt_helpers.c	optional mmc regulator clk fdt | mmccam regulator clk fdt
 dev/mmc/mmc_helpers.c		optional mmc gpio regulator clk | mmccam gpio regulator clk
 dev/mmc/mmc_pwrseq.c		optional mmc clk regulator fdt | mmccam clk regulator fdt
 dev/mmc/mmc_pwrseq_if.m		optional mmc clk regulator fdt | mmccam clk regulator fdt
@@ -3063,9 +3063,9 @@ dev/scc/scc_core.c		optional scc
 dev/scc/scc_dev_quicc.c		optional scc quicc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/sdhci/sdhci.c		optional sdhci
-dev/sdhci/sdhci_fdt.c		optional sdhci fdt
+dev/sdhci/sdhci_fdt.c		optional sdhci fdt regulator clk
 dev/sdhci/sdhci_fdt_gpio.c	optional sdhci fdt gpio
-dev/sdhci/sdhci_fsl_fdt.c	optional sdhci fdt gpio
+dev/sdhci/sdhci_fsl_fdt.c	optional sdhci fdt gpio regulator clk
 dev/sdhci/sdhci_if.m		optional sdhci
 dev/sdhci/sdhci_acpi.c		optional sdhci acpi
 dev/sdhci/sdhci_pci.c		optional sdhci pci
