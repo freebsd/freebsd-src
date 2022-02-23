@@ -239,8 +239,10 @@ print_var(efi_guid_t *guid, char *name)
 			if (data == NULL)
 				rep_err(1, "malloc");
 			datalen = read(fd, data, 64 * 1024);
-			if (datalen <= 0)
+			if ((ssize_t)datalen < 0)
 				rep_err(1, "read");
+			if (datalen == 0)
+				rep_errx(1, "empty file");
 			close(fd);
 		} else {
 			rv = efi_get_variable(*guid, name, &data, &datalen, &att);
