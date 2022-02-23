@@ -490,6 +490,7 @@ struct inostat *inoinfo(ino_t inum);
 void		IOstats(char *what);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
 int		makeentry(ino_t parent, ino_t ino, const char *name);
+int		openfilesys(char *dev);
 void		panic(const char *fmt, ...) __printflike(1, 2);
 void		pass1(void);
 void		pass1b(void);
