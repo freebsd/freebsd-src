@@ -514,7 +514,7 @@ DevPathToTextAcpiEx (
     (AcpiEx->CID >> 16) & 0xFFFF
     );
 
-  if ((*HIDStr == '\0') && (*CIDStr == '\0') && (AcpiEx->UID == 0)) {
+  if ((*HIDStr == '\0') && (*CIDStr == '\0') && (*UIDStr != '\0')) {
     //
     // use AcpiExp()
     //
