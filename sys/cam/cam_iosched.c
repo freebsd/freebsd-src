@@ -1518,8 +1518,9 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 
 #ifdef CAM_IOSCHED_DYNAMIC
 	/*
-	 * See if we have any pending writes, and room in the queue for them,
-	 * and if so, those are next.
+	 * See if we have any pending writes, room in the queue for them,
+	 * and no pending reads (unless we've scheduled too many).
+	 * if so, those are next.
 	 */
 	if (do_dynamic_iosched) {
 		if ((bp = cam_iosched_get_write(isc)) != NULL)
