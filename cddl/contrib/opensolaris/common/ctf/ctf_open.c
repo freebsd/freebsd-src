@@ -229,8 +229,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			break;
 		case CTF_K_STRUCT:
 		case CTF_K_UNION:
-			if (fp->ctf_version == CTF_VERSION_1 ||
-			    size < CTF_LSTRUCT_THRESH) {
+			if (size < CTF_LSTRUCT_THRESH) {
 				ctf_member_t *mp = (ctf_member_t *)
 				    ((uintptr_t)tp + increment);
 
@@ -383,8 +382,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
 
-			if (fp->ctf_version == CTF_VERSION_1 ||
-			    size < CTF_LSTRUCT_THRESH)
+			if (size < CTF_LSTRUCT_THRESH)
 				vbytes = sizeof (ctf_member_t) * vlen;
 			else {
 				vbytes = sizeof (ctf_lmember_t) * vlen;
@@ -399,8 +397,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
 
-			if (fp->ctf_version == CTF_VERSION_1 ||
-			    size < CTF_LSTRUCT_THRESH)
+			if (size < CTF_LSTRUCT_THRESH)
 				vbytes = sizeof (ctf_member_t) * vlen;
 			else {
 				vbytes = sizeof (ctf_lmember_t) * vlen;
