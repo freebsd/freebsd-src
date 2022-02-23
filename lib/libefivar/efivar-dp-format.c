@@ -539,13 +539,22 @@ DevPathToTextAcpiEx (
     //
     // use AcpiExp()
     //
-    UefiDevicePathLibCatPrint (
-      Str,
-      "AcpiExp(%s,%s,%s)",
-      HIDText,
-      CIDText,
-      UIDStr
-      );
+    if (AcpiEx->CID == 0) {
+      UefiDevicePathLibCatPrint (
+         Str,
+         "AcpiExp(%s,0,%s)",
+         HIDText,
+         UIDStr
+        );
+    } else {
+      UefiDevicePathLibCatPrint (
+        Str,
+        "AcpiExp(%s,%s,%s)",
+        HIDText,
+        CIDText,
+        UIDStr
+        );
+    }
   } else {
     if (AllowShortcuts) {
       //

@@ -1014,7 +1014,16 @@ DevPathFromTextAcpiExp (
                                                   );
 
   AcpiEx->HID = EisaIdFromText (HIDStr);
-  AcpiEx->CID = EisaIdFromText (CIDStr);
+  //
+  // According to UEFI spec, the CID parameter is optional and has a default value of 0.
+  // So when the CID parameter is not specified or specified as 0 in the text device node.
+  // Set the CID to 0 in the ACPI extension device path structure.
+  //
+  if (*CIDStr == '\0' || *CIDStr == '0') {
+    AcpiEx->CID = 0;
+  } else {
+    AcpiEx->CID = EisaIdFromText (CIDStr);
+  }
   AcpiEx->UID = 0;
 
   AsciiStr = (CHAR8 *) ((UINT8 *)AcpiEx + sizeof (ACPI_EXTENDED_HID_DEVICE_PATH));
