@@ -1470,7 +1470,7 @@ alloc:
 		    dtyp->dty_dst, ctf_lookup_by_name(dmp->dm_ctfp,
 		    dtyp->dty_src)) == CTF_ERR) {
 			dt_dprintf("failed to add typedef %s %s to D "
-			    "container: %s", dtyp->dty_src, dtyp->dty_dst,
+			    "container: %s\n", dtyp->dty_src, dtyp->dty_dst,
 			    ctf_errmsg(ctf_errno(dmp->dm_ctfp)));
 			return (set_open_errno(dtp, errp, EDT_CTF));
 		}
