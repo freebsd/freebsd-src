@@ -100,21 +100,23 @@ main(int argc, char *argv[])
 {
 	struct stat to_stat, tmp_stat;
 	enum op type;
-	int ch, fts_options, r, have_trailing_slash;
+	int Pflag, ch, fts_options, r, have_trailing_slash;
 	char *target;
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
+	Pflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRafilnprsvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
-			Lflag = 0;
+			Lflag = Pflag = 0;
 			break;
 		case 'L':
 			Lflag = 1;
-			Hflag = 0;
+			Hflag = Pflag = 0;
 			break;
 		case 'P':
+			Pflag = 1;
 			Hflag = Lflag = 0;
 			break;
 		case 'R':
@@ -123,6 +125,7 @@ main(int argc, char *argv[])
 		case 'a':
 			pflag = 1;
 			Rflag = 1;
+			Pflag = 1;
 			Hflag = Lflag = 0;
 			break;
 		case 'f':
@@ -145,7 +148,7 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			rflag = Lflag = 1;
-			Hflag = 0;
+			Hflag = Pflag = 0;
 			break;
 		case 's':
 			sflag = 1;
@@ -179,7 +182,7 @@ main(int argc, char *argv[])
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	} else {
+	} else if (!Pflag) {
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
