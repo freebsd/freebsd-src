@@ -19,9 +19,9 @@
   013   '='    '+'    nop    nop    0xa7   '+'    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
-  016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
-  017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
-  018   'e'    'E'    enq    enq    'e'    'E'    enq    enq     C
+  016   'q'    'Q'    dc1    dc1    '/'    'Q'    dc1    dc1     C
+  017   'w'    'W'    etb    etb    '?'    'W'    etb    etb     C
+  018   'e'    'E'    enq    enq    0x00b0 'E'    enq    enq     C
   019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
   021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
@@ -49,7 +49,7 @@
   043   ']'    '}'    gs     gs     0xba   '}'    gs     gs      O
   044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
-  046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
+  046   'c'    'C'    etx    etx    0x20a2 'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
