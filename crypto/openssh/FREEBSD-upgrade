@@ -77,6 +77,7 @@
 
 12) Run the configure script:
 
+    $ cd crypto/openssh
     $ sh freebsd-configure.sh
 
 13) Review changes to config.h very carefully.
@@ -89,6 +90,7 @@
 
 15) Update ssh_namespace.h:
 
+    $ cd crypto/openssh
     $ sh freebsd-namespace.sh
 
 16) Build and install world, reboot, test.  Pay particular attention
