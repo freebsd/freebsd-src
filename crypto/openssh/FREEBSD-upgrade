@@ -80,7 +80,7 @@
     $ sh freebsd-post-merge.sh
 
     These tags are not used with git, but we will leave them in place as
-    long as svn-based FreeBSD 11.x and 12.x are supported.
+    long as svn-based FreeBSD 12.x is supported.
 
 0D) Run the configure script:
 
