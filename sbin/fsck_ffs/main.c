@@ -76,7 +76,6 @@ static void usage(void) __dead2;
 static intmax_t argtoimax(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
 static int setup_bkgrdchk(struct statfs *mntp, int sbrdfailed, char **filesys);
-static int openfilesys(char *dev);
 static int chkdoreload(struct statfs *mntp);
 static struct statfs *getmntpt(const char *);
 
@@ -712,44 +711,6 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 	*filesys = snapname;
 	cmd.version = FFS_CMD_VERSION;
 	cmd.handle = fsreadfd;
-	return (1);
-}
-
-/*
- * Open a device or file to be checked by fsck.
- */
-static int
-openfilesys(char *dev)
-{
-	struct stat statb;
-	int saved_fsreadfd;
-
-	if (stat(dev, &statb) < 0) {
-		pfatal("CANNOT STAT %s: %s\n", dev, strerror(errno));
-		return (0);
-	}
-	if ((statb.st_mode & S_IFMT) != S_IFCHR &&
-	    (statb.st_mode & S_IFMT) != S_IFBLK) {
-		if (bkgrdflag != 0 && (statb.st_flags & SF_SNAPSHOT) == 0) {
-			pfatal("BACKGROUND FSCK LACKS A SNAPSHOT\n");
-			exit(EEXIT);
-		}
-		if (bkgrdflag != 0) {
-			cursnapshot = statb.st_ino;
-		} else {
-			pfatal("%s IS NOT A DISK DEVICE\n", dev);
-			if (reply("CONTINUE") == 0)
-				return (0);
-		}
-	}
-	saved_fsreadfd = fsreadfd;
-	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
-		fsreadfd = saved_fsreadfd;
-		pfatal("CANNOT OPEN %s: %s\n", dev, strerror(errno));
-		return (0);
-	}
-	if (saved_fsreadfd != -1)
-		close(saved_fsreadfd);
 	return (1);
 }
 

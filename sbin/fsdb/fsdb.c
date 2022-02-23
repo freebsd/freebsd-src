@@ -111,7 +111,7 @@ main(int argc, char *argv[])
 		fsys = argv[0];
 
 	sblock_init();
-	if (!setup(fsys))
+	if (openfilesys(fsys) == 0 || readsb(0) == 0 || setup(fsys) == 0)
 		errx(1, "cannot set up file system `%s'", fsys);
 	if (fswritefd < 0)
 		nflag++;
