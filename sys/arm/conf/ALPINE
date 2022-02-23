@@ -38,6 +38,14 @@ device		al_iofic		# I/O Fabric Interrupt Controller
 device		al_serdes		# Serializer/Deserializer
 device		al_udma			# Universal DMA
 
+# pseudo devices
+device		clk
+device		phy
+device		hwreset
+device		nvmem
+device		regulator
+device		syscon
+
 # Pseudo devices
 device		loop
 device		pty
