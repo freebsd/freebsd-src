@@ -174,6 +174,7 @@ BADHDRS= \
 	net/paravirt.h \
 	net/pfil.h \
 	net/pfkeyv2.h \
+	net/pfvar.h \
 	net/radix.h \
 	net/raw_cb.h \
 	net/rndis.h \
