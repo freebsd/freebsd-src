@@ -1759,6 +1759,51 @@ DevPathToTextBluetoothLE (
 }
 
 /**
+  Converts a DNS device path structure to its string representative.
+
+  @param Str             The string representative of input device.
+  @param DevPath         The input device path structure.
+  @param DisplayOnly     If DisplayOnly is TRUE, then the shorter text representation
+                         of the display node is used, where applicable. If DisplayOnly
+                         is FALSE, then the longer text representation of the display node
+                         is used.
+  @param AllowShortcuts  If AllowShortcuts is TRUE, then the shortcut forms of text
+                         representation for a device node can be used, where applicable.
+
+**/
+static VOID
+DevPathToTextDns (
+  IN OUT POOL_PRINT  *Str,
+  IN VOID            *DevPath,
+  IN BOOLEAN         DisplayOnly,
+  IN BOOLEAN         AllowShortcuts
+  )
+{
+  DNS_DEVICE_PATH  *DnsDevPath;
+  UINT32           DnsServerIpCount;
+  UINT32           DnsServerIpIndex;
+
+  DnsDevPath     = DevPath;
+  DnsServerIpCount = (UINT32) (DevicePathNodeLength(DnsDevPath) - sizeof (EFI_DEVICE_PATH_PROTOCOL) - sizeof (DnsDevPath->IsIPv6)) / sizeof (EFI_IP_ADDRESS);
+
+  UefiDevicePathLibCatPrint (Str, "Dns(");
+
+  for (DnsServerIpIndex = 0; DnsServerIpIndex < DnsServerIpCount; DnsServerIpIndex++) {
+    if (DnsDevPath->IsIPv6 == 0x00) {
+      CatIPv4Address (Str, &(DnsDevPath->DnsServerIp[DnsServerIpIndex].v4));
+    } else {
+      CatIPv6Address (Str, &(DnsDevPath->DnsServerIp[DnsServerIpIndex].v6));
+    }
+
+    if (DnsServerIpIndex < DnsServerIpCount - 1) {
+      UefiDevicePathLibCatPrint (Str, ",");
+    }
+  }
+
+  UefiDevicePathLibCatPrint (Str, ")");
+}
+
+/**
   Converts a URI device path structure to its string representative.
 
   @param Str             The string representative of input device.
@@ -2291,6 +2336,7 @@ static const DEVICE_PATH_TO_TEXT_TABLE mUefiDevicePathLibToTextTable[] = {
   {MESSAGING_DEVICE_PATH, MSG_VENDOR_DP,                    DevPathToTextVendor         },
   {MESSAGING_DEVICE_PATH, MSG_ISCSI_DP,                     DevPathToTextiSCSI          },
   {MESSAGING_DEVICE_PATH, MSG_VLAN_DP,                      DevPathToTextVlan           },
+  {MESSAGING_DEVICE_PATH, MSG_DNS_DP,                       DevPathToTextDns            },
   {MESSAGING_DEVICE_PATH, MSG_URI_DP,                       DevPathToTextUri            },
   {MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_DP,                 DevPathToTextBluetooth      },
   {MESSAGING_DEVICE_PATH, MSG_WIFI_DP,                      DevPathToTextWiFi           },
