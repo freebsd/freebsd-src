@@ -98,6 +98,10 @@ xhci_pci_match(device_t self)
 	switch (device_id) {
 	case 0x145c1022:
 		return ("AMD KERNCZ USB 3.0 controller");
+	case 0x148c1022:
+		return ("AMD Starship USB 3.0 controller");
+	case 0x149c1022:
+		return ("AMD Matisse USB 3.0 controller");
 	case 0x43ba1022:
 		return ("AMD X399 USB 3.0 controller");
 	case 0x43b91022: /* X370 */
@@ -125,6 +129,8 @@ xhci_pci_match(device_t self)
 		return ("ASMedia ASM1042 USB 3.0 controller");
 	case 0x11421b21:
 		return ("ASMedia ASM1042A USB 3.0 controller");
+	case 0x32421b21:
+		return ("ASMedia ASM3242 USB 3.2 controller");
 
 	case 0x0b278086:
 		return ("Intel Goshen Ridge Thunderbolt 4 USB controller");
@@ -190,6 +196,9 @@ xhci_pci_match(device_t self)
 
 	case 0xa01b177d:
 		return ("Cavium ThunderX USB 3.0 controller");
+
+	case 0x1ada10de:
+		return ("NVIDIA TU106 USB 3.1 controller");
 
 	default:
 		break;
