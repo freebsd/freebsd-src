@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <stand.h>
 #include <string.h>
 
@@ -58,6 +59,10 @@ module_verbose_set(struct env_var *ev, int flags, const void *value)
 		return (CMD_ERROR);
 	}
 	module_verbose = (int)v;
+	if (module_verbose < MODULE_VERBOSE_TWIDDLE) {
+		/* A hack for now; we do not want twiddling */
+		twiddle_divisor(UINT_MAX);
+	}
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 
 	return (CMD_OK);
