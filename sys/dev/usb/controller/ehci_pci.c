@@ -117,6 +117,8 @@ ehci_pci_match(device_t self)
 		return ("AMD CS5536 (Geode) USB 2.0 controller");
 	case 0x78081022:
 		return ("AMD FCH USB 2.0 controller");
+	case 0x79081022:
+		return ("AMD FCH USB 2.0 controller");
 
 	case 0x43451002:
 		return "ATI SB200 USB 2.0 controller";
