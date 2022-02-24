@@ -28,6 +28,8 @@
 #include "opt_rss.h"
 #include "opt_ratelimit.h"
 
+#include <linux/printk.h>
+
 #include <dev/mlx5/mlx5_en/en.h>
 
 struct mlx5_cqe64 *
@@ -53,4 +55,27 @@ mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event)
 
 	mlx5_en_err(cq->priv->ifp, "cqn=0x%.6x event=0x%.2x\n",
 	    mcq->cqn, event);
+}
+
+void
+mlx5e_dump_err_cqe(struct mlx5e_cq *cq, u32 qn, const struct mlx5_err_cqe *err_cqe)
+{
+	u32 ci;
+
+	/* Don't print flushed in error syndromes. */
+	if (err_cqe->vendor_err_synd == 0xf9 && err_cqe->syndrome == 0x05)
+		return;
+	/* Don't print when the queue is set to error state by software. */
+	if (err_cqe->vendor_err_synd == 0xf5 && err_cqe->syndrome == 0x05)
+		return;
+
+	ci = (cq->wq.cc - 1) & cq->wq.sz_m1;
+
+	mlx5_en_err(cq->priv->ifp,
+	    "Error CQE on CQN 0x%x, CI 0x%x, QN 0x%x, OPCODE 0x%x, SYNDROME 0x%x, VENDOR SYNDROME 0x%x\n",
+	    cq->mcq.cqn, ci, qn, err_cqe->op_own >> 4,
+	    err_cqe->syndrome, err_cqe->vendor_err_synd);
+
+	print_hex_dump(NULL, NULL, DUMP_PREFIX_OFFSET,
+	    16, 1, err_cqe, sizeof(*err_cqe), false);
 }
