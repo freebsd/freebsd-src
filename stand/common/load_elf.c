@@ -469,11 +469,6 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	} else if (module_verbose > MODULE_VERBOSE_SILENT)
 		printf("%s ", filename);
 
-	if (module_verbose < MODULE_VERBOSE_TWIDDLE) {
-		/* A hack for now; we do not want twiddling */
-		twiddle_divisor(UINT_MAX);
-	}
-
 	fp->f_size = __elfN(loadimage)(fp, &ef, dest);
 	if (fp->f_size == 0 || fp->f_addr == 0)
 		goto ioerr;
