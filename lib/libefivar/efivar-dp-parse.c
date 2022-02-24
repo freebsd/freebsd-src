@@ -2781,35 +2781,20 @@ DevPathFromTextBluetooth (
   )
 {
   CHAR16                  *BluetoothStr;
-  CHAR16                  *Walker;
-  CHAR16                  *TempNumBuffer;
-  UINTN                   TempBufferSize;
-  INT32                   Index;
   BLUETOOTH_DEVICE_PATH   *BluetoothDp;
 
   BluetoothStr = GetNextParamStr (&TextDeviceNode);
-  BluetoothDp = (BLUETOOTH_DEVICE_PATH *) CreateDeviceNode (
-                                   MESSAGING_DEVICE_PATH,
-                                   MSG_BLUETOOTH_DP,
-                                   (UINT16) sizeof (BLUETOOTH_DEVICE_PATH)
-                                   );
-
-  Index = sizeof (BLUETOOTH_ADDRESS) - 1;
-  Walker = BluetoothStr;
-  while (!IS_NULL(*Walker) && Index >= 0) {
-    TempBufferSize = 2 * sizeof(CHAR16) + StrSize("0x");
-    TempNumBuffer = AllocateZeroPool (TempBufferSize);
-    if (TempNumBuffer == NULL) {
-      break;
-    }
-    StrCpyS (TempNumBuffer, TempBufferSize / sizeof (CHAR16), "0x");
-    StrnCatS (TempNumBuffer, TempBufferSize / sizeof (CHAR16), Walker, 2);
-    BluetoothDp->BD_ADDR.Address[Index] = (UINT8)Strtoi (TempNumBuffer);
-    FreePool (TempNumBuffer);
-    Walker += 2;
-    Index--;
-  }
-
+  BluetoothDp  = (BLUETOOTH_DEVICE_PATH *) CreateDeviceNode (
+                                             MESSAGING_DEVICE_PATH,
+                                             MSG_BLUETOOTH_DP,
+                                             (UINT16) sizeof (BLUETOOTH_DEVICE_PATH)
+                                             );
+  StrHexToBytes (
+    BluetoothStr,
+    sizeof (BLUETOOTH_ADDRESS) * 2,
+    BluetoothDp->BD_ADDR.Address,
+    sizeof (BLUETOOTH_ADDRESS)
+    );
   return (EFI_DEVICE_PATH_PROTOCOL *) BluetoothDp;
 }
 
