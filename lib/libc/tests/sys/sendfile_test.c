@@ -1110,7 +1110,7 @@ ATF_TC_BODY(s_negative_not_socket_file_descriptor, tc)
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	client_sock = open(_PATH_DEVNULL, O_WRONLY);
-	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(client_sock != -1, "open failed: %s", strerror(errno));
 
 	error = sendfile(fd, client_sock, 0, 0, NULL, NULL, SF_FLAGS(0, 0));
 	ATF_REQUIRE_ERRNO(ENOTSOCK, error == -1);
