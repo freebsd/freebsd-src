@@ -71,7 +71,6 @@ With the
 policy active, it may also be possible to start ntpd as a non-root user,
 because the default ntpd options don't require any additional root
 privileges beyond those granted by the policy.
-.Pp
 .Ss Privileges Granted
 The exact set of kernel privileges granted to any process running
 with the configured uid is:
@@ -82,7 +81,6 @@ with the configured uid is:
 .It Dv PRIV_NETINET_RESERVEDPORT
 .It Dv PRIV_NETINET_REUSEPORT
 .El
-.Pp
 .Ss Runtime Configuration
 The following
 .Xr sysctl 8
