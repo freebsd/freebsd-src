@@ -40,13 +40,11 @@
 .Xr audit 4
 events
 .Sh SYNOPSIS
-.Pp
 .Fn audit:event:aue_*:commit "char *eventname" "struct audit_record *ar"
 .Fn audit:event:aue_*:bsm "char *eventname" "struct audit_record *ar" "const void *" "size_t"
 .Pp
 To compile this module into the kernel, place the following in your kernel
 configuration file:
-.Pp
 .Bd -literal -offset indent
 .Cd "options DTAUDIT"
 .Ed

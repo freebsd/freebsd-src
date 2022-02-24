@@ -75,13 +75,13 @@ the congestion window in response to an ECN congestion signal when
 .Va net.inet.tcp.cc.abe=1
 per: cwnd = (cwnd * CC_NEWRENO_BETA_ECN) / 100.
 Default is 80.
-.PP
+.Pp
 Note that currently the only way to enable
 hystart++ is to enable it via socket option.
 When enabling it a value of 1 will enable precise internet-draft (version 4) behavior
 (subject to any MIB variable settings), other setting (2 and 3) are experimental.
 .El
-.PP
+.Pp
 Note that hystart++ requires the TCP stack be able to call to the congestion
 controller with both the
 .Va newround
@@ -90,7 +90,6 @@ function as well as the
 function.
 Currently the only TCP stacks that provide this feedback to the
 congestion controller is rack.
-.Pp
 .Sh MIB Variables
 The algorithm exposes these variables in the
 .Va net.inet.tcp.cc.newreno

@@ -187,7 +187,6 @@ but as packets (mbufs) are passed to the underlying interface, a queue
 can be defined for the underlying interface, and any packets directed
 to the queue will be processed at the interface level.
 An example:
-.Pp
 .Bd -literal -offset indent
 altq on igb0 cbq queue { def aq }
 queue def bandwidth 90% cbq (default borrow)
