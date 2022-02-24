@@ -89,11 +89,11 @@ void __iwl_warn(struct device *, const char *, ...);
 void __iwl_err(struct device *, enum iwl_err_mode, const char *, ...);
 
 #define	IWL_CRIT(_subsys, _fmt, ...)					\
-	__iwl_crit((_subsys)->dev, (_fmt), ##__VA_ARGS__)
+	__iwl_crit((_subsys)->dev, _fmt, ##__VA_ARGS__)
 #define	IWL_INFO(_subsys, _fmt, ...)					\
-	__iwl_info((_subsys)->dev, (_fmt), ##__VA_ARGS__)
+	__iwl_info((_subsys)->dev, _fmt, ##__VA_ARGS__)
 #define	IWL_WARN(_subsys, _fmt, ...)					\
-	__iwl_warn((_subsys)->dev, (_fmt), ##__VA_ARGS__)
+	__iwl_warn((_subsys)->dev, _fmt, ##__VA_ARGS__)
 /* XXX Not sure what the two bools are good for if never passed. */
 #define	__IWL_ERR_DEV(_dev, _mode, _fmt, ...)				\
 	__iwl_err((_dev), IWL_ERR_MODE_REGULAR, _fmt, ##__VA_ARGS__)
@@ -112,82 +112,87 @@ bool iwl_have_debug_level(enum iwl_dl);
 void iwl_print_hex_dump(void *, enum iwl_dl, const char *, uint8_t *, size_t);
 void __iwl_dbg(struct device *, u32, bool, const char *, const char *fmt, ...);
 
+#define	IWL_DPRINTF_DEV_PREFIX(_dev, _e, _prefix, _fmt, ...)		\
+	__iwl_dbg(_dev, _e, false, __func__, #_prefix " " _fmt, ##__VA_ARGS__)
 #define	IWL_DPRINTF_DEV(_dev, _e, _fmt, ...)				\
-	__iwl_dbg((_dev), (_e), false, __func__, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF_DEV_PREFIX(_dev, _e, _e, _fmt, ##__VA_ARGS__)
 #define	IWL_DPRINTF(_subsys, _e, _fmt, ...)				\
-	IWL_DPRINTF_DEV((_subsys)->dev, (_e), (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF_DEV((_subsys)->dev, _e, _fmt, ##__VA_ARGS__)
+#define	IWL_DPRINTF_PREFIX(_subsys, _e, _prefix, _fmt, ...)		\
+	IWL_DPRINTF_DEV_PREFIX((_subsys)->dev, _e, _prefix, _fmt, ##__VA_ARGS__)
 
 #else /* !CONFIG_IWLWIFI_DEBUG */
 #define	IWL_DPRINTF_DEV(_dev, _e, _fmt, ...)
 #define	IWL_DPRINTF(_subsys, _e, _fmt, ...)
+#define	IWL_DPRINTF_PREFIX(_subsys, _e, _prefix, _fmt, ...)
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
 #define	IWL_DEBUG_ASSOC(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_ASSOC, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_ASSOC, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_CALIB(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_CALIB, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_CALIB, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_COEX(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_COEX, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_COEX, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_DEV(_dev, _level, _fmt, ...)				\
-	IWL_DPRINTF_DEV((_dev), (_level), (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF_DEV((_dev), (_level), _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_DROP(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_DROP, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_DROP, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_EEPROM(_dev, _fmt, ...)				\
-	IWL_DPRINTF_DEV((_dev), IWL_DL_EEPROM, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF_DEV((_dev), IWL_DL_EEPROM, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_FW(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_FW, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_FW, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_FW_INFO(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_FW | IWL_DL_INFO, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF_PREFIX(_subsys, IWL_DL_FW | IWL_DL_INFO, IWL_DL_FW_INFO, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_HC(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_HC, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_HC, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_HT(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_HT, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_HT, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_INFO(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_INFO, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_INFO, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_ISR(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_ISR, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_ISR, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_LAR(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_LAR, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_LAR, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_MAC80211(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_MAC80211, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_MAC80211, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_POWER(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_POWER, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_POWER, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_QUOTA(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_QUOTA, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_QUOTA, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_RADIO(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_RADIO, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_RADIO, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_RATE(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_RATE, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_RATE, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_RF_KILL(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_RF_KILL, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_RF_KILL, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_RX(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_RX, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_RX, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_SCAN(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_SCAN, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_SCAN, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_STATS(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_STATS, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_STATS, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_STATS_LIMIT(_subsys, _fmt, ...)			\
-	IWL_DPRINTF((_subsys), IWL_DL_STATS, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_STATS, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TDLS(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TDLS, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TDLS, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TE(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TE, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TE, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TEMP(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TEMP, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TEMP, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TPT(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TPT, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TPT, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TX(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TX, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TX, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TX_QUEUES(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TX_QUEUES, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TX_QUEUES, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_TX_REPLY(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_TX_REPLY, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_TX_REPLY, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_WEP(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_WEP, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_WEP, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_WOWLAN(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_WOWLAN, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_WOWLAN, _fmt, ##__VA_ARGS__)
 
 #define	IWL_DEBUG_PCI_RW(_subsys, _fmt, ...)				\
-	IWL_DPRINTF((_subsys), IWL_DL_PCI_RW, (_fmt), ##__VA_ARGS__)
+	IWL_DPRINTF(_subsys, IWL_DL_PCI_RW, _fmt, ##__VA_ARGS__)
 
 #endif /* _IWL_DEBUG_H */
