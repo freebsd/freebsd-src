@@ -28,7 +28,7 @@
 .\"	@(#)mem.4	5.3 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2020
+.Dd March 11, 2022
 .Dt MEM 4
 .Os
 .Sh NAME
@@ -65,6 +65,7 @@ is
 long, and ends at virtual
 address 0xf0000000.
 .Sh IOCTL INTERFACE
+.Ss Address Properties
 The
 .Dv MEM_EXTRACT_PADDR
 ioctl can be used to look up the physical address and NUMA domain of a given
@@ -104,6 +105,8 @@ The virtual address corresponds to a physical page mapping, and the
 and
 .Fa me_domain
 fields are valid.
+.El
+.Ss Memory Ranges
 .Pp
 Several architectures allow attributes to be associated with ranges of physical
 memory.
@@ -200,6 +203,11 @@ to update an existing or establish a new range, or to
 to remove a range.
 .El
 .Sh RETURN VALUES
+.Ss MEM_EXTRACT_PADDR
+The
+.Dv MEM_EXTRACT_PADDR
+ioctl always returns a value of zero.
+.Ss MEMRANGE_GET/MEMRANGE_SET
 .Bl -tag -width Er
 .It Bq Er EOPNOTSUPP
 Memory range operations are not supported on this architecture.
