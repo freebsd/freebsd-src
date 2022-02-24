@@ -1261,7 +1261,11 @@ vga_acpi_disabled(void)
 	uint16_t flags;
 	int ignore;
 
-	ignore = 0;
+	/*
+	 * Ignore the flag on real hardware: there's a lot of buggy firmware
+	 * that will wrongly set it.
+	 */
+	ignore = (vm_guest == VM_GUEST_NO);
 	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
 	if (ignore || !acpi_get_fadt_bootflags(&flags))
  		return (false);

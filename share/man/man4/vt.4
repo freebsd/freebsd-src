@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2022
+.Dd March 17, 2022
 .Dt "VT" 4
 .Os
 .Sh NAME
@@ -204,6 +204,9 @@ graphics mode.
 Set to 1 to force the usage of the VGA driver regardless of whether
 ACPI IAPC_BOOT_ARCH signals no VGA support.
 Can be used to workaround firmware bugs in the ACPI tables.
+Note no VGA support is only acknowledged when running virtualized.
+There is too many broken firmware that wrongly reports no VGA support on
+physical hardware.
 .It Va kern.vty
 Set this value to
 .Ql vt
