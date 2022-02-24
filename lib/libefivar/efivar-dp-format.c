@@ -89,25 +89,29 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 static char *
 EFIAPI
 UefiDevicePathLibCatPrint (
-  IN OUT POOL_PRINT   *Str,
-  IN const char       *Fmt,
+  IN OUT POOL_PRINT  *Str,
+  IN const char      *Fmt,
   ...
   )
 {
-  UINTN   Count;
-  VA_LIST Args;
+  UINTN    Count;
+  VA_LIST  Args;
 
   VA_START (Args, Fmt);
-  Count = vsnprintf(NULL, 0, Fmt, Args);
-  VA_END(Args);
+  Count = vsnprintf (NULL, 0, Fmt, Args);
+  VA_END (Args);
 
   if ((Str->Count + (Count + 1)) > Str->Capacity) {
     Str->Capacity = (Str->Count + (Count + 1) * 2);
-    Str->Str = reallocf(Str->Str, Str->Capacity);
+    Str->Str      = reallocf (
+                      Str->Str,
+                      Str->Capacity
+                      );
     ASSERT (Str->Str != NULL);
   }
+
   VA_START (Args, Fmt);
-  vsnprintf(Str->Str + Str->Count, Str->Capacity - Str->Count, Fmt, Args);
+  vsnprintf (Str->Str + Str->Count, Str->Capacity - Str->Count, Fmt, Args);
   Str->Count += Count;
 
   VA_END (Args);
@@ -135,7 +139,7 @@ DevPathToTextPci (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  PCI_DEVICE_PATH *Pci;
+  PCI_DEVICE_PATH  *Pci;
 
   Pci = DevPath;
   UefiDevicePathLibCatPrint (Str, "Pci(0x%x,0x%x)", Pci->Device, Pci->Function);
@@ -229,94 +233,95 @@ DevPathToTextVendor (
   UINT32              FlowControlMap;
   UINT16              Info;
 
-  Vendor = (VENDOR_DEVICE_PATH *) DevPath;
+  Vendor = (VENDOR_DEVICE_PATH *)DevPath;
   switch (DevicePathType (&Vendor->Header)) {
-  case HARDWARE_DEVICE_PATH:
-    Type = "Hw";
-    break;
+    case HARDWARE_DEVICE_PATH:
+      Type = "Hw";
+      break;
 
-  case MESSAGING_DEVICE_PATH:
-    Type = "Msg";
-    if (AllowShortcuts) {
-      if (CompareGuid (&Vendor->Guid, &gEfiPcAnsiGuid)) {
-        UefiDevicePathLibCatPrint (Str, "VenPcAnsi()");
-        return ;
-      } else if (CompareGuid (&Vendor->Guid, &gEfiVT100Guid)) {
-        UefiDevicePathLibCatPrint (Str, "VenVt100()");
-        return ;
-      } else if (CompareGuid (&Vendor->Guid, &gEfiVT100PlusGuid)) {
-        UefiDevicePathLibCatPrint (Str, "VenVt100Plus()");
-        return ;
-      } else if (CompareGuid (&Vendor->Guid, &gEfiVTUTF8Guid)) {
-        UefiDevicePathLibCatPrint (Str, "VenUtf8()");
-        return ;
-      } else if (CompareGuid (&Vendor->Guid, &gEfiUartDevicePathGuid)) {
-        FlowControlMap = (((UART_FLOW_CONTROL_DEVICE_PATH *) Vendor)->FlowControlMap);
-        switch (FlowControlMap & 0x00000003) {
-        case 0:
-          UefiDevicePathLibCatPrint (Str, "UartFlowCtrl(%s)", "None");
-          break;
+    case MESSAGING_DEVICE_PATH:
+      Type = "Msg";
+      if (AllowShortcuts) {
+        if (CompareGuid (&Vendor->Guid, &gEfiPcAnsiGuid)) {
+          UefiDevicePathLibCatPrint (Str, "VenPcAnsi()");
+          return;
+        } else if (CompareGuid (&Vendor->Guid, &gEfiVT100Guid)) {
+          UefiDevicePathLibCatPrint (Str, "VenVt100()");
+          return;
+        } else if (CompareGuid (&Vendor->Guid, &gEfiVT100PlusGuid)) {
+          UefiDevicePathLibCatPrint (Str, "VenVt100Plus()");
+          return;
+        } else if (CompareGuid (&Vendor->Guid, &gEfiVTUTF8Guid)) {
+          UefiDevicePathLibCatPrint (Str, "VenUtf8()");
+          return;
+        } else if (CompareGuid (&Vendor->Guid, &gEfiUartDevicePathGuid)) {
+          FlowControlMap = (((UART_FLOW_CONTROL_DEVICE_PATH *)Vendor)->FlowControlMap);
+          switch (FlowControlMap & 0x00000003) {
+            case 0:
+              UefiDevicePathLibCatPrint (Str, "UartFlowCtrl(%s)", "None");
+              break;
 
-        case 1:
-          UefiDevicePathLibCatPrint (Str, "UartFlowCtrl(%s)", "Hardware");
-          break;
+            case 1:
+              UefiDevicePathLibCatPrint (Str, "UartFlowCtrl(%s)", "Hardware");
+              break;
 
-        case 2:
-          UefiDevicePathLibCatPrint (Str, "UartFlowCtrl(%s)", "XonXoff");
-          break;
+            case 2:
+              UefiDevicePathLibCatPrint (Str, "UartFlowCtrl(%s)", "XonXoff");
+              break;
 
-        default:
-          break;
-        }
+            default:
+              break;
+          }
 
-        return ;
-      } else if (CompareGuid (&Vendor->Guid, &gEfiSasDevicePathGuid)) {
-        UefiDevicePathLibCatPrint (
-          Str,
-          "SAS(0x%lx,0x%lx,0x%x,",
-          ((SAS_DEVICE_PATH *) Vendor)->SasAddress,
-          ((SAS_DEVICE_PATH *) Vendor)->Lun,
-          ((SAS_DEVICE_PATH *) Vendor)->RelativeTargetPort
-          );
-        Info = (((SAS_DEVICE_PATH *) Vendor)->DeviceTopology);
-        if (((Info & 0x0f) == 0) && ((Info & BIT7) == 0)) {
-          UefiDevicePathLibCatPrint (Str, "NoTopology,0,0,0,");
-        } else if (((Info & 0x0f) <= 2) && ((Info & BIT7) == 0)) {
+          return;
+        } else if (CompareGuid (&Vendor->Guid, &gEfiSasDevicePathGuid)) {
           UefiDevicePathLibCatPrint (
             Str,
-            "%s,%s,%s,",
-            ((Info & BIT4) != 0) ? "SATA" : "SAS",
-            ((Info & BIT5) != 0) ? "External" : "Internal",
-            ((Info & BIT6) != 0) ? "Expanded" : "Direct"
+            "SAS(0x%lx,0x%lx,0x%x,",
+            ((SAS_DEVICE_PATH *)Vendor)->SasAddress,
+            ((SAS_DEVICE_PATH *)Vendor)->Lun,
+            ((SAS_DEVICE_PATH *)Vendor)->RelativeTargetPort
             );
-          if ((Info & 0x0f) == 1) {
-            UefiDevicePathLibCatPrint (Str, "0,");
+          Info = (((SAS_DEVICE_PATH *)Vendor)->DeviceTopology);
+          if (((Info & 0x0f) == 0) && ((Info & BIT7) == 0)) {
+            UefiDevicePathLibCatPrint (Str, "NoTopology,0,0,0,");
+          } else if (((Info & 0x0f) <= 2) && ((Info & BIT7) == 0)) {
+            UefiDevicePathLibCatPrint (
+              Str,
+              "%s,%s,%s,",
+              ((Info & BIT4) != 0) ? "SATA" : "SAS",
+              ((Info & BIT5) != 0) ? "External" : "Internal",
+              ((Info & BIT6) != 0) ? "Expanded" : "Direct"
+              );
+            if ((Info & 0x0f) == 1) {
+              UefiDevicePathLibCatPrint (Str, "0,");
+            } else {
+              //
+              // Value 0x0 thru 0xFF -> Drive 1 thru Drive 256
+              //
+              UefiDevicePathLibCatPrint (Str, "0x%x,", ((Info >> 8) & 0xff) + 1);
+            }
           } else {
-            //
-            // Value 0x0 thru 0xFF -> Drive 1 thru Drive 256
-            //
-            UefiDevicePathLibCatPrint (Str, "0x%x,", ((Info >> 8) & 0xff) + 1);
+            UefiDevicePathLibCatPrint (Str, "0x%x,0,0,0,", Info);
           }
-        } else {
-          UefiDevicePathLibCatPrint (Str, "0x%x,0,0,0,", Info);
+
+          UefiDevicePathLibCatPrint (Str, "0x%x)", ((SAS_DEVICE_PATH *)Vendor)->Reserved);
+          return;
+        } else if (CompareGuid (&Vendor->Guid, &gEfiDebugPortProtocolGuid)) {
+          UefiDevicePathLibCatPrint (Str, "DebugPort()");
+          return;
         }
-
-        UefiDevicePathLibCatPrint (Str, "0x%x)", ((SAS_DEVICE_PATH *) Vendor)->Reserved);
-        return ;
-      } else if (CompareGuid (&Vendor->Guid, &gEfiDebugPortProtocolGuid)) {
-        UefiDevicePathLibCatPrint (Str, "DebugPort()");
-        return ;
       }
-    }
-    break;
 
-  case MEDIA_DEVICE_PATH:
-    Type = "Media";
-    break;
+      break;
 
-  default:
-    Type = "?";
-    break;
+    case MEDIA_DEVICE_PATH:
+      Type = "Media";
+      break;
+
+    default:
+      Type = "?";
+      break;
   }
 
   DataLength = DevicePathNodeLength (&Vendor->Header) - sizeof (VENDOR_DEVICE_PATH);
@@ -324,7 +329,7 @@ DevPathToTextVendor (
   if (DataLength != 0) {
     UefiDevicePathLibCatPrint (Str, ",");
     for (Index = 0; Index < DataLength; Index++) {
-      UefiDevicePathLibCatPrint (Str, "%02x", ((VENDOR_DEVICE_PATH_WITH_DATA *) Vendor)->VendorDefinedData[Index]);
+      UefiDevicePathLibCatPrint (Str, "%02x", ((VENDOR_DEVICE_PATH_WITH_DATA *)Vendor)->VendorDefinedData[Index]);
     }
   }
 
@@ -383,7 +388,7 @@ DevPathToTextBmc (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  BMC_DEVICE_PATH    *Bmc;
+  BMC_DEVICE_PATH  *Bmc;
 
   Bmc = DevPath;
   UefiDevicePathLibCatPrint (
@@ -420,33 +425,33 @@ DevPathToTextAcpi (
   Acpi = DevPath;
   if ((Acpi->HID & PNP_EISA_ID_MASK) == PNP_EISA_ID_CONST) {
     switch (EISA_ID_TO_NUM (Acpi->HID)) {
-    case 0x0a03:
-      UefiDevicePathLibCatPrint (Str, "PciRoot(0x%x)", Acpi->UID);
-      break;
+      case 0x0a03:
+        UefiDevicePathLibCatPrint (Str, "PciRoot(0x%x)", Acpi->UID);
+        break;
 
-    case 0x0a08:
-      UefiDevicePathLibCatPrint (Str, "PcieRoot(0x%x)", Acpi->UID);
-      break;
+      case 0x0a08:
+        UefiDevicePathLibCatPrint (Str, "PcieRoot(0x%x)", Acpi->UID);
+        break;
 
-    case 0x0604:
-      UefiDevicePathLibCatPrint (Str, "Floppy(0x%x)", Acpi->UID);
-      break;
+      case 0x0604:
+        UefiDevicePathLibCatPrint (Str, "Floppy(0x%x)", Acpi->UID);
+        break;
 
-    case 0x0301:
-      UefiDevicePathLibCatPrint (Str, "Keyboard(0x%x)", Acpi->UID);
-      break;
+      case 0x0301:
+        UefiDevicePathLibCatPrint (Str, "Keyboard(0x%x)", Acpi->UID);
+        break;
 
-    case 0x0501:
-      UefiDevicePathLibCatPrint (Str, "Serial(0x%x)", Acpi->UID);
-      break;
+      case 0x0501:
+        UefiDevicePathLibCatPrint (Str, "Serial(0x%x)", Acpi->UID);
+        break;
 
-    case 0x0401:
-      UefiDevicePathLibCatPrint (Str, "ParallelPort(0x%x)", Acpi->UID);
-      break;
+      case 0x0401:
+        UefiDevicePathLibCatPrint (Str, "ParallelPort(0x%x)", Acpi->UID);
+        break;
 
-    default:
-      UefiDevicePathLibCatPrint (Str, "Acpi(PNP%04x,0x%x)", EISA_ID_TO_NUM (Acpi->HID), Acpi->UID);
-      break;
+      default:
+        UefiDevicePathLibCatPrint (Str, "Acpi(PNP%04x,0x%x)", EISA_ID_TO_NUM (Acpi->HID), Acpi->UID);
+        break;
     }
   } else {
     UefiDevicePathLibCatPrint (Str, "Acpi(0x%08x,0x%x)", Acpi->HID, Acpi->UID);
@@ -482,30 +487,33 @@ DevPathToTextAcpiEx (
   char                           CIDText[11];
 
   AcpiEx = DevPath;
-  HIDStr = (CHAR8 *) (((UINT8 *) AcpiEx) + sizeof (ACPI_EXTENDED_HID_DEVICE_PATH));
+  HIDStr = (CHAR8 *)(((UINT8 *)AcpiEx) + sizeof (ACPI_EXTENDED_HID_DEVICE_PATH));
   UIDStr = HIDStr + AsciiStrLen (HIDStr) + 1;
   CIDStr = UIDStr + AsciiStrLen (UIDStr) + 1;
 
   if (DisplayOnly) {
-     if ((EISA_ID_TO_NUM (AcpiEx->HID) == 0x0A03) ||
-         (EISA_ID_TO_NUM (AcpiEx->CID) == 0x0A03 && EISA_ID_TO_NUM (AcpiEx->HID) != 0x0A08)) {
-       if (AcpiEx->UID == 0) {
-         UefiDevicePathLibCatPrint (Str, "PciRoot(%s)", UIDStr);
-       } else {
-         UefiDevicePathLibCatPrint (Str, "PciRoot(0x%x)", AcpiEx->UID);
-       }
-       return;
-     }
+    if ((EISA_ID_TO_NUM (AcpiEx->HID) == 0x0A03) ||
+        ((EISA_ID_TO_NUM (AcpiEx->CID) == 0x0A03) && (EISA_ID_TO_NUM (AcpiEx->HID) != 0x0A08)))
+    {
+      if (AcpiEx->UID == 0) {
+        UefiDevicePathLibCatPrint (Str, "PciRoot(%s)", UIDStr);
+      } else {
+        UefiDevicePathLibCatPrint (Str, "PciRoot(0x%x)", AcpiEx->UID);
+      }
 
-     if (EISA_ID_TO_NUM (AcpiEx->HID) == 0x0A08 || EISA_ID_TO_NUM (AcpiEx->CID) == 0x0A08) {
-       if (AcpiEx->UID == 0) {
-         UefiDevicePathLibCatPrint (Str, "PcieRoot(%s)", UIDStr);
-       } else {
-         UefiDevicePathLibCatPrint (Str, "PcieRoot(0x%x)", AcpiEx->UID);
-       }
-       return;
-     }
-   }
+      return;
+    }
+
+    if ((EISA_ID_TO_NUM (AcpiEx->HID) == 0x0A08) || (EISA_ID_TO_NUM (AcpiEx->CID) == 0x0A08)) {
+      if (AcpiEx->UID == 0) {
+        UefiDevicePathLibCatPrint (Str, "PcieRoot(%s)", UIDStr);
+      } else {
+        UefiDevicePathLibCatPrint (Str, "PcieRoot(0x%x)", AcpiEx->UID);
+      }
+
+      return;
+    }
+  }
 
   //
   // Converts EISA identification to string.
@@ -535,10 +543,10 @@ DevPathToTextAcpiEx (
     //
     if (AcpiEx->CID == 0) {
       UefiDevicePathLibCatPrint (
-         Str,
-         "AcpiExp(%s,0,%s)",
-         HIDText,
-         UIDStr
+        Str,
+        "AcpiExp(%s,0,%s)",
+        HIDText,
+        UIDStr
         );
     } else {
       UefiDevicePathLibCatPrint (
@@ -607,21 +615,22 @@ DevPathToTextAcpiAdr (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  ACPI_ADR_DEVICE_PATH    *AcpiAdr;
-  UINT32                  *Addr;
-  UINT16                  Index;
-  UINT16                  Length;
-  UINT16                  AdditionalAdrCount;
+  ACPI_ADR_DEVICE_PATH  *AcpiAdr;
+  UINT32                *Addr;
+  UINT16                Index;
+  UINT16                Length;
+  UINT16                AdditionalAdrCount;
 
   AcpiAdr            = DevPath;
-  Length             = (UINT16) DevicePathNodeLength ((EFI_DEVICE_PATH_PROTOCOL *) AcpiAdr);
-  AdditionalAdrCount = (UINT16) ((Length - 8) / 4);
+  Length             = (UINT16)DevicePathNodeLength ((EFI_DEVICE_PATH_PROTOCOL *)AcpiAdr);
+  AdditionalAdrCount = (UINT16)((Length - 8) / 4);
 
   UefiDevicePathLibCatPrint (Str, "AcpiAdr(0x%x", AcpiAdr->ADR);
   Addr = &AcpiAdr->ADR + 1;
   for (Index = 0; Index < AdditionalAdrCount; Index++) {
     UefiDevicePathLibCatPrint (Str, ",0x%x", Addr[Index]);
   }
+
   UefiDevicePathLibCatPrint (Str, ")");
 }
 
@@ -646,7 +655,7 @@ DevPathToTextAtapi (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  ATAPI_DEVICE_PATH *Atapi;
+  ATAPI_DEVICE_PATH  *Atapi;
 
   Atapi = DevPath;
 
@@ -746,10 +755,12 @@ DevPathToTextFibreEx (
   for (Index = 0; Index < sizeof (FibreEx->WWN) / sizeof (FibreEx->WWN[0]); Index++) {
     UefiDevicePathLibCatPrint (Str, "%02x", FibreEx->WWN[Index]);
   }
+
   UefiDevicePathLibCatPrint (Str, ",0x");
   for (Index = 0; Index < sizeof (FibreEx->Lun) / sizeof (FibreEx->Lun[0]); Index++) {
     UefiDevicePathLibCatPrint (Str, "%02x", FibreEx->Lun[Index]);
   }
+
   UefiDevicePathLibCatPrint (Str, ")");
 }
 
@@ -783,10 +794,12 @@ DevPathToTextSasEx (
   for (Index = 0; Index < sizeof (SasEx->SasAddress) / sizeof (SasEx->SasAddress[0]); Index++) {
     UefiDevicePathLibCatPrint (Str, "%02x", SasEx->SasAddress[Index]);
   }
+
   UefiDevicePathLibCatPrint (Str, ",0x");
   for (Index = 0; Index < sizeof (SasEx->Lun) / sizeof (SasEx->Lun[0]); Index++) {
     UefiDevicePathLibCatPrint (Str, "%02x", SasEx->Lun[Index]);
   }
+
   UefiDevicePathLibCatPrint (Str, ",0x%x,", SasEx->RelativeTargetPort);
 
   if (((SasEx->DeviceTopology & 0x0f) == 0) && ((SasEx->DeviceTopology & BIT7) == 0)) {
@@ -812,8 +825,7 @@ DevPathToTextSasEx (
   }
 
   UefiDevicePathLibCatPrint (Str, ")");
-  return ;
-
+  return;
 }
 
 /**
@@ -837,17 +849,23 @@ DevPathToTextNVMe (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  NVME_NAMESPACE_DEVICE_PATH *Nvme;
-  UINT8                      *Uuid;
+  NVME_NAMESPACE_DEVICE_PATH  *Nvme;
+  UINT8                       *Uuid;
 
   Nvme = DevPath;
-  Uuid = (UINT8 *) &Nvme->NamespaceUuid;
+  Uuid = (UINT8 *)&Nvme->NamespaceUuid;
   UefiDevicePathLibCatPrint (
     Str,
     "NVMe(0x%x,%02x-%02x-%02x-%02x-%02x-%02x-%02x-%02x)",
     Nvme->NamespaceId,
-    Uuid[7], Uuid[6], Uuid[5], Uuid[4],
-    Uuid[3], Uuid[2], Uuid[1], Uuid[0]
+    Uuid[7],
+    Uuid[6],
+    Uuid[5],
+    Uuid[4],
+    Uuid[3],
+    Uuid[2],
+    Uuid[1],
+    Uuid[0]
     );
 }
 
@@ -899,7 +917,7 @@ DevPathToTextSd (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  SD_DEVICE_PATH             *Sd;
+  SD_DEVICE_PATH  *Sd;
 
   Sd = DevPath;
   UefiDevicePathLibCatPrint (
@@ -930,7 +948,7 @@ DevPathToTextEmmc (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  EMMC_DEVICE_PATH             *Emmc;
+  EMMC_DEVICE_PATH  *Emmc;
 
   Emmc = DevPath;
   UefiDevicePathLibCatPrint (
@@ -961,7 +979,7 @@ DevPathToText1394 (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  F1394_DEVICE_PATH *F1394DevPath;
+  F1394_DEVICE_PATH  *F1394DevPath;
 
   F1394DevPath = DevPath;
   //
@@ -991,7 +1009,7 @@ DevPathToTextUsb (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  USB_DEVICE_PATH *Usb;
+  USB_DEVICE_PATH  *Usb;
 
   Usb = DevPath;
   UefiDevicePathLibCatPrint (Str, "USB(0x%x,0x%x)", Usb->ParentPortNumber, Usb->InterfaceNumber);
@@ -1025,15 +1043,15 @@ DevPathToTextUsbWWID (
 
   UsbWWId = DevPath;
 
-  SerialNumberStr = (CHAR16 *) (&UsbWWId + 1);
-  Length = (UINT16) ((DevicePathNodeLength ((EFI_DEVICE_PATH_PROTOCOL *) UsbWWId) - sizeof (USB_WWID_DEVICE_PATH)) / sizeof (CHAR16));
-  if (Length >= 1 && SerialNumberStr [Length - 1] != 0) {
+  SerialNumberStr = (CHAR16 *)(&UsbWWId + 1);
+  Length          = (UINT16)((DevicePathNodeLength ((EFI_DEVICE_PATH_PROTOCOL *)UsbWWId) - sizeof (USB_WWID_DEVICE_PATH)) / sizeof (CHAR16));
+  if ((Length >= 1) && (SerialNumberStr[Length - 1] != 0)) {
     //
     // In case no NULL terminator in SerialNumber, create a new one with NULL terminator
     //
     NewStr = AllocateCopyPool ((Length + 1) * sizeof (CHAR16), SerialNumberStr);
     ASSERT (NewStr != NULL);
-    NewStr [Length] = 0;
+    NewStr[Length]  = 0;
     SerialNumberStr = NewStr;
   }
 
@@ -1068,7 +1086,7 @@ DevPathToTextLogicalUnit (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  DEVICE_LOGICAL_UNIT_DEVICE_PATH *LogicalUnit;
+  DEVICE_LOGICAL_UNIT_DEVICE_PATH  *LogicalUnit;
 
   LogicalUnit = DevPath;
   UefiDevicePathLibCatPrint (Str, "Unit(0x%x)", LogicalUnit->Lun);
@@ -1095,65 +1113,64 @@ DevPathToTextUsbClass (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  USB_CLASS_DEVICE_PATH *UsbClass;
-  BOOLEAN               IsKnownSubClass;
-
+  USB_CLASS_DEVICE_PATH  *UsbClass;
+  BOOLEAN                IsKnownSubClass;
 
   UsbClass = DevPath;
 
   IsKnownSubClass = TRUE;
   switch (UsbClass->DeviceClass) {
-  case USB_CLASS_AUDIO:
-    UefiDevicePathLibCatPrint (Str, "UsbAudio");
-    break;
+    case USB_CLASS_AUDIO:
+      UefiDevicePathLibCatPrint (Str, "UsbAudio");
+      break;
 
-  case USB_CLASS_CDCCONTROL:
-    UefiDevicePathLibCatPrint (Str, "UsbCDCControl");
-    break;
+    case USB_CLASS_CDCCONTROL:
+      UefiDevicePathLibCatPrint (Str, "UsbCDCControl");
+      break;
 
-  case USB_CLASS_HID:
-    UefiDevicePathLibCatPrint (Str, "UsbHID");
-    break;
+    case USB_CLASS_HID:
+      UefiDevicePathLibCatPrint (Str, "UsbHID");
+      break;
 
-  case USB_CLASS_IMAGE:
-    UefiDevicePathLibCatPrint (Str, "UsbImage");
-    break;
+    case USB_CLASS_IMAGE:
+      UefiDevicePathLibCatPrint (Str, "UsbImage");
+      break;
 
-  case USB_CLASS_PRINTER:
-    UefiDevicePathLibCatPrint (Str, "UsbPrinter");
-    break;
+    case USB_CLASS_PRINTER:
+      UefiDevicePathLibCatPrint (Str, "UsbPrinter");
+      break;
 
-  case USB_CLASS_MASS_STORAGE:
-    UefiDevicePathLibCatPrint (Str, "UsbMassStorage");
-    break;
+    case USB_CLASS_MASS_STORAGE:
+      UefiDevicePathLibCatPrint (Str, "UsbMassStorage");
+      break;
 
-  case USB_CLASS_HUB:
-    UefiDevicePathLibCatPrint (Str, "UsbHub");
-    break;
+    case USB_CLASS_HUB:
+      UefiDevicePathLibCatPrint (Str, "UsbHub");
+      break;
 
-  case USB_CLASS_CDCDATA:
-    UefiDevicePathLibCatPrint (Str, "UsbCDCData");
-    break;
+    case USB_CLASS_CDCDATA:
+      UefiDevicePathLibCatPrint (Str, "UsbCDCData");
+      break;
 
-  case USB_CLASS_SMART_CARD:
-    UefiDevicePathLibCatPrint (Str, "UsbSmartCard");
-    break;
+    case USB_CLASS_SMART_CARD:
+      UefiDevicePathLibCatPrint (Str, "UsbSmartCard");
+      break;
 
-  case USB_CLASS_VIDEO:
-    UefiDevicePathLibCatPrint (Str, "UsbVideo");
-    break;
+    case USB_CLASS_VIDEO:
+      UefiDevicePathLibCatPrint (Str, "UsbVideo");
+      break;
 
-  case USB_CLASS_DIAGNOSTIC:
-    UefiDevicePathLibCatPrint (Str, "UsbDiagnostic");
-    break;
+    case USB_CLASS_DIAGNOSTIC:
+      UefiDevicePathLibCatPrint (Str, "UsbDiagnostic");
+      break;
 
-  case USB_CLASS_WIRELESS:
-    UefiDevicePathLibCatPrint (Str, "UsbWireless");
-    break;
+    case USB_CLASS_WIRELESS:
+      UefiDevicePathLibCatPrint (Str, "UsbWireless");
+      break;
 
-  default:
-    IsKnownSubClass = FALSE;
-    break;
+    default:
+      IsKnownSubClass = FALSE;
+      break;
   }
 
   if (IsKnownSubClass) {
@@ -1231,7 +1248,7 @@ DevPathToTextSata (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  SATA_DEVICE_PATH *Sata;
+  SATA_DEVICE_PATH  *Sata;
 
   Sata = DevPath;
   UefiDevicePathLibCatPrint (
@@ -1264,7 +1281,7 @@ DevPathToTextI2O (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  I2O_DEVICE_PATH *I2ODevPath;
+  I2O_DEVICE_PATH  *I2ODevPath;
 
   I2ODevPath = DevPath;
   UefiDevicePathLibCatPrint (Str, "I2O(0x%x)", I2ODevPath->Tid);
@@ -1298,7 +1315,7 @@ DevPathToTextMacAddr (
   MacDevPath = DevPath;
 
   HwAddressSize = sizeof (EFI_MAC_ADDRESS);
-  if (MacDevPath->IfType == 0x01 || MacDevPath->IfType == 0x00) {
+  if ((MacDevPath->IfType == 0x01) || (MacDevPath->IfType == 0x00)) {
     HwAddressSize = 6;
   }
 
@@ -1341,8 +1358,8 @@ CatNetworkProtocol (
 **/
 static VOID
 CatIPv4Address (
-  IN OUT POOL_PRINT   *Str,
-  IN EFI_IPv4_ADDRESS *Address
+  IN OUT POOL_PRINT    *Str,
+  IN EFI_IPv4_ADDRESS  *Address
   )
 {
   UefiDevicePathLibCatPrint (Str, "%d.%d.%d.%d", Address->Addr[0], Address->Addr[1], Address->Addr[2], Address->Addr[3]);
@@ -1356,21 +1373,30 @@ CatIPv4Address (
 **/
 static VOID
 CatIPv6Address (
-  IN OUT POOL_PRINT   *Str,
-  IN EFI_IPv6_ADDRESS *Address
+  IN OUT POOL_PRINT    *Str,
+  IN EFI_IPv6_ADDRESS  *Address
   )
 {
   UefiDevicePathLibCatPrint (
-    Str, "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-    Address->Addr[0],  Address->Addr[1],
-    Address->Addr[2],  Address->Addr[3],
-    Address->Addr[4],  Address->Addr[5],
-    Address->Addr[6],  Address->Addr[7],
-    Address->Addr[8],  Address->Addr[9],
-    Address->Addr[10], Address->Addr[11],
-    Address->Addr[12], Address->Addr[13],
-    Address->Addr[14], Address->Addr[15]
-  );
+    Str,
+    "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+    Address->Addr[0],
+    Address->Addr[1],
+    Address->Addr[2],
+    Address->Addr[3],
+    Address->Addr[4],
+    Address->Addr[5],
+    Address->Addr[6],
+    Address->Addr[7],
+    Address->Addr[8],
+    Address->Addr[9],
+    Address->Addr[10],
+    Address->Addr[11],
+    Address->Addr[12],
+    Address->Addr[13],
+    Address->Addr[14],
+    Address->Addr[15]
+    );
 }
 
 /**
@@ -1402,7 +1428,7 @@ DevPathToTextIPv4 (
 
   if (DisplayOnly) {
     UefiDevicePathLibCatPrint (Str, ")");
-    return ;
+    return;
   }
 
   UefiDevicePathLibCatPrint (Str, ",");
@@ -1416,6 +1442,7 @@ DevPathToTextIPv4 (
     UefiDevicePathLibCatPrint (Str, ",");
     CatIPv4Address (Str, &IPDevPath->SubnetMask);
   }
+
   UefiDevicePathLibCatPrint (Str, ")");
 }
 
@@ -1447,7 +1474,7 @@ DevPathToTextIPv6 (
   CatIPv6Address (Str, &IPDevPath->RemoteIpAddress);
   if (DisplayOnly) {
     UefiDevicePathLibCatPrint (Str, ")");
-    return ;
+    return;
   }
 
   UefiDevicePathLibCatPrint (Str, ",");
@@ -1471,6 +1498,7 @@ DevPathToTextIPv6 (
     UefiDevicePathLibCatPrint (Str, ",0x%x,", IPDevPath->PrefixLength);
     CatIPv6Address (Str, &IPDevPath->GatewayIpAddress);
   }
+
   UefiDevicePathLibCatPrint (Str, ")");
 }
 
@@ -1535,33 +1563,33 @@ DevPathToTextUart (
 
   Uart = DevPath;
   switch (Uart->Parity) {
-  case 0:
-    Parity = 'D';
-    break;
+    case 0:
+      Parity = 'D';
+      break;
 
-  case 1:
-    Parity = 'N';
-    break;
+    case 1:
+      Parity = 'N';
+      break;
 
-  case 2:
-    Parity = 'E';
-    break;
+    case 2:
+      Parity = 'E';
+      break;
 
-  case 3:
-    Parity = 'O';
-    break;
+    case 3:
+      Parity = 'O';
+      break;
 
-  case 4:
-    Parity = 'M';
-    break;
+    case 4:
+      Parity = 'M';
+      break;
 
-  case 5:
-    Parity = 'S';
-    break;
+    case 5:
+      Parity = 'S';
+      break;
 
-  default:
-    Parity = 'x';
-    break;
+    default:
+      Parity = 'x';
+      break;
   }
 
   if (Uart->BaudRate == 0) {
@@ -1579,25 +1607,25 @@ DevPathToTextUart (
   UefiDevicePathLibCatPrint (Str, "%c,", Parity);
 
   switch (Uart->StopBits) {
-  case 0:
-    UefiDevicePathLibCatPrint (Str, "D)");
-    break;
+    case 0:
+      UefiDevicePathLibCatPrint (Str, "D)");
+      break;
 
-  case 1:
-    UefiDevicePathLibCatPrint (Str, "1)");
-    break;
+    case 1:
+      UefiDevicePathLibCatPrint (Str, "1)");
+      break;
 
-  case 2:
-    UefiDevicePathLibCatPrint (Str, "1.5)");
-    break;
+    case 2:
+      UefiDevicePathLibCatPrint (Str, "1.5)");
+      break;
 
-  case 3:
-    UefiDevicePathLibCatPrint (Str, "2)");
-    break;
+    case 3:
+      UefiDevicePathLibCatPrint (Str, "2)");
+      break;
 
-  default:
-    UefiDevicePathLibCatPrint (Str, "x)");
-    break;
+    default:
+      UefiDevicePathLibCatPrint (Str, "x)");
+      break;
   }
 }
 
@@ -1622,9 +1650,9 @@ DevPathToTextiSCSI (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  ISCSI_DEVICE_PATH_WITH_NAME *ISCSIDevPath;
-  UINT16                      Options;
-  UINTN                       Index;
+  ISCSI_DEVICE_PATH_WITH_NAME  *ISCSIDevPath;
+  UINT16                       Options;
+  UINTN                        Index;
 
   ISCSIDevPath = DevPath;
   UefiDevicePathLibCatPrint (
@@ -1636,6 +1664,7 @@ DevPathToTextiSCSI (
   for (Index = 0; Index < sizeof (ISCSIDevPath->Lun) / sizeof (UINT8); Index++) {
     UefiDevicePathLibCatPrint (Str, "%02x", ((UINT8 *)&ISCSIDevPath->Lun)[Index]);
   }
+
   Options = ISCSIDevPath->LoginOption;
   UefiDevicePathLibCatPrint (Str, ",%s,", (((Options >> 1) & 0x0001) != 0) ? "CRC32C" : "None");
   UefiDevicePathLibCatPrint (Str, "%s,", (((Options >> 3) & 0x0001) != 0) ? "CRC32C" : "None");
@@ -1645,7 +1674,6 @@ DevPathToTextiSCSI (
     UefiDevicePathLibCatPrint (Str, "%s,", "CHAP_UNI");
   } else {
     UefiDevicePathLibCatPrint (Str, "%s,", "CHAP_BI");
-
   }
 
   UefiDevicePathLibCatPrint (Str, "%s)", (ISCSIDevPath->NetworkProtocol == 0) ? "TCP" : "reserved");
@@ -1735,8 +1763,8 @@ DevPathToTextWiFi (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  WIFI_DEVICE_PATH      *WiFi;
-  UINT8                 SSId[33];
+  WIFI_DEVICE_PATH  *WiFi;
+  UINT8             SSId[33];
 
   WiFi = DevPath;
 
@@ -1808,8 +1836,8 @@ DevPathToTextDns (
   UINT32           DnsServerIpCount;
   UINT32           DnsServerIpIndex;
 
-  DnsDevPath     = DevPath;
-  DnsServerIpCount = (UINT32) (DevicePathNodeLength(DnsDevPath) - sizeof (EFI_DEVICE_PATH_PROTOCOL) - sizeof (DnsDevPath->IsIPv6)) / sizeof (EFI_IP_ADDRESS);
+  DnsDevPath       = DevPath;
+  DnsServerIpCount = (UINT32)(DevicePathNodeLength (DnsDevPath) - sizeof (EFI_DEVICE_PATH_PROTOCOL) - sizeof (DnsDevPath->IsIPv6)) / sizeof (EFI_IP_ADDRESS);
 
   UefiDevicePathLibCatPrint (Str, "Dns(");
 
@@ -1849,16 +1877,16 @@ DevPathToTextUri (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  URI_DEVICE_PATH    *Uri;
-  UINTN              UriLength;
-  CHAR8              *UriStr;
+  URI_DEVICE_PATH  *Uri;
+  UINTN            UriLength;
+  CHAR8            *UriStr;
 
   //
   // Uri in the device path may not be null terminated.
   //
   Uri       = DevPath;
   UriLength = DevicePathNodeLength (Uri) - sizeof (URI_DEVICE_PATH);
-  UriStr = AllocatePool (UriLength + 1);
+  UriStr    = AllocatePool (UriLength + 1);
   ASSERT (UriStr != NULL);
 
   CopyMem (UriStr, Uri->Uri, UriLength);
@@ -1888,39 +1916,39 @@ DevPathToTextHardDrive (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  HARDDRIVE_DEVICE_PATH *Hd;
+  HARDDRIVE_DEVICE_PATH  *Hd;
 
   Hd = DevPath;
   switch (Hd->SignatureType) {
-  case SIGNATURE_TYPE_MBR:
-    UefiDevicePathLibCatPrint (
-      Str,
-      "HD(%d,%s,0x%08x,",
-      Hd->PartitionNumber,
-      "MBR",
-//      *((UINT32 *) (&(Hd->Signature[0])))
-      le32dec(&(Hd->Signature[0]))
-      );
-    break;
+    case SIGNATURE_TYPE_MBR:
+      UefiDevicePathLibCatPrint (
+        Str,
+        "HD(%d,%s,0x%08x,",
+        Hd->PartitionNumber,
+        "MBR",
+//      *((UINT32 *)(&(Hd->Signature[0])))
+        le32dec(&(Hd->Signature[0]))
+        );
+      break;
 
-  case SIGNATURE_TYPE_GUID:
-    UefiDevicePathLibCatPrint (
-      Str,
-      "HD(%d,%s,%36s,",
-      Hd->PartitionNumber,
-      "GPT",
-      G(&(Hd->Signature[0]))
-      );
-    break;
+    case SIGNATURE_TYPE_GUID:
+      UefiDevicePathLibCatPrint (
+        Str,
+        "HD(%d,%s,%36s,",
+        Hd->PartitionNumber,
+        "GPT",
+        G(&(Hd->Signature[0]))
+        );
+      break;
 
-  default:
-    UefiDevicePathLibCatPrint (
-      Str,
-      "HD(%d,%d,0,",
-      Hd->PartitionNumber,
-      Hd->SignatureType
-      );
-    break;
+    default:
+      UefiDevicePathLibCatPrint (
+        Str,
+        "HD(%d,%d,0,",
+        Hd->PartitionNumber,
+        Hd->SignatureType
+        );
+      break;
   }
 
   UefiDevicePathLibCatPrint (Str, "0x%lx,0x%lx)", Hd->PartitionStart, Hd->PartitionSize);
@@ -1947,12 +1975,12 @@ DevPathToTextCDROM (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  CDROM_DEVICE_PATH *Cd;
+  CDROM_DEVICE_PATH  *Cd;
 
   Cd = DevPath;
   if (DisplayOnly) {
     UefiDevicePathLibCatPrint (Str, "CDROM(0x%x)", Cd->BootEntry);
-    return ;
+    return;
   }
 
   UefiDevicePathLibCatPrint (Str, "CDROM(0x%x,0x%lx,0x%lx)", Cd->BootEntry, Cd->PartitionStart, Cd->PartitionSize);
@@ -2084,13 +2112,13 @@ DevPathToTextFvFile (
 **/
 static VOID
 DevPathRelativeOffsetRange (
-  IN OUT POOL_PRINT       *Str,
-  IN VOID                 *DevPath,
-  IN BOOLEAN              DisplayOnly,
-  IN BOOLEAN              AllowShortcuts
+  IN OUT POOL_PRINT  *Str,
+  IN VOID            *DevPath,
+  IN BOOLEAN         DisplayOnly,
+  IN BOOLEAN         AllowShortcuts
   )
 {
-  MEDIA_RELATIVE_OFFSET_RANGE_DEVICE_PATH *Offset;
+  MEDIA_RELATIVE_OFFSET_RANGE_DEVICE_PATH  *Offset;
 
   Offset = DevPath;
   UefiDevicePathLibCatPrint (
@@ -2116,13 +2144,13 @@ DevPathRelativeOffsetRange (
 **/
 static VOID
 DevPathToTextRamDisk (
-  IN OUT POOL_PRINT       *Str,
-  IN VOID                 *DevPath,
-  IN BOOLEAN              DisplayOnly,
-  IN BOOLEAN              AllowShortcuts
+  IN OUT POOL_PRINT  *Str,
+  IN VOID            *DevPath,
+  IN BOOLEAN         DisplayOnly,
+  IN BOOLEAN         AllowShortcuts
   )
 {
-  MEDIA_RAM_DISK_DEVICE_PATH *RamDisk;
+  MEDIA_RAM_DISK_DEVICE_PATH  *RamDisk;
 
   RamDisk = DevPath;
 
@@ -2191,38 +2219,38 @@ DevPathToTextBBS (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  BBS_BBS_DEVICE_PATH *Bbs;
-  const char          *Type;
+  BBS_BBS_DEVICE_PATH  *Bbs;
+  const char           *Type;
 
   Bbs = DevPath;
   switch (Bbs->DeviceType) {
-  case BBS_TYPE_FLOPPY:
-    Type = "Floppy";
-    break;
+    case BBS_TYPE_FLOPPY:
+      Type = "Floppy";
+      break;
 
-  case BBS_TYPE_HARDDRIVE:
-    Type = "HD";
-    break;
+    case BBS_TYPE_HARDDRIVE:
+      Type = "HD";
+      break;
 
-  case BBS_TYPE_CDROM:
-    Type = "CDROM";
-    break;
+    case BBS_TYPE_CDROM:
+      Type = "CDROM";
+      break;
 
-  case BBS_TYPE_PCMCIA:
-    Type = "PCMCIA";
-    break;
+    case BBS_TYPE_PCMCIA:
+      Type = "PCMCIA";
+      break;
 
-  case BBS_TYPE_USB:
-    Type = "USB";
-    break;
+    case BBS_TYPE_USB:
+      Type = "USB";
+      break;
 
-  case BBS_TYPE_EMBEDDED_NETWORK:
-    Type = "Network";
-    break;
+    case BBS_TYPE_EMBEDDED_NETWORK:
+      Type = "Network";
+      break;
 
-  default:
-    Type = NULL;
-    break;
+    default:
+      Type = NULL;
+      break;
   }
 
   if (Type != NULL) {
@@ -2233,7 +2261,7 @@ DevPathToTextBBS (
 
   if (DisplayOnly) {
     UefiDevicePathLibCatPrint (Str, ")");
-    return ;
+    return;
   }
 
   UefiDevicePathLibCatPrint (Str, ",0x%x)", Bbs->StatusFlag);
@@ -2263,13 +2291,13 @@ DevPathToTextEndInstance (
   UefiDevicePathLibCatPrint (Str, ",");
 }
 
-GLOBAL_REMOVE_IF_UNREFERENCED const DEVICE_PATH_TO_TEXT_GENERIC_TABLE mUefiDevicePathLibToTextTableGeneric[] = {
-  {HARDWARE_DEVICE_PATH,  "HardwarePath"   },
-  {ACPI_DEVICE_PATH,      "AcpiPath"       },
-  {MESSAGING_DEVICE_PATH, "Msg"            },
-  {MEDIA_DEVICE_PATH,     "MediaPath"      },
-  {BBS_DEVICE_PATH,       "BbsPath"        },
-  {0, NULL}
+GLOBAL_REMOVE_IF_UNREFERENCED const DEVICE_PATH_TO_TEXT_GENERIC_TABLE  mUefiDevicePathLibToTextTableGeneric[] = {
+  { HARDWARE_DEVICE_PATH,  "HardwarePath" },
+  { ACPI_DEVICE_PATH,      "AcpiPath"     },
+  { MESSAGING_DEVICE_PATH, "Msg"          },
+  { MEDIA_DEVICE_PATH,     "MediaPath"    },
+  { BBS_DEVICE_PATH,       "BbsPath"      },
+  { 0,                     NULL            }
 };
 
 /**
@@ -2293,8 +2321,8 @@ DevPathToTextNodeGeneric (
   IN BOOLEAN         AllowShortcuts
   )
 {
-  EFI_DEVICE_PATH_PROTOCOL *Node;
-  UINTN                    Index;
+  EFI_DEVICE_PATH_PROTOCOL  *Node;
+  UINTN                     Index;
 
   Node = DevPath;
 
@@ -2319,65 +2347,65 @@ DevPathToTextNodeGeneric (
   Index = sizeof (EFI_DEVICE_PATH_PROTOCOL);
   if (Index < DevicePathNodeLength (Node)) {
     UefiDevicePathLibCatPrint (Str, ",");
-    for (; Index < DevicePathNodeLength (Node); Index++) {
-      UefiDevicePathLibCatPrint (Str, "%02x", ((UINT8 *) Node)[Index]);
+    for ( ; Index < DevicePathNodeLength (Node); Index++) {
+      UefiDevicePathLibCatPrint (Str, "%02x", ((UINT8 *)Node)[Index]);
     }
   }
 
   UefiDevicePathLibCatPrint (Str, ")");
 }
 
-static const DEVICE_PATH_TO_TEXT_TABLE mUefiDevicePathLibToTextTable[] = {
-  {HARDWARE_DEVICE_PATH,  HW_PCI_DP,                        DevPathToTextPci            },
-  {HARDWARE_DEVICE_PATH,  HW_PCCARD_DP,                     DevPathToTextPccard         },
-  {HARDWARE_DEVICE_PATH,  HW_MEMMAP_DP,                     DevPathToTextMemMap         },
-  {HARDWARE_DEVICE_PATH,  HW_VENDOR_DP,                     DevPathToTextVendor         },
-  {HARDWARE_DEVICE_PATH,  HW_CONTROLLER_DP,                 DevPathToTextController     },
-  {HARDWARE_DEVICE_PATH,  HW_BMC_DP,                        DevPathToTextBmc            },
-  {ACPI_DEVICE_PATH,      ACPI_DP,                          DevPathToTextAcpi           },
-  {ACPI_DEVICE_PATH,      ACPI_EXTENDED_DP,                 DevPathToTextAcpiEx         },
-  {ACPI_DEVICE_PATH,      ACPI_ADR_DP,                      DevPathToTextAcpiAdr        },
-  {MESSAGING_DEVICE_PATH, MSG_ATAPI_DP,                     DevPathToTextAtapi          },
-  {MESSAGING_DEVICE_PATH, MSG_SCSI_DP,                      DevPathToTextScsi           },
-  {MESSAGING_DEVICE_PATH, MSG_FIBRECHANNEL_DP,              DevPathToTextFibre          },
-  {MESSAGING_DEVICE_PATH, MSG_FIBRECHANNELEX_DP,            DevPathToTextFibreEx        },
-  {MESSAGING_DEVICE_PATH, MSG_SASEX_DP,                     DevPathToTextSasEx          },
-  {MESSAGING_DEVICE_PATH, MSG_NVME_NAMESPACE_DP,            DevPathToTextNVMe           },
-  {MESSAGING_DEVICE_PATH, MSG_UFS_DP,                       DevPathToTextUfs            },
-  {MESSAGING_DEVICE_PATH, MSG_SD_DP,                        DevPathToTextSd             },
-  {MESSAGING_DEVICE_PATH, MSG_EMMC_DP,                      DevPathToTextEmmc           },
-  {MESSAGING_DEVICE_PATH, MSG_1394_DP,                      DevPathToText1394           },
-  {MESSAGING_DEVICE_PATH, MSG_USB_DP,                       DevPathToTextUsb            },
-  {MESSAGING_DEVICE_PATH, MSG_USB_WWID_DP,                  DevPathToTextUsbWWID        },
-  {MESSAGING_DEVICE_PATH, MSG_DEVICE_LOGICAL_UNIT_DP,       DevPathToTextLogicalUnit    },
-  {MESSAGING_DEVICE_PATH, MSG_USB_CLASS_DP,                 DevPathToTextUsbClass       },
-  {MESSAGING_DEVICE_PATH, MSG_SATA_DP,                      DevPathToTextSata           },
-  {MESSAGING_DEVICE_PATH, MSG_I2O_DP,                       DevPathToTextI2O            },
-  {MESSAGING_DEVICE_PATH, MSG_MAC_ADDR_DP,                  DevPathToTextMacAddr        },
-  {MESSAGING_DEVICE_PATH, MSG_IPv4_DP,                      DevPathToTextIPv4           },
-  {MESSAGING_DEVICE_PATH, MSG_IPv6_DP,                      DevPathToTextIPv6           },
-  {MESSAGING_DEVICE_PATH, MSG_INFINIBAND_DP,                DevPathToTextInfiniBand     },
-  {MESSAGING_DEVICE_PATH, MSG_UART_DP,                      DevPathToTextUart           },
-  {MESSAGING_DEVICE_PATH, MSG_VENDOR_DP,                    DevPathToTextVendor         },
-  {MESSAGING_DEVICE_PATH, MSG_ISCSI_DP,                     DevPathToTextiSCSI          },
-  {MESSAGING_DEVICE_PATH, MSG_VLAN_DP,                      DevPathToTextVlan           },
-  {MESSAGING_DEVICE_PATH, MSG_DNS_DP,                       DevPathToTextDns            },
-  {MESSAGING_DEVICE_PATH, MSG_URI_DP,                       DevPathToTextUri            },
-  {MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_DP,                 DevPathToTextBluetooth      },
-  {MESSAGING_DEVICE_PATH, MSG_WIFI_DP,                      DevPathToTextWiFi           },
-  {MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_LE_DP,              DevPathToTextBluetoothLE    },
-  {MEDIA_DEVICE_PATH,     MEDIA_HARDDRIVE_DP,               DevPathToTextHardDrive      },
-  {MEDIA_DEVICE_PATH,     MEDIA_CDROM_DP,                   DevPathToTextCDROM          },
-  {MEDIA_DEVICE_PATH,     MEDIA_VENDOR_DP,                  DevPathToTextVendor         },
-  {MEDIA_DEVICE_PATH,     MEDIA_PROTOCOL_DP,                DevPathToTextMediaProtocol  },
-  {MEDIA_DEVICE_PATH,     MEDIA_FILEPATH_DP,                DevPathToTextFilePath       },
-  {MEDIA_DEVICE_PATH,     MEDIA_PIWG_FW_VOL_DP,             DevPathToTextFv             },
-  {MEDIA_DEVICE_PATH,     MEDIA_PIWG_FW_FILE_DP,            DevPathToTextFvFile         },
-  {MEDIA_DEVICE_PATH,     MEDIA_RELATIVE_OFFSET_RANGE_DP,   DevPathRelativeOffsetRange  },
-  {MEDIA_DEVICE_PATH,     MEDIA_RAM_DISK_DP,                DevPathToTextRamDisk        },
-  {BBS_DEVICE_PATH,       BBS_BBS_DP,                       DevPathToTextBBS            },
-  {END_DEVICE_PATH_TYPE,  END_INSTANCE_DEVICE_PATH_SUBTYPE, DevPathToTextEndInstance    },
-  {0, 0, NULL}
+static const DEVICE_PATH_TO_TEXT_TABLE  mUefiDevicePathLibToTextTable[] = {
+  { HARDWARE_DEVICE_PATH,  HW_PCI_DP,                        DevPathToTextPci           },
+  { HARDWARE_DEVICE_PATH,  HW_PCCARD_DP,                     DevPathToTextPccard        },
+  { HARDWARE_DEVICE_PATH,  HW_MEMMAP_DP,                     DevPathToTextMemMap        },
+  { HARDWARE_DEVICE_PATH,  HW_VENDOR_DP,                     DevPathToTextVendor        },
+  { HARDWARE_DEVICE_PATH,  HW_CONTROLLER_DP,                 DevPathToTextController    },
+  { HARDWARE_DEVICE_PATH,  HW_BMC_DP,                        DevPathToTextBmc           },
+  { ACPI_DEVICE_PATH,      ACPI_DP,                          DevPathToTextAcpi          },
+  { ACPI_DEVICE_PATH,      ACPI_EXTENDED_DP,                 DevPathToTextAcpiEx        },
+  { ACPI_DEVICE_PATH,      ACPI_ADR_DP,                      DevPathToTextAcpiAdr       },
+  { MESSAGING_DEVICE_PATH, MSG_ATAPI_DP,                     DevPathToTextAtapi         },
+  { MESSAGING_DEVICE_PATH, MSG_SCSI_DP,                      DevPathToTextScsi          },
+  { MESSAGING_DEVICE_PATH, MSG_FIBRECHANNEL_DP,              DevPathToTextFibre         },
+  { MESSAGING_DEVICE_PATH, MSG_FIBRECHANNELEX_DP,            DevPathToTextFibreEx       },
+  { MESSAGING_DEVICE_PATH, MSG_SASEX_DP,                     DevPathToTextSasEx         },
+  { MESSAGING_DEVICE_PATH, MSG_NVME_NAMESPACE_DP,            DevPathToTextNVMe          },
+  { MESSAGING_DEVICE_PATH, MSG_UFS_DP,                       DevPathToTextUfs           },
+  { MESSAGING_DEVICE_PATH, MSG_SD_DP,                        DevPathToTextSd            },
+  { MESSAGING_DEVICE_PATH, MSG_EMMC_DP,                      DevPathToTextEmmc          },
+  { MESSAGING_DEVICE_PATH, MSG_1394_DP,                      DevPathToText1394          },
+  { MESSAGING_DEVICE_PATH, MSG_USB_DP,                       DevPathToTextUsb           },
+  { MESSAGING_DEVICE_PATH, MSG_USB_WWID_DP,                  DevPathToTextUsbWWID       },
+  { MESSAGING_DEVICE_PATH, MSG_DEVICE_LOGICAL_UNIT_DP,       DevPathToTextLogicalUnit   },
+  { MESSAGING_DEVICE_PATH, MSG_USB_CLASS_DP,                 DevPathToTextUsbClass      },
+  { MESSAGING_DEVICE_PATH, MSG_SATA_DP,                      DevPathToTextSata          },
+  { MESSAGING_DEVICE_PATH, MSG_I2O_DP,                       DevPathToTextI2O           },
+  { MESSAGING_DEVICE_PATH, MSG_MAC_ADDR_DP,                  DevPathToTextMacAddr       },
+  { MESSAGING_DEVICE_PATH, MSG_IPv4_DP,                      DevPathToTextIPv4          },
+  { MESSAGING_DEVICE_PATH, MSG_IPv6_DP,                      DevPathToTextIPv6          },
+  { MESSAGING_DEVICE_PATH, MSG_INFINIBAND_DP,                DevPathToTextInfiniBand    },
+  { MESSAGING_DEVICE_PATH, MSG_UART_DP,                      DevPathToTextUart          },
+  { MESSAGING_DEVICE_PATH, MSG_VENDOR_DP,                    DevPathToTextVendor        },
+  { MESSAGING_DEVICE_PATH, MSG_ISCSI_DP,                     DevPathToTextiSCSI         },
+  { MESSAGING_DEVICE_PATH, MSG_VLAN_DP,                      DevPathToTextVlan          },
+  { MESSAGING_DEVICE_PATH, MSG_DNS_DP,                       DevPathToTextDns           },
+  { MESSAGING_DEVICE_PATH, MSG_URI_DP,                       DevPathToTextUri           },
+  { MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_DP,                 DevPathToTextBluetooth     },
+  { MESSAGING_DEVICE_PATH, MSG_WIFI_DP,                      DevPathToTextWiFi          },
+  { MESSAGING_DEVICE_PATH, MSG_BLUETOOTH_LE_DP,              DevPathToTextBluetoothLE   },
+  { MEDIA_DEVICE_PATH,     MEDIA_HARDDRIVE_DP,               DevPathToTextHardDrive     },
+  { MEDIA_DEVICE_PATH,     MEDIA_CDROM_DP,                   DevPathToTextCDROM         },
+  { MEDIA_DEVICE_PATH,     MEDIA_VENDOR_DP,                  DevPathToTextVendor        },
+  { MEDIA_DEVICE_PATH,     MEDIA_PROTOCOL_DP,                DevPathToTextMediaProtocol },
+  { MEDIA_DEVICE_PATH,     MEDIA_FILEPATH_DP,                DevPathToTextFilePath      },
+  { MEDIA_DEVICE_PATH,     MEDIA_PIWG_FW_VOL_DP,             DevPathToTextFv            },
+  { MEDIA_DEVICE_PATH,     MEDIA_PIWG_FW_FILE_DP,            DevPathToTextFvFile        },
+  { MEDIA_DEVICE_PATH,     MEDIA_RELATIVE_OFFSET_RANGE_DP,   DevPathRelativeOffsetRange },
+  { MEDIA_DEVICE_PATH,     MEDIA_RAM_DISK_DP,                DevPathToTextRamDisk       },
+  { BBS_DEVICE_PATH,       BBS_BBS_DP,                       DevPathToTextBBS           },
+  { END_DEVICE_PATH_TYPE,  END_INSTANCE_DEVICE_PATH_SUBTYPE, DevPathToTextEndInstance   },
+  { 0,                     0,                                NULL                       }
 };
 
 /**
@@ -2403,10 +2431,10 @@ UefiDevicePathLibConvertDeviceNodeToText (
   IN BOOLEAN                         AllowShortcuts
   )
 {
-  POOL_PRINT          Str;
-  UINTN               Index;
-  DEVICE_PATH_TO_TEXT ToText;
-  EFI_DEVICE_PATH_PROTOCOL *Node;
+  POOL_PRINT           Str;
+  UINTN                Index;
+  DEVICE_PATH_TO_TEXT  ToText;
+  EFI_DEVICE_PATH_PROTOCOL  *Node;
 
   if (DeviceNode == NULL) {
     return NULL;
@@ -2421,9 +2449,10 @@ UefiDevicePathLibConvertDeviceNodeToText (
   Node = __DECONST(EFI_DEVICE_PATH_PROTOCOL *, DeviceNode);
   ToText = DevPathToTextNodeGeneric;
   for (Index = 0; mUefiDevicePathLibToTextTable[Index].Function != NULL; Index++) {
-    if (DevicePathType (DeviceNode) == mUefiDevicePathLibToTextTable[Index].Type &&
-        DevicePathSubType (DeviceNode) == mUefiDevicePathLibToTextTable[Index].SubType
-        ) {
+    if ((DevicePathType (DeviceNode) == mUefiDevicePathLibToTextTable[Index].Type) &&
+        (DevicePathSubType (DeviceNode) == mUefiDevicePathLibToTextTable[Index].SubType)
+        )
+    {
       ToText = mUefiDevicePathLibToTextTable[Index].Function;
       break;
     }
@@ -2432,7 +2461,7 @@ UefiDevicePathLibConvertDeviceNodeToText (
   //
   // Print this node
   //
-  ToText (&Str, (VOID *) Node, DisplayOnly, AllowShortcuts);
+  ToText (&Str, (VOID *)Node, DisplayOnly, AllowShortcuts);
 
   ASSERT (Str.Str != NULL);
   return Str.Str;
@@ -2456,16 +2485,16 @@ UefiDevicePathLibConvertDeviceNodeToText (
 static char *
 EFIAPI
 UefiDevicePathLibConvertDevicePathToText (
-  IN CONST EFI_DEVICE_PATH_PROTOCOL   *DevicePath,
-  IN BOOLEAN                          DisplayOnly,
-  IN BOOLEAN                          AllowShortcuts
+  IN CONST EFI_DEVICE_PATH_PROTOCOL  *DevicePath,
+  IN BOOLEAN                         DisplayOnly,
+  IN BOOLEAN                         AllowShortcuts
   )
 {
-  POOL_PRINT               Str;
-  EFI_DEVICE_PATH_PROTOCOL *Node;
-  EFI_DEVICE_PATH_PROTOCOL *AlignedNode;
-  UINTN                    Index;
-  DEVICE_PATH_TO_TEXT      ToText;
+  POOL_PRINT                Str;
+  EFI_DEVICE_PATH_PROTOCOL  *Node;
+  EFI_DEVICE_PATH_PROTOCOL  *AlignedNode;
+  UINTN                     Index;
+  DEVICE_PATH_TO_TEXT       ToText;
 
   if (DevicePath == NULL) {
     return NULL;
@@ -2484,14 +2513,15 @@ UefiDevicePathLibConvertDevicePathToText (
     //
     ToText = DevPathToTextNodeGeneric;
     for (Index = 0; mUefiDevicePathLibToTextTable[Index].Function != NULL; Index += 1) {
-
-      if (DevicePathType (Node) == mUefiDevicePathLibToTextTable[Index].Type &&
-          DevicePathSubType (Node) == mUefiDevicePathLibToTextTable[Index].SubType
-          ) {
+      if ((DevicePathType (Node) == mUefiDevicePathLibToTextTable[Index].Type) &&
+          (DevicePathSubType (Node) == mUefiDevicePathLibToTextTable[Index].SubType)
+          )
+      {
         ToText = mUefiDevicePathLibToTextTable[Index].Function;
         break;
       }
     }
+
     //
     //  Put a path separator in if needed
     //
