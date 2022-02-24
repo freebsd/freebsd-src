@@ -556,7 +556,7 @@ DevPathToTextAcpiEx (
         );
     }
   } else {
-    if (AllowShortcuts) {
+    if (DisplayOnly) {
       //
       // display only
       //
