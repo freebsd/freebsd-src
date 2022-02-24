@@ -225,7 +225,7 @@ File: iwlwifi-9000-pu-b0-jf-b0-43.ucode
 Version: 43.95eb4e97.0
 
 File: iwlwifi-9000-pu-b0-jf-b0-46.ucode
-Version: 46.5e069cbd.0
+Version: 46.4e1ceb39.0
 
 File: iwlwifi-9260-th-b0-jf-b0-33.ucode
 Version: 33.610294.0
@@ -243,7 +243,7 @@ File: iwlwifi-9260-th-b0-jf-b0-43.ucode
 Version: 43.95eb4e97.0
 
 File: iwlwifi-9260-th-b0-jf-b0-46.ucode
-Version: 46.5e069cbd.0
+Version: 46.4e1ceb39.0
 
 File: iwlwifi-cc-a0-46.ucode
 Version: 46.3cfab8da.0
@@ -429,11 +429,72 @@ Version: 63.c04f3485.0
 File: iwlwifi-ty-a0-gf-a0-63.ucode
 Version: 63.c04f3485.0
 
+File: iwlwifi-cc-a0-66.ucode
+Version: 66.f1c864e0.0
+
+File: iwlwifi-Qu-b0-hr-b0-66.ucode
+Version: 66.f1c864e0.0
+
+File: iwlwifi-Qu-b0-jf-b0-66.ucode
+Version: 66.f1c864e0.0
+
+File: iwlwifi-Qu-c0-hr-b0-66.ucode
+Version: 66.f1c864e0.0
+
+File: iwlwifi-Qu-c0-jf-b0-66.ucode
+Version: 66.f1c864e0.0
+
+File: iwlwifi-QuZ-a0-hr-b0-66.ucode
+Version: 66.f1c864e0.0
+
+File: iwlwifi-QuZ-a0-jf-b0-66.ucode
+Version: 66.f1c864e0.0
+
 File: iwlwifi-ty-a0-gf-a0-66.ucode
-Version: 66.55c64978.0
+Version: 66.f1c864e0.0
 
 File: iwlwifi-ty-a0-gf-a0-67.ucode
 Version: 67.8f59b80b.0
+
+File: iwlwifi-cc-a0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-Qu-b0-hr-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-Qu-b0-jf-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-Qu-c0-hr-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-Qu-c0-jf-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-QuZ-a0-hr-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-QuZ-a0-jf-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-ty-a0-gf-a0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-so-a0-gf4-a0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-so-a0-gf-a0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-so-a0-hr-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-so-a0-jf-b0-68.ucode
+Version: 68.01d30b0c.0
+
+File: iwlwifi-so-a0-gf-a0.pnvm
+
+File: iwlwifi-so-a0-gf4-a0.pnvm
 
 File: iwlwifi-ty-a0-gf-a0.pnvm
 
