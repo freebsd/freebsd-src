@@ -608,11 +608,10 @@ out:
 	/* make sure the phy is on the base channel */
 	if (wait_for_phy)
 #if defined(__linux__)
-		msleep(
+		msleep(TU_TO_MS(vif->bss_conf.dtim_period *
 #elif defined(__FreeBSD__)
-		linux_msleep(
+		linux_msleep(TU_TO_MS(vif->bss_conf.dtim_period *
 #endif
-		       TU_TO_MS(vif->bss_conf.dtim_period *
 				vif->bss_conf.beacon_int));
 
 	/* flush the channel switch state */

@@ -76,7 +76,11 @@ struct iwl_mod_params {
 	bool power_save;
 	int power_level;
 #ifdef CONFIG_IWLWIFI_DEBUG
+#if defined(__linux__)
+	u32 debug_level;
+#elif defined(__FreeBSD__)
 	enum iwl_dl debug_level;
+#endif
 #endif
 	char *nvm_file;
 	u32 uapsd_disable;

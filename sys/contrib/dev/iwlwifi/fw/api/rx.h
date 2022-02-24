@@ -756,7 +756,11 @@ struct iwl_rxq_sync_cmd {
 	__le32 flags;
 	__le32 rxq_mask;
 	__le32 count;
+#if defined(__linux__)
+	u8 payload[];
+#elif defined(__FreeBSD__)
 	u8 payload[0];
+#endif
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
@@ -768,7 +772,11 @@ struct iwl_rxq_sync_cmd {
  */
 struct iwl_rxq_sync_notification {
 	__le32 count;
+#if defined(__linux__)
+	u8 payload[];
+#elif defined(__FreeBSD__)
 	u8 payload[0];
+#endif
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
@@ -846,7 +854,11 @@ struct iwl_rfh_queue_data {
 struct iwl_rfh_queue_config {
 	u8 num_queues;
 	u8 reserved[3];
+#if defined(__linux__)
+	struct iwl_rfh_queue_data data[];
+#elif defined(__FreeBSD__)
 	struct iwl_rfh_queue_data data[0];
+#endif
 } __packed; /* RFH_QUEUE_CONFIG_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_rx_h__ */

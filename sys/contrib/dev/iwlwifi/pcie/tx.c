@@ -545,7 +545,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 					  trans->cfg->min_txq_size);
 		else
 			slots_num = max_t(u32, IWL_DEFAULT_QUEUE_SIZE,
-					  trans->cfg->min_256_ba_txq_size);
+					  trans->cfg->min_ba_txq_size);
 		trans->txqs.txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_txq_alloc(trans, trans->txqs.txq[txq_id], slots_num,
 				    cmd_queue);
@@ -599,7 +599,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 					  trans->cfg->min_txq_size);
 		else
 			slots_num = max_t(u32, IWL_DEFAULT_QUEUE_SIZE,
-					  trans->cfg->min_256_ba_txq_size);
+					  trans->cfg->min_ba_txq_size);
 		ret = iwl_txq_init(trans, trans->txqs.txq[txq_id], slots_num,
 				   cmd_queue);
 		if (ret) {
@@ -882,7 +882,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
 
-		iwl_trans_write_mem(trans, stts_addr, zero_val,
+		iwl_trans_write_mem(trans, stts_addr, (const void *)zero_val,
 				    ARRAY_SIZE(zero_val));
 	}
 
@@ -1206,7 +1206,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
 	group_id = cmd->hdr.group_id;
-	cmd_id = iwl_cmd_id(cmd->hdr.cmd, group_id, 0);
+	cmd_id = WIDE_ID(group_id, cmd->hdr.cmd);
 
 	iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
 
