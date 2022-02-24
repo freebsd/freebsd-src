@@ -55,7 +55,8 @@ struct mlx5e_tls_tag {
 #define	MLX5E_TLS_ST_INIT 0
 #define	MLX5E_TLS_ST_SETUP 1
 #define	MLX5E_TLS_ST_TXRDY 2
-#define	MLX5E_TLS_ST_FREED 3
+#define	MLX5E_TLS_ST_RELEASE 3
+#define	MLX5E_TLS_ST_FREED 4
 	struct work_struct work;
 
 	uint32_t dek_index_ok:1;
