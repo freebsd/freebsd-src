@@ -10,7 +10,9 @@
 #endif
 #include "iwl-drv.h"
 #include "iwl-debug.h"
+#if defined(__FreeBSD__)
 #include "iwl-modparams.h"
+#endif
 #include "iwl-devtrace.h"
 
 #if defined(__FreeBSD__)
@@ -141,7 +143,7 @@ void __iwl_dbg(struct device *dev,
 
 	va_start(args, fmt);
 	vaf.va = &args;
-#if defined(CONFIG_IWLWIFI_DEBUG)
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(level) &&
 	    (!limit || net_ratelimit())) {
 #if defined(__linux_)

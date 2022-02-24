@@ -141,6 +141,9 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
+
+	/* clear the data for the aborted load case */
+	memset(&drv->fw, 0, sizeof(drv->fw));
 }
 
 static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
@@ -174,8 +177,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	char tag[8];
 
 	if (drv->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    (CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_B_STEP &&
-	     CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_C_STEP)) {
+	    (drv->trans->hw_rev_step != SILICON_B_STEP &&
+	     drv->trans->hw_rev_step != SILICON_C_STEP)) {
 		IWL_ERR(drv,
 			"Only HW steps B and C are currently supported (0x%0x)\n",
 			drv->trans->hw_rev);
@@ -598,6 +601,66 @@ static void iwl_drv_set_dump_exclude(struct iwl_drv *drv,
 	excl->size = le32_to_cpu(fw->size);
 }
 
+static void iwl_parse_dbg_tlv_assert_tables(struct iwl_drv *drv,
+					    const struct iwl_ucode_tlv *tlv)
+{
+	const struct iwl_fw_ini_region_tlv *region;
+	u32 length = le32_to_cpu(tlv->length);
+	u32 addr;
+
+	if (length < offsetof(typeof(*region), special_mem) +
+		     sizeof(region->special_mem))
+		return;
+
+	region = (const void *)tlv->data;
+	addr = le32_to_cpu(region->special_mem.base_addr);
+	addr += le32_to_cpu(region->special_mem.offset);
+	addr &= ~FW_ADDR_CACHE_CONTROL;
+
+	if (region->type != IWL_FW_INI_REGION_SPECIAL_DEVICE_MEMORY)
+		return;
+
+	switch (region->sub_type) {
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_UMAC_ERROR_TABLE:
+		drv->trans->dbg.umac_error_event_table = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_UMAC;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_LMAC_1_ERROR_TABLE:
+		drv->trans->dbg.lmac_error_event_table[0] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_LMAC1;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_LMAC_2_ERROR_TABLE:
+		drv->trans->dbg.lmac_error_event_table[1] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_LMAC2;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_TCM_1_ERROR_TABLE:
+		drv->trans->dbg.tcm_error_event_table[0] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_TCM1;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_TCM_2_ERROR_TABLE:
+		drv->trans->dbg.tcm_error_event_table[1] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_TCM2;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_RCM_1_ERROR_TABLE:
+		drv->trans->dbg.rcm_error_event_table[0] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_RCM1;
+		break;
+	case IWL_FW_INI_REGION_DEVICE_MEMORY_SUBTYPE_RCM_2_ERROR_TABLE:
+		drv->trans->dbg.rcm_error_event_table[1] = addr;
+		drv->trans->dbg.error_event_table_tlv_status |=
+			IWL_ERROR_EVENT_TABLE_RCM2;
+		break;
+	default:
+		break;
+	}
+}
+
 static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				const struct firmware *ucode_raw,
 				struct iwl_firmware_pieces *pieces,
@@ -653,8 +716,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 	while (len >= sizeof(*tlv)) {
 		len -= sizeof(*tlv);
-		tlv = (const struct iwl_ucode_tlv *)data;
 
+		tlv = (const void *)data;
 		tlv_len = le32_to_cpu(tlv->length);
 		tlv_type = le32_to_cpu(tlv->type);
 		tlv_data = tlv->data;
@@ -885,7 +948,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				le32_to_cpup((const __le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_FW_VERSION: {
-			const __le32 *ptr = (const __le32 *)tlv_data;
+			const __le32 *ptr = (const void *)tlv_data;
 			u32 major, minor;
 			u8 local_comp;
 
@@ -1166,22 +1229,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				IWL_ERROR_EVENT_TABLE_LMAC1;
 			break;
 			}
-		case IWL_UCODE_TLV_TCM_DEBUG_ADDRS: {
-			const struct iwl_fw_tcm_error_addr *ptr =
-				(const void *)tlv_data;
-
-			if (tlv_len != sizeof(*ptr))
-				goto invalid_tlv_len;
-			drv->trans->dbg.tcm_error_event_table =
-				le32_to_cpu(ptr->addr) & ~FW_ADDR_CACHE_CONTROL;
-			drv->trans->dbg.error_event_table_tlv_status |=
-				IWL_ERROR_EVENT_TABLE_TCM;
-			break;
-			}
+		case IWL_UCODE_TLV_TYPE_REGIONS:
+			iwl_parse_dbg_tlv_assert_tables(drv, tlv);
+			fallthrough;
 		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
 		case IWL_UCODE_TLV_TYPE_HCMD:
-		case IWL_UCODE_TLV_TYPE_REGIONS:
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
 		case IWL_UCODE_TLV_TYPE_CONF_SET:
 			if (iwlwifi_mod_params.enable_ini)
@@ -1237,8 +1290,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 	if (len) {
 		IWL_ERR(drv, "invalid TLV after parsing: %zd\n", len);
+#if defined(__linux__)
+		iwl_print_hex_dump(drv, IWL_DL_FW, data, len);
+#elif defined(__FreeBSD__)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-		iwl_print_hex_dump(drv, IWL_DL_FW, "TLV ", (u8 *)data, len);
+		iwl_print_hex_dump(drv, IWL_DL_FW, "TLV ", data, len);
+#endif
 #endif
 		return -EINVAL;
 	}
@@ -1248,8 +1305,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
  invalid_tlv_len:
 	IWL_ERR(drv, "TLV %d has invalid size: %u\n", tlv_type, tlv_len);
  tlv_error:
+#if defined(__linux__)
+	iwl_print_hex_dump(drv, IWL_DL_FW, tlv_data, tlv_len);
+#elif defined(__FreeBSD__)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_print_hex_dump(drv, IWL_DL_FW, "TLV ", tlv_data, tlv_len);
+#endif
 #endif
 
 	return -EINVAL;
@@ -1331,23 +1392,31 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 	const struct iwl_op_mode_ops *ops = op->ops;
 	struct dentry *dbgfs_dir = NULL;
 	struct iwl_op_mode *op_mode = NULL;
+	int retry, max_retry = !!iwlwifi_mod_params.fw_restart * IWL_MAX_INIT_RETRY;
+
+	for (retry = 0; retry <= max_retry; retry++) {
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	drv->dbgfs_op_mode = debugfs_create_dir(op->name,
-						drv->dbgfs_drv);
-	dbgfs_dir = drv->dbgfs_op_mode;
+		drv->dbgfs_op_mode = debugfs_create_dir(op->name,
+							drv->dbgfs_drv);
+		dbgfs_dir = drv->dbgfs_op_mode;
 #endif
 
-	op_mode = ops->start(drv->trans, drv->trans->cfg, &drv->fw, dbgfs_dir);
+		op_mode = ops->start(drv->trans, drv->trans->cfg,
+				     &drv->fw, dbgfs_dir);
+
+		if (op_mode)
+			return op_mode;
+
+		IWL_ERR(drv, "retry init count %d\n", retry);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (!op_mode) {
 		debugfs_remove_recursive(drv->dbgfs_op_mode);
 		drv->dbgfs_op_mode = NULL;
-	}
 #endif
+	}
 
-	return op_mode;
+	return NULL;
 }
 
 static void _iwl_op_mode_stop(struct iwl_drv *drv)
@@ -1385,6 +1454,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	int i;
 	bool load_module = false;
 	bool usniffer_images = false;
+	bool failure = true;
 
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -1600,6 +1670,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
 
+	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
+
 	mutex_lock(&iwlwifi_opmode_table_mtx);
 	switch (fw->type) {
 	case IWL_FW_DVM:
@@ -1615,8 +1687,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 
 	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
 		 drv->fw.fw_version, op->name);
-
-	iwl_dbg_tlv_load_bin(drv->trans->dev, drv->trans);
 
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
@@ -1645,15 +1715,9 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * else from proceeding if the module fails to load
 	 * or hangs loading.
 	 */
-	if (load_module) {
+	if (load_module)
 		request_module("%s", op->name);
-#ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
-		if (err)
-			IWL_ERR(drv,
-				"failed to load module %s (error %d), is dynamic loading enabled?\n",
-				op->name, err);
-#endif
-	}
+	failure = false;
 	goto free;
 
  try_again:
@@ -1669,6 +1733,9 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	complete(&drv->request_firmware_complete);
 	device_release_driver(drv->trans->dev);
  free:
+	if (failure)
+		iwl_dealloc_ucode(drv);
+
 	if (pieces) {
 		for (i = 0; i < ARRAY_SIZE(pieces->img); i++)
 			kfree(pieces->img[i].sec);

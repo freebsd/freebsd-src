@@ -67,7 +67,7 @@ struct iwl_lq_sta {
 	} pers;
 };
 
-#define	RS_DRV_DATA_PACK(_lq_c, f)	(0)	/* XXX TODO | ? */
+#define	RS_DRV_DATA_PACK(_c, _f)	((void *)(uintptr_t)(_c | (uintptr_t)(_f) << sizeof(_c)))	/* XXX TODO | ? */
 
 struct iwl_mvm_sta;
 
