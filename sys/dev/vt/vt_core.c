@@ -2418,8 +2418,8 @@ skip_thunk:
 	case KDGKBTYPE:
 	case KDGETREPEAT:	/* get keyboard repeat & delay rates */
 	case KDSETREPEAT:	/* set keyboard repeat & delay rates (new) */
-	case KBADDKBD:		/* add/remove keyboard to/from mux */
-	case KBRELKBD: {
+	case KBADDKBD:		/* add keyboard to mux */
+	case KBRELKBD: {	/* release keyboard from mux */
 		error = 0;
 
 		mtx_lock(&Giant);
