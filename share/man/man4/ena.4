@@ -72,8 +72,9 @@ interrupt vector per Tx/Rx queue pair, and CPU cacheline optimized
 data placement.
 .Pp
 When RSS is enabled, each Tx/Rx queue pair is bound to a corresponding
-CPU core and its NUMA domain. The order of those bindings is based on
-the RSS bucket mapping. For builds with RSS support disabled, the
+CPU core and its NUMA domain.
+The order of those bindings is based on the RSS bucket mapping.
+For builds with RSS support disabled, the
 CPU and NUMA management is left to the kernel.
 .Pp
 The
@@ -290,7 +291,8 @@ The default is x:y key-pairs of indir_table_size length.
 Updates selected indices of the RSS indirection table.
 .Pp
 The entry string consists of one or more x:y keypairs, where x stands for
-the table index and y for its new value. Table indices that don't need to be
+the table index and y for its new value.
+Table indices that don't need to be
 updated can be omitted from the string and will retain their existing values.
 .Pp
 If an index is entered more than once, the last value is used.
