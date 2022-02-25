@@ -208,6 +208,10 @@ to be linked in before any
 other shared libraries.
 If the directory is not specified then
 the directories specified by
+.Ev LD_LIBRARY_PATH
+will be searched first
+followed by the set of built-in standard directories.
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_PRELOAD_FDS
 A colon separated list of file descriptor numbers for libraries.
 This is intended for preloading libraries in which we already have a file
@@ -216,10 +220,6 @@ This may optimize the process of loading libraries because we do not have to
 look for them in directories.
 It may also be useful in a capability base system where we do not have access to
 global namespaces such as the filesystem.
-.Ev LD_LIBRARY_PATH
-will be searched first
-followed by the set of built-in standard directories.
-This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_LIBRARY_PATH_FDS
 A colon separated list of file descriptor numbers for library directories.
 This is intended for use within
