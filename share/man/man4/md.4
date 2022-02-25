@@ -125,7 +125,6 @@ dedicate to the kmem_arena map.
 The scale value is the ratio of physical to virtual pages.
 The default value of 3 allocates a page of KVA for each 3 pages
 of physical ram in the system.
-
 The kernel and modules, including the root image, also consume KVA.
 The combination of a large root image and the default scaling
 may preallocate so much KVA that there is not enough
@@ -133,7 +132,6 @@ remaining address space to allocate kernel stacks, IO buffers,
 and other resources that are not part of kmem_arena.
 Overallocating kmem_arena space is likely to manifest as failure to
 launch userland processes with "cannot allocate kernel stack" messages.
-
 Setting the scale value too high may result in kernel failure to allocate
 memory because kmem_arena is too small, and the failure may require
 significant runtime to manifest.
