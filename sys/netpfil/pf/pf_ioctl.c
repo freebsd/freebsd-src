@@ -2184,11 +2184,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	}
 
 	rule->rpool.cur = TAILQ_FIRST(&rule->rpool.list);
-	pf_counter_u64_zero(&rule->evaluations);
-	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_zero(&rule->packets[i]);
-		pf_counter_u64_zero(&rule->bytes[i]);
-	}
 	TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 	    rule, entries);
 	ruleset->rules[rs_num].inactive.rcount++;
