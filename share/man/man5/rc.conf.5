@@ -232,7 +232,7 @@ to protect only the service itself, and
 to protect the service and all child processes.
 .Pp
 Please note rc scripts that redefine
-.Bd
+.Bd -literal
 ${name}_cmd
 .Ed
 such as PostgreSQL will not inherit the OOM killer protection.
