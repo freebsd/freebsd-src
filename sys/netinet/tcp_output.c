@@ -1206,7 +1206,7 @@ send:
 	/* Also handle parallel SYN for ECN */
 	if ((TCPS_HAVERCVDSYN(tp->t_state)) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
-		int ect = tcp_ecn_output_established(tp, &flags, len);
+		int ect = tcp_ecn_output_established(tp, &flags, len, sack_rxmit);
 		if ((tp->t_state == TCPS_SYN_RECEIVED) &&
 		    (tp->t_flags2 & TF2_ECN_SND_ECE))
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;

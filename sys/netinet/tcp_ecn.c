@@ -201,7 +201,7 @@ tcp_ecn_output_syn_sent(struct tcpcb *tp)
  * returning IP ECN header codepoint
  */
 int
-tcp_ecn_output_established(struct tcpcb *tp, uint16_t *thflags, int len)
+tcp_ecn_output_established(struct tcpcb *tp, uint16_t *thflags, int len, bool rxmit)
 {
 	int ipecn = IPTOS_ECN_NOTECT;
 	bool newdata;
@@ -213,6 +213,7 @@ tcp_ecn_output_established(struct tcpcb *tp, uint16_t *thflags, int len)
 	 * and window probes.
 	 */
 	newdata = (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
+		    !rxmit &&
 		    !((tp->t_flags & TF_FORCEDATA) && len == 1));
 	if (newdata) {
 		ipecn = IPTOS_ECN_ECT0;
