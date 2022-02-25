@@ -2185,22 +2185,42 @@ ConvertFromTextUsbClass (
   PIDStr      = GetNextParamStr (&TextDeviceNode);
   if (UsbClassText->ClassExist) {
     ClassStr = GetNextParamStr (&TextDeviceNode);
-    UsbClass->DeviceClass = (UINT8) Strtoi (ClassStr);
+    if (*ClassStr == '\0') {
+      UsbClass->DeviceClass = 0xFF;
+    } else {
+      UsbClass->DeviceClass = (UINT8) Strtoi (ClassStr);
+    }
   } else {
     UsbClass->DeviceClass = UsbClassText->Class;
   }
   if (UsbClassText->SubClassExist) {
     SubClassStr = GetNextParamStr (&TextDeviceNode);
-    UsbClass->DeviceSubClass = (UINT8) Strtoi (SubClassStr);
+    if (*SubClassStr == '\0') {
+      UsbClass->DeviceSubClass = 0xFF;
+    } else {
+      UsbClass->DeviceSubClass = (UINT8) Strtoi (SubClassStr);
+    }
   } else {
     UsbClass->DeviceSubClass = UsbClassText->SubClass;
   }
 
   ProtocolStr = GetNextParamStr (&TextDeviceNode);
 
-  UsbClass->VendorId        = (UINT16) Strtoi (VIDStr);
-  UsbClass->ProductId       = (UINT16) Strtoi (PIDStr);
-  UsbClass->DeviceProtocol  = (UINT8) Strtoi (ProtocolStr);
+  if (*VIDStr == '\0') {
+    UsbClass->VendorId        = 0xFFFF;
+  } else {
+    UsbClass->VendorId        = (UINT16) Strtoi (VIDStr);
+  }
+  if (*PIDStr == '\0') {
+    UsbClass->ProductId       = 0xFFFF;
+  } else {
+    UsbClass->ProductId       = (UINT16) Strtoi (PIDStr);
+  }
+  if (*ProtocolStr == '\0') {
+    UsbClass->DeviceProtocol  = 0xFF;
+  } else {
+    UsbClass->DeviceProtocol  = (UINT8) Strtoi (ProtocolStr);
+  }
 
   return (EFI_DEVICE_PATH_PROTOCOL *) UsbClass;
 }
