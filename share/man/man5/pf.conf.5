@@ -1918,7 +1918,6 @@ For example:
 pass in proto tcp to port 25 queue mail
 pass in proto tcp to port 22 queue(ssh_bulk, ssh_prio)
 .Ed
-.Pp
 .It Cm set prio Ar priority | Pq Ar priority , priority
 Packets matching this rule will be assigned a specific queueing priority.
 Priorities are assigned as integers 0 through 7.
@@ -1935,7 +1934,6 @@ For example:
 pass in proto tcp to port 25 set prio 2
 pass in proto tcp to port 22 set prio (2, 5)
 .Ed
-.Pp
 .It Ar tag Aq Ar string
 Packets matching this rule will be tagged with the
 specified string.
@@ -1998,7 +1996,6 @@ block in proto icmp probability 20%
 .Ed
 .It Ar prio Aq Ar number
 Only match packets which have the given queueing priority assigned.
-.Pp
 .El
 .Sh ROUTING
 If a packet matches a rule with a route option set, the packet filter will
@@ -2110,7 +2107,6 @@ nat on $gif_mape_if from $int_if:network to any \e
 .Ed
 .Pp
 sets PSID offset 6, PSID length 8, PSID 0x34.
-.Ed
 .El
 .Pp
 Additionally, the
