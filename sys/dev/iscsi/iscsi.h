@@ -75,6 +75,8 @@ struct iscsi_session {
 
 	struct callout			is_callout;
 	unsigned int			is_timeout;
+	int				is_ping_timeout;
+	int				is_login_timeout;
 
 	/*
 	 * XXX: This could be rewritten using a single variable,

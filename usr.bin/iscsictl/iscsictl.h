@@ -79,6 +79,8 @@ struct target {
 	int			t_protocol;
 	int			t_dscp;
 	int			t_pcp;
+	int			t_pingtimeout;
+	int			t_logintimeout;
 	char			*t_offload;
 	char			*t_user;
 	char			*t_secret;

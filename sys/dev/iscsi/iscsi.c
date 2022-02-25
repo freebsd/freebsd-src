@@ -42,9 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sockopt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -86,6 +88,7 @@ SYSCTL_NODE(_kern, OID_AUTO, iscsi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 static int debug = 1;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 0, "Enable debug messages");
+
 static int ping_timeout = 5;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RWTUN, &ping_timeout,
     0, "Timeout for ping (NOP-Out) requests, in seconds");
@@ -380,6 +383,26 @@ iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 static void
 iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 {
+	/*
+	 * As we will be reconnecting shortly,
+	 * discard outstanding data immediately on
+	 * close(), also notify peer via RST if
+	 * any packets come in.
+	 */
+	struct socket *so;
+	so = is->is_conn->ic_socket;
+	if (so != NULL) {
+		struct sockopt sopt;
+		struct linger sl;
+		sopt.sopt_dir     = SOPT_SET;
+		sopt.sopt_level   = SOL_SOCKET;
+		sopt.sopt_name    = SO_LINGER;
+		sopt.sopt_val     = &sl;
+		sopt.sopt_valsize = sizeof(sl);
+		sl.l_onoff        = 1;	/* non-zero value enables linger option in kernel */
+		sl.l_linger       = 0;	/* timeout interval in seconds */
+		sosetopt(is->is_conn->ic_socket, &sopt);
+	}
 
 	icl_conn_close(is->is_conn);
 
@@ -576,7 +599,7 @@ iscsi_callout(void *context)
 	}
 
 	if (is->is_login_phase) {
-		if (login_timeout > 0 && is->is_timeout > login_timeout) {
+		if (is->is_login_timeout > 0 && is->is_timeout > is->is_login_timeout) {
 			ISCSI_SESSION_WARN(is, "login timed out after %d seconds; "
 			    "reconnecting", is->is_timeout);
 			reconnect_needed = true;
@@ -584,7 +607,7 @@ iscsi_callout(void *context)
 		goto out;
 	}
 
-	if (ping_timeout <= 0) {
+	if (is->is_ping_timeout <= 0) {
 		/*
 		 * Pings are disabled.  Don't send NOP-Out in this case.
 		 * Reset the timeout, to avoid triggering reconnection,
@@ -594,9 +617,9 @@ iscsi_callout(void *context)
 		goto out;
 	}
 
-	if (is->is_timeout >= ping_timeout) {
+	if (is->is_timeout >= is->is_ping_timeout) {
 		ISCSI_SESSION_WARN(is, "no ping reply (NOP-In) after %d seconds; "
-		    "reconnecting", ping_timeout);
+		    "reconnecting", is->is_ping_timeout);
 		reconnect_needed = true;
 		goto out;
 	}
@@ -1509,6 +1532,12 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 	is->is_waiting_for_iscsid = false;
 	is->is_login_phase = false;
 	is->is_timeout = 0;
+	is->is_ping_timeout = is->is_conf.isc_ping_timeout;
+	if (is->is_ping_timeout < 0)
+		is->is_ping_timeout = ping_timeout;
+	is->is_login_timeout = is->is_conf.isc_login_timeout;
+	if (is->is_login_timeout < 0)
+		is->is_login_timeout = login_timeout;
 	is->is_connected = true;
 	is->is_reason[0] = '\0';
 
@@ -1915,6 +1944,12 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 		sx_xunlock(&sc->sc_lock);
 		return (error);
 	}
+	is->is_ping_timeout = is->is_conf.isc_ping_timeout;
+	if (is->is_ping_timeout < 0)
+		is->is_ping_timeout = ping_timeout;
+	is->is_login_timeout = is->is_conf.isc_login_timeout;
+	if (is->is_login_timeout < 0)
+		is->is_login_timeout = login_timeout;
 
 	sbt = mstosbt(995);
 	pr = mstosbt(10);

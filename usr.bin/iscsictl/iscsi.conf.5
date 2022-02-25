@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2016
+.Dd February 25, 2022
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
@@ -160,6 +160,30 @@ The PCP can be set to a value in the range between
 to
 .Qq Ar 7 .
 When omitted, the default for the outgoing interface is used.
+.It Cm PingTimeout
+Specify the time in seconds to wait between pings (SCSI NOP), and
+for a ping response before declaring the session as dead and
+attempting a re-establishment.
+If this entry is not present in the conf file, the default value
+configured using
+.Qq Ar kern.iscsi.ping_timeout
+(default at
+.Qq Ar 5
+seconds) is taken by the driver.
+If present, the PingTimeout can be set to any positive value
+starting with
+.Qq Ar 1 .
+.It Cm LoginTimeout
+Specify the time in seconds to wait for a login PDU to be sent or
+received after trying to establish a new session.
+When no login PDU is received within this time, the login on a
+particular connection fails and a new reconnection attempt is made.
+If this entry is not present in the conf file, the default value of
+.Qq Ar 60
+seconds is used, as configured by
+.Qq Ar kern.iscsi.login_timeout .
+The LoginTimeout can be set to any positive value starting with
+.Qq Ar 1 .
 .El
 .Sh FILES
 .Bl -tag -width indent

@@ -71,7 +71,8 @@ struct iscsi_session_conf {
 	int		isc_enable;
 	int		isc_dscp;
 	int		isc_pcp;
-	int		isc_spare[2];
+	int		isc_ping_timeout;
+	int		isc_login_timeout;
 };
 
 /*
