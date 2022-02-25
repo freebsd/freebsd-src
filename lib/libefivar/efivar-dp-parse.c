@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathFromText.c
- * hash a11928f3310518ab1c6fd34e8d0fdbb72de9602c 2017-Mar-01
  */
 
 /** @file
