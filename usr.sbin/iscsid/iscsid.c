@@ -397,12 +397,14 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 			keepinit);
 	}
 	if (conn->conn_conf.isc_login_timeout == -1) {
-		char value[8];
+		int value;
 		size_t size = sizeof(value);
-		sysctlbyname("kern.iscsi.login_timeout", &value, &size,
-			NULL, 0);
-		keepinit = strtol(value, NULL, 10);
-		log_debugx("global login_timeout at %d sec", keepinit);
+		if (sysctlbyname("kern.iscsi.login_timeout",
+		    &value, &size, NULL, 0) == 0) {
+			keepinit = value;
+			log_debugx("global login_timeout at %d sec",
+				keepinit);
+		}
 	}
 	if (keepinit > 0) {
 		if (setsockopt(conn->conn.conn_socket,
