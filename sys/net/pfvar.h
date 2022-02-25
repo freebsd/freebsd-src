@@ -357,6 +357,11 @@ extern struct mtx_padalign pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_ASSERT()	mtx_assert(&pf_unlnkdrules_mtx, MA_OWNED)
 
+extern struct sx pf_config_lock;
+#define	PF_CONFIG_LOCK()	sx_xlock(&pf_config_lock)
+#define	PF_CONFIG_UNLOCK()	sx_xunlock(&pf_config_lock)
+#define	PF_CONFIG_ASSERT()	sx_assert(&pf_config_lock, SA_XLOCKED)
+
 extern struct rmlock pf_rules_lock;
 #define	PF_RULES_RLOCK_TRACKER	struct rm_priotracker _pf_rules_tracker
 #define	PF_RULES_RLOCK()	rm_rlock(&pf_rules_lock, &_pf_rules_tracker)
