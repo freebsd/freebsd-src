@@ -86,9 +86,9 @@ static int  bfe_resume				(device_t);
 static void bfe_release_resources	(struct bfe_softc *);
 static void bfe_intr				(void *);
 static int  bfe_encap				(struct bfe_softc *, struct mbuf **);
-static void bfe_start				(struct ifnet *);
-static void bfe_start_locked			(struct ifnet *);
-static int  bfe_ioctl				(struct ifnet *, u_long, caddr_t);
+static void bfe_start				(if_t);
+static void bfe_start_locked			(if_t);
+static int  bfe_ioctl				(if_t, u_long, caddr_t);
 static void bfe_init				(void *);
 static void bfe_init_locked			(void *);
 static void bfe_stop				(struct bfe_softc *);
@@ -105,8 +105,8 @@ static int  bfe_list_newbuf			(struct bfe_softc *, int);
 static void bfe_rx_ring_free		(struct bfe_softc *);
 
 static void bfe_pci_setup			(struct bfe_softc *, u_int32_t);
-static int  bfe_ifmedia_upd			(struct ifnet *);
-static void bfe_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
+static int  bfe_ifmedia_upd			(if_t);
+static void bfe_ifmedia_sts			(if_t, struct ifmediareq *);
 static int  bfe_miibus_readreg		(device_t, int, int);
 static int  bfe_miibus_writereg		(device_t, int, int, int);
 static void bfe_miibus_statchg		(device_t);
@@ -431,7 +431,7 @@ bfe_dma_free(struct bfe_softc *sc)
 static int
 bfe_attach(device_t dev)
 {
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	struct bfe_softc *sc;
 	int error = 0, rid;
 
@@ -485,15 +485,14 @@ bfe_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = bfe_ioctl;
-	ifp->if_start = bfe_start;
-	ifp->if_init = bfe_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, BFE_TX_QLEN);
-	ifp->if_snd.ifq_drv_maxlen = BFE_TX_QLEN;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, bfe_ioctl);
+	if_setstartfn(ifp, bfe_start);
+	if_setinitfn(ifp, bfe_init);
+	if_setsendqlen(ifp, BFE_TX_QLEN);
+	if_setsendqready(ifp);
 
 	bfe_get_config(sc);
 
@@ -515,9 +514,9 @@ bfe_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 
 	/*
 	 * Hook interrupt last to avoid having to lock softc
@@ -539,7 +538,7 @@ static int
 bfe_detach(device_t dev)
 {
 	struct bfe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 
@@ -605,16 +604,16 @@ static int
 bfe_resume(device_t dev)
 {
 	struct bfe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->bfe_ifp;
 	BFE_LOCK(sc);
 	bfe_chip_reset(sc);
-	if (ifp->if_flags & IFF_UP) {
+	if (if_getflags(ifp) & IFF_UP) {
 		bfe_init_locked(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING &&
+		    !if_sendq_empty(ifp))
 			bfe_start_locked(ifp);
 	}
 	BFE_UNLOCK(sc);
@@ -1091,27 +1090,27 @@ bfe_write_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 bfe_set_rx_mode(struct bfe_softc *sc)
 {
-	struct ifnet *ifp = sc->bfe_ifp;
+	if_t ifp = sc->bfe_ifp;
 	u_int32_t val;
 
 	BFE_LOCK_ASSERT(sc);
 
 	val = CSR_READ_4(sc, BFE_RXCONF);
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		val |= BFE_RXCONF_PROMISC;
 	else
 		val &= ~BFE_RXCONF_PROMISC;
 
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		val &= ~BFE_RXCONF_DBCAST;
 	else
 		val |= BFE_RXCONF_DBCAST;
 
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, 0);
-	bfe_cam_write(sc, IF_LLADDR(sc->bfe_ifp), 0);
+	bfe_cam_write(sc, if_getlladdr(sc->bfe_ifp), 0);
 
-	if (ifp->if_flags & IFF_ALLMULTI)
+	if (if_getflags(ifp) & IFF_ALLMULTI)
 		val |= BFE_RXCONF_ALLMULTI;
 	else {
 		val &= ~BFE_RXCONF_ALLMULTI;
@@ -1248,7 +1247,7 @@ static void
 bfe_stats_update(struct bfe_softc *sc)
 {
 	struct bfe_hw_stats *stats;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t mib[BFE_MIB_CNT];
 	uint32_t reg, *val;
 
@@ -1336,7 +1335,7 @@ static void
 bfe_txeof(struct bfe_softc *sc)
 {
 	struct bfe_tx_data *r;
-	struct ifnet *ifp;
+	if_t ifp;
 	int i, chipidx;
 
 	BFE_LOCK_ASSERT(sc);
@@ -1368,7 +1367,7 @@ bfe_txeof(struct bfe_softc *sc)
 	if (i != sc->bfe_tx_cons) {
 		/* we freed up some mbufs */
 		sc->bfe_tx_cons = i;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	}
 
 	if (sc->bfe_tx_cnt == 0)
@@ -1380,7 +1379,7 @@ static void
 bfe_rxeof(struct bfe_softc *sc)
 {
 	struct mbuf *m;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct bfe_rxheader *rxheader;
 	struct bfe_rx_data *r;
 	int cons, prog;
@@ -1430,7 +1429,7 @@ bfe_rxeof(struct bfe_softc *sc)
 
 		m->m_pkthdr.rcvif = ifp;
 		BFE_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		BFE_LOCK(sc);
 	}
 
@@ -1445,7 +1444,7 @@ static void
 bfe_intr(void *xsc)
 {
 	struct bfe_softc *sc = xsc;
-	struct ifnet *ifp;
+	if_t ifp;
 	u_int32_t istat;
 
 	ifp = sc->bfe_ifp;
@@ -1464,7 +1463,7 @@ bfe_intr(void *xsc)
 	CSR_READ_4(sc, BFE_ISTAT);
 
 	/* not expecting this interrupt, disregard it */
-	if (istat == 0 || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if (istat == 0 || (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 		BFE_UNLOCK(sc);
 		return;
 	}
@@ -1492,12 +1491,12 @@ bfe_intr(void *xsc)
 			BFE_UNLOCK(sc);
 			return;
 		}
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		bfe_init_locked(sc);
 	}
 
 	/* We have packets pending, fire them out */
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		bfe_start_locked(ifp);
 
 	BFE_UNLOCK(sc);
@@ -1594,24 +1593,24 @@ bfe_encap(struct bfe_softc *sc, struct mbuf **m_head)
  * Set up to transmit a packet.
  */
 static void
-bfe_start(struct ifnet *ifp)
+bfe_start(if_t ifp)
 {
-	BFE_LOCK((struct bfe_softc *)ifp->if_softc);
+	BFE_LOCK((struct bfe_softc *)if_getsoftc(ifp));
 	bfe_start_locked(ifp);
-	BFE_UNLOCK((struct bfe_softc *)ifp->if_softc);
+	BFE_UNLOCK((struct bfe_softc *)if_getsoftc(ifp));
 }
 
 /*
  * Set up to transmit a packet. The softc is already locked.
  */
 static void
-bfe_start_locked(struct ifnet *ifp)
+bfe_start_locked(if_t ifp)
 {
 	struct bfe_softc *sc;
 	struct mbuf *m_head;
 	int queued;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	BFE_LOCK_ASSERT(sc);
 
@@ -1619,13 +1618,13 @@ bfe_start_locked(struct ifnet *ifp)
 	 * Not much point trying to send if the link is down
 	 * or we have nothing to send.
 	 */
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || (sc->bfe_flags & BFE_FLAG_LINK) == 0)
 		return;
 
-	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	for (queued = 0; !if_sendq_empty(ifp) &&
 	    sc->bfe_tx_cnt < BFE_TX_LIST_CNT - 1;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
@@ -1636,8 +1635,8 @@ bfe_start_locked(struct ifnet *ifp)
 		if (bfe_encap(sc, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -1689,14 +1688,14 @@ static void
 bfe_init_locked(void *xsc)
 {
 	struct bfe_softc *sc = (struct bfe_softc*)xsc;
-	struct ifnet *ifp = sc->bfe_ifp;
+	if_t ifp = sc->bfe_ifp;
 	struct mii_data *mii;
 
 	BFE_LOCK_ASSERT(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	bfe_stop(sc);
@@ -1721,8 +1720,8 @@ bfe_init_locked(void *xsc)
 	sc->bfe_flags &= ~BFE_FLAG_LINK;
 	mii_mediachg(mii);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	callout_reset(&sc->bfe_stat_co, hz, bfe_tick, sc);
 }
@@ -1731,14 +1730,14 @@ bfe_init_locked(void *xsc)
  * Set media options.
  */
 static int
-bfe_ifmedia_upd(struct ifnet *ifp)
+bfe_ifmedia_upd(if_t ifp)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	BFE_LOCK(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
@@ -1754,9 +1753,9 @@ bfe_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-bfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+bfe_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct bfe_softc *sc = ifp->if_softc;
+	struct bfe_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii;
 
 	BFE_LOCK(sc);
@@ -1768,9 +1767,9 @@ bfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+bfe_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct bfe_softc *sc = ifp->if_softc;
+	struct bfe_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
 	int error = 0;
@@ -1778,19 +1777,19 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		BFE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				bfe_set_rx_mode(sc);
 			else if ((sc->bfe_flags & BFE_FLAG_DETACH) == 0)
 				bfe_init_locked(sc);
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			bfe_stop(sc);
 		BFE_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		BFE_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			bfe_set_rx_mode(sc);
 		BFE_UNLOCK(sc);
 		break;
@@ -1810,7 +1809,7 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 bfe_watchdog(struct bfe_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	BFE_LOCK_ASSERT(sc);
 
@@ -1822,10 +1821,10 @@ bfe_watchdog(struct bfe_softc *sc)
 	device_printf(sc->bfe_dev, "watchdog timeout -- resetting\n");
 
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	bfe_init_locked(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		bfe_start_locked(ifp);
 }
 
@@ -1851,12 +1850,12 @@ bfe_tick(void *xsc)
 static void
 bfe_stop(struct bfe_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	BFE_LOCK_ASSERT(sc);
 
 	ifp = sc->bfe_ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->bfe_flags &= ~BFE_FLAG_LINK;
 	callout_stop(&sc->bfe_stat_co);
 	sc->bfe_watchdog_timer = 0;
