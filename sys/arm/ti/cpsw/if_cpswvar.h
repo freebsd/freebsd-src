@@ -55,7 +55,7 @@ struct cpsw_vlangroups {
 struct cpsw_slot {
 	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
 	bus_dmamap_t dmamap;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(cpsw_slot) next;
 };
@@ -139,7 +139,7 @@ struct cpswp_softc {
 	struct bintime	init_uptime; /* system uptime when init happened. */
 	struct callout	mii_callout;
 	struct cpsw_softc *swsc;
-	struct ifnet	*ifp;
+	if_t		ifp;
 	struct mii_data	*mii;
 	struct mtx	lock;
 	uint32_t	if_flags;
