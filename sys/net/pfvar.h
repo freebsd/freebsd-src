@@ -769,6 +769,7 @@ struct pf_krule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+	u_int8_t		 md5sum[PF_MD5_DIGEST_LENGTH];
 
 #ifdef PF_WANT_32_TO_64_COUNTER
 	LIST_ENTRY(pf_krule)	 allrulelist;
