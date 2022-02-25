@@ -123,7 +123,8 @@ static void		 pf_qid_unref(uint16_t);
 static int		 pf_begin_rules(u_int32_t *, int, const char *);
 static int		 pf_rollback_rules(u_int32_t, int, char *);
 static int		 pf_setup_pfsync_matching(struct pf_kruleset *);
-static void		 pf_hash_rule(MD5_CTX *, struct pf_krule *);
+static void		 pf_hash_rule_rolling(MD5_CTX *, struct pf_krule *);
+static void		 pf_hash_rule(struct pf_krule *);
 static void		 pf_hash_rule_addr(MD5_CTX *, struct pf_rule_addr *);
 static int		 pf_commit_rules(u_int32_t, int, char *);
 static int		 pf_addr_setup(struct pf_kruleset *,
@@ -1223,7 +1224,7 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 }
 
 static void
-pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
+pf_hash_rule_rolling(MD5_CTX *ctx, struct pf_krule *rule)
 {
 	u_int16_t x;
 	u_int32_t y;
@@ -1264,20 +1265,21 @@ pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
 		PF_MD5_UPD_STR(rule, anchor->path);
 }
 
+static void
+pf_hash_rule(struct pf_krule *rule)
+{
+	MD5_CTX		ctx;
+
+	MD5Init(&ctx);
+	pf_hash_rule_rolling(&ctx, rule);
+	MD5Final(rule->md5sum, &ctx);
+}
+
 static bool
 pf_krule_compare(struct pf_krule *a, struct pf_krule *b)
 {
-	MD5_CTX		ctx[2];
-	u_int8_t	digest[2][PF_MD5_DIGEST_LENGTH];
 
-	MD5Init(&ctx[0]);
-	MD5Init(&ctx[1]);
-	pf_hash_rule(&ctx[0], a);
-	pf_hash_rule(&ctx[1], b);
-	MD5Final(digest[0], &ctx[0]);
-	MD5Final(digest[1], &ctx[1]);
-
-	return (memcmp(digest[0], digest[1], PF_MD5_DIGEST_LENGTH) == 0);
+	return (memcmp(a->md5sum, b->md5sum, PF_MD5_DIGEST_LENGTH) == 0);
 }
 
 static int
@@ -1394,7 +1396,7 @@ pf_setup_pfsync_matching(struct pf_kruleset *rs)
 
 		TAILQ_FOREACH(rule, rs->rules[rs_cnt].inactive.ptr,
 		    entries) {
-			pf_hash_rule(&ctx, rule);
+			pf_hash_rule_rolling(&ctx, rule);
 			(rs->rules[rs_cnt].inactive.ptr_array)[rule->nr] = rule;
 		}
 	}
@@ -2204,6 +2206,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	ruleset->rules[rs_num].inactive.rcount++;
 
 	PF_RULES_WUNLOCK();
+	pf_hash_rule(rule);
 	PF_CONFIG_UNLOCK();
 
 	return (0);
