@@ -547,13 +547,12 @@ vfs_unregister(struct vfsconf *vfc)
 		if (vfc->vfc_vfsops_sd->vfs_uninit != NULL)
 			error = vfc->vfc_vfsops_sd->vfs_uninit(vfsp);
 	} else {
-		if (vfc->vfc_vfsops->vfs_uninit != NULL) {
+		if (vfc->vfc_vfsops->vfs_uninit != NULL)
 			error = vfc->vfc_vfsops->vfs_uninit(vfsp);
 	}
 	if (error != 0) {
 		vfsconf_unlock();
 		return (error);
-	}
 	}
 	TAILQ_REMOVE(&vfsconf, vfsp, vfc_list);
 	maxtypenum = VFS_GENERIC;
