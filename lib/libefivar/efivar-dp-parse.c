@@ -1876,12 +1876,12 @@ DevPathFromTextDebugPort (
   IN CHAR16 *TextDeviceNode
   )
 {
-  VENDOR_DEFINED_MESSAGING_DEVICE_PATH  *Vend;
+  VENDOR_DEVICE_PATH  *Vend;
 
-  Vend = (VENDOR_DEFINED_MESSAGING_DEVICE_PATH *) CreateDeviceNode (
+  Vend = (VENDOR_DEVICE_PATH *) CreateDeviceNode (
                                                     MESSAGING_DEVICE_PATH,
                                                     MSG_VENDOR_DP,
-                                                    (UINT16) sizeof (VENDOR_DEFINED_MESSAGING_DEVICE_PATH)
+                                                    (UINT16) sizeof (VENDOR_DEVICE_PATH)
                                                     );
 
   CopyGuid (&Vend->Guid, &gEfiDebugPortProtocolGuid);
