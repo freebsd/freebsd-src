@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Taken from MdePkg/Library/UefiDevicePathLib/DevicePathToText.c
- * hash a11928f3310518ab1c6fd34e8d0fdbb72de9602c 2017-Mar-01
  * heavily modified:
  *	wide strings converted to narrow
  *	Low level printing code redone for narrow strings
