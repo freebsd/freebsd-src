@@ -236,6 +236,9 @@ struct mtx_padalign pf_unlnkdrules_mtx;
 MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
     MTX_DEF);
 
+struct sx pf_config_lock;
+SX_SYSINIT(pf_config_lock, &pf_config_lock, "pf config");
+
 struct mtx_padalign pf_table_stats_lock;
 MTX_SYSINIT(pf_table_stats_lock, &pf_table_stats_lock, "pf table stats",
     MTX_DEF);
@@ -2201,12 +2204,14 @@ pf_purge_unlinked_rules()
 	PF_UNLNKDRULES_UNLOCK();
 
 	if (!TAILQ_EMPTY(&tmpq)) {
+		PF_CONFIG_LOCK();
 		PF_RULES_WLOCK();
 		TAILQ_FOREACH_SAFE(r, &tmpq, entries, r1) {
 			TAILQ_REMOVE(&tmpq, r, entries);
 			pf_free_rule(r);
 		}
 		PF_RULES_WUNLOCK();
+		PF_CONFIG_UNLOCK();
 	}
 }
 
