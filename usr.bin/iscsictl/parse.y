@@ -61,7 +61,7 @@ extern void	yyrestart(FILE *);
 %token AUTH_METHOD ENABLE HEADER_DIGEST DATA_DIGEST TARGET_NAME TARGET_ADDRESS
 %token INITIATOR_NAME INITIATOR_ADDRESS INITIATOR_ALIAS USER SECRET
 %token MUTUAL_USER MUTUAL_SECRET SEMICOLON SESSION_TYPE PROTOCOL OFFLOAD
-%token IGNORED EQUALS OPENING_BRACKET CLOSING_BRACKET DSCP
+%token IGNORED EQUALS OPENING_BRACKET CLOSING_BRACKET DSCP PINGTIMEOUT LOGINTIMEOUT
 %token AF11 AF12 AF13 AF21 AF22 AF23 AF31 AF32 AF33 AF41 AF42 AF43
 %token BE EF CS0 CS1 CS2 CS3 CS4 CS5 CS6 CS7
 
@@ -133,6 +133,10 @@ target_entry:
 	dscp
 	|
 	pcp
+	|
+	ping_timeout
+	|
+	login_timeout
 	;
 
 target_name:	TARGET_NAME EQUALS STR
@@ -364,6 +368,38 @@ pcp:	PCP EQUALS STR
 		}
 
 		target->t_pcp = tmp;
+	}
+	;
+
+ping_timeout:	PINGTIMEOUT EQUALS STR
+	{
+		uint64_t tmp;
+
+		if (target->t_pingtimeout != -1)
+			xo_errx(1, "duplicated PingTimeout at line %d", lineno);
+
+		if (expand_number($3, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($3);
+			return(1);
+		}
+		target->t_pingtimeout = tmp;
+	}
+	;
+
+login_timeout:	LOGINTIMEOUT EQUALS STR
+	{
+		uint64_t tmp;
+
+		if (target->t_logintimeout != -1)
+			xo_errx(1, "duplicated LoginTimeout at line %d", lineno);
+
+		if (expand_number($3, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($3);
+			return(1);
+		}
+		target->t_logintimeout = tmp;
 	}
 	;
 

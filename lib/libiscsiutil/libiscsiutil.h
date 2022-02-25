@@ -54,6 +54,8 @@ struct connection {
 	int		conn_max_send_data_segment_length;
 	int		conn_max_burst_length;
 	int		conn_first_burst_length;
+	int		conn_ping_timeout;
+	int		conn_login_timeout;
 };
 
 struct pdu {

@@ -69,6 +69,8 @@ offload			{ return OFFLOAD; }
 port			{ return IGNORED; }
 dscp			{ return DSCP; }
 pcp			{ return PCP; }
+PingTimeout		{ return PINGTIMEOUT; }
+LoginTimeout		{ return LOGINTIMEOUT; }
 MaxConnections		{ return IGNORED; }
 TargetAlias		{ return IGNORED; }
 TargetPortalGroupTag	{ return IGNORED; }
