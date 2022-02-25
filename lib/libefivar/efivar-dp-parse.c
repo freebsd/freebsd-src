@@ -1920,6 +1920,10 @@ DevPathFromTextMAC (
   MACDevPath->IfType   = (UINT8) Strtoi (IfTypeStr);
 
   Length = sizeof (EFI_MAC_ADDRESS);
+  if (MACDevPath->IfType == 0x01 || MACDevPath->IfType == 0x00) {
+    Length = 6;
+  }
+
   StrHexToBytes (AddressStr, Length * 2, MACDevPath->MacAddress.Addr, Length);
 
   return (EFI_DEVICE_PATH_PROTOCOL *) MACDevPath;
