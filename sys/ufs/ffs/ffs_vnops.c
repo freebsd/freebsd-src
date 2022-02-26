@@ -836,11 +836,10 @@ ffs_write(ap)
 	struct inode *ip;
 	struct fs *fs;
 	struct buf *bp;
-	ufs_lbn_t lbn;
 	off_t osize;
 	ssize_t resid;
 	int seqcount;
-	int blkoffset, error, flags, ioflag, size, xfersize;
+	int blkoffset, error, flags, ioflag, xfersize;
 
 	vp = ap->a_vp;
 	if (DOINGSUJ(vp))
@@ -854,7 +853,7 @@ ffs_write(ap)
 #ifdef notyet
 		return (ffs_extwrite(vp, uio, ioflag, ap->a_cred));
 #else
-		panic("ffs_write+IO_EXT");
+		panic("%s+IO_EXT", __func__);
 #endif
 
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
@@ -862,7 +861,7 @@ ffs_write(ap)
 
 #ifdef INVARIANTS
 	if (uio->uio_rw != UIO_WRITE)
-		panic("ffs_write: mode");
+		panic("%s: mode", __func__);
 #endif
 
 	switch (vp->v_type) {
@@ -875,17 +874,17 @@ ffs_write(ap)
 	case VLNK:
 		break;
 	case VDIR:
-		panic("ffs_write: dir write");
+		panic("%s: dir write", __func__);
 		break;
 	default:
-		panic("ffs_write: type %p %d (%d,%d)", vp, (int)vp->v_type,
+		panic("%s: type %p %d (%d,%d)", __func__, vp, (int)vp->v_type,
 			(int)uio->uio_offset,
 			(int)uio->uio_resid
 		);
 	}
 
-	KASSERT(uio->uio_resid >= 0, ("ffs_write: uio->uio_resid < 0"));
-	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
+	KASSERT(uio->uio_resid >= 0, ("%s: uio->uio_resid < 0", __func__));
+	KASSERT(uio->uio_offset >= 0, ("%s: uio->uio_offset < 0", __func__));
 	fs = ITOFS(ip);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
 		return (EFBIG);
@@ -907,7 +906,6 @@ ffs_write(ap)
 	flags |= BA_UNMAPPED;
 
 	for (error = 0; uio->uio_resid > 0;) {
-		lbn = lblkno(fs, uio->uio_offset);
 		blkoffset = blkoff(fs, uio->uio_offset);
 		xfersize = fs->fs_bsize - blkoffset;
 		if (uio->uio_resid < xfersize)
@@ -938,11 +936,11 @@ ffs_write(ap)
 			DIP_SET(ip, i_size, ip->i_size);
 			UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE);
 		}
-
+/*
 		size = blksize(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
 			xfersize = size;
-
+*/
 		if (buf_mapped(bp)) {
 			error = vn_io_fault_uiomove((char *)bp->b_data +
 			    blkoffset, (int)xfersize, uio);
