@@ -98,7 +98,7 @@ void
 pqisrc_configure_legacy_intx(pqisrc_softstate_t *softs, boolean_t enable_intx)
 {
 	uint32_t intx_mask;
-	uint32_t *reg_addr = NULL;
+	uint32_t *reg_addr __unused;
 
 	DBG_FUNC("IN\n");
 
