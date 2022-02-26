@@ -3674,7 +3674,6 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		} else {
 			struct ahc_dma_seg *sg;
 			uint32_t data_cnt;
-			uint32_t data_addr;
 			uint32_t sglen;
 
 			/* Pull in all of the sgptr */
@@ -3690,10 +3689,7 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 				data_cnt &= ~AHC_SG_LEN_MASK;
 			}
 
-			data_addr = ahc_inl(ahc, SHADDR);
-
 			data_cnt += 1;
-			data_addr -= 1;
 			sgptr &= SG_PTR_MASK;
 
 			sg = ahc_sg_bus_to_virt(scb, sgptr);
@@ -3713,8 +3709,6 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 				 * while setting the count to 1.
 				 */
 				data_cnt = 1 | (sglen & (~AHC_SG_LEN_MASK));
-				data_addr = aic_le32toh(sg->addr)
-					  + (sglen & AHC_SG_LEN_MASK) - 1;
 
 				/*
 				 * Increment sg so it points to the
