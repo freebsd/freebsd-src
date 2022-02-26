@@ -850,7 +850,7 @@ siis_ch_intr(void *data)
 {
 	device_t dev = (device_t)data;
 	struct siis_channel *ch = device_get_softc(dev);
-	uint32_t istatus, sstatus, ctx, estatus, ok, err = 0;
+	uint32_t istatus, sstatus, ctx, estatus, ok;
 	enum siis_err_type et;
 	int i, ccs, port, tslots;
 
@@ -882,7 +882,6 @@ siis_ch_intr(void *data)
 		ctx = ATA_INL(ch->r_mem, SIIS_P_CTX);
 		ccs = (ctx & SIIS_P_CTX_SLOT) >> SIIS_P_CTX_SLOT_SHIFT;
 		port = (ctx & SIIS_P_CTX_PMP) >> SIIS_P_CTX_PMP_SHIFT;
-		err = ch->rslots & sstatus;
 //device_printf(dev, "%s ERROR ss %08x is %08x rs %08x es %d act %d port %d serr %08x\n",
 //    __func__, sstatus, istatus, ch->rslots, estatus, ccs, port,
 //    ATA_INL(ch->r_mem, SIIS_P_SERR));
