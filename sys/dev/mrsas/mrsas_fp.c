@@ -1753,7 +1753,7 @@ MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk,
 	MR_QUAD_ELEMENT *quad;
 	MR_LD_RAID *raid = MR_LdRaidGet(ld, map);
 	u_int32_t span, j;
-	u_int64_t blk, debugBlk;
+	u_int64_t blk;
 
 	for (span = 0; span < raid->spanDepth; span++, pSpanBlock++) {
 		for (j = 0; j < pSpanBlock->block_span_info.noElements; j++) {
@@ -1766,7 +1766,6 @@ MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk,
 			    (mega_mod64(row - quad->logStart, quad->diff)) == 0) {
 				if (span_blk != NULL) {
 					blk = mega_div64_32((row - quad->logStart), quad->diff);
-					debugBlk = blk;
 					blk = (blk + quad->offsetInSpan) << raid->stripeShift;
 					*span_blk = blk;
 				}
