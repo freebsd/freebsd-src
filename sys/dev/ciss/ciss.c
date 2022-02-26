@@ -2076,11 +2076,9 @@ ciss_free(struct ciss_softc *sc)
 static int
 ciss_start(struct ciss_request *cr)
 {
-    struct ciss_command	*cc __diagused;
     int			error;
 
-    cc = cr->cr_cc;
-    debug(2, "post command %d tag %d ", cr->cr_tag, cc->header.host_tag);
+    debug(2, "post command %d tag %d ", cr->cr_tag, cr->cr_cc->header.host_tag);
 
     /*
      * Map the request's data.
@@ -3061,14 +3059,11 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     case XPT_GET_TRAN_SETTINGS:
     {
 	struct ccb_trans_settings	*cts = &ccb->cts;
-	int				bus __diagused, target __diagused;
 	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
 	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 
-	bus = cam_sim_bus(sim);
-	target = cts->ccb_h.target_id;
-
-	debug(1, "XPT_GET_TRAN_SETTINGS %d:%d", bus, target);
+	debug(1, "XPT_GET_TRAN_SETTINGS %d:%d", cam_sim_bus(sim),
+	    ctl->ccb_h.target_id);
 	/* disconnect always OK */
 	cts->protocol = PROTO_SCSI;
 	cts->protocol_version = SCSI_REV_2;
