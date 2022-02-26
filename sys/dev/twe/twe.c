@@ -126,6 +126,8 @@ twe_setup(struct twe_softc *sc)
 
     debug_called(4);
 
+    gone_in(14, "Please migrate to newer hardware");
+
     /*
      * Initialise request queues.
      */
