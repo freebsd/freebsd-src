@@ -590,7 +590,7 @@ pqisrc_process_config_table(pqisrc_softstate_t *softs)
 	int ret = PQI_STATUS_FAILURE;
 	uint32_t config_table_size;
 	uint32_t section_off;
-	uint8_t *config_table_abs_addr;
+	uint8_t *config_table_abs_addr __unused;
 	struct pqi_conf_table *conf_table;
 	struct pqi_conf_table_section_header *section_hdr;
 
