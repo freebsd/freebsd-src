@@ -258,7 +258,7 @@ dvsend(int d, const char *filename, char ich, int count)
 	struct dvdbc *dv;
 	struct fw_pkt *pkt;
 	int len, tlen, header, fd, frames, packets, vec, offset, nhdr, i;
-	int system=-1, pad_acc, cycle_acc, cycle, f_cycle, f_frac;
+	int system=-1, pad_acc, cycle_acc, cycle, f_frac;
 	struct iovec wbuf[TNBUF*2 + NEMPTY];
 	char *pbuf;
 	u_int32_t iso_data, iso_empty, hdr[TNBUF + NEMPTY][3];
@@ -359,10 +359,11 @@ next:
 			if (frames % frame_rate[system] == 0)
 				fprintf(stderr, "\n");
 			fflush(stderr);
-			f_cycle = (cycle_acc / frame_cycle[system].d) & 0xf;
 			f_frac = (cycle_acc % frame_cycle[system].d
 					* CYCLE_FRAC) / frame_cycle[system].d;
 #if 0
+			int f_cycle;
+			f_cycle = (cycle_acc / frame_cycle[system].d) & 0xf;
 			ciph->fdf.dv.cyc = htons(f_cycle << 12 | f_frac);
 #else
 			ciph->fdf.dv.cyc = htons(cycle << 12 | f_frac);
