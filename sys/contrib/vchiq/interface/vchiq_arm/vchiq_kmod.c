@@ -83,6 +83,7 @@ static struct bcm_vchiq_softc *bcm_vchiq_sc = NULL;
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-vchiq",	BSD_DTB},
 	{"brcm,bcm2835-vchiq",		UPSTREAM_DTB},
+	{"brcm,bcm2711-vchiq",		UPSTREAM_DTB},
 	{NULL,				0}
 };
 
