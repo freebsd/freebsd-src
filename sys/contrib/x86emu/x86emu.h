@@ -170,8 +170,6 @@ struct x86emu {
 
 __BEGIN_DECLS
 
-void	x86emu_init_default(struct x86emu *);
-
 /* decode.c */
 
 void 	x86emu_exec(struct x86emu *);
