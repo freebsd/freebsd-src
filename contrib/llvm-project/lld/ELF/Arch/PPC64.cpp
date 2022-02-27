@@ -369,6 +369,7 @@ public:
   RelExpr getRelExpr(RelType type, const Symbol &s,
                      const uint8_t *loc) const override;
   RelType getDynRel(RelType type) const override;
+  int64_t getImplicitAddend(const uint8_t *buf, RelType type) const override;
   void writePltHeader(uint8_t *buf) const override;
   void writePlt(uint8_t *buf, const Symbol &sym,
                 uint64_t pltEntryAddr) const override;
@@ -1065,6 +1066,22 @@ RelType PPC64::getDynRel(RelType type) const {
   if (type == R_PPC64_ADDR64 || type == R_PPC64_TOC)
     return R_PPC64_ADDR64;
   return R_PPC64_NONE;
+}
+
+int64_t PPC64::getImplicitAddend(const uint8_t *buf, RelType type) const {
+  switch (type) {
+  case R_PPC64_NONE:
+    return 0;
+  case R_PPC64_REL32:
+    return SignExtend64<32>(read32(buf));
+  case R_PPC64_ADDR64:
+  case R_PPC64_REL64:
+    return read64(buf);
+  default:
+    internalLinkerError(getErrorLocation(buf),
+                        "cannot read addend for relocation " + toString(type));
+    return 0;
+  }
 }
 
 void PPC64::writeGotHeader(uint8_t *buf) const {
