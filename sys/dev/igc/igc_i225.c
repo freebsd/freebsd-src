@@ -172,14 +172,12 @@ static s32 igc_init_phy_params_i225(struct igc_hw *hw)
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
 	case I225_I_PHY_ID:
+	default:
 		phy->type		= igc_phy_i225;
 		phy->ops.set_d0_lplu_state = igc_set_d0_lplu_state_i225;
 		phy->ops.set_d3_lplu_state = igc_set_d3_lplu_state_i225;
 		/* TODO - complete with GPY PHY information */
 		break;
-	default:
-		ret_val = -IGC_ERR_PHY;
-		goto out;
 	}
 
 out:
