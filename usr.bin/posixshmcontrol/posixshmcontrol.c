@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <jail.h>
 #include <libutil.h>
 #include <pwd.h>
 #include <stdbool.h>
@@ -54,7 +55,7 @@ usage(void)
 	fprintf(stderr, "Usage:\n"
 	    "posixshmcontrol create [-m <mode>] [-l <largepage>] <path> ...\n"
 	    "posixshmcontrol rm <path> ...\n"
-	    "posixshmcontrol ls [-h] [-n]\n"
+	    "posixshmcontrol ls [-h] [-n] [-j jail]\n"
 	    "posixshmcontrol dump <path> ...\n"
 	    "posixshmcontrol stat [-h] [-n] <path> ...\n"
 	    "posixshmcontrol truncate [-s <newlen>] <path> ...\n");
@@ -221,23 +222,47 @@ shm_decode_mode(mode_t m, char *str)
 static int
 list_shm(int argc, char **argv)
 {
-	char *buf, *bp, sizebuf[8], str[10];
+	char *buf, *bp, *ep, jailpath[MAXPATHLEN], sizebuf[8], str[10];
+	const char *jailparam;
 	const struct kinfo_file *kif;
 	struct stat st;
-	int c, error, fd, mib[3], ret;
-	size_t len, miblen;
-	bool hsize, uname;
+	int c, error, fd, jid, mib[3], ret;
+	size_t len, jailpathlen, miblen;
+	bool hsize, jailed, uname;
 
 	hsize = false;
+	jailed = false;
 	uname = true;
 
-	while ((c = getopt(argc, argv, "hn")) != -1) {
+	while ((c = getopt(argc, argv, "hj:n")) != -1) {
 		switch (c) {
 		case 'h':
 			hsize = true;
 			break;
 		case 'n':
 			uname = false;
+			break;
+		case 'j':
+			jid = strtoul(optarg, &ep, 10);
+			if (ep > optarg && !*ep) {
+				jailparam = "jid";
+				jailed = jid > 0;
+			} else {
+				jailparam = "name";
+				jailed = true;
+			}
+			if (jailed) {
+				if (jail_getv(0, jailparam, optarg, "path",
+				    jailpath, NULL) < 0) {
+					if (errno == ENOENT)
+						warnx("no such jail: %s", optarg);
+					else
+						warnx("%s", jail_errmsg);
+					return (1);
+				}
+				jailpathlen = strlen(jailpath);
+				jailpath[jailpathlen] = '/';
+			}
 			break;
 		default:
 			usage();
@@ -279,6 +304,8 @@ list_shm(int argc, char **argv)
 		kif = (const struct kinfo_file *)(void *)bp;
 		if (kif->kf_structsize == 0)
 			break;
+		if (jailed && strncmp(kif->kf_path, jailpath, jailpathlen + 1))
+			continue;
 		fd = shm_open(kif->kf_path, O_RDONLY, 0);
 		if (fd == -1) {
 			warn("open %s", kif->kf_path);

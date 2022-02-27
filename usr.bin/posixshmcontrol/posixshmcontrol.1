@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2020
+.Dd February 26, 2022
 .Dt POSIXSHMCONTROL 1
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Ar ls
 .Op Fl h
 .Op Fl n
+.Op Fl j Ar jail
 .Nm
 .Ar dump
 .Op Pa path \&...
@@ -87,6 +88,11 @@ Unlink the paths specified.
 .It Ic ls
 List all linked named shared memory segments visible to the caller.
 For each segment, the user and group owner, size, and path are displayed.
+The
+.Fl j
+option limits the output to segments within the specified
+.Ar jail
+name or id.
 .It Ic dump
 Output raw bytes values from the segment to standard output.
 .It Ic stat
