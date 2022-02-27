@@ -5,6 +5,9 @@
 LIB=	opts
 INTERNALLIB=
 
+# XXX libopts uses generated format string tables containing embedded NULs.
+NO_WFORMAT=
+
 SRCS=	libopts.c
 
 CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
