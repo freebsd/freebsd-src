@@ -1125,28 +1125,14 @@ acpi_match_resource_hint(device_t dev, int type, long value)
 }
 
 /*
- * Wire device unit numbers based on resource matches in hints.
+ * Does this device match because the resources match?
  */
-static void
-acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
-    int *unitp)
+static bool
+acpi_hint_device_matches_resources(device_t child, const char *name,
+    int unit)
 {
-    const char *s;
-    long value;
-    int line, unit;
-    bool matches;
-
-    /*
-     * Iterate over all the hints for the devices with the specified
-     * name to see if one's resources are a subset of this device.
-     */
-    line = 0;
-    while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
-	/* Must have an "at" for acpi or isa. */
-	resource_string_value(name, unit, "at", &s);
-	if (!(strcmp(s, "acpi0") == 0 || strcmp(s, "acpi") == 0 ||
-	    strcmp(s, "isa0") == 0 || strcmp(s, "isa") == 0))
-	    continue;
+	long value;
+	bool matches;
 
 	/*
 	 * Check for matching resources.  We must have at least one match.
@@ -1158,45 +1144,79 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	 */
 	matches = false;
 	if (resource_long_value(name, unit, "port", &value) == 0) {
-	    /*
-	     * Floppy drive controllers are notorious for having a
-	     * wide variety of resources not all of which include the
-	     * first port that is specified by the hint (typically
-	     * 0x3f0) (see the comment above fdc_isa_alloc_resources()
-	     * in fdc_isa.c).  However, they do all seem to include
-	     * port + 2 (e.g. 0x3f2) so for a floppy device, look for
-	     * 'value + 2' in the port resources instead of the hint
-	     * value.
-	     */
-	    if (strcmp(name, "fdc") == 0)
-		value += 2;
-	    if (acpi_match_resource_hint(child, SYS_RES_IOPORT, value))
-		matches = true;
-	    else
-		continue;
+		/*
+		 * Floppy drive controllers are notorious for having a
+		 * wide variety of resources not all of which include the
+		 * first port that is specified by the hint (typically
+		 * 0x3f0) (see the comment above fdc_isa_alloc_resources()
+		 * in fdc_isa.c).  However, they do all seem to include
+		 * port + 2 (e.g. 0x3f2) so for a floppy device, look for
+		 * 'value + 2' in the port resources instead of the hint
+		 * value.
+		 */
+		if (strcmp(name, "fdc") == 0)
+			value += 2;
+		if (acpi_match_resource_hint(child, SYS_RES_IOPORT, value))
+			matches = true;
+		else
+			return false;
 	}
 	if (resource_long_value(name, unit, "maddr", &value) == 0) {
-	    if (acpi_match_resource_hint(child, SYS_RES_MEMORY, value))
-		matches = true;
-	    else
-		continue;
-	}
-	if (matches)
-	    goto matched;
-	if (resource_long_value(name, unit, "irq", &value) == 0) {
-	    if (acpi_match_resource_hint(child, SYS_RES_IRQ, value))
-		matches = true;
-	    else
-		continue;
-	}
-	if (resource_long_value(name, unit, "drq", &value) == 0) {
-	    if (acpi_match_resource_hint(child, SYS_RES_DRQ, value))
-		matches = true;
-	    else
-		continue;
+		if (acpi_match_resource_hint(child, SYS_RES_MEMORY, value))
+			matches = true;
+		else
+			return false;
 	}
 
-    matched:
+	/*
+	 * If either the I/O address and/or the memory address matched, then
+	 * assumed this devices matches and that any mismatch in other resources
+	 * will be resolved by siltently ignoring those other resources. Otherwise
+	 * all further resources must match.
+	 */
+	if (matches) {
+		return (true);
+	}
+	if (resource_long_value(name, unit, "irq", &value) == 0) {
+		if (acpi_match_resource_hint(child, SYS_RES_IRQ, value))
+			matches = true;
+		else
+			return false;
+	}
+	if (resource_long_value(name, unit, "drq", &value) == 0) {
+		if (acpi_match_resource_hint(child, SYS_RES_DRQ, value))
+			matches = true;
+		else
+			return false;
+	}
+	return matches;
+}
+
+
+/*
+ * Wire device unit numbers based on resource matches in hints.
+ */
+static void
+acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
+    int *unitp)
+{
+    const char *s;
+    int line, unit;
+    bool matches;
+
+    /*
+     * Iterate over all the hints for the devices with the specified
+     * name to see if one's resources are a subset of this device.
+     */
+    line = 0;
+    while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
+	/* Must have an "at" for acpi or isa. */
+	resource_string_value(name, unit, "at", &s);
+	matches = false;
+	if (strcmp(s, "acpi0") == 0 || strcmp(s, "acpi") == 0 ||
+	    strcmp(s, "isa0") == 0 || strcmp(s, "isa") == 0)
+	    matches = acpi_hint_device_matches_resources(child, name, unit);
+
 	if (matches) {
 	    /* We have a winner! */
 	    *unitp = unit;
