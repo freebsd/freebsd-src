@@ -24,7 +24,7 @@ doit() {
     eval $*
 }
 
-find-part() {
+find_part() {
     dev=$1
     part=$2
 
@@ -190,9 +190,9 @@ make_esp_mbr() {
     dev=$1
     dst=$2
 
-    s=$(find-part $dev "!239")
+    s=$(find_part $dev "!239")
     if [ -z "$s" ] ; then
-	s=$(find-part $dev "efi")
+	s=$(find_part $dev "efi")
 	if [ -z "$s" ] ; then
 	    die "No ESP slice found"
     	fi
@@ -204,7 +204,7 @@ make_esp_gpt() {
     dev=$1
     dst=$2
 
-    idx=$(find-part $dev "efi")
+    idx=$(find_part $dev "efi")
     if [ -z "$idx" ] ; then
 	die "No ESP partition found"
     fi
@@ -215,7 +215,7 @@ boot_nogeli_gpt_ufs_legacy() {
     dev=$1
     dst=$2
 
-    idx=$(find-part $dev "freebsd-boot")
+    idx=$(find_part $dev "freebsd-boot")
     if [ -z "$idx" ] ; then
 	die "No freebsd-boot partition found"
     fi
@@ -235,7 +235,7 @@ boot_nogeli_gpt_zfs_legacy() {
     dev=$1
     dst=$2
 
-    idx=$(find-part $dev "freebsd-boot")
+    idx=$(find_part $dev "freebsd-boot")
     if [ -z "$idx" ] ; then
 	die "No freebsd-boot partition found"
     fi
@@ -256,7 +256,7 @@ boot_nogeli_mbr_ufs_legacy() {
     dst=$2
 
     doit gpart bootcode -b ${mbr0} ${dev}
-    s=$(find-part $dev "freebsd")
+    s=$(find_part $dev "freebsd")
     if [ -z "$s" ] ; then
 	die "No freebsd slice found"
     fi
@@ -277,11 +277,11 @@ boot_nogeli_mbr_zfs_legacy() {
     dst=$2
 
     # search to find the BSD slice
-    s=$(find-part $dev "freebsd")
+    s=$(find_part $dev "freebsd")
     if [ -z "$s" ] ; then
 	die "No BSD slice found"
     fi
-    idx=$(find-part ${dev}s${s} "freebsd-zfs")
+    idx=$(find_part ${dev}s${s} "freebsd-zfs")
     if [ -z "$idx" ] ; then
 	die "No freebsd-zfs slice found"
     fi
