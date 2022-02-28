@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 static int
 bhnd_pmu_chipc_probe(device_t dev)
 {
-	struct bhnd_pmu_softc	*sc;
 	struct chipc_caps	*ccaps;
 	struct chipc_softc	*chipc_sc;
 	device_t		 chipc;
@@ -69,8 +68,6 @@ bhnd_pmu_chipc_probe(device_t dev)
 	int			 error;
 	uint32_t		 pcaps;
 	uint8_t			 rev;
-
-	sc = device_get_softc(dev);
 
 	/* Look for chipc parent */
 	chipc = device_get_parent(dev);
