@@ -737,6 +737,7 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_ORDER_LATE	7
 #define	BUS_PASS_ORDER_LAST	9
 
+#define BUS_LOCATOR_ACPI	"ACPI"
 #define BUS_LOCATOR_FREEBSD	"FreeBSD"
 
 extern int bus_current_pass;

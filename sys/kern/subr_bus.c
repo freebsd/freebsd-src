@@ -4645,9 +4645,19 @@ bus_generic_get_device_path(device_t bus, device_t child, const char *locator,
 	int rv = 0;
 	device_t parent;
 
+	/*
+	 * We don't recurse on ACPI since either we know the handle for the
+	 * device or we don't. And if we're in the generic routine, we don't
+	 * have a ACPI override. All other locators build up a path by having
+	 * their parents create a path and then adding the path element for this
+	 * node. That's why we recurse with parent, bus rather than the typical
+	 * parent, child: each spot in the tree is independent of what our child
+	 * will do with this path.
+	 */
 	parent = device_get_parent(bus);
-	if (parent != NULL)
+	if (parent != NULL && strcmp(locator, BUS_LOCATOR_ACPI) != 0) {
 		rv = BUS_GET_DEVICE_PATH(parent, bus, locator, sb);
+	}
 	if (strcmp(locator, BUS_LOCATOR_FREEBSD) == 0) {
 		if (rv == 0) {
 			sbuf_printf(sb, "/%s", device_get_nameunit(child));

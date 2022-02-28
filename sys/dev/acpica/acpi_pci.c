@@ -81,6 +81,8 @@ static int	acpi_pci_attach(device_t dev);
 static void	acpi_pci_child_deleted(device_t dev, device_t child);
 static int	acpi_pci_child_location_method(device_t cbdev,
 		    device_t child, struct sbuf *sb);
+static int	acpi_pci_get_device_path(device_t cbdev,
+		    device_t child, const char *locator, struct sbuf *sb);
 static int	acpi_pci_detach(device_t dev);
 static int	acpi_pci_probe(device_t dev);
 static int	acpi_pci_read_ivar(device_t dev, device_t child, int which,
@@ -105,6 +107,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	acpi_pci_write_ivar),
 	DEVMETHOD(bus_child_deleted,	acpi_pci_child_deleted),
 	DEVMETHOD(bus_child_location,	acpi_pci_child_location_method),
+	DEVMETHOD(bus_get_device_path,	acpi_pci_get_device_path),
 	DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
 	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
 	DEVMETHOD(bus_get_domain,	acpi_get_domain),
@@ -194,6 +197,17 @@ acpi_pci_child_location_method(device_t cbdev, device_t child, struct sbuf *sb)
 		}
 	}
 	return (0);
+}
+
+static int
+acpi_pci_get_device_path(device_t bus, device_t child, const char *locator, struct sbuf *sb)
+{
+
+	if (strcmp(locator, BUS_LOCATOR_ACPI) == 0)
+		return (acpi_get_acpi_device_path(bus, child, locator, sb));
+
+	/* For the rest, punt to the default handler */
+	return (bus_generic_get_device_path(bus, child, locator, sb));
 }
 
 /*
