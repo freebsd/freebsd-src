@@ -44,6 +44,7 @@ int	devctl_delete(const char *device, bool force);
 int	devctl_freeze(void);
 int	devctl_thaw(void);
 int	devctl_reset(const char *device, bool detach);
+int	devctl_getpath(const char *device, const char *locator, char **buffer);
 __END_DECLS
 
 #endif /* !__DEVCTL_H__ */

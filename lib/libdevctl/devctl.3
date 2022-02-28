@@ -36,6 +36,7 @@
 .Nm devctl_disable ,
 .Nm devctl_enable ,
 .Nm devctl_freeze ,
+.Nm devctl_getpath ,
 .Nm devctl_rescan ,
 .Nm devctl_reset ,
 .Nm devctl_resume ,
@@ -61,6 +62,8 @@
 .Fn devctl_enable "const char *device"
 .Ft int
 .Fn devctl_freeze "void"
+.Ft int
+.Fn devctl_getpath "const char *device" "const char *locator" "char **buffer"
 .Ft int
 .Fn devctl_rescan "const char *device"
 .Ft int
@@ -197,6 +200,18 @@ The
 .Fn devctl_rescan
 function rescans a bus device checking for devices that have been added or
 removed.
+.Pp
+The
+.Fn devctl_getpath
+retrieves the path to the
+.Fa device
+from the kernel using the
+.Fa locator
+method to construct the path.
+The
+.Fa buffer
+pointer is updated with an allocated buffer that must be freed with
+.Xr free .
 .Pp
 The
 .Fn devctl_freeze
