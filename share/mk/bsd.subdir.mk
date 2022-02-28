@@ -94,7 +94,7 @@ DISTRIBUTION?=	base
 distribute: .MAKE
 .for dist in ${DISTRIBUTION}
 	${_+_}cd ${.CURDIR}; \
-	    ${MAKE} install installconfig -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
+	    ${MAKE} install installconfig -DNO_SUBDIR DISTBASE=/${dist} DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
 # Convenience targets to run 'build${target}' and 'install${target}' when
