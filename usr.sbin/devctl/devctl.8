@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2021
+.Dd October 31, 2021
 .Dt DEVCTL 8
 .Os
 .Sh NAME
@@ -73,6 +73,10 @@
 .Nm
 .Cm reset
 .Op Fl d
+.Ar device
+.Nm
+.Cm getpath
+.Ar locator
 .Ar device
 .Sh DESCRIPTION
 The
@@ -214,6 +218,24 @@ tried first; if failed or not implemented, power reset is tried.
 .Pp
 If you have detached or suspended a child device explicitly and then
 do a reset, the child device will end up attached.
+.It Xo Cm getpath
+.Ar locator
+.Ar device
+.Xc
+Prints the full path to the
+.Ar device
+using the
+.Ar locator
+method to get the path name.
+Currently, only the
+.Dq UEFI
+and
+.Dq FreeBSD
+locators are implemented.
+The UEFI locator constructs a path to the device using the rules
+outlines for DEVICE_PATH in the UEFI standard.
+The FreeBSD locator constructs a path back to the root of the tree
+with the nodes separated by slashes.
 .El
 .Sh SEE ALSO
 .Xr devctl 3 ,

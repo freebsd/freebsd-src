@@ -84,6 +84,7 @@ usage(void)
 	    "       devctl freeze\n"
 	    "       devctl thaw\n"
 	    "       devctl reset [-d] device\n"
+	    "       devctl getpath locator device\n"
 	    );
 	exit(1);
 }
@@ -419,6 +420,21 @@ reset(int ac, char **av)
 	return (0);
 }
 DEVCTL_COMMAND(top, reset, reset);
+
+static int
+getpath(int ac, char **av)
+{
+	char *buffer = NULL;
+
+	if (ac != 3)
+		usage();
+	if (devctl_getpath(av[2], av[1], &buffer) < 0)
+		err(1, "Failed to get path via %s to %s", av[1], av[2]);
+	printf("%s\n", buffer);
+	free(buffer);
+	return (0);
+}
+DEVCTL_COMMAND(top, getpath, getpath);
 
 int
 main(int ac, char *av[])
