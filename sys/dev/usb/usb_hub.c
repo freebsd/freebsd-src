@@ -169,6 +169,7 @@ static device_method_t uhub_methods[] = {
 
 	DEVMETHOD(bus_child_location, uhub_child_location),
 	DEVMETHOD(bus_child_pnpinfo, uhub_child_pnpinfo),
+	DEVMETHOD(bus_get_device_path, uhub_get_device_path),
 	DEVMETHOD(bus_driver_added, uhub_driver_added),
 	DEVMETHOD_END
 };
@@ -1677,6 +1678,37 @@ done:
 	mtx_unlock(&Giant);
 
 	return (0);
+}
+
+int
+uhub_get_device_path(device_t bus, device_t child, const char *locator,
+    struct sbuf *sb)
+{
+	struct uhub_softc *sc;
+	struct usb_hub *hub;
+	struct hub_result res;
+	int rv;
+
+	if (strcmp(locator, BUS_LOCATOR_UEFI) == 0) {
+		rv = bus_generic_get_device_path(device_get_parent(bus), bus, locator, sb);
+
+		sc = device_get_softc(bus);
+		hub = sc->sc_udev->hub;
+
+		mtx_lock(&Giant);
+		uhub_find_iface_index(hub, child, &res);
+		if (!res.udev) {
+			printf("device not on hub\n");
+			goto done;
+		}
+		sbuf_printf(sb, "/USB(0x%x,0x%x)", res.portno - 1, res.iface_index);
+	done:
+		mtx_unlock(&Giant);
+		return (0);
+	}
+
+	/* For the rest, punt to the default handler */
+	return (bus_generic_get_device_path(bus, child, locator, sb));
 }
 
 static int
