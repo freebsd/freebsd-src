@@ -1133,7 +1133,8 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 {
     const char *s;
     long value;
-    int line, matches, unit;
+    int line, unit;
+    bool matches;
 
     /*
      * Iterate over all the hints for the devices with the specified
@@ -1155,7 +1156,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	 * XXX: We may want to revisit this to be more lenient and wire
 	 * as long as it gets one match.
 	 */
-	matches = 0;
+	matches = false;
 	if (resource_long_value(name, unit, "port", &value) == 0) {
 	    /*
 	     * Floppy drive controllers are notorious for having a
@@ -1170,33 +1171,33 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    if (strcmp(name, "fdc") == 0)
 		value += 2;
 	    if (acpi_match_resource_hint(child, SYS_RES_IOPORT, value))
-		matches++;
+		matches = true;
 	    else
 		continue;
 	}
 	if (resource_long_value(name, unit, "maddr", &value) == 0) {
 	    if (acpi_match_resource_hint(child, SYS_RES_MEMORY, value))
-		matches++;
+		matches = true;
 	    else
 		continue;
 	}
-	if (matches > 0)
+	if (matches)
 	    goto matched;
 	if (resource_long_value(name, unit, "irq", &value) == 0) {
 	    if (acpi_match_resource_hint(child, SYS_RES_IRQ, value))
-		matches++;
+		matches = true;
 	    else
 		continue;
 	}
 	if (resource_long_value(name, unit, "drq", &value) == 0) {
 	    if (acpi_match_resource_hint(child, SYS_RES_DRQ, value))
-		matches++;
+		matches = true;
 	    else
 		continue;
 	}
 
     matched:
-	if (matches > 0) {
+	if (matches) {
 	    /* We have a winner! */
 	    *unitp = unit;
 	    break;
