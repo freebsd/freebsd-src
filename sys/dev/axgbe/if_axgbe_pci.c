@@ -1304,18 +1304,6 @@ xgbe_default_config(struct xgbe_prv_data *pdata)
         pdata->enable_rss = 1;
 }
 
-static void
-axgbe_setup_sysctl(struct xgbe_prv_data *pdata)
-{
-	struct sysctl_ctx_list *clist;
-	struct sysctl_oid *parent;
-	struct sysctl_oid_list *top;
-	
-	clist = device_get_sysctl_ctx(pdata->dev);
-	parent = device_get_sysctl_tree(pdata->dev);
-	top = SYSCTL_CHILDREN(parent);
-}
-
 static int
 axgbe_if_attach_post(if_ctx_t ctx)
 {
@@ -1437,8 +1425,6 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	DBGPR("mtu %d\n", ifp->if_mtu);
 	scctx->isc_max_frame_size = ifp->if_mtu + 18;
 	scctx->isc_min_frame_size = XGMAC_MIN_PACKET;
-
-	axgbe_setup_sysctl(pdata);
 
 	axgbe_sysctl_init(pdata);
 
