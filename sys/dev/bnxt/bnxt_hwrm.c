@@ -119,7 +119,6 @@ _hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len)
 	struct hwrm_err_output *resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	uint32_t *data = msg;
 	int i;
-	uint16_t cp_ring_id;
 	uint8_t *valid;
 	uint16_t err;
 	uint16_t max_req_len = HWRM_MAX_REQ_LEN;
@@ -128,7 +127,6 @@ _hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len)
 	/* TODO: DMASYNC in here. */
 	req->seq_id = htole16(softc->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
-	cp_ring_id = le16toh(req->cmpl_ring);
 
 	if (softc->flags & BNXT_FLAG_SHORT_CMD) {
 		void *short_cmd_req = softc->hwrm_short_cmd_req_addr.idi_vaddr;
