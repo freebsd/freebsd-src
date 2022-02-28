@@ -4551,10 +4551,10 @@ pci_hint_device_unit(device_t dev, device_t child, const char *name, int *unitp)
 	line = 0;
 	while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
 		resource_string_value(name, unit, "at", &at);
-		if (strcmp(at, me1) != 0 && strcmp(at, me2) != 0)
-			continue; /* No match, try next candidate */
-		*unitp = unit;
-		return;
+		if (strcmp(at, me1) == 0 || strcmp(at, me2) == 0) {
+			*unitp = unit;
+			return;
+		}
 	}
 }
 
