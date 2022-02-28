@@ -842,6 +842,13 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	    device_get_nameunit(device_get_parent(dev)), e));		\
 }
 
+struct device_location_cache;
+typedef struct device_location_cache device_location_cache_t;
+device_location_cache_t *dev_wired_cache_init(void);
+void dev_wired_cache_fini(device_location_cache_t *dcp);
+bool dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at);
+
+
 /**
  * Shorthand macros, taking resource argument
  * Generated with sys/tools/bus_macro.sh

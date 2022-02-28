@@ -6098,6 +6098,106 @@ devctl2_init(void)
 }
 
 /*
+ * For maintaining device 'at' location info to avoid recomputing it
+ */
+struct device_location_node {
+	const char *dln_locator;
+	const char *dln_path;
+	TAILQ_ENTRY(device_location_node) dln_link;
+};
+typedef TAILQ_HEAD(device_location_list, device_location_node) device_location_list_t;
+
+struct device_location_cache {
+	device_location_list_t dlc_list;
+};
+
+
+/*
+ * Location cache for wired devices.
+ */
+device_location_cache_t *
+dev_wired_cache_init(void)
+{
+	device_location_cache_t *dcp;
+
+	dcp = malloc(sizeof(*dcp), M_BUS, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&dcp->dlc_list);
+
+	return (dcp);
+}
+
+void
+dev_wired_cache_fini(device_location_cache_t *dcp)
+{
+	struct device_location_node *dln, *tdln;
+
+	TAILQ_FOREACH_SAFE(dln, &dcp->dlc_list, dln_link, tdln) {
+		/* Note: one allocation for both node and locator, but not path */
+		free(__DECONST(void *, dln->dln_path), M_BUS);
+		free(dln, M_BUS);
+	}
+	free(dcp, M_BUS);
+}
+
+static struct device_location_node *
+dev_wired_cache_lookup(device_location_cache_t *dcp, const char *locator)
+{
+	struct device_location_node *dln;
+
+	TAILQ_FOREACH(dln, &dcp->dlc_list, dln_link) {
+		if (strcmp(locator, dln->dln_locator) == 0)
+			return (dln);
+	}
+
+	return (NULL);
+}
+
+static struct device_location_node *
+dev_wired_cache_add(device_location_cache_t *dcp, const char *locator, const char *path)
+{
+	struct device_location_node *dln;
+	char *l;
+
+	dln = malloc(sizeof(*dln) + strlen(locator) + 1, M_BUS, M_WAITOK | M_ZERO);
+	dln->dln_locator = l = (char *)(dln + 1);
+	memcpy(l, locator, strlen(locator) + 1);
+	dln->dln_path = path;
+	TAILQ_INSERT_HEAD(&dcp->dlc_list, dln, dln_link);
+
+	return (dln);
+}
+
+bool
+dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at)
+{
+	const char *cp, *path;
+	char locator[32];
+	int len;
+	struct device_location_node *res;
+
+	cp = strchr(at, ':');
+	if (cp == NULL)
+		return (false);
+	len = cp - at;
+	if (len > sizeof(locator) - 1)	/* Skip too long locator */
+		return (false);
+	memcpy(locator, at, len);
+	locator[len] = '\0';
+	cp++;
+
+	/* maybe cache this inside device_t and look that up, but not yet */
+	res = dev_wired_cache_lookup(dcp, locator);
+	if (res == NULL) {
+		path = device_get_path(dev, locator);
+		res = dev_wired_cache_add(dcp, locator, path);
+	}
+	if (res == NULL || res->dln_path == NULL)
+		return (false);
+
+	return (strcmp(res->dln_path, cp) == 0);
+}
+
+/*
  * APIs to manage deprecation and obsolescence.
  */
 static int obsolete_panic = 0;
