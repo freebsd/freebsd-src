@@ -6000,7 +6000,7 @@ static void
 devctl2_init(void)
 {
 	make_dev_credf(MAKEDEV_ETERNAL, &devctl2_cdevsw, 0, NULL,
-	    UID_ROOT, GID_WHEEL, 0600, "devctl2");
+	    UID_ROOT, GID_WHEEL, 0644, "devctl2");
 }
 
 /*
