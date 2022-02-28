@@ -85,15 +85,16 @@ if [ "$bootable" != "" ]; then
 	done
 
 	# Create a GPT image containing the partitions we need for hybrid boot.
+	hybridfilename=$(mktemp /tmp/hybrid.img.XXXXXX)
 	imgsize=`stat -f %z "$NAME"`
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    -b "$BASEBITSDIR/boot/pmbr" \
 	    -p freebsd-boot:="$BASEBITSDIR/boot/isoboot" \
 	    $espparam \
-	    -o hybrid.img
+	    -o $hybridfilename
 
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
-	dd if=hybrid.img of="$NAME" bs=32k count=1 conv=notrunc
-	rm -f hybrid.img
+	dd if=$hybridfilename of="$NAME" bs=32k count=1 conv=notrunc
+	rm -f $hybridfilename
 fi
