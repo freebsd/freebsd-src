@@ -32,6 +32,7 @@ CONFS=	DAEMON \
 	gbde \
 	geli \
 	geli2 \
+	ggated \
 	gptboot \
 	growfs \
 	hostid \
