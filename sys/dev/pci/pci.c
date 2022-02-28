@@ -4541,6 +4541,7 @@ pci_hint_device_unit(device_t dev, device_t child, const char *name, int *unitp)
 	char me1[24], me2[32];
 	uint8_t b, s, f;
 	uint32_t d;
+	device_location_cache_t *cache;
 
 	d = pci_get_domain(child);
 	b = pci_get_bus(child);
@@ -4549,13 +4550,19 @@ pci_hint_device_unit(device_t dev, device_t child, const char *name, int *unitp)
 	snprintf(me1, sizeof(me1), "pci%u:%u:%u", b, s, f);
 	snprintf(me2, sizeof(me2), "pci%u:%u:%u:%u", d, b, s, f);
 	line = 0;
+	cache = dev_wired_cache_init();
 	while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
 		resource_string_value(name, unit, "at", &at);
 		if (strcmp(at, me1) == 0 || strcmp(at, me2) == 0) {
 			*unitp = unit;
-			return;
+			break;
+		}
+		if (dev_wired_cache_match(cache, child, at)) {
+			*unitp = unit;
+			break;
 		}
 	}
+	dev_wired_cache_fini(cache);
 }
 
 static void
