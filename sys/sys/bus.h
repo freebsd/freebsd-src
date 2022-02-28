@@ -491,6 +491,8 @@ int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
 				   struct resource_map *map);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
+int	bus_generic_get_device_path(device_t bus, device_t child, const char *locator,
+				    struct sbuf *sb);
 int	bus_helper_reset_post(device_t dev, int flags);
 int	bus_helper_reset_prepare(device_t dev, int flags);
 int	bus_null_rescan(device_t dev);
@@ -733,6 +735,8 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_ORDER_MIDDLE	5
 #define	BUS_PASS_ORDER_LATE	7
 #define	BUS_PASS_ORDER_LAST	9
+
+#define BUS_LOCATOR_FREEBSD	"FreeBSD"
 
 extern int bus_current_pass;
 

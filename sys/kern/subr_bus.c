@@ -4628,6 +4628,41 @@ bus_generic_get_domain(device_t dev, device_t child, int *domain)
 }
 
 /**
+ * @brief Helper function to implement normal BUS_GET_DEVICE_PATH()
+ *
+ * This function knows how to (a) pass the request up the tree if there's
+ * a parent and (b) Knows how to supply a FreeBSD locator.
+ *
+ * @param bus		bus in the walk up the tree
+ * @param child		leaf node to print information about
+ * @param locator	BUS_LOCATOR_xxx string for locator
+ * @param sb		Buffer to print information into
+ */
+int
+bus_generic_get_device_path(device_t bus, device_t child, const char *locator,
+    struct sbuf *sb)
+{
+	int rv = 0;
+	device_t parent;
+
+	parent = device_get_parent(bus);
+	if (parent != NULL)
+		rv = BUS_GET_DEVICE_PATH(parent, bus, locator, sb);
+	if (strcmp(locator, BUS_LOCATOR_FREEBSD) == 0) {
+		if (rv == 0) {
+			sbuf_printf(sb, "/%s", device_get_nameunit(child));
+		}
+		return (rv);
+	}
+	/*
+	 * Don't know what to do. So assume we do nothing. Not sure that's
+	 * the right thing, but keeps us from having a big list here.
+	 */
+	return (0);
+}
+
+
+/**
  * @brief Helper function for implementing BUS_RESCAN().
  *
  * This null implementation of BUS_RESCAN() always fails to indicate
