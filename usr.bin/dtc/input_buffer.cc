@@ -349,8 +349,11 @@ input_buffer::consume_integer(unsigned long long &outInt)
 		return false;
 	}
 	char *end= const_cast<char*>(&buffer[size]);
+	errno = 0;
 	outInt = strtoull(&buffer[cursor], &end, 0);
-	if (end == &buffer[cursor])
+	if (end == &buffer[cursor] ||
+	    (outInt == std::numeric_limits<unsigned long long>::max() &&
+	     errno == ERANGE))
 	{
 		return false;
 	}
