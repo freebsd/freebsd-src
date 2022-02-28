@@ -26,8 +26,25 @@
 set -e
 
 if [ "$1" = "-b" ]; then
+	MAKEFSARG="$4"
+else
+	MAKEFSARG="$3"
+fi
+
+if [ -f ${MAKEFSARG} ]; then
+	BASEBITSDIR=`dirname ${MAKEFSARG}`
+	METALOG=${MAKEFSARG}
+elif [ -d ${MAKEFSARG} ]; then
+	BASEBITSDIR=${MAKEFSARG}
+	METALOG=
+else
+	echo "${MAKEFSARG} must exist"
+	exit 1
+fi
+
+if [ "$1" = "-b" ]; then
 	# This is highly x86-centric and will be used directly below.
-	bootable="-o bootimage=i386;$4/boot/cdboot -o no-emul-boot"
+	bootable="-o bootimage=i386;$BASEBITSDIR/boot/cdboot -o no-emul-boot"
 	shift
 else
 	bootable=""
@@ -40,8 +57,19 @@ fi
 
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
+# MAKEFSARG extracted already
+shift
 
 publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
-makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
-rm -f "$1/etc/fstab"
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$BASEBITSDIR/etc/fstab"
+if [ -n "${METALOG}" ]; then
+	metalogfilename=$(mktemp /tmp/metalog.XXXXXX)
+	cat ${METALOG} > ${metalogfilename}
+	echo "./etc/fstab type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+	MAKEFSARG=${metalogfilename}
+fi
+makefs -D -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$MAKEFSARG" "$@"
+rm -f "$BASEBITSDIR/etc/fstab"
+if [ -n "${METALOG}" ]; then
+	rm ${metalogfilename}
+fi
