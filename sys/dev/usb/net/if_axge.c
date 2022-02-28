@@ -452,11 +452,9 @@ axge_attach_post(struct usb_ether *ue)
 static int
 axge_attach_post_sub(struct usb_ether *ue)
 {
-	struct axge_softc *sc;
 	struct ifnet *ifp;
 	int error;
 
-	sc = uether_getsc(ue);
 	ifp = ue->ue_ifp;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = uether_start;
