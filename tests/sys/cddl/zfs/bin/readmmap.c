@@ -83,7 +83,7 @@ main(int argc, char **argv)
 
 	bytes = write(fd, buf, size);
 	if (bytes != size) {
-		(void) printf("short write: %d != %ud\n", bytes, size);
+		(void) printf("short write: %d != %zu\n", bytes, size);
 		retval = 1;
 		goto end;
 	}
@@ -114,20 +114,20 @@ main(int argc, char **argv)
 
 	bytes = pread(fd, buf, size, 0);
 	if (bytes != size) {
-		(void) printf("short read: %d != %ud\n", bytes, size);
+		(void) printf("short read: %d != %zu\n", bytes, size);
 		retval = 1;
 		goto end;
 	}
 
 	if (buf[idx] != 1) {
 		(void) printf(
-		    "bad data from read!  got buf[%ud]=%d, expected 1\n",
+		    "bad data from read!  got buf[%zu]=%d, expected 1\n",
 		    idx, buf[idx]);
 		retval = 1;
 		goto end;
 	}
 
-	(void) printf("good data from read: buf[%ud]=1\n", idx);
+	(void) printf("good data from read: buf[%zu]=1\n", idx);
 end:
 	if (fd != -1) {
 		(void) close(fd);
