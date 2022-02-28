@@ -88,6 +88,7 @@ to be one of:
 .Ic icmp ,
 .Ic icmp6 ,
 .Ic ifstat ,
+.Ic iolat ,
 .Ic iostat ,
 .Ic ip ,
 .Ic ip6 ,
@@ -244,6 +245,59 @@ but with SCTP statistics.
 Like
 .Ic icmp ,
 but with TCP statistics.
+.It Ic iolat
+Display statistics describing the hardware latencies of I/O operations as
+computed by the
+.Va CAM_IOSCHED_DYNAMIC
+option.
+This option must be in the kernel config file of the running kernel for this
+display to work.
+All devices are displayed as there is currently no way to filter them.
+The statistics displayed for the I/O latencies are the percentiles with
+sufficient data during the polling interval to compute.
+If a value cannot be estimated ``-'' is displayed.
+The P50 (also known as the median), P90, P99 and P99.9 values are computed if
+more than 2, 10, 100 or 1000 operations occurred during the polling interval.
+The latency is the hardware latency values, and does not include any software
+queueing time.
+The latencies are estimated based on histogram data computed by the CAM I/O
+scheduler and represent estimates of the actual value that are only good to
+two or three significant digits.
+The display of latency changes based on the scale of the latency to reflect
+the precision of the estimates and to fit on the available screen space.
+All latencies are reported in milliseconds.
+When color is enabled
+.Bl -bullet
+.It Values below the medium latency threshold are displayed in green.
+.It Values between the minimum latency and high latency thresholds are displayed
+in magenta.
+.It Values above the high latency thresholds are displayed in red.
+.Pp
+When color is disabled, the default foreground and background colors are always
+used.
+.Pp
+The following commands are specific to the
+.Ic iolat
+display; the minimum unambiguous prefix may be supplied.
+.Pp
+.Bl -tag -width Fl -compact
+.It Cm color
+Toggle the use of color in the display.
+The default is on.
+.It Cm hi=XXX
+Set the high latency threshold to XXX milliseconds.
+.It Cm med=XXX
+Set the medium latency threshold to XXX milliseconds.
+.It Cm read
+Toggle the display of statistics about read operations.
+The default is on.
+.It Cm write
+Toggle the display of statistics about write operations.
+The default is on.
+.It Cm trim
+Toggle the display of statistics about trim operations.
+The default is on.
+.El
 .It Ic iostat
 Display, in the lower window, statistics about processor use
 and disk throughput.
@@ -682,3 +736,9 @@ The
 .Ic vmstat
 display looks out of place because it is (it was added in as
 a separate display rather than created as a new program).
+The
+.Ic iolat
+command doesn't implement the common device commands including
+filtering, as it doesn't use the
+.Xr devstat 3
+mechanism to obtain its statistics.
