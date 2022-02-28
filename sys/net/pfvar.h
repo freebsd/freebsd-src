@@ -673,6 +673,9 @@ union pf_krule_ptr {
 	u_int32_t		 nr;
 };
 
+RB_HEAD(pf_krule_global, pf_krule);
+RB_PROTOTYPE(pf_krule_global, pf_krule, entry_global, pf_krule_compare);
+
 struct pf_krule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;
@@ -770,6 +773,7 @@ struct pf_krule {
 		u_int16_t		port;
 	}			divert;
 	u_int8_t		 md5sum[PF_MD5_DIGEST_LENGTH];
+	RB_ENTRY(pf_krule)	 entry_global;
 
 #ifdef PF_WANT_32_TO_64_COUNTER
 	LIST_ENTRY(pf_krule)	 allrulelist;
@@ -1140,6 +1144,7 @@ struct pf_kruleset {
 			u_int32_t		 rcount;
 			u_int32_t		 ticket;
 			int			 open;
+			struct pf_krule_global 	 *tree;
 		}			 active, inactive;
 	}			 rules[PF_RULESET_MAX];
 	struct pf_kanchor	*anchor;
