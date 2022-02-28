@@ -117,7 +117,6 @@ int
 pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
     nvlist_t *vf_schema, const char *name)
 {
-	device_t pcib;
 	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
 	nvlist_t *schema;
@@ -126,7 +125,6 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 	int iov_pos;
 
 	dinfo = device_get_ivars(dev);
-	pcib = device_get_parent(bus);
 	schema = NULL;
 
 	error = pci_find_extcap(dev, PCIZ_SRIOV, &iov_pos);
