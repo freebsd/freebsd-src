@@ -335,7 +335,25 @@ property::parse_cells(text_input_buffer &input, int cell_size)
 			unsigned long long val;
 			if (!input.consume_integer_expression(val))
 			{
+				// FIXME: Distinguish invalid syntax from a
+				// number that cannot be represented in an
+				// unsigned long long.
 				input.parse_error("Expected numbers in array of cells");
+				valid = false;
+				return;
+			}
+			// FIXME: No sign information available, so cannot
+			// distinguish small negative values from large
+			// positive ones, and thus we have to conservatively
+			// permit anything that looks like a sign-extended
+			// negative integer.
+			if (cell_size < 64 && val >= (1ull << cell_size) &&
+			    (val | ((1ull << (cell_size - 1)) - 1)) !=
+			    std::numeric_limits<unsigned long long>::max())
+			{
+				std::string msg = "Value does not fit in a " +
+					std::to_string(cell_size) + "-bit cell";
+				input.parse_error(msg.c_str());
 				valid = false;
 				return;
 			}
