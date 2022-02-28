@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
 #include "devctl.h"
 
@@ -165,4 +166,44 @@ devctl_reset(const char *device, bool detach)
 
 	return (devctl_simple_request(DEV_RESET, device, detach ?
 	    DEVF_RESET_DETACH : 0));
+}
+
+#define BUFLEN 1024
+
+int
+devctl_getpath(const char *device, const char *locator, char **buffer)
+{
+	struct devreq req;
+	int serrno;
+
+	memset(&req, 0, sizeof(req));
+	if (strlcpy(req.dr_name, device, sizeof(req.dr_name)) >=
+	    sizeof(req.dr_name)) {
+		errno = EINVAL;
+		*buffer = NULL;
+		return (-1);
+	}
+
+	/*
+	 * Maybe do the request twice. Once to get the length, and then again to
+	 * get the string if BUFLEN bytes is insufficient.
+	 */
+	req.dr_flags = 0;
+	req.dr_buffer.length = BUFLEN;
+again:
+	req.dr_buffer.buffer = malloc(req.dr_buffer.length);
+	strlcpy(req.dr_buffer.buffer, locator, req.dr_buffer.length);
+	if (devctl_request(DEV_GET_PATH, &req) == 0) {
+		*buffer = req.dr_buffer.buffer;
+		return (0);
+	}
+	if (errno == ENAMETOOLONG && req.dr_buffer.length != BUFLEN) {
+		free(req.dr_buffer.buffer);
+		goto again;
+	}
+	serrno = errno;
+	free(req.dr_buffer.buffer);
+	errno = serrno;
+	*buffer = NULL;
+	return (-1);
 }
