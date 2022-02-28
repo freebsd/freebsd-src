@@ -974,9 +974,8 @@ static uint32_t
 cdce_m_crc32(struct mbuf *m, uint32_t src_offset, uint32_t src_len)
 {
 	uint32_t crc = 0xFFFFFFFF;
-	int error;
 
-	error = m_apply(m, src_offset, src_len, cdce_m_crc32_cb, &crc);
+	(void)m_apply(m, src_offset, src_len, cdce_m_crc32_cb, &crc);
 	return (crc ^ 0xFFFFFFFF);
 }
 
