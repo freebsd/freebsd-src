@@ -187,6 +187,8 @@ static int	acpi_child_location_method(device_t acdev, device_t child,
 		    struct sbuf *sb);
 static int	acpi_child_pnpinfo_method(device_t acdev, device_t child,
 		    struct sbuf *sb);
+static int	acpi_get_device_path(device_t bus, device_t child,
+		    const char *locator, struct sbuf *sb);
 static void	acpi_enable_pcie(void);
 static void	acpi_hint_device_unit(device_t acdev, device_t child,
 		    const char *name, int *unitp);
@@ -226,6 +228,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
     DEVMETHOD(bus_get_domain,		acpi_get_domain),
     DEVMETHOD(bus_get_property,		acpi_bus_get_prop),
+    DEVMETHOD(bus_get_device_path,	acpi_get_device_path),
 
     /* ACPI bus */
     DEVMETHOD(acpi_id_probe,		acpi_device_id_probe),
@@ -926,6 +929,37 @@ acpi_child_pnpinfo_method(device_t cbdev, device_t child, struct sbuf *sb)
     struct acpi_device *dinfo = device_get_ivars(child);
 
     return (acpi_pnpinfo(dinfo->ad_handle, sb));
+}
+
+/*
+ * Note: the check for ACPI locator may be reduntant. However, this routine is
+ * suitable for both busses whose only locator is ACPI and as a building block
+ * for busses that have multiple locators to cope with.
+ */
+int
+acpi_get_acpi_device_path(device_t bus, device_t child, const char *locator, struct sbuf *sb)
+{
+	if (strcmp(locator, BUS_LOCATOR_ACPI) == 0) {
+		ACPI_HANDLE *handle = acpi_get_handle(child);
+
+		if (handle != NULL)
+			sbuf_printf(sb, "%s", acpi_name(handle));
+		return (0);
+	}
+
+	return (bus_generic_get_device_path(bus, child, locator, sb));
+}
+
+static int
+acpi_get_device_path(device_t bus, device_t child, const char *locator, struct sbuf *sb)
+{
+	struct acpi_device *dinfo = device_get_ivars(child);
+
+	if (strcmp(locator, BUS_LOCATOR_ACPI) == 0)
+		return (acpi_get_acpi_device_path(bus, child, locator, sb));
+
+	/* For the rest, punt to the default handler */
+	return (bus_generic_get_device_path(bus, child, locator, sb));
 }
 
 /*

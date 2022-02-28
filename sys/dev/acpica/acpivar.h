@@ -495,6 +495,8 @@ acpi_get_verbose(struct acpi_softc *sc)
 char		*acpi_name(ACPI_HANDLE handle);
 int		acpi_avoid(ACPI_HANDLE handle);
 int		acpi_disabled(char *subsys);
+int		acpi_get_acpi_device_path(device_t bus, device_t child,
+		    const char *locator, struct sbuf *sb);
 int		acpi_machdep_init(device_t dev);
 void		acpi_install_wakeup_handler(struct acpi_softc *sc);
 int		acpi_sleep_machdep(struct acpi_softc *sc, int state);

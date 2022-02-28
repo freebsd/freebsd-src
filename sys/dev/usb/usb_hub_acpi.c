@@ -553,11 +553,22 @@ acpi_uhub_child_location(device_t parent, device_t child, struct sbuf *sb)
 	return (0);
 }
 
+static int
+acpi_uhub_get_device_path(device_t bus, device_t child, const char *locator, struct sbuf *sb)
+{
+	if (strcmp(locator, BUS_LOCATOR_ACPI) == 0)
+		return (acpi_get_acpi_device_path(bus, child, locator, sb));
+
+	/* For the rest, punt to the default handler */
+	return (bus_generic_get_device_path(bus, child, locator, sb));
+}
+
 static device_method_t acpi_uhub_methods[] = {
 	DEVMETHOD(device_probe, acpi_uhub_probe),
 	DEVMETHOD(device_attach, acpi_uhub_attach),
 	DEVMETHOD(device_detach, acpi_uhub_detach),
 	DEVMETHOD(bus_child_location, acpi_uhub_child_location),
+	DEVMETHOD(bus_get_device_path, acpi_uhub_get_device_path),
 	DEVMETHOD(bus_read_ivar, acpi_uhub_read_ivar),
 	DEVMETHOD_END
 
@@ -569,6 +580,7 @@ static device_method_t acpi_uhub_root_methods[] = {
 	DEVMETHOD(device_detach, acpi_uhub_detach),
 	DEVMETHOD(bus_read_ivar, acpi_uhub_read_ivar),
 	DEVMETHOD(bus_child_location, acpi_uhub_child_location),
+	DEVMETHOD(bus_get_device_path, acpi_uhub_get_device_path),
 	DEVMETHOD_END
 };
 

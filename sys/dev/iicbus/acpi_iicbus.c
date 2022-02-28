@@ -764,6 +764,7 @@ static device_method_t acpi_iicbus_methods[] = {
 	DEVMETHOD(bus_write_ivar,	acpi_iicbus_write_ivar),
 	DEVMETHOD(bus_child_location,	acpi_iicbus_child_location),
 	DEVMETHOD(bus_child_pnpinfo,	acpi_iicbus_child_pnpinfo),
+	DEVMETHOD(bus_get_device_path,	acpi_get_acpi_device_path),
 
 	DEVMETHOD_END,
 };
