@@ -15,10 +15,17 @@
 static const char rcsid[] = "@(#)$Id$";
 #endif
 
+static int proto_opened = 0;
 
 void
 printactivenat(nat_t *nat, int opts, u_long ticks)
 {
+	struct protoent *pproto;
+
+	if (proto_opened == 0) {
+		proto_opened = 1;
+		setprotoent(1);
+	}
 
 	PRINTF("%s", getnattype(nat));
 
@@ -55,6 +62,9 @@ printactivenat(nat_t *nat, int opts, u_long ticks)
 		if ((nat->nat_flags & IPN_TCPUDP) != 0)
 			PRINTF(" %-5hu", ntohs(nat->nat_ndport));
 
+		pproto = getprotobynumber(nat->nat_pr[0]);
+		PRINTF(" %s", pproto->p_name);
+
 	} else if (nat->nat_dir == NAT_OUTBOUND) {
 		printactiveaddress(nat->nat_v[0], "%-15s", &nat->nat_osrc6,
 				   nat->nat_ifnames[0]);
@@ -76,6 +86,9 @@ printactivenat(nat_t *nat, int opts, u_long ticks)
 		if ((nat->nat_flags & IPN_TCPUDP) != 0)
 			PRINTF(" %hu", ntohs(nat->nat_odport));
 		PRINTF("]");
+
+		pproto = getprotobynumber(nat->nat_pr[1]);
+		PRINTF(" %s", pproto->p_name);
 	} else {
 		printactiveaddress(nat->nat_v[1], "%-15s", &nat->nat_ndst6,
 				   nat->nat_ifnames[0]);
@@ -97,7 +110,11 @@ printactivenat(nat_t *nat, int opts, u_long ticks)
 		if ((nat->nat_flags & IPN_TCPUDP) != 0)
 			PRINTF(" %hu", ntohs(nat->nat_osport));
 		PRINTF("]");
+
+		pproto = getprotobynumber(nat->nat_pr[0]);
+		PRINTF(" %s", pproto->p_name);
 	}
+
 
 	if (opts & OPT_VERBOSE) {
 		PRINTF("\n\tttl %lu use %hu sumd %s/",
