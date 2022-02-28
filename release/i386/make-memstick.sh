@@ -5,7 +5,7 @@
 # clean up after itself very well for error conditions on purpose so the
 # problem can be diagnosed (full filesystem most likely but ...).
 #
-# Usage: make-memstick.sh <directory tree> <image filename>
+# Usage: make-memstick.sh <directory tree or manifest> <image filename>
 #
 # $FreeBSD$
 #
@@ -16,12 +16,20 @@ PATH=/bin:/usr/bin:/sbin:/usr/sbin
 export PATH
 
 if [ $# -ne 2 ]; then
-	echo "make-memstick.sh /path/to/directory /path/to/image/file"
+	echo "make-memstick.sh /path/to/directory/or/manifest /path/to/image/file"
 	exit 1
 fi
 
-if [ ! -d ${1} ]; then
-	echo "${1} must be a directory"
+MAKEFSARG=${1}
+
+if [ -f ${MAKEFSARG} ]; then
+	BASEBITSDIR=`dirname ${MAKEFSARG}`
+	METALOG=${MAKEFSARG}
+elif [ -d ${MAKEFSARG} ]; then
+	BASEBITSDIR=${MAKEFSARG}
+	METALOG=
+else
+	echo "${MAKEFSARG} must exist"
 	exit 1
 fi
 
@@ -30,15 +38,25 @@ if [ -e ${2} ]; then
 	exit 1
 fi
 
-echo '/dev/ufs/FreeBSD_Install / ufs ro,noatime 1 1' > ${1}/etc/fstab
-echo 'root_rw_mount="NO"' > ${1}/etc/rc.conf.local
-makefs -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${1}
-rm ${1}/etc/fstab
-rm ${1}/etc/rc.conf.local
+echo '/dev/ufs/FreeBSD_Install / ufs ro,noatime 1 1' > ${BASEBITSDIR}/etc/fstab
+echo 'root_rw_mount="NO"' > ${BASEBITSDIR}/etc/rc.conf.local
+if [ -n "${METALOG}" ]; then
+	metalogfilename=$(mktemp /tmp/metalog.XXXXXX)
+	cat ${METALOG} > ${metalogfilename}
+	echo "./etc/fstab type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+	echo "./etc/rc.conf.local type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+	MAKEFSARG=${metalogfilename}
+fi
+makefs -D -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${MAKEFSARG}
+rm ${BASEBITSDIR}/etc/fstab
+rm ${BASEBITSDIR}/etc/rc.conf.local
+if [ -n "${METALOG}" ]; then
+	rm ${metalogfilename}
+fi
 
 mkimg -s mbr \
-    -b ${1}/boot/mbr \
-    -p freebsd:-"mkimg -s bsd -b ${1}/boot/boot -p freebsd-ufs:=${2}.part" \
+    -b ${BASEBITSDIR}/boot/mbr \
+    -p freebsd:-"mkimg -s bsd -b ${BASEBITSDIR}/boot/boot -p freebsd-ufs:=${2}.part" \
     -o ${2}
 rm ${2}.part
 

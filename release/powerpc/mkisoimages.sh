@@ -26,6 +26,23 @@
 set -e
 
 if [ "$1" = "-b" ]; then
+	MAKEFSARG="$4"
+else
+	MAKEFSARG="$3"
+fi
+
+if [ -f ${MAKEFSARG} ]; then
+	BASEBITSDIR=`dirname ${MAKEFSARG}`
+	METALOG=${MAKEFSARG}
+elif [ -d ${MAKEFSARG} ]; then
+	BASEBITSDIR=${MAKEFSARG}
+	METALOG=
+else
+	echo "${MAKEFSARG} must exist"
+	exit 1
+fi
+
+if [ "$1" = "-b" ]; then
 	bootable=1
 	shift
 else
@@ -39,6 +56,14 @@ fi
 
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
+# MAKEFSARG extracted already
+shift
+
+if [ -n "${METALOG}" ]; then
+	metalogfilename=$(mktemp /tmp/metalog.XXXXXX)
+	cat ${METALOG} > ${metalogfilename}
+	MAKEFSARG=${metalogfilename}
+fi
 
 if [ -n "$bootable" ]; then
 	echo "Building bootable disc"
@@ -48,14 +73,14 @@ if [ -n "$bootable" ]; then
 	bzip2 -d /tmp/hfs-boot-block.bz2
 	OFFSET=$(hd /tmp/hfs-boot-block | grep 'Loader START' | cut -f 1 -d ' ')
 	OFFSET=0x$(echo 0x$OFFSET | awk '{printf("%x\n",$1/512);}')
-	dd if="$1/boot/loader" of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
+	dd if="$BASEBITSDIR/boot/loader" of=/tmp/hfs-boot-block seek=$OFFSET conv=notrunc
 
 	bootable="-o bootimage=macppc;/tmp/hfs-boot-block -o no-emul-boot"
 
 	# pSeries/PAPR boot code
-	mkdir -p "$1/ppc/chrp"
-	cp "$1/boot/loader" "$1/ppc/chrp"
-	cat > "$1/ppc/bootinfo.txt" << EOF
+	mkdir -p "$BASEBITSDIR/ppc/chrp"
+	cp "$BASEBITSDIR/boot/loader" "$BASEBITSDIR/ppc/chrp"
+	cat > "$BASEBITSDIR/ppc/bootinfo.txt" << EOF
 <chrp-boot>
 <description>FreeBSD Install</description>
 <os-name>FreeBSD</os-name>
@@ -63,14 +88,29 @@ if [ -n "$bootable" ]; then
 </chrp-boot>
 EOF
 	bootable="$bootable -o chrp-boot"
+	if [ -n "${METALOG}" ]; then
+		echo "./ppc type=dir uname=root gname=wheel mode=0755" >> ${metalogfilename}
+		echo "./ppc/chrp type=dir uname=root gname=wheel mode=0755" >> ${metalogfilename}
+		echo "./ppc/chrp/loader type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+		echo "./ppc/bootinfo.txt type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+	fi
 
 	# Petitboot config for PS3/PowerNV
-	echo FreeBSD Install=\'/boot/kernel/kernel vfs.root.mountfrom=cd9660:/dev/iso9660/$LABEL\' > "$1/etc/kboot.conf"
+	echo FreeBSD Install=\'/boot/kernel/kernel vfs.root.mountfrom=cd9660:/dev/iso9660/$LABEL\' > "$BASEBITSDIR/etc/kboot.conf"
+	if [ -n "${METALOG}" ]; then
+		echo "./etc/kboot.conf type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+	fi
 fi
 
 publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
-makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
-rm -f "$1/etc/fstab"
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$BASEBITSDIR/etc/fstab"
+if [ -n "${METALOG}" ]; then
+	echo "./etc/fstab type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
+fi
+makefs -D -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$MAKEFSARG" "$@"
+rm -f "$BASEBITSDIR/etc/fstab"
 rm -f /tmp/hfs-boot-block
-rm -rf "$1/ppc"
+rm -rf "$BASEBITSDIR/ppc"
+if [ -n "${METALOG}" ]; then
+	rm ${metalogfilename}
+fi
