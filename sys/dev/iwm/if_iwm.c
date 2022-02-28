@@ -5620,7 +5620,7 @@ iwm_intr(void *arg)
 {
 	struct iwm_softc *sc = arg;
 	int handled = 0;
-	int r1, r2, rv = 0;
+	int r1, r2;
 	int isperiodic = 0;
 
 	IWM_LOCK(sc);
@@ -5712,7 +5712,6 @@ iwm_intr(void *arg)
 		handled |= IWM_CSR_INT_BIT_HW_ERR;
 		device_printf(sc->sc_dev, "hardware error, stopping device\n");
 		iwm_stop(sc);
-		rv = 1;
 		goto out;
 	}
 
@@ -5757,8 +5756,6 @@ iwm_intr(void *arg)
 	if (__predict_false(r1 & ~handled))
 		IWM_DPRINTF(sc, IWM_DEBUG_INTR,
 		    "%s: unhandled interrupts: %x\n", __func__, r1);
-	rv = 1;
-
  out_ena:
 	iwm_restore_interrupts(sc);
  out:
@@ -5893,9 +5890,9 @@ iwm_pci_attach(device_t dev)
 	}
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, iwm_intr, sc, &sc->sc_ih);
-	if (sc->sc_ih == NULL) {
+	if (error != 0) {
 		device_printf(dev, "can't establish interrupt");
-			return (ENXIO);
+		return (error);
 	}
 	sc->sc_dmat = bus_get_dma_tag(sc->sc_dev);
 
