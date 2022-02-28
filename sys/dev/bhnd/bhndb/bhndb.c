@@ -146,11 +146,8 @@ bhndb_probe_nomatch(device_t dev, device_t child)
 static int
 bhndb_print_child(device_t dev, device_t child)
 {
-	struct bhndb_softc	*sc;
 	struct resource_list	*rl;
 	int			 retval = 0;
-
-	sc = device_get_softc(dev);
 
 	retval += bus_print_child_header(dev, child);
 
@@ -1894,11 +1891,8 @@ bhndb_bus_barrier(device_t dev, device_t child, struct bhnd_resource *r,
 static int
 bhndb_bhnd_map_intr(device_t dev, device_t child, u_int intr, rman_res_t *irq)
 {
-	struct bhndb_softc	*sc;
 	u_int			 ivec;
 	int			 error;
-
-	sc = device_get_softc(dev);
 
 	/* Is the intr valid? */
 	if (intr >= bhnd_get_intr_count(child))
