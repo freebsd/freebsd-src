@@ -81,13 +81,14 @@ if [ "$bootable" != "" ]; then
 	done
 
 	# Create a GPT image containing the EFI partition.
+	efifilename=$(mktemp /tmp/efi.img.XXXXXX)
 	imgsize=`stat -f %z "$NAME"`
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    $espparam \
-	    -o efi.img
+	    -o $efifilename
 
 	# Drop the GPT into the System Area of the ISO.
-	dd if=efi.img of="$NAME" bs=32k count=1 conv=notrunc
-	rm -f efi.img
+	dd if=$efifilename of="$NAME" bs=32k count=1 conv=notrunc
+	rm -f $efifilename
 fi
