@@ -1200,6 +1200,7 @@ static void
 acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
     int *unitp)
 {
+    device_location_cache_t *cache;
     const char *s;
     int line, unit;
     bool matches;
@@ -1209,6 +1210,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
      * name to see if one's resources are a subset of this device.
      */
     line = 0;
+    cache = dev_wired_cache_init();
     while (resource_find_dev(&line, name, &unit, "at", NULL) == 0) {
 	/* Must have an "at" for acpi or isa. */
 	resource_string_value(name, unit, "at", &s);
@@ -1216,6 +1218,8 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	if (strcmp(s, "acpi0") == 0 || strcmp(s, "acpi") == 0 ||
 	    strcmp(s, "isa0") == 0 || strcmp(s, "isa") == 0)
 	    matches = acpi_hint_device_matches_resources(child, name, unit);
+	else
+	    matches = dev_wired_cache_match(cache, child, s);
 
 	if (matches) {
 	    /* We have a winner! */
@@ -1223,6 +1227,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    break;
 	}
     }
+    dev_wired_cache_fini(cache);
 }
 
 /*
