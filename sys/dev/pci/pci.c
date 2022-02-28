@@ -138,7 +138,6 @@ static int		pci_reset_child(device_t dev, device_t child,
 
 static int		pci_get_id_method(device_t dev, device_t child,
 			    enum pci_id_type type, uintptr_t *rid);
-
 static struct pci_devinfo * pci_fill_devinfo(device_t pcib, device_t bus, int d,
     int b, int s, int f, uint16_t vid, uint16_t did);
 
@@ -177,6 +176,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo,	pci_child_pnpinfo_method),
 	DEVMETHOD(bus_child_location,	pci_child_location_method),
+	DEVMETHOD(bus_get_device_path,	pci_get_device_path_method),
 	DEVMETHOD(bus_hint_device_unit,	pci_hint_device_unit),
 	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
 	DEVMETHOD(bus_suspend_child,	pci_suspend_child),
@@ -5915,6 +5915,24 @@ pci_child_pnpinfo_method(device_t dev, device_t child, struct sbuf *sb)
 	    cfg->subvendor, cfg->subdevice, cfg->baseclass, cfg->subclass,
 	    cfg->progif);
 	return (0);
+}
+
+int
+pci_get_device_path_method(device_t bus, device_t child, const char *locator,
+    struct sbuf *sb)
+{
+	device_t parent = device_get_parent(bus);
+	int rv;
+
+	if (strcmp(locator, BUS_LOCATOR_UEFI) == 0) {
+		rv = bus_generic_get_device_path(parent, bus, locator, sb);
+		if (rv == 0) {
+			sbuf_printf(sb, "/Pci(0x%x,0x%x)", pci_get_slot(child),
+			    pci_get_function(child));
+		}
+		return (0);
+	}
+	return (bus_generic_get_device_path(bus, child, locator, sb));
 }
 
 int

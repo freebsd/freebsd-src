@@ -958,6 +958,52 @@ acpi_get_device_path(device_t bus, device_t child, const char *locator, struct s
 	if (strcmp(locator, BUS_LOCATOR_ACPI) == 0)
 		return (acpi_get_acpi_device_path(bus, child, locator, sb));
 
+	if (strcmp(locator, BUS_LOCATOR_UEFI) == 0) {
+		ACPI_DEVICE_INFO *adinfo;
+		if (!ACPI_FAILURE(AcpiGetObjectInfo(dinfo->ad_handle, &adinfo)) &&
+		    dinfo->ad_handle != 0 && (adinfo->Valid & ACPI_VALID_HID)) {
+			const char *hid = adinfo->HardwareId.String;
+			u_long uid = (adinfo->Valid & ACPI_VALID_UID) ?
+			    strtoul(adinfo->UniqueId.String, NULL, 10) : 0UL;
+			u_long hidval;
+
+			/*
+			 * In UEFI Stanard Version 2.6, Section 9.6.1.6 Text
+			 * Device Node Reference, there's an insanely long table
+			 * 98. This implements the relevant bits from that
+			 * table. Newer versions appear to have not required
+			 * anything new. The EDK2 firmware presents both PciRoot
+			 * and PcieRoot as PciRoot. Follow the EDK2 standard.
+			 */
+			if (strncmp("PNP", hid, 3) != 0)
+				goto nomatch;
+			hidval = strtoul(hid + 3, NULL, 16);
+			switch (hidval) {
+			case 0x0301:
+				sbuf_printf(sb, "Keyboard(0x%lx)", uid);
+				break;
+			case 0x0401:
+				sbuf_printf(sb, "ParallelPort(0x%lx)", uid);
+				break;
+			case 0x0501:
+				sbuf_printf(sb, "Serial(0x%lx)", uid);
+				break;
+			case 0x0604:
+				sbuf_printf(sb, "Floppy(0x%lx)", uid);
+				break;
+			case 0x0a03:
+			case 0x0a08:
+				sbuf_printf(sb, "PciRoot(0x%lx)", uid);
+				break;
+			default: /* Everything else gets a generic encode */
+			nomatch:
+				sbuf_printf(sb, "Acpi(%s,0x%lx)", hid, uid);
+				break;
+			}
+		}
+		/* Not handled: AcpiAdr... unsure how to know it's one */
+	}
+
 	/* For the rest, punt to the default handler */
 	return (bus_generic_get_device_path(bus, child, locator, sb));
 }

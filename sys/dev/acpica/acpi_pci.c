@@ -206,8 +206,8 @@ acpi_pci_get_device_path(device_t bus, device_t child, const char *locator, stru
 	if (strcmp(locator, BUS_LOCATOR_ACPI) == 0)
 		return (acpi_get_acpi_device_path(bus, child, locator, sb));
 
-	/* For the rest, punt to the default handler */
-	return (bus_generic_get_device_path(bus, child, locator, sb));
+	/* Otherwise follow base class' actions */
+	return 	(pci_get_device_path_method(bus, child, locator, sb));
 }
 
 /*
