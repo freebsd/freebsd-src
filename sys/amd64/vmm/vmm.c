@@ -854,7 +854,7 @@ static void
 vm_free_memmap(struct vm *vm, int ident)
 {
 	struct mem_map *mm;
-	int error;
+	int error __diagused;
 
 	mm = &vm->mem_maps[ident];
 	if (mm->len) {
@@ -1827,7 +1827,7 @@ vm_restart_instruction(void *arg, int vcpuid)
 	struct vcpu *vcpu;
 	enum vcpu_state state;
 	uint64_t rip;
-	int error;
+	int error __diagused;
 
 	vm = arg;
 	if (vcpuid < 0 || vcpuid >= vm->maxcpus)
@@ -2066,7 +2066,7 @@ vm_inject_exception(struct vm *vm, int vcpuid, int vector, int errcode_valid,
 {
 	struct vcpu *vcpu;
 	uint64_t regval;
-	int error;
+	int error __diagused;
 
 	if (vcpuid < 0 || vcpuid >= vm->maxcpus)
 		return (EINVAL);
@@ -2126,7 +2126,7 @@ vm_inject_fault(void *vmarg, int vcpuid, int vector, int errcode_valid,
     int errcode)
 {
 	struct vm *vm;
-	int error, restart_instruction;
+	int error __diagused, restart_instruction;
 
 	vm = vmarg;
 	restart_instruction = 1;
@@ -2140,7 +2140,7 @@ void
 vm_inject_pf(void *vmarg, int vcpuid, int error_code, uint64_t cr2)
 {
 	struct vm *vm;
-	int error;
+	int error __diagused;
 
 	vm = vmarg;
 	VCPU_CTR2(vm, vcpuid, "Injecting page fault: error_code %#x, cr2 %#lx",
