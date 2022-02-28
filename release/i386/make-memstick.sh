@@ -12,8 +12,10 @@
 
 set -e
 
-PATH=/bin:/usr/bin:/sbin:/usr/sbin
-export PATH
+if [ "$(uname -s)" = "FreeBSD" ]; then
+	PATH=/bin:/usr/bin:/sbin:/usr/sbin
+	export PATH
+fi
 
 if [ $# -ne 2 ]; then
 	echo "make-memstick.sh /path/to/directory/or/manifest /path/to/image/file"
@@ -47,7 +49,7 @@ if [ -n "${METALOG}" ]; then
 	echo "./etc/rc.conf.local type=file uname=root gname=wheel mode=0644" >> ${metalogfilename}
 	MAKEFSARG=${metalogfilename}
 fi
-makefs -D -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${MAKEFSARG}
+makefs -D -N ${BASEBITSDIR}/etc -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${MAKEFSARG}
 rm ${BASEBITSDIR}/etc/fstab
 rm ${BASEBITSDIR}/etc/rc.conf.local
 if [ -n "${METALOG}" ]; then
