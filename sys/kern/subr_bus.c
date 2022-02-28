@@ -5764,6 +5764,29 @@ device_do_deferred_actions(void)
 	bus_data_generation_update();
 }
 
+static char *
+device_get_path(device_t dev, const char *locator)
+{
+	struct sbuf *sb;
+	ssize_t len;
+	char *rv = NULL;
+	int error;
+
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+	error = BUS_GET_DEVICE_PATH(device_get_parent(dev), dev, locator, sb);
+	sbuf_finish(sb);	/* Note: errors checked with sbuf_len() below */
+	if (error != 0)
+		goto out;
+	len = sbuf_len(sb);
+	if (len <= 1)
+		goto out;
+	rv = malloc(len, M_BUS, M_NOWAIT);
+	memcpy(rv, sbuf_data(sb), len);
+out:
+	sbuf_delete(sb);
+	return (rv);
+}
+
 static int
 devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
@@ -5794,6 +5817,9 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case DEV_FREEZE:
 	case DEV_THAW:
 		error = priv_check(td, PRIV_DRIVER);
+		break;
+	case DEV_GET_PATH:
+		error = find_device(req, &dev);
 		break;
 	default:
 		error = ENOTTY;
@@ -6020,6 +6046,29 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = BUS_RESET_CHILD(device_get_parent(dev), dev,
 		    req->dr_flags);
 		break;
+	case DEV_GET_PATH: {
+		char locator[64];
+		char *path;
+		ssize_t len;
+
+		error = copyinstr(req->dr_buffer.buffer, locator, sizeof(locator), NULL);
+		if (error)
+			break;
+		path = device_get_path(dev, locator);
+		if (path == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		len = strlen(path) + 1;
+		if (req->dr_buffer.length < len) {
+			error = ENAMETOOLONG;
+		} else {
+			error = copyout(path, req->dr_buffer.buffer, len);
+		}
+		req->dr_buffer.length = len;
+		free(path, M_BUS);
+		break;
+	}
 	}
 	bus_topo_unlock();
 	return (error);
