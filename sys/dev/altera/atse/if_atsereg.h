@@ -406,7 +406,7 @@ static char *fifo_memory_block[] = {
 /* -------------------------------------------------------------------------- */
 
 struct atse_softc {
-	struct ifnet		*atse_ifp;
+	if_t			atse_ifp;
 	struct resource		*atse_mem_res;
 	device_t		atse_miibus;
 	device_t		atse_dev;
