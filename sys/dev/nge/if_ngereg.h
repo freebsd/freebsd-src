@@ -634,7 +634,7 @@ struct nge_stats {
 };
 
 struct nge_softc {
-	struct ifnet		*nge_ifp;
+	if_t			nge_ifp;
 	device_t		nge_dev;
 	struct resource		*nge_res;
 	int			nge_res_type;
