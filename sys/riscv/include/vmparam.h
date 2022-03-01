@@ -116,16 +116,30 @@
  * Address space layout.
  *
  * RISC-V implements multiple paging modes with different virtual address space
- * sizes: SV32, SV39 and SV48.  SV39 permits a virtual address space size of
- * 512GB and uses a three-level page table.  Since this is large enough for most
- * purposes, we currently use SV39 for both userland and the kernel, avoiding
- * the extra translation step required by SV48.
+ * sizes: SV32, SV39, SV48 and SV57.  Only SV39 and SV48 are supported by
+ * FreeBSD.  SV39 provides a 512GB virtual address space and uses three-level
+ * page tables, while SV48 provides a 256TB virtual address space and uses
+ * four-level page tables.  64-bit RISC-V implementations are required to provide
+ * at least SV39 mode; locore initially enables SV39 mode while bootstrapping
+ * page tables, and pmap_bootstrap() optionally switches to SV48 mode.
  *
  * The address space is split into two regions at each end of the 64-bit address
- * space:
+ * space; the lower region is for use by user mode software, while the upper
+ * region is used for various kernel maps.  The kernel map layout in SV48 mode
+ * is currently identical to that used in SV39 mode.
  *
+ * SV39 memory map:
  * 0x0000000000000000 - 0x0000003fffffffff    256GB user map
  * 0x0000004000000000 - 0xffffffbfffffffff    unmappable
+ * 0xffffffc000000000 - 0xffffffc7ffffffff    32GB kernel map
+ * 0xffffffc800000000 - 0xffffffcfffffffff    32GB unused
+ * 0xffffffd000000000 - 0xffffffefffffffff    128GB direct map
+ * 0xfffffff000000000 - 0xffffffffffffffff    64GB unused
+ *
+ * SV48 memory map:
+ * 0x0000000000000000 - 0x00007fffffffffff    128TB user map
+ * 0x0000800000000000 - 0xffff7fffffffffff    unmappable
+ * 0xffff800000000000 - 0xffffffc7ffffffff    127.75TB hole
  * 0xffffffc000000000 - 0xffffffc7ffffffff    32GB kernel map
  * 0xffffffc800000000 - 0xffffffcfffffffff    32GB unused
  * 0xffffffd000000000 - 0xffffffefffffffff    128GB direct map
@@ -180,9 +194,9 @@
 	((va) - DMAP_MIN_ADDRESS) + dmap_phys_base;			\
 })
 
-#define	VM_MIN_USER_ADDRESS_SV39	(0x0000000000000000UL)
+#define	VM_MIN_USER_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAX_USER_ADDRESS_SV39	(0x0000004000000000UL)
-#define	VM_MIN_USER_ADDRESS		VM_MIN_USER_ADDRESS_SV39
+#define	VM_MAX_USER_ADDRESS_SV48	(0x0000800000000000UL)
 #define	VM_MAX_USER_ADDRESS		VM_MAX_USER_ADDRESS_SV39
 
 #define	VM_MINUSER_ADDRESS	(VM_MIN_USER_ADDRESS)
@@ -194,9 +208,13 @@
 
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 #define	SHAREDPAGE_SV39		(VM_MAX_USER_ADDRESS_SV39 - PAGE_SIZE)
+#define	SHAREDPAGE_SV48		(VM_MAX_USER_ADDRESS_SV48 - PAGE_SIZE)
 #define	SHAREDPAGE		SHAREDPAGE_SV39
-#define	USRSTACK		SHAREDPAGE_SV39
+#define	USRSTACK_SV39		SHAREDPAGE_SV39
+#define	USRSTACK_SV48		SHAREDPAGE_SV48
+#define	USRSTACK		USRSTACK_SV39
 #define	PS_STRINGS_SV39		(USRSTACK_SV39 - sizeof(struct ps_strings))
+#define	PS_STRINGS_SV48		(USRSTACK_SV48 - sizeof(struct ps_strings))
 
 #define	VM_EARLY_DTB_ADDRESS	(VM_MAX_KERNEL_ADDRESS - (2 * L2_SIZE))
 
