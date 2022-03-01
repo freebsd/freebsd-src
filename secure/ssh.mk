@@ -8,5 +8,6 @@ CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 SRCS+=	 ssh_namespace.h
 
 .if ${MK_USB} != "no"
-CFLAGS+=	-DENABLE_SK_INTERNAL=1
+# Built-in security key support
+CFLAGS+= -include sk_config.h
 .endif
