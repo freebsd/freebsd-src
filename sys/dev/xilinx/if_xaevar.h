@@ -51,7 +51,7 @@ struct xae_softc {
 	uint8_t			macaddr[ETHER_ADDR_LEN];
 	device_t		miibus;
 	struct mii_data *	mii_softc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			if_flags;
 	struct mtx		mtx;
 	void *			intr_cookie;
