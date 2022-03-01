@@ -398,10 +398,10 @@ i8254_init(void)
 }
 
 void
-startrtclock()
+startrtclock(void)
 {
 
-	init_TSC();
+	start_TSC();
 }
 
 void

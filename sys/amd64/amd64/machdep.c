@@ -169,6 +169,9 @@ extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+/* Probe 8254 PIT and TSC. */
+static void native_clock_source_init(void);
+
 /* Preload data parse function */
 static caddr_t native_parse_preload_data(u_int64_t);
 
@@ -177,8 +180,8 @@ static void native_parse_memmap(caddr_t, vm_paddr_t *, int *);
 
 /* Default init_ops implementation. */
 struct init_ops init_ops = {
-	.parse_preload_data =	native_parse_preload_data,
-	.early_clock_source_init =	i8254_init,
+	.parse_preload_data =		native_parse_preload_data,
+	.early_clock_source_init =	native_clock_source_init,
 	.early_delay =			i8254_delay,
 	.parse_memmap =			native_parse_memmap,
 };
@@ -1158,6 +1161,13 @@ native_parse_preload_data(u_int64_t modulep)
 	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	return (kmdp);
+}
+
+static void
+native_clock_source_init(void)
+{
+	i8254_init();
+	tsc_init();
 }
 
 static void
