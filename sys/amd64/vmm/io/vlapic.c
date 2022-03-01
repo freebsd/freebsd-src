@@ -201,7 +201,7 @@ static uint32_t
 vlapic_get_ccr(struct vlapic *vlapic)
 {
 	struct bintime bt_now, bt_rem;
-	struct LAPIC *lapic;
+	struct LAPIC *lapic __diagused;
 	uint32_t ccr;
 
 	ccr = 0;
