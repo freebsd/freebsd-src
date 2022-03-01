@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2021
+.Dd March 1, 2022
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -565,6 +565,32 @@ and
 .Xr kbdmap 1
 .It Pa scrnmaps/
 console screen maps
+.El
+.It Pa sysroot/
+files necessary for the -sysroot compiler/linker argument to build non-native
+binaries.
+.Bl -tag -width Fl -compact
+.It Pa VERSION/
+files for
+.Fx
+release VERSION.
+By convention,
+.Dq VERSION
+matches
+.Xr uname 1
+.Fl r .
+.Bl -tag -width Fl -compact
+.It Pa MACHINE.MACHINE_ARCH/
+represent the binary ABI for these files.
+.Dq MACHINE
+matches
+.Xr uname 1
+.Fl m .
+.Dq MACHINE_ARCH
+matches
+.Xr uname 1
+.Fl p .
+.El
 .El
 .It Pa tabset/
 tab description files for a variety of terminals; used in
