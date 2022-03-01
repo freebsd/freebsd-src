@@ -137,6 +137,13 @@ extern vm_offset_t virtual_end;
 #define	L1_MAPPABLE_P(va, pa, size)					\
 	((((va) | (pa)) & L1_OFFSET) == 0 && (size) >= L1_SIZE)
 
+enum pmap_mode {
+	PMAP_MODE_SV39,
+	PMAP_MODE_SV48,
+};
+
+extern enum pmap_mode pmap_mode;
+
 struct thread;
 
 #define	pmap_vm_page_alloc_check(m)
