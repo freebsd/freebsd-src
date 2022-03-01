@@ -265,17 +265,42 @@ tsc_freq_8254(uint64_t *res)
 static void
 probe_tsc_freq(void)
 {
-	if (cpu_power_ecx & CPUID_PERF_STAT) {
-		/*
-		 * XXX Some emulators expose host CPUID without actual support
-		 * for these MSRs.  We must test whether they really work.
-		 */
-		wrmsr(MSR_MPERF, 0);
-		wrmsr(MSR_APERF, 0);
-		DELAY(10);
-		if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
-			tsc_perf_stat = 1;
+#ifdef __i386__
+	/* The TSC is known to be broken on certain CPUs. */
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_AMD:
+		switch (cpu_id & 0xFF0) {
+		case 0x500:
+			/* K5 Model 0 */
+			tsc_disabled = 1;
+			return;
+		}
+		break;
+	case CPU_VENDOR_CENTAUR:
+		switch (cpu_id & 0xff0) {
+		case 0x540:
+			/*
+			 * http://www.centtech.com/c6_data_sheet.pdf
+			 *
+			 * I-12 RDTSC may return incoherent values in EDX:EAX
+			 * I-13 RDTSC hangs when certain event counters are used
+			 */
+			tsc_disabled = 1;
+			return;
+		}
+		break;
+	case CPU_VENDOR_NSC:
+		switch (cpu_id & 0xff0) {
+		case 0x540:
+			if ((cpu_id & CPUID_STEPPING) == 0) {
+				tsc_disabled = 1;
+				return;
+			}
+			break;
+		}
+		break;
 	}
+#endif
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
@@ -315,15 +340,18 @@ probe_tsc_freq(void)
 		break;
 	}
 
-	if (tsc_freq_cpuid_vm())
-		return;
-
-	if (vm_guest == VM_GUEST_VMWARE) {
+	if (tsc_freq_cpuid_vm()) {
+		if (bootverbose)
+			printf(
+		    "Early TSC frequency %juHz derived from hypervisor CPUID\n",
+			    (uintmax_t)tsc_freq);
+	} else if (vm_guest == VM_GUEST_VMWARE) {
 		tsc_freq_vmware();
-		return;
-	}
-
-	if (tsc_freq_cpuid(&tsc_freq)) {
+		if (bootverbose)
+			printf(
+		    "Early TSC frequency %juHz derived from VMWare hypercall\n",
+			    (uintmax_t)tsc_freq);
+	} else if (tsc_freq_cpuid(&tsc_freq)) {
 		/*
 		 * If possible, use the value obtained from CPUID as the initial
 		 * frequency.  This will be refined later during boot but is
@@ -361,49 +389,25 @@ probe_tsc_freq(void)
 		    "Early TSC frequency %juHz calibrated from 8254 PIT\n",
 			    (uintmax_t)tsc_freq);
 	}
+
+	if (cpu_power_ecx & CPUID_PERF_STAT) {
+		/*
+		 * XXX Some emulators expose host CPUID without actual support
+		 * for these MSRs.  We must test whether they really work.
+		 */
+		wrmsr(MSR_MPERF, 0);
+		wrmsr(MSR_APERF, 0);
+		DELAY(10);
+		if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
+			tsc_perf_stat = 1;
+	}
 }
 
 void
-init_TSC(void)
+start_TSC(void)
 {
-
 	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
 		return;
-
-#ifdef __i386__
-	/* The TSC is known to be broken on certain CPUs. */
-	switch (cpu_vendor_id) {
-	case CPU_VENDOR_AMD:
-		switch (cpu_id & 0xFF0) {
-		case 0x500:
-			/* K5 Model 0 */
-			return;
-		}
-		break;
-	case CPU_VENDOR_CENTAUR:
-		switch (cpu_id & 0xff0) {
-		case 0x540:
-			/*
-			 * http://www.centtech.com/c6_data_sheet.pdf
-			 *
-			 * I-12 RDTSC may return incoherent values in EDX:EAX
-			 * I-13 RDTSC hangs when certain event counters are used
-			 */
-			return;
-		}
-		break;
-	case CPU_VENDOR_NSC:
-		switch (cpu_id & 0xff0) {
-		case 0x540:
-			if ((cpu_id & CPUID_STEPPING) == 0)
-				return;
-			break;
-		}
-		break;
-	}
-#endif
-
-	probe_tsc_freq();
 
 	/*
 	 * Inform CPU accounting about our boot-time clock rate.  This will
@@ -706,6 +710,15 @@ tsc_update_freq(uint64_t new_freq)
 	atomic_store_rel_64(&tsc_freq, new_freq);
 	atomic_store_rel_64(&tsc_timecounter.tc_frequency,
 	    new_freq >> (int)(intptr_t)tsc_timecounter.tc_priv);
+}
+
+void
+tsc_init(void)
+{
+	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
+		return;
+
+	probe_tsc_freq();
 }
 
 /*
