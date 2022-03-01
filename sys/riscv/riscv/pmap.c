@@ -353,7 +353,7 @@ pmap_l1(pmap_t pmap, vm_offset_t va)
 
 	KASSERT(VIRT_IS_VALID(va),
 	    ("%s: malformed virtual address %#lx", __func__, va));
-	return (&pmap->pm_l1[pmap_l1_index(va)]);
+	return (&pmap->pm_top[pmap_l1_index(va)]);
 }
 
 static __inline pd_entry_t *
@@ -442,7 +442,7 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
 
 	mtx_lock(&allpmaps_lock);
 	LIST_FOREACH(user_pmap, &allpmaps, pm_list) {
-		l1 = &user_pmap->pm_l1[l1index];
+		l1 = &user_pmap->pm_top[l1index];
 		pmap_store(l1, entry);
 	}
 	mtx_unlock(&allpmaps_lock);
@@ -572,7 +572,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
 
 	/* Set this early so we can use the pagetable walking functions */
-	kernel_pmap_store.pm_l1 = (pd_entry_t *)l1pt;
+	kernel_pmap_store.pm_top = (pd_entry_t *)l1pt;
 	PMAP_LOCK_INIT(kernel_pmap);
 
 	rw_init(&pvh_global_lock, "pmap pv global");
@@ -1205,8 +1205,8 @@ pmap_pinit0(pmap_t pmap)
 
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-	pmap->pm_l1 = kernel_pmap->pm_l1;
-	pmap->pm_satp = SATP_MODE_SV39 | (vtophys(pmap->pm_l1) >> PAGE_SHIFT);
+	pmap->pm_top = kernel_pmap->pm_top;
+	pmap->pm_satp = SATP_MODE_SV39 | (vtophys(pmap->pm_top) >> PAGE_SHIFT);
 	CPU_ZERO(&pmap->pm_active);
 	pmap_activate_boot(pmap);
 }
@@ -1214,18 +1214,15 @@ pmap_pinit0(pmap_t pmap)
 int
 pmap_pinit(pmap_t pmap)
 {
-	vm_paddr_t l1phys;
-	vm_page_t l1pt;
+	vm_paddr_t topphys;
+	vm_page_t mtop;
 
-	/*
-	 * allocate the l1 page
-	 */
-	l1pt = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
+	mtop = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_WAITOK);
 
-	l1phys = VM_PAGE_TO_PHYS(l1pt);
-	pmap->pm_l1 = (pd_entry_t *)PHYS_TO_DMAP(l1phys);
-	pmap->pm_satp = SATP_MODE_SV39 | (l1phys >> PAGE_SHIFT);
+	topphys = VM_PAGE_TO_PHYS(mtop);
+	pmap->pm_top = (pd_entry_t *)PHYS_TO_DMAP(topphys);
+	pmap->pm_satp = SATP_MODE_SV39 | (topphys >> PAGE_SHIFT);
 
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
@@ -1239,10 +1236,10 @@ pmap_pinit(pmap_t pmap)
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 	for (size_t i = pmap_l1_index(VM_MIN_KERNEL_ADDRESS);
 	    i < pmap_l1_index(VM_MAX_KERNEL_ADDRESS); i++)
-		pmap->pm_l1[i] = kernel_pmap->pm_l1[i];
+		pmap->pm_top[i] = kernel_pmap->pm_top[i];
 	for (size_t i = pmap_l1_index(DMAP_MIN_ADDRESS);
 	    i < pmap_l1_index(DMAP_MAX_ADDRESS); i++)
-		pmap->pm_l1[i] = kernel_pmap->pm_l1[i];
+		pmap->pm_top[i] = kernel_pmap->pm_top[i];
 	mtx_unlock(&allpmaps_lock);
 
 	vm_radix_init(&pmap->pm_root);
@@ -1303,7 +1300,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		vm_pindex_t l1index;
 
 		l1index = ptepindex - NUL2E;
-		l1 = &pmap->pm_l1[l1index];
+		l1 = &pmap->pm_top[l1index];
 		KASSERT((pmap_load(l1) & PTE_V) == 0,
 		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
 
@@ -1317,7 +1314,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pd_entry_t *l1, *l2;
 
 		l1index = ptepindex >> (L1_SHIFT - L2_SHIFT);
-		l1 = &pmap->pm_l1[l1index];
+		l1 = &pmap->pm_top[l1index];
 		if (pmap_load(l1) == 0) {
 			/* recurse for allocating page dir */
 			if (_pmap_alloc_l3(pmap, NUL2E + l1index,
@@ -1437,7 +1434,7 @@ pmap_release(pmap_t pmap)
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock(&allpmaps_lock);
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_l1));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_top));
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
 }
@@ -4729,7 +4726,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 		else if (i == pmap_l1_index(VM_MIN_KERNEL_ADDRESS))
 			sbuf_printf(sb, "\nKernel map:\n");
 
-		l1e = kernel_pmap->pm_l1[i];
+		l1e = kernel_pmap->pm_top[i];
 		if ((l1e & PTE_V) == 0) {
 			sysctl_kmaps_dump(sb, &range, sva);
 			sva += L1_SIZE;
