@@ -340,8 +340,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	 */
 	if (p != curproc)
 		PROC_ASSERT_HELD(p);
-	KASSERT((p->p_flag & P_WEXIT) == 0,
-	    ("%s: process %p is exiting", __func__, p));
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 
 	/*
