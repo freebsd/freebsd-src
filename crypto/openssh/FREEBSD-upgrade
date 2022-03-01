@@ -118,7 +118,11 @@
     tools/tools/nanobsd/rescue/Files/etc/ssh/ssh_config
     tools/tools/nanobsd/rescue/Files/etc/ssh/sshd_config
 
-13) Commit, and hunker down for the inevitable storm of complaints.
+13) Check for references to obsolete configuration options
+    (e.g., ChallengeResponseAuthentication in sshd_config) which
+    may exist in release/ scripts.
+
+14) Commit, and hunker down for the inevitable storm of complaints.
 
 
 
