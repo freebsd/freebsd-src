@@ -629,7 +629,7 @@ struct stge_ring_data {
  * Software state per device.
  */
 struct stge_softc {
-	struct ifnet 		*sc_ifp;	/* interface info */
+	if_t			sc_ifp;	/* interface info */
 	device_t		sc_dev;
 	device_t		sc_miibus;
 	struct resource		*sc_res[2];
