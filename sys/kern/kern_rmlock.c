@@ -449,17 +449,13 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 		THREAD_NO_SLEEPING();
 
 	td->td_critnest++;	/* critical_enter(); */
-
 	atomic_interrupt_fence();
 
 	pc = get_pcpu();
-
 	rm_tracker_add(pc, tracker);
-
 	sched_pin();
 
 	atomic_interrupt_fence();
-
 	td->td_critnest--;
 
 	/*
@@ -517,8 +513,12 @@ _rm_runlock(struct rmlock *rm, struct rm_priotracker *tracker)
 		return;
 
 	td->td_critnest++;	/* critical_enter(); */
+	atomic_interrupt_fence();
+
 	pc = get_pcpu();
 	rm_tracker_remove(pc, tracker);
+
+	atomic_interrupt_fence();
 	td->td_critnest--;
 	sched_unpin();
 
