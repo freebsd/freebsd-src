@@ -1484,13 +1484,14 @@ init386(int first)
 	r_idt.rd_base = (int) idt;
 	lidt(&r_idt);
 
+	finishidentcpu();	/* Final stage of CPU initialization */
+
 	/*
 	 * Initialize the clock before the console so that console
 	 * initialization can use DELAY().
 	 */
 	clock_init();
 
-	finishidentcpu();	/* Final stage of CPU initialization */
 	i386_setidt2();
 	pmap_set_nx();
 	initializecpu();	/* Initialize CPU registers */
