@@ -342,9 +342,9 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	    sizeof(uint64_t) + roundup(sc->sc_root_size, BITS_PER_ENTRY);
 	if (verbose)
 		gctl_error(req, "Device %s created with memory map size %jd.",
-		    gp->name, sc->sc_writemap_memory);
+		    gp->name, (intmax_t)sc->sc_writemap_memory);
 	G_UNION_DEBUG(1, "Device %s created with memory map size %jd.",
-	    gp->name, sc->sc_writemap_memory);
+	    gp->name, (intmax_t)sc->sc_writemap_memory);
 	return;
 
 fail4:
@@ -1241,29 +1241,36 @@ g_union_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL || cp != NULL || gp->softc == NULL)
 		return;
 	sc = gp->softc;
-	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
-	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
-	sbuf_printf(sb, "%s<Deletes>%ju</Deletes>\n", indent, sc->sc_deletes);
+	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent,
+	    (uintmax_t)sc->sc_reads);
+	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent,
+	    (uintmax_t)sc->sc_writes);
+	sbuf_printf(sb, "%s<Deletes>%ju</Deletes>\n", indent,
+	    (uintmax_t)sc->sc_deletes);
 	sbuf_printf(sb, "%s<Getattrs>%ju</Getattrs>\n", indent,
-	    sc->sc_getattrs);
-	sbuf_printf(sb, "%s<Flushes>%ju</Flushes>\n", indent, sc->sc_flushes);
+	    (uintmax_t)sc->sc_getattrs);
+	sbuf_printf(sb, "%s<Flushes>%ju</Flushes>\n", indent,
+	    (uintmax_t)sc->sc_flushes);
 	sbuf_printf(sb, "%s<Speedups>%ju</Speedups>\n", indent,
-	    sc->sc_speedups);
-	sbuf_printf(sb, "%s<Cmd0s>%ju</Cmd0s>\n", indent, sc->sc_cmd0s);
-	sbuf_printf(sb, "%s<Cmd1s>%ju</Cmd1s>\n", indent, sc->sc_cmd1s);
-	sbuf_printf(sb, "%s<Cmd2s>%ju</Cmd2s>\n", indent, sc->sc_cmd2s);
+	    (uintmax_t)sc->sc_speedups);
+	sbuf_printf(sb, "%s<Cmd0s>%ju</Cmd0s>\n", indent,
+	    (uintmax_t)sc->sc_cmd0s);
+	sbuf_printf(sb, "%s<Cmd1s>%ju</Cmd1s>\n", indent,
+	    (uintmax_t)sc->sc_cmd1s);
+	sbuf_printf(sb, "%s<Cmd2s>%ju</Cmd2s>\n", indent,
+	    (uintmax_t)sc->sc_cmd2s);
 	sbuf_printf(sb, "%s<ReadCurrentRead>%ju</ReadCurrentRead>\n", indent,
-	    sc->sc_readcurrentread);
+	    (uintmax_t)sc->sc_readcurrentread);
 	sbuf_printf(sb, "%s<ReadBlockWrite>%ju</ReadBlockWrite>\n", indent,
-	    sc->sc_readblockwrite);
+	    (uintmax_t)sc->sc_readblockwrite);
 	sbuf_printf(sb, "%s<WriteBlockRead>%ju</WriteBlockRead>\n", indent,
-	    sc->sc_writeblockread);
+	    (uintmax_t)sc->sc_writeblockread);
 	sbuf_printf(sb, "%s<WriteBlockWrite>%ju</WriteBlockWrite>\n", indent,
-	    sc->sc_writeblockwrite);
+	    (uintmax_t)sc->sc_writeblockwrite);
 	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
-	    sc->sc_readbytes);
+	    (uintmax_t)sc->sc_readbytes);
 	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,
-	    sc->sc_wrotebytes);
+	    (uintmax_t)sc->sc_wrotebytes);
 	sbuf_printf(sb, "%s<Offset>%jd</Offset>\n", indent,
 	    (intmax_t)sc->sc_offset);
 }
