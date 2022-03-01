@@ -39,3 +39,5 @@ SRCS+=	device_if.h bus_if.h opt_wlan.h opt_ath.h opt_ah.h
 CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS+=	-Wno-unused-but-set-variable

@@ -44,8 +44,10 @@ SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
 CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
+CFLAGS+=  ${ATH_CFLAGS}
 
 .include <bsd.kmod.mk>
 
 # XXX Work around clang warnings, until maintainer approves fix.
 CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}
+CWARNFLAGS+=	-Wno-unused-but-set-variable
