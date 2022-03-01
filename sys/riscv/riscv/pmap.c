@@ -160,7 +160,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/sbi.h>
 
-#define	NUL1E		(Ln_ENTRIES * Ln_ENTRIES)
+/*
+ * Boundary values for the page table page index space:
+ *
+ * L3 pages: [0, NUL2E)
+ * L2 pages: [NUL2E, NUL2E + NUL1E)
+ * L1 pages: [NUL2E + NUL1E, NUL2E + NUL1E + NUL0E)
+ *
+ * Note that these ranges are used in both SV39 and SV48 mode.  In SV39 mode the
+ * ranges are not fully populated since there are at most Ln_ENTRIES^2 L3 pages
+ * in a set of page tables.
+ */
+#define	NUL0E		Ln_ENTRIES
+#define	NUL1E		(Ln_ENTRIES * NUL0E)
 #define	NUL2E		(Ln_ENTRIES * NUL1E)
 
 #if !defined(DIAGNOSTIC)
@@ -179,6 +191,7 @@ __FBSDID("$FreeBSD$");
 #define PV_STAT(x)	do { } while (0)
 #endif
 
+#define	pmap_l1_pindex(v)	(NUL2E + ((v) >> L1_SHIFT))
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
 #define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
 
@@ -218,6 +231,8 @@ __FBSDID("$FreeBSD$");
 /* The list of all the user pmaps */
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps = LIST_HEAD_INITIALIZER();
+
+enum pmap_mode __read_frequently pmap_mode = PMAP_MODE_SV39;
 
 struct pmap kernel_pmap_store;
 
@@ -338,6 +353,7 @@ pagezero(void *p)
 	bzero(p, PAGE_SIZE);
 }
 
+#define	pmap_l0_index(va)	(((va) >> L0_SHIFT) & Ln_ADDR_MASK)
 #define	pmap_l1_index(va)	(((va) >> L1_SHIFT) & Ln_ADDR_MASK)
 #define	pmap_l2_index(va)	(((va) >> L2_SHIFT) & Ln_ADDR_MASK)
 #define	pmap_l3_index(va)	(((va) >> L3_SHIFT) & Ln_ADDR_MASK)
