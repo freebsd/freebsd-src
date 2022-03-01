@@ -284,7 +284,7 @@ struct et_hw_stats {
 };
 
 struct et_softc {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	device_t		dev;
 	struct mtx		sc_mtx;
 	device_t		sc_miibus;
