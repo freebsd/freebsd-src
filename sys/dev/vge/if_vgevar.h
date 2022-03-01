@@ -177,7 +177,7 @@ struct vge_hw_stats {
 };
 
 struct vge_softc {
-	struct ifnet		*vge_ifp;	/* interface info */
+	if_t			vge_ifp;	/* interface info */
 	device_t		vge_dev;
 	struct resource		*vge_res;
 	struct resource		*vge_irq;

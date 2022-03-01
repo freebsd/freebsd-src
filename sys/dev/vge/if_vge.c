@@ -174,14 +174,14 @@ static __inline void
 		vge_fixup_rx(struct mbuf *);
 #endif
 static void	vge_freebufs(struct vge_softc *);
-static void	vge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
-static int	vge_ifmedia_upd(struct ifnet *);
+static void	vge_ifmedia_sts(if_t, struct ifmediareq *);
+static int	vge_ifmedia_upd(if_t);
 static int	vge_ifmedia_upd_locked(struct vge_softc *);
 static void	vge_init(void *);
 static void	vge_init_locked(struct vge_softc *);
 static void	vge_intr(void *);
 static void	vge_intr_holdoff(struct vge_softc *);
-static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
+static int	vge_ioctl(if_t, u_long, caddr_t);
 static void	vge_link_statchg(void *);
 static int	vge_miibus_readreg(device_t, int, int);
 static int	vge_miibus_writereg(device_t, int, int, int);
@@ -196,8 +196,8 @@ static void	vge_rxfilter(struct vge_softc *);
 static void	vge_setmedia(struct vge_softc *);
 static void	vge_setvlan(struct vge_softc *);
 static void	vge_setwol(struct vge_softc *);
-static void	vge_start(struct ifnet *);
-static void	vge_start_locked(struct ifnet *);
+static void	vge_start(if_t);
+static void	vge_start_locked(if_t);
 static void	vge_stats_clear(struct vge_softc *);
 static void	vge_stats_update(struct vge_softc *);
 static void	vge_stop(struct vge_softc *);
@@ -513,14 +513,14 @@ fail:
 static void
 vge_setvlan(struct vge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t cfg;
 
 	VGE_LOCK_ASSERT(sc);
 
 	ifp = sc->vge_ifp;
 	cfg = CSR_READ_1(sc, VGE_RXCFG);
-	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0)
 		cfg |= VGE_VTAG_OPT2;
 	else
 		cfg &= ~VGE_VTAG_OPT2;
@@ -562,7 +562,7 @@ vge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 vge_rxfilter(struct vge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t hashes[2];
 	uint8_t rxcfg;
 
@@ -582,12 +582,12 @@ vge_rxfilter(struct vge_softc *sc)
 	rxcfg |= VGE_RXCTL_RX_GIANT | VGE_RXCTL_RX_UCAST;
 
 	ifp = sc->vge_ifp;
-	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+	if ((if_getflags(ifp) & IFF_BROADCAST) != 0)
 		rxcfg |= VGE_RXCTL_RX_BCAST;
-	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
-		if ((ifp->if_flags & IFF_PROMISC) != 0)
+	if ((if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+		if ((if_getflags(ifp) & IFF_PROMISC) != 0)
 			rxcfg |= VGE_RXCTL_RX_PROMISC;
-		if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+		if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 			hashes[0] = 0xFFFFFFFF;
 			hashes[1] = 0xFFFFFFFF;
 		}
@@ -996,7 +996,7 @@ vge_attach(device_t dev)
 {
 	u_char eaddr[ETHER_ADDR_LEN];
 	struct vge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error = 0, cap, i, msic, rid;
 
 	sc = device_get_softc(dev);
@@ -1111,25 +1111,24 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = vge_ioctl;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_start = vge_start;
-	ifp->if_hwassist = VGE_CSUM_FEATURES;
-	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
-	    IFCAP_VLAN_HWTAGGING;
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, vge_ioctl);
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
+	if_setstartfn(ifp, vge_start);
+	if_sethwassist(ifp, VGE_CSUM_FEATURES);
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
+	    IFCAP_VLAN_HWTAGGING, 0);
 	if ((sc->vge_flags & VGE_FLAG_PMCAP) != 0)
-		ifp->if_capabilities |= IFCAP_WOL;
-	ifp->if_capenable = ifp->if_capabilities;
+		if_setcapabilitiesbit(ifp, IFCAP_WOL, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 #ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
-	ifp->if_init = vge_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_TX_DESC_CNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = VGE_TX_DESC_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setinitfn(ifp, vge_init);
+	if_setsendqlen(ifp, VGE_TX_DESC_CNT - 1);
+	if_setsendqready(ifp);
 
 	/*
 	 * Call MI attach routine.
@@ -1137,7 +1136,7 @@ vge_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vge_irq, INTR_TYPE_NET|INTR_MPSAFE,
@@ -1167,14 +1166,14 @@ static int
 vge_detach(device_t dev)
 {
 	struct vge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->vge_mtx), ("vge mutex not initialized"));
 	ifp = sc->vge_ifp;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (if_getcapenable(ifp) & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
@@ -1377,7 +1376,7 @@ vge_freebufs(struct vge_softc *sc)
 {
 	struct vge_txdesc *txd;
 	struct vge_rxdesc *rxd;
-	struct ifnet *ifp;
+	if_t ifp;
 	int i;
 
 	VGE_LOCK_ASSERT(sc);
@@ -1437,7 +1436,7 @@ static int
 vge_rxeof(struct vge_softc *sc, int count)
 {
 	struct mbuf *m;
-	struct ifnet *ifp;
+	if_t ifp;
 	int prod, prog, total_len;
 	struct vge_rxdesc *rxd;
 	struct vge_rx_desc *cur_rx;
@@ -1453,7 +1452,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 
 	prod = sc->vge_cdata.vge_rx_prodidx;
 	for (prog = 0; count > 0 &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0;
 	    VGE_RX_DESC_INC(prod)) {
 		cur_rx = &sc->vge_rdata.vge_rx_ring[prod];
 		rxstat = le32toh(cur_rx->vge_sts);
@@ -1555,7 +1554,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Do RX checksumming if enabled */
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
 		    (rxctl & VGE_RDCTL_FRAG) == 0) {
 			/* Check IP header checksum */
 			if ((rxctl & VGE_RDCTL_IPPKT) != 0)
@@ -1584,7 +1583,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 		}
 
 		VGE_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		VGE_LOCK(sc);
 		sc->vge_cdata.vge_head = NULL;
 		sc->vge_cdata.vge_tail = NULL;
@@ -1608,7 +1607,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 static void
 vge_txeof(struct vge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct vge_tx_desc *cur_tx;
 	struct vge_txdesc *txd;
 	uint32_t txstat;
@@ -1637,7 +1636,7 @@ vge_txeof(struct vge_softc *sc)
 		if ((txstat & VGE_TDSTS_OWN) != 0)
 			break;
 		sc->vge_cdata.vge_tx_cnt--;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 		txd = &sc->vge_cdata.vge_txdesc[cons];
 		bus_dmamap_sync(sc->vge_cdata.vge_tx_tag, txd->tx_dmamap,
@@ -1662,7 +1661,7 @@ static void
 vge_link_statchg(void *xsc)
 {
 	struct vge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t physts;
 
 	sc = xsc;
@@ -1689,7 +1688,7 @@ vge_link_statchg(void *xsc)
 					CSR_WRITE_1(sc, VGE_CRS2,
 					    VGE_CR2_FDX_RXFLOWCTL_ENABLE);
 			}
-			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			if (!if_sendq_empty(ifp))
 				vge_start_locked(ifp);
 		}
 	}
@@ -1702,19 +1701,19 @@ vge_link_statchg(void *xsc)
 
 #ifdef DEVICE_POLLING
 static int
-vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
+vge_poll (if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct vge_softc *sc = ifp->if_softc;
+	struct vge_softc *sc = if_getsoftc(ifp);
 	int rx_npkts = 0;
 
 	VGE_LOCK(sc);
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 		goto done;
 
 	rx_npkts = vge_rxeof(sc, count);
 	vge_txeof(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		vge_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -1731,7 +1730,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & VGE_ISR_TXDMA_STALL ||
 		    status & VGE_ISR_RXDMA_STALL) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			vge_init_locked(sc);
 		}
 
@@ -1751,7 +1750,7 @@ static void
 vge_intr(void *arg)
 {
 	struct vge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t status;
 
 	sc = arg;
@@ -1759,13 +1758,13 @@ vge_intr(void *arg)
 
 	ifp = sc->vge_ifp;
 	if ((sc->vge_flags & VGE_FLAG_SUSPENDED) != 0 ||
-	    (ifp->if_flags & IFF_UP) == 0) {
+	    (if_getflags(ifp) & IFF_UP) == 0) {
 		VGE_UNLOCK(sc);
 		return;
 	}
 
 #ifdef DEVICE_POLLING
-	if  (ifp->if_capenable & IFCAP_POLLING) {
+	if  (if_getcapenable(ifp) & IFCAP_POLLING) {
 		status = CSR_READ_4(sc, VGE_ISR);
 		CSR_WRITE_4(sc, VGE_ISR, status);
 		if (status != 0xFFFFFFFF && (status & VGE_ISR_LINKSTS) != 0)
@@ -1782,7 +1781,7 @@ vge_intr(void *arg)
 	/* If the card has gone away the read returns 0xffff. */
 	if (status == 0xFFFFFFFF || (status & VGE_INTRS) == 0)
 		goto done;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		if (status & (VGE_ISR_RXOK|VGE_ISR_RXOK_HIPRIO))
 			vge_rxeof(sc, VGE_RX_DESC_CNT);
 		if (status & (VGE_ISR_RXOFLOW|VGE_ISR_RXNODESC)) {
@@ -1795,7 +1794,7 @@ vge_intr(void *arg)
 			vge_txeof(sc);
 
 		if (status & (VGE_ISR_TXDMA_STALL|VGE_ISR_RXDMA_STALL)) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			vge_init_locked(sc);
 		}
 
@@ -1803,11 +1802,11 @@ vge_intr(void *arg)
 			vge_link_statchg(sc);
 	}
 done:
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		/* Re-enable interrupts */
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			vge_start_locked(ifp);
 	}
 	VGE_UNLOCK(sc);
@@ -1941,38 +1940,38 @@ vge_encap(struct vge_softc *sc, struct mbuf **m_head)
  */
 
 static void
-vge_start(struct ifnet *ifp)
+vge_start(if_t ifp)
 {
 	struct vge_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	VGE_LOCK(sc);
 	vge_start_locked(ifp);
 	VGE_UNLOCK(sc);
 }
 
 static void
-vge_start_locked(struct ifnet *ifp)
+vge_start_locked(if_t ifp)
 {
 	struct vge_softc *sc;
 	struct vge_txdesc *txd;
 	struct mbuf *m_head;
 	int enq, idx;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	VGE_LOCK_ASSERT(sc);
 
 	if ((sc->vge_flags & VGE_FLAG_LINK) == 0 ||
-	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    (if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
 	idx = sc->vge_cdata.vge_tx_prodidx;
 	VGE_TX_DESC_DEC(idx);
-	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	for (enq = 0; !if_sendq_empty(ifp) &&
 	    sc->vge_cdata.vge_tx_cnt < VGE_TX_DESC_CNT - 1; ) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 		/*
@@ -1983,8 +1982,8 @@ vge_start_locked(struct ifnet *ifp)
 		if (vge_encap(sc, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -2026,12 +2025,12 @@ vge_init(void *xsc)
 static void
 vge_init_locked(struct vge_softc *sc)
 {
-	struct ifnet *ifp = sc->vge_ifp;
+	if_t ifp = sc->vge_ifp;
 	int error, i;
 
 	VGE_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	/*
@@ -2055,7 +2054,7 @@ vge_init_locked(struct vge_softc *sc)
 	vge_stats_clear(sc);
 	/* Set our station address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VGE_PAR0 + i, IF_LLADDR(sc->vge_ifp)[i]);
+		CSR_WRITE_1(sc, VGE_PAR0 + i, if_getlladdr(sc->vge_ifp)[i]);
 
 	/*
 	 * Set receive FIFO threshold. Also allow transmission and
@@ -2134,7 +2133,7 @@ vge_init_locked(struct vge_softc *sc)
 	/*
 	 * Disable interrupts except link state change if we are polling.
 	 */
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(ifp) & IFCAP_POLLING) {
 		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS_POLLING);
 	} else	/* otherwise ... */
 #endif
@@ -2150,8 +2149,8 @@ vge_init_locked(struct vge_softc *sc)
 	sc->vge_flags &= ~VGE_FLAG_LINK;
 	vge_ifmedia_upd_locked(sc);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
 }
 
@@ -2159,12 +2158,12 @@ vge_init_locked(struct vge_softc *sc)
  * Set media options.
  */
 static int
-vge_ifmedia_upd(struct ifnet *ifp)
+vge_ifmedia_upd(if_t ifp)
 {
 	struct vge_softc *sc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	VGE_LOCK(sc);
 	error = vge_ifmedia_upd_locked(sc);
 	VGE_UNLOCK(sc);
@@ -2192,16 +2191,16 @@ vge_ifmedia_upd_locked(struct vge_softc *sc)
  * Report current media status.
  */
 static void
-vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+vge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct vge_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = device_get_softc(sc->vge_miibus);
 
 	VGE_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		VGE_UNLOCK(sc);
 		return;
 	}
@@ -2257,9 +2256,9 @@ vge_setmedia(struct vge_softc *sc)
 }
 
 static int
-vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+vge_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct vge_softc *sc = ifp->if_softc;
+	struct vge_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
 	int error = 0, mask;
@@ -2269,33 +2268,33 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		VGE_LOCK(sc);
 		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > VGE_JUMBO_MTU)
 			error = EINVAL;
-		else if (ifp->if_mtu != ifr->ifr_mtu) {
+		else if (if_getmtu(ifp) != ifr->ifr_mtu) {
 			if (ifr->ifr_mtu > ETHERMTU &&
 			    (sc->vge_flags & VGE_FLAG_JUMBO) == 0)
 				error = EINVAL;
 			else
-				ifp->if_mtu = ifr->ifr_mtu;
+				if_setmtu(ifp, ifr->ifr_mtu);
 		}
 		VGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		VGE_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			    ((ifp->if_flags ^ sc->vge_if_flags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+			    ((if_getflags(ifp) ^ sc->vge_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				vge_rxfilter(sc);
 			else
 				vge_init_locked(sc);
-		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		} else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			vge_stop(sc);
-		sc->vge_if_flags = ifp->if_flags;
+		sc->vge_if_flags = if_getflags(ifp);
 		VGE_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		VGE_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			vge_rxfilter(sc);
 		VGE_UNLOCK(sc);
 		break;
@@ -2305,7 +2304,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -2317,7 +2316,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS_POLLING);
 				CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
 				CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				VGE_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
@@ -2326,38 +2325,38 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS);
 				CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
 				CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
-				ifp->if_capenable &= ~IFCAP_POLLING;
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				VGE_UNLOCK(sc);
 			}
 		}
 #endif /* DEVICE_POLLING */
 		VGE_LOCK(sc);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= VGE_CSUM_FEATURES;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+				if_sethwassistbits(ifp, VGE_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~VGE_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, VGE_CSUM_FEATURES);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if ((mask & IFCAP_WOL_UCAST) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_UCAST) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_UCAST;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_UCAST) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_UCAST);
 		if ((mask & IFCAP_WOL_MCAST) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MCAST) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MCAST;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_MCAST) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_MCAST);
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_MAGIC);
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWCSUM) != 0)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWCSUM);
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+		    (IFCAP_VLAN_HWTAGGING & if_getcapabilities(ifp)) != 0) {
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
 			vge_setvlan(sc);
 		}
 		VGE_UNLOCK(sc);
@@ -2375,7 +2374,7 @@ static void
 vge_watchdog(void *arg)
 {
 	struct vge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = arg;
 	VGE_LOCK_ASSERT(sc);
@@ -2391,7 +2390,7 @@ vge_watchdog(void *arg)
 	vge_txeof(sc);
 	vge_rxeof(sc, VGE_RX_DESC_CNT);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	vge_init_locked(sc);
 }
 
@@ -2402,14 +2401,14 @@ vge_watchdog(void *arg)
 static void
 vge_stop(struct vge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	VGE_LOCK_ASSERT(sc);
 	ifp = sc->vge_ifp;
 	sc->vge_timer = 0;
 	callout_stop(&sc->vge_watchdog);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
 	CSR_WRITE_1(sc, VGE_CRS0, VGE_CR0_STOP);
@@ -2454,7 +2453,7 @@ static int
 vge_resume(device_t dev)
 {
 	struct vge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
@@ -2474,8 +2473,8 @@ vge_resume(device_t dev)
 	vge_miipoll_start(sc);
 	ifp = sc->vge_ifp;
 	/* Reinitialize interface if necessary. */
-	if ((ifp->if_flags & IFF_UP) != 0) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if ((if_getflags(ifp) & IFF_UP) != 0) {
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		vge_init_locked(sc);
 	}
 	sc->vge_flags &= ~VGE_FLAG_SUSPENDED;
@@ -2637,7 +2636,7 @@ static void
 vge_stats_update(struct vge_softc *sc)
 {
 	struct vge_hw_stats *stats;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t mib[VGE_MIB_CNT], val;
 	int i;
 
@@ -2846,7 +2845,7 @@ vge_setlinkspeed(struct vge_softc *sc)
 static void
 vge_setwol(struct vge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t pmstat;
 	uint8_t val;
 
@@ -2868,16 +2867,16 @@ vge_setwol(struct vge_softc *sc)
 	CSR_WRITE_1(sc, VGE_WOLCR1C, 0x0F);
 	CSR_WRITE_1(sc, VGE_WOLCFGC, VGE_WOLCFG_SAB | VGE_WOLCFG_SAM |
 	    VGE_WOLCFG_PMEOVR);
-	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0) {
 		vge_setlinkspeed(sc);
 		val = 0;
-		if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_WOL_UCAST) != 0)
 			val |= VGE_WOLCR1_UCAST;
-		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 			val |= VGE_WOLCR1_MAGIC;
 		CSR_WRITE_1(sc, VGE_WOLCR1S, val);
 		val = 0;
-		if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_WOL_MCAST) != 0)
 			val |= VGE_WOLCFG_SAM | VGE_WOLCFG_SAB;
 		CSR_WRITE_1(sc, VGE_WOLCFGS, val | VGE_WOLCFG_PMEOVR);
 		/* Disable MII auto-polling. */
@@ -2902,7 +2901,7 @@ vge_setwol(struct vge_softc *sc)
 	pmstat = pci_read_config(sc->vge_dev, sc->vge_pmcap +
 	    PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
 		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 	pci_write_config(sc->vge_dev, sc->vge_pmcap + PCIR_POWER_STATUS,
 	    pmstat, 2);
