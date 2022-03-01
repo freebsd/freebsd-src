@@ -2187,7 +2187,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	struct spglist free;
 	struct rwlock *lock;
 	vm_offset_t va, va_next;
-	pd_entry_t *l1, *l2, l2e;
+	pd_entry_t *l0, *l1, *l2, l2e;
 	pt_entry_t *l3;
 
 	/*
@@ -2206,7 +2206,19 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (pmap->pm_stats.resident_count == 0)
 			break;
 
-		l1 = pmap_l1(pmap, sva);
+		if (pmap_mode == PMAP_MODE_SV48) {
+			l0 = pmap_l0(pmap, sva);
+			if (pmap_load(l0) == 0) {
+				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
+				if (va_next < sva)
+					va_next = eva;
+				continue;
+			}
+			l1 = pmap_l0_to_l1(l0, sva);
+		} else {
+			l1 = pmap_l1(pmap, sva);
+		}
+
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
@@ -2357,7 +2369,7 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	pd_entry_t *l1, *l2, l2e;
+	pd_entry_t *l0, *l1, *l2, l2e;
 	pt_entry_t *l3, l3e, mask;
 	vm_page_t m, mt;
 	vm_paddr_t pa;
@@ -2383,7 +2395,19 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 resume:
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-		l1 = pmap_l1(pmap, sva);
+		if (pmap_mode == PMAP_MODE_SV48) {
+			l0 = pmap_l0(pmap, sva);
+			if (pmap_load(l0) == 0) {
+				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
+				if (va_next < sva)
+					va_next = eva;
+				continue;
+			}
+			l1 = pmap_l0_to_l1(l0, sva);
+		} else {
+			l1 = pmap_l1(pmap, sva);
+		}
+
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
@@ -3334,7 +3358,7 @@ void
 pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	vm_offset_t va_next;
-	pd_entry_t *l1, *l2, l2e;
+	pd_entry_t *l0, *l1, *l2, l2e;
 	pt_entry_t *l3, l3e;
 	bool pv_lists_locked;
 
@@ -3342,7 +3366,19 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 retry:
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-		l1 = pmap_l1(pmap, sva);
+		if (pmap_mode == PMAP_MODE_SV48) {
+			l0 = pmap_l0(pmap, sva);
+			if (pmap_load(l0) == 0) {
+				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
+				if (va_next < sva)
+					va_next = eva;
+				continue;
+			}
+			l1 = pmap_l0_to_l1(l0, sva);
+		} else {
+			l1 = pmap_l1(pmap, sva);
+		}
+
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
