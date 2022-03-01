@@ -213,23 +213,22 @@ while :; do
 	if [ ! "$NETWORKS" ]; then
 		f_dialog_title "$msg_error"
 		f_yesno "No wireless networks were found. Rescan?" && continue
-		exit 1
+	else
+		f_dialog_title "Network Selection"
+		prompt="Select a wireless network to connect to."
+		f_dialog_menu_size height width rows "$DIALOG_TITLE" \
+			"$DIALOG_BACKTITLE" "$prompt" "" $menu_list
+		NETWORK=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--extra-button                     \
+			--extra-label \"Rescan\"           \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
+			$NETWORKS                          \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 	fi
-
-	f_dialog_title "Network Selection"
-	prompt="Select a wireless network to connect to."
-	f_dialog_menu_size height width rows "$DIALOG_TITLE" \
-		"$DIALOG_BACKTITLE" "$prompt" "" $menu_list
-	NETWORK=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--extra-button                     \
-		--extra-label \"Rescan\"           \
-		--menu \"\$prompt\"                \
-		$height $width $rows               \
-		$NETWORKS                          \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
 	retval=$?
 	f_dialog_data_sanitize NETWORK
 	case $retval in
