@@ -3263,16 +3263,16 @@ if test "x$enable_sk" = "xyes" -a "x$enable_sk_internal" = "xyes" ; then
 		LIBFIDO2=`$PKGCONFIG --libs libfido2`
 		CPPFLAGS="$CPPFLAGS `$PKGCONFIG --cflags libfido2`"
 	else
-		LIBFIDO2="-lfido2 -lcbor"
+		LIBFIDO2="-lprivatefido2 -lprivatecbor"
 	fi
 	OTHERLIBS=`echo $LIBFIDO2 | sed 's/-lfido2//'`
-	AC_CHECK_LIB([fido2], [fido_init],
+	AC_CHECK_LIB([privatefido2], [fido_init],
 		[
 			AC_SUBST([LIBFIDO2])
 			AC_DEFINE([ENABLE_SK_INTERNAL], [],
 			    [Enable for built-in U2F/FIDO support])
 			enable_sk="built-in"
-		], [ AC_MSG_ERROR([no usable libfido2 found]) ],
+		], [ AC_MSG_ERROR([no usable libprivatefido2 found]) ],
 		[ $OTHERLIBS ]
 	)
 	saved_LIBS="$LIBS"
