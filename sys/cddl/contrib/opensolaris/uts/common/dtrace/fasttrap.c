@@ -336,8 +336,9 @@ fasttrap_scraddr(struct thread *td, fasttrap_proc_t *fprc)
 		 */
 		addr = 0;
 		error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr,
-		    FASTTRAP_SCRBLOCK_SIZE, 0, VMFS_ANY_SPACE, VM_PROT_ALL,
-		    VM_PROT_ALL, 0);
+		    FASTTRAP_SCRBLOCK_SIZE, 0, VMFS_ANY_SPACE,
+		    VM_PROT_READ | VM_PROT_EXECUTE,
+		    VM_PROT_READ | VM_PROT_EXECUTE, MAP_COPY_ON_WRITE);
 		if (error != KERN_SUCCESS)
 			goto done;
 
