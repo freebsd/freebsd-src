@@ -109,7 +109,7 @@ static void	gem_eint(struct gem_softc *sc, u_int status);
 static void	gem_init(void *xsc);
 static void	gem_init_locked(struct gem_softc *sc);
 static void	gem_init_regs(struct gem_softc *sc);
-static int	gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static int	gem_ioctl(if_t ifp, u_long cmd, caddr_t data);
 static int	gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head);
 static int	gem_meminit(struct gem_softc *sc);
 static void	gem_mifinit(struct gem_softc *sc);
@@ -125,9 +125,9 @@ static void	gem_rint_timeout(void *arg);
 static inline void gem_rxcksum(struct mbuf *m, uint64_t flags);
 static void	gem_rxdrain(struct gem_softc *sc);
 static void	gem_setladrf(struct gem_softc *sc);
-static void	gem_start(struct ifnet *ifp);
-static void	gem_start_locked(struct ifnet *ifp);
-static void	gem_stop(struct ifnet *ifp, int disable);
+static void	gem_start(if_t ifp);
+static void	gem_start_locked(if_t ifp);
+static void	gem_stop(if_t ifp, int disable);
 static void	gem_tick(void *arg);
 static void	gem_tint(struct gem_softc *sc);
 static inline void gem_txkick(struct gem_softc *sc);
@@ -150,7 +150,7 @@ int
 gem_attach(struct gem_softc *sc)
 {
 	struct gem_txsoft *txs;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, i, phy;
 	uint32_t v;
 
@@ -162,16 +162,15 @@ gem_attach(struct gem_softc *sc)
 	if (ifp == NULL)
 		return (ENOSPC);
 	sc->sc_csum_features = GEM_CSUM_FEATURES;
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = gem_start;
-	ifp->if_ioctl = gem_ioctl;
-	ifp->if_init = gem_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, GEM_TXQUEUELEN);
-	ifp->if_snd.ifq_drv_maxlen = GEM_TXQUEUELEN;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, gem_start);
+	if_setioctlfn(ifp, gem_ioctl);
+	if_setinitfn(ifp, gem_init);
+	if_setsendqlen(ifp, GEM_TXQUEUELEN);
+	if_setsendqready(ifp);
 
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
 #ifdef GEM_RINT_TIMEOUT
@@ -383,10 +382,10 @@ gem_attach(struct gem_softc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
-	ifp->if_hwassist |= sc->sc_csum_features;
-	ifp->if_capenable |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM, 0);
+	if_sethwassistbits(ifp, sc->sc_csum_features, 0);
+	if_setcapenablebit(ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM, 0);
 
 	return (0);
 
@@ -424,7 +423,7 @@ gem_attach(struct gem_softc *sc)
 void
 gem_detach(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	int i;
 
 	ether_ifdetach(ifp);
@@ -459,7 +458,7 @@ gem_detach(struct gem_softc *sc)
 void
 gem_suspend(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	GEM_LOCK(sc);
 	gem_stop(ifp, 0);
@@ -469,7 +468,7 @@ gem_suspend(struct gem_softc *sc)
 void
 gem_resume(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	GEM_LOCK(sc);
 	/*
@@ -477,7 +476,7 @@ gem_resume(struct gem_softc *sc)
 	 * after power-on.
 	 */
 	sc->sc_flags &= ~GEM_INITED;
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		gem_init_locked(sc);
 	GEM_UNLOCK(sc);
 }
@@ -561,7 +560,7 @@ static void
 gem_tick(void *arg)
 {
 	struct gem_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint32_t v;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
@@ -656,9 +655,9 @@ gem_rxdrain(struct gem_softc *sc)
 }
 
 static void
-gem_stop(struct ifnet *ifp, int disable)
+gem_stop(if_t ifp, int disable)
 {
-	struct gem_softc *sc = ifp->if_softc;
+	struct gem_softc *sc = if_getsoftc(ifp);
 	struct gem_txsoft *txs;
 
 #ifdef GEM_DEBUG
@@ -696,7 +695,7 @@ gem_stop(struct ifnet *ifp, int disable)
 	/*
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->sc_flags &= ~GEM_LINK;
 	sc->sc_wdog_timer = 0;
 }
@@ -755,7 +754,7 @@ gem_reset_rxdma(struct gem_softc *sc)
 	int i;
 
 	if (gem_reset_rx(sc) != 0) {
-		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(sc->sc_ifp, 0, IFF_DRV_RUNNING);
 		return (gem_init_locked(sc));
 	}
 	for (i = 0; i < GEM_NRXDESC; i++)
@@ -944,12 +943,12 @@ gem_init(void *xsc)
 static void
 gem_init_locked(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	uint32_t v;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 #ifdef GEM_DEBUG
@@ -1091,8 +1090,8 @@ gem_init_locked(struct gem_softc *sc)
 	/* step 15.  Give the receiver a swift kick. */
 	GEM_BANK1_WRITE_4(sc, GEM_RX_KICK, GEM_NRXDESC - 4);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	mii_mediachg(sc->sc_mii);
 
@@ -1248,7 +1247,7 @@ gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head)
 static void
 gem_init_regs(struct gem_softc *sc)
 {
-	const u_char *laddr = IF_LLADDR(sc->sc_ifp);
+	const u_char *laddr = if_getlladdr(sc->sc_ifp);
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1321,9 +1320,9 @@ gem_init_regs(struct gem_softc *sc)
 }
 
 static void
-gem_start(struct ifnet *ifp)
+gem_start(if_t ifp)
 {
-	struct gem_softc *sc = ifp->if_softc;
+	struct gem_softc *sc = if_getsoftc(ifp);
 
 	GEM_LOCK(sc);
 	gem_start_locked(ifp);
@@ -1349,15 +1348,15 @@ gem_txkick(struct gem_softc *sc)
 }
 
 static void
-gem_start_locked(struct ifnet *ifp)
+gem_start_locked(if_t ifp)
 {
-	struct gem_softc *sc = ifp->if_softc;
+	struct gem_softc *sc = if_getsoftc(ifp);
 	struct mbuf *m;
 	int kicked, ntx;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || (sc->sc_flags & GEM_LINK) == 0)
 		return;
 
@@ -1368,15 +1367,15 @@ gem_start_locked(struct ifnet *ifp)
 #endif
 	ntx = 0;
 	kicked = 0;
-	for (; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) && sc->sc_txfree > 1;) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	for (; !if_sendq_empty(ifp) && sc->sc_txfree > 1;) {
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 		if (gem_load_txmbuf(sc, &m) != 0) {
 			if (m == NULL)
 				break;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if_sendq_prepend(ifp, m);
 			break;
 		}
 		if ((sc->sc_txnext % 4) == 0) {
@@ -1409,7 +1408,7 @@ gem_start_locked(struct ifnet *ifp)
 static void
 gem_tint(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct gem_txsoft *txs;
 	int progress;
 	uint32_t txlast;
@@ -1429,7 +1428,7 @@ gem_tint(struct gem_softc *sc)
 	GEM_CDSYNC(sc, BUS_DMASYNC_POSTREAD);
 	while ((txs = STAILQ_FIRST(&sc->sc_txdirtyq)) != NULL) {
 #ifdef GEM_DEBUG
-		if ((ifp->if_flags & IFF_DEBUG) != 0) {
+		if ((if_getflags(ifp) & IFF_DEBUG) != 0) {
 			printf("    txsoft %p transmit chain:\n", txs);
 			for (i = txs->txs_firstdesc;; i = GEM_NEXTTX(i)) {
 				printf("descriptor %d: ", i);
@@ -1507,7 +1506,7 @@ gem_tint(struct gem_softc *sc)
 		 * We freed some descriptors, so reset IFF_DRV_OACTIVE
 		 * and restart.
 		 */
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
 		    sc->sc_wdog_timer = 0;
 		gem_start_locked(ifp);
@@ -1534,7 +1533,7 @@ gem_rint_timeout(void *arg)
 static void
 gem_rint(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m;
 	uint64_t rxstat;
 	uint32_t rxcomp;
@@ -1589,7 +1588,7 @@ gem_rint(struct gem_softc *sc)
 		}
 
 #ifdef GEM_DEBUG
-		if ((ifp->if_flags & IFF_DEBUG) != 0) {
+		if ((if_getflags(ifp) & IFF_DEBUG) != 0) {
 			printf("    rxsoft %p descriptor %d: ",
 			    &sc->sc_rxsoft[sc->sc_rxptr], sc->sc_rxptr);
 			printf("gd_flags: 0x%016llx\t",
@@ -1640,12 +1639,12 @@ gem_rint(struct gem_softc *sc)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = GEM_RD_BUFLEN(rxstat);
 
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 			gem_rxcksum(m, rxstat);
 
 		/* Pass it on. */
 		GEM_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		GEM_LOCK(sc);
 	}
 
@@ -1786,7 +1785,7 @@ gem_intr(void *v)
 		if ((status2 &
 		    (GEM_MAC_TX_UNDERRUN | GEM_MAC_TX_PKT_TOO_LONG)) != 0) {
 			if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
-			sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(sc->sc_ifp, 0, IFF_DRV_RUNNING);
 			gem_init_locked(sc);
 		}
 	}
@@ -1812,7 +1811,7 @@ gem_intr(void *v)
 static int
 gem_watchdog(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1839,7 +1838,7 @@ gem_watchdog(struct gem_softc *sc)
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	/* Try to get more packets going. */
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	gem_init_locked(sc);
 	gem_start_locked(ifp);
 	return (EJUSTRETURN);
@@ -2019,7 +2018,7 @@ gem_mii_statchg(device_t dev)
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 #ifdef GEM_DEBUG
-	if ((sc->sc_ifp->if_flags & IFF_DEBUG) != 0)
+	if ((sc->sc_if_getflags(ifp) & IFF_DEBUG) != 0)
 		device_printf(sc->sc_dev, "%s: status change\n", __func__);
 #endif
 
@@ -2104,7 +2103,7 @@ gem_mii_statchg(device_t dev)
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_XIF_CONFIG, v);
 
 	sc->sc_mac_rxcfg = rxcfg;
-	if ((sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	if ((if_getdrvflags(sc->sc_ifp) & IFF_DRV_RUNNING) != 0 &&
 	    (sc->sc_flags & GEM_LINK) != 0) {
 		GEM_BANK1_WRITE_4(sc, GEM_MAC_TX_CONFIG,
 		    txcfg | GEM_MAC_TX_ENABLE);
@@ -2114,9 +2113,9 @@ gem_mii_statchg(device_t dev)
 }
 
 int
-gem_mediachange(struct ifnet *ifp)
+gem_mediachange(if_t ifp)
 {
-	struct gem_softc *sc = ifp->if_softc;
+	struct gem_softc *sc = if_getsoftc(ifp);
 	int error;
 
 	/* XXX add support for serial media. */
@@ -2128,12 +2127,12 @@ gem_mediachange(struct ifnet *ifp)
 }
 
 void
-gem_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
+gem_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct gem_softc *sc = ifp->if_softc;
+	struct gem_softc *sc = if_getsoftc(ifp);
 
 	GEM_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		GEM_UNLOCK(sc);
 		return;
 	}
@@ -2145,9 +2144,9 @@ gem_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+gem_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct gem_softc *sc = ifp->if_softc;
+	struct gem_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error;
 
@@ -2155,28 +2154,28 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		GEM_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			    ((ifp->if_flags ^ sc->sc_ifflags) &
+		if ((if_getflags(ifp) & IFF_UP) != 0) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+			    ((if_getflags(ifp) ^ sc->sc_ifflags) &
 			    (IFF_ALLMULTI | IFF_PROMISC)) != 0)
 				gem_setladrf(sc);
 			else
 				gem_init_locked(sc);
-		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		} else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			gem_stop(ifp, 0);
-		if ((ifp->if_flags & IFF_LINK0) != 0)
+		if ((if_getflags(ifp) & IFF_LINK0) != 0)
 			sc->sc_csum_features |= CSUM_UDP;
 		else
 			sc->sc_csum_features &= ~CSUM_UDP;
-		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-			ifp->if_hwassist = sc->sc_csum_features;
-		sc->sc_ifflags = ifp->if_flags;
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+			if_sethwassist(ifp, sc->sc_csum_features);
+		sc->sc_ifflags = if_getflags(ifp);
 		GEM_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		GEM_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			gem_setladrf(sc);
 		GEM_UNLOCK(sc);
 		break;
@@ -2186,11 +2185,11 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		GEM_LOCK(sc);
-		ifp->if_capenable = ifr->ifr_reqcap;
-		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-			ifp->if_hwassist = sc->sc_csum_features;
+		if_setcapenable(ifp, ifr->ifr_reqcap);
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+			if_sethwassist(ifp, sc->sc_csum_features);
 		else
-			ifp->if_hwassist = 0;
+			if_sethwassist(ifp, 0);
 		GEM_UNLOCK(sc);
 		break;
 	default:
@@ -2218,7 +2217,7 @@ gem_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 gem_setladrf(struct gem_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	int i;
 	uint32_t hash[16];
 	uint32_t v;
@@ -2239,11 +2238,11 @@ gem_setladrf(struct gem_softc *sc)
 		    "cannot disable RX MAC or hash filter\n");
 
 	v &= ~(GEM_MAC_RX_PROMISCUOUS | GEM_MAC_RX_PROMISC_GRP);
-	if ((ifp->if_flags & IFF_PROMISC) != 0) {
+	if ((if_getflags(ifp) & IFF_PROMISC) != 0) {
 		v |= GEM_MAC_RX_PROMISCUOUS;
 		goto chipit;
 	}
-	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+	if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 		v |= GEM_MAC_RX_PROMISC_GRP;
 		goto chipit;
 	}

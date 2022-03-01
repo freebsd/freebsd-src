@@ -106,7 +106,7 @@ struct gem_rxsoft {
  * software state per device
  */
 struct gem_softc {
-	struct ifnet	*sc_ifp;
+	if_t		sc_ifp;
 	struct mtx	sc_mtx;
 	device_t	sc_miibus;
 	struct mii_data	*sc_mii;	/* MII media control */
@@ -269,8 +269,8 @@ void	gem_intr(void *v);
 void	gem_resume(struct gem_softc *sc);
 void	gem_suspend(struct gem_softc *sc);
 
-int	gem_mediachange(struct ifnet *ifp);
-void	gem_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
+int	gem_mediachange(if_t ifp);
+void	gem_mediastatus(if_t ifp, struct ifmediareq *ifmr);
 
 /* MII methods & callbacks */
 int	gem_mii_readreg(device_t dev, int phy, int reg);
