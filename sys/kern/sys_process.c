@@ -336,11 +336,12 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	int error, fault_flags, page_offset, writing;
 
 	/*
-	 * Assert that someone has locked this vmspace.  (Should be
-	 * curthread but we can't assert that.)  This keeps the process
-	 * from exiting out from under us until this operation completes.
+	 * Make sure that the process' vmspace remains live.
 	 */
-	PROC_ASSERT_HELD(p);
+	if (p != curproc)
+		PROC_ASSERT_HELD(p);
+	KASSERT((p->p_flag & P_WEXIT) == 0,
+	    ("%s: process %p is exiting", __func__, p));
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 
 	/*
