@@ -283,10 +283,6 @@ binary_body()
 
 functionname_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/262086"
-	fi
-
 	atf_check -o file:$(atf_get_srcdir)/functionname_c.out -s exit:1 \
 		diff -u -p -L functionname.in -L functionname_c.in \
 		"$(atf_get_srcdir)/functionname.in" "$(atf_get_srcdir)/functionname_c.in"
