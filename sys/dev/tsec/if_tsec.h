@@ -55,7 +55,7 @@ struct tsec_bufmap {
 
 struct tsec_softc {
 	/* XXX MII bus requires that struct ifnet is first!!! */
-	struct ifnet	*tsec_ifp;
+	if_t		tsec_ifp;
 
 	struct mtx	transmit_lock;	/* transmitter lock */
 	struct mtx	receive_lock;	/* receiver lock */
