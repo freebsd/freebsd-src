@@ -123,7 +123,7 @@ struct vte_ident {
  * Software state per device.
  */
 struct vte_softc {
-	struct ifnet 		*vte_ifp;
+	if_t			vte_ifp;
 	device_t		vte_dev;
 	device_t		vte_miibus;
 	struct resource		*vte_res;
