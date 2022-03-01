@@ -22,4 +22,5 @@ GEOM_CLASSES+=	raid
 GEOM_CLASSES+=	raid3
 GEOM_CLASSES+=	shsec
 GEOM_CLASSES+=	stripe
+GEOM_CLASSES+=	union
 GEOM_CLASSES+=	virstor

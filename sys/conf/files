@@ -3689,6 +3689,7 @@ geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
 geom/stripe/g_stripe.c		optional geom_stripe
+geom/union/g_union.c		optional geom_union
 geom/uzip/g_uzip.c		optional geom_uzip
 geom/uzip/g_uzip_lzma.c		optional geom_uzip
 geom/uzip/g_uzip_wrkthr.c	optional geom_uzip
