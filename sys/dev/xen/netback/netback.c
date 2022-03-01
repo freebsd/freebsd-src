@@ -147,20 +147,20 @@ static void	xnb_attach_failed(struct xnb_softc *xnb,
 static int	xnb_shutdown(struct xnb_softc *xnb);
 static int	create_netdev(device_t dev);
 static int	xnb_detach(device_t dev);
-static int	xnb_ifmedia_upd(struct ifnet *ifp);
-static void	xnb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
+static int	xnb_ifmedia_upd(if_t ifp);
+static void	xnb_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr);
 static void 	xnb_intr(void *arg);
 static int	xnb_send(netif_rx_back_ring_t *rxb, domid_t otherend,
 			 const struct mbuf *mbufc, gnttab_copy_table gnttab);
 static int	xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend,
-			 struct mbuf **mbufc, struct ifnet *ifnet,
+			 struct mbuf **mbufc, if_t ifnet,
 			 gnttab_copy_table gnttab);
 static int	xnb_ring2pkt(struct xnb_pkt *pkt,
 			     const netif_tx_back_ring_t *tx_ring,
 			     RING_IDX start);
 static void	xnb_txpkt2rsp(const struct xnb_pkt *pkt,
 			      netif_tx_back_ring_t *ring, int error);
-static struct mbuf *xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp);
+static struct mbuf *xnb_pkt2mbufc(const struct xnb_pkt *pkt, if_t ifp);
 static int	xnb_txpkt2gnttab(const struct xnb_pkt *pkt,
 				 struct mbuf *mbufc,
 				 gnttab_copy_table gnttab,
@@ -180,9 +180,9 @@ static int	xnb_rxpkt2rsp(const struct xnb_pkt *pkt,
 			      const gnttab_copy_table gnttab, int n_entries,
 			      netif_rx_back_ring_t *ring);
 static void	xnb_stop(struct xnb_softc*);
-static int	xnb_ioctl(struct ifnet*, u_long, caddr_t);
-static void	xnb_start_locked(struct ifnet*);
-static void	xnb_start(struct ifnet*);
+static int	xnb_ioctl(if_t, u_long, caddr_t);
+static void	xnb_start_locked(if_t);
+static void	xnb_start(if_t);
 static void	xnb_ifinit_locked(struct xnb_softc*);
 static void	xnb_ifinit(void*);
 #ifdef XNB_DEBUG
@@ -396,7 +396,7 @@ struct xnb_softc {
 	struct ifmedia		sc_media;
 
 	/** Media carrier info */
-	struct ifnet 		*xnb_ifp;
+	if_t			xnb_ifp;
 
 	/** Our own private carrier state */
 	unsigned carrier;
@@ -1180,7 +1180,7 @@ xnb_setup_sysctl(struct xnb_softc *xnb)
 int
 create_netdev(device_t dev)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct xnb_softc *xnb;
 	int err = 0;
 	uint32_t handle;
@@ -1224,18 +1224,18 @@ create_netdev(device_t dev)
 	if (err == 0) {
 		/* Set up ifnet structure */
 		ifp = xnb->xnb_ifp = if_alloc(IFT_ETHER);
-		ifp->if_softc = xnb;
+		if_setsoftc(ifp, xnb);
 		if_initname(ifp, xnb->if_name,  IF_DUNIT_NONE);
-		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-		ifp->if_ioctl = xnb_ioctl;
-		ifp->if_start = xnb_start;
-		ifp->if_init = xnb_ifinit;
-		ifp->if_mtu = ETHERMTU;
-		ifp->if_snd.ifq_maxlen = NET_RX_RING_SIZE - 1;
+		if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+		if_setioctlfn(ifp, xnb_ioctl);
+		if_setstartfn(ifp, xnb_start);
+		if_setinitfn(ifp, xnb_ifinit);
+		if_setmtu(ifp, ETHERMTU);
+		if_setsendqlen(ifp, NET_RX_RING_SIZE - 1);
 
-		ifp->if_hwassist = XNB_CSUM_FEATURES;
-		ifp->if_capabilities = IFCAP_HWCSUM;
-		ifp->if_capenable = IFCAP_HWCSUM;
+		if_sethwassist(ifp, XNB_CSUM_FEATURES);
+		if_setcapabilities(ifp, IFCAP_HWCSUM);
+		if_setcapenable(ifp, IFCAP_HWCSUM);
 
 		ether_ifattach(ifp, xnb->mac);
 		xnb->carrier = 0;
@@ -1425,7 +1425,7 @@ static void
 xnb_intr(void *arg)
 {
 	struct xnb_softc *xnb;
-	struct ifnet *ifp;
+	if_t ifp;
 	netif_tx_back_ring_t *txb;
 	RING_IDX req_prod_local;
 
@@ -1449,7 +1449,7 @@ xnb_intr(void *arg)
 				break;
 
 			/* Send the packet to the generic network stack */
-			(*xnb->xnb_ifp->if_input)(xnb->xnb_ifp, mbufc);
+			if_input(xnb->xnb_ifp, mbufc);
 		}
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(txb, notify);
@@ -1653,7 +1653,7 @@ xnb_txpkt2rsp(const struct xnb_pkt *pkt, netif_tx_back_ring_t *ring,
  * 		NULL on failure
  */
 static struct mbuf*
-xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp)
+xnb_pkt2mbufc(const struct xnb_pkt *pkt, if_t ifp)
 {
 	/**
 	 * \todo consider using a memory pool for mbufs instead of
@@ -1805,7 +1805,7 @@ xnb_update_mbufc(struct mbuf *mbufc, const gnttab_copy_table gnttab,
  */
 static int
 xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
-	 struct ifnet *ifnet, gnttab_copy_table gnttab)
+	 if_t ifnet, gnttab_copy_table gnttab)
 {
 	struct xnb_pkt pkt;
 	/* number of tx requests consumed to build the last packet */
@@ -2189,18 +2189,18 @@ xnb_add_mbuf_cksum(struct mbuf *mbufc)
 static void
 xnb_stop(struct xnb_softc *xnb)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	mtx_assert(&xnb->sc_lock, MA_OWNED);
 	ifp = xnb->xnb_ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 
 static int
-xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+xnb_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct xnb_softc *xnb = ifp->if_softc;
+	struct xnb_softc *xnb = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq*) data;
 #ifdef INET
 	struct ifaddr *ifa = (struct ifaddr*)data;
@@ -2210,10 +2210,10 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 		case SIOCSIFFLAGS:
 			mtx_lock(&xnb->sc_lock);
-			if (ifp->if_flags & IFF_UP) {
+			if (if_getflags(ifp) & IFF_UP) {
 				xnb_ifinit_locked(xnb);
 			} else {
-				if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 					xnb_stop(xnb);
 				}
 			}
@@ -2227,14 +2227,14 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef INET
 			mtx_lock(&xnb->sc_lock);
 			if (ifa->ifa_addr->sa_family == AF_INET) {
-				ifp->if_flags |= IFF_UP;
-				if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-					ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
-							IFF_DRV_OACTIVE);
+				if_setflagbits(ifp, IFF_UP, 0);
+				if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
+					if_setdrvflagbits(ifp, 0,
+					    IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 					if_link_state_change(ifp,
 							LINK_STATE_DOWN);
-					ifp->if_drv_flags |= IFF_DRV_RUNNING;
-					ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+					if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+					if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 					if_link_state_change(ifp,
 					    LINK_STATE_UP);
 				}
@@ -2251,16 +2251,16 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFCAP:
 			mtx_lock(&xnb->sc_lock);
 			if (ifr->ifr_reqcap & IFCAP_TXCSUM) {
-				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= XNB_CSUM_FEATURES;
+				if_setcapenablebit(ifp, IFCAP_TXCSUM, 0);
+				if_sethwassistbits(ifp, XNB_CSUM_FEATURES, 0);
 			} else {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM);
-				ifp->if_hwassist &= ~(XNB_CSUM_FEATURES);
+				if_setcapenablebit(ifp, 0, IFCAP_TXCSUM);
+				if_sethwassistbits(ifp, 0, XNB_CSUM_FEATURES);
 			}
 			if ((ifr->ifr_reqcap & IFCAP_RXCSUM)) {
-				ifp->if_capenable |= IFCAP_RXCSUM;
+				if_setcapenablebit(ifp, IFCAP_RXCSUM, 0);
 			} else {
-				ifp->if_capenable &= ~(IFCAP_RXCSUM);
+				if_setcapenablebit(ifp, 0, IFCAP_RXCSUM);
 			}
 			/*
 			 * TODO enable TSO4 and LRO once we no longer need
@@ -2268,30 +2268,30 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 */
 #if 0
 			if (ifr->if_reqcap |= IFCAP_TSO4) {
-				if (IFCAP_TXCSUM & ifp->if_capenable) {
+				if (IFCAP_TXCSUM & if_getcapenable(ifp)) {
 					printf("xnb: Xen netif requires that "
 						"TXCSUM be enabled in order "
 						"to use TSO4\n");
 					error = EINVAL;
 				} else {
-					ifp->if_capenable |= IFCAP_TSO4;
-					ifp->if_hwassist |= CSUM_TSO;
+					if_setcapenablebit(ifp, IFCAP_TSO4, 0);
+					if_sethwassistbits(ifp, CSUM_TSO, 0);
 				}
 			} else {
-				ifp->if_capenable &= ~(IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TSO);
+				if_setcapenablebit(ifp, 0, IFCAP_TSO4);
+				if_sethwassistbits(ifp, 0, (CSUM_TSO));
 			}
 			if (ifr->ifreqcap |= IFCAP_LRO) {
-				ifp->if_capenable |= IFCAP_LRO;
+				if_setcapenablebit(ifp, IFCAP_LRO, 0);
 			} else {
-				ifp->if_capenable &= ~(IFCAP_LRO);
+				if_setcapenablebit(ifp, 0, IFCAP_LRO);
 			}
 #endif
 			mtx_unlock(&xnb->sc_lock);
 			break;
 		case SIOCSIFMTU:
-			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setmtu(ifp, ifr->ifr_mtu);
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			xnb_ifinit(xnb);
 			break;
 		case SIOCADDMULTI:
@@ -2309,14 +2309,14 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
-xnb_start_locked(struct ifnet *ifp)
+xnb_start_locked(if_t ifp)
 {
 	netif_rx_back_ring_t *rxb;
 	struct xnb_softc *xnb;
 	struct mbuf *mbufc;
 	RING_IDX req_prod_local;
 
-	xnb = ifp->if_softc;
+	xnb = if_getsoftc(ifp);
 	rxb = &xnb->ring_configs[XNB_RING_TYPE_RX].back_ring.rx_ring;
 
 	if (!xnb->carrier)
@@ -2330,7 +2330,7 @@ xnb_start_locked(struct ifnet *ifp)
 		for (;;) {
 			int error;
 
-			IF_DEQUEUE(&ifp->if_snd, mbufc);
+			mbufc = if_dequeue(ifp);
 			if (mbufc == NULL)
 				break;
 			error = xnb_send(rxb, xnb->otherend_id, mbufc,
@@ -2342,7 +2342,7 @@ xnb_start_locked(struct ifnet *ifp)
 					 * Requeue pkt and send when space is
 					 * available.
 					 */
-					IF_PREPEND(&ifp->if_snd, mbufc);
+					if_sendq_prepend(ifp, mbufc);
 					/*
 					 * Perhaps the frontend missed an IRQ
 					 * and went to sleep.  Notify it to wake
@@ -2414,11 +2414,11 @@ xnb_send(netif_rx_back_ring_t *ring, domid_t otherend, const struct mbuf *mbufc,
 }
 
 static void
-xnb_start(struct ifnet *ifp)
+xnb_start(if_t ifp)
 {
 	struct xnb_softc *xnb;
 
-	xnb = ifp->if_softc;
+	xnb = if_getsoftc(ifp);
 	mtx_lock(&xnb->rx_lock);
 	xnb_start_locked(ifp);
 	mtx_unlock(&xnb->rx_lock);
@@ -2428,19 +2428,19 @@ xnb_start(struct ifnet *ifp)
 static void
 xnb_ifinit_locked(struct xnb_softc *xnb)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = xnb->xnb_ifp;
 
 	mtx_assert(&xnb->sc_lock, MA_OWNED);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	xnb_stop(xnb);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
@@ -2459,7 +2459,7 @@ xnb_ifinit(void *xsc)
  * state has changed.  Since we don't have a physical carrier, we don't care
  */
 static int
-xnb_ifmedia_upd(struct ifnet *ifp)
+xnb_ifmedia_upd(if_t ifp)
 {
 	return (0);
 }
@@ -2469,7 +2469,7 @@ xnb_ifmedia_upd(struct ifnet *ifp)
  * state is.  Since we don't have a physical carrier, this is very simple
  */
 static void
-xnb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+xnb_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	ifmr->ifm_status = IFM_AVALID|IFM_ACTIVE;
 	ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
