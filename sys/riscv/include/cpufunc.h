@@ -120,13 +120,6 @@ extern int64_t icache_line_size;
 #define	cpu_icache_sync_range(a, s)
 #define	cpu_icache_sync_range_checked(a, s)
 
-static __inline void
-load_satp(uint64_t val)
-{
-
-	__asm __volatile("csrw satp, %0" :: "r"(val));
-}
-
 #define	cpufunc_nullop()		riscv_nullop()
 
 void riscv_nullop(void);
