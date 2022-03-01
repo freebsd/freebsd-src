@@ -228,11 +228,17 @@ __FBSDID("$FreeBSD$");
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
+static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VM/pmap parameters");
+
 /* The list of all the user pmaps */
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps = LIST_HEAD_INITIALIZER();
 
 enum pmap_mode __read_frequently pmap_mode = PMAP_MODE_SV39;
+SYSCTL_INT(_vm_pmap, OID_AUTO, mode, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pmap_mode, 0,
+    "translation mode, 0 = SV39, 1 = SV48");
 
 struct pmap kernel_pmap_store;
 
@@ -250,9 +256,6 @@ CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
 
 static struct rwlock_padalign pvh_global_lock;
 static struct mtx_padalign allpmaps_lock;
-
-static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "VM/pmap parameters");
 
 static int superpages_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
@@ -617,12 +620,13 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
-	u_int l1_slot, l2_slot;
-	vm_offset_t freemempos;
-	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t max_pa, min_pa, pa;
+	uint64_t satp;
+	vm_offset_t dpcpu, freemempos, l0pv, msgbufpv;
+	vm_paddr_t l0pa, l1pa, max_pa, min_pa, pa;
+	pd_entry_t *l0p;
 	pt_entry_t *l2p;
-	int i;
+	u_int l1_slot, l2_slot;
+	int i, mode;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
 
@@ -695,6 +699,33 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	(var) = freemempos;						\
 	freemempos += (np * PAGE_SIZE);					\
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
+
+	mode = 0;
+	TUNABLE_INT_FETCH("vm.pmap.mode", &mode);
+	if (mode == PMAP_MODE_SV48) {
+		/*
+		 * Enable SV48 mode: allocate an L0 page and set SV48 mode in
+		 * SATP.  If the implementation does not provide SV48 mode,
+		 * the mode read back from the (WARL) SATP register will be
+		 * unchanged, and we continue in SV39 mode.
+		 */
+		alloc_pages(l0pv, 1);
+		l0p = (void *)l0pv;
+		l1pa = pmap_early_vtophys(l1pt, l1pt);
+		l0p[pmap_l0_index(KERNBASE)] = PTE_V | PTE_A | PTE_D |
+		    ((l1pa >> PAGE_SHIFT) << PTE_PPN0_S);
+
+		l0pa = pmap_early_vtophys(l1pt, l0pv);
+		csr_write(satp, (l0pa >> PAGE_SHIFT) | SATP_MODE_SV48);
+		satp = csr_read(satp);
+		if ((satp & SATP_MODE_M) == SATP_MODE_SV48) {
+			pmap_mode = PMAP_MODE_SV48;
+			kernel_pmap_store.pm_top = l0p;
+		} else {
+			/* Mode didn't change, give the page back. */
+			freemempos -= PAGE_SIZE;
+		}
+	}
 
 	/* Allocate dynamic per-cpu area. */
 	alloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
@@ -1269,14 +1300,20 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 	return (pmap_unwire_ptp(pmap, va, mpte, free));
 }
 
+static uint64_t
+pmap_satp_mode(void)
+{
+	return (pmap_mode == PMAP_MODE_SV39 ? SATP_MODE_SV39 : SATP_MODE_SV48);
+}
+
 void
 pmap_pinit0(pmap_t pmap)
 {
-
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	pmap->pm_top = kernel_pmap->pm_top;
-	pmap->pm_satp = SATP_MODE_SV39 | (vtophys(pmap->pm_top) >> PAGE_SHIFT);
+	pmap->pm_satp = pmap_satp_mode() |
+	    (vtophys(pmap->pm_top) >> PAGE_SHIFT);
 	CPU_ZERO(&pmap->pm_active);
 	pmap_activate_boot(pmap);
 }
@@ -1293,7 +1330,7 @@ pmap_pinit(pmap_t pmap)
 
 	topphys = VM_PAGE_TO_PHYS(mtop);
 	pmap->pm_top = (pd_entry_t *)PHYS_TO_DMAP(topphys);
-	pmap->pm_satp = SATP_MODE_SV39 | (topphys >> PAGE_SHIFT);
+	pmap->pm_satp = pmap_satp_mode() | (topphys >> PAGE_SHIFT);
 
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
