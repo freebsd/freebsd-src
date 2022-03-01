@@ -99,14 +99,14 @@ static void	et_miibus_statchg(device_t);
 
 static void	et_init_locked(struct et_softc *);
 static void	et_init(void *);
-static int	et_ioctl(struct ifnet *, u_long, caddr_t);
-static void	et_start_locked(struct ifnet *);
-static void	et_start(struct ifnet *);
+static int	et_ioctl(if_t, u_long, caddr_t);
+static void	et_start_locked(if_t);
+static void	et_start(if_t);
 static int	et_watchdog(struct et_softc *);
-static int	et_ifmedia_upd_locked(struct ifnet *);
-static int	et_ifmedia_upd(struct ifnet *);
-static void	et_ifmedia_sts(struct ifnet *, struct ifmediareq *);
-static uint64_t	et_get_counter(struct ifnet *, ift_counter);
+static int	et_ifmedia_upd_locked(if_t);
+static int	et_ifmedia_upd(if_t);
+static void	et_ifmedia_sts(if_t, struct ifmediareq *);
+static uint64_t	et_get_counter(if_t, ift_counter);
 
 static void	et_add_sysctls(struct et_softc *);
 static int	et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS);
@@ -222,7 +222,7 @@ static int
 et_attach(device_t dev)
 {
 	struct et_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	uint32_t pmcfg;
 	int cap, error, msic;
@@ -321,18 +321,17 @@ et_attach(device_t dev)
 	if (error)
 		goto fail;
 
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = et_init;
-	ifp->if_ioctl = et_ioctl;
-	ifp->if_start = et_start;
-	ifp->if_get_counter = et_get_counter;
-	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_snd.ifq_drv_maxlen = ET_TX_NDESC - 1;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC - 1);
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setinitfn(ifp, et_init);
+	if_setioctlfn(ifp, et_ioctl);
+	if_setstartfn(ifp, et_start);
+	if_setgetcounterfn(ifp, et_get_counter);
+	if_setcapabilities(ifp, IFCAP_TXCSUM | IFCAP_VLAN_MTU);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_setsendqlen(ifp, ET_TX_NDESC - 1);
+	if_setsendqready(ifp);
 
 	et_chip_attach(sc);
 
@@ -347,7 +346,7 @@ et_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, et_intr, sc, &sc->sc_irq_handle);
@@ -505,7 +504,7 @@ et_miibus_statchg(device_t dev)
 {
 	struct et_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t cfg1, cfg2, ctrl;
 	int i;
 
@@ -514,7 +513,7 @@ et_miibus_statchg(device_t dev)
 	mii = device_get_softc(sc->sc_miibus);
 	ifp = sc->ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	sc->sc_flags &= ~ET_FLAG_LINK;
@@ -600,13 +599,13 @@ et_miibus_statchg(device_t dev)
 }
 
 static int
-et_ifmedia_upd_locked(struct ifnet *ifp)
+et_ifmedia_upd_locked(if_t ifp)
 {
 	struct et_softc *sc;
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = device_get_softc(sc->sc_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
@@ -614,12 +613,12 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 }
 
 static int
-et_ifmedia_upd(struct ifnet *ifp)
+et_ifmedia_upd(if_t ifp)
 {
 	struct et_softc *sc;
 	int res;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ET_LOCK(sc);
 	res = et_ifmedia_upd_locked(ifp);
 	ET_UNLOCK(sc);
@@ -628,14 +627,14 @@ et_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+et_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct et_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ET_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		ET_UNLOCK(sc);
 		return;
 	}
@@ -650,7 +649,7 @@ et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 et_stop(struct et_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ET_LOCK_ASSERT(sc);
 
@@ -675,7 +674,7 @@ et_stop(struct et_softc *sc)
 	sc->sc_flags &= ~ET_FLAG_TXRX_ENABLED;
 
 	sc->watchdog_timer = 0;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 }
 
 static int
@@ -1177,13 +1176,13 @@ static void
 et_intr(void *xsc)
 {
 	struct et_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t status;
 
 	sc = xsc;
 	ET_LOCK(sc);
 	ifp = sc->ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		goto done;
 
 	status = CSR_READ_4(sc, ET_INTR_STATUS);
@@ -1196,7 +1195,7 @@ et_intr(void *xsc)
 	if (status & (ET_INTR_RXDMA_ERROR | ET_INTR_TXDMA_ERROR)) {
 		device_printf(sc->dev, "DMA error(0x%08x) -- resetting\n",
 		    status);
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		et_init_locked(sc);
 		ET_UNLOCK(sc);
 		return;
@@ -1207,9 +1206,9 @@ et_intr(void *xsc)
 		et_txeof(sc);
 	if (status & ET_INTR_TIMER)
 		CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 		CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			et_start_locked(ifp);
 	}
 done:
@@ -1219,13 +1218,13 @@ done:
 static void
 et_init_locked(struct et_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	ET_LOCK_ASSERT(sc);
 
 	ifp = sc->ifp;
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	et_stop(sc);
@@ -1256,8 +1255,8 @@ et_init_locked(struct et_softc *sc)
 
 	CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	sc->sc_flags &= ~ET_FLAG_LINK;
 	et_ifmedia_upd_locked(ifp);
@@ -1280,14 +1279,14 @@ et_init(void *xsc)
 }
 
 static int
-et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+et_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct et_softc *sc;
 	struct mii_data *mii;
 	struct ifreq *ifr;
 	int error, mask, max_framelen;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 	error = 0;
 
@@ -1295,19 +1294,19 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		ET_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc->sc_if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if ((if_getflags(ifp) ^ sc->sc_if_flags) &
 				(IFF_ALLMULTI | IFF_PROMISC | IFF_BROADCAST))
 					et_setmulti(sc);
 			} else {
 				et_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				et_stop(sc);
 		}
-		sc->sc_if_flags = ifp->if_flags;
+		sc->sc_if_flags = if_getflags(ifp);
 		ET_UNLOCK(sc);
 		break;
 
@@ -1319,7 +1318,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			ET_LOCK(sc);
 			et_setmulti(sc);
 			ET_UNLOCK(sc);
@@ -1341,10 +1340,10 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
-		if (ifp->if_mtu != ifr->ifr_mtu) {
-			ifp->if_mtu = ifr->ifr_mtu;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if (if_getmtu(ifp) != ifr->ifr_mtu) {
+			if_setmtu(ifp, ifr->ifr_mtu);
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				et_init_locked(sc);
 			}
 		}
@@ -1353,14 +1352,14 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		ET_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
-				ifp->if_hwassist |= ET_CSUM_FEATURES;
+		    (IFCAP_TXCSUM & if_getcapabilities(ifp)) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((IFCAP_TXCSUM & if_getcapenable(ifp)) != 0)
+				if_sethwassistbits(ifp, ET_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~ET_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, ET_CSUM_FEATURES);
 		}
 		ET_UNLOCK(sc);
 		break;
@@ -1373,7 +1372,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
-et_start_locked(struct ifnet *ifp)
+et_start_locked(if_t ifp)
 {
 	struct et_softc *sc;
 	struct mbuf *m_head = NULL;
@@ -1382,10 +1381,10 @@ et_start_locked(struct ifnet *ifp)
 	uint32_t tx_ready_pos;
 	int enq;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ET_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING ||
 	    (sc->sc_flags & (ET_FLAG_LINK | ET_FLAG_TXRX_ENABLED)) !=
 	    (ET_FLAG_LINK | ET_FLAG_TXRX_ENABLED))
@@ -1403,13 +1402,13 @@ et_start_locked(struct ifnet *ifp)
 	if (tbd->tbd_used > (ET_TX_NDESC * 2) / 3)
 		et_txeof(sc);
 
-	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
+	for (enq = 0; !if_sendq_empty(ifp); ) {
 		if (tbd->tbd_used + ET_NSEG_SPARE >= ET_TX_NDESC) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 
@@ -1418,9 +1417,9 @@ et_start_locked(struct ifnet *ifp)
 				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				break;
 			}
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			if_sendq_prepend(ifp, m_head);
 			if (tbd->tbd_used > 0)
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 		enq++;
@@ -1441,11 +1440,11 @@ et_start_locked(struct ifnet *ifp)
 }
 
 static void
-et_start(struct ifnet *ifp)
+et_start(if_t ifp)
 {
 	struct et_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ET_LOCK(sc);
 	et_start_locked(ifp);
 	ET_UNLOCK(sc);
@@ -1468,7 +1467,7 @@ et_watchdog(struct et_softc *sc)
 	    status);
 
 	if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
-	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->ifp, 0, IFF_DRV_RUNNING);
 	et_init_locked(sc);
 	return (EJUSTRETURN);
 }
@@ -1581,7 +1580,7 @@ et_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 et_setmulti(struct et_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t hash[4] = { 0, 0, 0, 0 };
 	uint32_t rxmac_ctrl, pktfilt;
 	int i, count;
@@ -1593,7 +1592,7 @@ et_setmulti(struct et_softc *sc)
 	rxmac_ctrl = CSR_READ_4(sc, ET_RXMAC_CTRL);
 
 	pktfilt &= ~(ET_PKTFILT_BCAST | ET_PKTFILT_MCAST | ET_PKTFILT_UCAST);
-	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+	if (if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI)) {
 		rxmac_ctrl |= ET_RXMAC_CTRL_NO_PKTFILT;
 		goto back;
 	}
@@ -1614,7 +1613,7 @@ back:
 static int
 et_chip_init(struct et_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t rxq_end;
 	int error, frame_len, rxmem_size;
 
@@ -1623,7 +1622,7 @@ et_chip_init(struct et_softc *sc)
 	 * Split 16Kbytes internal memory between TX and RX
 	 * according to frame length.
 	 */
-	frame_len = ET_FRAMELEN(ifp->if_mtu);
+	frame_len = ET_FRAMELEN(if_getmtu(ifp));
 	if (frame_len < 2048) {
 		rxmem_size = ET_MEM_RXSIZE_DEFAULT;
 	} else if (frame_len <= ET_RXMAC_CUT_THRU_FRMLEN) {
@@ -1842,7 +1841,7 @@ et_init_txdma(struct et_softc *sc)
 static void
 et_init_mac(struct et_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	const uint8_t *eaddr;
 	uint32_t val;
 
@@ -1880,14 +1879,14 @@ et_init_mac(struct et_softc *sc)
 	 * Set MAC address
 	 */
 	ifp = sc->ifp;
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	val = eaddr[2] | (eaddr[3] << 8) | (eaddr[4] << 16) | (eaddr[5] << 24);
 	CSR_WRITE_4(sc, ET_MAC_ADDR1, val);
 	val = (eaddr[0] << 16) | (eaddr[1] << 24);
 	CSR_WRITE_4(sc, ET_MAC_ADDR2, val);
 
 	/* Set max frame length */
-	CSR_WRITE_4(sc, ET_MAX_FRMLEN, ET_FRAMELEN(ifp->if_mtu));
+	CSR_WRITE_4(sc, ET_MAX_FRMLEN, ET_FRAMELEN(if_getmtu(ifp)));
 
 	/* Bring MAC out of reset state */
 	CSR_WRITE_4(sc, ET_MAC_CFG1, 0);
@@ -1896,7 +1895,7 @@ et_init_mac(struct et_softc *sc)
 static void
 et_init_rxmac(struct et_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	const uint8_t *eaddr;
 	uint32_t val;
 	int i;
@@ -1916,7 +1915,7 @@ et_init_rxmac(struct et_softc *sc)
 	 * Set WOL source address.  XXX is this necessary?
 	 */
 	ifp = sc->ifp;
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	val = (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8) | eaddr[5];
 	CSR_WRITE_4(sc, ET_WOL_SA_LO, val);
 	val = (eaddr[0] << 8) | eaddr[1];
@@ -1930,7 +1929,7 @@ et_init_rxmac(struct et_softc *sc)
 	CSR_WRITE_4(sc, ET_UCAST_FILTADDR2, 0);
 	CSR_WRITE_4(sc, ET_UCAST_FILTADDR3, 0);
 
-	if (ET_FRAMELEN(ifp->if_mtu) > ET_RXMAC_CUT_THRU_FRMLEN) {
+	if (ET_FRAMELEN(if_getmtu(ifp)) > ET_RXMAC_CUT_THRU_FRMLEN) {
 		/*
 		 * In order to transmit jumbo packets greater than
 		 * ET_RXMAC_CUT_THRU_FRMLEN bytes, the FIFO between
@@ -2036,7 +2035,7 @@ et_rxeof(struct et_softc *sc)
 	struct et_rxbuf_data *rbd;
 	struct et_rxdesc_ring *rx_ring;
 	struct et_rxstat *st;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	uint32_t rxstat_pos, rxring_pos;
 	uint32_t rxst_info1, rxst_info2, rxs_stat_ring;
@@ -2065,7 +2064,7 @@ et_rxeof(struct et_softc *sc)
 
 	while (rxst_index != rxst_ring->rsr_index ||
 	    rxst_wrap != rxst_ring->rsr_wrap) {
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 			break;
 
 		MPASS(rxst_ring->rsr_index < ET_RX_NSTAT);
@@ -2117,7 +2116,7 @@ et_rxeof(struct et_softc *sc)
 				m->m_pkthdr.len = m->m_len = buflen;
 				m->m_pkthdr.rcvif = ifp;
 				ET_UNLOCK(sc);
-				ifp->if_input(ifp, m);
+				if_input(ifp, m);
 				ET_LOCK(sc);
 			}
 		}
@@ -2249,7 +2248,7 @@ et_txeof(struct et_softc *sc)
 	struct et_txdesc_ring *tx_ring;
 	struct et_txbuf_data *tbd;
 	struct et_txbuf *tb;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t tx_done;
 	int end, wrap;
 
@@ -2295,7 +2294,7 @@ et_txeof(struct et_softc *sc)
 	if (tbd->tbd_used == 0)
 		sc->watchdog_timer = 0;
 	if (tbd->tbd_used + ET_NSEG_SPARE < ET_TX_NDESC)
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 }
 
 static void
@@ -2567,7 +2566,7 @@ static int
 et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
 {
 	struct et_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, v;
 
 	sc = arg1;
@@ -2582,7 +2581,7 @@ et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (sc->sc_rx_intr_npkts != v) {
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			CSR_WRITE_4(sc, ET_RX_INTR_NPKTS, v);
 		sc->sc_rx_intr_npkts = v;
 	}
@@ -2594,7 +2593,7 @@ static int
 et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 {
 	struct et_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, v;
 
 	sc = arg1;
@@ -2609,7 +2608,7 @@ et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (sc->sc_rx_intr_delay != v) {
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			CSR_WRITE_4(sc, ET_RX_INTR_DELAY, v);
 		sc->sc_rx_intr_delay = v;
 	}
@@ -2672,7 +2671,7 @@ et_stats_update(struct et_softc *sc)
 }
 
 static uint64_t
-et_get_counter(struct ifnet *ifp, ift_counter cnt)
+et_get_counter(if_t ifp, ift_counter cnt)
 {
 	struct et_softc *sc;
 	struct et_hw_stats *stats;
@@ -2708,7 +2707,7 @@ et_suspend(device_t dev)
 
 	sc = device_get_softc(dev);
 	ET_LOCK(sc);
-	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0)
 		et_stop(sc);
 	/* Diable all clocks and put PHY into COMA. */
 	pmcfg = CSR_READ_4(sc, ET_PM);
@@ -2733,7 +2732,7 @@ et_resume(device_t dev)
 	if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
 		pmcfg |= EM_PM_GIGEPHY_ENB;
 	CSR_WRITE_4(sc, ET_PM, pmcfg);
-	if ((sc->ifp->if_flags & IFF_UP) != 0)
+	if ((if_getflags(sc->ifp) & IFF_UP) != 0)
 		et_init_locked(sc);
 	ET_UNLOCK(sc);
 	return (0);
