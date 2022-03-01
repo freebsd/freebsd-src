@@ -486,8 +486,13 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
 	struct pmap *user_pmap;
 	pd_entry_t *l1;
 
-	/* Distribute new kernel L1 entry to all the user pmaps */
-	if (pmap != kernel_pmap)
+	/*
+	 * Distribute new kernel L1 entry to all the user pmaps.  This is only
+	 * necessary with three-level paging configured: with four-level paging
+	 * the kernel's half of the top-level page table page is static and can
+	 * simply be copied at pmap initialization time.
+	 */
+	if (pmap != kernel_pmap || pmap_mode != PMAP_MODE_SV39)
 		return;
 
 	mtx_lock(&allpmaps_lock);
@@ -1266,6 +1271,7 @@ pmap_pinit(pmap_t pmap)
 {
 	vm_paddr_t topphys;
 	vm_page_t mtop;
+	size_t i;
 
 	mtop = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_WAITOK);
@@ -1278,19 +1284,25 @@ pmap_pinit(pmap_t pmap)
 
 	CPU_ZERO(&pmap->pm_active);
 
-	/*
-	 * Copy L1 entries from the kernel pmap.  This must be done with the
-	 * allpmaps lock held to avoid races with pmap_distribute_l1().
-	 */
-	mtx_lock(&allpmaps_lock);
-	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
-	for (size_t i = pmap_l1_index(VM_MIN_KERNEL_ADDRESS);
-	    i < pmap_l1_index(VM_MAX_KERNEL_ADDRESS); i++)
+	if (pmap_mode == PMAP_MODE_SV39) {
+		/*
+		 * Copy L1 entries from the kernel pmap.  This must be done with
+		 * the allpmaps lock held to avoid races with
+		 * pmap_distribute_l1().
+		 */
+		mtx_lock(&allpmaps_lock);
+		LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+		for (i = pmap_l1_index(VM_MIN_KERNEL_ADDRESS);
+		    i < pmap_l1_index(VM_MAX_KERNEL_ADDRESS); i++)
+			pmap->pm_top[i] = kernel_pmap->pm_top[i];
+		for (i = pmap_l1_index(DMAP_MIN_ADDRESS);
+		    i < pmap_l1_index(DMAP_MAX_ADDRESS); i++)
+			pmap->pm_top[i] = kernel_pmap->pm_top[i];
+		mtx_unlock(&allpmaps_lock);
+	} else {
+		i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS);
 		pmap->pm_top[i] = kernel_pmap->pm_top[i];
-	for (size_t i = pmap_l1_index(DMAP_MIN_ADDRESS);
-	    i < pmap_l1_index(DMAP_MAX_ADDRESS); i++)
-		pmap->pm_top[i] = kernel_pmap->pm_top[i];
-	mtx_unlock(&allpmaps_lock);
+	}
 
 	vm_radix_init(&pmap->pm_root);
 
@@ -1480,9 +1492,11 @@ pmap_release(pmap_t pmap)
 	KASSERT(CPU_EMPTY(&pmap->pm_active),
 	    ("releasing active pmap %p", pmap));
 
-	mtx_lock(&allpmaps_lock);
-	LIST_REMOVE(pmap, pm_list);
-	mtx_unlock(&allpmaps_lock);
+	if (pmap_mode == PMAP_MODE_SV39) {
+		mtx_lock(&allpmaps_lock);
+		LIST_REMOVE(pmap, pm_list);
+		mtx_unlock(&allpmaps_lock);
+	}
 
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_top));
 	vm_page_unwire_noq(m);
