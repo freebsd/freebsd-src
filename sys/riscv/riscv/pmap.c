@@ -364,12 +364,44 @@ pagezero(void *p)
     ((((l2) & ~PTE_HI_MASK) >> PTE_PPN1_S) << L2_SHIFT)
 
 static __inline pd_entry_t *
+pmap_l0(pmap_t pmap, vm_offset_t va)
+{
+	KASSERT(pmap_mode != PMAP_MODE_SV39, ("%s: in SV39 mode", __func__));
+	KASSERT(VIRT_IS_VALID(va),
+	    ("%s: malformed virtual address %#lx", __func__, va));
+	return (&pmap->pm_top[pmap_l0_index(va)]);
+}
+
+static __inline pd_entry_t *
+pmap_l0_to_l1(pd_entry_t *l0, vm_offset_t va)
+{
+	vm_paddr_t phys;
+	pd_entry_t *l1;
+
+	KASSERT(pmap_mode != PMAP_MODE_SV39, ("%s: in SV39 mode", __func__));
+	phys = PTE_TO_PHYS(pmap_load(l0));
+	l1 = (pd_entry_t *)PHYS_TO_DMAP(phys);
+
+	return (&l1[pmap_l1_index(va)]);
+}
+
+static __inline pd_entry_t *
 pmap_l1(pmap_t pmap, vm_offset_t va)
 {
+	pd_entry_t *l0;
 
 	KASSERT(VIRT_IS_VALID(va),
 	    ("%s: malformed virtual address %#lx", __func__, va));
-	return (&pmap->pm_top[pmap_l1_index(va)]);
+	if (pmap_mode == PMAP_MODE_SV39) {
+		return (&pmap->pm_top[pmap_l1_index(va)]);
+	} else {
+		l0 = pmap_l0(pmap, va);
+		if ((pmap_load(l0) & PTE_V) == 0)
+			return (NULL);
+		if ((pmap_load(l0) & PTE_RX) != 0)
+			return (NULL);
+		return (pmap_l0_to_l1(l0, va));
+	}
 }
 
 static __inline pd_entry_t *
@@ -390,6 +422,8 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 	pd_entry_t *l1;
 
 	l1 = pmap_l1(pmap, va);
+	if (l1 == NULL)
+		return (NULL);
 	if ((pmap_load(l1) & PTE_V) == 0)
 		return (NULL);
 	if ((pmap_load(l1) & PTE_RX) != 0)
