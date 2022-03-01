@@ -4402,7 +4402,7 @@ pmap_activate_sw(struct thread *td)
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	if (pmap == oldpmap)
 		return;
-	load_satp(pmap->pm_satp);
+	csr_write(satp, pmap->pm_satp);
 
 	hart = PCPU_GET(hart);
 #ifdef SMP
