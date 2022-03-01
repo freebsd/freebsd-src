@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2018
+.Dd January 19, 2022
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -162,6 +162,8 @@ SHSEC
 .It
 STRIPE
 .It
+UNION
+.It
 VIRSTOR
 .El
 .Sh ENVIRONMENT
@@ -210,6 +212,7 @@ geom md unload
 .Xr gsched 8 ,
 .Xr gshsec 8 ,
 .Xr gstripe 8 ,
+.Xr gunion 8 ,
 .Xr gvirstor 8
 .Sh HISTORY
 The
