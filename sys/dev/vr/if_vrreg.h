@@ -711,7 +711,7 @@ struct vr_statistics {
 };
 
 struct vr_softc {
-	struct ifnet		*vr_ifp;	/* interface info */
+	if_t			vr_ifp;	/* interface info */
 	device_t		vr_dev;
 	struct resource		*vr_res;
 	int			vr_res_id;
