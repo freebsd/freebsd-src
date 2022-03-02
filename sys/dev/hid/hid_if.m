@@ -164,3 +164,13 @@ METHOD int set_protocol {
 	device_t dev;
 	uint16_t protocol;
 };
+
+#
+# Executes arbitrary transport backend command.
+# Format of command is defined by hardware transport driver.
+#
+METHOD int ioctl {
+	device_t dev;
+	unsigned long cmd;
+	uintptr_t data;
+};

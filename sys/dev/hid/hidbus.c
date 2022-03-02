@@ -912,6 +912,7 @@ static device_method_t hidbus_methods[] = {
 	DEVMETHOD(hid_set_report,	hid_set_report),
 	DEVMETHOD(hid_set_idle,		hid_set_idle),
 	DEVMETHOD(hid_set_protocol,	hid_set_protocol),
+	DEVMETHOD(hid_ioctl,		hid_ioctl),
 
 	DEVMETHOD_END
 };
