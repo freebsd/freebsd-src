@@ -17,6 +17,7 @@ SUBDIR += \
 	hmt \
 	hpen \
 	hsctrl \
+	ietp \
 	ps4dshock \
 	xb360gp
 
