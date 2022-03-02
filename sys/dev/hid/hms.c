@@ -229,7 +229,7 @@ hms_probe(device_t dev)
 	else
 		hidbus_set_desc(dev, "Mouse");
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
