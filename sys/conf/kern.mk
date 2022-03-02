@@ -90,6 +90,11 @@ CWARNFLAGS+=	-Wno-format-zero-length
 FORMAT_EXTENSIONS=	-Wno-format
 .elif ${COMPILER_TYPE} == "clang"
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
+.if ${COMPILER_VERSION} >= 130000
+NO_WUNUSED_BUT_SET_VARIABLE = -Wno-unused-but-set-variable
+.else
+NO_WUNUSED_BUT_SET_VARIABLE =
+.endif
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
