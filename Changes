@@ -2,6 +2,101 @@ NOTE: We are looking for help with a few things:
       https://github.com/libexpat/libexpat/labels/help%20wanted
       If you can help, please get in touch.  Thanks!
 
+Release 2.4.6 Sun February 20 2022
+        Bug fixes:
+            #566  Fix a regression introduced by the fix for CVE-2022-25313
+                    in release 2.4.5 that affects applications that (1)
+                    call function XML_SetElementDeclHandler and (2) are
+                    parsing XML that contains nested element declarations
+                    (e.g. "<!ELEMENT junk ((bar|foo|xyz+), zebra*)>").
+
+        Other changes:
+       #567 #568  Version info bumped from 9:5:8 to 9:6:8;
+                    see https://verbump.de/ for what these numbers do
+
+        Special thanks to:
+            Matt Sergeant
+            Samanta Navarro
+            Sergei Trofimovich
+                 and
+            NixOS
+            Perl XML::Parser
+
+Release 2.4.5 Fri February 18 2022
+        Security fixes:
+            #562  CVE-2022-25235 -- Passing malformed 2- and 3-byte UTF-8
+                    sequences (e.g. from start tag names) to the XML
+                    processing application on top of Expat can cause
+                    arbitrary damage (e.g. code execution) depending
+                    on how invalid UTF-8 is handled inside the XML
+                    processor; validation was not their job but Expat's.
+                    Exploits with code execution are known to exist.
+            #561  CVE-2022-25236 -- Passing (one or more) namespace separator
+                    characters in "xmlns[:prefix]" attribute values
+                    made Expat send malformed tag names to the XML
+                    processor on top of Expat which can cause
+                    arbitrary damage (e.g. code execution) depending
+                    on such unexpectable cases are handled inside the XML
+                    processor; validation was not their job but Expat's.
+                    Exploits with code execution are known to exist.
+            #558  CVE-2022-25313 -- Fix stack exhaustion in doctype parsing
+                    that could be triggered by e.g. a 2 megabytes
+                    file with a large number of opening braces.
+                    Expected impact is denial of service or potentially
+                    arbitrary code execution.
+            #560  CVE-2022-25314 -- Fix integer overflow in function copyString;
+                    only affects the encoding name parameter at parser creation
+                    time which is often hardcoded (rather than user input),
+                    takes a value in the gigabytes to trigger, and a 64-bit
+                    machine.  Expected impact is denial of service.
+            #559  CVE-2022-25315 -- Fix integer overflow in function storeRawNames;
+                    needs input in the gigabytes and a 64-bit machine.
+                    Expected impact is denial of service or potentially
+                    arbitrary code execution.
+
+        Other changes:
+       #557 #564  Version info bumped from 9:4:8 to 9:5:8;
+                    see https://verbump.de/ for what these numbers do
+
+        Special thanks to:
+            Ivan Fratric
+            Samanta Navarro
+                 and
+            Google Project Zero
+            JetBrains
+
+Release 2.4.4 Sun January 30 2022
+        Security fixes:
+            #550  CVE-2022-23852 -- Fix signed integer overflow
+                    (undefined behavior) in function XML_GetBuffer
+                    (that is also called by function XML_Parse internally)
+                    for when XML_CONTEXT_BYTES is defined to >0 (which is both
+                    common and default).
+                    Impact is denial of service or more.
+            #551  CVE-2022-23990 -- Fix unsigned integer overflow in function
+                    doProlog triggered by large content in element type
+                    declarations when there is an element declaration handler
+                    present (from a prior call to XML_SetElementDeclHandler).
+                    Impact is denial of service or more.
+
+        Bug fixes:
+       #544 #545  xmlwf: Fix a memory leak on output file opening error
+
+        Other changes:
+            #546  Autotools: Fix broken CMake support under Cygwin
+            #554  Windows: Add missing files to the installer to fix
+                    compilation with CMake from installed sources
+       #552 #554  Version info bumped from 9:3:8 to 9:4:8;
+                    see https://verbump.de/ for what these numbers do
+
+        Special thanks to:
+            Carlo Bramini
+            hwt0415
+            Roland Illig
+            Samanta Navarro
+                 and
+            Clang LeakSan and the Clang team
+
 Release 2.4.3 Sun January 16 2022
         Security fixes:
        #531 #534  CVE-2021-45960 -- Fix issues with left shifts by >=29 places
