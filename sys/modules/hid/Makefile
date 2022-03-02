@@ -8,6 +8,7 @@ SUBDIR = \
 	hidraw
 
 SUBDIR += \
+	bcm5974 \
 	hconf \
 	hcons \
 	hgame \
