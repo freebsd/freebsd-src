@@ -582,7 +582,8 @@ vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
 				/* The pixel "j" uses color "color". */
 				for (plane = 0; plane < 4; ++plane)
 					planes[i * 4 + plane] |=
-					    ((color >> plane) & 0x1) << (7 - j);
+					    ((cons_to_vga_colors[color] >>
+					    plane) & 0x1) << (7 - j);
 			}
 		}
 	}
