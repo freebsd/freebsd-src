@@ -19,7 +19,7 @@ SUBDIR+=	${_iw_cxgbe}
 SUBDIR+=	${_cxgbei}
 SUBDIR+=	ccr
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
 _tom=	tom
 _cxgbei=	cxgbei
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
