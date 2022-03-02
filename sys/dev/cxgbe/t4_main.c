@@ -8984,13 +8984,20 @@ sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 static void
 dump_cim_regs(struct adapter *sc)
 {
-	log(LOG_DEBUG, "%s: CIM debug regs %08x %08x %08x %08x %08x\n",
+	log(LOG_DEBUG, "%s: CIM debug regs1 %08x %08x %08x %08x %08x\n",
 	    device_get_nameunit(sc->dev),
 	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA0),
 	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA1),
 	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA2),
 	    t4_read_reg(sc, A_EDC_H_BIST_DATA_PATTERN),
 	    t4_read_reg(sc, A_EDC_H_BIST_STATUS_RDATA));
+	log(LOG_DEBUG, "%s: CIM debug regs2 %08x %08x %08x %08x %08x\n",
+	    device_get_nameunit(sc->dev),
+	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA0),
+	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA1),
+	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA0 + 0x800),
+	    t4_read_reg(sc, A_EDC_H_BIST_USER_WDATA1 + 0x800),
+	    t4_read_reg(sc, A_EDC_H_BIST_CMD_LEN));
 }
 
 static void
