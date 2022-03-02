@@ -948,6 +948,24 @@ iichid_set_protocol(device_t dev, uint16_t protocol)
 }
 
 static int
+iichid_ioctl(device_t dev, unsigned long cmd, uintptr_t data)
+{
+	int error;
+
+	switch (cmd) {
+	case I2CRDWR:
+		error = iic2errno(iicbus_transfer(dev,
+		    ((struct iic_rdwr_data *)data)->msgs,
+		    ((struct iic_rdwr_data *)data)->nmsgs));
+		break;
+	default:
+		error = EINVAL;
+	}
+
+	return (error);
+}
+
+static int
 iichid_fill_device_info(struct i2c_hid_desc *desc, ACPI_HANDLE handle,
     struct hid_device_info *hw)
 {
@@ -1279,6 +1297,7 @@ static device_method_t iichid_methods[] = {
 	DEVMETHOD(hid_set_report,	iichid_set_report),
 	DEVMETHOD(hid_set_idle,		iichid_set_idle),
 	DEVMETHOD(hid_set_protocol,	iichid_set_protocol),
+	DEVMETHOD(hid_ioctl,		iichid_ioctl),
 
 	DEVMETHOD_END
 };
