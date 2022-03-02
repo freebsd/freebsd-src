@@ -46,4 +46,4 @@ CFLAGS+=  -I. -I${SRCTOP}/sys/contrib/dev/ath/ath_hal/
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS+=	-Wno-unused-but-set-variable
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}

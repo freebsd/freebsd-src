@@ -47,7 +47,7 @@ CWARNFLAGS+=	-Wno-error=unused-but-set-variable
 .if ${COMPILER_TYPE} == "gcc"
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler.
-NO_WUNUSED_BUT_SET_VARIABLE = -Wno-unused-but-set-variable
+NO_WUNUSED_BUT_SET_VARIABLE=-Wno-unused-but-set-variable
 CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=array-bounds				\
@@ -90,6 +90,10 @@ CWARNFLAGS+=	-Wno-format-zero-length
 FORMAT_EXTENSIONS=	-Wno-format
 .elif ${COMPILER_TYPE} == "clang"
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
+# Only newer versions of clang have -Wno-unused-but-set-variable
+.if ${COMPILER_VERSION} >= 130000
+NO_WUNUSED_BUT_SET_VARIABLE=-Wno-unused-but-set-variable
+.endif
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif

@@ -50,4 +50,4 @@ CFLAGS+=  ${ATH_CFLAGS}
 
 # XXX Work around clang warnings, until maintainer approves fix.
 CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}
-CWARNFLAGS+=	-Wno-unused-but-set-variable
+CWARNFLAGS+=	${NO_WUNUSED_BUT_SET_VARIABLE}
