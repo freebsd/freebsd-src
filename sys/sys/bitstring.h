@@ -382,7 +382,7 @@ bit_count(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 	if (_start > 0) {
 		curbitstr_len = (int)_BITSTR_BITS < _nbits ?
 				(int)_BITSTR_BITS : _nbits;
-		mask = _bit_make_mask(_start, _bit_offset(curbitstr_len - 1));
+		mask = _bit_make_mask(_start, _start + _bit_offset(curbitstr_len - 1));
 		_value += __bitcountl(*_curbitstr & mask);
 		_curbitstr++;
 		_nbits -= _BITSTR_BITS;
