@@ -866,9 +866,11 @@ alloc_page_pods(struct ppod_region *pr, u_int nppods, u_int pgsz_idx,
 	    &addr) != 0)
 		return (ENOMEM);
 
+#ifdef VERBOSE_TRACES
 	CTR5(KTR_CXGBE, "%-17s arena %p, addr 0x%08x, nppods %d, pgsz %d",
 	    __func__, pr->pr_arena, (uint32_t)addr & pr->pr_tag_mask,
 	    nppods, 1 << pr->pr_page_shift[pgsz_idx]);
+#endif
 
 	/*
 	 * The hardware tagmask includes an extra invalid bit but the arena was
@@ -1077,8 +1079,10 @@ t4_free_page_pods(struct ppod_reservation *prsv)
 	addr = prsv->prsv_tag & pr->pr_tag_mask;
 	MPASS((addr & pr->pr_invalid_bit) == 0);
 
+#ifdef VERBOSE_TRACES
 	CTR4(KTR_CXGBE, "%-17s arena %p, addr 0x%08x, nppods %d", __func__,
 	    pr->pr_arena, addr, prsv->prsv_nppods);
+#endif
 
 	vmem_free(pr->pr_arena, addr, PPOD_SZ(prsv->prsv_nppods));
 	prsv->prsv_nppods = 0;
