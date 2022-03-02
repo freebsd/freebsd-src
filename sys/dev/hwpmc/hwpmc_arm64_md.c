@@ -66,7 +66,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
 	struct thread *td;
 	int count;
 
-	KASSERT(TRAPF_USERMODE(tf) == 0,("[arm,%d] not a kernel backtrace",
+	KASSERT(TRAPF_USERMODE(tf) == 0,("[arm64,%d] not a kernel backtrace",
 	    __LINE__));
 
 	td = curthread;
@@ -115,7 +115,7 @@ pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
 	struct thread *td;
 	int count;
 
-	KASSERT(TRAPF_USERMODE(tf), ("[x86,%d] Not a user trap frame tf=%p",
+	KASSERT(TRAPF_USERMODE(tf), ("[arm64,%d] Not a user trap frame tf=%p",
 	    __LINE__, (void *) tf));
 
 	td = curthread;
