@@ -130,10 +130,18 @@ struct i2c_hid_desc {
 	uint32_t reserved;
 } __packed;
 
-static char *iichid_ids[] = {
-	"PNP0C50",
-	"ACPI0C50",
-	NULL
+#define	IICHID_REG_NONE	-1
+#define	IICHID_REG_ACPI	(UINT16_MAX + 1)
+#define	IICHID_REG_ELAN	0x0001
+
+static const struct iichid_id {
+	char *id;
+	int reg;
+} iichid_ids[] = {
+	{ "ELAN0000",	IICHID_REG_ELAN },
+	{ "PNP0C50",	IICHID_REG_ACPI },
+	{ "ACPI0C50",	IICHID_REG_ACPI },
+	{ NULL,		0 },
 };
 
 enum iichid_powerstate_how {
@@ -197,18 +205,21 @@ static int	iichid_reset_callout(struct iichid_softc *);
 static void	iichid_teardown_callout(struct iichid_softc *);
 #endif
 
-static __inline bool
+static inline int
 acpi_is_iichid(ACPI_HANDLE handle)
 {
-	char	**ids;
+	const struct iichid_id *ids;
 	UINT32	sta;
+	int reg;
 
-	for (ids = iichid_ids; *ids != NULL; ids++) {
-		if (acpi_MatchHid(handle, *ids))
+	for (ids = iichid_ids; ids->id != NULL; ids++) {
+		if (acpi_MatchHid(handle, ids->id)) {
+			reg = ids->reg;
 			break;
+		}
 	}
-	if (*ids == NULL)
-		return (false);
+	if (ids->id == NULL)
+		return (IICHID_REG_NONE);
 
 	/*
 	 * If no _STA method or if it failed, then assume that
@@ -216,9 +227,9 @@ acpi_is_iichid(ACPI_HANDLE handle)
 	 */
 	if (ACPI_FAILURE(acpi_GetInteger(handle, "_STA", &sta)) ||
 	    ACPI_DEVICE_PRESENT(sta))
-		return (true);
+		return (reg);
 
-	return (false);
+	return (IICHID_REG_NONE);
 }
 
 static ACPI_STATUS
@@ -1007,7 +1018,7 @@ iichid_probe(device_t dev)
 	ACPI_HANDLE handle;
 	char buf[80];
 	uint16_t config_reg;
-	int error;
+	int error, reg;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1028,11 +1039,15 @@ iichid_probe(device_t dev)
 	if (handle == NULL)
 		return (ENXIO);
 
-	if (!acpi_is_iichid(handle))
+	reg = acpi_is_iichid(handle);
+	if (reg == IICHID_REG_NONE)
 		return (ENXIO);
 
-	if (ACPI_FAILURE(iichid_get_config_reg(handle, &config_reg)))
-		return (ENXIO);
+	if (reg == IICHID_REG_ACPI) {
+		if (ACPI_FAILURE(iichid_get_config_reg(handle, &config_reg)))
+			return (ENXIO);
+	} else
+		config_reg = (uint16_t)reg;
 
 	DPRINTF(sc, "  IICbus addr       : 0x%02X\n", sc->addr >> 1);
 	DPRINTF(sc, "  HID descriptor reg: 0x%02X\n", config_reg);
