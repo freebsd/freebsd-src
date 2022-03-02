@@ -1840,6 +1840,7 @@ dev/hid/hms.c			optional hms
 dev/hid/hmt.c			optional hmt hconf
 dev/hid/hpen.c			optional hpen
 dev/hid/hsctrl.c		optional hsctrl
+dev/hid/ietp.c			optional ietp
 dev/hid/ps4dshock.c		optional ps4dshock
 dev/hid/xb360gp.c		optional xb360gp
 dev/hifn/hifn7751.c		optional hifn
