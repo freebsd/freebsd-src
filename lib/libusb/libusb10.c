@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -225,6 +226,8 @@ libusb_init(libusb_context **context)
 		*context = ctx;
 
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_init complete");
+
+	signal(SIGPIPE, SIG_IGN);
 
 	return (0);
 }

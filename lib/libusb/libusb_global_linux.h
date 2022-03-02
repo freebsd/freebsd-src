@@ -50,6 +50,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <pthread.h>
 #include <sys/queue.h>
 #include <sys/ioctl.h>
