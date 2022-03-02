@@ -138,7 +138,7 @@ vga_setwmode(struct vt_device *vd, int wmode)
 
 	switch (wmode) {
 	case 3:
-		/* Re-enable all plans. */
+		/* Re-enable all planes. */
 		REG_WRITE1(sc, VGA_SEQ_ADDRESS, VGA_SEQ_MAP_MASK);
 		REG_WRITE1(sc, VGA_SEQ_DATA, VGA_SEQ_MM_EM3 | VGA_SEQ_MM_EM2 |
 		    VGA_SEQ_MM_EM1 | VGA_SEQ_MM_EM0);
@@ -533,21 +533,21 @@ static void
 vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
     unsigned int x, unsigned int y, unsigned int height)
 {
-	unsigned int i, j, plan, color, offset;
+	unsigned int i, j, plane, color, offset;
 	struct vga_softc *sc;
-	uint8_t mask, plans[height * 4];
+	uint8_t mask, planes[height * 4];
 
 	sc = vd->vd_softc;
 
-	memset(plans, 0, sizeof(plans));
+	memset(planes, 0, sizeof(planes));
 
 	/*
          * To write a group of pixels using 3 or more colors, we select
-         * Write Mode 0 and write one byte to each plan separately.
+         * Write Mode 0 and write one byte to each plane separately.
 	 */
 
 	/*
-	 * We first compute each byte: each plan contains one bit of the
+	 * We first compute each byte: each plane contains one bit of the
 	 * color code for each of the 8 pixels.
 	 *
 	 * For example, if the 8 pixels are like this:
@@ -559,10 +559,10 @@ vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
 	 *
 	 * The corresponding for bytes are:
 	 *             GBBBBBBY
-	 *     Plan 0: 10000001 = 0x81
-	 *     Plan 1: 10000001 = 0x81
-	 *     Plan 2: 10000000 = 0x80
-	 *     Plan 3: 00000000 = 0x00
+	 *    Plane 0: 10000001 = 0x81
+	 *    Plane 1: 10000001 = 0x81
+	 *    Plane 2: 10000000 = 0x80
+	 *    Plane 3: 00000000 = 0x00
 	 *             |  |   |
 	 *             |  |   +-> 0b0011 (Y)
 	 *             |  +-----> 0b0000 (B)
@@ -580,28 +580,28 @@ vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
 					continue;
 
 				/* The pixel "j" uses color "color". */
-				for (plan = 0; plan < 4; ++plan)
-					plans[i * 4 + plan] |=
-					    ((color >> plan) & 0x1) << (7 - j);
+				for (plane = 0; plane < 4; ++plane)
+					planes[i * 4 + plane] |=
+					    ((color >> plane) & 0x1) << (7 - j);
 			}
 		}
 	}
 
 	/*
 	 * The bytes are ready: we now switch to Write Mode 0 and write
-	 * all bytes, one plan at a time.
+	 * all bytes, one plane at a time.
 	 */
 	vga_setwmode(vd, 0);
 
 	REG_WRITE1(sc, VGA_SEQ_ADDRESS, VGA_SEQ_MAP_MASK);
-	for (plan = 0; plan < 4; ++plan) {
-		/* Select plan. */
-		REG_WRITE1(sc, VGA_SEQ_DATA, 1 << plan);
+	for (plane = 0; plane < 4; ++plane) {
+		/* Select plane. */
+		REG_WRITE1(sc, VGA_SEQ_DATA, 1 << plane);
 
-		/* Write all bytes for this plan, from Y to Y+height. */
+		/* Write all bytes for this plane, from Y to Y+height. */
 		for (i = 0; i < height; ++i) {
 			offset = (VT_VGA_WIDTH * (y + i) + x) / 8;
-			MEM_WRITE1(sc, offset, plans[i * 4 + plan]);
+			MEM_WRITE1(sc, offset, planes[i * 4 + plane]);
 		}
 	}
 }
