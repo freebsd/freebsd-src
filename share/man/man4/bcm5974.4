@@ -1,0 +1,85 @@
+.\" Copyright (c) 2022 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 27, 2022
+.Dt BCM5974 4
+.Os
+.Sh NAME
+.Nm bcm5974
+.Nd Wellspring touchpad driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device bcm5974"
+.Cd "device hidbus"
+.Cd "device hid"
+.Cd "device usbhid"
+.Cd "device usb"
+.Cd "device evdev"
+
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+bcm5974_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Wellspring touchpads found in many Apple
+laptops.
+.Pp
+To get multi-touch device working in
+.Xr X 7 ,
+install
+.Pa ports/x11-drivers/xf86-input-libinput .
+.Sh FILES
+.Nm
+creates a pseudo-device file,
+.Pa /dev/input/eventX
+which presents the multi-touch device as an input event device.
+.Sh SEE ALSO
+.Xr hid 4 ,
+.Xr loader.conf 5 ,
+.Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
+.Xr libinput 4 Pq Pa ports/x11-drivers/xf86-input-libinput .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+It is based on
+.Xr wsp 4
+driver written by
+.An Huang Wen Hui Aq Mt huanghwh@gmail.com .
+.Sh BUGS
+.Nm
+cannot act like
+.Xr sysmouse 4
