@@ -193,3 +193,4 @@ static driver_t ig4iic_acpi_driver = {
 DRIVER_MODULE_ORDERED(ig4iic, acpi, ig4iic_acpi_driver, ig4iic_devclass, 0, 0,
     SI_ORDER_ANY);
 MODULE_DEPEND(ig4iic, acpi, 1, 1, 1);
+ACPI_PNP_INFO(ig4iic_ids);
