@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usb_core.h>
+#include <dev/usb/usb_ioctl.h>
 
 #define	USB_DEBUG_VAR usbhid_debug
 #include <dev/usb/usb_debug.h>
@@ -677,6 +678,35 @@ usbhid_set_protocol(device_t dev, uint16_t protocol)
 	return (usbhid_sync_xfer(sc, USBHID_CTRL_DT, &req, NULL));
 }
 
+static int
+usbhid_ioctl(device_t dev, unsigned long cmd, uintptr_t data)
+{
+	struct usbhid_softc* sc = device_get_softc(dev);
+	struct usb_ctl_request *ucr;
+	union usbhid_device_request req;
+	int error;
+
+	switch (cmd) {
+	case USB_REQUEST:
+		ucr = (struct usb_ctl_request *)data;
+		req.ctrl = ucr->ucr_request;
+		error = usbhid_xfer_check_len(
+		    sc, USBHID_CTRL_DT, UGETW(req.ctrl.wLength));
+		if (error)
+			break;
+
+		error = usbhid_sync_xfer(
+		    sc, USBHID_CTRL_DT, &req, ucr->ucr_data);
+		if (error == 0)
+			ucr->ucr_actlen = UGETW(req.ctrl.wLength);
+		break;
+	default:
+		error = EINVAL;
+	}
+
+	return (error);
+}
+
 static void
 usbhid_init_device_info(struct usb_attach_arg *uaa, struct hid_device_info *hw)
 {
@@ -848,6 +878,7 @@ static device_method_t usbhid_methods[] = {
 	DEVMETHOD(hid_set_report,	usbhid_set_report),
 	DEVMETHOD(hid_set_idle,		usbhid_set_idle),
 	DEVMETHOD(hid_set_protocol,	usbhid_set_protocol),
+	DEVMETHOD(hid_ioctl,		usbhid_ioctl),
 
 	DEVMETHOD_END
 };
