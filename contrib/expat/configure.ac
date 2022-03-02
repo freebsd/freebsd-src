@@ -82,7 +82,7 @@ dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
 LIBCURRENT=9   # sync
-LIBREVISION=3  # with
+LIBREVISION=6  # with
 LIBAGE=8       # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
@@ -395,9 +395,17 @@ AC_SUBST([AM_CFLAGS])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_LDFLAGS])
 
+dnl Emulate the use of CMAKE_SHARED_LIBRARY_PREFIX under CMake
+AC_MSG_CHECKING([for shared library name prefix])
+AS_CASE("${host_os}",
+  [cygwin*], [CMAKE_SHARED_LIBRARY_PREFIX=cyg],
+  [CMAKE_SHARED_LIBRARY_PREFIX=lib])
+AC_MSG_RESULT([${CMAKE_SHARED_LIBRARY_PREFIX}])
+AC_SUBST([CMAKE_SHARED_LIBRARY_PREFIX])
+
 AS_CASE("${host_os}",
   [darwin*], [CMAKE_NOCONFIG_SOURCE=cmake/autotools/expat-noconfig__macos.cmake.in],
-  [mingw*], [CMAKE_NOCONFIG_SOURCE=cmake/autotools/expat-noconfig__windows.cmake.in],
+  [mingw*|cygwin*], [CMAKE_NOCONFIG_SOURCE=cmake/autotools/expat-noconfig__windows.cmake.in],
   [CMAKE_NOCONFIG_SOURCE=cmake/autotools/expat-noconfig__linux.cmake.in])
 AC_CONFIG_FILES([Makefile]
   [expat.pc]
