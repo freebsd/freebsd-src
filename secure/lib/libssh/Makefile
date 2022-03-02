@@ -51,11 +51,6 @@ SRCS+=	getrrsetbyname-ldns.c
 LIBADD+=	ldns
 .endif
 
-.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -include krb5_config.h
-SRCS+=	 krb5_config.h
-.endif
-
 .if defined(LOCALBASE)
 CFLAGS+= -D_PATH_SSH_ASKPASS_DEFAULT='"${LOCALBASE}/bin/ssh-askpass"'
 .endif
