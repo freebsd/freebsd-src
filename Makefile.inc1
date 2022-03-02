@@ -2305,18 +2305,6 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 _bootstrap_tools_links+=crunchgen
 .endif
 
-# r296926 -P keymap search path, MFC to stable/10 in r298297
-# Note: kbdcontrol can not be bootstrapped on non-FreeBSD systems
-.if !defined(CROSSBUILD_HOST)
-.if (${BOOTSTRAPPING} < 1003501 || \
-	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103) || \
-	(!exists(/usr/sbin/kbdcontrol)))
-_kbdcontrol=	usr.sbin/kbdcontrol
-.else
-_bootstrap_tools_links+=kbdcontrol
-.endif
-.endif
-
 # 1300102: VHDX support
 .if ${BOOTSTRAPPING} < 1201520 || \
 	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300102)
