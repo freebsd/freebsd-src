@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,13 +96,24 @@ lpc_device_parse(const char *opts)
 {
 	int unit, error;
 	char *str, *cpy, *lpcdev, *node_name;
+	const char *romfile, *varfile;
 
 	error = -1;
 	str = cpy = strdup(opts);
 	lpcdev = strsep(&str, ",");
 	if (lpcdev != NULL) {
 		if (strcasecmp(lpcdev, "bootrom") == 0) {
-			set_config_value("lpc.bootrom", str);
+			romfile = strsep(&str, ",");
+			if (romfile == NULL) {
+				errx(4, "invalid bootrom option \"%s\"", opts);
+			}
+			set_config_value("lpc.bootrom", romfile);
+
+			varfile = strsep(&str, ",");
+			if (varfile != NULL) {
+				set_config_value("lpc.bootvars", varfile);
+			}
+
 			error = 0;
 			goto done;
 		}
@@ -204,13 +216,14 @@ lpc_init(struct vmctx *ctx)
 {
 	struct lpc_uart_softc *sc;
 	struct inout_port iop;
-	const char *backend, *name, *romfile;
+	const char *backend, *name;
 	char *node_name;
 	int unit, error;
+	const nvlist_t *nvl;
 
-	romfile = get_config_value("lpc.bootrom");
-	if (romfile != NULL) {
-		error = bootrom_loadrom(ctx, romfile);
+	nvl = find_config_node("lpc");
+	if (nvl != NULL && nvlist_exists(nvl, "bootrom")) {
+		error = bootrom_loadrom(ctx, nvl);
 		if (error)
 			return (error);
 	}

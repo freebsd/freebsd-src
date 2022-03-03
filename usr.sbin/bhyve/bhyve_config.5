@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 19, 2022
+.Dd December 8, 2022
 .Dt BHYVE_CONFIG 5
 .Os
 .Sh NAME
@@ -514,6 +514,11 @@ The contents of this file are copied into the guest's
 memory ending just before the 4GB physical address.
 If a boot ROM is present, a firmware interface device is
 also enabled for use by the boot ROM.
+.It Va bootvars Ta path Ta Ta
+Path to boot VARS.
+The contents of this file are copied beneath the boot ROM.
+Firmware can write to it to save variables.
+All variables will be persistent even on reboots of the guest.
 .It Va com1 Ta node Ta Ta
 Settings for the COM1 serial port device.
 .It Va com2 Ta node Ta Ta
