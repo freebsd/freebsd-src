@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 
-# fsck test with forced unmount of a SUJ FS.
+# fsck test with forced unmount of a SU FS.
 # Variation of gnop8.sh by Kirk McKusick <mckusick@mckusick.com>
 
 # Copy of gnop9.sh. Uses SU instead of SUJ.
@@ -41,9 +41,7 @@ pgrep -x mount && { pgrep -x mount | xargs ps -lp; exit 1; }
 
 fsck=/sbin/fsck_ffs
 fsck_loops=10
-exp=/sbin/fsck_ffs.exp	# Experimental version
 log=/tmp/gnop10.log
-[ -f $exp ] && { echo "Using $exp"; fsck=$exp; }
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 5g -u $mdstart || exit 1
 md=md$mdstart
@@ -72,27 +70,27 @@ testcases/dirnprename/dirnprename
 testcases/dirrename/dirrename
 '
 
-set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
-export KBLOCKS=$(($1 / 10 * 7))
-export INODES=$(($2 / 10 * 7))
-
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 600 ]; do
 	gnop create /dev/$md || exit 1
 	mount /dev/$md.nop $mntpoint || exit 1
+
+	rm -rf $RUNDIR $CTRLDIR
 	mkdir -p $RUNDIR $CTRLDIR
 	chmod 777 $RUNDIR $CTRLDIR
+	set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
+	export KBLOCKS=$(($1 / 10 * 7))
+	export INODES=$(($2 / 10 * 7))
 
 	# start your favorite I/O test here
-	rm -rf /tmp/stressX.control
-	(cd $RUNDIR && find . -delete)
 
-	su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS' &
+	su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS' > /dev/null 2>&1 &
 
 	# after some number of seconds
-	sleep `jot -r 1 30 90`
+	sleep `jot -r 1 20 30`
 	gnop destroy -f /dev/$md.nop
 	../tools/killall.sh || exit 1
+	while pgrep -qU $testuser; do pkill -U $testuser; done
 	wait
 
 	# Wait until forcible unmount, may be up to about 30 seconds,
@@ -102,37 +100,33 @@ while [ $((`date +%s` - start)) -lt 600 ]; do
 	while mount | grep -q "on $mntpoint "; do
 		[ $n -eq 0 ] && /bin/echo -n "Waiting for $mntpoint to force umount ..."
 		n=$((n + 1))
-		sleep 2
+		sleep 5
 		if [ $((`date +%s` - s)) -ge 180 ]; then
-		    echo "Giving up on waiting for umount of $mntpoint"
-		    umount $mntpoint || umount -f $mntpoint
-		    break
+			echo "Giving up on waiting for umount of $mntpoint"
+			umount $mntpoint
+			while mount | grep -q "on $mntpoint "; do
+			    umount -f $mntpoint
+			done
 		fi
 	done
 	[ $n -ne 0 ] && echo
 
-	# first fsck will attempt journal recovery
-	$fsck -fy /dev/$md > $log 2>&1
+	# The initial fsck_ffs may run for more than on hour with a 5GB MD disk
+	t=`date +%s`
+	$fsck -fy /dev/$md > /dev/null 2>&1
+	t=$((`date +%s`- t))
+	[ $t -gt 300 ] && echo "First fsck took $(((t + 30) / 60)) minutes!"
 
-	# The second fsck will do traditional check for any errors
-	# from journal recovery
-
-	# There seems to be a gnop cache issue, which resolves by adding
-	# delays between each fsck run
 	for i in `jot $fsck_loops`; do
-		sleep $((i * i))	# gnop workaround
-		[ $i -ne 1 ] &&
-		    echo "`date +%T` $fsck loop #$((i + 1))"
+		sleep 10
 		$fsck -fy /dev/$md > $log 2>&1
-		grep -Eq "IS CLEAN|MARKED CLEAN" $log && break
+		# For now, do not trust fsck_ffs's "CLEAN" message
+#		grep -Eq "IS CLEAN|MARKED CLEAN" $log && break
+		grep -Eq "FILE SYSTEM WAS MODIFIED" $log || break
 		[ $i -eq $fsck_loops ] &&
-		    { echo "$fsck did not mark FS as clean"; exit 1; }
-		[ $i -ne 1 ] && tail -3 $log
-		sync; sleep 5; sync; sleep 5
+		    { echo "$fsck did not mark FS as clean"; tail -12 $log; exit 1; }
 	done
 done
-echo "Final $fsck"
-sleep 3; # gnop workaround
 $fsck -fy /dev/$md > $log || { tail -5 $log; exit 1; }
 mdconfig -d -u ${md#md}
 rm -f $log
