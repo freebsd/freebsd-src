@@ -228,10 +228,22 @@ __ocs_fabric_flogi_wait_rsp(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		if (node_check_els_req(ctx, evt, arg, FC_ELS_CMD_FLOGI, __ocs_fabric_common, __func__)) {
 			return NULL;
 		}
-		node_printf(node, "FLOGI failed evt=%s, shutting down sport [%s]\n", ocs_sm_event_name(evt),
-			sport->display_name);
 		ocs_assert(node->els_req_cnt, NULL);
 		node->els_req_cnt--;
+		if (node->sport->domain->attached) {
+			node_printf(node, "FLOGI failed, Domain already attached\n");
+			if (node->sport->p2p_winner) {
+				node_printf(node, "p2p winner, domain already attached\n");
+				ocs_node_post_event(node, OCS_EVT_DOMAIN_ATTACH_OK, NULL);
+			} else {
+				node_printf(node, "peer p2p winner, shutdown node\n");
+				node->shutdown_reason = OCS_NODE_SHUTDOWN_DEFAULT;
+				ocs_fabric_initiate_shutdown(node);
+			}
+			break;
+		}
+		node_printf(node, "FLOGI failed evt=%s, shutting down sport [%s]\n", ocs_sm_event_name(evt),
+			sport->display_name);
 		ocs_sm_post_event(&sport->sm, OCS_EVT_SHUTDOWN, NULL);
 		break;
 	}
