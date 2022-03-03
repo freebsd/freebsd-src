@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2022
+.Dd July 21, 2022
 .Dt "VT" 4
 .Os
 .Sh NAME
@@ -117,6 +117,8 @@ The Home and End keys jump to the beginning or end of the scrollback
 buffer.
 When finished reviewing, press the Scroll Lock key again to return to
 normal use.
+Some laptop keyboards lack a Scroll Lock key, and use a special function key
+sequence (such as Fn + K) to access Scroll Lock.
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
 These kernel options control the
