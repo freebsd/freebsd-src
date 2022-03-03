@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2022
+.Dd March 4, 2022
 .Dt "VT" 4
 .Os
 .Sh NAME
@@ -225,6 +225,10 @@ HTML-like hex triplet.
 See
 .Sx EXAMPLES
 below.
+.Pp
+Note: The
+.Nm
+VGA hardware driver does not support palette configuration.
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
