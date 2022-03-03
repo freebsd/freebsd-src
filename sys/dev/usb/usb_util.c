@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -223,3 +223,52 @@ usb_make_str_desc(void *ptr, uint16_t max_len, const char *s)
 	}
 	return (totlen);
 }
+
+/*------------------------------------------------------------------------*
+ *	usb_check_request - prevent damaging USB requests
+ *
+ * Return values:
+ * 0: Access allowed
+ * Else: No access
+ *------------------------------------------------------------------------*/
+#if USB_HAVE_UGEN
+int
+usb_check_request(struct usb_device *udev, struct usb_device_request *req)
+{
+	struct usb_endpoint *ep;
+	int error;
+
+	/*
+	 * Avoid requests that would damage the bus integrity:
+	 */
+	if (((req->bmRequestType == UT_WRITE_DEVICE) &&
+	    (req->bRequest == UR_SET_ADDRESS)) ||
+	    ((req->bmRequestType == UT_WRITE_DEVICE) &&
+	    (req->bRequest == UR_SET_CONFIG)) ||
+	    ((req->bmRequestType == UT_WRITE_INTERFACE) &&
+	    (req->bRequest == UR_SET_INTERFACE))) {
+		/*
+		 * These requests can be useful for testing USB drivers.
+		 */
+		error = priv_check(curthread, PRIV_DRIVER);
+		if (error)
+			return (error);
+	}
+
+	/*
+	 * Special case - handle clearing of stall
+	 */
+	if (req->bmRequestType == UT_WRITE_ENDPOINT) {
+		ep = usbd_get_ep_by_addr(udev, req->wIndex[0]);
+		if (ep == NULL)
+			return (EINVAL);
+		if ((req->bRequest == UR_CLEAR_FEATURE) &&
+		    (UGETW(req->wValue) == UF_ENDPOINT_HALT))
+			usbd_clear_data_toggle(udev, ep);
+	}
+
+	/* TODO: add more checks to verify the interface index */
+
+	return (0);
+}
+#endif

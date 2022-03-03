@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -869,54 +869,6 @@ ugen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
 	return (0);
 }
 
-/*------------------------------------------------------------------------*
- *	ugen_check_request
- *
- * Return values:
- * 0: Access allowed
- * Else: No access
- *------------------------------------------------------------------------*/
-static int
-ugen_check_request(struct usb_device *udev, struct usb_device_request *req)
-{
-	struct usb_endpoint *ep;
-	int error;
-
-	/*
-	 * Avoid requests that would damage the bus integrity:
-	 */
-	if (((req->bmRequestType == UT_WRITE_DEVICE) &&
-	    (req->bRequest == UR_SET_ADDRESS)) ||
-	    ((req->bmRequestType == UT_WRITE_DEVICE) &&
-	    (req->bRequest == UR_SET_CONFIG)) ||
-	    ((req->bmRequestType == UT_WRITE_INTERFACE) &&
-	    (req->bRequest == UR_SET_INTERFACE))) {
-		/*
-		 * These requests can be useful for testing USB drivers.
-		 */
-		error = priv_check(curthread, PRIV_DRIVER);
-		if (error) {
-			return (error);
-		}
-	}
-	/*
-	 * Special case - handle clearing of stall
-	 */
-	if (req->bmRequestType == UT_WRITE_ENDPOINT) {
-		ep = usbd_get_ep_by_addr(udev, req->wIndex[0]);
-		if (ep == NULL) {
-			return (EINVAL);
-		}
-		if ((req->bRequest == UR_CLEAR_FEATURE) &&
-		    (UGETW(req->wValue) == UF_ENDPOINT_HALT)) {
-			usbd_clear_data_toggle(udev, ep);
-		}
-	}
-	/* TODO: add more checks to verify the interface index */
-
-	return (0);
-}
-
 int
 ugen_do_request(struct usb_fifo *f, struct usb_ctl_request *ur)
 {
@@ -924,7 +876,7 @@ ugen_do_request(struct usb_fifo *f, struct usb_ctl_request *ur)
 	uint16_t len;
 	uint16_t actlen;
 
-	if (ugen_check_request(f->udev, &ur->ucr_request)) {
+	if (usb_check_request(f->udev, &ur->ucr_request)) {
 		return (EPERM);
 	}
 	len = UGETW(ur->ucr_request.wLength);
@@ -1165,7 +1117,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 				return (error);
 			}
 		}
-		if (ugen_check_request(f->udev, req)) {
+		if (usb_check_request(f->udev, req)) {
 			xfer->error = USB_ERR_INVAL;
 			goto complete;
 		}
