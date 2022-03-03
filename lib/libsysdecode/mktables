@@ -94,6 +94,7 @@ gen_table "accessmode"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/
 gen_table "acltype"         "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+"        "sys/acl.h"
 gen_table "atflags"         "AT_[A-Z_]+[[:space:]]+0x[0-9]+"               "sys/fcntl.h"
 gen_table "capfcntl"        "CAP_FCNTL_[A-Z]+[[:space:]]+\(1"              "sys/capsicum.h"
+gen_table "closerangeflags" "CLOSE_RANGE_[A-Z]+[[:space:]]+\([0-9]+<<[0-9]+\)"       "sys/unistd.h"
 gen_table "extattrns"       "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 gen_table "fadvisebehav"    "POSIX_FADV_[A-Z]+[[:space:]]+[0-9]+"          "sys/fcntl.h"
 gen_table "openflags"       "O_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"           "sys/fcntl.h"	"O_RDONLY|O_RDWR|O_WRONLY"
