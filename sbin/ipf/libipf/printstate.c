@@ -184,23 +184,19 @@ printstate(ipstate_t *sp, int opts, u_long now)
 		PRINTF("\tis_flx %#x %#x %#x %#x\n", sp->is_flx[0][0],
 			sp->is_flx[0][1], sp->is_flx[1][0], sp->is_flx[1][1]);
 	}
-	PRINTF("\tinterfaces: in %s[%s", getifname(sp->is_ifp[0]),
-		sp->is_ifname[0]);
+	PRINTF("\tinterfaces: in %s", FORMAT_IF(sp->is_ifname[0]));
 	if (opts & OPT_DEBUG)
 		PRINTF("/%p", sp->is_ifp[0]);
-	putchar(']');
-	PRINTF(",%s[%s", getifname(sp->is_ifp[1]), sp->is_ifname[1]);
+	PRINTF(",%s", FORMAT_IF(sp->is_ifname[1]));
 	if (opts & OPT_DEBUG)
 		PRINTF("/%p", sp->is_ifp[1]);
-	putchar(']');
-	PRINTF(" out %s[%s", getifname(sp->is_ifp[2]), sp->is_ifname[2]);
+	PRINTF(" out %s", FORMAT_IF(sp->is_ifname[2]));
 	if (opts & OPT_DEBUG)
 		PRINTF("/%p", sp->is_ifp[2]);
-	putchar(']');
-	PRINTF(",%s[%s", getifname(sp->is_ifp[3]), sp->is_ifname[3]);
+	PRINTF(",%s", FORMAT_IF(sp->is_ifname[3]));
 	if (opts & OPT_DEBUG)
 		PRINTF("/%p", sp->is_ifp[3]);
-	PRINTF("]\n");
+	PRINTF("\n");
 
 	PRINTF("\tSync status: ");
 	if (sp->is_sync != NULL) {
