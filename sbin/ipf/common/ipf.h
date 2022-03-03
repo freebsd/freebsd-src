@@ -103,6 +103,7 @@ typedef unsigned int	u_32_t;
 
 #define	PRINTF	(void)printf
 #define	FPRINTF	(void)fprintf
+#define FORMAT_IF(_a)	(_a != NULL ? _a : "(null)")
 
 
 struct	ipopt_names	{
