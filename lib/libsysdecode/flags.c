@@ -400,6 +400,13 @@ sysdecode_cap_fcntlrights(FILE *fp, uint32_t rights, uint32_t *rem)
 	return (print_mask_int(fp, capfcntl, rights, rem));
 }
 
+bool
+sysdecode_close_range_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, closerangeflags, flags, rem));
+}
+
 const char *
 sysdecode_extattrnamespace(int namespace)
 {

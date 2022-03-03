@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2018
+.Dd March 3, 2022
 .Dt sysdecode_mask 3
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Nm sysdecode_accessmode ,
 .Nm sysdecode_atflags ,
 .Nm sysdecode_capfcntlrights ,
+.Nm sysdecode_close_range_flags ,
 .Nm sysdecode_fcntl_fileflags ,
 .Nm sysdecode_fileflags ,
 .Nm sysdecode_filemode ,
@@ -73,6 +74,8 @@
 .Fn sysdecode_atflags "FILE *fp" "int flags" "int *rem"
 .Ft bool
 .Fn sysdecode_cap_fcntlrights "FILE *fp" "uint32_t rights" "uint32_t *rem"
+.Ft bool
+.Fn sysdecode_close_range_flags "FILE *fp" "int flags" "int *rem"
 .Ft bool
 .Fn sysdecode_fcntl_fileflags "FILE *fp" "int flags" "int *rem"
 .Ft bool

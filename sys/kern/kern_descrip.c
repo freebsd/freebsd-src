@@ -1393,23 +1393,39 @@ kern_close(struct thread *td, int fd)
 	return (closefp(fdp, fd, fp, td, true, true));
 }
 
-int
-kern_close_range(struct thread *td, u_int lowfd, u_int highfd)
+static int
+close_range_cloexec(struct thread *td, u_int lowfd, u_int highfd)
+{
+	struct filedesc *fdp;
+	struct fdescenttbl *fdt;
+	struct filedescent *fde;
+	int fd;
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+	fdt = atomic_load_ptr(&fdp->fd_files);
+	highfd = MIN(highfd, fdt->fdt_nfiles - 1);
+	fd = lowfd;
+	if (__predict_false(fd > highfd)) {
+		goto out_locked;
+	}
+	for (; fd <= highfd; fd++) {
+		fde = &fdt->fdt_ofiles[fd];
+		if (fde->fde_file != NULL)
+			fde->fde_flags |= UF_EXCLOSE;
+	}
+out_locked:
+	FILEDESC_XUNLOCK(fdp);
+	return (0);
+}
+
+static int
+close_range_impl(struct thread *td, u_int lowfd, u_int highfd)
 {
 	struct filedesc *fdp;
 	const struct fdescenttbl *fdt;
 	struct file *fp;
 	int fd;
-
-	/*
-	 * Check this prior to clamping; closefrom(3) with only fd 0, 1, and 2
-	 * open should not be a usage error.  From a close_range() perspective,
-	 * close_range(3, ~0U, 0) in the same scenario should also likely not
-	 * be a usage error as all fd above 3 are in-fact already closed.
-	 */
-	if (highfd < lowfd) {
-		return (EINVAL);
-	}
 
 	fdp = td->td_proc->p_fd;
 	FILEDESC_XLOCK(fdp);
@@ -1440,6 +1456,26 @@ out_unlocked:
 	return (0);
 }
 
+int
+kern_close_range(struct thread *td, int flags, u_int lowfd, u_int highfd)
+{
+
+	/*
+	 * Check this prior to clamping; closefrom(3) with only fd 0, 1, and 2
+	 * open should not be a usage error.  From a close_range() perspective,
+	 * close_range(3, ~0U, 0) in the same scenario should also likely not
+	 * be a usage error as all fd above 3 are in-fact already closed.
+	 */
+	if (highfd < lowfd) {
+		return (EINVAL);
+	}
+
+	if ((flags & CLOSE_RANGE_CLOEXEC) != 0)
+		return (close_range_cloexec(td, lowfd, highfd));
+
+	return (close_range_impl(td, lowfd, highfd));
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct close_range_args {
 	u_int	lowfd;
@@ -1455,10 +1491,9 @@ sys_close_range(struct thread *td, struct close_range_args *uap)
 	AUDIT_ARG_CMD(uap->highfd);
 	AUDIT_ARG_FFLAGS(uap->flags);
 
-	/* No flags currently defined */
-	if (uap->flags != 0)
+	if ((uap->flags & ~(CLOSE_RANGE_CLOEXEC)) != 0)
 		return (EINVAL);
-	return (kern_close_range(td, uap->lowfd, uap->highfd));
+	return (kern_close_range(td, uap->flags, uap->lowfd, uap->highfd));
 }
 
 #ifdef COMPAT_FREEBSD12
@@ -1483,7 +1518,7 @@ freebsd12_closefrom(struct thread *td, struct freebsd12_closefrom_args *uap)
 	 * closefrom(0) which closes all files.
 	 */
 	lowfd = MAX(0, uap->lowfd);
-	return (kern_close_range(td, lowfd, ~0U));
+	return (kern_close_range(td, 0, lowfd, ~0U));
 }
 #endif	/* COMPAT_FREEBSD12 */
 

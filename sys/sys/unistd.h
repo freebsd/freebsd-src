@@ -200,6 +200,11 @@
 
 #define	SWAPOFF_FORCE	0x00000001
 
+/*
+ * close_range() options.
+ */
+#define	CLOSE_RANGE_CLOEXEC	(1<<2)
+
 #endif /* __BSD_VISIBLE */
 
 #endif /* !_SYS_UNISTD_H_ */
