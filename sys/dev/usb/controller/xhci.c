@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -103,6 +103,10 @@ SYSCTL_INT(_hw_usb_xhci, OID_AUTO, streams, CTLFLAG_RWTUN,
 static int xhcictlquirk = 1;
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, ctlquirk, CTLFLAG_RWTUN,
     &xhcictlquirk, 0, "Set to enable control endpoint quirk");
+
+static int xhcidcepquirk;
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, dcepquirk, CTLFLAG_RWTUN,
+    &xhcidcepquirk, 0, "Set to disable endpoint deconfigure command");
 
 #ifdef USB_DEBUG
 static int xhcidebug;
@@ -1477,8 +1481,11 @@ xhci_cmd_configure_ep(struct xhci_softc *sc, uint64_t input_ctx,
 	temp = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_CONFIGURE_EP) |
 	    XHCI_TRB_3_SLOT_SET(slot_id);
 
-	if (deconfigure)
+	if (deconfigure) {
+		if (sc->sc_no_deconfigure != 0 || xhcidcepquirk != 0)
+			return (0);	/* Success */
 		temp |= XHCI_TRB_3_DCEP_BIT;
+	}
 
 	trb.dwTrb3 = htole32(temp);
 
