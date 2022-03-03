@@ -12071,6 +12071,168 @@ ocs_hw_get_def_wwn(ocs_t *ocs, uint32_t chan, uint64_t *wwpn, uint64_t *wwnn)
 	return 0;
 }
 
+uint32_t
+ocs_hw_get_config_persistent_topology(ocs_hw_t *hw)
+{
+        uint32_t topology = OCS_HW_TOPOLOGY_AUTO;
+	sli4_t *sli = &hw->sli;
+
+        if (!sli_persist_topology_enabled(sli))
+                return topology;
+
+        switch (sli->config.pt) {
+                case SLI4_INIT_LINK_F_P2P_ONLY:
+                        topology = OCS_HW_TOPOLOGY_NPORT;
+                        break;
+                case SLI4_INIT_LINK_F_FCAL_ONLY:
+                        topology = OCS_HW_TOPOLOGY_LOOP;
+                        break;
+                default:
+                        break;
+        }
+
+        return topology;
+}
+
+/*
+ * @brief Persistent topology configuration callback argument.
+ */
+typedef struct ocs_hw_persistent_topo_cb_arg {
+	ocs_sem_t semaphore;
+	int32_t status;
+} ocs_hw_persistent_topo_cb_arg_t;
+
+/*
+ * @brief Called after the completion of set persistent topology request
+ *
+ * @par Description
+ * This is callback fn for the set_persistent_topology
+ * function. This callback is called when the common feature mbx cmd
+ * completes.
+ *
+ * @param hw Hardware context.
+ * @param status The status from the MQE.
+ * @param mqe Pointer to mailbox command buffer.
+ * @param arg Pointer to a callback argument.
+ *
+ * @return 0 on success, non-zero otherwise
+ */
+static int32_t
+ocs_hw_set_persistent_topolgy_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
+{
+	ocs_hw_persistent_topo_cb_arg_t *req = (ocs_hw_persistent_topo_cb_arg_t *)arg;
+
+	req->status = status;
+
+	ocs_sem_v(&req->semaphore);
+
+	return 0;
+}
+
+/**
+ * @brief Set persistent topology
+ *
+ * Sets the persistent topology(PT) feature using
+ * COMMON_SET_FEATURES cmd. If mbx cmd succeeds, update the
+ * topology into sli config. PT stores the value to be set into link_flags
+ * of the cmd INIT_LINK, to bring up the link.
+ *
+ * SLI specs defines following for PT:
+ *     When TF is set to 0:
+ *       0 Reserved
+ *       1 Attempt point-to-point initialization (direct attach or Fabric topology).
+ *       2 Attempt FC-AL loop initialization.
+ *       3 Reserved
+ *
+ *      When TF is set to 1:
+ *       0 Attempt FC-AL loop initialization; if it fails, attempt point-to-point initialization.
+ *       1 Attempt point-to-point initialization; if it fails, attempt FC-AL loop initialization.
+ *       2 Reserved
+ *      3 Reserved
+ *
+ *     Note: Topology failover is only available on Lancer G5. This command will fail
+ *     if TF is set to 1 on any other ASICs
+ *
+ * @param hw Pointer to hw
+ * @param topology topology value to be set, provided through
+ *        elxsdkutil set-topology cmd
+ *
+ * @return Returns 0 on success, or a non-zero value on failure.
+ */
+ocs_hw_rtn_e
+ocs_hw_set_persistent_topology(ocs_hw_t *hw, uint32_t topology, uint32_t opts)
+{
+	ocs_hw_rtn_e rc = OCS_HW_RTN_SUCCESS;
+	uint8_t buf[SLI4_BMBX_SIZE];
+	sli4_req_common_set_features_persistent_topo_param_t param;
+	ocs_hw_persistent_topo_cb_arg_t request;
+
+	ocs_memset(&param, 0, sizeof(param));
+	param.persistent_topo = topology;
+
+	switch (topology) {
+	case OCS_HW_TOPOLOGY_AUTO:
+		if (sli_get_asic_type(&hw->sli) == SLI4_ASIC_TYPE_LANCER) {
+			param.persistent_topo = SLI4_INIT_LINK_F_P2P_FAIL_OVER;
+			param.topo_failover = 1;
+		} else {
+			param.persistent_topo = SLI4_INIT_LINK_F_P2P_ONLY;;
+			param.topo_failover = 0;
+		}
+		break;
+
+	case OCS_HW_TOPOLOGY_NPORT:
+		param.persistent_topo = SLI4_INIT_LINK_F_P2P_ONLY;
+		param.topo_failover = 0;
+		break;
+
+	case OCS_HW_TOPOLOGY_LOOP:
+		param.persistent_topo = SLI4_INIT_LINK_F_FCAL_ONLY;
+		param.topo_failover = 0;
+		break;
+
+	default:
+		ocs_log_err(hw->os, "unsupported topology %#x\n", topology);
+		return -1;
+	}
+
+	ocs_sem_init(&request.semaphore, 0, "set_persistent_topo");
+
+	/* build the set_features command */
+	sli_cmd_common_set_features(&hw->sli, buf, SLI4_BMBX_SIZE,
+		SLI4_SET_FEATURES_PERSISTENT_TOPOLOGY, sizeof(param), &param);
+
+	if (opts == OCS_CMD_POLL) {
+		rc = ocs_hw_command(hw, buf, OCS_CMD_POLL, NULL, NULL);
+		if (rc) {
+			ocs_log_err(hw->os, "Failed to set persistent topology, rc: %#x\n", rc);
+			return rc;
+		}
+	} else {
+
+		// there's no response for this feature command
+		rc = ocs_hw_command(hw, buf, OCS_CMD_NOWAIT, ocs_hw_set_persistent_topolgy_cb, &request);
+		if (rc) {
+			ocs_log_err(hw->os, "Failed to set persistent topology, rc: %#x\n", rc);
+			return rc;
+		}
+
+		if (ocs_sem_p(&request.semaphore, OCS_SEM_FOREVER)) {
+			ocs_log_err(hw->os, "ocs_sem_p failed\n");
+			return -ENXIO;
+		}
+
+		if (request.status) {
+			ocs_log_err(hw->os, "set persistent topology failed; status: %d\n", request.status);
+			return -EFAULT;
+		}
+	}
+
+	sli_config_persistent_topology(&hw->sli, &param);
+
+	return rc;
+}
+
 /**
  * @page fc_hw_api_overview HW APIs
  * - @ref devInitShutdown

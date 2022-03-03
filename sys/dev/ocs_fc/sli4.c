@@ -766,6 +766,63 @@ sli_cmd_fw_initialize(sli4_t *sli4, void *buf, size_t size)
 
 /**
  * @ingroup sli
+ * @brief update INIT_LINK flags with the sli config topology.
+ *
+ * @param sli4 SLI context pointer.
+ * @param init_link Pointer to the init link command
+ *
+ * @return Returns 0 on success, -1 on failure
+ */
+static int32_t
+sli4_set_link_flags_config_topo(sli4_t *sli4, sli4_cmd_init_link_t *init_link)
+{
+
+	switch (sli4->config.topology) {
+	case SLI4_READ_CFG_TOPO_FC:
+		// Attempt P2P but failover to FC-AL
+		init_link->link_flags.enable_topology_failover = TRUE;
+		init_link->link_flags.topology = SLI4_INIT_LINK_F_P2P_FAIL_OVER;
+		break;
+	case SLI4_READ_CFG_TOPO_FC_AL:
+		init_link->link_flags.topology = SLI4_INIT_LINK_F_FCAL_ONLY;
+		return (!sli_fcal_is_speed_supported(init_link->link_speed_selection_code));
+
+	case SLI4_READ_CFG_TOPO_FC_DA:
+		init_link->link_flags.topology = FC_TOPOLOGY_P2P;
+		break;
+	default:
+		ocs_log_err(sli4->os, "unsupported topology %#x\n", sli4->config.topology);
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * @ingroup sli
+ * @brief update INIT_LINK flags with the persistent topology.
+ * PT stores value in compatible form, directly assign to link_flags
+ *
+ * @param sli4 SLI context pointer.
+ * @param init_link Pointer to the init link command
+ *
+ * @return Returns 0 on success, -1 on failure
+ */
+static int32_t
+sli4_set_link_flags_persistent_topo(sli4_t *sli4, sli4_cmd_init_link_t *init_link)
+{
+	if ((sli4->config.pt == SLI4_INIT_LINK_F_FCAL_ONLY) &&
+	    (!sli_fcal_is_speed_supported(init_link->link_speed_selection_code)))
+		return -1;
+
+	init_link->link_flags.enable_topology_failover = sli4->config.tf;
+	init_link->link_flags.topology = sli4->config.pt;
+
+	return 0;
+}
+
+/**
+ * @ingroup sli
  * @brief Write an INIT_LINK command to the provided buffer.
  *
  * @param sli4 SLI context pointer.
@@ -780,6 +837,7 @@ int32_t
 sli_cmd_init_link(sli4_t *sli4, void *buf, size_t size, uint32_t speed, uint8_t reset_alpa)
 {
 	sli4_cmd_init_link_t	*init_link = buf;
+	int32_t rc = 0;
 
 	ocs_memset(buf, 0, size);
 
@@ -805,41 +863,23 @@ sli_cmd_init_link(sli4_t *sli4, void *buf, size_t size, uint32_t speed, uint8_t 
 			return 0;
 		}
 
-		switch (sli4->config.topology) {
-		case SLI4_READ_CFG_TOPO_FC:
-			/* Attempt P2P but failover to FC-AL */
-			init_link->link_flags.enable_topology_failover = TRUE;
-
-			if (sli_get_asic_type(sli4) == SLI4_ASIC_TYPE_LANCER)
-				init_link->link_flags.topology = SLI4_INIT_LINK_F_FCAL_FAIL_OVER;
-			else
-				init_link->link_flags.topology = SLI4_INIT_LINK_F_P2P_FAIL_OVER;
-
-			break;
-		case SLI4_READ_CFG_TOPO_FC_AL:
-			init_link->link_flags.topology = SLI4_INIT_LINK_F_FCAL_ONLY;
-			if ((init_link->link_speed_selection_code == FC_LINK_SPEED_16G) ||
-			    (init_link->link_speed_selection_code == FC_LINK_SPEED_32G)) {
-				ocs_log_test(sli4->os, "unsupported FC-AL speed %d\n", speed);
-				return 0;
-			}
-			break;
-		case SLI4_READ_CFG_TOPO_FC_DA:
-			init_link->link_flags.topology = FC_TOPOLOGY_P2P;
-			break;
-		default:
-			ocs_log_test(sli4->os, "unsupported topology %#x\n", sli4->config.topology);
-			return 0;
-		}
-
 		init_link->link_flags.unfair = FALSE;
 		init_link->link_flags.skip_lirp_lilp = FALSE;
 		init_link->link_flags.gen_loop_validity_check = FALSE;
 		init_link->link_flags.skip_lisa = FALSE;
 		init_link->link_flags.select_hightest_al_pa = FALSE;
+
+		//update topology in the link flags for link bring up
+		ocs_log_info(sli4->os, "bring up link with topology: %d, PTV: %d, TF: %d, PT: %d \n",
+			     sli4->config.topology, sli4->config.ptv, sli4->config.tf, sli4->config.pt);
+		if (sli4->config.ptv)
+			rc = sli4_set_link_flags_persistent_topo(sli4, init_link);
+		else
+			rc = sli4_set_link_flags_config_topo(sli4, init_link);
+
 	}
 
-	return sizeof(sli4_cmd_init_link_t);
+	return rc ? 0 : sizeof(sli4_cmd_init_link_t);
 }
 
 /**
@@ -3724,6 +3764,14 @@ sli_get_config(sli4_t *sli4)
 		}
 
 		sli4->config.topology = read_config->topology;
+		sli4->config.ptv = read_config->ptv;
+		if (sli4->config.ptv){
+			sli4->config.tf = read_config->tf;
+			sli4->config.pt = read_config->pt;
+		}
+		ocs_log_info(sli4->os, "Persistent Topology: PTV: %d, TF: %d, PT: %d \n",
+			     sli4->config.topology, sli4->config.ptv, sli4->config.tf, sli4->config.pt);
+
 		switch (sli4->config.topology) {
 		case SLI4_READ_CFG_TOPO_FCOE:
 			ocs_log_debug(sli4->os, "FCoE\n");
@@ -4160,6 +4208,12 @@ sli_setup(sli4_t *sli4, ocs_os_handle_t os, sli4_port_type_e port_type)
 	}
 
 	return 0;
+}
+
+bool
+sli_persist_topology_enabled(sli4_t *sli4)
+{
+        return (sli4->config.ptv);
 }
 
 int32_t
