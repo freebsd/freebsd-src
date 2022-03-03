@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -287,6 +287,9 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
 	switch (pci_get_devid(self)) {
+	case 0x8241104c:	/* TUSB73x0 USB3.0 xHCI Controller */
+		sc->sc_no_deconfigure = 1;
+		break;
 	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
 	case 0x00141912:	/* NEC uPD720201 USB 3.0 controller */
 		/* Don't use 64-bit DMA on these controllers. */
@@ -309,6 +312,8 @@ xhci_pci_attach(device_t self)
 		sc->sc_port_route = &xhci_pci_port_route;
 		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
 		sc->sc_ctlstep = 1;
+		break;
+	default:
 		break;
 	}
 
