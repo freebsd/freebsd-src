@@ -1807,6 +1807,11 @@ set_configured_topology(ocs_t *ocs, char *name, char *value)
 		if (hw_rc != OCS_HW_RTN_SUCCESS) {
 			ocs_log_test(ocs, "Topology set failed\n");
 			result = 1;
+		} else {
+			// Set the persistent topology before port is online
+			hw_rc = ocs_hw_set_persistent_topology(&ocs->hw, topo, OCS_CMD_NOWAIT);
+			if (hw_rc != OCS_HW_RTN_SUCCESS)
+				ocs_log_err(ocs, "Set persistent topology feature failed: %d\n", hw_rc);
 		}
 
 		/* If we failed to set the topology we still want to try to bring

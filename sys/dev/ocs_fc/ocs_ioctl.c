@@ -612,7 +612,7 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 			return -EFAULT;
 		}
 
-		req->result = ocs_mgmt_set(ocs, req->name, req->value);
+		req->result = ocs_mgmt_set(ocs, name, value);
 
 		break;
 	}
