@@ -372,6 +372,36 @@ ocs_xport_initialize_auto_xfer_ready(ocs_xport_t *xport)
 }
 
 /**
+ * @brief Initialize link topology config
+ *
+ * @par Description
+ * Topology can be fetched from mod-param or Persistet Topology(PT).
+ *  a. Mod-param value is used when the value is 1(P2P) or 2(LOOP).
+ *  a. PT is used if mod-param is not provided( i.e, default value of AUTO)
+ * Also, if mod-param is used, update PT.
+ *
+ * @param ocs Pointer to ocs
+ *
+ * @return Returns 0 on success, or a non-zero value on failure.
+ */
+static int
+ocs_topology_setup(ocs_t *ocs)
+{
+        uint32_t topology;
+
+        if (ocs->topology == OCS_HW_TOPOLOGY_AUTO) {
+                topology = ocs_hw_get_config_persistent_topology(&ocs->hw);
+        }  else {
+                topology = ocs->topology;
+                /* ignore failure here. link will come-up either in auto mode
+                 * if PT is not supported or last saved PT value */
+                ocs_hw_set_persistent_topology(&ocs->hw, topology, OCS_CMD_POLL);
+        }
+
+        return ocs_hw_set(&ocs->hw, OCS_HW_TOPOLOGY, topology);
+}
+
+/**
  * @brief Initializes the device.
  *
  * @par Description
@@ -452,6 +482,13 @@ ocs_xport_initialize(ocs_xport_t *xport)
 			ocs_hw_set(&ocs->hw, OCS_HW_PREREGISTER_SGL, FALSE);
 		}
 	}
+
+	 /* Setup persistent topology based on topology mod-param value */
+        rc = ocs_topology_setup(ocs);
+        if (rc) {
+                ocs_log_err(ocs, "%s: Can't set the toplogy\n", ocs->desc);
+                return -1;
+        }
 
 	if (ocs_hw_set(&ocs->hw, OCS_HW_TOPOLOGY, ocs->topology) != OCS_HW_RTN_SUCCESS) {
 		ocs_log_err(ocs, "%s: Can't set the toplogy\n", ocs->desc);
