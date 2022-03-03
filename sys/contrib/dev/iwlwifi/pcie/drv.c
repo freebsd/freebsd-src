@@ -1746,6 +1746,10 @@ static struct pci_driver iwl_pci_driver = {
 	.probe = iwl_pci_probe,
 	.remove = iwl_pci_remove,
 	.driver.pm = IWL_PM_OPS,
+#if defined(__FreeBSD__)
+	/* Allow iwm(4) to attach for conflicting IDs for now. */
+	.bsd_probe_return = (BUS_PROBE_DEFAULT - 1),
+#endif
 };
 
 int __must_check iwl_pci_register_driver(void)
