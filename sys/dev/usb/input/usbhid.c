@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_util.h>
 
 #define	USB_DEBUG_VAR usbhid_debug
 #include <dev/usb/usb_debug.h>
@@ -694,7 +695,9 @@ usbhid_ioctl(device_t dev, unsigned long cmd, uintptr_t data)
 		    sc, USBHID_CTRL_DT, UGETW(req.ctrl.wLength));
 		if (error)
 			break;
-
+		error = usb_check_request(sc->sc_udev, &req.ctrl);
+		if (error)
+			break;
 		error = usbhid_sync_xfer(
 		    sc, USBHID_CTRL_DT, &req, ucr->ucr_data);
 		if (error == 0)
