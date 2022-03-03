@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/netevent.h>
-#include <net/if_llatbl.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib.h>
 
