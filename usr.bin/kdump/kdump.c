@@ -864,6 +864,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
+			case SYS_close_range:
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				putchar(',');
+				print_mask_arg(sysdecode_close_range_flags, *ip);
+				ip += 3;
+				narg -= 3;
+				break;
 			case SYS_open:
 			case SYS_openat:
 				print_number(ip, narg, c);

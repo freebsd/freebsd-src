@@ -144,7 +144,7 @@ main(void)
 {
 	struct shared_info *info;
 	pid_t pid;
-	int fd, i, start;
+	int fd, flags, i, start;
 
 	printf("1..20\n");
 
@@ -324,6 +324,39 @@ main(void)
 	if (info->failed)
 		fail(info->tag, "%s", info->message);
 	ok(info->tag);
+
+	/* test CLOSE_RANGE_CLOEXEC */
+	for (i = 0; i < 8; i++)
+		(void)devnull();
+	fd = highest_fd();
+	start = fd - 8;
+	if (close_range(start + 1, start + 4, CLOSE_RANGE_CLOEXEC) < 0)
+		fail_err("close_range(..., CLOSE_RANGE_CLOEXEC)");
+	flags = fcntl(start, F_GETFD);
+	if (flags < 0)
+		fail_err("fcntl(.., F_GETFD)");
+	if ((flags & FD_CLOEXEC) != 0)
+		fail("close_range", "CLOSE_RANGE_CLOEXEC set close-on-exec "
+		    "when it should not have on fd %d", start);
+	for (i = start + 1; i <= start + 4; i++) {
+		flags = fcntl(i, F_GETFD);
+		if (flags < 0)
+			fail_err("fcntl(.., F_GETFD)");
+		if ((flags & FD_CLOEXEC) == 0)
+			fail("close_range", "CLOSE_RANGE_CLOEXEC did not set "
+			    "close-on-exec on fd %d", i);
+	}
+	for (; i < start + 8; i++) {
+		flags = fcntl(i, F_GETFD);
+		if (flags < 0)
+			fail_err("fcntl(.., F_GETFD)");
+		if ((flags & FD_CLOEXEC) != 0)
+			fail("close_range", "CLOSE_RANGE_CLOEXEC set close-on-exec "
+			    "when it should not have on fd %d", i);
+	}
+	if (close_range(start, start + 8, 0) < 0)
+		fail_err("close_range");
+	ok("close_range(..., CLOSE_RANGE_CLOEXEC)");
 
 	return (0);
 }
