@@ -41,6 +41,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_rss.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/hash.h>
@@ -73,8 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #ifdef RSS
 #include <net/rss_config.h>
+#ifdef INET
 #include <netinet/in_rss.h>
+#endif
+#ifdef INET6
 #include <netinet6/in6_rss.h>
+#endif
 #endif
 #include <net/vnet.h>
 
@@ -217,12 +223,16 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 		eh = mtod(m, struct ether_header *);
 
 		switch (ntohs(eh->ether_type)) {
+#ifdef INET
 		case ETHERTYPE_IP:
 			rss_soft_m2cpuid_v4(m, 0, &bucket);
 			break;
+#endif
+#ifdef INET6
 		case ETHERTYPE_IPV6:
 			rss_soft_m2cpuid_v6(m, 0, &bucket);
 			break;
+#endif
 		default:
 			bucket = 0;
 			break;
