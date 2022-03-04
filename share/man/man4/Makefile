@@ -554,6 +554,7 @@ MAN=	aac.4 \
 	ti.4 \
 	timecounters.4 \
 	${_tpm.4} \
+	tslog.4 \
 	tty.4 \
 	tun.4 \
 	twe.4 \
