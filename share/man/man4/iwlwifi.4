@@ -27,26 +27,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 1, 2022
+.Dd March 4, 2022
 .Dt iwlwifi 4
 .Os
 .Sh NAME
 .Nm iwlwifi
 .Nd Intel IEEE 802.11a/b/g/n/ac/ax wireless network driver
 .Sh SYNOPSIS
-To load the driver as a module at boot time, place the following lines in
-.Xr rc.conf 5 :
+The driver will auto-load without any user interaction using
+.Xr devmatch 8
+if enabled in
+.Xr rc.conf 5 .
+.Pp
+Only if auto-loading is explicitly disabled, place the following
+lines in
+.Xr rc.conf 5
+to manually load the driver as a module at boot time:
 .Bd -literal -offset indent
 kld_list="${kld_list} if_iwlwifi"
 .Ed
 .Pp
 The driver should automatically load any
 .Xr iwlwififw 4
-firmware needed for the particular chipset in that case.
-.Pp
-It is anticipated that the driver will support auto-loading via
-.Xr devmatch 8
-in the future and will need no configuration at all.
+firmware needed for the particular chipset.
 .Pp
 It is discouraged to load the driver from
 .Xr loader 8 .
@@ -90,3 +93,8 @@ Certainly.
 .Xr wlan 4 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.1 .
