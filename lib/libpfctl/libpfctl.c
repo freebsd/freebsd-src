@@ -946,6 +946,71 @@ pfctl_kill_states(int dev, const struct pfctl_kill *kill, unsigned int *killed)
 	return (_pfctl_clear_states(dev, kill, killed, DIOCKILLSTATESNV));
 }
 
+int
+pfctl_clear_rules(int dev, const char *anchorname)
+{
+	struct pfioc_trans trans;
+	struct pfioc_trans_e transe[2];
+	int ret;
+
+	bzero(&trans, sizeof(trans));
+	bzero(&transe, sizeof(transe));
+
+	transe[0].rs_num = PF_RULESET_SCRUB;
+	if (strlcpy(transe[0].anchor, anchorname, sizeof(transe[0].anchor))
+	    >= sizeof(transe[0].anchor))
+		return (E2BIG);
+
+	transe[1].rs_num = PF_RULESET_FILTER;
+	if (strlcpy(transe[1].anchor, anchorname, sizeof(transe[1].anchor))
+	    >= sizeof(transe[1].anchor))
+		return (E2BIG);
+
+	trans.size = 2;
+	trans.esize = sizeof(transe[0]);
+	trans.array = transe;
+
+	ret = ioctl(dev, DIOCXBEGIN, &trans);
+	if (ret != 0)
+		return (ret);
+	return ioctl(dev, DIOCXCOMMIT, &trans);
+}
+
+int
+pfctl_clear_nat(int dev, const char *anchorname)
+{
+	struct pfioc_trans trans;
+	struct pfioc_trans_e transe[3];
+	int ret;
+
+	bzero(&trans, sizeof(trans));
+	bzero(&transe, sizeof(transe));
+
+	transe[0].rs_num = PF_RULESET_NAT;
+	if (strlcpy(transe[0].anchor, anchorname, sizeof(transe[0].anchor))
+	    >= sizeof(transe[0].anchor))
+		return (E2BIG);
+
+	transe[1].rs_num = PF_RULESET_BINAT;
+	if (strlcpy(transe[1].anchor, anchorname, sizeof(transe[1].anchor))
+	    >= sizeof(transe[0].anchor))
+		return (E2BIG);
+
+	transe[2].rs_num = PF_RULESET_RDR;
+	if (strlcpy(transe[2].anchor, anchorname, sizeof(transe[2].anchor))
+	    >= sizeof(transe[2].anchor))
+		return (E2BIG);
+
+	trans.size = 3;
+	trans.esize = sizeof(transe[0]);
+	trans.array = transe;
+
+	ret = ioctl(dev, DIOCXBEGIN, &trans);
+	if (ret != 0)
+		return (ret);
+	return ioctl(dev, DIOCXCOMMIT, &trans);
+}
+
 static int
 pfctl_get_limit(int dev, const int index, uint *limit)
 {

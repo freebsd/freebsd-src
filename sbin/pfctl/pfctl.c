@@ -75,8 +75,8 @@ int	 pfctl_get_skip_ifaces(void);
 int	 pfctl_check_skip_ifaces(char *);
 int	 pfctl_adjust_skip_ifaces(struct pfctl *);
 int	 pfctl_clear_interface_flags(int, int);
-int	 pfctl_clear_rules(int, int, char *);
-int	 pfctl_clear_nat(int, int, char *);
+int	 pfctl_flush_rules(int, int, char *);
+int	 pfctl_flush_nat(int, int, char *);
 int	 pfctl_clear_altq(int, int);
 int	 pfctl_clear_src_nodes(int, int);
 int	 pfctl_clear_iface_states(int, const char *, int);
@@ -449,16 +449,12 @@ pfctl_clear_interface_flags(int dev, int opts)
 }
 
 int
-pfctl_clear_rules(int dev, int opts, char *anchorname)
+pfctl_flush_rules(int dev, int opts, char *anchorname)
 {
-	struct pfr_buffer t;
+	int ret;
 
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_add_trans(&t, PF_RULESET_SCRUB, anchorname) ||
-	    pfctl_add_trans(&t, PF_RULESET_FILTER, anchorname) ||
-	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
-	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+	ret = pfctl_clear_rules(dev, anchorname);
+	if (ret != 0)
 		err(1, "pfctl_clear_rules");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "rules cleared\n");
@@ -466,17 +462,12 @@ pfctl_clear_rules(int dev, int opts, char *anchorname)
 }
 
 int
-pfctl_clear_nat(int dev, int opts, char *anchorname)
+pfctl_flush_nat(int dev, int opts, char *anchorname)
 {
-	struct pfr_buffer t;
+	int ret;
 
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_add_trans(&t, PF_RULESET_NAT, anchorname) ||
-	    pfctl_add_trans(&t, PF_RULESET_BINAT, anchorname) ||
-	    pfctl_add_trans(&t, PF_RULESET_RDR, anchorname) ||
-	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
-	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+	ret = pfctl_clear_nat(dev, anchorname);
+	if (ret != 0)
 		err(1, "pfctl_clear_nat");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "nat cleared\n");
@@ -2628,10 +2619,10 @@ main(int argc, char *argv[])
 
 		switch (*clearopt) {
 		case 'r':
-			pfctl_clear_rules(dev, opts, anchorname);
+			pfctl_flush_rules(dev, opts, anchorname);
 			break;
 		case 'n':
-			pfctl_clear_nat(dev, opts, anchorname);
+			pfctl_flush_nat(dev, opts, anchorname);
 			break;
 		case 'q':
 			pfctl_clear_altq(dev, opts);
@@ -2646,8 +2637,8 @@ main(int argc, char *argv[])
 			pfctl_clear_stats(dev, opts);
 			break;
 		case 'a':
-			pfctl_clear_rules(dev, opts, anchorname);
-			pfctl_clear_nat(dev, opts, anchorname);
+			pfctl_flush_rules(dev, opts, anchorname);
+			pfctl_flush_nat(dev, opts, anchorname);
 			pfctl_clear_tables(anchorname, opts);
 			if (!*anchorname) {
 				pfctl_clear_altq(dev, opts);
