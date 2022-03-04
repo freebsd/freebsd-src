@@ -4647,7 +4647,7 @@ If set to
 .Dq Li YES ,
 enable auto-loading of encryption keys for encrypted ZFS datasets.
 For every dataset the script will first load the appropriate encryption key
-and the attempt to unlock the dataset.
+and then attempt to unlock the dataset.
 .Pp
 The script operates only on datasets which are encrypted with
 ZFS native encryption
