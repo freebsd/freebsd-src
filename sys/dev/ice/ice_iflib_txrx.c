@@ -415,9 +415,13 @@ ice_ift_queue_select(void *arg, struct mbuf *m)
 	u16 tc_base_queue, tc_qcount;
 	u8 up, tc;
 
+#ifdef ALTQ
+	/* Included to match default iflib behavior */
 	/* Only go out on default queue if ALTQ is enabled */
+	struct ifnet *ifp = (struct ifnet *)iflib_get_ifp(sc->ctx);
 	if (ALTQ_IS_ENABLED(&ifp->if_snd))
 		return (0);
+#endif
 
 	if (!ice_test_state(&sc->state, ICE_STATE_MULTIPLE_TCS)) {
 		if (M_HASHTYPE_GET(m)) {
