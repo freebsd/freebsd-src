@@ -174,8 +174,6 @@ static SYSCTL_NODE(_debug_umtx, OID_AUTO, chains, CTLFLAG_RD | CTLFLAG_MPSAFE, 0
 
 static inline void umtx_abs_timeout_init2(struct umtx_abs_timeout *timo,
     const struct _umtx_time *umtxtime);
-static int umtx_abs_timeout_gethz(struct umtx_abs_timeout *timo);
-static inline void umtx_abs_timeout_update(struct umtx_abs_timeout *timo);
 
 static void umtx_shm_init(void);
 static void umtxq_sysinit(void *);
@@ -683,20 +681,14 @@ umtx_abs_timeout_init(struct umtx_abs_timeout *timo, int clockid,
 	timo->clockid = clockid;
 	if (!absolute) {
 		timo->is_abs_real = false;
-		umtx_abs_timeout_update(timo);
+		kern_clock_gettime(curthread, timo->clockid, &timo->cur);
 		timespecadd(&timo->cur, timeout, &timo->end);
 	} else {
 		timo->end = *timeout;
 		timo->is_abs_real = clockid == CLOCK_REALTIME ||
 		    clockid == CLOCK_REALTIME_FAST ||
-		    clockid == CLOCK_REALTIME_PRECISE;
-		/*
-		 * If is_abs_real, umtxq_sleep will read the clock
-		 * after setting td_rtcgen; otherwise, read it here.
-		 */
-		if (!timo->is_abs_real) {
-			umtx_abs_timeout_update(timo);
-		}
+		    clockid == CLOCK_REALTIME_PRECISE ||
+		    clockid == CLOCK_SECOND;
 	}
 }
 
@@ -709,22 +701,71 @@ umtx_abs_timeout_init2(struct umtx_abs_timeout *timo,
 	    (umtxtime->_flags & UMTX_ABSTIME) != 0, &umtxtime->_timeout);
 }
 
-static void
-umtx_abs_timeout_update(struct umtx_abs_timeout *timo)
-{
-
-	kern_clock_gettime(curthread, timo->clockid, &timo->cur);
-}
-
 static int
-umtx_abs_timeout_gethz(struct umtx_abs_timeout *timo)
+umtx_abs_timeout_getsbt(struct umtx_abs_timeout *timo, sbintime_t *sbt,
+    int *flags)
 {
+	struct bintime bt, bbt;
 	struct timespec tts;
 
-	if (timespeccmp(&timo->end, &timo->cur, <=))
-		return (-1);
-	timespecsub(&timo->end, &timo->cur, &tts);
-	return (tstohz(&tts));
+	switch (timo->clockid) {
+
+	/* Clocks that can be converted into absolute time. */
+	case CLOCK_REALTIME:
+	case CLOCK_REALTIME_PRECISE:
+	case CLOCK_REALTIME_FAST:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_PRECISE:
+	case CLOCK_MONOTONIC_FAST:
+	case CLOCK_UPTIME:
+	case CLOCK_UPTIME_PRECISE:
+	case CLOCK_UPTIME_FAST:
+	case CLOCK_SECOND:
+		timespec2bintime(&timo->end, &bt);
+		switch (timo->clockid) {
+		case CLOCK_REALTIME:
+		case CLOCK_REALTIME_PRECISE:
+		case CLOCK_REALTIME_FAST:
+		case CLOCK_SECOND:
+			getboottimebin(&bbt);
+			bintime_sub(&bt, &bbt);
+			break;
+		}
+		if (bt.sec < 0)
+			return (ETIMEDOUT);
+		if (bt.sec >= (SBT_MAX >> 32)) {
+			*sbt = 0;
+			*flags = 0;
+			return (0);
+		}
+		*sbt = bttosbt(bt);
+		switch (timo->clockid) {
+		case CLOCK_REALTIME_FAST:
+		case CLOCK_MONOTONIC_FAST:
+		case CLOCK_UPTIME_FAST:
+			*sbt += tc_tick_sbt;
+			break;
+		case CLOCK_SECOND:
+			*sbt += SBT_1S;
+			break;
+		}
+		*flags = C_ABSOLUTE;
+		return (0);
+
+	/* Clocks that has to be periodically polled. */
+	case CLOCK_VIRTUAL:
+	case CLOCK_PROF:
+	case CLOCK_THREAD_CPUTIME_ID:
+	case CLOCK_PROCESS_CPUTIME_ID:
+	default:
+		kern_clock_gettime(curthread, timo->clockid, &timo->cur);
+		if (timespeccmp(&timo->end, &timo->cur, <=))
+			return (ETIMEDOUT);
+		timespecsub(&timo->end, &timo->cur, &tts);
+		*sbt = tick_sbt * tstohz(&tts);
+		*flags = C_HARDCLOCK;
+		return (0);
+	}
 }
 
 static uint32_t
@@ -746,15 +787,11 @@ umtx_unlock_val(uint32_t flags, bool rb)
  */
 int
 umtxq_sleep(struct umtx_q *uq, const char *wmesg,
-    struct umtx_abs_timeout *abstime)
+    struct umtx_abs_timeout *timo)
 {
 	struct umtxq_chain *uc;
-	int error, timo;
-
-	if (abstime != NULL && abstime->is_abs_real) {
-		curthread->td_rtcgen = atomic_load_acq_int(&rtc_generation);
-		umtx_abs_timeout_update(abstime);
-	}
+	sbintime_t sbt = 0;
+	int error, flags = 0;
 
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
@@ -763,26 +800,22 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg,
 			error = 0;
 			break;
 		}
-		if (abstime != NULL) {
-			timo = umtx_abs_timeout_gethz(abstime);
-			if (timo < 0) {
-				error = ETIMEDOUT;
-				break;
-			}
-		} else
-			timo = 0;
-		error = msleep(uq, &uc->uc_lock, PCATCH | PDROP, wmesg, timo);
-		if (error == EINTR || error == ERESTART) {
-			umtxq_lock(&uq->uq_key);
-			break;
-		}
-		if (abstime != NULL) {
-			if (abstime->is_abs_real)
+		if (timo != NULL) {
+			if (timo->is_abs_real)
 				curthread->td_rtcgen =
 				    atomic_load_acq_int(&rtc_generation);
-			umtx_abs_timeout_update(abstime);
+			error = umtx_abs_timeout_getsbt(timo, &sbt, &flags);
+			if (error != 0)
+				break;
 		}
-		umtxq_lock(&uq->uq_key);
+		error = msleep_sbt(uq, &uc->uc_lock, PCATCH, wmesg,
+		    sbt, 0, flags);
+		if (error == EINTR || error == ERESTART)
+			break;
+		if (error == EWOULDBLOCK && (flags & C_ABSOLUTE) != 0) {
+			error = ETIMEDOUT;
+			break;
+		}
 	}
 
 	curthread->td_rtcgen = 0;
@@ -3667,7 +3700,8 @@ again:
 			if (error == ERESTART)
 				error = EINTR;
 			if (error == EINTR) {
-				umtx_abs_timeout_update(&timo);
+				kern_clock_gettime(curthread, timo.clockid,
+				    &timo.cur);
 				timespecsub(&timo.end, &timo.cur,
 				    &timeout->_timeout);
 			}
