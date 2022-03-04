@@ -179,7 +179,7 @@ static void ixgbe_disable_rx_drop(struct ixgbe_softc *);
 static void ixgbe_add_hw_stats(struct ixgbe_softc *);
 static int  ixgbe_set_flowcntl(struct ixgbe_softc *, int);
 static int  ixgbe_set_advertise(struct ixgbe_softc *, int);
-static int  ixgbe_get_advertise(struct ixgbe_softc *);
+static int  ixgbe_get_default_advertise(struct ixgbe_softc *);
 static void ixgbe_setup_vlan_hw_support(if_ctx_t);
 static void ixgbe_config_gpie(struct ixgbe_softc *);
 static void ixgbe_config_delay_values(struct ixgbe_softc *);
@@ -1110,7 +1110,7 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 	/* Set an initial dmac value */
 	sc->dmac = 0;
 	/* Set initial advertised speeds (if applicable) */
-	sc->advertise = ixgbe_get_advertise(sc);
+	sc->advertise = ixgbe_get_default_advertise(sc);
 
 	if (sc->feat_cap & IXGBE_FEATURE_SRIOV)
 		ixgbe_define_iov_schemas(dev, &error);
@@ -1275,6 +1275,11 @@ ixgbe_add_media_types(if_ctx_t ctx)
 	if (layer & IXGBE_PHYSICAL_LAYER_10BASE_T)
 		ifmedia_add(sc->media, IFM_ETHER | IFM_10_T, 0, NULL);
 
+	if (hw->mac.type == ixgbe_mac_X550) {
+		ifmedia_add(sc->media, IFM_ETHER | IFM_2500_T, 0, NULL);
+		ifmedia_add(sc->media, IFM_ETHER | IFM_5000_T, 0, NULL);
+	}
+
 	if (layer & IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU ||
 	    layer & IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA)
 		ifmedia_add(sc->media, IFM_ETHER | IFM_10G_TWINAX, 0,
@@ -1396,6 +1401,36 @@ ixgbe_config_link(if_ctx_t ctx)
 			    &negotiate);
 		if (err)
 			return;
+
+		if (hw->mac.type == ixgbe_mac_X550 &&
+		    hw->phy.autoneg_advertised == 0) {
+			/*
+			 * 2.5G and 5G autonegotiation speeds on X550
+			 * are disabled by default due to reported
+			 * interoperability issues with some switches.
+			 *
+			 * The second condition checks if any operations
+			 * involving setting autonegotiation speeds have
+			 * been performed prior to this ixgbe_config_link()
+			 * call.
+			 *
+			 * If hw->phy.autoneg_advertised does not
+			 * equal 0, this means that the user might have
+			 * set autonegotiation speeds via the sysctl
+			 * before bringing the interface up. In this
+			 * case, we should not disable 2.5G and 5G
+			 * since that speeds might be selected by the
+			 * user.
+			 *
+			 * Otherwise (i.e. if hw->phy.autoneg_advertised
+			 * is set to 0), it is the first time we set
+			 * autonegotiation preferences and the default
+			 * set of speeds should exclude 2.5G and 5G.
+			 */
+			autoneg &= ~(IXGBE_LINK_SPEED_2_5GB_FULL |
+			    IXGBE_LINK_SPEED_5GB_FULL);
+		}
+
 		if (hw->mac.ops.setup_link)
 			err = hw->mac.ops.setup_link(hw, autoneg,
 			    sc->link_up);
@@ -2159,6 +2194,15 @@ ixgbe_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_10_T | IFM_FDX;
 			break;
 		}
+	if (hw->mac.type == ixgbe_mac_X550)
+		switch (sc->link_speed) {
+		case IXGBE_LINK_SPEED_5GB_FULL:
+			ifmr->ifm_active |= IFM_5000_T | IFM_FDX;
+			break;
+		case IXGBE_LINK_SPEED_2_5GB_FULL:
+			ifmr->ifm_active |= IFM_2500_T | IFM_FDX;
+			break;
+		}
 	if (layer & IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU ||
 	    layer & IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA)
 		switch (sc->link_speed) {
@@ -2335,6 +2379,12 @@ ixgbe_if_media_change(if_ctx_t ctx)
 	case IFM_10G_TWINAX:
 		speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		break;
+	case IFM_5000_T:
+		speed |= IXGBE_LINK_SPEED_5GB_FULL;
+		break;
+	case IFM_2500_T:
+		speed |= IXGBE_LINK_SPEED_2_5GB_FULL;
+		break;
 	case IFM_100_TX:
 		speed |= IXGBE_LINK_SPEED_100_FULL;
 		break;
@@ -2348,10 +2398,12 @@ ixgbe_if_media_change(if_ctx_t ctx)
 	hw->mac.autotry_restart = true;
 	hw->mac.ops.setup_link(hw, speed, true);
 	sc->advertise =
-	    ((speed & IXGBE_LINK_SPEED_10GB_FULL) ? 4 : 0) |
-	    ((speed & IXGBE_LINK_SPEED_1GB_FULL)  ? 2 : 0) |
-	    ((speed & IXGBE_LINK_SPEED_100_FULL)  ? 1 : 0) |
-	    ((speed & IXGBE_LINK_SPEED_10_FULL)   ? 8 : 0);
+	    ((speed & IXGBE_LINK_SPEED_10GB_FULL)  ? 0x4  : 0) |
+	    ((speed & IXGBE_LINK_SPEED_5GB_FULL)   ? 0x20 : 0) |
+	    ((speed & IXGBE_LINK_SPEED_2_5GB_FULL) ? 0x10 : 0) |
+	    ((speed & IXGBE_LINK_SPEED_1GB_FULL)   ? 0x2  : 0) |
+	    ((speed & IXGBE_LINK_SPEED_100_FULL)   ? 0x1  : 0) |
+	    ((speed & IXGBE_LINK_SPEED_10_FULL)    ? 0x8  : 0);
 
 	return (0);
 
@@ -4015,10 +4067,13 @@ ixgbe_sysctl_advertise(SYSCTL_HANDLER_ARGS)
  * ixgbe_set_advertise - Control advertised link speed
  *
  *   Flags:
- *     0x1 - advertise 100 Mb
- *     0x2 - advertise 1G
- *     0x4 - advertise 10G
- *     0x8 - advertise 10 Mb (yes, Mb)
+ *     0x1  - advertise 100 Mb
+ *     0x2  - advertise 1G
+ *     0x4  - advertise 10G
+ *     0x8  - advertise 10 Mb (yes, Mb)
+ *     0x10 - advertise 2.5G (disabled by default)
+ *     0x20 - advertise 5G (disabled by default)
+ *
  ************************************************************************/
 static int
 ixgbe_set_advertise(struct ixgbe_softc *sc, int advertise)
@@ -4046,8 +4101,8 @@ ixgbe_set_advertise(struct ixgbe_softc *sc, int advertise)
 		return (EINVAL);
 	}
 
-	if (advertise < 0x1 || advertise > 0xF) {
-		device_printf(dev, "Invalid advertised speed; valid modes are 0x1 through 0xF\n");
+	if (advertise < 0x1 || advertise > 0x3F) {
+		device_printf(dev, "Invalid advertised speed; valid modes are 0x1 through 0x3F\n");
 		return (EINVAL);
 	}
 
@@ -4089,6 +4144,20 @@ ixgbe_set_advertise(struct ixgbe_softc *sc, int advertise)
 		}
 		speed |= IXGBE_LINK_SPEED_10_FULL;
 	}
+	if (advertise & 0x10) {
+		if (!(link_caps & IXGBE_LINK_SPEED_2_5GB_FULL)) {
+			device_printf(dev, "Interface does not support 2.5G advertised speed\n");
+			return (EINVAL);
+		}
+		speed |= IXGBE_LINK_SPEED_2_5GB_FULL;
+	}
+	if (advertise & 0x20) {
+		if (!(link_caps & IXGBE_LINK_SPEED_5GB_FULL)) {
+			device_printf(dev, "Interface does not support 5G advertised speed\n");
+			return (EINVAL);
+		}
+		speed |= IXGBE_LINK_SPEED_5GB_FULL;
+	}
 
 	hw->mac.autotry_restart = true;
 	hw->mac.ops.setup_link(hw, speed, true);
@@ -4098,7 +4167,7 @@ ixgbe_set_advertise(struct ixgbe_softc *sc, int advertise)
 } /* ixgbe_set_advertise */
 
 /************************************************************************
- * ixgbe_get_advertise - Get current advertised speed settings
+ * ixgbe_get_default_advertise - Get default advertised speed settings
  *
  *   Formatted for sysctl usage.
  *   Flags:
@@ -4106,9 +4175,11 @@ ixgbe_set_advertise(struct ixgbe_softc *sc, int advertise)
  *     0x2 - advertise 1G
  *     0x4 - advertise 10G
  *     0x8 - advertise 10 Mb (yes, Mb)
+ *     0x10 - advertise 2.5G (disabled by default)
+ *     0x20 - advertise 5G (disabled by default)
  ************************************************************************/
 static int
-ixgbe_get_advertise(struct ixgbe_softc *sc)
+ixgbe_get_default_advertise(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw  *hw = &sc->hw;
 	int              speed;
@@ -4128,14 +4199,26 @@ ixgbe_get_advertise(struct ixgbe_softc *sc)
 	if (err != IXGBE_SUCCESS)
 		return (0);
 
+	if (hw->mac.type == ixgbe_mac_X550) {
+		/*
+		 * 2.5G and 5G autonegotiation speeds on X550
+		 * are disabled by default due to reported
+		 * interoperability issues with some switches.
+		 */
+		link_caps &= ~(IXGBE_LINK_SPEED_2_5GB_FULL |
+		    IXGBE_LINK_SPEED_5GB_FULL);
+	}
+
 	speed =
-	    ((link_caps & IXGBE_LINK_SPEED_10GB_FULL) ? 4 : 0) |
-	    ((link_caps & IXGBE_LINK_SPEED_1GB_FULL)  ? 2 : 0) |
-	    ((link_caps & IXGBE_LINK_SPEED_100_FULL)  ? 1 : 0) |
-	    ((link_caps & IXGBE_LINK_SPEED_10_FULL)   ? 8 : 0);
+	    ((link_caps & IXGBE_LINK_SPEED_10GB_FULL)  ? 0x4  : 0) |
+	    ((link_caps & IXGBE_LINK_SPEED_5GB_FULL)   ? 0x20 : 0) |
+	    ((link_caps & IXGBE_LINK_SPEED_2_5GB_FULL) ? 0x10 : 0) |
+	    ((link_caps & IXGBE_LINK_SPEED_1GB_FULL)   ? 0x2  : 0) |
+	    ((link_caps & IXGBE_LINK_SPEED_100_FULL)   ? 0x1  : 0) |
+	    ((link_caps & IXGBE_LINK_SPEED_10_FULL)    ? 0x8  : 0);
 
 	return speed;
-} /* ixgbe_get_advertise */
+} /* ixgbe_get_default_advertise */
 
 /************************************************************************
  * ixgbe_sysctl_dmac - Manage DMA Coalescing
