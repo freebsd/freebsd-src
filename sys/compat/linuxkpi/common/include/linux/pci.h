@@ -41,6 +41,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/module.h>
 #include <sys/nv.h>
 #include <sys/pciio.h>
 #include <sys/rman.h>
@@ -69,7 +70,26 @@ struct pci_device_id {
 	uintptr_t	driver_data;
 };
 
-#define	MODULE_DEVICE_TABLE(bus, table)
+/* Linux has an empty element at the end of the ID table -> nitems() - 1. */
+#define	MODULE_DEVICE_TABLE(_bus, _table)				\
+									\
+static device_method_t _ ## _bus ## _ ## _table ## _methods[] = {	\
+	DEVMETHOD_END							\
+};									\
+									\
+static driver_t _ ## _bus ## _ ## _table ## _driver = {			\
+	"lkpi_" #_bus #_table,						\
+	_ ## _bus ## _ ## _table ## _methods,				\
+	0								\
+};									\
+									\
+static devclass_t _ ## _bus ## _ ## _table ## _devclass;		\
+									\
+DRIVER_MODULE(lkpi_ ## _table, pci, _ ## _bus ## _ ## _table ## _driver,\
+	_ ## _bus ## _ ## _table ## _devclass, 0, 0);			\
+									\
+MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
+    _bus, lkpi_ ## _table, _table, nitems(_table) - 1)
 
 #define	PCI_ANY_ID			-1U
 
