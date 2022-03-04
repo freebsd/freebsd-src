@@ -44,7 +44,6 @@
 #include <sys/nv.h>
 #include <sys/pciio.h>
 #include <sys/rman.h>
-#include <sys/bus.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_private.h>
