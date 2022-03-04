@@ -662,6 +662,28 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 }
 
 int
+pfctl_get_rules_info(int dev, struct pfctl_rules_info *rules, uint32_t ruleset,
+    const char *path)
+{
+	struct pfioc_rule pr;
+	int ret;
+
+	bzero(&pr, sizeof(pr));
+	if (strlcpy(pr.anchor, path, sizeof(pr.anchor)) >= sizeof(pr.anchor))
+		return (E2BIG);
+
+	pr.rule.action = ruleset;
+	ret = ioctl(dev, DIOCGETRULES, &pr);
+	if (ret != 0)
+		return (ret);
+
+	rules->nr = pr.nr;
+	rules->ticket = pr.ticket;
+
+	return (0);
+}
+
+int
 pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket, const char *anchor,
     uint32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
 {
