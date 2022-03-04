@@ -393,6 +393,7 @@ struct ixgbe_softc {
 	u16			num_segs;
 	u32			link_speed;
 	bool			link_up;
+	bool			link_enabled;
 	u32			vector;
 	u16			dmac;
 	u32			phy_layer;

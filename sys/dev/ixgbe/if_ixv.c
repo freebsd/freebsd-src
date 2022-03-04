@@ -463,6 +463,13 @@ ixv_if_attach_pre(if_ctx_t ctx)
 		goto err_out;
 	}
 
+	/* Check if VF was disabled by PF */
+	error = hw->mac.ops.get_link_state(hw, &sc->link_enabled);
+	if (error) {
+		/* PF is not capable of controlling VF state. Enable the link. */
+		sc->link_enabled = true;
+	}
+
 	/* If no mac address was assigned, make a random one */
 	if (!ixv_check_ether_addr(hw->mac.addr)) {
 		ether_gen_addr(iflib_get_ifp(ctx),
@@ -648,6 +655,13 @@ ixv_if_init(if_ctx_t ctx)
 	ixv_init_stats(sc);
 
 	/* Config/Enable Link */
+	error = hw->mac.ops.get_link_state(hw, &sc->link_enabled);
+	if (error) {
+		/* PF is not capable of controlling VF state. Enable the link. */
+		sc->link_enabled = true;
+	} else if (sc->link_enabled == false)
+		device_printf(dev, "VF is disabled by PF\n");
+
 	hw->mac.ops.check_link(hw, &sc->link_speed, &sc->link_up,
 	    false);
 
@@ -805,7 +819,8 @@ static int
 ixv_negotiate_api(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
-	int             mbx_api[] = { ixgbe_mbox_api_11,
+	int             mbx_api[] = { ixgbe_mbox_api_12,
+	                              ixgbe_mbox_api_11,
 	                              ixgbe_mbox_api_10,
 	                              ixgbe_mbox_api_unknown };
 	int             i = 0;
@@ -914,7 +929,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 		iflib_get_ifp(ctx)->if_init(ctx);
 	}
 
-	if (sc->link_up) {
+	if (sc->link_up && sc->link_enabled) {
 		if (sc->link_active == false) {
 			if (bootverbose)
 				device_printf(dev, "Link is up %d Gbps %s \n",
