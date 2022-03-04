@@ -12,10 +12,8 @@ command="/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 
 load_rc_config $name
-params="${ggated_params}"
-config="${ggated_config:-/etc/gg.exports}"
-required_files="${config}"
+required_files="${ggated_config}"
 
-command_args="${params} ${config}"
+command_args="${ggated_config}"
 
 run_rc_command "$1"
