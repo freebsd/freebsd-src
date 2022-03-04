@@ -96,10 +96,20 @@ enum ice_sw_tunnel_type {
 	ICE_SW_TUN_IPV6_GTP_IPV4_UDP,
 	ICE_SW_TUN_IPV6_GTP_IPV6_TCP,
 	ICE_SW_TUN_IPV6_GTP_IPV6_UDP,
+
+	/* following adds support for GTP, just using inner protocols,
+	 * outer L3 and L4 protocols can be anything
+	 */
+	ICE_SW_TUN_GTP_IPV4_TCP,
+	ICE_SW_TUN_GTP_IPV4_UDP,
+	ICE_SW_TUN_GTP_IPV6_TCP,
+	ICE_SW_TUN_GTP_IPV6_UDP,
 	ICE_SW_TUN_IPV4_GTPU_IPV4,
 	ICE_SW_TUN_IPV4_GTPU_IPV6,
 	ICE_SW_TUN_IPV6_GTPU_IPV4,
 	ICE_SW_TUN_IPV6_GTPU_IPV6,
+	ICE_SW_TUN_GTP_IPV4,
+	ICE_SW_TUN_GTP_IPV6,
 	ICE_ALL_TUNNELS /* All tunnel types including NVGRE */
 };
 
@@ -127,8 +137,10 @@ enum ice_prot_id {
 	ICE_PROT_MPLS_IL	= 29,
 	ICE_PROT_IPV4_OF_OR_S	= 32,
 	ICE_PROT_IPV4_IL	= 33,
+	ICE_PROT_IPV4_IL_IL	= 34,
 	ICE_PROT_IPV6_OF_OR_S	= 40,
 	ICE_PROT_IPV6_IL	= 41,
+	ICE_PROT_IPV6_IL_IL	= 42,
 	ICE_PROT_IPV6_FRAG	= 47,
 	ICE_PROT_TCP_IL		= 49,
 	ICE_PROT_UDP_OF		= 52,
@@ -205,8 +217,8 @@ struct ice_ether_vlan_hdr {
 };
 
 struct ice_vlan_hdr {
-	__be16 vlan;
 	__be16 type;
+	__be16 vlan;
 };
 
 struct ice_ipv4_hdr {

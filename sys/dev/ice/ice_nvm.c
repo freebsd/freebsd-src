@@ -32,6 +32,8 @@
 
 #include "ice_common.h"
 
+#define GL_MNG_DEF_DEVID 0x000B611C
+
 /**
  * ice_aq_read_nvm
  * @hw: pointer to the HW struct
@@ -584,6 +586,42 @@ ice_read_nvm_module(struct ice_hw *hw, enum ice_bank_select bank, u32 offset, u1
 }
 
 /**
+ * ice_get_nvm_css_hdr_len - Read the CSS header length from the NVM CSS header
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash bank
+ * @hdr_len: storage for header length in words
+ *
+ * Read the CSS header length from the NVM CSS header and add the Authentication
+ * header size, and then convert to words.
+ */
+static enum ice_status
+ice_get_nvm_css_hdr_len(struct ice_hw *hw, enum ice_bank_select bank,
+			u32 *hdr_len)
+{
+	u16 hdr_len_l, hdr_len_h;
+	enum ice_status status;
+	u32 hdr_len_dword;
+
+	status = ice_read_nvm_module(hw, bank, ICE_NVM_CSS_HDR_LEN_L,
+				     &hdr_len_l);
+	if (status)
+		return status;
+
+	status = ice_read_nvm_module(hw, bank, ICE_NVM_CSS_HDR_LEN_H,
+				     &hdr_len_h);
+	if (status)
+		return status;
+
+	/* CSS header length is in DWORD, so convert to words and add
+	 * authentication header size
+	 */
+	hdr_len_dword = hdr_len_h << 16 | hdr_len_l;
+	*hdr_len = (hdr_len_dword * 2) + ICE_NVM_AUTH_HEADER_LEN;
+
+	return ICE_SUCCESS;
+}
+
+/**
  * ice_read_nvm_sr_copy - Read a word from the Shadow RAM copy in the NVM bank
  * @hw: pointer to the HW structure
  * @bank: whether to read from the active or inactive NVM module
@@ -596,7 +634,16 @@ ice_read_nvm_module(struct ice_hw *hw, enum ice_bank_select bank, u32 offset, u1
 static enum ice_status
 ice_read_nvm_sr_copy(struct ice_hw *hw, enum ice_bank_select bank, u32 offset, u16 *data)
 {
-	return ice_read_nvm_module(hw, bank, ICE_NVM_SR_COPY_WORD_OFFSET + offset, data);
+	enum ice_status status;
+	u32 hdr_len;
+
+	status = ice_get_nvm_css_hdr_len(hw, bank, &hdr_len);
+	if (status)
+		return status;
+
+	hdr_len = ROUND_UP(hdr_len, 32);
+
+	return ice_read_nvm_module(hw, bank, hdr_len + offset, data);
 }
 
 /**
@@ -889,22 +936,26 @@ enum ice_status ice_get_inactive_nvm_ver(struct ice_hw *hw, struct ice_nvm_info 
  */
 static enum ice_status ice_get_orom_srev(struct ice_hw *hw, enum ice_bank_select bank, u32 *srev)
 {
+	u32 orom_size_word = hw->flash.banks.orom_size / 2;
 	enum ice_status status;
 	u16 srev_l, srev_h;
 	u32 css_start;
+	u32 hdr_len;
 
-	if (hw->flash.banks.orom_size < ICE_NVM_OROM_TRAILER_LENGTH) {
+	status = ice_get_nvm_css_hdr_len(hw, bank, &hdr_len);
+	if (status)
+		return status;
+
+	if (orom_size_word < hdr_len) {
 		ice_debug(hw, ICE_DBG_NVM, "Unexpected Option ROM Size of %u\n",
 			  hw->flash.banks.orom_size);
 		return ICE_ERR_CFG;
 	}
 
 	/* calculate how far into the Option ROM the CSS header starts. Note
-	 * that ice_read_orom_module takes a word offset so we need to
-	 * divide by 2 here.
+	 * that ice_read_orom_module takes a word offset
 	 */
-	css_start = (hw->flash.banks.orom_size - ICE_NVM_OROM_TRAILER_LENGTH) / 2;
-
+	css_start = orom_size_word - hdr_len;
 	status = ice_read_orom_module(hw, bank, css_start + ICE_NVM_CSS_SREV_L, &srev_l);
 	if (status)
 		return status;
@@ -956,7 +1007,6 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 
 		/* Verify that the simple checksum is zero */
 		for (i = 0; i < sizeof(tmp); i++)
-			/* cppcheck-suppress objectIndex */
 			sum += ((u8 *)&tmp)[i];
 
 		if (sum) {
@@ -1908,6 +1958,7 @@ ice_validate_nvm_rw_reg(struct ice_nvm_access_cmd *cmd)
 	case GLGEN_CSR_DEBUG_C:
 	case GLGEN_RSTAT:
 	case GLPCI_LBARCTRL:
+	case GL_MNG_DEF_DEVID:
 	case GLNVM_GENS:
 	case GLNVM_FLA:
 	case PF_FUNC_RID:
@@ -1916,11 +1967,11 @@ ice_validate_nvm_rw_reg(struct ice_nvm_access_cmd *cmd)
 		break;
 	}
 
-	for (i = 0; i <= ICE_NVM_ACCESS_GL_HIDA_MAX; i++)
+	for (i = 0; i <= GL_HIDA_MAX_INDEX; i++)
 		if (offset == (u32)GL_HIDA(i))
 			return ICE_SUCCESS;
 
-	for (i = 0; i <= ICE_NVM_ACCESS_GL_HIBA_MAX; i++)
+	for (i = 0; i <= GL_HIBA_MAX_INDEX; i++)
 		if (offset == (u32)GL_HIBA(i))
 			return ICE_SUCCESS;
 

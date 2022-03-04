@@ -33,7 +33,7 @@
 #include "ice_common.h"
 
 /**
- * ice_pkg_supports_dvm - determine if DDP supports Double VLAN mode (DVM)
+ * ice_pkg_get_supported_vlan_mode - chk if DDP supports Double VLAN mode (DVM)
  * @hw: pointer to the HW struct
  * @dvm: output variable to determine if DDP supports DVM(true) or SVM(false)
  */
@@ -152,9 +152,50 @@ bool ice_is_dvm_ena(struct ice_hw *hw)
  * configuration lock has been released because all ports on a device need to
  * cache the VLAN mode.
  */
-void ice_cache_vlan_mode(struct ice_hw *hw)
+static void ice_cache_vlan_mode(struct ice_hw *hw)
 {
 	hw->dvm_ena = ice_aq_is_dvm_ena(hw) ? true : false;
+}
+
+/**
+ * ice_pkg_supports_dvm - find out if DDP supports DVM
+ * @hw: pointer to the HW structure
+ */
+static bool ice_pkg_supports_dvm(struct ice_hw *hw)
+{
+	enum ice_status status;
+	bool pkg_supports_dvm;
+
+	status = ice_pkg_get_supported_vlan_mode(hw, &pkg_supports_dvm);
+	if (status) {
+		ice_debug(hw, ICE_DBG_PKG, "Failed to get supported VLAN mode, status %d\n",
+			  status);
+		return false;
+	}
+
+	return pkg_supports_dvm;
+}
+
+/**
+ * ice_fw_supports_dvm - find out if FW supports DVM
+ * @hw: pointer to the HW structure
+ */
+static bool ice_fw_supports_dvm(struct ice_hw *hw)
+{
+	struct ice_aqc_get_vlan_mode get_vlan_mode = { 0 };
+	enum ice_status status;
+
+	/* If firmware returns success, then it supports DVM, else it only
+	 * supports SVM
+	 */
+	status = ice_aq_get_vlan_mode(hw, &get_vlan_mode);
+	if (status) {
+		ice_debug(hw, ICE_DBG_NVM, "Failed to get VLAN mode, status %d\n",
+			  status);
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -169,27 +210,13 @@ void ice_cache_vlan_mode(struct ice_hw *hw)
  */
 static bool ice_is_dvm_supported(struct ice_hw *hw)
 {
-	struct ice_aqc_get_vlan_mode get_vlan_mode = { 0 };
-	enum ice_status status;
-	bool pkg_supports_dvm;
-
-	status = ice_pkg_get_supported_vlan_mode(hw, &pkg_supports_dvm);
-	if (status) {
-		ice_debug(hw, ICE_DBG_PKG, "Failed to get supported VLAN mode, status %d\n",
-			  status);
+	if (!ice_pkg_supports_dvm(hw)) {
+		ice_debug(hw, ICE_DBG_PKG, "DDP doesn't support DVM\n");
 		return false;
 	}
 
-	if (!pkg_supports_dvm)
-		return false;
-
-	/* If firmware returns success, then it supports DVM, else it only
-	 * supports SVM
-	 */
-	status = ice_aq_get_vlan_mode(hw, &get_vlan_mode);
-	if (status) {
-		ice_debug(hw, ICE_DBG_NVM, "Failed to get VLAN mode, status %d\n",
-			  status);
+	if (!ice_fw_supports_dvm(hw)) {
+		ice_debug(hw, ICE_DBG_PKG, "FW doesn't support DVM\n");
 		return false;
 	}
 
@@ -273,9 +300,26 @@ static enum ice_status ice_set_svm(struct ice_hw *hw)
  */
 enum ice_status ice_set_vlan_mode(struct ice_hw *hw)
 {
-
 	if (!ice_is_dvm_supported(hw))
 		return ICE_SUCCESS;
 
 	return ice_set_svm(hw);
+}
+
+/**
+ * ice_post_pkg_dwnld_vlan_mode_cfg - configure VLAN mode after DDP download
+ * @hw: pointer to the HW structure
+ *
+ * This function is meant to configure any VLAN mode specific functionality
+ * after the global configuration lock has been released and the DDP has been
+ * downloaded.
+ *
+ * Since only one PF downloads the DDP and configures the VLAN mode there needs
+ * to be a way to configure the other PFs after the DDP has been downloaded and
+ * the global configuration lock has been released. All such code should go in
+ * this function.
+ */
+void ice_post_pkg_dwnld_vlan_mode_cfg(struct ice_hw *hw)
+{
+	ice_cache_vlan_mode(hw);
 }

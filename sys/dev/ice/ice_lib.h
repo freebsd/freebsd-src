@@ -151,6 +151,8 @@ struct ice_bar_info {
 
 #define ICE_MSIX_BAR		3
 
+#define ICE_MAX_DCB_TCS		8
+
 #define ICE_DEFAULT_DESC_COUNT	1024
 #define ICE_MAX_DESC_COUNT	8160
 #define ICE_MIN_DESC_COUNT	64
@@ -199,7 +201,7 @@ struct ice_bar_info {
 #define ICE_NVM_ACCESS \
 	(((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 5)
 
-#define ICE_AQ_LEN		512
+#define ICE_AQ_LEN		1023
 #define ICE_MBXQ_LEN		512
 #define ICE_SBQ_LEN		512
 
@@ -245,6 +247,11 @@ struct ice_bar_info {
 #define ICE_MIN_MTU 112
 
 #define ICE_DEFAULT_VF_QUEUES	4
+
+/*
+ * The maximum number of RX queues allowed per TC in a VSI.
+ */
+#define ICE_MAX_RXQS_PER_TC	256
 
 /*
  * There are three settings that can be updated independently or
@@ -464,6 +471,19 @@ struct ice_pf_sw_stats {
 };
 
 /**
+ * @struct ice_tc_info
+ * @brief Traffic class information for a VSI
+ *
+ * Stores traffic class information used in configuring
+ * a VSI.
+ */
+struct ice_tc_info {
+	u16 qoffset;	/* Offset in VSI queue space */
+	u16 qcount_tx;	/* TX queues for this Traffic Class */
+	u16 qcount_rx;	/* RX queues */
+};
+
+/**
  * @struct ice_vsi
  * @brief VSI structure
  *
@@ -504,6 +524,12 @@ struct ice_vsi {
 
 	struct ice_aqc_vsi_props info;
 
+	/* DCB configuration */
+	u8 num_tcs;	/* Total number of enabled TCs */
+	u16 tc_map;	/* bitmap of enabled Traffic Classes */
+	/* Information for each traffic class */
+	struct ice_tc_info tc_info[ICE_MAX_TRAFFIC_CLASS];
+
 	/* context for per-VSI sysctls */
 	struct sysctl_ctx_list ctx;
 	struct sysctl_oid *vsi_node;
@@ -541,9 +567,11 @@ enum ice_state {
 	ICE_STATE_RECOVERY_MODE,
 	ICE_STATE_ROLLBACK_MODE,
 	ICE_STATE_LINK_STATUS_REPORTED,
+	ICE_STATE_ATTACHING,
 	ICE_STATE_DETACHING,
 	ICE_STATE_LINK_DEFAULT_OVERRIDE_PENDING,
 	ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER,
+	ICE_STATE_MULTIPLE_TCS,
 	/* This entry must be last */
 	ICE_STATE_LAST,
 };
@@ -648,6 +676,7 @@ struct ice_str_buf _ice_aq_str(enum ice_aq_err aq_err);
 struct ice_str_buf _ice_status_str(enum ice_status status);
 struct ice_str_buf _ice_err_str(int err);
 struct ice_str_buf _ice_fltr_flag_str(u16 flag);
+struct ice_str_buf _ice_log_sev_str(u8 log_level);
 struct ice_str_buf _ice_mdd_tx_tclan_str(u8 event);
 struct ice_str_buf _ice_mdd_tx_pqm_str(u8 event);
 struct ice_str_buf _ice_mdd_rx_str(u8 event);
@@ -662,6 +691,7 @@ struct ice_str_buf _ice_fw_lldp_status(u32 lldp_status);
 #define ice_mdd_tx_pqm_str(event)	_ice_mdd_tx_pqm_str(event).str
 #define ice_mdd_rx_str(event)		_ice_mdd_rx_str(event).str
 
+#define ice_log_sev_str(log_level)	_ice_log_sev_str(log_level).str
 #define ice_fw_lldp_status(lldp_status) _ice_fw_lldp_status(lldp_status).str
 
 /**
@@ -737,6 +767,12 @@ void ice_request_stack_reinit(struct ice_softc *sc);
 
 /* Details of how to check if the network stack is detaching us */
 bool ice_driver_is_detaching(struct ice_softc *sc);
+
+const char * ice_fw_module_str(enum ice_aqc_fw_logging_mod module);
+void ice_add_fw_logging_tunables(struct ice_softc *sc,
+				 struct sysctl_oid *parent);
+void ice_handle_fw_log_event(struct ice_softc *sc, struct ice_aq_desc *desc,
+			     void *buf);
 
 int  ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending);
 int  ice_map_bar(device_t dev, struct ice_bar_info *bar, int bar_num);
@@ -826,5 +862,6 @@ int  ice_alloc_intr_tracking(struct ice_softc *sc);
 void ice_free_intr_tracking(struct ice_softc *sc);
 void ice_set_default_local_lldp_mib(struct ice_softc *sc);
 void ice_init_health_events(struct ice_softc *sc);
+void ice_cfg_pba_num(struct ice_softc *sc);
 
 #endif /* _ICE_LIB_H_ */

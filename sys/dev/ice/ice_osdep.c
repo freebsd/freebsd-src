@@ -146,6 +146,42 @@ ice_debug_array(struct ice_hw *hw, uint64_t mask, uint32_t rowsize,
 }
 
 /**
+ * ice_info_fwlog - Format and print an array of values to the console
+ * @hw: private hardware structure
+ * @rowsize: preferred number of rows to use
+ * @groupsize: preferred size in bytes to print each chunk
+ * @buf: the array buffer to print
+ * @len: size of the array buffer
+ *
+ * Format the given array as a series of uint8_t values with hexadecimal
+ * notation and log the contents to the console log.  This variation is
+ * specific to firmware logging.
+ *
+ * TODO: Currently only supports a group size of 1, due to the way hexdump is
+ * implemented.
+ */
+void
+ice_info_fwlog(struct ice_hw *hw, uint32_t rowsize, uint32_t __unused groupsize,
+	       uint8_t *buf, size_t len)
+{
+	device_t dev = ice_hw_to_dev(hw);
+	char prettyname[20];
+
+	if (!ice_fwlog_supported(hw))
+		return;
+
+	/* Format the device header to a string */
+	snprintf(prettyname, sizeof(prettyname), "%s: FWLOG: ",
+	    device_get_nameunit(dev));
+
+	/* Make sure the row-size isn't too large */
+	if (rowsize > 0xFF)
+		rowsize = 0xFF;
+
+	hexdump(buf, len, prettyname, HD_OMIT_CHARS | rowsize);
+}
+
+/**
  * rd32 - Read a 32bit hardware register value
  * @hw: the private hardware structure
  * @reg: register address to read

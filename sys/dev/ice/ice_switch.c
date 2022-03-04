@@ -38,6 +38,7 @@
 #define ICE_ETH_ETHTYPE_OFFSET		12
 #define ICE_ETH_VLAN_TCI_OFFSET		14
 #define ICE_MAX_VLAN_ID			0xFFF
+#define ICE_IPV6_ETHER_ID		0x86DD
 #define ICE_ETH_P_8021Q			0x8100
 
 /* Dummy ethernet header needed in the ice_aqc_sw_rules_elem
@@ -175,7 +176,7 @@ ice_alloc_global_lut_exit:
 }
 
 /**
- * ice_free_global_lut - free a RSS global LUT
+ * ice_free_rss_global_lut - free a RSS global LUT
  * @hw: pointer to the HW struct
  * @global_lut_id: ID of the RSS global LUT to free
  */
@@ -2271,7 +2272,7 @@ ice_aq_get_res_descs(struct ice_hw *hw, u16 num_entries,
  * @sw: pointer to switch info struct for which function add rule
  * @lport: logic port number on which function add rule
  *
- * IMPORTANT: When the ucast_shared flag is set to false and m_list has
+ * IMPORTANT: When the umac_shared flag is set to false and m_list has
  * multiple unicast addresses, the function assumes that all the
  * addresses are unique in a given add_mac call. It doesn't
  * check for duplicates in this case, removing duplicates from a given
@@ -2314,18 +2315,18 @@ ice_add_mac_rule(struct ice_hw *hw, struct LIST_HEAD_TYPE *m_list,
 		if (m_list_itr->fltr_info.lkup_type != ICE_SW_LKUP_MAC ||
 		    IS_ZERO_ETHER_ADDR(add))
 			return ICE_ERR_PARAM;
-		if (IS_UNICAST_ETHER_ADDR(add) && !hw->ucast_shared) {
+		if (IS_UNICAST_ETHER_ADDR(add) && !hw->umac_shared) {
 			/* Don't overwrite the unicast address */
 			ice_acquire_lock(rule_lock);
 			if (ice_find_rule_entry(rule_head,
 						&m_list_itr->fltr_info)) {
 				ice_release_lock(rule_lock);
-				return ICE_ERR_ALREADY_EXISTS;
+				continue;
 			}
 			ice_release_lock(rule_lock);
 			num_unicast++;
 		} else if (IS_MULTICAST_ETHER_ADDR(add) ||
-			   (IS_UNICAST_ETHER_ADDR(add) && hw->ucast_shared)) {
+			   (IS_UNICAST_ETHER_ADDR(add) && hw->umac_shared)) {
 			m_list_itr->status =
 				ice_add_rule_internal(hw, recp_list, lport,
 						      m_list_itr);
@@ -2930,7 +2931,7 @@ ice_remove_mac_rule(struct ice_hw *hw, struct LIST_HEAD_TYPE *m_list,
 
 		list_itr->fltr_info.fwd_id.hw_vsi_id =
 					ice_get_hw_vsi_num(hw, vsi_handle);
-		if (IS_UNICAST_ETHER_ADDR(add) && !hw->ucast_shared) {
+		if (IS_UNICAST_ETHER_ADDR(add) && !hw->umac_shared) {
 			/* Don't remove the unicast address that belongs to
 			 * another VSI on the switch, since it is not being
 			 * shared...
@@ -3147,22 +3148,25 @@ static u8 ice_determine_promisc_mask(struct ice_fltr_info *fi)
  * @promisc_mask: pointer to mask to be filled in
  * @vid: VLAN ID of promisc VLAN VSI
  * @sw: pointer to switch info struct for which function add rule
+ * @lkup: switch rule filter lookup type
  */
 static enum ice_status
 _ice_get_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 *promisc_mask,
-		     u16 *vid, struct ice_switch_info *sw)
+		     u16 *vid, struct ice_switch_info *sw,
+		     enum ice_sw_lkup_type lkup)
 {
 	struct ice_fltr_mgmt_list_entry *itr;
 	struct LIST_HEAD_TYPE *rule_head;
 	struct ice_lock *rule_lock;	/* Lock to protect filter rule list */
 
-	if (!ice_is_vsi_valid(hw, vsi_handle))
+	if (!ice_is_vsi_valid(hw, vsi_handle) ||
+	    (lkup != ICE_SW_LKUP_PROMISC && lkup != ICE_SW_LKUP_PROMISC_VLAN))
 		return ICE_ERR_PARAM;
 
 	*vid = 0;
 	*promisc_mask = 0;
-	rule_head = &sw->recp_list[ICE_SW_LKUP_PROMISC].filt_rules;
-	rule_lock = &sw->recp_list[ICE_SW_LKUP_PROMISC].filt_rule_lock;
+	rule_head = &sw->recp_list[lkup].filt_rules;
+	rule_lock = &sw->recp_list[lkup].filt_rule_lock;
 
 	ice_acquire_lock(rule_lock);
 	LIST_FOR_EACH_ENTRY(itr, rule_head,
@@ -3192,47 +3196,7 @@ ice_get_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 *promisc_mask,
 		    u16 *vid)
 {
 	return _ice_get_vsi_promisc(hw, vsi_handle, promisc_mask,
-				    vid, hw->switch_info);
-}
-
-/**
- * ice_get_vsi_vlan_promisc - get VLAN promiscuous mode of given VSI
- * @hw: pointer to the hardware structure
- * @vsi_handle: VSI handle to retrieve info from
- * @promisc_mask: pointer to mask to be filled in
- * @vid: VLAN ID of promisc VLAN VSI
- * @sw: pointer to switch info struct for which function add rule
- */
-static enum ice_status
-_ice_get_vsi_vlan_promisc(struct ice_hw *hw, u16 vsi_handle, u8 *promisc_mask,
-			  u16 *vid, struct ice_switch_info *sw)
-{
-	struct ice_fltr_mgmt_list_entry *itr;
-	struct LIST_HEAD_TYPE *rule_head;
-	struct ice_lock *rule_lock;	/* Lock to protect filter rule list */
-
-	if (!ice_is_vsi_valid(hw, vsi_handle))
-		return ICE_ERR_PARAM;
-
-	*vid = 0;
-	*promisc_mask = 0;
-	rule_head = &sw->recp_list[ICE_SW_LKUP_PROMISC_VLAN].filt_rules;
-	rule_lock = &sw->recp_list[ICE_SW_LKUP_PROMISC_VLAN].filt_rule_lock;
-
-	ice_acquire_lock(rule_lock);
-	LIST_FOR_EACH_ENTRY(itr, rule_head, ice_fltr_mgmt_list_entry,
-			    list_entry) {
-		/* Continue if this filter doesn't apply to this VSI or the
-		 * VSI ID is not in the VSI map for this filter
-		 */
-		if (!ice_vsi_uses_fltr(itr, vsi_handle))
-			continue;
-
-		*promisc_mask |= ice_determine_promisc_mask(&itr->fltr_info);
-	}
-	ice_release_lock(rule_lock);
-
-	return ICE_SUCCESS;
+				    vid, hw->switch_info, ICE_SW_LKUP_PROMISC);
 }
 
 /**
@@ -3246,8 +3210,9 @@ enum ice_status
 ice_get_vsi_vlan_promisc(struct ice_hw *hw, u16 vsi_handle, u8 *promisc_mask,
 			 u16 *vid)
 {
-	return _ice_get_vsi_vlan_promisc(hw, vsi_handle, promisc_mask,
-					 vid, hw->switch_info);
+	return _ice_get_vsi_promisc(hw, vsi_handle, promisc_mask,
+				    vid, hw->switch_info,
+				    ICE_SW_LKUP_PROMISC_VLAN);
 }
 
 /**
@@ -4211,7 +4176,7 @@ ice_replay_vsi_all_fltr(struct ice_hw *hw, struct ice_port_info *pi,
 }
 
 /**
- * ice_rm_all_sw_replay_rule - helper function to delete filter replay rules
+ * ice_rm_sw_replay_rule_info - helper function to delete filter replay rules
  * @hw: pointer to the HW struct
  * @sw: pointer to switch info struct for which function removes filters
  *

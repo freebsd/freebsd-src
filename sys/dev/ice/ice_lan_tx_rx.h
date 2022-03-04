@@ -280,7 +280,6 @@ enum ice_rx_l2_ptype {
 };
 
 struct ice_rx_ptype_decoded {
-	u32 ptype:10;
 	u32 known:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:2;
@@ -794,6 +793,15 @@ enum ice_rx_flex_desc_exstat_bits {
 	ICE_RX_FLEX_DESC_EXSTAT_OVERSIZE_S = 3,
 };
 
+/*
+ * For ice_32b_rx_flex_desc.ts_low:
+ * [0]: Timestamp-low validity bit
+ * [1:7]: Timestamp-low value
+ */
+#define ICE_RX_FLEX_DESC_TS_L_VALID_S	0x01
+#define ICE_RX_FLEX_DESC_TS_L_VALID_M	ICE_RX_FLEX_DESC_TS_L_VALID_S
+#define ICE_RX_FLEX_DESC_TS_L_M		0xFE
+
 #define ICE_RXQ_CTX_SIZE_DWORDS		8
 #define ICE_RXQ_CTX_SZ			(ICE_RXQ_CTX_SIZE_DWORDS * sizeof(u32))
 #define ICE_TX_CMPLTNQ_CTX_SIZE_DWORDS	22
@@ -939,6 +947,11 @@ struct ice_tx_ctx_desc {
 	__le16 rsvd;
 	__le64 qw1;
 };
+
+#define ICE_TX_GSC_DESC_START	0  /* 7 BITS */
+#define ICE_TX_GSC_DESC_OFFSET	7  /* 4 BITS */
+#define ICE_TX_GSC_DESC_TYPE	11 /* 2 BITS */
+#define ICE_TX_GSC_DESC_ENA	13 /* 1 BIT */
 
 #define ICE_TXD_CTX_QW1_DTYPE_S	0
 #define ICE_TXD_CTX_QW1_DTYPE_M	(0xFUL << ICE_TXD_CTX_QW1_DTYPE_S)
@@ -1162,8 +1175,7 @@ struct ice_tx_drbell_q_ctx {
 
 /* macro to make the table lines short */
 #define ICE_PTT(PTYPE, OUTER_IP, OUTER_IP_VER, OUTER_FRAG, T, TE, TEF, I, PL)\
-	{	PTYPE, \
-		1, \
+	{	1, \
 		ICE_RX_PTYPE_OUTER_##OUTER_IP, \
 		ICE_RX_PTYPE_OUTER_##OUTER_IP_VER, \
 		ICE_RX_PTYPE_##OUTER_FRAG, \
@@ -1173,14 +1185,14 @@ struct ice_tx_drbell_q_ctx {
 		ICE_RX_PTYPE_INNER_PROT_##I, \
 		ICE_RX_PTYPE_PAYLOAD_LAYER_##PL }
 
-#define ICE_PTT_UNUSED_ENTRY(PTYPE) { PTYPE, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+#define ICE_PTT_UNUSED_ENTRY(PTYPE) { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 /* shorter macros makes the table fit but are terse */
 #define ICE_RX_PTYPE_NOF		ICE_RX_PTYPE_NOT_FRAG
 #define ICE_RX_PTYPE_FRG		ICE_RX_PTYPE_FRAG
 
-/* Lookup table mapping the HW PTYPE to the bit field for decoding */
-static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
+/* Lookup table mapping the 10-bit HW PTYPE to the bit field for decoding */
+static const struct ice_rx_ptype_decoded ice_ptype_lkup[1024] = {
 	/* L2 Packet types */
 	ICE_PTT_UNUSED_ENTRY(0),
 	ICE_PTT(1, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
@@ -2342,7 +2354,7 @@ static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
 	ICE_PTT_UNUSED_ENTRY(1020),
 	ICE_PTT_UNUSED_ENTRY(1021),
 	ICE_PTT_UNUSED_ENTRY(1022),
-	ICE_PTT_UNUSED_ENTRY(1023),
+	ICE_PTT_UNUSED_ENTRY(1023)
 };
 
 static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
@@ -2362,5 +2374,4 @@ static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
 #define ICE_LINK_SPEED_40000MBPS	40000
 #define ICE_LINK_SPEED_50000MBPS	50000
 #define ICE_LINK_SPEED_100000MBPS	100000
-
 #endif /* _ICE_LAN_TX_RX_H_ */

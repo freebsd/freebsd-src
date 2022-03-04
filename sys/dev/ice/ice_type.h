@@ -78,17 +78,44 @@
 #include "ice_flex_type.h"
 #include "ice_protocol_type.h"
 #include "ice_vlan_mode.h"
+#include "ice_fwlog.h"
 
 static inline bool ice_is_tc_ena(ice_bitmap_t bitmap, u8 tc)
 {
 	return !!(bitmap & BIT(tc));
 }
 
-#define DIV_64BIT(n, d) ((n) / (d))
+/**
+ * DIV_S64 - Divide signed 64-bit value with signed 64-bit divisor
+ * @dividend: value to divide
+ * @divisor: value to divide by
+ *
+ * Use DIV_S64 for any 64-bit divide which operates on signed 64-bit dividends.
+ * Do not use this for unsigned 64-bit dividends as it will not produce
+ * correct results if the dividend is larger than S64_MAX.
+ */
+static inline s64 DIV_S64(s64 dividend, s64 divisor)
+{
+	return dividend / divisor;
+}
+
+/**
+ * DIV_U64 - Divide unsigned 64-bit value by unsigned 64-bit divisor
+ * @dividend: value to divide
+ * @divisor: value to divide by
+ *
+ * Use DIV_U64 for any 64-bit divide which operates on unsigned 64-bit
+ * dividends. Do not use this for signed 64-bit dividends as it will not
+ * handle negative values correctly.
+ */
+static inline u64 DIV_U64(u64 dividend, u64 divisor)
+{
+	return dividend / divisor;
+}
 
 static inline u64 round_up_64bit(u64 a, u32 b)
 {
-	return DIV_64BIT(((a) + (b) / 2), (b));
+	return DIV_U64(((a) + (b) / 2), (b));
 }
 
 static inline u32 ice_round_to_num(u32 N, u32 R)
@@ -136,6 +163,7 @@ static inline u32 ice_round_to_num(u32 N, u32 R)
 				 ICE_DBG_AQ_DESC	| \
 				 ICE_DBG_AQ_DESC_BUF	| \
 				 ICE_DBG_AQ_CMD)
+#define ICE_DBG_PARSER		BIT_ULL(28)
 
 #define ICE_DBG_USER		BIT_ULL(31)
 #define ICE_DBG_ALL		0xFFFFFFFFFFFFFFFFULL
@@ -390,6 +418,23 @@ struct ice_hw_common_caps {
 #define ICE_NVM_MGMT_SEC_REV_DISABLED		BIT(0)
 #define ICE_NVM_MGMT_UPDATE_DISABLED		BIT(1)
 #define ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT	BIT(3)
+	/* PCIe reset avoidance */
+	bool pcie_reset_avoidance; /* false: not supported, true: supported */
+	/* Post update reset restriction */
+	bool reset_restrict_support; /* false: not supported, true: supported */
+
+	/* External topology device images within the NVM */
+#define ICE_EXT_TOPO_DEV_IMG_COUNT	4
+	u32 ext_topo_dev_img_ver_high[ICE_EXT_TOPO_DEV_IMG_COUNT];
+	u32 ext_topo_dev_img_ver_low[ICE_EXT_TOPO_DEV_IMG_COUNT];
+	u8 ext_topo_dev_img_part_num[ICE_EXT_TOPO_DEV_IMG_COUNT];
+#define ICE_EXT_TOPO_DEV_IMG_PART_NUM_S	8
+#define ICE_EXT_TOPO_DEV_IMG_PART_NUM_M	\
+		MAKEMASK(0xFF, ICE_EXT_TOPO_DEV_IMG_PART_NUM_S)
+	bool ext_topo_dev_img_load_en[ICE_EXT_TOPO_DEV_IMG_COUNT];
+#define ICE_EXT_TOPO_DEV_IMG_LOAD_EN	BIT(0)
+	bool ext_topo_dev_img_prog_en[ICE_EXT_TOPO_DEV_IMG_COUNT];
+#define ICE_EXT_TOPO_DEV_IMG_PROG_EN	BIT(1)
 };
 
 /* Function specific capabilities */
@@ -759,7 +804,8 @@ struct ice_dcb_app_priority_table {
 };
 
 #define ICE_MAX_USER_PRIORITY		8
-#define ICE_DCBX_MAX_APPS		32
+#define ICE_DCBX_MAX_APPS		64
+#define ICE_DSCP_NUM_VAL		64
 #define ICE_LLDPDU_SIZE			1500
 #define ICE_TLV_STATUS_OPER		0x1
 #define ICE_TLV_STATUS_SYNC		0x2
@@ -779,7 +825,14 @@ struct ice_dcbx_cfg {
 	struct ice_dcb_ets_cfg etscfg;
 	struct ice_dcb_ets_cfg etsrec;
 	struct ice_dcb_pfc_cfg pfc;
+#define ICE_QOS_MODE_VLAN	0x0
+#define ICE_QOS_MODE_DSCP	0x1
+	u8 pfc_mode;
 	struct ice_dcb_app_priority_table app[ICE_DCBX_MAX_APPS];
+	/* when DSCP mapping defined by user set its bit to 1 */
+	ice_declare_bitmap(dscp_mapped, ICE_DSCP_NUM_VAL);
+	/* array holding DSCP -> UP/TC values for DSCP L3 QoS mode */
+	u8 dscp_map[ICE_DSCP_NUM_VAL];
 	u8 dcbx_mode;
 #define ICE_DCBX_MODE_CEE	0x1
 #define ICE_DCBX_MODE_IEEE	0x2
@@ -830,6 +883,7 @@ struct ice_switch_info {
 
 	ice_declare_bitmap(prof_res_bm[ICE_MAX_NUM_PROFILES], ICE_MAX_FV_WORDS);
 };
+
 
 /* Enum defining the different states of the mailbox snapshot in the
  * PF-VF mailbox overflow detection algorithm. The snapshot can be in
@@ -964,6 +1018,9 @@ struct ice_hw {
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
+	struct ice_fwlog_cfg fwlog_cfg;
+	bool fwlog_support_ena; /* does hardware support FW logging? */
+
 /* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
  * register. Used for determining the ITR/INTRL granularity during
  * initialization.
@@ -983,7 +1040,8 @@ struct ice_hw {
 	/* INTRL granularity in 1 us */
 	u8 intrl_gran;
 
-	u8 ucast_shared;	/* true if VSIs can share unicast addr */
+	/* true if VSIs can share unicast MAC addr */
+	u8 umac_shared;
 
 #define ICE_PHY_PER_NAC		1
 #define ICE_MAX_QUAD		2
@@ -995,6 +1053,7 @@ struct ice_hw {
 
 	/* Active package version (currently active) */
 	struct ice_pkg_ver active_pkg_ver;
+	u32 pkg_seg_id;
 	u32 active_track_id;
 	u8 active_pkg_name[ICE_PKG_NAME_SIZE];
 	u8 active_pkg_in_nvm;
@@ -1186,17 +1245,13 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_SR_POR_REGISTERS_AUTOLOAD_PTR	0x118
 
 /* CSS Header words */
+#define ICE_NVM_CSS_HDR_LEN_L			0x02
+#define ICE_NVM_CSS_HDR_LEN_H			0x03
 #define ICE_NVM_CSS_SREV_L			0x14
 #define ICE_NVM_CSS_SREV_H			0x15
 
-/* Length of CSS header section in words */
-#define ICE_CSS_HEADER_LENGTH			330
-
-/* Offset of Shadow RAM copy in the NVM bank area. */
-#define ICE_NVM_SR_COPY_WORD_OFFSET		ROUND_UP(ICE_CSS_HEADER_LENGTH, 32)
-
-/* Size in bytes of Option ROM trailer */
-#define ICE_NVM_OROM_TRAILER_LENGTH		(2 * ICE_CSS_HEADER_LENGTH)
+/* Length of Authentication header section in words */
+#define ICE_NVM_AUTH_HEADER_LEN			0x08
 
 /* The Link Topology Netlist section is stored as a series of words. It is
  * stored in the NVM as a TLV, with the first two words containing the type
@@ -1290,4 +1345,8 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_HEALTH_REPORT_MAJ		1
 #define ICE_FW_API_HEALTH_REPORT_MIN		7
 #define ICE_FW_API_HEALTH_REPORT_PATCH		6
+
+/* AQ API version for FW auto drop reports */
+#define ICE_FW_API_AUTO_DROP_MAJ		1
+#define ICE_FW_API_AUTO_DROP_MIN		4
 #endif /* _ICE_TYPE_H_ */
