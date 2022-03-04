@@ -61,7 +61,7 @@ struct ice_pkg_hdr {
 /* generic segment */
 struct ice_generic_seg_hdr {
 #define SEGMENT_TYPE_METADATA	0x00000001
-#define SEGMENT_TYPE_ICE	0x00000010
+#define SEGMENT_TYPE_ICE_E810	0x00000010
 	__le32 seg_type;
 	struct ice_pkg_ver seg_format_ver;
 	__le32 seg_size;
@@ -225,6 +225,8 @@ struct ice_buf_hdr {
 #define ICE_SID_FLD_VEC_PE		86
 #define ICE_SID_CDID_KEY_BUILDER_PE	87
 #define ICE_SID_CDID_REDIR_PE		88
+
+#define ICE_SID_RXPARSER_FLAG_REDIR	97
 
 /* Label Metadata section IDs */
 #define ICE_SID_LBL_FIRST		0x80000010

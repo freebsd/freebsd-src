@@ -365,7 +365,6 @@ ice_boost_tcam_handler(u32 sect_type, void *section, u32 index, u32 *offset)
 	if (sect_type != ICE_SID_RXPARSER_BOOST_TCAM)
 		return NULL;
 
-	/* cppcheck-suppress nullPointer */
 	if (index > ICE_MAX_BST_TCAMS_IN_BUF)
 		return NULL;
 
@@ -437,7 +436,6 @@ ice_label_enum_handler(u32 __ALWAYS_UNUSED sect_type, void *section, u32 index,
 	if (!section)
 		return NULL;
 
-	/* cppcheck-suppress nullPointer */
 	if (index > ICE_MAX_LABELS_IN_BUF)
 		return NULL;
 
@@ -1160,7 +1158,7 @@ ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 	status = ice_dwnld_cfg_bufs(hw, ice_buf_tbl->buf_array,
 				    LE32_TO_CPU(ice_buf_tbl->buf_count));
 
-	ice_cache_vlan_mode(hw);
+	ice_post_pkg_dwnld_vlan_mode_cfg(hw);
 
 	return status;
 }
@@ -1181,8 +1179,13 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 	if (!pkg_hdr)
 		return ICE_ERR_PARAM;
 
+	hw->pkg_seg_id = SEGMENT_TYPE_ICE_E810;
+
+	ice_debug(hw, ICE_DBG_INIT, "Pkg using segment id: 0x%08X\n",
+		  hw->pkg_seg_id);
+
 	seg_hdr = (struct ice_generic_seg_hdr *)
-		ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg_hdr);
+		ice_find_seg_in_pkg(hw, hw->pkg_seg_id, pkg_hdr);
 	if (seg_hdr) {
 		struct ice_meta_sect *meta;
 		struct ice_pkg_enum state;
@@ -1449,7 +1452,7 @@ ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
 	}
 
 	/* find ICE segment in given package */
-	*seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE,
+	*seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, hw->pkg_seg_id,
 						     ospkg);
 	if (!*seg) {
 		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
@@ -2811,7 +2814,6 @@ ice_match_prop_lst(struct LIST_HEAD_TYPE *list1, struct LIST_HEAD_TYPE *list2)
 		count++;
 	LIST_FOR_EACH_ENTRY(tmp2, list2, ice_vsig_prof, list)
 		chk_count++;
-	/* cppcheck-suppress knownConditionTrueFalse */
 	if (!count || count != chk_count)
 		return false;
 
