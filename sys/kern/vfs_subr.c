@@ -462,7 +462,8 @@ SYSCTL_PROC(_debug, OID_AUTO, ftry_reclaim_vnode,
 /* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
 #define vnsz2log 8
 #ifndef DEBUG_LOCKS
-_Static_assert((sizeof(struct vnode) >= 256) && (sizeof(struct vnode) < 512),
+_Static_assert(sizeof(struct vnode) >= 1UL << vnsz2log &&
+    sizeof(struct vnode) < 1UL << (vnsz2log + 1),
     "vnsz2log needs to be updated");
 #endif
 
