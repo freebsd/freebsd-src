@@ -226,7 +226,7 @@ again:
 	kmi->buffer_sva = firstaddr;
 	kmi->buffer_eva = kmi->buffer_sva + size;
 	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
-	    PAGE_SIZE, (mp_ncpus > 4) ? BKVASIZE * 8 : 0, 0);
+	    PAGE_SIZE, (mp_ncpus > 4) ? BKVASIZE * 8 : 0, M_WAITOK);
 	firstaddr += size;
 
 	/*
