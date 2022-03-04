@@ -304,6 +304,8 @@ int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
 int	pfctl_kill_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
+int	pfctl_clear_rules(int dev, const char *anchorname);
+int	pfctl_clear_nat(int dev, const char *anchorname);
 int	pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s);
 int	pfctl_get_syncookies(int dev, struct pfctl_syncookies *s);
 
