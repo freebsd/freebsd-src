@@ -169,6 +169,10 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_PCIE_RESET_AVOIDANCE		0x0076
 #define ICE_AQC_CAPS_POST_UPDATE_RESET_RESTRICT		0x0077
 #define ICE_AQC_CAPS_NVM_MGMT				0x0080
+#define ICE_AQC_CAPS_EXT_TOPO_DEV_IMG0			0x0081
+#define ICE_AQC_CAPS_EXT_TOPO_DEV_IMG1			0x0082
+#define ICE_AQC_CAPS_EXT_TOPO_DEV_IMG2			0x0083
+#define ICE_AQC_CAPS_EXT_TOPO_DEV_IMG3			0x0084
 
 	u8 major_ver;
 	u8 minor_ver;
@@ -1240,10 +1244,11 @@ struct ice_aqc_get_phy_caps {
 	/* 18.0 - Report qualified modules */
 #define ICE_AQC_GET_PHY_RQM		BIT(0)
 	/* 18.1 - 18.3 : Report mode
-	 * 000b - Report NVM capabilities
-	 * 001b - Report topology capabilities
-	 * 010b - Report SW configured
-	 * 100b - Report default capabilities
+	 * 000b - Report topology capabilities, without media
+	 * 001b - Report topology capabilities, with media
+	 * 010b - Report Active configuration
+	 * 011b - Report PHY Type and FEC mode capabilities
+	 * 100b - Report Default capabilities
 	 */
 #define ICE_AQC_REPORT_MODE_S			1
 #define ICE_AQC_REPORT_MODE_M			(7 << ICE_AQC_REPORT_MODE_S)
@@ -1586,6 +1591,7 @@ struct ice_aqc_set_event_mask {
 #define ICE_AQ_LINK_EVENT_PORT_TX_SUSPENDED	BIT(9)
 #define ICE_AQ_LINK_EVENT_TOPO_CONFLICT		BIT(10)
 #define ICE_AQ_LINK_EVENT_MEDIA_CONFLICT	BIT(11)
+#define ICE_AQ_LINK_EVENT_PHY_FW_LOAD_FAIL	BIT(12)
 	u8	reserved1[6];
 };
 
@@ -1774,7 +1780,7 @@ struct ice_aqc_dnl_read_log_response {
 
 };
 
-struct ice_aqc_link_topo_addr {
+struct ice_aqc_link_topo_params {
 	u8 lport_num;
 	u8 lport_num_valid;
 #define ICE_AQC_LINK_TOPO_PORT_NUM_VALID	BIT(0)
@@ -1800,6 +1806,10 @@ struct ice_aqc_link_topo_addr {
 #define ICE_AQC_LINK_TOPO_NODE_CTX_PROVIDED	4
 #define ICE_AQC_LINK_TOPO_NODE_CTX_OVERRIDE	5
 	u8 index;
+};
+
+struct ice_aqc_link_topo_addr {
+	struct ice_aqc_link_topo_params topo_params;
 	__le16 handle;
 #define ICE_AQC_LINK_TOPO_HANDLE_S	0
 #define ICE_AQC_LINK_TOPO_HANDLE_M	(0x3FF << ICE_AQC_LINK_TOPO_HANDLE_S)
@@ -1822,57 +1832,8 @@ struct ice_aqc_link_topo_addr {
 struct ice_aqc_get_link_topo {
 	struct ice_aqc_link_topo_addr addr;
 	u8 node_part_num;
+#define ICE_ACQ_GET_LINK_TOPO_NODE_NR_PCA9575			0x21
 	u8 rsvd[9];
-};
-
-/* Get Link Topology Pin (direct, 0x06E1) */
-struct ice_aqc_get_link_topo_pin {
-	struct ice_aqc_link_topo_addr addr;
-	u8 input_io_params;
-#define ICE_AQC_LINK_TOPO_INPUT_IO_FUNC_S	0
-#define ICE_AQC_LINK_TOPO_INPUT_IO_FUNC_M	\
-				(0x1F << ICE_AQC_LINK_TOPO_INPUT_IO_FUNC_S)
-#define ICE_AQC_LINK_TOPO_IO_FUNC_GPIO		0
-#define ICE_AQC_LINK_TOPO_IO_FUNC_RESET_N	1
-#define ICE_AQC_LINK_TOPO_IO_FUNC_INT_N		2
-#define ICE_AQC_LINK_TOPO_IO_FUNC_PRESENT_N	3
-#define ICE_AQC_LINK_TOPO_IO_FUNC_TX_DIS	4
-#define ICE_AQC_LINK_TOPO_IO_FUNC_MODSEL_N	5
-#define ICE_AQC_LINK_TOPO_IO_FUNC_LPMODE	6
-#define ICE_AQC_LINK_TOPO_IO_FUNC_TX_FAULT	7
-#define ICE_AQC_LINK_TOPO_IO_FUNC_RX_LOSS	8
-#define ICE_AQC_LINK_TOPO_IO_FUNC_RS0		9
-#define ICE_AQC_LINK_TOPO_IO_FUNC_RS1		10
-#define ICE_AQC_LINK_TOPO_IO_FUNC_EEPROM_WP	11
-/* 12 repeats intentionally due to two different uses depending on context */
-#define ICE_AQC_LINK_TOPO_IO_FUNC_LED		12
-#define ICE_AQC_LINK_TOPO_IO_FUNC_RED_LED	12
-#define ICE_AQC_LINK_TOPO_IO_FUNC_GREEN_LED	13
-#define ICE_AQC_LINK_TOPO_IO_FUNC_BLUE_LED	14
-#define ICE_AQC_LINK_TOPO_INPUT_IO_TYPE_S	5
-#define ICE_AQC_LINK_TOPO_INPUT_IO_TYPE_M	\
-			(0x7 << ICE_AQC_LINK_TOPO_INPUT_IO_TYPE_S)
-/* Use ICE_AQC_LINK_TOPO_NODE_TYPE_* for the type values */
-	u8 output_io_params;
-#define ICE_AQC_LINK_TOPO_OUTPUT_IO_FUNC_S	0
-#define ICE_AQC_LINK_TOPO_OUTPUT_IO_FUNC_M	\
-			(0x1F << \ ICE_AQC_LINK_TOPO_INPUT_IO_FUNC_NUM_S)
-/* Use ICE_AQC_LINK_TOPO_IO_FUNC_* for the non-numerical options */
-#define ICE_AQC_LINK_TOPO_OUTPUT_IO_TYPE_S	5
-#define ICE_AQC_LINK_TOPO_OUTPUT_IO_TYPE_M	\
-			(0x7 << ICE_AQC_LINK_TOPO_INPUT_IO_TYPE_S)
-/* Use ICE_AQC_LINK_TOPO_NODE_TYPE_* for the type values */
-	u8 output_io_flags;
-#define ICE_AQC_LINK_TOPO_OUTPUT_SPEED_S	0
-#define ICE_AQC_LINK_TOPO_OUTPUT_SPEED_M	\
-			(0x7 << ICE_AQC_LINK_TOPO_OUTPUT_SPEED_S)
-#define ICE_AQC_LINK_TOPO_OUTPUT_INT_S		3
-#define ICE_AQC_LINK_TOPO_OUTPUT_INT_M		\
-			(0x3 << ICE_AQC_LINK_TOPO_OUTPUT_INT_S)
-#define ICE_AQC_LINK_TOPO_OUTPUT_POLARITY	BIT(5)
-#define ICE_AQC_LINK_TOPO_OUTPUT_VALUE		BIT(6)
-#define ICE_AQC_LINK_TOPO_OUTPUT_DRIVEN		BIT(7)
-	u8 rsvd[7];
 };
 
 /* Read/Write I2C (direct, 0x06E2/0x06E3) */
@@ -2072,23 +2033,18 @@ struct ice_aqc_sw_gpio {
 	u8 rsvd[12];
 };
 
-/* Program topology device NVM (direct, 0x06F2) */
-struct ice_aqc_program_topology_device_nvm {
-	u8 lport_num;
-	u8 lport_num_valid;
-	u8 node_type_ctx;
-	u8 index;
+/* Program Topology Device NVM (direct, 0x06F2) */
+struct ice_aqc_prog_topo_dev_nvm {
+	struct ice_aqc_link_topo_params topo_params;
 	u8 rsvd[12];
 };
 
-/* Read topology device NVM (indirect, 0x06F3) */
-struct ice_aqc_read_topology_device_nvm {
-	u8 lport_num;
-	u8 lport_num_valid;
-	u8 node_type_ctx;
-	u8 index;
+/* Read Topology Device NVM (direct, 0x06F3) */
+struct ice_aqc_read_topo_dev_nvm {
+	struct ice_aqc_link_topo_params topo_params;
 	__le32 start_address;
-	u8 data_read[8];
+#define ICE_AQC_READ_TOPO_DEV_NVM_DATA_READ_SIZE 8
+	u8 data_read[ICE_AQC_READ_TOPO_DEV_NVM_DATA_READ_SIZE];
 };
 
 /* NVM Read command (indirect 0x0701)
@@ -2117,10 +2073,11 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_REVERT_LAST_ACTIV	BIT(6) /* Write Activate only */
 #define ICE_AQC_NVM_ACTIV_SEL_MASK	MAKEMASK(0x7, 3)
 #define ICE_AQC_NVM_FLASH_ONLY		BIT(7)
-#define ICE_AQC_NVM_POR_FLAG	0	/* Used by NVM Write completion on ARQ */
-#define ICE_AQC_NVM_PERST_FLAG	1
-#define ICE_AQC_NVM_EMPR_FLAG	2
-#define ICE_AQC_NVM_EMPR_ENA		BIT(0)
+#define ICE_AQC_NVM_RESET_LVL_M		MAKEMASK(0x3, 0) /* Write reply only */
+#define ICE_AQC_NVM_POR_FLAG		0
+#define ICE_AQC_NVM_PERST_FLAG		1
+#define ICE_AQC_NVM_EMPR_FLAG		2
+#define ICE_AQC_NVM_EMPR_ENA		BIT(0) /* Write Activate reply only */
 	__le16 module_typeid;
 	__le16 length;
 #define ICE_AQC_NVM_ERASE_LEN	0xFFFF
@@ -2665,6 +2622,63 @@ struct ice_aqc_event_lan_overflow {
 	u8 reserved[8];
 };
 
+/* Debug Dump Internal Data (indirect 0xFF08) */
+struct ice_aqc_debug_dump_internals {
+	u8 cluster_id;
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_SW		0
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_TXSCHED	2
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_PROFILES	3
+/* EMP_DRAM only dumpable in device debug mode */
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_EMP_DRAM	4
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_LINK	5
+/* AUX_REGS only dumpable in device debug mode */
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_AUX_REGS	6
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_DCB	7
+#define ICE_AQC_DBG_DUMP_CLUSTER_ID_L2P	8
+	u8 reserved;
+	__le16 table_id; /* Used only for non-memory clusters */
+	__le32 idx; /* In table entries for tables, in bytes for memory */
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+enum ice_aqc_fw_logging_mod {
+	ICE_AQC_FW_LOG_ID_GENERAL = 0,
+	ICE_AQC_FW_LOG_ID_CTRL,
+	ICE_AQC_FW_LOG_ID_LINK,
+	ICE_AQC_FW_LOG_ID_LINK_TOPO,
+	ICE_AQC_FW_LOG_ID_DNL,
+	ICE_AQC_FW_LOG_ID_I2C,
+	ICE_AQC_FW_LOG_ID_SDP,
+	ICE_AQC_FW_LOG_ID_MDIO,
+	ICE_AQC_FW_LOG_ID_ADMINQ,
+	ICE_AQC_FW_LOG_ID_HDMA,
+	ICE_AQC_FW_LOG_ID_LLDP,
+	ICE_AQC_FW_LOG_ID_DCBX,
+	ICE_AQC_FW_LOG_ID_DCB,
+	ICE_AQC_FW_LOG_ID_XLR,
+	ICE_AQC_FW_LOG_ID_NVM,
+	ICE_AQC_FW_LOG_ID_AUTH,
+	ICE_AQC_FW_LOG_ID_VPD,
+	ICE_AQC_FW_LOG_ID_IOSF,
+	ICE_AQC_FW_LOG_ID_PARSER,
+	ICE_AQC_FW_LOG_ID_SW,
+	ICE_AQC_FW_LOG_ID_SCHEDULER,
+	ICE_AQC_FW_LOG_ID_TXQ,
+	ICE_AQC_FW_LOG_ID_RSVD,
+	ICE_AQC_FW_LOG_ID_POST,
+	ICE_AQC_FW_LOG_ID_WATCHDOG,
+	ICE_AQC_FW_LOG_ID_TASK_DISPATCH,
+	ICE_AQC_FW_LOG_ID_MNG,
+	ICE_AQC_FW_LOG_ID_SYNCE,
+	ICE_AQC_FW_LOG_ID_HEALTH,
+	ICE_AQC_FW_LOG_ID_TSDRV,
+	ICE_AQC_FW_LOG_ID_PFREG,
+	ICE_AQC_FW_LOG_ID_MDLVER,
+	ICE_AQC_FW_LOG_ID_MAX,
+};
+
+
 /* Set Health Status (direct 0xFF20) */
 struct ice_aqc_set_health_status_config {
 	u8 event_source;
@@ -2694,6 +2708,8 @@ struct ice_aqc_set_health_status_config {
 #define ICE_AQC_HEALTH_STATUS_ERR_LINK_HW_ACCESS		0x115
 #define ICE_AQC_HEALTH_STATUS_ERR_LINK_RUNTIME			0x116
 #define ICE_AQC_HEALTH_STATUS_ERR_DNL_INIT			0x117
+#define ICE_AQC_HEALTH_STATUS_ERR_PHY_NVM_PROG			0x120
+#define ICE_AQC_HEALTH_STATUS_ERR_PHY_FW_LOAD			0x121
 #define ICE_AQC_HEALTH_STATUS_INFO_RECOVERY			0x500
 #define ICE_AQC_HEALTH_STATUS_ERR_FLASH_ACCESS			0x501
 #define ICE_AQC_HEALTH_STATUS_ERR_NVM_AUTH			0x502
@@ -2745,11 +2761,11 @@ struct ice_aqc_clear_health_status {
  * Get FW Log (indirect 0xFF34)
  * Clear FW Log (indirect 0xFF35)
  */
-
 struct ice_aqc_fw_log {
 	u8 cmd_flags;
 #define ICE_AQC_FW_LOG_CONF_UART_EN	BIT(0)
 #define ICE_AQC_FW_LOG_CONF_AQ_EN	BIT(1)
+#define ICE_AQC_FW_LOG_QUERY_REGISTERED	BIT(2)
 #define ICE_AQC_FW_LOG_CONF_SET_VALID	BIT(3)
 #define ICE_AQC_FW_LOG_AQ_REGISTER	BIT(0)
 #define ICE_AQC_FW_LOG_AQ_QUERY		BIT(2)
@@ -2837,6 +2853,7 @@ struct ice_aq_desc {
 		struct ice_aqc_mdio read_write_mdio;
 		struct ice_aqc_gpio_by_func read_write_gpio_by_func;
 		struct ice_aqc_gpio read_write_gpio;
+		struct ice_aqc_sw_gpio sw_read_write_gpio;
 		struct ice_aqc_set_led set_led;
 		struct ice_aqc_mdio read_mdio;
 		struct ice_aqc_mdio write_mdio;
@@ -2887,6 +2904,8 @@ struct ice_aq_desc {
 		struct ice_aqc_download_pkg download_pkg;
 		struct ice_aqc_get_pkg_info_list get_pkg_info_list;
 		struct ice_aqc_driver_shared_params drv_shared_params;
+		struct ice_aqc_fw_log fw_log;
+		struct ice_aqc_debug_dump_internals debug_dump;
 		struct ice_aqc_set_mac_lb set_mac_lb;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_get_res_alloc get_res;
@@ -2902,6 +2921,8 @@ struct ice_aq_desc {
 			get_supported_health_status_codes;
 		struct ice_aqc_get_health_status get_health_status;
 		struct ice_aqc_clear_health_status clear_health_status;
+		struct ice_aqc_prog_topo_dev_nvm prog_topo_dev_nvm;
+		struct ice_aqc_read_topo_dev_nvm read_topo_dev_nvm;
 	} params;
 };
 
@@ -3069,7 +3090,6 @@ enum ice_adminq_opc {
 	ice_aqc_opc_dnl_set_breakpoints			= 0x0686,
 	ice_aqc_opc_dnl_read_log			= 0x0687,
 	ice_aqc_opc_get_link_topo			= 0x06E0,
-	ice_aqc_opc_get_link_topo_pin			= 0x06E1,
 	ice_aqc_opc_read_i2c				= 0x06E2,
 	ice_aqc_opc_write_i2c				= 0x06E3,
 	ice_aqc_opc_read_mdio				= 0x06E4,
@@ -3085,8 +3105,8 @@ enum ice_adminq_opc {
 	ice_aqc_opc_sff_eeprom				= 0x06EE,
 	ice_aqc_opc_sw_set_gpio				= 0x06EF,
 	ice_aqc_opc_sw_get_gpio				= 0x06F0,
-	ice_aqc_opc_program_topology_device_nvm		= 0x06F2,
-	ice_aqc_opc_read_topology_device_nvm		= 0x06F3,
+	ice_aqc_opc_prog_topo_dev_nvm			= 0x06F2,
+	ice_aqc_opc_read_topo_dev_nvm			= 0x06F3,
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
@@ -3147,6 +3167,9 @@ enum ice_adminq_opc {
 
 	/* Standalone Commands/Events */
 	ice_aqc_opc_event_lan_overflow			= 0x1001,
+
+	/* debug commands */
+	ice_aqc_opc_debug_dump_internals		= 0xFF08,
 
 	/* SystemDiagnostic commands */
 	ice_aqc_opc_set_health_status_config		= 0xFF20,

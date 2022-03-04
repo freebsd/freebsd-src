@@ -34,56 +34,94 @@
 #define _VIRTCHNL_LAN_DESC_H_
 
 /* Rx */
-/* For virtchnl_splitq_base_rx_flex desc members */
-#define VIRTCHNL_RXD_FLEX_PTYPE_S		0
-#define VIRTCHNL_RXD_FLEX_PTYPE_M		\
-	MAKEMASK(0x3FFUL, VIRTCHNL_RXD_FLEX_PTYPE_S)
-#define VIRTCHNL_RXD_FLEX_UMBCAST_S		10
-#define VIRTCHNL_RXD_FLEX_UMBCAST_M		\
-	MAKEMASK(0x3UL, VIRTCHNL_RXD_FLEX_UMBCAST_S)
-#define VIRTCHNL_RXD_FLEX_FF0_S		12
-#define VIRTCHNL_RXD_FLEX_FF0_M		MAKEMASK(0xFUL, VIRTCHNL_RXD_FLEX_FF0_S)
-#define VIRTCHNL_RXD_FLEX_LEN_PBUF_S	0
-#define VIRTCHNL_RXD_FLEX_LEN_PBUF_M	\
-	MAKEMASK(0x3FFFUL, VIRTCHNL_RXD_FLEX_LEN_PBUF_S)
-#define VIRTCHNL_RXD_FLEX_GEN_S		14
-#define VIRTCHNL_RXD_FLEX_GEN_M		BIT_ULL(VIRTCHNL_RXD_FLEX_GEN_S)
-#define VIRTCHNL_RXD_FLEX_BUFQ_ID_S		15
-#define VIRTCHNL_RXD_FLEX_BUFQ_ID_M		\
-	BIT_ULL(VIRTCHNL_RXD_FLEX_BUFQ_ID_S)
-#define VIRTCHNL_RXD_FLEX_LEN_HDR_S		0
-#define VIRTCHNL_RXD_FLEX_LEN_HDR_M		\
-	MAKEMASK(0x3FFUL, VIRTCHNL_RXD_FLEX_LEN_HDR_S)
-#define VIRTCHNL_RXD_FLEX_RSC_S		10
-#define VIRTCHNL_RXD_FLEX_RSC_M		BIT_ULL(VIRTCHNL_RXD_FLEX_RSC_S)
-#define VIRTCHNL_RXD_FLEX_SPH_S		11
-#define VIRTCHNL_RXD_FLEX_SPH_M		BIT_ULL(VIRTCHNL_RXD_FLEX_SPH_S)
-#define VIRTCHNL_RXD_FLEX_MISS_S		12
-#define VIRTCHNL_RXD_FLEX_MISS_M		\
-	BIT_ULL(VIRTCHNL_RXD_FLEX_MISS_S)
-#define VIRTCHNL_RXD_FLEX_FF1_S		13
-#define VIRTCHNL_RXD_FLEX_FF1_M		MAKEMASK(0x7UL, VIRTCHNL_RXD_FLEX_FF1_M)
+/* For splitq virtchnl_rx_flex_desc_adv desc members */
+#define VIRTCHNL_RX_FLEX_DESC_ADV_RXDID_S		0
+#define VIRTCHNL_RX_FLEX_DESC_ADV_RXDID_M		\
+	MAKEMASK(0xFUL, VIRTCHNL_RX_FLEX_DESC_ADV_RXDID_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_PTYPE_S		0
+#define VIRTCHNL_RX_FLEX_DESC_ADV_PTYPE_M		\
+	MAKEMASK(0x3FFUL, VIRTCHNL_RX_FLEX_DESC_ADV_PTYPE_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_UMBCAST_S		10
+#define VIRTCHNL_RX_FLEX_DESC_ADV_UMBCAST_M		\
+	MAKEMASK(0x3UL, VIRTCHNL_RX_FLEX_DESC_ADV_UMBCAST_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_FF0_S		12
+#define VIRTCHNL_RX_FLEX_DESC_ADV_FF0_M			\
+	MAKEMASK(0xFUL, VIRTCHNL_RX_FLEX_DESC_ADV_FF0_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_LEN_PBUF_S		0
+#define VIRTCHNL_RX_FLEX_DESC_ADV_LEN_PBUF_M	\
+	MAKEMASK(0x3FFFUL, VIRTCHNL_RX_FLEX_DESC_ADV_LEN_PBUF_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_GEN_S		14
+#define VIRTCHNL_RX_FLEX_DESC_ADV_GEN_M			\
+	BIT_ULL(VIRTCHNL_RX_FLEX_DESC_ADV_GEN_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_BUFQ_ID_S		15
+#define VIRTCHNL_RX_FLEX_DESC_ADV_BUFQ_ID_M		\
+	BIT_ULL(VIRTCHNL_RX_FLEX_DESC_ADV_BUFQ_ID_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_LEN_HDR_S		0
+#define VIRTCHNL_RX_FLEX_DESC_ADV_LEN_HDR_M		\
+	MAKEMASK(0x3FFUL, VIRTCHNL_RX_FLEX_DESC_ADV_LEN_HDR_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_RSC_S		10
+#define VIRTCHNL_RX_FLEX_DESC_ADV_RSC_M			\
+	BIT_ULL(VIRTCHNL_RX_FLEX_DESC_ADV_RSC_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_SPH_S		11
+#define VIRTCHNL_RX_FLEX_DESC_ADV_SPH_M			\
+	BIT_ULL(VIRTCHNL_RX_FLEX_DESC_ADV_SPH_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_MISS_S		12
+#define VIRTCHNL_RX_FLEX_DESC_ADV_MISS_M		\
+	BIT_ULL(VIRTCHNL_RX_FLEX_DESC_ADV_MISS_S)
+#define VIRTCHNL_RX_FLEX_DESC_ADV_FF1_S		13
+#define VIRTCHNL_RX_FLEX_DESC_ADV_FF1_M			\
+	MAKEMASK(0x7UL, VIRTCHNL_RX_FLEX_DESC_ADV_FF1_M)
 
-/* For virtchnl_singleq_base_rx_legacy desc members */
-#define VIRTCHNL_RXD_QW1_LEN_SPH_S	63
-#define VIRTCHNL_RXD_QW1_LEN_SPH_M	BIT_ULL(VIRTCHNL_RXD_QW1_LEN_SPH_S)
-#define VIRTCHNL_RXD_QW1_LEN_HBUF_S	52
-#define VIRTCHNL_RXD_QW1_LEN_HBUF_M	\
-	MAKEMASK(0x7FFULL, VIRTCHNL_RXD_QW1_LEN_HBUF_S)
-#define VIRTCHNL_RXD_QW1_LEN_PBUF_S	38
-#define VIRTCHNL_RXD_QW1_LEN_PBUF_M	\
-	MAKEMASK(0x3FFFULL, VIRTCHNL_RXD_QW1_LEN_PBUF_S)
-#define VIRTCHNL_RXD_QW1_PTYPE_S	30
-#define VIRTCHNL_RXD_QW1_PTYPE_M	\
-	MAKEMASK(0xFFULL, VIRTCHNL_RXD_QW1_PTYPE_S)
-#define VIRTCHNL_RXD_QW1_ERROR_S	19
-#define VIRTCHNL_RXD_QW1_ERROR_M	\
-	MAKEMASK(0xFFUL, VIRTCHNL_RXD_QW1_ERROR_S)
-#define VIRTCHNL_RXD_QW1_STATUS_S	0
-#define VIRTCHNL_RXD_QW1_STATUS_M	\
-	MAKEMASK(0x7FFFFUL, VIRTCHNL_RXD_QW1_STATUS_S)
+enum virtchnl_rx_flex_desc_adv_status_error_0_qw1_bits {
+	/* Note: These are predefined bit offsets */
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_DD_S = 0,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_EOF_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_HBO_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_L3L4P_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_XSUM_IPE_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_XSUM_L4E_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_XSUM_EIPE_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_XSUM_EUDPE_S,
+};
 
-enum virtchnl_rx_flex_desc_status_error_0_qw1_bits {
+enum virtchnl_rx_flex_desc_adv_status_error_0_qw0_bits {
+	/* Note: These are predefined bit offsets */
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_LPBK_S = 0,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_IPV6EXADD_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_RXE_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_CRCP_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_RSS_VALID_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_L2TAG1P_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_XTRMD0_VALID_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_XTRMD1_VALID_S,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS0_LAST /* this entry must be last!!! */
+};
+
+enum virtchnl_rx_flex_desc_adv_status_error_1_bits {
+	/* Note: These are predefined bit offsets */
+	/* 2 bits */
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_RSVD_S		= 0,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_ATRAEFAIL_S		= 2,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_L2TAG2P_S		= 3,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_XTRMD2_VALID_S	= 4,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_XTRMD3_VALID_S	= 5,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_XTRMD4_VALID_S	= 6,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_XTRMD5_VALID_S	= 7,
+	VIRTCHNL_RX_FLEX_DESC_ADV_STATUS1_LAST /* this entry must be last!!! */
+};
+
+/* for singleq (flex) virtchnl_rx_flex_desc fields */
+/* for virtchnl_rx_flex_desc.ptype_flex_flags0 member */
+#define VIRTCHNL_RX_FLEX_DESC_PTYPE_S			0
+#define VIRTCHNL_RX_FLEX_DESC_PTYPE_M			\
+	MAKEMASK(0x3FFUL, VIRTCHNL_RX_FLEX_DESC_PTYPE_S) /* 10-bits */
+
+/* for virtchnl_rx_flex_desc.pkt_length member */
+#define VIRTCHNL_RX_FLEX_DESC_PKT_LEN_S			0
+#define VIRTCHNL_RX_FLEX_DESC_PKT_LEN_M			\
+	MAKEMASK(0x3FFFUL, VIRTCHNL_RX_FLEX_DESC_PKT_LEN_S) /* 14-bits */
+
+enum virtchnl_rx_flex_desc_status_error_0_bits {
 	/* Note: These are predefined bit offsets */
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_DD_S = 0,
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_EOF_S,
@@ -93,10 +131,7 @@ enum virtchnl_rx_flex_desc_status_error_0_qw1_bits {
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_XSUM_L4E_S,
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S,
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_XSUM_EUDPE_S,
-};
-
-enum virtchnl_rx_flex_desc_status_error_0_qw0_bits {
-	VIRTCHNL_RX_FLEX_DESC_STATUS0_LPBK_S = 0,
+	VIRTCHNL_RX_FLEX_DESC_STATUS0_LPBK_S,
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_IPV6EXADD_S,
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_RXE_S,
 	VIRTCHNL_RX_FLEX_DESC_STATUS0_CRCP_S,
@@ -109,53 +144,80 @@ enum virtchnl_rx_flex_desc_status_error_0_qw0_bits {
 
 enum virtchnl_rx_flex_desc_status_error_1_bits {
 	/* Note: These are predefined bit offsets */
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_RSVD_S = 0, /* 2 bits */
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_ATRAEFAIL_S = 2,
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_L2TAG2P_S = 3,
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD2_VALID_S = 4,
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD3_VALID_S = 5,
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD4_VALID_S = 6,
-	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD5_VALID_S = 7,
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_CPM_S		= 0, /* 4 bits */
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_NAT_S		= 4,
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_CRYPTO_S		= 5,
+	/* [10:6] reserved */
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_L2TAG2P_S		= 11,
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD2_VALID_S	= 12,
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD3_VALID_S	= 13,
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD4_VALID_S	= 14,
+	VIRTCHNL_RX_FLEX_DESC_STATUS1_XTRMD5_VALID_S	= 15,
 	VIRTCHNL_RX_FLEX_DESC_STATUS1_LAST /* this entry must be last!!! */
 };
+
+/* For singleq (non flex) virtchnl_singleq_base_rx_desc legacy desc members */
+#define VIRTCHNL_RX_BASE_DESC_QW1_LEN_SPH_S	63
+#define VIRTCHNL_RX_BASE_DESC_QW1_LEN_SPH_M	\
+	BIT_ULL(VIRTCHNL_RX_BASE_DESC_QW1_LEN_SPH_S)
+#define VIRTCHNL_RX_BASE_DESC_QW1_LEN_HBUF_S	52
+#define VIRTCHNL_RX_BASE_DESC_QW1_LEN_HBUF_M	\
+	MAKEMASK(0x7FFULL, VIRTCHNL_RX_BASE_DESC_QW1_LEN_HBUF_S)
+#define VIRTCHNL_RX_BASE_DESC_QW1_LEN_PBUF_S	38
+#define VIRTCHNL_RX_BASE_DESC_QW1_LEN_PBUF_M	\
+	MAKEMASK(0x3FFFULL, VIRTCHNL_RX_BASE_DESC_QW1_LEN_PBUF_S)
+#define VIRTCHNL_RX_BASE_DESC_QW1_PTYPE_S	30
+#define VIRTCHNL_RX_BASE_DESC_QW1_PTYPE_M	\
+	MAKEMASK(0xFFULL, VIRTCHNL_RX_BASE_DESC_QW1_PTYPE_S)
+#define VIRTCHNL_RX_BASE_DESC_QW1_ERROR_S	19
+#define VIRTCHNL_RX_BASE_DESC_QW1_ERROR_M	\
+	MAKEMASK(0xFFUL, VIRTCHNL_RX_BASE_DESC_QW1_ERROR_S)
+#define VIRTCHNL_RX_BASE_DESC_QW1_STATUS_S	0
+#define VIRTCHNL_RX_BASE_DESC_QW1_STATUS_M	\
+	MAKEMASK(0x7FFFFUL, VIRTCHNL_RX_BASE_DESC_QW1_STATUS_S)
 
 enum virtchnl_rx_base_desc_status_bits {
 	/* Note: These are predefined bit offsets */
 	VIRTCHNL_RX_BASE_DESC_STATUS_DD_S		= 0,
 	VIRTCHNL_RX_BASE_DESC_STATUS_EOF_S		= 1,
-	VIRTCHNL_RX_BASE_DESC_STATUS_L2TAG1P_S	= 2,
-	VIRTCHNL_RX_BASE_DESC_STATUS_L3L4P_S	= 3,
+	VIRTCHNL_RX_BASE_DESC_STATUS_L2TAG1P_S		= 2,
+	VIRTCHNL_RX_BASE_DESC_STATUS_L3L4P_S		= 3,
 	VIRTCHNL_RX_BASE_DESC_STATUS_CRCP_S		= 4,
 	VIRTCHNL_RX_BASE_DESC_STATUS_RSVD_S		= 5, /* 3 BITS */
 	VIRTCHNL_RX_BASE_DESC_STATUS_EXT_UDP_0_S	= 8,
-	VIRTCHNL_RX_BASE_DESC_STATUS_UMBCAST_S	= 9, /* 2 BITS */
+	VIRTCHNL_RX_BASE_DESC_STATUS_UMBCAST_S		= 9, /* 2 BITS */
 	VIRTCHNL_RX_BASE_DESC_STATUS_FLM_S		= 11,
-	VIRTCHNL_RX_BASE_DESC_STATUS_FLTSTAT_S	= 12, /* 2 BITS */
+	VIRTCHNL_RX_BASE_DESC_STATUS_FLTSTAT_S		= 12, /* 2 BITS */
 	VIRTCHNL_RX_BASE_DESC_STATUS_LPBK_S		= 14,
 	VIRTCHNL_RX_BASE_DESC_STATUS_IPV6EXADD_S	= 15,
-	VIRTCHNL_RX_BASE_DESC_STATUS_RSVD1_S	= 16, /* 2 BITS */
+	VIRTCHNL_RX_BASE_DESC_STATUS_RSVD1_S		= 16, /* 2 BITS */
 	VIRTCHNL_RX_BASE_DESC_STATUS_INT_UDP_0_S	= 18,
 	VIRTCHNL_RX_BASE_DESC_STATUS_LAST /* this entry must be last!!! */
 };
 
-enum virtchnl_rx_desc_fltstat_values {
-	VIRTCHNL_RX_DESC_FLTSTAT_NO_DATA	= 0,
-	VIRTCHNL_RX_DESC_FLTSTAT_RSV_FD_ID	= 1, /* 16byte desc? FD_ID : RSV */
-	VIRTCHNL_RX_DESC_FLTSTAT_RSV	= 2,
-	VIRTCHNL_RX_DESC_FLTSTAT_RSS_HASH	= 3,
+enum virtchnl_rx_base_desc_ext_status_bits {
+	/* Note: These are predefined bit offsets */
+	VIRTCHNL_RX_BASE_DESC_EXT_STATUS_L2TAG2P_S      = 0
 };
 
 enum virtchnl_rx_base_desc_error_bits {
 	/* Note: These are predefined bit offsets */
 	VIRTCHNL_RX_BASE_DESC_ERROR_RXE_S		= 0,
-	VIRTCHNL_RX_BASE_DESC_ERROR_ATRAEFAIL_S	= 1,
+	VIRTCHNL_RX_BASE_DESC_ERROR_ATRAEFAIL_S		= 1,
 	VIRTCHNL_RX_BASE_DESC_ERROR_HBO_S		= 2,
 	VIRTCHNL_RX_BASE_DESC_ERROR_L3L4E_S		= 3, /* 3 BITS */
 	VIRTCHNL_RX_BASE_DESC_ERROR_IPE_S		= 3,
 	VIRTCHNL_RX_BASE_DESC_ERROR_L4E_S		= 4,
 	VIRTCHNL_RX_BASE_DESC_ERROR_EIPE_S		= 5,
-	VIRTCHNL_RX_BASE_DESC_ERROR_OVERSIZE_S	= 6,
-	VIRTCHNL_RX_BASE_DESC_ERROR_RSVD_S		= 7
+	VIRTCHNL_RX_BASE_DESC_ERROR_OVERSIZE_S		= 6,
+	VIRTCHNL_RX_BASE_DESC_ERROR_PPRS_S		= 7
+};
+
+enum virtchnl_rx_base_desc_fltstat_values {
+	VIRTCHNL_RX_BASE_DESC_FLTSTAT_NO_DATA		= 0,
+	VIRTCHNL_RX_BASE_DESC_FLTSTAT_FD_ID		= 1,
+	VIRTCHNL_RX_BASE_DESC_FLTSTAT_RSV		= 2,
+	VIRTCHNL_RX_BASE_DESC_FLTSTAT_RSS_HASH		= 3,
 };
 
 /* Receive Descriptors */
@@ -277,7 +339,7 @@ struct virtchnl_rx_flex_desc_nic {
 	/* Qword 0 */
 	u8 rxdid;
 	u8 mir_id_umb_cast;
-	__le16 ptype_flexi_flags0;
+	__le16 ptype_flex_flags0;
 	__le16 pkt_len;
 	__le16 hdr_len_sph_flex_flags1;
 
@@ -312,7 +374,7 @@ struct virtchnl_rx_flex_desc_sw {
 	/* Qword 0 */
 	u8 rxdid;
 	u8 mir_id_umb_cast;
-	__le16 ptype_flexi_flags0;
+	__le16 ptype_flex_flags0;
 	__le16 pkt_len;
 	__le16 hdr_len_sph_flex_flags1;
 
@@ -334,71 +396,6 @@ struct virtchnl_rx_flex_desc_sw {
 	__le32 ts_high;
 };
 
-/* Rx Flex Descriptor NIC VEB Profile
- * RxDID Profile Id 4
- * Flex-field 0: Destination Vsi
- */
-struct virtchnl_rx_flex_desc_nic_veb_dbg {
-	/* Qword 0 */
-	u8 rxdid;
-	u8 mir_id_umb_cast;
-	__le16 ptype_flexi_flags0;
-	__le16 pkt_len;
-	__le16 hdr_len_sph_flex_flags1;
-
-	/* Qword 1 */
-	__le16 status_error0;
-	__le16 l2tag1;
-	__le16 dst_vsi; /* [0:12]: destination vsi */
-			/* 13: vsi valid bit */
-			/* [14:15] are reserved */
-	__le16 flex_field_1;
-
-	/* Qword 2 */
-	__le16 status_error1;
-	u8 flex_flags2;
-	u8 ts_low;
-	__le16 l2tag2_1st;
-	__le16 l2tag2_2nd;
-
-	/* Qword 3 */
-	__le32 rsvd; /* flex words 2-3 are reserved */
-	__le32 ts_high;
-};
-
-/* Rx Flex Descriptor NIC ACL Profile
- * RxDID Profile Id 5
- * Flex-field 0: ACL Counter 0
- * Flex-field 1: ACL Counter 1
- * Flex-field 2: ACL Counter 2
- */
-struct virtchnl_rx_flex_desc_nic_acl_dbg {
-	/* Qword 0 */
-	u8 rxdid;
-	u8 mir_id_umb_cast;
-	__le16 ptype_flexi_flags0;
-	__le16 pkt_len;
-	__le16 hdr_len_sph_flex_flags1;
-
-	/* Qword 1 */
-	__le16 status_error0;
-	__le16 l2tag1;
-	__le16 acl_ctr0;
-	__le16 acl_ctr1;
-
-	/* Qword 2 */
-	__le16 status_error1;
-	u8 flex_flags2;
-	u8 ts_low;
-	__le16 l2tag2_1st;
-	__le16 l2tag2_2nd;
-
-	/* Qword 3 */
-	__le16 acl_ctr2;
-	__le16 rsvd; /* flex words 2-3 are reserved */
-	__le32 ts_high;
-};
-
 /* Rx Flex Descriptor NIC Profile
  * RxDID Profile Id 6
  * Flex-field 0: RSS hash lower 16-bits
@@ -411,7 +408,7 @@ struct virtchnl_rx_flex_desc_nic_2 {
 	/* Qword 0 */
 	u8 rxdid;
 	u8 mir_id_umb_cast;
-	__le16 ptype_flexi_flags0;
+	__le16 ptype_flex_flags0;
 	__le16 pkt_len;
 	__le16 hdr_len_sph_flex_flags1;
 
@@ -540,10 +537,14 @@ struct virtchnl_rx_flex_desc_adv_nic_3 {
 }; /* writeback */
 
 union virtchnl_rx_desc {
-	struct virtchnl_singleq_rx_buf_desc	read;
-	struct virtchnl_singleq_base_rx_desc	base_wb;
-	struct virtchnl_rx_flex_desc		flex_wb;
-	struct virtchnl_rx_flex_desc_adv	flex_wb_adv;
+	struct virtchnl_singleq_rx_buf_desc		read;
+	struct virtchnl_singleq_base_rx_desc		base_wb;
+	struct virtchnl_rx_flex_desc			flex_wb;
+	struct virtchnl_rx_flex_desc_nic		flex_nic_wb;
+	struct virtchnl_rx_flex_desc_sw			flex_sw_wb;
+	struct virtchnl_rx_flex_desc_nic_2		flex_nic_2_wb;
+	struct virtchnl_rx_flex_desc_adv		flex_adv_wb;
+	struct virtchnl_rx_flex_desc_adv_nic_3		flex_adv_nic_3_wb;
 };
 
 #endif /* _VIRTCHNL_LAN_DESC_H_ */

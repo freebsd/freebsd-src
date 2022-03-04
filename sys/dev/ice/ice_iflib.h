@@ -137,6 +137,8 @@ struct ice_irq_vector {
  * @tx_paddr: the physical address for this queue
  * @q_teid: the Tx queue TEID returned from firmware
  * @stats: queue statistics
+ * @tc: traffic class queue belongs to
+ * @q_handle: qidx in tc; used in TXQ enable functions
  *
  * Other parameters may be iflib driver specific
  */
@@ -151,6 +153,8 @@ struct ice_tx_queue {
 	struct ice_irq_vector	*irqv;
 	u32			q_teid;
 	u32			me;
+	u16			q_handle;
+	u8			tc;
 
 	/* descriptor writeback status */
 	qidx_t			*tx_rsq;
@@ -171,6 +175,7 @@ struct ice_tx_queue {
  * @rx_paddr: the physical address for this queue
  * @tail: the tail register address for this queue
  * @stats: queue statistics
+ * @tc: traffic class queue belongs to
  *
  * Other parameters may be iflib driver specific
  */
@@ -183,6 +188,7 @@ struct ice_rx_queue {
 	u32				tail;
 	struct ice_irq_vector		*irqv;
 	u32				me;
+	u8				tc;
 
 	struct if_irq			que_irq;
 };

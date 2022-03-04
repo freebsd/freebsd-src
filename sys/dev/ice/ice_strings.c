@@ -700,6 +700,47 @@ _ice_fltr_flag_str(u16 flag)
 }
 
 /**
+ * ice_log_sev_str - Convert log level to a string
+ * @log_level: the log level to convert
+ *
+ * Convert the u8 log level of a FW logging module into a readable
+ * string for outputting in a sysctl.
+ */
+struct ice_str_buf
+_ice_log_sev_str(u8 log_level)
+{
+	struct ice_str_buf buf = { .str = "" };
+	const char *str = NULL;
+
+	switch (log_level) {
+	case ICE_FWLOG_LEVEL_NONE:
+		str = "none";
+		break;
+	case ICE_FWLOG_LEVEL_ERROR:
+		str = "error";
+		break;
+	case ICE_FWLOG_LEVEL_WARNING:
+		str = "warning";
+		break;
+	case ICE_FWLOG_LEVEL_NORMAL:
+		str = "normal";
+		break;
+	case ICE_FWLOG_LEVEL_VERBOSE:
+		str = "verbose";
+		break;
+	default:
+		break;
+	}
+
+	if (str)
+		snprintf(buf.str, ICE_STR_BUF_LEN, "%s", str);
+	else
+		snprintf(buf.str, ICE_STR_BUF_LEN, "%u", log_level);
+
+	return buf;
+}
+
+/**
  * ice_fwd_act_str - convert filter action enum to a string
  * @action: the filter action to convert
  *
@@ -986,17 +1027,106 @@ ice_state_to_str(enum ice_state state)
 		return "ROLLBACK_MODE";
 	case ICE_STATE_LINK_STATUS_REPORTED:
 		return "LINK_STATUS_REPORTED";
+	case ICE_STATE_ATTACHING:
+		return "ATTACHING";
 	case ICE_STATE_DETACHING:
 		return "DETACHING";
 	case ICE_STATE_LINK_DEFAULT_OVERRIDE_PENDING:
 		return "LINK_DEFAULT_OVERRIDE_PENDING";
 	case ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER:
 		return "LLDP_RX_FLTR_FROM_DRIVER";
+	case ICE_STATE_MULTIPLE_TCS:
+		return "MULTIPLE_TCS";
 	case ICE_STATE_LAST:
 		return NULL;
 	}
 
 	return NULL;
+}
+
+/**
+ * ice_fw_module_str - Convert a FW logging module to a string name
+ * @module: the module to convert
+ *
+ * Given a FW logging module id, convert it to a shorthand human readable
+ * name, for generating sysctl tunables.
+ */
+const char *
+ice_fw_module_str(enum ice_aqc_fw_logging_mod module)
+{
+	switch (module) {
+	case ICE_AQC_FW_LOG_ID_GENERAL:
+		return "general";
+	case ICE_AQC_FW_LOG_ID_CTRL:
+		return "ctrl";
+	case ICE_AQC_FW_LOG_ID_LINK:
+		return "link";
+	case ICE_AQC_FW_LOG_ID_LINK_TOPO:
+		return "link_topo";
+	case ICE_AQC_FW_LOG_ID_DNL:
+		return "dnl";
+	case ICE_AQC_FW_LOG_ID_I2C:
+		return "i2c";
+	case ICE_AQC_FW_LOG_ID_SDP:
+		return "sdp";
+	case ICE_AQC_FW_LOG_ID_MDIO:
+		return "mdio";
+	case ICE_AQC_FW_LOG_ID_ADMINQ:
+		return "adminq";
+	case ICE_AQC_FW_LOG_ID_HDMA:
+		return "hdma";
+	case ICE_AQC_FW_LOG_ID_LLDP:
+		return "lldp";
+	case ICE_AQC_FW_LOG_ID_DCBX:
+		return "dcbx";
+	case ICE_AQC_FW_LOG_ID_DCB:
+		return "dcb";
+	case ICE_AQC_FW_LOG_ID_XLR:
+		return "xlr";
+	case ICE_AQC_FW_LOG_ID_NVM:
+		return "nvm";
+	case ICE_AQC_FW_LOG_ID_AUTH:
+		return "auth";
+	case ICE_AQC_FW_LOG_ID_VPD:
+		return "vpd";
+	case ICE_AQC_FW_LOG_ID_IOSF:
+		return "iosf";
+	case ICE_AQC_FW_LOG_ID_PARSER:
+		return "parser";
+	case ICE_AQC_FW_LOG_ID_SW:
+		return "sw";
+	case ICE_AQC_FW_LOG_ID_SCHEDULER:
+		return "scheduler";
+	case ICE_AQC_FW_LOG_ID_TXQ:
+		return "txq";
+	case ICE_AQC_FW_LOG_ID_RSVD:
+		return "acl";
+	case ICE_AQC_FW_LOG_ID_POST:
+		return "post";
+	case ICE_AQC_FW_LOG_ID_WATCHDOG:
+		return "watchdog";
+	case ICE_AQC_FW_LOG_ID_TASK_DISPATCH:
+		return "task_dispatch";
+	case ICE_AQC_FW_LOG_ID_MNG:
+		return "mng";
+	case ICE_AQC_FW_LOG_ID_SYNCE:
+		return "synce";
+	case ICE_AQC_FW_LOG_ID_HEALTH:
+		return "health";
+	case ICE_AQC_FW_LOG_ID_TSDRV:
+		return "tsdrv";
+	case ICE_AQC_FW_LOG_ID_PFREG:
+		return "pfreg";
+	case ICE_AQC_FW_LOG_ID_MDLVER:
+		return "mdlver";
+	case ICE_AQC_FW_LOG_ID_MAX:
+		return "unknown";
+	}
+
+	/* The compiler generates errors on unhandled enum values if we omit
+	 * the default case.
+	 */
+	return "unknown";
 }
 
 /**
