@@ -3494,6 +3494,9 @@ item_domain(void *item)
 #endif
 
 #if defined(INVARIANTS) || defined(DEBUG_MEMGUARD) || defined(WITNESS)
+#if defined(INVARIANTS) && (defined(DDB) || defined(STACK))
+#include <sys/stack.h>
+#endif
 #define	UMA_ZALLOC_DEBUG
 static int
 uma_zalloc_debug(uma_zone_t zone, void **itemp, void *udata, int flags)
@@ -3515,6 +3518,31 @@ uma_zalloc_debug(uma_zone_t zone, void **itemp, void *udata, int flags)
 	    ("uma_zalloc_debug: called within spinlock or critical section"));
 	KASSERT((zone->uz_flags & UMA_ZONE_PCPU) == 0 || (flags & M_ZERO) == 0,
 	    ("uma_zalloc_debug: allocating from a pcpu zone with M_ZERO"));
+
+	_Static_assert(M_NOWAIT != 0 && M_WAITOK != 0,
+	    "M_NOWAIT and M_WAITOK must be non-zero for this assertion:");
+#if 0
+	/*
+	 * Give the #elif clause time to find problems, then remove it
+	 * and enable this.  (Remove <sys/stack.h> above, too.)
+	 */
+	KASSERT((flags & (M_NOWAIT|M_WAITOK)) == M_NOWAIT ||
+	    (flags & (M_NOWAIT|M_WAITOK)) == M_WAITOK,
+	    ("uma_zalloc_debug: must pass one of M_NOWAIT or M_WAITOK"));
+#elif defined(DDB) || defined(STACK)
+	if (__predict_false((flags & (M_NOWAIT|M_WAITOK)) != M_NOWAIT &&
+	    (flags & (M_NOWAIT|M_WAITOK)) != M_WAITOK)) {
+		static int stack_count;
+		struct stack st;
+
+		if (stack_count < 10) {
+			++stack_count;
+			printf("uma_zalloc* called with bad WAIT flags:\n");
+			stack_save(&st);
+			stack_print(&st);
+		}
+	}
+#endif
 #endif
 
 #ifdef DEBUG_MEMGUARD
