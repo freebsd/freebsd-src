@@ -292,9 +292,7 @@ ksiginfo_alloc(int wait)
 {
 	int flags;
 
-	flags = M_ZERO;
-	if (! wait)
-		flags |= M_NOWAIT;
+	flags = M_ZERO | (wait ? M_WAITOK : M_NOWAIT);
 	if (ksiginfo_zone != NULL)
 		return ((ksiginfo_t *)uma_zalloc(ksiginfo_zone, flags));
 	return (NULL);
