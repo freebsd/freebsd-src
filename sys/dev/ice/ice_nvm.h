@@ -94,19 +94,6 @@ union ice_nvm_access_data {
 	struct ice_nvm_features drv_features; /* NVM features */
 };
 
-/* NVM Access registers */
-#define GL_HIDA(_i)			(0x00082000 + ((_i) * 4))
-#define GL_HIBA(_i)			(0x00081000 + ((_i) * 4))
-#define GL_HICR				0x00082040
-#define GL_HICR_EN			0x00082044
-#define GLGEN_CSR_DEBUG_C		0x00075750
-#define GLPCI_LBARCTRL			0x0009DE74
-#define GLNVM_GENS			0x000B6100
-#define GLNVM_FLA			0x000B6108
-
-#define ICE_NVM_ACCESS_GL_HIDA_MAX	15
-#define ICE_NVM_ACCESS_GL_HIBA_MAX	1023
-
 u32 ice_nvm_access_get_module(struct ice_nvm_access_cmd *cmd);
 u32 ice_nvm_access_get_flags(struct ice_nvm_access_cmd *cmd);
 u32 ice_nvm_access_get_adapter(struct ice_nvm_access_cmd *cmd);

@@ -55,6 +55,7 @@ static int ice_ift_txd_credits_update(void *arg, uint16_t txqid, bool clear);
 static int ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget);
 static void ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx, qidx_t pidx);
 static void ice_ift_rxd_refill(void *arg, if_rxd_update_t iru);
+static qidx_t ice_ift_queue_select(void *arg, struct mbuf *m);
 
 /* Macro to help extract the NIC mode flexible Rx descriptor fields from the
  * advanced 32byte Rx descriptors.
@@ -78,6 +79,7 @@ struct if_txrx ice_txrx = {
 	.ift_rxd_pkt_get = ice_ift_rxd_pkt_get,
 	.ift_rxd_refill = ice_ift_rxd_refill,
 	.ift_rxd_flush = ice_ift_rxd_flush,
+	.ift_txq_select = ice_ift_queue_select,
 };
 
 /**
@@ -276,7 +278,7 @@ ice_ift_rxd_available(void *arg, uint16_t rxqid, qidx_t pidx, qidx_t budget)
  *
  * This function is called by iflib, and executes in ithread context. It is
  * called by iflib to obtain data which has been DMA'ed into host memory.
- * Returns zero on success, and an error code on failure.
+ * Returns zero on success, and EBADMSG on failure.
  */
 static int
 ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
@@ -300,8 +302,6 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		status0 = le16toh(cur->wb.status_error0);
 		plen = le16toh(cur->wb.pkt_len) &
 			ICE_RX_FLX_DESC_PKT_LEN_M;
-		ptype = le16toh(cur->wb.ptype_flex_flags0) &
-			ICE_RX_FLEX_DESC_PTYPE_M;
 
 		/* we should never be called without a valid descriptor */
 		MPASS((status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S)) != 0);
@@ -311,14 +311,6 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		cur->wb.status_error0 = 0;
 		eop = (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S));
 
-		/*
-		 * Make sure packets with bad L2 values are discarded.
-		 * NOTE: Only the EOP descriptor has valid error results.
-		 */
-		if (eop && (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S))) {
-			rxq->stats.desc_errs++;
-			return (EBADMSG);
-		}
 		ri->iri_frags[i].irf_flid = 0;
 		ri->iri_frags[i].irf_idx = cidx;
 		ri->iri_frags[i].irf_len = plen;
@@ -327,19 +319,36 @@ ice_ift_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
-	/* capture soft statistics for this Rx queue */
-	rxq->stats.rx_packets++;
-	rxq->stats.rx_bytes += ri->iri_len;
+	/* End of Packet reached; cur is eop/last descriptor */
 
-	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
-		ice_rx_checksum(rxq, &ri->iri_csum_flags,
-				&ri->iri_csum_data, status0, ptype);
-	ri->iri_flowid = le32toh(RX_FLEX_NIC(&cur->wb, rss_hash));
-	ri->iri_rsstype = ice_ptype_to_hash(ptype);
+	/* Make sure packets with bad L2 values are discarded.
+	 * This bit is only valid in the last descriptor.
+	 */
+	if (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S)) {
+		rxq->stats.desc_errs++;
+		return (EBADMSG);
+	}
+
+	/* Get VLAN tag information if one is in descriptor */
 	if (status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S)) {
 		ri->iri_vtag = le16toh(cur->wb.l2tag1);
 		ri->iri_flags |= M_VLANTAG;
 	}
+
+	/* Capture soft statistics for this Rx queue */
+	rxq->stats.rx_packets++;
+	rxq->stats.rx_bytes += ri->iri_len;
+
+	/* Get packet type and set checksum flags */
+	ptype = le16toh(cur->wb.ptype_flex_flags0) &
+		ICE_RX_FLEX_DESC_PTYPE_M;
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
+		ice_rx_checksum(rxq, &ri->iri_csum_flags,
+				&ri->iri_csum_data, status0, ptype);
+
+	/* Set remaining iflib RX descriptor info fields */
+	ri->iri_flowid = le32toh(RX_FLEX_NIC(&cur->wb, rss_hash));
+	ri->iri_rsstype = ice_ptype_to_hash(ptype);
 	ri->iri_nfrags = i;
 	return (0);
 }
@@ -396,4 +405,45 @@ ice_ift_rxd_flush(void *arg, uint16_t rxqid, uint8_t flidx __unused,
 	struct ice_hw *hw = &sc->hw;
 
 	wr32(hw, rxq->tail, pidx);
+}
+
+static qidx_t
+ice_ift_queue_select(void *arg, struct mbuf *m)
+{
+	struct ice_softc *sc = (struct ice_softc *)arg;
+	struct ice_vsi *vsi = &sc->pf_vsi;
+	u16 tc_base_queue, tc_qcount;
+	u8 up, tc;
+
+#ifdef ALTQ
+	/* Included to match default iflib behavior */
+	/* Only go out on default queue if ALTQ is enabled */
+	struct ifnet *ifp = (struct ifnet *)iflib_get_ifp(sc->ctx);
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		return (0);
+#endif
+
+	if (!ice_test_state(&sc->state, ICE_STATE_MULTIPLE_TCS)) {
+		if (M_HASHTYPE_GET(m)) {
+			/* Default iflib queue selection method */
+			return (m->m_pkthdr.flowid % sc->pf_vsi.num_tx_queues);
+		} else
+			return (0);
+	}
+
+	/* Use default TC unless overridden */
+	tc = 0; /* XXX: Get default TC for traffic if >1 TC? */
+
+	if (m->m_flags & M_VLANTAG) {
+		up = EVL_PRIOFTAG(m->m_pkthdr.ether_vtag);
+		tc = sc->hw.port_info->qos_cfg.local_dcbx_cfg.etscfg.prio_table[up];
+	}
+
+	tc_base_queue = vsi->tc_info[tc].qoffset;
+	tc_qcount = vsi->tc_info[tc].qcount_tx;
+
+	if (M_HASHTYPE_GET(m))
+		return ((m->m_pkthdr.flowid % tc_qcount) + tc_base_queue);
+	else
+		return (tc_base_queue);
 }
