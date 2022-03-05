@@ -1396,7 +1396,8 @@ completeall:
 		siis_reset(dev);
 		return;
 	}
-	ccb->ccb_h = ch->hold[i]->ccb_h;	/* Reuse old header. */
+	xpt_setup_ccb(&ccb->ccb_h, ch->hold[i]->ccb_h.path,
+	    ch->hold[i]->ccb_h.pinfo.priority);
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 		/* READ LOG */
 		ccb->ccb_h.recovery_type = RECOVERY_READ_LOG;
