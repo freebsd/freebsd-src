@@ -9,6 +9,7 @@
 CONTRIBUTING.md
 README.md
 SECURITY.md
+bolt/
 clang/.clang-format
 clang/.clang-tidy
 clang/.gitignore
@@ -106,6 +107,7 @@ clang/tools/clang-format/git-clang-format
 clang/tools/clang-format-vs/
 clang/tools/clang-fuzzer/
 clang/tools/clang-import-test/
+clang/tools/clang-linker-wrapper/
 clang/tools/clang-nvlink-wrapper/
 clang/tools/clang-offload-bundler/
 clang/tools/clang-offload-wrapper/
@@ -218,6 +220,8 @@ compiler-rt/lib/tsan/check_cmake.sh
 compiler-rt/lib/tsan/dd/CMakeLists.txt
 compiler-rt/lib/tsan/go/build.bat
 compiler-rt/lib/tsan/go/buildgo.sh
+compiler-rt/lib/tsan/rtl/CMakeLists.txt
+compiler-rt/lib/tsan/rtl-old/CMakeLists.txt
 compiler-rt/lib/tsan/tests/
 compiler-rt/lib/ubsan/CMakeLists.txt
 compiler-rt/lib/ubsan_minimal/CMakeLists.txt
@@ -256,6 +260,7 @@ libunwind/.clang-format
 libunwind/CMakeLists.txt
 libunwind/cmake/
 libunwind/docs/
+libunwind/include/CMakeLists.txt
 libunwind/src/CMakeLists.txt
 libunwind/test/
 lld/CMakeLists.txt
@@ -266,15 +271,8 @@ lld/MachO/CMakeLists.txt
 lld/MinGW/
 lld/cmake/
 lld/docs/CMakeLists.txt
-lld/lib/CMakeLists.txt
-lld/lib/Core/CMakeLists.txt
-lld/lib/Driver/CMakeLists.txt
-lld/lib/ReaderWriter/CMakeLists.txt
-lld/lib/ReaderWriter/MachO/CMakeLists.txt
-lld/lib/ReaderWriter/YAML/CMakeLists.txt
 lld/test/
 lld/tools/lld/CMakeLists.txt
-lld/unittests/
 lld/utils/
 lld/wasm/
 lldb/.clang-format
@@ -404,6 +402,7 @@ lldb/source/Plugins/Platform/Windows/
 lldb/source/Plugins/Platform/gdb-server/CMakeLists.txt
 lldb/source/Plugins/Process/CMakeLists.txt
 lldb/source/Plugins/Process/FreeBSD/CMakeLists.txt
+lldb/source/Plugins/Process/FreeBSDKernel/CMakeLists.txt
 lldb/source/Plugins/Process/Linux/
 lldb/source/Plugins/Process/MacOSX-Kernel/
 lldb/source/Plugins/Process/NetBSD/CMakeLists.txt
@@ -448,6 +447,7 @@ lldb/source/Plugins/UnwindAssembly/x86/CMakeLists.txt
 lldb/source/Symbol/CMakeLists.txt
 lldb/source/Target/CMakeLists.txt
 lldb/source/Utility/CMakeLists.txt
+lldb/source/Version/CMakeLists.txt
 lldb/test/
 lldb/third_party/
 lldb/tools/CMakeLists.txt
@@ -519,6 +519,7 @@ llvm/lib/DebugInfo/GSYM/CMakeLists.txt
 llvm/lib/DebugInfo/MSF/CMakeLists.txt
 llvm/lib/DebugInfo/PDB/CMakeLists.txt
 llvm/lib/DebugInfo/Symbolize/CMakeLists.txt
+llvm/lib/Debuginfod/CMakeLists.txt
 llvm/lib/Demangle/CMakeLists.txt
 llvm/lib/ExecutionEngine/CMakeLists.txt
 llvm/lib/ExecutionEngine/IntelJITEvents/CMakeLists.txt
@@ -665,6 +666,7 @@ llvm/lib/Target/WebAssembly/Utils/CMakeLists.txt
 llvm/lib/Target/X86/AsmParser/CMakeLists.txt
 llvm/lib/Target/X86/CMakeLists.txt
 llvm/lib/Target/X86/Disassembler/CMakeLists.txt
+llvm/lib/Target/X86/MCA/CMakeLists.txt
 llvm/lib/Target/X86/MCTargetDesc/CMakeLists.txt
 llvm/lib/Target/X86/README-FPStack.txt
 llvm/lib/Target/X86/README-SSE.txt
@@ -722,6 +724,7 @@ llvm/tools/llvm-cvtres/
 llvm/tools/llvm-cxxdump/CMakeLists.txt
 llvm/tools/llvm-cxxfilt/CMakeLists.txt
 llvm/tools/llvm-cxxmap/CMakeLists.txt
+llvm/tools/llvm-debuginfod-find/
 llvm/tools/llvm-diff/CMakeLists.txt
 llvm/tools/llvm-diff/lib/CMakeLists.txt
 llvm/tools/llvm-dis/CMakeLists.txt
@@ -810,7 +813,6 @@ llvm/utils/UpdateCMakeLists.pl
 llvm/utils/UpdateTestChecks/
 llvm/utils/abtest.py
 llvm/utils/add_argument_names.py
-llvm/utils/benchmark/
 llvm/utils/bisect
 llvm/utils/bisect-skip-count
 llvm/utils/bugpoint/
@@ -850,6 +852,7 @@ llvm/utils/llvm-compilers-check
 llvm/utils/llvm-gisel-cov.py
 llvm/utils/llvm-lit/
 llvm/utils/llvm-locstats/
+llvm/utils/llvm-mca-compare.py
 llvm/utils/llvm-native-gxx
 llvm/utils/llvm-original-di-preservation.py
 llvm/utils/llvm.grm
@@ -910,4 +913,5 @@ openmp/tools/
 polly/
 pstl/
 runtimes/
+third-party/
 utils/

@@ -8990,12 +8990,13 @@ SDValue AArch64TargetLowering::ReconstructShuffle(SDValue Op,
     if (V.isUndef())
       continue;
     else if (V.getOpcode() != ISD::EXTRACT_VECTOR_ELT ||
-             !isa<ConstantSDNode>(V.getOperand(1))) {
+             !isa<ConstantSDNode>(V.getOperand(1)) ||
+             V.getOperand(0).getValueType().isScalableVector()) {
       LLVM_DEBUG(
           dbgs() << "Reshuffle failed: "
                     "a shuffle can only come from building a vector from "
-                    "various elements of other vectors, provided their "
-                    "indices are constant\n");
+                    "various elements of other fixed-width vectors, provided "
+                    "their indices are constant\n");
       return SDValue();
     }
 
@@ -9039,8 +9040,8 @@ SDValue AArch64TargetLowering::ReconstructShuffle(SDValue Op,
   for (auto &Src : Sources) {
     EVT SrcVT = Src.ShuffleVec.getValueType();
 
-    uint64_t SrcVTSize = SrcVT.getFixedSizeInBits();
-    if (SrcVTSize == VTSize)
+    TypeSize SrcVTSize = SrcVT.getSizeInBits();
+    if (SrcVTSize == TypeSize::Fixed(VTSize))
       continue;
 
     // This stage of the search produces a source with the same element type as
@@ -9049,7 +9050,7 @@ SDValue AArch64TargetLowering::ReconstructShuffle(SDValue Op,
     unsigned NumSrcElts = VTSize / EltVT.getFixedSizeInBits();
     EVT DestVT = EVT::getVectorVT(*DAG.getContext(), EltVT, NumSrcElts);
 
-    if (SrcVTSize < VTSize) {
+    if (SrcVTSize.getFixedValue() < VTSize) {
       assert(2 * SrcVTSize == VTSize);
       // We can pad out the smaller vector for free, so if it's part of a
       // shuffle...
@@ -9059,7 +9060,7 @@ SDValue AArch64TargetLowering::ReconstructShuffle(SDValue Op,
       continue;
     }
 
-    if (SrcVTSize != 2 * VTSize) {
+    if (SrcVTSize.getFixedValue() != 2 * VTSize) {
       LLVM_DEBUG(
           dbgs() << "Reshuffle failed: result vector too small to extract\n");
       return SDValue();
@@ -9730,6 +9731,10 @@ static SDValue constructDup(SDValue V, int Lane, SDLoc dl, EVT VT,
     unsigned ExtIdxInBits = ExtIdx * SrcEltBitWidth;
     unsigned CastedEltBitWidth = BitCast.getScalarValueSizeInBits();
     if (ExtIdxInBits % CastedEltBitWidth != 0)
+      return false;
+
+    // Can't handle cases where vector size is not 128-bit
+    if (!Extract.getOperand(0).getValueType().is128BitVector())
       return false;
 
     // Update the lane value by offsetting with the scaled extract index.
@@ -13676,8 +13681,10 @@ static SDValue performFpToIntCombine(SDNode *N, SelectionDAG &DAG,
     return SDValue();
 
   SDValue Op = N->getOperand(0);
-  if (!Op.getValueType().isVector() || !Op.getValueType().isSimple() ||
-      Op.getOpcode() != ISD::FMUL)
+  if (!Op.getValueType().isSimple() || Op.getOpcode() != ISD::FMUL)
+    return SDValue();
+
+  if (!Op.getValueType().is64BitVector() && !Op.getValueType().is128BitVector())
     return SDValue();
 
   SDValue ConstVec = Op->getOperand(1);
