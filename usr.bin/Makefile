@@ -13,6 +13,7 @@ SUBDIR=	alias \
 	beep \
 	brandelf \
 	bsdcat \
+	bsddialog \
 	bsdiff \
 	bzip2 \
 	bzip2recover \
