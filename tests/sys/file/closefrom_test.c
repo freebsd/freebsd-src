@@ -146,7 +146,7 @@ main(void)
 	pid_t pid;
 	int fd, flags, i, start;
 
-	printf("1..20\n");
+	printf("1..21\n");
 
 	/* We better start up with fd's 0, 1, and 2 open. */
 	start = devnull();
