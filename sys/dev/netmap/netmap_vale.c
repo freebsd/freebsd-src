@@ -84,10 +84,9 @@ __FBSDID("$FreeBSD$");
 
 /*
  * system parameters (most of them in netmap_kern.h)
- * NM_BDG_NAME	prefix for switch port names, default "vale"
+ * NM_BDG_NAME		prefix for switch port names, default "vale"
  * NM_BDG_MAXPORTS	number of ports
- * NM_BRIDGES	max number of switches in the system.
- *	XXX should become a sysctl or tunable
+ * NM_BRIDGES		max number of switches in the system.
  *
  * Switch ports are named valeX:Y where X is the switch name and Y
  * is the port. If Y matches a physical interface name, the port is
@@ -115,10 +114,16 @@ __FBSDID("$FreeBSD$");
  * last packet in the block may overflow the size.
  */
 static int bridge_batch = NM_BDG_BATCH; /* bridge batch size */
+
+/* Max number of vale bridges (loader tunable). */
+unsigned int vale_max_bridges = NM_BRIDGES;
+
 SYSBEGIN(vars_vale);
 SYSCTL_DECL(_dev_netmap);
 SYSCTL_INT(_dev_netmap, OID_AUTO, bridge_batch, CTLFLAG_RW, &bridge_batch, 0,
 		"Max batch size to be used in the bridge");
+SYSCTL_UINT(_dev_netmap, OID_AUTO, max_bridges, CTLFLAG_RDTUN, &vale_max_bridges, 0,
+		"Max number of vale bridges");
 SYSEND;
 
 static int netmap_vale_vp_create(struct nmreq_header *hdr, struct ifnet *,
@@ -366,7 +371,7 @@ netmap_vale_list(struct nmreq_header *hdr)
 		j = req->nr_port_idx;
 
 		NMG_LOCK();
-		for (error = ENOENT; i < NM_BRIDGES; i++) {
+		for (error = ENOENT; i < vale_max_bridges; i++) {
 			b = bridges + i;
 			for ( ; j < NM_BDG_MAXPORTS; j++) {
 				if (b->bdg_ports[j] == NULL)

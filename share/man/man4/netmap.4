@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2020
+.Dd March 6, 2022
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -933,6 +933,11 @@ Batch size used when moving packets across a
 switch.
 Values above 64 generally guarantee good
 performance.
+.It Va dev.netmap.max_bridges: 8
+Max number of
+.Nm VALE
+switches that can be created. This tunable can be specified
+at loader time.
 .It Va dev.netmap.ptnet_vnet_hdr: 1
 Allow ptnet devices to use virtio-net headers
 .El

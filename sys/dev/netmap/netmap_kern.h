@@ -1559,6 +1559,8 @@ int netmap_get_vale_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 void *netmap_vale_create(const char *bdg_name, int *return_status);
 int netmap_vale_destroy(const char *bdg_name, void *auth_token);
 
+extern unsigned int vale_max_bridges;
+
 #else /* !WITH_VALE */
 #define netmap_bdg_learning(_1, _2, _3, _4)	0
 #define	netmap_get_vale_na(_1, _2, _3, _4)	0
@@ -1606,7 +1608,7 @@ extern struct nm_bridge *nm_bridges;
 #define netmap_bns_get()
 #define netmap_bns_put(_1)
 #define netmap_bns_getbridges(b, n) \
-	do { *b = nm_bridges; *n = NM_BRIDGES; } while (0)
+	do { *b = nm_bridges; *n = vale_max_bridges; } while (0)
 #endif
 
 /* Various prototypes */
