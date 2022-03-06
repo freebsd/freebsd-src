@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+33ff39796ffe,8719e8a951b7:
+        A new rc(8) service script zfskeys allows for automatic decryption
+        of ZFS datasets encrypted with ZFS native encryption during boot.
+        See the rc.conf(5) manual page for more information.
+
 b7a2cf0d9102 - eae02d959363:
 	Upgrade bhyve's emulation to version 1.4 of the NVMe specification
 
