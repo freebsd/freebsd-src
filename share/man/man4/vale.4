@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\" $Id: $
 .\"
-.Dd February 6, 2020
+.Dd March 6, 2022
 .Dt VALE 4
 .Os
 .Sh NAME
@@ -77,7 +77,8 @@ See
 for details on the API.
 .Ss LIMITS
 .Nm
-currently supports up to 8 switches, with 254 ports per switch.
+currently supports up to 254 ports per switch. The maximum
+number of switches is provided by the max_bridges sysctl variable.
 .Sh SYSCTL VARIABLES
 See
 .Xr netmap 4
