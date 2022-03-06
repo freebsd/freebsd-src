@@ -323,7 +323,7 @@ netmap_mem_get_id(struct netmap_mem_d *nmd)
 
 #ifdef NM_DEBUG_MEM_PUTGET
 #define NM_DBG_REFC(nmd, func, line)	\
-	nm_prinf("%d mem[%d:%d] -> %d", line, (nmd)->nm_id, (nmd)->nm_grp, (nmd)->refcount);
+	nm_prinf("%s:%d mem[%d:%d] -> %d", func, line, (nmd)->nm_id, (nmd)->nm_grp, (nmd)->refcount);
 #else
 #define NM_DBG_REFC(nmd, func, line)
 #endif

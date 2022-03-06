@@ -994,10 +994,12 @@ netmap_mem_restore(struct netmap_adapter *na)
 static void
 netmap_mem_drop(struct netmap_adapter *na)
 {
-	/* if the native allocator had been overridden on regif,
-	 * restore it now and drop the temporary one
-	 */
-	if (netmap_mem_deref(na->nm_mem, na)) {
+	netmap_mem_deref(na->nm_mem, na);
+
+	if (na->active_fds <= 0) {
+		/* if the native allocator had been overridden on regif,
+		 * restore it now and drop the temporary one
+		 */
 		netmap_mem_restore(na);
 	}
 }
