@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -50,8 +50,9 @@
  * @param p    The parser.
  * @param var  True if the parser is for a variable, false otherwise.
  */
-static void dc_parse_register(BcParse *p, bool var) {
-
+static void
+dc_parse_register(BcParse* p, bool var)
+{
 	bc_lex_next(&p->l);
 	if (p->l.t != BC_LEX_NAME) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
@@ -62,7 +63,9 @@ static void dc_parse_register(BcParse *p, bool var) {
  * Parses a dc string.
  * @param p  The parser.
  */
-static inline void dc_parse_string(BcParse *p) {
+static inline void
+dc_parse_string(BcParse* p)
+{
 	bc_parse_addString(p);
 	bc_lex_next(&p->l);
 }
@@ -75,8 +78,9 @@ static inline void dc_parse_string(BcParse *p) {
  *               a global.
  * @param store  True if the operation is a store, false otherwise.
  */
-static void dc_parse_mem(BcParse *p, uchar inst, bool name, bool store) {
-
+static void
+dc_parse_mem(BcParse* p, uchar inst, bool name, bool store)
+{
 	// Push the instruction.
 	bc_parse_push(p, inst);
 
@@ -85,7 +89,8 @@ static void dc_parse_mem(BcParse *p, uchar inst, bool name, bool store) {
 
 	// Stores use the bc assign infrastructure, but they need to do a swap
 	// first.
-	if (store) {
+	if (store)
+	{
 		bc_parse_push(p, BC_INST_SWAP);
 		bc_parse_push(p, BC_INST_ASSIGN_NO_VAL);
 	}
@@ -98,8 +103,9 @@ static void dc_parse_mem(BcParse *p, uchar inst, bool name, bool store) {
  * @param p     The parser.
  * @param inst  The instruction for the condition.
  */
-static void dc_parse_cond(BcParse *p, uchar inst) {
-
+static void
+dc_parse_cond(BcParse* p, uchar inst)
+{
 	// Push the instruction for the condition and the conditional execution.
 	bc_parse_push(p, inst);
 	bc_parse_push(p, BC_INST_EXEC_COND);
@@ -110,7 +116,8 @@ static void dc_parse_cond(BcParse *p, uchar inst) {
 	bc_lex_next(&p->l);
 
 	// If the next token is an else, parse the else.
-	if (p->l.t == BC_LEX_KW_ELSE) {
+	if (p->l.t == BC_LEX_KW_ELSE)
+	{
 		dc_parse_register(p, true);
 		bc_lex_next(&p->l);
 	}
@@ -124,13 +131,14 @@ static void dc_parse_cond(BcParse *p, uchar inst) {
  * @param t      The token to parse.
  * @param flags  The flags that say what is allowed or not.
  */
-static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
-
+static void
+dc_parse_token(BcParse* p, BcLexType t, uint8_t flags)
+{
 	uchar inst;
 	bool assign, get_token = false;
 
-	switch (t) {
-
+	switch (t)
+	{
 		case BC_LEX_OP_REL_EQ:
 		case BC_LEX_OP_REL_LE:
 		case BC_LEX_OP_REL_GE:
@@ -161,16 +169,18 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 			// This tells us whether or not the neg is for a command or at the
 			// beginning of a number. If it's a command, push it. Otherwise,
 			// fallthrough and parse the number.
-			if (dc_lex_negCommand(&p->l)) {
+			if (dc_lex_negCommand(&p->l))
+			{
 				bc_parse_push(p, BC_INST_NEG);
 				get_token = true;
 				break;
 			}
 
 			bc_lex_next(&p->l);
+
+			// Fallthrough.
+			BC_FALLTHROUGH
 		}
-		// Fallthrough.
-		BC_FALLTHROUGH
 
 		case BC_LEX_NUMBER:
 		{
@@ -187,7 +197,9 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 		{
 			// Make sure the read is not recursive.
 			if (BC_ERR(flags & BC_PARSE_NOREAD))
+			{
 				bc_parse_err(p, BC_ERR_EXEC_REC_READ);
+			}
 			else bc_parse_push(p, BC_INST_READ);
 
 			get_token = true;
@@ -243,7 +255,112 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 			break;
 		}
 
-		default:
+		case BC_LEX_EOF:
+		case BC_LEX_INVALID:
+#if BC_ENABLED
+		case BC_LEX_OP_INC:
+		case BC_LEX_OP_DEC:
+#endif // BC_ENABLED
+		case BC_LEX_OP_BOOL_NOT:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_TRUNC:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_POWER:
+		case BC_LEX_OP_MULTIPLY:
+		case BC_LEX_OP_DIVIDE:
+		case BC_LEX_OP_MODULUS:
+		case BC_LEX_OP_PLUS:
+		case BC_LEX_OP_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_PLACES:
+		case BC_LEX_OP_LSHIFT:
+		case BC_LEX_OP_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_BOOL_OR:
+		case BC_LEX_OP_BOOL_AND:
+#if BC_ENABLED
+		case BC_LEX_OP_ASSIGN_POWER:
+		case BC_LEX_OP_ASSIGN_MULTIPLY:
+		case BC_LEX_OP_ASSIGN_DIVIDE:
+		case BC_LEX_OP_ASSIGN_MODULUS:
+		case BC_LEX_OP_ASSIGN_PLUS:
+		case BC_LEX_OP_ASSIGN_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN_PLACES:
+		case BC_LEX_OP_ASSIGN_LSHIFT:
+		case BC_LEX_OP_ASSIGN_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLED
+		case BC_LEX_NLINE:
+		case BC_LEX_WHITESPACE:
+		case BC_LEX_LPAREN:
+		case BC_LEX_RPAREN:
+		case BC_LEX_LBRACKET:
+		case BC_LEX_COMMA:
+		case BC_LEX_RBRACKET:
+		case BC_LEX_LBRACE:
+		case BC_LEX_NAME:
+		case BC_LEX_RBRACE:
+#if BC_ENABLED
+		case BC_LEX_KW_AUTO:
+		case BC_LEX_KW_BREAK:
+		case BC_LEX_KW_CONTINUE:
+		case BC_LEX_KW_DEFINE:
+		case BC_LEX_KW_FOR:
+		case BC_LEX_KW_IF:
+		case BC_LEX_KW_LIMITS:
+		case BC_LEX_KW_RETURN:
+		case BC_LEX_KW_WHILE:
+		case BC_LEX_KW_HALT:
+		case BC_LEX_KW_LAST:
+#endif // BC_ENABLED
+		case BC_LEX_KW_IBASE:
+		case BC_LEX_KW_OBASE:
+		case BC_LEX_KW_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_LENGTH:
+		case BC_LEX_KW_PRINT:
+		case BC_LEX_KW_SQRT:
+		case BC_LEX_KW_ABS:
+		case BC_LEX_KW_IS_NUMBER:
+		case BC_LEX_KW_IS_STRING:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_IRAND:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_ASCIIFY:
+		case BC_LEX_KW_MODEXP:
+		case BC_LEX_KW_DIVMOD:
+		case BC_LEX_KW_QUIT:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_RAND:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_MAXIBASE:
+		case BC_LEX_KW_MAXOBASE:
+		case BC_LEX_KW_MAXSCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_MAXRAND:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_LINE_LENGTH:
+#if BC_ENABLED
+		case BC_LEX_KW_GLOBAL_STACKS:
+#endif // BC_ENABLED
+		case BC_LEX_KW_LEADING_ZERO:
+		case BC_LEX_KW_STREAM:
+		case BC_LEX_KW_ELSE:
+		case BC_LEX_EQ_NO_REG:
+		case BC_LEX_EXECUTE:
+		case BC_LEX_PRINT_STACK:
+		case BC_LEX_CLEAR_STACK:
+		case BC_LEX_STACK_LEVEL:
+		case BC_LEX_DUPLICATE:
+		case BC_LEX_SWAP:
+		case BC_LEX_POP:
+		case BC_LEX_PRINT_POP:
+		case BC_LEX_NQUIT:
+		case BC_LEX_EXEC_STACK_LENGTH:
+		case BC_LEX_SCALE_FACTOR:
 		{
 			// All other tokens should be taken care of by the caller, or they
 			// actually *are* invalid.
@@ -254,8 +371,9 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 	if (get_token) bc_lex_next(&p->l);
 }
 
-void dc_parse_expr(BcParse *p, uint8_t flags) {
-
+void
+dc_parse_expr(BcParse* p, uint8_t flags)
+{
 	BcInst inst;
 	BcLexType t;
 	bool need_expr, have_expr = false;
@@ -267,10 +385,11 @@ void dc_parse_expr(BcParse *p, uint8_t flags) {
 	// designed.
 
 	// While we don't have EOF...
-	while ((t = p->l.t) != BC_LEX_EOF) {
-
+	while ((t = p->l.t) != BC_LEX_EOF)
+	{
 		// Eat newline.
-		if (t == BC_LEX_NLINE) {
+		if (t == BC_LEX_NLINE)
+		{
 			bc_lex_next(&p->l);
 			continue;
 		}
@@ -281,7 +400,8 @@ void dc_parse_expr(BcParse *p, uint8_t flags) {
 		// If the instruction is invalid, that means we have to do some harder
 		// parsing. So if not invalid, just push the instruction; otherwise,
 		// parse the token.
-		if (inst != BC_INST_INVALID) {
+		if (inst != BC_INST_INVALID)
+		{
 			bc_parse_push(p, inst);
 			bc_lex_next(&p->l);
 		}
@@ -295,14 +415,17 @@ void dc_parse_expr(BcParse *p, uint8_t flags) {
 	// indicate that it is executing a string.
 	if (BC_ERR(need_expr && !have_expr)) bc_err(BC_ERR_EXEC_READ_EXPR);
 	else if (p->l.t == BC_LEX_EOF && (flags & BC_PARSE_NOCALL))
+	{
 		bc_parse_push(p, BC_INST_POP_EXEC);
+	}
 }
 
-void dc_parse_parse(BcParse *p) {
-
+void
+dc_parse_parse(BcParse* p)
+{
 	assert(p != NULL);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 	// If we have EOF, someone called this function one too many times.
 	// Otherwise, parse.
@@ -312,9 +435,9 @@ void dc_parse_parse(BcParse *p) {
 exit:
 
 	// Need to reset if there was an error.
-	if (BC_SIG_EXC) bc_parse_reset(p);
+	if (BC_SIG_EXC(vm)) bc_parse_reset(p);
 
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 #endif // DC_ENABLED

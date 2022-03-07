@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,23 +55,32 @@
 // compared to this. This is where dreams go to die, where dragons live, and
 // from which Ken Thompson himself would flee.
 
-static void bc_parse_else(BcParse *p);
-static void bc_parse_stmt(BcParse *p);
-static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
-                                       BcParseNext next);
-static void bc_parse_expr_status(BcParse *p, uint8_t flags, BcParseNext next);
+static void
+bc_parse_else(BcParse* p);
+
+static void
+bc_parse_stmt(BcParse* p);
+
+static BcParseStatus
+bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next);
+
+static void
+bc_parse_expr_status(BcParse* p, uint8_t flags, BcParseNext next);
 
 /**
  * Returns true if an instruction could only have come from a "leaf" expression.
  * For more on what leaf expressions are, read the comment for BC_PARSE_LEAF().
  * @param t  The instruction to test.
+ * @return   True if the instruction is a from a leaf expression.
  */
-static bool bc_parse_inst_isLeaf(BcInst t) {
-	return (t >= BC_INST_NUM && t <= BC_INST_MAXSCALE) ||
+static bool
+bc_parse_inst_isLeaf(BcInst t)
+{
+	return (t >= BC_INST_NUM && t <= BC_INST_LEADING_ZERO) ||
 #if BC_ENABLE_EXTRA_MATH
-	        t == BC_INST_TRUNC ||
+	       t == BC_INST_TRUNC ||
 #endif // BC_ENABLE_EXTRA_MATH
-	        t <= BC_INST_DEC;
+	       t <= BC_INST_DEC;
 }
 
 /**
@@ -81,8 +90,9 @@ static bool bc_parse_inst_isLeaf(BcInst t) {
  * @param p  The parser.
  * @return   True if the token is a legal delimiter.
  */
-static bool bc_parse_isDelimiter(const BcParse *p) {
-
+static bool
+bc_parse_isDelimiter(const BcParse* p)
+{
 	BcLexType t = p->l.t;
 	bool good;
 
@@ -94,33 +104,36 @@ static bool bc_parse_isDelimiter(const BcParse *p) {
 	// If the current token is a keyword, then...beware. That means that we need
 	// to check for a "dangling" else, where there was no brace-delimited block
 	// on the previous if.
-	if (t == BC_LEX_KW_ELSE) {
-
+	if (t == BC_LEX_KW_ELSE)
+	{
 		size_t i;
 		uint16_t *fptr = NULL, flags = BC_PARSE_FLAG_ELSE;
 
 		// As long as going up the stack is valid for a dangling else, keep on.
-		for (i = 0; i < p->flags.len && BC_PARSE_BLOCK_STMT(flags); ++i) {
-
+		for (i = 0; i < p->flags.len && BC_PARSE_BLOCK_STMT(flags); ++i)
+		{
 			fptr = bc_vec_item_rev(&p->flags, i);
 			flags = *fptr;
 
 			// If we need a brace and don't have one, then we don't have a
 			// delimiter.
 			if ((flags & BC_PARSE_FLAG_BRACE) && p->l.last != BC_LEX_RBRACE)
+			{
 				return false;
+			}
 		}
 
 		// Oh, and we had also better have an if statement somewhere.
 		good = ((flags & BC_PARSE_FLAG_IF) != 0);
 	}
-	else if (t == BC_LEX_RBRACE) {
-
+	else if (t == BC_LEX_RBRACE)
+	{
 		size_t i;
 
 		// Since we have a brace, we need to just check if a brace was needed.
-		for (i = 0; !good && i < p->flags.len; ++i) {
-			uint16_t *fptr = bc_vec_item_rev(&p->flags, i);
+		for (i = 0; !good && i < p->flags.len; ++i)
+		{
+			uint16_t* fptr = bc_vec_item_rev(&p->flags, i);
 			good = (((*fptr) & BC_PARSE_FLAG_BRACE) != 0);
 		}
 	}
@@ -135,8 +148,9 @@ static bool bc_parse_isDelimiter(const BcParse *p) {
  * @param p  The parser.
  * @return   True if we are in the top level of parsing a function body.
  */
-static bool bc_parse_TopFunc(const BcParse *p) {
-
+static bool
+bc_parse_TopFunc(const BcParse* p)
+{
 	bool good = p->flags.len == 2;
 
 	uint16_t val = BC_PARSE_FLAG_BRACE | BC_PARSE_FLAG_FUNC_INNER;
@@ -150,11 +164,12 @@ static bool bc_parse_TopFunc(const BcParse *p) {
  * section of the Development manual (manuals/development.md).
  * @param p  The parser.
  */
-static void bc_parse_setLabel(BcParse *p) {
-
-	BcFunc *func = p->func;
-	BcInstPtr *ip = bc_vec_top(&p->exits);
-	size_t *label;
+static void
+bc_parse_setLabel(BcParse* p)
+{
+	BcFunc* func = p->func;
+	BcInstPtr* ip = bc_vec_top(&p->exits);
+	size_t* label;
 
 	assert(func == bc_vec_item(&p->prog->fns, p->fidx));
 
@@ -173,7 +188,9 @@ static void bc_parse_setLabel(BcParse *p) {
  * @param p    The parser.
  * @param idx  The index of the label.
  */
-static void bc_parse_createLabel(BcParse *p, size_t idx) {
+static void
+bc_parse_createLabel(BcParse* p, size_t idx)
+{
 	bc_vec_push(&p->func->labels, &idx);
 }
 
@@ -183,12 +200,14 @@ static void bc_parse_createLabel(BcParse *p, size_t idx) {
  * @param p    The parser.
  * @param idx  The index of the label.
  */
-static void bc_parse_createCondLabel(BcParse *p, size_t idx) {
+static void
+bc_parse_createCondLabel(BcParse* p, size_t idx)
+{
 	bc_parse_createLabel(p, p->func->code.len);
 	bc_vec_push(&p->conds, &idx);
 }
 
-/*
+/**
  * Creates an exit label to be filled in later by bc_parse_setLabel(). Also, why
  * create a label to be filled in later? Because exit labels are meant to be
  * targeted by code that comes *before* the label. Since we have to parse that
@@ -202,8 +221,9 @@ static void bc_parse_createCondLabel(BcParse *p, size_t idx) {
  * @param idx   The index of the label's position.
  * @param loop  True if the exit label is for a loop or not.
  */
-static void bc_parse_createExitLabel(BcParse *p, size_t idx, bool loop) {
-
+static void
+bc_parse_createExitLabel(BcParse* p, size_t idx, bool loop)
+{
 	BcInstPtr ip;
 
 	assert(p->func == bc_vec_item(&p->prog->fns, p->fidx));
@@ -228,32 +248,37 @@ static void bc_parse_createExitLabel(BcParse *p, size_t idx, bool loop) {
  * @param nexprs  A pointer to the current number of expressions that have not
  *                been consumed yet. This is an IN and OUT parameter.
  */
-static void bc_parse_operator(BcParse *p, BcLexType type,
-                              size_t start, size_t *nexprs)
+static void
+bc_parse_operator(BcParse* p, BcLexType type, size_t start, size_t* nexprs)
 {
 	BcLexType t;
 	uchar l, r = BC_PARSE_OP_PREC(type);
 	uchar left = BC_PARSE_OP_LEFT(type);
 
-	// While we haven't hit the stop point yet.
-	while (p->ops.len > start) {
-
+	// While we haven't hit the stop point yet...
+	while (p->ops.len > start)
+	{
 		// Get the top operator.
 		t = BC_PARSE_TOP_OP(p);
 
-		// If it's a right paren, we have reached the end of whatever expression
-		// this is no matter what.
+		// If it's a left paren, we have reached the end of whatever expression
+		// this is no matter what. We also don't pop the left paren because it
+		// will need to stay for the rest of the subexpression.
 		if (t == BC_LEX_LPAREN) break;
 
 		// Break for precedence. Precedence operates differently on left and
 		// right associativity, by the way. A left associative operator that
 		// matches the current precedence should take priority, but a right
 		// associative operator should not.
+		//
+		// Also, a lower precedence value means a higher precedence.
 		l = BC_PARSE_OP_PREC(t);
 		if (l >= r && (l != r || !left)) break;
 
 		// Do the housekeeping. In particular, make sure to note that one
-		// expression was consumed. (Two were, but another was added.)
+		// expression was consumed (well, two were, but another was added) if
+		// the operator was not a prefix operator. (Postfix operators are not
+		// handled by this function at all.)
 		bc_parse_push(p, BC_PARSE_TOKEN_INST(t));
 		bc_vec_pop(&p->ops);
 		*nexprs -= !BC_PARSE_OP_PREFIX(t);
@@ -270,12 +295,14 @@ static void bc_parse_operator(BcParse *p, BcLexType type,
  * @param nexprs  A pointer to the current number of expressions that have not
  *                been consumed yet. This is an IN and OUT parameter.
  */
-static void bc_parse_rightParen(BcParse *p, size_t *nexprs) {
-
+static void
+bc_parse_rightParen(BcParse* p, size_t* nexprs)
+{
 	BcLexType top;
 
 	// Consume operators until a left paren.
-	while ((top = BC_PARSE_TOP_OP(p)) != BC_LEX_LPAREN) {
+	while ((top = BC_PARSE_TOP_OP(p)) != BC_LEX_LPAREN)
+	{
 		bc_parse_push(p, BC_PARSE_TOKEN_INST(top));
 		bc_vec_pop(&p->ops);
 		*nexprs -= !BC_PARSE_OP_PREFIX(top);
@@ -294,8 +321,9 @@ static void bc_parse_rightParen(BcParse *p, size_t *nexprs) {
  * @param flags  Flags restricting what kind of expressions the arguments can
  *               be.
  */
-static void bc_parse_args(BcParse *p, uint8_t flags) {
-
+static void
+bc_parse_args(BcParse* p, uint8_t flags)
+{
 	bool comma = false;
 	size_t nargs;
 
@@ -307,8 +335,8 @@ static void bc_parse_args(BcParse *p, uint8_t flags) {
 	flags |= (BC_PARSE_ARRAY | BC_PARSE_NEEDVAL);
 
 	// Count the arguments and parse them.
-	for (nargs = 0; p->l.t != BC_LEX_RPAREN; ++nargs) {
-
+	for (nargs = 0; p->l.t != BC_LEX_RPAREN; ++nargs)
+	{
 		bc_parse_expr_status(p, flags, bc_parse_next_arg);
 
 		comma = (p->l.t == BC_LEX_COMMA);
@@ -329,8 +357,9 @@ static void bc_parse_args(BcParse *p, uint8_t flags) {
  * @param flags  Flags restricting what kind of expressions the arguments can
  *               be.
  */
-static void bc_parse_call(BcParse *p, const char *name, uint8_t flags) {
-
+static void
+bc_parse_call(BcParse* p, const char* name, uint8_t flags)
+{
 	size_t idx;
 
 	bc_parse_args(p, flags);
@@ -345,8 +374,8 @@ static void bc_parse_call(BcParse *p, const char *name, uint8_t flags) {
 
 	// The function does not exist yet. Create a space for it. If the user does
 	// not define it, it's a *runtime* error, not a parse error.
-	if (idx == BC_VEC_INVALID_IDX) {
-
+	if (idx == BC_VEC_INVALID_IDX)
+	{
 		idx = bc_program_insertFunc(p->prog, name);
 
 		assert(idx != BC_VEC_INVALID_IDX);
@@ -366,40 +395,46 @@ static void bc_parse_call(BcParse *p, const char *name, uint8_t flags) {
 /**
  * Parses a name/identifier-based expression. It could be a variable, an array
  * element, an array itself (for function arguments), a function call, etc.
- *
+ * @param p           The parser.
+ * @param type        A pointer to return the resulting instruction.
+ * @param can_assign  A pointer to return true if the name can be assigned to,
+ *                    false otherwise.
+ * @param flags       Flags restricting what kind of expression the name can be.
  */
-static void bc_parse_name(BcParse *p, BcInst *type,
-                          bool *can_assign, uint8_t flags)
+static void
+bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
 {
-	char *name;
+	char* name;
 
 	BC_SIG_ASSERT_LOCKED;
 
 	// We want a copy of the name since the lexer might overwrite its copy.
 	name = bc_vm_strdup(p->l.str.v);
 
-	BC_SETJMP_LOCKED(err);
+	BC_SETJMP_LOCKED(vm, err);
 
 	// We need the next token to see if it's just a variable or something more.
 	bc_lex_next(&p->l);
 
 	// Array element or array.
-	if (p->l.t == BC_LEX_LBRACKET) {
-
+	if (p->l.t == BC_LEX_LBRACKET)
+	{
 		bc_lex_next(&p->l);
 
 		// Array only. This has to be a function parameter.
-		if (p->l.t == BC_LEX_RBRACKET) {
-
+		if (p->l.t == BC_LEX_RBRACKET)
+		{
 			// Error if arrays are not allowed.
 			if (BC_ERR(!(flags & BC_PARSE_ARRAY)))
+			{
 				bc_parse_err(p, BC_ERR_PARSE_EXPR);
+			}
 
 			*type = BC_INST_ARRAY;
 			*can_assign = false;
 		}
-		else {
-
+		else
+		{
 			// If we are here, we have an array element. We need to set the
 			// expression parsing flags.
 			uint8_t flags2 = (flags & ~(BC_PARSE_PRINT | BC_PARSE_REL)) |
@@ -409,7 +444,9 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 
 			// The next token *must* be a right bracket.
 			if (BC_ERR(p->l.t != BC_LEX_RBRACKET))
+			{
 				bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+			}
 
 			*type = BC_INST_ARRAY_ELEM;
 			*can_assign = true;
@@ -422,18 +459,21 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 		bc_parse_push(p, *type);
 		bc_parse_pushName(p, name, false);
 	}
-	else if (p->l.t == BC_LEX_LPAREN) {
-
+	else if (p->l.t == BC_LEX_LPAREN)
+	{
 		// We are parsing a function call; error if not allowed.
 		if (BC_ERR(flags & BC_PARSE_NOCALL))
+		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		}
 
 		*type = BC_INST_CALL;
 		*can_assign = false;
 
 		bc_parse_call(p, name, flags);
 	}
-	else {
+	else
+	{
 		// Just a variable.
 		*type = BC_INST_VAR;
 		*can_assign = true;
@@ -444,7 +484,7 @@ static void bc_parse_name(BcParse *p, BcInst *type,
 err:
 	// Need to make sure to unallocate the name.
 	free(name);
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 
@@ -454,8 +494,9 @@ err:
  * @param p     The parser.
  * @param inst  The instruction corresponding to the builtin.
  */
-static void bc_parse_noArgBuiltin(BcParse *p, BcInst inst) {
-
+static void
+bc_parse_noArgBuiltin(BcParse* p, BcInst inst)
+{
 	// Must have a left paren.
 	bc_lex_next(&p->l);
 	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
@@ -477,13 +518,12 @@ static void bc_parse_noArgBuiltin(BcParse *p, BcInst inst) {
  * @param flags  The expression parsing flags for parsing the argument.
  * @param prev   An out parameter; the previous instruction pointer.
  */
-static void bc_parse_builtin(BcParse *p, BcLexType type,
-                             uint8_t flags, BcInst *prev)
+static void
+bc_parse_builtin(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
 {
 	// Must have a left paren.
 	bc_lex_next(&p->l);
-	if (BC_ERR(p->l.t != BC_LEX_LPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_lex_next(&p->l);
 
@@ -492,13 +532,18 @@ static void bc_parse_builtin(BcParse *p, BcLexType type,
 	flags |= BC_PARSE_NEEDVAL;
 
 	// Since length can take arrays, we need to specially add that flag.
-	if (type == BC_LEX_KW_LENGTH) flags |= BC_PARSE_ARRAY;
+	if (type == BC_LEX_KW_LENGTH || type == BC_LEX_KW_ASCIIFY)
+	{
+		flags |= BC_PARSE_ARRAY;
+	}
+
+	// Otherwise, we need to clear it because it could be set.
+	else flags &= ~(BC_PARSE_ARRAY);
 
 	bc_parse_expr_status(p, flags, bc_parse_next_rel);
 
 	// Must have a right paren.
-	if (BC_ERR(p->l.t != BC_LEX_RPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_RPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	// Adjust previous based on the token and push it.
 	*prev = type - BC_LEX_KW_LENGTH + BC_INST_LENGTH;
@@ -510,16 +555,19 @@ static void bc_parse_builtin(BcParse *p, BcLexType type,
 /**
  * Parses a builtin function that takes 3 arguments. This includes modexp() and
  * divmod().
+ * @param p      The parser.
+ * @param type   The lex token.
+ * @param flags  The expression parsing flags for parsing the argument.
+ * @param prev   An out parameter; the previous instruction pointer.
  */
-static void bc_parse_builtin3(BcParse *p, BcLexType type,
-                              uint8_t flags, BcInst *prev)
+static void
+bc_parse_builtin3(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
 {
 	assert(type == BC_LEX_KW_MODEXP || type == BC_LEX_KW_DIVMOD);
 
 	// Must have a left paren.
 	bc_lex_next(&p->l);
-	if (BC_ERR(p->l.t != BC_LEX_LPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_lex_next(&p->l);
 
@@ -530,23 +578,21 @@ static void bc_parse_builtin3(BcParse *p, BcLexType type,
 	bc_parse_expr_status(p, flags, bc_parse_next_builtin);
 
 	// Must have a comma.
-	if (BC_ERR(p->l.t != BC_LEX_COMMA))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_COMMA)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_lex_next(&p->l);
 
 	bc_parse_expr_status(p, flags, bc_parse_next_builtin);
 
 	// Must have a comma.
-	if (BC_ERR(p->l.t != BC_LEX_COMMA))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_COMMA)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_lex_next(&p->l);
 
 	// If it is a divmod, parse an array name. Otherwise, just parse another
 	// expression.
-	if (type == BC_LEX_KW_DIVMOD) {
-
+	if (type == BC_LEX_KW_DIVMOD)
+	{
 		// Must have a name.
 		if (BC_ERR(p->l.t != BC_LEX_NAME)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
@@ -555,14 +601,18 @@ static void bc_parse_builtin3(BcParse *p, BcLexType type,
 
 		// Must have a left bracket.
 		if (BC_ERR(p->l.t != BC_LEX_LBRACKET))
+		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		}
 
 		// This is safe because the next token should not overwrite the name.
 		bc_lex_next(&p->l);
 
 		// Must have a right bracket.
 		if (BC_ERR(p->l.t != BC_LEX_RBRACKET))
+		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		}
 
 		// This is safe because the next token should not overwrite the name.
 		bc_lex_next(&p->l);
@@ -570,8 +620,7 @@ static void bc_parse_builtin3(BcParse *p, BcLexType type,
 	else bc_parse_expr_status(p, flags, bc_parse_next_rel);
 
 	// Must have a right paren.
-	if (BC_ERR(p->l.t != BC_LEX_RPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_RPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	// Adjust previous based on the token and push it.
 	*prev = type - BC_LEX_KW_MODEXP + BC_INST_MODEXP;
@@ -579,8 +628,8 @@ static void bc_parse_builtin3(BcParse *p, BcLexType type,
 
 	// If we have divmod, we need to assign the modulus to the array element, so
 	// we need to push the instructions for doing so.
-	if (type == BC_LEX_KW_DIVMOD) {
-
+	if (type == BC_LEX_KW_DIVMOD)
+	{
 		// The zeroth element.
 		bc_parse_push(p, BC_INST_ZERO);
 		bc_parse_push(p, BC_INST_ARRAY_ELEM);
@@ -606,14 +655,14 @@ static void bc_parse_builtin3(BcParse *p, BcLexType type,
  *                    to.
  * @param flags       The expression parsing flags for parsing a scale() arg.
  */
-static void bc_parse_scale(BcParse *p, BcInst *type,
-                           bool *can_assign, uint8_t flags)
+static void
+bc_parse_scale(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
 {
 	bc_lex_next(&p->l);
 
 	// Without the left paren, it's just the keyword.
-	if (p->l.t != BC_LEX_LPAREN) {
-
+	if (p->l.t != BC_LEX_LPAREN)
+	{
 		// Set, push, and return.
 		*type = BC_INST_SCALE;
 		*can_assign = true;
@@ -634,8 +683,7 @@ static void bc_parse_scale(BcParse *p, BcInst *type,
 	bc_parse_expr_status(p, flags, bc_parse_next_rel);
 
 	// Must have a right paren.
-	if (BC_ERR(p->l.t != BC_LEX_RPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_RPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_parse_push(p, BC_INST_SCALE_FUNC);
 
@@ -652,8 +700,9 @@ static void bc_parse_scale(BcParse *p, BcInst *type,
  *                    parse tree that are not used.
  * @param flags       The expression parsing flags for parsing a scale() arg.
  */
-static void bc_parse_incdec(BcParse *p, BcInst *prev, bool *can_assign,
-                            size_t *nexs, uint8_t flags)
+static void
+bc_parse_incdec(BcParse* p, BcInst* prev, bool* can_assign, size_t* nexs,
+                uint8_t flags)
 {
 	BcLexType type;
 	uchar inst;
@@ -670,8 +719,8 @@ static void bc_parse_incdec(BcParse *p, BcInst *prev, bool *can_assign,
 	}
 
 	// Is the previous instruction for a variable?
-	if (BC_PARSE_INST_VAR(etype)) {
-
+	if (BC_PARSE_INST_VAR(etype))
+	{
 		// If so, this is a postfix operator.
 		if (!*can_assign) bc_parse_err(p, BC_ERR_PARSE_ASSIGN);
 
@@ -681,8 +730,8 @@ static void bc_parse_incdec(BcParse *p, BcInst *prev, bool *can_assign,
 		bc_lex_next(&p->l);
 		*can_assign = false;
 	}
-	else {
-
+	else
+	{
 		// This is a prefix operator. In that case, we just convert it to
 		// an assignment instruction.
 		*prev = inst = BC_INST_ASSIGN_PLUS + (p->l.t != BC_LEX_OP_INC);
@@ -695,25 +744,28 @@ static void bc_parse_incdec(BcParse *p, BcInst *prev, bool *can_assign,
 		*nexs = *nexs + 1;
 
 		// Is the next token a normal identifier?
-		if (type == BC_LEX_NAME) {
-
+		if (type == BC_LEX_NAME)
+		{
 			// Parse the name.
-			uint8_t flags2 = flags & ~BC_PARSE_ARRAY;
+			uint8_t flags2 = flags & ~(BC_PARSE_ARRAY);
 			bc_parse_name(p, prev, can_assign, flags2 | BC_PARSE_NOCALL);
 		}
 		// Is the next token a global?
-		else if (type >= BC_LEX_KW_LAST && type <= BC_LEX_KW_OBASE) {
+		else if (type >= BC_LEX_KW_LAST && type <= BC_LEX_KW_OBASE)
+		{
 			bc_parse_push(p, type - BC_LEX_KW_LAST + BC_INST_LAST);
 			bc_lex_next(&p->l);
 		}
 		// Is the next token specifically scale, which needs special treatment?
-		else if (BC_NO_ERR(type == BC_LEX_KW_SCALE)) {
-
+		else if (BC_NO_ERR(type == BC_LEX_KW_SCALE))
+		{
 			bc_lex_next(&p->l);
 
 			// Check that scale() was not used.
 			if (BC_ERR(p->l.t == BC_LEX_LPAREN))
+			{
 				bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+			}
 			else bc_parse_push(p, BC_INST_SCALE);
 		}
 		// Now we know we have an error.
@@ -736,8 +788,9 @@ static void bc_parse_incdec(BcParse *p, BcInst *prev, bool *can_assign,
  * @param binlast  True if the last token was a binary operator.
  * @param nexprs   An in/out parameter; the number of unused expressions.
  */
-static void bc_parse_minus(BcParse *p, BcInst *prev, size_t ops_bgn,
-                           bool rparen, bool binlast, size_t *nexprs)
+static void
+bc_parse_minus(BcParse* p, BcInst* prev, size_t ops_bgn, bool rparen,
+               bool binlast, size_t* nexprs)
 {
 	BcLexType type;
 
@@ -759,7 +812,9 @@ static void bc_parse_minus(BcParse *p, BcInst *prev, size_t ops_bgn,
  * @param inst  The instruction corresponding to how the string was found and
  *              how it should be printed.
  */
-static void bc_parse_str(BcParse *p, BcInst inst) {
+static void
+bc_parse_str(BcParse* p, BcInst inst)
+{
 	bc_parse_addString(p);
 	bc_parse_push(p, inst);
 	bc_lex_next(&p->l);
@@ -769,12 +824,13 @@ static void bc_parse_str(BcParse *p, BcInst inst) {
  * Parses a print statement.
  * @param p  The parser.
  */
-static void bc_parse_print(BcParse *p, BcLexType type) {
-
+static void
+bc_parse_print(BcParse* p, BcLexType type)
+{
 	BcLexType t;
 	bool comma = false;
-	BcInst inst = type == BC_LEX_KW_STREAM ?
-	              BC_INST_PRINT_STREAM : BC_INST_PRINT_POP;
+	BcInst inst = type == BC_LEX_KW_STREAM ? BC_INST_PRINT_STREAM :
+	                                         BC_INST_PRINT_POP;
 
 	bc_lex_next(&p->l);
 
@@ -783,12 +839,13 @@ static void bc_parse_print(BcParse *p, BcLexType type) {
 	// A print or stream statement has to have *something*.
 	if (bc_parse_isDelimiter(p)) bc_parse_err(p, BC_ERR_PARSE_PRINT);
 
-	do {
-
+	do
+	{
 		// If the token is a string, then print it with escapes.
 		// BC_INST_PRINT_POP plays that role for bc.
 		if (t == BC_LEX_STR) bc_parse_str(p, inst);
-		else {
+		else
+		{
 			// We have an actual number; parse and add a print instruction.
 			bc_parse_expr_status(p, BC_PARSE_NEEDVAL, bc_parse_next_print);
 			bc_parse_push(p, inst);
@@ -799,17 +856,16 @@ static void bc_parse_print(BcParse *p, BcLexType type) {
 
 		// Get the next token if we have a comma.
 		if (comma) bc_lex_next(&p->l);
-		else {
-
+		else
+		{
 			// If we don't have a comma, the statement needs to end.
-			if (!bc_parse_isDelimiter(p))
-				bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+			if (!bc_parse_isDelimiter(p)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 			else break;
 		}
 
 		t = p->l.t;
-
-	} while (true);
+	}
+	while (true);
 
 	// If we have a comma but no token, that's bad.
 	if (BC_ERR(comma)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
@@ -819,8 +875,9 @@ static void bc_parse_print(BcParse *p, BcLexType type) {
  * Parses a return statement.
  * @param p  The parser.
  */
-static void bc_parse_return(BcParse *p) {
-
+static void
+bc_parse_return(BcParse* p)
+{
 	BcLexType t;
 	bool paren;
 	uchar inst = BC_INST_RET0;
@@ -838,28 +895,33 @@ static void bc_parse_return(BcParse *p) {
 
 	// An empty return statement just needs to push the selected instruction.
 	if (bc_parse_isDelimiter(p)) bc_parse_push(p, inst);
-	else {
-
+	else
+	{
 		BcParseStatus s;
 
 		// Need to parse the expression whose value will be returned.
 		s = bc_parse_expr_err(p, BC_PARSE_NEEDVAL, bc_parse_next_expr);
 
 		// If the expression was empty, just push the selected instruction.
-		if (s == BC_PARSE_STATUS_EMPTY_EXPR) {
+		if (s == BC_PARSE_STATUS_EMPTY_EXPR)
+		{
 			bc_parse_push(p, inst);
 			bc_lex_next(&p->l);
 		}
 
 		// POSIX requires parentheses.
-		if (!paren || p->l.last != BC_LEX_RPAREN) {
+		if (!paren || p->l.last != BC_LEX_RPAREN)
+		{
 			bc_parse_err(p, BC_ERR_POSIX_RET);
 		}
 
 		// Void functions require an empty expression.
-		if (BC_ERR(p->func->voidfn)) {
+		if (BC_ERR(p->func->voidfn))
+		{
 			if (s != BC_PARSE_STATUS_EMPTY_EXPR)
+			{
 				bc_parse_verr(p, BC_ERR_PARSE_RET_VOID, p->func->name);
+			}
 		}
 		// If we got here, we want to be sure to end the function with a real
 		// return instruction, just in case.
@@ -872,8 +934,10 @@ static void bc_parse_return(BcParse *p) {
  * the jump location.
  * @param p  The parser.
  */
-static void bc_parse_noElse(BcParse *p) {
-	uint16_t *flag_ptr = BC_PARSE_TOP_FLAG_PTR(p);
+static void
+bc_parse_noElse(BcParse* p)
+{
+	uint16_t* flag_ptr = BC_PARSE_TOP_FLAG_PTR(p);
 	*flag_ptr = (*flag_ptr & ~(BC_PARSE_FLAG_IF_END));
 	bc_parse_setLabel(p);
 }
@@ -883,15 +947,16 @@ static void bc_parse_noElse(BcParse *p) {
  * @param p      The parser.
  * @param brace  True if the body was ended by a brace, false otherwise.
  */
-static void bc_parse_endBody(BcParse *p, bool brace) {
-
+static void
+bc_parse_endBody(BcParse* p, bool brace)
+{
 	bool has_brace, new_else = false;
 
 	// We cannot be ending a body if there are no bodies to end.
 	if (BC_ERR(p->flags.len <= 1)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
-	if (brace) {
-
+	if (brace)
+	{
 		// The brace was already gotten; make sure that the caller did not lie.
 		// We check for the requirement of braces later.
 		assert(p->l.t == BC_LEX_RBRACE);
@@ -900,13 +965,16 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 
 		// If the next token is not a delimiter, that is a problem.
 		if (BC_ERR(!bc_parse_isDelimiter(p) && !bc_parse_TopFunc(p)))
+		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		}
 	}
 
 	// Do we have a brace flag?
 	has_brace = (BC_PARSE_BRACE(p) != 0);
 
-	do {
+	do
+	{
 		size_t len = p->flags.len;
 		bool loop;
 
@@ -917,12 +985,12 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 		loop = (BC_PARSE_LOOP_INNER(p) != 0);
 
 		// If we are ending a loop or an else...
-		if (loop || BC_PARSE_ELSE(p)) {
-
+		if (loop || BC_PARSE_ELSE(p))
+		{
 			// Loops have condition labels that we have to take care of as well.
-			if (loop) {
-
-				size_t *label = bc_vec_top(&p->conds);
+			if (loop)
+			{
+				size_t* label = bc_vec_top(&p->conds);
 
 				bc_parse_push(p, BC_INST_JUMP);
 				bc_parse_pushIndex(p, *label);
@@ -934,7 +1002,8 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 			bc_vec_pop(&p->flags);
 		}
 		// If we are ending a function...
-		else if (BC_PARSE_FUNC_INNER(p)) {
+		else if (BC_PARSE_FUNC_INNER(p))
+		{
 			BcInst inst = (p->func->voidfn ? BC_INST_RET_VOID : BC_INST_RET0);
 			bc_parse_push(p, inst);
 			bc_parse_updateFunc(p, BC_PROG_MAIN);
@@ -945,17 +1014,20 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 		else if (has_brace && !BC_PARSE_IF(p)) bc_vec_pop(&p->flags);
 
 		// This needs to be last to parse nested if's properly.
-		if (BC_PARSE_IF(p) && (len == p->flags.len || !BC_PARSE_BRACE(p))) {
-
+		if (BC_PARSE_IF(p) && (len == p->flags.len || !BC_PARSE_BRACE(p)))
+		{
 			// Eat newlines.
-			while (p->l.t == BC_LEX_NLINE) bc_lex_next(&p->l);
+			while (p->l.t == BC_LEX_NLINE)
+			{
+				bc_lex_next(&p->l);
+			}
 
 			// *Now* we can pop the flags.
 			bc_vec_pop(&p->flags);
 
 			// If we are allowed non-POSIX stuff...
-			if (!BC_S) {
-
+			if (!BC_S)
+			{
 				// Have we found yet another dangling else?
 				*(BC_PARSE_TOP_FLAG_PTR(p)) |= BC_PARSE_FLAG_IF_END;
 				new_else = (p->l.t == BC_LEX_KW_ELSE);
@@ -963,7 +1035,9 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 				// Parse the else or end the if statement body.
 				if (new_else) bc_parse_else(p);
 				else if (!has_brace && (!BC_PARSE_IF_END(p) || brace))
+				{
 					bc_parse_noElse(p);
+				}
 			}
 			// POSIX requires us to do the bare minimum only.
 			else bc_parse_noElse(p);
@@ -971,20 +1045,19 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
 
 		// If these are both true, we have "used" the braces that we found.
 		if (brace && has_brace) brace = false;
-
-	// This condition was perhaps the hardest single part of the parser. If the
-	// flags stack does not have enough, we should stop. If we have a new else
-	// statement, we should stop. If we do have the end of an if statement and
-	// we have eaten the brace, we should stop. If we do have a brace flag, we
-	// should stop.
-	} while (p->flags.len > 1 && !new_else && (!BC_PARSE_IF_END(p) || brace) &&
-	         !(has_brace = (BC_PARSE_BRACE(p) != 0)));
+	}
+	// This condition was perhaps the hardest single part of the parser. If
+	// the flags stack does not have enough, we should stop. If we have a
+	// new else statement, we should stop. If we do have the end of an if
+	// statement and we have eaten the brace, we should stop. If we do have
+	// a brace flag, we should stop.
+	while (p->flags.len > 1 && !new_else && (!BC_PARSE_IF_END(p) || brace) &&
+	       !(has_brace = (BC_PARSE_BRACE(p) != 0)));
 
 	// If we have a brace, yet no body for it, that's a problem.
-	if (BC_ERR(p->flags.len == 1 && brace))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
-	else if (brace && BC_PARSE_BRACE(p)) {
-
+	if (BC_ERR(p->flags.len == 1 && brace)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	else if (brace && BC_PARSE_BRACE(p))
+	{
 		// If we make it here, we have a brace and a flag for it.
 		uint16_t flags = BC_PARSE_TOP_FLAG(p);
 
@@ -1004,15 +1077,18 @@ static void bc_parse_endBody(BcParse *p, bool brace) {
  * @param p      The parser.
  * @param flags  The current flags (will be edited).
  */
-static void bc_parse_startBody(BcParse *p, uint16_t flags) {
+static void
+bc_parse_startBody(BcParse* p, uint16_t flags)
+{
 	assert(flags);
 	flags |= (BC_PARSE_TOP_FLAG(p) & (BC_PARSE_FLAG_FUNC | BC_PARSE_FLAG_LOOP));
 	flags |= BC_PARSE_FLAG_BODY;
 	bc_vec_push(&p->flags, &flags);
 }
 
-void bc_parse_endif(BcParse *p) {
-
+void
+bc_parse_endif(BcParse* p)
+{
 	size_t i;
 	bool good;
 
@@ -1023,54 +1099,55 @@ void bc_parse_endif(BcParse *p) {
 
 	// Find an instance of a body that needs closing, i.e., a statement that did
 	// not have a right brace when it should have.
-	for (i = 0; good && i < p->flags.len; ++i) {
+	for (i = 0; good && i < p->flags.len; ++i)
+	{
 		uint16_t flag = *((uint16_t*) bc_vec_item(&p->flags, i));
 		good = ((flag & BC_PARSE_FLAG_BRACE) != BC_PARSE_FLAG_BRACE);
 	}
 
 	// If we did not find such an instance...
-	if (good) {
-
+	if (good)
+	{
 		// We set this to restore it later. We don't want the parser thinking
 		// that we are on stdin for this one because it will want more.
-		bool is_stdin = vm.is_stdin;
+		BcMode mode = vm->mode;
 
-		vm.is_stdin = false;
+		vm->mode = BC_MODE_FILE;
 
 		// End all of the if statements and loops.
-		while (p->flags.len > 1 || BC_PARSE_IF_END(p)) {
+		while (p->flags.len > 1 || BC_PARSE_IF_END(p))
+		{
 			if (BC_PARSE_IF_END(p)) bc_parse_noElse(p);
 			if (p->flags.len > 1) bc_parse_endBody(p, false);
 		}
 
-		vm.is_stdin = is_stdin;
+		vm->mode = (uchar) mode;
 	}
 	// If we reach here, a block was not properly closed, and we should error.
-	else bc_parse_err(&vm.prs, BC_ERR_PARSE_BLOCK);
+	else bc_parse_err(&vm->prs, BC_ERR_PARSE_BLOCK);
 }
 
 /**
  * Parses an if statement.
  * @param p  The parser.
  */
-static void bc_parse_if(BcParse *p) {
-
+static void
+bc_parse_if(BcParse* p)
+{
 	// We are allowed relational operators, and we must have a value.
 	size_t idx;
 	uint8_t flags = (BC_PARSE_REL | BC_PARSE_NEEDVAL);
 
 	// Get the left paren and barf if necessary.
 	bc_lex_next(&p->l);
-	if (BC_ERR(p->l.t != BC_LEX_LPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	// Parse the condition.
 	bc_lex_next(&p->l);
 	bc_parse_expr_status(p, flags, bc_parse_next_rel);
 
 	// Must have a right paren.
-	if (BC_ERR(p->l.t != BC_LEX_RPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_RPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_lex_next(&p->l);
 
@@ -1091,13 +1168,13 @@ static void bc_parse_if(BcParse *p) {
  * Parses an else statement.
  * @param p  The parser.
  */
-static void bc_parse_else(BcParse *p) {
-
+static void
+bc_parse_else(BcParse* p)
+{
 	size_t idx = p->func->labels.len;
 
 	// We must be at the end of an if statement.
-	if (BC_ERR(!BC_PARSE_IF_END(p)))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(!BC_PARSE_IF_END(p))) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	// Push an unconditional jump to make bc jump over the else statement if it
 	// executed the original if statement.
@@ -1119,16 +1196,16 @@ static void bc_parse_else(BcParse *p) {
  * Parse a while loop.
  * @param p  The parser.
  */
-static void bc_parse_while(BcParse *p) {
-
+static void
+bc_parse_while(BcParse* p)
+{
 	// We are allowed relational operators, and we must have a value.
 	size_t idx;
 	uint8_t flags = (BC_PARSE_REL | BC_PARSE_NEEDVAL);
 
 	// Get the left paren and barf if necessary.
 	bc_lex_next(&p->l);
-	if (BC_ERR(p->l.t != BC_LEX_LPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 	bc_lex_next(&p->l);
 
 	// Create the labels. Loops need both.
@@ -1138,8 +1215,7 @@ static void bc_parse_while(BcParse *p) {
 
 	// Parse the actual condition and barf on non-right paren.
 	bc_parse_expr_status(p, flags, bc_parse_next_rel);
-	if (BC_ERR(p->l.t != BC_LEX_RPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_RPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 	bc_lex_next(&p->l);
 
 	// Now we can push the conditional jump and start the body.
@@ -1152,20 +1228,19 @@ static void bc_parse_while(BcParse *p) {
  * Parse a for loop.
  * @param p  The parser.
  */
-static void bc_parse_for(BcParse *p) {
-
+static void
+bc_parse_for(BcParse* p)
+{
 	size_t cond_idx, exit_idx, body_idx, update_idx;
 
 	// Barf on the missing left paren.
 	bc_lex_next(&p->l);
-	if (BC_ERR(p->l.t != BC_LEX_LPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 	bc_lex_next(&p->l);
 
 	// The first statement can be empty, but if it is, check for error in POSIX
 	// mode. Otherwise, parse it.
-	if (p->l.t != BC_LEX_SCOLON)
-		bc_parse_expr_status(p, 0, bc_parse_next_for);
+	if (p->l.t != BC_LEX_SCOLON) bc_parse_expr_status(p, 0, bc_parse_next_for);
 	else bc_parse_err(p, BC_ERR_POSIX_FOR);
 
 	// Must have a semicolon.
@@ -1185,12 +1260,13 @@ static void bc_parse_for(BcParse *p) {
 	bc_parse_createLabel(p, p->func->code.len);
 
 	// Parse an expression if it exists.
-	if (p->l.t != BC_LEX_SCOLON) {
+	if (p->l.t != BC_LEX_SCOLON)
+	{
 		uint8_t flags = (BC_PARSE_REL | BC_PARSE_NEEDVAL);
 		bc_parse_expr_status(p, flags, bc_parse_next_for);
 	}
-	else {
-
+	else
+	{
 		// Set this for the next call to bc_parse_number because an empty
 		// condition means that it is an infinite loop, so the condition must be
 		// non-zero. This is safe to set because the current token is a
@@ -1203,8 +1279,7 @@ static void bc_parse_for(BcParse *p) {
 	}
 
 	// Must have a semicolon.
-	if (BC_ERR(p->l.t != BC_LEX_SCOLON))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_SCOLON)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 	bc_lex_next(&p->l);
 
 	// Now we can set up the conditional jump to the exit and an unconditional
@@ -1220,13 +1295,11 @@ static void bc_parse_for(BcParse *p) {
 	bc_parse_createCondLabel(p, update_idx);
 
 	// Parse if not empty, and if it is, let POSIX yell if necessary.
-	if (p->l.t != BC_LEX_RPAREN)
-		bc_parse_expr_status(p, 0, bc_parse_next_rel);
+	if (p->l.t != BC_LEX_RPAREN) bc_parse_expr_status(p, 0, bc_parse_next_rel);
 	else bc_parse_err(p, BC_ERR_POSIX_FOR);
 
 	// Must have a right paren.
-	if (BC_ERR(p->l.t != BC_LEX_RPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(p->l.t != BC_LEX_RPAREN)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	// Set up a jump to the condition right after the update code.
 	bc_parse_push(p, BC_INST_JUMP);
@@ -1245,17 +1318,18 @@ static void bc_parse_for(BcParse *p) {
  * @param p     The parser.
  * @param type  The type of exit.
  */
-static void bc_parse_loopExit(BcParse *p, BcLexType type) {
-
+static void
+bc_parse_loopExit(BcParse* p, BcLexType type)
+{
 	size_t i;
-	BcInstPtr *ip;
+	BcInstPtr* ip;
 
 	// Must have a loop. If we don't, that's an error.
 	if (BC_ERR(!BC_PARSE_LOOP(p))) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	// If we have a break statement...
-	if (type == BC_LEX_KW_BREAK) {
-
+	if (type == BC_LEX_KW_BREAK)
+	{
 		// If there are no exits, something went wrong somewhere.
 		if (BC_ERR(!p->exits.len)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
@@ -1265,7 +1339,11 @@ static void bc_parse_loopExit(BcParse *p, BcLexType type) {
 
 		// The condition !ip->func is true if the exit is not for a loop, so we
 		// need to find the first actual loop exit.
-		while (!ip->func && i < p->exits.len) ip = bc_vec_item(&p->exits, i--);
+		while (!ip->func && i < p->exits.len)
+		{
+			ip = bc_vec_item(&p->exits, i);
+			i -= 1;
+		}
 
 		// Make sure everything is hunky dory.
 		assert(ip != NULL && (i < p->exits.len || ip->func));
@@ -1288,8 +1366,9 @@ static void bc_parse_loopExit(BcParse *p, BcLexType type) {
  * Parse a function (header).
  * @param p  The parser.
  */
-static void bc_parse_func(BcParse *p) {
-
+static void
+bc_parse_func(BcParse* p)
+{
 	bool comma = false, voidfn;
 	uint16_t flags;
 	size_t idx;
@@ -1311,8 +1390,8 @@ static void bc_parse_func(BcParse *p) {
 	voidfn = (voidfn && p->l.t == BC_LEX_NAME);
 
 	// With a void function, allow POSIX to complain and get a new token.
-	if (voidfn) {
-
+	if (voidfn)
+	{
 		bc_parse_err(p, BC_ERR_POSIX_VOID);
 
 		// We can safely do this because the expected token should not overwrite
@@ -1321,8 +1400,7 @@ static void bc_parse_func(BcParse *p) {
 	}
 
 	// Must have a left paren.
-	if (BC_ERR(p->l.t != BC_LEX_LPAREN))
-		bc_parse_err(p, BC_ERR_PARSE_FUNC);
+	if (BC_ERR(p->l.t != BC_LEX_LPAREN)) bc_parse_err(p, BC_ERR_PARSE_FUNC);
 
 	// Make sure the functions map and vector are synchronized.
 	assert(p->prog->fns.len == p->prog->fn_map.len);
@@ -1340,13 +1418,13 @@ static void bc_parse_func(BcParse *p) {
 	bc_lex_next(&p->l);
 
 	// While we do not have a right paren, we are still parsing arguments.
-	while (p->l.t != BC_LEX_RPAREN) {
-
+	while (p->l.t != BC_LEX_RPAREN)
+	{
 		BcType t = BC_TYPE_VAR;
 
 		// If we have an asterisk, we are parsing a reference argument.
-		if (p->l.t == BC_LEX_OP_MULTIPLY) {
-
+		if (p->l.t == BC_LEX_OP_MULTIPLY)
+		{
 			t = BC_TYPE_REF;
 			bc_lex_next(&p->l);
 
@@ -1355,8 +1433,7 @@ static void bc_parse_func(BcParse *p) {
 		}
 
 		// If we don't have a name, the argument will not have a name. Barf.
-		if (BC_ERR(p->l.t != BC_LEX_NAME))
-			bc_parse_err(p, BC_ERR_PARSE_FUNC);
+		if (BC_ERR(p->l.t != BC_LEX_NAME)) bc_parse_err(p, BC_ERR_PARSE_FUNC);
 
 		// Increment the number of parameters.
 		p->func->nparams += 1;
@@ -1367,8 +1444,8 @@ static void bc_parse_func(BcParse *p) {
 		bc_lex_next(&p->l);
 
 		// We are parsing an array parameter if this is true.
-		if (p->l.t == BC_LEX_LBRACKET) {
-
+		if (p->l.t == BC_LEX_LBRACKET)
+		{
 			// Set the array type, unless we are already parsing a reference.
 			if (t == BC_TYPE_VAR) t = BC_TYPE_ARRAY;
 
@@ -1376,14 +1453,18 @@ static void bc_parse_func(BcParse *p) {
 
 			// The brackets *must* be empty.
 			if (BC_ERR(p->l.t != BC_LEX_RBRACKET))
+			{
 				bc_parse_err(p, BC_ERR_PARSE_FUNC);
+			}
 
 			bc_lex_next(&p->l);
 		}
 		// If we did *not* get a bracket, but we are expecting a reference, we
 		// have a problem.
 		else if (BC_ERR(t == BC_TYPE_REF))
+		{
 			bc_parse_verr(p, BC_ERR_PARSE_REF_VAR, p->buf.v);
+		}
 
 		// Test for comma and get the next token if it exists.
 		comma = (p->l.t == BC_LEX_COMMA);
@@ -1411,8 +1492,9 @@ static void bc_parse_func(BcParse *p) {
  * Parse an auto list.
  * @param p  The parser.
  */
-static void bc_parse_auto(BcParse *p) {
-
+static void
+bc_parse_auto(BcParse* p)
+{
 	bool comma, one;
 
 	// Error if the auto keyword appeared in the wrong place.
@@ -1425,8 +1507,8 @@ static void bc_parse_auto(BcParse *p) {
 	one = (p->l.t == BC_LEX_NAME);
 
 	// While we have a variable or array.
-	while (p->l.t == BC_LEX_NAME) {
-
+	while (p->l.t == BC_LEX_NAME)
+	{
 		BcType t;
 
 		// Copy the name from the lexer, so we can use it again.
@@ -1435,15 +1517,17 @@ static void bc_parse_auto(BcParse *p) {
 		bc_lex_next(&p->l);
 
 		// If we are parsing an array...
-		if (p->l.t == BC_LEX_LBRACKET) {
-
+		if (p->l.t == BC_LEX_LBRACKET)
+		{
 			t = BC_TYPE_ARRAY;
 
 			bc_lex_next(&p->l);
 
 			// The brackets *must* be empty.
 			if (BC_ERR(p->l.t != BC_LEX_RBRACKET))
+			{
 				bc_parse_err(p, BC_ERR_PARSE_FUNC);
+			}
 
 			bc_lex_next(&p->l);
 		}
@@ -1464,8 +1548,7 @@ static void bc_parse_auto(BcParse *p) {
 	if (BC_ERR(!one)) bc_parse_err(p, BC_ERR_PARSE_NO_AUTO);
 
 	// The auto statement should be all that's in the statement.
-	if (BC_ERR(!bc_parse_isDelimiter(p)))
-		bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+	if (BC_ERR(!bc_parse_isDelimiter(p))) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 }
 
 /**
@@ -1473,9 +1556,10 @@ static void bc_parse_auto(BcParse *p) {
  * @param p      The parser.
  * @param brace  True if a brace was encountered, false otherwise.
  */
-static void bc_parse_body(BcParse *p, bool brace) {
-
-	uint16_t *flag_ptr = BC_PARSE_TOP_FLAG_PTR(p);
+static void
+bc_parse_body(BcParse* p, bool brace)
+{
+	uint16_t* flag_ptr = BC_PARSE_TOP_FLAG_PTR(p);
 
 	assert(flag_ptr != NULL);
 	assert(p->flags.len >= 2);
@@ -1486,15 +1570,15 @@ static void bc_parse_body(BcParse *p, bool brace) {
 
 	// If we are inside a function, that means we just barely entered it, and
 	// we can expect an auto list.
-	if (*flag_ptr & BC_PARSE_FLAG_FUNC_INNER) {
-
+	if (*flag_ptr & BC_PARSE_FLAG_FUNC_INNER)
+	{
 		// We *must* have a brace in this case.
 		if (BC_ERR(!brace)) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 		p->auto_part = (p->l.t != BC_LEX_KW_AUTO);
 
-		if (!p->auto_part) {
-
+		if (!p->auto_part)
+		{
 			// Make sure this is true to not get a parse error.
 			p->auto_part = true;
 
@@ -1505,8 +1589,8 @@ static void bc_parse_body(BcParse *p, bool brace) {
 		// Eat a newline.
 		if (p->l.t == BC_LEX_NLINE) bc_lex_next(&p->l);
 	}
-	else {
-
+	else
+	{
 		// This is the easy part.
 		size_t len = p->flags.len;
 
@@ -1520,7 +1604,9 @@ static void bc_parse_body(BcParse *p, bool brace) {
 		// have a body that was not delimited by braces, so we need to end it
 		// now, after just one statement.
 		if (!brace && !BC_PARSE_BODY(p) && len <= p->flags.len)
+		{
 			bc_parse_endBody(p, false);
+		}
 	}
 }
 
@@ -1529,20 +1615,23 @@ static void bc_parse_body(BcParse *p, bool brace) {
  * function definitions.
  * @param p  The parser.
  */
-static void bc_parse_stmt(BcParse *p) {
-
+static void
+bc_parse_stmt(BcParse* p)
+{
 	size_t len;
 	uint16_t flags;
 	BcLexType type = p->l.t;
 
 	// Eat newline.
-	if (type == BC_LEX_NLINE) {
+	if (type == BC_LEX_NLINE)
+	{
 		bc_lex_next(&p->l);
 		return;
 	}
 
 	// Eat auto list.
-	if (type == BC_LEX_KW_AUTO) {
+	if (type == BC_LEX_KW_AUTO)
+	{
 		bc_parse_auto(p);
 		return;
 	}
@@ -1552,30 +1641,35 @@ static void bc_parse_stmt(BcParse *p) {
 
 	// Everything but an else needs to be taken care of here, but else is
 	// special.
-	if (type != BC_LEX_KW_ELSE) {
-
+	if (type != BC_LEX_KW_ELSE)
+	{
 		// After an if, no else found.
-		if (BC_PARSE_IF_END(p)) {
-
+		if (BC_PARSE_IF_END(p))
+		{
 			// Clear the expectation for else, end body, and return. Returning
 			// gives us a clean slate for parsing again.
 			bc_parse_noElse(p);
 			if (p->flags.len > 1 && !BC_PARSE_BRACE(p))
+			{
 				bc_parse_endBody(p, false);
+			}
+
 			return;
 		}
 		// With a left brace, we are parsing a body.
-		else if (type == BC_LEX_LBRACE) {
-
+		else if (type == BC_LEX_LBRACE)
+		{
 			// We need to start a body if we are not expecting one yet.
-			if (!BC_PARSE_BODY(p)) {
+			if (!BC_PARSE_BODY(p))
+			{
 				bc_parse_startBody(p, BC_PARSE_FLAG_BRACE);
 				bc_lex_next(&p->l);
 			}
 			// If we *are* expecting a body, that body should get a brace. This
 			// takes care of braces being on a different line than if and loop
 			// headers.
-			else {
+			else
+			{
 				*(BC_PARSE_TOP_FLAG_PTR(p)) |= BC_PARSE_FLAG_BRACE;
 				bc_lex_next(&p->l);
 				bc_parse_body(p, true);
@@ -1588,7 +1682,8 @@ static void bc_parse_stmt(BcParse *p) {
 		// This happens when we are expecting a body and get a single statement,
 		// i.e., a body with no braces surrounding it. Returns after for a clean
 		// slate.
-		else if (BC_PARSE_BODY(p) && !BC_PARSE_BRACE(p)) {
+		else if (BC_PARSE_BODY(p) && !BC_PARSE_BRACE(p))
+		{
 			bc_parse_body(p, false);
 			return;
 		}
@@ -1597,8 +1692,8 @@ static void bc_parse_stmt(BcParse *p) {
 	len = p->flags.len;
 	flags = BC_PARSE_TOP_FLAG(p);
 
-	switch (type) {
-
+	switch (type)
+	{
 		// All of these are valid for expressions.
 		case BC_LEX_OP_INC:
 		case BC_LEX_OP_DEC:
@@ -1617,6 +1712,8 @@ static void bc_parse_stmt(BcParse *p) {
 #endif // BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_SQRT:
 		case BC_LEX_KW_ABS:
+		case BC_LEX_KW_IS_NUMBER:
+		case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH
@@ -1728,7 +1825,7 @@ static void bc_parse_stmt(BcParse *p) {
 		{
 			// Quit is a compile-time command. We don't exit directly, so the vm
 			// can clean up.
-			vm.status = BC_STATUS_QUIT;
+			vm->status = BC_STATUS_QUIT;
 			BC_JMP;
 			break;
 		}
@@ -1745,20 +1842,96 @@ static void bc_parse_stmt(BcParse *p) {
 			break;
 		}
 
-		default:
+		case BC_LEX_EOF:
+		case BC_LEX_INVALID:
+		case BC_LEX_NEG:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_TRUNC:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_POWER:
+		case BC_LEX_OP_MULTIPLY:
+		case BC_LEX_OP_DIVIDE:
+		case BC_LEX_OP_MODULUS:
+		case BC_LEX_OP_PLUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_PLACES:
+		case BC_LEX_OP_LSHIFT:
+		case BC_LEX_OP_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_REL_EQ:
+		case BC_LEX_OP_REL_LE:
+		case BC_LEX_OP_REL_GE:
+		case BC_LEX_OP_REL_NE:
+		case BC_LEX_OP_REL_LT:
+		case BC_LEX_OP_REL_GT:
+		case BC_LEX_OP_BOOL_OR:
+		case BC_LEX_OP_BOOL_AND:
+		case BC_LEX_OP_ASSIGN_POWER:
+		case BC_LEX_OP_ASSIGN_MULTIPLY:
+		case BC_LEX_OP_ASSIGN_DIVIDE:
+		case BC_LEX_OP_ASSIGN_MODULUS:
+		case BC_LEX_OP_ASSIGN_PLUS:
+		case BC_LEX_OP_ASSIGN_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN_PLACES:
+		case BC_LEX_OP_ASSIGN_LSHIFT:
+		case BC_LEX_OP_ASSIGN_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN:
+		case BC_LEX_NLINE:
+		case BC_LEX_WHITESPACE:
+		case BC_LEX_RPAREN:
+		case BC_LEX_LBRACKET:
+		case BC_LEX_COMMA:
+		case BC_LEX_RBRACKET:
+		case BC_LEX_LBRACE:
+		case BC_LEX_KW_AUTO:
+		case BC_LEX_KW_DEFINE:
+#if DC_ENABLED
+		case BC_LEX_EQ_NO_REG:
+		case BC_LEX_COLON:
+		case BC_LEX_EXECUTE:
+		case BC_LEX_PRINT_STACK:
+		case BC_LEX_CLEAR_STACK:
+		case BC_LEX_REG_STACK_LEVEL:
+		case BC_LEX_STACK_LEVEL:
+		case BC_LEX_DUPLICATE:
+		case BC_LEX_SWAP:
+		case BC_LEX_POP:
+		case BC_LEX_STORE_IBASE:
+		case BC_LEX_STORE_OBASE:
+		case BC_LEX_STORE_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_STORE_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_LOAD:
+		case BC_LEX_LOAD_POP:
+		case BC_LEX_STORE_PUSH:
+		case BC_LEX_PRINT_POP:
+		case BC_LEX_NQUIT:
+		case BC_LEX_EXEC_STACK_LENGTH:
+		case BC_LEX_SCALE_FACTOR:
+		case BC_LEX_ARRAY_LENGTH:
+#endif // DC_ENABLED
 		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 		}
 	}
 
 	// If the flags did not change, we expect a delimiter.
-	if (len == p->flags.len && flags == BC_PARSE_TOP_FLAG(p)) {
+	if (len == p->flags.len && flags == BC_PARSE_TOP_FLAG(p))
+	{
 		if (BC_ERR(!bc_parse_isDelimiter(p)))
+		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+		}
 	}
 
 	// Make sure semicolons are eaten.
-	while (p->l.t == BC_LEX_SCOLON) bc_lex_next(&p->l);
+	while (p->l.t == BC_LEX_SCOLON || p->l.t == BC_LEX_NLINE)
+	{
+		bc_lex_next(&p->l);
+	}
 
 	// POSIX's grammar does not allow a function definition after a semicolon
 	// without a newline, so check specifically for that case and error if
@@ -1769,22 +1942,27 @@ static void bc_parse_stmt(BcParse *p) {
 	}
 }
 
-void bc_parse_parse(BcParse *p) {
-
+void
+bc_parse_parse(BcParse* p)
+{
 	assert(p);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 	// We should not let an EOF get here unless some partial parse was not
 	// completed, in which case, it's the user's fault.
 	if (BC_ERR(p->l.t == BC_LEX_EOF)) bc_parse_err(p, BC_ERR_PARSE_EOF);
 
 	// Functions need special parsing.
-	else if (p->l.t == BC_LEX_KW_DEFINE) {
-		if (BC_ERR(BC_PARSE_NO_EXEC(p))) {
+	else if (p->l.t == BC_LEX_KW_DEFINE)
+	{
+		if (BC_ERR(BC_PARSE_NO_EXEC(p)))
+		{
 			bc_parse_endif(p);
 			if (BC_ERR(BC_PARSE_NO_EXEC(p)))
+			{
 				bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+			}
 		}
 		bc_parse_func(p);
 	}
@@ -1795,10 +1973,12 @@ void bc_parse_parse(BcParse *p) {
 exit:
 
 	// We need to reset on error.
-	if (BC_ERR(((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig)))
+	if (BC_ERR(((vm->status && vm->status != BC_STATUS_QUIT) || vm->sig != 0)))
+	{
 		bc_parse_reset(p);
+	}
 
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 
@@ -1813,8 +1993,8 @@ exit:
  *               to tell the caller if the expression was empty and let the
  *               caller handle it.
  */
-static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
-                                       BcParseNext next)
+static BcParseStatus
+bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 {
 	BcInst prev = BC_INST_PRINT;
 	uchar inst = BC_INST_INVALID;
@@ -1854,15 +2034,19 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 
 	// We want to eat newlines if newlines are not a valid ending token.
 	// This is for spacing in things like for loop headers.
-	if (!(flags & BC_PARSE_NOREAD)) {
-		while ((t = p->l.t) == BC_LEX_NLINE) bc_lex_next(&p->l);
+	if (!(flags & BC_PARSE_NOREAD))
+	{
+		while ((t = p->l.t) == BC_LEX_NLINE)
+		{
+			bc_lex_next(&p->l);
+		}
 	}
 
 	// This is the Shunting-Yard algorithm loop.
 	for (; !done && BC_PARSE_EXPR(t); t = p->l.t)
 	{
-		switch (t) {
-
+		switch (t)
+		{
 			case BC_LEX_OP_INC:
 			case BC_LEX_OP_DEC:
 			{
@@ -1885,7 +2069,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 				// The previous token must have been a leaf expression, or the
 				// operator is in the wrong place.
 				if (BC_ERR(!BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_TOKEN);
+				}
 
 				// I can just add the instruction because
 				// negative will already be taken care of.
@@ -1931,10 +2117,13 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// We need to make sure the assignment is valid.
 				if (!BC_PARSE_INST_VAR(prev))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_ASSIGN);
+				}
+
+				// Fallthrough.
+				BC_FALLTHROUGH
 			}
-			// Fallthrough.
-			BC_FALLTHROUGH
 
 			case BC_LEX_OP_POWER:
 			case BC_LEX_OP_MULTIPLY:
@@ -1958,18 +2147,22 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// This is true if the operator if the token is a prefix
 				// operator. This is only for boolean not.
-				if (BC_PARSE_OP_PREFIX(t)) {
-
+				if (BC_PARSE_OP_PREFIX(t))
+				{
 					// Prefix operators are only allowed after binary operators
 					// or prefix operators.
 					if (BC_ERR(!bin_last && !BC_PARSE_OP_PREFIX(p->l.last)))
+					{
 						bc_parse_err(p, BC_ERR_PARSE_EXPR);
+					}
 				}
 				// If we execute the else, that means we have a binary operator.
 				// If the previous operator was a prefix or a binary operator,
 				// then a binary operator is not allowed.
 				else if (BC_ERR(BC_PARSE_PREV_PREFIX(prev) || bin_last))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				nrelops += (t >= BC_LEX_OP_REL_EQ && t <= BC_LEX_OP_REL_GT);
 				prev = BC_PARSE_TOKEN_INST(t);
@@ -1988,7 +2181,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// A left paren is *not* allowed right after a leaf expr.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				nparens += 1;
 				rprn = incdec = can_assign = false;
@@ -2005,16 +2200,21 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 				// This needs to be a status. The error is handled in
 				// bc_parse_expr_status().
 				if (BC_ERR(p->l.last == BC_LEX_LPAREN))
+				{
 					return BC_PARSE_STATUS_EMPTY_EXPR;
+				}
 
 				// The right paren must not come after a prefix or binary
 				// operator.
 				if (BC_ERR(bin_last || BC_PARSE_PREV_PREFIX(prev)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				// If there are no parens left, we are done, but we need another
 				// token.
-				if (!nparens) {
+				if (!nparens)
+				{
 					done = true;
 					get_token = false;
 					break;
@@ -2036,7 +2236,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 
 				// A string is a leaf and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				bc_parse_addString(p);
 
@@ -2051,7 +2253,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// A name is a leaf and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				get_token = bin_last = false;
 
@@ -2068,7 +2272,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// A number is a leaf and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				// The number instruction is pushed in here.
 				bc_parse_number(p);
@@ -2091,7 +2297,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// All of these are leaves and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				prev = t - BC_LEX_KW_LAST + BC_INST_LAST;
 				bc_parse_push(p, prev);
@@ -2107,6 +2315,8 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			case BC_LEX_KW_LENGTH:
 			case BC_LEX_KW_SQRT:
 			case BC_LEX_KW_ABS:
+			case BC_LEX_KW_IS_NUMBER:
+			case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 			case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH
@@ -2114,7 +2324,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// All of these are leaves and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				bc_parse_builtin(p, t, flags, &prev);
 
@@ -2141,11 +2353,15 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// All of these are leaves and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				// Error if we have read and it's not allowed.
 				else if (t == BC_LEX_KW_READ && BC_ERR(flags & BC_PARSE_NOREAD))
+				{
 					bc_parse_err(p, BC_ERR_EXEC_REC_READ);
+				}
 
 				prev = t - BC_LEX_KW_READ + BC_INST_READ;
 				bc_parse_noArgBuiltin(p, prev);
@@ -2161,7 +2377,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// This is a leaf and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				// Scale needs special work because it can be a variable *or* a
 				// function.
@@ -2179,7 +2397,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			{
 				// This is a leaf and cannot come right after a leaf.
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
+				{
 					bc_parse_err(p, BC_ERR_PARSE_EXPR);
+				}
 
 				bc_parse_builtin3(p, t, flags, &prev);
 
@@ -2190,7 +2410,57 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 				break;
 			}
 
-			default:
+			case BC_LEX_EOF:
+			case BC_LEX_INVALID:
+			case BC_LEX_NEG:
+			case BC_LEX_NLINE:
+			case BC_LEX_WHITESPACE:
+			case BC_LEX_LBRACKET:
+			case BC_LEX_COMMA:
+			case BC_LEX_RBRACKET:
+			case BC_LEX_LBRACE:
+			case BC_LEX_SCOLON:
+			case BC_LEX_RBRACE:
+			case BC_LEX_KW_AUTO:
+			case BC_LEX_KW_BREAK:
+			case BC_LEX_KW_CONTINUE:
+			case BC_LEX_KW_DEFINE:
+			case BC_LEX_KW_FOR:
+			case BC_LEX_KW_IF:
+			case BC_LEX_KW_LIMITS:
+			case BC_LEX_KW_RETURN:
+			case BC_LEX_KW_WHILE:
+			case BC_LEX_KW_HALT:
+			case BC_LEX_KW_PRINT:
+			case BC_LEX_KW_QUIT:
+			case BC_LEX_KW_STREAM:
+			case BC_LEX_KW_ELSE:
+#if DC_ENABLED
+			case BC_LEX_EQ_NO_REG:
+			case BC_LEX_COLON:
+			case BC_LEX_EXECUTE:
+			case BC_LEX_PRINT_STACK:
+			case BC_LEX_CLEAR_STACK:
+			case BC_LEX_REG_STACK_LEVEL:
+			case BC_LEX_STACK_LEVEL:
+			case BC_LEX_DUPLICATE:
+			case BC_LEX_SWAP:
+			case BC_LEX_POP:
+			case BC_LEX_STORE_IBASE:
+			case BC_LEX_STORE_OBASE:
+			case BC_LEX_STORE_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+			case BC_LEX_STORE_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+			case BC_LEX_LOAD:
+			case BC_LEX_LOAD_POP:
+			case BC_LEX_STORE_PUSH:
+			case BC_LEX_PRINT_POP:
+			case BC_LEX_NQUIT:
+			case BC_LEX_EXEC_STACK_LENGTH:
+			case BC_LEX_SCALE_FACTOR:
+			case BC_LEX_ARRAY_LENGTH:
+#endif // DC_ENABLED
 			{
 #ifndef NDEBUG
 				// We should never get here, even in debug builds.
@@ -2205,14 +2475,16 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 
 	// Now that we have parsed the expression, we need to empty the operator
 	// stack.
-	while (p->ops.len > ops_bgn) {
-
+	while (p->ops.len > ops_bgn)
+	{
 		top = BC_PARSE_TOP_OP(p);
 		assign = top >= BC_LEX_OP_ASSIGN_POWER && top <= BC_LEX_OP_ASSIGN;
 
 		// There should not be *any* parens on the stack anymore.
 		if (BC_ERR(top == BC_LEX_LPAREN || top == BC_LEX_RPAREN))
+		{
 			bc_parse_err(p, BC_ERR_PARSE_EXPR);
+		}
 
 		bc_parse_push(p, BC_PARSE_TOKEN_INST(top));
 
@@ -2227,35 +2499,46 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 	if (BC_ERR(nexprs != 1)) bc_parse_err(p, BC_ERR_PARSE_EXPR);
 
 	// Check that the next token is correct.
-	for (i = 0; i < next.len && t != next.tokens[i]; ++i);
+	for (i = 0; i < next.len && t != next.tokens[i]; ++i)
+	{
+		continue;
+	}
 	if (BC_ERR(i == next.len && !bc_parse_isDelimiter(p)))
+	{
 		bc_parse_err(p, BC_ERR_PARSE_EXPR);
+	}
 
 	// Check that POSIX would be happy with the number of relational operators.
 	if (!(flags & BC_PARSE_REL) && nrelops)
+	{
 		bc_parse_err(p, BC_ERR_POSIX_REL_POS);
+	}
 	else if ((flags & BC_PARSE_REL) && nrelops > 1)
+	{
 		bc_parse_err(p, BC_ERR_POSIX_MULTIREL);
+	}
 
 	// If this is true, then we might be in a situation where we don't print.
 	// We would want to have the increment/decrement operator not make an extra
 	// copy if it's not necessary.
-	if (!(flags & BC_PARSE_NEEDVAL) && !pfirst) {
-
+	if (!(flags & BC_PARSE_NEEDVAL) && !pfirst)
+	{
 		// We have the easy case if the last operator was an assignment
 		// operator.
-		if (assign) {
+		if (assign)
+		{
 			inst = *((uchar*) bc_vec_top(&p->func->code));
 			inst += (BC_INST_ASSIGN_POWER_NO_VAL - BC_INST_ASSIGN_POWER);
 			incdec = false;
 		}
 		// If we have an inc/dec operator and we are *not* printing, implement
 		// the optimization to get rid of the extra copy.
-		else if (incdec && !(flags & BC_PARSE_PRINT)) {
+		else if (incdec && !(flags & BC_PARSE_PRINT))
+		{
 			inst = *((uchar*) bc_vec_top(&p->func->code));
 			incdec = (inst <= BC_INST_DEC);
-			inst = BC_INST_ASSIGN_PLUS_NO_VAL + (inst != BC_INST_INC &&
-			                                     inst != BC_INST_ASSIGN_PLUS);
+			inst = BC_INST_ASSIGN_PLUS_NO_VAL +
+			       (inst != BC_INST_INC && inst != BC_INST_ASSIGN_PLUS);
 		}
 
 		// This condition allows us to change the previous assignment
@@ -2275,8 +2558,8 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 	}
 
 	// If we might have to print...
-	if ((flags & BC_PARSE_PRINT)) {
-
+	if ((flags & BC_PARSE_PRINT))
+	{
 		// With a paren first or the last operator not being an assignment, we
 		// *do* want to print.
 		if (pfirst || !assign) bc_parse_push(p, BC_INST_PRINT);
@@ -2296,9 +2579,15 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 	// Yes, this is one case where I reuse a variable for a different purpose;
 	// in this case, incdec being true now means that newlines are not valid.
 	for (incdec = true, i = 0; i < next.len && incdec; ++i)
+	{
 		incdec = (next.tokens[i] != BC_LEX_NLINE);
-	if (incdec) {
-		while (p->l.t == BC_LEX_NLINE) bc_lex_next(&p->l);
+	}
+	if (incdec)
+	{
+		while (p->l.t == BC_LEX_NLINE)
+		{
+			bc_lex_next(&p->l);
+		}
 	}
 
 	return BC_PARSE_STATUS_SUCCESS;
@@ -2311,15 +2600,20 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
  * @param flags  The flags for what is valid in the expression.
  * @param next   A set of tokens for what is valid *after* the expression.
  */
-static void bc_parse_expr_status(BcParse *p, uint8_t flags, BcParseNext next) {
-
+static void
+bc_parse_expr_status(BcParse* p, uint8_t flags, BcParseNext next)
+{
 	BcParseStatus s = bc_parse_expr_err(p, flags, next);
 
 	if (BC_ERR(s == BC_PARSE_STATUS_EMPTY_EXPR))
+	{
 		bc_parse_err(p, BC_ERR_PARSE_EMPTY_EXPR);
+	}
 }
 
-void bc_parse_expr(BcParse *p, uint8_t flags) {
+void
+bc_parse_expr(BcParse* p, uint8_t flags)
+{
 	assert(p);
 	bc_parse_expr_status(p, flags, bc_parse_next_read);
 }

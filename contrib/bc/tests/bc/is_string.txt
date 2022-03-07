@@ -1,0 +1,13 @@
+is_string(5)
+is_string(18923740913.12809374)
+is_string(abs(0.5))
+is_string(a[1])
+i = 0
+is_string(b[i])
+is_string("string")
+is_string(asciify("this"))
+is_string(asciify(122))
+x = asciify(121)
+is_string(x)
+a[2] = asciify(120)
+is_string(a[2])

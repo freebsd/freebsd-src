@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -88,15 +88,15 @@ fi
 if [ "$d" = "bc" ]; then
 
 	if [ "$run_stack_tests" -ne 0 ]; then
-		options="-lgq"
+		options="-lgqC"
 	else
-		options="-lq"
+		options="-lqC"
 	fi
 
 	halt="halt"
 
 else
-	options="-x"
+	options="-xC"
 	halt="q"
 fi
 
@@ -154,6 +154,21 @@ elif [ "$generate" -eq 0 ]; then
 	printf 'Skipping %s script %s\n' "$d" "$f"
 	exit 0
 else
+
+	set +e
+
+	# This is to check that the command exists. If not, we should not try to
+	# generate the test. Instead, we should just skip.
+	command -v "$d" 1>/dev/null 2>&1
+	err="$?"
+
+	set -e
+
+	if [ "$err" -ne 0 ]; then
+		printf 'Could not find %s to generate results; skipping %s script %s\n' "$d" "$d" "$f"
+		exit 0
+	fi
+
 	# This sed, and the script, are to remove an incompatibility with GNU bc,
 	# where GNU bc is wrong. See the development manual
 	# (manuals/development.md#script-tests) for more information.

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,8 @@
  * The main function for bc. It just sets variables and passes its arguments
  * through to @a bc_vm_boot().
  */
-void bc_main(int argc, char *argv[]);
+void
+bc_main(int argc, char* argv[]);
 
 // These are references to the help text, the library text, and the "filename"
 // for the library.
@@ -66,8 +67,8 @@ extern const char* bc_lib2_name;
 /**
  * A struct containing information about a bc keyword.
  */
-typedef struct BcLexKeyword {
-
+typedef struct BcLexKeyword
+{
 	/// Holds the length of the keyword along with a bit that, if set, means the
 	/// keyword is used in POSIX bc.
 	uchar data;
@@ -87,20 +88,22 @@ typedef struct BcLexKeyword {
 #define BC_LEX_KW_LEN(kw) ((size_t) ((kw)->data & ~(BC_LEX_CHAR_MSB(1))))
 
 /// A macro to easily build a keyword entry. See bc_lex_kws in src/data.c.
-#define BC_LEX_KW_ENTRY(a, b, c) \
-	{ .data = ((b) & ~(BC_LEX_CHAR_MSB(1))) | BC_LEX_CHAR_MSB(c), .name = a }
+#define BC_LEX_KW_ENTRY(a, b, c)                                              \
+	{                                                                         \
+		.data = ((b) & ~(BC_LEX_CHAR_MSB(1))) | BC_LEX_CHAR_MSB(c), .name = a \
+	}
 
 #if BC_ENABLE_EXTRA_MATH
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (35)
+#define BC_LEX_NKWS (37)
 
 #else // BC_ENABLE_EXTRA_MATH
 
 /// A macro for the number of keywords bc has. This has to be updated if any are
 /// added. This is for the redefined_kws field of the BcVm struct.
-#define BC_LEX_NKWS (31)
+#define BC_LEX_NKWS (33)
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -113,7 +116,8 @@ extern const size_t bc_lex_kws_len;
  * @a BcLexNext.)
  * @param l  The lexer.
  */
-void bc_lex_token(BcLex *l);
+void
+bc_lex_token(BcLex* l);
 
 // The following section is for flags needed when parsing bc code. These flags
 // are complicated, but necessary. Why you ask? Because bc's standard is awful.
@@ -144,49 +148,49 @@ void bc_lex_token(BcLex *l);
 // flag stack. All `p` arguments are pointers to a BcParse.
 
 // This flag is set if the parser has seen a left brace.
-#define BC_PARSE_FLAG_BRACE (UINTMAX_C(1)<<0)
+#define BC_PARSE_FLAG_BRACE (UINTMAX_C(1) << 0)
 #define BC_PARSE_BRACE(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_BRACE)
 
 // This flag is set if the parser is parsing inside of the braces of a function
 // body.
-#define BC_PARSE_FLAG_FUNC_INNER (UINTMAX_C(1)<<1)
+#define BC_PARSE_FLAG_FUNC_INNER (UINTMAX_C(1) << 1)
 #define BC_PARSE_FUNC_INNER(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_FUNC_INNER)
 
 // This flag is set if the parser is parsing a function. It is different from
 // the one above because it is set if it is parsing a function body *or* header,
 // not just if it's parsing a function body.
-#define BC_PARSE_FLAG_FUNC (UINTMAX_C(1)<<2)
+#define BC_PARSE_FLAG_FUNC (UINTMAX_C(1) << 2)
 #define BC_PARSE_FUNC(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_FUNC)
 
 // This flag is set if the parser is expecting to parse a body, whether of a
 // function, an if statement, or a loop.
-#define BC_PARSE_FLAG_BODY (UINTMAX_C(1)<<3)
+#define BC_PARSE_FLAG_BODY (UINTMAX_C(1) << 3)
 #define BC_PARSE_BODY(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_BODY)
 
 // This flag is set if bc is parsing a loop. This is important because the break
 // and continue keywords are only valid inside of a loop.
-#define BC_PARSE_FLAG_LOOP (UINTMAX_C(1)<<4)
+#define BC_PARSE_FLAG_LOOP (UINTMAX_C(1) << 4)
 #define BC_PARSE_LOOP(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_LOOP)
 
 // This flag is set if bc is parsing the body of a loop. It is different from
 // the one above the same way @a BC_PARSE_FLAG_FUNC_INNER is different from
 // @a BC_PARSE_FLAG_FUNC.
-#define BC_PARSE_FLAG_LOOP_INNER (UINTMAX_C(1)<<5)
+#define BC_PARSE_FLAG_LOOP_INNER (UINTMAX_C(1) << 5)
 #define BC_PARSE_LOOP_INNER(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_LOOP_INNER)
 
 // This flag is set if bc is parsing an if statement.
-#define BC_PARSE_FLAG_IF (UINTMAX_C(1)<<6)
+#define BC_PARSE_FLAG_IF (UINTMAX_C(1) << 6)
 #define BC_PARSE_IF(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_IF)
 
 // This flag is set if bc is parsing an else statement. This is important
 // because of "else if" constructions, among other things.
-#define BC_PARSE_FLAG_ELSE (UINTMAX_C(1)<<7)
+#define BC_PARSE_FLAG_ELSE (UINTMAX_C(1) << 7)
 #define BC_PARSE_ELSE(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_ELSE)
 
 // This flag is set if bc just finished parsing an if statement and its body.
 // It tells the parser that it can probably expect an else statement next. This
 // flag is, thus, one of the most subtle.
-#define BC_PARSE_FLAG_IF_END (UINTMAX_C(1)<<8)
+#define BC_PARSE_FLAG_IF_END (UINTMAX_C(1) << 8)
 #define BC_PARSE_IF_END(p) (BC_PARSE_TOP_FLAG(p) & BC_PARSE_FLAG_IF_END)
 
 /**
@@ -230,7 +234,7 @@ void bc_lex_token(BcLex *l);
  * @param t  The token to return operator data for.
  * @return   The operator data for @a t.
  */
-#define BC_PARSE_OP_DATA(t) bc_parse_ops[((t) - BC_LEX_OP_INC)]
+#define BC_PARSE_OP_DATA(t) bc_parse_ops[((t) -BC_LEX_OP_INC)]
 
 /**
  * Returns non-zero if operator @a op is left associative, zero otherwise.
@@ -261,7 +265,7 @@ void bc_lex_token(BcLex *l);
  * @param e8  The eighth bit.
  * @return    An expression entry for bc_parse_exprs[].
  */
-#define BC_PARSE_EXPR_ENTRY(e1, e2, e3, e4, e5, e6, e7, e8)  \
+#define BC_PARSE_EXPR_ENTRY(e1, e2, e3, e4, e5, e6, e7, e8)               \
 	((UINTMAX_C(e1) << 7) | (UINTMAX_C(e2) << 6) | (UINTMAX_C(e3) << 5) | \
 	 (UINTMAX_C(e4) << 4) | (UINTMAX_C(e5) << 3) | (UINTMAX_C(e6) << 2) | \
 	 (UINTMAX_C(e7) << 1) | (UINTMAX_C(e8) << 0))
@@ -272,7 +276,7 @@ void bc_lex_token(BcLex *l);
  * @return   True if i is an expression token, false otherwise.
  */
 #define BC_PARSE_EXPR(i) \
-	(bc_parse_exprs[(((i) & (uchar) ~(0x07)) >> 3)] & (1 << (7 - ((i) & 0x07))))
+	(bc_parse_exprs[(((i) & (uchar) ~(0x07)) >> 3)] & (1 << (7 - ((i) &0x07))))
 
 /**
  * Returns the operator (by lex token) that is at the top of the operator
@@ -337,7 +341,7 @@ void bc_lex_token(BcLex *l);
  * @param t  The token to turn into an instruction.
  * @return   The token as an instruction.
  */
-#define BC_PARSE_TOKEN_INST(t) ((uchar) ((t) - BC_LEX_NEG + BC_INST_NEG))
+#define BC_PARSE_TOKEN_INST(t) ((uchar) ((t) -BC_LEX_NEG + BC_INST_NEG))
 
 /**
  * Returns true if the token is a bc keyword.
@@ -353,8 +357,8 @@ void bc_lex_token(BcLex *l);
 ///
 /// Obviously, @a len is the number of tokens in the @a tokens array. If more
 /// than 4 is needed in the future, @a tokens will have to be changed.
-typedef struct BcParseNext {
-
+typedef struct BcParseNext
+{
 	/// The number of tokens in the tokens array.
 	uchar len;
 
@@ -368,13 +372,15 @@ typedef struct BcParseNext {
 
 /// A macro to generate a BcParseNext literal from BcParseNext data. See
 /// src/data.c for examples.
-#define BC_PARSE_NEXT(a, ...) \
-	{ .len = (uchar) (a), BC_PARSE_NEXT_TOKENS(__VA_ARGS__) }
+#define BC_PARSE_NEXT(a, ...)                                 \
+	{                                                         \
+		.len = (uchar) (a), BC_PARSE_NEXT_TOKENS(__VA_ARGS__) \
+	}
 
 /// A status returned by @a bc_parse_expr_err(). It can either return success or
 /// an error indicating an empty expression.
-typedef enum BcParseStatus {
-
+typedef enum BcParseStatus
+{
 	BC_PARSE_STATUS_SUCCESS,
 	BC_PARSE_STATUS_EMPTY_EXPR,
 
@@ -387,14 +393,16 @@ typedef enum BcParseStatus {
  * @param flags  Flags that define the requirements that the parsed code must
  *               meet or an error will result. See @a BcParseExpr for more info.
  */
-void bc_parse_expr(BcParse *p, uint8_t flags);
+void
+bc_parse_expr(BcParse* p, uint8_t flags);
 
 /**
  * The @a BcParseParse function for bc. (See include/parse.h for a definition of
  * @a BcParseParse.)
  * @param p  The parser.
  */
-void bc_parse_parse(BcParse *p);
+void
+bc_parse_parse(BcParse* p);
 
 /**
  * Ends a series of if statements. This is to ensure that full parses happen
@@ -403,7 +411,8 @@ void bc_parse_parse(BcParse *p);
  * function definition, we know we can add an empty else clause.
  * @param p  The parser.
  */
-void bc_parse_endif(BcParse *p);
+void
+bc_parse_endif(BcParse* p);
 
 /// References to the signal message and its length.
 extern const char bc_sig_msg[];

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,13 +79,72 @@
 #ifndef BC_HISTORY_H
 #define BC_HISTORY_H
 
-#ifndef BC_ENABLE_HISTORY
-#define BC_ENABLE_HISTORY (1)
-#endif // BC_ENABLE_HISTORY
+// These must come before the #if BC_ENABLE_LINE_LIB below because status.h
+// defines it.
+#include <status.h>
+#include <vector.h>
+
+#if BC_ENABLE_LINE_LIB
+
+#include <stdbool.h>
+#include <setjmp.h>
+#include <signal.h>
+
+extern sigjmp_buf bc_history_jmpbuf;
+extern volatile sig_atomic_t bc_history_inlinelib;
+
+#endif // BC_ENABLE_LINE_LIB
+
+#if BC_ENABLE_EDITLINE
+
+#include <stdio.h>
+#include <histedit.h>
+
+/**
+ * The history struct for editline.
+ */
+typedef struct BcHistory
+{
+	/// A place to store the current line.
+	EditLine* el;
+
+	/// The history.
+	History* hist;
+
+	/// Whether the terminal is bad. This is more or less not used.
+	bool badTerm;
+
+} BcHistory;
+
+// The path to the editrc and its length.
+extern const char bc_history_editrc[];
+extern const size_t bc_history_editrc_len;
+
+#else // BC_ENABLE_EDITLINE
+
+#if BC_ENABLE_READLINE
+
+#include <stdio.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+
+/**
+ * The history struct for readline.
+ */
+typedef struct BcHistory
+{
+	/// A place to store the current line.
+	char* line;
+
+	/// Whether the terminal is bad. This is more or less not used.
+	bool badTerm;
+
+} BcHistory;
+
+#else // BC_ENABLE_READLINE
 
 #if BC_ENABLE_HISTORY
 
-#include <stdbool.h>
 #include <stddef.h>
 
 #include <signal.h>
@@ -106,7 +165,7 @@
 #include <conio.h>
 
 #define strncasecmp _strnicmp
-#define strcasecmp  _stricmp
+#define strcasecmp _stricmp
 
 #endif // _WIN32
 
@@ -154,9 +213,12 @@
 
 #define BC_HISTORY_DEBUG_BUF_SIZE (1024)
 
+// clang-format off
 #define lndebug(...)                                                        \
-	do {                                                                    \
-		if (bc_history_debug_fp.fd == 0) {                                  \
+	do                                                                      \
+	{                                                                       \
+		if (bc_history_debug_fp.fd == 0)                                    \
+		{                                                                   \
 			bc_history_debug_buf = bc_vm_malloc(BC_HISTORY_DEBUG_BUF_SIZE); \
 			bc_file_init(&bc_history_debug_fp,                              \
 			             open("/tmp/lndebug.txt", O_APPEND),                \
@@ -169,15 +231,17 @@
 		}                                                                   \
 		bc_file_printf(&bc_history_debug_fp, ", " __VA_ARGS__);             \
 		bc_file_flush(&bc_history_debug_fp);                                \
-	} while (0)
+	}                                                                       \
+	while (0)
 #else // BC_DEBUG_CODE
 #define lndebug(fmt, ...)
 #endif // BC_DEBUG_CODE
+// clang-format on
 
 /// An enum of useful actions. To understand what these mean, check terminal
 /// emulators for their shortcuts or the VT100 codes.
-typedef enum BcHistoryAction {
-
+typedef enum BcHistoryAction
+{
 	BC_ACTION_NULL = 0,
 	BC_ACTION_CTRL_A = 1,
 	BC_ACTION_CTRL_B = 2,
@@ -200,7 +264,7 @@ typedef enum BcHistoryAction {
 	BC_ACTION_CTRL_Z = 26,
 	BC_ACTION_ESC = 27,
 	BC_ACTION_CTRL_BSLASH = 28,
-	BC_ACTION_BACKSPACE =  127
+	BC_ACTION_BACKSPACE = 127
 
 } BcHistoryAction;
 
@@ -208,8 +272,8 @@ typedef enum BcHistoryAction {
  * This represents the state during line editing. We pass this state
  * to functions implementing specific editing functionalities.
  */
-typedef struct BcHistory {
-
+typedef struct BcHistory
+{
 	/// Edited line buffer.
 	BcVec buf;
 
@@ -220,7 +284,7 @@ typedef struct BcHistory {
 	BcVec extras;
 
 	/// Prompt to display.
-	const char *prompt;
+	const char* prompt;
 
 	/// Prompt length.
 	size_t plen;
@@ -273,38 +337,14 @@ typedef struct BcHistory {
 } BcHistory;
 
 /**
- * Get a line from stdin using history. This returns a status because I don't
- * want to throw errors while the terminal is in raw mode.
- * @param h       The history data.
- * @param vec     A vector to put the line into.
- * @param prompt  The prompt to display, if desired.
- * @return        A status indicating an error, if any. Returning a status here
- *                is better because if we throw an error out of history, we
- *                leave the terminal in raw mode or in some other half-baked
- *                state.
- */
-BcStatus bc_history_line(BcHistory *h, BcVec *vec, const char *prompt);
-
-/**
- * Initialize history data.
- * @param h  The struct to initialize.
- */
-void bc_history_init(BcHistory *h);
-
-/**
- * Free history data (and recook the terminal).
- * @param h  The struct to free.
- */
-void bc_history_free(BcHistory *h);
-
-/**
  * Frees strings used by history.
  * @param str  The string to free.
  */
-void bc_history_string_free(void *str);
+void
+bc_history_string_free(void* str);
 
 // A list of terminals that don't work.
-extern const char *bc_history_bad_terms[];
+extern const char* bc_history_bad_terms[];
 
 // A tab in history and its length.
 extern const char bc_history_tab[];
@@ -323,15 +363,52 @@ extern const size_t bc_history_combo_chars_len;
 
 // Debug data.
 extern BcFile bc_history_debug_fp;
-extern char *bc_history_debug_buf;
+extern char* bc_history_debug_buf;
 
 /**
  * A function to print keycodes for debugging.
  * @param h  The history data.
  */
-void bc_history_printKeyCodes(BcHistory* h);
+void
+bc_history_printKeyCodes(BcHistory* h);
 
 #endif // BC_DEBUG_CODE
+
+#endif // BC_ENABLE_HISTORY
+
+#endif // BC_ENABLE_READLINE
+
+#endif // BC_ENABLE_EDITLINE
+
+#if BC_ENABLE_HISTORY
+
+/**
+ * Get a line from stdin using history. This returns a status because I don't
+ * want to throw errors while the terminal is in raw mode.
+ * @param h       The history data.
+ * @param vec     A vector to put the line into.
+ * @param prompt  The prompt to display, if desired.
+ * @return        A status indicating an error, if any. Returning a status here
+ *                is better because if we throw an error out of history, we
+ *                leave the terminal in raw mode or in some other half-baked
+ *                state.
+ */
+BcStatus
+bc_history_line(BcHistory* h, BcVec* vec, const char* prompt);
+
+/**
+ * Initialize history data.
+ * @param h  The struct to initialize.
+ */
+void
+bc_history_init(BcHistory* h);
+
+/**
+ * Free history data (and recook the terminal).
+ * @param h  The struct to free.
+ */
+void
+bc_history_free(BcHistory* h);
 
 #endif // BC_ENABLE_HISTORY
 

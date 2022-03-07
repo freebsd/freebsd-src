@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,7 +40,9 @@
 #include <dc.h>
 #include <vm.h>
 
-bool dc_lex_negCommand(BcLex *l) {
+bool
+dc_lex_negCommand(BcLex* l)
+{
 	char c = l->buf[l->i];
 	return !BC_LEX_NUM_CHAR(c, false, false);
 }
@@ -50,11 +52,12 @@ bool dc_lex_negCommand(BcLex *l) {
  * extended-register extension is implemented.
  * @param l  The lexer.
  */
-static void dc_lex_register(BcLex *l) {
-
+static void
+dc_lex_register(BcLex* l)
+{
 	// If extended register is enabled and the character is whitespace...
-	if (DC_X && isspace(l->buf[l->i - 1])) {
-
+	if (DC_X && isspace(l->buf[l->i - 1]))
+	{
 		char c;
 
 		// Eat the whitespace.
@@ -63,18 +66,22 @@ static void dc_lex_register(BcLex *l) {
 
 		// Check for a letter or underscore.
 		if (BC_ERR(!isalpha(c) && c != '_'))
+		{
 			bc_lex_verr(l, BC_ERR_PARSE_CHAR, c);
+		}
 
 		// Parse a normal identifier.
 		l->i += 1;
 		bc_lex_name(l);
 	}
-	else {
-
+	else
+	{
 		// I don't allow newlines because newlines are used for controlling when
 		// execution happens, and allowing newlines would just be complex.
 		if (BC_ERR(l->buf[l->i - 1] == '\n'))
+		{
 			bc_lex_verr(l, BC_ERR_PARSE_CHAR, l->buf[l->i - 1]);
+		}
 
 		// Set the lexer string and token.
 		bc_vec_popAll(&l->str);
@@ -90,8 +97,9 @@ static void dc_lex_register(BcLex *l) {
  * characters. Oh, and dc strings need to check for escaped brackets.
  * @param l  The lexer.
  */
-static void dc_lex_string(BcLex *l) {
-
+static void
+dc_lex_string(BcLex* l)
+{
 	size_t depth, nls, i;
 	char c;
 	bool got_more;
@@ -100,25 +108,27 @@ static void dc_lex_string(BcLex *l) {
 	l->t = BC_LEX_STR;
 	bc_vec_popAll(&l->str);
 
-	do {
-
+	do
+	{
 		depth = 1;
 		nls = 0;
 		got_more = false;
 
-		assert(!l->is_stdin || l->buf == vm.buffer.v);
+		assert(l->mode != BC_MODE_STDIN || l->buf == vm->buffer.v);
 
 		// This is the meat. As long as we don't run into the NUL byte, and we
 		// have "depth", which means we haven't completely balanced brackets
 		// yet, we continue eating the string.
-		for (i = l->i; (c = l->buf[i]) && depth; ++i) {
-
+		for (i = l->i; (c = l->buf[i]) && depth; ++i)
+		{
 			// Check for escaped brackets and set the depths as appropriate.
-			if (c == '\\') {
+			if (c == '\\')
+			{
 				c = l->buf[++i];
 				if (!c) break;
 			}
-			else {
+			else
+			{
 				depth += (c == '[');
 				depth -= (c == ']');
 			}
@@ -129,15 +139,24 @@ static void dc_lex_string(BcLex *l) {
 			if (depth) bc_vec_push(&l->str, &c);
 		}
 
-		if (BC_ERR(c == '\0' && depth)) {
-			if (!vm.eof && l->is_stdin) got_more = bc_lex_readLine(l);
-			if (got_more) bc_vec_popAll(&l->str);
-		}
+		if (BC_ERR(c == '\0' && depth))
+		{
+			if (!vm->eof && l->mode != BC_MODE_FILE)
+			{
+				got_more = bc_lex_readLine(l);
+			}
 
-	} while (got_more && depth);
+			if (got_more)
+			{
+				bc_vec_popAll(&l->str);
+			}
+		}
+	}
+	while (got_more && depth);
 
 	// Obviously, if we didn't balance, that's an error.
-	if (BC_ERR(c == '\0' && depth)) {
+	if (BC_ERR(c == '\0' && depth))
+	{
 		l->i = i;
 		bc_lex_err(l, BC_ERR_PARSE_STRING);
 	}
@@ -152,8 +171,9 @@ static void dc_lex_string(BcLex *l) {
  * Lexes a dc token. This is the dc implementation of BcLexNext.
  * @param l  The lexer.
  */
-void dc_lex_token(BcLex *l) {
-
+void
+dc_lex_token(BcLex* l)
+{
 	char c = l->buf[l->i++], c2;
 	size_t i;
 
@@ -161,10 +181,11 @@ void dc_lex_token(BcLex *l) {
 
 	// If the last token was a command that needs a register, we need to parse a
 	// register, so do so.
-	for (i = 0; i < dc_lex_regs_len; ++i) {
-
+	for (i = 0; i < dc_lex_regs_len; ++i)
+	{
 		// If the token is a register token, take care of it and return.
-		if (l->last == dc_lex_regs[i]) {
+		if (l->last == dc_lex_regs[i])
+		{
 			dc_lex_register(l);
 			return;
 		}
@@ -180,8 +201,8 @@ void dc_lex_token(BcLex *l) {
 
 	// This is the workhorse of the lexer when more complicated things are
 	// needed.
-	switch (c) {
-
+	switch (c)
+	{
 		case '\0':
 		case '\n':
 		case '\t':
@@ -223,7 +244,9 @@ void dc_lex_token(BcLex *l) {
 			// If the character after is a number, this dot is part of a number.
 			// Otherwise, it's the BSD dot (equivalent to last).
 			if (BC_NO_ERR(BC_LEX_NUM_CHAR(c2, true, false)))
+			{
 				bc_lex_number(l, c);
+			}
 			else bc_lex_invalidChar(l, c);
 
 			break;

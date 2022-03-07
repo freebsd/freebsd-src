@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,8 +46,37 @@
  * @param argv        The array of arguments.
  * @param exit_exprs  True if bc/dc should exit when there are expressions,
  *                    false otherwise.
+ * @param scale       A pointer to return the scale that the arguments set, if
+ *                    any.
+ * @param ibase       A pointer to return the ibase that the arguments set, if
+ *                    any.
+ * @param obase       A pointer to return the obase that the arguments set, if
+ *                    any.
  */
-void bc_args(int argc, char *argv[], bool exit_exprs);
+void
+bc_args(int argc, char* argv[], bool exit_exprs, BcBigDig* scale,
+        BcBigDig* ibase, BcBigDig* obase);
+
+#if BC_ENABLED
+
+#if DC_ENABLED
+
+/// Returns true if the banner should be quieted.
+#define BC_ARGS_SHOULD_BE_QUIET (BC_IS_DC || vm->exprs.len > 1)
+
+#else // DC_ENABLED
+
+/// Returns true if the banner should be quieted.
+#define BC_ARGS_SHOULD_BE_QUIET (vm->exprs.len > 1)
+
+#endif // DC_ENABLED
+
+#else // BC_ENABLED
+
+/// Returns true if the banner should be quieted.
+#define BC_ARGS_SHOULD_BE_QUIET (BC_IS_DC)
+
+#endif // BC_ENABLED
 
 // A reference to the list of long options.
 extern const BcOptLong bc_args_lopt[];

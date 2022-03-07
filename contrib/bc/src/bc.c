@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,18 +45,19 @@
  * @param argc  The number of arguments.
  * @param argv  The arguments.
  */
-void bc_main(int argc, char *argv[]) {
-
+void
+bc_main(int argc, char* argv[])
+{
 	// All of these just set bc-specific items in BcVm.
 
-	vm.read_ret = BC_INST_RET;
-	vm.help = bc_help;
-	vm.sigmsg = bc_sig_msg;
-	vm.siglen = bc_sig_msg_len;
+	vm->read_ret = BC_INST_RET;
+	vm->help = bc_help;
+	vm->sigmsg = bc_sig_msg;
+	vm->siglen = bc_sig_msg_len;
 
-	vm.next = bc_lex_token;
-	vm.parse = bc_parse_parse;
-	vm.expr = bc_parse_expr;
+	vm->next = bc_lex_token;
+	vm->parse = bc_parse_parse;
+	vm->expr = bc_parse_expr;
 
 	bc_vm_boot(argc, argv);
 }

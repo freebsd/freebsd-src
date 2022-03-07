@@ -1,7 +1,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -55,7 +55,7 @@ HISTORY_HEADERS = $(INCDIR)/history.h
 EXTRA_MATH_HEADERS = $(INCDIR)/rand.h
 LIBRARY_HEADERS = $(INCDIR)/bcl.h $(INCDIR)/library.h
 
-GEN_DIR = gen
+GEN_DIR = %%GEN_DIR%%
 GEN = %%GEN%%
 GEN_EXEC = $(GEN_DIR)/$(GEN)
 GEN_C = $(GENDIR)/$(GEN).c
@@ -146,7 +146,7 @@ BC_ENABLE_HISTORY = %%HISTORY%%
 BC_ENABLE_EXTRA_MATH_NAME = BC_ENABLE_EXTRA_MATH
 BC_ENABLE_EXTRA_MATH = %%EXTRA_MATH%%
 BC_ENABLE_NLS = %%NLS%%
-BC_LONG_BIT = %%LONG_BIT%%
+BC_EXCLUDE_EXTRA_MATH = %%EXCLUDE_EXTRA_MATH%%
 
 BC_ENABLE_AFL = %%FUZZ%%
 BC_ENABLE_MEMCHECK = %%MEMCHECK%%
@@ -160,6 +160,8 @@ BC_DEFAULT_PROMPT = %%BC_DEFAULT_PROMPT%%
 DC_DEFAULT_PROMPT = %%DC_DEFAULT_PROMPT%%
 BC_DEFAULT_EXPR_EXIT = %%BC_DEFAULT_EXPR_EXIT%%
 DC_DEFAULT_EXPR_EXIT = %%DC_DEFAULT_EXPR_EXIT%%
+BC_DEFAULT_DIGIT_CLAMP = %%BC_DEFAULT_DIGIT_CLAMP%%
+DC_DEFAULT_DIGIT_CLAMP = %%DC_DEFAULT_DIGIT_CLAMP%%
 
 RM = rm
 MKDIR = mkdir
@@ -191,17 +193,19 @@ BC_DEFS1 = -DBC_DEFAULT_SIGINT_RESET=$(BC_DEFAULT_SIGINT_RESET)
 BC_DEFS2 = -DBC_DEFAULT_TTY_MODE=$(BC_DEFAULT_TTY_MODE)
 BC_DEFS3 = -DBC_DEFAULT_PROMPT=$(BC_DEFAULT_PROMPT)
 BC_DEFS4 = -DBC_DEFAULT_EXPR_EXIT=$(BC_DEFAULT_EXPR_EXIT)
-BC_DEFS = $(BC_DEFS0) $(BC_DEFS1) $(BC_DEFS2) $(BC_DEFS3) $(BC_DEFS4)
+BC_DEFS5 = -DBC_DEFAULT_DIGIT_CLAMP=$(BC_DEFAULT_DIGIT_CLAMP)
+BC_DEFS = $(BC_DEFS0) $(BC_DEFS1) $(BC_DEFS2) $(BC_DEFS3) $(BC_DEFS4) $(BC_DEFS5)
 DC_DEFS1 = -DDC_DEFAULT_SIGINT_RESET=$(DC_DEFAULT_SIGINT_RESET)
 DC_DEFS2 = -DDC_DEFAULT_TTY_MODE=$(DC_DEFAULT_TTY_MODE)
 DC_DEFS3 = -DDC_DEFAULT_PROMPT=$(DC_DEFAULT_PROMPT)
 DC_DEFS4 = -DDC_DEFAULT_EXPR_EXIT=$(DC_DEFAULT_EXPR_EXIT)
-DC_DEFS = $(DC_DEFS1) $(DC_DEFS2) $(DC_DEFS3) $(DC_DEFS4)
+DC_DEFS5 = -DDC_DEFAULT_DIGIT_CLAMP=$(DC_DEFAULT_DIGIT_CLAMP)
+DC_DEFS = $(DC_DEFS1) $(DC_DEFS2) $(DC_DEFS3) $(DC_DEFS4) $(DC_DEFS5)
 
 CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
 CPPFLAGS2 = $(CPPFLAGS1) -I$(INCDIR)/ -DBUILD_TYPE=$(BC_BUILD_TYPE) %%LONG_BIT_DEFINE%%
 CPPFLAGS3 = $(CPPFLAGS2) -DEXECPREFIX=$(EXEC_PREFIX) -DMAINEXEC=$(MAIN_EXEC)
-CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 %%BSD%%
+CPPFLAGS4 = $(CPPFLAGS3) %%BSD%%
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
 CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS)
 CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
@@ -235,25 +239,25 @@ $(GEN_EXEC): $(GEN_DIR)
 	%%GEN_EXEC_TARGET%%
 
 $(BC_LIB_C): $(GEN_EXEC) $(BC_LIB)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_LIB_C_ARGS)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_EXCLUDE_EXTRA_MATH) $(BC_LIB_C_ARGS)
 
 $(BC_LIB_O): $(BC_LIB_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(BC_LIB2_C): $(GEN_EXEC) $(BC_LIB2)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_LIB2_C_ARGS)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_EXCLUDE_EXTRA_MATH) $(BC_LIB2_C_ARGS)
 
 $(BC_LIB2_O): $(BC_LIB2_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(BC_HELP_C): $(GEN_EXEC) $(BC_HELP)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) bc_help "" $(BC_ENABLED_NAME)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) $(BC_EXCLUDE_EXTRA_MATH) bc_help "" $(BC_ENABLED_NAME)
 
 $(BC_HELP_O): $(BC_HELP_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(DC_HELP_C): $(GEN_EXEC) $(DC_HELP)
-	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) dc_help "" $(DC_ENABLED_NAME)
+	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) $(BC_EXCLUDE_EXTRA_MATH) dc_help "" $(DC_ENABLED_NAME)
 
 $(DC_HELP_O): $(DC_HELP_C)
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -298,11 +302,6 @@ help:
 	@printf '    time_test_dc    runs the dc test suite, displaying times for some things\n'
 	@printf '    timeconst       runs the test on the Linux timeconst.bc script,\n'
 	@printf '                    if it exists and bc has been built\n'
-	@printf '    valgrind        runs the test suite through valgrind\n'
-	@printf '    valgrind_bc     runs the bc test suite, if bc has been built,\n'
-	@printf '                    through valgrind\n'
-	@printf '    valgrind_dc     runs the dc test suite, if dc has been built,\n'
-	@printf '                    through valgrind\n'
 
 run_all_tests: bc_all_tests timeconst_all_tests dc_all_tests
 
@@ -501,10 +500,10 @@ test_history_header:
 	@printf '$(TEST_STARS)\n\nRunning history tests...\n\n'
 
 library_test: $(LIBBC)
-	$(CC) $(CFLAGS) $(BCL_TEST_C) $(LIBBC) -o $(BCL_TEST)
+	$(CC) $(CFLAGS) -lpthread $(BCL_TEST_C) $(LIBBC) -o $(BCL_TEST)
 
 test_library: library_test
-	$(BCL_TEST)
+	%%BCL_TEST_EXEC%%
 
 karatsuba:
 	%%KARATSUBA%%

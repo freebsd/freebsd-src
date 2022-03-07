@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -43,7 +43,7 @@ usage() {
 
 		_usage_val=1
 
-		printf "%s\n\n" "$1"
+		printf '%s\n\n' "$1"
 
 	else
 		_usage_val=0
@@ -52,17 +52,25 @@ usage() {
 	printf 'usage:\n'
 	printf '    %s -h\n' "$script"
 	printf '    %s --help\n' "$script"
-	printf '    %s [-a|-bD|-dB|-c] [-CEfgGHlmMNtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\\\n' "$script"
-	printf '       [-s SETTING] [-S SETTING]\n'
+	printf '    %s [-a|-bD|-dB|-c] [-CeEfgGHilmMNPrtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\\\n' "$script"
+	printf '       [-s SETTING] [-S SETTING] [-p TYPE]\n'
 	printf '    %s \\\n' "$script"
 	printf '       [--library|--bc-only --disable-dc|--dc-only --disable-bc|--coverage]  \\\n'
 	printf '       [--force --debug --disable-extra-math --disable-generated-tests]      \\\n'
 	printf '       [--disable-history --disable-man-pages --disable-nls --disable-strip] \\\n'
-	printf '       [--install-all-locales] [--opt=OPT_LEVEL]                             \\\n'
-	printf '       [--karatsuba-len=KARATSUBA_LEN]                                       \\\n'
+	printf '       [--enable-editline] [--enable-readline] [--enable-internal-history]   \\\n'
+	printf '       [--disable-problematic-tests] [--install-all-locales]                 \\\n'
+	printf '       [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]                     \\\n'
 	printf '       [--set-default-on=SETTING] [--set-default-off=SETTING]                \\\n'
+	printf '       [--predefined-build-type=TYPE]                                        \\\n'
 	printf '       [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR]       \\\n'
 	printf '       [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]             \\\n'
+	printf '       [--man3dir=MAN3DIR]\n'
+
+	if [ "$_usage_val" -ne 0 ]; then
+		exit
+	fi
+
 	printf '\n'
 	printf '    -a, --library\n'
 	printf '        Build the libbcl instead of the programs. This is meant to be used with\n'
@@ -87,6 +95,11 @@ usage() {
 	printf '    -D, --disable-dc\n'
 	printf '        Disable dc. It is an error if "-d", "--dc-only", "-B", or "--disable-bc"\n'
 	printf '        are specified too.\n'
+	printf '    -e, --enable-editline\n'
+	printf '        Enable the use of libedit/editline. This is meant for those users that\n'
+	printf '        want vi-like or Emacs-like behavior in history. This option is ignored\n'
+	printf '        if history is disabled. If the -r or -i options are given with this\n'
+	printf '        option, the last occurrence of all of the three is used.\n'
 	printf '    -E, --disable-extra-math\n'
 	printf '        Disable extra math. This includes: "$" operator (truncate to integer),\n'
 	printf '        "@" operator (set number of decimal places), and r(x, p) (rounding\n'
@@ -108,6 +121,11 @@ usage() {
 	printf '        Print this help message and exit.\n'
 	printf '    -H, --disable-history\n'
 	printf '        Disable history.\n'
+	printf '    -i, --enable-internal-history\n'
+	printf '        Enable the internal history implementation and do not depend on either\n'
+	printf '        editline or readline. This option is ignored if history is disabled.\n'
+	printf '        If this option is given along with -e and -r, the last occurrence of\n'
+	printf '        all of the three is used.\n'
 	printf '    -k KARATSUBA_LEN, --karatsuba-len KARATSUBA_LEN\n'
 	printf '        Set the karatsuba length to KARATSUBA_LEN (default is 64).\n'
 	printf '        It is an error if KARATSUBA_LEN is not a number or is less than 16.\n'
@@ -121,10 +139,31 @@ usage() {
 	printf '        Disable installing manpages.\n'
 	printf '    -N, --disable-nls\n'
 	printf '        Disable POSIX locale (NLS) support.\n'
+	printf '        ***WARNING***: Locales ignore the prefix because they *must* be\n'
+	printf '        installed at a fixed location to work at all. If you do not want that\n'
+	printf '        to happen, you must disable locales (NLS) completely.\n'
 	printf '    -O OPT_LEVEL, --opt OPT_LEVEL\n'
 	printf '        Set the optimization level. This can also be included in the CFLAGS,\n'
 	printf '        but it is provided, so maintainers can build optimized debug builds.\n'
 	printf '        This is passed through to the compiler, so it must be supported.\n'
+	printf '    -p TYPE, --predefined-build-type=TYPE\n'
+	printf '        Sets a given predefined build type with specific defaults. This is for\n'
+	printf '        easy setting of predefined builds. For example, to get a build that\n'
+	printf '        acts like the GNU bc by default, TYPE should be "GNU" (without the\n'
+	printf '        quotes) This option *must* come before any others that might change the\n'
+	printf '        build options. Currently supported values for TYPE include: "BSD" (for\n'
+	printf '        matching the BSD bc and BSD dc), "GNU" (for matching the GNU bc and\n'
+	printf '        dc), "GDH" (for the preferred build of the author, Gavin D. Howard),\n'
+	printf '        and "DBG" (for the preferred debug build of the author). This will\n'
+	printf '        also automatically enable a release build (except for "DBG").\n'
+	printf '    -P, --disable-problematic-tests\n'
+	printf '        Disables problematic tests. These tests usually include tests that\n'
+	printf '        can cause a SIGKILL because of too much memory usage.\n'
+	printf '    -r, --enable-readline\n'
+	printf '        Enable the use of libreadline/readline. This is meant for those users\n'
+	printf '        that want vi-like or Emacs-like behavior in history. This option is\n'
+	printf '        ignored if history is disabled. If this option is given along with -e\n'
+	printf '        and -r, the last occurrence of all of the three is used.\n'
 	printf '    -s SETTING, --set-default-on SETTING\n'
 	printf '        Set the default named by SETTING to on. See below for possible values\n'
 	printf '        for SETTING. For multiple instances of the -s or -S for the the same\n'
@@ -146,6 +185,9 @@ usage() {
 	printf '        The prefix to install to. Overrides "$PREFIX" if it exists.\n'
 	printf '        If PREFIX is "/usr", install path will be "/usr/bin".\n'
 	printf '        Default is "/usr/local".\n'
+	printf '        ***WARNING***: Locales ignore the prefix because they *must* be\n'
+	printf '        installed at a fixed location to work at all. If you do not want that to\n'
+	printf '        happen, you must disable locales (NLS) completely.\n'
 	printf '    --bindir BINDIR\n'
 	printf '        The directory to install binaries in. Overrides "$BINDIR" if it exists.\n'
 	printf '        Default is "$PREFIX/bin".\n'
@@ -191,6 +233,9 @@ usage() {
 	printf '    LDFLAGS      Linker flags. Default is "".\n'
 	printf '    PREFIX       The prefix to install to. Default is "/usr/local".\n'
 	printf '                 If PREFIX is "/usr", install path will be "/usr/bin".\n'
+	printf '                 ***WARNING***: Locales ignore the prefix because they *must* be\n'
+	printf '                 installed at a fixed location to work at all. If you do not\n'
+	printf '                 want that to happen, you must disable locales (NLS) completely.\n'
 	printf '    BINDIR       The directory to install binaries in. Default is "$PREFIX/bin".\n'
 	printf '    INCLUDEDIR   The directory to install header files in. Default is\n'
 	printf '                 "$PREFIX/include".\n'
@@ -233,11 +278,10 @@ usage() {
 	printf '                 "$HOSTCC" and run on the host machine. Using `gen/strgen.sh`\n'
 	printf '                 removes the need to compile and run an executable on the host\n'
 	printf '                 machine since `gen/strgen.sh` is a POSIX shell script. However,\n'
-	printf '                 `gen/lib2.bc` is perilously close to 4095 characters, the max\n'
-	printf '                 supported length of a string literal in C99 (and it could be\n'
-	printf '                 added to in the future), and `gen/strgen.sh` generates a string\n'
-	printf '                 literal instead of an array, as `gen/strgen.c` does. For most\n'
-	printf '                 production-ready compilers, this limit probably is not\n'
+	printf '                 `gen/lib2.bc` is over 4095 characters, the max supported length\n'
+	printf '                 of a string literal in C99, and `gen/strgen.sh` generates a\n'
+	printf '                 string literal instead of an array, as `gen/strgen.c` does. For\n'
+	printf '                 most production-ready compilers, this limit probably is not\n'
 	printf '                 enforced, but it could be. Both options are still available for\n'
 	printf '                 this reason. If you are sure your compiler does not have the\n'
 	printf '                 limit and do not want to compile and run a binary on the host\n'
@@ -306,6 +350,20 @@ usage() {
 	printf '|                 | expression file is   |              |                      |\n'
 	printf '|                 | given with the -e or |              |                      |\n'
 	printf '|                 | -f options.          |              |                      |\n'
+	printf '| --------------- | -------------------- | ------------ | -------------------- |\n'
+	printf '| bc.digit_clamp  | Whether to have bc   |            0 | BC_DIGIT_CLAMP       |\n'
+	printf '|                 | clamp digits that    |              |                      |\n'
+	printf '|                 | are greater than or  |              |                      |\n'
+	printf '|                 | equal to the current |              |                      |\n'
+	printf '|                 | ibase when parsing   |              |                      |\n'
+	printf '|                 | numbers.             |              |                      |\n'
+	printf '| --------------- | -------------------- | ------------ | -------------------- |\n'
+	printf '| dc.digit_clamp  | Whether to have dc   |            0 | DC_DIGIT_CLAMP       |\n'
+	printf '|                 | clamp digits that    |              |                      |\n'
+	printf '|                 | are greater than or  |              |                      |\n'
+	printf '|                 | equal to the current |              |                      |\n'
+	printf '|                 | ibase when parsing   |              |                      |\n'
+	printf '|                 | numbers.             |              |                      |\n'
 	printf '| --------------- | -------------------- | ------------ | -------------------- |\n'
 	printf '\n'
 	printf 'These settings are not meant to be changed on a whim. They are meant to ensure\n'
@@ -403,7 +461,7 @@ find_src_files() {
 
 	fi
 
-	_find_src_files_files=$(find "$scriptdir/src/" -depth -name "*.c" -print)
+	_find_src_files_files=$(find "$scriptdir/src/" -depth -name "*.c" -print | LC_ALL=C sort)
 
 	_find_src_files_result=""
 
@@ -505,7 +563,7 @@ gen_std_tests() {
 
 		fi
 
-		printf 'test_%s_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh \$(TESTSDIR)/test.sh %s %s %s %s %s\n\n' \
+		printf 'test_%s_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh $(TESTSDIR)/test.sh %s %s %s %s %s\n\n' \
 			"$_gen_std_tests_name" "$_gen_std_tests_t" "$builddir" "$_gen_std_tests_name" \
 			"$_gen_std_tests_t" "$generate_tests" "$time_tests" \
 			"$*" >> "Makefile"
@@ -545,9 +603,9 @@ gen_err_tests() {
 
 	for _gen_err_tests_t in $_gen_err_tests_fs; do
 
-		printf 'test_%s_error_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh \$(TESTSDIR)/error.sh %s %s %s\n\n' \
+		printf 'test_%s_error_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh $(TESTSDIR)/error.sh %s %s %s %s\n\n' \
 			"$_gen_err_tests_name" "$_gen_err_tests_t" "$builddir" "$_gen_err_tests_name" \
-			"$_gen_err_tests_t" "$*" >> "Makefile"
+			"$_gen_err_tests_t" "$problematic_tests" "$*" >> "Makefile"
 
 	done
 
@@ -599,7 +657,7 @@ gen_script_tests() {
 
 		_gen_script_tests_b=$(basename "$_gen_script_tests_f" ".${_gen_script_tests_name}")
 
-		printf 'test_%s_script_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh \$(TESTSDIR)/script.sh %s %s %s 1 %s %s %s\n\n' \
+		printf 'test_%s_script_%s:\n\t@export BC_TEST_OUTPUT_DIR="%s/tests"; sh $(TESTSDIR)/script.sh %s %s %s 1 %s %s %s\n\n' \
 			"$_gen_script_tests_name" "$_gen_script_tests_b" "$builddir" "$_gen_script_tests_name" \
 			"$_gen_script_tests_f" "$_gen_script_tests_extra_math" "$_gen_script_tests_generate" \
 			"$_gen_script_tests_time" "$*" >> "Makefile"
@@ -629,7 +687,159 @@ set_default() {
 		dc.prompt) dc_default_prompt="$_set_default_on" ;;
 		bc.expr_exit) bc_default_expr_exit="$_set_default_on";;
 		dc.expr_exit) dc_default_expr_exit="$_set_default_on";;
+		bc.digit_clamp) bc_default_digit_clamp="$_set_default_on";;
+		dc.digit_clamp) dc_default_digit_clamp="$_set_default_on";;
 		?) usage "Invalid setting: $_set_default_name" ;;
+
+	esac
+}
+
+predefined_build() {
+
+	_predefined_build_type="$1"
+	shift
+
+	# The reason that the variables that are being set do not have the same
+	# non-collision avoidance that the other variables do is that we *do* want
+	# the settings of these variables to leak out of the function. They adjust
+	# the settings outside of the function.
+	case "$_predefined_build_type" in
+
+		BSD)
+			bc_only=0
+			dc_only=0
+			coverage=0
+			debug=0
+			optimization="3"
+			hist=1
+			hist_impl="editline"
+			extra_math=1
+			generate_tests=$generate_tests
+			install_manpages=0
+			nls=1
+			force=0
+			strip_bin=1
+			all_locales=0
+			library=0
+			fuzz=0
+			time_tests=0
+			vg=0
+			memcheck=0
+			clean=1
+			bc_default_banner=0
+			bc_default_sigint_reset=1
+			dc_default_sigint_reset=1
+			bc_default_tty_mode=1
+			dc_default_tty_mode=0
+			bc_default_prompt=""
+			dc_default_prompt=""
+			bc_default_expr_exit=1
+			dc_default_expr_exit=1
+			bc_default_digit_clamp=0
+			dc_default_digit_clamp=0;;
+
+		GNU)
+			bc_only=0
+			dc_only=0
+			coverage=0
+			debug=0
+			optimization="3"
+			hist=1
+			hist_impl="internal"
+			extra_math=1
+			generate_tests=$generate_tests
+			install_manpages=1
+			nls=1
+			force=0
+			strip_bin=1
+			all_locales=0
+			library=0
+			fuzz=0
+			time_tests=0
+			vg=0
+			memcheck=0
+			clean=1
+			bc_default_banner=1
+			bc_default_sigint_reset=1
+			dc_default_sigint_reset=0
+			bc_default_tty_mode=1
+			dc_default_tty_mode=0
+			bc_default_prompt=""
+			dc_default_prompt=""
+			bc_default_expr_exit=1
+			dc_default_expr_exit=1
+			bc_default_digit_clamp=1
+			dc_default_digit_clamp=0;;
+
+		GDH)
+			CFLAGS="-flto -Weverything -Wno-padded -Werror -pedantic -std=c11"
+			bc_only=0
+			dc_only=0
+			coverage=0
+			debug=0
+			optimization="3"
+			hist=1
+			hist_impl="internal"
+			extra_math=1
+			generate_tests=1
+			install_manpages=1
+			nls=0
+			force=0
+			strip_bin=1
+			all_locales=0
+			library=0
+			fuzz=0
+			time_tests=0
+			vg=0
+			memcheck=0
+			clean=1
+			bc_default_banner=1
+			bc_default_sigint_reset=1
+			dc_default_sigint_reset=1
+			bc_default_tty_mode=1
+			dc_default_tty_mode=1
+			bc_default_prompt=""
+			dc_default_prompt=""
+			bc_default_expr_exit=0
+			dc_default_expr_exit=0
+			bc_default_digit_clamp=1
+			dc_default_digit_clamp=1;;
+
+		DBG)
+			CFLAGS="-Weverything -Wno-padded -Werror -pedantic -std=c11"
+			bc_only=0
+			dc_only=0
+			coverage=0
+			debug=1
+			optimization="0"
+			hist=1
+			hist_impl="internal"
+			extra_math=1
+			generate_tests=1
+			install_manpages=1
+			nls=1
+			force=0
+			strip_bin=1
+			all_locales=0
+			library=0
+			fuzz=0
+			time_tests=0
+			vg=0
+			memcheck=1
+			clean=1
+			bc_default_banner=1
+			bc_default_sigint_reset=1
+			dc_default_sigint_reset=1
+			bc_default_tty_mode=1
+			dc_default_tty_mode=1
+			bc_default_prompt=""
+			dc_default_prompt=""
+			bc_default_expr_exit=0
+			dc_default_expr_exit=0
+			bc_default_digit_clamp=1
+			dc_default_digit_clamp=1;;
+
+		?|'') usage "Invalid user build: \"$_predefined_build_type\". Accepted types are BSD, GNU, GDH, DBG.";;
 
 	esac
 }
@@ -667,6 +877,7 @@ coverage=0
 karatsuba_len=32
 debug=0
 hist=1
+hist_impl="internal"
 extra_math=1
 optimization=""
 generate_tests=1
@@ -681,6 +892,7 @@ time_tests=0
 vg=0
 memcheck=0
 clean=1
+problematic_tests=1
 
 # The empty strings are because they depend on TTY mode. If they are directly
 # set, though, they will be integers. We test for empty strings later.
@@ -693,11 +905,13 @@ bc_default_prompt=""
 dc_default_prompt=""
 bc_default_expr_exit=1
 dc_default_expr_exit=1
+bc_default_digit_clamp=0
+dc_default_digit_clamp=0
 
 # getopts is a POSIX utility, but it cannot handle long options. Thus, the
 # handling of long options is done by hand, and that's the reason that short and
 # long options cannot be mixed.
-while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
+while getopts "abBcdDeEfgGhHik:lMmNO:p:PrS:s:tTvz-" opt; do
 
 	case "$opt" in
 		a) library=1 ;;
@@ -707,18 +921,23 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 		C) clean=0 ;;
 		d) dc_only=1 ;;
 		D) bc_only=1 ;;
+		e) hist_impl="editline" ;;
 		E) extra_math=0 ;;
 		f) force=1 ;;
 		g) debug=1 ;;
 		G) generate_tests=0 ;;
 		h) usage ;;
 		H) hist=0 ;;
+		i) hist_impl="internal" ;;
 		k) karatsuba_len="$OPTARG" ;;
 		l) all_locales=1 ;;
 		m) memcheck=1 ;;
 		M) install_manpages=0 ;;
 		N) nls=0 ;;
 		O) optimization="$OPTARG" ;;
+		p) predefined_build "$OPTARG" ;;
+		P) problematic_tests=0 ;;
+		r) hist_impl="readline" ;;
 		S) set_default 0 "$OPTARG" ;;
 		s) set_default 1 "$OPTARG" ;;
 		t) time_tests=1 ;;
@@ -800,13 +1019,6 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 					fi
 					MAN3DIR="$2"
 					shift ;;
-				localedir=?*) LOCALEDIR="$LONG_OPTARG" ;;
-				localedir)
-					if [ "$#" -lt 2 ]; then
-						usage "No argument given for '--$arg' option"
-					fi
-					LOCALEDIR="$2"
-					shift ;;
 				karatsuba-len=?*) karatsuba_len="$LONG_OPTARG" ;;
 				karatsuba-len)
 					if [ "$#" -lt 2 ]; then
@@ -835,6 +1047,13 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 					fi
 					set_default 0 "$1"
 					shift ;;
+				predefined-build-type=?*) predefined_build "$LONG_OPTARG" ;;
+				predefined-build-type)
+					if [ "$#" -lt 2 ]; then
+						usage "No argument given for '--$arg' option"
+					fi
+					predefined_build "$1"
+					shift ;;
 				disable-bc) dc_only=1 ;;
 				disable-dc) bc_only=1 ;;
 				disable-clean) clean=0 ;;
@@ -844,6 +1063,10 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 				disable-man-pages) install_manpages=0 ;;
 				disable-nls) nls=0 ;;
 				disable-strip) strip_bin=0 ;;
+				disable-problematic-tests) problematic_tests=0 ;;
+				enable-editline) hist_impl="editline" ;;
+				enable-readline) hist_impl="readline" ;;
+				enable-internal-history) hist_impl="internal" ;;
 				enable-test-timing) time_tests=1 ;;
 				enable-valgrind) vg=1 ;;
 				enable-fuzz-mode) fuzz=1 ;;
@@ -859,9 +1082,15 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 					usage "No arg allowed for --$arg option" ;;
 				disable-man-pages* | disable-nls* | disable-strip*)
 					usage "No arg allowed for --$arg option" ;;
+				disable-problematic-tests*)
+					usage "No arg allowed for --$arg option" ;;
 				enable-fuzz-mode* | enable-test-timing* | enable-valgrind*)
 					usage "No arg allowed for --$arg option" ;;
 				enable-memcheck* | install-all-locales*)
+					usage "No arg allowed for --$arg option" ;;
+				enable-editline* | enable-readline*)
+					usage "No arg allowed for --$arg option" ;;
+				enable-internal-history*)
 					usage "No arg allowed for --$arg option" ;;
 				'') break ;; # "--" terminates argument processing
 				* ) usage "Invalid option $LONG_OPTARG" ;;
@@ -911,7 +1140,7 @@ if [ -z "${LONG_BIT+set}" ]; then
 elif [ "$LONG_BIT" -lt 32 ]; then
 	usage "LONG_BIT is less than 32"
 else
-	LONG_BIT_DEFINE="-DBC_LONG_BIT=\$(BC_LONG_BIT)"
+	LONG_BIT_DEFINE="-DBC_LONG_BIT=$LONG_BIT"
 fi
 
 if [ -z "$CC" ]; then
@@ -983,10 +1212,10 @@ executable="BC_EXEC"
 
 tests="test_bc timeconst test_dc"
 
-bc_test="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
-bc_test_np="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh -n bc $extra_math 1 $generate_tests $time_tests \$(BC_EXEC)"
-dc_test="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
-dc_test_np="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh -n dc $extra_math 1 $generate_tests $time_tests \$(DC_EXEC)"
+bc_test="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh bc $extra_math 1 $generate_tests $problematic_tests $time_tests \$(BC_EXEC)"
+bc_test_np="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh -n bc $extra_math 1 $generate_tests $problematic_tests $time_tests \$(BC_EXEC)"
+dc_test="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh dc $extra_math 1 $generate_tests $problematic_tests $time_tests \$(DC_EXEC)"
+dc_test_np="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/all.sh -n dc $extra_math 1 $generate_tests $problematic_tests $time_tests \$(DC_EXEC)"
 
 timeconst="@export BC_TEST_OUTPUT_DIR=\"$builddir/tests\"; \$(TESTSDIR)/bc/timeconst.sh \$(TESTSDIR)/bc/scripts/timeconst.bc \$(BC_EXEC)"
 
@@ -996,9 +1225,11 @@ if [ "$vg" -ne 0 ]; then
 	debug=1
 	bc_test_exec='valgrind $(VALGRIND_ARGS) $(BC_EXEC)'
 	dc_test_exec='valgrind $(VALGRIND_ARGS) $(DC_EXEC)'
+	bcl_test_exec='valgrind $(VALGRIND_ARGS) $(BCL_TEST)'
 else
 	bc_test_exec='$(BC_EXEC)'
 	dc_test_exec='$(DC_EXEC)'
+	bcl_test_exec='$(BCL_TEST)'
 fi
 
 test_bc_history_prereqs="test_bc_history_all"
@@ -1133,7 +1364,13 @@ if [ "$debug" -eq 1 ]; then
 		CFLAGS="-O0"
 	fi
 
-	CFLAGS="-g $CFLAGS"
+	ccbase=$(basename "$CC")
+
+	if [ "$ccbase" = "clang" ]; then
+		CFLAGS="-gdwarf-4 $CFLAGS"
+	else
+		CFLAGS="-g $CFLAGS"
+	fi
 
 else
 
@@ -1177,8 +1414,12 @@ else
 	destdir="DESTDIR = $DESTDIR"
 fi
 
+# defprefix is for a warning about locales later.
 if [ -z "${PREFIX+set}" ]; then
 	PREFIX="/usr/local"
+	defprefix=1
+else
+	defprefix=0
 fi
 
 if [ -z "${BINDIR+set}" ]; then
@@ -1212,7 +1453,7 @@ if [ -z "${PC_PATH+set}" ]; then
 fi
 
 # Set a default for the DATAROOTDIR. This is done if either manpages will be
-# installed, or locales are enabled because that's probably where NLS_PATH
+# installed, or locales are enabled because that's probably where NLSPATH
 # points.
 if [ "$install_manpages" -ne 0 ] || [ "$nls" -ne 0 ]; then
 	if [ -z "${DATAROOTDIR+set}" ]; then
@@ -1257,6 +1498,12 @@ if [ "$nls" -ne 0 ]; then
 	flags="$flags -DBC_ENABLE_HISTORY=$hist -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
 	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
+
+	ccbase=$(basename "$CC")
+
+	if [ "$ccbase" = "clang" ]; then
+		flags="$flags -Wno-unreachable-code"
+	fi
 
 	"$CC" $CPPFLAGS $CFLAGS $flags -c "$scriptdir/src/vm.c" -o "./vm.o" > /dev/null 2>&1
 
@@ -1333,12 +1580,24 @@ fi
 # Like the above tested locale support, this tests history.
 if [ "$hist" -eq 1 ]; then
 
+	if [ "$hist_impl" = "editline" ]; then
+		editline=1
+		readline=0
+	elif [ "$hist_impl" = "readline" ]; then
+		editline=0
+		readline=1
+	else
+		editline=0
+		readline=0
+	fi
+
 	set +e
 
 	printf 'Testing history...\n'
 
 	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_NLS=$nls -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
+	flags="$flags -DBC_ENABLE_EDITLINE=$editline -DBC_ENABLE_READLINE=$readline"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
 	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
@@ -1364,15 +1623,63 @@ if [ "$hist" -eq 1 ]; then
 
 	set -e
 
+else
+
+	editline=0
+	readline=0
+
 fi
 
-# We have to disable the history tests if it is disabled or valgrind is on.
+# We have to disable the history tests if it is disabled or valgrind is on. Or
+# if we are using editline or readline.
 if [ "$hist" -eq 0 ] || [ "$vg" -ne 0 ]; then
 	test_bc_history_prereqs=" test_bc_history_skip"
 	test_dc_history_prereqs=" test_dc_history_skip"
 	history_tests="@printf 'Skipping history tests...\\\\n'"
+	CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=0"
 else
-	history_tests="@printf '\$(TEST_STARS)\\\\n\\\\nRunning history tests...\\\\n\\\\n' \&\& \$(TESTSDIR)/history.sh bc -a \&\& \$(TESTSDIR)/history.sh dc -a \&\& printf '\\\\nAll history tests passed.\\\\n\\\\n\$(TEST_STARS)\\\\n'"
+
+	if [ "$editline" -eq 0 ] && [ "$readline" -eq 0 ]; then
+		history_tests="@printf '\$(TEST_STARS)\\\\n\\\\nRunning history tests...\\\\n\\\\n'"
+		history_tests="$history_tests \&\& \$(TESTSDIR)/history.sh bc -a \&\&"
+		history_tests="$history_tests \$(TESTSDIR)/history.sh dc -a \&\& printf"
+		history_tests="$history_tests '\\\\nAll history tests passed.\\\\n\\\\n\$(TEST_STARS)\\\\n'"
+	else
+		test_bc_history_prereqs=" test_bc_history_skip"
+		test_dc_history_prereqs=" test_dc_history_skip"
+		history_tests="@printf 'Skipping history tests...\\\\n'"
+	fi
+
+	# We are also setting the CFLAGS and LDFLAGS here.
+	if [ "$editline" -ne 0 ]; then
+		LDFLAGS="$LDFLAGS -ledit"
+		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=1 -DBC_ENABLE_READLINE=0"
+	elif [ "$readline" -ne 0 ]; then
+		LDFLAGS="$LDFLAGS -lreadline"
+		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=1"
+	else
+		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=0"
+	fi
+
+fi
+
+# Test FreeBSD. This is not in an if statement because regardless of whatever
+# the user says, we need to know if we are on FreeBSD. If we are, we cannot set
+# _POSIX_C_SOURCE and _XOPEN_SOURCE. The FreeBSD headers turn *off* stuff when
+# that is done.
+set +e
+printf 'Testing for FreeBSD...\n'
+
+flags="-DBC_TEST_FREEBSD -DBC_ENABLE_AFL=0"
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
+
+err="$?"
+
+if [ "$err" -ne 0 ]; then
+	printf 'On FreeBSD. Not using _POSIX_C_SOURCE and _XOPEN_SOURCE.\n\n'
+else
+	printf 'Not on FreeBSD. Using _POSIX_C_SOURCE and _XOPEN_SOURCE.\n\n'
+	CPPFLAGS="$CPPFLAGS -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 fi
 
 # Test OpenBSD. This is not in an if statement because regardless of whatever
@@ -1387,13 +1694,20 @@ set +e
 printf 'Testing for OpenBSD...\n'
 
 flags="-DBC_TEST_OPENBSD -DBC_ENABLE_AFL=0"
-"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/include/status.h" > /dev/null 2>&1
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
 
 err="$?"
 
 if [ "$err" -ne 0 ]; then
+
 	printf 'On OpenBSD. Using _BSD_SOURCE.\n\n'
 	bsd="-D_BSD_SOURCE"
+
+	# Readline errors on OpenBSD, for some weird reason.
+	if [ "$readline" -ne 0 ]; then
+		usage "Cannot use readline on OpenBSD"
+	fi
+
 else
 	printf 'Not on OpenBSD.\n\n'
 	bsd=""
@@ -1409,10 +1723,12 @@ else
 	BC_LIB2_O=""
 fi
 
+GEN_DIR="$scriptdir/gen"
+
 # These lines set the appropriate targets based on whether `gen/strgen.c` or
 # `gen/strgen.sh` is used.
 GEN="strgen"
-GEN_EXEC_TARGET="\$(HOSTCC) \$(HOSTCFLAGS) -o \$(GEN_EXEC) \$(GEN_C)"
+GEN_EXEC_TARGET="\$(HOSTCC) -DBC_ENABLE_AFL=0 -I$scriptdir/include/  \$(HOSTCFLAGS) -o \$(GEN_EXEC) \$(GEN_C)"
 CLEAN_PREREQS=" clean_gen clean_coverage"
 
 if [ -z "${GEN_HOST+set}" ]; then
@@ -1431,9 +1747,11 @@ headers="\$(HEADERS)"
 
 # This series of if statements figure out what source files are *not* needed.
 if [ "$extra_math" -eq 0 ]; then
+	exclude_extra_math=1
 	manpage_args="E"
 	unneeded="$unneeded rand.c"
 else
+	exclude_extra_math=0
 	headers="$headers \$(EXTRA_MATH_HEADERS)"
 fi
 
@@ -1552,7 +1870,7 @@ printf '\n'
 printf 'BC_ENABLE_LIBRARY=%s\n\n' "$library"
 printf 'BC_ENABLE_HISTORY=%s\n' "$hist"
 printf 'BC_ENABLE_EXTRA_MATH=%s\n' "$extra_math"
-printf 'BC_ENABLE_NLS=%s\n' "$nls"
+printf 'BC_ENABLE_NLS=%s\n\n' "$nls"
 printf 'BC_ENABLE_AFL=%s\n' "$fuzz"
 printf '\n'
 printf 'BC_NUM_KARATSUBA_LEN=%s\n' "$karatsuba_len"
@@ -1592,6 +1910,30 @@ printf 'bc.prompt=%s\n' "$bc_default_prompt"
 printf 'dc.prompt=%s\n' "$dc_default_prompt"
 printf 'bc.expr_exit=%s\n' "$bc_default_expr_exit"
 printf 'dc.expr_exit=%s\n' "$dc_default_expr_exit"
+printf 'bc.digit_clamp=%s\n' "$bc_default_digit_clamp"
+printf 'dc.digit_clamp=%s\n' "$dc_default_digit_clamp"
+
+# This code outputs a warning. The warning is to not surprise users when locales
+# are installed outside of the prefix. This warning is suppressed when the
+# default prefix is used, as well, so as not to panic users just installing by
+# hand. I believe this will be okay because NLSPATH is usually in /usr and the
+# default prefix is /usr/local, so they'll be close that way.
+if [ "$nls" -ne 0 ] && [ "${NLSPATH#$PREFIX}" = "${NLSPATH}" ] && [ "$defprefix" -eq 0 ]; then
+	printf '\n********************************************************************************\n\n'
+	printf 'WARNING: Locales will *NOT* be installed in $PREFIX (%s).\n' "$PREFIX"
+	printf '\n'
+	printf '         This is because they *MUST* be installed at a fixed location to even\n'
+	printf '         work, and that fixed location is $NLSPATH (%s).\n' "$NLSPATH"
+	printf '\n'
+	printf '         This location is *outside* of $PREFIX. If you do not wish to install\n'
+	printf '         locales outside of $PREFIX, you must disable NLS with the -N or the\n'
+	printf '         --disable-nls options.\n'
+	printf '\n'
+	printf '         The author apologizes for the inconvenience, but the need to install\n'
+	printf '         the locales at a fixed location is mandated by POSIX, and it is not\n'
+	printf '         possible for the author to change that requirement.\n'
+	printf '\n********************************************************************************\n'
+fi
 
 # This is where the real work begins. This is the point at which the Makefile.in
 # template is edited and output to the Makefile.
@@ -1644,7 +1986,10 @@ contents=$(replace "$contents" "DC_SCRIPT_TESTS" "$dc_script_tests")
 contents=$(replace "$contents" "DC_ERROR_TESTS" "$dc_err_tests")
 contents=$(replace "$contents" "DC_TEST_EXEC" "$dc_test_exec")
 
+contents=$(replace "$contents" "BCL_TEST_EXEC" "$bcl_test_exec")
+
 contents=$(replace "$contents" "BUILD_TYPE" "$manpage_args")
+contents=$(replace "$contents" "EXCLUDE_EXTRA_MATH" "$exclude_extra_math")
 
 contents=$(replace "$contents" "LIBRARY" "$library")
 contents=$(replace "$contents" "HISTORY" "$hist")
@@ -1718,9 +2063,9 @@ contents=$(replace "$contents" "TIMECONST" "$timeconst")
 contents=$(replace "$contents" "KARATSUBA" "$karatsuba")
 contents=$(replace "$contents" "KARATSUBA_TEST" "$karatsuba_test")
 
-contents=$(replace "$contents" "LONG_BIT" "$LONG_BIT")
 contents=$(replace "$contents" "LONG_BIT_DEFINE" "$LONG_BIT_DEFINE")
 
+contents=$(replace "$contents" "GEN_DIR" "$GEN_DIR")
 contents=$(replace "$contents" "GEN" "$GEN")
 contents=$(replace "$contents" "GEN_EXEC_TARGET" "$GEN_EXEC_TARGET")
 contents=$(replace "$contents" "CLEAN_PREREQS" "$CLEAN_PREREQS")
@@ -1737,6 +2082,8 @@ contents=$(replace "$contents" "BC_DEFAULT_PROMPT" "$bc_default_prompt")
 contents=$(replace "$contents" "DC_DEFAULT_PROMPT" "$dc_default_prompt")
 contents=$(replace "$contents" "BC_DEFAULT_EXPR_EXIT" "$bc_default_expr_exit")
 contents=$(replace "$contents" "DC_DEFAULT_EXPR_EXIT" "$dc_default_expr_exit")
+contents=$(replace "$contents" "BC_DEFAULT_DIGIT_CLAMP" "$bc_default_digit_clamp")
+contents=$(replace "$contents" "DC_DEFAULT_DIGIT_CLAMP" "$dc_default_digit_clamp")
 
 # Do the first print to the Makefile.
 printf '%s\n%s\n\n' "$contents" "$SRC_TARGETS" > "Makefile"

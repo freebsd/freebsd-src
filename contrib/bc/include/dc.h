@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,7 +46,8 @@
  * The main function for dc. It just sets variables and passes its arguments
  * through to @a bc_vm_boot().
  */
-void dc_main(int argc, char *argv[]);
+void
+dc_main(int argc, char* argv[]);
 
 // A reference to the dc help text.
 extern const char dc_help[];
@@ -56,7 +57,8 @@ extern const char dc_help[];
  * @a BcLexNext.)
  * @param l  The lexer.
  */
-void dc_lex_token(BcLex *l);
+void
+dc_lex_token(BcLex* l);
 
 /**
  * Returns true if the negative char `_` should be treated as a command or not.
@@ -66,7 +68,8 @@ void dc_lex_token(BcLex *l);
  * @return   True if a negative should be treated as a command, false if it
  *           should be treated as a negative sign on a number.
  */
-bool dc_lex_negCommand(BcLex *l);
+bool
+dc_lex_negCommand(BcLex* l);
 
 // References to the signal message and its length.
 extern const char dc_sig_msg[];
@@ -88,7 +91,8 @@ extern const uint8_t dc_parse_insts[];
  * @a BcParseParse.)
  * @param p  The parser.
  */
-void dc_parse_parse(BcParse *p);
+void
+dc_parse_parse(BcParse* p);
 
 /**
  * The @a BcParseExpr function for dc. (See include/parse.h for a definition of
@@ -97,7 +101,8 @@ void dc_parse_parse(BcParse *p);
  * @param flags  Flags that define the requirements that the parsed code must
  *               meet or an error will result. See @a BcParseExpr for more info.
  */
-void dc_parse_expr(BcParse *p, uint8_t flags);
+void
+dc_parse_expr(BcParse* p, uint8_t flags);
 
 #endif // DC_ENABLED
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,14 +53,16 @@
  * @param vec     The vector to put the stdin data into.
  * @param prompt  The prompt to print, if desired.
  */
-BcStatus bc_read_line(BcVec *vec, const char *prompt);
+BcStatus
+bc_read_line(BcVec* vec, const char* prompt);
 
 /**
  * Read a file and return a buffer with the data. The buffer must be freed by
  * the caller.
  * @param path  The path to the file to read.
  */
-char* bc_read_file(const char *path);
+char*
+bc_read_file(const char* path);
 
 /**
  * Helper function for reading characters from stdin. This takes care of a bunch
@@ -69,7 +71,8 @@ char* bc_read_file(const char *path);
  * @param vec     The vec to put the stdin into.
  * @param prompt  The prompt to print, if desired.
  */
-BcStatus bc_read_chars(BcVec *vec, const char *prompt);
+BcStatus
+bc_read_chars(BcVec* vec, const char* prompt);
 
 /**
  * Read a line from buf into vec.
@@ -77,6 +80,7 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt);
  * @param buf      The buffer to read from.
  * @param buf_len  The length of the buffer.
  */
-bool bc_read_buf(BcVec *vec, char *buf, size_t *buf_len);
+bool
+bc_read_buf(BcVec* vec, char* buf, size_t* buf_len);
 
 #endif // BC_READ_H

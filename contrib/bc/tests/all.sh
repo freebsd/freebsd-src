@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,7 @@ if [ "$#" -ge 1 ]; then
 	d="$1"
 	shift
 else
-	err_exit "usage: $script [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [time_tests] [exec args...]" 1
+	err_exit "usage: $script [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [run_problematic_tests] [time_tests] [exec args...]" 1
 fi
 
 if [ "$#" -lt 1 ]; then
@@ -70,6 +70,13 @@ if [ "$#" -lt 1 ]; then
 	generate_tests=1
 else
 	generate_tests="$1"
+	shift
+fi
+
+if [ "$#" -lt 1 ]; then
+	problematic_tests=1
+else
+	problematic_tests="$1"
 	shift
 fi
 
@@ -172,10 +179,10 @@ for testfile in $testdir/$d/errors/*.txt; do
 	b=$(basename "$testfile")
 
 	if [ "$pll" -ne 0 ]; then
-		sh "$testdir/error.sh" "$d" "$b" "$@" &
+		sh "$testdir/error.sh" "$d" "$b" "$problematic_tests" "$@" &
 		pids="$pids $!"
 	else
-		sh "$testdir/error.sh" "$d" "$b" "$@"
+		sh "$testdir/error.sh" "$d" "$b" "$problematic_tests" "$@"
 	fi
 
 done

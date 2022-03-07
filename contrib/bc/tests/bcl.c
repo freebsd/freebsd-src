@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,18 +43,24 @@
  * Takes an error code and aborts if it actually is an error.
  * @param e  The error code.
  */
-static void err(BclError e) {
+static void
+err(BclError e)
+{
 	if (e != BCL_ERROR_NONE) abort();
 }
 
-int main(void) {
-
+int
+main(void)
+{
 	BclError e;
 	BclContext ctxt;
 	size_t scale;
 	BclNumber n, n2, n3, n4, n5, n6;
 	char* res;
 	BclBigDig b = 0;
+
+	e = bcl_start();
+	err(e);
 
 	// We do this twice to test the reference counting code.
 	e = bcl_init();
@@ -135,15 +141,13 @@ int main(void) {
 
 	res = bcl_string(n5);
 
-	if (strcmp(res, "-351137.0060159482"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-351137.0060159482")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(n6);
 
-	if (strcmp(res, ".00000152374405414"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, ".00000152374405414")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
@@ -156,8 +160,7 @@ int main(void) {
 
 	res = bcl_string(bcl_dup(n4));
 
-	if (strcmp(res, "94538.1346457028"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "94538.1346457028")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
@@ -178,8 +181,7 @@ int main(void) {
 
 	res = bcl_string(bcl_dup(n4));
 
-	if (strcmp(res, "94538"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "94538")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
@@ -195,8 +197,7 @@ int main(void) {
 
 	res = bcl_string(bcl_dup(n4));
 
-	if (strcmp(res, "94538"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "94538")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
@@ -235,8 +236,7 @@ int main(void) {
 	bcl_num_free(n);
 
 	// Test leading zeroes.
-	if (bcl_leadingZeroes())
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (bcl_leadingZeroes()) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	n = bcl_parse("0.01");
 	err(bcl_err(n));
@@ -251,84 +251,70 @@ int main(void) {
 	err(bcl_err(n4));
 
 	res = bcl_string(bcl_dup(n));
-	if (strcmp(res, ".01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, ".01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(bcl_dup(n2));
-	if (strcmp(res, "-.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(bcl_dup(n3));
-	if (strcmp(res, "1.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "1.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(bcl_dup(n4));
-	if (strcmp(res, "-1.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-1.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	bcl_setLeadingZeroes(true);
 
-	if (!bcl_leadingZeroes())
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (!bcl_leadingZeroes()) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	res = bcl_string(bcl_dup(n));
-	if (strcmp(res, "0.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "0.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(bcl_dup(n2));
-	if (strcmp(res, "-0.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-0.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(bcl_dup(n3));
-	if (strcmp(res, "1.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "1.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(bcl_dup(n4));
-	if (strcmp(res, "-1.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-1.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	bcl_setLeadingZeroes(false);
 
-	if (bcl_leadingZeroes())
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (bcl_leadingZeroes()) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	res = bcl_string(n);
-	if (strcmp(res, ".01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, ".01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(n2);
-	if (strcmp(res, "-.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(n3);
-	if (strcmp(res, "1.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "1.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
 	res = bcl_string(n4);
-	if (strcmp(res, "-1.01"))
-		err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	if (strcmp(res, "-1.01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	free(res);
 
@@ -351,6 +337,8 @@ int main(void) {
 	bcl_free();
 
 	bcl_free();
+
+	bcl_end();
 
 	return 0;
 }

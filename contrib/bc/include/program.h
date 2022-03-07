@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -64,13 +64,15 @@
 /// The length of the globals array.
 #define BC_PROG_GLOBALS_LEN (3 + BC_ENABLE_EXTRA_MATH)
 
-typedef struct BcProgram {
-
+typedef struct BcProgram
+{
 	/// The array of globals values.
 	BcBigDig globals[BC_PROG_GLOBALS_LEN];
 
+#if BC_ENABLED
 	/// The array of globals stacks.
 	BcVec globals_v[BC_PROG_GLOBALS_LEN];
+#endif // BC_ENABLED
 
 #if BC_ENABLE_EXTRA_MATH
 
@@ -85,11 +87,21 @@ typedef struct BcProgram {
 	/// The execution stack.
 	BcVec stack;
 
-	/// A pointer to the current function's constants.
-	BcVec *consts;
+	/// The constants encountered in the program. They are global to the program
+	/// to prevent bad accesses when functions that used non-auto variables are
+	/// replaced.
+	BcVec consts;
 
-	/// A pointer to the current function's strings.
-	BcVec *strs;
+	/// The map of constants to go with consts.
+	BcVec const_map;
+
+	/// The strings encountered in the program. They are global to the program
+	/// to prevent bad accesses when functions that used non-auto variables are
+	/// replaced.
+	BcVec strs;
+
+	/// The map of strings to go with strs.
+	BcVec str_map;
 
 	/// The array of functions.
 	BcVec fns;
@@ -121,6 +133,10 @@ typedef struct BcProgram {
 
 	/// A BcNum that has the proper base for asciify.
 	BcNum strmb;
+
+	// A BcNum to run asciify. This is to prevent GCC longjmp() clobbering
+	// warnings.
+	BcNum asciify;
 
 #if BC_ENABLED
 
@@ -204,19 +220,29 @@ typedef struct BcProgram {
 
 #if !BC_ENABLED
 
-/// This define disappears the parameter last because for dc only, last is
-/// always true.
-#define bc_program_copyToVar(p, name, t, last) \
-	bc_program_copyToVar(p, name, t)
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (pop)
+
+#else // !BC_ENABLED
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (BC_IS_BC || (pop))
 
 #endif // !BC_ENABLED
 
+// This is here to satisfy a clang warning about recursive macros.
+#define bc_program_pushVar(p, code, bgn, pop, copy) \
+	bc_program_pushVar_impl(p, code, bgn, pop, copy)
+
 #else // DC_ENABLED
 
-/// This define disappears pop and copy because for bc, 'pop' and 'copy' are
-/// always false.
+// This define disappears pop and copy because for bc, 'pop' and 'copy' are
+// always false.
 #define bc_program_pushVar(p, code, bgn, pop, copy) \
-	bc_program_pushVar(p, code, bgn)
+	bc_program_pushVar_impl(p, code, bgn)
+
+/// Returns true if the calculator should pop after printing.
+#define BC_PROGRAM_POP(pop) (BC_IS_BC)
 
 // In debug mode, we want bc to check the stack, but otherwise, we don't because
 // the bc language implicitly mandates that the stack should always have enough
@@ -263,13 +289,14 @@ typedef struct BcProgram {
  * @param r  The BcResult to store the result into.
  * @param n  The parameter to the unary operation.
  */
-typedef void (*BcProgramUnary)(BcResult *r, BcNum *n);
+typedef void (*BcProgramUnary)(BcResult* r, BcNum* n);
 
 /**
  * Initializes the BcProgram.
  * @param p  The program to initialize.
  */
-void bc_program_init(BcProgram *p);
+void
+bc_program_init(BcProgram* p);
 
 #ifndef NDEBUG
 
@@ -279,9 +306,17 @@ void bc_program_init(BcProgram *p);
  * exit.
  * @param p  The program to initialize.
  */
-void bc_program_free(BcProgram *p);
+void
+bc_program_free(BcProgram* p);
 
 #endif // NDEBUG
+
+/**
+ * Prints a stack trace of the bc functions or dc strings currently executing.
+ * @param p  The program.
+ */
+void
+bc_program_printStackTrace(BcProgram* p);
 
 #if BC_DEBUG_CODE
 #if BC_ENABLED && DC_ENABLED
@@ -290,7 +325,8 @@ void bc_program_free(BcProgram *p);
  * Prints the bytecode in a function. This is a debug-only function.
  * @param p  The program.
  */
-void bc_program_code(const BcProgram *p);
+void
+bc_program_code(const BcProgram* p);
 
 /**
  * Prints an instruction. This is a debug-only function.
@@ -299,34 +335,38 @@ void bc_program_code(const BcProgram *p);
  * @param bgn   A pointer to the current index. It is also updated to the next
  *              index.
  */
-void bc_program_printInst(const BcProgram *p, const char *code,
-                          size_t *restrict bgn);
+void
+bc_program_printInst(const BcProgram* p, const char* code,
+                     size_t* restrict bgn);
 
 /**
  * Prints the stack. This is a debug-only function.
  * @param p  The program.
  */
-void bc_program_printStackDebug(BcProgram* p);
+void
+bc_program_printStackDebug(BcProgram* p);
 
 #endif // BC_ENABLED && DC_ENABLED
 #endif // BC_DEBUG_CODE
 
 /**
  * Returns the index of the variable or array in their respective arrays.
- * @param p    The program.
- * @param id   The BcId of the variable or array.
- * @param var  True if the search should be for a variable, false for an array.
- * @return     The index of the variable or array in the correct array.
+ * @param p     The program.
+ * @param name  The name of the variable or array.
+ * @param var   True if the search should be for a variable, false for an array.
+ * @return      The index of the variable or array in the correct array.
  */
-size_t bc_program_search(BcProgram *p, const char* id, bool var);
+size_t
+bc_program_search(BcProgram* p, const char* name, bool var);
 
 /**
- * Adds a string to a function and returns the string's index in the function.
- * @param p     The program.
- * @param str   The string to add.
- * @param fidx  The index of the function to add to.
+ * Adds a string to the program and returns the string's index in the program.
+ * @param p    The program.
+ * @param str  The string to add.
+ * @return     The string's index in the program.
  */
-size_t bc_program_addString(BcProgram *p, const char *str, size_t fidx);
+size_t
+bc_program_addString(BcProgram* p, const char* str);
 
 /**
  * Inserts a function into the program and returns the index of the function in
@@ -335,33 +375,38 @@ size_t bc_program_addString(BcProgram *p, const char *str, size_t fidx);
  * @param name  The name of the function.
  * @return      The index of the function after insertion.
  */
-size_t bc_program_insertFunc(BcProgram *p, const char *name);
+size_t
+bc_program_insertFunc(BcProgram* p, const char* name);
 
 /**
  * Resets a program, usually because of resetting after an error.
  * @param p  The program to reset.
  */
-void bc_program_reset(BcProgram *p);
+void
+bc_program_reset(BcProgram* p);
 
 /**
  * Executes bc or dc code in the BcProgram.
  * @param p  The program.
  */
-void bc_program_exec(BcProgram *p);
+void
+bc_program_exec(BcProgram* p);
 
 /**
  * Negates a copy of a BcNum. This is a BcProgramUnary function.
  * @param r  The BcResult to store the result into.
  * @param n  The parameter to the unary operation.
  */
-void bc_program_negate(BcResult *r, BcNum *n);
+void
+bc_program_negate(BcResult* r, BcNum* n);
 
 /**
  * Returns a boolean not of a BcNum. This is a BcProgramUnary function.
  * @param r  The BcResult to store the result into.
  * @param n  The parameter to the unary operation.
  */
-void bc_program_not(BcResult *r, BcNum *n);
+void
+bc_program_not(BcResult* r, BcNum* n);
 
 #if BC_ENABLE_EXTRA_MATH
 
@@ -370,9 +415,29 @@ void bc_program_not(BcResult *r, BcNum *n);
  * @param r  The BcResult to store the result into.
  * @param n  The parameter to the unary operation.
  */
-void bc_program_trunc(BcResult *r, BcNum *n);
+void
+bc_program_trunc(BcResult* r, BcNum* n);
+
+/**
+ * Assigns a value to the seed builtin variable.
+ * @param p    The program.
+ * @param val  The value to assign to the seed.
+ */
+void
+bc_program_assignSeed(BcProgram* p, BcNum* val);
 
 #endif // BC_ENABLE_EXTRA_MATH
+
+/**
+ * Assigns a value to a builtin value that is not seed.
+ * @param p      The program.
+ * @param scale  True if the builtin is scale.
+ * @param obase  True if the builtin is obase. This cannot be true at the same
+ *               time @a scale is.
+ * @param val    The value to assign to the builtin.
+ */
+void
+bc_program_assignBuiltin(BcProgram* p, bool scale, bool obase, BcBigDig val);
 
 /// A reference to an array of binary operator functions.
 extern const BcNumBinaryOp bc_program_ops[];
@@ -406,34 +471,42 @@ extern const char bc_program_esc_seqs[];
 
 #if BC_DEBUG_CODE
 
-#define BC_PROG_JUMP(inst, code, ip)                                 \
-	do {                                                             \
-		inst = (uchar) (code)[(ip)->idx++];                          \
-		bc_file_printf(&vm.ferr, "inst: %s\n", bc_inst_names[inst]); \
-		bc_file_flush(&vm.ferr, bc_flush_none);                      \
-		goto *bc_program_inst_lbls[inst];                            \
-	} while (0)
+// clang-format off
+#define BC_PROG_JUMP(inst, code, ip)                                  \
+	do                                                                \
+	{                                                                 \
+		inst = (uchar) (code)[(ip)->idx++];                           \
+		bc_file_printf(&vm->ferr, "inst: %s\n", bc_inst_names[inst]); \
+		bc_file_flush(&vm->ferr, bc_flush_none);                      \
+		goto *bc_program_inst_lbls[inst];                             \
+	}                                                                 \
+	while (0)
+// clang-format on
 
 #else // BC_DEBUG_CODE
 
+// clang-format off
 #define BC_PROG_JUMP(inst, code, ip)        \
-	do {                                    \
+	do                                      \
+	{                                       \
 		inst = (uchar) (code)[(ip)->idx++]; \
 		goto *bc_program_inst_lbls[inst];   \
-	} while (0)
+	}                                       \
+	while (0)
+// clang-format on
 
 #endif // BC_DEBUG_CODE
 
-#define BC_PROG_DIRECT_JUMP(l) goto lbl_ ## l;
-#define BC_PROG_LBL(l) lbl_ ## l
+#define BC_PROG_DIRECT_JUMP(l) goto lbl_##l;
+#define BC_PROG_LBL(l) lbl_##l
 #define BC_PROG_FALLTHROUGH
 
 #if BC_C11
 
 #define BC_PROG_LBLS_SIZE (sizeof(bc_program_inst_lbls) / sizeof(void*))
-#define BC_PROG_LBLS_ASSERT \
-	static_assert(BC_PROG_LBLS_SIZE == BC_INST_INVALID + 1,\
-	              "bc_program_inst_lbls[] mismatches the instructions")
+#define BC_PROG_LBLS_ASSERT                                  \
+	_Static_assert(BC_PROG_LBLS_SIZE == BC_INST_INVALID + 1, \
+	               "bc_program_inst_lbls[] mismatches the instructions")
 
 #else // BC_C11
 
@@ -447,197 +520,203 @@ extern const char bc_program_esc_seqs[];
 
 #if BC_ENABLE_EXTRA_MATH
 
-#define BC_PROG_LBLS static const void* const bc_program_inst_lbls[] = { \
-	&&lbl_BC_INST_INC,                                                   \
-	&&lbl_BC_INST_DEC,                                                   \
-	&&lbl_BC_INST_NEG,                                                   \
-	&&lbl_BC_INST_BOOL_NOT,                                              \
-	&&lbl_BC_INST_TRUNC,                                                 \
-	&&lbl_BC_INST_POWER,                                                 \
-	&&lbl_BC_INST_MULTIPLY,                                              \
-	&&lbl_BC_INST_DIVIDE,                                                \
-	&&lbl_BC_INST_MODULUS,                                               \
-	&&lbl_BC_INST_PLUS,                                                  \
-	&&lbl_BC_INST_MINUS,                                                 \
-	&&lbl_BC_INST_PLACES,                                                \
-	&&lbl_BC_INST_LSHIFT,                                                \
-	&&lbl_BC_INST_RSHIFT,                                                \
-	&&lbl_BC_INST_REL_EQ,                                                \
-	&&lbl_BC_INST_REL_LE,                                                \
-	&&lbl_BC_INST_REL_GE,                                                \
-	&&lbl_BC_INST_REL_NE,                                                \
-	&&lbl_BC_INST_REL_LT,                                                \
-	&&lbl_BC_INST_REL_GT,                                                \
-	&&lbl_BC_INST_BOOL_OR,                                               \
-	&&lbl_BC_INST_BOOL_AND,                                              \
-	&&lbl_BC_INST_ASSIGN_POWER,                                          \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY,                                       \
-	&&lbl_BC_INST_ASSIGN_DIVIDE,                                         \
-	&&lbl_BC_INST_ASSIGN_MODULUS,                                        \
-	&&lbl_BC_INST_ASSIGN_PLUS,                                           \
-	&&lbl_BC_INST_ASSIGN_MINUS,                                          \
-	&&lbl_BC_INST_ASSIGN_PLACES,                                         \
-	&&lbl_BC_INST_ASSIGN_LSHIFT,                                         \
-	&&lbl_BC_INST_ASSIGN_RSHIFT,                                         \
-	&&lbl_BC_INST_ASSIGN,                                                \
-	&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,                                \
-	&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,                                 \
-	&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,                                    \
-	&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_PLACES_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_LSHIFT_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_RSHIFT_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_NO_VAL,                                         \
-	&&lbl_BC_INST_NUM,                                                   \
-	&&lbl_BC_INST_VAR,                                                   \
-	&&lbl_BC_INST_ARRAY_ELEM,                                            \
-	&&lbl_BC_INST_ARRAY,                                                 \
-	&&lbl_BC_INST_ZERO,                                                  \
-	&&lbl_BC_INST_ONE,                                                   \
-	&&lbl_BC_INST_LAST,                                                  \
-	&&lbl_BC_INST_IBASE,                                                 \
-	&&lbl_BC_INST_OBASE,                                                 \
-	&&lbl_BC_INST_SCALE,                                                 \
-	&&lbl_BC_INST_SEED,                                                  \
-	&&lbl_BC_INST_LENGTH,                                                \
-	&&lbl_BC_INST_SCALE_FUNC,                                            \
-	&&lbl_BC_INST_SQRT,                                                  \
-	&&lbl_BC_INST_ABS,                                                   \
-	&&lbl_BC_INST_IRAND,                                                 \
-	&&lbl_BC_INST_ASCIIFY,                                               \
-	&&lbl_BC_INST_READ,                                                  \
-	&&lbl_BC_INST_RAND,                                                  \
-	&&lbl_BC_INST_MAXIBASE,                                              \
-	&&lbl_BC_INST_MAXOBASE,                                              \
-	&&lbl_BC_INST_MAXSCALE,                                              \
-	&&lbl_BC_INST_MAXRAND,                                               \
-	&&lbl_BC_INST_LINE_LENGTH,                                           \
-	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
-	&&lbl_BC_INST_LEADING_ZERO,                                          \
-	&&lbl_BC_INST_PRINT,                                                 \
-	&&lbl_BC_INST_PRINT_POP,                                             \
-	&&lbl_BC_INST_STR,                                                   \
-	&&lbl_BC_INST_PRINT_STR,                                             \
-	&&lbl_BC_INST_JUMP,                                                  \
-	&&lbl_BC_INST_JUMP_ZERO,                                             \
-	&&lbl_BC_INST_CALL,                                                  \
-	&&lbl_BC_INST_RET,                                                   \
-	&&lbl_BC_INST_RET0,                                                  \
-	&&lbl_BC_INST_RET_VOID,                                              \
-	&&lbl_BC_INST_HALT,                                                  \
-	&&lbl_BC_INST_POP,                                                   \
-	&&lbl_BC_INST_SWAP,                                                  \
-	&&lbl_BC_INST_MODEXP,                                                \
-	&&lbl_BC_INST_DIVMOD,                                                \
-	&&lbl_BC_INST_PRINT_STREAM,                                          \
-	&&lbl_BC_INST_POP_EXEC,                                              \
-	&&lbl_BC_INST_EXECUTE,                                               \
-	&&lbl_BC_INST_EXEC_COND,                                             \
-	&&lbl_BC_INST_PRINT_STACK,                                           \
-	&&lbl_BC_INST_CLEAR_STACK,                                           \
-	&&lbl_BC_INST_REG_STACK_LEN,                                         \
-	&&lbl_BC_INST_STACK_LEN,                                             \
-	&&lbl_BC_INST_DUPLICATE,                                             \
-	&&lbl_BC_INST_LOAD,                                                  \
-	&&lbl_BC_INST_PUSH_VAR,                                              \
-	&&lbl_BC_INST_PUSH_TO_VAR,                                           \
-	&&lbl_BC_INST_QUIT,                                                  \
-	&&lbl_BC_INST_NQUIT,                                                 \
-	&&lbl_BC_INST_EXEC_STACK_LEN,                                        \
-	&&lbl_BC_INST_INVALID,                                               \
-}
+#define BC_PROG_LBLS                                    \
+	static const void* const bc_program_inst_lbls[] = { \
+		&&lbl_BC_INST_INC,                              \
+		&&lbl_BC_INST_DEC,                              \
+		&&lbl_BC_INST_NEG,                              \
+		&&lbl_BC_INST_BOOL_NOT,                         \
+		&&lbl_BC_INST_TRUNC,                            \
+		&&lbl_BC_INST_POWER,                            \
+		&&lbl_BC_INST_MULTIPLY,                         \
+		&&lbl_BC_INST_DIVIDE,                           \
+		&&lbl_BC_INST_MODULUS,                          \
+		&&lbl_BC_INST_PLUS,                             \
+		&&lbl_BC_INST_MINUS,                            \
+		&&lbl_BC_INST_PLACES,                           \
+		&&lbl_BC_INST_LSHIFT,                           \
+		&&lbl_BC_INST_RSHIFT,                           \
+		&&lbl_BC_INST_REL_EQ,                           \
+		&&lbl_BC_INST_REL_LE,                           \
+		&&lbl_BC_INST_REL_GE,                           \
+		&&lbl_BC_INST_REL_NE,                           \
+		&&lbl_BC_INST_REL_LT,                           \
+		&&lbl_BC_INST_REL_GT,                           \
+		&&lbl_BC_INST_BOOL_OR,                          \
+		&&lbl_BC_INST_BOOL_AND,                         \
+		&&lbl_BC_INST_ASSIGN_POWER,                     \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY,                  \
+		&&lbl_BC_INST_ASSIGN_DIVIDE,                    \
+		&&lbl_BC_INST_ASSIGN_MODULUS,                   \
+		&&lbl_BC_INST_ASSIGN_PLUS,                      \
+		&&lbl_BC_INST_ASSIGN_MINUS,                     \
+		&&lbl_BC_INST_ASSIGN_PLACES,                    \
+		&&lbl_BC_INST_ASSIGN_LSHIFT,                    \
+		&&lbl_BC_INST_ASSIGN_RSHIFT,                    \
+		&&lbl_BC_INST_ASSIGN,                           \
+		&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,           \
+		&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,            \
+		&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,               \
+		&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_PLACES_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_LSHIFT_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_RSHIFT_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_NO_VAL,                    \
+		&&lbl_BC_INST_NUM,                              \
+		&&lbl_BC_INST_VAR,                              \
+		&&lbl_BC_INST_ARRAY_ELEM,                       \
+		&&lbl_BC_INST_ARRAY,                            \
+		&&lbl_BC_INST_ZERO,                             \
+		&&lbl_BC_INST_ONE,                              \
+		&&lbl_BC_INST_LAST,                             \
+		&&lbl_BC_INST_IBASE,                            \
+		&&lbl_BC_INST_OBASE,                            \
+		&&lbl_BC_INST_SCALE,                            \
+		&&lbl_BC_INST_SEED,                             \
+		&&lbl_BC_INST_LENGTH,                           \
+		&&lbl_BC_INST_SCALE_FUNC,                       \
+		&&lbl_BC_INST_SQRT,                             \
+		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
+		&&lbl_BC_INST_IRAND,                            \
+		&&lbl_BC_INST_ASCIIFY,                          \
+		&&lbl_BC_INST_READ,                             \
+		&&lbl_BC_INST_RAND,                             \
+		&&lbl_BC_INST_MAXIBASE,                         \
+		&&lbl_BC_INST_MAXOBASE,                         \
+		&&lbl_BC_INST_MAXSCALE,                         \
+		&&lbl_BC_INST_MAXRAND,                          \
+		&&lbl_BC_INST_LINE_LENGTH,                      \
+		&&lbl_BC_INST_GLOBAL_STACKS,                    \
+		&&lbl_BC_INST_LEADING_ZERO,                     \
+		&&lbl_BC_INST_PRINT,                            \
+		&&lbl_BC_INST_PRINT_POP,                        \
+		&&lbl_BC_INST_STR,                              \
+		&&lbl_BC_INST_PRINT_STR,                        \
+		&&lbl_BC_INST_JUMP,                             \
+		&&lbl_BC_INST_JUMP_ZERO,                        \
+		&&lbl_BC_INST_CALL,                             \
+		&&lbl_BC_INST_RET,                              \
+		&&lbl_BC_INST_RET0,                             \
+		&&lbl_BC_INST_RET_VOID,                         \
+		&&lbl_BC_INST_HALT,                             \
+		&&lbl_BC_INST_POP,                              \
+		&&lbl_BC_INST_SWAP,                             \
+		&&lbl_BC_INST_MODEXP,                           \
+		&&lbl_BC_INST_DIVMOD,                           \
+		&&lbl_BC_INST_PRINT_STREAM,                     \
+		&&lbl_BC_INST_POP_EXEC,                         \
+		&&lbl_BC_INST_EXECUTE,                          \
+		&&lbl_BC_INST_EXEC_COND,                        \
+		&&lbl_BC_INST_PRINT_STACK,                      \
+		&&lbl_BC_INST_CLEAR_STACK,                      \
+		&&lbl_BC_INST_REG_STACK_LEN,                    \
+		&&lbl_BC_INST_STACK_LEN,                        \
+		&&lbl_BC_INST_DUPLICATE,                        \
+		&&lbl_BC_INST_LOAD,                             \
+		&&lbl_BC_INST_PUSH_VAR,                         \
+		&&lbl_BC_INST_PUSH_TO_VAR,                      \
+		&&lbl_BC_INST_QUIT,                             \
+		&&lbl_BC_INST_NQUIT,                            \
+		&&lbl_BC_INST_EXEC_STACK_LEN,                   \
+		&&lbl_BC_INST_INVALID,                          \
+	}
 
 #else // BC_ENABLE_EXTRA_MATH
 
-#define BC_PROG_LBLS static const void* const bc_program_inst_lbls[] = { \
-	&&lbl_BC_INST_INC,                                                   \
-	&&lbl_BC_INST_DEC,                                                   \
-	&&lbl_BC_INST_NEG,                                                   \
-	&&lbl_BC_INST_BOOL_NOT,                                              \
-	&&lbl_BC_INST_POWER,                                                 \
-	&&lbl_BC_INST_MULTIPLY,                                              \
-	&&lbl_BC_INST_DIVIDE,                                                \
-	&&lbl_BC_INST_MODULUS,                                               \
-	&&lbl_BC_INST_PLUS,                                                  \
-	&&lbl_BC_INST_MINUS,                                                 \
-	&&lbl_BC_INST_REL_EQ,                                                \
-	&&lbl_BC_INST_REL_LE,                                                \
-	&&lbl_BC_INST_REL_GE,                                                \
-	&&lbl_BC_INST_REL_NE,                                                \
-	&&lbl_BC_INST_REL_LT,                                                \
-	&&lbl_BC_INST_REL_GT,                                                \
-	&&lbl_BC_INST_BOOL_OR,                                               \
-	&&lbl_BC_INST_BOOL_AND,                                              \
-	&&lbl_BC_INST_ASSIGN_POWER,                                          \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY,                                       \
-	&&lbl_BC_INST_ASSIGN_DIVIDE,                                         \
-	&&lbl_BC_INST_ASSIGN_MODULUS,                                        \
-	&&lbl_BC_INST_ASSIGN_PLUS,                                           \
-	&&lbl_BC_INST_ASSIGN_MINUS,                                          \
-	&&lbl_BC_INST_ASSIGN,                                                \
-	&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,                                \
-	&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,                                 \
-	&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,                                    \
-	&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_NO_VAL,                                         \
-	&&lbl_BC_INST_NUM,                                                   \
-	&&lbl_BC_INST_VAR,                                                   \
-	&&lbl_BC_INST_ARRAY_ELEM,                                            \
-	&&lbl_BC_INST_ARRAY,                                                 \
-	&&lbl_BC_INST_ZERO,                                                  \
-	&&lbl_BC_INST_ONE,                                                   \
-	&&lbl_BC_INST_LAST,                                                  \
-	&&lbl_BC_INST_IBASE,                                                 \
-	&&lbl_BC_INST_OBASE,                                                 \
-	&&lbl_BC_INST_SCALE,                                                 \
-	&&lbl_BC_INST_LENGTH,                                                \
-	&&lbl_BC_INST_SCALE_FUNC,                                            \
-	&&lbl_BC_INST_SQRT,                                                  \
-	&&lbl_BC_INST_ABS,                                                   \
-	&&lbl_BC_INST_ASCIIFY,                                               \
-	&&lbl_BC_INST_READ,                                                  \
-	&&lbl_BC_INST_MAXIBASE,                                              \
-	&&lbl_BC_INST_MAXOBASE,                                              \
-	&&lbl_BC_INST_MAXSCALE,                                              \
-	&&lbl_BC_INST_LINE_LENGTH,                                           \
-	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
-	&&lbl_BC_INST_LEADING_ZERO,                                          \
-	&&lbl_BC_INST_PRINT,                                                 \
-	&&lbl_BC_INST_PRINT_POP,                                             \
-	&&lbl_BC_INST_STR,                                                   \
-	&&lbl_BC_INST_PRINT_STR,                                             \
-	&&lbl_BC_INST_JUMP,                                                  \
-	&&lbl_BC_INST_JUMP_ZERO,                                             \
-	&&lbl_BC_INST_CALL,                                                  \
-	&&lbl_BC_INST_RET,                                                   \
-	&&lbl_BC_INST_RET0,                                                  \
-	&&lbl_BC_INST_RET_VOID,                                              \
-	&&lbl_BC_INST_HALT,                                                  \
-	&&lbl_BC_INST_POP,                                                   \
-	&&lbl_BC_INST_SWAP,                                                  \
-	&&lbl_BC_INST_MODEXP,                                                \
-	&&lbl_BC_INST_DIVMOD,                                                \
-	&&lbl_BC_INST_PRINT_STREAM,                                          \
-	&&lbl_BC_INST_POP_EXEC,                                              \
-	&&lbl_BC_INST_EXECUTE,                                               \
-	&&lbl_BC_INST_EXEC_COND,                                             \
-	&&lbl_BC_INST_PRINT_STACK,                                           \
-	&&lbl_BC_INST_CLEAR_STACK,                                           \
-	&&lbl_BC_INST_REG_STACK_LEN,                                         \
-	&&lbl_BC_INST_STACK_LEN,                                             \
-	&&lbl_BC_INST_DUPLICATE,                                             \
-	&&lbl_BC_INST_LOAD,                                                  \
-	&&lbl_BC_INST_PUSH_VAR,                                              \
-	&&lbl_BC_INST_PUSH_TO_VAR,                                           \
-	&&lbl_BC_INST_QUIT,                                                  \
-	&&lbl_BC_INST_NQUIT,                                                 \
-	&&lbl_BC_INST_EXEC_STACK_LEN,                                        \
-	&&lbl_BC_INST_INVALID,                                               \
-}
+#define BC_PROG_LBLS                                    \
+	static const void* const bc_program_inst_lbls[] = { \
+		&&lbl_BC_INST_INC,                              \
+		&&lbl_BC_INST_DEC,                              \
+		&&lbl_BC_INST_NEG,                              \
+		&&lbl_BC_INST_BOOL_NOT,                         \
+		&&lbl_BC_INST_POWER,                            \
+		&&lbl_BC_INST_MULTIPLY,                         \
+		&&lbl_BC_INST_DIVIDE,                           \
+		&&lbl_BC_INST_MODULUS,                          \
+		&&lbl_BC_INST_PLUS,                             \
+		&&lbl_BC_INST_MINUS,                            \
+		&&lbl_BC_INST_REL_EQ,                           \
+		&&lbl_BC_INST_REL_LE,                           \
+		&&lbl_BC_INST_REL_GE,                           \
+		&&lbl_BC_INST_REL_NE,                           \
+		&&lbl_BC_INST_REL_LT,                           \
+		&&lbl_BC_INST_REL_GT,                           \
+		&&lbl_BC_INST_BOOL_OR,                          \
+		&&lbl_BC_INST_BOOL_AND,                         \
+		&&lbl_BC_INST_ASSIGN_POWER,                     \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY,                  \
+		&&lbl_BC_INST_ASSIGN_DIVIDE,                    \
+		&&lbl_BC_INST_ASSIGN_MODULUS,                   \
+		&&lbl_BC_INST_ASSIGN_PLUS,                      \
+		&&lbl_BC_INST_ASSIGN_MINUS,                     \
+		&&lbl_BC_INST_ASSIGN,                           \
+		&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,           \
+		&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,            \
+		&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,               \
+		&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_NO_VAL,                    \
+		&&lbl_BC_INST_NUM,                              \
+		&&lbl_BC_INST_VAR,                              \
+		&&lbl_BC_INST_ARRAY_ELEM,                       \
+		&&lbl_BC_INST_ARRAY,                            \
+		&&lbl_BC_INST_ZERO,                             \
+		&&lbl_BC_INST_ONE,                              \
+		&&lbl_BC_INST_LAST,                             \
+		&&lbl_BC_INST_IBASE,                            \
+		&&lbl_BC_INST_OBASE,                            \
+		&&lbl_BC_INST_SCALE,                            \
+		&&lbl_BC_INST_LENGTH,                           \
+		&&lbl_BC_INST_SCALE_FUNC,                       \
+		&&lbl_BC_INST_SQRT,                             \
+		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
+		&&lbl_BC_INST_ASCIIFY,                          \
+		&&lbl_BC_INST_READ,                             \
+		&&lbl_BC_INST_MAXIBASE,                         \
+		&&lbl_BC_INST_MAXOBASE,                         \
+		&&lbl_BC_INST_MAXSCALE,                         \
+		&&lbl_BC_INST_LINE_LENGTH,                      \
+		&&lbl_BC_INST_GLOBAL_STACKS,                    \
+		&&lbl_BC_INST_LEADING_ZERO,                     \
+		&&lbl_BC_INST_PRINT,                            \
+		&&lbl_BC_INST_PRINT_POP,                        \
+		&&lbl_BC_INST_STR,                              \
+		&&lbl_BC_INST_PRINT_STR,                        \
+		&&lbl_BC_INST_JUMP,                             \
+		&&lbl_BC_INST_JUMP_ZERO,                        \
+		&&lbl_BC_INST_CALL,                             \
+		&&lbl_BC_INST_RET,                              \
+		&&lbl_BC_INST_RET0,                             \
+		&&lbl_BC_INST_RET_VOID,                         \
+		&&lbl_BC_INST_HALT,                             \
+		&&lbl_BC_INST_POP,                              \
+		&&lbl_BC_INST_SWAP,                             \
+		&&lbl_BC_INST_MODEXP,                           \
+		&&lbl_BC_INST_DIVMOD,                           \
+		&&lbl_BC_INST_PRINT_STREAM,                     \
+		&&lbl_BC_INST_POP_EXEC,                         \
+		&&lbl_BC_INST_EXECUTE,                          \
+		&&lbl_BC_INST_EXEC_COND,                        \
+		&&lbl_BC_INST_PRINT_STACK,                      \
+		&&lbl_BC_INST_CLEAR_STACK,                      \
+		&&lbl_BC_INST_REG_STACK_LEN,                    \
+		&&lbl_BC_INST_STACK_LEN,                        \
+		&&lbl_BC_INST_DUPLICATE,                        \
+		&&lbl_BC_INST_LOAD,                             \
+		&&lbl_BC_INST_PUSH_VAR,                         \
+		&&lbl_BC_INST_PUSH_TO_VAR,                      \
+		&&lbl_BC_INST_QUIT,                             \
+		&&lbl_BC_INST_NQUIT,                            \
+		&&lbl_BC_INST_EXEC_STACK_LEN,                   \
+		&&lbl_BC_INST_INVALID,                          \
+	}
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -645,169 +724,175 @@ extern const char bc_program_esc_seqs[];
 
 #if BC_ENABLE_EXTRA_MATH
 
-#define BC_PROG_LBLS static const void* const bc_program_inst_lbls[] = { \
-	&&lbl_BC_INST_INC,                                                   \
-	&&lbl_BC_INST_DEC,                                                   \
-	&&lbl_BC_INST_NEG,                                                   \
-	&&lbl_BC_INST_BOOL_NOT,                                              \
-	&&lbl_BC_INST_TRUNC,                                                 \
-	&&lbl_BC_INST_POWER,                                                 \
-	&&lbl_BC_INST_MULTIPLY,                                              \
-	&&lbl_BC_INST_DIVIDE,                                                \
-	&&lbl_BC_INST_MODULUS,                                               \
-	&&lbl_BC_INST_PLUS,                                                  \
-	&&lbl_BC_INST_MINUS,                                                 \
-	&&lbl_BC_INST_PLACES,                                                \
-	&&lbl_BC_INST_LSHIFT,                                                \
-	&&lbl_BC_INST_RSHIFT,                                                \
-	&&lbl_BC_INST_REL_EQ,                                                \
-	&&lbl_BC_INST_REL_LE,                                                \
-	&&lbl_BC_INST_REL_GE,                                                \
-	&&lbl_BC_INST_REL_NE,                                                \
-	&&lbl_BC_INST_REL_LT,                                                \
-	&&lbl_BC_INST_REL_GT,                                                \
-	&&lbl_BC_INST_BOOL_OR,                                               \
-	&&lbl_BC_INST_BOOL_AND,                                              \
-	&&lbl_BC_INST_ASSIGN_POWER,                                          \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY,                                       \
-	&&lbl_BC_INST_ASSIGN_DIVIDE,                                         \
-	&&lbl_BC_INST_ASSIGN_MODULUS,                                        \
-	&&lbl_BC_INST_ASSIGN_PLUS,                                           \
-	&&lbl_BC_INST_ASSIGN_MINUS,                                          \
-	&&lbl_BC_INST_ASSIGN_PLACES,                                         \
-	&&lbl_BC_INST_ASSIGN_LSHIFT,                                         \
-	&&lbl_BC_INST_ASSIGN_RSHIFT,                                         \
-	&&lbl_BC_INST_ASSIGN,                                                \
-	&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,                                \
-	&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,                                 \
-	&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,                                    \
-	&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_PLACES_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_LSHIFT_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_RSHIFT_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_NO_VAL,                                         \
-	&&lbl_BC_INST_NUM,                                                   \
-	&&lbl_BC_INST_VAR,                                                   \
-	&&lbl_BC_INST_ARRAY_ELEM,                                            \
-	&&lbl_BC_INST_ARRAY,                                                 \
-	&&lbl_BC_INST_ZERO,                                                  \
-	&&lbl_BC_INST_ONE,                                                   \
-	&&lbl_BC_INST_LAST,                                                  \
-	&&lbl_BC_INST_IBASE,                                                 \
-	&&lbl_BC_INST_OBASE,                                                 \
-	&&lbl_BC_INST_SCALE,                                                 \
-	&&lbl_BC_INST_SEED,                                                  \
-	&&lbl_BC_INST_LENGTH,                                                \
-	&&lbl_BC_INST_SCALE_FUNC,                                            \
-	&&lbl_BC_INST_SQRT,                                                  \
-	&&lbl_BC_INST_ABS,                                                   \
-	&&lbl_BC_INST_IRAND,                                                 \
-	&&lbl_BC_INST_ASCIIFY,                                               \
-	&&lbl_BC_INST_READ,                                                  \
-	&&lbl_BC_INST_RAND,                                                  \
-	&&lbl_BC_INST_MAXIBASE,                                              \
-	&&lbl_BC_INST_MAXOBASE,                                              \
-	&&lbl_BC_INST_MAXSCALE,                                              \
-	&&lbl_BC_INST_MAXRAND,                                               \
-	&&lbl_BC_INST_LINE_LENGTH,                                           \
-	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
-	&&lbl_BC_INST_LEADING_ZERO,                                          \
-	&&lbl_BC_INST_PRINT,                                                 \
-	&&lbl_BC_INST_PRINT_POP,                                             \
-	&&lbl_BC_INST_STR,                                                   \
-	&&lbl_BC_INST_PRINT_STR,                                             \
-	&&lbl_BC_INST_JUMP,                                                  \
-	&&lbl_BC_INST_JUMP_ZERO,                                             \
-	&&lbl_BC_INST_CALL,                                                  \
-	&&lbl_BC_INST_RET,                                                   \
-	&&lbl_BC_INST_RET0,                                                  \
-	&&lbl_BC_INST_RET_VOID,                                              \
-	&&lbl_BC_INST_HALT,                                                  \
-	&&lbl_BC_INST_POP,                                                   \
-	&&lbl_BC_INST_SWAP,                                                  \
-	&&lbl_BC_INST_MODEXP,                                                \
-	&&lbl_BC_INST_DIVMOD,                                                \
-	&&lbl_BC_INST_PRINT_STREAM,                                          \
-	&&lbl_BC_INST_INVALID,                                               \
-}
+#define BC_PROG_LBLS                                    \
+	static const void* const bc_program_inst_lbls[] = { \
+		&&lbl_BC_INST_INC,                              \
+		&&lbl_BC_INST_DEC,                              \
+		&&lbl_BC_INST_NEG,                              \
+		&&lbl_BC_INST_BOOL_NOT,                         \
+		&&lbl_BC_INST_TRUNC,                            \
+		&&lbl_BC_INST_POWER,                            \
+		&&lbl_BC_INST_MULTIPLY,                         \
+		&&lbl_BC_INST_DIVIDE,                           \
+		&&lbl_BC_INST_MODULUS,                          \
+		&&lbl_BC_INST_PLUS,                             \
+		&&lbl_BC_INST_MINUS,                            \
+		&&lbl_BC_INST_PLACES,                           \
+		&&lbl_BC_INST_LSHIFT,                           \
+		&&lbl_BC_INST_RSHIFT,                           \
+		&&lbl_BC_INST_REL_EQ,                           \
+		&&lbl_BC_INST_REL_LE,                           \
+		&&lbl_BC_INST_REL_GE,                           \
+		&&lbl_BC_INST_REL_NE,                           \
+		&&lbl_BC_INST_REL_LT,                           \
+		&&lbl_BC_INST_REL_GT,                           \
+		&&lbl_BC_INST_BOOL_OR,                          \
+		&&lbl_BC_INST_BOOL_AND,                         \
+		&&lbl_BC_INST_ASSIGN_POWER,                     \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY,                  \
+		&&lbl_BC_INST_ASSIGN_DIVIDE,                    \
+		&&lbl_BC_INST_ASSIGN_MODULUS,                   \
+		&&lbl_BC_INST_ASSIGN_PLUS,                      \
+		&&lbl_BC_INST_ASSIGN_MINUS,                     \
+		&&lbl_BC_INST_ASSIGN_PLACES,                    \
+		&&lbl_BC_INST_ASSIGN_LSHIFT,                    \
+		&&lbl_BC_INST_ASSIGN_RSHIFT,                    \
+		&&lbl_BC_INST_ASSIGN,                           \
+		&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,           \
+		&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,            \
+		&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,               \
+		&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_PLACES_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_LSHIFT_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_RSHIFT_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_NO_VAL,                    \
+		&&lbl_BC_INST_NUM,                              \
+		&&lbl_BC_INST_VAR,                              \
+		&&lbl_BC_INST_ARRAY_ELEM,                       \
+		&&lbl_BC_INST_ARRAY,                            \
+		&&lbl_BC_INST_ZERO,                             \
+		&&lbl_BC_INST_ONE,                              \
+		&&lbl_BC_INST_LAST,                             \
+		&&lbl_BC_INST_IBASE,                            \
+		&&lbl_BC_INST_OBASE,                            \
+		&&lbl_BC_INST_SCALE,                            \
+		&&lbl_BC_INST_SEED,                             \
+		&&lbl_BC_INST_LENGTH,                           \
+		&&lbl_BC_INST_SCALE_FUNC,                       \
+		&&lbl_BC_INST_SQRT,                             \
+		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
+		&&lbl_BC_INST_IRAND,                            \
+		&&lbl_BC_INST_ASCIIFY,                          \
+		&&lbl_BC_INST_READ,                             \
+		&&lbl_BC_INST_RAND,                             \
+		&&lbl_BC_INST_MAXIBASE,                         \
+		&&lbl_BC_INST_MAXOBASE,                         \
+		&&lbl_BC_INST_MAXSCALE,                         \
+		&&lbl_BC_INST_MAXRAND,                          \
+		&&lbl_BC_INST_LINE_LENGTH,                      \
+		&&lbl_BC_INST_GLOBAL_STACKS,                    \
+		&&lbl_BC_INST_LEADING_ZERO,                     \
+		&&lbl_BC_INST_PRINT,                            \
+		&&lbl_BC_INST_PRINT_POP,                        \
+		&&lbl_BC_INST_STR,                              \
+		&&lbl_BC_INST_PRINT_STR,                        \
+		&&lbl_BC_INST_JUMP,                             \
+		&&lbl_BC_INST_JUMP_ZERO,                        \
+		&&lbl_BC_INST_CALL,                             \
+		&&lbl_BC_INST_RET,                              \
+		&&lbl_BC_INST_RET0,                             \
+		&&lbl_BC_INST_RET_VOID,                         \
+		&&lbl_BC_INST_HALT,                             \
+		&&lbl_BC_INST_POP,                              \
+		&&lbl_BC_INST_SWAP,                             \
+		&&lbl_BC_INST_MODEXP,                           \
+		&&lbl_BC_INST_DIVMOD,                           \
+		&&lbl_BC_INST_PRINT_STREAM,                     \
+		&&lbl_BC_INST_INVALID,                          \
+	}
 
 #else // BC_ENABLE_EXTRA_MATH
 
-#define BC_PROG_LBLS static const void* const bc_program_inst_lbls[] = { \
-	&&lbl_BC_INST_INC,                                                   \
-	&&lbl_BC_INST_DEC,                                                   \
-	&&lbl_BC_INST_NEG,                                                   \
-	&&lbl_BC_INST_BOOL_NOT,                                              \
-	&&lbl_BC_INST_POWER,                                                 \
-	&&lbl_BC_INST_MULTIPLY,                                              \
-	&&lbl_BC_INST_DIVIDE,                                                \
-	&&lbl_BC_INST_MODULUS,                                               \
-	&&lbl_BC_INST_PLUS,                                                  \
-	&&lbl_BC_INST_MINUS,                                                 \
-	&&lbl_BC_INST_REL_EQ,                                                \
-	&&lbl_BC_INST_REL_LE,                                                \
-	&&lbl_BC_INST_REL_GE,                                                \
-	&&lbl_BC_INST_REL_NE,                                                \
-	&&lbl_BC_INST_REL_LT,                                                \
-	&&lbl_BC_INST_REL_GT,                                                \
-	&&lbl_BC_INST_BOOL_OR,                                               \
-	&&lbl_BC_INST_BOOL_AND,                                              \
-	&&lbl_BC_INST_ASSIGN_POWER,                                          \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY,                                       \
-	&&lbl_BC_INST_ASSIGN_DIVIDE,                                         \
-	&&lbl_BC_INST_ASSIGN_MODULUS,                                        \
-	&&lbl_BC_INST_ASSIGN_PLUS,                                           \
-	&&lbl_BC_INST_ASSIGN_MINUS,                                          \
-	&&lbl_BC_INST_ASSIGN,                                                \
-	&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,                                \
-	&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,                                  \
-	&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,                                 \
-	&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,                                    \
-	&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,                                   \
-	&&lbl_BC_INST_ASSIGN_NO_VAL,                                         \
-	&&lbl_BC_INST_NUM,                                                   \
-	&&lbl_BC_INST_VAR,                                                   \
-	&&lbl_BC_INST_ARRAY_ELEM,                                            \
-	&&lbl_BC_INST_ARRAY,                                                 \
-	&&lbl_BC_INST_ZERO,                                                  \
-	&&lbl_BC_INST_ONE,                                                   \
-	&&lbl_BC_INST_LAST,                                                  \
-	&&lbl_BC_INST_IBASE,                                                 \
-	&&lbl_BC_INST_OBASE,                                                 \
-	&&lbl_BC_INST_SCALE,                                                 \
-	&&lbl_BC_INST_LENGTH,                                                \
-	&&lbl_BC_INST_SCALE_FUNC,                                            \
-	&&lbl_BC_INST_SQRT,                                                  \
-	&&lbl_BC_INST_ABS,                                                   \
-	&&lbl_BC_INST_ASCIIFY,                                               \
-	&&lbl_BC_INST_READ,                                                  \
-	&&lbl_BC_INST_MAXIBASE,                                              \
-	&&lbl_BC_INST_MAXOBASE,                                              \
-	&&lbl_BC_INST_MAXSCALE,                                              \
-	&&lbl_BC_INST_LINE_LENGTH,                                           \
-	&&lbl_BC_INST_GLOBAL_STACKS,                                         \
-	&&lbl_BC_INST_LEADING_ZERO,                                          \
-	&&lbl_BC_INST_PRINT,                                                 \
-	&&lbl_BC_INST_PRINT_POP,                                             \
-	&&lbl_BC_INST_STR,                                                   \
-	&&lbl_BC_INST_PRINT_STR,                                             \
-	&&lbl_BC_INST_JUMP,                                                  \
-	&&lbl_BC_INST_JUMP_ZERO,                                             \
-	&&lbl_BC_INST_CALL,                                                  \
-	&&lbl_BC_INST_RET,                                                   \
-	&&lbl_BC_INST_RET0,                                                  \
-	&&lbl_BC_INST_RET_VOID,                                              \
-	&&lbl_BC_INST_HALT,                                                  \
-	&&lbl_BC_INST_POP,                                                   \
-	&&lbl_BC_INST_SWAP,                                                  \
-	&&lbl_BC_INST_MODEXP,                                                \
-	&&lbl_BC_INST_DIVMOD,                                                \
-	&&lbl_BC_INST_PRINT_STREAM,                                          \
-	&&lbl_BC_INST_INVALID,                                               \
-}
+#define BC_PROG_LBLS                                    \
+	static const void* const bc_program_inst_lbls[] = { \
+		&&lbl_BC_INST_INC,                              \
+		&&lbl_BC_INST_DEC,                              \
+		&&lbl_BC_INST_NEG,                              \
+		&&lbl_BC_INST_BOOL_NOT,                         \
+		&&lbl_BC_INST_POWER,                            \
+		&&lbl_BC_INST_MULTIPLY,                         \
+		&&lbl_BC_INST_DIVIDE,                           \
+		&&lbl_BC_INST_MODULUS,                          \
+		&&lbl_BC_INST_PLUS,                             \
+		&&lbl_BC_INST_MINUS,                            \
+		&&lbl_BC_INST_REL_EQ,                           \
+		&&lbl_BC_INST_REL_LE,                           \
+		&&lbl_BC_INST_REL_GE,                           \
+		&&lbl_BC_INST_REL_NE,                           \
+		&&lbl_BC_INST_REL_LT,                           \
+		&&lbl_BC_INST_REL_GT,                           \
+		&&lbl_BC_INST_BOOL_OR,                          \
+		&&lbl_BC_INST_BOOL_AND,                         \
+		&&lbl_BC_INST_ASSIGN_POWER,                     \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY,                  \
+		&&lbl_BC_INST_ASSIGN_DIVIDE,                    \
+		&&lbl_BC_INST_ASSIGN_MODULUS,                   \
+		&&lbl_BC_INST_ASSIGN_PLUS,                      \
+		&&lbl_BC_INST_ASSIGN_MINUS,                     \
+		&&lbl_BC_INST_ASSIGN,                           \
+		&&lbl_BC_INST_ASSIGN_POWER_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_MULTIPLY_NO_VAL,           \
+		&&lbl_BC_INST_ASSIGN_DIVIDE_NO_VAL,             \
+		&&lbl_BC_INST_ASSIGN_MODULUS_NO_VAL,            \
+		&&lbl_BC_INST_ASSIGN_PLUS_NO_VAL,               \
+		&&lbl_BC_INST_ASSIGN_MINUS_NO_VAL,              \
+		&&lbl_BC_INST_ASSIGN_NO_VAL,                    \
+		&&lbl_BC_INST_NUM,                              \
+		&&lbl_BC_INST_VAR,                              \
+		&&lbl_BC_INST_ARRAY_ELEM,                       \
+		&&lbl_BC_INST_ARRAY,                            \
+		&&lbl_BC_INST_ZERO,                             \
+		&&lbl_BC_INST_ONE,                              \
+		&&lbl_BC_INST_LAST,                             \
+		&&lbl_BC_INST_IBASE,                            \
+		&&lbl_BC_INST_OBASE,                            \
+		&&lbl_BC_INST_SCALE,                            \
+		&&lbl_BC_INST_LENGTH,                           \
+		&&lbl_BC_INST_SCALE_FUNC,                       \
+		&&lbl_BC_INST_SQRT,                             \
+		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
+		&&lbl_BC_INST_ASCIIFY,                          \
+		&&lbl_BC_INST_READ,                             \
+		&&lbl_BC_INST_MAXIBASE,                         \
+		&&lbl_BC_INST_MAXOBASE,                         \
+		&&lbl_BC_INST_MAXSCALE,                         \
+		&&lbl_BC_INST_LINE_LENGTH,                      \
+		&&lbl_BC_INST_GLOBAL_STACKS,                    \
+		&&lbl_BC_INST_LEADING_ZERO,                     \
+		&&lbl_BC_INST_PRINT,                            \
+		&&lbl_BC_INST_PRINT_POP,                        \
+		&&lbl_BC_INST_STR,                              \
+		&&lbl_BC_INST_PRINT_STR,                        \
+		&&lbl_BC_INST_JUMP,                             \
+		&&lbl_BC_INST_JUMP_ZERO,                        \
+		&&lbl_BC_INST_CALL,                             \
+		&&lbl_BC_INST_RET,                              \
+		&&lbl_BC_INST_RET0,                             \
+		&&lbl_BC_INST_RET_VOID,                         \
+		&&lbl_BC_INST_HALT,                             \
+		&&lbl_BC_INST_POP,                              \
+		&&lbl_BC_INST_SWAP,                             \
+		&&lbl_BC_INST_MODEXP,                           \
+		&&lbl_BC_INST_DIVMOD,                           \
+		&&lbl_BC_INST_PRINT_STREAM,                     \
+		&&lbl_BC_INST_INVALID,                          \
+	}
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -817,141 +902,147 @@ extern const char bc_program_esc_seqs[];
 
 #if BC_ENABLE_EXTRA_MATH
 
-#define BC_PROG_LBLS static const void* const bc_program_inst_lbls[] = { \
-	&&lbl_BC_INST_NEG,                                                   \
-	&&lbl_BC_INST_BOOL_NOT,                                              \
-	&&lbl_BC_INST_TRUNC,                                                 \
-	&&lbl_BC_INST_POWER,                                                 \
-	&&lbl_BC_INST_MULTIPLY,                                              \
-	&&lbl_BC_INST_DIVIDE,                                                \
-	&&lbl_BC_INST_MODULUS,                                               \
-	&&lbl_BC_INST_PLUS,                                                  \
-	&&lbl_BC_INST_MINUS,                                                 \
-	&&lbl_BC_INST_PLACES,                                                \
-	&&lbl_BC_INST_LSHIFT,                                                \
-	&&lbl_BC_INST_RSHIFT,                                                \
-	&&lbl_BC_INST_REL_EQ,                                                \
-	&&lbl_BC_INST_REL_LE,                                                \
-	&&lbl_BC_INST_REL_GE,                                                \
-	&&lbl_BC_INST_REL_NE,                                                \
-	&&lbl_BC_INST_REL_LT,                                                \
-	&&lbl_BC_INST_REL_GT,                                                \
-	&&lbl_BC_INST_BOOL_OR,                                               \
-	&&lbl_BC_INST_BOOL_AND,                                              \
-	&&lbl_BC_INST_ASSIGN_NO_VAL,                                         \
-	&&lbl_BC_INST_NUM,                                                   \
-	&&lbl_BC_INST_VAR,                                                   \
-	&&lbl_BC_INST_ARRAY_ELEM,                                            \
-	&&lbl_BC_INST_ARRAY,                                                 \
-	&&lbl_BC_INST_ZERO,                                                  \
-	&&lbl_BC_INST_ONE,                                                   \
-	&&lbl_BC_INST_IBASE,                                                 \
-	&&lbl_BC_INST_OBASE,                                                 \
-	&&lbl_BC_INST_SCALE,                                                 \
-	&&lbl_BC_INST_SEED,                                                  \
-	&&lbl_BC_INST_LENGTH,                                                \
-	&&lbl_BC_INST_SCALE_FUNC,                                            \
-	&&lbl_BC_INST_SQRT,                                                  \
-	&&lbl_BC_INST_ABS,                                                   \
-	&&lbl_BC_INST_IRAND,                                                 \
-	&&lbl_BC_INST_ASCIIFY,                                               \
-	&&lbl_BC_INST_READ,                                                  \
-	&&lbl_BC_INST_RAND,                                                  \
-	&&lbl_BC_INST_MAXIBASE,                                              \
-	&&lbl_BC_INST_MAXOBASE,                                              \
-	&&lbl_BC_INST_MAXSCALE,                                              \
-	&&lbl_BC_INST_MAXRAND,                                               \
-	&&lbl_BC_INST_LINE_LENGTH,                                           \
-	&&lbl_BC_INST_LEADING_ZERO,                                          \
-	&&lbl_BC_INST_PRINT,                                                 \
-	&&lbl_BC_INST_PRINT_POP,                                             \
-	&&lbl_BC_INST_STR,                                                   \
-	&&lbl_BC_INST_POP,                                                   \
-	&&lbl_BC_INST_SWAP,                                                  \
-	&&lbl_BC_INST_MODEXP,                                                \
-	&&lbl_BC_INST_DIVMOD,                                                \
-	&&lbl_BC_INST_PRINT_STREAM,                                          \
-	&&lbl_BC_INST_POP_EXEC,                                              \
-	&&lbl_BC_INST_EXECUTE,                                               \
-	&&lbl_BC_INST_EXEC_COND,                                             \
-	&&lbl_BC_INST_PRINT_STACK,                                           \
-	&&lbl_BC_INST_CLEAR_STACK,                                           \
-	&&lbl_BC_INST_REG_STACK_LEN,                                         \
-	&&lbl_BC_INST_STACK_LEN,                                             \
-	&&lbl_BC_INST_DUPLICATE,                                             \
-	&&lbl_BC_INST_LOAD,                                                  \
-	&&lbl_BC_INST_PUSH_VAR,                                              \
-	&&lbl_BC_INST_PUSH_TO_VAR,                                           \
-	&&lbl_BC_INST_QUIT,                                                  \
-	&&lbl_BC_INST_NQUIT,                                                 \
-	&&lbl_BC_INST_EXEC_STACK_LEN,                                        \
-	&&lbl_BC_INST_INVALID,                                               \
-}
+#define BC_PROG_LBLS                                    \
+	static const void* const bc_program_inst_lbls[] = { \
+		&&lbl_BC_INST_NEG,                              \
+		&&lbl_BC_INST_BOOL_NOT,                         \
+		&&lbl_BC_INST_TRUNC,                            \
+		&&lbl_BC_INST_POWER,                            \
+		&&lbl_BC_INST_MULTIPLY,                         \
+		&&lbl_BC_INST_DIVIDE,                           \
+		&&lbl_BC_INST_MODULUS,                          \
+		&&lbl_BC_INST_PLUS,                             \
+		&&lbl_BC_INST_MINUS,                            \
+		&&lbl_BC_INST_PLACES,                           \
+		&&lbl_BC_INST_LSHIFT,                           \
+		&&lbl_BC_INST_RSHIFT,                           \
+		&&lbl_BC_INST_REL_EQ,                           \
+		&&lbl_BC_INST_REL_LE,                           \
+		&&lbl_BC_INST_REL_GE,                           \
+		&&lbl_BC_INST_REL_NE,                           \
+		&&lbl_BC_INST_REL_LT,                           \
+		&&lbl_BC_INST_REL_GT,                           \
+		&&lbl_BC_INST_BOOL_OR,                          \
+		&&lbl_BC_INST_BOOL_AND,                         \
+		&&lbl_BC_INST_ASSIGN_NO_VAL,                    \
+		&&lbl_BC_INST_NUM,                              \
+		&&lbl_BC_INST_VAR,                              \
+		&&lbl_BC_INST_ARRAY_ELEM,                       \
+		&&lbl_BC_INST_ARRAY,                            \
+		&&lbl_BC_INST_ZERO,                             \
+		&&lbl_BC_INST_ONE,                              \
+		&&lbl_BC_INST_IBASE,                            \
+		&&lbl_BC_INST_OBASE,                            \
+		&&lbl_BC_INST_SCALE,                            \
+		&&lbl_BC_INST_SEED,                             \
+		&&lbl_BC_INST_LENGTH,                           \
+		&&lbl_BC_INST_SCALE_FUNC,                       \
+		&&lbl_BC_INST_SQRT,                             \
+		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
+		&&lbl_BC_INST_IRAND,                            \
+		&&lbl_BC_INST_ASCIIFY,                          \
+		&&lbl_BC_INST_READ,                             \
+		&&lbl_BC_INST_RAND,                             \
+		&&lbl_BC_INST_MAXIBASE,                         \
+		&&lbl_BC_INST_MAXOBASE,                         \
+		&&lbl_BC_INST_MAXSCALE,                         \
+		&&lbl_BC_INST_MAXRAND,                          \
+		&&lbl_BC_INST_LINE_LENGTH,                      \
+		&&lbl_BC_INST_LEADING_ZERO,                     \
+		&&lbl_BC_INST_PRINT,                            \
+		&&lbl_BC_INST_PRINT_POP,                        \
+		&&lbl_BC_INST_STR,                              \
+		&&lbl_BC_INST_POP,                              \
+		&&lbl_BC_INST_SWAP,                             \
+		&&lbl_BC_INST_MODEXP,                           \
+		&&lbl_BC_INST_DIVMOD,                           \
+		&&lbl_BC_INST_PRINT_STREAM,                     \
+		&&lbl_BC_INST_POP_EXEC,                         \
+		&&lbl_BC_INST_EXECUTE,                          \
+		&&lbl_BC_INST_EXEC_COND,                        \
+		&&lbl_BC_INST_PRINT_STACK,                      \
+		&&lbl_BC_INST_CLEAR_STACK,                      \
+		&&lbl_BC_INST_REG_STACK_LEN,                    \
+		&&lbl_BC_INST_STACK_LEN,                        \
+		&&lbl_BC_INST_DUPLICATE,                        \
+		&&lbl_BC_INST_LOAD,                             \
+		&&lbl_BC_INST_PUSH_VAR,                         \
+		&&lbl_BC_INST_PUSH_TO_VAR,                      \
+		&&lbl_BC_INST_QUIT,                             \
+		&&lbl_BC_INST_NQUIT,                            \
+		&&lbl_BC_INST_EXEC_STACK_LEN,                   \
+		&&lbl_BC_INST_INVALID,                          \
+	}
 
 #else // BC_ENABLE_EXTRA_MATH
 
-#define BC_PROG_LBLS static const void* const bc_program_inst_lbls[] = { \
-	&&lbl_BC_INST_NEG,                                                   \
-	&&lbl_BC_INST_BOOL_NOT,                                              \
-	&&lbl_BC_INST_POWER,                                                 \
-	&&lbl_BC_INST_MULTIPLY,                                              \
-	&&lbl_BC_INST_DIVIDE,                                                \
-	&&lbl_BC_INST_MODULUS,                                               \
-	&&lbl_BC_INST_PLUS,                                                  \
-	&&lbl_BC_INST_MINUS,                                                 \
-	&&lbl_BC_INST_REL_EQ,                                                \
-	&&lbl_BC_INST_REL_LE,                                                \
-	&&lbl_BC_INST_REL_GE,                                                \
-	&&lbl_BC_INST_REL_NE,                                                \
-	&&lbl_BC_INST_REL_LT,                                                \
-	&&lbl_BC_INST_REL_GT,                                                \
-	&&lbl_BC_INST_BOOL_OR,                                               \
-	&&lbl_BC_INST_BOOL_AND,                                              \
-	&&lbl_BC_INST_ASSIGN_NO_VAL,                                         \
-	&&lbl_BC_INST_NUM,                                                   \
-	&&lbl_BC_INST_VAR,                                                   \
-	&&lbl_BC_INST_ARRAY_ELEM,                                            \
-	&&lbl_BC_INST_ARRAY,                                                 \
-	&&lbl_BC_INST_ZERO,                                                  \
-	&&lbl_BC_INST_ONE,                                                   \
-	&&lbl_BC_INST_IBASE,                                                 \
-	&&lbl_BC_INST_OBASE,                                                 \
-	&&lbl_BC_INST_SCALE,                                                 \
-	&&lbl_BC_INST_LENGTH,                                                \
-	&&lbl_BC_INST_SCALE_FUNC,                                            \
-	&&lbl_BC_INST_SQRT,                                                  \
-	&&lbl_BC_INST_ABS,                                                   \
-	&&lbl_BC_INST_ASCIIFY,                                               \
-	&&lbl_BC_INST_READ,                                                  \
-	&&lbl_BC_INST_MAXIBASE,                                              \
-	&&lbl_BC_INST_MAXOBASE,                                              \
-	&&lbl_BC_INST_MAXSCALE,                                              \
-	&&lbl_BC_INST_LINE_LENGTH,                                           \
-	&&lbl_BC_INST_LEADING_ZERO,                                          \
-	&&lbl_BC_INST_PRINT,                                                 \
-	&&lbl_BC_INST_PRINT_POP,                                             \
-	&&lbl_BC_INST_STR,                                                   \
-	&&lbl_BC_INST_POP,                                                   \
-	&&lbl_BC_INST_SWAP,                                                  \
-	&&lbl_BC_INST_MODEXP,                                                \
-	&&lbl_BC_INST_DIVMOD,                                                \
-	&&lbl_BC_INST_PRINT_STREAM,                                          \
-	&&lbl_BC_INST_POP_EXEC,                                              \
-	&&lbl_BC_INST_EXECUTE,                                               \
-	&&lbl_BC_INST_EXEC_COND,                                             \
-	&&lbl_BC_INST_PRINT_STACK,                                           \
-	&&lbl_BC_INST_CLEAR_STACK,                                           \
-	&&lbl_BC_INST_REG_STACK_LEN,                                         \
-	&&lbl_BC_INST_STACK_LEN,                                             \
-	&&lbl_BC_INST_DUPLICATE,                                             \
-	&&lbl_BC_INST_LOAD,                                                  \
-	&&lbl_BC_INST_PUSH_VAR,                                              \
-	&&lbl_BC_INST_PUSH_TO_VAR,                                           \
-	&&lbl_BC_INST_QUIT,                                                  \
-	&&lbl_BC_INST_NQUIT,                                                 \
-	&&lbl_BC_INST_EXEC_STACK_LEN,                                        \
-	&&lbl_BC_INST_INVALID,                                               \
-}
+#define BC_PROG_LBLS                                    \
+	static const void* const bc_program_inst_lbls[] = { \
+		&&lbl_BC_INST_NEG,                              \
+		&&lbl_BC_INST_BOOL_NOT,                         \
+		&&lbl_BC_INST_POWER,                            \
+		&&lbl_BC_INST_MULTIPLY,                         \
+		&&lbl_BC_INST_DIVIDE,                           \
+		&&lbl_BC_INST_MODULUS,                          \
+		&&lbl_BC_INST_PLUS,                             \
+		&&lbl_BC_INST_MINUS,                            \
+		&&lbl_BC_INST_REL_EQ,                           \
+		&&lbl_BC_INST_REL_LE,                           \
+		&&lbl_BC_INST_REL_GE,                           \
+		&&lbl_BC_INST_REL_NE,                           \
+		&&lbl_BC_INST_REL_LT,                           \
+		&&lbl_BC_INST_REL_GT,                           \
+		&&lbl_BC_INST_BOOL_OR,                          \
+		&&lbl_BC_INST_BOOL_AND,                         \
+		&&lbl_BC_INST_ASSIGN_NO_VAL,                    \
+		&&lbl_BC_INST_NUM,                              \
+		&&lbl_BC_INST_VAR,                              \
+		&&lbl_BC_INST_ARRAY_ELEM,                       \
+		&&lbl_BC_INST_ARRAY,                            \
+		&&lbl_BC_INST_ZERO,                             \
+		&&lbl_BC_INST_ONE,                              \
+		&&lbl_BC_INST_IBASE,                            \
+		&&lbl_BC_INST_OBASE,                            \
+		&&lbl_BC_INST_SCALE,                            \
+		&&lbl_BC_INST_LENGTH,                           \
+		&&lbl_BC_INST_SCALE_FUNC,                       \
+		&&lbl_BC_INST_SQRT,                             \
+		&&lbl_BC_INST_ABS,                              \
+		&&lbl_BC_INST_IS_NUMBER,                        \
+		&&lbl_BC_INST_IS_STRING,                        \
+		&&lbl_BC_INST_ASCIIFY,                          \
+		&&lbl_BC_INST_READ,                             \
+		&&lbl_BC_INST_MAXIBASE,                         \
+		&&lbl_BC_INST_MAXOBASE,                         \
+		&&lbl_BC_INST_MAXSCALE,                         \
+		&&lbl_BC_INST_LINE_LENGTH,                      \
+		&&lbl_BC_INST_LEADING_ZERO,                     \
+		&&lbl_BC_INST_PRINT,                            \
+		&&lbl_BC_INST_PRINT_POP,                        \
+		&&lbl_BC_INST_STR,                              \
+		&&lbl_BC_INST_POP,                              \
+		&&lbl_BC_INST_SWAP,                             \
+		&&lbl_BC_INST_MODEXP,                           \
+		&&lbl_BC_INST_DIVMOD,                           \
+		&&lbl_BC_INST_PRINT_STREAM,                     \
+		&&lbl_BC_INST_POP_EXEC,                         \
+		&&lbl_BC_INST_EXECUTE,                          \
+		&&lbl_BC_INST_EXEC_COND,                        \
+		&&lbl_BC_INST_PRINT_STACK,                      \
+		&&lbl_BC_INST_CLEAR_STACK,                      \
+		&&lbl_BC_INST_REG_STACK_LEN,                    \
+		&&lbl_BC_INST_STACK_LEN,                        \
+		&&lbl_BC_INST_DUPLICATE,                        \
+		&&lbl_BC_INST_LOAD,                             \
+		&&lbl_BC_INST_PUSH_VAR,                         \
+		&&lbl_BC_INST_PUSH_TO_VAR,                      \
+		&&lbl_BC_INST_QUIT,                             \
+		&&lbl_BC_INST_NQUIT,                            \
+		&&lbl_BC_INST_EXEC_STACK_LEN,                   \
+		&&lbl_BC_INST_INVALID,                          \
+	}
 
 #endif // BC_ENABLE_EXTRA_MATH
 

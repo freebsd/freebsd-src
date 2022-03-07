@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,19 +42,26 @@
 #include <lang.h>
 #include <vm.h>
 
-void bc_vec_grow(BcVec *restrict v, size_t n) {
-
+void
+bc_vec_grow(BcVec* restrict v, size_t n)
+{
 	size_t cap, len;
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 	cap = v->cap;
 	len = v->len + n;
 
 	// If this is true, we might overflow.
 	if (len > SIZE_MAX / 2) cap = len;
-	else {
+	else
+	{
 		// Keep doubling until larger.
-		while (cap < len) cap += cap;
+		while (cap < len)
+		{
+			cap += cap;
+		}
 	}
 
 	BC_SIG_TRYLOCK(lock);
@@ -65,8 +72,9 @@ void bc_vec_grow(BcVec *restrict v, size_t n) {
 	BC_SIG_TRYUNLOCK(lock);
 }
 
-void bc_vec_init(BcVec *restrict v, size_t esize, BcDtorType dtor) {
-
+void
+bc_vec_init(BcVec* restrict v, size_t esize, BcDtorType dtor)
+{
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(v != NULL && esize);
@@ -79,14 +87,17 @@ void bc_vec_init(BcVec *restrict v, size_t esize, BcDtorType dtor) {
 	v->dtor = (BcSize) dtor;
 }
 
-void bc_vec_expand(BcVec *restrict v, size_t req) {
-
+void
+bc_vec_expand(BcVec* restrict v, size_t req)
+{
 	assert(v != NULL);
 
 	// Only expand if necessary.
-	if (v->cap < req) {
-
+	if (v->cap < req)
+	{
+#if !BC_ENABLE_LIBRARY
 		sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 		BC_SIG_TRYLOCK(lock);
 
@@ -97,32 +108,42 @@ void bc_vec_expand(BcVec *restrict v, size_t req) {
 	}
 }
 
-void bc_vec_npop(BcVec *restrict v, size_t n) {
-
+void
+bc_vec_npop(BcVec* restrict v, size_t n)
+{
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 	assert(v != NULL && n <= v->len);
 
 	BC_SIG_TRYLOCK(lock);
 
 	if (!v->dtor) v->len -= n;
-	else {
-
+	else
+	{
 		const BcVecFree d = bc_vec_dtors[v->dtor];
 		size_t esize = v->size;
 		size_t len = v->len - n;
 
 		// Loop through and manually destruct every element.
-		while (v->len > len) d(v->v + (esize * --v->len));
+		while (v->len > len)
+		{
+			d(v->v + (esize * --v->len));
+		}
 	}
 
 	BC_SIG_TRYUNLOCK(lock);
 }
 
-void bc_vec_npopAt(BcVec *restrict v, size_t n, size_t idx) {
-
-	char* ptr, *data;
+void
+bc_vec_npopAt(BcVec* restrict v, size_t n, size_t idx)
+{
+	char* ptr;
+	char* data;
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 	assert(v != NULL);
 	assert(idx + n < v->len);
@@ -133,24 +154,31 @@ void bc_vec_npopAt(BcVec *restrict v, size_t n, size_t idx) {
 
 	BC_SIG_TRYLOCK(lock);
 
-	if (v->dtor) {
-
+	if (v->dtor)
+	{
 		size_t i;
 		const BcVecFree d = bc_vec_dtors[v->dtor];
 
 		// Destroy every popped item.
-		for (i = 0; i < n; ++i) d(bc_vec_item(v, idx + i));
+		for (i = 0; i < n; ++i)
+		{
+			d(bc_vec_item(v, idx + i));
+		}
 	}
 
 	v->len -= n;
+	// NOLINTNEXTLINE
 	memmove(ptr, data, (v->len - idx) * v->size);
 
 	BC_SIG_TRYUNLOCK(lock);
 }
 
-void bc_vec_npush(BcVec *restrict v, size_t n, const void *data) {
-
+void
+bc_vec_npush(BcVec* restrict v, size_t n, const void* data)
+{
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 	size_t esize;
 
 	assert(v != NULL && data != NULL);
@@ -163,20 +191,26 @@ void bc_vec_npush(BcVec *restrict v, size_t n, const void *data) {
 	esize = v->size;
 
 	// Copy the elements in.
+	// NOLINTNEXTLINE
 	memcpy(v->v + (esize * v->len), data, esize * n);
 	v->len += n;
 
 	BC_SIG_TRYUNLOCK(lock);
 }
 
-inline void bc_vec_push(BcVec *restrict v, const void *data) {
+inline void
+bc_vec_push(BcVec* restrict v, const void* data)
+{
 	bc_vec_npush(v, 1, data);
 }
 
-void* bc_vec_pushEmpty(BcVec *restrict v) {
-
+void*
+bc_vec_pushEmpty(BcVec* restrict v)
+{
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
-	void *ptr;
+#endif // !BC_ENABLE_LIBRARY
+	void* ptr;
 
 	assert(v != NULL);
 
@@ -193,20 +227,24 @@ void* bc_vec_pushEmpty(BcVec *restrict v) {
 	return ptr;
 }
 
-inline void bc_vec_pushByte(BcVec *restrict v, uchar data) {
+inline void
+bc_vec_pushByte(BcVec* restrict v, uchar data)
+{
 	assert(v != NULL && v->size == sizeof(uchar));
 	bc_vec_npush(v, 1, &data);
 }
 
-void bc_vec_pushIndex(BcVec *restrict v, size_t idx) {
-
+void
+bc_vec_pushIndex(BcVec* restrict v, size_t idx)
+{
 	uchar amt, nums[sizeof(size_t) + 1];
 
 	assert(v != NULL);
 	assert(v->size == sizeof(uchar));
 
 	// Encode the index.
-	for (amt = 0; idx; ++amt) {
+	for (amt = 0; idx; ++amt)
+	{
 		nums[amt + 1] = (uchar) idx;
 		idx &= ((size_t) ~(UCHAR_MAX));
 		idx >>= sizeof(uchar) * CHAR_BIT;
@@ -218,17 +256,18 @@ void bc_vec_pushIndex(BcVec *restrict v, size_t idx) {
 	bc_vec_npush(v, amt + 1, nums);
 }
 
-void bc_vec_pushAt(BcVec *restrict v, const void *data, size_t idx) {
-
+void
+bc_vec_pushAt(BcVec* restrict v, const void* data, size_t idx)
+{
 	assert(v != NULL && data != NULL && idx <= v->len);
 
 	BC_SIG_ASSERT_LOCKED;
 
 	// Do the easy case.
 	if (idx == v->len) bc_vec_push(v, data);
-	else {
-
-		char *ptr;
+	else
+	{
+		char* ptr;
 		size_t esize;
 
 		// Grow if necessary.
@@ -238,14 +277,19 @@ void bc_vec_pushAt(BcVec *restrict v, const void *data, size_t idx) {
 
 		ptr = v->v + esize * idx;
 
+		// NOLINTNEXTLINE
 		memmove(ptr + esize, ptr, esize * (v->len++ - idx));
+		// NOLINTNEXTLINE
 		memcpy(ptr, data, esize);
 	}
 }
 
-void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str) {
-
+void
+bc_vec_string(BcVec* restrict v, size_t len, const char* restrict str)
+{
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 	assert(v != NULL && v->size == sizeof(char));
 	assert(!v->dtor);
@@ -256,6 +300,7 @@ void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str) {
 
 	bc_vec_popAll(v);
 	bc_vec_expand(v, bc_vm_growSize(len, 1));
+	// NOLINTNEXTLINE
 	memcpy(v->v, str, len);
 	v->len = len;
 
@@ -264,9 +309,12 @@ void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str) {
 	BC_SIG_TRYUNLOCK(lock);
 }
 
-void bc_vec_concat(BcVec *restrict v, const char *restrict str) {
-
+void
+bc_vec_concat(BcVec* restrict v, const char* restrict str)
+{
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 	assert(v != NULL && v->size == sizeof(char));
 	assert(!v->dtor);
@@ -283,9 +331,12 @@ void bc_vec_concat(BcVec *restrict v, const char *restrict str) {
 	BC_SIG_TRYUNLOCK(lock);
 }
 
-void bc_vec_empty(BcVec *restrict v) {
-
+void
+bc_vec_empty(BcVec* restrict v)
+{
+#if !BC_ENABLE_LIBRARY
 	sig_atomic_t lock;
+#endif // !BC_ENABLE_LIBRARY
 
 	assert(v != NULL && v->size == sizeof(char));
 	assert(!v->dtor);
@@ -299,9 +350,10 @@ void bc_vec_empty(BcVec *restrict v) {
 }
 
 #if BC_ENABLE_HISTORY
-void bc_vec_replaceAt(BcVec *restrict v, size_t idx, const void *data) {
-
-	char *ptr;
+void
+bc_vec_replaceAt(BcVec* restrict v, size_t idx, const void* data)
+{
+	char* ptr;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -311,29 +363,38 @@ void bc_vec_replaceAt(BcVec *restrict v, size_t idx, const void *data) {
 
 	if (v->dtor) bc_vec_dtors[v->dtor](ptr);
 
+	// NOLINTNEXTLINE
 	memcpy(ptr, data, v->size);
 }
 #endif // BC_ENABLE_HISTORY
 
-inline void* bc_vec_item(const BcVec *restrict v, size_t idx) {
+inline void*
+bc_vec_item(const BcVec* restrict v, size_t idx)
+{
 	assert(v != NULL && v->len && idx < v->len);
 	return v->v + v->size * idx;
 }
 
-inline void* bc_vec_item_rev(const BcVec *restrict v, size_t idx) {
+inline void*
+bc_vec_item_rev(const BcVec* restrict v, size_t idx)
+{
 	assert(v != NULL && v->len && idx < v->len);
 	return v->v + v->size * (v->len - idx - 1);
 }
 
-inline void bc_vec_clear(BcVec *restrict v) {
+inline void
+bc_vec_clear(BcVec* restrict v)
+{
 	BC_SIG_ASSERT_LOCKED;
 	v->v = NULL;
 	v->len = 0;
 	v->dtor = BC_DTOR_NONE;
 }
 
-void bc_vec_free(void *vec) {
-	BcVec *v = (BcVec*) vec;
+void
+bc_vec_free(void* vec)
+{
+	BcVec* v = (BcVec*) vec;
 	BC_SIG_ASSERT_LOCKED;
 	bc_vec_popAll(v);
 	free(v->v);
@@ -350,14 +411,15 @@ void bc_vec_free(void *vec) {
  * @return      The index of the item with @a name, or where the item would be
  *              if it does not exist.
  */
-static size_t bc_map_find(const BcVec *restrict v, const char *name) {
-
+static size_t
+bc_map_find(const BcVec* restrict v, const char* name)
+{
 	size_t low = 0, high = v->len;
 
-	while (low < high) {
-
-		size_t mid = (low + high) / 2;
-		const BcId *id = bc_vec_item(v, mid);
+	while (low < high)
+	{
+		size_t mid = low + (high - low) / 2;
+		const BcId* id = bc_vec_item(v, mid);
 		int result = strcmp(name, id->name);
 
 		if (!result) return mid;
@@ -368,11 +430,11 @@ static size_t bc_map_find(const BcVec *restrict v, const char *name) {
 	return low;
 }
 
-bool bc_map_insert(BcVec *restrict v, const char *name,
-                   size_t idx, size_t *restrict i)
+bool
+bc_map_insert(BcVec* restrict v, const char* name, size_t idx,
+              size_t* restrict i)
 {
 	BcId id;
-	BcVec *slabs;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -383,15 +445,11 @@ bool bc_map_insert(BcVec *restrict v, const char *name,
 	assert(*i <= v->len);
 
 	if (*i != v->len && !strcmp(name, ((BcId*) bc_vec_item(v, *i))->name))
+	{
 		return false;
+	}
 
-#if BC_ENABLED
-	slabs = BC_IS_DC ? &vm.main_slabs : &vm.other_slabs;
-#else // BC_ENABLED
-	slabs = &vm.main_slabs;
-#endif // BC_ENABLED
-
-	id.name = bc_slabvec_strdup(slabs, name);
+	id.name = bc_slabvec_strdup(&vm->slabs, name);
 	id.idx = idx;
 
 	bc_vec_pushAt(v, &id, *i);
@@ -399,9 +457,11 @@ bool bc_map_insert(BcVec *restrict v, const char *name,
 	return true;
 }
 
-size_t bc_map_index(const BcVec *restrict v, const char *name) {
-
+size_t
+bc_map_index(const BcVec* restrict v, const char* name)
+{
 	size_t i;
+	BcId* id;
 
 	assert(v != NULL && name != NULL);
 
@@ -410,24 +470,29 @@ size_t bc_map_index(const BcVec *restrict v, const char *name) {
 	// If out of range, return invalid.
 	if (i >= v->len) return BC_VEC_INVALID_IDX;
 
-	// Make sure the item exists.
-	return strcmp(name, ((BcId*) bc_vec_item(v, i))->name) ?
-	    BC_VEC_INVALID_IDX : i;
+	id = (BcId*) bc_vec_item(v, i);
+
+	// Make sure the item exists and return appropriately.
+	return strcmp(name, id->name) ? BC_VEC_INVALID_IDX : i;
 }
 
 #if DC_ENABLED
-const char* bc_map_name(const BcVec *restrict v, size_t idx) {
-
+const char*
+bc_map_name(const BcVec* restrict v, size_t idx)
+{
 	size_t i, len = v->len;
 
-	for (i = 0; i < len; ++i) {
+	for (i = 0; i < len; ++i)
+	{
 		BcId* id = (BcId*) bc_vec_item(v, i);
 		if (id->idx == idx) return id->name;
 	}
 
 	BC_UNREACHABLE
 
+#if !BC_CLANG
 	return "";
+#endif // !BC_CLANG
 }
 #endif // DC_ENABLED
 
@@ -435,7 +500,9 @@ const char* bc_map_name(const BcVec *restrict v, size_t idx) {
  * Initializes a single slab.
  * @param s  The slab to initialize.
  */
-static void bc_slab_init(BcSlab *s) {
+static void
+bc_slab_init(BcSlab* s)
+{
 	s->s = bc_vm_malloc(BC_SLAB_SIZE);
 	s->len = 0;
 }
@@ -449,9 +516,10 @@ static void bc_slab_init(BcSlab *s) {
  * @return     A pointer to the new string in the slab, or NULL if it could not
  *             be added.
  */
-static char* bc_slab_add(BcSlab *s, const char *str, size_t len) {
-
-	char *ptr;
+static char*
+bc_slab_add(BcSlab* s, const char* str, size_t len)
+{
+	char* ptr;
 
 	assert(s != NULL);
 	assert(str != NULL);
@@ -461,6 +529,7 @@ static char* bc_slab_add(BcSlab *s, const char *str, size_t len) {
 
 	ptr = (char*) (s->s + s->len);
 
+	// NOLINTNEXTLINE
 	bc_strcpy(ptr, len, str);
 
 	s->len += len;
@@ -468,13 +537,16 @@ static char* bc_slab_add(BcSlab *s, const char *str, size_t len) {
 	return ptr;
 }
 
-void bc_slab_free(void *slab) {
+void
+bc_slab_free(void* slab)
+{
 	free(((BcSlab*) slab)->s);
 }
 
-void bc_slabvec_init(BcVec* v) {
-
-	BcSlab *slab;
+void
+bc_slabvec_init(BcVec* v)
+{
+	BcSlab* slab;
 
 	assert(v != NULL);
 
@@ -485,12 +557,13 @@ void bc_slabvec_init(BcVec* v) {
 	bc_slab_init(slab);
 }
 
-char* bc_slabvec_strdup(BcVec *v, const char *str) {
-
-	char *s;
+char*
+bc_slabvec_strdup(BcVec* v, const char* str)
+{
+	char* s;
 	size_t len;
 	BcSlab slab;
-	BcSlab *slab_ptr;
+	BcSlab* slab_ptr;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -501,8 +574,8 @@ char* bc_slabvec_strdup(BcVec *v, const char *str) {
 	len = strlen(str) + 1;
 
 	// If the len is greater than 128, then just allocate it with malloc.
-	if (BC_UNLIKELY(len >= BC_SLAB_SIZE)) {
-
+	if (BC_UNLIKELY(len >= BC_SLAB_SIZE))
+	{
 		// SIZE_MAX is a marker for these standalone allocations.
 		slab.len = SIZE_MAX;
 		slab.s = bc_vm_strdup(str);
@@ -518,8 +591,8 @@ char* bc_slabvec_strdup(BcVec *v, const char *str) {
 	s = bc_slab_add(slab_ptr, str, len);
 
 	// If it couldn't be added, add a slab and try again.
-	if (BC_UNLIKELY(s == NULL)) {
-
+	if (BC_UNLIKELY(s == NULL))
+	{
 		slab_ptr = bc_vec_pushEmpty(v);
 		bc_slab_init(slab_ptr);
 
@@ -531,15 +604,16 @@ char* bc_slabvec_strdup(BcVec *v, const char *str) {
 	return s;
 }
 
-void bc_slabvec_clear(BcVec *v) {
-
-	BcSlab *s;
+void
+bc_slabvec_clear(BcVec* v)
+{
+	BcSlab* s;
 	bool again;
 
 	// This complicated loop exists because of standalone allocations over 128
 	// bytes.
-	do {
-
+	do
+	{
 		// Get the first slab.
 		s = bc_vec_item(v, 0);
 
@@ -552,8 +626,8 @@ void bc_slabvec_clear(BcVec *v) {
 
 		// Pop the standalone allocation, not the one after it.
 		if (again) bc_vec_npopAt(v, 1, 0);
-
-	} while(again);
+	}
+	while (again);
 
 	// If we get here, we know that the first slab is a valid slab. We want to
 	// pop all of the other slabs.
@@ -566,21 +640,23 @@ void bc_slabvec_clear(BcVec *v) {
 
 #if BC_DEBUG_CODE
 
-void bc_slabvec_print(BcVec *v, const char *func) {
-
+void
+bc_slabvec_print(BcVec* v, const char* func)
+{
 	size_t i;
-	BcSlab *s;
+	BcSlab* s;
 
-	bc_file_printf(&vm.ferr, "%s\n", func);
+	bc_file_printf(&vm->ferr, "%s\n", func);
 
-	for (i = 0; i < v->len; ++i) {
+	for (i = 0; i < v->len; ++i)
+	{
 		s = bc_vec_item(v, i);
-		bc_file_printf(&vm.ferr, "%zu { s = %zu, len = %zu }\n",
-		               i, (uintptr_t) s->s, s->len);
+		bc_file_printf(&vm->ferr, "%zu { s = %zu, len = %zu }\n", i,
+		               (uintptr_t) s->s, s->len);
 	}
 
-	bc_file_puts(&vm.ferr, bc_flush_none, "\n");
-	bc_file_flush(&vm.ferr, bc_flush_none);
+	bc_file_puts(&vm->ferr, bc_flush_none, "\n");
+	bc_file_flush(&vm->ferr, bc_flush_none);
 }
 
 #endif // BC_DEBUG_CODE

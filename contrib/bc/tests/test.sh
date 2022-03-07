@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -123,9 +123,11 @@ if [ ! -f "$results" ]; then
 	printf 'done\n'
 fi
 
-# We set this here because GNU dc does not have it.
-if [ "$d" = "dc" ]; then
-	options="-x"
+# We set this here because GNU bc and dc does not have these options.
+if [ "$d" = "bc" ]; then
+	options="-lqc"
+else
+	options="-xc"
 fi
 
 export $var=string

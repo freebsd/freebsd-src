@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,7 +47,7 @@
 
 /// The starting capacity for vectors. This is based on the minimum allocation
 /// for 64-bit systems.
-#define BC_VEC_START_CAP (UINTMAX_C(1)<<5)
+#define BC_VEC_START_CAP (UINTMAX_C(1) << 5)
 
 /// An alias.
 typedef unsigned char uchar;
@@ -57,10 +57,7 @@ typedef unsigned char uchar;
  * to free the memory they own.
  * @param ptr  Pointer to the data to free.
  */
-typedef void (*BcVecFree)(void *ptr);
-
-// Forward declaration.
-struct BcId;
+typedef void (*BcVecFree)(void* ptr);
 
 #if BC_LONG_BIT >= 64
 
@@ -75,8 +72,8 @@ typedef uint16_t BcSize;
 #endif // BC_LONG_BIT >= 64
 
 /// An enum of all of the destructors. We use an enum to save space.
-typedef enum BcDtorType {
-
+typedef enum BcDtorType
+{
 	/// No destructor needed.
 	BC_DTOR_NONE,
 
@@ -120,11 +117,11 @@ typedef enum BcDtorType {
 } BcDtorType;
 
 /// The actual vector struct.
-typedef struct BcVec {
-
+typedef struct BcVec
+{
 	/// The vector array itself. This uses a char* because it is compatible with
 	/// pointers of all other types, and I can do pointer arithmetic on it.
-	char *restrict v;
+	char* restrict v;
 
 	/// The length of the vector, which is how many items actually exist.
 	size_t len;
@@ -147,7 +144,8 @@ typedef struct BcVec {
  * @param esize  The size of the elements, as returned by sizeof().
  * @param dtor   The destructor of the elements, as a BcDtorType enum.
  */
-void bc_vec_init(BcVec *restrict v, size_t esize, BcDtorType dtor);
+void
+bc_vec_init(BcVec* restrict v, size_t esize, BcDtorType dtor);
 
 /**
  * Expands the vector to have a capacity of @a req items, if it doesn't have
@@ -155,14 +153,16 @@ void bc_vec_init(BcVec *restrict v, size_t esize, BcDtorType dtor);
  * @param v    The vector to expand.
  * @param req  The requested capacity.
  */
-void bc_vec_expand(BcVec *restrict v, size_t req);
+void
+bc_vec_expand(BcVec* restrict v, size_t req);
 
 /**
  * Grow a vector by at least @a n elements.
  * @param v  The vector to grow.
  * @param n  The number of elements to grow the vector by.
  */
-void bc_vec_grow(BcVec *restrict v, size_t n);
+void
+bc_vec_grow(BcVec* restrict v, size_t n);
 
 /**
  * Pops @a n items off the back of the vector. The vector must have at least
@@ -170,7 +170,8 @@ void bc_vec_grow(BcVec *restrict v, size_t n);
  * @param v  The vector to pop off of.
  * @param n  The number of elements to pop off.
  */
-void bc_vec_npop(BcVec *restrict v, size_t n);
+void
+bc_vec_npop(BcVec* restrict v, size_t n);
 
 /**
  * Pops @a n items, starting at index @a idx, off the vector. The vector must
@@ -180,7 +181,8 @@ void bc_vec_npop(BcVec *restrict v, size_t n);
  * @param n  The number of elements to pop off.
  * @param idx  The index to start popping at.
  */
-void bc_vec_npopAt(BcVec *restrict v, size_t n, size_t idx);
+void
+bc_vec_npopAt(BcVec* restrict v, size_t n, size_t idx);
 
 /**
  * Pushes one item on the back of the vector. It does a memcpy(), but it assumes
@@ -188,7 +190,8 @@ void bc_vec_npopAt(BcVec *restrict v, size_t n, size_t idx);
  * @param v     The vector to push onto.
  * @param data  A pointer to the data to push.
  */
-void bc_vec_push(BcVec *restrict v, const void *data);
+void
+bc_vec_push(BcVec* restrict v, const void* data);
 
 /**
  * Pushes @a n items on the back of the vector. It does a memcpy(), but it
@@ -196,7 +199,8 @@ void bc_vec_push(BcVec *restrict v, const void *data);
  * @param v     The vector to push onto.
  * @param data  A pointer to the elements of data to push.
  */
-void bc_vec_npush(BcVec *restrict v, size_t n, const void *data);
+void
+bc_vec_npush(BcVec* restrict v, size_t n, const void* data);
 
 /**
  * Push an empty element and return a pointer to it. This is done as an
@@ -205,7 +209,8 @@ void bc_vec_npush(BcVec *restrict v, size_t n, const void *data);
  * @param v  The vector to push onto.
  * @return   A pointer to the newly-pushed element.
  */
-void* bc_vec_pushEmpty(BcVec *restrict v);
+void*
+bc_vec_pushEmpty(BcVec* restrict v);
 
 /**
  * Pushes a byte onto a bytecode vector. This is a convenience function for the
@@ -213,7 +218,8 @@ void* bc_vec_pushEmpty(BcVec *restrict v);
  * @param v     The vector to push onto.
  * @param data  The byte to push.
  */
-void bc_vec_pushByte(BcVec *restrict v, uchar data);
+void
+bc_vec_pushByte(BcVec* restrict v, uchar data);
 
 /**
  * Pushes and index onto a bytecode vector. The vector must be a bytecode
@@ -222,7 +228,8 @@ void bc_vec_pushByte(BcVec *restrict v, uchar data);
  * @param v    The vector to push onto.
  * @param idx  The index to push.
  */
-void bc_vec_pushIndex(BcVec *restrict v, size_t idx);
+void
+bc_vec_pushIndex(BcVec* restrict v, size_t idx);
 
 /**
  * Push an item onto the vector at a certain index. The index must be valid
@@ -233,7 +240,8 @@ void bc_vec_pushIndex(BcVec *restrict v, size_t idx);
  * @param data  A pointer to the data to push.
  * @param idx   The index to push at.
  */
-void bc_vec_pushAt(BcVec *restrict v, const void *data, size_t idx);
+void
+bc_vec_pushAt(BcVec* restrict v, const void* data, size_t idx);
 
 /**
  * Empties the vector and sets it to the string. The vector must be a valid
@@ -243,7 +251,8 @@ void bc_vec_pushAt(BcVec *restrict v, const void *data, size_t idx);
  *             of the string, but must never be more.
  * @param str  The string to push.
  */
-void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str);
+void
+bc_vec_string(BcVec* restrict v, size_t len, const char* restrict str);
 
 /**
  * Appends the string to the end of the vector, which must be holding a string
@@ -251,13 +260,15 @@ void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str);
  * @param v    The vector to append to.
  * @param str  The string to append (by copying).
  */
-void bc_vec_concat(BcVec *restrict v, const char *restrict str);
+void
+bc_vec_concat(BcVec* restrict v, const char* restrict str);
 
 /**
  * Empties a vector and pushes a nul-byte at the first index. The vector must be
  * a char vector.
  */
-void bc_vec_empty(BcVec *restrict v);
+void
+bc_vec_empty(BcVec* restrict v);
 
 #if BC_ENABLE_HISTORY
 
@@ -268,7 +279,8 @@ void bc_vec_empty(BcVec *restrict v);
  * @param idx   The index of the item to replace.
  * @param data  The data to replace the item with.
  */
-void bc_vec_replaceAt(BcVec *restrict v, size_t idx, const void *data);
+void
+bc_vec_replaceAt(BcVec* restrict v, size_t idx, const void* data);
 
 #endif // BC_ENABLE_HISTORY
 
@@ -279,7 +291,8 @@ void bc_vec_replaceAt(BcVec *restrict v, size_t idx, const void *data);
  * @param idx  The index to the item to get a pointer to.
  * @return     A pointer to the item at @a idx.
  */
-void* bc_vec_item(const BcVec *restrict v, size_t idx);
+void*
+bc_vec_item(const BcVec* restrict v, size_t idx);
 
 /**
  * Returns a pointer to the item in the vector at the index, reversed. This is
@@ -288,22 +301,25 @@ void* bc_vec_item(const BcVec *restrict v, size_t idx);
  * @param idx  The index to the item to get a pointer to.
  * @return     A pointer to the item at len - @a idx - 1.
  */
-void* bc_vec_item_rev(const BcVec *restrict v, size_t idx);
+void*
+bc_vec_item_rev(const BcVec* restrict v, size_t idx);
 
 /**
  * Zeros a vector. The vector must not be allocated.
  * @param v  The vector to clear.
  */
-void bc_vec_clear(BcVec *restrict v);
+void
+bc_vec_clear(BcVec* restrict v);
 
 /**
  * Frees a vector and its elements. This is a destructor.
  * @param vec  A vector as a void pointer.
  */
-void bc_vec_free(void *vec);
+void
+bc_vec_free(void* vec);
 
 /**
- * Attempts to insert an item into a map and returns true if it succeeded, false
+ * Attempts to insert an ID into a map and returns true if it succeeded, false
  * if the item already exists.
  * @param v     The map vector to insert into.
  * @param name  The name of the item to insert. This name is assumed to be owned
@@ -313,8 +329,9 @@ void bc_vec_free(void *vec);
  *              in the map.
  * @return      True if the item was inserted, false if the item already exists.
  */
-bool bc_map_insert(BcVec *restrict v, const char *name,
-                   size_t idx, size_t *restrict i);
+bool
+bc_map_insert(BcVec* restrict v, const char* name, size_t idx,
+              size_t* restrict i);
 
 /**
  * Returns the index of the item with @a name in the map, or BC_VEC_INVALID_IDX
@@ -324,7 +341,8 @@ bool bc_map_insert(BcVec *restrict v, const char *name,
  * @return      The index in the map of the item with @a name, or
  *              BC_VEC_INVALID_IDX if the item does not exist.
  */
-size_t bc_map_index(const BcVec *restrict v, const char *name);
+size_t
+bc_map_index(const BcVec* restrict v, const char* name);
 
 #if DC_ENABLED
 
@@ -334,7 +352,8 @@ size_t bc_map_index(const BcVec *restrict v, const char *name);
  * @param idx  The index.
  * @return     The name of the item at @a idx.
  */
-const char* bc_map_name(const BcVec *restrict v, size_t idx);
+const char*
+bc_map_name(const BcVec* restrict v, size_t idx);
 
 #endif // DC_ENABLED
 
@@ -372,10 +391,10 @@ extern const BcVecFree bc_vec_dtors[];
 #define BC_SLAB_SIZE (4096)
 
 /// A slab for allocating strings.
-typedef struct BcSlab {
-
+typedef struct BcSlab
+{
 	/// The actual allocation.
-	char *s;
+	char* s;
 
 	/// How many bytes of the slab are taken.
 	size_t len;
@@ -386,13 +405,15 @@ typedef struct BcSlab {
  * Frees a slab. This is a destructor.
  * @param slab  The slab as a void pointer.
  */
-void bc_slab_free(void *slab);
+void
+bc_slab_free(void* slab);
 
 /**
  * Initializes a slab vector.
  * @param v  The vector to initialize.
  */
-void bc_slabvec_init(BcVec *restrict v);
+void
+bc_slabvec_init(BcVec* restrict v);
 
 /**
  * Duplicates the string using slabs in the slab vector.
@@ -400,24 +421,16 @@ void bc_slabvec_init(BcVec *restrict v);
  * @param str  The string to duplicate.
  * @return     A pointer to the duplicated string, owned by the slab vector.
  */
-char* bc_slabvec_strdup(BcVec *restrict v, const char *str);
-
-#if BC_ENABLED
-
-/**
- * Undoes the last allocation on the slab vector. This allows bc to have a
- * heap-based stacks for strings. This is used by the bc parser.
- */
-void bc_slabvec_undo(BcVec *restrict v, size_t len);
-
-#endif // BC_ENABLED
+char*
+bc_slabvec_strdup(BcVec* restrict v, const char* str);
 
 /**
  * Clears a slab vector. This deallocates all but the first slab and clears the
  * first slab.
  * @param v  The slab vector to clear.
  */
-void bc_slabvec_clear(BcVec *restrict v);
+void
+bc_slabvec_clear(BcVec* restrict v);
 
 #if BC_DEBUG_CODE
 
@@ -425,7 +438,8 @@ void bc_slabvec_clear(BcVec *restrict v);
  * Prints all of the items in a slab vector, in order.
  * @param v  The vector whose items will be printed.
  */
-void bc_slabvec_print(BcVec *v, const char *func);
+void
+bc_slabvec_print(BcVec* v, const char* func);
 
 #endif // BC_DEBUG_CODE
 

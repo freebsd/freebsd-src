@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -53,23 +53,24 @@
 /// loops, while loops, and if statements. This is because POSIX requires that
 /// certain operators are *only* used in those cases. It's whacked, but that's
 /// how it is.
-#define BC_PARSE_REL (UINTMAX_C(1)<<0)
+#define BC_PARSE_REL (UINTMAX_C(1) << 0)
 
 /// A flag that requires that the expression is valid for a print statement.
-#define BC_PARSE_PRINT (UINTMAX_C(1)<<1)
+#define BC_PARSE_PRINT (UINTMAX_C(1) << 1)
 
 /// A flag that requires that the expression does *not* have any function call.
-#define BC_PARSE_NOCALL (UINTMAX_C(1)<<2)
+#define BC_PARSE_NOCALL (UINTMAX_C(1) << 2)
 
-/// A flag that requires that the expression does *not* have a read() expression.
-#define BC_PARSE_NOREAD (UINTMAX_C(1)<<3)
+/// A flag that requires that the expression does *not* have a read()
+/// expression.
+#define BC_PARSE_NOREAD (UINTMAX_C(1) << 3)
 
 /// A flag that *allows* (rather than requires) that an array appear in the
 /// expression. This is mostly used as parameters in bc.
-#define BC_PARSE_ARRAY (UINTMAX_C(1)<<4)
+#define BC_PARSE_ARRAY (UINTMAX_C(1) << 4)
 
 /// A flag that requires that the expression is not empty and returns a value.
-#define BC_PARSE_NEEDVAL (UINTMAX_C(1)<<5)
+#define BC_PARSE_NEEDVAL (UINTMAX_C(1) << 5)
 
 /**
  * Returns true if the parser has been initialized.
@@ -79,26 +80,12 @@
  */
 #define BC_PARSE_IS_INITED(p, prg) ((p)->prog == (prg))
 
-#if BC_ENABLED
-
-/**
- * Returns true if the current parser state allows parsing, false otherwise.
- * @param p  The parser.
- * @return   True if parsing can proceed, false otherwise.
- */
-#define BC_PARSE_CAN_PARSE(p) \
-	((p).l.t != BC_LEX_EOF && (p).l.t != BC_LEX_KW_DEFINE)
-
-#else // BC_ENABLED
-
 /**
  * Returns true if the current parser state allows parsing, false otherwise.
  * @param p  The parser.
  * @return   True if parsing can proceed, false otherwise.
  */
 #define BC_PARSE_CAN_PARSE(p) ((p).l.t != BC_LEX_EOF)
-
-#endif // BC_ENABLED
 
 /**
  * Pushes the instruction @a i onto the bytecode vector for the current
@@ -118,22 +105,32 @@
 #define bc_parse_pushIndex(p, idx) (bc_vec_pushIndex(&(p)->func->code, (idx)))
 
 /**
- * A convenience macro for throwing errors in parse code. They take care of
+ * A convenience macro for throwing errors in parse code. This takes care of
  * plumbing like passing in the current line the lexer is on.
  * @param p  The parser.
  * @param e  The error.
  */
+#ifndef NDEBUG
+#define bc_parse_err(p, e) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line))
+#else // NDEBUG
 #define bc_parse_err(p, e) (bc_vm_handleError((e), (p)->l.line))
+#endif // NDEBUG
 
 /**
- * A convenience macro for throwing errors in parse code. They take care of
+ * A convenience macro for throwing errors in parse code. This takes care of
  * plumbing like passing in the current line the lexer is on.
  * @param p    The parser.
  * @param e    The error.
  * @param ...  The varags that are needed.
  */
+#ifndef NDEBUG
+#define bc_parse_verr(p, e, ...) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line, __VA_ARGS__))
+#else // NDEBUG
 #define bc_parse_verr(p, e, ...) \
 	(bc_vm_handleError((e), (p)->l.line, __VA_ARGS__))
+#endif // NDEBUG
 
 // Forward declarations.
 struct BcParse;
@@ -154,8 +151,8 @@ typedef void (*BcParseParse)(struct BcParse* p);
 typedef void (*BcParseExpr)(struct BcParse* p, uint8_t flags);
 
 /// The parser struct.
-typedef struct BcParse {
-
+typedef struct BcParse
+{
 	/// The lexer.
 	BcLex l;
 
@@ -191,11 +188,11 @@ typedef struct BcParse {
 #endif // BC_ENABLED
 
 	/// A reference to the program to grab the current function when necessary.
-	struct BcProgram *prog;
+	struct BcProgram* prog;
 
 	/// A reference to the current function. The function is what holds the
 	/// bytecode vector that the parser is filling.
-	BcFunc *func;
+	BcFunc* func;
 
 	/// The index of the function.
 	size_t fidx;
@@ -214,40 +211,46 @@ typedef struct BcParse {
  * @param prog  A referenc to the program.
  * @param func  The index of the current function.
  */
-void bc_parse_init(BcParse *p, struct BcProgram *prog, size_t func);
+void
+bc_parse_init(BcParse* p, struct BcProgram* prog, size_t func);
 
 /**
  * Frees a parser. This is not guarded by #ifndef NDEBUG because a separate
  * parser is created at runtime to parse read() expressions and dc strings.
  * @param p  The parser to free.
  */
-void bc_parse_free(BcParse *p);
+void
+bc_parse_free(BcParse* p);
 
 /**
  * Resets the parser. Resetting means erasing all state to the point that the
  * parser would think it was just initialized.
  * @param p  The parser to reset.
  */
-void bc_parse_reset(BcParse *p);
+void
+bc_parse_reset(BcParse* p);
 
 /**
  * Adds a string. See @a BcProgram in include/program.h for more details.
  * @param p  The parser that parsed the string.
  */
-void bc_parse_addString(BcParse *p);
+void
+bc_parse_addString(BcParse* p);
 
 /**
  * Adds a number. See @a BcProgram in include/program.h for more details.
  * @param p  The parser that parsed the number.
  */
-void bc_parse_number(BcParse *p);
+void
+bc_parse_number(BcParse* p);
 
 /**
  * Update the current function in the parser.
  * @param p     The parser.
  * @param fidx  The index of the new function.
  */
-void bc_parse_updateFunc(BcParse *p, size_t fidx);
+void
+bc_parse_updateFunc(BcParse* p, size_t fidx);
 
 /**
  * Adds a new variable or array. See @a BcProgram in include/program.h for more
@@ -256,15 +259,17 @@ void bc_parse_updateFunc(BcParse *p, size_t fidx);
  * @param name  The name of the variable or array to add.
  * @param var   True if the name is for a variable, false if it's for an array.
  */
-void bc_parse_pushName(const BcParse* p, char *name, bool var);
+void
+bc_parse_pushName(const BcParse* p, char* name, bool var);
 
 /**
  * Sets the text that the parser will parse.
- * @param p         The parser.
- * @param text      The text to lex.
- * @param is_stdin  True if the text is from stdin, false otherwise.
+ * @param p     The parser.
+ * @param text  The text to lex.
+ * @param mode  The mode to parse in.
  */
-void bc_parse_text(BcParse *p, const char *text, bool is_stdin);
+void
+bc_parse_text(BcParse* p, const char* text, BcMode mode);
 
 // References to const 0 and 1 strings for special cases. bc and dc have
 // specific instructions for 0 and 1 because they pop up so often and (in the

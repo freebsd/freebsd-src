@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -44,10 +44,10 @@
 #include <stdlib.h>
 
 /// The data required to parse command-line arguments.
-typedef struct BcOpt {
-
+typedef struct BcOpt
+{
 	/// The array of arguments.
-	char **argv;
+	char** argv;
 
 	/// The index of the current argument.
 	size_t optind;
@@ -59,13 +59,13 @@ typedef struct BcOpt {
 	int subopt;
 
 	/// The option argument.
-	char *optarg;
+	char* optarg;
 
 } BcOpt;
 
 /// The types of arguments. This is specially adapted for bc.
-typedef enum BcOptType {
-
+typedef enum BcOptType
+{
 	/// No argument required.
 	BC_OPT_NONE,
 
@@ -84,10 +84,10 @@ typedef enum BcOptType {
 } BcOptType;
 
 /// A struct to hold const data for long options.
-typedef struct BcOptLong {
-
+typedef struct BcOptLong
+{
 	/// The name of the option.
-	const char *name;
+	const char* name;
 
 	/// The type of the option.
 	BcOptType type;
@@ -102,7 +102,8 @@ typedef struct BcOptLong {
  * @param o     The option data to initialize.
  * @param argv  The array of arguments.
  */
-void bc_opt_init(BcOpt *o, char **argv);
+void
+bc_opt_init(BcOpt* o, char** argv);
 
 /**
  * Parse an option. This returns a value the same way getopt() and getopt_long()
@@ -111,7 +112,8 @@ void bc_opt_init(BcOpt *o, char **argv);
  * @param longopts  The long options.
  * @return          A character for the parsed option, or -1 if done.
  */
-int bc_opt_parse(BcOpt *o, const BcOptLong *longopts);
+int
+bc_opt_parse(BcOpt* o, const BcOptLong* longopts);
 
 /**
  * Returns true if the option is `--` and not a long option.

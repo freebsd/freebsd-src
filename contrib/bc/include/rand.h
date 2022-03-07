@@ -13,7 +13,7 @@
  * This code is under the following license:
  *
  * Copyright (c) 2014-2017 Melissa O'Neill and PCG Project contributors
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,7 +65,7 @@
  * @param ptr  A void ptr to some data that will help generate the random ulong.
  * @return     The random ulong.
  */
-typedef ulong (*BcRandUlong)(void *ptr);
+typedef ulong (*BcRandUlong)(void* ptr);
 
 #if BC_LONG_BIT >= 64
 
@@ -178,8 +178,8 @@ typedef __uint128_t BcRandState;
 #else // BC_RAND_BUILTIN
 
 /// A typedef for the PCG state.
-typedef struct BcRandState {
-
+typedef struct BcRandState
+{
 	/// The low bits.
 	uint_fast64_t lo;
 
@@ -241,7 +241,10 @@ typedef struct BcRandState {
  * @param l  The low 64 bits.
  * @return   The constant built from @a h and @a l.
  */
-#define BC_RAND_CONSTANT(h, l) { .lo = (l), .hi = (h) }
+#define BC_RAND_CONSTANT(h, l) \
+	{                          \
+		.lo = (l), .hi = (h)   \
+	}
 
 /**
  * Truncates a PCG state to the number of bits in a random integer.
@@ -272,7 +275,7 @@ typedef struct BcRandState {
  * @param n  The integer to truncate.
  * @return   The bottom 32 bits of @a n.
  */
-#define BC_RAND_TRUNC32(n) ((n) & BC_RAND_BOTTOM32)
+#define BC_RAND_TRUNC32(n) ((n) & (BC_RAND_BOTTOM32))
 
 /**
  * Returns the second 32 bits of @a n.
@@ -419,8 +422,8 @@ typedef uint_fast64_t BcRandState;
 #define BC_RAND_SRAND_BITS ((1 << CHAR_BIT) - 1)
 
 /// The actual RNG data. These are the actual PRNG's.
-typedef struct BcRNGData {
-
+typedef struct BcRNGData
+{
 	/// The state.
 	BcRandState state;
 
@@ -431,8 +434,8 @@ typedef struct BcRNGData {
 
 /// The public PRNG. This is just a stack of PRNG's to maintain the globals
 /// stack illusion.
-typedef struct BcRNG {
-
+typedef struct BcRNG
+{
 	/// The stack of PRNG's.
 	BcVec v;
 
@@ -442,7 +445,8 @@ typedef struct BcRNG {
  * Initializes a BcRNG.
  * @param r  The BcRNG to initialize.
  */
-void bc_rand_init(BcRNG *r);
+void
+bc_rand_init(BcRNG* r);
 
 #if BC_RAND_USE_FREE
 
@@ -451,7 +455,8 @@ void bc_rand_init(BcRNG *r);
  * exit.
  * @param r  The BcRNG to free.
  */
-void bc_rand_free(BcRNG *r);
+void
+bc_rand_free(BcRNG* r);
 
 #endif // BC_RAND_USE_FREE
 
@@ -460,7 +465,8 @@ void bc_rand_free(BcRNG *r);
  * @param r  The PRNG.
  * @return   A random integer.
  */
-BcRand bc_rand_int(BcRNG *r);
+BcRand
+bc_rand_int(BcRNG* r);
 
 /**
  * Returns a random integer from the PRNG bounded by @a bound. Bias is
@@ -469,7 +475,8 @@ BcRand bc_rand_int(BcRNG *r);
  * @param bound  The bound for the random integer.
  * @return       A bounded random integer.
  */
-BcRand bc_rand_bounded(BcRNG *r, BcRand bound);
+BcRand
+bc_rand_bounded(BcRNG* r, BcRand bound);
 
 /**
  * Seed the PRNG with the state in two parts and the increment in two parts.
@@ -479,13 +486,15 @@ BcRand bc_rand_bounded(BcRNG *r, BcRand bound);
  * @param inc1    The first part of the increment.
  * @param inc2    The second part of the increment.
  */
-void bc_rand_seed(BcRNG *r, ulong state1, ulong state2, ulong inc1, ulong inc2);
+void
+bc_rand_seed(BcRNG* r, ulong state1, ulong state2, ulong inc1, ulong inc2);
 
 /**
  * Pushes a new PRNG onto the PRNG stack.
  * @param r  The PRNG.
  */
-void bc_rand_push(BcRNG *r);
+void
+bc_rand_push(BcRNG* r);
 
 /**
  * Pops one or all but one items off of the PRNG stack.
@@ -493,7 +502,8 @@ void bc_rand_push(BcRNG *r);
  * @param reset  True if all but one PRNG should be popped off the stack, false
  *               if only one should be popped.
  */
-void bc_rand_pop(BcRNG *r, bool reset);
+void
+bc_rand_pop(BcRNG* r, bool reset);
 
 /**
  * Returns, via pointers, the state of the PRNG in pieces.
@@ -503,13 +513,15 @@ void bc_rand_pop(BcRNG *r, bool reset);
  * @param i1  The return value for the first part of the increment.
  * @param i2  The return value for the second part of the increment.
  */
-void bc_rand_getRands(BcRNG *r, BcRand *s1, BcRand *s2, BcRand *i1, BcRand *i2);
+void
+bc_rand_getRands(BcRNG* r, BcRand* s1, BcRand* s2, BcRand* i1, BcRand* i2);
 
 /**
  * Seed the PRNG with random data.
  * @param rng  The PRNG.
  */
-void bc_rand_srand(BcRNGData *rng);
+void
+bc_rand_srand(BcRNGData* rng);
 
 /// A reference to a constant multiplier.
 extern const BcRandState bc_rand_multiplier;

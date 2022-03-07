@@ -102,7 +102,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=0;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BUILD_TYPE=HN;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ConformanceMode>true</ConformanceMode>
@@ -123,7 +123,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=0;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BUILD_TYPE=HN;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <ConformanceMode>true</ConformanceMode>
@@ -144,7 +144,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=0;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BUILD_TYPE=HN;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ConformanceMode>true</ConformanceMode>
@@ -164,7 +164,7 @@
       <WarningLevel>Level3</WarningLevel>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=0;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BUILD_TYPE=HN;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>BC_ENABLED=1;DC_ENABLED=1;BC_ENABLE_EXTRA_MATH=1;BC_ENABLE_HISTORY=1;BC_ENABLE_NLS=0;BC_DEBUG_CODE=0;BC_ENABLE_LIBRARY=0;BC_ENABLE_EDITLINE=0;BC_ENABLE_READLINE=0;BUILD_TYPE=N;BC_DEFAULT_BANNER=1;BC_DEFAULT_SIGINT_RESET=0;DC_DEFAULT_SIGINT_RESET=0;BC_DEFAULT_TTY_MODE=1;DC_DEFAULT_TTY_MODE=1;BC_DEFAULT_PROMPT=1;DC_DEFAULT_PROMPT=1;BC_DEFAULT_EXPR_EXIT=1;DC_DEFAULT_EXPR_EXIT=1;BC_DEFAULT_DIGIT_CLAMP=1;DC_DEFAULT_DIGIT_CLAMP=1;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -206,13 +206,13 @@
   <ItemGroup>
     <CustomBuild Include="..\gen\strgen.c">
       <FileType>CppCode</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl.exe /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cl.exe /I..\include /DBC_ENABLE_LIBRARY=0 /Fo:$(OutDir)strgen.obj /Fe:$(OutDir)strgen.exe %(Identity)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe</Outputs>
     </CustomBuild>
     <ClCompile Include="src2\bc_help.c" />
@@ -228,6 +228,7 @@
     <ClCompile Include="..\src\dc_lex.c" />
     <ClCompile Include="..\src\dc_parse.c" />
     <ClCompile Include="..\src\file.c" />
+    <ClCompile Include="..\src\history.c" />
     <ClCompile Include="..\src\lang.c" />
     <ClCompile Include="..\src\lex.c" />
     <ClCompile Include="..\src\library.c" />
@@ -244,50 +245,50 @@
   <ItemGroup>
     <CustomBuild Include="..\gen\lib.bc">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib.c bc_lib bc_lib_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib.c 0 bc_lib bc_lib_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">src2\lib.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib.c bc_lib bc_lib_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib.c 0 bc_lib bc_lib_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">src2\lib.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\lib.c bc_lib bc_lib_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\lib.c 0 bc_lib bc_lib_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">src2\lib.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\lib.c bc_lib bc_lib_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\lib.c 0 bc_lib bc_lib_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">src2\lib.c</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\gen\lib2.bc">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib2.c bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib2.c 0 bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">src2\lib2.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib2.c bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\lib2.c 0 bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">src2\lib2.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\lib2.c bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\lib2.c 0 bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">src2\lib2.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\lib2.c bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\lib2.c 0 bc_lib2 bc_lib2_name BC_ENABLED 1</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">src2\lib2.c</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\gen\dc_help.txt">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c dc_help "" DC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c 0 dc_help "" DC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">src2\dc_help.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c dc_help "" DC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c 0 dc_help "" DC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">src2\dc_help.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c dc_help "" DC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c 0 dc_help "" DC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">src2\dc_help.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c dc_help "" DC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\dc_help.c 0 dc_help "" DC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">src2\dc_help.c</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\gen\bc_help.txt">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c bc_help "" BC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c 0 bc_help "" BC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">src2\bc_help.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c bc_help "" BC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c 0 bc_help "" BC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">src2\bc_help.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c bc_help "" BC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c 0 bc_help "" BC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">src2\bc_help.c</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c bc_help "" BC_ENABLED</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)strgen.exe %(Identity) src2\bc_help.c 0 bc_help "" BC_ENABLED</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">src2\bc_help.c</Outputs>
     </CustomBuild>
   </ItemGroup>

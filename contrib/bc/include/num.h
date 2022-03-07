@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,10 +46,6 @@
 #include <status.h>
 #include <vector.h>
 #include <bcl.h>
-
-#ifndef BC_ENABLE_EXTRA_MATH
-#define BC_ENABLE_EXTRA_MATH (1)
-#endif // BC_ENABLE_EXTRA_MATH
 
 /// Everything in bc is base 10..
 #define BC_BASE (10)
@@ -106,12 +102,12 @@ typedef int_least16_t BcDig;
 #define BC_NUM_DEF_SIZE (8)
 
 /// The actual number struct. This is where the magic happens.
-typedef struct BcNum {
-
+typedef struct BcNum
+{
 	/// The limb array. It is restrict because *no* other item should own the
 	/// array. For more information, see the development manual
 	/// (manuals/development.md#numbers).
-	BcDig *restrict num;
+	BcDig* restrict num;
 
 	/// The number of limbs before the decimal (radix) point. This also stores
 	/// the negative bit in the least significant bit since it uses at least two
@@ -259,8 +255,7 @@ struct BcRNG;
  * @param v    The value to set the rdx to.
  * @param neg  The value to set the negative bit to.
  */
-#define BC_NUM_RDX_SET_NEG(n, v, neg) \
-	((n)->rdx = (((v) << 1) | (neg)))
+#define BC_NUM_RDX_SET_NEG(n, v, neg) ((n)->rdx = (((v) << 1) | (neg)))
 
 /**
  * Returns true if the rdx and scale for @a n match.
@@ -350,11 +345,11 @@ struct BcRNG;
 
 // These are for debugging only.
 #if BC_DEBUG_CODE
-#define BC_NUM_PRINT(x) fprintf(stderr, "%s = %lu\n", #x, (unsigned long)(x))
+#define BC_NUM_PRINT(x) fprintf(stderr, "%s = %lu\n", #x, (unsigned long) (x))
 #define DUMP_NUM bc_num_dump
 #else // BC_DEBUG_CODE
 #undef DUMP_NUM
-#define DUMP_NUM(x,y)
+#define DUMP_NUM(x, y)
 #define BC_NUM_PRINT(x)
 #endif // BC_DEBUG_CODE
 
@@ -419,7 +414,8 @@ typedef void (*BcNumShiftAddOp)(BcDig* restrict a, const BcDig* restrict b,
  * @param n    The number to initialize.
  * @param req  The number of limbs @a n must have in its limb array.
  */
-void bc_num_init(BcNum *restrict n, size_t req);
+void
+bc_num_init(BcNum* restrict n, size_t req);
 
 /**
  * Initializes (sets up) @a n with the preallocated limb array @a num that has
@@ -429,7 +425,8 @@ void bc_num_init(BcNum *restrict n, size_t req);
  * @param num  The preallocated limb array.
  * @param cap  The capacity of @a num.
  */
-void bc_num_setup(BcNum *restrict n, BcDig *restrict num, size_t cap);
+void
+bc_num_setup(BcNum* restrict n, BcDig* restrict num, size_t cap);
 
 /**
  * Copies @a s into @a d. This does a deep copy and requires that @a d is
@@ -437,7 +434,8 @@ void bc_num_setup(BcNum *restrict n, BcDig *restrict num, size_t cap);
  * @param d  The destination BcNum.
  * @param s  The source BcNum.
  */
-void bc_num_copy(BcNum *d, const BcNum *s);
+void
+bc_num_copy(BcNum* d, const BcNum* s);
 
 /**
  * Creates @a d and copies @a s into @a d. This does a deep copy and requires
@@ -445,7 +443,8 @@ void bc_num_copy(BcNum *d, const BcNum *s);
  * @param d  The destination BcNum.
  * @param s  The source BcNum.
  */
-void bc_num_createCopy(BcNum *d, const BcNum *s);
+void
+bc_num_createCopy(BcNum* d, const BcNum* s);
 
 /**
  * Creates (initializes) @a n and sets its value to the equivalent of @a val.
@@ -453,27 +452,31 @@ void bc_num_createCopy(BcNum *d, const BcNum *s);
  * @param n    The number to initialize and set.
  * @param val  The value to set @a n's value to.
  */
-void bc_num_createFromBigdig(BcNum *restrict n, BcBigDig val);
+void
+bc_num_createFromBigdig(BcNum* restrict n, BcBigDig val);
 
 /**
  * Makes @a n valid for holding strings. @a n must *not* be allocated; this
  * simply clears some fields, including setting the num field to NULL.
  * @param n  The number to clear.
  */
-void bc_num_clear(BcNum *restrict n);
+void
+bc_num_clear(BcNum* restrict n);
 
 /**
  * Frees @a num, which is a BcNum as a void pointer. This is a destructor.
  * @param num  The BcNum to free as a void pointer.
  */
-void bc_num_free(void *num);
+void
+bc_num_free(void* num);
 
 /**
  * Returns the scale of @a n.
  * @param n  The number.
  * @return   The scale of @a n.
  */
-size_t bc_num_scale(const BcNum *restrict n);
+size_t
+bc_num_scale(const BcNum* restrict n);
 
 /**
  * Returns the length (in decimal digits) of @a n. This is complicated. First,
@@ -483,7 +486,8 @@ size_t bc_num_scale(const BcNum *restrict n);
  * @param n  The number.
  * @return   The length of @a n.
  */
-size_t bc_num_len(const BcNum *restrict n);
+size_t
+bc_num_len(const BcNum* restrict n);
 
 /**
  * Convert a number to a BcBigDig (hardware integer). This version does error
@@ -492,7 +496,8 @@ size_t bc_num_len(const BcNum *restrict n);
  * @param n  The number to convert.
  * @return   The number as a hardware integer.
  */
-BcBigDig bc_num_bigdig(const BcNum *restrict n);
+BcBigDig
+bc_num_bigdig(const BcNum* restrict n);
 
 /**
  * Convert a number to a BcBigDig (hardware integer). This version does no error
@@ -500,7 +505,8 @@ BcBigDig bc_num_bigdig(const BcNum *restrict n);
  * @param n  The number to convert.
  * @return   The number as a hardware integer.
  */
-BcBigDig bc_num_bigdig2(const BcNum *restrict n);
+BcBigDig
+bc_num_bigdig2(const BcNum* restrict n);
 
 /**
  * Sets @a n to the value of @a val. @a n is expected to be a valid and
@@ -508,7 +514,8 @@ BcBigDig bc_num_bigdig2(const BcNum *restrict n);
  * @param n    The number to set.
  * @param val  The value to set the number to.
  */
-void bc_num_bigdig2num(BcNum *restrict n, BcBigDig val);
+void
+bc_num_bigdig2num(BcNum* restrict n, BcBigDig val);
 
 #if BC_ENABLE_EXTRA_MATH
 
@@ -519,22 +526,24 @@ void bc_num_bigdig2num(BcNum *restrict n, BcBigDig val);
  * @param b    The return value.
  * @param rng  The pseudo-random number generator.
  */
-void bc_num_irand(BcNum *restrict a, BcNum *restrict b,
-                  struct BcRNG *restrict rng);
+void
+bc_num_irand(BcNum* restrict a, BcNum* restrict b, struct BcRNG* restrict rng);
 
 /**
  * Sets the seed for the PRNG @a rng from @a n.
  * @param n    The new seed for the PRNG.
  * @param rng  The PRNG to set the seed for.
  */
-void bc_num_rng(const BcNum *restrict n, struct BcRNG *rng);
+void
+bc_num_rng(const BcNum* restrict n, struct BcRNG* rng);
 
 /**
  * Sets @a n to the value produced by the PRNG. This implements rand().
  * @param n    The number to set.
  * @param rng  The pseudo-random number generator.
  */
-void bc_num_createFromRNG(BcNum *restrict n, struct BcRNG *rng);
+void
+bc_num_createFromRNG(BcNum* restrict n, struct BcRNG* rng);
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -545,7 +554,8 @@ void bc_num_createFromRNG(BcNum *restrict n, struct BcRNG *rng);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_add(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_add(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The subtract function. This is a BcNumBinaryOp function.
@@ -554,7 +564,8 @@ void bc_num_add(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_sub(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_sub(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The multiply function.
@@ -563,7 +574,8 @@ void bc_num_sub(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_mul(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_mul(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The division function.
@@ -572,7 +584,8 @@ void bc_num_mul(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_div(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_div(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The modulus function.
@@ -581,7 +594,8 @@ void bc_num_div(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_mod(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_mod(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The power function.
@@ -590,7 +604,8 @@ void bc_num_mod(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_pow(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_pow(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 #if BC_ENABLE_EXTRA_MATH
 
 /**
@@ -600,7 +615,8 @@ void bc_num_pow(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_places(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_places(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The left shift function (<< operator). This is a BcNumBinaryOp function.
@@ -609,7 +625,8 @@ void bc_num_places(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_lshift(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_lshift(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 /**
  * The right shift function (>> operator). This is a BcNumBinaryOp function.
@@ -618,7 +635,8 @@ void bc_num_lshift(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param c      The return value.
  * @param scale  The current scale.
  */
-void bc_num_rshift(BcNum *a, BcNum *b, BcNum *c, size_t scale);
+void
+bc_num_rshift(BcNum* a, BcNum* b, BcNum* c, size_t scale);
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -628,7 +646,8 @@ void bc_num_rshift(BcNum *a, BcNum *b, BcNum *c, size_t scale);
  * @param b      The return value.
  * @param scale  The current scale.
  */
-void bc_num_sqrt(BcNum *restrict a, BcNum *restrict b, size_t scale);
+void
+bc_num_sqrt(BcNum* restrict a, BcNum* restrict b, size_t scale);
 
 /**
  * Divsion and modulus together. This is a dc extension.
@@ -638,7 +657,8 @@ void bc_num_sqrt(BcNum *restrict a, BcNum *restrict b, size_t scale);
  * @param d      The second return value (modulus).
  * @param scale  The current scale.
  */
-void bc_num_divmod(BcNum *a, BcNum *b, BcNum *c, BcNum *d, size_t scale);
+void
+bc_num_divmod(BcNum* a, BcNum* b, BcNum* c, BcNum* d, size_t scale);
 
 /**
  * A function returning the required allocation size for an addition or a
@@ -649,7 +669,8 @@ void bc_num_divmod(BcNum *a, BcNum *b, BcNum *c, BcNum *d, size_t scale);
  * @return       The size of allocation needed for the result of add or subtract
  *               with @a a, @a b, and @a scale.
  */
-size_t bc_num_addReq(const BcNum* a, const BcNum* b, size_t scale);
+size_t
+bc_num_addReq(const BcNum* a, const BcNum* b, size_t scale);
 
 /**
  * A function returning the required allocation size for a multiplication. This
@@ -660,7 +681,8 @@ size_t bc_num_addReq(const BcNum* a, const BcNum* b, size_t scale);
  * @return       The size of allocation needed for the result of multiplication
  *               with @a a, @a b, and @a scale.
  */
-size_t bc_num_mulReq(const BcNum *a, const BcNum *b, size_t scale);
+size_t
+bc_num_mulReq(const BcNum* a, const BcNum* b, size_t scale);
 
 /**
  * A function returning the required allocation size for a division or modulus.
@@ -671,7 +693,8 @@ size_t bc_num_mulReq(const BcNum *a, const BcNum *b, size_t scale);
  * @return       The size of allocation needed for the result of division or
  *               modulus with @a a, @a b, and @a scale.
  */
-size_t bc_num_divReq(const BcNum *a, const BcNum *b, size_t scale);
+size_t
+bc_num_divReq(const BcNum* a, const BcNum* b, size_t scale);
 
 /**
  * A function returning the required allocation size for an exponentiation. This
@@ -682,7 +705,8 @@ size_t bc_num_divReq(const BcNum *a, const BcNum *b, size_t scale);
  * @return       The size of allocation needed for the result of exponentiation
  *               with @a a, @a b, and @a scale.
  */
-size_t bc_num_powReq(const BcNum *a, const BcNum *b, size_t scale);
+size_t
+bc_num_powReq(const BcNum* a, const BcNum* b, size_t scale);
 
 #if BC_ENABLE_EXTRA_MATH
 
@@ -695,7 +719,8 @@ size_t bc_num_powReq(const BcNum *a, const BcNum *b, size_t scale);
  * @return       The size of allocation needed for the result of places, left
  *               shift, or right shift with @a a, @a b, and @a scale.
  */
-size_t bc_num_placesReq(const BcNum *a, const BcNum *b, size_t scale);
+size_t
+bc_num_placesReq(const BcNum* a, const BcNum* b, size_t scale);
 
 #endif // BC_ENABLE_EXTRA_MATH
 
@@ -705,7 +730,8 @@ size_t bc_num_placesReq(const BcNum *a, const BcNum *b, size_t scale);
  * @param n       The number to truncate.
  * @param places  The number of places to truncate @a n by.
  */
-void bc_num_truncate(BcNum *restrict n, size_t places);
+void
+bc_num_truncate(BcNum* restrict n, size_t places);
 
 /**
  * Extend @a n *by* @a places decimal places. This only extends places *after*
@@ -713,7 +739,8 @@ void bc_num_truncate(BcNum *restrict n, size_t places);
  * @param n       The number to truncate.
  * @param places  The number of places to extend @a n by.
  */
-void bc_num_extend(BcNum *restrict n, size_t places);
+void
+bc_num_extend(BcNum* restrict n, size_t places);
 
 /**
  * Shifts @a n right by @a places decimal places. This is the workhorse of the
@@ -722,7 +749,8 @@ void bc_num_extend(BcNum *restrict n, size_t places);
  * @param n       The number to shift right.
  * @param places  The number of decimal places to shift @a n right by.
  */
-void bc_num_shiftRight(BcNum *restrict n, size_t places);
+void
+bc_num_shiftRight(BcNum* restrict n, size_t places);
 
 /**
  * Compare a and b and return the result of their comparison as an ssize_t.
@@ -732,7 +760,8 @@ void bc_num_shiftRight(BcNum *restrict n, size_t places);
  * @param b  The second number.
  * @return   The result of the comparison.
  */
-ssize_t bc_num_cmp(const BcNum *a, const BcNum *b);
+ssize_t
+bc_num_cmp(const BcNum* a, const BcNum* b);
 
 /**
  * Modular exponentiation.
@@ -741,28 +770,30 @@ ssize_t bc_num_cmp(const BcNum *a, const BcNum *b);
  * @param c      The third parameter.
  * @param d      The return value.
  */
-void bc_num_modexp(BcNum *a, BcNum *b, BcNum *c, BcNum *restrict d);
+void
+bc_num_modexp(BcNum* a, BcNum* b, BcNum* c, BcNum* restrict d);
 
 /**
  * Sets @a n to zero with a scale of zero.
  * @param n  The number to zero.
  */
-void bc_num_zero(BcNum *restrict n);
+void
+bc_num_zero(BcNum* restrict n);
 
 /**
  * Sets @a n to one with a scale of zero.
  * @param n  The number to set to one.
  */
-void bc_num_one(BcNum *restrict n);
+void
+bc_num_one(BcNum* restrict n);
 
 /**
  * An efficient function to compare @a n to zero.
  * @param n  The number to compare to zero.
  * @return   The result of the comparison.
  */
-ssize_t bc_num_cmpZero(const BcNum *n);
-
-#if !defined(NDEBUG) || BC_ENABLE_LIBRARY
+ssize_t
+bc_num_cmpZero(const BcNum* n);
 
 /**
  * Check a number string for validity and return true if it is, false otherwise.
@@ -772,9 +803,8 @@ ssize_t bc_num_cmpZero(const BcNum *n);
  * @param val  The string to check.
  * @return     True if the string is a valid number, false otherwise.
  */
-bool bc_num_strValid(const char *restrict val);
-
-#endif // !defined(NDEBUG) || BC_ENABLE_LIBRARY
+bool
+bc_num_strValid(const char* restrict val);
 
 /**
  * Parses a number string into the number @a n according to @a base.
@@ -782,7 +812,8 @@ bool bc_num_strValid(const char *restrict val);
  * @param val   The number string to parse.
  * @param base  The base to parse the number string by.
  */
-void bc_num_parse(BcNum *restrict n, const char *restrict val, BcBigDig base);
+void
+bc_num_parse(BcNum* restrict n, const char* restrict val, BcBigDig base);
 
 /**
  * Prints the number @a n according to @a base.
@@ -791,7 +822,16 @@ void bc_num_parse(BcNum *restrict n, const char *restrict val, BcBigDig base);
  * @param newline  True if a newline should be inserted at the end, false
  *                 otherwise.
  */
-void bc_num_print(BcNum *restrict n, BcBigDig base, bool newline);
+void
+bc_num_print(BcNum* restrict n, BcBigDig base, bool newline);
+
+/**
+ * Invert @a into @a b at the current scale.
+ * @param a      The number to invert.
+ * @param b      The return parameter. This must be preallocated.
+ * @param scale  The current scale.
+ */
+#define bc_num_inv(a, b, scale) bc_num_div(&vm->one, (a), (b), (scale))
 
 #if !BC_ENABLE_LIBRARY
 
@@ -799,7 +839,8 @@ void bc_num_print(BcNum *restrict n, BcBigDig base, bool newline);
  * Prints a number as a character stream.
  * @param n     The number to print as a character stream.
  */
-void bc_num_stream(BcNum *restrict n);
+void
+bc_num_stream(BcNum* restrict n);
 
 #endif // !BC_ENABLE_LIBRARY
 
@@ -811,7 +852,8 @@ void bc_num_stream(BcNum *restrict n);
  * @param name       The label to print the number with.
  * @param emptyline  True if there should be an empty line after the number.
  */
-void bc_num_printDebug(const BcNum *n, const char *name, bool emptyline);
+void
+bc_num_printDebug(const BcNum* n, const char* name, bool emptyline);
 
 /**
  * Print the limbs of @a n. This is a debug-only function.
@@ -819,7 +861,8 @@ void bc_num_printDebug(const BcNum *n, const char *name, bool emptyline);
  * @param len        The length of the number.
  * @param emptyline  True if there should be an empty line after the number.
  */
-void bc_num_printDigs(const BcDig* n, size_t len, bool emptyline);
+void
+bc_num_printDigs(const BcDig* n, size_t len, bool emptyline);
 
 /**
  * Print debug info about @a n along with its limbs.
@@ -827,14 +870,16 @@ void bc_num_printDigs(const BcDig* n, size_t len, bool emptyline);
  * @param name       The label to print the number with.
  * @param emptyline  True if there should be an empty line after the number.
  */
-void bc_num_printWithDigs(const BcNum *n, const char *name, bool emptyline);
+void
+bc_num_printWithDigs(const BcNum* n, const char* name, bool emptyline);
 
 /**
  * Dump debug info about a BcNum variable.
  * @param varname  The variable name.
  * @param n        The number.
  */
-void bc_num_dump(const char *varname, const BcNum *n);
+void
+bc_num_dump(const char* varname, const BcNum* n);
 
 #endif // BC_DEBUG_CODE
 
@@ -842,7 +887,7 @@ void bc_num_dump(const char *varname, const BcNum *n);
 extern const char bc_num_hex_digits[];
 
 /// An array of powers of 10 for easy conversion from number of digits to
-//powers.
+/// powers.
 extern const BcBigDig bc_num_pow10[BC_BASE_DIGS + 1];
 
 /// A reference to a constant array that is the max of a BigDig.
