@@ -467,7 +467,6 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 	int keep_stabs = (flags & CTF_KEEP_STABS);
 	int *secxlate;
 	int srcidx, dstidx;
-	int curnmoff = 0;
 	int changing = 0;
 	int pad;
 	int i;
@@ -529,7 +528,6 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			secxlate[srcidx] = -1;
 		} else {
 			secxlate[srcidx] = dstidx++;
-			curnmoff += strlen(sname) + 1;
 		}
 
 		new_offset = (off_t)dehdr.e_phoff;
