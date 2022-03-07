@@ -2373,7 +2373,7 @@ hn_attach(device_t dev)
 	}
 	
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rsc_switch",
-	    CTLTYPE_UINT, sc, 0, hn_rsc_sysctl, "A",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_rsc_sysctl, "A",
 	    "switch to rsc");
 
 	/*
