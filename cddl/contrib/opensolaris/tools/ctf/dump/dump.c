@@ -97,6 +97,8 @@ typedef struct ctf_data {
 	caddr_t cd_ctfdata;	/* Pointer to the CTF data */
 	size_t cd_ctflen;	/* Length of CTF data */
 
+	size_t cd_idwidth;	/* Size of a type ID, in bytes */
+
 	/*
 	 * cd_symdata will be non-NULL if the CTF data is being retrieved from
 	 * an ELF file with a symbol table.  cd_strdata and cd_nsyms should be
@@ -266,9 +268,8 @@ next_sym(const ctf_data_t *cd, const int symidx, const uchar_t matchtype,
 static int
 read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	void *v = (void *) (cd->cd_ctfdata + hp->cth_objtoff);
-	const ushort_t *idp = v;
-	ulong_t n = (hp->cth_funcoff - hp->cth_objtoff) / sizeof (ushort_t);
+	const char *v = (void *) (cd->cd_ctfdata + hp->cth_objtoff);
+	ulong_t n = (hp->cth_funcoff - hp->cth_objtoff) / cd->cd_idwidth;
 
 	if (flags != F_STATS)
 		print_line("- Data Objects ");
@@ -287,6 +288,7 @@ read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 		char *name = NULL;
 
 		for (symidx = -1, i = 0; i < (int) n; i++) {
+			uint32_t id = 0;
 			int nextsym;
 
 			if (cd->cd_symdata == NULL || (nextsym = next_sym(cd,
@@ -295,7 +297,9 @@ read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 			else
 				symidx = nextsym;
 
-			len = printf("  [%u] %u", i, *idp++);
+			memcpy(&id, v, cd->cd_idwidth);
+			v += cd->cd_idwidth;
+			len = printf("  [%u] %u", i, id);
 			if (name != NULL)
 				(void) printf("%*s%s (%u)", (15 - len), "",
 				    name, symidx);
@@ -310,11 +314,10 @@ read_data(const ctf_header_t *hp, const ctf_data_t *cd)
 static int
 read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	void *v = (void *) (cd->cd_ctfdata + hp->cth_funcoff);
-	const ushort_t *fp = v;
+	const char *v = (void *) (cd->cd_ctfdata + hp->cth_funcoff);
+	uint_t f = 0, info;
 
-	v = (void *) (cd->cd_ctfdata + hp->cth_typeoff);
-	const ushort_t *end = v;
+	const char *end = (void *) (cd->cd_ctfdata + hp->cth_typeoff);
 
 	ulong_t id;
 	int symidx;
@@ -331,10 +334,14 @@ read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 	if (hp->cth_funcoff > hp->cth_typeoff)
 		WARN("file is corrupt -- cth_funcoff > cth_typeoff\n");
 
-	for (symidx = -1, id = 0; fp < end; id++) {
-		ushort_t info = *fp++;
-		ushort_t kind = CTF_INFO_KIND(info);
-		ushort_t n = CTF_INFO_VLEN(info);
+	for (symidx = -1, id = 0; v < end; id++) {
+		info = 0;
+		memcpy(&info, v, cd->cd_idwidth);
+		v += cd->cd_idwidth;
+		ushort_t kind = hp->cth_version == CTF_VERSION_2 ?
+		    CTF_V2_INFO_KIND(info) : CTF_V3_INFO_KIND(info);
+		ushort_t n = hp->cth_version == CTF_VERSION_2 ?
+		    CTF_V2_INFO_VLEN(info) : CTF_V3_INFO_VLEN(info);
 		ushort_t i;
 		int nextsym;
 		char *name;
@@ -354,7 +361,7 @@ read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 			return (E_ERROR);
 		}
 
-		if (fp + n > end) {
+		if (v + n * cd->cd_idwidth > end) {
 			(void) printf("  [%lu] vlen %u extends past section "
 			    "boundary\n", id, n);
 			return (E_ERROR);
@@ -364,17 +371,24 @@ read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 			(void) printf("  [%lu] FUNC ", id);
 			if (name != NULL)
 				(void) printf("(%s) ", name);
-			(void) printf("returns: %u args: (", *fp++);
+			memcpy(&f, v, cd->cd_idwidth);
+			v += cd->cd_idwidth;
+			(void) printf("returns: %u args: (", f);
 
 			if (n != 0) {
-				(void) printf("%u", *fp++);
-				for (i = 1; i < n; i++)
-					(void) printf(", %u", *fp++);
+				memcpy(&f, v, cd->cd_idwidth);
+				v += cd->cd_idwidth;
+				(void) printf("%u", f);
+				for (i = 1; i < n; i++) {
+					memcpy(&f, v, cd->cd_idwidth);
+					v += cd->cd_idwidth;
+					(void) printf(", %u", f);
+				}
 			}
 
 			(void) printf(")\n");
 		} else
-			fp += n + 1; /* skip to next function definition */
+			v += n * cd->cd_idwidth + 1; /* skip to next function definition */
 
 		stats.s_nfunc++;
 		stats.s_nargs += n;
@@ -387,13 +401,10 @@ read_funcs(const ctf_header_t *hp, const ctf_data_t *cd)
 static int
 read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 {
-	void *v = (void *) (cd->cd_ctfdata + hp->cth_typeoff);
-	const ctf_type_t *tp = v;
-
-	v = (void *) (cd->cd_ctfdata + hp->cth_stroff);
-	const ctf_type_t *end = v;
-
+	const char *v = (void *) (cd->cd_ctfdata + hp->cth_typeoff);
+	const char *end = (void *) (cd->cd_ctfdata + hp->cth_stroff);
 	ulong_t id;
+	uint_t version;
 
 	if (flags != F_STATS)
 		print_line("- Types ");
@@ -407,103 +418,158 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 	if (hp->cth_typeoff > hp->cth_stroff)
 		WARN("file is corrupt -- cth_typeoff > cth_stroff\n");
 
+	version = hp->cth_version;
+
 	id = 1;
 	if (hp->cth_parlabel || hp->cth_parname)
-		id += 1 << CTF_PARENT_SHIFT;
+		id += 1ul << (hp->cth_version == CTF_VERSION_2 ?
+		    CTF_V2_PARENT_SHIFT : CTF_V3_PARENT_SHIFT);
 
-	for (/* */; tp < end; id++) {
-		ulong_t i, n = CTF_INFO_VLEN(tp->ctt_info);
+	for (/* */; v < end; id++) {
+		struct ctf_type_v2 t2;
+		struct ctf_type_v3 t3;
+		ulong_t i, n;
 		size_t size, increment, vlen = 0;
-		int kind = CTF_INFO_KIND(tp->ctt_info);
+		uint_t isroot, name, type;
+		int kind;
+
+		if (version == CTF_VERSION_2) {
+			memcpy(&t2, v, sizeof(t2));
+			name = t2.ctt_name;
+			n = CTF_V2_INFO_VLEN(t2.ctt_info);
+			isroot = CTF_V2_INFO_ISROOT(t2.ctt_info);
+			kind = CTF_V2_INFO_KIND(t2.ctt_info);
+			type = t2.ctt_type;
+
+			if (t2.ctt_size == CTF_V2_LSIZE_SENT) {
+				increment = sizeof (struct ctf_type_v2);
+				size = (size_t)CTF_TYPE_LSIZE(&t2);
+			} else {
+				increment = sizeof (struct ctf_stype_v2);
+				size = t2.ctt_size;
+			}
+		} else {
+			memcpy(&t3, v, sizeof(t3));
+			name = t3.ctt_name;
+			n = CTF_V3_INFO_VLEN(t3.ctt_info);
+			isroot = CTF_V3_INFO_ISROOT(t3.ctt_info);
+			kind = CTF_V3_INFO_KIND(t3.ctt_info);
+			type = t3.ctt_type;
+
+			if (t3.ctt_size == CTF_V3_LSIZE_SENT) {
+				increment = sizeof (struct ctf_type_v3);
+				size = (size_t)CTF_TYPE_LSIZE(&t3);
+			} else {
+				increment = sizeof (struct ctf_stype_v3);
+				size = t3.ctt_size;
+			}
+		}
 
 		union {
-			const void *ptr;
-			ctf_array_t *ap;
-			const ctf_member_t *mp;
-			const ctf_lmember_t *lmp;
+			const char *ptr;
+			struct ctf_array_v2 *ap2;
+			struct ctf_array_v3 *ap3;
+			const struct ctf_member_v2 *mp2;
+			const struct ctf_member_v3 *mp3;
+			const struct ctf_lmember_v2 *lmp2;
+			const struct ctf_lmember_v3 *lmp3;
 			const ctf_enum_t *ep;
-			const ushort_t *argp;
 		} u;
+
+		u.ptr = v + increment;
 
 		if (flags != F_STATS) {
 			(void) printf("  %c%lu%c ",
-			    "[<"[CTF_INFO_ISROOT(tp->ctt_info)], id,
-			    "]>"[CTF_INFO_ISROOT(tp->ctt_info)]);
+			    "[<"[isroot], id, "]>"[isroot]);
 		}
-
-		if (tp->ctt_size == CTF_LSIZE_SENT) {
-			increment = sizeof (ctf_type_t);
-			size = (size_t)CTF_TYPE_LSIZE(tp);
-		} else {
-			increment = sizeof (ctf_stype_t);
-			size = tp->ctt_size;
-		}
-		u.ptr = (const char *)tp + increment;
 
 		switch (kind) {
 		case CTF_K_INTEGER:
 			if (flags != F_STATS) {
-				uint_t encoding = *((const uint_t *)u.ptr);
+				uint_t encoding =
+				    *((const uint_t *)(const void *)u.ptr);
 
 				(void) printf("INTEGER %s encoding=%s offset=%u"
-				    " bits=%u", ref_to_str(tp->ctt_name, hp,
-				    cd), int_encoding_to_str(
+				    " bits=%u", ref_to_str(name, hp, cd),
+				    int_encoding_to_str(
 				    CTF_INT_ENCODING(encoding)),
 				    CTF_INT_OFFSET(encoding),
 				    CTF_INT_BITS(encoding));
 			}
-			vlen = sizeof (uint_t);
+			vlen = sizeof (uint32_t);
 			break;
 
 		case CTF_K_FLOAT:
 			if (flags != F_STATS) {
-				uint_t encoding = *((const uint_t *)u.ptr);
+				uint_t encoding =
+				    *((const uint_t *)(const void *)u.ptr);
 
 				(void) printf("FLOAT %s encoding=%s offset=%u "
-				    "bits=%u", ref_to_str(tp->ctt_name, hp,
-				    cd), fp_encoding_to_str(
+				    "bits=%u", ref_to_str(name, hp, cd),
+				    fp_encoding_to_str(
 				    CTF_FP_ENCODING(encoding)),
 				    CTF_FP_OFFSET(encoding),
 				    CTF_FP_BITS(encoding));
 			}
-			vlen = sizeof (uint_t);
+			vlen = sizeof (uint32_t);
 			break;
 
 		case CTF_K_POINTER:
 			if (flags != F_STATS) {
 				(void) printf("POINTER %s refers to %u",
-				    ref_to_str(tp->ctt_name, hp, cd),
-				    tp->ctt_type);
+				    ref_to_str(name, hp, cd), type);
 			}
 			break;
 
-		case CTF_K_ARRAY:
+		case CTF_K_ARRAY: {
+			uint_t contents, index, nelems;
+
+			if (version == CTF_VERSION_2) {
+				contents = u.ap2->cta_contents;
+				index = u.ap2->cta_index;
+				nelems = u.ap2->cta_nelems;
+			} else {
+				contents = u.ap3->cta_contents;
+				index = u.ap3->cta_index;
+				nelems = u.ap3->cta_nelems;
+			}
 			if (flags != F_STATS) {
 				(void) printf("ARRAY %s content: %u index: %u "
-				    "nelems: %u\n", ref_to_str(tp->ctt_name,
-				    hp, cd), u.ap->cta_contents,
-				    u.ap->cta_index, u.ap->cta_nelems);
+				    "nelems: %u\n", ref_to_str(name, hp, cd),
+				    contents, index, nelems);
 			}
-			vlen = sizeof (ctf_array_t);
+			if (version == 2)
+				vlen = sizeof (struct ctf_array_v2);
+			else
+				vlen = sizeof (struct ctf_array_v3);
 			break;
+		}
 
-		case CTF_K_FUNCTION:
+		case CTF_K_FUNCTION: {
+			uint_t arg = 0;
+
 			if (flags != F_STATS) {
 				(void) printf("FUNCTION %s returns: %u args: (",
-				    ref_to_str(tp->ctt_name, hp, cd),
-				    tp->ctt_type);
+				    ref_to_str(name, hp, cd), type);
 
 				if (n != 0) {
-					(void) printf("%u", *u.argp++);
-					for (i = 1; i < n; i++, u.argp++)
-						(void) printf(", %u", *u.argp);
+					memcpy(&arg, u.ptr, cd->cd_idwidth);
+					u.ptr += cd->cd_idwidth;
+					(void) printf("%u", arg);
+					for (i = 1; i < n;
+					    i++, u.ptr += cd->cd_idwidth) {
+						memcpy(&arg, u.ptr,
+						    cd->cd_idwidth);
+						(void) printf(", %u", arg);
+					}
 				}
 
 				(void) printf(")");
 			}
 
-			vlen = sizeof (ushort_t) * (n + (n & 1));
+			vlen = roundup2(cd->cd_idwidth * n, 4);
 			break;
+		}
 
 		case CTF_K_STRUCT:
 		case CTF_K_UNION:
@@ -527,36 +593,64 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 
 			if (flags != F_STATS) {
 				(void) printf(" %s (%zd bytes)\n",
-				    ref_to_str(tp->ctt_name, hp, cd), size);
+				    ref_to_str(name, hp, cd), size);
 
-				if (size >= CTF_LSTRUCT_THRESH) {
-					for (i = 0; i < n; i++, u.lmp++) {
-						(void) printf(
-						    "\t%s type=%u off=%llu\n",
-						    ref_to_str(u.lmp->ctlm_name,
-						    hp, cd), u.lmp->ctlm_type,
-						    (unsigned long long)
-						    CTF_LMEM_OFFSET(u.lmp));
+				if (version == CTF_VERSION_2) {
+					if (size >= CTF_V2_LSTRUCT_THRESH) {
+						for (i = 0; i < n; i++, u.lmp2++) {
+							(void) printf(
+							    "\t%s type=%u off=%llu\n",
+							    ref_to_str(u.lmp2->ctlm_name,
+							    hp, cd), u.lmp2->ctlm_type,
+							    (unsigned long long)
+							    CTF_LMEM_OFFSET(u.lmp2));
+						}
+					} else {
+						for (i = 0; i < n; i++, u.mp2++) {
+							(void) printf(
+							    "\t%s type=%u off=%u\n",
+							    ref_to_str(u.mp2->ctm_name,
+							    hp, cd), u.mp2->ctm_type,
+							    u.mp2->ctm_offset);
+						}
 					}
 				} else {
-					for (i = 0; i < n; i++, u.mp++) {
-						(void) printf(
-						    "\t%s type=%u off=%u\n",
-						    ref_to_str(u.mp->ctm_name,
-						    hp, cd), u.mp->ctm_type,
-						    u.mp->ctm_offset);
+					if (size >= CTF_V3_LSTRUCT_THRESH) {
+						for (i = 0; i < n; i++, u.lmp3++) {
+							(void) printf(
+							    "\t%s type=%u off=%llu\n",
+							    ref_to_str(u.lmp3->ctlm_name,
+							    hp, cd), u.lmp3->ctlm_type,
+							    (unsigned long long)
+							    CTF_LMEM_OFFSET(u.lmp3));
+						}
+					} else {
+						for (i = 0; i < n; i++, u.mp3++) {
+							(void) printf(
+							    "\t%s type=%u off=%u\n",
+							    ref_to_str(u.mp3->ctm_name,
+							    hp, cd), u.mp3->ctm_type,
+							    u.mp3->ctm_offset);
+						}
 					}
 				}
 			}
 
-			vlen = n * (size >= CTF_LSTRUCT_THRESH ?
-			    sizeof (ctf_lmember_t) : sizeof (ctf_member_t));
+			if (version == CTF_VERSION_2) {
+				vlen = n * (size >= CTF_V2_LSTRUCT_THRESH ?
+				    sizeof (struct ctf_lmember_v2) :
+				    sizeof (struct ctf_member_v2));
+			} else {
+				vlen = n * (size >= CTF_V3_LSTRUCT_THRESH ?
+				    sizeof (struct ctf_lmember_v3) :
+				    sizeof (struct ctf_member_v3));
+			}
 			break;
 
 		case CTF_K_ENUM:
 			if (flags != F_STATS) {
 				(void) printf("ENUM %s\n",
-				    ref_to_str(tp->ctt_name, hp, cd));
+				    ref_to_str(name, hp, cd));
 
 				for (i = 0; i < n; i++, u.ep++) {
 					(void) printf("\t%s = %d\n",
@@ -574,39 +668,35 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 		case CTF_K_FORWARD:
 			if (flags != F_STATS) {
 				(void) printf("FORWARD %s",
-				    ref_to_str(tp->ctt_name, hp, cd));
+				    ref_to_str(name, hp, cd));
 			}
 			break;
 
 		case CTF_K_TYPEDEF:
 			if (flags != F_STATS) {
 				(void) printf("TYPEDEF %s refers to %u",
-				    ref_to_str(tp->ctt_name, hp, cd),
-				    tp->ctt_type);
+				    ref_to_str(name, hp, cd), type);
 			}
 			break;
 
 		case CTF_K_VOLATILE:
 			if (flags != F_STATS) {
 				(void) printf("VOLATILE %s refers to %u",
-				    ref_to_str(tp->ctt_name, hp, cd),
-				    tp->ctt_type);
+				    ref_to_str(name, hp, cd), type);
 			}
 			break;
 
 		case CTF_K_CONST:
 			if (flags != F_STATS) {
 				(void) printf("CONST %s refers to %u",
-				    ref_to_str(tp->ctt_name, hp, cd),
-				    tp->ctt_type);
+				    ref_to_str(name, hp, cd), type);
 			}
 			break;
 
 		case CTF_K_RESTRICT:
 			if (flags != F_STATS) {
 				(void) printf("RESTRICT %s refers to %u",
-				    ref_to_str(tp->ctt_name, hp, cd),
-				    tp->ctt_type);
+				    ref_to_str(name, hp, cd), type);
 			}
 			break;
 
@@ -624,7 +714,7 @@ read_types(const ctf_header_t *hp, const ctf_data_t *cd)
 		stats.s_ntypes++;
 		stats.s_types[kind]++;
 
-		tp = (ctf_type_t *)((uintptr_t)tp + increment + vlen);
+		v += increment + vlen;
 	}
 
 	return (E_SUCCESS);
@@ -935,14 +1025,16 @@ main(int argc, char *argv[])
 	if (pp->ctp_magic != CTF_MAGIC)
 		die("%s does not appear to contain CTF data\n", filename);
 
-	if (pp->ctp_version == CTF_VERSION) {
+	if (pp->ctp_version >= CTF_VERSION_2) {
 		v = (void *) cd.cd_ctfdata;
 		hp = v;
 		cd.cd_ctfdata = (caddr_t)cd.cd_ctfdata + sizeof (ctf_header_t);
 
+		cd.cd_idwidth = pp->ctp_version == CTF_VERSION_2 ? 2 : 4;
+
 		if (cd.cd_ctflen < sizeof (ctf_header_t)) {
 			die("%s does not contain a v%d CTF header\n", filename,
-			    CTF_VERSION);
+			    pp->ctp_version);
 		}
 
 	} else {

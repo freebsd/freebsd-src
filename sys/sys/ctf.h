@@ -149,7 +149,7 @@ typedef struct ctf_enum {
 } ctf_enum_t;
 
 #define CTF_MAGIC		0xcff1
-#define CTF_VERSION		CTF_VERSION_2
+#define CTF_VERSION		CTF_VERSION_3
 #define CTF_VERSION_3		3
 #define CTF_VERSION_2		2
 #define CTF_VERSION_1		1
