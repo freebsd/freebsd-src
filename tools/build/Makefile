@@ -263,6 +263,7 @@ SYSINCS+=	${SRCTOP}/sys/sys/fnv_hash.h
 # opensolaris compatibility
 INCS+=	${SRCTOP}/include/elf.h
 SYSINCS+=	${SRCTOP}/sys/sys/elf.h
+SYSINCS+=	${SRCTOP}/sys/sys/ctf.h
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.
