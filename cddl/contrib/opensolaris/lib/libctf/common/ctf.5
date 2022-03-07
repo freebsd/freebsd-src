@@ -11,7 +11,7 @@
 .\"
 .\" Copyright (c) 2014 Joyent, Inc.
 .\"
-.Dd Sep 26, 2014
+.Dd February 28, 2022
 .Dt CTF 5
 .Os
 .Sh NAME
@@ -65,11 +65,11 @@ data can be obtained through libctf.
 The
 .Nm
 file format is broken down into seven different sections.
-The first section is the
+The first two sections are the
 .Sy preamble
 and
 .Sy header ,
-which describes the version of the
+which describe the version of the
 .Nm
 file, the links it has to other
 .Nm
@@ -129,15 +129,22 @@ and the type information that comes from the
 module.
 This means that a module only has types that are unique to itself and the most
 common types in the kernel are not duplicated.
+Uniquification is not used when building kernel modules on
+.Fx .
 .Sh FILE FORMAT
 This documents version
-.Em two
+.Em three
 of the
 .Nm
 file format.
-All applications and tools on
-.Fx
-currently produce and operate on this version.
+The
+.Xr ctfconvert 1
+and
+.Xr ctfmerge 1
+utilities emit
+.Nm
+version 3, and all other applications and libraries can operate on
+versions 2 and 3.
 .Lp
 The file format can be summarized with the following image, the
 following sections will cover this in more detail.
@@ -164,7 +171,7 @@ following sections will cover this in more detail.
 |||||||    +-- magic -   vers   flags
 |||||||    |          |    |      |
 |||||||   +------+------+------+------+
-+---------| 0xcf | 0xf1 | 0x02 | 0x00 |
++---------| 0xcf | 0xf1 | 0x03 | 0x00 |
  ||||||   +------+------+------+------+
  ||||||   0      1      2      3      4
  ||||||
@@ -191,7 +198,7 @@ following sections will cover this in more detail.
    ||||       +------+------+------+-----+
    +----------| 0x00 | 0x42 | 0x36 | ... |
     |||       +------+------+------+-----+
-    ||| cth_objtoff  +0x2   +0x4   +0x6   cth_funcoff
+    ||| cth_objtoff  +0x4   +0x8   +0xc   cth_funcoff
     |||
     |||        + CTF_TYPE_INFO         + CTF_TYPE_INFO
     |||        |        + Return type  |
@@ -199,7 +206,7 @@ following sections will cover this in more detail.
     |||       +--------+------+------+-----+
     +---------| 0x2c10 | 0x08 | 0x0c | ... |
      ||       +--------+------+------+-----+
-     || cth_funcff     +0x2   +0x4   +0x6  cth_typeoff
+     || cth_funcff     +0x4   +0x8   +0xc  cth_typeoff
      ||
      ||         + ctf_stype_t for type 1
      ||         |  integer           + integer encoding
@@ -208,7 +215,7 @@ following sections will cover this in more detail.
      ||       +--------------------+-----------+-----+
      +--------| 0x19 * 0xc01 * 0x0 | 0x1000000 | ... |
       |       +--------------------+-----------+-----+
-      | cth_typeoff               +0x08      +0x0c  cth_stroff
+      | cth_typeoff               +0x0c      +0x10  cth_stroff
       |
       |     +--- str 0
       |     |    +--- str 1       + str 2
@@ -265,7 +272,7 @@ member defines the version of the
 .Nm
 file.
 The current version is
-.Li 2 .
+.Li 3 .
 It is possible to encounter an unsupported version.
 In that case, software should not try to parse the format, as it may have
 changed.
@@ -296,7 +303,7 @@ always refer to the
 .Sy uncompressed
 data.
 .Lp
-In version two of the
+In versions two and three of the
 .Nm
 file format, the
 .Sy header
@@ -327,7 +334,7 @@ typedef struct ctf_header {
 After the
 .Sy preamble ,
 the next two members
-.Em cth_parlablel
+.Em cth_parlabel
 and
 .Em cth_parname ,
 are used to identify the parent.
@@ -364,7 +371,7 @@ file.
 The difference between members indicates the size of the section itself.
 Different offsets have different alignment requirements.
 The start of the
-.Em cth_objotoff
+.Em cth_objtoff
 and
 .Em cth_funcoff
 must be two byte aligned, while the sections
@@ -381,9 +388,9 @@ section, one should subtract the offset of the section from the following one.
 For example, the size of the
 .Sy types
 section can be calculated by subtracting
-.Em cth_stroff
+.Em cth_typeoff
 from
-.Em cth_typeoff .
+.Em cth_stroff .
 .Lp
 Finally, the member
 .Em cth_strlen
@@ -402,16 +409,20 @@ Through the
 data, types are referred to by identifiers.
 A given
 .Nm
-file supports up to 32767 (0x7fff) types.
+file supports up to 2147483646 (0x7ffffffe) types.
+.Nm
+version 2 had a much smaller limit of 32767 types.
 The first valid type identifier is 0x1.
 When a given
 .Nm
 file is a child, indicated by a non-zero entry for the
 .Sy header Ns 's
 .Em cth_parname ,
-then the first valid type identifier is 0x8000 and the last is 0xffff.
-In this case, type identifiers 0x1 through 0x7fff are references to the
+then the first valid type identifier is 0x80000000 and the last is 0xfffffffe.
+In this case, type identifiers 0x1 through 0x7ffffffe are references to the
 parent.
+0x7fffffff and 0xffffffff are not treated as valid type identifiers so as to
+enable the use of -1 as an error value.
 .Lp
 The type identifier zero is a sentinel value used to indicate that there
 is no type information available or it is an unknown type.
@@ -444,7 +455,7 @@ container.
 Every
 .Nm
 type begins with metadata encoded into a
-.Sy uint16_t .
+.Sy uint32_t .
 This encoded information tells us three different pieces of information:
 .Bl -bullet -offset indent -compact
 .It
@@ -455,16 +466,9 @@ Whether this type is a root type or not
 The length of the variable data
 .El
 .Lp
-The 16 bits that make up the encoding are broken down such that you have
-five bits for the kind, one bit for indicating whether or not it is a
-root type, and 10 bits for the variable length.
-This is laid out as follows:
-.Bd -literal -offset indent
-+--------------------+
-| kind | root | vlen |
-+--------------------+
-15   11   10   9    0
-.Ed
+The 32 bits that make up the encoding are broken down into six bits
+for the kind (bits 26 to 31), one bit for the root type flag (bit 25),
+and 25 bits for the length of the variable data.
 .Lp
 The current version of the file format defines 14 different kinds.
 The interpretation of these different kinds will be discussed in the section
@@ -502,7 +506,7 @@ That type is not considered a
 type.
 If a type is a
 .Sy root
-type, then it will have bit 10 set.
+type, then it will have bit 25 set.
 .Lp
 The variable length section is specific to each kind and is discussed in the
 section
@@ -512,13 +516,13 @@ The following macros are useful for constructing and deconstructing the encoded
 type information:
 .Bd -literal -offset indent
 
-#define	CTF_MAX_VLEN	0x3ff
-#define	CTF_INFO_KIND(info)	(((info) & 0xf800) >> 11)
-#define	CTF_INFO_ISROOT(info)	(((info) & 0x0400) >> 10)
-#define	CTF_INFO_VLEN(info)	(((info) & CTF_MAX_VLEN))
+#define	CTF_V3_MAX_VLEN			0x00ffffff
+#define	CTF_V3_INFO_KIND(info)		(((info) & 0xfc000000) >> 26)
+#define	CTF_V3_INFO_ISROOT(info)	(((info) & 0x02000000) >> 25)
+#define	CTF_V3_INFO_VLEN(info)		(((info) & CTF_V3_MAX_VLEN))
 
-#define	CTF_TYPE_INFO(kind, isroot, vlen) \\
-	(((kind) << 11) | (((isroot) ? 1 : 0) << 10) | ((vlen) & CTF_MAX_VLEN))
+#define	CTF_V3_TYPE_INFO(kind, isroot, vlen) \\
+	(((kind) << 26) | (((isroot) ? 1 : 0) << 25) | ((vlen) & CTF_V3_MAX_VLEN))
 .Ed
 .Ss The Label Section
 When consuming
@@ -536,6 +540,11 @@ releases, that they are not used together by tools, particularly when a child
 needs to refer to a type in the parent.
 Because they are linked using the type identifiers, if the wrong parent is used
 then the wrong type will be encountered.
+Note that this mechanism is not currently used on
+.Fx .
+In particular, kernel modules built on
+.Fx
+each contain a complete type graph.
 .Lp
 Each label is encoded in the file format using the following eight byte
 structure:
@@ -573,7 +582,7 @@ The object section provides a mapping from ELF symbols of type
 .Sy STT_OBJECT
 in the symbol table to a type identifier.
 Every entry in this section is a
-.Sy uint16_t
+.Sy uint32_t
 which contains a type identifier as described in the section
 .Sx Type Identifiers .
 If there is no information for an object, then the type identifier 0x0
@@ -617,14 +626,17 @@ section and skipping the correct symbols:
 #include <stdio.h>
 
 /*
- * Given the start of the object section in the CTF file, the number of symbols,
+ * Given the start of the object section in a CTFv3 file, the number of symbols,
  * and the ELF Data sections for the symbol table and the string table, this
  * prints the type identifiers that correspond to objects. Note, a more robust
  * implementation should ensure that they don't walk beyond the end of the CTF
  * object section.
+ *
+ * An implementation that handles CTFv2 must take into account the fact that
+ * type identifiers are 16 bits wide rather than 32 bits wide.
  */
 static int
-walk_symbols(uint16_t *objtoff, Elf_Data *symdata, Elf_Data *strdata,
+walk_symbols(uint32_t *objtoff, Elf_Data *symdata, Elf_Data *strdata,
     long nsyms)
 {
 	long i;
@@ -667,9 +679,9 @@ Unlike with objects, because functions have a variable number of arguments, they
 start with a type encoding as defined in
 .Sx Type Encoding ,
 which is the size of a
-.Sy uint16_t .
+.Sy uint32_t .
 For functions which have no type information available, they are encoded as
-.Li CTF_TYPE_INFO(CTF_K_UNKNOWN, 0, 0) .
+.Li CTF_V3_TYPE_INFO(CTF_K_UNKNOWN, 0, 0) .
 Functions with arguments are encoded differently.
 Here, the variable length is turned into the number of arguments in the
 function.
@@ -677,12 +689,12 @@ If a function is a
 .Sy varargs
 type function, then the number of arguments is increased by one.
 Functions with type information are encoded as:
-.Li CTF_TYPE_INFO(CTF_K_FUNCTION, 0, nargs) .
+.Li CTF_V3_TYPE_INFO(CTF_K_FUNCTION, 0, nargs) .
 .Lp
 For functions that have no type information, nothing else is encoded, and the
 next function is encoded.
 For functions with type information, the next
-.Sy uint16_t
+.Sy uint32_t
 is encoded with the type identifier of the return type of the function.
 It is followed by each of the type identifiers of the arguments, if any exist,
 in the order that they appear in the function.
@@ -723,29 +735,29 @@ The base of the type information comes in two forms, a short form and a long
 form, each of which may be followed by a variable number of arguments.
 The following definitions describe the short and long forms:
 .Bd -literal
-#define	CTF_MAX_SIZE	0xfffe	/* max size of a type in bytes */
-#define	CTF_LSIZE_SENT	0xffff	/* sentinel for ctt_size */
-#define	CTF_MAX_LSIZE	UINT64_MAX
+#define	CTF_V3_MAX_SIZE		0xfffffffe	/* max size of a type in bytes */
+#define	CTF_V3_LSIZE_SENT	0xffffffff	/* sentinel for ctt_size */
+#define	CTF_V3_MAX_LSIZE	UINT64_MAX
 
-typedef struct ctf_stype {
+struct ctf_stype_v3 {
 	uint32_t ctt_name;	/* reference to name in string table */
-	uint16_t ctt_info;	/* encoded kind, variant length */
+	uint32_t ctt_info;	/* encoded kind, variant length */
 	union {
-		uint16_t _size;	/* size of entire type in bytes */
-		uint16_t _type;	/* reference to another type */
+		uint32_t _size;	/* size of entire type in bytes */
+		uint32_t _type;	/* reference to another type */
 	} _u;
-} ctf_stype_t;
+};
 
-typedef struct ctf_type {
+struct ctf_type_v3 {
 	uint32_t ctt_name;	/* reference to name in string table */
-	uint16_t ctt_info;	/* encoded kind, variant length */
+	uint32_t ctt_info;	/* encoded kind, variant length */
 	union {
-		uint16_t _size;	/* always CTF_LSIZE_SENT */
-		uint16_t _type; /* do not use */
+		uint32_t _size;	/* always CTF_LSIZE_SENT */
+		uint32_t _type; /* do not use */
 	} _u;
 	uint32_t ctt_lsizehi;	/* high 32 bits of type size in bytes */
 	uint32_t ctt_lsizelo;	/* low 32 bits of type size in bytes */
-} ctf_type_t;
+};
 
 #define	ctt_size _u._size	/* for fundamental types that have a size */
 #define	ctt_type _u._type	/* for types that reference another type */
@@ -754,29 +766,29 @@ typedef struct ctf_type {
 Type sizes are stored in
 .Sy bytes .
 The basic small form uses a
-.Sy uint16_t
+.Sy uint32_t
 to store the number of bytes.
-If the number of bytes in a structure would exceed 0xfffe, then the alternate
-form, the
-.Sy ctf_type_t ,
+If the number of bytes in a structure would exceed 0xfffffffe, then the
+alternate form, the
+.Sy struct ctf_type_v3 ,
 is used instead.
 To indicate that the larger form is being used, the member
 .Em ctt_size
 is set to value of
-.Sy CTF_LSIZE_SENT
-(0xffff).
+.Sy CTF_V3_LSIZE_SENT
+(0xffffffff).
 In general, when going through the type section, consumers use the
-.Sy ctf_type_t
+.Sy struct ctf_type_v3
 structure, but pay attention to the value of the member
 .Em ctt_size
-to determine whether they should increment their scan by the size of the
-.Sy ctf_stype_t
+to determine whether they should increment their scan by the size of
+.Sy struct ctf_stype_v3
 or
-.Sy ctf_type_t .
+.Sy struct ctf_type_v3 .
 Not all kinds of types use
 .Sy ctt_size .
 Those which do not, will always use the
-.Sy ctf_stype_t
+.Sy struct ctf_stype_v3
 structure.
 The individual sections for each kind have more information.
 .Lp
@@ -798,7 +810,7 @@ The next member, the
 is encoded as described in the section
 .Sx Type Encoding .
 The type's kind tells us how to interpret the remaining data in the
-.Sy ctf_type_t
+.Sy struct ctf_type_v3
 and any variable length data that may exist.
 The rest of this section will be broken down into the interpretation of the
 various kinds.
@@ -936,11 +948,11 @@ With arrays, the
 member is set to zero.
 The structure that follows an array is defined as:
 .Bd -literal
-typedef struct ctf_array {
-	uint16_t cta_contents;	/* reference to type of array contents */
-	uint16_t cta_index;	/* reference to type of array index */
+struct ctf_array_v3 {
+	uint32_t cta_contents;	/* reference to type of array contents */
+	uint32_t cta_index;	/* reference to type of array index */
 	uint32_t cta_nelems;	/* number of elements */
-} ctf_array_t;
+};
 .Ed
 .Lp
 The
@@ -948,7 +960,7 @@ The
 and
 .Em cta_index
 members of the
-.Sy ctf_array_t
+.Sy struct ctf_array_v3
 are type identifiers which are encoded as per the section
 .Sx Type Identifiers .
 The member
@@ -971,17 +983,23 @@ member is not used here.
 The variable argument list contains the type identifiers for the arguments of
 the function, if any.
 Each one is represented by a
-.Sy uint16_t
+.Sy uint32_t
 and encoded according to the
 .Sx Type Identifiers
 section.
 If the function's last argument is of type varargs, then it is also written out,
 but the type identifier is zero.
 This is included in the count of the function's arguments.
-An extra type identifier may follow the argument and return type identifiers
-in order to maintain four-byte alignment for the following type definition.
+In
+.Nm
+version 2, an extra type identifier may follow the argument and return type
+identifiers in order to maintain four-byte alignment for the following type
+definition.
 Such a type identifier is not included in the argument count and has a value
 of zero.
+In
+.Nm
+version 3, four-byte alignment occurs naturally and no padding is used.
 .Ss Encoding of Structures and Unions
 Structures and Unions, which are encoded with
 .Sy CTF_K_STRUCT
@@ -1000,23 +1018,22 @@ is the size of the structure and union.
 There are two different structures which are used to encode members in the
 variable list.
 When the size of a structure or union is greater than or equal to the large
-member threshold, 8192, then a different structure is used to encode the member,
-all members are encoded using the same structure.
+member threshold, 536870912, then a different structure is used to encode the
+member; all members are encoded using the same structure.
 The structure for members is as follows:
 .Bd -literal
-typedef struct ctf_member {
+struct ctf_member_v3 {
 	uint32_t ctm_name;	/* reference to name in string table */
-	uint16_t ctm_type;	/* reference to type of member */
-	uint16_t ctm_offset;	/* offset of this member in bits */
-} ctf_member_t;
+	uint32_t ctm_type;	/* reference to type of member */
+	uint32_t ctm_offset;	/* offset of this member in bits */
+};
 
-typedef struct ctf_lmember {
+struct ctf_lmember_v3 {
 	uint32_t ctlm_name;	/* reference to name in string table */
-	uint16_t ctlm_type;	/* reference to type of member */
-	uint16_t ctlm_pad;	/* padding */
+	uint32_t ctlm_type;	/* reference to type of member */
 	uint32_t ctlm_offsethi;	/* high 32 bits of member offset in bits */
 	uint32_t ctlm_offsetlo;	/* low 32 bits of member offset in bits */
-} ctf_lmember_t;
+};
 .Ed
 .Lp
 Both the
@@ -1045,13 +1062,13 @@ at which the member begins.
 Note that a compiler may lay out a type with padding.
 This means that the difference in offset between two consecutive members may be
 larger than the size of the member.
-When the size of the overall structure is strictly less than 8192 bytes, the
-normal structure,
-.Sy ctf_member_t ,
+When the size of the overall structure is strictly less than 536870912 bytes,
+the normal structure,
+.Sy struct ctf_member_v3 ,
 is used and the offset in bits is stored in the member
 .Em ctm_offset .
-However, when the size of the structure is greater than or equal to 8192 bytes,
-then the number of bits is split into two 32-bit quantities.
+However, when the size of the structure is greater than or equal to 536870912
+bytes, then the number of bits is split into two 32-bit quantities.
 One member,
 .Em ctlm_offsethi ,
 represents the upper 32 bits of the offset, while the other member,
@@ -1114,7 +1131,7 @@ actual type in the parent, otherwise the definition may be in another
 .Nm
 container or may not be known at all.
 The only member of the
-.Sy ctf_type_t
+.Sy struct ctf_type_v3
 that matters for a forward declaration is the
 .Em ctt_name
 which points to the name of the forward reference in the string table as
@@ -1216,6 +1233,9 @@ The type of the section must be
 The section should have a link set to the symbol table and its address
 alignment must be 4.
 .Sh SEE ALSO
+.Xr ctfconvert 1 ,
+.Xr ctfdump 1 ,
+.Xr ctfmerge 1 ,
 .Xr dtrace 1 ,
 .Xr elf 3 ,
 .Xr gelf 3 ,
