@@ -1,23 +1,23 @@
 /******************************************************************************
  * hypercall.h
- * 
+ *
  * Linux-specific hypervisor handling.
- * 
+ *
  * Copyright (c) 2002-2004, K A Fraser
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -39,81 +39,81 @@ extern char *hypercall_page;
 #define __STR(x) #x
 #define STR(x) __STR(x)
 
-#define HYPERCALL_STR(name)                                     \
-        "call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
+#define HYPERCALL_STR(name)					\
+	"call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
 
-#define _hypercall0(type, name)                 \
-({                                              \
-        long __res;                             \
-        __asm__ volatile (                          \
-                HYPERCALL_STR(name)             \
-                : "=a" (__res)                  \
-                :                               \
-                : "memory" );                   \
-        (type)__res;                            \
+#define _hypercall0(type, name)					\
+({								\
+	long __res;						\
+	__asm__ volatile (					\
+		HYPERCALL_STR(name)				\
+		: "=a" (__res)					\
+		:						\
+		: "memory" );					\
+	(type)__res;						\
 })
 
-#define _hypercall1(type, name, a1)                             \
-({                                                              \
-        long __res, __ign1;                                     \
-        __asm__ volatile (                                          \
-                HYPERCALL_STR(name)                             \
-                : "=a" (__res), "=b" (__ign1)                   \
-                : "1" ((long)(a1))                              \
-                : "memory" );                                   \
-        (type)__res;                                            \
+#define _hypercall1(type, name, a1)				\
+({								\
+	long __res, __ign1;					\
+	__asm__ volatile (					\
+		HYPERCALL_STR(name)				\
+		: "=a" (__res), "=b" (__ign1)			\
+		: "1" ((long)(a1))				\
+		: "memory" );					\
+	(type)__res;						\
 })
 
-#define _hypercall2(type, name, a1, a2)                         \
-({                                                              \
-        long __res, __ign1, __ign2;                             \
-        __asm__ volatile (                                          \
-                HYPERCALL_STR(name)                             \
-                : "=a" (__res), "=b" (__ign1), "=c" (__ign2)    \
-                : "1" ((long)(a1)), "2" ((long)(a2))            \
-                : "memory" );                                   \
-        (type)__res;                                            \
+#define _hypercall2(type, name, a1, a2)				\
+({								\
+	long __res, __ign1, __ign2;				\
+	__asm__ volatile (					\
+		HYPERCALL_STR(name)				\
+		: "=a" (__res), "=b" (__ign1), "=c" (__ign2)	\
+		: "1" ((long)(a1)), "2" ((long)(a2))		\
+		: "memory" );					\
+	(type)__res;						\
 })
 
-#define _hypercall3(type, name, a1, a2, a3)                     \
-({                                                              \
-        long __res, __ign1, __ign2, __ign3;                     \
-        __asm__ volatile (                                          \
-                HYPERCALL_STR(name)                             \
-                : "=a" (__res), "=b" (__ign1), "=c" (__ign2),   \
-                "=d" (__ign3)                                   \
-                : "1" ((long)(a1)), "2" ((long)(a2)),           \
-                "3" ((long)(a3))                                \
-                : "memory" );                                   \
-        (type)__res;                                            \
+#define _hypercall3(type, name, a1, a2, a3)			\
+({								\
+	long __res, __ign1, __ign2, __ign3;			\
+	__asm__ volatile (					\
+		HYPERCALL_STR(name)				\
+		: "=a" (__res), "=b" (__ign1), "=c" (__ign2),	\
+		"=d" (__ign3)					\
+		: "1" ((long)(a1)), "2" ((long)(a2)),		\
+		"3" ((long)(a3))				\
+		: "memory" );					\
+	(type)__res;						\
 })
 
-#define _hypercall4(type, name, a1, a2, a3, a4)                 \
-({                                                              \
-        long __res, __ign1, __ign2, __ign3, __ign4;             \
-        __asm__ volatile (                                          \
-                HYPERCALL_STR(name)                             \
-                : "=a" (__res), "=b" (__ign1), "=c" (__ign2),   \
-                "=d" (__ign3), "=S" (__ign4)                    \
-                : "1" ((long)(a1)), "2" ((long)(a2)),           \
-                "3" ((long)(a3)), "4" ((long)(a4))              \
-                : "memory" );                                   \
-        (type)__res;                                            \
+#define _hypercall4(type, name, a1, a2, a3, a4)			\
+({								\
+	long __res, __ign1, __ign2, __ign3, __ign4;		\
+	__asm__ volatile (					\
+		HYPERCALL_STR(name)				\
+		: "=a" (__res), "=b" (__ign1), "=c" (__ign2),	\
+		"=d" (__ign3), "=S" (__ign4)			\
+		: "1" ((long)(a1)), "2" ((long)(a2)),		\
+		"3" ((long)(a3)), "4" ((long)(a4))		\
+		: "memory" );					\
+	(type)__res;						\
 })
 
-#define _hypercall5(type, name, a1, a2, a3, a4, a5)             \
-({                                                              \
-        long __res, __ign1, __ign2, __ign3, __ign4, __ign5;     \
-        __asm__ volatile (                                          \
-                HYPERCALL_STR(name)                             \
-                : "=a" (__res), "=b" (__ign1), "=c" (__ign2),   \
-                "=d" (__ign3), "=S" (__ign4), "=D" (__ign5)     \
-                : "1" ((long)(a1)), "2" ((long)(a2)),           \
-                "3" ((long)(a3)), "4" ((long)(a4)),             \
-                "5" ((long)(a5))                                \
-                : "memory" );                                   \
-        (type)__res;                                            \
-})								
+#define _hypercall5(type, name, a1, a2, a3, a4, a5)		\
+({								\
+	long __res, __ign1, __ign2, __ign3, __ign4, __ign5;	\
+	__asm__ volatile (					\
+		HYPERCALL_STR(name)				\
+		: "=a" (__res), "=b" (__ign1), "=c" (__ign2),	\
+		"=d" (__ign3), "=S" (__ign4), "=D" (__ign5)	\
+		: "1" ((long)(a1)), "2" ((long)(a2)),		\
+		"3" ((long)(a3)), "4" ((long)(a4)),		\
+		"5" ((long)(a5))				\
+		: "memory" );					\
+	(type)__res;						\
+})
 
 static inline long
 privcmd_hypercall(long op, long a1, long a2, long a3, long a4, long a5)
@@ -127,10 +127,10 @@ privcmd_hypercall(long op, long a1, long a2, long a3, long a4, long a5)
 	__asm__ volatile (
 		"call *%[call]"
 		: "=a" (__res), "=b" (__ign1), "=c" (__ign2),
-                "=d" (__ign3), "=S" (__ign4), "=D" (__ign5)
-                : "1" ((long)(a1)), "2" ((long)(a2)),
-                "3" ((long)(a3)), "4" ((long)(a4)),
-                "5" ((long)(a5)), [call] "a" (__call)
+		"=d" (__ign3), "=S" (__ign4), "=D" (__ign5)
+		: "1" ((long)(a1)), "2" ((long)(a2)),
+		"3" ((long)(a3)), "4" ((long)(a4)),
+		"5" ((long)(a5)), [call] "a" (__call)
 		: "memory" );
 
 	return __res;
@@ -206,10 +206,10 @@ HYPERVISOR_set_timer_op(
 
 static inline int
 HYPERVISOR_platform_op(
-        struct xen_platform_op *platform_op)
+	struct xen_platform_op *platform_op)
 {
-        platform_op->interface_version = XENPF_INTERFACE_VERSION;
-        return _hypercall1(int, platform_op, platform_op);
+	platform_op->interface_version = XENPF_INTERFACE_VERSION;
+	return _hypercall1(int, platform_op, platform_op);
 }
 
 static inline int
@@ -336,30 +336,30 @@ HYPERVISOR_suspend(
 
 static inline int
 HYPERVISOR_callback_op(
-        int cmd, void *arg)
+	int cmd, void *arg)
 {
-        return _hypercall2(int, callback_op, cmd, arg);
+	return _hypercall2(int, callback_op, cmd, arg);
 }
 
 static inline unsigned long
 HYPERVISOR_hvm_op(
-    int op, void *arg)
+	int op, void *arg)
 {
-    return _hypercall2(unsigned long, hvm_op, op, arg);
+	return _hypercall2(unsigned long, hvm_op, op, arg);
 }
 
 static inline int
 HYPERVISOR_xenoprof_op(
-        int op, void *arg)
+	int op, void *arg)
 {
-        return _hypercall2(int, xenoprof_op, op, arg);
+	return _hypercall2(int, xenoprof_op, op, arg);
 }
 
 static inline int
 HYPERVISOR_kexec_op(
-        unsigned long op, void *args)
+	unsigned long op, void *args)
 {
-        return _hypercall2(int, kexec_op, op, args);
+	return _hypercall2(int, kexec_op, op, args);
 }
 
 static inline int
