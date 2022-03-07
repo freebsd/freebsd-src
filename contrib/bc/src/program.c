@@ -710,8 +710,8 @@ static void bc_program_read(BcProgram *p) {
 	// We should *not* have run into EOF.
 	if (s == BC_STATUS_EOF) bc_err(BC_ERR_EXEC_READ_EXPR);
 
-	// Parse *one* expression.
-	bc_parse_text(&vm.read_prs, vm.read_buf.v, false);
+	// Parse *one* expression, so is_stdin should be false.
+	bc_parse_text(&vm.read_prs, vm.read_buf.v, false, false);
 	BC_SIG_LOCK;
 	vm.expr(&vm.read_prs, BC_PARSE_NOREAD | BC_PARSE_NEEDVAL);
 	BC_SIG_UNLOCK;
@@ -2331,7 +2331,7 @@ static void bc_program_execStr(BcProgram *p, const char *restrict code,
 		BC_SIG_UNLOCK;
 
 		// Parse.
-		bc_parse_text(&vm.read_prs, str, false);
+		bc_parse_text(&vm.read_prs, str, false, false);
 
 		BC_SIG_LOCK;
 		vm.expr(&vm.read_prs, BC_PARSE_NOCALL);

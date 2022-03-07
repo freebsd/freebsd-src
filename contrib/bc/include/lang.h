@@ -41,6 +41,10 @@
 #include <assert.h>
 #endif // BC_C11
 
+#if BC_C11
+#include <assert.h>
+#endif // BC_C11
+
 #include <status.h>
 #include <vector.h>
 #include <num.h>

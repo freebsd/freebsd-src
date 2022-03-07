@@ -82,8 +82,9 @@ void bc_lex_comment(BcLex *l) {
 			// If this is true, we need to request more data.
 			if (BC_ERR(!c || buf[i + 1] == '\0')) {
 
-				// Read more.
-				if (!vm.eof && l->is_stdin) got_more = bc_lex_readLine(l);
+				// Read more, if possible.
+				if (!vm.eof && (l->is_stdin || l->is_exprs))
+					got_more = bc_lex_readLine(l);
 
 				break;
 			}
@@ -302,7 +303,12 @@ bool bc_lex_readLine(BcLex *l) {
 	// bc_vm_readLine() needs them to be unlocked.
 	BC_SIG_UNLOCK;
 
-	good = bc_vm_readLine(false);
+	// Make sure we read from the appropriate place.
+	if (l->is_stdin) good = bc_vm_readLine(false);
+	else {
+		assert(l->is_exprs);
+		good = bc_vm_readBuf(false);
+	}
 
 	BC_SIG_LOCK;
 
@@ -311,7 +317,7 @@ bool bc_lex_readLine(BcLex *l) {
 	return good;
 }
 
-void bc_lex_text(BcLex *l, const char *text, bool is_stdin) {
+void bc_lex_text(BcLex *l, const char *text, bool is_stdin, bool is_exprs) {
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -321,6 +327,9 @@ void bc_lex_text(BcLex *l, const char *text, bool is_stdin) {
 	l->i = 0;
 	l->t = l->last = BC_LEX_INVALID;
 	l->is_stdin = is_stdin;
+	l->is_exprs = is_exprs;
+
+	assert(!l->is_stdin || !l->is_exprs);
 
 	bc_lex_next(l);
 }
