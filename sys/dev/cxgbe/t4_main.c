@@ -9447,8 +9447,11 @@ dump_devlog(struct adapter *sc)
 	int rc;
 	struct sbuf sb;
 
-	if (sbuf_new(&sb, NULL, 4096, SBUF_AUTOEXTEND) != &sb)
+	if (sbuf_new(&sb, NULL, 4096, SBUF_AUTOEXTEND) != &sb) {
+		log(LOG_DEBUG, "%s: failed to generate devlog dump.\n",
+		    device_get_nameunit(sc->dev));
 		return;
+	}
 	rc = sbuf_devlog(sc, &sb, M_NOWAIT);
 	if (rc == 0) {
 		rc = sbuf_finish(&sb);
