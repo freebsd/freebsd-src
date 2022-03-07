@@ -370,12 +370,12 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 	const Elf_Sym *symp = lc->symtab;
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	const uint8_t *ctfdata = lc->ctftab + sizeof(ctf_header_t);
+	size_t idwidth;
 	int i;
 	uint32_t *ctfoff;
 	uint32_t objtoff = hp->cth_objtoff;
 	uint32_t funcoff = hp->cth_funcoff;
-	ushort_t info;
-	ushort_t vlen;
+	uint_t kind, info, vlen;
 
 	/* Sanity check. */
 	if (hp->cth_magic != CTF_MAGIC) {
@@ -391,6 +391,8 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 	ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK);
 	*lc->ctfoffp = ctfoff;
 
+	idwidth = hp->cth_version == CTF_VERSION_2 ? 2 : 4;
+
 	for (i = 0; i < lc->nsym; i++, ctfoff++, symp++) {
 		if (symp->st_name == 0 || symp->st_shndx == SHN_UNDEF) {
 			*ctfoff = 0xffffffff;
@@ -400,13 +402,13 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 		switch (ELF_ST_TYPE(symp->st_info)) {
 		case STT_OBJECT:
 			if (objtoff >= hp->cth_funcoff ||
-                            (symp->st_shndx == SHN_ABS && symp->st_value == 0)) {
+			    (symp->st_shndx == SHN_ABS && symp->st_value == 0)) {
 				*ctfoff = 0xffffffff;
-                                break;
-                        }
+				break;
+			}
 
-                        *ctfoff = objtoff;
-                        objtoff += sizeof (ushort_t);
+			*ctfoff = objtoff;
+			objtoff += idwidth;
 			break;
 
 		case STT_FUNC:
@@ -417,18 +419,25 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 
 			*ctfoff = funcoff;
 
-			info = *((const ushort_t *)(ctfdata + funcoff));
-			vlen = CTF_INFO_VLEN(info);
+			info = 0;
+			memcpy(&info, ctfdata + funcoff, idwidth);
+			if (hp->cth_version == CTF_VERSION_2) {
+				kind = CTF_V2_INFO_KIND(info);
+				vlen = CTF_V2_INFO_VLEN(info);
+			} else {
+				kind = CTF_V3_INFO_KIND(info);
+				vlen = CTF_V3_INFO_VLEN(info);
+			}
 
 			/*
 			 * If we encounter a zero pad at the end, just skip it.
 			 * Otherwise skip over the function and its return type
 			 * (+2) and the argument list (vlen).
 			 */
-			if (CTF_INFO_KIND(info) == CTF_K_UNKNOWN && vlen == 0)
-				funcoff += sizeof (ushort_t); /* skip pad */
+			if (kind == CTF_K_UNKNOWN && vlen == 0)
+				funcoff += idwidth;
 			else
-				funcoff += sizeof (ushort_t) * (vlen + 2);
+				funcoff += idwidth * (vlen + 2);
 			break;
 
 		default:
@@ -440,18 +449,61 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 	return (0);
 }
 
+static void
+fbt_get_ctt_index(uint8_t version, const void *v, uint_t *indexp,
+    uint_t *typep, int *ischildp)
+{
+	uint_t index, type;
+	int ischild;
+
+	if (version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = v;
+
+		type = ctt->ctt_type;
+		index = CTF_V2_TYPE_TO_INDEX(ctt->ctt_type);
+		ischild = CTF_V2_TYPE_ISCHILD(ctt->ctt_type);
+	} else {
+		const struct ctf_type_v3 *ctt = v;
+
+		type = ctt->ctt_type;
+		index = CTF_V3_TYPE_TO_INDEX(ctt->ctt_type);
+		ischild = CTF_V3_TYPE_ISCHILD(ctt->ctt_type);
+	}
+
+	if (indexp != NULL)
+		*indexp = index;
+	if (typep != NULL)
+		*typep = type;
+	if (ischildp != NULL)
+		*ischildp = ischild;
+}
+
 static ssize_t
-fbt_get_ctt_size(uint8_t version, const ctf_type_t *tp, ssize_t *sizep,
+fbt_get_ctt_size(uint8_t version, const void *tp, ssize_t *sizep,
     ssize_t *incrementp)
 {
 	ssize_t size, increment;
 
-	if (tp->ctt_size == CTF_LSIZE_SENT) {
-		size = CTF_TYPE_LSIZE(tp);
-		increment = sizeof (ctf_type_t);
+	if (version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = tp;
+
+		if (ctt->ctt_size == CTF_V2_LSIZE_SENT) {
+			size = CTF_TYPE_LSIZE(ctt);
+			increment = sizeof (struct ctf_type_v2);
+		} else {
+			size = ctt->ctt_size;
+			increment = sizeof (struct ctf_stype_v2);
+		}
 	} else {
-		size = tp->ctt_size;
-		increment = sizeof (ctf_stype_t);
+		const struct ctf_type_v3 *ctt = tp;
+
+		if (ctt->ctt_size == CTF_V3_LSIZE_SENT) {
+			size = CTF_TYPE_LSIZE(ctt);
+			increment = sizeof (struct ctf_type_v3);
+		} else {
+			size = ctt->ctt_size;
+			increment = sizeof (struct ctf_stype_v3);
+		}
 	}
 
 	if (sizep)
@@ -462,41 +514,69 @@ fbt_get_ctt_size(uint8_t version, const ctf_type_t *tp, ssize_t *sizep,
 	return (size);
 }
 
+static void
+fbt_get_ctt_info(uint8_t version, const void *tp, uint_t *kindp, uint_t *vlenp,
+    int *isrootp)
+{
+	uint_t kind, vlen;
+	int isroot;
+
+	if (version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = tp;
+
+		kind = CTF_V2_INFO_KIND(ctt->ctt_info);
+		vlen = CTF_V2_INFO_VLEN(ctt->ctt_info);
+		isroot = CTF_V2_INFO_ISROOT(ctt->ctt_info);
+	} else {
+		const struct ctf_type_v3 *ctt = tp;
+
+		kind = CTF_V3_INFO_KIND(ctt->ctt_info);
+		vlen = CTF_V3_INFO_VLEN(ctt->ctt_info);
+		isroot = CTF_V3_INFO_ISROOT(ctt->ctt_info);
+	}
+
+	if (kindp != NULL)
+		*kindp = kind;
+	if (vlenp != NULL)
+		*vlenp = vlen;
+	if (isrootp != NULL)
+		*isrootp = isroot;
+}
+
 static int
 fbt_typoff_init(linker_ctf_t *lc)
 {
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
-	const ctf_type_t *tbuf;
-	const ctf_type_t *tend;
-	const ctf_type_t *tp;
+	const void *tbuf, *tend, *tp;
 	const uint8_t *ctfdata = lc->ctftab + sizeof(ctf_header_t);
+	size_t idwidth;
 	int ctf_typemax = 0;
 	uint32_t *xp;
 	ulong_t pop[CTF_K_MAX + 1] = { 0 };
 	uint8_t version;
-
 
 	/* Sanity check. */
 	if (hp->cth_magic != CTF_MAGIC)
 		return (EINVAL);
 
 	version = hp->cth_version;
+	idwidth = version == CTF_VERSION_2 ? 2 : 4;
 
-	tbuf = (const ctf_type_t *) (ctfdata + hp->cth_typeoff);
-	tend = (const ctf_type_t *) (ctfdata + hp->cth_stroff);
+	tbuf = (const void *) (ctfdata + hp->cth_typeoff);
+	tend = (const void *) (ctfdata + hp->cth_stroff);
 
 	/*
 	 * We make two passes through the entire type section.  In this first
 	 * pass, we count the number of each type and the total number of types.
 	 */
 	for (tp = tbuf; tp < tend; ctf_typemax++) {
-		ushort_t kind = CTF_INFO_KIND(tp->ctt_info);
-		ulong_t vlen = CTF_INFO_VLEN(tp->ctt_info);
+		uint_t kind, type, vlen;
 		ssize_t size, increment;
-
 		size_t vbytes;
 
 		(void) fbt_get_ctt_size(version, tp, &size, &increment);
+		fbt_get_ctt_info(version, tp, &kind, &vlen, NULL);
+		fbt_get_ctt_index(version, tp, NULL, &type, NULL);
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -504,17 +584,31 @@ fbt_typoff_init(linker_ctf_t *lc)
 			vbytes = sizeof (uint_t);
 			break;
 		case CTF_K_ARRAY:
-			vbytes = sizeof (ctf_array_t);
+			if (version == CTF_VERSION_2)
+				vbytes = sizeof (struct ctf_array_v2);
+			else
+				vbytes = sizeof (struct ctf_array_v3);
 			break;
 		case CTF_K_FUNCTION:
-			vbytes = sizeof (ushort_t) * (vlen + (vlen & 1));
+			vbytes = roundup2(idwidth * vlen, sizeof(uint32_t));
 			break;
 		case CTF_K_STRUCT:
 		case CTF_K_UNION:
-			if (size < CTF_LSTRUCT_THRESH)
-				vbytes = sizeof (ctf_member_t) * vlen;
-			else
-				vbytes = sizeof (ctf_lmember_t) * vlen;
+			if (version == CTF_VERSION_2) {
+				if (size < CTF_V2_LSTRUCT_THRESH)
+					vbytes =
+					    sizeof (struct ctf_member_v2) * vlen;
+				else
+					vbytes =
+					    sizeof (struct ctf_lmember_v2) * vlen;
+			} else {
+				if (size < CTF_V3_LSTRUCT_THRESH)
+					vbytes =
+					    sizeof (struct ctf_member_v3) * vlen;
+				else
+					vbytes =
+					    sizeof (struct ctf_lmember_v3) * vlen;
+			}
 			break;
 		case CTF_K_ENUM:
 			vbytes = sizeof (ctf_enum_t) * vlen;
@@ -525,11 +619,10 @@ fbt_typoff_init(linker_ctf_t *lc)
 			 * kind for the tag, so bump that population count too.
 			 * If ctt_type is unknown, treat the tag as a struct.
 			 */
-			if (tp->ctt_type == CTF_K_UNKNOWN ||
-			    tp->ctt_type >= CTF_K_MAX)
+			if (type == CTF_K_UNKNOWN || type >= CTF_K_MAX)
 				pop[CTF_K_STRUCT]++;
 			else
-				pop[tp->ctt_type]++;
+				pop[type]++;
 			/*FALLTHRU*/
 		case CTF_K_UNKNOWN:
 			vbytes = 0;
@@ -545,7 +638,7 @@ fbt_typoff_init(linker_ctf_t *lc)
 			printf("%s(%d): detected invalid CTF kind -- %u\n", __func__, __LINE__, kind);
 			return (EIO);
 		}
-		tp = (ctf_type_t *)((uintptr_t)tp + increment + vbytes);
+		tp = (const void *)((uintptr_t)tp + increment + vbytes);
 		pop[kind]++;
 	}
 
@@ -565,13 +658,13 @@ fbt_typoff_init(linker_ctf_t *lc)
 	 * In the second pass, fill in the type offset.
 	 */
 	for (tp = tbuf; tp < tend; xp++) {
-		ushort_t kind = CTF_INFO_KIND(tp->ctt_info);
-		ulong_t vlen = CTF_INFO_VLEN(tp->ctt_info);
 		ssize_t size, increment;
+		uint_t kind, vlen;
 
 		size_t vbytes;
 
 		(void) fbt_get_ctt_size(version, tp, &size, &increment);
+		fbt_get_ctt_info(version, tp, &kind, &vlen, NULL);
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -579,17 +672,31 @@ fbt_typoff_init(linker_ctf_t *lc)
 			vbytes = sizeof (uint_t);
 			break;
 		case CTF_K_ARRAY:
-			vbytes = sizeof (ctf_array_t);
+			if (version == CTF_VERSION_2)
+				vbytes = sizeof (struct ctf_array_v2);
+			else
+				vbytes = sizeof (struct ctf_array_v3);
 			break;
 		case CTF_K_FUNCTION:
-			vbytes = sizeof (ushort_t) * (vlen + (vlen & 1));
+			vbytes = roundup2(idwidth * vlen, sizeof(uint32_t));
 			break;
 		case CTF_K_STRUCT:
 		case CTF_K_UNION:
-			if (size < CTF_LSTRUCT_THRESH)
-				vbytes = sizeof (ctf_member_t) * vlen;
-			else
-				vbytes = sizeof (ctf_lmember_t) * vlen;
+			if (version == CTF_VERSION_2) {
+				if (size < CTF_V2_LSTRUCT_THRESH)
+					vbytes =
+					    sizeof (struct ctf_member_v2) * vlen;
+				else
+					vbytes =
+					    sizeof (struct ctf_lmember_v2) * vlen;
+			} else {
+				if (size < CTF_V3_LSTRUCT_THRESH)
+					vbytes =
+					    sizeof (struct ctf_member_v3) * vlen;
+				else
+					vbytes =
+					    sizeof (struct ctf_lmember_v3) * vlen;
+			}
 			break;
 		case CTF_K_ENUM:
 			vbytes = sizeof (ctf_enum_t) * vlen;
@@ -610,7 +717,7 @@ fbt_typoff_init(linker_ctf_t *lc)
 			return (EIO);
 		}
 		*xp = (uint32_t)((uintptr_t) tp - (uintptr_t) ctfdata);
-		tp = (ctf_type_t *)((uintptr_t)tp + increment + vbytes);
+		tp = (const void *)((uintptr_t)tp + increment + vbytes);
 	}
 
 	return (0);
@@ -748,10 +855,10 @@ ctf_decl_fini(ctf_decl_t *cd)
 	}
 }
 
-static const ctf_type_t *
+static const void *
 ctf_lookup_by_id(linker_ctf_t *lc, ctf_id_t type)
 {
-	const ctf_type_t *tp;
+	const void *tp;
 	uint32_t offset;
 	uint32_t *typoff = *lc->typoffp;
 
@@ -766,7 +873,7 @@ ctf_lookup_by_id(linker_ctf_t *lc, ctf_id_t type)
 		return(NULL);
 	}
 
-	tp = (const ctf_type_t *)(lc->ctftab + offset + sizeof(ctf_header_t));
+	tp = (const void *) (lc->ctftab + offset + sizeof(ctf_header_t));
 
 	return (tp);
 }
@@ -775,24 +882,36 @@ static void
 fbt_array_info(linker_ctf_t *lc, ctf_id_t type, ctf_arinfo_t *arp)
 {
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
-	const ctf_type_t *tp;
-	const ctf_array_t *ap;
+	const void *tp;
 	ssize_t increment;
+	uint_t kind;
 
 	bzero(arp, sizeof(*arp));
 
 	if ((tp = ctf_lookup_by_id(lc, type)) == NULL)
 		return;
 
-	if (CTF_INFO_KIND(tp->ctt_info) != CTF_K_ARRAY)
+	fbt_get_ctt_info(hp->cth_version, tp, &kind, NULL, NULL);
+	if (kind != CTF_K_ARRAY)
 		return;
 
 	(void) fbt_get_ctt_size(hp->cth_version, tp, NULL, &increment);
 
-	ap = (const ctf_array_t *)((uintptr_t)tp + increment);
-	arp->ctr_contents = ap->cta_contents;
-	arp->ctr_index = ap->cta_index;
-	arp->ctr_nelems = ap->cta_nelems;
+	if (hp->cth_version == CTF_VERSION_2) {
+		const struct ctf_array_v2 *ap;
+
+		ap = (const struct ctf_array_v2 *)((uintptr_t)tp + increment);
+		arp->ctr_contents = ap->cta_contents;
+		arp->ctr_index = ap->cta_index;
+		arp->ctr_nelems = ap->cta_nelems;
+	} else {
+		const struct ctf_array_v3 *ap;
+
+		ap = (const struct ctf_array_v3 *)((uintptr_t)tp + increment);
+		arp->ctr_contents = ap->cta_contents;
+		arp->ctr_index = ap->cta_index;
+		arp->ctr_nelems = ap->cta_nelems;
+	}
 }
 
 static const char *
@@ -809,15 +928,35 @@ ctf_strptr(linker_ctf_t *lc, int name)
 	return (strp);
 }
 
+static const char *
+ctf_type_rname(linker_ctf_t *lc, const void *v)
+{
+	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
+	uint_t name;
+
+	if (hp->cth_version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = v;
+
+		name = ctt->ctt_name;
+	} else {
+		const struct ctf_type_v3 *ctt = v;
+
+		name = ctt->ctt_name;
+	}
+
+	return (ctf_strptr(lc, name));
+}
+
 static void
 ctf_decl_push(ctf_decl_t *cd, linker_ctf_t *lc, ctf_id_t type)
 {
+	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	ctf_decl_node_t *cdp;
 	ctf_decl_prec_t prec;
-	uint_t kind, n = 1;
+	uint_t kind, n = 1, t;
 	int is_qual = 0;
 
-	const ctf_type_t *tp;
+	const void *tp;
 	ctf_arinfo_t ar;
 
 	if ((tp = ctf_lookup_by_id(lc, type)) == NULL) {
@@ -825,7 +964,10 @@ ctf_decl_push(ctf_decl_t *cd, linker_ctf_t *lc, ctf_id_t type)
 		return;
 	}
 
-	switch (kind = CTF_INFO_KIND(tp->ctt_info)) {
+	fbt_get_ctt_info(hp->cth_version, tp, &kind, NULL, NULL);
+	fbt_get_ctt_index(hp->cth_version, tp, NULL, &t, NULL);
+
+	switch (kind) {
 	case CTF_K_ARRAY:
 		fbt_array_info(lc, type, &ar);
 		ctf_decl_push(cd, lc, ar.ctr_contents);
@@ -834,27 +976,27 @@ ctf_decl_push(ctf_decl_t *cd, linker_ctf_t *lc, ctf_id_t type)
 		break;
 
 	case CTF_K_TYPEDEF:
-		if (ctf_strptr(lc, tp->ctt_name)[0] == '\0') {
-			ctf_decl_push(cd, lc, tp->ctt_type);
+		if (ctf_type_rname(lc, tp)[0] == '\0') {
+			ctf_decl_push(cd, lc, t);
 			return;
 		}
 		prec = CTF_PREC_BASE;
 		break;
 
 	case CTF_K_FUNCTION:
-		ctf_decl_push(cd, lc, tp->ctt_type);
+		ctf_decl_push(cd, lc, t);
 		prec = CTF_PREC_FUNCTION;
 		break;
 
 	case CTF_K_POINTER:
-		ctf_decl_push(cd, lc, tp->ctt_type);
+		ctf_decl_push(cd, lc, t);
 		prec = CTF_PREC_POINTER;
 		break;
 
 	case CTF_K_VOLATILE:
 	case CTF_K_CONST:
 	case CTF_K_RESTRICT:
-		ctf_decl_push(cd, lc, tp->ctt_type);
+		ctf_decl_push(cd, lc, t);
 		prec = cd->cd_qualp;
 		is_qual++;
 		break;
@@ -943,9 +1085,8 @@ fbt_type_name(linker_ctf_t *lc, ctf_id_t type, char *buf, size_t len)
 		for (cdp = ctf_list_next(&cd.cd_nodes[prec]);
 		    cdp != NULL; cdp = ctf_list_next(cdp)) {
 
-			const ctf_type_t *tp =
-			    ctf_lookup_by_id(lc, cdp->cd_type);
-			const char *name = ctf_strptr(lc, tp->ctt_name);
+			const void *tp = ctf_lookup_by_id(lc, cdp->cd_type);
+			const char *name = ctf_type_rname(lc, tp);
 
 			if (k != CTF_K_POINTER && k != CTF_K_ARRAY)
 				ctf_decl_sprintf(&cd, " ");
@@ -1005,15 +1146,18 @@ fbt_type_name(linker_ctf_t *lc, ctf_id_t type, char *buf, size_t len)
 static void
 fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_argdesc_t *desc)
 {
-	const ushort_t *dp;
+	const ctf_header_t *hp;
+	const char *dp;
 	fbt_probe_t *fbt = parg;
 	linker_ctf_t lc;
 	modctl_t *ctl = fbt->fbtp_ctl;
+	size_t idwidth;
 	int ndx = desc->dtargd_ndx;
 	int symindx = fbt->fbtp_symindx;
 	uint32_t *ctfoff;
-	uint32_t offset;
-	ushort_t info, kind, n;
+	uint32_t offset, type;
+	uint_t info, n;
+	ushort_t kind;
 
 	if (fbt->fbtp_roffset != 0 && desc->dtargd_ndx == 0) {
 		(void) strcpy(desc->dtargd_native, "int");
@@ -1054,11 +1198,20 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 	if ((offset = ctfoff[symindx]) == 0xffffffff)
 		return;
 
-	dp = (const ushort_t *)(lc.ctftab + offset + sizeof(ctf_header_t));
+	hp = (const ctf_header_t *) lc.ctftab;
+	idwidth = hp->cth_version == CTF_VERSION_2 ? 2 : 4;
+	dp = (const char *)(lc.ctftab + offset + sizeof(ctf_header_t));
 
-	info = *dp++;
-	kind = CTF_INFO_KIND(info);
-	n = CTF_INFO_VLEN(info);
+	info = 0;
+	memcpy(&info, dp, idwidth);
+	dp += idwidth;
+	if (hp->cth_version == CTF_VERSION_2) {
+		kind = CTF_V2_INFO_KIND(info);
+		n = CTF_V2_INFO_VLEN(info);
+	} else {
+		kind = CTF_V3_INFO_KIND(info);
+		n = CTF_V3_INFO_VLEN(info);
+	}
 
 	if (kind == CTF_K_UNKNOWN && n == 0) {
 		printf("%s(%d): Unknown function!\n",__func__,__LINE__);
@@ -1081,13 +1234,13 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 			return;
 
 		/* Skip the return type and arguments up to the one requested. */
-		dp += ndx + 1;
+		dp += idwidth * (ndx + 1);
 	}
 
-	if (fbt_type_name(&lc, *dp, desc->dtargd_native, sizeof(desc->dtargd_native)) > 0)
+	type = 0;
+	memcpy(&type, dp, idwidth);
+	if (fbt_type_name(&lc, type, desc->dtargd_native, sizeof(desc->dtargd_native)) > 0)
 		desc->dtargd_ndx = ndx;
-
-	return;
 }
 
 static int
