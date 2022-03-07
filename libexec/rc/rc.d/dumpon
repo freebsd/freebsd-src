@@ -33,6 +33,19 @@ dumpon_try()
 	return 1
 }
 
+dumpon_warn_unencrypted()
+{
+	if [ -n "${dumppubkey}" ]; then
+		return
+	fi
+	for flag in ${dumpon_flags}; do
+		if [ $flag = -k ]; then
+			return
+		fi
+	done
+	warn "Kernel dumps will be written to the swap partition without encryption."
+}
+
 dumpon_start()
 {
 	# Enable dumpdev so that savecore can see it. Enable it
@@ -50,6 +63,12 @@ dumpon_start()
 		fi
 		while read dev mp type more ; do
 			[ "${type}" = "swap" ] || continue
+			case ${dev} in
+			*.bde|*.eli)
+				dumpon_warn_unencrypted
+				dev=${dev%.*}
+				;;
+			esac
 			[ -c "${dev}" ] || continue
 			dumpon_try "${dev}" 2>/dev/null && return 0
 		done </etc/fstab
