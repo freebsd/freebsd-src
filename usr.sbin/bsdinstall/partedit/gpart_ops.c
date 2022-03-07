@@ -1207,12 +1207,13 @@ addpartform:
 		}
 	}
 
+	output[0] = '\0';
+
 	r = gctl_get_handle();
 	gctl_ro_param(r, "class", -1, "PART");
 	gctl_ro_param(r, "arg0", -1, geom->lg_name);
 	gctl_ro_param(r, "flags", -1, GPART_FLAGS);
 	gctl_ro_param(r, "verb", -1, "add");
-
 	gctl_ro_param(r, "type", -1, items[0].text);
 	snprintf(sizestr, sizeof(sizestr), "%jd", size);
 	gctl_ro_param(r, "size", -1, sizestr);
@@ -1220,7 +1221,8 @@ addpartform:
 	gctl_ro_param(r, "start", -1, startstr);
 	if (items[3].text[0] != '\0')
 		gctl_ro_param(r, "label", -1, items[3].text);
-	gctl_rw_param(r, "output", sizeof(output), output);
+	gctl_add_param(r, "output", sizeof(output), output,
+	    GCTL_PARAM_WR | GCTL_PARAM_ASCII);
 	errstr = gctl_issue(r);
 	if (errstr != NULL && errstr[0] != '\0') {
 		gpart_show_error("Error", NULL, errstr);

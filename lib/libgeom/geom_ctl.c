@@ -151,8 +151,8 @@ gctl_new_arg(struct gctl_req *req)
 	return (ap);
 }
 
-static void
-gctl_param_add(struct gctl_req *req, const char *name, int len, void *value,
+void
+gctl_add_param(struct gctl_req *req, const char *name, int len, void *value,
     int flag)
 {
 	struct gctl_req_arg *ap;
@@ -181,14 +181,14 @@ void
 gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value)
 {
 
-	gctl_param_add(req, name, len, __DECONST(void *, value), GCTL_PARAM_RD);
+	gctl_add_param(req, name, len, __DECONST(void *, value), GCTL_PARAM_RD);
 }
 
 void
 gctl_rw_param(struct gctl_req *req, const char *name, int len, void *value)
 {
 
-	gctl_param_add(req, name, len, value, GCTL_PARAM_RW);
+	gctl_add_param(req, name, len, value, GCTL_PARAM_RW);
 }
 
 const char *
