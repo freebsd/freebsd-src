@@ -2618,7 +2618,6 @@ linux_dump_stack(void)
 #ifdef STACK
 	struct stack st;
 
-	stack_zero(&st);
 	stack_save(&st);
 	stack_print(&st);
 #endif

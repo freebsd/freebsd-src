@@ -438,7 +438,6 @@ kdb_backtrace(void)
 		struct stack st;
 
 		printf("KDB: stack backtrace:\n");
-		stack_zero(&st);
 		stack_save(&st);
 		stack_print_ddb(&st);
 	}
