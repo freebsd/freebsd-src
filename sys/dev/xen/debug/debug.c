@@ -74,7 +74,6 @@ xendebug_filter(void *arg __unused)
 #if defined(STACK) && defined(DDB)
 	struct stack st;
 
-	stack_zero(&st);
 	stack_save(&st);
 
 	mtx_lock_spin(&lock);

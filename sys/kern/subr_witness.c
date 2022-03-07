@@ -3081,7 +3081,6 @@ witness_lock_order_add(struct witness *parent, struct witness *child)
 	data->wlod_key = key;
 	w_lohash.wloh_array[hash] = data;
 	w_lohash.wloh_count++;
-	stack_zero(&data->wlod_stack);
 	stack_save(&data->wlod_stack);
 	return (1);
 }
@@ -3118,7 +3117,6 @@ witness_debugger(int cond, const char *msg)
 		sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
 		sbuf_set_drain(&sb, witness_output_drain, NULL);
 
-		stack_zero(&st);
 		stack_save(&st);
 		witness_output("stack backtrace:\n");
 		stack_sbuf_print_ddb(&sb, &st);

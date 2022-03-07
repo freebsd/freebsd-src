@@ -195,7 +195,6 @@ epoch_trace_report(const char *fmt, ...)
 	va_list ap;
 	struct stackentry se, *new;
 
-	stack_zero(&se.se_stack);	/* XXX: is it really needed? */
 	stack_save(&se.se_stack);
 
 	/* Tree is never reduced - go lockless. */

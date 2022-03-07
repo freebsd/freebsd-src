@@ -857,7 +857,6 @@ void ocs_print_stack(void)
 #if defined(STACK)
 	struct stack st;
 
-	stack_zero(&st);
 	stack_save(&st);
 	stack_print(&st);
 #endif
