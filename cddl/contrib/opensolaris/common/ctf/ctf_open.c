@@ -44,28 +44,184 @@ const char _CTF_NULLSTR[] = "";
 int _libctf_version = CTF_VERSION;	/* library client version */
 int _libctf_debug = 0;			/* debugging messages enabled */
 
-static ushort_t
-get_kind_v2(ushort_t info)
+static uint_t
+get_kind_v2(uint_t info)
 {
-	return (CTF_INFO_KIND(info));
+	return (CTF_V2_INFO_KIND((ushort_t)info));
 }
 
-static ushort_t
-get_root_v2(ushort_t info)
+static uint_t
+get_root_v2(uint_t info)
 {
-	return (CTF_INFO_ISROOT(info));
+	return (CTF_V2_INFO_ISROOT((ushort_t)info));
 }
 
-static ushort_t
-get_vlen_v2(ushort_t info)
+static uint_t
+get_vlen_v2(uint_t info)
 {
-	return (CTF_INFO_VLEN(info));
+	return (CTF_V2_INFO_VLEN((ushort_t)info));
 }
+
+static uint_t
+get_max_vlen_v2(void)
+{
+	return (CTF_V2_MAX_VLEN);
+}
+
+static uint_t
+get_max_size_v2(void)
+{
+	return (CTF_V2_MAX_SIZE);
+}
+
+static uint_t
+get_max_type_v2(void)
+{
+	return (CTF_V2_MAX_TYPE);
+}
+
+static uint_t
+get_lsize_sent_v2(void)
+{
+	return (CTF_V2_LSIZE_SENT);
+}
+
+static uint_t
+get_lstruct_thresh_v2(void)
+{
+	return (CTF_V2_LSTRUCT_THRESH);
+}
+
+static uint_t
+type_info_v2(uint_t kind, uint_t isroot, uint_t len)
+{
+	return (CTF_V2_TYPE_INFO(kind, isroot, len));
+}
+
+static int
+type_isparent_v2(uint_t id)
+{
+	return (CTF_V2_TYPE_ISPARENT(id));
+}
+
+static int
+type_ischild_v2(uint_t id)
+{
+	return (CTF_V2_TYPE_ISCHILD(id));
+}
+
+static uint_t
+type_to_index_v2(uint_t t)
+{
+	return (CTF_V2_TYPE_TO_INDEX(t));
+}
+
+static uint_t
+index_to_type_v2(uint_t id, uint_t child)
+{
+	return (CTF_V2_INDEX_TO_TYPE(id, child));
+}
+
+static uint_t
+get_kind_v3(uint_t info)
+{
+	return (CTF_V3_INFO_KIND(info));
+}
+
+static uint_t
+get_root_v3(uint_t info)
+{
+	return (CTF_V3_INFO_ISROOT(info));
+}
+
+static uint_t
+get_vlen_v3(uint_t info)
+{
+	return (CTF_V3_INFO_VLEN(info));
+}
+
+static uint_t
+get_max_vlen_v3(void)
+{
+	return (CTF_V3_MAX_VLEN);
+}
+
+static uint_t
+get_max_size_v3(void)
+{
+	return (CTF_V3_MAX_SIZE);
+}
+
+static uint_t
+get_max_type_v3(void)
+{
+	return (CTF_V3_MAX_TYPE);
+}
+
+static uint_t
+get_lsize_sent_v3(void)
+{
+	return (CTF_V3_LSIZE_SENT);
+}
+
+static uint_t
+get_lstruct_thresh_v3(void)
+{
+	return (CTF_V3_LSTRUCT_THRESH);
+}
+
+static uint_t
+type_info_v3(uint_t kind, uint_t isroot, uint_t len)
+{
+	return (CTF_V3_TYPE_INFO(kind, isroot, len));
+}
+
+static int
+type_isparent_v3(uint_t id)
+{
+	return (CTF_V3_TYPE_ISPARENT(id));
+}
+
+static int
+type_ischild_v3(uint_t id)
+{
+	return (CTF_V3_TYPE_ISCHILD(id));
+}
+
+static uint_t
+type_to_index_v3(uint_t t)
+{
+	return (CTF_V3_TYPE_TO_INDEX(t));
+}
+
+static uint_t
+index_to_type_v3(uint_t id, uint_t child)
+{
+	return (CTF_V3_INDEX_TO_TYPE(id, child));
+}
+
+#define	CTF_FILEOPS_ENTRY(v)				\
+	{ 						\
+	  .ctfo_get_kind = get_kind_v ## v,		\
+	  .ctfo_get_root = get_root_v ## v,		\
+	  .ctfo_get_vlen = get_vlen_v ## v,		\
+	  .ctfo_get_max_vlen = get_max_vlen_v ## v,	\
+	  .ctfo_get_max_size = get_max_size_v ## v,	\
+	  .ctfo_get_max_type = get_max_type_v ## v,	\
+	  .ctfo_get_lsize_sent = get_lsize_sent_v ## v,	\
+	  .ctfo_get_lstruct_thresh = get_lstruct_thresh_v ## v,	\
+	  .ctfo_type_info = type_info_v ## v,		\
+	  .ctfo_type_isparent = type_isparent_v ## v,	\
+	  .ctfo_type_ischild = type_ischild_v ## v,	\
+	  .ctfo_type_to_index = type_to_index_v ## v,	\
+	  .ctfo_index_to_type = index_to_type_v ## v	\
+	}
 
 static const ctf_fileops_t ctf_fileops[] = {
 	{ NULL, NULL },
 	{ NULL, NULL },
-	{ get_kind_v2, get_root_v2, get_vlen_v2 },
+	CTF_FILEOPS_ENTRY(2),
+	CTF_FILEOPS_ENTRY(3),
 };
 
 /*
@@ -100,7 +256,8 @@ init_symtab(ctf_file_t *fp, const ctf_header_t *hp,
 	uint_t objtoff = hp->cth_objtoff;
 	uint_t funcoff = hp->cth_funcoff;
 
-	ushort_t info, vlen;
+	uint_t info, vlen;
+
 	Elf64_Sym sym, *gsp;
 	const char *name;
 
@@ -138,7 +295,7 @@ init_symtab(ctf_file_t *fp, const ctf_header_t *hp,
 			}
 
 			*xp = objtoff;
-			objtoff += sizeof (ushort_t);
+			objtoff += fp->ctf_idwidth;
 			break;
 
 		case STT_FUNC:
@@ -149,7 +306,7 @@ init_symtab(ctf_file_t *fp, const ctf_header_t *hp,
 
 			*xp = funcoff;
 
-			info = *(ushort_t *)((uintptr_t)fp->ctf_buf + funcoff);
+			info = *(uint_t *)((uintptr_t)fp->ctf_buf + funcoff);
 			vlen = LCTF_INFO_VLEN(fp, info);
 
 			/*
@@ -159,9 +316,10 @@ init_symtab(ctf_file_t *fp, const ctf_header_t *hp,
 			 */
 			if (LCTF_INFO_KIND(fp, info) == CTF_K_UNKNOWN &&
 			    vlen == 0)
-				funcoff += sizeof (ushort_t); /* skip pad */
+				funcoff += fp->ctf_idwidth;
 			else
-				funcoff += sizeof (ushort_t) * (vlen + 2);
+				funcoff +=
+				    roundup2(fp->ctf_idwidth * (vlen + 2), 4);
 			break;
 
 		default:
@@ -181,15 +339,13 @@ init_symtab(ctf_file_t *fp, const ctf_header_t *hp,
 static int
 init_types(ctf_file_t *fp, const ctf_header_t *cth)
 {
-	/* LINTED - pointer alignment */
-	const ctf_type_t *tbuf = (ctf_type_t *)(fp->ctf_buf + cth->cth_typeoff);
-	/* LINTED - pointer alignment */
-	const ctf_type_t *tend = (ctf_type_t *)(fp->ctf_buf + cth->cth_stroff);
+	const void *tbuf = (const void *)(fp->ctf_buf + cth->cth_typeoff);
+	const void *tend = (const void *)(fp->ctf_buf + cth->cth_stroff);
 
 	ulong_t pop[CTF_K_MAX + 1] = { 0 };
-	const ctf_type_t *tp;
+	const void *tp;
 	ctf_hash_t *hp;
-	ushort_t id, dst;
+	uint_t id, dst;
 	uint_t *xp;
 
 	/*
@@ -207,14 +363,14 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 	 * pass, we count the number of each type and the total number of types.
 	 */
 	for (tp = tbuf; tp < tend; fp->ctf_typemax++) {
-		ushort_t kind = LCTF_INFO_KIND(fp, tp->ctt_info);
-		ulong_t vlen = LCTF_INFO_VLEN(fp, tp->ctt_info);
 		ssize_t size, increment;
 
 		size_t vbytes;
-		uint_t n;
+		uint_t kind, n, type, vlen;
 
 		(void) ctf_get_ctt_size(fp, tp, &size, &increment);
+		ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
+		ctf_get_ctt_index(fp, tp, NULL, &type, NULL);
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -222,30 +378,30 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			vbytes = sizeof (uint_t);
 			break;
 		case CTF_K_ARRAY:
-			vbytes = sizeof (ctf_array_t);
+			if (fp->ctf_version == CTF_VERSION_2)
+				vbytes = sizeof (struct ctf_array_v2);
+			else
+				vbytes = sizeof (struct ctf_array_v3);
 			break;
 		case CTF_K_FUNCTION:
-			vbytes = sizeof (ushort_t) * (vlen + (vlen & 1));
+			vbytes = roundup2(fp->ctf_idwidth * vlen, 4);
 			break;
 		case CTF_K_STRUCT:
-		case CTF_K_UNION:
-			if (size < CTF_LSTRUCT_THRESH) {
-				ctf_member_t *mp = (ctf_member_t *)
-				    ((uintptr_t)tp + increment);
+		case CTF_K_UNION: {
+			size_t increment1;
+			uint_t type;
+			const void *mp =
+			    (const void *)((uintptr_t)tp + increment);
 
-				vbytes = sizeof (ctf_member_t) * vlen;
-				for (n = vlen; n != 0; n--, mp++)
-					child |= CTF_TYPE_ISCHILD(mp->ctm_type);
-			} else {
-				ctf_lmember_t *lmp = (ctf_lmember_t *)
-				    ((uintptr_t)tp + increment);
-
-				vbytes = sizeof (ctf_lmember_t) * vlen;
-				for (n = vlen; n != 0; n--, lmp++)
-					child |=
-					    CTF_TYPE_ISCHILD(lmp->ctlm_type);
+			vbytes = 0;
+			for (n = vlen; n != 0; n--, mp += increment1) {
+				ctf_get_ctm_info(fp, mp, size, &increment1, &type,
+				    NULL, NULL);
+				child |= LCTF_TYPE_ISCHILD(fp, type);
+				vbytes += increment1;
 			}
 			break;
+		}
 		case CTF_K_ENUM:
 			vbytes = sizeof (ctf_enum_t) * vlen;
 			break;
@@ -255,11 +411,10 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			 * kind for the tag, so bump that population count too.
 			 * If ctt_type is unknown, treat the tag as a struct.
 			 */
-			if (tp->ctt_type == CTF_K_UNKNOWN ||
-			    tp->ctt_type >= CTF_K_MAX)
+			if (type == CTF_K_UNKNOWN || type >= CTF_K_MAX)
 				pop[CTF_K_STRUCT]++;
 			else
-				pop[tp->ctt_type]++;
+				pop[type]++;
 			/*FALLTHRU*/
 		case CTF_K_UNKNOWN:
 			vbytes = 0;
@@ -269,14 +424,14 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 		case CTF_K_VOLATILE:
 		case CTF_K_CONST:
 		case CTF_K_RESTRICT:
-			child |= CTF_TYPE_ISCHILD(tp->ctt_type);
+			child |= LCTF_TYPE_ISCHILD(fp, type);
 			vbytes = 0;
 			break;
 		default:
 			ctf_dprintf("detected invalid CTF kind -- %u\n", kind);
 			return (ECTF_CORRUPT);
 		}
-		tp = (ctf_type_t *)((uintptr_t)tp + increment + vbytes);
+		tp = (const void *)((uintptr_t)tp + increment + vbytes);
 		pop[kind]++;
 	}
 
@@ -310,7 +465,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 		return (err);
 
 	fp->ctf_txlate = ctf_alloc(sizeof (uint_t) * (fp->ctf_typemax + 1));
-	fp->ctf_ptrtab = ctf_alloc(sizeof (ushort_t) * (fp->ctf_typemax + 1));
+	fp->ctf_ptrtab = ctf_alloc(sizeof (uint_t) * (fp->ctf_typemax + 1));
 
 	if (fp->ctf_txlate == NULL || fp->ctf_ptrtab == NULL)
 		return (EAGAIN); /* memory allocation failed */
@@ -319,15 +474,15 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 	*xp++ = 0; /* type id 0 is used as a sentinel value */
 
 	bzero(fp->ctf_txlate, sizeof (uint_t) * (fp->ctf_typemax + 1));
-	bzero(fp->ctf_ptrtab, sizeof (ushort_t) * (fp->ctf_typemax + 1));
+	bzero(fp->ctf_ptrtab, sizeof (uint_t) * (fp->ctf_typemax + 1));
 
 	/*
 	 * In the second pass through the types, we fill in each entry of the
 	 * type and pointer tables and add names to the appropriate hashes.
 	 */
 	for (id = 1, tp = tbuf; tp < tend; xp++, id++) {
-		ushort_t kind = LCTF_INFO_KIND(fp, tp->ctt_info);
-		ulong_t vlen = LCTF_INFO_VLEN(fp, tp->ctt_info);
+		const struct ctf_type_v3 *ctt = tp;
+		uint_t kind, type, vlen;
 		ssize_t size, increment;
 
 		const char *name;
@@ -336,7 +491,9 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 		ctf_encoding_t cte;
 
 		(void) ctf_get_ctt_size(fp, tp, &size, &increment);
-		name = ctf_strptr(fp, tp->ctt_name);
+		ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
+		ctf_get_ctt_index(fp, tp, NULL, &type, NULL);
+		name = ctf_type_rname(fp, tp);
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -349,7 +506,8 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			if ((hep = ctf_hash_lookup(&fp->ctf_names, fp,
 			    name, strlen(name))) == NULL) {
 				err = ctf_hash_insert(&fp->ctf_names, fp,
-				    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+				    LCTF_INDEX_TO_TYPE(fp, id, child),
+				    ctt->ctt_name);
 				if (err != 0 && err != ECTF_STRTAB)
 					return (err);
 			} else if (ctf_type_encoding(fp, hep->h_type,
@@ -358,56 +516,89 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 				 * Work-around SOS8 stabs bug: replace existing
 				 * intrinsic w/ same name if it was zero bits.
 				 */
-				hep->h_type = CTF_INDEX_TO_TYPE(id, child);
+				hep->h_type = LCTF_INDEX_TO_TYPE(fp, id, child);
 			}
 			vbytes = sizeof (uint_t);
 			break;
 
 		case CTF_K_ARRAY:
-			vbytes = sizeof (ctf_array_t);
+			if (fp->ctf_version == CTF_VERSION_2)
+				vbytes = sizeof (struct ctf_array_v2);
+			else
+				vbytes = sizeof (struct ctf_array_v3);
 			break;
 
 		case CTF_K_FUNCTION:
 			err = ctf_hash_insert(&fp->ctf_names, fp,
-			    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+			    LCTF_INDEX_TO_TYPE(fp, id, child), ctt->ctt_name);
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
-			vbytes = sizeof (ushort_t) * (vlen + (vlen & 1));
+			vbytes = roundup2(fp->ctf_idwidth * vlen, 4);
 			break;
 
 		case CTF_K_STRUCT:
 			err = ctf_hash_define(&fp->ctf_structs, fp,
-			    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+			    LCTF_INDEX_TO_TYPE(fp, id, child), ctt->ctt_name);
 
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
 
-			if (size < CTF_LSTRUCT_THRESH)
-				vbytes = sizeof (ctf_member_t) * vlen;
-			else {
-				vbytes = sizeof (ctf_lmember_t) * vlen;
-				nlstructs++;
+			if (fp->ctf_version == CTF_VERSION_2) {
+				if (size < LCTF_LSTRUCT_THRESH(fp))
+					vbytes = sizeof (struct ctf_member_v2) *
+					    vlen;
+				else {
+					vbytes =
+					    sizeof (struct ctf_lmember_v2) *
+					    vlen;
+					nlstructs++;
+				}
+			} else {
+				if (size < LCTF_LSTRUCT_THRESH(fp))
+					vbytes = sizeof (struct ctf_member_v3) *
+					    vlen;
+				else {
+					vbytes =
+					    sizeof (struct ctf_lmember_v3) *
+					    vlen;
+					nlstructs++;
+				}
 			}
 			break;
 
 		case CTF_K_UNION:
 			err = ctf_hash_define(&fp->ctf_unions, fp,
-			    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+			    LCTF_INDEX_TO_TYPE(fp, id, child), ctt->ctt_name);
 
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
 
-			if (size < CTF_LSTRUCT_THRESH)
-				vbytes = sizeof (ctf_member_t) * vlen;
-			else {
-				vbytes = sizeof (ctf_lmember_t) * vlen;
-				nlunions++;
+			if (fp->ctf_version == CTF_VERSION_2) {
+				if (size < LCTF_LSTRUCT_THRESH(fp))
+					vbytes = sizeof (struct ctf_member_v2) *
+					    vlen;
+				else {
+					vbytes =
+					    sizeof (struct ctf_lmember_v2) *
+					    vlen;
+					nlunions++;
+				}
+			} else {
+				if (size < LCTF_LSTRUCT_THRESH(fp))
+					vbytes = sizeof (struct ctf_member_v3) *
+					    vlen;
+				else {
+					vbytes =
+					    sizeof (struct ctf_lmember_v3) *
+					    vlen;
+					nlunions++;
+				}
 			}
 			break;
 
 		case CTF_K_ENUM:
 			err = ctf_hash_define(&fp->ctf_enums, fp,
-			    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+			    LCTF_INDEX_TO_TYPE(fp, id, child), ctt->ctt_name);
 
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
@@ -417,7 +608,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 
 		case CTF_K_TYPEDEF:
 			err = ctf_hash_insert(&fp->ctf_names, fp,
-			    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+			    LCTF_INDEX_TO_TYPE(fp, id, child), ctt->ctt_name);
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
 			vbytes = 0;
@@ -428,7 +619,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			 * Only insert forward tags into the given hash if the
 			 * type or tag name is not already present.
 			 */
-			switch (tp->ctt_type) {
+			switch (type) {
 			case CTF_K_STRUCT:
 				hp = &fp->ctf_structs;
 				break;
@@ -445,7 +636,8 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			if (ctf_hash_lookup(hp, fp,
 			    name, strlen(name)) == NULL) {
 				err = ctf_hash_insert(hp, fp,
-				    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+				    LCTF_INDEX_TO_TYPE(fp, id, child),
+				    ctt->ctt_name);
 				if (err != 0 && err != ECTF_STRTAB)
 					return (err);
 			}
@@ -458,17 +650,17 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 			 * container, then store the index of the pointer type
 			 * in fp->ctf_ptrtab[ index of referenced type ].
 			 */
-			if (CTF_TYPE_ISCHILD(tp->ctt_type) == child &&
-			    CTF_TYPE_TO_INDEX(tp->ctt_type) <= fp->ctf_typemax)
+			if (LCTF_TYPE_ISCHILD(fp, type) == child &&
+			    LCTF_TYPE_TO_INDEX(fp, type) <= fp->ctf_typemax)
 				fp->ctf_ptrtab[
-				    CTF_TYPE_TO_INDEX(tp->ctt_type)] = id;
+				    LCTF_TYPE_TO_INDEX(fp, type)] = id;
 			/*FALLTHRU*/
 
 		case CTF_K_VOLATILE:
 		case CTF_K_CONST:
 		case CTF_K_RESTRICT:
 			err = ctf_hash_insert(&fp->ctf_names, fp,
-			    CTF_INDEX_TO_TYPE(id, child), tp->ctt_name);
+			    LCTF_INDEX_TO_TYPE(fp, id, child), ctt->ctt_name);
 			if (err != 0 && err != ECTF_STRTAB)
 				return (err);
 			/*FALLTHRU*/
@@ -479,7 +671,7 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 		}
 
 		*xp = (uint_t)((uintptr_t)tp - (uintptr_t)fp->ctf_buf);
-		tp = (ctf_type_t *)((uintptr_t)tp + increment + vbytes);
+		tp = (const void *)((uintptr_t)tp + increment + vbytes);
 	}
 
 	ctf_dprintf("%lu total types processed\n", fp->ctf_typemax);
@@ -499,14 +691,17 @@ init_types(ctf_file_t *fp, const ctf_header_t *cth)
 	 */
 	for (id = 1; id <= fp->ctf_typemax; id++) {
 		if ((dst = fp->ctf_ptrtab[id]) != 0) {
-			tp = LCTF_INDEX_TO_TYPEPTR(fp, id);
+			uint_t index, kind;
+			int ischild;
 
-			if (LCTF_INFO_KIND(fp, tp->ctt_info) == CTF_K_TYPEDEF &&
-			    strcmp(ctf_strptr(fp, tp->ctt_name), "") == 0 &&
-			    CTF_TYPE_ISCHILD(tp->ctt_type) == child &&
-			    CTF_TYPE_TO_INDEX(tp->ctt_type) <= fp->ctf_typemax)
-				fp->ctf_ptrtab[
-				    CTF_TYPE_TO_INDEX(tp->ctt_type)] = dst;
+			tp = LCTF_INDEX_TO_TYPEPTR(fp, id);
+			ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
+			ctf_get_ctt_index(fp, tp, &index, NULL, &ischild);
+
+			if (kind == CTF_K_TYPEDEF &&
+			    strcmp(ctf_type_rname(fp, tp), "") == 0 &&
+			    ischild == child && index <= fp->ctf_typemax)
+				fp->ctf_ptrtab[index] = dst;
 		}
 	}
 
@@ -560,7 +755,8 @@ ctf_bufopen(const ctf_sect_t *ctfsect, const ctf_sect_t *symsect,
 	if (pp->ctp_magic != CTF_MAGIC)
 		return (ctf_set_open_errno(errp, ECTF_NOCTFBUF));
 
-	if (pp->ctp_version == CTF_VERSION_2) {
+	if (pp->ctp_version == CTF_VERSION_2 ||
+	    pp->ctp_version == CTF_VERSION_3) {
 		if (ctfsect->cts_size < sizeof (ctf_header_t))
 			return (ctf_set_open_errno(errp, ECTF_NOCTFBUF));
 
@@ -642,6 +838,7 @@ ctf_bufopen(const ctf_sect_t *ctfsect, const ctf_sect_t *symsect,
 
 	bzero(fp, sizeof (ctf_file_t));
 	fp->ctf_version = hp.cth_version;
+	fp->ctf_idwidth = fp->ctf_version == CTF_VERSION_2 ? 2 : 4;
 	fp->ctf_fileops = &ctf_fileops[hp.cth_version];
 	bcopy(ctfsect, &fp->ctf_data, sizeof (ctf_sect_t));
 
@@ -911,7 +1108,7 @@ ctf_close(ctf_file_t *fp)
 
 	if (fp->ctf_ptrtab != NULL) {
 		ctf_free(fp->ctf_ptrtab,
-		    sizeof (ushort_t) * (fp->ctf_typemax + 1));
+		    sizeof (uint_t) * (fp->ctf_typemax + 1));
 	}
 
 	ctf_hash_destroy(&fp->ctf_structs);

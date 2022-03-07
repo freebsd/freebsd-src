@@ -65,15 +65,15 @@ extern "C" {
 
 typedef struct ctf_helem {
 	uint_t h_name;		/* reference to name in string table */
-	ushort_t h_type;	/* corresponding type ID number */
-	ushort_t h_next;	/* index of next element in hash chain */
+	uint_t h_type;		/* corresponding type ID number */
+	uint_t h_next;		/* index of next element in hash chain */
 } ctf_helem_t;
 
 typedef struct ctf_hash {
-	ushort_t *h_buckets;	/* hash bucket array (chain indices) */
+	uint_t *h_buckets;	/* hash bucket array (chain indices) */
 	ctf_helem_t *h_chains;	/* hash chains buffer */
-	ushort_t h_nbuckets;	/* number of elements in bucket array */
-	ushort_t h_nelems;	/* number of elements in hash table */
+	uint_t h_nbuckets;	/* number of elements in bucket array */
+	uint_t h_nelems;	/* number of elements in hash table */
 	uint_t h_free;		/* index of next free hash element */
 } ctf_hash_t;
 
@@ -99,9 +99,20 @@ typedef struct ctf_lookup {
 } ctf_lookup_t;
 
 typedef struct ctf_fileops {
-	ushort_t (*ctfo_get_kind)(ushort_t);
-	ushort_t (*ctfo_get_root)(ushort_t);
-	ushort_t (*ctfo_get_vlen)(ushort_t);
+	uint_t (*ctfo_get_kind)(uint_t);
+	uint_t (*ctfo_get_root)(uint_t);
+	uint_t (*ctfo_get_vlen)(uint_t);
+	uint_t (*ctfo_get_max_vlen)(void);
+	uint_t (*ctfo_get_max_size)(void);
+	uint_t (*ctfo_get_max_type)(void);
+	uint_t (*ctfo_get_lsize_sent)(void);
+	uint_t (*ctfo_get_lstruct_thresh)(void);
+
+	uint_t (*ctfo_type_info)(uint_t, uint_t, uint_t);
+	int (*ctfo_type_isparent)(uint_t);
+	int (*ctfo_type_ischild)(uint_t);
+	uint_t (*ctfo_type_to_index)(uint_t);
+	uint_t (*ctfo_index_to_type)(uint_t, uint_t);
 } ctf_fileops_t;
 
 typedef struct ctf_list {
@@ -149,7 +160,7 @@ typedef struct ctf_dtdef {
 	struct ctf_dtdef *dtd_hash; /* hash chain pointer for ctf_dthash */
 	char *dtd_name;		/* name associated with definition (if any) */
 	ctf_id_t dtd_type;	/* type identifier for this definition */
-	ctf_type_t dtd_data;	/* type node (see <sys/ctf.h>) */
+	struct ctf_type_v3 dtd_data;	/* type node (see <sys/ctf.h>) */
 	int dtd_ref;		/* recfount for dyanmic types */
 	union {
 		ctf_list_t dtu_members;	/* struct, union, or enum */
@@ -194,7 +205,7 @@ struct ctf_file {
 	uint_t *ctf_sxlate;	/* translation table for symtab entries */
 	ulong_t ctf_nsyms;	/* number of entries in symtab xlate table */
 	uint_t *ctf_txlate;	/* translation table for type IDs */
-	ushort_t *ctf_ptrtab;	/* translation table for pointer-to lookups */
+	uint_t *ctf_ptrtab;	/* translation table for pointer-to lookups */
 	ulong_t ctf_typemax;	/* maximum valid type ID number */
 	const ctf_dmodel_t *ctf_dmodel;	/* data model pointer (see above) */
 	struct ctf_file *ctf_parent;	/* parent CTF container (if any) */
@@ -204,6 +215,7 @@ struct ctf_file {
 	uint_t ctf_flags;	/* libctf flags (see below) */
 	int ctf_errno;		/* error code for most recent error */
 	int ctf_version;	/* CTF data version */
+	size_t ctf_idwidth;	/* Size, in bytes, of a type ID */
 	ctf_dtdef_t **ctf_dthash; /* hash of dynamic type definitions */
 	ulong_t ctf_dthashlen;	/* size of dynamic type hash bucket array */
 	ctf_list_t ctf_dtdefs;	/* list of dynamic type definitions */
@@ -214,11 +226,24 @@ struct ctf_file {
 };
 
 #define	LCTF_INDEX_TO_TYPEPTR(fp, i) \
-	((ctf_type_t *)((uintptr_t)(fp)->ctf_buf + (fp)->ctf_txlate[(i)]))
+	((void *)((uintptr_t)(fp)->ctf_buf + (fp)->ctf_txlate[(i)]))
 
 #define	LCTF_INFO_KIND(fp, info)	((fp)->ctf_fileops->ctfo_get_kind(info))
 #define	LCTF_INFO_ROOT(fp, info)	((fp)->ctf_fileops->ctfo_get_root(info))
 #define	LCTF_INFO_VLEN(fp, info)	((fp)->ctf_fileops->ctfo_get_vlen(info))
+#define	LCTF_MAX_VLEN(fp)		((fp)->ctf_fileops->ctfo_get_max_vlen())
+#define	LCTF_MAX_SIZE(fp)		((fp)->ctf_fileops->ctfo_get_max_size())
+#define	LCTF_MAX_TYPE(fp)		((fp)->ctf_fileops->ctfo_get_max_type())
+#define	LCTF_LSIZE_SENT(fp)		\
+	((fp)->ctf_fileops->ctfo_get_lsize_sent())
+#define	LCTF_LSTRUCT_THRESH(fp)		\
+	((fp)->ctf_fileops->ctfo_get_lstruct_thresh())
+
+#define	LCTF_TYPE_INFO(fp, k, r, l)	((fp)->ctf_fileops->ctfo_type_info(k, r, l))
+#define	LCTF_TYPE_ISPARENT(fp, id)	((fp)->ctf_fileops->ctfo_type_isparent(id))
+#define	LCTF_TYPE_ISCHILD(fp, id)	((fp)->ctf_fileops->ctfo_type_ischild(id))
+#define	LCTF_TYPE_TO_INDEX(fp, t)	((fp)->ctf_fileops->ctfo_type_to_index(t))
+#define	LCTF_INDEX_TO_TYPE(fp, id, c)	((fp)->ctf_fileops->ctfo_index_to_type(id, c))
 
 #define	LCTF_MMAP	0x0001	/* libctf should munmap buffers on close */
 #define	LCTF_CHILD	0x0002	/* CTF container is a child */
@@ -276,14 +301,22 @@ enum {
 	ECTF_NOTDYN		/* type is not a dynamic type */
 };
 
-extern ssize_t ctf_get_ctt_size(const ctf_file_t *, const ctf_type_t *,
-    ssize_t *, ssize_t *);
+extern void ctf_get_ctt_index(const ctf_file_t *fp, const void *v,
+    uint_t *indexp, uint_t *typep, int *ischildp);
+extern ssize_t ctf_get_ctt_size(const ctf_file_t *, const void *v, ssize_t *,
+    ssize_t *);
+extern void ctf_get_ctt_info(const ctf_file_t *, const void *v, uint_t *kind,
+    uint_t *vlen, int *isroot);
 
-extern const ctf_type_t *ctf_lookup_by_id(ctf_file_t **, ctf_id_t);
+extern void ctf_get_ctm_info(const ctf_file_t *fp, const void *v, size_t sz,
+    size_t *incrementp, uint_t *typep, ulong_t *offsetp, const char **namep);
+
+extern const void *ctf_lookup_by_id(ctf_file_t **, ctf_id_t);
+extern const char *ctf_type_rname(ctf_file_t *, const void *);
 
 extern int ctf_hash_create(ctf_hash_t *, ulong_t);
-extern int ctf_hash_insert(ctf_hash_t *, ctf_file_t *, ushort_t, uint_t);
-extern int ctf_hash_define(ctf_hash_t *, ctf_file_t *, ushort_t, uint_t);
+extern int ctf_hash_insert(ctf_hash_t *, ctf_file_t *, uint_t, uint_t);
+extern int ctf_hash_define(ctf_hash_t *, ctf_file_t *, uint_t, uint_t);
 extern ctf_helem_t *ctf_hash_lookup(ctf_hash_t *, ctf_file_t *,
     const char *, size_t);
 extern uint_t ctf_hash_size(const ctf_hash_t *);
