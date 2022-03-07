@@ -972,11 +972,11 @@ main(int argc, char **argv)
 
 		savetd = tdata_new();
 
-		if (CTF_TYPE_ISCHILD(reftd->td_nextid))
+		if (CTF_V3_TYPE_ISCHILD(reftd->td_nextid))
 			terminate("No room for additional types in master\n");
 
 		savetd->td_nextid = withfile ? reftd->td_nextid :
-		    CTF_INDEX_TO_TYPE(1, TRUE);
+		    CTF_V3_INDEX_TO_TYPE(1, TRUE);
 		merge_into_master(mstrtd, reftd, savetd, 0);
 
 		tdata_label_add(savetd, label, CTF_LABEL_LASTIDX);
