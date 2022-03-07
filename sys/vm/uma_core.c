@@ -3816,12 +3816,6 @@ uma_zalloc_domain(uma_zone_t zone, void *udata, int domain, int flags)
 	CTR4(KTR_UMA, "uma_zalloc_domain zone %s(%p) domain %d flags %d",
 	    zone->uz_name, zone, domain, flags);
 
-	if (flags & M_WAITOK) {
-		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "uma_zalloc_domain: zone \"%s\"", zone->uz_name);
-	}
-	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
-	    ("uma_zalloc_domain: called with spinlock or critical section held"));
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) == 0,
 	    ("uma_zalloc_domain: called with SMR zone."));
 #ifdef NUMA
@@ -3830,6 +3824,11 @@ uma_zalloc_domain(uma_zone_t zone, void *udata, int domain, int flags)
 
 	if (vm_ndomains == 1)
 		return (uma_zalloc_arg(zone, udata, flags));
+
+#ifdef UMA_ZALLOC_DEBUG
+	if (uma_zalloc_debug(zone, &item, udata, flags) == EJUSTRETURN)
+		return (item);
+#endif
 
 	/*
 	 * Try to allocate from the bucket cache before falling back to the keg.
