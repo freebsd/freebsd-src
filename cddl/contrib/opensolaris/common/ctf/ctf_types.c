@@ -27,18 +27,90 @@
 
 #include <ctf_impl.h>
 
+void
+ctf_get_ctt_index(const ctf_file_t *fp, const void *v, uint_t *indexp,
+    uint_t *typep, int *ischildp)
+{
+	uint_t index, type;
+	int ischild;
+
+	if (fp->ctf_version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = v;
+
+		type = ctt->ctt_type;
+		index = CTF_V2_TYPE_TO_INDEX(ctt->ctt_type);
+		ischild = CTF_V2_TYPE_ISCHILD(ctt->ctt_type);
+	} else {
+		const struct ctf_type_v3 *ctt = v;
+
+		type = ctt->ctt_type;
+		index = CTF_V3_TYPE_TO_INDEX(ctt->ctt_type);
+		ischild = CTF_V3_TYPE_ISCHILD(ctt->ctt_type);
+	}
+
+	if (indexp != NULL)
+		*indexp = index;
+	if (typep != NULL)
+		*typep = type;
+	if (ischildp != NULL)
+		*ischildp = ischild;
+}
+
+void
+ctf_get_ctt_info(const ctf_file_t *fp, const void *v, uint_t *kindp,
+    uint_t *vlenp, int *isrootp)
+{
+	uint_t kind, vlen;
+	int isroot;
+
+	if (fp->ctf_version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = v;
+
+		kind = CTF_V2_INFO_KIND(ctt->ctt_info);
+		vlen = CTF_V2_INFO_VLEN(ctt->ctt_info);
+		isroot = CTF_V2_INFO_ISROOT(ctt->ctt_info);
+	} else {
+		const struct ctf_type_v3 *ctt = v;
+
+		kind = CTF_V3_INFO_KIND(ctt->ctt_info);
+		vlen = CTF_V3_INFO_VLEN(ctt->ctt_info);
+		isroot = CTF_V3_INFO_ISROOT(ctt->ctt_info);
+	}
+
+	if (kindp != NULL)
+		*kindp = kind;
+	if (vlenp != NULL)
+		*vlenp = vlen;
+	if (isrootp != NULL)
+		*isrootp = isroot;
+}
+
 ssize_t
-ctf_get_ctt_size(const ctf_file_t *fp, const ctf_type_t *tp, ssize_t *sizep,
+ctf_get_ctt_size(const ctf_file_t *fp, const void *v, ssize_t *sizep,
     ssize_t *incrementp)
 {
 	ssize_t size, increment;
 
-	if (tp->ctt_size == CTF_LSIZE_SENT) {
-		size = CTF_TYPE_LSIZE(tp);
-		increment = sizeof (ctf_type_t);
+	if (fp->ctf_version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = v;
+
+		if (ctt->ctt_size == CTF_V2_LSIZE_SENT) {
+			size = (size_t)CTF_TYPE_LSIZE(ctt);
+			increment = sizeof (struct ctf_type_v2);
+		} else {
+			size = ctt->ctt_size;
+			increment = sizeof (struct ctf_stype_v2);
+		}
 	} else {
-		size = tp->ctt_size;
-		increment = sizeof (ctf_stype_t);
+		const struct ctf_type_v3 *ctt = v;
+
+		if (ctt->ctt_size == CTF_V3_LSIZE_SENT) {
+			size = (size_t)CTF_TYPE_LSIZE(ctt);
+			increment = sizeof (struct ctf_type_v3);
+		} else {
+			size = ctt->ctt_size;
+			increment = sizeof (struct ctf_stype_v3);
+		}
 	}
 
 	if (sizep)
@@ -50,6 +122,61 @@ ctf_get_ctt_size(const ctf_file_t *fp, const ctf_type_t *tp, ssize_t *sizep,
 }
 
 /*
+ * Fetch info for a struct or union member.
+ */
+void
+ctf_get_ctm_info(const ctf_file_t *fp, const void *v, size_t size,
+    size_t *incrementp, uint_t *typep, ulong_t *offsetp, const char **namep)
+{
+	size_t increment;
+	ulong_t offset;
+	uint_t name, type;
+
+	if (fp->ctf_version == CTF_VERSION_2) {
+		if (size < CTF_V2_LSTRUCT_THRESH) {
+			const struct ctf_member_v2 *ctm = v;
+
+			name = ctm->ctm_name;
+			type = ctm->ctm_type;
+			offset = ctm->ctm_offset;
+			increment = sizeof(*ctm);
+		} else {
+			const struct ctf_lmember_v2 *ctlm = v;
+
+			name = ctlm->ctlm_name;
+			type = ctlm->ctlm_type;
+			offset = (ulong_t)CTF_LMEM_OFFSET(ctlm);
+			increment = sizeof(*ctlm);
+		}
+	} else {
+		if (size < CTF_V3_LSTRUCT_THRESH) {
+			const struct ctf_member_v3 *ctm = v;
+
+			name = ctm->ctm_name;
+			type = ctm->ctm_type;
+			offset = ctm->ctm_offset;
+			increment = sizeof(*ctm);
+		} else {
+			const struct ctf_lmember_v3 *ctlm = v;
+
+			name = ctlm->ctlm_name;
+			type = ctlm->ctlm_type;
+			offset = (ulong_t)CTF_LMEM_OFFSET(ctlm);
+			increment = sizeof(*ctlm);
+		}
+	}
+
+	if (incrementp != NULL)
+		*incrementp = increment;
+	if (typep != NULL)
+		*typep = type;
+	if (offsetp != NULL)
+		*offsetp = offset;
+	if (namep != NULL)
+		*namep = ctf_strraw(fp, name);
+}
+
+/*
  * Iterate over the members of a STRUCT or UNION.  We pass the name, member
  * type, and offset of each member to the specified callback function.
  */
@@ -57,9 +184,9 @@ int
 ctf_member_iter(ctf_file_t *fp, ctf_id_t type, ctf_member_f *func, void *arg)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
 	ssize_t size, increment;
-	uint_t kind, n;
+	uint_t kind, n, vlen;
 	int rc;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
@@ -69,32 +196,22 @@ ctf_member_iter(ctf_file_t *fp, ctf_id_t type, ctf_member_f *func, void *arg)
 		return (CTF_ERR); /* errno is set for us */
 
 	(void) ctf_get_ctt_size(fp, tp, &size, &increment);
-	kind = LCTF_INFO_KIND(fp, tp->ctt_info);
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
 
 	if (kind != CTF_K_STRUCT && kind != CTF_K_UNION)
 		return (ctf_set_errno(ofp, ECTF_NOTSOU));
 
-	if (size < CTF_LSTRUCT_THRESH) {
-		const ctf_member_t *mp = (const ctf_member_t *)
-		    ((uintptr_t)tp + increment);
+	const char *mp = (const char *)((uintptr_t)tp + increment);
 
-		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, mp++) {
-			const char *name = ctf_strptr(fp, mp->ctm_name);
-			if ((rc = func(name, mp->ctm_type, mp->ctm_offset,
-			    arg)) != 0)
-				return (rc);
-		}
+	for (n = vlen; n != 0; n--, mp += increment) {
+		const char *name;
+		ulong_t offset;
+		uint_t type;
 
-	} else {
-		const ctf_lmember_t *lmp = (const ctf_lmember_t *)
-		    ((uintptr_t)tp + increment);
-
-		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, lmp++) {
-			const char *name = ctf_strptr(fp, lmp->ctlm_name);
-			if ((rc = func(name, lmp->ctlm_type,
-			    (ulong_t)CTF_LMEM_OFFSET(lmp), arg)) != 0)
-				return (rc);
-		}
+		ctf_get_ctm_info(fp, mp, size, &increment, &type, &offset,
+		    &name);
+		if ((rc = func(name, type, offset, arg)) != 0)
+			return (rc);
 	}
 
 	return (0);
@@ -108,10 +225,10 @@ int
 ctf_enum_iter(ctf_file_t *fp, ctf_id_t type, ctf_enum_f *func, void *arg)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
 	const ctf_enum_t *ep;
 	ssize_t increment;
-	uint_t n;
+	uint_t kind, n, vlen;
 	int rc;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
@@ -120,14 +237,15 @@ ctf_enum_iter(ctf_file_t *fp, ctf_id_t type, ctf_enum_f *func, void *arg)
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
-	if (LCTF_INFO_KIND(fp, tp->ctt_info) != CTF_K_ENUM)
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
+	if (kind != CTF_K_ENUM)
 		return (ctf_set_errno(ofp, ECTF_NOTENUM));
 
 	(void) ctf_get_ctt_size(fp, tp, NULL, &increment);
 
 	ep = (const ctf_enum_t *)((uintptr_t)tp + increment);
 
-	for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, ep++) {
+	for (n = vlen; n != 0; n--, ep++) {
 		const char *name = ctf_strptr(fp, ep->cte_name);
 		if ((rc = func(name, ep->cte_value, arg)) != 0)
 			return (rc);
@@ -145,11 +263,13 @@ ctf_type_iter(ctf_file_t *fp, ctf_type_f *func, void *arg)
 {
 	ctf_id_t id, max = fp->ctf_typemax;
 	int rc, child = (fp->ctf_flags & LCTF_CHILD);
+	int isroot;
 
 	for (id = 1; id <= max; id++) {
-		const ctf_type_t *tp = LCTF_INDEX_TO_TYPEPTR(fp, id);
-		if (CTF_INFO_ISROOT(tp->ctt_info) &&
-		    (rc = func(CTF_INDEX_TO_TYPE(id, child), arg)) != 0)
+		const void *tp = LCTF_INDEX_TO_TYPEPTR(fp, id);
+		ctf_get_ctt_info(fp, tp, NULL, NULL, &isroot);
+		if (isroot &&
+		    (rc = func(LCTF_INDEX_TO_TYPE(fp, id, child), arg)) != 0)
 			return (rc);
 	}
 
@@ -168,21 +288,23 @@ ctf_type_resolve(ctf_file_t *fp, ctf_id_t type)
 {
 	ctf_id_t prev = type, otype = type;
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
+	uint_t kind, ctype;
 
 	while ((tp = ctf_lookup_by_id(&fp, type)) != NULL) {
-		switch (LCTF_INFO_KIND(fp, tp->ctt_info)) {
+		ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
+		switch (kind) {
 		case CTF_K_TYPEDEF:
 		case CTF_K_VOLATILE:
 		case CTF_K_CONST:
 		case CTF_K_RESTRICT:
-			if (tp->ctt_type == type || tp->ctt_type == otype ||
-			    tp->ctt_type == prev) {
+			ctf_get_ctt_index(fp, tp, NULL, &ctype, NULL);
+			if (ctype == type || ctype == otype || ctype == prev) {
 				ctf_dprintf("type %ld cycle detected\n", otype);
 				return (ctf_set_errno(ofp, ECTF_CORRUPT));
 			}
 			prev = type;
-			type = tp->ctt_type;
+			type = ctype;
 			break;
 		default:
 			return (type);
@@ -237,9 +359,8 @@ ctf_type_qlname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len,
 		    cdp != NULL; cdp = ctf_list_next(cdp)) {
 
 			ctf_file_t *rfp = fp;
-			const ctf_type_t *tp =
-			    ctf_lookup_by_id(&rfp, cdp->cd_type);
-			const char *name = ctf_strptr(rfp, tp->ctt_name);
+			const void *tp = ctf_lookup_by_id(&rfp, cdp->cd_type);
+			const char *name = ctf_type_rname(rfp, tp);
 
 			if (k != CTF_K_POINTER && k != CTF_K_ARRAY)
 				ctf_decl_sprintf(&cd, " ");
@@ -335,6 +456,23 @@ ctf_type_qname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len,
 	return (rv >= 0 && rv < len ? buf : NULL);
 }
 
+const char *
+ctf_type_rname(ctf_file_t *fp, const void *v)
+{
+	uint_t name;
+
+	if (fp->ctf_version == CTF_VERSION_2) {
+		const struct ctf_type_v2 *ctt = v;
+
+		name = ctt->ctt_name;
+	} else {
+		const struct ctf_type_v3 *ctt = v;
+
+		name = ctt->ctt_name;
+	}
+
+	return (ctf_strptr(fp, name));
+}
 
 /*
  * Resolve the type down to a base type node, and then return the size
@@ -343,9 +481,10 @@ ctf_type_qname(ctf_file_t *fp, ctf_id_t type, char *buf, size_t len,
 ssize_t
 ctf_type_size(ctf_file_t *fp, ctf_id_t type)
 {
-	const ctf_type_t *tp;
+	const void *tp;
 	ssize_t size;
 	ctf_arinfo_t ar;
+	uint_t kind;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
 		return (-1); /* errno is set for us */
@@ -353,7 +492,9 @@ ctf_type_size(ctf_file_t *fp, ctf_id_t type)
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (-1); /* errno is set for us */
 
-	switch (LCTF_INFO_KIND(fp, tp->ctt_info)) {
+	ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
+
+	switch (kind) {
 	case CTF_K_POINTER:
 		return (fp->ctf_dmodel->ctd_pointer);
 
@@ -392,8 +533,9 @@ ctf_type_size(ctf_file_t *fp, ctf_id_t type)
 ssize_t
 ctf_type_align(ctf_file_t *fp, ctf_id_t type)
 {
-	const ctf_type_t *tp;
+	const void *tp;
 	ctf_arinfo_t r;
+	uint_t kind, vlen;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
 		return (-1); /* errno is set for us */
@@ -401,7 +543,9 @@ ctf_type_align(ctf_file_t *fp, ctf_id_t type)
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (-1); /* errno is set for us */
 
-	switch (LCTF_INFO_KIND(fp, tp->ctt_info)) {
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
+
+	switch (kind) {
 	case CTF_K_POINTER:
 	case CTF_K_FUNCTION:
 		return (fp->ctf_dmodel->ctd_pointer);
@@ -413,7 +557,7 @@ ctf_type_align(ctf_file_t *fp, ctf_id_t type)
 
 	case CTF_K_STRUCT:
 	case CTF_K_UNION: {
-		uint_t n = LCTF_INFO_VLEN(fp, tp->ctt_info);
+		uint_t n = vlen;
 		ssize_t size, increment;
 		size_t align = 0;
 		const void *vmp;
@@ -421,21 +565,16 @@ ctf_type_align(ctf_file_t *fp, ctf_id_t type)
 		(void) ctf_get_ctt_size(fp, tp, &size, &increment);
 		vmp = (uchar_t *)tp + increment;
 
-		if (LCTF_INFO_KIND(fp, tp->ctt_info) == CTF_K_STRUCT)
+		if (kind == CTF_K_STRUCT)
 			n = MIN(n, 1); /* only use first member for structs */
 
-		if (size < CTF_LSTRUCT_THRESH) {
-			const ctf_member_t *mp = vmp;
-			for (; n != 0; n--, mp++) {
-				ssize_t am = ctf_type_align(fp, mp->ctm_type);
-				align = MAX(align, am);
-			}
-		} else {
-			const ctf_lmember_t *lmp = vmp;
-			for (; n != 0; n--, lmp++) {
-				ssize_t am = ctf_type_align(fp, lmp->ctlm_type);
-				align = MAX(align, am);
-			}
+		for (const char *mp = vmp; n != 0; n--, mp += increment) {
+			uint_t type;
+
+			ctf_get_ctm_info(fp, mp, size, &increment, &type,
+			    NULL, NULL);
+			ssize_t am = ctf_type_align(fp, type);
+			align = MAX(align, am);
 		}
 
 		return (align);
@@ -455,12 +594,15 @@ ctf_type_align(ctf_file_t *fp, ctf_id_t type)
 int
 ctf_type_kind(ctf_file_t *fp, ctf_id_t type)
 {
-	const ctf_type_t *tp;
+	const void *tp;
+	uint_t kind;
 
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
-	return (LCTF_INFO_KIND(fp, tp->ctt_info));
+	ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
+
+	return (kind);
 }
 
 /*
@@ -471,18 +613,22 @@ ctf_id_t
 ctf_type_reference(ctf_file_t *fp, ctf_id_t type)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
+	uint_t ctype, kind;
 
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
-	switch (LCTF_INFO_KIND(fp, tp->ctt_info)) {
+	ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
+
+	switch (kind) {
 	case CTF_K_POINTER:
 	case CTF_K_TYPEDEF:
 	case CTF_K_VOLATILE:
 	case CTF_K_CONST:
 	case CTF_K_RESTRICT:
-		return (tp->ctt_type);
+		ctf_get_ctt_index(fp, tp, NULL, &ctype, NULL);
+		return (ctype);
 	default:
 		return (ctf_set_errno(ofp, ECTF_NOTREF));
 	}
@@ -504,8 +650,8 @@ ctf_type_pointer(ctf_file_t *fp, ctf_id_t type)
 	if (ctf_lookup_by_id(&fp, type) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
-	if ((ntype = fp->ctf_ptrtab[CTF_TYPE_TO_INDEX(type)]) != 0)
-		return (CTF_INDEX_TO_TYPE(ntype, (fp->ctf_flags & LCTF_CHILD)));
+	if ((ntype = fp->ctf_ptrtab[LCTF_TYPE_TO_INDEX(fp, type)]) != 0)
+		return (LCTF_INDEX_TO_TYPE(fp, ntype, (fp->ctf_flags & LCTF_CHILD)));
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
 		return (ctf_set_errno(ofp, ECTF_NOTYPE));
@@ -513,8 +659,8 @@ ctf_type_pointer(ctf_file_t *fp, ctf_id_t type)
 	if (ctf_lookup_by_id(&fp, type) == NULL)
 		return (ctf_set_errno(ofp, ECTF_NOTYPE));
 
-	if ((ntype = fp->ctf_ptrtab[CTF_TYPE_TO_INDEX(type)]) != 0)
-		return (CTF_INDEX_TO_TYPE(ntype, (fp->ctf_flags & LCTF_CHILD)));
+	if ((ntype = fp->ctf_ptrtab[LCTF_TYPE_TO_INDEX(fp, type)]) != 0)
+		return (LCTF_INDEX_TO_TYPE(fp, ntype, (fp->ctf_flags & LCTF_CHILD)));
 
 	return (ctf_set_errno(ofp, ECTF_NOTYPE));
 }
@@ -526,16 +672,17 @@ int
 ctf_type_encoding(ctf_file_t *fp, ctf_id_t type, ctf_encoding_t *ep)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
 	ssize_t increment;
-	uint_t data;
+	uint_t data, kind;
 
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
 	(void) ctf_get_ctt_size(fp, tp, NULL, &increment);
+	ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
 
-	switch (LCTF_INFO_KIND(fp, tp->ctt_info)) {
+	switch (kind) {
 	case CTF_K_INTEGER:
 		data = *(const uint_t *)((uintptr_t)tp + increment);
 		ep->cte_format = CTF_INT_ENCODING(data);
@@ -570,10 +717,10 @@ ctf_type_cmp(ctf_file_t *lfp, ctf_id_t ltype, ctf_file_t *rfp, ctf_id_t rtype)
 	if (lfp == rfp)
 		return (rval);
 
-	if (CTF_TYPE_ISPARENT(ltype) && lfp->ctf_parent != NULL)
+	if (LCTF_TYPE_ISPARENT(lfp, ltype) && lfp->ctf_parent != NULL)
 		lfp = lfp->ctf_parent;
 
-	if (CTF_TYPE_ISPARENT(rtype) && rfp->ctf_parent != NULL)
+	if (LCTF_TYPE_ISPARENT(rfp, rtype) && rfp->ctf_parent != NULL)
 		rfp = rfp->ctf_parent;
 
 	if (lfp < rfp)
@@ -595,7 +742,7 @@ int
 ctf_type_compat(ctf_file_t *lfp, ctf_id_t ltype,
     ctf_file_t *rfp, ctf_id_t rtype)
 {
-	const ctf_type_t *ltp, *rtp;
+	const void *ltp, *rtp;
 	ctf_encoding_t le, re;
 	ctf_arinfo_t la, ra;
 	uint_t lkind, rkind;
@@ -612,8 +759,7 @@ ctf_type_compat(ctf_file_t *lfp, ctf_id_t ltype,
 	if (lkind != rkind ||
 	    (ltp = ctf_lookup_by_id(&lfp, ltype)) == NULL ||
 	    (rtp = ctf_lookup_by_id(&rfp, rtype)) == NULL ||
-	    strcmp(ctf_strptr(lfp, ltp->ctt_name),
-	    ctf_strptr(rfp, rtp->ctt_name)) != 0)
+	    strcmp(ctf_type_rname(lfp, ltp), ctf_type_rname(rfp, rtp)) != 0)
 		return (0);
 
 	switch (lkind) {
@@ -647,9 +793,9 @@ _ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name, ulong_t off,
     ctf_membinfo_t *mip)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
 	ssize_t size, increment;
-	uint_t kind, n;
+	uint_t kind, n, vlen;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
 		return (CTF_ERR); /* errno is set for us */
@@ -658,41 +804,27 @@ _ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name, ulong_t off,
 		return (CTF_ERR); /* errno is set for us */
 
 	(void) ctf_get_ctt_size(fp, tp, &size, &increment);
-	kind = LCTF_INFO_KIND(fp, tp->ctt_info);
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
 
 	if (kind != CTF_K_STRUCT && kind != CTF_K_UNION)
 		return (ctf_set_errno(ofp, ECTF_NOTSOU));
 
-	if (size < CTF_LSTRUCT_THRESH) {
-		const ctf_member_t *mp = (const ctf_member_t *)
-		    ((uintptr_t)tp + increment);
+	const char *mp = (const char *)((uintptr_t)tp + increment);
 
-		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, mp++) {
-			if (mp->ctm_name == 0 &&
-			    _ctf_member_info(fp, mp->ctm_type, name,
-			    mp->ctm_offset + off, mip) == 0)
-				return (0);
-			if (strcmp(ctf_strptr(fp, mp->ctm_name), name) == 0) {
-				mip->ctm_type = mp->ctm_type;
-				mip->ctm_offset = mp->ctm_offset + off;
-				return (0);
-			}
-		}
-	} else {
-		const ctf_lmember_t *lmp = (const ctf_lmember_t *)
-		    ((uintptr_t)tp + increment);
+	for (n = vlen; n != 0; n--, mp += increment) {
+		const char *name1;
+		ulong_t offset;
+		uint_t type;
 
-		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, lmp++) {
-			if (lmp->ctlm_name == 0 &&
-			    _ctf_member_info(fp, lmp->ctlm_name, name,
-			    (ulong_t)CTF_LMEM_OFFSET(lmp) + off, mip) == 0)
-				return (0);
-			if (strcmp(ctf_strptr(fp, lmp->ctlm_name), name) == 0) {
-				mip->ctm_type = lmp->ctlm_type;
-				mip->ctm_offset =
-				    (ulong_t)CTF_LMEM_OFFSET(lmp) + off;
-				return (0);
-			}
+		ctf_get_ctm_info(fp, mp, size, &increment, &type, &offset,
+		    &name1);
+		if (name1 == NULL &&
+		    _ctf_member_info(fp, type, name1, offset + off, mip) == 0)
+			return (0);
+		if (strcmp(name1, name) == 0) {
+			mip->ctm_type = type;
+			mip->ctm_offset = offset + off;
+			return (0);
 		}
 	}
 
@@ -717,22 +849,34 @@ int
 ctf_array_info(ctf_file_t *fp, ctf_id_t type, ctf_arinfo_t *arp)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
-	const ctf_array_t *ap;
+	const void *ap, *tp;
 	ssize_t increment;
+	uint_t kind;
 
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
-	if (LCTF_INFO_KIND(fp, tp->ctt_info) != CTF_K_ARRAY)
+	ctf_get_ctt_info(fp, tp, &kind, NULL, NULL);
+
+	if (kind != CTF_K_ARRAY)
 		return (ctf_set_errno(ofp, ECTF_NOTARRAY));
 
 	(void) ctf_get_ctt_size(fp, tp, NULL, &increment);
 
-	ap = (const ctf_array_t *)((uintptr_t)tp + increment);
-	arp->ctr_contents = ap->cta_contents;
-	arp->ctr_index = ap->cta_index;
-	arp->ctr_nelems = ap->cta_nelems;
+	ap = (const void *)((uintptr_t)tp + increment);
+	if (fp->ctf_version == CTF_VERSION_2) {
+		const struct ctf_array_v2 *ap2 = ap;
+
+		arp->ctr_contents = ap2->cta_contents;
+		arp->ctr_index = ap2->cta_index;
+		arp->ctr_nelems = ap2->cta_nelems;
+	} else {
+		const struct ctf_array_v3 *ap3 = ap;
+
+		arp->ctr_contents = ap3->cta_contents;
+		arp->ctr_index = ap3->cta_index;
+		arp->ctr_nelems = ap3->cta_nelems;
+	}
 
 	return (0);
 }
@@ -745,10 +889,10 @@ const char *
 ctf_enum_name(ctf_file_t *fp, ctf_id_t type, int value)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
 	const ctf_enum_t *ep;
 	ssize_t increment;
-	uint_t n;
+	uint_t kind, n, vlen;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
 		return (NULL); /* errno is set for us */
@@ -756,7 +900,9 @@ ctf_enum_name(ctf_file_t *fp, ctf_id_t type, int value)
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (NULL); /* errno is set for us */
 
-	if (LCTF_INFO_KIND(fp, tp->ctt_info) != CTF_K_ENUM) {
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
+
+	if (kind != CTF_K_ENUM) {
 		(void) ctf_set_errno(ofp, ECTF_NOTENUM);
 		return (NULL);
 	}
@@ -765,7 +911,7 @@ ctf_enum_name(ctf_file_t *fp, ctf_id_t type, int value)
 
 	ep = (const ctf_enum_t *)((uintptr_t)tp + increment);
 
-	for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, ep++) {
+	for (n = vlen; n != 0; n--, ep++) {
 		if (ep->cte_value == value)
 			return (ctf_strptr(fp, ep->cte_name));
 	}
@@ -782,10 +928,10 @@ int
 ctf_enum_value(ctf_file_t *fp, ctf_id_t type, const char *name, int *valp)
 {
 	ctf_file_t *ofp = fp;
-	const ctf_type_t *tp;
+	const void *tp;
 	const ctf_enum_t *ep;
 	ssize_t size, increment;
-	uint_t n;
+	uint_t kind, n, vlen;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
 		return (CTF_ERR); /* errno is set for us */
@@ -793,7 +939,9 @@ ctf_enum_value(ctf_file_t *fp, ctf_id_t type, const char *name, int *valp)
 	if ((tp = ctf_lookup_by_id(&fp, type)) == NULL)
 		return (CTF_ERR); /* errno is set for us */
 
-	if (LCTF_INFO_KIND(fp, tp->ctt_info) != CTF_K_ENUM) {
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
+
+	if (kind != CTF_K_ENUM) {
 		(void) ctf_set_errno(ofp, ECTF_NOTENUM);
 		return (CTF_ERR);
 	}
@@ -802,7 +950,7 @@ ctf_enum_value(ctf_file_t *fp, ctf_id_t type, const char *name, int *valp)
 
 	ep = (const ctf_enum_t *)((uintptr_t)tp + increment);
 
-	for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, ep++) {
+	for (n = vlen; n != 0; n--, ep++) {
 		if (strcmp(ctf_strptr(fp, ep->cte_name), name) == 0) {
 			if (valp != NULL)
 				*valp = ep->cte_value;
@@ -826,9 +974,9 @@ ctf_type_rvisit(ctf_file_t *fp, ctf_id_t type, ctf_visit_f *func, void *arg,
     const char *name, ulong_t offset, int depth)
 {
 	ctf_id_t otype = type;
-	const ctf_type_t *tp;
+	const void *tp;
 	ssize_t size, increment;
-	uint_t kind, n;
+	uint_t kind, n, vlen;
 	int rc;
 
 	if ((type = ctf_type_resolve(fp, type)) == CTF_ERR)
@@ -840,35 +988,24 @@ ctf_type_rvisit(ctf_file_t *fp, ctf_id_t type, ctf_visit_f *func, void *arg,
 	if ((rc = func(name, otype, offset, depth, arg)) != 0)
 		return (rc);
 
-	kind = LCTF_INFO_KIND(fp, tp->ctt_info);
+	ctf_get_ctt_info(fp, tp, &kind, &vlen, NULL);
 
 	if (kind != CTF_K_STRUCT && kind != CTF_K_UNION)
 		return (0);
 
 	(void) ctf_get_ctt_size(fp, tp, &size, &increment);
 
-	if (size < CTF_LSTRUCT_THRESH) {
-		const ctf_member_t *mp = (const ctf_member_t *)
-		    ((uintptr_t)tp + increment);
+	const char *mp = (const char *)((uintptr_t)tp + increment);
+	for (n = vlen; n != 0; n--, mp += increment) {
+		const char *name;
+		ulong_t offset1;
+		uint_t type;
 
-		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, mp++) {
-			if ((rc = ctf_type_rvisit(fp, mp->ctm_type,
-			    func, arg, ctf_strptr(fp, mp->ctm_name),
-			    offset + mp->ctm_offset, depth + 1)) != 0)
-				return (rc);
-		}
-
-	} else {
-		const ctf_lmember_t *lmp = (const ctf_lmember_t *)
-		    ((uintptr_t)tp + increment);
-
-		for (n = LCTF_INFO_VLEN(fp, tp->ctt_info); n != 0; n--, lmp++) {
-			if ((rc = ctf_type_rvisit(fp, lmp->ctlm_type,
-			    func, arg, ctf_strptr(fp, lmp->ctlm_name),
-			    offset + (ulong_t)CTF_LMEM_OFFSET(lmp),
-			    depth + 1)) != 0)
-				return (rc);
-		}
+		ctf_get_ctm_info(fp, mp, size, &increment, &type, &offset1,
+		    &name);
+		if ((rc = ctf_type_rvisit(fp, type, func, arg, name,
+		    offset + offset1, depth + 1)) != 0)
+			return (rc);
 	}
 
 	return (0);
