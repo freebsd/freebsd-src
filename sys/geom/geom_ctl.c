@@ -282,13 +282,13 @@ gctl_free(struct gctl_req *req)
 }
 
 static void
-gctl_dump(struct gctl_req *req)
+gctl_dump(struct gctl_req *req, const char *what)
 {
 	struct gctl_req_arg *ap;
 	u_int i;
 	int j;
 
-	printf("Dump of gctl request at %p:\n", req);
+	printf("Dump of gctl %s at %p:\n", what, req);
 	if (req->nerror > 0) {
 		printf("  nerror:\t%d\n", req->nerror);
 		if (sbuf_len(req->serror) > 0)
@@ -540,10 +540,14 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 		gctl_copyin(req);
 
 		if (g_debugflags & G_F_CTLDUMP)
-			gctl_dump(req);
+			gctl_dump(req, "request");
 
 		if (!req->nerror) {
 			g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
+
+			if (g_debugflags & G_F_CTLDUMP)
+				gctl_dump(req, "result");
+
 			gctl_copyout(req);
 		}
 	}
