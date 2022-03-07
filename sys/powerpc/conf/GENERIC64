@@ -69,7 +69,6 @@ options 	GEOM_PART_APM		# Apple Partition Maps.
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/powerpc binaries
-options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
 options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
