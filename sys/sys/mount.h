@@ -487,7 +487,7 @@ struct mntoptnames {
 #define	MNTK_RECURSE		0x00000200 /* pending recursive unmount */
 #define	MNTK_UPPER_WAITER	0x00000400 /* waiting to drain MNTK_UPPER_PENDING */
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
-/* UNUSED			0x00001000 */
+#define	MNTK_UNLOCKED_INSMNTQUE	0x00001000 /* fs does not lock the vnode for insmntque */
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
 /* UNUSED			0x00008000 */
