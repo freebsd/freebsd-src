@@ -65,7 +65,7 @@ static u_long null_hash_mask;
 static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "nullfs_node", "NULLFS vnode private part");
 
-static struct vnode * null_hashins(struct mount *, struct null_node *);
+static void null_hashins(struct mount *, struct null_node *);
 
 /*
  * Initialise cache headers
@@ -93,14 +93,15 @@ nullfs_uninit(struct vfsconf *vfsp)
  * Return a VREF'ed alias for lower vnode if already exists, else 0.
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
-struct vnode *
-null_hashget(struct mount *mp, struct vnode *lowervp)
+static struct vnode *
+null_hashget_locked(struct mount *mp, struct vnode *lowervp)
 {
 	struct null_node_hashhead *hd;
 	struct null_node *a;
 	struct vnode *vp;
 
 	ASSERT_VOP_LOCKED(lowervp, "null_hashget");
+	rw_assert(&null_hash_lock, RA_LOCKED);
 
 	/*
 	 * Find hash base, and then search the (two-way) linked
@@ -109,9 +110,6 @@ null_hashget(struct mount *mp, struct vnode *lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
-	if (LIST_EMPTY(hd))
-		return (NULLVP);
-	rw_rlock(&null_hash_lock);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			/*
@@ -122,43 +120,50 @@ null_hashget(struct mount *mp, struct vnode *lowervp)
 			 */
 			vp = NULLTOV(a);
 			vref(vp);
-			rw_runlock(&null_hash_lock);
 			return (vp);
 		}
 	}
-	rw_runlock(&null_hash_lock);
 	return (NULLVP);
 }
 
-/*
- * Act like null_hashget, but add passed null_node to hash if no existing
- * node found.
- */
-static struct vnode *
+struct vnode *
+null_hashget(struct mount *mp, struct vnode *lowervp)
+{
+	struct null_node_hashhead *hd;
+	struct vnode *vp;
+
+	hd = NULL_NHASH(lowervp);
+	if (LIST_EMPTY(hd))
+		return (NULLVP);
+
+	rw_rlock(&null_hash_lock);
+	vp = null_hashget_locked(mp, lowervp);
+	rw_runlock(&null_hash_lock);
+
+	return (vp);
+}
+
+static void
 null_hashins(struct mount *mp, struct null_node *xp)
 {
 	struct null_node_hashhead *hd;
+#ifdef INVARIANTS
 	struct null_node *oxp;
-	struct vnode *ovp;
+#endif
+
+	rw_assert(&null_hash_lock, RA_WLOCKED);
 
 	hd = NULL_NHASH(xp->null_lowervp);
-	rw_wlock(&null_hash_lock);
+#ifdef INVARIANTS
 	LIST_FOREACH(oxp, hd, null_hash) {
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
-			/*
-			 * See null_hashget for a description of this
-			 * operation.
-			 */
-			ovp = NULLTOV(oxp);
-			vref(ovp);
-			rw_wunlock(&null_hash_lock);
-			return (ovp);
+			VNASSERT(0, NULLTOV(oxp),
+			    ("vnode already in hash"));
 		}
 	}
+#endif
 	LIST_INSERT_HEAD(hd, xp, null_hash);
-	rw_wunlock(&null_hash_lock);
-	return (NULLVP);
 }
 
 static void
@@ -202,19 +207,6 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	}
 
 	/*
-	 * The insmntque1() call below requires the exclusive lock on
-	 * the nullfs vnode.  Upgrade the lock now if hash failed to
-	 * provide ready to use vnode.
-	 */
-	if (VOP_ISLOCKED(lowervp) != LK_EXCLUSIVE) {
-		vn_lock(lowervp, LK_UPGRADE | LK_RETRY);
-		if (VN_IS_DOOMED(lowervp)) {
-			vput(lowervp);
-			return (ENOENT);
-		}
-	}
-
-	/*
 	 * We do not serialize vnode creation, instead we will check for
 	 * duplicates later, when adding new vnode to hash.
 	 * Note that duplicate can only appear in hash if the lowervp is
@@ -229,20 +221,23 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 		return (error);
 	}
 
+	VNPASS(vp->v_object == NULL, vp);
+	VNPASS((vn_irflag_read(vp) & VIRF_PGREAD) == 0, vp);
+
+	rw_wlock(&null_hash_lock);
 	xp->null_vnode = vp;
 	xp->null_lowervp = lowervp;
 	xp->null_flags = 0;
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
-	error = insmntque1(vp, mp);
-	if (error != 0) {
-		vput(lowervp);
+	*vpp = null_hashget_locked(mp, lowervp);
+	if (*vpp != NULL) {
+		rw_wunlock(&null_hash_lock);
+		vrele(lowervp);
 		null_destroy_proto(vp, xp);
-		return (error);
+		return (0);
 	}
-	if (lowervp == MOUNTTONULLMOUNT(mp)->nullm_lowerrootvp)
-		vp->v_vflag |= VV_ROOT;
 
 	/*
 	 * We might miss the case where lower vnode sets VIRF_PGREAD
@@ -251,28 +246,23 @@ null_nodeget(struct mount *mp, struct vnode *lowervp, struct vnode **vpp)
 	 */
 	if ((vn_irflag_read(lowervp) & VIRF_PGREAD) != 0) {
 		MPASS(lowervp->v_object != NULL);
-		if ((vn_irflag_read(vp) & VIRF_PGREAD) == 0) {
-			if (vp->v_object == NULL)
-				vp->v_object = lowervp->v_object;
-			else
-				MPASS(vp->v_object == lowervp->v_object);
-			vn_irflag_set_cond(vp, VIRF_PGREAD);
-		} else {
-			MPASS(vp->v_object != NULL);
-		}
+		vp->v_object = lowervp->v_object;
+		vn_irflag_set(vp, VIRF_PGREAD);
+	}
+	if (lowervp == MOUNTTONULLMOUNT(mp)->nullm_lowerrootvp)
+		vp->v_vflag |= VV_ROOT;
+
+	error = insmntque1(vp, mp);
+	if (error != 0) {
+		rw_wunlock(&null_hash_lock);
+		vput(lowervp);
+		vp->v_object = NULL;
+		null_destroy_proto(vp, xp);
+		return (error);
 	}
 
-	/*
-	 * Atomically insert our new node into the hash or vget existing 
-	 * if someone else has beaten us to it.
-	 */
-	*vpp = null_hashins(mp, xp);
-	if (*vpp != NULL) {
-		vrele(lowervp);
-		vp->v_object = NULL;	/* in case VIRF_PGREAD set it */
-		null_destroy_proto(vp, xp);
-		return (0);
-	}
+	null_hashins(mp, xp);
+	rw_wunlock(&null_hash_lock);
 	*vpp = vp;
 
 	return (0);
