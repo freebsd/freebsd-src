@@ -1311,8 +1311,29 @@ vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		mtx_unlock(&vnode_list_mtx);
-		if (vtryrecycle(vp) == 0)
-			count--;
+		/*
+		 * FIXME: ignores the return value, meaning it may be nothing
+		 * got recycled but it claims otherwise to the caller.
+		 *
+		 * Originally the value started being ignored in 2005 with
+		 * 114a1006a8204aa156e1f9ad6476cdff89cada7f .
+		 *
+		 * Respecting the value can run into significant stalls if most
+		 * vnodes belong to one file system and it has writes
+		 * suspended.  In presence of many threads and millions of
+		 * vnodes they keep contending on the vnode_list_mtx lock only
+		 * to find vnodes they can't recycle.
+		 *
+		 * The solution would be to pre-check if the vnode is likely to
+		 * be recycle-able, but it needs to happen with the
+		 * vnode_list_mtx lock held. This runs into a problem where
+		 * VOP_GETWRITEMOUNT (currently needed to find out about if
+		 * writes are frozen) can take locks which LOR against it.
+		 *
+		 * Check nullfs for one example (null_getwritemount).
+		 */
+		vtryrecycle(vp);
+		count--;
 		mtx_lock(&vnode_list_mtx);
 		vp = mvp;
 	}
