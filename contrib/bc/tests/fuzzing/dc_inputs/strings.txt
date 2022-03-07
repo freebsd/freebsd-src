@@ -1,0 +1,51 @@
+[Hello, World!]ZpR
+[Hello, World!]pR
+[Hello, \[ World!]ZpR
+[Hello, \[ World!]pR
+[Hello, \] World!]ZpR
+[Hello, \] World!]pR
+[30pR]
+[29pR]
+[28pR]
+[27pR]
+[26pR]
+[25pR]
+[24pR]
+[23pR]
+[22pR]
+[21pR]
+[20pR]
+[19pR]
+[18pR]
+[17pR]
+[16pR]
+[15pR]
+[14pR]
+[13pR]
+[12pR]
+[11pR]
+[10pR]
+[9pR]
+[8pR]
+[7pR]
+[6pR]
+[5pR]
+[4pR]
+[3pR]
+[2pR]
+[1pR]
+[xz0<x]dsxx
+[\\]pR
+[\[\]]pR
+1xpR
+[1st] 0:b [2nd] 1:b 0;b p 1;b p
+[string]XpR
+[3 4^pR]silix
+[[[q 1 3+pR]x]x]x4 5^pR
+4xpR
+5 112ax 90ax 112ax 82ax
+[\q] pR
+[q\\] pR
+[\\] pR
+92 a pR
+[[10pR]si]x [[lix]x]x

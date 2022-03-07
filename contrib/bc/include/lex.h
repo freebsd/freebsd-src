@@ -491,6 +491,11 @@ typedef struct BcLex {
 	/// if a string or comment are not properly terminated.
 	bool is_stdin;
 
+	/// If this is true, the lexer is processing expressions from the
+	/// command-line and can ask for more data if a string or comment are not
+	/// properly terminated.
+	bool is_exprs;
+
 } BcLex;
 
 /**
@@ -519,8 +524,10 @@ void bc_lex_file(BcLex *l, const char *file);
  * @param l         The lexer.
  * @param text      The text to lex.
  * @param is_stdin  True if the text is from stdin, false otherwise.
+ * @param is_exprs  True if the text is from command-line expressions, false
+ *                  otherwise.
  */
-void bc_lex_text(BcLex *l, const char *text, bool is_stdin);
+void bc_lex_text(BcLex *l, const char *text, bool is_stdin, bool is_exprs);
 
 /**
  * Generic next function for the parser to call. It takes care of calling the
@@ -579,7 +586,7 @@ void bc_lex_invalidChar(BcLex *l, char c);
 
 /**
  * Reads a line from stdin and puts it into the lexer's buffer.
- * @param l         The lexer.
+ * @param l  The lexer.
  */
 bool bc_lex_readLine(BcLex *l);
 

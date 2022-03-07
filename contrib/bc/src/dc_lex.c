@@ -130,7 +130,8 @@ static void dc_lex_string(BcLex *l) {
 		}
 
 		if (BC_ERR(c == '\0' && depth)) {
-			if (!vm.eof && l->is_stdin) got_more = bc_lex_readLine(l);
+			if (!vm.eof && (l->is_stdin || l->is_exprs))
+				got_more = bc_lex_readLine(l);
 			if (got_more) bc_vec_popAll(&l->str);
 		}
 

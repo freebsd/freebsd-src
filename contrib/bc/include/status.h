@@ -116,7 +116,7 @@
 #endif // BC_DEBUG_CODE
 
 // We want to be able to use _Noreturn on C11 compilers.
-#if __STDC_VERSION__ >= 201100L
+#if __STDC_VERSION__ >= 201112L
 
 #include <stdnoreturn.h>
 #define BC_NORETURN _Noreturn
@@ -401,7 +401,7 @@ typedef enum BcErr {
 	/// Void value used in an expression error.
 	BC_ERR_EXEC_VOID_VAL,
 
-	// Parse (and lex errors).
+	// Parse (and lex) errors.
 
 	/// EOF encountered when not expected error.
 	BC_ERR_PARSE_EOF,

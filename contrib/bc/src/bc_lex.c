@@ -117,7 +117,7 @@ static void bc_lex_string(BcLex *l) {
 		// is '\q', which makes this loop simpler.
 		for (i = l->i; (c = buf[i]) && c != '"'; ++i) nlines += (c == '\n');
 
-		if (BC_ERR(c == '\0') && !vm.eof && l->is_stdin)
+		if (BC_ERR(c == '\0') && !vm.eof && (l->is_stdin || l->is_exprs))
 			got_more = bc_lex_readLine(l);
 
 	} while (got_more && c != '"');

@@ -150,13 +150,13 @@ void bc_parse_number(BcParse *p) {
 #endif // BC_ENABLE_EXTRA_MATH
 }
 
-void bc_parse_text(BcParse *p, const char *text, bool is_stdin) {
+void bc_parse_text(BcParse *p, const char *text, bool is_stdin, bool is_exprs) {
 
 	BC_SIG_LOCK;
 
 	// Make sure the pointer isn't invalidated.
 	p->func = bc_vec_item(&p->prog->fns, p->fidx);
-	bc_lex_text(&p->l, text, is_stdin);
+	bc_lex_text(&p->l, text, is_stdin, is_exprs);
 
 	BC_SIG_UNLOCK;
 }
