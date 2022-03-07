@@ -63,16 +63,15 @@ static struct cdevsw g_ctl_cdevsw = {
 	.d_name =	"g_ctl",
 };
 
+CTASSERT(GCTL_PARAM_RD == VM_PROT_READ);
+CTASSERT(GCTL_PARAM_WR == VM_PROT_WRITE);
+
 void
 g_ctl_init(void)
 {
 
 	make_dev_credf(MAKEDEV_ETERNAL, &g_ctl_cdevsw, 0, NULL,
 	    UID_ROOT, GID_OPERATOR, 0640, PATH_GEOM_CTL);
-	KASSERT(GCTL_PARAM_RD == VM_PROT_READ,
-		("GCTL_PARAM_RD != VM_PROT_READ"));
-	KASSERT(GCTL_PARAM_WR == VM_PROT_WRITE,
-		("GCTL_PARAM_WR != VM_PROT_WRITE"));
 }
 
 /*
@@ -222,14 +221,18 @@ gctl_copyin(struct gctl_req *req)
 			gctl_error(req, "negative param length");
 			break;
 		}
-		p = geom_alloc_copyin(req, ap[i].value, ap[i].len);
-		if (p == NULL)
-			break;
-		if ((ap[i].flag & GCTL_PARAM_ASCII) &&
-		    p[ap[i].len - 1] != '\0') {
-			gctl_error(req, "unterminated param value");
-			g_free(p);
-			break;
+		if (ap[i].flag & GCTL_PARAM_RD) {
+			p = geom_alloc_copyin(req, ap[i].value, ap[i].len);
+			if (p == NULL)
+				break;
+			if ((ap[i].flag & GCTL_PARAM_ASCII) &&
+			    p[ap[i].len - 1] != '\0') {
+				gctl_error(req, "unterminated param value");
+				g_free(p);
+				break;
+			}
+		} else {
+			p = g_malloc(ap[i].len, M_WAITOK | M_ZERO);
 		}
 		ap[i].kvalue = p;
 		ap[i].flag |= GCTL_PARAM_VALUEKERNEL;
