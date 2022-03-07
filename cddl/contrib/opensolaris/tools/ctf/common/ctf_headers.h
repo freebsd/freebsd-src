@@ -65,7 +65,7 @@
  *    an explicit path #include.
  */
 
-#include <uts/common/sys/ctf.h>
+#include <sys/ctf.h>
 #include <uts/common/sys/ctf_api.h>
 #include <lib/libctf/common/libctf.h>
 
