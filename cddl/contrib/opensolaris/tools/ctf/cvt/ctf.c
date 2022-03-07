@@ -1333,7 +1333,7 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					tdp->t_fndef->fn_args[i] = tdarr[argid];
 			}
 
-			dptr = roundup2(dptr, 4);
+			dptr = (caddr_t) roundup2((uintptr_t) dptr, 4);
 			break;
 
 		case CTF_K_RESTRICT:
