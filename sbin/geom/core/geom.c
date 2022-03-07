@@ -487,7 +487,7 @@ run_command(int argc, char *argv[])
 		gctl_ro_param(req, "version", sizeof(*version), version);
 	parse_arguments(cmd, req, &argc, &argv);
 
-	bzero(buf, sizeof(buf));
+	buf[0] = '\0';
 	if (cmd->gc_func != NULL) {
 		unsigned flags;
 
@@ -495,7 +495,8 @@ run_command(int argc, char *argv[])
 		cmd->gc_func(req, flags);
 		errstr = req->error;
 	} else {
-		gctl_rw_param(req, "output", sizeof(buf), buf);
+		gctl_add_param(req, "output", sizeof(buf), buf,
+		    GCTL_PARAM_WR | GCTL_PARAM_ASCII);
 		errstr = gctl_issue(req);
 	}
 	if (errstr != NULL && errstr[0] != '\0') {

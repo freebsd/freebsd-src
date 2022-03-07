@@ -1327,8 +1327,9 @@ gpart_issue(struct gctl_req *req, unsigned int fl __unused)
 		goto done;
 	}
 
-	bzero(buf, sizeof(buf));
-	gctl_rw_param(req, "output", sizeof(buf), buf);
+	buf[0] = '\0';
+	gctl_add_param(req, "output", sizeof(buf), buf,
+	    GCTL_PARAM_WR | GCTL_PARAM_ASCII);
 	errstr = gctl_issue(req);
 	if (errstr == NULL || errstr[0] == '\0') {
 		if (buf[0] != '\0')
