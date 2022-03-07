@@ -1965,7 +1965,13 @@ insmntque1_int(struct vnode *vp, struct mount *mp, bool dtr)
 	KASSERT(vp->v_mount == NULL,
 		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
-	ASSERT_VOP_ELOCKED(vp, "insmntque: non-locked vp");
+	if ((mp->mnt_kern_flag & MNTK_UNLOCKED_INSMNTQUE) == 0) {
+		ASSERT_VOP_ELOCKED(vp, "insmntque: non-locked vp");
+	} else {
+		KASSERT(!dtr,
+		    ("%s: can't have MNTK_UNLOCKED_INSMNTQUE and cleanup",
+		    __func__));
+	}
 
 	/*
 	 * We acquire the vnode interlock early to ensure that the
@@ -4400,6 +4406,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_RECURSE);
 	MNT_KERN_FLAG(MNTK_UPPER_WAITER);
 	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
+	MNT_KERN_FLAG(MNTK_UNLOCKED_INSMNTQUE);
 	MNT_KERN_FLAG(MNTK_USES_BCACHE);
 	MNT_KERN_FLAG(MNTK_FPLOOKUP);
 	MNT_KERN_FLAG(MNTK_TASKQUEUE_WAITER);
@@ -5031,7 +5038,7 @@ vfs_allocate_syncvnode(struct mount *mp)
 	vp->v_type = VNON;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_FORCEINSMQ;
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp);
 	if (error != 0)
 		panic("vfs_allocate_syncvnode: insmntque() failed");
 	vp->v_vflag &= ~VV_FORCEINSMQ;
