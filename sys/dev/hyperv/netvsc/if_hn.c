@@ -454,6 +454,8 @@ static void			hn_start_txeof(struct hn_tx_ring *);
 static void			hn_start_txeof_taskfunc(void *, int);
 #endif
 
+static int			hn_rsc_sysctl(SYSCTL_HANDLER_ARGS);
+
 SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V network interface");
 
@@ -2371,7 +2373,7 @@ hn_attach(device_t dev)
 	}
 	
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rsc_switch",
-	    CTLFLAG_UINT, sc, 0, hn_rsc_sysctl, "A",
+	    CTLTYPE_UINT, sc, 0, hn_rsc_sysctl, "A",
 	    "switch to rsc");
 
 	/*
@@ -4575,7 +4577,6 @@ static int
 hn_rsc_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
-	uint32_t rsc_ctrl;
 	uint32_t mtu;
 	int error;
 	HN_LOCK(sc);
@@ -4592,7 +4593,7 @@ hn_rsc_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto back;
 	if_printf(sc->hn_ifp, "configuring offload \n");
-	error = hn_rndis_conf_offload(sc, mtu);
+	error = hn_rndis_reconf_offload(sc, mtu);
 back:
 	HN_UNLOCK(sc);
 	return (error);

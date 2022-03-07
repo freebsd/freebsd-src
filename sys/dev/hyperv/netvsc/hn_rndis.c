@@ -580,6 +580,12 @@ done:
 }
 
 int
+hn_rndis_reconf_offload(struct hn_softc *sc, int mtu)
+{
+	return(hn_rndis_conf_offload(sc, mtu));
+}
+
+static int
 hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 {
 	struct ndis_offload hwcaps;
