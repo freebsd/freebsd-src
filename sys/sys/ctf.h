@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: ISC
  *
  * Copyright (c) 2016 Martin Pieuchot <mpi@openbsd.org>
+ * Copyright (c) 2022 The FreeBSD Foundation
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,16 +58,25 @@ typedef struct ctf_lblent {
 	__uint32_t		ctl_typeidx;
 } ctf_lblent_t;
 
-typedef struct ctf_stype {
+struct ctf_stype_v2 {
 	__uint32_t		ctt_name;
 	__uint16_t		ctt_info;
 	union {
 		__uint16_t _size;
 		__uint16_t _type;
 	} _u;
-} ctf_stype_t;
+};
 
-typedef struct ctf_type {
+struct ctf_stype_v3 {
+	__uint32_t		ctt_name;
+	__uint32_t		ctt_info;
+	union {
+		__uint32_t _size;
+		__uint32_t _type;
+	} _u;
+};
+
+struct ctf_type_v2 {
 	__uint32_t		ctt_name;
 	__uint16_t		ctt_info;
 	union {
@@ -75,32 +85,63 @@ typedef struct ctf_type {
 	} _u;
 	__uint32_t		ctt_lsizehi;
 	__uint32_t		ctt_lsizelo;
-} ctf_type_t;
+};
+
+struct ctf_type_v3 {
+	__uint32_t		ctt_name;
+	__uint32_t		ctt_info;
+	union {
+		__uint32_t _size;
+		__uint32_t _type;
+	} _u;
+	__uint32_t		ctt_lsizehi;
+	__uint32_t		ctt_lsizelo;
+};
 
 #define ctt_size _u._size
 #define ctt_type _u._type
 
-typedef struct ctf_array {
+struct ctf_array_v2 {
 	__uint16_t		cta_contents;
 	__uint16_t		cta_index;
 	__uint32_t		cta_nelems;
-} ctf_array_t;
+};
 
-typedef struct ctf_member {
+struct ctf_array_v3 {
+	__uint32_t		cta_contents;
+	__uint32_t		cta_index;
+	__uint32_t		cta_nelems;
+};
+
+struct ctf_member_v2 {
 	__uint32_t		ctm_name;
 	__uint16_t		ctm_type;
 	__uint16_t		ctm_offset;
-} ctf_member_t;
+};
 
-typedef struct ctf_lmember {
+struct ctf_member_v3 {
+	__uint32_t		ctm_name;
+	__uint32_t		ctm_type;
+	__uint32_t		ctm_offset;
+};
+
+struct ctf_lmember_v2 {
 	__uint32_t		ctlm_name;
 	__uint16_t		ctlm_type;
 	__uint16_t		ctlm_pad;
 	__uint32_t		ctlm_offsethi;
 	__uint32_t		ctlm_offsetlo;
-} ctf_lmember_t;
+};
 
-#define CTF_LSTRUCT_THRESH	8192
+struct ctf_lmember_v3 {
+	__uint32_t		ctlm_name;
+	__uint32_t		ctlm_type;
+	__uint32_t		ctlm_offsethi;
+	__uint32_t		ctlm_offsetlo;
+};
+
+#define CTF_V2_LSTRUCT_THRESH	(1 << 13)
+#define CTF_V3_LSTRUCT_THRESH	(1 << 29)
 
 typedef struct ctf_enum {
 	__uint32_t		cte_name;
@@ -109,23 +150,41 @@ typedef struct ctf_enum {
 
 #define CTF_MAGIC		0xcff1
 #define CTF_VERSION		CTF_VERSION_2
+#define CTF_VERSION_3		3
 #define CTF_VERSION_2		2
 #define CTF_VERSION_1		1
 
 #define CTF_MAX_NAME		0x7fffffff
-#define CTF_MAX_VLEN		0x03ff
-#define CTF_MAX_SIZE		0xfffe
-#define CTF_LSIZE_SENT		(CTF_MAX_SIZE + 1) /* sentinel for cts vs ctt */
 
-#define CTF_PARENT_SHIFT	15
-#define CTF_MAX_TYPE		0xffff
-#define CTF_TYPE_ISPARENT(id)	((id) < 0x8000)
-#define CTF_TYPE_ISCHILD(id)	((id) > 0x7fff)
-#define CTF_TYPE_TO_INDEX(t)	((t) & 0x7fff)
-#define CTF_INDEX_TO_TYPE(t, c)	(((t) & 0x7fff) | ((c) != 0 ? 0x8000 : 0))
+#define CTF_V2_MAX_VLEN		0x03ff
+#define CTF_V2_MAX_SIZE		0xfffe
+#define CTF_V2_LSIZE_SENT	(CTF_V2_MAX_SIZE + 1) /* sentinel for cts vs ctt */
 
-#define CTF_TYPE_INFO(k, r, l)	\
-	((k) << 11) | ((r) != 0 ? (1 << 10) : 0) | ((l) & ((1 << 10) - 1))
+#define CTF_V3_MAX_VLEN		0x00ffffff
+#define CTF_V3_MAX_SIZE		0xfffffffeu
+#define CTF_V3_LSIZE_SENT	(CTF_V3_MAX_SIZE + 1)
+
+#define CTF_V2_PARENT_SHIFT		15
+#define CTF_V2_MAX_TYPE			0xffff
+#define CTF_V2_TYPE_ISPARENT(id)	((id) < 0x8000)
+#define CTF_V2_TYPE_ISCHILD(id)		((id) > 0x7fff)
+#define CTF_V2_TYPE_TO_INDEX(type)	((type) & 0x7fff)
+#define CTF_V2_INDEX_TO_TYPE(type, ischild)			\
+	(((type) & 0x7fff) | ((ischild) != 0 ? 0x8000 : 0))
+#define CTF_V2_TYPE_INFO(kind, isroot, vlen)			\
+	(((kind) << 11) | ((isroot) != 0 ? (1 << 10) : 0) |	\
+	    ((vlen) & CTF_V2_MAX_VLEN))
+
+#define CTF_V3_PARENT_SHIFT		31
+#define CTF_V3_MAX_TYPE			0xfffffffeu
+#define CTF_V3_TYPE_ISPARENT(id)	((__uint32_t)(id) < 0x80000000u)
+#define CTF_V3_TYPE_ISCHILD(id)		((__uint32_t)(id) > 0x7fffffffu)
+#define CTF_V3_TYPE_TO_INDEX(type)	((type) & 0x7fffffffu)
+#define CTF_V3_INDEX_TO_TYPE(type, ischild)			\
+	(((type) & 0x7fffffffu) | ((ischild) != 0 ? 0x80000000u : 0))
+#define CTF_V3_TYPE_INFO(kind, isroot, vlen)			\
+	(((kind) << 26) | ((isroot) != 0 ? (1 << 25) : 0) |	\
+	    ((vlen) & CTF_V3_MAX_VLEN))
 
 #define CTF_STRTAB_0		0
 #define CTF_STRTAB_1		1
@@ -135,9 +194,14 @@ typedef struct ctf_enum {
 /*
  * Info macro.
  */
-#define CTF_INFO_VLEN(i)	(((i) & CTF_MAX_VLEN))
-#define CTF_INFO_ISROOT(i)	(((i) & 0x0400) >> 10)
-#define CTF_INFO_KIND(i)	(((i) & 0xf800) >> 11)
+#define CTF_V2_INFO_VLEN(i)	((i) & CTF_V2_MAX_VLEN)
+#define CTF_V2_INFO_ISROOT(i)	(((i) & 0x0400) >> 10)
+#define CTF_V2_INFO_KIND(i)	(((i) & 0xf800) >> 11)
+
+#define CTF_V3_INFO_VLEN(i)	((i) & CTF_V3_MAX_VLEN)
+#define CTF_V3_INFO_ISROOT(i)	(((i) & 0x02000000) >> 25)
+#define CTF_V3_INFO_KIND(i)	(((i) & 0xfc000000) >> 26)
+
 #define  CTF_K_UNKNOWN		0
 #define  CTF_K_INTEGER		1
 #define  CTF_K_FLOAT		2
@@ -152,7 +216,7 @@ typedef struct ctf_enum {
 #define  CTF_K_VOLATILE		11
 #define  CTF_K_CONST		12
 #define  CTF_K_RESTRICT		13
-#define  CTF_K_MAX		31
+#define  CTF_K_MAX		63
 
 /*
  * Integer/Float Encoding macro.
@@ -210,5 +274,28 @@ typedef struct ctf_enum {
 	(((__uint64_t)(m)->ctlm_offsethi) << 32 | (m)->ctlm_offsetlo)
 #define CTF_OFFSET_TO_LMEMHI(off)	((__uint32_t)((__uint64_t)(off) >> 32))
 #define CTF_OFFSET_TO_LMEMLO(off)	((__uint32_t)(off))
+
+/*
+ * Compatibility for pre-v3 code.
+ */
+typedef struct ctf_array_v2 ctf_array_t;
+typedef struct ctf_member_v2 ctf_member_t;
+typedef struct ctf_lmember_v2 ctf_lmember_t;
+typedef struct ctf_type_v2 ctf_type_t;
+typedef struct ctf_stype_v2 ctf_stype_t;
+
+#define CTF_INFO_KIND		CTF_V2_INFO_KIND
+#define CTF_INFO_VLEN		CTF_V2_INFO_VLEN
+#define CTF_INFO_ISROOT		CTF_V2_INFO_ISROOT
+#define CTF_TYPE_INFO		CTF_V2_TYPE_INFO
+#define CTF_TYPE_ISPARENT	CTF_V2_TYPE_ISPARENT
+#define CTF_TYPE_ISCHILD	CTF_V2_TYPE_ISCHILD
+#define CTF_TYPE_TO_INDEX	CTF_V2_TYPE_TO_INDEX
+#define CTF_INDEX_TO_TYPE	CTF_V2_INDEX_TO_TYPE
+#define CTF_LSIZE_SENT		CTF_V2_LSIZE_SENT
+#define CTF_LSTRUCT_THRESH	CTF_V2_LSTRUCT_THRESH
+#define CTF_MAX_SIZE		CTF_V2_MAX_SIZE
+#define CTF_MAX_TYPE		CTF_V2_MAX_TYPE
+#define CTF_MAX_VLEN		CTF_V2_MAX_VLEN
 
 #endif /* _SYS_CTF_H_ */
