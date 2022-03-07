@@ -66,10 +66,12 @@ options 	TMPFS			# Efficient memory filesystem
 options 	GEOM_PART_APM		# Apple Partition Maps.
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-#options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/powerpcle binaries
-options		COMPAT_FREEBSD11	# Compatible with FreeBSD11
-options		COMPAT_FREEBSD12	# Compatible with FreeBSD12
+
+# ports lang/rust (1.57.0) and lang/go (1.17.5) depends on older kernel interfaces
+options         COMPAT_FREEBSD11        # Compatible with FreeBSD11 (required by ports)
+options         COMPAT_FREEBSD12        # Compatible with FreeBSD12 (required by ports)
 options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
+
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI 
 options 	KTRACE			# ktrace(1) syscall trace support
 options 	STACK			# stack(9) support
