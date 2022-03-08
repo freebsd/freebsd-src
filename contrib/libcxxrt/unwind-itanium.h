@@ -79,9 +79,12 @@ struct _Unwind_Exception
   {
     uint64_t exception_class;
     _Unwind_Exception_Cleanup_Fn exception_cleanup;
-    unsigned long private_1;
-    unsigned long private_2;
-  } ;
+    uintptr_t private_1;
+    uintptr_t private_2;
+#if __SIZEOF_POINTER__ == 4
+    uint32_t reserved[3];
+#endif
+  } __attribute__((__aligned__));
 
 extern _Unwind_Reason_Code _Unwind_RaiseException (struct _Unwind_Exception *);
 extern _Unwind_Reason_Code _Unwind_ForcedUnwind (struct _Unwind_Exception *,
