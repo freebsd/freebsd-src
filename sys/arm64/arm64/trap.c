@@ -492,6 +492,8 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	case EXCP_UNKNOWN:
 		if (undef_insn(1, frame))
 			break;
+		printf("Undefined instruction: %08x\n",
+		    *(uint32_t *)frame->tf_elr);
 		/* FALLTHROUGH */
 	default:
 		print_registers(frame);
