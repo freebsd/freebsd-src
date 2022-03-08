@@ -22,8 +22,8 @@ gnop7.sh		Waiting for patch commit					20190820
 gnop8.sh		Waiting for patch commit					20201214
 gnop9.sh		Waiting for patch commit					20201214
 gnop10.sh		Waiting for patch commit					20210105
-gunon.sh		Waiting for fix							20220308
-gunon2.sh		Waiting for fix							20220308
+gunion.sh		Waiting for fix							20220308
+gunion2.sh		Waiting for fix							20220308
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 lockf5.sh		Spinning threads seen						20160718
