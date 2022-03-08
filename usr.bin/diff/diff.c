@@ -159,6 +159,7 @@ main(int argc, char **argv)
 		case 'c':
 			if (FORMAT_MISMATCHED(D_CONTEXT))
 				conflicting_format();
+			cflag = true;
 			diff_format = D_CONTEXT;
 			if (optarg != NULL) {
 				l = strtol(optarg, &ep, 10);
