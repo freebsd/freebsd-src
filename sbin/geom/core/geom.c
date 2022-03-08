@@ -75,6 +75,8 @@ static struct g_command *class_commands = NULL;
 static struct g_command *find_command(const char *cmdstr, int flags);
 static void list_one_geom_by_provider(const char *provider_name);
 static int std_available(const char *name);
+static int std_list_available(void);
+static int std_load_available(void);
 
 static void std_help(struct gctl_req *req, unsigned flags);
 static void std_list(struct gctl_req *req, unsigned flags);
@@ -657,7 +659,7 @@ get_class(int *argc, char ***argv)
 	set_class_name();
 
 	/* If we can't load or list, it's not a class. */
-	if (!std_available("load") && !std_available("list"))
+	if (!std_load_available() && !std_list_available())
 		errx(EXIT_FAILURE, "Invalid class name '%s'.", class_name);
 
 	if (*argc < 1)
@@ -1319,10 +1321,10 @@ std_load_available(void)
 
 	snprintf(name, sizeof(name), "g_%s", class_name);
 	/*
-	 * If already in kernel, "load" command is not available.
+	 * If already in kernel, "load" command is NOP.
 	 */
 	if (modfind(name) >= 0)
-		return (0);
+		return (1);
 	bzero(paths, sizeof(paths));
 	len = sizeof(paths);
 	if (sysctlbyname("kern.module_path", paths, &len, NULL, 0) < 0)
