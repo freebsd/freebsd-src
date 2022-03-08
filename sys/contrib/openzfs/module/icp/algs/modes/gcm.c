@@ -342,14 +342,20 @@ gcm_mode_decrypt_contiguous_blocks(gcm_ctx_t *ctx, char *data, size_t length,
 	 */
 	if (length > 0) {
 		new_len = ctx->gcm_pt_buf_len + length;
-		new = vmem_alloc(new_len, ctx->gcm_kmflag);
+		new = vmem_alloc(new_len, KM_SLEEP);
 		if (new == NULL) {
 			vmem_free(ctx->gcm_pt_buf, ctx->gcm_pt_buf_len);
 			ctx->gcm_pt_buf = NULL;
 			return (CRYPTO_HOST_MEMORY);
 		}
-		bcopy(ctx->gcm_pt_buf, new, ctx->gcm_pt_buf_len);
-		vmem_free(ctx->gcm_pt_buf, ctx->gcm_pt_buf_len);
+
+		if (ctx->gcm_pt_buf != NULL) {
+			bcopy(ctx->gcm_pt_buf, new, ctx->gcm_pt_buf_len);
+			vmem_free(ctx->gcm_pt_buf, ctx->gcm_pt_buf_len);
+		} else {
+			ASSERT0(ctx->gcm_pt_buf_len);
+		}
+
 		ctx->gcm_pt_buf = new;
 		ctx->gcm_pt_buf_len = new_len;
 		bcopy(data, &ctx->gcm_pt_buf[ctx->gcm_processed_data_len],
@@ -554,8 +560,15 @@ gcm_init(gcm_ctx_t *ctx, unsigned char *iv, size_t iv_len,
 			 * There's not a block full of data, pad rest of
 			 * buffer with zero
 			 */
-			bzero(authp, block_size);
-			bcopy(&(auth_data[processed]), authp, remainder);
+
+			if (auth_data != NULL) {
+				bzero(authp, block_size);
+				bcopy(&(auth_data[processed]),
+				    authp, remainder);
+			} else {
+				ASSERT0(remainder);
+			}
+
 			datap = (uint8_t *)authp;
 			remainder = 0;
 		} else {
@@ -641,7 +654,7 @@ gcm_init_ctx(gcm_ctx_t *gcm_ctx, char *param, size_t block_size,
 		}
 		gcm_ctx->gcm_htab_len = htab_len;
 		gcm_ctx->gcm_Htable =
-		    (uint64_t *)kmem_alloc(htab_len, gcm_ctx->gcm_kmflag);
+		    (uint64_t *)kmem_alloc(htab_len, KM_SLEEP);
 
 		if (gcm_ctx->gcm_Htable == NULL) {
 			return (CRYPTO_HOST_MEMORY);
@@ -716,7 +729,7 @@ gmac_init_ctx(gcm_ctx_t *gcm_ctx, char *param, size_t block_size,
 		}
 		gcm_ctx->gcm_htab_len = htab_len;
 		gcm_ctx->gcm_Htable =
-		    (uint64_t *)kmem_alloc(htab_len, gcm_ctx->gcm_kmflag);
+		    (uint64_t *)kmem_alloc(htab_len, KM_SLEEP);
 
 		if (gcm_ctx->gcm_Htable == NULL) {
 			return (CRYPTO_HOST_MEMORY);
@@ -765,12 +778,6 @@ gmac_alloc_ctx(int kmflag)
 
 	gcm_ctx->gcm_flags = GMAC_MODE;
 	return (gcm_ctx);
-}
-
-void
-gcm_set_kmflag(gcm_ctx_t *ctx, int kmflag)
-{
-	ctx->gcm_kmflag = kmflag;
 }
 
 /* GCM implementation that contains the fastest methods */
@@ -1199,7 +1206,7 @@ gcm_mode_encrypt_contiguous_blocks_avx(gcm_ctx_t *ctx, char *data,
 
 	/* Allocate a buffer to encrypt to if there is enough input. */
 	if (bleft >= GCM_AVX_MIN_ENCRYPT_BYTES) {
-		ct_buf = vmem_alloc(chunk_size, ctx->gcm_kmflag);
+		ct_buf = vmem_alloc(chunk_size, KM_SLEEP);
 		if (ct_buf == NULL) {
 			return (CRYPTO_HOST_MEMORY);
 		}

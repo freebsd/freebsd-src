@@ -46,7 +46,7 @@ function cleanup
 }
 log_onexit cleanup
 
-log_must zfs create $POOL/testfs2
+log_must zfs create -o compression=off $POOL/testfs2
 log_must zfs create $POOL/stream
 mntpnt=$(get_prop mountpoint $POOL/testfs2)
 
@@ -103,7 +103,7 @@ set -A badargs \
 
 while (( i < ${#badargs[*]} ))
 do
-	log_mustnot eval "zfs send --saved ${badargs[i]} >$TEST_BASE_DIR/devnull"
+	log_mustnot eval "zfs send --saved ${badargs[i]} > /dev/null"
 	(( i = i + 1 ))
 done
 

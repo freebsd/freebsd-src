@@ -558,7 +558,7 @@ enum ztest_object {
 	ZTEST_OBJECTS
 };
 
-static void usage(boolean_t) __NORETURN;
+static _Noreturn void usage(boolean_t);
 static int ztest_scrub_impl(spa_t *spa);
 
 /*
@@ -622,7 +622,7 @@ static void sig_handler(int signo)
 
 char *fatal_msg;
 
-static __attribute__((noreturn)) __attribute__((format(printf, 2, 3))) void
+static __attribute__((format(printf, 2, 3))) _Noreturn void
 fatal(int do_perror, char *message, ...)
 {
 	va_list args;
@@ -631,6 +631,8 @@ fatal(int do_perror, char *message, ...)
 
 	(void) fflush(stdout);
 	buf = umem_alloc(FATAL_MSG_SZ, UMEM_NOFAIL);
+	if (buf == NULL)
+		goto out;
 
 	va_start(args, message);
 	(void) sprintf(buf, "ztest: ");
@@ -644,6 +646,7 @@ fatal(int do_perror, char *message, ...)
 	(void) fprintf(stderr, "%s\n", buf);
 	fatal_msg = buf;			/* to ease debugging */
 
+out:
 	if (ztest_dump_core)
 		abort();
 	else
@@ -2383,6 +2386,7 @@ zil_replay_func_t *ztest_replay_vector[TX_MAX_TYPE] = {
 	NULL,			/* TX_MKDIR_ATTR */
 	NULL,			/* TX_MKDIR_ACL_ATTR */
 	NULL,			/* TX_WRITE2 */
+	NULL,			/* TX_SETSAXATTR */
 };
 
 /*
@@ -4269,7 +4273,15 @@ ztest_objset_destroy_cb(const char *name, void *arg)
 	 * Destroy the dataset.
 	 */
 	if (strchr(name, '@') != NULL) {
-		VERIFY0(dsl_destroy_snapshot(name, B_TRUE));
+		error = dsl_destroy_snapshot(name, B_TRUE);
+		if (error != ECHRNG) {
+			/*
+			 * The program was executed, but encountered a runtime
+			 * error, such as insufficient slop, or a hold on the
+			 * dataset.
+			 */
+			ASSERT0(error);
+		}
 	} else {
 		error = dsl_destroy_head(name);
 		if (error == ENOSPC) {
@@ -6981,7 +6993,7 @@ ztest_resume(spa_t *spa)
 	(void) zio_resume(spa);
 }
 
-static void
+static _Noreturn void
 ztest_resume_thread(void *arg)
 {
 	spa_t *spa = arg;
@@ -7007,7 +7019,7 @@ ztest_resume_thread(void *arg)
 	thread_exit();
 }
 
-static void
+static _Noreturn void
 ztest_deadman_thread(void *arg)
 {
 	ztest_shared_t *zs = arg;
@@ -7085,7 +7097,7 @@ ztest_execute(int test, ztest_info_t *zi, uint64_t id)
 		    (double)functime / NANOSEC, zi->zi_funcname);
 }
 
-static void
+static _Noreturn void
 ztest_thread(void *arg)
 {
 	int rand;

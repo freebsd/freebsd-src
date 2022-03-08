@@ -40,8 +40,8 @@
 
 static const char *pname;
 
-static void
-uu_die_internal(int status, const char *format, va_list alist) __NORETURN;
+static _Noreturn void
+uu_die_internal(int status, const char *format, va_list alist);
 
 int uu_exit_ok_value = EXIT_SUCCESS;
 int uu_exit_fatal_value = EXIT_FAILURE;
@@ -88,7 +88,8 @@ uu_warn_internal(int err, const char *format, va_list alist)
 	if (pname != NULL)
 		(void) fprintf(stderr, "%s: ", pname);
 
-	(void) vfprintf(stderr, format, alist);
+	if (format != NULL)
+		(void) vfprintf(stderr, format, alist);
 
 	if (strrchr(format, '\n') == NULL)
 		(void) fprintf(stderr, ": %s\n", strerror(err));
@@ -109,7 +110,7 @@ uu_warn(const char *format, ...)
 	va_end(alist);
 }
 
-static __attribute__((format(printf, 2, 0))) __NORETURN void
+static __attribute__((format(printf, 2, 0))) _Noreturn void
 uu_die_internal(int status, const char *format, va_list alist)
 {
 	uu_warn_internal(errno, format, alist);

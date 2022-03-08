@@ -45,6 +45,20 @@
  * nm zstd.o | awk '{print "#define "$3 " zfs_" $3}' > macrotable
  */
 
+#define	MEM_MODULE
+#define	XXH_NAMESPACE ZSTD_
+#define	XXH_PRIVATE_API
+#define	XXH_INLINE_ALL
+#define	ZSTD_LEGACY_SUPPORT 0
+#define	ZSTD_LIB_DICTBUILDER 0
+#define	ZSTD_LIB_DEPRECATED 0
+#define	ZSTD_NOBENCH
+#define	DEBUGLEVEL 0
+#ifdef _KERNEL
+#define	ZSTD_DEPS_ASSERT
+#endif
+
+
 #define	BIT_initDStream zfs_BIT_initDStream
 #define	BIT_mask zfs_BIT_mask
 #define	BIT_reloadDStream zfs_BIT_reloadDStream

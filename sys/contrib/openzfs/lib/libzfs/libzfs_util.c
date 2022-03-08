@@ -600,8 +600,8 @@ zfs_setprop_error(libzfs_handle_t *hdl, zfs_prop_t prop, int err,
 			(void) zfs_error(hdl, EZFS_VOLTOOBIG, errbuf);
 			break;
 		}
+		zfs_fallthrough;
 #endif
-		fallthrough;
 	default:
 		(void) zfs_standard_error(hdl, err, errbuf);
 	}
@@ -1778,16 +1778,10 @@ addlist(libzfs_handle_t *hdl, char *propname, zprop_list_t **listp,
 		    dgettext(TEXT_DOMAIN, "bad property list")));
 	}
 
-	if ((entry = zfs_alloc(hdl, sizeof (zprop_list_t))) == NULL)
-		return (-1);
-
+	entry = zfs_alloc(hdl, sizeof (zprop_list_t));
 	entry->pl_prop = prop;
 	if (prop == ZPROP_INVAL) {
-		if ((entry->pl_user_prop = zfs_strdup(hdl, propname)) ==
-		    NULL) {
-			free(entry);
-			return (-1);
-		}
+		entry->pl_user_prop = zfs_strdup(hdl, propname);
 		entry->pl_width = strlen(propname);
 	} else {
 		entry->pl_width = zprop_width(prop, &entry->pl_fixed,
@@ -1951,9 +1945,7 @@ zprop_expand_list(libzfs_handle_t *hdl, zprop_list_t **plp, zfs_type_t type)
 		 * Add 'name' to the beginning of the list, which is handled
 		 * specially.
 		 */
-		if ((entry = zfs_alloc(hdl, sizeof (zprop_list_t))) == NULL)
-			return (-1);
-
+		entry = zfs_alloc(hdl, sizeof (zprop_list_t));
 		entry->pl_prop = ((type == ZFS_TYPE_POOL) ?  ZPOOL_PROP_NAME :
 		    ((type == ZFS_TYPE_VDEV) ? VDEV_PROP_NAME : ZFS_PROP_NAME));
 		entry->pl_width = zprop_width(entry->pl_prop,
