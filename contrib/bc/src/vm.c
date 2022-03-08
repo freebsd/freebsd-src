@@ -822,11 +822,13 @@ static void bc_vm_clean(void) {
  * Process a bunch of text.
  * @param text      The text to process.
  * @param is_stdin  True if the text came from stdin, false otherwise.
+ * @param is_exprs  True if the text is from command-line expressions, false
+ *                  otherwise.
  */
-static void bc_vm_process(const char *text, bool is_stdin) {
+static void bc_vm_process(const char *text, bool is_stdin, bool is_exprs) {
 
 	// Set up the parser.
-	bc_parse_text(&vm.prs, text, is_stdin);
+	bc_parse_text(&vm.prs, text, is_stdin, is_exprs);
 
 	do {
 
@@ -844,7 +846,7 @@ static void bc_vm_process(const char *text, bool is_stdin) {
 		BC_SIG_UNLOCK;
 
 		// Execute if possible.
-		if(BC_IS_DC || !BC_PARSE_NO_EXEC(&vm.prs)) bc_program_exec(&vm.prog);
+		if (BC_IS_DC || !BC_PARSE_NO_EXEC(&vm.prs)) bc_program_exec(&vm.prog);
 
 		assert(BC_IS_DC || vm.prog.results.len == 0);
 
@@ -893,7 +895,7 @@ static void bc_vm_file(const char *file) {
 	BC_SIG_UNLOCK;
 
 	// Process it.
-	bc_vm_process(data, false);
+	bc_vm_process(data, false, false);
 
 #if BC_ENABLED
 	// Make sure to end any open if statements.
@@ -957,12 +959,14 @@ static void bc_vm_stdin(void) {
 	// Set up the lexer.
 	bc_lex_file(&vm.prs.l, bc_program_stdin_name);
 
-	// These are global so that the dc lexer can access them, but they are tied
-	// to this function, really. Well, this and bc_vm_readLine(). These are the
-	// reason that we have vm.is_stdin to tell the dc lexer if we are reading
-	// from stdin. Well, both lexers care. And the reason they care is so that
-	// if a comment or a string goes across multiple lines, the lexer can
-	// request more data from stdin until the comment or string is ended.
+	// These are global so that the lexers can access them, but they are
+	// allocated and freed in this function because they should only be used for
+	// stdin and expressions (they are used in bc_vm_exprs() as well). So they
+	// are tied to this function, really. Well, this and bc_vm_readLine(). These
+	// are the reasons that we have vm.is_stdin to tell the lexers if we are
+	// reading from stdin. Well, both lexers care. And the reason they care is
+	// so that if a comment or a string goes across multiple lines, the lexer
+	// can request more data from stdin until the comment or string is ended.
 	BC_SIG_LOCK;
 	bc_vec_init(&vm.buffer, sizeof(uchar), BC_DTOR_NONE);
 	bc_vec_init(&vm.line_buf, sizeof(uchar), BC_DTOR_NONE);
@@ -986,7 +990,7 @@ restart:
 		if (!clear) continue;
 
 		// Process the data.
-		bc_vm_process(vm.buffer.v, true);
+		bc_vm_process(vm.buffer.v, true, false);
 
 		if (vm.eof) break;
 		else {
@@ -1002,6 +1006,7 @@ restart:
 #endif // BC_ENABLED
 
 err:
+
 	BC_SIG_MAYLOCK;
 
 	// Cleanup.
@@ -1026,10 +1031,80 @@ err:
 	}
 
 #ifndef NDEBUG
-	// Since these are tied to this function, free them here.
+	// Since these are tied to this function, free them here. We only free in
+	// debug mode because stdin is always the last thing read.
 	bc_vec_free(&vm.line_buf);
 	bc_vec_free(&vm.buffer);
 #endif // NDEBUG
+
+	BC_LONGJMP_CONT;
+}
+
+bool bc_vm_readBuf(bool clear) {
+
+	size_t len = vm.exprs.len - 1;
+	bool more;
+
+	BC_SIG_ASSERT_NOT_LOCKED;
+
+	// Clear the buffer if desired.
+	if (clear) bc_vec_empty(&vm.buffer);
+
+	// We want to pop the nul byte off because that's what bc_read_buf()
+	// expects.
+	bc_vec_pop(&vm.buffer);
+
+	// Read one line of expressions.
+	more = bc_read_buf(&vm.buffer, vm.exprs.v, &len);
+	bc_vec_pushByte(&vm.buffer, '\0');
+
+	return more;
+}
+
+static void bc_vm_exprs(void) {
+
+	bool clear = true;
+
+	// Prepare the lexer.
+	bc_lex_file(&vm.prs.l, bc_program_exprs_name);
+
+	// We initialize this so that the lexer can access it in the case that it
+	// needs more data for expressions, such as for a multiline string or
+	// comment. See the comment on the allocation of vm.buffer above in
+	// bc_vm_stdin() for more information.
+	BC_SIG_LOCK;
+	bc_vec_init(&vm.buffer, sizeof(uchar), BC_DTOR_NONE);
+	BC_SETJMP_LOCKED(err);
+	BC_SIG_UNLOCK;
+
+	while (bc_vm_readBuf(clear)) {
+
+		size_t len = vm.buffer.len - 1;
+		const char *str = vm.buffer.v;
+
+		// We don't want to clear the buffer when the line ends with a backslash
+		// because a backslash newline is special in bc.
+		clear = (len < 2 || str[len - 2] != '\\' || str[len - 1] != '\n');
+		if (!clear) continue;
+
+		// Process the data.
+		bc_vm_process(vm.buffer.v, false, true);
+	}
+
+	// If we were not supposed to clear, then we should process everything. This
+	// makes sure that errors get reported.
+	if (!clear) bc_vm_process(vm.buffer.v, false, true);
+
+err:
+
+	BC_SIG_MAYLOCK;
+
+	// Cleanup.
+	bc_vm_clean();
+
+	// Since this is tied to this function, free it here. We always free it here
+	// because bc_vm_stdin() may or may not use it later.
+	bc_vec_free(&vm.buffer);
 
 	BC_LONGJMP_CONT;
 }
@@ -1044,7 +1119,7 @@ err:
 static void bc_vm_load(const char *name, const char *text) {
 
 	bc_lex_file(&vm.prs.l, name);
-	bc_parse_text(&vm.prs, text, false);
+	bc_parse_text(&vm.prs, text, false, false);
 
 	BC_SIG_LOCK;
 
@@ -1134,7 +1209,6 @@ static void bc_vm_exec(void) {
 
 	size_t i;
 	bool has_file = false;
-	BcVec buf;
 
 #if BC_ENABLED
 	// Load the math libraries.
@@ -1161,43 +1235,8 @@ static void bc_vm_exec(void) {
 	// If there are expressions to execute...
 	if (vm.exprs.len) {
 
-		size_t len = vm.exprs.len - 1;
-		bool more;
-
-		BC_SIG_LOCK;
-
-		// Create this as a buffer for reading into.
-		bc_vec_init(&buf, sizeof(uchar), BC_DTOR_NONE);
-
-#ifndef NDEBUG
-		BC_SETJMP_LOCKED(err);
-#endif // NDEBUG
-
-		BC_SIG_UNLOCK;
-
-		// Prepare the lexer.
-		bc_lex_file(&vm.prs.l, bc_program_exprs_name);
-
-		// Process the expressions one at a time.
-		do {
-
-			more = bc_read_buf(&buf, vm.exprs.v, &len);
-			bc_vec_pushByte(&buf, '\0');
-			bc_vm_process(buf.v, false);
-
-			bc_vec_popAll(&buf);
-
-		} while (more);
-
-		BC_SIG_LOCK;
-
-		bc_vec_free(&buf);
-
-#ifndef NDEBUG
-		BC_UNSETJMP;
-#endif // NDEBUG
-
-		BC_SIG_UNLOCK;
+		// Process the expressions.
+		bc_vm_exprs();
 
 		// Sometimes, executing expressions means we need to quit.
 		if (!vm.no_exprs && vm.exit_exprs && BC_EXPR_EXIT) return;
@@ -1239,18 +1278,6 @@ static void bc_vm_exec(void) {
 
 	// Execute from stdin. bc always does.
 	if (BC_IS_BC || !has_file) bc_vm_stdin();
-
-// These are all protected by ifndef NDEBUG because if these are needed, bc is
-// going to exit anyway, and I see no reason to include this code in a release
-// build when the OS is going to free all of the resources anyway.
-#ifndef NDEBUG
-	return;
-
-err:
-	BC_SIG_MAYLOCK;
-	bc_vec_free(&buf);
-	BC_LONGJMP_CONT;
-#endif // NDEBUG
 }
 
 void bc_vm_boot(int argc, char *argv[]) {

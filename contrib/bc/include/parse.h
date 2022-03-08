@@ -263,8 +263,10 @@ void bc_parse_pushName(const BcParse* p, char *name, bool var);
  * @param p         The parser.
  * @param text      The text to lex.
  * @param is_stdin  True if the text is from stdin, false otherwise.
+ * @param is_exprs  True if the text is from command-line expressions, false
+ *                  otherwise.
  */
-void bc_parse_text(BcParse *p, const char *text, bool is_stdin);
+void bc_parse_text(BcParse *p, const char *text, bool is_stdin, bool is_exprs);
 
 // References to const 0 and 1 strings for special cases. bc and dc have
 // specific instructions for 0 and 1 because they pop up so often and (in the
