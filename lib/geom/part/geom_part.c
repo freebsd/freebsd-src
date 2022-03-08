@@ -1217,6 +1217,14 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	} else
 		bootcode = NULL;
 
+	if (!gctl_has_param(req, GPART_PARAM_PARTCODE)) {
+		if (bootcode == NULL)
+			errx(EXIT_FAILURE, "neither -b nor -p specified");
+		if (gctl_has_param(req, GPART_PARAM_INDEX))
+			errx(EXIT_FAILURE, "-i is only valid with -p");
+		goto nopartcode;
+	}
+
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
@@ -1244,6 +1252,16 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	else
 		vtoc8 = 0;
 
+	if (gctl_has_param(req, GPART_PARAM_INDEX)) {
+		idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
+		if (idx < 1)
+			errx(EXIT_FAILURE, "invalid partition index");
+		error = gctl_delete_param(req, GPART_PARAM_INDEX);
+		if (error)
+			errc(EXIT_FAILURE, error, "internal error");
+	} else
+		idx = 0;
+
 	if (gctl_has_param(req, GPART_PARAM_PARTCODE)) {
 		s = gctl_get_ascii(req, GPART_PARAM_PARTCODE);
 		if (vtoc8 != 0)
@@ -1254,22 +1272,6 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		error = gctl_delete_param(req, GPART_PARAM_PARTCODE);
 		if (error)
 			errc(EXIT_FAILURE, error, "internal error");
-	} else
-		partcode = NULL;
-
-	if (gctl_has_param(req, GPART_PARAM_INDEX)) {
-		if (partcode == NULL)
-			errx(EXIT_FAILURE, "-i is only valid with -p");
-		idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
-		if (idx < 1)
-			errx(EXIT_FAILURE, "invalid partition index");
-		error = gctl_delete_param(req, GPART_PARAM_INDEX);
-		if (error)
-			errc(EXIT_FAILURE, error, "internal error");
-	} else
-		idx = 0;
-
-	if (partcode != NULL) {
 		if (vtoc8 == 0) {
 			if (idx == 0)
 				errx(EXIT_FAILURE, "missing -i option");
@@ -1279,15 +1281,14 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 				errx(EXIT_FAILURE, "invalid bootcode");
 			gpart_write_partcode_vtoc8(gp, idx, partcode);
 		}
-	} else
-		if (bootcode == NULL)
-			errx(EXIT_FAILURE, "no -b nor -p");
-
-	if (bootcode != NULL)
-		gpart_issue(req, fl);
+		free(partcode);
+	}
 
 	geom_deletetree(&mesh);
-	free(partcode);
+
+nopartcode:
+	if (bootcode != NULL)
+		gpart_issue(req, fl);
 }
 
 static void
