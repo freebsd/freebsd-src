@@ -107,9 +107,6 @@ __BEGIN_DECLS
 #define SHA_Data	_libmd_SHA_Data
 #endif
 
-#ifndef SHA_Transform
-#define SHA_Transform	_libmd_SHA_Transform
-#endif
 #ifndef SHA_version
 #define SHA_version	_libmd_SHA_version
 #endif
@@ -145,9 +142,6 @@ __BEGIN_DECLS
 #define SHA1_Data	_libmd_SHA1_Data
 #endif
 
-#ifndef SHA1_Transform
-#define SHA1_Transform	_libmd_SHA1_Transform
-#endif
 #ifndef SHA1_version
 #define SHA1_version	_libmd_SHA1_version
 #endif

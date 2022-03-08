@@ -270,7 +270,7 @@ SHA1_Update(SHA_CTX *c, const void *in, size_t len)
 	p[sw]=l;
 	}
 
-void SHA1_Transform(SHA_CTX *c, unsigned char *b)
+static void SHA1_Transform(SHA_CTX *c, unsigned char *b)
 	{
 	u_int32_t p[16];
 #if BYTE_ORDER != BIG_ENDIAN
@@ -483,8 +483,6 @@ __weak_reference(_libmd_SHA_Init, SHA_Init);
 __weak_reference(_libmd_SHA_Update, SHA_Update);
 #undef SHA_Final
 __weak_reference(_libmd_SHA_Final, SHA_Final);
-#undef SHA_Transform
-__weak_reference(_libmd_SHA_Transform, SHA_Transform);
 #undef SHA_version
 __weak_reference(_libmd_SHA_version, SHA_version);
 #undef SHA1_Init
@@ -493,8 +491,6 @@ __weak_reference(_libmd_SHA1_Init, SHA1_Init);
 __weak_reference(_libmd_SHA1_Update, SHA1_Update);
 #undef SHA1_Final
 __weak_reference(_libmd_SHA1_Final, SHA1_Final);
-#undef SHA1_Transform
-__weak_reference(_libmd_SHA1_Transform, SHA1_Transform);
 #undef SHA1_version
 __weak_reference(_libmd_SHA1_version, SHA1_version);
 #endif

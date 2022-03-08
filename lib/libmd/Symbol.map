@@ -17,7 +17,6 @@ FBSD_1.7 {
 	MD5FileChunk;
 	MD5Final;
 	MD5Init;
-	MD5Transform;
 	MD5Update;
 	RIPEMD160_Data;
 	RIPEMD160_End;
@@ -27,7 +26,6 @@ FBSD_1.7 {
 	RIPEMD160_FileChunk;
 	RIPEMD160_Final;
 	RIPEMD160_Init;
-	RIPEMD160_Transform;
 	RIPEMD160_Update;
 	RMD160_version;
 	SHA1_Data;
@@ -38,7 +36,6 @@ FBSD_1.7 {
 	SHA1_FileChunk;
 	SHA1_Final;
 	SHA1_Init;
-	SHA1_Transform;
 	SHA1_Update;
 	SHA1_version;
 	SHA224_Data;
@@ -58,7 +55,6 @@ FBSD_1.7 {
 	SHA256_FileChunk;
 	SHA256_Final;
 	SHA256_Init;
-	SHA256_Transform;
 	SHA256_Update;
 	SHA384_Data;
 	SHA384_End;
@@ -95,7 +91,6 @@ FBSD_1.7 {
 	SHA512_FileChunk;
 	SHA512_Final;
 	SHA512_Init;
-	SHA512_Transform;
 	SHA512_Update;
 	SHA_Data;
 	SHA_End;
@@ -151,7 +146,6 @@ FBSDprivate_1.0 {
 	_libmd_MD5FileChunk;
 	_libmd_MD5Final;
 	_libmd_MD5Init;
-	_libmd_MD5Transform;
 	_libmd_MD5Update;
 	_libmd_RIPEMD160_Data;
 	_libmd_RIPEMD160_End;
@@ -161,7 +155,6 @@ FBSDprivate_1.0 {
 	_libmd_RIPEMD160_FileChunk;
 	_libmd_RIPEMD160_Final;
 	_libmd_RIPEMD160_Init;
-	_libmd_RIPEMD160_Transform;
 	_libmd_RIPEMD160_Update;
 	_libmd_RMD160_version;
 	_libmd_SHA1_Data;
@@ -172,7 +165,6 @@ FBSDprivate_1.0 {
 	_libmd_SHA1_FileChunk;
 	_libmd_SHA1_Final;
 	_libmd_SHA1_Init;
-	_libmd_SHA1_Transform;
 	_libmd_SHA1_Update;
 	_libmd_SHA1_version;
 	_libmd_SHA224_Data;
@@ -192,7 +184,6 @@ FBSDprivate_1.0 {
 	_libmd_SHA256_FileChunk;
 	_libmd_SHA256_Final;
 	_libmd_SHA256_Init;
-	_libmd_SHA256_Transform;
 	_libmd_SHA256_Update;
 	_libmd_SHA384_Data;
 	_libmd_SHA384_End;
@@ -229,7 +220,6 @@ FBSDprivate_1.0 {
 	_libmd_SHA512_FileChunk;
 	_libmd_SHA512_Final;
 	_libmd_SHA512_Init;
-	_libmd_SHA512_Transform;
 	_libmd_SHA512_Update;
 	_libmd_SHA_Data;
 	_libmd_SHA_End;
@@ -239,7 +229,6 @@ FBSDprivate_1.0 {
 	_libmd_SHA_FileChunk;
 	_libmd_SHA_Final;
 	_libmd_SHA_Init;
-	_libmd_SHA_Transform;
 	_libmd_SHA_Update;
 	_libmd_SHA_version;
 	_libmd_SKEIN1024_Data;

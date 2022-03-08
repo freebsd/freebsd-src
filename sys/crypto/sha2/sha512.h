@@ -72,9 +72,6 @@ __BEGIN_DECLS
 #define SHA512_Data		_libmd_SHA512_Data
 #endif
 
-#ifndef SHA512_Transform
-#define SHA512_Transform	_libmd_SHA512_Transform
-#endif
 #ifndef SHA512_version
 #define SHA512_version		_libmd_SHA512_version
 #endif

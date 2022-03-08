@@ -226,7 +226,7 @@ void RIPEMD160_Update(RIPEMD160_CTX *c, const void *in, size_t len)
 		}
 	}
 
-void RIPEMD160_Transform(RIPEMD160_CTX *c, unsigned char *b)
+static void RIPEMD160_Transform(RIPEMD160_CTX *c, unsigned char *b)
 	{
 	u_int32_t p[16];
 #if BYTE_ORDER != LITTLE_ENDIAN
@@ -540,8 +540,6 @@ __weak_reference(_libmd_RIPEMD160_Init, RIPEMD160_Init);
 __weak_reference(_libmd_RIPEMD160_Update, RIPEMD160_Update);
 #undef RIPEMD160_Final
 __weak_reference(_libmd_RIPEMD160_Final, RIPEMD160_Final);
-#undef RIPEMD160_Transform
-__weak_reference(_libmd_RIPEMD160_Transform, RIPEMD160_Transform);
 #undef RMD160_version
 __weak_reference(_libmd_RMD160_version, RMD160_version);
 #endif
