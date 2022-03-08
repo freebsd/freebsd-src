@@ -242,7 +242,7 @@ void SHA_Update(SHA_CTX *c, const void *in, size_t len)
 	p[sw]=l;
 	}
 
-void SHA_Transform(SHA_CTX *c, unsigned char *b)
+static void SHA_Transform(SHA_CTX *c, unsigned char *b)
 	{
 	u_int32_t p[16];
 #if BYTE_ORDER == LITTLE_ENDIAN

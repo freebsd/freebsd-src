@@ -338,6 +338,4 @@ __weak_reference(_libmd_MD5Init, MD5Init);
 __weak_reference(_libmd_MD5Update, MD5Update);
 #undef MD5Final
 __weak_reference(_libmd_MD5Final, MD5Final);
-#undef MD5Transform
-__weak_reference(_libmd_MD5Transform, MD5Transform);
 #endif
