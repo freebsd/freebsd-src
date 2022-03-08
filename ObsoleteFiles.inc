@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220307: remove 330.news
+OLD_FILES+=etc/periodic/daily/330.news
+
 # 20220210: unwind.h moved to /usr/include
 OLD_FILES+=usr/include/c++/v1/unwind-arm.h
 OLD_FILES+=usr/include/c++/v1/unwind-itanium.h
