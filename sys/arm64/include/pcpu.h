@@ -58,7 +58,14 @@ struct pcpu;
 
 register struct pcpu *pcpup __asm ("x18");
 
-#define	get_pcpu()	pcpup
+static inline struct pcpu *
+get_pcpu(void)
+{
+	struct pcpu *pcpu;
+
+	__asm __volatile("mov   %0, x18" : "=&r"(pcpu));
+	return (pcpu);
+}
 
 static inline struct thread *
 get_curthread(void)
