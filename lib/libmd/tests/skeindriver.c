@@ -41,7 +41,7 @@
 
 /* Digests a string and prints the result. */
 static void
-SKEINString(char *string)
+SKEINString(const char *string)
 {
 	char buf[2*128 + 1];
 

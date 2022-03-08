@@ -37,8 +37,8 @@
 #endif
 
 /* Digests a string and prints the result. */
-static void 
-MDString(char *string)
+static void
+MDString(const char *string)
 {
 	char buf[33];
 

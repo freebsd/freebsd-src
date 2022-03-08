@@ -58,7 +58,7 @@
 
 /* Digests a string and prints the result. */
 static void
-SHAString(char *string)
+SHAString(const char *string)
 {
 	char buf[2*64 + 1];
 
