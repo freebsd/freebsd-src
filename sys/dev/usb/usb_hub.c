@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
- * Copyright (c) 2008-2022 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -997,6 +997,7 @@ uhub_explore(struct usb_device *udev)
 	struct usb_hub *hub;
 	struct uhub_softc *sc;
 	struct usb_port *up;
+	usb_error_t retval;
 	usb_error_t err;
 	uint8_t portno;
 	uint8_t x;
@@ -1028,25 +1029,22 @@ uhub_explore(struct usb_device *udev)
 	 * Set default error code to avoid compiler warnings.
 	 * Note that hub->nports cannot be zero.
 	 */
-	err = USB_ERR_NORMAL_COMPLETION;
+	retval = USB_ERR_NORMAL_COMPLETION;
 
 	for (x = 0; x != hub->nports; x++) {
 		up = hub->ports + x;
 		portno = x + 1;
 
 		err = uhub_read_port_status(sc, portno);
-		if (err) {
-			/* most likely the HUB is gone */
-			break;
-		}
+		if (err != USB_ERR_NORMAL_COMPLETION)
+			retval = err;
+
 		if (sc->sc_st.port_change & UPS_C_OVERCURRENT_INDICATOR) {
 			DPRINTF("Overcurrent on port %u.\n", portno);
 			err = usbd_req_clear_port_feature(
 			    udev, NULL, portno, UHF_C_PORT_OVER_CURRENT);
-			if (err) {
-				/* most likely the HUB is gone */
-				break;
-			}
+			if (err != USB_ERR_NORMAL_COMPLETION)
+				retval = err;
 		}
 		if (!(sc->sc_flags & UHUB_FLAG_DID_EXPLORE)) {
 			/*
@@ -1059,10 +1057,8 @@ uhub_explore(struct usb_device *udev)
 		if (sc->sc_st.port_change & UPS_C_PORT_ENABLED) {
 			err = usbd_req_clear_port_feature(
 			    udev, NULL, portno, UHF_C_PORT_ENABLE);
-			if (err) {
-				/* most likely the HUB is gone */
-				break;
-			}
+			if (err != USB_ERR_NORMAL_COMPLETION)
+				retval = err;
 			if (sc->sc_st.port_change & UPS_C_CONNECT_STATUS) {
 				/*
 				 * Ignore the port error if the device
@@ -1085,18 +1081,14 @@ uhub_explore(struct usb_device *udev)
 		}
 		if (sc->sc_st.port_change & UPS_C_CONNECT_STATUS) {
 			err = uhub_reattach_port(sc, portno);
-			if (err) {
-				/* most likely the HUB is gone */
-				break;
-			}
+			if (err != USB_ERR_NORMAL_COMPLETION)
+				retval = err;
 		}
 		if (sc->sc_st.port_change & (UPS_C_SUSPEND |
 		    UPS_C_PORT_LINK_STATE)) {
 			err = uhub_suspend_resume_port(sc, portno);
-			if (err) {
-				/* most likely the HUB is gone */
-				break;
-			}
+			if (err != USB_ERR_NORMAL_COMPLETION)
+				retval = err;
 		}
 
 		if (uhub_explore_sub(sc, up) == USB_ERR_NORMAL_COMPLETION) {
@@ -1111,7 +1103,7 @@ uhub_explore(struct usb_device *udev)
 	/* initial status checked */
 	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;
 
-	return (err);
+	return (retval);
 }
 
 int
