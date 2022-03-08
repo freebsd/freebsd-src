@@ -1156,7 +1156,7 @@ t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
 #if 0
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
-				    __func__, toep->tid, i, k,
+				    __func__, tid, i, k,
 				    be64toh(ppod->addr[k]));
 #endif
 			}
