@@ -1888,6 +1888,24 @@ linprocfs_douuid(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/random/boot_id
+ */
+static int
+linprocfs_doboot_id(PFS_FILL_ARGS)
+{
+       static bool firstboot = 1;
+       static struct uuid uuid;
+
+       if (firstboot) {
+               kern_uuidgen(&uuid, 1);
+               firstboot = 0;
+       }
+       sbuf_printf_uuid(sb, &uuid);
+       sbuf_printf(sb, "\n");
+       return(0);
+}
+
+/*
  * Filler function for proc/pid/auxv
  */
 static int
@@ -2096,6 +2114,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	/* /proc/sys/kernel/random/... */
 	dir = pfs_create_dir(dir, "random", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "uuid", &linprocfs_douuid,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "boot_id", &linprocfs_doboot_id,
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/vm/.... */
