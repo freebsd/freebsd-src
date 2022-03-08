@@ -1156,7 +1156,7 @@ t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
 				    __func__, toep->tid, i, k,
-				    htobe64(ppod->addr[k]));
+				    be64toh(ppod->addr[k]));
 #endif
 			}
 
@@ -1258,7 +1258,7 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct toepcb *toep,
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
 				    __func__, toep->tid, i, k,
-				    htobe64(ppod->addr[k]));
+				    be64toh(ppod->addr[k]));
 #endif
 			}
 
@@ -1348,7 +1348,7 @@ t4_write_page_pods_for_sgl(struct adapter *sc, struct toepcb *toep,
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
 				    __func__, toep->tid, i, k,
-				    htobe64(ppod->addr[k]));
+				    be64toh(ppod->addr[k]));
 #endif
 
 				/*
