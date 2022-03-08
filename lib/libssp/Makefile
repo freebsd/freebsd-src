@@ -27,7 +27,7 @@ CFLAGS+=	-I${SRCTOP}/lib/libc/include
 # _elf_aux_info is exported from libc as elf_aux_info(3), so just that for the
 # libssp build instead.
 CFLAGS+=	-D_elf_aux_info=elf_aux_info
-SRCS+=		stack_protector.c
+SRCS+=		libc_stack_protector.c
 
 # Stack protection on libssp symbols should be considered harmful, as we may
 # be talking about, for example, the guard setup constructor.

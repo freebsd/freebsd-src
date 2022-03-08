@@ -3230,6 +3230,9 @@ OLD_FILES+=usr/tests/usr.bin/uudecode/regress.153276.in
 OLD_DIRS+=usr/tests/usr.bin/uuencode
 OLD_DIRS+=usr/tests/usr.bin/uudecode
 
+# 20220308: libmd bumped to version 7
+OLD_LIBS+=lib/libmd.so.6
+
 # 20220318: snd_ds1 and snd_maestro drivers removed
 OLD_FILES+=usr/share/man/man4/snd_ds1.4.gz
 OLD_FILES+=usr/share/man/man4/snd_maestro.4.gz
