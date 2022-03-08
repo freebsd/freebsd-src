@@ -544,6 +544,4 @@ __weak_reference(_libmd_RIPEMD160_Final, RIPEMD160_Final);
 __weak_reference(_libmd_RIPEMD160_Transform, RIPEMD160_Transform);
 #undef RMD160_version
 __weak_reference(_libmd_RMD160_version, RMD160_version);
-#undef ripemd160_block
-__weak_reference(_libmd_ripemd160_block, ripemd160_block);
 #endif
