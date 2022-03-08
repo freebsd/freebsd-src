@@ -27,9 +27,7 @@ endif
 KERNEL_C = \
 	spi/kcf_spi.c \
 	api/kcf_ctxops.c \
-	api/kcf_digest.c \
 	api/kcf_cipher.c \
-	api/kcf_miscapi.c \
 	api/kcf_mac.c \
 	algs/aes/aes_impl_aesni.c \
 	algs/aes/aes_impl_generic.c \
@@ -53,7 +51,6 @@ KERNEL_C = \
 	io/aes.c \
 	io/sha2_mod.c \
 	io/skein_mod.c \
-	os/modhash.c \
 	core/kcf_sched.c \
 	core/kcf_prov_lib.c \
 	core/kcf_callprov.c \

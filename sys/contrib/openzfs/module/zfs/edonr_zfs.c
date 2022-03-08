@@ -45,7 +45,6 @@ edonr_incremental(void *buf, size_t size, void *arg)
 /*
  * Native zio_checksum interface for the Edon-R hash function.
  */
-/*ARGSUSED*/
 void
 abd_checksum_edonr_native(abd_t *abd, uint64_t size,
     const void *ctx_template, zio_cksum_t *zcp)
@@ -89,7 +88,8 @@ abd_checksum_edonr_tmpl_init(const zio_cksum_salt_t *salt)
 	 * size by double-hashing it (the new salt block will be composed of
 	 * H(salt) || H(H(salt))).
 	 */
-	CTASSERT(EDONR_BLOCK_SIZE == 2 * (EDONR_MODE / 8));
+	_Static_assert(EDONR_BLOCK_SIZE == 2 * (EDONR_MODE / 8),
+	    "Edon-R block size mismatch");
 	EdonRHash(EDONR_MODE, salt->zcs_bytes, sizeof (salt->zcs_bytes) * 8,
 	    salt_block);
 	EdonRHash(EDONR_MODE, salt_block, EDONR_MODE, salt_block +

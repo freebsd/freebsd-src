@@ -29,7 +29,7 @@ outputdir = /var/tmp/test_results
 tags = ['functional']
 
 [tests/functional/acl/off]
-tests = ['posixmode']
+tests = ['dosmode', 'posixmode']
 tags = ['functional', 'acl']
 
 [tests/functional/alloc_class]
@@ -236,7 +236,8 @@ tests = ['zfs_receive_001_pos', 'zfs_receive_002_pos', 'zfs_receive_003_pos',
     'receive-o-x_props_aliases',
     'zfs_receive_from_encrypted', 'zfs_receive_to_encrypted',
     'zfs_receive_raw', 'zfs_receive_raw_incremental', 'zfs_receive_-e',
-    'zfs_receive_raw_-d', 'zfs_receive_from_zstd', 'zfs_receive_new_props']
+    'zfs_receive_raw_-d', 'zfs_receive_from_zstd', 'zfs_receive_new_props',
+    'zfs_receive_-wR-encrypted-mix']
 tags = ['functional', 'cli_root', 'zfs_receive']
 
 [tests/functional/cli_root/zfs_rename]
@@ -659,12 +660,6 @@ tags = ['functional', 'inuse']
 tests = ['large_files_001_pos', 'large_files_002_pos']
 tags = ['functional', 'large_files']
 
-[tests/functional/largest_pool]
-tests = ['largest_pool_001_pos']
-pre =
-post =
-tags = ['functional', 'largest_pool']
-
 [tests/functional/limits]
 tests = ['filesystem_count', 'filesystem_limit', 'snapshot_count',
     'snapshot_limit']
@@ -699,7 +694,7 @@ tags = ['functional', 'nestedfs']
 
 [tests/functional/no_space]
 tests = ['enospc_001_pos', 'enospc_002_pos', 'enospc_003_pos',
-    'enospc_df']
+    'enospc_df', 'enospc_rm']
 tags = ['functional', 'no_space']
 
 [tests/functional/nopwrite]
@@ -839,7 +834,8 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send_freeobjects', 'send_realloc_files',
     'send_realloc_encrypted_files', 'send_spill_block', 'send_holds',
     'send_hole_birth', 'send_mixed_raw', 'send-wR_encrypted_zvol',
-    'send_partial_dataset', 'send_invalid', 'send_doall']
+    'send_partial_dataset', 'send_invalid', 'send_doall',
+    'send_raw_spill_block', 'send_raw_ashift']
 tags = ['functional', 'rsend']
 
 [tests/functional/scrub_mirror]
@@ -852,7 +848,7 @@ tests = ['slog_001_pos', 'slog_002_pos', 'slog_003_pos', 'slog_004_pos',
     'slog_005_pos', 'slog_006_pos', 'slog_007_pos', 'slog_008_neg',
     'slog_009_neg', 'slog_010_neg', 'slog_011_neg', 'slog_012_neg',
     'slog_013_pos', 'slog_014_pos', 'slog_015_neg', 'slog_replay_fs_001',
-    'slog_replay_fs_002', 'slog_replay_volume']
+    'slog_replay_fs_002', 'slog_replay_volume', 'slog_016_pos']
 tags = ['functional', 'slog']
 
 [tests/functional/snapshot]
@@ -880,7 +876,7 @@ tags = ['functional', 'stat']
 
 [tests/functional/suid]
 tests = ['suid_write_to_suid', 'suid_write_to_sgid', 'suid_write_to_suid_sgid',
-    'suid_write_to_none']
+    'suid_write_to_none', 'suid_write_zil_replay']
 tags = ['functional', 'suid']
 
 [tests/functional/threadsappend]
@@ -923,7 +919,7 @@ tags = ['functional', 'write_dirs']
 [tests/functional/xattr]
 tests = ['xattr_001_pos', 'xattr_002_neg', 'xattr_003_neg', 'xattr_004_pos',
     'xattr_005_pos', 'xattr_006_pos', 'xattr_007_neg',
-    'xattr_011_pos', 'xattr_012_pos', 'xattr_013_pos']
+    'xattr_011_pos', 'xattr_012_pos', 'xattr_013_pos', 'xattr_compat']
 tags = ['functional', 'xattr']
 
 [tests/functional/zvol/zvol_ENOSPC]

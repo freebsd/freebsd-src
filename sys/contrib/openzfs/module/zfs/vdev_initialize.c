@@ -488,7 +488,7 @@ vdev_initialize_range_add(void *arg, uint64_t start, uint64_t size)
 	vdev_xlate_walk(vd, &logical_rs, vdev_initialize_xlate_range_add, arg);
 }
 
-static void
+static _Noreturn void
 vdev_initialize_thread(void *arg)
 {
 	vdev_t *vd = arg;
@@ -765,10 +765,8 @@ EXPORT_SYMBOL(vdev_initialize_stop_all);
 EXPORT_SYMBOL(vdev_initialize_stop_wait);
 EXPORT_SYMBOL(vdev_initialize_restart);
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs, zfs_, initialize_value, ULONG, ZMOD_RW,
 	"Value written during zpool initialize");
 
 ZFS_MODULE_PARAM(zfs, zfs_, initialize_chunk_size, ULONG, ZMOD_RW,
 	"Size in bytes of writes by zpool initialize");
-/* END CSTYLED */

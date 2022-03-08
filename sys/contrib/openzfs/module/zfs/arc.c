@@ -928,7 +928,7 @@ static unsigned long l2arc_rebuild_blocks_min_l2size = 1024 * 1024 * 1024;
 
 /* L2ARC persistence rebuild control routines. */
 void l2arc_rebuild_vdev(vdev_t *vd, boolean_t reopen);
-static void l2arc_dev_rebuild_thread(void *arg);
+static _Noreturn void l2arc_dev_rebuild_thread(void *arg);
 static int l2arc_rebuild(l2arc_dev_t *dev);
 
 /* L2ARC persistence read I/O routines. */
@@ -9706,7 +9706,7 @@ l2arc_hdr_limit_reached(void)
  * This thread feeds the L2ARC at regular intervals.  This is the beating
  * heart of the L2ARC.
  */
-static void
+static _Noreturn void
 l2arc_feed_thread(void *unused)
 {
 	(void) unused;
@@ -10145,7 +10145,7 @@ l2arc_spa_rebuild_start(spa_t *spa)
 /*
  * Main entry point for L2ARC rebuilding.
  */
-static void
+static _Noreturn void
 l2arc_dev_rebuild_thread(void *arg)
 {
 	l2arc_dev_t *dev = arg;
@@ -11043,7 +11043,6 @@ EXPORT_SYMBOL(arc_getbuf_func);
 EXPORT_SYMBOL(arc_add_prune_callback);
 EXPORT_SYMBOL(arc_remove_prune_callback);
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, min, param_set_arc_min,
 	param_get_long, ZMOD_RW, "Min arc size");
 
@@ -11054,7 +11053,7 @@ ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_limit, param_set_arc_long,
 	param_get_long, ZMOD_RW, "Metadata limit for arc size");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_limit_percent,
-	param_set_arc_long, param_get_long, ZMOD_RW,
+    param_set_arc_long, param_get_long, ZMOD_RW,
 	"Percent of arc size for arc meta limit");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, meta_min, param_set_arc_long,
@@ -11094,7 +11093,7 @@ ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, min_prefetch_ms, param_set_arc_int,
 	param_get_int, ZMOD_RW, "Min life of prefetch block in ms");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, min_prescient_prefetch_ms,
-	param_set_arc_int, param_get_int, ZMOD_RW,
+    param_set_arc_int, param_get_int, ZMOD_RW,
 	"Min life of prescient prefetched block in ms");
 
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, write_max, ULONG, ZMOD_RW,
@@ -11140,8 +11139,7 @@ ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, mfuonly, INT, ZMOD_RW,
 	"Cache only MFU data from ARC into L2ARC");
 
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, exclude_special, INT, ZMOD_RW,
-	"If set to 1 exclude dbufs on special vdevs from being cached to "
-	"L2ARC.");
+	"Exclude dbufs on special vdevs from being cached to L2ARC if set.");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, lotsfree_percent, param_set_arc_int,
 	param_get_int, ZMOD_RW, "System free memory I/O throttle in bytes");
@@ -11153,7 +11151,7 @@ ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, dnode_limit, param_set_arc_long,
 	param_get_long, ZMOD_RW, "Minimum bytes of dnodes in arc");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, dnode_limit_percent,
-	param_set_arc_long, param_get_long, ZMOD_RW,
+    param_set_arc_long, param_get_long, ZMOD_RW,
 	"Percent of ARC meta buffers for dnodes");
 
 ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, dnode_reduce_percent, ULONG, ZMOD_RW,
@@ -11167,4 +11165,3 @@ ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, evict_batch_limit, INT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_arc, zfs_arc_, prune_task_threads, INT, ZMOD_RW,
 	"Number of arc_prune threads");
-/* END CSTYLED */

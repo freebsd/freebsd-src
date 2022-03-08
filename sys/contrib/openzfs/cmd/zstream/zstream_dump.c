@@ -297,6 +297,7 @@ zstream_do_dump(int argc, char *argv[])
 
 	fletcher_4_init();
 	while (read_hdr(drr, &zc)) {
+		uint64_t featureflags = 0;
 
 		/*
 		 * If this is the first DMU record being processed, check for
@@ -361,6 +362,9 @@ zstream_do_dump(int argc, char *argv[])
 				drrb->drr_fromguid =
 				    BSWAP_64(drrb->drr_fromguid);
 			}
+
+			featureflags =
+			    DMU_GET_FEATUREFLAGS(drrb->drr_versioninfo);
 
 			(void) printf("BEGIN record\n");
 			(void) printf("\thdrtype = %lld\n",
@@ -459,6 +463,15 @@ zstream_do_dump(int argc, char *argv[])
 				drro->drr_toguid = BSWAP_64(drro->drr_toguid);
 				drro->drr_maxblkid =
 				    BSWAP_64(drro->drr_maxblkid);
+			}
+
+			if (featureflags & DMU_BACKUP_FEATURE_RAW &&
+			    drro->drr_bonuslen > drro->drr_raw_bonuslen) {
+				(void) fprintf(stderr,
+				    "Warning: Object %llu has bonuslen = "
+				    "%u > raw_bonuslen = %u\n\n",
+				    (u_longlong_t)drro->drr_object,
+				    drro->drr_bonuslen, drro->drr_raw_bonuslen);
 			}
 
 			payload_size = DRR_OBJECT_PAYLOAD_SIZE(drro);

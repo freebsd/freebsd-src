@@ -171,11 +171,6 @@ static void dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx);
 static void dbuf_sync_leaf_verify_bonus_dnode(dbuf_dirty_record_t *dr);
 static int dbuf_read_verify_dnode_crypt(dmu_buf_impl_t *db, uint32_t flags);
 
-extern inline void dmu_buf_init_user(dmu_buf_user_t *dbu,
-    dmu_buf_evict_func_t *evict_func_sync,
-    dmu_buf_evict_func_t *evict_func_async,
-    dmu_buf_t **clear_on_evict_dbufp);
-
 /*
  * Global data structures and functions for the dbuf cache.
  */
@@ -783,7 +778,7 @@ dbuf_evict_one(void)
  * of the dbuf cache is at or below the maximum size. Once the dbuf is aged
  * out of the cache it is destroyed and becomes eligible for arc eviction.
  */
-static void
+static _Noreturn void
 dbuf_evict_thread(void *unused)
 {
 	(void) unused;
@@ -822,7 +817,7 @@ dbuf_evict_thread(void *unused)
 /*
  * Wake up the dbuf eviction thread if the dbuf cache is at its max size.
  * If the dbuf cache is at its high water mark, then evict a dbuf from the
- * dbuf cache using the callers context.
+ * dbuf cache using the caller's context.
  */
 static void
 dbuf_evict_notify(uint64_t size)
@@ -5096,25 +5091,20 @@ EXPORT_SYMBOL(dmu_buf_set_user_ie);
 EXPORT_SYMBOL(dmu_buf_get_user);
 EXPORT_SYMBOL(dmu_buf_get_blkptr);
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_dbuf_cache, dbuf_cache_, max_bytes, ULONG, ZMOD_RW,
 	"Maximum size in bytes of the dbuf cache.");
 
 ZFS_MODULE_PARAM(zfs_dbuf_cache, dbuf_cache_, hiwater_pct, UINT, ZMOD_RW,
-	"Percentage over dbuf_cache_max_bytes when dbufs must be evicted "
-	"directly.");
+	"Percentage over dbuf_cache_max_bytes for direct dbuf eviction.");
 
 ZFS_MODULE_PARAM(zfs_dbuf_cache, dbuf_cache_, lowater_pct, UINT, ZMOD_RW,
-	"Percentage below dbuf_cache_max_bytes when the evict thread stops "
-	"evicting dbufs.");
+	"Percentage below dbuf_cache_max_bytes when dbuf eviction stops.");
 
 ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, metadata_cache_max_bytes, ULONG, ZMOD_RW,
-	"Maximum size in bytes of the dbuf metadata cache.");
+	"Maximum size in bytes of dbuf metadata cache.");
 
 ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, cache_shift, INT, ZMOD_RW,
-	"Set the size of the dbuf cache to a log2 fraction of arc size.");
+	"Set size of dbuf cache to log2 fraction of arc size.");
 
 ZFS_MODULE_PARAM(zfs_dbuf, dbuf_, metadata_cache_shift, INT, ZMOD_RW,
-	"Set the size of the dbuf metadata cache to a log2 fraction of arc "
-	"size.");
-/* END CSTYLED */
+	"Set size of dbuf metadata cache to log2 fraction of arc size.");

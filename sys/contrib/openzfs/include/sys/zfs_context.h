@@ -153,8 +153,13 @@ extern void dprintf_setup(int *argc, char **argv);
 
 extern void cmn_err(int, const char *, ...);
 extern void vcmn_err(int, const char *, va_list);
-extern void panic(const char *, ...)  __NORETURN;
-extern void vpanic(const char *, va_list)  __NORETURN;
+#if defined(__cplusplus) && __cplusplus >= 201103L
+extern void panic(const char *, ...) __attribute__((__noreturn__));
+extern void vpanic(const char *, va_list) __attribute__((__noreturn__));
+#else
+extern _Noreturn void panic(const char *, ...);
+extern _Noreturn void vpanic(const char *, va_list);
+#endif
 
 #define	fm_panic	panic
 

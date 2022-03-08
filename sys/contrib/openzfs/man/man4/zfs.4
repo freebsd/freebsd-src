@@ -880,7 +880,7 @@ is set, then the deadman behavior is invoked as described by
 .Sy zfs_deadman_failmode .
 By default, the deadman is enabled and set to
 .Sy wait
-which results in "hung" I/Os only being logged.
+which results in "hung" I/O operations only being logged.
 The deadman is automatically disabled when a pool gets suspended.
 .
 .It Sy zfs_deadman_failmode Ns = Ns Sy wait Pq charp
@@ -964,7 +964,7 @@ will result in objects waiting when there is not actually contention on the
 same object.
 .
 .It Sy zfs_slow_io_events_per_second Ns = Ns Sy 20 Ns /s Pq int
-Rate limit delay and deadman zevents (which report slow I/Os) to this many per
+Rate limit delay and deadman zevents (which report slow I/O operations) to this many per
 second.
 .
 .It Sy zfs_unflushed_max_mem_amt Ns = Ns Sy 1073741824 Ns B Po 1GB Pc Pq ulong
@@ -990,7 +990,7 @@ This tunable is important because it involves a trade-off between import
 time after an unclean export and the frequency of flushing metaslabs.
 The higher this number is, the more log blocks we allow when the pool is
 active which means that we flush metaslabs less often and thus decrease
-the number of I/Os for spacemap updates per TXG.
+the number of I/O operations for spacemap updates per TXG.
 At the same time though, that means that in the event of an unclean export,
 there will be more log spacemap blocks for us to read, inducing overhead
 in the import time of the pool.
@@ -1087,7 +1087,8 @@ This should be less than
 .It Sy zfs_wrlog_data_max Ns = Pq int
 The upper limit of write-transaction zil log data size in bytes.
 Once it is reached, write operation is blocked, until log data is cleared out
-after transaction group sync. Because of some overhead, it should be set
+after transaction group sync.
+Because of some overhead, it should be set
 at least 2 times the size of
 .Sy zfs_dirty_data_max
 .No to prevent harming normal write throughput.
@@ -1622,8 +1623,8 @@ After this threshold is crossed, additional frees will wait until the next TXG.
 .
 .It Sy zfs_prefetch_disable Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Disable predictive prefetch.
-Note that it leaves "prescient" prefetch (for. e.g.\&
-.Nm zfs Cm send )
+Note that it leaves "prescient" prefetch
+.Pq for, e.g., Nm zfs Cm send
 intact.
 Unlike predictive prefetch, prescient prefetch never issues I/O
 that ends up not being needed, so it can't hurt performance.
@@ -1683,8 +1684,8 @@ This should only be used as a last resort,
 as it typically results in leaked space, or worse.
 .
 .It Sy zfs_removal_ignore_errors Ns = Ns Sy 0 Ns | Ns 1 Pq int
-Ignore hard IO errors during device removal.
-When set, if a device encounters a hard IO error during the removal process
+Ignore hard I/O errors during device removal.
+When set, if a device encounters a hard I/O error during the removal process
 the removal will not be cancelled.
 This can result in a normally recoverable block becoming permanently damaged
 and is hence not recommended.
@@ -1948,7 +1949,7 @@ Historical statistics for this many latest TXGs will be available in
 Flush dirty data to disk at least every this many seconds (maximum TXG duration).
 .
 .It Sy zfs_vdev_aggregate_trim Ns = Ns Sy 0 Ns | Ns 1 Pq int
-Allow TRIM I/Os to be aggregated.
+Allow TRIM I/O operations to be aggregated.
 This is normally not helpful because the extents to be trimmed
 will have been already been aggregated by the metaslab.
 This option is provided for debugging and performance analysis.
@@ -2098,6 +2099,16 @@ Limit SLOG write size per commit executed with synchronous priority.
 Any writes above that will be executed with lower (asynchronous) priority
 to limit potential SLOG device abuse by single active ZIL writer.
 .
+.It Sy zfs_zil_saxattr Ns = Ns Sy 1 Ns | Ns 0 Pq int
+Setting this tunable to zero disables ZIL logging of new
+.Sy xattr Ns = Ns Sy sa
+records if the
+.Sy org.openzfs:zilsaxattr
+feature is enabled on the pool.
+This would only be necessary to work around bugs in the ZIL logging or replay
+code for this record type.
+The tunable has no effect if the feature is disabled.
+.
 .It Sy zfs_embedded_slog_min_ms Ns = Ns Sy 64 Pq int
 Usually, one metaslab from each normal-class vdev is dedicated for use by
 the ZIL to log synchronous writes.
@@ -2128,6 +2139,30 @@ This allows for dynamic allocation distribution when devices are imbalanced.
 When enabled, the maximum number of pending allocations per top-level vdev
 is limited by
 .Sy zfs_vdev_queue_depth_pct .
+.
+.It Sy zfs_xattr_compat Ns = Ns 0 Ns | Ns 1 Pq int
+Control the naming scheme used when setting new xattrs in the user namespace.
+If
+.Sy 0
+.Pq the default on Linux ,
+user namespace xattr names are prefixed with the namespace, to be backwards
+compatible with previous versions of ZFS on Linux.
+If
+.Sy 1
+.Pq the default on Fx ,
+user namespace xattr names are not prefixed, to be backwards compatible with
+previous versions of ZFS on illumos and
+.Fx .
+.Pp
+Either naming scheme can be read on this and future versions of ZFS, regardless
+of this tunable, but legacy ZFS on illumos or
+.Fx
+are unable to read user namespace xattrs written in the Linux format, and
+legacy versions of ZFS on Linux are unable to read user namespace xattrs written
+in the legacy ZFS format.
+.Pp
+An existing xattr with the alternate naming scheme is removed when overwriting
+the xattr so as to not accumulate duplicates.
 .
 .It Sy zio_requeue_io_start_cut_in_line Ns = Ns Sy 0 Ns | Ns 1 Pq int
 Prioritize requeued I/O.

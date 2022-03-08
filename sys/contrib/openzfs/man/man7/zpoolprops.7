@@ -101,6 +101,10 @@ Over time
 will decrease while
 .Sy free
 increases.
+.It Sy leaked
+Space not released while
+.Sy freeing
+due to corruption, now permanently leaked into the pool.
 .It Sy health
 The current health of the pool.
 Health can be one of
@@ -184,7 +188,7 @@ layer and a ZFS internal exception list.
 I/O operations will be aligned to the specified size boundaries.
 Additionally, the minimum (disk)
 write size will be set to the specified size, so this represents a
-space vs. performance trade-off.
+space/performance trade-off.
 For optimal performance, the pool sector size should be greater than
 or equal to the sector size of the underlying disks.
 The typical case for setting this property is when

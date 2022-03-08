@@ -597,7 +597,15 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		if (!(flags & DRR_FLAG_SPILL_BLOCK))
 			return (SET_ERROR(ZFS_ERR_SPILL_BLOCK_FLAG_MISSING));
 	} else {
-		dsflags |= DS_HOLD_FLAG_DECRYPT;
+		/*
+		 * We support unencrypted datasets below encrypted ones now,
+		 * so add the DS_HOLD_FLAG_DECRYPT flag only if we are dealing
+		 * with a dataset we may encrypt.
+		 */
+		if (drba->drba_dcp != NULL &&
+		    drba->drba_dcp->cp_crypt != ZIO_CRYPT_OFF) {
+			dsflags |= DS_HOLD_FLAG_DECRYPT;
+		}
 	}
 
 	error = dsl_dataset_hold_flags(dp, tofs, dsflags, FTAG, &ds);
@@ -1820,7 +1828,6 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	return (0);
 }
 
-/* ARGSUSED */
 noinline static int
 receive_freeobjects(struct receive_writer_arg *rwa,
     struct drr_freeobjects *drrfo)
@@ -2222,7 +2229,6 @@ receive_spill(struct receive_writer_arg *rwa, struct drr_spill *drrs,
 	return (0);
 }
 
-/* ARGSUSED */
 noinline static int
 receive_free(struct receive_writer_arg *rwa, struct drr_free *drrf)
 {
@@ -2297,7 +2303,6 @@ receive_object_range(struct receive_writer_arg *rwa,
  * Until we have the ability to redact large ranges of data efficiently, we
  * process these records as frees.
  */
-/* ARGSUSED */
 noinline static int
 receive_redact(struct receive_writer_arg *rwa, struct drr_redact *drrr)
 {
@@ -2446,7 +2451,6 @@ receive_read_payload_and_next_header(dmu_recv_cookie_t *drc, int len, void *buf)
  * numbers in the ignore list. In practice, we receive up to 32 object records
  * before receiving write records, so the list can have up to 32 nodes in it.
  */
-/* ARGSUSED */
 static void
 receive_read_prefetch(dmu_recv_cookie_t *drc, uint64_t object, uint64_t offset,
     uint64_t length)
@@ -2798,7 +2802,7 @@ receive_process_record(struct receive_writer_arg *rwa,
  * dmu_recv_stream's worker thread; pull records off the queue, and then call
  * receive_process_record  When we're done, signal the main thread and exit.
  */
-static void
+static _Noreturn void
 receive_writer_thread(void *arg)
 {
 	struct receive_writer_arg *rwa = arg;
@@ -3389,7 +3393,6 @@ dmu_objset_is_receiving(objset_t *os)
 	    os->os_dsl_dataset->ds_owner == dmu_recv_tag);
 }
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_length, INT, ZMOD_RW,
 	"Maximum receive queue length");
 
@@ -3398,4 +3401,3 @@ ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_ff, INT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, write_batch_size, INT, ZMOD_RW,
 	"Maximum amount of writes to batch into one transaction");
-/* END CSTYLED */

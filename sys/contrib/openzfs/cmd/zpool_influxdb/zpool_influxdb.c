@@ -118,7 +118,7 @@ escape_string(const char *s)
 		case '=':
 		case '\\':
 			*d++ = '\\';
-			fallthrough;
+			zfs_fallthrough;
 		default:
 			*d = *c;
 		}
@@ -278,7 +278,7 @@ get_vdev_name(nvlist_t *nvroot, const char *parent_name)
 		    vdev_type);
 	} else {
 		(void) snprintf(vdev_name, sizeof (vdev_name),
-		    "%s/%s-%llu",
+		    "%.220s/%s-%llu",
 		    parent_name, vdev_type, (u_longlong_t)vdev_id);
 	}
 	return (vdev_name);
@@ -818,7 +818,7 @@ main(int argc, char *argv[])
 			break;
 		case 't':
 			tagslen = strlen(optarg) + 2;
-			tags = calloc(tagslen, 1);
+			tags = calloc(1, tagslen);
 			if (tags == NULL) {
 				fprintf(stderr,
 				    "error: cannot allocate memory "

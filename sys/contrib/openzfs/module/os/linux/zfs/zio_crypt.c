@@ -257,11 +257,9 @@ zio_crypt_key_init(uint64_t crypt, zio_crypt_key_t *key)
 		goto error;
 
 	/* initialize keys for the ICP */
-	key->zk_current_key.ck_format = CRYPTO_KEY_RAW;
 	key->zk_current_key.ck_data = key->zk_current_keydata;
 	key->zk_current_key.ck_length = CRYPTO_BYTES2BITS(keydata_len);
 
-	key->zk_hmac_key.ck_format = CRYPTO_KEY_RAW;
 	key->zk_hmac_key.ck_data = &key->zk_hmac_key;
 	key->zk_hmac_key.ck_length = CRYPTO_BYTES2BITS(SHA512_HMAC_KEYLEN);
 
@@ -271,13 +269,13 @@ zio_crypt_key_init(uint64_t crypt, zio_crypt_key_t *key)
 	 */
 	mech.cm_type = crypto_mech2id(zio_crypt_table[crypt].ci_mechname);
 	ret = crypto_create_ctx_template(&mech, &key->zk_current_key,
-	    &key->zk_current_tmpl, KM_SLEEP);
+	    &key->zk_current_tmpl);
 	if (ret != CRYPTO_SUCCESS)
 		key->zk_current_tmpl = NULL;
 
 	mech.cm_type = crypto_mech2id(SUN_CKM_SHA512_HMAC);
 	ret = crypto_create_ctx_template(&mech, &key->zk_hmac_key,
-	    &key->zk_hmac_tmpl, KM_SLEEP);
+	    &key->zk_hmac_tmpl);
 	if (ret != CRYPTO_SUCCESS)
 		key->zk_hmac_tmpl = NULL;
 
@@ -325,7 +323,7 @@ zio_crypt_key_change_salt(zio_crypt_key_t *key)
 	/* destroy the old context template and create the new one */
 	crypto_destroy_ctx_template(key->zk_current_tmpl);
 	ret = crypto_create_ctx_template(&mech, &key->zk_current_key,
-	    &key->zk_current_tmpl, KM_SLEEP);
+	    &key->zk_current_tmpl);
 	if (ret != CRYPTO_SUCCESS)
 		key->zk_current_tmpl = NULL;
 
@@ -387,7 +385,6 @@ zio_do_crypt_uio(boolean_t encrypt, uint64_t crypt, crypto_key_t *key,
 	uint_t plain_full_len, maclen;
 
 	ASSERT3U(crypt, <, ZIO_CRYPT_FUNCTIONS);
-	ASSERT3U(key->ck_format, ==, CRYPTO_KEY_RAW);
 
 	/* lookup the encryption info */
 	crypt_info = zio_crypt_table[crypt];
@@ -441,26 +438,22 @@ zio_do_crypt_uio(boolean_t encrypt, uint64_t crypt, crypto_key_t *key,
 	plaindata.cd_format = CRYPTO_DATA_UIO;
 	plaindata.cd_offset = 0;
 	plaindata.cd_uio = puio;
-	plaindata.cd_miscdata = NULL;
 	plaindata.cd_length = plain_full_len;
 
 	cipherdata.cd_format = CRYPTO_DATA_UIO;
 	cipherdata.cd_offset = 0;
 	cipherdata.cd_uio = cuio;
-	cipherdata.cd_miscdata = NULL;
 	cipherdata.cd_length = datalen + maclen;
 
 	/* perform the actual encryption */
 	if (encrypt) {
-		ret = crypto_encrypt(&mech, &plaindata, key, tmpl, &cipherdata,
-		    NULL);
+		ret = crypto_encrypt(&mech, &plaindata, key, tmpl, &cipherdata);
 		if (ret != CRYPTO_SUCCESS) {
 			ret = SET_ERROR(EIO);
 			goto error;
 		}
 	} else {
-		ret = crypto_decrypt(&mech, &cipherdata, key, tmpl, &plaindata,
-		    NULL);
+		ret = crypto_decrypt(&mech, &cipherdata, key, tmpl, &plaindata);
 		if (ret != CRYPTO_SUCCESS) {
 			ASSERT3U(ret, ==, CRYPTO_INVALID_MAC);
 			ret = SET_ERROR(ECKSUM);
@@ -486,7 +479,6 @@ zio_crypt_key_wrap(crypto_key_t *cwkey, zio_crypt_key_t *key, uint8_t *iv,
 	uint_t enc_len, keydata_len, aad_len;
 
 	ASSERT3U(crypt, <, ZIO_CRYPT_FUNCTIONS);
-	ASSERT3U(cwkey->ck_format, ==, CRYPTO_KEY_RAW);
 
 	keydata_len = zio_crypt_table[crypt].ci_keylen;
 
@@ -557,7 +549,6 @@ zio_crypt_key_unwrap(crypto_key_t *cwkey, uint64_t crypt, uint64_t version,
 	int ret;
 
 	ASSERT3U(crypt, <, ZIO_CRYPT_FUNCTIONS);
-	ASSERT3U(cwkey->ck_format, ==, CRYPTO_KEY_RAW);
 
 	rw_init(&key->zk_salt_lock, NULL, RW_DEFAULT, NULL);
 
@@ -614,11 +605,9 @@ zio_crypt_key_unwrap(crypto_key_t *cwkey, uint64_t crypt, uint64_t version,
 		goto error;
 
 	/* initialize keys for ICP */
-	key->zk_current_key.ck_format = CRYPTO_KEY_RAW;
 	key->zk_current_key.ck_data = key->zk_current_keydata;
 	key->zk_current_key.ck_length = CRYPTO_BYTES2BITS(keydata_len);
 
-	key->zk_hmac_key.ck_format = CRYPTO_KEY_RAW;
 	key->zk_hmac_key.ck_data = key->zk_hmac_keydata;
 	key->zk_hmac_key.ck_length = CRYPTO_BYTES2BITS(SHA512_HMAC_KEYLEN);
 
@@ -628,13 +617,13 @@ zio_crypt_key_unwrap(crypto_key_t *cwkey, uint64_t crypt, uint64_t version,
 	 */
 	mech.cm_type = crypto_mech2id(zio_crypt_table[crypt].ci_mechname);
 	ret = crypto_create_ctx_template(&mech, &key->zk_current_key,
-	    &key->zk_current_tmpl, KM_SLEEP);
+	    &key->zk_current_tmpl);
 	if (ret != CRYPTO_SUCCESS)
 		key->zk_current_tmpl = NULL;
 
 	mech.cm_type = crypto_mech2id(SUN_CKM_SHA512_HMAC);
 	ret = crypto_create_ctx_template(&mech, &key->zk_hmac_key,
-	    &key->zk_hmac_tmpl, KM_SLEEP);
+	    &key->zk_hmac_tmpl);
 	if (ret != CRYPTO_SUCCESS)
 		key->zk_hmac_tmpl = NULL;
 
@@ -698,7 +687,7 @@ zio_crypt_do_hmac(zio_crypt_key_t *key, uint8_t *data, uint_t datalen,
 
 	/* generate the hmac */
 	ret = crypto_mac(&mech, &in_data, &key->zk_hmac_key, key->zk_hmac_tmpl,
-	    &digest_data, NULL);
+	    &digest_data);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1004,7 +993,7 @@ zio_crypt_bp_do_hmac_updates(crypto_context_t ctx, uint64_t version,
 	cd.cd_raw.iov_base = (char *)&bab;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_update(ctx, &cd, NULL);
+	ret = crypto_mac_update(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1075,7 +1064,7 @@ zio_crypt_do_dnode_hmac_updates(crypto_context_t ctx, uint64_t version,
 	cd.cd_raw.iov_base = (char *)adnp;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_update(ctx, &cd, NULL);
+	ret = crypto_mac_update(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1148,7 +1137,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	cd.cd_offset = 0;
 
 	/* calculate the portable MAC from the portable fields and metadnode */
-	ret = crypto_mac_init(&mech, &key->zk_hmac_key, NULL, &ctx, NULL);
+	ret = crypto_mac_init(&mech, &key->zk_hmac_key, NULL, &ctx);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1160,7 +1149,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	cd.cd_raw.iov_base = (char *)&intval;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_update(ctx, &cd, NULL);
+	ret = crypto_mac_update(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1178,7 +1167,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	cd.cd_raw.iov_base = (char *)&intval;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_update(ctx, &cd, NULL);
+	ret = crypto_mac_update(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1195,7 +1184,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	cd.cd_raw.iov_base = (char *)raw_portable_mac;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_final(ctx, &cd, NULL);
+	ret = crypto_mac_final(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1235,7 +1224,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	}
 
 	/* calculate the local MAC from the userused and groupused dnodes */
-	ret = crypto_mac_init(&mech, &key->zk_hmac_key, NULL, &ctx, NULL);
+	ret = crypto_mac_init(&mech, &key->zk_hmac_key, NULL, &ctx);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1253,7 +1242,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	cd.cd_raw.iov_base = (char *)&intval;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_update(ctx, &cd, NULL);
+	ret = crypto_mac_update(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1287,7 +1276,7 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	cd.cd_raw.iov_base = (char *)raw_local_mac;
 	cd.cd_raw.iov_len = cd.cd_length;
 
-	ret = crypto_mac_final(ctx, &cd, NULL);
+	ret = crypto_mac_final(ctx, &cd);
 	if (ret != CRYPTO_SUCCESS) {
 		ret = SET_ERROR(EIO);
 		goto error;
@@ -1921,7 +1910,6 @@ zio_do_crypt_data(boolean_t encrypt, zio_crypt_key_t *key,
 		if (ret != 0)
 			goto error;
 
-		tmp_ckey.ck_format = CRYPTO_KEY_RAW;
 		tmp_ckey.ck_data = enc_keydata;
 		tmp_ckey.ck_length = CRYPTO_BYTES2BITS(keydata_len);
 
@@ -2051,9 +2039,8 @@ error:
 }
 
 #if defined(_KERNEL)
-/* BEGIN CSTYLED */
+/* CSTYLED */
 module_param(zfs_key_max_salt_uses, ulong, 0644);
 MODULE_PARM_DESC(zfs_key_max_salt_uses, "Max number of times a salt value "
 	"can be used for generating encryption keys before it is rotated");
-/* END CSTYLED */
 #endif

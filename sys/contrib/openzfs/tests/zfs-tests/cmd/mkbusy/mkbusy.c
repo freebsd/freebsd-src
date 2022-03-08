@@ -31,14 +31,14 @@
 #include <string.h>
 
 
-static __attribute__((noreturn)) void
+static _Noreturn void
 usage(char *progname)
 {
 	(void) fprintf(stderr, "Usage: %s <dirname|filename>\n", progname);
 	exit(1);
 }
 
-static __attribute__((noreturn)) void
+static _Noreturn void
 fail(char *err)
 {
 	perror(err);
@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 		switch (sbuf.st_mode & S_IFMT) {
 			case S_IFDIR:
 				isdir = B_TRUE;
-				fallthrough;
+				zfs_fallthrough;
 			case S_IFLNK:
 			case S_IFCHR:
 			case S_IFBLK:

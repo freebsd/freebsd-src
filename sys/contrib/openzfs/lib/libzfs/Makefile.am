@@ -6,7 +6,6 @@ VPATH = \
 	$(top_srcdir)/lib/libzfs
 
 # Suppress unused but set variable warnings often due to ASSERTs
-AM_CFLAGS += $(NO_UNUSED_BUT_SET_VARIABLE)
 AM_CFLAGS += $(LIBCRYPTO_CFLAGS) $(ZLIB_CFLAGS)
 AM_CFLAGS += -fvisibility=hidden
 
@@ -42,7 +41,6 @@ if BUILD_LINUX
 USER_C += \
 	os/linux/libzfs_mount_os.c \
 	os/linux/libzfs_pool_os.c \
-	os/linux/libzfs_sendrecv_os.c \
 	os/linux/libzfs_util_os.c
 endif
 

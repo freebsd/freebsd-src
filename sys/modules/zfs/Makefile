@@ -15,7 +15,9 @@ KMOD=	zfs
 	${SRCDIR}/zcommon \
 	${SRCDIR}/zfs	\
 	${SRCDIR}/zstd	\
-	${SRCDIR}/zstd/lib
+	${SRCDIR}/zstd/lib/common \
+	${SRCDIR}/zstd/lib/compress \
+	${SRCDIR}/zstd/lib/decompress
 
 
 CFLAGS+= -I${INCDIR}
@@ -283,7 +285,28 @@ SRCS+=	abd.c \
 	zvol.c
 
 SRCS+=	zfs_zstd.c \
-	zstd.c
+	entropy_common.c \
+	error_private.c \
+	fse_compress.c \
+	fse_decompress.c \
+	hist.c \
+	huf_compress.c \
+	huf_decompress.c \
+	pool.c \
+	xxhash.c \
+	zstd_common.c \
+	zstd_compress.c \
+	zstd_compress_literals.c \
+	zstd_compress_sequences.c \
+	zstd_compress_superblock.c \
+	zstd_ddict.c \
+	zstd_decompress.c \
+	zstd_decompress_block.c \
+	zstd_double_fast.c \
+	zstd_fast.c \
+	zstd_lazy.c \
+	zstd_ldm.c \
+	zstd_opt.c
 
 .include <bsd.kmod.mk>
 
@@ -342,8 +365,79 @@ CFLAGS.zil.c= -Wno-cast-qual
 CFLAGS.zio.c= -Wno-cast-qual
 CFLAGS.zrlock.c= -Wno-cast-qual
 CFLAGS.zfs_zstd.c= -Wno-cast-qual -Wno-pointer-arith
+
 CFLAGS.zstd.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.entropy_common.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.error_private.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.fse_compress.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.fse_decompress.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.hist.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.huf_compress.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.huf_decompress.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.pool.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.xxhash.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_common.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.std_compress.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_compress_literals.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_compress_sequences.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_compress_superblock.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_ddict.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_decompress.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_decompress_block.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_double_fast.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_fast.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_lazy.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_ldm.c= -U__BMI__ -fno-tree-vectorize
+CFLAGS.zstd_opt.c= -U__BMI__ -fno-tree-vectorize
+
 .if ${MACHINE_CPUARCH} == "aarch64"
-CFLAGS.zstd.c+= -include ${SRCDIR}/zstd/include/aarch64_compat.h
+__ZFS_ZSTD_AARCH64_FLAGS= -include ${SRCDIR}/zstd/include/aarch64_compat.h
+CFLAGS.zstd.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.entropy_common.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.error_private.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.fse_compress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.fse_decompress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.hist.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.huf_compress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.huf_decompress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.pool.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.xxhash.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_common.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_compress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_compress_literals.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_compress_sequences.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_compress_superblock.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_ddict.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_decompress.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_decompress_block.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_double_fast.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_fast.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_lazy.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_ldm.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+CFLAGS.zstd_opt.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
+
 .endif
 CFLAGS.zstd.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.entropy_common.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.error_private.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.fse_compress.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.fse_decompress.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.hist.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.huf_compress.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.huf_decompress.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.pool.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.xxhash.c+= -include ${SRCTOP}/sys/sys/_null.h
+CFLAGS.xxhash.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_common.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_compress.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_compress_literals.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_compress_sequences.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_compress_superblock.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_ddict.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_decompress.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_decompress_block.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_double_fast.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_fast.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_lazy.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_ldm.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.zstd_opt.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}

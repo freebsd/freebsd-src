@@ -449,14 +449,19 @@ make_dataset_handle_common(zfs_handle_t *zhp, zfs_cmd_t *zc)
 	 * We've managed to open the dataset and gather statistics.  Determine
 	 * the high-level type.
 	 */
-	if (zhp->zfs_dmustats.dds_type == DMU_OST_ZVOL)
+	if (zhp->zfs_dmustats.dds_type == DMU_OST_ZVOL) {
 		zhp->zfs_head_type = ZFS_TYPE_VOLUME;
-	else if (zhp->zfs_dmustats.dds_type == DMU_OST_ZFS)
+	} else if (zhp->zfs_dmustats.dds_type == DMU_OST_ZFS) {
 		zhp->zfs_head_type = ZFS_TYPE_FILESYSTEM;
-	else if (zhp->zfs_dmustats.dds_type == DMU_OST_OTHER)
+	} else if (zhp->zfs_dmustats.dds_type == DMU_OST_OTHER) {
+		errno = EINVAL;
 		return (-1);
-	else
+	} else if (zhp->zfs_dmustats.dds_inconsistent) {
+		errno = EBUSY;
+		return (-1);
+	} else {
 		abort();
+	}
 
 	if (zhp->zfs_dmustats.dds_is_snapshot)
 		zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
@@ -1363,7 +1368,7 @@ badlabel:
 				(void) zfs_error(hdl, EZFS_BADPROP, errbuf);
 				goto error;
 			}
-			fallthrough;
+			zfs_fallthrough;
 		}
 
 		case ZFS_PROP_SHARESMB:
@@ -2898,6 +2903,8 @@ zfs_prop_get(zfs_handle_t *zhp, zfs_prop_t prop, char *propbuf, size_t proplen,
 		break;
 
 	case ZFS_PROP_GUID:
+	case ZFS_PROP_KEY_GUID:
+	case ZFS_PROP_IVSET_GUID:
 	case ZFS_PROP_CREATETXG:
 	case ZFS_PROP_OBJSETID:
 	case ZFS_PROP_PBKDF2_ITERS:
@@ -3783,7 +3790,7 @@ zfs_create(libzfs_handle_t *hdl, const char *path, zfs_type_t type,
 			if (type == ZFS_TYPE_VOLUME)
 				return (zfs_error(hdl, EZFS_VOLTOOBIG,
 				    errbuf));
-			fallthrough;
+			zfs_fallthrough;
 #endif
 		default:
 			return (zfs_standard_error(hdl, errno, errbuf));
@@ -3967,13 +3974,10 @@ zfs_clone(zfs_handle_t *zhp, const char *target, nvlist_t *props)
 	/* do the clone */
 
 	if (props) {
-		zfs_type_t type;
+		zfs_type_t type = ZFS_TYPE_FILESYSTEM;
 
-		if (ZFS_IS_VOLUME(zhp)) {
+		if (ZFS_IS_VOLUME(zhp))
 			type = ZFS_TYPE_VOLUME;
-		} else {
-			type = ZFS_TYPE_FILESYSTEM;
-		}
 		if ((props = zfs_valid_proplist(hdl, type, props, zoned,
 		    zhp, zhp->zpool_hdl, B_TRUE, errbuf)) == NULL)
 			return (-1);
