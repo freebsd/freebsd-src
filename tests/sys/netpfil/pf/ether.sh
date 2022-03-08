@@ -497,6 +497,50 @@ anchor_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ip" "cleanup"
+ip_head()
+{
+	atf_set descr 'Test filtering based on IP source/destination'
+	atf_set require.user root
+}
+
+ip_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"ether pass" \
+		"ether block in l3 from 192.0.2.1"
+
+	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.2
+
+	# Change IP address and we can ping again
+	ifconfig ${epair}a 192.0.2.3/24 up
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Test the 'to' keyword too
+	pft_set_rules alcatraz \
+		"ether pass" \
+		"ether block out l3 to 192.0.2.3"
+	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.2
+}
+
+ip_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
@@ -506,4 +550,5 @@ atf_init_test_cases()
 	atf_add_test_case "captive_long"
 	atf_add_test_case "dummynet"
 	atf_add_test_case "anchor"
+	atf_add_test_case "ip"
 }
