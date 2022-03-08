@@ -19,6 +19,9 @@ INCS=	md4.h md5.h ripemd.h sha.h sha224.h sha256.h sha384.h sha512.h \
 
 WARNS?=	0
 
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
+
 MAN+=	md4.3 md5.3 ripemd.3 sha.3 sha256.3 sha512.3 skein.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
 MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4FileChunk.3
