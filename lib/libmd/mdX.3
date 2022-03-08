@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.Dd May 21, 2019
+.Dd March 8, 2022
 .Dt MDX 3
 .Os
 .Sh NAME
@@ -15,6 +15,8 @@
 .Nm MDXPad ,
 .Nm MDXFinal ,
 .Nm MDXEnd ,
+.Nm MDXFd ,
+.Nm MDXFdChunk ,
 .Nm MDXFile ,
 .Nm MDXFileChunk ,
 .Nm MDXData
@@ -34,6 +36,10 @@
 .Fn MDXFinal "unsigned char digest[16]" "MDX_CTX *context"
 .Ft "char *"
 .Fn MDXEnd "MDX_CTX *context" "char *buf"
+.Ft "char *"
+.Fn MDXFd "int fd" "char *buf"
+.Ft "char *"
+.Fn MDXFdChunk "int fd" "char *buf" "off_t offset" "off_t length"
 .Ft "char *"
 .Fn MDXFile "const char *filename" "char *buf"
 .Ft "char *"
@@ -124,6 +130,19 @@ The
 function calculates the digest of a chunk of data in memory, and uses
 .Fn MDXEnd
 to return the result.
+.Pp
+The
+.Fn MDXFd
+and
+.Fn MDXFdChunk
+functions are identical to their
+.Fn MDXFile
+and
+.Fn MDXFileChunk
+counterparts, with the exception that the first argument is an
+.Fa fd
+instead of a
+.Fa filename .
 .Pp
 When using
 .Fn MDXEnd ,
