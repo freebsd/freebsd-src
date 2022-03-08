@@ -598,6 +598,11 @@ pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
 	pfctl_nveth_addr_to_eth_addr(nvlist_get_nvlist(nvl, "dst"),
 	    &rule->dst);
 
+	pf_nvrule_addr_to_rule_addr(nvlist_get_nvlist(nvl, "ipsrc"),
+	    &rule->ipsrc);
+	pf_nvrule_addr_to_rule_addr(nvlist_get_nvlist(nvl, "ipdst"),
+	    &rule->ipdst);
+
 	rule->evaluations = nvlist_get_number(nvl, "evaluations");
 	rule->packets[0] = nvlist_get_number(nvl, "packets-in");
 	rule->packets[1] = nvlist_get_number(nvl, "packets-out");
@@ -659,7 +664,7 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
     const char *path, struct pfctl_eth_rule *rule, bool clear,
     char *anchor_call)
 {
-	uint8_t buf[1024];
+	uint8_t buf[2048];
 	struct pfioc_nv nv;
 	nvlist_t *nvl;
 	void *data;
@@ -737,6 +742,9 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	}
 	nvlist_add_nvlist(nvl, "dst", addr);
 	nvlist_destroy(addr);
+
+	pfctl_nv_add_rule_addr(nvl, "ipsrc", &r->ipsrc);
+	pfctl_nv_add_rule_addr(nvl, "ipdst", &r->ipdst);
 
 	nvlist_add_string(nvl, "qname", r->qname);
 	nvlist_add_string(nvl, "tagname", r->tagname);

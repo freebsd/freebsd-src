@@ -1071,6 +1071,22 @@ pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *krule)
 	}
 	nvlist_add_nvlist(nvl, "dst", addr);
 
+	addr = pf_rule_addr_to_nvrule_addr(&krule->ipsrc);
+	if (addr == NULL) {
+		nvlist_destroy(nvl);
+		return (NULL);
+	}
+	nvlist_add_nvlist(nvl, "ipsrc", addr);
+	nvlist_destroy(addr);
+
+	addr = pf_rule_addr_to_nvrule_addr(&krule->ipdst);
+	if (addr == NULL) {
+		nvlist_destroy(nvl);
+		return (NULL);
+	}
+	nvlist_add_nvlist(nvl, "ipdst", addr);
+	nvlist_destroy(addr);
+
 	nvlist_add_number(nvl, "evaluations",
 	    counter_u64_fetch(krule->evaluations));
 	nvlist_add_number(nvl, "packets-in",
@@ -1122,6 +1138,20 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 		error = pf_nveth_rule_addr_to_keth_rule_addr(
 		    nvlist_get_nvlist(nvl, "dst"), &krule->dst);
 		if (error)
+			return (error);
+	}
+
+	if (nvlist_exists_nvlist(nvl, "ipsrc")) {
+		error = pf_nvrule_addr_to_rule_addr(
+		    nvlist_get_nvlist(nvl, "ipsrc"), &krule->ipsrc);
+		if (error != 0)
+			return (error);
+	}
+
+	if (nvlist_exists_nvlist(nvl, "ipdst")) {
+		error = pf_nvrule_addr_to_rule_addr(
+		    nvlist_get_nvlist(nvl, "ipdst"), &krule->ipdst);
+		if (error != 0)
 			return (error);
 	}
 

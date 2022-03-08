@@ -279,7 +279,7 @@ static u_int32_t	 pf_tcp_iss(struct pf_pdesc *);
 void			 pf_rule_to_actions(struct pf_krule *,
 			    struct pf_rule_actions *);
 static int		 pf_test_eth_rule(int, struct pfi_kkif *,
-			    struct mbuf *);
+			    struct mbuf **);
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    int, struct pfi_kkif *, struct mbuf *, int,
 			    struct pf_pdesc *, struct pf_krule **,
@@ -3826,30 +3826,66 @@ pf_match_eth_addr(const uint8_t *a, const struct pf_keth_rule_addr *r)
 }
 
 static int
-pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
+pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 {
+	struct mbuf *m = *m0;
 	struct ether_header *e;
 	struct pf_keth_rule *r, *rm, *a = NULL;
 	struct pf_keth_ruleset *ruleset = NULL;
 	struct pf_mtag *mtag;
 	struct pf_keth_ruleq *rules;
+	struct pf_addr *src, *dst;
+	sa_family_t af = 0;
+	uint16_t proto;
 	int asd = 0, match = 0;
 	uint8_t action;
 	struct pf_keth_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
-
-	NET_EPOCH_ASSERT();
 
 	MPASS(kif->pfik_ifp->if_vnet == curvnet);
 	NET_EPOCH_ASSERT();
 
 	SDT_PROBE3(pf, eth, test_rule, entry, dir, kif->pfik_ifp, m);
 
-	e = mtod(m, struct ether_header *);
-
 	ruleset = V_pf_keth;
 	rules = ck_pr_load_ptr(&ruleset->active.rules);
 	r = TAILQ_FIRST(rules);
 	rm = NULL;
+
+	e = mtod(m, struct ether_header *);
+	proto = ntohs(e->ether_type);
+
+	switch (proto) {
+	case ETHERTYPE_IP: {
+		struct ip *ip;
+		m = m_pullup(m, sizeof(struct ether_header) +
+		    sizeof(struct ip));
+		if (m == NULL) {
+			*m0 = NULL;
+			return (PF_DROP);
+		}
+		af = AF_INET;
+		ip = mtodo(m, sizeof(struct ether_header));
+		src = (struct pf_addr *)&ip->ip_src;
+		dst = (struct pf_addr *)&ip->ip_dst;
+		break;
+	}
+	case ETHERTYPE_IPV6: {
+		struct ip6_hdr *ip6;
+		m = m_pullup(m, sizeof(struct ether_header) +
+		    sizeof(struct ip6_hdr));
+		if (m == NULL) {
+			*m0 = NULL;
+			return (PF_DROP);
+		}
+		af = AF_INET6;
+		ip6 = mtodo(m, sizeof(struct ether_header));
+		src = (struct pf_addr *)&ip6->ip6_src;
+		dst = (struct pf_addr *)&ip6->ip6_dst;
+		break;
+	}
+	}
+	e = mtod(m, struct ether_header *);
+	*m0 = m;
 
 	while (r != NULL) {
 		counter_u64_add(r->evaluations, 1);
@@ -3865,7 +3901,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 			    "dir");
 			r = r->skip[PFE_SKIP_DIR].ptr;
 		}
-		else if (r->proto && r->proto != ntohs(e->ether_type)) {
+		else if (r->proto && r->proto != proto) {
 			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
 			    "proto");
 			r = r->skip[PFE_SKIP_PROTO].ptr;
@@ -3878,6 +3914,18 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 		else if (! pf_match_eth_addr(e->ether_dhost, &r->dst)) {
 			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
 			    "dst");
+			r = TAILQ_NEXT(r, entries);
+		}
+		else if (af != 0 && PF_MISMATCHAW(&r->ipsrc.addr, src, af,
+		    r->ipsrc.neg, kif, M_GETFIB(m))) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "ip_src");
+			r = TAILQ_NEXT(r, entries);
+		}
+		else if (af != 0 && PF_MISMATCHAW(&r->ipdst.addr, dst, af,
+		    r->ipdst.neg, kif, M_GETFIB(m))) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "ip_dst");
 			r = TAILQ_NEXT(r, entries);
 		}
 		else {
@@ -6737,7 +6785,7 @@ pf_test_eth(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0,
 		return (PF_PASS);
 
 	/* Stateless! */
-	return (pf_test_eth_rule(dir, kif, m));
+	return (pf_test_eth_rule(dir, kif, m0));
 }
 
 #ifdef INET

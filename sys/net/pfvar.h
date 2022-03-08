@@ -646,6 +646,7 @@ struct pf_keth_rule {
 	uint8_t			 direction;
 	uint16_t		 proto;
 	struct pf_keth_rule_addr src, dst;
+	struct pf_rule_addr	 ipsrc, ipdst;
 
 	/* Stats */
 	counter_u64_t		 evaluations;
