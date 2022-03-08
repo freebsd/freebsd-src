@@ -427,6 +427,8 @@
         ..
         libkvm
         ..
+        libmd
+        ..
         libmp
         ..
         libnv
