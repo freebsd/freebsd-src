@@ -225,7 +225,7 @@ restart:
 	if (maxbsize < bsize || !POWEROF2(maxbsize)) {
 		sblock.fs_maxbsize = sblock.fs_bsize;
 		printf("Extent size set to %d\n", sblock.fs_maxbsize);
-	} else if (sblock.fs_maxbsize > FS_MAXCONTIG * sblock.fs_bsize) {
+	} else if (maxbsize > FS_MAXCONTIG * sblock.fs_bsize) {
 		sblock.fs_maxbsize = FS_MAXCONTIG * sblock.fs_bsize;
 		printf("Extent size reduced to %d\n", sblock.fs_maxbsize);
 	} else {
