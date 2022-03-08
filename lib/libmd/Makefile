@@ -5,7 +5,7 @@ SHLIBDIR?= /lib
 
 PACKAGE=	runtime
 LIB=	md
-SHLIB_MAJOR= 6
+SHLIB_MAJOR= 7
 SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 	rmd160c.c rmd160hl.c \
 	sha0c.c sha0hl.c sha1c.c sha1hl.c \
@@ -105,6 +105,7 @@ CFLAGS+= -DWEAK_REFS
 CFLAGS.skein_block.c+= -DSKEIN_LOOP=995
 .PATH: ${.CURDIR}/${MACHINE_ARCH} ${SRCTOP}/sys/crypto/sha2
 .PATH: ${SRCTOP}/sys/crypto/skein ${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
+.PATH: ${SRCTOP}/sys/kern
 
 USE_ASM_SOURCES?=1
 .if defined(BOOTSTRAPPING) || ${MK_MACHDEP_OPTIMIZATIONS} == no
