@@ -487,8 +487,6 @@ __weak_reference(_libmd_SHA_Final, SHA_Final);
 __weak_reference(_libmd_SHA_Transform, SHA_Transform);
 #undef SHA_version
 __weak_reference(_libmd_SHA_version, SHA_version);
-#undef sha_block
-__weak_reference(_libmd_sha_block, sha_block);
 #undef SHA1_Init
 __weak_reference(_libmd_SHA1_Init, SHA1_Init);
 #undef SHA1_Update
@@ -499,6 +497,4 @@ __weak_reference(_libmd_SHA1_Final, SHA1_Final);
 __weak_reference(_libmd_SHA1_Transform, SHA1_Transform);
 #undef SHA1_version
 __weak_reference(_libmd_SHA1_version, SHA1_version);
-#undef sha1_block
-__weak_reference(_libmd_sha1_block, sha1_block);
 #endif
