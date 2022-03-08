@@ -97,7 +97,7 @@ struct _Unwind_Exception
 	} pr_cache;
 	/** Force alignment of next item to 8-byte boundary */
 	long long int :0;
-};
+} __attribute__((__aligned__(8)));
 
 /* Unwinding functions */
 _Unwind_Reason_Code _Unwind_RaiseException(struct _Unwind_Exception *ucbp);
