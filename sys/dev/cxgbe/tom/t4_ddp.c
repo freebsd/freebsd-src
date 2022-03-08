@@ -1200,7 +1200,8 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct toepcb *toep,
 	u_int ppod_addr, offset;
 	uint32_t cmd;
 	struct ppod_region *pr = prsv->prsv_pr;
-	uintptr_t end_pva, pva, pa;
+	uintptr_t end_pva, pva;
+	vm_paddr_t pa;
 	struct mbuf *m;
 
 	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
@@ -1289,7 +1290,8 @@ t4_write_page_pods_for_sgl(struct adapter *sc, struct toepcb *toep,
 	u_int ppod_addr, offset, sg_offset = 0;
 	uint32_t cmd;
 	struct ppod_region *pr = prsv->prsv_pr;
-	uintptr_t pva, pa;
+	uintptr_t pva;
+	vm_paddr_t pa;
 	struct mbuf *m;
 
 	MPASS(sgl != NULL);
