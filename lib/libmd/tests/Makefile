@@ -2,9 +2,6 @@
 
 PACKAGE=	tests
 
-# XXX
-WARNS=	0
-
 ATF_TESTS_SH=	libmd_test
 
 MDTESTS=	md rmd sha skein

@@ -20,8 +20,8 @@
 #include "ripemd.h"
 
 /* Digests a string and prints the result. */
-static void 
-RIPEMD160String(char *string)
+static void
+RIPEMD160String(const char *string)
 {
 	char buf[2*20 + 1];
 
