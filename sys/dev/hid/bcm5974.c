@@ -416,6 +416,7 @@ struct bcm5974_softc {
 	struct evdev_dev *sc_evdev;
 	/* device configuration */
 	const struct bcm5974_dev_params *sc_params;
+	bool sc_saved_mode;
 };
 
 static const uint8_t bcm5974_rdesc[] = {
@@ -549,6 +550,9 @@ bcm5974_set_device_mode(struct bcm5974_softc *sc, bool on)
 		KASSERT(0 == 1, ("Unknown trackpad type"));
 	}
 
+	if (!err)
+		sc->sc_saved_mode = on;
+
 	return (err);
 }
 
@@ -667,6 +671,16 @@ bcm5974_detach(device_t dev)
 	return (0);
 }
 
+static int
+bcm5974_resume(device_t dev)
+{
+	struct bcm5974_softc *sc = device_get_softc(dev);
+
+	bcm5974_set_device_mode(sc, sc->sc_saved_mode);
+
+	return (0);
+}
+
 static void
 bcm5974_intr(void *context, void *data, hid_size_t len)
 {
@@ -779,6 +793,7 @@ static device_method_t bcm5974_methods[] = {
 	DEVMETHOD(device_probe,		bcm5974_probe),
 	DEVMETHOD(device_attach,	bcm5974_attach),
 	DEVMETHOD(device_detach,	bcm5974_detach),
+	DEVMETHOD(device_resume,	bcm5974_resume),
 	DEVMETHOD_END
 };
 
