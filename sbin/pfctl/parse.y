@@ -350,7 +350,8 @@ void		 expand_label_nr(const char *, char *, size_t,
 		    struct pfctl_rule *);
 void		 expand_eth_rule(struct pfctl_eth_rule *,
 		    struct node_if *, struct node_etherproto *,
-		    struct node_mac *, struct node_mac *, const char *);
+		    struct node_mac *, struct node_mac *,
+		    struct node_host *, struct node_host *, const char *);
 void		 expand_rule(struct pfctl_rule *, struct node_if *,
 		    struct node_host *, struct node_proto *, struct node_os *,
 		    struct node_host *, struct node_port *, struct node_host *,
@@ -492,7 +493,7 @@ int	parseport(char *, struct range *r, int);
 %token	REASSEMBLE FRAGDROP FRAGCROP ANCHOR NATANCHOR RDRANCHOR BINATANCHOR
 %token	SET OPTIMIZATION TIMEOUT LIMIT LOGINTERFACE BLOCKPOLICY FAILPOLICY
 %token	RANDOMID REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
-%token	ANTISPOOF FOR INCLUDE KEEPCOUNTERS SYNCOOKIES
+%token	ANTISPOOF FOR INCLUDE KEEPCOUNTERS SYNCOOKIES L3
 %token	ETHER
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY MAPEPORTSET
 %token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
@@ -523,7 +524,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.icmp>		icmp_list icmp_item
 %type	<v.icmp>		icmp6_list icmp6_item
 %type	<v.number>		reticmpspec reticmp6spec
-%type	<v.fromto>		fromto
+%type	<v.fromto>		fromto l3fromto
 %type	<v.peer>		ipportspec from to
 %type	<v.host>		ipspec toipspec xhost host dynaddr host_list
 %type	<v.host>		redir_host_list redirspec
@@ -1182,7 +1183,7 @@ scrubaction	: no SCRUB {
 		}
 		;
 
-etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_opts
+etherrule	: ETHER action dir quick interface etherproto etherfromto l3fromto etherfilter_opts
 		{
 			struct pfctl_eth_rule	r;
 
@@ -1194,14 +1195,15 @@ etherrule	: ETHER action dir quick interface etherproto etherfromto etherfilter_
 			r.action = $2.b1;
 			r.direction = $3;
 			r.quick = $4.quick;
-			if ($8.tag != NULL)
-				memcpy(&r.tagname, $8.tag, sizeof(r.tagname));
-			if ($8.queues.qname != NULL)
-				memcpy(&r.qname, $8.queues.qname, sizeof(r.qname));
-			r.dnpipe = $8.dnpipe;
-			r.dnflags = $8.free_flags;
+			if ($9.tag != NULL)
+				memcpy(&r.tagname, $9.tag, sizeof(r.tagname));
+			if ($9.queues.qname != NULL)
+				memcpy(&r.qname, $9.queues.qname, sizeof(r.qname));
+			r.dnpipe = $9.dnpipe;
+			r.dnflags = $9.free_flags;
 
-			expand_eth_rule(&r, $5, $6, $7.src, $7.dst, "");
+			expand_eth_rule(&r, $5, $6, $7.src, $7.dst,
+			    $8.src.host, $8.dst.host, "");
 		}
 		;
 
@@ -1236,7 +1238,7 @@ etherpfa_anchor	: '{'
 		| /* empty */
 		;
 
-etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfromto etherpfa_anchor
+etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfromto l3fromto etherpfa_anchor
 		{
 			struct pfctl_eth_rule	r;
 
@@ -1286,6 +1288,7 @@ etheranchorrule	: ETHER ANCHOR anchorname dir quick interface etherproto etherfr
 			r.quick = $5.quick;
 
 			expand_eth_rule(&r, $6, $7, $8.src, $8.dst,
+			    $9.src.host, $9.dst.host,
 			    pf->eastack[pf->asd + 1] ? pf->ealast->name : $3);
 
 			free($3);
@@ -3254,6 +3257,13 @@ protoval	: STRING			{
 		}
 		;
 
+l3fromto	: /* empty */			{
+			bzero(&$$, sizeof($$));
+		}
+		| L3 fromto			{
+			$$ = $2;
+		}
+		;
 etherfromto	: ALL				{
 			$$.src = NULL;
 			$$.dst = NULL;
@@ -5733,23 +5743,45 @@ expand_queue(struct pf_altq *a, struct node_if *interfaces,
 		return (0);
 }
 
+static int
+pf_af_to_proto(sa_family_t af)
+{
+	if (af == AF_INET)
+		return (ETHERTYPE_IP);
+	if (af == AF_INET6)
+		return (ETHERTYPE_IPV6);
+
+	return (0);
+}
+
 void
 expand_eth_rule(struct pfctl_eth_rule *r,
     struct node_if *interfaces, struct node_etherproto *protos,
-    struct node_mac *srcs, struct node_mac *dsts, const char *anchor_call)
+    struct node_mac *srcs, struct node_mac *dsts,
+    struct node_host *ipsrcs, struct node_host *ipdsts, const char *anchor_call)
 {
 	LOOP_THROUGH(struct node_if, interface, interfaces,
 	LOOP_THROUGH(struct node_etherproto, proto, protos,
 	LOOP_THROUGH(struct node_mac, src, srcs,
 	LOOP_THROUGH(struct node_mac, dst, dsts,
+	LOOP_THROUGH(struct node_host, ipsrc, ipsrcs,
+	LOOP_THROUGH(struct node_host, ipdst, ipdsts,
 		strlcpy(r->ifname, interface->ifname,
 		    sizeof(r->ifname));
 		r->ifnot = interface->not;
 		r->proto = proto->proto;
+		if (!r->proto && ipsrc->af)
+			r->proto = pf_af_to_proto(ipsrc->af);
+		else if (!r->proto && ipdst->af)
+			r->proto = pf_af_to_proto(ipdst->af);
 		bcopy(src->mac, r->src.addr, ETHER_ADDR_LEN);
 		bcopy(src->mask, r->src.mask, ETHER_ADDR_LEN);
 		r->src.neg = src->neg;
 		r->src.isset = src->isset;
+		r->ipsrc.addr = ipsrc->addr;
+		r->ipsrc.neg = ipsrc->not;
+		r->ipdst.addr = ipdst->addr;
+		r->ipdst.neg = ipdst->not;
 		bcopy(dst->mac, r->dst.addr, ETHER_ADDR_LEN);
 		bcopy(dst->mask, r->dst.mask, ETHER_ADDR_LEN);
 		r->dst.neg = dst->neg;
@@ -5757,12 +5789,14 @@ expand_eth_rule(struct pfctl_eth_rule *r,
 		r->nr = pf->eastack[pf->asd]->match++;
 
 		pfctl_append_eth_rule(pf, r, anchor_call);
-	))));
+	))))));
 
 	FREE_LIST(struct node_if, interfaces);
 	FREE_LIST(struct node_etherproto, protos);
 	FREE_LIST(struct node_mac, srcs);
 	FREE_LIST(struct node_mac, dsts);
+	FREE_LIST(struct node_host, ipsrcs);
+	FREE_LIST(struct node_host, ipdsts);
 }
 
 void
@@ -6052,6 +6086,7 @@ lookup(char *s)
 		{ "interval",		INTERVAL},
 		{ "keep",		KEEP},
 		{ "keepcounters",	KEEPCOUNTERS},
+		{ "l3",			L3},
 		{ "label",		LABEL},
 		{ "limit",		LIMIT},
 		{ "linkshare",		LINKSHARE},
