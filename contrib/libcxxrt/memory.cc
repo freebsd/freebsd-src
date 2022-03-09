@@ -51,7 +51,7 @@ typedef void (*new_handler)();
  * The function to call when allocation fails.  By default, there is no
  * handler and a bad allocation exception is thrown if an allocation fails.
  */
-static new_handler new_handl;
+static atomic<new_handler> new_handl{nullptr};
 
 namespace std
 {
@@ -61,12 +61,13 @@ namespace std
 	__attribute__((weak))
 	new_handler set_new_handler(new_handler handler)
 	{
-		return ATOMIC_SWAP(&new_handl, handler);
+		return new_handl.exchange(handler);
 	}
+
 	__attribute__((weak))
 	new_handler get_new_handler(void)
 	{
-		return ATOMIC_LOAD(&new_handl);
+		return new_handl.load();
 	}
 }
 
@@ -78,6 +79,32 @@ namespace std
 #define NOEXCEPT noexcept
 #define BADALLOC
 #endif
+
+namespace
+{
+	/**
+	 * Helper for forwarding from no-throw operators to versions that can
+	 * return nullptr.  Catches any exception and converts it into a nullptr
+	 * return.
+	 */
+	template<void*(New)(size_t)>
+	void *noexcept_new(size_t size)
+	{
+#if !defined(_CXXRT_NO_EXCEPTIONS)
+	try
+	{
+		return New(size);
+	} catch (...)
+	{
+		// nothrow operator new should return NULL in case of
+		// std::bad_alloc exception in new handler
+		return nullptr;
+	}
+#else
+	return New(size);
+#endif
+	}
+}
 
 
 __attribute__((weak))
@@ -97,7 +124,11 @@ void* operator new(size_t size) BADALLOC
 		}
 		else
 		{
+#if !defined(_CXXRT_NO_EXCEPTIONS)
 			throw std::bad_alloc();
+#else
+			break;
+#endif
 		}
 		mem = malloc(size);
 	}
@@ -105,16 +136,11 @@ void* operator new(size_t size) BADALLOC
 	return mem;
 }
 
+
 __attribute__((weak))
 void* operator new(size_t size, const std::nothrow_t &) NOEXCEPT
 {
-	try {
-		return :: operator new(size);
-	} catch (...) {
-		// nothrow operator new should return NULL in case of
-		// std::bad_alloc exception in new handler
-		return NULL;
-	}
+	return noexcept_new<(::operator new)>(size);
 }
 
 
@@ -135,13 +161,7 @@ void * operator new[](size_t size) BADALLOC
 __attribute__((weak))
 void * operator new[](size_t size, const std::nothrow_t &) NOEXCEPT
 {
-	try {
-		return ::operator new[](size);
-	} catch (...) {
-		// nothrow operator new should return NULL in case of
-		// std::bad_alloc exception in new handler
-		return NULL;
-	}
+	return noexcept_new<(::operator new[])>(size);
 }
 
 
