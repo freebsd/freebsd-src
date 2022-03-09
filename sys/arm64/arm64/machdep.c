@@ -469,7 +469,7 @@ exclude_efi_map_entry(struct efi_md *p)
 		 */
 		break;
 	default:
-		physmem_exclude_region(p->md_phys, p->md_pages * PAGE_SIZE,
+		physmem_exclude_region(p->md_phys, p->md_pages * EFI_PAGE_SIZE,
 		    EXFLAG_NOALLOC);
 	}
 }
@@ -501,7 +501,7 @@ add_efi_map_entry(struct efi_md *p)
 		 * We're allowed to use any entry with these types.
 		 */
 		physmem_hardware_region(p->md_phys,
-		    p->md_pages * PAGE_SIZE);
+		    p->md_pages * EFI_PAGE_SIZE);
 		break;
 	}
 }
