@@ -37,9 +37,6 @@
 #define BC_LANG_H
 
 #include <stdbool.h>
-#if BC_C11
-#include <assert.h>
-#endif // BC_C11
 
 #if BC_C11
 #include <assert.h>
