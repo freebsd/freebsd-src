@@ -1116,7 +1116,7 @@ cpp_demangle_read_array(struct cpp_demangle_data *ddata)
 		if (!cpp_demangle_read_type(ddata, NULL))
 			return (0);
 
-		if (!DEM_PUSH_STR(ddata, "[]"))
+		if (!DEM_PUSH_STR(ddata, " []"))
 			return (0);
 	} else {
 		if (ELFTC_ISDIGIT(*ddata->cur) != 0) {
@@ -1131,7 +1131,7 @@ cpp_demangle_read_array(struct cpp_demangle_data *ddata)
 				return (0);
 			if (!cpp_demangle_read_type(ddata, NULL))
 				return (0);
-			if (!DEM_PUSH_STR(ddata, "["))
+			if (!DEM_PUSH_STR(ddata, " ["))
 				return (0);
 			if (!cpp_demangle_push_str(ddata, num, num_len))
 				return (0);
@@ -1163,7 +1163,7 @@ cpp_demangle_read_array(struct cpp_demangle_data *ddata)
 				free(exp);
 				return (0);
 			}
-			if (!DEM_PUSH_STR(ddata, "[")) {
+			if (!DEM_PUSH_STR(ddata, " [")) {
 				free(exp);
 				return (0);
 			}
