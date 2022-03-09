@@ -196,7 +196,7 @@ static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
-static struct vm_exit vmexit[VM_MAXCPU];
+static struct vm_exit *vmexit;
 
 struct bhyvestats {
 	uint64_t	vmexit_bogus;
@@ -212,10 +212,10 @@ struct bhyvestats {
 struct mt_vmm_info {
 	pthread_t	mt_thr;
 	struct vmctx	*mt_ctx;
-	int		mt_vcpu;	
-} mt_vmm_info[VM_MAXCPU];
+	int		mt_vcpu;
+} *mt_vmm_info;
 
-static cpuset_t *vcpumap[VM_MAXCPU] = { NULL };
+static cpuset_t **vcpumap;
 
 static void
 usage(int code)
@@ -471,6 +471,7 @@ build_vcpumaps(void)
 	const char *value;
 	int vcpu;
 
+	vcpumap = calloc(guest_ncpus, sizeof(*vcpumap));
 	for (vcpu = 0; vcpu < guest_ncpus; vcpu++) {
 		snprintf(key, sizeof(key), "vcpu.%d.cpuset", vcpu);
 		value = get_config_value(key);
@@ -1549,6 +1550,10 @@ main(int argc, char *argv[])
 	if (restore_file != NULL)
 		vm_restore_time(ctx);
 #endif
+
+	/* Allocate per-VCPU resources. */
+	vmexit = calloc(guest_ncpus, sizeof(*vmexit));
+	mt_vmm_info = calloc(guest_ncpus, sizeof(*mt_vmm_info));
 
 	/*
 	 * Add CPU 0
