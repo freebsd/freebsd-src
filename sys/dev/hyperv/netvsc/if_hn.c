@@ -2371,7 +2371,7 @@ hn_attach(device_t dev)
 		    hn_xpnt_vf_accbpf_sysctl, "I",
 		    "Accurate BPF for transparent VF");
 	}
-	
+
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rsc_switch",
 	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_rsc_sysctl, "A",
 	    "switch to rsc");
@@ -4592,7 +4592,6 @@ hn_rsc_sysctl(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, &(sc->hn_rsc_ctrl), sizeof(sc->hn_rsc_ctrl));
 	if (error)
 		goto back;
-	if_printf(sc->hn_ifp, "configuring offload \n");
 	error = hn_rndis_reconf_offload(sc, mtu);
 back:
 	HN_UNLOCK(sc);
