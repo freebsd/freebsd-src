@@ -1001,16 +1001,20 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 static int
 num_vcpus_allowed(struct vmctx *ctx)
 {
+	uint16_t sockets, cores, threads, maxcpus;
 	int tmp, error;
-
-	error = vm_get_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, &tmp);
 
 	/*
 	 * The guest is allowed to spinup more than one processor only if the
 	 * UNRESTRICTED_GUEST capability is available.
 	 */
+	error = vm_get_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, &tmp);
+	if (error != 0)
+		return (1);
+
+	error = vm_get_topology(ctx, &sockets, &cores, &threads, &maxcpus);
 	if (error == 0)
-		return (VM_MAXCPU);
+		return (maxcpus);
 	else
 		return (1);
 }
