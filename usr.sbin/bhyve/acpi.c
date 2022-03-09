@@ -89,10 +89,10 @@ __FBSDID("$FreeBSD$");
  *	44		Fixed Header
  *	8 * maxcpu	Processor Local APIC entries
  *	12		I/O APIC entry
- *	2 * 10		Interrupt Source Override entires
+ *	2 * 10		Interrupt Source Override entries
  *	6		Local APIC NMI entry
  */
-#define	MADT_SIZE		(44 + VM_MAXCPU*8 + 12 + 2*10 + 6)
+#define	MADT_SIZE		roundup2((44 + basl_ncpu*8 + 12 + 2*10 + 6), 0x100)
 #define	FADT_OFFSET		(MADT_OFFSET + MADT_SIZE)
 #define	FADT_SIZE		0x140
 #define	HPET_OFFSET		(FADT_OFFSET + FADT_SIZE)
@@ -943,28 +943,10 @@ basl_make_templates(void)
 	return (err);
 }
 
-static struct {
-	int	(*wsect)(FILE *fp);
-	uint64_t  offset;
-} basl_ftables[] =
-{
-	{ basl_fwrite_rsdp, 0},
-	{ basl_fwrite_rsdt, RSDT_OFFSET },
-	{ basl_fwrite_xsdt, XSDT_OFFSET },
-	{ basl_fwrite_madt, MADT_OFFSET },
-	{ basl_fwrite_fadt, FADT_OFFSET },
-	{ basl_fwrite_hpet, HPET_OFFSET },
-	{ basl_fwrite_mcfg, MCFG_OFFSET },
-	{ basl_fwrite_facs, FACS_OFFSET },
-	{ basl_fwrite_dsdt, DSDT_OFFSET },
-	{ NULL }
-};
-
 int
 acpi_build(struct vmctx *ctx, int ncpu)
 {
 	int err;
-	int i;
 
 	basl_ncpu = ncpu;
 
@@ -986,18 +968,30 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	if (getenv("BHYVE_ACPI_KEEPTMPS"))
 		basl_keep_temps = 1;
 
-	i = 0;
 	err = basl_make_templates();
 
 	/*
 	 * Run through all the ASL files, compiling them and
 	 * copying them into guest memory
 	 */
-	while (!err && basl_ftables[i].wsect != NULL) {
-		err = basl_compile(ctx, basl_ftables[i].wsect,
-				   basl_ftables[i].offset);
-		i++;
-	}
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_rsdp, 0);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_rsdt, RSDT_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_xsdt, XSDT_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_madt, MADT_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_mcfg, MCFG_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_facs, FACS_OFFSET);
+	if (err == 0)
+		err = basl_compile(ctx, basl_fwrite_dsdt, DSDT_OFFSET);
 
 	return (err);
 }
