@@ -305,11 +305,54 @@ pqisrc_raidlevel_to_string(uint8_t raid_level)
 }
 
 /* Debug routine for displaying device info */
-void
-pqisrc_display_device_info(pqisrc_softstate_t *softs,
+void pqisrc_display_device_info(pqisrc_softstate_t *softs,
 	char *action, pqi_scsi_dev_t *device)
 {
-	DBG_INFO( "%s scsi BTL %d:%d:%d:  %.8s %.16s %-12s SSDSmartPathCap%c En%c Exp%c qd=%d\n",
+	if (device->is_physical_device) {
+		DBG_NOTE("%s scsi BTL %d:%d:%d:  %.8s %.16s %-12s "
+		"SSDSmartPathCap%c En%c Exp%c qd=%d\n",
+		action,
+		device->bus,
+		device->target,
+		device->lun,
+		device->vendor,
+		device->model,
+		"Physical",
+		device->offload_config ? '+' : '-',
+		device->offload_enabled_pending ? '+' : '-',
+		device->expose_device ? '+' : '-',
+		device->queue_depth);
+	} else if (device->devtype == RAID_DEVICE) {
+		DBG_NOTE("%s scsi BTL %d:%d:%d:  %.8s %.16s %-12s "
+		"SSDSmartPathCap%c En%c Exp%c qd=%d\n",
+		action,
+		device->bus,
+		device->target,
+		device->lun,
+		device->vendor,
+		device->model,
+		"Controller",
+		device->offload_config ? '+' : '-',
+		device->offload_enabled_pending ? '+' : '-',
+		device->expose_device ? '+' : '-',
+		device->queue_depth);
+	} else if (device->devtype == CONTROLLER_DEVICE) {
+		DBG_NOTE("%s scsi BTL %d:%d:%d:  %.8s %.16s %-12s "
+		"SSDSmartPathCap%c En%c Exp%c qd=%d\n",
+		action,
+		device->bus,
+		device->target,
+		device->lun,
+		device->vendor,
+		device->model,
+		"External",
+		device->offload_config ? '+' : '-',
+		device->offload_enabled_pending ? '+' : '-',
+		device->expose_device ? '+' : '-',
+		device->queue_depth);
+	} else {
+		DBG_NOTE("%s scsi BTL %d:%d:%d:  %.8s %.16s %-12s "
+		"SSDSmartPathCap%c En%c Exp%c qd=%d devtype=%d\n",
 		action,
 		device->bus,
 		device->target,
@@ -320,8 +363,10 @@ pqisrc_display_device_info(pqisrc_softstate_t *softs,
 		device->offload_config ? '+' : '-',
 		device->offload_enabled_pending ? '+' : '-',
 		device->expose_device ? '+' : '-',
-		device->queue_depth);
+		device->queue_depth,
+		device->devtype);
 	pqisrc_raidlevel_to_string(device->raid_level); /* To use this function */
+	}
 }
 
 /* validate the structure sizes */
