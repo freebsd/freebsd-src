@@ -1076,10 +1076,6 @@ typedef struct sema OS_SEMA_LOCK_T;
 
 /* Debug facility */
 
-#define PQISRC_LOG_LEVEL  0x60
-
-static int logging_level  = PQISRC_LOG_LEVEL;
-
 #define	PQISRC_FLAGS_MASK		0x0000ffff
 #define	PQISRC_FLAGS_INIT 		0x00000001
 #define	PQISRC_FLAGS_INFO 		0x00000002
@@ -1090,6 +1086,9 @@ static int logging_level  = PQISRC_LOG_LEVEL;
 #define	PQISRC_FLAGS_ERROR		0x00000040
 #define	PQISRC_FLAGS_NOTE		0x00000080
 
+#define PQISRC_LOG_LEVEL  (PQISRC_FLAGS_WARN | PQISRC_FLAGS_ERROR | PQISRC_FLAGS_NOTE)
+
+static int logging_level  = PQISRC_LOG_LEVEL;
 
 #define	DBG_INIT(fmt,args...)						\
 		do {							\

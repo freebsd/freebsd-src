@@ -110,6 +110,8 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x13fe, 0x8312, PQI_HWIF_SRCV, "MIC-8312BridgeB"},
 	{0x9005, 0x028f, 0x1bd4, 0x004f, PQI_HWIF_SRCV, "INSPUR PM8222-HBA"},
 	{0x9005, 0x028f, 0x1d8d, 0x908,	 PQI_HWIF_SRCV, "Fiberhome SmartHBA AIS-8222-8i"},
+	{0x9005, 0x028f, 0x1bd4, 0x006C, PQI_HWIF_SRCV, "INSPUR RS0800M5E8i"},
+	{0x9005, 0x028f, 0x1bd4, 0x006D, PQI_HWIF_SRCV, "INSPUR RS0800M5H8i"},
 
 	/* (SRCx MSCC FVB 24x12G based) */
 	{0x9005, 0x028f, 0x103c, 0x1001, PQI_HWIF_SRCV, "MSCC FVB"},
@@ -130,6 +132,10 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x9005, 0x1380, PQI_HWIF_SRCV, "SmartRAID 3154-16i"},
 	{0x9005, 0x028f, 0x1bd4, 0x0046, PQI_HWIF_SRCV, "INSPUR RAID 8236-16i"},
 	{0x9005, 0x028f, 0x1d8d, 0x806,  PQI_HWIF_SRCV, "Fiberhome SmartRAID AIS-8236-16i"},
+	{0x9005, 0x028f, 0x1cf2, 0x5449, PQI_HWIF_SRCV, "ZTE SmartROC3100 RS241-18i 2G"},
+	{0x9005, 0x028f, 0x1cf2, 0x544A, PQI_HWIF_SRCV, "ZTE SmartROC3100 RS242-18i 4G"},
+	{0x9005, 0x028f, 0x1cf2, 0x544D, PQI_HWIF_SRCV, "ZTE SmartROC3100 RM241B-18i 2G"},
+	{0x9005, 0x028f, 0x1cf2, 0x544E, PQI_HWIF_SRCV, "ZTE SmartROC3100 RM242B-18i 4G"},
 
 	/* (MSCC PM8237 24x12G based) */
 	{0x9005, 0x028f, 0x103c, 0x1100, PQI_HWIF_SRCV, "P816i-a SR Gen10"},
@@ -144,6 +150,7 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x9005, 0x1282, PQI_HWIF_SRCV, "SmartHBA 2100-16i"},
 	{0x9005, 0x028f, 0x1d8d, 0x916,  PQI_HWIF_SRCV, "Fiberhome SmartHBA AIS-8238-16i"},
 	{0x9005, 0x028f, 0x1458, 0x1000, PQI_HWIF_SRCV, "GIGABYTE SmartHBA CLN1832"},
+	{0x9005, 0x028f, 0x1cf2, 0x544F, PQI_HWIF_SRCV, "ZTE SmartIOC2100 RM243B-18i"},
 
 	/* (MSCC PM8240 24x12G based) */
 	{0x9005, 0x028f, 0x152d, 0x8a36, PQI_HWIF_SRCV, "QS-8240-24i"},
@@ -151,6 +158,7 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x9005, 0x1201, PQI_HWIF_SRCV, "SmartRAID 3154-8i16e"},
 	{0x9005, 0x028f, 0x9005, 0x1202, PQI_HWIF_SRCV, "SmartRAID 3154-8i8e"},
 	{0x9005, 0x028f, 0x1bd4, 0x0047, PQI_HWIF_SRCV, "INSPUR RAID 8240-24i"},
+	{0x9005, 0x028f, 0x1F0C, 0x3161, PQI_HWIF_SRCV, "NT RAID 3100-24i"},
 
 	/* Huawei ID's */
 	{0x9005, 0x028f, 0x19e5, 0xd227, PQI_HWIF_SRCV, "SR465C-M 4G"},
@@ -159,6 +167,22 @@ struct pqi_ident
 	{0x9005, 0x028f, 0x19e5, 0xd22c, PQI_HWIF_SRCV, "SR455C-M 4G"},
 	{0x9005, 0x028f, 0x19e5, 0xd229, PQI_HWIF_SRCV, "SR155-M"},
 	{0x9005, 0x028f, 0x19e5, 0xd22b, PQI_HWIF_SRCV, "SR455C-ME 4G"},
+	/* (MSCC PM8254 32x12G based) */
+	{0x9005, 0x028f, 0x9005, 0x14a2, PQI_HWIF_SRCV, "SmartRAID 3252-8i"},
+	{0x9005, 0x028f, 0x9005, 0x14a4, PQI_HWIF_SRCV, "SmartRAID 3254-8i /e"},
+	{0x9005, 0x028f, 0x9005, 0x14a5, PQI_HWIF_SRCV, "SmartRAID 3252-8i /e"},
+	{0x9005, 0x028f, 0x9005, 0x14a6, PQI_HWIF_SRCV, "SmartRAID 3204-8i /e"},
+/* (MSCC PM8265 16x12G based) */
+	{0x9005, 0x028f, 0x9005, 0x1474, PQI_HWIF_SRCV, "SmartRAID 3254-16io /e"},
+/* (MSCC PM8270 16x12G based) */
+	{0x9005, 0x028f, 0x9005, 0x1463, PQI_HWIF_SRCV, "SmartHBA 2200-8io /e"},
+	{0x9005, 0x028f, 0x9005, 0x14c2, PQI_HWIF_SRCV, "SmartHBA 2200-16io /e"},
+	/* (MSCC PM8279 32x12G based) */
+	{0x9005, 0x028f, 0x1590, 0x0381, PQI_HWIF_SRCV, "SR932i-p Gen11"},
+	{0x9005, 0x028f, 0x1590, 0x0382, PQI_HWIF_SRCV, "SR308i-p Gen11"},
+	{0x9005, 0x028f, 0x1590, 0x0383, PQI_HWIF_SRCV, "SR308i-o Gen11"},
+	{0x9005, 0x028f, 0x1590, 0x02db, PQI_HWIF_SRCV, "SR416ie-m Gen11"},
+	{0x9005, 0x028f, 0x1590, 0x032e, PQI_HWIF_SRCV, "SR416i-o Gen11"},
 
 	{0, 0, 0, 0, 0, 0}
 };
@@ -327,12 +351,12 @@ smartpqi_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 	/* parent */
 				PAGE_SIZE, 0,		/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,/* lowaddr */
 				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */
-				BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+				BUS_SPACE_MAXSIZE,	/* maxsize */
 				BUS_SPACE_UNRESTRICTED,	/* nsegments */
-				BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+				BUS_SPACE_MAXSIZE,	/* maxsegsize */
 				0,			/* flags */
 				NULL, NULL,		/* No locking needed */
 				&softs->os_specific.pqi_parent_dmat)) {
@@ -368,12 +392,12 @@ smartpqi_attach(device_t dev)
      */
     if (bus_dma_tag_create(softs->os_specific.pqi_parent_dmat,/* parent */
 				PAGE_SIZE, 0,		/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
 				(bus_size_t)softs->pqi_cap.max_sg_elem*PAGE_SIZE,/* maxsize */
 				softs->pqi_cap.max_sg_elem,	/* nsegments */
-				BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+				BUS_SPACE_MAXSIZE,	/* maxsegsize */
 				BUS_DMA_ALLOCNOW,		/* flags */
 				busdma_lock_mutex,		/* lockfunc */
 				&softs->os_specific.map_lock,	/* lockfuncarg*/
