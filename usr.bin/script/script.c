@@ -89,6 +89,13 @@ static TAILQ_HEAD(, buf_elm) obuf_list = TAILQ_HEAD_INITIALIZER(obuf_list);
 
 static struct termios tt;
 
+#ifndef TSTAMP_FMT
+/* useful for tool and human reading */
+# define TSTAMP_FMT "%n@ %s [%Y-%m-%d %T]%n"
+#endif
+static const char *tstamp_fmt = TSTAMP_FMT;
+static int tflg;
+
 static void done(int) __dead2;
 static void doshell(char **);
 static void finish(void);
@@ -121,7 +128,7 @@ main(int argc, char *argv[])
 			   warning. (not needed w/clang) */
 	showexit = 0;
 
-	while ((ch = getopt(argc, argv, "adeFfkpqrt:")) != -1)
+	while ((ch = getopt(argc, argv, "adeFfkpqrT:t:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;
@@ -153,6 +160,11 @@ main(int argc, char *argv[])
 			flushtime = atoi(optarg);
 			if (flushtime < 0)
 				err(1, "invalid flush time %d", flushtime);
+			break;
+		case 'T':
+			tflg = pflg = 1;
+			if (strchr(optarg, '%'))
+				tstamp_fmt = optarg;
 			break;
 		case '?':
 		default:
@@ -511,12 +523,14 @@ playback(FILE *fp)
 	off_t nread, save_len;
 	size_t l;
 	time_t tclock;
+	time_t lclock;
 	int reg;
 
 	if (fstat(fileno(fp), &pst) == -1)
 		err(1, "fstat failed");
 
 	reg = S_ISREG(pst.st_mode);
+	lclock = 0;
 
 	for (nread = 0; !reg || nread < pst.st_size; nread += save_len) {
 		if (fread(&stamp, sizeof(stamp), 1, fp) != 1) {
@@ -559,15 +573,26 @@ playback(FILE *fp)
 			(void)consume(fp, stamp.scr_len, buf, reg);
 			break;
 		case 'o':
-			tsi.tv_sec = tso.tv_sec - tsi.tv_sec;
-			tsi.tv_nsec = tso.tv_nsec - tsi.tv_nsec;
-			if (tsi.tv_nsec < 0) {
-				tsi.tv_sec -= 1;
-				tsi.tv_nsec += 1000000000;
+			if (tflg) {
+				if (stamp.scr_len == 0)
+					continue;
+				if (tclock - lclock > 0) {
+				    l = strftime(buf, sizeof buf, tstamp_fmt,
+					localtime(&tclock));
+				    (void)write(STDOUT_FILENO, buf, l);
+				}
+				lclock = tclock;
+			} else {
+				tsi.tv_sec = tso.tv_sec - tsi.tv_sec;
+				tsi.tv_nsec = tso.tv_nsec - tsi.tv_nsec;
+				if (tsi.tv_nsec < 0) {
+					tsi.tv_sec -= 1;
+					tsi.tv_nsec += 1000000000;
+				}
+				if (usesleep)
+					(void)nanosleep(&tsi, NULL);
+				tsi = tso;
 			}
-			if (usesleep)
-				(void)nanosleep(&tsi, NULL);
-			tsi = tso;
 			while (stamp.scr_len > 0) {
 				l = MIN(DEF_BUF, stamp.scr_len);
 				if (fread(buf, sizeof(char), l, fp) != l)
