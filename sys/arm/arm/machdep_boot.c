@@ -490,7 +490,7 @@ arm_add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 			break;
 
 		mr[j].mr_start = p->md_phys;
-		mr[j].mr_size = p->md_pages * PAGE_SIZE;
+		mr[j].mr_size = p->md_pages * EFI_PAGE_SIZE;
 		memory_size += mr[j].mr_size;
 	}
 
