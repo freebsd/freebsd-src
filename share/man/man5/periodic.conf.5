@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2022
+.Dd March 9, 2022
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -960,6 +960,13 @@ Set to
 to show log entries for packets denied by
 .Xr pf 4
 since yesterday's check.
+.It Va security_status_pfdenied_additionalanchors
+.Pq Vt str
+Space-separated list of additional anchors whose denied packets log entries to
+show.
+The main ruleset (i.e., the empty-string anchor) and any
+.Xr blacklistd 8
+anchors, if present, are always shown.
 .It Va security_status_pfdenied_period
 .Pq Vt str
 Set to either
