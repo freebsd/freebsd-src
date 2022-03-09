@@ -393,9 +393,8 @@ pincpu_parse(const char *opt)
 		return (-1);
 	}
 
-	if (vcpu < 0 || vcpu >= VM_MAXCPU) {
-		fprintf(stderr, "vcpu '%d' outside valid range from 0 to %d\n",
-		    vcpu, VM_MAXCPU - 1);
+	if (vcpu < 0) {
+		fprintf(stderr, "invalid vcpu '%d'\n", vcpu);
 		return (-1);
 	}
 
