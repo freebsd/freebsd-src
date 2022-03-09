@@ -538,8 +538,8 @@ __cxa_demangle_gnu3(const char *org)
 	struct type_delimit td;
 	ssize_t org_len;
 	unsigned int limit;
-	char *rtn;
-	bool has_ret, more_type;
+	char *rtn = NULL;
+	bool has_ret = false, more_type = false;
 
 	if (org == NULL)
 		return (NULL);
@@ -562,12 +562,8 @@ __cxa_demangle_gnu3(const char *org)
 		return (rtn);
 	}
 
-
 	if (!cpp_demangle_data_init(&ddata, org + 2))
 		return (NULL);
-
-	rtn = NULL;
-	has_ret = more_type = false;
 
 	if (!cpp_demangle_read_encoding(&ddata))
 		goto clean;
@@ -1120,7 +1116,7 @@ cpp_demangle_read_array(struct cpp_demangle_data *ddata)
 		if (!cpp_demangle_read_type(ddata, NULL))
 			return (0);
 
-		if (!DEM_PUSH_STR(ddata, "[]"))
+		if (!DEM_PUSH_STR(ddata, " []"))
 			return (0);
 	} else {
 		if (ELFTC_ISDIGIT(*ddata->cur) != 0) {
@@ -1135,7 +1131,7 @@ cpp_demangle_read_array(struct cpp_demangle_data *ddata)
 				return (0);
 			if (!cpp_demangle_read_type(ddata, NULL))
 				return (0);
-			if (!DEM_PUSH_STR(ddata, "["))
+			if (!DEM_PUSH_STR(ddata, " ["))
 				return (0);
 			if (!cpp_demangle_push_str(ddata, num, num_len))
 				return (0);
@@ -1167,7 +1163,7 @@ cpp_demangle_read_array(struct cpp_demangle_data *ddata)
 				free(exp);
 				return (0);
 			}
-			if (!DEM_PUSH_STR(ddata, "[")) {
+			if (!DEM_PUSH_STR(ddata, " [")) {
 				free(exp);
 				return (0);
 			}

@@ -1,5 +1,6 @@
 /* 
  * Copyright 2010-2011 PathScale, Inc. All rights reserved.
+ * Copyright 2021 David Chisnall. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -289,9 +290,9 @@ using namespace ABI_NAMESPACE;
 
 
 /** The global termination handler. */
-static terminate_handler terminateHandler = abort;
+static atomic<terminate_handler> terminateHandler = abort;
 /** The global unexpected exception handler. */
-static unexpected_handler unexpectedHandler = std::terminate;
+static atomic<unexpected_handler> unexpectedHandler = std::terminate;
 
 /** Key used for thread-local data. */
 static pthread_key_t eh_key;
@@ -742,12 +743,12 @@ static void throw_exception(__cxa_exception *ex)
 	ex->unexpectedHandler = info->unexpectedHandler;
 	if (0 == ex->unexpectedHandler)
 	{
-		ex->unexpectedHandler = unexpectedHandler;
+		ex->unexpectedHandler = unexpectedHandler.load();
 	}
 	ex->terminateHandler  = info->terminateHandler;
 	if (0 == ex->terminateHandler)
 	{
-		ex->terminateHandler = terminateHandler;
+		ex->terminateHandler = terminateHandler.load();
 	}
 	info->globals.uncaughtExceptions++;
 
@@ -1447,7 +1448,7 @@ namespace std
 	{
 		if (thread_local_handlers) { return pathscale::set_unexpected(f); }
 
-		return ATOMIC_SWAP(&unexpectedHandler, f);
+		return unexpectedHandler.exchange(f);
 	}
 	/**
 	 * Sets the function that is called to terminate the program.
@@ -1456,7 +1457,7 @@ namespace std
 	{
 		if (thread_local_handlers) { return pathscale::set_terminate(f); }
 
-		return ATOMIC_SWAP(&terminateHandler, f);
+		return terminateHandler.exchange(f);
 	}
 	/**
 	 * Terminates the program, calling a custom terminate implementation if
@@ -1472,7 +1473,7 @@ namespace std
 			// return.
 			abort();
 		}
-		terminateHandler();
+		terminateHandler.load()();
 	}
 	/**
 	 * Called when an unexpected exception is encountered (i.e. an exception
@@ -1489,7 +1490,7 @@ namespace std
 			// return.
 			abort();
 		}
-		unexpectedHandler();
+		unexpectedHandler.load()();
 	}
 	/**
 	 * Returns whether there are any exceptions currently being thrown that
@@ -1519,7 +1520,7 @@ namespace std
 		{
 			return info->unexpectedHandler;
 		}
-		return ATOMIC_LOAD(&unexpectedHandler);
+		return unexpectedHandler.load();
 	}
 	/**
 	 * Returns the current terminate handler.
@@ -1531,7 +1532,7 @@ namespace std
 		{
 			return info->terminateHandler;
 		}
-		return ATOMIC_LOAD(&terminateHandler);
+		return terminateHandler.load();
 	}
 }
 #if defined(__arm__) && !defined(__ARM_DWARF_EH__)
