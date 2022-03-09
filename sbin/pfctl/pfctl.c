@@ -75,9 +75,9 @@ int	 pfctl_get_skip_ifaces(void);
 int	 pfctl_check_skip_ifaces(char *);
 int	 pfctl_adjust_skip_ifaces(struct pfctl *);
 int	 pfctl_clear_interface_flags(int, int);
-int	 pfctl_clear_eth_rules(int, int, char *);
-int	 pfctl_clear_rules(int, int, char *);
-int	 pfctl_clear_nat(int, int, char *);
+int	 pfctl_flush_eth_rules(int, int, char *);
+int	 pfctl_flush_rules(int, int, char *);
+int	 pfctl_flush_nat(int, int, char *);
 int	 pfctl_clear_altq(int, int);
 int	 pfctl_clear_src_nodes(int, int);
 int	 pfctl_clear_iface_states(int, const char *, int);
@@ -101,7 +101,7 @@ void	 pfctl_print_eth_rule_counters(struct pfctl_eth_rule *, int);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
 int	 pfctl_show_eth_rules(int, char *, int, enum pfctl_show, char *, int);
 int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int);
-int	 pfctl_show_nat(int, int, char *);
+int	 pfctl_show_nat(int, char *, int, char *, int);
 int	 pfctl_show_src_nodes(int, int);
 int	 pfctl_show_states(int, const char *, int);
 int	 pfctl_show_status(int, int);
@@ -460,32 +460,27 @@ pfctl_clear_interface_flags(int dev, int opts)
 }
 
 int
-pfctl_clear_eth_rules(int dev, int opts, char *anchorname)
+pfctl_flush_eth_rules(int dev, int opts, char *anchorname)
 {
-	struct pfr_buffer t;
+	int ret;
 
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_add_trans(&t, PF_RULESET_ETH, anchorname) ||
-	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
-	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+	ret = pfctl_clear_eth_rules(dev, anchorname);
+	if (ret != 0)
 		err(1, "pfctl_clear_eth_rules");
+
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "Ethernet rules cleared\n");
-	return (0);
+
+	return (ret);
 }
 
 int
-pfctl_clear_rules(int dev, int opts, char *anchorname)
+pfctl_flush_rules(int dev, int opts, char *anchorname)
 {
-	struct pfr_buffer t;
+	int ret;
 
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_add_trans(&t, PF_RULESET_SCRUB, anchorname) ||
-	    pfctl_add_trans(&t, PF_RULESET_FILTER, anchorname) ||
-	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
-	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+	ret = pfctl_clear_rules(dev, anchorname);
+	if (ret != 0)
 		err(1, "pfctl_clear_rules");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "rules cleared\n");
@@ -493,17 +488,12 @@ pfctl_clear_rules(int dev, int opts, char *anchorname)
 }
 
 int
-pfctl_clear_nat(int dev, int opts, char *anchorname)
+pfctl_flush_nat(int dev, int opts, char *anchorname)
 {
-	struct pfr_buffer t;
+	int ret;
 
-	memset(&t, 0, sizeof(t));
-	t.pfrb_type = PFRB_TRANS;
-	if (pfctl_add_trans(&t, PF_RULESET_NAT, anchorname) ||
-	    pfctl_add_trans(&t, PF_RULESET_BINAT, anchorname) ||
-	    pfctl_add_trans(&t, PF_RULESET_RDR, anchorname) ||
-	    pfctl_trans(dev, &t, DIOCXBEGIN, 0) ||
-	    pfctl_trans(dev, &t, DIOCXCOMMIT, 0))
+	ret = pfctl_clear_nat(dev, anchorname);
+	if (ret != 0)
 		err(1, "pfctl_clear_nat");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "nat cleared\n");
@@ -1143,13 +1133,15 @@ int
 pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
     char *anchorname, int depth)
 {
-	struct pfioc_rule pr;
+	struct pfctl_rules_info ri;
 	struct pfctl_rule rule;
-	u_int32_t nr, mnr, header = 0;
+	char anchor_call[MAXPATHLEN];
+	u_int32_t nr, header = 0;
 	int rule_numbers = opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG);
 	int numeric = opts & PF_OPT_NUMERIC;
 	int len = strlen(path);
 	int brace;
+	int ret;
 	char *p;
 
 	if (path[0])
@@ -1157,39 +1149,35 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	else
 		snprintf(&path[len], MAXPATHLEN - len, "%s", anchorname);
 
-	memset(&pr, 0, sizeof(pr));
-	memcpy(pr.anchor, path, sizeof(pr.anchor));
 	if (opts & PF_OPT_SHOWALL) {
-		pr.rule.action = PF_PASS;
-		if (ioctl(dev, DIOCGETRULES, &pr)) {
+		ret = pfctl_get_rules_info(dev, &ri, PF_PASS, anchorname);
+		if (ret != 0) {
 			warn("DIOCGETRULES");
 			goto error;
 		}
 		header++;
 	}
-	pr.rule.action = PF_SCRUB;
-	if (ioctl(dev, DIOCGETRULES, &pr)) {
+	ret = pfctl_get_rules_info(dev, &ri, PF_SCRUB, anchorname);
+	if (ret != 0) {
 		warn("DIOCGETRULES");
 		goto error;
 	}
 	if (opts & PF_OPT_SHOWALL) {
-		if (format == PFCTL_SHOW_RULES && (pr.nr > 0 || header))
+		if (format == PFCTL_SHOW_RULES && (ri.nr > 0 || header))
 			pfctl_print_title("FILTER RULES:");
 		else if (format == PFCTL_SHOW_LABELS && labels)
 			pfctl_print_title("LABEL COUNTERS:");
 	}
-	mnr = pr.nr;
 
-	for (nr = 0; nr < mnr; ++nr) {
-		pr.nr = nr;
-		if (pfctl_get_clear_rule(dev, nr, pr.ticket, path, PF_SCRUB,
-		    &rule, pr.anchor_call, opts & PF_OPT_CLRRULECTRS)) {
+	for (nr = 0; nr < ri.nr; ++nr) {
+		if (pfctl_get_clear_rule(dev, nr, ri.ticket, path, PF_SCRUB,
+		    &rule, anchor_call, opts & PF_OPT_CLRRULECTRS)) {
 			warn("DIOCGETRULENV");
 			goto error;
 		}
 
 		if (pfctl_get_pool(dev, &rule.rpool,
-		    nr, pr.ticket, PF_SCRUB, path) != 0)
+		    nr, ri.ticket, PF_SCRUB, path) != 0)
 			goto error;
 
 		switch (format) {
@@ -1198,7 +1186,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		case PFCTL_SHOW_RULES:
 			if (rule.label[0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
-			print_rule(&rule, pr.anchor_call, rule_numbers, numeric);
+			print_rule(&rule, anchor_call, rule_numbers, numeric);
 			printf("\n");
 			pfctl_print_rule_counters(&rule, opts);
 			break;
@@ -1207,22 +1195,20 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 		pfctl_clear_pool(&rule.rpool);
 	}
-	pr.rule.action = PF_PASS;
-	if (ioctl(dev, DIOCGETRULES, &pr)) {
+	ret = pfctl_get_rules_info(dev, &ri, PF_PASS, anchorname);
+	if (ret != 0) {
 		warn("DIOCGETRULES");
 		goto error;
 	}
-	mnr = pr.nr;
-	for (nr = 0; nr < mnr; ++nr) {
-		pr.nr = nr;
-		if (pfctl_get_clear_rule(dev, nr, pr.ticket, path, PF_PASS,
-		    &rule, pr.anchor_call, opts & PF_OPT_CLRRULECTRS)) {
+	for (nr = 0; nr < ri.nr; ++nr) {
+		if (pfctl_get_clear_rule(dev, nr, ri.ticket, path, PF_PASS,
+		    &rule, anchor_call, opts & PF_OPT_CLRRULECTRS)) {
 			warn("DIOCGETRULE");
 			goto error;
 		}
 
 		if (pfctl_get_pool(dev, &rule.rpool,
-		    nr, pr.ticket, PF_PASS, path) != 0)
+		    nr, ri.ticket, PF_PASS, path) != 0)
 			goto error;
 
 		switch (format) {
@@ -1256,18 +1242,18 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			if (rule.label[0] && (opts & PF_OPT_SHOWALL))
 				labels = 1;
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
-			if (pr.anchor_call[0] &&
-			   ((((p = strrchr(pr.anchor_call, '_')) != NULL) &&
-			   ((void *)p == (void *)pr.anchor_call ||
+			if (anchor_call[0] &&
+			   ((((p = strrchr(anchor_call, '_')) != NULL) &&
+			   ((void *)p == (void *)anchor_call ||
 			   *(--p) == '/')) || (opts & PF_OPT_RECURSE))) {
 				brace++;
-				if ((p = strrchr(pr.anchor_call, '/')) !=
+				if ((p = strrchr(anchor_call, '/')) !=
 				    NULL)
 					p++;
 				else
-					p = &pr.anchor_call[0];
+					p = &anchor_call[0];
 			} else
-				p = &pr.anchor_call[0];
+				p = &anchor_call[0];
 		
 			print_rule(&rule, p, rule_numbers, numeric);
 			if (brace)
@@ -1296,42 +1282,66 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 }
 
 int
-pfctl_show_nat(int dev, int opts, char *anchorname)
+pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth)
 {
-	struct pfioc_rule pr;
+	struct pfctl_rules_info ri;
 	struct pfctl_rule rule;
-	u_int32_t mnr, nr;
+	char anchor_call[MAXPATHLEN];
+	u_int32_t nr;
 	static int nattype[3] = { PF_NAT, PF_RDR, PF_BINAT };
 	int i, dotitle = opts & PF_OPT_SHOWALL;
+	int brace, ret;
+	char *p;
 
-	memset(&pr, 0, sizeof(pr));
-	memcpy(pr.anchor, anchorname, sizeof(pr.anchor));
 	for (i = 0; i < 3; i++) {
-		pr.rule.action = nattype[i];
-		if (ioctl(dev, DIOCGETRULES, &pr)) {
+		ret = pfctl_get_rules_info(dev, &ri, nattype[i], anchorname);
+		if (ret != 0) {
 			warn("DIOCGETRULES");
 			return (-1);
 		}
-		mnr = pr.nr;
-		for (nr = 0; nr < mnr; ++nr) {
-			pr.nr = nr;
-			if (pfctl_get_rule(dev, nr, pr.ticket, anchorname,
-			    nattype[i], &rule, pr.anchor_call)) {
+		for (nr = 0; nr < ri.nr; ++nr) {
+			brace = 0;
+			INDENT(depth, !(opts & PF_OPT_VERBOSE));
+
+			if (pfctl_get_rule(dev, nr, ri.ticket, anchorname,
+			    nattype[i], &rule, anchor_call)) {
 				warn("DIOCGETRULE");
 				return (-1);
 			}
 			if (pfctl_get_pool(dev, &rule.rpool, nr,
-			    pr.ticket, nattype[i], anchorname) != 0)
+			    ri.ticket, nattype[i], anchorname) != 0)
 				return (-1);
+
+			if (anchor_call[0] &&
+			   ((((p = strrchr(anchor_call, '_')) != NULL) &&
+			   (p == anchor_call ||
+			   *(--p) == '/')) || (opts & PF_OPT_RECURSE))) {
+				brace++;
+				if ((p = strrchr(anchor_call, '/')) !=
+				    NULL)
+					p++;
+				else
+					p = &anchor_call[0];
+			} else
+				p = &anchor_call[0];
+
 			if (dotitle) {
 				pfctl_print_title("TRANSLATION RULES:");
 				dotitle = 0;
 			}
-			print_rule(&rule, pr.anchor_call,
+			print_rule(&rule, anchor_call,
 			    opts & PF_OPT_VERBOSE2, opts & PF_OPT_NUMERIC);
-			printf("\n");
+			if (brace)
+				printf(" {\n");
+			else
+				printf("\n");
 			pfctl_print_rule_counters(&rule, opts);
 			pfctl_clear_pool(&rule.rpool);
+			if (brace) {
+				pfctl_show_nat(dev, path, opts, p, depth + 1);
+				INDENT(depth, !(opts & PF_OPT_VERBOSE));
+				printf("}\n");
+			}
 		}
 	}
 	return (0);
@@ -2827,7 +2837,7 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			pfctl_load_fingerprints(dev, opts);
-			pfctl_show_nat(dev, opts, anchorname);
+			pfctl_show_nat(dev, path, opts, anchorname, 0);
 			break;
 		case 'q':
 			pfctl_show_altq(dev, ifaceopt, opts,
@@ -2860,7 +2870,7 @@ main(int argc, char *argv[])
 
 			pfctl_show_eth_rules(dev, path, opts, 0, anchorname, 0);
 
-			pfctl_show_nat(dev, opts, anchorname);
+			pfctl_show_nat(dev, path, opts, anchorname, 0);
 			pfctl_show_rules(dev, path, opts, 0, anchorname, 0);
 			pfctl_show_altq(dev, ifaceopt, opts, 0);
 			pfctl_show_states(dev, ifaceopt, opts);
@@ -2899,13 +2909,13 @@ main(int argc, char *argv[])
 
 		switch (*clearopt) {
 		case 'e':
-			pfctl_clear_eth_rules(dev, opts, anchorname);
+			pfctl_flush_eth_rules(dev, opts, anchorname);
 			break;
 		case 'r':
-			pfctl_clear_rules(dev, opts, anchorname);
+			pfctl_flush_rules(dev, opts, anchorname);
 			break;
 		case 'n':
-			pfctl_clear_nat(dev, opts, anchorname);
+			pfctl_flush_nat(dev, opts, anchorname);
 			break;
 		case 'q':
 			pfctl_clear_altq(dev, opts);
@@ -2920,9 +2930,9 @@ main(int argc, char *argv[])
 			pfctl_clear_stats(dev, opts);
 			break;
 		case 'a':
-			pfctl_clear_eth_rules(dev, opts, anchorname);
-			pfctl_clear_rules(dev, opts, anchorname);
-			pfctl_clear_nat(dev, opts, anchorname);
+			pfctl_flush_eth_rules(dev, opts, anchorname);
+			pfctl_flush_rules(dev, opts, anchorname);
+			pfctl_flush_nat(dev, opts, anchorname);
 			pfctl_clear_tables(anchorname, opts);
 			if (!*anchorname) {
 				pfctl_clear_altq(dev, opts);

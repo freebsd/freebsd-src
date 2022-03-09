@@ -91,6 +91,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/zfs_ioctl.h>
+#if __FreeBSD__
+#define	BIG_PIPE_SIZE (64 * 1024) /* From sys/pipe.h */
+#endif
 
 static int g_fd = -1;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -586,6 +589,116 @@ lzc_get_holds(const char *snapname, nvlist_t **holdsp)
 	return (lzc_ioctl(ZFS_IOC_GET_HOLDS, snapname, NULL, holdsp));
 }
 
+static unsigned int
+max_pipe_buffer(int infd)
+{
+#if __linux__
+	static unsigned int max;
+	if (max == 0) {
+		max = 1048576; /* fs/pipe.c default */
+
+		FILE *procf = fopen("/proc/sys/fs/pipe-max-size", "re");
+		if (procf != NULL) {
+			if (fscanf(procf, "%u", &max) <= 0) {
+				/* ignore error: max untouched if parse fails */
+			}
+			fclose(procf);
+		}
+	}
+
+	unsigned int cur = fcntl(infd, F_GETPIPE_SZ);
+	if (cur < max && fcntl(infd, F_SETPIPE_SZ, max) != -1)
+		cur = max;
+	return (cur);
+#else
+	/* FreeBSD automatically resizes */
+	(void) infd;
+	return (BIG_PIPE_SIZE);
+#endif
+}
+
+#if __linux__
+struct send_worker_ctx {
+	int from;	/* read end of pipe, with send data; closed on exit */
+	int to;		/* original arbitrary output fd; mustn't be a pipe */
+};
+
+static void *
+send_worker(void *arg)
+{
+	struct send_worker_ctx *ctx = arg;
+	unsigned int bufsiz = max_pipe_buffer(ctx->from);
+	ssize_t rd;
+
+	while ((rd = splice(ctx->from, NULL, ctx->to, NULL, bufsiz,
+	    SPLICE_F_MOVE | SPLICE_F_MORE)) > 0)
+		;
+
+	int err = (rd == -1) ? errno : 0;
+	close(ctx->from);
+	return ((void *)(uintptr_t)err);
+}
+#endif
+
+/*
+ * Since Linux 5.10, 4d03e3cc59828c82ee89ea6e27a2f3cdf95aaadf
+ * ("fs: don't allow kernel reads and writes without iter ops"),
+ * ZFS_IOC_SEND* will EINVAL when writing to /dev/null, /dev/zero, &c.
+ *
+ * This wrapper transparently executes func() with a pipe
+ * by spawning a thread to copy from that pipe to the original output
+ * in the background.
+ *
+ * Returns the error from func(), if nonzero,
+ * otherwise the error from the thread.
+ *
+ * No-op if orig_fd is -1, already a pipe (but the buffer size is bumped),
+ * and on not-Linux; as such, it is safe to wrap/call wrapped functions
+ * in a wrapped context.
+ */
+int
+lzc_send_wrapper(int (*func)(int, void *), int orig_fd, void *data)
+{
+#if __linux__
+	struct stat sb;
+	if (orig_fd != -1 && fstat(orig_fd, &sb) == -1)
+		return (errno);
+	if (orig_fd == -1 || S_ISFIFO(sb.st_mode)) {
+		if (orig_fd != -1)
+			(void) max_pipe_buffer(orig_fd);
+		return (func(orig_fd, data));
+	}
+	if ((fcntl(orig_fd, F_GETFL) & O_ACCMODE) == O_RDONLY)
+		return (errno = EBADF);
+
+	int rw[2];
+	if (pipe2(rw, O_CLOEXEC) == -1)
+		return (errno);
+
+	int err;
+	pthread_t send_thread;
+	struct send_worker_ctx ctx = {.from = rw[0], .to = orig_fd};
+	if ((err = pthread_create(&send_thread, NULL, send_worker, &ctx))
+	    != 0) {
+		close(rw[0]);
+		close(rw[1]);
+		return (errno = err);
+	}
+
+	err = func(rw[1], data);
+
+	void *send_err;
+	close(rw[1]);
+	pthread_join(send_thread, &send_err);
+	if (err == 0 && send_err != 0)
+		errno = err = (uintptr_t)send_err;
+
+	return (err);
+#else
+	return (func(orig_fd, data));
+#endif
+}
+
 /*
  * Generate a zfs send stream for the specified snapshot and write it to
  * the specified file descriptor.
@@ -656,9 +769,11 @@ lzc_send_resume(const char *snapname, const char *from, int fd,
  * redactnv: nvlist of string -> boolean(ignored) containing the names of all
  * the snapshots that we should redact with respect to.
  * redactbook: Name of the redaction bookmark to create.
+ *
+ * Pre-wrapped.
  */
-int
-lzc_send_resume_redacted(const char *snapname, const char *from, int fd,
+static int
+lzc_send_resume_redacted_cb_impl(const char *snapname, const char *from, int fd,
     enum lzc_send_flags flags, uint64_t resumeobj, uint64_t resumeoff,
     const char *redactbook)
 {
@@ -691,6 +806,40 @@ lzc_send_resume_redacted(const char *snapname, const char *from, int fd,
 	return (err);
 }
 
+struct lzc_send_resume_redacted {
+	const char *snapname;
+	const char *from;
+	enum lzc_send_flags flags;
+	uint64_t resumeobj;
+	uint64_t resumeoff;
+	const char *redactbook;
+};
+
+static int
+lzc_send_resume_redacted_cb(int fd, void *arg)
+{
+	struct lzc_send_resume_redacted *zsrr = arg;
+	return (lzc_send_resume_redacted_cb_impl(zsrr->snapname, zsrr->from,
+	    fd, zsrr->flags, zsrr->resumeobj, zsrr->resumeoff,
+	    zsrr->redactbook));
+}
+
+int
+lzc_send_resume_redacted(const char *snapname, const char *from, int fd,
+    enum lzc_send_flags flags, uint64_t resumeobj, uint64_t resumeoff,
+    const char *redactbook)
+{
+	struct lzc_send_resume_redacted zsrr = {
+		.snapname = snapname,
+		.from = from,
+		.flags = flags,
+		.resumeobj = resumeobj,
+		.resumeoff = resumeoff,
+		.redactbook = redactbook,
+	};
+	return (lzc_send_wrapper(lzc_send_resume_redacted_cb, fd, &zsrr));
+}
+
 /*
  * "from" can be NULL, a snapshot, or a bookmark.
  *
@@ -706,9 +855,11 @@ lzc_send_resume_redacted(const char *snapname, const char *from, int fd,
  * significantly more I/O and be less efficient than a send space estimation on
  * an equivalent snapshot. This process is also used if redact_snaps is
  * non-null.
+ *
+ * Pre-wrapped.
  */
-int
-lzc_send_space_resume_redacted(const char *snapname, const char *from,
+static int
+lzc_send_space_resume_redacted_cb_impl(const char *snapname, const char *from,
     enum lzc_send_flags flags, uint64_t resumeobj, uint64_t resumeoff,
     uint64_t resume_bytes, const char *redactbook, int fd, uint64_t *spacep)
 {
@@ -743,6 +894,45 @@ lzc_send_space_resume_redacted(const char *snapname, const char *from,
 		*spacep = fnvlist_lookup_uint64(result, "space");
 	nvlist_free(result);
 	return (err);
+}
+
+struct lzc_send_space_resume_redacted {
+	const char *snapname;
+	const char *from;
+	enum lzc_send_flags flags;
+	uint64_t resumeobj;
+	uint64_t resumeoff;
+	uint64_t resume_bytes;
+	const char *redactbook;
+	uint64_t *spacep;
+};
+
+static int
+lzc_send_space_resume_redacted_cb(int fd, void *arg)
+{
+	struct lzc_send_space_resume_redacted *zssrr = arg;
+	return (lzc_send_space_resume_redacted_cb_impl(zssrr->snapname,
+	    zssrr->from, zssrr->flags, zssrr->resumeobj, zssrr->resumeoff,
+	    zssrr->resume_bytes, zssrr->redactbook, fd, zssrr->spacep));
+}
+
+int
+lzc_send_space_resume_redacted(const char *snapname, const char *from,
+    enum lzc_send_flags flags, uint64_t resumeobj, uint64_t resumeoff,
+    uint64_t resume_bytes, const char *redactbook, int fd, uint64_t *spacep)
+{
+	struct lzc_send_space_resume_redacted zssrr = {
+		.snapname = snapname,
+		.from = from,
+		.flags = flags,
+		.resumeobj = resumeobj,
+		.resumeoff = resumeoff,
+		.resume_bytes = resume_bytes,
+		.redactbook = redactbook,
+		.spacep = spacep,
+	};
+	return (lzc_send_wrapper(lzc_send_space_resume_redacted_cb,
+	    fd, &zssrr));
 }
 
 int
@@ -810,6 +1000,16 @@ recv_impl(const char *snapname, nvlist_t *recvdprops, nvlist_t *localprops,
 			return (ENOENT);
 		*slashp = '\0';
 	}
+
+	/*
+	 * It is not uncommon for gigabytes to be processed by zfs receive.
+	 * Speculatively increase the buffer size if supported by the platform.
+	 */
+	struct stat sb;
+	if (fstat(input_fd, &sb) == -1)
+		return (errno);
+	if (S_ISFIFO(sb.st_mode))
+		(void) max_pipe_buffer(input_fd);
 
 	/*
 	 * The begin_record is normally a non-byteswapped BEGIN record.

@@ -837,6 +837,12 @@ pqisrc_send_aio_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 	DBG_INFO("tmf_req.header.iu_type : %x tmf_req.req_id_to_manage :%d \n",tmf_req.header.iu_type,tmf_req.req_id_to_manage);
 	DBG_INFO("tmf_req.req_id : %d tmf_req.nexus : %x tmf_req.tmf %x QID : %d\n",tmf_req.req_id,tmf_req.nexus,tmf_req.tmf,op_ib_q->q_id);
 
+	DBG_WARN("aio tmf: iu_type=0x%x req_id_to_manage=0x%x\n",
+		tmf_req.header.iu_type, tmf_req.req_id_to_manage);
+	DBG_WARN("aio tmf: req_id=0x%x nexus=0x%x tmf=0x%x QID=%d\n",
+		tmf_req.req_id, tmf_req.nexus, tmf_req.tmf, op_ib_q->q_id);
+
+	rcb->path = AIO_PATH;
 	rcb->req_pending = true;
 	/* Timedout tmf response goes here */
 	rcb->error_cmp_callback = pqisrc_process_aio_response_error;
@@ -900,6 +906,7 @@ pqisrc_send_raid_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 	}
 
 	op_ib_q = &softs->op_raid_ib_q[0];
+	rcb->path = RAID_PATH;
 	rcb->req_pending = true;
 	/* Timedout tmf response goes here */
 	rcb->error_cmp_callback = pqisrc_process_raid_response_error;
@@ -933,6 +940,7 @@ pqisrc_send_tmf(pqisrc_softstate_t *softs, pqi_scsi_dev_t *devp,
 	int ret = PQI_STATUS_SUCCESS;
 
 	DBG_FUNC("IN");
+	rcb->softs = softs;
 
 	if(!devp->is_physical_device) {
 		if (tmf_type == SOP_TASK_MANAGEMENT_FUNCTION_ABORT_TASK) {

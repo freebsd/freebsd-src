@@ -80,8 +80,6 @@ static int zap_iterate_prefetch = B_TRUE;
 
 int fzap_default_block_shift = 14; /* 16k blocksize */
 
-extern inline zap_phys_t *zap_f_phys(zap_t *zap);
-
 static uint64_t zap_allocate_blocks(zap_t *zap, int nblocks);
 
 void
@@ -1380,7 +1378,6 @@ fzap_get_stats(zap_t *zap, zap_stats_t *zs)
 	}
 }
 
-/* BEGIN CSTYLED */
+/* CSTYLED */
 ZFS_MODULE_PARAM(zfs, , zap_iterate_prefetch, INT, ZMOD_RW,
 	"When iterating ZAP object, prefetch it");
-/* END CSTYLED */

@@ -140,7 +140,7 @@ int zfs_removal_suspend_progress = 0;
 
 #define	VDEV_REMOVAL_ZAP_OBJS	"lzap"
 
-static void spa_vdev_remove_thread(void *arg);
+static _Noreturn void spa_vdev_remove_thread(void *arg);
 static int spa_vdev_remove_cancel_impl(spa_t *spa);
 
 static void
@@ -1589,7 +1589,7 @@ spa_remove_max_segment(spa_t *spa)
  * TXG have completed (see spa_txg_zio) and writes the new mappings to disk
  * (see vdev_mapping_sync()).
  */
-static void
+static _Noreturn void
 spa_vdev_remove_thread(void *arg)
 {
 	spa_t *spa = arg;
@@ -2544,7 +2544,6 @@ spa_removal_get_stats(spa_t *spa, pool_removal_stat_t *prs)
 	return (0);
 }
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_vdev, zfs_, removal_ignore_errors, INT, ZMOD_RW,
 	"Ignore hard IO errors when removing device");
 
@@ -2554,6 +2553,7 @@ ZFS_MODULE_PARAM(zfs_vdev, zfs_, remove_max_segment, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_vdev, vdev_, removal_max_span, INT, ZMOD_RW,
 	"Largest span of free chunks a remap segment can span");
 
+/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_vdev, zfs_, removal_suspend_progress, INT, ZMOD_RW,
 	"Pause device removal after this many bytes are copied "
 	"(debug use only - causes removal to hang)");

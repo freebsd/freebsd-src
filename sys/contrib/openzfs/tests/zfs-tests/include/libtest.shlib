@@ -448,7 +448,7 @@ function create_recv_clone
 	datasetexists $recvfs && log_fail "Recv filesystem must not exist."
 	datasetexists $sendfs && log_fail "Send filesystem must not exist."
 
-	log_must zfs create -o mountpoint="$mountpoint" $sendfs
+	log_must zfs create -o compression=off -o mountpoint="$mountpoint" $sendfs
 	log_must zfs snapshot $snap
 	log_must eval "zfs send $snap | zfs recv -u $recvfs"
 	log_must mkfile 1m "$mountpoint/data"
@@ -545,11 +545,18 @@ function destroy_mirrors
 	log_pass
 }
 
+function default_raidz_setup
+{
+	default_raidz_setup_noexit "$*"
+
+	log_pass
+}
+
 #
 # Given a minimum of two disks, set up a storage pool and dataset for the raid-z
 # $1 the list of disks
 #
-function default_raidz_setup
+function default_raidz_setup_noexit
 {
 	typeset disklist="$*"
 	disks=(${disklist[*]})
@@ -562,8 +569,6 @@ function default_raidz_setup
 	log_must zpool create -f $TESTPOOL raidz $disklist
 	log_must zfs create $TESTPOOL/$TESTFS
 	log_must zfs set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
-
-	log_pass
 }
 
 #
@@ -2141,7 +2146,7 @@ function get_disklist # pool
 
 	disklist=$(zpool iostat -v $1 | nawk '(NR >4) {print $1}' | \
 	    grep -v "\-\-\-\-\-" | \
-	    egrep -v -e "^(mirror|raidz[1-3]|spare|log|cache|special|dedup)$")
+	    egrep -v -e "^(mirror|raidz[1-3]|draid[1-3]|spare|log|cache|special|dedup)|\-[0-9]$")
 
 	echo $disklist
 }
@@ -3567,17 +3572,19 @@ function wait_replacing #pool
 	done
 }
 
-#
 # Wait for a pool to be scrubbed
 #
 # $1 pool name
+# $2 timeout
 #
-function wait_scrubbed
+function wait_scrubbed #pool timeout
 {
-	typeset pool=${1:-$TESTPOOL}
-	while ! is_pool_scrubbed $pool ; do
-		sleep 1
-	done
+       typeset timeout=${2:-300}
+       typeset pool=${1:-$TESTPOOL}
+       for (( timer = 0; timer < $timeout; timer++ )); do
+               is_pool_scrubbed $pool && break;
+               sleep 1;
+       done
 }
 
 # Backup the zed.rc in our test directory so that we can edit it for our test.
@@ -3672,6 +3679,21 @@ function zed_cleanup
 }
 
 #
+# Check if ZED is currently running; if so, returns PIDs
+#
+function zed_check
+{
+	if ! is_linux; then
+		return
+	fi
+	zedpids="$(pgrep -x zed)"
+#	ret1=$?
+	zedpids2="$(pgrep -x lt-zed)"
+#	ret2=$?
+	echo ${zedpids} ${zedpids2}
+}
+
+#
 # Check if ZED is currently running, if not start ZED.
 #
 function zed_start
@@ -3686,9 +3708,14 @@ function zed_start
 	fi
 
 	# Verify the ZED is not already running.
-	pgrep -x zed > /dev/null
-	if (($? == 0)); then
-		log_note "ZED already running"
+	zedpids=$(zed_check)
+	if [ -n "$zedpids" ]; then
+		# We never, ever, really want it to just keep going if zed
+		# is already running - usually this implies our test cases
+		# will break very strangely because whatever we wanted to
+		# configure zed for won't be listening to our changes in the
+		# tmpdir
+		log_fail "ZED already running - ${zedpids}"
 	else
 		log_note "Starting ZED"
 		# run ZED in the background and redirect foreground logging
@@ -3707,13 +3734,13 @@ function zed_start
 function zed_stop
 {
 	if ! is_linux; then
-		return
+		return ""
 	fi
 
 	log_note "Stopping ZED"
 	while true; do
-		zedpids="$(pgrep -x zed)"
-		[ "$?" -ne 0 ] && break
+		zedpids=$(zed_check)
+		[ ! -n "$zedpids" ] && break
 
 		log_must kill $zedpids
 		sleep 1
@@ -4302,4 +4329,87 @@ function wait_for_children #children
 		fi
 	done
 	return $rv
+}
+
+#
+# Compare two directory trees recursively in a manner similar to diff(1), but
+# using rsync. If there are any discrepancies, a summary of the differences are
+# output and a non-zero error is returned.
+#
+# If you're comparing a directory after a ZIL replay, you should set
+# LIBTEST_DIFF_ZIL_REPLAY=1 or use replay_directory_diff which will cause
+# directory_diff to ignore mtime changes (the ZIL replay won't fix up mtime
+# information).
+#
+function directory_diff # dir_a dir_b
+{
+	dir_a="$1"
+	dir_b="$2"
+	zil_replay="${LIBTEST_DIFF_ZIL_REPLAY:-0}"
+
+	# If one of the directories doesn't exist, return 2. This is to match the
+	# semantics of diff.
+	if ! [ -d "$dir_a" -a -d "$dir_b" ]; then
+		return 2
+	fi
+
+	# Run rsync with --dry-run --itemize-changes to get something akin to diff
+	# output, but rsync is far more thorough in detecting differences (diff
+	# doesn't compare file metadata, and cannot handle special files).
+	#
+	# Also make sure to filter out non-user.* xattrs when comparing. On
+	# SELinux-enabled systems the copied tree will probably have different
+	# SELinux labels.
+	args=("-nicaAHX" '--filter=-x! user.*' "--delete")
+
+	# NOTE: Quite a few rsync builds do not support --crtimes which would be
+	# necessary to verify that creation times are being maintained properly.
+	# Unfortunately because of this we cannot use it unconditionally but we can
+	# check if this rsync build supports it and use it then. This check is
+	# based on the same check in the rsync test suite (testsuite/crtimes.test).
+	#
+	# We check ctimes even with zil_replay=1 because the ZIL does store
+	# creation times and we should make sure they match (if the creation times
+	# do not match there is a "c" entry in one of the columns).
+	if ( rsync --version | grep -q "[, ] crtimes" >/dev/null ); then
+		args+=("--crtimes")
+	else
+		echo "NOTE: This rsync package does not support --crtimes (-N)."
+	fi
+
+	# If we are testing a ZIL replay, we need to ignore timestamp changes.
+	# Unfortunately --no-times doesn't do what we want -- it will still tell
+	# you if the timestamps don't match but rsync will set the timestamps to
+	# the current time (leading to an itemised change entry). It's simpler to
+	# just filter out those lines.
+	if [ "$zil_replay" -eq 0 ]; then
+		filter=("cat")
+	else
+		# Different rsync versions have different numbers of columns. So just
+		# require that aside from the first two, all other columns must be
+		# blank (literal ".") or a timestamp field ("[tT]").
+		filter=("grep" "-v" '^\..[.Tt]\+ ')
+	fi
+
+	diff="$(rsync "${args[@]}" "$dir_a/" "$dir_b/" | "${filter[@]}")"
+	rv=0
+	if [ -n "$diff" ]; then
+		echo "$diff"
+		rv=1
+	fi
+	return $rv
+}
+
+#
+# Compare two directory trees recursively, without checking whether the mtimes
+# match (creation times will be checked if the available rsync binary supports
+# it). This is necessary for ZIL replay checks (because the ZIL does not
+# contain mtimes and thus after a ZIL replay, mtimes won't match).
+#
+# This is shorthand for LIBTEST_DIFF_ZIL_REPLAY=1 directory_diff <...>.
+#
+function replay_directory_diff # dir_a dir_b
+{
+	LIBTEST_DIFF_ZIL_REPLAY=1 directory_diff "$@"
+	return $?
 }

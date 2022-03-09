@@ -63,86 +63,56 @@
 static const crypto_mech_info_t sha2_mech_info_tab[] = {
 	/* SHA256 */
 	{SUN_CKM_SHA256, SHA256_MECH_INFO_TYPE,
-	    CRYPTO_FG_DIGEST | CRYPTO_FG_DIGEST_ATOMIC,
-	    0, 0, CRYPTO_KEYSIZE_UNIT_IN_BITS},
+	    CRYPTO_FG_DIGEST | CRYPTO_FG_DIGEST_ATOMIC},
 	/* SHA256-HMAC */
 	{SUN_CKM_SHA256_HMAC, SHA256_HMAC_MECH_INFO_TYPE,
-	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC,
-	    SHA2_HMAC_MIN_KEY_LEN, SHA2_HMAC_MAX_KEY_LEN,
-	    CRYPTO_KEYSIZE_UNIT_IN_BYTES},
+	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC},
 	/* SHA256-HMAC GENERAL */
 	{SUN_CKM_SHA256_HMAC_GENERAL, SHA256_HMAC_GEN_MECH_INFO_TYPE,
-	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC,
-	    SHA2_HMAC_MIN_KEY_LEN, SHA2_HMAC_MAX_KEY_LEN,
-	    CRYPTO_KEYSIZE_UNIT_IN_BYTES},
+	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC},
 	/* SHA384 */
 	{SUN_CKM_SHA384, SHA384_MECH_INFO_TYPE,
-	    CRYPTO_FG_DIGEST | CRYPTO_FG_DIGEST_ATOMIC,
-	    0, 0, CRYPTO_KEYSIZE_UNIT_IN_BITS},
+	    CRYPTO_FG_DIGEST | CRYPTO_FG_DIGEST_ATOMIC},
 	/* SHA384-HMAC */
 	{SUN_CKM_SHA384_HMAC, SHA384_HMAC_MECH_INFO_TYPE,
-	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC,
-	    SHA2_HMAC_MIN_KEY_LEN, SHA2_HMAC_MAX_KEY_LEN,
-	    CRYPTO_KEYSIZE_UNIT_IN_BYTES},
+	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC},
 	/* SHA384-HMAC GENERAL */
 	{SUN_CKM_SHA384_HMAC_GENERAL, SHA384_HMAC_GEN_MECH_INFO_TYPE,
-	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC,
-	    SHA2_HMAC_MIN_KEY_LEN, SHA2_HMAC_MAX_KEY_LEN,
-	    CRYPTO_KEYSIZE_UNIT_IN_BYTES},
+	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC},
 	/* SHA512 */
 	{SUN_CKM_SHA512, SHA512_MECH_INFO_TYPE,
-	    CRYPTO_FG_DIGEST | CRYPTO_FG_DIGEST_ATOMIC,
-	    0, 0, CRYPTO_KEYSIZE_UNIT_IN_BITS},
+	    CRYPTO_FG_DIGEST | CRYPTO_FG_DIGEST_ATOMIC},
 	/* SHA512-HMAC */
 	{SUN_CKM_SHA512_HMAC, SHA512_HMAC_MECH_INFO_TYPE,
-	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC,
-	    SHA2_HMAC_MIN_KEY_LEN, SHA2_HMAC_MAX_KEY_LEN,
-	    CRYPTO_KEYSIZE_UNIT_IN_BYTES},
+	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC},
 	/* SHA512-HMAC GENERAL */
 	{SUN_CKM_SHA512_HMAC_GENERAL, SHA512_HMAC_GEN_MECH_INFO_TYPE,
-	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC,
-	    SHA2_HMAC_MIN_KEY_LEN, SHA2_HMAC_MAX_KEY_LEN,
-	    CRYPTO_KEYSIZE_UNIT_IN_BYTES}
+	    CRYPTO_FG_MAC | CRYPTO_FG_MAC_ATOMIC},
 };
 
-static void sha2_provider_status(crypto_provider_handle_t, uint_t *);
-
-static const crypto_control_ops_t sha2_control_ops = {
-	sha2_provider_status
-};
-
-static int sha2_digest_init(crypto_ctx_t *, crypto_mechanism_t *,
-    crypto_req_handle_t);
-static int sha2_digest(crypto_ctx_t *, crypto_data_t *, crypto_data_t *,
-    crypto_req_handle_t);
-static int sha2_digest_update(crypto_ctx_t *, crypto_data_t *,
-    crypto_req_handle_t);
-static int sha2_digest_final(crypto_ctx_t *, crypto_data_t *,
-    crypto_req_handle_t);
-static int sha2_digest_atomic(crypto_provider_handle_t, crypto_session_id_t,
-    crypto_mechanism_t *, crypto_data_t *, crypto_data_t *,
-    crypto_req_handle_t);
+static int sha2_digest_init(crypto_ctx_t *, crypto_mechanism_t *);
+static int sha2_digest(crypto_ctx_t *, crypto_data_t *, crypto_data_t *);
+static int sha2_digest_update(crypto_ctx_t *, crypto_data_t *);
+static int sha2_digest_final(crypto_ctx_t *, crypto_data_t *);
+static int sha2_digest_atomic(crypto_mechanism_t *, crypto_data_t *,
+    crypto_data_t *);
 
 static const crypto_digest_ops_t sha2_digest_ops = {
 	.digest_init = sha2_digest_init,
 	.digest = sha2_digest,
 	.digest_update = sha2_digest_update,
-	.digest_key = NULL,
 	.digest_final = sha2_digest_final,
 	.digest_atomic = sha2_digest_atomic
 };
 
 static int sha2_mac_init(crypto_ctx_t *, crypto_mechanism_t *, crypto_key_t *,
-    crypto_spi_ctx_template_t, crypto_req_handle_t);
-static int sha2_mac_update(crypto_ctx_t *, crypto_data_t *,
-    crypto_req_handle_t);
-static int sha2_mac_final(crypto_ctx_t *, crypto_data_t *, crypto_req_handle_t);
-static int sha2_mac_atomic(crypto_provider_handle_t, crypto_session_id_t,
-    crypto_mechanism_t *, crypto_key_t *, crypto_data_t *, crypto_data_t *,
-    crypto_spi_ctx_template_t, crypto_req_handle_t);
-static int sha2_mac_verify_atomic(crypto_provider_handle_t, crypto_session_id_t,
-    crypto_mechanism_t *, crypto_key_t *, crypto_data_t *, crypto_data_t *,
-    crypto_spi_ctx_template_t, crypto_req_handle_t);
+    crypto_spi_ctx_template_t);
+static int sha2_mac_update(crypto_ctx_t *, crypto_data_t *);
+static int sha2_mac_final(crypto_ctx_t *, crypto_data_t *);
+static int sha2_mac_atomic(crypto_mechanism_t *, crypto_key_t *,
+    crypto_data_t *, crypto_data_t *, crypto_spi_ctx_template_t);
+static int sha2_mac_verify_atomic(crypto_mechanism_t *, crypto_key_t *,
+    crypto_data_t *, crypto_data_t *, crypto_spi_ctx_template_t);
 
 static const crypto_mac_ops_t sha2_mac_ops = {
 	.mac_init = sha2_mac_init,
@@ -153,9 +123,8 @@ static const crypto_mac_ops_t sha2_mac_ops = {
 	.mac_verify_atomic = sha2_mac_verify_atomic
 };
 
-static int sha2_create_ctx_template(crypto_provider_handle_t,
-    crypto_mechanism_t *, crypto_key_t *, crypto_spi_ctx_template_t *,
-    size_t *, crypto_req_handle_t);
+static int sha2_create_ctx_template(crypto_mechanism_t *, crypto_key_t *,
+    crypto_spi_ctx_template_t *, size_t *);
 static int sha2_free_context(crypto_ctx_t *);
 
 static const crypto_ctx_ops_t sha2_ctx_ops = {
@@ -163,32 +132,19 @@ static const crypto_ctx_ops_t sha2_ctx_ops = {
 	.free_context = sha2_free_context
 };
 
-static const crypto_ops_t sha2_crypto_ops = {{{{{
-	&sha2_control_ops,
+static const crypto_ops_t sha2_crypto_ops = {
 	&sha2_digest_ops,
 	NULL,
 	&sha2_mac_ops,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	&sha2_ctx_ops
-}}}}};
+	&sha2_ctx_ops,
+};
 
-static const crypto_provider_info_t sha2_prov_info = {{{{
-	CRYPTO_SPI_VERSION_1,
+static const crypto_provider_info_t sha2_prov_info = {
 	"SHA2 Software Provider",
-	CRYPTO_SW_PROVIDER,
-	NULL,
 	&sha2_crypto_ops,
 	sizeof (sha2_mech_info_tab) / sizeof (crypto_mech_info_t),
 	sha2_mech_info_tab
-}}}};
+};
 
 static crypto_kcf_provider_handle_t sha2_prov_handle = 0;
 
@@ -230,29 +186,17 @@ sha2_mod_fini(void)
 }
 
 /*
- * KCF software provider control entry points.
- */
-static void
-sha2_provider_status(crypto_provider_handle_t provider, uint_t *status)
-{
-	(void) provider;
-	*status = CRYPTO_PROVIDER_READY;
-}
-
-/*
  * KCF software provider digest entry points.
  */
 
 static int
-sha2_digest_init(crypto_ctx_t *ctx, crypto_mechanism_t *mechanism,
-    crypto_req_handle_t req)
+sha2_digest_init(crypto_ctx_t *ctx, crypto_mechanism_t *mechanism)
 {
 
 	/*
 	 * Allocate and initialize SHA2 context.
 	 */
-	ctx->cc_provider_private = kmem_alloc(sizeof (sha2_ctx_t),
-	    crypto_kmflag(req));
+	ctx->cc_provider_private = kmem_alloc(sizeof (sha2_ctx_t), KM_SLEEP);
 	if (ctx->cc_provider_private == NULL)
 		return (CRYPTO_HOST_MEMORY);
 
@@ -417,10 +361,8 @@ sha2_digest_final_uio(SHA2_CTX *sha2_ctx, crypto_data_t *digest,
 }
 
 static int
-sha2_digest(crypto_ctx_t *ctx, crypto_data_t *data, crypto_data_t *digest,
-    crypto_req_handle_t req)
+sha2_digest(crypto_ctx_t *ctx, crypto_data_t *data, crypto_data_t *digest)
 {
-	(void) req;
 	int ret = CRYPTO_SUCCESS;
 	uint_t sha_digest_len;
 
@@ -505,10 +447,8 @@ sha2_digest(crypto_ctx_t *ctx, crypto_data_t *data, crypto_data_t *digest,
 }
 
 static int
-sha2_digest_update(crypto_ctx_t *ctx, crypto_data_t *data,
-    crypto_req_handle_t req)
+sha2_digest_update(crypto_ctx_t *ctx, crypto_data_t *data)
 {
-	(void) req;
 	int ret = CRYPTO_SUCCESS;
 
 	ASSERT(ctx->cc_provider_private != NULL);
@@ -534,10 +474,8 @@ sha2_digest_update(crypto_ctx_t *ctx, crypto_data_t *data,
 }
 
 static int
-sha2_digest_final(crypto_ctx_t *ctx, crypto_data_t *digest,
-    crypto_req_handle_t req)
+sha2_digest_final(crypto_ctx_t *ctx, crypto_data_t *digest)
 {
-	(void) req;
 	int ret = CRYPTO_SUCCESS;
 	uint_t sha_digest_len;
 
@@ -597,12 +535,9 @@ sha2_digest_final(crypto_ctx_t *ctx, crypto_data_t *digest,
 }
 
 static int
-sha2_digest_atomic(crypto_provider_handle_t provider,
-    crypto_session_id_t session_id, crypto_mechanism_t *mechanism,
-    crypto_data_t *data, crypto_data_t *digest,
-    crypto_req_handle_t req)
+sha2_digest_atomic(crypto_mechanism_t *mechanism, crypto_data_t *data,
+    crypto_data_t *digest)
 {
-	(void) provider, (void) session_id, (void) req;
 	int ret = CRYPTO_SUCCESS;
 	SHA2_CTX sha2_ctx;
 	uint32_t sha_digest_len;
@@ -710,8 +645,13 @@ sha2_mac_init_ctx(sha2_hmac_ctx_t *ctx, void *keyval, uint_t length_in_bytes)
 
 	(void) bzero(ipad, block_size);
 	(void) bzero(opad, block_size);
-	(void) bcopy(keyval, ipad, length_in_bytes);
-	(void) bcopy(keyval, opad, length_in_bytes);
+
+	if (keyval != NULL) {
+		(void) bcopy(keyval, ipad, length_in_bytes);
+		(void) bcopy(keyval, opad, length_in_bytes);
+	} else {
+		ASSERT0(length_in_bytes);
+	}
 
 	/* XOR key with ipad (0x36) and opad (0x5c) */
 	for (i = 0; i < blocks_per_int64; i ++) {
@@ -733,8 +673,7 @@ sha2_mac_init_ctx(sha2_hmac_ctx_t *ctx, void *keyval, uint_t length_in_bytes)
  */
 static int
 sha2_mac_init(crypto_ctx_t *ctx, crypto_mechanism_t *mechanism,
-    crypto_key_t *key, crypto_spi_ctx_template_t ctx_template,
-    crypto_req_handle_t req)
+    crypto_key_t *key, crypto_spi_ctx_template_t ctx_template)
 {
 	int ret = CRYPTO_SUCCESS;
 	uint_t keylen_in_bytes = CRYPTO_BITS2BYTES(key->ck_length);
@@ -761,11 +700,8 @@ sha2_mac_init(crypto_ctx_t *ctx, crypto_mechanism_t *mechanism,
 		return (CRYPTO_MECHANISM_INVALID);
 	}
 
-	if (key->ck_format != CRYPTO_KEY_RAW)
-		return (CRYPTO_ARGUMENTS_BAD);
-
-	ctx->cc_provider_private = kmem_alloc(sizeof (sha2_hmac_ctx_t),
-	    crypto_kmflag(req));
+	ctx->cc_provider_private =
+	    kmem_alloc(sizeof (sha2_hmac_ctx_t), KM_SLEEP);
 	if (ctx->cc_provider_private == NULL)
 		return (CRYPTO_HOST_MEMORY);
 
@@ -819,10 +755,8 @@ sha2_mac_init(crypto_ctx_t *ctx, crypto_mechanism_t *mechanism,
 }
 
 static int
-sha2_mac_update(crypto_ctx_t *ctx, crypto_data_t *data,
-    crypto_req_handle_t req)
+sha2_mac_update(crypto_ctx_t *ctx, crypto_data_t *data)
 {
-	(void) req;
 	int ret = CRYPTO_SUCCESS;
 
 	ASSERT(ctx->cc_provider_private != NULL);
@@ -849,9 +783,8 @@ sha2_mac_update(crypto_ctx_t *ctx, crypto_data_t *data,
 }
 
 static int
-sha2_mac_final(crypto_ctx_t *ctx, crypto_data_t *mac, crypto_req_handle_t req)
+sha2_mac_final(crypto_ctx_t *ctx, crypto_data_t *mac)
 {
-	(void) req;
 	int ret = CRYPTO_SUCCESS;
 	uchar_t digest[SHA512_DIGEST_LENGTH];
 	uint32_t digest_len, sha_digest_len;
@@ -962,12 +895,10 @@ sha2_mac_final(crypto_ctx_t *ctx, crypto_data_t *mac, crypto_req_handle_t req)
 }
 
 static int
-sha2_mac_atomic(crypto_provider_handle_t provider,
-    crypto_session_id_t session_id, crypto_mechanism_t *mechanism,
+sha2_mac_atomic(crypto_mechanism_t *mechanism,
     crypto_key_t *key, crypto_data_t *data, crypto_data_t *mac,
-    crypto_spi_ctx_template_t ctx_template, crypto_req_handle_t req)
+    crypto_spi_ctx_template_t ctx_template)
 {
-	(void) provider, (void) session_id, (void) req;
 	int ret = CRYPTO_SUCCESS;
 	uchar_t digest[SHA512_DIGEST_LENGTH];
 	sha2_hmac_ctx_t sha2_hmac_ctx;
@@ -994,10 +925,6 @@ sha2_mac_atomic(crypto_provider_handle_t provider,
 	default:
 		return (CRYPTO_MECHANISM_INVALID);
 	}
-
-	/* Add support for key by attributes (RFE 4706552) */
-	if (key->ck_format != CRYPTO_KEY_RAW)
-		return (CRYPTO_ARGUMENTS_BAD);
 
 	if (ctx_template != NULL) {
 		/* reuse context template */
@@ -1100,12 +1027,10 @@ bail:
 }
 
 static int
-sha2_mac_verify_atomic(crypto_provider_handle_t provider,
-    crypto_session_id_t session_id, crypto_mechanism_t *mechanism,
+sha2_mac_verify_atomic(crypto_mechanism_t *mechanism,
     crypto_key_t *key, crypto_data_t *data, crypto_data_t *mac,
-    crypto_spi_ctx_template_t ctx_template, crypto_req_handle_t req)
+    crypto_spi_ctx_template_t ctx_template)
 {
-	(void) provider, (void) session_id, (void) req;
 	int ret = CRYPTO_SUCCESS;
 	uchar_t digest[SHA512_DIGEST_LENGTH];
 	sha2_hmac_ctx_t sha2_hmac_ctx;
@@ -1132,10 +1057,6 @@ sha2_mac_verify_atomic(crypto_provider_handle_t provider,
 	default:
 		return (CRYPTO_MECHANISM_INVALID);
 	}
-
-	/* Add support for key by attributes (RFE 4706552) */
-	if (key->ck_format != CRYPTO_KEY_RAW)
-		return (CRYPTO_ARGUMENTS_BAD);
 
 	if (ctx_template != NULL) {
 		/* reuse context template */
@@ -1280,12 +1201,9 @@ bail:
  */
 
 static int
-sha2_create_ctx_template(crypto_provider_handle_t provider,
-    crypto_mechanism_t *mechanism, crypto_key_t *key,
-    crypto_spi_ctx_template_t *ctx_template, size_t *ctx_template_size,
-    crypto_req_handle_t req)
+sha2_create_ctx_template(crypto_mechanism_t *mechanism, crypto_key_t *key,
+    crypto_spi_ctx_template_t *ctx_template, size_t *ctx_template_size)
 {
-	(void) provider;
 	sha2_hmac_ctx_t *sha2_hmac_ctx_tmpl;
 	uint_t keylen_in_bytes = CRYPTO_BITS2BYTES(key->ck_length);
 	uint32_t sha_digest_len, sha_hmac_block_size;
@@ -1311,15 +1229,10 @@ sha2_create_ctx_template(crypto_provider_handle_t provider,
 		return (CRYPTO_MECHANISM_INVALID);
 	}
 
-	/* Add support for key by attributes (RFE 4706552) */
-	if (key->ck_format != CRYPTO_KEY_RAW)
-		return (CRYPTO_ARGUMENTS_BAD);
-
 	/*
 	 * Allocate and initialize SHA2 context.
 	 */
-	sha2_hmac_ctx_tmpl = kmem_alloc(sizeof (sha2_hmac_ctx_t),
-	    crypto_kmflag(req));
+	sha2_hmac_ctx_tmpl = kmem_alloc(sizeof (sha2_hmac_ctx_t), KM_SLEEP);
 	if (sha2_hmac_ctx_tmpl == NULL)
 		return (CRYPTO_HOST_MEMORY);
 

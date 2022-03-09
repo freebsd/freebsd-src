@@ -154,21 +154,23 @@ struct tp_type_params {
 
 /* trackpad finger structure - little endian */
 struct tp_finger {
-	int16_t	origin;			/* zero when switching track finger */
-	int16_t	abs_x;			/* absolute x coodinate */
-	int16_t	abs_y;			/* absolute y coodinate */
-	int16_t	rel_x;			/* relative x coodinate */
-	int16_t	rel_y;			/* relative y coodinate */
-	int16_t	tool_major;		/* tool area, major axis */
-	int16_t	tool_minor;		/* tool area, minor axis */
-	int16_t	orientation;		/* 16384 when point, else 15 bit angle */
-	int16_t	touch_major;		/* touch area, major axis */
-	int16_t	touch_minor;		/* touch area, minor axis */
-	int16_t	unused[2];		/* zeros */
-	int16_t pressure;		/* pressure on forcetouch touchpad */
-	int16_t	multi;			/* one finger: varies, more fingers:
-				 	 * constant */
+	uint16_t	origin;		/* zero when switching track finger */
+	uint16_t	abs_x;		/* absolute x coodinate */
+	uint16_t	abs_y;		/* absolute y coodinate */
+	uint16_t	rel_x;		/* relative x coodinate */
+	uint16_t	rel_y;		/* relative y coodinate */
+	uint16_t	tool_major;	/* tool area, major axis */
+	uint16_t	tool_minor;	/* tool area, minor axis */
+	uint16_t	orientation;	/* 16384 when point, else 15 bit angle */
+	uint16_t	touch_major;	/* touch area, major axis */
+	uint16_t	touch_minor;	/* touch area, minor axis */
+	uint16_t	unused[2];	/* zeros */
+	uint16_t	pressure;	/* pressure on forcetouch touchpad */
+	uint16_t	multi;		/* one finger: varies, more fingers:
+					 * constant */
 } __packed;
+
+#define BCM5974_LE2H(x) ((int32_t)(int16_t)le16toh(x))
 
 /* trackpad finger data size, empirically at least ten fingers */
 #define	MAX_FINGERS		MAX_MT_SLOTS
@@ -414,6 +416,7 @@ struct bcm5974_softc {
 	struct evdev_dev *sc_evdev;
 	/* device configuration */
 	const struct bcm5974_dev_params *sc_params;
+	bool sc_saved_mode;
 };
 
 static const uint8_t bcm5974_rdesc[] = {
@@ -547,6 +550,9 @@ bcm5974_set_device_mode(struct bcm5974_softc *sc, bool on)
 		KASSERT(0 == 1, ("Unknown trackpad type"));
 	}
 
+	if (!err)
+		sc->sc_saved_mode = on;
+
 	return (err);
 }
 
@@ -665,6 +671,16 @@ bcm5974_detach(device_t dev)
 	return (0);
 }
 
+static int
+bcm5974_resume(device_t dev)
+{
+	struct bcm5974_softc *sc = device_get_softc(dev);
+
+	bcm5974_set_device_mode(sc, sc->sc_saved_mode);
+
+	return (0);
+}
+
 static void
 bcm5974_intr(void *context, void *data, hid_size_t len)
 {
@@ -694,26 +710,28 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 		DPRINTFN(BCM5974_LLEVEL_INFO,
 		    "[%d]ibt=%d, taps=%d, o=%4d, ax=%5d, ay=%5d, "
 		    "rx=%5d, ry=%5d, tlmaj=%4d, tlmin=%4d, ot=%4x, "
-		    "tchmaj=%4d, tchmin=%4d, presure=%4d, m=%4x\n",
-		    i, ibt, ntouch, le16toh(f->origin), le16toh(f->abs_x),
-		    le16toh(f->abs_y), le16toh(f->rel_x), le16toh(f->rel_y),
-		    le16toh(f->tool_major), le16toh(f->tool_minor),
-		    le16toh(f->orientation), le16toh(f->touch_major),
-		    le16toh(f->touch_minor), le16toh(f->pressure),
-		    le16toh(f->multi));
+		    "tchmaj=%4d, tchmin=%4d, pressure=%4d, m=%4x\n",
+		    i, ibt, ntouch, BCM5974_LE2H(f->origin),
+		    BCM5974_LE2H(f->abs_x), BCM5974_LE2H(f->abs_y),
+		    BCM5974_LE2H(f->rel_x), BCM5974_LE2H(f->rel_y),
+		    BCM5974_LE2H(f->tool_major), BCM5974_LE2H(f->tool_minor),
+		    BCM5974_LE2H(f->orientation), BCM5974_LE2H(f->touch_major),
+		    BCM5974_LE2H(f->touch_minor), BCM5974_LE2H(f->pressure),
+		    BCM5974_LE2H(f->multi));
 
-		if (f->touch_major == 0)
+		if (BCM5974_LE2H(f->touch_major) == 0)
 			continue;
 		slot_data = (union evdev_mt_slot) {
 			.id = slot,
-			.x = le16toh(f->abs_x),
-			.y = params->y.min + params->y.max - le16toh(f->abs_y),
-			.p = le16toh(f->pressure),
-			.maj = le16toh(f->touch_major) << 1,
-			.min = le16toh(f->touch_minor) << 1,
-			.w_maj = le16toh(f->tool_major) << 1,
-			.w_min = le16toh(f->tool_minor) << 1,
-			.ori = params->o.max - le16toh(f->orientation),
+			.x = BCM5974_LE2H(f->abs_x),
+			.y = params->y.min + params->y.max -
+			     BCM5974_LE2H(f->abs_y),
+			.p = BCM5974_LE2H(f->pressure),
+			.maj = BCM5974_LE2H(f->touch_major) << 1,
+			.min = BCM5974_LE2H(f->touch_minor) << 1,
+			.w_maj = BCM5974_LE2H(f->tool_major) << 1,
+			.w_min = BCM5974_LE2H(f->tool_minor) << 1,
+			.ori = params->o.max - BCM5974_LE2H(f->orientation),
 		};
 		evdev_mt_push_slot(sc->sc_evdev, slot, &slot_data);
 		slot++;
@@ -775,6 +793,7 @@ static device_method_t bcm5974_methods[] = {
 	DEVMETHOD(device_probe,		bcm5974_probe),
 	DEVMETHOD(device_attach,	bcm5974_attach),
 	DEVMETHOD(device_detach,	bcm5974_detach),
+	DEVMETHOD(device_resume,	bcm5974_resume),
 	DEVMETHOD_END
 };
 

@@ -45,7 +45,7 @@
 #include <sys/crypto/sched_impl.h>
 #include <sys/crypto/spi.h>
 
-#define	KCF_MAX_PROVIDERS	512	/* max number of providers */
+#define	KCF_MAX_PROVIDERS	8	/* max number of providers */
 
 /*
  * Prov_tab is an array of providers which is updated when
@@ -59,33 +59,25 @@
  *
  * prov_tab entries are not updated from kcf.conf or by cryptoadm(1M).
  */
-static kcf_provider_desc_t **prov_tab = NULL;
+static kcf_provider_desc_t *prov_tab[KCF_MAX_PROVIDERS];
 static kmutex_t prov_tab_mutex; /* ensure exclusive access to the table */
 static uint_t prov_tab_num = 0; /* number of providers in table */
-static uint_t prov_tab_max = KCF_MAX_PROVIDERS;
 
 void
 kcf_prov_tab_destroy(void)
 {
 	mutex_destroy(&prov_tab_mutex);
-
-	if (prov_tab)
-		kmem_free(prov_tab, prov_tab_max *
-		    sizeof (kcf_provider_desc_t *));
 }
 
 /*
  * Initialize a mutex and the KCF providers table, prov_tab.
- * The providers table is dynamically allocated with prov_tab_max entries.
+ * The providers table is dynamically allocated with KCF_MAX_PROVIDERS entries.
  * Called from kcf module _init().
  */
 void
 kcf_prov_tab_init(void)
 {
 	mutex_init(&prov_tab_mutex, NULL, MUTEX_DEFAULT, NULL);
-
-	prov_tab = kmem_zalloc(prov_tab_max * sizeof (kcf_provider_desc_t *),
-	    KM_SLEEP);
 }
 
 /*
@@ -100,8 +92,6 @@ int
 kcf_prov_tab_add_provider(kcf_provider_desc_t *prov_desc)
 {
 	uint_t i;
-
-	ASSERT(prov_tab != NULL);
 
 	mutex_enter(&prov_tab_mutex);
 
@@ -145,9 +135,6 @@ int
 kcf_prov_tab_rem_provider(crypto_provider_id_t prov_id)
 {
 	kcf_provider_desc_t *prov_desc;
-
-	ASSERT(prov_tab != NULL);
-	ASSERT(prov_tab_num >= 0);
 
 	/*
 	 * Validate provider id, since it can be specified by a 3rd-party
@@ -204,92 +191,6 @@ kcf_prov_tab_lookup(crypto_provider_id_t prov_id)
 	return (prov_desc);
 }
 
-static void
-allocate_ops_v1(const crypto_ops_t *src, crypto_ops_t *dst,
-    uint_t *mech_list_count)
-{
-	if (src->co_control_ops != NULL)
-		dst->co_control_ops = kmem_alloc(sizeof (crypto_control_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_digest_ops != NULL)
-		dst->co_digest_ops = kmem_alloc(sizeof (crypto_digest_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_cipher_ops != NULL)
-		dst->co_cipher_ops = kmem_alloc(sizeof (crypto_cipher_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_mac_ops != NULL)
-		dst->co_mac_ops = kmem_alloc(sizeof (crypto_mac_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_sign_ops != NULL)
-		dst->co_sign_ops = kmem_alloc(sizeof (crypto_sign_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_verify_ops != NULL)
-		dst->co_verify_ops = kmem_alloc(sizeof (crypto_verify_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_dual_ops != NULL)
-		dst->co_dual_ops = kmem_alloc(sizeof (crypto_dual_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_dual_cipher_mac_ops != NULL)
-		dst->co_dual_cipher_mac_ops = kmem_alloc(
-		    sizeof (crypto_dual_cipher_mac_ops_t), KM_SLEEP);
-
-	if (src->co_random_ops != NULL) {
-		dst->co_random_ops = kmem_alloc(
-		    sizeof (crypto_random_number_ops_t), KM_SLEEP);
-
-		/*
-		 * Allocate storage to store the array of supported mechanisms
-		 * specified by provider. We allocate extra mechanism storage
-		 * if the provider has random_ops since we keep an internal
-		 * mechanism, SUN_RANDOM, in this case.
-		 */
-		(*mech_list_count)++;
-	}
-
-	if (src->co_session_ops != NULL)
-		dst->co_session_ops = kmem_alloc(sizeof (crypto_session_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_object_ops != NULL)
-		dst->co_object_ops = kmem_alloc(sizeof (crypto_object_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_key_ops != NULL)
-		dst->co_key_ops = kmem_alloc(sizeof (crypto_key_ops_t),
-		    KM_SLEEP);
-
-	if (src->co_provider_ops != NULL)
-		dst->co_provider_ops = kmem_alloc(
-		    sizeof (crypto_provider_management_ops_t), KM_SLEEP);
-
-	if (src->co_ctx_ops != NULL)
-		dst->co_ctx_ops = kmem_alloc(sizeof (crypto_ctx_ops_t),
-		    KM_SLEEP);
-}
-
-static void
-allocate_ops_v2(const crypto_ops_t *src, crypto_ops_t *dst)
-{
-	if (src->co_mech_ops != NULL)
-		dst->co_mech_ops = kmem_alloc(sizeof (crypto_mech_ops_t),
-		    KM_SLEEP);
-}
-
-static void
-allocate_ops_v3(const crypto_ops_t *src, crypto_ops_t *dst)
-{
-	if (src->co_nostore_key_ops != NULL)
-		dst->co_nostore_key_ops =
-		    kmem_alloc(sizeof (crypto_nostore_key_ops_t), KM_SLEEP);
-}
-
 /*
  * Allocate a provider descriptor. mech_list_count specifies the
  * number of mechanisms supported by the providers, and is used
@@ -298,52 +199,11 @@ allocate_ops_v3(const crypto_ops_t *src, crypto_ops_t *dst)
  * since it is invoked from user context during provider registration.
  */
 kcf_provider_desc_t *
-kcf_alloc_provider_desc(const crypto_provider_info_t *info)
+kcf_alloc_provider_desc(void)
 {
-	kcf_provider_desc_t *desc;
-	uint_t mech_list_count = info->pi_mech_list_count;
-	const crypto_ops_t *src_ops = info->pi_ops_vector;
+	kcf_provider_desc_t *desc =
+	    kmem_zalloc(sizeof (kcf_provider_desc_t), KM_SLEEP);
 
-	desc = kmem_zalloc(sizeof (kcf_provider_desc_t), KM_SLEEP);
-
-	/*
-	 * pd_description serves two purposes
-	 * - Appears as a blank padded PKCS#11 style string, that will be
-	 *   returned to applications in CK_SLOT_INFO.slotDescription.
-	 *   This means that we should not have a null character in the
-	 *   first CRYPTO_PROVIDER_DESCR_MAX_LEN bytes.
-	 * - Appears as a null-terminated string that can be used by
-	 *   other kcf routines.
-	 *
-	 * So, we allocate enough room for one extra null terminator
-	 * which keeps every one happy.
-	 */
-	desc->pd_description = kmem_alloc(CRYPTO_PROVIDER_DESCR_MAX_LEN + 1,
-	    KM_SLEEP);
-	(void) memset(desc->pd_description, ' ',
-	    CRYPTO_PROVIDER_DESCR_MAX_LEN);
-	desc->pd_description[CRYPTO_PROVIDER_DESCR_MAX_LEN] = '\0';
-
-	/*
-	 * Since the framework does not require the ops vector specified
-	 * by the providers during registration to be persistent,
-	 * KCF needs to allocate storage where copies of the ops
-	 * vectors are copied.
-	 */
-	crypto_ops_t *opvec = kmem_zalloc(sizeof (crypto_ops_t), KM_SLEEP);
-
-	if (info->pi_provider_type != CRYPTO_LOGICAL_PROVIDER) {
-		allocate_ops_v1(src_ops, opvec, &mech_list_count);
-		if (info->pi_interface_version >= CRYPTO_SPI_VERSION_2)
-			allocate_ops_v2(src_ops, opvec);
-		if (info->pi_interface_version == CRYPTO_SPI_VERSION_3)
-			allocate_ops_v3(src_ops, opvec);
-	}
-	desc->pd_ops_vector = opvec;
-
-	desc->pd_mech_list_count = mech_list_count;
-	desc->pd_mechanisms = kmem_zalloc(sizeof (crypto_mech_info_t) *
-	    mech_list_count, KM_SLEEP);
 	for (int i = 0; i < KCF_OPS_CLASSSIZE; i++)
 		for (int j = 0; j < KCF_MAXMECHTAB; j++)
 			desc->pd_mech_indx[i][j] = KCF_INVALID_INDX;
@@ -352,7 +212,6 @@ kcf_alloc_provider_desc(const crypto_provider_info_t *info)
 	desc->pd_state = KCF_PROV_ALLOCATED;
 
 	mutex_init(&desc->pd_lock, NULL, MUTEX_DEFAULT, NULL);
-	cv_init(&desc->pd_resume_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&desc->pd_remove_cv, NULL, CV_DEFAULT, NULL);
 
 	return (desc);
@@ -361,7 +220,7 @@ kcf_alloc_provider_desc(const crypto_provider_info_t *info)
 /*
  * Called by KCF_PROV_REFRELE when a provider's reference count drops
  * to zero. We free the descriptor when the last reference is released.
- * However, for software providers, we do not free it when there is an
+ * However, for providers, we do not free it when there is an
  * unregister thread waiting. We signal that thread in this case and
  * that thread is responsible for freeing the descriptor.
  */
@@ -369,22 +228,16 @@ void
 kcf_provider_zero_refcnt(kcf_provider_desc_t *desc)
 {
 	mutex_enter(&desc->pd_lock);
-	switch (desc->pd_prov_type) {
-	case CRYPTO_SW_PROVIDER:
-		if (desc->pd_state == KCF_PROV_REMOVED ||
-		    desc->pd_state == KCF_PROV_DISABLED) {
-			desc->pd_state = KCF_PROV_FREED;
-			cv_broadcast(&desc->pd_remove_cv);
-			mutex_exit(&desc->pd_lock);
-			break;
-		}
-		fallthrough;
-
-	case CRYPTO_HW_PROVIDER:
-	case CRYPTO_LOGICAL_PROVIDER:
+	if (desc->pd_state == KCF_PROV_REMOVED ||
+	    desc->pd_state == KCF_PROV_DISABLED) {
+		desc->pd_state = KCF_PROV_FREED;
+		cv_broadcast(&desc->pd_remove_cv);
 		mutex_exit(&desc->pd_lock);
-		kcf_free_provider_desc(desc);
+		return;
 	}
+
+	mutex_exit(&desc->pd_lock);
+	kcf_free_provider_desc(desc);
 }
 
 /*
@@ -407,202 +260,15 @@ kcf_free_provider_desc(kcf_provider_desc_t *desc)
 
 	/* free the kernel memory associated with the provider descriptor */
 
-	if (desc->pd_description != NULL)
-		kmem_free(desc->pd_description,
-		    CRYPTO_PROVIDER_DESCR_MAX_LEN + 1);
-
-	if (desc->pd_ops_vector != NULL) {
-
-		if (desc->pd_ops_vector->co_control_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_control_ops,
-			    sizeof (crypto_control_ops_t));
-
-		if (desc->pd_ops_vector->co_digest_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_digest_ops,
-			    sizeof (crypto_digest_ops_t));
-
-		if (desc->pd_ops_vector->co_cipher_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_cipher_ops,
-			    sizeof (crypto_cipher_ops_t));
-
-		if (desc->pd_ops_vector->co_mac_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_mac_ops,
-			    sizeof (crypto_mac_ops_t));
-
-		if (desc->pd_ops_vector->co_sign_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_sign_ops,
-			    sizeof (crypto_sign_ops_t));
-
-		if (desc->pd_ops_vector->co_verify_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_verify_ops,
-			    sizeof (crypto_verify_ops_t));
-
-		if (desc->pd_ops_vector->co_dual_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_dual_ops,
-			    sizeof (crypto_dual_ops_t));
-
-		if (desc->pd_ops_vector->co_dual_cipher_mac_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_dual_cipher_mac_ops,
-			    sizeof (crypto_dual_cipher_mac_ops_t));
-
-		if (desc->pd_ops_vector->co_random_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_random_ops,
-			    sizeof (crypto_random_number_ops_t));
-
-		if (desc->pd_ops_vector->co_session_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_session_ops,
-			    sizeof (crypto_session_ops_t));
-
-		if (desc->pd_ops_vector->co_object_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_object_ops,
-			    sizeof (crypto_object_ops_t));
-
-		if (desc->pd_ops_vector->co_key_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_key_ops,
-			    sizeof (crypto_key_ops_t));
-
-		if (desc->pd_ops_vector->co_provider_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_provider_ops,
-			    sizeof (crypto_provider_management_ops_t));
-
-		if (desc->pd_ops_vector->co_ctx_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_ctx_ops,
-			    sizeof (crypto_ctx_ops_t));
-
-		if (desc->pd_ops_vector->co_mech_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_mech_ops,
-			    sizeof (crypto_mech_ops_t));
-
-		if (desc->pd_ops_vector->co_nostore_key_ops != NULL)
-			kmem_free(desc->pd_ops_vector->co_nostore_key_ops,
-			    sizeof (crypto_nostore_key_ops_t));
-
-		kmem_free(desc->pd_ops_vector, sizeof (crypto_ops_t));
-	}
-
-	if (desc->pd_mechanisms != NULL)
-		/* free the memory associated with the mechanism info's */
-		kmem_free(desc->pd_mechanisms, sizeof (crypto_mech_info_t) *
-		    desc->pd_mech_list_count);
-
-	if (desc->pd_sched_info.ks_taskq != NULL)
-		taskq_destroy(desc->pd_sched_info.ks_taskq);
-
 	mutex_destroy(&desc->pd_lock);
-	cv_destroy(&desc->pd_resume_cv);
 	cv_destroy(&desc->pd_remove_cv);
 
 	kmem_free(desc, sizeof (kcf_provider_desc_t));
 }
 
 /*
- * Returns an array of hardware and logical provider descriptors,
- * a.k.a the PKCS#11 slot list. A REFHOLD is done on each descriptor
- * before the array is returned. The entire table can be freed by
- * calling kcf_free_provider_tab().
- */
-int
-kcf_get_slot_list(uint_t *count, kcf_provider_desc_t ***array,
-    boolean_t unverified)
-{
-	kcf_provider_desc_t *prov_desc;
-	kcf_provider_desc_t **p = NULL;
-	char *last;
-	uint_t cnt = 0;
-	uint_t i, j;
-	int rval = CRYPTO_SUCCESS;
-	size_t n, final_size;
-
-	/* count the providers */
-	mutex_enter(&prov_tab_mutex);
-	for (i = 0; i < KCF_MAX_PROVIDERS; i++) {
-		if ((prov_desc = prov_tab[i]) != NULL &&
-		    ((prov_desc->pd_prov_type == CRYPTO_HW_PROVIDER &&
-		    (prov_desc->pd_flags & CRYPTO_HIDE_PROVIDER) == 0) ||
-		    prov_desc->pd_prov_type == CRYPTO_LOGICAL_PROVIDER)) {
-			if (KCF_IS_PROV_USABLE(prov_desc) ||
-			    (unverified && KCF_IS_PROV_UNVERIFIED(prov_desc))) {
-				cnt++;
-			}
-		}
-	}
-	mutex_exit(&prov_tab_mutex);
-
-	if (cnt == 0)
-		goto out;
-
-	n = cnt * sizeof (kcf_provider_desc_t *);
-again:
-	p = kmem_zalloc(n, KM_SLEEP);
-
-	/* pointer to last entry in the array */
-	last = (char *)&p[cnt-1];
-
-	mutex_enter(&prov_tab_mutex);
-	/* fill the slot list */
-	for (i = 0, j = 0; i < KCF_MAX_PROVIDERS; i++) {
-		if ((prov_desc = prov_tab[i]) != NULL &&
-		    ((prov_desc->pd_prov_type == CRYPTO_HW_PROVIDER &&
-		    (prov_desc->pd_flags & CRYPTO_HIDE_PROVIDER) == 0) ||
-		    prov_desc->pd_prov_type == CRYPTO_LOGICAL_PROVIDER)) {
-			if (KCF_IS_PROV_USABLE(prov_desc) ||
-			    (unverified && KCF_IS_PROV_UNVERIFIED(prov_desc))) {
-				if ((char *)&p[j] > last) {
-					mutex_exit(&prov_tab_mutex);
-					kcf_free_provider_tab(cnt, p);
-					n = n << 1;
-					cnt = cnt << 1;
-					goto again;
-				}
-				p[j++] = prov_desc;
-				KCF_PROV_REFHOLD(prov_desc);
-			}
-		}
-	}
-	mutex_exit(&prov_tab_mutex);
-
-	final_size = j * sizeof (kcf_provider_desc_t *);
-	cnt = j;
-	ASSERT(final_size <= n);
-
-	/* check if buffer we allocated is too large */
-	if (final_size < n) {
-		char *final_buffer = NULL;
-
-		if (final_size > 0) {
-			final_buffer = kmem_alloc(final_size, KM_SLEEP);
-			bcopy(p, final_buffer, final_size);
-		}
-		kmem_free(p, n);
-		p = (kcf_provider_desc_t **)final_buffer;
-	}
-out:
-	*count = cnt;
-	*array = p;
-	return (rval);
-}
-
-/*
- * Free an array of hardware provider descriptors.  A REFRELE
- * is done on each descriptor before the table is freed.
- */
-void
-kcf_free_provider_tab(uint_t count, kcf_provider_desc_t **array)
-{
-	kcf_provider_desc_t *prov_desc;
-	int i;
-
-	for (i = 0; i < count; i++) {
-		if ((prov_desc = array[i]) != NULL) {
-			KCF_PROV_REFRELE(prov_desc);
-		}
-	}
-	kmem_free(array, count * sizeof (kcf_provider_desc_t *));
-}
-
-/*
  * Returns in the location pointed to by pd a pointer to the descriptor
- * for the software provider for the specified mechanism.
+ * for the provider for the specified mechanism.
  * The provider descriptor is returned held and it is the caller's
  * responsibility to release it when done. The mechanism entry
  * is returned if the optional argument mep is non NULL.
@@ -620,24 +286,17 @@ kcf_get_sw_prov(crypto_mech_type_t mech_type, kcf_provider_desc_t **pd,
 	if (kcf_get_mech_entry(mech_type, &me) != KCF_SUCCESS)
 		return (CRYPTO_MECHANISM_INVALID);
 
-	/*
-	 * Get the software provider for this mechanism.
-	 * Lock the mech_entry until we grab the 'pd'.
-	 */
-	mutex_enter(&me->me_mutex);
-
+	/* Get the provider for this mechanism. */
 	if (me->me_sw_prov == NULL ||
 	    (*pd = me->me_sw_prov->pm_prov_desc) == NULL) {
-		/* no SW provider for this mechanism */
+		/* no provider for this mechanism */
 		if (log_warn)
-			cmn_err(CE_WARN, "no SW provider for \"%s\"\n",
+			cmn_err(CE_WARN, "no provider for \"%s\"\n",
 			    me->me_name);
-		mutex_exit(&me->me_mutex);
 		return (CRYPTO_MECH_NOT_SUPPORTED);
 	}
 
 	KCF_PROV_REFHOLD(*pd);
-	mutex_exit(&me->me_mutex);
 
 	if (mep != NULL)
 		*mep = me;

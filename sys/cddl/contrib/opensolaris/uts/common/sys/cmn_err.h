@@ -111,11 +111,11 @@ extern char *vsprintf(char *, const char *, __va_list)
 
 /*PRINTFLIKE1*/
 extern void panic(const char *, ...)
-    __KPRINTFLIKE(1) __NORETURN;
+    __KPRINTFLIKE(1) __attribute__((noreturn));
 #pragma rarely_called(panic)
 
 extern void vpanic(const char *, __va_list)
-    __KVPRINTFLIKE(1) __NORETURN;
+    __KVPRINTFLIKE(1) __attribute__((noreturn));
 #pragma rarely_called(vpanic)
 
 #endif /* _KERNEL */

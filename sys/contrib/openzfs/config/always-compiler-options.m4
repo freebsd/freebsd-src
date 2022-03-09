@@ -1,5 +1,5 @@
 dnl #
-dnl # Enabled -fsanitize=address if supported by gcc.
+dnl # Enabled -fsanitize=address if supported by $CC.
 dnl #
 dnl # LDFLAGS needs -fsanitize=address at all times so libraries compiled with
 dnl # it will be linked successfully. CFLAGS will vary by binary being built.
@@ -46,7 +46,54 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_ASAN], [
 ])
 
 dnl #
-dnl # Check if gcc supports -Wframe-larger-than=<size> option.
+dnl # Enabled -fsanitize=undefined if supported by cc.
+dnl #
+dnl # LDFLAGS needs -fsanitize=undefined at all times so libraries compiled with
+dnl # it will be linked successfully. CFLAGS will vary by binary being built.
+dnl #
+dnl # The UBSAN_OPTIONS environment variable can be used to further control
+dnl # the behavior of binaries and libraries build with -fsanitize=undefined.
+dnl #
+AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_UBSAN], [
+	AC_MSG_CHECKING([whether to build with -fsanitize=undefined support])
+	AC_ARG_ENABLE([ubsan],
+		[AS_HELP_STRING([--enable-ubsan],
+		[Enable -fsanitize=undefined support  @<:@default=no@:>@])],
+		[],
+		[enable_ubsan=no])
+
+	AM_CONDITIONAL([UBSAN_ENABLED], [test x$enable_ubsan = xyes])
+	AC_SUBST([UBSAN_ENABLED], [$enable_ubsan])
+	AC_MSG_RESULT($enable_ubsan)
+
+	AS_IF([ test "$enable_ubsan" = "yes" ], [
+		AC_MSG_CHECKING([whether $CC supports -fsanitize=undefined])
+		saved_cflags="$CFLAGS"
+		CFLAGS="$CFLAGS -Werror -fsanitize=undefined"
+		AC_LINK_IFELSE([
+			AC_LANG_SOURCE([[ int main() { return 0; } ]])
+		], [
+			UBSAN_CFLAGS="-fsanitize=undefined"
+			UBSAN_LDFLAGS="-fsanitize=undefined"
+			UBSAN_ZFS="_with_ubsan"
+			AC_MSG_RESULT([yes])
+		], [
+			AC_MSG_ERROR([$CC does not support -fsanitize=undefined])
+		])
+		CFLAGS="$saved_cflags"
+	], [
+		UBSAN_CFLAGS=""
+		UBSAN_LDFLAGS=""
+		UBSAN_ZFS="_without_ubsan"
+	])
+
+	AC_SUBST([UBSAN_CFLAGS])
+	AC_SUBST([UBSAN_LDFLAGS])
+	AC_SUBST([UBSAN_ZFS])
+])
+
+dnl #
+dnl # Check if cc supports -Wframe-larger-than=<size> option.
 dnl #
 AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_FRAME_LARGER_THAN], [
 	AC_MSG_CHECKING([whether $CC supports -Wframe-larger-than=<size>])
@@ -67,7 +114,7 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_FRAME_LARGER_THAN], [
 ])
 
 dnl #
-dnl # Check if gcc supports -Wno-format-truncation option.
+dnl # Check if cc supports -Wno-format-truncation option.
 dnl #
 AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_FORMAT_TRUNCATION], [
 	AC_MSG_CHECKING([whether $CC supports -Wno-format-truncation])
@@ -88,7 +135,7 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_FORMAT_TRUNCATION], [
 ])
 
 dnl #
-dnl # Check if gcc supports -Wno-format-truncation option.
+dnl # Check if cc supports -Wno-format-zero-length option.
 dnl #
 AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_FORMAT_ZERO_LENGTH], [
 	AC_MSG_CHECKING([whether $CC supports -Wno-format-zero-length])
@@ -108,61 +155,34 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_FORMAT_ZERO_LENGTH], [
 	AC_SUBST([NO_FORMAT_ZERO_LENGTH])
 ])
 
-
 dnl #
-dnl # Check if gcc supports -Wno-bool-compare option.
+dnl # Check if cc supports -Wno-clobbered option.
 dnl #
-dnl # We actually invoke gcc with the -Wbool-compare option
+dnl # We actually invoke it with the -Wclobbered option
 dnl # and infer the 'no-' version does or doesn't exist based upon
 dnl # the results.  This is required because when checking any of
 dnl # no- prefixed options gcc always returns success.
 dnl #
-AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_BOOL_COMPARE], [
-	AC_MSG_CHECKING([whether $CC supports -Wno-bool-compare])
+AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_CLOBBERED], [
+	AC_MSG_CHECKING([whether $CC supports -Wno-clobbered])
 
 	saved_flags="$CFLAGS"
-	CFLAGS="$CFLAGS -Werror -Wbool-compare"
+	CFLAGS="$CFLAGS -Werror -Wclobbered"
 
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [])], [
-		NO_BOOL_COMPARE=-Wno-bool-compare
+		NO_CLOBBERED=-Wno-clobbered
 		AC_MSG_RESULT([yes])
 	], [
-		NO_BOOL_COMPARE=
+		NO_CLOBBERED=
 		AC_MSG_RESULT([no])
 	])
 
 	CFLAGS="$saved_flags"
-	AC_SUBST([NO_BOOL_COMPARE])
+	AC_SUBST([NO_CLOBBERED])
 ])
 
 dnl #
-dnl # Check if gcc supports -Wno-unused-but-set-variable option.
-dnl #
-dnl # We actually invoke gcc with the -Wunused-but-set-variable option
-dnl # and infer the 'no-' version does or doesn't exist based upon
-dnl # the results.  This is required because when checking any of
-dnl # no- prefixed options gcc always returns success.
-dnl #
-AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_UNUSED_BUT_SET_VARIABLE], [
-	AC_MSG_CHECKING([whether $CC supports -Wno-unused-but-set-variable])
-
-	saved_flags="$CFLAGS"
-	CFLAGS="$CFLAGS -Werror -Wunused-but-set-variable"
-
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [])], [
-		NO_UNUSED_BUT_SET_VARIABLE=-Wno-unused-but-set-variable
-		AC_MSG_RESULT([yes])
-	], [
-		NO_UNUSED_BUT_SET_VARIABLE=
-		AC_MSG_RESULT([no])
-	])
-
-	CFLAGS="$saved_flags"
-	AC_SUBST([NO_UNUSED_BUT_SET_VARIABLE])
-])
-
-dnl #
-dnl # Check if gcc supports -Wimplicit-fallthrough option.
+dnl # Check if cc supports -Wimplicit-fallthrough option.
 dnl #
 AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_IMPLICIT_FALLTHROUGH], [
 	AC_MSG_CHECKING([whether $CC supports -Wimplicit-fallthrough])
@@ -185,7 +205,7 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_IMPLICIT_FALLTHROUGH], [
 ])
 
 dnl #
-dnl # Check if gcc supports -fno-omit-frame-pointer option.
+dnl # Check if cc supports -fno-omit-frame-pointer option.
 dnl #
 AC_DEFUN([ZFS_AC_CONFIG_ALWAYS_CC_NO_OMIT_FRAME_POINTER], [
 	AC_MSG_CHECKING([whether $CC supports -fno-omit-frame-pointer])

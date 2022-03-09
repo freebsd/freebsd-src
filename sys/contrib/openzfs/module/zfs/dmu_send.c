@@ -763,6 +763,8 @@ dump_dnode(dmu_send_cookie_t *dscp, const blkptr_t *bp, uint64_t object,
 		 * to send it.
 		 */
 		if (bonuslen != 0) {
+			if (drro->drr_bonuslen > DN_MAX_BONUS_LEN(dnp))
+				return (SET_ERROR(EINVAL));
 			drro->drr_raw_bonuslen = DN_MAX_BONUS_LEN(dnp);
 			bonuslen = drro->drr_raw_bonuslen;
 		}
@@ -1232,7 +1234,7 @@ redact_list_cb(redact_block_phys_t *rb, void *arg)
  * error code of the thread in case something goes wrong, and pushes the End of
  * Stream record when the traverse_dataset call has finished.
  */
-static void
+static _Noreturn void
 send_traverse_thread(void *arg)
 {
 	struct send_thread_arg *st_arg = arg;
@@ -1322,7 +1324,7 @@ get_next_range(bqueue_t *bq, struct send_range *prev)
 	return (next);
 }
 
-static void
+static _Noreturn void
 redact_list_thread(void *arg)
 {
 	struct redact_list_thread_arg *rlt_arg = arg;
@@ -1517,7 +1519,7 @@ find_next_range(struct send_range **ranges, bqueue_t **qs, uint64_t *out_mask)
  * data from the redact_list_thread and use that to determine which blocks
  * should be redacted.
  */
-static void
+static _Noreturn void
 send_merge_thread(void *arg)
 {
 	struct send_merge_thread_arg *smt_arg = arg;
@@ -1742,7 +1744,7 @@ enqueue_range(struct send_reader_thread_arg *srta, bqueue_t *q, dnode_t *dn,
  * some indirect blocks can be discarded because they're not holes. Second,
  * it issues prefetches for the data we need to send.
  */
-static void
+static _Noreturn void
 send_reader_thread(void *arg)
 {
 	struct send_reader_thread_arg *srta = arg;
@@ -3084,7 +3086,6 @@ out:
 	return (err);
 }
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_send, zfs_send_, corrupt_data, INT, ZMOD_RW,
 	"Allow sending corrupt data");
 
@@ -3105,4 +3106,3 @@ ZFS_MODULE_PARAM(zfs_send, zfs_send_, no_prefetch_queue_ff, INT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_send, zfs_, override_estimate_recordsize, INT, ZMOD_RW,
 	"Override block size estimate with fixed size");
-/* END CSTYLED */

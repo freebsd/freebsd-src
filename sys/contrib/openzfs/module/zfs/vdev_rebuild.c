@@ -133,7 +133,7 @@ static int zfs_rebuild_scrub_enabled = 1;
 /*
  * For vdev_rebuild_initiate_sync() and vdev_rebuild_reset_sync().
  */
-static void vdev_rebuild_thread(void *arg);
+static _Noreturn void vdev_rebuild_thread(void *arg);
 
 /*
  * Clear the per-vdev rebuild bytes value for a vdev tree.
@@ -736,7 +736,7 @@ vdev_rebuild_load(vdev_t *vd)
  * Each scan thread is responsible for rebuilding a top-level vdev.  The
  * rebuild progress in tracked on-disk in VDEV_TOP_ZAP_VDEV_REBUILD_PHYS.
  */
-static void
+static _Noreturn void
 vdev_rebuild_thread(void *arg)
 {
 	vdev_t *vd = arg;
@@ -1138,7 +1138,6 @@ vdev_rebuild_get_stats(vdev_t *tvd, vdev_rebuild_stat_t *vrs)
 	return (error);
 }
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs, zfs_, rebuild_max_segment, ULONG, ZMOD_RW,
 	"Max segment size in bytes of rebuild reads");
 
@@ -1147,4 +1146,3 @@ ZFS_MODULE_PARAM(zfs, zfs_, rebuild_vdev_limit, ULONG, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs, zfs_, rebuild_scrub_enabled, INT, ZMOD_RW,
 	"Automatically scrub after sequential resilver completes");
-/* END CSTYLED */

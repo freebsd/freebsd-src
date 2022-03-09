@@ -907,8 +907,8 @@ t4_alloc_page_pods_for_ps(struct ppod_region *pr, struct pageset *ps)
 	for (i = 0; i < ps->npages; i++) {
 		seglen = PAGE_SIZE;
 		while (i < ps->npages - 1 &&
-		    ps->pages[i]->phys_addr + PAGE_SIZE ==
-		    ps->pages[i + 1]->phys_addr) {
+		    VM_PAGE_TO_PHYS(ps->pages[i]) + PAGE_SIZE ==
+		    VM_PAGE_TO_PHYS(ps->pages[i + 1])) {
 			seglen += PAGE_SIZE;
 			i++;
 		}
@@ -1103,6 +1103,7 @@ t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
 	uint32_t cmd;
 	struct ppod_reservation *prsv = &ps->prsv;
 	struct ppod_region *pr = prsv->prsv_pr;
+	vm_paddr_t pa;
 
 	KASSERT(!(ps->flags & PS_PPODS_WRITTEN),
 	    ("%s: page pods already written", __func__));
@@ -1147,16 +1148,16 @@ t4_write_page_pods_for_ps(struct adapter *sc, struct sge_wrq *wrq, int tid,
 			idx = i * PPOD_PAGES * (ddp_pgsz / PAGE_SIZE);
 			for (k = 0; k < nitems(ppod->addr); k++) {
 				if (idx < ps->npages) {
-					ppod->addr[k] =
-					    htobe64(ps->pages[idx]->phys_addr);
+					pa = VM_PAGE_TO_PHYS(ps->pages[idx]);
+					ppod->addr[k] = htobe64(pa);
 					idx += ddp_pgsz / PAGE_SIZE;
 				} else
 					ppod->addr[k] = 0;
 #if 0
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
-				    __func__, toep->tid, i, k,
-				    htobe64(ppod->addr[k]));
+				    __func__, tid, i, k,
+				    be64toh(ppod->addr[k]));
 #endif
 			}
 
@@ -1200,7 +1201,8 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct toepcb *toep,
 	u_int ppod_addr, offset;
 	uint32_t cmd;
 	struct ppod_region *pr = prsv->prsv_pr;
-	uintptr_t end_pva, pva, pa;
+	uintptr_t end_pva, pva;
+	vm_paddr_t pa;
 	struct mbuf *m;
 
 	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
@@ -1257,7 +1259,7 @@ t4_write_page_pods_for_buf(struct adapter *sc, struct toepcb *toep,
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
 				    __func__, toep->tid, i, k,
-				    htobe64(ppod->addr[k]));
+				    be64toh(ppod->addr[k]));
 #endif
 			}
 
@@ -1289,7 +1291,8 @@ t4_write_page_pods_for_sgl(struct adapter *sc, struct toepcb *toep,
 	u_int ppod_addr, offset, sg_offset = 0;
 	uint32_t cmd;
 	struct ppod_region *pr = prsv->prsv_pr;
-	uintptr_t pva, pa;
+	uintptr_t pva;
+	vm_paddr_t pa;
 	struct mbuf *m;
 
 	MPASS(sgl != NULL);
@@ -1346,7 +1349,7 @@ t4_write_page_pods_for_sgl(struct adapter *sc, struct toepcb *toep,
 				CTR5(KTR_CXGBE,
 				    "%s: tid %d ppod[%d]->addr[%d] = %p",
 				    __func__, toep->tid, i, k,
-				    htobe64(ppod->addr[k]));
+				    be64toh(ppod->addr[k]));
 #endif
 
 				/*

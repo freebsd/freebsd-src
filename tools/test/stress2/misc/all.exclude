@@ -22,6 +22,8 @@ gnop7.sh		Waiting for patch commit					20190820
 gnop8.sh		Waiting for patch commit					20201214
 gnop9.sh		Waiting for patch commit					20201214
 gnop10.sh		Waiting for patch commit					20210105
+gunion.sh		Waiting for fix							20220308
+gunion2.sh		Waiting for fix							20220308
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 lockf5.sh		Spinning threads seen						20160718
@@ -48,6 +50,8 @@ quota10.sh		people.freebsd.org/~pho/stress/log/quota10-2.txt		20200525
 quota2.sh		panic: dqflush: stray dquot					20120221
 quota3.sh		panic: softdep_deallocate_dependencies: unrecovered ...		20111222
 quota7.sh		panic: dqflush: stray dquot					20120221
+sctp.sh			Waiting for fix							20220308
+sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116

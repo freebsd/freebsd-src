@@ -52,7 +52,9 @@ FMAKE = env -u MAKEFLAGS make $(FMAKEFLAGS)
 
 modules-Linux:
 	list='$(SUBDIR_TARGETS)'; for td in $$list; do $(MAKE) -C $$td; done
-	$(MAKE) -C @LINUX_OBJ@ M="$$PWD" @KERNEL_MAKE@ CONFIG_ZFS=m modules
+	$(MAKE) -C @LINUX_OBJ@ $(if @KERNEL_CC@,CC=@KERNEL_CC@) \
+		$(if @KERNEL_LD@,LD=@KERNEL_LD@) $(if @KERNEL_LLVM@,LLVM=@KERNEL_LLVM@) \
+		M="$$PWD" @KERNEL_MAKE@ CONFIG_ZFS=m modules
 
 modules-FreeBSD:
 	+$(FMAKE)
@@ -67,10 +69,8 @@ clean-Linux:
 	@# is defined.  This indicates that kernel modules should be built.
 @CONFIG_KERNEL_TRUE@	$(MAKE) -C @LINUX_OBJ@ M="$$PWD" @KERNEL_MAKE@ clean
 
-	if [ -f @LINUX_SYMBOLS@ ]; then $(RM) @LINUX_SYMBOLS@; fi
-	if [ -f Module.markers ]; then $(RM) Module.markers; fi
-
-	find . -name '*.ur-safe' -type f -print | xargs $(RM)
+	$(RM) @LINUX_SYMBOLS@ Module.markers
+	find . -name '*.ur-safe' -type f -delete
 
 clean-FreeBSD:
 	+$(FMAKE) clean
@@ -86,7 +86,7 @@ modules_install-Linux:
 	@# Remove extraneous build products when packaging
 	kmoddir=$(INSTALL_MOD_PATH)/lib/modules/@LINUX_VERSION@; \
 	if [ -n "$(DESTDIR)" ]; then \
-		find $$kmoddir -name 'modules.*' | xargs $(RM); \
+		find $$kmoddir -name 'modules.*' -delete; \
 	fi
 	@# Debian ships tiny fake System.map files that are
 	@# syntactically valid but just say
@@ -128,6 +128,7 @@ cppcheck-Linux:
 		--include=@LINUX_OBJ@/include/generated/autoconf.h \
 		--include=@top_srcdir@/zfs_config.h \
 		--config-exclude=@LINUX_OBJ@/include \
+		-i zstd/lib \
 		-I @LINUX_OBJ@/include \
 		-I @top_srcdir@/include/os/linux/kernel \
 		-I @top_srcdir@/include/os/linux/spl \

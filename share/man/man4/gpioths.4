@@ -76,12 +76,12 @@ but this driver supports only the single-wire connection option.
 Sysctl variables are used to access the most recent temperature and
 humidity measurements.
 .Bl -tag -width indent
-.It Va dev.gpioths.<unit>.temp
+.It Va dev.gpioths.<unit>.temperature
 The current temperature in integer deciKelvins.
 Note that
 .Xr sysctl 8
 will convert those units to display in decimal degrees Celsius.
-.It Va dev.gpioths.<unit>.hum
+.It Va dev.gpioths.<unit>.humidity
 The current relative humidity, as an integer percentage.
 .It Va dev.gpioths.<unit>.fails
 The number of failed attempts to communicate with the sensor since

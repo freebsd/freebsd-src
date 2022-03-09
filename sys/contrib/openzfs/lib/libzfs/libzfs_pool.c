@@ -316,7 +316,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 				    len);
 				break;
 			}
-			fallthrough;
+			zfs_fallthrough;
 		default:
 			(void) strlcpy(buf, "-", len);
 			break;
@@ -347,6 +347,8 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_LEAKED:
 		case ZPOOL_PROP_ASHIFT:
+		case ZPOOL_PROP_MAXBLOCKSIZE:
+		case ZPOOL_PROP_MAXDNODESIZE:
 			if (literal)
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
@@ -407,7 +409,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 				(void) snprintf(buf, len, "-");
 				break;
 			}
-			fallthrough;
+			zfs_fallthrough;
 		default:
 			(void) snprintf(buf, len, "%llu", (u_longlong_t)intval);
 		}
@@ -2030,7 +2032,7 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 	nvlist_t *nv = NULL;
 	nvlist_t *nvinfo = NULL;
 	nvlist_t *missing = NULL;
-	char *thename;
+	const char *thename;
 	char *origname;
 	int ret;
 	int error = 0;
@@ -2047,7 +2049,7 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 			return (zfs_error_fmt(hdl, EZFS_INVALIDNAME,
 			    dgettext(TEXT_DOMAIN, "cannot import '%s'"),
 			    newname));
-		thename = (char *)newname;
+		thename = newname;
 	} else {
 		thename = origname;
 	}
@@ -5160,6 +5162,7 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 		case VDEV_PROP_ASIZE:
 		case VDEV_PROP_PSIZE:
 		case VDEV_PROP_SIZE:
+		case VDEV_PROP_BOOTSIZE:
 		case VDEV_PROP_ALLOCATED:
 		case VDEV_PROP_FREE:
 		case VDEV_PROP_READ_ERRORS:

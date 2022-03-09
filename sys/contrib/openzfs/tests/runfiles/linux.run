@@ -109,6 +109,12 @@ tags = ['functional', 'features', 'large_dnode']
 tests = ['libaio', 'io_uring']
 tags = ['functional', 'io']
 
+[tests/functional/largest_pool:Linux]
+tests = ['largest_pool_001_pos']
+pre =
+post =
+tags = ['functional', 'largest_pool']
+
 [tests/functional/mmap:Linux]
 tests = ['mmap_libaio_001_pos']
 tags = ['functional', 'mmap']
@@ -143,9 +149,19 @@ tests = ['projectid_001_pos', 'projectid_002_pos', 'projectid_003_pos',
     'projecttree_001_pos', 'projecttree_002_pos', 'projecttree_003_neg']
 tags = ['functional', 'projectquota']
 
+[tests/functional/dos_attributes:Linux]
+tests = ['read_dos_attrs_001', 'write_dos_attrs_001']
+tags = ['functional', 'dos_attributes']
+
 [tests/functional/rsend:Linux]
 tests = ['send_realloc_dnode_size', 'send_encrypted_files']
 tags = ['functional', 'rsend']
+
+[tests/functional/simd:Linux]
+pre =
+post =
+tests = ['simd_supported']
+tags = ['functional', 'simd']
 
 [tests/functional/snapshot:Linux]
 tests = ['snapshot_015_pos', 'snapshot_016_pos']

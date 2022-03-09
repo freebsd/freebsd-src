@@ -507,7 +507,7 @@ os_aio_response_error(rcb_t *rcb, aio_path_error_info_elem_t *err_info)
 		unsigned sense_data_len = LE_16(err_info->data_len);
 		if (sense_data_len)
 			sense_data = err_info->data;
-		DBG_ERR_BTL(rcb->dvp, "SCSI_STATUS_CHECK_COND  sense size %u\n",
+		DBG_INFO("SCSI_STATUS_CHECK_COND  sense size %u\n",
 			sense_data_len);
 		copy_sense_data_to_csio(csio, sense_data, sense_data_len);
 		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
