@@ -13,65 +13,6 @@
 #include "elfcore.c"
 
 static void
-elf_convert_gregset(elfcore_gregset_t *rd, struct reg *rs)
-{
-#ifdef __amd64__
-	rd->r_gs = rs->r_gs;
-	rd->r_fs = rs->r_fs;
-	rd->r_es = rs->r_es;
-	rd->r_ds = rs->r_ds;
-	rd->r_edi = rs->r_rdi;
-	rd->r_esi = rs->r_rsi;
-	rd->r_ebp = rs->r_rbp;
-	rd->r_ebx = rs->r_rbx;
-	rd->r_edx = rs->r_rdx;
-	rd->r_ecx = rs->r_rcx;
-	rd->r_eax = rs->r_rax;
-	rd->r_eip = rs->r_rip;
-	rd->r_cs = rs->r_cs;
-	rd->r_eflags = rs->r_rflags;
-	rd->r_esp = rs->r_rsp;
-	rd->r_ss = rs->r_ss;
-#elif defined(__aarch64__)
-	int i;
-
-	for (i = 0; i < 13; i++)
-		rd->r[i] = rs->x[i];
-	rd->r_sp = rs->x[13];
-	rd->r_lr = rs->x[14];
-	rd->r_pc = rs->elr;
-	rd->r_cpsr = rs->spsr;
-#elif defined(__powerpc64__)
-	int i;
-
-	for (i = 0; i < 32; i++)
-		rd->fixreg[i] = rs->fixreg[i];
-	rd->lr = rs->lr;
-	rd->cr = rs->cr;
-	rd->xer = rs->xer;
-	rd->ctr = rs->ctr;
-	rd->pc = rs->pc;
-#else
-#error Unsupported architecture
-#endif
-}
-
-static void
-elf_convert_fpregset(elfcore_fpregset_t *rd, struct fpreg *rs)
-{
-#ifdef __amd64__
-	/* XXX this is wrong... */
-	memcpy(rd, rs, sizeof(*rd));
-#elif defined(__aarch64__)
-	/* ARM64TODO */
-#elif defined(__powerpc64__)
-	memcpy(rd, rs, sizeof(*rd));
-#else
-#error Unsupported architecture
-#endif
-}
-
-static void
 elf_convert_siginfo(struct siginfo32 *sid, siginfo_t *sis)
 {
 
