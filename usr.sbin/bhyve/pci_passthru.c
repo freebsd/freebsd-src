@@ -61,12 +61,11 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <machine/vmm.h>
-#include <vmmapi.h>
 
 #include "config.h"
 #include "debug.h"
-#include "pci_emul.h"
 #include "mem.h"
+#include "pci_passthru.h"
 
 #ifndef _PATH_DEVPCI
 #define	_PATH_DEVPCI	"/dev/pci"
@@ -115,9 +114,36 @@ msi_caplen(int msgctrl)
 	return (len);
 }
 
-static uint32_t
+static int
+pcifd_init() {
+	pcifd = open(_PATH_DEVPCI, O_RDWR, 0);
+	if (pcifd < 0) {
+		warn("failed to open %s", _PATH_DEVPCI);
+		return (1);
+	}
+
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t pcifd_rights;
+	cap_rights_init(&pcifd_rights, CAP_IOCTL, CAP_READ, CAP_WRITE);
+	if (caph_rights_limit(pcifd, &pcifd_rights) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+
+	const cap_ioctl_t pcifd_ioctls[] = { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR,
+		PCIOCBARIO, PCIOCBARMMAP };
+	if (caph_ioctls_limit(pcifd, pcifd_ioctls, nitems(pcifd_ioctls)) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
+	return (0);
+}
+
+uint32_t
 read_config(const struct pcisel *sel, long reg, int width)
 {
+	if (pcifd < 0 && pcifd_init()) {
+		return (0);
+	}
+
 	struct pci_io pi;
 
 	bzero(&pi, sizeof(pi));
@@ -131,9 +157,13 @@ read_config(const struct pcisel *sel, long reg, int width)
 		return (pi.pi_data);
 }
 
-static void
+void
 write_config(const struct pcisel *sel, long reg, int width, uint32_t data)
 {
+	if (pcifd < 0 && pcifd_init()) {
+		return;
+	}
+
 	struct pci_io pi;
 
 	bzero(&pi, sizeof(pi));
@@ -638,18 +668,9 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	int bus, slot, func, error, memflags;
 	struct passthru_softc *sc;
 	const char *value;
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-	cap_ioctl_t pci_ioctls[] =
-	    { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR, PCIOCBARIO, PCIOCBARMMAP };
-#endif
 
 	sc = NULL;
 	error = 1;
-
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_IOCTL, CAP_READ, CAP_WRITE);
-#endif
 
 	memflags = vm_get_memflags(ctx);
 	if (!(memflags & VM_MEM_F_WIRED)) {
@@ -657,20 +678,9 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 		return (error);
 	}
 
-	if (pcifd < 0) {
-		pcifd = open(_PATH_DEVPCI, O_RDWR, 0);
-		if (pcifd < 0) {
-			warn("failed to open %s", _PATH_DEVPCI);
-			return (error);
-		}
+	if (pcifd < 0 && pcifd_init()) {
+		return (error);
 	}
-
-#ifndef WITHOUT_CAPSICUM
-	if (caph_rights_limit(pcifd, &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (caph_ioctls_limit(pcifd, pci_ioctls, nitems(pci_ioctls)) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
 
 #define GET_INT_CONFIG(var, name) do {					\
 	value = get_config_value_node(nvl, name);			\
