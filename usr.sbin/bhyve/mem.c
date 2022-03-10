@@ -68,7 +68,8 @@ RB_HEAD(mmio_rb_tree, mmio_rb_range) mmio_rb_root, mmio_rb_fallback;
  * consecutive addresses in a range, it makes sense to cache the
  * result of a lookup.
  */
-static struct mmio_rb_range	*mmio_hint[VM_MAXCPU];
+static struct mmio_rb_range	**mmio_hint;
+static int mmio_ncpu;
 
 static pthread_rwlock_t mmio_rwlock;
 
@@ -352,7 +353,7 @@ unregister_mem(struct mem_range *memp)
 		RB_REMOVE(mmio_rb_tree, &mmio_rb_root, entry);
 
 		/* flush Per-vCPU cache */
-		for (i=0; i < VM_MAXCPU; i++) {
+		for (i = 0; i < mmio_ncpu; i++) {
 			if (mmio_hint[i] == entry)
 				mmio_hint[i] = NULL;
 		}
@@ -367,9 +368,11 @@ unregister_mem(struct mem_range *memp)
 }
 
 void
-init_mem(void)
+init_mem(int ncpu)
 {
 
+	mmio_ncpu = ncpu;
+	mmio_hint = calloc(ncpu, sizeof(*mmio_hint));
 	RB_INIT(&mmio_rb_root);
 	RB_INIT(&mmio_rb_fallback);
 	pthread_rwlock_init(&mmio_rwlock, NULL);
