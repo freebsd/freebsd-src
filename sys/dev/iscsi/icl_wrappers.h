@@ -38,6 +38,7 @@
 #ifndef ICL_WRAPPERS_H
 #define	ICL_WRAPPERS_H
 
+#include <sys/bio.h>
 #include <sys/kobj.h>
 
 #include <dev/iscsi/icl.h>
@@ -58,10 +59,27 @@ icl_pdu_data_segment_length(const struct icl_pdu *ip)
 }
 
 static inline int
+icl_pdu_append_bio(struct icl_pdu *ip, struct bio *bp, size_t offset,
+    size_t len, int flags)
+{
+
+	return (ICL_CONN_PDU_APPEND_BIO(ip->ip_conn, ip, bp, offset, len,
+	    flags));
+}
+
+static inline int
 icl_pdu_append_data(struct icl_pdu *ip, const void *addr, size_t len, int flags)
 {
 
 	return (ICL_CONN_PDU_APPEND_DATA(ip->ip_conn, ip, addr, len, flags));
+}
+
+static inline void
+icl_pdu_get_bio(struct icl_pdu *ip, size_t pdu_off, struct bio *bp,
+    size_t bio_off, size_t len)
+{
+
+	ICL_CONN_PDU_GET_BIO(ip->ip_conn, ip, pdu_off, bp, bio_off, len);
 }
 
 static inline void
