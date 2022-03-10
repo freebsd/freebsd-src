@@ -398,6 +398,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	sx_xlock(&allproc_lock);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	allproc_gen++;
+	prison_proc_link(p2->p_ucred->cr_prison, p2);
 	sx_xunlock(&allproc_lock);
 
 	sx_xlock(PIDHASHLOCK(p2->p_pid));
