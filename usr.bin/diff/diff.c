@@ -582,7 +582,7 @@ print_status(int val, char *path1, char *path2, const char *entry)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(help ? stdout : stderr,
 	    "usage: diff [-aBbdilpTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
