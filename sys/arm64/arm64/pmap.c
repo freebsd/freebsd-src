@@ -762,13 +762,61 @@ pmap_early_vtophys(vm_offset_t va)
 }
 
 static vm_offset_t
+pmap_bootstrap_dmap_l2(vm_offset_t *va, vm_paddr_t *pa, u_int *prev_l1_slot,
+    pt_entry_t **l2p, int i, vm_offset_t freemempos)
+{
+	pt_entry_t *l2;
+	vm_paddr_t l2_pa;
+	u_int l1_slot, l2_slot;
+	bool first;
+
+	l2 = *l2p;
+	l1_slot = ((*va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
+	if (l1_slot != *prev_l1_slot) {
+		*prev_l1_slot = l1_slot;
+		l2 = (pt_entry_t *)freemempos;
+		l2_pa = pmap_early_vtophys((vm_offset_t)l2);
+		freemempos += PAGE_SIZE;
+
+		pmap_store(&pagetable_dmap[l1_slot],
+		    (l2_pa & ~Ln_TABLE_MASK) |
+		    TATTR_PXN_TABLE | L1_TABLE);
+
+		memset(l2, 0, PAGE_SIZE);
+	}
+	KASSERT(l2 != NULL,
+	    ("pmap_bootstrap_dmap_l2: NULL l2 map"));
+	for (first = true; *va < DMAP_MAX_ADDRESS && *pa < physmap[i + 1];
+	    *pa += L2_SIZE, *va += L2_SIZE) {
+		/*
+		 * Stop if we are about to walk off the end of what the
+		 * current L1 slot can address.
+		 */
+		if (!first && (*pa & L1_OFFSET) == 0)
+			break;
+
+		first = false;
+		l2_slot = pmap_l2_index(*va);
+		pmap_store(&l2[l2_slot],
+		    (*pa & ~L2_OFFSET) | ATTR_DEFAULT |
+		    ATTR_S1_XN |
+		    ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) |
+		    L2_BLOCK);
+	}
+	MPASS(*va == (*pa - dmap_phys_base + DMAP_MIN_ADDRESS));
+	*l2p = l2;
+
+	return (freemempos);
+}
+
+static vm_offset_t
 pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
     vm_offset_t freemempos)
 {
 	pt_entry_t *l2;
 	vm_offset_t va;
-	vm_paddr_t l2_pa, pa;
-	u_int l1_slot, l2_slot, prev_l1_slot;
+	vm_paddr_t pa;
+	u_int l1_slot, prev_l1_slot;
 	int i;
 
 	dmap_phys_base = min_pa & ~L1_OFFSET;
@@ -786,40 +834,8 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 
 		/* Create L2 mappings at the start of the region */
 		if ((pa & L1_OFFSET) != 0) {
-			l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
-			if (l1_slot != prev_l1_slot) {
-				prev_l1_slot = l1_slot;
-				l2 = (pt_entry_t *)freemempos;
-				l2_pa = pmap_early_vtophys((vm_offset_t)l2);
-				freemempos += PAGE_SIZE;
-
-				pmap_store(&pagetable_dmap[l1_slot],
-				    (l2_pa & ~Ln_TABLE_MASK) |
-				    TATTR_PXN_TABLE | L1_TABLE);
-
-				memset(l2, 0, PAGE_SIZE);
-			}
-			KASSERT(l2 != NULL,
-			    ("pmap_bootstrap_dmap: NULL l2 map"));
-			for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1];
-			    pa += L2_SIZE, va += L2_SIZE) {
-				/*
-				 * We are on a boundary, stop to
-				 * create a level 1 block
-				 */
-				if ((pa & L1_OFFSET) == 0)
-					break;
-
-				l2_slot = pmap_l2_index(va);
-				KASSERT(l2_slot != 0, ("..."));
-				pmap_store(&l2[l2_slot],
-				    (pa & ~L2_OFFSET) | ATTR_DEFAULT |
-				    ATTR_S1_XN |
-				    ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) |
-				    L2_BLOCK);
-			}
-			KASSERT(va == (pa - dmap_phys_base + DMAP_MIN_ADDRESS),
-			    ("..."));
+			freemempos = pmap_bootstrap_dmap_l2(&va, &pa,
+			    &prev_l1_slot, &l2, i, freemempos);
 		}
 
 		for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1] &&
@@ -833,29 +849,8 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 
 		/* Create L2 mappings at the end of the region */
 		if (pa < physmap[i + 1]) {
-			l1_slot = ((va - DMAP_MIN_ADDRESS) >> L1_SHIFT);
-			if (l1_slot != prev_l1_slot) {
-				prev_l1_slot = l1_slot;
-				l2 = (pt_entry_t *)freemempos;
-				l2_pa = pmap_early_vtophys((vm_offset_t)l2);
-				freemempos += PAGE_SIZE;
-
-				pmap_store(&pagetable_dmap[l1_slot],
-				    (l2_pa & ~Ln_TABLE_MASK) | L1_TABLE);
-
-				memset(l2, 0, PAGE_SIZE);
-			}
-			KASSERT(l2 != NULL,
-			    ("pmap_bootstrap_dmap: NULL l2 map"));
-			for (; va < DMAP_MAX_ADDRESS && pa < physmap[i + 1];
-			    pa += L2_SIZE, va += L2_SIZE) {
-				l2_slot = pmap_l2_index(va);
-				pmap_store(&l2[l2_slot],
-				    (pa & ~L2_OFFSET) | ATTR_DEFAULT |
-				    ATTR_S1_XN |
-				    ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) |
-				    L2_BLOCK);
-			}
+			freemempos = pmap_bootstrap_dmap_l2(&va, &pa,
+			    &prev_l1_slot, &l2, i, freemempos);
 		}
 
 		if (pa > dmap_phys_max) {
