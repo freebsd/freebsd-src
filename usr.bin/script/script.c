@@ -91,7 +91,7 @@ static struct termios tt;
 
 #ifndef TSTAMP_FMT
 /* useful for tool and human reading */
-# define TSTAMP_FMT "%n@ %s [%Y-%m-%d %T] "
+# define TSTAMP_FMT "%n@ %s [%Y-%m-%d %T]%n"
 #endif
 static const char *tstamp_fmt = TSTAMP_FMT;
 static int tflg;
