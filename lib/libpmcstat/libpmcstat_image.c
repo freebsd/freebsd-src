@@ -119,13 +119,23 @@ pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
 		if ((fnname = elf_strptr(e, sh->sh_link, sym.st_name))
 		    == NULL)
 			continue;
-#ifdef __arm__
-		/* Remove spurious ARM function name. */
+
+#if defined(__aarch64__) || defined(__arm__)
+		/* Ignore ARM mapping symbols. */
 		if (fnname[0] == '$' &&
 		    (fnname[1] == 'a' || fnname[1] == 't' ||
-		    fnname[1] == 'd') &&
-		    fnname[2] == '\0')
+		    fnname[1] == 'd' || fnname[1] == 'x'))
 			continue;
+
+		/*
+		 * Clear LSB from starting addresses for functions
+		 * which execute in Thumb mode.  We should perhaps
+		 * only do this for functions in a $t mapping symbol
+		 * range, but parsing mapping symbols would be a lot
+		 * of work and function addresses shouldn't have the
+		 * LSB set otherwise.
+		 */
+		sym.st_value &= ~1;
 #endif
 
 		symptr->ps_name  = pmcstat_string_intern(fnname);
