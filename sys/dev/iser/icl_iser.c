@@ -114,11 +114,13 @@ iser_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
 {
 	struct iser_conn *iser_conn = icl_to_iser_conn(ic);
 
-	if (request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_LOGIN_REQUEST ||
-	    request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_TEXT_REQUEST) {
+	switch (request->ip_bhs->bhs_opcode & ISCSI_OPCODE_MASK) {
+	case ISCSI_BHS_OPCODE_LOGIN_REQUEST:
+	case ISCSI_BHS_OPCODE_TEXT_REQUEST:
 		ISER_DBG("copy to login buff");
 		memcpy(iser_conn->login_req_buf, addr, len);
 		request->ip_data_len = len;
+		break;
 	}
 
 	return (0);
