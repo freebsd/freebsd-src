@@ -523,12 +523,14 @@ playback(FILE *fp)
 	off_t nread, save_len;
 	size_t l;
 	time_t tclock;
+	time_t lclock;
 	int reg;
 
 	if (fstat(fileno(fp), &pst) == -1)
 		err(1, "fstat failed");
 
 	reg = S_ISREG(pst.st_mode);
+	lclock = 0;
 
 	for (nread = 0; !reg || nread < pst.st_size; nread += save_len) {
 		if (fread(&stamp, sizeof(stamp), 1, fp) != 1) {
@@ -574,9 +576,12 @@ playback(FILE *fp)
 			if (tflg) {
 				if (stamp.scr_len == 0)
 					continue;
-				l = strftime(buf, sizeof buf, tstamp_fmt,
-				    localtime(&tclock));
-				(void)write(STDOUT_FILENO, buf, l);
+				if (tclock - lclock > 0) {
+				    l = strftime(buf, sizeof buf, tstamp_fmt,
+					localtime(&tclock));
+				    (void)write(STDOUT_FILENO, buf, l);
+				}
+				lclock = tclock;
 			} else {
 				tsi.tv_sec = tso.tv_sec - tsi.tv_sec;
 				tsi.tv_nsec = tso.tv_nsec - tsi.tv_nsec;
