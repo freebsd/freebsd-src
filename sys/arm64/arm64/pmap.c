@@ -1945,7 +1945,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pd_entry_t tl0;
 
 		l1index = ptepindex - NUL2E;
-		l0index = l1index >> L0_ENTRIES_SHIFT;
+		l0index = l1index >> Ln_ENTRIES_SHIFT;
 
 		l0 = &pmap->pm_l0[l0index];
 		tl0 = pmap_load(l0);
@@ -1973,7 +1973,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pd_entry_t tl0, tl1;
 
 		l1index = ptepindex >> Ln_ENTRIES_SHIFT;
-		l0index = l1index >> L0_ENTRIES_SHIFT;
+		l0index = l1index >> Ln_ENTRIES_SHIFT;
 
 		l0 = &pmap->pm_l0[l0index];
 		tl0 = pmap_load(l0);
