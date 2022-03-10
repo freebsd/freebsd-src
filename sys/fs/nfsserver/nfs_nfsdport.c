@@ -4051,16 +4051,11 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 {
 	int i;
 
-	/*
-	 * Allow NFSv3 Fsinfo per RFC2623.
-	 */
-	if (((nd->nd_flag & ND_NFSV4) != 0 ||
-	     nd->nd_procnum != NFSPROC_FSINFO) &&
-	    ((NFSVNO_EXTLS(exp) && (nd->nd_flag & ND_TLS) == 0) ||
-	     (NFSVNO_EXTLSCERT(exp) &&
-	      (nd->nd_flag & ND_TLSCERT) == 0) ||
-	     (NFSVNO_EXTLSCERTUSER(exp) &&
-	      (nd->nd_flag & ND_TLSCERTUSER) == 0))) {
+	if ((NFSVNO_EXTLS(exp) && (nd->nd_flag & ND_TLS) == 0) ||
+	    (NFSVNO_EXTLSCERT(exp) &&
+	     (nd->nd_flag & ND_TLSCERT) == 0) ||
+	    (NFSVNO_EXTLSCERTUSER(exp) &&
+	     (nd->nd_flag & ND_TLSCERTUSER) == 0)) {
 		if ((nd->nd_flag & ND_NFSV4) != 0)
 			return (NFSERR_WRONGSEC);
 #ifdef notnow
@@ -4073,6 +4068,13 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 		else
 			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 	}
+
+	/*
+	 * RFC2623 suggests that the NFSv3 Fsinfo RPC be allowed to use
+	 * AUTH_NONE or AUTH_SYS for file systems requiring RPCSEC_GSS.
+	 */
+	if ((nd->nd_flag & ND_NFSV3) != 0 && nd->nd_procnum == NFSPROC_FSINFO)
+		return (0);
 
 	/*
 	 * This seems odd, but allow the case where the security flavor
@@ -6936,18 +6938,15 @@ nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
  * Check to see if a put file handle operation should test for
  * NFSERR_WRONGSEC, although NFSv3 actually returns NFSERR_AUTHERR.
  * When Open is the next operation, NFSERR_WRONGSEC cannot be
- * replied for the Open cases that use a component.  Thia can
+ * replied for the Open cases that use a component.  This can
  * be identified by the fact that the file handle's type is VDIR.
  */
 bool
 nfsrv_checkwrongsec(struct nfsrv_descript *nd, int nextop, enum vtype vtyp)
 {
 
-	if ((nd->nd_flag & ND_NFSV4) == 0) {
-		if (nd->nd_procnum == NFSPROC_FSINFO)
-			return (false);
+	if ((nd->nd_flag & ND_NFSV4) == 0)
 		return (true);
-	}
 
 	if ((nd->nd_flag & ND_LASTOP) != 0)
 		return (false);
