@@ -1776,24 +1776,44 @@ struct killpg1_ctx {
 };
 
 static void
-killpg1_sendsig(struct proc *p, bool notself, struct killpg1_ctx *arg)
+killpg1_sendsig_locked(struct proc *p, struct killpg1_ctx *arg)
 {
 	int err;
 
-	if (p->p_pid <= 1 || (p->p_flag & P_SYSTEM) != 0 ||
-	    (notself && p == arg->td->td_proc) || p->p_state == PRS_NEW)
-		return;
-	PROC_LOCK(p);
 	err = p_cansignal(arg->td, p, arg->sig);
 	if (err == 0 && arg->sig != 0)
 		pksignal(p, arg->sig, arg->ksi);
-	PROC_UNLOCK(p);
 	if (err != ESRCH)
 		arg->found = true;
 	if (err == 0)
 		arg->sent = true;
 	else if (arg->ret == 0 && err != ESRCH && err != EPERM)
 		arg->ret = err;
+}
+
+static void
+killpg1_sendsig(struct proc *p, bool notself, struct killpg1_ctx *arg)
+{
+
+	if (p->p_pid <= 1 || (p->p_flag & P_SYSTEM) != 0 ||
+	    (notself && p == arg->td->td_proc) || p->p_state == PRS_NEW)
+		return;
+
+	PROC_LOCK(p);
+	killpg1_sendsig_locked(p, arg);
+	PROC_UNLOCK(p);
+}
+
+static void
+kill_processes_prison_cb(struct proc *p, void *arg)
+{
+	struct killpg1_ctx *ctx = arg;
+
+	if (p->p_pid <= 1 || (p->p_flag & P_SYSTEM) != 0 ||
+	    (p == ctx->td->td_proc) || p->p_state == PRS_NEW)
+		return;
+
+	killpg1_sendsig_locked(p, ctx);
 }
 
 /*
@@ -1817,11 +1837,8 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		/*
 		 * broadcast
 		 */
-		sx_slock(&allproc_lock);
-		FOREACH_PROC_IN_SYSTEM(p) {
-			killpg1_sendsig(p, true, &arg);
-		}
-		sx_sunlock(&allproc_lock);
+		prison_proc_iterate(td->td_ucred->cr_prison,
+		    kill_processes_prison_cb, &arg);
 	} else {
 		sx_slock(&proctree_lock);
 		if (pgid == 0) {
