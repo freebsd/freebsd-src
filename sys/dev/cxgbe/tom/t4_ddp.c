@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/aio.h>
+#include <sys/bio.h>
 #include <sys/file.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -887,14 +888,11 @@ alloc_page_pods(struct ppod_region *pr, u_int nppods, u_int pgsz_idx,
 	return (0);
 }
 
-int
-t4_alloc_page_pods_for_ps(struct ppod_region *pr, struct pageset *ps)
+static int
+t4_alloc_page_pods_for_vmpages(struct ppod_region *pr, vm_page_t *pages,
+    int npages, struct ppod_reservation *prsv)
 {
 	int i, hcf, seglen, idx, nppods;
-	struct ppod_reservation *prsv = &ps->prsv;
-
-	KASSERT(prsv->prsv_nppods == 0,
-	    ("%s: page pods already allocated", __func__));
 
 	/*
 	 * The DDP page size is unrelated to the VM page size.  We combine
@@ -904,11 +902,11 @@ t4_alloc_page_pods_for_ps(struct ppod_region *pr, struct pageset *ps)
 	 * the page list.
 	 */
 	hcf = 0;
-	for (i = 0; i < ps->npages; i++) {
+	for (i = 0; i < npages; i++) {
 		seglen = PAGE_SIZE;
-		while (i < ps->npages - 1 &&
-		    VM_PAGE_TO_PHYS(ps->pages[i]) + PAGE_SIZE ==
-		    VM_PAGE_TO_PHYS(ps->pages[i + 1])) {
+		while (i < npages - 1 &&
+		    VM_PAGE_TO_PHYS(pages[i]) + PAGE_SIZE ==
+		    VM_PAGE_TO_PHYS(pages[i + 1])) {
 			seglen += PAGE_SIZE;
 			i++;
 		}
@@ -931,12 +929,35 @@ t4_alloc_page_pods_for_ps(struct ppod_region *pr, struct pageset *ps)
 have_pgsz:
 	MPASS(idx <= M_PPOD_PGSZ);
 
-	nppods = pages_to_nppods(ps->npages, pr->pr_page_shift[idx]);
+	nppods = pages_to_nppods(npages, pr->pr_page_shift[idx]);
 	if (alloc_page_pods(pr, nppods, idx, prsv) != 0)
-		return (0);
+		return (ENOMEM);
 	MPASS(prsv->prsv_nppods > 0);
 
-	return (1);
+	return (0);
+}
+
+int
+t4_alloc_page_pods_for_ps(struct ppod_region *pr, struct pageset *ps)
+{
+	struct ppod_reservation *prsv = &ps->prsv;
+
+	KASSERT(prsv->prsv_nppods == 0,
+	    ("%s: page pods already allocated", __func__));
+
+	return (t4_alloc_page_pods_for_vmpages(pr, ps->pages, ps->npages,
+	    prsv));
+}
+
+int
+t4_alloc_page_pods_for_bio(struct ppod_region *pr, struct bio *bp,
+    struct ppod_reservation *prsv)
+{
+
+	MPASS(bp->bio_flags & BIO_UNMAPPED);
+
+	return (t4_alloc_page_pods_for_vmpages(pr, bp->bio_ma, bp->bio_ma_n,
+	    prsv));
 }
 
 int
@@ -1190,6 +1211,83 @@ alloc_raw_wr_mbuf(int len)
 }
 
 int
+t4_write_page_pods_for_bio(struct adapter *sc, struct toepcb *toep,
+    struct ppod_reservation *prsv, struct bio *bp, struct mbufq *wrq)
+{
+	struct ulp_mem_io *ulpmc;
+	struct ulptx_idata *ulpsc;
+	struct pagepod *ppod;
+	int i, j, k, n, chunk, len, ddp_pgsz, idx;
+	u_int ppod_addr;
+	uint32_t cmd;
+	struct ppod_region *pr = prsv->prsv_pr;
+	vm_paddr_t pa;
+	struct mbuf *m;
+
+	MPASS(bp->bio_flags & BIO_UNMAPPED);
+
+	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
+	if (is_t4(sc))
+		cmd |= htobe32(F_ULP_MEMIO_ORDER);
+	else
+		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
+	ddp_pgsz = 1 << pr->pr_page_shift[G_PPOD_PGSZ(prsv->prsv_tag)];
+	ppod_addr = pr->pr_start + (prsv->prsv_tag & pr->pr_tag_mask);
+	for (i = 0; i < prsv->prsv_nppods; ppod_addr += chunk) {
+
+		/* How many page pods are we writing in this cycle */
+		n = min(prsv->prsv_nppods - i, NUM_ULP_TX_SC_IMM_PPODS);
+		MPASS(n > 0);
+		chunk = PPOD_SZ(n);
+		len = roundup2(sizeof(*ulpmc) + sizeof(*ulpsc) + chunk, 16);
+
+		m = alloc_raw_wr_mbuf(len);
+		if (m == NULL)
+			return (ENOMEM);
+
+		ulpmc = mtod(m, struct ulp_mem_io *);
+		INIT_ULPTX_WR(ulpmc, len, 0, toep->tid);
+		ulpmc->cmd = cmd;
+		ulpmc->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(chunk / 32));
+		ulpmc->len16 = htobe32(howmany(len - sizeof(ulpmc->wr), 16));
+		ulpmc->lock_addr = htobe32(V_ULP_MEMIO_ADDR(ppod_addr >> 5));
+
+		ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+		ulpsc->len = htobe32(chunk);
+
+		ppod = (struct pagepod *)(ulpsc + 1);
+		for (j = 0; j < n; i++, j++, ppod++) {
+			ppod->vld_tid_pgsz_tag_color = htobe64(F_PPOD_VALID |
+			    V_PPOD_TID(toep->tid) |
+			    (prsv->prsv_tag & ~V_PPOD_PGSZ(M_PPOD_PGSZ)));
+			ppod->len_offset = htobe64(V_PPOD_LEN(bp->bio_bcount) |
+			    V_PPOD_OFST(bp->bio_ma_offset));
+			ppod->rsvd = 0;
+			idx = i * PPOD_PAGES * (ddp_pgsz / PAGE_SIZE);
+			for (k = 0; k < nitems(ppod->addr); k++) {
+				if (idx < bp->bio_ma_n) {
+					pa = VM_PAGE_TO_PHYS(bp->bio_ma[idx]);
+					ppod->addr[k] = htobe64(pa);
+					idx += ddp_pgsz / PAGE_SIZE;
+				} else
+					ppod->addr[k] = 0;
+#if 0
+				CTR5(KTR_CXGBE,
+				    "%s: tid %d ppod[%d]->addr[%d] = %p",
+				    __func__, toep->tid, i, k,
+				    be64toh(ppod->addr[k]));
+#endif
+			}
+		}
+
+		mbufq_enqueue(wrq, m);
+	}
+
+	return (0);
+}
+
+int
 t4_write_page_pods_for_buf(struct adapter *sc, struct toepcb *toep,
     struct ppod_reservation *prsv, vm_offset_t buf, int buflen,
     struct mbufq *wrq)
@@ -1398,7 +1496,7 @@ prep_pageset(struct adapter *sc, struct toepcb *toep, struct pageset *ps)
 	struct tom_data *td = sc->tom_softc;
 
 	if (ps->prsv.prsv_nppods == 0 &&
-	    !t4_alloc_page_pods_for_ps(&td->pr, ps)) {
+	    t4_alloc_page_pods_for_ps(&td->pr, ps) != 0) {
 		return (0);
 	}
 	if (!(ps->flags & PS_PPODS_WRITTEN) &&

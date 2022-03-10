@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
+#include <sys/bio.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <machine/bus.h>
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -132,7 +134,9 @@ static volatile u_int icl_cxgbei_ncons;
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
 static icl_conn_pdu_data_segment_length_t
 				    icl_cxgbei_conn_pdu_data_segment_length;
+static icl_conn_pdu_append_bio_t	icl_cxgbei_conn_pdu_append_bio;
 static icl_conn_pdu_append_data_t	icl_cxgbei_conn_pdu_append_data;
+static icl_conn_pdu_get_bio_t	icl_cxgbei_conn_pdu_get_bio;
 static icl_conn_pdu_get_data_t	icl_cxgbei_conn_pdu_get_data;
 static icl_conn_pdu_queue_t	icl_cxgbei_conn_pdu_queue;
 static icl_conn_pdu_queue_cb_t	icl_cxgbei_conn_pdu_queue_cb;
@@ -149,7 +153,9 @@ static kobj_method_t icl_cxgbei_methods[] = {
 	KOBJMETHOD(icl_conn_pdu_free, icl_cxgbei_conn_pdu_free),
 	KOBJMETHOD(icl_conn_pdu_data_segment_length,
 	    icl_cxgbei_conn_pdu_data_segment_length),
+	KOBJMETHOD(icl_conn_pdu_append_bio, icl_cxgbei_conn_pdu_append_bio),
 	KOBJMETHOD(icl_conn_pdu_append_data, icl_cxgbei_conn_pdu_append_data),
+	KOBJMETHOD(icl_conn_pdu_get_bio, icl_cxgbei_conn_pdu_get_bio),
 	KOBJMETHOD(icl_conn_pdu_get_data, icl_cxgbei_conn_pdu_get_data),
 	KOBJMETHOD(icl_conn_pdu_queue, icl_cxgbei_conn_pdu_queue),
 	KOBJMETHOD(icl_conn_pdu_queue_cb, icl_cxgbei_conn_pdu_queue_cb),
@@ -552,6 +558,189 @@ out:
 	kthread_exit();
 }
 
+static void
+cxgbei_free_mext_pg(struct mbuf *m)
+{
+	struct icl_cxgbei_pdu *icp;
+
+	M_ASSERTEXTPG(m);
+
+	/*
+	 * Nothing to do for the pages; they are owned by the PDU /
+	 * I/O request.
+	 */
+
+	/* Drop reference on the PDU. */
+	icp = m->m_ext.ext_arg1;
+	if (atomic_fetchadd_int(&icp->ref_cnt, -1) == 1)
+		icl_cxgbei_pdu_call_cb(&icp->ip);
+}
+
+static struct mbuf *
+cxgbei_getm(size_t len, int flags)
+{
+	struct mbuf *m, *m0, *m_tail;
+
+	m_tail = m0 = NULL;
+
+	/* Allocate as jumbo mbufs of size MJUM16BYTES. */
+	while (len >= MJUM16BYTES) {
+		m = m_getjcl(M_NOWAIT, MT_DATA, 0, MJUM16BYTES);
+		if (__predict_false(m == NULL)) {
+			if ((flags & M_WAITOK) != 0) {
+				/* Fall back to non-jumbo mbufs. */
+				break;
+			}
+			return (NULL);
+		}
+		if (m0 == NULL) {
+			m0 = m_tail = m;
+		} else {
+			m_tail->m_next = m;
+			m_tail = m;
+		}
+		len -= MJUM16BYTES;
+	}
+
+	/* Allocate mbuf chain for the remaining data. */
+	if (len != 0) {
+		m = m_getm2(NULL, len, flags, MT_DATA, 0);
+		if (__predict_false(m == NULL)) {
+			m_freem(m0);
+			return (NULL);
+		}
+		if (m0 == NULL)
+			m0 = m;
+		else
+			m_tail->m_next = m;
+	}
+
+	return (m0);
+}
+
+int
+icl_cxgbei_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *ip,
+    struct bio *bp, size_t offset, size_t len, int flags)
+{
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+	struct mbuf *m, *m_tail;
+	vm_offset_t vaddr;
+	size_t page_offset, todo, mtodo;
+	boolean_t mapped;
+	int i;
+
+	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
+	MPASS(ic == ip->ip_conn);
+	KASSERT(len > 0, ("%s: len is %jd", __func__, (intmax_t)len));
+
+	m_tail = ip->ip_data_mbuf;
+	if (m_tail != NULL)
+		for (; m_tail->m_next != NULL; m_tail = m_tail->m_next)
+			;
+
+	MPASS(bp->bio_flags & BIO_UNMAPPED);
+	if (offset < PAGE_SIZE - bp->bio_ma_offset) {
+		page_offset = bp->bio_ma_offset + offset;
+		i = 0;
+	} else {
+		offset -= PAGE_SIZE - bp->bio_ma_offset;
+		for (i = 1; offset >= PAGE_SIZE; i++)
+			offset -= PAGE_SIZE;
+		page_offset = offset;
+	}
+
+	if (flags & ICL_NOCOPY) {
+		m = NULL;
+		while (len > 0) {
+			if (m == NULL) {
+				m = mb_alloc_ext_pgs(flags & ~ICL_NOCOPY,
+				    cxgbei_free_mext_pg);
+				if (__predict_false(m == NULL))
+					return (ENOMEM);
+				atomic_add_int(&icp->ref_cnt, 1);
+				m->m_ext.ext_arg1 = icp;
+				m->m_epg_1st_off = page_offset;
+			}
+
+			todo = MIN(len, PAGE_SIZE - page_offset);
+
+			m->m_epg_pa[m->m_epg_npgs] =
+			    VM_PAGE_TO_PHYS(bp->bio_ma[i]);
+			m->m_epg_npgs++;
+			m->m_epg_last_len = todo;
+			m->m_len += todo;
+			m->m_ext.ext_size += PAGE_SIZE;
+			MBUF_EXT_PGS_ASSERT_SANITY(m);
+
+			if (m->m_epg_npgs == MBUF_PEXT_MAX_PGS) {
+				if (m_tail != NULL)
+					m_tail->m_next = m;
+				else
+					ip->ip_data_mbuf = m;
+				m_tail = m;
+				ip->ip_data_len += m->m_len;
+				m = NULL;
+			}
+
+			page_offset = 0;
+			len -= todo;
+			i++;
+		}
+
+		if (m != NULL) {
+			if (m_tail != NULL)
+				m_tail->m_next = m;
+			else
+				ip->ip_data_mbuf = m;
+			ip->ip_data_len += m->m_len;
+		}
+		return (0);
+	}
+
+	m = cxgbei_getm(len, flags);
+	if (__predict_false(m == NULL))
+		return (ENOMEM);
+
+	if (ip->ip_data_mbuf == NULL) {
+		ip->ip_data_mbuf = m;
+		ip->ip_data_len = len;
+	} else {
+		m_tail->m_next = m;
+		ip->ip_data_len += len;
+	}
+
+	while (len > 0) {
+		todo = MIN(len, PAGE_SIZE - page_offset);
+
+		mapped = pmap_map_io_transient(bp->bio_ma + i, &vaddr, 1,
+		    FALSE);
+
+		do {
+			mtodo = min(todo, M_SIZE(m) - m->m_len);
+			memcpy(mtod(m, char *) + m->m_len, (char *)vaddr +
+			    page_offset, mtodo);
+			m->m_len += mtodo;
+			if (m->m_len == M_SIZE(m))
+				m = m->m_next;
+			page_offset += mtodo;
+			todo -= mtodo;
+		} while (todo > 0);
+
+		if (__predict_false(mapped))
+			pmap_unmap_io_transient(bp->bio_ma + 1, &vaddr, 1,
+			    FALSE);
+
+		page_offset = 0;
+		len -= todo;
+		i++;
+	}
+
+	MPASS(ip->ip_data_len <= max(ic->ic_max_send_data_segment_length,
+	    ic->ic_hw_isomax));
+
+	return (0);
+}
+
 int
 icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
     const void *addr, size_t len, int flags)
@@ -592,56 +781,72 @@ icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
 		return (0);
 	}
 
+	m = cxgbei_getm(len, flags);
+	if (__predict_false(m == NULL))
+		return (ENOMEM);
+
+	if (ip->ip_data_mbuf == NULL) {
+		ip->ip_data_mbuf = m;
+		ip->ip_data_len = len;
+	} else {
+		m_tail->m_next = m;
+		ip->ip_data_len += len;
+	}
 	src = (const char *)addr;
-
-	/* Allocate as jumbo mbufs of size MJUM16BYTES. */
-	while (len >= MJUM16BYTES) {
-		m = m_getjcl(M_NOWAIT, MT_DATA, 0, MJUM16BYTES);
-		if (__predict_false(m == NULL)) {
-			if ((flags & M_WAITOK) != 0) {
-				/* Fall back to non-jumbo mbufs. */
-				break;
-			}
-			return (ENOMEM);
-		}
-		memcpy(mtod(m, void *), src, MJUM16BYTES);
-		m->m_len = MJUM16BYTES;
-		if (ip->ip_data_mbuf == NULL) {
-			ip->ip_data_mbuf = m_tail = m;
-			ip->ip_data_len = MJUM16BYTES;
-		} else {
-			m_tail->m_next = m;
-			m_tail = m_tail->m_next;
-			ip->ip_data_len += MJUM16BYTES;
-		}
-		src += MJUM16BYTES;
-		len -= MJUM16BYTES;
+	for (; m != NULL; m = m->m_next) {
+		m->m_len = min(len, M_SIZE(m));
+		memcpy(mtod(m, void *), src, m->m_len);
+		src += m->m_len;
+		len -= m->m_len;
 	}
+	MPASS(len == 0);
 
-	/* Allocate mbuf chain for the remaining data. */
-	if (len != 0) {
-		m = m_getm2(NULL, len, flags, MT_DATA, 0);
-		if (__predict_false(m == NULL))
-			return (ENOMEM);
-		if (ip->ip_data_mbuf == NULL) {
-			ip->ip_data_mbuf = m;
-			ip->ip_data_len = len;
-		} else {
-			m_tail->m_next = m;
-			ip->ip_data_len += len;
-		}
-		for (; m != NULL; m = m->m_next) {
-			m->m_len = min(len, M_SIZE(m));
-			memcpy(mtod(m, void *), src, m->m_len);
-			src += m->m_len;
-			len -= m->m_len;
-		}
-		MPASS(len == 0);
-	}
 	MPASS(ip->ip_data_len <= max(ic->ic_max_send_data_segment_length,
 	    ic->ic_hw_isomax));
 
 	return (0);
+}
+
+void
+icl_cxgbei_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
+    size_t pdu_off, struct bio *bp, size_t bio_off, size_t len)
+{
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+	vm_offset_t vaddr;
+	size_t page_offset, todo;
+	boolean_t mapped;
+	int i;
+
+	if (icp->icp_flags & ICPF_RX_DDP)
+		return; /* data is DDP'ed, no need to copy */
+
+	MPASS(bp->bio_flags & BIO_UNMAPPED);
+	if (bio_off < PAGE_SIZE - bp->bio_ma_offset) {
+		page_offset = bp->bio_ma_offset + bio_off;
+		i = 0;
+	} else {
+		bio_off -= PAGE_SIZE - bp->bio_ma_offset;
+		for (i = 1; bio_off >= PAGE_SIZE; i++)
+			bio_off -= PAGE_SIZE;
+		page_offset = bio_off;
+	}
+
+	while (len > 0) {
+		todo = MIN(len, PAGE_SIZE - page_offset);
+
+		mapped = pmap_map_io_transient(bp->bio_ma + i, &vaddr, 1,
+		    FALSE);
+		m_copydata(ip->ip_data_mbuf, pdu_off, todo, (char *)vaddr +
+		    page_offset);
+		if (__predict_false(mapped))
+			pmap_unmap_io_transient(bp->bio_ma + 1, &vaddr, 1,
+			    FALSE);
+
+		page_offset = 0;
+		pdu_off += todo;
+		len -= todo;
+		i++;
+	}
 }
 
 void
@@ -716,7 +921,7 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 #endif
 	ic->ic_name = name;
 	ic->ic_offload = "cxgbei";
-	ic->ic_unmapped = false;
+	ic->ic_unmapped = true;
 
 	CTR2(KTR_CXGBE, "%s: icc %p", __func__, icc);
 
@@ -1251,22 +1456,45 @@ no_ddp:
 	}
 	prsv = &ddp->prsv;
 
-	/* XXX add support for all CAM_DATA_ types */
-	MPASS((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR);
-	rc = t4_alloc_page_pods_for_buf(pr, (vm_offset_t)csio->data_ptr,
-	    csio->dxfer_len, prsv);
-	if (rc != 0) {
-		free(ddp, M_CXGBEI);
-		goto no_ddp;
-	}
-
 	mbufq_init(&mq, INT_MAX);
-	rc = t4_write_page_pods_for_buf(sc, toep, prsv,
-	    (vm_offset_t)csio->data_ptr, csio->dxfer_len, &mq);
-	if (__predict_false(rc != 0)) {
-		mbufq_drain(&mq);
-		t4_free_page_pods(prsv);
+	switch (csio->ccb_h.flags & CAM_DATA_MASK) {
+	case CAM_DATA_BIO:
+		rc = t4_alloc_page_pods_for_bio(pr,
+		    (struct bio *)csio->data_ptr, prsv);
+		if (rc != 0) {
+			free(ddp, M_CXGBEI);
+			goto no_ddp;
+		}
+
+		rc = t4_write_page_pods_for_bio(sc, toep, prsv,
+		    (struct bio *)csio->data_ptr, &mq);
+		if (__predict_false(rc != 0)) {
+			mbufq_drain(&mq);
+			t4_free_page_pods(prsv);
+			free(ddp, M_CXGBEI);
+			goto no_ddp;
+		}
+		break;
+	case CAM_DATA_VADDR:
+		rc = t4_alloc_page_pods_for_buf(pr, (vm_offset_t)csio->data_ptr,
+		    csio->dxfer_len, prsv);
+		if (rc != 0) {
+			free(ddp, M_CXGBEI);
+			goto no_ddp;
+		}
+
+		rc = t4_write_page_pods_for_buf(sc, toep, prsv,
+		    (vm_offset_t)csio->data_ptr, csio->dxfer_len, &mq);
+		if (__predict_false(rc != 0)) {
+			mbufq_drain(&mq);
+			t4_free_page_pods(prsv);
+			free(ddp, M_CXGBEI);
+			goto no_ddp;
+		}
+		break;
+	default:
 		free(ddp, M_CXGBEI);
+		rc = EINVAL;
 		goto no_ddp;
 	}
 
