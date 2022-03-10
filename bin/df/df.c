@@ -561,9 +561,12 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 			xo_emit(format, mwp->iused, (intmax_t)used,
 			    mwp->ifree, (intmax_t)sfsp->f_ffree);
 		}
-		xo_emit(" {:inodes-used-percent/%4.0f}{U:%%} ",
-			inodes == 0 ? 100.0 :
-			(double)used / (double)inodes * 100.0);
+		if (inodes == 0)
+			xo_emit(" {:inodes-used-percent/    -}{U:} ");
+		else {
+			xo_emit(" {:inodes-used-percent/%4.0f}{U:%%} ",
+				(double)used / (double)inodes * 100.0);
+		}
 	} else
 		xo_emit("  ");
 	if (strncmp(sfsp->f_mntfromname, "total", MNAMELEN) != 0)
