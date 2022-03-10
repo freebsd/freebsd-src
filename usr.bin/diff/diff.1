@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2020
+.Dd March 10, 2022
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -207,6 +207,9 @@
 .Op Fl -width
 .Fl y | Fl -side-by-side
 .Ar file1 file2
+.Nm diff
+.Op Fl -help
+.Op Fl -version
 .Sh DESCRIPTION
 The
 .Nm
@@ -282,6 +285,8 @@ Identical output to that of the
 flag, but in reverse order.
 It cannot be digested by
 .Xr ed 1 .
+.It Fl -help
+This option prints a summary to stdout and exits with status 0.
 .It Fl n
 Produces a script similar to that of
 .Fl e ,
@@ -308,6 +313,8 @@ However, unlike with
 .Fl c ,
 all lines to be changed (added and/or removed) are present in
 a single section.
+.It Fl -version
+This option prints a version string to stdout and exits with status 0.
 .It Fl y Fl -side-by-side
 Output in two columns with a marker between them.
 The marker can be one
@@ -655,6 +662,12 @@ Differences were found.
 .It >1
 An error occurred.
 .El
+.Pp
+The
+.Fl -help
+and
+.Fl -version
+options exit with a status of 0.
 .Sh EXAMPLES
 Compare
 .Pa old_dir
