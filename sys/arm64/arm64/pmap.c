@@ -867,9 +867,6 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 	l2 = NULL;
 	prev_l1_slot = -1;
 
-#define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
-	memset(pagetable_dmap, 0, PAGE_SIZE * DMAP_TABLES);
-
 	for (i = 0; i < (physmap_idx * 2); i += 2) {
 		pa = physmap[i] & ~L2_OFFSET;
 		va = pa - dmap_phys_base + DMAP_MIN_ADDRESS;
