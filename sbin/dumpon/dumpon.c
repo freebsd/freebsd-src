@@ -650,6 +650,15 @@ main(int argc, char *argv[])
 	error = ioctl(fd, DIOCSKERNELDUMP, kdap);
 	if (error != 0)
 		error = errno;
+	if (error == EINVAL && (gzip || zstd)) {
+		/* Retry without compression in case kernel lacks support. */
+		kdap->kda_compression = KERNELDUMP_COMP_NONE;
+		error = ioctl(fd, DIOCSKERNELDUMP, kdap);
+		if (error == 0)
+			warnx("Compression disabled; kernel may lack gzip or zstd support.");
+		else
+			error = errno;
+	}
 	explicit_bzero(kdap->kda_encryptedkey, kdap->kda_encryptedkeysize);
 	free(kdap->kda_encryptedkey);
 	explicit_bzero(kdap, sizeof(*kdap));
