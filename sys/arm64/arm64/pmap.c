@@ -795,7 +795,7 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 }
 
 static vm_paddr_t
-pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
+pmap_early_vtophys(vm_offset_t va)
 {
 	vm_paddr_t pa_page;
 
@@ -832,8 +832,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 			if (l1_slot != prev_l1_slot) {
 				prev_l1_slot = l1_slot;
 				l2 = (pt_entry_t *)freemempos;
-				l2_pa = pmap_early_vtophys(kern_l1,
-				    (vm_offset_t)l2);
+				l2_pa = pmap_early_vtophys((vm_offset_t)l2);
 				freemempos += PAGE_SIZE;
 
 				pmap_store(&pagetable_dmap[l1_slot],
@@ -880,8 +879,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa,
 			if (l1_slot != prev_l1_slot) {
 				prev_l1_slot = l1_slot;
 				l2 = (pt_entry_t *)freemempos;
-				l2_pa = pmap_early_vtophys(kern_l1,
-				    (vm_offset_t)l2);
+				l2_pa = pmap_early_vtophys((vm_offset_t)l2);
 				freemempos += PAGE_SIZE;
 
 				pmap_store(&pagetable_dmap[l1_slot],
@@ -930,7 +928,7 @@ pmap_bootstrap_l2(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l2_start)
 	for (; va < VM_MAX_KERNEL_ADDRESS; l1_slot++, va += L1_SIZE) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
-		pa = pmap_early_vtophys(l1pt, l2pt);
+		pa = pmap_early_vtophys(l2pt);
 		pmap_store(&l1[l1_slot],
 		    (pa & ~Ln_TABLE_MASK) | L1_TABLE);
 		l2pt += PAGE_SIZE;
@@ -960,7 +958,7 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 	for (; va < VM_MAX_KERNEL_ADDRESS; l2_slot++, va += L2_SIZE) {
 		KASSERT(l2_slot < Ln_ENTRIES, ("Invalid L2 index"));
 
-		pa = pmap_early_vtophys(l1pt, l3pt);
+		pa = pmap_early_vtophys(l3pt);
 		pmap_store(&l2[l2_slot],
 		    (pa & ~Ln_TABLE_MASK) | ATTR_S1_UXN | L2_TABLE);
 		l3pt += PAGE_SIZE;
@@ -1063,7 +1061,7 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	virtual_end = VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE);
 	kernel_vm_end = virtual_avail;
 
-	pa = pmap_early_vtophys(l1pt, freemempos);
+	pa = pmap_early_vtophys(freemempos);
 
 	physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
 
