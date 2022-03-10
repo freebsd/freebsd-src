@@ -159,6 +159,7 @@ typedef enum {
  *
  * Lock key:
  *   (a) allprison_lock
+ *   (A) allproc_lock
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
  *   (m) locked by pr_mtx
@@ -176,6 +177,7 @@ struct prison {
 	volatile u_int	 pr_uref;			/* (r) user (alive) refcount */
 	unsigned	 pr_flags;			/* (p) PR_* flags */
 	LIST_HEAD(, prison) pr_children;		/* (a) list of child jails */
+	LIST_HEAD(, proc) pr_proclist;			/* (A) list of jailed processes */
 	LIST_ENTRY(prison) pr_sibling;			/* (a) next in parent's list */
 	struct prison	*pr_parent;			/* (c) containing jail */
 	struct mtx	 pr_mtx;
@@ -432,6 +434,9 @@ void prison_hold(struct prison *pr);
 void prison_hold_locked(struct prison *pr);
 void prison_proc_hold(struct prison *);
 void prison_proc_free(struct prison *);
+void prison_proc_link(struct prison *, struct proc *);
+void prison_proc_unlink(struct prison *, struct proc *);
+void prison_proc_iterate(struct prison *, void (*)(struct proc *, void *), void *);
 void prison_set_allow(struct ucred *cred, unsigned flag, int enable);
 int prison_ischild(struct prison *, struct prison *);
 bool prison_isalive(const struct prison *);

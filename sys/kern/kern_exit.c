@@ -473,6 +473,7 @@ exit1(struct thread *td, int rval, int signo)
 	 */
 	p->p_list.le_prev = NULL;
 #endif
+	prison_proc_unlink(p->p_ucred->cr_prison, p);
 	sx_xunlock(&allproc_lock);
 
 	sx_xlock(&proctree_lock);
