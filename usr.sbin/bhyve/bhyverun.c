@@ -237,7 +237,7 @@ usage(int code)
 		"       -h: help\n"
 		"       -k: key=value flat config file\n"
 		"       -l: LPC device configuration\n"
-		"       -m: memory size in MB\n"
+		"       -m: memory size\n"
 		"       -o: set config 'var' to 'value'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
