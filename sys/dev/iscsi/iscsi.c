@@ -1309,7 +1309,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 		bhsdo->bhsdo_datasn = htonl(datasn);
 		bhsdo->bhsdo_buffer_offset = htonl(off);
 		error = icl_pdu_append_data(request, csio->data_ptr + off, len,
-		    M_NOWAIT);
+		    M_NOWAIT | ICL_NOCOPY);
 		if (error != 0) {
 			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
 			    "reconnecting");
@@ -2427,7 +2427,8 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 			len = is->is_conn->ic_max_send_data_segment_length;
 		}
 
-		error = icl_pdu_append_data(request, csio->data_ptr, len, M_NOWAIT);
+		error = icl_pdu_append_data(request, csio->data_ptr, len,
+		    M_NOWAIT | ICL_NOCOPY);
 		if (error != 0) {
 			iscsi_outstanding_remove(is, io);
 			icl_pdu_free(request);
