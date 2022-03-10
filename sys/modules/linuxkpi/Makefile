@@ -35,6 +35,7 @@ SRCS=	linux_compat.c \
 SRCS+=	opt_acpi.h acpi_if.h linux_acpi.c linux_fpu.c
 .endif
 
+SRCS+=	opt_ddb.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
