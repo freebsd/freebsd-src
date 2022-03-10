@@ -134,7 +134,7 @@ struct mem_seg {
 	bool	sysmem;
 	struct vm_object *object;
 };
-#define	VM_MAX_MEMSEGS	3
+#define	VM_MAX_MEMSEGS	4
 
 struct mem_map {
 	vm_paddr_t	gpa;
