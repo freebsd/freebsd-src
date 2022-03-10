@@ -125,7 +125,7 @@
  * Upper region:    0xffffffffffffffff  Top of virtual memory
  *
  *                  0xfffffeffffffffff  End of DMAP
- *                  0xfffffd0000000000  Start of DMAP
+ *                  0xfffffa0000000000  Start of DMAP
  *
  *                  0xffff007fffffffff  End of KVA
  *                  0xffff000000000000  Kernel base address & start of KVA
