@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd March 27, 2019
+.Dd February 26, 2022
 .Dt DTC 1
 .Os
 .Sh NAME
@@ -258,9 +258,9 @@ with the
 flag.
 .Pp
 To denote that a DTS is intended to be used as an overlay,
-.Va /plugin/ ;
+.Va /plugin/\&;
 should be included in the header, following any applicable
-.Va /dts-v1/ ;
+.Va /dts-v1/\&;
 tag.
 .Pp
 Conventional overlays are crafted by creating
@@ -277,7 +277,7 @@ child node, whose properties and child nodes are merged into the base device
 tree when the overlay is applied.
 .Pp
 Much simpler syntactic sugar was later invented to simplify generating overlays.
-Instead of creating targetted fragments manually, one can instead create a root
+Instead of creating targeted fragments manually, one can instead create a root
 node that targets a label in the base FDT using the
 .Va &label
 syntax supported in conventional DTS.
@@ -361,7 +361,7 @@ tree source
 .Pa device_overlay.dts .
 A __symbols__ node will be included so that overlays may be applied to it.
 The presence of a
-.Va /plugin/ ;
+.Va /plugin/\&;
 directive in
 .Pa device_overlay.dts
 will indicate to the utility that it should also generate the underlying
