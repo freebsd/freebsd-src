@@ -1404,9 +1404,9 @@
 #define	TCR_T1SZ_SHIFT		16
 #define	TCR_T1SZ(x)		((x) << TCR_T1SZ_SHIFT)
 #define	TCR_TG0_SHIFT		14
-#define	TCR_TG0_16K		(1UL << TCR_TG0_SHIFT)
-#define	TCR_TG0_4K		(2UL << TCR_TG0_SHIFT)
-#define	TCR_TG0_64K		(3UL << TCR_TG0_SHIFT)
+#define	TCR_TG0_4K		(0UL << TCR_TG0_SHIFT)
+#define	TCR_TG0_64K		(1UL << TCR_TG0_SHIFT)
+#define	TCR_TG0_16K		(2UL << TCR_TG0_SHIFT)
 #define	TCR_SH0_SHIFT		12
 #define	TCR_SH0_IS		(3UL << TCR_SH0_SHIFT)
 #define	TCR_ORGN0_SHIFT		10
