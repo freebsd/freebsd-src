@@ -1311,8 +1311,6 @@
 #define	PMCR_X				(1 << 4) /* Export to ext. monitoring (ETM) */
 #define	PMCR_DP				(1 << 5) /* Disable CCNT if non-invasive debug*/
 #define	PMCR_LC				(1 << 6) /* Long cycle count enable */
-#define	PMCR_N_SHIFT			11
-#define	PMCR_N_MASK			(0x1f << PMCR_N_SHIFT)
 #define	PMCR_IMP_SHIFT			24	/* Implementer code */
 #define	PMCR_IMP_MASK			(0xff << PMCR_IMP_SHIFT)
 #define	 PMCR_IMP_ARM			0x41
