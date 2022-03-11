@@ -1494,7 +1494,7 @@
  * PMEVCNTRn_EL0_op2 holds the lower 3 bits of 'n'
  */
 
-/* PMEVTYPER<n>_EL0 */
+/* PMEVTYPER<n>_EL0 - Performance Monitoring Event Type */
 #define	PMEVTYPER_EL0_op0		3
 #define	PMEVTYPER_EL0_op1		3
 #define	PMEVTYPER_EL0_CRn		14
@@ -1503,6 +1503,15 @@
  * PMEVTYPERn_EL0_CRm[1:0] holds the upper 2 bits of 'n'
  * PMEVTYPERn_EL0_op2 holds the lower 3 bits of 'n'
  */
+#define	PMEVTYPER_EVTCOUNT_MASK		0x000003ff /* ARMv8.0 */
+#define	PMEVTYPER_EVTCOUNT_8_1_MASK	0x0000ffff /* ARMv8.1+ */
+#define	PMEVTYPER_MT			(1 << 25) /* Multithreading */
+#define	PMEVTYPER_M			(1 << 26) /* Secure EL3 filtering */
+#define	PMEVTYPER_NSH			(1 << 27) /* Non-secure hypervisor filtering */
+#define	PMEVTYPER_NSU			(1 << 28) /* Non-secure user filtering */
+#define	PMEVTYPER_NSK			(1 << 29) /* Non-secure kernel filtering */
+#define	PMEVTYPER_U			(1 << 30) /* User filtering */
+#define	PMEVTYPER_P			(1 << 31) /* Privileged filtering */
 
 /* PMINTENCLR_EL1 */
 #define	PMINTENCLR_EL1			MRS_REG(PMINTENCLR_EL1)
