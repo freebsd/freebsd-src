@@ -152,12 +152,12 @@ debugfs_fill(PFS_FILL_ARGS)
 		if (d->dm_fops->read)
 			rc = d->dm_fops->read(&lf, NULL, len, &off);
 		else
-			rc = ENODEV;
+			rc = -ENODEV;
 	} else {
 		if (d->dm_fops->write)
 			rc = d->dm_fops->write(&lf, buf, len, &off);
 		else
-			rc = ENODEV;
+			rc = -ENODEV;
 	}
 	if (d->dm_fops->release)
 		d->dm_fops->release(&vn, &lf);
