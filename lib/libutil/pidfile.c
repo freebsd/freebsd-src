@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libgen.h>
 #include <libutil.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,7 +76,7 @@ pidfile_verify(const struct pidfh *pfh)
 }
 
 static int
-pidfile_read(int dirfd, const char *filename, pid_t *pidptr)
+pidfile_read_impl(int dirfd, const char *filename, pid_t *pidptr)
 {
 	char buf[16], *endptr;
 	int error, fd, i;
@@ -99,14 +101,33 @@ pidfile_read(int dirfd, const char *filename, pid_t *pidptr)
 	return (0);
 }
 
+static int
+pidfile_read(int dirfd, const char *filename, pid_t *pidptr)
+{
+	struct timespec rqtp;
+	int count;
+
+	count = 20;
+	rqtp.tv_sec = 0;
+	rqtp.tv_nsec = 5000000;
+	for (;;) {
+		errno = pidfile_read_impl(dirfd, filename, pidptr);
+		if (errno != EAGAIN || --count == 0)
+			break;
+		nanosleep(&rqtp, 0);
+	}
+	if (errno == EAGAIN)
+		*pidptr = -1;
+	return (errno);
+}
+
 struct pidfh *
 pidfile_open(const char *pathp, mode_t mode, pid_t *pidptr)
 {
 	char path[MAXPATHLEN];
 	struct pidfh *pfh;
 	struct stat sb;
-	int error, fd, dirfd, dirlen, filenamelen, count;
-	struct timespec rqtp;
+	int error, fd, dirfd, dirlen, filenamelen;
 	cap_rights_t caprights;
 
 	pfh = malloc(sizeof(*pfh));
@@ -159,18 +180,8 @@ pidfile_open(const char *pathp, mode_t mode, pid_t *pidptr)
 			if (pidptr == NULL) {
 				errno = EEXIST;
 			} else {
-				count = 20;
-				rqtp.tv_sec = 0;
-				rqtp.tv_nsec = 5000000;
-				for (;;) {
-					errno = pidfile_read(dirfd,
-					    pfh->pf_filename, pidptr);
-					if (errno != EAGAIN || --count == 0)
-						break;
-					nanosleep(&rqtp, 0);
-				}
-				if (errno == EAGAIN)
-					*pidptr = -1;
+				errno = pidfile_read(dirfd,
+				    pfh->pf_filename, pidptr);
 				if (errno == 0 || errno == EAGAIN)
 					errno = EEXIST;
 			}
@@ -329,4 +340,39 @@ pidfile_fileno(const struct pidfh *pfh)
 		return (-1);
 	}
 	return (pfh->pf_fd);
+}
+
+int
+pidfile_signal(const char *pathp, int sig, pid_t *pidptr)
+{
+	pid_t pid;
+	int fd;
+
+	fd = flopenat(AT_FDCWD, pathp,
+	    O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+	if (fd >= 0) {
+		/*
+		 * The file exists but is not locked,
+		 * so the daemon is dead. Nothing to do.
+		 */
+		close(fd);
+		errno = ENOENT;
+		return (errno);
+	}
+	if (errno != EWOULDBLOCK) {
+		return (errno);
+	}
+	errno = pidfile_read(AT_FDCWD, pathp, &pid);
+	if (errno != 0)
+		return (errno);
+	/*
+	 * Refuse to send broadcast or group signals, this has
+	 * happened due to the bugs in pidfile(3).
+	 */
+	if (pid <= 0)
+		return (EDOM);
+	kill(pid, sig);
+	if (pidptr != NULL)
+		*pidptr = pid;
+	return (errno);
 }

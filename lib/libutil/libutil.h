@@ -122,6 +122,7 @@ int	openpty(int *_amaster, int *_aslave, char *_name,
 	    struct termios *_termp, struct winsize *_winp);
 int	pidfile_close(struct pidfh *_pfh);
 int	pidfile_fileno(const struct pidfh *_pfh);
+int	pidfile_signal(const char *pathp, int sig, pid_t *pidptr);
 struct pidfh *
 	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
 int	pidfile_remove(struct pidfh *_pfh);
