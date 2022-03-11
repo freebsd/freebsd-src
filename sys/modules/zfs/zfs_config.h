@@ -42,6 +42,9 @@
 /* posix_acl has refcount_t */
 /* #undef HAVE_ACL_REFCOUNT */
 
+/* add_disk() returns int */
+/* #undef HAVE_ADD_DISK_RET */
+
 /* Define if host toolchain supports AES */
 #define HAVE_AES 1
 
@@ -215,6 +218,9 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
+/* dequeue_signal() takes 4 arguments */
+/* #undef HAVE_DEQUEUE_SIGNAL_4ARG */
+
 /* lookup_bdev() wants dev_t arg */
 /* #undef HAVE_DEVT_LOOKUP_BDEV */
 
@@ -244,6 +250,12 @@
 
 /* sops->evict_inode() exists */
 /* #undef HAVE_EVICT_INODE */
+
+/* FALLOC_FL_ZERO_RANGE is defined */
+/* #undef HAVE_FALLOC_FL_ZERO_RANGE */
+
+/* fault_in_iov_iter_readable() is available */
+/* #undef HAVE_FAULT_IN_IOV_ITER_READABLE */
 
 /* fops->aio_fsync() exists */
 /* #undef HAVE_FILE_AIO_FSYNC */
@@ -385,6 +397,9 @@
 
 /* kernel has asm/fpu/xcr.h */
 /* #undef HAVE_KERNEL_FPU_XCR_HEADER */
+
+/* kernel fpu and XSAVE internal */
+/* #undef HAVE_KERNEL_FPU_XSAVE_INTERNAL */
 
 /* uncached_acl_sentinel() exists */
 /* #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE */
@@ -760,6 +775,15 @@
 /* xattr_handler->set() takes user_namespace */
 /* #undef HAVE_XATTR_SET_USERNS */
 
+/* Define if host toolchain supports XSAVE */
+#define HAVE_XSAVE 1
+
+/* Define if host toolchain supports XSAVEOPT */
+#define HAVE_XSAVEOPT 1
+
+/* Define if host toolchain supports XSAVES */
+#define HAVE_XSAVES 1
+
 /* Define if you have [z] */
 #define HAVE_ZLIB 1
 
@@ -796,6 +820,9 @@
 /* struct shrink_control has nid */
 /* #undef SHRINK_CONTROL_HAS_NID */
 
+/* using complete_and_exit() instead */
+/* #undef SPL_KTHREAD_COMPLETE_AND_EXIT */
+
 /* Defined for legacy compatibility. */
 #define SPL_META_ALIAS ZFS_META_ALIAS
 
@@ -804,6 +831,9 @@
 
 /* Defined for legacy compatibility. */
 #define SPL_META_VERSION ZFS_META_VERSION
+
+/* pde_data() is PDE_DATA() */
+/* #undef SPL_PDE_DATA */
 
 /* True if ZFS is to be compiled for a FreeBSD system */
 #define SYSTEM_FREEBSD 1
@@ -845,7 +875,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g17b2ae0b2"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_ga86e08941"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -875,7 +905,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g17b2ae0b2"
+#define ZFS_META_RELEASE "FreeBSD_ga86e08941"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
