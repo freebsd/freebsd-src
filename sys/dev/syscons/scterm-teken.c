@@ -317,7 +317,7 @@ scteken_nop(void)
 
 static const teken_color_t sc_to_te_color[] = {
 	TC_BLACK,     TC_BLUE,         TC_GREEN,     TC_CYAN,
-	TC_RED,       TC_MAGENTA,      TC_BROWN,     TC_WHITE,
+	TC_RED,       TC_MAGENTA,      TC_YELLOW,    TC_WHITE,
 };
 
 static const unsigned char te_to_sc_color[] = {
