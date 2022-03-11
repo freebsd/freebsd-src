@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2017
+.Dd March 11, 2022
 .Dt RATECHECK 9
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In sys/time.h
 .Ft int
-.Fn ratecheck "struct timeval *lasttime" "struct timeval *mininterval"
+.Fn ratecheck "struct timeval *lasttime" "const struct timeval *mininterval"
 .Ft int
 .Fn ppsratecheck "struct timeval *lasttime" "int *curpps" "int maxpps"
 .Sh DESCRIPTION
