@@ -40,19 +40,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
+#include <sys/systm.h>
+#include <sys/kenv.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
-#include <sys/kenv.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/libkern.h>
-#include <sys/kenv.h>
-#include <sys/limits.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -782,7 +782,7 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 		/* check for invalid value */
 		if (ptr == end)
 			goto error;
-		
+
 		/* check for valid suffix */
 		switch (*end) {
 		case 't':
