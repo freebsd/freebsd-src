@@ -105,8 +105,7 @@ find_rootfs()
 find_pools()
 {
 	pools=$("$@" 2> /dev/null | \
-		grep -E "pool:|^[a-zA-Z0-9]" | \
-		sed 's@.*: @@' | \
+		sed -Ee '/pool:|^[a-zA-Z0-9]/!d' -e 's@.*: @@' | \
 		tr '\n' ';')
 
 	echo "${pools%%;}" # Return without the last ';'.
@@ -403,35 +402,32 @@ decrypt_fs()
 			KEYSTATUS="$(get_fs_value "${ENCRYPTIONROOT}" keystatus)"
 			# Continue only if the key needs to be loaded
 			[ "$KEYSTATUS" = "unavailable" ] || return 0
-			TRY_COUNT=3
 
-			# If key is stored in a file, do not prompt
+			# Do not prompt if key is stored noninteractively,
 			if ! [ "${KEYLOCATION}" = "prompt" ]; then
 				$ZFS load-key "${ENCRYPTIONROOT}"
 
 			# Prompt with plymouth, if active
-			elif [ -e /bin/plymouth ] && /bin/plymouth --ping 2>/dev/null; then
+			elif /bin/plymouth --ping 2>/dev/null; then
 				echo "plymouth" > /run/zfs_console_askpwd_cmd
-				while [ $TRY_COUNT -gt 0 ]; do
+				for _ in 1 2 3; do
 					plymouth ask-for-password --prompt "Encrypted ZFS password for ${ENCRYPTIONROOT}" | \
 						$ZFS load-key "${ENCRYPTIONROOT}" && break
-					TRY_COUNT=$((TRY_COUNT - 1))
 				done
 
 			# Prompt with systemd, if active
 			elif [ -e /run/systemd/system ]; then
 				echo "systemd-ask-password" > /run/zfs_console_askpwd_cmd
-				while [ $TRY_COUNT -gt 0 ]; do
-					systemd-ask-password "Encrypted ZFS password for ${ENCRYPTIONROOT}" --no-tty | \
+				for _ in 1 2 3; do
+					systemd-ask-password --no-tty "Encrypted ZFS password for ${ENCRYPTIONROOT}" | \
 						$ZFS load-key "${ENCRYPTIONROOT}" && break
-					TRY_COUNT=$((TRY_COUNT - 1))
 				done
 
 			# Prompt with ZFS tty, otherwise
 			else
 				# Temporarily setting "printk" to "7" allows the prompt to appear even when the "quiet" kernel option has been used
 				echo "load-key" > /run/zfs_console_askpwd_cmd
-				storeprintk="$(awk '{print $1}' /proc/sys/kernel/printk)"
+				read -r storeprintk _ < /proc/sys/kernel/printk
 				echo 7 > /proc/sys/kernel/printk
 				$ZFS load-key "${ENCRYPTIONROOT}"
 				echo "$storeprintk" > /proc/sys/kernel/printk

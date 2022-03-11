@@ -94,7 +94,7 @@ tests = ['events_001_pos', 'events_002_pos', 'zed_rc_filter', 'zed_fd_spill']
 tags = ['functional', 'events']
 
 [tests/functional/fallocate:Linux]
-tests = ['fallocate_prealloc', 'fallocate_punch-hole']
+tests = ['fallocate_prealloc']
 tags = ['functional', 'fallocate']
 
 [tests/functional/fault:Linux]
@@ -112,6 +112,12 @@ tags = ['functional', 'features', 'large_dnode']
 [tests/functional/io:Linux]
 tests = ['libaio', 'io_uring']
 tags = ['functional', 'io']
+
+[tests/functional/largest_pool:Linux]
+tests = ['largest_pool_001_pos']
+pre =
+post =
+tags = ['functional', 'largest_pool']
 
 [tests/functional/mmap:Linux]
 tests = ['mmap_libaio_001_pos']
@@ -150,6 +156,12 @@ tags = ['functional', 'projectquota']
 [tests/functional/rsend:Linux]
 tests = ['send_realloc_dnode_size', 'send_encrypted_files']
 tags = ['functional', 'rsend']
+
+[tests/functional/simd:Linux]
+pre =
+post =
+tests = ['simd_supported']
+tags = ['functional', 'simd']
 
 [tests/functional/snapshot:Linux]
 tests = ['snapshot_015_pos', 'snapshot_016_pos']

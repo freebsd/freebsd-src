@@ -13,9 +13,9 @@
 # Email address of the zpool administrator for receipt of notifications;
 #   multiple addresses can be specified if they are delimited by whitespace.
 # Email will only be sent if ZED_EMAIL_ADDR is defined.
-# Disabled by default; uncomment to enable.
+# Enabled by default; comment to disable.
 #
-#ZED_EMAIL_ADDR="root"
+ZED_EMAIL_ADDR="root"
 
 ##
 # Name or path of executable responsible for sending notifications via email;
@@ -81,6 +81,23 @@
 # Disabled by default; uncomment to enable.
 #
 #ZED_SLACK_WEBHOOK_URL=""
+
+##
+# Pushover token.
+# This defines the application from which the notification will be sent.
+#   <https://pushover.net/api#registration>
+# Disabled by default; uncomment to enable.
+# ZED_PUSHOVER_USER, below, must also be configured.
+#
+#ZED_PUSHOVER_TOKEN=""
+
+##
+# Pushover user key.
+# This defines which user or group will receive Pushover notifications.
+#  <https://pushover.net/api#identifiers>
+# Disabled by default; uncomment to enable.
+# ZED_PUSHOVER_TOKEN, above, must also be configured.
+#ZED_PUSHOVER_USER=""
 
 ##
 # Default directory for zed state files.

@@ -60,11 +60,17 @@ install() {
 		# Fallback: Guess the path and include all matches
 		dracut_install /usr/lib*/gcc/**/libgcc_s.so*
 	fi
+	# shellcheck disable=SC2050
+	if [ @LIBFETCH_DYNAMIC@ -gt 0 ]; then
+		for d in $libdirs; do
+			[ -e "$d/@LIBFETCH_SONAME@" ] && dracut_install "$d/@LIBFETCH_SONAME@"
+		done
+	fi
 	dracut_install @mounthelperdir@/mount.zfs
 	dracut_install @udevdir@/vdev_id
 	dracut_install awk
-	dracut_install basename
 	dracut_install cut
+	dracut_install tr
 	dracut_install head
 	dracut_install @udevdir@/zvol_id
 	inst_hook cmdline 95 "${moddir}/parse-zfs.sh"
