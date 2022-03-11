@@ -779,13 +779,20 @@ static struct pmc_event_alias cortex_a57_aliases[] = {
 static struct pmc_event_alias cortex_a76_aliases[] = {
 	EV_ALIAS(NULL, NULL)
 };
+
 static int
-arm64_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
-    struct pmc_op_pmcallocate *pmc_config __unused)
+arm64_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
 {
-	switch (pe) {
-	default:
-		break;
+	char *p;
+
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWMATCH(p, "os"))
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		else if (KWMATCH(p, "usr"))
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		else
+			return (-1);
 	}
 
 	return (0);

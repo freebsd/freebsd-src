@@ -187,6 +187,23 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		if (config > (PMC_EV_ARMV8_LAST - PMC_EV_ARMV8_FIRST))
 			return (EINVAL);
 	}
+
+	switch (a->pm_caps & (PMC_CAP_SYSTEM | PMC_CAP_USER)) {
+	case PMC_CAP_SYSTEM:
+		config |= PMEVTYPER_U;
+		break;
+	case PMC_CAP_USER:
+		config |= PMEVTYPER_P;
+		break;
+	default:
+		/*
+		 * Trace both USER and SYSTEM if none are specified
+		 * (default setting) or if both flags are specified
+		 * (user explicitly requested both qualifiers).
+		 */
+		break;
+	}
+
 	pm->pm_md.pm_arm64.pm_arm64_evsel = config;
 	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%x", ri, config);
 
