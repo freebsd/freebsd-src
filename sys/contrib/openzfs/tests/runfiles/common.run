@@ -198,7 +198,8 @@ tags = ['functional', 'cli_root', 'zfs_inherit']
 
 [tests/functional/cli_root/zfs_load-key]
 tests = ['zfs_load-key', 'zfs_load-key_all', 'zfs_load-key_file',
-    'zfs_load-key_location', 'zfs_load-key_noop', 'zfs_load-key_recursive']
+    'zfs_load-key_https', 'zfs_load-key_location', 'zfs_load-key_noop',
+    'zfs_load-key_recursive']
 tags = ['functional', 'cli_root', 'zfs_load-key']
 
 [tests/functional/cli_root/zfs_mount]
@@ -233,7 +234,8 @@ tests = ['zfs_receive_001_pos', 'zfs_receive_002_pos', 'zfs_receive_003_pos',
     'zfs_receive_016_pos', 'receive-o-x_props_override',
     'zfs_receive_from_encrypted', 'zfs_receive_to_encrypted',
     'zfs_receive_raw', 'zfs_receive_raw_incremental', 'zfs_receive_-e',
-    'zfs_receive_raw_-d', 'zfs_receive_from_zstd', 'zfs_receive_new_props']
+    'zfs_receive_raw_-d', 'zfs_receive_from_zstd', 'zfs_receive_new_props',
+    'zfs_receive_-wR-encrypted-mix']
 tags = ['functional', 'cli_root', 'zfs_receive']
 
 [tests/functional/cli_root/zfs_rename]
@@ -602,6 +604,10 @@ tags = ['functional', 'delegate']
 tests = ['exec_001_pos', 'exec_002_neg']
 tags = ['functional', 'exec']
 
+[tests/functional/fallocate]
+tests = ['fallocate_punch-hole']
+tags = ['functional', 'fallocate']
+
 [tests/functional/features/async_destroy]
 tests = ['async_destroy_001_pos']
 tags = ['functional', 'features', 'async_destroy']
@@ -646,12 +652,6 @@ tags = ['functional', 'inuse']
 tests = ['large_files_001_pos', 'large_files_002_pos']
 tags = ['functional', 'large_files']
 
-[tests/functional/largest_pool]
-tests = ['largest_pool_001_pos']
-pre =
-post =
-tags = ['functional', 'largest_pool']
-
 [tests/functional/limits]
 tests = ['filesystem_count', 'filesystem_limit', 'snapshot_count',
     'snapshot_limit']
@@ -686,7 +686,7 @@ tags = ['functional', 'nestedfs']
 
 [tests/functional/no_space]
 tests = ['enospc_001_pos', 'enospc_002_pos', 'enospc_003_pos',
-    'enospc_df']
+    'enospc_df', 'enospc_rm']
 tags = ['functional', 'no_space']
 
 [tests/functional/nopwrite]
@@ -826,7 +826,8 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send_freeobjects', 'send_realloc_files',
     'send_realloc_encrypted_files', 'send_spill_block', 'send_holds',
     'send_hole_birth', 'send_mixed_raw', 'send-wR_encrypted_zvol',
-    'send_partial_dataset', 'send_invalid', 'send_doall']
+    'send_partial_dataset', 'send_invalid', 'send_doall',
+    'send_raw_spill_block', 'send_raw_ashift']
 tags = ['functional', 'rsend']
 
 [tests/functional/scrub_mirror]
@@ -863,7 +864,7 @@ tags = ['functional', 'sparse']
 
 [tests/functional/suid]
 tests = ['suid_write_to_suid', 'suid_write_to_sgid', 'suid_write_to_suid_sgid',
-    'suid_write_to_none']
+    'suid_write_to_none', 'suid_write_zil_replay']
 tags = ['functional', 'suid']
 
 [tests/functional/threadsappend]
@@ -889,7 +890,8 @@ tests = [
     'userquota_004_pos', 'userquota_005_neg', 'userquota_006_pos',
     'userquota_007_pos', 'userquota_008_pos', 'userquota_009_pos',
     'userquota_010_pos', 'userquota_011_pos', 'userquota_012_neg',
-    'userspace_001_pos', 'userspace_002_pos', 'userspace_encrypted']
+    'userspace_001_pos', 'userspace_002_pos', 'userspace_encrypted',
+    'userspace_send_encrypted']
 tags = ['functional', 'userquota']
 
 [tests/functional/vdev_zaps]

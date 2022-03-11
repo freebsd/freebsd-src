@@ -834,7 +834,6 @@ spa_prop_clear_bootfs(spa_t *spa, uint64_t dsobj, dmu_tx_t *tx)
 	}
 }
 
-/*ARGSUSED*/
 static int
 spa_change_guid_check(void *arg, dmu_tx_t *tx)
 {
@@ -1589,25 +1588,33 @@ spa_unload(spa_t *spa)
 	spa_wake_waiters(spa);
 
 	/*
-	 * If the log space map feature is enabled and the pool is getting
-	 * exported (but not destroyed), we want to spend some time flushing
-	 * as many metaslabs as we can in an attempt to destroy log space
-	 * maps and save import time.
+	 * If we have set the spa_final_txg, we have already performed the
+	 * tasks below in spa_export_common(). We should not redo it here since
+	 * we delay the final TXGs beyond what spa_final_txg is set at.
 	 */
-	if (spa_should_flush_logs_on_unload(spa))
-		spa_unload_log_sm_flush_all(spa);
+	if (spa->spa_final_txg == UINT64_MAX) {
+		/*
+		 * If the log space map feature is enabled and the pool is
+		 * getting exported (but not destroyed), we want to spend some
+		 * time flushing as many metaslabs as we can in an attempt to
+		 * destroy log space maps and save import time.
+		 */
+		if (spa_should_flush_logs_on_unload(spa))
+			spa_unload_log_sm_flush_all(spa);
 
-	/*
-	 * Stop async tasks.
-	 */
-	spa_async_suspend(spa);
+		/*
+		 * Stop async tasks.
+		 */
+		spa_async_suspend(spa);
 
-	if (spa->spa_root_vdev) {
-		vdev_t *root_vdev = spa->spa_root_vdev;
-		vdev_initialize_stop_all(root_vdev, VDEV_INITIALIZE_ACTIVE);
-		vdev_trim_stop_all(root_vdev, VDEV_TRIM_ACTIVE);
-		vdev_autotrim_stop_all(spa);
-		vdev_rebuild_stop_all(spa);
+		if (spa->spa_root_vdev) {
+			vdev_t *root_vdev = spa->spa_root_vdev;
+			vdev_initialize_stop_all(root_vdev,
+			    VDEV_INITIALIZE_ACTIVE);
+			vdev_trim_stop_all(root_vdev, VDEV_TRIM_ACTIVE);
+			vdev_autotrim_stop_all(spa);
+			vdev_rebuild_stop_all(spa);
+		}
 	}
 
 	/*
@@ -2281,11 +2288,12 @@ int spa_load_verify_shift = 4;
 int spa_load_verify_metadata = B_TRUE;
 int spa_load_verify_data = B_TRUE;
 
-/*ARGSUSED*/
 static int
 spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
+	(void) zilog, (void) dnp;
+
 	if (zb->zb_level == ZB_DNODE_LEVEL || BP_IS_HOLE(bp) ||
 	    BP_IS_EMBEDDED(bp) || BP_IS_REDACTED(bp))
 		return (0);
@@ -2317,10 +2325,11 @@ spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	return (0);
 }
 
-/* ARGSUSED */
 static int
 verify_dataset_name_len(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 {
+	(void) dp, (void) arg;
+
 	if (dsl_dataset_namelen(ds) >= ZFS_MAX_DATASET_NAME_LEN)
 		return (SET_ERROR(ENAMETOOLONG));
 
@@ -2450,10 +2459,10 @@ spa_livelist_delete_check(spa_t *spa)
 	return (spa->spa_livelists_to_delete != 0);
 }
 
-/* ARGSUSED */
 static boolean_t
 spa_livelist_delete_cb_check(void *arg, zthr_t *z)
 {
+	(void) z;
 	spa_t *spa = arg;
 	return (spa_livelist_delete_check(spa));
 }
@@ -2545,7 +2554,6 @@ livelist_delete_sync(void *arg, dmu_tx_t *tx)
  * be freed. Then, call a synctask which performs the actual frees and updates
  * the pool-wide livelist data.
  */
-/* ARGSUSED */
 static void
 spa_livelist_delete_cb(void *arg, zthr_t *z)
 {
@@ -2791,7 +2799,6 @@ spa_livelist_condense_cb(void *arg, zthr_t *t)
 		zfs_livelist_condense_zthr_cancel++;
 }
 
-/* ARGSUSED */
 /*
  * Check that there is something to condense but that a condense is not
  * already in progress and that condensing has not been cancelled.
@@ -2799,6 +2806,7 @@ spa_livelist_condense_cb(void *arg, zthr_t *t)
 static boolean_t
 spa_livelist_condense_cb_check(void *arg, zthr_t *z)
 {
+	(void) z;
 	spa_t *spa = arg;
 	if ((spa->spa_to_condense.ds != NULL) &&
 	    (spa->spa_to_condense.syncing == B_FALSE) &&
@@ -6416,9 +6424,27 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 		if (new_state != POOL_STATE_UNINITIALIZED && !hardforce) {
 			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 			spa->spa_state = new_state;
+			vdev_config_dirty(spa->spa_root_vdev);
+			spa_config_exit(spa, SCL_ALL, FTAG);
+		}
+
+		/*
+		 * If the log space map feature is enabled and the pool is
+		 * getting exported (but not destroyed), we want to spend some
+		 * time flushing as many metaslabs as we can in an attempt to
+		 * destroy log space maps and save import time. This has to be
+		 * done before we set the spa_final_txg, otherwise
+		 * spa_sync() -> spa_flush_metaslabs() may dirty the final TXGs.
+		 * spa_should_flush_logs_on_unload() should be called after
+		 * spa_state has been set to the new_state.
+		 */
+		if (spa_should_flush_logs_on_unload(spa))
+			spa_unload_log_sm_flush_all(spa);
+
+		if (new_state != POOL_STATE_UNINITIALIZED && !hardforce) {
+			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 			spa->spa_final_txg = spa_last_synced_txg(spa) +
 			    TXG_DEFER_SIZE + 1;
-			vdev_config_dirty(spa->spa_root_vdev);
 			spa_config_exit(spa, SCL_ALL, FTAG);
 		}
 	}
@@ -9474,6 +9500,7 @@ spa_upgrade(spa_t *spa, uint64_t version)
 boolean_t
 spa_has_spare(spa_t *spa, uint64_t guid)
 {
+	(void) spa;
 	int i;
 	uint64_t spareguid;
 	spa_aux_vdev_t *sav = &spa->spa_spares;
@@ -9826,6 +9853,8 @@ spa_event_create(spa_t *spa, vdev_t *vd, nvlist_t *hist_nvl, const char *name)
 		ev = kmem_alloc(sizeof (sysevent_t), KM_SLEEP);
 		ev->resource = resource;
 	}
+#else
+	(void) spa, (void) vd, (void) hist_nvl, (void) name;
 #endif
 	return (ev);
 }
@@ -9838,6 +9867,8 @@ spa_event_post(sysevent_t *ev)
 		zfs_zevent_post(ev->resource, NULL, zfs_zevent_post_cb);
 		kmem_free(ev, sizeof (*ev));
 	}
+#else
+	(void) ev;
 #endif
 }
 

@@ -206,8 +206,9 @@ fsavl_create(nvlist_t *fss)
 			 * Note: if there are multiple snaps with the
 			 * same GUID, we ignore all but one.
 			 */
-			if (avl_find(fsavl, fn, NULL) == NULL)
-				avl_add(fsavl, fn);
+			avl_index_t where = 0;
+			if (avl_find(fsavl, fn, &where) == NULL)
+				avl_insert(fsavl, fn, where);
 			else
 				free(fn);
 		}
@@ -350,12 +351,11 @@ send_iterate_snap(zfs_handle_t *zhp, void *arg)
 	fnvlist_add_nvlist(sd->snapprops, snapname, nv);
 	fnvlist_free(nv);
 	if (sd->holds) {
-		nvlist_t *holds = fnvlist_alloc();
-		int err = lzc_get_holds(zhp->zfs_name, &holds);
-		if (err == 0) {
+		nvlist_t *holds;
+		if (lzc_get_holds(zhp->zfs_name, &holds) == 0) {
 			fnvlist_add_nvlist(sd->snapholds, snapname, holds);
+			fnvlist_free(holds);
 		}
-		fnvlist_free(holds);
 	}
 
 	zfs_close(zhp);
@@ -2532,7 +2532,7 @@ zfs_send_one(zfs_handle_t *zhp, const char *from, int fd, sendflags_t *flags,
 			    "progress thread exited nonzero")));
 	}
 
-	if (flags->props || flags->holds || flags->backup) {
+	if (err == 0 && (flags->props || flags->holds || flags->backup)) {
 		/* Write the final end record. */
 		err = send_conclusion_record(fd, NULL);
 		if (err != 0)

@@ -42,15 +42,32 @@ if [ "$(zpool list -H -o feature@encryption "${BOOTFS%%/*}")" = 'active' ]; then
         [ "$KEYSTATUS" = "unavailable" ] || exit 0
 
         KEYLOCATION="$(zfs get -H -o value keylocation "${ENCRYPTIONROOT}")"
-        if ! [ "${KEYLOCATION}" = "prompt" ]; then
-            zfs load-key "${ENCRYPTIONROOT}"
-        else
-            # decrypt them
-            TRY_COUNT=5
-            while [ $TRY_COUNT -gt 0 ]; do
-                systemd-ask-password "Encrypted ZFS password for ${BOOTFS}" --no-tty | zfs load-key "${ENCRYPTIONROOT}" && break
-                TRY_COUNT=$((TRY_COUNT - 1))
-            done
-        fi
+        case "${KEYLOCATION%%://*}" in
+            prompt)
+                for _ in 1 2 3; do
+                    systemd-ask-password --no-tty "Encrypted ZFS password for ${BOOTFS}" | zfs load-key "${ENCRYPTIONROOT}" && break
+                done
+                ;;
+            http*)
+                systemctl start network-online.target
+                zfs load-key "${ENCRYPTIONROOT}"
+                ;;
+            file)
+                KEYFILE="${KEYLOCATION#file://}"
+                [ -r "${KEYFILE}" ] || udevadm settle
+                [ -r "${KEYFILE}" ] || {
+                    info "Waiting for key ${KEYFILE} for ${ENCRYPTIONROOT}..."
+                    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+                        sleep 0.5s
+                        [ -r "${KEYFILE}" ] && break
+                    done
+                }
+                [ -r "${KEYFILE}" ] || warn "Key ${KEYFILE} for ${ENCRYPTIONROOT} hasn't appeared. Trying anyway."
+                zfs load-key "${ENCRYPTIONROOT}"
+                ;;
+            *)
+                zfs load-key "${ENCRYPTIONROOT}"
+                ;;
+        esac
     fi
 fi

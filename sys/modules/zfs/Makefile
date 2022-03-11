@@ -300,6 +300,7 @@ CFLAGS.spl_string.c= -Wno-cast-qual
 CFLAGS.spl_vm.c= -Wno-cast-qual
 CFLAGS.spl_zlib.c= -Wno-cast-qual
 CFLAGS.abd.c= -Wno-cast-qual
+CFLAGS.arc.c= -Wno-unused-variable
 CFLAGS.zfs_log.c= -Wno-cast-qual
 CFLAGS.zfs_vnops_os.c= -Wno-pointer-arith
 CFLAGS.u8_textprep.c= -Wno-cast-qual

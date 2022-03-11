@@ -27,6 +27,7 @@
 # Copyright (c) 2017, Lawrence Livermore National Security LLC.
 # Copyright (c) 2017, Datto Inc. All rights reserved.
 # Copyright (c) 2017, Open-E Inc. All rights reserved.
+# Copyright (c) 2021, The FreeBSD Foundation.
 # Use is subject to license terms.
 #
 
@@ -251,7 +252,7 @@ function unmounted
 
 function splitline
 {
-	echo $1 | sed "s/,/ /g"
+	echo $1 | tr ',' ' '
 }
 
 function default_setup
@@ -1091,9 +1092,7 @@ function get_endslice #<disk> <slice>
 	case "$(uname)" in
 	Linux)
 		endcyl=$(parted -s $DEV_DSKDIR/$disk -- unit cyl print | \
-			grep "part${slice}" | \
-			awk '{print $3}' | \
-			sed 's,cyl,,')
+			awk "/part${slice}/"' {sub(/cyl/, "", $3); print $3}')
 		((endcyl = (endcyl + 1)))
 		;;
 	FreeBSD)
@@ -1460,7 +1459,7 @@ function is_shared_smb
 	if datasetnonexists "$fs" ; then
 		return 1
 	else
-		fs=$(echo $fs | sed 's@/@_@g')
+		fs=$(echo $fs | tr / _)
 	fi
 
 	if is_linux; then
@@ -2144,7 +2143,7 @@ function get_disklist # pool
 
 	disklist=$(zpool iostat -v $1 | nawk '(NR >4) {print $1}' | \
 	    grep -v "\-\-\-\-\-" | \
-	    egrep -v -e "^(mirror|raidz[1-3]|spare|log|cache|special|dedup)$")
+	    egrep -v -e "^(mirror|raidz[1-3]|draid[1-3]|spare|log|cache|special|dedup)|\-[0-9]$")
 
 	echo $disklist
 }
@@ -4211,6 +4210,25 @@ function get_arcstat # stat
 		;;
 	Linux)
 		kstat arcstats | awk "/$stat/ { print \$3 }"
+		;;
+	*)
+		false
+		;;
+	esac
+}
+
+function punch_hole # offset length file
+{
+	typeset offset=$1
+	typeset length=$2
+	typeset file=$3
+
+	case $(uname) in
+	FreeBSD)
+		truncate -d -o $offset -l $length "$file"
+		;;
+	Linux)
+		fallocate --punch-hole --offset $offset --length $length "$file"
 		;;
 	*)
 		false

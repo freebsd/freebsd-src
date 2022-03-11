@@ -121,8 +121,6 @@
  * dsl_dir_init_fs_ss_count().
  */
 
-extern inline dsl_dir_phys_t *dsl_dir_phys(dsl_dir_t *dd);
-
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
 
 typedef struct ddulrt_arg {
@@ -764,6 +762,8 @@ dsl_enforce_ds_ss_limits(dsl_dir_t *dd, zfs_prop_t prop,
 	 */
 	if (secpolicy_zfs_proc(cr, proc) == 0)
 		return (ENFORCE_NEVER);
+#else
+	(void) proc;
 #endif
 
 	if ((obj = dsl_dir_phys(dd)->dd_head_dataset_obj) == 0)
@@ -1320,7 +1320,6 @@ top_of_function:
 	 * we're very close to full, this will allow a steady trickle of
 	 * removes to get through.
 	 */
-	uint64_t deferred = 0;
 	if (dd->dd_parent == NULL) {
 		uint64_t avail = dsl_pool_unreserved_space(dd->dd_pool,
 		    (netfree) ?
@@ -1335,13 +1334,21 @@ top_of_function:
 	/*
 	 * If they are requesting more space, and our current estimate
 	 * is over quota, they get to try again unless the actual
-	 * on-disk is over quota and there are no pending changes (which
-	 * may free up space for us).
+	 * on-disk is over quota and there are no pending changes
+	 * or deferred frees (which may free up space for us).
 	 */
 	if (used_on_disk + est_inflight >= quota) {
-		if (est_inflight > 0 || used_on_disk < quota ||
-		    (retval == ENOSPC && used_on_disk < quota + deferred))
-			retval = ERESTART;
+		if (est_inflight > 0 || used_on_disk < quota) {
+			retval = SET_ERROR(ERESTART);
+		} else {
+			ASSERT3U(used_on_disk, >=, quota);
+
+			if (retval == ENOSPC && (used_on_disk - quota) <
+			    dsl_pool_deferred_space(dd->dd_pool)) {
+				retval = SET_ERROR(ERESTART);
+			}
+		}
+
 		dprintf_dd(dd, "failing: used=%lluK inflight = %lluK "
 		    "quota=%lluK tr=%lluK err=%d\n",
 		    (u_longlong_t)used_on_disk>>10,
@@ -1349,7 +1356,7 @@ top_of_function:
 		    (u_longlong_t)quota>>10, (u_longlong_t)asize>>10, retval);
 		mutex_exit(&dd->dd_lock);
 		DMU_TX_STAT_BUMP(dmu_tx_quota);
-		return (SET_ERROR(retval));
+		return (retval);
 	}
 
 	/* We need to up our estimated delta before dropping dd_lock */
@@ -1896,10 +1903,10 @@ typedef struct dsl_valid_rename_arg {
 	int nest_delta;
 } dsl_valid_rename_arg_t;
 
-/* ARGSUSED */
 static int
 dsl_valid_rename(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 {
+	(void) dp;
 	dsl_valid_rename_arg_t *dvra = arg;
 	char namebuf[ZFS_MAX_DATASET_NAME_LEN];
 
@@ -2396,6 +2403,7 @@ dsl_dir_activity_in_progress(dsl_dir_t *dd, dsl_dataset_t *ds,
 		 * The delete queue is ZPL specific, and libzpool doesn't have
 		 * it. It doesn't make sense to wait for it.
 		 */
+		(void) ds;
 		*in_progress = B_FALSE;
 		break;
 #endif

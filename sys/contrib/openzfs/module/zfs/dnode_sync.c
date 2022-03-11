@@ -655,8 +655,13 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 			    DNODE_FLAG_USEROBJUSED_ACCOUNTED;
 		mutex_exit(&dn->dn_mtx);
 		dmu_objset_userquota_get_ids(dn, B_FALSE, tx);
-	} else {
-		/* Once we account for it, we should always account for it */
+	} else if (!(os->os_encrypted && dmu_objset_is_receiving(os))) {
+		/*
+		 * Once we account for it, we should always account for it,
+		 * except for the case of a raw receive. We will not be able
+		 * to account for it until the receiving dataset has been
+		 * mounted.
+		 */
 		ASSERT(!(dn->dn_phys->dn_flags &
 		    DNODE_FLAG_USERUSED_ACCOUNTED));
 		ASSERT(!(dn->dn_phys->dn_flags &
@@ -848,6 +853,8 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		ASSERT3P(list_head(list), ==, NULL);
 		dnode_rele(dn, (void *)(uintptr_t)tx->tx_txg);
 	}
+
+	ASSERT3U(dnp->dn_bonuslen, <=, DN_MAX_BONUS_LEN(dnp));
 
 	/*
 	 * Although we have dropped our reference to the dnode, it

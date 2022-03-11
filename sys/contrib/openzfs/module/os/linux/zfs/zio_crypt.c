@@ -1204,10 +1204,25 @@ zio_crypt_do_objset_hmacs(zio_crypt_key_t *key, void *data, uint_t datalen,
 	bcopy(raw_portable_mac, portable_mac, ZIO_OBJSET_MAC_LEN);
 
 	/*
+	 * This is necessary here as we check next whether
+	 * OBJSET_FLAG_USERACCOUNTING_COMPLETE is set in order to
+	 * decide if the local_mac should be zeroed out. That flag will always
+	 * be set by dmu_objset_id_quota_upgrade_cb() and
+	 * dmu_objset_userspace_upgrade_cb() if useraccounting has been
+	 * completed.
+	 */
+	intval = osp->os_flags;
+	if (should_bswap)
+		intval = BSWAP_64(intval);
+	boolean_t uacct_incomplete =
+	    !(intval & OBJSET_FLAG_USERACCOUNTING_COMPLETE);
+
+	/*
 	 * The local MAC protects the user, group and project accounting.
 	 * If these objects are not present, the local MAC is zeroed out.
 	 */
-	if ((datalen >= OBJSET_PHYS_SIZE_V3 &&
+	if (uacct_incomplete ||
+	    (datalen >= OBJSET_PHYS_SIZE_V3 &&
 	    osp->os_userused_dnode.dn_type == DMU_OT_NONE &&
 	    osp->os_groupused_dnode.dn_type == DMU_OT_NONE &&
 	    osp->os_projectused_dnode.dn_type == DMU_OT_NONE) ||
@@ -1761,6 +1776,7 @@ zio_crypt_init_uios_normal(boolean_t encrypt, uint8_t *plainbuf,
     uint8_t *cipherbuf, uint_t datalen, zfs_uio_t *puio, zfs_uio_t *cuio,
     uint_t *enc_len)
 {
+	(void) encrypt;
 	int ret;
 	uint_t nr_plain = 1, nr_cipher = 2;
 	iovec_t *plain_iovecs = NULL, *cipher_iovecs = NULL;

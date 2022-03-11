@@ -909,7 +909,7 @@ ratio; for example, 8kB blocks on disks with 4kB disk sectors must compress to 1
 or less of their original size.
 .It Xo
 .Sy context Ns = Ns Sy none Ns | Ns
-.Ar SELinux-User : Ns Ar SElinux-Role : Ns Ar Selinux-Type : Ns Ar Sensitivity-Level
+.Ar SELinux-User : Ns Ar SELinux-Role : Ns Ar SELinux-Type : Ns Ar Sensitivity-Level
 .Xc
 This flag sets the SELinux context for all files in the file system under
 a mount point for that file system.
@@ -918,7 +918,7 @@ See
 for more information.
 .It Xo
 .Sy fscontext Ns = Ns Sy none Ns | Ns
-.Ar SELinux-User : Ns Ar SElinux-Role : Ns Ar Selinux-Type : Ns Ar Sensitivity-Level
+.Ar SELinux-User : Ns Ar SELinux-Role : Ns Ar SELinux-Type : Ns Ar Sensitivity-Level
 .Xc
 This flag sets the SELinux context for the file system file system being
 mounted.
@@ -927,7 +927,7 @@ See
 for more information.
 .It Xo
 .Sy defcontext Ns = Ns Sy none Ns | Ns
-.Ar SELinux-User : Ns Ar SElinux-Role : Ns Ar Selinux-Type : Ns Ar Sensitivity-Level
+.Ar SELinux-User : Ns Ar SELinux-Role : Ns Ar SELinux-Type : Ns Ar Sensitivity-Level
 .Xc
 This flag sets the SELinux default context for unlabeled files.
 See
@@ -935,7 +935,7 @@ See
 for more information.
 .It Xo
 .Sy rootcontext Ns = Ns Sy none Ns | Ns
-.Ar SELinux-User : Ns Ar SElinux-Role : Ns Ar Selinux-Type : Ns Ar Sensitivity-Level
+.Ar SELinux-User : Ns Ar SELinux-Role : Ns Ar SELinux-Type : Ns Ar Sensitivity-Level
 .Xc
 This flag sets the SELinux context for the root inode of the file system.
 See
@@ -1099,7 +1099,7 @@ Even though the encryption suite cannot be changed after dataset creation,
 the keyformat can be with
 .Nm zfs Cm change-key .
 .It Xo
-.Sy keylocation Ns = Ns Sy prompt Ns | Ns Sy file:// Ns Em </absolute/file/path>
+.Sy keylocation Ns = Ns Sy prompt Ns | Ns Sy file:// Ns Em </absolute/file/path> Ns | Ns Sy https:// Ns Em <address> | Ns Sy http:// Ns Em <address>
 .Xc
 Controls where the user's encryption key will be loaded from by default for
 commands such as
@@ -1126,6 +1126,24 @@ but users should be careful not to place keys which should be kept secret on
 the command line.
 If a file URI is selected, the key will be loaded from the
 specified absolute file path.
+If an HTTPS or HTTP URL is selected, it will be GETted using
+.Xr fetch 3 ,
+libcurl, or nothing, depending on compile-time configuration and run-time
+availability.
+The
+.Ev SSL_CA_CERT_FILE
+environment variable can be set to set the location
+of the concatenated certificate store.
+The
+.Ev SSL_CA_CERT_PATH
+environment variable can be set to override the location
+of the directory containing the certificate authority bundle.
+The
+.Ev SSL_CLIENT_CERT_FILE
+and
+.Ev SSL_CLIENT_KEY_FILE
+environment variables can be set to configure the path
+to the client certificate and its key.
 .It Sy pbkdf2iters Ns = Ns Ar iterations
 Controls the number of PBKDF2 iterations that a
 .Sy passphrase
@@ -1622,6 +1640,11 @@ If the property is set to
 .Sy on ,
 the dataset is shared using the default options:
 .Dl sec=sys,rw,crossmnt,no_subtree_check
+.Pp
+Please note that the options are comma-separated, unlike those found in
+.Xr exports 5 .
+This is done to negate the need for quoting, as well as to make parsing
+with scripts easier.
 .Pp
 See
 .Xr exports 5

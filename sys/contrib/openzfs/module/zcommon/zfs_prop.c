@@ -583,7 +583,7 @@ zfs_prop_init(void)
 	    "ENCROOT");
 	zprop_register_string(ZFS_PROP_KEYLOCATION, "keylocation",
 	    "none", PROP_DEFAULT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
-	    "prompt | <file URI>", "KEYLOCATION");
+	    "prompt | <file URI> | <https URL> | <http URL>", "KEYLOCATION");
 	zprop_register_string(ZFS_PROP_REDACT_SNAPS,
 	    "redact_snaps", NULL, PROP_READONLY,
 	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<snapshot>[,...]",
@@ -936,6 +936,10 @@ zfs_prop_valid_keylocation(const char *str, boolean_t encrypted)
 		return (B_TRUE);
 	else if (strlen(str) > 8 && strncmp("file:///", str, 8) == 0)
 		return (B_TRUE);
+	else if (strlen(str) > 8 && strncmp("https://", str, 8) == 0)
+		return (B_TRUE);
+	else if (strlen(str) > 7 && strncmp("http://", str, 7) == 0)
+		return (B_TRUE);
 
 	return (B_FALSE);
 }
@@ -992,10 +996,10 @@ zfs_prop_align_right(zfs_prop_t prop)
 
 #include <sys/simd.h>
 
-#if defined(HAVE_KERNEL_FPU_INTERNAL)
+#if defined(HAVE_KERNEL_FPU_INTERNAL) || defined(HAVE_KERNEL_FPU_XSAVE_INTERNAL)
 union fpregs_state **zfs_kfpu_fpregs;
 EXPORT_SYMBOL(zfs_kfpu_fpregs);
-#endif /* HAVE_KERNEL_FPU_INTERNAL */
+#endif /* HAVE_KERNEL_FPU_INTERNAL || HAVE_KERNEL_FPU_XSAVE_INTERNAL */
 
 static int __init
 zcommon_init(void)
