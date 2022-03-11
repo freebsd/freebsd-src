@@ -802,6 +802,57 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 _Static_assert(MAXNAMLEN == NAME_MAX,
     "MAXNAMLEN and NAME_MAX have different values");
 
+static int __noinline
+vfs_lookup_degenerate(struct nameidata *ndp, struct vnode *dp, int wantparent)
+{
+	struct componentname *cnp;
+	struct mount *mp;
+	int error;
+
+	cnp = &ndp->ni_cnd;
+
+	cnp->cn_flags |= ISLASTCN;
+
+	mp = atomic_load_ptr(&dp->v_mount);
+	if (needs_exclusive_leaf(mp, cnp->cn_flags)) {
+		cnp->cn_lkflags &= ~LK_SHARED;
+		cnp->cn_lkflags |= LK_EXCLUSIVE;
+	}
+
+	vn_lock(dp,
+	    compute_cn_lkflags(mp, cnp->cn_lkflags | LK_RETRY,
+	    cnp->cn_flags));
+
+	if (dp->v_type != VDIR) {
+		error = ENOTDIR;
+		goto bad;
+	}
+	if (cnp->cn_nameiop != LOOKUP) {
+		error = EISDIR;
+		goto bad;
+	}
+	if (wantparent) {
+		ndp->ni_dvp = dp;
+		VREF(dp);
+	}
+	ndp->ni_vp = dp;
+
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG_VNODE1(dp);
+	else if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG_VNODE2(dp);
+
+	if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
+		VOP_UNLOCK(dp);
+	/* XXX This should probably move to the top of function. */
+	if (cnp->cn_flags & SAVESTART)
+		panic("lookup: SAVESTART");
+	return (0);
+bad:
+	VOP_UNLOCK(dp);
+	return (error);
+}
+
 /*
  * Search a pathname.
  * This is a very central and rather complicated routine.
@@ -886,13 +937,31 @@ vfs_lookup(struct nameidata *ndp)
 	rdonly = cnp->cn_flags & RDONLY;
 	cnp->cn_flags &= ~ISSYMLINK;
 	ndp->ni_dvp = NULL;
+
+	cnp->cn_lkflags = LK_SHARED;
+	dp = ndp->ni_startdir;
+	ndp->ni_startdir = NULLVP;
+
+	/*
+	 * Leading slashes, if any, are supposed to be skipped by the caller.
+	 */
+	MPASS(cnp->cn_nameptr[0] != '/');
+
+	/*
+	 * Check for degenerate name (e.g. / or "") which is a way of talking
+	 * about a directory, e.g. like "/." or ".".
+	 */
+	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
+		error = vfs_lookup_degenerate(ndp, dp, wantparent);
+		if (error == 0)
+			goto success_right_lock;
+		goto bad_unlocked;
+	}
+
 	/*
 	 * We use shared locks until we hit the parent of the last cn then
 	 * we adjust based on the requesting flags.
 	 */
-	cnp->cn_lkflags = LK_SHARED;
-	dp = ndp->ni_startdir;
-	ndp->ni_startdir = NULLVP;
 	vn_lock(dp,
 	    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY,
 	    cnp->cn_flags));
@@ -980,37 +1049,10 @@ dirloop:
 	nameicap_tracker_add(ndp, dp);
 
 	/*
-	 * Check for degenerate name (e.g. / or "")
-	 * which is a way of talking about a directory,
-	 * e.g. like "/." or ".".
+	 * Make sure degenerate names don't get here, their handling was
+	 * previously found in this spot.
 	 */
-	if (cnp->cn_nameptr[0] == '\0') {
-		if (dp->v_type != VDIR) {
-			error = ENOTDIR;
-			goto bad;
-		}
-		if (cnp->cn_nameiop != LOOKUP) {
-			error = EISDIR;
-			goto bad;
-		}
-		if (wantparent) {
-			ndp->ni_dvp = dp;
-			VREF(dp);
-		}
-		ndp->ni_vp = dp;
-
-		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_VNODE1(dp);
-		else if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_VNODE2(dp);
-
-		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
-			VOP_UNLOCK(dp);
-		/* XXX This should probably move to the top of function. */
-		if (cnp->cn_flags & SAVESTART)
-			panic("lookup: SAVESTART");
-		goto success;
-	}
+	MPASS(cnp->cn_nameptr[0] != '\0');
 
 	/*
 	 * Handle "..": five special cases.
@@ -1341,6 +1383,7 @@ success:
 			goto bad2;
 		}
 	}
+success_right_lock:
 	if (ndp->ni_vp != NULL) {
 		if ((cnp->cn_flags & ISDOTDOT) == 0)
 			nameicap_tracker_add(ndp, ndp->ni_vp);
@@ -1359,6 +1402,7 @@ bad2:
 bad:
 	if (!dpunlocked)
 		vput(dp);
+bad_unlocked:
 	ndp->ni_vp = NULL;
 	return (error);
 bad_eexist:
