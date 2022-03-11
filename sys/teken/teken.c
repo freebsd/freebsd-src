@@ -494,7 +494,7 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 
 #define	k	TC_BLACK
 #define	b	TC_BLUE
-#define	y	TC_BROWN
+#define	y	TC_YELLOW
 #define	c	TC_CYAN
 #define	g	TC_GREEN
 #define	m	TC_MAGENTA
@@ -502,7 +502,7 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 #define	w	TC_WHITE
 #define	K	(TC_BLACK | TC_LIGHT)
 #define	B	(TC_BLUE | TC_LIGHT)
-#define	Y	(TC_BROWN | TC_LIGHT)
+#define	Y	(TC_YELLOW | TC_LIGHT)
 #define	C	(TC_CYAN | TC_LIGHT)
 #define	G	(TC_GREEN | TC_LIGHT)
 #define	M	(TC_MAGENTA | TC_LIGHT)
