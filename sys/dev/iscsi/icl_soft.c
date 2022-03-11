@@ -1106,7 +1106,6 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 	struct mbuf *m, *m_tail;
 	vm_offset_t vaddr;
 	size_t mtodo, page_offset, todo;
-	boolean_t mapped;
 	int i;
 
 	KASSERT(len > 0, ("len == 0"));
@@ -1189,9 +1188,7 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 
 	while (len > 0) {
 		todo = MIN(len, PAGE_SIZE - page_offset);
-
-		mapped = pmap_map_io_transient(bp->bio_ma + i, &vaddr, 1,
-		    FALSE);
+		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
 
 		do {
 			mtodo = min(todo, M_SIZE(m) - m->m_len);
@@ -1203,10 +1200,6 @@ icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
 			page_offset += mtodo;
 			todo -= mtodo;
 		} while (todo > 0);
-
-		if (__predict_false(mapped))
-			pmap_unmap_io_transient(bp->bio_ma + 1, &vaddr, 1,
-			    FALSE);
 
 		page_offset = 0;
 		len -= todo;
@@ -1270,7 +1263,6 @@ icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 {
 	vm_offset_t vaddr;
 	size_t page_offset, todo;
-	boolean_t mapped;
 	int i;
 
 	MPASS(bp->bio_flags & BIO_UNMAPPED);
@@ -1287,13 +1279,9 @@ icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 	while (len > 0) {
 		todo = MIN(len, PAGE_SIZE - page_offset);
 
-		mapped = pmap_map_io_transient(bp->bio_ma + i, &vaddr, 1,
-		    FALSE);
+		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
 		m_copydata(ip->ip_data_mbuf, pdu_off, todo, (char *)vaddr +
 		    page_offset);
-		if (__predict_false(mapped))
-			pmap_unmap_io_transient(bp->bio_ma + 1, &vaddr, 1,
-			    FALSE);
 
 		page_offset = 0;
 		pdu_off += todo;
