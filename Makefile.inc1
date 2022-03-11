@@ -537,12 +537,12 @@ SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .export VERSION
 .endif
+MAJOR_REVISION=	${_REVISION:R}
 
 .if !defined(PKG_VERSION)
 _STRTIMENOW=	%Y%m%d%H%M%S
 _TIMENOW=	${_STRTIMENOW:gmtime}
 .if ${_BRANCH:MCURRENT*} || ${_BRANCH:MSTABLE*} || ${_BRANCH:MPRERELEASE*}
-_REVISION:=	${_REVISION:R}
 EXTRA_REVISION=	.snap${_TIMENOW}
 .elif ${_BRANCH:MALPHA*}
 EXTRA_REVISION=	.a${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
@@ -553,7 +553,7 @@ EXTRA_REVISION=	.rc${_BRANCH:C/RC([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:M*-p*}
 EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
-PKG_VERSION:=	${_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
+PKG_VERSION:=	${MAJOR_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
 .endif	# !defined(PKG_VERSION)
 
@@ -1885,7 +1885,7 @@ _pkgbootstrap: .PHONY
 # Determine PKG_ABI from newvers.sh if not already set.
 #
 .if !defined(PKG_ABI) && (make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages))
-PKG_ABI=${_TYPE}:${_REVISION:S/\..*$//}:${TARGET_ARCH}
+PKG_ABI=${_TYPE}:${MAJOR_REVISION}:${TARGET_ARCH}
 .endif
 PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
     awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
