@@ -358,6 +358,17 @@ geom_lookupid(struct gmesh *gmp, const void *id)
 	return (NULL);
 }
 
+static void *
+geom_lookupidptr(struct gmesh *gmp, const void *id)
+{
+	struct gident *gip;
+
+	gip = geom_lookupid(gmp, id);
+	if (gip)
+		return (gip->lg_ptr);
+	return (NULL);
+}
+
 int
 geom_xml2tree(struct gmesh *gmp, char *p)
 {
@@ -430,22 +441,19 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 	/* Substitute all identifiers */
 	LIST_FOREACH(cl, &gmp->lg_class, lg_class) {
 		LIST_FOREACH(ge, &cl->lg_geom, lg_geom) {
-			ge->lg_class =
-			    geom_lookupid(gmp, ge->lg_class)->lg_ptr;
-			LIST_FOREACH(pr, &ge->lg_provider, lg_provider) {
-				pr->lg_geom =
-				    geom_lookupid(gmp, pr->lg_geom)->lg_ptr;
-			}
+			ge->lg_class = geom_lookupidptr(gmp, ge->lg_class);
+			LIST_FOREACH(pr, &ge->lg_provider, lg_provider)
+				pr->lg_geom = geom_lookupidptr(gmp, pr->lg_geom);
 			LIST_FOREACH(co, &ge->lg_consumer, lg_consumer) {
-				co->lg_geom =
-				    geom_lookupid(gmp, co->lg_geom)->lg_ptr;
+				co->lg_geom = geom_lookupidptr(gmp, co->lg_geom);
 				if (co->lg_provider != NULL) {
-					co->lg_provider = 
-					    geom_lookupid(gmp,
-						co->lg_provider)->lg_ptr;
-					LIST_INSERT_HEAD(
-					    &co->lg_provider->lg_consumers,
-					    co, lg_consumers);
+					co->lg_provider = geom_lookupidptr(gmp,
+						co->lg_provider);
+					if (co->lg_provider != NULL) {
+						LIST_INSERT_HEAD(
+						    &co->lg_provider->lg_consumers,
+						    co, lg_consumers);
+					}
 				}
 			}
 		}
@@ -460,6 +468,20 @@ geom_gettree(struct gmesh *gmp)
 	int error;
 
 	p = geom_getxml();
+	if (p == NULL)
+		return (errno);
+	error = geom_xml2tree(gmp, p);
+	free(p);
+	return (error);
+}
+
+int
+geom_gettree_geom(struct gmesh *gmp, const char *c, const char *g, int parents)
+{
+	char *p;
+	int error;
+
+	p = geom_getxml_geom(c, g, parents);
 	if (p == NULL)
 		return (errno);
 	error = geom_xml2tree(gmp, p);

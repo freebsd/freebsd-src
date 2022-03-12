@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
+ * Copyright (c) 2022 Alexander Motin <mav@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +51,13 @@
  */
 #define	GEOM_GETXML_RETRIES	4
 
+/*
+ * Size of confxml buffer to request via getxml control request.  It is
+ * expected to be sufficient for single geom and its parents.  In case of
+ * overflow fall back to requesting full confxml via sysctl interface.
+ */
+#define	GEOM_GETXML_BUFFER	65536
+
 char *
 geom_getxml(void)
 {
@@ -86,4 +94,37 @@ geom_getxml(void)
 	}
 
 	return (NULL);
+}
+
+char *
+geom_getxml_geom(const char *class, const char *geom, int parents)
+{
+	struct gctl_req *r;
+	char *p;
+	const char *errstr;
+	int nargs = 0;
+
+	p = malloc(GEOM_GETXML_BUFFER);
+	if (p == NULL)
+		return (NULL);
+	r = gctl_get_handle();
+	gctl_ro_param(r, "class", -1, class);
+	gctl_ro_param(r, "verb", -1, "getxml");
+	gctl_ro_param(r, "parents", sizeof(parents), &parents);
+	if (geom) {
+		gctl_ro_param(r, "arg0", -1, geom);
+		nargs = 1;
+	}
+	gctl_ro_param(r, "nargs", sizeof(nargs), &nargs);
+	p[0] = '\0';
+	gctl_add_param(r, "output", GEOM_GETXML_BUFFER, p,
+	    GCTL_PARAM_WR | GCTL_PARAM_ASCII);
+	errstr = gctl_issue(r);
+	if (errstr != NULL && errstr[0] != '\0') {
+		gctl_free(r);
+		free(p);
+		return (geom_getxml());
+	}
+	gctl_free(r);
+	return (p);
 }

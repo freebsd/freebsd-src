@@ -4,6 +4,7 @@
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
+ * Copyright (c) 2022 Alexander Motin <mav@FreeBSD.org>
  *
  * This software was developed for the FreeBSD Project by Poul-Henning Kamp
  * and NAI Labs, the Security Research Division of Network Associates, Inc.
@@ -363,7 +364,7 @@ gctl_set_param_err(struct gctl_req *req, const char *param, void const *ptr,
 }
 
 void *
-gctl_get_param(struct gctl_req *req, const char *param, int *len)
+gctl_get_param_flags(struct gctl_req *req, const char *param, int flags, int *len)
 {
 	u_int i;
 	void *p;
@@ -373,7 +374,7 @@ gctl_get_param(struct gctl_req *req, const char *param, int *len)
 		ap = &req->arg[i];
 		if (strcmp(param, ap->name))
 			continue;
-		if (!(ap->flag & GCTL_PARAM_RD))
+		if ((ap->flag & flags) != flags)
 			continue;
 		p = ap->kvalue;
 		if (len != NULL)
@@ -383,31 +384,31 @@ gctl_get_param(struct gctl_req *req, const char *param, int *len)
 	return (NULL);
 }
 
+void *
+gctl_get_param(struct gctl_req *req, const char *param, int *len)
+{
+
+	return (gctl_get_param_flags(req, param, GCTL_PARAM_RD, len));
+}
+
 char const *
 gctl_get_asciiparam(struct gctl_req *req, const char *param)
 {
-	u_int i;
 	char const *p;
-	struct gctl_req_arg *ap;
+	int len;
 
-	for (i = 0; i < req->narg; i++) {
-		ap = &req->arg[i];
-		if (strcmp(param, ap->name))
-			continue;
-		if (!(ap->flag & GCTL_PARAM_RD))
-			continue;
-		p = ap->kvalue;
-		if (ap->len < 1) {
-			gctl_error(req, "No length argument (%s)", param);
-			return (NULL);
-		}
-		if (p[ap->len - 1] != '\0') {
-			gctl_error(req, "Unterminated argument (%s)", param);
-			return (NULL);
-		}
-		return (p);
+	p = gctl_get_param_flags(req, param, GCTL_PARAM_RD, &len);
+	if (p == NULL)
+		return (NULL);
+	if (len < 1) {
+		gctl_error(req, "Argument without length (%s)", param);
+		return (NULL);
 	}
-	return (NULL);
+	if (p[len - 1] != '\0') {
+		gctl_error(req, "Unterminated argument (%s)", param);
+		return (NULL);
+	}
+	return (p);
 }
 
 void *
@@ -492,6 +493,62 @@ gctl_get_provider(struct gctl_req *req, char const *arg)
 }
 
 static void
+g_ctl_getxml(struct gctl_req *req, struct g_class *mp)
+{
+	const char *name;
+	char *buf;
+	struct sbuf *sb;
+	int len, i = 0, n = 0, *parents;
+	struct g_geom *gp, **gps;
+	struct g_consumer *cp;
+
+	parents = gctl_get_paraml(req, "parents", sizeof(*parents));
+	if (parents == NULL)
+		return;
+	name = gctl_get_asciiparam(req, "arg0");
+	n = 0;
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (name && strcmp(gp->name, name) != 0)
+			continue;
+		n++;
+		if (*parents) {
+			LIST_FOREACH(cp, &gp->consumer, consumer)
+				n++;
+		}
+	}
+	gps = g_malloc((n + 1) * sizeof(*gps), M_WAITOK);
+	i = 0;
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (name && strcmp(gp->name, name) != 0)
+			continue;
+		gps[i++] = gp;
+		if (*parents) {
+			LIST_FOREACH(cp, &gp->consumer, consumer) {
+				if (cp->provider != NULL)
+					gps[i++] = cp->provider->geom;
+			}
+		}
+	}
+	KASSERT(i == n, ("different number of geoms found (%d != %d)",
+	    i, n));
+	gps[i] = 0;
+
+	buf = gctl_get_param_flags(req, "output", GCTL_PARAM_WR, &len);
+	if (buf == NULL) {
+		gctl_error(req, "output parameter missing");
+		g_free(gps);
+		return;
+	}
+	sb = sbuf_new(NULL, buf, len, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	g_conf_specific(sb, gps);
+	gctl_set_param(req, "output", buf, 0);
+	if (sbuf_error(sb))
+		gctl_error(req, "output buffer overflow");
+	sbuf_delete(sb);
+	g_free(gps);
+}
+
+static void
 g_ctl_req(void *arg, int flag __unused)
 {
 	struct g_class *mp;
@@ -503,16 +560,18 @@ g_ctl_req(void *arg, int flag __unused)
 	mp = gctl_get_class(req, "class");
 	if (mp == NULL)
 		return;
-	if (mp->ctlreq == NULL) {
-		gctl_error(req, "Class takes no requests");
-		return;
-	}
 	verb = gctl_get_param(req, "verb", NULL);
 	if (verb == NULL) {
 		gctl_error(req, "Verb missing");
 		return;
 	}
-	mp->ctlreq(req, mp, verb);
+	if (strcmp(verb, "getxml") == 0) {
+		g_ctl_getxml(req, mp);
+	} else if (mp->ctlreq == NULL) {
+		gctl_error(req, "Class takes no requests");
+	} else {
+		mp->ctlreq(req, mp, verb);
+	}
 	g_topology_assert();
 }
 

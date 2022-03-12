@@ -440,32 +440,30 @@ mirror_resize(struct gctl_req *req, unsigned flags __unused)
 	struct gconsumer *cp;
 	off_t size;
 	int error, nargs;
-	const char *name;
+	const char *name, *g;
 	char ssize[30];
 
 	nargs = gctl_get_int(req, "nargs");
-	if (nargs < 1) {
-		gctl_error(req, "Too few arguments.");
-		return;
-	}
-	error = geom_gettree(&mesh);
-	if (error)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+	if (nargs != 1)
+		errx(EXIT_FAILURE, "Invalid number of arguments.");
 	name = gctl_get_ascii(req, "class");
 	if (name == NULL)
 		abort();
+	g = gctl_get_ascii(req, "arg0");
+	if (g == NULL)
+		abort();
+	error = geom_gettree_geom(&mesh, name, g, 1);
+	if (error)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, name);
 	if (classp == NULL)
 		errx(EXIT_FAILURE, "Class %s not found.", name);
-	name = gctl_get_ascii(req, "arg0");
-	if (name == NULL)
-		abort();
-	gp = find_geom(classp, name);
+	gp = find_geom(classp, g);
 	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", name);
+		errx(EXIT_FAILURE, "No such geom: %s.", g);
 	pp = LIST_FIRST(&gp->lg_provider);
 	if (pp == NULL)
-		errx(EXIT_FAILURE, "Provider of geom %s not found.", name);
+		errx(EXIT_FAILURE, "Provider of geom %s not found.", g);
 	size = pp->lg_mediasize;
 	name = gctl_get_ascii(req, "size");
 	if (name == NULL)
