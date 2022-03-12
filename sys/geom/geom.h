@@ -431,6 +431,7 @@ int g_is_geom_thread(struct thread *td);
 int gctl_set_param(struct gctl_req *req, const char *param, void const *ptr, int len);
 void gctl_set_param_err(struct gctl_req *req, const char *param, void const *ptr, int len);
 void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
+void *gctl_get_param_flags(struct gctl_req *req, const char *param, int flags, int *len);
 char const *gctl_get_asciiparam(struct gctl_req *req, const char *param);
 void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
 void *gctl_get_paraml_opt(struct gctl_req *req, const char *param, int len);

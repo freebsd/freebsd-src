@@ -4,6 +4,7 @@
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
+ * Copyright (c) 2013-2022 Alexander Motin <mav@FreeBSD.org>
  *
  * This software was developed for the FreeBSD Project by Poul-Henning Kamp
  * and NAI Labs, the Security Research Division of Network Associates, Inc.
@@ -242,10 +243,10 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 }
 
 static void
-g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_conf_geom(struct sbuf *sb, struct g_geom *gp)
 {
-	struct g_consumer *cp2;
-	struct g_provider *pp2;
+	struct g_consumer *cp;
+	struct g_provider *pp;
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
@@ -260,48 +261,56 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 		gp->dumpconf(sb, "\t", gp, NULL, NULL);
 		sbuf_cat(sb, "      </config>\n");
 	}
-	LIST_FOREACH(cp2, &gp->consumer, consumer) {
-		if (cp != NULL && cp != cp2)
-			continue;
-		g_conf_consumer(sb, cp2);
-	}
-
-	LIST_FOREACH(pp2, &gp->provider, provider) {
-		if (pp != NULL && pp != pp2)
-			continue;
-		g_conf_provider(sb, pp2);
-	}
+	LIST_FOREACH(cp, &gp->consumer, consumer)
+		g_conf_consumer(sb, cp);
+	LIST_FOREACH(pp, &gp->provider, provider)
+		g_conf_provider(sb, pp);
 	sbuf_cat(sb, "    </geom>\n");
 }
 
-static void
-g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+static bool
+g_conf_matchgp(struct g_geom *gp, struct g_geom **gps)
 {
-	struct g_geom *gp2;
+
+	if (gps == NULL)
+		return (true);
+	for (; *gps != NULL; gps++) {
+		if (*gps == gp)
+			return (true);
+	}
+	return (false);
+}
+
+static void
+g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom **gps)
+{
+	struct g_geom *gp;
 
 	sbuf_printf(sb, "  <class id=\"%p\">\n", mp);
 	sbuf_cat(sb, "    <name>");
 	g_conf_cat_escaped(sb, mp->name);
 	sbuf_cat(sb, "</name>\n");
-	LIST_FOREACH(gp2, &mp->geom, geom) {
-		if (gp != NULL && gp != gp2)
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (!g_conf_matchgp(gp, gps))
 			continue;
-		g_conf_geom(sb, gp2, pp, cp);
+		g_conf_geom(sb, gp);
+		if (sbuf_error(sb))
+			break;
 	}
 	sbuf_cat(sb, "  </class>\n");
 }
 
 void
-g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)
+g_conf_specific(struct sbuf *sb, struct g_geom **gps)
 {
 	struct g_class *mp2;
 
 	g_topology_assert();
 	sbuf_cat(sb, "<mesh>\n");
 	LIST_FOREACH(mp2, &g_classes, class) {
-		if (mp != NULL && mp != mp2)
-			continue;
-		g_conf_class(sb, mp2, gp, pp, cp);
+		g_conf_class(sb, mp2, gps);
+		if (sbuf_error(sb))
+			break;
 	}
 	sbuf_cat(sb, "</mesh>\n");
 	sbuf_finish(sb);
@@ -313,7 +322,7 @@ g_confxml(void *p, int flag)
 
 	KASSERT(flag != EV_CANCEL, ("g_confxml was cancelled"));
 	g_topology_assert();
-	g_conf_specific(p, NULL, NULL, NULL, NULL);
+	g_conf_specific(p, NULL);
 }
 
 void

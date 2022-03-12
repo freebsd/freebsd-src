@@ -329,31 +329,31 @@ gpart_autofill_resize(struct gctl_req *req)
 	struct gprovider *pp;
 	off_t last, size, start, new_size;
 	off_t lba, new_lba, alignment, offset;
-	const char *s;
+	const char *g, *s;
 	int error, idx, has_alignment;
 
 	idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
 	if (idx < 1)
 		errx(EXIT_FAILURE, "invalid partition index");
 
-	error = geom_gettree(&mesh);
-	if (error)
-		return (error);
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
+	g = gctl_get_ascii(req, "arg0");
+	if (g == NULL)
+		abort();
+	error = geom_gettree_geom(&mesh, s, g, 1);
+	if (error)
+		return (error);
 	cp = find_class(&mesh, s);
 	if (cp == NULL)
 		errx(EXIT_FAILURE, "Class %s not found.", s);
-	s = gctl_get_ascii(req, "arg0");
-	if (s == NULL)
-		abort();
-	gp = find_geom(cp, s);
+	gp = find_geom(cp, g);
 	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+		errx(EXIT_FAILURE, "No such geom: %s.", g);
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	if (pp == NULL)
-		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
+		errx(EXIT_FAILURE, "Provider for geom %s not found.", g);
 
 	s = gctl_get_ascii(req, "alignment");
 	has_alignment = (*s == '*') ? 0 : 1;
@@ -454,7 +454,7 @@ gpart_autofill(struct gctl_req *req)
 	off_t size, start, a_lba;
 	off_t lba, len, alignment, offset;
 	uintmax_t grade;
-	const char *s;
+	const char *g, *s;
 	int error, has_size, has_start, has_alignment;
 
 	s = gctl_get_ascii(req, "verb");
@@ -463,22 +463,22 @@ gpart_autofill(struct gctl_req *req)
 	if (strcmp(s, "add") != 0)
 		return (0);
 
-	error = geom_gettree(&mesh);
-	if (error)
-		return (error);
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
+	g = gctl_get_ascii(req, "arg0");
+	if (g == NULL)
+		abort();
+	error = geom_gettree_geom(&mesh, s, g, 1);
+	if (error)
+		return (error);
 	cp = find_class(&mesh, s);
 	if (cp == NULL)
 		errx(EXIT_FAILURE, "Class %s not found.", s);
-	s = gctl_get_ascii(req, "arg0");
-	if (s == NULL)
-		abort();
-	gp = find_geom(cp, s);
+	gp = find_geom(cp, g);
 	if (gp == NULL) {
-		if (g_device_path(s) == NULL) {
-			errx(EXIT_FAILURE, "No such geom %s.", s);
+		if (g_device_path(g) == NULL) {
+			errx(EXIT_FAILURE, "No such geom %s.", g);
 		} else {
 			/*
 			 * We don't free memory allocated by g_device_path() as
@@ -486,12 +486,12 @@ gpart_autofill(struct gctl_req *req)
 			 */
 			errx(EXIT_FAILURE,
 			    "No partitioning scheme found on geom %s. Create one first using 'gpart create'.",
-			    s);
+			    g);
 		}
 	}
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	if (pp == NULL)
-		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
+		errx(EXIT_FAILURE, "Provider for geom %s not found.", g);
 
 	s = gctl_get_ascii(req, "alignment");
 	has_alignment = (*s == '*') ? 0 : 1;
@@ -742,7 +742,12 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 	name = gctl_get_ascii(req, "class");
 	if (name == NULL)
 		abort();
-	error = geom_gettree(&mesh);
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs == 1) {
+		error = geom_gettree_geom(&mesh, name,
+		    gctl_get_ascii(req, "arg0"), 1);
+	} else
+		error = geom_gettree(&mesh);
 	if (error != 0)
 		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, name);
@@ -751,7 +756,6 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 		errx(EXIT_FAILURE, "Class %s not found.", name);
 	}
 	show_providers = gctl_get_int(req, "show_providers");
-	nargs = gctl_get_int(req, "nargs");
 	if (nargs > 0) {
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
@@ -776,34 +780,33 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	struct gclass *classp;
 	struct gprovider *pp;
 	struct ggeom *gp;
-	const char *s, *scheme;
+	const char *g, *s, *scheme;
 	off_t sector, end;
 	off_t length;
 	int error, i, windex, wblocks, wtype;
 
 	if (gctl_get_int(req, "nargs") != 1)
 		errx(EXIT_FAILURE, "Invalid number of arguments.");
-	error = geom_gettree(&mesh);
-	if (error != 0)
-		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
+	g = gctl_get_ascii(req, "arg0");
+	if (g == NULL)
+		abort();
+	error = geom_gettree_geom(&mesh, s, g, 0);
+	if (error != 0)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, s);
 	if (classp == NULL) {
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
-	s = gctl_get_ascii(req, "arg0");
-	if (s == NULL)
-		abort();
-	gp = find_geom(classp, s);
+	gp = find_geom(classp, g);
 	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+		errx(EXIT_FAILURE, "No such geom: %s.", g);
 	scheme = find_geomcfg(gp, "scheme");
 	if (scheme == NULL)
 		abort();
-	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	s = find_geomcfg(gp, "last");
 	if (s == NULL)
 		abort();
@@ -1201,10 +1204,13 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	struct gmesh mesh;
 	struct gclass *classp;
 	struct ggeom *gp;
-	const char *s;
+	const char *g, *s;
 	void *bootcode, *partcode;
 	size_t bootsize, partsize;
 	int error, idx, vtoc8;
+
+	if (gctl_get_int(req, "nargs") != 1)
+		errx(EXIT_FAILURE, "Invalid number of arguments.");
 
 	if (gctl_has_param(req, GPART_PARAM_BOOTCODE)) {
 		s = gctl_get_ascii(req, GPART_PARAM_BOOTCODE);
@@ -1228,7 +1234,10 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
-	error = geom_gettree(&mesh);
+	g = gctl_get_ascii(req, "arg0");
+	if (g == NULL)
+		abort();
+	error = geom_gettree_geom(&mesh, s, g, 0);
 	if (error != 0)
 		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, s);
@@ -1236,14 +1245,9 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
-	if (gctl_get_int(req, "nargs") != 1)
-		errx(EXIT_FAILURE, "Invalid number of arguments.");
-	s = gctl_get_ascii(req, "arg0");
-	if (s == NULL)
-		abort();
-	gp = find_geom(classp, s);
+	gp = find_geom(classp, g);
 	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+		errx(EXIT_FAILURE, "No such geom: %s.", g);
 	s = find_geomcfg(gp, "scheme");
 	if (s == NULL)
 		errx(EXIT_FAILURE, "Scheme not found for geom %s", gp->lg_name);
