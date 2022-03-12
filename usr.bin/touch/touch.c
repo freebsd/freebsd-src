@@ -177,10 +177,18 @@ main(int argc, char *argv[])
 				/* Create the file. */
 				fd = open(*argv,
 				    O_WRONLY | O_CREAT, DEFFILEMODE);
-				if (fd == -1 || fstat(fd, &sb) || close(fd)) {
+				if (fd == -1) {
 					rval = 1;
 					warn("%s", *argv);
 					continue;
+				}
+				if (fstat(fd, &sb) < 0) {
+					warn("%s", *argv);
+					rval = 1;
+				}
+				if (close(fd) < 0) {
+					warn("%s", *argv);
+					rval = 1;
 				}
 
 				/* If using the current time, we're done. */
