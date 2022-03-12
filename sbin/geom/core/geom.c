@@ -996,7 +996,7 @@ std_list_available(void)
 	struct gclass *classp;
 	int error;
 
-	error = geom_gettree(&mesh);
+	error = geom_gettree_geom(&mesh, gclass_name, "", 0);
 	if (error != 0)
 		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, gclass_name);
@@ -1015,7 +1015,12 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	const char *name;
 	int all, error, i, nargs;
 
-	error = geom_gettree(&mesh);
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs == 1) {
+		error = geom_gettree_geom(&mesh, gclass_name,
+		    gctl_get_ascii(req, "arg0"), 1);
+	} else
+		error = geom_gettree(&mesh);
 	if (error != 0)
 		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
 	classp = find_class(&mesh, gclass_name);
@@ -1023,7 +1028,6 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class '%s' not found.", gclass_name);
 	}
-	nargs = gctl_get_int(req, "nargs");
 	all = gctl_get_int(req, "all");
 	if (nargs > 0) {
 		for (i = 0; i < nargs; i++) {
