@@ -60,7 +60,7 @@ This program manages
 .Dq Unified Extensible Firmware Interface
 .Pq UEFI
 environment variables.
-UEFI variables have three part: A namespace, a name and a value.
+UEFI variables have three parts: A namespace, a name and a value.
 The namespace is a GUID that is self assigned by the group defining the
 variables.
 The name is a Unicode name for the variable.
@@ -76,7 +76,7 @@ The
 argument is the GUID of the variable, followed by a dash, followed by the
 UEFI variable name.
 The GUID may be in numeric format, or may be one of the well known
-symbolic name (see
+symbolic names (see
 .Fl -list-guids
 for a complete list).
 .It Fl f Ar file Fl -fromfile Ar file
@@ -108,7 +108,7 @@ variable.
 See section 7.2 (GetVariable subsection, Related Definitions) of the
 UEFI Specification for hex values to use.
 .It Fl A Fl -ascii
-Display the variable data as modified ascii: All printable characters
+Display the variable data as modified ASCII: All printable characters
 are printed, while unprintable characters are rendered as a two-digit
 hexadecimal number preceded by a % character.
 .It Fl b Fl -binary
@@ -134,7 +134,7 @@ Interpret the variables printed as UEFI device paths and print the
 UEFI standard string representation.
 .It Fl g Fl -guid
 Convert GUIDs to names if they are known
-.Po and show them up in
+.Po and show them in
 .Fl -list-guids
 .Pc .
 .It Fl H Fl -hex
@@ -142,7 +142,7 @@ List variable data as a hex dump.
 .It Fl L Fl -list-guids
 Lists the well known GUIDs.
 The names listed here may be used in place of the numeric GUID values.
-These names will replace the numeric GUID values unless
+These names will replace the numeric GUID values unless the
 .Fl -raw-guid
 flag is specified.
 .It Fl l Fl -list
@@ -151,13 +151,15 @@ If the
 .Fl -print
 flag is also listed, their values will be displayed.
 .It Fl -load-option
-Decode the variable as if it were a UEFI Boot Option, including information about what device and/or paths the UEFI DevicePaths decode to.
+Decode the variable as if it were a UEFI Boot Option, including information
+about what device and/or paths the UEFI DevicePaths decode to.
 .It Fl N Fl -no-name
 Do not display the variable name.
 .It Fl p Fl -print
 Print the value of the variable.
 .It Fl q Fl -quiet
-When an error occurs, exit with a non-zero value without outputting any error messages.
+When an error occurs, exit with a non-zero value without outputting
+any error messages.
 Otherwise, produce the normal output and exit with a zero status.
 .It Fl R Fl -raw-guid
 Do not substitute well known names for GUID numeric values in output.
