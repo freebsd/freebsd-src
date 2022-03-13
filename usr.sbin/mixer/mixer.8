@@ -21,8 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-
-.Dd October 17, 2021
+.Dd March 13, 2022
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -33,7 +32,7 @@
 .Op Fl f Ar device
 .Op Fl d Ar unit
 .Op Fl os
-.Op Ar dev Ns Op . Ns Ar control Ns Op = Ns Ar value
+.Op Ar dev Ns Op Cm \&. Ns Ar control Ns Op Cm \&= Ns Ar value
 .Ar ...
 .Nm
 .Op Fl d Ar unit
@@ -49,31 +48,39 @@ utility is used to set and display soundcard mixer device controls.
 The options are as follows:
 .Bl -tag -width "-f device"
 .It Fl a
-Print the values for all mixer devices available in the system (see FILES).
+Print the values for all mixer devices available in the system
+.Pq see Sx FILES .
 .It Fl d Ar unit
 Change the default audio card to
 .Ar unit .
-The unit has to be an integer value. To see what unit values are available, look
+The unit has to be an integer value.
+To see what unit values are available, look
 at the number each mixer device has by running
 .Nm .
 .It Fl f Ar device
 Open
 .Ar device
-as the mixer device (see FILES).
+as the mixer device
+.Pq see Sx FILES .
 .It Fl h
 Print a help message.
 .It Fl o
-Print mixer values in a format suitable for use inside scripts. The
-mixer's header (name, audio card name, ...) will not be printed.
+Print mixer values in a format suitable for use inside scripts.
+The mixer's header (name, audio card name, ...) will not be printed.
 .It Fl s
 Print only the recording source(s) of the mixer device.
 .El
 .Pp
 The list of mixer devices that may be modified are:
 .Bd -ragged -offset indent
-vol, bass, treble, synth, pcm, speaker, line, mic, cd, mix,
-pcm2, rec, igain, ogain, line1, line2, line3, dig1, dig2, dig3,
-phin, phout, video, radio, and monitor.
+.Cm vol , bass , treble , synth , pcm , speaker , line , mic , cd , mix ,
+.Cm pcm2 , rec ,
+.Cm igain , ogain ,
+.Cm line1 , line2 , line3 ,
+.Cm dig1 , dig2 , dig3 ,
+.Cm phin , phout , video , radio ,
+and
+.Cm monitor .
 .Ed
 .Pp
 Not all mixer devices are available.
@@ -91,34 +98,44 @@ displays only the values for
 More than one device may be specified.
 .Pp
 Commands use the following format:
-.Pp
 .Bl -column xxxxxxxxxxxxxxxxxxxxxxxx -offset indent
-.It Sy "Name	Action"
-.It "dev	Display all controls"
-.It "dev.control	Display only the specified control"
-.It "dev.control=value	Set control value"
+.It Sy Name Ta Sy Action
+.It Ar dev Ta Display all controls
+.It Ar dev Ns Cm \&. Ns Ar control Ta Display only the specified control
+.It Ar dev Ns Cm \&. Ns Ar control Ns Cm \&= Ns Ar value Ta Set control value
 .El
 .Pp
 The available controls are as follows (replace
 .Ar dev
 with one of the available devices):
+.Sm off
 .Bl -column xxxxxxxxxxxxxxxxxxxxxxxx -offset indent
-.It Sy "Name	Value"
-.It "dev.volume	[[+|-]lvol[:[+|-]rvol]]"
-.It "dev.mute	{0|1|^}"
-.It "dev.recsrc	{+|-|^|=}"
+.It Sy Name Ta Sy Value
+.It Ar dev Cm .volume Ta Xo
+.Ar vol |
+.Oo Cm \&+ | Cm \&- Oc Ar lvol
+.Oo Cm \&: Oo Cm \&+ | Cm \&- Oc Ar rvol Oc
+.Xc
+.It Ar dev Cm .mute Ta Cm 0 | 1 | ^
+.It Ar dev Cm .recsrc Ta Cm ^ | + | - | =
 .El
+.Sm on
 .Pp
 The
-.Ar dev.volume
-control modifies a device's volume. The optional
+.Ar dev Ns Cm .volume
+control modifies a device's volume.
+The optional
 .Ar lvol
 and/or
 .Ar rvol
-values have to be specified. The values have to be normalized 32-bit floats,
-from 0.0 to 1.0 inclusivly. If no "." character is present, the value is treated
+values have to be specified.
+The values have to be normalized 32-bit floats,
+from 0.0 to 1.0 inclusivly.
+If no
+.Ql \&.
+character is present, the value is treated
 like a percentage, for backwards compatibility.
-If the the left or right volume values are prefixed with
+If the left or right volume values are prefixed with
 .Cm +
 or
 .Cm - ,
@@ -126,31 +143,32 @@ the value following will be used as a relative adjustment, modifying the
 current settings by the amount specified.
 .Pp
 The
-.Ar dev.mute
-control (un)mutes a device. The following values are available:
+.Ar dev Ns Cm .mute
+control (un)mutes a device.
+The following values are available:
 .Bl -tag -width = -offset indent
 .It Cm 0
 unmutes
-.Ar dev .
+.Ar dev
 .It Cm 1
 mutes
-.Ar dev .
+.Ar dev
 .It Cm ^
 toggles the mute of
-.Ar dev .
+.Ar dev
 .El
 .Pp
 The
-.Ar dev.recsrc
+.Ar dev Ns Cm .recsrc
 control modifies the recording sources of a mixer.
 .Nm
 marks devices which can be used as a recording source with
-.Ar rec .
+.Sy rec .
 Recording sources are marked with
-.Ar src .
+.Sy src .
 To modify the recording source you can use one of the following modifiers
 on a
-.Ar rec
+.Sy rec
 device:
 .Bl -tag -width = -offset indent
 .It Cm ^
@@ -177,17 +195,18 @@ The mixer device, where
 is the number of that device, for example
 .Ar /dev/mixer0 .
 PCM cards and mixers have a 1:1 relationship, which means that
-.Ar mixer0
+.Pa /dev/mixer0
 is the mixer for
-.Ar pcm0
-and so on. By default,
+.Pa /dev/pcm0
+and so on.
+By default,
 .Nm
 prints both the audio card's number and the mixer associated with it
 in the form of
 .Ar pcmN:mixer .
 The
-.Ar /dev/mixer
-file, although it doesn't exist in the filesystem, points to the default
+.Pa /dev/mixer
+file, although it does not exist in the filesystem, points to the default
 mixer device and is the file
 .Nm
 opens when the
@@ -195,47 +214,46 @@ opens when the
 option has not been specified.
 .El
 .Sh EXAMPLES
-.Pp
 Change the volume for the
-.Ar vol
+.Cm vol
 device of the
-.Ar /dev/mixer0
+.Pa /dev/mixer0
 mixer device to 0.65:
-.Bl -tag -width Ds -offset indent
-.It $ mixer -f /dev/mixer0 vol.volume=0.65
-.El
+.Bd -literal -offset indent
+$ mixer -f /dev/mixer0 vol.volume=0.65
+.Ed
 .Pp
 Increase the
-.Ar mic
+.Cm mic
 device's left volume by 0.10 and decrease the right
 volume by 0.05:
-.Bl -tag -width Ds -offset indent
-.It $ mixer mic.volume=+0.10:-0.05
-.El
+.Bd -literal -offset indent
+$ mixer mic.volume=+0.10:-0.05
+.Ed
 .Pp
 Toggle the mute for
-.Ar vol :
-.Bl -tag -width Ds -offset indent
-.It $ mixer vol.mute=^
-.El
+.Cm vol :
+.Bd -literal -offset indent
+$ mixer vol.mute=^
+.Ed
 .Pp
 Set
-.Ar mic
+.Cm mic
 and toggle
-.Ar line
+.Cm line
 recording sources:
-.Bl -tag -width Ds -offset indent
-.It $ mixer mic.recsrc=+ line.recsrc=^
-.El
+.Bd -literal -offset indent
+$ mixer mic.recsrc=+ line.recsrc=^
+.Ed
 .Pp
 Dump
-.Ar /dev/mixer0
-information to a file and retrieve back later
-.Bl -tag -width Ds -offset indent
-.It $ mixer -f /dev/mixer0 -o > info
-.It ...
-.It $ mixer -f /dev/mixer0 `cat info`
-.El
+.Pa /dev/mixer0
+information to a file and retrieve back later:
+.Bd -literal -offset indent
+$ mixer -f /dev/mixer0 -o > info
+\&...
+$ mixer -f /dev/mixer0 `cat info`
+.Ed
 .Sh SEE ALSO
 .Xr mixer 3 ,
 .Xr sound 4 ,
@@ -243,7 +261,9 @@ information to a file and retrieve back later
 .Sh HISTORY
 The
 .Nm
-utility first appeared in FreeBSD 2.0.5 and was rewritten completely in
-FreeBSD 14.0.
+utility first appeared in
+.Fx 2.0.5
+and was rewritten completely in
+.Fx 14.0 .
 .Sh AUTHORS
 .An Christos Margiolis Aq Mt christos@FreeBSD.org
