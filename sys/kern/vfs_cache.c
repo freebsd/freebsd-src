@@ -277,7 +277,7 @@ struct	namecache {
 	} n_un;
 	u_char	nc_flag;		/* flag bits */
 	u_char	nc_nlen;		/* length of name */
-	char	nc_name[0];		/* segment name + nul */
+	char	nc_name[];		/* segment name + nul */
 };
 
 /*
