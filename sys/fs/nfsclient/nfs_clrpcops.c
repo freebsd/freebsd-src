@@ -1499,10 +1499,9 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 		    ND_NFSV4) {
 			/* Load the directory attributes. */
 			error = nfsm_loadattr(nd, dnap);
-			if (error == 0)
-				*dattrflagp = 1;
-			else
+			if (error != 0)
 				goto nfsmout;
+			*dattrflagp = 1;
 		}
 		/* Check Lookup operation reply status. */
 		if (openmode != 0 && (nd->nd_flag & ND_NOMOREDATA) == 0) {
@@ -1524,10 +1523,15 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 			if (*++tl != 0)
 				goto nfsmout;
-			error = nfscl_postop_attr(nd, nap, attrflagp, stuff);
-			if (error == 0)
-				/* Successfully got Lookup done. */
+			error = nfsm_loadattr(nd, nap);
+			if (error == 0) {
+				/*
+				 * We have now successfully completed the
+				 * lookup, so set nd_repstat to 0.
+				 */
 				nd->nd_repstat = 0;
+				*attrflagp = 1;
+			}
 		}
 		goto nfsmout;
 	}
