@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,21 +37,28 @@ struct bps {
 	time_t	time;
 };
 
-extern void usb_get_string_desc_test(uint16_t, uint16_t);
-extern void usb_port_reset_test(uint16_t, uint16_t, uint32_t);
-extern void usb_set_config_test(uint16_t, uint16_t, uint32_t);
-extern void usb_get_descriptor_test(uint16_t, uint16_t, uint32_t);
-extern void usb_control_ep_error_test(uint16_t, uint16_t);
-extern void usb_set_and_clear_stall_test(uint16_t, uint16_t);
-extern void usb_set_alt_interface_test(uint16_t, uint16_t);
+struct uaddr {
+	uint16_t vid;
+	uint16_t pid;
+	uint8_t bus;
+	uint8_t addr;
+};
 
-extern void usb_suspend_resume_test(uint16_t, uint16_t, uint32_t);
+extern void usb_get_string_desc_test(struct uaddr);
+extern void usb_port_reset_test(struct uaddr, uint32_t);
+extern void usb_set_config_test(struct uaddr, uint32_t);
+extern void usb_get_descriptor_test(struct uaddr, uint32_t);
+extern void usb_control_ep_error_test(struct uaddr);
+extern void usb_set_and_clear_stall_test(struct uaddr);
+extern void usb_set_alt_interface_test(struct uaddr);
+
+extern void usb_suspend_resume_test(struct uaddr, uint32_t);
 extern void do_bps(const char *, struct bps *, uint32_t len);
 extern const char *indent[USB_TS_MAX_LEVELS];
-extern void show_host_msc_test(uint8_t, uint16_t, uint16_t, uint32_t);
-extern void show_host_modem_test(uint8_t, uint16_t, uint16_t, uint32_t);
-extern void show_host_device_selection(uint8_t, uint16_t *, uint16_t *);
-extern struct libusb20_device *find_usb_device(uint16_t, uint16_t);
+extern void show_host_msc_test(uint8_t, struct uaddr, uint32_t);
+extern void show_host_modem_test(uint8_t, struct uaddr, uint32_t);
+extern void show_host_device_selection(uint8_t, struct uaddr *);
+extern struct libusb20_device *find_usb_device(struct uaddr);
 extern void find_usb_endpoints(struct libusb20_device *, uint8_t, uint8_t,
     uint8_t, uint8_t, uint8_t *, uint8_t *, uint8_t *, uint8_t);
 extern void get_string(char *, int);

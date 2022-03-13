@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -688,8 +688,8 @@ show_host_select(uint8_t level)
 	int error;
 	uint32_t duration = 60;
 
-	uint16_t dev_vid = 0;
-	uint16_t dev_pid = 0;
+	struct uaddr uaddr = {};
+
 	uint8_t retval;
 
 	while (1) {
@@ -702,7 +702,7 @@ show_host_select(uint8_t level)
 			    "to %d (error=%d)\n", force_fs, errno);
 		}
 		retval = usb_ts_show_menu(level, "Select Host Mode Test (via LibUSB)",
-		    " 1) Select USB device (VID=0x%04x, PID=0x%04x)\n"
+		    " 1) Select USB device (VID=0x%04x, PID=0x%04x, ugen%u.%u)\n"
 		    " 2) Manually enter USB vendor and product ID\n"
 		    " 3) Force FULL speed operation: <%s>\n"
 		    " 4) Mass Storage (UMASS)\n"
@@ -717,7 +717,7 @@ show_host_select(uint8_t level)
 		    "17) Start Invalid Control Request Test\n"
 		    "30) Duration: <%d> seconds\n"
 		    "x) Return to previous menu\n",
-		    dev_vid, dev_pid,
+		    uaddr.vid, uaddr.pid, uaddr.bus, uaddr.addr,
 		    force_fs ? "YES" : "NO",
 		    (int)duration);
 
@@ -725,44 +725,47 @@ show_host_select(uint8_t level)
 		case 0:
 			break;
 		case 1:
-			show_host_device_selection(level + 1, &dev_vid, &dev_pid);
+			show_host_device_selection(level + 1, &uaddr);
 			break;
 		case 2:
-			dev_vid = get_integer() & 0xFFFF;
-			dev_pid = get_integer() & 0xFFFF;
+			/* only match VID and PID */
+			uaddr.vid = get_integer() & 0xFFFF;
+			uaddr.pid = get_integer() & 0xFFFF;
+			uaddr.bus = 0;
+			uaddr.addr = 0;
 			break;
 		case 3:
 			force_fs ^= 1;
 			break;
 		case 4:
-			show_host_msc_test(level + 1, dev_vid, dev_pid, duration);
+			show_host_msc_test(level + 1, uaddr, duration);
 			break;
 		case 5:
-			show_host_modem_test(level + 1, dev_vid, dev_pid, duration);
+			show_host_modem_test(level + 1, uaddr, duration);
 			break;
 		case 10:
-			usb_get_string_desc_test(dev_vid, dev_pid);
+			usb_get_string_desc_test(uaddr);
 			break;
 		case 11:
-			usb_port_reset_test(dev_vid, dev_pid, duration);
+			usb_port_reset_test(uaddr, duration);
 			break;
 		case 12:
-			usb_set_config_test(dev_vid, dev_pid, duration);
+			usb_set_config_test(uaddr, duration);
 			break;
 		case 13:
-			usb_get_descriptor_test(dev_vid, dev_pid, duration);
+			usb_get_descriptor_test(uaddr, duration);
 			break;
 		case 14:
-			usb_suspend_resume_test(dev_vid, dev_pid, duration);
+			usb_suspend_resume_test(uaddr, duration);
 			break;
 		case 15:
-			usb_set_and_clear_stall_test(dev_vid, dev_pid);
+			usb_set_and_clear_stall_test(uaddr);
 			break;
 		case 16:
-			usb_set_alt_interface_test(dev_vid, dev_pid);
+			usb_set_alt_interface_test(uaddr);
 			break;
 		case 17:
-			usb_control_ep_error_test(dev_vid, dev_pid);
+			usb_control_ep_error_test(uaddr);
 			break;
 		case 30:
 			duration = get_integer();
