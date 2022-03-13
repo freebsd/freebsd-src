@@ -24,7 +24,7 @@ fsck_start()
 		# During fsck ignore SIGQUIT
 		trap : 3
 
-		check_startmsgs && echo "Starting file system checks:"
+		startmsg "Starting file system checks:"
 		# Background fsck can only be run with -p
 		if checkyesno background_fsck; then
 			fsck -F -p
@@ -37,7 +37,7 @@ fsck_start()
 			echo "Warning! Some of the devices might not be" \
 			    "available; retrying"
 			root_hold_wait
-			check_startmsgs && echo "Restarting file system checks:"
+			startmsg "Restarting file system checks:"
 			# Background fsck can only be run with -p
 			if checkyesno background_fsck; then
 				fsck -F -p

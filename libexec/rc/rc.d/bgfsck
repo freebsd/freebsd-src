@@ -39,7 +39,7 @@ bgfsck_start()
 		bgfsck_msg="${bgfsck_msg} in ${background_fsck_delay} seconds"
 	fi
 	if [ -z "${rc_force}" ]; then
-		check_startmsgs && echo "${bgfsck_msg}."
+		startmsg "${bgfsck_msg}."
 	fi
 
 	(sleep ${background_fsck_delay}; nice -4 fsck -B -p) 2>&1 | \
