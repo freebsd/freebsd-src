@@ -82,14 +82,14 @@ ppp_start()
 		_ppp_profile=$ppp_profile
 	fi
 
-	echo -n "Starting PPP profile:"
+	startmsg -n "Starting PPP profile:"
 
 	for _p in $_ppp_profile; do
-		echo -n " $_p"
+		startmsg -n " $_p"
 		ppp_start_profile $_p
 	done
 
-	echo "."
+	startmsg "."
 }
 
 ppp_poststart()

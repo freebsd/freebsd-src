@@ -247,7 +247,7 @@ netif_common()
 			_str='Reclaiming'
 		;;
 		esac
-		echo "${_str} Network:${_ok}."
+		startmsg "${_str} Network:${_ok}."
 		case ${_func} in
 		ifn_vnetup)
 			# Clear _ok not to do "ifconfig $ifn"
