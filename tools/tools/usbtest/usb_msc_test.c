@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2007-2012 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2007-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -857,14 +857,13 @@ fail:
 }
 
 void
-show_host_device_selection(uint8_t level, uint16_t *pvid, uint16_t *ppid)
+show_host_device_selection(uint8_t level, struct uaddr *puaddr)
 {
 	struct libusb20_backend *pbe;
 	struct libusb20_device *pdev;
 	struct LIBUSB20_DEVICE_DESC_DECODED *ddesc;
 
-	uint16_t vid[USB_DEVICES_MAX];
-	uint16_t pid[USB_DEVICES_MAX];
+	struct uaddr uaddr[USB_DEVICES_MAX];
 
 	int index;
 	int sel;
@@ -887,8 +886,10 @@ top:
 			ddesc = libusb20_dev_get_device_desc(pdev);
 			ptr = libusb20_dev_get_desc(pdev);
 			printf("%s%d) %s\n", indent[level], index, ptr);
-			vid[index] = ddesc->idVendor;
-			pid[index] = ddesc->idProduct;
+			uaddr[index].vid = ddesc->idVendor;
+			uaddr[index].pid = ddesc->idProduct;
+			uaddr[index].bus = libusb20_dev_get_bus_number(pdev);
+			uaddr[index].addr = libusb20_dev_get_address(pdev);
 			index++;
 		} else {
 			break;
@@ -907,16 +908,14 @@ top:
 		goto top;
 
 	if ((sel < 0) || (sel >= index)) {
-		*pvid = 0;
-		*ppid = 0;
-		return;
+		memset(puaddr, 0, sizeof(*puaddr));
+	} else {
+		*puaddr = uaddr[sel];
 	}
-	*pvid = vid[sel];
-	*ppid = pid[sel];
 }
 
 struct libusb20_device *
-find_usb_device(uint16_t vid, uint16_t pid)
+find_usb_device(struct uaddr uaddr)
 {
 	struct libusb20_backend *pbe = libusb20_be_alloc_default();
 	struct libusb20_device *pdev = NULL;
@@ -929,8 +928,11 @@ find_usb_device(uint16_t vid, uint16_t pid)
 
 		ddesc = libusb20_dev_get_device_desc(pdev);
 
-		if ((vid == ddesc->idVendor) &&
-		    (pid == ddesc->idProduct)) {
+		if ((uaddr.vid == ddesc->idVendor) &&
+		    (uaddr.pid == ddesc->idProduct) &&
+		    (uaddr.addr == 0 ||
+		     (uaddr.addr == libusb20_dev_get_address(pdev) &&
+		      uaddr.bus == libusb20_dev_get_bus_number(pdev)))) {
 			libusb20_be_dequeue_device(pbe, pdev);
 			break;
 		}
@@ -1004,7 +1006,7 @@ find_usb_endpoints(struct libusb20_device *pdev, uint8_t class,
 }
 
 static void
-exec_host_msc_test(struct usb_msc_params *p, uint16_t vid, uint16_t pid)
+exec_host_msc_test(struct usb_msc_params *p, struct uaddr uaddr)
 {
 	struct libusb20_device *pdev;
 
@@ -1019,7 +1021,7 @@ exec_host_msc_test(struct usb_msc_params *p, uint16_t vid, uint16_t pid)
 	xfer_current_id = 0;
 	xfer_wrapper_sig = CBWSIGNATURE;
 
-	pdev = find_usb_device(vid, pid);
+	pdev = find_usb_device(uaddr);
 	if (pdev == NULL) {
 		printf("USB device not found\n");
 		return;
@@ -1199,8 +1201,7 @@ get_io_area(const struct usb_msc_params *p)
 }
 
 void
-show_host_msc_test(uint8_t level, uint16_t vid,
-    uint16_t pid, uint32_t duration)
+show_host_msc_test(uint8_t level, struct uaddr uaddr, uint32_t duration)
 {
 	struct usb_msc_params params;
 	uint8_t retval;
@@ -1251,7 +1252,7 @@ show_host_msc_test(uint8_t level, uint16_t vid,
 		    (params.try_sense_on_error ? "YES" : "NO"),
 		    (params.try_all_lun ? "YES" : "NO"),
 		    (params.try_shorter_wrapper_block ? "YES" : "NO"),
-		    vid, pid);
+		    uaddr.vid, uaddr.pid);
 		switch (retval) {
 		case 0:
 			break;
@@ -1317,10 +1318,10 @@ show_host_msc_test(uint8_t level, uint16_t vid,
 			set_defaults(&params);
 			break;
 		case 30:
-			exec_host_msc_test(&params, vid, pid);
+			exec_host_msc_test(&params, uaddr);
 			break;
 		case 40:
-			show_host_device_selection(level + 1, &vid, &pid);
+			show_host_device_selection(level + 1, &uaddr);
 			break;
 		default:
 			return;
