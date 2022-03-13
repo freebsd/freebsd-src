@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 23, 2022
+.Dd February 9, 2022
 .Dt BSDDIALOG 3
 .Os
 .Sh NAME
@@ -284,8 +284,6 @@ struct bsddialog_conf {
 	unsigned int auto_minwidth;
 	const char *bottomtitle;
 	bool clear;
-	const char *f1_file;
-	const char *f1_message;
 	int *get_height;
 	int *get_width;
 	bool no_lines;
@@ -296,6 +294,8 @@ struct bsddialog_conf {
 	int x;
 	struct {
 		bool enable_esc;
+		const char *f1_file;
+		const char *f1_message;
 	} key;
 	struct {
 		bool highlight;
@@ -305,13 +305,13 @@ struct bsddialog_conf {
 		bool align_left;
 		bool no_desc;
 		bool no_name;
+		bool on_without_ok;
 		bool shortcut_buttons;
 	} menu;
 	struct {
+		bool enable_wchar;
 		int  securech;
-		bool value_withcancel;
-		bool value_withextra;
-		bool value_withhelp;
+		bool value_without_ok;
 	} form;
 	struct {
 		bool without_ok;
@@ -347,10 +347,6 @@ is
 subtitle at the dialog bottom side.
 .It Fa conf.clear
 hide the dialog at exit.
-.It Fa conf.f1_file
-file to open if F1 is pressed.
-.It Fa conf.f1_message
-message to display if F1 is pressed.
 .It Fa conf.get_height
 if not
 .Dv NULL
@@ -375,10 +371,16 @@ horizontal position, 0 is left screen side, can be
 .Dv BSDDIALOG_CENTER .
 .El
 .Pp
-.Fa conf.key.enable_esc
+.Bl -column -compact
+.It Fa conf.key.enable_esc
 enables
 .Dv ESC
 key to close the dialog.
+.It Fa conf.key.f1_file
+file to open if F1 is pressed.
+.It Fa conf.key.f1_message
+message to display if F1 is pressed.
+.El
 .Pp
 .Fa conf.text.highlight
 enables highlights for
@@ -659,6 +661,12 @@ have to be between 1 and
 .Fn bsddialog_form
 can be customized by:
 .Bl -column -compact
+.It Fa conf.form.enable_wchar
+enables characters greater than 127 in the field,
+.Fa value
+is a pointer to allocated memory for a
+.Em wchar_t
+string.
 .It Fa conf.form.securech
 charachter to hide the input
 with
@@ -749,9 +757,10 @@ struct bsddialog_theme {
 		int  lineraisecolor;
 		int  linelowercolor;
 		int  bottomtitlecolor;
+		int  arrowcolor;
 	} dialog;
 	struct {
-		int arrowcolor;
+		int f_selectorcolor;
 		int selectorcolor;
 		int f_namecolor;
 		int namecolor;
@@ -772,9 +781,9 @@ struct bsddialog_theme {
 		int color;
 	} bar;
 	struct {
-		unsigned int space;
-		int leftch;
-		int rightch;
+		unsigned int hmargin;
+		int leftdelim;
+		int rightdelim;
 		int delimcolor;
 		int f_delimcolor;
 		int color;
@@ -826,7 +835,7 @@ call.
 The library provides predefined themes:
 .Dv BSDDIALOG_THEME_BLACKWHITE ,
 .Dv BSDDIALOG_THEME_BSDDIALOG ,
-.Dv BSDDIALOG_THEME_DEFAULT
+.Dv BSDDIALOG_THEME_FLAT
 and
 .Dv BSDDIALOG_THEME_DIALOG ,
 they can be set via
@@ -898,7 +907,7 @@ Theme Example:
 struct bsddialog_conf conf;
 struct bsddialog_theme theme;
 
-if (bsddialog_init() == BSDDIALOG_ERROR)
+bsddialog_init();
 
 bsddialog_initconf(&conf);
 bsddialog_msgbox(&conf, "Default theme", 7, 25);

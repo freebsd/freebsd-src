@@ -8,11 +8,10 @@
  *   <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#include <stdio.h>
-#include <string.h>
-
 #include <bsddialog.h>
 #include <bsddialog_theme.h>
+#include <stdio.h>
+#include <string.h>
 
 int main()
 {
@@ -20,8 +19,8 @@ int main()
 	struct bsddialog_conf conf;
 	enum bsddialog_default_theme theme;
 	struct bsddialog_menuitem items[5] = {
-		{"", false, 0, "Default", "dialog-like",
-		    "BSDDIALOG_THEME_DEFAULT" },
+		{"", false, 0, "Flat", "dialog-like",
+		    "BSDDIALOG_THEME_FLAT" },
 		{"", false, 0, "Dialog", "dialog clone",
 		    "BSDDIALOG_THEME_DIALOG" },
 		{"", false, 0, "BSDDialog", "new theme",
@@ -43,14 +42,14 @@ int main()
 	conf.title = " Theme ";
 	focusitem = -1;
 	while (true) {
-		output = bsddialog_menu(&conf, "Choose theme", 15, 40, 5, 5,
+		output = bsddialog_menu(&conf, "Choose theme", 15, 45, 5, 5,
 		    items, &focusitem);
 
 		if (output != BSDDIALOG_OK || items[4].on)
 			break;
 
 		if (items[0].on) {
-			theme = BSDDIALOG_THEME_DEFAULT;
+			theme = BSDDIALOG_THEME_FLAT;
 			focusitem = 0;
 		}
 		else if (items[1].on) {
