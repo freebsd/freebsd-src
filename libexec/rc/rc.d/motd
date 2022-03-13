@@ -26,7 +26,7 @@ motd_start()
 	#	Must be done *before* interactive logins are possible
 	#	to prevent possible race conditions.
 	#
-	check_startmsgs && echo -n 'Updating motd:'
+	startmsg -n 'Updating motd:'
 	if [ ! -f "${TEMPLATE}" ]; then
 		# Create missing template from existing regular motd file, if
 		# one exists.
@@ -51,7 +51,7 @@ motd_start()
 	install -C -o root -g wheel -m "${PERMS}" "$T" "${TARGET}"
 	rm -f "$T"
 
-	check_startmsgs && echo '.'
+	startmsg '.'
 }
 
 load_rc_config $name
