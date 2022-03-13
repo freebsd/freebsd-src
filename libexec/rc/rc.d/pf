@@ -42,13 +42,13 @@ pf_fallback()
 
 pf_start()
 {
-	check_startmsgs && echo -n 'Enabling pf'
+	startmsg -n 'Enabling pf'
 	$pf_program -F all > /dev/null 2>&1
 	$pf_program -f "$pf_rules" $pf_flags || pf_fallback
 	if ! $pf_program -s info | grep -q "Enabled" ; then
 		$pf_program -eq
 	fi
-	check_startmsgs && echo '.'
+	startmsg '.'
 }
 
 pf_stop()

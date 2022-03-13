@@ -18,9 +18,9 @@ stop_cmd=":"
 
 newsyslog_start()
 {
-	check_startmsgs && echo -n 'Creating and/or trimming log files'
+	startmsg -n 'Creating and/or trimming log files'
 	${command} ${rc_flags}
-	check_startmsgs && echo '.'
+	startmsg '.'
 }
 
 load_rc_config $name

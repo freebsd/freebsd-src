@@ -73,6 +73,8 @@
 .It
 .Ic run_rc_script Ar file Ar argument
 .It
+.Ic startmsg Oo Fl n Oc Ar message
+.It
 .Ic wait_for_pids Op Ar pid ...
 .It
 .Ic warn Ar message
@@ -882,6 +884,17 @@ otherwise source
 .Ar file
 into the current shell.
 .El
+.It Ic startmsg Oo Fl n Oc Ar message
+Display a start message to
+.Va stdout .
+It should be used instead of
+.Xr echo 1 .
+The display of this output can be turned off if the
+.Xr rc.conf 5
+variable
+.Va rc_startmsgs
+is set to
+.Dq Li NO .
 .It Ic stop_boot Op Ar always
 Prevent booting to multiuser mode.
 If the

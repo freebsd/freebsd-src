@@ -26,7 +26,7 @@ cleartmp_start()
 			       ${tmp}/.ICE-unix ${tmp}/.font-unix"
 
 	if checkyesno ${rcvar1}; then
-		check_startmsgs && echo "Clearing ${tmp}."
+		startmsg "Clearing ${tmp}."
 
 		# This is not needed for mfs, but doesn't hurt anything.
 		# Things to note:
@@ -48,7 +48,7 @@ cleartmp_start()
 	elif checkyesno clear_tmp_X; then
 		# Remove X lock files, since they will prevent you from
 		# restarting X.  Remove other X related directories.
-		check_startmsgs && echo "Clearing ${tmp} (X related)."
+		startmsg "Clearing ${tmp} (X related)."
 		rm -rf ${tmp}/.X[0-9]-lock ${x11_socket_dirs}
 	fi
 	if checkyesno clear_tmp_X; then

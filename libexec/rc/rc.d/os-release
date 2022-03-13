@@ -21,7 +21,7 @@ osrelease_start()
 {
 	local _version _version_id
 
-	check_startmsgs && echo -n "Updating ${osrelease_file} "
+	startmsg -n "Updating ${osrelease_file} "
 	_version=$(freebsd-version -u)
 	_version_id=${_version%%[^0-9.]*}
 	t=$(mktemp -t os-release)
@@ -38,7 +38,7 @@ osrelease_start()
 __EOF__
 	install -C -o root -g wheel -m ${osrelease_perms} "$t" "${osrelease_file}"
 	rm -f "$t"
-	check_startmsgs && echo 'done.'
+	startmsg 'done.'
 }
 
 load_rc_config $name

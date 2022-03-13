@@ -716,6 +716,15 @@ check_startmsgs()
 }
 
 #
+# startmsg
+#	Preferred method to use when displaying start messages in lieu of echo.
+#
+startmsg()
+{
+	check_startmsgs && echo "$@"
+}
+
+#
 # run_rc_command argument
 #	Search for argument in the list of supported commands, which is:
 #		"start stop restart rcvar status poll ${extra_commands}"
@@ -1106,7 +1115,7 @@ run_rc_command()
 
 					# setup the full command to run
 					#
-			check_startmsgs && echo "Starting ${name}."
+			startmsg "Starting ${name}."
 			if [ -n "$_chroot" ]; then
 				_cd=
 				_doit="\
