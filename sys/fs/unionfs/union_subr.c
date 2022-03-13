@@ -681,7 +681,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	vref(dvp);
 	VOP_UNLOCK(dvp);
 
-	if ((error = relookup(dvp, vpp, cn))) {
+	if ((error = vfs_relookup(dvp, vpp, cn))) {
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 	} else
 		vrele(dvp);
@@ -1028,7 +1028,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	NDPREINIT(&nd);
 
 	vref(udvp);
-	if ((error = relookup(udvp, &vp, &nd.ni_cnd)) != 0)
+	if ((error = vfs_relookup(udvp, &vp, &nd.ni_cnd)) != 0)
 		goto unionfs_vn_create_on_upper_free_out2;
 	vrele(udvp);
 

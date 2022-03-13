@@ -677,7 +677,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * In either case ni_startdir will be dereferenced and NULLed
 		 * out.
 		 */
-		error = lookup(ndp);
+		error = vfs_lookup(ndp);
 		if (error)
 			break;
 
