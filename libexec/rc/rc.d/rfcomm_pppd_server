@@ -90,14 +90,14 @@ rfcomm_pppd_server_start()
 		_profile=${rfcomm_pppd_server_profile}
 	fi
 
-	echo -n "Starting RFCOMM PPP profile:"
+	startmsg -n "Starting RFCOMM PPP profile:"
 
 	for _p in ${_profile} ; do
-		echo -n " ${_p}"
+		startmsg -n " ${_p}"
 		rfcomm_pppd_server_start_profile ${_p}
 	done
 
-	echo "."
+	startmsg "."
 }
 
 rfcomm_pppd_server_stop()

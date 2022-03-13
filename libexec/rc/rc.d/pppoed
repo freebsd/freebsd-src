@@ -24,7 +24,7 @@ pppoed_start()
 	if [ -n "${pppoed_provider}" ]; then
 			pppoed_flags="${pppoed_flags} -p ${pppoed_provider}"
 	fi
-	echo 'Starting pppoed'
+	startmsg 'Starting pppoed'
 	_opts=$-; set -f
 	/usr/libexec/pppoed ${pppoed_flags} ${pppoed_interface}
 	set +f; set -${_opts}
