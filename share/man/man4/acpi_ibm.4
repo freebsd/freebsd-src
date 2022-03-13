@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2020
+.Dd March 13, 2022
 .Dt ACPI_IBM 4
 .Os
 .Sh NAME
@@ -451,11 +451,11 @@ case ${NOTIFY} in
 		LEVEL=`sysctl -n dev.acpi_ibm.0.mic_led`
 		if [ $LEVEL -eq 0 ]; then
 			sysctl dev.acpi_ibm.0.mic_led=1
-			mixer rec 0
+			mixer rec.volume=0
 		fi
 		if [ $LEVEL -eq 1 ]; then
 			sysctl dev.acpi_ibm.0.mic_led=0
-			mixer rec 30
+			mixer rec.volume=30
 		fi
 		;;
         *)
