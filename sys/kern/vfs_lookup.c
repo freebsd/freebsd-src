@@ -854,6 +854,32 @@ bad:
 }
 
 /*
+ * FAILIFEXISTS handling.
+ *
+ * XXX namei called with LOCKPARENT but not LOCKLEAF has the strange
+ * behaviour of leaving the vnode unlocked if the target is the same
+ * vnode as the parent.
+ */
+static int __noinline
+vfs_lookup_failifexists(struct nameidata *ndp)
+{
+	struct componentname *cnp __diagused;
+
+	cnp = &ndp->ni_cnd;
+
+	MPASS((cnp->cn_flags & ISSYMLINK) == 0);
+	if (ndp->ni_vp == ndp->ni_dvp)
+		vrele(ndp->ni_dvp);
+	else
+		vput(ndp->ni_dvp);
+	vrele(ndp->ni_vp);
+	ndp->ni_dvp = NULL;
+	ndp->ni_vp = NULL;
+	NDFREE_PNBUF(ndp);
+	return (EEXIST);
+}
+
+/*
  * Search a pathname.
  * This is a very central and rather complicated routine.
  *
@@ -1388,7 +1414,7 @@ success_right_lock:
 		if ((cnp->cn_flags & ISDOTDOT) == 0)
 			nameicap_tracker_add(ndp, ndp->ni_vp);
 		if ((cnp->cn_flags & (FAILIFEXISTS | ISSYMLINK)) == FAILIFEXISTS)
-			goto bad_eexist;
+			return (vfs_lookup_failifexists(ndp));
 	}
 	return (0);
 
@@ -1405,24 +1431,6 @@ bad:
 bad_unlocked:
 	ndp->ni_vp = NULL;
 	return (error);
-bad_eexist:
-	/*
-	 * FAILIFEXISTS handling.
-	 *
-	 * XXX namei called with LOCKPARENT but not LOCKLEAF has the strange
-	 * behaviour of leaving the vnode unlocked if the target is the same
-	 * vnode as the parent.
-	 */
-	MPASS((cnp->cn_flags & ISSYMLINK) == 0);
-	if (ndp->ni_vp == ndp->ni_dvp)
-		vrele(ndp->ni_dvp);
-	else
-		vput(ndp->ni_dvp);
-	vrele(ndp->ni_vp);
-	ndp->ni_dvp = NULL;
-	ndp->ni_vp = NULL;
-	NDFREE_PNBUF(ndp);
-	return (EEXIST);
 }
 
 /*
