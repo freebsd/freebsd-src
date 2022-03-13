@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2007-2010 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2007-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -428,7 +428,7 @@ fail:
 }
 
 static void
-exec_host_modem_test(struct modem *p, uint16_t vid, uint16_t pid)
+exec_host_modem_test(struct modem *p, struct uaddr uaddr)
 {
 	struct libusb20_device *pdev;
 
@@ -440,7 +440,7 @@ exec_host_modem_test(struct modem *p, uint16_t vid, uint16_t pid)
 
 	int error;
 
-	pdev = find_usb_device(vid, pid);
+	pdev = find_usb_device(uaddr);
 	if (pdev == NULL) {
 		printf("USB device not found\n");
 		return;
@@ -513,7 +513,7 @@ exec_host_modem_test(struct modem *p, uint16_t vid, uint16_t pid)
 }
 
 void
-show_host_modem_test(uint8_t level, uint16_t vid, uint16_t pid, uint32_t duration)
+show_host_modem_test(uint8_t level, struct uaddr uaddr, uint32_t duration)
 {
 	uint8_t retval;
 
@@ -542,7 +542,7 @@ show_host_modem_test(uint8_t level, uint16_t vid, uint16_t pid, uint32_t duratio
 		    (modem.use_vendor_specific ? "YES" : "NO"),
 		    (modem.loop_data ? "YES" : "NO"),
 		    (int)(modem.duration),
-		    (int)vid, (int)pid);
+		    (int)uaddr.vid, (int)uaddr.pid);
 
 		switch (retval) {
 		case 0:
@@ -573,10 +573,10 @@ show_host_modem_test(uint8_t level, uint16_t vid, uint16_t pid, uint32_t duratio
 			set_defaults(&modem);
 			break;
 		case 30:
-			exec_host_modem_test(&modem, vid, pid);
+			exec_host_modem_test(&modem, uaddr);
 			break;
 		case 40:
-			show_host_device_selection(level + 1, &vid, &pid);
+			show_host_device_selection(level + 1, &uaddr);
 			break;
 		default:
 			return;
