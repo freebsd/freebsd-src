@@ -8,11 +8,10 @@
  *   <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+#include <bsddialog.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-#include <bsddialog.h>
 
 int main()
 {
@@ -35,8 +34,9 @@ int main()
 
 	bsddialog_initconf(&conf);
 	conf.title = "datebox";
-	conf.bottomtitle = "Press TAB and arrows";
-	output = bsddialog_datebox(&conf, "Example", 10, 50, &yy, &mm, &dd);
+	output = bsddialog_datebox(&conf,
+	    "TAB / RIGHT / LEFT to move,\nUP / DOWN to select time", 10, 35,
+	    &yy, &mm, &dd);
 
 	bsddialog_end();
 

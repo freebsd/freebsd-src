@@ -8,10 +8,9 @@
  *   <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
+#include <bsddialog.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <bsddialog.h>
 
 int main()
 {

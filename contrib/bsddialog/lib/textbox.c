@@ -34,8 +34,6 @@
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-extern struct bsddialog_theme t;
-
 static void
 textbox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
     int *w, int hpad, int wpad, struct buttons bs)
@@ -177,7 +175,8 @@ bsddialog_textbox(struct bsddialog_conf *conf, const char* file, int rows,
 			ypad = ypad + printrows <= hpad -1 ? ypad + 1 : ypad;
 			break;
 		case KEY_F(1):
-			if (conf->f1_file == NULL && conf->f1_message == NULL)
+			if (conf->key.f1_file == NULL &&
+			    conf->key.f1_message == NULL)
 				break;
 			if (f1help(conf) != 0)
 				return (BSDDIALOG_ERROR);

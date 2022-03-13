@@ -6,6 +6,7 @@ examples_library/buildlist
 examples_library/checklist
 examples_library/datebox
 examples_library/form
+examples_library/formw
 examples_library/menu
 examples_library/mixedlist
 examples_library/radiolist

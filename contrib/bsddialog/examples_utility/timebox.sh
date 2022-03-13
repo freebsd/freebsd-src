@@ -14,11 +14,8 @@
 : ${BSDDIALOG_CANCEL=1}
 : ${BSDDIALOG_ESC=5}
 
-ITEM=$(./bsddialog --title " menu " --menu "Hello World!" 15 30 5 \
-	"Tag  1"  "DESC  1  xyz" \
-	"Tag  2"  "DESC  2  xyz" \
-	"Tag  3"  "DESC  3  xyz" \
-	"Tag  4"  "DESC  4  xyz" \
+TIME=$(./bsddialog --title " timebox " \
+	--timebox "Tab / Left / Right to move\nUp / Down to select" 10 40 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in
@@ -26,12 +23,12 @@ case $? in
 		exit 1
 	;;
 	$BSDDIALOG_ESC )
-		echo "[ESC] $ITEM"
+		echo "[ESC]"
 	;;
 	$BSDDIALOG_CANCEL )
-		echo "[Cancel] $ITEM"
+		echo "[Cancel]"
 	;;
 	$BSDDIALOG_OK )
-		echo "[OK] $ITEM"
+		echo "[OK] $TIME"
 	;;
 esac
