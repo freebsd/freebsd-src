@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: CC0-1.0
  *
- * Written in 2021 by Alfonso Sabato Siciliano.
+ * Written in 2022 by Alfonso Sabato Siciliano.
  * To the extent possible under law, the author has dedicated all copyright
  * and related and neighboring rights to this software to the public domain
  * worldwide. This software is distributed without any warranty, see:
@@ -9,6 +9,7 @@
  */
 
 #include <bsddialog.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +27,8 @@ int main()
 	    {"Password:", 3, 1, "",          3, 11, 30, 50, NULL, H,  "desc 3"}
 	};
 
+	setlocale(LC_ALL, "");
+
 	if (bsddialog_init() == BSDDIALOG_ERROR) {
 		printf("Error: %s\n", bsddialog_geterror());
 		return (1);
@@ -34,6 +37,7 @@ int main()
 	bsddialog_initconf(&conf);
 	conf.title = "form";
 	conf.form.securech = '*';
+	conf.form.enable_wchar = true;
 	output = bsddialog_form(&conf, "Example", 10, 50, 3, 3, items);
 
 	bsddialog_end();
@@ -49,7 +53,7 @@ int main()
 	}
 
 	for (i = 0; i < 3; i++) {
-		printf("%s \"%s\"\n", items[i].label, items[i].value);
+		printf("%s \"%ls\"\n", items[i].label, (wchar_t*)items[i].value);
 		free(items[i].value);
 	}
 

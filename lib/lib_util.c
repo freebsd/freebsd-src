@@ -37,10 +37,8 @@
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-extern struct bsddialog_theme t;
-
 #define TABLEN     4    /* Default tab len */
-#define ERRBUFLEN  1024 /* Error buffer */
+#define ERRBUFLEN  1024 /* Error buffer    */
 
 /* Error */
 static char errorbuffer[ERRBUFLEN];
@@ -50,7 +48,7 @@ const char *get_error_string(void)
 	return (errorbuffer);
 }
 
-void set_error_string(char *str)
+void set_error_string(const char *str)
 {
 	strncpy(errorbuffer, str, ERRBUFLEN-1);
 }
@@ -91,11 +89,11 @@ int f1help(struct bsddialog_conf *conf)
 	hconf.text.highlight  = conf->text.highlight;
 
 	output = BSDDIALOG_OK;
-	if (conf->f1_message != NULL)
-		output = bsddialog_msgbox(&hconf, conf->f1_message, 0, 0);
+	if (conf->key.f1_message != NULL)
+		output = bsddialog_msgbox(&hconf, conf->key.f1_message, 0, 0);
 
-	if (output != BSDDIALOG_ERROR && conf->f1_file != NULL)
-		output = bsddialog_textbox(&hconf, conf->f1_file, 0, 0);
+	if (output != BSDDIALOG_ERROR && conf->key.f1_file != NULL)
+		output = bsddialog_textbox(&hconf, conf->key.f1_file, 0, 0);
 
 	return (output == BSDDIALOG_ERROR ? BSDDIALOG_ERROR : 0);
 }
@@ -118,14 +116,14 @@ draw_button(WINDOW *window, int y, int x, int size, const char *text,
 	}
 
 	wattron(window, color_arrows);
-	mvwaddch(window, y, x, t.button.leftch);
+	mvwaddch(window, y, x, t.button.leftdelim);
 	wattroff(window, color_arrows);
 	wattron(window, color_button);
 	for (i = 1; i < size - 1; i++)
 		waddch(window, ' ');
 	wattroff(window, color_button);
 	wattron(window, color_arrows);
-	mvwaddch(window, y, x + i, t.button.rightch);
+	mvwaddch(window, y, x + i, t.button.rightdelim);
 	wattroff(window, color_arrows);
 
 	x = x + 1 + ((size - 2 - strlen(text))/2);
@@ -148,19 +146,18 @@ draw_buttons(WINDOW *window, struct buttons bs, bool shortcut)
 	getmaxyx(window, rows, cols);
 	y = rows - 2;
 
-	startx = bs.sizebutton * bs.nbuttons + (bs.nbuttons-1) * t.button.space;
-	startx = cols/2 - startx/2;
+	startx = cols/2 - buttons_width(bs)/2;
 
-	for (i = 0; i < (int) bs.nbuttons; i++) {
-		x = i * (bs.sizebutton + t.button.space);
+	for (i = 0; i < (int)bs.nbuttons; i++) {
+		x = i * (bs.sizebutton + t.button.hmargin);
 		draw_button(window, y, startx + x, bs.sizebutton, bs.label[i],
 		    i == bs.curr, shortcut);
 	}
 }
 
 void
-get_buttons(struct bsddialog_conf *conf, struct buttons *bs, char *yesoklabel,
-    char *nocancellabel)
+get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
+    const char *yesoklabel, const char *nocancellabel)
 {
 	int i;
 #define SIZEBUTTON              8
@@ -231,6 +228,17 @@ get_buttons(struct bsddialog_conf *conf, struct buttons *bs, char *yesoklabel,
 	for (i = 1; i < (int)bs->nbuttons; i++)
 		bs->sizebutton = MAX(bs->sizebutton, strlen(bs->label[i]));
 	bs->sizebutton += 2;
+}
+
+int buttons_width(struct buttons bs)
+{
+	unsigned int width;
+
+	width = bs.nbuttons * bs.sizebutton;
+	if (bs.nbuttons > 0)
+		width += (bs.nbuttons - 1) * t.button.hmargin;
+
+	return (width);
 }
 
 bool shortcut_buttons(int key, struct buttons *bs)
@@ -532,11 +540,8 @@ text_size(struct bsddialog_conf *conf, int rows, int cols, const char *text,
 	bool changewtext;
 
 	wbuttons = 0;
-	if (bs != NULL) {
-		wbuttons = bs->nbuttons * bs->sizebutton;
-		if (bs->nbuttons > 0)
-			wbuttons += (bs->nbuttons-1) * t.button.space;
-	}
+	if (bs != NULL)
+		wbuttons = buttons_width(*bs);
 
 	if (cols == BSDDIALOG_AUTOSIZE) {
 		startwtext = MAX(startwtext, wbuttons - TEXTHMARGINS);
@@ -577,7 +582,7 @@ int widget_max_height(struct bsddialog_conf *conf)
 {
 	int maxheight;
 
-	maxheight = conf->shadow ? SCREENLINES - t.shadow.h : SCREENLINES;
+	maxheight = conf->shadow ? SCREENLINES - (int)t.shadow.h : SCREENLINES;
 	if (maxheight <= 0)
 		RETURN_ERROR("Terminal too small, screen lines - shadow <= 0");
 
@@ -595,7 +600,7 @@ int widget_max_width(struct bsddialog_conf *conf)
 {
 	int maxwidth;
 
-	maxwidth = conf->shadow ? SCREENCOLS - t.shadow.w : SCREENCOLS;
+	maxwidth = conf->shadow ? SCREENCOLS - (int)t.shadow.w : SCREENCOLS;
 	if (maxwidth <= 0)
 		RETURN_ERROR("Terminal too small, screen cols - shadow <= 0");
 
@@ -647,10 +652,8 @@ widget_min_width(struct bsddialog_conf *conf, int wtext, int minwidget,
 	min = 0;
 
 	/* buttons */
-	if (bs != NULL) {
-		min += bs->nbuttons * bs->sizebutton;
-		min += bs->nbuttons > 0 ? (bs->nbuttons-1) * t.button.space : 0;
-	}
+	if (bs != NULL)
+		min += buttons_width(*bs);
 
 	/* text */
 	if (wtext > 0)
@@ -774,7 +777,7 @@ draw_borders(struct bsddialog_conf *conf, WINDOW *win, int rows, int cols,
 		rtee = ACS_RTEE;
 	}
 
-	leftcolor = elev == RAISED ? 
+	leftcolor = elev == RAISED ?
 	    t.dialog.lineraisecolor : t.dialog.linelowercolor;
 	rightcolor = elev == RAISED ?
 	    t.dialog.linelowercolor : t.dialog.lineraisecolor;

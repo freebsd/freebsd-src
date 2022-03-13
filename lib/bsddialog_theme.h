@@ -49,9 +49,10 @@ struct bsddialog_theme {
 		int  lineraisecolor;
 		int  linelowercolor;
 		int  bottomtitlecolor;
+		int  arrowcolor;
 	} dialog;
 	struct {
-		int arrowcolor;
+		int f_selectorcolor;
 		int selectorcolor;
 		int f_namecolor;
 		int namecolor;
@@ -72,9 +73,9 @@ struct bsddialog_theme {
 		int color;
 	} bar;
 	struct {
-		unsigned int space;
-		int leftch;
-		int rightch;
+		unsigned int hmargin;
+		int leftdelim;
+		int rightdelim;
 		int delimcolor;
 		int f_delimcolor;
 		int color;
@@ -87,7 +88,7 @@ struct bsddialog_theme {
 enum bsddialog_default_theme {
 	BSDDIALOG_THEME_BLACKWHITE,
 	BSDDIALOG_THEME_BSDDIALOG,
-	BSDDIALOG_THEME_DEFAULT,
+	BSDDIALOG_THEME_FLAT,
 	BSDDIALOG_THEME_DIALOG
 };
 

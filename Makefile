@@ -9,13 +9,7 @@ OBJECTS= ${SOURCES:.c=.o}
 LIBPATH= ${.CURDIR}/lib
 LIBBSDDIALOG= ${LIBPATH}/libbsddialog.so
 
-CFLAGS+= -I${LIBPATH} -std=gnu99 -Wno-format-zero-length \
--fstack-protector-strong -Wsystem-headers -Werror -Wall -Wno-format-y2k -W \
--Wno-unused-parameter -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith \
--Wno-uninitialized -Wno-pointer-sign -Wno-empty-body -Wno-string-plus-int \
--Wno-unused-const-variable -Wno-tautological-compare -Wno-unused-value \
--Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion \
--Wno-unused-local-typedef -Wno-address-of-packed-member -Qunused-arguments
+CFLAGS+= -I${LIBPATH} -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter
 # `make -DDEBUG`
 .if defined(DEBUG)
 CFLAGS= -g -Wall -I${LIBPATH}

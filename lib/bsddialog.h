@@ -30,7 +30,7 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION     "0.1"
+#define LIBBSDDIALOG_VERSION     "0.2"
 
 /* Exit status */
 #define BSDDIALOG_ERROR          -1
@@ -73,8 +73,6 @@ struct bsddialog_conf {
 	unsigned int auto_minwidth;
 	const char *bottomtitle;
 	bool clear;
-	const char *f1_file;
-	const char *f1_message;
 	int *get_height;
 	int *get_width;
 	bool no_lines;
@@ -85,6 +83,8 @@ struct bsddialog_conf {
 	int x;
 	struct {
 		bool enable_esc;
+		const char *f1_file;
+		const char *f1_message;
 	} key;
 	struct {
 		bool highlight;
@@ -98,6 +98,7 @@ struct bsddialog_conf {
 		bool shortcut_buttons;
 	} menu;
 	struct {
+		bool enable_wchar;
 		int  securech;
 		bool value_without_ok;
 	} form;
