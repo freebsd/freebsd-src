@@ -1,0 +1,61 @@
+2022-03-02 version 0.2
+
+	Utility:
+	* add: (this) CHANGELOG.
+	* add: "menus" print item with focus (except with OK and ERROR).
+	* add: pause.sh example.
+	* add: timebox.sh example.
+	* change: --theme name "default" -> "flat".
+	* delete: treeview.sh example.
+	* fix: --separate-output does not quote (except with --quoted).
+	* fix: --datebox and --date-format month in output.
+	* improve: examples handle exit status.
+
+	Library:
+	* add: conf.form.enable_wchar for wide characters in bsddialog_form().
+	* add: theme.menu.f_selectorcolor.
+	* add: formw.c example.
+	* change: move conf.f1_file and conf.f1_message in conf.key.
+	* change: theme.button.[left|right]ch -> theme.button.[left|right]delim.
+	* change: theme.button.space -> theme.button.hmargin.
+	* change: theme.menu.arrowcolor -> theme.dialog.arrowcolor.
+	* change: default menu item depth 4 -> 2.
+	* fix: disable HOME, PPAGE, END and NPAGE keys in bsddialog_form().
+	* fix: visible cursor for timebox.c and form.c in VM VirtualBox.
+	* fix: mixedlist, center position of separator with big pad.
+	* fix: timebox and datebox set values only with BSDDIALOG_OK.
+	* fix: menurows autosize with fullscreen.
+	* fix: bar color with 0%.
+	* fix: bar label position.
+	* improve: timebox and datebox navigation (keys, buttons and shortcuts).
+	* improve: "menus" colors for accessibility.
+
+
+2022-01-27 version 0.1
+
+	* Common-Options: --ascii-lines, --backtitle <backtitle>, --begin-x <x>,
+	  --begin-y <y>, --cancel-label <label>, --clear, --colors, --cr-wrap,
+	  --date-format <format>, --defaultno, --default-button <label>,
+	  --default-no, --default-item <name>, --disable-esc,
+	  --esc-cancelvalue, --exit-label <label>, --extra-button,
+	  --extra-label <label>, --generic-button1 <label>,
+	  --generic-button2 <label>, --help, --help-button,
+	  --help-label <label>, --help-status, --help-tags,
+	  --hfile <filename>, --hline <string>, --hmsg <string>, --ignore,
+	  --insecure, --item-depth, --item-help, --items-prefix,
+	  --max-input <size>, --no-cancel, --nocancel, --no-collapse,
+	  --no-items, --no-label <label>, --no-lines, --no-nl-expand,
+	  --no-ok, --nook, --no-shadow, --no-tags, --ok-label <label>,
+	  --output-fd <fd>, --output-separator <sep>, --print-maxsize,
+	  --print-size, --print-version, --quoted, --separate-output,
+	  --separator <sep>, --shadow, --single-quoted, --sleep <secs>,
+	  --stderr, --stdout, --tab-len <spaces>,
+	  --theme <blackwhite|bsddialog|default|dialog>,
+	  --time-format <format>, --title <title>, --trim, --version,
+	  --yes-label <label>.
+	* Dialogs: --checklist, --datebox, --form, --gauge, --infobox,
+	  --inputbox, --menu, --mixedform, --mixedgauge, --msgbox,
+	  --passwordbox, --passwordform, --pause, --radiolist, --rangebox,
+	  --textbox, --timebox, --treeview, --yesno.
+	* Manuals: bsddialog.1, bsddialog.3.
+

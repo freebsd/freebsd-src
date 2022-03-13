@@ -39,7 +39,7 @@
 #include <bsddialog.h>
 #include <bsddialog_theme.h>
 
-#define BSDDIALOG_VERSION "0.1"
+#define BSDDIALOG_VERSION "0.2"
 
 enum OPTS {
 	/* Common options */
@@ -125,22 +125,22 @@ enum OPTS {
 	YESNO
 };
 
-/* Menus flags and options */
+/* Menus options */
 static bool item_prefix_opt, item_bottomdesc_opt, item_output_sepnl_opt;
 static bool item_singlequote_opt, list_items_on_opt, item_tag_help_opt;
 static bool item_always_quote_opt, item_depth_opt;
 static char *item_output_sep_opt, *item_default_opt;
-/* Time and calendar options */
+/* Date and Time options */
 static char *date_fmt_opt, *time_fmt_opt;
-/* Forms */
+/* Forms options */
 static int unsigned max_input_form_opt;
-/* General flags and options */
+/* General options */
 static int output_fd_opt;
 
 static void
 custom_text(bool cr_wrap, bool no_collapse, bool no_nl_expand, bool trim,
     char *text, char *buf);
-    
+
 static void sigint_handler(int sig);
 
 /* Dialogs */
@@ -192,7 +192,7 @@ static void usage(void)
 	    "--print-size, --print-version, --quoted, --separate-output, "
 	    "--separator <sep>, --shadow, --single-quoted, --sleep <secs>, "
 	    "--stderr, --stdout, --tab-len <spaces>, "
-	    "--theme <blackwhite|bsddialog|default|dialog>, "
+	    "--theme <blackwhite|bsddialog|flat|dialog>, "
 	    "--time-format <format>, --title <title>, --trim, --version, "
 	    "--yes-label <label>.\n");
 	printf("\n");
@@ -239,7 +239,8 @@ int main(int argc, char *argv[argc])
 	int input, rows, cols, output, getH, getW;
 	int (*dialogbuilder)(BUILDER_ARGS) = NULL;
 	enum bsddialog_default_theme theme_opt;
-	char *text, *backtitle_opt, errorbuilder[1024];
+	char *text, *backtitle_opt;
+	char errorbuilder[1024];
 	struct winsize ws;
 	struct bsddialog_conf conf;
 
@@ -249,15 +250,16 @@ int main(int argc, char *argv[argc])
 	conf.key.enable_esc = true;
 	conf.menu.on_without_ok = true;
 	conf.form.value_without_ok = true;
+	conf.form.enable_wchar = true;
 
 	backtitle_opt = NULL;
-	theme_opt = BSDDIALOG_THEME_DEFAULT;
+	theme_opt = BSDDIALOG_THEME_FLAT;
 	output_fd_opt = STDERR_FILENO;
 	print_maxsize_opt = false;
 	ignore_opt = false;
-	errorbuilder[0] = '\0';
 	cr_wrap_opt = no_collapse_opt = no_nl_expand_opt = trim_opt = false;
 	esc_cancelvalue_opt = false;
+	errorbuilder[0] = '\0';
 
 	item_output_sepnl_opt = item_singlequote_opt = false;
 	item_prefix_opt = item_bottomdesc_opt = item_depth_opt = false;
@@ -375,7 +377,7 @@ int main(int argc, char *argv[argc])
 		case BEGIN_X:
 			conf.x = (int)strtol(optarg, NULL, 10);
 			if (conf.x < BSDDIALOG_CENTER) {
-				printf("Error: --begin-x %d < %d", 
+				printf("Error: --begin-x %d < %d",
 				    conf.x, BSDDIALOG_CENTER);
 				return (255);
 			}
@@ -449,13 +451,13 @@ int main(int argc, char *argv[argc])
 			item_tag_help_opt = true;
 			break;
 		case HFILE:
-			conf.f1_file = optarg;
+			conf.key.f1_file = optarg;
 			break;
 		case HLINE:
 			conf.bottomtitle = optarg;
 			break;
 		case HMSG:
-			conf.f1_message = optarg;
+			conf.key.f1_message = optarg;
 			break;
 		case IGNORE:
 			ignore_opt = true;
@@ -515,7 +517,7 @@ int main(int argc, char *argv[argc])
 			print_maxsize_opt = true;
 			break;
 		case PRINT_SIZE:
-			conf.get_height = &getH;;
+			conf.get_height = &getH;
 			conf.get_width = &getW;
 			break;
 		case PRINT_VERSION:
@@ -547,8 +549,8 @@ int main(int argc, char *argv[argc])
 				theme_opt = BSDDIALOG_THEME_BSDDIALOG;
 			else if (strcasecmp(optarg, "blackwhite") == 0)
 				theme_opt = BSDDIALOG_THEME_BLACKWHITE;
-			else if (strcasecmp(optarg, "default") == 0)
-				theme_opt = BSDDIALOG_THEME_DEFAULT;
+			else if (strcasecmp(optarg, "flat") == 0)
+				theme_opt = BSDDIALOG_THEME_FLAT;
 			else if (strcasecmp(optarg, "dialog") == 0)
 				theme_opt = BSDDIALOG_THEME_DIALOG;
 			else {
@@ -673,12 +675,13 @@ int main(int argc, char *argv[argc])
 
 	signal(SIGINT, sigint_handler);
 
-	if (theme_opt != BSDDIALOG_THEME_DEFAULT)
+	if (theme_opt != BSDDIALOG_THEME_FLAT)
 		bsddialog_set_default_theme(theme_opt);
 
 	if (backtitle_opt != NULL)
 		bsddialog_backtitle(&conf, backtitle_opt);
 
+	errorbuilder[0] = '\0';
 	output = BSDDIALOG_OK;
 	if (dialogbuilder != NULL)
 		output = dialogbuilder(conf, text, rows, cols, argc, argv,
@@ -859,8 +862,8 @@ int rangebox_builder(BUILDER_ARGS)
 	int output, min, max, value;
 
 	if (argc < 2) {
-		strcpy(errbuf, "usage --rangebox <text> <rows> <cols> <min> "
-		    "<max> [<init>]\n");
+		strcpy(errbuf, "usage --rangebox <text> <rows> <cols> "
+		    "<min> <max> [<init>]\n");
 		return (BSDDIALOG_ERROR);
 	}
 
@@ -931,7 +934,7 @@ int datebox_builder(BUILDER_ARGS)
 		time(&cal);
 		localtm = localtime(&cal);
 		localtm->tm_year = yy - 1900;
-		localtm->tm_mon  = mm;
+		localtm->tm_mon = mm - 1;
 		localtm->tm_mday = dd;
 		strftime(stringdate, 1024, date_fmt_opt, localtm);
 		dprintf(output_fd_opt, "%s", stringdate);
@@ -970,7 +973,7 @@ int timebox_builder(BUILDER_ARGS)
 		time(&clock);
 		localtm = localtime(&clock);
 		localtm->tm_hour = hh;
-		localtm->tm_min  = mm;
+		localtm->tm_min = mm;
 		localtm->tm_sec = ss;
 		strftime(stringtime, 1024, time_fmt_opt, localtm);
 		dprintf(output_fd_opt, "%s", stringtime);
@@ -1031,31 +1034,36 @@ get_menu_items(char *errbuf, int argc, char **argv, bool setprefix,
 }
 
 static void
-print_menu_items(struct bsddialog_conf *conf, int output, int nitems,
-    struct bsddialog_menuitem *items, int focusitem)
+print_menu_items(int output, int nitems, struct bsddialog_menuitem *items,
+    int focusitem)
 {
 	bool sep, toquote;
 	int i;
 	char *sepstr, quotech;
-	const char *helpvalue;
+	const char *focusname;
 
 	sep = false;
 	quotech = item_singlequote_opt ? '\'' : '"';
 	sepstr = item_output_sep_opt != NULL ? item_output_sep_opt : " ";
 
-	if (output == BSDDIALOG_HELP && focusitem >= 0) {
-		dprintf(output_fd_opt, "HELP ");
+	if (output != BSDDIALOG_OK && output != BSDDIALOG_ERROR &&
+	    focusitem >= 0) {
+		focusname = items[focusitem].name;
 
-		helpvalue = items[focusitem].name;
-		if (item_bottomdesc_opt && item_tag_help_opt == false)
-			helpvalue = items[focusitem].bottomdesc;
+		if (output == BSDDIALOG_HELP) {
+			dprintf(output_fd_opt, "HELP ");
+
+			if (item_bottomdesc_opt && item_tag_help_opt == false)
+				focusname = items[focusitem].bottomdesc;
+		}
 
 		toquote = item_always_quote_opt ||
-		    strchr(helpvalue, ' ') != NULL;
+		    (item_output_sepnl_opt == false &&
+		     strchr(focusname, ' ') != NULL);
 
 		if (toquote)
 			dprintf(output_fd_opt, "%c", quotech);
-		dprintf(output_fd_opt, "%s", helpvalue);
+		dprintf(output_fd_opt, "%s", focusname);
 		if (toquote)
 			dprintf(output_fd_opt, "%c", quotech);
 
@@ -1078,7 +1086,8 @@ print_menu_items(struct bsddialog_conf *conf, int output, int nitems,
 		sep = true;
 
 		toquote = item_always_quote_opt ||
-		    strchr(items[i].name, ' ') != NULL;
+		    (item_output_sepnl_opt == false &&
+		     strchr(items[i].name, ' ') != NULL);
 
 		if (toquote)
 			dprintf(output_fd_opt, "%c", quotech);
@@ -1110,7 +1119,7 @@ int checklist_builder(BUILDER_ARGS)
 	output = bsddialog_checklist(&conf, text, rows, cols, menurows, nitems,
 	    items, &focusitem);
 
-	print_menu_items(&conf, output, nitems, items, focusitem);
+	print_menu_items(output, nitems, items, focusitem);
 
 	free(items);
 
@@ -1139,7 +1148,7 @@ int menu_builder(BUILDER_ARGS)
 	output = bsddialog_menu(&conf, text, rows, cols, menurows, nitems,
 	    items, &focusitem);
 
-	print_menu_items(&conf, output, nitems, items, focusitem);
+	print_menu_items(output, nitems, items, focusitem);
 
 	free(items);
 
@@ -1168,7 +1177,7 @@ int radiolist_builder(BUILDER_ARGS)
 	output = bsddialog_radiolist(&conf, text, rows, cols, menurows, nitems,
 	    items, &focusitem);
 
-	print_menu_items(&conf, output, nitems, items, focusitem);
+	print_menu_items(output, nitems, items, focusitem);
 
 	free(items);
 
@@ -1188,8 +1197,9 @@ int treeview_builder(BUILDER_ARGS)
 
 	menurows = (u_int)strtoul(argv[0], NULL, 10);
 
-	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_opt, true,
-	    true, true, true, item_bottomdesc_opt, &nitems, &items, &focusitem);
+	output = get_menu_items(errbuf, argc-1, argv+1, item_prefix_opt,
+	    true, true, true, true, item_bottomdesc_opt, &nitems, &items,
+	    &focusitem);
 	if (output != 0)
 		return (output);
 
@@ -1199,7 +1209,7 @@ int treeview_builder(BUILDER_ARGS)
 	output = bsddialog_radiolist(&conf, text, rows, cols, menurows, nitems,
 	    items, &focusitem);
 
-	print_menu_items(&conf, output, nitems, items, focusitem);
+	print_menu_items(output, nitems, items, focusitem);
 
 	free(items);
 
@@ -1220,8 +1230,7 @@ alloc_formitems(int nitems, struct bsddialog_formitem **items, char *errbuf)
 }
 
 static void
-print_form_items(struct bsddialog_conf *conf, int output, int nitems,
-    struct bsddialog_formitem *items)
+print_form_items(int output, int nitems, struct bsddialog_formitem *items)
 {
 	int i;
 
@@ -1229,7 +1238,7 @@ print_form_items(struct bsddialog_conf *conf, int output, int nitems,
 		return;
 
 	for (i = 0; i < nitems; i++) {
-		dprintf(output_fd_opt, "%s\n", items[i].value);
+		dprintf(output_fd_opt, "%ls\n", (wchar_t*)items[i].value);
 		free(items[i].value);
 	}
 }
@@ -1241,7 +1250,7 @@ int form_builder(BUILDER_ARGS)
 	struct bsddialog_formitem *items;
 
 	sizeitem = item_bottomdesc_opt ? 9 : 8;
-	if (argc < 1 || (((argc-1) % sizeitem) != 0)) {
+	if (argc < 1 || (argc - 1) % sizeitem != 0) {
 		strcpy(errbuf, "bad number of arguments for this form\n");
 		return (BSDDIALOG_ERROR);
 	}
@@ -1278,7 +1287,7 @@ int form_builder(BUILDER_ARGS)
 
 	output = bsddialog_form(&conf, text, rows, cols, formheight, nitems,
 	    items);
-	print_form_items(&conf, output, nitems, items);
+	print_form_items(output, nitems, items);
 	free(items);
 
 	return (output);
@@ -1301,7 +1310,7 @@ int inputbox_builder(BUILDER_ARGS)
 	item.bottomdesc  = "";
 
 	output = bsddialog_form(&conf, text, rows, cols, 1, 1, &item);
-	print_form_items(&conf, output, 1, &item);
+	print_form_items(output, 1, &item);
 
 	return (output);
 }
@@ -1313,7 +1322,7 @@ int mixedform_builder(BUILDER_ARGS)
 	struct bsddialog_formitem *items;
 
 	sizeitem = item_bottomdesc_opt ? 10 : 9;
-	if (argc < 1 || (((argc-1) % sizeitem) != 0)) {
+	if (argc < 1 || (argc-1) % sizeitem != 0) {
 		strcpy(errbuf, "bad number of arguments for this form\n");
 		return (BSDDIALOG_ERROR);
 	}
@@ -1342,7 +1351,7 @@ int mixedform_builder(BUILDER_ARGS)
 
 	output = bsddialog_form(&conf, text, rows, cols, formheight, nitems,
 	    items);
-	print_form_items(&conf, output, nitems, items);
+	print_form_items(output, nitems, items);
 	free(items);
 
 	return (output);
@@ -1365,7 +1374,7 @@ int passwordbox_builder(BUILDER_ARGS)
 	item.bottomdesc  = "";
 
 	output = bsddialog_form(&conf, text, rows, cols, 1, 1, &item);
-	print_form_items(&conf, output, 1, &item);
+	print_form_items(output, 1, &item);
 
 	return (output);
 }
@@ -1377,7 +1386,7 @@ int passwordform_builder(BUILDER_ARGS)
 	struct bsddialog_formitem *items;
 
 	sizeitem = item_bottomdesc_opt ? 9 : 8;
-	if (argc < 1 || (((argc-1) % sizeitem) != 0) ) {
+	if (argc < 1 || (argc - 1) % sizeitem != 0) {
 		strcpy(errbuf, "bad number of arguments for this form\n");
 		return (BSDDIALOG_ERROR);
 	}
@@ -1414,7 +1423,7 @@ int passwordform_builder(BUILDER_ARGS)
 
 	output = bsddialog_form(&conf, text, rows, cols, formheight, nitems,
 	    items);
-	print_form_items(&conf, output, nitems, items);
+	print_form_items(output, nitems, items);
 	free(items);
 
 	return (output);

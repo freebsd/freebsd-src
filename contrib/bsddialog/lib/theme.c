@@ -50,13 +50,14 @@ static struct bsddialog_theme bsddialogtheme = {
 	.dialog.linelowercolor   = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.dialog.color            = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.dialog.bottomtitlecolor = GET_COLOR(COLOR_BLACK,  bgwidget),
+	.dialog.arrowcolor       = GET_COLOR(COLOR_YELLOW, bgwidget),
 
-	.menu.arrowcolor      = GET_COLOR(COLOR_YELLOW, bgwidget),
-	.menu.selectorcolor   = GET_COLOR(COLOR_BLACK,  bgwidget) | A_BOLD,
+	.menu.f_selectorcolor = GET_COLOR(COLOR_BLACK,  bgcurr),
+	.menu.selectorcolor   = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.menu.f_desccolor     = GET_COLOR(COLOR_WHITE,  bgcurr),
 	.menu.desccolor       = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.menu.f_namecolor     = GET_COLOR(COLOR_BLACK,  bgcurr),
-	.menu.namecolor       = GET_COLOR(COLOR_YELLOW, bgwidget),
+	.menu.namecolor       = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.menu.namesepcolor    = GET_COLOR(COLOR_YELLOW, bgwidget),
 	.menu.descsepcolor    = GET_COLOR(COLOR_YELLOW, bgwidget),
 	.menu.f_shortcutcolor = GET_COLOR(COLOR_RED,    bgcurr),
@@ -69,15 +70,15 @@ static struct bsddialog_theme bsddialogtheme = {
 	.bar.f_color = GET_COLOR(COLOR_WHITE, COLOR_BLUE),
 	.bar.color   = GET_COLOR(COLOR_BLUE,  COLOR_WHITE),
 
-	.button.space        = 3,
-	.button.leftch       = '[',
-	.button.rightch      = ']',
-	.button.f_delimcolor = GET_COLOR(COLOR_WHITE,  bgcurr),
+	.button.hmargin      = 3,
+	.button.leftdelim    = '[',
+	.button.rightdelim   = ']',
+	.button.f_delimcolor = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.button.delimcolor   = GET_COLOR(COLOR_BLACK,  bgwidget),
-	.button.f_color      = GET_COLOR(COLOR_WHITE,  bgcurr)    | A_UNDERLINE,
-	.button.color        = GET_COLOR(COLOR_BLACK,  bgwidget)  | A_UNDERLINE,
-	.button.f_shortcutcolor = GET_COLOR(COLOR_BLACK, bgcurr)  | A_UNDERLINE,
-	.button.shortcutcolor = GET_COLOR(COLOR_YELLOW, bgwidget) | A_UNDERLINE
+	.button.f_color      = GET_COLOR(COLOR_BLACK,  bgcurr)   | A_UNDERLINE,
+	.button.color        = GET_COLOR(COLOR_BLACK,  bgwidget) | A_UNDERLINE,
+	.button.f_shortcutcolor = GET_COLOR(COLOR_RED, bgcurr)   | A_UNDERLINE,
+	.button.shortcutcolor   = GET_COLOR(COLOR_RED, bgwidget) | A_UNDERLINE
 };
 
 static struct bsddialog_theme blackwhite = {
@@ -95,8 +96,9 @@ static struct bsddialog_theme blackwhite = {
 	.dialog.linelowercolor   = GET_COLOR(fg, bk),
 	.dialog.color            = GET_COLOR(fg, bk),
 	.dialog.bottomtitlecolor = GET_COLOR(fg, bk),
+	.dialog.arrowcolor       = GET_COLOR(fg, bk),
 
-	.menu.arrowcolor      = GET_COLOR(fg, bk),
+	.menu.f_selectorcolor = GET_COLOR(fg, bk) | A_REVERSE,
 	.menu.selectorcolor   = GET_COLOR(fg, bk),
 	.menu.f_desccolor     = GET_COLOR(fg, bk) | A_REVERSE,
 	.menu.desccolor       = GET_COLOR(fg, bk),
@@ -114,9 +116,9 @@ static struct bsddialog_theme blackwhite = {
 	.bar.f_color = GET_COLOR(fg, bk) | A_REVERSE,
 	.bar.color   = GET_COLOR(fg, bk),
 
-	.button.space           = 3,
-	.button.leftch          = '[',
-	.button.rightch         = ']',
+	.button.hmargin         = 3,
+	.button.leftdelim       = '[',
+	.button.rightdelim      = ']',
 	.button.f_delimcolor    = GET_COLOR(fg, bk),
 	.button.delimcolor      = GET_COLOR(fg, bk),
 	.button.f_color         = GET_COLOR(fg, bk) | A_UNDERLINE | A_REVERSE,
@@ -138,12 +140,13 @@ static struct bsddialog_theme dialogtheme = {
 	.dialog.linelowercolor   = GET_COLOR(COLOR_BLACK, COLOR_WHITE) | A_BOLD,
 	.dialog.color            = GET_COLOR(COLOR_BLACK, COLOR_WHITE),
 	.dialog.bottomtitlecolor = GET_COLOR(COLOR_BLACK, COLOR_WHITE) | A_BOLD,
+	.dialog.arrowcolor       = GET_COLOR(COLOR_GREEN,  COLOR_WHITE),
 
-	.menu.arrowcolor      = GET_COLOR(COLOR_GREEN,  COLOR_WHITE),
+	.menu.f_selectorcolor = GET_COLOR(COLOR_WHITE,  COLOR_BLUE),
 	.menu.selectorcolor   = GET_COLOR(COLOR_BLACK,  bgwidget),
 	.menu.f_desccolor     = GET_COLOR(COLOR_WHITE,  COLOR_BLUE),
 	.menu.desccolor       = GET_COLOR(COLOR_BLACK,  COLOR_WHITE),
-	.menu.f_namecolor     = GET_COLOR(COLOR_YELLOW, COLOR_BLUE),
+	.menu.f_namecolor     = GET_COLOR(COLOR_WHITE,  COLOR_BLUE),
 	.menu.namecolor       = GET_COLOR(COLOR_BLUE,   COLOR_WHITE),
 	.menu.namesepcolor    = GET_COLOR(COLOR_RED,    COLOR_WHITE),
 	.menu.descsepcolor    = GET_COLOR(COLOR_RED,    COLOR_WHITE),
@@ -157,9 +160,9 @@ static struct bsddialog_theme dialogtheme = {
 	.bar.f_color = GET_COLOR(COLOR_WHITE, COLOR_BLUE)  | A_BOLD,
 	.bar.color   = GET_COLOR(COLOR_BLUE,  COLOR_WHITE) | A_BOLD,
 
-	.button.space           = 3,
-	.button.leftch          = '<',
-	.button.rightch         = '>',
+	.button.hmargin         = 3,
+	.button.leftdelim       = '<',
+	.button.rightdelim      = '>',
 	.button.f_delimcolor    = GET_COLOR(COLOR_WHITE,  COLOR_BLUE)  | A_BOLD,
 	.button.delimcolor      = GET_COLOR(COLOR_BLACK,  COLOR_WHITE),
 	.button.f_color         = GET_COLOR(COLOR_YELLOW, COLOR_BLUE)  | A_BOLD,
@@ -183,8 +186,9 @@ set_theme(struct bsddialog_theme *dst, struct bsddialog_theme *src)
 	dst->dialog.linelowercolor   = src->dialog.linelowercolor;
 	dst->dialog.color            = src->dialog.color;
 	dst->dialog.bottomtitlecolor = src->dialog.bottomtitlecolor;
+	dst->dialog.arrowcolor       = src->dialog.arrowcolor;
 
-	dst->menu.arrowcolor      = src->menu.arrowcolor;
+	dst->menu.f_selectorcolor = src->menu.f_selectorcolor;
 	dst->menu.selectorcolor   = src->menu.selectorcolor;
 	dst->menu.f_desccolor     = src->menu.f_desccolor;
 	dst->menu.desccolor       = src->menu.desccolor;
@@ -202,9 +206,9 @@ set_theme(struct bsddialog_theme *dst, struct bsddialog_theme *src)
 	dst->bar.f_color = src->bar.f_color;
 	dst->bar.color   = src->bar.color;
 
-	dst->button.space           = src->button.space;
-	dst->button.leftch          = src->button.leftch;
-	dst->button.rightch         = src->button.rightch;
+	dst->button.hmargin         = src->button.hmargin;
+	dst->button.leftdelim       = src->button.leftdelim;
+	dst->button.rightdelim      = src->button.rightdelim;
 	dst->button.f_delimcolor    = src->button.f_delimcolor;
 	dst->button.delimcolor      = src->button.delimcolor;
 	dst->button.f_color         = src->button.f_color;
@@ -244,12 +248,12 @@ int bsddialog_set_theme(struct bsddialog_theme *theme)
 int bsddialog_set_default_theme(enum bsddialog_default_theme newtheme)
 {
 
-	if (newtheme == BSDDIALOG_THEME_DEFAULT) {
+	if (newtheme == BSDDIALOG_THEME_FLAT) {
 		bsddialog_set_theme(&dialogtheme);
 		t.dialog.lineraisecolor = t.dialog.linelowercolor;
 		t.dialog.delimtitle     = true;
-		t.button.leftch         = '[';
-		t.button.rightch        = ']';
+		t.button.leftdelim      = '[';
+		t.button.rightdelim     = ']';
 	}
 	else if (newtheme == BSDDIALOG_THEME_BSDDIALOG)
 		bsddialog_set_theme(&bsddialogtheme);

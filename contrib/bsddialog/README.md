@@ -1,4 +1,4 @@
-# BSDDialog 0.1
+# BSDDialog 0.2
 
 
 This project provides **bsddialog** and **libbsddialog**, an utility and a
@@ -75,8 +75,9 @@ in the _Public Domain_ to build new projects:
 % sh ./examples_utility/msgbox.sh
 % sh ./examples_utility/passwordbox.sh
 % sh ./examples_utility/passwordform.sh
+% sh ./examples_utility/pause.sh
 % sh ./examples_utility/radiolist.sh
-% sh ./examples_utility/treeview.sh
+% sh ./examples_utility/timebox.sh
 % sh ./examples_utility/yesno.sh
 ```
 

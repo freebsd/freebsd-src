@@ -33,6 +33,9 @@
 #define TEXTHMARGIN     1
 #define TEXTHMARGINS    (TEXTHMARGIN + TEXTHMARGIN)
 
+/* current theme */
+extern struct bsddialog_theme t;
+
 /* debug */
 #define BSDDIALOG_DEBUG(y,x,fmt, ...) do {	\
 	mvprintw(y, x, fmt, __VA_ARGS__);	\
@@ -41,7 +44,7 @@
 
 /* error buffer */
 const char *get_error_string(void);
-void set_error_string(char *string);
+void set_error_string(const char *string);
 
 #define RETURN_ERROR(str) do {			\
 	set_error_string(str);			\
@@ -61,12 +64,13 @@ struct buttons {
 #define BUTTON_OK_LABEL      "OK"
 #define BUTTON_CANCEL_LABEL  "Cancel"
 void
-get_buttons(struct bsddialog_conf *conf, struct buttons *bs, char *yesoklabel,
-    char *nocancellabel);
+get_buttons(struct bsddialog_conf *conf, struct buttons *bs,
+    const char *yesoklabel, const char *nocancellabel);
 
 void
 draw_buttons(WINDOW *window, struct buttons bs, bool shortcut);
 
+int buttons_width(struct buttons bs);
 bool shortcut_buttons(int key, struct buttons *bs);
 
 /* help window with F1 key */

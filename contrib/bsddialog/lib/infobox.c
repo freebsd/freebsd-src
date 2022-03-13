@@ -30,10 +30,7 @@
 #include <curses.h>
 
 #include "bsddialog.h"
-#include "bsddialog_theme.h"
 #include "lib_util.h"
-
-extern struct bsddialog_theme t;
 
 static int
 infobox_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h,
