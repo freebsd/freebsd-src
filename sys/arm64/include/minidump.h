@@ -31,7 +31,7 @@
 #define	_MACHINE_MINIDUMP_H_ 1
 
 #define	MINIDUMP_MAGIC		"minidump FreeBSD/arm64"
-#define	MINIDUMP_VERSION	2
+#define	MINIDUMP_VERSION	3
 
 struct minidumphdr {
 	char magic[24];
@@ -44,6 +44,11 @@ struct minidumphdr {
 	uint64_t dmapbase;
 	uint64_t dmapend;
 	uint32_t dumpavailsize;
+#define	MINIDUMP_FLAG_PS_MASK	(3 << 0)
+#define	MINIDUMP_FLAG_PS_4K	(0 << 0)
+#define	MINIDUMP_FLAG_PS_16K	(1 << 0)
+/* MINIDUMP_FLAG_PS_64K		(2 << 0) */
+	uint32_t flags;
 };
 
 #endif /* _MACHINE_MINIDUMP_H_ */

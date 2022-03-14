@@ -239,6 +239,7 @@ cpu_minidumpsys(struct dumperinfo *di, const struct minidumpstate *state)
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
+	mdhdr.flags = MINIDUMP_FLAG_PS_4K;
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_AARCH64_VERSION,
 	    dumpsize);
