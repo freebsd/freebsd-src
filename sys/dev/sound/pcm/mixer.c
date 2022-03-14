@@ -1460,6 +1460,8 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
+		if (d == NULL)
+			break;
 		if (PCM_DETACHING(d) || !PCM_REGISTERED(d))
 			continue;
 
