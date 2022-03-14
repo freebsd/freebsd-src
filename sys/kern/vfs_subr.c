@@ -113,6 +113,8 @@ static void	vn_seqc_init(struct vnode *);
 static void	vn_seqc_write_end_free(struct vnode *vp);
 static void	vgonel(struct vnode *);
 static bool	vhold_recycle_free(struct vnode *);
+static void	vdropl_recycle(struct vnode *vp);
+static void	vdrop_recycle(struct vnode *vp);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static void	vfs_knl_assert_lock(void *arg, int what);
@@ -1207,11 +1209,11 @@ restart:
 		mtx_unlock(&vnode_list_mtx);
 
 		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
-			vdrop(vp);
+			vdrop_recycle(vp);
 			goto next_iter_unlocked;
 		}
 		if (VOP_LOCK(vp, LK_EXCLUSIVE|LK_NOWAIT) != 0) {
-			vdrop(vp);
+			vdrop_recycle(vp);
 			vn_finished_write(mp);
 			goto next_iter_unlocked;
 		}
@@ -1222,14 +1224,14 @@ restart:
 		    (vp->v_object != NULL && vp->v_object->handle == vp &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp);
-			vdropl(vp);
+			vdropl_recycle(vp);
 			vn_finished_write(mp);
 			goto next_iter_unlocked;
 		}
 		counter_u64_add(recycles_count, 1);
 		vgonel(vp);
 		VOP_UNLOCK(vp);
-		vdropl(vp);
+		vdropl_recycle(vp);
 		vn_finished_write(mp);
 		done++;
 next_iter_unlocked:
@@ -1309,8 +1311,29 @@ vnlru_free_impl(int count, struct vfsops *mnt_op, struct vnode *mvp)
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		mtx_unlock(&vnode_list_mtx);
-		if (vtryrecycle(vp) == 0)
-			count--;
+		/*
+		 * FIXME: ignores the return value, meaning it may be nothing
+		 * got recycled but it claims otherwise to the caller.
+		 *
+		 * Originally the value started being ignored in 2005 with
+		 * 114a1006a8204aa156e1f9ad6476cdff89cada7f .
+		 *
+		 * Respecting the value can run into significant stalls if most
+		 * vnodes belong to one file system and it has writes
+		 * suspended.  In presence of many threads and millions of
+		 * vnodes they keep contending on the vnode_list_mtx lock only
+		 * to find vnodes they can't recycle.
+		 *
+		 * The solution would be to pre-check if the vnode is likely to
+		 * be recycle-able, but it needs to happen with the
+		 * vnode_list_mtx lock held. This runs into a problem where
+		 * VOP_GETWRITEMOUNT (currently needed to find out about if
+		 * writes are frozen) can take locks which LOR against it.
+		 *
+		 * Check nullfs for one example (null_getwritemount).
+		 */
+		vtryrecycle(vp);
+		count--;
 		mtx_lock(&vnode_list_mtx);
 		vp = mvp;
 	}
@@ -1613,7 +1636,7 @@ vtryrecycle(struct vnode *vp)
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, vp %p lock is already held",
 		    __func__, vp);
-		vdrop(vp);
+		vdrop_recycle(vp);
 		return (EWOULDBLOCK);
 	}
 	/*
@@ -1624,7 +1647,7 @@ vtryrecycle(struct vnode *vp)
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, cannot start the write for %p",
 		    __func__, vp);
-		vdrop(vp);
+		vdrop_recycle(vp);
 		return (EBUSY);
 	}
 	/*
@@ -1636,7 +1659,7 @@ vtryrecycle(struct vnode *vp)
 	VI_LOCK(vp);
 	if (vp->v_usecount) {
 		VOP_UNLOCK(vp);
-		vdropl(vp);
+		vdropl_recycle(vp);
 		vn_finished_write(vnmp);
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, %p is already referenced",
@@ -1648,7 +1671,7 @@ vtryrecycle(struct vnode *vp)
 		vgonel(vp);
 	}
 	VOP_UNLOCK(vp);
-	vdropl(vp);
+	vdropl_recycle(vp);
 	vn_finished_write(vnmp);
 	return (0);
 }
@@ -3598,8 +3621,8 @@ vdrop(struct vnode *vp)
 	vdropl(vp);
 }
 
-void
-vdropl(struct vnode *vp)
+static void __always_inline
+vdropl_impl(struct vnode *vp, bool enqueue)
 {
 
 	ASSERT_VI_LOCKED(vp, __func__);
@@ -3625,6 +3648,39 @@ vdropl(struct vnode *vp)
 	 * freed.
 	 */
 	vdbatch_enqueue(vp);
+}
+
+void
+vdropl(struct vnode *vp)
+{
+
+	vdropl_impl(vp, true);
+}
+
+/*
+ * vdrop a vnode when recycling
+ *
+ * This is a special case routine only to be used when recycling, differs from
+ * regular vdrop by not requeieing the vnode on LRU.
+ *
+ * Consider a case where vtryrecycle continuously fails with all vnodes (due to
+ * e.g., frozen writes on the filesystem), filling the batch and causing it to
+ * be requeued. Then vnlru will end up revisiting the same vnodes. This is a
+ * loop which can last for as long as writes are frozen.
+ */
+static void
+vdropl_recycle(struct vnode *vp)
+{
+
+	vdropl_impl(vp, false);
+}
+
+static void
+vdrop_recycle(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	vdropl_recycle(vp);
 }
 
 /*

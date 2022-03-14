@@ -74,7 +74,7 @@ savecore_start()
 		fi
 		sync
 	else
-		check_startmsgs && echo 'No core dumps found.'
+		startmsg 'No core dumps found.'
 	fi
 }
 

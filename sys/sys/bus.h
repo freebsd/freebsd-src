@@ -61,6 +61,20 @@ typedef enum device_state {
 } device_state_t;
 
 /**
+ * @brief Device proprty types.
+ *
+ * Those are used by bus logic to encode requested properties,
+ * e.g. in DT all properties are stored as BE and need to be converted
+ * to host endianness.
+ */
+typedef enum device_property_type {
+	DEVICE_PROP_ANY = 0,
+	DEVICE_PROP_BUFFER = 1,
+	DEVICE_PROP_UINT32 = 2,
+	DEVICE_PROP_UINT64 = 3,
+} device_property_type_t;
+
+/**
  * @brief Device information exported to userspace.
  * The strings are placed one after the other, separated by NUL characters.
  * Fields should be added after the last one and order maintained for compatibility
@@ -444,6 +458,9 @@ bus_dma_tag_t
 bus_space_tag_t
 	bus_generic_get_bus_tag(device_t dev, device_t child);
 int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
+ssize_t	bus_generic_get_property(device_t dev, device_t child,
+				 const char *propname, void *propvalue,
+				 size_t size, device_property_type_t type);
 struct resource_list *
 	bus_generic_get_resource_list(device_t, device_t);
 int	bus_generic_map_resource(device_t dev, device_t child, int type,
@@ -634,7 +651,8 @@ int	device_set_unit(device_t dev, int unit);	/* XXX DONT USE XXX */
 int	device_shutdown(device_t dev);
 void	device_unbusy(device_t dev);
 void	device_verbose(device_t dev);
-ssize_t	device_get_property(device_t dev, const char *prop, void *val, size_t sz);
+ssize_t	device_get_property(device_t dev, const char *prop, void *val,
+    size_t sz, device_property_type_t type);
 bool device_has_property(device_t dev, const char *prop);
 
 /*

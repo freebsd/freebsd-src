@@ -44,7 +44,7 @@ rc=0
 if check_yesno_period security_status_pfdenied_enable
 then
 	TMP=`mktemp -t security`
-	for _a in "" $(pfctl -a "blacklistd" -sA 2>/dev/null)
+	for _a in "" $(pfctl -a "blacklistd" -sA 2>/dev/null) ${security_status_pfdenied_additionalanchors}
 	do
 		pfctl -a "${_a}" -sr -v -z 2>/dev/null | \
 		nawk '{if (/^block/) {buf=$0; getline; gsub(" +"," ",$0); if ($5 > 0) print buf$0;} }' >> ${TMP}

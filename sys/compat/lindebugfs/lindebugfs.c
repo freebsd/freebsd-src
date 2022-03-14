@@ -117,7 +117,7 @@ static int
 debugfs_fill(PFS_FILL_ARGS)
 {
 	struct dentry_meta *d;
-	struct linux_file lf;
+	struct linux_file lf = {};
 	struct seq_file *sf;
 	struct vnode vn;
 	void *buf;
@@ -139,7 +139,6 @@ debugfs_fill(PFS_FILL_ARGS)
 		len = sbuf_len(sb);
 	}
 	off = 0;
-	lf.private_data = NULL;
 	rc = d->dm_fops->open(&vn, &lf);
 	if (rc < 0) {
 #ifdef INVARIANTS
@@ -153,12 +152,12 @@ debugfs_fill(PFS_FILL_ARGS)
 		if (d->dm_fops->read)
 			rc = d->dm_fops->read(&lf, NULL, len, &off);
 		else
-			rc = ENODEV;
+			rc = -ENODEV;
 	} else {
 		if (d->dm_fops->write)
 			rc = d->dm_fops->write(&lf, buf, len, &off);
 		else
-			rc = ENODEV;
+			rc = -ENODEV;
 	}
 	if (d->dm_fops->release)
 		d->dm_fops->release(&vn, &lf);

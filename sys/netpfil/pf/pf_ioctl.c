@@ -474,16 +474,26 @@ pf_empty_kpool(struct pf_kpalist *poola)
 }
 
 static void
+pf_unlink_rule_locked(struct pf_krulequeue *rulequeue, struct pf_krule *rule)
+{
+
+	PF_RULES_WASSERT();
+	PF_UNLNKDRULES_ASSERT();
+
+	TAILQ_REMOVE(rulequeue, rule, entries);
+
+	rule->rule_ref |= PFRULE_REFS;
+	TAILQ_INSERT_TAIL(&V_pf_unlinked_rules, rule, entries);
+}
+
+static void
 pf_unlink_rule(struct pf_krulequeue *rulequeue, struct pf_krule *rule)
 {
 
 	PF_RULES_WASSERT();
 
-	TAILQ_REMOVE(rulequeue, rule, entries);
-
 	PF_UNLNKDRULES_LOCK();
-	rule->rule_ref |= PFRULE_REFS;
-	TAILQ_INSERT_TAIL(&V_pf_unlinked_rules, rule, entries);
+	pf_unlink_rule_locked(rulequeue, rule);
 	PF_UNLNKDRULES_UNLOCK();
 }
 
@@ -1338,8 +1348,10 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	pf_calc_skip_steps(rs->rules[rs_num].active.ptr);
 
 	/* Purge the old rule list. */
+	PF_UNLNKDRULES_LOCK();
 	while ((rule = TAILQ_FIRST(old_rules)) != NULL)
-		pf_unlink_rule(old_rules, rule);
+		pf_unlink_rule_locked(old_rules, rule);
+	PF_UNLNKDRULES_UNLOCK();
 	if (rs->rules[rs_num].inactive.ptr_array)
 		free(rs->rules[rs_num].inactive.ptr_array, M_TEMP);
 	rs->rules[rs_num].inactive.ptr_array = NULL;
@@ -2184,11 +2196,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	}
 
 	rule->rpool.cur = TAILQ_FIRST(&rule->rpool.list);
-	pf_counter_u64_zero(&rule->evaluations);
-	for (int i = 0; i < 2; i++) {
-		pf_counter_u64_zero(&rule->packets[i]);
-		pf_counter_u64_zero(&rule->bytes[i]);
-	}
 	TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 	    rule, entries);
 	ruleset->rules[rs_num].inactive.rcount++;

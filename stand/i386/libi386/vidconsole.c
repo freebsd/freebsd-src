@@ -524,36 +524,44 @@ vidc_probe(struct console *cp)
 static bool
 color_name_to_teken(const char *name, int *val)
 {
+	int light = 0;
+	if (strncasecmp(name, "light", 5) == 0) {
+		name += 5;
+		light = TC_LIGHT;
+	} else if (strncasecmp(name, "bright", 6) == 0) {
+		name += 6;
+		light = TC_LIGHT;
+	}
 	if (strcasecmp(name, "black") == 0) {
-		*val = TC_BLACK;
+		*val = TC_BLACK | light;
 		return (true);
 	}
 	if (strcasecmp(name, "red") == 0) {
-		*val = TC_RED;
+		*val = TC_RED | light;
 		return (true);
 	}
 	if (strcasecmp(name, "green") == 0) {
-		*val = TC_GREEN;
+		*val = TC_GREEN | light;
 		return (true);
 	}
-	if (strcasecmp(name, "brown") == 0) {
-		*val = TC_BROWN;
+	if (strcasecmp(name, "yellow") == 0 || strcasecmp(name, "brown") == 0) {
+		*val = TC_YELLOW | light;
 		return (true);
 	}
 	if (strcasecmp(name, "blue") == 0) {
-		*val = TC_BLUE;
+		*val = TC_BLUE | light;
 		return (true);
 	}
 	if (strcasecmp(name, "magenta") == 0) {
-		*val = TC_MAGENTA;
+		*val = TC_MAGENTA | light;
 		return (true);
 	}
 	if (strcasecmp(name, "cyan") == 0) {
-		*val = TC_CYAN;
+		*val = TC_CYAN | light;
 		return (true);
 	}
 	if (strcasecmp(name, "white") == 0) {
-		*val = TC_WHITE;
+		*val = TC_WHITE | light;
 		return (true);
 	}
 	return (false);
@@ -563,7 +571,7 @@ static int
 vidc_set_colors(struct env_var *ev, int flags, const void *value)
 {
 	int val = 0;
-	char buf[2];
+	char buf[3];
 	const void *evalue;
 	const teken_attr_t *ap;
 	teken_attr_t a;
@@ -576,14 +584,16 @@ vidc_set_colors(struct env_var *ev, int flags, const void *value)
 		evalue = buf;
 	} else {
 		char *end;
+		long lval;
 
 		errno = 0;
-		val = (int)strtol(value, &end, 0);
-		if (errno != 0 || *end != '\0') {
+		lval = strtol(value, &end, 0);
+		if (errno != 0 || *end != '\0' || lval < 0 || lval > 15) {
 			printf("Allowed values are either ansi color name or "
-			    "number from range [0-7].\n");
+			    "number from range [0-15].\n");
 			return (CMD_OK);
 		}
+		val = (int)lval;
 		evalue = value;
 	}
 

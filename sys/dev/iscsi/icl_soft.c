@@ -37,6 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bio.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/uio.h>
 #include <vm/uma.h>
+#include <vm/vm_page.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
@@ -129,7 +131,9 @@ static icl_conn_new_pdu_t	icl_soft_conn_new_pdu;
 static icl_conn_pdu_free_t	icl_soft_conn_pdu_free;
 static icl_conn_pdu_data_segment_length_t
 				    icl_soft_conn_pdu_data_segment_length;
+static icl_conn_pdu_append_bio_t	icl_soft_conn_pdu_append_bio;
 static icl_conn_pdu_append_data_t	icl_soft_conn_pdu_append_data;
+static icl_conn_pdu_get_bio_t	icl_soft_conn_pdu_get_bio;
 static icl_conn_pdu_get_data_t	icl_soft_conn_pdu_get_data;
 static icl_conn_pdu_queue_t	icl_soft_conn_pdu_queue;
 static icl_conn_pdu_queue_cb_t	icl_soft_conn_pdu_queue_cb;
@@ -149,7 +153,9 @@ static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_pdu_free, icl_soft_conn_pdu_free),
 	KOBJMETHOD(icl_conn_pdu_data_segment_length,
 	    icl_soft_conn_pdu_data_segment_length),
+	KOBJMETHOD(icl_conn_pdu_append_bio, icl_soft_conn_pdu_append_bio),
 	KOBJMETHOD(icl_conn_pdu_append_data, icl_soft_conn_pdu_append_data),
+	KOBJMETHOD(icl_conn_pdu_get_bio, icl_soft_conn_pdu_get_bio),
 	KOBJMETHOD(icl_conn_pdu_get_data, icl_soft_conn_pdu_get_data),
 	KOBJMETHOD(icl_conn_pdu_queue, icl_soft_conn_pdu_queue),
 	KOBJMETHOD(icl_conn_pdu_queue_cb, icl_soft_conn_pdu_queue_cb),
@@ -362,16 +368,21 @@ icl_pdu_receive_ahs(struct icl_pdu *request, struct mbuf **r, size_t *rs)
 	*rs -= request->ip_ahs_len;
 }
 
+static int
+mbuf_crc32c_helper(void *arg, void *data, u_int len)
+{
+	uint32_t *digestp = arg;
+
+	*digestp = calculate_crc32c(*digestp, data, len);
+	return (0);
+}
+
 static uint32_t
-icl_mbuf_to_crc32c(const struct mbuf *m0)
+icl_mbuf_to_crc32c(struct mbuf *m0, size_t len)
 {
 	uint32_t digest = 0xffffffff;
-	const struct mbuf *m;
 
-	for (m = m0; m != NULL; m = m->m_next)
-		digest = calculate_crc32c(digest,
-		    mtod(m, const void *), m->m_len);
-
+	m_apply(m0, 0, len, mbuf_crc32c_helper, &digest);
 	digest = digest ^ 0xffffffff;
 
 	return (digest);
@@ -390,7 +401,7 @@ icl_pdu_check_header_digest(struct icl_pdu *request, struct mbuf **r, size_t *rs
 
 	/* Temporary attach AHS to BHS to calculate header digest. */
 	request->ip_bhs_mbuf->m_next = request->ip_ahs_mbuf;
-	valid_digest = icl_mbuf_to_crc32c(request->ip_bhs_mbuf);
+	valid_digest = icl_mbuf_to_crc32c(request->ip_bhs_mbuf, ISCSI_BHS_SIZE);
 	request->ip_bhs_mbuf->m_next = NULL;
 	if (received_digest != valid_digest) {
 		ICL_WARN("header digest check failed; got 0x%x, "
@@ -537,7 +548,8 @@ icl_pdu_check_data_digest(struct icl_pdu *request, struct mbuf **r, size_t *rs)
 	 * calculation is supposed to include that, we iterate over
 	 * the entire ip_data_mbuf chain, not just ip_data_len bytes of it.
 	 */
-	valid_digest = icl_mbuf_to_crc32c(request->ip_data_mbuf);
+	valid_digest = icl_mbuf_to_crc32c(request->ip_data_mbuf,
+	    roundup2(request->ip_data_len, 4));
 	if (received_digest != valid_digest) {
 		ICL_WARN("data digest check failed; got 0x%x, "
 		    "should be 0x%x", received_digest, valid_digest);
@@ -821,7 +833,8 @@ icl_pdu_finalize(struct icl_pdu *request)
 	pdu_len = icl_pdu_size(request);
 
 	if (ic->ic_header_crc32c) {
-		digest = icl_mbuf_to_crc32c(request->ip_bhs_mbuf);
+		digest = icl_mbuf_to_crc32c(request->ip_bhs_mbuf,
+		    ISCSI_BHS_SIZE);
 		ok = m_append(request->ip_bhs_mbuf, sizeof(digest),
 		    (void *)&digest);
 		if (ok != 1) {
@@ -842,7 +855,8 @@ icl_pdu_finalize(struct icl_pdu *request)
 		}
 
 		if (ic->ic_data_crc32c) {
-			digest = icl_mbuf_to_crc32c(request->ip_data_mbuf);
+			digest = icl_mbuf_to_crc32c(request->ip_data_mbuf,
+			    roundup2(request->ip_data_len, 4));
 
 			ok = m_append(request->ip_data_mbuf, sizeof(digest),
 			    (void *)&digest);
@@ -1066,6 +1080,135 @@ icl_soupcall_send(struct socket *so, void *arg, int waitflag)
 	return (SU_OK);
 }
 
+static void
+icl_soft_free_mext_pg(struct mbuf *m)
+{
+	struct icl_soft_pdu *isp;
+
+	M_ASSERTEXTPG(m);
+
+	/*
+	 * Nothing to do for the pages; they are owned by the PDU /
+	 * I/O request.
+	 */
+
+	/* Drop reference on the PDU. */
+	isp = m->m_ext.ext_arg1;
+	if (atomic_fetchadd_int(&isp->ref_cnt, -1) == 1)
+		icl_soft_pdu_call_cb(&isp->ip);
+}
+
+static int
+icl_soft_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *request,
+    struct bio *bp, size_t offset, size_t len, int flags)
+{
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)request;
+	struct mbuf *m, *m_tail;
+	vm_offset_t vaddr;
+	size_t mtodo, page_offset, todo;
+	int i;
+
+	KASSERT(len > 0, ("len == 0"));
+
+	m_tail = request->ip_data_mbuf;
+	if (m_tail != NULL)
+		for (; m_tail->m_next != NULL; m_tail = m_tail->m_next)
+			;
+
+	MPASS(bp->bio_flags & BIO_UNMAPPED);
+	if (offset < PAGE_SIZE - bp->bio_ma_offset) {
+		page_offset = bp->bio_ma_offset + offset;
+		i = 0;
+	} else {
+		offset -= PAGE_SIZE - bp->bio_ma_offset;
+		for (i = 1; offset >= PAGE_SIZE; i++)
+			offset -= PAGE_SIZE;
+		page_offset = offset;
+	}
+
+	if (flags & ICL_NOCOPY) {
+		m = NULL;
+		while (len > 0) {
+			if (m == NULL) {
+				m = mb_alloc_ext_pgs(flags & ~ICL_NOCOPY,
+				    icl_soft_free_mext_pg);
+				if (__predict_false(m == NULL))
+					return (ENOMEM);
+				atomic_add_int(&isp->ref_cnt, 1);
+				m->m_ext.ext_arg1 = isp;
+				m->m_epg_1st_off = page_offset;
+			}
+
+			todo = MIN(len, PAGE_SIZE - page_offset);
+
+			m->m_epg_pa[m->m_epg_npgs] =
+			    VM_PAGE_TO_PHYS(bp->bio_ma[i]);
+			m->m_epg_npgs++;
+			m->m_epg_last_len = todo;
+			m->m_len += todo;
+			m->m_ext.ext_size += PAGE_SIZE;
+			MBUF_EXT_PGS_ASSERT_SANITY(m);
+
+			if (m->m_epg_npgs == MBUF_PEXT_MAX_PGS) {
+				if (m_tail != NULL)
+					m_tail->m_next = m;
+				else
+					request->ip_data_mbuf = m;
+				m_tail = m;
+				request->ip_data_len += m->m_len;
+				m = NULL;
+			}
+
+			page_offset = 0;
+			len -= todo;
+			i++;
+		}
+
+		if (m != NULL) {
+			if (m_tail != NULL)
+				m_tail->m_next = m;
+			else
+				request->ip_data_mbuf = m;
+			request->ip_data_len += m->m_len;
+		}
+		return (0);
+	}
+
+	m = m_getm2(NULL, len, flags, MT_DATA, 0);
+	if (__predict_false(m == NULL))
+		return (ENOMEM);
+
+	if (request->ip_data_mbuf == NULL) {
+		request->ip_data_mbuf = m;
+		request->ip_data_len = len;
+	} else {
+		m_tail->m_next = m;
+		request->ip_data_len += len;
+	}
+
+	while (len > 0) {
+		todo = MIN(len, PAGE_SIZE - page_offset);
+		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
+
+		do {
+			mtodo = min(todo, M_SIZE(m) - m->m_len);
+			memcpy(mtod(m, char *) + m->m_len, (char *)vaddr +
+			    page_offset, mtodo);
+			m->m_len += mtodo;
+			if (m->m_len == M_SIZE(m))
+				m = m->m_next;
+			page_offset += mtodo;
+			todo -= mtodo;
+		} while (todo > 0);
+
+		page_offset = 0;
+		len -= todo;
+		i++;
+	}
+
+	return (0);
+}
+
 static int
 icl_soft_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
     const void *addr, size_t len, int flags)
@@ -1112,6 +1255,39 @@ icl_soft_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
 	}
 
 	return (0);
+}
+
+void
+icl_soft_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
+    size_t pdu_off, struct bio *bp, size_t bio_off, size_t len)
+{
+	vm_offset_t vaddr;
+	size_t page_offset, todo;
+	int i;
+
+	MPASS(bp->bio_flags & BIO_UNMAPPED);
+	if (bio_off < PAGE_SIZE - bp->bio_ma_offset) {
+		page_offset = bp->bio_ma_offset + bio_off;
+		i = 0;
+	} else {
+		bio_off -= PAGE_SIZE - bp->bio_ma_offset;
+		for (i = 1; bio_off >= PAGE_SIZE; i++)
+			bio_off -= PAGE_SIZE;
+		page_offset = bio_off;
+	}
+
+	while (len > 0) {
+		todo = MIN(len, PAGE_SIZE - page_offset);
+
+		vaddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(bp->bio_ma[i]));
+		m_copydata(ip->ip_data_mbuf, pdu_off, todo, (char *)vaddr +
+		    page_offset);
+
+		page_offset = 0;
+		pdu_off += todo;
+		len -= todo;
+		i++;
+	}
 }
 
 void
@@ -1182,7 +1358,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 #endif
 	ic->ic_name = name;
 	ic->ic_offload = "None";
-	ic->ic_unmapped = false;
+	ic->ic_unmapped = PMAP_HAS_DMAP;
 
 	return (ic);
 }

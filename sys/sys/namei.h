@@ -305,8 +305,8 @@ void NDVALIDATE(struct nameidata *);
 #endif
 
 int	namei(struct nameidata *ndp);
-int	lookup(struct nameidata *ndp);
-int	relookup(struct vnode *dvp, struct vnode **vpp,
+int	vfs_lookup(struct nameidata *ndp);
+int	vfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp);
 #endif
 

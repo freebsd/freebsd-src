@@ -216,6 +216,8 @@ ttystat(char *line)
 	struct stat sb;
 	char ttybuf[MAXPATHLEN];
 
+	if (line == NULL)
+		return (0);
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%s", _PATH_DEV, line);
 	if (stat(ttybuf, &sb) == 0) {
 		return (0);
@@ -229,9 +231,10 @@ process_utmp(void)
 	struct utmpx *utx;
 
 	while ((utx = getutxent()) != NULL) {
-		if (((aflag || !bflag) && utx->ut_type == USER_PROCESS) ||
-		    (bflag && utx->ut_type == BOOT_TIME))
+		if ((aflag || !bflag) && utx->ut_type == USER_PROCESS) {
 			if (ttystat(utx->ut_line) == 0)
+				row(utx);
+		} else if (bflag && utx->ut_type == BOOT_TIME)
 				row(utx);
 	}
 }

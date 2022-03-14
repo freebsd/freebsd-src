@@ -355,6 +355,7 @@ struct pfi_dynaddr {
 extern struct mtx_padalign pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_LOCK()	mtx_lock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
+#define	PF_UNLNKDRULES_ASSERT()	mtx_assert(&pf_unlnkdrules_mtx, MA_OWNED)
 
 extern struct rmlock pf_rules_lock;
 #define	PF_RULES_RLOCK_TRACKER	struct rm_priotracker _pf_rules_tracker

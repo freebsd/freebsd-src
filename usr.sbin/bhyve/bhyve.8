@@ -528,6 +528,11 @@ Connect to a PCI device on the host at the selector described by
 and
 .Ar function
 numbers.
+.It Cm rom= Ns Ar romfile
+Add
+.Ar romfile
+as option ROM to the PCI device.
+The ROM will be loaded by firmware and should be capable of initializing the device.
 .El
 .Pp
 Guest memory must be wired using the

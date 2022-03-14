@@ -143,25 +143,9 @@ static struct regset regset_arm64_addr_mask = {
 ELF_REGSET(regset_arm64_addr_mask);
 
 void
-elf64_dump_thread(struct thread *td, void *dst, size_t *off)
+elf64_dump_thread(struct thread *td __unused, void *dst __unused,
+    size_t *off __unused)
 {
-	struct arm64_addr_mask addr_mask;
-	size_t len, mask_size;
-
-	len = 0;
-	if (dst != NULL) {
-		mask_size = sizeof(addr_mask);
-		get_arm64_addr_mask(&regset_arm64_addr_mask, td, &addr_mask,
-		    &mask_size);
-
-		len += elf64_populate_note(NT_ARM_ADDR_MASK, &addr_mask, dst,
-		    sizeof(addr_mask), NULL);
-	} else {
-		len += elf64_populate_note(NT_ARM_ADDR_MASK, NULL, NULL,
-		    sizeof(addr_mask), NULL);
-	}
-
-	*off += len;
 }
 
 bool

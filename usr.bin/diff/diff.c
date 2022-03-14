@@ -38,8 +38,10 @@ __FBSDID("$FreeBSD$");
 #include "diff.h"
 #include "xmalloc.h"
 
+static const char diff_version[] = "FreeBSD diff 20220309";
 bool	 lflag, Nflag, Pflag, rflag, sflag, Tflag, cflag;
 bool	 ignore_file_case, suppress_common, color, noderef;
+static bool help = false;
 int	 diff_format, diff_context, status;
 int	 tabsize = 8, width = 130;
 static int	colorflag = COLORFLAG_NEVER;
@@ -58,11 +60,13 @@ enum {
 	OPT_IGN_FN_CASE,
 	OPT_NO_IGN_FN_CASE,
 	OPT_NORMAL,
+	OPT_HELP,
 	OPT_HORIZON_LINES,
 	OPT_CHANGED_GROUP_FORMAT,
 	OPT_SUPPRESS_COMMON,
 	OPT_COLOR,
 	OPT_NO_DEREFERENCE,
+	OPT_VERSION,
 };
 
 static struct option longopts[] = {
@@ -97,6 +101,7 @@ static struct option longopts[] = {
 	{ "exclude-from",		required_argument,	0,	'X' },
 	{ "side-by-side",		no_argument,		NULL,	'y' },
 	{ "ignore-file-name-case",	no_argument,		NULL,	OPT_IGN_FN_CASE },
+	{ "help",			no_argument,		NULL,	OPT_HELP},
 	{ "horizon-lines",		required_argument,	NULL,	OPT_HORIZON_LINES },
 	{ "no-dereference",		no_argument,		NULL,	OPT_NO_DEREFERENCE},
 	{ "no-ignore-file-name-case",	no_argument,		NULL,	OPT_NO_IGN_FN_CASE },
@@ -106,6 +111,7 @@ static struct option longopts[] = {
 	{ "changed-group-format",	required_argument,	NULL,	OPT_CHANGED_GROUP_FORMAT},
 	{ "suppress-common-lines",	no_argument,		NULL,	OPT_SUPPRESS_COMMON },
 	{ "color",			optional_argument,	NULL,	OPT_COLOR },
+	{ "version",			no_argument,		NULL,	OPT_VERSION},
 	{ NULL,				0,			0,	'\0'}
 };
 
@@ -294,6 +300,10 @@ main(int argc, char **argv)
 			diff_format = D_GFORMAT;
 			group_format = optarg;
 			break;
+		case OPT_HELP:
+			help = true;
+			usage();
+			break;
 		case OPT_HORIZON_LINES:
 			break; /* XXX TODO for compatibility with GNU diff3 */
 		case OPT_IGN_FN_CASE:
@@ -335,6 +345,9 @@ main(int argc, char **argv)
 			rflag = true;
 			noderef = true;
 			break;
+		case OPT_VERSION:
+			printf("%s\n", diff_version);
+			exit(0);
 		default:
 			usage();
 			break;
@@ -571,7 +584,7 @@ print_status(int val, char *path1, char *path2, const char *entry)
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
+	(void)fprintf(help ? stdout : stderr,
 	    "usage: diff [-aBbdilpTtw] [-c | -e | -f | -n | -q | -u] [--ignore-case]\n"
 	    "            [--no-ignore-case] [--normal] [--strip-trailing-cr] [--tabsize]\n"
 	    "            [-I pattern] [-F pattern] [-L label] file1 file2\n"
@@ -590,9 +603,13 @@ usage(void)
 	    "            [--ignore-blank-lines] [--ignore-case] [--minimal]\n"
 	    "            [--no-ignore-file-name-case] [--strip-trailing-cr]\n"
 	    "            [--suppress-common-lines] [--tabsize] [--text] [--width]\n"
-	    "            -y | --side-by-side file1 file2\n");
+	    "            -y | --side-by-side file1 file2\n"
+	    "       diff [--help] [--version]\n");
 
-	exit(2);
+	if (help)
+		exit(0);
+	else
+		exit(2);
 }
 
 static void

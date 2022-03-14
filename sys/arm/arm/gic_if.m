@@ -67,3 +67,7 @@ METHOD int release_msix {
 	device_t	dev;
 	struct intr_irqsrc *isrc;
 };
+
+METHOD void db_show {
+	device_t	dev;
+};

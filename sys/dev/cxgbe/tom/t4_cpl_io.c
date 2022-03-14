@@ -1002,7 +1002,7 @@ write_iscsi_mbuf_wr(struct toepcb *toep, struct mbuf *sndptr)
 	int tx_credits, shove, npdu, wr_len;
 	uint16_t iso_mss;
 	static const u_int ulp_extra_len[] = {0, 4, 4, 8};
-	bool iso;
+	bool iso, nomap_mbuf_seen;
 
 	M_ASSERTPKTHDR(sndptr);
 
@@ -1030,8 +1030,15 @@ write_iscsi_mbuf_wr(struct toepcb *toep, struct mbuf *sndptr)
 	plen = 0;
 	nsegs = 0;
 	max_nsegs_1mbuf = 0; /* max # of SGL segments in any one mbuf */
+	nomap_mbuf_seen = false;
 	for (m = sndptr; m != NULL; m = m->m_next) {
-		int n = sglist_count(mtod(m, void *), m->m_len);
+		int n;
+
+		if (m->m_flags & M_EXTPG)
+			n = sglist_count_mbuf_epg(m, mtod(m, vm_offset_t),
+			    m->m_len);
+		else
+			n = sglist_count(mtod(m, void *), m->m_len);
 
 		nsegs += n;
 		plen += m->m_len;
@@ -1040,9 +1047,11 @@ write_iscsi_mbuf_wr(struct toepcb *toep, struct mbuf *sndptr)
 		 * This mbuf would send us _over_ the nsegs limit.
 		 * Suspend tx because the PDU can't be sent out.
 		 */
-		if (plen > max_imm && nsegs > max_nsegs)
+		if ((nomap_mbuf_seen || plen > max_imm) && nsegs > max_nsegs)
 			return (NULL);
 
+		if (m->m_flags & M_EXTPG)
+			nomap_mbuf_seen = true;
 		if (max_nsegs_1mbuf < n)
 			max_nsegs_1mbuf = n;
 	}
@@ -1075,7 +1084,7 @@ write_iscsi_mbuf_wr(struct toepcb *toep, struct mbuf *sndptr)
 	wr_len = sizeof(*txwr);
 	if (iso)
 		wr_len += sizeof(struct cpl_tx_data_iso);
-	if (plen <= max_imm) {
+	if (plen <= max_imm && !nomap_mbuf_seen) {
 		/* Immediate data tx */
 		imm_data = plen;
 		wr_len += plen;

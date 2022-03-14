@@ -966,18 +966,23 @@ void	vop_mkdir_debugpost(void *a, int rc);
 void	vop_rename_fail(struct vop_rename_args *ap);
 
 #define	vop_stat_helper_pre(ap)	({						\
+	struct vop_stat_args *_ap = (ap);					\
 	int _error;								\
 	AUDIT_ARG_VNODE1(ap->a_vp);						\
-	_error = mac_vnode_check_stat(ap->a_active_cred, ap->a_file_cred, ap->a_vp);\
-	if (__predict_true(_error == 0))					\
-		bzero(ap->a_sb, sizeof(*ap->a_sb));				\
+	_error = mac_vnode_check_stat(_ap->a_active_cred, _ap->a_file_cred, _ap->a_vp);\
+	if (__predict_true(_error == 0)) {					\
+		ap->a_sb->st_padding0 = 0;					\
+		ap->a_sb->st_padding1 = 0;					\
+		bzero(_ap->a_sb->st_spare, sizeof(_ap->a_sb->st_spare));	\
+	}									\
 	_error;									\
 })
 
 #define	vop_stat_helper_post(ap, error)	({					\
+	struct vop_stat_args *_ap = (ap);					\
 	int _error = (error);							\
-	if (priv_check_cred_vfs_generation(ap->a_active_cred))			\
-		ap->a_sb->st_gen = 0;						\
+	if (priv_check_cred_vfs_generation(_ap->a_active_cred))			\
+		_ap->a_sb->st_gen = 0;						\
 	_error;									\
 })
 

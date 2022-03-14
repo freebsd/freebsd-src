@@ -56,6 +56,7 @@ void geom_stats_snapshot_reset(void *);
 struct devstat *geom_stats_snapshot_next(void *);
 
 char *geom_getxml(void);
+char *geom_getxml_geom(const char *, const char *, int);
 
 /* geom_xml2tree.c */
 
@@ -137,6 +138,7 @@ struct gprovider {
 struct gident * geom_lookupid(struct gmesh *, const void *);
 int geom_xml2tree(struct gmesh *, char *);
 int geom_gettree(struct gmesh *);
+int geom_gettree_geom(struct gmesh *, const char *, const char *, int);
 void geom_deletetree(struct gmesh *);
 
 /* geom_ctl.c */

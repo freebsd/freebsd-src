@@ -8,7 +8,7 @@ SOURCES= bsddialog.c
 OBJECTS= $(SOURCES:.c=.o)
 LIBPATH= ./lib
 LIBBSDDIALOG= $(LIBPATH)/libbsddialog.so
-CFLAGS= -Wall -I$(LIBPATH)
+CFLAGS= -Wall -Wextra -Wno-unused-parameter -I$(LIBPATH)
 LDFLAGS= -Wl,-rpath=$(LIBPATH) -L$(LIBPATH) -lbsddialog
 RM = rm -f
 
