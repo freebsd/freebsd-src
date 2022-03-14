@@ -283,6 +283,7 @@ struct hn_softc {
 	u_int			hn_saved_tsosegcnt;
 	u_int			hn_saved_tsosegsz;
 	u_int			hn_rsc_ctrl;
+
 };
 
 #define HN_FLAG_RXBUF_CONNECTED		0x0001
