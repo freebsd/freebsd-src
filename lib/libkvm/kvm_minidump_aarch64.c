@@ -47,10 +47,13 @@ __FBSDID("$FreeBSD$");
 #include "kvm_private.h"
 #include "kvm_aarch64.h"
 
-#define	aarch64_round_page(x)	roundup2((kvaddr_t)(x), AARCH64_PAGE_SIZE)
+#define	aarch64_round_page(x, size)	roundup2((kvaddr_t)(x), size)
+#define	aarch64_trunc_page(x, size)	rounddown2((kvaddr_t)(x), size)
 
 struct vmstate {
 	struct minidumphdr hdr;
+	size_t page_size;
+	u_int l3_shift;
 };
 
 static aarch64_pte_t
@@ -102,7 +105,7 @@ _aarch64_minidump_initvtop(kvm_t *kd)
 	}
 
 	vmst->hdr.version = le32toh(vmst->hdr.version);
-	if (vmst->hdr.version != MINIDUMP_VERSION && vmst->hdr.version != 1) {
+	if (vmst->hdr.version > MINIDUMP_VERSION || vmst->hdr.version < 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. "
 		    "Expected %d got %d", MINIDUMP_VERSION, vmst->hdr.version);
 		return (-1);
@@ -114,28 +117,56 @@ _aarch64_minidump_initvtop(kvm_t *kd)
 	vmst->hdr.dmapphys = le64toh(vmst->hdr.dmapphys);
 	vmst->hdr.dmapbase = le64toh(vmst->hdr.dmapbase);
 	vmst->hdr.dmapend = le64toh(vmst->hdr.dmapend);
-	vmst->hdr.dumpavailsize = vmst->hdr.version == MINIDUMP_VERSION ?
-	    le32toh(vmst->hdr.dumpavailsize) : 0;
+	/* dumpavailsize added in version 2 */
+	if (vmst->hdr.version >= 2) {
+		vmst->hdr.dumpavailsize = le32toh(vmst->hdr.dumpavailsize);
+	} else {
+		vmst->hdr.dumpavailsize = 0;
+	}
+	/* flags added in version 3 */
+	if (vmst->hdr.version >= 3) {
+		vmst->hdr.flags = le32toh(vmst->hdr.flags);
+	} else {
+		vmst->hdr.flags = MINIDUMP_FLAG_PS_4K;
+	}
 
-	/* Skip header and msgbuf */
-	dump_avail_off = AARCH64_PAGE_SIZE + aarch64_round_page(vmst->hdr.msgbufsize);
-
-	/* Skip dump_avail */
-	off = dump_avail_off + aarch64_round_page(vmst->hdr.dumpavailsize);
-
-	/* build physical address lookup table for sparse pages */
-	sparse_off = off + aarch64_round_page(vmst->hdr.bitmapsize) +
-	    aarch64_round_page(vmst->hdr.pmapsize);
-	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
-	    vmst->hdr.bitmapsize, off, sparse_off, AARCH64_PAGE_SIZE) == -1) {
+	switch (vmst->hdr.flags & MINIDUMP_FLAG_PS_MASK) {
+	case MINIDUMP_FLAG_PS_4K:
+		vmst->page_size = AARCH64_PAGE_SIZE_4K;
+		vmst->l3_shift = AARCH64_L3_SHIFT_4K;
+		break;
+	case MINIDUMP_FLAG_PS_16K:
+		vmst->page_size = AARCH64_PAGE_SIZE_16K;
+		vmst->l3_shift = AARCH64_L3_SHIFT_16K;
+		break;
+	default:
+		_kvm_err(kd, kd->program, "unknown page size flag %x",
+		    vmst->hdr.flags & MINIDUMP_FLAG_PS_MASK);
 		return (-1);
 	}
-	off += aarch64_round_page(vmst->hdr.bitmapsize);
+
+	/* Skip header and msgbuf */
+	dump_avail_off = vmst->page_size +
+	    aarch64_round_page(vmst->hdr.msgbufsize, vmst->page_size);
+
+	/* Skip dump_avail */
+	off = dump_avail_off +
+	    aarch64_round_page(vmst->hdr.dumpavailsize, vmst->page_size);
+
+	/* build physical address lookup table for sparse pages */
+	sparse_off = off +
+	    aarch64_round_page(vmst->hdr.bitmapsize, vmst->page_size) +
+	    aarch64_round_page(vmst->hdr.pmapsize, vmst->page_size);
+	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
+	    vmst->hdr.bitmapsize, off, sparse_off, vmst->page_size) == -1) {
+		return (-1);
+	}
+	off += aarch64_round_page(vmst->hdr.bitmapsize, vmst->page_size);
 
 	if (_kvm_pmap_init(kd, vmst->hdr.pmapsize, off) == -1) {
 		return (-1);
 	}
-	off += aarch64_round_page(vmst->hdr.pmapsize);
+	off += aarch64_round_page(vmst->hdr.pmapsize, vmst->page_size);
 
 	return (0);
 }
@@ -151,12 +182,12 @@ _aarch64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 	off_t ofs;
 
 	vm = kd->vmst;
-	offset = va & AARCH64_PAGE_MASK;
+	offset = va & (kd->vmst->page_size - 1);
 
 	if (va >= vm->hdr.dmapbase && va < vm->hdr.dmapend) {
-		a = (va - vm->hdr.dmapbase + vm->hdr.dmapphys) &
-		    ~AARCH64_PAGE_MASK;
-		ofs = _kvm_pt_find(kd, a, AARCH64_PAGE_SIZE);
+		a = aarch64_trunc_page(va - vm->hdr.dmapbase + vm->hdr.dmapphys,
+		    kd->vmst->page_size);
+		ofs = _kvm_pt_find(kd, a, kd->vmst->page_size);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program, "_aarch64_minidump_vatop: "
 			    "direct map address 0x%jx not in minidump",
@@ -164,9 +195,9 @@ _aarch64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 			goto invalid;
 		}
 		*pa = ofs + offset;
-		return (AARCH64_PAGE_SIZE - offset);
+		return (kd->vmst->page_size - offset);
 	} else if (va >= vm->hdr.kernbase) {
-		l3_index = (va - vm->hdr.kernbase) >> AARCH64_L3_SHIFT;
+		l3_index = (va - vm->hdr.kernbase) >> kd->vmst->l3_shift;
 		if (l3_index >= vm->hdr.pmapsize / sizeof(l3))
 			goto invalid;
 		l3 = _aarch64_pte_get(kd, l3_index);
@@ -176,7 +207,7 @@ _aarch64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 			goto invalid;
 		}
 		a = l3 & ~AARCH64_ATTR_MASK;
-		ofs = _kvm_pt_find(kd, a, AARCH64_PAGE_SIZE);
+		ofs = _kvm_pt_find(kd, a, kd->vmst->page_size);
 		if (ofs == -1) {
 			_kvm_err(kd, kd->program, "_aarch64_minidump_vatop: "
 			    "physical address 0x%jx not in minidump",
@@ -184,7 +215,7 @@ _aarch64_minidump_vatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 			goto invalid;
 		}
 		*pa = ofs + offset;
-		return (AARCH64_PAGE_SIZE - offset);
+		return (kd->vmst->page_size - offset);
 	} else {
 		_kvm_err(kd, kd->program,
 	    "_aarch64_minidump_vatop: virtual address 0x%jx not minidumped",
@@ -252,26 +283,26 @@ _aarch64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 		if ((pte & AARCH64_ATTR_DESCR_MASK) != AARCH64_L3_PAGE)
 			continue;
 
-		va = vm->hdr.kernbase + (pteindex << AARCH64_L3_SHIFT);
+		va = vm->hdr.kernbase + (pteindex << kd->vmst->l3_shift);
 		pa = pte & ~AARCH64_ATTR_MASK;
 		dva = vm->hdr.dmapbase + pa;
 		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
-		    _aarch64_entry_to_prot(pte), AARCH64_PAGE_SIZE, 0)) {
+		    _aarch64_entry_to_prot(pte), kd->vmst->page_size, 0)) {
 			goto out;
 		}
 	}
 
 	while (_kvm_bitmap_next(&bm, &bmindex)) {
-		pa = _kvm_bit_id_pa(kd, bmindex, AARCH64_PAGE_SIZE);
+		pa = _kvm_bit_id_pa(kd, bmindex, kd->vmst->page_size);
 		if (pa == _KVM_PA_INVALID)
 			break;
 		dva = vm->hdr.dmapbase + pa;
-		if (vm->hdr.dmapend < (dva + AARCH64_PAGE_SIZE))
+		if (vm->hdr.dmapend < (dva + kd->vmst->page_size))
 			break;
 		va = 0;
 		prot = VM_PROT_READ | VM_PROT_WRITE;
 		if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
-		    prot, AARCH64_PAGE_SIZE, 0)) {
+		    prot, kd->vmst->page_size, 0)) {
 			goto out;
 		}
 	}
