@@ -28,6 +28,9 @@ NO_WTAUTOLOGICAL_POINTER_COMPARE= -Wno-tautological-pointer-compare
 .if ${COMPILER_VERSION} >= 100000
 NO_WMISLEADING_INDENTATION=	-Wno-misleading-indentation
 .endif
+.if ${COMPILER_VERSION} >= 130000
+NO_WUNUSED_BUT_SET_VARIABLE=	-Wno-unused-but-set-variable
+.endif
 .if ${COMPILER_VERSION} >= 140000
 NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
