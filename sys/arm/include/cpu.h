@@ -40,11 +40,11 @@ get_cyclecount(void)
 	} else
 #endif
 		return cp15_pmccntr_get();
-#else /* No performance counters, so use binuptime(9). This is slooooow */
-	struct bintime bt;
+#else /* No performance counters, so use nanotime(9). */
+	struct timespec tv;
 
-	binuptime(&bt);
-	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
+	nanotime(&tv);
+	return (tv.tv_sec * (uint64_t)1000000000ull + tv.tv_nsec);
 #endif
 }
 #endif
