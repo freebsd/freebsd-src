@@ -121,6 +121,14 @@ device		umass
 device		usb
 device		vlan
 
+# VirtIO support
+device          virtio                  # Generic VirtIO bus (required)
+device          virtio_pci              # VirtIO PCI device
+device          vtnet                   # VirtIO Ethernet device
+device          virtio_blk              # VirtIO Block device
+device          virtio_scsi             # VirtIO SCSI device
+device          virtio_balloon          # VirtIO Memory Balloon device
+
 # P1022 DIU
 device  	diu
 device  	videomode
