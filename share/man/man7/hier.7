@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2022
+.Dd March 14, 2022
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -192,13 +192,20 @@ temporary files that are not guaranteed to persist across system reboots
 .It Pa /usr/
 contains the majority of user utilities and applications
 .Pp
-.Bl -tag -width "defaults/" -compact
+.Bl -tag -width "freebsd-dist/" -compact
 .It Pa bin/
 common utilities, programming tools, and applications
 .It Pa compat/
 files needed to support binary compatibility with other operating systems;
 see
 .Xr linux 4
+.It Pa freebsd-dist/
+distribution files
+.Pq like base.txz ;
+see
+.Xr release 7
+and
+.Xr bsdinstall 8
 .It Pa include/
 standard C include files
 .Pp
