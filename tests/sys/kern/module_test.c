@@ -43,7 +43,7 @@ ATF_TC_BODY(modfind, tc)
 
 	modid = modfind("nonexistent_module");
 	ATF_REQUIRE(modid == -1);
-	ATF_REQUIRE(errno = ENOENT);
+	ATF_REQUIRE(errno == ENOENT);
 }
 
 ATF_TC_WITHOUT_HEAD(modnext);
@@ -54,7 +54,7 @@ ATF_TC_BODY(modnext, tc)
 	/* This assumes -1 is never used as a valid module id. */
 	modid = modnext(-1);
 	ATF_REQUIRE(modid == -1);
-	ATF_REQUIRE(errno = ENOENT);
+	ATF_REQUIRE(errno == ENOENT);
 
 	modid = modnext(0);
 	ATF_REQUIRE(modid > 0);
@@ -75,11 +75,11 @@ ATF_TC_BODY(modfnext, tc)
 	/* This assumes -1 is never used as a valid module id. */
 	modid = modfnext(-1);
 	ATF_REQUIRE(modid == -1);
-	ATF_REQUIRE(errno = ENOENT);
+	ATF_REQUIRE(errno == ENOENT);
 
 	modid = modfnext(0);
 	ATF_REQUIRE(modid == -1);
-	ATF_REQUIRE(errno = ENOENT);
+	ATF_REQUIRE(errno == ENOENT);
 
 	modid = modnext(0);
 	ATF_REQUIRE(modid > 0);
