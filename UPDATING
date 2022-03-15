@@ -11,6 +11,23 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220315:
+	13.0-RELEASE-p8	FreeBSD-EN-22:10.zfs
+			FreeBSD-EN-22:11.zfs
+			FreeBSD-EN-22:12.zfs
+			FreeBSD-SA-22:02.wifi
+			FreeBSD-SA-22:03.openssl
+
+	ZFS writes fail to update file size [FreeBSD-EN-22:10.zfs]
+
+	ZFS lseek(2) inconsistencies [FreeBSD-EN-22:11.zfs]
+
+	ZFS panic upon concurrent 'zfs list' calls [FreeBSD-EN-22:12.zfs]
+
+	Multiple WiFi issues [FreeBSD-SA-22:02.wifi]
+
+	OpenSSL certificate parsing infinite loop [FreeBSD-SA-22:03.openssl]
+
 20220201:
 	13.0-RELEASE-p7 FreeBSD-EN-22:07.la57
 
