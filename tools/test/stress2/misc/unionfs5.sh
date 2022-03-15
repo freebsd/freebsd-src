@@ -72,8 +72,11 @@ export runRUNTIME=2m
 
 (cd ../testcases/mkdir; ./mkdir -t 2m -i 20)
 
-find $RUNDIR -ls
-umount $mp2	# The unionfs mount
+find $RUNDIR -ls | head -5
+while mount | grep -Eq "on $mp2 .*unionfs"; do
+	umount $mp2 && break
+	sleep 5
+done
 umount $mp2
 n=`find $mp1/stressX | wc -l`
 [ $n -eq 1 ] && s=0 || s=1
