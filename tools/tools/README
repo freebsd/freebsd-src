@@ -59,7 +59,6 @@ portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.
-tinybsd		Script to build FreeBSD embedded systems.
 track		Track the progress of a world / kernel build
 vimage		An interim utility for managing the virtualized network
 		stack infrastructure.
