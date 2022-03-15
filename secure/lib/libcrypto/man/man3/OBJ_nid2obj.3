@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OBJ_NID2OBJ 3"
-.TH OBJ_NID2OBJ 3 "2021-12-14" "1.1.1m" "OpenSSL"
+.TH OBJ_NID2OBJ 3 "2022-03-15" "1.1.1n" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -203,13 +203,15 @@ If \fIno_name\fR is 0 then long names and short names will be interpreted
 as well as numerical forms. If \fIno_name\fR is 1 only the numerical form
 is acceptable.
 .PP
-\&\fBOBJ_obj2txt()\fR converts the \fB\s-1ASN1_OBJECT\s0\fR \fBa\fR into a textual representation.
-The representation is written as a null terminated string to \fBbuf\fR
-at most \fBbuf_len\fR bytes are written, truncating the result if necessary.
-The total amount of space required is returned. If \fBno_name\fR is 0 then
-if the object has a long or short name then that will be used, otherwise
-the numerical form will be used. If \fBno_name\fR is 1 then the numerical
-form will always be used.
+\&\fBOBJ_obj2txt()\fR converts the \fB\s-1ASN1_OBJECT\s0\fR \fIa\fR into a textual representation.
+Unless \fIbuf\fR is \s-1NULL,\s0
+the representation is written as a NUL-terminated string to \fIbuf\fR, where
+at most \fIbuf_len\fR bytes are written, truncating the result if necessary.
+In any case it returns the total string length, excluding the \s-1NUL\s0 character,
+required for non-truncated representation, or \-1 on error.
+If \fIno_name\fR is 0 then if the object has a long or short name
+then that will be used, otherwise the numerical form will be used.
+If \fIno_name\fR is 1 then the numerical form will always be used.
 .PP
 \&\fBi2t_ASN1_OBJECT()\fR is the same as \fBOBJ_obj2txt()\fR with the \fIno_name\fR set to zero.
 .PP
@@ -275,6 +277,13 @@ on error.
 .PP
 \&\fBOBJ_obj2nid()\fR, \fBOBJ_ln2nid()\fR, \fBOBJ_sn2nid()\fR and \fBOBJ_txt2nid()\fR return
 a \s-1NID\s0 or \fBNID_undef\fR on error.
+.PP
+\&\fBOBJ_add_sigid()\fR returns 1 on success or 0 on error.
+.PP
+\&\fBi2t_ASN1_OBJECT()\fR an \fBOBJ_obj2txt()\fR return \-1 on error.
+On success, they return the length of the string written to \fIbuf\fR if \fIbuf\fR is
+not \s-1NULL\s0 and \fIbuf_len\fR is big enough, otherwise the total string length.
+Note that this does not count the trailing \s-1NUL\s0 character.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create an object for \fBcommonName\fR:
@@ -302,14 +311,6 @@ Create a new object directly:
 .Vb 1
 \& obj = OBJ_txt2obj("1.2.3.4", 1);
 .Ve
-.SH "BUGS"
-.IX Header "BUGS"
-\&\fBOBJ_obj2txt()\fR is awkward and messy to use: it doesn't follow the
-convention of other OpenSSL functions where the buffer can be set
-to \fB\s-1NULL\s0\fR to determine the amount of data that should be written.
-Instead \fBbuf\fR must point to a valid buffer and \fBbuf_len\fR should
-be set to a positive value. A buffer length of 80 should be more
-than enough to handle any \s-1OID\s0 encountered in practice.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3)
@@ -319,7 +320,7 @@ than enough to handle any \s-1OID\s0 encountered in practice.
 and should not be used.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
