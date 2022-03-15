@@ -1306,7 +1306,6 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 
 		KASSERT(lvl > 0 && lvl <= 3,
 		    ("pmap_extract_and_hold: Invalid level %d", lvl));
-		CTASSERT(L1_BLOCK == L2_BLOCK);
 		KASSERT((lvl == 3 && (tpte & ATTR_DESCR_MASK) == L3_PAGE) ||
 		    (lvl < 3 && (tpte & ATTR_DESCR_MASK) == L1_BLOCK),
 		    ("pmap_extract_and_hold: Invalid pte at L%d: %lx", lvl,
