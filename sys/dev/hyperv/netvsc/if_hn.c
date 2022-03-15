@@ -454,6 +454,8 @@ static void			hn_start_txeof(struct hn_tx_ring *);
 static void			hn_start_txeof_taskfunc(void *, int);
 #endif
 
+static int			hn_rsc_sysctl(SYSCTL_HANDLER_ARGS);
+
 SYSCTL_NODE(_hw, OID_AUTO, hn, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Hyper-V network interface");
 
@@ -2369,6 +2371,10 @@ hn_attach(device_t dev)
 		    hn_xpnt_vf_accbpf_sysctl, "I",
 		    "Accurate BPF for transparent VF");
 	}
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rsc_switch",
+	    CTLTYPE_UINT | CTLFLAG_RW, sc, 0, hn_rsc_sysctl, "A",
+	    "switch to rsc");
 
 	/*
 	 * Setup the ifmedia, which has been initialized earlier.
@@ -4567,6 +4573,30 @@ hn_rxfilter_sysctl(SYSCTL_HANDLER_ARGS)
 	return sysctl_handle_string(oidp, filter_str, sizeof(filter_str), req);
 }
 
+static int
+hn_rsc_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct hn_softc *sc = arg1;
+	uint32_t mtu;
+	int error;
+	HN_LOCK(sc);
+	error = hn_rndis_get_mtu(sc, &mtu);
+	if (error) {
+		if_printf(sc->hn_ifp, "failed to get mtu\n");
+		goto back;
+	}
+	error = SYSCTL_OUT(req, &(sc->hn_rsc_ctrl), sizeof(sc->hn_rsc_ctrl));
+	if (error || req->newptr == NULL)
+		goto back;
+
+	error = SYSCTL_IN(req, &(sc->hn_rsc_ctrl), sizeof(sc->hn_rsc_ctrl));
+	if (error)
+		goto back;
+	error = hn_rndis_reconf_offload(sc, mtu);
+back:
+	HN_UNLOCK(sc);
+	return (error);
+}
 #ifndef RSS
 
 static int

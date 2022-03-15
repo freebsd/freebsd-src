@@ -46,5 +46,6 @@ int		hn_rndis_get_mtu(struct hn_softc *sc, uint32_t *mtu);
 int		hn_rndis_set_rxfilter(struct hn_softc *sc, uint32_t filter);
 void		hn_rndis_rx_ctrl(struct hn_softc *sc, const void *data,
 		    int dlen);
+int		hn_rndis_reconf_offload(struct hn_softc *sc, int mtu);
 
 #endif  /* !_HN_RNDIS_H_ */
