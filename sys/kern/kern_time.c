@@ -256,11 +256,11 @@ kern_thread_cputime(struct thread *targettd, struct timespec *ats)
 	uint64_t runtime, curtime, switchtime;
 
 	if (targettd == NULL) { /* current thread */
-		critical_enter();
+		spinlock_enter();
 		switchtime = PCPU_GET(switchtime);
 		curtime = cpu_ticks();
 		runtime = curthread->td_runtime;
-		critical_exit();
+		spinlock_exit();
 		runtime += curtime - switchtime;
 	} else {
 		PROC_LOCK_ASSERT(targettd->td_proc, MA_OWNED);
