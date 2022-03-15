@@ -2,7 +2,8 @@
 
 BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distfetch
-LIBADD=	fetch dialog m
+CFLAGS+=	-I${SRCTOP}/contrib/bsddialog/lib
+LIBADD=	fetch bsddialog
 
 MAN=
 
