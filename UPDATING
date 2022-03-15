@@ -17,6 +17,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220315:
+	12.3-RELEASE-p3 FreeBSD-EN-22:09.freebsd-update
+			FreeBSD-SA-22:02.wifi
+			FreeBSD-SA-22:03.openssl
+
+	freebsd-update creating erroneous boot environments [FreeBSD-EN-22:09.freebsd-update]
+
+	Multiple WiFi issues [FreeBSD-SA-22:02.wifi]
+
+	OpenSSL certificate parsing infinite loop [FreeBSD-SA-22:03.openssl]
+
 20220201:
 	12.3-RELEASE-p2 FreeBSD-EN-22:08.i386
 
