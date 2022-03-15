@@ -38,7 +38,6 @@
 #include <machine/vmparam.h>
 
 #define	VIRT_BITS	48
-#define	DMAP_TABLES	((DMAP_MAX_ADDRESS - DMAP_MIN_ADDRESS) >> L0_SHIFT)
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
@@ -378,7 +377,6 @@ LEND(get_virt_delta)
  *    - The Kernel L0 table             (TTBR1)
  *    - The identity (PA = VA) L1 table
  *    - The identity (PA = VA) L0 table (TTBR0)
- *    - The DMAP L1 tables
  */
 LENTRY(create_pagetables)
 	/* Save the Link register */
@@ -474,13 +472,6 @@ common:
 	mov	x9, x6
 	mov	x6, x24
 	mov	x10, #1
-	bl	link_l0_pagetable
-
-	/* Link the DMAP tables */
-	ldr	x8, =DMAP_MIN_ADDRESS
-	adrp	x9, pagetable_dmap
-	add	x9, x9, :lo12:pagetable_dmap
-	mov	x10, #DMAP_TABLES
 	bl	link_l0_pagetable
 
 	/*
@@ -771,6 +762,7 @@ END(abort)
 	 *           L0 bootstrap for user
 	 *           L0 for user
 	 */
+	.globl pagetable_l0_ttbr1
 pagetable:
 	.space	PAGE_SIZE
 pagetable_l1_ttbr1:
@@ -786,9 +778,6 @@ pagetable_l0_ttbr0_boostrap:
 pagetable_l0_ttbr0:
 	.space	PAGE_SIZE
 
-	.globl pagetable_dmap
-pagetable_dmap:
-	.space	PAGE_SIZE * DMAP_TABLES
 pagetable_end:
 
 el2_pagetable:
