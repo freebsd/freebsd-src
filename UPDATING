@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220315:	p14	FreeBSD-SA-22:02.wifi
+			FreeBSD-SA-22:03.openssl
+
+	Multiple WiFi issues [FreeBSD-SA-22:02.wifi]
+
+	OpenSSL certificate parsing infinite loop [FreeBSD-SA-22:03.openssl]
+
 20220201:	p13	FreeBSD-EN-22:08.i386
 
 	Fix regression in i386 TLB invalidation logic. [FreeBSD-EN-22:08.i386]
