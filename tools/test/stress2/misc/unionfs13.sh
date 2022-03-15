@@ -64,7 +64,10 @@ done
 [ $s ] && echo "Failed in loop #$i"
 df -i $mp2 | tail -1
 
-umount $mp2	# The unionfs mount
+while mount | grep -Eq "on $mp2 .*unionfs"; do
+	umount $mp2 && break
+	sleep 5
+done
 umount $mp2
 umount $mp1
 mdconfig -d -u $md2

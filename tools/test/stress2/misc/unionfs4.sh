@@ -67,7 +67,10 @@ export runRUNTIME=2m
 (cd ..; ./run.sh marcus.cfg)
 
 ../tools/killall.sh
-umount $mp2	# The unionfs mount
+while mount | grep -Eq "on $mp2 .*unionfs"; do
+	umount $mp2 && break
+	sleep 5
+done
 umount $mp2
 n=`find $mp1/stressX | wc -l`
 [ $n -eq 1 ] && s=0 || { find $mp1/stressX -ls | head -12; s=1; }
