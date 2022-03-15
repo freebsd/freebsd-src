@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2015
+.Dd March 15, 2022
 .Dt NULLFS 5
 .Os
 .Sh NAME
@@ -55,6 +55,14 @@ To mount a
 file system:
 .Pp
 .Dl "mount_nullfs /usr/ports /home/devel/ports"
+.Pp
+It is also possible to define an entry in
+.Xr fstab 5
+that looks similar to:
+.Pp
+.Bd -literal
+/usr/ports	/home/devel/ports	nullfs		rw	0	0
+.Ed
 .Sh SEE ALSO
 .Xr fstab 5 ,
 .Xr mount_nullfs 8
