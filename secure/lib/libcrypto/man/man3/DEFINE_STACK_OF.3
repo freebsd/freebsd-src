@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DEFINE_STACK_OF 3"
-.TH DEFINE_STACK_OF 3 "2021-12-14" "1.1.1m" "OpenSSL"
+.TH DEFINE_STACK_OF 3 "2022-03-15" "1.1.1n" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -375,7 +375,8 @@ not return values.
 return a pointer to the deleted element or \fB\s-1NULL\s0\fR on error.
 .PP
 \&\fBsk_TYPE_insert()\fR, \fBsk_TYPE_push()\fR and \fBsk_TYPE_unshift()\fR return the total
-number of elements in the stack and 0 if an error occurred.
+number of elements in the stack and 0 if an error occurred. \fBsk_TYPE_push()\fR
+further returns \-1 if \fBsk\fR is \fB\s-1NULL\s0\fR.
 .PP
 \&\fBsk_TYPE_set()\fR returns a pointer to the replacement element or \fB\s-1NULL\s0\fR on
 error.

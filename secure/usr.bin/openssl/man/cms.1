@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS 1"
-.TH CMS 1 "2021-12-14" "1.1.1m" "OpenSSL"
+.TH CMS 1 "2022-03-15" "1.1.1n" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -797,6 +797,9 @@ user has to manually include the correct encryption algorithm. It should store
 the list of permitted ciphers in a database and only use those.
 .PP
 No revocation checking is done on the signer's certificate.
+.PP
+The \fB\-binary\fR option does not work correctly when processing text input which
+(contrary to the S/MIME specification) uses \s-1LF\s0 rather than \s-1CRLF\s0 line endings.
 .SH "HISTORY"
 .IX Header "HISTORY"
 The use of multiple \fB\-signer\fR options and the \fB\-resign\fR command were first
@@ -812,7 +815,7 @@ was added in OpenSSL 1.0.2.
 The \-no_alt_chains option was added in OpenSSL 1.0.2b.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

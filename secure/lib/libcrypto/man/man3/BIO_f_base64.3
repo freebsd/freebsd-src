@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_F_BASE64 3"
-.TH BIO_F_BASE64 3 "2021-12-14" "1.1.1m" "OpenSSL"
+.TH BIO_F_BASE64 3 "2022-03-15" "1.1.1n" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,13 +156,26 @@ any data read through it.
 .PP
 Base64 BIOs do not support \fBBIO_gets()\fR or \fBBIO_puts()\fR.
 .PP
+For writing, output is by default divided to lines of length 64
+characters and there is always a newline at the end of output.
+.PP
+For reading, first line should be at most 1024
+characters long. If it is longer then it is ignored completely.
+Other input lines can be of any length. There must be a newline
+at the end of input.
+.PP
+This behavior can be changed with \s-1BIO_FLAGS_BASE64_NO_NL\s0 flag.
+.PP
 \&\fBBIO_flush()\fR on a base64 \s-1BIO\s0 that is being written through is
 used to signal that no more data is to be encoded: this is used
 to flush the final block through the \s-1BIO.\s0
 .PP
-The flag \s-1BIO_FLAGS_BASE64_NO_NL\s0 can be set with \fBBIO_set_flags()\fR
-to encode the data all on one line or expect the data to be all
-on one line.
+The flag \s-1BIO_FLAGS_BASE64_NO_NL\s0 can be set with \fBBIO_set_flags()\fR.
+For writing, it causes all data to be written on one line without
+newline at the end.
+For reading, it forces the decoder to process the data regardless
+of newlines. All newlines are ignored and the input does not need
+to contain any newline at all.
 .SH "NOTES"
 .IX Header "NOTES"
 Because of the format of base64 encoding the end of the encoded
@@ -215,7 +228,7 @@ There should be some way of specifying a test that the \s-1BIO\s0 can perform
 to reliably determine \s-1EOF\s0 (for example a \s-1MIME\s0 boundary).
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

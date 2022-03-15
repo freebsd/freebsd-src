@@ -133,13 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_NEW 3"
-.TH X509_STORE_CTX_NEW 3 "2021-12-14" "1.1.1m" "OpenSSL"
+.TH X509_STORE_CTX_NEW 3 "2022-03-15" "1.1.1n" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_STORE_CTX_new, X509_STORE_CTX_cleanup, X509_STORE_CTX_free, X509_STORE_CTX_init, X509_STORE_CTX_set0_trusted_stack, X509_STORE_CTX_set_cert, X509_STORE_CTX_set0_crls, X509_STORE_CTX_get0_chain, X509_STORE_CTX_set0_verified_chain, X509_STORE_CTX_get0_param, X509_STORE_CTX_set0_param, X509_STORE_CTX_get0_untrusted, X509_STORE_CTX_set0_untrusted, X509_STORE_CTX_get_num_untrusted, X509_STORE_CTX_set_default, X509_STORE_CTX_set_verify, X509_STORE_CTX_verify_fn \&\- X509_STORE_CTX initialisation
+X509_STORE_CTX_new, X509_STORE_CTX_cleanup, X509_STORE_CTX_free, X509_STORE_CTX_init, X509_STORE_CTX_set0_trusted_stack, X509_STORE_CTX_set_cert, X509_STORE_CTX_set0_crls, X509_STORE_CTX_get0_chain, X509_STORE_CTX_set0_verified_chain, X509_STORE_CTX_get0_param, X509_STORE_CTX_set0_param, X509_STORE_CTX_get0_untrusted, X509_STORE_CTX_set0_untrusted, X509_STORE_CTX_get_num_untrusted, X509_STORE_CTX_set_default, X509_STORE_CTX_set_verify, X509_STORE_CTX_verify_fn, X509_STORE_CTX_set_purpose, X509_STORE_CTX_set_trust, X509_STORE_CTX_purpose_inherit \&\- X509_STORE_CTX initialisation
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -170,6 +170,11 @@ X509_STORE_CTX_new, X509_STORE_CTX_cleanup, X509_STORE_CTX_free, X509_STORE_CTX_
 \&
 \& typedef int (*X509_STORE_CTX_verify_fn)(X509_STORE_CTX *);
 \& void X509_STORE_CTX_set_verify(X509_STORE_CTX *ctx, X509_STORE_CTX_verify_fn verify);
+\&
+\& int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
+\& int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
+\& int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
+\&                                    int purpose, int trust);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -248,6 +253,65 @@ following signature:
 .PP
 This function should receive the current X509_STORE_CTX as a parameter and
 return 1 on success or 0 on failure.
+.PP
+X509 certificates may contain information about what purposes keys contained
+within them can be used for. For example \*(L"\s-1TLS WWW\s0 Server Authentication\*(R" or
+\&\*(L"Email Protection\*(R". This \*(L"key usage\*(R" information is held internally to the
+certificate itself. In addition the trust store containing trusted certificates
+can declare what purposes we trust different certificates for. This \*(L"trust\*(R"
+information is not held within the certificate itself but is \*(L"meta\*(R" information
+held alongside it. This \*(L"meta\*(R" information is associated with the certificate
+after it is issued and could be determined by a system administrator. For
+example a certificate might declare that it is suitable for use for both
+\&\*(L"\s-1TLS WWW\s0 Server Authentication\*(R" and \*(L"\s-1TLS\s0 Client Authentication\*(R", but a system
+administrator might only trust it for the former. An X.509 certificate extension
+exists that can record extended key usage information to supplement the purpose
+information described above. This extended mechanism is arbitrarily extensible
+and not well suited for a generic library \s-1API\s0; applications that need to
+validate extended key usage information in certifiates will need to define a
+custom \*(L"purpose\*(R" (see below) or supply a nondefault verification callback
+(\fBX509_STORE_set_verify_cb_func\fR\|(3)).
+.PP
+\&\fBX509_STORE_CTX_set_purpose()\fR sets the purpose for the target certificate being
+verified in the \fIctx\fR. Built-in available values for the \fIpurpose\fR argument
+are \fBX509_PURPOSE_SSL_CLIENT\fR, \fBX509_PURPOSE_SSL_SERVER\fR,
+\&\fBX509_PURPOSE_NS_SSL_SERVER\fR, \fBX509_PURPOSE_SMIME_SIGN\fR,
+\&\fBX509_PURPOSE_SMIME_ENCRYPT\fR, \fBX509_PURPOSE_CRL_SIGN\fR, \fBX509_PURPOSE_ANY\fR,
+\&\fBX509_PURPOSE_OCSP_HELPER\fR and \fBX509_PURPOSE_TIMESTAMP_SIGN\fR. It is also
+possible to create a custom purpose value. Setting a purpose will ensure that
+the key usage declared within certificates in the chain being verified is
+consistent with that purpose as well as, potentially, other checks. Every
+purpose also has an associated default trust value which will also be set at the
+same time. During verification this trust setting will be verified to check it
+is consistent with the trust set by the system administrator for certificates in
+the chain.
+.PP
+\&\fBX509_STORE_CTX_set_trust()\fR sets the trust value for the target certificate
+being verified in the \fIctx\fR. Built-in available values for the \fItrust\fR
+argument are \fBX509_TRUST_COMPAT\fR, \fBX509_TRUST_SSL_CLIENT\fR,
+\&\fBX509_TRUST_SSL_SERVER\fR, \fBX509_TRUST_EMAIL\fR, \fBX509_TRUST_OBJECT_SIGN\fR,
+\&\fBX509_TRUST_OCSP_SIGN\fR, \fBX509_TRUST_OCSP_REQUEST\fR and \fBX509_TRUST_TSA\fR. It is
+also possible to create a custom trust value. Since \fBX509_STORE_CTX_set_purpose()\fR
+also sets the trust value it is normally sufficient to only call that function.
+If both are called then \fBX509_STORE_CTX_set_trust()\fR should be called after
+\&\fBX509_STORE_CTX_set_purpose()\fR since the trust setting of the last call will be
+used.
+.PP
+It should not normally be necessary for end user applications to call
+\&\fBX509_STORE_CTX_purpose_inherit()\fR directly. Typically applications should call
+\&\fBX509_STORE_CTX_set_purpose()\fR or \fBX509_STORE_CTX_set_trust()\fR instead. Using this
+function it is possible to set the purpose and trust values for the \fIctx\fR at
+the same time. The \fIdef_purpose\fR and \fIpurpose\fR arguments can have the same
+purpose values as described for \fBX509_STORE_CTX_set_purpose()\fR above. The \fItrust\fR
+argument can have the same trust values as described in
+\&\fBX509_STORE_CTX_set_trust()\fR above. Any of the \fIdef_purpose\fR, \fIpurpose\fR or
+\&\fItrust\fR values may also have the value 0 to indicate that the supplied
+parameter should be ignored. After calling this function the purpose to be used
+for verification is set from the \fIpurpose\fR argument, and the trust is set from
+the \fItrust\fR argument. If \fItrust\fR is 0 then the trust value will be set from
+the default trust value for \fIpurpose\fR. If the default trust value for the
+purpose is \fIX509_TRUST_DEFAULT\fR and \fItrust\fR is 0 then the default trust value
+associated with the \fIdef_purpose\fR value is used for the trust setting instead.
 .SH "NOTES"
 .IX Header "NOTES"
 The certificates and CRLs in a store are used internally and should \fBnot\fR
@@ -287,7 +351,7 @@ The \fBX509_STORE_CTX_set0_crls()\fR function was added in OpenSSL 1.0.0.
 The \fBX509_STORE_CTX_get_num_untrusted()\fR function was added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2009\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

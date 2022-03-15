@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CONF_CMD 3"
-.TH SSL_CONF_CMD 3 "2021-12-14" "1.1.1m" "OpenSSL"
+.TH SSL_CONF_CMD 3 "2022-03-15" "1.1.1n" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -518,7 +518,7 @@ the \fB\-flag\fR syntax is needed to disable it.
 \&\fB\s-1SSL_OP_NO_TICKET\s0\fR: that is \fB\-SessionTicket\fR is the same as setting
 \&\fB\s-1SSL_OP_NO_TICKET\s0\fR.
 .Sp
-\&\fBCompression\fR: \s-1SSL/TLS\s0 compression support, enabled by default. Inverse
+\&\fBCompression\fR: \s-1SSL/TLS\s0 compression support, disabled by default. Inverse
 of \fB\s-1SSL_OP_NO_COMPRESSION\s0\fR.
 .Sp
 \&\fBEmptyFragments\fR: use empty fragments as a countermeasure against a
@@ -784,7 +784,7 @@ OpenSSL passing a command which didn't take an argument would return
 \&\fBAllowNoDHEKEX\fR and \fBPrioritizeChaCha\fR were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2012\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
