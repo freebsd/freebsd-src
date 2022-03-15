@@ -579,6 +579,12 @@ done:
 	return (error);
 }
 
+int
+hn_rndis_reconf_offload(struct hn_softc *sc, int mtu)
+{
+	return(hn_rndis_conf_offload(sc, mtu));
+}
+
 static int
 hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 {
@@ -725,7 +731,8 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 
 	/* RSC offload */
 	if (hwcaps.ndis_hdr.ndis_rev >= NDIS_OFFLOAD_PARAMS_REV_3) {
-		if (hwcaps.ndis_rsc.ndis_ip4 && hwcaps.ndis_rsc.ndis_ip6) {
+		if (hwcaps.ndis_rsc.ndis_ip4 && hwcaps.ndis_rsc.ndis_ip6 &&
+		    sc->hn_rsc_ctrl) {
 			params.ndis_rsc_ip4 = NDIS_OFFLOAD_RSC_ON;
 			params.ndis_rsc_ip6 = NDIS_OFFLOAD_RSC_ON;
 		} else {
