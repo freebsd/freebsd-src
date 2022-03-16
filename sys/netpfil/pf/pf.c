@@ -3855,6 +3855,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	proto = ntohs(e->ether_type);
 
 	switch (proto) {
+#ifdef INET
 	case ETHERTYPE_IP: {
 		struct ip *ip;
 		m = m_pullup(m, sizeof(struct ether_header) +
@@ -3869,6 +3870,8 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 		dst = (struct pf_addr *)&ip->ip_dst;
 		break;
 	}
+#endif /* INET */
+#ifdef INET6
 	case ETHERTYPE_IPV6: {
 		struct ip6_hdr *ip6;
 		m = m_pullup(m, sizeof(struct ether_header) +
@@ -3883,6 +3886,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 		dst = (struct pf_addr *)&ip6->ip6_dst;
 		break;
 	}
+#endif /* INET6 */
 	}
 	e = mtod(m, struct ether_header *);
 	*m0 = m;
