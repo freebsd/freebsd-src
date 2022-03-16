@@ -37,6 +37,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <paths.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <sys/stat.h>
@@ -481,6 +482,8 @@ geom_gettree_geom(struct gmesh *gmp, const char *c, const char *g, int parents)
 	char *p;
 	int error;
 
+	if (g != NULL && strncmp(g, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		g += sizeof(_PATH_DEV) - 1;
 	p = geom_getxml_geom(c, g, parents);
 	if (p == NULL)
 		return (errno);
