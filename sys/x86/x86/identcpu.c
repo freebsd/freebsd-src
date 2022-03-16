@@ -1374,7 +1374,7 @@ static struct {
 	const char	*vm_cpuid;
 	int		vm_guest;
 } vm_cpuids[] = {
-	{ "XENXENXEN",		VM_GUEST_XEN },		/* XEN */
+	{ "XenVMMXenVMM",	VM_GUEST_XEN },		/* XEN */
 	{ "Microsoft Hv",	VM_GUEST_HV },		/* Microsoft Hyper-V */
 	{ "VMwareVMware",	VM_GUEST_VMWARE },	/* VMware VM */
 	{ "KVMKVMKVM",		VM_GUEST_KVM },		/* KVM */
