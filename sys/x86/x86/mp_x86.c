@@ -214,7 +214,7 @@ add_deterministic_cache(int type, int level, int share_count)
 	if (type == 2) /* ignore instruction cache */
 		return (1);
 	if (level == 0 || level > MAX_CACHE_LEVELS) {
-		printf("unexpected cache level %d\n", type);
+		printf("unexpected cache level %d\n", level);
 		return (1);
 	}
 
