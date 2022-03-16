@@ -29,6 +29,18 @@
 #ifndef _LINUXKPI_LINUX_SMP_H_
 #define	_LINUXKPI_LINUX_SMP_H_
 
+/*
+ * Important note about the use of the function provided below:
+ *
+ * The callback function passed to on_each_cpu() is called from a
+ * so-called critical section, and if you need a mutex you will have
+ * to rewrite the code to use native FreeBSD mtx spinlocks instead of
+ * the spinlocks provided by the LinuxKPI! Be very careful to not call
+ * any LinuxKPI functions inside the on_each_cpu()'s callback
+ * function, because they may sleep, unlike in native Linux.
+ *
+ * Enabling witness(4) when testing, can catch such issues.
+ */
 #define	on_each_cpu(cb, data, wait) ({				\
 	CTASSERT(wait);						\
 	linux_on_each_cpu(cb, data);				\
