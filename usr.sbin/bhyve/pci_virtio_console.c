@@ -698,6 +698,8 @@ pci_vtcon_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	sc->vsc_config->cols = 80;
 	sc->vsc_config->rows = 25;
 
+	pthread_mutex_init(&sc->vsc_mtx, NULL);
+
 	vi_softc_linkup(&sc->vsc_vs, &vtcon_vi_consts, sc, pi, sc->vsc_queues);
 	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
 

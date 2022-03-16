@@ -485,7 +485,7 @@ pci_nvme_init_queues(struct pci_nvme_softc *sc, uint32_t nsq, uint32_t ncq)
 	} else {
 		struct nvme_submission_queue *sq = sc->submit_queues;
 
-		for (i = 0; i < sc->num_squeues; i++)
+		for (i = 0; i < sc->num_squeues + 1; i++)
 			pthread_mutex_init(&sq[i].mtx, NULL);
 	}
 
@@ -508,7 +508,7 @@ pci_nvme_init_queues(struct pci_nvme_softc *sc, uint32_t nsq, uint32_t ncq)
 	} else {
 		struct nvme_completion_queue *cq = sc->compl_queues;
 
-		for (i = 0; i < sc->num_cqueues; i++)
+		for (i = 0; i < sc->num_cqueues + 1; i++)
 			pthread_mutex_init(&cq[i].mtx, NULL);
 	}
 }
