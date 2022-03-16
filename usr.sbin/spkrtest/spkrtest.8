@@ -23,12 +23,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 23, 1995
+.Dd March 6, 2022
 .Dt SPKRTEST 8
 .Os
 .Sh NAME
 .Nm spkrtest
 .Nd test script for the speaker driver
+.Sh SYNOPSIS
+.Nm
 .Sh DESCRIPTION
 The
 .Nm
@@ -38,8 +40,10 @@ utility is an easy to use test script for the speaker driver.
 .It Pa /dev/speaker
 speaker device file
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh SEE ALSO
-.Xr dialog 1 ,
+.Xr bsddialog 1 ,
 .Xr spkr 4
 .Sh HISTORY
 The
