@@ -384,13 +384,13 @@ hdac_intr_handler(void *context)
 	 * re-examine GIS then we can leave it set and never get an interrupt
 	 * again.
 	 */
+	hdac_lock(sc);
 	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
-	while ((intsts & HDAC_INTSTS_GIS) != 0) {
-		hdac_lock(sc);
+	while (intsts != 0xffffffff && (intsts & HDAC_INTSTS_GIS) != 0) {
 		hdac_one_intr(sc, intsts);
-		hdac_unlock(sc);
 		intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
 	}
+	hdac_unlock(sc);
 }
 
 static void
