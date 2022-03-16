@@ -104,11 +104,15 @@ static unsigned int next_index = 0;
 #define	EPAIR_LOCK()			mtx_lock(&epair_n_index_mtx)
 #define	EPAIR_UNLOCK()			mtx_unlock(&epair_n_index_mtx)
 
+#define BIT_QUEUE_TASK		0
+#define BIT_MBUF_QUEUED		1
+
 struct epair_softc;
 struct epair_queue {
 	int			 id;
 	struct buf_ring		*rxring[2];
 	volatile int		 ridx;		/* 0 || 1 */
+	volatile int		 state;		/* taskqueue coordination */
 	struct task		 tx_task;
 	struct epair_softc	*sc;
 };
@@ -177,7 +181,8 @@ epair_tx_start_deferred(void *arg, int pending)
 	} while (!atomic_fcmpset_int(&q->ridx, &ridx, nidx));
 	epair_if_input(sc, q, ridx);
 
-	if (! buf_ring_empty(q->rxring[nidx]))
+	atomic_clear_int(&q->state, (1 << BIT_QUEUE_TASK));
+	if (atomic_testandclear_int(&q->state, BIT_MBUF_QUEUED))
 		taskqueue_enqueue(epair_tasks.tq[q->id], &q->tx_task);
 
 	if_rele(sc->ifp);
@@ -192,7 +197,6 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	short mflags;
 	struct epair_queue *q = NULL;
 	uint32_t bucket;
-	bool was_empty;
 #ifdef RSS
 	struct ether_header *eh;
 #endif
@@ -244,14 +248,14 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 #endif
 	q = &osc->queues[bucket];
 
+	atomic_set_int(&q->state, (1 << BIT_MBUF_QUEUED));
 	ridx = atomic_load_int(&q->ridx);
-	was_empty = buf_ring_empty(q->rxring[ridx]);
 	ret = buf_ring_enqueue(q->rxring[ridx], m);
 	if (ret != 0) {
 		/* Ring is full. */
 		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
-		goto done;
+		return (0);
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
@@ -266,8 +270,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	/* Someone else received the packet. */
 	if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
 
-done:
-	if (was_empty)
+	if (!atomic_testandset_int(&q->state, BIT_QUEUE_TASK))
 		taskqueue_enqueue(epair_tasks.tq[bucket], &q->tx_task);
 
 	return (0);
@@ -552,6 +555,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		q->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
 		q->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
 		q->ridx = 0;
+		q->state = 0;
 		q->sc = sca;
 		NET_TASK_INIT(&q->tx_task, 0, epair_tx_start_deferred, q);
 	}
@@ -574,6 +578,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		q->rxring[0] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
 		q->rxring[1] = buf_ring_alloc(RXRSIZE, M_EPAIR, M_WAITOK, NULL);
 		q->ridx = 0;
+		q->state = 0;
 		q->sc = scb;
 		NET_TASK_INIT(&q->tx_task, 0, epair_tx_start_deferred, q);
 	}
