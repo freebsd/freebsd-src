@@ -28,7 +28,7 @@
 .\"	@(#)logger.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2017
+.Dd March 16, 2022
 .Dt LOGGER 1
 .Os
 .Sh NAME
@@ -73,6 +73,7 @@ tries to send the message to all addresses.
 .It Fl i
 Log the process id of the logger process
 with each line.
+This flag is ignored and the process id is always logged.
 .It Fl s
 Log the message to standard error, as well as the system log.
 .It Fl f Ar file
