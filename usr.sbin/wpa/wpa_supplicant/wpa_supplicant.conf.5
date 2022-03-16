@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2018
+.Dd March 16, 2022
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -133,11 +133,12 @@ An
 or hex string enclosed in quotation marks.
 .It Va scan_ssid
 SSID scan technique; 0 (default) or 1.
-Technique 0 scans for the SSID using a broadcast Probe Request
-frame while 1 uses a directed Probe Request frame.
-Access points that cloak themselves by not broadcasting their SSID
-require technique 1, but beware that this scheme can cause scanning
-to take longer to complete.
+Technique 0 scans for the SSID using a broadcast Probe Request frame.
+Technique 1 uses directed Probe Request frames, sent to each configured SSID.
+Access points that cloak themselves by not broadcasting their SSID require
+technique 1.
+Beware that this technique can cause scanning to take longer to complete,
+and exposes the list of configured network SSIDs to eavesdroppers.
 .It Va bssid
 Network BSSID (typically the MAC address of the access point).
 .It Va priority
