@@ -32,6 +32,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -52,6 +54,8 @@ struct vtrnd_softc {
 	device_t		 vtrnd_dev;
 	uint64_t		 vtrnd_features;
 	struct virtqueue	*vtrnd_vq;
+	eventhandler_tag	 eh;
+	bool			 inactive;
 };
 
 static int	vtrnd_modevent(module_t, int, void *);
@@ -59,6 +63,7 @@ static int	vtrnd_modevent(module_t, int, void *);
 static int	vtrnd_probe(device_t);
 static int	vtrnd_attach(device_t);
 static int	vtrnd_detach(device_t);
+static int	vtrnd_shutdown(device_t);
 
 static int	vtrnd_negotiate_features(struct vtrnd_softc *);
 static int	vtrnd_setup_features(struct vtrnd_softc *);
@@ -86,6 +91,7 @@ static device_method_t vtrnd_methods[] = {
 	DEVMETHOD(device_probe,		vtrnd_probe),
 	DEVMETHOD(device_attach,	vtrnd_attach),
 	DEVMETHOD(device_detach,	vtrnd_detach),
+	DEVMETHOD(device_shutdown,	vtrnd_shutdown),
 
 	DEVMETHOD_END
 };
@@ -160,6 +166,16 @@ vtrnd_attach(device_t dev)
 		error = EEXIST;
 		goto fail;
 	}
+
+	sc->eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+		vtrnd_shutdown, dev, SHUTDOWN_PRI_LAST + 1); /* ??? */
+	if (sc->eh == NULL) {
+		device_printf(dev, "Shutdown event registration failed\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	sc->inactive = false;
 	random_source_register(&random_vtrnd);
 
 fail:
@@ -179,9 +195,25 @@ vtrnd_detach(device_t dev)
 	    atomic_load_explicit(&g_vtrnd_softc, memory_order_acquire) == sc,
 	    ("only one global instance at a time"));
 
+	sc->inactive = true;
+	if (sc->eh != NULL) {
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->eh);
+		sc->eh = NULL;
+	}
 	random_source_deregister(&random_vtrnd);
 	atomic_store_explicit(&g_vtrnd_softc, NULL, memory_order_release);
 	return (0);
+}
+
+static int
+vtrnd_shutdown(device_t dev)
+{
+	struct vtrnd_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->inactive = true;
+
+	return(0);
 }
 
 static int
@@ -234,6 +266,9 @@ vtrnd_harvest(struct vtrnd_softc *sc, void *buf, size_t *sz)
 	int error;
 
 	_Static_assert(sizeof(value) < PAGE_SIZE, "sglist assumption");
+
+	if (sc->inactive)
+		return (EDEADLK);
 
 	sglist_init(&sg, 1, segs);
 	error = sglist_append(&sg, value, *sz);
