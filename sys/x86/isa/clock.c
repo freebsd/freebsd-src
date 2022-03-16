@@ -129,6 +129,7 @@ clock_init(void)
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
 	/* Init the clock in order to use DELAY */
 	init_ops.early_clock_source_init();
+	tsc_init();
 }
 
 static int

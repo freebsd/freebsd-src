@@ -147,6 +147,21 @@ tsc_freq_vmware(void)
 	tsc_early_calib_exact = 1;
 }
 
+static void
+tsc_freq_xen(void)
+{
+	u_int regs[4];
+
+	/*
+	 * Must run *after* generic tsc_freq_cpuid_vm, so that when Xen is
+	 * emulating Viridian support the Viridian leaf is used instead.
+	 */
+	KASSERT(hv_high >= 0x40000003, ("Invalid max hypervisor leaf on Xen"));
+	cpuid_count(0x40000003, 0, regs);
+	tsc_freq = (uint64_t)(regs[2]) * 1000;
+	tsc_early_calib_exact = 1;
+}
+
 /*
  * Calculate TSC frequency using information from the CPUID leaf 0x15 'Time
  * Stamp Counter and Nominal Core Crystal Clock'.  If leaf 0x15 is not
@@ -357,6 +372,12 @@ probe_tsc_freq_early(void)
 		if (bootverbose)
 			printf(
 		    "Early TSC frequency %juHz derived from VMWare hypercall\n",
+			    (uintmax_t)tsc_freq);
+	} else if (vm_guest == VM_GUEST_XEN) {
+		tsc_freq_xen();
+		if (bootverbose)
+			printf(
+			"Early TSC frequency %juHz derived from Xen CPUID\n",
 			    (uintmax_t)tsc_freq);
 	} else if (tsc_freq_cpuid(&tsc_freq)) {
 		/*
