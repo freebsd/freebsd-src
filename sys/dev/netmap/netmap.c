@@ -3362,7 +3362,7 @@ nmreq_opt_size_by_type(uint32_t nro_reqtype, uint64_t nro_size)
 int
 nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 {
-	size_t rqsz, optsz, bufsz;
+	size_t rqsz, optsz, bufsz, optbodysz;
 	int error = 0;
 	char *ker = NULL, *p;
 	struct nmreq_option **next, *src, **opt_tab;
@@ -3410,8 +3410,18 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 		error = copyin(src, &buf, sizeof(*src));
 		if (error)
 			goto out_err;
+		/* Validate nro_size to avoid integer overflow of optsz and bufsz. */
+		if (buf.nro_size > NETMAP_REQ_MAXSIZE) {
+			error = EMSGSIZE;
+			goto out_err;
+		}
 		optsz += sizeof(*src);
-		optsz += nmreq_opt_size_by_type(buf.nro_reqtype, buf.nro_size);
+		optbodysz = nmreq_opt_size_by_type(buf.nro_reqtype, buf.nro_size);
+		if (optbodysz > NETMAP_REQ_MAXSIZE) {
+			error = EMSGSIZE;
+			goto out_err;
+		}
+		optsz += optbodysz;
 		if (rqsz + optsz > NETMAP_REQ_MAXSIZE) {
 			error = EMSGSIZE;
 			goto out_err;
