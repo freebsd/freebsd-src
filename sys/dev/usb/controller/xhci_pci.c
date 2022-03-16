@@ -287,6 +287,7 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
 	switch (pci_get_devid(self)) {
+	case 0x10091b73:	/* Fresco Logic FL1009 USB3.0 xHCI Controller */
 	case 0x8241104c:	/* TUSB73x0 USB3.0 xHCI Controller */
 		sc->sc_no_deconfigure = 1;
 		break;
