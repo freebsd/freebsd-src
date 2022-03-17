@@ -100,7 +100,7 @@ insert_padding(void **imgbase, int *imglen)
         image_dos_header	*dos_hdr;
         image_nt_header		*nt_hdr;
 	image_optional_header	opt_hdr;
-        int			i = 0, sections, curlen = 0;
+	int			i = 0, sections;
 	int			offaccum = 0, oldraddr, oldrlen;
 	uint8_t			*newimg, *tmp;
 
@@ -110,7 +110,6 @@ insert_padding(void **imgbase, int *imglen)
 		return(ENOMEM);
 
 	bcopy(*imgbase, newimg, *imglen);
-	curlen = *imglen;
 
 	if (pe_get_optional_header((vm_offset_t)newimg, &opt_hdr))
 		return(0);
