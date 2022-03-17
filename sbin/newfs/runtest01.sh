@@ -10,8 +10,8 @@ mdconfig -d -u $MD || true
 mdconfig -d -u $ME || true
 mdconfig -a -t malloc -s $s -u $MD
 mdconfig -a -t malloc -s $s -u $ME
-disklabel -r -w md$MD auto
-disklabel -r -w md$ME auto
+disklabel -w md$MD auto
+disklabel -w md$ME auto
 ./newfs -R /dev/md${MD}c
 ./newfs -R /dev/md${ME}c
 if cmp /dev/md${MD}c /dev/md${ME}c ; then

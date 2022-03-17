@@ -28,7 +28,7 @@
 .\" $NetBSD: ccdconfig.8,v 1.4 1996/02/28 01:01:17 thorpej Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2016
+.Dd March 17, 2022
 .Dt CCDCONFIG 8
 .Os
 .Sh NAME
@@ -204,7 +204,7 @@ you have A ccd disk with 10000 sectors you might create a 'd' partition
 with offset 16 and size 9984.
 .Bd -literal
 # disklabel ccd0 > /tmp/disklabel.ccd0
-# disklabel -Rr ccd0 /tmp/disklabel.ccd0
+# disklabel -R ccd0 /tmp/disklabel.ccd0
 # disklabel -e ccd0
 .Ed
 .Pp
