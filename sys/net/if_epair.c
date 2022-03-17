@@ -112,7 +112,7 @@ struct epair_queue {
 	int			 id;
 	struct buf_ring		*rxring[2];
 	volatile int		 ridx;		/* 0 || 1 */
-	volatile int		 state;		/* taskqueue coordination */
+	volatile long		 state;		/* taskqueue coordination */
 	struct task		 tx_task;
 	struct epair_softc	*sc;
 };
@@ -181,8 +181,8 @@ epair_tx_start_deferred(void *arg, int pending)
 	} while (!atomic_fcmpset_int(&q->ridx, &ridx, nidx));
 	epair_if_input(sc, q, ridx);
 
-	atomic_clear_int(&q->state, (1 << BIT_QUEUE_TASK));
-	if (atomic_testandclear_int(&q->state, BIT_MBUF_QUEUED))
+	atomic_clear_long(&q->state, (1 << BIT_QUEUE_TASK));
+	if (atomic_testandclear_long(&q->state, BIT_MBUF_QUEUED))
 		taskqueue_enqueue(epair_tasks.tq[q->id], &q->tx_task);
 
 	if_rele(sc->ifp);
@@ -248,7 +248,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 #endif
 	q = &osc->queues[bucket];
 
-	atomic_set_int(&q->state, (1 << BIT_MBUF_QUEUED));
+	atomic_set_long(&q->state, (1 << BIT_MBUF_QUEUED));
 	ridx = atomic_load_int(&q->ridx);
 	ret = buf_ring_enqueue(q->rxring[ridx], m);
 	if (ret != 0) {
@@ -270,7 +270,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	/* Someone else received the packet. */
 	if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
 
-	if (!atomic_testandset_int(&q->state, BIT_QUEUE_TASK))
+	if (!atomic_testandset_long(&q->state, BIT_QUEUE_TASK))
 		taskqueue_enqueue(epair_tasks.tq[bucket], &q->tx_task);
 
 	return (0);
