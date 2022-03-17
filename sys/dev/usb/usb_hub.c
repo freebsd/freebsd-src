@@ -1683,6 +1683,8 @@ uhub_get_device_path(device_t bus, device_t child, const char *locator,
 
 	if (strcmp(locator, BUS_LOCATOR_UEFI) == 0) {
 		rv = bus_generic_get_device_path(device_get_parent(bus), bus, locator, sb);
+		if (rv != 0)
+			return (rv);
 
 		sc = device_get_softc(bus);
 		hub = sc->sc_udev->hub;
