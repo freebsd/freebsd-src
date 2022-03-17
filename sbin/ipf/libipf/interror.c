@@ -17,7 +17,7 @@ typedef	struct	{
 
 static ipf_error_entry_t *find_error(int);
 
-#define	IPF_NUM_ERRORS	475
+#define	IPF_NUM_ERRORS	477
 
 /*
  * NO REUSE OF NUMBERS!
@@ -355,6 +355,7 @@ log" },
 	{	60073,	"unknown lookup group for next address (ipv6)" },
 	{	60074,	"unknown next address type (ipv6)" },
 	{	60075,	"one object at a time must be copied" },
+	{	60076,	"NAT ioctl denied in jail without VNET" },
 /* -------------------------------------------------------------------------- */
 	{	70001,	"incorrect object size to get pool stats" },
 	{	70002,	"could not malloc memory for new pool node" },
@@ -516,6 +517,7 @@ log" },
 	{	130015,	"ipf_init_all failed" },
 	{	130016,	"finding pfil head failed" },
 	{	130017,	"ipfilter is already initialised and running" },
+	{	130018,	"ioctl denied in jail without VNET" },
 };
 
 

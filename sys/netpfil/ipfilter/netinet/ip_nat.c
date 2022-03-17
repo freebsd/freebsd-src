@@ -42,6 +42,9 @@ struct file;
 #include <sys/socket.h>
 #if defined(_KERNEL)
 # include <sys/systm.h>
+# if defined(__FreeBSD__)
+#  include <sys/jail.h>
+# endif
 # if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
@@ -999,6 +1002,12 @@ ipf_nat_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 		IPFERROR(60001);
 		return (EPERM);
 	}
+# if defined(__FreeBSD__)
+	if (jailed_without_vnet(curthread->td_ucred)) {
+		IPFERROR(60076);
+		return (EOPNOTSUPP);
+	}
+# endif
 #endif
 
 	getlock = (mode & NAT_LOCKHELD) ? 0 : 1;

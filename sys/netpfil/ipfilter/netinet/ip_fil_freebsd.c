@@ -47,6 +47,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -279,6 +280,12 @@ ipfioctl(struct cdev *dev, ioctlcmd_t cmd, caddr_t data,
 		V_ipfmain.ipf_interror = 130001;
 		CURVNET_RESTORE();
 		return (EPERM);
+	}
+
+	if (jailed_without_vnet(p->p_cred)) {
+		V_ipfmain.ipf_interror = 130018;
+		CURVNET_RESTORE();
+		return (EOPNOTSUPP);
 	}
 
 	unit = GET_MINOR(dev);
