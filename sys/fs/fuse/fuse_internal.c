@@ -541,6 +541,7 @@ fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
 	if (fuse_libabi_geq(data, 7, 12)) {
 		insize = sizeof(fmni);
 		fmni.umask = curthread->td_proc->p_pd->pd_cmask;
+		fmni.padding = 0;
 	} else {
 		insize = FUSE_COMPAT_MKNOD_IN_SIZE;
 	}
