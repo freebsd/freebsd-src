@@ -1333,9 +1333,11 @@ nfs_lookup(struct vop_lookup_args *ap)
 	 * option, it is possible to do the Open operation in the same
 	 * compound as Lookup, so long as delegations are not being
 	 * issued.  This saves doing a separate RPC for Open.
+	 * For pnfs, do not do this, since the Open+LayoutGet will
+	 * be needed as a separate RPC.
 	 */
 	NFSLOCKMNT(nmp);
-	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp) &&
+	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp) && !NFSHASPNFS(nmp) &&
 	    (nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0 &&
 	    (!NFSMNT_RDONLY(mp) || (flags & OPENWRITE) == 0) &&
 	    (flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN)) {
