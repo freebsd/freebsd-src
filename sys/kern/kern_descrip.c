@@ -155,6 +155,18 @@ static struct pwd *pwd_alloc(void);
 #define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
 #define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
+#define	FILEDESC_FOREACH_FDE(fdp, _iterator, _fde)				\
+	struct filedesc *_fdp = (fdp);						\
+	int _lastfile = fdlastfile_single(_fdp);				\
+	for (_iterator = 0; _iterator <= _lastfile; _iterator++)		\
+		if ((_fde = &_fdp->fd_ofiles[_iterator])->fde_file != NULL)
+
+#define	FILEDESC_FOREACH_FP(fdp, _iterator, _fp)				\
+	struct filedesc *_fdp = (fdp);						\
+	int _lastfile = fdlastfile_single(_fdp);				\
+	for (_iterator = 0; _iterator <= _lastfile; _iterator++)		\
+		if ((_fp = _fdp->fd_ofiles[_iterator].fde_file) != NULL)
+
 /*
  * SLIST entry used to keep track of ofiles which must be reclaimed when
  * the process exits.
