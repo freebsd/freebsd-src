@@ -1187,10 +1187,16 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth)
 	static int nattype[3] = { PF_NAT, PF_RDR, PF_BINAT };
 	int i, dotitle = opts & PF_OPT_SHOWALL;
 	int brace, ret;
+	int len = strlen(path);
 	char *p;
 
+	if (path[0])
+		snprintf(&path[len], MAXPATHLEN - len, "/%s", anchorname);
+	else
+		snprintf(&path[len], MAXPATHLEN - len, "%s", anchorname);
+
 	for (i = 0; i < 3; i++) {
-		ret = pfctl_get_rules_info(dev, &ri, nattype[i], anchorname);
+		ret = pfctl_get_rules_info(dev, &ri, nattype[i], path);
 		if (ret != 0) {
 			warn("DIOCGETRULES");
 			return (-1);
@@ -1199,13 +1205,13 @@ pfctl_show_nat(int dev, char *path, int opts, char *anchorname, int depth)
 			brace = 0;
 			INDENT(depth, !(opts & PF_OPT_VERBOSE));
 
-			if (pfctl_get_rule(dev, nr, ri.ticket, anchorname,
+			if (pfctl_get_rule(dev, nr, ri.ticket, path,
 			    nattype[i], &rule, anchor_call)) {
 				warn("DIOCGETRULE");
 				return (-1);
 			}
 			if (pfctl_get_pool(dev, &rule.rpool, nr,
-			    ri.ticket, nattype[i], anchorname) != 0)
+			    ri.ticket, nattype[i], path) != 0)
 				return (-1);
 
 			if (anchor_call[0] &&
