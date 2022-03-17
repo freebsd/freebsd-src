@@ -296,7 +296,7 @@ in decreasing order of importance:
   </li>
   <li>
     If a name is changed, put its old spelling in the
-    '<code>backward</code>' file.
+    '<code>backward</code>' file as a link to the new spelling.
     This means old spellings will continue to work.
     Ordinarily a name change should occur only in the rare case when
     a location's consensus English-language spelling changes; for example,
@@ -348,22 +348,37 @@ timestamps correctly and it increased maintenance burden.
 </ul>
 
 <p>
-The file '<code>zone1970.tab</code>' lists geographical locations used
+The file <code>zone1970.tab</code> lists geographical locations used
 to name timezones.
 It is intended to be an exhaustive list of names for geographic
 regions as described above; this is a subset of the timezones in the data.
-Although a '<code>zone1970.tab</code>' location's
+Although a <code>zone1970.tab</code> location's
 <a href="https://en.wikipedia.org/wiki/Longitude">longitude</a>
 corresponds to
 its <a href="https://en.wikipedia.org/wiki/Local_mean_time">local mean
 time (<abbr>LMT</abbr>)</a> offset with one hour for every 15&deg;
 east longitude, this relationship is not exact.
+The backward-compatibility file <code>zone.tab</code> is similar
+but conforms to the older-version guidelines related to <abbr>ISO</abbr> 3166-1;
+it lists only one country code per entry and unlike <code>zone1970.tab</code>
+it can list names defined in <code>backward</code>.
 </p>
 
 <p>
-Excluding '<code>backward</code>' should not affect the other data.
-If '<code>backward</code>' is excluded, excluding
-'<code>etcetera</code>' should not affect the remaining data.
+The database defines each timezone name to be a zone, or a link to a zone.
+The source file <code>backward</code> defines links for backward
+compatibility; it does not define zones.
+Although <code>backward</code> was originally designed to be optional,
+nowadays distributions typically use it
+and no great weight should be attached to whether a link
+is defined in <code>backward</code> or in some other file.
+The source file <code>etcetera</code> defines names that may be useful
+on platforms that do not support POSIX-style <code>TZ</code> strings;
+no other source file other than <code>backward</code>
+contains links to its zones.
+One of <code>etcetera</code>'s names is <code>GMT</code>,
+used by functions like <code>gmtime</code> to obtain leap
+second information on platforms that support leap seconds.
 </p>
 </section>
 

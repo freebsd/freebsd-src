@@ -290,6 +290,7 @@ Rule	SL	1932	only	-	Dec	 1	 0:00	0:20	-0040
 Rule	SL	1933	1938	-	Mar	31	24:00	0	-01
 Rule	SL	1933	1939	-	Aug	31	24:00	0:20	-0040
 Rule	SL	1939	only	-	May	31	24:00	0	-01
+
 Zone	Africa/Freetown	-0:53:00 -	LMT	1882
 			-0:53:00 -	FMT	1913 Jul  1 # Freetown MT
 			-1:00	SL	%s	1939 Sep  5
@@ -345,7 +346,15 @@ Zone	Africa/Luanda	0:52:56	-	LMT	1892
 			1:00	-	WAT
 
 # Democratic Republic of the Congo (east)
-Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov 9
+#
+# From Alois Treindl (2022-02-28):
+# My main source for its time zone history is
+# Henri le Corre, Régimes horaires pour l'Europe et l'Afrique.
+# Shanks follows le Corre.  As does Françoise Schneider-Gauquelin in her book
+# Problèmes de l'heure résolus pour le monde entier.
+#
+Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov  9
+			1:00	-	WAT	1920 Apr 25
 			2:00	-	CAT
 
 # Zambia
@@ -752,7 +761,6 @@ Zone America/Port_of_Spain -4:06:04 -	LMT	1912 Mar 2
 			-4:00	-	AST
 Link America/Port_of_Spain America/Marigot
 Link America/Port_of_Spain America/St_Barthelemy
-Link America/Port_of_Spain America/Virgin
 
 # Argentina
 # This entry was intended for the following areas, but has been superseded by
@@ -815,11 +823,11 @@ Link Antarctica/McMurdo Antarctica/South_Pole
 # Syowa station, which is the first antarctic station of Japan,
 # was established on 1957-01-29.  Since Syowa station is still the main
 # station of Japan, it's appropriate for the principal location.
-Zone Antarctica/Syowa	0	-	-00	1957 Jan 29
-			3:00	-	+03
 # See:
 # NIPR Antarctic Research Activities (1999-08-17)
 # http://www.nipr.ac.jp/english/ara01.html
+Zone Antarctica/Syowa	0	-	-00	1957 Jan 29
+			3:00	-	+03
 
 # Yemen
 # Milne says 2:59:54 was the meridian of the saluting battery at Aden,
