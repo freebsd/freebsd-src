@@ -503,6 +503,10 @@
 #define AOPEN_VENDORID	0xa0a0
 #define AOPEN_I915GMMHFS_SUBVENDOR HDA_MODEL_CONSTRUCT(AOPEN, 0x8202)
 
+/* Framework */
+#define FRAMEWORK_VENDORID	0xf111
+#define FRAMEWORK_LAPTOP_SUBVENDOR HDA_MODEL_CONSTRUCT(FRAMEWORK, 0x0001)
+
 /* All codecs you can eat... */
 #define HDA_CODEC_CONSTRUCT(vendor, id) \
 		(((uint32_t)(vendor##_VENDORID) << 16) | ((id) & 0xffff))
