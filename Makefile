@@ -399,9 +399,10 @@ ZFLAGS=
 ZIC_INSTALL=	$(ZIC) -d '$(DESTDIR)$(TZDIR)' $(LEAPSECONDS)
 
 # The name of a Posix-compliant 'awk' on your system.
-# Older 'mawk' versions, such as the 'mawk' in Ubuntu 16.04, might dump core;
-# on Ubuntu you can work around this with
-#	AWK=		gawk
+# mawk 1.3.3 and Solaris 10 /usr/bin/awk do not work.
+# Also, it is better (though not essential) if 'awk' supports UTF-8,
+# and unfortunately mawk and busybox awk do not support UTF-8.
+# Try AWK=gawk or AWK=nawk if your awk has the abovementioned problems.
 AWK=		awk
 
 # The full path name of a Posix-compliant shell, preferably one that supports
@@ -466,7 +467,9 @@ OK_LINE=	'^'$(OK_CHAR)'*$$'
 
 # Flags to give 'tar' when making a distribution.
 # Try to use flags appropriate for GNU tar.
-GNUTARFLAGS= --numeric-owner --owner=0 --group=0 --mode=go+u,go-w --sort=name
+GNUTARFLAGS= --format=pax --pax-option='delete=atime,delete=ctime' \
+  --numeric-owner --owner=0 --group=0 \
+  --mode=go+u,go-w --sort=name
 TARFLAGS=	`if tar $(GNUTARFLAGS) --version >/dev/null 2>&1; \
 		 then echo $(GNUTARFLAGS); \
 		 else :; \
@@ -742,7 +745,7 @@ date:		$(DATEOBJS)
 tzselect:	tzselect.ksh version
 		VERSION=`cat version` && sed \
 			-e 's|#!/bin/bash|#!$(KSHELL)|g' \
-			-e 's|AWK=[^}]*|AWK=$(AWK)|g' \
+			-e 's|AWK=[^}]*|AWK='\''$(AWK)'\''|g' \
 			-e 's|\(PKGVERSION\)=.*|\1='\''($(PACKAGE)) '\''|' \
 			-e 's|\(REPORT_BUGS_TO\)=.*|\1=$(BUGEMAIL)|' \
 			-e 's|TZDIR=[^}]*|TZDIR=$(TZDIR)|' \
