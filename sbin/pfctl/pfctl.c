@@ -1046,14 +1046,14 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		snprintf(&path[len], MAXPATHLEN - len, "%s", anchorname);
 
 	if (opts & PF_OPT_SHOWALL) {
-		ret = pfctl_get_rules_info(dev, &ri, PF_PASS, anchorname);
+		ret = pfctl_get_rules_info(dev, &ri, PF_PASS, path);
 		if (ret != 0) {
 			warn("DIOCGETRULES");
 			goto error;
 		}
 		header++;
 	}
-	ret = pfctl_get_rules_info(dev, &ri, PF_SCRUB, anchorname);
+	ret = pfctl_get_rules_info(dev, &ri, PF_SCRUB, path);
 	if (ret != 0) {
 		warn("DIOCGETRULES");
 		goto error;
@@ -1091,7 +1091,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 		pfctl_clear_pool(&rule.rpool);
 	}
-	ret = pfctl_get_rules_info(dev, &ri, PF_PASS, anchorname);
+	ret = pfctl_get_rules_info(dev, &ri, PF_PASS, path);
 	if (ret != 0) {
 		warn("DIOCGETRULES");
 		goto error;
