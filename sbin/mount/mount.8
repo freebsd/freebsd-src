@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2021
+.Dd March 17, 2022
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -276,11 +276,13 @@ The same as
 .Fl r ;
 mount the file system read-only (even the super-user may not write it).
 .It Cm snapshot
-This option allows a snapshot of the specified file system to be taken.
+Take a snapshot of the specified filesystem.
+When this option is used, all other options are ignored.
 The
 .Fl u
 flag is required with this option.
-Note that snapshot files must be created in the file system that is being
+.Pp
+Snapshot files must be created in the file system that is being
 snapshotted.
 You may create up to 20 snapshots per file system.
 Active snapshots are recorded in the superblock, so they persist across unmount
