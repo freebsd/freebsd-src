@@ -4272,6 +4272,8 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		if (fdp == NULL)
 			continue;
 		FILEDESC_SLOCK(fdp);
+		if (refcount_load(&fdp->fd_refcnt) == 0)
+			goto nextproc;
 		lastfile = fdlastfile(fdp);
 		for (n = 0; refcount_load(&fdp->fd_refcnt) > 0 && n <= lastfile;
 		    n++) {
@@ -4287,9 +4289,16 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			xf.xf_offset = foffset_get(fp);
 			xf.xf_flag = fp->f_flag;
 			error = SYSCTL_OUT(req, &xf, sizeof(xf));
-			if (error)
+
+			/*
+			 * There is no need to re-check the fdtable refcount
+			 * here since the filedesc lock is not dropped in the
+			 * loop body.
+			 */
+			if (error != 0)
 				break;
 		}
+nextproc:
 		FILEDESC_SUNLOCK(fdp);
 		fddrop(fdp);
 		if (error)
@@ -4549,8 +4558,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	if (pwd != NULL)
 		pwd_drop(pwd);
 	FILEDESC_SLOCK(fdp);
+	if (refcount_load(&fdp->fd_refcnt) == 0)
+		goto skip;
 	lastfile = fdlastfile(fdp);
-	for (i = 0; refcount_load(&fdp->fd_refcnt) > 0 && i <= lastfile; i++) {
+	for (i = 0; i <= lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 #ifdef CAPABILITIES
@@ -4565,9 +4576,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 		 * loop continues.
 		 */
 		error = export_file_to_sb(fp, i, &rights, efbuf);
-		if (error != 0)
+		if (error != 0 || refcount_load(&fdp->fd_refcnt) == 0)
 			break;
 	}
+skip:
 	FILEDESC_SUNLOCK(fdp);
 fail:
 	if (fdp != NULL)
@@ -4714,8 +4726,10 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (pwd != NULL)
 		pwd_drop(pwd);
 	FILEDESC_SLOCK(fdp);
+	if (refcount_load(&fdp->fd_refcnt) == 0)
+		goto skip;
 	lastfile = fdlastfile(fdp);
-	for (i = 0; refcount_load(&fdp->fd_refcnt) > 0 && i <= lastfile; i++) {
+	for (i = 0; i <= lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		export_file_to_kinfo(fp, i, NULL, kif, fdp,
@@ -4724,9 +4738,10 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		kinfo_to_okinfo(kif, okif);
 		error = SYSCTL_OUT(req, okif, sizeof(*okif));
 		FILEDESC_SLOCK(fdp);
-		if (error)
+		if (error != 0 || refcount_load(&fdp->fd_refcnt) == 0)
 			break;
 	}
+skip:
 	FILEDESC_SUNLOCK(fdp);
 	fddrop(fdp);
 	pddrop(pdp);
