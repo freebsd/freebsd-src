@@ -366,6 +366,7 @@ struct devclass;
 struct device;
 struct module;
 struct module_data;
+struct sbuf;
 
 typedef struct driver driver_t;
 typedef struct devclass *devclass_t;
@@ -387,6 +388,12 @@ typedef int gpio_pin_setflags_t (device_t dev, uint32_t, uint32_t);
 
 typedef int bus_child_location_str_t (device_t parent, device_t child, char *buf, size_t buflen);
 typedef int bus_child_pnpinfo_str_t (device_t parent, device_t child, char *buf, size_t buflen);
+typedef int bus_child_location_t (device_t parent, device_t child, struct sbuf *);
+typedef int bus_child_pnpinfo_t (device_t parent, device_t child, struct sbuf *);
+typedef int bus_get_device_path_t (device_t bus, device_t child, const char *locator, struct sbuf *sb);
+
+#define	bus_generic_get_device_path(...) EOPNOTSUPP
+
 typedef void bus_driver_added_t (device_t dev, driver_t *driver);
 
 struct device_method {
@@ -472,7 +479,10 @@ int	devclass_get_maxunit(devclass_t dc);
 device_t devclass_get_device(devclass_t dc, int unit);
 devclass_t devclass_find(const char *classname);
 
+#define	BUS_LOCATOR_UEFI "UEFI"
 #define	bus_get_dma_tag(...) (NULL)
+#define	bus_topo_lock(...) mtx_lock(&Giant)
+#define	bus_topo_unlock(...) mtx_unlock(&Giant)
 int	bus_generic_detach(device_t dev);
 int	bus_generic_resume(device_t dev);
 int	bus_generic_shutdown(device_t dev);
@@ -517,6 +527,7 @@ int	memcmp(const void *, const void *, size_t len);
 int	printf(const char *,...) __printflike(1, 2);
 int	snprintf(char *restrict str, size_t size, const char *restrict format,...) __printflike(3, 4);
 size_t	strlen(const char *s);
+int	strcmp(const char *, const char *);
 
 /* MALLOC API */
 
@@ -700,5 +711,8 @@ int bus_dmamap_load(bus_dma_tag_t, bus_dmamap_t, void *buf,
     void *callback_arg, int flags);
 void bus_dmamap_unload(bus_dma_tag_t, bus_dmamap_t);
 void bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, int flags);
+
+/* SBUF */
+#define	sbuf_printf(...) do { } while (0)
 
 #endif					/* _BSD_KERNEL_H_ */
