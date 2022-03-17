@@ -236,11 +236,10 @@ static const struct procstat_cmd *
 getcmdbyprogname(const char *pprogname)
 {
 	const char *ca;
-	size_t i, len;
+	size_t i;
 
 	if (pprogname == NULL)
 		return (NULL);
-	len = strlen(pprogname);
 
 	for (i = 0; i < nitems(pacmd_table); i++) {
 		ca = pacmd_table[i].command;
