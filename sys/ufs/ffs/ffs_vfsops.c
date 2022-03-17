@@ -411,6 +411,12 @@ ffs_mount(struct mount *mp)
 	MNT_IUNLOCK(mp);
 
 	/*
+	 * If this is a snapshot request, take the snapshot.
+	 */
+	if (mp->mnt_flag & MNT_SNAPSHOT)
+		return (ffs_snapshot(mp, fspec));
+
+	/*
 	 * Must not call namei() while owning busy ref.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE)
@@ -684,11 +690,6 @@ ffs_mount(struct mount *mp)
 			MNT_IUNLOCK(mp);
 		}
 
-		/*
-		 * If this is a snapshot request, take the snapshot.
-		 */
-		if (mp->mnt_flag & MNT_SNAPSHOT)
-			return (ffs_snapshot(mp, fspec));
 	}
 
 	MNT_ILOCK(mp);
