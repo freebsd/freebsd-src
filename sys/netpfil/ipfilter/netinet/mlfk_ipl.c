@@ -377,6 +377,9 @@ sysctl_error:
 static int
 sysctl_ipf_int_nat ( SYSCTL_HANDLER_ARGS )
 {
+	if (jailed_without_vnet(curthread->td_ucred))
+		return (0);
+
 	ipf_nat_softc_t *nat_softc;
 
 	nat_softc = V_ipfmain.ipf_nat_soft;
@@ -388,6 +391,9 @@ sysctl_ipf_int_nat ( SYSCTL_HANDLER_ARGS )
 static int
 sysctl_ipf_int_state ( SYSCTL_HANDLER_ARGS )
 {
+	if (jailed_without_vnet(curthread->td_ucred))
+		return (0);
+
 	ipf_state_softc_t *state_softc;
 
 	state_softc = V_ipfmain.ipf_state_soft;
@@ -399,6 +405,9 @@ sysctl_ipf_int_state ( SYSCTL_HANDLER_ARGS )
 static int
 sysctl_ipf_int_auth ( SYSCTL_HANDLER_ARGS )
 {
+	if (jailed_without_vnet(curthread->td_ucred))
+		return (0);
+
 	ipf_auth_softc_t *auth_softc;
 
 	auth_softc = V_ipfmain.ipf_auth_soft;
@@ -410,6 +419,9 @@ sysctl_ipf_int_auth ( SYSCTL_HANDLER_ARGS )
 static int
 sysctl_ipf_int_frag ( SYSCTL_HANDLER_ARGS )
 {
+	if (jailed_without_vnet(curthread->td_ucred))
+		return (0);
+
 	ipf_frag_softc_t *frag_softc;
 
 	frag_softc = V_ipfmain.ipf_frag_soft;
