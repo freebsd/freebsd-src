@@ -526,9 +526,9 @@ acpi_uhub_read_ivar(device_t dev, device_t child, int idx, uintptr_t *res)
 	struct acpi_uhub_softc *sc = device_get_softc(dev);
 	ACPI_HANDLE ah;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	uhub_find_iface_index(sc->usc.sc_udev->hub, child, &hres);
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	if ((idx == ACPI_IVAR_HANDLE) &&
 	    (hres.portno > 0) &&

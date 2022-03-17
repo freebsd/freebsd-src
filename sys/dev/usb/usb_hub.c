@@ -1647,7 +1647,7 @@ uhub_child_location(device_t parent, device_t child, struct sbuf *sb)
 	sc = device_get_softc(parent);
 	hub = sc->sc_udev->hub;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	uhub_find_iface_index(hub, child, &res);
 	if (!res.udev) {
 		DPRINTF("device not on hub\n");
@@ -1667,7 +1667,7 @@ uhub_child_location(device_t parent, device_t child, struct sbuf *sb)
 #endif
 	    );
 done:
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (0);
 }
@@ -1687,7 +1687,7 @@ uhub_get_device_path(device_t bus, device_t child, const char *locator,
 		sc = device_get_softc(bus);
 		hub = sc->sc_udev->hub;
 
-		mtx_lock(&Giant);
+		bus_topo_lock();
 		uhub_find_iface_index(hub, child, &res);
 		if (!res.udev) {
 			printf("device not on hub\n");
@@ -1695,7 +1695,7 @@ uhub_get_device_path(device_t bus, device_t child, const char *locator,
 		}
 		sbuf_printf(sb, "/USB(0x%x,0x%x)", res.portno - 1, res.iface_index);
 	done:
-		mtx_unlock(&Giant);
+		bus_topo_unlock();
 		return (0);
 	}
 
@@ -1718,7 +1718,7 @@ uhub_child_pnpinfo(device_t parent, device_t child, struct sbuf*sb)
 	sc = device_get_softc(parent);
 	hub = sc->sc_udev->hub;
 
-	mtx_lock(&Giant);
+	bus_topo_lock();
 	uhub_find_iface_index(hub, child, &res);
 	if (!res.udev) {
 		DPRINTF("device not on hub\n");
@@ -1755,7 +1755,7 @@ uhub_child_pnpinfo(device_t parent, device_t child, struct sbuf*sb)
 			usbd_ctrl_unlock(res.udev);
 	}
 done:
-	mtx_unlock(&Giant);
+	bus_topo_unlock();
 
 	return (0);
 }
