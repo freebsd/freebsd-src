@@ -465,7 +465,11 @@ struct xen_processor_performance {
     uint32_t state_count;     /* total available performance states */
     XEN_GUEST_HANDLE(xen_processor_px_t) states;
     struct xen_psd_package domain_info;
-    uint32_t shared_type;     /* coordination type of this processor */
+    /* Coordination type of this processor */
+#define XEN_CPUPERF_SHARED_TYPE_HW   1 /* HW does needed coordination */
+#define XEN_CPUPERF_SHARED_TYPE_ALL  2 /* All dependent CPUs should set freq */
+#define XEN_CPUPERF_SHARED_TYPE_ANY  3 /* Freq can be set from any dependent CPU */
+    uint32_t shared_type;
 };
 typedef struct xen_processor_performance xen_processor_performance_t;
 DEFINE_XEN_GUEST_HANDLE(xen_processor_performance_t);

@@ -300,7 +300,7 @@ acpi_cpu_probe(device_t dev)
 	    device_quiet_children(dev);
     }
 
-    return (0);
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
