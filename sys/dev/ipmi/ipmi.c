@@ -104,16 +104,16 @@ SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RWTUN,
 	&on, 0, "");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_init_enable, CTLFLAG_RWTUN,
 	&wd_init_enable, 1, "Enable watchdog initialization");
-SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_timer_actions, CTLFLAG_RW,
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_timer_actions, CTLFLAG_RWTUN,
 	&wd_timer_actions, 0,
 	"IPMI watchdog timer actions (including pre-timeout interrupt)");
-SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_shutdown_countdown, CTLFLAG_RW,
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_shutdown_countdown, CTLFLAG_RWTUN,
 	&wd_shutdown_countdown, 0,
 	"IPMI watchdog countdown for shutdown (seconds)");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_startup_countdown, CTLFLAG_RDTUN,
 	&wd_startup_countdown, 0,
 	"IPMI watchdog countdown initialized during startup (seconds)");
-SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RW,
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RWTUN,
 	&wd_pretimeout_countdown, 0,
 	"IPMI watchdog pre-timeout countdown (seconds)");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, cyle_wait, CTLFLAG_RWTUN,
@@ -944,7 +944,6 @@ ipmi_startup(void *arg)
 	 * disabled, clear any existing watchdog.
 	 */
 	if (on && wd_startup_countdown > 0) {
-		wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
 		if (ipmi_set_watchdog(sc, wd_startup_countdown) == 0 &&
 		    ipmi_reset_watchdog(sc) == 0) {
 			sc->ipmi_watchdog_active = wd_startup_countdown;
