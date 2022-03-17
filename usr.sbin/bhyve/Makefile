@@ -41,6 +41,7 @@ SRCS=	\
 	pci_hostbridge.c	\
 	pci_nvme.c		\
 	pci_passthru.c		\
+	pci_passthru_quirks.c	\
 	pci_virtio_9p.c		\
 	pci_virtio_block.c	\
 	pci_virtio_console.c	\
