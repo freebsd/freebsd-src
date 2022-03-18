@@ -53,7 +53,7 @@ for i in `jot 5`; do
 		done
 		while [ -f $sync ]; do
 			ifconfig $if.$i create
-			ifconfig $if.$i inet 224.0.0.$i
+			ifconfig $if.$i inet 224.0.0.$i netmask 255.255.255.0
 			ifconfig $if.$i destroy
 		done
 	) > /dev/null 2>&1 &
