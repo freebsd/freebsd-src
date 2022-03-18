@@ -86,10 +86,11 @@ for i in `jot $mounts $start`; do
 	mntpoint=${prefix}$i
 	n=0
 	while mount | grep -q "on $mntpoint "; do
-		umount $mntpoint && mdconfig -d -u $mdstart || sleep 1
+		umount $mntpoint || sleep 1
 		n=$((n += 1))
 		[ $n -gt 60 ] && exit 1
 	done
 	checkfs /dev/md${mdstart}$part || s=$?
+	mdconfig -d -u $mdstart
 done
 exit $s
