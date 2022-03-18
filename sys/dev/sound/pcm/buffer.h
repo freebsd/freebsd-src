@@ -28,12 +28,8 @@
  * $FreeBSD$
  */
 
-#define SND_DMA(b) (sndbuf_getflags((b)) & SNDBUF_F_DMA)
 #define SNDBUF_LOCKASSERT(b)
 
-#define	SNDBUF_F_DMA		0x00000001
-#define	SNDBUF_F_XRUN		0x00000002
-#define	SNDBUF_F_RUNNING	0x00000004
 #define	SNDBUF_F_MANAGED	0x00000008
 
 #define SNDBUF_NAMELEN	48
@@ -124,12 +120,6 @@ int sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *
 
 u_int32_t sndbuf_getflags(struct snd_dbuf *b);
 void sndbuf_setflags(struct snd_dbuf *b, u_int32_t flags, int on);
-
-int sndbuf_dmasetup(struct snd_dbuf *b, struct resource *drq);
-int sndbuf_dmasetdir(struct snd_dbuf *b, int dir);
-void sndbuf_dma(struct snd_dbuf *b, int go);
-int sndbuf_dmaptr(struct snd_dbuf *b);
-void sndbuf_dmabounce(struct snd_dbuf *b);
 
 #ifdef OSSV4_EXPERIMENT
 void sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp);
