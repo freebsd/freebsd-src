@@ -496,14 +496,11 @@ vm_rev_map_gpa(struct vmctx *ctx, void *addr)
 	return ((vm_paddr_t)-1);
 }
 
-/* TODO: maximum size for vmname */
-int
-vm_get_name(struct vmctx *ctx, char *buf, size_t max_len)
+const char *
+vm_get_name(struct vmctx *ctx)
 {
 
-	if (strlcpy(buf, ctx->name, max_len) >= max_len)
-		return (EINVAL);
-	return (0);
+	return (ctx->name);
 }
 
 size_t
