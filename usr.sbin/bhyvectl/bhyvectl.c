@@ -1684,11 +1684,10 @@ show_memseg(struct vmctx *ctx)
 
 #ifdef BHYVE_SNAPSHOT
 static int
-send_message(struct vmctx *ctx, nvlist_t *nvl)
+send_message(const char *vmname, nvlist_t *nvl)
 {
 	struct sockaddr_un addr;
 	int err, socket_fd;
-	char vmname_buf[MAX_VMNAME];
 
 	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
@@ -1700,13 +1699,7 @@ send_message(struct vmctx *ctx, nvlist_t *nvl)
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
 
-	err = vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
-	if (err != 0) {
-		perror("Failed to get VM name");
-		goto done;
-	}
-
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s", BHYVE_RUN_DIR, vmname_buf);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s", BHYVE_RUN_DIR, vmname);
 
 	if (connect(socket_fd, (struct sockaddr *)&addr, SUN_LEN(&addr)) != 0) {
 		perror("connect() failed");
@@ -1725,7 +1718,7 @@ done:
 }
 
 static int
-snapshot_request(struct vmctx *ctx, const char *file, bool suspend)
+snapshot_request(const char *vmname, const char *file, bool suspend)
 {
 	nvlist_t *nvl;
 
@@ -1734,7 +1727,7 @@ snapshot_request(struct vmctx *ctx, const char *file, bool suspend)
 	nvlist_add_string(nvl, "filename", file);
 	nvlist_add_bool(nvl, "suspend", suspend);
 
-	return (send_message(ctx, nvl));
+	return (send_message(vmname, nvl));
 }
 #endif
 
@@ -2398,10 +2391,10 @@ main(int argc, char *argv[])
 
 #ifdef BHYVE_SNAPSHOT
 	if (!error && vm_checkpoint_opt)
-		error = snapshot_request(ctx, checkpoint_file, false);
+		error = snapshot_request(vmname, checkpoint_file, false);
 
 	if (!error && vm_suspend_opt)
-		error = snapshot_request(ctx, suspend_file, true);
+		error = snapshot_request(vmname, suspend_file, true);
 #endif
 
 	free (opts);
