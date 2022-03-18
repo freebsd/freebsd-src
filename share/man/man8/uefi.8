@@ -50,7 +50,7 @@ boot process loads system bootstrap code located in an EFI System Partition
 The ESP is a GPT or MBR partition with a specific identifier that contains an
 .Xr msdosfs 5
 FAT file system with a specified file hierarchy.
-.Bl -column -offset indent ".Sy Partition Scheme" ".Sy ESP Identifier"
+.Bl -column -offset indent "Partition Scheme" "ESP Identifier"
 .It Sy "Partition Scheme" Ta Sy "ESP Identifier"
 .It GPT Ta C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 .It MBR Ta 0xEF
@@ -105,9 +105,9 @@ bootstrap
 .It Pa /boot/loader.efi
 Final stage bootstrap
 .It Pa /boot/kernel/kernel
-default kernel
+Default kernel
 .It Pa /boot/kernel.old/kernel
-typical non-default kernel (optional)
+Typical non-default kernel (optional)
 .El
 .Sh SEE ALSO
 .Xr vt 4 ,
