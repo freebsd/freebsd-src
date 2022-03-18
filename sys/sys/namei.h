@@ -228,8 +228,11 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 
 /*
  * Note the constant pattern may *hide* bugs.
+ * Note also that we enable debug checks for non-TIED KLDs
+ * so that they can run on an INVARIANTS kernel without tripping over
+ * assertions on ni_debugflags state.
  */
-#ifdef INVARIANTS
+#if defined(INVARIANTS) || (defined(KLD_MODULE) && !defined(KLD_TIED))
 #define NDINIT_PREFILL(arg)	memset(arg, 0xff, offsetof(struct nameidata,	\
     ni_dvp_seqc))
 #define NDINIT_DBG(arg)		{ (arg)->ni_debugflags = NAMEI_DBG_INITED; }
