@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #define	NO_ARG		no_argument
 #define	OPT_ARG		optional_argument
 
-#define MAX_VMNAME 100
-
 static const char *progname;
 
 static void
