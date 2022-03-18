@@ -13,6 +13,7 @@ name="zfs"
 desc="Mount and share ZFS datasets"
 rcvar="zfs_enable"
 start_cmd="zfs_start"
+start_postcmd="zfs_poststart"
 stop_cmd="zfs_stop"
 required_modules="zfs"
 
@@ -38,6 +39,17 @@ zfs_start()
 		zfs_start_jail
 	else
 		zfs_start_main
+	fi
+}
+
+zfs_poststart()
+{
+	# Some of the keys to decrypt datasets are potentially stored on ZFS
+	# datasets that just got mounted. Let's try to load those keys and
+	# mount the datasets.
+	if checkyesno zfskeys_enable; then
+		/etc/rc.d/zfskeys start
+		zfs_start
 	fi
 }
 
