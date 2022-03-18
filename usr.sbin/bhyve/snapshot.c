@@ -116,8 +116,6 @@ static sig_t old_winch_handler;
 #define	SNAPSHOT_CHUNK	(4 * MB)
 #define	PROG_BUF_SZ	(8192)
 
-#define	MAX_VMNAME 100
-
 #define	SNAPSHOT_BUFFER_SIZE (20 * MB)
 
 #define	JSON_STRUCT_ARR_KEY		"structs"
