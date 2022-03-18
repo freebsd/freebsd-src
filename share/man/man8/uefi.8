@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2018
+.Dd March 18, 2022
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -70,6 +70,8 @@ If not set, an architecture-specific default is used.
 .It Sy Architecture Ta Sy Default Path
 .It amd64 Ta Pa /EFI/BOOT/BOOTX64.EFI
 .It arm64 Ta Pa /EFI/BOOT/BOOTAA64.EFI
+.It i386 Ta Pa /EFI/BOOT/BOOTIA32.EFI
+.It riscv Ta Pa /EFI/BOOT/BOOTRISCV64.EFI
 .El
 .Pp
 The default
