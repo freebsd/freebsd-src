@@ -34,24 +34,4 @@ CLEANFILES+=	feeder_eq_gen.h feeder_rate_gen.h snd_fxdiv_gen.h
 
 EXPORT_SYMS=	YES	# XXX evaluate
 
-.if ${MACHINE_CPUARCH} != "i386" && ${MACHINE_CPUARCH} != "amd64"
-# Create an empty opt_isa.h in order to keep kmod.mk from linking in an
-# existing one from KERNBUILDDIR which possibly has DEV_ISA defined so
-# sound.ko is always built without isadma support.
-opt_isa.h:
-	:> ${.TARGET}
-.else
-.if !defined(KERNBUILDDIR)
-SRCS+=	sndbuf_dma.c
-
-opt_isa.h:
-	echo "#define DEV_ISA 1" > ${.TARGET}
-.else
-DEV_ISA!= sed -n '/DEV_ISA/p' ${KERNBUILDDIR}/opt_isa.h
-.if !empty(DEV_ISA)
-SRCS+=	sndbuf_dma.c
-.endif
-.endif
-.endif
-
 .include <bsd.kmod.mk>
