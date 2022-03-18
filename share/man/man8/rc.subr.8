@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2022
+.Dd March 18, 2022
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -161,7 +161,7 @@ Otherwise, warn that
 .Ar var
 is not set correctly.
 The values are case insensitive.
-.Sy Note :
+.Em Note :
 .Ar var
 should be a variable name, not its value;
 .Ic checkyesno
@@ -430,7 +430,7 @@ and errors about usage of services that are not enabled in
 .Xr rc.conf 5 .
 This prefix also sets
 .Va rc_quiet Ns = Ns Li YES .
-.Em Please, note\&:
+.Em Note :
 .Va rc_quiet
 is not intended to completely mask all debug and warning messages,
 but only certain small classes of them.
@@ -587,7 +587,8 @@ which puts some limitations on the names of variables
 A file to source for environmental variables to run
 .Va command
 with.
-Note that all the variables which are being assigned in this file are going
+.Em Note :
+all the variables which are being assigned in this file are going
 to be exported into the environment of
 .Va command .
 .It Va ${name}_fib
