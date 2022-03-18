@@ -1123,28 +1123,15 @@ err_vm_snapshot_kern_data:
 static int
 vm_snapshot_basic_metadata(struct vmctx *ctx, xo_handle_t *xop, size_t memsz)
 {
-	int error;
-	int memflags;
-	char vmname_buf[MAX_VMNAME];
-
-	memset(vmname_buf, 0, MAX_VMNAME);
-	error = vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
-	if (error != 0) {
-		perror("Failed to get VM name");
-		goto err;
-	}
-
-	memflags = vm_get_memflags(ctx);
 
 	xo_open_container_h(xop, JSON_BASIC_METADATA_KEY);
 	xo_emit_h(xop, "{:" JSON_NCPUS_KEY "/%ld}\n", guest_ncpus);
-	xo_emit_h(xop, "{:" JSON_VMNAME_KEY "/%s}\n", vmname_buf);
+	xo_emit_h(xop, "{:" JSON_VMNAME_KEY "/%s}\n", vm_get_name(ctx));
 	xo_emit_h(xop, "{:" JSON_MEMSIZE_KEY "/%lu}\n", memsz);
-	xo_emit_h(xop, "{:" JSON_MEMFLAGS_KEY "/%d}\n", memflags);
+	xo_emit_h(xop, "{:" JSON_MEMFLAGS_KEY "/%d}\n", vm_get_memflags(ctx));
 	xo_close_container_h(xop, JSON_BASIC_METADATA_KEY);
 
-err:
-	return (error);
+	return (0);
 }
 
 static int
@@ -1518,7 +1505,6 @@ init_checkpoint_thread(struct vmctx *ctx)
 	struct sockaddr_un addr;
 	int socket_fd;
 	pthread_t checkpoint_pthread;
-	char vmname_buf[MAX_VMNAME];
 	int err;
 
 	memset(&addr, 0, sizeof(addr));
@@ -1532,14 +1518,8 @@ init_checkpoint_thread(struct vmctx *ctx)
 
 	addr.sun_family = AF_UNIX;
 
-	err = vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
-	if (err != 0) {
-		perror("Failed to get VM name");
-		goto fail;
-	}
-
 	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s",
-		 BHYVE_RUN_DIR, vmname_buf);
+		 BHYVE_RUN_DIR, vm_get_name(ctx));
 	addr.sun_len = SUN_LEN(&addr);
 	unlink(addr.sun_path);
 
