@@ -1221,9 +1221,16 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				goto ret;
 			break;
 		case PT_GNU_STACK:
-			if (__elfN(nxstack))
+			if (__elfN(nxstack)) {
 				imgp->stack_prot =
 				    __elfN(trans_prot)(phdr[i].p_flags);
+				if ((imgp->stack_prot & VM_PROT_RW) !=
+				    VM_PROT_RW) {
+					uprintf("Invalid PT_GNU_STACK\n");
+					error = ENOEXEC;
+					goto ret;
+				}
+			}
 			imgp->stack_sz = phdr[i].p_memsz;
 			break;
 		case PT_PHDR: 	/* Program header table info */
