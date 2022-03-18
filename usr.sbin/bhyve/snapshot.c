@@ -181,10 +181,10 @@ strcat_extension(const char *base_str, const char *ext)
 	char *res;
 	size_t base_len, ext_len;
 
-	base_len = strnlen(base_str, MAX_VMNAME);
-	ext_len = strnlen(ext, MAX_VMNAME);
+	base_len = strnlen(base_str, NAME_MAX);
+	ext_len = strnlen(ext, NAME_MAX);
 
-	if (base_len + ext_len > MAX_VMNAME) {
+	if (base_len + ext_len > NAME_MAX) {
 		fprintf(stderr, "Filename exceeds maximum length.\n");
 		return (NULL);
 	}
