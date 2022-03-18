@@ -329,6 +329,7 @@ sbc_attach(device_t dev)
     	int flags = device_get_flags(dev);
 	int f, dh, dl, x, irq, i;
 
+	gone_in_dev(dev, 14, "ISA sound driver");
     	if (!logical_id && (flags & DV_F_DUAL_DMA)) {
         	bus_set_resource(dev, SYS_RES_DRQ, 1,
 				 flags & DV_F_DRQ_MASK, 1);

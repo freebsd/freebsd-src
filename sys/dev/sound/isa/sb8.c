@@ -718,6 +718,7 @@ sb_attach(device_t dev)
     	char status[SND_STATUSLEN];
 	uintptr_t ver;
 
+	gone_in_dev(dev, 14, "ISA sound driver");
     	sb = malloc(sizeof(*sb), M_DEVBUF, M_WAITOK | M_ZERO);
 	sb->parent_dev = device_get_parent(dev);
 	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);

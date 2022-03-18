@@ -812,6 +812,7 @@ ess_attach(device_t dev)
     	char status[SND_STATUSLEN], buf[64];
 	int ver;
 
+	gone_in_dev(dev, 14, "ISA sound driver");
     	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->parent_dev = device_get_parent(dev);
 	sc->bufsize = pcm_getbuffersize(dev, 4096, ESS_BUFFSIZE, 65536);
