@@ -1,5 +1,8 @@
 .\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
 .\" Copyright (c) 2019 Netflix, Inc
+.\" Copyright (c) 2022 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2020
+.Dd March 18, 2022
 .Dt LOADER.EFI 8
 .Os
 .Sh NAME
@@ -34,17 +37,65 @@
 On UEFI systems,
 .Nm
 loads the kernel.
-It is installed into the ESP (EFI System Partition), either in the
-default location of
-.Pa /efi/boot/bootXXX.efi
-within the ESP, in the
-.Fx
-reserved area as
-.Pa /efi/freebsd/loader.efi
-within the ESP ,
-or within the system as
-.Pa /boot/loader.efi .
+.Pp
 .Xr boot1.efi 8
 is used to load
 .Nm
 when it is placed within the system.
+.Sh FILES
+.Bl -tag -width "/boot/loader.efi"
+.It Pa /boot/loader.efi
+The location of the UEFI kernel loader within the system.
+.El
+.Ss EFI System Partition
+.Nm
+is installed on ESP (EFI System Partition) in one of the following locations:
+.Bl -tag -width "efi/freebsd/loader.efi"
+.It Pa efi/boot/bootXXX.efi
+The default location for any EFI loader
+.Po see
+.Xr uefi 8
+for values to replace
+.Ql XXX
+with
+.Pc .
+.It Pa efi/freebsd/loader.efi
+The location reserved specifically for the
+.Fx
+EFI loader.
+.El
+.Pp
+The default location for the ESP mount point is documented in
+.Xr hier 7 .
+.Sh EXAMPLES
+.Ss Updating loader.efi on ESP
+The following examples shows how to install a new
+.Nm
+on ESP.
+.Pp
+First, find the partition of type
+.Dq efi :
+.Bd -literal -offset indent
+# gpart list | grep -Ew '(Name|efi)'
+1. Name: nvd0p1
+   type: efi
+2. Name: nvd0p2
+3. Name: nvd0p3
+4. Name: nvd0p4
+1. Name: nvd0
+.Ed
+.Pp
+The name of ESP on this system is
+.Pa nvd0p1 .
+.Pp
+Second, let's mount ESP, copy
+.Nm
+to the special location reserved for
+.Fx
+EFI loaders, and unmount once finished:
+.Bd -literal -offset indent
+# mount_msdosfs /dev/nvd0p1 /boot/efi
+# cp /boot/loader.efi /boot/efi/efi/freebsd/loader.efi
+# umount /boot/efi
+.Sh SEE ALSO
+.Xr uefi 8
