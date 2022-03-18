@@ -37,11 +37,11 @@ Unified Extensible Firmware Interface provides boot- and run-time services
 to operating systems.
 .Nm
 is a replacement for the legacy BIOS on the i386 and amd64 CPU architectures,
-and is also used on arm, arm64 and ia64.
+and is also used on arm, arm64 and riscv architectures.
 .Pp
 The UEFI specification is the successor to the Extensible Firmware Interface
 (EFI) specification.
-The terms are often used interchangeably.
+The terms UEFI and EFI are often used interchangeably.
 .Pp
 The
 .Nm
@@ -64,7 +64,8 @@ boot process proceeds as follows:
 .Nm
 firmware runs at power up and searches for an OS loader in the EFI system
 partition.
-The path to the loader may be set by an EFI environment variable.
+The path to the loader may be set by an EFI environment variable managed by
+.Xr efibootmgr 8 .
 If not set, an architecture-specific default is used.
 .Bl -column -offset indent "Architecture" "Default Path"
 .It Sy Architecture Ta Sy Default Path
@@ -131,3 +132,5 @@ for armv6 and armv7 in
 .Fx 12.0 ;
 and for riscv in
 .Fx 13.0 .
+.Sh BUGS
+There is no support for 32-bit i386 booting via UEFI.
