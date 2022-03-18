@@ -308,6 +308,7 @@ gusc_attach(device_t dev)
 	sc_p scp;
 	void *ih;
 
+	gone_in_dev(dev, 14, "ISA sound driver");
 	scp = device_get_softc(dev);
 
 	bzero(scp, sizeof(*scp));

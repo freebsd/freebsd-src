@@ -1779,6 +1779,7 @@ mss_attach(device_t dev)
     	struct mss_info *mss;
     	int flags = device_get_flags(dev);
 
+	gone_in_dev(dev, 14, "ISA sound driver");
     	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT | M_ZERO);
     	if (!mss) return ENXIO;
 
