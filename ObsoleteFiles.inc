@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200318: snd_ds1 and snd_maestro drivers removed
+OLD_FILES+=usr/share/man/man4/snd_ds1.4.gz
+OLD_FILES+=usr/share/man/man4/snd_maestro.4.gz
+
 # 20220307: remove 330.news
 OLD_FILES+=etc/periodic/daily/330.news
 
