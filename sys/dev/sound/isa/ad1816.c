@@ -599,6 +599,7 @@ ad1816_attach(device_t dev)
 	struct ad1816_info *ad1816;
     	char status[SND_STATUSLEN], status2[SND_STATUSLEN];
 
+	gone_in_dev(dev, 14, "ISA sound driver");
 	ad1816 = malloc(sizeof(*ad1816), M_DEVBUF, M_WAITOK | M_ZERO);
 	ad1816->lock = snd_mtxcreate(device_get_nameunit(dev),
 	    "snd_ad1816 softc");
