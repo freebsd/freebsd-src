@@ -84,6 +84,7 @@ static int psci_v0_1_init(device_t dev, int default_version);
 static int psci_v0_2_init(device_t dev, int default_version);
 
 struct psci_softc *psci_softc = NULL;
+bool psci_present;
 
 #ifdef __arm__
 #define	USE_ACPI	0
@@ -347,6 +348,7 @@ psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 		return (ENXIO);
 
 	psci_softc = sc;
+	psci_present = true;
 
 	return (0);
 }
