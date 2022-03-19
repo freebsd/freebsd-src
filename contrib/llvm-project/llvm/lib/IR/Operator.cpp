@@ -194,7 +194,7 @@ bool GEPOperator::collectOffset(
         APInt(BitWidth, DL.getTypeAllocSize(GTI.getIndexedType()));
     // Insert an initial offset of 0 for V iff none exists already, then
     // increment the offset by IndexedSize.
-    if (!IndexedSize.isZero()) {
+    if (!IndexedSize.isNullValue()) {
       VariableOffsets.insert({V, APInt(BitWidth, 0)});
       VariableOffsets[V] += IndexedSize;
     }
