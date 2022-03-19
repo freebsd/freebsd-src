@@ -784,7 +784,7 @@ gicv3_its_attach(device_t dev)
 {
 	struct gicv3_its_softc *sc;
 	const char *name;
-	uint32_t iidr;
+	uint32_t ctlr, iidr;
 	int domain, err, i, rid;
 
 	sc = device_get_softc(dev);
@@ -811,6 +811,18 @@ gicv3_its_attach(device_t dev)
 			its_quirks[i].func(dev);
 			break;
 		}
+	}
+
+	/*
+	 * GIT_CTLR_EN is mandated to reset to 0 on a Warm reset, but we may be
+	 * coming in via, for instance, a kexec/kboot style setup where a
+	 * previous kernel has configured then relinquished control.  Clear it
+	 * so that we can reconfigure GITS_BASER*.
+	 */
+	ctlr = gic_its_read_4(sc, GITS_CTLR);
+	if ((ctlr & GITS_CTLR_EN) != 0) {
+		ctlr &= ~GITS_CTLR_EN;
+		gic_its_write_4(sc, GITS_CTLR, ctlr);
 	}
 
 	/* Allocate the private tables */
@@ -845,8 +857,7 @@ gicv3_its_attach(device_t dev)
 			sc->sc_its_cols[cpu] = NULL;
 
 	/* Enable the ITS */
-	gic_its_write_4(sc, GITS_CTLR,
-	    gic_its_read_4(sc, GITS_CTLR) | GITS_CTLR_EN);
+	gic_its_write_4(sc, GITS_CTLR, ctlr | GITS_CTLR_EN);
 
 	/* Create the LPI configuration table */
 	gicv3_its_conftable_init(sc);
