@@ -37,7 +37,7 @@ typedef int (*psci_callfn_t)(register_t, register_t, register_t, register_t,
 	register_t, register_t, register_t, register_t,
 	struct arm_smccc_res *res);
 
-extern int psci_present;
+extern bool psci_present;
 
 int	psci_cpu_on(unsigned long, unsigned long, unsigned long);
 void	psci_reset(void);
