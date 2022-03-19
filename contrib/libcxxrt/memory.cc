@@ -51,7 +51,7 @@ typedef void (*new_handler)();
  * The function to call when allocation fails.  By default, there is no
  * handler and a bad allocation exception is thrown if an allocation fails.
  */
-static atomic<new_handler> new_handl{nullptr};
+static new_handler new_handl;
 
 namespace std
 {
@@ -61,13 +61,12 @@ namespace std
 	__attribute__((weak))
 	new_handler set_new_handler(new_handler handler)
 	{
-		return new_handl.exchange(handler);
+		return ATOMIC_SWAP(&new_handl, handler);
 	}
-
 	__attribute__((weak))
 	new_handler get_new_handler(void)
 	{
-		return new_handl.load();
+		return ATOMIC_LOAD(&new_handl);
 	}
 }
 
