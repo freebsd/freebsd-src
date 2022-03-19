@@ -88,6 +88,14 @@ SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmplim), 0,
 	"Maximum number of ICMP responses per second");
 
+VNET_DEFINE_STATIC(int, icmplim_curr_jitter) = 0;
+#define V_icmplim_curr_jitter		VNET(icmplim_curr_jitter)
+VNET_DEFINE_STATIC(int, icmplim_jitter) = 16;
+#define	V_icmplim_jitter		VNET(icmplim_jitter)
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_jitter, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(icmplim_jitter), 0,
+	"Random icmplim jitter adjustment limit");
+
 VNET_DEFINE_STATIC(int, icmplim_output) = 1;
 #define	V_icmplim_output		VNET(icmplim_output)
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_VNET | CTLFLAG_RW,
@@ -1122,11 +1130,29 @@ badport_bandlim(int which)
 	KASSERT(which >= 0 && which < BANDLIM_MAX,
 	    ("%s: which %d", __func__, which));
 
-	pps = counter_ratecheck(&V_icmp_rates[which].cr, V_icmplim);
+	if ((V_icmplim + V_icmplim_curr_jitter) <= 0)
+		V_icmplim_curr_jitter = -V_icmplim + 1;
+
+	pps = counter_ratecheck(&V_icmp_rates[which].cr, V_icmplim +
+	    V_icmplim_curr_jitter);
+	if (pps > 0) {
+		/*
+		 * Adjust limit +/- to jitter the measurement to deny a
+		 * side-channel port scan as in CVE-2020-25705
+		 */
+		if (V_icmplim_jitter > 0) {
+			int32_t inc =
+			    arc4random_uniform(V_icmplim_jitter * 2 +1)
+			    - V_icmplim_jitter;
+
+			V_icmplim_curr_jitter = inc;
+		}
+	}
 	if (pps == -1)
 		return (-1);
 	if (pps > 0 && V_icmplim_output)
 		log(LOG_NOTICE, "Limiting %s from %jd to %d packets/sec\n",
-			V_icmp_rates[which].descr, (intmax_t )pps, V_icmplim);
+		    V_icmp_rates[which].descr, (intmax_t )pps, V_icmplim +
+		    V_icmplim_curr_jitter);
 	return (0);
 }
