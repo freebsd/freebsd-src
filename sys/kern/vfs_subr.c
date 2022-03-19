@@ -3942,7 +3942,7 @@ vgone(struct vnode *vp)
  * Notify upper mounts about reclaimed or unlinked vnode.
  */
 void
-vfs_notify_upper(struct vnode *vp, int event)
+vfs_notify_upper(struct vnode *vp, enum vfs_notify_upper_type event)
 {
 	struct mount *mp;
 	struct mount_upper_node *ump;
@@ -3965,9 +3965,6 @@ vfs_notify_upper(struct vnode *vp, int event)
 			break;
 		case VFS_NOTIFY_UPPER_UNLINK:
 			VFS_UNLINK_LOWERVP(ump->mp, vp);
-			break;
-		default:
-			KASSERT(0, ("invalid event %d", event));
 			break;
 		}
 		MNT_ILOCK(mp);
