@@ -173,7 +173,7 @@ struct rtsx_softc {
 #define	RTSX_RTL8411		0x5289
 #define	RTSX_RTL8411B		0x5287
 
-#define	RTSX_VERSION		"2.1d"
+#define	RTSX_VERSION		"2.1e"
 
 static const struct rtsx_device {
 	uint16_t	vendor_id;
@@ -3821,6 +3821,8 @@ static int
 rtsx_resume(device_t dev)
 {
 	device_printf(dev, "Resume\n");
+
+	rtsx_init(device_get_softc(dev));
 
 	bus_generic_resume(dev);
 
