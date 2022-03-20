@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2022
+.Dd March 20, 2022
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -138,6 +138,10 @@ or
 .Cm - ,
 the value following will be used as a relative adjustment, modifying the
 current settings by the amount specified.
+.Pp
+Volume can also be set using the shorthand
+.Ar dev Ns Cm =value .
+This syntax does not apply to other controls.
 .Pp
 The
 .Ar dev Ns Cm .mute
