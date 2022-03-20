@@ -22,6 +22,24 @@ SBMemoryRegionInfo::SBMemoryRegionInfo() : m_opaque_up(new MemoryRegionInfo()) {
   LLDB_RECORD_CONSTRUCTOR_NO_ARGS(SBMemoryRegionInfo);
 }
 
+SBMemoryRegionInfo::SBMemoryRegionInfo(const char *name, lldb::addr_t begin,
+                                       lldb::addr_t end, uint32_t permissions,
+                                       bool mapped, bool stack_memory)
+    : SBMemoryRegionInfo() {
+  LLDB_RECORD_CONSTRUCTOR(
+      SBMemoryRegionInfo,
+      (const char *, lldb::addr_t, lldb::addr_t, uint32_t, bool, bool), name,
+      begin, end, permissions, mapped, stack_memory);
+  m_opaque_up->SetName(name);
+  m_opaque_up->GetRange().SetRangeBase(begin);
+  m_opaque_up->GetRange().SetRangeEnd(end);
+  m_opaque_up->SetLLDBPermissions(permissions);
+  m_opaque_up->SetMapped(mapped ? MemoryRegionInfo::eYes
+                                : MemoryRegionInfo::eNo);
+  m_opaque_up->SetIsStackMemory(stack_memory ? MemoryRegionInfo::eYes
+                                             : MemoryRegionInfo::eNo);
+}
+
 SBMemoryRegionInfo::SBMemoryRegionInfo(const MemoryRegionInfo *lldb_object_ptr)
     : m_opaque_up(new MemoryRegionInfo()) {
   if (lldb_object_ptr)
@@ -135,8 +153,8 @@ uint32_t SBMemoryRegionInfo::GetNumDirtyPages() {
 }
 
 addr_t SBMemoryRegionInfo::GetDirtyPageAddressAtIndex(uint32_t idx) {
-  LLDB_RECORD_METHOD(addr_t, SBMemoryRegionInfo, GetDirtyPageAddressAtIndex,
-                     (uint32_t), idx);
+  LLDB_RECORD_METHOD(lldb::addr_t, SBMemoryRegionInfo,
+                     GetDirtyPageAddressAtIndex, (uint32_t), idx);
 
   addr_t dirty_page_addr = LLDB_INVALID_ADDRESS;
   const llvm::Optional<std::vector<addr_t>> &dirty_page_list =
@@ -149,6 +167,7 @@ addr_t SBMemoryRegionInfo::GetDirtyPageAddressAtIndex(uint32_t idx) {
 
 int SBMemoryRegionInfo::GetPageSize() {
   LLDB_RECORD_METHOD_NO_ARGS(int, SBMemoryRegionInfo, GetPageSize);
+
   return m_opaque_up->GetPageSize();
 }
 
@@ -177,6 +196,9 @@ void RegisterMethods<SBMemoryRegionInfo>(Registry &R) {
   LLDB_REGISTER_CONSTRUCTOR(SBMemoryRegionInfo, ());
   LLDB_REGISTER_CONSTRUCTOR(SBMemoryRegionInfo,
                             (const lldb::SBMemoryRegionInfo &));
+  LLDB_REGISTER_CONSTRUCTOR(
+      SBMemoryRegionInfo,
+      (const char *, lldb::addr_t, lldb::addr_t, uint32_t, bool, bool));
   LLDB_REGISTER_METHOD(
       const lldb::SBMemoryRegionInfo &,
       SBMemoryRegionInfo, operator=,(const lldb::SBMemoryRegionInfo &));
@@ -196,6 +218,10 @@ void RegisterMethods<SBMemoryRegionInfo>(Registry &R) {
   LLDB_REGISTER_METHOD(const char *, SBMemoryRegionInfo, GetName, ());
   LLDB_REGISTER_METHOD(bool, SBMemoryRegionInfo, GetDescription,
                        (lldb::SBStream &));
+  LLDB_REGISTER_METHOD(bool, SBMemoryRegionInfo, HasDirtyMemoryPageList, ());
+  LLDB_REGISTER_METHOD(uint32_t, SBMemoryRegionInfo, GetNumDirtyPages, ());
+  LLDB_REGISTER_METHOD(lldb::addr_t, SBMemoryRegionInfo, GetDirtyPageAddressAtIndex, (uint32_t));
+  LLDB_REGISTER_METHOD(int, SBMemoryRegionInfo, GetPageSize, ());
 }
 
 }

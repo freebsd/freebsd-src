@@ -497,8 +497,7 @@ static ControlFlowKind CheckFallThrough(AnalysisDeclContext &AC) {
       HasAbnormalEdge = true;
       continue;
     }
-    if (std::find(B.succ_begin(), B.succ_end(), &cfg->getExit())
-        == B.succ_end()) {
+    if (!llvm::is_contained(B.succs(), &cfg->getExit())) {
       HasAbnormalEdge = true;
       continue;
     }
@@ -1080,11 +1079,9 @@ namespace {
       while (!BlockQueue.empty()) {
         const CFGBlock *P = BlockQueue.front();
         BlockQueue.pop_front();
-        for (CFGBlock::const_succ_iterator I = P->succ_begin(),
-                                           E = P->succ_end();
-             I != E; ++I) {
-          if (*I && ReachableBlocks.insert(*I).second)
-            BlockQueue.push_back(*I);
+        for (const CFGBlock *B : P->succs()) {
+          if (B && ReachableBlocks.insert(B).second)
+            BlockQueue.push_back(B);
         }
       }
     }
@@ -1115,17 +1112,15 @@ namespace {
           continue; // Case label is preceded with a normal label, good.
 
         if (!ReachableBlocks.count(P)) {
-          for (CFGBlock::const_reverse_iterator ElemIt = P->rbegin(),
-                                                ElemEnd = P->rend();
-               ElemIt != ElemEnd; ++ElemIt) {
-            if (Optional<CFGStmt> CS = ElemIt->getAs<CFGStmt>()) {
+          for (const CFGElement &Elem : llvm::reverse(*P)) {
+            if (Optional<CFGStmt> CS = Elem.getAs<CFGStmt>()) {
               if (const AttributedStmt *AS = asFallThroughAttr(CS->getStmt())) {
                 // Don't issue a warning for an unreachable fallthrough
                 // attribute in template instantiations as it may not be
                 // unreachable in all instantiations of the template.
                 if (!IsTemplateInstantiation)
                   S.Diag(AS->getBeginLoc(),
-                         diag::warn_fallthrough_attr_unreachable);
+                         diag::warn_unreachable_fallthrough_attr);
                 markFallthroughVisited(AS);
                 ++AnnotatedCnt;
                 break;
@@ -1202,12 +1197,9 @@ namespace {
     static const Stmt *getLastStmt(const CFGBlock &B) {
       if (const Stmt *Term = B.getTerminatorStmt())
         return Term;
-      for (CFGBlock::const_reverse_iterator ElemIt = B.rbegin(),
-                                            ElemEnd = B.rend();
-                                            ElemIt != ElemEnd; ++ElemIt) {
-        if (Optional<CFGStmt> CS = ElemIt->getAs<CFGStmt>())
+      for (const CFGElement &Elem : llvm::reverse(B))
+        if (Optional<CFGStmt> CS = Elem.getAs<CFGStmt>())
           return CS->getStmt();
-      }
       // Workaround to detect a statement thrown out by CFGBuilder:
       //   case X: {} case Y:
       //   case X: ; case Y:
@@ -1637,7 +1629,7 @@ public:
 
 private:
   static bool hasAlwaysUninitializedUse(const UsesVec* vec) {
-    return std::any_of(vec->begin(), vec->end(), [](const UninitUse &U) {
+    return llvm::any_of(*vec, [](const UninitUse &U) {
       return U.getKind() == UninitUse::Always ||
              U.getKind() == UninitUse::AfterCall ||
              U.getKind() == UninitUse::AfterDecl;
@@ -2275,8 +2267,7 @@ void clang::sema::AnalysisBasedWarnings::IssueWarnings(
       .setAlwaysAdd(Stmt::CStyleCastExprClass)
       .setAlwaysAdd(Stmt::DeclRefExprClass)
       .setAlwaysAdd(Stmt::ImplicitCastExprClass)
-      .setAlwaysAdd(Stmt::UnaryOperatorClass)
-      .setAlwaysAdd(Stmt::AttributedStmtClass);
+      .setAlwaysAdd(Stmt::UnaryOperatorClass);
   }
 
   // Install the logical handler.

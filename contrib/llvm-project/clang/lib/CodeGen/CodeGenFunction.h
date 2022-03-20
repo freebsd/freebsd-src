@@ -291,6 +291,10 @@ public:
   /// nest would extend.
   SmallVector<llvm::CanonicalLoopInfo *, 4> OMPLoopNestStack;
 
+  /// Number of nested loop to be consumed by the last surrounding
+  /// loop-associated directive.
+  int ExpectedOMPLoopDepth = 0;
+
   // CodeGen lambda for loops and support for ordered clause
   typedef llvm::function_ref<void(CodeGenFunction &, const OMPLoopDirective &,
                                   JumpDest)>
@@ -374,6 +378,34 @@ public:
   /// AllocaInsertPoint - This is an instruction in the entry block before which
   /// we prefer to insert allocas.
   llvm::AssertingVH<llvm::Instruction> AllocaInsertPt;
+
+private:
+  /// PostAllocaInsertPt - This is a place in the prologue where code can be
+  /// inserted that will be dominated by all the static allocas. This helps
+  /// achieve two things:
+  ///   1. Contiguity of all static allocas (within the prologue) is maintained.
+  ///   2. All other prologue code (which are dominated by static allocas) do
+  ///      appear in the source order immediately after all static allocas.
+  ///
+  /// PostAllocaInsertPt will be lazily created when it is *really* required.
+  llvm::AssertingVH<llvm::Instruction> PostAllocaInsertPt = nullptr;
+
+public:
+  /// Return PostAllocaInsertPt. If it is not yet created, then insert it
+  /// immediately after AllocaInsertPt.
+  llvm::Instruction *getPostAllocaInsertPoint() {
+    if (!PostAllocaInsertPt) {
+      assert(AllocaInsertPt &&
+             "Expected static alloca insertion point at function prologue");
+      assert(AllocaInsertPt->getParent()->isEntryBlock() &&
+             "EBB should be entry block of the current code gen function");
+      PostAllocaInsertPt = AllocaInsertPt->clone();
+      PostAllocaInsertPt->setName("postallocapt");
+      PostAllocaInsertPt->insertAfter(AllocaInsertPt);
+    }
+
+    return PostAllocaInsertPt;
+  }
 
   /// API for captured statement code generation.
   class CGCapturedStmtInfo {
@@ -467,7 +499,7 @@ public:
     AbstractCallee(const FunctionDecl *FD) : CalleeDecl(FD) {}
     AbstractCallee(const ObjCMethodDecl *OMD) : CalleeDecl(OMD) {}
     bool hasFunctionDecl() const {
-      return dyn_cast_or_null<FunctionDecl>(CalleeDecl);
+      return isa_and_nonnull<FunctionDecl>(CalleeDecl);
     }
     const Decl *getDecl() const { return CalleeDecl; }
     unsigned getNumParams() const {
@@ -1775,6 +1807,24 @@ public:
         CGF.Builder.CreateBr(&FiniBB);
     }
 
+    static void EmitCaptureStmt(CodeGenFunction &CGF, InsertPointTy CodeGenIP,
+                                llvm::BasicBlock &FiniBB, llvm::Function *Fn,
+                                ArrayRef<llvm::Value *> Args) {
+      llvm::BasicBlock *CodeGenIPBB = CodeGenIP.getBlock();
+      if (llvm::Instruction *CodeGenIPBBTI = CodeGenIPBB->getTerminator())
+        CodeGenIPBBTI->eraseFromParent();
+
+      CGF.Builder.SetInsertPoint(CodeGenIPBB);
+
+      if (Fn->doesNotThrow())
+        CGF.EmitNounwindRuntimeCall(Fn, Args);
+      else
+        CGF.EmitRuntimeCall(Fn, Args);
+
+      if (CGF.Builder.saveIP().isSet())
+        CGF.Builder.CreateBr(&FiniBB);
+    }
+
     /// RAII for preserving necessary info during Outlined region body codegen.
     class OutlinedRegionBodyRAII {
 
@@ -2286,6 +2336,10 @@ public:
   /// instrumented with __cyg_profile_func_* calls
   bool ShouldInstrumentFunction();
 
+  /// ShouldSkipSanitizerInstrumentation - Return true if the current function
+  /// should not be instrumented with sanitizers.
+  bool ShouldSkipSanitizerInstrumentation();
+
   /// ShouldXRayInstrument - Return true if the current function should be
   /// instrumented with XRay nop sleds.
   bool ShouldXRayInstrumentFunction() const;
@@ -2518,15 +2572,6 @@ public:
   /// properly ABI-aligned value.
   Address CreateDefaultAlignTempAlloca(llvm::Type *Ty,
                                        const Twine &Name = "tmp");
-
-  /// InitTempAlloca - Provide an initial value for the given alloca which
-  /// will be observable at all locations in the function.
-  ///
-  /// The address should be something that was returned from one of
-  /// the CreateTempAlloca or CreateMemTemp routines, and the
-  /// initializer must be valid in the entry block (i.e. it must
-  /// either be a constant or an argument value).
-  void InitTempAlloca(Address Alloca, llvm::Value *Value);
 
   /// CreateIRTemp - Create a temporary IR object of the given type, with
   /// appropriate alignment. This routine should only be used when an temporary
@@ -3438,6 +3483,7 @@ public:
                                        const RegionCodeGenTy &BodyGen,
                                        OMPTargetDataInfo &InputInfo);
 
+  void EmitOMPMetaDirective(const OMPMetaDirective &S);
   void EmitOMPParallelDirective(const OMPParallelDirective &S);
   void EmitOMPSimdDirective(const OMPSimdDirective &S);
   void EmitOMPTileDirective(const OMPTileDirective &S);
@@ -3511,6 +3557,7 @@ public:
       const OMPTargetTeamsDistributeParallelForSimdDirective &S);
   void EmitOMPTargetTeamsDistributeSimdDirective(
       const OMPTargetTeamsDistributeSimdDirective &S);
+  void EmitOMPGenericLoopDirective(const OMPGenericLoopDirective &S);
 
   /// Emit device code for the target directive.
   static void EmitOMPTargetDeviceFunction(CodeGenModule &CGM,
@@ -4051,10 +4098,9 @@ public:
   RValue EmitCUDAKernelCallExpr(const CUDAKernelCallExpr *E,
                                 ReturnValueSlot ReturnValue);
 
-  RValue EmitNVPTXDevicePrintfCallExpr(const CallExpr *E,
-                                       ReturnValueSlot ReturnValue);
-  RValue EmitAMDGPUDevicePrintfCallExpr(const CallExpr *E,
-                                        ReturnValueSlot ReturnValue);
+  RValue EmitNVPTXDevicePrintfCallExpr(const CallExpr *E);
+  RValue EmitAMDGPUDevicePrintfCallExpr(const CallExpr *E);
+  RValue EmitOpenMPDevicePrintfCallExpr(const CallExpr *E);
 
   RValue EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                          const CallExpr *E, ReturnValueSlot ReturnValue);
@@ -4126,30 +4172,30 @@ public:
   /// SVEBuiltinMemEltTy - Returns the memory element type for this memory
   /// access builtin.  Only required if it can't be inferred from the base
   /// pointer operand.
-  llvm::Type *SVEBuiltinMemEltTy(SVETypeFlags TypeFlags);
+  llvm::Type *SVEBuiltinMemEltTy(const SVETypeFlags &TypeFlags);
 
-  SmallVector<llvm::Type *, 2> getSVEOverloadTypes(SVETypeFlags TypeFlags,
-                                                   llvm::Type *ReturnType,
-                                                   ArrayRef<llvm::Value *> Ops);
-  llvm::Type *getEltType(SVETypeFlags TypeFlags);
+  SmallVector<llvm::Type *, 2>
+  getSVEOverloadTypes(const SVETypeFlags &TypeFlags, llvm::Type *ReturnType,
+                      ArrayRef<llvm::Value *> Ops);
+  llvm::Type *getEltType(const SVETypeFlags &TypeFlags);
   llvm::ScalableVectorType *getSVEType(const SVETypeFlags &TypeFlags);
-  llvm::ScalableVectorType *getSVEPredType(SVETypeFlags TypeFlags);
-  llvm::Value *EmitSVEAllTruePred(SVETypeFlags TypeFlags);
+  llvm::ScalableVectorType *getSVEPredType(const SVETypeFlags &TypeFlags);
+  llvm::Value *EmitSVEAllTruePred(const SVETypeFlags &TypeFlags);
   llvm::Value *EmitSVEDupX(llvm::Value *Scalar);
   llvm::Value *EmitSVEDupX(llvm::Value *Scalar, llvm::Type *Ty);
   llvm::Value *EmitSVEReinterpret(llvm::Value *Val, llvm::Type *Ty);
-  llvm::Value *EmitSVEPMull(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEPMull(const SVETypeFlags &TypeFlags,
                             llvm::SmallVectorImpl<llvm::Value *> &Ops,
                             unsigned BuiltinID);
-  llvm::Value *EmitSVEMovl(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEMovl(const SVETypeFlags &TypeFlags,
                            llvm::ArrayRef<llvm::Value *> Ops,
                            unsigned BuiltinID);
   llvm::Value *EmitSVEPredicateCast(llvm::Value *Pred,
                                     llvm::ScalableVectorType *VTy);
-  llvm::Value *EmitSVEGatherLoad(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEGatherLoad(const SVETypeFlags &TypeFlags,
                                  llvm::SmallVectorImpl<llvm::Value *> &Ops,
                                  unsigned IntID);
-  llvm::Value *EmitSVEScatterStore(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEScatterStore(const SVETypeFlags &TypeFlags,
                                    llvm::SmallVectorImpl<llvm::Value *> &Ops,
                                    unsigned IntID);
   llvm::Value *EmitSVEMaskedLoad(const CallExpr *, llvm::Type *ReturnTy,
@@ -4158,15 +4204,16 @@ public:
   llvm::Value *EmitSVEMaskedStore(const CallExpr *,
                                   SmallVectorImpl<llvm::Value *> &Ops,
                                   unsigned BuiltinID);
-  llvm::Value *EmitSVEPrefetchLoad(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEPrefetchLoad(const SVETypeFlags &TypeFlags,
                                    SmallVectorImpl<llvm::Value *> &Ops,
                                    unsigned BuiltinID);
-  llvm::Value *EmitSVEGatherPrefetch(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEGatherPrefetch(const SVETypeFlags &TypeFlags,
                                      SmallVectorImpl<llvm::Value *> &Ops,
                                      unsigned IntID);
-  llvm::Value *EmitSVEStructLoad(SVETypeFlags TypeFlags,
-                                 SmallVectorImpl<llvm::Value *> &Ops, unsigned IntID);
-  llvm::Value *EmitSVEStructStore(SVETypeFlags TypeFlags,
+  llvm::Value *EmitSVEStructLoad(const SVETypeFlags &TypeFlags,
+                                 SmallVectorImpl<llvm::Value *> &Ops,
+                                 unsigned IntID);
+  llvm::Value *EmitSVEStructStore(const SVETypeFlags &TypeFlags,
                                   SmallVectorImpl<llvm::Value *> &Ops,
                                   unsigned IntID);
   llvm::Value *EmitAArch64SVEBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
@@ -4588,9 +4635,6 @@ public:
   /// point operation, expressed as the maximum relative error in ulp.
   void SetFPAccuracy(llvm::Value *Val, float Accuracy);
 
-  /// SetFPModel - Control floating point behavior via fp-model settings.
-  void SetFPModel();
-
   /// Set the codegen fast-math flags.
   void SetFastMathFlags(FPOptions FPFeatures);
 
@@ -4725,8 +4769,6 @@ public:
   // last (if it exists).
   void EmitMultiVersionResolver(llvm::Function *Resolver,
                                 ArrayRef<MultiVersionResolverOption> Options);
-
-  static uint64_t GetX86CpuSupportsMask(ArrayRef<StringRef> FeatureStrs);
 
 private:
   QualType getVarArgType(const Expr *Arg);

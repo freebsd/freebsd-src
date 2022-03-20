@@ -137,6 +137,7 @@ extern cl::opt<std::string> ProfileFile;
 extern cl::opt<CSPGOKind> CSPGOKindFlag;
 extern cl::opt<std::string> CSProfileGenFile;
 extern cl::opt<bool> DisableBasicAA;
+extern cl::opt<bool> PrintPipelinePasses;
 } // namespace llvm
 
 static cl::opt<std::string>
@@ -173,58 +174,58 @@ bool tryParsePipelineText(PassBuilder &PB,
 static void registerEPCallbacks(PassBuilder &PB) {
   if (tryParsePipelineText<FunctionPassManager>(PB, PeepholeEPPipeline))
     PB.registerPeepholeEPCallback(
-        [&PB](FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](FunctionPassManager &PM, OptimizationLevel Level) {
           ExitOnError Err("Unable to parse PeepholeEP pipeline: ");
           Err(PB.parsePassPipeline(PM, PeepholeEPPipeline));
         });
   if (tryParsePipelineText<LoopPassManager>(PB,
                                             LateLoopOptimizationsEPPipeline))
     PB.registerLateLoopOptimizationsEPCallback(
-        [&PB](LoopPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](LoopPassManager &PM, OptimizationLevel Level) {
           ExitOnError Err("Unable to parse LateLoopOptimizationsEP pipeline: ");
           Err(PB.parsePassPipeline(PM, LateLoopOptimizationsEPPipeline));
         });
   if (tryParsePipelineText<LoopPassManager>(PB, LoopOptimizerEndEPPipeline))
     PB.registerLoopOptimizerEndEPCallback(
-        [&PB](LoopPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](LoopPassManager &PM, OptimizationLevel Level) {
           ExitOnError Err("Unable to parse LoopOptimizerEndEP pipeline: ");
           Err(PB.parsePassPipeline(PM, LoopOptimizerEndEPPipeline));
         });
   if (tryParsePipelineText<FunctionPassManager>(PB,
                                                 ScalarOptimizerLateEPPipeline))
     PB.registerScalarOptimizerLateEPCallback(
-        [&PB](FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](FunctionPassManager &PM, OptimizationLevel Level) {
           ExitOnError Err("Unable to parse ScalarOptimizerLateEP pipeline: ");
           Err(PB.parsePassPipeline(PM, ScalarOptimizerLateEPPipeline));
         });
   if (tryParsePipelineText<CGSCCPassManager>(PB, CGSCCOptimizerLateEPPipeline))
     PB.registerCGSCCOptimizerLateEPCallback(
-        [&PB](CGSCCPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](CGSCCPassManager &PM, OptimizationLevel Level) {
           ExitOnError Err("Unable to parse CGSCCOptimizerLateEP pipeline: ");
           Err(PB.parsePassPipeline(PM, CGSCCOptimizerLateEPPipeline));
         });
   if (tryParsePipelineText<FunctionPassManager>(PB, VectorizerStartEPPipeline))
     PB.registerVectorizerStartEPCallback(
-        [&PB](FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](FunctionPassManager &PM, OptimizationLevel Level) {
           ExitOnError Err("Unable to parse VectorizerStartEP pipeline: ");
           Err(PB.parsePassPipeline(PM, VectorizerStartEPPipeline));
         });
   if (tryParsePipelineText<ModulePassManager>(PB, PipelineStartEPPipeline))
     PB.registerPipelineStartEPCallback(
-        [&PB](ModulePassManager &PM, PassBuilder::OptimizationLevel) {
+        [&PB](ModulePassManager &PM, OptimizationLevel) {
           ExitOnError Err("Unable to parse PipelineStartEP pipeline: ");
           Err(PB.parsePassPipeline(PM, PipelineStartEPPipeline));
         });
   if (tryParsePipelineText<ModulePassManager>(
           PB, PipelineEarlySimplificationEPPipeline))
     PB.registerPipelineEarlySimplificationEPCallback(
-        [&PB](ModulePassManager &PM, PassBuilder::OptimizationLevel) {
+        [&PB](ModulePassManager &PM, OptimizationLevel) {
           ExitOnError Err("Unable to parse EarlySimplification pipeline: ");
           Err(PB.parsePassPipeline(PM, PipelineEarlySimplificationEPPipeline));
         });
   if (tryParsePipelineText<FunctionPassManager>(PB, OptimizerLastEPPipeline))
     PB.registerOptimizerLastEPCallback(
-        [&PB](ModulePassManager &PM, PassBuilder::OptimizationLevel) {
+        [&PB](ModulePassManager &PM, OptimizationLevel) {
           ExitOnError Err("Unable to parse OptimizerLastEP pipeline: ");
           Err(PB.parsePassPipeline(PM, OptimizerLastEPPipeline));
         });
@@ -259,12 +260,9 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
                    PGOOptions::SampleUse);
     break;
   case NoPGO:
-    if (DebugInfoForProfiling)
+    if (DebugInfoForProfiling || PseudoProbeForProfiling)
       P = PGOOptions("", "", "", PGOOptions::NoAction, PGOOptions::NoCSAction,
-                     true);
-    else if (PseudoProbeForProfiling)
-      P = PGOOptions("", "", "", PGOOptions::NoAction, PGOOptions::NoCSAction,
-                     false, true);
+                     DebugInfoForProfiling, PseudoProbeForProfiling);
     else
       P = None;
   }
@@ -287,6 +285,9 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
       P->CSAction = PGOOptions::CSIRUse;
     }
   }
+  if (TM)
+    TM->setPGOOption(P);
+
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
   CGSCCAnalysisManager CGAM;
@@ -339,18 +340,17 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
   PB.registerPipelineParsingCallback(
       [](StringRef Name, ModulePassManager &MPM,
          ArrayRef<PassBuilder::PipelineElement>) {
+        AddressSanitizerOptions Opts;
         if (Name == "asan-pipeline") {
           MPM.addPass(
               RequireAnalysisPass<ASanGlobalsMetadataAnalysis, Module>());
-          MPM.addPass(
-              createModuleToFunctionPassAdaptor(AddressSanitizerPass()));
-          MPM.addPass(ModuleAddressSanitizerPass());
+          MPM.addPass(ModuleAddressSanitizerPass(Opts));
           return true;
         } else if (Name == "asan-function-pipeline") {
           MPM.addPass(
               RequireAnalysisPass<ASanGlobalsMetadataAnalysis, Module>());
           MPM.addPass(
-              createModuleToFunctionPassAdaptor(AddressSanitizerPass()));
+              createModuleToFunctionPassAdaptor(AddressSanitizerPass(Opts)));
           return true;
         }
         return false;
@@ -411,6 +411,7 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
   if (EnableDebugify)
     MPM.addPass(NewPMDebugifyPass());
 
+  // Add passes according to the -passes options.
   if (!PassPipeline.empty()) {
     assert(Passes.empty() &&
            "PassPipeline and Passes should not both contain passes");
@@ -419,10 +420,26 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
       return false;
     }
   }
+  // Add passes specified using the legacy PM syntax (i.e. not using
+  // -passes). This should be removed later when such support has been
+  // deprecated, i.e. when all lit tests running opt (and not using
+  // -enable-new-pm=0) have been updated to use -passes.
   for (auto PassName : Passes) {
     std::string ModifiedPassName(PassName.begin(), PassName.end());
     if (PB.isAnalysisPassName(PassName))
       ModifiedPassName = "require<" + ModifiedPassName + ">";
+    // FIXME: These translations are supposed to be removed when lit tests that
+    // use these names have been updated to use the -passes syntax (and when the
+    // support for using the old syntax to specify passes is considered as
+    // deprecated for the new PM).
+    if (ModifiedPassName == "early-cse-memssa")
+      ModifiedPassName = "early-cse<memssa>";
+    else if (ModifiedPassName == "post-inline-ee-instrument")
+      ModifiedPassName = "ee-instrument<post-inline>";
+    else if (ModifiedPassName == "loop-extract-single")
+      ModifiedPassName = "loop-extract<single>";
+    else if (ModifiedPassName == "lower-matrix-intrinsics-minimal")
+      ModifiedPassName = "lower-matrix-intrinsics<minimal>";
     if (auto Err = PB.parsePassPipeline(MPM, ModifiedPassName)) {
       errs() << Arg0 << ": " << toString(std::move(Err)) << "\n";
       return false;
@@ -454,6 +471,17 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
 
   // Before executing passes, print the final values of the LLVM options.
   cl::PrintOptionValues();
+
+  // Print a textual, '-passes=' compatible, representation of pipeline if
+  // requested.
+  if (PrintPipelinePasses) {
+    MPM.printPipeline(outs(), [&PIC](StringRef ClassName) {
+      auto PassName = PIC.getPassNameForClassName(ClassName);
+      return PassName.empty() ? ClassName : PassName;
+    });
+    outs() << "\n";
+    return true;
+  }
 
   // Now that we have all of the passes ready, run them.
   MPM.run(M, MAM);

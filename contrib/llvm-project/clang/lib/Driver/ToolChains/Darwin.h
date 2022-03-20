@@ -78,6 +78,20 @@ public:
                     const char *LinkingOutput) const override;
 };
 
+class LLVM_LIBRARY_VISIBILITY StaticLibTool : public MachOTool {
+public:
+  StaticLibTool(const ToolChain &TC)
+      : MachOTool("darwin::StaticLibTool", "static-lib-linker", TC) {}
+
+  bool hasIntegratedCPP() const override { return false; }
+  bool isLinkJob() const override { return true; }
+
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override;
+};
+
 class LLVM_LIBRARY_VISIBILITY Lipo : public MachOTool {
 public:
   Lipo(const ToolChain &TC) : MachOTool("darwin::Lipo", "lipo", TC) {}
@@ -125,6 +139,7 @@ class LLVM_LIBRARY_VISIBILITY MachO : public ToolChain {
 protected:
   Tool *buildAssembler() const override;
   Tool *buildLinker() const override;
+  Tool *buildStaticLibTool() const override;
   Tool *getTool(Action::ActionClass AC) const override;
 
 private:
@@ -239,7 +254,7 @@ public:
   }
 
   bool isPICDefault() const override;
-  bool isPIEDefault() const override;
+  bool isPIEDefault(const llvm::opt::ArgList &Args) const override;
   bool isPICDefaultForced() const override;
 
   bool SupportsProfiling() const override;

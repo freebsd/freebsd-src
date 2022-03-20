@@ -11,6 +11,7 @@
 #define _LIBCPP___FUNCTIONAL_FUNCTION_H
 
 #include <__config>
+#include <__debug>
 #include <__functional/binary_function.h>
 #include <__functional/invoke.h>
 #include <__functional/unary_function.h>
@@ -34,10 +35,17 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 class _LIBCPP_EXCEPTION_ABI bad_function_call
     : public exception
 {
-#ifdef _LIBCPP_ABI_BAD_FUNCTION_CALL_KEY_FUNCTION
 public:
+// Note that when a key function is not used, every translation unit that uses
+// bad_function_call will end up containing a weak definition of the vtable and
+// typeinfo.
+#ifdef _LIBCPP_ABI_BAD_FUNCTION_CALL_KEY_FUNCTION
     virtual ~bad_function_call() _NOEXCEPT;
+#else
+    virtual ~bad_function_call() _NOEXCEPT {}
+#endif
 
+#ifdef _LIBCPP_ABI_BAD_FUNCTION_CALL_GOOD_WHAT_MESSAGE
     virtual const char* what() const _NOEXCEPT;
 #endif
 };
@@ -126,8 +134,8 @@ class __alloc_func<_Fp, _Ap, _Rp(_ArgTypes...)>
     __compressed_pair<_Fp, _Ap> __f_;
 
   public:
-    typedef _LIBCPP_NODEBUG_TYPE _Fp _Target;
-    typedef _LIBCPP_NODEBUG_TYPE _Ap _Alloc;
+    typedef _LIBCPP_NODEBUG _Fp _Target;
+    typedef _LIBCPP_NODEBUG _Ap _Alloc;
 
     _LIBCPP_INLINE_VISIBILITY
     const _Target& __target() const { return __f_.first(); }
@@ -204,7 +212,7 @@ class __default_alloc_func<_Fp, _Rp(_ArgTypes...)> {
   _Fp __f_;
 
 public:
-  typedef _LIBCPP_NODEBUG_TYPE _Fp _Target;
+  typedef _LIBCPP_NODEBUG _Fp _Target;
 
   _LIBCPP_INLINE_VISIBILITY
   const _Target& __target() const { return __f_; }
@@ -1044,7 +1052,7 @@ public:
 #endif // _LIBCPP_NO_RTTI
 };
 
-#ifndef _LIBCPP_HAS_NO_DEDUCTION_GUIDES
+#if _LIBCPP_STD_VER >= 17
 template<class _Rp, class ..._Ap>
 function(_Rp(*)(_Ap...)) -> function<_Rp(_Ap...)>;
 
@@ -1089,7 +1097,7 @@ struct __strip_signature<_Rp (_Gp::*) (_Ap...) const volatile & noexcept> { usin
 
 template<class _Fp, class _Stripped = typename __strip_signature<decltype(&_Fp::operator())>::type>
 function(_Fp) -> function<_Stripped>;
-#endif // !_LIBCPP_HAS_NO_DEDUCTION_GUIDES
+#endif // _LIBCPP_STD_VER >= 17
 
 template<class _Rp, class ..._ArgTypes>
 function<_Rp(_ArgTypes...)>::function(const function& __f) : __f_(__f.__f_) {}

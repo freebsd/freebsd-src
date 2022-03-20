@@ -259,8 +259,18 @@ bool TargetTransformInfo::isNoopAddrSpaceCast(unsigned FromAS,
   return TTIImpl->isNoopAddrSpaceCast(FromAS, ToAS);
 }
 
+bool TargetTransformInfo::canHaveNonUndefGlobalInitializerInAddressSpace(
+    unsigned AS) const {
+  return TTIImpl->canHaveNonUndefGlobalInitializerInAddressSpace(AS);
+}
+
 unsigned TargetTransformInfo::getAssumedAddrSpace(const Value *V) const {
   return TTIImpl->getAssumedAddrSpace(V);
+}
+
+std::pair<const Value *, unsigned>
+TargetTransformInfo::getPredicatedAddrSpace(const Value *V) const {
+  return TTIImpl->getPredicatedAddrSpace(V);
 }
 
 Value *TargetTransformInfo::rewriteIntrinsicWithAddressSpace(
@@ -313,8 +323,9 @@ Optional<Value *> TargetTransformInfo::simplifyDemandedVectorEltsIntrinsic(
 }
 
 void TargetTransformInfo::getUnrollingPreferences(
-    Loop *L, ScalarEvolution &SE, UnrollingPreferences &UP) const {
-  return TTIImpl->getUnrollingPreferences(L, SE, UP);
+    Loop *L, ScalarEvolution &SE, UnrollingPreferences &UP,
+    OptimizationRemarkEmitter *ORE) const {
+  return TTIImpl->getUnrollingPreferences(L, SE, UP, ORE);
 }
 
 void TargetTransformInfo::getPeelingPreferences(Loop *L, ScalarEvolution &SE,
@@ -403,6 +414,10 @@ bool TargetTransformInfo::isLegalMaskedCompressStore(Type *DataType) const {
 
 bool TargetTransformInfo::isLegalMaskedExpandLoad(Type *DataType) const {
   return TTIImpl->isLegalMaskedExpandLoad(DataType);
+}
+
+bool TargetTransformInfo::enableOrderedReductions() const {
+  return TTIImpl->enableOrderedReductions();
 }
 
 bool TargetTransformInfo::hasDivRemOp(Type *DataType, bool IsSigned) const {
@@ -592,6 +607,10 @@ unsigned TargetTransformInfo::getMinVectorRegisterBitWidth() const {
 
 Optional<unsigned> TargetTransformInfo::getMaxVScale() const {
   return TTIImpl->getMaxVScale();
+}
+
+Optional<unsigned> TargetTransformInfo::getVScaleForTuning() const {
+  return TTIImpl->getVScaleForTuning();
 }
 
 bool TargetTransformInfo::shouldMaximizeVectorBandwidth() const {
@@ -810,6 +829,15 @@ InstructionCost TargetTransformInfo::getVectorInstrCost(unsigned Opcode,
                                                         Type *Val,
                                                         unsigned Index) const {
   InstructionCost Cost = TTIImpl->getVectorInstrCost(Opcode, Val, Index);
+  assert(Cost >= 0 && "TTI should not produce negative costs!");
+  return Cost;
+}
+
+InstructionCost TargetTransformInfo::getReplicationShuffleCost(
+    Type *EltTy, int ReplicationFactor, int VF, const APInt &DemandedDstElts,
+    TTI::TargetCostKind CostKind) {
+  InstructionCost Cost = TTIImpl->getReplicationShuffleCost(
+      EltTy, ReplicationFactor, VF, DemandedDstElts, CostKind);
   assert(Cost >= 0 && "TTI should not produce negative costs!");
   return Cost;
 }

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_ASMPARSER_LLPARSER_H
-#define LLVM_LIB_ASMPARSER_LLPARSER_H
+#ifndef LLVM_ASMPARSER_LLPARSER_H
+#define LLVM_ASMPARSER_LLPARSER_H
 
 #include "LLLexer.h"
 #include "llvm/ADT/Optional.h"
@@ -172,9 +172,8 @@ namespace llvm {
     /// getGlobalVal - Get a value with the specified name or ID, creating a
     /// forward reference record if needed.  This can return null if the value
     /// exists but does not have the right type.
-    GlobalValue *getGlobalVal(const std::string &N, Type *Ty, LocTy Loc,
-                              bool IsCall);
-    GlobalValue *getGlobalVal(unsigned ID, Type *Ty, LocTy Loc, bool IsCall);
+    GlobalValue *getGlobalVal(const std::string &N, Type *Ty, LocTy Loc);
+    GlobalValue *getGlobalVal(unsigned ID, Type *Ty, LocTy Loc);
 
     /// Get a Comdat with the specified name, creating a forward reference
     /// record if needed.
@@ -270,7 +269,6 @@ namespace llvm {
     bool parseOptionalCommaAlign(MaybeAlign &Alignment, bool &AteExtraComma);
     bool parseOptionalCommaAddrSpace(unsigned &AddrSpace, LocTy &Loc,
                                      bool &AteExtraComma);
-    bool parseOptionalCommaInAlloca(bool &IsInAlloca);
     bool parseAllocSizeArguments(unsigned &BaseSizeArg,
                                  Optional<unsigned> &HowManyArg);
     bool parseVScaleRangeArguments(unsigned &MinValue, unsigned &MaxValue);
@@ -306,11 +304,10 @@ namespace llvm {
                      unsigned DLLStorageClass, bool DSOLocal,
                      GlobalVariable::ThreadLocalMode TLM,
                      GlobalVariable::UnnamedAddr UnnamedAddr);
-    bool parseIndirectSymbol(const std::string &Name, LocTy NameLoc,
-                             unsigned L, unsigned Visibility,
-                             unsigned DLLStorageClass, bool DSOLocal,
-                             GlobalVariable::ThreadLocalMode TLM,
-                             GlobalVariable::UnnamedAddr UnnamedAddr);
+    bool parseAliasOrIFunc(const std::string &Name, LocTy NameLoc, unsigned L,
+                           unsigned Visibility, unsigned DLLStorageClass,
+                           bool DSOLocal, GlobalVariable::ThreadLocalMode TLM,
+                           GlobalVariable::UnnamedAddr UnnamedAddr);
     bool parseComdat();
     bool parseStandaloneMetadata();
     bool parseNamedMetadata();
@@ -424,8 +421,8 @@ namespace llvm {
       /// GetVal - Get a value with the specified name or ID, creating a
       /// forward reference record if needed.  This can return null if the value
       /// exists but does not have the right type.
-      Value *getVal(const std::string &Name, Type *Ty, LocTy Loc, bool IsCall);
-      Value *getVal(unsigned ID, Type *Ty, LocTy Loc, bool IsCall);
+      Value *getVal(const std::string &Name, Type *Ty, LocTy Loc);
+      Value *getVal(unsigned ID, Type *Ty, LocTy Loc);
 
       /// setInstName - After an instruction is parsed and inserted into its
       /// basic block, this installs its name.
@@ -447,10 +444,10 @@ namespace llvm {
     };
 
     bool convertValIDToValue(Type *Ty, ValID &ID, Value *&V,
-                             PerFunctionState *PFS, bool IsCall);
+                             PerFunctionState *PFS);
 
     Value *checkValidVariableType(LocTy Loc, const Twine &Name, Type *Ty,
-                                  Value *Val, bool IsCall);
+                                  Value *Val);
 
     bool parseConstantValue(Type *Ty, Constant *&C);
     bool parseValue(Type *Ty, Value *&V, PerFunctionState *PFS);

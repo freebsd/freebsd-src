@@ -151,17 +151,39 @@ const int FUTEX_WAKE_PRIVATE = FUTEX_WAKE | FUTEX_PRIVATE_FLAG;
 
 namespace __sanitizer {
 
-#if SANITIZER_LINUX && defined(__x86_64__)
-#include "sanitizer_syscall_linux_x86_64.inc"
-#elif SANITIZER_LINUX && SANITIZER_RISCV64
-#include "sanitizer_syscall_linux_riscv64.inc"
-#elif SANITIZER_LINUX && defined(__aarch64__)
-#include "sanitizer_syscall_linux_aarch64.inc"
-#elif SANITIZER_LINUX && defined(__arm__)
-#include "sanitizer_syscall_linux_arm.inc"
-#else
-#include "sanitizer_syscall_generic.inc"
-#endif
+void SetSigProcMask(__sanitizer_sigset_t *set, __sanitizer_sigset_t *old) {
+  CHECK_EQ(0, internal_sigprocmask(SIG_SETMASK, set, old));
+}
+
+ScopedBlockSignals::ScopedBlockSignals(__sanitizer_sigset_t *copy) {
+  __sanitizer_sigset_t set;
+  internal_sigfillset(&set);
+#  if SANITIZER_LINUX && !SANITIZER_ANDROID
+  // Glibc uses SIGSETXID signal during setuid call. If this signal is blocked
+  // on any thread, setuid call hangs.
+  // See test/sanitizer_common/TestCases/Linux/setuid.c.
+  internal_sigdelset(&set, 33);
+#  endif
+  SetSigProcMask(&set, &saved_);
+  if (copy)
+    internal_memcpy(copy, &saved_, sizeof(saved_));
+}
+
+ScopedBlockSignals::~ScopedBlockSignals() { SetSigProcMask(&saved_, nullptr); }
+
+#  if SANITIZER_LINUX && defined(__x86_64__)
+#    include "sanitizer_syscall_linux_x86_64.inc"
+#  elif SANITIZER_LINUX && SANITIZER_RISCV64
+#    include "sanitizer_syscall_linux_riscv64.inc"
+#  elif SANITIZER_LINUX && defined(__aarch64__)
+#    include "sanitizer_syscall_linux_aarch64.inc"
+#  elif SANITIZER_LINUX && defined(__arm__)
+#    include "sanitizer_syscall_linux_arm.inc"
+#  elif SANITIZER_LINUX && defined(__hexagon__)
+#    include "sanitizer_syscall_linux_hexagon.inc"
+#  else
+#    include "sanitizer_syscall_generic.inc"
+#  endif
 
 // --------------- sanitizer_libc.h
 #if !SANITIZER_SOLARIS && !SANITIZER_NETBSD
@@ -660,48 +682,6 @@ void FutexWake(atomic_uint32_t *p, u32 count) {
 #    endif
 }
 
-enum { MtxUnlocked = 0, MtxLocked = 1, MtxSleeping = 2 };
-
-BlockingMutex::BlockingMutex() {
-  internal_memset(this, 0, sizeof(*this));
-}
-
-void BlockingMutex::Lock() {
-  CHECK_EQ(owner_, 0);
-  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
-  if (atomic_exchange(m, MtxLocked, memory_order_acquire) == MtxUnlocked)
-    return;
-  while (atomic_exchange(m, MtxSleeping, memory_order_acquire) != MtxUnlocked) {
-#if SANITIZER_FREEBSD
-    _umtx_op(m, UMTX_OP_WAIT_UINT, MtxSleeping, 0, 0);
-#elif SANITIZER_NETBSD
-    sched_yield(); /* No userspace futex-like synchronization */
-#else
-    internal_syscall(SYSCALL(futex), (uptr)m, FUTEX_WAIT_PRIVATE, MtxSleeping,
-                     0, 0, 0);
-#endif
-  }
-}
-
-void BlockingMutex::Unlock() {
-  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
-  u32 v = atomic_exchange(m, MtxUnlocked, memory_order_release);
-  CHECK_NE(v, MtxUnlocked);
-  if (v == MtxSleeping) {
-#if SANITIZER_FREEBSD
-    _umtx_op(m, UMTX_OP_WAKE, 1, 0, 0);
-#elif SANITIZER_NETBSD
-                   /* No userspace futex-like synchronization */
-#else
-    internal_syscall(SYSCALL(futex), (uptr)m, FUTEX_WAKE_PRIVATE, 1, 0, 0, 0);
-#endif
-  }
-}
-
-void BlockingMutex::CheckLocked() const {
-  auto m = reinterpret_cast<atomic_uint32_t const *>(&opaque_storage_);
-  CHECK_NE(MtxUnlocked, atomic_load(m, memory_order_relaxed));
-}
 #  endif  // !SANITIZER_SOLARIS
 
 // ----------------- sanitizer_linux.h
@@ -1401,7 +1381,7 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
 #elif defined(__aarch64__)
 uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                     int *parent_tidptr, void *newtls, int *child_tidptr) {
-  long long res;
+  register long long res __asm__("x0");
   if (!fn || !child_stack)
     return -EINVAL;
   CHECK_EQ(0, (uptr)child_stack % 16);
@@ -1782,17 +1762,9 @@ HandleSignalMode GetHandleSignalMode(int signum) {
 #if !SANITIZER_GO
 void *internal_start_thread(void *(*func)(void *arg), void *arg) {
   // Start the thread with signals blocked, otherwise it can steal user signals.
-  __sanitizer_sigset_t set, old;
-  internal_sigfillset(&set);
-#if SANITIZER_LINUX && !SANITIZER_ANDROID
-  // Glibc uses SIGSETXID signal during setuid call. If this signal is blocked
-  // on any thread, setuid call hangs (see test/tsan/setuid.c).
-  internal_sigdelset(&set, 33);
-#endif
-  internal_sigprocmask(SIG_SETMASK, &set, &old);
+  ScopedBlockSignals block(nullptr);
   void *th;
   real_pthread_create(&th, nullptr, func, arg);
-  internal_sigprocmask(SIG_SETMASK, &old, nullptr);
   return th;
 }
 
@@ -1814,7 +1786,7 @@ struct __sanitizer_esr_context {
 
 static bool Aarch64GetESR(ucontext_t *ucontext, u64 *esr) {
   static const u32 kEsrMagic = 0x45535201;
-  u8 *aux = ucontext->uc_mcontext.__reserved;
+  u8 *aux = reinterpret_cast<u8 *>(ucontext->uc_mcontext.__reserved);
   while (true) {
     _aarch64_ctx *ctx = (_aarch64_ctx *)aux;
     if (ctx->size == 0) break;
@@ -2152,9 +2124,14 @@ static void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
   *bp = ucontext->uc_mcontext.__gregs[REG_S0];
   *sp = ucontext->uc_mcontext.__gregs[REG_SP];
 #    endif
-#else
-# error "Unsupported arch"
-#endif
+#  elif defined(__hexagon__)
+  ucontext_t *ucontext = (ucontext_t *)context;
+  *pc = ucontext->uc_mcontext.pc;
+  *bp = ucontext->uc_mcontext.r30;
+  *sp = ucontext->uc_mcontext.r29;
+#  else
+#    error "Unsupported arch"
+#  endif
 }
 
 void SignalContext::InitPcSpBp() { GetPcSpBp(context, &pc, &sp, &bp); }

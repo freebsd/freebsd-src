@@ -187,6 +187,22 @@ def FeatureAddisLoadFusion : SubtargetFeature<"fuse-addis-load",
 def FeatureStoreFusion : SubtargetFeature<"fuse-store", "HasStoreFusion", "true",
                                           "Target supports store clustering",
                                           [FeatureFusion]>;
+def FeatureArithAddFusion :
+  SubtargetFeature<"fuse-arith-add", "HasArithAddFusion", "true",
+                   "Target supports Arithmetic Operations with Add fusion",
+                   [FeatureFusion]>;
+def FeatureAddLogicalFusion :
+  SubtargetFeature<"fuse-add-logical", "HasAddLogicalFusion", "true",
+                   "Target supports Add with Logical Operations fusion",
+                   [FeatureFusion]>;
+def FeatureLogicalAddFusion :
+  SubtargetFeature<"fuse-logical-add", "HasLogicalAddFusion", "true",
+                   "Target supports Logical with Add Operations fusion",
+                   [FeatureFusion]>;
+def FeatureLogicalFusion :
+  SubtargetFeature<"fuse-logical", "HasLogicalFusion", "true",
+                   "Target supports Logical Operations fusion",
+                   [FeatureFusion]>;
 def FeatureUnalignedFloats :
   SubtargetFeature<"allow-unaligned-fp-access", "AllowsUnalignedFPAccess",
                    "true", "CPU does not trap on unaligned FP access">;
@@ -213,6 +229,9 @@ def FeatureSlowPOPCNTD : SubtargetFeature<"slow-popcntd","HasPOPCNTD",
 def DeprecatedDST    : SubtargetFeature<"", "DeprecatedDST", "true",
   "Treat vector data stream cache control instructions as deprecated">;
 
+def FeatureISA2_06 : SubtargetFeature<"isa-v206-instructions", "IsISA2_06",
+                                      "true",
+                                      "Enable instructions in ISA 2.06.">;
 def FeatureISA2_07 : SubtargetFeature<"isa-v207-instructions", "IsISA2_07",
                                       "true",
                                       "Enable instructions in ISA 2.07.">;
@@ -319,7 +338,8 @@ def ProcessorFeatures {
                                                   FeatureMFTB,
                                                   DeprecatedDST,
                                                   FeatureTwoConstNR,
-                                                  FeatureUnalignedFloats];
+                                                  FeatureUnalignedFloats,
+                                                  FeatureISA2_06];
   list<SubtargetFeature> P7SpecificFeatures = [];
   list<SubtargetFeature> P7Features =
     !listconcat(P7InheritableFeatures, P7SpecificFeatures);
@@ -371,7 +391,10 @@ def ProcessorFeatures {
   // Power10
   // For P10 CPU we assume that all of the existing features from Power9
   // still exist with the exception of those we know are Power9 specific.
-  list<SubtargetFeature> FusionFeatures = [FeatureStoreFusion];
+  list<SubtargetFeature> FusionFeatures = [
+    FeatureStoreFusion, FeatureAddLogicalFusion, FeatureLogicalAddFusion,
+    FeatureLogicalFusion, FeatureArithAddFusion
+  ];
   list<SubtargetFeature> P10AdditionalFeatures =
     !listconcat(FusionFeatures, [
        DirectivePwr10, FeatureISA3_1, FeaturePrefixInstrs,
@@ -586,8 +609,7 @@ def : ProcessorModel<"pwr6x", G5Model,
 def : ProcessorModel<"pwr7", P7Model, ProcessorFeatures.P7Features>;
 def : ProcessorModel<"pwr8", P8Model, ProcessorFeatures.P8Features>;
 def : ProcessorModel<"pwr9", P9Model, ProcessorFeatures.P9Features>;
-// No scheduler model yet.
-def : ProcessorModel<"pwr10", P9Model, ProcessorFeatures.P10Features>;
+def : ProcessorModel<"pwr10", P10Model, ProcessorFeatures.P10Features>;
 // No scheduler model for future CPU.
 def : ProcessorModel<"future", NoSchedModel,
                   ProcessorFeatures.FutureFeatures>;

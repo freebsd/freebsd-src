@@ -873,12 +873,10 @@ static bool runImpl(Function &F, const TargetTransformInfo &TTI,
   auto &DL = F.getParent()->getDataLayout();
   while (MadeChange) {
     MadeChange = false;
-    for (Function::iterator I = F.begin(); I != F.end();) {
-      BasicBlock *BB = &*I++;
+    for (BasicBlock &BB : llvm::make_early_inc_range(F)) {
       bool ModifiedDTOnIteration = false;
-      MadeChange |= optimizeBlock(*BB, ModifiedDTOnIteration, TTI, DL,
+      MadeChange |= optimizeBlock(BB, ModifiedDTOnIteration, TTI, DL,
                                   DTU.hasValue() ? DTU.getPointer() : nullptr);
-
 
       // Restart BB iteration if the dominator tree of the Function was changed
       if (ModifiedDTOnIteration)
@@ -933,7 +931,7 @@ static bool optimizeCallInst(CallInst *CI, bool &ModifiedDT,
   if (II) {
     // The scalarization code below does not work for scalable vectors.
     if (isa<ScalableVectorType>(II->getType()) ||
-        any_of(II->arg_operands(),
+        any_of(II->args(),
                [](Value *V) { return isa<ScalableVectorType>(V->getType()); }))
       return false;
 

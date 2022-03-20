@@ -206,8 +206,7 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
     ExtraOpts.push_back("max-page-size=4096");
   }
 
-  if (GCCInstallation.getParentLibPath().find("opt/rh/devtoolset") !=
-      StringRef::npos)
+  if (GCCInstallation.getParentLibPath().contains("opt/rh/"))
     // With devtoolset on RHEL, we want to add a bin directory that is relative
     // to the detected gcc install, because if we are using devtoolset gcc then
     // we want to use other tools from devtoolset (e.g. ld) instead of the
@@ -262,6 +261,13 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
   const std::string OSLibDir = std::string(getOSLibDir(Triple, Args));
   const std::string MultiarchTriple = getMultiarchTriple(D, Triple, SysRoot);
 
+  // mips32: Debian multilib, we use /libo32, while in other case, /lib is
+  // used. We need add both libo32 and /lib.
+  if (Arch == llvm::Triple::mips || Arch == llvm::Triple::mipsel) {
+    Generic_GCC::AddMultilibPaths(D, SysRoot, "libo32", MultiarchTriple, Paths);
+    addPathIfExists(D, SysRoot + "/libo32", Paths);
+    addPathIfExists(D, SysRoot + "/usr/libo32", Paths);
+  }
   Generic_GCC::AddMultilibPaths(D, SysRoot, OSLibDir, MultiarchTriple, Paths);
 
   addPathIfExists(D, SysRoot + "/lib/" + MultiarchTriple, Paths);
@@ -303,8 +309,13 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
   // searched.
   // FIXME: It's not clear whether we should use the driver's installed
   // directory ('Dir' below) or the ResourceDir.
-  if (StringRef(D.Dir).startswith(SysRoot))
+  if (StringRef(D.Dir).startswith(SysRoot)) {
+    // Even if OSLibDir != "lib", this is needed for Clang in the build
+    // directory (not installed) to find libc++.
     addPathIfExists(D, D.Dir + "/../lib", Paths);
+    if (OSLibDir != "lib")
+      addPathIfExists(D, D.Dir + "/../" + OSLibDir, Paths);
+  }
 
   addPathIfExists(D, SysRoot + "/lib", Paths);
   addPathIfExists(D, SysRoot + "/usr/lib", Paths);
@@ -449,7 +460,7 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
   case llvm::Triple::mipsel:
   case llvm::Triple::mips64:
   case llvm::Triple::mips64el: {
-    bool IsNaN2008 = tools::mips::isNaN2008(Args, Triple);
+    bool IsNaN2008 = tools::mips::isNaN2008(getDriver(), Args, Triple);
 
     LibDir = "lib" + tools::mips::getMipsABILibSuffix(Args, Triple);
 
@@ -651,9 +662,9 @@ void Linux::AddIAMCUIncludeArgs(const ArgList &DriverArgs,
   }
 }
 
-bool Linux::isPIEDefault() const {
-  return (getTriple().isAndroid() && !getTriple().isAndroidVersionLT(16)) ||
-          getTriple().isMusl() || getSanitizerArgs().requiresPIE();
+bool Linux::isPIEDefault(const llvm::opt::ArgList &Args) const {
+  return getTriple().isAndroid() || getTriple().isMusl() ||
+         getSanitizerArgs(Args).requiresPIE();
 }
 
 bool Linux::IsAArch64OutlineAtomicsDefault(const ArgList &Args) const {
@@ -667,10 +678,6 @@ bool Linux::IsAArch64OutlineAtomicsDefault(const ArgList &Args) const {
   if (GCCInstallation.getVersion().isOlderThan(9, 3, 1))
     return false;
   return true;
-}
-
-bool Linux::isNoExecStackDefault() const {
-    return getTriple().isAndroid();
 }
 
 bool Linux::IsMathErrnoDefault() const {
@@ -694,6 +701,7 @@ SanitizerMask Linux::getSupportedSanitizers() const {
                          getTriple().getArch() == llvm::Triple::thumbeb;
   const bool IsRISCV64 = getTriple().getArch() == llvm::Triple::riscv64;
   const bool IsSystemZ = getTriple().getArch() == llvm::Triple::systemz;
+  const bool IsHexagon = getTriple().getArch() == llvm::Triple::hexagon;
   SanitizerMask Res = ToolChain::getSupportedSanitizers();
   Res |= SanitizerKind::Address;
   Res |= SanitizerKind::PointerCompare;
@@ -707,7 +715,7 @@ SanitizerMask Linux::getSupportedSanitizers() const {
   if (IsX86_64 || IsMIPS64 || IsAArch64)
     Res |= SanitizerKind::DataFlow;
   if (IsX86_64 || IsMIPS64 || IsAArch64 || IsX86 || IsArmArch || IsPowerPC64 ||
-      IsRISCV64 || IsSystemZ)
+      IsRISCV64 || IsSystemZ || IsHexagon)
     Res |= SanitizerKind::Leak;
   if (IsX86_64 || IsMIPS64 || IsAArch64 || IsPowerPC64 || IsSystemZ)
     Res |= SanitizerKind::Thread;
@@ -716,7 +724,7 @@ SanitizerMask Linux::getSupportedSanitizers() const {
   if (IsX86 || IsX86_64)
     Res |= SanitizerKind::Function;
   if (IsX86_64 || IsMIPS64 || IsAArch64 || IsX86 || IsMIPS || IsArmArch ||
-      IsPowerPC64)
+      IsPowerPC64 || IsHexagon)
     Res |= SanitizerKind::Scudo;
   if (IsX86_64 || IsAArch64) {
     Res |= SanitizerKind::HWAddress;

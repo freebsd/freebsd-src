@@ -23,6 +23,7 @@
 #include "WindowsResourceDumper.h"
 #include "llvm/DebugInfo/CodeView/GlobalTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/MergingTypeTableBuilder.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/COFFImportFile.h"
 #include "llvm/Object/ELFObjectFile.h"
@@ -44,7 +45,6 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/WithColor.h"
 
 using namespace llvm;
@@ -65,7 +65,7 @@ enum ID {
 #include "Opts.inc"
 #undef PREFIX
 
-static const opt::OptTable::Info InfoTable[] = {
+const opt::OptTable::Info InfoTable[] = {
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
   {                                                                            \
@@ -149,6 +149,9 @@ static bool COFFLoadConfig;
 static bool COFFResources;
 static bool COFFTLSDirectory;
 
+// XCOFF specific options.
+static bool XCOFFAuxiliaryHeader;
+
 OutputStyleTy Output = OutputStyleTy::LLVM;
 static std::vector<std::string> InputFilenames;
 } // namespace opts
@@ -157,7 +160,7 @@ static StringRef ToolName;
 
 namespace llvm {
 
-LLVM_ATTRIBUTE_NORETURN static void error(Twine Msg) {
+[[noreturn]] static void error(Twine Msg) {
   // Flush the standard output to print the error at a
   // proper place.
   fouts().flush();
@@ -165,7 +168,7 @@ LLVM_ATTRIBUTE_NORETURN static void error(Twine Msg) {
   exit(1);
 }
 
-LLVM_ATTRIBUTE_NORETURN void reportError(Error Err, StringRef Input) {
+[[noreturn]] void reportError(Error Err, StringRef Input) {
   assert(Err);
   if (Input == "-")
     Input = "<stdin>";
@@ -268,6 +271,9 @@ static void parseOptions(const opt::InputArgList &Args) {
   opts::COFFResources = Args.hasArg(OPT_coff_resources);
   opts::COFFTLSDirectory = Args.hasArg(OPT_coff_tls_directory);
 
+  // XCOFF specific options.
+  opts::XCOFFAuxiliaryHeader = Args.hasArg(OPT_auxiliary_header);
+
   opts::InputFilenames = Args.getAllArgValues(OPT_INPUT);
 }
 
@@ -342,6 +348,9 @@ static void dumpObject(ObjectFile &Obj, ScopedPrinter &Writer,
 
   if (opts::FileHeaders)
     Dumper->printFileHeaders();
+
+  if (Obj.isXCOFF() && opts::XCOFFAuxiliaryHeader)
+    Dumper->printAuxiliaryHeader();
 
   // This is only used for ELF currently. In some cases, when an object is
   // corrupt (e.g. truncated), we can't dump anything except the file header.
@@ -577,6 +586,7 @@ int main(int argc, char *argv[]) {
 
   if (opts::All) {
     opts::FileHeaders = true;
+    opts::XCOFFAuxiliaryHeader = true;
     opts::ProgramHeaders = true;
     opts::SectionHeaders = true;
     opts::Symbols = true;
@@ -595,6 +605,7 @@ int main(int argc, char *argv[]) {
 
   if (opts::Headers) {
     opts::FileHeaders = true;
+    opts::XCOFFAuxiliaryHeader = true;
     opts::ProgramHeaders = true;
     opts::SectionHeaders = true;
   }

@@ -402,7 +402,7 @@ bool ABIMacOSX_arm64::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
 // volatile (and specifically only the lower 8 bytes of these regs), the rest
 // of the fp/SIMD registers are volatile.
 //
-// v. https://github.com/ARM-software/abi-aa/blob/master/aapcs64/
+// v. https://github.com/ARM-software/abi-aa/blob/main/aapcs64/
 
 // We treat x29 as callee preserved also, else the unwinder won't try to
 // retrieve fp saves.
@@ -828,12 +828,3 @@ void ABIMacOSX_arm64::Initialize() {
 void ABIMacOSX_arm64::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
-
-// PluginInterface protocol
-
-ConstString ABIMacOSX_arm64::GetPluginNameStatic() {
-  static ConstString g_plugin_name("ABIMacOSX_arm64");
-  return g_plugin_name;
-}
-
-uint32_t ABIMacOSX_arm64::GetPluginVersion() { return 1; }

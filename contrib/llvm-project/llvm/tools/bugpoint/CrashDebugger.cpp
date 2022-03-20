@@ -269,7 +269,7 @@ bool ReduceCrashingFunctions::TestFuncs(std::vector<Function *> &Funcs) {
     std::vector<GlobalValue *> ToRemove;
     // First, remove aliases to functions we're about to purge.
     for (GlobalAlias &Alias : M->aliases()) {
-      GlobalObject *Root = Alias.getBaseObject();
+      GlobalObject *Root = Alias.getAliaseeObject();
       Function *F = dyn_cast_or_null<Function>(Root);
       if (F) {
         if (Functions.count(F))
@@ -358,8 +358,7 @@ bool ReduceCrashingFunctionAttributes::TestFuncAttrs(
   for (auto A : Attrs)
     AB.addAttribute(A);
   AttributeList NewAttrs;
-  NewAttrs =
-      NewAttrs.addAttributes(BD.getContext(), AttributeList::FunctionIndex, AB);
+  NewAttrs = NewAttrs.addFnAttributes(BD.getContext(), AB);
 
   // Set this new list of attributes on the function.
   F->setAttributes(NewAttrs);
@@ -375,7 +374,7 @@ bool ReduceCrashingFunctionAttributes::TestFuncAttrs(
 
     // Pass along the set of attributes that caused the crash.
     Attrs.clear();
-    for (Attribute A : NewAttrs.getFnAttributes()) {
+    for (Attribute A : NewAttrs.getFnAttrs()) {
       Attrs.push_back(A);
     }
     return true;
@@ -787,14 +786,13 @@ bool ReduceCrashingInstructions::TestInsts(
 
   for (Module::iterator MI = M->begin(), ME = M->end(); MI != ME; ++MI)
     for (Function::iterator FI = MI->begin(), FE = MI->end(); FI != FE; ++FI)
-      for (BasicBlock::iterator I = FI->begin(), E = FI->end(); I != E;) {
-        Instruction *Inst = &*I++;
-        if (!Instructions.count(Inst) && !Inst->isTerminator() &&
-            !Inst->isEHPad() && !Inst->getType()->isTokenTy() &&
-            !Inst->isSwiftError()) {
-          if (!Inst->getType()->isVoidTy())
-            Inst->replaceAllUsesWith(UndefValue::get(Inst->getType()));
-          Inst->eraseFromParent();
+      for (Instruction &Inst : llvm::make_early_inc_range(*FI)) {
+        if (!Instructions.count(&Inst) && !Inst.isTerminator() &&
+            !Inst.isEHPad() && !Inst.getType()->isTokenTy() &&
+            !Inst.isSwiftError()) {
+          if (!Inst.getType()->isVoidTy())
+            Inst.replaceAllUsesWith(UndefValue::get(Inst.getType()));
+          Inst.eraseFromParent();
         }
       }
 
@@ -1232,7 +1230,7 @@ static Error DebugACrash(BugDriver &BD, BugTester TestFn) {
         assert(Fn && "Could not find function?");
 
         std::vector<Attribute> Attrs;
-        for (Attribute A : Fn->getAttributes().getFnAttributes())
+        for (Attribute A : Fn->getAttributes().getFnAttrs())
           Attrs.push_back(A);
 
         OldSize += Attrs.size();

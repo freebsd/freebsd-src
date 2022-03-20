@@ -63,7 +63,7 @@ void wasm::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   ArgStringList CmdArgs;
 
   CmdArgs.push_back("-m");
-  if (getToolChain().getTriple().isArch64Bit())
+  if (ToolChain.getTriple().isArch64Bit())
     CmdArgs.push_back("wasm64");
   else
     CmdArgs.push_back("wasm32");
@@ -130,7 +130,7 @@ void wasm::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // When optimizing, if wasm-opt is available, run it.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    auto WasmOptPath = getToolChain().GetProgramPath("wasm-opt");
+    auto WasmOptPath = ToolChain.GetProgramPath("wasm-opt");
     if (WasmOptPath != "wasm-opt") {
       StringRef OOpt = "s";
       if (A->getOption().matches(options::OPT_O4) ||
@@ -201,7 +201,9 @@ bool WebAssembly::UseObjCMixedDispatch() const { return true; }
 
 bool WebAssembly::isPICDefault() const { return false; }
 
-bool WebAssembly::isPIEDefault() const { return false; }
+bool WebAssembly::isPIEDefault(const llvm::opt::ArgList &Args) const {
+  return false;
+}
 
 bool WebAssembly::isPICDefaultForced() const { return false; }
 
@@ -293,6 +295,9 @@ void WebAssembly::addClangTargetOptions(const ArgList &DriverArgs,
     // '-fwasm-exceptions' implies exception-handling feature
     CC1Args.push_back("-target-feature");
     CC1Args.push_back("+exception-handling");
+    // Backend needs -wasm-enable-eh to enable Wasm EH
+    CC1Args.push_back("-mllvm");
+    CC1Args.push_back("-wasm-enable-eh");
   }
 
   for (const Arg *A : DriverArgs.filtered(options::OPT_mllvm)) {
@@ -300,14 +305,14 @@ void WebAssembly::addClangTargetOptions(const ArgList &DriverArgs,
     if (Opt.startswith("-emscripten-cxx-exceptions-allowed")) {
       // '-mllvm -emscripten-cxx-exceptions-allowed' should be used with
       // '-mllvm -enable-emscripten-cxx-exceptions'
-      bool EmExceptionArgExists = false;
+      bool EmEHArgExists = false;
       for (const Arg *A : DriverArgs.filtered(options::OPT_mllvm)) {
         if (StringRef(A->getValue(0)) == "-enable-emscripten-cxx-exceptions") {
-          EmExceptionArgExists = true;
+          EmEHArgExists = true;
           break;
         }
       }
-      if (!EmExceptionArgExists)
+      if (!EmEHArgExists)
         getDriver().Diag(diag::err_drv_argument_only_allowed_with)
             << "-mllvm -emscripten-cxx-exceptions-allowed"
             << "-mllvm -enable-emscripten-cxx-exceptions";
@@ -322,6 +327,38 @@ void WebAssembly::addClangTargetOptions(const ArgList &DriverArgs,
         CC1Args.push_back(DriverArgs.MakeArgString("--force-attribute=" + Name +
                                                    ":noinline"));
       }
+    }
+
+    if (Opt.startswith("-wasm-enable-sjlj")) {
+      // '-mllvm -wasm-enable-sjlj' is not compatible with
+      // '-mno-exception-handling'
+      if (DriverArgs.hasFlag(options::OPT_mno_exception_handing,
+                             options::OPT_mexception_handing, false))
+        getDriver().Diag(diag::err_drv_argument_not_allowed_with)
+            << "-mllvm -wasm-enable-sjlj"
+            << "-mno-exception-handling";
+      // '-mllvm -wasm-enable-sjlj' is not compatible with
+      // '-mllvm -enable-emscripten-cxx-exceptions'
+      // because we don't allow Emscripten EH + Wasm SjLj
+      for (const Arg *A : DriverArgs.filtered(options::OPT_mllvm)) {
+        if (StringRef(A->getValue(0)) == "-enable-emscripten-cxx-exceptions")
+          getDriver().Diag(diag::err_drv_argument_not_allowed_with)
+              << "-mllvm -wasm-enable-sjlj"
+              << "-mllvm -enable-emscripten-cxx-exceptions";
+      }
+      // '-mllvm -wasm-enable-sjlj' is not compatible with
+      // '-mllvm -enable-emscripten-sjlj'
+      for (const Arg *A : DriverArgs.filtered(options::OPT_mllvm)) {
+        if (StringRef(A->getValue(0)) == "-enable-emscripten-sjlj")
+          getDriver().Diag(diag::err_drv_argument_not_allowed_with)
+              << "-mllvm -wasm-enable-sjlj"
+              << "-mllvm -enable-emscripten-sjlj";
+      }
+      // '-mllvm -wasm-enable-sjlj' implies exception-handling feature
+      CC1Args.push_back("-target-feature");
+      CC1Args.push_back("+exception-handling");
+      // Backend needs '-exception-model=wasm' to use Wasm EH instructions
+      CC1Args.push_back("-exception-model=wasm");
     }
   }
 }

@@ -26,9 +26,9 @@ namespace llvm {
 
 class MachineFrameInfo;
 class MachineFunction;
-class TargetRegisterClass;
 class SIMachineFunctionInfo;
 class SIRegisterInfo;
+class TargetRegisterClass;
 
 class AMDGPUPseudoSourceValue : public PseudoSourceValue {
 public:
@@ -432,6 +432,8 @@ private:
 
   // Current recorded maximum possible occupancy.
   unsigned Occupancy;
+
+  mutable Optional<bool> UsesAGPRs;
 
   MCPhysReg getNextUserSGPR() const;
 
@@ -946,6 +948,9 @@ public:
       Occupancy = Limit;
     limitOccupancy(MF);
   }
+
+  // \returns true if a function needs or may need AGPRs.
+  bool usesAGPRs(const MachineFunction &MF) const;
 };
 
 } // end namespace llvm

@@ -417,7 +417,7 @@ public:
   void addDef(SlotIndex Idx, ArrayRef<MachineOperand> LocMOs, bool IsIndirect,
               bool IsList, const DIExpression &Expr) {
     SmallVector<unsigned> Locs;
-    for (MachineOperand Op : LocMOs)
+    for (const MachineOperand &Op : LocMOs)
       Locs.push_back(getLocationNo(Op));
     DbgVariableValue DbgValue(Locs, IsIndirect, IsList, Expr);
     // Add a singular (Idx,Idx) -> value mapping.
@@ -1294,13 +1294,9 @@ bool LDVImpl::runOnMachineFunction(MachineFunction &mf, bool InstrRef) {
 
 static void removeDebugInstrs(MachineFunction &mf) {
   for (MachineBasicBlock &MBB : mf) {
-    for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ) {
-      if (!MBBI->isDebugInstr()) {
-        ++MBBI;
-        continue;
-      }
-      MBBI = MBB.erase(MBBI);
-    }
+    for (MachineInstr &MI : llvm::make_early_inc_range(MBB))
+      if (MI.isDebugInstr())
+        MBB.erase(&MI);
   }
 }
 
@@ -1314,12 +1310,7 @@ bool LiveDebugVariables::runOnMachineFunction(MachineFunction &mf) {
 
   // Have we been asked to track variable locations using instruction
   // referencing?
-  bool InstrRef = false;
-  auto *TPC = getAnalysisIfAvailable<TargetPassConfig>();
-  if (TPC) {
-    auto &TM = TPC->getTM<TargetMachine>();
-    InstrRef = TM.Options.ValueTrackingVariableLocations;
-  }
+  bool InstrRef = mf.useDebugInstrRef();
 
   if (!pImpl)
     pImpl = new LDVImpl(this);

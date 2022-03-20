@@ -11,17 +11,117 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ExecutionEngine/JITLink/ELF_riscv.h"
+#include "ELFLinkGraphBuilder.h"
+#include "JITLinkGeneric.h"
+#include "PerGraphGOTAndPLTStubsBuilder.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/ExecutionEngine/JITLink/riscv.h"
 #include "llvm/Object/ELF.h"
 #include "llvm/Object/ELFObjectFile.h"
 
-#include "ELFLinkGraphBuilder.h"
-#include "JITLinkGeneric.h"
-
 #define DEBUG_TYPE "jitlink"
 using namespace llvm;
+using namespace llvm::jitlink;
+using namespace llvm::jitlink::riscv;
 
+namespace {
+
+class PerGraphGOTAndPLTStubsBuilder_ELF_riscv
+    : public PerGraphGOTAndPLTStubsBuilder<
+          PerGraphGOTAndPLTStubsBuilder_ELF_riscv> {
+public:
+  static constexpr size_t StubEntrySize = 16;
+  static const uint8_t NullGOTEntryContent[8];
+  static const uint8_t RV64StubContent[StubEntrySize];
+  static const uint8_t RV32StubContent[StubEntrySize];
+
+  using PerGraphGOTAndPLTStubsBuilder<
+      PerGraphGOTAndPLTStubsBuilder_ELF_riscv>::PerGraphGOTAndPLTStubsBuilder;
+
+  bool isRV64() const { return G.getPointerSize() == 8; }
+
+  bool isGOTEdgeToFix(Edge &E) const { return E.getKind() == R_RISCV_GOT_HI20; }
+
+  Symbol &createGOTEntry(Symbol &Target) {
+    Block &GOTBlock = G.createContentBlock(
+        getGOTSection(), getGOTEntryBlockContent(), 0, G.getPointerSize(), 0);
+    GOTBlock.addEdge(isRV64() ? R_RISCV_64 : R_RISCV_32, 0, Target, 0);
+    return G.addAnonymousSymbol(GOTBlock, 0, G.getPointerSize(), false, false);
+  }
+
+  Symbol &createPLTStub(Symbol &Target) {
+    Block &StubContentBlock =
+        G.createContentBlock(getStubsSection(), getStubBlockContent(), 0, 4, 0);
+    auto &GOTEntrySymbol = getGOTEntry(Target);
+    StubContentBlock.addEdge(R_RISCV_CALL, 0, GOTEntrySymbol, 0);
+    return G.addAnonymousSymbol(StubContentBlock, 0, StubEntrySize, true,
+                                false);
+  }
+
+  void fixGOTEdge(Edge &E, Symbol &GOTEntry) {
+    // Replace the relocation pair (R_RISCV_GOT_HI20, R_RISCV_PCREL_LO12)
+    // with (R_RISCV_PCREL_HI20, R_RISCV_PCREL_LO12)
+    // Therefore, here just change the R_RISCV_GOT_HI20 to R_RISCV_PCREL_HI20
+    E.setKind(R_RISCV_PCREL_HI20);
+    E.setTarget(GOTEntry);
+  }
+
+  void fixPLTEdge(Edge &E, Symbol &PLTStubs) {
+    assert(E.getKind() == R_RISCV_CALL_PLT && "Not a R_RISCV_CALL_PLT edge?");
+    E.setKind(R_RISCV_CALL);
+    E.setTarget(PLTStubs);
+  }
+
+  bool isExternalBranchEdge(Edge &E) const {
+    return E.getKind() == R_RISCV_CALL_PLT;
+  }
+
+private:
+  Section &getGOTSection() const {
+    if (!GOTSection)
+      GOTSection = &G.createSection("$__GOT", MemProt::Read);
+    return *GOTSection;
+  }
+
+  Section &getStubsSection() const {
+    if (!StubsSection)
+      StubsSection =
+          &G.createSection("$__STUBS", MemProt::Read | MemProt::Exec);
+    return *StubsSection;
+  }
+
+  ArrayRef<char> getGOTEntryBlockContent() {
+    return {reinterpret_cast<const char *>(NullGOTEntryContent),
+            G.getPointerSize()};
+  }
+
+  ArrayRef<char> getStubBlockContent() {
+    auto StubContent = isRV64() ? RV64StubContent : RV32StubContent;
+    return {reinterpret_cast<const char *>(StubContent), StubEntrySize};
+  }
+
+  mutable Section *GOTSection = nullptr;
+  mutable Section *StubsSection = nullptr;
+};
+
+const uint8_t PerGraphGOTAndPLTStubsBuilder_ELF_riscv::NullGOTEntryContent[8] =
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+const uint8_t
+    PerGraphGOTAndPLTStubsBuilder_ELF_riscv::RV64StubContent[StubEntrySize] = {
+        0x17, 0x0e, 0x00, 0x00,  // auipc t3, literal
+        0x03, 0x3e, 0x0e, 0x00,  // ld    t3, literal(t3)
+        0x67, 0x00, 0x0e, 0x00,  // jr    t3
+        0x13, 0x00, 0x00, 0x00}; // nop
+
+const uint8_t
+    PerGraphGOTAndPLTStubsBuilder_ELF_riscv::RV32StubContent[StubEntrySize] = {
+        0x17, 0x0e, 0x00, 0x00,  // auipc t3, literal
+        0x03, 0x2e, 0x0e, 0x00,  // lw    t3, literal(t3)
+        0x67, 0x00, 0x0e, 0x00,  // jr    t3
+        0x13, 0x00, 0x00, 0x00}; // nop
+} // namespace
 namespace llvm {
 namespace jitlink {
 
@@ -78,6 +178,16 @@ private:
     char *FixupPtr = BlockWorkingMem + E.getOffset();
     JITTargetAddress FixupAddress = B.getAddress() + E.getOffset();
     switch (E.getKind()) {
+    case R_RISCV_32: {
+      int64_t Value = E.getTarget().getAddress() + E.getAddend();
+      *(little32_t *)FixupPtr = static_cast<uint32_t>(Value);
+      break;
+    }
+    case R_RISCV_64: {
+      int64_t Value = E.getTarget().getAddress() + E.getAddend();
+      *(little64_t *)FixupPtr = static_cast<uint64_t>(Value);
+      break;
+    }
     case R_RISCV_HI20: {
       int64_t Value = E.getTarget().getAddress() + E.getAddend();
       int32_t Hi = (Value + 0x800) & 0xFFFFF000;
@@ -163,6 +273,10 @@ private:
       return EdgeKind_riscv::R_RISCV_PCREL_LO12_I;
     case ELF::R_RISCV_PCREL_LO12_S:
       return EdgeKind_riscv::R_RISCV_PCREL_LO12_S;
+    case ELF::R_RISCV_GOT_HI20:
+      return EdgeKind_riscv::R_RISCV_GOT_HI20;
+    case ELF::R_RISCV_CALL_PLT:
+      return EdgeKind_riscv::R_RISCV_CALL_PLT;
     }
 
     return make_error<JITLinkError>("Unsupported riscv relocation:" +
@@ -170,93 +284,54 @@ private:
   }
 
   Error addRelocations() override {
+    LLVM_DEBUG(dbgs() << "Processing relocations:\n");
+
     using Base = ELFLinkGraphBuilder<ELFT>;
-    LLVM_DEBUG(dbgs() << "Adding relocations\n");
+    using Self = ELFLinkGraphBuilder_riscv<ELFT>;
+    for (const auto &RelSect : Base::Sections)
+      if (Error Err = Base::forEachRelocation(RelSect, this,
+                                              &Self::addSingleRelocation))
+        return Err;
 
-    // TODO a partern is forming of iterate some sections but only give me
-    // ones I am interested, I should abstract that concept some where
-    for (auto &SecRef : Base::Sections) {
-      if (SecRef.sh_type != ELF::SHT_RELA && SecRef.sh_type != ELF::SHT_REL)
-        continue;
-      auto RelSectName = Base::Obj.getSectionName(SecRef);
-      if (!RelSectName)
-        return RelSectName.takeError();
+    return Error::success();
+  }
 
-      LLVM_DEBUG({
-        dbgs() << "Adding relocations from section " << *RelSectName << "\n";
-      });
+  Error addSingleRelocation(const typename ELFT::Rela &Rel,
+                            const typename ELFT::Shdr &FixupSect,
+                            Section &GraphSection) {
+    using Base = ELFLinkGraphBuilder<ELFT>;
 
-      auto UpdateSection = Base::Obj.getSection(SecRef.sh_info);
-      if (!UpdateSection)
-        return UpdateSection.takeError();
+    uint32_t SymbolIndex = Rel.getSymbol(false);
+    auto ObjSymbol = Base::Obj.getRelocationSymbol(Rel, Base::SymTabSec);
+    if (!ObjSymbol)
+      return ObjSymbol.takeError();
 
-      auto UpdateSectionName = Base::Obj.getSectionName(**UpdateSection);
-      if (!UpdateSectionName)
-        return UpdateSectionName.takeError();
-      // Don't process relocations for debug sections.
-      if (Base::isDwarfSection(*UpdateSectionName)) {
-        LLVM_DEBUG({
-          dbgs() << "  Target is dwarf section " << *UpdateSectionName
-                 << ". Skipping.\n";
-        });
-        continue;
-      } else
-        LLVM_DEBUG({
-          dbgs() << "  For target section " << *UpdateSectionName << "\n";
-        });
+    Symbol *GraphSymbol = Base::getGraphSymbol(SymbolIndex);
+    if (!GraphSymbol)
+      return make_error<StringError>(
+          formatv("Could not find symbol at given index, did you add it to "
+                  "JITSymbolTable? index: {0}, shndx: {1} Size of table: {2}",
+                  SymbolIndex, (*ObjSymbol)->st_shndx,
+                  Base::GraphSymbols.size()),
+          inconvertibleErrorCode());
 
-      auto *JITSection = Base::G->findSectionByName(*UpdateSectionName);
-      if (!JITSection)
-        return make_error<llvm::StringError>(
-            "Refencing a section that wasn't added to graph" +
-                *UpdateSectionName,
-            llvm::inconvertibleErrorCode());
+    uint32_t Type = Rel.getType(false);
+    Expected<riscv::EdgeKind_riscv> Kind = getRelocationKind(Type);
+    if (!Kind)
+      return Kind.takeError();
 
-      auto Relocations = Base::Obj.relas(SecRef);
-      if (!Relocations)
-        return Relocations.takeError();
+    int64_t Addend = Rel.r_addend;
+    Block *BlockToFix = *(GraphSection.blocks().begin());
+    JITTargetAddress FixupAddress = FixupSect.sh_addr + Rel.r_offset;
+    Edge::OffsetT Offset = FixupAddress - BlockToFix->getAddress();
+    Edge GE(*Kind, Offset, *GraphSymbol, Addend);
+    LLVM_DEBUG({
+      dbgs() << "    ";
+      printEdge(dbgs(), *BlockToFix, GE, riscv::getEdgeKindName(*Kind));
+      dbgs() << "\n";
+    });
 
-      for (const auto &Rela : *Relocations) {
-        auto Type = Rela.getType(false);
-
-        LLVM_DEBUG({
-          dbgs() << "Relocation Type: " << Type << "\n"
-                 << "Name: " << Base::Obj.getRelocationTypeName(Type) << "\n";
-        });
-
-        auto SymbolIndex = Rela.getSymbol(false);
-        auto Symbol = Base::Obj.getRelocationSymbol(Rela, Base::SymTabSec);
-        if (!Symbol)
-          return Symbol.takeError();
-
-        auto BlockToFix = *(JITSection->blocks().begin());
-        auto *TargetSymbol = Base::getGraphSymbol(SymbolIndex);
-
-        if (!TargetSymbol) {
-          return make_error<llvm::StringError>(
-              "Could not find symbol at given index, did you add it to "
-              "JITSymbolTable? index: " +
-                  std::to_string(SymbolIndex) + ", shndx: " +
-                  std::to_string((*Symbol)->st_shndx) + " Size of table: " +
-                  std::to_string(Base::GraphSymbols.size()),
-              llvm::inconvertibleErrorCode());
-        }
-        int64_t Addend = Rela.r_addend;
-        JITTargetAddress FixupAddress =
-            (*UpdateSection)->sh_addr + Rela.r_offset;
-
-        LLVM_DEBUG({
-          dbgs() << "Processing relocation at "
-                 << format("0x%016" PRIx64, FixupAddress) << "\n";
-        });
-        auto Kind = getRelocationKind(Type);
-        if (!Kind)
-          return Kind.takeError();
-
-        BlockToFix->addEdge(*Kind, FixupAddress - BlockToFix->getAddress(),
-                            *TargetSymbol, Addend);
-      }
-    }
+    BlockToFix->addEdge(std::move(GE));
     return Error::success();
   }
 
@@ -304,6 +379,8 @@ void link_ELF_riscv(std::unique_ptr<LinkGraph> G,
       Config.PrePrunePasses.push_back(std::move(MarkLive));
     else
       Config.PrePrunePasses.push_back(markAllSymbolsLive);
+    Config.PostPrunePasses.push_back(
+        PerGraphGOTAndPLTStubsBuilder_ELF_riscv::asPass);
   }
   if (auto Err = Ctx->modifyPassConfig(*G, Config))
     return Ctx->notifyFailed(std::move(Err));

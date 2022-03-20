@@ -122,6 +122,21 @@ ARM_ARCH("armv8.7-a", ARMV8_7A, "8.7-A", "v8.7a",
          (ARM::AEK_SEC        | ARM::AEK_MP   | ARM::AEK_VIRT | ARM::AEK_HWDIVARM |
           ARM::AEK_HWDIVTHUMB | ARM::AEK_DSP  | ARM::AEK_CRC  | ARM::AEK_RAS |
           ARM::AEK_DOTPROD    | ARM::AEK_BF16 | ARM::AEK_I8MM))
+ARM_ARCH("armv9-a", ARMV9A, "9-A", "v9a",
+         ARMBuildAttrs::CPUArch::v8_A, FK_NEON_FP_ARMV8,
+         (ARM::AEK_SEC | ARM::AEK_MP | ARM::AEK_VIRT | ARM::AEK_HWDIVARM |
+          ARM::AEK_HWDIVTHUMB | ARM::AEK_DSP | ARM::AEK_CRC | ARM::AEK_RAS |
+          ARM::AEK_DOTPROD))
+ARM_ARCH("armv9.1-a", ARMV9_1A, "9.1-A", "v9.1a",
+         ARMBuildAttrs::CPUArch::v8_A, FK_NEON_FP_ARMV8,
+         (ARM::AEK_SEC | ARM::AEK_MP | ARM::AEK_VIRT | ARM::AEK_HWDIVARM |
+          ARM::AEK_HWDIVTHUMB | ARM::AEK_DSP | ARM::AEK_CRC | ARM::AEK_RAS |
+          ARM::AEK_DOTPROD | ARM::AEK_BF16 | ARM::AEK_I8MM))
+ARM_ARCH("armv9.2-a", ARMV9_2A, "9.2-A", "v9.2a",
+         ARMBuildAttrs::CPUArch::v8_A, FK_NEON_FP_ARMV8,
+         (ARM::AEK_SEC | ARM::AEK_MP | ARM::AEK_VIRT | ARM::AEK_HWDIVARM |
+          ARM::AEK_HWDIVTHUMB | ARM::AEK_DSP | ARM::AEK_CRC | ARM::AEK_RAS |
+          ARM::AEK_DOTPROD | ARM::AEK_BF16 | ARM::AEK_I8MM))
 ARM_ARCH("armv8-r", ARMV8R, "8-R", "v8r", ARMBuildAttrs::CPUArch::v8_R,
           FK_NEON_FP_ARMV8,
           (ARM::AEK_MP | ARM::AEK_VIRT | ARM::AEK_HWDIVARM | ARM::AEK_HWDIVTHUMB |
@@ -296,6 +311,9 @@ ARM_CPU_NAME("cortex-a78", ARMV8_2A, FK_CRYPTO_NEON_FP_ARMV8, false,
              (ARM::AEK_FP16 | ARM::AEK_DOTPROD))
 ARM_CPU_NAME("cortex-a78c", ARMV8_2A, FK_CRYPTO_NEON_FP_ARMV8, false,
              ARM::AEK_FP16 | ARM::AEK_DOTPROD)
+ARM_CPU_NAME("cortex-a710", ARMV9A, FK_NEON_FP_ARMV8, false,
+             (ARM::AEK_DOTPROD | ARM::AEK_FP16FML | ARM::AEK_BF16 | ARM::AEK_SB |
+              ARM::AEK_I8MM))
 ARM_CPU_NAME("cortex-x1", ARMV8_2A, FK_CRYPTO_NEON_FP_ARMV8, false,
              (ARM::AEK_FP16 | ARM::AEK_DOTPROD))
 ARM_CPU_NAME("neoverse-n1", ARMV8_2A, FK_CRYPTO_NEON_FP_ARMV8, false,

@@ -11,6 +11,9 @@
 
 #include "IntelPTDecoder.h"
 #include "TraceIntelPTSessionFileParser.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/lldb-types.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace lldb_private {
 namespace trace_intel_pt {
@@ -19,11 +22,13 @@ class TraceIntelPT : public Trace {
 public:
   void Dump(Stream *s) const override;
 
+  llvm::Error SaveLiveTraceToDisk(FileSpec directory) override;
+
   ~TraceIntelPT() override = default;
 
   /// PluginInterface protocol
   /// \{
-  ConstString GetPluginName() override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
   static void Initialize();
 
@@ -52,9 +57,7 @@ public:
   static llvm::Expected<lldb::TraceSP>
   CreateInstanceForLiveProcess(Process &process);
 
-  static ConstString GetPluginNameStatic();
-
-  uint32_t GetPluginVersion() override;
+  static llvm::StringRef GetPluginNameStatic() { return "intel-pt"; }
   /// \}
 
   lldb::CommandObjectSP
@@ -74,7 +77,7 @@ public:
   void DoRefreshLiveProcessState(
       llvm::Expected<TraceGetStateResponse> state) override;
 
-  bool IsTraced(const Thread &thread) override;
+  bool IsTraced(lldb::tid_t tid) override;
 
   const char *GetStartConfigurationHelp() override;
 
@@ -139,6 +142,13 @@ public:
 
   llvm::Expected<pt_cpu> GetCPUInfo();
 
+  /// Get the current traced live process.
+  ///
+  /// \return
+  ///     The current traced live process. If it's not a live process,
+  ///     return \a nullptr.
+  Process *GetLiveProcess();
+
 private:
   friend class TraceIntelPTSessionFileParser;
 
@@ -170,7 +180,7 @@ private:
   /// It is provided by either a session file or a live process' "cpuInfo"
   /// binary data.
   llvm::Optional<pt_cpu> m_cpu_info;
-  std::map<const Thread *, std::unique_ptr<ThreadDecoder>> m_thread_decoders;
+  std::map<lldb::tid_t, std::unique_ptr<ThreadDecoder>> m_thread_decoders;
   /// Error gotten after a failed live process update, if any.
   llvm::Optional<std::string> m_live_refresh_error;
 };

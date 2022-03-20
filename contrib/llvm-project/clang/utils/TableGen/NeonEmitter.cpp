@@ -382,7 +382,7 @@ public:
     StringRef Mods = getNextModifiers(Proto, Pos);
     while (!Mods.empty()) {
       Types.emplace_back(InTS, Mods);
-      if (Mods.find('!') != StringRef::npos)
+      if (Mods.contains('!'))
         PolymorphicKeyType = Types.size() - 1;
 
       Mods = getNextModifiers(Proto, Pos);
@@ -417,8 +417,7 @@ public:
 
   /// Return true if the intrinsic takes an immediate operand.
   bool hasImmediate() const {
-    return std::any_of(Types.begin(), Types.end(),
-                       [](const Type &T) { return T.isImmediate(); });
+    return llvm::any_of(Types, [](const Type &T) { return T.isImmediate(); });
   }
 
   /// Return the parameter index of the immediate operand.
@@ -1271,9 +1270,8 @@ void Intrinsic::emitShadowedArgs() {
 }
 
 bool Intrinsic::protoHasScalar() const {
-  return std::any_of(Types.begin(), Types.end(), [](const Type &T) {
-    return T.isScalar() && !T.isImmediate();
-  });
+  return llvm::any_of(
+      Types, [](const Type &T) { return T.isScalar() && !T.isImmediate(); });
 }
 
 void Intrinsic::emitBodyAsBuiltinCall() {
@@ -1916,10 +1914,9 @@ Intrinsic &NeonEmitter::getIntrinsic(StringRef Name, ArrayRef<Type> Types,
       continue;
 
     unsigned ArgNum = 0;
-    bool MatchingArgumentTypes =
-        std::all_of(Types.begin(), Types.end(), [&](const auto &Type) {
-          return Type == I.getParamType(ArgNum++);
-        });
+    bool MatchingArgumentTypes = llvm::all_of(Types, [&](const auto &Type) {
+      return Type == I.getParamType(ArgNum++);
+    });
 
     if (MatchingArgumentTypes)
       GoodVec.push_back(&I);

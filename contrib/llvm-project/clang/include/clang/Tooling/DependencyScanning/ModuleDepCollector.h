@@ -1,9 +1,8 @@
 //===- ModuleDepCollector.h - Callbacks to collect deps ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -102,7 +101,7 @@ struct ModuleDeps {
   bool ImportedByMainFile = false;
 
   /// Compiler invocation that can be used to build this module (without paths).
-  CompilerInvocation Invocation;
+  CompilerInvocation BuildInvocation;
 
   /// Gets the canonical command line suitable for passing to clang.
   ///
@@ -142,8 +141,7 @@ class ModuleDepCollector;
 /// \c DependencyConsumer of the parent \c ModuleDepCollector.
 class ModuleDepCollectorPP final : public PPCallbacks {
 public:
-  ModuleDepCollectorPP(CompilerInstance &I, ModuleDepCollector &MDC)
-      : Instance(I), MDC(MDC) {}
+  ModuleDepCollectorPP(ModuleDepCollector &MDC) : MDC(MDC) {}
 
   void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                    SrcMgr::CharacteristicKind FileType,
@@ -160,8 +158,6 @@ public:
   void EndOfMainFile() override;
 
 private:
-  /// The compiler instance for the current translation unit.
-  CompilerInstance &Instance;
   /// The parent dependency collector.
   ModuleDepCollector &MDC;
   /// Working set of direct modular dependencies.
@@ -173,7 +169,11 @@ private:
 
   /// Adds direct modular dependencies that have already been built to the
   /// ModuleDeps instance.
-  void addDirectPrebuiltModuleDeps(const Module *M, ModuleDeps &MD);
+  void
+  addAllSubmodulePrebuiltDeps(const Module *M, ModuleDeps &MD,
+                              llvm::DenseSet<const Module *> &SeenSubmodules);
+  void addModulePrebuiltDeps(const Module *M, ModuleDeps &MD,
+                             llvm::DenseSet<const Module *> &SeenSubmodules);
 
   /// Traverses the previously collected direct modular dependencies to discover
   /// transitive modular dependencies and fills the parent \c ModuleDepCollector
@@ -190,8 +190,8 @@ private:
 class ModuleDepCollector final : public DependencyCollector {
 public:
   ModuleDepCollector(std::unique_ptr<DependencyOutputOptions> Opts,
-                     CompilerInstance &I, DependencyConsumer &C,
-                     CompilerInvocation &&OriginalCI);
+                     CompilerInstance &ScanInstance, DependencyConsumer &C,
+                     CompilerInvocation &&OriginalCI, bool OptimizeArgs);
 
   void attachToPreprocessor(Preprocessor &PP) override;
   void attachToASTReader(ASTReader &R) override;
@@ -199,8 +199,8 @@ public:
 private:
   friend ModuleDepCollectorPP;
 
-  /// The compiler instance for the current translation unit.
-  CompilerInstance &Instance;
+  /// The compiler instance for scanning the current translation unit.
+  CompilerInstance &ScanInstance;
   /// The consumer of collected dependency information.
   DependencyConsumer &Consumer;
   /// Path to the main source file.
@@ -216,6 +216,8 @@ private:
   std::unique_ptr<DependencyOutputOptions> Opts;
   /// The original Clang invocation passed to dependency scanner.
   CompilerInvocation OriginalInvocation;
+  /// Whether to optimize the modules' command-line arguments.
+  bool OptimizeArgs;
 
   /// Checks whether the module is known as being prebuilt.
   bool isPrebuiltModule(const Module *M);
@@ -223,8 +225,9 @@ private:
   /// Constructs a CompilerInvocation that can be used to build the given
   /// module, excluding paths to discovered modular dependencies that are yet to
   /// be built.
-  CompilerInvocation
-  makeInvocationForModuleBuildWithoutPaths(const ModuleDeps &Deps) const;
+  CompilerInvocation makeInvocationForModuleBuildWithoutPaths(
+      const ModuleDeps &Deps,
+      llvm::function_ref<void(CompilerInvocation &)> Optimize) const;
 };
 
 } // end namespace dependencies

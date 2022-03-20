@@ -67,7 +67,9 @@ static void __deregister_frame(void *p) {
 }
 #endif
 
-#ifdef __APPLE__
+/* libgcc and libunwind __register_frame behave differently. We use the presence
+ * of __unw_add_dynamic_fde to detect libunwind. */
+#if defined(HAVE_UNW_ADD_DYNAMIC_FDE) || defined(__APPLE__)
 
 static const char *processFDE(const char *Entry, bool isDeregister) {
   const char *P = Entry;
@@ -284,7 +286,7 @@ void *RTDyldMemoryManager::getPointerToNamedFunction(const std::string &Name,
   uint64_t Addr = getSymbolAddress(Name);
 
   if (!Addr && AbortOnFailure)
-    report_fatal_error("Program used external function '" + Name +
+    report_fatal_error(Twine("Program used external function '") + Name +
                        "' which could not be resolved!");
 
   return (void*)Addr;

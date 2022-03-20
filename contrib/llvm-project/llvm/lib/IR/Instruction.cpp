@@ -141,6 +141,10 @@ bool Instruction::hasNoSignedWrap() const {
   return cast<OverflowingBinaryOperator>(this)->hasNoSignedWrap();
 }
 
+bool Instruction::hasPoisonGeneratingFlags() const {
+  return cast<Operator>(this)->hasPoisonGeneratingFlags();
+}
+
 void Instruction::dropPoisonGeneratingFlags() {
   switch (getOpcode()) {
   case Instruction::Add:
@@ -163,6 +167,8 @@ void Instruction::dropPoisonGeneratingFlags() {
     break;
   }
   // TODO: FastMathFlags!
+
+  assert(!hasPoisonGeneratingFlags() && "must be kept in sync");
 }
 
 void Instruction::dropUndefImplyingAttrsAndUnknownMetadata(
@@ -178,9 +184,9 @@ void Instruction::dropUndefImplyingAttrsAndUnknownMetadata(
   if (AL.isEmpty())
     return;
   AttrBuilder UBImplyingAttributes = AttributeFuncs::getUBImplyingAttributes();
-  for (unsigned ArgNo = 0; ArgNo < CB->getNumArgOperands(); ArgNo++)
+  for (unsigned ArgNo = 0; ArgNo < CB->arg_size(); ArgNo++)
     CB->removeParamAttrs(ArgNo, UBImplyingAttributes);
-  CB->removeAttributes(AttributeList::ReturnIndex, UBImplyingAttributes);
+  CB->removeRetAttrs(UBImplyingAttributes);
 }
 
 bool Instruction::isExact() const {
@@ -307,20 +313,20 @@ void Instruction::copyIRFlags(const Value *V, bool IncludeWrapFlags) {
 
   if (auto *SrcGEP = dyn_cast<GetElementPtrInst>(V))
     if (auto *DestGEP = dyn_cast<GetElementPtrInst>(this))
-      DestGEP->setIsInBounds(SrcGEP->isInBounds() | DestGEP->isInBounds());
+      DestGEP->setIsInBounds(SrcGEP->isInBounds() || DestGEP->isInBounds());
 }
 
 void Instruction::andIRFlags(const Value *V) {
   if (auto *OB = dyn_cast<OverflowingBinaryOperator>(V)) {
     if (isa<OverflowingBinaryOperator>(this)) {
-      setHasNoSignedWrap(hasNoSignedWrap() & OB->hasNoSignedWrap());
-      setHasNoUnsignedWrap(hasNoUnsignedWrap() & OB->hasNoUnsignedWrap());
+      setHasNoSignedWrap(hasNoSignedWrap() && OB->hasNoSignedWrap());
+      setHasNoUnsignedWrap(hasNoUnsignedWrap() && OB->hasNoUnsignedWrap());
     }
   }
 
   if (auto *PE = dyn_cast<PossiblyExactOperator>(V))
     if (isa<PossiblyExactOperator>(this))
-      setIsExact(isExact() & PE->isExact());
+      setIsExact(isExact() && PE->isExact());
 
   if (auto *FP = dyn_cast<FPMathOperator>(V)) {
     if (isa<FPMathOperator>(this)) {
@@ -332,7 +338,7 @@ void Instruction::andIRFlags(const Value *V) {
 
   if (auto *SrcGEP = dyn_cast<GetElementPtrInst>(V))
     if (auto *DestGEP = dyn_cast<GetElementPtrInst>(this))
-      DestGEP->setIsInBounds(SrcGEP->isInBounds() & DestGEP->isInBounds());
+      DestGEP->setIsInBounds(SrcGEP->isInBounds() && DestGEP->isInBounds());
 }
 
 const char *Instruction::getOpcodeName(unsigned OpCode) {

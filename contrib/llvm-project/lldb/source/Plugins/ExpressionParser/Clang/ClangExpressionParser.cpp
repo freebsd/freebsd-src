@@ -1069,7 +1069,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
     }
 
     if (temp_fd != -1) {
-      lldb_private::NativeFile file(temp_fd, File::eOpenOptionWrite, true);
+      lldb_private::NativeFile file(temp_fd, File::eOpenOptionWriteOnly, true);
       const size_t expr_text_len = strlen(expr_text);
       size_t bytes_written = expr_text_len;
       if (file.Write(expr_text, bytes_written).Success()) {
@@ -1309,7 +1309,7 @@ static bool FindFunctionInModule(ConstString &mangled_name,
                                  llvm::Module *module, const char *orig_name) {
   for (const auto &func : module->getFunctionList()) {
     const StringRef &name = func.getName();
-    if (name.find(orig_name) != StringRef::npos) {
+    if (name.contains(orig_name)) {
       mangled_name.SetString(name);
       return true;
     }

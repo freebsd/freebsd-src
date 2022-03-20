@@ -1069,9 +1069,7 @@ static void
 checkAndRemoveNonDriverDiags(SmallVectorImpl<StoredDiagnostic> &StoredDiags) {
   // Get rid of stored diagnostics except the ones from the driver which do not
   // have a source location.
-  StoredDiags.erase(
-      std::remove_if(StoredDiags.begin(), StoredDiags.end(), isNonDriverDiag),
-      StoredDiags.end());
+  llvm::erase_if(StoredDiags, isNonDriverDiag);
 }
 
 static void checkAndSanitizeDiags(SmallVectorImpl<StoredDiagnostic> &
@@ -1989,6 +1987,7 @@ static void CalculateHiddenNames(const CodeCompletionContext &Context,
   case CodeCompletionContext::CCC_ObjCClassMessage:
   case CodeCompletionContext::CCC_ObjCCategoryName:
   case CodeCompletionContext::CCC_IncludedFile:
+  case CodeCompletionContext::CCC_Attribute:
   case CodeCompletionContext::CCC_NewName:
     // We're looking for nothing, or we're looking for names that cannot
     // be hidden.

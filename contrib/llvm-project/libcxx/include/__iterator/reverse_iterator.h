@@ -20,9 +20,6 @@
 #pragma GCC system_header
 #endif
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Tp, class = void>
@@ -78,7 +75,7 @@ public:
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
     explicit reverse_iterator(_Iter __x) : __t(__x), current(__x) {}
 
-    template <class _Up, class = _EnableIf<
+    template <class _Up, class = __enable_if_t<
         !is_same<_Up, _Iter>::value && is_convertible<_Up const&, _Iter>::value
     > >
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
@@ -86,10 +83,10 @@ public:
         : __t(__u.base()), current(__u.base())
     { }
 
-    template <class _Up, class = _EnableIf<
+    template <class _Up, class = __enable_if_t<
         !is_same<_Up, _Iter>::value &&
         is_convertible<_Up const&, _Iter>::value &&
-        is_assignable<_Up const&, _Iter>::value
+        is_assignable<_Iter, _Up const&>::value
     > >
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
     reverse_iterator& operator=(const reverse_iterator<_Up>& __u) {
@@ -103,7 +100,7 @@ public:
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
     explicit reverse_iterator(_Iter __x) : current(__x) {}
 
-    template <class _Up, class = _EnableIf<
+    template <class _Up, class = __enable_if_t<
         !is_same<_Up, _Iter>::value && is_convertible<_Up const&, _Iter>::value
     > >
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
@@ -111,10 +108,10 @@ public:
         : current(__u.base())
     { }
 
-    template <class _Up, class = _EnableIf<
+    template <class _Up, class = __enable_if_t<
         !is_same<_Up, _Iter>::value &&
         is_convertible<_Up const&, _Iter>::value &&
-        is_assignable<_Up const&, _Iter>::value
+        is_assignable<_Iter, _Up const&>::value
     > >
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
     reverse_iterator& operator=(const reverse_iterator<_Up>& __u) {
@@ -233,7 +230,5 @@ reverse_iterator<_Iter> make_reverse_iterator(_Iter __i)
 #endif
 
 _LIBCPP_END_NAMESPACE_STD
-
-_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___ITERATOR_REVERSE_ITERATOR_H

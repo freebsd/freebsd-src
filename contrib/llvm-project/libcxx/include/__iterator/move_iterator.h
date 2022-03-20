@@ -18,9 +18,6 @@
 #pragma GCC system_header
 #endif
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Iter>
@@ -57,13 +54,13 @@ public:
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
     explicit move_iterator(_Iter __x) : __i(__x) {}
 
-    template <class _Up, class = _EnableIf<
+    template <class _Up, class = __enable_if_t<
         !is_same<_Up, _Iter>::value && is_convertible<_Up const&, _Iter>::value
     > >
     _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX14
     move_iterator(const move_iterator<_Up>& __u) : __i(__u.base()) {}
 
-    template <class _Up, class = _EnableIf<
+    template <class _Up, class = __enable_if_t<
         !is_same<_Up, _Iter>::value &&
         is_convertible<_Up const&, _Iter>::value &&
         is_assignable<_Iter&, _Up const&>::value
@@ -183,7 +180,5 @@ make_move_iterator(_Iter __i)
 }
 
 _LIBCPP_END_NAMESPACE_STD
-
-_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___ITERATOR_MOVE_ITERATOR_H

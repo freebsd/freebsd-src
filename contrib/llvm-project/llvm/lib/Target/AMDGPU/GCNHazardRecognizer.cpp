@@ -349,20 +349,16 @@ void GCNHazardRecognizer::AdvanceCycle() {
     return;
   }
 
-  // Do not track non-instructions which do not affect the wait states.
-  // If included, these instructions can lead to buffer overflow such that
-  // detectable hazards are missed.
-  if (CurrCycleInstr->isMetaInstruction()) {
-    CurrCycleInstr = nullptr;
-    return;
-  }
-
   if (CurrCycleInstr->isBundle()) {
     processBundle();
     return;
   }
 
   unsigned NumWaitStates = TII.getNumWaitStates(*CurrCycleInstr);
+  if (!NumWaitStates) {
+    CurrCycleInstr = nullptr;
+    return;
+  }
 
   // Keep track of emitted instructions
   EmittedInstrs.push_front(CurrCycleInstr);
@@ -409,7 +405,7 @@ static int getWaitStatesSince(GCNHazardRecognizer::IsHazardFn IsHazard,
     if (IsHazard(*I))
       return WaitStates;
 
-    if (I->isInlineAsm() || I->isMetaInstruction())
+    if (I->isInlineAsm())
       continue;
 
     WaitStates += SIInstrInfo::getNumWaitStates(*I);
@@ -1549,7 +1545,7 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
 }
 
 int GCNHazardRecognizer::checkMAILdStHazards(MachineInstr *MI) {
-  // On gfx90a+ releveant hazards are checked in checkMAIVALUHazards()
+  // On gfx90a+ relevant hazards are checked in checkMAIVALUHazards()
   if (!ST.hasMAIInsts() || ST.hasGFX90AInsts())
     return 0;
 

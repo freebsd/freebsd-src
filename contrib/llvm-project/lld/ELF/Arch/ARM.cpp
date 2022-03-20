@@ -52,13 +52,11 @@ ARM::ARM() {
   relativeRel = R_ARM_RELATIVE;
   iRelativeRel = R_ARM_IRELATIVE;
   gotRel = R_ARM_GLOB_DAT;
-  noneRel = R_ARM_NONE;
   pltRel = R_ARM_JUMP_SLOT;
   symbolicRel = R_ARM_ABS32;
   tlsGotRel = R_ARM_TLS_TPOFF32;
   tlsModuleIndexRel = R_ARM_TLS_DTPMOD32;
   tlsOffsetRel = R_ARM_TLS_DTPOFF32;
-  gotBaseSymInGotPlt = false;
   pltHeaderSize = 32;
   pltEntrySize = 16;
   ipltEntrySize = 16;
@@ -86,6 +84,13 @@ uint32_t ARM::calcEFlags() const {
 RelExpr ARM::getRelExpr(RelType type, const Symbol &s,
                         const uint8_t *loc) const {
   switch (type) {
+  case R_ARM_ABS32:
+  case R_ARM_MOVW_ABS_NC:
+  case R_ARM_MOVT_ABS:
+  case R_ARM_THM_MOVW_ABS_NC:
+  case R_ARM_THM_MOVT_ABS:
+    return R_ABS;
+  case R_ARM_THM_JUMP8:
   case R_ARM_THM_JUMP11:
     return R_PC;
   case R_ARM_CALL:
@@ -158,7 +163,9 @@ RelExpr ARM::getRelExpr(RelType type, const Symbol &s,
     // not ARMv4 output, we can just ignore it.
     return R_NONE;
   default:
-    return R_ABS;
+    error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
+          ") against symbol " + toString(s));
+    return R_NONE;
   }
 }
 
@@ -382,20 +389,25 @@ bool ARM::inBranchRange(RelType type, uint64_t src, uint64_t dst) const {
 // or Thumb.
 static void stateChangeWarning(uint8_t *loc, RelType relt, const Symbol &s) {
   assert(!s.isFunc());
+  const ErrorPlace place = getErrorPlace(loc);
+  std::string hint;
+  if (!place.srcLoc.empty())
+    hint = "; " + place.srcLoc;
   if (s.isSection()) {
     // Section symbols must be defined and in a section. Users cannot change
     // the type. Use the section name as getName() returns an empty string.
-    warn(getErrorLocation(loc) + "branch and link relocation: " +
-         toString(relt) + " to STT_SECTION symbol " +
-         cast<Defined>(s).section->name + " ; interworking not performed");
+    warn(place.loc + "branch and link relocation: " + toString(relt) +
+         " to STT_SECTION symbol " + cast<Defined>(s).section->name +
+         " ; interworking not performed" + hint);
   } else {
     // Warn with hint on how to alter the symbol type.
     warn(getErrorLocation(loc) + "branch and link relocation: " +
          toString(relt) + " to non STT_FUNC symbol: " + s.getName() +
          " interworking not performed; consider using directive '.type " +
          s.getName() +
-         ", %function' to give symbol type STT_FUNC if"
-         " interworking between ARM and Thumb is required");
+         ", %function' to give symbol type STT_FUNC if interworking between "
+         "ARM and Thumb is required" +
+         hint);
   }
 }
 
@@ -509,7 +521,13 @@ void ARM::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     checkInt(loc, val, 26, rel);
     write32le(loc, (read32le(loc) & ~0x00ffffff) | ((val >> 2) & 0x00ffffff));
     break;
+  case R_ARM_THM_JUMP8:
+    // We do a 9 bit check because val is right-shifted by 1 bit.
+    checkInt(loc, val, 9, rel);
+    write16le(loc, (read32le(loc) & 0xff00) | ((val >> 1) & 0x00ff));
+    break;
   case R_ARM_THM_JUMP11:
+    // We do a 12 bit check because val is right-shifted by 1 bit.
     checkInt(loc, val, 12, rel);
     write16le(loc, (read32le(loc) & 0xf800) | ((val >> 1) & 0x07ff));
     break;
@@ -699,8 +717,7 @@ void ARM::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     break;
   }
   default:
-    error(getErrorLocation(loc) + "unrecognized relocation " +
-          toString(rel.type));
+    llvm_unreachable("unknown relocation");
   }
 }
 
@@ -738,6 +755,8 @@ int64_t ARM::getImplicitAddend(const uint8_t *buf, RelType type) const {
   case R_ARM_PC24:
   case R_ARM_PLT32:
     return SignExtend64<26>(read32le(buf) << 2);
+  case R_ARM_THM_JUMP8:
+    return SignExtend64<9>(read16le(buf) << 1);
   case R_ARM_THM_JUMP11:
     return SignExtend64<12>(read16le(buf) << 1);
   case R_ARM_THM_JUMP19: {
@@ -838,6 +857,7 @@ int64_t ARM::getImplicitAddend(const uint8_t *buf, RelType type) const {
     return u ? imm12 : -imm12;
   }
   case R_ARM_NONE:
+  case R_ARM_V4BX:
   case R_ARM_JUMP_SLOT:
     // These relocations are defined as not having an implicit addend.
     return 0;

@@ -144,6 +144,7 @@ static IMAKind ClassifyImplicitMemberAccess(Sema &SemaRef,
 
   case Sema::ExpressionEvaluationContext::DiscardedStatement:
   case Sema::ExpressionEvaluationContext::ConstantEvaluated:
+  case Sema::ExpressionEvaluationContext::ImmediateFunctionContext:
   case Sema::ExpressionEvaluationContext::PotentiallyEvaluated:
   case Sema::ExpressionEvaluationContext::PotentiallyEvaluatedIfUsed:
     break;
@@ -340,7 +341,8 @@ CheckExtVectorComponent(Sema &S, QualType baseType, ExprValueKind &VK,
 
     // Emit a warning if an rgba selector is used earlier than OpenCL C 3.0.
     if (HasRGBA || (*compStr && IsRGBA(*compStr))) {
-      if (S.getLangOpts().OpenCL && S.getLangOpts().OpenCLVersion < 300) {
+      if (S.getLangOpts().OpenCL &&
+          S.getLangOpts().getOpenCLCompatibleVersion() < 300) {
         const char *DiagBegin = HasRGBA ? CompName->getNameStart() : compStr;
         S.Diag(OpLoc, diag::ext_opencl_ext_vector_type_rgba_selector)
             << StringRef(DiagBegin, 1) << SourceRange(CompLoc);
@@ -564,10 +566,7 @@ bool Sema::CheckQualifiedMemberReference(Expr *BaseExpr,
       return false;
 
     // Note that we use the DC of the decl, not the underlying decl.
-    DeclContext *DC = (*I)->getDeclContext();
-    while (DC->isTransparentContext())
-      DC = DC->getParent();
-
+    DeclContext *DC = (*I)->getDeclContext()->getNonTransparentContext();
     if (!DC->isRecord())
       continue;
 
@@ -612,11 +611,10 @@ public:
     if (Record->containsDecl(ND))
       return true;
 
-    if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(Record)) {
+    if (const auto *RD = dyn_cast<CXXRecordDecl>(Record)) {
       // Accept candidates that occur in any of the current class' base classes.
       for (const auto &BS : RD->bases()) {
-        if (const RecordType *BSTy =
-                dyn_cast_or_null<RecordType>(BS.getType().getTypePtrOrNull())) {
+        if (const auto *BSTy = BS.getType()->getAs<RecordType>()) {
           if (BSTy->getDecl()->containsDecl(ND))
             return true;
         }

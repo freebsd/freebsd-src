@@ -678,7 +678,10 @@ Parser::ParseUsingDeclaration(
     SourceLocation UsingLoc, SourceLocation &DeclEnd,
     ParsedAttributesWithRange &PrefixAttrs, AccessSpecifier AS) {
   SourceLocation UELoc;
-  if (TryConsumeToken(tok::kw_enum, UELoc)) {
+  bool InInitStatement = Context == DeclaratorContext::SelectionInit ||
+                         Context == DeclaratorContext::ForInit;
+
+  if (TryConsumeToken(tok::kw_enum, UELoc) && !InInitStatement) {
     // C++20 using-enum
     Diag(UELoc, getLangOpts().CPlusPlus20
                     ? diag::warn_cxx17_compat_using_enum_declaration
@@ -714,6 +717,9 @@ Parser::ParseUsingDeclaration(
   ParsedAttributesWithRange MisplacedAttrs(AttrFactory);
   MaybeParseCXX11Attributes(MisplacedAttrs);
 
+  if (InInitStatement && Tok.isNot(tok::identifier))
+    return nullptr;
+
   UsingDeclarator D;
   bool InvalidDeclarator = ParseUsingDeclarator(Context, D);
 
@@ -732,7 +738,7 @@ Parser::ParseUsingDeclaration(
   }
 
   // Maybe this is an alias-declaration.
-  if (Tok.is(tok::equal)) {
+  if (Tok.is(tok::equal) || InInitStatement) {
     if (InvalidDeclarator) {
       SkipUntil(tok::semi);
       return nullptr;
@@ -1474,19 +1480,15 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     return;
   }
 
-  // C++03 [temp.explicit] 14.7.2/8:
-  //   The usual access checking rules do not apply to names used to specify
-  //   explicit instantiations.
-  //
-  // As an extension we do not perform access checking on the names used to
-  // specify explicit specializations either. This is important to allow
-  // specializing traits classes for private types.
-  //
-  // Note that we don't suppress if this turns out to be an elaborated
-  // type specifier.
-  bool shouldDelayDiagsInTag =
-    (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation ||
-     TemplateInfo.Kind == ParsedTemplateInfo::ExplicitSpecialization);
+  // C++20 [temp.class.spec] 13.7.5/10
+  //   The usual access checking rules do not apply to non-dependent names
+  //   used to specify template arguments of the simple-template-id of the
+  //   partial specialization.
+  // C++20 [temp.spec] 13.9/6:
+  //   The usual access checking rules do not apply to names in a declaration
+  //   of an explicit instantiation or explicit specialization...
+  const bool shouldDelayDiagsInTag =
+      (TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate);
   SuppressAccessChecks diagsFromTag(*this, shouldDelayDiagsInTag);
 
   ParsedAttributesWithRange attrs(AttrFactory);
@@ -1834,14 +1836,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     }
   }
 
-  // If this is an elaborated type specifier, and we delayed
-  // diagnostics before, just merge them into the current pool.
-  if (shouldDelayDiagsInTag) {
-    diagsFromTag.done();
-    if (TUK == Sema::TUK_Reference)
-      diagsFromTag.redelay();
-  }
-
   if (!Name && !TemplateId && (DS.getTypeSpecType() == DeclSpec::TST_error ||
                                TUK != Sema::TUK_Definition)) {
     if (DS.getTypeSpecType() != DeclSpec::TST_error) {
@@ -2016,6 +2010,16 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
       TypeResult = Actions.ActOnDependentTag(getCurScope(), TagType, TUK,
                                              SS, Name, StartLoc, NameLoc);
     }
+  }
+
+  // If this is an elaborated type specifier in function template,
+  // and we delayed diagnostics before,
+  // just merge them into the current pool.
+  if (shouldDelayDiagsInTag) {
+    diagsFromTag.done();
+    if (TUK == Sema::TUK_Reference &&
+        TemplateInfo.Kind == ParsedTemplateInfo::Template)
+      diagsFromTag.redelay();
   }
 
   // If there is a body, parse it and inform the actions module.
@@ -2713,8 +2717,21 @@ Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
   if (MalformedTypeSpec)
     DS.SetTypeSpecError();
 
+  // Turn off usual access checking for templates explicit specialization
+  // and instantiation.
+  // C++20 [temp.spec] 13.9/6.
+  // This disables the access checking rules for member function template
+  // explicit instantiation and explicit specialization.
+  bool IsTemplateSpecOrInst =
+      (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation ||
+       TemplateInfo.Kind == ParsedTemplateInfo::ExplicitSpecialization);
+  SuppressAccessChecks diagsFromTag(*this, IsTemplateSpecOrInst);
+
   ParseDeclarationSpecifiers(DS, TemplateInfo, AS, DeclSpecContext::DSC_class,
                              &CommonLateParsedAttrs);
+
+  if (IsTemplateSpecOrInst)
+    diagsFromTag.done();
 
   // Turn off colon protection that was set for declspec.
   X.restore();
@@ -2784,12 +2801,20 @@ Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
   ExprResult TrailingRequiresClause;
   bool ExpectSemi = true;
 
+  // C++20 [temp.spec] 13.9/6.
+  // This disables the access checking rules for member function template
+  // explicit instantiation and explicit specialization.
+  SuppressAccessChecks SAC(*this, IsTemplateSpecOrInst);
+
   // Parse the first declarator.
   if (ParseCXXMemberDeclaratorBeforeInitializer(
           DeclaratorInfo, VS, BitfieldSize, LateParsedAttrs)) {
     TryConsumeToken(tok::semi);
     return nullptr;
   }
+
+  if (IsTemplateSpecOrInst)
+    SAC.done();
 
   // Check for a member function definition.
   if (BitfieldSize.isUnset()) {
@@ -2989,9 +3014,11 @@ Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
       ExprResult Init = ParseCXXMemberInitializer(
           ThisDecl, DeclaratorInfo.isDeclarationOfFunction(), EqualLoc);
 
-      if (Init.isInvalid())
+      if (Init.isInvalid()) {
+        if (ThisDecl)
+          Actions.ActOnUninitializedDecl(ThisDecl);
         SkipUntil(tok::comma, StopAtSemi | StopBeforeMatch);
-      else if (ThisDecl)
+      } else if (ThisDecl)
         Actions.AddInitializerToDecl(ThisDecl, Init.get(), EqualLoc.isInvalid());
     } else if (ThisDecl && DS.getStorageClassSpec() == DeclSpec::SCS_static)
       // No initializer.
@@ -3835,7 +3862,7 @@ Parser::tryParseExceptionSpecification(bool Delayed,
     NoexceptExpr = ParseConstantExpression();
     T.consumeClose();
     if (!NoexceptExpr.isInvalid()) {
-      NoexceptExpr = Actions.ActOnNoexceptSpec(KeywordLoc, NoexceptExpr.get(),
+      NoexceptExpr = Actions.ActOnNoexceptSpec(NoexceptExpr.get(),
                                                NoexceptType);
       NoexceptRange = SourceRange(KeywordLoc, T.getCloseLocation());
     } else {
@@ -4084,7 +4111,10 @@ void Parser::PopParsingClass(Sema::ParsingClassState state) {
 ///   If a keyword or an alternative token that satisfies the syntactic
 ///   requirements of an identifier is contained in an attribute-token,
 ///   it is considered an identifier.
-IdentifierInfo *Parser::TryParseCXX11AttributeIdentifier(SourceLocation &Loc) {
+IdentifierInfo *
+Parser::TryParseCXX11AttributeIdentifier(SourceLocation &Loc,
+                                         Sema::AttributeCompletion Completion,
+                                         const IdentifierInfo *Scope) {
   switch (Tok.getKind()) {
   default:
     // Identifiers and keywords have identifier info attached.
@@ -4094,6 +4124,13 @@ IdentifierInfo *Parser::TryParseCXX11AttributeIdentifier(SourceLocation &Loc) {
         return II;
       }
     }
+    return nullptr;
+
+  case tok::code_completion:
+    cutOffParsing();
+    Actions.CodeCompleteAttribute(getLangOpts().CPlusPlus ? ParsedAttr::AS_CXX11
+                                                          : ParsedAttr::AS_C2x,
+                                  Completion, Scope);
     return nullptr;
 
   case tok::numeric_constant: {
@@ -4371,7 +4408,8 @@ void Parser::ParseCXX11AttributeSpecifierInternal(ParsedAttributes &Attrs,
                                 : diag::ext_using_attribute_ns);
     ConsumeToken();
 
-    CommonScopeName = TryParseCXX11AttributeIdentifier(CommonScopeLoc);
+    CommonScopeName = TryParseCXX11AttributeIdentifier(
+        CommonScopeLoc, Sema::AttributeCompletion::Scope);
     if (!CommonScopeName) {
       Diag(Tok.getLocation(), diag::err_expected) << tok::identifier;
       SkipUntil(tok::r_square, tok::colon, StopBeforeMatch);
@@ -4383,7 +4421,7 @@ void Parser::ParseCXX11AttributeSpecifierInternal(ParsedAttributes &Attrs,
   llvm::SmallDenseMap<IdentifierInfo*, SourceLocation, 4> SeenAttrs;
 
   bool AttrParsed = false;
-  while (!Tok.isOneOf(tok::r_square, tok::semi)) {
+  while (!Tok.isOneOf(tok::r_square, tok::semi, tok::eof)) {
     if (AttrParsed) {
       // If we parsed an attribute, a comma is required before parsing any
       // additional attributes.
@@ -4401,7 +4439,8 @@ void Parser::ParseCXX11AttributeSpecifierInternal(ParsedAttributes &Attrs,
     SourceLocation ScopeLoc, AttrLoc;
     IdentifierInfo *ScopeName = nullptr, *AttrName = nullptr;
 
-    AttrName = TryParseCXX11AttributeIdentifier(AttrLoc);
+    AttrName = TryParseCXX11AttributeIdentifier(
+        AttrLoc, Sema::AttributeCompletion::Attribute, CommonScopeName);
     if (!AttrName)
       // Break out to the "expected ']'" diagnostic.
       break;
@@ -4411,7 +4450,8 @@ void Parser::ParseCXX11AttributeSpecifierInternal(ParsedAttributes &Attrs,
       ScopeName = AttrName;
       ScopeLoc = AttrLoc;
 
-      AttrName = TryParseCXX11AttributeIdentifier(AttrLoc);
+      AttrName = TryParseCXX11AttributeIdentifier(
+          AttrLoc, Sema::AttributeCompletion::Attribute, ScopeName);
       if (!AttrName) {
         Diag(Tok.getLocation(), diag::err_expected) << tok::identifier;
         SkipUntil(tok::r_square, tok::comma, StopAtSemi | StopBeforeMatch);
@@ -4626,7 +4666,15 @@ void Parser::ParseMicrosoftAttributes(ParsedAttributes &attrs,
 
     // Skip most ms attributes except for a specific list.
     while (true) {
-      SkipUntil(tok::r_square, tok::identifier, StopAtSemi | StopBeforeMatch);
+      SkipUntil(tok::r_square, tok::identifier,
+                StopAtSemi | StopBeforeMatch | StopAtCodeCompletion);
+      if (Tok.is(tok::code_completion)) {
+        cutOffParsing();
+        Actions.CodeCompleteAttribute(AttributeCommonInfo::AS_Microsoft,
+                                      Sema::AttributeCompletion::Attribute,
+                                      /*Scope=*/nullptr);
+        break;
+      }
       if (Tok.isNot(tok::identifier)) // ']', but also eof
         break;
       if (Tok.getIdentifierInfo()->getName() == "uuid")

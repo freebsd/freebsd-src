@@ -645,11 +645,11 @@ bool WebAssemblyFastISel::fastLowerArguments() {
   unsigned I = 0;
   for (auto const &Arg : F->args()) {
     const AttributeList &Attrs = F->getAttributes();
-    if (Attrs.hasParamAttribute(I, Attribute::ByVal) ||
-        Attrs.hasParamAttribute(I, Attribute::SwiftSelf) ||
-        Attrs.hasParamAttribute(I, Attribute::SwiftError) ||
-        Attrs.hasParamAttribute(I, Attribute::InAlloca) ||
-        Attrs.hasParamAttribute(I, Attribute::Nest))
+    if (Attrs.hasParamAttr(I, Attribute::ByVal) ||
+        Attrs.hasParamAttr(I, Attribute::SwiftSelf) ||
+        Attrs.hasParamAttr(I, Attribute::SwiftError) ||
+        Attrs.hasParamAttr(I, Attribute::InAlloca) ||
+        Attrs.hasParamAttr(I, Attribute::Nest))
       return false;
 
     Type *ArgTy = Arg.getType();
@@ -822,25 +822,25 @@ bool WebAssemblyFastISel::selectCall(const Instruction *I) {
   }
 
   SmallVector<unsigned, 8> Args;
-  for (unsigned I = 0, E = Call->getNumArgOperands(); I < E; ++I) {
+  for (unsigned I = 0, E = Call->arg_size(); I < E; ++I) {
     Value *V = Call->getArgOperand(I);
     MVT::SimpleValueType ArgTy = getSimpleType(V->getType());
     if (ArgTy == MVT::INVALID_SIMPLE_VALUE_TYPE)
       return false;
 
     const AttributeList &Attrs = Call->getAttributes();
-    if (Attrs.hasParamAttribute(I, Attribute::ByVal) ||
-        Attrs.hasParamAttribute(I, Attribute::SwiftSelf) ||
-        Attrs.hasParamAttribute(I, Attribute::SwiftError) ||
-        Attrs.hasParamAttribute(I, Attribute::InAlloca) ||
-        Attrs.hasParamAttribute(I, Attribute::Nest))
+    if (Attrs.hasParamAttr(I, Attribute::ByVal) ||
+        Attrs.hasParamAttr(I, Attribute::SwiftSelf) ||
+        Attrs.hasParamAttr(I, Attribute::SwiftError) ||
+        Attrs.hasParamAttr(I, Attribute::InAlloca) ||
+        Attrs.hasParamAttr(I, Attribute::Nest))
       return false;
 
     unsigned Reg;
 
-    if (Attrs.hasParamAttribute(I, Attribute::SExt))
+    if (Attrs.hasParamAttr(I, Attribute::SExt))
       Reg = getRegForSignedValue(V);
-    else if (Attrs.hasParamAttribute(I, Attribute::ZExt))
+    else if (Attrs.hasParamAttr(I, Attribute::ZExt))
       Reg = getRegForUnsignedValue(V);
     else
       Reg = getRegForValue(V);
@@ -1368,9 +1368,9 @@ bool WebAssemblyFastISel::selectRet(const Instruction *I) {
   }
 
   unsigned Reg;
-  if (FuncInfo.Fn->getAttributes().hasAttribute(0, Attribute::SExt))
+  if (FuncInfo.Fn->getAttributes().hasRetAttr(Attribute::SExt))
     Reg = getRegForSignedValue(RV);
-  else if (FuncInfo.Fn->getAttributes().hasAttribute(0, Attribute::ZExt))
+  else if (FuncInfo.Fn->getAttributes().hasRetAttr(Attribute::ZExt))
     Reg = getRegForUnsignedValue(RV);
   else
     Reg = getRegForValue(RV);

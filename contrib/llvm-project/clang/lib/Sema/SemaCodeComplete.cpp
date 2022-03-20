@@ -23,6 +23,7 @@
 #include "clang/AST/QualTypeNames.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/AttributeCommonInfo.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/Specifiers.h"
@@ -34,6 +35,7 @@
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
+#include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/Sema.h"
@@ -741,9 +743,7 @@ getRequiredQualification(ASTContext &Context, const DeclContext *CurContext,
 static bool shouldIgnoreDueToReservedName(const NamedDecl *ND, Sema &SemaRef) {
   ReservedIdentifierStatus Status = ND->isReserved(SemaRef.getLangOpts());
   // Ignore reserved names for compiler provided decls.
-  if ((Status != ReservedIdentifierStatus::NotReserved) &&
-      (Status != ReservedIdentifierStatus::StartsWithUnderscoreAtGlobalScope) &&
-      ND->getLocation().isInvalid())
+  if (isReservedInAllContexts(Status) && ND->getLocation().isInvalid())
     return true;
 
   // For system headers ignore only double-underscore names.
@@ -2821,7 +2821,7 @@ FormatFunctionParameter(const PrintingPolicy &Policy, const ParmVarDecl *Param,
                         bool SuppressName = false, bool SuppressBlock = false,
                         Optional<ArrayRef<QualType>> ObjCSubsts = None) {
   // Params are unavailable in FunctionTypeLoc if the FunctionType is invalid.
-  // It would be better to pass in the param Type, which is usually avaliable.
+  // It would be better to pass in the param Type, which is usually available.
   // But this case is rare, so just pretend we fell back to int as elsewhere.
   if (!Param)
     return "int";
@@ -4335,6 +4335,158 @@ void Sema::CodeCompleteDeclSpec(Scope *S, DeclSpec &DS,
                             Results.data(), Results.size());
 }
 
+static const char *underscoreAttrScope(llvm::StringRef Scope) {
+  if (Scope == "clang")
+    return "_Clang";
+  if (Scope == "gnu")
+    return "__gnu__";
+  return nullptr;
+}
+
+static const char *noUnderscoreAttrScope(llvm::StringRef Scope) {
+  if (Scope == "_Clang")
+    return "clang";
+  if (Scope == "__gnu__")
+    return "gnu";
+  return nullptr;
+}
+
+void Sema::CodeCompleteAttribute(AttributeCommonInfo::Syntax Syntax,
+                                 AttributeCompletion Completion,
+                                 const IdentifierInfo *InScope) {
+  if (Completion == AttributeCompletion::None)
+    return;
+  ResultBuilder Results(*this, CodeCompleter->getAllocator(),
+                        CodeCompleter->getCodeCompletionTUInfo(),
+                        CodeCompletionContext::CCC_Attribute);
+
+  // We're going to iterate over the normalized spellings of the attribute.
+  // These don't include "underscore guarding": the normalized spelling is
+  // clang::foo but you can also write _Clang::__foo__.
+  //
+  // (Clang supports a mix like clang::__foo__ but we won't suggest it: either
+  // you care about clashing with macros or you don't).
+  //
+  // So if we're already in a scope, we determine its canonical spellings
+  // (for comparison with normalized attr spelling) and remember whether it was
+  // underscore-guarded (so we know how to spell contained attributes).
+  llvm::StringRef InScopeName;
+  bool InScopeUnderscore = false;
+  if (InScope) {
+    InScopeName = InScope->getName();
+    if (const char *NoUnderscore = noUnderscoreAttrScope(InScopeName)) {
+      InScopeName = NoUnderscore;
+      InScopeUnderscore = true;
+    }
+  }
+  bool SyntaxSupportsGuards = Syntax == AttributeCommonInfo::AS_GNU ||
+                              Syntax == AttributeCommonInfo::AS_CXX11 ||
+                              Syntax == AttributeCommonInfo::AS_C2x;
+
+  llvm::DenseSet<llvm::StringRef> FoundScopes;
+  auto AddCompletions = [&](const ParsedAttrInfo &A) {
+    if (A.IsTargetSpecific && !A.existsInTarget(Context.getTargetInfo()))
+      return;
+    if (!A.acceptsLangOpts(getLangOpts()))
+      return;
+    for (const auto &S : A.Spellings) {
+      if (S.Syntax != Syntax)
+        continue;
+      llvm::StringRef Name = S.NormalizedFullName;
+      llvm::StringRef Scope;
+      if ((Syntax == AttributeCommonInfo::AS_CXX11 ||
+           Syntax == AttributeCommonInfo::AS_C2x)) {
+        std::tie(Scope, Name) = Name.split("::");
+        if (Name.empty()) // oops, unscoped
+          std::swap(Name, Scope);
+      }
+
+      // Do we just want a list of scopes rather than attributes?
+      if (Completion == AttributeCompletion::Scope) {
+        // Make sure to emit each scope only once.
+        if (!Scope.empty() && FoundScopes.insert(Scope).second) {
+          Results.AddResult(
+              CodeCompletionResult(Results.getAllocator().CopyString(Scope)));
+          // Include alternate form (__gnu__ instead of gnu).
+          if (const char *Scope2 = underscoreAttrScope(Scope))
+            Results.AddResult(CodeCompletionResult(Scope2));
+        }
+        continue;
+      }
+
+      // If a scope was specified, it must match but we don't need to print it.
+      if (!InScopeName.empty()) {
+        if (Scope != InScopeName)
+          continue;
+        Scope = "";
+      }
+
+      auto Add = [&](llvm::StringRef Scope, llvm::StringRef Name,
+                     bool Underscores) {
+        CodeCompletionBuilder Builder(Results.getAllocator(),
+                                      Results.getCodeCompletionTUInfo());
+        llvm::SmallString<32> Text;
+        if (!Scope.empty()) {
+          Text.append(Scope);
+          Text.append("::");
+        }
+        if (Underscores)
+          Text.append("__");
+        Text.append(Name);
+        if (Underscores)
+          Text.append("__");
+        Builder.AddTypedTextChunk(Results.getAllocator().CopyString(Text));
+
+        if (!A.ArgNames.empty()) {
+          Builder.AddChunk(CodeCompletionString::CK_LeftParen, "(");
+          bool First = true;
+          for (const char *Arg : A.ArgNames) {
+            if (!First)
+              Builder.AddChunk(CodeCompletionString::CK_Comma, ", ");
+            First = false;
+            Builder.AddPlaceholderChunk(Arg);
+          }
+          Builder.AddChunk(CodeCompletionString::CK_RightParen, ")");
+        }
+
+        Results.AddResult(Builder.TakeString());
+      };
+
+      // Generate the non-underscore-guarded result.
+      // Note this is (a suffix of) the NormalizedFullName, no need to copy.
+      // If an underscore-guarded scope was specified, only the
+      // underscore-guarded attribute name is relevant.
+      if (!InScopeUnderscore)
+        Add(Scope, Name, /*Underscores=*/false);
+
+      // Generate the underscore-guarded version, for syntaxes that support it.
+      // We skip this if the scope was already spelled and not guarded, or
+      // we must spell it and can't guard it.
+      if (!(InScope && !InScopeUnderscore) && SyntaxSupportsGuards) {
+        llvm::SmallString<32> Guarded;
+        if (Scope.empty()) {
+          Add(Scope, Name, /*Underscores=*/true);
+        } else {
+          const char *GuardedScope = underscoreAttrScope(Scope);
+          if (!GuardedScope)
+            continue;
+          Add(GuardedScope, Name, /*Underscores=*/true);
+        }
+      }
+
+      // It may be nice to include the Kind so we can look up the docs later.
+    }
+  };
+
+  for (const auto *A : ParsedAttrInfo::getAllBuiltin())
+    AddCompletions(*A);
+  for (const auto &Entry : ParsedAttrInfoRegistry::entries())
+    AddCompletions(*Entry.instantiate());
+
+  HandleCodeCompleteResults(this, CodeCompleter, Results.getCompletionContext(),
+                            Results.data(), Results.size());
+}
+
 struct Sema::CodeCompleteExpressionData {
   CodeCompleteExpressionData(QualType PreferredType = QualType(),
                              bool IsParenthesized = false)
@@ -5666,7 +5818,8 @@ static void mergeCandidatesWithResults(
     if (Candidate.Function) {
       if (Candidate.Function->isDeleted())
         continue;
-      if (!Candidate.Function->isVariadic() &&
+      if (shouldEnforceArgLimit(/*PartialOverloading=*/true,
+                                Candidate.Function) &&
           Candidate.Function->getNumParams() <= ArgSize &&
           // Having zero args is annoying, normally we don't surface a function
           // with 2 params, if you already have 2 params, because you are
@@ -9461,6 +9614,10 @@ void Sema::CodeCompleteIncludedFile(llvm::StringRef Dir, bool Angled) {
       }
     }
 
+    const StringRef &Dirname = llvm::sys::path::filename(Dir);
+    const bool isQt = Dirname.startswith("Qt") || Dirname == "ActiveQt";
+    const bool ExtensionlessHeaders =
+        IsSystem || isQt || Dir.endswith(".framework/Headers");
     std::error_code EC;
     unsigned Count = 0;
     for (auto It = FS.dir_begin(Dir, EC);
@@ -9487,18 +9644,19 @@ void Sema::CodeCompleteIncludedFile(llvm::StringRef Dir, bool Angled) {
 
         AddCompletion(Filename, /*IsDirectory=*/true);
         break;
-      case llvm::sys::fs::file_type::regular_file:
-        // Only files that really look like headers. (Except in system dirs).
-        if (!IsSystem) {
-          // Header extensions from Types.def, which we can't depend on here.
-          if (!(Filename.endswith_insensitive(".h") ||
-                Filename.endswith_insensitive(".hh") ||
-                Filename.endswith_insensitive(".hpp") ||
-                Filename.endswith_insensitive(".inc")))
-            break;
-        }
+      case llvm::sys::fs::file_type::regular_file: {
+        // Only files that really look like headers. (Except in special dirs).
+        // Header extensions from Types.def, which we can't depend on here.
+        const bool IsHeader = Filename.endswith_insensitive(".h") ||
+                              Filename.endswith_insensitive(".hh") ||
+                              Filename.endswith_insensitive(".hpp") ||
+                              Filename.endswith_insensitive(".inc") ||
+                              (ExtensionlessHeaders && !Filename.contains('.'));
+        if (!IsHeader)
+          break;
         AddCompletion(Filename, /*IsDirectory=*/false);
         break;
+      }
       default:
         break;
       }

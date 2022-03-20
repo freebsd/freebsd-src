@@ -261,6 +261,7 @@ windows::GetCommandLineArguments(SmallVectorImpl<const char *> &Args,
   EC = GetExecutableName(Filename);
   if (EC)
     return EC;
+  sys::path::make_preferred(Arg0);
   sys::path::append(Arg0, Filename);
   Args[0] = Saver.save(Arg0).data();
   return std::error_code();
@@ -504,8 +505,7 @@ bool llvm::RunningWindows8OrGreater() {
   return GetWindowsOSVersion() >= llvm::VersionTuple(6, 2, 0, 0);
 }
 
-LLVM_ATTRIBUTE_NORETURN
-void Process::ExitNoCleanup(int RetCode) {
+[[noreturn]] void Process::ExitNoCleanup(int RetCode) {
   TerminateProcess(GetCurrentProcess(), RetCode);
   llvm_unreachable("TerminateProcess doesn't return");
 }

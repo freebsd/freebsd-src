@@ -220,6 +220,10 @@ getRestoreLibCallName(const MachineFunction &MF,
   return RestoreLibCalls[LibCallID];
 }
 
+// Return true if the specified function should have a dedicated frame
+// pointer register.  This is true if frame pointer elimination is
+// disabled, if it needs dynamic stack realignment, if the function has
+// variable sized allocas, or if the frame address is taken.
 bool RISCVFrameLowering::hasFP(const MachineFunction &MF) const {
   const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
 
@@ -671,15 +675,15 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
       // |--------------------------| --     |
       // | Padding after RVV        | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |-- MFI.getStackSize()
       // | RVV objects              | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | Padding before RVV       | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | scalar local variables   | | <----'
       // |--------------------------| -- <-- BP
@@ -696,15 +700,15 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
       // |--------------------------| --     |
       // | Padding after RVV        | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |-- MFI.getStackSize()
       // | RVV objects              | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | Padding before RVV       | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | scalar local variables   | | <----'
       // |--------------------------| -- <-- SP
@@ -749,15 +753,15 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
       // |--------------------------| --     |
       // | Padding after RVV        | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | RVV objects              | |      |-- MFI.getStackSize()
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | Padding before RVV       | |      |
       // | (not counted in          | |      |
-      // | MFI.getStackSize()       | |      |
+      // | MFI.getStackSize())      | |      |
       // |--------------------------| --     |
       // | scalar local variables   | | <----'
       // |--------------------------| -- <-- SP
@@ -767,8 +771,10 @@ RISCVFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
       // objects to 8 bytes.
       if (MFI.getStackID(FI) == TargetStackID::Default) {
         if (MFI.isFixedObjectIndex(FI)) {
-          Offset += StackOffset::get(MFI.getStackSize() + RVFI->getRVVPadding() 
-                        + RVFI->getLibCallStackSize(), RVFI->getRVVStackSize());
+          Offset +=
+              StackOffset::get(MFI.getStackSize() + RVFI->getRVVPadding() +
+                                   RVFI->getLibCallStackSize(),
+                               RVFI->getRVVStackSize());
         } else {
           Offset += StackOffset::getFixed(MFI.getStackSize());
         }
@@ -860,7 +866,7 @@ RISCVFrameLowering::assignRVVStackObjectOffsets(MachineFrameInfo &MFI) const {
 }
 
 static bool hasRVVSpillWithFIs(MachineFunction &MF, const RISCVInstrInfo &TII) {
-  if (!MF.getSubtarget<RISCVSubtarget>().hasStdExtV())
+  if (!MF.getSubtarget<RISCVSubtarget>().hasVInstructions())
     return false;
   return any_of(MF, [&TII](const MachineBasicBlock &MBB) {
     return any_of(MBB, [&TII](const MachineInstr &MI) {
@@ -1040,7 +1046,8 @@ bool RISCVFrameLowering::spillCalleeSavedRegisters(
     // Insert the spill to the stack frame.
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    TII.storeRegToStackSlot(MBB, MI, Reg, true, CS.getFrameIdx(), RC, TRI);
+    TII.storeRegToStackSlot(MBB, MI, Reg, !MBB.isLiveIn(Reg), CS.getFrameIdx(),
+                            RC, TRI);
   }
 
   return true;
@@ -1083,6 +1090,14 @@ bool RISCVFrameLowering::restoreCalleeSavedRegisters(
       MI->eraseFromParent();
     }
   }
+
+  return true;
+}
+
+bool RISCVFrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {
+  // Keep the conventional code flow when not optimizing.
+  if (MF.getFunction().hasOptNone())
+    return false;
 
   return true;
 }

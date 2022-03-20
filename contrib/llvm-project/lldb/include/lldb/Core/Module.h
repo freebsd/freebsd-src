@@ -16,6 +16,7 @@
 #include "lldb/Symbol/SymbolContextScope.h"
 #include "lldb/Symbol/TypeSystem.h"
 #include "lldb/Target/PathMappingList.h"
+#include "lldb/Target/Statistics.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/FileSpec.h"
@@ -56,6 +57,15 @@ class Target;
 class TypeList;
 class TypeMap;
 class VariableList;
+
+/// Options used by Module::FindFunctions. This cannot be a nested class
+/// because it must be forward-declared in ModuleList.h.
+struct ModuleFunctionSearchOptions {
+  /// Include the symbol table.
+  bool include_symbols = false;
+  /// Include inlined functions.
+  bool include_inlines = false;
+};
 
 /// \class Module Module.h "lldb/Core/Module.h"
 /// A class that describes an executable image and its associated
@@ -304,8 +314,9 @@ public:
   ///     matches.
   void FindFunctions(ConstString name,
                      const CompilerDeclContext &parent_decl_ctx,
-                     lldb::FunctionNameType name_type_mask, bool symbols_ok,
-                     bool inlines_ok, SymbolContextList &sc_list);
+                     lldb::FunctionNameType name_type_mask,
+                     const ModuleFunctionSearchOptions &options,
+                     SymbolContextList &sc_list);
 
   /// Find functions by name.
   ///
@@ -319,8 +330,9 @@ public:
   /// \param[out] sc_list
   ///     A symbol context list that gets filled in with all of the
   ///     matches.
-  void FindFunctions(const RegularExpression &regex, bool symbols_ok,
-                     bool inlines_ok, SymbolContextList &sc_list);
+  void FindFunctions(const RegularExpression &regex,
+                     const ModuleFunctionSearchOptions &options,
+                     SymbolContextList &sc_list);
 
   /// Find addresses by file/line
   ///
@@ -859,6 +871,18 @@ public:
   /// Update the ArchSpec to a more specific variant.
   bool MergeArchitecture(const ArchSpec &arch_spec);
 
+  /// Accessor for the symbol table parse time metric.
+  ///
+  /// The value is returned as a reference to allow it to be updated by the
+  /// ElapsedTime RAII object.
+  StatsDuration &GetSymtabParseTime() { return m_symtab_parse_time; }
+  
+  /// Accessor for the symbol table index time metric.
+  ///
+  /// The value is returned as a reference to allow it to be updated by the
+  /// ElapsedTime RAII object.
+  StatsDuration &GetSymtabIndexTime() { return m_symtab_index_time; }
+
   /// \class LookupInfo Module.h "lldb/Core/Module.h"
   /// A class that encapsulates name lookup information.
   ///
@@ -984,6 +1008,14 @@ protected:
   mutable bool m_file_has_changed : 1,
       m_first_file_changed_log : 1; /// See if the module was modified after it
                                     /// was initially opened.
+  /// We store a symbol table parse time duration here because we might have
+  /// an object file and a symbol file which both have symbol tables. The parse
+  /// time for the symbol tables can be aggregated here.
+  StatsDuration m_symtab_parse_time{0.0};
+  /// We store a symbol named index time duration here because we might have
+  /// an object file and a symbol file which both have symbol tables. The parse
+  /// time for the symbol tables can be aggregated here.
+  StatsDuration m_symtab_index_time{0.0};
 
   /// Resolve a file or load virtual address.
   ///

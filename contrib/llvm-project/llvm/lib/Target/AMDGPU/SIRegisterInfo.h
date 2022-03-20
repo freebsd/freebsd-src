@@ -17,6 +17,8 @@
 #define GET_REGINFO_HEADER
 #include "AMDGPUGenRegisterInfo.inc"
 
+#include "SIDefines.h"
+
 namespace llvm {
 
 class GCNSubtarget;
@@ -24,7 +26,6 @@ class LiveIntervals;
 class LivePhysRegs;
 class RegisterBank;
 struct SGPRSpillBuilder;
-class SIMachineFunctionInfo;
 
 class SIRegisterInfo final : public AMDGPUGenRegisterInfo {
 private:
@@ -108,6 +109,13 @@ public:
   const TargetRegisterClass *getPointerRegClass(
     const MachineFunction &MF, unsigned Kind = 0) const override;
 
+  /// Returns a legal register class to copy a register in the specified class
+  /// to or from. If it is possible to copy the register directly without using
+  /// a cross register class copy, return the specified RC. Returns NULL if it
+  /// is not possible to copy between two registers of the specified class.
+  const TargetRegisterClass *
+  getCrossCopyRegClass(const TargetRegisterClass *RC) const override;
+
   void buildVGPRSpillLoadStore(SGPRSpillBuilder &SB, int Index, int Offset,
                                bool IsLoad, bool IsKill = true) const;
 
@@ -121,6 +129,10 @@ public:
                    int FI, RegScavenger *RS,
                    LiveIntervals *LIS = nullptr,
                    bool OnlyToVGPR = false) const;
+
+  bool spillEmergencySGPR(MachineBasicBlock::iterator MI,
+                          MachineBasicBlock &RestoreMBB, Register SGPR,
+                          RegScavenger *RS) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
                            unsigned FIOperandNum,
@@ -151,7 +163,7 @@ public:
   const TargetRegisterClass *getPhysRegClass(MCRegister Reg) const;
 
   /// \returns true if this class contains only SGPR registers
-  bool isSGPRClass(const TargetRegisterClass *RC) const {
+  static bool isSGPRClass(const TargetRegisterClass *RC) {
     return !hasVGPRs(RC) && !hasAGPRs(RC);
   }
 
@@ -162,19 +174,28 @@ public:
 
   bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
+  /// \returns true if this class contains only VGPR registers
+  static bool isVGPRClass(const TargetRegisterClass *RC) {
+    return hasVGPRs(RC) && !hasAGPRs(RC);
+  }
+
   /// \returns true if this class contains only AGPR registers
-  bool isAGPRClass(const TargetRegisterClass *RC) const {
+  static bool isAGPRClass(const TargetRegisterClass *RC) {
     return hasAGPRs(RC) && !hasVGPRs(RC);
   }
 
   /// \returns true if this class contains VGPR registers.
-  bool hasVGPRs(const TargetRegisterClass *RC) const;
+  static bool hasVGPRs(const TargetRegisterClass *RC) {
+    return RC->TSFlags & SIRCFlags::HasVGPR;
+  }
 
   /// \returns true if this class contains AGPR registers.
-  bool hasAGPRs(const TargetRegisterClass *RC) const;
+  static bool hasAGPRs(const TargetRegisterClass *RC) {
+    return RC->TSFlags & SIRCFlags::HasAGPR;
+  }
 
   /// \returns true if this class contains any vector registers.
-  bool hasVectorRegisters(const TargetRegisterClass *RC) const {
+  static bool hasVectorRegisters(const TargetRegisterClass *RC) {
     return hasVGPRs(RC) || hasAGPRs(RC);
   }
 
@@ -350,10 +371,11 @@ public:
   // For creating spill instructions during frame lowering, where no scavenger
   // is available, LiveRegs can be used.
   void buildSpillLoadStore(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MI, unsigned LoadStoreOp,
-                           int Index, Register ValueReg, bool ValueIsKill,
-                           MCRegister ScratchOffsetReg, int64_t InstrOffset,
-                           MachineMemOperand *MMO, RegScavenger *RS,
+                           MachineBasicBlock::iterator MI, const DebugLoc &DL,
+                           unsigned LoadStoreOp, int Index, Register ValueReg,
+                           bool ValueIsKill, MCRegister ScratchOffsetReg,
+                           int64_t InstrOffset, MachineMemOperand *MMO,
+                           RegScavenger *RS,
                            LivePhysRegs *LiveRegs = nullptr) const;
 };
 

@@ -13,11 +13,12 @@
 
 #include "R600ISelLowering.h"
 #include "AMDGPU.h"
-#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
+#include "MCTargetDesc/R600MCTargetDesc.h"
 #include "R600Defines.h"
 #include "R600InstrInfo.h"
 #include "R600MachineFunctionInfo.h"
 #include "R600Subtarget.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/IntrinsicsR600.h"
 
@@ -335,7 +336,9 @@ R600TargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
         *BB, MI, R600::MOV, MI.getOperand(0).getReg(), R600::ALU_LITERAL_X);
     int Idx = TII->getOperandIdx(*MIB, R600::OpName::literal);
     //TODO: Ugh this is rather ugly
-    MIB->getOperand(Idx) = MI.getOperand(1);
+    const MachineOperand &MO = MI.getOperand(1);
+    MIB->getOperand(Idx).ChangeToGA(MO.getGlobal(), MO.getOffset(),
+                                    MO.getTargetFlags());
     break;
   }
 
@@ -827,7 +830,7 @@ SDValue R600TargetLowering::LowerImplicitParameter(SelectionDAG &DAG, EVT VT,
 
 bool R600TargetLowering::isZero(SDValue Op) const {
   if(ConstantSDNode *Cst = dyn_cast<ConstantSDNode>(Op)) {
-    return Cst->isNullValue();
+    return Cst->isZero();
   } else if(ConstantFPSDNode *CstFP = dyn_cast<ConstantFPSDNode>(Op)){
     return CstFP->isZero();
   } else {
@@ -923,7 +926,7 @@ SDValue R600TargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const 
       std::swap(LHS, RHS);
       CC = DAG.getCondCode(CCSwapped);
     } else {
-      // Try inverting the conditon and then swapping the operands
+      // Try inverting the condition and then swapping the operands
       ISD::CondCode CCInv = ISD::getSetCCInverse(CCOpcode, CompareVT);
       CCSwapped = ISD::getSetCCSwappedOperands(CCInv);
       if (isCondCodeLegal(CCSwapped, CompareVT.getSimpleVT())) {
@@ -1564,7 +1567,7 @@ EVT R600TargetLowering::getSetCCResultType(const DataLayout &DL, LLVMContext &,
 }
 
 bool R600TargetLowering::canMergeStoresTo(unsigned AS, EVT MemVT,
-                                          const SelectionDAG &DAG) const {
+                                          const MachineFunction &MF) const {
   // Local and Private addresses do not handle vectors. Limit to i32
   if ((AS == AMDGPUAS::LOCAL_ADDRESS || AS == AMDGPUAS::PRIVATE_ADDRESS)) {
     return (MemVT.getSizeInBits() <= 32);

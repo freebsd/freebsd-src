@@ -203,6 +203,10 @@ static MachineBasicBlock::iterator moveInstrOut(MachineInstr &MI,
 }
 
 bool HexagonPacketizer::runOnMachineFunction(MachineFunction &MF) {
+  // FIXME: This pass causes verification failures.
+  MF.getProperties().set(
+      MachineFunctionProperties::Property::FailsVerification);
+
   auto &HST = MF.getSubtarget<HexagonSubtarget>();
   HII = HST.getInstrInfo();
   HRI = HST.getRegisterInfo();
@@ -230,16 +234,9 @@ bool HexagonPacketizer::runOnMachineFunction(MachineFunction &MF) {
   // dependence between Insn 0 and Insn 2. This can lead to incorrect
   // packetization
   for (MachineBasicBlock &MB : MF) {
-    auto End = MB.end();
-    auto MI = MB.begin();
-    while (MI != End) {
-      auto NextI = std::next(MI);
-      if (MI->isKill()) {
-        MB.erase(MI);
-        End = MB.end();
-      }
-      MI = NextI;
-    }
+    for (MachineInstr &MI : llvm::make_early_inc_range(MB))
+      if (MI.isKill())
+        MB.erase(&MI);
   }
 
   // TinyCore with Duplexes: Translate to big-instructions.
@@ -1156,12 +1153,9 @@ bool HexagonPacketizerList::cannotCoexist(const MachineInstr &MI,
 void HexagonPacketizerList::unpacketizeSoloInstrs(MachineFunction &MF) {
   for (auto &B : MF) {
     MachineBasicBlock::iterator BundleIt;
-    MachineBasicBlock::instr_iterator NextI;
-    for (auto I = B.instr_begin(), E = B.instr_end(); I != E; I = NextI) {
-      NextI = std::next(I);
-      MachineInstr &MI = *I;
+    for (MachineInstr &MI : llvm::make_early_inc_range(B.instrs())) {
       if (MI.isBundle())
-        BundleIt = I;
+        BundleIt = MI.getIterator();
       if (!MI.isInsideBundle())
         continue;
 

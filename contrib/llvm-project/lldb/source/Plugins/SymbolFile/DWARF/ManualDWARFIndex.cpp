@@ -30,6 +30,7 @@ void ManualDWARFIndex::Index() {
   SymbolFileDWARF &main_dwarf = *m_dwarf;
   m_dwarf = nullptr;
 
+  ElapsedTime elapsed(m_index_time);
   LLDB_SCOPED_TIMERF("%p", static_cast<void *>(&main_dwarf));
 
   DWARFDebugInfo &main_info = main_dwarf.DebugInfo();
@@ -358,7 +359,8 @@ void ManualDWARFIndex::GetGlobalVariables(
 }
 
 void ManualDWARFIndex::GetGlobalVariables(
-    const DWARFUnit &unit, llvm::function_ref<bool(DWARFDIE die)> callback) {
+    DWARFUnit &unit, llvm::function_ref<bool(DWARFDIE die)> callback) {
+  lldbassert(!unit.GetSymbolFileDWARF().GetDwoNum());
   Index();
   m_set.globals.FindAllEntriesForUnit(unit, DIERefCallback(callback));
 }

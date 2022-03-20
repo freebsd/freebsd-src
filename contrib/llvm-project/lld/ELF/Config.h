@@ -127,6 +127,7 @@ struct Configuration {
   llvm::StringRef sysroot;
   llvm::StringRef thinLTOCacheDir;
   llvm::StringRef thinLTOIndexOnlyArg;
+  llvm::StringRef whyExtract;
   llvm::StringRef ltoBasicBlockSections;
   std::pair<llvm::StringRef, llvm::StringRef> thinLTOObjectSuffixReplace;
   std::pair<llvm::StringRef, llvm::StringRef> thinLTOPrefixReplace;
@@ -178,10 +179,10 @@ struct Configuration {
   bool ignoreDataAddressEquality;
   bool ignoreFunctionAddressEquality;
   bool ltoCSProfileGenerate;
+  bool ltoPGOWarnMismatch;
   bool ltoDebugPassManager;
   bool ltoEmitAsm;
   bool ltoNewPassManager;
-  bool ltoPseudoProbeForProfiling;
   bool ltoUniqueBasicBlockSectionNames;
   bool ltoWholeProgramVisibility;
   bool mergeArmExidx;
@@ -201,6 +202,7 @@ struct Configuration {
   bool pie;
   bool printGcSections;
   bool printIcfSections;
+  bool relax;
   bool relocatable;
   bool relrPackDynRelocs;
   bool saveTemps;

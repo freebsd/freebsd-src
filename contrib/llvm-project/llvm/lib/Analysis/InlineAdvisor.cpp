@@ -49,6 +49,42 @@ static cl::opt<int>
 
 extern cl::opt<InlinerFunctionImportStatsOpts> InlinerFunctionImportStats;
 
+namespace {
+using namespace llvm::ore;
+class MandatoryInlineAdvice : public InlineAdvice {
+public:
+  MandatoryInlineAdvice(InlineAdvisor *Advisor, CallBase &CB,
+                        OptimizationRemarkEmitter &ORE,
+                        bool IsInliningMandatory)
+      : InlineAdvice(Advisor, CB, ORE, IsInliningMandatory) {}
+
+private:
+  void recordInliningWithCalleeDeletedImpl() override { recordInliningImpl(); }
+
+  void recordInliningImpl() override {
+    if (IsInliningRecommended)
+      emitInlinedInto(ORE, DLoc, Block, *Callee, *Caller, IsInliningRecommended,
+                      [&](OptimizationRemark &Remark) {
+                        Remark << ": always inline attribute";
+                      });
+  }
+
+  void recordUnsuccessfulInliningImpl(const InlineResult &Result) override {
+    if (IsInliningRecommended)
+      ORE.emit([&]() {
+        return OptimizationRemarkMissed(DEBUG_TYPE, "NotInlined", DLoc, Block)
+               << "'" << NV("Callee", Callee) << "' is not AlwaysInline into '"
+               << NV("Caller", Caller)
+               << "': " << NV("Reason", Result.getFailureReason());
+      });
+  }
+
+  void recordUnattemptedInliningImpl() override {
+    assert(!IsInliningRecommended && "Expected to attempt inlining");
+  }
+};
+} // namespace
+
 void DefaultInlineAdvice::recordUnsuccessfulInliningImpl(
     const InlineResult &Result) {
   using namespace ore;
@@ -56,20 +92,20 @@ void DefaultInlineAdvice::recordUnsuccessfulInliningImpl(
                                          "; " + inlineCostStr(*OIC));
   ORE.emit([&]() {
     return OptimizationRemarkMissed(DEBUG_TYPE, "NotInlined", DLoc, Block)
-           << NV("Callee", Callee) << " will not be inlined into "
-           << NV("Caller", Caller) << ": "
-           << NV("Reason", Result.getFailureReason());
+           << "'" << NV("Callee", Callee) << "' is not inlined into '"
+           << NV("Caller", Caller)
+           << "': " << NV("Reason", Result.getFailureReason());
   });
 }
 
 void DefaultInlineAdvice::recordInliningWithCalleeDeletedImpl() {
   if (EmitRemarks)
-    emitInlinedInto(ORE, DLoc, Block, *Callee, *Caller, *OIC);
+    emitInlinedIntoBasedOnCost(ORE, DLoc, Block, *Callee, *Caller, *OIC);
 }
 
 void DefaultInlineAdvice::recordInliningImpl() {
   if (EmitRemarks)
-    emitInlinedInto(ORE, DLoc, Block, *Callee, *Caller, *OIC);
+    emitInlinedIntoBasedOnCost(ORE, DLoc, Block, *Callee, *Caller, *OIC);
 }
 
 llvm::Optional<llvm::InlineCost> static getDefaultInlineAdvice(
@@ -151,9 +187,9 @@ void InlineAdvice::recordInliningWithCalleeDeleted() {
 
 AnalysisKey InlineAdvisorAnalysis::Key;
 
-bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
-                                              InliningAdvisorMode Mode,
-                                              StringRef ReplayFile) {
+bool InlineAdvisorAnalysis::Result::tryCreate(
+    InlineParams Params, InliningAdvisorMode Mode,
+    const ReplayInlinerSettings &ReplaySettings) {
   auto &FAM = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   switch (Mode) {
   case InliningAdvisorMode::Default:
@@ -161,10 +197,10 @@ bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
     Advisor.reset(new DefaultInlineAdvisor(M, FAM, Params));
     // Restrict replay to default advisor, ML advisors are stateful so
     // replay will need augmentations to interleave with them correctly.
-    if (!ReplayFile.empty()) {
-      Advisor = std::make_unique<ReplayInlineAdvisor>(
-          M, FAM, M.getContext(), std::move(Advisor), ReplayFile,
-          /* EmitRemarks =*/true);
+    if (!ReplaySettings.ReplayFile.empty()) {
+      Advisor = llvm::getReplayInlineAdvisor(M, FAM, M.getContext(),
+                                             std::move(Advisor), ReplaySettings,
+                                             /* EmitRemarks =*/true);
     }
     break;
   case InliningAdvisorMode::Development:
@@ -313,7 +349,7 @@ void llvm::setInlineRemark(CallBase &CB, StringRef Message) {
     return;
 
   Attribute Attr = Attribute::get(CB.getContext(), "inline-remark", Message);
-  CB.addAttribute(AttributeList::FunctionIndex, Attr);
+  CB.addFnAttr(Attr);
 }
 
 /// Return the cost only if the inliner should attempt to inline at the given
@@ -343,15 +379,15 @@ llvm::shouldInline(CallBase &CB,
     if (IC.isNever()) {
       ORE.emit([&]() {
         return OptimizationRemarkMissed(DEBUG_TYPE, "NeverInline", Call)
-               << NV("Callee", Callee) << " not inlined into "
-               << NV("Caller", Caller) << " because it should never be inlined "
-               << IC;
+               << "'" << NV("Callee", Callee) << "' not inlined into '"
+               << NV("Caller", Caller)
+               << "' because it should never be inlined " << IC;
       });
     } else {
       ORE.emit([&]() {
         return OptimizationRemarkMissed(DEBUG_TYPE, "TooCostly", Call)
-               << NV("Callee", Callee) << " not inlined into "
-               << NV("Caller", Caller) << " because too costly to inline "
+               << "'" << NV("Callee", Callee) << "' not inlined into '"
+               << NV("Caller", Caller) << "' because too costly to inline "
                << IC;
       });
     }
@@ -368,9 +404,9 @@ llvm::shouldInline(CallBase &CB,
     ORE.emit([&]() {
       return OptimizationRemarkMissed(DEBUG_TYPE, "IncreaseCostInOtherContexts",
                                       Call)
-             << "Not inlining. Cost of inlining " << NV("Callee", Callee)
-             << " increases the cost of inlining " << NV("Caller", Caller)
-             << " in other contexts";
+             << "Not inlining. Cost of inlining '" << NV("Callee", Callee)
+             << "' increases the cost of inlining '" << NV("Caller", Caller)
+             << "' in other contexts";
     });
     setInlineRemark(CB, "deferred");
     // IC does not bool() to false, so get an InlineCost that will.
@@ -383,7 +419,8 @@ llvm::shouldInline(CallBase &CB,
   return IC;
 }
 
-std::string llvm::getCallSiteLocation(DebugLoc DLoc) {
+std::string llvm::formatCallSiteLocation(DebugLoc DLoc,
+                                         const CallSiteFormat &Format) {
   std::string Buffer;
   raw_string_ostream CallSiteLoc(Buffer);
   bool First = true;
@@ -399,9 +436,10 @@ std::string llvm::getCallSiteLocation(DebugLoc DLoc) {
     StringRef Name = DIL->getScope()->getSubprogram()->getLinkageName();
     if (Name.empty())
       Name = DIL->getScope()->getSubprogram()->getName();
-    CallSiteLoc << Name.str() << ":" << llvm::utostr(Offset) << ":"
-                << llvm::utostr(DIL->getColumn());
-    if (Discriminator)
+    CallSiteLoc << Name.str() << ":" << llvm::utostr(Offset);
+    if (Format.outputColumn())
+      CallSiteLoc << ":" << llvm::utostr(DIL->getColumn());
+    if (Format.outputDiscriminator() && Discriminator)
       CallSiteLoc << "." << llvm::utostr(Discriminator);
     First = false;
   }
@@ -435,23 +473,36 @@ void llvm::addLocationToRemarks(OptimizationRemark &Remark, DebugLoc DLoc) {
   Remark << ";";
 }
 
-void llvm::emitInlinedInto(OptimizationRemarkEmitter &ORE, DebugLoc DLoc,
-                           const BasicBlock *Block, const Function &Callee,
-                           const Function &Caller, const InlineCost &IC,
-                           bool ForProfileContext, const char *PassName) {
+void llvm::emitInlinedInto(
+    OptimizationRemarkEmitter &ORE, DebugLoc DLoc, const BasicBlock *Block,
+    const Function &Callee, const Function &Caller, bool AlwaysInline,
+    function_ref<void(OptimizationRemark &)> ExtraContext,
+    const char *PassName) {
   ORE.emit([&]() {
-    bool AlwaysInline = IC.isAlways();
     StringRef RemarkName = AlwaysInline ? "AlwaysInline" : "Inlined";
     OptimizationRemark Remark(PassName ? PassName : DEBUG_TYPE, RemarkName,
                               DLoc, Block);
-    Remark << ore::NV("Callee", &Callee) << " inlined into ";
-    Remark << ore::NV("Caller", &Caller);
-    if (ForProfileContext)
-      Remark << " to match profiling context";
-    Remark << " with " << IC;
+    Remark << "'" << ore::NV("Callee", &Callee) << "' inlined into '"
+           << ore::NV("Caller", &Caller) << "'";
+    if (ExtraContext)
+      ExtraContext(Remark);
     addLocationToRemarks(Remark, DLoc);
     return Remark;
   });
+}
+
+void llvm::emitInlinedIntoBasedOnCost(
+    OptimizationRemarkEmitter &ORE, DebugLoc DLoc, const BasicBlock *Block,
+    const Function &Callee, const Function &Caller, const InlineCost &IC,
+    bool ForProfileContext, const char *PassName) {
+  llvm::emitInlinedInto(
+      ORE, DLoc, Block, Callee, Caller, IC.isAlways(),
+      [&](OptimizationRemark &Remark) {
+        if (ForProfileContext)
+          Remark << " to match profiling context";
+        Remark << " with " << IC;
+      },
+      PassName);
 }
 
 InlineAdvisor::InlineAdvisor(Module &M, FunctionAnalysisManager &FAM)
@@ -475,7 +526,8 @@ InlineAdvisor::~InlineAdvisor() {
 
 std::unique_ptr<InlineAdvice> InlineAdvisor::getMandatoryAdvice(CallBase &CB,
                                                                 bool Advice) {
-  return std::make_unique<InlineAdvice>(this, CB, getCallerORE(CB), Advice);
+  return std::make_unique<MandatoryInlineAdvice>(this, CB, getCallerORE(CB),
+                                                 Advice);
 }
 
 InlineAdvisor::MandatoryInliningKind

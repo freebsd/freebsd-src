@@ -23,10 +23,10 @@
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DiagnosticPrinter.h"
-#include "llvm/LTO/Caching.h"
 #include "llvm/LTO/Config.h"
 #include "llvm/LTO/LTO.h"
 #include "llvm/Object/SymbolicFile.h"
+#include "llvm/Support/Caching.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
@@ -112,7 +112,6 @@ static lto::Config createConfig() {
     }
   }
 
-  c.Options.PseudoProbeForProfiling = config->ltoPseudoProbeForProfiling;
   c.Options.UniqueBasicBlockSectionNames =
       config->ltoUniqueBasicBlockSectionNames;
 
@@ -163,6 +162,7 @@ static lto::Config createConfig() {
 
   c.CSIRProfile = std::string(config->ltoCSProfileFile);
   c.RunCSIRInstr = config->ltoCSProfileGenerate;
+  c.PGOWarnMismatch = config->ltoPGOWarnMismatch;
 
   if (config->emitLLVM) {
     c.PostInternalizeModuleHook = [](size_t task, const Module &m) {
@@ -304,18 +304,18 @@ std::vector<InputFile *> BitcodeCompiler::compile() {
   // The --thinlto-cache-dir option specifies the path to a directory in which
   // to cache native object files for ThinLTO incremental builds. If a path was
   // specified, configure LTO to use it as the cache directory.
-  lto::NativeObjectCache cache;
+  FileCache cache;
   if (!config->thinLTOCacheDir.empty())
-    cache = check(
-        lto::localCache(config->thinLTOCacheDir,
-                        [&](size_t task, std::unique_ptr<MemoryBuffer> mb) {
-                          files[task] = std::move(mb);
-                        }));
+    cache =
+        check(localCache("ThinLTO", "Thin", config->thinLTOCacheDir,
+                         [&](size_t task, std::unique_ptr<MemoryBuffer> mb) {
+                           files[task] = std::move(mb);
+                         }));
 
   if (!bitcodeFiles.empty())
     checkError(ltoObj->run(
         [&](size_t task) {
-          return std::make_unique<lto::NativeObjectStream>(
+          return std::make_unique<CachedFileStream>(
               std::make_unique<raw_svector_ostream>(buf[task]));
         },
         cache));

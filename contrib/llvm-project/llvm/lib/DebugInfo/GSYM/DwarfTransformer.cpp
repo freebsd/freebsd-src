@@ -260,17 +260,15 @@ static void convertFunctionLineTable(raw_ostream &Log, CUInfo &CUI,
   if (!CUI.LineTable->lookupAddressRange(SecAddress, RangeSize, RowVector)) {
     // If we have a DW_TAG_subprogram but no line entries, fall back to using
     // the DW_AT_decl_file an d DW_AT_decl_line if we have both attributes.
-    if (auto FileIdx =
-            dwarf::toUnsigned(Die.findRecursively({dwarf::DW_AT_decl_file}))) {
-      if (auto Line =
-              dwarf::toUnsigned(Die.findRecursively({dwarf::DW_AT_decl_line}))) {
-        LineEntry LE(StartAddress, CUI.DWARFToGSYMFileIndex(Gsym, *FileIdx),
-                     *Line);
-        FI.OptLineTable = LineTable();
-        FI.OptLineTable->push(LE);
-        // LE.Addr = EndAddress;
-        // FI.OptLineTable->push(LE);
-      }
+    std::string FilePath = Die.getDeclFile(
+        DILineInfoSpecifier::FileLineInfoKind::AbsoluteFilePath);
+    if (FilePath.empty())
+      return;
+    if (auto Line =
+            dwarf::toUnsigned(Die.findRecursively({dwarf::DW_AT_decl_line}))) {
+      LineEntry LE(StartAddress, Gsym.insertFile(FilePath), *Line);
+      FI.OptLineTable = LineTable();
+      FI.OptLineTable->push(LE);
     }
     return;
   }
@@ -394,11 +392,11 @@ void DwarfTransformer::handleDie(raw_ostream &OS, CUInfo &CUI, DWARFDie Die) {
         if (Range.LowPC != 0) {
           if (!Gsym.isQuiet()) {
             // Unexpected invalid address, emit a warning
-            Log << "warning: DIE has an address range whose start address is "
-                   "not in any executable sections ("
-                << *Gsym.GetValidTextRanges()
-                << ") and will not be processed:\n";
-            Die.dump(Log, 0, DIDumpOptions::getForSingleDIE());
+            OS << "warning: DIE has an address range whose start address is "
+                  "not in any executable sections ("
+               << *Gsym.GetValidTextRanges()
+               << ") and will not be processed:\n";
+            Die.dump(OS, 0, DIDumpOptions::getForSingleDIE());
           }
         }
         break;

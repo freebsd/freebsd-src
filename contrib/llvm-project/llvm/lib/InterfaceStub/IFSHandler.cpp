@@ -163,7 +163,7 @@ bool usesTriple(StringRef Buf) {
   for (line_iterator I(MemoryBufferRef(Buf, "ELFStub")); !I.is_at_eof(); ++I) {
     StringRef Line = (*I).trim();
     if (Line.startswith("Target:")) {
-      if (Line == "Target:" || (Line.find("{") != Line.npos)) {
+      if (Line == "Target:" || Line.contains("{")) {
         return false;
       }
     }
@@ -325,5 +325,15 @@ void ifs::stripIFSTarget(IFSStub &Stub, bool StripTriple, bool StripArch,
   }
   if (!Stub.Target.Arch && !Stub.Target.BitWidth && !Stub.Target.Endianness) {
     Stub.Target.ObjectFormat.reset();
+  }
+}
+
+void ifs::stripIFSUndefinedSymbols(IFSStub &Stub) {
+  for (auto Iter = Stub.Symbols.begin(); Iter != Stub.Symbols.end();) {
+    if (Iter->Undefined) {
+      Iter = Stub.Symbols.erase(Iter);
+    } else {
+      Iter++;
+    }
   }
 }

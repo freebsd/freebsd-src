@@ -99,6 +99,7 @@ static const char *getPropertyName(MachineFunctionProperties::Property Prop) {
   case P::Selected: return "Selected";
   case P::TracksLiveness: return "TracksLiveness";
   case P::TiedOpsRewritten: return "TiedOpsRewritten";
+  case P::FailsVerification: return "FailsVerification";
   }
   llvm_unreachable("Invalid machine function property");
 }
@@ -129,8 +130,8 @@ void ilist_alloc_traits<MachineBasicBlock>::deleteNode(MachineBasicBlock *MBB) {
 
 static inline unsigned getFnStackAlignment(const TargetSubtargetInfo *STI,
                                            const Function &F) {
-  if (F.hasFnAttribute(Attribute::StackAlignment))
-    return F.getFnStackAlignment();
+  if (auto MA = F.getFnStackAlign())
+    return MA->value();
   return STI->getFrameLowering()->getStackAlign().value();
 }
 
@@ -745,9 +746,8 @@ MCSymbol *MachineFunction::addLandingPad(MachineBasicBlock *LandingPad) {
         // Add filters in a list.
         auto *CVal = cast<Constant>(Val);
         SmallVector<const GlobalValue *, 4> FilterList;
-        for (User::op_iterator II = CVal->op_begin(), IE = CVal->op_end();
-             II != IE; ++II)
-          FilterList.push_back(cast<GlobalValue>((*II)->stripPointerCasts()));
+        for (const Use &U : CVal->operands())
+          FilterList.push_back(cast<GlobalValue>(U->stripPointerCasts()));
 
         addFilterTypeInfo(LandingPad, FilterList);
       }
@@ -973,6 +973,9 @@ void MachineFunction::makeDebugValueSubstitution(DebugInstrOperandPair A,
                                                  unsigned Subreg) {
   // Catch any accidental self-loops.
   assert(A.first != B.first);
+  // Don't allow any substitutions _from_ the memory operand number.
+  assert(A.second != DebugOperandMemNumber);
+
   DebugValueSubstitutions.push_back({A, B, Subreg});
 }
 
@@ -1148,17 +1151,17 @@ auto MachineFunction::salvageCopySSA(MachineInstr &MI)
     // locations.
     ;
   } else {
-    // Assert that this is the entry block. If it isn't, then there is some
-    // code construct we don't recognise that deals with physregs across
-    // blocks.
+    // Assert that this is the entry block, or an EH pad. If it isn't, then
+    // there is some code construct we don't recognise that deals with physregs
+    // across blocks.
     assert(!State.first.isVirtual());
-    assert(&*InsertBB.getParent()->begin() == &InsertBB);
+    assert(&*InsertBB.getParent()->begin() == &InsertBB || InsertBB.isEHPad());
   }
 
   // Create DBG_PHI for specified physreg.
   auto Builder = BuildMI(InsertBB, InsertBB.getFirstNonPHI(), DebugLoc(),
                          TII.get(TargetOpcode::DBG_PHI));
-  Builder.addReg(State.first, RegState::Debug);
+  Builder.addReg(State.first);
   unsigned NewNum = getNewDebugInstrNum();
   Builder.addImm(NewNum);
   return ApplySubregisters({NewNum, 0u});
@@ -1171,10 +1174,9 @@ void MachineFunction::finalizeDebugInstrRefs() {
     const MCInstrDesc &RefII = TII->get(TargetOpcode::DBG_VALUE);
     MI.setDesc(RefII);
     MI.getOperand(1).ChangeToRegister(0, false);
-    MI.getOperand(0).setIsDebug();
   };
 
-  if (!getTarget().Options.ValueTrackingVariableLocations)
+  if (!useDebugInstrRef())
     return;
 
   for (auto &MBB : *this) {
@@ -1220,6 +1222,27 @@ void MachineFunction::finalizeDebugInstrRefs() {
     }
   }
 }
+
+bool MachineFunction::useDebugInstrRef() const {
+  // Disable instr-ref at -O0: it's very slow (in compile time). We can still
+  // have optimized code inlined into this unoptimized code, however with
+  // fewer and less aggressive optimizations happening, coverage and accuracy
+  // should not suffer.
+  if (getTarget().getOptLevel() == CodeGenOpt::None)
+    return false;
+
+  // Don't use instr-ref if this function is marked optnone.
+  if (F.hasFnAttribute(Attribute::OptimizeNone))
+    return false;
+
+  if (getTarget().Options.ValueTrackingVariableLocations)
+    return true;
+
+  return false;
+}
+
+// Use one million as a high / reserved number.
+const unsigned MachineFunction::DebugOperandMemNumber = 1000000;
 
 /// \}
 

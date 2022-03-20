@@ -57,9 +57,9 @@ public:
   bool isUnordered() const { return getMMO().isUnordered(); }
 
   /// Returns the size in bytes of the memory access.
-  uint64_t getMemSize() { return getMMO().getSize();
+  uint64_t getMemSize() const { return getMMO().getSize();
   } /// Returns the size in bits of the memory access.
-  uint64_t getMemSizeInBits() { return getMMO().getSizeInBits(); }
+  uint64_t getMemSizeInBits() const { return getMMO().getSizeInBits(); }
 
   static bool classof(const MachineInstr *MI) {
     switch (MI->getOpcode()) {
@@ -192,6 +192,37 @@ class GBuildVector : public GMergeLikeOp {
 public:
   static bool classof(const MachineInstr *MI) {
     return MI->getOpcode() == TargetOpcode::G_BUILD_VECTOR;
+  }
+};
+
+/// Represents a G_PTR_ADD.
+class GPtrAdd : public GenericMachineInstr {
+public:
+  Register getBaseReg() const { return getReg(1); }
+  Register getOffsetReg() const { return getReg(2); }
+
+  static bool classof(const MachineInstr *MI) {
+    return MI->getOpcode() == TargetOpcode::G_PTR_ADD;
+  }
+};
+
+/// Represents a G_IMPLICIT_DEF.
+class GImplicitDef : public GenericMachineInstr {
+public:
+  static bool classof(const MachineInstr *MI) {
+    return MI->getOpcode() == TargetOpcode::G_IMPLICIT_DEF;
+  }
+};
+
+/// Represents a G_SELECT.
+class GSelect : public GenericMachineInstr {
+public:
+  Register getCondReg() const { return getReg(1); }
+  Register getTrueReg() const { return getReg(2); }
+  Register getFalseReg() const { return getReg(3); }
+
+  static bool classof(const MachineInstr *MI) {
+    return MI->getOpcode() == TargetOpcode::G_SELECT;
   }
 };
 

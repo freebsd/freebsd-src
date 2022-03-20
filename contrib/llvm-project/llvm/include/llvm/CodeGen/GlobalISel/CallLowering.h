@@ -116,6 +116,9 @@ public:
     /// vreg that the swifterror should be copied into after the call.
     Register SwiftErrorVReg;
 
+    /// Original IR callsite corresponding to this call, if available.
+    const CallBase *CB = nullptr;
+
     MDNode *KnownCallees = nullptr;
 
     /// True if the call must be tail call optimized.
@@ -259,7 +262,7 @@ public:
     /// handle the appropriate COPY (either to or from) and mark any
     /// relevant uses/defines as needed.
     virtual void assignValueToReg(Register ValVReg, Register PhysReg,
-                                  CCValAssign &VA) = 0;
+                                  CCValAssign VA) = 0;
 
     /// The specified value has been assigned to a stack
     /// location. Load or store it there, with appropriate extension
@@ -279,11 +282,14 @@ public:
     }
 
     /// Handle custom values, which may be passed into one or more of \p VAs.
+    /// \p If the handler wants the assignments to be delayed until after
+    /// mem loc assignments, then it sets \p Thunk to the thunk to do the
+    /// assignment.
     /// \return The number of \p VAs that have been assigned after the first
     ///         one, and which should therefore be skipped from further
     ///         processing.
-    virtual unsigned assignCustomValue(ArgInfo &Arg,
-                                       ArrayRef<CCValAssign> VAs) {
+    virtual unsigned assignCustomValue(ArgInfo &Arg, ArrayRef<CCValAssign> VAs,
+                                       std::function<void()> *Thunk = nullptr) {
       // This is not a pure virtual method because not all targets need to worry
       // about custom values.
       llvm_unreachable("Custom values not supported");
@@ -315,7 +321,7 @@ public:
 
     /// Provides a default implementation for argument handling.
     void assignValueToReg(Register ValVReg, Register PhysReg,
-                          CCValAssign &VA) override;
+                          CCValAssign VA) override;
   };
 
   /// Base class for ValueHandlers used for arguments passed to a function call,

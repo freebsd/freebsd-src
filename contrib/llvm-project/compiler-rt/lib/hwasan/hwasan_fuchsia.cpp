@@ -130,7 +130,7 @@ static void ThreadCreateHook(void *hook, bool aborted) {
 static void ThreadStartHook(void *hook, thrd_t self) {
   Thread *thread = static_cast<Thread *>(hook);
   FinishThreadInitialization(thread);
-  thread->InitRandomState();
+  thread->EnsureRandomStateInited();
 }
 
 // This is the function that sets up the stack ring buffer and enables us to use
@@ -179,6 +179,8 @@ void HwasanTSDThreadInit() {}
 // HwasanAtExit are unimplemented for Fuchsia and effectively no-ops, so this
 // function is unneeded.
 void InstallAtExitHandler() {}
+
+void HwasanInstallAtForkHandler() {}
 
 // TODO(fxbug.dev/81499): Once we finalize the tagged pointer ABI in zircon, we should come back
 // here and implement the appropriate check that TBI is enabled.

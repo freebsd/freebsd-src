@@ -55,7 +55,6 @@ private:
   void SetDefaultModuleCacheDirectory(const FileSpec &dir_spec);
 };
 
-typedef std::shared_ptr<PlatformProperties> PlatformPropertiesSP;
 typedef llvm::SmallVector<lldb::addr_t, 6> MmapArgList;
 
 /// \class Platform Platform.h "lldb/Target/Platform.h"
@@ -74,8 +73,6 @@ public:
   /// Default Constructor
   Platform(bool is_host_platform);
 
-  /// Destructor.
-  ///
   /// The destructor is virtual since this class is designed to be inherited
   /// from by the plug-in instance.
   ~Platform() override;
@@ -84,7 +81,7 @@ public:
 
   static void Terminate();
 
-  static const PlatformPropertiesSP &GetGlobalPlatformProperties();
+  static PlatformProperties &GetGlobalPlatformProperties();
 
   /// Get the native host platform plug-in.
   ///
@@ -215,9 +212,9 @@ public:
 
   bool SetOSVersion(llvm::VersionTuple os_version);
 
-  bool GetOSBuildString(std::string &s);
+  llvm::Optional<std::string> GetOSBuildString();
 
-  bool GetOSKernelDescription(std::string &s);
+  llvm::Optional<std::string> GetOSKernelDescription();
 
   // Returns the name of the platform
   ConstString GetName();
@@ -226,7 +223,7 @@ public:
 
   virtual ConstString GetFullNameForDylib(ConstString basename);
 
-  virtual const char *GetDescription() = 0;
+  virtual llvm::StringRef GetDescription() = 0;
 
   /// Report the current status for this platform.
   ///
@@ -243,14 +240,12 @@ public:
   // HostInfo::GetOSVersion().
   virtual bool GetRemoteOSVersion() { return false; }
 
-  virtual bool GetRemoteOSBuildString(std::string &s) {
-    s.clear();
-    return false;
+  virtual llvm::Optional<std::string> GetRemoteOSBuildString() {
+    return llvm::None;
   }
 
-  virtual bool GetRemoteOSKernelDescription(std::string &s) {
-    s.clear();
-    return false;
+  virtual llvm::Optional<std::string> GetRemoteOSKernelDescription() {
+    return llvm::None;
   }
 
   // Remote Platform subclasses need to override this function
@@ -327,7 +322,13 @@ public:
   ///     \b true if \a arch was filled in and is valid, \b false
   ///     otherwise.
   virtual bool GetSupportedArchitectureAtIndex(uint32_t idx,
-                                               ArchSpec &arch) = 0;
+                                               ArchSpec &arch);
+
+  /// Get the platform's supported architectures in the order in which they
+  /// should be searched.
+  /// NB: This implementation is mutually recursive with
+  /// GetSupportedArchitectureAtIndex. Subclasses should implement one of them.
+  virtual std::vector<ArchSpec> GetSupportedArchitectures();
 
   virtual size_t GetSoftwareBreakpointTrapOpcode(Target &target,
                                                  BreakpointSite *bp_site);
@@ -363,11 +364,9 @@ public:
   /// platforms will want to subclass this function in order to be able to
   /// intercept STDIO and possibly launch a separate process that will debug
   /// the debuggee.
-  virtual lldb::ProcessSP
-  DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
-               Target *target, // Can be nullptr, if nullptr create a new
-                               // target, else use existing one
-               Status &error);
+  virtual lldb::ProcessSP DebugProcess(ProcessLaunchInfo &launch_info,
+                                       Debugger &debugger, Target &target,
+                                       Status &error);
 
   virtual lldb::ProcessSP ConnectProcess(llvm::StringRef connect_url,
                                          llvm::StringRef plugin_name,
@@ -726,6 +725,24 @@ public:
   ///     A list of symbol names.  The list may be empty.
   virtual const std::vector<ConstString> &GetTrapHandlerSymbolNames();
 
+  /// Try to get a specific unwind plan for a named trap handler.
+  /// The default is not to have specific unwind plans for trap handlers.
+  ///
+  /// \param[in] triple
+  ///     Triple of the current target.
+  ///
+  /// \param[in] name
+  ///     Name of the trap handler function.
+  ///
+  /// \return
+  ///     A specific unwind plan for that trap handler, or an empty
+  ///     shared pointer. The latter means there is no specific plan,
+  ///     unwind as normal.
+  virtual lldb::UnwindPlanSP
+  GetTrapHandlerUnwindPlan(const llvm::Triple &triple, ConstString name) {
+    return {};
+  }
+
   /// Find a support executable that may not live within in the standard
   /// locations related to LLDB.
   ///
@@ -865,6 +882,12 @@ public:
   }
 
 protected:
+  /// Create a list of ArchSpecs with the given OS and a architectures. The
+  /// vendor field is left as an "unspecified unknown".
+  static std::vector<ArchSpec>
+  CreateArchList(llvm::ArrayRef<llvm::Triple::ArchType> archs,
+                 llvm::Triple::OSType os);
+
   /// Private implementation of connecting to a process. If the stream is set
   /// we connect synchronously.
   lldb::ProcessSP DoConnectProcess(llvm::StringRef connect_url,
@@ -920,8 +943,7 @@ protected:
   virtual void CalculateTrapHandlerSymbolNames() = 0;
 
   Status GetCachedExecutable(ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
-                             const FileSpecList *module_search_paths_ptr,
-                             Platform &remote_platform);
+                             const FileSpecList *module_search_paths_ptr);
 
   virtual Status DownloadModuleSlice(const FileSpec &src_file_spec,
                                      const uint64_t src_offset,
@@ -932,6 +954,11 @@ protected:
                                     const FileSpec &dst_file_spec);
 
   virtual const char *GetCacheHostname();
+
+  virtual Status
+  ResolveRemoteExecutable(const ModuleSpec &module_spec,
+                          lldb::ModuleSP &exe_module_sp,
+                          const FileSpecList *module_search_paths_ptr);
 
 private:
   typedef std::function<Status(const ModuleSpec &)> ModuleResolver;
@@ -946,8 +973,7 @@ private:
 
   Status LoadCachedExecutable(const ModuleSpec &module_spec,
                               lldb::ModuleSP &module_sp,
-                              const FileSpecList *module_search_paths_ptr,
-                              Platform &remote_platform);
+                              const FileSpecList *module_search_paths_ptr);
 
   FileSpec GetModuleCacheRoot();
 };

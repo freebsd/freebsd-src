@@ -815,6 +815,28 @@ void VPlan::execute(VPTransformState *State) {
   for (VPBlockBase *Block : depth_first(Entry))
     Block->execute(State);
 
+  // Fix the latch value of reduction and first-order recurrences phis in the
+  // vector loop.
+  VPBasicBlock *Header = Entry->getEntryBasicBlock();
+  for (VPRecipeBase &R : Header->phis()) {
+    auto *PhiR = dyn_cast<VPWidenPHIRecipe>(&R);
+    if (!PhiR || !(isa<VPFirstOrderRecurrencePHIRecipe>(&R) ||
+                   isa<VPReductionPHIRecipe>(&R)))
+      continue;
+    // For first-order recurrences and in-order reduction phis, only a single
+    // part is generated, which provides the last part from the previous
+    // iteration. Otherwise all UF parts are generated.
+    bool SinglePartNeeded = isa<VPFirstOrderRecurrencePHIRecipe>(&R) ||
+                            cast<VPReductionPHIRecipe>(&R)->isOrdered();
+    unsigned LastPartForNewPhi = SinglePartNeeded ? 1 : State->UF;
+    for (unsigned Part = 0; Part < LastPartForNewPhi; ++Part) {
+      Value *VecPhi = State->get(PhiR, Part);
+      Value *Val = State->get(PhiR->getBackedgeValue(),
+                              SinglePartNeeded ? State->UF - 1 : Part);
+      cast<PHINode>(VecPhi)->addIncoming(Val, VectorLatchBB);
+    }
+  }
+
   // Setup branch terminator successors for VPBBs in VPBBsToFix based on
   // VPBB's successors.
   for (auto VPBB : State->CFG.VPBBsToFix) {
@@ -862,6 +884,13 @@ void VPlan::print(raw_ostream &O) const {
   VPSlotTracker SlotTracker(this);
 
   O << "VPlan '" << Name << "' {";
+
+  if (BackedgeTakenCount && BackedgeTakenCount->getNumUsers()) {
+    O << "\nLive-in ";
+    BackedgeTakenCount->printAsOperand(O, SlotTracker);
+    O << " = backedge-taken count\n";
+  }
+
   for (const VPBlockBase *Block : depth_first(getEntry())) {
     O << '\n';
     Block->print(O, "", SlotTracker);
@@ -920,12 +949,12 @@ void VPlan::updateDominatorTree(DominatorTree *DT, BasicBlock *LoopPreHeaderBB,
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-const Twine VPlanPrinter::getUID(const VPBlockBase *Block) {
+Twine VPlanPrinter::getUID(const VPBlockBase *Block) {
   return (isa<VPRegionBlock>(Block) ? "cluster_N" : "N") +
          Twine(getOrCreateBID(Block));
 }
 
-const Twine VPlanPrinter::getOrCreateName(const VPBlockBase *Block) {
+Twine VPlanPrinter::getOrCreateName(const VPBlockBase *Block) {
   const std::string &Name = Block->getName();
   if (!Name.empty())
     return Name;
@@ -1235,7 +1264,7 @@ void VPWidenCanonicalIVRecipe::execute(VPTransformState &State) {
         VF.isScalar() ? Indices.back() : ConstantVector::get(Indices);
     // Add the consecutive indices to the vector value.
     Value *CanonicalVectorIV = Builder.CreateAdd(VStart, VStep, "vec.iv");
-    State.set(getVPSingleValue(), CanonicalVectorIV, Part);
+    State.set(this, CanonicalVectorIV, Part);
   }
 }
 
@@ -1243,7 +1272,7 @@ void VPWidenCanonicalIVRecipe::execute(VPTransformState &State) {
 void VPWidenCanonicalIVRecipe::print(raw_ostream &O, const Twine &Indent,
                                      VPSlotTracker &SlotTracker) const {
   O << Indent << "EMIT ";
-  getVPSingleValue()->printAsOperand(O, SlotTracker);
+  printAsOperand(O, SlotTracker);
   O << " = WIDEN-CANONICAL-INDUCTION";
 }
 #endif
@@ -1306,12 +1335,16 @@ void VPReductionPHIRecipe::execute(VPTransformState &State) {
         PHINode::Create(VecTy, 2, "vec.phi", &*HeaderBB->getFirstInsertionPt());
     State.set(this, EntryPart, Part);
   }
+
+  // Reductions do not have to start at zero. They can start with
+  // any loop invariant values.
   VPValue *StartVPV = getStartValue();
   Value *StartV = StartVPV->getLiveInIRValue();
 
   Value *Iden = nullptr;
   RecurKind RK = RdxDesc.getRecurrenceKind();
-  if (RecurrenceDescriptor::isMinMaxRecurrenceKind(RK)) {
+  if (RecurrenceDescriptor::isMinMaxRecurrenceKind(RK) ||
+      RecurrenceDescriptor::isSelectCmpRecurrenceKind(RK)) {
     // MinMax reduction have the start value as their identify.
     if (ScalarPHI) {
       Iden = StartV;
@@ -1322,12 +1355,11 @@ void VPReductionPHIRecipe::execute(VPTransformState &State) {
           Builder.CreateVectorSplat(State.VF, StartV, "minmax.ident");
     }
   } else {
-    Constant *IdenC = RecurrenceDescriptor::getRecurrenceIdentity(
-        RK, VecTy->getScalarType(), RdxDesc.getFastMathFlags());
-    Iden = IdenC;
+    Iden = RdxDesc.getRecurrenceIdentity(RK, VecTy->getScalarType(),
+                                         RdxDesc.getFastMathFlags());
 
     if (!ScalarPHI) {
-      Iden = ConstantVector::getSplat(State.VF, IdenC);
+      Iden = Builder.CreateVectorSplat(State.VF, Iden);
       IRBuilderBase::InsertPointGuard IPBuilder(Builder);
       Builder.SetInsertPoint(State.CFG.VectorPreHeader->getTerminator());
       Constant *Zero = Builder.getInt32(0);

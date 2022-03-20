@@ -13,18 +13,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
-
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/CodeMetrics.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/CodeExtractor.h"
+#include "llvm/Transforms/Utils/LoopPeel.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
+#include "llvm/Transforms/Utils/UnrollLoop.h"
 
 #include <sstream>
 
@@ -39,16 +50,22 @@ static cl::opt<bool>
                                   "'as-if' properties of runtime calls."),
                          cl::init(false));
 
+static cl::opt<double> UnrollThresholdFactor(
+    "openmp-ir-builder-unroll-threshold-factor", cl::Hidden,
+    cl::desc("Factor for the unroll threshold to account for code "
+             "simplifications still taking place"),
+    cl::init(1.5));
+
 void OpenMPIRBuilder::addAttributes(omp::RuntimeFunction FnID, Function &Fn) {
   LLVMContext &Ctx = Fn.getContext();
 
   // Get the function's current attributes.
   auto Attrs = Fn.getAttributes();
-  auto FnAttrs = Attrs.getFnAttributes();
-  auto RetAttrs = Attrs.getRetAttributes();
+  auto FnAttrs = Attrs.getFnAttrs();
+  auto RetAttrs = Attrs.getRetAttrs();
   SmallVector<AttributeSet, 4> ArgAttrs;
   for (size_t ArgNo = 0; ArgNo < Fn.arg_size(); ++ArgNo)
-    ArgAttrs.emplace_back(Attrs.getParamAttributes(ArgNo));
+    ArgAttrs.emplace_back(Attrs.getParamAttrs(ArgNo));
 
 #define OMP_ATTRS_SET(VarName, AttrSet) AttributeSet VarName = AttrSet;
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
@@ -228,6 +245,16 @@ OpenMPIRBuilder::~OpenMPIRBuilder() {
   assert(OutlineInfos.empty() && "There must be no outstanding outlinings");
 }
 
+GlobalValue *OpenMPIRBuilder::createGlobalFlag(unsigned Value, StringRef Name) {
+  IntegerType *I32Ty = Type::getInt32Ty(M.getContext());
+  auto *GV =
+      new GlobalVariable(M, I32Ty,
+                         /* isConstant = */ true, GlobalValue::WeakODRLinkage,
+                         ConstantInt::get(I32Ty, Value), Name);
+
+  return GV;
+}
+
 Value *OpenMPIRBuilder::getOrCreateIdent(Constant *SrcLocStr,
                                          IdentFlag LocFlags,
                                          unsigned Reserve2Flags) {
@@ -241,32 +268,29 @@ Value *OpenMPIRBuilder::getOrCreateIdent(Constant *SrcLocStr,
     Constant *IdentData[] = {
         I32Null, ConstantInt::get(Int32, uint32_t(LocFlags)),
         ConstantInt::get(Int32, Reserve2Flags), I32Null, SrcLocStr};
-    Constant *Initializer = ConstantStruct::get(
-        cast<StructType>(IdentPtr->getPointerElementType()), IdentData);
+    Constant *Initializer =
+        ConstantStruct::get(OpenMPIRBuilder::Ident, IdentData);
 
     // Look for existing encoding of the location + flags, not needed but
     // minimizes the difference to the existing solution while we transition.
     for (GlobalVariable &GV : M.getGlobalList())
-      if (GV.getType() == IdentPtr && GV.hasInitializer())
+      if (GV.getValueType() == OpenMPIRBuilder::Ident && GV.hasInitializer())
         if (GV.getInitializer() == Initializer)
-          return Ident = &GV;
+          Ident = &GV;
 
-    auto *GV = new GlobalVariable(M, IdentPtr->getPointerElementType(),
-                                  /* isConstant = */ true,
-                                  GlobalValue::PrivateLinkage, Initializer);
-    GV->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
-    GV->setAlignment(Align(8));
-    Ident = GV;
+    if (!Ident) {
+      auto *GV = new GlobalVariable(
+          M, OpenMPIRBuilder::Ident,
+          /* isConstant = */ true, GlobalValue::PrivateLinkage, Initializer, "",
+          nullptr, GlobalValue::NotThreadLocal,
+          M.getDataLayout().getDefaultGlobalsAddressSpace());
+      GV->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
+      GV->setAlignment(Align(8));
+      Ident = GV;
+    }
   }
+
   return Builder.CreatePointerCast(Ident, IdentPtr);
-}
-
-Type *OpenMPIRBuilder::getLanemaskType() {
-  LLVMContext &Ctx = M.getContext();
-  Triple triple(M.getTargetTriple());
-
-  // This test is adequate until deviceRTL has finer grained lane widths
-  return triple.isAMDGCN() ? Type::getInt64Ty(Ctx) : Type::getInt32Ty(Ctx);
 }
 
 Constant *OpenMPIRBuilder::getOrCreateSrcLocStr(StringRef LocStr) {
@@ -310,9 +334,8 @@ Constant *OpenMPIRBuilder::getOrCreateDefaultSrcLocStr() {
   return getOrCreateSrcLocStr(";unknown;unknown;0;0;;");
 }
 
-Constant *
-OpenMPIRBuilder::getOrCreateSrcLocStr(const LocationDescription &Loc) {
-  DILocation *DIL = Loc.DL.get();
+Constant *OpenMPIRBuilder::getOrCreateSrcLocStr(DebugLoc DL, Function *F) {
+  DILocation *DIL = DL.get();
   if (!DIL)
     return getOrCreateDefaultSrcLocStr();
   StringRef FileName = M.getName();
@@ -320,10 +343,15 @@ OpenMPIRBuilder::getOrCreateSrcLocStr(const LocationDescription &Loc) {
     if (Optional<StringRef> Source = DIF->getSource())
       FileName = *Source;
   StringRef Function = DIL->getScope()->getSubprogram()->getName();
-  Function =
-      !Function.empty() ? Function : Loc.IP.getBlock()->getParent()->getName();
+  if (Function.empty() && F)
+    Function = F->getName();
   return getOrCreateSrcLocStr(Function, FileName, DIL->getLine(),
                               DIL->getColumn());
+}
+
+Constant *
+OpenMPIRBuilder::getOrCreateSrcLocStr(const LocationDescription &Loc) {
+  return getOrCreateSrcLocStr(Loc.DL, Loc.IP.getBlock()->getParent());
 }
 
 Value *OpenMPIRBuilder::getOrCreateThreadID(Value *Ident) {
@@ -581,8 +609,8 @@ IRBuilder<>::InsertPoint OpenMPIRBuilder::createParallel(
 
   // Add some fake uses for OpenMP provided arguments.
   ToBeDeleted.push_back(Builder.CreateLoad(Int32, TIDAddr, "tid.addr.use"));
-  Instruction *ZeroAddrUse = Builder.CreateLoad(Int32, ZeroAddr,
-                                                "zero.addr.use");
+  Instruction *ZeroAddrUse =
+      Builder.CreateLoad(Int32, ZeroAddr, "zero.addr.use");
   ToBeDeleted.push_back(ZeroAddrUse);
 
   // ThenBB
@@ -965,8 +993,9 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createSections(
   Value *ST = ConstantInt::get(I32Ty, 1);
   llvm::CanonicalLoopInfo *LoopInfo = createCanonicalLoop(
       Loc, LoopBodyGenCB, LB, UB, ST, true, false, AllocaIP, "section_loop");
-  LoopInfo = createStaticWorkshareLoop(Loc, LoopInfo, AllocaIP, true);
-  BasicBlock *LoopAfterBB = LoopInfo->getAfter();
+  InsertPointTy AfterIP =
+      applyStaticWorkshareLoop(Loc.DL, LoopInfo, AllocaIP, true);
+  BasicBlock *LoopAfterBB = AfterIP.getBlock();
   Instruction *SplitPos = LoopAfterBB->getTerminator();
   if (!isa_and_nonnull<BranchInst>(SplitPos))
     SplitPos = new UnreachableInst(Builder.getContext(), LoopAfterBB);
@@ -1020,6 +1049,179 @@ OpenMPIRBuilder::createSection(const LocationDescription &Loc,
   return EmitOMPInlinedRegion(OMPD, nullptr, nullptr, BodyGenCB, FiniCBWrapper,
                               /*Conditional*/ false, /*hasFinalize*/ true,
                               /*IsCancellable*/ true);
+}
+
+/// Create a function with a unique name and a "void (i8*, i8*)" signature in
+/// the given module and return it.
+Function *getFreshReductionFunc(Module &M) {
+  Type *VoidTy = Type::getVoidTy(M.getContext());
+  Type *Int8PtrTy = Type::getInt8PtrTy(M.getContext());
+  auto *FuncTy =
+      FunctionType::get(VoidTy, {Int8PtrTy, Int8PtrTy}, /* IsVarArg */ false);
+  return Function::Create(FuncTy, GlobalVariable::InternalLinkage,
+                          M.getDataLayout().getDefaultGlobalsAddressSpace(),
+                          ".omp.reduction.func", &M);
+}
+
+OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createReductions(
+    const LocationDescription &Loc, InsertPointTy AllocaIP,
+    ArrayRef<ReductionInfo> ReductionInfos, bool IsNoWait) {
+  for (const ReductionInfo &RI : ReductionInfos) {
+    (void)RI;
+    assert(RI.Variable && "expected non-null variable");
+    assert(RI.PrivateVariable && "expected non-null private variable");
+    assert(RI.ReductionGen && "expected non-null reduction generator callback");
+    assert(RI.Variable->getType() == RI.PrivateVariable->getType() &&
+           "expected variables and their private equivalents to have the same "
+           "type");
+    assert(RI.Variable->getType()->isPointerTy() &&
+           "expected variables to be pointers");
+  }
+
+  if (!updateToLocation(Loc))
+    return InsertPointTy();
+
+  BasicBlock *InsertBlock = Loc.IP.getBlock();
+  BasicBlock *ContinuationBlock =
+      InsertBlock->splitBasicBlock(Loc.IP.getPoint(), "reduce.finalize");
+  InsertBlock->getTerminator()->eraseFromParent();
+
+  // Create and populate array of type-erased pointers to private reduction
+  // values.
+  unsigned NumReductions = ReductionInfos.size();
+  Type *RedArrayTy = ArrayType::get(Builder.getInt8PtrTy(), NumReductions);
+  Builder.restoreIP(AllocaIP);
+  Value *RedArray = Builder.CreateAlloca(RedArrayTy, nullptr, "red.array");
+
+  Builder.SetInsertPoint(InsertBlock, InsertBlock->end());
+
+  for (auto En : enumerate(ReductionInfos)) {
+    unsigned Index = En.index();
+    const ReductionInfo &RI = En.value();
+    Value *RedArrayElemPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, RedArray, 0, Index, "red.array.elem." + Twine(Index));
+    Value *Casted =
+        Builder.CreateBitCast(RI.PrivateVariable, Builder.getInt8PtrTy(),
+                              "private.red.var." + Twine(Index) + ".casted");
+    Builder.CreateStore(Casted, RedArrayElemPtr);
+  }
+
+  // Emit a call to the runtime function that orchestrates the reduction.
+  // Declare the reduction function in the process.
+  Function *Func = Builder.GetInsertBlock()->getParent();
+  Module *Module = Func->getParent();
+  Value *RedArrayPtr =
+      Builder.CreateBitCast(RedArray, Builder.getInt8PtrTy(), "red.array.ptr");
+  Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
+  bool CanGenerateAtomic =
+      llvm::all_of(ReductionInfos, [](const ReductionInfo &RI) {
+        return RI.AtomicReductionGen;
+      });
+  Value *Ident = getOrCreateIdent(
+      SrcLocStr, CanGenerateAtomic ? IdentFlag::OMP_IDENT_FLAG_ATOMIC_REDUCE
+                                   : IdentFlag(0));
+  Value *ThreadId = getOrCreateThreadID(Ident);
+  Constant *NumVariables = Builder.getInt32(NumReductions);
+  const DataLayout &DL = Module->getDataLayout();
+  unsigned RedArrayByteSize = DL.getTypeStoreSize(RedArrayTy);
+  Constant *RedArraySize = Builder.getInt64(RedArrayByteSize);
+  Function *ReductionFunc = getFreshReductionFunc(*Module);
+  Value *Lock = getOMPCriticalRegionLock(".reduction");
+  Function *ReduceFunc = getOrCreateRuntimeFunctionPtr(
+      IsNoWait ? RuntimeFunction::OMPRTL___kmpc_reduce_nowait
+               : RuntimeFunction::OMPRTL___kmpc_reduce);
+  CallInst *ReduceCall =
+      Builder.CreateCall(ReduceFunc,
+                         {Ident, ThreadId, NumVariables, RedArraySize,
+                          RedArrayPtr, ReductionFunc, Lock},
+                         "reduce");
+
+  // Create final reduction entry blocks for the atomic and non-atomic case.
+  // Emit IR that dispatches control flow to one of the blocks based on the
+  // reduction supporting the atomic mode.
+  BasicBlock *NonAtomicRedBlock =
+      BasicBlock::Create(Module->getContext(), "reduce.switch.nonatomic", Func);
+  BasicBlock *AtomicRedBlock =
+      BasicBlock::Create(Module->getContext(), "reduce.switch.atomic", Func);
+  SwitchInst *Switch =
+      Builder.CreateSwitch(ReduceCall, ContinuationBlock, /* NumCases */ 2);
+  Switch->addCase(Builder.getInt32(1), NonAtomicRedBlock);
+  Switch->addCase(Builder.getInt32(2), AtomicRedBlock);
+
+  // Populate the non-atomic reduction using the elementwise reduction function.
+  // This loads the elements from the global and private variables and reduces
+  // them before storing back the result to the global variable.
+  Builder.SetInsertPoint(NonAtomicRedBlock);
+  for (auto En : enumerate(ReductionInfos)) {
+    const ReductionInfo &RI = En.value();
+    Type *ValueType = RI.getElementType();
+    Value *RedValue = Builder.CreateLoad(ValueType, RI.Variable,
+                                         "red.value." + Twine(En.index()));
+    Value *PrivateRedValue =
+        Builder.CreateLoad(ValueType, RI.PrivateVariable,
+                           "red.private.value." + Twine(En.index()));
+    Value *Reduced;
+    Builder.restoreIP(
+        RI.ReductionGen(Builder.saveIP(), RedValue, PrivateRedValue, Reduced));
+    if (!Builder.GetInsertBlock())
+      return InsertPointTy();
+    Builder.CreateStore(Reduced, RI.Variable);
+  }
+  Function *EndReduceFunc = getOrCreateRuntimeFunctionPtr(
+      IsNoWait ? RuntimeFunction::OMPRTL___kmpc_end_reduce_nowait
+               : RuntimeFunction::OMPRTL___kmpc_end_reduce);
+  Builder.CreateCall(EndReduceFunc, {Ident, ThreadId, Lock});
+  Builder.CreateBr(ContinuationBlock);
+
+  // Populate the atomic reduction using the atomic elementwise reduction
+  // function. There are no loads/stores here because they will be happening
+  // inside the atomic elementwise reduction.
+  Builder.SetInsertPoint(AtomicRedBlock);
+  if (CanGenerateAtomic) {
+    for (const ReductionInfo &RI : ReductionInfos) {
+      Builder.restoreIP(RI.AtomicReductionGen(Builder.saveIP(), RI.Variable,
+                                              RI.PrivateVariable));
+      if (!Builder.GetInsertBlock())
+        return InsertPointTy();
+    }
+    Builder.CreateBr(ContinuationBlock);
+  } else {
+    Builder.CreateUnreachable();
+  }
+
+  // Populate the outlined reduction function using the elementwise reduction
+  // function. Partial values are extracted from the type-erased array of
+  // pointers to private variables.
+  BasicBlock *ReductionFuncBlock =
+      BasicBlock::Create(Module->getContext(), "", ReductionFunc);
+  Builder.SetInsertPoint(ReductionFuncBlock);
+  Value *LHSArrayPtr = Builder.CreateBitCast(ReductionFunc->getArg(0),
+                                             RedArrayTy->getPointerTo());
+  Value *RHSArrayPtr = Builder.CreateBitCast(ReductionFunc->getArg(1),
+                                             RedArrayTy->getPointerTo());
+  for (auto En : enumerate(ReductionInfos)) {
+    const ReductionInfo &RI = En.value();
+    Value *LHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, LHSArrayPtr, 0, En.index());
+    Value *LHSI8Ptr = Builder.CreateLoad(Builder.getInt8PtrTy(), LHSI8PtrPtr);
+    Value *LHSPtr = Builder.CreateBitCast(LHSI8Ptr, RI.Variable->getType());
+    Value *LHS = Builder.CreateLoad(RI.getElementType(), LHSPtr);
+    Value *RHSI8PtrPtr = Builder.CreateConstInBoundsGEP2_64(
+        RedArrayTy, RHSArrayPtr, 0, En.index());
+    Value *RHSI8Ptr = Builder.CreateLoad(Builder.getInt8PtrTy(), RHSI8PtrPtr);
+    Value *RHSPtr =
+        Builder.CreateBitCast(RHSI8Ptr, RI.PrivateVariable->getType());
+    Value *RHS = Builder.CreateLoad(RI.getElementType(), RHSPtr);
+    Value *Reduced;
+    Builder.restoreIP(RI.ReductionGen(Builder.saveIP(), LHS, RHS, Reduced));
+    if (!Builder.GetInsertBlock())
+      return InsertPointTy();
+    Builder.CreateStore(Reduced, LHSPtr);
+  }
+  Builder.CreateRetVoid();
+
+  Builder.SetInsertPoint(ContinuationBlock);
+  return Builder.saveIP();
 }
 
 OpenMPIRBuilder::InsertPointTy
@@ -1132,8 +1334,6 @@ CanonicalLoopInfo *OpenMPIRBuilder::createLoopSkeleton(
   CL->Latch = Latch;
   CL->Exit = Exit;
   CL->After = After;
-
-  CL->IsValid = true;
 
 #ifndef NDEBUG
   CL->assertOK();
@@ -1271,14 +1471,17 @@ void setCanonicalLoopTripCount(CanonicalLoopInfo *CLI, Value *TripCount) {
   CLI->assertOK();
 }
 
-CanonicalLoopInfo *OpenMPIRBuilder::createStaticWorkshareLoop(
-    const LocationDescription &Loc, CanonicalLoopInfo *CLI,
-    InsertPointTy AllocaIP, bool NeedsBarrier, Value *Chunk) {
-  // Set up the source location value for OpenMP runtime.
-  if (!updateToLocation(Loc))
-    return nullptr;
+OpenMPIRBuilder::InsertPointTy
+OpenMPIRBuilder::applyStaticWorkshareLoop(DebugLoc DL, CanonicalLoopInfo *CLI,
+                                          InsertPointTy AllocaIP,
+                                          bool NeedsBarrier, Value *Chunk) {
+  assert(CLI->isValid() && "Requires a valid canonical loop");
 
-  Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
+  // Set up the source location value for OpenMP runtime.
+  Builder.restoreIP(CLI->getPreheaderIP());
+  Builder.SetCurrentDebugLocation(DL);
+
+  Constant *SrcLocStr = getOrCreateSrcLocStr(DL);
   Value *SrcLoc = getOrCreateIdent(SrcLocStr);
 
   // Declare useful OpenMP runtime functions.
@@ -1308,6 +1511,7 @@ CanonicalLoopInfo *OpenMPIRBuilder::createStaticWorkshareLoop(
   Builder.CreateStore(UpperBound, PUpperBound);
   Builder.CreateStore(One, PStride);
 
+  // FIXME: schedule(static) is NOT the same as schedule(static,1)
   if (!Chunk)
     Chunk = One;
 
@@ -1348,19 +1552,21 @@ CanonicalLoopInfo *OpenMPIRBuilder::createStaticWorkshareLoop(
 
   // Add the barrier if requested.
   if (NeedsBarrier)
-    createBarrier(LocationDescription(Builder.saveIP(), Loc.DL),
+    createBarrier(LocationDescription(Builder.saveIP(), DL),
                   omp::Directive::OMPD_for, /* ForceSimpleCall */ false,
                   /* CheckCancelFlag */ false);
 
-  CLI->assertOK();
-  return CLI;
+  InsertPointTy AfterIP = CLI->getAfterIP();
+  CLI->invalidate();
+
+  return AfterIP;
 }
 
-CanonicalLoopInfo *OpenMPIRBuilder::createWorkshareLoop(
-    const LocationDescription &Loc, CanonicalLoopInfo *CLI,
-    InsertPointTy AllocaIP, bool NeedsBarrier) {
+OpenMPIRBuilder::InsertPointTy
+OpenMPIRBuilder::applyWorkshareLoop(DebugLoc DL, CanonicalLoopInfo *CLI,
+                                    InsertPointTy AllocaIP, bool NeedsBarrier) {
   // Currently only supports static schedules.
-  return createStaticWorkshareLoop(Loc, CLI, AllocaIP, NeedsBarrier);
+  return applyStaticWorkshareLoop(DL, CLI, AllocaIP, NeedsBarrier);
 }
 
 /// Returns an LLVM function to call for initializing loop bounds using OpenMP
@@ -1395,14 +1601,15 @@ getKmpcForDynamicNextForType(Type *Ty, Module &M, OpenMPIRBuilder &OMPBuilder) {
   llvm_unreachable("unknown OpenMP loop iterator bitwidth");
 }
 
-OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createDynamicWorkshareLoop(
-    const LocationDescription &Loc, CanonicalLoopInfo *CLI,
-    InsertPointTy AllocaIP, OMPScheduleType SchedType, bool NeedsBarrier,
-    Value *Chunk) {
-  // Set up the source location value for OpenMP runtime.
-  Builder.SetCurrentDebugLocation(Loc.DL);
+OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::applyDynamicWorkshareLoop(
+    DebugLoc DL, CanonicalLoopInfo *CLI, InsertPointTy AllocaIP,
+    OMPScheduleType SchedType, bool NeedsBarrier, Value *Chunk) {
+  assert(CLI->isValid() && "Requires a valid canonical loop");
 
-  Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
+  // Set up the source location value for OpenMP runtime.
+  Builder.SetCurrentDebugLocation(DL);
+
+  Constant *SrcLocStr = getOrCreateSrcLocStr(DL);
   Value *SrcLoc = getOrCreateIdent(SrcLocStr);
 
   // Declare useful OpenMP runtime functions.
@@ -1496,11 +1703,12 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createDynamicWorkshareLoop(
   // Add the barrier if requested.
   if (NeedsBarrier) {
     Builder.SetInsertPoint(&Exit->back());
-    createBarrier(LocationDescription(Builder.saveIP(), Loc.DL),
+    createBarrier(LocationDescription(Builder.saveIP(), DL),
                   omp::Directive::OMPD_for, /* ForceSimpleCall */ false,
                   /* CheckCancelFlag */ false);
   }
 
+  CLI->invalidate();
   return AfterIP;
 }
 
@@ -1592,6 +1800,8 @@ OpenMPIRBuilder::collapseLoops(DebugLoc DL, ArrayRef<CanonicalLoopInfo *> Loops,
   // TODO: Find common/largest indvar type.
   Value *CollapsedTripCount = nullptr;
   for (CanonicalLoopInfo *L : Loops) {
+    assert(L->isValid() &&
+           "All loops to collapse must be valid canonical loops");
     Value *OrigTripCount = L->getTripCount();
     if (!CollapsedTripCount) {
       CollapsedTripCount = OrigTripCount;
@@ -1680,6 +1890,9 @@ OpenMPIRBuilder::collapseLoops(DebugLoc DL, ArrayRef<CanonicalLoopInfo *> Loops,
     Loop->collectControlBlocks(OldControlBBs);
   removeUnusedBlocksFromParent(OldControlBBs);
 
+  for (CanonicalLoopInfo *L : Loops)
+    L->invalidate();
+
 #ifndef NDEBUG
   Result->assertOK();
 #endif
@@ -1706,6 +1919,7 @@ OpenMPIRBuilder::tileLoops(DebugLoc DL, ArrayRef<CanonicalLoopInfo *> Loops,
   // any original CanonicalLoopInfo.
   SmallVector<Value *, 4> OrigTripCounts, OrigIndVars;
   for (CanonicalLoopInfo *L : Loops) {
+    assert(L->isValid() && "All input loops must be valid canonical loops");
     OrigTripCounts.push_back(L->getTripCount());
     OrigIndVars.push_back(L->getIndVar());
   }
@@ -1864,11 +2078,295 @@ OpenMPIRBuilder::tileLoops(DebugLoc DL, ArrayRef<CanonicalLoopInfo *> Loops,
     Loop->collectControlBlocks(OldControlBBs);
   removeUnusedBlocksFromParent(OldControlBBs);
 
+  for (CanonicalLoopInfo *L : Loops)
+    L->invalidate();
+
 #ifndef NDEBUG
   for (CanonicalLoopInfo *GenL : Result)
     GenL->assertOK();
 #endif
   return Result;
+}
+
+/// Attach loop metadata \p Properties to the loop described by \p Loop. If the
+/// loop already has metadata, the loop properties are appended.
+static void addLoopMetadata(CanonicalLoopInfo *Loop,
+                            ArrayRef<Metadata *> Properties) {
+  assert(Loop->isValid() && "Expecting a valid CanonicalLoopInfo");
+
+  // Nothing to do if no property to attach.
+  if (Properties.empty())
+    return;
+
+  LLVMContext &Ctx = Loop->getFunction()->getContext();
+  SmallVector<Metadata *> NewLoopProperties;
+  NewLoopProperties.push_back(nullptr);
+
+  // If the loop already has metadata, prepend it to the new metadata.
+  BasicBlock *Latch = Loop->getLatch();
+  assert(Latch && "A valid CanonicalLoopInfo must have a unique latch");
+  MDNode *Existing = Latch->getTerminator()->getMetadata(LLVMContext::MD_loop);
+  if (Existing)
+    append_range(NewLoopProperties, drop_begin(Existing->operands(), 1));
+
+  append_range(NewLoopProperties, Properties);
+  MDNode *LoopID = MDNode::getDistinct(Ctx, NewLoopProperties);
+  LoopID->replaceOperandWith(0, LoopID);
+
+  Latch->getTerminator()->setMetadata(LLVMContext::MD_loop, LoopID);
+}
+
+void OpenMPIRBuilder::unrollLoopFull(DebugLoc, CanonicalLoopInfo *Loop) {
+  LLVMContext &Ctx = Builder.getContext();
+  addLoopMetadata(
+      Loop, {MDNode::get(Ctx, MDString::get(Ctx, "llvm.loop.unroll.enable")),
+             MDNode::get(Ctx, MDString::get(Ctx, "llvm.loop.unroll.full"))});
+}
+
+void OpenMPIRBuilder::unrollLoopHeuristic(DebugLoc, CanonicalLoopInfo *Loop) {
+  LLVMContext &Ctx = Builder.getContext();
+  addLoopMetadata(
+      Loop, {
+                MDNode::get(Ctx, MDString::get(Ctx, "llvm.loop.unroll.enable")),
+            });
+}
+
+/// Create the TargetMachine object to query the backend for optimization
+/// preferences.
+///
+/// Ideally, this would be passed from the front-end to the OpenMPBuilder, but
+/// e.g. Clang does not pass it to its CodeGen layer and creates it only when
+/// needed for the LLVM pass pipline. We use some default options to avoid
+/// having to pass too many settings from the frontend that probably do not
+/// matter.
+///
+/// Currently, TargetMachine is only used sometimes by the unrollLoopPartial
+/// method. If we are going to use TargetMachine for more purposes, especially
+/// those that are sensitive to TargetOptions, RelocModel and CodeModel, it
+/// might become be worth requiring front-ends to pass on their TargetMachine,
+/// or at least cache it between methods. Note that while fontends such as Clang
+/// have just a single main TargetMachine per translation unit, "target-cpu" and
+/// "target-features" that determine the TargetMachine are per-function and can
+/// be overrided using __attribute__((target("OPTIONS"))).
+static std::unique_ptr<TargetMachine>
+createTargetMachine(Function *F, CodeGenOpt::Level OptLevel) {
+  Module *M = F->getParent();
+
+  StringRef CPU = F->getFnAttribute("target-cpu").getValueAsString();
+  StringRef Features = F->getFnAttribute("target-features").getValueAsString();
+  const std::string &Triple = M->getTargetTriple();
+
+  std::string Error;
+  const llvm::Target *TheTarget = TargetRegistry::lookupTarget(Triple, Error);
+  if (!TheTarget)
+    return {};
+
+  llvm::TargetOptions Options;
+  return std::unique_ptr<TargetMachine>(TheTarget->createTargetMachine(
+      Triple, CPU, Features, Options, /*RelocModel=*/None, /*CodeModel=*/None,
+      OptLevel));
+}
+
+/// Heuristically determine the best-performant unroll factor for \p CLI. This
+/// depends on the target processor. We are re-using the same heuristics as the
+/// LoopUnrollPass.
+static int32_t computeHeuristicUnrollFactor(CanonicalLoopInfo *CLI) {
+  Function *F = CLI->getFunction();
+
+  // Assume the user requests the most aggressive unrolling, even if the rest of
+  // the code is optimized using a lower setting.
+  CodeGenOpt::Level OptLevel = CodeGenOpt::Aggressive;
+  std::unique_ptr<TargetMachine> TM = createTargetMachine(F, OptLevel);
+
+  FunctionAnalysisManager FAM;
+  FAM.registerPass([]() { return TargetLibraryAnalysis(); });
+  FAM.registerPass([]() { return AssumptionAnalysis(); });
+  FAM.registerPass([]() { return DominatorTreeAnalysis(); });
+  FAM.registerPass([]() { return LoopAnalysis(); });
+  FAM.registerPass([]() { return ScalarEvolutionAnalysis(); });
+  FAM.registerPass([]() { return PassInstrumentationAnalysis(); });
+  TargetIRAnalysis TIRA;
+  if (TM)
+    TIRA = TargetIRAnalysis(
+        [&](const Function &F) { return TM->getTargetTransformInfo(F); });
+  FAM.registerPass([&]() { return TIRA; });
+
+  TargetIRAnalysis::Result &&TTI = TIRA.run(*F, FAM);
+  ScalarEvolutionAnalysis SEA;
+  ScalarEvolution &&SE = SEA.run(*F, FAM);
+  DominatorTreeAnalysis DTA;
+  DominatorTree &&DT = DTA.run(*F, FAM);
+  LoopAnalysis LIA;
+  LoopInfo &&LI = LIA.run(*F, FAM);
+  AssumptionAnalysis ACT;
+  AssumptionCache &&AC = ACT.run(*F, FAM);
+  OptimizationRemarkEmitter ORE{F};
+
+  Loop *L = LI.getLoopFor(CLI->getHeader());
+  assert(L && "Expecting CanonicalLoopInfo to be recognized as a loop");
+
+  TargetTransformInfo::UnrollingPreferences UP =
+      gatherUnrollingPreferences(L, SE, TTI,
+                                 /*BlockFrequencyInfo=*/nullptr,
+                                 /*ProfileSummaryInfo=*/nullptr, ORE, OptLevel,
+                                 /*UserThreshold=*/None,
+                                 /*UserCount=*/None,
+                                 /*UserAllowPartial=*/true,
+                                 /*UserAllowRuntime=*/true,
+                                 /*UserUpperBound=*/None,
+                                 /*UserFullUnrollMaxCount=*/None);
+
+  UP.Force = true;
+
+  // Account for additional optimizations taking place before the LoopUnrollPass
+  // would unroll the loop.
+  UP.Threshold *= UnrollThresholdFactor;
+  UP.PartialThreshold *= UnrollThresholdFactor;
+
+  // Use normal unroll factors even if the rest of the code is optimized for
+  // size.
+  UP.OptSizeThreshold = UP.Threshold;
+  UP.PartialOptSizeThreshold = UP.PartialThreshold;
+
+  LLVM_DEBUG(dbgs() << "Unroll heuristic thresholds:\n"
+                    << "  Threshold=" << UP.Threshold << "\n"
+                    << "  PartialThreshold=" << UP.PartialThreshold << "\n"
+                    << "  OptSizeThreshold=" << UP.OptSizeThreshold << "\n"
+                    << "  PartialOptSizeThreshold="
+                    << UP.PartialOptSizeThreshold << "\n");
+
+  // Disable peeling.
+  TargetTransformInfo::PeelingPreferences PP =
+      gatherPeelingPreferences(L, SE, TTI,
+                               /*UserAllowPeeling=*/false,
+                               /*UserAllowProfileBasedPeeling=*/false,
+                               /*UserUnrollingSpecficValues=*/false);
+
+  SmallPtrSet<const Value *, 32> EphValues;
+  CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
+
+  // Assume that reads and writes to stack variables can be eliminated by
+  // Mem2Reg, SROA or LICM. That is, don't count them towards the loop body's
+  // size.
+  for (BasicBlock *BB : L->blocks()) {
+    for (Instruction &I : *BB) {
+      Value *Ptr;
+      if (auto *Load = dyn_cast<LoadInst>(&I)) {
+        Ptr = Load->getPointerOperand();
+      } else if (auto *Store = dyn_cast<StoreInst>(&I)) {
+        Ptr = Store->getPointerOperand();
+      } else
+        continue;
+
+      Ptr = Ptr->stripPointerCasts();
+
+      if (auto *Alloca = dyn_cast<AllocaInst>(Ptr)) {
+        if (Alloca->getParent() == &F->getEntryBlock())
+          EphValues.insert(&I);
+      }
+    }
+  }
+
+  unsigned NumInlineCandidates;
+  bool NotDuplicatable;
+  bool Convergent;
+  unsigned LoopSize =
+      ApproximateLoopSize(L, NumInlineCandidates, NotDuplicatable, Convergent,
+                          TTI, EphValues, UP.BEInsns);
+  LLVM_DEBUG(dbgs() << "Estimated loop size is " << LoopSize << "\n");
+
+  // Loop is not unrollable if the loop contains certain instructions.
+  if (NotDuplicatable || Convergent) {
+    LLVM_DEBUG(dbgs() << "Loop not considered unrollable\n");
+    return 1;
+  }
+
+  // TODO: Determine trip count of \p CLI if constant, computeUnrollCount might
+  // be able to use it.
+  int TripCount = 0;
+  int MaxTripCount = 0;
+  bool MaxOrZero = false;
+  unsigned TripMultiple = 0;
+
+  bool UseUpperBound = false;
+  computeUnrollCount(L, TTI, DT, &LI, SE, EphValues, &ORE, TripCount,
+                     MaxTripCount, MaxOrZero, TripMultiple, LoopSize, UP, PP,
+                     UseUpperBound);
+  unsigned Factor = UP.Count;
+  LLVM_DEBUG(dbgs() << "Suggesting unroll factor of " << Factor << "\n");
+
+  // This function returns 1 to signal to not unroll a loop.
+  if (Factor == 0)
+    return 1;
+  return Factor;
+}
+
+void OpenMPIRBuilder::unrollLoopPartial(DebugLoc DL, CanonicalLoopInfo *Loop,
+                                        int32_t Factor,
+                                        CanonicalLoopInfo **UnrolledCLI) {
+  assert(Factor >= 0 && "Unroll factor must not be negative");
+
+  Function *F = Loop->getFunction();
+  LLVMContext &Ctx = F->getContext();
+
+  // If the unrolled loop is not used for another loop-associated directive, it
+  // is sufficient to add metadata for the LoopUnrollPass.
+  if (!UnrolledCLI) {
+    SmallVector<Metadata *, 2> LoopMetadata;
+    LoopMetadata.push_back(
+        MDNode::get(Ctx, MDString::get(Ctx, "llvm.loop.unroll.enable")));
+
+    if (Factor >= 1) {
+      ConstantAsMetadata *FactorConst = ConstantAsMetadata::get(
+          ConstantInt::get(Type::getInt32Ty(Ctx), APInt(32, Factor)));
+      LoopMetadata.push_back(MDNode::get(
+          Ctx, {MDString::get(Ctx, "llvm.loop.unroll.count"), FactorConst}));
+    }
+
+    addLoopMetadata(Loop, LoopMetadata);
+    return;
+  }
+
+  // Heuristically determine the unroll factor.
+  if (Factor == 0)
+    Factor = computeHeuristicUnrollFactor(Loop);
+
+  // No change required with unroll factor 1.
+  if (Factor == 1) {
+    *UnrolledCLI = Loop;
+    return;
+  }
+
+  assert(Factor >= 2 &&
+         "unrolling only makes sense with a factor of 2 or larger");
+
+  Type *IndVarTy = Loop->getIndVarType();
+
+  // Apply partial unrolling by tiling the loop by the unroll-factor, then fully
+  // unroll the inner loop.
+  Value *FactorVal =
+      ConstantInt::get(IndVarTy, APInt(IndVarTy->getIntegerBitWidth(), Factor,
+                                       /*isSigned=*/false));
+  std::vector<CanonicalLoopInfo *> LoopNest =
+      tileLoops(DL, {Loop}, {FactorVal});
+  assert(LoopNest.size() == 2 && "Expect 2 loops after tiling");
+  *UnrolledCLI = LoopNest[0];
+  CanonicalLoopInfo *InnerLoop = LoopNest[1];
+
+  // LoopUnrollPass can only fully unroll loops with constant trip count.
+  // Unroll by the unroll factor with a fallback epilog for the remainder
+  // iterations if necessary.
+  ConstantAsMetadata *FactorConst = ConstantAsMetadata::get(
+      ConstantInt::get(Type::getInt32Ty(Ctx), APInt(32, Factor)));
+  addLoopMetadata(
+      InnerLoop,
+      {MDNode::get(Ctx, MDString::get(Ctx, "llvm.loop.unroll.enable")),
+       MDNode::get(
+           Ctx, {MDString::get(Ctx, "llvm.loop.unroll.count"), FactorConst})});
+
+#ifndef NDEBUG
+  (*UnrolledCLI)->assertOK();
+#endif
 }
 
 OpenMPIRBuilder::InsertPointTy
@@ -1955,6 +2453,74 @@ OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createCritical(
   Function *ExitRTLFn =
       getOrCreateRuntimeFunctionPtr(OMPRTL___kmpc_end_critical);
   Instruction *ExitCall = Builder.CreateCall(ExitRTLFn, Args);
+
+  return EmitOMPInlinedRegion(OMPD, EntryCall, ExitCall, BodyGenCB, FiniCB,
+                              /*Conditional*/ false, /*hasFinalize*/ true);
+}
+
+OpenMPIRBuilder::InsertPointTy
+OpenMPIRBuilder::createOrderedDepend(const LocationDescription &Loc,
+                                     InsertPointTy AllocaIP, unsigned NumLoops,
+                                     ArrayRef<llvm::Value *> StoreValues,
+                                     const Twine &Name, bool IsDependSource) {
+  if (!updateToLocation(Loc))
+    return Loc.IP;
+
+  // Allocate space for vector and generate alloc instruction.
+  auto *ArrI64Ty = ArrayType::get(Int64, NumLoops);
+  Builder.restoreIP(AllocaIP);
+  AllocaInst *ArgsBase = Builder.CreateAlloca(ArrI64Ty, nullptr, Name);
+  ArgsBase->setAlignment(Align(8));
+  Builder.restoreIP(Loc.IP);
+
+  // Store the index value with offset in depend vector.
+  for (unsigned I = 0; I < NumLoops; ++I) {
+    Value *DependAddrGEPIter = Builder.CreateInBoundsGEP(
+        ArrI64Ty, ArgsBase, {Builder.getInt64(0), Builder.getInt64(I)});
+    Builder.CreateStore(StoreValues[I], DependAddrGEPIter);
+  }
+
+  Value *DependBaseAddrGEP = Builder.CreateInBoundsGEP(
+      ArrI64Ty, ArgsBase, {Builder.getInt64(0), Builder.getInt64(0)});
+
+  Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
+  Value *Ident = getOrCreateIdent(SrcLocStr);
+  Value *ThreadId = getOrCreateThreadID(Ident);
+  Value *Args[] = {Ident, ThreadId, DependBaseAddrGEP};
+
+  Function *RTLFn = nullptr;
+  if (IsDependSource)
+    RTLFn = getOrCreateRuntimeFunctionPtr(OMPRTL___kmpc_doacross_post);
+  else
+    RTLFn = getOrCreateRuntimeFunctionPtr(OMPRTL___kmpc_doacross_wait);
+  Builder.CreateCall(RTLFn, Args);
+
+  return Builder.saveIP();
+}
+
+OpenMPIRBuilder::InsertPointTy OpenMPIRBuilder::createOrderedThreadsSimd(
+    const LocationDescription &Loc, BodyGenCallbackTy BodyGenCB,
+    FinalizeCallbackTy FiniCB, bool IsThreads) {
+  if (!updateToLocation(Loc))
+    return Loc.IP;
+
+  Directive OMPD = Directive::OMPD_ordered;
+  Instruction *EntryCall = nullptr;
+  Instruction *ExitCall = nullptr;
+
+  if (IsThreads) {
+    Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
+    Value *Ident = getOrCreateIdent(SrcLocStr);
+    Value *ThreadId = getOrCreateThreadID(Ident);
+    Value *Args[] = {Ident, ThreadId};
+
+    Function *EntryRTLFn = getOrCreateRuntimeFunctionPtr(OMPRTL___kmpc_ordered);
+    EntryCall = Builder.CreateCall(EntryRTLFn, Args);
+
+    Function *ExitRTLFn =
+        getOrCreateRuntimeFunctionPtr(OMPRTL___kmpc_end_ordered);
+    ExitCall = Builder.CreateCall(ExitRTLFn, Args);
+  }
 
   return EmitOMPInlinedRegion(OMPD, EntryCall, ExitCall, BodyGenCB, FiniCB,
                               /*Conditional*/ false, /*hasFinalize*/ true);
@@ -2193,25 +2759,30 @@ CallInst *OpenMPIRBuilder::createCachedThreadPrivate(
 }
 
 OpenMPIRBuilder::InsertPointTy
-OpenMPIRBuilder::createTargetInit(const LocationDescription &Loc, bool IsSPMD, bool RequiresFullRuntime) {
+OpenMPIRBuilder::createTargetInit(const LocationDescription &Loc, bool IsSPMD,
+                                  bool RequiresFullRuntime) {
   if (!updateToLocation(Loc))
     return Loc.IP;
 
   Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
   Value *Ident = getOrCreateIdent(SrcLocStr);
-  ConstantInt *IsSPMDVal = ConstantInt::getBool(Int32->getContext(), IsSPMD);
+  ConstantInt *IsSPMDVal = ConstantInt::getSigned(
+      IntegerType::getInt8Ty(Int8->getContext()),
+      IsSPMD ? OMP_TGT_EXEC_MODE_SPMD : OMP_TGT_EXEC_MODE_GENERIC);
   ConstantInt *UseGenericStateMachine =
       ConstantInt::getBool(Int32->getContext(), !IsSPMD);
-  ConstantInt *RequiresFullRuntimeVal = ConstantInt::getBool(Int32->getContext(), RequiresFullRuntime);
+  ConstantInt *RequiresFullRuntimeVal =
+      ConstantInt::getBool(Int32->getContext(), RequiresFullRuntime);
 
   Function *Fn = getOrCreateRuntimeFunctionPtr(
       omp::RuntimeFunction::OMPRTL___kmpc_target_init);
 
-  CallInst *ThreadKind =
-      Builder.CreateCall(Fn, {Ident, IsSPMDVal, UseGenericStateMachine, RequiresFullRuntimeVal});
+  CallInst *ThreadKind = Builder.CreateCall(
+      Fn, {Ident, IsSPMDVal, UseGenericStateMachine, RequiresFullRuntimeVal});
 
   Value *ExecUserCode = Builder.CreateICmpEQ(
-      ThreadKind, ConstantInt::get(ThreadKind->getType(), -1), "exec_user_code");
+      ThreadKind, ConstantInt::get(ThreadKind->getType(), -1),
+      "exec_user_code");
 
   // ThreadKind = __kmpc_target_init(...)
   // if (ThreadKind == -1)
@@ -2241,14 +2812,18 @@ OpenMPIRBuilder::createTargetInit(const LocationDescription &Loc, bool IsSPMD, b
 }
 
 void OpenMPIRBuilder::createTargetDeinit(const LocationDescription &Loc,
-                                         bool IsSPMD, bool RequiresFullRuntime) {
+                                         bool IsSPMD,
+                                         bool RequiresFullRuntime) {
   if (!updateToLocation(Loc))
     return;
 
   Constant *SrcLocStr = getOrCreateSrcLocStr(Loc);
   Value *Ident = getOrCreateIdent(SrcLocStr);
-  ConstantInt *IsSPMDVal = ConstantInt::getBool(Int32->getContext(), IsSPMD);
-  ConstantInt *RequiresFullRuntimeVal = ConstantInt::getBool(Int32->getContext(), RequiresFullRuntime);
+  ConstantInt *IsSPMDVal = ConstantInt::getSigned(
+      IntegerType::getInt8Ty(Int8->getContext()),
+      IsSPMD ? OMP_TGT_EXEC_MODE_SPMD : OMP_TGT_EXEC_MODE_GENERIC);
+  ConstantInt *RequiresFullRuntimeVal =
+      ConstantInt::getBool(Int32->getContext(), RequiresFullRuntime);
 
   Function *Fn = getOrCreateRuntimeFunctionPtr(
       omp::RuntimeFunction::OMPRTL___kmpc_target_deinit);
@@ -2749,7 +3324,8 @@ void CanonicalLoopInfo::collectControlBlocks(
 
 void CanonicalLoopInfo::assertOK() const {
 #ifndef NDEBUG
-  if (!IsValid)
+  // No constraints if this object currently does not describe a loop.
+  if (!isValid())
     return;
 
   // Verify standard control-flow we use for OpenMP loops.
@@ -2834,4 +3410,14 @@ void CanonicalLoopInfo::assertOK() const {
   assert(CmpI->getOperand(1) == TripCount &&
          "Exit condition must compare with the trip count");
 #endif
+}
+
+void CanonicalLoopInfo::invalidate() {
+  Preheader = nullptr;
+  Header = nullptr;
+  Cond = nullptr;
+  Body = nullptr;
+  Latch = nullptr;
+  Exit = nullptr;
+  After = nullptr;
 }

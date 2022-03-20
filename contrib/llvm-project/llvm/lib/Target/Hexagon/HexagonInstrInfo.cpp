@@ -169,13 +169,13 @@ MachineInstr *HexagonInstrInfo::findLoopInstr(MachineBasicBlock *BB,
       continue;
     if (PB == BB)
       continue;
-    for (auto I = PB->instr_rbegin(), E = PB->instr_rend(); I != E; ++I) {
-      unsigned Opc = I->getOpcode();
+    for (MachineInstr &I : llvm::reverse(PB->instrs())) {
+      unsigned Opc = I.getOpcode();
       if (Opc == LOOPi || Opc == LOOPr)
-        return &*I;
+        return &I;
       // We've reached a different loop, which means the loop01 has been
       // removed.
-      if (Opc == EndLoopOp && I->getOperand(0).getMBB() != TargetBB)
+      if (Opc == EndLoopOp && I.getOperand(0).getMBB() != TargetBB)
         return nullptr;
     }
     // Check the predecessors for the LOOP instruction.
@@ -1791,8 +1791,8 @@ HexagonInstrInfo::CreateTargetPostRAHazardRecognizer(
 /// compares against in CmpValue. Return true if the comparison instruction
 /// can be analyzed.
 bool HexagonInstrInfo::analyzeCompare(const MachineInstr &MI, Register &SrcReg,
-                                      Register &SrcReg2, int &Mask,
-                                      int &Value) const {
+                                      Register &SrcReg2, int64_t &Mask,
+                                      int64_t &Value) const {
   unsigned Opc = MI.getOpcode();
 
   // Set mask and the first source register.
@@ -3627,8 +3627,8 @@ int HexagonInstrInfo::getDotNewOp(const MachineInstr &MI) const {
 
   switch (MI.getOpcode()) {
   default:
-    report_fatal_error(std::string("Unknown .new type: ") +
-      std::to_string(MI.getOpcode()));
+    report_fatal_error(Twine("Unknown .new type: ") +
+                       std::to_string(MI.getOpcode()));
   case Hexagon::S4_storerb_ur:
     return Hexagon::S4_storerbnew_ur;
 

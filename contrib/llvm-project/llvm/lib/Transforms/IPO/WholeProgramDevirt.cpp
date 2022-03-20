@@ -1288,7 +1288,7 @@ void DevirtModule::tryICallBranchFunnel(
                           M.getDataLayout().getProgramAddressSpace(),
                           "branch_funnel", &M);
   }
-  JT->addAttribute(1, Attribute::Nest);
+  JT->addParamAttr(0, Attribute::Nest);
 
   std::vector<Value *> JTArgs;
   JTArgs.push_back(JT->arg_begin());
@@ -1361,10 +1361,10 @@ void DevirtModule::applyICallBranchFunnel(VTableSlotInfo &SlotInfo,
           M.getContext(), ArrayRef<Attribute>{Attribute::get(
                               M.getContext(), Attribute::Nest)}));
       for (unsigned I = 0; I + 2 <  Attrs.getNumAttrSets(); ++I)
-        NewArgAttrs.push_back(Attrs.getParamAttributes(I));
+        NewArgAttrs.push_back(Attrs.getParamAttrs(I));
       NewCS->setAttributes(
-          AttributeList::get(M.getContext(), Attrs.getFnAttributes(),
-                             Attrs.getRetAttributes(), NewArgAttrs));
+          AttributeList::get(M.getContext(), Attrs.getFnAttrs(),
+                             Attrs.getRetAttrs(), NewArgAttrs));
 
       CB.replaceAllUsesWith(NewCS);
       CB.eraseFromParent();
@@ -1786,10 +1786,8 @@ void DevirtModule::scanTypeTestUsers(
   // points to a member of the type identifier %md. Group calls by (type ID,
   // offset) pair (effectively the identity of the virtual function) and store
   // to CallSlots.
-  for (auto I = TypeTestFunc->use_begin(), E = TypeTestFunc->use_end();
-       I != E;) {
-    auto CI = dyn_cast<CallInst>(I->getUser());
-    ++I;
+  for (Use &U : llvm::make_early_inc_range(TypeTestFunc->uses())) {
+    auto *CI = dyn_cast<CallInst>(U.getUser());
     if (!CI)
       continue;
 
@@ -1858,11 +1856,8 @@ void DevirtModule::scanTypeTestUsers(
 void DevirtModule::scanTypeCheckedLoadUsers(Function *TypeCheckedLoadFunc) {
   Function *TypeTestFunc = Intrinsic::getDeclaration(&M, Intrinsic::type_test);
 
-  for (auto I = TypeCheckedLoadFunc->use_begin(),
-            E = TypeCheckedLoadFunc->use_end();
-       I != E;) {
-    auto CI = dyn_cast<CallInst>(I->getUser());
-    ++I;
+  for (Use &U : llvm::make_early_inc_range(TypeCheckedLoadFunc->uses())) {
+    auto *CI = dyn_cast<CallInst>(U.getUser());
     if (!CI)
       continue;
 

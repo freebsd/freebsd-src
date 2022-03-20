@@ -19,6 +19,7 @@
 #ifndef LLVM_IR_DATALAYOUT_H
 #define LLVM_IR_DATALAYOUT_H
 
+#include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -135,6 +136,7 @@ private:
     MM_MachO,
     MM_WinCOFF,
     MM_WinCOFFX86,
+    MM_GOFF,
     MM_Mips,
     MM_XCOFF
   };
@@ -316,6 +318,7 @@ public:
     switch (ManglingMode) {
     case MM_None:
     case MM_ELF:
+    case MM_GOFF:
     case MM_Mips:
     case MM_WinCOFF:
     case MM_XCOFF:
@@ -334,6 +337,8 @@ public:
     case MM_ELF:
     case MM_WinCOFF:
       return ".L";
+    case MM_GOFF:
+      return "@";
     case MM_Mips:
       return "$";
     case MM_MachO:
@@ -372,8 +377,8 @@ public:
   /// the backends/clients are updated.
   unsigned getPointerSize(unsigned AS = 0) const;
 
-  /// Returns the maximum pointer size over all address spaces.
-  unsigned getMaxPointerSize() const;
+  /// Returns the maximum index size over all address spaces.
+  unsigned getMaxIndexSize() const;
 
   // Index size used for address calculation.
   unsigned getIndexSize(unsigned AS) const;
@@ -405,9 +410,9 @@ public:
     return getPointerSize(AS) * 8;
   }
 
-  /// Returns the maximum pointer size over all address spaces.
-  unsigned getMaxPointerSizeInBits() const {
-    return getMaxPointerSize() * 8;
+  /// Returns the maximum index size over all address spaces.
+  unsigned getMaxIndexSizeInBits() const {
+    return getMaxIndexSize() * 8;
   }
 
   /// Size in bits of index used for address calculation in getelementptr.
@@ -514,7 +519,7 @@ public:
 
   /// Returns the minimum ABI-required alignment for the specified type.
   /// FIXME: Deprecate this function once migration to Align is over.
-  unsigned getABITypeAlignment(Type *Ty) const;
+  uint64_t getABITypeAlignment(Type *Ty) const;
 
   /// Returns the minimum ABI-required alignment for the specified type.
   Align getABITypeAlign(Type *Ty) const;
@@ -537,7 +542,7 @@ public:
   ///
   /// This is always at least as good as the ABI alignment.
   /// FIXME: Deprecate this function once migration to Align is over.
-  unsigned getPrefTypeAlignment(Type *Ty) const;
+  uint64_t getPrefTypeAlignment(Type *Ty) const;
 
   /// Returns the preferred stack/global alignment for the specified
   /// type.
@@ -578,6 +583,10 @@ public:
   /// Note that this takes the element type, not the pointer type.
   /// This is used to implement getelementptr.
   int64_t getIndexedOffsetInType(Type *ElemTy, ArrayRef<Value *> Indices) const;
+
+  /// Get GEP indices to access Offset inside ElemTy. ElemTy is updated to be
+  /// the result element type and Offset to be the residual offset.
+  SmallVector<APInt> getGEPIndicesForOffset(Type *&ElemTy, APInt &Offset) const;
 
   /// Returns a StructLayout object, indicating the alignment of the
   /// struct, its size, and the offsets of its fields.

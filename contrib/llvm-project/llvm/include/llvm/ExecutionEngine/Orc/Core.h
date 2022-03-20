@@ -21,7 +21,7 @@
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/ExecutorProcessControl.h"
 #include "llvm/ExecutionEngine/Orc/Shared/WrapperFunctionUtils.h"
-#include "llvm/ExecutionEngine/OrcV1Deprecation.h"
+#include "llvm/ExecutionEngine/Orc/TaskDispatch.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ExtensibleRTTI.h"
 
@@ -434,13 +434,16 @@ class SymbolsNotFound : public ErrorInfo<SymbolsNotFound> {
 public:
   static char ID;
 
-  SymbolsNotFound(SymbolNameSet Symbols);
-  SymbolsNotFound(SymbolNameVector Symbols);
+  SymbolsNotFound(std::shared_ptr<SymbolStringPool> SSP, SymbolNameSet Symbols);
+  SymbolsNotFound(std::shared_ptr<SymbolStringPool> SSP,
+                  SymbolNameVector Symbols);
   std::error_code convertToErrorCode() const override;
   void log(raw_ostream &OS) const override;
+  std::shared_ptr<SymbolStringPool> getSymbolStringPool() { return SSP; }
   const SymbolNameVector &getSymbols() const { return Symbols; }
 
 private:
+  std::shared_ptr<SymbolStringPool> SSP;
   SymbolNameVector Symbols;
 };
 
@@ -449,12 +452,15 @@ class SymbolsCouldNotBeRemoved : public ErrorInfo<SymbolsCouldNotBeRemoved> {
 public:
   static char ID;
 
-  SymbolsCouldNotBeRemoved(SymbolNameSet Symbols);
+  SymbolsCouldNotBeRemoved(std::shared_ptr<SymbolStringPool> SSP,
+                           SymbolNameSet Symbols);
   std::error_code convertToErrorCode() const override;
   void log(raw_ostream &OS) const override;
+  std::shared_ptr<SymbolStringPool> getSymbolStringPool() { return SSP; }
   const SymbolNameSet &getSymbols() const { return Symbols; }
 
 private:
+  std::shared_ptr<SymbolStringPool> SSP;
   SymbolNameSet Symbols;
 };
 
@@ -466,13 +472,17 @@ class MissingSymbolDefinitions : public ErrorInfo<MissingSymbolDefinitions> {
 public:
   static char ID;
 
-  MissingSymbolDefinitions(std::string ModuleName, SymbolNameVector Symbols)
-    : ModuleName(std::move(ModuleName)), Symbols(std::move(Symbols)) {}
+  MissingSymbolDefinitions(std::shared_ptr<SymbolStringPool> SSP,
+                           std::string ModuleName, SymbolNameVector Symbols)
+      : SSP(std::move(SSP)), ModuleName(std::move(ModuleName)),
+        Symbols(std::move(Symbols)) {}
   std::error_code convertToErrorCode() const override;
   void log(raw_ostream &OS) const override;
+  std::shared_ptr<SymbolStringPool> getSymbolStringPool() { return SSP; }
   const std::string &getModuleName() const { return ModuleName; }
   const SymbolNameVector &getSymbols() const { return Symbols; }
 private:
+  std::shared_ptr<SymbolStringPool> SSP;
   std::string ModuleName;
   SymbolNameVector Symbols;
 };
@@ -485,13 +495,17 @@ class UnexpectedSymbolDefinitions : public ErrorInfo<UnexpectedSymbolDefinitions
 public:
   static char ID;
 
-  UnexpectedSymbolDefinitions(std::string ModuleName, SymbolNameVector Symbols)
-    : ModuleName(std::move(ModuleName)), Symbols(std::move(Symbols)) {}
+  UnexpectedSymbolDefinitions(std::shared_ptr<SymbolStringPool> SSP,
+                              std::string ModuleName, SymbolNameVector Symbols)
+      : SSP(std::move(SSP)), ModuleName(std::move(ModuleName)),
+        Symbols(std::move(Symbols)) {}
   std::error_code convertToErrorCode() const override;
   void log(raw_ostream &OS) const override;
+  std::shared_ptr<SymbolStringPool> getSymbolStringPool() { return SSP; }
   const std::string &getModuleName() const { return ModuleName; }
   const SymbolNameVector &getSymbols() const { return Symbols; }
 private:
+  std::shared_ptr<SymbolStringPool> SSP;
   std::string ModuleName;
   SymbolNameVector Symbols;
 };
@@ -1241,21 +1255,6 @@ public:
                          const DenseMap<JITDylib *, SymbolLookupSet> &InitSyms);
 };
 
-/// Represents an abstract task for ORC to run.
-class Task : public RTTIExtends<Task, RTTIRoot> {
-public:
-  static char ID;
-
-  /// Description of the task to be performed. Used for logging.
-  virtual void printDescription(raw_ostream &OS) = 0;
-
-  /// Run the task.
-  virtual void run() = 0;
-
-private:
-  void anchor() override;
-};
-
 /// A materialization task.
 class MaterializationTask : public RTTIExtends<MaterializationTask, Task> {
 public:
@@ -1285,13 +1284,16 @@ public:
   /// For reporting errors.
   using ErrorReporter = std::function<void(Error)>;
 
+  /// Send a result to the remote.
+  using SendResultFunction = unique_function<void(shared::WrapperFunctionResult)>;
+
   /// For dispatching ORC tasks (typically materialization tasks).
   using DispatchTaskFunction = unique_function<void(std::unique_ptr<Task> T)>;
 
   /// An asynchronous wrapper-function callable from the executor via
   /// jit-dispatch.
   using JITDispatchHandlerFunction = unique_function<void(
-      ExecutorProcessControl::SendResultFunction SendResult,
+      SendResultFunction SendResult,
       const char *ArgData, size_t ArgSize)>;
 
   /// A map associating tag names with asynchronous wrapper function
@@ -1303,12 +1305,18 @@ public:
   /// object.
   ExecutionSession(std::unique_ptr<ExecutorProcessControl> EPC);
 
-  /// End the session. Closes all JITDylibs.
+  /// End the session. Closes all JITDylibs and disconnects from the
+  /// executor.
   Error endSession();
 
   /// Get the ExecutorProcessControl object associated with this
   /// ExecutionSession.
   ExecutorProcessControl &getExecutorProcessControl() { return *EPC; }
+
+  /// Get the SymbolStringPool for this instance.
+  std::shared_ptr<SymbolStringPool> getSymbolStringPool() {
+    return EPC->getSymbolStringPool();
+  }
 
   /// Add a symbol name to the SymbolStringPool and return a pointer to it.
   SymbolStringPtr intern(StringRef SymName) { return EPC->intern(SymName); }
@@ -1462,10 +1470,9 @@ public:
   /// \endcode{.cpp}
   ///
   /// The given OnComplete function will be called to return the result.
-  void callWrapperAsync(ExecutorProcessControl::SendResultFunction OnComplete,
-                        JITTargetAddress WrapperFnAddr,
-                        ArrayRef<char> ArgBuffer) {
-    EPC->callWrapperAsync(std::move(OnComplete), WrapperFnAddr, ArgBuffer);
+  template <typename... ArgTs>
+  void callWrapperAsync(ArgTs &&... Args) {
+    EPC->callWrapperAsync(std::forward<ArgTs>(Args)...);
   }
 
   /// Run a wrapper function in the executor. The wrapper function should be
@@ -1474,30 +1481,18 @@ public:
   /// \code{.cpp}
   ///   CWrapperFunctionResult fn(uint8_t *Data, uint64_t Size);
   /// \endcode{.cpp}
-  shared::WrapperFunctionResult callWrapper(JITTargetAddress WrapperFnAddr,
+  shared::WrapperFunctionResult callWrapper(ExecutorAddr WrapperFnAddr,
                                             ArrayRef<char> ArgBuffer) {
-    std::promise<shared::WrapperFunctionResult> RP;
-    auto RF = RP.get_future();
-    callWrapperAsync(
-        [&](shared::WrapperFunctionResult R) { RP.set_value(std::move(R)); },
-        WrapperFnAddr, ArgBuffer);
-    return RF.get();
+    return EPC->callWrapper(WrapperFnAddr, ArgBuffer);
   }
 
   /// Run a wrapper function using SPS to serialize the arguments and
   /// deserialize the results.
   template <typename SPSSignature, typename SendResultT, typename... ArgTs>
-  void callSPSWrapperAsync(SendResultT &&SendResult,
-                           JITTargetAddress WrapperFnAddr,
+  void callSPSWrapperAsync(ExecutorAddr WrapperFnAddr, SendResultT &&SendResult,
                            const ArgTs &...Args) {
-    shared::WrapperFunction<SPSSignature>::callAsync(
-        [this,
-         WrapperFnAddr](ExecutorProcessControl::SendResultFunction SendResult,
-                        const char *ArgData, size_t ArgSize) {
-          callWrapperAsync(std::move(SendResult), WrapperFnAddr,
-                           ArrayRef<char>(ArgData, ArgSize));
-        },
-        std::move(SendResult), Args...);
+    EPC->callSPSWrapperAsync<SPSSignature, SendResultT, ArgTs...>(
+        WrapperFnAddr, std::forward<SendResultT>(SendResult), Args...);
   }
 
   /// Run a wrapper function using SPS to serialize the arguments and
@@ -1506,13 +1501,10 @@ public:
   /// If SPSSignature is a non-void function signature then the second argument
   /// (the first in the Args list) should be a reference to a return value.
   template <typename SPSSignature, typename... WrapperCallArgTs>
-  Error callSPSWrapper(JITTargetAddress WrapperFnAddr,
+  Error callSPSWrapper(ExecutorAddr WrapperFnAddr,
                        WrapperCallArgTs &&...WrapperCallArgs) {
-    return shared::WrapperFunction<SPSSignature>::call(
-        [this, WrapperFnAddr](const char *ArgData, size_t ArgSize) {
-          return callWrapper(WrapperFnAddr, ArrayRef<char>(ArgData, ArgSize));
-        },
-        std::forward<WrapperCallArgTs>(WrapperCallArgs)...);
+    return EPC->callSPSWrapper<SPSSignature, WrapperCallArgTs...>(
+        WrapperFnAddr, std::forward<WrapperCallArgTs>(WrapperCallArgs)...);
   }
 
   /// Wrap a handler that takes concrete argument types (and a sender for a
@@ -1525,7 +1517,7 @@ public:
   template <typename SPSSignature, typename HandlerT>
   static JITDispatchHandlerFunction wrapAsyncWithSPS(HandlerT &&H) {
     return [H = std::forward<HandlerT>(H)](
-               ExecutorProcessControl::SendResultFunction SendResult,
+               SendResultFunction SendResult,
                const char *ArgData, size_t ArgSize) mutable {
       shared::WrapperFunction<SPSSignature>::handleAsync(ArgData, ArgSize, H,
                                                          std::move(SendResult));
@@ -1564,7 +1556,7 @@ public:
   /// This should be called by the ExecutorProcessControl instance in response
   /// to incoming jit-dispatch requests from the executor.
   void
-  runJITDispatchHandler(ExecutorProcessControl::SendResultFunction SendResult,
+  runJITDispatchHandler(SendResultFunction SendResult,
                         JITTargetAddress HandlerFnTagAddr,
                         ArrayRef<char> ArgBuffer);
 

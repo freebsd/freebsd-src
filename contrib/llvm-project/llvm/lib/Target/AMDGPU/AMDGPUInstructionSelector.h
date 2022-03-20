@@ -14,10 +14,7 @@
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPUINSTRUCTIONSELECTOR_H
 
 #include "llvm/CodeGen/GlobalISel/InstructionSelector.h"
-#include "llvm/CodeGen/Register.h"
 #include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IntrinsicsAMDGPU.h"
 
 namespace {
 #define GET_GLOBALISEL_PREDICATE_BITSET
@@ -135,7 +132,6 @@ private:
   bool hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const;
   void getAddrModeInfo(const MachineInstr &Load, const MachineRegisterInfo &MRI,
                        SmallVectorImpl<GEPInfo> &AddrInfo) const;
-  bool selectSMRD(MachineInstr &I, ArrayRef<GEPInfo> AddrInfo) const;
 
   void initM0(MachineInstr &I) const;
   bool selectG_LOAD_STORE_ATOMICRMW(MachineInstr &I) const;

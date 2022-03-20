@@ -97,6 +97,9 @@ public:
                      llvm::codeview::GlobalTypeTableBuilder &GlobalCVTypes,
                      bool GHash) {}
 
+  // Only implement for XCOFF
+  virtual void printAuxiliaryHeader() {}
+
   // Only implemented for MachO.
   virtual void printMachODataInCode() { }
   virtual void printMachOVersionMin() { }
@@ -110,7 +113,7 @@ public:
 
   virtual void printStackMap() const = 0;
 
-  void printAsStringList(StringRef StringContent);
+  void printAsStringList(StringRef StringContent, size_t StringDataOffset = 0);
 
   void printSectionsAsString(const object::ObjectFile &Obj,
                              ArrayRef<std::string> Sections);

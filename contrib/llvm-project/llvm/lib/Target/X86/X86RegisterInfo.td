@@ -373,12 +373,6 @@ def CR15 : X86Reg<"cr15", 15>;
 def EIZ : X86Reg<"eiz", 4>;
 def RIZ : X86Reg<"riz", 4>;
 
-// Bound registers, used in MPX instructions
-def BND0 : X86Reg<"bnd0",   0>;
-def BND1 : X86Reg<"bnd1",   1>;
-def BND2 : X86Reg<"bnd2",   2>;
-def BND3 : X86Reg<"bnd3",   3>;
-
 // CET registers - Shadow Stack Pointer
 def SSP : X86Reg<"ssp", 0>;
 
@@ -435,6 +429,12 @@ def GR32 : RegisterClass<"X86", [i32], 32,
 def GR64 : RegisterClass<"X86", [i64], 64,
                          (add RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
                               RBX, R14, R15, R12, R13, RBP, RSP, RIP)>;
+
+// GR64 - 64-bit GPRs without R8 and RIP. Could be used when emitting code for
+// intrinsics, which use implict input registers.
+def GR64NoR8 : RegisterClass<"X86", [i64], 64,
+                              (add RAX, RCX, RDX, RSI, RDI, R9, R10, R11,
+                                   RBX, R14, R15, R12, R13, RBP, RSP)>;
 
 // Segment registers for use by MOV instructions (and others) that have a
 //   segment register as one operand.  Always contain a 16-bit segment
@@ -567,9 +567,9 @@ def RSTi : RegisterOperand<RST, "printSTiRegOperand">;
 // Generic vector registers: VR64 and VR128.
 // Ensure that float types are declared first - only float is legal on SSE1.
 def VR64: RegisterClass<"X86", [x86mmx], 64, (sequence "MM%u", 0, 7)>;
-def VR128 : RegisterClass<"X86", [v4f32, v2f64, v16i8, v8i16, v4i32, v2i64, f128],
+def VR128 : RegisterClass<"X86", [v4f32, v2f64, v8f16, v16i8, v8i16, v4i32, v2i64, f128],
                           128, (add FR32)>;
-def VR256 : RegisterClass<"X86", [v8f32, v4f64, v32i8, v16i16, v8i32, v4i64],
+def VR256 : RegisterClass<"X86", [v8f32, v4f64, v16f16, v32i8, v16i16, v8i32, v4i64],
                           256, (sequence "YMM%u", 0, 15)>;
 
 // Status flags registers.
@@ -587,7 +587,7 @@ def DFCCR : RegisterClass<"X86", [i32], 32, (add DF)> {
 }
 
 // AVX-512 vector/mask registers.
-def VR512 : RegisterClass<"X86", [v16f32, v8f64, v64i8, v32i16, v16i32, v8i64],
+def VR512 : RegisterClass<"X86", [v16f32, v8f64, v32f16, v64i8, v32i16, v16i32, v8i64],
                           512, (sequence "ZMM%u", 0, 31)>;
 
 // Represents the lower 16 registers that have VEX/legacy encodable subregs.
@@ -599,10 +599,12 @@ def FR32X : RegisterClass<"X86", [f32], 32, (sequence "XMM%u", 0, 31)>;
 
 def FR64X : RegisterClass<"X86", [f64], 64, (add FR32X)>;
 
+def FR16X : RegisterClass<"X86", [f16], 16, (add FR32X)>;
+
 // Extended VR128 and VR256 for AVX-512 instructions
-def VR128X : RegisterClass<"X86", [v4f32, v2f64, v16i8, v8i16, v4i32, v2i64, f128],
+def VR128X : RegisterClass<"X86", [v4f32, v2f64, v8f16, v16i8, v8i16, v4i32, v2i64, f128],
                            128, (add FR32X)>;
-def VR256X : RegisterClass<"X86", [v8f32, v4f64, v32i8, v16i16, v8i32, v4i64],
+def VR256X : RegisterClass<"X86", [v8f32, v4f64, v16f16, v32i8, v16i16, v8i32, v4i64],
                            256, (sequence "YMM%u", 0, 31)>;
 
 // Mask registers
@@ -631,9 +633,6 @@ def VK8WM   : RegisterClass<"X86", [v8i1],  16,  (sub VK8, K0)> {let Size = 16;}
 def VK16WM  : RegisterClass<"X86", [v16i1], 16, (add VK8WM)>   {let Size = 16;}
 def VK32WM  : RegisterClass<"X86", [v32i1], 32, (add VK16WM)> {let Size = 32;}
 def VK64WM  : RegisterClass<"X86", [v64i1], 64, (add VK32WM)> {let Size = 64;}
-
-// Bound registers
-def BNDR : RegisterClass<"X86", [v2i64], 128, (sequence "BND%u", 0, 3)>;
 
 // Tiles
 let CopyCost = -1 in // Don't allow copying of tile registers

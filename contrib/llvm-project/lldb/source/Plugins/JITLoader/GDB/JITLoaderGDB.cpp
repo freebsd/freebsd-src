@@ -92,7 +92,7 @@ enum {
 class PluginProperties : public Properties {
 public:
   static ConstString GetSettingName() {
-    return JITLoaderGDB::GetPluginNameStatic();
+    return ConstString(JITLoaderGDB::GetPluginNameStatic());
   }
 
   PluginProperties() {
@@ -107,11 +107,9 @@ public:
   }
 };
 
-typedef std::shared_ptr<PluginProperties> JITLoaderGDBPropertiesSP;
-
-static const JITLoaderGDBPropertiesSP &GetGlobalPluginProperties() {
-  static const auto g_settings_sp(std::make_shared<PluginProperties>());
-  return g_settings_sp;
+static PluginProperties &GetGlobalPluginProperties() {
+  static PluginProperties g_settings;
+  return g_settings;
 }
 
 template <typename ptr_t>
@@ -162,7 +160,7 @@ void JITLoaderGDB::DebuggerInitialize(Debugger &debugger) {
           debugger, PluginProperties::GetSettingName())) {
     const bool is_global_setting = true;
     PluginManager::CreateSettingForJITLoaderPlugin(
-        debugger, GetGlobalPluginProperties()->GetValueProperties(),
+        debugger, GetGlobalPluginProperties().GetValueProperties(),
         ConstString("Properties for the JIT LoaderGDB plug-in."),
         is_global_setting);
   }
@@ -409,15 +407,10 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
 }
 
 // PluginInterface protocol
-lldb_private::ConstString JITLoaderGDB::GetPluginNameStatic() {
-  static ConstString g_name("gdb");
-  return g_name;
-}
-
 JITLoaderSP JITLoaderGDB::CreateInstance(Process *process, bool force) {
   JITLoaderSP jit_loader_sp;
   bool enable;
-  switch (GetGlobalPluginProperties()->GetEnable()) {
+  switch (GetGlobalPluginProperties().GetEnable()) {
     case EnableJITLoaderGDB::eEnableJITLoaderGDBOn:
       enable = true;
       break;
@@ -434,16 +427,10 @@ JITLoaderSP JITLoaderGDB::CreateInstance(Process *process, bool force) {
   return jit_loader_sp;
 }
 
-const char *JITLoaderGDB::GetPluginDescriptionStatic() {
+llvm::StringRef JITLoaderGDB::GetPluginDescriptionStatic() {
   return "JIT loader plug-in that watches for JIT events using the GDB "
          "interface.";
 }
-
-lldb_private::ConstString JITLoaderGDB::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t JITLoaderGDB::GetPluginVersion() { return 1; }
 
 void JITLoaderGDB::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),

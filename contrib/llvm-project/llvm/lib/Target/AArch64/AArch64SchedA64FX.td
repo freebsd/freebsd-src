@@ -21,7 +21,8 @@ def A64FXModel : SchedMachineModel {
   let CompleteModel         =   1;
 
   list<Predicate> UnsupportedFeatures =
-    [HasSVE2, HasSVE2AES, HasSVE2SM4, HasSVE2SHA3, HasSVE2BitPerm, HasPAuth];
+    [HasSVE2, HasSVE2AES, HasSVE2SM4, HasSVE2SHA3, HasSVE2BitPerm, HasPAuth,
+     HasSVE2orStreamingSVE];
 
   let FullInstRWOverlapCheck = 0;
 }
@@ -760,6 +761,7 @@ def : ReadAdvance<ReadIMA,     0>;
 def : ReadAdvance<ReadID,      0>;
 def : ReadAdvance<ReadExtrHi,  0>;
 def : ReadAdvance<ReadAdrBase, 0>;
+def : ReadAdvance<ReadST,      0>;
 def : ReadAdvance<ReadVLD,     0>;
 
 //===----------------------------------------------------------------------===//
@@ -1625,7 +1627,11 @@ def : InstRW<[A64FXWrite_FMOV_VG14], (instrs FMOVDXHighr)>;
 // ASIMD shift by register, basic, Q-form
 // ASIMD shift by register, complex, D-form
 // ASIMD shift by register, complex, Q-form
-def : WriteRes<WriteV, [A64FXGI03]> {
+def : WriteRes<WriteVd, [A64FXGI03]> {
+  let Latency = 4;
+  let ResourceCycles = [1];
+}
+def : WriteRes<WriteVq, [A64FXGI03]> {
   let Latency = 4;
   let ResourceCycles = [1];
 }

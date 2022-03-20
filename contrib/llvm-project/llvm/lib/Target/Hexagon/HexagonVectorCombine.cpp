@@ -82,6 +82,7 @@ public:
 
   int getSizeOf(const Value *Val) const;
   int getSizeOf(const Type *Ty) const;
+  int getAllocSizeOf(const Type *Ty) const;
   int getTypeAlignment(Type *Ty) const;
 
   VectorType *getByteVectorTy(int ScLen) const;
@@ -443,8 +444,8 @@ auto AlignVectors::createAdjustedPointer(IRBuilder<> &Builder, Value *Ptr,
   auto *PtrTy = cast<PointerType>(Ptr->getType());
   if (!PtrTy->isOpaque()) {
     Type *ElemTy = PtrTy->getElementType();
-    int ElemSize = HVC.getSizeOf(ElemTy);
-    if (Adjust % ElemSize == 0) {
+    int ElemSize = HVC.getAllocSizeOf(ElemTy);
+    if (Adjust % ElemSize == 0 && Adjust != 0) {
       Value *Tmp0 =
           Builder.CreateGEP(ElemTy, Ptr, HVC.getConstInt(Adjust / ElemSize));
       return Builder.CreatePointerCast(Tmp0, ValTy->getPointerTo());
@@ -979,6 +980,10 @@ auto HexagonVectorCombine::getSizeOf(const Type *Ty) const -> int {
   return DL.getTypeStoreSize(const_cast<Type *>(Ty)).getFixedValue();
 }
 
+auto HexagonVectorCombine::getAllocSizeOf(const Type *Ty) const -> int {
+  return DL.getTypeAllocSize(const_cast<Type *>(Ty)).getFixedValue();
+}
+
 auto HexagonVectorCombine::getTypeAlignment(Type *Ty) const -> int {
   // The actual type may be shorter than the HVX vector, so determine
   // the alignment based on subtarget info.
@@ -1326,7 +1331,7 @@ auto HexagonVectorCombine::calculatePointerDifference(Value *Ptr0,
     return None;
 
   Builder B(Gep0->getParent());
-  int Scale = DL.getTypeStoreSize(Gep0->getSourceElementType());
+  int Scale = getAllocSizeOf(Gep0->getSourceElementType());
 
   // FIXME: for now only check GEPs with a single index.
   if (Gep0->getNumOperands() != 2 || Gep1->getNumOperands() != 2)
@@ -1343,7 +1348,7 @@ auto HexagonVectorCombine::calculatePointerDifference(Value *Ptr0,
   KnownBits Known0 = computeKnownBits(Idx0, DL, 0, &AC, Gep0, &DT);
   KnownBits Known1 = computeKnownBits(Idx1, DL, 0, &AC, Gep1, &DT);
   APInt Unknown = ~(Known0.Zero | Known0.One) | ~(Known1.Zero | Known1.One);
-  if (Unknown.isAllOnesValue())
+  if (Unknown.isAllOnes())
     return None;
 
   Value *MaskU = ConstantInt::get(Idx0->getType(), Unknown);

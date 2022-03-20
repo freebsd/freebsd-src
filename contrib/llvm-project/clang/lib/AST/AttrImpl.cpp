@@ -195,6 +195,40 @@ void OMPDeclareVariantAttr::printPrettyPragma(
     OS << ")";
   }
   OS << " match(" << traitInfos << ")";
+
+  auto PrintExprs = [&OS, &Policy](Expr **Begin, Expr **End) {
+    for (Expr **I = Begin; I != End; ++I) {
+      assert(*I && "Expected non-null Stmt");
+      if (I != Begin)
+        OS << ",";
+      (*I)->printPretty(OS, nullptr, Policy);
+    }
+  };
+  if (adjustArgsNothing_size()) {
+    OS << " adjust_args(nothing:";
+    PrintExprs(adjustArgsNothing_begin(), adjustArgsNothing_end());
+    OS << ")";
+  }
+  if (adjustArgsNeedDevicePtr_size()) {
+    OS << " adjust_args(need_device_ptr:";
+    PrintExprs(adjustArgsNeedDevicePtr_begin(), adjustArgsNeedDevicePtr_end());
+    OS << ")";
+  }
+
+  auto PrintInteropTypes = [&OS](InteropType *Begin, InteropType *End) {
+    for (InteropType *I = Begin; I != End; ++I) {
+      if (I != Begin)
+        OS << ", ";
+      OS << "interop(";
+      OS << ConvertInteropTypeToStr(*I);
+      OS << ")";
+    }
+  };
+  if (appendArgs_size()) {
+    OS << " append_args(";
+    PrintInteropTypes(appendArgs_begin(), appendArgs_end());
+    OS << ")";
+  }
 }
 
 #include "clang/AST/AttrImpl.inc"

@@ -175,6 +175,26 @@ void parseMerge(StringRef s) {
   }
 }
 
+void parsePDBPageSize(StringRef s) {
+  int v;
+  if (s.getAsInteger(0, v)) {
+    error("/pdbpagesize: invalid argument: " + s);
+    return;
+  }
+  if (v != 4096 && v != 8192 && v != 16384 && v != 32768) {
+    error("/pdbpagesize: invalid argument: " + s);
+    return;
+  }
+
+  // FIXME: Remove this once other page sizes work.
+  if (v != 4096) {
+    warn("/pdbpagesize: page sizes != 4096 not yet implemented, ignoring flag");
+    v = 4096;
+  }
+
+  config->pdbPageSize = v;
+}
+
 static uint32_t parseSectionAttributes(StringRef s) {
   uint32_t ret = 0;
   for (char c : s.lower()) {
@@ -385,10 +405,10 @@ static std::string createDefaultXml() {
        << "    </security>\n"
        << "  </trustInfo>\n";
   }
-  if (!config->manifestDependency.empty()) {
+  for (auto manifestDependency : config->manifestDependencies) {
     os << "  <dependency>\n"
        << "    <dependentAssembly>\n"
-       << "      <assemblyIdentity " << config->manifestDependency << " />\n"
+       << "      <assemblyIdentity " << manifestDependency << " />\n"
        << "    </dependentAssembly>\n"
        << "  </dependency>\n";
   }
@@ -408,7 +428,8 @@ static std::string createManifestXmlWithInternalMt(StringRef defaultXml) {
   for (StringRef filename : config->manifestInput) {
     std::unique_ptr<MemoryBuffer> manifest =
         check(MemoryBuffer::getFile(filename));
-    if (auto e = merger.merge(*manifest.get()))
+    // Call takeBuffer to include in /reproduce: output if applicable.
+    if (auto e = merger.merge(driver->takeBuffer(std::move(manifest))))
       fatal("internal manifest tool failed on file " + filename + ": " +
             toString(std::move(e)));
   }
@@ -436,6 +457,11 @@ static std::string createManifestXmlWithExternalMt(StringRef defaultXml) {
   for (StringRef filename : config->manifestInput) {
     e.add("/manifest");
     e.add(filename);
+
+    // Manually add the file to the /reproduce: tar if needed.
+    if (driver->tar)
+      if (auto mbOrErr = MemoryBuffer::getFile(filename))
+        driver->takeBuffer(std::move(*mbOrErr));
   }
   e.add("/nologo");
   e.add("/out:" + StringRef(user.path));

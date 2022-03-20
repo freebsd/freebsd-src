@@ -488,7 +488,7 @@ void Debugger::Terminate() {
          "Debugger::Terminate called without a matching Debugger::Initialize!");
 
   if (g_debugger_list_ptr && g_debugger_list_mutex_ptr) {
-    // Clear our master list of debugger objects
+    // Clear our global list of debugger objects
     {
       std::lock_guard<std::recursive_mutex> guard(*g_debugger_list_mutex_ptr);
       for (const auto &debugger : *g_debugger_list_ptr)
@@ -723,10 +723,10 @@ Debugger::Debugger(lldb::LogOutputCallback log_callback, void *baton)
   m_collection_sp->AppendProperty(
       ConstString("target"),
       ConstString("Settings specify to debugging targets."), true,
-      Target::GetGlobalProperties()->GetValueProperties());
+      Target::GetGlobalProperties().GetValueProperties());
   m_collection_sp->AppendProperty(
       ConstString("platform"), ConstString("Platform settings."), true,
-      Platform::GetGlobalPlatformProperties()->GetValueProperties());
+      Platform::GetGlobalPlatformProperties().GetValueProperties());
   m_collection_sp->AppendProperty(
       ConstString("symbols"), ConstString("Symbol lookup and cache settings."),
       true, ModuleList::GetGlobalModuleListProperties().GetValueProperties());
@@ -1243,7 +1243,7 @@ bool Debugger::EnableLog(llvm::StringRef channel,
       log_stream_sp = pos->second.lock();
     if (!log_stream_sp) {
       File::OpenOptions flags =
-          File::eOpenOptionWrite | File::eOpenOptionCanCreate;
+          File::eOpenOptionWriteOnly | File::eOpenOptionCanCreate;
       if (log_options & LLDB_LOG_OPTION_APPEND)
         flags |= File::eOpenOptionAppend;
       else
@@ -1423,10 +1423,9 @@ void Debugger::HandleProcessEvent(const EventSP &event_sp) {
               output_stream_sp->PutCString(content_stream.GetString());
             }
           } else {
-            error_stream_sp->Printf("Failed to print structured "
-                                    "data with plugin %s: %s",
-                                    plugin_sp->GetPluginName().AsCString(),
-                                    error.AsCString());
+            error_stream_sp->Format("Failed to print structured "
+                                    "data with plugin {0}: {1}",
+                                    plugin_sp->GetPluginName(), error);
           }
         }
       }

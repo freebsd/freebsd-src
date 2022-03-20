@@ -104,7 +104,7 @@ private:
         RootToken.isObjCAccessSpecifier() ||
         (RootToken.isOneOf(Keywords.kw_signals, Keywords.kw_qsignals) &&
          RootToken.Next && RootToken.Next->is(tok::colon))) {
-      // The AccessModifierOffset may be overriden by IndentAccessModifiers,
+      // The AccessModifierOffset may be overridden by IndentAccessModifiers,
       // in which case we take a negative value of the IndentWidth to simulate
       // the upper indent level.
       return Style.IndentAccessModifiers ? -Style.IndentWidth
@@ -632,10 +632,11 @@ private:
         FormatToken *RecordTok = Line.First;
         // Skip record modifiers.
         while (RecordTok->Next &&
-               RecordTok->isOneOf(
-                   tok::kw_typedef, tok::kw_export, Keywords.kw_declare,
-                   Keywords.kw_abstract, tok::kw_default, tok::kw_public,
-                   tok::kw_private, tok::kw_protected, Keywords.kw_internal))
+               RecordTok->isOneOf(tok::kw_typedef, tok::kw_export,
+                                  Keywords.kw_declare, Keywords.kw_abstract,
+                                  tok::kw_default, Keywords.kw_override,
+                                  tok::kw_public, tok::kw_private,
+                                  tok::kw_protected, Keywords.kw_internal))
           RecordTok = RecordTok->Next;
         if (RecordTok &&
             RecordTok->isOneOf(tok::kw_class, tok::kw_union, tok::kw_struct,

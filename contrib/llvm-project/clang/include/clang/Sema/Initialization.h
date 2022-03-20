@@ -335,8 +335,15 @@ public:
   }
 
   /// Create the initialization entity for a temporary.
-  static InitializedEntity InitializeTemporary(TypeSourceInfo *TypeInfo) {
-    return InitializeTemporary(TypeInfo, TypeInfo->getType());
+  static InitializedEntity InitializeTemporary(ASTContext &Context,
+                                               TypeSourceInfo *TypeInfo) {
+    QualType Type = TypeInfo->getType();
+    if (Context.getLangOpts().OpenCLCPlusPlus) {
+      assert(!Type.hasAddressSpace() && "Temporary already has address space!");
+      Type = Context.getAddrSpaceQualType(Type, LangAS::opencl_private);
+    }
+
+    return InitializeTemporary(TypeInfo, Type);
   }
 
   /// Create the initialization entity for a temporary.
@@ -481,7 +488,7 @@ public:
 
   /// Determine whether this is an array new with an unknown bound.
   bool isVariableLengthArrayNew() const {
-    return getKind() == EK_New && dyn_cast_or_null<IncompleteArrayType>(
+    return getKind() == EK_New && isa_and_nonnull<IncompleteArrayType>(
                                       getType()->getAsArrayTypeUnsafe());
   }
 

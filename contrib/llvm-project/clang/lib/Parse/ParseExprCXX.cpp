@@ -1068,8 +1068,8 @@ bool Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro,
 
     // Ensure that any ellipsis was in the right place.
     SourceLocation EllipsisLoc;
-    if (std::any_of(std::begin(EllipsisLocs), std::end(EllipsisLocs),
-                    [](SourceLocation Loc) { return Loc.isValid(); })) {
+    if (llvm::any_of(EllipsisLocs,
+                     [](SourceLocation Loc) { return Loc.isValid(); })) {
       // The '...' should appear before the identifier in an init-capture, and
       // after the identifier otherwise.
       bool InitCapture = InitKind != LambdaCaptureInitKind::NoInit;
@@ -1910,6 +1910,28 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
   }
 }
 
+Parser::DeclGroupPtrTy
+Parser::ParseAliasDeclarationInInitStatement(DeclaratorContext Context,
+                                             ParsedAttributesWithRange &Attrs) {
+  assert(Tok.is(tok::kw_using) && "Expected using");
+  assert((Context == DeclaratorContext::ForInit ||
+          Context == DeclaratorContext::SelectionInit) &&
+         "Unexpected Declarator Context");
+  DeclGroupPtrTy DG;
+  SourceLocation DeclStart = ConsumeToken(), DeclEnd;
+
+  DG = ParseUsingDeclaration(Context, {}, DeclStart, DeclEnd, Attrs, AS_none);
+  if (!DG)
+    return DG;
+
+  Diag(DeclStart, !getLangOpts().CPlusPlus2b
+                      ? diag::ext_alias_in_init_statement
+                      : diag::warn_cxx20_alias_in_init_statement)
+      << SourceRange(DeclStart, DeclEnd);
+
+  return DG;
+}
+
 /// ParseCXXCondition - if/switch/while condition expression.
 ///
 ///       condition:
@@ -2017,9 +2039,14 @@ Sema::ConditionResult Parser::ParseCXXCondition(StmtResult *InitStmt,
 
   case ConditionOrInitStatement::InitStmtDecl: {
     WarnOnInit();
+    DeclGroupPtrTy DG;
     SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
-    DeclGroupPtrTy DG = ParseSimpleDeclaration(
-        DeclaratorContext::SelectionInit, DeclEnd, attrs, /*RequireSemi=*/true);
+    if (Tok.is(tok::kw_using))
+      DG = ParseAliasDeclarationInInitStatement(
+          DeclaratorContext::SelectionInit, attrs);
+    else
+      DG = ParseSimpleDeclaration(DeclaratorContext::SelectionInit, DeclEnd,
+                                  attrs, /*RequireSemi=*/true);
     *InitStmt = Actions.ActOnDeclStmt(DG, DeclStart, DeclEnd);
     return ParseCXXCondition(nullptr, Loc, CK);
   }
@@ -2225,6 +2252,9 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
     break;
   case tok::kw___float128:
     DS.SetTypeSpecType(DeclSpec::TST_float128, Loc, PrevSpec, DiagID, Policy);
+    break;
+  case tok::kw___ibm128:
+    DS.SetTypeSpecType(DeclSpec::TST_ibm128, Loc, PrevSpec, DiagID, Policy);
     break;
   case tok::kw_wchar_t:
     DS.SetTypeSpecType(DeclSpec::TST_wchar, Loc, PrevSpec, DiagID, Policy);
@@ -3602,7 +3632,7 @@ ExprResult Parser::ParseRequiresExpression() {
           break;
         }
         if (!Expression.isInvalid() && PossibleRequiresExprInSimpleRequirement)
-          Diag(StartLoc, diag::warn_requires_expr_in_simple_requirement)
+          Diag(StartLoc, diag::err_requires_expr_in_simple_requirement)
               << FixItHint::CreateInsertion(StartLoc, "requires");
         if (auto *Req = Actions.ActOnSimpleRequirement(Expression.get()))
           Requirements.push_back(Req);

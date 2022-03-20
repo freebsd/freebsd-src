@@ -503,9 +503,7 @@ bool X86OptimizeLEAPass::removeRedundantAddrCalc(MemOpMap &LEAs) {
   MachineBasicBlock *MBB = (*LEAs.begin()->second.begin())->getParent();
 
   // Process all instructions in basic block.
-  for (auto I = MBB->begin(), E = MBB->end(); I != E;) {
-    MachineInstr &MI = *I++;
-
+  for (MachineInstr &MI : llvm::make_early_inc_range(*MBB)) {
     // Instruction must be load or store.
     if (!MI.mayLoadOrStore())
       continue;
@@ -655,9 +653,8 @@ bool X86OptimizeLEAPass::removeRedundantLEAs(MemOpMap &LEAs) {
         // isReplaceable function.
         Register FirstVReg = First.getOperand(0).getReg();
         Register LastVReg = Last.getOperand(0).getReg();
-        for (auto UI = MRI->use_begin(LastVReg), UE = MRI->use_end();
-             UI != UE;) {
-          MachineOperand &MO = *UI++;
+        for (MachineOperand &MO :
+             llvm::make_early_inc_range(MRI->use_operands(LastVReg))) {
           MachineInstr &MI = *MO.getParent();
 
           if (MI.isDebugValue()) {

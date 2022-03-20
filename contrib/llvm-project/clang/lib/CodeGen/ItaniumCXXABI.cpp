@@ -334,6 +334,19 @@ public:
       ArrayRef<llvm::Function *> CXXThreadLocalInits,
       ArrayRef<const VarDecl *> CXXThreadLocalInitVars) override;
 
+  bool mayNeedDestruction(const VarDecl *VD) const {
+    if (VD->needsDestruction(getContext()))
+      return true;
+
+    // If the variable has an incomplete class type (or array thereof), it
+    // might need destruction.
+    const Type *T = VD->getType()->getBaseElementTypeUnsafe();
+    if (T->getAs<RecordType>() && T->isIncompleteType())
+      return true;
+
+    return false;
+  }
+
   /// Determine whether we will definitely emit this variable with a constant
   /// initializer, either because the language semantics demand it or because
   /// we know that the initializer is a constant.
@@ -364,7 +377,7 @@ public:
     // If we have the only definition, we don't need a thread wrapper if we
     // will emit the value as a constant.
     if (isUniqueGVALinkage(getContext().GetGVALinkageForVariable(VD)))
-      return !VD->needsDestruction(getContext()) && InitDecl->evaluateValue();
+      return !mayNeedDestruction(VD) && InitDecl->evaluateValue();
 
     // Otherwise, we need a thread wrapper unless we know that every
     // translation unit will emit the value as a constant. We rely on the
@@ -376,7 +389,7 @@ public:
 
   bool usesThreadWrapperFunction(const VarDecl *VD) const override {
     return !isEmittedWithConstantInitializer(VD) ||
-           VD->needsDestruction(getContext());
+           mayNeedDestruction(VD);
   }
   LValue EmitThreadLocalVarDeclLValue(CodeGenFunction &CGF, const VarDecl *VD,
                                       QualType LValType) override;
@@ -2445,11 +2458,6 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
         (CGM.getTarget().getTriple().isOSBinFormatELF() ||
          CGM.getTarget().getTriple().isOSBinFormatWasm())) {
       guard->setComdat(C);
-      // An inline variable's guard function is run from the per-TU
-      // initialization function, not via a dedicated global ctor function, so
-      // we can't put it in a comdat.
-      if (!NonTemplateInline)
-        CGF.CurFn->setComdat(C);
     } else if (CGM.supportsCOMDAT() && guard->isWeakForLinker()) {
       guard->setComdat(CGM.getModule().getOrInsertComdat(guard->getName()));
     }
@@ -2968,7 +2976,7 @@ void ItaniumCXXABI::EmitThreadLocalInitFuncs(
     // also when the symbol is weak.
     if (CGM.getTriple().isOSAIX() && VD->hasDefinition() &&
         isEmittedWithConstantInitializer(VD, true) &&
-        !VD->needsDestruction(getContext())) {
+        !mayNeedDestruction(VD)) {
       // Init should be null.  If it were non-null, then the logic above would
       // either be defining the function to be an alias or declaring the
       // function with the expectation that the definition of the variable
@@ -3274,6 +3282,7 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::LongDouble:
     case BuiltinType::Float16:
     case BuiltinType::Float128:
+    case BuiltinType::Ibm128:
     case BuiltinType::Char8:
     case BuiltinType::Char16:
     case BuiltinType::Char32:

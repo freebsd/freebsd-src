@@ -225,10 +225,13 @@ protected:
 
   // XCOFF specific sections
   MCSection *TOCBaseSection = nullptr;
+  MCSection *ReadOnly8Section = nullptr;
+  MCSection *ReadOnly16Section = nullptr;
 
 public:
   void initMCObjectFileInfo(MCContext &MCCtx, bool PIC,
                             bool LargeCodeModel = false);
+  virtual ~MCObjectFileInfo();
   MCContext &getContext() const { return *Ctx; }
 
   bool getSupportsWeakOmittedEHFrame() const {
@@ -251,6 +254,7 @@ public:
     return CompactUnwindDwarfEHFrameOnly;
   }
 
+  virtual unsigned getTextSectionAlignment() const { return 4; }
   MCSection *getTextSection() const { return TextSection; }
   MCSection *getDataSection() const { return DataSection; }
   MCSection *getBSSSection() const { return BSSSection; }

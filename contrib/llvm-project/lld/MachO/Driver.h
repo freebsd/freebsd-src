@@ -52,10 +52,11 @@ void parseLCLinkerOption(InputFile *, unsigned argc, StringRef data);
 std::string createResponseFile(const llvm::opt::InputArgList &args);
 
 // Check for both libfoo.dylib and libfoo.tbd (in that order).
-llvm::Optional<std::string> resolveDylibPath(llvm::StringRef path);
+llvm::Optional<StringRef> resolveDylibPath(llvm::StringRef path);
 
 DylibFile *loadDylib(llvm::MemoryBufferRef mbref, DylibFile *umbrella = nullptr,
                      bool isBundleLoader = false);
+void resetLoadedDylibs();
 
 // Search for all possible combinations of `{root}/{name}.{extension}`.
 // If \p extensions are not specified, then just search for `{root}/{name}`.
@@ -67,11 +68,6 @@ findPathCombination(const llvm::Twine &name,
 // If -syslibroot is specified, absolute paths to non-object files may be
 // rerooted.
 llvm::StringRef rerootPath(llvm::StringRef path);
-
-llvm::Optional<InputFile *> loadArchiveMember(MemoryBufferRef, uint32_t modTime,
-                                              StringRef archiveName,
-                                              bool objCOnly,
-                                              uint64_t offsetInArchive);
 
 uint32_t getModTime(llvm::StringRef path);
 

@@ -65,6 +65,7 @@ protected:
     CortexA77,
     CortexA78,
     CortexA78C,
+    CortexA710,
     CortexA8,
     CortexA9,
     CortexM3,
@@ -124,6 +125,9 @@ protected:
     ARMv8mMainline,
     ARMv8r,
     ARMv81mMainline,
+    ARMv9a,
+    ARMv91a,
+    ARMv92a,
   };
 
 public:
@@ -170,6 +174,9 @@ protected:
   bool HasV8_5aOps = false;
   bool HasV8_6aOps = false;
   bool HasV8_7aOps = false;
+  bool HasV9_0aOps = false;
+  bool HasV9_1aOps = false;
+  bool HasV9_2aOps = false;
   bool HasV8MBaselineOps = false;
   bool HasV8MMainlineOps = false;
   bool HasV8_1MMainlineOps = false;
@@ -468,6 +475,9 @@ protected:
   /// cannot be encoded. For example, ADD r0, r1, #FFFFFFFF -> SUB r0, r1, #1.
   bool NegativeImmediates = true;
 
+  /// Mitigate against the cve-2021-35465 security vulnurability.
+  bool FixCMSE_CVE_2021_35465 = false;
+
   /// Harden against Straight Line Speculation for Returns and Indirect
   /// Branches.
   bool HardenSlsRetBr = false;
@@ -618,6 +628,9 @@ public:
   bool hasV8_5aOps() const { return HasV8_5aOps; }
   bool hasV8_6aOps() const { return HasV8_6aOps; }
   bool hasV8_7aOps() const { return HasV8_7aOps; }
+  bool hasV9_0aOps() const { return HasV9_0aOps; }
+  bool hasV9_1aOps() const { return HasV9_1aOps; }
+  bool hasV9_2aOps() const { return HasV9_2aOps; }
   bool hasV8MBaselineOps() const { return HasV8MBaselineOps; }
   bool hasV8MMainlineOps() const { return HasV8MMainlineOps; }
   bool hasV8_1MMainlineOps() const { return HasV8_1MMainlineOps; }
@@ -780,14 +793,7 @@ public:
   // ARM Targets that support EHABI exception handling standard
   // Darwin uses SjLj. Other targets might need more checks.
   bool isTargetEHABICompatible() const {
-    return (TargetTriple.getEnvironment() == Triple::EABI ||
-            TargetTriple.getEnvironment() == Triple::GNUEABI ||
-            TargetTriple.getEnvironment() == Triple::MuslEABI ||
-            TargetTriple.getEnvironment() == Triple::EABIHF ||
-            TargetTriple.getEnvironment() == Triple::GNUEABIHF ||
-            TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
-            isTargetAndroid()) &&
-           !isTargetDarwin() && !isTargetWindows();
+    return TargetTriple.isTargetEHABICompatible();
   }
 
   bool isTargetHardFloat() const;
@@ -933,6 +939,8 @@ public:
   bool ignoreCSRForAllocationOrder(const MachineFunction &MF,
                                    unsigned PhysReg) const override;
   unsigned getGPRAllocationOrder(const MachineFunction &MF) const;
+
+  bool fixCMSE_CVE_2021_35465() const { return FixCMSE_CVE_2021_35465; }
 
   bool hardenSlsRetBr() const { return HardenSlsRetBr; }
   bool hardenSlsBlr() const { return HardenSlsBlr; }
