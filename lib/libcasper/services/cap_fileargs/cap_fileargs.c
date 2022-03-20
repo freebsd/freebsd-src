@@ -275,8 +275,7 @@ fileargs_cinitnv(cap_channel_t *cas, nvlist_t *limits)
 {
 	cap_channel_t *chann;
 	fileargs_t *fa;
-	int serrno, ret;
-	int flags, operations;
+	int flags, ret, serrno;
 
 	assert(cas != NULL);
 
@@ -294,7 +293,7 @@ fileargs_cinitnv(cap_channel_t *cas, nvlist_t *limits)
 	}
 
 	flags = nvlist_get_number(limits, "flags");
-	operations = nvlist_get_number(limits, "operations");
+	(void)nvlist_get_number(limits, "operations");
 
 	/* Limits are consumed no need to free them. */
 	ret = cap_limit_set(chann, limits);
