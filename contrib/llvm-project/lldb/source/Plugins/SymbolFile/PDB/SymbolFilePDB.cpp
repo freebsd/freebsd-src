@@ -52,6 +52,10 @@
 #include "Plugins/Language/CPlusPlus/MSVCUndecoratedNameParser.h"
 #include "Plugins/SymbolFile/NativePDB/SymbolFileNativePDB.h"
 
+#if defined(_WIN32)
+#include "llvm/Config/config.h"
+#endif
+
 using namespace lldb;
 using namespace lldb_private;
 using namespace llvm::pdb;
@@ -83,14 +87,16 @@ bool ShouldAddLine(uint32_t requested_line, uint32_t actual_line,
 
 static bool ShouldUseNativeReader() {
 #if defined(_WIN32)
+#if LLVM_ENABLE_DIA_SDK
   llvm::StringRef use_native = ::getenv("LLDB_USE_NATIVE_PDB_READER");
-  return use_native.equals_insensitive("on") ||
-         use_native.equals_insensitive("yes") ||
-         use_native.equals_insensitive("1") ||
-         use_native.equals_insensitive("true");
-#else
-  return true;
+  if (!use_native.equals_insensitive("on") &&
+      !use_native.equals_insensitive("yes") &&
+      !use_native.equals_insensitive("1") &&
+      !use_native.equals_insensitive("true"))
+    return false;
 #endif
+#endif
+  return true;
 }
 
 void SymbolFilePDB::Initialize() {
@@ -113,12 +119,7 @@ void SymbolFilePDB::Terminate() {
 
 void SymbolFilePDB::DebuggerInitialize(lldb_private::Debugger &debugger) {}
 
-lldb_private::ConstString SymbolFilePDB::GetPluginNameStatic() {
-  static ConstString g_name("pdb");
-  return g_name;
-}
-
-const char *SymbolFilePDB::GetPluginDescriptionStatic() {
+llvm::StringRef SymbolFilePDB::GetPluginDescriptionStatic() {
   return "Microsoft PDB debug symbol file reader.";
 }
 
@@ -1455,7 +1456,7 @@ void SymbolFilePDB::DumpClangAST(Stream &s) {
       llvm::dyn_cast_or_null<TypeSystemClang>(&type_system_or_err.get());
   if (!clang_type_system)
     return;
-  clang_type_system->Dump(s);
+  clang_type_system->Dump(s.AsRawOstream());
 }
 
 void SymbolFilePDB::FindTypesByRegex(
@@ -1706,13 +1707,6 @@ SymbolFilePDB::FindNamespace(lldb_private::ConstString name,
 
   return clang_type_system->CreateDeclContext(namespace_decl);
 }
-
-lldb_private::ConstString SymbolFilePDB::GetPluginName() {
-  static ConstString g_name("pdb");
-  return g_name;
-}
-
-uint32_t SymbolFilePDB::GetPluginVersion() { return 1; }
 
 IPDBSession &SymbolFilePDB::GetPDBSession() { return *m_session_up; }
 

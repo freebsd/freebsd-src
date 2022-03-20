@@ -990,7 +990,7 @@ void HexagonDAGToDAGISel::ppSimplifyOrSelect0(std::vector<SDNode*> &&Nodes) {
 
     auto IsZero = [] (const SDValue &V) -> bool {
       if (ConstantSDNode *SC = dyn_cast<ConstantSDNode>(V.getNode()))
-        return SC->isNullValue();
+        return SC->isZero();
       return false;
     };
     auto IsSelect0 = [IsZero] (const SDValue &Op) -> bool {
@@ -2247,8 +2247,8 @@ SDValue HexagonDAGToDAGISel::balanceSubTree(SDNode *N, bool TopLevel) {
 }
 
 void HexagonDAGToDAGISel::rebalanceAddressTrees() {
-  for (auto I = CurDAG->allnodes_begin(), E = CurDAG->allnodes_end(); I != E;) {
-    SDNode *N = &*I++;
+  for (SDNode &Node : llvm::make_early_inc_range(CurDAG->allnodes())) {
+    SDNode *N = &Node;
     if (N->getOpcode() != ISD::LOAD && N->getOpcode() != ISD::STORE)
       continue;
 

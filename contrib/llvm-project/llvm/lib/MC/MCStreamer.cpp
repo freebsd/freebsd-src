@@ -53,6 +53,8 @@ void MCTargetStreamer::emitLabel(MCSymbol *Symbol) {}
 
 void MCTargetStreamer::finish() {}
 
+void MCTargetStreamer::emitConstantPools() {}
+
 void MCTargetStreamer::changeSection(const MCSection *CurSection,
                                      MCSection *Section,
                                      const MCExpr *Subsection,
@@ -218,7 +220,7 @@ void MCStreamer::emitFill(uint64_t NumBytes, uint8_t FillValue) {
 }
 
 void llvm::MCStreamer::emitNops(int64_t NumBytes, int64_t ControlledNopLen,
-                                llvm::SMLoc) {}
+                                llvm::SMLoc, const MCSubtargetInfo& STI) {}
 
 /// The implementation in this class just redirects to emitFill.
 void MCStreamer::emitZeros(uint64_t NumBytes) { emitFill(NumBytes, 0); }
@@ -397,7 +399,7 @@ void MCStreamer::emitEHSymAttributes(const MCSymbol *Symbol,
                                      MCSymbol *EHSymbol) {
 }
 
-void MCStreamer::InitSections(bool NoExecStack) {
+void MCStreamer::initSections(bool NoExecStack, const MCSubtargetInfo &STI) {
   SwitchSection(getContext().getObjectFileInfo()->getTextSection());
 }
 
@@ -1198,6 +1200,7 @@ void MCStreamer::emitValueToAlignment(unsigned ByteAlignment, int64_t Value,
                                       unsigned ValueSize,
                                       unsigned MaxBytesToEmit) {}
 void MCStreamer::emitCodeAlignment(unsigned ByteAlignment,
+                                   const MCSubtargetInfo *STI,
                                    unsigned MaxBytesToEmit) {}
 void MCStreamer::emitValueToOffset(const MCExpr *Offset, unsigned char Value,
                                    SMLoc Loc) {}

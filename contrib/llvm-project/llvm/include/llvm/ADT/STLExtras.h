@@ -272,20 +272,24 @@ template <typename T> auto drop_begin(T &&RangeOrContainer, size_t N = 1) {
 // be applied whenever operator* is invoked on the iterator.
 
 template <typename ItTy, typename FuncTy,
-          typename FuncReturnTy =
-            decltype(std::declval<FuncTy>()(*std::declval<ItTy>()))>
+          typename ReferenceTy =
+              decltype(std::declval<FuncTy>()(*std::declval<ItTy>()))>
 class mapped_iterator
     : public iterator_adaptor_base<
-             mapped_iterator<ItTy, FuncTy>, ItTy,
-             typename std::iterator_traits<ItTy>::iterator_category,
-             typename std::remove_reference<FuncReturnTy>::type> {
+          mapped_iterator<ItTy, FuncTy>, ItTy,
+          typename std::iterator_traits<ItTy>::iterator_category,
+          std::remove_reference_t<ReferenceTy>,
+          typename std::iterator_traits<ItTy>::difference_type,
+          std::remove_reference_t<ReferenceTy> *, ReferenceTy> {
 public:
   mapped_iterator(ItTy U, FuncTy F)
     : mapped_iterator::iterator_adaptor_base(std::move(U)), F(std::move(F)) {}
 
   ItTy getCurrent() { return this->I; }
 
-  FuncReturnTy operator*() const { return F(*this->I); }
+  const FuncTy &getFunction() const { return F; }
+
+  ReferenceTy operator*() const { return F(*this->I); }
 
 private:
   FuncTy F;
@@ -302,6 +306,32 @@ template <class ContainerTy, class FuncTy>
 auto map_range(ContainerTy &&C, FuncTy F) {
   return make_range(map_iterator(C.begin(), F), map_iterator(C.end(), F));
 }
+
+/// A base type of mapped iterator, that is useful for building derived
+/// iterators that do not need/want to store the map function (as in
+/// mapped_iterator). These iterators must simply provide a `mapElement` method
+/// that defines how to map a value of the iterator to the provided reference
+/// type.
+template <typename DerivedT, typename ItTy, typename ReferenceTy>
+class mapped_iterator_base
+    : public iterator_adaptor_base<
+          DerivedT, ItTy,
+          typename std::iterator_traits<ItTy>::iterator_category,
+          std::remove_reference_t<ReferenceTy>,
+          typename std::iterator_traits<ItTy>::difference_type,
+          std::remove_reference_t<ReferenceTy> *, ReferenceTy> {
+public:
+  using BaseT = mapped_iterator_base;
+
+  mapped_iterator_base(ItTy U)
+      : mapped_iterator_base::iterator_adaptor_base(std::move(U)) {}
+
+  ItTy getCurrent() { return this->I; }
+
+  ReferenceTy operator*() const {
+    return static_cast<const DerivedT &>(*this).mapElement(*this->I);
+  }
+};
 
 /// Helper to determine if type T has a member called rbegin().
 template <typename Ty> class has_rbegin_impl {
@@ -371,12 +401,7 @@ class filter_iterator_base
           typename std::common_type<
               IterTag, typename std::iterator_traits<
                            WrappedIteratorT>::iterator_category>::type> {
-  using BaseT = iterator_adaptor_base<
-      filter_iterator_base<WrappedIteratorT, PredicateT, IterTag>,
-      WrappedIteratorT,
-      typename std::common_type<
-          IterTag, typename std::iterator_traits<
-                       WrappedIteratorT>::iterator_category>::type>;
+  using BaseT = typename filter_iterator_base::iterator_adaptor_base;
 
 protected:
   WrappedIteratorT End;
@@ -411,12 +436,10 @@ template <typename WrappedIteratorT, typename PredicateT,
           typename IterTag = std::forward_iterator_tag>
 class filter_iterator_impl
     : public filter_iterator_base<WrappedIteratorT, PredicateT, IterTag> {
-  using BaseT = filter_iterator_base<WrappedIteratorT, PredicateT, IterTag>;
-
 public:
   filter_iterator_impl(WrappedIteratorT Begin, WrappedIteratorT End,
                        PredicateT Pred)
-      : BaseT(Begin, End, Pred) {}
+      : filter_iterator_impl::filter_iterator_base(Begin, End, Pred) {}
 };
 
 /// Specialization of filter_iterator_base for bidirectional iteration.
@@ -425,8 +448,8 @@ class filter_iterator_impl<WrappedIteratorT, PredicateT,
                            std::bidirectional_iterator_tag>
     : public filter_iterator_base<WrappedIteratorT, PredicateT,
                                   std::bidirectional_iterator_tag> {
-  using BaseT = filter_iterator_base<WrappedIteratorT, PredicateT,
-                                     std::bidirectional_iterator_tag>;
+  using BaseT = typename filter_iterator_impl::filter_iterator_base;
+
   void findPrevValid() {
     while (!this->Pred(*this->I))
       BaseT::operator--();
@@ -514,9 +537,7 @@ template <typename WrappedIteratorT>
 class early_inc_iterator_impl
     : public iterator_adaptor_base<early_inc_iterator_impl<WrappedIteratorT>,
                                    WrappedIteratorT, std::input_iterator_tag> {
-  using BaseT =
-      iterator_adaptor_base<early_inc_iterator_impl<WrappedIteratorT>,
-                            WrappedIteratorT, std::input_iterator_tag>;
+  using BaseT = typename early_inc_iterator_impl::iterator_adaptor_base;
 
   using PointerT = typename std::iterator_traits<WrappedIteratorT>::pointer;
 
@@ -630,12 +651,18 @@ protected:
     return std::tuple<Iters...>(std::prev(std::get<Ns>(iterators))...);
   }
 
+  template <size_t... Ns>
+  bool test_all_equals(const zip_common &other,
+            std::index_sequence<Ns...>) const {
+    return all_of(std::initializer_list<bool>{std::get<Ns>(this->iterators) ==
+                                              std::get<Ns>(other.iterators)...},
+                  identity<bool>{});
+  }
+
 public:
   zip_common(Iters &&... ts) : iterators(std::forward<Iters>(ts)...) {}
 
-  value_type operator*() { return deref(std::index_sequence_for<Iters...>{}); }
-
-  const value_type operator*() const {
+  value_type operator*() const {
     return deref(std::index_sequence_for<Iters...>{});
   }
 
@@ -649,6 +676,11 @@ public:
                   "All inner iterators must be at least bidirectional.");
     iterators = tup_dec(std::index_sequence_for<Iters...>{});
     return *reinterpret_cast<ZipType *>(this);
+  }
+
+  /// Return true if all the iterator are matching `other`'s iterators.
+  bool all_equals(zip_common &other) {
+    return test_all_equals(other, std::index_sequence_for<Iters...>{});
   }
 };
 
@@ -800,8 +832,6 @@ public:
   zip_longest_iterator(std::pair<Iters &&, Iters &&>... ts)
       : iterators(std::forward<Iters>(ts.first)...),
         end_iterators(std::forward<Iters>(ts.second)...) {}
-
-  value_type operator*() { return deref(std::index_sequence_for<Iters...>{}); }
 
   value_type operator*() const {
     return deref(std::index_sequence_for<Iters...>{});
@@ -1073,8 +1103,7 @@ template <typename DerivedT, typename BaseT, typename T,
           typename PointerT = T *, typename ReferenceT = T &>
 class indexed_accessor_range_base {
 public:
-  using RangeBaseT =
-      indexed_accessor_range_base<DerivedT, BaseT, T, PointerT, ReferenceT>;
+  using RangeBaseT = indexed_accessor_range_base;
 
   /// An iterator element of this range.
   class iterator : public indexed_accessor_iterator<iterator, BaseT, T,
@@ -1087,8 +1116,7 @@ public:
 
   private:
     iterator(BaseT owner, ptrdiff_t curIndex)
-        : indexed_accessor_iterator<iterator, BaseT, T, PointerT, ReferenceT>(
-              owner, curIndex) {}
+        : iterator::indexed_accessor_iterator(owner, curIndex) {}
 
     /// Allow access to the constructor.
     friend indexed_accessor_range_base<DerivedT, BaseT, T, PointerT,
@@ -1234,20 +1262,39 @@ public:
   }
 };
 
+namespace detail {
+/// Return a reference to the first or second member of a reference. Otherwise,
+/// return a copy of the member of a temporary.
+///
+/// When passing a range whose iterators return values instead of references,
+/// the reference must be dropped from `decltype((elt.first))`, which will
+/// always be a reference, to avoid returning a reference to a temporary.
+template <typename EltTy, typename FirstTy> class first_or_second_type {
+public:
+  using type =
+      typename std::conditional_t<std::is_reference<EltTy>::value, FirstTy,
+                                  std::remove_reference_t<FirstTy>>;
+};
+} // end namespace detail
+
 /// Given a container of pairs, return a range over the first elements.
 template <typename ContainerTy> auto make_first_range(ContainerTy &&c) {
-  return llvm::map_range(
-      std::forward<ContainerTy>(c),
-      [](decltype((*std::begin(c))) elt) -> decltype((elt.first)) {
-        return elt.first;
-      });
+  using EltTy = decltype((*std::begin(c)));
+  return llvm::map_range(std::forward<ContainerTy>(c),
+                         [](EltTy elt) -> typename detail::first_or_second_type<
+                                           EltTy, decltype((elt.first))>::type {
+                           return elt.first;
+                         });
 }
 
 /// Given a container of pairs, return a range over the second elements.
 template <typename ContainerTy> auto make_second_range(ContainerTy &&c) {
+  using EltTy = decltype((*std::begin(c)));
   return llvm::map_range(
       std::forward<ContainerTy>(c),
-      [](decltype((*std::begin(c))) elt) -> decltype((elt.second)) {
+      [](EltTy elt) ->
+      typename detail::first_or_second_type<EltTy,
+                                            decltype((elt.second))>::type {
         return elt.second;
       });
 }
@@ -1260,7 +1307,7 @@ template <typename ContainerTy> auto make_second_range(ContainerTy &&c) {
 /// compares less than the first component of another std::pair.
 struct less_first {
   template <typename T> bool operator()(const T &lhs, const T &rhs) const {
-    return lhs.first < rhs.first;
+    return std::less<>()(lhs.first, rhs.first);
   }
 };
 
@@ -1268,7 +1315,7 @@ struct less_first {
 /// compares less than the second component of another std::pair.
 struct less_second {
   template <typename T> bool operator()(const T &lhs, const T &rhs) const {
-    return lhs.second < rhs.second;
+    return std::less<>()(lhs.second, rhs.second);
   }
 };
 
@@ -1877,8 +1924,7 @@ template <typename R> struct result_pair {
   }
 
   std::size_t index() const { return Index; }
-  const value_reference value() const { return *Iter; }
-  value_reference value() { return *Iter; }
+  value_reference value() const { return *Iter; }
 
 private:
   std::size_t Index = std::numeric_limits<std::size_t>::max();
@@ -1887,11 +1933,8 @@ private:
 
 template <typename R>
 class enumerator_iter
-    : public iterator_facade_base<
-          enumerator_iter<R>, std::forward_iterator_tag, result_pair<R>,
-          typename std::iterator_traits<IterOfRange<R>>::difference_type,
-          typename std::iterator_traits<IterOfRange<R>>::pointer,
-          typename std::iterator_traits<IterOfRange<R>>::reference> {
+    : public iterator_facade_base<enumerator_iter<R>, std::forward_iterator_tag,
+                                  const result_pair<R>> {
   using result_type = result_pair<R>;
 
 public:
@@ -1901,7 +1944,6 @@ public:
   enumerator_iter(std::size_t Index, IterOfRange<R> Iter)
       : Result(Index, Iter) {}
 
-  result_type &operator*() { return Result; }
   const result_type &operator*() const { return Result; }
 
   enumerator_iter &operator++() {
@@ -1984,6 +2026,45 @@ decltype(auto) apply_tuple(F &&f, Tuple &&t) {
 
   return detail::apply_tuple_impl(std::forward<F>(f), std::forward<Tuple>(t),
                                   Indices{});
+}
+
+namespace detail {
+
+template <typename Predicate, typename... Args>
+bool all_of_zip_predicate_first(Predicate &&P, Args &&...args) {
+  auto z = zip(args...);
+  auto it = z.begin();
+  auto end = z.end();
+  while (it != end) {
+    if (!apply_tuple([&](auto &&...args) { return P(args...); }, *it))
+      return false;
+    ++it;
+  }
+  return it.all_equals(end);
+}
+
+// Just an adaptor to switch the order of argument and have the predicate before
+// the zipped inputs.
+template <typename... ArgsThenPredicate, size_t... InputIndexes>
+bool all_of_zip_predicate_last(
+    std::tuple<ArgsThenPredicate...> argsThenPredicate,
+    std::index_sequence<InputIndexes...>) {
+  auto constexpr OutputIndex =
+      std::tuple_size<decltype(argsThenPredicate)>::value - 1;
+  return all_of_zip_predicate_first(std::get<OutputIndex>(argsThenPredicate),
+                             std::get<InputIndexes>(argsThenPredicate)...);
+}
+
+} // end namespace detail
+
+/// Compare two zipped ranges using the provided predicate (as last argument).
+/// Return true if all elements satisfy the predicate and false otherwise.
+//  Return false if the zipped iterator aren't all at end (size mismatch).
+template <typename... ArgsAndPredicate>
+bool all_of_zip(ArgsAndPredicate &&...argsAndPredicate) {
+  return detail::all_of_zip_predicate_last(
+      std::forward_as_tuple(argsAndPredicate...),
+      std::make_index_sequence<sizeof...(argsAndPredicate) - 1>{});
 }
 
 /// Return true if the sequence [Begin, End) has exactly N items. Runs in O(N)

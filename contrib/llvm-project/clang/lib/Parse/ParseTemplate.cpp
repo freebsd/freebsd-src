@@ -248,7 +248,27 @@ Decl *Parser::ParseSingleDeclarationAfterTemplate(
   ParsingDeclarator DeclaratorInfo(*this, DS, (DeclaratorContext)Context);
   if (TemplateInfo.TemplateParams)
     DeclaratorInfo.setTemplateParameterLists(*TemplateInfo.TemplateParams);
+
+  // Turn off usual access checking for template specializations and
+  // instantiations.
+  // C++20 [temp.spec] 13.9/6.
+  // This disables the access checking rules for function template explicit
+  // instantiation and explicit specialization:
+  // - parameter-list;
+  // - template-argument-list;
+  // - noexcept-specifier;
+  // - dynamic-exception-specifications (deprecated in C++11, removed since
+  //   C++17).
+  bool IsTemplateSpecOrInst =
+      (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation ||
+       TemplateInfo.Kind == ParsedTemplateInfo::ExplicitSpecialization);
+  SuppressAccessChecks SAC(*this, IsTemplateSpecOrInst);
+
   ParseDeclarator(DeclaratorInfo);
+
+  if (IsTemplateSpecOrInst)
+    SAC.done();
+
   // Error parsing the declarator?
   if (!DeclaratorInfo.hasName()) {
     // If so, skip until the semi-colon or a }.
@@ -886,10 +906,13 @@ Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
     } else if (Next.isOneOf(tok::identifier, tok::comma, tok::greater,
                             tok::greatergreater, tok::ellipsis)) {
       Diag(Tok.getLocation(), diag::err_class_on_template_template_param)
-        << (Replace ? FixItHint::CreateReplacement(Tok.getLocation(), "class")
-                    : FixItHint::CreateInsertion(Tok.getLocation(), "class "));
+          << getLangOpts().CPlusPlus17
+          << (Replace
+                  ? FixItHint::CreateReplacement(Tok.getLocation(), "class")
+                  : FixItHint::CreateInsertion(Tok.getLocation(), "class "));
     } else
-      Diag(Tok.getLocation(), diag::err_class_on_template_template_param);
+      Diag(Tok.getLocation(), diag::err_class_on_template_template_param)
+          << getLangOpts().CPlusPlus17;
 
     if (Replace)
       ConsumeToken();

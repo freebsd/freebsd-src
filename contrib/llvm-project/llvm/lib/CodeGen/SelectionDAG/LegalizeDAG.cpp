@@ -1164,6 +1164,16 @@ void SelectionDAGLegalize::LegalizeOp(SDNode *Node) {
     Action = TLI.getOperationAction(Node->getOpcode(),
                     cast<MaskedStoreSDNode>(Node)->getValue().getValueType());
     break;
+  case ISD::VP_SCATTER:
+    Action = TLI.getOperationAction(
+        Node->getOpcode(),
+        cast<VPScatterSDNode>(Node)->getValue().getValueType());
+    break;
+  case ISD::VP_STORE:
+    Action = TLI.getOperationAction(
+        Node->getOpcode(),
+        cast<VPStoreSDNode>(Node)->getValue().getValueType());
+    break;
   case ISD::VECREDUCE_FADD:
   case ISD::VECREDUCE_FMUL:
   case ISD::VECREDUCE_ADD:
@@ -1181,6 +1191,22 @@ void SelectionDAGLegalize::LegalizeOp(SDNode *Node) {
         Node->getOpcode(), Node->getOperand(0).getValueType());
     break;
   case ISD::VECREDUCE_SEQ_FADD:
+  case ISD::VECREDUCE_SEQ_FMUL:
+  case ISD::VP_REDUCE_FADD:
+  case ISD::VP_REDUCE_FMUL:
+  case ISD::VP_REDUCE_ADD:
+  case ISD::VP_REDUCE_MUL:
+  case ISD::VP_REDUCE_AND:
+  case ISD::VP_REDUCE_OR:
+  case ISD::VP_REDUCE_XOR:
+  case ISD::VP_REDUCE_SMAX:
+  case ISD::VP_REDUCE_SMIN:
+  case ISD::VP_REDUCE_UMAX:
+  case ISD::VP_REDUCE_UMIN:
+  case ISD::VP_REDUCE_FMAX:
+  case ISD::VP_REDUCE_FMIN:
+  case ISD::VP_REDUCE_SEQ_FADD:
+  case ISD::VP_REDUCE_SEQ_FMUL:
     Action = TLI.getOperationAction(
         Node->getOpcode(), Node->getOperand(1).getValueType());
     break;
@@ -1333,9 +1359,7 @@ SDValue SelectionDAGLegalize::ExpandExtractFromVectorThroughStack(SDValue Op) {
   Visited.insert(Op.getNode());
   Worklist.push_back(Idx.getNode());
   SDValue StackPtr, Ch;
-  for (SDNode::use_iterator UI = Vec.getNode()->use_begin(),
-       UE = Vec.getNode()->use_end(); UI != UE; ++UI) {
-    SDNode *User = *UI;
+  for (SDNode *User : Vec.getNode()->uses()) {
     if (StoreSDNode *ST = dyn_cast<StoreSDNode>(User)) {
       if (ST->isIndexed() || ST->isTruncatingStore() ||
           ST->getValue() != Vec)
@@ -2197,9 +2221,7 @@ static bool useSinCos(SDNode *Node) {
     ? ISD::FCOS : ISD::FSIN;
 
   SDValue Op0 = Node->getOperand(0);
-  for (SDNode::use_iterator UI = Op0.getNode()->use_begin(),
-       UE = Op0.getNode()->use_end(); UI != UE; ++UI) {
-    SDNode *User = *UI;
+  for (const SDNode *User : Op0.getNode()->uses()) {
     if (User == Node)
       continue;
     // The other user might have been turned into sincos already.
@@ -2636,7 +2658,7 @@ SDValue SelectionDAGLegalize::ExpandPARITY(SDValue Op, const SDLoc &dl) {
 
   // If CTPOP is legal, use it. Otherwise use shifts and xor.
   SDValue Result;
-  if (TLI.isOperationLegal(ISD::CTPOP, VT)) {
+  if (TLI.isOperationLegalOrPromote(ISD::CTPOP, VT)) {
     Result = DAG.getNode(ISD::CTPOP, dl, VT, Op);
   } else {
     Result = Op;
@@ -2658,21 +2680,21 @@ bool SelectionDAGLegalize::ExpandNode(SDNode *Node) {
   bool NeedInvert;
   switch (Node->getOpcode()) {
   case ISD::ABS:
-    if (TLI.expandABS(Node, Tmp1, DAG))
+    if ((Tmp1 = TLI.expandABS(Node, DAG)))
       Results.push_back(Tmp1);
     break;
   case ISD::CTPOP:
-    if (TLI.expandCTPOP(Node, Tmp1, DAG))
+    if ((Tmp1 = TLI.expandCTPOP(Node, DAG)))
       Results.push_back(Tmp1);
     break;
   case ISD::CTLZ:
   case ISD::CTLZ_ZERO_UNDEF:
-    if (TLI.expandCTLZ(Node, Tmp1, DAG))
+    if ((Tmp1 = TLI.expandCTLZ(Node, DAG)))
       Results.push_back(Tmp1);
     break;
   case ISD::CTTZ:
   case ISD::CTTZ_ZERO_UNDEF:
-    if (TLI.expandCTTZ(Node, Tmp1, DAG))
+    if ((Tmp1 = TLI.expandCTTZ(Node, DAG)))
       Results.push_back(Tmp1);
     break;
   case ISD::BITREVERSE:
@@ -3229,9 +3251,7 @@ bool SelectionDAGLegalize::ExpandNode(SDNode *Node) {
     assert(TLI.isOperationLegalOrCustom(ISD::ADD, VT) &&
            TLI.isOperationLegalOrCustom(ISD::XOR, VT) &&
            "Don't know how to expand this subtraction!");
-    Tmp1 = DAG.getNode(ISD::XOR, dl, VT, Node->getOperand(1),
-               DAG.getConstant(APInt::getAllOnesValue(VT.getSizeInBits()), dl,
-                               VT));
+    Tmp1 = DAG.getNOT(dl, Node->getOperand(1), VT);
     Tmp1 = DAG.getNode(ISD::ADD, dl, VT, Tmp1, DAG.getConstant(1, dl, VT));
     Results.push_back(DAG.getNode(ISD::ADD, dl, VT, Node->getOperand(0), Tmp1));
     break;
@@ -4242,8 +4262,7 @@ void SelectionDAGLegalize::ConvertNodeToLibcall(SDNode *Node) {
     SDValue Op = Node->getOperand(IsStrict ? 1 : 0);
     SDValue Chain = IsStrict ? Node->getOperand(0) : SDValue();
     EVT VT = Node->getValueType(0);
-    assert(cast<ConstantSDNode>(Node->getOperand(IsStrict ? 2 : 1))
-               ->isNullValue() &&
+    assert(cast<ConstantSDNode>(Node->getOperand(IsStrict ? 2 : 1))->isZero() &&
            "Unable to expand as libcall if it is not normal rounding");
 
     RTLIB::Libcall LC = RTLIB::getFPROUND(Op.getValueType(), VT);
@@ -4737,6 +4756,7 @@ void SelectionDAGLegalize::PromoteNode(SDNode *Node) {
     break;
   case ISD::STRICT_FFLOOR:
   case ISD::STRICT_FCEIL:
+  case ISD::STRICT_FROUND:
   case ISD::STRICT_FSIN:
   case ISD::STRICT_FCOS:
   case ISD::STRICT_FLOG:

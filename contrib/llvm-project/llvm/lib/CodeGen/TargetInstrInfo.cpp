@@ -366,7 +366,7 @@ bool TargetInstrInfo::hasLoadFromStackSlot(
                                   oe = MI.memoperands_end();
        o != oe; ++o) {
     if ((*o)->isLoad() &&
-        dyn_cast_or_null<FixedStackPseudoSourceValue>((*o)->getPseudoValue()))
+        isa_and_nonnull<FixedStackPseudoSourceValue>((*o)->getPseudoValue()))
       Accesses.push_back(*o);
   }
   return Accesses.size() != StartSize;
@@ -380,7 +380,7 @@ bool TargetInstrInfo::hasStoreToStackSlot(
                                   oe = MI.memoperands_end();
        o != oe; ++o) {
     if ((*o)->isStore() &&
-        dyn_cast_or_null<FixedStackPseudoSourceValue>((*o)->getPseudoValue()))
+        isa_and_nonnull<FixedStackPseudoSourceValue>((*o)->getPseudoValue()))
       Accesses.push_back(*o);
   }
   return Accesses.size() != StartSize;
@@ -1262,22 +1262,6 @@ int TargetInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
   unsigned DefClass = DefMI.getDesc().getSchedClass();
   unsigned UseClass = UseMI.getDesc().getSchedClass();
   return ItinData->getOperandLatency(DefClass, DefIdx, UseClass, UseIdx);
-}
-
-/// If we can determine the operand latency from the def only, without itinerary
-/// lookup, do so. Otherwise return -1.
-int TargetInstrInfo::computeDefOperandLatency(
-    const InstrItineraryData *ItinData, const MachineInstr &DefMI) const {
-
-  // Let the target hook getInstrLatency handle missing itineraries.
-  if (!ItinData)
-    return getInstrLatency(ItinData, DefMI);
-
-  if(ItinData->isEmpty())
-    return defaultDefLatency(ItinData->SchedModel, DefMI);
-
-  // ...operand lookup required
-  return -1;
 }
 
 bool TargetInstrInfo::getRegSequenceInputs(

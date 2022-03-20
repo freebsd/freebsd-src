@@ -29,7 +29,8 @@ enum DWARFProducer {
   eProducerClang,
   eProducerGCC,
   eProducerLLVMGCC,
-  eProcucerOther
+  eProducerSwift,
+  eProducerOther
 };
 
 /// Base class describing the header of any kind of "unit."  Some information
@@ -92,6 +93,7 @@ public:
   uint64_t GetDWOId();
 
   void ExtractUnitDIEIfNeeded();
+  void ExtractUnitDIENoDwoIfNeeded();
   void ExtractDIEsIfNeeded();
 
   class ScopedExtractDIEs {
@@ -151,7 +153,7 @@ public:
   const DWARFAbbreviationDeclarationSet *GetAbbreviations() const;
   dw_offset_t GetAbbrevOffset() const;
   uint8_t GetAddressByteSize() const { return m_header.GetAddressByteSize(); }
-  dw_addr_t GetAddrBase() const { return m_addr_base; }
+  dw_addr_t GetAddrBase() const { return m_addr_base ? *m_addr_base : 0; }
   dw_addr_t GetBaseAddress() const { return m_base_addr; }
   dw_offset_t GetLineTableOffset();
   dw_addr_t GetRangesBase() const { return m_ranges_base; }
@@ -194,11 +196,7 @@ public:
 
   DWARFProducer GetProducer();
 
-  uint32_t GetProducerVersionMajor();
-
-  uint32_t GetProducerVersionMinor();
-
-  uint32_t GetProducerVersionUpdate();
+  llvm::VersionTuple GetProducerVersion();
 
   uint64_t GetDWARFLanguageType();
 
@@ -268,7 +266,7 @@ protected:
   // Get the DWARF unit DWARF debug information entry. Parse the single DIE
   // if needed.
   const DWARFDebugInfoEntry *GetUnitDIEPtrOnly() {
-    ExtractUnitDIEIfNeeded();
+    ExtractUnitDIENoDwoIfNeeded();
     // m_first_die_mutex is not required as m_first_die is never cleared.
     if (!m_first_die)
       return NULL;
@@ -284,6 +282,8 @@ protected:
   }
 
   const llvm::Optional<llvm::DWARFDebugRnglistTable> &GetRnglistTable();
+
+  lldb_private::DWARFDataExtractor GetRnglistData() const;
 
   SymbolFileDWARF &m_dwarf;
   std::shared_ptr<DWARFUnit> m_dwo;
@@ -308,16 +308,16 @@ protected:
   std::unique_ptr<DWARFDebugAranges> m_func_aranges_up;
   dw_addr_t m_base_addr = 0;
   DWARFProducer m_producer = eProducerInvalid;
-  uint32_t m_producer_version_major = 0;
-  uint32_t m_producer_version_minor = 0;
-  uint32_t m_producer_version_update = 0;
+  llvm::VersionTuple m_producer_version;
   llvm::Optional<uint64_t> m_language_type;
   lldb_private::LazyBool m_is_optimized = lldb_private::eLazyBoolCalculate;
   llvm::Optional<lldb_private::FileSpec> m_comp_dir;
   llvm::Optional<lldb_private::FileSpec> m_file_spec;
-  dw_addr_t m_addr_base = 0;     ///< Value of DW_AT_addr_base.
-  dw_addr_t m_loclists_base = 0; ///< Value of DW_AT_loclists_base.
-  dw_addr_t m_ranges_base = 0;   ///< Value of DW_AT_rnglists_base.
+  llvm::Optional<dw_addr_t> m_addr_base; ///< Value of DW_AT_addr_base.
+  dw_addr_t m_loclists_base = 0;         ///< Value of DW_AT_loclists_base.
+  dw_addr_t m_ranges_base = 0;           ///< Value of DW_AT_rnglists_base.
+  llvm::Optional<uint64_t> m_gnu_addr_base;
+  llvm::Optional<uint64_t> m_gnu_ranges_base;
 
   /// Value of DW_AT_stmt_list.
   dw_offset_t m_line_table_offset = DW_INVALID_OFFSET;
@@ -330,6 +330,7 @@ protected:
 
   const DIERef::Section m_section;
   bool m_is_dwo;
+  bool m_has_parsed_non_skeleton_unit;
   /// Value of DW_AT_GNU_dwo_id (v4) or dwo_id from CU header (v5).
   uint64_t m_dwo_id;
 

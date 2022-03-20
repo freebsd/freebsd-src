@@ -110,8 +110,8 @@ char const *__kmp_barrier_type_name[bs_last_barrier] = {"plain", "forkjoin"
                                                         "reduction"
 #endif // KMP_FAST_REDUCTION_BARRIER
 };
-char const *__kmp_barrier_pattern_name[bp_last_bar] = {"linear", "tree",
-                                                       "hyper", "hierarchical"};
+char const *__kmp_barrier_pattern_name[bp_last_bar] = {
+    "linear", "tree", "hyper", "hierarchical", "dist"};
 
 int __kmp_allThreadsSpecified = 0;
 size_t __kmp_align_alloc = CACHE_LINE;
@@ -280,6 +280,7 @@ char *__kmp_cpuinfo_file = NULL;
 #endif /* KMP_AFFINITY_SUPPORTED */
 
 kmp_nested_proc_bind_t __kmp_nested_proc_bind = {NULL, 0, 0};
+kmp_proc_bind_t __kmp_teams_proc_bind = proc_bind_spread;
 int __kmp_affinity_num_places = 0;
 int __kmp_display_affinity = FALSE;
 char *__kmp_affinity_format = NULL;

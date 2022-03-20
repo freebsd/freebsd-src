@@ -97,6 +97,11 @@ public:
     Embed_Marker    // Embed a marker as a placeholder for bitcode.
   };
 
+  enum InlineAsmDialectKind {
+    IAD_ATT,
+    IAD_Intel,
+  };
+
   // This field stores one of the allowed values for the option
   // -fbasic-block-sections=.  The allowed values with this option are:
   // {"labels", "all", "list=<file>", "none"}.
@@ -123,6 +128,13 @@ public:
     None,        // Omit all frame pointers.
     NonLeaf,     // Keep non-leaf frame pointers.
     All,         // Keep all frame pointers.
+  };
+
+  enum class SwiftAsyncFramePointerKind {
+    Auto, // Choose Swift async extended frame info based on deployment target.
+    Always, // Unconditionally emit Swift async extended frame info.
+    Never,  // Don't emit Swift async extended frame info.
+    Default = Always,
   };
 
   enum FiniteLoopsKind {
@@ -456,7 +468,8 @@ public:
   // Check if any one of SanitizeCoverage* is enabled.
   bool hasSanitizeCoverage() const {
     return SanitizeCoverageType || SanitizeCoverageIndirectCalls ||
-           SanitizeCoverageTraceCmp;
+           SanitizeCoverageTraceCmp || SanitizeCoverageTraceLoads ||
+           SanitizeCoverageTraceStores;
   }
 };
 

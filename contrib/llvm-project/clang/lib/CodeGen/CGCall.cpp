@@ -1281,12 +1281,26 @@ static llvm::Value *CreateCoercedLoad(Address Src, llvm::Type *Ty,
   // perform the conversion.
   if (auto *ScalableDst = dyn_cast<llvm::ScalableVectorType>(Ty)) {
     if (auto *FixedSrc = dyn_cast<llvm::FixedVectorType>(SrcTy)) {
+      // If we are casting a fixed i8 vector to a scalable 16 x i1 predicate
+      // vector, use a vector insert and bitcast the result.
+      bool NeedsBitcast = false;
+      auto PredType =
+          llvm::ScalableVectorType::get(CGF.Builder.getInt1Ty(), 16);
+      llvm::Type *OrigType = Ty;
+      if (ScalableDst == PredType &&
+          FixedSrc->getElementType() == CGF.Builder.getInt8Ty()) {
+        ScalableDst = llvm::ScalableVectorType::get(CGF.Builder.getInt8Ty(), 2);
+        NeedsBitcast = true;
+      }
       if (ScalableDst->getElementType() == FixedSrc->getElementType()) {
         auto *Load = CGF.Builder.CreateLoad(Src);
         auto *UndefVec = llvm::UndefValue::get(ScalableDst);
         auto *Zero = llvm::Constant::getNullValue(CGF.CGM.Int64Ty);
-        return CGF.Builder.CreateInsertVector(ScalableDst, UndefVec, Load, Zero,
-                                              "castScalableSve");
+        llvm::Value *Result = CGF.Builder.CreateInsertVector(
+            ScalableDst, UndefVec, Load, Zero, "castScalableSve");
+        if (NeedsBitcast)
+          Result = CGF.Builder.CreateBitCast(Result, OrigType);
+        return Result;
       }
     }
   }
@@ -1560,11 +1574,11 @@ bool CodeGenModule::ReturnTypeUsesFPRet(QualType ResultType) {
     default:
       return false;
     case BuiltinType::Float:
-      return getTarget().useObjCFPRetForRealType(TargetInfo::Float);
+      return getTarget().useObjCFPRetForRealType(FloatModeKind::Float);
     case BuiltinType::Double:
-      return getTarget().useObjCFPRetForRealType(TargetInfo::Double);
+      return getTarget().useObjCFPRetForRealType(FloatModeKind::Double);
     case BuiltinType::LongDouble:
-      return getTarget().useObjCFPRetForRealType(TargetInfo::LongDouble);
+      return getTarget().useObjCFPRetForRealType(FloatModeKind::LongDouble);
     }
   }
 
@@ -1743,6 +1757,21 @@ static void AddAttributesFromFunctionProtoType(ASTContext &Ctx,
     FuncAttrs.addAttribute(llvm::Attribute::NoUnwind);
 }
 
+static void AddAttributesFromAssumes(llvm::AttrBuilder &FuncAttrs,
+                                     const Decl *Callee) {
+  if (!Callee)
+    return;
+
+  SmallVector<StringRef, 4> Attrs;
+
+  for (const AssumptionAttr *AA : Callee->specific_attrs<AssumptionAttr>())
+    AA->getAssumption().split(Attrs, ",");
+
+  if (!Attrs.empty())
+    FuncAttrs.addAttribute(llvm::AssumptionAttrKey,
+                           llvm::join(Attrs.begin(), Attrs.end(), ","));
+}
+
 bool CodeGenModule::MayDropFunctionReturn(const ASTContext &Context,
                                           QualType ReturnType) {
   // We can't just discard the return value for a record type with a
@@ -1824,6 +1853,8 @@ void CodeGenModule::getDefaultFunctionAttributes(StringRef Name,
       FuncAttrs.addAttribute("no-infs-fp-math", "true");
     if (LangOpts.NoHonorNaNs)
       FuncAttrs.addAttribute("no-nans-fp-math", "true");
+    if (LangOpts.ApproxFunc)
+      FuncAttrs.addAttribute("approx-func-fp-math", "true");
     if (LangOpts.UnsafeFPMath)
       FuncAttrs.addAttribute("unsafe-fp-math", "true");
     if (CodeGenOpts.SoftFloat)
@@ -1881,7 +1912,7 @@ void CodeGenModule::addDefaultFunctionDefinitionAttributes(llvm::Function &F) {
   getDefaultFunctionAttributes(F.getName(), F.hasOptNone(),
                                /* AttrOnCallSite = */ false, FuncAttrs);
   // TODO: call GetCPUAndFeaturesAttributes?
-  F.addAttributes(llvm::AttributeList::FunctionIndex, FuncAttrs);
+  F.addFnAttrs(FuncAttrs);
 }
 
 void CodeGenModule::addDefaultFunctionDefinitionAttributes(
@@ -2016,6 +2047,10 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
 
   const Decl *TargetDecl = CalleeInfo.getCalleeDecl().getDecl();
 
+  // Attach assumption attributes to the declaration. If this is a call
+  // site, attach assumptions from the caller to the call as well.
+  AddAttributesFromAssumes(FuncAttrs, TargetDecl);
+
   bool HasOptnone = false;
   // The NoBuiltinAttr attached to the target FunctionDecl.
   const NoBuiltinAttr *NBA = nullptr;
@@ -2062,24 +2097,6 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       // allows it to work on indirect virtual function calls.
       if (AttrOnCallSite && TargetDecl->hasAttr<NoMergeAttr>())
         FuncAttrs.addAttribute(llvm::Attribute::NoMerge);
-
-      // Add known guaranteed alignment for allocation functions.
-      if (unsigned BuiltinID = Fn->getBuiltinID()) {
-        switch (BuiltinID) {
-        case Builtin::BIaligned_alloc:
-        case Builtin::BIcalloc:
-        case Builtin::BImalloc:
-        case Builtin::BImemalign:
-        case Builtin::BIrealloc:
-        case Builtin::BIstrdup:
-        case Builtin::BIstrndup:
-          RetAttrs.addAlignmentAttr(Context.getTargetInfo().getNewAlign() /
-                                    Context.getTargetInfo().getCharWidth());
-          break;
-        default:
-          break;
-        }
-      }
     }
 
     // 'const', 'pure' and 'noalias' attributed functions are also nounwind.
@@ -2133,18 +2150,6 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
                                llvm::toStringRef(CodeGenOpts.UniformWGSize));
       }
     }
-
-    std::string AssumptionValueStr;
-    for (AssumptionAttr *AssumptionA :
-         TargetDecl->specific_attrs<AssumptionAttr>()) {
-      std::string AS = AssumptionA->getAssumption().str();
-      if (!AS.empty() && !AssumptionValueStr.empty())
-        AssumptionValueStr += ",";
-      AssumptionValueStr += AS;
-    }
-
-    if (!AssumptionValueStr.empty())
-      FuncAttrs.addAttribute(llvm::AssumptionAttrKey, AssumptionValueStr);
   }
 
   // Attach "no-builtins" attributes to:
@@ -2237,7 +2242,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
   // C++ explicitly makes returning undefined values UB. C's rule only applies
   // to used values, so we never mark them noundef for now.
   bool HasStrictReturn = getLangOpts().CPlusPlus;
-  if (TargetDecl) {
+  if (TargetDecl && HasStrictReturn) {
     if (const FunctionDecl *FDecl = dyn_cast<FunctionDecl>(TargetDecl))
       HasStrictReturn &= !FDecl->isExternC();
     else if (const VarDecl *VDecl = dyn_cast<VarDecl>(TargetDecl))
@@ -2800,7 +2805,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
             // so the UBSAN check could function.
             llvm::ConstantInt *AlignmentCI =
                 cast<llvm::ConstantInt>(EmitScalarExpr(AVAttr->getAlignment()));
-            unsigned AlignmentInt =
+            uint64_t AlignmentInt =
                 AlignmentCI->getLimitedValue(llvm::Value::MaximumAlignment);
             if (AI->getParamAlign().valueOrOne() < AlignmentInt) {
               AI->removeAttr(llvm::Attribute::AttrKind::Alignment);
@@ -2867,9 +2872,18 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
       // llvm.experimental.vector.extract to convert back to the original
       // VLST.
       if (auto *VecTyTo = dyn_cast<llvm::FixedVectorType>(ConvertType(Ty))) {
-        auto *Coerced = Fn->getArg(FirstIRArg);
+        llvm::Value *Coerced = Fn->getArg(FirstIRArg);
         if (auto *VecTyFrom =
                 dyn_cast<llvm::ScalableVectorType>(Coerced->getType())) {
+          // If we are casting a scalable 16 x i1 predicate vector to a fixed i8
+          // vector, bitcast the source and use a vector extract.
+          auto PredType =
+              llvm::ScalableVectorType::get(Builder.getInt1Ty(), 16);
+          if (VecTyFrom == PredType &&
+              VecTyTo->getElementType() == Builder.getInt8Ty()) {
+            VecTyFrom = llvm::ScalableVectorType::get(Builder.getInt8Ty(), 2);
+            Coerced = Builder.CreateBitCast(Coerced, VecTyFrom);
+          }
           if (VecTyFrom->getElementType() == VecTyTo->getElementType()) {
             llvm::Value *Zero = llvm::Constant::getNullValue(CGM.Int64Ty);
 
@@ -4513,10 +4527,8 @@ maybeRaiseRetAlignmentAttribute(llvm::LLVMContext &Ctx,
   if (CurAlign >= NewAlign)
     return Attrs;
   llvm::Attribute AlignAttr = llvm::Attribute::getWithAlignment(Ctx, NewAlign);
-  return Attrs
-      .removeAttribute(Ctx, llvm::AttributeList::ReturnIndex,
-                       llvm::Attribute::AttrKind::Alignment)
-      .addAttribute(Ctx, llvm::AttributeList::ReturnIndex, AlignAttr);
+  return Attrs.removeRetAttribute(Ctx, llvm::Attribute::AttrKind::Alignment)
+      .addRetAttribute(Ctx, AlignAttr);
 }
 
 template <typename AlignedAttrTy> class AbstractAssumeAlignedAttrEmitter {
@@ -5015,12 +5027,12 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
         auto scalarAlign = CGM.getDataLayout().getPrefTypeAlignment(scalarType);
 
         // Materialize to a temporary.
-        addr = CreateTempAlloca(
-            RV.getScalarVal()->getType(),
-            CharUnits::fromQuantity(std::max(
-                (unsigned)layout->getAlignment().value(), scalarAlign)),
-            "tmp",
-            /*ArraySize=*/nullptr, &AllocaAddr);
+        addr =
+            CreateTempAlloca(RV.getScalarVal()->getType(),
+                             CharUnits::fromQuantity(std::max(
+                                 layout->getAlignment().value(), scalarAlign)),
+                             "tmp",
+                             /*ArraySize=*/nullptr, &AllocaAddr);
         tempSize = EmitLifetimeStart(scalarSize, AllocaAddr.getPointer());
 
         Builder.CreateStore(RV.getScalarVal(), addr);
@@ -5177,15 +5189,11 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
     if (FD->hasAttr<StrictFPAttr>())
       // All calls within a strictfp function are marked strictfp
-      Attrs =
-        Attrs.addAttribute(getLLVMContext(), llvm::AttributeList::FunctionIndex,
-                           llvm::Attribute::StrictFP);
+      Attrs = Attrs.addFnAttribute(getLLVMContext(), llvm::Attribute::StrictFP);
 
   // Add call-site nomerge attribute if exists.
   if (InNoMergeAttributedStmt)
-    Attrs =
-        Attrs.addAttribute(getLLVMContext(), llvm::AttributeList::FunctionIndex,
-                           llvm::Attribute::NoMerge);
+    Attrs = Attrs.addFnAttribute(getLLVMContext(), llvm::Attribute::NoMerge);
 
   // Apply some call-site-specific attributes.
   // TODO: work this into building the attribute set.
@@ -5195,15 +5203,12 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (CurCodeDecl && CurCodeDecl->hasAttr<FlattenAttr>() &&
       !(TargetDecl && TargetDecl->hasAttr<NoInlineAttr>())) {
     Attrs =
-        Attrs.addAttribute(getLLVMContext(), llvm::AttributeList::FunctionIndex,
-                           llvm::Attribute::AlwaysInline);
+        Attrs.addFnAttribute(getLLVMContext(), llvm::Attribute::AlwaysInline);
   }
 
   // Disable inlining inside SEH __try blocks.
   if (isSEHTryScope()) {
-    Attrs =
-        Attrs.addAttribute(getLLVMContext(), llvm::AttributeList::FunctionIndex,
-                           llvm::Attribute::NoInline);
+    Attrs = Attrs.addFnAttribute(getLLVMContext(), llvm::Attribute::NoInline);
   }
 
   // Decide whether to use a call or an invoke.
@@ -5219,7 +5224,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     CannotThrow = true;
   } else {
     // Otherwise, nounwind call sites will never throw.
-    CannotThrow = Attrs.hasFnAttribute(llvm::Attribute::NoUnwind);
+    CannotThrow = Attrs.hasFnAttr(llvm::Attribute::NoUnwind);
 
     if (auto *FPtr = dyn_cast<llvm::Function>(CalleePtr))
       if (FPtr->hasFnAttribute(llvm::Attribute::NoUnwind))
@@ -5242,9 +5247,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
     if (FD->hasAttr<StrictFPAttr>())
       // All calls within a strictfp function are marked strictfp
-      Attrs =
-        Attrs.addAttribute(getLLVMContext(), llvm::AttributeList::FunctionIndex,
-                           llvm::Attribute::StrictFP);
+      Attrs = Attrs.addFnAttribute(getLLVMContext(), llvm::Attribute::StrictFP);
 
   AssumeAlignedAttrEmitter AssumeAlignedAttrEmitter(*this, TargetDecl);
   Attrs = AssumeAlignedAttrEmitter.TryEmitAsCallSiteAttribute(Attrs);
@@ -5271,8 +5274,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (const auto *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl)) {
     if (const auto *A = FD->getAttr<CFGuardAttr>()) {
       if (A->getGuard() == CFGuardAttr::GuardArg::nocf && !CI->getCalledFunction())
-        Attrs = Attrs.addAttribute(
-            getLLVMContext(), llvm::AttributeList::FunctionIndex, "guard_nocf");
+        Attrs = Attrs.addFnAttribute(getLLVMContext(), "guard_nocf");
     }
   }
 
@@ -5316,6 +5318,15 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       TargetDecl->hasAttr<MSAllocatorAttr>())
     getDebugInfo()->addHeapAllocSiteMetadata(CI, RetTy->getPointeeType(), Loc);
 
+  // Add metadata if calling an __attribute__((error(""))) or warning fn.
+  if (TargetDecl && TargetDecl->hasAttr<ErrorAttr>()) {
+    llvm::ConstantInt *Line =
+        llvm::ConstantInt::get(Int32Ty, Loc.getRawEncoding());
+    llvm::ConstantAsMetadata *MD = llvm::ConstantAsMetadata::get(Line);
+    llvm::MDTuple *MDT = llvm::MDNode::get(getLLVMContext(), {MD});
+    CI->setMetadata("srcloc", MDT);
+  }
+
   // 4. Finish the call.
 
   // If the call doesn't return, finish the basic block and clear the
@@ -5331,8 +5342,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       // attributes of the called function.
       if (auto *F = CI->getCalledFunction())
         F->removeFnAttr(llvm::Attribute::NoReturn);
-      CI->removeAttribute(llvm::AttributeList::FunctionIndex,
-                          llvm::Attribute::NoReturn);
+      CI->removeFnAttr(llvm::Attribute::NoReturn);
 
       // Avoid incompatibility with ASan which relies on the `noreturn`
       // attribute to insert handler calls.

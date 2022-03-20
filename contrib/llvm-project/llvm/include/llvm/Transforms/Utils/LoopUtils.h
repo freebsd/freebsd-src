@@ -147,11 +147,22 @@ protected:
 /// BlockFrequencyInfo, TargetLibraryInfo, Loop, AliasSet information for all
 /// instructions of the loop and loop safety information as
 /// arguments. Diagnostics is emitted via \p ORE. It returns changed status.
+/// \p CurLoop is a loop to do sinking on. \p OutermostLoop is used only when
+/// this function is called by \p sinkRegionForLoopNest.
 bool sinkRegion(DomTreeNode *, AAResults *, LoopInfo *, DominatorTree *,
                 BlockFrequencyInfo *, TargetLibraryInfo *,
-                TargetTransformInfo *, Loop *, AliasSetTracker *,
-                MemorySSAUpdater *, ICFLoopSafetyInfo *,
-                SinkAndHoistLICMFlags &, OptimizationRemarkEmitter *);
+                TargetTransformInfo *, Loop *CurLoop, MemorySSAUpdater *,
+                ICFLoopSafetyInfo *, SinkAndHoistLICMFlags &,
+                OptimizationRemarkEmitter *, Loop *OutermostLoop = nullptr);
+
+/// Call sinkRegion on loops contained within the specified loop
+/// in order from innermost to outermost.
+bool sinkRegionForLoopNest(DomTreeNode *, AAResults *, LoopInfo *,
+                           DominatorTree *, BlockFrequencyInfo *,
+                           TargetLibraryInfo *, TargetTransformInfo *, Loop *,
+                           MemorySSAUpdater *, ICFLoopSafetyInfo *,
+                           SinkAndHoistLICMFlags &,
+                           OptimizationRemarkEmitter *);
 
 /// Walk the specified region of the CFG (defined by all blocks
 /// dominated by the specified block, and that are in the current loop) in depth
@@ -163,9 +174,8 @@ bool sinkRegion(DomTreeNode *, AAResults *, LoopInfo *, DominatorTree *,
 /// Diagnostics is emitted via \p ORE. It returns changed status.
 bool hoistRegion(DomTreeNode *, AAResults *, LoopInfo *, DominatorTree *,
                  BlockFrequencyInfo *, TargetLibraryInfo *, Loop *,
-                 AliasSetTracker *, MemorySSAUpdater *, ScalarEvolution *,
-                 ICFLoopSafetyInfo *, SinkAndHoistLICMFlags &,
-                 OptimizationRemarkEmitter *, bool);
+                 MemorySSAUpdater *, ScalarEvolution *, ICFLoopSafetyInfo *,
+                 SinkAndHoistLICMFlags &, OptimizationRemarkEmitter *, bool);
 
 /// This function deletes dead loops. The caller of this function needs to
 /// guarantee that the loop is infact dead.
@@ -199,7 +209,7 @@ bool promoteLoopAccessesToScalars(
     const SmallSetVector<Value *, 8> &, SmallVectorImpl<BasicBlock *> &,
     SmallVectorImpl<Instruction *> &, SmallVectorImpl<MemoryAccess *> &,
     PredIteratorCache &, LoopInfo *, DominatorTree *, const TargetLibraryInfo *,
-    Loop *, AliasSetTracker *, MemorySSAUpdater *, ICFLoopSafetyInfo *,
+    Loop *, MemorySSAUpdater *, ICFLoopSafetyInfo *,
     OptimizationRemarkEmitter *);
 
 /// Does a BFS from a given node to all of its children inside a given loop.
@@ -338,6 +348,18 @@ bool canSinkOrHoistInst(Instruction &I, AAResults *AA, DominatorTree *DT,
                         SinkAndHoistLICMFlags *LICMFlags = nullptr,
                         OptimizationRemarkEmitter *ORE = nullptr);
 
+/// Returns the comparison predicate used when expanding a min/max reduction.
+CmpInst::Predicate getMinMaxReductionPredicate(RecurKind RK);
+
+/// See RecurrenceDescriptor::isSelectCmpPattern for a description of the
+/// pattern we are trying to match. In this pattern we are only ever selecting
+/// between two values: 1) an initial PHI start value, and 2) a loop invariant
+/// value. This function uses \p LoopExitInst to determine 2), which we then use
+/// to select between \p Left and \p Right. Any lane value in \p Left that
+/// matches 2) will be merged into \p Right.
+Value *createSelectCmpOp(IRBuilderBase &Builder, Value *StartVal, RecurKind RK,
+                         Value *Left, Value *Right);
+
 /// Returns a Min/Max operation corresponding to MinMaxRecurrenceKind.
 /// The Builder's fast-math-flags must be set to propagate the expected values.
 Value *createMinMaxOp(IRBuilderBase &Builder, RecurKind RK, Value *Left,
@@ -365,12 +387,22 @@ Value *createSimpleTargetReduction(IRBuilderBase &B,
                                    RecurKind RdxKind,
                                    ArrayRef<Value *> RedOps = None);
 
+/// Create a target reduction of the given vector \p Src for a reduction of the
+/// kind RecurKind::SelectICmp or RecurKind::SelectFCmp. The reduction operation
+/// is described by \p Desc.
+Value *createSelectCmpTargetReduction(IRBuilderBase &B,
+                                      const TargetTransformInfo *TTI,
+                                      Value *Src,
+                                      const RecurrenceDescriptor &Desc,
+                                      PHINode *OrigPhi);
+
 /// Create a generic target reduction using a recurrence descriptor \p Desc
 /// The target is queried to determine if intrinsics or shuffle sequences are
 /// required to implement the reduction.
 /// Fast-math-flags are propagated using the RecurrenceDescriptor.
 Value *createTargetReduction(IRBuilderBase &B, const TargetTransformInfo *TTI,
-                             const RecurrenceDescriptor &Desc, Value *Src);
+                             const RecurrenceDescriptor &Desc, Value *Src,
+                             PHINode *OrigPhi = nullptr);
 
 /// Create an ordered reduction intrinsic using the given recurrence
 /// descriptor \p Desc.
@@ -463,12 +495,8 @@ Loop *cloneLoop(Loop *L, Loop *PL, ValueToValueMapTy &VM,
                 LoopInfo *LI, LPPassManager *LPM);
 
 /// Add code that checks at runtime if the accessed arrays in \p PointerChecks
-/// overlap.
-///
-/// Returns a pair of instructions where the first element is the first
-/// instruction generated in possibly a sequence of instructions and the
-/// second value is the final comparator value or NULL if no check is needed.
-std::pair<Instruction *, Instruction *>
+/// overlap. Returns the final comparator value or NULL if no check is needed.
+Value *
 addRuntimeChecks(Instruction *Loc, Loop *TheLoop,
                  const SmallVectorImpl<RuntimePointerCheck> &PointerChecks,
                  SCEVExpander &Expander);

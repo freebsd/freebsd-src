@@ -419,7 +419,8 @@ static bool hasOutsideLoopUser(const Loop *TheLoop, Instruction *Inst,
   return false;
 }
 
-int LoopVectorizationLegality::isConsecutivePtr(Value *Ptr) const {
+int LoopVectorizationLegality::isConsecutivePtr(Type *AccessTy,
+                                                Value *Ptr) const {
   const ValueToValueMap &Strides =
       getSymbolicStrides() ? *getSymbolicStrides() : ValueToValueMap();
 
@@ -428,7 +429,8 @@ int LoopVectorizationLegality::isConsecutivePtr(Value *Ptr) const {
                     llvm::shouldOptimizeForSize(TheLoop->getHeader(), PSI, BFI,
                                                 PGSOQueryType::IRPass);
   bool CanAddPredicate = !OptForSize;
-  int Stride = getPtrStride(PSE, Ptr, TheLoop, Strides, CanAddPredicate, false);
+  int Stride = getPtrStride(PSE, AccessTy, Ptr, TheLoop, Strides,
+                            CanAddPredicate, false);
   if (Stride == 1 || Stride == -1)
     return Stride;
   return 0;
@@ -747,7 +749,7 @@ bool LoopVectorizationLegality::canVectorizeInstrs() {
       if (CI) {
         auto *SE = PSE.getSE();
         Intrinsic::ID IntrinID = getVectorIntrinsicIDForCall(CI, TLI);
-        for (unsigned i = 0, e = CI->getNumArgOperands(); i != e; ++i)
+        for (unsigned i = 0, e = CI->arg_size(); i != e; ++i)
           if (hasVectorInstrinsicScalarOpd(IntrinID, i)) {
             if (!SE->isLoopInvariant(PSE.getSCEV(CI->getOperand(i)), TheLoop)) {
               reportVectorizationFailure("Found unvectorizable intrinsic",

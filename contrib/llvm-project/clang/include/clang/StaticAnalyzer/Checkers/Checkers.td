@@ -73,6 +73,7 @@ def Taint : Package<"taint">, ParentPackage<SecurityAlpha>;
 
 def CERT : Package<"cert">, ParentPackage<SecurityAlpha>;
 def POS : Package<"pos">, ParentPackage<CERT>;
+def ENV : Package<"env">, ParentPackage<CERT>;
 
 def Unix : Package<"unix">;
 def UnixAlpha : Package<"unix">, ParentPackage<Alpha>;
@@ -485,7 +486,17 @@ def DynamicMemoryModeling: Checker<"DynamicMemoryModeling">,
                   "allocating and deallocating functions are annotated with "
                   "ownership_holds, ownership_takes and ownership_returns.",
                   "false",
-                  InAlpha>
+                  InAlpha>,
+    CmdLineOption<Boolean,
+                  "AddNoOwnershipChangeNotes",
+                  "Add an additional note to the bug report for leak-like "
+                  "bugs. Dynamically allocated objects passed to functions "
+                  "that neither deallocated it, or have taken responsibility "
+                  "of the ownership are noted, similarly to "
+                  "NoStoreFuncVisitor.",
+                  "true",
+                  Released,
+                  Hide>
   ]>,
   Dependencies<[CStringModeling]>,
   Documentation<NotDocumented>,
@@ -591,6 +602,10 @@ def SmartPtrModeling: Checker<"SmartPtrModeling">,
                   Hide>,
   ]>,
   Hidden;
+
+def StringChecker: Checker<"StringChecker">,
+  HelpText<"Checks C++ std::string bugs">,
+  Documentation<HasDocumentation>;
 
 def MoveChecker: Checker<"Move">,
   HelpText<"Find use-after-move bugs in C++">,
@@ -936,6 +951,14 @@ let ParentPackage = POS in {
   Documentation<HasDocumentation>;
 
 } // end "alpha.cert.pos"
+
+let ParentPackage = ENV in {
+
+  def InvalidPtrChecker : Checker<"InvalidPtr">,
+  HelpText<"Finds usages of possibly invalidated pointers">,
+  Documentation<HasDocumentation>;
+
+} // end "alpha.cert.env"
 
 let ParentPackage = SecurityAlpha in {
 

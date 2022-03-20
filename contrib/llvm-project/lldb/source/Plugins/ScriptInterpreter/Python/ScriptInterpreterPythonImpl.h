@@ -292,9 +292,7 @@ public:
   static lldb::ScriptInterpreterSP CreateInstance(Debugger &debugger);
 
   // PluginInterface protocol
-  lldb_private::ConstString GetPluginName() override;
-
-  uint32_t GetPluginVersion() override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
   class Locker : public ScriptInterpreterLocker {
   public:
@@ -432,13 +430,12 @@ public:
       int stdin_fd = GetInputFD();
       if (stdin_fd >= 0) {
         Terminal terminal(stdin_fd);
-        TerminalState terminal_state;
-        const bool is_a_tty = terminal.IsATerminal();
+        TerminalState terminal_state(terminal);
 
-        if (is_a_tty) {
-          terminal_state.Save(stdin_fd, false);
-          terminal.SetCanonical(false);
-          terminal.SetEcho(true);
+        if (terminal.IsATerminal()) {
+          // FIXME: error handling?
+          llvm::consumeError(terminal.SetCanonical(false));
+          llvm::consumeError(terminal.SetEcho(true));
         }
 
         ScriptInterpreterPythonImpl::Locker locker(
@@ -466,9 +463,6 @@ public:
         run_string.Printf("run_python_interpreter (%s)",
                           m_python->GetDictionaryName());
         PyRun_SimpleString(run_string.GetData());
-
-        if (is_a_tty)
-          terminal_state.Restore();
       }
     }
     SetIsDone(true);

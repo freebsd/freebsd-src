@@ -31,9 +31,11 @@
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/InlineAdvisor.h"
 #include "llvm/Analysis/InlineCost.h"
+#include "llvm/Analysis/InlineOrder.h"
 #include "llvm/Analysis/LazyCallGraph.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
+#include "llvm/Analysis/ReplayInlineAdvisor.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h"
@@ -96,8 +98,52 @@ static cl::opt<std::string> CGSCCInlineReplayFile(
     "cgscc-inline-replay", cl::init(""), cl::value_desc("filename"),
     cl::desc(
         "Optimization remarks file containing inline remarks to be replayed "
-        "by inlining from cgscc inline remarks."),
+        "by cgscc inlining."),
     cl::Hidden);
+
+static cl::opt<ReplayInlinerSettings::Scope> CGSCCInlineReplayScope(
+    "cgscc-inline-replay-scope",
+    cl::init(ReplayInlinerSettings::Scope::Function),
+    cl::values(clEnumValN(ReplayInlinerSettings::Scope::Function, "Function",
+                          "Replay on functions that have remarks associated "
+                          "with them (default)"),
+               clEnumValN(ReplayInlinerSettings::Scope::Module, "Module",
+                          "Replay on the entire module")),
+    cl::desc("Whether inline replay should be applied to the entire "
+             "Module or just the Functions (default) that are present as "
+             "callers in remarks during cgscc inlining."),
+    cl::Hidden);
+
+static cl::opt<ReplayInlinerSettings::Fallback> CGSCCInlineReplayFallback(
+    "cgscc-inline-replay-fallback",
+    cl::init(ReplayInlinerSettings::Fallback::Original),
+    cl::values(
+        clEnumValN(
+            ReplayInlinerSettings::Fallback::Original, "Original",
+            "All decisions not in replay send to original advisor (default)"),
+        clEnumValN(ReplayInlinerSettings::Fallback::AlwaysInline,
+                   "AlwaysInline", "All decisions not in replay are inlined"),
+        clEnumValN(ReplayInlinerSettings::Fallback::NeverInline, "NeverInline",
+                   "All decisions not in replay are not inlined")),
+    cl::desc(
+        "How cgscc inline replay treats sites that don't come from the replay. "
+        "Original: defers to original advisor, AlwaysInline: inline all sites "
+        "not in replay, NeverInline: inline no sites not in replay"),
+    cl::Hidden);
+
+static cl::opt<CallSiteFormat::Format> CGSCCInlineReplayFormat(
+    "cgscc-inline-replay-format",
+    cl::init(CallSiteFormat::Format::LineColumnDiscriminator),
+    cl::values(
+        clEnumValN(CallSiteFormat::Format::Line, "Line", "<Line Number>"),
+        clEnumValN(CallSiteFormat::Format::LineColumn, "LineColumn",
+                   "<Line Number>:<Column Number>"),
+        clEnumValN(CallSiteFormat::Format::LineDiscriminator,
+                   "LineDiscriminator", "<Line Number>.<Discriminator>"),
+        clEnumValN(CallSiteFormat::Format::LineColumnDiscriminator,
+                   "LineColumnDiscriminator",
+                   "<Line Number>:<Column Number>.<Discriminator> (default)")),
+    cl::desc("How cgscc inline replay file is formatted"), cl::Hidden);
 
 static cl::opt<bool> InlineEnablePriorityOrder(
     "inline-enable-priority-order", cl::Hidden, cl::init(false),
@@ -463,7 +509,7 @@ inlineCallsImpl(CallGraphSCC &SCC, CallGraph &CG,
         }
         ++NumInlined;
 
-        emitInlinedInto(ORE, DLoc, Block, *Callee, *Caller, *OIC);
+        emitInlinedIntoBasedOnCost(ORE, DLoc, Block, *Callee, *Caller, *OIC);
 
         // If inlining this function gave us any new call sites, throw them
         // onto our worklist to process.  They are useful inline candidates.
@@ -661,9 +707,12 @@ InlinerPass::getAdvisor(const ModuleAnalysisManagerCGSCCProxy::Result &MAM,
         std::make_unique<DefaultInlineAdvisor>(M, FAM, getInlineParams());
 
     if (!CGSCCInlineReplayFile.empty())
-      OwnedAdvisor = std::make_unique<ReplayInlineAdvisor>(
+      OwnedAdvisor = getReplayInlineAdvisor(
           M, FAM, M.getContext(), std::move(OwnedAdvisor),
-          CGSCCInlineReplayFile,
+          ReplayInlinerSettings{CGSCCInlineReplayFile,
+                                CGSCCInlineReplayScope,
+                                CGSCCInlineReplayFallback,
+                                {CGSCCInlineReplayFormat}},
           /*EmitRemarks=*/true);
 
     return *OwnedAdvisor;
@@ -673,153 +722,6 @@ InlinerPass::getAdvisor(const ModuleAnalysisManagerCGSCCProxy::Result &MAM,
          "InlineAdvisor initialized");
   return *IAA->getAdvisor();
 }
-
-template <typename T> class InlineOrder {
-public:
-  using reference = T &;
-  using const_reference = const T &;
-
-  virtual ~InlineOrder() {}
-
-  virtual size_t size() = 0;
-
-  virtual void push(const T &Elt) = 0;
-
-  virtual T pop() = 0;
-
-  virtual const_reference front() = 0;
-
-  virtual void erase_if(function_ref<bool(T)> Pred) = 0;
-
-  bool empty() { return !size(); }
-};
-
-template <typename T, typename Container = SmallVector<T, 16>>
-class DefaultInlineOrder : public InlineOrder<T> {
-  using reference = T &;
-  using const_reference = const T &;
-
-public:
-  size_t size() override { return Calls.size() - FirstIndex; }
-
-  void push(const T &Elt) override { Calls.push_back(Elt); }
-
-  T pop() override {
-    assert(size() > 0);
-    return Calls[FirstIndex++];
-  }
-
-  const_reference front() override {
-    assert(size() > 0);
-    return Calls[FirstIndex];
-  }
-
-  void erase_if(function_ref<bool(T)> Pred) override {
-    Calls.erase(std::remove_if(Calls.begin() + FirstIndex, Calls.end(), Pred),
-                Calls.end());
-  }
-
-private:
-  Container Calls;
-  size_t FirstIndex = 0;
-};
-
-class Priority {
-public:
-  Priority(int Size) : Size(Size) {}
-
-  static bool isMoreDesirable(const Priority &S1, const Priority &S2) {
-    return S1.Size < S2.Size;
-  }
-
-  static Priority evaluate(CallBase *CB) {
-    Function *Callee = CB->getCalledFunction();
-    return Priority(Callee->getInstructionCount());
-  }
-
-  int Size;
-};
-
-template <typename PriorityT>
-class PriorityInlineOrder : public InlineOrder<std::pair<CallBase *, int>> {
-  using T = std::pair<CallBase *, int>;
-  using HeapT = std::pair<CallBase *, PriorityT>;
-  using reference = T &;
-  using const_reference = const T &;
-
-  static bool cmp(const HeapT &P1, const HeapT &P2) {
-    return PriorityT::isMoreDesirable(P2.second, P1.second);
-  }
-
-  // A call site could become less desirable for inlining because of the size
-  // growth from prior inlining into the callee. This method is used to lazily
-  // update the desirability of a call site if it's decreasing. It is only
-  // called on pop() or front(), not every time the desirability changes. When
-  // the desirability of the front call site decreases, an updated one would be
-  // pushed right back into the heap. For simplicity, those cases where
-  // the desirability of a call site increases are ignored here.
-  void adjust() {
-    bool Changed = false;
-    do {
-      CallBase *CB = Heap.front().first;
-      const PriorityT PreviousGoodness = Heap.front().second;
-      const PriorityT CurrentGoodness = PriorityT::evaluate(CB);
-      Changed = PriorityT::isMoreDesirable(PreviousGoodness, CurrentGoodness);
-      if (Changed) {
-        std::pop_heap(Heap.begin(), Heap.end(), cmp);
-        Heap.pop_back();
-        Heap.push_back({CB, CurrentGoodness});
-        std::push_heap(Heap.begin(), Heap.end(), cmp);
-      }
-    } while (Changed);
-  }
-
-public:
-  size_t size() override { return Heap.size(); }
-
-  void push(const T &Elt) override {
-    CallBase *CB = Elt.first;
-    const int InlineHistoryID = Elt.second;
-    const PriorityT Goodness = PriorityT::evaluate(CB);
-
-    Heap.push_back({CB, Goodness});
-    std::push_heap(Heap.begin(), Heap.end(), cmp);
-    InlineHistoryMap[CB] = InlineHistoryID;
-  }
-
-  T pop() override {
-    assert(size() > 0);
-    adjust();
-
-    CallBase *CB = Heap.front().first;
-    T Result = std::make_pair(CB, InlineHistoryMap[CB]);
-    InlineHistoryMap.erase(CB);
-    std::pop_heap(Heap.begin(), Heap.end(), cmp);
-    Heap.pop_back();
-    return Result;
-  }
-
-  const_reference front() override {
-    assert(size() > 0);
-    adjust();
-
-    CallBase *CB = Heap.front().first;
-    return *InlineHistoryMap.find(CB);
-  }
-
-  void erase_if(function_ref<bool(T)> Pred) override {
-    auto PredWrapper = [=](HeapT P) -> bool {
-      return Pred(std::make_pair(P.first, 0));
-    };
-    Heap.erase(std::remove_if(Heap.begin(), Heap.end(), PredWrapper),
-               Heap.end());
-    std::make_heap(Heap.begin(), Heap.end(), cmp);
-  }
-
-private:
-  SmallVector<HeapT, 16> Heap;
-  DenseMap<CallBase *, int> InlineHistoryMap;
-};
 
 PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
                                    CGSCCAnalysisManager &AM, LazyCallGraph &CG,
@@ -868,7 +770,7 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
   // incrementally maknig a single function grow in a super linear fashion.
   std::unique_ptr<InlineOrder<std::pair<CallBase *, int>>> Calls;
   if (InlineEnablePriorityOrder)
-    Calls = std::make_unique<PriorityInlineOrder<Priority>>();
+    Calls = std::make_unique<PriorityInlineOrder<InlineSizePriority>>();
   else
     Calls = std::make_unique<DefaultInlineOrder<std::pair<CallBase *, int>>>();
   assert(Calls != nullptr && "Expected an initialized InlineOrder");
@@ -972,8 +874,13 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
         continue;
       }
 
-      auto Advice = Advisor.getAdvice(*CB, OnlyMandatory);
+      std::unique_ptr<InlineAdvice> Advice =
+          Advisor.getAdvice(*CB, OnlyMandatory);
+
       // Check whether we want to inline this callsite.
+      if (!Advice)
+        continue;
+
       if (!Advice->isInliningRecommended()) {
         Advice->recordUnattemptedInlining();
         continue;
@@ -1104,6 +1011,10 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
       UR.InlinedInternalEdges.insert({&N, OldC});
     }
     InlinedCallees.clear();
+
+    // Invalidate analyses for this function now so that we don't have to
+    // invalidate analyses for all functions in this SCC later.
+    FAM.invalidate(F, PreservedAnalyses::none());
   }
 
   // Now that we've finished inlining all of the calls across this SCC, delete
@@ -1147,10 +1058,12 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
   if (!Changed)
     return PreservedAnalyses::all();
 
+  PreservedAnalyses PA;
   // Even if we change the IR, we update the core CGSCC data structures and so
   // can preserve the proxy to the function analysis manager.
-  PreservedAnalyses PA;
   PA.preserve<FunctionAnalysisManagerCGSCCProxy>();
+  // We have already invalidated all analyses on modified functions.
+  PA.preserveSet<AllAnalysesOn<Function>>();
   return PA;
 }
 
@@ -1173,7 +1086,11 @@ ModuleInlinerWrapperPass::ModuleInlinerWrapperPass(InlineParams Params,
 PreservedAnalyses ModuleInlinerWrapperPass::run(Module &M,
                                                 ModuleAnalysisManager &MAM) {
   auto &IAA = MAM.getResult<InlineAdvisorAnalysis>(M);
-  if (!IAA.tryCreate(Params, Mode, CGSCCInlineReplayFile)) {
+  if (!IAA.tryCreate(Params, Mode,
+                     {CGSCCInlineReplayFile,
+                      CGSCCInlineReplayScope,
+                      CGSCCInlineReplayFallback,
+                      {CGSCCInlineReplayFormat}})) {
     M.getContext().emitError(
         "Could not setup Inlining Advisor for the requested "
         "mode and/or options");
@@ -1192,10 +1109,39 @@ PreservedAnalyses ModuleInlinerWrapperPass::run(Module &M,
   else
     MPM.addPass(createModuleToPostOrderCGSCCPassAdaptor(
         createDevirtSCCRepeatedPass(std::move(PM), MaxDevirtIterations)));
+
+  MPM.addPass(std::move(AfterCGMPM));
   MPM.run(M, MAM);
 
-  IAA.clear();
+  // Discard the InlineAdvisor, a subsequent inlining session should construct
+  // its own.
+  auto PA = PreservedAnalyses::all();
+  PA.abandon<InlineAdvisorAnalysis>();
+  return PA;
+}
 
-  // The ModulePassManager has already taken care of invalidating analyses.
-  return PreservedAnalyses::all();
+void InlinerPass::printPipeline(
+    raw_ostream &OS, function_ref<StringRef(StringRef)> MapClassName2PassName) {
+  static_cast<PassInfoMixin<InlinerPass> *>(this)->printPipeline(
+      OS, MapClassName2PassName);
+  if (OnlyMandatory)
+    OS << "<only-mandatory>";
+}
+
+void ModuleInlinerWrapperPass::printPipeline(
+    raw_ostream &OS, function_ref<StringRef(StringRef)> MapClassName2PassName) {
+  // Print some info about passes added to the wrapper. This is however
+  // incomplete as InlineAdvisorAnalysis part isn't included (which also depends
+  // on Params and Mode).
+  if (!MPM.isEmpty()) {
+    MPM.printPipeline(OS, MapClassName2PassName);
+    OS << ",";
+  }
+  OS << "cgscc(";
+  if (MaxDevirtIterations != 0)
+    OS << "devirt<" << MaxDevirtIterations << ">(";
+  PM.printPipeline(OS, MapClassName2PassName);
+  if (MaxDevirtIterations != 0)
+    OS << ")";
+  OS << ")";
 }

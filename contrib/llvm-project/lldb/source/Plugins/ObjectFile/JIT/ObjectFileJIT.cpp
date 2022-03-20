@@ -53,15 +53,6 @@ void ObjectFileJIT::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-lldb_private::ConstString ObjectFileJIT::GetPluginNameStatic() {
-  static ConstString g_name("jit");
-  return g_name;
-}
-
-const char *ObjectFileJIT::GetPluginDescriptionStatic() {
-  return "JIT code object file";
-}
-
 ObjectFile *ObjectFileJIT::CreateInstance(const lldb::ModuleSP &module_sp,
                                           DataBufferSP &data_sp,
                                           lldb::offset_t data_offset,
@@ -120,6 +111,7 @@ Symtab *ObjectFileJIT::GetSymtab() {
   if (module_sp) {
     std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
     if (m_symtab_up == nullptr) {
+      ElapsedTime elapsed(module_sp->GetSymtabParseTime());
       m_symtab_up = std::make_unique<Symtab>(this);
       std::lock_guard<std::recursive_mutex> symtab_guard(
           m_symtab_up->GetMutex());
@@ -198,13 +190,6 @@ ArchSpec ObjectFileJIT::GetArchitecture() {
     return delegate_sp->GetArchitecture();
   return ArchSpec();
 }
-
-// PluginInterface protocol
-lldb_private::ConstString ObjectFileJIT::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t ObjectFileJIT::GetPluginVersion() { return 1; }
 
 bool ObjectFileJIT::SetLoadAddress(Target &target, lldb::addr_t value,
                                    bool value_is_offset) {

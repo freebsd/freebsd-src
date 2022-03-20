@@ -68,14 +68,25 @@ enum {
   HasMergeOpMask = 1 << HasMergeOpShift,
 
   // Does this instruction have a SEW operand. It will be the last explicit
-  // operand. Used by RVV Pseudos.
+  // operand unless there is a vector policy operand. Used by RVV Pseudos.
   HasSEWOpShift = HasMergeOpShift + 1,
   HasSEWOpMask = 1 << HasSEWOpShift,
 
   // Does this instruction have a VL operand. It will be the second to last
-  // explicit operand. Used by RVV Pseudos.
+  // explicit operand unless there is a vector policy operand. Used by RVV
+  // Pseudos.
   HasVLOpShift = HasSEWOpShift + 1,
   HasVLOpMask = 1 << HasVLOpShift,
+
+  // Does this instruction have a vector policy operand. It will be the last
+  // explicit operand. Used by RVV Pseudos.
+  HasVecPolicyOpShift = HasVLOpShift + 1,
+  HasVecPolicyOpMask = 1 << HasVecPolicyOpShift,
+
+  // Is this instruction a vector widening reduction instruction. Used by RVV
+  // Pseudos.
+  IsRVVWideningReductionShift = HasVecPolicyOpShift + 1,
+  IsRVVWideningReductionMask = 1 << IsRVVWideningReductionShift,
 };
 
 // Match with the definitions in RISCVInstrFormatsV.td
@@ -95,6 +106,11 @@ enum VLMUL : uint8_t {
   LMUL_F8,
   LMUL_F4,
   LMUL_F2
+};
+
+enum {
+  TAIL_UNDISTURBED = 0,
+  TAIL_AGNOSTIC = 1,
 };
 
 // Helper functions to read TSFlags.
@@ -131,6 +147,14 @@ static inline bool hasSEWOp(uint64_t TSFlags) {
 static inline bool hasVLOp(uint64_t TSFlags) {
   return TSFlags & HasVLOpMask;
 }
+/// \returns true if there is a vector policy operand for this instruction.
+static inline bool hasVecPolicyOp(uint64_t TSFlags) {
+  return TSFlags & HasVecPolicyOpMask;
+}
+/// \returns true if it is a vector widening reduction instruction.
+static inline bool isRVVWideningReduction(uint64_t TSFlags) {
+  return TSFlags & IsRVVWideningReductionMask;
+}
 
 // RISC-V Specific Machine Operand Flags
 enum {
@@ -158,8 +182,11 @@ enum {
 namespace RISCVOp {
 enum OperandType : unsigned {
   OPERAND_FIRST_RISCV_IMM = MCOI::OPERAND_FIRST_TARGET,
-  OPERAND_UIMM4 = OPERAND_FIRST_RISCV_IMM,
+  OPERAND_UIMM2 = OPERAND_FIRST_RISCV_IMM,
+  OPERAND_UIMM3,
+  OPERAND_UIMM4,
   OPERAND_UIMM5,
+  OPERAND_UIMM7,
   OPERAND_UIMM12,
   OPERAND_SIMM12,
   OPERAND_UIMM20,
@@ -305,6 +332,10 @@ namespace RISCVFeatures {
 // Validates if the given combination of features are valid for the target
 // triple. Exits with report_fatal_error if not.
 void validate(const Triple &TT, const FeatureBitset &FeatureBits);
+
+// Convert FeatureBitset to FeatureVector.
+void toFeatureVector(std::vector<std::string> &FeatureVector,
+                     const FeatureBitset &FeatureBits);
 
 } // namespace RISCVFeatures
 

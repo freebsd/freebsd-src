@@ -27,8 +27,8 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
@@ -37,6 +37,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCVTarget() {
   RegisterTargetMachine<RISCVTargetMachine> Y(getTheRISCV64Target());
   auto *PR = PassRegistry::getPassRegistry();
   initializeGlobalISel(*PR);
+  initializeRISCVGatherScatterLoweringPass(*PR);
   initializeRISCVMergeBaseOffsetOptPass(*PR);
   initializeRISCVExpandPseudoPass(*PR);
   initializeRISCVInsertVSETVLIPass(*PR);
@@ -149,6 +150,9 @@ TargetPassConfig *RISCVTargetMachine::createPassConfig(PassManagerBase &PM) {
 
 void RISCVPassConfig::addIRPasses() {
   addPass(createAtomicExpandPass());
+
+  addPass(createRISCVGatherScatterLoweringPass());
+
   TargetPassConfig::addIRPasses();
 }
 

@@ -21,7 +21,7 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 
 using namespace llvm;
 
@@ -106,6 +106,12 @@ static DecodeStatus DecodeStLImmInstruction(MCInst &, uint64_t, uint64_t,
 
 static DecodeStatus DecodeLdRLImmInstruction(MCInst &, uint64_t, uint64_t,
                                              const void *);
+
+static DecodeStatus DecodeSOPwithRS12(MCInst &, uint64_t, uint64_t,
+                                      const void *);
+
+static DecodeStatus DecodeSOPwithRU6(MCInst &, uint64_t, uint64_t,
+                                     const void *);
 
 static DecodeStatus DecodeCCRU6Instruction(MCInst &, uint64_t, uint64_t,
                                            const void *);
@@ -304,10 +310,33 @@ static DecodeStatus DecodeCCRU6Instruction(MCInst &Inst, uint64_t Insn,
   DstB = decodeBField(Insn);
   DecodeGPR32RegisterClass(Inst, DstB, Address, Decoder);
   using Field = decltype(Insn);
-  Field U6Field = fieldFromInstruction(Insn, 6, 11);
+  Field U6Field = fieldFromInstruction(Insn, 6, 6);
   Inst.addOperand(MCOperand::createImm(U6Field));
   Field CCField = fieldFromInstruction(Insn, 0, 4);
   Inst.addOperand(MCOperand::createImm(CCField));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeSOPwithRU6(MCInst &Inst, uint64_t Insn,
+                                     uint64_t Address, const void *Decoder) {
+  unsigned DstB = decodeBField(Insn);
+  DecodeGPR32RegisterClass(Inst, DstB, Address, Decoder);
+  using Field = decltype(Insn);
+  Field U6 = fieldFromInstruction(Insn, 6, 6);
+  Inst.addOperand(MCOperand::createImm(U6));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeSOPwithRS12(MCInst &Inst, uint64_t Insn,
+                                      uint64_t Address, const void *Decoder) {
+  unsigned DstB = decodeBField(Insn);
+  DecodeGPR32RegisterClass(Inst, DstB, Address, Decoder);
+  using Field = decltype(Insn);
+  Field Lower = fieldFromInstruction(Insn, 6, 6);
+  Field Upper = fieldFromInstruction(Insn, 0, 5);
+  Field Sign = fieldFromInstruction(Insn, 5, 1) ? -1 : 1;
+  Field Result = Sign * ((Upper << 6) + Lower);
+  Inst.addOperand(MCOperand::createImm(Result));
   return MCDisassembler::Success;
 }
 

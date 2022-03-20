@@ -17,7 +17,7 @@
 #include "RISCVLegalizerInfo.h"
 #include "RISCVRegisterBankInfo.h"
 #include "RISCVTargetMachine.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/TargetRegistry.h"
 
 using namespace llvm;
 
@@ -44,6 +44,11 @@ static cl::opt<unsigned> RVVVectorLMULMax(
     cl::desc("The maximum LMUL value to use for fixed length vectors. "
              "Fractional LMUL values are not supported."),
     cl::init(8), cl::Hidden);
+
+static cl::opt<unsigned> RVVVectorELENMax(
+    "riscv-v-fixed-length-vector-elen-max",
+    cl::desc("The maximum ELEN value to use for fixed length vectors."),
+    cl::init(64), cl::Hidden);
 
 void RISCVSubtarget::anchor() {}
 
@@ -106,7 +111,8 @@ const RegisterBankInfo *RISCVSubtarget::getRegBankInfo() const {
 }
 
 unsigned RISCVSubtarget::getMaxRVVVectorSizeInBits() const {
-  assert(hasStdExtV() && "Tried to get vector length without V support!");
+  assert(hasVInstructions() &&
+         "Tried to get vector length without Zve or V extension support!");
   if (RVVVectorBitsMax == 0)
     return 0;
   assert(RVVVectorBitsMax >= 128 && RVVVectorBitsMax <= 65536 &&
@@ -121,8 +127,8 @@ unsigned RISCVSubtarget::getMaxRVVVectorSizeInBits() const {
 }
 
 unsigned RISCVSubtarget::getMinRVVVectorSizeInBits() const {
-  assert(hasStdExtV() &&
-         "Tried to get vector length without V extension support!");
+  assert(hasVInstructions() &&
+         "Tried to get vector length without Zve or V extension support!");
   assert((RVVVectorBitsMin == 0 ||
           (RVVVectorBitsMin >= 128 && RVVVectorBitsMax <= 65536 &&
            isPowerOf2_32(RVVVectorBitsMin))) &&
@@ -138,13 +144,24 @@ unsigned RISCVSubtarget::getMinRVVVectorSizeInBits() const {
 }
 
 unsigned RISCVSubtarget::getMaxLMULForFixedLengthVectors() const {
-  assert(hasStdExtV() &&
-         "Tried to get maximum LMUL without V extension support!");
+  assert(hasVInstructions() &&
+         "Tried to get vector length without Zve or V extension support!");
   assert(RVVVectorLMULMax <= 8 && isPowerOf2_32(RVVVectorLMULMax) &&
          "V extension requires a LMUL to be at most 8 and a power of 2!");
-  return PowerOf2Floor(std::max<unsigned>(RVVVectorLMULMax, 1));
+  return PowerOf2Floor(
+      std::max<unsigned>(std::min<unsigned>(RVVVectorLMULMax, 8), 1));
+}
+
+unsigned RISCVSubtarget::getMaxELENForFixedLengthVectors() const {
+  assert(hasVInstructions() &&
+         "Tried to get maximum ELEN without Zve or V extension support!");
+  assert(RVVVectorELENMax <= 64 && RVVVectorELENMax >= 8 &&
+         isPowerOf2_32(RVVVectorELENMax) &&
+         "V extension requires a ELEN to be a power of 2 between 8 and 64!");
+  return PowerOf2Floor(
+      std::max<unsigned>(std::min<unsigned>(RVVVectorELENMax, 64), 8));
 }
 
 bool RISCVSubtarget::useRVVForFixedLengthVectors() const {
-  return hasStdExtV() && getMinRVVVectorSizeInBits() != 0;
+  return hasVInstructions() && getMinRVVVectorSizeInBits() != 0;
 }

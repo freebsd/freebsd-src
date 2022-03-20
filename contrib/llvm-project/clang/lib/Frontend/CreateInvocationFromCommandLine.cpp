@@ -30,6 +30,7 @@ std::unique_ptr<CompilerInvocation> clang::createInvocationFromCommandLine(
     ArrayRef<const char *> ArgList, IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS, bool ShouldRecoverOnErorrs,
     std::vector<std::string> *CC1Args) {
+  assert(!ArgList.empty());
   if (!Diags.get()) {
     // No diagnostics engine was provided, so create our own diagnostics object
     // with the default options.
@@ -79,22 +80,24 @@ std::unique_ptr<CompilerInvocation> clang::createInvocationFromCommandLine(
       }
     }
   }
-  if (Jobs.size() == 0 || !isa<driver::Command>(*Jobs.begin()) ||
-      (Jobs.size() > 1 && !OffloadCompilation)) {
+
+  bool PickFirstOfMany = OffloadCompilation || ShouldRecoverOnErorrs;
+  if (Jobs.size() == 0 || (Jobs.size() > 1 && !PickFirstOfMany)) {
     SmallString<256> Msg;
     llvm::raw_svector_ostream OS(Msg);
     Jobs.Print(OS, "; ", true);
     Diags->Report(diag::err_fe_expected_compiler_job) << OS.str();
     return nullptr;
   }
-
-  const driver::Command &Cmd = cast<driver::Command>(*Jobs.begin());
-  if (StringRef(Cmd.getCreator().getName()) != "clang") {
+  auto Cmd = llvm::find_if(Jobs, [](const driver::Command &Cmd) {
+    return StringRef(Cmd.getCreator().getName()) == "clang";
+  });
+  if (Cmd == Jobs.end()) {
     Diags->Report(diag::err_fe_expected_clang_command);
     return nullptr;
   }
 
-  const ArgStringList &CCArgs = Cmd.getArguments();
+  const ArgStringList &CCArgs = Cmd->getArguments();
   if (CC1Args)
     *CC1Args = {CCArgs.begin(), CCArgs.end()};
   auto CI = std::make_unique<CompilerInvocation>();

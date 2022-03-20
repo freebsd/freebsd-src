@@ -138,6 +138,10 @@ def PPCldvsxlh : SDNode<"PPCISD::LD_VSX_LH", SDT_PPCldvsxlh,
                         [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 def PPCldsplat : SDNode<"PPCISD::LD_SPLAT", SDT_PPCldsplat,
                         [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
+def PPCzextldsplat : SDNode<"PPCISD::ZEXT_LD_SPLAT", SDT_PPCldsplat,
+                        [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
+def PPCsextldsplat : SDNode<"PPCISD::SEXT_LD_SPLAT", SDT_PPCldsplat,
+                        [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 def PPCSToV : SDNode<"PPCISD::SCALAR_TO_VECTOR_PERMUTED",
                      SDTypeProfile<1, 1, []>, []>;
 
@@ -902,16 +906,13 @@ let hasSideEffects = 0 in {
   // Rounding Instructions respecting current rounding mode
   def XSRDPIC : XX2Form<60, 107,
                       (outs vsfrc:$XT), (ins vsfrc:$XB),
-                      "xsrdpic $XT, $XB", IIC_VecFP,
-                      [(set f64:$XT, (fnearbyint f64:$XB))]>;
+                      "xsrdpic $XT, $XB", IIC_VecFP, []>;
   def XVRDPIC : XX2Form<60, 235,
                       (outs vsrc:$XT), (ins vsrc:$XB),
-                      "xvrdpic $XT, $XB", IIC_VecFP,
-                      [(set v2f64:$XT, (fnearbyint v2f64:$XB))]>;
+                      "xvrdpic $XT, $XB", IIC_VecFP, []>;
   def XVRSPIC : XX2Form<60, 171,
                       (outs vsrc:$XT), (ins vsrc:$XB),
-                      "xvrspic $XT, $XB", IIC_VecFP,
-                      [(set v4f32:$XT, (fnearbyint v4f32:$XB))]>;
+                      "xvrspic $XT, $XB", IIC_VecFP, []>;
   // Max/Min Instructions
   let isCommutable = 1 in {
   def XSMAXDP : XX3Form<60, 160,
@@ -1062,6 +1063,14 @@ let hasSideEffects = 0 in {
                        [(set v2i64:$XT, (PPCxxpermdi v2i64:$XA, v2i64:$XB,
                          imm32SExt16:$DM))]>;
   let isCodeGenOnly = 1 in
+  // Note that the input register class for `$XA` of XXPERMDIs is `vsfrc` which
+  // is not the same with the input register class(`vsrc`) of XXPERMDI instruction.
+  // We did this on purpose because:
+  // 1: The input is primarily for loads that load a partial vector(LFIWZX,
+  //    etc.), no need for SUBREG_TO_REG.
+  // 2: With `vsfrc` register class, in the final assembly, float registers
+  //    like `f0` are used instead of vector scalar register like `vs0`. This
+  //    helps readability.
   def XXPERMDIs : XX3Form_2s<60, 10, (outs vsrc:$XT), (ins vsfrc:$XA, u2imm:$DM),
                              "xxpermdi $XT, $XA, $XA, $DM", IIC_VecPerm, []>;
   def XXSEL : XX4Form<60, 3,
@@ -2771,9 +2780,6 @@ def : Pat<(v2f64 (int_ppc_vsx_lxvd2x_be ForceXForm:$src)), (LXVD2X ForceXForm:$s
 def : Pat<(f32 (any_fround f32:$S)),
           (f32 (COPY_TO_REGCLASS (XSRDPI
                                    (COPY_TO_REGCLASS $S, VSFRC)), VSSRC))>;
-def : Pat<(f32 (fnearbyint f32:$S)),
-          (f32 (COPY_TO_REGCLASS (XSRDPIC
-                                   (COPY_TO_REGCLASS $S, VSFRC)), VSSRC))>;
 def : Pat<(f32 (any_ffloor f32:$S)),
           (f32 (COPY_TO_REGCLASS (XSRDPIM
                                    (COPY_TO_REGCLASS $S, VSFRC)), VSSRC))>;
@@ -2792,6 +2798,19 @@ def : Pat<(v4f32 (any_frint v4f32:$S)), (v4f32 (XVRSPIC $S))>;
 def : Pat<(f64 (any_frint f64:$S)), (f64 (XSRDPIC $S))>;
 def : Pat<(v2f64 (any_frint v2f64:$S)), (v2f64 (XVRDPIC $S))>;
 
+// Rounding without exceptions (nearbyint). Due to strange tblgen behaviour,
+// these need to be defined after the any_frint versions so ISEL will correctly
+// add the chain to the strict versions.
+def : Pat<(f32 (fnearbyint f32:$S)),
+          (f32 (COPY_TO_REGCLASS (XSRDPIC
+                                   (COPY_TO_REGCLASS $S, VSFRC)), VSSRC))>;
+def : Pat<(f64 (fnearbyint f64:$S)),
+          (f64 (XSRDPIC $S))>;
+def : Pat<(v2f64 (fnearbyint v2f64:$S)),
+          (v2f64 (XVRDPIC $S))>;
+def : Pat<(v4f32 (fnearbyint v4f32:$S)),
+          (v4f32 (XVRSPIC $S))>;
+
 // Materialize a zero-vector of long long
 def : Pat<(v2i64 immAllZerosV),
           (v2i64 (XXLXORz))>;
@@ -2809,6 +2828,10 @@ def : Pat<(v2i64 (build_vector DblToLong.A, DblToLong.A)),
 def : Pat<(v2i64 (build_vector DblToULong.A, DblToULong.A)),
           (v2i64 (XXPERMDI (SUBREG_TO_REG (i64 1), (XSCVDPUXDS $A), sub_64),
                            (SUBREG_TO_REG (i64 1), (XSCVDPUXDS $A), sub_64), 0))>;
+def : Pat<(v4i32 (PPCSToV DblToInt.A)),
+          (v4i32 (SUBREG_TO_REG (i64 1), (XSCVDPSXWS f64:$A), sub_64))>;
+def : Pat<(v4i32 (PPCSToV DblToUInt.A)),
+          (v4i32 (SUBREG_TO_REG (i64 1), (XSCVDPUXWS f64:$A), sub_64))>;
 defm : ScalToVecWPermute<
   v4i32, FltToIntLoad.A,
   (XXSPLTW (SUBREG_TO_REG (i64 1), (XSCVDPSXWSs (XFLOADf32 ForceXForm:$A)), sub_64), 1),
@@ -2823,10 +2846,20 @@ def : Pat<(v4f32 (build_vector (f32 (fpround f64:$A)), (f32 (fpround f64:$A)),
 
 def : Pat<(v4f32 (build_vector f32:$A, f32:$A, f32:$A, f32:$A)),
           (v4f32 (XXSPLTW (v4f32 (XSCVDPSPN $A)), 0))>;
+
+// Splat loads.
 def : Pat<(v2f64 (PPCldsplat ForceXForm:$A)),
           (v2f64 (LXVDSX ForceXForm:$A))>;
+def : Pat<(v4f32 (PPCldsplat ForceXForm:$A)),
+          (v4f32 (XXSPLTW (SUBREG_TO_REG (i64 1), (LFIWZX ForceXForm:$A), sub_64), 1))>;
 def : Pat<(v2i64 (PPCldsplat ForceXForm:$A)),
           (v2i64 (LXVDSX ForceXForm:$A))>;
+def : Pat<(v4i32 (PPCldsplat ForceXForm:$A)),
+          (v4i32 (XXSPLTW (SUBREG_TO_REG (i64 1), (LFIWZX ForceXForm:$A), sub_64), 1))>;
+def : Pat<(v2i64 (PPCzextldsplat ForceXForm:$A)),
+          (v2i64 (XXPERMDIs (LFIWZX ForceXForm:$A), 0))>;
+def : Pat<(v2i64 (PPCsextldsplat ForceXForm:$A)),
+          (v2i64 (XXPERMDIs (LFIWAX ForceXForm:$A), 0))>;
 
 // Build vectors of floating point converted to i64.
 def : Pat<(v2i64 (build_vector FltToLong.A, FltToLong.A)),
@@ -2962,11 +2995,11 @@ def : Pat<(v2i64 (fp_to_uint
 def : Pat<WToDPExtractConv.BV02S,
           (v2f64 (XVCVSXWDP $A))>;
 def : Pat<WToDPExtractConv.BV13S,
-          (v2f64 (XVCVSXWDP (XXSLDWI $A, $A, 3)))>;
+          (v2f64 (XVCVSXWDP (XXSLDWI $A, $A, 1)))>;
 def : Pat<WToDPExtractConv.BV02U,
           (v2f64 (XVCVUXWDP $A))>;
 def : Pat<WToDPExtractConv.BV13U,
-          (v2f64 (XVCVUXWDP (XXSLDWI $A, $A, 3)))>;
+          (v2f64 (XVCVUXWDP (XXSLDWI $A, $A, 1)))>;
 def : Pat<(v2f64 (insertelt v2f64:$A, f64:$B, 0)),
           (v2f64 (XXPERMDI (SUBREG_TO_REG (i64 1), $B, sub_64), $A, 1))>;
 def : Pat<(v2f64 (insertelt v2f64:$A, f64:$B, 1)),
@@ -3536,6 +3569,12 @@ def : Pat<(v16i8 (PPCmtvsrz i32:$A)),
 def : Pat<(v4i32 (build_vector immSExt5NonZero:$A, immSExt5NonZero:$A,
                                immSExt5NonZero:$A, immSExt5NonZero:$A)),
           (v4i32 (VSPLTISW imm:$A))>;
+
+// Splat loads.
+def : Pat<(v8i16 (PPCldsplat ForceXForm:$A)),
+          (v8i16 (VSPLTHs 3, (MTVSRWZ (LHZX ForceXForm:$A))))>;
+def : Pat<(v16i8 (PPCldsplat ForceXForm:$A)),
+          (v16i8 (VSPLTBs 7, (MTVSRWZ (LBZX ForceXForm:$A))))>;
 } // HasVSX, HasDirectMove
 
 // Big endian VSX subtarget with direct moves.
@@ -3547,7 +3586,7 @@ defm : ScalToVecWPermute<
   (SUBREG_TO_REG (i64 1), (MTVSRWZ $A), sub_64)>;
 defm : ScalToVecWPermute<
   v8i16, (i32 i32:$A),
-  (SUBREG_TO_REG (i64 1), MovesToVSR.BE_BYTE_0, sub_64),
+  (SUBREG_TO_REG (i64 1), MovesToVSR.BE_HALF_0, sub_64),
   (SUBREG_TO_REG (i64 1), (MTVSRWZ $A), sub_64)>;
 defm : ScalToVecWPermute<
   v4i32, (i32 i32:$A),
@@ -4083,6 +4122,10 @@ def : Pat<(v4f32 (PPCldsplat ForceXForm:$A)),
           (v4f32 (LXVWSX ForceXForm:$A))>;
 def : Pat<(v4i32 (PPCldsplat ForceXForm:$A)),
           (v4i32 (LXVWSX ForceXForm:$A))>;
+def : Pat<(v8i16 (PPCldsplat ForceXForm:$A)),
+          (v8i16 (VSPLTHs 3, (LXSIHZX ForceXForm:$A)))>;
+def : Pat<(v16i8 (PPCldsplat ForceXForm:$A)),
+          (v16i8 (VSPLTBs 7, (LXSIBZX ForceXForm:$A)))>;
 } // HasVSX, HasP9Vector
 
 // Any Power9 VSX subtarget with equivalent length but better Power10 VSX
@@ -4138,12 +4181,52 @@ def : Pat<(f64 (PPCfcfidu (f64 (PPCmtvsrz (i32 (extractelt v4i32:$A, 3)))))),
           (f64 (XSCVUXDDP (XXEXTRACTUW $A, 12)))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 0)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 0))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 0)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            0))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 0)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            0))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 1)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 4))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 1)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            4))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 1)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            4))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 2)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 8))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 2)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            8))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 2)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            8))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 3)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 12))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 3)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            12))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 3)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            12))>;
 def : Pat<(v4f32 (insertelt v4f32:$A, f32:$B, 0)),
           (v4f32 (XXINSERTW v4f32:$A, AlignValues.F32_TO_BE_WORD1, 0))>;
 def : Pat<(v4f32 (insertelt v4f32:$A, f32:$B, 1)),
@@ -4382,12 +4465,52 @@ def : Pat<(f64 (PPCfcfidu (f64 (PPCmtvsrz (i32 (extractelt v4i32:$A, 3)))))),
           (f64 (XSCVUXDDP (XXEXTRACTUW $A, 0)))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 0)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 12))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 0)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            12))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 0)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            12))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 1)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 8))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 1)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            8))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 1)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            8))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 2)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 4))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 2)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            4))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 2)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            4))>;
 def : Pat<(v4i32 (insertelt v4i32:$A, i32:$B, 3)),
           (v4i32 (XXINSERTW v4i32:$A, AlignValues.I32_TO_BE_WORD1, 0))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToInt.B, 3)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPSXWS f64:$B), sub_64),
+                            0))>;
+def : Pat<(v4i32 (insertelt v4i32:$A, DblToUInt.B, 3)),
+          (v4i32 (XXINSERTW v4i32:$A,
+                            (SUBREG_TO_REG (i64 1),
+                                           (XSCVDPUXWS f64:$B), sub_64),
+                            0))>;
 def : Pat<(v4f32 (insertelt v4f32:$A, f32:$B, 0)),
           (v4f32 (XXINSERTW v4f32:$A, AlignValues.F32_TO_BE_WORD1, 12))>;
 def : Pat<(v4f32 (insertelt v4f32:$A, f32:$B, 1)),

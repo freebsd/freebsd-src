@@ -26,6 +26,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/Assumptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Intrinsics.h"
@@ -195,6 +196,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::SEHTryStmtClass:
     EmitSEHTryStmt(cast<SEHTryStmt>(*S));
+    break;
+  case Stmt::OMPMetaDirectiveClass:
+    EmitOMPMetaDirective(cast<OMPMetaDirective>(*S));
     break;
   case Stmt::OMPCanonicalLoopClass:
     EmitOMPCanonicalLoop(cast<OMPCanonicalLoop>(S));
@@ -388,6 +392,9 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
     break;
   case Stmt::OMPMaskedDirectiveClass:
     EmitOMPMaskedDirective(cast<OMPMaskedDirective>(*S));
+    break;
+  case Stmt::OMPGenericLoopDirectiveClass:
+    EmitOMPGenericLoopDirective(cast<OMPGenericLoopDirective>(*S));
     break;
   }
 }
@@ -709,6 +716,17 @@ void CodeGenFunction::EmitIndirectGotoStmt(const IndirectGotoStmt &S) {
 }
 
 void CodeGenFunction::EmitIfStmt(const IfStmt &S) {
+  // The else branch of a consteval if statement is always the only branch that
+  // can be runtime evaluated.
+  if (S.isConsteval()) {
+    const Stmt *Executed = S.isNegatedConsteval() ? S.getThen() : S.getElse();
+    if (Executed) {
+      RunCleanupsScope ExecutedScope(*this);
+      EmitStmt(Executed);
+    }
+    return;
+  }
+
   // C99 6.8.4.1: The first substatement is executed if the expression compares
   // unequal to 0.  The condition must be a scalar type.
   LexicalScope ConditionScope(*this, S.getCond()->getSourceRange());
@@ -1518,6 +1536,12 @@ void CodeGenFunction::EmitCaseStmt(const CaseStmt &S,
     NextCase = dyn_cast<CaseStmt>(CurCase->getSubStmt());
   }
 
+  // Generate a stop point for debug info if the case statement is
+  // followed by a default statement. A fallthrough case before a
+  // default case gets its own branch target.
+  if (CurCase->getSubStmt()->getStmtClass() == Stmt::DefaultStmtClass)
+    EmitStopPoint(CurCase);
+
   // Normal default recursion for non-cases.
   EmitStmt(CurCase->getSubStmt());
 }
@@ -2188,20 +2212,16 @@ static void UpdateAsmCallInst(llvm::CallBase &Result, bool HasSideEffect,
                               CodeGenFunction &CGF,
                               std::vector<llvm::Value *> &RegResults) {
   if (!HasUnwindClobber)
-    Result.addAttribute(llvm::AttributeList::FunctionIndex,
-                        llvm::Attribute::NoUnwind);
+    Result.addFnAttr(llvm::Attribute::NoUnwind);
 
   if (NoMerge)
-    Result.addAttribute(llvm::AttributeList::FunctionIndex,
-                        llvm::Attribute::NoMerge);
+    Result.addFnAttr(llvm::Attribute::NoMerge);
   // Attach readnone and readonly attributes.
   if (!HasSideEffect) {
     if (ReadNone)
-      Result.addAttribute(llvm::AttributeList::FunctionIndex,
-                          llvm::Attribute::ReadNone);
+      Result.addFnAttr(llvm::Attribute::ReadNone);
     else if (ReadOnly)
-      Result.addAttribute(llvm::AttributeList::FunctionIndex,
-                          llvm::Attribute::ReadOnly);
+      Result.addFnAttr(llvm::Attribute::ReadOnly);
   }
 
   // Slap the source location of the inline asm into a !srcloc metadata on the
@@ -2223,8 +2243,7 @@ static void UpdateAsmCallInst(llvm::CallBase &Result, bool HasSideEffect,
     // convergent (meaning, they may call an intrinsically convergent op, such
     // as bar.sync, and so can't have certain optimizations applied around
     // them).
-    Result.addAttribute(llvm::AttributeList::FunctionIndex,
-                        llvm::Attribute::Convergent);
+    Result.addFnAttr(llvm::Attribute::Convergent);
   // Extract all of the register value results from the asm.
   if (ResultRegTypes.size() == 1) {
     RegResults.push_back(&Result);
@@ -2610,8 +2629,14 @@ void CodeGenFunction::EmitAsmStmt(const AsmStmt &S) {
     llvm::FunctionType::get(ResultType, ArgTypes, false);
 
   bool HasSideEffect = S.isVolatile() || S.getNumOutputs() == 0;
+
+  llvm::InlineAsm::AsmDialect GnuAsmDialect =
+      CGM.getCodeGenOpts().getInlineAsmDialect() == CodeGenOptions::IAD_ATT
+          ? llvm::InlineAsm::AD_ATT
+          : llvm::InlineAsm::AD_Intel;
   llvm::InlineAsm::AsmDialect AsmDialect = isa<MSAsmStmt>(&S) ?
-    llvm::InlineAsm::AD_Intel : llvm::InlineAsm::AD_ATT;
+    llvm::InlineAsm::AD_Intel : GnuAsmDialect;
+
   llvm::InlineAsm *IA = llvm::InlineAsm::get(
       FTy, AsmString, Constraints, HasSideEffect,
       /* IsAlignStack */ false, AsmDialect, HasUnwindClobber);
