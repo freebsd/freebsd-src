@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2022
+.Dd March 18, 2022
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -54,8 +54,7 @@ Print the values for all mixer devices available in the system
 Change the default audio card to
 .Ar unit .
 The unit has to be an integer value.
-To see what unit values are available, look
-at the number each mixer device has by running
+To see what unit values are available, look at the number each mixer device has by running
 .Nm .
 .It Fl f Ar device
 Open
@@ -129,12 +128,10 @@ The optional
 and/or
 .Ar rvol
 values have to be specified.
-The values have to be normalized 32-bit floats,
-from 0.0 to 1.0 inclusivly.
+The values have to be normalized 32-bit floats, from 0.0 to 1.0 inclusively.
 If no
 .Ql \&.
-character is present, the value is treated
-like a percentage, for backwards compatibility.
+character is present, the value is treated like a percentage, for backwards compatibility.
 If the left or right volume values are prefixed with
 .Cm +
 or
