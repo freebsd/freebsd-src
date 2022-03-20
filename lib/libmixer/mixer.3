@@ -22,7 +22,7 @@
 .\" $FreeBSD$
 .\"
 
-.Dd March 18, 2022
+.Dd March 19, 2022
 .Dt MIXER 3
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nm mixer_mod_recsrc ,
 .Nm mixer_get_dunit ,
 .Nm mixer_set_dunit ,
-.Nm mixer_get_mode,
+.Nm mixer_get_mode ,
 .Nm mixer_get_nmixers ,
 .Nm MIX_ISDEV ,
 .Nm MIX_ISMUTE ,
@@ -64,7 +64,7 @@ Mixer library (libmixer, -lmixer)
 .Ft int
 .Fn mixer_add_ctl "struct mix_dev *parent" "int id" "const char *name" \
     "int (*mod)(struct mix_dev *d, void *p)" \
-    "int (*print)(struct mix_dev *d, void *p)
+    "int (*print)(struct mix_dev *d, void *p)"
 .Ft int
 .Fn mixer_add_ctl_s "mix_ctl_t *ctl"
 .Ft int
@@ -105,7 +105,6 @@ The
 library allows userspace programs to access and manipulate OSS sound mixers in
 a simple way.
 .Ss Mixer
-.Pp
 A mixer is described by the following structure:
 .Bd -literal
 struct mixer {
@@ -141,16 +140,19 @@ The fields are follows:
 .It Fa devs
 A tail queue structure containing all supported mixer devices.
 .It Fa dev
-A pointer to the currently selected device. The device is one of the elements in
+A pointer to the currently selected device.
+The device is one of the elements in
 .Ar devs .
 .It Fa mi
-OSS information about the mixer. Look at the definition of the
+OSS information about the mixer.
+Look at the definition of the
 .Ft oss_mixerinfo
 structure in
 .In sys/soundcard.h
 to see its fields.
 .It Fa ci
-OSS audio card information. This structure is also defined in
+OSS audio card information.
+This structure is also defined in
 .In sys/soundcard.h .
 .It Fa name
 Path to the mixer (e.g /dev/mixer0).
@@ -158,40 +160,43 @@ Path to the mixer (e.g /dev/mixer0).
 File descriptor returned when the mixer is opened in
 .Fn mixer_open .
 .It Fa unit
-Audio card unit. Since each mixer device maps to a pcmX device,
+Audio card unit.
+Since each mixer device maps to a pcmX device,
 .Ar unit
-is always equal to the number of that pcmX device. For example, if the audio
-device's number is 0 (i.e pcm0), then
+is always equal to the number of that pcmX device.
+For example, if the audio device's number is 0 (i.e pcm0), then
 .Ar unit
-is 0 as well. This number is useful when checking if the mixer's audio
-card is the default one.
+is 0 as well.
+This number is useful when checking if the mixer's audio card is the default one.
 .It Fa ndev
 Number of devices in
 .Ar devs .
 .It Fa devmask
-Bit mask containing all supported devices for the mixer. For example
-if device 10 is supported, then the 10th bit in the mask will be set. By default,
+Bit mask containing all supported devices for the mixer.
+For example, if device 10 is supported, then the 10th bit in the mask will be set.
+By default,
 .Fn mixer_open
-stores only the supported devices in devs, so it's very unlikely this mask will
+stores only the supported devices in devs, so it is very unlikely this mask will
 be needed.
 .It Fa mutemask
-Bit mask containing all muted devices. The logic is the same as with
+Bit mask containing all muted devices.
+The logic is the same as with
 .Ar devmask .
 .It Fa recmask
-Bit mask containing all recording devices. Again, same logic as with the
-other masks.
+Bit mask containing all recording devices.
+Again, same logic as with the other masks.
 .It Fa recsrc
-Bit mask containing all recording sources. Yes, same logic again.
+Bit mask containing all recording sources.
+Yes, same logic again.
 .It Fa mode
-Bit mask containing the supported modes for this audio device. It holds the value
-of the
+Bit mask containing the supported modes for this audio device.
+It holds the value of the
 .Ar dev.pcm.X.mode
 sysctl.
 .It Fa f_default
 Flag which tells whether the mixer's audio card is the default one.
 .El
 .Ss Mixer device
-.Pp
 Each mixer device stored in a mixer is described as follows:
 .Bd -literal
 struct mix_dev {
@@ -217,7 +222,8 @@ The fields are follows:
 .It Fa parent_mixer
 Pointer to the mixer the device is attached to.
 .It Fa name
-Device name given by the OSS API. Devices can have one of the following names:
+Device name given by the OSS API.
+Devices can have one of the following names:
 .Bd -ragged
 vol, bass, treble, synth, pcm, speaker, line, mic, cd, mix,
 pcm2, rec, igain, ogain, line1, line2, line3, dig1, dig2, dig3,
@@ -229,10 +235,11 @@ Device's index in the SOUND_MIXER_NRDEVICES macro defined in
 This number is used to check against the masks defined in the
 .Ar mixer
 structure.
-.It Fa left, right
-Left and right-ear volumes. Although the OSS API stores volumes in integers from
-0-100, we normalize them to 32-bit floating point numbers. However, the volumes
-can be denormalized using the
+.It Fa left right
+Left and right-ear volumes.
+Although the OSS API stores volumes in integers from 0-100, \
+we normalize them to 32-bit floating point numbers.
+However, the volumes can be denormalized using the
 .Ar MIX_VOLDENORM
 macro if needed.
 .It Fa nctl
@@ -241,9 +248,8 @@ Number of user-defined mixer controls associated with the device.
 A tail queue containing user-defined mixer controls.
 .El
 .Ss User-defined mixer controls
-.Pp
-Each mixer device can have user-defined controls. The control structure
-is defined as follows:
+Each mixer device can have user-defined controls.
+The control structure is defined as follows:
 .Bd -literal
 struct mix_ctl {
 	struct mix_dev *parent_dev;		/* parent device */
@@ -260,41 +266,46 @@ The fields are follows:
 .It Fa parent_dev
 Pointer to the device the control is attached to.
 .It Fa id
-Control ID assigned by the caller. Even though the library will
-report it, care has to be taken to not give a control the same ID in case
-the caller has to choose controls using their ID.
+Control ID assigned by the caller.
+Even though the library will report it, care has to be taken to not give \
+a control the same ID in case the caller has to choose controls using their ID.
 .It Fa name
-Control name. As with
+Control name.
+As with
 .Ar id ,
 the caller has to make sure the same name is not used more than once.
 .It Fa mod
-Function pointer to a control modification function. As in
+Function pointer to a control modification function.
+As in
 .Xr mixer 8 ,
-each mixer control's values can be modified. For example, if we have a
-volume control, the
+each mixer control's values can be modified.
+For example, if we have a volume control, the
 .Ar mod
 function will be responsible for handling volume changes.
 .It Fa print
 Function pointer to a control print function.
 .El
 .Ss Opening and closing the mixer
-.Pp
 The application must first call the
 .Fn mixer_open
-function to obtain a handle to the device, which is used as an argument
-in most other functions and macros. The parameter
+function to obtain a handle to the device, which is used as an argument \
+in most other functions and macros.
+The parameter
 .Ar name
-specifies the path to the mixer. OSS mixers are stored under
+specifies the path to the mixer.
+OSS mixers are stored under
 .Ar /dev/mixerN
 where
 .Ar N
-is the number of the mixer device. Each device maps to an actual
+is the number of the mixer device.
+Each device maps to an actual
 .Ar pcm
 audio card, so
 .Ar /dev/mixer0
 is the mixer for
 .Ar pcm0 ,
-and so on. If
+and so on.
+If
 .Ar name
 is
 .Ar NULL
@@ -305,30 +316,30 @@ opens the default mixer (hw.snd.default_unit).
 .Pp
 The
 .Fn mixer_close
-function frees resources and closes the mixer device. It's a good practice to
-always call it when the application is done using the mixer.
+function frees resources and closes the mixer device.
+It is a good practice to always call it when the application is done using the mixer.
 .Ss Manipulating the mixer
-.Pp
 The
 .Fn mixer_get_dev
 and
 .Fn mixer_get_dev_byname
-functions select a mixer device, either by its number or by its name
-respectively. The mixer structure keeps a list of all the devices, but only
-one can be manipulated at a time. Each time a new device is to be manipulated,
-one of the two functions has to be called.
+functions select a mixer device, either by its number or by its name respectively.
+The mixer structure keeps a list of all the devices, but only \
+one can be manipulated at a time.
+Each time a new device is to be manipulated, one of the two functions has to be called.
 .Pp
 The
 .Fn mixer_set_vol
-function changes the volume of the selected mixer device. The
+function changes the volume of the selected mixer device.
+The
 .Ar vol
-parameter is a structure that stores the left and right volumes of a given
-device. The allowed volume values are between MIX_VOLMIN (0.0) and
-MIX_VOLMAX (1.0).
+parameter is a structure that stores the left and right volumes of a given device.
+The allowed volume values are between MIX_VOLMIN (0.0) and MIX_VOLMAX (1.0).
 .Pp
 The
 .Fn mixer_set_mute
-function modifies the mute of a selected device. The
+function modifies the mute of a selected device.
+The
 .Ar opt
 parameter has to be one of the following options:
 .Bl -tag -width MIX_TOGGLEMUTE -offset indent
@@ -342,8 +353,9 @@ Toggle the device's mute (e.g mute if unmuted and unmute if muted).
 .Pp
 The
 .Fn mixer_mod_recsrc
-function modifies a recording device. The selected device has to be
-a recording device, otherwise the function will fail. The
+function modifies a recording device.
+The selected device has to be a recording device, otherwise the function will fail.
+The
 .Ar opt
 parameter has to be one of the following options:
 .Bl -tag -width MIX_REMOVERECSRC -offset indent
@@ -361,16 +373,17 @@ The
 .Fn mixer_get_dunit
 and
 .Fn mixer_set_dunit
-functions get and set the default audio card in the system. Although this is
-not really a mixer feature, it's useful to have instead of having to use
-the
+functions get and set the default audio card in the system.
+Although this is not really a mixer feature, it is useful to have instead of \
+having to use the
 .Xr sysctl 3
 controls.
 .Pp
 The
 .Fn mixer_get_mode
-function returns the playback/recording mode of the audio device the mixer
-belongs to. The available values are the following:
+function returns the playback/recording mode of the audio device the mixer \
+belongs to.
+The available values are the following:
 .Bl -tag -width "MIX_STATUS_PLAY | MIX_STATUS_REC" -offset indent
 .It Dv MIX_STATUS_NONE
 Neither playback nor recording.
@@ -388,9 +401,9 @@ function returns the total number of mixer devices in the system.
 .Pp
 The
 .Fn MIX_ISDEV
-macro checks if a device is actually a valid device for a given mixer. It's very
-unlikely that this macro will ever be needed since the library stores only
-valid devices by default.
+macro checks if a device is actually a valid device for a given mixer.
+It is very unlikely that this macro will ever be needed since the library \
+stores only valid devices by default.
 .Pp
 The
 .Fn MIX_ISMUTE
@@ -406,8 +419,8 @@ macro checks if a device is a recording source.
 .Pp
 The
 .Fn MIX_VOLNORM
-macro normalizes a value to 32-bit floating point number. It's used
-to normalize the volumes read from the OSS API.
+macro normalizes a value to 32-bit floating point number.
+It is used to normalize the volumes read from the OSS API.
 .Pp
 The
 .Fn MIX_VOLDENORM
@@ -415,7 +428,6 @@ macro denormalizes the left and right volumes stores in the
 .Ft mix_dev
 structure.
 .Ss Defining and using mixer controls
-.Pp
 The
 .Fn mix_add_ctl
 function creates a control and attaches it to the device specified in the
@@ -428,7 +440,7 @@ function does the same thing as with
 .Fn mix_add_ctl
 but the caller passes a
 .Ft mix_ctl_t *
-structure instead of each field as a seperate argument.
+structure instead of each field as a separate argument.
 .Pp
 The
 .Fn mixer_remove_ctl
@@ -438,7 +450,8 @@ The
 .Fn mixer_get_ctl
 function searches for a control in the device specified in the
 .Ar d
-argument and returns a pointer to it. The search is done using the control's ID.
+argument and returns a pointer to it.
+The search is done using the control's ID.
 .Pp
 The
 .Fn mixer_get_ctl_byname
@@ -446,7 +459,6 @@ function is the same as with
 .Fn mixer_get_ctl
 but the search is done using the control's name.
 .Sh RETURN VALUES
-.Pp
 The
 .Fn mixer_open
 function returns the newly created handle on success and NULL on failure.
@@ -530,10 +542,10 @@ TAILQ_FOREACH(dp, &m->devs, devs) {
 (void)mixer_close(m);
 .Ed
 .Sh SEE ALSO
-.Xr mixer 8 ,
-.Xr sound 4 ,
+.Xr queue 3 ,
 .Xr sysctl 3 ,
-.Xr queue 3
+.Xr sound 4 ,
+.Xr mixer 8
 and
 .Xr errno 2
 .Sh AUTHORS
