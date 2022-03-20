@@ -873,6 +873,7 @@ audit_arg_vnode(struct vnode *vp, struct vnode_au_info *vnp)
 
 	ASSERT_VOP_LOCKED(vp, "audit_arg_vnode");
 
+	VATTR_NULL(&vattr);
 	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
 	if (error) {
 		/* XXX: How to handle this case? */
