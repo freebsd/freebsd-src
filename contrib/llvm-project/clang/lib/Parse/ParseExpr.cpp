@@ -1521,6 +1521,7 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
   case tok::kw___bf16:
   case tok::kw__Float16:
   case tok::kw___float128:
+  case tok::kw___ibm128:
   case tok::kw_void:
   case tok::kw_typename:
   case tok::kw_typeof:
@@ -2331,7 +2332,7 @@ Parser::ParseExprAfterUnaryExprOrTypeTrait(const Token &OpTok,
 /// a parameter.
 ExprResult Parser::ParseSYCLUniqueStableNameExpression() {
   assert(Tok.is(tok::kw___builtin_sycl_unique_stable_name) &&
-         "Not __bulitin_sycl_unique_stable_name");
+         "Not __builtin_sycl_unique_stable_name");
 
   SourceLocation OpLoc = ConsumeToken();
   BalancedDelimiterTracker T(*this, tok::l_paren);

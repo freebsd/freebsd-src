@@ -480,7 +480,7 @@ static bool hasObjCCategory(StringRef Name) {
   if (!isObjCClass(Name))
     return false;
 
-  return Name.find(") ") != StringRef::npos;
+  return Name.contains(") ");
 }
 
 static void getObjCClassCategory(StringRef In, StringRef &Class,
@@ -1101,11 +1101,6 @@ DwarfDebug::getOrCreateDwarfCompileUnit(const DICompileUnit *DIUnit) {
     NewCU.setSection(Asm->getObjFileLowering().getDwarfInfoSection());
   }
 
-  // Create DIEs for function declarations used for call site debug info.
-  for (auto Scope : DIUnit->getRetainedTypes())
-    if (auto *SP = dyn_cast_or_null<DISubprogram>(Scope))
-      NewCU.getOrCreateSubprogramDIE(SP);
-
   CUMap.insert({DIUnit, &NewCU});
   CUDieMap.insert({&NewCU.getUnitDie(), &NewCU});
   return NewCU;
@@ -1412,6 +1407,10 @@ void DwarfDebug::finalizeModuleInfo() {
 
 // Emit all Dwarf sections that should come after the content.
 void DwarfDebug::endModule() {
+  // Terminate the pending line table.
+  if (PrevCU)
+    terminateLineTable(PrevCU);
+  PrevCU = nullptr;
   assert(CurFn == nullptr);
   assert(CurMI == nullptr);
 
@@ -2087,12 +2086,22 @@ void DwarfDebug::beginInstruction(const MachineInstr *MI) {
 static DebugLoc findPrologueEndLoc(const MachineFunction *MF) {
   // First known non-DBG_VALUE and non-frame setup location marks
   // the beginning of the function body.
-  for (const auto &MBB : *MF)
-    for (const auto &MI : MBB)
+  DebugLoc LineZeroLoc;
+  for (const auto &MBB : *MF) {
+    for (const auto &MI : MBB) {
       if (!MI.isMetaInstruction() && !MI.getFlag(MachineInstr::FrameSetup) &&
-          MI.getDebugLoc())
-        return MI.getDebugLoc();
-  return DebugLoc();
+          MI.getDebugLoc()) {
+        // Scan forward to try to find a non-zero line number. The prologue_end
+        // marks the first breakpoint in the function after the frame setup, and
+        // a compiler-generated line 0 location is not a meaningful breakpoint.
+        // If none is found, return the first location after the frame setup.
+        if (MI.getDebugLoc().getLine())
+          return MI.getDebugLoc();
+        LineZeroLoc = MI.getDebugLoc();
+      }
+    }
+  }
+  return LineZeroLoc;
 }
 
 /// Register a source line with debug info. Returns the  unique label that was
@@ -2147,24 +2156,42 @@ void DwarfDebug::beginFunctionImpl(const MachineFunction *MF) {
 
   DwarfCompileUnit &CU = getOrCreateDwarfCompileUnit(SP->getUnit());
 
-  // Set DwarfDwarfCompileUnitID in MCContext to the Compile Unit this function
-  // belongs to so that we add to the correct per-cu line table in the
-  // non-asm case.
-  if (Asm->OutStreamer->hasRawTextSupport())
-    // Use a single line table if we are generating assembly.
-    Asm->OutStreamer->getContext().setDwarfCompileUnitID(0);
-  else
-    Asm->OutStreamer->getContext().setDwarfCompileUnitID(CU.getUniqueID());
+  Asm->OutStreamer->getContext().setDwarfCompileUnitID(
+      getDwarfCompileUnitIDForLineTable(CU));
 
   // Record beginning of function.
   PrologEndLoc = emitInitialLocDirective(
       *MF, Asm->OutStreamer->getContext().getDwarfCompileUnitID());
 }
 
+unsigned
+DwarfDebug::getDwarfCompileUnitIDForLineTable(const DwarfCompileUnit &CU) {
+  // Set DwarfDwarfCompileUnitID in MCContext to the Compile Unit this function
+  // belongs to so that we add to the correct per-cu line table in the
+  // non-asm case.
+  if (Asm->OutStreamer->hasRawTextSupport())
+    // Use a single line table if we are generating assembly.
+    return 0;
+  else
+    return CU.getUniqueID();
+}
+
+void DwarfDebug::terminateLineTable(const DwarfCompileUnit *CU) {
+  const auto &CURanges = CU->getRanges();
+  auto &LineTable = Asm->OutStreamer->getContext().getMCDwarfLineTable(
+      getDwarfCompileUnitIDForLineTable(*CU));
+  // Add the last range label for the given CU.
+  LineTable.getMCLineSections().addEndEntry(
+      const_cast<MCSymbol *>(CURanges.back().End));
+}
+
 void DwarfDebug::skippedNonDebugFunction() {
   // If we don't have a subprogram for this function then there will be a hole
   // in the range information. Keep note of this by setting the previously used
   // section to nullptr.
+  // Terminate the pending line table.
+  if (PrevCU)
+    terminateLineTable(PrevCU);
   PrevCU = nullptr;
   CurFn = nullptr;
 }

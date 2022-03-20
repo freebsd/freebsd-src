@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
@@ -25,7 +24,7 @@ class SimpleSValBuilder : public SValBuilder {
 public:
   SimpleSValBuilder(llvm::BumpPtrAllocator &alloc, ASTContext &context,
                     ProgramStateManager &stateMgr)
-                    : SValBuilder(alloc, context, stateMgr) {}
+      : SValBuilder(alloc, context, stateMgr) {}
   ~SimpleSValBuilder() override {}
 
   SVal evalMinus(NonLoc val) override;
@@ -129,14 +128,14 @@ SVal SimpleSValBuilder::MakeSymIntVal(const SymExpr *LHS,
     // a&0 and a&(~0)
     if (RHS == 0)
       return makeIntVal(0, resultTy);
-    else if (RHS.isAllOnesValue())
+    else if (RHS.isAllOnes())
       isIdempotent = true;
     break;
   case BO_Or:
     // a|0 and a|(~0)
     if (RHS == 0)
       isIdempotent = true;
-    else if (RHS.isAllOnesValue()) {
+    else if (RHS.isAllOnes()) {
       const llvm::APSInt &Result = BasicVals.Convert(resultTy, RHS);
       return nonloc::ConcreteInt(Result);
     }
@@ -320,13 +319,10 @@ static Optional<NonLoc> tryRearrange(ProgramStateRef State,
   // We expect everything to be of the same type - this type.
   QualType SingleTy;
 
-  auto &Opts =
-    StateMgr.getOwningEngine().getAnalysisManager().getAnalyzerOptions();
-
   // FIXME: After putting complexity threshold to the symbols we can always
   //        rearrange additive operations but rearrange comparisons only if
   //        option is set.
-  if(!Opts.ShouldAggressivelySimplifyBinaryOperation)
+  if (!SVB.getAnalyzerOptions().ShouldAggressivelySimplifyBinaryOperation)
     return None;
 
   SymbolRef LSym = Lhs.getAsSymbol();
@@ -513,7 +509,7 @@ SVal SimpleSValBuilder::evalBinOpNN(ProgramStateRef state,
         continue;
       case BO_Shr:
         // (~0)>>a
-        if (LHSValue.isAllOnesValue() && LHSValue.isSigned())
+        if (LHSValue.isAllOnes() && LHSValue.isSigned())
           return evalCast(lhs, resultTy, QualType{});
         LLVM_FALLTHROUGH;
       case BO_Shl:

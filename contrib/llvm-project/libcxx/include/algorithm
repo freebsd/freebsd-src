@@ -1,5 +1,5 @@
 // -*- C++ -*-
-//===-------------------------- algorithm ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -757,11 +757,6 @@ template <class BidirectionalIterator, class Compare>
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #pragma GCC system_header
 #endif
-
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
-_LIBCPP_POP_MACROS
 
 #if defined(_LIBCPP_HAS_PARALLEL_ALGORITHMS) && _LIBCPP_STD_VER >= 17
 #   include <__pstl_algorithm>

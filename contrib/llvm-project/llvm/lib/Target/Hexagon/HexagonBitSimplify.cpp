@@ -972,8 +972,8 @@ namespace {
 } // end anonymous namespace
 
 bool DeadCodeElimination::isDead(unsigned R) const {
-  for (auto I = MRI.use_begin(R), E = MRI.use_end(); I != E; ++I) {
-    MachineInstr *UseI = I->getParent();
+  for (const MachineOperand &MO : MRI.use_operands(R)) {
+    const MachineInstr *UseI = MO.getParent();
     if (UseI->isDebugValue())
       continue;
     if (UseI->isPHI()) {
@@ -1305,8 +1305,7 @@ bool RedundantInstrElimination::processBlock(MachineBasicBlock &B,
     return false;
   bool Changed = false;
 
-  for (auto I = B.begin(), E = B.end(), NextI = I; I != E; ++I) {
-    NextI = std::next(I);
+  for (auto I = B.begin(), E = B.end(); I != E; ++I) {
     MachineInstr *MI = &*I;
 
     if (MI->getOpcode() == TargetOpcode::COPY)
@@ -1598,9 +1597,7 @@ bool CopyGeneration::processBlock(MachineBasicBlock &B,
   bool Changed = false;
   RegisterSet Defs;
 
-  for (auto I = B.begin(), E = B.end(), NextI = I; I != E;
-       ++I, AVB.insert(Defs)) {
-    NextI = std::next(I);
+  for (auto I = B.begin(), E = B.end(); I != E; ++I, AVB.insert(Defs)) {
     Defs.clear();
     HBS::getInstrDefs(*I, Defs);
 
@@ -1726,8 +1723,8 @@ bool CopyPropagation::propagateRegCopy(MachineInstr &MI) {
 
 bool CopyPropagation::processBlock(MachineBasicBlock &B, const RegisterSet&) {
   std::vector<MachineInstr*> Instrs;
-  for (auto I = B.rbegin(), E = B.rend(); I != E; ++I)
-    Instrs.push_back(&*I);
+  for (MachineInstr &MI : llvm::reverse(B))
+    Instrs.push_back(&MI);
 
   bool Changed = false;
   for (auto I : Instrs) {
@@ -3123,8 +3120,8 @@ bool HexagonLoopRescheduling::processLoop(LoopCand &C) {
     if (isConst(PR))
       continue;
     bool BadUse = false, GoodUse = false;
-    for (auto UI = MRI->use_begin(PR), UE = MRI->use_end(); UI != UE; ++UI) {
-      MachineInstr *UseI = UI->getParent();
+    for (const MachineOperand &MO : MRI->use_operands(PR)) {
+      const MachineInstr *UseI = MO.getParent();
       if (UseI->getParent() != C.LB) {
         BadUse = true;
         break;
@@ -3252,7 +3249,7 @@ bool HexagonLoopRescheduling::processLoop(LoopCand &C) {
     auto LoopInpEq = [G] (const PhiInfo &P) -> bool {
       return G.Out.Reg == P.LR.Reg;
     };
-    if (llvm::find_if(Phis, LoopInpEq) == Phis.end())
+    if (llvm::none_of(Phis, LoopInpEq))
       continue;
 
     G.Inp.Reg = Inputs.find_first();
@@ -3338,9 +3335,9 @@ bool HexagonLoopRescheduling::runOnMachineFunction(MachineFunction &MF) {
       continue;
     MachineBasicBlock *PB = nullptr;
     bool IsLoop = false;
-    for (auto PI = B.pred_begin(), PE = B.pred_end(); PI != PE; ++PI) {
-      if (*PI != &B)
-        PB = *PI;
+    for (MachineBasicBlock *Pred : B.predecessors()) {
+      if (Pred != &B)
+        PB = Pred;
       else
         IsLoop = true;
     }
@@ -3348,13 +3345,13 @@ bool HexagonLoopRescheduling::runOnMachineFunction(MachineFunction &MF) {
       continue;
 
     MachineBasicBlock *EB = nullptr;
-    for (auto SI = B.succ_begin(), SE = B.succ_end(); SI != SE; ++SI) {
-      if (*SI == &B)
+    for (MachineBasicBlock *Succ : B.successors()) {
+      if (Succ == &B)
         continue;
       // Set EP to the epilog block, if it has only 1 predecessor (i.e. the
       // edge from B to EP is non-critical.
-      if ((*SI)->pred_size() == 1)
-        EB = *SI;
+      if (Succ->pred_size() == 1)
+        EB = Succ;
       break;
     }
 

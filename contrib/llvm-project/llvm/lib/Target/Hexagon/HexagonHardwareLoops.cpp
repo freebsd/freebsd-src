@@ -468,7 +468,7 @@ bool HexagonHardwareLoops::findInductionRegister(MachineLoop *L,
     return false;
 
   Register CmpReg1, CmpReg2;
-  int CmpImm = 0, CmpMask = 0;
+  int64_t CmpImm = 0, CmpMask = 0;
   bool CmpAnalyzed =
       TII->analyzeCompare(*PredI, CmpReg1, CmpReg2, CmpMask, CmpImm);
   // Fail if the compare was not analyzed, or it's not comparing a register
@@ -652,7 +652,7 @@ CountValue *HexagonHardwareLoops::getLoopTripCount(MachineLoop *L,
   unsigned CondOpc = CondI->getOpcode();
 
   Register CmpReg1, CmpReg2;
-  int Mask = 0, ImmValue = 0;
+  int64_t Mask = 0, ImmValue = 0;
   bool AnalyzedCmp =
       TII->analyzeCompare(*CondI, CmpReg1, CmpReg2, Mask, ImmValue);
   if (!AnalyzedCmp)
@@ -1094,15 +1094,15 @@ void HexagonHardwareLoops::removeIfDead(MachineInstr *MI) {
       if (!MO.isReg() || !MO.isDef())
         continue;
       Register Reg = MO.getReg();
-      MachineRegisterInfo::use_iterator nextI;
-      for (MachineRegisterInfo::use_iterator I = MRI->use_begin(Reg),
-           E = MRI->use_end(); I != E; I = nextI) {
-        nextI = std::next(I);  // I is invalidated by the setReg
-        MachineInstr *UseMI = I->getParent();
+      // We use make_early_inc_range here because setReg below invalidates the
+      // iterator.
+      for (MachineOperand &MO :
+           llvm::make_early_inc_range(MRI->use_operands(Reg))) {
+        MachineInstr *UseMI = MO.getParent();
         if (UseMI == MI)
           continue;
-        if (I->isDebug())
-          I->setReg(0U);
+        if (MO.isDebug())
+          MO.setReg(0U);
       }
     }
 
@@ -1453,7 +1453,7 @@ bool HexagonHardwareLoops::loopCountMayWrapOrUnderFlow(
          E = MRI->use_instr_nodbg_end(); I != E; ++I) {
     MachineInstr *MI = &*I;
     Register CmpReg1, CmpReg2;
-    int CmpMask = 0, CmpValue = 0;
+    int64_t CmpMask = 0, CmpValue = 0;
 
     if (!TII->analyzeCompare(*MI, CmpReg1, CmpReg2, CmpMask, CmpValue))
       continue;

@@ -191,19 +191,19 @@ public:
   /// This is just a convenience method to make client code smaller for a
   /// common code. It also correctly performs the comparison without the
   /// potential for an assertion from getZExtValue().
-  bool isZero() const { return Val.isNullValue(); }
+  bool isZero() const { return Val.isZero(); }
 
   /// This is just a convenience method to make client code smaller for a
   /// common case. It also correctly performs the comparison without the
   /// potential for an assertion from getZExtValue().
   /// Determine if the value is one.
-  bool isOne() const { return Val.isOneValue(); }
+  bool isOne() const { return Val.isOne(); }
 
   /// This function will return true iff every bit in this constant is set
   /// to true.
   /// @returns true iff this constant's bits are all set to true.
   /// Determine if the value is all ones.
-  bool isMinusOne() const { return Val.isAllOnesValue(); }
+  bool isMinusOne() const { return Val.isAllOnes(); }
 
   /// This function will return true iff this constant represents the largest
   /// value that may be represented by the constant's type.
@@ -1287,10 +1287,6 @@ public:
   /// Return a string representation for an opcode.
   const char *getOpcodeName() const;
 
-  /// Return a constant expression identical to this one, but with the specified
-  /// operand set to the specified value.
-  Constant *getWithOperandReplaced(unsigned OpNo, Constant *Op) const;
-
   /// This returns the current constant expression with the operands replaced
   /// with the specified values. The specified array must have the same number
   /// of operands as our current one.
@@ -1312,13 +1308,14 @@ public:
                             Type *SrcTy = nullptr) const;
 
   /// Returns an Instruction which implements the same operation as this
-  /// ConstantExpr. The instruction is not linked to any basic block.
+  /// ConstantExpr. If \p InsertBefore is not null, the new instruction is
+  /// inserted before it, otherwise it is not inserted into any basic block.
   ///
   /// A better approach to this could be to have a constructor for Instruction
   /// which would take a ConstantExpr parameter, but that would have spread
   /// implementation details of ConstantExpr outside of Constants.cpp, which
   /// would make it harder to remove ConstantExprs altogether.
-  Instruction *getAsInstruction() const;
+  Instruction *getAsInstruction(Instruction *InsertBefore = nullptr) const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {

@@ -13,6 +13,7 @@
 #ifndef LLVM_TARGET_TARGETMACHINE_H
 #define LLVM_TARGET_TARGETMACHINE_H
 
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/DataLayout.h"
@@ -20,9 +21,11 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/PGOOptions.h"
 #include "llvm/Target/CGPassBuilderOption.h"
 #include "llvm/Target/TargetOptions.h"
 #include <string>
+#include <utility>
 
 namespace llvm {
 
@@ -109,6 +112,9 @@ protected: // Can only create subclasses.
 
   unsigned RequireStructuredCFG : 1;
   unsigned O0WantsFastISel : 1;
+
+  // PGO related tunables.
+  Optional<PGOOptions> PGOOption = None;
 
 public:
   const TargetOptions DefaultOptions;
@@ -303,6 +309,9 @@ public:
     return false;
   }
 
+  void setPGOOption(Optional<PGOOptions> PGOOpt) { PGOOption = PGOOpt; }
+  const Optional<PGOOptions> &getPGOOption() const { return PGOOption; }
+
   /// If the specified generic pointer could be assumed as a pointer to a
   /// specific address space, return that address space.
   ///
@@ -310,6 +319,18 @@ public:
   /// values only prepared on the host side and could assume certain
   /// properties.
   virtual unsigned getAssumedAddrSpace(const Value *V) const { return -1; }
+
+  /// If the specified predicate checks whether a generic pointer falls within
+  /// a specified address space, return that generic pointer and the address
+  /// space being queried.
+  ///
+  /// Such predicates could be specified in @llvm.assume intrinsics for the
+  /// optimizer to assume that the given generic pointer always falls within
+  /// the address space based on that predicate.
+  virtual std::pair<const Value *, unsigned>
+  getPredicatedAddrSpace(const Value *V) const {
+    return std::make_pair(nullptr, -1);
+  }
 
   /// Get a \c TargetIRAnalysis appropriate for the target.
   ///
@@ -464,6 +485,10 @@ public:
   virtual bool useIPRA() const {
     return false;
   }
+
+  /// The default variant to use in unqualified `asm` instructions.
+  /// If this returns 0, `asm "$(foo$|bar$)"` will evaluate to `asm "foo"`.
+  virtual int unqualifiedInlineAsmVariant() const { return 0; }
 };
 
 /// Helper method for getting the code model, returning Default if

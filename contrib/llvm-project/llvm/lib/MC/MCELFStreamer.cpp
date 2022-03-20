@@ -29,10 +29,10 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCSymbolELF.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LEB128.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstdint>
@@ -88,10 +88,10 @@ void MCELFStreamer::mergeFragment(MCDataFragment *DF,
   DF->getContents().append(EF->getContents().begin(), EF->getContents().end());
 }
 
-void MCELFStreamer::InitSections(bool NoExecStack) {
+void MCELFStreamer::initSections(bool NoExecStack, const MCSubtargetInfo &STI) {
   MCContext &Ctx = getContext();
   SwitchSection(Ctx.getObjectFileInfo()->getTextSection());
-  emitCodeAlignment(4);
+  emitCodeAlignment(Ctx.getObjectFileInfo()->getTextSectionAlignment(), &STI);
 
   if (NoExecStack)
     SwitchSection(Ctx.getAsmInfo()->getNonexecutableStackSection(Ctx));
@@ -224,6 +224,7 @@ bool MCELFStreamer::emitSymbolAttribute(MCSymbol *S, MCSymbolAttr Attribute) {
   case MCSA_ELF_TypeGnuUniqueObject:
     Symbol->setType(CombineSymbolTypes(Symbol->getType(), ELF::STT_OBJECT));
     Symbol->setBinding(ELF::STB_GNU_UNIQUE);
+    getAssembler().getWriter().markGnuAbi();
     break;
 
   case MCSA_Global:
@@ -325,7 +326,7 @@ void MCELFStreamer::emitCommonSymbol(MCSymbol *S, uint64_t Size,
     SwitchSection(P.first, P.second);
   } else {
     if(Symbol->declareCommon(Size, ByteAlignment))
-      report_fatal_error("Symbol: " + Symbol->getName() +
+      report_fatal_error(Twine("Symbol: ") + Symbol->getName() +
                          " redeclared as different type");
   }
 
@@ -500,7 +501,7 @@ void MCELFStreamer::finalizeCGProfileEntry(const MCSymbolRefExpr *&SRE,
               *MCOffset, "BFD_RELOC_NONE", SRE, SRE->getLoc(),
               *getContext().getSubtargetInfo()))
     report_fatal_error("Relocation for CG Profile could not be created: " +
-                       Err->second);
+                       Twine(Err->second));
 }
 
 void MCELFStreamer::finalizeCGProfile() {

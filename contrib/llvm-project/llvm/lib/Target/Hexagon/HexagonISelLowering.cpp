@@ -1231,7 +1231,7 @@ HexagonTargetLowering::LowerGLOBALADDRESS(SDValue Op, SelectionDAG &DAG) const {
 
   if (RM == Reloc::Static) {
     SDValue GA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, Offset);
-    const GlobalObject *GO = GV->getBaseObject();
+    const GlobalObject *GO = GV->getAliaseeObject();
     if (GO && Subtarget.useSmallData() && HLOF.isGlobalInSmallSection(GO, HTM))
       return DAG.getNode(HexagonISD::CONST32_GP, dl, PtrVT, GA);
     return DAG.getNode(HexagonISD::CONST32, dl, PtrVT, GA);
@@ -2556,7 +2556,7 @@ HexagonTargetLowering::extractVector(SDValue VecV, SDValue IdxV,
       // Extracting the lowest bit is a no-op, but it changes the type,
       // so it must be kept as an operation to avoid errors related to
       // type mismatches.
-      if (IdxN->isNullValue() && ValTy.getSizeInBits() == 1)
+      if (IdxN->isZero() && ValTy.getSizeInBits() == 1)
         return DAG.getNode(HexagonISD::TYPECAST, dl, MVT::i1, VecV);
     }
 

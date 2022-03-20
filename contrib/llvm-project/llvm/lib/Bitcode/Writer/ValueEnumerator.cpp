@@ -229,8 +229,11 @@ static void predictValueUseListOrderImpl(const Value *V, const Function *F,
     // have been read (despite having earlier IDs).  Rather than awkwardly
     // modeling this behaviour here, orderModule() has assigned IDs to
     // initializers of GlobalValues before GlobalValues themselves.
-    if (OM.isGlobalValue(LID) && OM.isGlobalValue(RID))
+    if (OM.isGlobalValue(LID) && OM.isGlobalValue(RID)) {
+      if (LID == RID)
+        return LU->getOperandNo() > RU->getOperandNo();
       return LID < RID;
+    }
 
     // If ID is 4, then expect: 7 6 5 1 2 3.
     if (LID < RID) {
@@ -1036,7 +1039,7 @@ void ValueEnumerator::EnumerateAttributes(AttributeList PAL) {
   }
 
   // Do lookups for all attribute groups.
-  for (unsigned i = PAL.index_begin(), e = PAL.index_end(); i != e; ++i) {
+  for (unsigned i : PAL.indexes()) {
     AttributeSet AS = PAL.getAttributes(i);
     if (!AS.hasAttributes())
       continue;

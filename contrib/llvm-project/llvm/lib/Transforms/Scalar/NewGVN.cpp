@@ -1194,9 +1194,10 @@ NewGVN::ExprResult NewGVN::createExpression(Instruction *I) const {
         SimplifyCastInst(CI->getOpcode(), E->getOperand(0), CI->getType(), SQ);
     if (auto Simplified = checkExprResults(E, I, V))
       return Simplified;
-  } else if (isa<GetElementPtrInst>(I)) {
-    Value *V = SimplifyGEPInst(
-        E->getType(), ArrayRef<Value *>(E->op_begin(), E->op_end()), SQ);
+  } else if (auto *GEPI = dyn_cast<GetElementPtrInst>(I)) {
+    Value *V = SimplifyGEPInst(GEPI->getSourceElementType(),
+                               ArrayRef<Value *>(E->op_begin(), E->op_end()),
+                               GEPI->isInBounds(), SQ);
     if (auto Simplified = checkExprResults(E, I, V))
       return Simplified;
   } else if (AllConstant) {
@@ -1818,7 +1819,7 @@ NewGVN::ExprResult NewGVN::performSymbolicCmpEvaluation(Instruction *I) const {
   // See if we know something about the comparison itself, like it is the target
   // of an assume.
   auto *CmpPI = PredInfo->getPredicateInfoFor(I);
-  if (dyn_cast_or_null<PredicateAssume>(CmpPI))
+  if (isa_and_nonnull<PredicateAssume>(CmpPI))
     return ExprResult::some(
         createConstantExpression(ConstantInt::getTrue(CI->getType())));
 
@@ -3606,7 +3607,7 @@ void NewGVN::convertClassToDFSOrdered(
 
         // Skip uses in unreachable blocks, as we're going
         // to delete them.
-        if (ReachableBlocks.count(IBlock) == 0)
+        if (!ReachableBlocks.contains(IBlock))
           continue;
 
         DomTreeNode *DomNode = DT->getNode(IBlock);

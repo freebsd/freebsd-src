@@ -2530,7 +2530,7 @@ SDValue NVPTXTargetLowering::LowerFormalArguments(
     // to newly created nodes. The SDNodes for params have to
     // appear in the same order as their order of appearance
     // in the original function. "idx+1" holds that order.
-    if (!PAL.hasParamAttribute(i, Attribute::ByVal)) {
+    if (!PAL.hasParamAttr(i, Attribute::ByVal)) {
       bool aggregateIsPacked = false;
       if (StructType *STy = dyn_cast<StructType>(Ty))
         aggregateIsPacked = STy->isPacked();
@@ -3547,7 +3547,9 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
   case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_col:
   case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_col_stride:
   case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_row:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_row_stride: {
+  case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_row_stride:
+  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x4_b16:
+  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x4_trans_b16: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v4i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -3585,7 +3587,9 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
   case Intrinsic::nvvm_wmma_m8n8k32_load_b_s4_col:
   case Intrinsic::nvvm_wmma_m8n8k32_load_b_s4_col_stride:
   case Intrinsic::nvvm_wmma_m8n8k32_load_b_u4_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_b_u4_col: {
+  case Intrinsic::nvvm_wmma_m8n8k32_load_b_u4_col:
+  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x1_b16:
+  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x1_trans_b16: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -3679,7 +3683,9 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
   case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_col:
   case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_col_stride:
   case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_row:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_row_stride: {
+  case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_row_stride:
+  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x2_b16:
+  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x2_trans_b16: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v2i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4441,11 +4447,8 @@ static SDValue PerformADDCombineWithOperands(SDNode *N, SDValue N0, SDValue N1,
       //
       int numUses = 0;
       int nonAddCount = 0;
-      for (SDNode::use_iterator UI = N0.getNode()->use_begin(),
-           UE = N0.getNode()->use_end();
-           UI != UE; ++UI) {
+      for (const SDNode *User : N0.getNode()->uses()) {
         numUses++;
-        SDNode *User = *UI;
         if (User->getOpcode() != ISD::FADD)
           ++nonAddCount;
       }
@@ -4471,8 +4474,7 @@ static SDValue PerformADDCombineWithOperands(SDNode *N, SDValue N0, SDValue N1,
           opIsLive = true;
 
         if (!opIsLive)
-          for (SDNode::use_iterator UI = left->use_begin(), UE = left->use_end(); UI != UE; ++UI) {
-            SDNode *User = *UI;
+          for (const SDNode *User : left->uses()) {
             int orderNo3 = User->getIROrder();
             if (orderNo3 > orderNo) {
               opIsLive = true;
@@ -4481,8 +4483,7 @@ static SDValue PerformADDCombineWithOperands(SDNode *N, SDValue N0, SDValue N1,
           }
 
         if (!opIsLive)
-          for (SDNode::use_iterator UI = right->use_begin(), UE = right->use_end(); UI != UE; ++UI) {
-            SDNode *User = *UI;
+          for (const SDNode *User : right->uses()) {
             int orderNo3 = User->getIROrder();
             if (orderNo3 > orderNo) {
               opIsLive = true;

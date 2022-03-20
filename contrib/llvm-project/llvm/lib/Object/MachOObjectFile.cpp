@@ -246,8 +246,8 @@ static Error checkOverlappingElement(std::list<MachOElement> &Elements,
   if (Size == 0)
     return Error::success();
 
-  for (auto it=Elements.begin() ; it != Elements.end(); ++it) {
-    auto E = *it;
+  for (auto it = Elements.begin(); it != Elements.end(); ++it) {
+    const auto &E = *it;
     if ((Offset >= E.Offset && Offset < E.Offset + E.Size) ||
         (Offset + Size > E.Offset && Offset + Size < E.Offset + E.Size) ||
         (Offset <= E.Offset && Offset + Size >= E.Offset + E.Size))
@@ -258,7 +258,7 @@ static Error checkOverlappingElement(std::list<MachOElement> &Elements,
     auto nt = it;
     nt++;
     if (nt != Elements.end()) {
-      auto N = *nt;
+      const auto &N = *nt;
       if (Offset + Size <= N.Offset) {
         Elements.insert(nt, {Offset, Size, Name});
         return Error::success();
@@ -2046,6 +2046,46 @@ bool MachOObjectFile::isDebugSection(DataRefImpl Sec) const {
          SectionName.startswith("__zdebug") ||
          SectionName.startswith("__apple") || SectionName == "__gdb_index" ||
          SectionName == "__swift_ast";
+}
+
+namespace {
+template <typename LoadCommandType>
+ArrayRef<uint8_t> getSegmentContents(const MachOObjectFile &Obj,
+                                     MachOObjectFile::LoadCommandInfo LoadCmd,
+                                     StringRef SegmentName) {
+  auto SegmentOrErr = getStructOrErr<LoadCommandType>(Obj, LoadCmd.Ptr);
+  if (!SegmentOrErr) {
+    consumeError(SegmentOrErr.takeError());
+    return {};
+  }
+  auto &Segment = SegmentOrErr.get();
+  if (StringRef(Segment.segname, 16).startswith(SegmentName))
+    return arrayRefFromStringRef(Obj.getData().slice(
+        Segment.fileoff, Segment.fileoff + Segment.filesize));
+  return {};
+}
+} // namespace
+
+ArrayRef<uint8_t>
+MachOObjectFile::getSegmentContents(StringRef SegmentName) const {
+  for (auto LoadCmd : load_commands()) {
+    ArrayRef<uint8_t> Contents;
+    switch (LoadCmd.C.cmd) {
+    case MachO::LC_SEGMENT:
+      Contents = ::getSegmentContents<MachO::segment_command>(*this, LoadCmd,
+                                                              SegmentName);
+      break;
+    case MachO::LC_SEGMENT_64:
+      Contents = ::getSegmentContents<MachO::segment_command_64>(*this, LoadCmd,
+                                                                 SegmentName);
+      break;
+    default:
+      continue;
+    }
+    if (!Contents.empty())
+      return Contents;
+  }
+  return {};
 }
 
 unsigned MachOObjectFile::getSectionID(SectionRef Sec) const {

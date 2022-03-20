@@ -848,6 +848,7 @@ def Availability : InheritableAttr {
 [{static llvm::StringRef getPrettyPlatformName(llvm::StringRef Platform) {
     return llvm::StringSwitch<llvm::StringRef>(Platform)
              .Case("android", "Android")
+             .Case("fuchsia", "Fuchsia")
              .Case("ios", "iOS")
              .Case("macos", "macOS")
              .Case("tvos", "tvOS")
@@ -1835,6 +1836,22 @@ def BPFPreserveAccessIndex : InheritableAttr,
   let LangOpts = [COnly];
 }
 
+def BTFDeclTag : InheritableAttr {
+  let Spellings = [Clang<"btf_decl_tag">];
+  let Args = [StringArgument<"BTFDeclTag">];
+  let Subjects = SubjectList<[Var, Function, Record, Field, TypedefName],
+                             ErrorDiag>;
+  let Documentation = [BTFDeclTagDocs];
+  let LangOpts = [COnly];
+}
+
+def BTFTypeTag : TypeAttr {
+  let Spellings = [Clang<"btf_type_tag">];
+  let Args = [StringArgument<"BTFTypeTag">];
+  let Documentation = [BTFTypeTagDocs];
+  let LangOpts = [COnly];
+}
+
 def WebAssemblyExportName : InheritableAttr,
                             TargetSpecificAttr<TargetWebAssembly> {
   let Spellings = [Clang<"export_name">];
@@ -1971,7 +1988,7 @@ def NoReturn : InheritableAttr {
 
 def NoInstrumentFunction : InheritableAttr {
   let Spellings = [GCC<"no_instrument_function">];
-  let Subjects = SubjectList<[Function]>;
+  let Subjects = SubjectList<[Function, ObjCMethod]>;
   let Documentation = [Undocumented];
   let SimpleHandler = 1;
 }
@@ -2940,6 +2957,13 @@ def NoSanitizeSpecific : InheritableAttr {
   let ASTNode = 0;
 }
 
+def DisableSanitizerInstrumentation : InheritableAttr {
+  let Spellings = [Clang<"disable_sanitizer_instrumentation">];
+  let Subjects = SubjectList<[Function, ObjCMethod, GlobalVar]>;
+  let Documentation = [DisableSanitizerInstrumentationDocs];
+  let SimpleHandler = 1;
+}
+
 def CFICanonicalJumpTable : InheritableAttr {
   let Spellings = [Clang<"cfi_canonical_jump_table">];
   let Subjects = SubjectList<[Function], ErrorDiag>;
@@ -3659,7 +3683,8 @@ def OMPAllocateDecl : InheritableAttr {
                    "OMPCGroupMemAlloc", "OMPPTeamMemAlloc", "OMPThreadMemAlloc",
                    "OMPUserDefinedMemAlloc"
                  ]>,
-    ExprArgument<"Allocator">
+    ExprArgument<"Allocator">,
+    ExprArgument<"Alignment">
   ];
   let Documentation = [Undocumented];
 }
@@ -3674,6 +3699,11 @@ def OMPDeclareVariant : InheritableAttr {
   let Args = [
     ExprArgument<"VariantFuncRef">,
     OMPTraitInfoArgument<"TraitInfos">,
+    VariadicExprArgument<"AdjustArgsNothing">,
+    VariadicExprArgument<"AdjustArgsNeedDevicePtr">,
+    VariadicEnumArgument<"AppendArgs", "InteropType",
+                     ["target", "targetsync", "target,targetsync"],
+                     ["Target", "TargetSync", "Target_TargetSync"]>
   ];
   let AdditionalMembers = [{
     OMPTraitInfo &getTraitInfo() { return *traitInfos; }
@@ -3822,4 +3852,13 @@ def EnforceTCBLeaf : InheritableAttr {
   let Args = [StringArgument<"TCBName">];
   let Documentation = [EnforceTCBLeafDocs];
   bit InheritEvenIfAlreadyPresent = 1;
+}
+
+def Error : InheritableAttr {
+  let Spellings = [GCC<"error">, GCC<"warning">];
+  let Accessors = [Accessor<"isError", [GCC<"error">]>,
+                   Accessor<"isWarning", [GCC<"warning">]>];
+  let Args = [StringArgument<"UserDiagnostic">];
+  let Subjects = SubjectList<[Function], ErrorDiag>;
+  let Documentation = [ErrorAttrDocs];
 }

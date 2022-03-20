@@ -832,6 +832,24 @@ static const TableEntry PopTable[] = {
   { X86::UCOM_Fr   , X86::UCOM_FPr    },
 };
 
+static bool doesInstructionSetFPSW(MachineInstr &MI) {
+  if (const MachineOperand *MO = MI.findRegisterDefOperand(X86::FPSW))
+    if (!MO->isDead())
+      return true;
+  return false;
+}
+
+static MachineBasicBlock::iterator
+getNextFPInstruction(MachineBasicBlock::iterator I) {
+  MachineBasicBlock &MBB = *I->getParent();
+  while (++I != MBB.end()) {
+    MachineInstr &MI = *I;
+    if (X86::isX87Instruction(MI))
+      return I;
+  }
+  return MBB.end();
+}
+
 /// popStackAfter - Pop the current value off of the top of the FP stack after
 /// the specified instruction.  This attempts to be sneaky and combine the pop
 /// into the instruction itself if possible.  The iterator is left pointing to
@@ -853,6 +871,14 @@ void FPS::popStackAfter(MachineBasicBlock::iterator &I) {
       I->RemoveOperand(0);
     MI.dropDebugNumber();
   } else {    // Insert an explicit pop
+    // If this instruction sets FPSW, which is read in following instruction,
+    // insert pop after that reader.
+    if (doesInstructionSetFPSW(MI)) {
+      MachineBasicBlock &MBB = *MI.getParent();
+      MachineBasicBlock::iterator Next = getNextFPInstruction(I);
+      if (Next != MBB.end() && Next->readsRegister(X86::FPSW))
+        I = Next;
+    }
     I = BuildMI(*MBB, ++I, dl, TII->get(X86::ST_FPrr)).addReg(X86::ST0);
   }
 }
@@ -1038,9 +1064,10 @@ void FPS::handleCall(MachineBasicBlock::iterator &I) {
   for (unsigned I = 0; I < N; ++I)
     pushReg(N - I - 1);
 
-  // Drop all variable values defined by this call -- we can't track them
-  // once they've been stackified.
-  I->dropDebugNumber();
+  // If this call has been modified, drop all variable values defined by it.
+  // We can't track them once they've been stackified.
+  if (STReturns)
+    I->dropDebugNumber();
 }
 
 /// If RET has an FP register use operand, pass the first one in ST(0) and
@@ -1732,16 +1759,14 @@ void FPS::setKillFlags(MachineBasicBlock &MBB) const {
 
   LPR.addLiveOuts(MBB);
 
-  for (MachineBasicBlock::reverse_iterator I = MBB.rbegin(), E = MBB.rend();
-       I != E; ++I) {
-    if (I->isDebugInstr())
+  for (MachineInstr &MI : llvm::reverse(MBB)) {
+    if (MI.isDebugInstr())
       continue;
 
     std::bitset<8> Defs;
     SmallVector<MachineOperand *, 2> Uses;
-    MachineInstr &MI = *I;
 
-    for (auto &MO : I->operands()) {
+    for (auto &MO : MI.operands()) {
       if (!MO.isReg())
         continue;
 

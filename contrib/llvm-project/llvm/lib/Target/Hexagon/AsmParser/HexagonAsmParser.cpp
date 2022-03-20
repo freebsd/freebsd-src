@@ -37,6 +37,7 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -45,7 +46,6 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -141,12 +141,6 @@ class HexagonAsmParser : public MCTargetAsmParser {
   int processInstruction(MCInst &Inst, OperandVector const &Operands,
                          SMLoc IDLoc);
 
-  // Check if we have an assembler and, if so, set the ELF e_header flags.
-  void chksetELFHeaderEFlags(unsigned flags) {
-    if (getAssembler())
-      getAssembler()->setELFHeaderEFlags(flags);
-  }
-
   unsigned matchRegister(StringRef Name);
 
 /// @name Auto-generated Match Functions
@@ -209,10 +203,6 @@ struct HexagonOperand : public MCParsedAsmOperand {
 
   struct ImmTy {
     const MCExpr *Val;
-  };
-
-  struct InstTy {
-    OperandVector *SubInsts;
   };
 
   union {
@@ -1498,7 +1488,7 @@ int HexagonAsmParser::processInstruction(MCInst &Inst,
 
       MES->SwitchSection(mySection);
       unsigned byteSize = is32bit ? 4 : 8;
-      getStreamer().emitCodeAlignment(byteSize, byteSize);
+      getStreamer().emitCodeAlignment(byteSize, &getSTI(), byteSize);
 
       MCSymbol *Sym;
 

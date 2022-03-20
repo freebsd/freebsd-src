@@ -113,6 +113,13 @@ public:
     RM_Disabled,
   };
 
+  struct BitCodeLibraryInfo {
+    std::string Path;
+    bool ShouldInternalize;
+    BitCodeLibraryInfo(StringRef Path, bool ShouldInternalize = true)
+        : Path(Path), ShouldInternalize(ShouldInternalize) {}
+  };
+
   enum FileType { FT_Object, FT_Static, FT_Shared };
 
 private:
@@ -155,7 +162,7 @@ private:
   Tool *getOffloadBundler() const;
   Tool *getOffloadWrapper() const;
 
-  mutable std::unique_ptr<SanitizerArgs> SanitizerArguments;
+  mutable bool SanitizerArgsChecked = false;
   mutable std::unique_ptr<XRayArgs> XRayArguments;
 
   /// The effective clang triple for the current Job.
@@ -259,7 +266,7 @@ public:
 
   const Multilib &getMultilib() const { return SelectedMultilib; }
 
-  const SanitizerArgs& getSanitizerArgs() const;
+  SanitizerArgs getSanitizerArgs(const llvm::opt::ArgList &JobArgs) const;
 
   const XRayArgs& getXRayArgs() const;
 
@@ -478,15 +485,12 @@ public:
   virtual bool isPICDefault() const = 0;
 
   /// Test whether this toolchain defaults to PIE.
-  virtual bool isPIEDefault() const = 0;
-
-  /// Test whether this toolchaind defaults to non-executable stacks.
-  virtual bool isNoExecStackDefault() const;
+  virtual bool isPIEDefault(const llvm::opt::ArgList &Args) const = 0;
 
   /// Tests whether this toolchain forces its default for PIC, PIE or
   /// non-PIC.  If this returns true, any PIC related flags should be ignored
-  /// and instead the results of \c isPICDefault() and \c isPIEDefault() are
-  /// used exclusively.
+  /// and instead the results of \c isPICDefault() and \c isPIEDefault(const
+  /// llvm::opt::ArgList &Args) are used exclusively.
   virtual bool isPICDefaultForced() const = 0;
 
   /// SupportsProfiling - Does this tool chain support -pg.
@@ -681,7 +685,7 @@ public:
                                           const llvm::opt::ArgList &Args) const;
 
   /// Get paths of HIP device libraries.
-  virtual llvm::SmallVector<std::string, 12>
+  virtual llvm::SmallVector<BitCodeLibraryInfo, 12>
   getHIPDeviceLibs(const llvm::opt::ArgList &Args) const;
 
   /// Return sanitizers which are available in this toolchain.

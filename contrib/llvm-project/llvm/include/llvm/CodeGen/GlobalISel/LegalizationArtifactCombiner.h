@@ -15,6 +15,7 @@
 #define LLVM_CODEGEN_GLOBALISEL_LEGALIZATIONARTIFACTCOMBINER_H
 
 #include "llvm/ADT/SmallBitVector.h"
+#include "llvm/CodeGen/GlobalISel/GISelChangeObserver.h"
 #include "llvm/CodeGen/GlobalISel/GenericMachineInstrs.h"
 #include "llvm/CodeGen/GlobalISel/Legalizer.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
@@ -22,6 +23,7 @@
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Register.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "legalizer"
@@ -52,7 +54,8 @@ public:
 
   bool tryCombineAnyExt(MachineInstr &MI,
                         SmallVectorImpl<MachineInstr *> &DeadInsts,
-                        SmallVectorImpl<Register> &UpdatedDefs) {
+                        SmallVectorImpl<Register> &UpdatedDefs,
+                        GISelObserverWrapper &Observer) {
     assert(MI.getOpcode() == TargetOpcode::G_ANYEXT);
 
     Builder.setInstrAndDebugLoc(MI);
@@ -63,7 +66,11 @@ public:
     Register TruncSrc;
     if (mi_match(SrcReg, MRI, m_GTrunc(m_Reg(TruncSrc)))) {
       LLVM_DEBUG(dbgs() << ".. Combine MI: " << MI;);
-      Builder.buildAnyExtOrTrunc(DstReg, TruncSrc);
+      if (MRI.getType(DstReg) == MRI.getType(TruncSrc))
+        replaceRegOrBuildCopy(DstReg, TruncSrc, MRI, Builder, UpdatedDefs,
+                              Observer);
+      else
+        Builder.buildAnyExtOrTrunc(DstReg, TruncSrc);
       UpdatedDefs.push_back(DstReg);
       markInstAndDefDead(MI, *MRI.getVRegDef(SrcReg), DeadInsts);
       return true;
@@ -120,12 +127,14 @@ public:
         return false;
       LLVM_DEBUG(dbgs() << ".. Combine MI: " << MI;);
       LLT SrcTy = MRI.getType(SrcReg);
-      APInt MaskVal = APInt::getAllOnesValue(SrcTy.getScalarSizeInBits());
+      APInt MaskVal = APInt::getAllOnes(SrcTy.getScalarSizeInBits());
       auto Mask = Builder.buildConstant(
         DstTy, MaskVal.zext(DstTy.getScalarSizeInBits()));
-      auto Extended = SextSrc ? Builder.buildSExtOrTrunc(DstTy, SextSrc) :
-                                Builder.buildAnyExtOrTrunc(DstTy, TruncSrc);
-      Builder.buildAnd(DstReg, Extended, Mask);
+      if (SextSrc && (DstTy != MRI.getType(SextSrc)))
+        SextSrc = Builder.buildSExtOrTrunc(DstTy, SextSrc).getReg(0);
+      if (TruncSrc && (DstTy != MRI.getType(TruncSrc)))
+        TruncSrc = Builder.buildAnyExtOrTrunc(DstTy, TruncSrc).getReg(0);
+      Builder.buildAnd(DstReg, SextSrc ? SextSrc : TruncSrc, Mask);
       markInstAndDefDead(MI, *MRI.getVRegDef(SrcReg), DeadInsts);
       return true;
     }
@@ -176,9 +185,9 @@ public:
       LLVM_DEBUG(dbgs() << ".. Combine MI: " << MI;);
       LLT SrcTy = MRI.getType(SrcReg);
       uint64_t SizeInBits = SrcTy.getScalarSizeInBits();
-      Builder.buildInstr(
-          TargetOpcode::G_SEXT_INREG, {DstReg},
-          {Builder.buildAnyExtOrTrunc(DstTy, TruncSrc), SizeInBits});
+      if (DstTy != MRI.getType(TruncSrc))
+        TruncSrc = Builder.buildAnyExtOrTrunc(DstTy, TruncSrc).getReg(0);
+      Builder.buildSExtInReg(DstReg, TruncSrc, SizeInBits);
       markInstAndDefDead(MI, *MRI.getVRegDef(SrcReg), DeadInsts);
       return true;
     }
@@ -544,12 +553,14 @@ public:
     MachineIRBuilder &MIB;
     const LegalizerInfo &LI;
 
-  private:
+    // Stores the best register found in the current query so far.
+    Register CurrentBest = Register();
+
     /// Given an concat_vector op \p Concat and a start bit and size, try to
     /// find the origin of the value defined by that start position and size.
     ///
-    /// \returns A register if a value can be found, otherwise an empty
-    /// Register.
+    /// \returns a register with the requested size, or the current best
+    /// register found during the current query.
     Register findValueFromConcat(GConcatVectors &Concat, unsigned StartBit,
                                  unsigned Size) {
       assert(Size > 0);
@@ -566,22 +577,22 @@ public:
       // FIXME: we might be able return multiple sources? Or create an
       // appropriate concat to make it fit.
       if (InRegOffset + Size > SrcSize)
-        return Register();
+        return CurrentBest;
 
-      // If the bits exactly cover a single source, then return the operand as
-      // our value reg.
       Register SrcReg = Concat.getReg(StartSrcIdx);
-      if (InRegOffset == 0 && Size == SrcSize)
-        return SrcReg; // A source operand matches exactly.
+      if (InRegOffset == 0 && Size == SrcSize) {
+        CurrentBest = SrcReg;
+        return findValueFromDefImpl(SrcReg, 0, Size);
+      }
 
-      return findValueFromDef(SrcReg, InRegOffset, Size);
+      return findValueFromDefImpl(SrcReg, InRegOffset, Size);
     }
 
     /// Given an build_vector op \p BV and a start bit and size, try to find
     /// the origin of the value defined by that start position and size.
     ///
-    /// \returns A register if a value can be found, otherwise an empty
-    /// Register.
+    /// \returns a register with the requested size, or the current best
+    /// register found during the current query.
     Register findValueFromBuildVector(GBuildVector &BV, unsigned StartBit,
                                       unsigned Size) {
       assert(Size > 0);
@@ -596,17 +607,21 @@ public:
       unsigned InRegOffset = StartBit % SrcSize;
 
       if (InRegOffset != 0)
-        return Register(); // Give up, bits don't start at a scalar source.
+        return CurrentBest; // Give up, bits don't start at a scalar source.
       if (Size < SrcSize)
-        return Register(); // Scalar source is too large for requested bits.
+        return CurrentBest; // Scalar source is too large for requested bits.
 
       // If the bits cover multiple sources evenly, then create a new
       // build_vector to synthesize the required size, if that's been requested.
       if (Size > SrcSize) {
         if (Size % SrcSize > 0)
-          return Register(); // Isn't covered exactly by sources.
+          return CurrentBest; // Isn't covered exactly by sources.
 
         unsigned NumSrcsUsed = Size / SrcSize;
+        // If we're requesting all of the sources, just return this def.
+        if (NumSrcsUsed == BV.getNumSources())
+          return BV.getReg(0);
+
         LLT SrcTy = MRI.getType(Src1Reg);
         LLT NewBVTy = LLT::fixed_vector(NumSrcsUsed, SrcTy);
 
@@ -614,7 +629,7 @@ public:
         LegalizeActionStep ActionStep =
             LI.getAction({TargetOpcode::G_BUILD_VECTOR, {NewBVTy, SrcTy}});
         if (ActionStep.Action != LegalizeActions::Legal)
-          return Register();
+          return CurrentBest;
 
         SmallVector<Register> NewSrcs;
         for (unsigned SrcIdx = StartSrcIdx; SrcIdx < StartSrcIdx + NumSrcsUsed;
@@ -630,8 +645,8 @@ public:
     /// Given an G_INSERT op \p MI and a start bit and size, try to find
     /// the origin of the value defined by that start position and size.
     ///
-    /// \returns A register if a value can be found, otherwise an empty
-    /// Register.
+    /// \returns a register with the requested size, or the current best
+    /// register found during the current query.
     Register findValueFromInsert(MachineInstr &MI, unsigned StartBit,
                                  unsigned Size) {
       assert(MI.getOpcode() == TargetOpcode::G_INSERT);
@@ -685,28 +700,25 @@ public:
       if (EndBit <= InsertOffset || InsertedEndBit <= StartBit) {
         SrcRegToUse = ContainerSrcReg;
         NewStartBit = StartBit;
-        return findValueFromDef(SrcRegToUse, NewStartBit, Size);
+        return findValueFromDefImpl(SrcRegToUse, NewStartBit, Size);
       }
       if (InsertOffset <= StartBit && EndBit <= InsertedEndBit) {
         SrcRegToUse = InsertedReg;
         NewStartBit = StartBit - InsertOffset;
-        return findValueFromDef(SrcRegToUse, NewStartBit, Size);
+        if (NewStartBit == 0 &&
+            Size == MRI.getType(SrcRegToUse).getSizeInBits())
+          CurrentBest = SrcRegToUse;
+        return findValueFromDefImpl(SrcRegToUse, NewStartBit, Size);
       }
       // The bit range spans both the inserted and container regions.
       return Register();
     }
 
-  public:
-    ArtifactValueFinder(MachineRegisterInfo &Mri, MachineIRBuilder &Builder,
-                        const LegalizerInfo &Info)
-        : MRI(Mri), MIB(Builder), LI(Info) {}
-
-    /// Try to find a source of the value defined in the def \p DefReg, starting
-    /// at position \p StartBit with size \p Size.
-    /// \returns an empty Register if no value could be found, or \p DefReg if
-    /// if that was the best we could do.
-    Register findValueFromDef(Register DefReg, unsigned StartBit,
-                              unsigned Size) {
+    /// Internal implementation for findValueFromDef(). findValueFromDef()
+    /// initializes some data like the CurrentBest register, which this method
+    /// and its callees rely upon.
+    Register findValueFromDefImpl(Register DefReg, unsigned StartBit,
+                                  unsigned Size) {
       MachineInstr *Def = getDefIgnoringCopies(DefReg, MRI);
       // If the instruction has a single def, then simply delegate the search.
       // For unmerge however with multiple defs, we need to compute the offset
@@ -724,7 +736,7 @@ public:
         }
         Register SrcReg = Def->getOperand(Def->getNumOperands() - 1).getReg();
         Register SrcOriginReg =
-            findValueFromDef(SrcReg, StartBit + DefStartBit, Size);
+            findValueFromDefImpl(SrcReg, StartBit + DefStartBit, Size);
         if (SrcOriginReg)
           return SrcOriginReg;
         // Failed to find a further value. If the StartBit and Size perfectly
@@ -732,7 +744,7 @@ public:
         // nothing.
         if (StartBit == 0 && Size == DefSize)
           return DefReg;
-        return Register();
+        return CurrentBest;
       }
       case TargetOpcode::G_BUILD_VECTOR:
         return findValueFromBuildVector(cast<GBuildVector>(*Def), StartBit,
@@ -740,8 +752,56 @@ public:
       case TargetOpcode::G_INSERT:
         return findValueFromInsert(*Def, StartBit, Size);
       default:
-        return Register();
+        return CurrentBest;
       }
+    }
+
+  public:
+    ArtifactValueFinder(MachineRegisterInfo &Mri, MachineIRBuilder &Builder,
+                        const LegalizerInfo &Info)
+        : MRI(Mri), MIB(Builder), LI(Info) {}
+
+    /// Try to find a source of the value defined in the def \p DefReg, starting
+    /// at position \p StartBit with size \p Size.
+    /// \returns a register with the requested size, or an empty Register if no
+    /// better value could be found.
+    Register findValueFromDef(Register DefReg, unsigned StartBit,
+                              unsigned Size) {
+      CurrentBest = Register();
+      Register FoundReg = findValueFromDefImpl(DefReg, StartBit, Size);
+      return FoundReg != DefReg ? FoundReg : Register();
+    }
+
+    /// Try to combine the defs of an unmerge \p MI by attempting to find
+    /// values that provides the bits for each def reg.
+    /// \returns true if all the defs of the unmerge have been made dead.
+    bool tryCombineUnmergeDefs(GUnmerge &MI, GISelChangeObserver &Observer,
+                               SmallVectorImpl<Register> &UpdatedDefs) {
+      unsigned NumDefs = MI.getNumDefs();
+      LLT DestTy = MRI.getType(MI.getReg(0));
+
+      SmallBitVector DeadDefs(NumDefs);
+      for (unsigned DefIdx = 0; DefIdx < NumDefs; ++DefIdx) {
+        Register DefReg = MI.getReg(DefIdx);
+        if (MRI.use_nodbg_empty(DefReg)) {
+          DeadDefs[DefIdx] = true;
+          continue;
+        }
+        Register FoundVal = findValueFromDef(DefReg, 0, DestTy.getSizeInBits());
+        if (!FoundVal)
+          continue;
+        if (MRI.getType(FoundVal) != DestTy)
+          continue;
+
+        replaceRegOrBuildCopy(DefReg, FoundVal, MRI, MIB, UpdatedDefs,
+                              Observer);
+        // We only want to replace the uses, not the def of the old reg.
+        Observer.changingInstr(MI);
+        MI.getOperand(DefIdx).setReg(DefReg);
+        Observer.changedInstr(MI);
+        DeadDefs[DefIdx] = true;
+      }
+      return DeadDefs.all();
     }
   };
 
@@ -761,33 +821,11 @@ public:
 
     Builder.setInstrAndDebugLoc(MI);
 
-    auto tryCombineViaValueFinder = [&]() {
-      ArtifactValueFinder ValueFinder(MRI, Builder, LI);
-
-      SmallBitVector DeadDefs(NumDefs);
-      for (unsigned DefIdx = 0; DefIdx < NumDefs; ++DefIdx) {
-        Register DefReg = MI.getReg(DefIdx);
-        Register FoundVal =
-            ValueFinder.findValueFromDef(DefReg, 0, DestTy.getSizeInBits());
-        if (!FoundVal || FoundVal == DefReg)
-          continue;
-        if (MRI.getType(FoundVal) != DestTy)
-          continue;
-
-        replaceRegOrBuildCopy(DefReg, FoundVal, MRI, Builder, UpdatedDefs,
-                              Observer);
-        // We only want to replace the uses, not the def of the old reg.
-        Observer.changingInstr(MI);
-        MI.getOperand(DefIdx).setReg(DefReg);
-        Observer.changedInstr(MI);
-        DeadDefs[DefIdx] = true;
-      }
-      if (DeadDefs.all()) {
-        markInstAndDefDead(MI, *SrcDef, DeadInsts, SrcDefIdx);
-        return true;
-      }
-      return false;
-    };
+    ArtifactValueFinder Finder(MRI, Builder, LI);
+    if (Finder.tryCombineUnmergeDefs(MI, Observer, UpdatedDefs)) {
+      markInstAndDefDead(MI, *SrcDef, DeadInsts, SrcDefIdx);
+      return true;
+    }
 
     if (auto *SrcUnmerge = dyn_cast<GUnmerge>(SrcDef)) {
       // %0:_(<4 x s16>) = G_FOO
@@ -813,7 +851,7 @@ public:
           return false;
         break;
       default:
-        return tryCombineViaValueFinder();
+        return false;
       }
 
       auto NewUnmerge = Builder.buildUnmerge(DestTy, SrcUnmergeSrc);
@@ -845,11 +883,7 @@ public:
                                        ConvertOp, OpTy, DestTy)) {
       // We might have a chance to combine later by trying to combine
       // unmerge(cast) first
-      if (tryFoldUnmergeCast(MI, *SrcDef, DeadInsts, UpdatedDefs))
-        return true;
-
-      // Try using the value finder.
-      return tryCombineViaValueFinder();
+      return tryFoldUnmergeCast(MI, *SrcDef, DeadInsts, UpdatedDefs);
     }
 
     const unsigned NumMergeRegs = MergeI->getNumOperands() - 1;
@@ -1042,7 +1076,7 @@ public:
     default:
       return false;
     case TargetOpcode::G_ANYEXT:
-      Changed = tryCombineAnyExt(MI, DeadInsts, UpdatedDefs);
+      Changed = tryCombineAnyExt(MI, DeadInsts, UpdatedDefs, WrapperObserver);
       break;
     case TargetOpcode::G_ZEXT:
       Changed = tryCombineZExt(MI, DeadInsts, UpdatedDefs, WrapperObserver);

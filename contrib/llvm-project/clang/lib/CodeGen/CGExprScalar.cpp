@@ -419,6 +419,11 @@ public:
   Value *VisitExpr(Expr *S);
 
   Value *VisitConstantExpr(ConstantExpr *E) {
+    // A constant expression of type 'void' generates no code and produces no
+    // value.
+    if (E->getType()->isVoidType())
+      return nullptr;
+
     if (Value *Result = ConstantEmitter(CGF).tryEmitConstantExpr(E)) {
       if (E->isGLValue())
         return CGF.Builder.CreateLoad(Address(
@@ -1647,7 +1652,7 @@ Value *ScalarExprEmitter::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   for (unsigned i = 2; i < E->getNumSubExprs(); ++i) {
     llvm::APSInt Idx = E->getShuffleMaskIdx(CGF.getContext(), i-2);
     // Check for -1 and output it as undef in the IR.
-    if (Idx.isSigned() && Idx.isAllOnesValue())
+    if (Idx.isSigned() && Idx.isAllOnes())
       Indices.push_back(-1);
     else
       Indices.push_back(Idx.getZExtValue());
@@ -1775,13 +1780,18 @@ Value *ScalarExprEmitter::VisitMatrixSubscriptExpr(MatrixSubscriptExpr *E) {
   // integer value.
   Value *RowIdx = Visit(E->getRowIdx());
   Value *ColumnIdx = Visit(E->getColumnIdx());
+
+  const auto *MatrixTy = E->getBase()->getType()->castAs<ConstantMatrixType>();
+  unsigned NumRows = MatrixTy->getNumRows();
+  llvm::MatrixBuilder<CGBuilderTy> MB(Builder);
+  Value *Idx = MB.CreateIndex(RowIdx, ColumnIdx, NumRows);
+  if (CGF.CGM.getCodeGenOpts().OptimizationLevel > 0)
+    MB.CreateIndexAssumption(Idx, MatrixTy->getNumElementsFlattened());
+
   Value *Matrix = Visit(E->getBase());
 
   // TODO: Should we emit bounds checks with SanitizerKind::ArrayBounds?
-  llvm::MatrixBuilder<CGBuilderTy> MB(Builder);
-  return MB.CreateExtractElement(
-      Matrix, RowIdx, ColumnIdx,
-      E->getBase()->getType()->castAs<ConstantMatrixType>()->getNumRows());
+  return Builder.CreateExtractElement(Matrix, Idx, "matrixext");
 }
 
 static int getMaskElt(llvm::ShuffleVectorInst *SVI, unsigned Idx,
@@ -2063,11 +2073,25 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     // perform the bitcast.
     if (const auto *FixedSrc = dyn_cast<llvm::FixedVectorType>(SrcTy)) {
       if (const auto *ScalableDst = dyn_cast<llvm::ScalableVectorType>(DstTy)) {
+        // If we are casting a fixed i8 vector to a scalable 16 x i1 predicate
+        // vector, use a vector insert and bitcast the result.
+        bool NeedsBitCast = false;
+        auto PredType = llvm::ScalableVectorType::get(Builder.getInt1Ty(), 16);
+        llvm::Type *OrigType = DstTy;
+        if (ScalableDst == PredType &&
+            FixedSrc->getElementType() == Builder.getInt8Ty()) {
+          DstTy = llvm::ScalableVectorType::get(Builder.getInt8Ty(), 2);
+          ScalableDst = dyn_cast<llvm::ScalableVectorType>(DstTy);
+          NeedsBitCast = true;
+        }
         if (FixedSrc->getElementType() == ScalableDst->getElementType()) {
           llvm::Value *UndefVec = llvm::UndefValue::get(DstTy);
           llvm::Value *Zero = llvm::Constant::getNullValue(CGF.CGM.Int64Ty);
-          return Builder.CreateInsertVector(DstTy, UndefVec, Src, Zero,
-                                            "castScalableSve");
+          llvm::Value *Result = Builder.CreateInsertVector(
+              DstTy, UndefVec, Src, Zero, "castScalableSve");
+          if (NeedsBitCast)
+            Result = Builder.CreateBitCast(Result, OrigType);
+          return Result;
         }
       }
     }
@@ -2077,6 +2101,15 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     // perform the bitcast.
     if (const auto *ScalableSrc = dyn_cast<llvm::ScalableVectorType>(SrcTy)) {
       if (const auto *FixedDst = dyn_cast<llvm::FixedVectorType>(DstTy)) {
+        // If we are casting a scalable 16 x i1 predicate vector to a fixed i8
+        // vector, bitcast the source and use a vector extract.
+        auto PredType = llvm::ScalableVectorType::get(Builder.getInt1Ty(), 16);
+        if (ScalableSrc == PredType &&
+            FixedDst->getElementType() == Builder.getInt8Ty()) {
+          SrcTy = llvm::ScalableVectorType::get(Builder.getInt8Ty(), 2);
+          ScalableSrc = dyn_cast<llvm::ScalableVectorType>(SrcTy);
+          Src = Builder.CreateBitCast(Src, SrcTy);
+        }
         if (ScalableSrc->getElementType() == FixedDst->getElementType()) {
           llvm::Value *Zero = llvm::Constant::getNullValue(CGF.CGM.Int64Ty);
           return Builder.CreateExtractVector(DstTy, Src, Zero, "castFixedSve");
@@ -2087,10 +2120,9 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     // Perform VLAT <-> VLST bitcast through memory.
     // TODO: since the llvm.experimental.vector.{insert,extract} intrinsics
     //       require the element types of the vectors to be the same, we
-    //       need to keep this around for casting between predicates, or more
-    //       generally for bitcasts between VLAT <-> VLST where the element
-    //       types of the vectors are not the same, until we figure out a better
-    //       way of doing these casts.
+    //       need to keep this around for bitcasts between VLAT <-> VLST where
+    //       the element types of the vectors are not the same, until we figure
+    //       out a better way of doing these casts.
     if ((isa<llvm::FixedVectorType>(SrcTy) &&
          isa<llvm::ScalableVectorType>(DstTy)) ||
         (isa<llvm::ScalableVectorType>(SrcTy) &&
@@ -2127,9 +2159,21 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   }
   case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:
-  case CK_NoOp:
   case CK_UserDefinedConversion:
     return Visit(const_cast<Expr*>(E));
+
+  case CK_NoOp: {
+    llvm::Value *V = Visit(const_cast<Expr *>(E));
+    if (V) {
+      // CK_NoOp can model a pointer qualification conversion, which can remove
+      // an array bound and change the IR type.
+      // FIXME: Once pointee types are removed from IR, remove this.
+      llvm::Type *T = ConvertType(DestTy);
+      if (T != V->getType())
+        V = Builder.CreateBitCast(V, T);
+    }
+    return V;
+  }
 
   case CK_BaseToDerived: {
     const CXXRecordDecl *DerivedClassDecl = DestTy->getPointeeCXXRecordDecl();
@@ -2658,7 +2702,8 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
       amt = llvm::ConstantFP::get(VMContext,
                                   llvm::APFloat(static_cast<double>(amount)));
     else {
-      // Remaining types are Half, LongDouble or __float128. Convert from float.
+      // Remaining types are Half, LongDouble, __ibm128 or __float128. Convert
+      // from float.
       llvm::APFloat F(static_cast<float>(amount));
       bool ignored;
       const llvm::fltSemantics *FS;
@@ -2668,6 +2713,8 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
         FS = &CGF.getTarget().getFloat128Format();
       else if (value->getType()->isHalfTy())
         FS = &CGF.getTarget().getHalfFormat();
+      else if (value->getType()->isPPC_FP128Ty())
+        FS = &CGF.getTarget().getIbm128Format();
       else
         FS = &CGF.getTarget().getLongDoubleFormat();
       F.convert(*FS, llvm::APFloat::rmTowardZero, &ignored);
@@ -4763,11 +4810,8 @@ Value *ScalarExprEmitter::VisitAsTypeExpr(AsTypeExpr *E) {
   // vector to get a vec4, then a bitcast if the target type is different.
   if (NumElementsSrc == 3 && NumElementsDst != 3) {
     Src = ConvertVec3AndVec4(Builder, CGF, Src, 4);
-
-    if (!CGF.CGM.getCodeGenOpts().PreserveVec3Type) {
-      Src = createCastsForTypeOfSameSize(Builder, CGF.CGM.getDataLayout(), Src,
-                                         DstTy);
-    }
+    Src = createCastsForTypeOfSameSize(Builder, CGF.CGM.getDataLayout(), Src,
+                                       DstTy);
 
     Src->setName("astype");
     return Src;
@@ -4777,12 +4821,10 @@ Value *ScalarExprEmitter::VisitAsTypeExpr(AsTypeExpr *E) {
   // to vec4 if the original type is not vec4, then a shuffle vector to
   // get a vec3.
   if (NumElementsSrc != 3 && NumElementsDst == 3) {
-    if (!CGF.CGM.getCodeGenOpts().PreserveVec3Type) {
-      auto *Vec4Ty = llvm::FixedVectorType::get(
-          cast<llvm::VectorType>(DstTy)->getElementType(), 4);
-      Src = createCastsForTypeOfSameSize(Builder, CGF.CGM.getDataLayout(), Src,
-                                         Vec4Ty);
-    }
+    auto *Vec4Ty = llvm::FixedVectorType::get(
+        cast<llvm::VectorType>(DstTy)->getElementType(), 4);
+    Src = createCastsForTypeOfSameSize(Builder, CGF.CGM.getDataLayout(), Src,
+                                       Vec4Ty);
 
     Src = ConvertVec3AndVec4(Builder, CGF, Src, 3);
     Src->setName("astype");
@@ -4942,7 +4984,7 @@ static GEPOffsetAndOverflow EmitGEPOffsetInBytes(Value *BasePtr, Value *GEPVal,
 
   auto *GEP = cast<llvm::GEPOperator>(GEPVal);
   assert(GEP->getPointerOperand() == BasePtr &&
-         "BasePtr must be the the base of the GEP.");
+         "BasePtr must be the base of the GEP.");
   assert(GEP->isInBounds() && "Expected inbounds GEP");
 
   auto *IntPtrTy = DL.getIntPtrType(GEP->getPointerOperandType());

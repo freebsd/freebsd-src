@@ -479,7 +479,7 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     if (ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
       const APInt &api = CI->getValue();
       APFloat apf(DestTy->getFltSemantics(),
-                  APInt::getNullValue(DestTy->getPrimitiveSizeInBits()));
+                  APInt::getZero(DestTy->getPrimitiveSizeInBits()));
       apf.convertFromAPInt(api, opc==Instruction::SIToFP,
                            APFloat::rmNearestTiesToEven);
       return ConstantFP::get(V->getContext(), apf);
@@ -667,13 +667,16 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
     }
   }
 
+  if (Constant *C = Val->getAggregateElement(CIdx))
+    return C;
+
   // Lane < Splat minimum vector width => extractelt Splat(x), Lane -> x
   if (CIdx->getValue().ult(ValVTy->getElementCount().getKnownMinValue())) {
     if (Constant *SplatVal = Val->getSplatValue())
       return SplatVal;
   }
 
-  return Val->getAggregateElement(CIdx);
+  return nullptr;
 }
 
 Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
@@ -728,12 +731,16 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1, Constant *V2,
 
   // If the mask is all zeros this is a splat, no need to go through all
   // elements.
-  if (all_of(Mask, [](int Elt) { return Elt == 0; }) &&
-      !MaskEltCount.isScalable()) {
+  if (all_of(Mask, [](int Elt) { return Elt == 0; })) {
     Type *Ty = IntegerType::get(V1->getContext(), 32);
     Constant *Elt =
         ConstantExpr::getExtractElement(V1, ConstantInt::get(Ty, 0));
-    return ConstantVector::getSplat(MaskEltCount, Elt);
+
+    if (Elt->isNullValue()) {
+      auto *VTy = VectorType::get(EltTy, MaskEltCount);
+      return ConstantAggregateZero::get(VTy);
+    } else if (!MaskEltCount.isScalable())
+      return ConstantVector::getSplat(MaskEltCount, Elt);
   }
   // Do not iterate on scalable vector. The num of elements is unknown at
   // compile-time.
@@ -1138,7 +1145,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
         return ConstantInt::get(CI1->getContext(), C1V.udiv(C2V));
       case Instruction::SDiv:
         assert(!CI2->isZero() && "Div by zero handled above");
-        if (C2V.isAllOnesValue() && C1V.isMinSignedValue())
+        if (C2V.isAllOnes() && C1V.isMinSignedValue())
           return PoisonValue::get(CI1->getType());   // MIN_INT / -1 -> poison
         return ConstantInt::get(CI1->getContext(), C1V.sdiv(C2V));
       case Instruction::URem:
@@ -1146,7 +1153,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
         return ConstantInt::get(CI1->getContext(), C1V.urem(C2V));
       case Instruction::SRem:
         assert(!CI2->isZero() && "Div by zero handled above");
-        if (C2V.isAllOnesValue() && C1V.isMinSignedValue())
+        if (C2V.isAllOnes() && C1V.isMinSignedValue())
           return PoisonValue::get(CI1->getType());   // MIN_INT % -1 -> poison
         return ConstantInt::get(CI1->getContext(), C1V.srem(C2V));
       case Instruction::And:
@@ -1789,19 +1796,8 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
   if (isa<ConstantInt>(C1) && isa<ConstantInt>(C2)) {
     const APInt &V1 = cast<ConstantInt>(C1)->getValue();
     const APInt &V2 = cast<ConstantInt>(C2)->getValue();
-    switch (pred) {
-    default: llvm_unreachable("Invalid ICmp Predicate");
-    case ICmpInst::ICMP_EQ:  return ConstantInt::get(ResultTy, V1 == V2);
-    case ICmpInst::ICMP_NE:  return ConstantInt::get(ResultTy, V1 != V2);
-    case ICmpInst::ICMP_SLT: return ConstantInt::get(ResultTy, V1.slt(V2));
-    case ICmpInst::ICMP_SGT: return ConstantInt::get(ResultTy, V1.sgt(V2));
-    case ICmpInst::ICMP_SLE: return ConstantInt::get(ResultTy, V1.sle(V2));
-    case ICmpInst::ICMP_SGE: return ConstantInt::get(ResultTy, V1.sge(V2));
-    case ICmpInst::ICMP_ULT: return ConstantInt::get(ResultTy, V1.ult(V2));
-    case ICmpInst::ICMP_UGT: return ConstantInt::get(ResultTy, V1.ugt(V2));
-    case ICmpInst::ICMP_ULE: return ConstantInt::get(ResultTy, V1.ule(V2));
-    case ICmpInst::ICMP_UGE: return ConstantInt::get(ResultTy, V1.uge(V2));
-    }
+    return ConstantInt::get(
+        ResultTy, ICmpInst::compare(V1, V2, (ICmpInst::Predicate)pred));
   } else if (isa<ConstantFP>(C1) && isa<ConstantFP>(C2)) {
     const APFloat &C1V = cast<ConstantFP>(C1)->getValueAPF();
     const APFloat &C2V = cast<ConstantFP>(C2)->getValueAPF();
@@ -2323,7 +2319,7 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
       if (isIndexInRangeOfArrayType(STy->getNumElements(), CI))
         // It's in range, skip to the next index.
         continue;
-      if (CI->getSExtValue() < 0) {
+      if (CI->isNegative()) {
         // It's out of range and negative, don't try to factor it.
         Unknown = true;
         continue;
@@ -2334,7 +2330,7 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
       for (unsigned I = 0, E = CV->getNumElements(); I != E; ++I) {
         auto *CI = cast<ConstantInt>(CV->getElementAsConstant(I));
         InRange &= isIndexInRangeOfArrayType(STy->getNumElements(), CI);
-        if (CI->getSExtValue() < 0) {
+        if (CI->isNegative()) {
           Unknown = true;
           break;
         }

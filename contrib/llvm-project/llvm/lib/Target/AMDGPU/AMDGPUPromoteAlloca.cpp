@@ -21,6 +21,7 @@
 #include "llvm/IR/IntrinsicsR600.h"
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetMachine.h"
+#include "Utils/AMDGPUBaseInfo.h"
 
 #define DEBUG_TYPE "amdgpu-promote-alloca"
 
@@ -176,6 +177,10 @@ bool AMDGPUPromoteAllocaImpl::run(Function &F) {
   if (IsAMDGCN) {
     const GCNSubtarget &ST = TM.getSubtarget<GCNSubtarget>(F);
     MaxVGPRs = ST.getMaxNumVGPRs(ST.getWavesPerEU(F).first);
+    // A non-entry function has only 32 caller preserved registers.
+    // Do not promote alloca which will force spilling.
+    if (!AMDGPU::isEntryFunctionCC(F.getCallingConv()))
+      MaxVGPRs = std::min(MaxVGPRs, 32u);
   } else {
     MaxVGPRs = 128;
   }
@@ -200,7 +205,7 @@ bool AMDGPUPromoteAllocaImpl::run(Function &F) {
 
 std::pair<Value *, Value *>
 AMDGPUPromoteAllocaImpl::getLocalSizeYZ(IRBuilder<> &Builder) {
-  const Function &F = *Builder.GetInsertBlock()->getParent();
+  Function &F = *Builder.GetInsertBlock()->getParent();
   const AMDGPUSubtarget &ST = AMDGPUSubtarget::get(TM, F);
 
   if (!IsAMDHSA) {
@@ -256,11 +261,12 @@ AMDGPUPromoteAllocaImpl::getLocalSizeYZ(IRBuilder<> &Builder) {
     = Intrinsic::getDeclaration(Mod, Intrinsic::amdgcn_dispatch_ptr);
 
   CallInst *DispatchPtr = Builder.CreateCall(DispatchPtrFn, {});
-  DispatchPtr->addAttribute(AttributeList::ReturnIndex, Attribute::NoAlias);
-  DispatchPtr->addAttribute(AttributeList::ReturnIndex, Attribute::NonNull);
+  DispatchPtr->addRetAttr(Attribute::NoAlias);
+  DispatchPtr->addRetAttr(Attribute::NonNull);
+  F.removeFnAttr("amdgpu-no-dispatch-ptr");
 
   // Size of the dispatch packet struct.
-  DispatchPtr->addDereferenceableAttr(AttributeList::ReturnIndex, 64);
+  DispatchPtr->addDereferenceableRetAttr(64);
 
   Type *I32Ty = Type::getInt32Ty(Mod->getContext());
   Value *CastDispatchPtr = Builder.CreateBitCast(
@@ -268,7 +274,7 @@ AMDGPUPromoteAllocaImpl::getLocalSizeYZ(IRBuilder<> &Builder) {
 
   // We could do a single 64-bit load here, but it's likely that the basic
   // 32-bit and extract sequence is already present, and it is probably easier
-  // to CSE this. The loads should be mergable later anyway.
+  // to CSE this. The loads should be mergeable later anyway.
   Value *GEPXY = Builder.CreateConstInBoundsGEP1_64(I32Ty, CastDispatchPtr, 1);
   LoadInst *LoadXY = Builder.CreateAlignedLoad(I32Ty, GEPXY, Align(4));
 
@@ -288,23 +294,27 @@ AMDGPUPromoteAllocaImpl::getLocalSizeYZ(IRBuilder<> &Builder) {
 
 Value *AMDGPUPromoteAllocaImpl::getWorkitemID(IRBuilder<> &Builder,
                                               unsigned N) {
-  const AMDGPUSubtarget &ST =
-      AMDGPUSubtarget::get(TM, *Builder.GetInsertBlock()->getParent());
+  Function *F = Builder.GetInsertBlock()->getParent();
+  const AMDGPUSubtarget &ST = AMDGPUSubtarget::get(TM, *F);
   Intrinsic::ID IntrID = Intrinsic::not_intrinsic;
+  StringRef AttrName;
 
   switch (N) {
   case 0:
     IntrID = IsAMDGCN ? (Intrinsic::ID)Intrinsic::amdgcn_workitem_id_x
                       : (Intrinsic::ID)Intrinsic::r600_read_tidig_x;
+    AttrName = "amdgpu-no-workitem-id-x";
     break;
   case 1:
     IntrID = IsAMDGCN ? (Intrinsic::ID)Intrinsic::amdgcn_workitem_id_y
                       : (Intrinsic::ID)Intrinsic::r600_read_tidig_y;
+    AttrName = "amdgpu-no-workitem-id-y";
     break;
 
   case 2:
     IntrID = IsAMDGCN ? (Intrinsic::ID)Intrinsic::amdgcn_workitem_id_z
                       : (Intrinsic::ID)Intrinsic::r600_read_tidig_z;
+    AttrName = "amdgpu-no-workitem-id-z";
     break;
   default:
     llvm_unreachable("invalid dimension");
@@ -313,6 +323,7 @@ Value *AMDGPUPromoteAllocaImpl::getWorkitemID(IRBuilder<> &Builder,
   Function *WorkitemIdFn = Intrinsic::getDeclaration(Mod, IntrID);
   CallInst *CI = Builder.CreateCall(WorkitemIdFn);
   ST.makeLIDRangeMetadata(CI);
+  F->removeFnAttr(AttrName);
 
   return CI;
 }
@@ -1065,9 +1076,9 @@ bool AMDGPUPromoteAllocaImpl::handleAlloca(AllocaInst &I, bool SufficientLDS) {
                                     MI->getRawSource(), MI->getSourceAlign(),
                                     MI->getLength(), MI->isVolatile());
 
-    for (unsigned I = 1; I != 3; ++I) {
-      if (uint64_t Bytes = Intr->getDereferenceableBytes(I)) {
-        B->addDereferenceableAttr(I, Bytes);
+    for (unsigned I = 0; I != 2; ++I) {
+      if (uint64_t Bytes = Intr->getParamDereferenceableBytes(I)) {
+        B->addDereferenceableParamAttr(I, Bytes);
       }
     }
 
@@ -1101,6 +1112,10 @@ bool promoteAllocasToVector(Function &F, TargetMachine &TM) {
   if (TM.getTargetTriple().getArch() == Triple::amdgcn) {
     const GCNSubtarget &ST = TM.getSubtarget<GCNSubtarget>(F);
     MaxVGPRs = ST.getMaxNumVGPRs(ST.getWavesPerEU(F).first);
+    // A non-entry function has only 32 caller preserved registers.
+    // Do not promote alloca which will force spilling.
+    if (!AMDGPU::isEntryFunctionCC(F.getCallingConv()))
+      MaxVGPRs = std::min(MaxVGPRs, 32u);
   } else {
     MaxVGPRs = 128;
   }

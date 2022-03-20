@@ -73,9 +73,7 @@ using namespace lldb_private;
 
 #define DEFAULT_DISASM_BYTE_SIZE 32
 
-namespace {
-
-Status AttachToProcess(ProcessAttachInfo &attach_info, Target &target) {
+static Status AttachToProcess(ProcessAttachInfo &attach_info, Target &target) {
   std::lock_guard<std::recursive_mutex> guard(target.GetAPIMutex());
 
   auto process_sp = target.GetProcessSP();
@@ -93,8 +91,6 @@ Status AttachToProcess(ProcessAttachInfo &attach_info, Target &target) {
 
   return target.Attach(attach_info, nullptr);
 }
-
-} // namespace
 
 // SBTarget constructor
 SBTarget::SBTarget() : m_opaque_sp() {
@@ -217,17 +213,11 @@ SBStructuredData SBTarget::GetStatistics() {
   TargetSP target_sp(GetSP());
   if (!target_sp)
     return LLDB_RECORD_RESULT(data);
-
-  auto stats_up = std::make_unique<StructuredData::Dictionary>();
-  int i = 0;
-  for (auto &Entry : target_sp->GetStatistics()) {
-    std::string Desc = lldb_private::GetStatDescription(
-        static_cast<lldb_private::StatisticKind>(i));
-    stats_up->AddIntegerItem(Desc, Entry);
-    i += 1;
-  }
-
-  data.m_impl_up->SetObjectSP(std::move(stats_up));
+  std::string json_str =
+      llvm::formatv("{0:2}",
+          DebuggerStats::ReportStatistics(target_sp->GetDebugger(),
+                                          target_sp.get())).str();
+  data.m_impl_up->SetObjectSP(StructuredData::ParseJSON(json_str));
   return LLDB_RECORD_RESULT(data);
 }
 
@@ -237,7 +227,7 @@ void SBTarget::SetCollectingStats(bool v) {
   TargetSP target_sp(GetSP());
   if (!target_sp)
     return;
-  return target_sp->SetCollectingStats(v);
+  return DebuggerStats::SetCollectingStats(v);
 }
 
 bool SBTarget::GetCollectingStats() {
@@ -246,7 +236,7 @@ bool SBTarget::GetCollectingStats() {
   TargetSP target_sp(GetSP());
   if (!target_sp)
     return false;
-  return target_sp->GetCollectingStats();
+  return DebuggerStats::GetCollectingStats();
 }
 
 SBProcess SBTarget::LoadCore(const char *core_file) {
@@ -1596,13 +1586,13 @@ void SBTarget::AppendImageSearchPath(const char *from, const char *to,
   if (!target_sp)
     return error.SetErrorString("invalid target");
 
-  const ConstString csFrom(from), csTo(to);
-  if (!csFrom)
+  llvm::StringRef srFrom = from, srTo = to;
+  if (srFrom.empty())
     return error.SetErrorString("<from> path can't be empty");
-  if (!csTo)
+  if (srTo.empty())
     return error.SetErrorString("<to> path can't be empty");
 
-  target_sp->GetImageSearchPathList().Append(csFrom, csTo, true);
+  target_sp->GetImageSearchPathList().Append(srFrom, srTo, true);
 }
 
 lldb::SBModule SBTarget::AddModule(const char *path, const char *triple,
@@ -1831,11 +1821,13 @@ lldb::SBSymbolContextList SBTarget::FindFunctions(const char *name,
   if (!target_sp)
     return LLDB_RECORD_RESULT(sb_sc_list);
 
-  const bool symbols_ok = true;
-  const bool inlines_ok = true;
+  ModuleFunctionSearchOptions function_options;
+  function_options.include_symbols = true;
+  function_options.include_inlines = true;
+
   FunctionNameType mask = static_cast<FunctionNameType>(name_type_mask);
-  target_sp->GetImages().FindFunctions(ConstString(name), mask, symbols_ok,
-                                       inlines_ok, *sb_sc_list);
+  target_sp->GetImages().FindFunctions(ConstString(name), mask,
+                                       function_options, *sb_sc_list);
   return LLDB_RECORD_RESULT(sb_sc_list);
 }
 
@@ -1851,20 +1843,25 @@ lldb::SBSymbolContextList SBTarget::FindGlobalFunctions(const char *name,
     llvm::StringRef name_ref(name);
     TargetSP target_sp(GetSP());
     if (target_sp) {
+      ModuleFunctionSearchOptions function_options;
+      function_options.include_symbols = true;
+      function_options.include_inlines = true;
+
       std::string regexstr;
       switch (matchtype) {
       case eMatchTypeRegex:
-        target_sp->GetImages().FindFunctions(RegularExpression(name_ref), true,
-                                             true, *sb_sc_list);
+        target_sp->GetImages().FindFunctions(RegularExpression(name_ref),
+                                             function_options, *sb_sc_list);
         break;
       case eMatchTypeStartsWith:
         regexstr = llvm::Regex::escape(name) + ".*";
-        target_sp->GetImages().FindFunctions(RegularExpression(regexstr), true,
-                                             true, *sb_sc_list);
+        target_sp->GetImages().FindFunctions(RegularExpression(regexstr),
+                                             function_options, *sb_sc_list);
         break;
       default:
-        target_sp->GetImages().FindFunctions(
-            ConstString(name), eFunctionNameTypeAny, true, true, *sb_sc_list);
+        target_sp->GetImages().FindFunctions(ConstString(name),
+                                             eFunctionNameTypeAny,
+                                             function_options, *sb_sc_list);
         break;
       }
     }

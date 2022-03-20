@@ -17,9 +17,6 @@
 #pragma GCC system_header
 #endif
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Compare, class _RandomAccessIterator>
@@ -41,7 +38,7 @@ __sift_down(_RandomAccessIterator __first, _RandomAccessIterator /*__last*/,
     __child = 2 * __child + 1;
     _RandomAccessIterator __child_i = __first + __child;
 
-    if ((__child + 1) < __len && __comp(*__child_i, *(__child_i + 1))) {
+    if ((__child + 1) < __len && __comp(*__child_i, *(__child_i + difference_type(1)))) {
         // right-child exists and is greater than left-child
         ++__child_i;
         ++__child;
@@ -66,7 +63,7 @@ __sift_down(_RandomAccessIterator __first, _RandomAccessIterator /*__last*/,
         __child = 2 * __child + 1;
         __child_i = __first + __child;
 
-        if ((__child + 1) < __len && __comp(*__child_i, *(__child_i + 1))) {
+        if ((__child + 1) < __len && __comp(*__child_i, *(__child_i + difference_type(1)))) {
             // right-child exists and is greater than left-child
             ++__child_i;
             ++__child;
@@ -78,7 +75,5 @@ __sift_down(_RandomAccessIterator __first, _RandomAccessIterator /*__last*/,
 }
 
 _LIBCPP_END_NAMESPACE_STD
-
-_LIBCPP_POP_MACROS
 
 #endif // _LIBCPP___ALGORITHM_SIFT_DOWN_H

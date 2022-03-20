@@ -643,6 +643,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(convergent);
   KEYWORD(dereferenceable);
   KEYWORD(dereferenceable_or_null);
+  KEYWORD(disable_sanitizer_instrumentation);
   KEYWORD(elementtype);
   KEYWORD(inaccessiblememonly);
   KEYWORD(inaccessiblemem_or_argmemonly);
@@ -769,6 +770,9 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(returnDoesNotAlias);
   KEYWORD(noInline);
   KEYWORD(alwaysInline);
+  KEYWORD(noUnwind);
+  KEYWORD(mayThrow);
+  KEYWORD(hasUnknownCall);
   KEYWORD(calls);
   KEYWORD(callee);
   KEYWORD(params);
@@ -848,7 +852,15 @@ lltok::Kind LLLexer::LexIdentifier() {
   TYPEKEYWORD("x86_mmx",   Type::getX86_MMXTy(Context));
   TYPEKEYWORD("x86_amx",   Type::getX86_AMXTy(Context));
   TYPEKEYWORD("token",     Type::getTokenTy(Context));
-  TYPEKEYWORD("ptr", PointerType::getUnqual(Context));
+
+  if (Keyword == "ptr") {
+    if (Context.supportsTypedPointers()) {
+      Warning("ptr type is only supported in -opaque-pointers mode");
+      return lltok::Error;
+    }
+    TyVal = PointerType::getUnqual(Context);
+    return lltok::Type;
+  }
 
 #undef TYPEKEYWORD
 

@@ -23,6 +23,7 @@ def SDT_CallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>,
 // Target-dependent type requirements.
 def SDT_RISCVCall     : SDTypeProfile<0, -1, [SDTCisVT<0, XLenVT>]>;
 def SDT_RISCVSelectCC : SDTypeProfile<1, 5, [SDTCisSameAs<1, 2>,
+                                             SDTCisVT<3, OtherVT>,
                                              SDTCisSameAs<0, 4>,
                                              SDTCisSameAs<4, 5>]>;
 def SDT_RISCVBrCC : SDTypeProfile<0, 4, [SDTCisSameAs<0, 1>,
@@ -152,10 +153,31 @@ def uimmlog2xlen : Operand<XLenVT>, ImmLeaf<XLenVT, [{
   let OperandNamespace = "RISCVOp";
 }
 
+def uimm2 : Operand<XLenVT> {
+  let ParserMatchClass = UImmAsmOperand<2>;
+  let DecoderMethod = "decodeUImmOperand<2>";
+  let OperandType = "OPERAND_UIMM2";
+  let OperandNamespace = "RISCVOp";
+}
+
+def uimm3 : Operand<XLenVT> {
+  let ParserMatchClass = UImmAsmOperand<3>;
+  let DecoderMethod = "decodeUImmOperand<3>";
+  let OperandType = "OPERAND_UIMM3";
+  let OperandNamespace = "RISCVOp";
+}
+
 def uimm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isUInt<5>(Imm);}]> {
   let ParserMatchClass = UImmAsmOperand<5>;
   let DecoderMethod = "decodeUImmOperand<5>";
   let OperandType = "OPERAND_UIMM5";
+  let OperandNamespace = "RISCVOp";
+}
+
+def uimm7 : Operand<XLenVT> {
+  let ParserMatchClass = UImmAsmOperand<7>;
+  let DecoderMethod = "decodeUImmOperand<7>";
+  let OperandType = "OPERAND_UIMM7";
   let OperandNamespace = "RISCVOp";
 }
 
@@ -849,6 +871,87 @@ def : MnemonicAlias<"sbreak", "ebreak">;
 def : InstAlias<"zext.b $rd, $rs", (ANDI GPR:$rd, GPR:$rs, 0xFF), 0>;
 
 //===----------------------------------------------------------------------===//
+// .insn directive instructions
+//===----------------------------------------------------------------------===//
+
+// isCodeGenOnly = 1 to hide them from the tablegened assembly parser.
+let isCodeGenOnly = 1, hasSideEffects = 1, mayLoad = 1, mayStore = 1,
+    hasNoSchedulingInfo = 1 in {
+def InsnR : DirectiveInsnR<(outs AnyReg:$rd), (ins uimm7:$opcode, uimm3:$funct3,
+                                                   uimm7:$funct7, AnyReg:$rs1,
+                                                   AnyReg:$rs2),
+                           "$opcode, $funct3, $funct7, $rd, $rs1, $rs2">;
+def InsnR4 : DirectiveInsnR4<(outs AnyReg:$rd), (ins uimm7:$opcode,
+                                                     uimm3:$funct3,
+                                                     uimm2:$funct2,
+                                                     AnyReg:$rs1, AnyReg:$rs2,
+                                                     AnyReg:$rs3),
+                            "$opcode, $funct3, $funct2, $rd, $rs1, $rs2, $rs3">;
+def InsnI : DirectiveInsnI<(outs AnyReg:$rd), (ins uimm7:$opcode, uimm3:$funct3,
+                                                   AnyReg:$rs1, simm12:$imm12),
+                           "$opcode, $funct3, $rd, $rs1, $imm12">;
+def InsnI_Mem : DirectiveInsnI<(outs AnyReg:$rd), (ins uimm7:$opcode,
+                                                       uimm3:$funct3,
+                                                       AnyReg:$rs1,
+                                                       simm12:$imm12),
+                               "$opcode, $funct3, $rd, ${imm12}(${rs1})">;
+def InsnB : DirectiveInsnB<(outs), (ins uimm7:$opcode, uimm3:$funct3,
+                                        AnyReg:$rs1, AnyReg:$rs2,
+                                        simm13_lsb0:$imm12),
+                           "$opcode, $funct3, $rs1, $rs2, $imm12">;
+def InsnU : DirectiveInsnU<(outs AnyReg:$rd), (ins uimm7:$opcode,
+                                                   uimm20_lui:$imm20),
+                           "$opcode, $rd, $imm20">;
+def InsnJ : DirectiveInsnJ<(outs AnyReg:$rd), (ins uimm7:$opcode,
+                                                   simm21_lsb0_jal:$imm20),
+                           "$opcode, $rd, $imm20">;
+def InsnS : DirectiveInsnS<(outs), (ins uimm7:$opcode, uimm3:$funct3,
+                                        AnyReg:$rs2, AnyReg:$rs1,
+                                        simm12:$imm12),
+                           "$opcode, $funct3, $rs2, ${imm12}(${rs1})">;
+}
+
+// Use InstAliases to match these so that we can combine the insn and format
+// into a mnemonic to use as the key for the tablegened asm matcher table. The
+// parser will take care of creating these fake mnemonics and will only do it
+// for known formats.
+let EmitPriority = 0 in {
+def : InstAlias<".insn_r $opcode, $funct3, $funct7, $rd, $rs1, $rs2",
+                (InsnR AnyReg:$rd, uimm7:$opcode, uimm3:$funct3, uimm7:$funct7,
+                       AnyReg:$rs1, AnyReg:$rs2)>;
+// Accept 4 register form of ".insn r" as alias for ".insn r4".
+def : InstAlias<".insn_r $opcode, $funct3, $funct2, $rd, $rs1, $rs2, $rs3",
+                (InsnR4 AnyReg:$rd, uimm7:$opcode, uimm3:$funct3, uimm2:$funct2,
+                        AnyReg:$rs1, AnyReg:$rs2, AnyReg:$rs3)>;
+def : InstAlias<".insn_r4 $opcode, $funct3, $funct2, $rd, $rs1, $rs2, $rs3",
+                (InsnR4 AnyReg:$rd, uimm7:$opcode, uimm3:$funct3, uimm2:$funct2,
+                        AnyReg:$rs1, AnyReg:$rs2, AnyReg:$rs3)>;
+def : InstAlias<".insn_i $opcode, $funct3, $rd, $rs1, $imm12",
+                (InsnI AnyReg:$rd, uimm7:$opcode, uimm3:$funct3, AnyReg:$rs1,
+                       simm12:$imm12)>;
+def : InstAlias<".insn_i $opcode, $funct3, $rd, ${imm12}(${rs1})",
+                (InsnI_Mem AnyReg:$rd, uimm7:$opcode, uimm3:$funct3,
+                           AnyReg:$rs1, simm12:$imm12)>;
+def : InstAlias<".insn_b $opcode, $funct3, $rs1, $rs2, $imm12",
+                (InsnB uimm7:$opcode, uimm3:$funct3, AnyReg:$rs1,
+                       AnyReg:$rs2, simm13_lsb0:$imm12)>;
+// Accept sb as an alias for b.
+def : InstAlias<".insn_sb $opcode, $funct3, $rs1, $rs2, $imm12",
+                (InsnB uimm7:$opcode, uimm3:$funct3, AnyReg:$rs1,
+                       AnyReg:$rs2, simm13_lsb0:$imm12)>;
+def : InstAlias<".insn_u $opcode, $rd, $imm20",
+                (InsnU AnyReg:$rd, uimm7:$opcode, uimm20_lui:$imm20)>;
+def : InstAlias<".insn_j $opcode, $rd, $imm20",
+                (InsnJ AnyReg:$rd, uimm7:$opcode, simm21_lsb0_jal:$imm20)>;
+// Accept uj as an alias for j.
+def : InstAlias<".insn_uj $opcode, $rd, $imm20",
+                (InsnJ AnyReg:$rd, uimm7:$opcode, simm21_lsb0_jal:$imm20)>;
+def : InstAlias<".insn_s $opcode, $funct3, $rs2, ${imm12}(${rs1})",
+                (InsnS uimm7:$opcode, uimm3:$funct3, AnyReg:$rs2,
+                       AnyReg:$rs1, simm12:$imm12)>;
+}
+
+//===----------------------------------------------------------------------===//
 // Pseudo-instructions and codegen patterns
 //
 // Naming convention: For 'generic' pattern classes, we use the naming
@@ -891,6 +994,14 @@ def add_oneuse : PatFrag<(ops node:$A, node:$B), (add node:$A, node:$B), [{
 
 def mul_oneuse : PatFrag<(ops node:$A, node:$B), (mul node:$A, node:$B), [{
   return N->hasOneUse();
+}]>;
+
+def mul_const_oneuse : PatFrag<(ops node:$A, node:$B),
+                               (mul node:$A, node:$B), [{
+  if (auto *N1C = dyn_cast<ConstantSDNode>(N->getOperand(1)))
+    if (N1C->hasOneUse())
+      return true;
+  return false;
 }]>;
 
 /// Simple arithmetic operations
@@ -966,13 +1077,27 @@ def : Pat<(setgt GPR:$rs1, GPR:$rs2), (SLT GPR:$rs2, GPR:$rs1)>;
 def : Pat<(setge GPR:$rs1, GPR:$rs2), (XORI (SLT GPR:$rs1, GPR:$rs2), 1)>;
 def : Pat<(setle GPR:$rs1, GPR:$rs2), (XORI (SLT GPR:$rs2, GPR:$rs1), 1)>;
 
+def IntCCtoRISCVCC : SDNodeXForm<riscv_selectcc, [{
+  ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(2))->get();
+  RISCVCC::CondCode BrCC = getRISCVCCForIntCC(CC);
+  return CurDAG->getTargetConstant(BrCC, SDLoc(N), Subtarget->getXLenVT());
+}]>;
+
+def riscv_selectcc_frag : PatFrag<(ops node:$lhs, node:$rhs, node:$cc,
+                                       node:$truev, node:$falsev),
+                                  (riscv_selectcc node:$lhs, node:$rhs,
+                                                  node:$cc, node:$truev,
+                                                  node:$falsev), [{}],
+                                  IntCCtoRISCVCC>;
+
 let usesCustomInserter = 1 in
 class SelectCC_rrirr<RegisterClass valty, RegisterClass cmpty>
     : Pseudo<(outs valty:$dst),
              (ins cmpty:$lhs, cmpty:$rhs, ixlenimm:$imm,
               valty:$truev, valty:$falsev),
-             [(set valty:$dst, (riscv_selectcc cmpty:$lhs, cmpty:$rhs,
-              (XLenVT timm:$imm), valty:$truev, valty:$falsev))]>;
+             [(set valty:$dst,
+               (riscv_selectcc_frag:$imm cmpty:$lhs, cmpty:$rhs, cond,
+                                         valty:$truev, valty:$falsev))]>;
 
 def Select_GPR_Using_CC_GPR : SelectCC_rrirr<GPR, GPR>;
 
@@ -1231,22 +1356,30 @@ def : Pat<(i64 (shl (and GPR:$rs1, 0xffffffff), uimm5:$shamt)),
           (SRLI (SLLI GPR:$rs1, 32), (ImmSubFrom32 uimm5:$shamt))>;
 }
 
+// PatFrag to allow ADDW/SUBW/MULW/SLLW to be selected from i64 add/sub/mul/shl
+// if only the lower 32 bits of their result is used.
+class binop_allwusers<SDPatternOperator operator>
+    : PatFrag<(ops node:$lhs, node:$rhs),
+              (operator node:$lhs, node:$rhs), [{
+  return hasAllWUsers(Node);
+}]>;
+
+def sexti32_allwusers : PatFrag<(ops node:$src),
+                                (sext_inreg node:$src, i32), [{
+  return hasAllWUsers(Node);
+}]>;
+
 let Predicates = [IsRV64] in {
 
 /// sext and zext
+
+// Sign extend is not needed if all users are W instructions.
+def : Pat<(sexti32_allwusers GPR:$rs1), (XLenVT GPR:$rs1)>;
 
 def : Pat<(sext_inreg GPR:$rs1, i32), (ADDIW GPR:$rs1, 0)>;
 
 /// ALU operations
 
-def : Pat<(sext_inreg (add GPR:$rs1, GPR:$rs2), i32),
-          (ADDW GPR:$rs1, GPR:$rs2)>;
-def : Pat<(sext_inreg (add GPR:$rs1, simm12:$imm12), i32),
-          (ADDIW GPR:$rs1, simm12:$imm12)>;
-def : Pat<(sext_inreg (sub GPR:$rs1, GPR:$rs2), i32),
-          (SUBW GPR:$rs1, GPR:$rs2)>;
-def : Pat<(sext_inreg (shl GPR:$rs1, uimm5:$shamt), i32),
-          (SLLIW GPR:$rs1, uimm5:$shamt)>;
 def : Pat<(i64 (srl (and GPR:$rs1, 0xffffffff), uimm5:$shamt)),
           (SRLIW GPR:$rs1, uimm5:$shamt)>;
 def : Pat<(i64 (srl (shl GPR:$rs1, (i64 32)), uimm6gt32:$shamt)),
@@ -1259,6 +1392,18 @@ def : Pat<(i64 (sra (shl GPR:$rs1, (i64 32)), uimm6gt32:$shamt)),
 def : PatGprGpr<shiftopw<riscv_sllw>, SLLW>;
 def : PatGprGpr<shiftopw<riscv_srlw>, SRLW>;
 def : PatGprGpr<shiftopw<riscv_sraw>, SRAW>;
+
+// Select W instructions if only the lower 32 bits of the result are used.
+def : PatGprGpr<binop_allwusers<add>, ADDW>;
+def : PatGprSimm12<binop_allwusers<add>, ADDIW>;
+def : PatGprGpr<binop_allwusers<sub>, SUBW>;
+def : PatGprImm<binop_allwusers<shl>, SLLIW, uimm5>;
+
+// If this is a shr of a value sign extended from i32, and all the users only
+// use the lower 32 bits, we can use an sraiw to remove the sext_inreg. This
+// occurs because SimplifyDemandedBits prefers srl over sra.
+def : Pat<(binop_allwusers<srl> (sext_inreg GPR:$rs1, i32), uimm5:$shamt),
+          (SRAIW GPR:$rs1, uimm5:$shamt)>;
 
 /// Loads
 
@@ -1300,7 +1445,8 @@ def : Pat<(add GPR:$rs1, (AddiPair:$rs2)),
                 (AddiPairImmA GPR:$rs2))>;
 
 let Predicates = [IsRV64] in {
-def : Pat<(sext_inreg (add_oneuse GPR:$rs1, (AddiPair:$rs2)), i32),
+// Select W instructions if only the lower 32-bits of the result are used.
+def : Pat<(binop_allwusers<add> GPR:$rs1, (AddiPair:$rs2)),
           (ADDIW (ADDIW GPR:$rs1, (AddiPairImmB AddiPair:$rs2)),
                  (AddiPairImmA AddiPair:$rs2))>;
 }
@@ -1314,6 +1460,6 @@ include "RISCVInstrInfoA.td"
 include "RISCVInstrInfoF.td"
 include "RISCVInstrInfoD.td"
 include "RISCVInstrInfoC.td"
-include "RISCVInstrInfoB.td"
+include "RISCVInstrInfoZb.td"
 include "RISCVInstrInfoV.td"
 include "RISCVInstrInfoZfh.td"

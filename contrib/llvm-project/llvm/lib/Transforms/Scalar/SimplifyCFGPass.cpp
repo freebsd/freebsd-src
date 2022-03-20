@@ -224,7 +224,11 @@ static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
   SmallVector<WeakVH, 16> LoopHeaders(UniqueLoopHeaders.begin(),
                                       UniqueLoopHeaders.end());
 
+  unsigned IterCnt = 0;
+  (void)IterCnt;
   while (LocalChange) {
+    assert(IterCnt++ < 1000 &&
+           "Sanity: iterative simplification didn't converge!");
     LocalChange = false;
 
     // Loop over all of the basic blocks and remove them if they are unneeded.
@@ -317,6 +321,21 @@ SimplifyCFGPass::SimplifyCFGPass() : Options() {
 SimplifyCFGPass::SimplifyCFGPass(const SimplifyCFGOptions &Opts)
     : Options(Opts) {
   applyCommandLineOverridesToOptions(Options);
+}
+
+void SimplifyCFGPass::printPipeline(
+    raw_ostream &OS, function_ref<StringRef(StringRef)> MapClassName2PassName) {
+  static_cast<PassInfoMixin<SimplifyCFGPass> *>(this)->printPipeline(
+      OS, MapClassName2PassName);
+  OS << "<";
+  OS << "bonus-inst-threshold=" << Options.BonusInstThreshold << ";";
+  OS << (Options.ForwardSwitchCondToPhi ? "" : "no-") << "forward-switch-cond;";
+  OS << (Options.ConvertSwitchToLookupTable ? "" : "no-")
+     << "switch-to-lookup;";
+  OS << (Options.NeedCanonicalLoop ? "" : "no-") << "keep-loops;";
+  OS << (Options.HoistCommonInsts ? "" : "no-") << "hoist-common-insts;";
+  OS << (Options.SinkCommonInsts ? "" : "no-") << "sink-common-insts";
+  OS << ">";
 }
 
 PreservedAnalyses SimplifyCFGPass::run(Function &F,

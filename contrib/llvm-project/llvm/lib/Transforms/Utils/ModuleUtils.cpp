@@ -125,7 +125,7 @@ Function *llvm::createSanitizerCtor(Module &M, StringRef CtorName) {
   Function *Ctor = Function::createWithDefaultAttr(
       FunctionType::get(Type::getVoidTy(M.getContext()), false),
       GlobalValue::InternalLinkage, 0, CtorName, &M);
-  Ctor->addAttribute(AttributeList::FunctionIndex, Attribute::NoUnwind);
+  Ctor->addFnAttr(Attribute::NoUnwind);
   BasicBlock *CtorBB = BasicBlock::Create(M.getContext(), "", Ctor);
   ReturnInst::Create(M.getContext(), CtorBB);
   // Ensure Ctor cannot be discarded, even if in a comdat.
@@ -165,7 +165,7 @@ llvm::getOrCreateSanitizerCtorAndInitFunctions(
   if (Function *Ctor = M.getFunction(CtorName))
     // FIXME: Sink this logic into the module, similar to the handling of
     // globals. This will make moving to a concurrent model much easier.
-    if (Ctor->arg_size() == 0 ||
+    if (Ctor->arg_empty() ||
         Ctor->getReturnType() == Type::getVoidTy(M.getContext()))
       return {Ctor, declareSanitizerInitFunction(M, InitName, InitArgTypes)};
 
@@ -297,7 +297,6 @@ void VFABI::setVectorVariantNames(
            "vector function declaration is missing.");
   }
 #endif
-  CI->addAttribute(
-      AttributeList::FunctionIndex,
+  CI->addFnAttr(
       Attribute::get(M->getContext(), MappingsAttrName, Buffer.str()));
 }

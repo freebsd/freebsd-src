@@ -269,6 +269,7 @@ Using_int_Value              "%1$s value \"%2$d\" will be used."
 Using_uint_Value             "%1$s value \"%2$u\" will be used."
 Using_uint64_Value           "%1$s value \"%2$s\" will be used."
 Using_str_Value              "%1$s value \"%2$s\" will be used."
+BarrierPatternOverride       "Mixing other barrier patterns with dist is prohibited. Using dist for all barrier patterns."
 MaxValueUsing                "%1$s maximum value \"%2$d\" will be used."
 MinValueUsing                "%1$s minimum value \"%2$d\" will be used."
 MemoryAllocFailed            "Memory allocation failed."
@@ -359,6 +360,7 @@ OmptOutdatedWorkshare        "OMPT: Cannot determine workshare type; using the d
 OmpNoAllocator               "Allocator %1$s is not available, will use default allocator."
 TopologyGeneric              "%1$s: %2$s (%3$d total cores)"
 AffGranularityBad            "%1$s: granularity setting: %2$s does not exist in topology.  Using granularity=%3$s instead."
+TopologyHybrid               "%1$s: hybrid core type detected: %2$d %3$s cores."
 
 # --- OpenMP errors detected at runtime ---
 #
@@ -467,6 +469,8 @@ AffHWSubsetNotExistGeneric   "KMP_HW_SUBSET ignored: %1$s: level not detected in
 AffHWSubsetEqvLayers         "KMP_HW_SUBSET ignored: %1$s, %2$s: layers are equivalent, please only specify one."
 AffHWSubsetOutOfOrder        "KMP_HW_SUBSET ignored: %1$s layer should come after %2$s."
 AffEqualTopologyTypes        "%1$s: topology layer \"%2$s\" is equivalent to \"%3$s\"."
+AffGranTooCoarseProcGroup    "%1$s: granularity=%2$s is too coarse, setting granularity=group."
+StgDeprecatedValue           "%1$s: \"%2$s\" value is deprecated. Please use \"%3$s\" instead."
 
 # --------------------------------------------------------------------------------------------------
 -*- HINTS -*-

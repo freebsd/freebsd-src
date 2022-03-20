@@ -483,6 +483,8 @@ Parser::isCXXConditionDeclarationOrInitStatement(bool CanBeInitStatement,
   ConditionDeclarationOrInitStatementState State(*this, CanBeInitStatement,
                                                  CanBeForRangeDecl);
 
+  if (CanBeInitStatement && Tok.is(tok::kw_using))
+    return ConditionOrInitStatement::InitStmtDecl;
   if (State.update(isCXXDeclarationSpecifier()))
     return State.result();
 
@@ -1101,9 +1103,7 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
 }
 
 bool Parser::isTentativelyDeclared(IdentifierInfo *II) {
-  return std::find(TentativelyDeclaredIdentifiers.begin(),
-                   TentativelyDeclaredIdentifiers.end(), II)
-      != TentativelyDeclaredIdentifiers.end();
+  return llvm::is_contained(TentativelyDeclaredIdentifiers, II);
 }
 
 namespace {
@@ -1637,6 +1637,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
   case tok::kw___bf16:
   case tok::kw__Float16:
   case tok::kw___float128:
+  case tok::kw___ibm128:
   case tok::kw_void:
   case tok::annot_decltype:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
@@ -1751,6 +1752,7 @@ bool Parser::isCXXDeclarationSpecifierAType() {
   case tok::kw___bf16:
   case tok::kw__Float16:
   case tok::kw___float128:
+  case tok::kw___ibm128:
   case tok::kw_void:
   case tok::kw___unknown_anytype:
   case tok::kw___auto_type:

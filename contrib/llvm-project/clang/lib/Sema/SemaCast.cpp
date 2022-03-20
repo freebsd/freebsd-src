@@ -1313,7 +1313,9 @@ static TryCastResult TryStaticCast(Sema &Self, ExprResult &SrcExpr,
   // lvalue-to-rvalue, array-to-pointer, function-to-pointer, and boolean
   // conversions, subject to further restrictions.
   // Also, C++ 5.2.9p1 forbids casting away constness, which makes reversal
-  // of qualification conversions impossible.
+  // of qualification conversions impossible. (In C++20, adding an array bound
+  // would be the reverse of a qualification conversion, but adding permission
+  // to add an array bound in a static_cast is a wording oversight.)
   // In the CStyle case, the earlier attempt to const_cast should have taken
   // care of reverse qualification conversions.
 
@@ -2637,6 +2639,19 @@ bool Sema::ShouldSplatAltivecScalarInCast(const VectorType *VecTy) {
   return false;
 }
 
+bool Sema::CheckAltivecInitFromScalar(SourceRange R, QualType VecTy,
+                                      QualType SrcTy) {
+  bool SrcCompatGCC = this->getLangOpts().getAltivecSrcCompat() ==
+                      LangOptions::AltivecSrcCompatKind::GCC;
+  if (this->getLangOpts().AltiVec && SrcCompatGCC) {
+    this->Diag(R.getBegin(),
+               diag::err_invalid_conversion_between_vector_and_integer)
+        << VecTy << SrcTy << R;
+    return true;
+  }
+  return false;
+}
+
 void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
                                        bool ListInitialization) {
   assert(Self.getLangOpts().CPlusPlus);
@@ -2690,7 +2705,12 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
   }
 
   // AltiVec vector initialization with a single literal.
-  if (const VectorType *vecTy = DestType->getAs<VectorType>())
+  if (const VectorType *vecTy = DestType->getAs<VectorType>()) {
+    if (Self.CheckAltivecInitFromScalar(OpRange, DestType,
+                                        SrcExpr.get()->getType())) {
+      SrcExpr = ExprError();
+      return;
+    }
     if (Self.ShouldSplatAltivecScalarInCast(vecTy) &&
         (SrcExpr.get()->getType()->isIntegerType() ||
          SrcExpr.get()->getType()->isFloatingType())) {
@@ -2698,6 +2718,7 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
       SrcExpr = Self.prepareVectorSplat(DestType, SrcExpr.get());
       return;
     }
+  }
 
   // C++ [expr.cast]p5: The conversions performed by
   //   - a const_cast,
@@ -2976,6 +2997,10 @@ void CastOperation::CheckCStyleCast() {
   }
 
   if (const VectorType *DestVecTy = DestType->getAs<VectorType>()) {
+    if (Self.CheckAltivecInitFromScalar(OpRange, DestType, SrcType)) {
+      SrcExpr = ExprError();
+      return;
+    }
     if (Self.ShouldSplatAltivecScalarInCast(DestVecTy) &&
         (SrcType->isIntegerType() || SrcType->isFloatingType())) {
       Kind = CK_VectorSplat;

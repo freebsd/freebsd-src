@@ -59,9 +59,7 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace clang;
 
-namespace {
-const char *g_lldb_local_vars_namespace_cstr = "$__lldb_local_vars";
-} // anonymous namespace
+static const char *g_lldb_local_vars_namespace_cstr = "$__lldb_local_vars";
 
 ClangExpressionDeclMap::ClangExpressionDeclMap(
     bool keep_result_in_memory,
@@ -1220,22 +1218,25 @@ void ClangExpressionDeclMap::LookupFunction(
     }
   }
 
-  const bool include_inlines = false;
   SymbolContextList sc_list;
   if (namespace_decl && module_sp) {
-    const bool include_symbols = false;
+    ModuleFunctionSearchOptions function_options;
+    function_options.include_inlines = false;
+    function_options.include_symbols = false;
 
     module_sp->FindFunctions(name, namespace_decl, eFunctionNameTypeBase,
-                             include_symbols, include_inlines, sc_list);
+                             function_options, sc_list);
   } else if (target && !namespace_decl) {
-    const bool include_symbols = true;
+    ModuleFunctionSearchOptions function_options;
+    function_options.include_inlines = false;
+    function_options.include_symbols = true;
 
     // TODO Fix FindFunctions so that it doesn't return
     //   instance methods for eFunctionNameTypeBase.
 
     target->GetImages().FindFunctions(
-        name, eFunctionNameTypeFull | eFunctionNameTypeBase, include_symbols,
-        include_inlines, sc_list);
+        name, eFunctionNameTypeFull | eFunctionNameTypeBase, function_options,
+        sc_list);
   }
 
   // If we found more than one function, see if we can use the frame's decl

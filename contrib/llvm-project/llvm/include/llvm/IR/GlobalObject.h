@@ -51,7 +51,7 @@ protected:
 
   Comdat *ObjComdat;
   enum {
-    LastAlignmentBit = 4,
+    LastAlignmentBit = 5,
     HasSectionHashEntryBit,
 
     GlobalObjectBits,
@@ -68,7 +68,7 @@ public:
   GlobalObject(const GlobalObject &) = delete;
 
   /// FIXME: Remove this function once transition to Align is over.
-  unsigned getAlignment() const {
+  uint64_t getAlignment() const {
     MaybeAlign Align = getAlign();
     return Align ? Align->value() : 0;
   }
@@ -153,7 +153,8 @@ public:
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {
     return V->getValueID() == Value::FunctionVal ||
-           V->getValueID() == Value::GlobalVariableVal;
+           V->getValueID() == Value::GlobalVariableVal ||
+           V->getValueID() == Value::GlobalIFuncVal;
   }
 
 private:

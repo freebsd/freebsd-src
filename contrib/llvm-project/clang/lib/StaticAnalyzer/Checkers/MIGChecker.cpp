@@ -27,6 +27,7 @@
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
@@ -180,7 +181,7 @@ static bool isInMIGCall(CheckerContext &C) {
 }
 
 void MIGChecker::checkPostCall(const CallEvent &Call, CheckerContext &C) const {
-  if (Call.isCalled(OsRefRetain)) {
+  if (OsRefRetain.matches(Call)) {
     // If the code is doing reference counting over the parameter,
     // it opens up an opportunity for safely calling a destructor function.
     // TODO: We should still check for over-releases.
@@ -198,7 +199,7 @@ void MIGChecker::checkPostCall(const CallEvent &Call, CheckerContext &C) const {
 
   auto I = llvm::find_if(Deallocators,
                          [&](const std::pair<CallDescription, unsigned> &Item) {
-                           return Call.isCalled(Item.first);
+                           return Item.first.matches(Call);
                          });
   if (I == Deallocators.end())
     return;

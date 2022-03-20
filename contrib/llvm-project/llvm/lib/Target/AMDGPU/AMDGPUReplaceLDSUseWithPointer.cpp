@@ -130,11 +130,9 @@ class ReplaceLDSUseImpl {
     std::vector<GlobalVariable *> LDSGlobals = AMDGPU::findVariablesToLower(M);
 
     // Remove LDS which don't qualify for replacement.
-    LDSGlobals.erase(std::remove_if(LDSGlobals.begin(), LDSGlobals.end(),
-                                    [&](GlobalVariable *GV) {
-                                      return shouldIgnorePointerReplacement(GV);
-                                    }),
-                     LDSGlobals.end());
+    llvm::erase_if(LDSGlobals, [&](GlobalVariable *GV) {
+      return shouldIgnorePointerReplacement(GV);
+    });
 
     return LDSGlobals;
   }
@@ -142,7 +140,7 @@ class ReplaceLDSUseImpl {
   // Returns true if uses of given LDS global within non-kernel functions should
   // be keep as it is without pointer replacement.
   bool shouldIgnorePointerReplacement(GlobalVariable *GV) {
-    // LDS whose size is very small and doesn`t exceed pointer size is not worth
+    // LDS whose size is very small and doesn't exceed pointer size is not worth
     // replacing.
     if (DL.getTypeAllocSize(GV->getValueType()) <= 2)
       return true;
@@ -158,7 +156,7 @@ class ReplaceLDSUseImpl {
 
   // Insert new global LDS pointer which points to LDS.
   GlobalVariable *createLDSPointer(GlobalVariable *GV) {
-    // LDS pointer which points to LDS is already created? return it.
+    // LDS pointer which points to LDS is already created? Return it.
     auto PointerEntry = LDSToPointer.insert(std::make_pair(GV, nullptr));
     if (!PointerEntry.second)
       return PointerEntry.first->second;
@@ -185,7 +183,7 @@ class ReplaceLDSUseImpl {
   // Split entry basic block in such a way that only lane 0 of each wave does
   // the LDS pointer initialization, and return newly created basic block.
   BasicBlock *activateLaneZero(Function *K) {
-    // If the entry basic block of kernel K is already splitted, then return
+    // If the entry basic block of kernel K is already split, then return
     // newly created basic block.
     auto BasicBlockEntry = KernelToInitBB.insert(std::make_pair(K, nullptr));
     if (!BasicBlockEntry.second)
@@ -204,7 +202,7 @@ class ReplaceLDSUseImpl {
 
     BasicBlock *NBB = SplitBlockAndInsertIfThen(Cond, WB, false)->getParent();
 
-    // Mark that the entry basic block of kernel K is splitted.
+    // Mark that the entry basic block of kernel K is split.
     KernelToInitBB[K] = NBB;
 
     return NBB;
@@ -235,7 +233,7 @@ class ReplaceLDSUseImpl {
   }
 
   // We have created an LDS pointer for LDS, and initialized it to point-to LDS
-  // within all relevent kernels. Now replace all the uses of LDS within
+  // within all relevant kernels. Now replace all the uses of LDS within
   // non-kernel functions by LDS pointer.
   void replaceLDSUseByPointer(GlobalVariable *GV, GlobalVariable *LDSPointer) {
     SmallVector<User *, 8> LDSUsers(GV->users());
@@ -268,8 +266,8 @@ class ReplaceLDSUseImpl {
             convertConstantExprsToInstructions(I, CE, &UserInsts);
           }
 
-          // Go through all the user instrutions, if LDS exist within them as an
-          // operand, then replace it by replace instruction.
+          // Go through all the user instructions, if LDS exist within them as
+          // an operand, then replace it by replace instruction.
           for (auto *II : UserInsts) {
             auto *ReplaceInst = getReplacementInst(F, GV, LDSPointer);
             II->replaceUsesOfWith(GV, ReplaceInst);
@@ -373,7 +371,7 @@ bool ReplaceLDSUseImpl::replaceLDSUse(GlobalVariable *GV) {
     return false;
 
   // We have created an LDS pointer for LDS, and initialized it to point-to LDS
-  // within all relevent kernels. Now replace all the uses of LDS within
+  // within all relevant kernels. Now replace all the uses of LDS within
   // non-kernel functions by LDS pointer.
   replaceLDSUseByPointer(GV, LDSPointer);
 

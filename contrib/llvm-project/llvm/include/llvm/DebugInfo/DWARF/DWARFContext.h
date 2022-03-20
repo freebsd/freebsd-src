@@ -243,6 +243,7 @@ public:
   }
 
   DWARFCompileUnit *getDWOCompileUnitForHash(uint64_t Hash);
+  DWARFTypeUnit *getTypeUnitForHash(uint16_t Version, uint64_t Hash, bool IsDWO);
 
   /// Return the compile unit that includes an offset (relative to .debug_info).
   DWARFCompileUnit *getCompileUnitForOffset(uint64_t Offset);
@@ -373,8 +374,24 @@ public:
     return {2, 4, 8};
   }
   static bool isAddressSizeSupported(unsigned AddressSize) {
-    return llvm::any_of(getSupportedAddressSizes(),
-                        [=](auto Elem) { return Elem == AddressSize; });
+    return llvm::is_contained(getSupportedAddressSizes(), AddressSize);
+  }
+  template <typename... Ts>
+  static Error checkAddressSizeSupported(unsigned AddressSize,
+                                         std::error_code EC, char const *Fmt,
+                                         const Ts &...Vals) {
+    if (isAddressSizeSupported(AddressSize))
+      return Error::success();
+    std::string Buffer;
+    raw_string_ostream Stream(Buffer);
+    Stream << format(Fmt, Vals...)
+           << " has unsupported address size: " << AddressSize
+           << " (supported are ";
+    ListSeparator LS;
+    for (unsigned Size : DWARFContext::getSupportedAddressSizes())
+      Stream << LS << Size;
+    Stream << ')';
+    return make_error<StringError>(Stream.str(), EC);
   }
 
   std::shared_ptr<DWARFContext> getDWOContext(StringRef AbsolutePath);
@@ -387,9 +404,12 @@ public:
 
   function_ref<void(Error)> getWarningHandler() { return WarningHandler; }
 
+  enum class ProcessDebugRelocations { Process, Ignore };
+
   static std::unique_ptr<DWARFContext>
-  create(const object::ObjectFile &Obj, const LoadedObjectInfo *L = nullptr,
-         std::string DWPName = "",
+  create(const object::ObjectFile &Obj,
+         ProcessDebugRelocations RelocAction = ProcessDebugRelocations::Process,
+         const LoadedObjectInfo *L = nullptr, std::string DWPName = "",
          std::function<void(Error)> RecoverableErrorHandler =
              WithColor::defaultErrorHandler,
          std::function<void(Error)> WarningHandler =
