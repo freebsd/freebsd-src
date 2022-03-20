@@ -249,12 +249,8 @@ printdev(struct mixer *m, int oflag)
 	mix_ctl_t *cp;
 
 	if (!oflag) {
-		char buffer[32];
-		(void)snprintf(buffer, sizeof(buffer),
-		    "%s.%s", d->name, "volume");
-
-		printf("    %-16s= %.2f:%.2f\t",
-		    buffer, d->vol.left, d->vol.right);
+		printf("    %-10s= %.2f:%.2f    ",
+		    d->name, d->vol.left, d->vol.right);
 		if (!MIX_ISREC(m, d->devno))
 			printf(" pbk");
 		if (MIX_ISREC(m, d->devno))
