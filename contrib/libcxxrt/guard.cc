@@ -69,7 +69,12 @@
  * progress).  The bit to use depends on the byte order of the target.
  *
  * On many 32-bit platforms, 64-bit atomics are unavailable (or slow) and so we
- * treat the two halves of the 64-bit word as independent values and
+ * treat the two halves of the 64-bit word as independent values and establish
+ * an ordering on them such that the guard word is never modified unless the
+ * lock word is in the locked state.  This means that we can do double-checked
+ * locking by loading the guard word and, if it is not initialised, trying to
+ * transition the lock word from the unlocked to locked state, and then
+ * manipulate the guard word.
  */
 namespace
 {
@@ -227,7 +232,7 @@ namespace
 					// If another thread did manage to initialise this, release
 					// the lock and notify the caller that initialisation is
 					// done.
-					lock_word.store(initialised, memory_order::release);
+					lock_word.store(0, memory_order::release);
 					return GuardState::InitDone;
 				}
 				return GuardState::InitLockSucceeded;
