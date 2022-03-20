@@ -394,6 +394,7 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	device_t		dev;
 	unsigned int		ma_lo, ma_hi;
 	unsigned int		reg;
+	int			ret;
 
 	sc = iflib_get_softc(ctx);
 	sc->pdata.dev = dev = iflib_get_dev(ctx);
@@ -423,8 +424,10 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 		sc->pdata.vdata = &xgbe_v2b;
 
 	/* PCI setup */
-        if (bus_alloc_resources(dev, axgbe_pci_mac_spec, mac_res))
-                return (ENXIO);
+        if (bus_alloc_resources(dev, axgbe_pci_mac_spec, mac_res)) {
+		ret = (ENXIO);
+		goto free_vlans;
+	}
 
         sc->pdata.xgmac_res = mac_res[0];
         sc->pdata.xpcs_res = mac_res[1];
@@ -465,7 +468,8 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	pdata->mac_addr[5] = (ma_hi >> 8) & 0xff;
 	if (!XP_GET_BITS(ma_hi, XP_MAC_ADDR_HI, VALID)) {
 		axgbe_error("Invalid mac address\n");
-		return (EINVAL);
+		ret = (EINVAL);
+		goto release_bus_resource;
 	}
 	iflib_set_mac(ctx, pdata->mac_addr);
 
@@ -527,7 +531,8 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	/* Alloc channels */
 	if (axgbe_alloc_channels(ctx)) {
 		axgbe_error("Unable to allocate channel memory\n");
-                return (ENOMEM);
+		ret = (ENOMEM);
+		goto release_bus_resource;
         }
 
 	TASK_INIT(&pdata->service_work, 0, xgbe_service, pdata);
@@ -542,6 +547,16 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	xgbe_init_timers(pdata);
 
         return (0);
+
+release_bus_resource:
+	/* Release bus resources */
+        bus_release_resources(dev, axgbe_pci_mac_spec, mac_res);
+
+free_vlans:
+	/* Free VLAN bitmap */
+	free(pdata->active_vlans, M_AXGBE);
+
+	return ret;
 } /* axgbe_if_attach_pre */
 
 static void
