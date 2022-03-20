@@ -24,12 +24,15 @@
 
 #include <err.h>
 #include <errno.h>
+#include <mixer.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <mixer.h>
+#define C_VOL 0
+#define C_MUT 1
+#define C_SRC 2
 
 static void usage(void) __dead2;
 static void initctls(struct mixer *);
@@ -60,7 +63,7 @@ main(int argc, char *argv[])
 	struct mixer *m;
 	mix_ctl_t *cp;
 	char *name = NULL, buf[NAME_MAX];
-	char *p, *bufp, *devstr, *ctlstr, *valstr = NULL;
+	char *p, *q, *devstr, *ctlstr, *valstr = NULL;
 	int dunit, i, n, pall = 1;
 	int aflag = 0, dflag = 0, oflag = 0, sflag = 0;
 	int ch;
@@ -85,7 +88,7 @@ main(int argc, char *argv[])
 		case 's':
 			sflag = 1;
 			break;
-		case 'h': /* FALLTROUGH */
+		case 'h': /* FALLTHROUGH */
 		case '?':
 		default:
 			usage();
@@ -130,10 +133,10 @@ main(int argc, char *argv[])
 
 parse:
 	while (argc > 0) {
-		if ((p = bufp = strdup(*argv)) == NULL)
+		if ((p = strdup(*argv)) == NULL)
 			err(1, "strdup(%s)", *argv);
 		/* Split the string into device, control and value. */
-		devstr = strsep(&p, ".");
+		devstr = strsep(&p, ".=");
 		if ((m->dev = mixer_get_dev_byname(m, devstr)) == NULL) {
 			warnx("%s: no such device", devstr);
 			goto next;
@@ -143,6 +146,15 @@ parse:
 			printdev(m, 1);
 			pall = 0;
 			goto next;
+		} else {
+			for (q = p; (*q >= '0' && *q <= '9') || *q == '.'; q++)
+				;	/* nothing */
+			/* Input: `dev=N` -> shorthand for `dev.volume=N`. */
+			if (*q == '\0') {
+				cp = mixer_get_ctl(m->dev, C_VOL);
+				cp->mod(cp->parent_dev, p);
+				goto next;
+			}
 		}
 		ctlstr = strsep(&p, "=");
 		if ((cp = mixer_get_ctl_byname(m->dev, ctlstr)) == NULL) {
@@ -187,9 +199,6 @@ initctls(struct mixer *m)
 	struct mix_dev *dp;
 	int rc = 0;
 
-#define C_VOL 0
-#define C_MUT 1
-#define C_SRC 2
 	TAILQ_FOREACH(dp, &m->devs, devs) {
 		rc += mixer_add_ctl(dp, C_VOL, "volume", mod_volume, print_volume);
 		rc += mixer_add_ctl(dp, C_MUT, "mute", mod_mute, print_mute);
@@ -284,8 +293,7 @@ printrecsrc(struct mixer *m, int oflag)
 			printf("%s", dp->name);
 			if (oflag)
 				printf(".%s=+%s",
-				    mixer_get_ctl(dp, C_SRC)->name,
-				    n ? " " : "");
+				    mixer_get_ctl(dp, C_SRC)->name, n ? " " : "");
 		}
 	}
 	printf("\n");
