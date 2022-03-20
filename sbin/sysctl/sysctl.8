@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2020
+.Dd March 20, 2022
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -63,7 +63,10 @@ Equivalent to
 .Fl o a
 (for compatibility).
 .It Fl a
-List all the currently available non-opaque values.
+List all the currently available values except for those which are
+opaque or excluded from listing via the
+.Dv CTLFLAG_SKIP
+flag.
 This option is ignored if one or more variable names are specified on
 the command line.
 .It Fl b
