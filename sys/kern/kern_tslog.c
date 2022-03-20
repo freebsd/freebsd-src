@@ -131,7 +131,8 @@ sysctl_debug_tslog(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug, OID_AUTO, tslog, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
+SYSCTL_PROC(_debug, OID_AUTO, tslog,
+    CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_SKIP,
     0, 0, sysctl_debug_tslog, "", "Dump recorded event timestamps");
 
 MALLOC_DEFINE(M_TSLOGUSER, "tsloguser", "Strings used by userland tslog");
@@ -215,5 +216,6 @@ sysctl_debug_tslog_user(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug, OID_AUTO, tslog_user,
-    CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE, 0, 0, sysctl_debug_tslog_user,
+    CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_SKIP,
+    0, 0, sysctl_debug_tslog_user,
     "", "Dump recorded userland event timestamps");
