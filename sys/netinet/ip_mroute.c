@@ -2727,18 +2727,23 @@ static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable,
 static int
 sysctl_viflist(SYSCTL_HANDLER_ARGS)
 {
-	int error;
+	int error, i;
 
 	if (req->newptr)
 		return (EPERM);
 	if (V_viftable == NULL)		/* XXX unlocked */
 		return (0);
-	error = sysctl_wire_old_buffer(req, sizeof(*V_viftable) * MAXVIFS);
+	error = sysctl_wire_old_buffer(req, MROUTE_VIF_SYSCTL_LEN * MAXVIFS);
 	if (error)
 		return (error);
 
 	MRW_RLOCK();
-	error = SYSCTL_OUT(req, V_viftable, sizeof(*V_viftable) * MAXVIFS);
+	/* Copy out user-visible portion of vif entry. */
+	for (i = 0; i < MAXVIFS; i++) {
+		error = SYSCTL_OUT(req, &V_viftable[i], MROUTE_VIF_SYSCTL_LEN);
+		if (error)
+			break;
+	}
 	MRW_RUNLOCK();
 	return (error);
 }
