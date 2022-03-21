@@ -808,8 +808,10 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg,
 			if (error != 0)
 				break;
 		}
-		error = msleep_sbt(uq, &uc->uc_lock, PCATCH, wmesg,
+		error = msleep_sbt(uq, &uc->uc_lock, PCATCH | PDROP, wmesg,
 		    sbt, 0, flags);
+		uc = umtxq_getchain(&uq->uq_key);
+		mtx_lock(&uc->uc_lock);
 		if (error == EINTR || error == ERESTART)
 			break;
 		if (error == EWOULDBLOCK && (flags & C_ABSOLUTE) != 0) {
