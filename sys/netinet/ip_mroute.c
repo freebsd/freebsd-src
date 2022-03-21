@@ -1124,6 +1124,7 @@ add_mfc(struct mfcctl2 *mfccp)
     struct rtdetq *rte;
     u_long hash = 0;
     u_short nstl;
+    struct epoch_tracker et;
 
     MRW_WLOCK();
     rt = mfc_find(&mfccp->mfcc_origin, &mfccp->mfcc_mcastgrp);
@@ -1144,6 +1145,7 @@ add_mfc(struct mfcctl2 *mfccp)
      */
     nstl = 0;
     hash = MFCHASH(mfccp->mfcc_origin, mfccp->mfcc_mcastgrp);
+    NET_EPOCH_ENTER(et);
     LIST_FOREACH(rt, &V_mfchashtbl[hash], mfc_hash) {
 	if (in_hosteq(rt->mfc_origin, mfccp->mfcc_origin) &&
 	    in_hosteq(rt->mfc_mcastgrp, mfccp->mfcc_mcastgrp) &&
@@ -1171,6 +1173,7 @@ add_mfc(struct mfcctl2 *mfccp)
 		}
 	}
     }
+    NET_EPOCH_EXIT(et);
 
     /*
      * It is possible that an entry is being inserted without an upcall
@@ -1548,6 +1551,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
     int plen = ntohs(ip->ip_len);
 
     MRW_LOCK_ASSERT();
+    NET_EPOCH_ASSERT();
 
     /*
      * If xmt_vif is not -1, send on only the requested vif.
@@ -1752,6 +1756,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 	int error __unused;
 
 	MRW_LOCK_ASSERT();
+	NET_EPOCH_ASSERT();
 
 	imo.imo_multicast_ifp  = vifp->v_ifp;
 	imo.imo_multicast_ttl  = mtod(m, struct ip *)->ip_ttl - 1;
