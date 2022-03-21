@@ -2155,20 +2155,14 @@ cpu_tickrate(void)
  * years) and in 64 bits at 4 GHz (146 years), but if we do a multiply
  * before divide conversion (to retain precision) we find that the
  * margin shrinks to 1.5 hours (one millionth of 146y).
- * With a three prong approach we never lose significant bits, no
- * matter what the cputick rate and length of timeinterval is.
  */
 
 uint64_t
 cputick2usec(uint64_t tick)
 {
-
-	if (tick > 18446744073709551LL)		/* floor(2^64 / 1000) */
-		return (tick / (cpu_tickrate() / 1000000LL));
-	else if (tick > 18446744073709LL)	/* floor(2^64 / 1000000) */
-		return ((tick * 1000LL) / (cpu_tickrate() / 1000LL));
-	else
-		return ((tick * 1000000LL) / cpu_tickrate());
+	uint64_t tr;
+	tr = cpu_tickrate();
+	return ((tick / tr) * 1000000ULL) + ((tick % tr) * 1000000ULL) / tr;
 }
 
 cpu_tick_f	*cpu_ticks = tc_cpu_ticks;
