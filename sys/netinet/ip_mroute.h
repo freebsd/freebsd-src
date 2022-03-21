@@ -265,6 +265,7 @@ struct vif {
     u_long		v_bytes_in;	/* # bytes in on interface	     */
     u_long		v_bytes_out;	/* # bytes out on interface	     */
 #ifdef _KERNEL
+#define	MROUTE_VIF_SYSCTL_LEN	__offsetof(struct vif, v_spin)
     struct mtx		v_spin;		/* Spin mutex for pkt stats          */
     char		v_spin_name[32];
 #endif
