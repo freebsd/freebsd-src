@@ -1260,6 +1260,8 @@ pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
 	PF_MD5_UPD(rule, allow_opts);
 	PF_MD5_UPD(rule, rt);
 	PF_MD5_UPD(rule, tos);
+	if (rule->anchor != NULL)
+		PF_MD5_UPD_STR(rule, anchor->path);
 }
 
 static bool
