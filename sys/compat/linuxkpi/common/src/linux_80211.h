@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2022 The FreeBSD Foundation
  * Copyright (c) 2020-2021 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -96,7 +96,7 @@ struct lkpi_sta {
 	struct ieee80211_key_conf *kc;
 	enum ieee80211_sta_state state;
 	bool			added_to_drv;			/* Driver knows; i.e. we called ...(). */
-	bool			in_mgd;
+	bool			in_mgd;				/* XXX-BZ should this be per-vif? */
 
 	/* Must be last! */
 	struct ieee80211_sta	sta __aligned(CACHE_LINE_SIZE);
@@ -114,6 +114,8 @@ struct lkpi_vif {
 	/* Other local stuff. */
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
+	struct ieee80211_node *	(*iv_update_bss)(struct ieee80211vap *,
+				    struct ieee80211_node *);
 	TAILQ_HEAD(, lkpi_sta)	lsta_head;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
 
