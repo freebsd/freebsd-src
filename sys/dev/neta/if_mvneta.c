@@ -1679,7 +1679,7 @@ mvneta_enable_intr(struct mvneta_softc *sc)
 	reg |= MVNETA_PRXTXTI_PMISCICSUMMARY;
 	MVNETA_WRITE(sc, MVNETA_PRXTXTIM, reg);
 
-	if (sc->use_inband_status) {
+	if (!sc->phy_attached || sc->use_inband_status) {
 		/* Enable Port MISC Intr. (via RXTX_TH_Summary bit) */
 		MVNETA_WRITE(sc, MVNETA_PMIM, MVNETA_PMI_PHYSTATUSCHNG |
 		    MVNETA_PMI_LINKCHANGE | MVNETA_PMI_PSCSYNCCHANGE);
@@ -1711,7 +1711,7 @@ mvneta_rxtxth_intr(void *arg)
 
 	/* Ack maintance interrupt first */
 	if (__predict_false((ic & MVNETA_PRXTXTI_PMISCICSUMMARY) &&
-	    sc->use_inband_status)) {
+	    (!sc->phy_attached || sc->use_inband_status))) {
 		mvneta_sc_lock(sc);
 		mvneta_misc_intr(sc);
 		mvneta_sc_unlock(sc);
@@ -2466,7 +2466,7 @@ mvneta_update_media(struct mvneta_softc *sc, int media)
 
 	sc->autoneg = (IFM_SUBTYPE(media) == IFM_AUTO);
 
-	if (sc->use_inband_status)
+	if (!sc->phy_attached || sc->use_inband_status)
 		mvneta_update_autoneg(sc, IFM_SUBTYPE(media) == IFM_AUTO);
 
 	mvneta_update_eee(sc);
@@ -2629,7 +2629,7 @@ mvneta_linkup(struct mvneta_softc *sc)
 
 	KASSERT_SC_MTX(sc);
 
-	if (!sc->use_inband_status) {
+	if (!sc->phy_attached || !sc->use_inband_status) {
 		reg  = MVNETA_READ(sc, MVNETA_PANC);
 		reg |= MVNETA_PANC_FORCELINKPASS;
 		reg &= ~MVNETA_PANC_FORCELINKFAIL;
@@ -2649,7 +2649,7 @@ mvneta_linkdown(struct mvneta_softc *sc)
 
 	KASSERT_SC_MTX(sc);
 
-	if (!sc->use_inband_status) {
+	if (!sc->phy_attached || !sc->use_inband_status) {
 		reg  = MVNETA_READ(sc, MVNETA_PANC);
 		reg &= ~MVNETA_PANC_FORCELINKPASS;
 		reg |= MVNETA_PANC_FORCELINKFAIL;
