@@ -44,8 +44,51 @@ typedef u_long	fptrdiff_t;
 
 typedef __uintfptr_t    uintfptr_t;
 
-#define	_MCOUNT_DECL	void mcount
+#define	_MCOUNT_DECL \
+static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __used; \
+static void _mcount
+
+#ifdef __GNUCLIKE_ASM
+/*
+ * Call into _mcount. On arm64 the .mcount is a function so callers will
+ * handle caller saved registers. As we don't directly touch any callee
+ * saved registers we can just load the two arguments and use a tail call
+ * into the MI _mcount function.
+ *
+ * When building with gcc frompc will be in x0, however this is not the
+ * case on clang. As such we need to load it from the stack. As long as
+ * the caller follows the ABI this will load the correct value.
+ */
+#define	MCOUNT __asm(					\
+"	.text					\n"	\
+"	.align	6				\n"	\
+"	.type	.mcount,#function		\n"	\
+"	.globl	.mcount				\n"	\
+"	.mcount:				\n"	\
+"	.cfi_startproc				\n"	\
+	/* Load the caller return address as frompc */	\
+"	ldr	x0, [x29, #8]			\n"	\
+	/* Use our return address as selfpc */		\
+"	mov	x1, lr				\n"	\
+"	b	_mcount				\n"	\
+"	.cfi_endproc				\n"	\
+"	.size	.mcount, . - .mcount		\n"	\
+	);
+#if 0
+/*
+ * If clang passed frompc correctly we could implement it like this, however
+ * all clang versions we care about would need to be fixed before we could
+ * make this change.
+ */
+void
+mcount(uintfptr_t frompc)
+{
+	_mcount(frompc, __builtin_return_address(0));
+}
+#endif
+#else
 #define	MCOUNT
+#endif
 
 #endif /* !_KERNEL */
 
