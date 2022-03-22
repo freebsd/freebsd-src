@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 The FreeBSD Foundation
+ * Copyright (c) 2021-2022 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -272,7 +272,7 @@ lkpi_80211_mo_configure_filter(struct ieee80211_hw *hw, unsigned int changed_fla
 
 /*
  * So far we only called sta_{add,remove} as an alternative to sta_state.
- * Let's keep the implementation simpler and hid sta_{add,remove} under the
+ * Let's keep the implementation simpler and hide sta_{add,remove} under the
  * hood here calling them if state_state is not available from mo_sta_state.
  */
 static int
