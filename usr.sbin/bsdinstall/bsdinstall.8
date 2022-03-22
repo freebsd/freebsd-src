@@ -347,7 +347,7 @@ Default:
 .Dq zroot
 .It Ev ZFSBOOT_POOL_CREATE_OPTIONS
 Options to be used when creating the base system's pool.
-Each option must be followed by the -O flag to be taken into consideration
+Each option must be preceded by the -O flag to be taken into consideration
 or the pool will not be created due to errors using the command
 .Cm zpool .
 Default:
@@ -391,7 +391,7 @@ keyfile used to encrypt the pool where the base system is stored.
 Default:
 .Dq Pa /boot/encryption.key
 .It Ev ZFSBOOT_BOOT_POOL
-If set a separated boot pool will be created for the kernel of the
+If set, a separated boot pool will be created for the kernel of the
 system and
 .Xr loader 8 .
 Default: unset
@@ -440,8 +440,8 @@ following datasets:
 .Pa /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME .
 See
 .Sx ZFS DATASETS
-for more information about who to write this variable and to
-take a look into the default value of it.
+for more information about how to populate this variable and
+its default value.
 .It Ev ZFSBOOT_CONFIRM_LAYOUT
 If set and the installation is interactive, allow the user to confirm
 the layout before continuing with the installation.
@@ -542,12 +542,14 @@ the preamble can contain the variable
 instead of
 .Ev PARTITIONS
 (see below).
-If using .Cm zfsboot, the variables
+If using
+.Cm zfsboot ,
+the variables
 .Ev ZFSBOOT_DISKS
 and
 .Ev ZFSBOOT_VDEV_TYPE
 must be set to create the pool of disks for the base system.
-Usually, for a mirrored booting disk, this two variables looks like this:
+Usually, for a mirrored booting disk, these two variables look like this:
 .Bd -literal -offset indent
 ZFSBOOT_DISKS="ada0 ada1"
 ZFSBOOT_VDEV_TYPE=mirror
@@ -575,7 +577,7 @@ partitioning tool takes the
 .Ev ZFSBOOT_DATASETS
 variable to create the ZFS datasets on the base system.
 This variable definition can become large if the pool contains many datasets.
-The default value of the
+The default value of
 .Ev ZFSBOOT_DATASETS
 is:
 .Bd -literal -offset indent
