@@ -9011,7 +9011,7 @@ dump_cimla(struct adapter *sc)
 		    device_get_nameunit(sc->dev));
 		return;
 	}
-	rc = sbuf_cim_la(sc, &sb, M_NOWAIT);
+	rc = sbuf_cim_la(sc, &sb, M_WAITOK);
 	if (rc == 0) {
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
@@ -9452,7 +9452,7 @@ dump_devlog(struct adapter *sc)
 		    device_get_nameunit(sc->dev));
 		return;
 	}
-	rc = sbuf_devlog(sc, &sb, M_NOWAIT);
+	rc = sbuf_devlog(sc, &sb, M_WAITOK);
 	if (rc == 0) {
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
