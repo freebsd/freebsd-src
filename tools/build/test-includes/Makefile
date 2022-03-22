@@ -16,7 +16,7 @@
 LIB=	test-includes
 INTERNALLIB=	This is a compile-only test
 MAN=
-HDRS!=	(cd ${SRCTOP}/sys; ls sys/[^_]*.h | sort ; ls net*/[^_]*.h | sort)
+HDRS!=	(cd ${SRCTOP}/sys; ls sys/[!_]*.h | sort ; ls net*/[!_]*.h | sort)
 NO_PIC=	yes
 
 # Some files have to be clean for extra defines too...
