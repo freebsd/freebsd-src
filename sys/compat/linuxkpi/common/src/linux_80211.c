@@ -112,6 +112,20 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug_80211, CTLFLAG_RWTUN,
 /* This is DSAP | SSAP | CTRL | ProtoID/OrgCode{3}. */
 const uint8_t rfc1042_header[6] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
 
+const uint8_t tid_to_mac80211_ac[] = {
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VO,
+#if 0
+	IEEE80211_AC_VO, /* We treat MGMT as TID 8, which is set as AC_VO */
+#endif
+};
+
 const struct cfg80211_ops linuxkpi_mac80211cfgops = {
 	/*
 	 * XXX TODO need a "glue layer" to link cfg80211 ops to
@@ -124,6 +138,79 @@ static struct lkpi_sta *lkpi_find_lsta_by_ni(struct lkpi_vif *,
     struct ieee80211_node *);
 static void lkpi_80211_txq_task(void *, int);
 static void lkpi_ieee80211_free_skb_mbuf(void *);
+
+static struct lkpi_sta *
+lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
+    struct ieee80211_hw *hw, struct ieee80211_node *ni)
+{
+	struct lkpi_sta *lsta;
+	struct lkpi_vif *lvif;
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta;
+	int tid;
+
+	lsta = malloc(sizeof(*lsta) + hw->sta_data_size, M_LKPI80211,
+	    M_NOWAIT | M_ZERO);
+	if (lsta == NULL)
+		return (NULL);
+
+	lsta->added_to_drv = false;
+	lsta->state = IEEE80211_STA_NOTEXIST;
+#if 0
+	/*
+	 * This needs to be done in node_init() as ieee80211_alloc_node()
+	 * will initialise the refcount after us.
+	 */
+	lsta->ni = ieee80211_ref_node(ni);
+#endif
+	/* The back-pointer "drv_data" to net80211_node let's us get lsta. */
+	ni->ni_drv_data = lsta;
+
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
+	sta = LSTA_TO_STA(lsta);
+
+	IEEE80211_ADDR_COPY(sta->addr, mac);
+	for (tid = 0; tid < nitems(sta->txq); tid++) {
+		struct lkpi_txq *ltxq;
+
+		/*
+		 * We are neither limiting ourselves to hw.queues here,
+		 * nor do we check if driver wants IEEE80211_NUM_TIDS queue.
+		 */
+
+		ltxq = malloc(sizeof(*ltxq) + hw->txq_data_size,
+		    M_LKPI80211, M_NOWAIT | M_ZERO);
+		if (ltxq == NULL)
+			goto cleanup;
+		ltxq->seen_dequeue = false;
+		skb_queue_head_init(&ltxq->skbq);
+		/* iwlwifi//mvm/sta.c::tid_to_mac80211_ac[] */
+		if (tid == IEEE80211_NUM_TIDS) {
+			IMPROVE();
+			ltxq->txq.ac = IEEE80211_AC_VO;
+		} else {
+			ltxq->txq.ac = tid_to_mac80211_ac[tid & 7];
+		}
+		ltxq->txq.tid = tid;
+		ltxq->txq.sta = sta;
+		ltxq->txq.vif = vif;
+		sta->txq[tid] = &ltxq->txq;
+	}
+
+	/* Deferred TX path. */
+	mtx_init(&lsta->txq_mtx, "lsta_txq", NULL, MTX_DEF);
+	TASK_INIT(&lsta->txq_task, 0, lkpi_80211_txq_task, lsta);
+	mbufq_init(&lsta->txq, IFQ_MAXLEN);
+
+	return (lsta);
+
+cleanup:
+	for (; tid >= 0; tid--)
+		free(sta->txq[tid], M_LKPI80211);
+	free(lsta, M_LKPI80211);
+	return (NULL);
+}
 
 static enum nl80211_band
 lkpi_net80211_chan_to_nl80211_band(struct ieee80211_channel *c)
@@ -563,20 +650,6 @@ lkpi_update_mcast_filter(struct ieee80211com *ic, bool force)
 	KASSERT(mc_list.count == 0, ("%s: mc_list %p count %d != 0\n",
 	    __func__, &mc_list, mc_list.count));
 }
-
-const uint8_t tid_to_mac80211_ac[] = {
-	IEEE80211_AC_BE,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BE,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VO,
-	IEEE80211_AC_VO,
-#if 0
-	IEEE80211_AC_VO, /* We treat MGMT as TID 8, which is set as AC_VO */
-#endif
-};
 
 static void
 lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
@@ -2161,91 +2234,30 @@ lkpi_ic_node_alloc(struct ieee80211vap *vap,
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
+	struct ieee80211_node *ni;
 	struct ieee80211_hw *hw;
 	struct lkpi_sta *lsta;
-	struct ieee80211_sta *sta;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
-	struct ieee80211_node *ni;
-	int tid;
 
 	ic = vap->iv_ic;
 	lhw = ic->ic_softc;
 
 	/* We keep allocations de-coupled so we can deal with the two worlds. */
-	if (lhw->ic_node_alloc != NULL) {
-		ni = lhw->ic_node_alloc(vap, mac);
-		if (ni == NULL)
-			return (NULL);
-	}
+	if (lhw->ic_node_alloc == NULL)
+		return (NULL);
+
+	ni = lhw->ic_node_alloc(vap, mac);
+	if (ni == NULL)
+		return (NULL);
 
 	hw = LHW_TO_HW(lhw);
-	lsta = malloc(sizeof(*lsta) + hw->sta_data_size, M_LKPI80211,
-	    M_NOWAIT | M_ZERO);
+	lsta = lkpi_lsta_alloc(vap, mac, hw, ni);
 	if (lsta == NULL) {
 		if (lhw->ic_node_free != NULL)
 			lhw->ic_node_free(ni);
 		return (NULL);
 	}
 
-	lsta->added_to_drv = false;
-	lsta->state = IEEE80211_STA_NOTEXIST;
-#if 0
-	/*
-	 * This needs to be done in node_init() as ieee80211_alloc_node()
-	 * will initialise the refcount after us.
-	 */
-	lsta->ni = ieee80211_ref_node(ni);
-#endif
-	/* The back-pointer "drv_data" to net80211_node let's us get lsta. */
-	ni->ni_drv_data = lsta;
-
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
-	sta = LSTA_TO_STA(lsta);
-
-	IEEE80211_ADDR_COPY(sta->addr, mac);
-	for (tid = 0; tid < nitems(sta->txq); tid++) {
-		struct lkpi_txq *ltxq;
-
-		/*
-		 * We are neither limiting ourselves to hw.queues here,
-		 * nor do we check if driver wants IEEE80211_NUM_TIDS queue.
-		 */
-
-		ltxq = malloc(sizeof(*ltxq) + hw->txq_data_size,
-		    M_LKPI80211, M_NOWAIT | M_ZERO);
-		if (ltxq == NULL)
-			goto cleanup;
-		ltxq->seen_dequeue = false;
-		skb_queue_head_init(&ltxq->skbq);
-		/* iwlwifi//mvm/sta.c::tid_to_mac80211_ac[] */
-		if (tid == IEEE80211_NUM_TIDS) {
-			IMPROVE();
-			ltxq->txq.ac = IEEE80211_AC_VO;
-		} else {
-			ltxq->txq.ac = tid_to_mac80211_ac[tid & 7];
-		}
-		ltxq->txq.tid = tid;
-		ltxq->txq.sta = sta;
-		ltxq->txq.vif = vif;
-		sta->txq[tid] = &ltxq->txq;
-	}
-
-	/* Deferred TX path. */
-	mtx_init(&lsta->txq_mtx, "lsta_txq", NULL, MTX_DEF);
-	TASK_INIT(&lsta->txq_task, 0, lkpi_80211_txq_task, lsta);
-	mbufq_init(&lsta->txq, IFQ_MAXLEN);
-
 	return (ni);
-
-cleanup:
-	for (; tid >= 0; tid--)
-		free(sta->txq[tid], M_LKPI80211);
-	free(lsta, M_LKPI80211);
-	if (lhw->ic_node_free != NULL)
-		lhw->ic_node_free(ni);
-	return (NULL);
 }
 
 static int
