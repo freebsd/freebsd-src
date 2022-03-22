@@ -651,6 +651,58 @@ lkpi_update_mcast_filter(struct ieee80211com *ic, bool force)
 	    __func__, &mc_list, mc_list.count));
 }
 
+static enum ieee80211_bss_changed
+lkpi_update_dtim_tsf(struct ieee80211_vif *vif, struct ieee80211_node *ni,
+    struct ieee80211vap *vap, const char *_f, int _l)
+{
+	enum ieee80211_bss_changed bss_changed;
+
+	bss_changed = 0;
+
+	if (debug_80211 & D80211_TRACE)
+		printf("%s:%d [%s:%d] assoc %d aid %d beacon_int %u "
+		    "dtim_period %u sync_dtim_count %u sync_tsf %ju "
+		    "sync_device_ts %u bss_changed %#08x\n",
+			__func__, __LINE__, _f, _l,
+			vif->bss_conf.assoc, vif->bss_conf.aid,
+			vif->bss_conf.beacon_int, vif->bss_conf.dtim_period,
+			vif->bss_conf.sync_dtim_count,
+			(uintmax_t)vif->bss_conf.sync_tsf,
+			vif->bss_conf.sync_device_ts,
+			bss_changed);
+
+	if (vif->bss_conf.beacon_int != ni->ni_intval) {
+		vif->bss_conf.beacon_int = ni->ni_intval;
+		/* iwlwifi FW bug workaround; iwl_mvm_mac_sta_state. */
+		if (vif->bss_conf.beacon_int < 16)
+			vif->bss_conf.beacon_int = 16;
+		bss_changed |= BSS_CHANGED_BEACON_INT;
+	}
+	if (vif->bss_conf.dtim_period != vap->iv_dtim_period &&
+	    vap->iv_dtim_period > 0) {
+		vif->bss_conf.dtim_period = vap->iv_dtim_period;
+		bss_changed |= BSS_CHANGED_BEACON_INFO;
+	}
+
+	vif->bss_conf.sync_dtim_count = vap->iv_dtim_count;
+	vif->bss_conf.sync_tsf = le64toh(ni->ni_tstamp.tsf);
+	/* vif->bss_conf.sync_device_ts = set in linuxkpi_ieee80211_rx. */
+
+	if (debug_80211 & D80211_TRACE)
+		printf("%s:%d [%s:%d] assoc %d aid %d beacon_int %u "
+		    "dtim_period %u sync_dtim_count %u sync_tsf %ju "
+		    "sync_device_ts %u bss_changed %#08x\n",
+			__func__, __LINE__, _f, _l,
+			vif->bss_conf.assoc, vif->bss_conf.aid,
+			vif->bss_conf.beacon_int, vif->bss_conf.dtim_period,
+			vif->bss_conf.sync_dtim_count,
+			(uintmax_t)vif->bss_conf.sync_tsf,
+			vif->bss_conf.sync_device_ts,
+			bss_changed);
+
+	return (bss_changed);
+}
+
 static void
 lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 {
@@ -863,20 +915,13 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= BSS_CHANGED_TXPOWER;
 	vif->bss_conf.idle = false;
 	bss_changed |= BSS_CHANGED_IDLE;
-	vif->bss_conf.beacon_int = ni->ni_intval;
-	/* iwlwifi FW bug workaround; iwl_mvm_mac_sta_state. */
-	if (vif->bss_conf.beacon_int < 16)
-		vif->bss_conf.beacon_int = 16;
-	bss_changed |= BSS_CHANGED_BEACON_INT;
-	vif->bss_conf.dtim_period = vap->iv_dtim_period;
-	bss_changed |= BSS_CHANGED_BEACON_INFO;
-	vif->bss_conf.sync_dtim_count = vap->iv_dtim_count;
-	vif->bss_conf.sync_tsf = le64toh(ni->ni_tstamp.tsf);
-	/* vif->bss_conf.sync_device_ts = set in linuxkpi_ieee80211_rx. */
 
 	/* Should almost assert it is this. */
 	vif->bss_conf.assoc = false;
 	vif->bss_conf.aid = 0;
+
+	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
+
 	/* RATES */
 	IMPROVE("bss info: not all needs to come now and rates are missing");
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
@@ -1339,18 +1384,9 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		vif->bss_conf.qos ^= 1;
 		bss_changed |= BSS_CHANGED_QOS;
 	}
-	if (vif->bss_conf.beacon_int != ni->ni_intval) {
-		vif->bss_conf.beacon_int = ni->ni_intval;
-		/* iwlwifi FW bug workaround; iwl_mvm_mac_sta_state. */
-		if (vif->bss_conf.beacon_int < 16)
-			vif->bss_conf.beacon_int = 16;
-		bss_changed |= BSS_CHANGED_BEACON_INT;
-	}
-	if (vif->bss_conf.dtim_period != vap->iv_dtim_period &&
-	    vap->iv_dtim_period > 0) {
-		vif->bss_conf.dtim_period = vap->iv_dtim_period;
-		bss_changed |= BSS_CHANGED_BEACON_INFO;
-	}
+
+	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
+
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	/* - change_chanctx (if needed)
@@ -1403,6 +1439,10 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	 * And now we should be passing packets.
 	 */
 	IMPROVE("Need that bssid setting, and the keys");
+
+	bss_changed = 0;
+	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
+	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 out:
 	IEEE80211_LOCK(vap->iv_ic);
