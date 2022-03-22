@@ -904,6 +904,7 @@ void linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *, uint64_t *,
     uint64_t *);
 struct wireless_dev *linuxkpi_ieee80211_vif_to_wdev(struct ieee80211_vif *);
 void linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *);
+void linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1403,7 +1404,7 @@ ieee80211_beacon_get_template(struct ieee80211_hw *hw,
 static __inline void
 ieee80211_beacon_loss(struct ieee80211_vif *vif)
 {
-	TODO();
+	linuxkpi_ieee80211_beacon_loss(vif);
 }
 
 static __inline void
