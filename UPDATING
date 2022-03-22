@@ -17,6 +17,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220322:
+	12.3-RELEASE-p4 FreeBSD-EN-22:14.tzdata
+
+	Timezone database information update. [EN-22:14.tzdata]
+
 20220315:
 	12.3-RELEASE-p3 FreeBSD-EN-22:09.freebsd-update
 			FreeBSD-SA-22:02.wifi
