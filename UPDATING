@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220322:
+	13.0-RELEASE-p10 FreeBSD-EN-22:14.tzdata
+
+	Timezone database information update. [EN-22:14.tzdata]
+
 20220321:
 	13.0-RELEASE-p9 FreeBSD-EN-22:13.zfs
 
