@@ -38,9 +38,6 @@
 #include <linux/bitops.h>
 #include <linux/if_ether.h>
 
-/* linux_80211.c */
-extern int debug_80211;
-
 
 /* 9.4.2.55 Management MIC element (CMAC-256, GMAC-128, and GMAC-256). */
 struct ieee80211_mmie_16 {
@@ -544,9 +541,8 @@ ieee80211_hdrlen(__le16 fc)
 
 	if (ieee80211_is_mgmt(fc)) {
 #ifdef __notyet__
-		if (debug_80211 > 0)
-			printf("XXX-BZ %s: TODO? fc %#04x size %u\n",
-			    __func__, fc, size);
+		printf("XXX-BZ %s: TODO? fc %#04x size %u\n",
+		    __func__, fc, size);
 #endif
 		;
 	}

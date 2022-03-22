@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 The FreeBSD Foundation
+ * Copyright (c) 2021-2022 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -272,7 +272,7 @@ lkpi_80211_mo_configure_filter(struct ieee80211_hw *hw, unsigned int changed_fla
 
 /*
  * So far we only called sta_{add,remove} as an alternative to sta_state.
- * Let's keep the implementation simpler and hid sta_{add,remove} under the
+ * Let's keep the implementation simpler and hide sta_{add,remove} under the
  * hood here calling them if state_state is not available from mo_sta_state.
  */
 static int
@@ -355,14 +355,20 @@ lkpi_80211_mo_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	/* XXX-BZ is the change state AUTH or ASSOC here? */
-	if (lsta->state < IEEE80211_STA_ASSOC && nstate == IEEE80211_STA_ASSOC)
+	if (lsta->state < IEEE80211_STA_ASSOC && nstate == IEEE80211_STA_ASSOC) {
 		error = lkpi_80211_mo_sta_add(hw, vif, sta);
-	else if (lsta->state >= IEEE80211_STA_ASSOC &&
-	    nstate < IEEE80211_STA_ASSOC)
+		if (error == 0)
+			lsta->added_to_drv = true;
+	} else if (lsta->state >= IEEE80211_STA_ASSOC &&
+	    nstate < IEEE80211_STA_ASSOC) {
 		error = lkpi_80211_mo_sta_remove(hw, vif, sta);
-	else
+		if (error == 0)
+			lsta->added_to_drv = false;
+	} else
 		/* Nothing to do. */
 		error = 0;
+	if (error == 0)
+		lsta->state = nstate;
 
 out:
 	/* XXX-BZ should we manage state in here? */

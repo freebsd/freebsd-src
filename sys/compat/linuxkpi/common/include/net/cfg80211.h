@@ -44,16 +44,16 @@
 #include <net/regulatory.h>
 
 /* linux_80211.c */
-extern int debug_80211;
+extern int linuxkpi_debug_80211;
 #ifndef	D80211_TODO
 #define	D80211_TODO		0x1
 #endif
 #ifndef	D80211_IMPROVE
 #define	D80211_IMPROVE		0x2
 #endif
-#define	TODO()		if (debug_80211 & D80211_TODO)			\
+#define	TODO()		if (linuxkpi_debug_80211 & D80211_TODO)		\
     printf("%s:%d: XXX LKPI80211 TODO\n", __func__, __LINE__)
-#define	IMPROVE(...)	if (debug_80211 & D80211_IMPROVE)		\
+#define	IMPROVE(...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
     printf("%s:%d: XXX LKPI80211 IMPROVE\n", __func__, __LINE__)
 
 enum rfkill_hard_block_reasons {
@@ -1166,9 +1166,9 @@ cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 	KASSERT(chandef != NULL, ("%s: chandef is NULL\n", __func__));
 	KASSERT(chan != NULL, ("%s: chan is NULL\n", __func__));
 
+	memset(chandef, 0, sizeof(*chandef));
 	chandef->chan = chan;
 	chandef->center_freq2 = 0;	/* Set here and only overwrite if needed. */
-        chandef->chan = chan;
 
 	switch (chan_flag) {
 	case NL80211_CHAN_NO_HT:
