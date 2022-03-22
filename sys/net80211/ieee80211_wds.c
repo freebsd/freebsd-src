@@ -179,8 +179,7 @@ ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 			/*
 			 * Committed to new node, setup state.
 			 */
-			obss = vap->iv_bss;
-			vap->iv_bss = ni;
+			obss = vap->iv_update_bss(vap, ni);
 			ni->ni_wdsvap = vap;
 		}
 		IEEE80211_NODE_UNLOCK(nt);
@@ -201,8 +200,7 @@ ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 		 */
 		ni = ieee80211_node_create_wds(vap, vap->iv_des_bssid, chan);
 		if (ni != NULL) {
-			obss = vap->iv_bss;
-			vap->iv_bss = ieee80211_ref_node(ni);
+			obss = vap->iv_update_bss(vap, ieee80211_ref_node(ni));
 			ni->ni_flags |= IEEE80211_NODE_AREF;
 			if (obss != NULL)
 				ieee80211_free_node(obss);

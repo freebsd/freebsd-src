@@ -197,7 +197,7 @@ ieee80211_node_vdetach(struct ieee80211vap *vap)
 	ieee80211_node_table_reset(&ic->ic_sta, vap);
 	if (vap->iv_bss != NULL) {
 		ieee80211_free_node(vap->iv_bss);
-		vap->iv_bss = NULL;
+		vap->iv_update_bss(vap, NULL);
 	}
 	if (vap->iv_aid_bitmap != NULL) {
 		IEEE80211_FREE(vap->iv_aid_bitmap, M_80211_NODE);
@@ -453,8 +453,7 @@ ieee80211_reset_bss(struct ieee80211vap *vap)
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
 	KASSERT(ni != NULL, ("unable to setup initial BSS node"));
-	obss = vap->iv_bss;
-	vap->iv_bss = ieee80211_ref_node(ni);
+	obss = vap->iv_update_bss(vap, ieee80211_ref_node(ni));
 	if (obss != NULL) {
 		copy_bss(ni, obss);
 		ni->ni_intval = ic->ic_bintval;
@@ -846,7 +845,7 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 	/*
 	 * Committed to selbs, setup state.
 	 */
-	obss = vap->iv_bss;
+	obss = vap->iv_update_bss(vap, selbs);	/* NB: caller assumed to bump refcnt */
 	/*
 	 * Check if old+new node have the same address in which
 	 * case we can reassociate when operating in sta mode.
@@ -855,7 +854,6 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 	canreassoc = (obss != NULL &&
 		vap->iv_state == IEEE80211_S_RUN &&
 		IEEE80211_ADDR_EQ(obss->ni_macaddr, selbs->ni_macaddr));
-	vap->iv_bss = selbs;		/* NB: caller assumed to bump refcnt */
 	if (obss != NULL) {
 		struct ieee80211_node_table *nt = obss->ni_table;
 
