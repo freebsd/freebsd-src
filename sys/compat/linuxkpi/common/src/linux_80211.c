@@ -3708,10 +3708,36 @@ linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *vif)
 	 * Let the statemachine handle all neccessary changes.
 	 */
 	nstate = IEEE80211_S_INIT;
-	arg = 0;
+	arg = 0;	/* Not a valid reason. */
 
 	if (debug_80211 & D80211_TRACE)
 		ic_printf(vap->iv_ic, "%s: vif %p\n", __func__, vif);
+	ieee80211_new_state(vap, nstate, arg);
+}
+
+void
+linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *vif)
+{
+	struct lkpi_vif *lvif;
+	struct ieee80211vap *vap;
+	enum ieee80211_state nstate;
+	int arg;
+
+	lvif = VIF_TO_LVIF(vif);
+	vap = LVIF_TO_VAP(lvif);
+
+	/*
+	 * Go to scan; otherwise we need to elaborately check state and
+	 * handle accordingly, e.g., if in RUN we could call iv_bmiss.
+	 * Let the statemachine handle all neccessary changes.
+	 */
+	nstate = IEEE80211_S_SCAN;
+	arg = 0;
+
+	/* We should be in RUN.  Can we assert that? */
+	if (debug_80211 & D80211_TRACE || vap->iv_state != IEEE80211_S_RUN)
+		ic_printf(vap->iv_ic, "%s: vif %p vap %p state %s\n", __func__,
+		    vif, vap, ieee80211_state_name[vap->iv_state]);
 	ieee80211_new_state(vap, nstate, arg);
 }
 
