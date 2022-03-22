@@ -26,14 +26,14 @@
 #
 # $FreeBSD$
 
-: ${DIALOG_OK=0}
+: ${BSDDIALOG_OK=0}
 
 echo -n > $BSDINSTALL_TMPETC/rc.conf.hardening
 echo -n > $BSDINSTALL_TMPETC/sysctl.conf.hardening
 echo -n > $BSDINSTALL_TMPBOOT/loader.conf.hardening
 
 exec 3>&1
-FEATURES=$( dialog --backtitle "FreeBSD Installer" \
+FEATURES=$( bsddialog --backtitle "FreeBSD Installer" \
     --title "System Hardening" --nocancel --separate-output \
     --checklist "Choose system security hardening options:" \
     0 0 0 \
@@ -49,7 +49,12 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
 	"9 secure_console" "Enable console password prompt" ${secure_console:-off} \
 	"10 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
 2>&1 1>&3 )
+retval=$?
 exec 3>&-
+
+if [ $retval -ne $BSDDIALOG_OK ]; then
+	exit 1
+fi
 
 for feature in $FEATURES; do
 	case "$feature" in
@@ -88,4 +93,3 @@ for feature in $FEATURES; do
 		;;
 	esac
 done
-
