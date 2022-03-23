@@ -39,6 +39,14 @@
 
 #define	VIRT_BITS	48
 
+#if PAGE_SIZE == PAGE_SIZE_16K
+/*
+ * The number of level 3 tables to create. 32 will allow for 1G of address
+ * space, the same as a single level 2 page with 4k pages.
+ */
+#define	L3_PAGE_COUNT	32
+#endif
+
 	.globl	kernbase
 	.set	kernbase, KERNBASE
 
@@ -431,8 +439,13 @@ LENTRY(create_pagetables)
 	/* Booted with modules pointer */
 	/* Find modulep - begin */
 	sub	x8, x0, x6
-	/* Add two 2MiB pages for the module data and round up */
-	ldr	x7, =(3 * L2_SIZE - 1)
+	/*
+	 * Add space for the module data. When PAGE_SIZE is 4k this will
+	 * add at least 2 level 2 blocks (2 * 2MiB). When PAGE_SIZE is
+	 * larger it will be at least as large as we use smaller level 3
+	 * pages.
+	 */
+	ldr	x7, =((6 * 1024 * 1024) - 1)
 	add	x8, x8, x7
 	b	common
 
@@ -457,6 +470,34 @@ booti_no_fdt:
 #endif
 
 common:
+#if PAGE_SIZE != PAGE_SIZE_4K
+	/*
+	 * Create L3 pages. The kernel will be loaded at a 2M aligned
+	 * address, however L2 blocks are too large when the page size is
+	 * not 4k to map the kernel with such an aligned address. However,
+	 * when the page size is larger than 4k, L2 blocks are too large to
+	 * map the kernel with such an alignment.
+	 */
+
+	/* Get the number of l3 pages to allocate, rounded down */
+	lsr	x10, x8, #(L3_SHIFT)
+
+	/* Create the kernel space L2 table */
+	mov	x6, x26
+	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
+	mov	x8, #(KERNBASE)
+	mov	x9, x28
+	bl	build_l3_page_pagetable
+
+	/* Move to the l2 table */
+	ldr	x9, =(PAGE_SIZE * L3_PAGE_COUNT)
+	add	x26, x26, x9
+
+	/* Link the l2 -> l3 table */
+	mov	x9, x6
+	mov	x6, x26
+	bl	link_l2_pagetable
+#else
 	/* Get the number of l2 pages to allocate, rounded down */
 	lsr	x10, x8, #(L2_SHIFT)
 
@@ -466,6 +507,7 @@ common:
 	mov	x8, #(KERNBASE)
 	mov	x9, x28
 	bl	build_l2_block_pagetable
+#endif
 
 	/* Move to the l1 table */
 	add	x26, x26, #PAGE_SIZE
@@ -504,7 +546,8 @@ common:
 #if defined(SOCDEV_PA)
 	/* Create a table for the UART */
 	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_DEVICE))
-	add	x16, x16, #(L2_SIZE)	/* VA start */
+	ldr	x9, =(L2_SIZE)
+	add	x16, x16, x9	/* VA start */
 	mov	x8, x16
 
 	/* Store the socdev virtual address */
@@ -523,7 +566,8 @@ common:
 
 	/* Create the mapping for FDT data (2 MiB max) */
 	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
-	add	x16, x16, #(L2_SIZE)	/* VA start */
+	ldr	x9, =(L2_SIZE)
+	add	x16, x16, x9	/* VA start */
 	mov	x8, x16
 	mov	x9, x0			/* PA start */
 	/* Update the module pointer to point at the allocated memory */
@@ -662,6 +706,76 @@ LENTRY(build_l2_block_pagetable)
 	ret
 LEND(build_l2_block_pagetable)
 
+#if PAGE_SIZE != PAGE_SIZE_4K
+/*
+ * Builds an L2 -> L3 table descriptor
+ *
+ *  x6  = L2 table
+ *  x8  = Virtual Address
+ *  x9  = L3 PA (trashed)
+ *  x11, x12 and x13 are trashed
+ */
+LENTRY(link_l2_pagetable)
+	/*
+	 * Link an L2 -> L3 table entry.
+	 */
+	/* Find the table index */
+	lsr	x11, x8, #L2_SHIFT
+	and	x11, x11, #Ln_ADDR_MASK
+
+	/* Build the L1 block entry */
+	mov	x12, #L2_TABLE
+
+	/* Only use the output address bits */
+	lsr	x9, x9, #PAGE_SHIFT
+	orr	x13, x12, x9, lsl #PAGE_SHIFT
+
+	/* Store the entry */
+	str	x13, [x6, x11, lsl #3]
+
+	ret
+LEND(link_l2_pagetable)
+
+/*
+ * Builds count level 3 page table entries
+ *  x6  = L3 table
+ *  x7  = Block attributes
+ *  x8  = VA start
+ *  x9  = PA start (trashed)
+ *  x10 = Entry count (trashed)
+ *  x11, x12 and x13 are trashed
+ */
+LENTRY(build_l3_page_pagetable)
+	/*
+	 * Build the L3 table entry.
+	 */
+	/* Find the table index */
+	lsr	x11, x8, #L3_SHIFT
+	and	x11, x11, #Ln_ADDR_MASK
+
+	/* Build the L3 page entry */
+	orr	x12, x7, #L3_PAGE
+	orr	x12, x12, #(ATTR_DEFAULT)
+	orr	x12, x12, #(ATTR_S1_UXN)
+
+	/* Only use the output address bits */
+	lsr	x9, x9, #L3_SHIFT
+
+	/* Set the physical address for this virtual address */
+1:	orr	x13, x12, x9, lsl #L3_SHIFT
+
+	/* Store the entry */
+	str	x13, [x6, x11, lsl #3]
+
+	sub	x10, x10, #1
+	add	x11, x11, #1
+	add	x9, x9, #1
+	cbnz	x10, 1b
+
+	ret
+LEND(build_l3_page_pagetable)
+#endif
+
 LENTRY(start_mmu)
 	dsb	sy
 
@@ -743,7 +857,15 @@ mair:
 		MAIR_ATTR(MAIR_NORMAL_WT, VM_MEMATTR_WRITE_THROUGH) |	\
 		MAIR_ATTR(MAIR_DEVICE_nGnRE, VM_MEMATTR_DEVICE_nGnRE)
 tcr:
-	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG1_4K | TCR_TG0_4K | \
+#if PAGE_SIZE == PAGE_SIZE_4K
+#define	TCR_TG	(TCR_TG1_4K | TCR_TG0_4K)
+#elif PAGE_SIZE == PAGE_SIZE_16K
+#define	TCR_TG	(TCR_TG1_16K | TCR_TG0_16K)
+#else
+#error Unsupported page size
+#endif
+
+	.quad (TCR_TxSZ(64 - VIRT_BITS) | TCR_TG | \
 	    TCR_CACHE_ATTRS | TCR_SMP_ATTRS)
 sctlr_set:
 	/* Bits to set */
@@ -774,6 +896,10 @@ END(abort)
 	 */
 	.globl pagetable_l0_ttbr1
 pagetable:
+#if PAGE_SIZE != PAGE_SIZE_4K
+	.space	(PAGE_SIZE * L3_PAGE_COUNT)
+pagetable_l2_ttbr1:
+#endif
 	.space	PAGE_SIZE
 pagetable_l1_ttbr1:
 	.space	PAGE_SIZE
