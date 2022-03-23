@@ -28,10 +28,43 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/elf.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/reg.h>
 #ifdef VFP
 #include <machine/vfp.h>
+#endif
+
+#ifdef VFP
+static bool
+get_arm_vfp(struct regset *rs, struct thread *td, void *buf, size_t *sizep)
+{
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(mcontext_vfp_t),
+		    ("%s: invalid size", __func__));
+		get_vfpcontext(td, buf);
+	}
+	*sizep = sizeof(mcontext_vfp_t);
+	return (true);
+}
+
+static bool
+set_arm_vfp(struct regset *rs, struct thread *td, void *buf,
+    size_t size)
+{
+	KASSERT(size == sizeof(mcontext_vfp_t), ("%s: invalid size", __func__));
+	set_vfpcontext(td, buf);
+	return (true);
+}
+
+static struct regset regset_arm_vfp = {
+	.note = NT_ARM_VFP,
+	.size = sizeof(mcontext_vfp_t),
+	.get = get_arm_vfp,
+	.set = set_arm_vfp,
+};
+ELF_REGSET(regset_arm_vfp);
 #endif
 
 int

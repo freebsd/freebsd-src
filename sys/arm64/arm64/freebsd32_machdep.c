@@ -61,10 +61,6 @@ extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
  */
 #define UC32_COPY_SIZE  offsetof(ucontext32_t, uc_link)
 
-#ifdef VFP
-static void get_fpcontext32(struct thread *td, mcontext32_vfp_t *);
-#endif
-
 /*
  * Stubs for machine dependent 32-bits system calls.
  */
@@ -127,7 +123,7 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 }
 
 #ifdef VFP
-static void
+void
 get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 {
 	struct pcb *pcb;
@@ -159,7 +155,7 @@ get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 	}
 }
 
-static void
+void
 set_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 {
 	struct pcb *pcb;
@@ -176,6 +172,7 @@ set_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 	critical_exit();
 }
 #endif
+
 static void
 get_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
 {

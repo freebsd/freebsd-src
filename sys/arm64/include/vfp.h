@@ -94,6 +94,11 @@ int is_fpu_kern_thread(u_int);
 #define VFP_FPSR_FROM_FPSCR(vpscr) ((vpscr) &~ 0x7c00000)
 #define VFP_FPCR_FROM_FPSCR(vpsrc) ((vpsrc) & 0x7c00000)
 
+#ifdef COMPAT_FREEBSD32
+void get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp);
+void set_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp);
+#endif
+
 #endif
 
 #endif
