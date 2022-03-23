@@ -372,6 +372,9 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putregnote(NT_FPREGSET, tids[i], sb);
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
 		elf_putnote(NT_PTLWPINFO, elf_note_ptlwpinfo, tids + i, sb);
+#if defined(__aarch64__) || defined(__arm__)
+		elf_putregnote(NT_ARM_TLS, tids[i], sb);
+#endif
 #if (defined(ELFCORE_COMPAT_32) && defined(__aarch64__)) || defined(__arm__)
 		elf_putregnote(NT_ARM_VFP, tids[i], sb);
 #endif

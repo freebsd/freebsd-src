@@ -1197,6 +1197,7 @@ note_type_freebsd_core(unsigned int nt)
 	case 0x102: return "NT_PPC_VSX (ppc VSX registers)";
 	case 0x202: return "NT_X86_XSTATE (x86 XSAVE extended state)";
 	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
+	case 0x401: return "NT_ARM_TLS (arm TLS register)";
 	case 0x406: return "NT_ARM_ADDR_MASK (arm address mask)";
 	default: return (note_type_unknown(nt));
 	}
