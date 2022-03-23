@@ -1309,7 +1309,7 @@ again:
 				cc_exec_drain(cc, direct) = drain;
 			}
 			CC_UNLOCK(cc);
-			return ((flags & CS_EXECUTING) != 0);
+			return (0);
 		} else {
 			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
@@ -1321,7 +1321,7 @@ again:
 			}
 		}
 		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
-		cancelled = ((flags & CS_EXECUTING) != 0);
+		cancelled = 0;
 	} else
 		cancelled = 1;
 
