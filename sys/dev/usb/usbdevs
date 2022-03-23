@@ -3535,6 +3535,20 @@ product OLIMEX ARM_USB_OCD_H		0x002b	FTDI compatible adapter
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
 product OLYMPUS C700		0x0105	C-700 Ultra Zoom
+/* Current Olympus DSLRs and EVIL cameras reuse the same product code and
+ * bcdDevice for multiple models.  This may result in problems with newer
+ * cameras. */
+/* Olympus DSLRs */
+product OLYMPUS E_1		0x0102
+product OLYMPUS E_300		0x0118
+product OLYMPUS E_330		0x0118
+product OLYMPUS E_30		0x0118
+/* Olympus EVIL cameras */
+product OLYMPUS E_PM1		0x012c
+product OLYMPUS E_PM2		0x012e
+product OLYMPUS E_M1		0x012e
+product OLYMPUS E_M1MarkII	0x012e
+product OLYMPUS E_M5MarkIII	0x012e
 
 /* OmniVision Technologies, Inc. products */
 product OMNIVISION OV511	0x0511	OV511 Camera
