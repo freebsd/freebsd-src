@@ -109,33 +109,43 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_DESCR_TYPE_PAGE	2
 #define	ATTR_DESCR_TYPE_BLOCK	0
 
-/* Level 0 table, 512GiB per entry */
+#if PAGE_SIZE == PAGE_SIZE_4K
 #define	L0_SHIFT	39
-#define	L0_SIZE		(1ul << L0_SHIFT)
+#define	L1_SHIFT	30
+#define	L2_SHIFT	21
+#define	L3_SHIFT	12
+#elif PAGE_SIZE == PAGE_SIZE_16K
+#define	L0_SHIFT	47
+#define	L1_SHIFT	36
+#define	L2_SHIFT	25
+#define	L3_SHIFT	14
+#else
+#error Unsupported page size
+#endif
+
+/* Level 0 table, 512GiB/128TiB per entry */
+#define	L0_SIZE		(UINT64_C(1) << L0_SHIFT)
 #define	L0_OFFSET	(L0_SIZE - 1ul)
 #define	L0_INVAL	0x0 /* An invalid address */
 	/* 0x1 Level 0 doesn't support block translation */
 	/* 0x2 also marks an invalid address */
 #define	L0_TABLE	0x3 /* A next-level table */
 
-/* Level 1 table, 1GiB per entry */
-#define	L1_SHIFT	30
-#define	L1_SIZE 	(1 << L1_SHIFT)
+/* Level 1 table, 1GiB/64GiB per entry */
+#define	L1_SIZE 	(UINT64_C(1) << L1_SHIFT)
 #define	L1_OFFSET 	(L1_SIZE - 1)
 #define	L1_INVAL	L0_INVAL
 #define	L1_BLOCK	0x1
 #define	L1_TABLE	L0_TABLE
 
-/* Level 2 table, 2MiB per entry */
-#define	L2_SHIFT	21
-#define	L2_SIZE 	(1 << L2_SHIFT)
+/* Level 2 table, 2MiB/32MiB per entry */
+#define	L2_SIZE 	(UINT64_C(1) << L2_SHIFT)
 #define	L2_OFFSET 	(L2_SIZE - 1)
 #define	L2_INVAL	L1_INVAL
-#define	L2_BLOCK	L1_BLOCK
+#define	L2_BLOCK	0x1
 #define	L2_TABLE	L1_TABLE
 
-/* Level 3 table, 4KiB per entry */
-#define	L3_SHIFT	12
+/* Level 3 table, 4KiB/16KiB per entry */
 #define	L3_SIZE 	(1 << L3_SHIFT)
 #define	L3_OFFSET 	(L3_SIZE - 1)
 #define	L3_INVAL	0x0
@@ -145,11 +155,19 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 #define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 8)
 
+#if PAGE_SIZE == PAGE_SIZE_4K
 #define	L0_ENTRIES_SHIFT 9
+#define	Ln_ENTRIES_SHIFT 9
+#elif PAGE_SIZE == PAGE_SIZE_16K
+#define	L0_ENTRIES_SHIFT 1
+#define	Ln_ENTRIES_SHIFT 11
+#else
+#error Unsupported page size
+#endif
+
 #define	L0_ENTRIES	(1 << L0_ENTRIES_SHIFT)
 #define	L0_ADDR_MASK	(L0_ENTRIES - 1)
 
-#define	Ln_ENTRIES_SHIFT 9
 #define	Ln_ENTRIES	(1 << Ln_ENTRIES_SHIFT)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 #define	Ln_TABLE_MASK	((1 << 12) - 1)
