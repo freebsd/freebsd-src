@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/elf.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
@@ -47,6 +48,38 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 
 #include <machine/armreg.h>
+
+#if defined(VFP) && defined(COMPAT_FREEBSD32)
+static bool
+get_arm_vfp(struct regset *rs, struct thread *td, void *buf, size_t *sizep)
+{
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(mcontext32_vfp_t),
+		    ("%s: invalid size", __func__));
+		get_fpcontext32(td, buf);
+	}
+	*sizep = sizeof(mcontext32_vfp_t);
+	return (true);
+}
+
+static bool
+set_arm_vfp(struct regset *rs, struct thread *td, void *buf,
+    size_t size)
+{
+	KASSERT(size == sizeof(mcontext32_vfp_t), ("%s: invalid size",
+	    __func__));
+	set_fpcontext32(td, buf);
+	return (true);
+}
+
+static struct regset regset_arm_vfp = {
+	.note = NT_ARM_VFP,
+	.size = sizeof(mcontext32_vfp_t),
+	.get = get_arm_vfp,
+	.set = set_arm_vfp,
+};
+ELF32_REGSET(regset_arm_vfp);
+#endif
 
 int
 ptrace_set_pc(struct thread *td, u_long addr)
