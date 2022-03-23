@@ -221,8 +221,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			l3_attr |= ATTR_S1_XN;
 
 		VM_OBJECT_WLOCK(obj_1t1_pt);
-		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,
-		    va += PAGE_SIZE) {
+		for (va = p->md_phys, idx = 0; idx < p->md_pages;
+		    idx += (PAGE_SIZE / EFI_PAGE_SIZE), va += PAGE_SIZE) {
 			l3 = efi_1t1_l3(va);
 			*l3 = va | l3_attr;
 		}
