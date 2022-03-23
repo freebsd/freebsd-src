@@ -86,6 +86,8 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 	skb->head = skb->data = skb->tail = (uint8_t *)(skb+1);
 	skb->end = skb->head + size;
 
+	skb->prev = skb->next = skb;
+
 	skb->shinfo = (struct skb_shared_info *)(skb->end);
 
 	SKB_TRACE_FMT(skb, "data %p size %zu", skb->data, size);

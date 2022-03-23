@@ -762,26 +762,27 @@ skb_mark_not_on_list(struct sk_buff *skb)
 }
 
 static inline void
-skb_queue_splice_init(struct sk_buff_head *q, struct sk_buff_head *h)
+skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
 {
-	struct sk_buff *b, *e;
+	struct sk_buff *b, *e, *n;
 
-	SKB_TRACE2(q, h);
+	SKB_TRACE2(from, to);
 
-	if (skb_queue_empty(q))
+	if (skb_queue_empty(from))
 		return;
 
 	/* XXX do we need a barrier around this? */
-	b = q->next;
-	e = q->prev;
+	b = from->next;
+	e = from->prev;
+	n = to->next;
 
-	b->prev = (struct sk_buff *)h;
-	h->next = b;
-	e->next = h->next;
-	h->next->prev = e;
+	b->prev = (struct sk_buff *)to;
+	to->next = b;
+	e->next = n;
+	n->prev = e;
 
-	h->qlen += q->qlen;
-	__skb_queue_head_init(q);
+	to->qlen += from->qlen;
+	__skb_queue_head_init(from);
 }
 
 static inline void
