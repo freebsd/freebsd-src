@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2021
+.Dd March 23, 2022
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -619,7 +619,7 @@ everything following a pound/hash character is ignored as a comment.
 .Ss BUILDING AUTOMATIC INSTALL MEDIA
 If building automatic install media, use tar to extract a release ISO:
 .Dl mkdir release-media
-.Dl tar xvf -C release-media FreeBSD-13.0-RELEASE-amd64-disc1.iso
+.Dl tar -C release-media -xvf FreeBSD-13.0-RELEASE-amd64-disc1.iso
 .Pp
 Then place a script as above in
 .Pa etc/installerconfig
