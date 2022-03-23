@@ -81,6 +81,54 @@ static struct regset regset_arm_vfp = {
 ELF32_REGSET(regset_arm_vfp);
 #endif
 
+static bool
+get_arm64_tls(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(td->td_pcb->pcb_tpidr_el0),
+		    ("%s: invalid size", __func__));
+		memcpy(buf, &td->td_pcb->pcb_tpidr_el0,
+		    sizeof(td->td_pcb->pcb_tpidr_el0));
+	}
+	*sizep = sizeof(td->td_pcb->pcb_tpidr_el0);
+
+	return (true);
+}
+
+static struct regset regset_arm64_tls = {
+	.note = NT_ARM_TLS,
+	.size = sizeof(uint64_t),
+	.get = get_arm64_tls,
+};
+ELF_REGSET(regset_arm64_tls);
+
+#ifdef COMPAT_FREEBSD32
+static bool
+get_arm_tls(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	if (buf != NULL) {
+		uint32_t tp;
+
+		KASSERT(*sizep == sizeof(uint32_t),
+		    ("%s: invalid size", __func__));
+		tp = (uint32_t)td->td_pcb->pcb_tpidr_el0;
+		memcpy(buf, &tp, sizeof(tp));
+	}
+	*sizep = sizeof(uint32_t);
+
+	return (true);
+}
+
+static struct regset regset_arm_tls = {
+	.note = NT_ARM_TLS,
+	.size = sizeof(uint32_t),
+	.get = get_arm_tls,
+};
+ELF32_REGSET(regset_arm_tls);
+#endif
+
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {
