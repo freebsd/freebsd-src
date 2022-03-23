@@ -2232,6 +2232,7 @@ __elfN(get_prstatus)(struct regset *rs, struct thread *td, void *buf,
 		KASSERT(*sizep == sizeof(*status), ("%s: invalid size",
 		    __func__));
 		status = buf;
+		memset(status, 0, *sizep);
 		status->pr_version = PRSTATUS_VERSION;
 		status->pr_statussz = sizeof(elf_prstatus_t);
 		status->pr_gregsetsz = sizeof(elf_gregset_t);
