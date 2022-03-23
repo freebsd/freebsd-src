@@ -110,9 +110,6 @@ static void elf_detach(void);	/* atexit() handler. */
 static void *elf_note_prpsinfo(void *, size_t *);
 static void *elf_note_thrmisc(void *, size_t *);
 static void *elf_note_ptlwpinfo(void *, size_t *);
-#if defined(__arm__)
-static void *elf_note_arm_vfp(void *, size_t *);
-#endif
 #if defined(__i386__) || defined(__amd64__)
 static void *elf_note_x86_xstate(void *, size_t *);
 #endif
@@ -375,8 +372,8 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putregnote(NT_FPREGSET, tids[i], sb);
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
 		elf_putnote(NT_PTLWPINFO, elf_note_ptlwpinfo, tids + i, sb);
-#if defined(__arm__)
-		elf_putnote(NT_ARM_VFP, elf_note_arm_vfp, tids + i, sb);
+#if (defined(ELFCORE_COMPAT_32) && defined(__aarch64__)) || defined(__arm__)
+		elf_putregnote(NT_ARM_VFP, tids[i], sb);
 #endif
 #if defined(__i386__) || defined(__amd64__)
 		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);

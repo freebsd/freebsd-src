@@ -285,5 +285,4 @@ freebsd32_setregs(struct thread *td, struct image_params *imgp,
 void
 elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
-	/* XXX: VFP */
 }
