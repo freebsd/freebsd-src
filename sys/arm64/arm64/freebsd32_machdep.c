@@ -130,29 +130,33 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 static void
 get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 {
-	struct pcb *curpcb;
+	struct pcb *pcb;
 	int i;
 
-	critical_enter();
-	curpcb = curthread->td_pcb;
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc),
+	    ("not suspended thread %p", td));
 
-	if ((curpcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
+	memset(mcp, 0, sizeof(*mcp));
+	pcb = td->td_pcb;
+
+	if ((pcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
 		/*
 		 * If we have just been running VFP instructions we will
 		 * need to save the state to memcpy it below.
 		 */
-		vfp_save_state(td, curpcb);
+		if (td == curthread)
+			vfp_save_state(td, pcb);
 
-		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
-				("Called get_fpcontext while the kernel is using the VFP"));
-		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
-				("Non-userspace FPU flags set in get_fpcontext"));
+		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+		    ("Called get_fpcontext32 while the kernel is using the VFP"));
+		KASSERT((pcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
+		    ("Non-userspace FPU flags set in get_fpcontext32"));
 		for (i = 0; i < 32; i++)
-			mcp->mcv_reg[i] = (uint64_t)curpcb->pcb_fpustate.vfp_regs[i];
-		mcp->mcv_fpscr = VFP_FPSCR_FROM_SRCR(curpcb->pcb_fpustate.vfp_fpcr,
-				curpcb->pcb_fpustate.vfp_fpsr);
+			mcp->mcv_reg[i] = (uint64_t)pcb->pcb_fpustate.vfp_regs[i];
+		mcp->mcv_fpscr = VFP_FPSCR_FROM_SRCR(pcb->pcb_fpustate.vfp_fpcr,
+		    pcb->pcb_fpustate.vfp_fpsr);
 	}
- critical_exit();
 }
 
 static void
