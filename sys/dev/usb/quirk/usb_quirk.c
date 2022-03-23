@@ -353,6 +353,39 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(OLYMPUS, C1, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_WRONG_CSWSIG),
 	USB_QUIRK(OLYMPUS, C700, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN),
+        /* Selected Olympus DSLR and EVIL models.  See ../usbdevs for more
+	 * details.
+	 *
+	 * Not all quirks apply to all models.  The commented-out entries are
+	 * correct for that model.
+	 */
+	USB_QUIRK(OLYMPUS, E_1, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	    UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+            UQ_MSC_NO_SYNC_CACHE),
+	/*
+	 * Product code 0x118.
+	 * USB_QUIRK(OLYMPUS, E_300, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	 *     UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+         *     UQ_MSC_NO_SYNC_CACHE),
+	 * USB_QUIRK(OLYMPUS, E_30, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	 *     UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+         *     UQ_MSC_NO_SYNC_CACHE), */
+	USB_QUIRK(OLYMPUS, E_330, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	    UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+            UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_START_STOP),
+	USB_QUIRK(OLYMPUS, E_PM1, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	    UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+            UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_START_STOP),
+        /* Product code 0x12e.
+	 * USB_QUIRK(OLYMPUS, E_PM2, 0x0000, 0xffff, 0),
+	 * USB_QUIRK(OLYMPUS, E_M1MarkII, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	 *     UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+	 *     UQ_MSC_NO_SYNC_CACHE),
+	 * USB_QUIRK(OLYMPUS, E_M5MarkIII, 0x0000, 0xffff, 0),
+	 */
+	USB_QUIRK(OLYMPUS, E_M1, 0x0000, 0xffff, UQ_MSC_NO_GETMAXLUN,
+	    UQ_MSC_NO_TEST_UNIT_READY, UQ_MSC_NO_PREVENT_ALLOW,
+            UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_START_STOP),
 	USB_QUIRK(ONSPEC, SDS_HOTFIND_D, 0x0000, 0xffff, UQ_MSC_FORCE_WIRE_BBB,
 	    UQ_MSC_FORCE_PROTO_SCSI, UQ_MSC_NO_GETMAXLUN, UQ_MSC_NO_SYNC_CACHE),
 	USB_QUIRK(ONSPEC, CFMS_RW, 0x0000, 0xffff, UQ_MSC_FORCE_PROTO_SCSI),
@@ -1042,7 +1075,7 @@ usb_quirk_init(void *arg)
 {
 	char envkey[sizeof(USB_QUIRK_ENVROOT) + 2];	/* 2 digits max, 0 to 99 */
 	int i;
-  
+
 	/* initialize mutex */
 	mtx_init(&usb_quirk_mtx, "USB quirk", NULL, MTX_DEF);
 
