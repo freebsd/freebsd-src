@@ -67,6 +67,28 @@ static struct regset regset_arm_vfp = {
 ELF_REGSET(regset_arm_vfp);
 #endif
 
+static bool
+get_arm_tls(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(td->td_pcb->pcb_regs.sf_tpidrurw),
+		    ("%s: invalid size", __func__));
+		memcpy(buf, &td->td_pcb->pcb_regs.sf_tpidrurw,
+		    sizeof(td->td_pcb->pcb_regs.sf_tpidrurw));
+	}
+	*sizep = sizeof(td->td_pcb->pcb_regs.sf_tpidrurw);
+
+	return (true);
+}
+
+static struct regset regset_arm_tls = {
+	.note = NT_ARM_TLS,
+	.size = sizeof(uint32_t),
+	.get = get_arm_tls,
+};
+ELF_REGSET(regset_arm_tls);
+
 int
 cpu_ptrace(struct thread *td, int req, void *addr, int data)
 {
