@@ -41,6 +41,8 @@
 #include <machine/reg.h>
 
 #ifdef _KERNEL
+#include <sys/linker_set.h>
+
 struct sbuf;
 struct regset;
 
@@ -58,6 +60,10 @@ struct regset {
 #if defined(__ELF_WORD_SIZE)
 SET_DECLARE(__elfN(regset), struct regset);
 #define	ELF_REGSET(_regset)	DATA_SET(__elfN(regset), _regset)
+#endif
+#ifdef COMPAT_FREEBSD32
+SET_DECLARE(elf32_regset, struct regset);
+#define	ELF32_REGSET(_regset)	DATA_SET(elf32_regset, _regset)
 #endif
 
 int	fill_regs(struct thread *, struct reg *);
