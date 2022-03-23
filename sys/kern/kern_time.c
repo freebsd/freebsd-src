@@ -952,8 +952,6 @@ realitexpire(void *arg)
 	kern_psignal(p, SIGALRM);
 	if (!timevalisset(&p->p_realtimer.it_interval)) {
 		timevalclear(&p->p_realtimer.it_value);
-		if (p->p_flag & P_WEXIT)
-			wakeup(&p->p_itcallout);
 		return;
 	}
 
