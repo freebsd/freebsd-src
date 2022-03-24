@@ -511,6 +511,74 @@ errout:
 	return (error);
 }
 
+static int __noinline
+namei_follow_link(struct nameidata *ndp)
+{
+	char *cp;
+	struct iovec aiov;
+	struct uio auio;
+	struct componentname *cnp;
+	struct thread *td;
+	int error, linklen;
+
+	error = 0;
+	cnp = &ndp->ni_cnd;
+	td = curthread;
+
+	if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
+		error = ELOOP;
+		goto out;
+	}
+#ifdef MAC
+	if ((cnp->cn_flags & NOMACCHECK) == 0) {
+		error = mac_vnode_check_readlink(td->td_ucred, ndp->ni_vp);
+		if (error != 0)
+			goto out;
+	}
+#endif
+	if (ndp->ni_pathlen > 1)
+		cp = uma_zalloc(namei_zone, M_WAITOK);
+	else
+		cp = cnp->cn_pnbuf;
+	aiov.iov_base = cp;
+	aiov.iov_len = MAXPATHLEN;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = 0;
+	auio.uio_rw = UIO_READ;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_td = td;
+	auio.uio_resid = MAXPATHLEN;
+	error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
+	if (error != 0) {
+		if (ndp->ni_pathlen > 1)
+			uma_zfree(namei_zone, cp);
+		goto out;
+	}
+	linklen = MAXPATHLEN - auio.uio_resid;
+	if (linklen == 0) {
+		if (ndp->ni_pathlen > 1)
+			uma_zfree(namei_zone, cp);
+		error = ENOENT;
+		goto out;
+	}
+	if (linklen + ndp->ni_pathlen > MAXPATHLEN) {
+		if (ndp->ni_pathlen > 1)
+			uma_zfree(namei_zone, cp);
+		error = ENAMETOOLONG;
+		goto out;
+	}
+	if (ndp->ni_pathlen > 1) {
+		bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
+		uma_zfree(namei_zone, cnp->cn_pnbuf);
+		cnp->cn_pnbuf = cp;
+	} else
+		cnp->cn_pnbuf[linklen] = '\0';
+	ndp->ni_pathlen += linklen;
+out:
+	return (error);
+}
+
 /*
  * Convert a pathname into a pointer to a locked vnode.
  *
@@ -534,14 +602,11 @@ errout:
 int
 namei(struct nameidata *ndp)
 {
-	char *cp;		/* pointer into pathname argument */
 	struct vnode *dp;	/* the directory we are searching */
-	struct iovec aiov;		/* uio for reading symbolic links */
 	struct componentname *cnp;
 	struct thread *td;
 	struct pwd *pwd;
-	struct uio auio;
-	int error, linklen;
+	int error;
 	enum cache_fpl_status status;
 
 	cnp = &ndp->ni_cnd;
@@ -675,57 +740,9 @@ namei(struct nameidata *ndp)
 				NDVALIDATE(ndp);
 			return (error);
 		}
-		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
-			error = ELOOP;
+		error = namei_follow_link(ndp);
+		if (error != 0)
 			break;
-		}
-#ifdef MAC
-		if ((cnp->cn_flags & NOMACCHECK) == 0) {
-			error = mac_vnode_check_readlink(td->td_ucred,
-			    ndp->ni_vp);
-			if (error != 0)
-				break;
-		}
-#endif
-		if (ndp->ni_pathlen > 1)
-			cp = uma_zalloc(namei_zone, M_WAITOK);
-		else
-			cp = cnp->cn_pnbuf;
-		aiov.iov_base = cp;
-		aiov.iov_len = MAXPATHLEN;
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		auio.uio_offset = 0;
-		auio.uio_rw = UIO_READ;
-		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = td;
-		auio.uio_resid = MAXPATHLEN;
-		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
-		if (error != 0) {
-			if (ndp->ni_pathlen > 1)
-				uma_zfree(namei_zone, cp);
-			break;
-		}
-		linklen = MAXPATHLEN - auio.uio_resid;
-		if (linklen == 0) {
-			if (ndp->ni_pathlen > 1)
-				uma_zfree(namei_zone, cp);
-			error = ENOENT;
-			break;
-		}
-		if (linklen + ndp->ni_pathlen > MAXPATHLEN) {
-			if (ndp->ni_pathlen > 1)
-				uma_zfree(namei_zone, cp);
-			error = ENAMETOOLONG;
-			break;
-		}
-		if (ndp->ni_pathlen > 1) {
-			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
-			uma_zfree(namei_zone, cnp->cn_pnbuf);
-			cnp->cn_pnbuf = cp;
-		} else
-			cnp->cn_pnbuf[linklen] = '\0';
-		ndp->ni_pathlen += linklen;
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
 		/*
