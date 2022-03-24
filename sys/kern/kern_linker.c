@@ -1883,7 +1883,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 		flags = FREAD;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error == 0) {
-			NDFREE(&nd, NDF_ONLY_PNBUF);
+			NDFREE_PNBUF(&nd);
 			type = nd.ni_vp->v_type;
 			if (vap)
 				VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
@@ -1934,7 +1934,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		goto bad;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	if (nd.ni_vp->v_type != VREG)
 		goto bad;
 	best = cp = NULL;

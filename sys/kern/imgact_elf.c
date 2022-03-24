@@ -816,7 +816,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 		nd->ni_vp = NULL;
 		goto fail;
 	}
-	NDFREE(nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(nd);
 	imgp->vp = nd->ni_vp;
 
 	/*

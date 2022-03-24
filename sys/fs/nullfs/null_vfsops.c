@@ -137,7 +137,7 @@ nullfs_mount(struct mount *mp)
 
 	if (error)
 		return (error);
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(ndp);
 
 	/*
 	 * Sanity check on lower vnode

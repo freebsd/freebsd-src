@@ -243,7 +243,7 @@ ext2_mount(struct mount *mp)
 	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec);
 	if ((error = namei(ndp)) != 0)
 		return (error);
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(ndp);
 	devvp = ndp->ni_vp;
 
 	if (!vn_isdisk_error(devvp, &error)) {

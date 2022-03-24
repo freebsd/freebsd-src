@@ -1437,7 +1437,7 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	if (nd.ni_vp->v_type != VREG) {
 		error = EINVAL;
 		goto bad;

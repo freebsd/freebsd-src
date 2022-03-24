@@ -988,7 +988,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	if (nd.ni_vp->v_type != VREG) {
 		error = ENOEXEC;
 		firstpage = NULL;

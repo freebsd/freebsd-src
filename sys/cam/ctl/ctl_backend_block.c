@@ -2261,7 +2261,7 @@ again:
 	else
 		cbe_lun->flags |= CTL_LUN_FLAG_READONLY;
 
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	be_lun->vn = nd.ni_vp;
 
 	/* We only support disks and files. */

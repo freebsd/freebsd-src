@@ -1337,7 +1337,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		if (error)
 			goto done_free;
 		root = nd.ni_vp;
-		NDFREE(&nd, NDF_ONLY_PNBUF);
+		NDFREE_PNBUF(&nd);
 		g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 		strlcpy(g_path, path, MAXPATHLEN);
 		error = vn_path_to_global_path(td, root, g_path, MAXPATHLEN);
