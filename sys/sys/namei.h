@@ -184,7 +184,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	NOCAPCHECK	0x00100000 /* do not perform capability checks */
 #define	OPENREAD	0x00200000 /* open for reading */
 #define	OPENWRITE	0x00400000 /* open for writing */
-/* UNUSED		0x00800000 */
+#define	WANTIOCTLCAPS	0x00800000 /* leave ioctl caps for the caller */
 #define	HASBUF		0x01000000 /* has allocated pathname buffer */
 #define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
 #define	MAKEENTRY	0x04000000 /* entry is to be added to name cache */
@@ -270,6 +270,7 @@ do {										\
 #define NDREINIT(ndp)	do {							\
 	struct nameidata *_ndp = (ndp);						\
 	NDREINIT_DBG(_ndp);							\
+	filecaps_free(&_ndp->ni_filecaps);					\
 	_ndp->ni_resflags = 0;							\
 	_ndp->ni_startdir = NULL;						\
 } while (0)
@@ -288,6 +289,10 @@ do {										\
 #define NDF_NO_STARTDIR_RELE	0x00000010
 #define NDF_NO_FREE_PNBUF	0x00000020
 
+#define NDFREE_IOCTLCAPS(ndp) do {						\
+	struct nameidata *_ndp = (ndp);						\
+	filecaps_free(&_ndp->ni_filecaps);					\
+} while (0)
 void NDFREE_PNBUF(struct nameidata *);
 void NDFREE(struct nameidata *, const u_int);
 

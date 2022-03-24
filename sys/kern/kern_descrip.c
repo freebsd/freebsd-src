@@ -1805,11 +1805,19 @@ filecaps_fill(struct filecaps *fcaps)
 /*
  * Free memory allocated within filecaps structure.
  */
+static void
+filecaps_free_ioctl(struct filecaps *fcaps)
+{
+
+	free(fcaps->fc_ioctls, M_FILECAPS);
+	fcaps->fc_ioctls = NULL;
+}
+
 void
 filecaps_free(struct filecaps *fcaps)
 {
 
-	free(fcaps->fc_ioctls, M_FILECAPS);
+	filecaps_free_ioctl(fcaps);
 	bzero(fcaps, sizeof(*fcaps));
 }
 
@@ -3046,6 +3054,71 @@ fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsear
 	return (0);
 }
 #endif
+
+int
+fgetvp_lookup(int fd, struct nameidata *ndp, struct vnode **vpp)
+{
+	struct thread *td;
+	struct file *fp;
+	struct vnode *vp;
+	struct componentname *cnp;
+	cap_rights_t rights;
+	int error;
+
+	td = curthread;
+	rights = *ndp->ni_rightsneeded;
+	cap_rights_set_one(&rights, CAP_LOOKUP);
+	cnp = &ndp->ni_cnd;
+
+	error = fget_cap(td, ndp->ni_dirfd, &rights, &fp, &ndp->ni_filecaps);
+	if (__predict_false(error != 0))
+		return (error);
+	if (__predict_false(fp->f_ops == &badfileops)) {
+		error = EBADF;
+		goto out_free;
+	}
+	vp = fp->f_vnode;
+	if (__predict_false(vp == NULL)) {
+		error = ENOTDIR;
+		goto out_free;
+	}
+	vref(vp);
+	/*
+	 * XXX does not check for VDIR, handled by namei_setup
+	 */
+	if ((fp->f_flag & FSEARCH) != 0)
+		cnp->cn_flags |= NOEXECCHECK;
+	fdrop(fp, td);
+
+#ifdef CAPABILITIES
+	/*
+	 * If file descriptor doesn't have all rights,
+	 * all lookups relative to it must also be
+	 * strictly relative.
+	 */
+	CAP_ALL(&rights);
+	if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights, &rights) ||
+	    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
+	    ndp->ni_filecaps.fc_nioctls != -1) {
+		ndp->ni_lcf |= NI_LCF_STRICTRELATIVE;
+		ndp->ni_resflags |= NIRES_STRICTREL;
+	}
+#endif
+
+	/*
+	 * TODO: avoid copying ioctl caps if it can be helped to begin with
+	 */
+	if ((cnp->cn_flags & WANTIOCTLCAPS) == 0)
+		filecaps_free_ioctl(&ndp->ni_filecaps);
+
+	*vpp = vp;
+	return (0);
+
+out_free:
+	filecaps_free(&ndp->ni_filecaps);
+	fdrop(fp, td);
+	return (error);
+}
 
 /*
  * Fetch the descriptor locklessly.
