@@ -287,17 +287,9 @@ do {										\
 #define NDF_NO_VP_PUT		0x0000000c
 #define NDF_NO_STARTDIR_RELE	0x00000010
 #define NDF_NO_FREE_PNBUF	0x00000020
-#define NDF_ONLY_PNBUF		(~NDF_NO_FREE_PNBUF)
 
 void NDFREE_PNBUF(struct nameidata *);
 void NDFREE(struct nameidata *, const u_int);
-#define NDFREE(ndp, flags) do {						\
-	struct nameidata *_ndp = (ndp);					\
-	if (__builtin_constant_p(flags) && flags == NDF_ONLY_PNBUF)	\
-		NDFREE_PNBUF(_ndp);					\
-	else								\
-		NDFREE(_ndp, flags);					\
-} while (0)
 
 #ifdef INVARIANTS
 void NDFREE_NOTHING(struct nameidata *);
