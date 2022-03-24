@@ -379,6 +379,7 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putregnote(NT_ARM_VFP, tids[i], sb);
 #endif
 #if defined(__i386__) || defined(__amd64__)
+		elf_putregnote(NT_X86_SEGBASES, tids[i], sb);
 		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);
 #endif
 #if defined(__powerpc__)

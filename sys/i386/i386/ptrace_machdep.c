@@ -34,14 +34,63 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/elf.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/reg.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+
+static uint32_t
+get_segbase(struct segment_descriptor *sdp)
+{
+	return (sdp->sd_hibase << 24 | sdp->sd_lobase);
+}
+
+static bool
+get_segbases(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	struct segbasereg *reg;
+
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(*reg), ("%s: invalid size", __func__));
+		reg = buf;
+		reg->r_fsbase = get_segbase(&td->td_pcb->pcb_fsd);
+		reg->r_gsbase = get_segbase(&td->td_pcb->pcb_gsd);
+	}
+	*sizep = sizeof(*reg);
+	return (true);
+}
+
+static bool
+set_segbases(struct regset *rs, struct thread *td, void *buf,
+    size_t size)
+{
+	struct segbasereg *reg;
+
+	KASSERT(size == sizeof(*reg), ("%s: invalid size", __func__));
+	reg = buf;
+
+	fill_based_sd(&td->td_pcb->pcb_fsd, reg->r_fsbase);
+	td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
+	fill_based_sd(&td->td_pcb->pcb_gsd, reg->r_gsbase);
+	td->td_pcb->pcb_gs = GSEL(GUGS_SEL, SEL_UPL);
+
+	return (true);
+}
+
+static struct regset regset_segbases = {
+	.note = NT_X86_SEGBASES,
+	.size = sizeof(struct segbasereg),
+	.get = get_segbases,
+	.set = set_segbases,
+};
+ELF_REGSET(regset_segbases);
 
 static int
 cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
@@ -173,7 +222,7 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	case PT_GETGSBASE:
 		sdp = req == PT_GETFSBASE ? &td->td_pcb->pcb_fsd :
 		    &td->td_pcb->pcb_gsd;
-		r = sdp->sd_hibase << 24 | sdp->sd_lobase;
+		r = get_segbase(sdp);
 		error = copyout(&r, addr, sizeof(r));
 		break;
 

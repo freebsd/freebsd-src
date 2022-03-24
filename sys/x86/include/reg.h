@@ -86,6 +86,7 @@
 #define	__reg32		reg
 #define	__fpreg32	fpreg
 #define	__dbreg32	dbreg
+#define	__segbasereg32	segbasereg
 #else
 #define	__reg32		reg32
 #define	__reg64		reg
@@ -93,6 +94,8 @@
 #define	__fpreg64	fpreg
 #define	__dbreg32	dbreg32
 #define	__dbreg64	dbreg
+#define	__segbasereg32	segbasereg32
+#define	__segbasereg64	segbasereg
 #define	__HAVE_REG32
 #endif
 
@@ -236,12 +239,27 @@ struct __dbreg64 {
 #define	DBREG_DRX(d,x)	((d)->dr[(x)])	/* reference dr0 - dr7 by
 					   register number */
 
+/*
+ * Register set accessible via NT_X86_SEGBASES.
+ */
+struct __segbasereg32 {
+	__uint32_t	r_fsbase;
+	__uint32_t	r_gsbase;
+};
+
+struct __segbasereg64 {
+	__uint64_t	r_fsbase;
+	__uint64_t	r_gsbase;
+};
+
 #undef __reg32
 #undef __reg64
 #undef __fpreg32
 #undef __fpreg64
 #undef __dbreg32
 #undef __dbreg64
+#undef __segbasereg32
+#undef __segbasereg64
 
 #ifdef _KERNEL
 /*
