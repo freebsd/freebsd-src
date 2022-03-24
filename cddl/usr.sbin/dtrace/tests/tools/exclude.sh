@@ -208,3 +208,6 @@ exclude EXFAIL common/usdt/tst.user.ksh
 
 # Triggers a lock assertion by using the raise() action from a profile probe.
 exclude SKIP common/ustack/tst.spin.ksh
+
+# https://bugs.freebsd.org/237641
+exclude SKIPCI common/misc/tst.dynopt.d
