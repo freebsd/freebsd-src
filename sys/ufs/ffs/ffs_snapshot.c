@@ -276,7 +276,7 @@ restart:
 	if (nd.ni_dvp->v_mount != mp)
 		error = EXDEV;
 	if (error) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
+		NDFREE_PNBUF(&nd);
 		if (nd.ni_dvp == nd.ni_vp)
 			vrele(nd.ni_dvp);
 		else
@@ -293,7 +293,7 @@ restart:
 		panic("ffs_snapshot: mount mismatch");
 	vfs_rel(wrtmp);
 	if (vn_start_write(NULL, &wrtmp, V_NOWAIT) != 0) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
+		NDFREE_PNBUF(&nd);
 		vput(nd.ni_dvp);
 		if ((error = vn_start_write(NULL, &wrtmp,
 		    V_XSLEEP | PCATCH)) != 0)
@@ -303,7 +303,7 @@ restart:
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
 	if (error) {
 		VOP_VPUT_PAIR(nd.ni_dvp, NULL, true);
-		NDFREE(&nd, NDF_ONLY_PNBUF);
+		NDFREE_PNBUF(&nd);
 		vn_finished_write(wrtmp);
 		if (error == ERELOOKUP)
 			goto restart;
@@ -866,7 +866,7 @@ done:
 	free(copy_fs, M_UFSMNT);
 	copy_fs = NULL;
 out:
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	if (saved_nice > 0) {
 		struct proc *p;
 

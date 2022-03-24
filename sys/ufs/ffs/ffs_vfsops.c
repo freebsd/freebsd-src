@@ -440,7 +440,7 @@ ffs_mount(struct mount *mp)
 	}
 	if (error != 0)
 		return (error);
-	NDFREE(&ndp, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&ndp);
 	if (!vn_isdisk_error(ndp.ni_vp, &error)) {
 		vput(ndp.ni_vp);
 		return (error);

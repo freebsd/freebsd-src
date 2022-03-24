@@ -3792,7 +3792,7 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 		vrele(vp);
 		goto out;
 	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	vp1 = nd.ni_vp;
 	vrele(vp);
 	if (vp1 == vp)

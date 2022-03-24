@@ -2281,7 +2281,7 @@ proc_get_binpath(struct proc *p, char *binname, char **retbuf,
 				if (nd.ni_vp == vp)
 					do_fullpath = false;
 				vrele(nd.ni_vp);
-				NDFREE(&nd, NDF_ONLY_PNBUF);
+				NDFREE_PNBUF(&nd);
 			}
 		}
 	}

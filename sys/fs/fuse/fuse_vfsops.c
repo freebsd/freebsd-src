@@ -152,7 +152,7 @@ fuse_getdevice(const char *fspec, struct thread *td, struct cdev **fdevp)
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec);
 	if ((err = namei(ndp)) != 0)
 		return err;
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(ndp);
 	devvp = ndp->ni_vp;
 
 	if (devvp->v_type != VCHR) {

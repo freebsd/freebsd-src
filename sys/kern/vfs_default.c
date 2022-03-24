@@ -853,7 +853,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 		vn_lock(vp, locked | LK_RETRY);
 		return (error);
 	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 
 	mvp = *dvp = nd.ni_vp;
 

@@ -100,7 +100,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 
 	/* Allocate memory for the FLF header. */
 	hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK);

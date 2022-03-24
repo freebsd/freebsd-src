@@ -236,7 +236,7 @@ unionfs_domount(struct mount *mp)
 	if ((error = namei(ndp)))
 		return (error);
 
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(ndp);
 
 	/* get root vnodes */
 	lowerrootvp = mp->mnt_vnodecovered;

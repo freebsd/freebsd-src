@@ -1377,7 +1377,7 @@ bad_eexist:
 	vrele(ndp->ni_vp);
 	ndp->ni_dvp = NULL;
 	ndp->ni_vp = NULL;
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(ndp);
 	return (EEXIST);
 }
 
@@ -1759,12 +1759,12 @@ kern_alternate_path(const char *prefix, const char *path, enum uio_seg pathseg,
 			if (nd.ni_vp == ndroot.ni_vp)
 				error = ENOENT;
 
-			NDFREE(&ndroot, NDF_ONLY_PNBUF);
+			NDFREE_PNBUF(&ndroot);
 			vrele(ndroot.ni_vp);
 		}
 	}
 
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	vrele(nd.ni_vp);
 
 keeporig:

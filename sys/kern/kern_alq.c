@@ -447,7 +447,7 @@ alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmod
 	if (error)
 		return (error);
 
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 	/* We just unlock so we hold a reference */
 	VOP_UNLOCK(nd.ni_vp);
 

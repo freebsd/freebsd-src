@@ -2711,7 +2711,7 @@ xbb_open_backend(struct xbb_softc *xbb)
 		return (error);
 	}
 
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&nd);
 		
 	xbb->vn = nd.ni_vp;
 

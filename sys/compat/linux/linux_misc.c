@@ -289,7 +289,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		goto cleanup;
 
 	vp = ni.ni_vp;
-	NDFREE(&ni, NDF_ONLY_PNBUF);
+	NDFREE_PNBUF(&ni);
 
 	/*
 	 * From here on down, we have a locked vnode that must be unlocked.
