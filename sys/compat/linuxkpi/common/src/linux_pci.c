@@ -654,7 +654,8 @@ _linux_pci_register_driver(struct pci_driver *pdrv, devclass_t dc)
 	spin_lock(&pci_lock);
 	list_add(&pdrv->node, &pci_drivers);
 	spin_unlock(&pci_lock);
-	pdrv->bsddriver.name = pdrv->name;
+	if (pdrv->bsddriver.name == NULL)
+		pdrv->bsddriver.name = pdrv->name;
 	pdrv->bsddriver.methods = pci_methods;
 	pdrv->bsddriver.size = sizeof(struct pci_dev);
 
