@@ -2606,76 +2606,61 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
+	struct ieee80211_channel *c;
+	struct linuxkpi_ieee80211_channel *chan;
 	int error;
 
 	lhw = ic->ic_softc;
-#ifdef __no_longer__
-	/* For now only be concerned if scanning. */
-	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) == 0) {
-		IMPROVE();
+
+	/* If we do not support (*config)() save us the work. */
+	if (lhw->ops->config == NULL)
+		return;
+
+	c = ic->ic_curchan;
+	if (c == NULL || c == IEEE80211_CHAN_ANYC) {
+		ic_printf(ic, "%s: c %p ops->config %p\n", __func__,
+		    c, lhw->ops->config);
 		return;
 	}
-#endif
 
-	if (ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
-		/*
-		 * AP scanning is taken care of by firmware, so only switch
-		 * channels in monitor mode (maybe, maybe not; to be
-		 * investigated at the right time).
-		 */
-		if (ic->ic_opmode == IEEE80211_M_MONITOR) {
-			UNIMPLEMENTED;
-		}
+	chan = lkpi_find_lkpi80211_chan(lhw, c);
+	if (chan == NULL) {
+		ic_printf(ic, "%s: c %p chan %p\n", __func__,
+		    c, chan);
+		return;
+	}
+
+	/* XXX max power for scanning? */
+	IMPROVE();
+
+	hw = LHW_TO_HW(lhw);
+	cfg80211_chandef_create(&hw->conf.chandef, chan,
+	    NL80211_CHAN_NO_HT);
+
+	error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (error != 0 && error != EOPNOTSUPP) {
+		ic_printf(ic, "ERROR: %s: config %#0x returned %d\n",
+		    __func__, IEEE80211_CONF_CHANGE_CHANNEL, error);
+		/* XXX should we unroll to the previous chandef? */
+		IMPROVE();
 	} else {
-		struct ieee80211_channel *c = ic->ic_curchan;
-		struct linuxkpi_ieee80211_channel *chan;
+		/* Update radiotap channels as well. */
+		lhw->rtap_tx.wt_chan_freq = htole16(c->ic_freq);
+		lhw->rtap_tx.wt_chan_flags = htole16(c->ic_flags);
+		lhw->rtap_rx.wr_chan_freq = htole16(c->ic_freq);
+		lhw->rtap_rx.wr_chan_flags = htole16(c->ic_flags);
+	}
 
-		if (c == NULL || c == IEEE80211_CHAN_ANYC ||
-		    lhw->ops->config == NULL) {
-			ic_printf(ic, "%s: c %p ops->config %p\n", __func__,
-			    c, lhw->ops->config);
-			return;
-		}
-
-		chan = lkpi_find_lkpi80211_chan(lhw, c);
-		if (chan == NULL) {
-			ic_printf(ic, "%s: c %p chan %p\n", __func__,
-			    c, chan);
-			return;
-		}
-
-		/* XXX max power for scanning? */
-		IMPROVE();
-
-		hw = LHW_TO_HW(lhw);
-		cfg80211_chandef_create(&hw->conf.chandef, chan,
-		    NL80211_CHAN_NO_HT);
-
-		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
-		if (error != 0 && error != EOPNOTSUPP) {
-			ic_printf(ic, "ERROR: %s: config %#0x returned %d\n",
-			    __func__, IEEE80211_CONF_CHANGE_CHANNEL, error);
-			/* XXX should we unroll to the previous chandef? */
-			IMPROVE();
-		} else {
-			/* Update radiotap channels as well. */
-			lhw->rtap_tx.wt_chan_freq = htole16(c->ic_freq);
-			lhw->rtap_tx.wt_chan_flags = htole16(c->ic_flags);
-			lhw->rtap_rx.wr_chan_freq = htole16(c->ic_freq);
-			lhw->rtap_rx.wr_chan_flags = htole16(c->ic_flags);
-		}
-
-		/* Currently PS is hard coded off! Not sure it belongs here. */
-		IMPROVE();
-		if (ieee80211_hw_check(hw, SUPPORTS_PS) &&
-		    (hw->conf.flags & IEEE80211_CONF_PS) != 0) {
-			hw->conf.flags &= ~IEEE80211_CONF_PS;
-			error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_PS);
-			if (error != 0 && error != EOPNOTSUPP)
-				ic_printf(ic, "ERROR: %s: config %#0x returned "
-				    "%d\n", __func__, IEEE80211_CONF_CHANGE_PS,
-				    error);
-		}
+	/* Currently PS is hard coded off! Not sure it belongs here. */
+	IMPROVE();
+	if (ieee80211_hw_check(hw, SUPPORTS_PS) &&
+	    (hw->conf.flags & IEEE80211_CONF_PS) != 0) {
+		hw->conf.flags &= ~IEEE80211_CONF_PS;
+		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_PS);
+		if (error != 0 && error != EOPNOTSUPP)
+			ic_printf(ic, "ERROR: %s: config %#0x returned "
+			    "%d\n", __func__, IEEE80211_CONF_CHANGE_PS,
+			    error);
 	}
 }
 
