@@ -99,7 +99,6 @@ struct rtsx_softc {
 
 	int		rtsx_res_id;		/* bus memory resource id */
 	struct resource *rtsx_res;		/* bus memory resource */
-	int		rtsx_res_type;		/* bus memory resource type */
 	bus_space_tag_t	rtsx_btag;		/* host register set tag */
 	bus_space_handle_t rtsx_bhandle;	/* host register set handle */
 
@@ -173,7 +172,7 @@ struct rtsx_softc {
 #define	RTSX_RTL8411		0x5289
 #define	RTSX_RTL8411B		0x5287
 
-#define	RTSX_VERSION		"2.1e"
+#define	RTSX_VERSION		"2.1f"
 
 static const struct rtsx_device {
 	uint16_t	vendor_id;
@@ -1320,10 +1319,11 @@ static int
 rtsx_read(struct rtsx_softc *sc, uint16_t addr, uint8_t *val)
 {
 	int	 tries = 1024;
+	uint32_t arg;
 	uint32_t reg;
 
-	WRITE4(sc, RTSX_HAIMR, RTSX_HAIMR_BUSY |
-	    (uint32_t)((addr & 0x3FFF) << 16));
+	arg = RTSX_HAIMR_BUSY | (uint32_t)((addr & 0x3FFF) << 16);
+	WRITE4(sc, RTSX_HAIMR, arg);
 
 	while (tries--) {
 		reg = READ4(sc, RTSX_HAIMR);
@@ -1332,7 +1332,12 @@ rtsx_read(struct rtsx_softc *sc, uint16_t addr, uint8_t *val)
 	}
 	*val = (reg & 0xff);
 
-	return ((tries == 0) ? ETIMEDOUT : 0);
+	if (tries > 0) {
+		return (0);
+	} else {
+		device_printf(sc->rtsx_dev, "rtsx_read(0x%x) timeout\n", arg);
+		return (ETIMEDOUT);
+	}
 }
 
 static int
@@ -1368,21 +1373,25 @@ static int
 rtsx_write(struct rtsx_softc *sc, uint16_t addr, uint8_t mask, uint8_t val)
 {
 	int 	 tries = 1024;
+	uint32_t arg;
 	uint32_t reg;
 
-	WRITE4(sc, RTSX_HAIMR,
-	    RTSX_HAIMR_BUSY | RTSX_HAIMR_WRITE |
-	    (uint32_t)(((addr & 0x3FFF) << 16) |
-	    (mask << 8) | val));
+	arg = RTSX_HAIMR_BUSY | RTSX_HAIMR_WRITE |
+		(uint32_t)(((addr & 0x3FFF) << 16) |
+			   (mask << 8) | val);
+	WRITE4(sc, RTSX_HAIMR, arg);
 
 	while (tries--) {
 		reg = READ4(sc, RTSX_HAIMR);
 		if (!(reg & RTSX_HAIMR_BUSY)) {
-			if (val != (reg & 0xff))
+			if (val != (reg & 0xff)) {
+				device_printf(sc->rtsx_dev, "rtsx_write(0x%x) error reg=0x%x\n", arg, reg);
 				return (EIO);
+			}
 			return (0);
 		}
 	}
+	device_printf(sc->rtsx_dev, "rtsx_write(0x%x) timeout\n", arg);
 
 	return (ETIMEDOUT);
 }
@@ -3692,8 +3701,9 @@ rtsx_attach(device_t dev)
 #endif /* MMCCAM */
 
 	/* Initialize device. */
-	if (rtsx_init(sc)) {
-		device_printf(dev, "Error during rtsx_init()\n");
+	error = rtsx_init(sc);
+	if (error) {
+		device_printf(dev, "Error %d during rtsx_init()\n", error);
 		goto destroy_rtsx_irq;
 	}
 
