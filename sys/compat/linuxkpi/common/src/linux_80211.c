@@ -2433,7 +2433,7 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	}
 
 	hw = LHW_TO_HW(lhw);
-	if ((ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) {
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0) {
 sw_scan:
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
@@ -2566,24 +2566,24 @@ static void
 lkpi_ic_scan_end(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
+	struct ieee80211_scan_state *ss;
+	struct ieee80211vap *vap;
 
 	lhw = ic->ic_softc;
 	if ((lhw->scan_flags & LKPI_SCAN_RUNNING) == 0) {
 		return;
 	}
 
-	if (ic->ic_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
+	ss = ic->ic_scan;
+	vap = ss->ss_vap;
+	if (vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) {
 		/* Nothing to do. */
 	} else {
 		struct ieee80211_hw *hw;
 		struct lkpi_vif *lvif;
 		struct ieee80211_vif *vif;
-		struct ieee80211_scan_state *ss;
-		struct ieee80211vap *vap;
 
 		hw = LHW_TO_HW(lhw);
-		ss = ic->ic_scan;
-		vap = ss->ss_vap;
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
 		lkpi_80211_mo_sw_scan_complete(hw, vif);
