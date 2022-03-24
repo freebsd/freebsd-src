@@ -291,6 +291,7 @@ int fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp,
 int fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
 int fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsearch);
+int fgetvp_lookup(int fd, struct nameidata *ndp, struct vnode **vpp);
 
 static __inline __result_use_check bool
 fhold(struct file *fp)
