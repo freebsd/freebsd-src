@@ -3782,8 +3782,6 @@ rtsx_shutdown(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "Shutdown\n");
 
-	rtsx_detach(dev);
-
 	return (0);
 }
 
