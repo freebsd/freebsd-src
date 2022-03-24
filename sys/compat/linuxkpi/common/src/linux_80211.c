@@ -2629,7 +2629,6 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 	} else {
 		struct ieee80211_channel *c = ic->ic_curchan;
 		struct linuxkpi_ieee80211_channel *chan;
-		struct cfg80211_chan_def chandef;
 
 		if (c == NULL || c == IEEE80211_CHAN_ANYC ||
 		    lhw->ops->config == NULL) {
@@ -2645,16 +2644,12 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 			return;
 		}
 
-		memset(&chandef, 0, sizeof(chandef));
-		chandef.chan = chan;
-		chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
-		chandef.center_freq1 = chandef.chan->center_freq;
-
 		/* XXX max power for scanning? */
 		IMPROVE();
 
 		hw = LHW_TO_HW(lhw);
-		hw->conf.chandef = chandef;
+		cfg80211_chandef_create(&hw->conf.chandef, chan,
+		    NL80211_CHAN_NO_HT);
 
 		error = lkpi_80211_mo_config(hw, IEEE80211_CONF_CHANGE_CHANNEL);
 		if (error != 0 && error != EOPNOTSUPP) {
@@ -3430,15 +3425,12 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 
 		channels = supband->channels;
 		for (i = 0; i < supband->n_channels; i++) {
-			struct cfg80211_chan_def chandef;
 
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 				continue;
 
-			memset(&chandef, 0, sizeof(chandef));
-			cfg80211_chandef_create(&chandef, &channels[i],
+			cfg80211_chandef_create(&hw->conf.chandef, &channels[i],
 			    NL80211_CHAN_NO_HT);
-			hw->conf.chandef = chandef;
 			break;
 		}
 	}
