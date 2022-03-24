@@ -2547,17 +2547,27 @@ sw_scan:
 			free(hw_req, M_LKPI80211);
 			lhw->hw_req = NULL;
 
+			ieee80211_cancel_scan(vap);
 			/*
 			 * XXX-SIGH magic number.
 			 * rtw88 has a magic "return 1" if offloading scan is
 			 * not possible.  Fall back to sw scan in that case.
 			 */
-			if (error == 1)
+			if (error == 1) {
+				vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
+				ieee80211_start_scan(vap,
+				    IEEE80211_SCAN_ACTIVE |
+				    IEEE80211_SCAN_NOPICK |
+				    IEEE80211_SCAN_ONCE,
+				    IEEE80211_SCAN_FOREVER,
+				    ss->ss_mindwell ? ss->ss_mindwell : msecs_to_ticks(20),
+				    ss->ss_maxdwell ? ss->ss_maxdwell : msecs_to_ticks(200),
+				    vap->iv_des_nssid, vap->iv_des_ssid);
 				goto sw_scan;
+			}
 
 			ic_printf(ic, "ERROR: %s: hw_scan returned %d\n",
 			    __func__, error);
-			ieee80211_cancel_scan(vap);
 		}
 	}
 }
