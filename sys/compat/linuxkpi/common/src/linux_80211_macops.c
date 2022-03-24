@@ -355,14 +355,20 @@ lkpi_80211_mo_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	/* XXX-BZ is the change state AUTH or ASSOC here? */
-	if (lsta->state < IEEE80211_STA_ASSOC && nstate == IEEE80211_STA_ASSOC)
+	if (lsta->state < IEEE80211_STA_ASSOC && nstate == IEEE80211_STA_ASSOC) {
 		error = lkpi_80211_mo_sta_add(hw, vif, sta);
-	else if (lsta->state >= IEEE80211_STA_ASSOC &&
-	    nstate < IEEE80211_STA_ASSOC)
+		if (error == 0)
+			lsta->added_to_drv = true;
+	} else if (lsta->state >= IEEE80211_STA_ASSOC &&
+	    nstate < IEEE80211_STA_ASSOC) {
 		error = lkpi_80211_mo_sta_remove(hw, vif, sta);
-	else
+		if (error == 0)
+			lsta->added_to_drv = false;
+	} else
 		/* Nothing to do. */
 		error = 0;
+	if (error == 0)
+		lsta->state = nstate;
 
 out:
 	/* XXX-BZ should we manage state in here? */
