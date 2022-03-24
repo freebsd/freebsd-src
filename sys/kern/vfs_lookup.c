@@ -940,6 +940,7 @@ vfs_lookup(struct nameidata *ndp)
 	char *cp;			/* pointer into pathname argument */
 	char *prev_ni_next;		/* saved ndp->ni_next */
 	char *nulchar;			/* location of '\0' in cn_pnbuf */
+	char *lastchar;			/* location of the last character */
 	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
@@ -1002,6 +1003,28 @@ vfs_lookup(struct nameidata *ndp)
 	}
 
 	/*
+	 * Nul-out trailing slashes (e.g., "foo///" -> "foo").
+	 *
+	 * This must be done before VOP_LOOKUP() because some fs's don't know
+	 * about trailing slashes.  Remember if there were trailing slashes to
+	 * handle symlinks, existing non-directories and non-existing files
+	 * that won't be directories specially later.
+	 */
+	MPASS(ndp->ni_pathlen >= 2);
+	lastchar = &cnp->cn_nameptr[ndp->ni_pathlen - 2];
+	if (*lastchar == '/') {
+		while (lastchar >= cnp->cn_pnbuf) {
+			*lastchar = '\0';
+			lastchar--;
+			ndp->ni_pathlen--;
+			if (*lastchar != '/') {
+				break;
+			}
+		}
+		cnp->cn_flags |= TRAILINGSLASH;
+	}
+
+	/*
 	 * We use shared locks until we hit the parent of the last cn then
 	 * we adjust based on the requesting flags.
 	 */
@@ -1050,23 +1073,6 @@ dirloop:
 	KASSERT(ndp->ni_pathlen <= PATH_MAX,
 	    ("%s: ni_pathlen underflow to %zd\n", __func__, ndp->ni_pathlen));
 	prev_ni_next = ndp->ni_next;
-	ndp->ni_next = cp;
-
-	/*
-	 * Replace multiple slashes by a single slash and trailing slashes
-	 * by a null.  This must be done before VOP_LOOKUP() because some
-	 * fs's don't know about trailing slashes.  Remember if there were
-	 * trailing slashes to handle symlinks, existing non-directories
-	 * and non-existing files that won't be directories specially later.
-	 */
-	while (*cp == '/' && (cp[1] == '/' || cp[1] == '\0')) {
-		cp++;
-		ndp->ni_pathlen--;
-		if (*cp == '\0') {
-			*ndp->ni_next = '\0';
-			cnp->cn_flags |= TRAILINGSLASH;
-		}
-	}
 	ndp->ni_next = cp;
 
 	cnp->cn_flags |= MAKEENTRY;
