@@ -2596,12 +2596,6 @@ lkpi_ic_scan_end(struct ieee80211com *ic)
 }
 
 static void
-lkpi_ic_scan_curchan_nada(struct ieee80211_scan_state *ss __unused,
-    unsigned long maxdwell __unused)
-{
-}
-
-static void
 lkpi_ic_set_channel(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
@@ -3373,9 +3367,6 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_parent = lkpi_ic_parent;
 	ic->ic_scan_start = lkpi_ic_scan_start;
 	ic->ic_scan_end = lkpi_ic_scan_end;
-	if (lhw->ops->hw_scan &&
-	    ieee80211_hw_check(hw, SINGLE_SCAN_ON_ALL_BANDS))
-		ic->ic_scan_curchan = lkpi_ic_scan_curchan_nada;
 	ic->ic_set_channel = lkpi_ic_set_channel;
 	ic->ic_transmit = lkpi_ic_transmit;
 	ic->ic_raw_xmit = lkpi_ic_raw_xmit;
