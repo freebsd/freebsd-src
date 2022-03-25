@@ -85,3 +85,8 @@ if [ -e "$OBJTOP"/lib/libc++/libc++.ld ] && \
 	echo "Removing old libc++ linker script"
 	rm -f "$OBJTOP"/lib/libc++/libc++.ld
 fi
+
+# 20220312  5fc3cc2713ef    move from bcmp.S to bcmp.c
+if [ "$MACHINE_ARCH" = "amd64" ]; then
+    clean_dep lib/libc bcmp S
+fi
