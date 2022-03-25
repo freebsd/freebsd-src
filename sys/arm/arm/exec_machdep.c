@@ -107,6 +107,7 @@ get_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 		critical_exit();
 	} else
 		MPASS(TD_IS_SUSPENDED(td));
+	memset(vfp, 0, sizeof(*vfp));
 	memcpy(vfp->mcv_reg, pcb->pcb_vfpstate.reg,
 	    sizeof(vfp->mcv_reg));
 	vfp->mcv_fpscr = pcb->pcb_vfpstate.fpscr;
