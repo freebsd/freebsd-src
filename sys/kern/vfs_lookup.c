@@ -853,6 +853,7 @@ vfs_lookup_degenerate(struct nameidata *ndp, struct vnode *dp, int wantparent)
 		VREF(dp);
 	}
 	ndp->ni_vp = dp;
+	cnp->cn_namelen = 0;
 
 	if (cnp->cn_flags & AUDITVNODE1)
 		AUDIT_ARG_VNODE1(dp);
