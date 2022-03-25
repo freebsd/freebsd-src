@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 MDSRCS+= \
+	bcmp.S \
 	memcmp.S \
 	memcpy.S \
 	memmove.S \
