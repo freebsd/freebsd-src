@@ -3908,13 +3908,16 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		speed = fwcap_top_speed(lc->pcaps);
 
 	fec = 0;
-#ifdef INVARIANTS
-	if (lc->force_fec != 0)
-		MPASS(lc->pcaps & FW_PORT_CAP32_FORCE_FEC);
-#endif
 	if (fec_supported(speed)) {
+		int force_fec;
+
+		if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC)
+			force_fec = lc->force_fec;
+		else
+			force_fec = 0;
+
 		if (lc->requested_fec == FEC_AUTO) {
-			if (lc->force_fec > 0) {
+			if (force_fec > 0) {
 				/*
 				 * Must use FORCE_FEC even though requested FEC
 				 * is AUTO. Set all the FEC bits valid for the
@@ -3960,7 +3963,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 			 * User has explicitly requested some FEC(s). Set
 			 * FORCE_FEC unless prohibited from using it.
 			 */
-			if (lc->force_fec != 0)
+			if (force_fec != 0)
 				fec |= FW_PORT_CAP32_FORCE_FEC;
 			fec |= fec_to_fwcap(lc->requested_fec &
 			    M_FW_PORT_CAP32_FEC);
