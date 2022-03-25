@@ -1040,7 +1040,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 
 	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
-	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
+	td2 = FIRST_THREAD_IN_PROC(p);
 
 	if (P_SHOULDSTOP(p)) {
 		state = "T (stopped)";
