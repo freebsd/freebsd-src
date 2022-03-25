@@ -774,7 +774,8 @@ linux_statx(struct thread *td, struct linux_statx_args *args)
 	int error, dirfd, flags, unsupported;
 	struct stat buf;
 
-	unsupported = args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH);
+	unsupported = args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW |
+	    LINUX_AT_EMPTY_PATH | LINUX_AT_NO_AUTOMOUNT);
 	if (unsupported != 0) {
 		linux_msg(td, "statx unsupported flags 0x%x", unsupported);
 		return (EINVAL);
