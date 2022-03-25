@@ -109,13 +109,6 @@
 
 #ifdef	IPFILTER_LOG
 
-# if defined(IPL_SELECT)
-#  include	<machine/sys/user.h>
-#  include	<sys/kthread_iface.h>
-#  define	READ_COLLISION	0x001
-extern int selwait;
-# endif /* IPL_SELECT */
-
 typedef struct ipf_log_softc_s {
 	ipfmutex_t	ipl_mutex[IPL_LOGSIZE];
 # if SOLARIS && defined(_KERNEL)
@@ -239,10 +232,6 @@ ipf_log_soft_init(ipf_main_softc_t *softc, void *arg)
 		softl->ipll[i] = NULL;
 		softl->iplh[i] = &softl->iplt[i];
 		bzero((char *)&softl->ipl_crc[i], sizeof(softl->ipl_crc[i]));
-# ifdef	IPL_SELECT
-		softl->iplog_ss[i].read_waiter = 0;
-		softl->iplog_ss[i].state = 0;
-# endif
 	}
 
 
@@ -625,9 +614,6 @@ ipf_log_items(ipf_main_softc_t *softc, int unit, fr_info_t *fin, void **items,
 	POLLWAKEUP(unit);
 # endif
 	SPL_X(s);
-# ifdef	IPL_SELECT
-	iplog_input_ready(unit);
-# endif
 	return (0);
 }
 
