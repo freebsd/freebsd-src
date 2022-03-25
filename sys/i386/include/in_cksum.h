@@ -41,10 +41,6 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-/*
- * MP safe (alfred)
- */
-
 #include <sys/cdefs.h>
 
 #define in_cksum(m, len)	in_cksum_skip(m, len, 0)
