@@ -198,7 +198,8 @@ arm64_address_translate_ ##stage (uint64_t addr)		\
 	uint64_t ret;						\
 								\
 	__asm __volatile(					\
-	    "at " __STRING(stage) ", %1 \n"					\
+	    "at " __STRING(stage) ", %1 \n"			\
+	    "isb \n"						\
 	    "mrs %0, par_el1" : "=r"(ret) : "r"(addr));		\
 								\
 	return (ret);						\
