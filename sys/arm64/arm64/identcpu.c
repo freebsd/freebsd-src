@@ -220,6 +220,7 @@ static const struct cpu_parts cpu_parts_none[] = {
  * Implementers table.
  */
 const struct cpu_implementers cpu_implementers[] = {
+	{ CPU_IMPL_AMPERE,	"Ampere",	cpu_parts_none },
 	{ CPU_IMPL_APPLE,	"Apple",	cpu_parts_none },
 	{ CPU_IMPL_APM,		"APM",		cpu_parts_apm },
 	{ CPU_IMPL_ARM,		"ARM",		cpu_parts_arm },
@@ -227,6 +228,7 @@ const struct cpu_implementers cpu_implementers[] = {
 	{ CPU_IMPL_CAVIUM,	"Cavium",	cpu_parts_cavium },
 	{ CPU_IMPL_DEC,		"DEC",		cpu_parts_none },
 	{ CPU_IMPL_FREESCALE,	"Freescale",	cpu_parts_none },
+	{ CPU_IMPL_FUJITSU,	"Fujitsu",	cpu_parts_none },
 	{ CPU_IMPL_INFINEON,	"IFX",		cpu_parts_none },
 	{ CPU_IMPL_INTEL,	"Intel",	cpu_parts_none },
 	{ CPU_IMPL_MARVELL,	"Marvell",	cpu_parts_none },

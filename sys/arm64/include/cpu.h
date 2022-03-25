@@ -71,6 +71,7 @@
 #define	CPU_IMPL_BROADCOM	0x42
 #define	CPU_IMPL_CAVIUM		0x43
 #define	CPU_IMPL_DEC		0x44
+#define	CPU_IMPL_FUJITSU	0x46
 #define	CPU_IMPL_INFINEON	0x49
 #define	CPU_IMPL_FREESCALE	0x4D
 #define	CPU_IMPL_NVIDIA		0x4E
@@ -79,6 +80,7 @@
 #define	CPU_IMPL_MARVELL	0x56
 #define	CPU_IMPL_APPLE		0x61
 #define	CPU_IMPL_INTEL		0x69
+#define	CPU_IMPL_AMPERE		0xC0
 
 /* ARM Part numbers */
 #define	CPU_PART_FOUNDATION	0xD00
