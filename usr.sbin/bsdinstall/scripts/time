@@ -37,7 +37,7 @@ export TZ
 # Set date
 exec 3>&1
 DATE=$(bsddialog --backtitle 'FreeBSD Installer' \
-	--title ' Date ' \
+	--title 'Time & Date' \
 	--ok-label 'Set Date' \
 	--cancel-label 'Skip' \
 	--default-no \
@@ -49,7 +49,7 @@ exec 3>&-
 # Set time
 exec 3>&1
 TIME=$(bsddialog --backtitle 'FreeBSD Installer' \
-	--title ' Time ' \
+	--title 'Time & Date' \
 	--ok-label 'Set Time' \
 	--cancel-label 'Skip' \
 	--default-no \
