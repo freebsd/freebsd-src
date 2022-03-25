@@ -39,7 +39,11 @@ __FBSDID("$FreeBSD$");
 
 #define ALIGN_TEXT      .p2align 4,0x90 /* 16-byte alignment, nop filled */
 
+#ifdef BCMP
+ENTRY(bcmp)
+#else
 ENTRY(memcmp)
+#endif
 	xorl	%eax,%eax
 10:
 	cmpq	$16,%rdx
@@ -143,8 +147,25 @@ ENTRY(memcmp)
 
 /*
  * Mismatch was found.
- *
- * Before we compute it we narrow down the range (16 -> 8 -> 4 bytes).
+ */
+#ifdef BCMP
+	ALIGN_TEXT
+10320016:
+10320000:
+10081608:
+10163224:
+10163216:
+10163208:
+10040804:
+80:
+1:
+	leal	1(%eax),%eax
+	ret
+END(bcmp)
+#else
+/*
+ * We need to compute the difference between strings.
+ * Start with narrowing the range down (16 -> 8 -> 4 bytes).
  */
 	ALIGN_TEXT
 10320016:
@@ -214,5 +235,6 @@ ENTRY(memcmp)
 	subl	%r8d,%eax
 	ret
 END(memcmp)
+#endif
 
 	.section .note.GNU-stack,"",%progbits
