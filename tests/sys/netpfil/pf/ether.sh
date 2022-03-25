@@ -534,6 +534,11 @@ ip_body()
 		"ether pass" \
 		"ether block out l3 to 192.0.2.3"
 	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.2
+
+	# We can't use tables in these rules
+	echo "ether pass out l3 from <test>" | \
+	    atf_check -s exit:1 -o ignore -e ignore \
+	    jexec alcatraz pfctl -g -f -
 }
 
 ip_cleanup()

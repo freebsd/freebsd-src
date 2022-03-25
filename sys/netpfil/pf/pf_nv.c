@@ -1146,6 +1146,9 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 		    nvlist_get_nvlist(nvl, "ipsrc"), &krule->ipsrc);
 		if (error != 0)
 			return (error);
+
+		if (krule->ipsrc.addr.type != PF_ADDR_ADDRMASK)
+			return (EINVAL);
 	}
 
 	if (nvlist_exists_nvlist(nvl, "ipdst")) {
@@ -1153,6 +1156,9 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 		    nvlist_get_nvlist(nvl, "ipdst"), &krule->ipdst);
 		if (error != 0)
 			return (error);
+
+		if (krule->ipdst.addr.type != PF_ADDR_ADDRMASK)
+			return (EINVAL);
 	}
 
 	PFNV_CHK(pf_nvstring(nvl, "qname", krule->qname, sizeof(krule->qname)));
