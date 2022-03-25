@@ -361,7 +361,8 @@ void (*pmap_invalidate_vpipt_icache)(void);
 #define	COOKIE_TO_EPOCH(cookie)		((int)((u_long)(cookie) >> 32))
 
 #define	TLBI_VA_SHIFT			12
-#define	TLBI_VA(addr)			((addr) >> TLBI_VA_SHIFT)
+#define	TLBI_VA_MASK			((1ul << 44) - 1)
+#define	TLBI_VA(addr)			(((addr) >> TLBI_VA_SHIFT) & TLBI_VA_MASK)
 #define	TLBI_VA_L3_INCR			(L3_SIZE >> TLBI_VA_SHIFT)
 
 static int superpages_enabled = 1;
