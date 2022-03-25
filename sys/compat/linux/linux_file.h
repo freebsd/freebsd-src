@@ -36,6 +36,13 @@
 #define	LINUX_AT_EACCESS		0x200
 #define	LINUX_AT_REMOVEDIR		0x200
 #define	LINUX_AT_SYMLINK_FOLLOW		0x400
+#define	LINUX_AT_NO_AUTOMOUNT		0x800
+		/*
+		 * Specific to Linux AT_NO_AUTOMOUNT flag tells the kernel to
+		 * not automount the terminal component of pathname if it is a
+		 * directory that is an automount point. As FreeBSD does not
+		 * have such facility (automount), we can simply ignore this flag.
+		 */
 #define	LINUX_AT_EMPTY_PATH		0x1000
 
 /*
