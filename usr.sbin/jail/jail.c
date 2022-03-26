@@ -790,7 +790,9 @@ static int
 rdtun_params(struct cfjail *j, int dofail)
 {
 	struct jailparam *jp, *rtparams, *rtjp;
-	int nrt, rval;
+	const void *jp_value;
+	size_t jp_valuelen;
+	int nrt, rval, bool_true;
 
 	if (j->flags & JF_RDTUN)
 		return 0;
@@ -818,15 +820,25 @@ rdtun_params(struct cfjail *j, int dofail)
 		rtjp = rtparams + 1;
 		for (jp = j->jp; rtjp < rtparams + nrt; jp++) {
 			if (JP_RDTUN(jp) && strcmp(jp->jp_name, "jid")) {
-				if (!((jp->jp_flags & (JP_BOOL | JP_NOBOOL)) &&
-				    jp->jp_valuelen == 0 &&
-				    *(int *)jp->jp_value) &&
-				    !(rtjp->jp_valuelen == jp->jp_valuelen &&
-				    !((jp->jp_ctltype & CTLTYPE) ==
-				    CTLTYPE_STRING ? strncmp(rtjp->jp_value,
-				    jp->jp_value, jp->jp_valuelen) :
-				    memcmp(rtjp->jp_value, jp->jp_value,
-				    jp->jp_valuelen)))) {
+				jp_value = jp->jp_value;
+				jp_valuelen = jp->jp_valuelen;
+				if (jp_value == NULL && jp_valuelen > 0) {
+					if (jp->jp_flags & (JP_BOOL |
+					    JP_NOBOOL | JP_JAILSYS)) {
+						bool_true = 1;
+						jp_value = &bool_true;
+						jp_valuelen = sizeof(bool_true);
+					} else if ((jp->jp_ctltype & CTLTYPE) ==
+					    CTLTYPE_STRING)
+						jp_value = "";
+					else
+						jp_valuelen = 0;
+				}
+				if (rtjp->jp_valuelen != jp_valuelen ||
+				    (CTLTYPE_STRING ? strncmp(rtjp->jp_value,
+				    jp_value, jp_valuelen)
+				    : memcmp(rtjp->jp_value, jp_value,
+				    jp_valuelen))) {
 					if (dofail) {
 						jail_warnx(j, "%s cannot be "
 						    "changed after creation",
