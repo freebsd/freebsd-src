@@ -26,18 +26,18 @@
 #
 # $FreeBSD$
 
-: ${DIALOG_OK=0}
-: ${DIALOG_CANCEL=1}
-: ${DIALOG_HELP=2}
-: ${DIALOG_EXTRA=3}
-: ${DIALOG_ITEM_HELP=4}
-: ${DIALOG_ESC=255}
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+: ${BSDDIALOG_HELP=2}
+: ${BSDDIALOG_EXTRA=3}
+: ${BSDDIALOG_ESC=5}
+: ${BSDDIALOG_ERROR=255}
 
 exec 3>&1
-MIRROR=`dialog --backtitle "FreeBSD Installer" \
+MIRROR=`bsddialog --backtitle "FreeBSD Installer" \
     --title "Mirror Selection" --extra-button --extra-label "Other" \
     --menu "Please select the site closest to you or \"other\" if you'd like to specify a different choice.  Also note that not every site listed here carries more than the base distribution kits. Only Primary sites are guaranteed to carry the full range of possible distributions. Select a site that's close!" \
-    0 0 0 \
+    0 0 16 \
 	ftp://ftp.freebsd.org	"Main Site"\
 	ftp://ftp.freebsd.org 	"IPv6 Main Site"\
 	ftp://ftp3.ie.freebsd.org 	"IPv6 Ireland"\
@@ -157,20 +157,20 @@ esac
 BSDINSTALL_DISTSITE="$MIRROR/pub/FreeBSD/${RELDIR}/`uname -m`/`uname -p`/${_UNAME_R}"
 
 case $MIRROR_BUTTON in
-$DIALOG_CANCEL)
+$BSDDIALOG_ERROR | $BSDDIALOG_CANCEL | $BSDDIALOG_ESC)
 	exit 1
 	;;
-$DIALOG_OK)
+$BSDDIALOG_OK)
 	;;
-$DIALOG_EXTRA)
+$BSDDIALOG_EXTRA)
 	exec 3>&1
-	BSDINSTALL_DISTSITE=`dialog --backtitle "FreeBSD Installer" \
+	BSDINSTALL_DISTSITE=`bsddialog --backtitle "FreeBSD Installer" \
 	    --title "Mirror Selection" \
 	    --inputbox "Please enter the URL to an alternate FreeBSD mirror:" \
-	    0 0 "$BSDINSTALL_DISTSITE" 2>&1 1>&3`
+	    0 74 "$BSDINSTALL_DISTSITE" 2>&1 1>&3`
 	MIRROR_BUTTON=$?
 	exec 3>&-
-	test $MIRROR_BUTTON -eq 0 || exec $0 $@
+	test $MIRROR_BUTTON -eq $BSDDIALOG_OK || exec $0 $@
 	;;
 esac
 
