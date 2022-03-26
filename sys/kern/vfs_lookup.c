@@ -1059,7 +1059,7 @@ dirloop:
 	}
 	*nulchar = '\0';
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
-	if (cnp->cn_namelen > NAME_MAX) {
+	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
 		error = ENAMETOOLONG;
 		goto bad;
 	}
@@ -1076,24 +1076,25 @@ dirloop:
 	prev_ni_next = ndp->ni_next;
 	ndp->ni_next = cp;
 
+	/*
+	 * Something else should be clearing this.
+	 */
+	cnp->cn_flags &= ~(ISDOTDOT|ISLASTCN);
+
 	cnp->cn_flags |= MAKEENTRY;
 	if (*cp == '\0' && docache == 0)
 		cnp->cn_flags &= ~MAKEENTRY;
 	if (cnp->cn_namelen == 2 &&
 	    cnp->cn_nameptr[1] == '.' && cnp->cn_nameptr[0] == '.')
 		cnp->cn_flags |= ISDOTDOT;
-	else
-		cnp->cn_flags &= ~ISDOTDOT;
-	if (*ndp->ni_next == 0)
+	if (*ndp->ni_next == 0) {
 		cnp->cn_flags |= ISLASTCN;
-	else
-		cnp->cn_flags &= ~ISLASTCN;
 
-	if ((cnp->cn_flags & ISLASTCN) != 0 &&
-	    cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.' &&
-	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
-		error = EINVAL;
-		goto bad;
+		if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.' &&
+		    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))) {
+			error = EINVAL;
+			goto bad;
+		}
 	}
 
 	nameicap_tracker_add(ndp, dp);
@@ -1186,7 +1187,7 @@ dirloop:
 unionlookup:
 #ifdef MAC
 	error = mac_vnode_check_lookup(cnp->cn_cred, dp, cnp);
-	if (error)
+	if (__predict_false(error))
 		goto bad;
 #endif
 	ndp->ni_dvp = dp;
