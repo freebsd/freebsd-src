@@ -699,12 +699,24 @@ sonewconn(struct socket *head, int connstatus)
 			}
 			KASSERT(sbuf_len(&descrsb) > 0,
 			    ("%s: sbuf creation failed", __func__));
-			log(LOG_DEBUG,
-			    "%s: pcb %p (%s): Listen queue overflow: "
-			    "%i already in queue awaiting acceptance "
-			    "(%d occurrences)\n",
-			    __func__, head->so_pcb, sbuf_data(&descrsb),
-			    qlen, overcount);
+			if (head->so_cred == 0) {
+				log(LOG_DEBUG,
+			    	"%s: pcb %p (%s): Listen queue overflow: "
+			    	"%i already in queue awaiting acceptance "
+			    	"(%d occurrences)\n",
+			    	__func__, head->so_pcb, sbuf_data(&descrsb),
+			    	qlen, overcount);
+			} else {
+				log(LOG_DEBUG, "%s: pcb %p (%s): Listen queue overflow: "
+				    "%i already in queue awaiting acceptance "
+				    "(%d occurrences), euid %d, rgid %d, jail %s\n",
+				    __func__, head->so_pcb, sbuf_data(&descrsb),
+				    qlen, overcount,
+				    head->so_cred->cr_uid, head->so_cred->cr_rgid,
+				    head->so_cred->cr_prison ?
+					head->so_cred->cr_prison->pr_name :
+					"not_jailed");
+			}
 			sbuf_delete(&descrsb);
 
 			overcount = 0;
