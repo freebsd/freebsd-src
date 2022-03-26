@@ -31,15 +31,15 @@ test -f $BSDINSTALL_DISTDIR/MANIFEST || exit 0
 percentage=0
 for dist in $DISTRIBUTIONS; do
 	distname=$(basename $dist .txz)
-	eval "status_$distname=7"
+	eval "status_$distname=-8"
 
 	items=""
 	for i in $DISTRIBUTIONS; do
-		items="$items $i `eval echo \\\${status_$(basename $i .txz):-Pending}`"
+		items="$items $i `eval echo \\\${status_$(basename $i .txz):--11}`"
 	done
-	dialog --backtitle "FreeBSD Installer" --title "Checksum Verification" \
-	    --mixedgauge "Verifying checksums of selected distributions." \
-	    0 0 $percentage $items
+	bsddialog --backtitle "FreeBSD Installer" --title "Checksum Verification" \
+	    --mixedgauge "\nVerifying checksums of selected distributions.\n" \
+	    0 0 $percentage  -- $items
 
 	CK=`sha256 -q $BSDINSTALL_DISTDIR/$dist`
 	awk -v checksum=$CK -v dist=$dist -v found=0 '{
@@ -55,20 +55,20 @@ for dist in $DISTRIBUTIONS; do
 	CK_VALID=$?
 	if [ $CK_VALID -le 1 ]; then
 		if [ $CK_VALID -eq 0 ]; then
-			eval "status_$distname=2"
+			eval "status_$distname=-3"
 		else
-			eval "status_$distname=6"
+			eval "status_$distname=-7"
 		fi
 		percentage=$(echo $percentage + 100/`echo $DISTRIBUTIONS | wc -w` | bc)
 	else
-		eval "status_$distname=1"
+		eval "status_$distname=-2"
 		case $(/bin/freebsd-version -u) in
 		*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
-			dialog --backtitle "FreeBSD Installer" --title "Error" \
+			bsddialog --backtitle "FreeBSD Installer" --title "Error" \
 			    --msgbox "The checksum for $dist does not match. It may have become corrupted, or it may be from a newer version of FreeBSD. Please check for a newer snapshot." 0 0
 			;;
 		*)
-			dialog --backtitle "FreeBSD Installer" --title "Error" \
+			bsddialog --backtitle "FreeBSD Installer" --title "Error" \
 			    --msgbox "The checksum for $dist does not match. It may have become corrupted, and should be redownloaded." 0 0
 			;;
 		esac
