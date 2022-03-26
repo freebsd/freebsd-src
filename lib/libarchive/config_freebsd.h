@@ -98,6 +98,7 @@
 #define HAVE_DECL_UINT64_MAX 1
 #define HAVE_DECL_UINTMAX_MAX 1
 #define HAVE_DIRENT_H 1
+#define HAVE_DIRFD 1
 #define HAVE_DLFCN_H 1
 #define HAVE_D_MD_ORDER 1
 #define HAVE_EFTYPE 1
