@@ -715,14 +715,14 @@ AC_CHECK_TYPES(struct statfs,,,
 
 # There are several variants of readdir_r around; we only
 # accept the POSIX-compliant version.
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
  [AC_LANG_PROGRAM([[#include <dirent.h>]],
                   [[DIR *dir; struct dirent e, *r;
 		    return(readdir_r(dir, &e, &r));]])],
  [AC_DEFINE(HAVE_READDIR_R,1,[Define to 1 if you have a POSIX compatible readdir_r])]
 )
 # dirfd can be either a function or a macro.
-AC_COMPILE_IFELSE(
+AC_LINK_IFELSE(
  [AC_LANG_PROGRAM([[#include <dirent.h>
                     DIR *dir;]],
                   [[return(dirfd(dir));]])],

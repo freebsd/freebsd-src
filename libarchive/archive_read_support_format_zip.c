@@ -1667,7 +1667,7 @@ zipx_lzma_alone_init(struct archive_read *a, struct zip *zip)
 	 */
 
 	/* Read magic1,magic2,lzma_params from the ZIPX stream. */
-	if((p = __archive_read_ahead(a, 9, NULL)) == NULL) {
+	if(zip->entry_bytes_remaining < 9 || (p = __archive_read_ahead(a, 9, NULL)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated lzma data");
 		return (ARCHIVE_FATAL);
