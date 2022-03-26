@@ -109,6 +109,11 @@ __FBSDID("$FreeBSD$");
 #define O_CLOEXEC	0
 #endif
 
+#if defined(__hpux) && !defined(HAVE_DIRFD)
+#define dirfd(x) ((x)->__dd_fd)
+#define HAVE_DIRFD
+#endif
+
 /*-
  * This is a new directory-walking system that addresses a number
  * of problems I've had with fts(3).  In particular, it has no
@@ -2428,7 +2433,7 @@ tree_dir_next_posix(struct tree *t)
 #else /* HAVE_FDOPENDIR */
 		if (tree_enter_working_dir(t) == 0) {
 			t->d = opendir(".");
-#if HAVE_DIRFD || defined(dirfd)
+#ifdef HAVE_DIRFD
 			__archive_ensure_cloexec_flag(dirfd(t->d));
 #endif
 		}
