@@ -83,7 +83,7 @@
  * 1. The map hypercall is not made till the region is mmapped.
  * 2. The unit is defined by the map ioctl. This means that only one
  *    unmap notification can be set on a group of pages that were
- *    mapped together in one ioctl, and also no single mmaping of contiguous
+ *    mapped together in one ioctl, and also no single mapping of contiguous
  *    grant-maps is possible.
  * 3. You can mmap the same grant-map region multiple times.
  * 4. The grant is not unmapped until both of the following conditions are met
