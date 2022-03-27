@@ -3648,6 +3648,12 @@ vdropl_impl(struct vnode *vp, bool enqueue)
 	if (vp->v_mflag & VMP_LAZYLIST) {
 		vunlazy(vp);
 	}
+
+	if (!enqueue) {
+		VI_UNLOCK(vp);
+		return;
+	}
+
 	/*
 	 * Also unlocks the interlock. We can't assert on it as we
 	 * released our hold and by now the vnode might have been
