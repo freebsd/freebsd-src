@@ -876,7 +876,7 @@ ipf_dstlist_table_del(ipf_main_softc_t *softc, void *arg, iplookupop_t *op)
 /*              softd(I) - pointer to the destination list context          */
 /*              d(I)     - pointer to destination list                      */
 /*                                                                          */
-/* Remove a given destination list from existance. While the IPDST_DELETE   */
+/* Remove a given destination list from existence. While the IPDST_DELETE   */
 /* flag is set every time we call this function and the reference count is  */
 /* non-zero, the "numdereflists" counter is always incremented because the  */
 /* decision about whether it will be freed or not is not made here. This    */
