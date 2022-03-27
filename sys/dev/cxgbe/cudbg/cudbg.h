@@ -417,7 +417,7 @@ static inline void reset_dbg_bitmap(u8 *bitmap, enum CUDBG_DBG_ENTITY_TYPE type)
  *  cudbg_alloc_handle - Allocates and initializes a handle that represents
  *  cudbg state.  Needs to called first before calling any other function.
  *
- *  returns a pointer to memory that has a cudbg_init structure at the begining
+ *  returns a pointer to memory that has a cudbg_init structure at the beginning
  *  and enough space after that for internal book keeping.
  */
 
