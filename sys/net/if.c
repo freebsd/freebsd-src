@@ -513,7 +513,9 @@ vnet_if_return(const void *unused __unused)
 	IFNET_WUNLOCK();
 
 	for (int j = 0; j < i; j++) {
+		sx_xlock(&ifnet_detach_sxlock);
 		if_vmove(pending[j], pending[j]->if_home_vnet);
+		sx_xunlock(&ifnet_detach_sxlock);
 	}
 
 	free(pending, M_IFNET);
@@ -1312,6 +1314,8 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	bool found __diagused;
 	bool shutdown;
 
+	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
+
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
 	pr = prison_find_child(td->td_ucred->cr_prison, jid);
@@ -1336,10 +1340,12 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 		prison_free(pr);
 		return (EEXIST);
 	}
+	sx_xlock(&ifnet_detach_sxlock);
 
 	/* Make sure the VNET is stable. */
 	shutdown = VNET_IS_SHUTTING_DOWN(ifp->if_vnet);
 	if (shutdown) {
+		sx_xunlock(&ifnet_detach_sxlock);
 		CURVNET_RESTORE();
 		prison_free(pr);
 		return (EBUSY);
@@ -1347,7 +1353,12 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	CURVNET_RESTORE();
 
 	found = if_unlink_ifnet(ifp, true);
-	MPASS(found);
+	if (! found) {
+		sx_xunlock(&ifnet_detach_sxlock);
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (ENODEV);
+	}
 
 	/* Move the interface into the child jail/vnet. */
 	error = if_vmove(ifp, pr->pr_vnet);
@@ -1355,6 +1366,8 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	/* Report the new if_xname back to the userland on success. */
 	if (error == 0)
 		sprintf(ifname, "%s", ifp->if_xname);
+
+	sx_xunlock(&ifnet_detach_sxlock);
 
 	prison_free(pr);
 	return (error);
@@ -1406,7 +1419,9 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	/* Get interface back from child jail/vnet. */
 	found = if_unlink_ifnet(ifp, true);
 	MPASS(found);
+	sx_xlock(&ifnet_detach_sxlock);
 	error = if_vmove(ifp, vnet_dst);
+	sx_xunlock(&ifnet_detach_sxlock);
 	CURVNET_RESTORE();
 
 	/* Report the new if_xname back to the userland on success. */
@@ -2283,8 +2298,11 @@ ifunit_ref(const char *name)
 		    !(ifp->if_flags & IFF_DYING))
 			break;
 	}
-	if (ifp != NULL)
+	if (ifp != NULL) {
 		if_ref(ifp);
+		MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
+	}
+
 	NET_EPOCH_EXIT(et);
 	return (ifp);
 }
