@@ -1404,7 +1404,7 @@ bfe_rxeof(struct bfe_softc *sc)
 		/*
 		 * Rx status should be read from mbuf such that we can't
 		 * delay bus_dmamap_sync(9). This hardware limiation
-		 * results in inefficent mbuf usage as bfe(4) couldn't
+		 * results in inefficient mbuf usage as bfe(4) couldn't
 		 * reuse mapped buffer from errored frame. 
 		 */
 		if (bfe_list_newbuf(sc, cons) != 0) {
