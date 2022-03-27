@@ -491,7 +491,7 @@ xen_intr_isrc(xen_intr_handle_t handle)
  * Determine the event channel ports at the given section of the
  * event port bitmap which have pending events for the given cpu.
  * 
- * \param pcpu  The Xen interrupt pcpu data for the cpu being querried.
+ * \param pcpu  The Xen interrupt pcpu data for the cpu being queried.
  * \param sh    The Xen shared info area.
  * \param idx   The index of the section of the event channel bitmap to
  *              inspect.
