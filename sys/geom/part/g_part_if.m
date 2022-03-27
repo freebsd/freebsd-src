@@ -158,7 +158,7 @@ METHOD void dumpconf {
 	const char *indent;
 };
 
-# dumpto() - return whether the partiton can be used for kernel dumps.
+# dumpto() - return whether the partition can be used for kernel dumps.
 METHOD int dumpto {
 	struct g_part_table *table;
 	struct g_part_entry *entry;
