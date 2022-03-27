@@ -242,7 +242,7 @@ exca_do_mem_map(struct exca_softc *sc, int win)
  * map (either common or attribute).  Memory created via this interface
  * starts out at card address 0.  Since the only way to set this is
  * to set it on a struct resource after it has been mapped, we're safe
- * in maping this assumption.  Note that resources can be remapped using
+ * in mapping this assumption.  Note that resources can be remapped using
  * exca_do_mem_map so that's how the card address can be set later.
  */
 int
