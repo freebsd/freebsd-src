@@ -266,7 +266,7 @@ typedef struct SCIC_SDS_REMOTE_NODE_CONTEXT
    U16 remote_node_index;
 
    /**
-    * This field is the recored suspension code or the reason for the remote node
+    * This field is the recorded suspension code or the reason for the remote node
     * context suspension.
     */
    U32 suspension_code;
