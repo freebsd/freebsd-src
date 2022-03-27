@@ -32,13 +32,8 @@ HYPERVISOR_console_write(const char *str, int count)
 static inline int
 HYPERVISOR_yield(void)
 {
-        int rc = HYPERVISOR_sched_op(SCHEDOP_yield, NULL);
 
-#if CONFIG_XEN_COMPAT <= 0x030002
-	if (rc == -ENOXENSYS)
-		rc = HYPERVISOR_sched_op_compat(SCHEDOP_yield, 0);
-#endif
-        return (rc);
+	return (HYPERVISOR_sched_op(SCHEDOP_yield, NULL));
 }
 
 static inline void 
@@ -49,9 +44,6 @@ HYPERVISOR_shutdown(unsigned int reason)
 	};
 
 	HYPERVISOR_sched_op(SCHEDOP_shutdown, &sched_shutdown);
-#if CONFIG_XEN_COMPAT <= 0x030002
-	HYPERVISOR_sched_op_compat(SCHEDOP_shutdown, reason);
-#endif
 }
 
 #endif /* __XEN_HYPERVISOR_H__ */

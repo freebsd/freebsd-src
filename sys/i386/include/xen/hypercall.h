@@ -38,8 +38,6 @@ extern char *hypercall_page;
 
 #define __STR(x) #x
 #define STR(x) __STR(x)
-#define	ENOXENSYS	38
-#define CONFIG_XEN_COMPAT	0x030002
 
 #define HYPERCALL_STR(name)                                     \
         "call hypercall_page + ("STR(__HYPERVISOR_##name)" * 32)"
@@ -190,13 +188,6 @@ HYPERVISOR_fpu_taskswitch(
 	return _hypercall1(int, fpu_taskswitch, set);
 }
 
-static inline int 
-HYPERVISOR_sched_op_compat(
-	int cmd, unsigned long arg)
-{
-	return _hypercall2(int, sched_op_compat, cmd, arg);
-}
-
 static inline int
 HYPERVISOR_sched_op(
 	int cmd, void *arg)
@@ -273,18 +264,7 @@ static inline int
 HYPERVISOR_event_channel_op(
 	int cmd, void *arg)
 {
-	int rc = _hypercall2(int, event_channel_op, cmd, arg);
-
-#if CONFIG_XEN_COMPAT <= 0x030002
-	if (__predict_false(rc == -ENOXENSYS)) {
-		struct evtchn_op op;
-		op.cmd = cmd;
-		memcpy(&op.u, arg, sizeof(op.u));
-		rc = _hypercall1(int, event_channel_op_compat, &op);
-		memcpy(arg, &op.u, sizeof(op.u));
-	}
-#endif
-	return (rc);
+	return _hypercall2(int, event_channel_op, cmd, arg);
 }
 
 static inline int
@@ -305,17 +285,7 @@ static inline int
 HYPERVISOR_physdev_op(
 	int cmd, void *arg)
 {
-	int rc = _hypercall2(int, physdev_op, cmd, arg);
-#if CONFIG_XEN_COMPAT <= 0x030002
-	if (__predict_false(rc == -ENOXENSYS)) {
-		struct physdev_op op;
-		op.cmd = cmd;
-		memcpy(&op.u, arg, sizeof(op.u));
-		rc = _hypercall1(int, physdev_op_compat, &op);
-		memcpy(arg, &op.u, sizeof(op.u));
-	}
-#endif
-	return (rc);
+	return _hypercall2(int, physdev_op, cmd, arg);
 }
 
 static inline int
@@ -359,24 +329,10 @@ HYPERVISOR_suspend(
 	struct sched_shutdown sched_shutdown = {
 		.reason = SHUTDOWN_suspend
 	};
-	int rc = _hypercall3(int, sched_op, SCHEDOP_shutdown,
-			   &sched_shutdown, srec);
-#if CONFIG_XEN_COMPAT <= 0x030002
-	if (rc == -ENOXENSYS)
-		rc = _hypercall3(int, sched_op_compat, SCHEDOP_shutdown,
-				 SHUTDOWN_suspend, srec);
-#endif	
-	return (rc);
-}
 
-#if CONFIG_XEN_COMPAT <= 0x030002
-static inline int
-HYPERVISOR_nmi_op(
-        unsigned long op, void *arg)
-{
-        return _hypercall2(int, nmi_op, op, arg);
+	return _hypercall3(int, sched_op, SCHEDOP_shutdown,
+			   &sched_shutdown, srec);
 }
-#endif
 
 static inline int
 HYPERVISOR_callback_op(
@@ -385,14 +341,12 @@ HYPERVISOR_callback_op(
         return _hypercall2(int, callback_op, cmd, arg);
 }
 
-#ifndef CONFIG_XEN
 static inline unsigned long
 HYPERVISOR_hvm_op(
     int op, void *arg)
 {
     return _hypercall2(unsigned long, hvm_op, op, arg);
 }
-#endif
 
 static inline int
 HYPERVISOR_xenoprof_op(
