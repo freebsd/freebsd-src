@@ -852,7 +852,7 @@ pfa_anchor	: '{'
 			char ta[PF_ANCHOR_NAME_SIZE];
 			struct pfctl_ruleset *rs;
 
-			/* steping into a brace anchor */
+			/* stepping into a brace anchor */
 			pf->asd++;
 			pf->bn++;
 
