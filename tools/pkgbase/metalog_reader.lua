@@ -475,7 +475,7 @@ function Analysis_session(metalog, verbose, w_notagdirs)
 	for line in fp:lines() do
 		-----local isinpkg = false
 		lineno = lineno + 1
-		-- skip lines begining with #
+		-- skip lines beginning with #
 		if line:match('^%s*#') then goto continue end
 		-- skip blank lines
 		if line:match('^%s*$') then goto continue end
