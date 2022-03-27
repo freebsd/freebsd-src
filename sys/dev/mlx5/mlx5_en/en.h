@@ -747,7 +747,7 @@ struct mlx5e_rq_mbuf {
 };
 
 struct mlx5e_rq {
-	/* persistant fields */
+	/* persistent fields */
 	struct mtx mtx;
 	struct mlx5e_rq_stats stats;
 	struct callout watchdog;
@@ -792,7 +792,7 @@ struct mlx5e_snd_tag {
 };
 
 struct mlx5e_sq {
-	/* persistant fields */
+	/* persistent fields */
 	struct	mtx lock;
 	struct	mtx comp_lock;
 	struct	mlx5e_sq_stats stats;
