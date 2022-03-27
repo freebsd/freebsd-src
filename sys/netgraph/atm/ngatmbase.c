@@ -83,7 +83,7 @@ uni_msg_init(void)
 
 /*
  * Ensure, that the message can be extended by at least s bytes.
- * Re-allocate the message (not the header). If that failes,
+ * Re-allocate the message (not the header). If that fails,
  * free the entire message and return ENOMEM. Free space at the start of
  * the message is retained.
  */
