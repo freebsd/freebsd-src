@@ -2443,7 +2443,7 @@ nd6_setdefaultiface(int ifindex)
 			V_nd6_defifp = NULL;
 
 		/*
-		 * Our current implementation assumes one-to-one maping between
+		 * Our current implementation assumes one-to-one mapping between
 		 * interfaces and links, so it would be natural to use the
 		 * default interface as the default link.
 		 */
