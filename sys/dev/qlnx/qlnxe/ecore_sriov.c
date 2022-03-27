@@ -685,7 +685,7 @@ enum _ecore_status_t ecore_iov_hw_info(struct ecore_hwfn *p_hwfn)
 	if (rc)
 		return rc;
 
-	/* We want PF IOV to be synonemous with the existance of p_iov_info;
+	/* We want PF IOV to be synonemous with the existence of p_iov_info;
 	 * In case the capability is published but there are no VFs, simply
 	 * de-allocate the struct.
 	 */
@@ -2705,7 +2705,7 @@ static enum _ecore_status_t ecore_iov_vf_stop_rxqs(struct ecore_hwfn *p_hwfn,
 
 	p_queue = &vf->vf_queues[rxq_id];
 
-	/* We've validated the index and the existance of the active RXQ -
+	/* We've validated the index and the existence of the active RXQ -
 	 * now we need to make sure that it's using the correct qid.
 	 */
 	if (!p_queue->cids[qid_usage_idx].p_cid ||
