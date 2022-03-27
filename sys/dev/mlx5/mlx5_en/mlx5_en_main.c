@@ -2259,7 +2259,7 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
 	struct epoch_tracker et;
 	int i, err;
 
-	/* zero non-persistant data */
+	/* zero non-persistent data */
 	MLX5E_ZERO(&c->rq, mlx5e_rq_zero_start);
 	for (i = 0; i != priv->num_tc; i++)
 		MLX5E_ZERO(&c->sq[i], mlx5e_sq_zero_start);
