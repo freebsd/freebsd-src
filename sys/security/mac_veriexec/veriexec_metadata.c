@@ -329,7 +329,7 @@ search:
 				    M_VERIEXEC, M_WAITOK);
 				mtx_lock(&ve_mutex);
 				/*
-				 * Repeat the seach, in case someone
+				 * Repeat the search, in case someone
 				 * added this while we slept.
 				 */
 				goto search;
