@@ -2774,19 +2774,12 @@ xbb_free_communication_mem(struct xbb_softc *xbb)
 static int
 xbb_disconnect(struct xbb_softc *xbb)
 {
-	struct gnttab_unmap_grant_ref  ops[XBB_MAX_RING_PAGES];
-	struct gnttab_unmap_grant_ref *op;
-	u_int			       ring_idx;
-	int			       error;
-
 	DPRINTF("\n");
-
-	if ((xbb->flags & XBBF_RING_CONNECTED) == 0)
-		return (0);
 
 	mtx_unlock(&xbb->lock);
 	xen_intr_unbind(&xbb->xen_intr_handle);
-	taskqueue_drain(xbb->io_taskqueue, &xbb->io_task); 
+	if (xbb->io_taskqueue != NULL)
+		taskqueue_drain(xbb->io_taskqueue, &xbb->io_task);
 	mtx_lock(&xbb->lock);
 
 	/*
@@ -2796,19 +2789,28 @@ xbb_disconnect(struct xbb_softc *xbb)
 	if (xbb->active_request_count != 0)
 		return (EAGAIN);
 
-	for (ring_idx = 0, op = ops;
-	     ring_idx < xbb->ring_config.ring_pages;
-	     ring_idx++, op++) {
-		op->host_addr    = xbb->ring_config.gnt_addr
-			         + (ring_idx * PAGE_SIZE);
-		op->dev_bus_addr = xbb->ring_config.bus_addr[ring_idx];
-		op->handle	 = xbb->ring_config.handle[ring_idx];
-	}
+	if (xbb->flags & XBBF_RING_CONNECTED) {
+		struct gnttab_unmap_grant_ref  ops[XBB_MAX_RING_PAGES];
+		struct gnttab_unmap_grant_ref *op;
+		unsigned int ring_idx;
+		int error;
 
-	error = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, ops,
-					  xbb->ring_config.ring_pages);
-	if (error != 0)
-		panic("Grant table op failed (%d)", error);
+		for (ring_idx = 0, op = ops;
+		     ring_idx < xbb->ring_config.ring_pages;
+		     ring_idx++, op++) {
+			op->host_addr    = xbb->ring_config.gnt_addr
+				         + (ring_idx * PAGE_SIZE);
+			op->dev_bus_addr = xbb->ring_config.bus_addr[ring_idx];
+			op->handle	 = xbb->ring_config.handle[ring_idx];
+		}
+
+		error = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, ops,
+						  xbb->ring_config.ring_pages);
+		if (error != 0)
+			panic("Grant table op failed (%d)", error);
+
+		xbb->flags &= ~XBBF_RING_CONNECTED;
+	}
 
 	xbb_free_communication_mem(xbb);
 
@@ -2839,7 +2841,6 @@ xbb_disconnect(struct xbb_softc *xbb)
 		xbb->request_lists = NULL;
 	}
 
-	xbb->flags &= ~XBBF_RING_CONNECTED;
 	return (0);
 }
 
@@ -2963,7 +2964,6 @@ xbb_connect_ring(struct xbb_softc *xbb)
 					  INTR_TYPE_BIO | INTR_MPSAFE,
 					  &xbb->xen_intr_handle);
 	if (error) {
-		(void)xbb_disconnect(xbb);
 		xenbus_dev_fatal(xbb->dev, error, "binding event channel");
 		return (error);
 	}
@@ -3338,6 +3338,13 @@ xbb_connect(struct xbb_softc *xbb)
 		return;
 	}
 
+	error = xbb_publish_backend_info(xbb);
+	if (error != 0) {
+		xenbus_dev_fatal(xbb->dev, error,
+		    "Unable to publish device information");
+		return;
+	}
+
 	error = xbb_alloc_requests(xbb);
 	if (error != 0) {
 		/* Specific errors are reported by xbb_alloc_requests(). */
@@ -3356,16 +3363,6 @@ xbb_connect(struct xbb_softc *xbb)
 	error = xbb_connect_ring(xbb);
 	if (error != 0) {
 		/* Specific errors are reported by xbb_connect_ring(). */
-		return;
-	}
-
-	if (xbb_publish_backend_info(xbb) != 0) {
-		/*
-		 * If we can't publish our data, we cannot participate
-		 * in this connection, and waiting for a front-end state
-		 * change will not help the situation.
-		 */
-		(void)xbb_disconnect(xbb);
 		return;
 	}
 
