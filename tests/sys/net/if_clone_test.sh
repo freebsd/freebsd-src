@@ -69,6 +69,34 @@ epair_up_stress_cleanup()
 	cleanup_ifaces
 }
 
+atf_test_case epair_destroy_race cleanup
+epair_destroy_race_head()
+{
+	atf_set "descr" "Race if_detach() and if_vmove()"
+	atf_set "require.user" "root"
+}
+epair_destroy_race_body()
+{
+	for i in `seq 1 10`
+	do
+		epair_a=$(ifconfig epair create)
+		echo $epair_a >> devices_to_cleanup
+		epair_b=${epair_a%a}b
+
+		jail -c vnet name="epair_destroy" nopersist path=/ \
+		  host.hostname="epair_destroy" vnet.interface="$epair_b" \
+		  command=sh -c "ifconfig $epair_b 192.0.2.1/24; sleep 0.1"&
+		pid=$!
+		ifconfig "$epair_a" destroy
+		wait $pid
+	done
+	true
+}
+epair_destroy_race_cleanup()
+{
+	cleanup_ifaces
+}
+
 atf_test_case epair_ipv6_up_stress cleanup
 epair_ipv6_up_stress_head()
 {
@@ -405,6 +433,7 @@ atf_init_test_cases()
 	atf_add_test_case epair_ipv6_up_stress
 	atf_add_test_case epair_stress
 	atf_add_test_case epair_up_stress
+	atf_add_test_case epair_destroy_race
 	atf_add_test_case faith_ipv6_up_stress
 	atf_add_test_case faith_stress
 	atf_add_test_case faith_up_stress
