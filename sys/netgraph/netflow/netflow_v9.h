@@ -143,7 +143,7 @@ struct netflow_v9_flowset_header {
 struct netflow_v9_packet_opt {
 	uint16_t	length; /* current packet length */
 	uint16_t	count; /* current records count */
-	uint16_t	mtu; /* max MTU shapshot */
+	uint16_t	mtu; /* max MTU snapshot */
 	uint16_t	flow_type; /* current flowset */
 	uint16_t	flow_header; /* offset pointing to current flow header */
 };
