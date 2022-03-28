@@ -2079,6 +2079,10 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		mps_unlock(sc);
 		break;
 	case MPSIO_READ_CFG_PAGE:
+		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER)) {
+			error = EINVAL;
+			break;
+		}
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK | M_ZERO);
 		error = copyin(page_req->buf, mps_page,
 		    sizeof(MPI2_CONFIG_PAGE_HEADER));
@@ -2097,6 +2101,11 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		mps_unlock(sc);
 		break;
 	case MPSIO_READ_EXT_CFG_PAGE:
+		if (ext_page_req->len <
+		    (int)sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER)) {
+			error = EINVAL;
+			break;
+		}
 		mps_page = malloc(ext_page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
 		error = copyin(ext_page_req->buf, mps_page,
 		    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
@@ -2110,6 +2119,10 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 		error = copyout(mps_page, ext_page_req->buf, ext_page_req->len);
 		break;
 	case MPSIO_WRITE_CFG_PAGE:
+		if (page_req->len < (int)sizeof(MPI2_CONFIG_PAGE_HEADER)) {
+			error = EINVAL;
+			break;
+		}
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
 		error = copyin(page_req->buf, mps_page, page_req->len);
 		if (error)
