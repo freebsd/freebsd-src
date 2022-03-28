@@ -179,6 +179,8 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked)
 	struct sctp_stream_queue_pending *sp;
 	struct sctp_association *asoc;
 
+	SCTP_TCB_LOCK_ASSERT(stcb);
+
 	/*
 	 * This function returns if any stream has true unsent data on it.
 	 * Note that as it looks through it will clean up any places that
@@ -186,7 +188,6 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked)
 	 */
 	asoc = &stcb->asoc;
 	unsent_data = 0;
-	SCTP_TCB_SEND_LOCK(stcb);
 	if (!stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
 		/* Check to see if some data queued */
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
@@ -234,7 +235,6 @@ sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked)
 			}
 		}
 	}
-	SCTP_TCB_SEND_UNLOCK(stcb);
 	return (unsent_data);
 }
 
@@ -245,6 +245,8 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 	struct sctp_association *asoc;
 	struct sctp_nets *lnet;
 	unsigned int i;
+
+	SCTP_TCB_LOCK_ASSERT(stcb);
 
 	init = &cp->init;
 	asoc = &stcb->asoc;
@@ -263,7 +265,6 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 			}
 		}
 	}
-	SCTP_TCB_SEND_LOCK(stcb);
 	if (asoc->pre_open_streams > ntohs(init->num_inbound_streams)) {
 		unsigned int newcnt;
 		struct sctp_stream_out *outs;
@@ -323,7 +324,6 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 		/* cut back the count */
 		asoc->pre_open_streams = newcnt;
 	}
-	SCTP_TCB_SEND_UNLOCK(stcb);
 	asoc->streamoutcnt = asoc->pre_open_streams;
 	if (asoc->strmout) {
 		for (i = 0; i < asoc->streamoutcnt; i++) {
@@ -1808,8 +1808,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		SCTP_TCB_LOCK(stcb);
 		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		/* send up all the data */
-		SCTP_TCB_SEND_LOCK(stcb);
-
 		sctp_report_all_outbound(stcb, 0, SCTP_SO_LOCKED);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			stcb->asoc.strmout[i].chunks_on_queues = 0;
@@ -1896,7 +1894,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
 
-		SCTP_TCB_SEND_UNLOCK(stcb);
 		SCTP_INP_WUNLOCK(stcb->sctp_ep);
 		SCTP_INP_INFO_WUNLOCK();
 		asoc->total_flight = 0;
