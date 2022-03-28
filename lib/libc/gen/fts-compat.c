@@ -610,6 +610,19 @@ __fts_set_clientptr_44bsd(FTS *sp, void *clientptr)
 	sp->fts_clientptr = clientptr;
 }
 
+static struct freebsd11_dirent *
+fts_safe_readdir(DIR *dirp, int *readdir_errno)
+{
+	struct freebsd11_dirent *ret;
+
+	errno = 0;
+	if (!dirp)
+		return (NULL);
+	ret = freebsd11_readdir(dirp);
+	*readdir_errno = errno;
+	return (ret);
+}
+
 /*
  * This is the tricky part -- do not casually change *anything* in here.  The
  * idea is to build the linked list of entries that are used by fts_children
@@ -634,7 +647,7 @@ fts_build(FTS *sp, int type)
 	DIR *dirp;
 	void *oldaddr;
 	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno,
-	    nostat, doadjust, dnamlen;
+	    nostat, doadjust, dnamlen, readdir_errno;
 	char *cp;
 
 	/* Set current node pointer. */
@@ -738,8 +751,9 @@ fts_build(FTS *sp, int type)
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
+	readdir_errno = 0;
 	for (head = tail = NULL, nitems = 0;
-	    dirp && (dp = freebsd11_readdir(dirp));) {
+	    (dp = fts_safe_readdir(dirp, &readdir_errno));) {
 		dnamlen = dp->d_namlen;
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
@@ -839,6 +853,16 @@ mem1:				saved_errno = errno;
 		}
 		++nitems;
 	}
+
+	if (readdir_errno) {
+		cur->fts_errno = readdir_errno;
+		/*
+		 * If we've not read any items yet, treat
+		 * the error as if we can't access the dir.
+		 */
+		cur->fts_info = nitems ? FTS_ERR : FTS_DNR;
+	}
+
 	if (dirp)
 		(void)closedir(dirp);
 
@@ -877,7 +901,8 @@ mem1:				saved_errno = errno;
 
 	/* If didn't find anything, return NULL. */
 	if (!nitems) {
-		if (type == BREAD)
+		if (type == BREAD &&
+		    cur->fts_info != FTS_DNR && cur->fts_info != FTS_ERR)
 			cur->fts_info = FTS_DP;
 		return (NULL);
 	}
