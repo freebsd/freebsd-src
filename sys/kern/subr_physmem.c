@@ -95,7 +95,8 @@ long Maxmem;
 static void
 physmem_dump_tables(int (*prfunc)(const char *, ...))
 {
-	int flags, i;
+	size_t i;
+	int flags;
 	uintmax_t addr, size;
 	const unsigned int mbyte = 1024 * 1024;
 
