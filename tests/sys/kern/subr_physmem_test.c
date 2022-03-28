@@ -76,14 +76,12 @@ ATF_TC_BODY(hwregion, tc)
 	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[1], 6 * PAGE_SIZE);
 
-#ifdef notyet /* This doesn't currently work */
 	/* Add the remaining part of the page */
 	physmem_hardware_region(6 * PAGE_SIZE + PAGE_SIZE / 2, PAGE_SIZE / 2);
 	len = physmem_avail(avail, 4);
 	ATF_CHECK_EQ(len, 2);
 	ATF_CHECK_EQ(avail[0], 2 * PAGE_SIZE);
 	ATF_CHECK_EQ(avail[1], 7 * PAGE_SIZE);
-#endif
 }
 
 ATF_TC_WITHOUT_HEAD(hwregion_exclude);
@@ -113,10 +111,30 @@ ATF_TC_BODY(hwregion_exclude, tc)
 	ATF_CHECK_EQ(avail[3], 7 * PAGE_SIZE);
 }
 
+ATF_TC_WITHOUT_HEAD(hwregion_unordered);
+ATF_TC_BODY(hwregion_unordered, tc)
+{
+	vm_paddr_t avail[4];
+	size_t len;
+
+	/* Add a partial page */
+	physmem_hardware_region(PAGE_SIZE, PAGE_SIZE / 2);
+	/* Add a full page not touching the previous */
+	physmem_hardware_region( 2 * PAGE_SIZE, PAGE_SIZE);
+	/* Add the remainder of the first page */
+	physmem_hardware_region(PAGE_SIZE + PAGE_SIZE / 2, PAGE_SIZE / 2);
+
+	len = physmem_avail(avail, 4);
+	ATF_CHECK_EQ(len, 2);
+	ATF_CHECK_EQ(avail[0], PAGE_SIZE);
+	ATF_CHECK_EQ(avail[1], 3 * PAGE_SIZE);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, hwregion);
 	ATF_TP_ADD_TC(tp, hwregion_exclude);
+	ATF_TP_ADD_TC(tp, hwregion_unordered);
 	return (atf_no_error());
 }
