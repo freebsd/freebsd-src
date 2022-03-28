@@ -195,6 +195,13 @@ Print the date and time of the last modification of
 Display or set the date in
 .Tn UTC
 (Coordinated Universal) time.
+By default
+.Nm
+displays the time in the time zone described by
+.Pa /etc/localtime
+or the
+.Ev TZ
+environment variable.
 .It Xo
 .Fl v
 .Sm off
@@ -337,10 +344,61 @@ Seconds, a number from 0 to 60
 .Pp
 Everything but the minutes is optional.
 .Pp
-Time changes for Daylight Saving Time, standard time, leap seconds,
+.Nm
+understands the time zone definitions in the
+.Nm tzdata
+package located in
+.Pa /usr/share/zoneinfo .
+This requires the kernel clock to be set to UTC.
+Time changes for Daylight Saving Time, standard time, leap seconds
 and leap years are handled automatically.
+.Pp
+There are two ways to specify the time zone:
+.Pp
+If the file or symlink
+.Pa /etc/localtime
+exists, it is interpreted as a time zone definition file, usually in
+the directory hierarchy
+.Pa /usr/share/zoneinfo ,
+which contains the time zone definitions from the
+.Nm tzdata
+package.
+.Pp
+If the environment variable
+.Ev TZ
+is set, its value is interpreted as the name of a time zone definition
+file, either an absolute path or a relative path to a time zone
+definition in
+.Pa /usr/share/zoneinfo .
+The
+.Ev TZ
+variable overrides
+.Pa /etc/localtime .
+.Pp
+If the time zone definition file is invalid,
+.Nm
+silently reverts to UTC.
+.Pp
+Previous versions of
+.Nm
+included the
+.Fl d
+(set daylight saving time flag) and
+.Fl t
+(set negative time zone offset) options, but these details are now
+handled automatically by
+.Nm tzdata .
+Modern offsets are positive for time zones ahead of UTC and negative
+for time zones behind UTC, but like the obsolete
+.Nm t
+option, the
+.Nm tzdata
+files in the subdirectory
+.Pa /usr/share/zoneinfo/Etc
+still use an older convention where times ahead of UTC are considered
+negative.
 .Sh ENVIRONMENT
-The following environment variables affect the execution of
+The following environment variable affects the execution of
 .Nm :
 .Bl -tag -width Ds
 .It Ev TZ
@@ -350,16 +408,22 @@ The normal format is a pathname relative to
 For example, the command
 .Dq TZ=America/Los_Angeles date
 displays the current time in California.
+The variable can also specify an absolute path.
 See
 .Xr environ 7
 for more information.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact
-.It Pa /var/log/utx.log
-record of date resets and time changes
+.It Pa /etc/localtime
+Time zone information file for default system time zone.
+May be omitted, in which case the default time zone is UTC.
+.It Pa /usr/share/zoneinfo
+Directory containing time zone information files.
 .It Pa /var/log/messages
 record of the user setting the time
+.It Pa /var/log/utx.log
+record of date resets and time changes
 .El
 .Sh EXIT STATUS
 The
@@ -463,13 +527,14 @@ If this occurs,
 .Nm
 prints:
 .Ql multiple output formats specified
-and exits with an error status.
+and exits with status 1.
 .Sh SEE ALSO
 .Xr locale 1 ,
 .Xr gettimeofday 2 ,
 .Xr getutxent 3 ,
 .Xr strftime 3 ,
-.Xr strptime 3
+.Xr strptime 3 ,
+.Xr ntpd 8
 .Rs
 .%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
 .%A R. Gusella
@@ -480,11 +545,9 @@ The
 .Nm
 utility is expected to be compatible with
 .St -p1003.2 .
-The
-.Fl f , I , j , r ,
-and
-.Fl v
-options are all extensions to the standard.
+With the exception of the
+.Fl u
+option, all options are extensions to the standard.
 .Pp
 The format selected by the
 .Fl I
@@ -495,6 +558,15 @@ A
 .Nm
 command appeared in
 .At v1 .
+.Pp
+A number of options were added and then removed again, including the
+.Fl d
+(set DST flag) and
+.Fl t
+(set negative time zone offset).
+Time zones are now handled by the
+.Nm tzdata
+package.
 .Pp
 The
 .Fl I
