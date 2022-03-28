@@ -524,7 +524,7 @@ ktr_get_tracevp(struct proc *p, bool ref)
 }
 
 void
-ktrsyscall(int code, int narg, register_t args[])
+ktrsyscall(int code, int narg, syscallarg_t args[])
 {
 	struct ktr_request *req;
 	struct ktr_syscall *ktp;

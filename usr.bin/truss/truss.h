@@ -81,7 +81,7 @@ struct current_syscall {
 	struct syscall *sc;
 	unsigned int number;
 	unsigned int nargs;
-	unsigned long args[10];
+	syscallarg_t args[10];
 	char *s_args[10];	/* the printable arguments */
 };
 
