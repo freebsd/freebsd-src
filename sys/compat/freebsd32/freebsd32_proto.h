@@ -23,8 +23,8 @@ struct proc;
 
 struct thread;
 
-#define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
-		0 : sizeof(register_t) - sizeof(t))
+#define	PAD_(t)	(sizeof(syscallarg_t) <= sizeof(t) ? \
+		0 : sizeof(syscallarg_t) - sizeof(t))
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	PADL_(t)	0
