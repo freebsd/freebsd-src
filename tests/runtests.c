@@ -54,7 +54,6 @@
 #include <ctype.h>
 #include <limits.h>
 #include <stdint.h> /* intptr_t uint64_t */
-#include <math.h>   /* NAN, INFINITY, isnan */
 
 #if ! defined(__cplusplus)
 #  include <stdbool.h>
@@ -7407,16 +7406,18 @@ START_TEST(test_ns_separator_in_uri) {
   struct test_case {
     enum XML_Status expectedStatus;
     const char *doc;
+    XML_Char namesep;
   };
   struct test_case cases[] = {
-      {XML_STATUS_OK, "<doc xmlns='one_two' />"},
-      {XML_STATUS_ERROR, "<doc xmlns='one&#x0A;two' />"},
+      {XML_STATUS_OK, "<doc xmlns='one_two' />", XCS('\n')},
+      {XML_STATUS_ERROR, "<doc xmlns='one&#x0A;two' />", XCS('\n')},
+      {XML_STATUS_OK, "<doc xmlns='one:two' />", XCS(':')},
   };
 
   size_t i = 0;
   size_t failCount = 0;
   for (; i < sizeof(cases) / sizeof(cases[0]); i++) {
-    XML_Parser parser = XML_ParserCreateNS(NULL, '\n');
+    XML_Parser parser = XML_ParserCreateNS(NULL, cases[i].namesep);
     XML_SetElementHandler(parser, dummy_start_element, dummy_end_element);
     if (XML_Parse(parser, cases[i].doc, (int)strlen(cases[i].doc),
                   /*isFinal*/ XML_TRUE)
@@ -7588,7 +7589,7 @@ START_TEST(test_misc_version) {
     fail("Version mismatch");
 
 #if ! defined(XML_UNICODE) || defined(XML_UNICODE_WCHAR_T)
-  if (xcstrcmp(version_text, XCS("expat_2.4.6"))) /* needs bump on releases */
+  if (xcstrcmp(version_text, XCS("expat_2.4.7"))) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 #else
   /* If we have XML_UNICODE defined but not XML_UNICODE_WCHAR_T
@@ -11762,6 +11763,16 @@ START_TEST(test_accounting_precision) {
 }
 END_TEST
 
+static float
+portableNAN() {
+  return strtof("nan", NULL);
+}
+
+static float
+portableINFINITY() {
+  return strtof("infinity", NULL);
+}
+
 START_TEST(test_billion_laughs_attack_protection_api) {
   XML_Parser parserWithoutParent = XML_ParserCreate(NULL);
   XML_Parser parserWithParent
@@ -11780,7 +11791,7 @@ START_TEST(test_billion_laughs_attack_protection_api) {
       == XML_TRUE)
     fail("Call with non-root parser is NOT supposed to succeed");
   if (XML_SetBillionLaughsAttackProtectionMaximumAmplification(
-          parserWithoutParent, NAN)
+          parserWithoutParent, portableNAN())
       == XML_TRUE)
     fail("Call with NaN limit is NOT supposed to succeed");
   if (XML_SetBillionLaughsAttackProtectionMaximumAmplification(
@@ -11802,7 +11813,7 @@ START_TEST(test_billion_laughs_attack_protection_api) {
       == XML_FALSE)
     fail("Call with positive limit >=1.0 is supposed to succeed");
   if (XML_SetBillionLaughsAttackProtectionMaximumAmplification(
-          parserWithoutParent, INFINITY)
+          parserWithoutParent, portableINFINITY())
       == XML_FALSE)
     fail("Call with positive limit >=1.0 is supposed to succeed");
 

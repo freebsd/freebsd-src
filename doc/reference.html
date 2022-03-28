@@ -18,6 +18,7 @@
    Copyright (c) 2017      Jakub Wilk <jwilk@jwilk.net>
    Copyright (c) 2021      Tomas Korbar <tkorbar@redhat.com>
    Copyright (c) 2021      Nicolas Cavallari <nicolas.cavallari@green-communications.fr>
+   Copyright (c) 2022      Thijs Schreijer <thijs@thijsschreijer.nl>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -49,7 +50,7 @@
   <div>
     <h1>
       The Expat XML Parser
-      <small>Release 2.4.6</small>
+      <small>Release 2.4.7</small>
     </h1>
   </div>
 <div class="content">
@@ -974,6 +975,14 @@ the local part will be concatenated without any separator - this is intended
 to support RDF processors. It is a programming error to use the null separator
 with <a href= "#XML_SetReturnNSTriplet">namespace triplets</a>.</div>
 
+<p><strong>Note:</strong>
+Expat does not validate namespace URIs (beyond encoding)
+against RFC 3986 today (and is not required to do so with regard to
+the XML 1.0 namespaces specification) but it may start doing that
+in future releases.  Before that, an application using Expat must
+be ready to receive namespace URIs containing non-URI characters.
+</p>
+
 <h4 id="XML_ParserCreate_MM">XML_ParserCreate_MM</h4>
 <pre class="fcndec">
 XML_Parser XMLCALL
@@ -1808,10 +1817,11 @@ struct XML_cp {
 </pre>
 <p>Sets a handler for element declarations in a DTD. The handler gets
 called with the name of the element in the declaration and a pointer
-to a structure that contains the element model. It is the
-application's responsibility to free this data structure using
-<code><a href="#XML_FreeContentModel"
->XML_FreeContentModel</a></code>.</p>
+to a structure that contains the element model. It's the user code's 
+responsibility to free model when finished with it. See <code>
+<a href="#XML_FreeContentModel">XML_FreeContentModel</a></code>.
+There is no need to free the model from the handler, it can be kept
+around and freed at a later stage.</p>
 
 <p>The <code>model</code> argument is the root of a tree of
 <code>XML_Content</code> nodes. If <code>type</code> equals
