@@ -35,11 +35,13 @@
 #include <sys/taskqueue.h>
 
 struct irq_work;
+struct llist_node;
 typedef void (*irq_work_func_t)(struct irq_work *);
 
 struct irq_work {
 	struct task irq_task;
 	irq_work_func_t func;
+	struct llist_node llnode;
 };
 
 extern struct taskqueue *linux_irq_work_tq;
