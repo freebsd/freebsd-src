@@ -29,8 +29,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include "opt_acpi.h"
 #include "opt_ddb.h"
+#endif
 
 /*
  * Routines for describing and initializing anything related to physical memory.
@@ -40,12 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/physmem.h>
+
+#ifdef _KERNEL
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
 #include <machine/md_var.h>
+#else
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#endif
 
 /*
  * These structures are used internally to keep track of regions of physical
@@ -86,6 +95,20 @@ static size_t excnt;
  */
 long realmem;
 long Maxmem;
+
+#ifndef _KERNEL
+static void
+panic(const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+	vfprintf(stderr, fmt, va);
+	fprintf(stderr, "\n");
+	va_end(va);
+	__builtin_trap();
+}
+#endif
 
 /*
  * Print the contents of the physical and excluded region tables using the
@@ -469,6 +492,7 @@ physmem_avail(vm_paddr_t *avail, size_t maxavail)
 	return (regions_to_avail(avail, EXFLAG_NOALLOC, maxavail, 0, NULL, NULL));
 }
 
+#ifdef _KERNEL
 /*
  * Process all the regions added earlier into the global avail lists.
  *
@@ -495,6 +519,7 @@ physmem_init_kernel_globals(void)
 		panic("No memory entries in phys_avail");
 	Maxmem = atop(phys_avail[nextidx - 1]);
 }
+#endif
 
 #ifdef DDB
 #include <ddb/ddb.h>
