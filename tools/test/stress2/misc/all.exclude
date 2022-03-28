@@ -46,10 +46,6 @@ oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
-quota10.sh		people.freebsd.org/~pho/stress/log/quota10-2.txt		20200525
-quota2.sh		panic: dqflush: stray dquot					20120221
-quota3.sh		panic: softdep_deallocate_dependencies: unrecovered ...		20111222
-quota7.sh		panic: dqflush: stray dquot					20120221
 sctp.sh			Waiting for fix							20220308
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
