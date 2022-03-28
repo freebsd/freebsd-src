@@ -8,6 +8,5 @@ ${PACKAGE}FILES+=		regress.base64.out
 ${PACKAGE}FILES+=		regress.in
 ${PACKAGE}FILES+=		regress.sh
 ${PACKAGE}FILES+=		regress.traditional.out
-${PACKAGE}FILES+=		regress.153276.in regress.153276.out
 
 .include <bsd.test.mk>
