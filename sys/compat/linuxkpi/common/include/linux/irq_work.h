@@ -60,10 +60,13 @@ init_irq_work(struct irq_work *irqw, irq_work_func_t func)
 	irqw->func = func;
 }
 
-static inline void
+static inline bool
 irq_work_queue(struct irq_work *irqw)
 {
-	taskqueue_enqueue(linux_irq_work_tq, &irqw->irq_task);
+	if(taskqueue_enqueue(linux_irq_work_tq, &irqw->irq_task) == 0)
+		return (true);
+
+	return (false);
 }
 
 static inline void
