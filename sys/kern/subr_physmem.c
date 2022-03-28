@@ -180,7 +180,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
     uint64_t maxphyssz, long *pavail, long *prealmem)
 {
 	size_t acnt, exi, hwi;
-	uint64_t end, start, xend, xstart;
+	uint64_t adj, end, start, xend, xstart;
 	long availmem, totalmem;
 	const struct region *exp, *hwp;
 	uint64_t availsz;
@@ -190,8 +190,9 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
 	availsz = 0;
 	acnt = 0;
 	for (hwi = 0, hwp = hwregions; hwi < hwcnt; ++hwi, ++hwp) {
-		start = hwp->addr;
-		end   = hwp->size + start;
+		adj   = round_page(hwp->addr) - hwp->addr;
+		start = round_page(hwp->addr);
+		end   = trunc_page(hwp->size + adj) + start;
 		totalmem += atop((vm_offset_t)(end - start));
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
 			/*
@@ -417,8 +418,6 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
 void
 physmem_hardware_region(uint64_t pa, uint64_t sz)
 {
-	vm_offset_t adj;
-
 	/*
 	 * Filter out the page at PA 0x00000000.  The VM can't handle it, as
 	 * pmap_extract() == 0 means failure.
@@ -450,14 +449,6 @@ physmem_hardware_region(uint64_t pa, uint64_t sz)
 			return;
 		sz -= 1024 * 1024;
 	}
-
-	/*
-	 * Round the starting address up to a page boundary, and truncate the
-	 * ending page down to a page boundary.
-	 */
-	adj = round_page(pa) - pa;
-	pa  = round_page(pa);
-	sz  = trunc_page(sz - adj);
 
 	if (sz > 0 && hwcnt < nitems(hwregions))
 		hwcnt = insert_region(hwregions, hwcnt, pa, sz, 0);
