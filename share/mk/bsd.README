@@ -612,8 +612,6 @@ LINKGRP		Group of links created with LINKS [${LIBGRP}].
 
 LINKMODE	Mode of links created with LINKS [${LIBMODE}].
 
-LINTLIBDIR	Target directory for lint libraries.
-
 MAN		The manual pages to be installed. See bsd.man.mk for more
 		details.
 
