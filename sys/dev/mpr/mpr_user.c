@@ -1311,7 +1311,7 @@ mpr_post_fw_diag_buffer(struct mpr_softc *sc,
 	reply = (MPI2_DIAG_BUFFER_POST_REPLY *)cm->cm_reply;
 	if (reply == NULL) {
 		mpr_printf(sc, "%s: reply is NULL, probably due to "
-		    "reinitialization", __func__);
+		    "reinitialization\n", __func__);
 		status = MPR_DIAG_FAILURE;
 		goto done;
 	}
@@ -1405,7 +1405,7 @@ mpr_release_fw_diag_buffer(struct mpr_softc *sc,
 	reply = (MPI2_DIAG_RELEASE_REPLY *)cm->cm_reply;
 	if (reply == NULL) {
 		mpr_printf(sc, "%s: reply is NULL, probably due to "
-		    "reinitialization", __func__);
+		    "reinitialization\n", __func__);
 		status = MPR_DIAG_FAILURE;
 		goto done;
 	}
