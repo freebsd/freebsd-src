@@ -23,6 +23,7 @@ ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sigaltstack
+ATF_TESTS_C+=	subr_physmem_test
 PLAIN_TESTS_C+=	subr_unit_test
 ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
@@ -77,6 +78,9 @@ SRCS.libkern_crc32+=	crc32_sse42.c
 .PATH: ${SRCTOP}/sys/libkern/arm64
 SRCS.libkern_crc32+=	crc32c_armv8.S
 .endif
+
+CFLAGS.subr_physmem.c+=	-D_WANT_FREEBSD_BITSET
+SRCS.subr_physmem_test+= subr_physmem_test.c subr_physmem.c
 
 # subr_unit.c contains functions whose prototypes lie in headers that cannot be
 # included in userland.  But as far as subr_unit_test goes, they're effectively
