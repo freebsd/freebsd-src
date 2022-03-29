@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Default simple round-robin algorithm.
- * Just interates the streams in the order they appear.
+ * Just iterates the streams in the order they appear.
  */
 
 static void
@@ -299,7 +299,7 @@ sctp_ss_default_is_user_msgs_incomplete(struct sctp_tcb *stcb SCTP_UNUSED, struc
 
 /*
  * Real round-robin algorithm.
- * Always interates the streams in ascending order.
+ * Always iterates the streams in ascending order.
  */
 static void
 sctp_ss_rr_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
@@ -331,7 +331,7 @@ sctp_ss_rr_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 /*
  * Real round-robin per packet algorithm.
- * Always interates the streams in ascending order and
+ * Always iterates the streams in ascending order and
  * only fills messages of the same stream in a packet.
  */
 static struct sctp_stream_out *
