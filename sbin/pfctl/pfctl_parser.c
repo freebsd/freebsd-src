@@ -744,7 +744,8 @@ void
 print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
     int rule_numbers)
 {
-	static const char *actiontypes[] = { "pass", "block" };
+	static const char *actiontypes[] = { "pass", "block", "", "", "", "",
+	    "", "", "", "", "", "", "match" };
 
 	if (rule_numbers)
 		printf("@%u ", r->nr);
