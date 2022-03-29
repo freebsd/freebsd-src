@@ -38,7 +38,7 @@
 #include <sys/fm/protocol.h>
 #include <uuid/uuid.h>
 #include <signal.h>
-#include <strings.h>
+#include <string.h>
 #include <time.h>
 
 #include "fmd_api.h"
@@ -342,11 +342,11 @@ fmd_case_uuresolved(fmd_hdl_t *hdl, const char *uuid)
 	fmd_hdl_debug(hdl, "case resolved by uuid (%s)", uuid);
 }
 
-int
+boolean_t
 fmd_case_solved(fmd_hdl_t *hdl, fmd_case_t *cp)
 {
 	(void) hdl;
-	return ((cp->ci_state >= FMD_CASE_SOLVED) ? FMD_B_TRUE : FMD_B_FALSE);
+	return (cp->ci_state >= FMD_CASE_SOLVED);
 }
 
 void
@@ -485,7 +485,7 @@ fmd_buf_read(fmd_hdl_t *hdl, fmd_case_t *cp,
 	assert(cp->ci_bufptr != NULL);
 	assert(size <= cp->ci_bufsiz);
 
-	bcopy(cp->ci_bufptr, buf, size);
+	memcpy(buf, cp->ci_bufptr, size);
 }
 
 void
@@ -497,7 +497,7 @@ fmd_buf_write(fmd_hdl_t *hdl, fmd_case_t *cp,
 	assert(cp->ci_bufptr != NULL);
 	assert(cp->ci_bufsiz >= size);
 
-	bcopy(buf, cp->ci_bufptr, size);
+	memcpy(cp->ci_bufptr, buf, size);
 }
 
 /* SERD Engines */
@@ -560,7 +560,7 @@ fmd_serd_record(fmd_hdl_t *hdl, const char *name, fmd_event_t *ep)
 	if ((sgp = fmd_serd_eng_lookup(&mp->mod_serds, name)) == NULL) {
 		zed_log_msg(LOG_ERR, "failed to add record to SERD engine '%s'",
 		    name);
-		return (FMD_B_FALSE);
+		return (0);
 	}
 	err = fmd_serd_eng_record(sgp, ep->ev_hrt);
 
@@ -581,7 +581,7 @@ _timer_notify(union sigval sv)
 	fmd_hdl_debug(hdl, "timer fired (%p)", ftp->ft_tid);
 
 	/* disarm the timer */
-	bzero(&its, sizeof (struct itimerspec));
+	memset(&its, 0, sizeof (struct itimerspec));
 	timer_settime(ftp->ft_tid, 0, &its, NULL);
 
 	/* Note that the fmdo_timeout can remove this timer */

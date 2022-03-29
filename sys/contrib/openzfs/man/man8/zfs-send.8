@@ -29,7 +29,7 @@
 .\" Copyright 2018 Nexenta Systems, Inc.
 .\" Copyright 2019 Joyent, Inc.
 .\"
-.Dd April 15, 2021
+.Dd March 16, 2022
 .Dt ZFS-SEND 8
 .Os
 .
@@ -40,6 +40,7 @@
 .Nm zfs
 .Cm send
 .Op Fl DLPRbcehnpsvw
+.Op Fl X Ar dataset Ns Oo , Ns Ar dataset Oc Ns ...
 .Op Oo Fl I Ns | Ns Fl i Oc Ar snapshot
 .Ar snapshot
 .Nm zfs
@@ -73,6 +74,7 @@
 .Nm zfs
 .Cm send
 .Op Fl DLPRbcehnpvw
+.Op Fl X Ar dataset Ns Oo , Ns Ar dataset Oc Ns ...
 .Op Oo Fl I Ns | Ns Fl i Oc Ar snapshot
 .Ar snapshot
 .Xc
@@ -140,6 +142,23 @@ If the
 flag is used to send encrypted datasets, then
 .Fl w
 must also be specified.
+.It Fl X , -exclude Ar dataset Ns Oo , Ns Ar dataset Oc Ns ...
+When the
+.Fl R
+flag is given,
+.Fl X
+can be used to specify a list of datasets to be excluded from the
+data stream.
+The
+.Fl X
+option can be used multiple times, or the list of datasets can be
+specified as a comma-separated list, or both.
+.Ar dataset
+must not be the pool's root dataset, and all descendant datasets of
+.Ar dataset
+will be excluded from the send stream.
+Requires
+.Fl R .
 .It Fl e , -embed
 Generate a more compact stream by using
 .Sy WRITE_EMBEDDED
@@ -647,6 +666,48 @@ to and received on the target server; these snapshots are identical to the
 ones on the source, and are ready to be used, while the parent snapshot on the
 target contains none of the username and password data present on the source,
 because it was removed by the redacted send operation.
+.
+.Sh EXAMPLES
+.\" These are, respectively, examples 12, 13 from zfs.8
+.\" Make sure to update them bidirectionally
+.Ss Example 1 : No Remotely Replicating ZFS Data
+The following commands send a full stream and then an incremental stream to a
+remote machine, restoring them into
+.Em poolB/received/fs@a
+and
+.Em poolB/received/fs@b ,
+respectively.
+.Em poolB
+must contain the file system
+.Em poolB/received ,
+and must not initially contain
+.Em poolB/received/fs .
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm send Ar pool/fs@a |
+.No "   " Nm ssh Ar host Nm zfs Cm receive Ar poolB/received/fs Ns @ Ns Ar a
+.No # Nm zfs Cm send Fl i Ar a pool/fs@b |
+.No "   " Nm ssh Ar host Nm zfs Cm receive Ar poolB/received/fs
+.Ed
+.
+.Ss Example 2 : No Using the Nm zfs Cm receive Fl d No Option
+The following command sends a full stream of
+.Ar poolA/fsA/fsB@snap
+to a remote machine, receiving it into
+.Ar poolB/received/fsA/fsB@snap .
+The
+.Ar fsA/fsB@snap
+portion of the received snapshot's name is determined from the name of the sent
+snapshot.
+.Ar poolB
+must contain the file system
+.Ar poolB/received .
+If
+.Ar poolB/received/fsA
+does not exist, it is created as an empty file system.
+.Bd -literal -compact -offset Ds
+.No # Nm zfs Cm send Ar poolA/fsA/fsB@snap |
+.No "   " Nm ssh Ar host Nm zfs Cm receive Fl d Ar poolB/received
+.Ed
 .
 .Sh SEE ALSO
 .Xr zfs-bookmark 8 ,

@@ -34,14 +34,13 @@
 #include <libintl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <zone.h>
 #include <sys/stat.h>
 #include <sys/efi_partition.h>
 #include <sys/systeminfo.h>
-#include <sys/vtoc.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/vdev_disk.h>
 #include <dlfcn.h>
@@ -224,10 +223,8 @@ zpool_label_disk(libzfs_handle_t *hdl, zpool_handle_t *zhp, const char *name)
 	    dgettext(TEXT_DOMAIN, "cannot label '%s'"), name);
 
 	if (zhp) {
-		nvlist_t *nvroot;
-
-		verify(nvlist_lookup_nvlist(zhp->zpool_config,
-		    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
+		nvlist_t *nvroot = fnvlist_lookup_nvlist(zhp->zpool_config,
+		    ZPOOL_CONFIG_VDEV_TREE);
 
 		if (zhp->zpool_start_block == 0)
 			start_block = find_start_block(nvroot);
@@ -280,8 +277,9 @@ zpool_label_disk(libzfs_handle_t *hdl, zpool_handle_t *zhp, const char *name)
 	 * Why we use V_USR: V_BACKUP confuses users, and is considered
 	 * disposable by some EFI utilities (since EFI doesn't have a backup
 	 * slice).  V_UNASSIGNED is supposed to be used only for zero size
-	 * partitions, and efi_write() will fail if we use it.  V_ROOT, V_BOOT,
-	 * etc. were all pretty specific.  V_USR is as close to reality as we
+	 * partitions, and efi_write() will fail if we use it.
+	 * Other available types were all pretty specific.
+	 * V_USR is as close to reality as we
 	 * can get, in the absence of V_OTHER.
 	 */
 	vtoc->efi_parts[0].p_tag = V_USR;

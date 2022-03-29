@@ -22,7 +22,6 @@ KERNEL_H = \
 	inttypes.h \
 	isa_defs.h \
 	kmem_cache.h \
-	kidmap.h \
 	kmem.h \
 	kstat.h \
 	list_impl.h \
@@ -48,7 +47,6 @@ KERNEL_H = \
 	simd.h \
 	spl_condvar.h \
 	string.h \
-	strings.h \
 	sunddi.h \
 	sysmacros.h \
 	systeminfo.h \

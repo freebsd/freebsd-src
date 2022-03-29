@@ -24,21 +24,21 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <strings.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 
 
-static _Noreturn void
+static __attribute__((noreturn)) void
 usage(char *progname)
 {
 	(void) fprintf(stderr, "Usage: %s <dirname|filename>\n", progname);
 	exit(1);
 }
 
-static _Noreturn void
+static __attribute__((noreturn)) void
 fail(char *err)
 {
 	perror(err);

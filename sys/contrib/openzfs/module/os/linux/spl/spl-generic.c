@@ -42,7 +42,7 @@
 #include <linux/ctype.h>
 #include <sys/disp.h>
 #include <sys/random.h>
-#include <sys/strings.h>
+#include <sys/string.h>
 #include <linux/kmod.h>
 #include <linux/mod_compat.h>
 #include <sys/cred.h>
@@ -771,7 +771,6 @@ spl_init(void)
 {
 	int rc = 0;
 
-	bzero(&p0, sizeof (proc_t));
 	spl_random_init();
 
 	if ((rc = spl_kvmem_init()))
