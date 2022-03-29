@@ -30,7 +30,7 @@
 
 error()
 {
-	dialog --backtitle "FreeBSD Installer" --title "Error" --msgbox "$1" 0 0
+	bsddialog --backtitle "FreeBSD Installer" --title "Error" --msgbox "$1" 0 0
 	exit 1
 }
 
@@ -79,7 +79,7 @@ else
 	VERIFY_MANIFEST_SIG=1
 
 	# XXX actually verify signature on manifest
-	dialog --backtitle "FreeBSD Installer" --title "Warning" --msgbox "Manifest not found on local disk and will be fetched from an unverified source. This is a potential security risk. If you do not wish to proceed, press control-C now." 0 0
+	bsddialog --backtitle "FreeBSD Installer" --title "Warning" --msgbox "Manifest not found on local disk and will be fetched from an unverified source. This is a potential security risk. If you do not wish to proceed, press control-C now." 0 0
 fi
 
 if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then
