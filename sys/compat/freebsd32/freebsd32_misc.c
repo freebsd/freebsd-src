@@ -1780,6 +1780,7 @@ static void
 copy_stat(struct stat *in, struct stat32 *out)
 {
 
+	bzero(out, sizeof(*out));
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_ino);
 	CP(*in, *out, st_mode);
@@ -1803,6 +1804,7 @@ static void
 copy_ostat(struct stat *in, struct ostat32 *out)
 {
 
+	bzero(out, sizeof(*out));
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_ino);
 	CP(*in, *out, st_mode);
