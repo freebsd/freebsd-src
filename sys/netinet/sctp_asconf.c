@@ -2561,7 +2561,7 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 	struct sctp_asconf_chunk *acp;
 	struct sctp_asconf_paramhdr *aph;
 	struct sctp_asconf_addr_param *aap;
-	uint32_t p_length;
+	uint32_t p_length, overhead;
 	uint32_t correlation_id = 1;	/* 0 is reserved... */
 	caddr_t ptr, lookup_ptr;
 	uint8_t lookup_used = 0;
@@ -2574,6 +2574,20 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 	if (aa == NULL)
 		return (NULL);
 
+	/* Consider IP header and SCTP common header. */
+	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+		overhead = SCTP_MIN_OVERHEAD;
+	} else {
+		overhead = SCTP_MIN_V4_OVERHEAD;
+	}
+	/* Consider ASONF chunk. */
+	overhead += sizeof(struct sctp_asconf_chunk);
+	/* Consider AUTH chunk. */
+	overhead += sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
+	if (stcb->asoc.smallest_mtu <= overhead) {
+		/* MTU too small. */
+		return (NULL);
+	}
 	/*
 	 * get a chunk header mbuf and a cluster for the asconf params since
 	 * it's simpler to fill in the asconf chunk header lookup address on
@@ -2615,7 +2629,7 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 		/* get the parameter length */
 		p_length = SCTP_SIZE32(aa->ap.aph.ph.param_length);
 		/* will it fit in current chunk? */
-		if ((SCTP_BUF_LEN(m_asconf) + p_length > stcb->asoc.smallest_mtu) ||
+		if ((SCTP_BUF_LEN(m_asconf) + p_length > stcb->asoc.smallest_mtu - overhead) ||
 		    (SCTP_BUF_LEN(m_asconf) + p_length > MCLBYTES)) {
 			/* won't fit, so we're done with this chunk */
 			break;
