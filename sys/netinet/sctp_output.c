@@ -13376,22 +13376,25 @@ skip_preblock:
 
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
-			SCTP_TCB_LOCK(stcb);
-			hold_tcblock = true;
-			stcb->block_entry = NULL;
-			if ((asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
-			    (asoc->state & SCTP_STATE_WAS_ABORTED)) {
-				if (asoc->state & SCTP_STATE_WAS_ABORTED) {
-					/*
-					 * XXX: Could also be ECONNABORTED,
-					 * not enough info.
-					 */
-					error = ECONNRESET;
-				} else {
-					error = ENOTCONN;
+			if (!hold_tcblock) {
+				SCTP_TCB_LOCK(stcb);
+				hold_tcblock = true;
+				if ((asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
+				    (asoc->state & SCTP_STATE_WAS_ABORTED)) {
+					if (asoc->state & SCTP_STATE_WAS_ABORTED) {
+						/*
+						 * XXX: Could also be
+						 * ECONNABORTED, not enough
+						 * info.
+						 */
+						error = ECONNRESET;
+					} else {
+						error = ENOTCONN;
+					}
+					goto out;
 				}
-				goto out;
 			}
+			stcb->block_entry = NULL;
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_OUTOF_BLK,
 				    asoc, asoc->total_output_queue_size);
