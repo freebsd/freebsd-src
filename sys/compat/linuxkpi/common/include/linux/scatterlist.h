@@ -99,6 +99,12 @@ struct sg_dma_page_iter {
 #define	for_each_sg(sglist, sg, sgmax, iter)				\
 	for (iter = 0, sg = (sglist); iter < (sgmax); iter++, sg = sg_next(sg))
 
+#define	for_each_sgtable_dma_sg(sgt, sg, iter)				\
+	for_each_sg((sgt)->sgl, sg, (sgt)->nents, iter)
+
+#define	for_each_sgtable_dma_page(sgt, iter, pgoffset)			\
+	for_each_sg_dma_page((sgt)->sgl, iter, (sgt)->nents, pgoffset)
+
 typedef struct scatterlist *(sg_alloc_fn) (unsigned int, gfp_t);
 typedef void (sg_free_fn) (struct scatterlist *, unsigned int);
 
