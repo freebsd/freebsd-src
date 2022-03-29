@@ -2463,6 +2463,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCCLRIFFLAG:
 		case DIOCGETETHRULES:
 		case DIOCGETETHRULE:
+		case DIOCGETETHRULESETS:
+		case DIOCGETETHRULESET:
 			break;
 		case DIOCRCLRTABLES:
 		case DIOCRADDTABLES:
@@ -2512,6 +2514,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETRULENV:
 		case DIOCGETETHRULES:
 		case DIOCGETETHRULE:
+		case DIOCGETETHRULESETS:
+		case DIOCGETETHRULESET:
 			break;
 		case DIOCRCLRTABLES:
 		case DIOCRADDTABLES:
@@ -2861,6 +2865,184 @@ DIOCGETETHRULE_error:
 DIOCADDETHRULE_error:
 		nvlist_destroy(nvl);
 		free(nvlpacked, M_TEMP);
+		break;
+	}
+
+	case DIOCGETETHRULESETS: {
+		struct epoch_tracker	 et;
+		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
+		nvlist_t		*nvl = NULL;
+		void			*nvlpacked = NULL;
+		struct pf_keth_ruleset	*ruleset;
+		struct pf_keth_anchor	*anchor;
+		int			 nr = 0;
+
+#define ERROUT(x)	do { error = (x); goto DIOCGETETHRULESETS_error; } while (0)
+
+		if (nv->len > pf_ioctl_maxcount)
+			ERROUT(ENOMEM);
+
+		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		error = copyin(nv->data, nvlpacked, nv->len);
+		if (error)
+			ERROUT(error);
+
+		nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+		if (nvl == NULL)
+			ERROUT(EBADMSG);
+		if (! nvlist_exists_string(nvl, "path"))
+			ERROUT(EBADMSG);
+
+		NET_EPOCH_ENTER(et);
+
+		if ((ruleset = pf_find_keth_ruleset(
+		    nvlist_get_string(nvl, "path"))) == NULL) {
+			NET_EPOCH_EXIT(et);
+			ERROUT(ENOENT);
+		}
+
+		if (ruleset->anchor == NULL) {
+			RB_FOREACH(anchor, pf_keth_anchor_global, &V_pf_keth_anchors)
+				if (anchor->parent == NULL)
+					nr++;
+		} else {
+			RB_FOREACH(anchor, pf_keth_anchor_node,
+			    &ruleset->anchor->children)
+				nr++;
+		}
+
+		NET_EPOCH_EXIT(et);
+
+		nvlist_destroy(nvl);
+		nvl = NULL;
+		free(nvlpacked, M_NVLIST);
+		nvlpacked = NULL;
+
+		nvl = nvlist_create(0);
+		if (nvl == NULL)
+			ERROUT(ENOMEM);
+
+		nvlist_add_number(nvl, "nr", nr);
+
+		nvlpacked = nvlist_pack(nvl, &nv->len);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		if (nv->size == 0)
+			ERROUT(0);
+		else if (nv->size < nv->len)
+			ERROUT(ENOSPC);
+
+		error = copyout(nvlpacked, nv->data, nv->len);
+
+#undef ERROUT
+DIOCGETETHRULESETS_error:
+		free(nvlpacked, M_NVLIST);
+		nvlist_destroy(nvl);
+		break;
+	}
+
+	case DIOCGETETHRULESET: {
+		struct epoch_tracker	 et;
+		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
+		nvlist_t		*nvl = NULL;
+		void			*nvlpacked = NULL;
+		struct pf_keth_ruleset	*ruleset;
+		struct pf_keth_anchor	*anchor;
+		int			 nr = 0, req_nr = 0;
+		bool			 found = false;
+
+#define ERROUT(x)	do { error = (x); goto DIOCGETETHRULESET_error; } while (0)
+
+		if (nv->len > pf_ioctl_maxcount)
+			ERROUT(ENOMEM);
+
+		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		error = copyin(nv->data, nvlpacked, nv->len);
+		if (error)
+			ERROUT(error);
+
+		nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+		if (nvl == NULL)
+			ERROUT(EBADMSG);
+		if (! nvlist_exists_string(nvl, "path"))
+			ERROUT(EBADMSG);
+		if (! nvlist_exists_number(nvl, "nr"))
+			ERROUT(EBADMSG);
+
+		req_nr = nvlist_get_number(nvl, "nr");
+
+		NET_EPOCH_ENTER(et);
+
+		if ((ruleset = pf_find_keth_ruleset(
+		    nvlist_get_string(nvl, "path"))) == NULL) {
+			NET_EPOCH_EXIT(et);
+			ERROUT(ENOENT);
+		}
+
+		nvlist_destroy(nvl);
+		nvl = NULL;
+		free(nvlpacked, M_NVLIST);
+		nvlpacked = NULL;
+
+		nvl = nvlist_create(0);
+		if (nvl == NULL) {
+			NET_EPOCH_EXIT(et);
+			ERROUT(ENOMEM);
+		}
+
+		if (ruleset->anchor == NULL) {
+			RB_FOREACH(anchor, pf_keth_anchor_global,
+			    &V_pf_keth_anchors) {
+				if (anchor->parent == NULL && nr++ == req_nr) {
+					found = true;
+					break;
+				}
+			}
+		} else {
+			RB_FOREACH(anchor, pf_keth_anchor_node,
+			     &ruleset->anchor->children) {
+				if (nr++ == req_nr) {
+					found = true;
+					break;
+				}
+			}
+		}
+
+		NET_EPOCH_EXIT(et);
+		if (found) {
+			nvlist_add_number(nvl, "nr", nr);
+			nvlist_add_string(nvl, "name", anchor->name);
+			if (ruleset->anchor)
+				nvlist_add_string(nvl, "path",
+				    ruleset->anchor->path);
+			else
+				nvlist_add_string(nvl, "path", "");
+		} else {
+			ERROUT(EBUSY);
+		}
+
+		nvlpacked = nvlist_pack(nvl, &nv->len);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		if (nv->size == 0)
+			ERROUT(0);
+		else if (nv->size < nv->len)
+			ERROUT(ENOSPC);
+
+		error = copyout(nvlpacked, nv->data, nv->len);
+
+#undef ERROUT
+DIOCGETETHRULESET_error:
+		free(nvlpacked, M_NVLIST);
+		nvlist_destroy(nvl);
 		break;
 	}
 

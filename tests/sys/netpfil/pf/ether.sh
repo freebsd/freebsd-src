@@ -490,6 +490,8 @@ anchor_body()
 		"}" \
 		"ether pass in from ${epair_a_mac}"
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	atf_check -s exit:0 -o match:'baz' jexec alcatraz pfctl -sA
 }
 
 anchor_cleanup()

@@ -1865,6 +1865,8 @@ struct pfioc_iface {
 #define	DIOCADDETHRULE		_IOWR('D', 97, struct pfioc_nv)
 #define	DIOCGETETHRULE		_IOWR('D', 98, struct pfioc_nv)
 #define	DIOCGETETHRULES		_IOWR('D', 99, struct pfioc_nv)
+#define	DIOCGETETHRULESETS	_IOWR('D', 100, struct pfioc_nv)
+#define	DIOCGETETHRULESET	_IOWR('D', 101, struct pfioc_nv)
 
 struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];

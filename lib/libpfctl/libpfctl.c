@@ -623,6 +623,81 @@ pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
 }
 
 int
+pfctl_get_eth_rulesets_info(int dev, struct pfctl_eth_rulesets_info *ri,
+    const char *path)
+{
+	uint8_t buf[1024];
+	struct pfioc_nv nv;
+	nvlist_t *nvl;
+	void *packed;
+	size_t len;
+
+	bzero(ri, sizeof(*ri));
+
+	nvl = nvlist_create(0);
+	nvlist_add_string(nvl, "path", path);
+	packed = nvlist_pack(nvl, &len);
+	memcpy(buf, packed, len);
+	free(packed);
+	nvlist_destroy(nvl);
+
+	nv.data = buf;
+	nv.len = len;
+	nv.size = sizeof(buf);
+
+	if (ioctl(dev, DIOCGETETHRULESETS, &nv) != 0)
+		return (errno);
+
+	nvl = nvlist_unpack(buf, nv.len, 0);
+	if (nvl == NULL)
+		return (EIO);
+
+	ri->nr = nvlist_get_number(nvl, "nr");
+
+	nvlist_destroy(nvl);
+	return (0);
+}
+
+int
+pfctl_get_eth_ruleset(int dev, const char *path, int nr,
+    struct pfctl_eth_ruleset_info *ri)
+{
+	uint8_t buf[1024];
+	struct pfioc_nv nv;
+	nvlist_t *nvl;
+	void *packed;
+	size_t len;
+
+	bzero(ri, sizeof(*ri));
+
+	nvl = nvlist_create(0);
+	nvlist_add_string(nvl, "path", path);
+	nvlist_add_number(nvl, "nr", nr);
+	packed = nvlist_pack(nvl, &len);
+	memcpy(buf, packed, len);
+	free(packed);
+	nvlist_destroy(nvl);
+
+	nv.data = buf;
+	nv.len = len;
+	nv.size = sizeof(buf);
+
+	if (ioctl(dev, DIOCGETETHRULESET, &nv) != 0)
+		return (errno);
+
+	nvl = nvlist_unpack(buf, nv.len, 0);
+	if (nvl == NULL)
+		return (EIO);
+
+	ri->nr = nvlist_get_number(nvl, "nr");
+	strlcpy(ri->path, nvlist_get_string(nvl, "path"), MAXPATHLEN);
+	strlcpy(ri->name, nvlist_get_string(nvl, "name"),
+	    PF_ANCHOR_NAME_SIZE);
+
+	return (0);
+}
+
+int
 pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules,
     const char *path)
 {
