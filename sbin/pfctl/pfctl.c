@@ -111,6 +111,7 @@ int	 pfctl_show_limits(int, int);
 void	 pfctl_debug(int, u_int32_t, int);
 int	 pfctl_test_altqsupport(int, int);
 int	 pfctl_show_anchors(int, int, char *);
+int	 pfctl_show_eth_anchors(int, int, char *);
 int	 pfctl_ruleset_trans(struct pfctl *, char *, struct pfctl_anchor *, bool);
 int	 pfctl_eth_ruleset_trans(struct pfctl *, char *,
 	    struct pfctl_eth_anchor *);
@@ -2604,6 +2605,44 @@ pfctl_show_anchors(int dev, int opts, char *anchorname)
 	return (0);
 }
 
+int
+pfctl_show_eth_anchors(int dev, int opts, char *anchorname)
+{
+	struct pfctl_eth_rulesets_info ri;
+	struct pfctl_eth_ruleset_info rs;
+	int ret;
+
+	if ((ret = pfctl_get_eth_rulesets_info(dev, &ri, anchorname)) != 0) {
+		if (ret == ENOENT)
+			fprintf(stderr, "Anchor '%s' not found.\n",
+			    anchorname);
+		else
+			err(1, "DIOCGETETHRULESETS");
+		return (-1);
+	}
+
+	for (int nr = 0; nr < ri.nr; nr++) {
+		char sub[MAXPATHLEN];
+
+		if (pfctl_get_eth_ruleset(dev, anchorname, nr, &rs) != 0)
+			err(1, "DIOCGETETHRULESET");
+
+		if (!strcmp(rs.name, PF_RESERVED_ANCHOR))
+			continue;
+		sub[0] = 0;
+		if (rs.path[0]) {
+			strlcat(sub, rs.path, sizeof(sub));
+			strlcat(sub, "/", sizeof(sub));
+		}
+		strlcat(sub, rs.name, sizeof(sub));
+		if (sub[0] != '_' || (opts & PF_OPT_VERBOSE))
+			printf("  %s\n", sub);
+		if ((opts & PF_OPT_VERBOSE) && pfctl_show_eth_anchors(dev, opts, sub))
+			return (-1);
+	}
+	return (0);
+}
+
 const char *
 pfctl_lookup_option(char *cmd, const char * const *list)
 {
@@ -2830,6 +2869,7 @@ main(int argc, char *argv[])
 		switch (*showopt) {
 		case 'A':
 			pfctl_show_anchors(dev, opts, anchorname);
+			pfctl_show_eth_anchors(dev, opts, anchorname);
 			break;
 		case 'r':
 			pfctl_load_fingerprints(dev, opts);
