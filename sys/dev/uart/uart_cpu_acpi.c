@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/pci/pcireg.h>
+
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
@@ -181,6 +183,11 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 		printf("SPCR has reserved BaudRate value: %d!\n",
 		    (int)spcr->BaudRate);
 		goto out;
+	}
+	if (spcr->PciVendorId != PCIV_INVALID &&
+	    spcr->PciDeviceId != PCIV_INVALID) {
+		di->pci_info.vendor = spcr->PciVendorId;
+		di->pci_info.device = spcr->PciDeviceId;
 	}
 
 	/* Apply device tweaks. */
