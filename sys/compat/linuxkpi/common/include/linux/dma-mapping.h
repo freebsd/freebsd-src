@@ -313,6 +313,13 @@ _dma_unmap_single_attrs(struct device *dev, dma_addr_t dma, size_t size,
 	linux_dma_unmap(dev, dma, size);
 }
 
+static inline size_t
+dma_max_mapping_size(struct device *dev)
+{
+
+	return (SCATTERLIST_MAX_SEGMENT);
+}
+
 #define	dma_map_single_attrs(dev, ptr, size, dir, attrs)	\
 	_dma_map_single_attrs(dev, ptr, size, dir, 0)
 
