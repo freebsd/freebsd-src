@@ -2176,6 +2176,17 @@ static void
 copy_stat(struct stat *in, struct stat32 *out)
 {
 
+#ifndef __amd64__
+	/*
+	 * 32-bit architectures other than i386 have 64-bit time_t.  This
+	 * results in struct timespec32 with 12 bytes for tv_sec and tv_nsec,
+	 * and 4 bytes of padding.  Zero the padding holes in struct stat32.
+	 */
+	bzero(&out->st_atim, sizeof(out->st_atim));
+	bzero(&out->st_mtim, sizeof(out->st_mtim));
+	bzero(&out->st_ctim, sizeof(out->st_ctim));
+	bzero(&out->st_birthtim, sizeof(out->st_birthtim));
+#endif
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_ino);
 	CP(*in, *out, st_mode);
@@ -2336,6 +2347,18 @@ extern int ino64_trunc_error;
 static int
 freebsd11_cvtstat32(struct stat *in, struct freebsd11_stat32 *out)
 {
+
+#ifndef __amd64__
+	/*
+	 * 32-bit architectures other than i386 have 64-bit time_t.  This
+	 * results in struct timespec32 with 12 bytes for tv_sec and tv_nsec,
+	 * and 4 bytes of padding.  Zero the padding holes in freebsd11_stat32.
+	 */
+	bzero(&out->st_atim, sizeof(out->st_atim));
+	bzero(&out->st_mtim, sizeof(out->st_mtim));
+	bzero(&out->st_ctim, sizeof(out->st_ctim));
+	bzero(&out->st_birthtim, sizeof(out->st_birthtim));
+#endif
 
 	CP(*in, *out, st_ino);
 	if (in->st_ino != out->st_ino) {
