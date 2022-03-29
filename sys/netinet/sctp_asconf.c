@@ -1107,7 +1107,7 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 		return;
 	}
 
-	/* Multiple local addresses exsist in the association.  */
+	/* Multiple local addresses exist in the association.  */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		/* clear any cached route and source address */
 		RO_NHFREE(&net->ro);
@@ -1948,7 +1948,7 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 			sin6 = &ifa->address.sin6;
 			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-				/* we skip unspecifed addresses */
+				/* we skip unspecified addresses */
 				return;
 			}
 			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
@@ -1979,7 +1979,7 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 			sin = &ifa->address.sin;
 			if (sin->sin_addr.s_addr == 0) {
-				/* we skip unspecifed addresses */
+				/* we skip unspecified addresses */
 				return;
 			}
 			if (stcb->asoc.scope.ipv4_local_scope == 0 &&
@@ -2134,7 +2134,7 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				}
 				sin6 = &ifa->address.sin6;
 				if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-					/* we skip unspecifed addresses */
+					/* we skip unspecified addresses */
 					continue;
 				}
 				if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
@@ -2166,7 +2166,7 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 				sin = &ifa->address.sin;
 				if (sin->sin_addr.s_addr == 0) {
-					/* we skip unspecifed addresses */
+					/* we skip unspecified addresses */
 					continue;
 				}
 				if (prison_check_ip4(inp->ip_inp.inp.inp_cred,
@@ -2449,7 +2449,10 @@ sctp_find_valid_localaddr(struct sctp_tcb *stcb, int addr_locked)
 
 					sin = &sctp_ifa->address.sin;
 					if (sin->sin_addr.s_addr == 0) {
-						/* skip unspecifed addresses */
+						/*
+						 * skip unspecified
+						 * addresses
+						 */
 						continue;
 					}
 					if (prison_check_ip4(stcb->sctp_ep->ip_inp.inp.inp_cred,
@@ -2485,7 +2488,7 @@ sctp_find_valid_localaddr(struct sctp_tcb *stcb, int addr_locked)
 					sin6 = &sctp_ifa->address.sin6;
 					if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 						/*
-						 * we skip unspecifed
+						 * we skip unspecified
 						 * addresses
 						 */
 						continue;

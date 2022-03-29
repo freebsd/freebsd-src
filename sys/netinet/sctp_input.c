@@ -1596,14 +1596,14 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 * random number generator returned the same vtag
 			 * when we first sent our INIT-ACK and when we later
 			 * sent our INIT. The side with the seq numbers that
-			 * are different will be the one that normnally
-			 * would have hit case C. This in effect "extends"
-			 * our vtags in this collision case to be 64 bits.
-			 * The same collision could occur aka you get both
-			 * vtag and seq number the same twice in a row.. but
-			 * is much less likely. If it did happen then we
-			 * would proceed through and bring up the assoc.. we
-			 * may end up with the wrong stream setup however..
+			 * are different will be the one that normally would
+			 * have hit case C. This in effect "extends" our
+			 * vtags in this collision case to be 64 bits. The
+			 * same collision could occur aka you get both vtag
+			 * and seq number the same twice in a row.. but is
+			 * much less likely. If it did happen then we would
+			 * proceed through and bring up the assoc.. we may
+			 * end up with the wrong stream setup however..
 			 * which would be bad.. but there is no way to
 			 * tell.. until we send on a stream that does not
 			 * exist :-)
@@ -2020,7 +2020,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 
 	/*
 	 * now that we know the INIT/INIT-ACK are in place, create a new TCB
-	 * and popluate
+	 * and populate
 	 */
 
 	/*
@@ -4125,7 +4125,7 @@ strres_nochunk:
  * Handle a router or endpoints report of a packet loss, there are two ways
  * to handle this, either we get the whole packet and must disect it
  * ourselves (possibly with truncation and or corruption) or it is a summary
- * from a middle box that did the disectting for us.
+ * from a middle box that did the disecting for us.
  */
 static void
 sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,

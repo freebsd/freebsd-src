@@ -188,7 +188,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	 * JRS 5/14/07 - If mode is set to 2, use the CMT PF find alternate
 	 * net algorithm. This algorithm chooses the active destination (not
 	 * in PF state) with the largest cwnd value. If all destinations are
-	 * in PF state, unreachable, or unconfirmed, choose the desination
+	 * in PF state, unreachable, or unconfirmed, choose the destination
 	 * that is in PF state with the lowest error count. In case of a
 	 * tie, choose the destination that was most recently active.
 	 */
@@ -938,7 +938,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 		/*
 		 * Get the address that failed, to force a new src address
-		 * selecton and a route allocation.
+		 * selection and a route allocation.
 		 */
 		if (net->ro._s_addr) {
 			sctp_free_ifa(net->ro._s_addr);
@@ -1446,8 +1446,8 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (!(net->dest_state & SCTP_ADDR_NOHB) &&
 	    !((net_was_pf == 0) && (net->dest_state & SCTP_ADDR_PF))) {
 		/*
-		 * when move to PF during threshold mangement, a HB has been
-		 * queued in that routine
+		 * when move to PF during threshold management, a HB has
+		 * been queued in that routine
 		 */
 		uint32_t ms_gone_by;
 
