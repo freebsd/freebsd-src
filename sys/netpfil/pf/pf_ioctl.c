@@ -1364,7 +1364,7 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 
 	rs->rules[rs_num].inactive.ptr = old_rules;
 	rs->rules[rs_num].inactive.ptr_array = old_array;
-	rs->rules[rs_num].inactive.tree = NULL;
+	rs->rules[rs_num].inactive.tree = NULL; /* important for pf_ioctl_addrule */
 	rs->rules[rs_num].inactive.rcount = old_rcount;
 
 	rs->rules[rs_num].active.ticket =
@@ -2136,6 +2136,16 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		    ("pool_ticket: %d != %d\n", pool_ticket,
 		    V_ticket_pabuf));
 		ERROUT(EBUSY);
+	}
+	/*
+	 * XXXMJG hack: there is no mechanism to ensure they started the
+	 * transaction. Ticket checked above may happen to match by accident,
+	 * even if nobody called DIOCXBEGIN, let alone this process.
+	 * Partially work around it by checking if the RB tree got allocated,
+	 * see pf_begin_rules.
+	 */
+	if (ruleset->rules[rs_num].inactive.tree == NULL) {
+		ERROUT(EINVAL);
 	}
 
 	tail = TAILQ_LAST(ruleset->rules[rs_num].inactive.ptr,
