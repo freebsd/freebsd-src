@@ -97,6 +97,11 @@ MALLOC_DECLARE(M_NVME);
 #define NVME_MAX_AER_LOG_SIZE		(4096)
 
 /*
+ * Page size parameters
+ */
+#define NVME_BASE_SHIFT		12	/* Several parameters (MSP) are 2^(12+x) */
+
+/*
  * Define CACHE_LINE_SIZE here for older FreeBSD versions that do not define
  *  it.
  */
