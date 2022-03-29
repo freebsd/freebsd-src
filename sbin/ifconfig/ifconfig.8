@@ -37,7 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl kLmn
-.Op Fl f Ar type Ns Cm \&: Ns Ar format Ns Op Cm \&, Ns Ar type Ns Cm \& : Ns Ar format ...
+.Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Ar interface
 .Op Cm create
 .Ar address_family
@@ -52,6 +52,7 @@
 .Nm
 .Fl a
 .Op Fl dLmuv
+.Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Op Fl G Ar groupname
 .Op Fl g Ar groupname
 .Op Ar address_family
@@ -65,6 +66,7 @@
 .Op Ar address_family
 .Nm
 .Op Fl dkLmuv
+.Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Sh DESCRIPTION
 The
 .Nm
@@ -195,6 +197,9 @@ environment variable.
 The format is specified as a comma separated list of
 .Sy type:format
 pairs.
+The
+.Fl f
+flag can be supplied multiple times.
 See the
 .Sx EXAMPLES
 section for more information.
