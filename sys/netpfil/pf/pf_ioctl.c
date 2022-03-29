@@ -2672,6 +2672,9 @@ DIOCGETETHRULES_error:
 
 #define ERROUT(x)	do { error = (x); goto DIOCGETETHRULE_error; } while (0)
 
+		if (nv->len > pf_ioctl_maxcount)
+			ERROUT(ENOMEM);
+
 		nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
 		if (nvlpacked == NULL)
 			ERROUT(ENOMEM);
@@ -2681,6 +2684,8 @@ DIOCGETETHRULES_error:
 			ERROUT(error);
 
 		nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+		if (nvl == NULL)
+			ERROUT(EBADMSG);
 		if (! nvlist_exists_number(nvl, "ticket"))
 			ERROUT(EBADMSG);
 		ticket = nvlist_get_number(nvl, "ticket");
