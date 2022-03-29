@@ -786,7 +786,7 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	struct pfioc_nv nv;
 	nvlist_t *nvl, *addr;
 	void *packed;
-	int error;
+	int error = 0;
 	size_t size;
 
 	nvl = nvlist_create(0);
@@ -838,7 +838,8 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	nv.size = size;
 	nv.data = packed;
 
-	error = ioctl(dev, DIOCADDETHRULE, &nv);
+	if (ioctl(dev, DIOCADDETHRULE, &nv) != 0)
+		error = errno;
 
 	free(packed);
 	nvlist_destroy(nvl);
