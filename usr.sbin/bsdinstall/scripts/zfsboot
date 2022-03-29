@@ -1619,7 +1619,7 @@ for pool in ${pools}; do
 	if [ "${pool}" = "${ZFSBOOT_POOL_NAME}" ]; then
 		f_dprintf "Pool ${pool} already taken"
 		ZFSBOOT_POOL_NAME=$(dialog_zpool_name "${ZFSBOOT_POOL_NAME}")
-		break;
+		break
 	fi
 done
 
@@ -1809,14 +1809,14 @@ while :; do
 			if [ $swapsize -ne 0 -a $swapsize -lt 104857600 ]; then
 			    f_show_err "$msg_swap_toosmall" \
 				       "$ZFSBOOT_SWAP_SIZE"
-			    continue;
+			    continue
 			else
-			    break;
+			    break
 			fi
 		    else
 			f_show_err "$msg_swap_invalid" \
 				   "$ZFSBOOT_SWAP_SIZE"
-			continue;
+			continue
 		    fi
 		done
 		;;
