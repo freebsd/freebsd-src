@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2021
+.Dd March 29, 2022
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1515,7 +1515,7 @@ with a
 .Cm scan
 request or through background scanning.
 Depending on the capabilities of the stations the following
-flags can be included in the output:
+flags (capability codes) can be included in the output:
 .Bl -tag -width 3n
 .It Li A
 Channel agility.
@@ -1527,21 +1527,33 @@ Poll request capability.
 DSSS/OFDM capability.
 .It Li E
 Extended Service Set (ESS).
+Indicates that the station is part of an infrastructure network
+rather than an IBSS/ad-hoc network.
 .It Li I
 Independent Basic Service Set (IBSS).
+Indicates that the station is part of an ad-hoc network
+rather than an ESS network.
 .It Li P
 Privacy capability.
-The station requires authentication.
+The station requires authentication and encryption
+for all data frames exchanged within the BSS using cryptographic means
+such as WEP, TKIP, or AES-CCMP.
 .It Li R
 Robust Secure Network (RSN).
 .It Li S
 Short Preamble.
-Indicates that the station is doing short preamble to optionally
+Indicates that the network is using short preambles,
+defined in 802.11b High Rate/DSSS PHY,
+and utilizes a 56 bit sync field
+rather than the 128 bit field used in long preamble mode.
+Short preambles are used to optionally
 improve throughput performance with 802.11g and 802.11b.
 .It Li c
 Pollable capability.
 .It Li s
 Short slot time capability.
+Indicates that the 802.11g network is using a short slot time
+because there are no legacy (802.11b) stations present.
 .El
 .Pp
 By default interesting information elements captured from the neighboring
