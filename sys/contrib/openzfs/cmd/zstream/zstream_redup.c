@@ -27,7 +27,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <umem.h>
 #include <unistd.h>
 #include <sys/debug.h>
@@ -229,7 +229,7 @@ zfs_redup_stream(int infd, int outfd, boolean_t verbose)
 		 * We need to regenerate the checksum.
 		 */
 		if (drr->drr_type != DRR_BEGIN) {
-			bzero(&drr->drr_u.drr_checksum.drr_checksum,
+			memset(&drr->drr_u.drr_checksum.drr_checksum, 0,
 			    sizeof (drr->drr_u.drr_checksum.drr_checksum));
 		}
 
@@ -380,7 +380,7 @@ zfs_redup_stream(int infd, int outfd, boolean_t verbose)
 		 * a checksum.
 		 */
 		if (drr->drr_type != DRR_BEGIN) {
-			bzero(&drr->drr_u.drr_checksum.drr_checksum,
+			memset(&drr->drr_u.drr_checksum.drr_checksum, 0,
 			    sizeof (drr->drr_u.drr_checksum.drr_checksum));
 		}
 		if (dump_record(drr, buf, payload_size,

@@ -27,7 +27,7 @@
 #include <sys/byteorder.h>
 #include <sys/frame.h>
 #include <sys/spa_checksum.h>
-#include <sys/strings.h>
+#include <sys/string.h>
 #include <sys/simd.h>
 #include <zfs_fletcher.h>
 
@@ -39,7 +39,7 @@ ZFS_NO_SANITIZE_UNDEFINED
 static void
 fletcher_4_avx512f_init(fletcher_4_ctx_t *ctx)
 {
-	bzero(ctx->avx512, 4 * sizeof (zfs_fletcher_avx512_t));
+	memset(ctx->avx512, 0, 4 * sizeof (zfs_fletcher_avx512_t));
 }
 
 ZFS_NO_SANITIZE_UNDEFINED

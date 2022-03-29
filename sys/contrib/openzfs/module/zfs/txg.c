@@ -108,8 +108,8 @@
  * now transition to the syncing state.
  */
 
-static _Noreturn void txg_sync_thread(void *arg);
-static _Noreturn void txg_quiesce_thread(void *arg);
+static __attribute__((noreturn)) void txg_sync_thread(void *arg);
+static __attribute__((noreturn)) void txg_quiesce_thread(void *arg);
 
 int zfs_txg_timeout = 5;	/* max seconds worth of delta per txg */
 
@@ -121,7 +121,7 @@ txg_init(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
 	int c;
-	bzero(tx, sizeof (tx_state_t));
+	memset(tx, 0, sizeof (tx_state_t));
 
 	tx->tx_cpu = vmem_zalloc(max_ncpus * sizeof (tx_cpu_t), KM_SLEEP);
 
@@ -186,7 +186,7 @@ txg_fini(dsl_pool_t *dp)
 
 	vmem_free(tx->tx_cpu, max_ncpus * sizeof (tx_cpu_t));
 
-	bzero(tx, sizeof (tx_state_t));
+	memset(tx, 0, sizeof (tx_state_t));
 }
 
 /*
@@ -514,7 +514,7 @@ txg_has_quiesced_to_sync(dsl_pool_t *dp)
 	return (tx->tx_quiesced_txg != 0);
 }
 
-static _Noreturn void
+static __attribute__((noreturn)) void
 txg_sync_thread(void *arg)
 {
 	dsl_pool_t *dp = arg;
@@ -605,7 +605,7 @@ txg_sync_thread(void *arg)
 	}
 }
 
-static _Noreturn void
+static __attribute__((noreturn)) void
 txg_quiesce_thread(void *arg)
 {
 	dsl_pool_t *dp = arg;

@@ -614,7 +614,6 @@ get_key_material_https(libzfs_handle_t *hdl, const char *uri,
 kfdok:
 	if ((key = fdopen(kfd, "r+")) == NULL) {
 		ret = errno;
-		free(path);
 		(void) close(kfd);
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "Couldn't reopen temporary file: %s"), strerror(ret));
@@ -789,7 +788,7 @@ derive_key(libzfs_handle_t *hdl, zfs_keyformat_t format, uint64_t iters,
 
 	switch (format) {
 	case ZFS_KEYFORMAT_RAW:
-		bcopy(key_material, key, WRAPPING_KEY_LEN);
+		memcpy(key, key_material, WRAPPING_KEY_LEN);
 		break;
 	case ZFS_KEYFORMAT_HEX:
 		ret = hex_key_to_raw((char *)key_material,

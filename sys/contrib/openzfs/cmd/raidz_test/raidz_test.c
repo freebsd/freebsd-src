@@ -141,10 +141,9 @@ static void process_options(int argc, char **argv)
 {
 	size_t value;
 	int opt;
-
 	raidz_test_opts_t *o = &rto_opts;
 
-	bcopy(&rto_opts_defaults, o, sizeof (*o));
+	memcpy(o, &rto_opts_defaults, sizeof (*o));
 
 	while ((opt = getopt(argc, argv, "TDBSvha:er:o:d:s:t:")) != -1) {
 		value = 0;
@@ -840,7 +839,7 @@ static kcondvar_t sem_cv;
 static int max_free_slots;
 static int free_slots;
 
-static _Noreturn void
+static __attribute__((noreturn)) void
 sweep_thread(void *arg)
 {
 	int err = 0;

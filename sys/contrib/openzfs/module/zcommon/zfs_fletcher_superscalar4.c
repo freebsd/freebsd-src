@@ -44,14 +44,14 @@
 #include <sys/param.h>
 #include <sys/byteorder.h>
 #include <sys/spa_checksum.h>
-#include <sys/strings.h>
+#include <sys/string.h>
 #include <zfs_fletcher.h>
 
 ZFS_NO_SANITIZE_UNDEFINED
 static void
 fletcher_4_superscalar4_init(fletcher_4_ctx_t *ctx)
 {
-	bzero(ctx->superscalar, 4 * sizeof (zfs_fletcher_superscalar_t));
+	memset(ctx->superscalar, 0, 4 * sizeof (zfs_fletcher_superscalar_t));
 }
 
 ZFS_NO_SANITIZE_UNDEFINED

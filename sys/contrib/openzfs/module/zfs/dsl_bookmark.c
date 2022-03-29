@@ -82,7 +82,7 @@ dsl_bookmark_lookup_impl(dsl_dataset_t *ds, const char *shortname,
 	 * Zero out the bookmark in case the one stored on disk
 	 * is in an older, shorter format.
 	 */
-	bzero(bmark_phys, sizeof (*bmark_phys));
+	memset(bmark_phys, 0, sizeof (*bmark_phys));
 
 	err = zap_lookup_norm(mos, bmark_zapobj, shortname, sizeof (uint64_t),
 	    sizeof (*bmark_phys) / sizeof (uint64_t), bmark_phys, mt, NULL, 0,
@@ -160,10 +160,9 @@ dsl_bookmark_create_nvl_validate_pair(const char *bmark, const char *source)
 int
 dsl_bookmark_create_nvl_validate(nvlist_t *bmarks)
 {
-	char *first;
-	size_t first_len;
+	char *first = NULL;
+	size_t first_len = 0;
 
-	first = NULL;
 	for (nvpair_t *pair = nvlist_next_nvpair(bmarks, NULL);
 	    pair != NULL; pair = nvlist_next_nvpair(bmarks, pair)) {
 
@@ -381,7 +380,7 @@ dsl_bookmark_set_phys(zfs_bookmark_phys_t *zbm, dsl_dataset_t *snap)
 		    &zbm->zbm_uncompressed_freed_before_next_snap);
 		dsl_dataset_rele(nextds, FTAG);
 	} else {
-		bzero(&zbm->zbm_flags,
+		memset(&zbm->zbm_flags, 0,
 		    sizeof (zfs_bookmark_phys_t) -
 		    offsetof(zfs_bookmark_phys_t, zbm_flags));
 	}
@@ -426,8 +425,8 @@ dsl_bookmark_node_add(dsl_dataset_t *hds, dsl_bookmark_node_t *dbn,
 		spa_feature_incr(dp->dp_spa, SPA_FEATURE_BOOKMARK_V2, tx);
 	}
 
-	__attribute__((unused)) zfs_bookmark_phys_t zero_phys = { 0 };
-	ASSERT0(bcmp(((char *)&dbn->dbn_phys) + bookmark_phys_size,
+	zfs_bookmark_phys_t zero_phys = { 0 };
+	ASSERT0(memcmp(((char *)&dbn->dbn_phys) + bookmark_phys_size,
 	    &zero_phys, sizeof (zfs_bookmark_phys_t) - bookmark_phys_size));
 
 	VERIFY0(zap_add(mos, hds->ds_bookmarks_obj, dbn->dbn_name,
@@ -482,7 +481,7 @@ dsl_bookmark_create_sync_impl_snap(const char *bookmark, const char *snapshot,
 		    sizeof (redaction_list_phys_t) + num_redact_snaps *
 		    sizeof (uint64_t));
 		dmu_buf_will_dirty(local_rl->rl_dbuf, tx);
-		bcopy(redact_snaps, local_rl->rl_phys->rlp_snaps,
+		memcpy(local_rl->rl_phys->rlp_snaps, redact_snaps,
 		    sizeof (uint64_t) * num_redact_snaps);
 		local_rl->rl_phys->rlp_num_snaps = num_redact_snaps;
 		if (bookmark_redacted) {

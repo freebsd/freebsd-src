@@ -29,7 +29,7 @@ libspl_HEADERS = \
 	simd.h \
 	stack.h \
 	stdtypes.h \
-	strings.h \
+	string.h \
 	stropts.h \
 	sunddi.h \
 	systeminfo.h \
@@ -43,6 +43,5 @@ libspl_HEADERS = \
 	va_list.h \
 	varargs.h \
 	vnode.h \
-	vtoc.h \
 	wmsum.h \
 	zone.h

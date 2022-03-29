@@ -43,15 +43,15 @@
 #if defined(HAVE_AVX) && defined(HAVE_AVX2)
 
 #include <sys/spa_checksum.h>
+#include <sys/string.h>
 #include <sys/simd.h>
-#include <sys/strings.h>
 #include <zfs_fletcher.h>
 
 ZFS_NO_SANITIZE_UNDEFINED
 static void
 fletcher_4_avx2_init(fletcher_4_ctx_t *ctx)
 {
-	bzero(ctx->avx, 4 * sizeof (zfs_fletcher_avx_t));
+	memset(ctx->avx, 0, 4 * sizeof (zfs_fletcher_avx_t));
 }
 
 ZFS_NO_SANITIZE_UNDEFINED

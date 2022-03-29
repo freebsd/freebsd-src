@@ -57,7 +57,7 @@ static importargs_t g_importargs;
 static char *g_pool;
 static boolean_t g_readonly;
 
-static _Noreturn void
+static __attribute__((noreturn)) void
 usage(void)
 {
 	(void) fprintf(stderr,
@@ -87,7 +87,7 @@ usage(void)
 }
 
 
-static __attribute__((format(printf, 3, 4))) _Noreturn void
+static __attribute__((format(printf, 3, 4))) __attribute__((noreturn)) void
 fatal(spa_t *spa, void *tag, const char *fmt, ...)
 {
 	va_list ap;
@@ -484,14 +484,11 @@ zhack_repair_label_cksum(int argc, char **argv)
 	zio_checksum_info_t *ci = &zio_checksum_table[ZIO_CHECKSUM_LABEL];
 	const char *cfg_keys[] = { ZPOOL_CONFIG_VERSION,
 	    ZPOOL_CONFIG_POOL_STATE, ZPOOL_CONFIG_GUID };
-	boolean_t labels_repaired[VDEV_LABELS];
+	boolean_t labels_repaired[VDEV_LABELS] = {0};
 	boolean_t repaired = B_FALSE;
-	vdev_label_t labels[VDEV_LABELS];
+	vdev_label_t labels[VDEV_LABELS] = {{{0}}};
 	struct stat st;
 	int fd;
-
-	bzero(labels_repaired, sizeof (labels_repaired));
-	bzero(labels, sizeof (labels));
 
 	abd_init();
 
