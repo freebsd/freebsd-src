@@ -1104,7 +1104,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						if (sin->sin_addr.s_addr == 0) {
 							/*
 							 * we skip
-							 * unspecifed
+							 * unspecified
 							 * addresses
 							 */
 							continue;
@@ -1152,7 +1152,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 							/*
 							 * we skip
-							 * unspecifed
+							 * unspecified
 							 * addresses
 							 */
 							continue;

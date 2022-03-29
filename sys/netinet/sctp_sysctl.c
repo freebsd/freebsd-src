@@ -143,7 +143,7 @@ sctp_sysctl_number_of_addresses(struct sctp_inpcb *inp)
 	struct sctp_laddr *laddr;
 
 	cnt = 0;
-	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
+	/* neither Mac OS X nor FreeBSD support multiple routing functions */
 	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
 		return (0);
 	}
@@ -223,7 +223,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 		}
 	}
 
-	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
+	/* neither Mac OS X nor FreeBSD support multiple routing functions */
 	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_INP_INFO_RUNLOCK();

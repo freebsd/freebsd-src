@@ -1323,7 +1323,7 @@ sctp_cwnd_prepare_rtcc_net_for_sack(struct sctp_tcb *stcb SCTP_UNUSED,
     struct sctp_nets *net)
 {
 	if (net->cc_mod.rtcc.tls_needs_set > 0) {
-		/* We had a bw measurment going on */
+		/* We had a bw measurement going on */
 		struct timeval ltls;
 
 		SCTP_GETPTIME_TIMEVAL(&ltls);
