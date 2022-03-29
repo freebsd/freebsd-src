@@ -94,6 +94,9 @@
 /* bdev_whole() is available */
 /* #undef HAVE_BDEV_WHOLE */
 
+/* bio_alloc() takes 4 arguments */
+/* #undef HAVE_BIO_ALLOC_4ARG */
+
 /* bio->bi_bdev->bd_disk exists */
 /* #undef HAVE_BIO_BDEV_DISK */
 
@@ -394,12 +397,6 @@
 
 /* kernel fpu internal */
 /* #undef HAVE_KERNEL_FPU_INTERNAL */
-
-/* kernel has asm/fpu/xcr.h */
-/* #undef HAVE_KERNEL_FPU_XCR_HEADER */
-
-/* kernel fpu and XSAVE internal */
-/* #undef HAVE_KERNEL_FPU_XSAVE_INTERNAL */
 
 /* uncached_acl_sentinel() exists */
 /* #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE */
@@ -784,6 +781,9 @@
 /* Define if host toolchain supports XSAVES */
 #define HAVE_XSAVES 1
 
+/* ZERO_PAGE() is GPL-only */
+/* #undef HAVE_ZERO_PAGE_GPL_ONLY */
+
 /* Define if you have [z] */
 #define HAVE_ZLIB 1
 
@@ -875,7 +875,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_ga86e08941"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gbc3f12bfa"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -884,7 +884,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.15"
+#define ZFS_META_KVER_MAX "5.17"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -905,7 +905,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_ga86e08941"
+#define ZFS_META_RELEASE "FreeBSD_gbc3f12bfa"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
