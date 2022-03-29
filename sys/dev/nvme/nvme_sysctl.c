@@ -372,6 +372,14 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr,
 	    0, nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
 
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "cap_lo",
+	    CTLFLAG_RD, &ctrlr->cap_lo, 0,
+	    "Low 32-bits of capacities for the drive");
+
+	SYSCTL_ADD_UINT(ctrlr_ctx, ctrlr_list, OID_AUTO, "cap_hi",
+	    CTLFLAG_RD, &ctrlr->cap_hi, 0,
+	    "Hi 32-bits of capacities for the drive");
+
 	que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO, "adminq",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Admin Queue");
 
