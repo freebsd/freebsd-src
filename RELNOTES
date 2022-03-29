@@ -10,6 +10,24 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+da5b7e90e740,5a8fceb3bd9f,7b0a665d72c0,13ec1e3155c7,318d0db5fe8a,1ae2c59bcf21:
+	Boottrace is a new kernel-userspace interface for capturing trace
+	events during system boot and shutdown. Event annotations are
+	present in:
+
+	- The boot and shutdown paths in the kernel
+	- Some key system utilities (init(8), shutdown(8), reboot(8))
+	- rc(8) scripts (via boottrace(8))
+
+        In contrast to other existing boot-time tracing facilities like TSLOG,
+        Boottrace focuses on the ease of use and is aimed primarily at system
+        administrators.
+
+        It is available in the default GENERIC kernel and can be enabled by
+        toggling a single sysctl(8) variable.
+
+	See boottrace(4) for more details.
+
 05a1d0f5d7ac:
 	Kernel TLS offload now supports receive-side offload of TLS 1.3.
 
