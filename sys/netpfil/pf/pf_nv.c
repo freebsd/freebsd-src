@@ -1170,7 +1170,8 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 
 	PFNV_CHK(pf_nvuint8(nvl, "action", &krule->action));
 
-	if (krule->action != PF_PASS && krule->action != PF_DROP)
+	if (krule->action != PF_PASS && krule->action != PF_DROP &&
+	    krule->action != PF_MATCH)
 		return (EBADMSG);
 
 errout:
