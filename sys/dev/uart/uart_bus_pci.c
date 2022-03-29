@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 #define	DEFAULT_RCLK	1843200
 
@@ -74,6 +75,11 @@ struct pci_id {
 	int		rid;
 	int		rclk;
 	int		regshft;
+};
+
+struct pci_unique_id {
+	uint16_t	vendor;
+	uint16_t	device;
 };
 
 #define PCI_NO_MSI	0x40000000
@@ -214,6 +220,44 @@ uart_pci_match(device_t dev, const struct pci_id *id)
 	return ((id->vendor == vendor && id->device == device) ? id : NULL);
 }
 
+extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
+
+/* PCI vendor/device pairs of devices guaranteed to be unique on a system. */
+static const struct pci_unique_id pci_unique_devices[] = {
+{ 0x1d0f, 0x8250 }	/* Amazon PCI serial device */
+};
+
+/* Match a UART to a console if it's a PCI device known to be unique. */
+static void
+uart_pci_unique_console_match(device_t dev)
+{
+	struct uart_softc *sc;
+	struct uart_devinfo * sysdev;
+	const struct pci_unique_id * id;
+	uint16_t vendor, device;
+
+	sc = device_get_softc(dev);
+	vendor = pci_get_vendor(dev);
+	device = pci_get_device(dev);
+
+	/* Is this a device known to exist only once in a system? */
+	for (id = pci_unique_devices; ; id++) {
+		if (id == &pci_unique_devices[nitems(pci_unique_devices)])
+			return;
+		if (id->vendor == vendor && id->device == device)
+			break;
+	}
+
+	/* If it matches a console, it must be the same device. */
+	SLIST_FOREACH(sysdev, &uart_sysdevs, next) {
+		if (sysdev->pci_info.vendor == vendor &&
+		    sysdev->pci_info.device == device) {
+			sc->sc_sysdev = sysdev;
+			sysdev->bas.rclk = sc->sc_bas.rclk;
+		}
+	}
+}
+
 static int
 uart_pci_probe(device_t dev)
 {
@@ -251,6 +295,13 @@ uart_pci_probe(device_t dev)
 	/* Bail out on error. */
 	if (result > 0)
 		return (result);
+	/*
+	 * If we haven't already matched this to a console, check if it's a
+	 * PCI device which is known to only exist once in any given system
+	 * and we can match it that way.
+	 */
+	if (sc->sc_sysdev == NULL)
+		uart_pci_unique_console_match(dev);
 	/* Set/override the device description. */
 	if (id->desc)
 		device_set_desc(dev, id->desc);
