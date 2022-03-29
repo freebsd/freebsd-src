@@ -36,11 +36,8 @@
 .Nd configure network interface parameters
 .Sh SYNOPSIS
 .Nm
+.Op Fl kLmn
 .Op Fl f Ar type Ns Cm \&: Ns Ar format Ns Op Cm \&, Ns Ar type Ns Cm \& : Ns Ar format ...
-.Op Fl L
-.Op Fl k
-.Op Fl m
-.Op Fl n
 .Ar interface
 .Op Cm create
 .Ar address_family
@@ -54,27 +51,16 @@
 .Cm destroy
 .Nm
 .Fl a
-.Op Fl L
-.Op Fl d
+.Op Fl dLmuv
 .Op Fl G Ar groupname
 .Op Fl g Ar groupname
-.Op Fl m
-.Op Fl u
-.Op Fl v
 .Op Ar address_family
 .Nm
 .Fl l
-.Op Fl d
-.Op Fl u
+.Op Fl du
 .Op Ar address_family
 .Nm
-.Op Fl L
-.Op Fl d
-.Op Fl k
-.Op Fl m
-.Op Fl u
-.Op Fl v
-.Op Fl C
+.Op Fl CdkLmuv
 .Nm
 .Op Fl g Ar groupname
 .Sh DESCRIPTION
