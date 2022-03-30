@@ -82,6 +82,16 @@ or other operating parameters.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl a
+Display information about all interfaces in the system.
+.Pp
+The
+.Fl a
+flag may be used instead of the
+.Ar interface
+argument.
+.It Fl d
+Display only the interfaces that are down.
 .It Fl f Xo
 .Ar type Ns Cm \&: Ns Ar format Ns
 .Op Cm \&, Ns Ar type Ns Cm \&: Ns Ar format Ar ...
@@ -178,6 +188,8 @@ Display address lifetime for IPv6 addresses as time offset string.
 .It Fl m
 Display the capability list and all
 of the supported media for the specified interface.
+.It Fl u
+Display only the interfaces that are up.
 .It Ar address
 For the DARPA-Internet family,
 the address is either a host name present in the host name data
@@ -289,17 +301,6 @@ If a protocol family is specified,
 .Nm
 will report only the details specific to that protocol family.
 .Pp
-Optionally, the
-.Fl a
-flag may be used instead of an interface name.
-This flag instructs
-.Nm
-to display information about all interfaces in the system.
-The
-.Fl d
-flag limits this to interfaces that are down,
-.Fl u
-limits this to interfaces that are up,
 .Fl g
 limits this to members of the specified group of interfaces, and
 .Fl G
