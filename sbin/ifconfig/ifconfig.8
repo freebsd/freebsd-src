@@ -90,6 +90,10 @@ The
 flag may be used instead of the
 .Ar interface
 argument.
+.It Fl C
+List all the interface cloners available on the system,
+with no additional information.
+Use of this flag is mutually exclusive with all other flags and commands.
 .It Fl d
 Display only the interfaces that are down.
 .It Fl f Xo
@@ -224,6 +228,8 @@ Display the capability list and all
 of the supported media for the specified interface.
 .It Fl u
 Display only the interfaces that are up.
+.It Fl v
+Get more verbose status for an interface.
 .It Ar address
 For the DARPA-Internet family,
 the address is either a host name present in the host name data
@@ -338,16 +344,6 @@ will report only the details specific to that protocol family.
 When no arguments are given,
 .Fl a
 is implied.
-.Pp
-The
-.Fl v
-flag may be used to get more verbose status for an interface.
-.Pp
-The
-.Fl C
-flag may be used to list all of the interface cloners available on
-the system, with no additional information.
-Use of this flag is mutually exclusive with all other flags and commands.
 .Pp
 The
 .Fl k
