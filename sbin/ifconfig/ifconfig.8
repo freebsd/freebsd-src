@@ -268,6 +268,102 @@ prefixlen 64
 .El
 .El
 .Pp
+The
+.Nm
+utility displays the current configuration for a network interface
+when no optional parameters are supplied.
+If a protocol family is specified,
+.Nm
+will report only the details specific to that protocol family.
+.Pp
+If the
+.Fl m
+flag is passed before an interface name,
+.Nm
+will display the capability list and all
+of the supported media for the specified interface.
+If
+.Fl L
+flag is supplied, address lifetime is displayed for IPv6 addresses,
+as time offset string.
+.Pp
+Optionally, the
+.Fl a
+flag may be used instead of an interface name.
+This flag instructs
+.Nm
+to display information about all interfaces in the system.
+The
+.Fl d
+flag limits this to interfaces that are down,
+.Fl u
+limits this to interfaces that are up,
+.Fl g
+limits this to members of the specified group of interfaces, and
+.Fl G
+excludes members of the specified group from the list.
+Both
+.Fl g
+and
+.Fl G
+flags may be specified to apply both conditions.
+Only one option
+.Fl g
+should be specified as later override previous ones
+(same for
+.Fl G ) .
+.Sy groupname
+may contain shell patterns in which case it should be quoted.
+When no arguments are given,
+.Fl a
+is implied.
+.Pp
+The
+.Fl l
+flag may be used to list all available interfaces on the system, with
+no other additional information.
+If an
+.Ar address_family
+is specified, only interfaces of that type will be listed.
+.Fl l Dq ether
+will list only Ethernet adapters, excluding the loopback interface.
+Use of this flag is mutually exclusive
+with all other flags and commands, except for
+.Fl d
+(only list interfaces that are down)
+and
+.Fl u
+(only list interfaces that are up).
+.Pp
+The
+.Fl v
+flag may be used to get more verbose status for an interface.
+.Pp
+The
+.Fl C
+flag may be used to list all of the interface cloners available on
+the system, with no additional information.
+Use of this flag is mutually exclusive with all other flags and commands.
+.Pp
+The
+.Fl k
+flag causes keying information for the interface, if available, to be
+printed.
+For example, the values of 802.11 WEP keys and
+.Xr carp 4
+passphrases will be printed, if accessible to the current user.
+This information is not printed by default, as it may be considered
+sensitive.
+.Pp
+If the network interface driver is not present in the kernel then
+.Nm
+will attempt to load it.
+The
+.Fl n
+flag disables this behavior.
+.Pp
+Only the super-user may modify the configuration of a network interface.
+.Pp
 The following parameters may be set with
 .Nm :
 .Bl -tag -width indent
@@ -2911,102 +3007,6 @@ Set the authentication key to
 .It Cm state Ar MASTER|BACKUP
 Forcibly change state of a given vhid.
 .El
-.Pp
-The
-.Nm
-utility displays the current configuration for a network interface
-when no optional parameters are supplied.
-If a protocol family is specified,
-.Nm
-will report only the details specific to that protocol family.
-.Pp
-If the
-.Fl m
-flag is passed before an interface name,
-.Nm
-will display the capability list and all
-of the supported media for the specified interface.
-If
-.Fl L
-flag is supplied, address lifetime is displayed for IPv6 addresses,
-as time offset string.
-.Pp
-Optionally, the
-.Fl a
-flag may be used instead of an interface name.
-This flag instructs
-.Nm
-to display information about all interfaces in the system.
-The
-.Fl d
-flag limits this to interfaces that are down,
-.Fl u
-limits this to interfaces that are up,
-.Fl g
-limits this to members of the specified group of interfaces, and
-.Fl G
-excludes members of the specified group from the list.
-Both
-.Fl g
-and
-.Fl G
-flags may be specified to apply both conditions.
-Only one option
-.Fl g
-should be specified as later override previous ones
-(same for
-.Fl G ) .
-.Sy groupname
-may contain shell patterns in which case it should be quoted.
-When no arguments are given,
-.Fl a
-is implied.
-.Pp
-The
-.Fl l
-flag may be used to list all available interfaces on the system, with
-no other additional information.
-If an
-.Ar address_family
-is specified, only interfaces of that type will be listed.
-.Fl l Dq ether
-will list only Ethernet adapters, excluding the loopback interface.
-Use of this flag is mutually exclusive
-with all other flags and commands, except for
-.Fl d
-(only list interfaces that are down)
-and
-.Fl u
-(only list interfaces that are up).
-.Pp
-The
-.Fl v
-flag may be used to get more verbose status for an interface.
-.Pp
-The
-.Fl C
-flag may be used to list all of the interface cloners available on
-the system, with no additional information.
-Use of this flag is mutually exclusive with all other flags and commands.
-.Pp
-The
-.Fl k
-flag causes keying information for the interface, if available, to be
-printed.
-For example, the values of 802.11 WEP keys and
-.Xr carp 4
-passphrases will be printed, if accessible to the current user.
-This information is not printed by default, as it may be considered
-sensitive.
-.Pp
-If the network interface driver is not present in the kernel then
-.Nm
-will attempt to load it.
-The
-.Fl n
-flag disables this behavior.
-.Pp
-Only the super-user may modify the configuration of a network interface.
 .Sh EXAMPLES
 Assign the IPv4 address
 .Li 192.0.2.10 ,
