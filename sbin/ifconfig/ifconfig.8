@@ -182,6 +182,26 @@ Display subnet prefix in integer format, for example:
 .Dl prefixlen 64
 .El
 .El
+.It Fl G Ar groupname
+Exclude members of the specified
+.Ar groupname
+from the output.
+.Ar groupname .
+.Pp
+Only one option
+.Fl G
+should be specified as later override previous ones
+.Ar groupname
+may contain shell patterns in which case it should be quoted.
+.It Fl g Ar groupname
+Limit the output to the members of the specified
+.Ar groupname .
+.Pp
+Only one option
+.Fl g
+should be specified as later override previous ones
+.Ar groupname
+may contain shell patterns in which case it should be quoted.
 .It Fl L
 Display address lifetime for IPv6 addresses as time offset string.
 .Pp
@@ -301,22 +321,6 @@ If a protocol family is specified,
 .Nm
 will report only the details specific to that protocol family.
 .Pp
-.Fl g
-limits this to members of the specified group of interfaces, and
-.Fl G
-excludes members of the specified group from the list.
-Both
-.Fl g
-and
-.Fl G
-flags may be specified to apply both conditions.
-Only one option
-.Fl g
-should be specified as later override previous ones
-(same for
-.Fl G ) .
-.Sy groupname
-may contain shell patterns in which case it should be quoted.
 When no arguments are given,
 .Fl a
 is implied.
