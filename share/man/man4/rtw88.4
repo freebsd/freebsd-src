@@ -1,0 +1,95 @@
+.\"-
+.\" Copyright (c) 2022 Bjoern A. Zeeb
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 31, 2022
+.Dt rtw88 4
+.Os
+.Sh NAME
+.Nm rtw88
+.Nd Realtek IEEE 802.11n/ac wireless network driver
+.Sh SYNOPSIS
+The driver will auto-load without any user interaction using
+.Xr devmatch 8
+if enabled in
+.Xr rc.conf 5 .
+.Pp
+Only if auto-loading is explicitly disabled, place the following
+lines in
+.Xr rc.conf 5
+to manually load the driver as a module at boot time:
+.Bd -literal -offset indent
+kld_list="${kld_list} if_rtw88"
+.Ed
+.Pp
+The driver should automatically load any
+.Xr rtw88fw 4
+firmware needed for the particular chipset.
+.Pp
+It is discouraged to load the driver from
+.Xr loader 8 .
+.Sh DESCRIPTION
+The
+.Nm
+driver is derived from Realtek's Linux rtw88 driver and provides support for
+the following chipsets:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Realtek 802.11n  wireless 8723de (RTL8723DE)
+.It Realtek 802.11ac wireless 8821ce (RTL8821CE)
+.It Realtek 802.11ac wireless 8822be (RTL8822BE)
+.It Realtek 802.11ac wireless 8822ce (RTL8822CE)
+.El
+.Pp
+The driver uses the
+.\" No LinuxKPI man pages so no .Xr here.
+.Em linuxkpi_wlan
+and
+.Em linuxkpi
+compat framework to bridge between the Linux and
+native FreeBSD driver code as well as to the native
+.Xr net80211 4
+wireless stack.
+.Pp
+While
+.Nm
+supports all 802.11 a/b/g/n and ac
+the compatibility code currently only supports 802.11 a/b/g modes.
+Support for 802.11 n/ac is to come.
+.Sh BUGS
+Certainly.
+.Pp
+Does not seem to work (reliably) on machines with more than 4GB of
+main memory.
+.Sh SEE ALSO
+.Xr rtw88fw 4 ,
+.Xr wlan 4 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 14.0 .
