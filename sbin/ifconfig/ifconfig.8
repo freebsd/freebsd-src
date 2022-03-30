@@ -204,7 +204,21 @@ should be specified as later override previous ones
 may contain shell patterns in which case it should be quoted.
 .It Fl L
 Display address lifetime for IPv6 addresses as time offset string.
+.It Fl l
+List all available interfaces on the system,
+with no other additional information.
 .Pp
+If an
+.Ar address_family
+is specified, only interfaces of that type will be listed.
+.Ql ifconfig -l ether
+will list only Ethernet adapters, excluding the loopback interface.
+.Pp
+Use of this flag is mutually exclusive
+with all other flags and commands, except for
+.Fl d
+and
+.Fl u .
 .It Fl m
 Display the capability list and all
 of the supported media for the specified interface.
@@ -324,23 +338,6 @@ will report only the details specific to that protocol family.
 When no arguments are given,
 .Fl a
 is implied.
-.Pp
-The
-.Fl l
-flag may be used to list all available interfaces on the system, with
-no other additional information.
-If an
-.Ar address_family
-is specified, only interfaces of that type will be listed.
-.Fl l Dq ether
-will list only Ethernet adapters, excluding the loopback interface.
-Use of this flag is mutually exclusive
-with all other flags and commands, except for
-.Fl d
-(only list interfaces that are down)
-and
-.Fl u
-(only list interfaces that are up).
 .Pp
 The
 .Fl v
