@@ -172,7 +172,7 @@ static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
 static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
 static void *tls_get_addr_slow(Elf_Addr **, int, size_t, bool) __noinline;
-static void trace_loaded_objects(Obj_Entry *);
+static void trace_loaded_objects(Obj_Entry *, bool);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
 static void unref_dag(Obj_Entry *);
@@ -872,7 +872,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        dump_auxv(aux_info);
 
     if (ld_tracing) {		/* We're done */
-	trace_loaded_objects(obj_main);
+	trace_loaded_objects(obj_main, true);
 	exit(0);
     }
 
@@ -3834,7 +3834,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	lock_release(rtld_bind_lock, lockstate);
     return (obj);
 trace:
-    trace_loaded_objects(obj);
+    trace_loaded_objects(obj, false);
     if (lockstate == &mlockstate)
 	lock_release(rtld_bind_lock, lockstate);
     exit(0);
@@ -4992,17 +4992,17 @@ trace_print_obj(Obj_Entry *obj, const char *name, const char *path,
 }
 
 static void
-trace_loaded_objects(Obj_Entry *obj)
+trace_loaded_objects(Obj_Entry *obj, bool show_preload)
 {
 	const char *fmt1, *fmt2, *main_local;
-	bool list_containers;
+	const char *name, *path;
+	bool first_spurious, list_containers;
 
 	trace_calc_fmts(&main_local, &fmt1, &fmt2);
 	list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL) != NULL;
 
 	for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 		Needed_Entry *needed;
-		const char *name, *path;
 
 		if (obj->marker)
 			continue;
@@ -5019,6 +5019,23 @@ trace_loaded_objects(Obj_Entry *obj)
 
 			name = obj->strtab + needed->name;
 			trace_print_obj(obj, name, path, main_local,
+			    fmt1, fmt2);
+		}
+	}
+
+	if (show_preload) {
+		first_spurious = true;
+		TAILQ_FOREACH(obj, &obj_list, next) {
+			if (obj->marker || obj == obj_main || obj->traced)
+				continue;
+
+			if (first_spurious) {
+				rtld_printf("[preloaded]\n");
+				first_spurious = false;
+			}
+			Name_Entry *fname = STAILQ_FIRST(&obj->names);
+			name = fname == NULL ? "<unknown>" : fname->name;
+			trace_print_obj(obj, name, obj->path, main_local,
 			    fmt1, fmt2);
 		}
 	}
