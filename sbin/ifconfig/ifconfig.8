@@ -3052,8 +3052,12 @@ The default value is 0.
 .It Cm pass Ar phrase
 Set the authentication key to
 .Ar phrase .
-.It Cm state Ar MASTER|BACKUP
+.It Cm state Ar state
 Forcibly change state of a given vhid.
+The following states are recognized:
+.Cm MASTER
+and
+.Cm BACKUP .
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
