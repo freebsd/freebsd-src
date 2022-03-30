@@ -1,0 +1,34 @@
+
+ rtw88 firmware
+================
+
+This repository contains firmware images supported by Realtek's wireless
+driver rtw88. And some of the devices run with more than one firmware
+file. Basically, a "normal" firmware is necessary to be downloaded to
+the device.
+And another is called "wowlan" firmware, it should be loaded when a
+device is going to suspend. Which means driver will "re-download/swap"
+the firmware image. The wowlan firmware contains wake up functions that
+can recognize specific events and send a wake up signal to device if
+needed, and the system will resume to running state. During resume,
+driver will then swap the normal firmware back, return to running state.
+
+If any distros or platforms do not require wowlan feature, they can
+_only_ pick the normal firmware. And everything still works fine,
+except that the device cannot be waken from the wireless NICs.
+
+Currently supported devices with corresponding firmwares:
+
+RTL8822BE
+    rtw8822b_fw.bin
+
+RTL8821CE
+    rtw8821c_fw.bin
+
+RTL8822CE
+    rtw8822c_fw.bin
+    rtw8822c_wow_fw.bin
+
+RTL8723DE
+    rtw8723d_fw.bin
+
