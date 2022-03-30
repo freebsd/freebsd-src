@@ -156,10 +156,17 @@ CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct itimerval32) == 16);
 CTASSERT(sizeof(struct bintime32) == 12);
+#else
+CTASSERT(sizeof(struct timeval32) == 16);
+CTASSERT(sizeof(struct timespec32) == 16);
+CTASSERT(sizeof(struct itimerval32) == 32);
+CTASSERT(sizeof(struct bintime32) == 16);
 #endif
 CTASSERT(sizeof(struct ostatfs32) == 256);
 #ifdef __amd64__
 CTASSERT(sizeof(struct rusage32) == 72);
+#else
+CTASSERT(sizeof(struct rusage32) == 88);
 #endif
 CTASSERT(sizeof(struct sigaltstack32) == 12);
 #ifdef __amd64__
@@ -172,6 +179,9 @@ CTASSERT(sizeof(struct msghdr32) == 28);
 #ifdef __amd64__
 CTASSERT(sizeof(struct stat32) == 208);
 CTASSERT(sizeof(struct freebsd11_stat32) == 96);
+#else
+CTASSERT(sizeof(struct stat32) == 224);
+CTASSERT(sizeof(struct freebsd11_stat32) == 120);
 #endif
 CTASSERT(sizeof(struct sigaction32) == 24);
 
