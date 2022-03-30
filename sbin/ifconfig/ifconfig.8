@@ -661,7 +661,9 @@ There are three types of packets that may wake a system:
 ucast (directed solely to the machine's mac address),
 mcast (directed to a broadcast or multicast address),
 or
-magic (unicast or multicast frames with a ``magic contents'').
+magic
+.Po unicast or multicast frames with a
+.Dq magic contents Pc .
 Not all devices support WOL, those that do indicate the mechanisms
 they support in their capabilities.
 .Cm wol
@@ -1000,7 +1002,8 @@ the device (if supported).
 .It Cm wdslegacy
 Mark a
 .Cm wds
-device as operating in ``legacy mode''.
+device as operating in
+.Dq legacy mode .
 Legacy
 .Cm wds
 devices have a fixed peer relationship and do not, for example, roam
@@ -1310,7 +1313,9 @@ e.g., "ES" and "Spain".
 The set of country codes are taken from
 .Pa /etc/regdomain.xml
 and can also
-be viewed with the ``list countries'' request.
+be viewed with the
+.Cm list countries
+request.
 Note that not all devices support changing the country code from a default
 setting; typically stored in EEPROM.
 See also
@@ -1417,7 +1422,8 @@ The value should be less than beacon interval.
 Enable the use of Atheros Dynamic Turbo mode when communicating with
 another Dynamic Turbo-capable station.
 Dynamic Turbo mode is an Atheros-specific mechanism by which
-stations switch between normal 802.11 operation and a ``boosted''
+stations switch between normal 802.11 operation and a
+.Dq boosted
 mode in which a 40MHz wide channel is used for communication.
 Stations using Dynamic Turbo mode operate boosted only when the
 channel is free of non-dturbo stations; when a non-dturbo station
@@ -1442,7 +1448,9 @@ DWDS extends the normal WDS mechanism by leveraging existing security
 protocols and eliminating static binding.
 .Pp
 When DWDS is enabled on an access point 4-address frames received from
-an authorized station will generate a ``DWDS discovery'' event to user
+an authorized station will generate a
+.Dq DWDS discovery
+event to user
 applications.
 This event should be used to create a WDS interface that is bound
 to the remote station (and usually plumbed into a bridge).
@@ -1508,7 +1516,9 @@ To disable use of HT20 (e.g., to force only HT40 use) use
 To disable use of HT40 use
 .Fl ht40 .
 .Pp
-HT configuration is used to ``auto promote'' operation
+HT configuration is used to
+.Dq auto promote
+operation
 when several choices are available.
 For example, if a station associates to an 11n-capable access point
 it controls whether the station uses legacy operation, HT20, or HT40.
@@ -1529,7 +1539,8 @@ for old devices are different.
 When compatibility support is enabled both standard and compatible data
 will be provided.
 Stations that associate using the compatibility mechanisms are flagged
-in ``list sta''.
+in
+.Cm list sta .
 To disable compatibility support use
 .Fl htcompat .
 .It Cm htprotmode Ar technique
@@ -1548,7 +1559,8 @@ access point (default).
 When operating as an access point the 802.11 layer monitors
 the activity of each associated station.
 When a station is inactive for 5 minutes it will send several
-``probe frames'' to see if the station is still present.
+.Dq probe frames
+to see if the station is still present.
 If no response is received then the station is deauthenticated.
 Applications that prefer to handle this work can disable this
 facility by using
@@ -1848,7 +1860,9 @@ can be used on a channel are defined by this setting.
 Regdomain codes (SKU's) are taken from
 .Pa /etc/regdomain.xml
 and can also
-be viewed with the ``list countries'' request.
+be viewed with the
+.Cm list countries
+request.
 Note that not all devices support changing the regdomain from a default
 setting; typically stored in EEPROM.
 See also
@@ -2262,7 +2276,9 @@ The Mesh ID is a string up to 32 characters in length.
 A mesh interface must have a Mesh Identifier specified
 to reach an operational state.
 .It Cm meshttl Ar ttl
-Set the desired ``time to live'' for mesh forwarded packets;
+Set the desired
+.Dq time to live
+for mesh forwarded packets;
 this is the number of hops a packet may be forwarded before
 it is discarded.
 The default setting for
@@ -2301,7 +2317,8 @@ The only available protocol at the moment is called
 (Hybrid Wireless Mesh Protocol).
 The mesh interface will restart after changing this setting.
 .It Cm hwmprootmode Ar mode
-Stations on a mesh network can operate as ``root nodes.''
+Stations on a mesh network can operate as
+.Dq root nodes .
 Root nodes try to find paths to all mesh nodes and advertise themselves
 regularly.
 When there is a root mesh node on a network, other mesh nodes can setup
