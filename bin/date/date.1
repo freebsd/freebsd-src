@@ -346,7 +346,7 @@ Everything but the minutes is optional.
 .Pp
 .Nm
 understands the time zone definitions in the
-.Nm tzdata
+.Sy tzdata
 package located in
 .Pa /usr/share/zoneinfo .
 Time changes for Daylight Saving Time, standard time, leap seconds
@@ -360,7 +360,7 @@ exists, it is interpreted as a time zone definition file, usually in
 the directory hierarchy
 .Pa /usr/share/zoneinfo ,
 which contains the time zone definitions from the
-.Nm tzdata
+.Sy tzdata
 package.
 .Pp
 If the environment variable
@@ -386,12 +386,12 @@ included the
 .Fl t
 (set negative time zone offset) options, but these details are now
 handled automatically by
-.Nm tzdata .
+.Sy tzdata .
 Modern offsets are positive for time zones ahead of UTC and negative
 for time zones behind UTC, but like the obsolete
-.Nm t
+.Fl t
 option, the
-.Nm tzdata
+.Sy tzdata
 files in the subdirectory
 .Pa /usr/share/zoneinfo/Etc
 still use an older convention where times ahead of UTC are considered
@@ -420,9 +420,9 @@ May be omitted, in which case the default time zone is UTC.
 .It Pa /usr/share/zoneinfo
 Directory containing time zone information files.
 .It Pa /var/log/messages
-record of the user setting the time
+Record of the user setting the time.
 .It Pa /var/log/utx.log
-record of date resets and time changes
+Record of date resets and time changes.
 .El
 .Sh EXIT STATUS
 The
@@ -571,7 +571,7 @@ A number of options were added and then removed again, including the
 .Fl t
 (set negative time zone offset).
 Time zones are now handled by the
-.Nm tzdata
+.Sy tzdata
 package.
 .Pp
 The
