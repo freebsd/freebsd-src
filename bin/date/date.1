@@ -349,7 +349,6 @@ understands the time zone definitions in the
 .Nm tzdata
 package located in
 .Pa /usr/share/zoneinfo .
-This requires the kernel clock to be set to UTC.
 Time changes for Daylight Saving Time, standard time, leap seconds
 and leap years are handled automatically.
 .Pp
@@ -534,11 +533,18 @@ and exits with status 1.
 .Xr getutxent 3 ,
 .Xr strftime 3 ,
 .Xr strptime 3 ,
-.Xr ntpd 8
+.Xr tzset 3 ,
+.Xr adjkerntz 8 ,
+.Xr ntpd 8 ,
+.Xr tzsetup 8
 .Rs
 .%T "TSP: The Time Synchronization Protocol for UNIX 4.3BSD"
 .%A R. Gusella
 .%A S. Zatti
+.Re
+.Rs
+.%U https://iana.org/time-zones
+.%T Time Zone Database
 .Re
 .Sh STANDARDS
 The
