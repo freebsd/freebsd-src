@@ -172,6 +172,9 @@ Display subnet prefix in integer format, for example:
 .Dl prefixlen 64
 .El
 .El
+.It Fl L
+Display address lifetime for IPv6 addresses as time offset string.
+.Pp
 .It Fl m
 Display the capability list and all
 of the supported media for the specified interface.
@@ -285,11 +288,6 @@ when no optional parameters are supplied.
 If a protocol family is specified,
 .Nm
 will report only the details specific to that protocol family.
-.Pp
-If
-.Fl L
-flag is supplied, address lifetime is displayed for IPv6 addresses,
-as time offset string.
 .Pp
 Optionally, the
 .Fl a
