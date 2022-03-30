@@ -364,8 +364,10 @@ When no arguments are given,
 is implied.
 .Pp
 Only the super-user may modify the configuration of a network interface.
-.Pp
-The following parameters may be set with
+.Sh PARAMETERS
+The following
+.Ar parameter Ns s
+may be set with
 .Nm :
 .Bl -tag -width indent
 .It Cm add
@@ -839,7 +841,7 @@ It happens automatically when setting the first address on an interface.
 If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
-.Pp
+.Ss ICMPv6 Neighbor Discovery Protocol Parameters
 The following parameters are for ICMPv6 Neighbor Discovery Protocol.
 Note that the address family keyword
 .Dq Li inet6
@@ -921,7 +923,7 @@ Set a flag to disable Duplicate Address Detection.
 Clear a flag
 .Cm no_dad .
 .El
-.Pp
+.Ss IPv6 Parameters
 The following parameters are specific for IPv6 addresses.
 Note that the address family keyword
 .Dq Li inet6
@@ -946,7 +948,7 @@ Clear a flag
 .It Cm vltime Ar n
 Set valid lifetime for the address.
 .El
-.Pp
+.Ss IEEE 802.11 Wireless Interfaces Cloning Parameters
 The following parameters are specific to cloning
 IEEE 802.11 wireless interfaces with the
 .Cm create
@@ -1024,7 +1026,7 @@ be transmitted; this can be useful when creating a WDS configuration but
 .Cm wds
 interfaces can only be created as companions to an access point.
 .El
-.Pp
+.Ss Cloned IEEE 802.11 Wireless Interface Parameters
 The following parameters are specific to IEEE 802.11 wireless interfaces
 cloned with a
 .Cm create
@@ -2183,7 +2185,7 @@ Note that WPS support requires a WPS-capable supplicant.
 To disable this function use
 .Fl wps .
 .El
-.Pp
+.Ss MAC-Based Access Control List Parameters
 The following parameters support an optional access control list
 feature available with some adapters when operating in ap mode; see
 .Xr wlan_acl 4 .
@@ -2221,7 +2223,7 @@ program be configured to do the right thing
 as it handles the RADIUS processing
 (and marks stations as authorized).
 .El
-.Pp
+.Ss Mesh Mode Wireless Interface Parameters
 The following parameters are related to a wireless interface operating in mesh
 mode:
 .Bl -tag -width indent
@@ -2306,7 +2308,7 @@ The default setting for
 .Cm hwmpmaxhops
 is 31.
 .El
-.Pp
+.Ss Compatibility Parameters
 The following parameters are for compatibility with other systems:
 .Bl -tag -width indent
 .It Cm nwid Ar ssid
@@ -2363,7 +2365,7 @@ Included for
 .Nx
 compatibility.
 .El
-.Pp
+.Ss Bridge Interface Parameters
 The following parameters are specific to bridge interfaces:
 .Bl -tag -width indent
 .It Cm addm Ar interface
@@ -2568,7 +2570,7 @@ source addresses are dropped until an existing host cache entry expires or is
 removed.
 Set to 0 to disable.
 .El
-.Pp
+.Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:
 .Bl -tag -width indent
 .It Cm laggtype Ar type
@@ -2678,7 +2680,7 @@ Disable lacp strict compliance on the interface.
 Configure a stride for an interface in round-robin mode.
 The default stride is 1.
 .El
-.Pp
+.Ss Generic IP Tunnel Parameters
 The following parameters apply to IP tunnel interfaces,
 .Xr gif 4 :
 .Bl -tag -width indent
@@ -2728,7 +2730,7 @@ This is for backward compatibility with
 Clear a flag
 .Cm send_rev_ethip_ver .
 .El
-.Pp
+.Ss GRE Tunnel Parameters
 The following parameters apply to GRE tunnel interfaces,
 .Xr gre 4 :
 .Bl -tag -width indent
@@ -2755,7 +2757,7 @@ Note that
 .Xr gre 4 will always accept GRE packets with invalid or absent keys.
 This command will result in a four byte MTU reduction on the interface.
 .El
-.Pp
+.Ss Packet Filter State Table Sychronisation Parameters
 The following parameters are specific to
 .Xr pfsync 4
 interfaces:
@@ -2783,7 +2785,7 @@ acknowledged that the associated state has been inserted.
 Do not defer the first packet in a state.
 This is the default.
 .El
-.Pp
+.Ss VLAN Parameters
 The following parameters are specific to
 .Xr vlan 4
 interfaces:
@@ -2895,7 +2897,7 @@ The
 .Ar iface
 argument is useless and hence deprecated.
 .El
-.Pp
+.Ss Virtual eXtensible LAN Parameters
 The following parameters are used to configure
 .Xr vxlan 4
 interfaces.
@@ -2965,7 +2967,7 @@ Delete all dynamically-learned addresses from the forwarding table.
 .It Cm vxlanflushall
 Delete all addresses, including static addresses, from the forwarding table.
 .El
-.Pp
+.Ss CARP Parameters
 The following parameters are used to configure
 .Xr carp 4
 protocol on an interface:
