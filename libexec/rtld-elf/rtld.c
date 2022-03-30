@@ -4994,32 +4994,33 @@ trace_print_obj(Obj_Entry *obj, const char *name, const char *path,
 static void
 trace_loaded_objects(Obj_Entry *obj)
 {
-    const char *fmt1, *fmt2, *main_local, *list_containers;
+	const char *fmt1, *fmt2, *main_local, *list_containers;
 
-    trace_calc_fmts(&main_local, &fmt1, &fmt2);
-    list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL);
+	trace_calc_fmts(&main_local, &fmt1, &fmt2);
+	list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL);
 
-    for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
-	Needed_Entry *needed;
-	const char *name, *path;
+	for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
+		Needed_Entry *needed;
+		const char *name, *path;
 
-	if (obj->marker)
-	    continue;
-	if (list_containers && obj->needed != NULL)
-	    rtld_printf("%s:\n", obj->path);
-	for (needed = obj->needed; needed; needed = needed->next) {
-	    if (needed->obj != NULL) {
-		if (needed->obj->traced && !list_containers)
-		    continue;
-		needed->obj->traced = true;
-		path = needed->obj->path;
-	    } else
-		path = "not found";
+		if (obj->marker)
+			continue;
+		if (list_containers && obj->needed != NULL)
+			rtld_printf("%s:\n", obj->path);
+		for (needed = obj->needed; needed; needed = needed->next) {
+			if (needed->obj != NULL) {
+				if (needed->obj->traced && !list_containers)
+					continue;
+				needed->obj->traced = true;
+				path = needed->obj->path;
+			} else
+				path = "not found";
 
-	    name = obj->strtab + needed->name;
-	    trace_print_obj(obj, name, path, main_local, fmt1, fmt2);
+			name = obj->strtab + needed->name;
+			trace_print_obj(obj, name, path, main_local,
+			    fmt1, fmt2);
+		}
 	}
-    }
 }
 
 /*
