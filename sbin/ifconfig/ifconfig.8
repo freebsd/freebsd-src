@@ -206,6 +206,17 @@ Only one option
 should be specified as later override previous ones
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
+.It Fl k
+Print keying information for the
+.Ar interface ,
+if available.
+.Pp
+For example, the values of 802.11 WEP keys and
+.Xr carp 4
+passphrases will be printed, if accessible to the current user.
+.Pp
+This information is not printed by default, as it may be considered
+sensitive.
 .It Fl L
 Display address lifetime for IPv6 addresses as time offset string.
 .It Fl l
@@ -344,16 +355,6 @@ will report only the details specific to that protocol family.
 When no arguments are given,
 .Fl a
 is implied.
-.Pp
-The
-.Fl k
-flag causes keying information for the interface, if available, to be
-printed.
-For example, the values of 802.11 WEP keys and
-.Xr carp 4
-passphrases will be printed, if accessible to the current user.
-This information is not printed by default, as it may be considered
-sensitive.
 .Pp
 If the network interface driver is not present in the kernel then
 .Nm
