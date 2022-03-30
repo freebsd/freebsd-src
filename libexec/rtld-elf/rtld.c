@@ -4936,10 +4936,65 @@ trace_calc_fmts(const char **main_local, const char **fmt1, const char **fmt2)
 }
 
 static void
+trace_print_obj(Obj_Entry *obj, const char *name, const char *path,
+    const char *main_local, const char *fmt1, const char *fmt2)
+{
+	const char *fmt;
+	int c;
+
+	fmt = strncmp(name, "lib", 3) == 0 ? fmt1 : fmt2;	/* XXX bogus */
+	while ((c = *fmt++) != '\0') {
+		switch (c) {
+		default:
+			rtld_putchar(c);
+			continue;
+		case '\\':
+			switch (c = *fmt) {
+			case '\0':
+				continue;
+			case 'n':
+				rtld_putchar('\n');
+				break;
+			case 't':
+				rtld_putchar('\t');
+				break;
+			}
+			break;
+		case '%':
+			switch (c = *fmt) {
+			case '\0':
+				continue;
+			case '%':
+			default:
+				rtld_putchar(c);
+				break;
+			case 'A':
+				rtld_putstr(main_local);
+				break;
+			case 'a':
+				rtld_putstr(obj_main->path);
+				break;
+			case 'o':
+				rtld_putstr(name);
+				break;
+			case 'p':
+				rtld_putstr(path);
+				break;
+			case 'x':
+				rtld_printf("%p", obj != NULL ?
+				    obj->mapbase : NULL);
+				break;
+			}
+			break;
+		}
+		++fmt;
+	}
+}
+
+static void
 trace_loaded_objects(Obj_Entry *obj)
 {
-    const char *fmt1, *fmt2, *fmt, *main_local, *list_containers;
-    int c;
+    const char *fmt1, *fmt2, *main_local, *list_containers;
 
     trace_calc_fmts(&main_local, &fmt1, &fmt2);
     list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL);
@@ -4947,7 +5002,6 @@ trace_loaded_objects(Obj_Entry *obj)
     for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 	Needed_Entry *needed;
 	const char *name, *path;
-	bool is_lib;
 
 	if (obj->marker)
 	    continue;
@@ -4963,63 +5017,7 @@ trace_loaded_objects(Obj_Entry *obj)
 		path = "not found";
 
 	    name = obj->strtab + needed->name;
-	    is_lib = strncmp(name, "lib", 3) == 0;	/* XXX - bogus */
-
-	    fmt = is_lib ? fmt1 : fmt2;
-	    while ((c = *fmt++) != '\0') {
-		switch (c) {
-		default:
-		    rtld_putchar(c);
-		    continue;
-		case '\\':
-		    switch (c = *fmt) {
-		    case '\0':
-			continue;
-		    case 'n':
-			rtld_putchar('\n');
-			break;
-		    case 't':
-			rtld_putchar('\t');
-			break;
-		    }
-		    break;
-		case '%':
-		    switch (c = *fmt) {
-		    case '\0':
-			continue;
-		    case '%':
-		    default:
-			rtld_putchar(c);
-			break;
-		    case 'A':
-			rtld_putstr(main_local);
-			break;
-		    case 'a':
-			rtld_putstr(obj_main->path);
-			break;
-		    case 'o':
-			rtld_putstr(name);
-			break;
-#if 0
-		    case 'm':
-			rtld_printf("%d", sodp->sod_major);
-			break;
-		    case 'n':
-			rtld_printf("%d", sodp->sod_minor);
-			break;
-#endif
-		    case 'p':
-			rtld_putstr(path);
-			break;
-		    case 'x':
-			rtld_printf("%p", needed->obj ? needed->obj->mapbase :
-			  0);
-			break;
-		    }
-		    break;
-		}
-		++fmt;
-	    }
+	    trace_print_obj(obj, name, path, main_local, fmt1, fmt2);
 	}
     }
 }
