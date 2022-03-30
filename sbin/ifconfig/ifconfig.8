@@ -82,6 +82,96 @@ or other operating parameters.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl f Xo
+.Ar type Ns Cm \&: Ns Ar format Ns
+.Op Cm \&, Ns Ar type Ns Cm \&: Ns Ar format Ar ...
+.Xc
+Control the output format of
+.Nm .
+The format is specified as a comma-separated list of
+.Ar type Ns Cm \&: Ns Ar format
+pairs
+.Po see the
+.Sx EXAMPLES
+section for more information
+.Pc .
+.Pp
+The output format can also be specified via the
+.Ev IFCONFIG_FORMAT
+environment variable.
+The
+.Fl f
+flag can be supplied multiple times.
+.Pp
+The
+.Ar type Ns s
+and their associated
+.Ar format
+strings are:
+.Bl -tag -width ether
+.It Cm addr
+Adjust the display of inet and inet6 addresses:
+.Bl -tag -width default
+.It Cm default
+Display inet and inet6 addresses in the default format,
+.Cm numeric
+.It Cm fqdn
+Display inet and inet6 addresses as fully qualified domain names
+.Pq FQDN
+.It Cm host
+Display inet and inet6 addresses as unqualified hostnames
+.It Cm numeric
+Display inet and inet6 addresses in numeric format
+.El
+.It Cm ether
+Adjust the display of link-level ethernet (MAC) addresses:
+.Bl -tag -width default
+.It Cm colon
+Separate address segments with a colon
+.It Cm dash
+Separate address segments with a dash
+.It Cm default
+Display ethernet addresses in the default format,
+.Cm colon
+.El
+.It Cm inet
+Adjust the display of inet address subnet masks:
+.Bl -tag -width default
+.It Cm cidr
+Display subnet masks in CIDR notation, for example:
+.Dl 10.0.0.0/8
+or
+.Dl 203.0.113.224/26
+.It Cm default
+Display subnet masks in the default format,
+.Cm hex
+.It Cm dotted
+Display subnet masks in dotted quad notation, for example:
+.Dl 255.255.0.0
+or
+.Dl 255.255.255.192
+.It Cm hex
+Display subnet masks in hexadecimal, for example:
+.Dl 0xffff0000
+or
+.Dl 0xffffffc0
+.El
+.It Cm inet6
+Adjust the display of inet6 address prefixes (subnet masks):
+.Bl -tag -width default
+.It Cm cidr
+Display subnet prefix in CIDR notation, for example:
+.Dl ::1/128
+or
+.Dl fe80::1%lo0/64
+.It Cm default
+Display subnet prefix in the default format
+.Cm numeric
+.It Sy numeric
+Display subnet prefix in integer format, for example:
+.Dl prefixlen 64
+.El
+.El
 .It Ar address
 For the DARPA-Internet family,
 the address is either a host name present in the host name data
@@ -183,89 +273,6 @@ parameter is a string of the form
 .Dq name unit ,
 for example,
 .Dq Li em0 .
-.El
-.Pp
-The output format of
-.Nm
-can be controlled using the
-.Fl f
-flag or the
-.Ev IFCONFIG_FORMAT
-environment variable.
-The format is specified as a comma separated list of
-.Sy type:format
-pairs.
-The
-.Fl f
-flag can be supplied multiple times.
-See the
-.Sx EXAMPLES
-section for more information.
-The
-.Sy types
-and their associated
-.Sy format
-strings are:
-.Bl -tag -width ether
-.It Sy addr
-Adjust the display of inet and inet6 addresses
-.Bl -tag -width default
-.It Sy default
-Display inet and inet6 addresses in the default format,
-.Sy numeric
-.It Sy fqdn
-Display inet and inet6 addresses as fully qualified domain names
-.Pq FQDN
-.It Sy host
-Display inet and inet6 addresses as unqualified hostnames
-.It Sy numeric
-Display inet and inet6 addresses in numeric format
-.El
-.It Sy ether
-Adjust the display of link-level ethernet (MAC) addresses
-.Bl -tag -width default
-.It Sy colon
-Separate address segments with a colon
-.It Sy dash
-Separate address segments with a dash
-.It Sy default
-Display ethernet addresses in the default format,
-.Sy colon
-.El
-.It Sy inet
-Adjust the display of inet address subnet masks:
-.Bl -tag -width default
-.It Sy cidr
-Display subnet masks in CIDR notation, for example:
-.br
-10.0.0.0/8 or 203.0.113.224/26
-.It Sy default
-Display subnet masks in the default format,
-.Sy hex
-.It Sy dotted
-Display subnet masks in dotted quad notation, for example:
-.br
-255.255.0.0 or 255.255.255.192
-.It Sy hex
-Display subnet masks in hexadecimal, for example:
-.br
-0xffff0000 or 0xffffffc0
-.El
-.It Sy inet6
-Adjust the display of inet6 address prefixes (subnet masks):
-.Bl -tag -width default
-.It Sy cidr
-Display subnet prefix in CIDR notation, for example:
-.br
-::1/128 or fe80::1%lo0/64
-.It Sy default
-Display subnet prefix in the default format
-.Sy numeric
-.It Sy numeric
-Display subnet prefix in integer format, for example:
-.br
-prefixlen 64
-.El
 .El
 .Pp
 The
@@ -3006,6 +3013,16 @@ Set the authentication key to
 .Ar phrase .
 .It Cm state Ar MASTER|BACKUP
 Forcibly change state of a given vhid.
+.El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width IFCONFIG_FORMAT
+.It Ev IFCONFIG_FORMAT
+This variable can contain a specification of the output format.
+See the description of the
+.Fl f
+flag for more details.
 .El
 .Sh EXAMPLES
 Assign the IPv4 address
