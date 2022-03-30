@@ -1391,6 +1391,10 @@ vmbus_pcib_prepopulate_bars(struct hv_pcibus *hbus)
 
 				_hv_pcifront_write_config(hpdev, PCIR_BAR(i),
 				    4, 0xffffffff);
+
+				/* Now write the original value back */
+				_hv_pcifront_write_config(hpdev, PCIR_BAR(i),
+				    4, bar_val);
 			}
 		}
 	}
