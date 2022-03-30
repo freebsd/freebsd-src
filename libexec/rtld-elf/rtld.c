@@ -4994,10 +4994,11 @@ trace_print_obj(Obj_Entry *obj, const char *name, const char *path,
 static void
 trace_loaded_objects(Obj_Entry *obj)
 {
-	const char *fmt1, *fmt2, *main_local, *list_containers;
+	const char *fmt1, *fmt2, *main_local;
+	bool list_containers;
 
 	trace_calc_fmts(&main_local, &fmt1, &fmt2);
-	list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL);
+	list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL) != NULL;
 
 	for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 		Needed_Entry *needed;
