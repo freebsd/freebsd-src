@@ -4920,21 +4920,28 @@ symlook_obj1_gnu(SymLook *req, const Obj_Entry *obj)
 }
 
 static void
+trace_calc_fmts(const char **main_local, const char **fmt1, const char **fmt2)
+{
+	*main_local = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_PROGNAME);
+	if (*main_local == NULL)
+		*main_local = "";
+
+	*fmt1 = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_FMT1);
+	if (*fmt1 == NULL)
+		*fmt1 = "\t%o => %p (%x)\n";
+
+	*fmt2 = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_FMT2);
+	if (*fmt2 == NULL)
+		*fmt2 = "\t%o (%x)\n";
+}
+
+static void
 trace_loaded_objects(Obj_Entry *obj)
 {
     const char *fmt1, *fmt2, *fmt, *main_local, *list_containers;
     int c;
 
-    if ((main_local = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_PROGNAME)) ==
-      NULL)
-	main_local = "";
-
-    if ((fmt1 = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_FMT1)) == NULL)
-	fmt1 = "\t%o => %p (%x)\n";
-
-    if ((fmt2 = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_FMT2)) == NULL)
-	fmt2 = "\t%o (%x)\n";
-
+    trace_calc_fmts(&main_local, &fmt1, &fmt2);
     list_containers = ld_get_env_var(LD_TRACE_LOADED_OBJECTS_ALL);
 
     for (; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
