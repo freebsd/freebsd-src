@@ -257,13 +257,11 @@ static int
 miibus_fdt_attach(device_t dev)
 {
 	struct mii_attach_args *ma;
-	struct mii_data *sc;
 	int i, error, nchildren;
 	device_t parent, *children;
 	phandle_t phy_node;
 
 	parent = device_get_parent(dev);
-	sc = device_get_softc(dev);
 
 	error = device_get_children(dev, &children, &nchildren);
 	if (error != 0 || nchildren == 0)
