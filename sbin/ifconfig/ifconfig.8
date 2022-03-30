@@ -172,6 +172,9 @@ Display subnet prefix in integer format, for example:
 .Dl prefixlen 64
 .El
 .El
+.It Fl m
+Display the capability list and all
+of the supported media for the specified interface.
 .It Ar address
 For the DARPA-Internet family,
 the address is either a host name present in the host name data
@@ -283,12 +286,6 @@ If a protocol family is specified,
 .Nm
 will report only the details specific to that protocol family.
 .Pp
-If the
-.Fl m
-flag is passed before an interface name,
-.Nm
-will display the capability list and all
-of the supported media for the specified interface.
 If
 .Fl L
 flag is supplied, address lifetime is displayed for IPv6 addresses,
