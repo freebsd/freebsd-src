@@ -52,7 +52,7 @@ check_signature(uint8_t sector0[512])
 	/* Check for the FAT boot sector signature. */
 	if (sector0[510] == 0x55 && sector0[511] == 0xaa)
 		return (true);
-	/* Special case for Raspberry Pi Nano bootloader. */
+	/* Special case for Raspberry Pi Pico bootloader. */
 	if (sector0[510] == 0 && sector0[511] == 0 &&
 	    sector0[0] == 0xeb && sector0[1] == 0x3c && sector0[2] == 0x90)
 		return (true);
