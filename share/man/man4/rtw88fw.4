@@ -1,0 +1,56 @@
+.\"-
+.\" Copyright (c) 2022 Bjoern A. Zeeb
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 31, 2022
+.Dt rtw88fw 4
+.Os
+.Sh NAME
+.Nm rtw88fw
+.Nd Firmware modules for Realtek rtw88 wireless network driver
+.Sh SYNOPSIS
+The
+.Xr rtw88 4
+driver should auto-load any firmware needed.
+It is discouraged to load the driver or firmware manually from
+.Xr loader 8 .
+.Sh DESCRIPTION
+Multiple modules provide access to firmware for the various chipset
+models supported by the
+.Xr rtw88 4
+driver.
+.Sh FILES
+A copy of the
+.Xr rtw88 4
+firmware license is installed at
+.Em /usr/share/doc/legal/realtek_rtw88_firmware.LICENCE .
+.Sh SEE ALSO
+.Xr rtw88 4 ,
+.Xr firmware 9
+.Sh HISTORY
+The
+.Nm
+firmware modules first appeared in
+.Fx 14.0 .

@@ -466,6 +466,8 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rtsx.4 \
+	rtw88.4 \
+	rtw88fw.4 \
 	rtwn.4 \
 	rtwnfw.4 \
 	rtwn_pci.4 \
