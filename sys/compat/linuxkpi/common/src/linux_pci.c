@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_iov.h>
 #include <dev/backlight/backlight.h>
 
+#include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -76,6 +77,14 @@ __FBSDID("$FreeBSD$");
 
 /* Undef the linux function macro defined in linux/pci.h */
 #undef pci_get_class
+
+extern int linuxkpi_debug;
+
+SYSCTL_DECL(_compat_linuxkpi);
+
+static counter_u64_t lkpi_pci_nseg1_fail;
+SYSCTL_COUNTER_U64(_compat_linuxkpi, OID_AUTO, lkpi_pci_nseg1_fail, CTLFLAG_RD,
+    &lkpi_pci_nseg1_fail, "Count of busdma mapping failures of single-segment");
 
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
@@ -796,7 +805,7 @@ linux_dma_init(void *arg)
 	linux_dma_obj_zone = uma_zcreate("linux_dma_object",
 	    sizeof(struct linux_dma_obj), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-
+	lkpi_pci_nseg1_fail = counter_u64_alloc(M_WAITOK);
 }
 SYSINIT(linux_dma, SI_SUB_DRIVERS, SI_ORDER_THIRD, linux_dma_init, NULL);
 
@@ -804,6 +813,7 @@ static void
 linux_dma_uninit(void *arg)
 {
 
+	counter_u64_free(lkpi_pci_nseg1_fail);
 	uma_zdestroy(linux_dma_obj_zone);
 	uma_zdestroy(linux_dma_trie_zone);
 }
@@ -866,6 +876,9 @@ linux_dma_map_phys_common(struct device *dev, vm_paddr_t phys, size_t len,
 		bus_dmamap_destroy(obj->dmat, obj->dmamap);
 		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
+		counter_u64_add(lkpi_pci_nseg1_fail, 1);
+		if (linuxkpi_debug)
+			dump_stack();
 		return (0);
 	}
 
