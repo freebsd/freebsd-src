@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2021
+.Dd March 31, 2022
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -131,6 +131,9 @@ Create a new boot environment named
 If the
 .Fl r
 flag is given, a recursive boot environment will be made.
+See
+.Sx Boot Environment Structures
+for a discussion on different layouts.
 .Pp
 If the
 .Fl e
@@ -155,6 +158,9 @@ If the
 .Fl r
 flag is given, a recursive snapshot of the boot environment will be created.
 A snapshot is created for each descendant dataset of the boot environment.
+See
+.Sx Boot Environment Structures
+for a discussion on different layouts.
 .Pp
 No new boot environment is created with this command.
 .It Xo
@@ -345,6 +351,90 @@ prints usage information if
 or
 .Fl \&?
 is specified.
+.Ss Boot Environment Structures
+The traditional
+.Fx
+boot environment layout, as created by the Auto ZFS option to
+.Xr bsdinstall 8 ,
+is a
+.Dq shallow
+boot environment structure, where boot environment datasets do not have any
+directly subordinate datasets.
+Instead, they're organized off in
+.Pa zroot/ROOT ,
+and they rely on datasets elsewhere in the pool having
+.Dv canmount
+set to
+.Dv off .
+For instance, a simplified pool may be laid out as such:
+.Bd -literal -offset indent
+% zfs list -o name,canmount,mountpoint
+NAME			CANMOUNT	MOUNTPOINT
+zroot
+zroot/ROOT		noauto		none
+zroot/ROOT/default	noauto		none
+zroot/usr		off		/usr
+zroot/usr/home		on		/usr/home
+zroot/var		on		/var
+.Ed
+.Pp
+In that example,
+.Pa zroot/usr
+has
+.Dv canmount
+set to
+.Dv off ,
+thus files in
+.Pa /usr
+typically fall into the boot environment because this dataset is not mounted.
+.Pa zroot/usr/home
+is mounted, thus files in
+.Pa /usr/home
+are not in the boot environment.
+.Pp
+The other style of boot environments in use, frequently called
+.Dq deep boot environments ,
+organizes some or all of the boot environment as subordinate to the boot
+environment dataset.
+For example:
+.Bd -literal -offset indent
+% zfs list -o name,canmount,mountpoint
+NAME				CANMOUNT	MOUNTPOINT
+zroot
+zroot/ROOT			noauto		none
+zroot/ROOT/default		noauto		none
+zroot/ROOT/default/usr		noauto		/usr
+zroot/ROOT/default/usr/local	noauto		/usr/local
+zroot/var			on		/var
+.Ed
+.Pp
+Note that the subordinate datasets now have
+.Dv canmount
+set to
+.Dv noauto .
+These are more obviously a part of the boot environment, as indicated by their
+positioning in the layout.
+These subordinate datasets will be mounted by the
+.Dv zfsbe
+.Xr rc 8
+script at boot time.
+In this example,
+.Pa /var
+is excluded from the boot environment.
+.Pp
+.Nm
+commands that have their own
+.Fl r
+operate on this second,
+.Dq deep
+style of boot environment, when the
+.Fl r
+flag is set.
+A future version of
+.Nm
+may default to handling both styles and deprecate the various
+.Fl r
+flags.
 \" .Sh EXAMPLES
 \" .Bl -bullet
 \" .It
