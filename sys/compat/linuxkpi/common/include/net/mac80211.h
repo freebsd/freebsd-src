@@ -670,7 +670,7 @@ struct ieee80211_tx_info {
 			uint8_t				antenna;
 			uint16_t			tx_time;
 			bool				is_valid_ack_signal;
-			void				*status_driver_data[2];		/* XXX TODO */
+			void				*status_driver_data[16 / sizeof(void *)];		/* XXX TODO */
 		} status;
 #define	IEEE80211_TX_INFO_DRIVER_DATA_SIZE	(5 * sizeof(void *))			/* XXX TODO 5? */
 		void					*driver_data[IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *)];
@@ -900,8 +900,8 @@ struct sk_buff *linuxkpi_ieee80211_pspoll_get(struct ieee80211_hw *,
     struct ieee80211_vif *);
 struct sk_buff *linuxkpi_ieee80211_nullfunc_get(struct ieee80211_hw *,
     struct ieee80211_vif *, bool);
-void linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *, uint64_t *,
-    uint64_t *);
+void linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *, unsigned long *,
+    unsigned long *);
 struct wireless_dev *linuxkpi_ieee80211_vif_to_wdev(struct ieee80211_vif *);
 void linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *);
 void linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *);
@@ -1931,7 +1931,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 }
 
 static __inline void
-ieee80211_txq_get_depth(struct ieee80211_txq *txq, uint64_t *frame_cnt, uint64_t *byte_cnt)
+ieee80211_txq_get_depth(struct ieee80211_txq *txq, unsigned long *frame_cnt,
+    unsigned long *byte_cnt)
 {
 
 	if (frame_cnt == NULL && byte_cnt == NULL)
