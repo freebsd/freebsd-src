@@ -1097,6 +1097,8 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 {
 	idtype_t idtype;
 	int error, options;
+	struct proc *p;
+	pid_t id;
 
 	if (args->options & ~(LINUX_WNOHANG | LINUX_WNOWAIT | LINUX_WEXITED |
 	    LINUX_WSTOPPED | LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
@@ -1108,6 +1110,7 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		options |= WEXITED | WTRAPPED | WUNTRACED |
 		    WCONTINUED | WLINUXCLONE;
 
+	id = args->id;
 	switch (args->idtype) {
 	case LINUX_P_ALL:
 		idtype = P_ALL;
@@ -1118,7 +1121,12 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		idtype = P_PID;
 		break;
 	case LINUX_P_PGID:
-		if (args->id <= 0)
+		if (linux_use54(td) && args->id == 0) {
+			p = td->td_proc;
+			PROC_LOCK(p);
+			id = p->p_pgid;
+			PROC_UNLOCK(p);
+		} else if (args->id <= 0)
 			return (EINVAL);
 		idtype = P_PGID;
 		break;
@@ -1129,7 +1137,7 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		return (EINVAL);
 	}
 
-	error = linux_common_wait(td, idtype, args->id, NULL, options,
+	error = linux_common_wait(td, idtype, id, NULL, options,
 	    args->rusage, args->info);
 	td->td_retval[0] = 0;
 
