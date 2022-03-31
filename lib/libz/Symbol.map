@@ -2,6 +2,12 @@
  * $FreeBSD$
  */
 
+ZLIB_1.2.12 {
+	crc32_combine_gen;
+	crc32_combine_gen64;
+	crc32_combine_op;
+};
+
 ZLIB_1.2.9 {
 	inflateCodesUsed;
 	inflateValidate;
@@ -107,17 +113,3 @@ FBSD_1.6 {
 	zdopen;
 };
 
-ZLIBprivate_1.0 {
-	_tr_align;
-	_tr_flush_block;
-	_tr_init;
-	_tr_stored_block;
-	_tr_tally;
-	gz_error;
-	inflate_fast;
-	inflate_table;
-	longest_match;
-	match_init;
-	zcalloc;
-	zcfree;
-};
