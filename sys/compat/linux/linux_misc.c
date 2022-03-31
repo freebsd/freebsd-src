@@ -988,35 +988,18 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 #endif
 
 static int
-linux_common_wait(struct thread *td, int pid, int *statusp,
-    int options, struct __wrusage *wrup)
+linux_common_wait(struct thread *td, idtype_t idtype, int id, int *statusp,
+    int options, void *rup, l_siginfo_t *infop)
 {
+	l_siginfo_t lsi;
 	siginfo_t siginfo;
-	idtype_t idtype;
-	id_t id;
-	int error, status, tmpstat;
+	struct __wrusage wru;
+	int error, status, tmpstat, sig;
 
-	if (pid == WAIT_ANY) {
-		idtype = P_ALL;
-		id = 0;
-	} else if (pid < 0) {
-		idtype = P_PGID;
-		id = (id_t)-pid;
-	} else {
-		idtype = P_PID;
-		id = (id_t)pid;
-	}
+	error = kern_wait6(td, idtype, id, &status, options,
+	    rup != NULL ? &wru : NULL, &siginfo);
 
-	/*
-	 * For backward compatibility we implicitly add flags WEXITED
-	 * and WTRAPPED here.
-	 */
-	options |= WEXITED | WTRAPPED;
-	error = kern_wait6(td, idtype, id, &status, options, wrup, &siginfo);
-	if (error)
-		return (error);
-
-	if (statusp) {
+	if (error == 0 && statusp) {
 		tmpstat = status & 0xffff;
 		if (WIFSIGNALED(tmpstat)) {
 			tmpstat = (tmpstat & 0xffffff80) |
@@ -1034,6 +1017,13 @@ linux_common_wait(struct thread *td, int pid, int *statusp,
 			tmpstat = 0xffff;
 		}
 		error = copyout(&tmpstat, statusp, sizeof(int));
+	}
+	if (error == 0 && rup != NULL)
+		error = linux_copyout_rusage(&wru.wru_self, rup);
+	if (error == 0 && infop != NULL && td->td_retval[0] != 0) {
+		sig = bsd_to_linux_signal(siginfo.si_signo);
+		siginfo_to_lsiginfo(&siginfo, &lsi, sig);
+		error = copyout(&lsi, infop, sizeof(lsi));
 	}
 
 	return (error);
@@ -1057,37 +1047,48 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 int
 linux_wait4(struct thread *td, struct linux_wait4_args *args)
 {
-	int error, options;
-	struct __wrusage wru, *wrup;
+	struct proc *p;
+	int options, id, idtype;
 
 	if (args->options & ~(LINUX_WUNTRACED | LINUX_WNOHANG |
 	    LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
 		return (EINVAL);
 
-	options = WEXITED;
+	options = 0;
 	linux_to_bsd_waitopts(args->options, &options);
 
-	if (args->rusage != NULL)
-		wrup = &wru;
-	else
-		wrup = NULL;
-	error = linux_common_wait(td, args->pid, args->status, options, wrup);
-	if (error != 0)
-		return (error);
-	if (args->rusage != NULL)
-		error = linux_copyout_rusage(&wru.wru_self, args->rusage);
-	return (error);
+	/*
+	 * For backward compatibility we implicitly add flags WEXITED
+	 * and WTRAPPED here.
+	 */
+	options |= WEXITED | WTRAPPED;
+
+	if (args->pid == WAIT_ANY) {
+		idtype = P_ALL;
+		id = 0;
+	} else if (args->pid < 0) {
+		idtype = P_PGID;
+		id = (id_t)-args->pid;
+	} else if (args->pid == 0) {
+		idtype = P_PGID;
+		p = td->td_proc;
+		PROC_LOCK(p);
+		id = p->p_pgid;
+		PROC_UNLOCK(p);
+	} else {
+		idtype = P_PID;
+		id = (id_t)args->pid;
+	}
+
+	return (linux_common_wait(td, idtype, id, args->status, options,
+	    args->rusage, NULL));
 }
 
 int
 linux_waitid(struct thread *td, struct linux_waitid_args *args)
 {
-	int status, options, sig;
-	struct __wrusage wru;
-	siginfo_t siginfo;
-	l_siginfo_t lsi;
 	idtype_t idtype;
-	int error;
+	int error, options;
 
 	options = 0;
 	linux_to_bsd_waitopts(args->options, &options);
@@ -1115,24 +1116,8 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		return (EINVAL);
 	}
 
-	error = kern_wait6(td, idtype, args->id, &status, options,
-	    &wru, &siginfo);
-	if (error != 0)
-		return (error);
-	if (args->rusage != NULL) {
-		error = linux_copyout_rusage(&wru.wru_children,
-		    args->rusage);
-		if (error != 0)
-			return (error);
-	}
-	if (args->info != NULL) {
-		bzero(&lsi, sizeof(lsi));
-		if (td->td_retval[0] != 0) {
-			sig = bsd_to_linux_signal(siginfo.si_signo);
-			siginfo_to_lsiginfo(&siginfo, &lsi, sig);
-		}
-		error = copyout(&lsi, args->info, sizeof(lsi));
-	}
+	error = linux_common_wait(td, idtype, args->id, NULL, options,
+	    args->rusage, args->info);
 	td->td_retval[0] = 0;
 
 	return (error);
