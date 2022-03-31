@@ -187,6 +187,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, bool init_thread)
 		pem = pem_find(p);
 		KASSERT(pem != NULL, ("proc_exit: proc emuldata not found.\n"));
 		pem->persona = 0;
+		pem->oom_score_adj = 0;
 	}
 
 }
