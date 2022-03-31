@@ -1090,11 +1090,12 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 	idtype_t idtype;
 	int error, options;
 
+	if (args->options & ~(LINUX_WNOHANG | LINUX_WNOWAIT | LINUX_WEXITED |
+	    LINUX_WSTOPPED | LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
+		return (EINVAL);
+
 	options = 0;
 	linux_to_bsd_waitopts(args->options, &options);
-
-	if (options & ~(WNOHANG | WNOWAIT | WEXITED | WUNTRACED | WCONTINUED))
-		return (EINVAL);
 
 	switch (args->idtype) {
 	case LINUX_P_ALL:
