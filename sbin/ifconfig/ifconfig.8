@@ -270,7 +270,7 @@ That is, one can specify an address like
 .Li 192.168.0.1/16 .
 .Pp
 For the
-.Dq inet6
+.Cm inet6
 family, it is also possible to specify the prefix length using the slash
 notation, like
 .Li ::1/128 .
@@ -299,20 +299,23 @@ parameter below for more information.
 .\" count out long strings of digits in network byte order.
 .Pp
 The link-level
-.Pq Dq link
+.Pq Cm link
 address
 is specified as a series of colon-separated hex digits.
 This can be used to, for example,
 set a new MAC address on an Ethernet interface, though the
 mechanism used is not Ethernet specific.
+.Pp
 Use the
-.Pq Dq random
+.Cm random
 keyword to set a randomly generated MAC address.
 A randomly-generated MAC address might be the same as one already in use
 in the network.
 Such duplications are extremely unlikely.
+.Pp
 If the interface is already
-up when this option is used, it will be briefly brought down and
+up when the link-level address is modified,
+it will be briefly brought down and
 then brought back up again in order to ensure that the receive
 filter in the underlying Ethernet hardware is properly reprogrammed.
 .It Ar address_family
@@ -3149,6 +3152,9 @@ Display inet and inet6 address subnet masks in CIDR notation
 .Pp
 Display interfaces that are up with the exception of loopback
 .Dl # ifconfig -a -u -G lo
+.Pp
+Set a randomly-generated MAC address on tap0:
+.Dl # ifconfig tap0 ether random
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
