@@ -800,4 +800,3 @@ linux_statx(struct thread *td, struct linux_statx_args *args)
 
 	return (error);
 }
-

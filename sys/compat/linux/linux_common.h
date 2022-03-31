@@ -45,5 +45,4 @@ void		linux_to_bsd_poll_events(struct thread *td, int fd,
 		    short lev, short *bev);
 void		bsd_to_linux_poll_events(short bev, short *lev);
 
-
 #endif /* _LINUX_COMMON_H_ */

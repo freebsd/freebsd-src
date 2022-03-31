@@ -189,7 +189,6 @@ linux_proc_init(struct thread *td, struct thread *newtd, bool init_thread)
 		pem->persona = 0;
 		pem->oom_score_adj = 0;
 	}
-
 }
 
 void
