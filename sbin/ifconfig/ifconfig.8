@@ -202,6 +202,19 @@ may contain shell patterns in which case it should be quoted.
 Limit the output to the members of the specified
 .Ar groupname .
 .Pp
+If
+.Fl g
+is specified before other significant flags like, e.g.,
+.Fl a ,
+.Fl l ,
+or
+.Fl C ,
+then
+.Nm
+lists names of interfaces beloning to
+.Ar groupname .
+Any other flags and arguments are ignored in this case.
+.Pp
 Only one option
 .Fl g
 should be specified as later override previous ones
@@ -3128,6 +3141,43 @@ Display inet and inet6 address subnet masks in CIDR notation
 .Pp
 Display interfaces that are up with the exception of loopback
 .Dl # ifconfig -a -u -G lo
+.Pp
+Display a list of interface names beloning to the wlan group:
+.Bd -literal -offset indent -compact
+# ifconfig -g wlan
+wlan0
+wlan1
+.Ed
+.Pp
+Display details about the interfaces belonging to the wlan group:
+.Bd -literal -offset indent -compact
+# ifconfig -a -g wlan
+wlan0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+        ether 75:4c:61:6b:7a:73
+        inet6 fe80::4c75:636a:616e:ffd8%wlan0 prefixlen 64 scopeid 0x3
+        inet6 2001:5761:6e64:6152:6f6d:616e:fea4:ffe2 prefixlen 64 autoconf
+        inet 192.168.10.5 netmask 0xffffff00 broadcast 192.168.10.255
+        groups: wlan
+        ssid "Hotspot" channel 11 (2462 MHz 11g) bssid 12:34:ff:ff:43:21
+        regdomain ETSI country DE authmode WPA2/802.11i privacy ON
+        deftxkey UNDEF AES-CCM 2:128-bit AES-CCM 3:128-bit txpower 30 bmiss 10
+        scanvalid 60 protmode CTS wme roaming MANUAL
+        parent interface: iwm0
+        media: IEEE 802.11 Wireless Ethernet DS/2Mbps mode 11g
+        status: associated
+        nd6 options=23<PERFORMNUD,ACCEPT_RTADV,AUTO_LINKLOCAL>
+wlan1: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+        ether 00:50:69:6f:74:72
+        groups: wlan
+        ssid "" channel 2 (2417 MHz 11g)
+        regdomain FCC country US authmode OPEN privacy OFF txpower 30 bmiss 7
+        scanvalid 60 bgscan bgscanintvl 300 bgscanidle 250 roam:rssi 7
+        roam:rate 5 protmode CTS wme bintval 0
+        parent interface: rum0
+        media: IEEE 802.11 Wireless Ethernet autoselect (autoselect)
+        status: no carrier
+        nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+.Ed
 .Pp
 Set a randomly-generated MAC address on tap0:
 .Dl # ifconfig tap0 ether random
