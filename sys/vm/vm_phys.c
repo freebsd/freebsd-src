@@ -173,9 +173,6 @@ SYSCTL_OID(_vm, OID_AUTO, phys_locality,
 SYSCTL_INT(_vm, OID_AUTO, ndomains, CTLFLAG_RD,
     &vm_ndomains, 0, "Number of physical memory domains available.");
 
-static vm_page_t vm_phys_alloc_seg_contig(struct vm_phys_seg *seg,
-    u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
-    vm_paddr_t boundary);
 static void _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain);
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
@@ -1351,63 +1348,16 @@ vm_phys_unfree_page(vm_page_t m)
 }
 
 /*
- * Allocate a contiguous set of physical pages of the given size
- * "npages" from the free lists.  All of the physical pages must be at
- * or above the given physical address "low" and below the given
- * physical address "high".  The given value "alignment" determines the
- * alignment of the first physical page in the set.  If the given value
- * "boundary" is non-zero, then the set of physical pages cannot cross
- * any physical address boundary that is a multiple of that value.  Both
- * "alignment" and "boundary" must be a power of two.
- */
-vm_page_t
-vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary)
-{
-	vm_paddr_t pa_end, pa_start;
-	vm_page_t m_run;
-	struct vm_phys_seg *seg;
-	int segind;
-
-	KASSERT(npages > 0, ("npages is 0"));
-	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
-	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
-	vm_domain_free_assert_locked(VM_DOMAIN(domain));
-	if (low >= high)
-		return (NULL);
-	m_run = NULL;
-	for (segind = vm_phys_nsegs - 1; segind >= 0; segind--) {
-		seg = &vm_phys_segs[segind];
-		if (seg->start >= high || seg->domain != domain)
-			continue;
-		if (low >= seg->end)
-			break;
-		if (low <= seg->start)
-			pa_start = seg->start;
-		else
-			pa_start = low;
-		if (high < seg->end)
-			pa_end = high;
-		else
-			pa_end = seg->end;
-		if (pa_end - pa_start < ptoa(npages))
-			continue;
-		m_run = vm_phys_alloc_seg_contig(seg, npages, low, high,
-		    alignment, boundary);
-		if (m_run != NULL)
-			break;
-	}
-	return (m_run);
-}
-
-/*
- * Allocate a run of contiguous physical pages from the free list for the
- * specified segment.
+ * Allocate a run of contiguous physical pages from the specified free list
+ * table.
  */
 static vm_page_t
-vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+vm_phys_alloc_queues_contig(
+    struct vm_freelist (*queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX],
+    u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary)
 {
+	struct vm_phys_seg *seg;
 	struct vm_freelist *fl;
 	vm_paddr_t pa, pa_end, size;
 	vm_page_t m, m_ret;
@@ -1417,7 +1367,6 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
-	vm_domain_free_assert_locked(VM_DOMAIN(seg->domain));
 	/* Compute the queue that is the best fit for npages. */
 	order = flsl(npages - 1);
 	/* Search for a run satisfying the specified conditions. */
@@ -1425,7 +1374,7 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 	for (oind = min(order, VM_NFREEORDER - 1); oind < VM_NFREEORDER;
 	    oind++) {
 		for (pind = 0; pind < VM_NFREEPOOL; pind++) {
-			fl = (*seg->free_queues)[pind];
+			fl = (*queues)[pind];
 			TAILQ_FOREACH(m_ret, &fl[oind].pl, listq) {
 				/*
 				 * Determine if the address range starting at pa
@@ -1451,8 +1400,8 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 				 * (without overflow in pa_end calculation)
 				 * and fits within the segment.
 				 */
-				if (pa_end < pa ||
-				    pa < seg->start || seg->end < pa_end)
+				seg = &vm_phys_segs[m_ret->segind];
+				if (pa_end < pa || seg->end < pa_end)
 					continue;
 
 				/*
@@ -1473,7 +1422,7 @@ vm_phys_alloc_seg_contig(struct vm_phys_seg *seg, u_long npages,
 	return (NULL);
 done:
 	for (m = m_ret; m < &m_ret[npages]; m = &m[1 << oind]) {
-		fl = (*seg->free_queues)[m->pool];
+		fl = (*queues)[m->pool];
 		vm_freelist_rem(fl, m, oind);
 		if (m->pool != VM_FREEPOOL_DEFAULT)
 			vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m, oind);
@@ -1481,10 +1430,71 @@ done:
 	/* Return excess pages to the free lists. */
 	npages_end = roundup2(npages, 1 << oind);
 	if (npages < npages_end) {
-		fl = (*seg->free_queues)[VM_FREEPOOL_DEFAULT];
+		fl = (*queues)[VM_FREEPOOL_DEFAULT];
 		vm_phys_enq_range(&m_ret[npages], npages_end - npages, fl, 0);
 	}
 	return (m_ret);
+}
+
+/*
+ * Allocate a contiguous set of physical pages of the given size
+ * "npages" from the free lists.  All of the physical pages must be at
+ * or above the given physical address "low" and below the given
+ * physical address "high".  The given value "alignment" determines the
+ * alignment of the first physical page in the set.  If the given value
+ * "boundary" is non-zero, then the set of physical pages cannot cross
+ * any physical address boundary that is a multiple of that value.  Both
+ * "alignment" and "boundary" must be a power of two.
+ */
+vm_page_t
+vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
+    u_long alignment, vm_paddr_t boundary)
+{
+	vm_paddr_t pa_end, pa_start;
+	vm_page_t m_run;
+	struct vm_phys_seg *seg;
+	struct vm_freelist (*queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
+	int segind;
+
+	KASSERT(npages > 0, ("npages is 0"));
+	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
+	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
+	vm_domain_free_assert_locked(VM_DOMAIN(domain));
+	if (low >= high)
+		return (NULL);
+	queues = NULL;
+	m_run = NULL;
+	for (segind = vm_phys_nsegs - 1; segind >= 0; segind--) {
+		seg = &vm_phys_segs[segind];
+		if (seg->start >= high || seg->domain != domain)
+			continue;
+		if (low >= seg->end)
+			break;
+		if (low <= seg->start)
+			pa_start = seg->start;
+		else
+			pa_start = low;
+		if (high < seg->end)
+			pa_end = high;
+		else
+			pa_end = seg->end;
+		if (pa_end - pa_start < ptoa(npages))
+			continue;
+		/*
+		 * If a previous segment led to a search using
+		 * the same free lists as would this segment, then
+		 * we've actually already searched within this
+		 * too.  So skip it.
+		 */
+		if (seg->free_queues == queues)
+			continue;
+		queues = seg->free_queues;
+		m_run = vm_phys_alloc_queues_contig(queues, npages,
+		    low, high, alignment, boundary);
+		if (m_run != NULL)
+			break;
+	}
+	return (m_run);
 }
 
 /*
