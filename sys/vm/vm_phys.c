@@ -1405,9 +1405,9 @@ vm_phys_alloc_queues_contig(
 					continue;
 
 				/*
-				 * Determine if a sufficient number of
-				 * subsequent blocks to satisfy the
-				 * allocation request are free.
+				 * Determine if a series of free oind-blocks
+				 * starting here can satisfy the allocation
+				 * request.
 				 */
 				do {
 					pa += 1 <<
@@ -1416,6 +1416,23 @@ vm_phys_alloc_queues_contig(
 						goto done;
 				} while (VM_NFREEORDER - 1 == seg->first_page[
 				    atop(pa - seg->start)].order);
+
+				/*
+				 * Determine if an additional series of free
+				 * blocks of diminishing size can help to
+				 * satisfy the allocation request.
+				 */
+				for (;;) {
+					m = &seg->first_page[
+					    atop(pa - seg->start)];
+					if (m->order == VM_NFREEORDER ||
+					    pa + (2 << (PAGE_SHIFT + m->order))
+					    <= pa_end)
+						break;
+					pa += 1 << (PAGE_SHIFT + m->order);
+					if (pa >= pa_end)
+						goto done;
+				}
 			}
 		}
 	}
@@ -1423,6 +1440,7 @@ vm_phys_alloc_queues_contig(
 done:
 	for (m = m_ret; m < &m_ret[npages]; m = &m[1 << oind]) {
 		fl = (*queues)[m->pool];
+		oind = m->order;
 		vm_freelist_rem(fl, m, oind);
 		if (m->pool != VM_FREEPOOL_DEFAULT)
 			vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m, oind);
