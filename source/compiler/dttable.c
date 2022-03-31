@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -223,9 +223,11 @@ DtCompileRsdp (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Compile FADT.
+ * DESCRIPTION: Compile FADT (signature FACP).
  *
  *****************************************************************************/
+
+#define ACPI_XDSDT_LOCATION_IN_LIST         11
 
 ACPI_STATUS
 DtCompileFadt (
@@ -235,10 +237,17 @@ DtCompileFadt (
     DT_SUBTABLE             *Subtable;
     DT_SUBTABLE             *ParentTable;
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
-    ACPI_TABLE_HEADER       *Table;
+    DT_FIELD                *DsdtFieldList;
+    ACPI_TABLE_FADT         *Table;
     UINT8                   Revision;
+    UINT32                  DsdtAddress;
+    UINT64                  X_DsdtAddress;
+    UINT32                  i;
 
 
+    /* Get the table revision and 32-bit DSDT Address definition */
+
+    DsdtFieldList = (*PFieldList)->Next;
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt1,
         &Subtable);
     if (ACPI_FAILURE (Status))
@@ -249,8 +258,16 @@ DtCompileFadt (
     ParentTable = DtPeekSubtable ();
     DtInsertSubtable (ParentTable, Subtable);
 
-    Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
-    Revision = Table->Revision;
+    Table = ACPI_CAST_PTR (ACPI_TABLE_FADT, ParentTable->Buffer);
+    Revision = Table->Header.Revision;
+    DsdtAddress = Table->Dsdt;
+
+    /* FADT version 1 has only 32-bit addresses - error if DSDT address is NULL */
+
+    if ((Revision == 1) && (!DsdtAddress))
+    {
+        DtError (ASL_ERROR, ASL_MSG_ZERO_VALUE, DsdtFieldList, NULL);
+    }
 
     if (Revision == 2)
     {
@@ -263,8 +280,24 @@ DtCompileFadt (
 
         DtInsertSubtable (ParentTable, Subtable);
     }
-    else if (Revision >= 2)
+
+    else if (Revision > 2)
     {
+        /*
+         * Rev 3 and greater have 64-bit addresses (as well as 32-bit).
+         * Get the 64-bit DSDT (X_DSDT) Address definition. Note: This
+         * appears at field list offset 11 within AcpiDmTableInfoFadt3.
+         */
+        DsdtFieldList = *PFieldList;
+        for (i = 0; i < ACPI_XDSDT_LOCATION_IN_LIST; i++)
+        {
+            DsdtFieldList = DsdtFieldList->Next;
+            if (!DsdtFieldList)
+            {
+                return (ASL_MSG_BAD_PARSE_TREE);
+            }
+        }
+
         Status = DtCompileTable (PFieldList, AcpiDmTableInfoFadt3,
             &Subtable);
         if (ACPI_FAILURE (Status))
@@ -273,6 +306,20 @@ DtCompileFadt (
         }
 
         DtInsertSubtable (ParentTable, Subtable);
+
+        Table = ACPI_CAST_PTR (ACPI_TABLE_FADT, ParentTable->Buffer);
+        X_DsdtAddress = Table->XDsdt;
+
+        /*
+         * Error if both the 32-bit DSDT address and the
+         * 64-bit X_DSDT address are zero.
+         */
+        if ((!X_DsdtAddress) && (!DsdtAddress))
+        {
+            DtError (ASL_ERROR, ASL_MSG_TWO_ZERO_VALUES, DsdtFieldList, NULL);
+        }
+
+        /* Fields specific to FADT Revision 5 (appended to previous) */
 
         if (Revision >= 5)
         {
@@ -285,6 +332,8 @@ DtCompileFadt (
 
             DtInsertSubtable (ParentTable, Subtable);
         }
+
+        /* Fields specific to FADT Revision 6 (appended to previous) */
 
         if (Revision >= 6)
         {

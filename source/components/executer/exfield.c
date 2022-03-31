@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -492,9 +492,7 @@ AcpiExWriteDataToField (
             ObjDesc->Field.BaseByteOffset,
             SourceDesc->Buffer.Pointer, DataLength);
 
-        if ((ObjDesc->Field.RegionObj->Region.Address == PCC_MASTER_SUBSPACE &&
-           MASTER_SUBSPACE_COMMAND (ObjDesc->Field.BaseByteOffset)) ||
-           GENERIC_SUBSPACE_COMMAND (ObjDesc->Field.BaseByteOffset))
+        if (MASTER_SUBSPACE_COMMAND (ObjDesc->Field.BaseByteOffset))
         {
             /* Perform the write */
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -490,6 +490,20 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoTcpaServer[] =
     ACPI_DMT_TERMINATOR
 };
 
+
+/*******************************************************************************
+ *
+ * TDEL - TD-Event Log Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoTdel[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_TDEL_OFFSET (Reserved),                "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_TDEL_OFFSET (LogAreaMinimumLength),    "Log Area Minimum Length", 0},
+    {ACPI_DMT_UINT64,   ACPI_TDEL_OFFSET (LogAreaStartAddress),     "Log Area Start Address", 0},
+    ACPI_DMT_TERMINATOR
+};
 
 /*******************************************************************************
  *

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -197,7 +197,7 @@ ACPI_STRING_TABLE           StandardDataTypes[] = {
 char                        EmptyHeader[] = "";
 char                        DualLicenseHeader[] =
 "/*\n"
-" * Copyright (C) 2000 - 2021, Intel Corp.\n"
+" * Copyright (C) 2000 - 2022, Intel Corp.\n"
 " * All rights reserved.\n"
 " *\n"
 " * Redistribution and use in source and binary forms, with or without\n"
@@ -388,6 +388,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_NATIVE_INT",                     SRC_TYPE_SIMPLE},
     {"ACPI_NATIVE_UINT",                    SRC_TYPE_SIMPLE},
     {"ACPI_NEW_TABLE_DESC",                 SRC_TYPE_STRUCT},
+
     {"ACPI_NOTIFY_HANDLER",                 SRC_TYPE_SIMPLE},
     {"ACPI_NOTIFY_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_NS_SEARCH_DATA",                 SRC_TYPE_STRUCT},
@@ -442,6 +443,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_PARSE_STATE",                    SRC_TYPE_STRUCT},
     {"ACPI_PARSE_UPWARDS",                  SRC_TYPE_SIMPLE},
     {"ACPI_PARSE_VALUE",                    SRC_TYPE_UNION},
+    {"ACPI_PCC_INFO",                       SRC_TYPE_STRUCT},
     {"ACPI_PCI_DEVICE",                     SRC_TYPE_STRUCT},
     {"ACPI_PCI_ID",                         SRC_TYPE_STRUCT},
     {"ACPI_PCI_ROUTING_TABLE",              SRC_TYPE_STRUCT},
@@ -640,6 +642,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
      * Acpi table definition names.
      */
     {"ACPI_TABLE_AEST",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_AGDI",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_ASF",                      SRC_TYPE_STRUCT},
     {"ACPI_TABLE_BDAT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_BERT",                     SRC_TYPE_STRUCT},
@@ -695,6 +698,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_SRAT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_STAO",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_TCPA",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_TDEL",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_TPM2",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_TPM23",                    SRC_TYPE_STRUCT},
     {"ACPI_TABLE_UEFI",                     SRC_TYPE_STRUCT},
@@ -846,19 +850,31 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_A",  SRC_TYPE_STRUCT},
     {"ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_B",  SRC_TYPE_STRUCT},
     {"ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_C",  SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_DEVICE_SPECIFIC_CONFIG_D",  SRC_TYPE_STRUCT},
     {"ACPI_NHLT_DEVICE_SPECIFIC_HDR",       SRC_TYPE_STRUCT},
     {"ACPI_NHLT_ENDPOINT",                  SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_ENDPOINT_COUNT",            SRC_TYPE_STRUCT},
     {"ACPI_NHLT_FORMAT_CONFIG",             SRC_TYPE_STRUCT},
     {"ACPI_NHLT_FORMATS_CONFIG",            SRC_TYPE_STRUCT},
-    {"ACPI_NHLT_LINUX_SPECIFIC_COUNT",      SRC_TYPE_STRUCT},
-    {"ACPI_NHLT_LINUX_SPECIFIC_DATA",       SRC_TYPE_STRUCT},
-    {"ACPI_NHLT_MIC_DEVICE_SPECIFIC_CONFIG",            SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_DEVICE_INFO_COUNT",         SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_DEVICE_INFO",               SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_MIC_DEVICE_SPECIFIC_CONFIG", SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_MIC_SNR_SENSITIVITY_EXTENSION",SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_RENDER_DEVICE_SPECIFIC_CONFIG", SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_RENDER_FEEDBACK_DEVICE_SPECIFIC_CONFIG", SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_TABLE_TERMINATOR",          SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_WAVE_EXTENSIBLE",           SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_NHLT_ENDPOINT",            SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_VENDOR_MIC_DEVICE_SPECIFIC_CONFIG",  SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_MIC_DEVICE_SPECIFIC_CONFIG",SRC_TYPE_STRUCT},
     {"ACPI_NHLT_MIC_SNR_SENSITIVITY_EXTENSION",         SRC_TYPE_STRUCT},
     {"ACPI_NHLT_RENDER_FEEDBACK_DEVICE_SPECIFIC_CONFIG",SRC_TYPE_STRUCT},
-    {"ACPI_NHLT_TABLE_TERMINATOR",                      SRC_TYPE_STRUCT},
-    {"ACPI_NHLT_VENDOR_MIC_CONFIG",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_NHLT_ENDPOINT_COUNT",      SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_TABLE_TERMINATOR",          SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_VENDOR_MIC_CONFIG",         SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_VENDOR_MIC_COUNT",          SRC_TYPE_STRUCT},
     {"ACPI_NHLT_VENDOR_MIC_DEVICE_SPECIFIC_CONFIG",     SRC_TYPE_STRUCT},
-    {"ACPI_NHLT_WAVE_EXTENSIBLE",                       SRC_TYPE_STRUCT},
+    {"ACPI_NHLT_WAVE_EXTENSIBLE",           SRC_TYPE_STRUCT},
     {"ACPI_PCCT_EXT_PCC_SHARED_MEMORY",     SRC_TYPE_STRUCT},
     {"ACPI_PCCT_HW_REDUCED",                SRC_TYPE_STRUCT},
     {"ACPI_PCCT_HW_REDUCED_TYPE2",          SRC_TYPE_STRUCT},
@@ -1231,8 +1247,8 @@ ACPI_CONVERSION_TABLE       LicenseConversionTable =
 
 ACPI_STRING_TABLE           CustomReplacements[] =
 {
-    {"(c) 1999 - 2020",     "(c) 1999 - 2021",         REPLACE_WHOLE_WORD}, /* Main ACPICA source */
-    {"(c) 2006 - 2020",     "(c) 2006 - 2021",         REPLACE_WHOLE_WORD}, /* Test suites */
+    {"(c) 1999 - 2021",     "(c) 1999 - 2022",         REPLACE_WHOLE_WORD}, /* Main ACPICA source */
+    {"(c) 2006 - 2021",     "(c) 2006 - 2022",         REPLACE_WHOLE_WORD}, /* Test suites */
 
 #if 0
     {"SUPPORT, ASSISTANCE", "SUPPORT, ASSISTANCE",     REPLACE_WHOLE_WORD}, /* Fix intel header */

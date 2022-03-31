@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -334,7 +334,7 @@ AeSignalHandler (
         SigintCount++;
         if (SigintCount >= ACPI_MAX_CONTROL_C)
         {
-            exit (0);
+            _exit (0);
         }
 
         /* Abort the application if there are no methods executing */
@@ -368,7 +368,7 @@ AeSignalHandler (
 
     AcpiOsPrintf (AE_PREFIX "Terminating\n");
     (void) AcpiOsTerminate ();
-    exit (0);
+    _exit (0);
 }
 
 

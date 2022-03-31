@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -182,6 +182,11 @@ UtLocalCacheCalloc (
     ASL_CACHE_INFO          *Cache;
     UINT32                  CacheSize = ASL_STRING_CACHE_SIZE;
 
+
+#ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
+    /* Used for objects other than strings, so keep allocations aligned */
+    Length = ACPI_ROUND_UP_TO_NATIVE_WORD (Length);
+#endif
 
     if (Length > CacheSize)
     {

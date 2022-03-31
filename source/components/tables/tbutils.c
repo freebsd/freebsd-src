@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -500,7 +500,8 @@ AcpiTbParseRootTable (
         }
 
         Status = AcpiTbInstallStandardTable (Address,
-            ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL, FALSE, TRUE, &TableIndex);
+            ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL, NULL, FALSE, TRUE,
+            &TableIndex);
 
         if (ACPI_SUCCESS (Status) &&
             ACPI_COMPARE_NAMESEG (

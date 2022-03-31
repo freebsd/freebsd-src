@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -262,7 +262,10 @@ AcpiHwLegacySleep (
 
     /* Flush caches, as per ACPI specification */
 
-    ACPI_FLUSH_CPU_CACHE ();
+    if (SleepState < ACPI_STATE_S4)
+    {
+        ACPI_FLUSH_CPU_CACHE ();
+    }
 
     Status = AcpiOsEnterSleep (SleepState, Pm1aControl, Pm1bControl);
     if (Status == AE_CTRL_TERMINATE)
@@ -376,7 +379,7 @@ AcpiHwLegacyWakePrep (
 
             Pm1aControl |= (AcpiGbl_SleepTypeAS0 <<
                 SleepTypeRegInfo->BitPosition);
-            Pm1aControl |= (AcpiGbl_SleepTypeBS0 <<
+            Pm1bControl |= (AcpiGbl_SleepTypeBS0 <<
                 SleepTypeRegInfo->BitPosition);
 
             /* Write the control registers and ignore any errors */

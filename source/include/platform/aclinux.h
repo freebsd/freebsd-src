@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -251,6 +251,11 @@
 #define ACPI_CACHE_T                struct kmem_cache
 #define ACPI_SPINLOCK               spinlock_t *
 #define ACPI_CPU_FLAGS              unsigned long
+
+#define ACPI_UINTPTR_T              uintptr_t
+
+#define ACPI_TO_INTEGER(p)          ((uintptr_t)(p))
+#define ACPI_OFFSET(d, f)           offsetof(d, f)
 
 /* Use native linux version of AcpiOsAllocateZeroed */
 
