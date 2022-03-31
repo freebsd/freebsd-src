@@ -637,4 +637,6 @@ struct reg32;
 void	bsd_to_linux_regset32(const struct reg32 *b_reg,
 	    struct linux_pt_regset32 *l_regset);
 
+extern bool linux32_emulate_i386;
+
 #endif /* !_AMD64_LINUX_H_ */

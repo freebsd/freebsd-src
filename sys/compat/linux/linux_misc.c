@@ -720,6 +720,11 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	 * the string returned by getauxval(AT_PLATFORM) needs
 	 * to remain "i686", though.
 	 */
+#if defined(COMPAT_LINUX32)
+	if (linux32_emulate_i386)
+		strlcpy(utsname.machine, "i686", LINUX_MAX_UTSNAME);
+	else
+#endif
 	strlcpy(utsname.machine, "x86_64", LINUX_MAX_UTSNAME);
 #elif defined(__aarch64__)
 	strlcpy(utsname.machine, "aarch64", LINUX_MAX_UTSNAME);
