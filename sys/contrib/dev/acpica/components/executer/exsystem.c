@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -265,7 +265,7 @@ AcpiExSystemWaitMutex (
  *
  * FUNCTION:    AcpiExSystemDoStall
  *
- * PARAMETERS:  HowLong         - The amount of time to stall,
+ * PARAMETERS:  HowLongUs       - The amount of time to stall,
  *                                in microseconds
  *
  * RETURN:      Status
@@ -280,7 +280,7 @@ AcpiExSystemWaitMutex (
 
 ACPI_STATUS
 AcpiExSystemDoStall (
-    UINT32                  HowLong)
+    UINT32                  HowLongUs)
 {
     ACPI_STATUS             Status = AE_OK;
 
@@ -288,21 +288,26 @@ AcpiExSystemDoStall (
     ACPI_FUNCTION_ENTRY ();
 
 
-    if (HowLong > 255) /* 255 microseconds */
+    if (HowLongUs > 255)
     {
         /*
-         * Longer than 255 usec, this is an error
+         * Longer than 255 microseconds, this is an error
          *
          * (ACPI specifies 100 usec as max, but this gives some slack in
          * order to support existing BIOSs)
          */
         ACPI_ERROR ((AE_INFO,
-            "Time parameter is too large (%u)", HowLong));
+            "Time parameter is too large (%u)", HowLongUs));
         Status = AE_AML_OPERAND_VALUE;
     }
     else
     {
-        AcpiOsStall (HowLong);
+        if (HowLongUs > 100)
+	{
+            ACPI_WARNING ((AE_INFO,
+                "Time parameter %u us > 100 us violating ACPI spec, please fix the firmware.", HowLongUs));
+	}
+        AcpiOsStall (HowLongUs);
     }
 
     return (Status);
@@ -313,7 +318,7 @@ AcpiExSystemDoStall (
  *
  * FUNCTION:    AcpiExSystemDoSleep
  *
- * PARAMETERS:  HowLong         - The amount of time to sleep,
+ * PARAMETERS:  HowLongMs       - The amount of time to sleep,
  *                                in milliseconds
  *
  * RETURN:      None
@@ -324,7 +329,7 @@ AcpiExSystemDoStall (
 
 ACPI_STATUS
 AcpiExSystemDoSleep (
-    UINT64                  HowLong)
+    UINT64                  HowLongMs)
 {
     ACPI_FUNCTION_ENTRY ();
 
@@ -334,15 +339,27 @@ AcpiExSystemDoSleep (
     AcpiExExitInterpreter ();
 
     /*
+     * Warn users about excessive sleep times, so ASL code can be improved to
+     * use polling or similar techniques.
+     */
+    if (HowLongMs > 10)
+    {
+        ACPI_WARNING ((AE_INFO,
+            "Firmware issue: Excessive sleep time (0x%8.8X%8.8X ms > 10 ms)"
+            " in ACPI Control Method",
+            ACPI_FORMAT_UINT64 (HowLongMs)));
+    }
+
+    /*
      * For compatibility with other ACPI implementations and to prevent
      * accidental deep sleeps, limit the sleep time to something reasonable.
      */
-    if (HowLong > ACPI_MAX_SLEEP)
+    if (HowLongMs > ACPI_MAX_SLEEP)
     {
-        HowLong = ACPI_MAX_SLEEP;
+        HowLongMs = ACPI_MAX_SLEEP;
     }
 
-    AcpiOsSleep (HowLong);
+    AcpiOsSleep (HowLongMs);
 
     /* And now we must get the interpreter again */
 

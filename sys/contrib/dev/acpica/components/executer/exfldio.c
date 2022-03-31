@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -262,7 +262,7 @@ AcpiExSetupRegion (
 #ifdef ACPI_UNDER_DEVELOPMENT
     /*
      * If the Field access is AnyAcc, we can now compute the optimal
-     * access (because we know know the length of the parent region)
+     * access (because we know the length of the parent region)
      */
     if (!(ObjDesc->Common.Flags & AOPOBJ_DATA_VALID))
     {

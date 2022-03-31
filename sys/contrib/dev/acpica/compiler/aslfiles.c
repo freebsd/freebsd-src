@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -835,8 +835,8 @@ ErrorExit:
  * RETURN:      Status
  *
  * DESCRIPTION: Open the specified input file, and save the directory path to
- *              the file so that include files can be opened in
- *              the same directory.
+ *              the file so that include files can be opened in the same
+ *              directory. NOTE: File is opened in text mode.
  *
  ******************************************************************************/
 

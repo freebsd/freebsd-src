@@ -11,7 +11,7 @@ NoEcho('
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -843,7 +843,7 @@ LoadTerm
     : PARSEOP_LOAD
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_LOAD);}
         NameString
-        RequiredTarget
+        Target
         PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_LOAD
         PARSEOP_OPEN_PAREN

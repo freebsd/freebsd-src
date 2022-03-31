@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -322,6 +322,10 @@ AcpiNsWalkNamespace (
     if (StartNode == ACPI_ROOT_OBJECT)
     {
         StartNode = AcpiGbl_RootNode;
+        if (!StartNode)
+        {
+            return_ACPI_STATUS (AE_NO_NAMESPACE);
+        }
     }
 
     /* Null child means "get first node" */

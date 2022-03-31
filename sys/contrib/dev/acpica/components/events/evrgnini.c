@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -595,6 +595,64 @@ AcpiEvCmosRegionSetup (
     ACPI_FUNCTION_TRACE (EvCmosRegionSetup);
 
 
+    return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvDataTableRegionSetup
+ *
+ * PARAMETERS:  Handle              - Region we are interested in
+ *              Function            - Start or stop
+ *              HandlerContext      - Address space handler context
+ *              RegionContext       - Region specific context
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Setup a DataTableRegion
+ *
+ * MUTEX:       Assumes namespace is not locked
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvDataTableRegionSetup (
+    ACPI_HANDLE             Handle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext)
+{
+    ACPI_OPERAND_OBJECT     *RegionDesc = (ACPI_OPERAND_OBJECT *) Handle;
+    ACPI_DATA_TABLE_MAPPING *LocalRegionContext;
+
+
+    ACPI_FUNCTION_TRACE (EvDataTableRegionSetup);
+
+
+    if (Function == ACPI_REGION_DEACTIVATE)
+    {
+        if (*RegionContext)
+        {
+            ACPI_FREE (*RegionContext);
+            *RegionContext = NULL;
+        }
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Create a new context */
+
+    LocalRegionContext = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_DATA_TABLE_MAPPING));
+    if (!(LocalRegionContext))
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    /* Save the data table pointer for use in the handler */
+
+    LocalRegionContext->Pointer = RegionDesc->Region.Pointer;
+
+    *RegionContext = LocalRegionContext;
     return_ACPI_STATUS (AE_OK);
 }
 

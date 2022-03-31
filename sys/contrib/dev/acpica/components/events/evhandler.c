@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -563,7 +563,7 @@ AcpiEvInstallSpaceHandler (
         case ACPI_ADR_SPACE_DATA_TABLE:
 
             Handler = AcpiExDataTableSpaceHandler;
-            Setup   = NULL;
+            Setup   = AcpiEvDataTableRegionSetup;
             break;
 
         default:

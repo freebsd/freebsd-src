@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -352,8 +352,6 @@ AcpiEnterSleepStateS4bios (
     {
         return_ACPI_STATUS (Status);
     }
-
-    ACPI_FLUSH_CPU_CACHE ();
 
     Status = AcpiHwWritePort (AcpiGbl_FADT.SmiCommand,
         (UINT32) AcpiGbl_FADT.S4BiosRequest, 8);

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -293,9 +293,17 @@ AslDetectSourceFileType (
         goto Cleanup;
     }
 
-    /* We have some sort of binary table, check for valid ACPI table */
-
-    fseek (Info->Handle, 0, SEEK_SET);
+    /*
+     * We have some sort of binary table; reopen in binary mode, then
+     * check for valid ACPI table
+     */
+    fclose (Info->Handle);
+    Info->Handle = fopen (Info->Filename, "rb");
+    if (!Info->Handle)
+    {
+        fprintf (stderr, "Could not open input file %s\n",
+            Info->Filename);
+    }
 
     Status = AcValidateTableHeader (Info->Handle, 0);
     if (ACPI_SUCCESS (Status))
@@ -446,8 +454,9 @@ AslDoOneFile (
     UtConvertBackslashes (AslGbl_Files[ASL_FILE_INPUT].Filename);
 
     /*
-     * Open the input file. Here, this should be an ASCII source file,
-     * either an ASL file or a Data Table file
+     * Open the input file. Here, this could be an ASCII source file,
+     * either an ASL file or a Data Table file, or a binary AML file
+     * or binary data table file (For disassembly).
      */
     Status = FlOpenInputFile (AslGbl_Files[ASL_FILE_INPUT].Filename);
     if (ACPI_FAILURE (Status))
@@ -458,8 +467,6 @@ AslDoOneFile (
 
     FileNode = FlGetCurrentFileNode();
 
-    FileNode->OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
-
     /* Determine input file type */
 
     AslGbl_FileType = AslDetectSourceFileType (&AslGbl_Files[ASL_FILE_INPUT]);
@@ -468,6 +475,8 @@ AslDoOneFile (
     {
         return (AE_ERROR);
     }
+
+    FileNode->OriginalInputFileSize = FlGetFileSize (ASL_FILE_INPUT);
 
     /*
      * If -p not specified, we will use the input filename as the

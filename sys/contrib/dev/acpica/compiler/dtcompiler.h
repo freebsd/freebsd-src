@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -570,6 +570,10 @@ DtCompileAest (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileApmt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileAsf (
     void                    **PFieldList);
 
@@ -762,6 +766,8 @@ DtGetGenericTableInfo (
 /* ACPI Table templates */
 
 extern const unsigned char  TemplateAest[];
+extern const unsigned char  TemplateAgdi[];
+extern const unsigned char  TemplateApmt[];
 extern const unsigned char  TemplateAsf[];
 extern const unsigned char  TemplateBoot[];
 extern const unsigned char  TemplateBdat[];
@@ -793,6 +799,7 @@ extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
 extern const unsigned char  TemplateMsdm[];
 extern const unsigned char  TemplateNfit[];
+extern const unsigned char  TemplateNhlt[];
 extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePdtt[];
 extern const unsigned char  TemplatePhat[];
@@ -814,6 +821,7 @@ extern const unsigned char  TemplateSrat[];
 extern const unsigned char  TemplateStao[];
 extern const unsigned char  TemplateSvkl[];
 extern const unsigned char  TemplateTcpa[];
+extern const unsigned char  TemplateTdel[];
 extern const unsigned char  TemplateTpm2[];
 extern const unsigned char  TemplateUefi[];
 extern const unsigned char  TemplateViot[];

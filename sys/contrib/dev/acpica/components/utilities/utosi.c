@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -221,6 +221,7 @@ static ACPI_INTERFACE_INFO    AcpiDefaultSupportedInterfaces[] =
     {"Windows 2018.2",      NULL, 0, ACPI_OSI_WIN_10_RS5},       /* Windows 10 version 1809 - Added 11/2018 */
     {"Windows 2019",        NULL, 0, ACPI_OSI_WIN_10_19H1},      /* Windows 10 version 1903 - Added 08/2019 */
     {"Windows 2020",        NULL, 0, ACPI_OSI_WIN_10_20H1},      /* Windows 10 version 2004 - Added 08/2021 */
+    {"Windows 2021",        NULL, 0, ACPI_OSI_WIN_11},           /* Windows 11 - Added 01/2022 */
 
     /* Feature Group Strings */
 

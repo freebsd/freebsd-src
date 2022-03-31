@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -674,6 +674,12 @@ DtCompileFlag (
 
         BitPosition = 2;
         BitLength = 2;
+        break;
+
+    case ACPI_DMT_FLAGS8_2:
+
+	BitPosition = 2;
+        BitLength = 8;
         break;
 
     case ACPI_DMT_FLAGS4:

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -692,8 +692,16 @@ AcpiExDataTableSpaceHandler (
     void                    *HandlerContext,
     void                    *RegionContext)
 {
+    ACPI_DATA_TABLE_MAPPING *Mapping;
+    char                    *Pointer;
+
+
     ACPI_FUNCTION_TRACE (ExDataTableSpaceHandler);
 
+
+    Mapping = (ACPI_DATA_TABLE_MAPPING *) RegionContext;
+    Pointer = ACPI_CAST_PTR (char, Mapping->Pointer) +
+        (Address - ACPI_PTR_TO_PHYSADDR (Mapping->Pointer));
 
     /*
      * Perform the memory read or write. The BitWidth was already
@@ -703,14 +711,12 @@ AcpiExDataTableSpaceHandler (
     {
     case ACPI_READ:
 
-        memcpy (ACPI_CAST_PTR (char, Value), ACPI_PHYSADDR_TO_PTR (Address),
-            ACPI_DIV_8 (BitWidth));
+        memcpy (ACPI_CAST_PTR (char, Value), Pointer, ACPI_DIV_8 (BitWidth));
         break;
 
     case ACPI_WRITE:
 
-        memcpy (ACPI_PHYSADDR_TO_PTR (Address), ACPI_CAST_PTR (char, Value),
-            ACPI_DIV_8 (BitWidth));
+        memcpy (Pointer, ACPI_CAST_PTR (char, Value), ACPI_DIV_8 (BitWidth));
         break;
 
     default:
