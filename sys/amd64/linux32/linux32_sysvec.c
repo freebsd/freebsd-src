@@ -885,6 +885,9 @@ SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxssiz, CTLFLAG_RW,
 static u_long	linux32_maxvmem = LINUX32_MAXVMEM;
 SYSCTL_ULONG(_compat_linux32, OID_AUTO, maxvmem, CTLFLAG_RW,
     &linux32_maxvmem, 0, "");
+bool linux32_emulate_i386 = false;
+SYSCTL_BOOL(_compat_linux32, OID_AUTO, emulate_i386, CTLFLAG_RWTUN,
+    &linux32_emulate_i386, 0, "Emulate the real i386");
 
 static void
 linux32_fixlimit(struct rlimit *rl, int which)

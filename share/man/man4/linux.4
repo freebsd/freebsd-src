@@ -145,6 +145,12 @@ This might be reasonable or even required, because
 does not emulate the Linux environment completely, and missed features
 may result in security vulnerabilities.
 Defaults to 1.
+.It Va compat.linux32.emulate_i386
+In the x86_64 (amd64) world enable the real i386 Linuxulator behavior.
+For example, when set to 0, Linux uname -m will return "x86_64" even if
+uname itself is a i386 Linux executable. When set to 1, Linux i386
+uname -m will return "i686".
+Defaults to 0.
 .El
 .Sh FILES
 .Bl -tag -width /compat/linux/dev/shm -compact
