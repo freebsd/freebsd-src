@@ -1,4 +1,130 @@
 ----------------------------------------
+31 March 2022. Summary of changes for version 20220331:
+
+0) Global changes:
+
+Update all copyright notices to the year 2022. This effects all source 
+modules, as well as utility signons.
+
+
+1) ACPICA kernel-resident subsystem:
+
+For the ASL Sleep() operator, issue a warning if the sleep value is 
+greater than 10 Milliseconds. Quick boottime is important, so warn about 
+sleeps greater than 10 ms. Distribution Linux kernels reach initrd in 350 
+ms, so excessive delays should be called out. 10 ms is chosen randomly, 
+but three of such delays would already make up ten percent of the 
+boottime.
+
+Namespace: Avoid attempting to walk the Namespace if the Namespace does 
+not exist.
+
+AML interpreter/iASL compiler: Add new Acpi 6.4 semantics for the 
+LoadTable and Load operators. DDB_HANDLE is gone, now loadtable returns a 
+pass/fail integer. Now load returns a pass/fail integer, as well as 
+storing the return value in an optional 2nd argument.
+
+Headers: Use uintptr_t and offsetof() in Linux kernel builds. To avoid 
+"performing pointer subtraction with a null pointer has undefined 
+behavior" compiler warnings, use uintptr_t and offsetof() that are always 
+available during Linux kernel builds to define ACPI_UINTPTR_T and the 
+ACPI_TO_INTEGER() and ACPI_OFFSET() macros when building the ACPICA code 
+in the Linux kernel.
+
+Added support for the Windows 11 _OSI string ("Windows 2021"). Submitted 
+by superm1.
+
+executer/exsystem: Inform users about ACPI spec violation for the Stall() 
+operator. Values greater than 100 microseconds violate the ACPI 
+specification, so warn users about it. From the ACPI Specification 
+version 6.2 Errata A, 19.6.128 *Stall (Stall for a Short Time)*:
+> The implementation of Stall is OS-specific, but must not relinquish
+> control of the processor. Because of this, delays longer than 100
+> microseconds must use Sleep instead of Stall.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+Data Table Compiler/Disassembler: Add support for the APMT table - ARM 
+Performance Monitoring Unit table. Submitted by @bwicaksononv.
+
+Data Table Compiler/Disassembler: For MADT, add support for the OEM-
+defined subtables (Types 0x80-0x7F).
+
+Data Table Compiler: Fixed a problem with support for the SDEV table, 
+where a subtable Length was not computed correctly.
+
+Data Table Compiler/Disassembler: Add/fix the CFMWS subtable to the CEDT 
+Acpi table support.
+
+Data Table Compiler/Disassembler: Fix a compile issue with the CEDT and 
+add template. Submitted by MasterDrogo.
+
+Data Table Compiler/Disassembler: NHLT Changes provided by Piotr Maziarz:
+iASL/NHLT: Rename linux specific structures to DeviceInfo to improve 
+readability of the code.
+iASL/NHLT: Fix parsing undocumented bytes at the end of Endpoint. 
+Undocumented bytes at the end of Endpoint Descriptor can be present 
+independently of Linux-specific structures. Their size can also vary.
+iASL/NHLT: Treat TableTerminator as SpecificConfig. SpecificConfig has 4 
+bytes of size and then an amount of bytes specified by size. All of the 
+terminators that I've seen had a size equal to 4, but theoretically it 
+can vary.
+
+iASL/AcpiExec: Use _exit instead of exit in signal handers (ctrl-C).
+
+iASL: Remove a remark due to excessive output. Removed a remark for 
+duplicate Offset() operators, due to a user complaint.
+
+----------------------------------------
+17 December 2021. Summary of changes for version 20211217:
+
+1) ACPICA kernel-resident subsystem:
+
+Hardware: Do not flush CPU cache when entering S4 and S5. According to 
+ACPI 6.4, Section 16.2, the CPU cache flushing is required on entering to 
+S1, S2, and S3, but the ACPICA code flushes the CPU cache regardless of 
+the sleep state. Blind cache flush on entering S5 causes problems for 
+TDX.
+
+Avoid subobject buffer overflow when validating RSDP signature. Since the 
+Signature member is accessed through an ACPI_TABLE_HEADER, the pointer to 
+it is only to a 4-char array, and so trying to read past the 4th 
+character, as will be done when it is an RSDP, reads beyond the bounds of 
+the accessed member. Contributed by jrtc27.
+
+Add support for PCC Opregion special context data. PCC Opregion added in 
+ACPIC 6.3 requires special context data similar to GPIO and Generic 
+Serial Bus as it needs to know the internal PCC buffer and its length as 
+well as the PCC channel index when the opregion handler is being executed 
+by the OSPM. Adds support for the special context data needed by PCC 
+Opregion. Submitted by Sudeep Holla <sudeep.holla@arm.com>
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+iASL: Completed compiler support for the NHLT ACPI table.
+
+iASL/NHLT table: Fixed a reported problem where a fault would occur 
+during disassembly of a "Linux-Specific" section if the "Specific Data" 
+part was not present.
+
+iASL: Added full support (compiler and disassembler) for the AGDI ACPI 
+table. Contributed by: Ilkka Koskinen <ilkka@os.amperecomputing.com>.
+
+iASL: Added full support for the TDEL ACPI table.
+
+iASL table compiler: FADT support updates:
+1) Allow the 32-bit DSDT address to be zero.
+2) Issue error if both the 32-bit and 64-bit DSDT addresses are zero.
+
+iASL: Fix unaligned accesses to local cache allocations. Contributed by 
+jrtc27.
+
+iASL: Open binary input files in binary mode, not text mode Affects 
+binary input AML files, as well as binary data table files, for 
+disassembly.
+
+----------------------------------------
 30 September 2021. Summary of changes for version 20210930:
 
 This release is available at https://acpica.org/downloads

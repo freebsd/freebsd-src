@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -452,6 +452,13 @@ AcpiEvCmosRegionSetup (
 
 ACPI_STATUS
 AcpiEvPciBarRegionSetup (
+    ACPI_HANDLE             Handle,
+    UINT32                  Function,
+    void                    *HandlerContext,
+    void                    **RegionContext);
+
+ACPI_STATUS
+AcpiEvDataTableRegionSetup (
     ACPI_HANDLE             Handle,
     UINT32                  Function,
     void                    *HandlerContext,

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -200,6 +200,7 @@ AcpiAhGetTableInfo (
 const AH_TABLE      AcpiGbl_SupportedTables[] =
 {
     {ACPI_SIG_AEST, "Arm Error Source Table"},
+    {ACPI_SIG_AGDI, "Arm Generic Diagnostic Dump and Reset Device Interface Table"},
     {ACPI_SIG_ASF,  "Alert Standard Format Table"},
     {ACPI_SIG_BDAT, "BIOS Data ACPI Table"},
     {ACPI_SIG_BERT, "Boot Error Record Table"},
@@ -233,6 +234,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_MSCT, "Maximum System Characteristics Table"},
     {ACPI_SIG_MSDM, "Microsoft Data Management Table"},
     {ACPI_SIG_NFIT, "NVDIMM Firmware Interface Table"},
+    {ACPI_SIG_NHLT, "Non HD Audio Link Table"},
     {ACPI_SIG_PCCT, "Platform Communications Channel Table"},
     {ACPI_SIG_PDTT, "Platform Debug Trigger Table"},
     {ACPI_SIG_PHAT, "Platform Health Assessment Table"},
@@ -256,6 +258,7 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_STAO, "Status Override Table"},
     {ACPI_SIG_SVKL, "Storage Volume Key Location Table"},
     {ACPI_SIG_TCPA, "Trusted Computing Platform Alliance Table"},
+    {ACPI_SIG_TDEL, "TD-Event Log Table"},
     {ACPI_SIG_TPM2, "Trusted Platform Module hardware interface Table"},
     {ACPI_SIG_UEFI, "UEFI Boot Optimization Table"},
     {ACPI_SIG_VIOT, "Virtual I/O Translation Table"},

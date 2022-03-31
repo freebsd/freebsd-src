@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -323,6 +323,7 @@ AcpiExOpcode_1A_0T_0R (
 }
 
 
+#ifdef _OBSOLETE_CODE /* Was originally used for Load() operator */
 /*******************************************************************************
  *
  * FUNCTION:    AcpiExOpcode_1A_1T_0R
@@ -352,10 +353,12 @@ AcpiExOpcode_1A_1T_0R (
 
     switch (WalkState->Opcode)
     {
+#ifdef _OBSOLETE_CODE
     case AML_LOAD_OP:
 
         Status = AcpiExLoadOp (Operand[0], Operand[1], WalkState);
         break;
+#endif
 
     default:                        /* Unknown opcode */
 
@@ -370,7 +373,7 @@ Cleanup:
 
     return_ACPI_STATUS (Status);
 }
-
+#endif
 
 /*******************************************************************************
  *
@@ -382,6 +385,8 @@ Cleanup:
  *
  * DESCRIPTION: Execute opcode with one argument, one target, and a
  *              return value.
+ *              January 2022: Added Load operator, with new ACPI 6.4
+ *              semantics.
  *
  ******************************************************************************/
 
@@ -411,6 +416,7 @@ AcpiExOpcode_1A_1T_1R (
     case AML_FIND_SET_LEFT_BIT_OP:
     case AML_FIND_SET_RIGHT_BIT_OP:
     case AML_FROM_BCD_OP:
+    case AML_LOAD_OP:
     case AML_TO_BCD_OP:
     case AML_CONDITIONAL_REF_OF_OP:
 
@@ -509,6 +515,18 @@ AcpiExOpcode_1A_1T_1R (
                 /* Next power of 10 */
 
                 PowerOfTen *= 10;
+            }
+            break;
+
+        case AML_LOAD_OP:               /* Result1 = Load (Operand[0], Result1) */
+
+            ReturnDesc->Integer.Value = 0;
+            Status = AcpiExLoadOp (Operand[0], ReturnDesc, WalkState);
+            if (ACPI_SUCCESS (Status))
+            {
+                /* Return -1 (non-zero) indicates success */
+
+                ReturnDesc->Integer.Value = 0xFFFFFFFFFFFFFFFF;
             }
             break;
 
@@ -1193,7 +1211,7 @@ AcpiExOpcode_1A_0T_1R (
                             WalkState, ReturnDesc, &TempDesc);
                         if (ACPI_FAILURE (Status))
                         {
-                            goto Cleanup;
+                            return_ACPI_STATUS (Status);
                         }
 
                         ReturnDesc = TempDesc;

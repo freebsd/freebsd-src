@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -193,7 +193,8 @@ const char              *AslErrorLevelIde [ASL_NUM_REPORT_LEVELS] = {
  *
  * NOTE2: With the introduction of the -vw option to disable specific messages,
  * new messages should only be added to the end of this list, so that values
- * for existing messages are not disturbed.
+ * for existing messages are not disturbed. As important, obsolete messages
+ * cannot be removed from this list, as it will affect the -vw option.
  */
 
 /* ASL compiler */
@@ -410,6 +411,8 @@ const char                      *AslTableCompilerMsgs [] =
 /*    ASL_MSG_ENTRY_LIST */                 "Invalid entry initializer list",
 /*    ASL_MSG_UNKNOWN_FORMAT */             "Unknown format value",
 /*    ASL_MSG_RESERVED_VALUE */             "Value for field is reserved or unknown",
+/*    ASL_MSG_TWO_ZERO_VALUES */            "32-bit DSDT Address and 64-bit X_DSDT Address cannot both be zero",
+/*    ASL_MSG_BAD_PARSE_TREE */             "Parse tree appears to be ill-defined"
 };
 
 /* Preprocessor */

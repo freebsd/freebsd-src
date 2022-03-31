@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -658,14 +658,12 @@ typedef UINT64                          ACPI_INTEGER;
 /* Pointer/Integer type conversions */
 
 #define ACPI_TO_POINTER(i)              ACPI_CAST_PTR (void, (ACPI_SIZE) (i))
-#ifdef __FreeBSD__
-#define ACPI_TO_INTEGER(p)              ((ACPI_SIZE) (p))
-#define ACPI_OFFSET(d, f)               ((ACPI_SIZE) __offsetof(d, f))
-#else
+#ifndef ACPI_TO_INTEGER
 #define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p, (void *) 0)
+#endif
+#ifndef ACPI_OFFSET
 #define ACPI_OFFSET(d, f)               ACPI_PTR_DIFF (&(((d *) 0)->f), (void *) 0)
 #endif
-#define ACPI_PHYSADDR_TO_PTR(i)         ACPI_TO_POINTER(i)
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)
 
 /* Optimizations for 4-character (32-bit) ACPI_NAME manipulation */
@@ -692,9 +690,14 @@ typedef UINT64                          ACPI_INTEGER;
  * Can be used with AccessSize field of ACPI_GENERIC_ADDRESS and
  * ACPI_RESOURCE_GENERIC_REGISTER.
  */
-#define ACPI_ACCESS_BIT_WIDTH(AccessSize)   (1 << ((AccessSize) + 2))
-#define ACPI_ACCESS_BYTE_WIDTH(AccessSize)  (1 << ((AccessSize) - 1))
-
+#define ACPI_ACCESS_BIT_SHIFT           2
+#define ACPI_ACCESS_BYTE_SHIFT          -1
+#define ACPI_ACCESS_BIT_MAX             (31 - ACPI_ACCESS_BIT_SHIFT)
+#define ACPI_ACCESS_BYTE_MAX            (31 - ACPI_ACCESS_BYTE_SHIFT)
+#define ACPI_ACCESS_BIT_DEFAULT         (8 - ACPI_ACCESS_BIT_SHIFT)
+#define ACPI_ACCESS_BYTE_DEFAULT        (8 - ACPI_ACCESS_BYTE_SHIFT)
+#define ACPI_ACCESS_BIT_WIDTH(size)     (1 << ((size) + ACPI_ACCESS_BIT_SHIFT))
+#define ACPI_ACCESS_BYTE_WIDTH(size)    (1 << ((size) + ACPI_ACCESS_BYTE_SHIFT))
 
 /*******************************************************************************
  *
@@ -1324,6 +1327,14 @@ typedef struct acpi_connection_info
 
 } ACPI_CONNECTION_INFO;
 
+/* Special Context data for PCC Opregion (ACPI 6.3) */
+
+typedef struct acpi_pcc_info {
+    UINT8                           SubspaceId;
+    UINT16                          Length;
+    UINT8                           *InternalBuffer;
+} ACPI_PCC_INFO;
+
 
 typedef
 ACPI_STATUS (*ACPI_ADR_SPACE_SETUP) (
@@ -1463,6 +1474,12 @@ typedef struct acpi_mem_space_context
 
 } ACPI_MEM_SPACE_CONTEXT;
 
+typedef struct acpi_data_table_space_context
+{
+    void                            *Pointer;
+
+} ACPI_DATA_TABLE_MAPPING;
+
 
 /*
  * ACPI_MEMORY_LIST is used only if the ACPICA local cache is enabled
@@ -1537,6 +1554,7 @@ typedef enum
 #define ACPI_OSI_WIN_10_RS5             0x13
 #define ACPI_OSI_WIN_10_19H1            0x14
 #define ACPI_OSI_WIN_10_20H1            0x15
+#define ACPI_OSI_WIN_11                 0x16
 
 
 /* Definitions of getopt */

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -173,7 +173,7 @@ static ACPI_EXECUTE_OP      AcpiGbl_OpTypeDispatch [] =
     AcpiExOpcode_0A_0T_1R,
     AcpiExOpcode_1A_0T_0R,
     AcpiExOpcode_1A_0T_1R,
-    AcpiExOpcode_1A_1T_0R,
+    NULL,   /* Was: AcpiExOpcode_1A_0T_0R (Was for Load operator) */
     AcpiExOpcode_1A_1T_1R,
     AcpiExOpcode_2A_0T_0R,
     AcpiExOpcode_2A_0T_1R,

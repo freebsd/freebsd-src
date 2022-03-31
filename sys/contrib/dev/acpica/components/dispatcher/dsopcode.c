@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -707,6 +707,7 @@ AcpiDsEvalTableRegionOperands (
 
     ObjDesc->Region.Address = ACPI_PTR_TO_PHYSADDR (Table);
     ObjDesc->Region.Length = Table->Length;
+    ObjDesc->Region.Pointer = Table;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
         ObjDesc, ACPI_FORMAT_UINT64 (ObjDesc->Region.Address),

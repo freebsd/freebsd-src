@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -195,7 +195,9 @@ AcpiDmDumpBuffer (
     char                    *Header)
 {
     UINT8                   *Buffer;
+    UINT8                   BufChar;
     UINT32                  i;
+    UINT32                  j;
 
 
     if (!Length)
@@ -208,20 +210,72 @@ AcpiDmDumpBuffer (
 
     while (i < Length)
     {
-        if (!(i % 16))
+        if ((Length > 16) && (i != 0))
         {
-            /* Insert a backslash - line continuation character */
+        if ((Length - i) < 16)
+            AcpiOsPrintf ("\n/* %3.3Xh %4.4u %3u */                            ", AbsoluteOffset, AbsoluteOffset, Length - i);
+        else
+            AcpiOsPrintf ("\n/* %3.3Xh %4.4u  16 */                            ", AbsoluteOffset, AbsoluteOffset);
+        }
+        AbsoluteOffset += 16;
 
-            if (Length > 16)
+        /* Emit the raw data bytes*/
+
+        for (j = 0; j < 16; j++)
+        {
+            if (i + j >= Length)
             {
-                AcpiOsPrintf ("\\\n    ");
+                /* Dump fill spaces */
+
+                AcpiOsPrintf ("%*s", (48 - (3 * (Length -i))), " ");
+                break;
+            }
+            AcpiOsPrintf ("%.02X ", Buffer[(ACPI_SIZE) i + j]);
+        }
+
+        /* Emit the ASCII equivalent to the raw data bytes */
+
+        for (j = 0; j < 16; j++)
+        {
+            if (i + j >= Length)
+            {
+                AcpiOsPrintf (" */\\\n");
+                return;
+            }
+
+            /*
+             * Add comment characters so rest of line is ignored when
+             * compiled
+             */
+            if (j == 0)
+            {
+                AcpiOsPrintf ("/* ");
+            }
+
+            BufChar = Buffer[(ACPI_SIZE) i + j];
+            if (isprint (BufChar))
+            {
+                AcpiOsPrintf ("%c", BufChar);
+            }
+            else
+            {
+                AcpiOsPrintf (".");
             }
         }
 
-        AcpiOsPrintf ("%.02X ", *Buffer);
-        i++;
-        Buffer++;
-        AbsoluteOffset++;
+        /* Done with that line. */
+        /* Close the comment and insert a backslash - line continuation character */
+
+        if (Length > 16)
+        {
+            AcpiOsPrintf (" */\\");
+        }
+        else
+        {
+            AcpiOsPrintf (" */\\");
+        }
+
+        i += 16; /* Point to next line */
     }
 
     AcpiOsPrintf ("\n");

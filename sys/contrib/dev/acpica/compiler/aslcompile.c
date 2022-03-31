@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -915,10 +915,11 @@ CmCleanupAndExit (
 
     if (AslGbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded\n",
+        printf ("\nMaximum error count (%d) exceeded (aslcompile.c)\n",
             ASL_MAX_ERROR_COUNT);
     }
 
+    AslGbl_ExceptionCount[ASL_ERROR] = 0;
     UtDisplaySummary (ASL_FILE_STDOUT);
 
     /*

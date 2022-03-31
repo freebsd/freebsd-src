@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2022, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -389,6 +389,102 @@ DtCompileAest (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileApmt
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile APMT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileApmt (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+    ACPI_TABLE_HEADER       *Header;
+    ACPI_APMT_NODE          *ApmtNode;
+    ACPI_APMT_NODE          *PeerApmtNode;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *PeerSubtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD**)List;
+    DT_FIELD                *SubtableStart;
+    UINT32                  CurLength;
+    char                    MsgBuffer[64] = "";
+
+    ParentTable = DtPeekSubtable();
+
+    Header = ACPI_CAST_PTR(ACPI_TABLE_HEADER, ParentTable->Buffer);
+
+    CurLength = sizeof(ACPI_TABLE_HEADER);
+
+    /* Walk the parse tree */
+
+    while (*PFieldList)
+    {
+        /* APMT Node Subtable */
+
+        SubtableStart = *PFieldList;
+
+        Status = DtCompileTable(PFieldList, AcpiDmTableInfoApmtNode, &Subtable);
+
+        if (ACPI_FAILURE(Status))
+        {
+            return (Status);
+        }
+
+        ApmtNode = ACPI_CAST_PTR(ACPI_APMT_NODE, Subtable->Buffer);
+
+        if (ApmtNode->Length != sizeof(ACPI_APMT_NODE))
+        {
+            DtFatal(ASL_MSG_INVALID_LENGTH, SubtableStart, "APMT");
+            return (AE_ERROR);
+        }
+
+        if (ApmtNode->Type >= ACPI_APMT_NODE_TYPE_COUNT)
+        {
+            snprintf(MsgBuffer, 64, "Node Type : 0x%X", ApmtNode->Type);
+            DtFatal(ASL_MSG_INVALID_TYPE, SubtableStart, MsgBuffer);
+            return (AE_ERROR);
+        }
+
+        PeerSubtable = DtGetNextSubtable(ParentTable, NULL);
+
+        /* Validate the node id needs to be unique. */
+        while(PeerSubtable)
+        {
+            PeerApmtNode = ACPI_CAST_PTR(ACPI_APMT_NODE, PeerSubtable->Buffer);
+            if (PeerApmtNode->Id == ApmtNode->Id)
+            {
+                snprintf(MsgBuffer, 64, "Node Id : 0x%X existed", ApmtNode->Id);
+                DtFatal(ASL_MSG_DUPLICATE_ITEM, SubtableStart, MsgBuffer);
+                return (AE_ERROR);
+            }
+
+            PeerSubtable = DtGetNextSubtable(ParentTable, PeerSubtable);
+        }
+
+        CurLength += ApmtNode->Length;
+
+        DtInsertSubtable(ParentTable, Subtable);
+    }
+
+    if (Header->Length != CurLength)
+    {
+        snprintf(MsgBuffer, 64, " - APMT Length : %u (expected: %u)",
+            Header->Length, CurLength);
+        DtFatal(ASL_MSG_INVALID_LENGTH, NULL, MsgBuffer);
+        return (AE_ERROR);
+    }
+
+    return (AE_OK);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileAsf
  *
  * PARAMETERS:  List                - Current field list pointer
@@ -587,6 +683,9 @@ DtCompileCedt (
 
     while (*PFieldList)
     {
+        /* if CFMWS and has more than one target, then set to zero later */
+
+        int InsertFlag = 1;
         SubtableStart = *PFieldList;
 
         /* CEDT Header */
@@ -607,25 +706,72 @@ DtCompileCedt (
         switch (CedtHeader->Type)
         {
         case ACPI_CEDT_TYPE_CHBS:
-
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt0, &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
             break;
+        case ACPI_CEDT_TYPE_CFMWS: {
+            unsigned char *dump;
+            unsigned int idx, offset, max = 0;
+
+            /* Compile table with first "Interleave target" */
+
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt1, &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            /* Look in buffer for the number of targets */
+            offset = (unsigned int) ACPI_OFFSET (ACPI_CEDT_CFMWS, InterleaveWays);
+            dump = (unsigned char *) Subtable->Buffer - 4;     /* place at beginning of cedt1 */
+            max = 0x01 << dump[offset];     /* 2^max, so 0=1, 1=2, 2=4, 3=8.  8 is MAX */
+            if (max > 8)    max=1;          /* Error in encoding Interleaving Ways. */
+            if (max == 1)                   /* if only one target, then break here. */
+                break;                      /* break if only one target. */
+
+            /* We need to add more interleave targets, so write the current Subtable. */
+
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);   /* Insert AcpiDmTableInfoCedt1 table so we can put in */
+            DtPushSubtable (Subtable);                  /* the targets > the first. */
+
+            /* Now, find out all interleave targets beyond the first. */
+
+            for (idx = 1; idx < max; idx++) {
+                ParentTable = DtPeekSubtable ();
+
+                if (*PFieldList)
+                {
+                    Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt1_te, &Subtable);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return (Status);
+                    }
+                    if (Subtable)
+                    {
+                        DtInsertSubtable (ParentTable, Subtable);       /* got a target, so insert table. */
+                        InsertFlag = 0;
+                    }
+                }
+            }
+
+            DtPopSubtable ();
+            ParentTable = DtPeekSubtable ();
+            break;
+        }
 
         default:
-
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "CEDT");
             return (AE_ERROR);
         }
 
-        /* CEDT Subtable */
-
-        Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt0, &Subtable);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-
         ParentTable = DtPeekSubtable ();
-        DtInsertSubtable (ParentTable, Subtable);
+        if (InsertFlag == 1) {
+                DtInsertSubtable (ParentTable, Subtable);
+        }
         DtPopSubtable ();
     }
 
@@ -1003,6 +1149,11 @@ DtCompileDmar (
         case ACPI_DMAR_TYPE_NAMESPACE:
 
             InfoTable = AcpiDmTableInfoDmar4;
+            break;
+
+        case ACPI_DMAR_TYPE_SATC:
+
+            InfoTable = AcpiDmTableInfoDmar5;
             break;
 
         default:
@@ -1903,9 +2054,9 @@ DtCompileIort (
     Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
     Revision = Table->Revision;
 
-    /* Both IORT Rev E and E.a have known issues and are not supported */
+    /* IORT Revisions E, E.a & E.c have known issues and are not supported */
 
-    if (Revision == 1 || Revision == 2)
+    if (Revision == 1 || Revision == 2 || Revision == 4)
     {
         DtError (ASL_ERROR, ASL_MSG_UNSUPPORTED, NULL, "IORT table revision");
         return (AE_ERROR);
@@ -2218,7 +2369,7 @@ DtCompileIort (
             IortRmr->RmrCount = RmrCount;
             break;
 
-	default:
+        default:
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "IORT");
             return (AE_ERROR);
