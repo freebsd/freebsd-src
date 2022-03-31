@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/bus.h>
+#include <sys/uio.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -104,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #endif /* __i386__ || __amd64__ */
 
 #include <compat/linux/linux.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
@@ -1933,6 +1935,32 @@ linprocfs_doauxv(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/self/oom_score_adj
+ */
+static int
+linprocfs_do_oom_score_adj(PFS_FILL_ARGS)
+{
+	struct linux_pemuldata *pem;
+	long oom;
+
+	pem = pem_find(p);
+	if (pem == NULL || uio == NULL)
+		return (EOPNOTSUPP);
+	if (uio->uio_rw == UIO_READ) {
+		sbuf_printf(sb, "%d\n", pem->oom_score_adj);
+	} else {
+		sbuf_trim(sb);
+		sbuf_finish(sb);
+		oom = strtol(sbuf_data(sb), NULL, 10);
+		if (oom < LINUX_OOM_SCORE_ADJ_MIN ||
+		    oom > LINUX_OOM_SCORE_ADJ_MAX)
+			return (EINVAL);
+		pem->oom_score_adj = oom;
+	}
+	return (0);
+}
+
+/*
  * Constructor
  */
 static int
@@ -2018,6 +2046,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
 	pfs_create_file(dir, "limits", &linprocfs_doproclimits,
 	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "oom_score_adj", &linprocfs_do_oom_score_adj,
+	    procfs_attr_rw, &procfs_candebug, NULL, PFS_RDWR);
 
 	/* /proc/<pid>/task/... */
 	dir = pfs_create_dir(dir, "task", linprocfs_dotaskattr, NULL, NULL, 0);
