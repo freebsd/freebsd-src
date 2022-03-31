@@ -699,7 +699,9 @@ stge_detach(device_t dev)
 		bus_teardown_intr(dev, sc->sc_res[1], sc->sc_ih);
 		sc->sc_ih = NULL;
 	}
-	bus_release_resources(dev, sc->sc_spec, sc->sc_res);
+
+	if (sc->sc_spec)
+		bus_release_resources(dev, sc->sc_spec, sc->sc_res);
 
 	mtx_destroy(&sc->sc_mii_mtx);
 	mtx_destroy(&sc->sc_mtx);
