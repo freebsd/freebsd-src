@@ -18,7 +18,7 @@ ZLIBSRC=	${SRCTOP}/sys/contrib/zlib
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 
-CFLAGS+=	-DHAS_snprintf -DHAS_vsnprintf -I${.CURDIR}
+CFLAGS+=	-D_LARGEFILE64_SOURCE=1 -DHAVE_HIDDEN -I${.CURDIR}
 
 WARNS?=		3
 
