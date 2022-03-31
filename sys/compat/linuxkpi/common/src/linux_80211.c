@@ -4007,11 +4007,11 @@ linuxkpi_ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 
 void
 linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *txq,
-    uint64_t *frame_cnt, uint64_t *byte_cnt)
+    unsigned long *frame_cnt, unsigned long *byte_cnt)
 {
 	struct lkpi_txq *ltxq;
 	struct sk_buff *skb;
-	uint64_t fc, bc;
+	unsigned long fc, bc;
 
 	ltxq = TXQ_TO_LTXQ(txq);
 
