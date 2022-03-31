@@ -3091,12 +3091,8 @@ Add the IPv4 address
 with the CIDR network prefix
 .Li /28 ,
 to the interface
-.Li em0 ,
-using
-.Cm add
-as a synonym for the canonical form of the option
-.Cm alias :
-.Dl # ifconfig em0 inet 192.0.2.45/28 add
+.Li em0 :
+.Dl # ifconfig em0 inet 192.0.2.45/28 alias
 .Pp
 Remove the IPv4 address
 .Li 192.0.2.45
@@ -3117,17 +3113,15 @@ Note that lower case hexadecimal IPv6 addresses are acceptable.
 Remove the IPv6 address added in the above example,
 using the
 .Li /
-character as shorthand for the network prefix,
-and using
-.Cm delete
-as a synonym for the canonical form of the option
-.Fl alias :
-.Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
+character as shorthand for the network prefix:
+.Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 -alias
 .Pp
 Configure a single CARP redundant address on igb0, and then switch it
 to be master:
-.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
-.Dl # ifconfig igb0 vhid 1 state master
+.Bd -literal -offset indent -compact
+# ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
+# ifconfig igb0 vhid 1 state master
+.Ed
 .Pp
 Configure the interface
 .Li xl0 ,
