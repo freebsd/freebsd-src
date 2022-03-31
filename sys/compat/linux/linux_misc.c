@@ -1122,6 +1122,9 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 			return (EINVAL);
 		idtype = P_PGID;
 		break;
+	case LINUX_P_PIDFD:
+		LINUX_RATELIMIT_MSG("unsupported waitid P_PIDFD idtype");
+		return (ENOSYS);
 	default:
 		return (EINVAL);
 	}

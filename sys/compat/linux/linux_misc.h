@@ -136,6 +136,7 @@ extern int stclohz;
 #define	LINUX_P_ALL		0
 #define	LINUX_P_PID		1
 #define	LINUX_P_PGID		2
+#define	LINUX_P_PIDFD		3
 
 #define	LINUX_RLIMIT_LOCKS	10
 #define	LINUX_RLIMIT_SIGPENDING	11
