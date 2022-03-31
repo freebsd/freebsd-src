@@ -1095,8 +1095,6 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 
 	if (options & ~(WNOHANG | WNOWAIT | WEXITED | WUNTRACED | WCONTINUED))
 		return (EINVAL);
-	if (!(options & (WEXITED | WUNTRACED | WCONTINUED)))
-		return (EINVAL);
 
 	switch (args->idtype) {
 	case LINUX_P_ALL:
