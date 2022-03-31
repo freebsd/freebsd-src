@@ -1054,6 +1054,10 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	    LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
 		return (EINVAL);
 
+	/* -INT_MIN is not defined. */
+	if (args->pid == INT_MIN)
+		return (ESRCH);
+
 	options = 0;
 	linux_to_bsd_waitopts(args->options, &options);
 
