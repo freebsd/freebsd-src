@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2019
+.Dd April 1, 2022
 .Dt PW 8
 .Os
 .Sh NAME
@@ -34,8 +34,8 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar useradd
-.Oo Fl n Oc name Oo Fl u Ar uid Oc
+.Cm useradd
+.Oo Fl n Oc Ar name Oo Fl u Ar uid Oc
 .Op Fl C Ar config
 .Op Fl q
 .Op Fl c Ar comment
@@ -58,7 +58,7 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar useradd
+.Cm useradd
 .Fl D
 .Op Fl C Ar config
 .Op Fl q
@@ -77,15 +77,15 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar userdel
-.Oo Fl n Oc name|uid | Fl u Ar uid
+.Cm userdel
+.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
 .Op Fl r
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar usermod
-.Oo Fl n Oc name|uid Oo Fl u Ar newuid Oc | Fl u Ar uid
+.Cm usermod
+.Oo Fl n Oc Ar name Ns | Ns Ar uid Oo Fl u Ar newuid Oc | Fl u Ar uid
 .Op Fl C Ar config
 .Op Fl q
 .Op Fl c Ar comment
@@ -108,8 +108,8 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar usershow
-.Oo Fl n Oc name|uid | Fl u Ar uid
+.Cm usershow
+.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
 .Op Fl F
 .Op Fl P
 .Op Fl 7
@@ -117,14 +117,14 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar usernext
+.Cm usernext
 .Op Fl C Ar config
 .Op Fl q
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupadd
-.Oo Fl n Oc name Oo Fl g Ar gid Oc
+.Cm groupadd
+.Oo Fl n Oc Ar name Oo Fl g Ar gid Oc
 .Op Fl C Ar config
 .Op Fl q
 .Op Fl M Ar members
@@ -136,14 +136,14 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupdel
-.Oo Fl n Oc name|gid | Fl g Ar gid
+.Cm groupdel
+.Oo Fl n Oc Ar name Ns | Ns Ar gid | Fl g Ar gid
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupmod
-.Oo Fl n Oc name|gid Oo Fl g Ar newgid Oc | Fl g Ar gid
+.Cm groupmod
+.Oo Fl n Oc Ar name Ns | Ns Ar gid Oo Fl g Ar newgid Oc | Fl g Ar gid
 .Op Fl C Ar config
 .Op Fl q
 .Op Fl l Ar newname
@@ -157,29 +157,29 @@
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupshow
-.Oo Fl n Oc name|gid | Fl g Ar gid
+.Cm groupshow
+.Oo Fl n Oc Ar name Ns | Ns Ar gid | Fl g Ar gid
 .Op Fl F
 .Op Fl P
 .Op Fl a
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar groupnext
+.Cm groupnext
 .Op Fl C Ar config
 .Op Fl q
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar lock
-.Oo Fl n Oc name|uid | Fl u Ar uid
+.Cm lock
+.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
 .Op Fl C Ar config
 .Op Fl q
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
-.Ar unlock
-.Oo Fl n Oc name|uid | Fl u Ar uid
+.Cm unlock
+.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
 .Op Fl C Ar config
 .Op Fl q
 .Sh DESCRIPTION
