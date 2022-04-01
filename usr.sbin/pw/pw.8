@@ -35,133 +35,117 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm useradd
-.Oo Fl n Oc Ar name Oo Fl u Ar uid Oc
+.Oo Fl n Oc Ar name
+.Op Fl mNoPqY
 .Op Fl C Ar config
-.Op Fl q
 .Op Fl c Ar comment
 .Op Fl d Ar dir
 .Op Fl e Ar date
-.Op Fl p Ar date
-.Op Fl g Ar group
 .Op Fl G Ar grouplist
-.Op Fl m
-.Op Fl M Ar mode
+.Op Fl g Ar group
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl k Ar dir
-.Op Fl w Ar method
-.Op Fl s Ar shell
-.Op Fl o
 .Op Fl L Ar class
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
+.Op Fl M Ar mode
+.Op Fl p Ar date
+.Op Fl s Ar shell
+.Op Fl u Ar uid
+.Op Fl w Ar method
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm useradd
 .Fl D
-.Op Fl C Ar config
 .Op Fl q
 .Op Fl b Ar dir
+.Op Fl C Ar config
 .Op Fl e Ar days
-.Op Fl p Ar days
-.Op Fl g Ar group
 .Op Fl G Ar grouplist
+.Op Fl g Ar group
+.Op Fl i Ar min , Ns Ar max
 .Op Fl k Ar dir
+.Op Fl p Ar days
+.Op Fl s Ar shell
 .Op Fl M Ar mode
 .Op Fl u Ar min , Ns Ar max
-.Op Fl i Ar min , Ns Ar max
 .Op Fl w Ar method
-.Op Fl s Ar shell
 .Op Fl y Ar path
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm userdel
-.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
-.Op Fl r
-.Op Fl Y
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Op Fl rY
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm usermod
 .Oo Fl n Oc Ar name Ns | Ns Ar uid Oo Fl u Ar newuid Oc | Fl u Ar uid
+.Op Fl mNPqY
 .Op Fl C Ar config
-.Op Fl q
 .Op Fl c Ar comment
 .Op Fl d Ar dir
 .Op Fl e Ar date
-.Op Fl p Ar date
-.Op Fl g Ar group
-.Op Fl G Ar grouplist
-.Op Fl l Ar newname
-.Op Fl m
-.Op Fl M Ar mode
 .Op Fl k Ar dir
-.Op Fl w Ar method
-.Op Fl s Ar shell
+.Op Fl G Ar grouplist
+.Op Fl g Ar group
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl L Ar class
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
+.Op Fl l Ar newname
+.Op Fl M Ar mode
+.Op Fl p Ar date
+.Op Fl s Ar shell
+.Op Fl w Ar method
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm usershow
-.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
-.Op Fl F
-.Op Fl P
-.Op Fl 7
-.Op Fl a
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
+.Op Fl 7aFP
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm usernext
-.Op Fl C Ar config
 .Op Fl q
+.Op Fl C Ar config
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupadd
-.Oo Fl n Oc Ar name Oo Fl g Ar gid Oc
+.Oo Fl n Oc Ar name
+.Op Fl oNPqY
 .Op Fl C Ar config
-.Op Fl q
+.Op Fl g Ar gid
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl M Ar members
-.Op Fl o
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupdel
-.Oo Fl n Oc Ar name Ns | Ns Ar gid | Fl g Ar gid
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl g Oc Ar gid
 .Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupmod
 .Oo Fl n Oc Ar name Ns | Ns Ar gid Oo Fl g Ar newgid Oc | Fl g Ar gid
+.Op Fl NPqY
 .Op Fl C Ar config
-.Op Fl q
+.Op Fl d Ar oldmembers
+.Op Fl H Ar fd
+.Op Fl h Ar fd
 .Op Fl l Ar newname
 .Op Fl M Ar members
 .Op Fl m Ar newmembers
-.Op Fl d Ar oldmembers
-.Op Fl h Ar fd | Fl H Ar fd
-.Op Fl N
-.Op Fl P
-.Op Fl Y
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm groupshow
-.Oo Fl n Oc Ar name Ns | Ns Ar gid | Fl g Ar gid
-.Op Fl F
-.Op Fl P
-.Op Fl a
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl g Oc Ar gid
+.Op Fl aFP
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
@@ -172,16 +156,16 @@
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm lock
-.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
-.Op Fl C Ar config
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
 .Op Fl q
+.Op Fl C Ar config
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm unlock
-.Oo Fl n Oc Ar name Ns | Ns Ar uid | Fl u Ar uid
-.Op Fl C Ar config
+.Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
 .Op Fl q
+.Op Fl C Ar config
 .Sh DESCRIPTION
 The
 .Nm
