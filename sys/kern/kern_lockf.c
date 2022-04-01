@@ -571,13 +571,6 @@ retry_setlock:
 		vref(vp);
 	}
 
-	/*
-	 * XXX The problem is that VTOI is ufs specific, so it will
-	 * break LOCKF_DEBUG for all other FS's other than UFS because
-	 * it casts the vnode->data ptr to struct inode *.
-	 */
-/*	lock->lf_inode = VTOI(ap->a_vp); */
-	lock->lf_inode = (struct inode *)0;
 	lock->lf_type = fl->l_type;
 	LIST_INIT(&lock->lf_outedges);
 	LIST_INIT(&lock->lf_inedges);
@@ -2498,10 +2491,8 @@ lf_print(char *tag, struct lockf_entry *lock)
 
 	printf("%s: lock %p for ", tag, (void *)lock);
 	lf_print_owner(lock->lf_owner);
-	if (lock->lf_inode != (struct inode *)0)
-		printf(" in ino %ju on dev <%s>,",
-		    (uintmax_t)lock->lf_inode->i_number,
-		    devtoname(ITODEV(lock->lf_inode)));
+	printf("\nvnode %p", lock->lf_vnode);
+	VOP_PRINT(lock->lf_vnode);
 	printf(" %s, start %jd, end ",
 	    lock->lf_type == F_RDLCK ? "shared" :
 	    lock->lf_type == F_WRLCK ? "exclusive" :
@@ -2524,12 +2515,7 @@ lf_printlist(char *tag, struct lockf_entry *lock)
 	struct lockf_entry *lf, *blk;
 	struct lockf_edge *e;
 
-	if (lock->lf_inode == (struct inode *)0)
-		return;
-
-	printf("%s: Lock list for ino %ju on dev <%s>:\n",
-	    tag, (uintmax_t)lock->lf_inode->i_number,
-	    devtoname(ITODEV(lock->lf_inode)));
+	printf("%s: Lock list for vnode %p:\n", tag, lock->lf_vnode);
 	LIST_FOREACH(lf, &lock->lf_vnode->v_lockf->ls_active, lf_link) {
 		printf("\tlock %p for ",(void *)lf);
 		lf_print_owner(lock->lf_owner);
