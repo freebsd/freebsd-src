@@ -429,7 +429,7 @@ FreeBSD 5.2           |      |                 |                       |
  |   13.0     |       |      |  NetBSD 9.2    OpenBSD 6.9      DragonFly 6.0.0
  |            |       |      |                    |                    |
  |            |       |      |                    |                    |
- |         FreeBSD    |      |                OpenBSD 7.0              |
+ |         FreeBSD    |      |                OpenBSD 7.0      DragonFly 6.2.1
  |           12.3     |      |                    |                    |
  |                    |      |                    |                    |
  |                    |      |                    |                    |
@@ -844,6 +844,7 @@ DragonFly 6.0		2021-05-08 [DFB]
 NetBSD 9.2		2021-05-12 [NBD]
 OpenBSD 7.0		2021-10-14 [OBD]
 FreeBSD 12.3		2021-12-01 [FBD]
+DragonFly 6.2.1		2022-01-09 [DFB]
 
 Bibliography
 ------------------------
