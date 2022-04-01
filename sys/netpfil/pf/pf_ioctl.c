@@ -2240,10 +2240,11 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	pf_hash_rule(rule);
 	if (RB_INSERT(pf_krule_global, ruleset->rules[rs_num].inactive.tree, rule) != NULL) {
 		PF_RULES_WLOCK();
+		TAILQ_REMOVE(ruleset->rules[rs_num].inactive.ptr, rule, entries);
+		ruleset->rules[rs_num].inactive.rcount--;
 		pf_free_rule(rule);
 		rule = NULL;
-		error = EINVAL;
-		ERROUT(error);
+		ERROUT(EEXIST);
 	}
 	PF_CONFIG_UNLOCK();
 
