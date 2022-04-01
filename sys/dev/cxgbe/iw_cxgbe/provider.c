@@ -201,8 +201,8 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 			addr < rdev->bar2_pa + rdev->bar2_len)
 		vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
 
-	ret = io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
-			len, vma->vm_page_prot);
+	ret = rdma_user_mmap_io(context, vma, addr >> PAGE_SHIFT, len,
+	    vma->vm_page_prot, NULL);
 	CTR4(KTR_IW_CXGBE, "%s:4 ctx %p vma %p ret %u", __func__, context, vma,
 	    ret);
 	return ret;
