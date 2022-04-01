@@ -46,7 +46,7 @@ thread(void *arg)
 }
 
 int
-main(int argc __unused, char *argv[] __unused)
+main(void)
 {
 	pthread_t thr;
 	pthread_mutex_t mtx;

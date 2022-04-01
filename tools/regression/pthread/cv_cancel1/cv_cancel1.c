@@ -51,7 +51,8 @@ thr_routine(void *arg __unused)
 	return (NULL);
 }
 
-int main(int argc __unused, char **argv __unused)
+int
+main(void)
 {
 	pthread_t td;
 	int i;
