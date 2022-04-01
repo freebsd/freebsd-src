@@ -12993,21 +12993,21 @@ sctp_lower_sosend(struct socket *so,
 			SCTP_TCB_UNLOCK(stcb);
 			hold_tcblock = false;
 			error = sbwait(&so->so_snd);
-			if (error || so->so_error || be.error) {
-				if (error == 0) {
-					if (so->so_error != 0) {
-						error = so->so_error;
-					}
-					if (be.error != 0) {
-						error = be.error;
-					}
+			if (error == 0) {
+				if (so->so_error != 0) {
+					error = so->so_error;
 				}
-				SOCKBUF_UNLOCK(&so->so_snd);
-				goto out_unlocked;
+				if (be.error != 0) {
+					error = be.error;
+				}
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = true;
+			stcb->block_entry = NULL;
+			if (error != 0) {
+				goto out_unlocked;
+			}
 			if ((asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
 			    (asoc->state & SCTP_STATE_WAS_ABORTED)) {
 				if (asoc->state & SCTP_STATE_WAS_ABORTED) {
@@ -13021,7 +13021,6 @@ sctp_lower_sosend(struct socket *so,
 				}
 				goto out_unlocked;
 			}
-			stcb->block_entry = NULL;
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_OUTOF_BLK,
 				    asoc, asoc->total_output_queue_size);
@@ -13354,14 +13353,14 @@ skip_preblock:
 				SCTP_TCB_UNLOCK(stcb);
 				hold_tcblock = false;
 				error = sbwait(&so->so_snd);
-				if (error || so->so_error || be.error) {
-					if (error == 0) {
-						if (so->so_error)
-							error = so->so_error;
-						if (be.error) {
-							error = be.error;
-						}
+				if (error == 0) {
+					if (so->so_error != 0)
+						error = so->so_error;
+					if (be.error != 0) {
+						error = be.error;
 					}
+				}
+				if (error != 0) {
 					SOCKBUF_UNLOCK(&so->so_snd);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = true;
@@ -13373,12 +13372,12 @@ skip_preblock:
 					}
 					goto out_unlocked;
 				}
-
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
 			if (!hold_tcblock) {
 				SCTP_TCB_LOCK(stcb);
 				hold_tcblock = true;
+				stcb->block_entry = NULL;
 				if ((asoc->state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
 				    (asoc->state & SCTP_STATE_WAS_ABORTED)) {
 					if (asoc->state & SCTP_STATE_WAS_ABORTED) {
@@ -13394,7 +13393,6 @@ skip_preblock:
 					goto out;
 				}
 			}
-			stcb->block_entry = NULL;
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_OUTOF_BLK,
 				    asoc, asoc->total_output_queue_size);
