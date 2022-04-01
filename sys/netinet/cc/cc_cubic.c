@@ -658,6 +658,7 @@ cubic_rttsample(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32_t
 	}
 	if ((cubicd->css_rttsample_count >= hystart_n_rttsamples) &&
 	    (cubicd->css_current_round_minrtt != 0xffffffff) &&
+	    (cubicd->css_current_round_minrtt < nreno->css_baseline_minrtt) &&
 	    (cubicd->css_lastround_minrtt != 0xffffffff)) {
 		/*
 		 * We were in CSS and the RTT is now less, we

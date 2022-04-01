@@ -571,6 +571,7 @@ newreno_rttsample(struct cc_var *ccv, uint32_t usec_rtt, uint32_t rxtcnt, uint32
 	}
 	if ((nreno->css_rttsample_count >= hystart_n_rttsamples) &&
 	    (nreno->css_current_round_minrtt != 0xffffffff) &&
+	    (nreno->css_current_round_minrtt < nreno->css_baseline_minrtt) &&
 	    (nreno->css_lastround_minrtt != 0xffffffff)) {
 		/*
 		 * We were in CSS and the RTT is now less, we
