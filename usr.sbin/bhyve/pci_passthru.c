@@ -662,7 +662,12 @@ passthru_legacy_config(nvlist_t *nvl, const char *opts)
 	snprintf(value, sizeof(value), "%d", func);
 	set_config_value_node(nvl, "func", value);
 
-	return (pci_parse_legacy_config(nvl, strchr(opts, ',')));
+	opts = strchr(opts, ',');
+	if (opts == NULL) {
+		return (0);
+	}
+
+	return pci_parse_legacy_config(nvl, opts + 1);
 }
 
 static int
