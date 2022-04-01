@@ -85,11 +85,6 @@ __FBSDID("$FreeBSD$");
 #ifdef LOCKF_DEBUG
 #include <sys/sysctl.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/inode.h>
-
 static int	lockf_debug = 0; /* control debug output */
 SYSCTL_INT(_debug, OID_AUTO, lockf_debug, CTLFLAG_RW, &lockf_debug, 0, "");
 #endif
