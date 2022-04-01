@@ -513,7 +513,7 @@ again:
 	} else {
 		struct nhop_object *nh;
 
-		nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_NONE,
+		nh = fib4_lookup(M_GETFIB(m), dst->sin_addr, 0, NHR_NONE,
 		    m->m_pkthdr.flowid);
 		if (nh == NULL) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
