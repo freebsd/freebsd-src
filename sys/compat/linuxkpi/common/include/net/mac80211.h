@@ -509,8 +509,8 @@ struct ieee80211_rx_status {
 	uint8_t				ampdu_reference;
 	uint8_t				band;
 	uint8_t				chains;
-	uint8_t				chain_signal[4];
-	uint8_t				signal;
+	int8_t				chain_signal[IEEE80211_MAX_CHAINS];
+	int8_t				signal;
 	uint8_t				enc_flags;
 	uint8_t				he_dcm;
 	uint8_t				he_gi;
