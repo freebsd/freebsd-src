@@ -825,6 +825,8 @@ pci_emul_assign_bar(struct pci_devinst *const pdi, const int idx,
 		error = pci_emul_alloc_resource(baseptr, limit, size, &addr);
 		if (error != 0)
 			return (error);
+	} else {
+		addr = 0;
 	}
 
 	pdi->pi_bar[idx].type = type;
