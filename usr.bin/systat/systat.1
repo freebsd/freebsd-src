@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2021
+.Dd April 1, 2022
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -259,7 +259,7 @@ If a value cannot be estimated ``-'' is displayed.
 The P50 (also known as the median), P90, P99 and P99.9 values are computed if
 more than 2, 10, 100 or 1000 operations occurred during the polling interval.
 The latency is the hardware latency values, and does not include any software
-queueing time.
+queuing time.
 The latencies are estimated based on histogram data computed by the CAM I/O
 scheduler and represent estimates of the actual value that are only good to
 two or three significant digits.
@@ -268,10 +268,13 @@ the precision of the estimates and to fit on the available screen space.
 All latencies are reported in milliseconds.
 When color is enabled
 .Bl -bullet
-.It Values below the medium latency threshold are displayed in green.
-.It Values between the minimum latency and high latency thresholds are displayed
+.It
+Values below the medium latency threshold are displayed in green.
+.It
+Values between the minimum latency and high latency thresholds are displayed
 in magenta.
-.It Values above the high latency thresholds are displayed in red.
+.It
+Values above the high latency thresholds are displayed in red.
 .Pp
 When color is disabled, the default foreground and background colors are always
 used.
@@ -297,6 +300,7 @@ The default is on.
 .It Cm trim
 Toggle the display of statistics about trim operations.
 The default is on.
+.El
 .El
 .It Ic iostat
 Display, in the lower window, statistics about processor use
@@ -738,7 +742,7 @@ display looks out of place because it is (it was added in as
 a separate display rather than created as a new program).
 The
 .Ic iolat
-command doesn't implement the common device commands including
-filtering, as it doesn't use the
+command does not implement the common device commands including
+filtering, as it does not use the
 .Xr devstat 3
 mechanism to obtain its statistics.
