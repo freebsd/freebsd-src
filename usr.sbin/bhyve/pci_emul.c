@@ -166,6 +166,18 @@ CFGREAD(struct pci_devinst *pi, int coff, int bytes)
 		return (pci_get_cfgdata32(pi, coff));
 }
 
+static int
+is_pcir_bar(int coff)
+{
+	return (coff >= PCIR_BAR(0) && coff < PCIR_BAR(PCI_BARMAX + 1));
+}
+
+static int
+is_pcir_bios(int coff)
+{
+	return (coff >= PCIR_BIOS && coff < PCIR_BIOS + 4);
+}
+
 /*
  * I/O access
  */
@@ -2107,19 +2119,23 @@ pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,
 		/*
 		 * Special handling for write to BAR and ROM registers
 		 */
-		if ((coff >= PCIR_BAR(0) && coff < PCIR_BAR(PCI_BARMAX + 1)) ||
-		    (coff >= PCIR_BIOS && coff < PCIR_BIOS + 4)) {
+		if (is_pcir_bar(coff) || is_pcir_bios(coff)) {
 			/*
 			 * Ignore writes to BAR registers that are not
 			 * 4-byte aligned.
 			 */
 			if (bytes != 4 || (coff & 0x3) != 0)
 				return;
-			if (coff != PCIR_BIOS) {
+
+			if (is_pcir_bar(coff)) {
 				idx = (coff - PCIR_BAR(0)) / 4;
-			} else {
+			} else if (is_pcir_bios(coff)) {
 				idx = PCI_ROM_IDX;
+			} else {
+				errx(4, "%s: invalid BAR offset %d", __func__,
+				    coff);
 			}
+
 			mask = ~(pi->pi_bar[idx].size - 1);
 			switch (pi->pi_bar[idx].type) {
 			case PCIBAR_NONE:
