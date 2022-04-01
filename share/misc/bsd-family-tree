@@ -462,7 +462,7 @@ was the announcement in Usenet or if it was available as tape.
 [OBD] OpenBSD Project, The.
 [QCU] Salus, Peter H. A quarter century of UNIX.
 [SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
-[TUHS] The Unix Historical Society.  http://minnie.tuhs.org/Unix_History/.
+[TUHS] The Unix Historical Society.  https://minnie.tuhs.org/Unix_History/.
 [USE] Usenet announcement.
 [WRS] Wind River Systems, Inc.
 [dmr] Dennis Ritchie, via E-Mail
@@ -877,7 +877,7 @@ Presented to the Tasmanian Unix Special Interest Group of the
 Australian Computer Society, Hobart, August 1993.
 
 Peter H. Salus. Unix at 25. Byte Magazine, October 1994.
-URL: http://www.byte.com/art/9410/sec8/art3.htm
+URL: https://web.archive.org/web/20081230094857/http://www.byte.com/art/9410/sec8/art3.htm
 
 Andreas Klemm, Lars Köller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
@@ -889,13 +889,13 @@ BSD Hypertext Man Pages
 URL: https://www.FreeBSD.org/cgi/man.cgi
 
 UNIX history graphing project
-URL: http://minnie.tuhs.org/Unix_History/index.html
+URL: https://minnie.tuhs.org/Unix_History/index.html
 
 UNIX history
-URL: http://www.levenez.com/unix/
+URL: https://www.levenez.com/unix/
 
 James Howard: The BSD Family Tree
-URL: http://ezine.daemonnews.org/200104/bsd_family.html
+URL: https://web.archive.org/web/20090427195917/http://ezine.daemonnews.org/200104/bsd_family.html
 ("what are the differences between FreeBSD, NetBSD, and OpenBSD?")
 
 
@@ -909,6 +909,6 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
 Copyright (c) 1997-2012 Wolfram Schneider <wosch@FreeBSD.ORG>
-URL: https://svnweb.freebsd.org/base/head/share/misc/bsd-family-tree
+URL: https://cgit.freebsd.org/src/tree/share/misc/bsd-family-tree
 
 $FreeBSD$
