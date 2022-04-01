@@ -420,8 +420,8 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |    |               |            DragonFly 5.8.2
  |     |              |      |    |               |            DragonFly 5.8.3
  |     |              |      |  NetBSD 9.1    OpenBSD 6.8              |
- |  FreeBSD           |      |    |               |                    |
- |   12.2             |      |    |               |                    |
+ |  FreeBSD         macOS    |    |               |                    |
+ |   12.2            11      |    |               |                    |
  |     |              |      |    |               |                    |
  |     `------.       |      |    |               |                    |
  |            |       |      |    |               |                    |
@@ -429,8 +429,8 @@ FreeBSD 5.2           |      |                 |                       |
  |   13.0     |       |      |  NetBSD 9.2    OpenBSD 6.9      DragonFly 6.0.0
  |            |       |      |                    |                    |
  |            |       |      |                    |                    |
- |         FreeBSD    |      |                OpenBSD 7.0      DragonFly 6.2.1
- |           12.3     |      |                    |                    |
+ |         FreeBSD  macOS    |                OpenBSD 7.0      DragonFly 6.2.1
+ |           12.3    12      |                    |                    |
  |                    |      |                    |                    |
  |                    |      |                    |                    |
 FreeBSD 14 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
@@ -838,11 +838,13 @@ DragonFly 5.8.3 	2020-09-24 [DFB]
 OpenBSD 6.8		2020-10-18 [OBD]
 NetBSD 9.1 		2020-10-18 [NBD]
 FreeBSD 12.2		2020-10-27 [FBD]
+macOS 11		2020-11-19 [APL]
 FreeBSD 13.0		2021-04-13 [FBD]
 OpenBSD 6.9		2021-05-01 [OBD]
 DragonFly 6.0		2021-05-08 [DFB]
 NetBSD 9.2		2021-05-12 [NBD]
 OpenBSD 7.0		2021-10-14 [OBD]
+macOS 12		2021-10-25 [APL]
 FreeBSD 12.3		2021-12-01 [FBD]
 DragonFly 6.2.1		2022-01-09 [DFB]
 
