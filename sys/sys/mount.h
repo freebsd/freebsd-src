@@ -804,6 +804,8 @@ typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 typedef void vfs_susp_clean_t(struct mount *mp);
 typedef void vfs_notify_lowervp_t(struct mount *mp, struct vnode *lowervp);
 typedef void vfs_purge_t(struct mount *mp);
+struct sbuf;
+typedef int vfs_report_lockf_t(struct mount *mp, struct sbuf *sb);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -825,6 +827,7 @@ struct vfsops {
 	vfs_notify_lowervp_t	*vfs_reclaim_lowervp;
 	vfs_notify_lowervp_t	*vfs_unlink_lowervp;
 	vfs_purge_t		*vfs_purge;
+	vfs_report_lockf_t	*vfs_report_lockf;
 	vfs_mount_t		*vfs_spare[6];	/* spares for ABI compat */
 };
 
@@ -1039,6 +1042,7 @@ void	vfs_unregister_for_notification(struct mount *,
 	    struct mount_upper_node *);
 void	vfs_unregister_upper(struct mount *, struct mount_upper_node *);
 int	vfs_remount_ro(struct mount *mp);
+int	vfs_report_lockf(struct mount *mp, struct sbuf *sb);
 
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx_padalign mountlist_mtx;
