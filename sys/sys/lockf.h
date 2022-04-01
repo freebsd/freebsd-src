@@ -77,7 +77,6 @@ struct lockf_entry {
 	off_t	lf_end;		    /* (s) Byte # of the end of the lock (OFF_MAX=EOF) */
 	struct	lock_owner *lf_owner; /* (c) Owner of the lock */
 	struct	vnode *lf_vnode;    /* (c) File being locked (only valid for active lock) */
-	struct	inode *lf_inode;    /* (c) Back pointer to the inode */
 	struct	task *lf_async_task;/* (c) Async lock callback */
 	LIST_ENTRY(lockf_entry) lf_link;  /* (s) Linkage for lock lists */
 	struct lockf_edge_list lf_outedges; /* (s) list of out-edges */
