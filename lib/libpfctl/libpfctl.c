@@ -961,6 +961,8 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 	nv.size = nv.len;
 
 	ret = ioctl(dev, DIOCADDRULENV, &nv);
+	if (ret == -1)
+		ret = errno;
 
 	free(nv.data);
 	nvlist_destroy(nvl);

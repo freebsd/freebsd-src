@@ -1846,6 +1846,8 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 	u_int32_t		ticket;
 	char			anchor[PF_ANCHOR_NAME_SIZE];
 	int			len = strlen(path);
+	int			error;
+	bool			was_present;
 
 	/* set up anchor before adding to path for anchor_call */
 	if ((pf->opts & PF_OPT_NOACTION) == 0)
@@ -1867,12 +1869,23 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 	} else
 		name = "";
 
+	was_present = false;
 	if ((pf->opts & PF_OPT_NOACTION) == 0) {
 		if (pfctl_add_pool(pf, &r->rpool, r->af))
 			return (1);
-		if (pfctl_add_rule(pf->dev, r, anchor, name, ticket,
-		    pf->paddr.ticket))
+		error = pfctl_add_rule(pf->dev, r, anchor, name, ticket,
+		    pf->paddr.ticket);
+		switch (error) {
+		case 0:
+			/* things worked, do nothing */
+			break;
+		case EEXIST:
+			/* an identical rule is already present */
+			was_present = true;
+			break;
+		default:
 			err(1, "DIOCADDRULENV");
+		}
 	}
 
 	if (pf->opts & PF_OPT_VERBOSE) {
@@ -1880,6 +1893,8 @@ pfctl_load_rule(struct pfctl *pf, char *path, struct pfctl_rule *r, int depth)
 		print_rule(r, r->anchor ? r->anchor->name : "",
 		    pf->opts & PF_OPT_VERBOSE2,
 		    pf->opts & PF_OPT_NUMERIC);
+		if (was_present)
+			printf(" -- rule was already present");
 	}
 	path[len] = '\0';
 	pfctl_clear_pool(&r->rpool);
