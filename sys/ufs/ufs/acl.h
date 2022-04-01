@@ -39,6 +39,8 @@
 
 #ifdef _KERNEL
 
+struct inode;
+
 int	ufs_getacl_nfs4_internal(struct vnode *vp, struct acl *aclp,
 	    struct thread *td);
 int	ufs_setacl_nfs4_internal(struct vnode *vp, struct acl *aclp,
