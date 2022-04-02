@@ -464,7 +464,7 @@ memguard_cmp_mtp(struct malloc_type *mtp, unsigned long size)
 
 #if 1
 	/*
-	 * The safest way of comparsion is to always compare short description
+	 * The safest way of comparison is to always compare short description
 	 * string of memory type, but it is also the slowest way.
 	 */
 	return (strcmp(mtp->ks_shortdesc, vm_memguard_desc) == 0);
@@ -498,7 +498,7 @@ memguard_cmp_zone(uma_zone_t zone)
 		return (1);
 
 	/*
-	 * The safest way of comparsion is to always compare zone name,
+	 * The safest way of comparison is to always compare zone name,
 	 * but it is also the slowest way.
 	 */
 	return (strcmp(zone->uz_name, vm_memguard_desc) == 0);
