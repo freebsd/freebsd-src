@@ -3563,7 +3563,7 @@ adaflush(void)
 	CAM_PERIPH_FOREACH(periph, &adadriver) {
 		softc = (struct ada_softc *)periph->softc;
 		if (SCHEDULER_STOPPED()) {
-			/* If we paniced with the lock held, do not recurse. */
+			/* If we panicked with the lock held, do not recurse. */
 			if (!cam_periph_owned(periph) &&
 			    (softc->flags & ADA_FLAG_OPEN)) {
 				adadump(softc->disk, NULL, 0, 0, 0);
@@ -3615,7 +3615,7 @@ adaspindown(uint8_t cmd, int flags)
 	int mode;
 
 	CAM_PERIPH_FOREACH(periph, &adadriver) {
-		/* If we paniced with lock held - not recurse here. */
+		/* If we panicked with lock held - not recurse here. */
 		if (cam_periph_owned(periph))
 			continue;
 		cam_periph_lock(periph);
