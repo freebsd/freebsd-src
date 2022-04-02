@@ -77,7 +77,7 @@ METHOD int intr_stop {
 
 #
 # The following function gets called from the HID keyboard driver when
-# the system has paniced. intr_setup method with NULL passed as intr parameter
+# the system has panicked. intr_setup method with NULL passed as intr parameter
 # must be called once before to let transport driver to be prepared.
 #
 METHOD void intr_poll {

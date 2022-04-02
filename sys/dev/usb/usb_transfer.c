@@ -3418,7 +3418,7 @@ usbd_clear_stall_callback(struct usb_xfer *xfer1,
  *	usbd_transfer_poll
  *
  * The following function gets called from the USB keyboard driver and
- * UMASS when the system has paniced.
+ * UMASS when the system has panicked.
  *
  * NOTE: It is currently not possible to resume normal operation on
  * the USB controller which has been polled, due to clearing of the
