@@ -1314,7 +1314,7 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
 		return (FAULT_OUT_OF_BOUNDS);
 	}
 	KASSERT(rv == VM_PAGER_FAIL,
-	    ("%s: unepxected pager error %d", __func__, rv));
+	    ("%s: unexpected pager error %d", __func__, rv));
 	return (FAULT_CONTINUE);
 }
 
