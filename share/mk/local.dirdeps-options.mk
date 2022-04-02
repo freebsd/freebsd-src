@@ -13,7 +13,7 @@ DIRDEPS.KERBEROS_SUPPORT.yes+= \
 	kerberos5/lib/libhx509 \
 	kerberos5/lib/libkrb5 \
 	kerberos5/lib/libroken \
-	kerberos5/lib/libwind \
+	kerberos5/lib/libwind
 
 DIRDEPS.NIS.yes+= \
 	include/rpc \
