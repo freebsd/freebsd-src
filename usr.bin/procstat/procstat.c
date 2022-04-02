@@ -87,6 +87,8 @@ static const struct procstat_cmd pacmd_table[] = {
 
 /* procstat parameters and arguments */
 static const struct procstat_cmd cmd_table[] = {
+	{ "advlock", "advisory_locks", NULL, &procstat_advlocks, &cmdopt_none,
+	    PS_CMP_PLURAL | PS_CMP_SUBSTR | PS_MODE_NO_KINFO_PROC },
 	{ "argument", "arguments", NULL, &procstat_args, &cmdopt_none,
 	    PS_CMP_PLURAL | PS_CMP_SUBSTR },
 	{ "auxv", "auxv", NULL, &procstat_auxv, &cmdopt_none, PS_CMP_NORMAL },
