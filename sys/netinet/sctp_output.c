@@ -13657,11 +13657,6 @@ out_unlocked:
 		if (free_cnt_applied) {
 			atomic_subtract_int(&asoc->refcnt, 1);
 		}
-#ifdef INVARIANTS
-		if (mtx_owned(&stcb->tcb_mtx)) {
-			panic("Leaving with tcb mtx owned?");
-		}
-#endif
 	}
 	if (top != NULL) {
 		sctp_m_freem(top);
