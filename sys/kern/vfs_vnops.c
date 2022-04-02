@@ -213,6 +213,8 @@ open2nameif(int fmode, u_int vn_open_flags)
 		res |= AUDITVNODE1;
 	if ((vn_open_flags & VN_OPEN_NOCAPCHECK) != 0)
 		res |= NOCAPCHECK;
+	if ((vn_open_flags & VN_OPEN_WANTIOCTLCAPS) != 0)
+		res |= WANTIOCTLCAPS;
 	return (res);
 }
 

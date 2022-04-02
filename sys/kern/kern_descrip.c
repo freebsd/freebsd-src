@@ -1852,9 +1852,14 @@ filecaps_validate(const struct filecaps *fcaps, const char *func)
 	KASSERT(fcaps->fc_fcntls == 0 ||
 	    cap_rights_is_set(&fcaps->fc_rights, CAP_FCNTL),
 	    ("%s: fcntls without CAP_FCNTL", func));
+	/*
+	 * open calls without WANTIOCTLCAPS free caps but leave the counter
+	 */
+#if 0
 	KASSERT(fcaps->fc_ioctls != NULL ? fcaps->fc_nioctls > 0 :
 	    (fcaps->fc_nioctls == -1 || fcaps->fc_nioctls == 0),
 	    ("%s: invalid ioctls", func));
+#endif
 	KASSERT(fcaps->fc_nioctls == 0 ||
 	    cap_rights_is_set(&fcaps->fc_rights, CAP_IOCTL),
 	    ("%s: ioctls without CAP_IOCTL", func));
