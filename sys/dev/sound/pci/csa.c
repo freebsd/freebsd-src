@@ -468,7 +468,7 @@ csa_setup_intr(device_t bus, device_t child,
 
 	/*
 	 * Look at the function code of the child to determine
-	 * the appropriate hander for it.
+	 * the appropriate handler for it.
 	 */
 	func = device_get_ivars(child);
 	if (func == NULL || irq != resp->irq)
@@ -508,7 +508,7 @@ csa_teardown_intr(device_t bus, device_t child,
 
 	/*
 	 * Look at the function code of the child to determine
-	 * the appropriate hander for it.
+	 * the appropriate handler for it.
 	 */
 	func = device_get_ivars(child);
 	if (func == NULL || irq != resp->irq || cookie != scp)
