@@ -403,7 +403,7 @@ mtkswitch_vlan_setvgroup(struct mtkswitch_softc *sc, etherswitch_vlangroup_t *v)
 
 	MTKSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
 	MTKSWITCH_LOCK(sc);
-	/* First, see if we can accomodate the request at all */
+	/* First, see if we can accommodate the request at all */
 	val = MTKSWITCH_READ(sc, MTKSWITCH_POC2);
 	if (sc->sc_switchtype == MTK_SWITCH_RT3050 ||
 	    (val & POC2_UNTAG_VLAN) == 0) {
@@ -421,14 +421,14 @@ mtkswitch_vlan_setvgroup(struct mtkswitch_softc *sc, etherswitch_vlangroup_t *v)
 		tmp = v->es_untagged_ports & v->es_member_ports;
 		/* fail if untagged members are not a subset of all members */
 		if (tmp != v->es_untagged_ports) {
-			/* Cannot accomodate request */
+			/* Cannot accommodate request */
 			MTKSWITCH_UNLOCK(sc);
 			return (ENOTSUP);
 		}
 
 		/* fail if any untagged member is set up to do tagging */
 		if ((tmp & val) != tmp) {
-			/* Cannot accomodate request */
+			/* Cannot accommodate request */
 			MTKSWITCH_UNLOCK(sc);
 			return (ENOTSUP);
 		}
@@ -437,7 +437,7 @@ mtkswitch_vlan_setvgroup(struct mtkswitch_softc *sc, etherswitch_vlangroup_t *v)
 		tmp = v->es_member_ports & ~tmp;
 		/* fail if any tagged member is set up to do untagging */
 		if ((tmp & val) != 0) {
-			/* Cannot accomodate request */
+			/* Cannot accommodate request */
 			MTKSWITCH_UNLOCK(sc);
 			return (ENOTSUP);
 		}
