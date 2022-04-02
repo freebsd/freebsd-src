@@ -139,7 +139,7 @@ struct enetc_softc {
 
 /*
  * Up to 4096 transmit/receive descriptors are supported,
- * their number has to be a multple of 64.
+ * their number has to be a multiple of 64.
  */
 #define ENETC_MIN_DESC		64
 #define ENETC_MAX_DESC		4096
