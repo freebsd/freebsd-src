@@ -277,7 +277,7 @@ typedef struct SCIC_SDS_REMOTE_DEVICE
    U32 not_ready_reason;
 
    /**
-    * This field is TRUE if this remote device has an initialzied ready substate
+    * This field is TRUE if this remote device has an initialized ready substate
     * machine. SSP devices do not have a ready substate machine and STP devices
     * have a ready substate machine.
     */
