@@ -178,7 +178,7 @@ marked_packet_rtt(struct txseginfo *txsi, struct ertt *e_t, struct tcpcb *tp,
 		e_t->flags |= ERTT_NEW_MEASUREMENT;
 
 		if (tp->t_flags & TF_TSO) {
-			/* Temporarily disable TSO to aid a new measurment. */
+			/* Temporarily disable TSO to aid a new measurement. */
 			tp->t_flags &= ~TF_TSO;
 			/* Keep track that we've disabled it. */
 			e_t->flags |= ERTT_TSO_DISABLED;
