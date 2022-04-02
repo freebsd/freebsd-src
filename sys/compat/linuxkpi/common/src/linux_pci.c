@@ -119,6 +119,12 @@ struct linux_dma_priv {
 #define	DMA_PRIV_LOCK(priv) mtx_lock(&(priv)->lock)
 #define	DMA_PRIV_UNLOCK(priv) mtx_unlock(&(priv)->lock)
 
+static bool
+linux_is_drm(struct pci_driver *pdrv)
+{
+	return (pdrv->name != NULL && strcmp(pdrv->name, "drmn") == 0);
+}
+
 static int
 linux_pdev_dma_uninit(struct pci_dev *pdev)
 {
@@ -405,7 +411,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	linux_set_current(curthread);
 
 	parent = device_get_parent(dev);
-	isdrm = pdrv != NULL && pdrv->isdrm;
+	isdrm = pdrv != NULL && linux_is_drm(pdrv);
 
 	if (isdrm) {
 		struct pci_devinfo *dinfo;
@@ -674,7 +680,6 @@ linux_pci_register_driver(struct pci_driver *pdrv)
 	dc = devclass_find("pci");
 	if (dc == NULL)
 		return (-ENXIO);
-	pdrv->isdrm = false;
 	return (_linux_pci_register_driver(pdrv, dc));
 }
 
@@ -688,7 +693,7 @@ linux_pci_reserve_bar(struct pci_dev *pdev, struct resource_list *rl,
 	KASSERT(type == SYS_RES_IOPORT || type == SYS_RES_MEMORY,
 	    ("trying to reserve non-BAR type %d", type));
 
-	dev = pdev->pdrv != NULL && pdev->pdrv->isdrm ?
+	dev = pdev->pdrv != NULL && linux_is_drm(pdev->pdrv) ?
 	    device_get_parent(pdev->dev.bsddev) : pdev->dev.bsddev;
 	res = pci_reserve_map(device_get_parent(dev), dev, type, &rid, 0, ~0,
 	    1, 1, 0);
@@ -706,7 +711,7 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 
 	if ((rle = linux_pci_get_bar(pdev, bar, true)) == NULL)
 		return (0);
-	dev = pdev->pdrv != NULL && pdev->pdrv->isdrm ?
+	dev = pdev->pdrv != NULL && linux_is_drm(pdev->pdrv) ?
 	    device_get_parent(pdev->dev.bsddev) : pdev->dev.bsddev;
 	if (BUS_TRANSLATE_RESOURCE(dev, rle->type, rle->start, &newstart)) {
 		device_printf(pdev->dev.bsddev, "translate of %#jx failed\n",
@@ -734,7 +739,6 @@ linux_pci_register_drm_driver(struct pci_driver *pdrv)
 	dc = devclass_create("vgapci");
 	if (dc == NULL)
 		return (-ENXIO);
-	pdrv->isdrm = true;
 	pdrv->name = "drmn";
 	return (_linux_pci_register_driver(pdrv, dc));
 }
