@@ -2950,7 +2950,7 @@ static bool mlx4_valid_vf_state_change(struct mlx4_dev *dev, int port,
 	dummy_admin.default_vlan = vlan;
 
 	/* VF wants to move to other VST state which is valid with current
-	 * rate limit. Either differnt default vlan in VST or other
+	 * rate limit. Either different default vlan in VST or other
 	 * supported QoS priority. Otherwise we don't allow this change when
 	 * the TX rate is still configured.
 	 */
