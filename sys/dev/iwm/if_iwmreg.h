@@ -4846,7 +4846,7 @@ struct iwm_ba_notif {
 /*
  * struct iwm_mac_beacon_cmd - beacon template command
  * @tx: the tx commands associated with the beacon frame
- * @template_id: currently equal to the mac context id of the corresponding 
+ * @template_id: currently equal to the mac context id of the corresponding
  *  mac.
  * @tim_idx: the offset of the tim IE in the beacon
  * @tim_size: the length of the tim IE
