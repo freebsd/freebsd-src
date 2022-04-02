@@ -3711,7 +3711,7 @@ hdaa_audio_adddac(struct hdaa_devinfo *devinfo, int asid)
 		    asid, as->index);
 	);
 
-	/* Find the exisitng DAC position and return if found more the one. */
+	/* Find the existing DAC position and return if found more the one. */
 	pos = -1;
 	for (i = 0; i < 16; i++) {
 		if (as->dacs[0][i] <= 0)
