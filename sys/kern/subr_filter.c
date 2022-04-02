@@ -320,13 +320,13 @@ tick_filter_clock(struct time_filter *tf, uint32_t now)
 	 * The other choice would be to fill it in with
 	 * zero, but I don't like that option since
 	 * some measurement is better than none (even
-	 * if its your oldest measurment).
+	 * if its your oldest measurement).
 	 */
 	for(i=(NUM_FILTER_ENTRIES-2); i>=0 ; i--) {
 		tim = now - tf->entries[i].time_up;
 		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
-			/* 
+			/*
 			 * This entry is expired, pull down
 			 * the next one up.
 			 */
@@ -351,13 +351,13 @@ tick_filter_clock_small(struct time_filter_small *tf, uint32_t now)
 	 * The other choice would be to fill it in with
 	 * zero, but I don't like that option since
 	 * some measurement is better than none (even
-	 * if its your oldest measurment).
+	 * if its your oldest measurement).
 	 */
 	for(i=(NUM_FILTER_ENTRIES-2); i>=0 ; i--) {
 		tim = now - tf->entries[i].time_up;
 		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
-			/* 
+			/*
 			 * This entry is expired, pull down
 			 * the next one up.
 			 */
