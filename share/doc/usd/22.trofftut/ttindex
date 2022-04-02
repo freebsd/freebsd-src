@@ -99,7 +99,7 @@ bold font (.ft B) 5
 boustrophedon 12
 bracketing function (##b) 13
 break (^br) 9
-break-causing commmands 9
+break-causing commands 9
 centering (^ce) 2
 changing fonts (^ft, #f) 5
 changing macros 15
