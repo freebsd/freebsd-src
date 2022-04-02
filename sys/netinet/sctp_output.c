@@ -13401,6 +13401,8 @@ skip_preblock:
 		KASSERT((asoc->state & SCTP_STATE_WAS_ABORTED) == 0,
 		    ("Association was aborted"));
 
+		/* The out streams might be reallocated. */
+		strm = &asoc->strmout[srcv->sinfo_stream];
 		if (sp != NULL) {
 			if (sp->msg_is_complete == 0) {
 				strm->last_msg_incomplete = 1;
