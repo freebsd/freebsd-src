@@ -1012,7 +1012,7 @@ void scic_sds_port_configuration_agent_construct(
  *            agent is being initialized.
  *
  * @param[in] port_agent This is the port configuration agent that is being
- *            initialized.  The initialization path is handled differntly
+ *            initialized.  The initialization path is handled differently
  *            for the automatic port configuration agent and the manual port
  *            configuration agent.
  *
