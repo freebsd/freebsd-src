@@ -13,7 +13,7 @@
  * arguments to system calls in Linux.
  *
  * We expose the raw system call result, rather than do the POSIX
- * converion to -1 and setting errno.
+ * conversion to -1 and setting errno.
  *
  * Note: The code this replaced used bso to set %r3 to 0 for the read and
  * open system calls for reasons that are still under investigation.
