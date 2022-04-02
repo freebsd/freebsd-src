@@ -32,6 +32,7 @@
 
 extern "C" {
 #include <sys/types.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 
 #include <fcntl.h>
@@ -144,4 +145,36 @@ TEST_F(Forget, invalidate_names)
 
 	/* Access the file again, causing another lookup */
 	ASSERT_EQ(0, access(FULLFPATH, F_OK)) << strerror(errno);
+}
+
+/*
+ * Reclaiming the root inode should not send a FUSE_FORGET request, nor should
+ * it interfere with further lookup operations.
+ */
+TEST_F(Forget, root)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	mode_t mode = S_IFREG | 0755;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillRepeatedly(Invoke(
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	/* access(2) the file to force a lookup. */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+
+	reclaim_vnode("mountpoint");
+	nap();
+
+	/* Access it again, to make sure it's still possible. */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
