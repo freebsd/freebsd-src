@@ -895,7 +895,7 @@ inp_so_options(const struct inpcb *inp)
  * Check if a new BINDMULTI socket is allowed to be created.
  *
  * ni points to the new inp.
- * oi points to the exisitng inp.
+ * oi points to the existing inp.
  *
  * This checks whether the existing inp also has BINDMULTI and
  * whether the credentials match.
