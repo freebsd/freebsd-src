@@ -652,7 +652,7 @@ restart:
 	{
 	    /* determine number of processes to actually display */
 	    /* this number will be the smallest of:  active processes,
-	       number user requested, number current screen accomodates */
+	       number user requested, number current screen accommodates */
 	    active_procs = system_info.p_pactive;
 	    if (active_procs > topn)
 	    {
