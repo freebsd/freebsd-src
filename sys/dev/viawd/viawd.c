@@ -226,7 +226,7 @@ viawd_detach(device_t dev)
 		viawd_tmr_set(sc, VIAWD_TIMEOUT_SHUTDOWN);
 		viawd_tmr_state(sc, 1);
 		device_printf(dev,
-		    "Keeping watchog alive during shutdown for %d seconds\n",
+		    "Keeping watchdog alive during shutdown for %d seconds\n",
 		    VIAWD_TIMEOUT_SHUTDOWN);
 	}
 
