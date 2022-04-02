@@ -15944,7 +15944,7 @@ bxe_sysctl_pauseparam(SYSCTL_HANDLER_ARGS)
                 return (error);
         }
         if ((sc->bxe_pause_param < 0) ||  (sc->bxe_pause_param > 8)) {
-                BLOGW(sc, "invalid pause param (%d) - use intergers between 1 & 8\n",sc->bxe_pause_param);
+                BLOGW(sc, "invalid pause param (%d) - use integers between 1 & 8\n",sc->bxe_pause_param);
                 sc->bxe_pause_param = 8;
         }
 
