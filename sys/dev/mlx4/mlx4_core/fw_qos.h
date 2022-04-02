@@ -98,7 +98,7 @@ int mlx4_SET_PORT_SCHEDULER(struct mlx4_dev *dev, u8 port, u8 *tc_tx_bw,
 int mlx4_ALLOCATE_VPP_get(struct mlx4_dev *dev, u8 port,
 			  u16 *availible_vpp, u8 *vpp_p_up);
 /**
- * mlx4_ALLOCATE_VPP_set - Distribution of VPPs among differnt priorities.
+ * mlx4_ALLOCATE_VPP_set - Distribution of VPPs among different priorities.
  * The total number of VPPs assigned to all for a port must not exceed
  * the value reported by availible_vpp in mlx4_ALLOCATE_VPP_get.
  * VPP allocation is allowed only after the port type has been set,
