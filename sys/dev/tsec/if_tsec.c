@@ -361,7 +361,7 @@ tsec_mii_wait(struct tsec_softc *sc, uint32_t flags)
 	int timeout;
 
 	/*
-	 * The status indicators are not set immediatly after a command.
+	 * The status indicators are not set immediately after a command.
 	 * Discard the first value.
 	 */
 	TSEC_PHY_READ(sc, TSEC_REG_MIIMIND);
