@@ -26,7 +26,7 @@
  */
 
 /*
- * differnt routines to dump data.
+ * different routines to dump data.
  */
 
 void asciidump(uint8_t *data, size_t datalen);
