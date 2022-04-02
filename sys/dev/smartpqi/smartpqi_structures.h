@@ -791,7 +791,7 @@ struct pqi_enc_info {
 
 
 typedef struct pqi_scsi_device {
-	device_type_t	devtype;		/* as reported by INQUIRY commmand */
+	device_type_t	devtype;		/* as reported by INQUIRY command */
 	uint8_t	device_type;		/* as reported by
 					   BMIC_IDENTIFY_PHYSICAL_DEVICE - only
 					   valid for devtype = TYPE_DISK */
