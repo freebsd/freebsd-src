@@ -32,7 +32,7 @@
 
 /*
  * kqueue on FreeBSD requires sys/event.h, which in turn uses uintptr_t
- * (defined in sys/types.h), so in order to accomodate their requirements,
+ * (defined in sys/types.h), so in order to accommodate their requirements,
  * pull in sys/types.h as part of event.h.
  */
 #include <sys/types.h>
