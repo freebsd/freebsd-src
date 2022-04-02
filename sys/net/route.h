@@ -350,7 +350,7 @@ struct rt_addrinfo {
 	struct	ifaddr *rti_ifa;		/* value of rt_ifa addr */
 	struct	ifnet *rti_ifp;			/* route interface */
 	rib_filter_f_t	*rti_filter;		/* filter function */
-	void	*rti_filterdata;		/* filter paramenters */
+	void	*rti_filterdata;		/* filter parameters */
 	u_long	rti_mflags;			/* metrics RTV_ flags */
 	u_long	rti_spare;			/* Will be used for fib */
 	struct	rt_metrics *rti_rmx;		/* Pointer to route metrics */
