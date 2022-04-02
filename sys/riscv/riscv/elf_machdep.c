@@ -172,7 +172,7 @@ elf64_dump_thread(struct thread *td, void *dst, size_t *off)
 }
 
 /*
- * Following 4 functions are used to manupilate bits on 32bit interger value.
+ * Following 4 functions are used to manipulate bits on 32bit integer value.
  * FIXME: I implemetend for ease-to-understand rather than for well-optimized.
  */
 static uint32_t
