@@ -7995,7 +7995,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 		REG_WR(sc, BCE_EMAC_RX_MODE, rx_mode);
 	}
 
-	/* Disable and clear the exisitng sort before enabling a new sort. */
+	/* Disable and clear the existing sort before enabling a new sort. */
 	REG_WR(sc, BCE_RPM_SORT_USER0, 0x0);
 	REG_WR(sc, BCE_RPM_SORT_USER0, sort_mode);
 	REG_WR(sc, BCE_RPM_SORT_USER0, sort_mode | BCE_RPM_SORT_USER0_ENA);
