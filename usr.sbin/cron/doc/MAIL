@@ -447,7 +447,7 @@ Status: RO
 
 The System V cron is nice, but it has a few annoying features.  One is that
 its mail files will say that the previous message is the output of "one of your
-cron commands."  I wish it would say WHICH cron commmand.
+cron commands."  I wish it would say WHICH cron command.
 
 <<	Done.  Also which shell, which user (useful when the mail gets
 	forwarded), which home directory, and other useful crud.	>>
