@@ -1092,7 +1092,7 @@ mseq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				/*
 			         * For now, try to make midimoutain work by
 			         * forcing these events to be processed
-				 * immediatly.
+				 * immediately.
 			         */
 				seq_processevent(scp, event);
 			} else
