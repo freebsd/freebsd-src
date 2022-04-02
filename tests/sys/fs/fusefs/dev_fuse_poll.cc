@@ -93,7 +93,6 @@ TEST_P(DevFusePoll, access)
 /* Ensure that we wake up pollers during unmount */
 TEST_P(DevFusePoll, destroy)
 {
-	expect_forget(FUSE_ROOT_ID, 1);
 	expect_destroy(0);
 
 	m_mock->unmount();
