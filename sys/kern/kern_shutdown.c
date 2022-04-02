@@ -659,7 +659,7 @@ shutdown_halt(void *junk, int howto)
 }
 
 /*
- * Check to see if the system paniced, pause and then reboot
+ * Check to see if the system panicked, pause and then reboot
  * according to the specified delay.
  */
 static void
