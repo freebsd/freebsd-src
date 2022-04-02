@@ -123,7 +123,7 @@ struct cc_algo vegas_cc_algo = {
 
 /*
  * The vegas window adjustment is done once every RTT, as indicated by the
- * ERTT_NEW_MEASUREMENT flag. This flag is reset once the new measurment data
+ * ERTT_NEW_MEASUREMENT flag. This flag is reset once the new measurement data
  * has been used.
  */
 static void
