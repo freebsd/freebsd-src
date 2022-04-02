@@ -141,7 +141,7 @@ struct ngpppoe_init_data {
 }
 
 /*
- * This structure is used by the asychronous success and failure messages.
+ * This structure is used by the asynchronous success and failure messages.
  * (to report which hook has failed or connected). The message is sent
  * to whoever requested the connection. (close may use this too).
  */
