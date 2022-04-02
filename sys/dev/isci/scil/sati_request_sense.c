@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
  * @retval SATI_SUCCESS indicates that the translation was supported and occurred
  *         without error.
  * @retval SATI_FAILURE_CHECK_RESPONSE_DATA This value is returned if
- *         the SATII is processing a format unit commmand.
+ *         the SATII is processing a format unit command.
  * @retval SATI_COMPLETE indicates that the translation was supported, occurred without
  *         error, and no additional translation is necessary.
  */
