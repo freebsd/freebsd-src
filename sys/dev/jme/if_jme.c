@@ -2486,7 +2486,7 @@ jme_txeof(struct jme_softc *sc)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	sc->jme_cdata.jme_tx_cons = cons;
-	/* Unarm watchog timer when there is no pending descriptors in queue. */
+	/* Unarm watchdog timer when there is no pending descriptors in queue. */
 	if (sc->jme_cdata.jme_tx_cnt == 0)
 		sc->jme_watchdog_timer = 0;
 
