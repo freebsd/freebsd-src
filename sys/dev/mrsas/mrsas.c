@@ -4749,7 +4749,7 @@ dcmd_timeout:
 
 /*
  * mrsas_alloc_tmp_dcmd:       Allocates memory for temporary command input:
- * Adapter soft state Temp command Size of alloction
+ * Adapter soft state Temp command Size of allocation
  *
  * Allocates DMAable memory for a temporary internal command. The allocated
  * memory is initialized to all zeros upon successful loading of the dma
