@@ -280,15 +280,12 @@ cc_init(void)
 /*
  * Returns non-zero on success, 0 on failure.
  */
-int
-cc_deregister_algo(struct cc_algo *remove_cc)
+static int
+cc_deregister_algo_locked(struct cc_algo *remove_cc)
 {
 	struct cc_algo *funcs;
 	int found = 0;
 
-	/* Remove algo from cc_list so that new connections can't use it. */
-	CC_LIST_WLOCK();
-	
 	/* This is unlikely to fail */
 	STAILQ_FOREACH(funcs, &cc_list, entries) {
 		if (funcs == remove_cc)
@@ -296,23 +293,34 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 	}
 	if (found == 0) {
 		/* Nothing to remove? */
-		CC_LIST_WUNLOCK();
 		return (ENOENT);
 	}
 	/* We assert it should have been MOD_QUIESCE'd */
 	KASSERT((remove_cc->flags & CC_MODULE_BEING_REMOVED),
 		("remove_cc:%p does not have CC_MODULE_BEING_REMOVED flag", remove_cc));
 	if (cc_check_default(remove_cc)) {
-		CC_LIST_WUNLOCK();
 		return(EBUSY);
 	}
 	if (remove_cc->cc_refcount != 0) {
-		CC_LIST_WUNLOCK();
 		return (EBUSY);
 	}
+	/* Remove algo from cc_list so that new connections can't use it. */
 	STAILQ_REMOVE(&cc_list, remove_cc, cc_algo, entries);
-	CC_LIST_WUNLOCK();
 	return (0);
+}
+
+/*
+ * Returns non-zero on success, 0 on failure.
+ */
+int
+cc_deregister_algo(struct cc_algo *remove_cc)
+{
+	int ret;
+
+	CC_LIST_WLOCK();
+	ret = cc_deregister_algo_locked(remove_cc);
+	CC_LIST_WUNLOCK();
+	return (ret);
 }
 
 /*
@@ -628,7 +636,8 @@ cc_modevent(module_t mod, int event_type, void *data)
 		 * If -f was used and users are still attached to
 		 * the algorithm things are going to go boom.
 		 */
-		err = cc_deregister_algo(algo);
+		err = cc_deregister_algo_locked(algo);
+		CC_LIST_WUNLOCK();
 		if ((err == 0) && (algo->mod_destroy != NULL)) {
 			algo->mod_destroy();
 		}
