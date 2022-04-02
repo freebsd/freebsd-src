@@ -1943,7 +1943,7 @@ mvneta_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	tx = MVNETA_TX_RING(sc, q);
 
-	/* If buf_ring is full start transmit immediatly. */
+	/* If buf_ring is full start transmit immediately. */
 	if (buf_ring_full(tx->br)) {
 		mvneta_tx_lockq(sc, q);
 		mvneta_xmit_locked(sc, q);
