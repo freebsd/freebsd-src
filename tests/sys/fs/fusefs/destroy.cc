@@ -141,7 +141,6 @@ TEST_F(Destroy, ok)
 	uint64_t ino = 42;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
-	expect_forget(FUSE_ROOT_ID, 1);
 	expect_forget(ino, 2);
 	expect_destroy(0);
 

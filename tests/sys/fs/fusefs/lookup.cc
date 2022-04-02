@@ -263,7 +263,6 @@ TEST_F(Lookup, dotdot_no_parent_nid)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, open);
 	})));
-	expect_forget(FUSE_ROOT_ID, 1, NULL);
 	expect_forget(foo_ino, 1, NULL);
 
 	fd = open("mountpoint/foo/bar", O_EXEC| O_DIRECTORY);
@@ -574,7 +573,6 @@ TEST_F(LookupExportable, dotdot_no_parent_nid)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, open);
 	})));
-	expect_forget(FUSE_ROOT_ID, 1, NULL);
 	expect_forget(foo_ino, 1, NULL);
 	EXPECT_LOOKUP(bar_ino, "..")
 	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
