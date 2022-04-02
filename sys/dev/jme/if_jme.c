@@ -2848,7 +2848,7 @@ jme_init_locked(struct jme_softc *sc)
 	 * frames larger than 4000 bytes.
 	 * For best performance of standard MTU sized frames use
 	 * maximum allowable FIFO threshold, 128QW. Note these do
-	 * not hold on chip full mask verion >=2. For these
+	 * not hold on chip full mask version >=2. For these
 	 * controllers 64QW and 128QW are not valid value.
 	 */
 	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 2)
