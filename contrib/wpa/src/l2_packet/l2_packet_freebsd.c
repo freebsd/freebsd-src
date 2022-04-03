@@ -83,7 +83,10 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	unsigned char *buf;
 	size_t len;
 
-	packet = pcap_next(pcap, &hdr);
+	if (pcap_next_ex(pcap, &hdr, &packet) == -1) {
+		wpa_printf(MSG_ERROR, "Error reading packet, has device disappeared?");
+		eloop_terminate();
+	}
 
 	if (!l2->rx_callback || !packet || hdr.caplen < sizeof(*ethhdr))
 		return;
