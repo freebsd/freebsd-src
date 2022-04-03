@@ -1,4 +1,4 @@
-#	$Id: Generic.mk,v 1.17 2020/08/19 17:51:53 sjg Exp $
+#	$Id: Generic.mk,v 1.19 2022/03/25 23:43:06 sjg Exp $
 #
 
 # some reasonable defaults
@@ -27,7 +27,7 @@ MACHINE_ARCH = ${MACHINE_ARCH.${MACHINE}}
 TSORT += -q
 .endif
 
-ARFLAGS ?=	rl
+ARFLAGS ?=	r
 
 AS ?=		as
 AFLAGS ?=
@@ -201,4 +201,4 @@ ${CXX_SUFFIXES:%=%.a}:
 .sh:
 	rm -f ${.TARGET}
 	cp ${.IMPSRC} ${.TARGET}
-
+	chmod a+x ${.TARGET}

@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1009 2022/02/04 23:43:10 rillig Exp $	*/
+/*	$NetBSD: var.c,v 1.1019 2022/03/27 18:39:01 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@
 #include "metachar.h"
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1009 2022/02/04 23:43:10 rillig Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1019 2022/03/27 18:39:01 rillig Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -440,11 +440,6 @@ VarFindSubstring(Substring name, GNode *scope, bool elsewhere)
 		FStr envName;
 		const char *envValue;
 
-		/*
-		 * TODO: try setting an environment variable with the empty
-		 *  name, which should be technically possible, just to see
-		 *  how make reacts.  All .for loops should be broken then.
-		 */
 		envName = Substring_Str(name);
 		envValue = getenv(envName.str);
 		if (envValue != NULL)
@@ -484,6 +479,16 @@ VarFreeShortLived(Var *v)
 	free(v);
 }
 
+static const char *
+ValueDescription(const char *value)
+{
+	if (value[0] == '\0')
+		return "# (empty)";
+	if (ch_isspace(value[strlen(value) - 1]))
+		return "# (ends with space)";
+	return "";
+}
+
 /* Add a new variable of the given name and value to the given scope. */
 static Var *
 VarAdd(const char *name, const char *value, GNode *scope, VarSetFlags flags)
@@ -492,7 +497,8 @@ VarAdd(const char *name, const char *value, GNode *scope, VarSetFlags flags)
 	Var *v = VarNew(FStr_InitRefer(/* aliased to */ he->key), value,
 	    false, false, (flags & VAR_SET_READONLY) != 0);
 	HashEntry_Set(he, v);
-	DEBUG3(VAR, "%s: %s = %s\n", scope->name, name, value);
+	DEBUG4(VAR, "%s: %s = %s%s\n",
+	    scope->name, name, value, ValueDescription(value));
 	return v;
 }
 
@@ -507,11 +513,12 @@ Var_Delete(GNode *scope, const char *varname)
 	Var *v;
 
 	if (he == NULL) {
-		DEBUG2(VAR, "%s:delete %s (not found)\n", scope->name, varname);
+		DEBUG2(VAR, "%s: delete %s (not found)\n",
+		    scope->name, varname);
 		return;
 	}
 
-	DEBUG2(VAR, "%s:delete %s\n", scope->name, varname);
+	DEBUG2(VAR, "%s: delete %s\n", scope->name, varname);
 	v = he->value;
 	if (v->inUse) {
 		Parse_Error(PARSE_FATAL,
@@ -519,10 +526,12 @@ Var_Delete(GNode *scope, const char *varname)
 		    v->name.str);
 		return;
 	}
+
 	if (v->exported)
 		unsetenv(v->name.str);
 	if (strcmp(v->name.str, MAKE_EXPORTED) == 0)
 		var_exportedVars = VAR_EXPORTED_NONE;
+
 	assert(v->name.freeIt == NULL);
 	HashTable_DeleteEntry(&scope->vars, he);
 	Buf_Done(&v->val);
@@ -989,7 +998,8 @@ Var_SetWithFlags(GNode *scope, const char *name, const char *val,
 		Buf_Clear(&v->val);
 		Buf_AddStr(&v->val, val);
 
-		DEBUG3(VAR, "%s: %s = %s\n", scope->name, name, val);
+		DEBUG4(VAR, "%s: %s = %s%s\n",
+		    scope->name, name, val, ValueDescription(val));
 		if (v->exported)
 			ExportVar(name, VEM_PLAIN);
 	}
@@ -1101,20 +1111,14 @@ Var_Append(GNode *scope, const char *name, const char *val)
 		DEBUG3(VAR, "%s: %s = %s\n", scope->name, name, v->val.data);
 
 		if (v->fromEnvironment) {
-			/*
-			 * The variable originally came from the environment.
-			 * Install it in the global scope (we could place it
-			 * in the environment, but then we should provide a
-			 * way to export other variables...)
-			 */
-			v->fromEnvironment = false;
+			/* See VarAdd. */
+			HashEntry *he =
+			    HashTable_CreateEntry(&scope->vars, name, NULL);
+			HashEntry_Set(he, v);
+			FStr_Done(&v->name);
+			v->name = FStr_InitRefer(/* aliased to */ he->key);
 			v->shortLived = false;
-			/*
-			 * This is the only place where a variable is
-			 * created in a scope, where v->name does not alias
-			 * scope->vars->key.
-			 */
-			HashTable_Set(&scope->vars, name, v);
+			v->fromEnvironment = false;
 		}
 	}
 }
@@ -1438,10 +1442,11 @@ ModifyWord_SysVSubst(Substring word, SepBuf *buf, void *data)
 	if (Substring_IsEmpty(word))
 		return;
 
-	if (!Substring_HasPrefix(word, args->lhsPrefix))
-		goto no_match;
-	if (!Substring_HasSuffix(word, args->lhsSuffix))
-		goto no_match;
+	if (!Substring_HasPrefix(word, args->lhsPrefix) ||
+	    !Substring_HasSuffix(word, args->lhsSuffix)) {
+		SepBuf_AddSubstring(buf, word);
+		return;
+	}
 
 	rhs = FStr_InitRefer(args->rhs);
 	Var_Expand(&rhs, args->scope, VARE_WANTRES);
@@ -1457,10 +1462,6 @@ ModifyWord_SysVSubst(Substring word, SepBuf *buf, void *data)
 	SepBuf_AddStr(buf, percent != NULL ? percent + 1 : rhs.str);
 
 	FStr_Done(&rhs);
-	return;
-
-no_match:
-	SepBuf_AddSubstring(buf, word);
 }
 #endif
 
@@ -2711,9 +2712,8 @@ ApplyModifier_Range(const char **pp, ModChain *ch)
 }
 
 /* Parse a ':M' or ':N' modifier. */
-static void
-ParseModifier_Match(const char **pp, const ModChain *ch,
-		    char **out_pattern)
+static char *
+ParseModifier_Match(const char **pp, const ModChain *ch)
 {
 	const char *mod = *pp;
 	Expr *expr = ch->expr;
@@ -2777,6 +2777,10 @@ ParseModifier_Match(const char **pp, const ModChain *ch,
 
 	if (needSubst) {
 		char *old_pattern = pattern;
+		/*
+		 * XXX: Contrary to ParseModifierPart, a dollar in a ':M' or
+		 * ':N' modifier must be escaped as '$$', not as '\$'.
+		 */
 		(void)Var_Subst(pattern, expr->scope, expr->emode, &pattern);
 		/* TODO: handle errors */
 		free(old_pattern);
@@ -2784,7 +2788,7 @@ ParseModifier_Match(const char **pp, const ModChain *ch,
 
 	DEBUG2(VAR, "Pattern for ':%c' is \"%s\"\n", mod[0], pattern);
 
-	*out_pattern = pattern;
+	return pattern;
 }
 
 /* :Mpattern or :Npattern */
@@ -2794,7 +2798,7 @@ ApplyModifier_Match(const char **pp, ModChain *ch)
 	char mod = **pp;
 	char *pattern;
 
-	ParseModifier_Match(pp, ch, &pattern);
+	pattern = ParseModifier_Match(pp, ch);
 
 	if (ModChain_ShouldEval(ch)) {
 		ModifyWordProc modifyWord =
@@ -3225,7 +3229,7 @@ ApplyModifier_Words(const char **pp, ModChain *ch)
 	/* Normal case: select the words described by first and last. */
 	Expr_SetValueOwn(expr,
 	    VarSelectWords(Expr_Str(expr), first, last,
-	        ch->sep, ch->oneBigWord));
+		ch->sep, ch->oneBigWord));
 
 ok:
 	FStr_Done(&festr);
@@ -3488,11 +3492,11 @@ found_op:
 
 	scope = expr->scope;	/* scope where v belongs */
 	if (expr->defined == DEF_REGULAR && expr->scope != SCOPE_GLOBAL) {
-		Var *gv = VarFind(expr->name, expr->scope, false);
-		if (gv == NULL)
+		Var *v = VarFind(expr->name, expr->scope, false);
+		if (v == NULL)
 			scope = SCOPE_GLOBAL;
 		else
-			VarFreeShortLived(gv);
+			VarFreeShortLived(v);
 	}
 
 	if (op[0] == '+')
@@ -4035,9 +4039,9 @@ cleanup:
 	/*
 	 * TODO: Use p + strlen(p) instead, to stop parsing immediately.
 	 *
-	 * In the unit tests, this generates a few unterminated strings in the
-	 * shell commands though.  Instead of producing these unfinished
-	 * strings, commands with evaluation errors should not be run at all.
+	 * In the unit tests, this generates a few shell commands with
+	 * unbalanced quotes.  Instead of producing these incomplete strings,
+	 * commands with evaluation errors should not be run at all.
 	 *
 	 * To make that happen, Var_Subst must report the actual errors
 	 * instead of returning VPR_OK unconditionally.
@@ -4047,8 +4051,8 @@ cleanup:
 }
 
 /*
- * Only 4 of the 7 local variables are treated specially as they are the only
- * ones that will be set when dynamic sources are expanded.
+ * Only 4 of the 7 built-in local variables are treated specially as they are
+ * the only ones that will be set when dynamic sources are expanded.
  */
 static bool
 VarnameIsDynamic(Substring varname)
@@ -4798,7 +4802,8 @@ Var_Dump(GNode *scope)
 	for (i = 0; i < vec.len; i++) {
 		const char *varname = varnames[i];
 		Var *var = HashTable_FindValue(&scope->vars, varname);
-		debug_printf("%-16s = %s\n", varname, var->val.data);
+		debug_printf("%-16s = %s%s\n", varname,
+		    var->val.data, ValueDescription(var->val.data));
 	}
 
 	Vector_Done(&vec);

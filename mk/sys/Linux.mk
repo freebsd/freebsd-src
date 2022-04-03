@@ -1,4 +1,4 @@
-#	$Id: Linux.mk,v 1.13 2020/08/19 17:51:53 sjg Exp $
+#	$Id: Linux.mk,v 1.15 2022/03/25 23:43:06 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -17,7 +17,7 @@ NEED_SOLINKS ?=yes
 .LIBS:		.a
 
 AR ?=		ar
-ARFLAGS ?=	rl
+ARFLAGS ?=	r
 RANLIB ?=		ranlib
 
 AS ?=		as
@@ -185,3 +185,4 @@ ${CXX_SUFFIXES:%=%.a}:
 .sh:
 	rm -f ${.TARGET}
 	cp ${.IMPSRC} ${.TARGET}
+	chmod a+x ${.TARGET}

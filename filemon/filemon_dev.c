@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon_dev.c,v 1.8 2021/02/01 21:09:25 rillig Exp $	*/
+/*	$NetBSD: filemon_dev.c,v 1.9 2022/03/04 23:17:16 sjg Exp $	*/
 
 /*
  * Copyright (c) 2020 The NetBSD Foundation, Inc.
@@ -44,6 +44,10 @@
 
 #ifndef _PATH_FILEMON
 #define _PATH_FILEMON	"/dev/filemon"
+#endif
+
+#ifndef MAKE_ATTR_UNUSED
+#define MAKE_ATTR_UNUSED        __attribute__((__unused__))
 #endif
 
 struct filemon {
@@ -101,7 +105,7 @@ filemon_setfd(struct filemon *F, int fd)
 }
 
 void
-filemon_setpid_parent(struct filemon *F, pid_t pid)
+filemon_setpid_parent(struct filemon *F MAKE_ATTR_UNUSED, pid_t pid MAKE_ATTR_UNUSED)
 {
 	/* Nothing to do!  */
 }
@@ -137,14 +141,14 @@ filemon_close(struct filemon *F)
 }
 
 int
-filemon_readfd(const struct filemon *F)
+filemon_readfd(const struct filemon *F MAKE_ATTR_UNUSED)
 {
 
 	return -1;
 }
 
 int
-filemon_process(struct filemon *F)
+filemon_process(struct filemon *F MAKE_ATTR_UNUSED)
 {
 
 	return 0;

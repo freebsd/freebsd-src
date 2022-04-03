@@ -23,7 +23,7 @@ Result of ${.MAKE.EXPORTED:u} is "UT_VAR"
 Var_Parse: ${UT_VAR} (eval)
 Var_Parse: ${REF}> (eval)
 Result of ${:!echo "\$UT_VAR"!} is "<>" (eval-defined, defined)
-lhs = "<>", rhs = "<>", op = !=
+Comparing "<>" != "<>"
 Parsing line 50: : ${UT_VAR:N*}
 Var_Parse: ${UT_VAR:N*} (eval-defined)
 Var_Parse: ${REF}> (eval-defined)
@@ -47,7 +47,7 @@ Result of ${.MAKE.EXPORTED:u} is "UT_VAR"
 Var_Parse: ${UT_VAR} (eval)
 Var_Parse: ${REF}> (eval)
 Result of ${:!echo "\$UT_VAR"!} is "<defined>" (eval-defined, defined)
-lhs = "<defined>", rhs = "<defined>", op = !=
+Comparing "<defined>" != "<defined>"
 Parsing line 62: all:
 ParseDependency(all:)
 Global: .ALLTARGETS =  all

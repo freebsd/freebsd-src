@@ -81,8 +81,8 @@ ParseDependency(.MAKEFLAGS: -d0 -dg1)
 #*** Global Variables:
 .ALLTARGETS      =  .1.2 .1.3 .1.4 next-main suff-main-several.1 suff-main-several.{2,3,4}
 .CURDIR          = <curdir>
-.INCLUDES        = 
-.LIBS            = 
+.INCLUDES        = # (empty)
+.LIBS            = # (empty)
 .MAKE            = <details omitted>
 .MAKE.DEPENDFILE = <details omitted>
 .MAKE.GID        = <details omitted>
@@ -94,12 +94,12 @@ ParseDependency(.MAKEFLAGS: -d0 -dg1)
 .MAKE.PPID       = <details omitted>
 .MAKE.UID        = <details omitted>
 .MAKEFLAGS       =  -r -k -d mps -d 0 -d g1
-.MAKEOVERRIDES   = 
+.MAKEOVERRIDES   = # (empty)
 .OBJDIR          = <curdir>
 .PATH            = . <curdir>
-.TARGETS         = 
+.TARGETS         = # (empty)
 .newline         = 
-
+# (ends with space)
 MACHINE          = <details omitted>
 MACHINE_ARCH     = <details omitted>
 MAKE             = <details omitted>

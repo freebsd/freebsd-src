@@ -1,10 +1,10 @@
-# $NetBSD: directive-ifmake.mk,v 1.9 2022/01/22 16:23:56 rillig Exp $
+# $NetBSD: directive-ifmake.mk,v 1.10 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for the .ifmake directive, which provides a shortcut for asking
 # whether a certain target is requested to be made from the command line.
 #
 # TODO: Describe why the shortcut may be useful (if it's useful at all),
-# instead of using the more versatile '.if make(target)'.
+# instead of using the more general '.if make(target)'.
 
 .MAKEFLAGS: first second
 

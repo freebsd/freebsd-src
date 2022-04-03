@@ -1,10 +1,10 @@
-Global:delete FROM_CMDLINE (not found)
-Command: FROM_CMDLINE = 
+Global: delete FROM_CMDLINE (not found)
+Command: FROM_CMDLINE = # (empty)
 Global: .MAKEOVERRIDES =  FROM_CMDLINE
 Global: VAR = added
 Global: VAR = overwritten
-Global:delete VAR
-Global:delete VAR (not found)
+Global: delete VAR
+Global: delete VAR (not found)
 Var_SetExpand: variable name "${:U}" expands to empty string, with value "empty name" - ignored
 Var_AppendExpand: variable name "${:U}" expands to empty string, with value "empty name" - ignored
 Global: FROM_CMDLINE = overwritten ignored!
@@ -49,7 +49,7 @@ Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
 Pattern for ':M' is "valu[e]"
 ModifyWords: split "value" into 1 word
 Result of ${:Mvalu[e]} is "value" (eval-defined, defined)
-Global:delete VAR
+Global: delete VAR
 Var_Parse: ${:Uvariable:unknown} (eval-defined)
 Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
 Result of ${:Uvariable} is "variable" (eval-defined, defined)
@@ -59,7 +59,7 @@ Result of ${:unknown} is error (eval-defined, defined)
 make: "vardebug.mk" line 44: Malformed conditional (${:Uvariable:unknown})
 Var_Parse: ${UNDEFINED} (eval-defined)
 make: "vardebug.mk" line 53: Malformed conditional (${UNDEFINED})
-Global:delete .SHELL (not found)
+Global: delete .SHELL (not found)
 Command: .SHELL = </path/to/shell>
 Command: .SHELL = overwritten ignored (read-only)
 Global: .MAKEFLAGS =  -r -k -d v -d

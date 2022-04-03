@@ -1,4 +1,4 @@
-#	$Id: SunOS.mk,v 1.12 2020/08/19 17:51:53 sjg Exp $
+#	$Id: SunOS.mk,v 1.14 2022/03/25 23:43:06 sjg Exp $
 
 .if ${.PARSEFILE} == "sys.mk"
 .include <host-target.mk>
@@ -46,7 +46,7 @@ CPP ?=		cpp
 .LIBS:		.a
 
 AR ?=		ar
-ARFLAGS ?=	rl
+ARFLAGS ?=	r
 
 AS ?=		as
 AS_STDIN ?=	-
@@ -217,3 +217,4 @@ ${CXX_SUFFIXES:%=%.a}:
 .sh:
 	rm -f ${.TARGET}
 	cp ${.IMPSRC} ${.TARGET}
+	chmod a+x ${.TARGET}

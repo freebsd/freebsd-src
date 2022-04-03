@@ -25,7 +25,7 @@ MAKE_VERSION  ?= 20010606
 .LIBS:		.a
 
 AR ?=		ar
-ARFLAGS ?=	rl
+ARFLAGS ?=	r
 RANLIB ?=	ranlib
 
 AS ?=		as
@@ -228,3 +228,4 @@ ${CXX_SUFFIXES:%=%.a}:
 .sh:
 	rm -f ${.TARGET}
 	cp ${.IMPSRC} ${.TARGET}
+	chmod a+x ${.TARGET}

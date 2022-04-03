@@ -1,12 +1,12 @@
 make: "varmod-assign-shell.mk" line 27: warning: "echo output; false" returned non-zero status
-Global: _ = 
+Global: _ = # (empty)
 Var_Parse: ${ASSIGNED::!=echo output; ${:Ufalse}} (eval-keep-dollar-and-undefined)
 Evaluating modifier ${ASSIGNED::...} on value "previous" (eval-keep-dollar-and-undefined, regular)
 Modifier part: "echo output; false"
 Capturing the output of command "echo output; false"
 make: "echo output; false" returned non-zero status
 Result of ${ASSIGNED::!=echo output; ${:Ufalse}} is "" (eval-keep-dollar-and-undefined, regular)
-Global: _ = 
+Global: _ = # (empty)
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0
 DIRECT=output
