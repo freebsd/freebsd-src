@@ -12,6 +12,11 @@
 #ifdef _KERNEL
 #define Z_SOLO
 #endif
+#if defined(Z_SOLO)
+#include <sys/types.h>
+#define Z_U8 __uint64_t
+#define Z_U4 __uint32_t
+#endif
 #endif
 
 /*
