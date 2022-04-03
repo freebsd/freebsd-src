@@ -3,7 +3,7 @@ Global: .ALLTARGETS =  one two
 Var_Parse: ${.MAKE.TARGET_LOCAL_VARIABLES} (eval)
 Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
 Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
-Global: one two = 
+Global: one two = # (empty)
 Global: one two = three
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0

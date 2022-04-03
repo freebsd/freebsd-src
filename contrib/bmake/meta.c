@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.197 2022/02/08 22:36:02 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.199 2022/03/04 23:17:16 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -675,7 +675,7 @@ meta_job_start(Job *job, GNode *gn)
  * It does not disturb our state.
  */
 void
-meta_job_child(Job *job)
+meta_job_child(Job *job MAKE_ATTR_UNUSED)
 {
 #ifdef USE_FILEMON
     BuildMon *pbm;
@@ -700,7 +700,7 @@ meta_job_child(Job *job)
 }
 
 void
-meta_job_parent(Job *job, pid_t pid)
+meta_job_parent(Job *job MAKE_ATTR_UNUSED, pid_t pid MAKE_ATTR_UNUSED)
 {
 #if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
     BuildMon *pbm;
@@ -717,7 +717,7 @@ meta_job_parent(Job *job, pid_t pid)
 }
 
 int
-meta_job_fd(Job *job)
+meta_job_fd(Job *job MAKE_ATTR_UNUSED)
 {
 #if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
     BuildMon *pbm;
@@ -735,7 +735,7 @@ meta_job_fd(Job *job)
 }
 
 int
-meta_job_event(Job *job)
+meta_job_event(Job *job MAKE_ATTR_UNUSED)
 {
 #if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
     BuildMon *pbm;
@@ -1167,8 +1167,7 @@ meta_oodate(GNode *gn, bool oodate)
 	/* we want to track all the .meta we read */
 	Global_Append(".MAKE.META.FILES", fname);
 
-	cmp_filter = metaCmpFilter ? metaCmpFilter :
-	    Var_Exists(gn, MAKE_META_CMP_FILTER);
+	cmp_filter = metaCmpFilter || Var_Exists(gn, MAKE_META_CMP_FILTER);
 
 	cmdNode = gn->commands.first;
 	while (!oodate && (x = fgetLine(&buf, &bufsz, 0, fp)) > 0) {

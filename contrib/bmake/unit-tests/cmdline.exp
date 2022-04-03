@@ -1,5 +1,5 @@
 makeobjdir-direct:
-show-objdir: TMPDIR/6a8899d2-d227-4b55-9b6b-f3c8eeb83fd5
+show-objdir: <tmpdir>/6a8899d2-d227-4b55-9b6b-f3c8eeb83fd5
 makeobjdir-indirect:
-show-objdir: TMPDIR/a7b41170-53f8-4cc2-bc5c-e4c3dd93ec45/
+show-objdir: <tmpdir>/a7b41170-53f8-4cc2-bc5c-e4c3dd93ec45/
 exit status 0

@@ -1,7 +1,7 @@
 CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
-lhs = "directive-include.mk null", rhs = "directive-include.mk null", op = !=
+Comparing "directive-include.mk null" != "directive-include.mk null"
 CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
-lhs = "directive-include.mk null", rhs = "directive-include.mk null", op = !=
+Comparing "directive-include.mk null" != "directive-include.mk null"
 make: "directive-include.mk" line 25: Could not find nonexistent.mk
 make: "directive-include.mk" line 47: Could not find "
 make: "directive-include.mk" line 52: Unknown modifier "Z"

@@ -1,4 +1,4 @@
-/*	$NetBSD: lst.h,v 1.102 2021/12/15 12:24:13 rillig Exp $	*/
+/*	$NetBSD: lst.h,v 1.103 2022/03/03 19:55:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -142,9 +142,9 @@ ListNode *Lst_FindDatum(List *, const void *) MAKE_ATTR_USE;
 
 /* Insert a datum before the given node. */
 void Lst_InsertBefore(List *, ListNode *, void *);
-/* Add a datum at the front of the list. */
+/* Add a datum at the head of the list. */
 void Lst_Prepend(List *, void *);
-/* Add a datum at the end of the list. */
+/* Add a datum at the tail of the list. */
 void Lst_Append(List *, void *);
 /* Remove the node from the list. */
 void Lst_Remove(List *, ListNode *);

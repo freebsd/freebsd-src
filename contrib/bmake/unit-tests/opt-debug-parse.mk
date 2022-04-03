@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-parse.mk,v 1.6 2022/01/08 23:52:26 rillig Exp $
+# $NetBSD: opt-debug-parse.mk,v 1.7 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for the -dp command line option, which adds debug logging about
 # makefile parsing.
@@ -20,7 +20,7 @@
 .info trace with multi-line .for loop head
 .endfor
 
-# Before parse.c 1.461 from 2022-01-08, the debug log said it returned to
+# Before parse.c 1.641 from 2022-01-08, the debug log said it returned to
 # the line of the '.include' instead of the line following it.
 .include "/dev/null"
 

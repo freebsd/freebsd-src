@@ -14,7 +14,7 @@ HOST_LIBEXT  ?=	.dylib
 DSHLIBEXT  ?=	.dylib
 
 AR ?=		ar
-ARFLAGS ?=	rl
+ARFLAGS ?=	r
 RANLIB =
 
 AS ?=		as
@@ -220,3 +220,4 @@ ${CXX_SUFFIXES:%=%.a}:
 .sh:
 	rm -f ${.TARGET}
 	cp ${.IMPSRC} ${.TARGET}
+	chmod a+x ${.TARGET}

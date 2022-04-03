@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.451 2022/02/04 23:22:19 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.452 2022/02/12 11:14:48 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -155,7 +155,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.451 2022/02/04 23:22:19 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.452 2022/02/12 11:14:48 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -864,7 +864,7 @@ static void
 JobWriteSpecialsEchoCtl(Job *job, ShellWriter *wr, CommandFlags *inout_cmdFlags,
 			const char *escCmd, const char **inout_cmdTemplate)
 {
-	/* XXX: Why is the job modified at this point? */
+	/* XXX: Why is the whole job modified at this point? */
 	job->ignerr = true;
 
 	if (job->echo && inout_cmdFlags->echo) {
@@ -876,9 +876,6 @@ JobWriteSpecialsEchoCtl(Job *job, ShellWriter *wr, CommandFlags *inout_cmdFlags,
 		 * for toggling the error checking.
 		 */
 		inout_cmdFlags->echo = false;
-	} else {
-		if (inout_cmdFlags->echo)
-			ShellWriter_EchoCmd(wr, escCmd);
 	}
 	*inout_cmdTemplate = shell->runIgnTmpl;
 

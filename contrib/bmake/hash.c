@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.71 2022/01/27 11:00:07 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.72 2022/02/09 21:09:24 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.71 2022/01/27 11:00:07 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.72 2022/02/09 21:09:24 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -283,7 +283,7 @@ HashTable_Set(HashTable *t, const char *key, void *value)
 	HashEntry_Set(he, value);
 }
 
-/* Delete the entry from the table and free the associated memory. */
+/* Delete the entry from the table, don't free the value of the entry. */
 void
 HashTable_DeleteEntry(HashTable *t, HashEntry *he)
 {

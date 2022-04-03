@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.327 2022/01/29 01:12:36 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.333 2022/03/03 19:46:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -95,7 +95,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.327 2022/01/29 01:12:36 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.333 2022/03/03 19:46:31 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -140,7 +140,9 @@ typedef struct CondParser {
 	/*
 	 * The plain '.if ${VAR}' evaluates to true if the value of the
 	 * expression has length > 0.  The other '.if' variants delegate
-	 * to evalBare instead.
+	 * to evalBare instead, for example '.ifdef ${VAR}' is equivalent to
+	 * '.if defined(${VAR})', checking whether the variable named by the
+	 * expression '${VAR}' is defined.
 	 */
 	bool plain;
 
@@ -157,8 +159,8 @@ typedef struct CondParser {
 	 * make cannot know anymore whether the left-hand side had originally
 	 * been a variable expression or a plain word.
 	 *
-	 * In all other contexts, the left-hand side must either be a
-	 * variable expression, a quoted string or a number.
+	 * In conditional directives like '.if', the left-hand side must
+	 * either be a variable expression, a quoted string or a number.
 	 */
 	bool leftUnquotedOK;
 
@@ -213,10 +215,10 @@ static char *
 ParseWord(const char **pp, bool doEval)
 {
 	const char *p = *pp;
-	Buffer argBuf;
+	Buffer word;
 	int paren_depth;
 
-	Buf_InitSize(&argBuf, 16);
+	Buf_InitSize(&word, 16);
 
 	paren_depth = 0;
 	for (;;) {
@@ -240,7 +242,7 @@ ParseWord(const char **pp, bool doEval)
 			FStr nestedVal;
 			(void)Var_Parse(&p, SCOPE_CMDLINE, emode, &nestedVal);
 			/* TODO: handle errors */
-			Buf_AddStr(&argBuf, nestedVal.str);
+			Buf_AddStr(&word, nestedVal.str);
 			FStr_Done(&nestedVal);
 			continue;
 		}
@@ -248,14 +250,14 @@ ParseWord(const char **pp, bool doEval)
 			paren_depth++;
 		else if (ch == ')' && --paren_depth < 0)
 			break;
-		Buf_AddByte(&argBuf, ch);
+		Buf_AddByte(&word, ch);
 		p++;
 	}
 
 	cpp_skip_hspace(&p);
 	*pp = p;
 
-	return Buf_DoneData(&argBuf);
+	return Buf_DoneData(&word);
 }
 
 /* Parse the function argument, including the surrounding parentheses. */
@@ -286,21 +288,21 @@ ParseFuncArg(CondParser *par, const char **pp, bool doEval, const char *func)
 	return res;
 }
 
-/* Test whether the given variable is defined. */
+/* See if the given variable is defined. */
 static bool
 FuncDefined(const char *var)
 {
 	return Var_Exists(SCOPE_CMDLINE, var);
 }
 
-/* See if the given target is requested to be made. */
+/* See if a target matching targetPattern is requested to be made. */
 static bool
-FuncMake(const char *target)
+FuncMake(const char *targetPattern)
 {
 	StringListNode *ln;
 
 	for (ln = opts.create.first; ln != NULL; ln = ln->next)
-		if (Str_Match(ln->datum, target))
+		if (Str_Match(ln->datum, targetPattern))
 			return true;
 	return false;
 }
@@ -557,7 +559,7 @@ EvalNotEmpty(CondParser *par, const char *value, bool quoted)
 static bool
 EvalCompareNum(double lhs, ComparisonOp op, double rhs)
 {
-	DEBUG3(COND, "lhs = %f, rhs = %f, op = %.2s\n", lhs, rhs, opname[op]);
+	DEBUG3(COND, "Comparing %f %s %f\n", lhs, opname[op], rhs);
 
 	switch (op) {
 	case LT:
@@ -586,8 +588,7 @@ EvalCompareStr(CondParser *par, const char *lhs,
 		return TOK_ERROR;
 	}
 
-	DEBUG3(COND, "lhs = \"%s\", rhs = \"%s\", op = %.2s\n",
-	    lhs, rhs, opname[op]);
+	DEBUG3(COND, "Comparing \"%s\" %s \"%s\"\n", lhs, opname[op], rhs);
 	return ToToken((op == EQ) == (strcmp(lhs, rhs) == 0));
 }
 
@@ -663,18 +664,11 @@ CondParser_Comparison(CondParser *par, bool doEval)
 	}
 
 	CondParser_Leaf(par, doEval, true, &rhs, &rhsQuoted);
-	if (rhs.str == NULL)
-		goto done_rhs;
-
-	if (!doEval) {
-		t = TOK_FALSE;
-		goto done_rhs;
-	}
-
-	t = EvalCompare(par, lhs.str, lhsQuoted, op, rhs.str, rhsQuoted);
-
-done_rhs:
+	t = rhs.str == NULL ? TOK_ERROR
+	    : !doEval ? TOK_FALSE
+	    : EvalCompare(par, lhs.str, lhsQuoted, op, rhs.str, rhsQuoted);
 	FStr_Done(&rhs);
+
 done_lhs:
 	FStr_Done(&lhs);
 	return t;

@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.577 2022/01/29 09:38:26 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.579 2022/03/22 23:37:09 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.577 2022/01/29 09:38:26 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.579 2022/03/22 23:37:09 rillig Exp $");
 #if defined(MAKE_NATIVE) && !defined(lint)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -318,7 +318,7 @@ MainParseArgDebug(const char *argvalue)
 			break;
 		case 'F':
 			MainParseArgDebugFile(modules + 1);
-			goto debug_setbuf;
+			goto finish;
 		default:
 			(void)fprintf(stderr,
 			    "%s: illegal argument to d option -- %c\n",
@@ -327,20 +327,15 @@ MainParseArgDebug(const char *argvalue)
 		}
 	}
 
-debug_setbuf:
+finish:
 	opts.debug = debug;
 
-	/*
-	 * Make the debug_file unbuffered, and make
-	 * stdout line buffered (unless debugfile == stdout).
-	 */
 	setvbuf(opts.debug_file, NULL, _IONBF, 0);
-	if (opts.debug_file != stdout) {
+	if (opts.debug_file != stdout)
 		setvbuf(stdout, NULL, _IOLBF, 0);
-	}
 }
 
-/* Is path relative, or does it contain any relative component "." or ".."? */
+/* Is path relative or does it contain any relative component "." or ".."? */
 static bool
 IsRelativePath(const char *path)
 {
@@ -736,7 +731,7 @@ Main_SetObjdir(bool writable, const char *fmt, ...)
 		return false;
 
 	if ((writable && access(path, W_OK) != 0) || chdir(path) != 0) {
-		(void)fprintf(stderr, "%s warning: %s: %s.\n",
+		(void)fprintf(stderr, "%s: warning: %s: %s.\n",
 		    progname, path, strerror(errno));
 		return false;
 	}

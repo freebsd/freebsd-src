@@ -1,3 +1,41 @@
+2022-03-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220330
+	Merge with NetBSD make, pick up
+	o var.c: fix spacing, and a typo in a test
+
+2022-03-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220326
+	Merge with NetBSD make, pick up
+	o parse.c: try to include 'posix.mk' the first time
+	.POSIX: is encountered, to allow for beter POSIX compliance.
+	o var.c: make debug logs more readable
+	prefer 'long long' over 'long' on 32-bit C99 platforms
+	fix crash on .undef of an environment variable
+
+2022-03-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220303
+	Merge with NetBSD make, pick up
+	o tell meta mode unit tests not to expect filemon
+	o cond.c: make debug logging for comparisons less technical
+	o lst.c: fix mem leak in Lst_Remove
+	o str.c: make code for string matching syntactically more consistent
+	o var.c: simplify ParseModifier_Match
+
+2022-02-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/Makefile: control MAKESYSPATH for deptgt-phony
+
+	* VERSION (_MAKE_VERSION): 20220214
+	Merge with NetBSD make, pick up
+	o cond.c: simplify control flow in CondParser_Comparison
+	o job.c: fix echoing of command with '-' in silent target in jobs mode
+	o main.c: prefix the warning about read-only .OBJDIR with a colon
+	o parse.c: remove redundant conditions
+	o var.c: simplify control flow in ModifyWord_SysVSubst
+
 2022-02-08  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* unit-tests/Makefile: disable opt-debug-x-trace on Linux if there

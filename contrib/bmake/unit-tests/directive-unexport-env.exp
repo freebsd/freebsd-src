@@ -10,7 +10,7 @@ Result of ${.MAKE.EXPORTED:O} is "UT_EXPORTED"
 Evaluating modifier ${.MAKE.EXPORTED:u} on value "UT_EXPORTED"
 Result of ${.MAKE.EXPORTED:u} is "UT_EXPORTED"
 Unexporting "UT_EXPORTED"
-Global:delete .MAKE.EXPORTED
+Global: delete .MAKE.EXPORTED
 Global: .MAKEFLAGS =  -r -k -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0
 make: Fatal errors encountered -- cannot continue

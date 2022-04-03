@@ -1,3 +1,26 @@
+2022-03-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220323
+	* posix.mk: default rules for .POSIX:
+
+2022-03-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys/*.mk: remove l from ARFLAGS
+
+2022-03-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220314
+
+	* dirdeps-options.mk: allow options to be per RELDIR
+	try DIRDEPS_OPTIONS_QUALIFIER_LIST first prefixed
+	with ${DEP_RELDIR}.
+
+2022-02-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20220214
+
+	* cc-wrap.mk: fix :@ modifier
+
 2022-02-06  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20220206

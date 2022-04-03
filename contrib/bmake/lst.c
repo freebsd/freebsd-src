@@ -1,4 +1,4 @@
-/* $NetBSD: lst.c,v 1.105 2021/03/15 16:45:30 rillig Exp $ */
+/* $NetBSD: lst.c,v 1.106 2022/02/26 11:57:21 rillig Exp $ */
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -34,7 +34,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: lst.c,v 1.105 2021/03/15 16:45:30 rillig Exp $");
+MAKE_RCSID("$NetBSD: lst.c,v 1.106 2022/02/26 11:57:21 rillig Exp $");
 
 static ListNode *
 LstNodeNew(ListNode *prev, ListNode *next, void *datum)
@@ -163,6 +163,8 @@ Lst_Remove(List *list, ListNode *ln)
 		list->first = ln->next;
 	if (list->last == ln)
 		list->last = ln->prev;
+
+	free(ln);
 }
 
 /* Replace the datum in the given node with the new datum. */

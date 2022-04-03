@@ -1,4 +1,4 @@
-# $Id: cc-wrap.mk,v 1.5 2022/02/07 19:02:55 sjg Exp $
+# $Id: cc-wrap.mk,v 1.6 2022/02/16 17:41:52 sjg Exp $
 #
 #	@(#) Copyright (c) 2022, Simon J. Gerraty
 #

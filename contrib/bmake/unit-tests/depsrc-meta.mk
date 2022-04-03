@@ -1,4 +1,4 @@
-# $NetBSD: depsrc-meta.mk,v 1.6 2022/01/26 22:47:03 rillig Exp $
+# $NetBSD: depsrc-meta.mk,v 1.7 2022/03/02 19:32:15 sjg Exp $
 #
 # Tests for the special source .META in dependency declarations.
 
@@ -9,7 +9,7 @@
 
 .if make(actual-test)
 .MAKEFLAGS: -dM
-.MAKE.MODE=	meta curDirOk=true
+.MAKE.MODE=	meta curDirOk=true nofilemon
 .endif
 
 actual-test: depsrc-meta-target

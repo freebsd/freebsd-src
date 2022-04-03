@@ -33,6 +33,7 @@ nls.mk
 obj.mk
 options.mk
 own.mk
+posix.mk
 prlist.mk
 prog.mk
 progs.mk

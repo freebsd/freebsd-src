@@ -2,11 +2,11 @@ make: "opt-debug-file.mk" line 43: This goes to stderr only, once.
 make: "opt-debug-file.mk" line 45: This goes to stderr only, once.
 make: "opt-debug-file.mk" line 47: This goes to stderr, and in addition to the debug log.
 CondParser_Eval: ${:!cat opt-debug-file.debuglog!:Maddition:[#]} != 1
-lhs = 1.000000, rhs = 1.000000, op = !=
+Comparing 1.000000 != 1.000000
 make: Missing delimiter for modifier ':S'
 make: Missing delimiter for modifier ':S'
 make: Missing delimiter for modifier ':S'
 CondParser_Eval: ${:!cat opt-debug-file.debuglog!:Mdelimiter:[#]} != 1
-lhs = 1.000000, rhs = 1.000000, op = !=
+Comparing 1.000000 != 1.000000
 Cannot open debug file "/nonexistent-6f21c672-a22d-4ef7/opt-debug-file.debuglog"
 exit status 2

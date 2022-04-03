@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.364 2022/01/07 20:54:45 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.366 2022/03/04 23:17:16 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.364 2022/01/07 20:54:45 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.366 2022/03/04 23:17:16 sjg Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -145,8 +145,8 @@ static int sNum = 0;
 typedef List SuffixListList;
 
 /*
- * A suffix such as ".c" or ".o" that is used in suffix transformation rules
- * such as ".c.o:".
+ * A suffix such as ".c" or ".o" that may be used in suffix transformation
+ * rules such as ".c.o:".
  */
 typedef struct Suffix {
 	/* The suffix itself, such as ".c" */
@@ -859,9 +859,9 @@ Suff_AddSuffix(const char *name)
 
 /* Return the search path for the given suffix, or NULL. */
 SearchPath *
-Suff_GetPath(const char *sname)
+Suff_GetPath(const char *name)
 {
-	Suffix *suff = FindSuffixByName(sname);
+	Suffix *suff = FindSuffixByName(name);
 	return suff != NULL ? suff->searchPath : NULL;
 }
 
@@ -1019,7 +1019,7 @@ Candidate_New(char *name, char *prefix, Suffix *suff, Candidate *parent,
 /*ARGSUSED*/
 static void
 CandidateList_Add(CandidateList *list, char *srcName, Candidate *targ,
-		  Suffix *suff, const char *debug_tag)
+		  Suffix *suff, const char *debug_tag MAKE_ATTR_UNUSED)
 {
 	Candidate *cand = Candidate_New(srcName, targ->prefix, suff, targ,
 	    NULL);

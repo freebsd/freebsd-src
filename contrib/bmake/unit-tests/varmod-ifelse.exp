@@ -7,14 +7,14 @@ make: Bad conditional expression '1 == == 2' in '1 == == 2?yes:no'
 make: "varmod-ifelse.mk" line 66: Malformed conditional (${1 == == 2:?yes:no} != "")
 CondParser_Eval: "${1 == == 2:?yes:no}" != ""
 CondParser_Eval: 1 == == 2
-lhs = 1.000000, rhs = 0.000000, op = ==
+Comparing 1.000000 == 0.000000
 make: Bad conditional expression '1 == == 2' in '1 == == 2?yes:no'
-lhs = "", rhs = "", op = !=
+Comparing "" != ""
 make: "varmod-ifelse.mk" line 92: warning: Oops, the parse error should have been propagated.
 CondParser_Eval: ${ ${:U\$}{VAR} == value :?ok:bad} != "ok"
 CondParser_Eval: ${VAR} == value 
-lhs = "value", rhs = "value", op = ==
-lhs = "ok", rhs = "ok", op = !=
+Comparing "value" == "value"
+Comparing "ok" != "ok"
 make: "varmod-ifelse.mk" line 153: no.
 make: "varmod-ifelse.mk" line 154: String comparison operator must be either == or !=
 make: Bad conditional expression 'string == "literal" || no >= 10' in 'string == "literal" || no >= 10?yes:no'

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-assign.mk,v 1.14 2021/12/05 10:13:44 rillig Exp $
+# $NetBSD: varmod-assign.mk,v 1.15 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for the obscure ::= variable modifiers, which perform variable
 # assignments during evaluation, just like the = operator in C.
@@ -34,8 +34,8 @@ all:	mod-assign-shell-error
 .  error
 .endif
 
-# The assignments happen in the global scope and thus are preserved even after
-# the shell command has been run and the condition has been evaluated.
+# The assignments were performed as part of .if conditions and thus happened
+# in the command line scope.
 .if "${FIRST}, ${LAST}, ${APPENDED}, ${RAN}" != "1, 3, 1 2 3, <3>"
 .  error
 .endif
@@ -84,7 +84,8 @@ mod-assign-empty:
 mod-assign-parse:
 	# The modifier for assignment operators starts with a ':'.
 	# An 'x' after that is an invalid modifier.
-	@echo ${ASSIGN::x}	# 'x' is an unknown assignment operator
+	# expect: make: Unknown modifier ":x"
+	@echo ${ASSIGN::x}
 
 	# When parsing an assignment operator fails because the operator is
 	# incomplete, make falls back to the SysV modifier.

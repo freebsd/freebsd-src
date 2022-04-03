@@ -11,7 +11,7 @@ make: "varmod-indirect.mk" line 156: Unknown modifier "Z"
 make: "varmod-indirect.mk" line 157: before
 make: "varmod-indirect.mk" line 157: after
 Parsing line 166: _:=	before ${UNDEF} after
-Global: _ = 
+Global: _ = # (empty)
 Var_Parse: ${UNDEF} after (eval-keep-dollar-and-undefined)
 Global: _ = before ${UNDEF} after
 Parsing line 169: _:=	before ${UNDEF:${:US,a,a,}} after

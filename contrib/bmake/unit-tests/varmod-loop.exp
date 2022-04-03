@@ -1,9 +1,9 @@
 Parsing line 78: USE_8_DOLLARS=	${:U1:@var@${8_DOLLARS}@} ${8_DOLLARS} $$$$$$$$
 CondParser_Eval: ${USE_8_DOLLARS} != "\$\$\$\$ \$\$\$\$ \$\$\$\$"
-lhs = "$$$$ $$$$ $$$$", rhs = "$$$$ $$$$ $$$$", op = !=
+Comparing "$$$$ $$$$ $$$$" != "$$$$ $$$$ $$$$"
 Parsing line 83: SUBST_CONTAINING_LOOP:= ${USE_8_DOLLARS}
 CondParser_Eval: ${SUBST_CONTAINING_LOOP} != "\$\$ \$\$\$\$ \$\$\$\$"
-lhs = "$$ $$$$ $$$$", rhs = "$$ $$$$ $$$$", op = !=
+Comparing "$$ $$$$ $$$$" != "$$ $$$$ $$$$"
 Parsing line 108: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)
 :varname-overwriting-target: :x1y x2y x3y: ::

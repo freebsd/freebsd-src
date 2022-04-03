@@ -278,6 +278,8 @@ unit-tests/deptgt-precious.exp
 unit-tests/deptgt-precious.mk
 unit-tests/deptgt-shell.exp
 unit-tests/deptgt-shell.mk
+unit-tests/deptgt-silent-jobs.exp
+unit-tests/deptgt-silent-jobs.mk
 unit-tests/deptgt-silent.exp
 unit-tests/deptgt-silent.mk
 unit-tests/deptgt-stale.exp
@@ -502,6 +504,8 @@ unit-tests/opt-jobs-no-action.exp
 unit-tests/opt-jobs-no-action.mk
 unit-tests/opt-jobs.exp
 unit-tests/opt-jobs.mk
+unit-tests/opt-keep-going-indirect.exp
+unit-tests/opt-keep-going-indirect.mk
 unit-tests/opt-keep-going-multiple.exp
 unit-tests/opt-keep-going-multiple.mk
 unit-tests/opt-keep-going.exp

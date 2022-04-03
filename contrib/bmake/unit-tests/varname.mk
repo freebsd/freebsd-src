@@ -1,4 +1,4 @@
-# $NetBSD: varname.mk,v 1.9 2022/01/27 10:42:02 rillig Exp $
+# $NetBSD: varname.mk,v 1.10 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for special variables, such as .MAKE or .PARSEDIR.
 # And for variable names in general.
@@ -42,7 +42,7 @@ ${VARNAME}=	try3
 .MAKEFLAGS: -d0
 
 # All variable names of a scope are stored in the same hash table, using a
-# simple hash function.  Ensure that HashEntry_KeyEquals handles collisions
+# simple hash function.  Ensure that HashTable_Find handles collisions
 # correctly and that the correct variable is looked up.  The strings "0x" and
 # "1Y" have the same hash code, as 31 * '0' + 'x' == 31 * '1' + 'Y'.
 V.0x=	0x

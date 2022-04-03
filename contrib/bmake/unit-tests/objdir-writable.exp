@@ -1,5 +1,5 @@
-make warning: TMPDIR/roobj: Permission denied.
-TMPDIR
-TMPDIR/roobj
-TMPDIR/roobj
+make: warning: <tmpdir>/roobj: Permission denied.
+<tmpdir>
+<tmpdir>/roobj
+<tmpdir>/roobj
 exit status 0
