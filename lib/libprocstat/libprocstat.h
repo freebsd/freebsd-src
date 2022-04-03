@@ -168,8 +168,33 @@ struct sockstat {
 
 STAILQ_HEAD(filestat_list, filestat);
 
+struct advlock {
+	int		rw;			/* PS_ADVLOCK_RO/RW */
+	int		type;			/* PS_ADVLOCK_TYPE_ */
+	int		pid;
+	int		sysid;
+	uint64_t	file_fsid;
+	uint64_t	file_rdev;
+	uint64_t	file_fileid;
+	off_t		start;
+	off_t		len;			/* len == 0 till the EOF */
+	const char	*path;
+	STAILQ_ENTRY(advlock)	next;
+};
+
+#define	PS_ADVLOCK_RO		0x01
+#define	PS_ADVLOCK_RW		0x02
+
+#define	PS_ADVLOCK_TYPE_FLOCK	0x01
+#define	PS_ADVLOCK_TYPE_PID	0x02
+#define	PS_ADVLOCK_TYPE_REMOTE	0x03
+
+STAILQ_HEAD(advlock_list, advlock);
+
 __BEGIN_DECLS
 void	procstat_close(struct procstat *procstat);
+void	procstat_freeadvlock(struct procstat *procstat,
+    struct advlock_list *advlocks);
 void	procstat_freeargv(struct procstat *procstat);
 #ifndef ZFS
 void	procstat_freeauxv(struct procstat *procstat, Elf_Auxinfo *auxv);
@@ -185,6 +210,7 @@ void	procstat_freeptlwpinfo(struct procstat *procstat,
     struct ptrace_lwpinfo *pl);
 void	procstat_freevmmap(struct procstat *procstat,
     struct kinfo_vmentry *vmmap);
+struct advlock_list	*procstat_getadvlock(struct procstat *procstat);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
     struct kinfo_proc *kp, int mmapped);
 struct kinfo_proc	*procstat_getprocs(struct procstat *procstat,
