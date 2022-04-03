@@ -8,6 +8,11 @@
 #ifndef ZCONF_H
 #define ZCONF_H
 
+#if defined(Z_SOLO)
+#include <sys/types.h>
+#define Z_U8 __uint64_t
+#define Z_U4 __uint32_t
+#endif
 /*
  * If you *really* need a unique prefix for all types and library functions,
  * compile with -DZ_PREFIX. The "standard" zlib should be compiled without it.
