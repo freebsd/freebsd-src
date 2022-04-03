@@ -3,11 +3,11 @@ make: "cond-cmp-numeric.mk" line 11: String comparison operator must be either =
 CondParser_Eval: ${:UNaN} > NaN
 make: "cond-cmp-numeric.mk" line 16: String comparison operator must be either == or !=
 CondParser_Eval: !(${:UNaN} == NaN)
-lhs = "NaN", rhs = "NaN", op = ==
+Comparing "NaN" == "NaN"
 CondParser_Eval: 123 ! 123
 make: "cond-cmp-numeric.mk" line 34: Malformed conditional (123 ! 123)
 CondParser_Eval: ${:U 123} < 124
-lhs = 123.000000, rhs = 124.000000, op = <
+Comparing 123.000000 < 124.000000
 CondParser_Eval: ${:U123 } < 124
 make: "cond-cmp-numeric.mk" line 50: String comparison operator must be either == or !=
 make: Fatal errors encountered -- cannot continue

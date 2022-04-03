@@ -1,31 +1,31 @@
 CondParser_Eval: ${:Uvalue} != value
-lhs = "value", rhs = "value", op = !=
+Comparing "value" != "value"
 CondParser_Eval: ${:U} != "
-lhs = "", rhs = "", op = !=
+Comparing "" != ""
 CondParser_Eval: ${:U#hash} != "#hash"
-lhs = "#hash", rhs = "#hash", op = !=
+Comparing "#hash" != "#hash"
 CondParser_Eval: ${:U\\} != "\\
-lhs = "\", rhs = "\", op = !=
+Comparing "\" != "\"
 CondParser_Eval: ${:U#hash} != #hash
-lhs = "#hash", rhs = "#hash", op = !=
+Comparing "#hash" != "#hash"
 CondParser_Eval: 0 # This is treated as a comment, but why?
 CondParser_Eval: ${0 # comment :?yes:no} != no
 CondParser_Eval: 0 # comment 
-lhs = "no", rhs = "no", op = !=
+Comparing "no" != "no"
 CondParser_Eval: ${1 # comment :?yes:no} != yes
 CondParser_Eval: 1 # comment 
-lhs = "yes", rhs = "yes", op = !=
+Comparing "yes" != "yes"
 CondParser_Eval: ${UNDEF:Uundefined}!=undefined
-lhs = "undefined", rhs = "undefined", op = !=
+Comparing "undefined" != "undefined"
 CondParser_Eval: ${UNDEF:U12345}>12345
-lhs = 12345.000000, rhs = 12345.000000, op = >
+Comparing 12345.000000 > 12345.000000
 CondParser_Eval: ${UNDEF:U12345}<12345
-lhs = 12345.000000, rhs = 12345.000000, op = <
+Comparing 12345.000000 < 12345.000000
 CondParser_Eval: (${UNDEF:U0})||0
 CondParser_Eval: ${:Uvar}&&name != "var&&name"
-lhs = "var&&name", rhs = "var&&name", op = !=
+Comparing "var&&name" != "var&&name"
 CondParser_Eval: ${:Uvar}||name != "var||name"
-lhs = "var||name", rhs = "var||name", op = !=
+Comparing "var||name" != "var||name"
 CondParser_Eval: bare
 make: "cond-token-plain.mk" line 105: A bare word is treated like defined(...), and the variable 'bare' is not defined.
 CondParser_Eval: VAR
@@ -47,7 +47,7 @@ make: "cond-token-plain.mk" line 167: The variable '\\' is not defined.
 CondParser_Eval: \\
 make: "cond-token-plain.mk" line 172: Now the variable '\\' is defined.
 CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
-lhs = "unquoted"quoted", rhs = "unquoted"quoted", op = !=
+Comparing "unquoted"quoted" != "unquoted"quoted"
 CondParser_Eval: $$$$$$$$ != ""
 CondParser_Eval: left == right
 make: "cond-token-plain.mk" line 195: Malformed conditional (left == right)

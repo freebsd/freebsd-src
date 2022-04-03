@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-local.mk,v 1.4 2022/02/05 10:41:15 rillig Exp $
+# $NetBSD: var-scope-local.mk,v 1.5 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for target-local variables, such as ${.TARGET} or $@.  These variables
 # are relatively short-lived as they are created just before making the
@@ -18,7 +18,7 @@
 # these expressions to expand right in time when the target-local variables
 # are actually set.
 #
-# Conditions like the ones below are evaluated in the scope of the command
+# Conditions from .if directives are evaluated in the scope of the command
 # line, which means that variables from the command line, from the global
 # scope and from the environment are resolved, in this order (but see the
 # command line option '-e').  In that phase, expressions involving
@@ -33,15 +33,16 @@
 # expressions like ${@}, ${.TARGET} ${VAR:Mpattern} (see Var_Parse,
 # ParseVarname).
 #
-# In the following condition, make does not expand '$@' but instead changes it
-# to the long-format alias '$(.TARGET)'; note that the alias is not written
-# with braces, as would be common in BSD makefiles, but with parentheses.
-# This alternative form behaves equivalently though.
+# In the following condition, make expands '$@' to the long-format alias
+# '$(.TARGET)'; note that the alias is not written with braces, as would be
+# common in BSD makefiles, but with parentheses.  This alternative spelling
+# behaves the same though.
 .if $@ != "\$\(.TARGET)"
 .  error
 .endif
-# In the long form of writing a target-local variable, the expression is
-# preserved exactly as written, no matter whether with '{' or '('.
+# In the long form of writing a target-local variable, the text of the
+# expression is preserved exactly as written, no matter whether it is written
+# with '{' or '('.
 .if ${@} != "\$\{@}"
 .  error
 .endif
@@ -60,7 +61,7 @@
 # In the following examples, the expressions are based on target-local
 # variables but use the modifier ':L', which turns an undefined expression
 # into a defined one.  At the end of evaluating the expression, the state of
-# the expression is not 'undefined' anymore, and the value of the expression
+# the expression is not 'undefined' anymore.  The value of the expression
 # is the name of the variable, since that's what the modifier ':L' does.
 .if ${@:L} != "@"
 .  error
@@ -164,10 +165,11 @@ var-scope-local-append.o: VAR+= local
 var-scope-local-append.o: VAR += to ${.TARGET}
 # To access the value of a global variable, use a variable expression.  This
 # expression is expanded before parsing the whole dependency line.  Since the
-# expansion happens to the right of both the dependency operator ':' and also
-# to the right of the assignment operator '=', the expanded text does not
-# affect the dependency or the variable assignment structurally.  The
-# effective variable assignment, after expanding the whole line first, is thus
+# expansion happens to the right of the dependency operator ':', the expanded
+# text does not influence parsing of the dependency line.  Since the expansion
+# happens to the right of the assignment operator '=', the expanded text does
+# not influence the parsing of the variable assignment.  The effective
+# variable assignment, after expanding the whole line first, is thus
 # 'VAR= global+local'.
 # expect: : Making var-scope-local-append-global.o with VAR="global+local".
 var-scope-local-append-global.o: VAR= ${VAR}+local
@@ -182,17 +184,22 @@ var-scope-local-default.o: VAR ?= second
 # Using the variable assignment operator ':=' provides another way of
 # accessing a global variable and extending it with local modifications.  The
 # '$' has to be written as '$$' though to survive the expansion of the
-# dependency line as a whole.
+# dependency line as a whole.  After that, the parser sees the variable
+# assignment as 'VAR := ${VAR}+local' and searches for the variable 'VAR' in
+# the usual scopes, picking up the variable from the global scope.
+# expect: : Making var-scope-local-subst.o with VAR="global+local".
 var-scope-local-subst.o: VAR := $${VAR}+local
 
 # The variable assignment operator '!=' assigns the output of the shell
-# command, as everywhere else.
+# command, as everywhere else.  The shell command is run when the dependency
+# line is parsed.
 var-scope-local-shell.o: VAR != echo output
 
 
 # While VAR=use will be set for a .USE node, it will never be seen since only
 # the ultimate target's context is searched; the variable assignments from the
 # .USE target are not copied to the ultimate target's.
+# expect: : var-scope-local-use.o uses .USE VAR="global"
 a_use: .USE VAR=use
 	: ${.TARGET} uses .USE VAR="${VAR}"
 

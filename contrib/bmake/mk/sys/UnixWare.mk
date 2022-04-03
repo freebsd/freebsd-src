@@ -1,4 +1,4 @@
-#	$Id: UnixWare.mk,v 1.8 2021/10/13 16:45:52 sjg Exp $
+#	$Id: UnixWare.mk,v 1.10 2022/03/25 23:43:06 sjg Exp $
 #	based on "Id: SunOS.5.sys.mk,v 1.6 2003/09/30 16:42:23 sjg Exp "
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
@@ -22,7 +22,7 @@ PATH ?= /usr/sbin:/usr/bin:/usr/ccs/bin:/usr/ccs/lib:/usr/ucb:${DEV_TOOLS_PREFIX
 LD_X=
 LD_x=
 AR ?=		ar
-ARFLAGS ?=	rl
+ARFLAGS ?=	r
 RANLIB ?=	:
 
 AS ?=		as
@@ -245,3 +245,4 @@ ${CXX_SUFFIXES:%=%.a}:
 .sh:
 	rm -f ${.TARGET}
 	cp ${.IMPSRC} ${.TARGET}
+	chmod a+x ${.TARGET}

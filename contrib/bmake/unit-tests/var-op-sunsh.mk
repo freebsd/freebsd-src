@@ -1,8 +1,8 @@
-# $NetBSD: var-op-sunsh.mk,v 1.9 2022/01/16 09:38:04 rillig Exp $
+# $NetBSD: var-op-sunsh.mk,v 1.10 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for the :sh= variable assignment operator, which runs its right-hand
 # side through the shell.  It is a seldom-used alternative to the !=
-# assignment operator, adopted from SUN make.
+# assignment operator, adopted from Sun make.
 
 .MAKEFLAGS: -dL			# Enable sane error messages
 

@@ -1,4 +1,4 @@
-# $NetBSD: opt-file.mk,v 1.14 2021/12/09 20:47:33 rillig Exp $
+# $NetBSD: opt-file.mk,v 1.15 2022/03/26 13:32:31 rillig Exp $
 #
 # Tests for the -f command line option, which adds a makefile to the list of
 # files that are parsed.
@@ -15,7 +15,7 @@ all: file-containing-null-byte
 # possible.
 #
 # In the unlikely case where a file ends in a backslash instead of a newline,
-# that backslash is trimmed.  See ParseGetLine.
+# that backslash is trimmed.  See ReadLowLevelLine.
 #
 # make-2014.01.01.00.00.00 invoked undefined behavior, reading text from
 # outside of the file buffer.
@@ -52,7 +52,7 @@ file-ending-in-backslash-mmap: .PHONY
 
 # Since parse.c 1.511 from 2020-12-22, an assertion in ParseGetLine failed
 # for lines that contained trailing whitespace.  Worked around in parse.c
-# 1.513, properly fixed in parse.c 1.514.
+# 1.513, properly fixed in parse.c 1.514 from 2020-12-22.
 line-with-trailing-whitespace: .PHONY
 	@printf '%s' 'VAR=$@ ' > opt-file-trailing-whitespace
 	@${MAKE} -r -f opt-file-trailing-whitespace -V VAR

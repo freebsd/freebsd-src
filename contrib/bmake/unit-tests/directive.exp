@@ -2,7 +2,7 @@ make: "directive.mk" line 10: Unknown directive "indented"
 make: "directive.mk" line 12: Unknown directive "indented"
 make: "directive.mk" line 14: Unknown directive "indented"
 make: "directive.mk" line 21: Unknown directive "info"
-Global: .info = 
+Global: .info = # (empty)
 Global: .info = value
 make: "directive.mk" line 33: :=	value
 Global: .MAKEFLAGS =  -r -k -d v -d

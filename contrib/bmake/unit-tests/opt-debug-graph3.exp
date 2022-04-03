@@ -50,8 +50,8 @@ all             : made-target error-target aborted-target
 #*** Global Variables:
 .ALLTARGETS      =  made-target error-target aborted-target aborted-target-dependency all .END
 .CURDIR          = <curdir>
-.INCLUDES        = 
-.LIBS            = 
+.INCLUDES        = # (empty)
+.LIBS            = # (empty)
 .MAKE            = <details omitted>
 .MAKE.DEPENDFILE = <details omitted>
 .MAKE.GID        = <details omitted>
@@ -63,12 +63,12 @@ all             : made-target error-target aborted-target
 .MAKE.PPID       = <details omitted>
 .MAKE.UID        = <details omitted>
 .MAKEFLAGS       =  -r -k -d g3
-.MAKEOVERRIDES   = 
+.MAKEOVERRIDES   = # (empty)
 .OBJDIR          = <curdir>
 .PATH            = . <curdir>
 .TARGETS         =  all
 .newline         = 
-
+# (ends with space)
 MACHINE          = <details omitted>
 MACHINE_ARCH     = <details omitted>
 MAKE             = <details omitted>

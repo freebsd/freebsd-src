@@ -1,7 +1,7 @@
-# $NetBSD: directive-elifdef.mk,v 1.3 2022/01/22 16:23:56 rillig Exp $
+# $NetBSD: directive-elifdef.mk,v 1.4 2022/02/09 21:09:24 rillig Exp $
 #
 # Tests for the .elifdef directive, which is seldom used.  Instead of writing
-# '.elifdef VAR', the usual form is the more versatile '.elif defined(VAR)'.
+# '.elifdef VAR', the usual form is the more general '.elif defined(VAR)'.
 
 # At this point, VAR is not defined, so the condition evaluates to false.
 .if 0

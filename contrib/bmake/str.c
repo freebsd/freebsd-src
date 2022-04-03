@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.88 2021/12/15 10:57:01 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.89 2022/03/03 19:50:01 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.88 2021/12/15 10:57:01 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.89 2022/03/03 19:50:01 rillig Exp $");
 
 
 static HashTable interned_strings;
@@ -364,9 +364,9 @@ Str_Match(const char *str, const char *pat)
 				if (pat[1] == '-') {
 					if (pat[2] == '\0')
 						return neg;
-					if (*pat <= *str && pat[2] >= *str)
+					if (pat[0] <= *str && *str <= pat[2])
 						break;
-					if (*pat >= *str && pat[2] <= *str)
+					if (pat[2] <= *str && *str <= pat[0])
 						break;
 					pat += 2;
 				}

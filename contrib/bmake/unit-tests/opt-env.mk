@@ -1,6 +1,10 @@
-# $NetBSD: opt-env.mk,v 1.3 2022/01/23 16:09:38 rillig Exp $
+# $NetBSD: opt-env.mk,v 1.4 2022/03/26 13:32:31 rillig Exp $
 #
-# Tests for the -e command line option.
+# Tests for the -e command line option, which looks up environment variables
+# before those from the global scope.  It has no influence on variables from
+# the command line though.
+#
+# This option is required by POSIX.
 
 # The variable FROM_ENV is defined in ./Makefile.
 

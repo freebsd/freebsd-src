@@ -1,5 +1,5 @@
 make: "echo word; false" returned non-zero status
-Global: _ = 
+Global: _ = # (empty)
 Var_Parse: ${echo word; ${:Ufalse}:L:sh} (eval-keep-dollar-and-undefined)
 Evaluating modifier ${echo word; false:L} on value "" (eval-keep-dollar-and-undefined, undefined)
 Result of ${echo word; false:L} is "echo word; false" (eval-keep-dollar-and-undefined, defined)

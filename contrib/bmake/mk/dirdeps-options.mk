@@ -1,6 +1,6 @@
-# $Id: dirdeps-options.mk,v 1.18 2020/12/22 18:10:34 sjg Exp $
+# $Id: dirdeps-options.mk,v 1.20 2022/03/17 20:11:36 sjg Exp $
 #
-#	@(#) Copyright (c) 2018-2020, Simon J. Gerraty
+#	@(#) Copyright (c) 2018-2022, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -54,6 +54,7 @@ DIRDEPS_OPTIONS ?=
 # :U below avoids potential errors when we :=
 # some options can depend on TARGET_SPEC!
 DIRDEPS_OPTIONS_QUALIFIER_LIST ?= \
+	${DEP_RELDIR} \
 	${DEP_TARGET_SPEC:U${TARGET_SPEC}} \
 	${TARGET_SPEC_VARSr:U${TARGET_SPEC_VARS}:@v@${DEP_$v:U${$v}}@}
 # note that we need to include $o in the variable _o$o
@@ -61,7 +62,9 @@ DIRDEPS_OPTIONS_QUALIFIER_LIST ?= \
 .for o in ${DIRDEPS_OPTIONS}
 .undef _o$o
 .undef _v$o
-.for x in ${DIRDEPS_OPTIONS_QUALIFIER_LIST}
+.for x in ${DIRDEPS_OPTIONS_QUALIFIER_LIST:S,^,${DEP_RELDIR}.,} \
+	${DIRDEPS_OPTIONS_QUALIFIER_LIST}
+#.info MK_$o.$x=${MK_$o.$x:Uundefined}
 .if defined(MK_$o.$x)
 _o$o ?= MK_$o.$x
 _v$o ?= ${MK_$o.$x}

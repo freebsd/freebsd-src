@@ -444,24 +444,24 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
              Variables that are defined specific to a certain target.
 
      Local variables can be set on a dependency line, if
-     [4m.MAKE.TARGET_LOCAL_VARIABLES[24m, is not set to `false'.  The rest of the
-     line (which will already have had Global variables expanded), is the
-     variable value.  For example:
+     [4m.MAKE.TARGET_LOCAL_VARIABLES[24m is not set to `false'.  The rest of the line
+     (which will already have had global variables expanded) is the variable
+     value.  For example:
 
-           COMPILER_WRAPPERS+= ccache distcc icecc
+           COMPILER_WRAPPERS= ccache distcc icecc
 
            ${OBJS}: .MAKE.META.CMP_FILTER=${COMPILER_WRAPPERS:S,^,N,}
 
      Only the targets `${OBJS}' will be impacted by that filter (in "meta"
-     mode) and simply enabling/disabling any of the wrappers will not render
-     all of those targets out-of-date.
+     mode) and simply enabling/disabling any of the compiler wrappers will not
+     render all of those targets out-of-date.
 
-     [4mNOTE[24m: target local variable assignments behave differently in that;
+     [4mNOTE[24m: target-local variable assignments behave differently in that;
 
            [1m+=      [22mOnly appends to a previous local assignment for the same
                    target and variable.
 
-           [1m:=      [22mIs redundant with respect to Global variables, which have
+           [1m:=      [22mIs redundant with respect to global variables, which have
                    already been expanded.
 
      The seven built-in local variables are as follows:
@@ -1468,6 +1468,13 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1m.PHONY   [22mApply the [1m.PHONY [22mattribute to any specified sources.
 
+     [1m.POSIX   [22mThis should be the first non-comment line in a Makefile.  It re-
+              sults in the variable [4m%POSIX[24m being defined with the value
+              `1003.2'.  The first time [1m.POSIX [22mis encountered, the makefile
+              `posix.mk' will be included if possible, to provide POSIX com-
+              patible default rules.  If [1mbmake [22mis run with the [1m-r [22mflag, then
+              only `posix.mk' will contribute to the default rules.
+
      [1m.PRECIOUS[0m
               Apply the [1m.PRECIOUS [22mattribute to any specified sources.  If no
               sources are specified, the [1m.PRECIOUS [22mattribute is applied to ev-
@@ -1622,4 +1629,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 13.0                   January 28, 2022                   FreeBSD 13.0
+FreeBSD 13.0                    March 24, 2022                    FreeBSD 13.0

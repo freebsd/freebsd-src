@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.304 2022/01/29 20:54:58 sjg Exp $
+.\"	$NetBSD: make.1,v 1.307 2022/03/26 15:39:58 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd January 28, 2022
+.Dd March 24, 2022
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -692,15 +692,15 @@ Variables that are defined specific to a certain target.
 .El
 .Pp
 Local variables can be set on a dependency line, if
-.Va .MAKE.TARGET_LOCAL_VARIABLES ,
+.Va .MAKE.TARGET_LOCAL_VARIABLES
 is not set to
 .Ql false .
 The rest of the line
-(which will already have had Global variables expanded),
+(which will already have had global variables expanded)
 is the variable value.
 For example:
 .Bd -literal -offset indent
-COMPILER_WRAPPERS+= ccache distcc icecc
+COMPILER_WRAPPERS= ccache distcc icecc
 
 ${OBJS}: .MAKE.META.CMP_FILTER=${COMPILER_WRAPPERS:S,^,N,}
 .Ed
@@ -708,17 +708,17 @@ ${OBJS}: .MAKE.META.CMP_FILTER=${COMPILER_WRAPPERS:S,^,N,}
 Only the targets
 .Ql ${OBJS}
 will be impacted by that filter (in "meta" mode) and
-simply enabling/disabling any of the wrappers will not render all
+simply enabling/disabling any of the compiler wrappers will not render all
 of those targets out-of-date.
 .Pp
 .Em NOTE :
-target local variable assignments behave differently in that;
+target-local variable assignments behave differently in that;
 .Bl -tag -width Ds -offset indent
 .It Ic \&+=
 Only appends to a previous local assignment
 for the same target and variable.
 .It Ic \&:=
-Is redundant with respect to Global variables,
+Is redundant with respect to global variables,
 which have already been expanded.
 .El
 .Pp
@@ -2301,6 +2301,25 @@ The suffix must have been previously declared with
 Apply the
 .Ic .PHONY
 attribute to any specified sources.
+.It Ic .POSIX
+This should be the first non-comment line in a Makefile.
+It results in the variable
+.Va %POSIX
+being defined with the value
+.Ql 1003.2 .
+The first time
+.Ic .POSIX
+is encountered, the makefile
+.Ql posix.mk
+will be included if possible,
+to provide POSIX compatible default rules.
+If
+.Nm
+is run with the
+.Fl r
+flag, then only
+.Ql posix.mk
+will contribute to the default rules.
 .It Ic .PRECIOUS
 Apply the
 .Ic .PRECIOUS

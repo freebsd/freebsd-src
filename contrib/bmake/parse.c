@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.663 2022/02/07 23:24:26 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.668 2022/03/25 21:16:04 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.663 2022/02/07 23:24:26 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.668 2022/03/25 21:16:04 sjg Exp $");
 
 /*
  * A file being read.
@@ -139,7 +139,7 @@ typedef struct IncludedFile {
 	bool depending;		/* state of doing_depend on EOF */
 
 	Buffer buf;		/* the file's content or the body of the .for
-				 * loop; always ends with '\n' */
+				 * loop; either empty or ends with '\n' */
 	char *buf_ptr;		/* next char to be read */
 	char *buf_end;		/* buf_end[-1] == '\n' */
 
@@ -479,7 +479,7 @@ PrintLocation(FILE *f, bool useVars, const char *fname, unsigned lineno)
 
 static void MAKE_ATTR_PRINTFLIKE(6, 0)
 ParseVErrorInternal(FILE *f, bool useVars, const char *fname, unsigned lineno,
-		    ParseErrorLevel type, const char *fmt, va_list ap)
+		    ParseErrorLevel level, const char *fmt, va_list ap)
 {
 	static bool fatal_warning_error_printed = false;
 
@@ -487,15 +487,15 @@ ParseVErrorInternal(FILE *f, bool useVars, const char *fname, unsigned lineno,
 
 	if (fname != NULL)
 		PrintLocation(f, useVars, fname, lineno);
-	if (type == PARSE_WARNING)
+	if (level == PARSE_WARNING)
 		(void)fprintf(f, "warning: ");
 	(void)vfprintf(f, fmt, ap);
 	(void)fprintf(f, "\n");
 	(void)fflush(f);
 
-	if (type == PARSE_FATAL)
+	if (level == PARSE_FATAL)
 		parseErrors++;
-	if (type == PARSE_WARNING && opts.parseWarnFatal) {
+	if (level == PARSE_WARNING && opts.parseWarnFatal) {
 		if (!fatal_warning_error_printed) {
 			Error("parsing warnings being treated as errors");
 			fatal_warning_error_printed = true;
@@ -509,19 +509,19 @@ ParseVErrorInternal(FILE *f, bool useVars, const char *fname, unsigned lineno,
 
 static void MAKE_ATTR_PRINTFLIKE(4, 5)
 ParseErrorInternal(const char *fname, unsigned lineno,
-		   ParseErrorLevel type, const char *fmt, ...)
+		   ParseErrorLevel level, const char *fmt, ...)
 {
 	va_list ap;
 
 	(void)fflush(stdout);
 	va_start(ap, fmt);
-	ParseVErrorInternal(stderr, false, fname, lineno, type, fmt, ap);
+	ParseVErrorInternal(stderr, false, fname, lineno, level, fmt, ap);
 	va_end(ap);
 
 	if (opts.debug_file != stdout && opts.debug_file != stderr) {
 		va_start(ap, fmt);
 		ParseVErrorInternal(opts.debug_file, false, fname, lineno,
-		    type, fmt, ap);
+		    level, fmt, ap);
 		va_end(ap);
 	}
 }
@@ -535,7 +535,7 @@ ParseErrorInternal(const char *fname, unsigned lineno,
  * Fmt is given without a trailing newline.
  */
 void
-Parse_Error(ParseErrorLevel type, const char *fmt, ...)
+Parse_Error(ParseErrorLevel level, const char *fmt, ...)
 {
 	va_list ap;
 	const char *fname;
@@ -552,13 +552,13 @@ Parse_Error(ParseErrorLevel type, const char *fmt, ...)
 
 	(void)fflush(stdout);
 	va_start(ap, fmt);
-	ParseVErrorInternal(stderr, true, fname, lineno, type, fmt, ap);
+	ParseVErrorInternal(stderr, true, fname, lineno, level, fmt, ap);
 	va_end(ap);
 
 	if (opts.debug_file != stdout && opts.debug_file != stderr) {
 		va_start(ap, fmt);
 		ParseVErrorInternal(opts.debug_file, true, fname, lineno,
-		    type, fmt, ap);
+		    level, fmt, ap);
 		va_end(ap);
 	}
 }
@@ -768,14 +768,15 @@ ApplyDependencySourceMain(const char *src)
 	Global_Append(".TARGETS", src);
 }
 
+/*
+ * For the sources of a .ORDER target, create predecessor/successor links
+ * between the previous source and the current one.
+ */
 static void
 ApplyDependencySourceOrder(const char *src)
 {
 	GNode *gn;
-	/*
-	 * Create proper predecessor/successor links between the previous
-	 * source and the current one.
-	 */
+
 	gn = Targ_GetNode(src);
 	if (doing_depend)
 		RememberLocation(gn);
@@ -861,7 +862,6 @@ static void
 InvalidLineType(const char *line)
 {
 	if (strncmp(line, "<<<<<<", 6) == 0 ||
-	    strncmp(line, "======", 6) == 0 ||
 	    strncmp(line, ">>>>>>", 6) == 0)
 		Parse_Error(PARSE_FATAL,
 		    "Makefile appears to contain unresolved CVS/RCS/??? merge conflicts");
@@ -1093,9 +1093,7 @@ CheckSpecialMundaneMixture(ParseSpecial special)
 		 * shouldn't be empty.
 		 */
 	case SP_NOT:
-		/*
-		 * Nothing special here -- targets can be empty if it wants.
-		 */
+		/* Nothing special here -- targets may be empty. */
 		break;
 	default:
 		Parse_Error(PARSE_WARNING,
@@ -1132,6 +1130,121 @@ ClearPaths(SearchPathList *paths)
 	Dir_SetPATH();
 }
 
+/*
+ * Handle one of the .[-ds]include directives by remembering the current file
+ * and pushing the included file on the stack.  After the included file has
+ * finished, parsing continues with the including file; see Parse_PushInput
+ * and ParseEOF.
+ *
+ * System includes are looked up in sysIncPath, any other includes are looked
+ * up in the parsedir and then in the directories specified by the -I command
+ * line options.
+ */
+static void
+IncludeFile(const char *file, bool isSystem, bool depinc, bool silent)
+{
+	Buffer buf;
+	char *fullname;		/* full pathname of file */
+	char *newName;
+	char *slash, *incdir;
+	int fd;
+	int i;
+
+	fullname = file[0] == '/' ? bmake_strdup(file) : NULL;
+
+	if (fullname == NULL && !isSystem) {
+		/*
+		 * Include files contained in double-quotes are first searched
+		 * relative to the including file's location. We don't want to
+		 * cd there, of course, so we just tack on the old file's
+		 * leading path components and call Dir_FindFile to see if
+		 * we can locate the file.
+		 */
+
+		incdir = bmake_strdup(CurFile()->name.str);
+		slash = strrchr(incdir, '/');
+		if (slash != NULL) {
+			*slash = '\0';
+			/*
+			 * Now do lexical processing of leading "../" on the
+			 * filename.
+			 */
+			for (i = 0; strncmp(file + i, "../", 3) == 0; i += 3) {
+				slash = strrchr(incdir + 1, '/');
+				if (slash == NULL || strcmp(slash, "/..") == 0)
+					break;
+				*slash = '\0';
+			}
+			newName = str_concat3(incdir, "/", file + i);
+			fullname = Dir_FindFile(newName, parseIncPath);
+			if (fullname == NULL)
+				fullname = Dir_FindFile(newName,
+				    &dirSearchPath);
+			free(newName);
+		}
+		free(incdir);
+
+		if (fullname == NULL) {
+			/*
+			 * Makefile wasn't found in same directory as included
+			 * makefile.
+			 *
+			 * Search for it first on the -I search path, then on
+			 * the .PATH search path, if not found in a -I
+			 * directory. If we have a suffix-specific path, we
+			 * should use that.
+			 */
+			const char *suff;
+			SearchPath *suffPath = NULL;
+
+			if ((suff = strrchr(file, '.')) != NULL) {
+				suffPath = Suff_GetPath(suff);
+				if (suffPath != NULL)
+					fullname = Dir_FindFile(file, suffPath);
+			}
+			if (fullname == NULL) {
+				fullname = Dir_FindFile(file, parseIncPath);
+				if (fullname == NULL)
+					fullname = Dir_FindFile(file,
+					    &dirSearchPath);
+			}
+		}
+	}
+
+	/* Looking for a system file or file still not found */
+	if (fullname == NULL) {
+		/*
+		 * Look for it on the system path
+		 */
+		SearchPath *path = Lst_IsEmpty(&sysIncPath->dirs)
+		    ? defSysIncPath : sysIncPath;
+		fullname = Dir_FindFile(file, path);
+	}
+
+	if (fullname == NULL) {
+		if (!silent)
+			Parse_Error(PARSE_FATAL, "Could not find %s", file);
+		return;
+	}
+
+	/* Actually open the file... */
+	fd = open(fullname, O_RDONLY);
+	if (fd == -1) {
+		if (!silent)
+			Parse_Error(PARSE_FATAL, "Cannot open %s", fullname);
+		free(fullname);
+		return;
+	}
+
+	buf = loadfile(fullname, fd);
+	(void)close(fd);
+
+	Parse_PushInput(fullname, 1, 0, buf, NULL);
+	if (depinc)
+		doing_depend = depinc;	/* only turn it on */
+	free(fullname);
+}
+
 /* Handle a "dependency" line like '.SPECIAL:' without any sources. */
 static void
 HandleDependencySourcesEmpty(ParseSpecial special, SearchPathList *paths)
@@ -1155,6 +1268,23 @@ HandleDependencySourcesEmpty(ParseSpecial special, SearchPathList *paths)
 #ifdef POSIX
 	case SP_POSIX:
 		Global_Set("%POSIX", "1003.2");
+		{
+			static bool first_posix = true;
+
+			/*
+			 * Since .POSIX: should be the first
+			 * operative line in a makefile,
+			 * if '-r' flag is used, no default rules have
+			 * been read yet, in which case 'posix.mk' can
+			 * be a substiute for 'sys.mk'.
+			 * If '-r' is not used, then 'posix.mk' acts
+			 * as an extension of 'sys.mk'.
+			 */
+			if (first_posix) {
+				first_posix = false;
+				IncludeFile("posix.mk", true, false, true);
+			}
+		}
 		break;
 #endif
 	default:
@@ -1556,7 +1686,7 @@ Parse_IsVar(const char *p, VarAssign *out_var)
 	cpp_skip_hspace(&p);	/* Skip to variable name */
 
 	/*
-	 * During parsing, the '+' of the '+=' operator is initially parsed
+	 * During parsing, the '+' of the operator '+=' is initially parsed
 	 * as part of the variable name.  It is later corrected, as is the
 	 * ':sh' modifier. Of these two (nameEnd and eq), the earlier one
 	 * determines the actual end of the variable name.
@@ -1840,120 +1970,6 @@ Parse_AddIncludeDir(const char *dir)
 	(void)SearchPath_Add(parseIncPath, dir);
 }
 
-/*
- * Handle one of the .[-ds]include directives by remembering the current file
- * and pushing the included file on the stack.  After the included file has
- * finished, parsing continues with the including file; see Parse_PushInput
- * and ParseEOF.
- *
- * System includes are looked up in sysIncPath, any other includes are looked
- * up in the parsedir and then in the directories specified by the -I command
- * line options.
- */
-static void
-IncludeFile(const char *file, bool isSystem, bool depinc, bool silent)
-{
-	Buffer buf;
-	char *fullname;		/* full pathname of file */
-	char *newName;
-	char *slash, *incdir;
-	int fd;
-	int i;
-
-	fullname = file[0] == '/' ? bmake_strdup(file) : NULL;
-
-	if (fullname == NULL && !isSystem) {
-		/*
-		 * Include files contained in double-quotes are first searched
-		 * relative to the including file's location. We don't want to
-		 * cd there, of course, so we just tack on the old file's
-		 * leading path components and call Dir_FindFile to see if
-		 * we can locate the file.
-		 */
-
-		incdir = bmake_strdup(CurFile()->name.str);
-		slash = strrchr(incdir, '/');
-		if (slash != NULL) {
-			*slash = '\0';
-			/*
-			 * Now do lexical processing of leading "../" on the
-			 * filename.
-			 */
-			for (i = 0; strncmp(file + i, "../", 3) == 0; i += 3) {
-				slash = strrchr(incdir + 1, '/');
-				if (slash == NULL || strcmp(slash, "/..") == 0)
-					break;
-				*slash = '\0';
-			}
-			newName = str_concat3(incdir, "/", file + i);
-			fullname = Dir_FindFile(newName, parseIncPath);
-			if (fullname == NULL)
-				fullname = Dir_FindFile(newName,
-				    &dirSearchPath);
-			free(newName);
-		}
-		free(incdir);
-
-		if (fullname == NULL) {
-			/*
-			 * Makefile wasn't found in same directory as included
-			 * makefile.
-			 *
-			 * Search for it first on the -I search path, then on
-			 * the .PATH search path, if not found in a -I
-			 * directory. If we have a suffix-specific path, we
-			 * should use that.
-			 */
-			const char *suff;
-			SearchPath *suffPath = NULL;
-
-			if ((suff = strrchr(file, '.')) != NULL) {
-				suffPath = Suff_GetPath(suff);
-				if (suffPath != NULL)
-					fullname = Dir_FindFile(file, suffPath);
-			}
-			if (fullname == NULL) {
-				fullname = Dir_FindFile(file, parseIncPath);
-				if (fullname == NULL)
-					fullname = Dir_FindFile(file,
-					    &dirSearchPath);
-			}
-		}
-	}
-
-	/* Looking for a system file or file still not found */
-	if (fullname == NULL) {
-		/*
-		 * Look for it on the system path
-		 */
-		SearchPath *path = Lst_IsEmpty(&sysIncPath->dirs)
-		    ? defSysIncPath : sysIncPath;
-		fullname = Dir_FindFile(file, path);
-	}
-
-	if (fullname == NULL) {
-		if (!silent)
-			Parse_Error(PARSE_FATAL, "Could not find %s", file);
-		return;
-	}
-
-	/* Actually open the file... */
-	fd = open(fullname, O_RDONLY);
-	if (fd == -1) {
-		if (!silent)
-			Parse_Error(PARSE_FATAL, "Cannot open %s", fullname);
-		free(fullname);
-		return;
-	}
-
-	buf = loadfile(fullname, fd);
-	(void)close(fd);
-
-	Parse_PushInput(fullname, 1, 0, buf, NULL);
-	if (depinc)
-		doing_depend = depinc;	/* only turn it on */
-	free(fullname);
-}
 
 /*
  * Parse a directive like '.include' or '.-include'.

@@ -7,8 +7,8 @@
 #*** Global Variables:
 .ALLTARGETS      =  all
 .CURDIR          = <curdir>
-.INCLUDES        = 
-.LIBS            = 
+.INCLUDES        = # (empty)
+.LIBS            = # (empty)
 .MAKE            = <details omitted>
 .MAKE.DEPENDFILE = <details omitted>
 .MAKE.GID        = <details omitted>
@@ -20,12 +20,12 @@
 .MAKE.PPID       = <details omitted>
 .MAKE.UID        = <details omitted>
 .MAKEFLAGS       =  -r -k -d g1
-.MAKEOVERRIDES   = 
+.MAKEOVERRIDES   = # (empty)
 .OBJDIR          = <curdir>
 .PATH            = . <curdir>
-.TARGETS         = 
+.TARGETS         = # (empty)
 .newline         = 
-
+# (ends with space)
 MACHINE          = <details omitted>
 MACHINE_ARCH     = <details omitted>
 MAKE             = <details omitted>
