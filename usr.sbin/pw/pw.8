@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2022
+.Dd April 3, 2022
 .Dt PW 8
 .Os
 .Sh NAME
@@ -39,38 +39,38 @@
 .Op Fl mNoPqY
 .Op Fl C Ar config
 .Op Fl c Ar comment
-.Op Fl d Ar dir
-.Op Fl e Ar date
+.Op Fl d Ar homedir
+.Op Fl e Ar accexpdate
 .Op Fl G Ar grouplist
 .Op Fl g Ar group
 .Op Fl H Ar fd
 .Op Fl h Ar fd
-.Op Fl k Ar dir
+.Op Fl k Ar skeldir
 .Op Fl L Ar class
 .Op Fl M Ar mode
-.Op Fl p Ar date
+.Op Fl p Ar passexpdate
 .Op Fl s Ar shell
 .Op Fl u Ar uid
-.Op Fl w Ar method
+.Op Fl w Ar passmethod
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm useradd
 .Fl D
 .Op Fl q
-.Op Fl b Ar dir
+.Op Fl b Ar basehome
 .Op Fl C Ar config
-.Op Fl e Ar days
+.Op Fl e Ar accexpdays
 .Op Fl G Ar grouplist
 .Op Fl g Ar group
-.Op Fl i Ar min , Ns Ar max
-.Op Fl k Ar dir
-.Op Fl p Ar days
+.Op Fl i Ar mingid , Ns Ar maxgid
+.Op Fl k Ar skeldir
+.Op Fl p Ar passexpdays
 .Op Fl s Ar shell
 .Op Fl M Ar mode
-.Op Fl u Ar min , Ns Ar max
-.Op Fl w Ar method
-.Op Fl y Ar path
+.Op Fl u Ar minuid , Ns Ar maxuid
+.Op Fl w Ar passmethod
+.Op Fl y Ar nispasswd
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
@@ -85,9 +85,9 @@
 .Op Fl mNPqY
 .Op Fl C Ar config
 .Op Fl c Ar comment
-.Op Fl d Ar dir
-.Op Fl e Ar date
-.Op Fl k Ar dir
+.Op Fl d Ar homedir
+.Op Fl e Ar accexpdate
+.Op Fl k Ar skeldir
 .Op Fl G Ar grouplist
 .Op Fl g Ar group
 .Op Fl H Ar fd
@@ -95,9 +95,9 @@
 .Op Fl L Ar class
 .Op Fl l Ar newname
 .Op Fl M Ar mode
-.Op Fl p Ar date
+.Op Fl p Ar passexpdate
 .Op Fl s Ar shell
-.Op Fl w Ar method
+.Op Fl w Ar passmethod
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
@@ -295,7 +295,7 @@ database files.
 If separate passwd and group files are being used by
 .Tn NIS ,
 then use the
-.Fl y Ar path
+.Fl y Ar nispasswd
 option to specify the location of the
 .Tn NIS
 passwd database so that
@@ -371,7 +371,7 @@ and the colon
 .Ql \&:
 character also cannot be used as this is the field separator for the passwd
 file itself.
-.It Fl d Ar dir
+.It Fl d Ar homedir
 This option sets the account's home directory.
 Normally,
 this is only used if the home directory is to be different from the
@@ -380,7 +380,7 @@ default determined from
 - normally
 .Pa /home
 with the account name as a subdirectory.
-.It Fl e Ar date
+.It Fl e Ar accexpdate
 Set the account's expiration date.
 Format of the date is either a UNIX time in decimal, or a date in
 .Ql dd-mmm-yy[yy]
@@ -395,7 +395,7 @@ is a decimal,
 octal (leading 0) or hexadecimal (leading 0x) digit followed by the
 number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
 which the expiration date is to be set.
-.It Fl p Ar date
+.It Fl p Ar passexpdate
 Set the account's password expiration date.
 This field is similar to the account expiration date option, except that it
 applies to forced password changes.
@@ -468,7 +468,7 @@ If omitted, it is derived from the parent process'
 This option is only useful in combination with the
 .Fl m
 flag.
-.It Fl k Ar dir
+.It Fl k Ar skeldir
 Set the
 .Ar skeleton
 directory, from which basic startup and configuration files are copied when
@@ -581,27 +581,27 @@ Set default values in
 configuration file, or a different named configuration file if the
 .Fl C Ar config
 option is used.
-.It Fl b Ar dir
+.It Fl b Ar basehome
 Set the root directory in which user home directories are created.
 The default value for this is
 .Pa /home ,
 but it may be set elsewhere as desired.
-.It Fl e Ar days
+.It Fl e Ar accexpdays
 Set the default account expiration period in days.
 When
 .Fl D
 is used, the
-.Ar days
+.Ar accexpdays
 argument is interpreted differently.
 It must be numeric and represents the number of days after creation
 that the account expires.
 A value of 0 suppresses automatic calculation of the expiry date.
-.It Fl p Ar days
+.It Fl p Ar passexpdays
 Set the default password expiration period in days.
 When
 .Fl D
 is used, the
-.Ar days
+.Ar passexpdays
 argument is interpreted differently.
 It must be numeric and represents the number of days after creation
 that the account expires.
@@ -627,7 +627,7 @@ stored in
 by their symbolic names.
 .It Fl L Ar class
 This option sets the default login class for new users.
-.It Fl k Ar dir
+.It Fl k Ar skeldir
 Set the default
 .Em skeleton
 directory,
@@ -638,28 +638,33 @@ See description of
 .Fl k
 for naming conventions of these files.
 .It Xo
-.Fl u Ar min Ns Cm \&, Ns Ar max ,
-.Fl i Ar min Ns Cm \&, Ns Ar max
+.Fl u Ar minuid Ns Cm \&, Ns Ar maxuid ,
+.Fl i Ar mingid Ns Cm \&, Ns Ar maxgid
 .Xc
 Set the minimum and maximum user and group ids allocated for new
 accounts and groups created by
 .Nm .
 The default values for each is 1000 minimum and 32000 maximum.
-.Ar min
+.Ar minuid
 and
-.Ar max
+.Ar maxuid
 are both numbers, where max must be greater than min,
-and both must be between 0 and 32767.
+and both must be between 0 and 32767
+.Po the same applies to
+.Ar mingid
+and
+.Ar maxgid
+.Pc .
 In general,
 user and group ids less than 100 are reserved for use by the system,
 and numbers greater than 32000 may also be reserved for special purposes
 .Pq used by some system daemons .
-.It Fl w Ar method
+.It Fl w Ar passmethod
 The
 .Fl w
 option selects the default method used to set passwords for newly created user
 accounts.
-.Ar method
+.Ar passmethod
 is one of:
 .Pp
 .Bl -tag -width random -offset indent -compact
