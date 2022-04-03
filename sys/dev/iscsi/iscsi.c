@@ -1290,7 +1290,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	off = ntohl(bhsr2t->bhsr2t_buffer_offset);
 	if (off > csio->dxfer_len) {
 		ISCSI_SESSION_WARN(is, "target requested invalid offset "
-		    "%zd, buffer is is %d; reconnecting", off, csio->dxfer_len);
+		    "%zd, buffer is %d; reconnecting", off, csio->dxfer_len);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
 		return;
