@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2020
+.Dd April 3, 2022
 .Dt LIBPROCSTAT 3
 .Os
 .Sh NAME
 .Nm procstat_close ,
+.Nm procstat_freeadvlock ,
 .Nm procstat_freeargv ,
 .Nm procstat_freeauxv ,
 .Nm procstat_freeenvv ,
@@ -44,6 +45,7 @@
 .Nm procstat_get_shm_info ,
 .Nm procstat_get_socket_info ,
 .Nm procstat_get_vnode_info ,
+.Nm procstat_getadvlock ,
 .Nm procstat_getargv ,
 .Nm procstat_getauxv ,
 .Nm procstat_getenvv ,
@@ -70,6 +72,8 @@
 .In libprocstat.h
 .Ft void
 .Fn procstat_close "struct procstat *procstat"
+.Ft void
+.Fn procstat_freeadvlock "struct procstat *procstat" "struct advlock_list *list"
 .Ft void
 .Fo procstat_freeargv
 .Fa "struct procstat *procstat"
@@ -151,6 +155,10 @@
 .Fa "struct filestat *fst"
 .Fa "struct vnstat *vn"
 .Fa "char *errbuf"
+.Fc
+.Ft "struct advlock_list *"
+.Fo procstat_getadvlock
+.Fa "struct procstat *procstat"
 .Fc
 .Ft "char **"
 .Fo procstat_getargv
@@ -493,6 +501,25 @@ structures.
 The caller is responsible to free the allocated memory with a subsequent
 .Fn procstat_freevmmap
 function call.
+.Pp
+The
+.Fn procstat_getadvlock
+function returns a dynamically allocated list of
+.Va struct advlock
+structures, providing a snapshot of the currently
+acquired advisory locks in the system.
+Both locally acquired POSIX (
+.Xr fcntl 2 )
+and BSD-style (
+.Xr flock 2 )
+locks are reported, as well as locks established by remote file
+system protocols.
+For each lock, unique identifiers for the locked file and its mount point
+are guaranteed to be provided.
+If a path for the locked file can be reconstructed, it is provided as well.
+The returned list must be freed with the
+.Fn procstat_freeadvlock
+function.
 .Pp
 The
 .Fn procstat_get_pipe_info ,
