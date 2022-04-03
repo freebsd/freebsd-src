@@ -454,7 +454,8 @@ int main(int argc, char *argv[argc])
 			conf.key.f1_file = optarg;
 			break;
 		case HLINE:
-			conf.bottomtitle = optarg;
+			if (strlen(optarg) > 0)
+				conf.bottomtitle = optarg;
 			break;
 		case HMSG:
 			conf.key.f1_message = optarg;
