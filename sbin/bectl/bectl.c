@@ -134,7 +134,6 @@ get_cmd_info(const char *cmd)
 	return (NULL);
 }
 
-
 static int
 bectl_cmd_activate(int argc, char *argv[])
 {
@@ -233,10 +232,7 @@ bectl_cmd_create(int argc, char *argv[])
 	bootenv = *argv;
 
 	err = BE_ERR_SUCCESS;
-	if (strchr(bootenv, ' ') != NULL)
-		/* BE datasets with spaces are not bootable */
-		err = BE_ERR_INVALIDNAME;
-	else if ((atpos = strchr(bootenv, '@')) != NULL) {
+	if ((atpos = strchr(bootenv, '@')) != NULL) {
 		/*
 		 * This is the "create a snapshot variant". No new boot
 		 * environment is to be created here.
@@ -478,7 +474,6 @@ bectl_cmd_rename(int argc, char *argv[])
 	dest = argv[2];
 
 	err = be_rename(be, src, dest);
-
 	switch (err) {
 	case BE_ERR_SUCCESS:
 		break;
@@ -487,7 +482,7 @@ bectl_cmd_rename(int argc, char *argv[])
 		    src, dest);
 	}
 
-	return (0);
+	return (err);
 }
 
 static int
