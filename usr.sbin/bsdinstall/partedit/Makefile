@@ -5,7 +5,8 @@ PROG=	partedit
 LINKS= ${BINDIR}/partedit ${BINDIR}/autopart \
        ${BINDIR}/partedit ${BINDIR}/scriptedpart
 SYMLINKS= ../libexec/bsdinstall/partedit /usr/sbin/sade
-LIBADD+=	geom ncursesw util dialog m
+CFLAGS+=	-I${SRCTOP}/contrib/bsddialog/lib
+LIBADD+=	geom util bsddialog
 
 PARTEDIT_ARCH= ${MACHINE}
 .if ${MACHINE} == "i386" || ${MACHINE} == "amd64"
@@ -17,7 +18,7 @@ PARTEDIT_ARCH= efi
 PARTEDIT_ARCH= generic
 .endif
 
-SRCS=	diskeditor.c partedit.c gpart_ops.c partedit_${PARTEDIT_ARCH}.c \
+SRCS=	diskmenu.c partedit.c gpart_ops.c partedit_${PARTEDIT_ARCH}.c \
 	part_wizard.c scripted.c
 
 WARNS?=	3

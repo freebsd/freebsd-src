@@ -28,10 +28,15 @@
  * $FreeBSD$
  */
 
-#ifndef _PARTEDIT_DISKEDITOR_H
-#define _PARTEDIT_DISKEDITOR_H
+#ifndef _PARTEDIT_DISKMENU_H
+#define _PARTEDIT_DISKMENU_H
 
-#include <inttypes.h>
+#define BUTTON_CREATE BSDDIALOG_OK
+#define BUTTON_DELETE BSDDIALOG_EXTRA
+#define BUTTON_MODIFY BSDDIALOG_CANCEL
+#define BUTTON_REVERT BSDDIALOG_HELP
+#define BUTTON_AUTO   BSDDIALOG_GENERIC1
+#define BUTTON_FINISH BSDDIALOG_GENERIC2
 
 struct partedit_item {
 	int indentation;
@@ -43,7 +48,7 @@ struct partedit_item {
 	void *cookie;
 };
 
-int diskeditor_show(const char *title, const char *prompt,
-    struct partedit_item *items, int nitems, int *selected, int *scroll);
+int diskmenu_show(const char *title, const char *text,
+    struct partedit_item *items, int nitems, int *selected);
 
 #endif

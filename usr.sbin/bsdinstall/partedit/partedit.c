@@ -30,18 +30,19 @@
 
 #include <sys/param.h>
 
-#include <dialog.h>
-#include <dlg_keys.h>
+#include <bsddialog.h>
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
 #include <inttypes.h>
 #include <libgeom.h>
 #include <libutil.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 
-#include "diskeditor.h"
+#include "diskmenu.h"
 #include "partedit.h"
 
 struct pmetadata_head part_metadata;
@@ -66,7 +67,7 @@ sigint_handler(int sig)
 	gpart_revert_all(&mesh);
 	geom_deletetree(&mesh);
 
-	end_dialog();
+	bsddialog_end();
 
 	exit(1);
 }
@@ -78,8 +79,9 @@ main(int argc, const char **argv)
 	const char *progname, *prompt;
 	struct partedit_item *items = NULL;
 	struct gmesh mesh;
-	int i, op, nitems, nscroll;
+	int i, op, nitems;
 	int error;
+	struct bsddialog_conf conf;
 
 	progname = getprogname();
 	if (strcmp(progname, "sade") == 0)
@@ -89,11 +91,12 @@ main(int argc, const char **argv)
 
 	init_fstab_metadata();
 
-	init_dialog(stdin, stdout);
+	if (bsddialog_init() == BSDDIALOG_ERROR)
+		err(1, "%s", bsddialog_geterror());
+	bsddialog_initconf(&conf);
 	if (!sade_mode)
-		dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
-	dialog_vars.item_help = TRUE;
-	nscroll = i = 0;
+		bsddialog_backtitle(&conf, "FreeBSD Installer");
+	i = 0;
 
 	/* Revert changes on SIGINT */
 	signal(SIGINT, sigint_handler);
@@ -111,26 +114,28 @@ main(int argc, const char **argv)
 		error = scripted_editor(argc, argv);
 		prompt = NULL;
 		if (error != 0) {
-			end_dialog();
+			bsddialog_end();
 			return (error);
 		}
 	} else {
-		prompt = "Create partitions for FreeBSD. No changes will be "
-		    "made until you select Finish.";
+		prompt = "Create partitions for FreeBSD, F1 for help.\n"
+		    "No changes will be made until you select Finish.";
 	}
 
 	/* Show the part editor either immediately, or to confirm wizard */
 	while (prompt != NULL) {
-		dlg_clear();
-		dlg_put_backtitle();
+		bsddialog_clearterminal();
+		if (!sade_mode)
+			bsddialog_backtitle(&conf, "FreeBSD Installer");
 
 		error = geom_gettree(&mesh);
 		if (error == 0)
 			items = read_geom_mesh(&mesh, &nitems);
 		if (error || items == NULL) {
-			dialog_msgbox("Error", "No disks found. If you need to "
-			    "install a kernel driver, choose Shell at the "
-			    "installation menu.", 0, 0, TRUE);
+			conf.title = "Error";
+			bsddialog_msgbox(&conf, "No disks found. If you need "
+			    "to install a kernel driver, choose Shell at the "
+			    "installation menu.", 0, 0);
 			break;
 		}
 			
@@ -138,21 +143,21 @@ main(int argc, const char **argv)
 
 		if (i >= nitems)
 			i = nitems - 1;
-		op = diskeditor_show("Partition Editor", prompt,
-		    items, nitems, &i, &nscroll);
+		op = diskmenu_show("Partition Editor", prompt, items, nitems,
+		    &i);
 
 		switch (op) {
-		case 0: /* Create */
+		case BUTTON_CREATE:
 			gpart_create((struct gprovider *)(items[i].cookie),
 			    NULL, NULL, NULL, NULL, 1);
 			break;
-		case 1: /* Delete */
+		case BUTTON_DELETE:
 			gpart_delete((struct gprovider *)(items[i].cookie));
 			break;
-		case 2: /* Modify */
+		case BUTTON_MODIFY:
 			gpart_edit((struct gprovider *)(items[i].cookie));
 			break;
-		case 3: /* Revert */
+		case BUTTON_REVERT:
 			gpart_revert_all(&mesh);
 			while ((md = TAILQ_FIRST(&part_metadata)) != NULL) {
 				if (md->fstab != NULL) {
@@ -172,33 +177,33 @@ main(int argc, const char **argv)
 			}
 			init_fstab_metadata();
 			break;
-		case 4: /* Auto */
+		case BUTTON_AUTO:
 			part_wizard("ufs");
 			break;
 		}
 
 		error = 0;
-		if (op == 5) { /* Finished */
-			dialog_vars.ok_label = __DECONST(char *, "Commit");
-			dialog_vars.extra_label =
-			    __DECONST(char *, "Revert & Exit");
-			dialog_vars.extra_button = TRUE;
-			dialog_vars.cancel_label = __DECONST(char *, "Back");
-			op = dialog_yesno("Confirmation", "Your changes will "
-			    "now be written to disk. If you have chosen to "
-			    "overwrite existing data, it will be PERMANENTLY "
-			    "ERASED. Are you sure you want to commit your "
-			    "changes?", 0, 0);
-			dialog_vars.ok_label = NULL;
-			dialog_vars.extra_button = FALSE;
-			dialog_vars.cancel_label = NULL;
+		if (op == BUTTON_FINISH) {
+			conf.button.ok_label = "Commit";
+			conf.button.with_extra = true;
+			conf.button.extra_label = "Revert & Exit";
+			conf.button.cancel_label = "Back";
+			conf.title = "Confirmation";
+			op = bsddialog_yesno(&conf, "Your changes will now be "
+			    "written to disk. If you have chosen to overwrite "
+			    "existing data, it will be PERMANENTLY ERASED. Are "
+			    "you sure you want to commit your changes?", 0, 0);
+			conf.button.ok_label = NULL;
+			conf.button.with_extra = false;
+			conf.button.extra_label = NULL;
+			conf.button.cancel_label = NULL;
 
-			if (op == 0 && validate_setup()) { /* Save */
+			if (op == BSDDIALOG_OK && validate_setup()) { /* Save */
 				error = apply_changes(&mesh);
 				if (!error)
 					apply_workaround(&mesh);
 				break;
-			} else if (op == 3) { /* Quit */
+			} else if (op == BSDDIALOG_EXTRA) { /* Quit */
 				gpart_revert_all(&mesh);
 				error =	-1;
 				break;
@@ -221,7 +226,7 @@ main(int argc, const char **argv)
 
 	geom_deletetree(&mesh);
 	free(items);
-	end_dialog();
+	bsddialog_end();
 
 	return (error);
 }
@@ -274,7 +279,8 @@ static int
 validate_setup(void)
 {
 	struct partition_metadata *md, *root = NULL;
-	int cancel;
+	int button;
+	struct bsddialog_conf conf;
 
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->fstab != NULL && strcmp(md->fstab->fs_file, "/") == 0)
@@ -283,11 +289,14 @@ validate_setup(void)
 		/* XXX: Check for duplicate mountpoints */
 	}
 
+	bsddialog_initconf(&conf);
+
 	if (root == NULL) {
-		dialog_msgbox("Error", "No root partition was found. "
-		    "The root FreeBSD partition must have a mountpoint of '/'.",
-		0, 0, TRUE);
-		return (FALSE);
+		conf.title = "Error";
+		bsddialog_msgbox(&conf, "No root partition was found. "
+		    "The root FreeBSD partition must have a mountpoint "
+		    "of '/'.", 0, 0);
+		return (false);
 	}
 
 	/*
@@ -295,20 +304,20 @@ validate_setup(void)
 	 * usually a mistake
 	 */
 	if (root->newfs == NULL && !sade_mode) {
-		dialog_vars.defaultno = TRUE;
-		cancel = dialog_yesno("Warning", "The chosen root partition "
+		conf.button.default_cancel = true;
+		conf.title = "Warning";
+		button = bsddialog_yesno(&conf, "The chosen root partition "
 		    "has a preexisting filesystem. If it contains an existing "
 		    "FreeBSD system, please update it with freebsd-update "
 		    "instead of installing a new system on it. The partition "
 		    "can also be erased by pressing \"No\" and then deleting "
 		    "and recreating it. Are you sure you want to proceed?",
 		    0, 0);
-		dialog_vars.defaultno = FALSE;
-		if (cancel)
-			return (FALSE);
+		if (button == BSDDIALOG_CANCEL)
+			return (false);
 	}
 
-	return (TRUE);
+	return (true);
 }
 
 static int
@@ -332,37 +341,41 @@ apply_changes(struct gmesh *mesh)
 {
 	struct partition_metadata *md;
 	char message[512];
-	int i, nitems, error;
-	const char **items;
+	int i, nitems, error, *miniperc;
+	const char **minilabel;
 	const char *fstab_path;
 	FILE *fstab;
+	struct bsddialog_conf conf;
 
 	nitems = 1; /* Partition table changes */
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->newfs != NULL)
 			nitems++;
 	}
-	items = calloc(nitems * 2, sizeof(const char *));
-	items[0] = "Writing partition tables";
-	items[1] = "7"; /* In progress */
+	minilabel = calloc(nitems, sizeof(const char *));
+	miniperc  = calloc(nitems, sizeof(int));
+	minilabel[0] = "Writing partition tables";
+	miniperc[0]  = BSDDIALOG_MG_INPROGRESS;
 	i = 1;
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->newfs != NULL) {
 			char *item;
 			item = malloc(255);
 			sprintf(item, "Initializing %s", md->name);
-			items[i*2] = item;
-			items[i*2 + 1] = "Pending";
+			minilabel[i] = item;
+			miniperc[i]  = BSDDIALOG_MG_PENDING;
 			i++;
 		}
 	}
 
 	i = 0;
-	dialog_mixedgauge("Initializing",
-	    "Initializing file systems. Please wait.", 0, 0, i*100/nitems,
-	    nitems, __DECONST(char **, items));
+	bsddialog_initconf(&conf);
+	conf.title = "Initializing";
+	bsddialog_mixedgauge(&conf,
+	    "Initializing file systems. Please wait.", 0, 0, i * 100 / nitems,
+	    nitems, minilabel, miniperc);
 	gpart_commit(mesh);
-	items[i*2 + 1] = "3";
+	miniperc[i] = BSDDIALOG_MG_COMPLETED;
 	i++;
 
 	if (getenv("BSDINSTALL_LOG") == NULL) 
@@ -370,25 +383,27 @@ apply_changes(struct gmesh *mesh)
 
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->newfs != NULL) {
-			items[i*2 + 1] = "7"; /* In progress */
-			dialog_mixedgauge("Initializing",
+			miniperc[i] = BSDDIALOG_MG_INPROGRESS;
+			bsddialog_mixedgauge(&conf,
 			    "Initializing file systems. Please wait.", 0, 0,
-			    i*100/nitems, nitems, __DECONST(char **, items));
+			    i * 100 / nitems, nitems, minilabel, miniperc);
 			sprintf(message, "(echo %s; %s) >>%s 2>>%s",
 			    md->newfs, md->newfs, getenv("BSDINSTALL_LOG"),
 			    getenv("BSDINSTALL_LOG"));
 			error = system(message);
-			items[i*2 + 1] = (error == 0) ? "3" : "1";
+			miniperc[i] = (error == 0) ?
+			    BSDDIALOG_MG_COMPLETED : BSDDIALOG_MG_FAILED;
 			i++;
 		}
 	}
-	dialog_mixedgauge("Initializing",
-	    "Initializing file systems. Please wait.", 0, 0,
-	    i*100/nitems, nitems, __DECONST(char **, items));
+	bsddialog_mixedgauge(&conf, "Initializing file systems. Please wait.",
+	    0, 0, i * 100 / nitems, nitems, minilabel, miniperc);
 
 	for (i = 1; i < nitems; i++)
-		free(__DECONST(char *, items[i*2]));
-	free(items);
+		free(__DECONST(char *, minilabel[i]));
+
+	free(minilabel);
+	free(miniperc);
 
 	/* Sort filesystems for fstab so that mountpoints are ordered */
 	{
@@ -421,7 +436,8 @@ apply_changes(struct gmesh *mesh)
 	if (fstab == NULL) {
 		sprintf(message, "Cannot open fstab file %s for writing (%s)\n",
 		    getenv("PATH_FSTAB"), strerror(errno));
-		dialog_msgbox("Error", message, 0, 0, TRUE);
+		conf.title = "Error";
+		bsddialog_msgbox(&conf, message, 0, 0);
 		return (-1);
 	}
 	fprintf(fstab, "# Device\tMountpoint\tFStype\tOptions\tDump\tPass#\n");
@@ -444,6 +460,7 @@ apply_workaround(struct gmesh *mesh)
 	struct ggeom *gp;
 	struct gconfig *gc;
 	const char *scheme = NULL, *modified = NULL;
+	struct bsddialog_conf conf;
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "PART") == 0)
@@ -451,7 +468,9 @@ apply_workaround(struct gmesh *mesh)
 	}
 
 	if (strcmp(classp->lg_name, "PART") != 0) {
-		dialog_msgbox("Error", "gpart not found!", 0, 0, TRUE);
+		bsddialog_initconf(&conf);
+		conf.title = "Error";
+		bsddialog_msgbox(&conf, "gpart not found!", 0, 0);
 		return;
 	}
 

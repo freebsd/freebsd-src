@@ -29,14 +29,16 @@
  */
 
 #include <sys/param.h>
+
 #include <errno.h>
 #include <inttypes.h>
 #include <libutil.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <libgeom.h>
-#include <dialog.h>
-#include <dlg_keys.h>
+#include <bsddialog.h>
 
 #include "partedit.h"
 
@@ -52,6 +54,9 @@ part_wizard(const char *fsreq)
 	const char *fstype;
 	struct gmesh mesh;
 	int error;
+	struct bsddialog_conf conf;
+
+	bsddialog_initconf(&conf);
 
 	if (fsreq != NULL)
 		fstype = fsreq;
@@ -61,22 +66,22 @@ part_wizard(const char *fsreq)
 startwizard:
 	error = geom_gettree(&mesh);
 
-	dlg_put_backtitle();
+	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	error = geom_gettree(&mesh);
 	disk = boot_disk_select(&mesh);
 	if (disk == NULL)
 		return (1);
 
-	dlg_clear();
-	dlg_put_backtitle();
+	bsddialog_clearterminal();
+	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	schemeroot = wizard_partition(&mesh, disk);
 	free(disk);
 	if (schemeroot == NULL)
 		return (1);
 
 	geom_deletetree(&mesh);
-	dlg_clear();
-	dlg_put_backtitle();
+	bsddialog_clearterminal();
+	bsddialog_backtitle(&conf, "FreeBSD Installer");
 	error = geom_gettree(&mesh);
 
 	error = wizard_makeparts(&mesh, schemeroot, fstype, 1);
@@ -96,11 +101,14 @@ boot_disk_select(struct gmesh *mesh)
 	struct gconfig *gc;
 	struct ggeom *gp;
 	struct gprovider *pp;
-	DIALOG_LISTITEM *disks = NULL;
+	struct bsddialog_menuitem *disks = NULL;
 	const char *type, *desc;
 	char diskdesc[512];
 	char *chosen;
-	int i, err, selected, n = 0;
+	int i, button, selected, n = 0;
+	struct bsddialog_conf conf;
+
+	bsddialog_initconf(&conf);
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "DISK") != 0 &&
@@ -143,19 +151,23 @@ boot_disk_select(struct gmesh *mesh)
 					snprintf(diskdesc, sizeof(diskdesc),
 					    "%s <%s>", diskdesc, desc);
 
-				disks[n-1].text = strdup(diskdesc);
-				disks[n-1].help = NULL;
-				disks[n-1].state = 0;
+				disks[n-1].prefix = "";
+				disks[n-1].on = false;
+				disks[n-1].depth = 0;
+				disks[n-1].desc = strdup(diskdesc);
+				disks[n-1].bottomdesc = "";
 			}
 		}
 	}
 
 	if (n > 1) {
-		err = dlg_menu("Partitioning",
+		conf.title = "Partitioning";
+		button = bsddialog_menu(&conf,
 		    "Select the disk on which to install FreeBSD.", 0, 0, 0,
-		    n, disks, &selected, NULL);
+		    n, disks, &selected);
 
-		chosen = (err == 0) ? strdup(disks[selected].name) : NULL;
+		chosen = (button == BSDDIALOG_OK) ?
+		    strdup(disks[selected].name) : NULL;
 	} else if (n == 1) {
 		chosen = strdup(disks[0].name);
 	} else {
@@ -163,7 +175,7 @@ boot_disk_select(struct gmesh *mesh)
 	}
 
 	for (i = 0; i < n; i++)
-		free(disks[i].text);
+		free((char*)disks[i].desc);
 
 	return (chosen);
 }
@@ -203,6 +215,9 @@ wizard_partition(struct gmesh *mesh, const char *disk)
 	const char *scheme = NULL;
 	char message[512];
 	int choice;
+	struct bsddialog_conf conf;
+
+	bsddialog_initconf(&conf);
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class)
 		if (strcmp(classp->lg_name, "PART") == 0)
@@ -228,22 +243,23 @@ wizard_partition(struct gmesh *mesh, const char *disk)
 		scheme = NULL;
 
 query:
-	dialog_vars.yes_label = "Entire Disk";
-	dialog_vars.no_label = "Partition";
+	conf.button.ok_label = "Entire Disk";
+	conf.button.cancel_label = "Partition";
 	if (gpart != NULL)
-		dialog_vars.defaultno = TRUE;
+		conf.button.default_cancel = true;
 
 	snprintf(message, sizeof(message), "Would you like to use this entire "
 	    "disk (%s) for FreeBSD or partition it to share it with other "
 	    "operating systems? Using the entire disk will erase any data "
 	    "currently stored there.", disk);
-	choice = dialog_yesno("Partition", message, 0, 0);
+	conf.title = "Partition";
+	choice = bsddialog_yesno(&conf, message, 9, 45);
 
-	dialog_vars.yes_label = NULL;
-	dialog_vars.no_label = NULL;
-	dialog_vars.defaultno = FALSE;
+	conf.button.ok_label = NULL;
+	conf.button.cancel_label = NULL;
+	conf.button.default_cancel = false;
 
-	if (choice == 1 && scheme != NULL && !is_scheme_bootable(scheme)) {
+	if (choice == BSDDIALOG_NO && scheme != NULL && !is_scheme_bootable(scheme)) {
 		char warning[512];
 		int subchoice;
 
@@ -252,8 +268,9 @@ query:
 		    "FreeBSD, it must be repartitioned. This will destroy all "
 		    "data on the disk. Are you sure you want to proceed?",
 		    scheme);
-		subchoice = dialog_yesno("Non-bootable Disk", warning, 0, 0);
-		if (subchoice != 0)
+		conf.title = "Non-bootable Disk";
+		subchoice = bsddialog_yesno(&conf, warning, 0, 0);
+		if (subchoice != BSDDIALOG_YES)
 			goto query;
 
 		gpart_destroy(gpart);
@@ -266,9 +283,10 @@ query:
 	if (scheme == NULL || choice == 0) {
 		if (gpart != NULL && scheme != NULL) {
 			/* Erase partitioned disk */
-			choice = dialog_yesno("Confirmation", "This will erase "
+			conf.title = "Confirmation";
+			choice = bsddialog_yesno(&conf, "This will erase "
 			   "the disk. Are you sure you want to proceed?", 0, 0);
-			if (choice != 0)
+			if (choice != BSDDIALOG_YES)
 				goto query;
 
 			gpart_destroy(gpart);
@@ -307,6 +325,7 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
 	char swapsizestr[10], rootsizestr[10];
 	intmax_t swapsize, available;
 	int retval;
+	struct bsddialog_conf conf;
 
 	if (strcmp(fstype, "zfs") == 0) {
 		fsname = fsnames[1];
@@ -337,11 +356,11 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
 		    "to choose another disk or to open the partition editor?",
 		    disk, availablestr, neededstr);
 
-		dialog_vars.yes_label = "Another Disk";
-		dialog_vars.no_label = "Editor";
-		retval = dialog_yesno("Warning", message, 0, 0);
-		dialog_vars.yes_label = NULL;
-		dialog_vars.no_label = NULL;
+		bsddialog_initconf(&conf);
+		conf.button.ok_label = "Another Disk";
+		conf.button.cancel_label = "Editor";
+		conf.title = "Warning";
+		retval = bsddialog_yesno(&conf, message, 0, 0);
 
 		return (!retval); /* Editor -> return 0 */
 	}
