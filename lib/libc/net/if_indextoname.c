@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 
 /*
- * From RFC 2533:
+ * From RFC 2553:
  *
  * The second function maps an interface index into its corresponding
  * name.
