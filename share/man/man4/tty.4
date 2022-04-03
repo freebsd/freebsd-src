@@ -28,7 +28,7 @@
 .\"     @(#)tty.4	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2019
+.Dd April 3, 2022
 .Dt TTY 4
 .Os
 .Sh NAME
@@ -378,3 +378,10 @@ variables.
 .Xr pty 4 ,
 .Xr termios 4 ,
 .Xr getty 8
+.Sh HISTORY
+A console typewriter device
+.Pa /dev/tty
+and asynchronous communication interfaces
+.Pa /dev/tty[0-5]
+first appeared in
+.At v1 .
