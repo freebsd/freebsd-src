@@ -36,7 +36,7 @@
 .Op Fl V Ar etcdir
 .Cm useradd
 .Oo Fl n Oc Ar name
-.Op Fl mNoPqY
+.Op Fl mNoPq
 .Op Fl C Ar config
 .Op Fl c Ar comment
 .Op Fl d Ar homedir
@@ -52,6 +52,7 @@
 .Op Fl s Ar shell
 .Op Fl u Ar uid
 .Op Fl w Ar passmethod
+.Op Fl Y Op Fl y Ar nispasswd
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
@@ -70,19 +71,20 @@
 .Op Fl s Ar shell
 .Op Fl u Ar minuid , Ns Ar maxuid
 .Op Fl w Ar passmethod
-.Op Fl y Ar nispasswd
+.Op Fl Y Op Fl y Ar nispasswd
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm userdel
 .Oo Fl n Oc Ar name Ns | Ns Oo Fl u Oc Ar uid
-.Op Fl rY
+.Op Fl r
+.Op Fl Y Op Fl y Ar nispasswd
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
 .Cm usermod
 .Oo Fl n Oc Ar name Ns | Ns Ar uid Oo Fl u Ar newuid Oc | Fl u Ar uid
-.Op Fl mNPqY
+.Op Fl mNPq
 .Op Fl C Ar config
 .Op Fl c Ar comment
 .Op Fl d Ar homedir
@@ -98,6 +100,7 @@
 .Op Fl p Ar passexpdate
 .Op Fl s Ar shell
 .Op Fl w Ar passmethod
+.Op Fl Y Op Fl y Ar nispasswd
 .Nm
 .Op Fl R Ar rootdir
 .Op Fl V Ar etcdir
