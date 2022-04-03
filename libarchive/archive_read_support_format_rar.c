@@ -3328,6 +3328,7 @@ run_filters(struct archive_read *a)
   struct rar *rar = (struct rar *)(a->format->data);
   struct rar_filters *filters = &rar->filters;
   struct rar_filter *filter = filters->stack;
+  struct rar_filter *f;
   size_t start, end;
   int64_t tend;
   uint32_t lastfilteraddress;
@@ -3345,6 +3346,22 @@ run_filters(struct archive_read *a)
   ret = expand(a, &tend);
   if (ret != ARCHIVE_OK)
     return 0;
+
+  /* Check if filter stack was modified in expand() */
+  ret = ARCHIVE_FATAL;
+  f = filters->stack;
+  while (f)
+  {
+    if (f == filter)
+    {
+      ret = ARCHIVE_OK;
+      break;
+    }
+    f = f->next;
+  }
+  if (ret != ARCHIVE_OK)
+    return 0;
+
   if (tend < 0)
     return 0;
   end = (size_t)tend;
