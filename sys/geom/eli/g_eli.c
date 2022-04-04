@@ -1586,7 +1586,6 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_provider *pp;
 	struct g_eli_softc *sc;
-	int error;
 
 	mp = arg;
 	g_topology_lock();
@@ -1602,7 +1601,7 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
 			gp->access = g_eli_access;
 		} else {
-			error = g_eli_destroy(sc, TRUE);
+			(void) g_eli_destroy(sc, TRUE);
 		}
 	}
 	g_topology_unlock();
