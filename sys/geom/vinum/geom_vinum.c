@@ -313,7 +313,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 	struct gv_sd *s, *s2;
 	struct gv_volume *v, *v2;
 	struct g_provider *pp;
-	int error, i, *drives, *flags, *plexes, *subdisks, *volumes;
+	int i, *drives, *flags, *plexes, *subdisks, *volumes;
 	char buf[20];
 
 	g_topology_assert();
@@ -374,7 +374,6 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 	/* ... then volume definitions ... */
 	for (i = 0; i < *volumes; i++) {
-		error = 0;
 		snprintf(buf, sizeof(buf), "volume%d", i);
 		v2 = gctl_get_paraml(req, buf, sizeof(*v2));
 		if (v2 == NULL) {
@@ -397,7 +396,6 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 	/* ... then plex definitions ... */
 	for (i = 0; i < *plexes; i++) {
-		error = 0;
 		snprintf(buf, sizeof(buf), "plex%d", i);
 		p2 = gctl_get_paraml(req, buf, sizeof(*p2));
 		if (p2 == NULL) {
@@ -420,7 +418,6 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 
 	/* ... and, finally, subdisk definitions. */
 	for (i = 0; i < *subdisks; i++) {
-		error = 0;
 		snprintf(buf, sizeof(buf), "sd%d", i);
 		s2 = gctl_get_paraml(req, buf, sizeof(*s2));
 		if (s2 == NULL) {
