@@ -211,24 +211,13 @@ int
 pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nadd, int flags)
 {
-	struct pfioc_table io;
+	int ret;
 
-	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
-		errno = EINVAL;
+	ret = pfctl_table_add_addrs(dev, tbl, addr, size, nadd, flags);
+	if (ret) {
+		errno = ret;
 		return (-1);
 	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	if (ioctl(dev, DIOCRADDADDRS, &io)) {
-		pfr_report_error(tbl, &io, "add addresses in");
-		return (-1);
-	}
-	if (nadd != NULL)
-		*nadd = io.pfrio_nadd;
 	return (0);
 }
 
@@ -236,24 +225,13 @@ int
 pfr_del_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *ndel, int flags)
 {
-	struct pfioc_table io;
+	int ret;
 
-	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
-		errno = EINVAL;
+	ret = pfctl_table_del_addrs(dev, tbl, addr, size, ndel, flags);
+	if (ret) {
+		errno = ret;
 		return (-1);
 	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	if (ioctl(dev, DIOCRDELADDRS, &io)) {
-		pfr_report_error(tbl, &io, "delete addresses in");
-		return (-1);
-	}
-	if (ndel != NULL)
-		*ndel = io.pfrio_ndel;
 	return (0);
 }
 
@@ -261,31 +239,14 @@ int
 pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *size2, int *nadd, int *ndel, int *nchange, int flags)
 {
-	struct pfioc_table io;
+	int ret;
 
-	if (tbl == NULL || size < 0 || (size && addr == NULL)) {
-		errno = EINVAL;
+	ret = pfctl_table_set_addrs(dev, tbl, addr, size, size2, nadd, ndel,
+	    nchange, flags);
+	if (ret) {
+		errno = ret;
 		return (-1);
 	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = size;
-	io.pfrio_size2 = (size2 != NULL) ? *size2 : 0;
-	if (ioctl(dev, DIOCRSETADDRS, &io)) {
-		pfr_report_error(tbl, &io, "set addresses in");
-		return (-1);
-	}
-	if (nadd != NULL)
-		*nadd = io.pfrio_nadd;
-	if (ndel != NULL)
-		*ndel = io.pfrio_ndel;
-	if (nchange != NULL)
-		*nchange = io.pfrio_nchange;
-	if (size2 != NULL)
-		*size2 = io.pfrio_size2;
 	return (0);
 }
 
@@ -293,24 +254,13 @@ int
 pfr_get_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int *size,
     int flags)
 {
-	struct pfioc_table io;
+	int ret;
 
-	if (tbl == NULL || size == NULL || *size < 0 ||
-	    (*size && addr == NULL)) {
-		errno = EINVAL;
+	ret = pfctl_table_get_addrs(dev, tbl, addr, size, flags);
+	if (ret) {
+		errno = ret;
 		return (-1);
 	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	io.pfrio_buffer = addr;
-	io.pfrio_esize = sizeof(*addr);
-	io.pfrio_size = *size;
-	if (ioctl(dev, DIOCRGETADDRS, &io)) {
-		pfr_report_error(tbl, &io, "get addresses from");
-		return (-1);
-	}
-	*size = io.pfrio_size;
 	return (0);
 }
 

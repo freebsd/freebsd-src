@@ -400,5 +400,13 @@ int	pfctl_clear_nat(int dev, const char *anchorname);
 int	pfctl_clear_eth_rules(int dev, const char *anchorname);
 int	pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s);
 int	pfctl_get_syncookies(int dev, struct pfctl_syncookies *s);
-
+int	pfctl_table_add_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
+	    *addr, int size, int *nadd, int flags);
+int	pfctl_table_del_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
+	    *addr, int size, int *ndel, int flags);
+int     pfctl_table_set_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
+	    *addr, int size, int *size2, int *nadd, int *ndel, int *nchange,
+	    int flags);
+int	pfctl_table_get_addrs(int dev, struct pfr_table *tbl, struct pfr_addr
+	    *addr, int *size, int flags);
 #endif
