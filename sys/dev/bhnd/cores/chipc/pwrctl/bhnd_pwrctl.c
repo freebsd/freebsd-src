@@ -121,7 +121,6 @@ bhnd_pwrctl_attach(device_t dev)
 	struct chipc_softc		*chipc_sc;
 	bhnd_devclass_t			 hostb_class;
 	device_t			 hostb_dev;
-	device_t			 bus;
 	int				 error;
 
 	sc = device_get_softc(dev);
@@ -130,8 +129,6 @@ bhnd_pwrctl_attach(device_t dev)
 	sc->chipc_dev = device_get_parent(dev);
 	sc->quirks = bhnd_device_quirks(sc->chipc_dev, pwrctl_devices,
 	    sizeof(pwrctl_devices[0]));
-
-	bus = device_get_parent(sc->chipc_dev);
 
 	/* On devices that lack a slow clock source, HT must always be
 	 * enabled. */
