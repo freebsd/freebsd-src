@@ -98,31 +98,13 @@ __assert(const char *func, const char *file, int line, const char *failedexpr)
 /*
  * Avoid pulling in all of pthreads from getpagesize().
  * It normally uses libc/gen/auxv.c which pulls in pthread_once().
+ * This relies on init_pagesizes setting page_size so must not be called
+ * before that.
  */
 int
 getpagesize(void)
 {
-	int mib[2], value;
-	size_t size;
-	static int pagesize;
-
-	if (pagesize != 0)
-		return (pagesize);
-
-	if (npagesizes > 0)
-		pagesize = pagesizes[0];
-
-	if (pagesize == 0) {
-		mib[0] = CTL_HW;
-		mib[1] = HW_PAGESIZE;
-		size = sizeof(value);
-		if (sysctl(mib, nitems(mib), &value, &size, NULL, 0) == -1)
-			pagesize = PAGE_SIZE;
-		else
-			pagesize = value;
-	}
-
-	return (pagesize);
+	return (page_size);
 }
 
 extern int __sys___sysctl(const int *name, u_int namelen, void *oldp,
