@@ -1168,7 +1168,7 @@ int
 gv_attach_sd(struct gv_sd *s, struct gv_plex *p, off_t offset, int rename)
 {
 	struct gv_sd *s2;
-	int error, sdcount;
+	int error;
 
 	g_topology_assert();
 
@@ -1193,7 +1193,6 @@ gv_attach_sd(struct gv_sd *s, struct gv_plex *p, off_t offset, int rename)
 	s->plex_offset = offset;
 	strlcpy(s->plex, p->name, sizeof(s->plex));
 
-	sdcount = p->sdcount;
 	error = gv_sd_to_plex(s, p);
 	if (error)
 		return (error);
