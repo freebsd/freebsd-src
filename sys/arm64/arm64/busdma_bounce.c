@@ -228,6 +228,18 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 	if ((flags & BUS_DMA_COHERENT) != 0) {
 		newtag->bounce_flags |= BF_COHERENT;
+	}
+
+	if (parent != NULL) {
+		if ((newtag->common.filter != NULL ||
+		    (parent->bounce_flags & BF_COULD_BOUNCE) != 0))
+			newtag->bounce_flags |= BF_COULD_BOUNCE;
+
+		/* Copy some flags from the parent */
+		newtag->bounce_flags |= parent->bounce_flags & BF_COHERENT;
+	}
+
+	if ((newtag->bounce_flags & BF_COHERENT) != 0) {
 		newtag->alloc_alignment = newtag->common.alignment;
 		newtag->alloc_size = newtag->common.maxsize;
 	} else {
@@ -241,15 +253,6 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		    dcache_line_size);
 		newtag->alloc_size = roundup2(newtag->common.maxsize,
 		    dcache_line_size);
-	}
-
-	if (parent != NULL) {
-		if ((newtag->common.filter != NULL ||
-		    (parent->bounce_flags & BF_COULD_BOUNCE) != 0))
-			newtag->bounce_flags |= BF_COULD_BOUNCE;
-
-		/* Copy some flags from the parent */
-		newtag->bounce_flags |= parent->bounce_flags & BF_COHERENT;
 	}
 
 	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) ||
