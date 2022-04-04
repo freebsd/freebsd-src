@@ -104,7 +104,7 @@ set_coprocessorACR(u_int val)
 void
 vfp_init(void)
 {
-	u_int fpsid, fpexc, tmp;
+	u_int fpsid, tmp;
 	u_int coproc, vfp_arch;
 
 	coproc = get_coprocessorACR();
@@ -112,7 +112,6 @@ vfp_init(void)
 	set_coprocessorACR(coproc);
 
 	fpsid = fmrx(fpsid);		/* read the vfp system id */
-	fpexc = fmrx(fpexc);		/* read the vfp exception reg */
 
 	if (!(fpsid & VFPSID_HARDSOFT_IMP)) {
 		vfp_exists = 1;
