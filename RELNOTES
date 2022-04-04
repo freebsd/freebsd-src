@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+3ee882bf21af:
+	Change handling of the lowest address on an IPv4 (sub)net so that
+	packets are not sent as a broadcast unless this has been set as the 
+	broadcast address.  This makes the lowest address usable for a host.
+	The old behavior can be restored with the net.inet.ip.broadcast_lowest
+	sysctl.  For more information, see
+	https://datatracker.ietf.org/doc/draft-schoen-intarea-lowest-address/.
+
 33ff39796ffe,8719e8a951b7:
         A new rc(8) service script zfskeys allows for automatic decryption
         of ZFS datasets encrypted with ZFS native encryption during boot.
