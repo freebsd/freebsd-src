@@ -208,9 +208,7 @@ static int
 mv_rtc_attach(device_t dev)
 {
 	struct mv_rtc_softc *sc;
-	int unit, ret;
-
-	unit = device_get_unit(dev);
+	int ret;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
