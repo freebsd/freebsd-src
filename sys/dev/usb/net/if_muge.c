@@ -614,30 +614,29 @@ done:
 static int
 lan78xx_set_rx_max_frame_length(struct muge_softc *sc, int size)
 {
-	int err = 0;
 	uint32_t buf;
 	bool rxenabled;
 
 	/* First we have to disable rx before changing the length. */
-	err = lan78xx_read_reg(sc, ETH_MAC_RX, &buf);
+	lan78xx_read_reg(sc, ETH_MAC_RX, &buf);
 	rxenabled = ((buf & ETH_MAC_RX_EN_) != 0);
 
 	if (rxenabled) {
 		buf &= ~ETH_MAC_RX_EN_;
-		err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
+		lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 	}
 
 	/* Setting max frame length. */
 	buf &= ~ETH_MAC_RX_MAX_FR_SIZE_MASK_;
 	buf |= (((size + 4) << ETH_MAC_RX_MAX_FR_SIZE_SHIFT_) &
 	    ETH_MAC_RX_MAX_FR_SIZE_MASK_);
-	err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
+	lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 
 	/* If it were enabled before, we enable it back. */
 
 	if (rxenabled) {
 		buf |= ETH_MAC_RX_EN_;
-		err = lan78xx_write_reg(sc, ETH_MAC_RX, buf);
+		lan78xx_write_reg(sc, ETH_MAC_RX, buf);
 	}
 
 	return (0);
@@ -1265,8 +1264,6 @@ muge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				 */
 				if ((ifp->if_capenable & IFCAP_RXCSUM) &&
 				    !(rx_cmd_a & RX_CMD_A_ICSM_)) {
-					struct ether_header *eh;
-					eh = mtod(m, struct ether_header *);
 					/*
 					 * Remove the extra 2 bytes of the csum
 					 *
@@ -1596,7 +1593,6 @@ muge_attach_post_sub(struct usb_ether *ue)
 {
 	struct muge_softc *sc;
 	struct ifnet *ifp;
-	int error;
 
 	sc = uether_getsc(ue);
 	muge_dbg_printf(sc, "Calling muge_attach_post_sub.\n");
@@ -1639,7 +1635,7 @@ muge_attach_post_sub(struct usb_ether *ue)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	bus_topo_lock();
-	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp, uether_ifmedia_upd,
+	mii_attach(ue->ue_dev, &ue->ue_miibus, ifp, uether_ifmedia_upd,
 	    ue->ue_methods->ue_mii_sts, BMSR_DEFCAPMASK, sc->sc_phyno,
 	    MII_OFFSET_ANY, 0);
 	bus_topo_unlock();
@@ -1827,16 +1823,16 @@ done:
 static void
 muge_multicast_write(struct muge_softc *sc)
 {
-	int i, ret;
+	int i;
 	lan78xx_dataport_write(sc, ETH_DP_SEL_RSEL_VLAN_DA_,
 	    ETH_DP_SEL_VHF_VLAN_LEN, ETH_DP_SEL_VHF_HASH_LEN,
 	    sc->sc_mchash_table);
 
 	for (i = 1; i < MUGE_NUM_PFILTER_ADDRS_; i++) {
-		ret = lan78xx_write_reg(sc, PFILTER_HI(i), 0);
-		ret = lan78xx_write_reg(sc, PFILTER_LO(i),
+		lan78xx_write_reg(sc, PFILTER_HI(i), 0);
+		lan78xx_write_reg(sc, PFILTER_LO(i),
 		    sc->sc_pfilter_table[i][1]);
-		ret = lan78xx_write_reg(sc, PFILTER_HI(i),
+		lan78xx_write_reg(sc, PFILTER_HI(i),
 		    sc->sc_pfilter_table[i][0]);
 	}
 }
