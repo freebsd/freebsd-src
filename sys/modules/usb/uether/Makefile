@@ -32,7 +32,7 @@ S=     ${SRCTOP}/sys
 KMOD=	uether
 SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
 	miibus_if.h opt_inet.h \
-	usb_ethernet.c
+	usb_ethernet.c opt_platform.h
 
 EXPORT_SYMS=	YES
 
