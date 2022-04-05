@@ -5,6 +5,6 @@
 
 KMOD=	if_et
 SRCS=	if_et.c
-SRCS+=	bus_if.h pci_if.h device_if.h miibus_if.h
+SRCS+=	bus_if.h pci_if.h device_if.h miibus_if.h opt_platform.h
 
 .include <bsd.kmod.mk>

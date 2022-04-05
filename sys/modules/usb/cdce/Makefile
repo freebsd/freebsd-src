@@ -32,6 +32,6 @@ S=     ${SRCTOP}/sys
 KMOD=	if_cdce
 SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
 	miibus_if.h opt_inet.h \
-	if_cdce.c
+	if_cdce.c opt_platform.h
 
 .include <bsd.kmod.mk>
