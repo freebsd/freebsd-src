@@ -7119,10 +7119,11 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 	struct ip *ip;
 	struct tcphdr *th;
 	u16 etype;
-	int hdr_len, ip_hlen = 0, tcp_hlen = 0, ip_len = 0;
+	int hdr_len __unused, ip_len __unused, ip_hlen = 0, tcp_hlen = 0;
 
 	DBRUN(sc->tso_frames_requested++);
 
+	ip_len = 0;
 	/* Controller may modify mbuf chains. */
 	if (M_WRITABLE(*m_head) == 0) {
 		m = m_dup(*m_head, M_NOWAIT);
@@ -7431,7 +7432,7 @@ bce_start_locked(struct ifnet *ifp)
 	struct bce_softc *sc = ifp->if_softc;
 	struct mbuf *m_head = NULL;
 	int count = 0;
-	u16 tx_prod, tx_chain_prod;
+	u16 tx_prod, tx_chain_prod __unused;
 
 	DBENTER(BCE_VERBOSE_SEND | BCE_VERBOSE_CTX);
 
