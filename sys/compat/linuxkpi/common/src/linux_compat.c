@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/kthread.h>
 #include <linux/kernel.h>
 #include <linux/compat.h>
+#include <linux/io-mapping.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
 #include <linux/wait_bit.h>
@@ -2714,6 +2715,17 @@ linuxkpi_net_ratelimit(void)
 
 	return (ppsratecheck(&lkpi_net_lastlog, &lkpi_net_curpps,
 	   lkpi_net_maxpps));
+}
+
+struct io_mapping *
+io_mapping_create_wc(resource_size_t base, unsigned long size)
+{
+	struct io_mapping *mapping;
+
+	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
+	if (mapping == NULL)
+		return (NULL);
+	return (io_mapping_init_wc(mapping, base, size));
 }
 
 #if defined(__i386__) || defined(__amd64__)

@@ -46,6 +46,8 @@ struct io_mapping {
 	vm_memattr_t attr;
 };
 
+struct io_mapping *io_mapping_create_wc(resource_size_t base, unsigned long size);
+
 static inline struct io_mapping *
 io_mapping_init_wc(struct io_mapping *mapping, resource_size_t base,
     unsigned long size)
@@ -61,17 +63,6 @@ io_mapping_init_wc(struct io_mapping *mapping, resource_size_t base,
 	mapping->attr = VM_MEMATTR_UNCACHEABLE;
 #endif
 	return (mapping);
-}
-
-static inline struct io_mapping *
-io_mapping_create_wc(resource_size_t base, unsigned long size)
-{
-	struct io_mapping *mapping;
-
-	mapping = kmalloc(sizeof(*mapping), GFP_KERNEL);
-	if (mapping == NULL)
-		return (NULL);
-	return (io_mapping_init_wc(mapping, base, size));
 }
 
 static inline void
