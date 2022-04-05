@@ -15,7 +15,7 @@ __FBSDID("$FreeBSD$");
 static int
 mxge_ethp_z8e_fw_modevent(module_t mod, int type, void *unused)
 {
-	const struct firmware *fp, *parent;
+	const struct firmware *fp;
 	int error;
 	switch (type) {
 	case MOD_LOAD:
@@ -25,7 +25,6 @@ mxge_ethp_z8e_fw_modevent(module_t mod, int type, void *unused)
 				       ethp_z8e_uncompressed_length, NULL);
 		if (fp == NULL)
 			goto fail_0;
-		parent = fp;
 		return (0);
 	fail_0:
 		return (ENXIO);
