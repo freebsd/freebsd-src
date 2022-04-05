@@ -156,6 +156,20 @@ RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
 INTERVAL_TREE_DEFINE(struct interval_tree_node, rb, unsigned long,, START,
     LAST,, lkpi_interval_tree)
 
+struct kobject *
+kobject_create(void)
+{
+	struct kobject *kobj;
+
+	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	if (kobj == NULL)
+		return (NULL);
+	kobject_init(kobj, &linux_kfree_type);
+
+	return (kobj);
+}
+
+
 int
 kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
 {
