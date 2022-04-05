@@ -602,6 +602,17 @@ linux_file_free(struct linux_file *filp)
 	}
 }
 
+struct linux_cdev *
+cdev_alloc(void)
+{
+	struct linux_cdev *cdev;
+
+	cdev = kzalloc(sizeof(struct linux_cdev), M_WAITOK);
+	kobject_init(&cdev->kobj, &linux_cdev_ktype);
+	cdev->refs = 1;
+	return (cdev);
+}
+
 static int
 linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
     vm_page_t *mres)
