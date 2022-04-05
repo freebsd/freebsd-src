@@ -11,6 +11,26 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20220405:
+	13.0-RELEASE-p11 FreeBSD-EN-22:15.pf
+			 FreeBSD-SA-22:04.netmap
+			 FreeBSD-SA-22:05.bhyve
+			 FreeBSD-SA-22:06.ioctl
+			 FreeBSD-SA-22:07.wifi_meshid
+			 FreeBSD-SA-22:08.zlib
+
+	pf(4) tables may fail to load [EN-22:15.pf]
+
+	Potential jail escape vulnerabilities in netmap [SA-22:04.netmap]
+
+	Bhyve e82545 device emulation out-of-bounds write [SA-22:05.bhyve]
+
+	mpr/mps/mpt driver ioctl heap out-of-bounds write [SA-22:06.ioctl]
+
+	802.11 heap buffer overflow [SA-22:07.wifi_meshid]
+
+	zlib compression out-of-bounds write [SA-22:08.zlib]
+
 20220322:
 	13.0-RELEASE-p10 FreeBSD-EN-22:14.tzdata
 
