@@ -413,6 +413,9 @@
  */
 #define	NFSV42_NPROCS		70
 
+/* Value of NFSV42_NPROCS for old nfsstats structure. (Always 69) */
+#define	NFSV42_OLDNPROCS	69
+
 #endif	/* NFS_V3NPROCS */
 
 /*
