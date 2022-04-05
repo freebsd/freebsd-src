@@ -1649,7 +1649,7 @@ bwi_rf_calc_nrssi_slope_11b(struct bwi_mac *mac)
 	struct bwi_phy *phy = &mac->mac_phy;
 	uint16_t save_rf[SAVE_RF_MAX];
 	uint16_t save_phy[SAVE_PHY_MAX];
-	uint16_t ant_div, bbp_atten, chan_ex;
+	uint16_t ant_div, chan_ex;
 	int16_t nrssi[2];
 	int i;
 
@@ -1662,7 +1662,7 @@ bwi_rf_calc_nrssi_slope_11b(struct bwi_mac *mac)
 		save_phy[i] = PHY_READ(mac, save_phy_regs[i]);
 
 	ant_div = CSR_READ_2(sc, BWI_RF_ANTDIV);
-	bbp_atten = CSR_READ_2(sc, BWI_BBP_ATTEN);
+	CSR_READ_2(sc, BWI_BBP_ATTEN);
 	chan_ex = CSR_READ_2(sc, BWI_RF_CHAN_EX);
 
 	/*
