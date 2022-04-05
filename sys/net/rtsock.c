@@ -2203,7 +2203,6 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 {
 	struct walkarg *w = vw;
 	struct nhop_object *nh;
-	int error = 0;
 
 	NET_EPOCH_ASSERT();
 
@@ -2215,6 +2214,7 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 	if (NH_IS_NHGRP(nh)) {
 		struct weightened_nhop *wn;
 		uint32_t num_nhops;
+		int error;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
 		for (int i = 0; i < num_nhops; i++) {
 			error = sysctl_dumpnhop(rt, wn[i].nh, wn[i].weight, w);
@@ -2223,7 +2223,7 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 		}
 	} else
 #endif
-		error = sysctl_dumpnhop(rt, nh, rt->rt_weight, w);
+		sysctl_dumpnhop(rt, nh, rt->rt_weight, w);
 
 	return (0);
 }
