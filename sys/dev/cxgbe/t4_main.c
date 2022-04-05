@@ -9861,8 +9861,8 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
 		"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
 		"RQUDP region:", "PBL region:", "TXPBL region:",
-		"DBVFIFO region:", "ULPRX state:", "ULPTX state:",
-		"On-chip queues:", "TLS keys:",
+		"TLSKey region:", "DBVFIFO region:", "ULPRX state:",
+		"ULPTX state:", "On-chip queues:",
 	};
 	struct mem_desc avail[4];
 	struct mem_desc mem[nitems(region) + 3];	/* up to 3 holes */
@@ -9977,6 +9977,8 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	ulp_region(RX_RQUDP);
 	ulp_region(RX_PBL);
 	ulp_region(TX_PBL);
+	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS)
+		ulp_region(RX_TLS_KEY);
 #undef ulp_region
 
 	md->base = 0;
@@ -10015,13 +10017,6 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		md->idx = nitems(region);  /* hide it */
 	md++;
 
-	md->base = sc->vres.key.start;
-	if (sc->vres.key.size)
-		md->limit = md->base + sc->vres.key.size - 1;
-	else
-		md->idx = nitems(region);  /* hide it */
-	md++;
-
 	/* add any address-space holes, there can be up to 3 */
 	for (n = 0; n < i - 1; n++)
 		if (avail[n].limit < avail[n + 1].base)
@@ -10030,6 +10025,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		(md++)->base = avail[n].limit;
 
 	n = md - mem;
+	MPASS(n <= nitems(mem));
 	qsort(mem, n, sizeof(struct mem_desc), mem_desc_cmp);
 
 	for (lo = 0; lo < i; lo++)
