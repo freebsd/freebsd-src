@@ -936,8 +936,6 @@ ustorage_fs_verify(struct ustorage_fs_softc *sc)
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
 	uint32_t lba;
 	uint32_t vlen;
-	uint64_t file_offset;
-	uint64_t amount_left;
 
 	/*
 	 * Get the starting Logical Block Address
@@ -957,12 +955,6 @@ ustorage_fs_verify(struct ustorage_fs_softc *sc)
 		goto done;
 	}
 	/* No default reply */
-
-	/* Prepare to carry out the file verify */
-	amount_left = vlen;
-	amount_left <<= 9;
-	file_offset = lba;
-	file_offset <<= 9;
 
 	/* Range check */
 	vlen += lba;
