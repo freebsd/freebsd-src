@@ -114,7 +114,6 @@ static int
 hpen_battery_strenght_cb(HIDMAP_CB_ARGS)
 {
 	struct evdev_dev *evdev = HIDMAP_CB_GET_EVDEV();
-	int32_t data;
 
 	switch (HIDMAP_CB_GET_STATE()) {
 	case HIDMAP_CB_IS_ATTACHING:
@@ -122,7 +121,6 @@ hpen_battery_strenght_cb(HIDMAP_CB_ARGS)
 		/* TODO */
 		break;
 	case HIDMAP_CB_IS_RUNNING:
-		data = ctx.data;
 		/* TODO */
 		break;
 	default:
