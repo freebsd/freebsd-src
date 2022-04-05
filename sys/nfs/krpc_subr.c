@@ -196,7 +196,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	struct socket *so;
 	struct sockaddr_in *sin, ssin;
 	struct sockaddr *from;
-	struct mbuf *m, *nam, *mhead;
+	struct mbuf *m, *mhead;
 	struct krpc_call *call;
 	struct krpc_reply *reply;
 	struct sockopt sopt;
@@ -215,7 +215,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 		return (EAFNOSUPPORT);
 
 	/* Free at end if not null. */
-	nam = mhead = NULL;
+	mhead = NULL;
 	from = NULL;
 
 	/*
