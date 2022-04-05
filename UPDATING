@@ -17,6 +17,23 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20220405:
+	12.3-RELEASE-p5 FreeBSD-SA-22:04.netmap
+			FreeBSD-SA-22:05.bhyve
+			FreeBSD-SA-22:06.ioctl
+			FreeBSD-SA-22:07.wifi_meshid
+			FreeBSD-SA-22:08.zlib
+
+	Potential jail escape vulnerabilities in netmap [SA-22:04.netmap]
+
+	Bhyve e82545 device emulation out-of-bounds write [SA-22:05.bhyve]
+
+	mpr/mps/mpt driver ioctl heap out-of-bounds write [SA-22:06.ioctl]
+
+	802.11 heap buffer overflow [SA-22:07.wifi_meshid]
+
+	zlib compression out-of-bounds write [SA-22:08.zlib]
+
 20220322:
 	12.3-RELEASE-p4 FreeBSD-EN-22:14.tzdata
 
