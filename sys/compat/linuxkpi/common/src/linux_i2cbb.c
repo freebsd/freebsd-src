@@ -210,9 +210,6 @@ lkpi_iicbb_getsda(device_t dev)
 static int
 lkpi_iicbb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
-	struct lkpi_iicbb_softc *sc;
-
-	sc = device_get_softc(dev);
 
 	return (0);
 }
