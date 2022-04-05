@@ -2393,7 +2393,7 @@ _basic_bootstrap_tools_multilink+=usr.bin/awk awk,nawk
 # file2c is required for building usr.sbin/config:
 _basic_bootstrap_tools+=usr.bin/file2c
 # uuencode/uudecode required for share/tabset
-_basic_bootstrap_tools+=usr.bin/uuencode usr.bin/uudecode
+_basic_bootstrap_tools_multilink+=usr.bin/uuencode uuencode,uudecode
 # xargs is required by mkioctls
 _basic_bootstrap_tools+=usr.bin/xargs
 # cap_mkdb is required for share/termcap:

@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+extern int main_encode(int, char *[]);
+
 static void encode(void);
 static void base64_encode(void);
 static void usage(void);
@@ -73,7 +75,7 @@ static bool raw;
 static char **av;
 
 int
-main(int argc, char *argv[])
+main_encode(int argc, char *argv[])
 {
 	struct stat sb;
 	bool base64;

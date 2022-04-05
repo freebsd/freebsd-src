@@ -365,7 +365,6 @@ DIRDEPS+= \
 	usr.bin/usbhidaction \
 	usr.bin/usbhidctl \
 	usr.bin/users \
-	usr.bin/uudecode \
 	usr.bin/uuencode \
 	usr.bin/vacation \
 	usr.bin/vgrind \
