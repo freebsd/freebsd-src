@@ -602,7 +602,6 @@ int
 smb_smb_treedisconnect(struct smb_share *ssp, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
-	struct mbchain *mbp;
 	int error;
 
 	if (ssp->ss_tid == SMB_TID_UNKNOWN)
@@ -610,7 +609,6 @@ smb_smb_treedisconnect(struct smb_share *ssp, struct smb_cred *scred)
 	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_TREE_DISCONNECT, scred, &rqp);
 	if (error)
 		return error;
-	mbp = &rqp->sr_rq;
 	smb_rq_wstart(rqp);
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
