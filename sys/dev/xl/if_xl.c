@@ -1069,13 +1069,11 @@ xl_attach(device_t dev)
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
 	int			media, pmcap;
-	int			error = 0, phy, rid, res, unit;
+	int			error = 0, phy, rid, res;
 	uint16_t		did;
 
 	sc = device_get_softc(dev);
 	sc->xl_dev = dev;
-
-	unit = device_get_unit(dev);
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
