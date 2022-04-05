@@ -138,7 +138,6 @@ static int
 armv7_allocate_pmc(int cpu, int ri, struct pmc *pm,
   const struct pmc_op_pmcallocate *a)
 {
-	struct armv7_cpu *pac;
 	enum pmc_event pe;
 	uint32_t config;
 
@@ -146,8 +145,6 @@ armv7_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	    ("[armv7,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < armv7_npmcs,
 	    ("[armv7,%d] illegal row index %d", __LINE__, ri));
-
-	pac = armv7_pcpu[cpu];
 
 	if (a->pm_class != PMC_CLASS_ARMV7)
 		return (EINVAL);
@@ -334,7 +331,6 @@ armv7_release_pmc(int cpu, int ri, struct pmc *pmc)
 static int
 armv7_intr(struct trapframe *tf)
 {
-	struct armv7_cpu *pc;
 	int retval, ri;
 	struct pmc *pm;
 	int error;
@@ -345,7 +341,6 @@ armv7_intr(struct trapframe *tf)
 	    ("[armv7,%d] CPU %d out of range", __LINE__, cpu));
 
 	retval = 0;
-	pc = armv7_pcpu[cpu];
 
 	for (ri = 0; ri < armv7_npmcs; ri++) {
 		pm = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
