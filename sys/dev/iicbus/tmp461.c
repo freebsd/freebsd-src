@@ -64,7 +64,6 @@ static int tmp461_read_1(device_t dev, uint8_t reg, uint8_t *data);
 static int tmp461_read_temp(device_t dev, int32_t *temp);
 static int tmp461_detach(device_t dev);
 static int tmp461_sensor_sysctl(SYSCTL_HANDLER_ARGS);
-static int32_t tmp461_signed_extend32(uint32_t value, int sign_pos);
 
 static device_method_t tmp461_methods[] = {
 	DEVMETHOD(device_probe,		tmp461_probe),
