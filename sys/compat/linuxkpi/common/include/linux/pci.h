@@ -316,10 +316,13 @@ struct pcim_iomap_devres {
 	struct resource	*res_table[PCIR_MAX_BAR_0 + 1];
 };
 
+int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name);
+
 /* Internal helper function(s). */
 struct pci_dev *lkpinew_pci_dev(device_t);
 struct pci_devres *lkpi_pci_devres_get_alloc(struct pci_dev *pdev);
 void lkpi_pci_devres_release(struct device *, void *);
+struct resource *_lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size);
 void lkpi_pcim_iomap_table_release(struct device *, void *);
 
 static inline int
@@ -529,50 +532,6 @@ lkpi_pci_devres_find(struct pci_dev *pdev)
 		return (NULL);
 
 	return (lkpi_pci_devres_get_alloc(pdev));
-}
-
-static inline int
-pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
-{
-	struct resource *res;
-	struct pci_devres *dr;
-	struct pci_mmio_region *mmio;
-	int rid;
-	int type;
-
-	type = pci_resource_type(pdev, bar);
-	if (type < 0)
-		return (-ENODEV);
-	rid = PCIR_BAR(bar);
-	res = bus_alloc_resource_any(pdev->dev.bsddev, type, &rid,
-	    RF_ACTIVE|RF_SHAREABLE);
-	if (res == NULL) {
-		device_printf(pdev->dev.bsddev, "%s: failed to alloc "
-		    "bar %d type %d rid %d\n",
-		    __func__, bar, type, PCIR_BAR(bar));
-		return (-ENODEV);
-	}
-
-	/*
-	 * It seems there is an implicit devres tracking on these if the device
-	 * is managed; otherwise the resources are not automatiaclly freed on
-	 * FreeBSD/LinuxKPI tough they should be/are expected to be by Linux
-	 * drivers.
-	 */
-	dr = lkpi_pci_devres_find(pdev);
-	if (dr != NULL) {
-		dr->region_mask |= (1 << bar);
-		dr->region_table[bar] = res;
-	}
-
-	/* Even if the device is not managed we need to track it for iomap. */
-	mmio = malloc(sizeof(*mmio), M_DEVBUF, M_WAITOK | M_ZERO);
-	mmio->rid = PCIR_BAR(bar);
-	mmio->type = type;
-	mmio->res = res;
-	TAILQ_INSERT_TAIL(&pdev->mmio, mmio, next);
-
-	return (0);
 }
 
 static inline void
@@ -948,48 +907,9 @@ static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 {
 	return -ENODEV;
 }
+
 static inline void pci_disable_sriov(struct pci_dev *dev)
 {
-}
-
-static inline struct resource *
-_lkpi_pci_iomap(struct pci_dev *pdev, int bar, int mmio_size __unused)
-{
-	struct pci_mmio_region *mmio, *p;
-	int type;
-
-	type = pci_resource_type(pdev, bar);
-	if (type < 0) {
-		device_printf(pdev->dev.bsddev, "%s: bar %d type %d\n",
-		     __func__, bar, type);
-		return (NULL);
-	}
-
-	/*
-	 * Check for duplicate mappings.
-	 * This can happen if a driver calls pci_request_region() first.
-	 */
-	TAILQ_FOREACH_SAFE(mmio, &pdev->mmio, next, p) {
-		if (mmio->type == type && mmio->rid == PCIR_BAR(bar)) {
-			return (mmio->res);
-		}
-	}
-
-	mmio = malloc(sizeof(*mmio), M_DEVBUF, M_WAITOK | M_ZERO);
-	mmio->rid = PCIR_BAR(bar);
-	mmio->type = type;
-	mmio->res = bus_alloc_resource_any(pdev->dev.bsddev, mmio->type,
-	    &mmio->rid, RF_ACTIVE|RF_SHAREABLE);
-	if (mmio->res == NULL) {
-		device_printf(pdev->dev.bsddev, "%s: failed to alloc "
-		    "bar %d type %d rid %d\n",
-		    __func__, bar, type, PCIR_BAR(bar));
-		free(mmio, M_DEVBUF);
-		return (NULL);
-	}
-	TAILQ_INSERT_TAIL(&pdev->mmio, mmio, next);
-
-	return (mmio->res);
 }
 
 static inline void *
