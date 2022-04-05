@@ -235,7 +235,26 @@ struct pci_driver {
 	void  (*bsd_iov_uninit)(device_t dev);
 	int  (*bsd_iov_add_vf)(device_t dev, uint16_t vfnum,
 	    const nvlist_t *vf_config);
+       uintptr_t                       _spare[8];
 };
+
+/*
+ * Pseudo-stable KPI. In 13.0 we neglected to include any spare fields to allow
+ * for growth in struct pci_driver. Those were added in 13.1, but can't be used
+ * until 13.1 is the oldest supported release so that packages built in 13.0
+ * will continue to work on stable/13 and 13.1 release. The 13.0 driver was 92
+ * or 182 bytes on 32 or 64 bit systems (respectively). We added 64 or 32 bytes
+ * of padding, hence the math below (which shouldn't be changed as spare fields
+ * are used up).
+ */
+#ifdef __LP64__
+#define __PCI_DRIVER_SIZE (184 + 64)
+#else
+#define __PCI_DRIVER_SIZE (92 + 32)
+#endif
+_Static_assert(sizeof(struct pci_driver) == __PCI_DRIVER_SIZE,
+    "linuxkpi struct pci_driver: Bad size");
+#undef __PCI_DRIVER_SIZE
 
 struct pci_bus {
 	struct pci_dev	*self;
