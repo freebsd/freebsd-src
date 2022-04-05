@@ -9656,16 +9656,23 @@ sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
 }
 
 struct mem_desc {
-	unsigned int base;
-	unsigned int limit;
-	unsigned int idx;
+	u_int base;
+	u_int limit;
+	u_int idx;
 };
 
 static int
 mem_desc_cmp(const void *a, const void *b)
 {
-	return ((const struct mem_desc *)a)->base -
-	       ((const struct mem_desc *)b)->base;
+	const u_int v1 = ((const struct mem_desc *)a)->base;
+	const u_int v2 = ((const struct mem_desc *)b)->base;
+
+	if (v1 < v2)
+		return (-1);
+	else if (v1 > v2)
+		return (1);
+
+	return (0);
 }
 
 static void
