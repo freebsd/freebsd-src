@@ -752,11 +752,9 @@ static void
 cp2112iic_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct cp2112iic_softc *sc;
-	struct cp2112_softc *psc;
 	struct usb_page_cache *pc;
 
 	sc = usbd_xfer_softc(xfer);
-	psc = device_get_softc(device_get_parent(sc->dev));
 
 	mtx_assert(&sc->io.lock, MA_OWNED);
 
