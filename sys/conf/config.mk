@@ -37,7 +37,11 @@ opt_ratelimit.h:
 	@echo "#define RATELIMIT 1" > ${.TARGET}
 .endif
 opt_mrouting.h:
-	echo "#define MROUTING 1" > ${.TARGET}
+	@echo "#define MROUTING 1" > ${.TARGET}
+.if ${MK_FDT} != "no"
+opt_platform.h:
+	@echo "#define FDT 1" > ${.TARGET}
+.endif
 opt_printf.h:
 	echo "#define PRINTF_BUFR_SIZE 128" > ${.TARGET}
 opt_scsi.h:

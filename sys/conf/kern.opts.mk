@@ -102,6 +102,12 @@ BROKEN_OPTIONS+= KERNEL_RETPOLINE
 BROKEN_OPTIONS+=EFI
 .endif
 
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+__DEFAULT_NO_OPTIONS += FDT
+.else
+__DEFAULT_YES_OPTIONS += FDT
+.endif
+
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
 
 # Those that default to yes
@@ -178,4 +184,9 @@ MK_${var}_SUPPORT:= yes
 .if !defined(OPT_FDT) && defined(KERNBUILDDIR)
 OPT_FDT!= sed -n '/FDT/p' ${KERNBUILDDIR}/opt_platform.h
 .export OPT_FDT
+.if empty(OPT_FDT)
+MK_FDT:=no
+.else
+MK_FDT:=yes
+.endif
 .endif
