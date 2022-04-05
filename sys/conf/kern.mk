@@ -43,7 +43,11 @@ CWARNEXTRA?=	-Wno-error=tautological-compare -Wno-error=empty-body \
 CWARNEXTRA+=	-Wno-error=shift-negative-value
 CWARNEXTRA+=	-Wno-address-of-packed-member
 .if ${COMPILER_VERSION} >= 130000
-CWARNFLAGS+=	-Wno-error=unused-but-set-variable
+.if ${MK_SET_BUT_NOTUSED_KERNEL_WARNINGS} == "no"
+CWARNEXTRA+=	${NO_WUNUSED_BUT_SET_VARIABLE}
+.else
+CWARNEXTRA+=	-Wno-error=unused-but-set-variable
+.endif
 .endif
 .endif	# clang
 
