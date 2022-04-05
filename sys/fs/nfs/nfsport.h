@@ -424,10 +424,16 @@
 /* Do an NFSv4.2 LayoutError. */
 #define	NFSPROC_LAYOUTERROR	68
 
+/* Do an NFSv4 Verify+Write. */
+#define	NFSPROC_APPENDWRITE	69
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		69
+#define	NFSV42_NPROCS		70
+
+/* Value of NFSV42_NPROCS for old nfsstats structure. (Always 69) */
+#define	NFSV42_OLDNPROCS	69
 
 #endif	/* NFS_V3NPROCS */
 
@@ -456,7 +462,7 @@ struct nfsstatsv1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS + 11];
+	uint64_t	rpccnt[NFSV42_NPROCS + 10];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
 	uint64_t	srvlayouts;
@@ -521,7 +527,7 @@ struct nfsstatsov1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS];
+	uint64_t	rpccnt[NFSV42_OLDNPROCS];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
 	uint64_t	reserved_0;
