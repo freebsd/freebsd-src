@@ -318,6 +318,7 @@ struct pcim_iomap_devres {
 
 /* Internal helper function(s). */
 struct pci_dev *lkpinew_pci_dev(device_t);
+struct pci_devres *lkpi_pci_devres_get_alloc(struct pci_dev *pdev);
 void lkpi_pci_devres_release(struct device *, void *);
 void lkpi_pcim_iomap_table_release(struct device *, void *);
 
@@ -520,21 +521,6 @@ done:
 	return (pdev->bus->self);
 }
 
-static inline struct pci_devres *
-lkpi_pci_devres_get_alloc(struct pci_dev *pdev)
-{
-	struct pci_devres *dr;
-
-	dr = lkpi_devres_find(&pdev->dev, lkpi_pci_devres_release, NULL, NULL);
-	if (dr == NULL) {
-		dr = lkpi_devres_alloc(lkpi_pci_devres_release, sizeof(*dr),
-		    GFP_KERNEL | __GFP_ZERO);
-		if (dr != NULL)
-			lkpi_devres_add(&pdev->dev, dr);
-	}
-
-	return (dr);
-}
 static inline struct pci_devres *
 lkpi_pci_devres_find(struct pci_dev *pdev)
 {
