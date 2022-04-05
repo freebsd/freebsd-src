@@ -25,13 +25,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)uuencode.1	8.1 (Berkeley) 6/6/93
+.\"     From: @(#)uuencode.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2002
-.Dt UUENCODE 1
+.Dd April 18, 2022
+.Dt BINTRANS 1
 .Os
 .Sh NAME
+.Nm bintrans ,
 .Nm uuencode ,
 .Nm uudecode ,
 .Nm b64encode ,
@@ -39,6 +40,9 @@
 .Nd encode/decode a binary file
 .Sh SYNOPSIS
 .Nm
+.Op algorithm
+.Op ...
+.Nm uuencode
 .Op Fl m
 .Op Fl r
 .Op Fl o Ar output_file
@@ -64,7 +68,7 @@
 .Op Ar file
 .Sh DESCRIPTION
 The
-.Nm
+.Nm uuencode
 and
 .Nm uudecode
 utilities are used to transmit binary files over transmission mediums
@@ -74,7 +78,7 @@ data.
 The
 .Nm b64encode
 utility is synonymous with
-.Nm
+.Nm uuencode
 with the
 .Fl m
 flag specified.
@@ -87,7 +91,7 @@ with the
 flag specified.
 .Pp
 The
-.Nm
+.Nm uuencode
 utility reads
 .Ar file
 (or by default the standard input) and writes an encoded version
@@ -119,11 +123,11 @@ The
 utility ignores any leading and trailing lines.
 .Pp
 The following options are available for
-.Nm :
+.Nm uuencode :
 .Bl -tag -width ident
 .It Fl m
 Use the Base64 method of encoding, rather than the traditional
-.Nm
+.Nm uuencode
 algorithm.
 .It Fl r
 Produce raw output by excluding the initial and final framing lines.
@@ -146,7 +150,7 @@ Do not overwrite files.
 When used with the
 .Fl r
 flag, decode Base64 input instead of traditional
-.Nm
+.Nm uuencode
 input.
 Without
 .Fl r
@@ -163,7 +167,7 @@ and write output to standard output.
 Decode raw (or broken) input, which is missing the initial and
 possibly the final framing lines.
 The input is assumed to be in the traditional
-.Nm
+.Nm uuencode
 encoding, but if the
 .Fl m
 flag is used, or if the utility is invoked as
@@ -176,6 +180,10 @@ By default
 deletes any prefix ending with the last slash '/' for security
 reasons.
 .El
+.Pp
+.Nm
+is a generic utility that can run
+any of the aforementioned encoders and decoders.
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
 uuencodes it and mails it to a user on another system.
@@ -213,7 +221,7 @@ uudecode -o /dev/stdout < $MAIL | zcat | tar xfv -
 The
 .Nm uudecode
 and
-.Nm
+.Nm uuencode
 utilities appeared in
 .Bx 4.0 .
 .Sh BUGS

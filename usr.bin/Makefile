@@ -169,7 +169,6 @@ SUBDIR=	alias \
 	unzip \
 	units \
 	unvis \
-	uudecode \
 	uuencode \
 	vis \
 	vmstat \
