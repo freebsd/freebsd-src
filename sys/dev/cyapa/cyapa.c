@@ -1336,7 +1336,6 @@ cyapa_raw_input(struct cyapa_softc *sc, struct cyapa_regs *regs, int freq)
 	int afingers;	/* actual fingers after culling */
 	int i;
 	int j;
-	int k;
 	int isidle;
 	int thumbarea_begin;
 	int seen_thumb;
@@ -1485,7 +1484,6 @@ cyapa_raw_input(struct cyapa_softc *sc, struct cyapa_regs *regs, int freq)
 		sc->track_but = 0;
 		i = 0;
 		j = 0;
-		k = 0;
 	} else {
 		/*
 		 * The id assigned on touch can move around in the array,
