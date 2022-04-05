@@ -1273,9 +1273,7 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 			goto done;
 		}
 		if (sc->esc_txctx.cmd_and_length & E1000_TXD_CMD_TCP) {
-			if (hdrlen < ckinfo[1].ck_start + 14 ||
-			    (ckinfo[1].ck_valid &&
-			    hdrlen < ckinfo[1].ck_off + 2)) {
+			if (hdrlen < ckinfo[1].ck_start + 14) {
 				WPRINTF("TSO hdrlen too small for TCP fields "
 				    "(%d) -- dropped\r\n", hdrlen);
 				goto done;
@@ -1286,6 +1284,11 @@ e82545_transmit(struct e82545_softc *sc, uint16_t head, uint16_t tail,
 				    "(%d) -- dropped\r\n", hdrlen);
 				goto done;
 			}
+		}
+		if (ckinfo[1].ck_valid && hdrlen < ckinfo[1].ck_off + 2) {
+			WPRINTF("TSO hdrlen too small for TCP/UDP fields "
+			    "(%d) -- dropped\r\n", hdrlen);
+			goto done;
 		}
 	}
 
