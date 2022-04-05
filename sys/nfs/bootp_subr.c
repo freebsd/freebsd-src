@@ -1335,7 +1335,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
     struct bootpc_globalcontext *gctx)
 {
 	char *p, *s;
-	unsigned int ip;
 
 	ifctx->gotgw = 0;
 	ifctx->gotnetmask = 0;
@@ -1345,8 +1344,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 	clear_sinaddr(&ifctx->gw);
 
 	ifctx->myaddr.sin_addr = ifctx->reply.yiaddr;
-
-	ip = ntohl(ifctx->myaddr.sin_addr.s_addr);
 
 	printf("%s at ", ifctx->ireq.ifr_name);
 	print_sin_addr(&ifctx->myaddr);
