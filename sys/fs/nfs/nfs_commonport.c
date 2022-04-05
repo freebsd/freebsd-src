@@ -598,7 +598,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 					    nfsstatsv1.biocache_readdirs;
 					nfsstatsov1.readdir_bios =
 					    nfsstatsv1.readdir_bios;
-					for (i = 0; i < NFSV42_NPROCS; i++)
+					for (i = 0; i < NFSV42_OLDNPROCS; i++)
 						nfsstatsov1.rpccnt[i] =
 						    nfsstatsv1.rpccnt[i];
 					nfsstatsov1.rpcretries =
