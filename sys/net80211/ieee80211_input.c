@@ -742,6 +742,12 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		IEEE80211_VERIFY_LENGTH(scan->csa[1], 3 * sizeof(uint8_t),
 		    scan->status |= IEEE80211_BPARSE_CSA_INVALID);
 	}
+#ifdef IEEE80211_SUPPORT_MESH
+	if (scan->meshid != NULL) {
+		IEEE80211_VERIFY_ELEMENT(scan->meshid, IEEE80211_MESHID_LEN,
+		    scan->status |= IEEE80211_BPARSE_RATES_INVALID);
+	}
+#endif
 	/*
 	 * Process HT ie's.  This is complicated by our
 	 * accepting both the standard ie's and the pre-draft
