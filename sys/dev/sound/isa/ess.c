@@ -788,14 +788,14 @@ MIXER_DECLARE(essmixer);
 static int
 ess_probe(device_t dev)
 {
-	uintptr_t func, ver, r, f;
+	uintptr_t func, ver, f;
 
 	/* The parent device has already been probed. */
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, 0, &func);
+	BUS_READ_IVAR(device_get_parent(dev), dev, 0, &func);
 	if (func != SCF_PCM)
 		return (ENXIO);
 
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
+	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
 	f = (ver & 0xffff0000) >> 16;
 	if (!(f & BD_F_ESS))
 		return (ENXIO);
