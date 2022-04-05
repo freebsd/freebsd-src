@@ -317,6 +317,8 @@ struct pcim_iomap_devres {
 };
 
 int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name);
+int pci_alloc_irq_vectors(struct pci_dev *pdev, int minv, int maxv,
+    unsigned int flags);
 
 /* Internal helper function(s). */
 struct pci_dev *lkpinew_pci_dev(device_t);
@@ -858,42 +860,6 @@ pci_enable_msi(struct pci_dev *pdev)
 	pdev->irq = rle->start;
 	pdev->msi_enabled = true;
 	return (0);
-}
-
-static inline int
-pci_alloc_irq_vectors(struct pci_dev *pdev, int minv, int maxv,
-    unsigned int flags)
-{
-	int error;
-
-	if (flags & PCI_IRQ_MSIX) {
-		struct msix_entry *entries;
-		int i;
-
-		entries = kcalloc(maxv, sizeof(*entries), GFP_KERNEL);
-		if (entries == NULL) {
-			error = -ENOMEM;
-			goto out;
-		}
-		for (i = 0; i < maxv; ++i)
-			entries[i].entry = i;
-		error = pci_enable_msix(pdev, entries, maxv);
-out:
-		kfree(entries);
-		if (error == 0 && pdev->msix_enabled)
-			return (pdev->dev.irq_end - pdev->dev.irq_start);
-	}
-	if (flags & PCI_IRQ_MSI) {
-		error = pci_enable_msi(pdev);
-		if (error == 0 && pdev->msi_enabled)
-			return (pdev->dev.irq_end - pdev->dev.irq_start);
-	}
-	if (flags & PCI_IRQ_LEGACY) {
-		if (pdev->irq)
-			return (1);
-	}
-
-	return (-EINVAL);
 }
 
 static inline int
