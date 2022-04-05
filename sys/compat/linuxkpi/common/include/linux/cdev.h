@@ -57,6 +57,8 @@ struct linux_cdev {
 	u_int		siref;
 };
 
+struct linux_cdev *cdev_alloc(void);
+
 static inline void
 cdev_init(struct linux_cdev *cdev, const struct file_operations *ops)
 {
@@ -64,17 +66,6 @@ cdev_init(struct linux_cdev *cdev, const struct file_operations *ops)
 	kobject_init(&cdev->kobj, &linux_cdev_static_ktype);
 	cdev->ops = ops;
 	cdev->refs = 1;
-}
-
-static inline struct linux_cdev *
-cdev_alloc(void)
-{
-	struct linux_cdev *cdev;
-
-	cdev = kzalloc(sizeof(struct linux_cdev), M_WAITOK);
-	kobject_init(&cdev->kobj, &linux_cdev_ktype);
-	cdev->refs = 1;
-	return (cdev);
 }
 
 static inline void
