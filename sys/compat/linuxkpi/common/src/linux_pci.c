@@ -553,6 +553,26 @@ lkpi_pci_devres_release(struct device *dev, void *p)
 	}
 }
 
+struct pcim_iomap_devres *
+lkpi_pcim_iomap_devres_find(struct pci_dev *pdev)
+{
+	struct pcim_iomap_devres *dr;
+
+	dr = lkpi_devres_find(&pdev->dev, lkpi_pcim_iomap_table_release,
+	    NULL, NULL);
+	if (dr == NULL) {
+		dr = lkpi_devres_alloc(lkpi_pcim_iomap_table_release,
+		    sizeof(*dr), GFP_KERNEL | __GFP_ZERO);
+		if (dr != NULL)
+			lkpi_devres_add(&pdev->dev, dr);
+	}
+
+	if (dr == NULL)
+		device_printf(pdev->dev.bsddev, "%s: NULL\n", __func__);
+
+	return (dr);
+}
+
 void
 lkpi_pcim_iomap_table_release(struct device *dev, void *p)
 {
