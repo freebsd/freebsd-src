@@ -496,6 +496,25 @@ error:
 	return ERR_PTR(retval);
 }
 
+struct class *
+class_create(struct module *owner, const char *name)
+{
+	struct class *class;
+	int error;
+
+	class = kzalloc(sizeof(*class), M_WAITOK);
+	class->owner = owner;
+	class->name = name;
+	class->class_release = linux_class_kfree;
+	error = class_register(class);
+	if (error) {
+		kfree(class);
+		return (NULL);
+	}
+
+	return (class);
+}
+
 int
 kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
     struct kobject *parent, const char *fmt, ...)
