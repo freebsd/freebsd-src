@@ -581,10 +581,8 @@ smb_iod_main(struct smbiod *iod)
 /*	struct smb_vc *vcp = iod->iod_vc;*/
 	struct smbiod_event *evp;
 /*	struct timespec tsnow;*/
-	int error;
 
 	SMBIODEBUG("\n");
-	error = 0;
 
 	/*
 	 * Check all interesting events
