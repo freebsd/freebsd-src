@@ -450,10 +450,8 @@ quicc_bus_receive(struct uart_softc *sc)
 static int
 quicc_bus_setsig(struct uart_softc *sc, int sig)
 {
-	struct uart_bas *bas;
 	uint32_t new, old;
 
-	bas = &sc->sc_bas;
 	do {
 		old = sc->sc_hwsig;
 		new = old;
