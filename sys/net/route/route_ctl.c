@@ -630,7 +630,6 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 	struct sockaddr *dst, *ndst, *gateway, *netmask;
 	struct rtentry *rt;
 	struct nhop_object *nh;
-	struct ifaddr *ifa;
 	int error, flags;
 
 	dst = info->rti_info[RTAX_DST];
@@ -686,7 +685,6 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * This moved from below so that rnh->rnh_addaddr() can
 	 * examine the ifa and  ifa->ifa_ifp if it so desires.
 	 */
-	ifa = info->rti_ifa;
 	rt->rt_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
 	rt_set_expire_info(rt, info);
 
@@ -1061,10 +1059,9 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct route_nhop_data *rnd_orig, struct rib_cmd_info *rc)
 {
 	int error = 0;
-	struct nhop_object *nh, *nh_orig;
+	struct nhop_object *nh_orig;
 	struct route_nhop_data rnd_new;
 
-	nh = NULL;
 	nh_orig = rnd_orig->rnd_nhop;
 	if (nh_orig == NULL)
 		return (ESRCH);
