@@ -654,10 +654,7 @@ static int
 vtpci_legacy_register_msix(struct vtpci_legacy_softc *sc, int offset,
     struct vtpci_interrupt *intr)
 {
-	device_t dev;
 	uint16_t vector;
-
-	dev = sc->vtpci_dev;
 
 	if (intr != NULL) {
 		/* Map from guest rid to host vector. */
