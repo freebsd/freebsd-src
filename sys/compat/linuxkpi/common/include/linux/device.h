@@ -289,6 +289,8 @@ put_device(struct device *dev)
 		kobject_put(&dev->kobj);
 }
 
+struct class *class_create(struct module *owner, const char *name);
+
 static inline int
 class_register(struct class *class)
 {
@@ -523,25 +525,6 @@ linux_class_kfree(struct class *class)
 {
 
 	kfree(class);
-}
-
-static inline struct class *
-class_create(struct module *owner, const char *name)
-{
-	struct class *class;
-	int error;
-
-	class = kzalloc(sizeof(*class), M_WAITOK);
-	class->owner = owner;
-	class->name = name;
-	class->class_release = linux_class_kfree;
-	error = class_register(class);
-	if (error) {
-		kfree(class);
-		return (NULL);
-	}
-
-	return (class);
 }
 
 static inline void
