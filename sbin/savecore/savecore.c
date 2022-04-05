@@ -1214,7 +1214,7 @@ usage(void)
 	xo_error("%s\n%s\n%s\n",
 	    "usage: savecore -c [-v] [device ...]",
 	    "       savecore -C [-v] [device ...]",
-	    "       savecore [-fkvz] [-m maxdumps] [directory [device ...]]");
+	    "       savecore [-fkuvz] [-m maxdumps] [directory [device ...]]");
 	exit(1);
 }
 
