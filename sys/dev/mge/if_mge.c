@@ -628,12 +628,11 @@ mge_alloc_desc_dma(struct mge_softc *sc, struct mge_desc_wrapper* tab,
 static int
 mge_allocate_dma(struct mge_softc *sc)
 {
-	int error;
 	struct mge_desc_wrapper *dw;
 	int i;
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),	/* parent */
+	bus_dma_tag_create(bus_get_dma_tag(sc->dev),	/* parent */
 	    16, 0,				/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
@@ -929,9 +928,8 @@ mge_attach(device_t dev)
 	}
 
 	if (sc->switch_attached) {
-		device_t child;
 		MGE_WRITE(sc, MGE_REG_PHYDEV, MGE_SWITCH_PHYDEV);
-		child = device_add_child(dev, "mdio", -1);
+		device_add_child(dev, "mdio", -1);
 		bus_generic_attach(dev);
 	}
 
@@ -1582,8 +1580,6 @@ mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 mge_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct mge_softc *sc;
-	sc = device_get_softc(dev);
 
 	KASSERT(!switch_attached, ("miibus used with switch attached"));
 
@@ -1593,8 +1589,6 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 static int
 mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
-	struct mge_softc *sc;
-	sc = device_get_softc(dev);
 
 	KASSERT(!switch_attached, ("miibus used with switch attached"));
 
@@ -1648,14 +1642,11 @@ static int
 mge_encap(struct mge_softc *sc, struct mbuf *m0)
 {
 	struct mge_desc_wrapper *dw = NULL;
-	struct ifnet *ifp;
 	bus_dma_segment_t segs[MGE_TX_DESC_NUM];
 	bus_dmamap_t mapp;
 	int error;
 	int seg, nsegs;
 	int desc_no;
-
-	ifp = sc->ifp;
 
 	/* Fetch unused map */
 	desc_no = sc->tx_desc_curr;
