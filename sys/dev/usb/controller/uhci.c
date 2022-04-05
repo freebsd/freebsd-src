@@ -2772,7 +2772,6 @@ uhci_xfer_setup(struct usb_setup_params *parm)
 {
 	struct usb_page_search page_info;
 	struct usb_page_cache *pc;
-	uhci_softc_t *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
@@ -2781,7 +2780,6 @@ uhci_xfer_setup(struct usb_setup_params *parm)
 	uint32_t n;
 	uint16_t align;
 
-	sc = UHCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
 
 	parm->hc_max_packet_size = 0x500;
