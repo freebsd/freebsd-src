@@ -358,7 +358,6 @@ DIRDEPS= \
       usr.bin/truncate/tests \
       usr.bin/uniq/tests \
       usr.bin/units/tests \
-      usr.bin/uudecode/tests \
       usr.bin/uuencode/tests \
       usr.bin/xargs/tests \
       usr.bin/xinstall/tests \

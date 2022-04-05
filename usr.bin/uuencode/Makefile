@@ -3,12 +3,17 @@
 
 .include <src.opts.mk>
 
-PROG=	uuencode
-MAN=	uuencode.1 uuencode.format.5
-LINKS=	${BINDIR}/uuencode ${BINDIR}/b64encode
-MLINKS=	uuencode.1 uudecode.1 \
+PROG=	bintrans
+SRCS=	bintrans.c uuencode.c uudecode.c
+MAN=	bintrans.1 uuencode.format.5
+LINKS+=	${BINDIR}/bintrans ${BINDIR}/uuencode
+LINKS+=	${BINDIR}/bintrans ${BINDIR}/b64encode
+LINKS+=	${BINDIR}/bintrans ${BINDIR}/uudecode
+LINKS+=	${BINDIR}/bintrans ${BINDIR}/b64decode
+MLINKS=	bintrans.1 uudecode.1 \
+	bintrans.1 uuencode.1 \
 	uuencode.format.5 uuencode.5 \
-	uuencode.1 b64encode.1 \
+	bintrans.1 b64encode.1 \
 	b64encode.1 b64decode.1
 
 HAS_TESTS=
