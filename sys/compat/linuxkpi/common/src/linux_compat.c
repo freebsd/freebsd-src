@@ -455,6 +455,47 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 	return (dev);
 }
 
+struct device *
+device_create_groups_vargs(struct class *class, struct device *parent,
+    dev_t devt, void *drvdata, const struct attribute_group **groups,
+    const char *fmt, va_list args)
+{
+	struct device *dev = NULL;
+	int retval = -ENODEV;
+
+	if (class == NULL || IS_ERR(class))
+		goto error;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	dev->devt = devt;
+	dev->class = class;
+	dev->parent = parent;
+	dev->groups = groups;
+	dev->release = device_create_release;
+	/* device_initialize() needs the class and parent to be set */
+	device_initialize(dev);
+	dev_set_drvdata(dev, drvdata);
+
+	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
+	if (retval)
+		goto error;
+
+	retval = device_add(dev);
+	if (retval)
+		goto error;
+
+	return dev;
+
+error:
+	put_device(dev);
+	return ERR_PTR(retval);
+}
+
 int
 kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
     struct kobject *parent, const char *fmt, ...)

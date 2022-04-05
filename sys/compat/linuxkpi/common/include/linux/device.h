@@ -313,6 +313,12 @@ static inline struct device *kobj_to_dev(struct kobject *kobj)
 	return container_of(kobj, struct device, kobj);
 }
 
+struct device *device_create(struct class *class, struct device *parent,
+	    dev_t devt, void *drvdata, const char *fmt, ...);
+struct device *device_create_groups_vargs(struct class *class, struct device *parent,
+    dev_t devt, void *drvdata, const struct attribute_group **groups,
+    const char *fmt, va_list args);
+
 /*
  * Devices are registered and created for exporting to sysfs. Create
  * implies register and register assumes the device fields have been
@@ -370,47 +376,6 @@ static inline void
 device_create_release(struct device *dev)
 {
 	kfree(dev);
-}
-
-static inline struct device *
-device_create_groups_vargs(struct class *class, struct device *parent,
-    dev_t devt, void *drvdata, const struct attribute_group **groups,
-    const char *fmt, va_list args)
-{
-	struct device *dev = NULL;
-	int retval = -ENODEV;
-
-	if (class == NULL || IS_ERR(class))
-		goto error;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
-		goto error;
-	}
-
-	dev->devt = devt;
-	dev->class = class;
-	dev->parent = parent;
-	dev->groups = groups;
-	dev->release = device_create_release;
-	/* device_initialize() needs the class and parent to be set */
-	device_initialize(dev);
-	dev_set_drvdata(dev, drvdata);
-
-	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
-	if (retval)
-		goto error;
-
-	retval = device_add(dev);
-	if (retval)
-		goto error;
-
-	return dev;
-
-error:
-	put_device(dev);
-	return ERR_PTR(retval);
 }
 
 static inline struct device *
@@ -505,9 +470,6 @@ device_del(struct device *dev)
 		bus_topo_unlock();
 	}
 }
-
-struct device *device_create(struct class *class, struct device *parent,
-	    dev_t devt, void *drvdata, const char *fmt, ...);
 
 static inline void
 device_destroy(struct class *class, dev_t devt)
