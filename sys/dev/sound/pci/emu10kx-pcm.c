@@ -1298,17 +1298,17 @@ emu_pcm_uninit(struct emu_pcm_info *sc __unused)
 static int
 emu_pcm_probe(device_t dev)
 {
-	uintptr_t func, route, r;
+	uintptr_t func, route;
 	const char *rt;
 	char buffer[255];
 
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_FUNC, &func);
+	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_FUNC, &func);
 
 	if (func != SCF_PCM)
 		return (ENXIO);
 
 	rt = "UNKNOWN";
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
+	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
 	switch (route) {
 	case RT_FRONT:
 		rt = "front";
@@ -1342,7 +1342,7 @@ emu_pcm_attach(device_t dev)
 	unsigned int i;
 	char status[SND_STATUSLEN];
 	uint32_t inte, ipr;
-	uintptr_t route, r, ivar;
+	uintptr_t route, ivar;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->card = (struct emu_sc_info *)(device_get_softc(device_get_parent(dev)));
@@ -1355,10 +1355,10 @@ emu_pcm_attach(device_t dev)
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_emu10kx pcm softc");
 	sc->dev = dev;
 
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &ivar);
+	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &ivar);
 	sc->is_emu10k1 = ivar ? 1 : 0;
 
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_MCH_DISABLED, &ivar);
+	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_MCH_DISABLED, &ivar);
 	sc->mch_disabled = ivar ? 1 : 0;
 
 	sc->codec = NULL;
@@ -1381,7 +1381,7 @@ emu_pcm_attach(device_t dev)
 	sc->emu10k1_volcache[1][0] = 75;
 	sc->emu10k1_volcache[0][1] = 75;
 	sc->emu10k1_volcache[1][1] = 75;
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
+	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
 	sc->route = route;
 	switch (route) {
 	case RT_FRONT:
