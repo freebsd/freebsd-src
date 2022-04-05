@@ -878,10 +878,8 @@ static void
 uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 {
 	struct uss820_std_temp temp;
-	struct uss820dci_softc *sc;
 	struct uss820dci_td *td;
 	uint32_t x;
-	uint8_t ep_no;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
@@ -902,9 +900,6 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
 	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
-
-	sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-	ep_no = (xfer->endpointno & UE_ADDR);
 
 	/* check if we should prepend a setup message */
 
@@ -2217,14 +2212,12 @@ static void
 uss820dci_xfer_setup(struct usb_setup_params *parm)
 {
 	const struct usb_hw_ep_profile *pf;
-	struct uss820dci_softc *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
 	uint32_t n;
 	uint8_t ep_no;
 
-	sc = USS820_DCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
 
 	/*
