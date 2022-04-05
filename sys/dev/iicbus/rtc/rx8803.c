@@ -134,11 +134,8 @@ rx8803_settime(device_t dev, struct timespec *ts)
 {
 	struct rx8803_time data;
 	struct bcd_clocktime bcd;
-	device_t bus;
 	uint8_t reg;
 	int rc;
-
-	bus = device_get_parent(dev);
 
 	ts->tv_sec -= utc_offset();
 	clock_ts_to_bcd(ts, &bcd, false);
