@@ -183,7 +183,7 @@ struct nhgrp_priv *
 unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
 {
 	struct nhgrp_priv *nhg_priv_ret;
-	int ret, idx;
+	int idx;
 
 	NHOPS_WLOCK(ctl);
 
@@ -196,7 +196,7 @@ unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
 	}
 
 	idx = nhg_priv_ret->nhg_idx;
-	ret = bitmask_free_idx(&ctl->nh_idx_head, idx);
+	bitmask_free_idx(&ctl->nh_idx_head, idx);
 	nhg_priv_ret->nhg_idx = 0;
 	nhg_priv_ret->nh_control = NULL;
 
