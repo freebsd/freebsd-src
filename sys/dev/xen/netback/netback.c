@@ -2393,7 +2393,7 @@ xnb_send(netif_rx_back_ring_t *ring, domid_t otherend, const struct mbuf *mbufc,
 	 gnttab_copy_table gnttab)
 {
 	struct xnb_pkt pkt;
-	int error, n_entries, n_reqs;
+	int error, n_entries;
 	RING_IDX space;
 
 	space = ring->sring->req_prod - ring->req_cons;
@@ -2408,7 +2408,7 @@ xnb_send(netif_rx_back_ring_t *ring, domid_t otherend, const struct mbuf *mbufc,
 		    hv_ret));
 	}
 
-	n_reqs = xnb_rxpkt2rsp(&pkt, gnttab, n_entries, ring);
+	xnb_rxpkt2rsp(&pkt, gnttab, n_entries, ring);
 
 	return 0;
 }

@@ -648,15 +648,13 @@ xnb_ring2pkt_wraps(char *buffer, size_t buflen)
 static void
 xnb_txpkt2rsp_emptypkt(char *buffer, size_t buflen)
 {
-	int num_consumed;
 	struct xnb_pkt pkt;
 	netif_tx_back_ring_t txb_backup = xnb_unit_pvt.txb;
 	netif_tx_sring_t txs_backup = *xnb_unit_pvt.txs;
 	pkt.list_len = 0;
 
 	/* must call xnb_ring2pkt just to intialize pkt */
-	num_consumed = xnb_ring2pkt(&pkt, &xnb_unit_pvt.txb,
-	                            xnb_unit_pvt.txb.req_cons);
+	xnb_ring2pkt(&pkt, &xnb_unit_pvt.txb, xnb_unit_pvt.txb.req_cons);
 	xnb_txpkt2rsp(&pkt, &xnb_unit_pvt.txb, 0);
 	XNB_ASSERT(
 	    memcmp(&txb_backup, &xnb_unit_pvt.txb, sizeof(txb_backup)) == 0);
@@ -901,7 +899,6 @@ static void
 xnb_txpkt2rsp_wraps(char *buffer, size_t buflen)
 {
 	struct xnb_pkt pkt;
-	int num_consumed;
 	struct netif_tx_request *req;
 	struct netif_tx_response *rsp;
 	unsigned int rsize;
@@ -943,8 +940,7 @@ xnb_txpkt2rsp_wraps(char *buffer, size_t buflen)
 
 	RING_PUSH_REQUESTS(&xnb_unit_pvt.txf);
 
-	num_consumed = xnb_ring2pkt(&pkt, &xnb_unit_pvt.txb,
-	                            xnb_unit_pvt.txb.req_cons);
+	xnb_ring2pkt(&pkt, &xnb_unit_pvt.txb, xnb_unit_pvt.txb.req_cons);
 
 	xnb_txpkt2rsp(&pkt, &xnb_unit_pvt.txb, 0);
 
@@ -986,14 +982,12 @@ xnb_get1pkt(struct xnb_pkt *pkt, size_t size, uint16_t flags)
 static void
 xnb_pkt2mbufc_empty(char *buffer, size_t buflen)
 {
-	int num_consumed;
 	struct xnb_pkt pkt;
 	struct mbuf *pMbuf;
 	pkt.list_len = 0;
 
 	/* must call xnb_ring2pkt just to intialize pkt */
-	num_consumed = xnb_ring2pkt(&pkt, &xnb_unit_pvt.txb,
-	                            xnb_unit_pvt.txb.req_cons);
+	xnb_ring2pkt(&pkt, &xnb_unit_pvt.txb, xnb_unit_pvt.txb.req_cons);
 	pkt.size = 0;
 	pMbuf = xnb_pkt2mbufc(&pkt, xnb_unit_pvt.ifp);
 	safe_m_freem(&pMbuf);
