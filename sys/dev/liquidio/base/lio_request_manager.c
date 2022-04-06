@@ -406,7 +406,6 @@ lio_process_iq_request_list(struct octeon_device *oct,
 {
 	struct lio_soft_command		*sc;
 	struct octeon_instr_irh		*irh = NULL;
-	struct lio_mbuf_free_info	*finfo;
 	void				*buf;
 	uint32_t			inst_count = 0;
 	uint32_t			old = iq->flush_index;
@@ -415,7 +414,6 @@ lio_process_iq_request_list(struct octeon_device *oct,
 	while (old != iq->octeon_read_index) {
 		reqtype = iq->request_list[old].reqtype;
 		buf = iq->request_list[old].buf;
-		finfo = buf;
 
 		if (reqtype == LIO_REQTYPE_NONE)
 			goto skip_this;
@@ -632,7 +630,6 @@ lio_prepare_soft_command(struct octeon_device *oct, struct lio_soft_command *sc,
 			 uint8_t opcode, uint8_t subcode, uint32_t irh_ossp,
 			 uint64_t ossp0, uint64_t ossp1)
 {
-	struct lio_config		*lio_cfg;
 	struct octeon_instr_ih3		*ih3;
 	struct octeon_instr_pki_ih3	*pki_ih3;
 	struct octeon_instr_irh		*irh;
@@ -640,8 +637,6 @@ lio_prepare_soft_command(struct octeon_device *oct, struct lio_soft_command *sc,
 
 	KASSERT(opcode <= 15, ("%s, %d, opcode > 15", __func__, __LINE__));
 	KASSERT(subcode <= 127, ("%s, %d, opcode > 127", __func__, __LINE__));
-
-	lio_cfg = lio_get_conf(oct);
 
 	if (LIO_CN23XX_PF(oct)) {
 		ih3 = (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;

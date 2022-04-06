@@ -905,7 +905,7 @@ uint64_t
 lio_pci_readq(struct octeon_device *oct, uint64_t addr)
 {
 	uint64_t		val64;
-	volatile uint32_t	val32, addrhi;
+	volatile uint32_t	addrhi;
 
 	mtx_lock(&oct->pci_win_lock);
 
@@ -919,11 +919,11 @@ lio_pci_readq(struct octeon_device *oct, uint64_t addr)
 	lio_write_csr32(oct, oct->reg_list.pci_win_rd_addr_hi, addrhi);
 
 	/* Read back to preserve ordering of writes */
-	val32 = lio_read_csr32(oct, oct->reg_list.pci_win_rd_addr_hi);
+	(void)lio_read_csr32(oct, oct->reg_list.pci_win_rd_addr_hi);
 
 	lio_write_csr32(oct, oct->reg_list.pci_win_rd_addr_lo,
 			addr & 0xffffffff);
-	val32 = lio_read_csr32(oct, oct->reg_list.pci_win_rd_addr_lo);
+	(void)lio_read_csr32(oct, oct->reg_list.pci_win_rd_addr_lo);
 
 	val64 = lio_read_csr64(oct, oct->reg_list.pci_win_rd_data);
 
@@ -935,7 +935,6 @@ lio_pci_readq(struct octeon_device *oct, uint64_t addr)
 void
 lio_pci_writeq(struct octeon_device *oct, uint64_t val, uint64_t addr)
 {
-	volatile uint32_t	val32;
 
 	mtx_lock(&oct->pci_win_lock);
 
@@ -944,7 +943,7 @@ lio_pci_writeq(struct octeon_device *oct, uint64_t val, uint64_t addr)
 	/* The write happens when the LSB is written. So write MSB first. */
 	lio_write_csr32(oct, oct->reg_list.pci_win_wr_data_hi, val >> 32);
 	/* Read the MSB to ensure ordering of writes. */
-	val32 = lio_read_csr32(oct, oct->reg_list.pci_win_wr_data_hi);
+	(void)lio_read_csr32(oct, oct->reg_list.pci_win_wr_data_hi);
 
 	lio_write_csr32(oct, oct->reg_list.pci_win_wr_data_lo,
 			val & 0xffffffff);

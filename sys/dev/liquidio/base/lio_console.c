@@ -776,7 +776,7 @@ lio_get_uboot_version(struct octeon_device *oct)
 	struct lio_console *console;
 	int32_t		bytes_read, total_read, tries;
 	uint32_t	console_num = 0;
-	int		i, ret = 0;
+	int		i, ret __unused = 0;
 
 	ret = lio_console_send_cmd(oct, "setenv stdout pci", 50);
 
@@ -860,7 +860,6 @@ lio_download_firmware(struct octeon_device *oct, const uint8_t * data,
 	struct lio_firmware_file_header *h;
 	uint64_t	load_addr;
 	uint32_t	crc32_result, i, image_len, rem;
-	int		ret = 0;
 
 	if (size < sizeof(struct lio_firmware_file_header)) {
 		lio_dev_err(oct, "Firmware file too small (%d < %d).\n",
@@ -936,6 +935,6 @@ lio_download_firmware(struct octeon_device *oct, const uint8_t * data,
 	lio_dev_info(oct, "Writing boot command: %s\n", h->bootcmd);
 
 	/* Invoke the bootcmd */
-	ret = lio_console_send_cmd(oct, h->bootcmd, 50);
+	lio_console_send_cmd(oct, h->bootcmd, 50);
 	return (0);
 }
