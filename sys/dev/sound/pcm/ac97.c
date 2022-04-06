@@ -603,7 +603,6 @@ ac97_initmixer(struct ac97_info *codec)
 	const char *cname, *vname;
 	char desc[80];
 	device_t pdev;
-	u_int8_t model, step;
 	unsigned i, j, k, bit, old;
 	u_int32_t id;
 	int reg;
@@ -655,15 +654,12 @@ ac97_initmixer(struct ac97_info *codec)
 	codec_patch = NULL;
 
 	cname = NULL;
-	model = step = 0;
 	for (i = 0; ac97codecid[i].id; i++) {
 		u_int32_t modelmask = 0xffffffff ^ ac97codecid[i].stepmask;
 		if ((ac97codecid[i].id & modelmask) == (id & modelmask)) {
 			codec->noext = ac97codecid[i].noext;
 			codec_patch = ac97codecid[i].patch;
 			cname = ac97codecid[i].name;
-			model = (id & modelmask) & 0xff;
-			step = (id & ~modelmask) & 0xff;
 			break;
 		}
 	}
