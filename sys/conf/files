@@ -4626,7 +4626,7 @@ ofed/drivers/infiniband/core/ib_device.c		optional ofed	\
 ofed/drivers/infiniband/core/ib_fmr_pool.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_iwcm.c			optional ofed	\
-	compile-with "${OFED_C}"
+	compile-with "${OFED_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 ofed/drivers/infiniband/core/ib_iwpm_msg.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_iwpm_util.c		optional ofed	\
