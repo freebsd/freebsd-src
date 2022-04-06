@@ -4311,7 +4311,6 @@ static void
 msk_stats_clear(struct msk_if_softc *sc_if)
 {
 	struct msk_softc *sc;
-	uint32_t reg;
 	uint16_t gmac;
 	int i;
 
@@ -4323,7 +4322,7 @@ msk_stats_clear(struct msk_if_softc *sc_if)
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
 	/* Read all MIB Counters with Clear Mode set. */
 	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i += sizeof(uint32_t))
-		reg = MSK_READ_MIB32(sc_if->msk_port, i);
+		MSK_READ_MIB32(sc_if->msk_port, i);
 	/* Clear MIB Clear Counter Mode. */
 	gmac &= ~GM_PAR_MIB_CLR;
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac);
@@ -4336,7 +4335,6 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	struct ifnet *ifp;
 	struct msk_hw_stats *stats;
 	uint16_t gmac;
-	uint32_t reg;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
 
@@ -4360,7 +4358,7 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_MC_OK);
 	stats->rx_crc_errs +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_FCS_ERR);
-	reg = MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE1);
+	MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE1);
 	stats->rx_good_octets +=
 	    MSK_READ_MIB64(sc_if->msk_port, GM_RXO_OK_LO);
 	stats->rx_bad_octets +=
@@ -4387,10 +4385,10 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_LNG_ERR);
 	stats->rx_pkts_jabbers +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXF_JAB_PKT);
-	reg = MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE2);
+	MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE2);
 	stats->rx_fifo_oflows +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_RXE_FIFO_OV);
-	reg = MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE3);
+	MSK_READ_MIB32(sc_if->msk_port, GM_RXF_SPARE3);
 
 	/* Tx stats. */
 	stats->tx_ucast_frames +=
@@ -4417,7 +4415,7 @@ msk_stats_update(struct msk_if_softc *sc_if)
 	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_1518B);
 	stats->tx_pkts_1519_max +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_MAX_SZ);
-	reg = MSK_READ_MIB32(sc_if->msk_port, GM_TXF_SPARE1);
+	MSK_READ_MIB32(sc_if->msk_port, GM_TXF_SPARE1);
 	stats->tx_colls +=
 	    MSK_READ_MIB32(sc_if->msk_port, GM_TXF_COL);
 	stats->tx_late_colls +=
