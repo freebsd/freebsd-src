@@ -937,11 +937,9 @@ flex_spi_task(void *arg)
 {
 	struct flex_spi_softc *sc;
 	struct bio *bp;
-	device_t dev;
 
 	sc = (struct flex_spi_softc *)arg;
 	for (;;) {
-		dev = sc->dev;
 		mtx_lock(&sc->disk_mtx);
 		do {
 			if (sc->taskstate == TSTATE_STOPPING) {
