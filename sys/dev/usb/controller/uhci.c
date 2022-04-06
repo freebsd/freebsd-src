@@ -1295,7 +1295,6 @@ static uint8_t
 uhci_check_transfer(struct usb_xfer *xfer)
 {
 	uint32_t status;
-	uint32_t token;
 	uhci_td_t *td;
 
 	DPRINTFN(16, "xfer=%p checking transfer\n", xfer);
@@ -1332,7 +1331,6 @@ uhci_check_transfer(struct usb_xfer *xfer)
 		while (1) {
 			usb_pc_cpu_invalidate(td->page_cache);
 			status = le32toh(td->td_status);
-			token = le32toh(td->td_token);
 
 			/*
 			 * if there is an active TD the transfer isn't done
