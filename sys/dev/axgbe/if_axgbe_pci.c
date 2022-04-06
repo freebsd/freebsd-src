@@ -2042,7 +2042,7 @@ axgbe_msix_que(void *arg)
 {
 	struct xgbe_channel	*channel = (struct xgbe_channel *)arg;
 	struct xgbe_prv_data	*pdata = channel->pdata;
-	unsigned int 		dma_ch_isr, dma_status;
+	unsigned int 		dma_status;
 
 	axgbe_printf(1, "%s: Channel: %d SR 0x%04x DSR 0x%04x IER:0x%04x D_ISR:0x%04x M_ISR:0x%04x\n",
 	    __func__, channel->queue_index,
@@ -2052,7 +2052,7 @@ axgbe_msix_que(void *arg)
 	    XGMAC_IOREAD(pdata, DMA_ISR),
 	    XGMAC_IOREAD(pdata, MAC_ISR));
 
-	dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
+	(void)XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
 
 	/* Disable Tx and Rx channel interrupts */
 	xgbe_disable_rx_tx_int(pdata, channel);
