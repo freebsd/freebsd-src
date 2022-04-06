@@ -4,7 +4,8 @@
 
 TESTSDIR=	${TESTSBASE}/sys/sys
 
-ATF_TESTS_C=	bitstring_test
+ATF_TESTS_C=	bitstring_test \
+		time_test
 
 WARNS?=	5
 
