@@ -137,9 +137,17 @@ basl_fill_gas(ACPI_GENERIC_ADDRESS *const gas, const uint8_t space_id,
 }
 
 static int
-basl_finish_install_guest_tables(struct basl_table *const table)
+basl_finish_install_guest_tables(struct basl_table *const table, uint32_t *const off)
 {
 	void *gva;
+
+	table->off = roundup2(*off, table->alignment);
+	*off = table->off + table->len;
+	if (*off <= table->off) {
+		warnx("%s: invalid table length 0x%8x @ offset 0x%8x", __func__,
+		    table->len, table->off);
+		return (EFAULT);
+	}
 
 	/*
 	 * Install ACPI tables directly in guest memory for use by guests which
@@ -304,6 +312,7 @@ int
 basl_finish(void)
 {
 	struct basl_table *table;
+	uint32_t off = 0;
 
 	if (STAILQ_EMPTY(&basl_tables)) {
 		warnx("%s: no ACPI tables found", __func__);
@@ -317,7 +326,7 @@ basl_finish(void)
 	 */
 	STAILQ_FOREACH(table, &basl_tables, chain) {
 		BASL_EXEC(basl_finish_set_length(table));
-		BASL_EXEC(basl_finish_install_guest_tables(table));
+		BASL_EXEC(basl_finish_install_guest_tables(table, &off));
 	}
 	STAILQ_FOREACH(table, &basl_tables, chain) {
 		BASL_EXEC(basl_finish_patch_pointers(table));
@@ -554,8 +563,7 @@ basl_table_append_pointer(struct basl_table *const table,
 
 int
 basl_table_create(struct basl_table **const table, struct vmctx *ctx,
-    const uint8_t *const name, const uint32_t alignment,
-    const uint32_t off)
+    const uint8_t *const name, const uint32_t alignment)
 {
 	struct basl_table *new_table;
 
@@ -573,7 +581,6 @@ basl_table_create(struct basl_table **const table, struct vmctx *ctx,
 	    "etc/acpi/%s", name);
 
 	new_table->alignment = alignment;
-	new_table->off = off;
 
 	STAILQ_INIT(&new_table->checksums);
 	STAILQ_INIT(&new_table->lengths);

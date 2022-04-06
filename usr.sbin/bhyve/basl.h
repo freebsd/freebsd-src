@@ -67,4 +67,4 @@ int basl_table_append_length(struct basl_table *table, uint8_t size);
 int basl_table_append_pointer(struct basl_table *table,
     const uint8_t src_signature[ACPI_NAMESEG_SIZE], uint8_t size);
 int basl_table_create(struct basl_table **table, struct vmctx *ctx,
-    const uint8_t *name, uint32_t alignment, uint32_t off);
+    const uint8_t *name, uint32_t alignment);
