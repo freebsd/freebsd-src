@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <paths.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -234,223 +235,6 @@ basl_fwrite_xsdt(FILE *fp)
 	    basl_acpi_base + HPET_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 3 : 00000000%08X\n",
 	    basl_acpi_base + MCFG_OFFSET);
-
-	EFFLUSH(fp);
-
-	return (0);
-
-err_exit:
-	return (errno);
-}
-
-static int
-basl_fwrite_fadt(FILE *fp)
-{
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve FADT template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "[0004]\t\tSignature : \"FACP\"\n");
-	EFPRINTF(fp, "[0004]\t\tTable Length : 0000010C\n");
-	EFPRINTF(fp, "[0001]\t\tRevision : 05\n");
-	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
-	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
-	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVFACP  \"\n");
-	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
-	/* iasl will fill in the compiler ID/revision fields */
-	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
-	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0004]\t\tFACS Address : %08X\n",
-	    basl_acpi_base + FACS_OFFSET);
-	EFPRINTF(fp, "[0004]\t\tDSDT Address : %08X\n",
-	    basl_acpi_base + DSDT_OFFSET);
-	EFPRINTF(fp, "[0001]\t\tModel : 01\n");
-	EFPRINTF(fp, "[0001]\t\tPM Profile : 00 [Unspecified]\n");
-	EFPRINTF(fp, "[0002]\t\tSCI Interrupt : %04X\n",
-	    SCI_INT);
-	EFPRINTF(fp, "[0004]\t\tSMI Command Port : %08X\n",
-	    SMI_CMD);
-	EFPRINTF(fp, "[0001]\t\tACPI Enable Value : %02X\n",
-	    BHYVE_ACPI_ENABLE);
-	EFPRINTF(fp, "[0001]\t\tACPI Disable Value : %02X\n",
-	    BHYVE_ACPI_DISABLE);
-	EFPRINTF(fp, "[0001]\t\tS4BIOS Command : 00\n");
-	EFPRINTF(fp, "[0001]\t\tP-State Control : 00\n");
-	EFPRINTF(fp, "[0004]\t\tPM1A Event Block Address : %08X\n",
-	    PM1A_EVT_ADDR);
-	EFPRINTF(fp, "[0004]\t\tPM1B Event Block Address : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tPM1A Control Block Address : %08X\n",
-	    PM1A_CNT_ADDR);
-	EFPRINTF(fp, "[0004]\t\tPM1B Control Block Address : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tPM2 Control Block Address : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tPM Timer Block Address : %08X\n",
-	    IO_PMTMR);
-	EFPRINTF(fp, "[0004]\t\tGPE0 Block Address : %08X\n", IO_GPE0_BLK);
-	EFPRINTF(fp, "[0004]\t\tGPE1 Block Address : 00000000\n");
-	EFPRINTF(fp, "[0001]\t\tPM1 Event Block Length : 04\n");
-	EFPRINTF(fp, "[0001]\t\tPM1 Control Block Length : 02\n");
-	EFPRINTF(fp, "[0001]\t\tPM2 Control Block Length : 00\n");
-	EFPRINTF(fp, "[0001]\t\tPM Timer Block Length : 04\n");
-	EFPRINTF(fp, "[0001]\t\tGPE0 Block Length : %02x\n", IO_GPE0_LEN);
-	EFPRINTF(fp, "[0001]\t\tGPE1 Block Length : 00\n");
-	EFPRINTF(fp, "[0001]\t\tGPE1 Base Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\t_CST Support : 00\n");
-	EFPRINTF(fp, "[0002]\t\tC2 Latency : 0000\n");
-	EFPRINTF(fp, "[0002]\t\tC3 Latency : 0000\n");
-	EFPRINTF(fp, "[0002]\t\tCPU Cache Size : 0000\n");
-	EFPRINTF(fp, "[0002]\t\tCache Flush Stride : 0000\n");
-	EFPRINTF(fp, "[0001]\t\tDuty Cycle Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tDuty Cycle Width : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Day Alarm Index : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Month Alarm Index : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 32\n");
-	EFPRINTF(fp, "[0002]\t\tBoot Flags (decoded below) : 0000\n");
-	EFPRINTF(fp, "\t\t\tLegacy Devices Supported (V2) : 0\n");
-	EFPRINTF(fp, "\t\t\t8042 Present on ports 60/64 (V2) : 0\n");
-	EFPRINTF(fp, "\t\t\tVGA Not Present (V4) : 1\n");
-	EFPRINTF(fp, "\t\t\tMSI Not Supported (V4) : 0\n");
-	EFPRINTF(fp, "\t\t\tPCIe ASPM Not Supported (V4) : 1\n");
-	EFPRINTF(fp, "\t\t\tCMOS RTC Not Present (V5) : 0\n");
-	EFPRINTF(fp, "[0001]\t\tReserved : 00\n");
-	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000000\n");
-	EFPRINTF(fp, "\t\t\tWBINVD instruction is operational (V1) : 1\n");
-	EFPRINTF(fp, "\t\t\tWBINVD flushes all caches (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tAll CPUs support C1 (V1) : 1\n");
-	EFPRINTF(fp, "\t\t\tC2 works on MP system (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tControl Method Power Button (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tControl Method Sleep Button (V1) : 1\n");
-	EFPRINTF(fp, "\t\t\tRTC wake not in fixed reg space (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tRTC can wake system from S4 (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\t32-bit PM Timer (V1) : 1\n");
-	EFPRINTF(fp, "\t\t\tDocking Supported (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tReset Register Supported (V2) : 1\n");
-	EFPRINTF(fp, "\t\t\tSealed Case (V3) : 0\n");
-	EFPRINTF(fp, "\t\t\tHeadless - No Video (V3) : 1\n");
-	EFPRINTF(fp, "\t\t\tUse native instr after SLP_TYPx (V3) : 0\n");
-	EFPRINTF(fp, "\t\t\tPCIEXP_WAK Bits Supported (V4) : 0\n");
-	EFPRINTF(fp, "\t\t\tUse Platform Timer (V4) : 0\n");
-	EFPRINTF(fp, "\t\t\tRTC_STS valid on S4 wake (V4) : 0\n");
-	EFPRINTF(fp, "\t\t\tRemote Power-on capable (V4) : 0\n");
-	EFPRINTF(fp, "\t\t\tUse APIC Cluster Model (V4) : 0\n");
-	EFPRINTF(fp, "\t\t\tUse APIC Physical Destination Mode (V4) : 1\n");
-	EFPRINTF(fp, "\t\t\tHardware Reduced (V5) : 0\n");
-	EFPRINTF(fp, "\t\t\tLow Power S0 Idle (V5) : 0\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	    "[0012]\t\tReset Register : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 08\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000CF9\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 06\n");
-	EFPRINTF(fp, "[0002]\t\tARM Flags (decoded below): 0000\n");
-	EFPRINTF(fp, "\t\t\tPSCI Compliant : 0\n");
-	EFPRINTF(fp, "\t\t\tMust use HVC for PSCI : 0\n");
-	EFPRINTF(fp, "[0001]\t\tFADT Minor Revision : 01\n");
-	EFPRINTF(fp, "[0008]\t\tFACS Address : 00000000%08X\n",
-	    basl_acpi_base + FACS_OFFSET);
-	EFPRINTF(fp, "[0008]\t\tDSDT Address : 00000000%08X\n",
-	    basl_acpi_base + DSDT_OFFSET);
-	EFPRINTF(fp,
-	    "[0012]\t\tPM1A Event Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 02 [Word Access:16]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
-	    PM1A_EVT_ADDR);
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	    "[0012]\t\tPM1B Event Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp,
-	    "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	    "[0012]\t\tPM1A Control Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 10\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 02 [Word Access:16]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
-	    PM1A_CNT_ADDR);
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	    "[0012]\t\tPM1B Control Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp,
-	    "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	    "[0012]\t\tPM2 Control Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 08\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp,
-	    "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
-	EFPRINTF(fp, "\n");
-
-	/* Valid for bhyve */
-	EFPRINTF(fp,
-	    "[0012]\t\tPM Timer Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp,
-	    "[0001]\t\tEncoded Access Width : 03 [DWord Access:32]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
-	    IO_PMTMR);
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : %02x\n", IO_GPE0_LEN * 8);
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : %016X\n", IO_GPE0_BLK);
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0012]\t\tGPE1 Block : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp,
-	    "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	   "[0012]\t\tSleep Control Register : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 08\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp,
-	    "[0012]\t\tSleep Status Register : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 08\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
 
 	EFFLUSH(fp);
 
@@ -791,6 +575,77 @@ build_facs(struct vmctx *const ctx)
 }
 
 static int
+build_fadt(struct vmctx *const ctx)
+{
+	ACPI_TABLE_FADT fadt;
+	struct basl_table *table;
+
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_SIG_FADT,
+	    BASL_TABLE_ALIGNMENT, FADT_OFFSET));
+
+	memset(&fadt, 0, sizeof(fadt));
+	BASL_EXEC(basl_table_append_header(table, ACPI_SIG_FADT, 5, 1));
+	fadt.Facs = htole32(0); /* patched by basl */
+	fadt.Dsdt = htole32(0); /* patched by basl */
+	fadt.SciInterrupt = htole16(SCI_INT);
+	fadt.SmiCommand = htole32(SMI_CMD);
+	fadt.AcpiEnable = BHYVE_ACPI_ENABLE;
+	fadt.AcpiDisable = BHYVE_ACPI_DISABLE;
+	fadt.Pm1aEventBlock = htole32(PM1A_EVT_ADDR);
+	fadt.Pm1aControlBlock = htole32(PM1A_CNT_ADDR);
+	fadt.PmTimerBlock = htole32(IO_PMTMR);
+	fadt.Gpe0Block = htole32(IO_GPE0_BLK);
+	fadt.Pm1EventLength = 4;
+	fadt.Pm1ControlLength = 2;
+	fadt.PmTimerLength = 4;
+	fadt.Gpe0BlockLength = IO_GPE0_LEN;
+	fadt.Century = 0x32;
+	fadt.BootFlags = htole16(ACPI_FADT_NO_VGA | ACPI_FADT_NO_ASPM);
+	fadt.Flags = htole32(ACPI_FADT_WBINVD | ACPI_FADT_C1_SUPPORTED |
+	    ACPI_FADT_SLEEP_BUTTON | ACPI_FADT_32BIT_TIMER |
+	    ACPI_FADT_RESET_REGISTER | ACPI_FADT_HEADLESS |
+	    ACPI_FADT_APIC_PHYSICAL);
+	basl_fill_gas(&fadt.ResetRegister, ACPI_ADR_SPACE_SYSTEM_IO, 8, 0,
+	    ACPI_GAS_ACCESS_WIDTH_BYTE, 0xCF9);
+	fadt.ResetValue = 6;
+	fadt.MinorRevision = 1;
+	fadt.XFacs = htole64(0); /* patched by basl */
+	fadt.XDsdt = htole64(0); /* patched by basl */
+	basl_fill_gas(&fadt.XPm1aEventBlock, ACPI_ADR_SPACE_SYSTEM_IO, 0x20, 0,
+	    ACPI_GAS_ACCESS_WIDTH_WORD, PM1A_EVT_ADDR);
+	basl_fill_gas(&fadt.XPm1bEventBlock, ACPI_ADR_SPACE_SYSTEM_IO, 0, 0,
+	    ACPI_GAS_ACCESS_WIDTH_UNDEFINED, 0);
+	basl_fill_gas(&fadt.XPm1aControlBlock, ACPI_ADR_SPACE_SYSTEM_IO, 0x10,
+	    0, ACPI_GAS_ACCESS_WIDTH_WORD, PM1A_CNT_ADDR);
+	basl_fill_gas(&fadt.XPm1bControlBlock, ACPI_ADR_SPACE_SYSTEM_IO, 0, 0,
+	    ACPI_GAS_ACCESS_WIDTH_UNDEFINED, 0);
+	basl_fill_gas(&fadt.XPm2ControlBlock, ACPI_ADR_SPACE_SYSTEM_IO, 8, 0,
+	    ACPI_GAS_ACCESS_WIDTH_UNDEFINED, 0);
+	basl_fill_gas(&fadt.XPmTimerBlock, ACPI_ADR_SPACE_SYSTEM_IO, 0x20, 0,
+	    ACPI_GAS_ACCESS_WIDTH_DWORD, IO_PMTMR);
+	basl_fill_gas(&fadt.XGpe0Block, ACPI_ADR_SPACE_SYSTEM_IO,
+	    IO_GPE0_LEN * 8, 0, ACPI_GAS_ACCESS_WIDTH_BYTE, IO_GPE0_BLK);
+	basl_fill_gas(&fadt.XGpe1Block, ACPI_ADR_SPACE_SYSTEM_IO, 0, 0,
+	    ACPI_GAS_ACCESS_WIDTH_UNDEFINED, 0);
+	basl_fill_gas(&fadt.SleepControl, ACPI_ADR_SPACE_SYSTEM_IO, 8, 0,
+	    ACPI_GAS_ACCESS_WIDTH_BYTE, 0);
+	basl_fill_gas(&fadt.SleepStatus, ACPI_ADR_SPACE_SYSTEM_IO, 8, 0,
+	    ACPI_GAS_ACCESS_WIDTH_BYTE, 0);
+	BASL_EXEC(basl_table_append_content(table, &fadt, sizeof(fadt)));
+
+	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_FACS,
+	    offsetof(ACPI_TABLE_FADT, Facs), sizeof(fadt.Facs)));
+	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_DSDT,
+	    offsetof(ACPI_TABLE_FADT, Dsdt), sizeof(fadt.Dsdt)));
+	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_FACS,
+	    offsetof(ACPI_TABLE_FADT, XFacs), sizeof(fadt.XFacs)));
+	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_DSDT,
+	    offsetof(ACPI_TABLE_FADT, XDsdt), sizeof(fadt.XDsdt)));
+
+	return (0);
+}
+
+static int
 build_hpet(struct vmctx *const ctx)
 {
 	ACPI_TABLE_HPET hpet;
@@ -938,11 +793,15 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	/*
 	 * Run through all the ASL files, compiling them and
 	 * copying them into guest memory
+	 *
+	 * According to UEFI Specification v6.3 chapter 5.1 the FADT should be
+	 * the first table pointed to by XSDT. For that reason, build it as the
+	 * first table after XSDT.
 	 */
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_rsdp, 0));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_rsdt, RSDT_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_xsdt, XSDT_OFFSET));
-	BASL_EXEC(basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET));
+	BASL_EXEC(build_fadt(ctx));
 	BASL_EXEC(build_madt(ctx));
 	BASL_EXEC(build_hpet(ctx));
 	BASL_EXEC(build_mcfg(ctx));
