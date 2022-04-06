@@ -1504,15 +1504,9 @@ RmGlobalIPAddresses(struct sctp_nat_msg *sm, struct sctp_nat_assoc *assoc, int d
 	struct sctp_asconf_addrv4_param *asconf_ipv4_param;
 	struct sctp_paramhdr *param;
 	struct sctp_GlobalAddress *G_Addr, *G_Addr_tmp;
-	struct in_addr g_addr;
 	int bytes_left;
 	int param_size;
 	int param_count;
-
-	if (direction == SN_TO_GLOBAL)
-		g_addr = sm->ip_hdr->ip_dst;
-	else
-		g_addr = sm->ip_hdr->ip_src;
 
 	bytes_left = sm->chunk_length;
 	param_count = 1;
