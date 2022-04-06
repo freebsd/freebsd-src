@@ -2590,7 +2590,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		nvl = NULL;
 		packed = NULL;
 
-#define	ERROUT(x)	do { error = (x); goto DIOCGETETHRULES_error; } while (0)
+#define	ERROUT(x)	ERROUT_IOCTL(DIOCGETETHRULES_error, x)
 
 		if (nv->len > pf_ioctl_maxcount)
 			ERROUT(ENOMEM);
@@ -2671,7 +2671,7 @@ DIOCGETETHRULES_error:
 		bool			 clear = false;
 		const char		*anchor;
 
-#define ERROUT(x)	do { error = (x); goto DIOCGETETHRULE_error; } while (0)
+#define ERROUT(x)	ERROUT_IOCTL(DIOCGETETHRULE_error, x)
 
 		if (nv->len > pf_ioctl_maxcount)
 			ERROUT(ENOMEM);
@@ -2773,7 +2773,7 @@ DIOCGETETHRULE_error:
 		struct pfi_kkif		*kif = NULL;
 		const char		*anchor = "", *anchor_call = "";
 
-#define ERROUT(x)	do { error = (x); goto DIOCADDETHRULE_error; } while (0)
+#define ERROUT(x)	ERROUT_IOCTL(DIOCADDETHRULE_error, x)
 
 		nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
 		if (nvlpacked == NULL)
@@ -2883,7 +2883,7 @@ DIOCADDETHRULE_error:
 		struct pf_keth_anchor	*anchor;
 		int			 nr = 0;
 
-#define ERROUT(x)	do { error = (x); goto DIOCGETETHRULESETS_error; } while (0)
+#define ERROUT(x)	ERROUT_IOCTL(DIOCGETETHRULESETS_error, x)
 
 		if (nv->len > pf_ioctl_maxcount)
 			ERROUT(ENOMEM);
@@ -2961,7 +2961,7 @@ DIOCGETETHRULESETS_error:
 		int			 nr = 0, req_nr = 0;
 		bool			 found = false;
 
-#define ERROUT(x)	do { error = (x); goto DIOCGETETHRULESET_error; } while (0)
+#define ERROUT(x)	ERROUT_IOCTL(DIOCGETETHRULESET_error, x)
 
 		if (nv->len > pf_ioctl_maxcount)
 			ERROUT(ENOMEM);
@@ -3396,7 +3396,7 @@ DIOCGETRULENV_error:
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 			TAILQ_INIT(&newrule->rpool.list);
 		}
-#define	ERROUT(x)	{ error = (x); goto DIOCCHANGERULE_error; }
+#define	ERROUT(x)	ERROUT_IOCTL(DIOCCHANGERULE_error, x)
 
 		PF_RULES_WLOCK();
 #ifdef PF_WANT_32_TO_64_COUNTER
