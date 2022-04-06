@@ -65,6 +65,7 @@ SRCS=	\
 	ps2kbd.c		\
 	ps2mouse.c		\
 	qemu_fwcfg.c		\
+	qemu_loader.c		\
 	rfb.c			\
 	rtc.c			\
 	smbiostbl.c		\
