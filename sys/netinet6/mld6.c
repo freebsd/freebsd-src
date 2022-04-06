@@ -1568,7 +1568,7 @@ mld_v2_process_group_timers(struct in6_multi_head *inmh,
 		 * immediate transmission.
 		 */
 		if (query_response_timer_expired) {
-			int retval;
+			int retval __unused;
 
 			retval = mld_v2_enqueue_group_record(qrq, inm, 0, 1,
 			    (inm->in6m_state == MLD_SG_QUERY_PENDING_MEMBER),
@@ -2702,10 +2702,10 @@ mld_v2_enqueue_filter_change(struct mbufq *mq, struct in6_multi *inm)
 	struct ip6_msource	*ims, *nims;
 	struct mbuf		*m, *m0, *md;
 	int			 m0srcs, nbytes, npbytes, off, rsrcs, schanged;
-	int			 nallow, nblock;
 	uint8_t			 mode, now, then;
 	rectype_t		 crt, drt, nrt;
 #ifdef KTR
+	int			 nallow, nblock;
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
@@ -2725,8 +2725,10 @@ mld_v2_enqueue_filter_change(struct mbufq *mq, struct in6_multi *inm)
 	nbytes = 0;	/* # of bytes appended to group's state-change queue */
 	rsrcs = 0;	/* # sources encoded in current record */
 	schanged = 0;	/* # nodes encoded in overall filter change */
+#ifdef KTR
 	nallow = 0;	/* # of source entries in ALLOW_NEW */
 	nblock = 0;	/* # of source entries in BLOCK_OLD */
+#endif
 	nims = NULL;	/* next tree node pointer */
 
 	/*
@@ -2847,8 +2849,10 @@ mld_v2_enqueue_filter_change(struct mbufq *mq, struct in6_multi *inm)
 					    "%s: m_append() failed", __func__);
 					return (-ENOMEM);
 				}
+#ifdef KTR
 				nallow += !!(crt == REC_ALLOW);
 				nblock += !!(crt == REC_BLOCK);
+#endif
 				if (++rsrcs == m0srcs)
 					break;
 			}
@@ -3006,7 +3010,7 @@ mld_v2_dispatch_general_query(struct mld_ifsoftc *mli)
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in6_multi	*inm;
-	int			 retval;
+	int			 retval __unused;
 
 	NET_EPOCH_ASSERT();
 	IN6_MULTI_LIST_LOCK_ASSERT();
