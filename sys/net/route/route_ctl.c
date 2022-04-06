@@ -1000,15 +1000,12 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct route_nhop_data *rnd_orig, struct rib_cmd_info *rc)
 {
 	int error = 0;
-	struct nhop_object *nh, *nh_orig, *nh_new;
+	struct nhop_object *nh_orig, *nh_new;
 	struct route_nhop_data rnd_new;
-
-	nh = NULL;
-	nh_orig = rnd_orig->rnd_nhop;
-
 	struct weightened_nhop *wn = NULL, *wn_new;
 	uint32_t num_nhops;
 
+	nh_orig = rnd_orig->rnd_nhop;
 	wn = nhgrp_get_nhops((struct nhgrp_object *)nh_orig, &num_nhops);
 	nh_orig = NULL;
 	for (int i = 0; i < num_nhops; i++) {
