@@ -447,6 +447,42 @@ basl_table_append_gas(struct basl_table *const table, const uint8_t space_id,
 }
 
 int
+basl_table_append_header(struct basl_table *const table,
+    const uint8_t signature[ACPI_NAMESEG_SIZE], const uint8_t revision,
+    const uint32_t oem_revision)
+{
+	ACPI_TABLE_HEADER header_le;
+	/* + 1 is required for the null terminator */
+	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
+
+	assert(table != NULL);
+	assert(table->len == 0);
+
+	memcpy(header_le.Signature, signature, ACPI_NAMESEG_SIZE);
+	header_le.Length = 0; /* patched by basl_finish */
+	header_le.Revision = revision;
+	header_le.Checksum = 0; /* patched by basl_finish */
+	memcpy(header_le.OemId, "BHYVE ", ACPI_OEM_ID_SIZE);
+	snprintf(oem_table_id, ACPI_OEM_TABLE_ID_SIZE, "BV%.4s  ", signature);
+	memcpy(header_le.OemTableId, oem_table_id,
+	    sizeof(header_le.OemTableId));
+	header_le.OemRevision = htole32(oem_revision);
+	memcpy(header_le.AslCompilerId, "BASL", ACPI_NAMESEG_SIZE);
+	header_le.AslCompilerRevision = htole32(0x20220504);
+
+	BASL_EXEC(
+	    basl_table_append_bytes(table, &header_le, sizeof(header_le)));
+
+	BASL_EXEC(basl_table_add_length(table,
+	    offsetof(ACPI_TABLE_HEADER, Length), sizeof(header_le.Length)));
+	BASL_EXEC(basl_table_add_checksum(table,
+	    offsetof(ACPI_TABLE_HEADER, Checksum), 0,
+	    BASL_TABLE_CHECKSUM_LEN_FULL_TABLE));
+
+	return (0);
+}
+
+int
 basl_table_append_int(struct basl_table *const table, const uint64_t val,
     const uint8_t size)
 {
