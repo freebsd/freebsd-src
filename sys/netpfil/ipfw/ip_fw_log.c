@@ -156,8 +156,7 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 				altq->qid);
 			cmd += F_LEN(cmd);
 		}
-		if (cmd->opcode == O_PROB || cmd->opcode == O_TAG ||
-		    cmd->opcode == O_SETDSCP)
+		if (cmd->opcode == O_PROB || cmd->opcode == O_TAG)
 			cmd += F_LEN(cmd);
 
 		action = action2;
@@ -201,6 +200,10 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 		case O_TEE:
 			snprintf(SNPARGS(action2, 0), "Tee %d",
 				TARG(cmd->arg1, divert));
+			break;
+		case O_SETDSCP:
+			snprintf(SNPARGS(action2, 0), "SetDscp %d",
+				TARG(cmd->arg1, dscp) & 0x3F);
 			break;
 		case O_SETFIB:
 			snprintf(SNPARGS(action2, 0), "SetFib %d",

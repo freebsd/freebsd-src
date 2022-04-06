@@ -2064,11 +2064,9 @@ do {								\
 					else if (vidx == 6 /* dscp */) {
 						if (is_ipv4)
 							key = ip->ip_tos >> 2;
-						else {
-							key = args->f_id.flow_id6;
-							key = (key & 0x0f) << 2 |
-							    (key & 0xf000) >> 14;
-						}
+						else
+							key = IPV6_DSCP(
+							    (struct ip6_hdr *)ip) >> 2;
 						key &= 0x3f;
 					} else if (vidx == 2 /* dst-port */ ||
 					    vidx == 3 /* src-port */) {
@@ -2328,11 +2326,9 @@ do {								\
 				if (is_ipv4)
 					x = ip->ip_tos >> 2;
 				else if (is_ipv6) {
-					uint8_t *v;
-					v = &((struct ip6_hdr *)ip)->ip6_vfc;
-					x = (*v & 0x0F) << 2;
-					v++;
-					x |= *v >> 6;
+					x = IPV6_DSCP(
+					    (struct ip6_hdr *)ip) >> 2;
+					x &= 0x3f;
 				} else
 					break;
 
@@ -3139,12 +3135,13 @@ do {								\
 					ip->ip_sum = cksum_adjust(ip->ip_sum,
 					    old, *(uint16_t *)ip);
 				} else if (is_ipv6) {
-					uint8_t *v;
+					/* update cached value */
+					args->f_id.flow_id6 =
+					    ntohl(*(uint32_t *)ip) & ~0x0FC00000;
+					args->f_id.flow_id6 |= code << 22;
 
-					v = &((struct ip6_hdr *)ip)->ip6_vfc;
-					*v = (*v & 0xF0) | (code >> 2);
-					v++;
-					*v = (*v & 0x3F) | ((code & 0x03) << 6);
+					*((uint32_t *)ip) =
+					    htonl(args->f_id.flow_id6);
 				} else
 					break;
 
