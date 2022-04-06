@@ -43,5 +43,6 @@ int basl_table_append_gas(struct basl_table *table, uint8_t space_id,
     uint8_t bit_width, uint8_t bit_offset, uint8_t access_width,
     uint64_t address);
 int basl_table_append_int(struct basl_table *table, uint64_t val, uint8_t size);
+int basl_table_append_length(struct basl_table *table, uint8_t size);
 int basl_table_create(struct basl_table **table, struct vmctx *ctx,
     const uint8_t *name, uint32_t alignment, uint32_t off);
