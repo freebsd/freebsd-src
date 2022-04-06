@@ -20,6 +20,8 @@
 #define BASL_TABLE_ALIGNMENT 0x10
 #define BASL_TABLE_ALIGNMENT_FACS 0x40
 
+#define BASL_TABLE_CHECKSUM_LEN_FULL_TABLE (-1)
+
 #define BASL_EXEC(x)                                                         \
 	do {                                                                 \
 		const int error = (x);                                       \
@@ -38,6 +40,8 @@ struct basl_table;
 int basl_finish(void);
 int basl_init(void);
 int basl_table_append_bytes(struct basl_table *table, const void *bytes,
+    uint32_t len);
+int basl_table_append_checksum(struct basl_table *table, uint32_t start,
     uint32_t len);
 int basl_table_append_gas(struct basl_table *table, uint8_t space_id,
     uint8_t bit_width, uint8_t bit_offset, uint8_t access_width,
