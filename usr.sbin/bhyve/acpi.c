@@ -109,6 +109,8 @@ __FBSDID("$FreeBSD$");
 #define BHYVE_ASL_SUFFIX	".aml"
 #define BHYVE_ASL_COMPILER	"/usr/sbin/iasl"
 
+#define BHYVE_ADDRESS_HPET 	0xFED00000
+
 static int basl_keep_temps;
 static int basl_verbose_iasl;
 static int basl_ncpu;
@@ -544,51 +546,6 @@ err_exit:
 	return (errno);
 }
 
-static int
-basl_fwrite_hpet(FILE *fp)
-{
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve HPET template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "[0004]\t\tSignature : \"HPET\"\n");
-	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
-	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
-	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
-	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
-	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVHPET  \"\n");
-	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
-
-	/* iasl will fill in the compiler ID/revision fields */
-	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
-	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0004]\t\tHardware Block ID : %08X\n", hpet_capabilities);
-	EFPRINTF(fp,
-	    "[0012]\t\tTimer Block Register : [Generic Address Structure]\n");
-	EFPRINTF(fp, "[0001]\t\tSpace ID : 00 [SystemMemory]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
-	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
-	EFPRINTF(fp,
-		 "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 00000000FED00000\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0001]\t\tSequence Number : 00\n");
-	EFPRINTF(fp, "[0002]\t\tMinimum Clock Ticks : 0000\n");
-	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000001\n");
-	EFPRINTF(fp, "\t\t\t4K Page Protect : 1\n");
-	EFPRINTF(fp, "\t\t\t64K Page Protect : 0\n");
-	EFPRINTF(fp, "\n");
-
-	EFFLUSH(fp);
-
-	return (0);
-
-err_exit:
-	return (errno);
-}
-
 /*
  * Helper routines for writing to the DSDT from other modules.
  */
@@ -920,6 +877,26 @@ build_facs(struct vmctx *const ctx)
 }
 
 static int
+build_hpet(struct vmctx *const ctx)
+{
+	ACPI_TABLE_HPET hpet;
+	struct basl_table *table;
+
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_SIG_HPET,
+	    BASL_TABLE_ALIGNMENT, HPET_OFFSET));
+
+	memset(&hpet, 0, sizeof(hpet));
+	BASL_EXEC(basl_table_append_header(table, ACPI_SIG_HPET, 1, 1));
+	hpet.Id = htole32(hpet_capabilities);
+	basl_fill_gas(&hpet.Address, ACPI_ADR_SPACE_SYSTEM_MEMORY, 0, 0,
+	    ACPI_GAS_ACCESS_WIDTH_LEGACY, BHYVE_ADDRESS_HPET);
+	hpet.Flags = ACPI_HPET_PAGE_PROTECT4;
+	BASL_EXEC(basl_table_append_content(table, &hpet, sizeof(hpet)));
+
+	return (0);
+}
+
+static int
 build_mcfg(struct vmctx *const ctx)
 {
 	ACPI_TABLE_MCFG mcfg;
@@ -980,7 +957,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_xsdt, XSDT_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_madt, MADT_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET));
-	BASL_EXEC(basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET));
+	BASL_EXEC(build_hpet(ctx));
 	BASL_EXEC(build_mcfg(ctx));
 	BASL_EXEC(build_facs(ctx));
 	BASL_EXEC(build_dsdt(ctx));
