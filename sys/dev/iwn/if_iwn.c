@@ -7026,7 +7026,7 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
 	int buflen, error;
 	int is_active;
 	uint16_t dwell_active, dwell_passive;
-	uint32_t extra, scan_service_time;
+	uint32_t scan_service_time;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
@@ -7070,9 +7070,12 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
 	 * suspend_time: 100 (TU)
 	 *
 	 */
+#if 0
 	extra = (100 /* suspend_time */ / 100 /* beacon interval */) << 22;
-	//scan_service_time = extra | ((100 /* susp */ % 100 /* int */) * 1024);
+	scan_service_time = extra | ((100 /* susp */ % 100 /* int */) * 1024);
+#else
 	scan_service_time = (4 << 22) | (100 * 1024);	/* Hardcode for now! */
+#endif
 	hdr->pause_svc = htole32(scan_service_time);
 
 	/* Select antennas for scanning. */
