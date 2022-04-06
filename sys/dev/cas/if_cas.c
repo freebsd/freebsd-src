@@ -1624,7 +1624,7 @@ cas_rint(struct cas_softc *sc)
 	struct cas_rxdsoft *rxds, *rxds2;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m, *m2;
-	uint64_t word1, word2, word3, word4;
+	uint64_t word1, word2, word3 __unused, word4;
 	uint32_t rxhead;
 	u_int idx, idx2, len, off, skip;
 
