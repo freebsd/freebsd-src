@@ -181,7 +181,7 @@ native_to_linux_itimerspec(struct l_itimerspec *ltp, struct itimerspec *ntp)
 
 	error = native_to_linux_timespec(&ltp->it_interval, &ntp->it_interval);
 	if (error == 0)
-		error = native_to_linux_timespec(&ltp->it_value, &ntp->it_interval);
+		error = native_to_linux_timespec(&ltp->it_value, &ntp->it_value);
 	return (error);
 }
 
