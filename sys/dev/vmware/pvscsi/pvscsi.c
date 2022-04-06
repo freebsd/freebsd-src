@@ -745,7 +745,7 @@ pvscsi_setup_msg_ring(struct pvscsi_softc *sc)
 static void
 pvscsi_adapter_reset(struct pvscsi_softc *sc)
 {
-	uint32_t val;
+	uint32_t val __unused;
 
 	device_printf(sc->dev, "Adapter Reset\n");
 
