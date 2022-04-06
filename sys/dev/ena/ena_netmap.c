@@ -503,10 +503,8 @@ ena_netmap_copy_data(struct netmap_adapter *na, struct netmap_slot *slots,
 {
 	struct netmap_slot *nm_slot;
 	void *slot_vaddr;
-	uint16_t packet_size;
 	uint16_t data_amount;
 
-	packet_size = 0;
 	do {
 		nm_slot = &slots[slot_index];
 		slot_vaddr = NMB(na, nm_slot);
