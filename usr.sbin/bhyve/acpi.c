@@ -32,11 +32,9 @@
  * bhyve ACPI table generator.
  *
  * Create the minimal set of ACPI tables required to boot FreeBSD (and
- * hopefully other o/s's) by writing out ASL template files for each of
- * the tables and the compiling them to AML with the Intel iasl compiler.
- * The AML files are then read into guest memory.
+ * hopefully other o/s's).
  *
- *  The tables are placed in the guest's ROM area just below 1MB physical,
+ * The tables are placed in the guest's ROM area just below 1MB physical,
  * above the MPTable.
  *
  *  Layout (No longer correct at FADT and beyond due to properly
@@ -117,7 +115,6 @@ __FBSDID("$FreeBSD$");
 static int basl_keep_temps;
 static int basl_verbose_iasl;
 static int basl_ncpu;
-static uint32_t basl_acpi_base = BHYVE_ACPI_BASE;
 static uint32_t hpet_capabilities;
 
 /*
@@ -148,32 +145,6 @@ struct basl_fio {
 
 #define EFFLUSH(x) \
 	if (fflush(x) != 0) goto err_exit;
-
-static int
-basl_fwrite_rsdp(FILE *fp)
-{
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve RSDP template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "[0008]\t\tSignature : \"RSD PTR \"\n");
-	EFPRINTF(fp, "[0001]\t\tChecksum : 43\n");
-	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
-	EFPRINTF(fp, "[0001]\t\tRevision : 02\n");
-	EFPRINTF(fp, "[0004]\t\tRSDT Address : %08X\n",
-	    basl_acpi_base + RSDT_OFFSET);
-	EFPRINTF(fp, "[0004]\t\tLength : 00000024\n");
-	EFPRINTF(fp, "[0008]\t\tXSDT Address : 00000000%08X\n",
-	    basl_acpi_base + XSDT_OFFSET);
-	EFPRINTF(fp, "[0001]\t\tExtended Checksum : 00\n");
-	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
-
-	EFFLUSH(fp);
-
-	return (0);
-
-err_exit:
-	return (errno);
-}
 
 /*
  * Helper routines for writing to the DSDT from other modules.
@@ -713,6 +684,43 @@ build_mcfg(struct vmctx *const ctx)
 }
 
 static int
+build_rsdp(struct vmctx *const ctx)
+{
+	ACPI_TABLE_RSDP rsdp;
+	struct basl_table *table;
+
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_RSDP_NAME,
+	    BASL_TABLE_ALIGNMENT, 0));
+
+	memset(&rsdp, 0, sizeof(rsdp));
+	memcpy(rsdp.Signature, ACPI_SIG_RSDP, 8);
+	rsdp.Checksum = 0; /* patched by basl */
+	memcpy(rsdp.OemId, "BHYVE ", ACPI_OEM_ID_SIZE);
+	rsdp.Revision = 2;
+	rsdp.RsdtPhysicalAddress = htole32(0); /* patched by basl */
+	rsdp.Length = htole32(0);	       /* patched by basl */
+	rsdp.XsdtPhysicalAddress = htole64(0); /* patched by basl */
+	rsdp.ExtendedChecksum = 0;	       /* patched by basl */
+	BASL_EXEC(basl_table_append_bytes(table, &rsdp, sizeof(rsdp)));
+
+	BASL_EXEC(basl_table_add_checksum(table,
+	    offsetof(ACPI_TABLE_RSDP, Checksum), 0, 20));
+	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_RSDT,
+	    offsetof(ACPI_TABLE_RSDP, RsdtPhysicalAddress),
+	    sizeof(rsdp.RsdtPhysicalAddress)));
+	BASL_EXEC(basl_table_add_length(table,
+	    offsetof(ACPI_TABLE_RSDP, Length), sizeof(rsdp.Length)));
+	BASL_EXEC(basl_table_add_pointer(table, ACPI_SIG_XSDT,
+	    offsetof(ACPI_TABLE_RSDP, XsdtPhysicalAddress),
+	    sizeof(rsdp.XsdtPhysicalAddress)));
+	BASL_EXEC(basl_table_add_checksum(table,
+	    offsetof(ACPI_TABLE_RSDP, ExtendedChecksum), 0,
+	    BASL_TABLE_CHECKSUM_LEN_FULL_TABLE));
+
+	return (0);
+}
+
+static int
 build_rsdt(struct vmctx *const ctx)
 {
 	BASL_EXEC(basl_table_create(&rsdt, ctx, ACPI_SIG_RSDT,
@@ -768,14 +776,13 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(basl_make_templates());
 
 	/*
-	 * Run through all the ASL files, compiling them and
-	 * copying them into guest memory
+	 * Generate ACPI tables and copy them into guest memory.
 	 *
 	 * According to UEFI Specification v6.3 chapter 5.1 the FADT should be
 	 * the first table pointed to by XSDT. For that reason, build it as the
 	 * first table after XSDT.
 	 */
-	BASL_EXEC(basl_compile(ctx, basl_fwrite_rsdp, 0));
+	BASL_EXEC(build_rsdp(ctx));
 	BASL_EXEC(build_rsdt(ctx));
 	BASL_EXEC(build_xsdt(ctx));
 	BASL_EXEC(build_fadt(ctx));
