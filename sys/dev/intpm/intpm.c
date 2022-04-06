@@ -468,7 +468,7 @@ intsmb_slvintr(struct intsmb_softc *sc)
 static void
 intsmb_alrintr(struct intsmb_softc *sc)
 {
-	int slvcnt;
+	int slvcnt __unused;
 #ifdef ENABLE_ALART
 	int error;
 	uint8_t addr;
@@ -840,7 +840,7 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 {
 	struct intsmb_softc *sc = device_get_softc(dev);
 	int error, i;
-	u_char data, nread;
+	u_char nread;
 
 	INTSMB_LOCK(sc);
 	error = intsmb_free(sc);
@@ -861,7 +861,7 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 		if (nread != 0 && nread <= SMBBLOCKTRANS_MAX) {
 			*count = nread;
 			for (i = 0; i < nread; i++)
-				data = bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
+				bus_read_1(sc->io_res, PIIX4_SMBBLKDAT);
 		} else
 			error = SMB_EBUSERR;
 	}
