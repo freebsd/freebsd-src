@@ -891,11 +891,9 @@ mlx5_firmware_update(struct mlx5_core_dev *dev)
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
 	struct pci_dev *pdev = dev->pdev;
-	device_t bsddev;
 	int err;
 
 	pdev = dev->pdev;
-	bsddev = pdev->dev.bsddev;
 	pci_set_drvdata(dev->pdev, dev);
 	strncpy(priv->name, dev_name(&pdev->dev), MLX5_MAX_NAME_LEN);
 	priv->name[MLX5_MAX_NAME_LEN - 1] = 0;
