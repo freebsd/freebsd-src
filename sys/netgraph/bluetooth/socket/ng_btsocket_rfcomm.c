@@ -2001,7 +2001,7 @@ ng_btsocket_rfcomm_receive_sabm(ng_btsocket_rfcomm_session_p s, int dlci)
 	/* Make sure multiplexor channel is open */
 	if (s->state != NG_BTSOCKET_RFCOMM_SESSION_OPEN) {
 		NG_BTSOCKET_RFCOMM_ERR(
-"%s: Got SABM for dlci=%d with mulitplexor channel closed, state=%d, " \
+"%s: Got SABM for dlci=%d with multiplexor channel closed, state=%d, " \
 "flags=%#x\n",		__func__, dlci, s->state, s->flags);
 
 		return (EINVAL);
