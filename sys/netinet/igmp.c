@@ -3052,7 +3052,9 @@ igmp_v3_enqueue_filter_change(struct mbufq *mq, struct in_multi *inm)
 	struct mbuf		*m, *m0, *md;
 	in_addr_t		 naddr;
 	int			 m0srcs, nbytes, npbytes, off, rsrcs, schanged;
+#ifdef KTR
 	int			 nallow, nblock;
+#endif
 	uint8_t			 mode, now, then;
 	rectype_t		 crt, drt, nrt;
 
@@ -3072,8 +3074,10 @@ igmp_v3_enqueue_filter_change(struct mbufq *mq, struct in_multi *inm)
 	npbytes = 0;	/* # of bytes appended this packet */
 	rsrcs = 0;	/* # sources encoded in current record */
 	schanged = 0;	/* # nodes encoded in overall filter change */
+#ifdef KTR
 	nallow = 0;	/* # of source entries in ALLOW_NEW */
 	nblock = 0;	/* # of source entries in BLOCK_OLD */
+#endif
 	nims = NULL;	/* next tree node pointer */
 
 	/*
@@ -3197,8 +3201,10 @@ igmp_v3_enqueue_filter_change(struct mbufq *mq, struct in_multi *inm)
 					    "%s: m_append() failed", __func__);
 					return (-ENOMEM);
 				}
+#ifdef KTR
 				nallow += !!(crt == REC_ALLOW);
 				nblock += !!(crt == REC_BLOCK);
+#endif
 				if (++rsrcs == m0srcs)
 					break;
 			}
