@@ -11,6 +11,8 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #pragma GCC diagnostic pop
 
+#include "qemu_fwcfg.h"
+
 #define ACPI_GAS_ACCESS_WIDTH_LEGACY 0
 #define ACPI_GAS_ACCESS_WIDTH_UNDEFINED 0
 #define ACPI_GAS_ACCESS_WIDTH_BYTE 1
@@ -58,8 +60,6 @@
 			return (error);                                      \
 		}                                                            \
 	} while (0)
-
-#define QEMU_FWCFG_MAX_NAME 56
 
 struct basl_table;
 
