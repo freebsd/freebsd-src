@@ -2190,14 +2190,12 @@ void
 ixl_update_vsi_stats(struct ixl_vsi *vsi)
 {
 	struct ixl_pf		*pf;
-	struct ifnet		*ifp;
 	struct i40e_eth_stats	*es;
 	u64			tx_discards, csum_errs;
 
 	struct i40e_hw_port_stats *nsd;
 
 	pf = vsi->back;
-	ifp = vsi->ifp;
 	es = &vsi->eth_stats;
 	nsd = &pf->stats;
 

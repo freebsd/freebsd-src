@@ -126,13 +126,11 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	device_t dev;
 	struct i40e_hw *hw;
-	struct ixl_vsi *vsi;
 	struct i40e_vsi_context vsi_ctx;
 	int i;
 	enum i40e_status_code code;
 
 	hw = &pf->hw;
-	vsi = &pf->vsi;
 	dev = pf->dev;
 
 	vsi_ctx.pf_num = hw->pf_id;
@@ -1704,14 +1702,10 @@ ixl_if_iov_uninit(if_ctx_t ctx)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct i40e_hw *hw;
-	struct ixl_vsi *vsi;
-	struct ifnet *ifp;
 	struct ixl_vf *vfs;
 	int i, num_vfs;
 
 	hw = &pf->hw;
-	vsi = &pf->vsi;
-	ifp = vsi->ifp;
 
 	for (i = 0; i < pf->num_vfs; i++) {
 		if (pf->vfs[i].vsi.seid != 0)
