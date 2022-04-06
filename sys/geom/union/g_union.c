@@ -1317,31 +1317,31 @@ g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 		if (force) {
 			if (req != NULL)
 				gctl_msg(req, "Device %s is still in use, "
-				    "so is being forcibly removed.", pp->name);
+				    "so is being forcibly removed.", gp->name);
 			G_UNION_DEBUG(1, "Device %s is still in use, so "
-			    "is being forcibly removed.", pp->name);
+			    "is being forcibly removed.", gp->name);
 		} else {
 			if (req != NULL)
 				gctl_msg(req, "Device %s is still open "
-				    "(r=%d w=%d e=%d).", pp->name, pp->acr,
+				    "(r=%d w=%d e=%d).", gp->name, pp->acr,
 				    pp->acw, pp->ace);
 			G_UNION_DEBUG(1, "Device %s is still open "
-			    "(r=%d w=%d e=%d).", pp->name, pp->acr,
+			    "(r=%d w=%d e=%d).", gp->name, pp->acr,
 			    pp->acw, pp->ace);
 			return (EBUSY);
 		}
 	} else {
 		if (req != NULL)
-			gctl_msg(req, "Device %s removed.", pp->name);
-		G_UNION_DEBUG(1, "Device %s removed.", pp->name);
+			gctl_msg(req, "Device %s removed.", gp->name);
+		G_UNION_DEBUG(1, "Device %s removed.", gp->name);
 	}
 	/* Close consumers */
 	if ((error = g_access(sc->sc_lowercp, -1, 0, -1)) != 0)
 		G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
-		    "to %s.", error, pp->name, sc->sc_lowercp->provider->name);
+		    "to %s.", error, gp->name, sc->sc_lowercp->provider->name);
 	if ((error = g_access(sc->sc_uppercp, -1, -1, -1)) != 0)
 		G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
-		    "to %s.", error, pp->name, sc->sc_uppercp->provider->name);
+		    "to %s.", error, gp->name, sc->sc_uppercp->provider->name);
 
 	g_wither_geom(gp, ENXIO);
 
