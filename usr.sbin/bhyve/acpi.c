@@ -589,37 +589,6 @@ err_exit:
 	return (errno);
 }
 
-static int
-basl_fwrite_mcfg(FILE *fp)
-{
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve MCFG template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "[0004]\t\tSignature : \"MCFG\"\n");
-	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
-	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
-	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
-	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
-	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVMCFG  \"\n");
-	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
-
-	/* iasl will fill in the compiler ID/revision fields */
-	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
-	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
-	EFPRINTF(fp, "[0008]\t\tReserved : 0\n");
-	EFPRINTF(fp, "\n");
-
-	EFPRINTF(fp, "[0008]\t\tBase Address : %016lX\n", pci_ecfg_base());
-	EFPRINTF(fp, "[0002]\t\tSegment Group Number : 0000\n");
-	EFPRINTF(fp, "[0001]\t\tStart Bus Number : 00\n");
-	EFPRINTF(fp, "[0001]\t\tEnd Bus Number : FF\n");
-	EFPRINTF(fp, "[0004]\t\tReserved : 0\n");
-	EFFLUSH(fp);
-	return (0);
-err_exit:
-	return (errno);
-}
-
 /*
  * Helper routines for writing to the DSDT from other modules.
  */
@@ -950,6 +919,29 @@ build_facs(struct vmctx *const ctx)
 	return (0);
 }
 
+static int
+build_mcfg(struct vmctx *const ctx)
+{
+	ACPI_TABLE_MCFG mcfg;
+	ACPI_MCFG_ALLOCATION mcfg_allocation;
+	struct basl_table *table;
+
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_SIG_MCFG,
+	    BASL_TABLE_ALIGNMENT, MCFG_OFFSET));
+
+	memset(&mcfg, 0, sizeof(mcfg));
+	BASL_EXEC(basl_table_append_header(table, ACPI_SIG_MCFG, 1, 1));
+	BASL_EXEC(basl_table_append_content(table, &mcfg, sizeof(mcfg)));
+
+	memset(&mcfg_allocation, 0, sizeof(mcfg_allocation));
+	mcfg_allocation.Address = htole64(pci_ecfg_base());
+	mcfg_allocation.EndBusNumber = 0xFF;
+	BASL_EXEC(basl_table_append_bytes(table, &mcfg_allocation,
+	    sizeof(mcfg_allocation)));
+
+	return (0);
+}
+
 int
 acpi_build(struct vmctx *ctx, int ncpu)
 {
@@ -989,7 +981,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_madt, MADT_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET));
-	BASL_EXEC(basl_compile(ctx, basl_fwrite_mcfg, MCFG_OFFSET));
+	BASL_EXEC(build_mcfg(ctx));
 	BASL_EXEC(build_facs(ctx));
 	BASL_EXEC(build_dsdt(ctx));
 
