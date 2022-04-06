@@ -58,6 +58,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
 
@@ -619,35 +620,6 @@ err_exit:
 	return (errno);
 }
 
-static int
-basl_fwrite_facs(FILE *fp)
-{
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve FACS template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "[0004]\t\tSignature : \"FACS\"\n");
-	EFPRINTF(fp, "[0004]\t\tLength : 00000040\n");
-	EFPRINTF(fp, "[0004]\t\tHardware Signature : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\t32 Firmware Waking Vector : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tGlobal Lock : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000000\n");
-	EFPRINTF(fp, "\t\t\tS4BIOS Support Present : 0\n");
-	EFPRINTF(fp, "\t\t\t64-bit Wake Supported (V2) : 0\n");
-	EFPRINTF(fp,
-	    "[0008]\t\t64 Firmware Waking Vector : 0000000000000000\n");
-	EFPRINTF(fp, "[0001]\t\tVersion : 02\n");
-	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
-	EFPRINTF(fp, "[0004]\t\tOspmFlags (decoded below) : 00000000\n");
-	EFPRINTF(fp, "\t\t\t64-bit Wake Env Required (V2) : 0\n");
-
-	EFFLUSH(fp);
-
-	return (0);
-
-err_exit:
-	return (errno);
-}
-
 /*
  * Helper routines for writing to the DSDT from other modules.
  */
@@ -960,6 +932,24 @@ build_dsdt(struct vmctx *const ctx)
 	return (0);
 }
 
+static int
+build_facs(struct vmctx *const ctx)
+{
+	ACPI_TABLE_FACS facs;
+	struct basl_table *table;
+
+	BASL_EXEC(basl_table_create(&table, ctx, ACPI_SIG_FACS,
+	    BASL_TABLE_ALIGNMENT_FACS, FACS_OFFSET));
+
+	memset(&facs, 0, sizeof(facs));
+	memcpy(facs.Signature, ACPI_SIG_FACS, ACPI_NAMESEG_SIZE);
+	facs.Length = sizeof(facs);
+	facs.Version = htole32(2);
+	BASL_EXEC(basl_table_append_bytes(table, &facs, sizeof(facs)));
+
+	return (0);
+}
+
 int
 acpi_build(struct vmctx *ctx, int ncpu)
 {
@@ -1000,7 +990,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_fadt, FADT_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_mcfg, MCFG_OFFSET));
-	BASL_EXEC(basl_compile(ctx, basl_fwrite_facs, FACS_OFFSET));
+	BASL_EXEC(build_facs(ctx));
 	BASL_EXEC(build_dsdt(ctx));
 
 	BASL_EXEC(basl_finish());
