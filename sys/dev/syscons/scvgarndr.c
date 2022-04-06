@@ -942,7 +942,6 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 	int line_width;
 	int i, j;
 	int a;
-	u_char c;
 
 	line_width = scp->sc->adp->va_line_width;
 
@@ -972,7 +971,7 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 			if (scp->sc->adp->va_type != KD_VGA)
 				outw(GDCIDX, 0xff08); /* bit mask */
 			writeb(d, 0xff);
-			c = readb(d);		/* set bg color in the latch */
+			(void)readb(d);		/* set bg color in the latch */
 		}
 		/* foreground color */
 		if (fg != col1) {
@@ -1059,7 +1058,6 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 	int col;
 	int a;
 	int i;
-	u_char c;
 
 	line_width = scp->sc->adp->va_line_width;
 
@@ -1079,7 +1077,7 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 	outw(GDCIDX, col | 0x00);	/* set/reset */
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	writeb(d, 0);
-	c = readb(d);			/* set bg color in the latch */
+	(void)readb(d);			/* set bg color in the latch */
 	/* foreground color */
 	col = a & 0x0f00;
 	outw(GDCIDX, col | 0x00);	/* set/reset */
@@ -1186,7 +1184,7 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	const struct mousedata *mdp;
 	vm_offset_t p;
 	int line_width;
-	int xoff, yoff;
+	int xoff;
 	int ymax;
 	uint32_t m;
 	int i, j, k;
@@ -1195,7 +1193,6 @@ draw_pxlmouse_planar(scr_stat *scp, int x, int y)
 	mdp = scp->mouse_data;
 	line_width = scp->sc->adp->va_line_width;
 	xoff = (x - scp->xoff*8)%8;
-	yoff = y - rounddown(y, line_width);
 	ymax = imin(y + mdp->md_height, scp->ypixel);
 
 	if (scp->sc->adp->va_type == KD_VGA) {
