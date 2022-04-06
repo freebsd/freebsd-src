@@ -21,6 +21,13 @@
 
 #include "basl.h"
 
+struct basl_table_checksum {
+	STAILQ_ENTRY(basl_table_checksum) chain;
+	uint32_t off;
+	uint32_t start;
+	uint32_t len;
+};
+
 struct basl_table_length {
 	STAILQ_ENTRY(basl_table_length) chain;
 	uint32_t off;
@@ -35,6 +42,8 @@ struct basl_table {
 	uint32_t len;
 	uint32_t off;
 	uint32_t alignment;
+	STAILQ_HEAD(basl_table_checksum_list,
+	    basl_table_checksum) checksums;
 	STAILQ_HEAD(basl_table_length_list, basl_table_length) lengths;
 };
 static STAILQ_HEAD(basl_table_list, basl_table) basl_tables = STAILQ_HEAD_INITIALIZER(
@@ -110,6 +119,64 @@ basl_finish_install_guest_tables(struct basl_table *const table)
 }
 
 static int
+basl_finish_patch_checksums(struct basl_table *const table)
+{
+	struct basl_table_checksum *checksum;
+
+	STAILQ_FOREACH(checksum, &table->checksums, chain) {
+		uint8_t *gva, *checksum_gva;
+		uint64_t gpa;
+		uint32_t len;
+		uint8_t sum;
+		
+		len = checksum->len;
+		if (len == BASL_TABLE_CHECKSUM_LEN_FULL_TABLE) {
+			len = table->len;
+		}
+
+		assert(checksum->off < table->len);
+		assert(checksum->start < table->len);
+		assert(checksum->start + len <= table->len);
+
+		/*
+		 * Install ACPI tables directly in guest memory for use by
+		 * guests which do not boot via EFI. EFI ROMs provide a pointer
+		 * to the firmware generated ACPI tables instead, but it doesn't
+		 * hurt to install the tables always.
+		 */
+		gpa = BHYVE_ACPI_BASE + table->off + checksum->start;
+		if ((gpa < BHYVE_ACPI_BASE) ||
+		    (gpa < BHYVE_ACPI_BASE + table->off)) {
+			warnx("%s: invalid gpa (off 0x%8x start 0x%8x)",
+			    __func__, table->off, checksum->start);
+			return (EFAULT);
+		}
+
+		gva = vm_map_gpa(table->ctx, gpa, len);
+		if (gva == NULL) {
+			warnx("%s: could not map gpa [ 0x%16lx, 0x%16lx ]",
+			    __func__, gpa, gpa + len);
+			return (ENOMEM);
+		}
+	
+		checksum_gva = gva + checksum->off;
+		if (checksum_gva < gva) {
+			warnx("%s: invalid checksum offset 0x%8x", __func__,
+			    checksum->off);
+			return (EFAULT);
+		}
+
+		sum = 0;
+		for (uint32_t i = 0; i < len; ++i) {
+			sum += *(gva + i);
+		}
+		*checksum_gva = -sum;
+	}
+
+	return (0);
+}
+
+static int
 basl_finish_set_length(struct basl_table *const table)
 {
 	struct basl_table_length *length;
@@ -135,9 +202,20 @@ basl_finish(void)
 		return (EINVAL);
 	}
 
+	/*
+	 * We have to install all tables before we can patch them. Therefore,
+	 * use two loops. The first one installs all tables and the second one
+	 * patches them.
+	 */
 	STAILQ_FOREACH(table, &basl_tables, chain) {
 		BASL_EXEC(basl_finish_set_length(table));
 		BASL_EXEC(basl_finish_install_guest_tables(table));
+	}
+	STAILQ_FOREACH(table, &basl_tables, chain) {
+		/*
+		 * Calculate the checksum as last step!
+		 */
+		BASL_EXEC(basl_finish_patch_checksums(table));
 	}
 
 	return (0);
@@ -146,6 +224,27 @@ basl_finish(void)
 int
 basl_init(void)
 {
+	return (0);
+}
+
+static int
+basl_table_add_checksum(struct basl_table *const table, const uint32_t off,
+    const uint32_t start, const uint32_t len)
+{
+	struct basl_table_checksum *checksum;
+
+	checksum = calloc(1, sizeof(struct basl_table_checksum));
+	if (checksum == NULL) {
+		warnx("%s: failed to allocate checksum", __func__);
+		return (ENOMEM);
+	}
+
+	checksum->off = off;
+	checksum->start = start;
+	checksum->len = len;
+
+	STAILQ_INSERT_TAIL(&table->checksums, checksum, chain);
+
 	return (0);
 }
 
@@ -196,6 +295,18 @@ basl_table_append_bytes(struct basl_table *const table, const void *const bytes,
 	table->len += len;
 
 	memcpy(end, bytes, len);
+
+	return (0);
+}
+
+int
+basl_table_append_checksum(struct basl_table *const table, const uint32_t start,
+    const uint32_t len)
+{
+	assert(table != NULL);
+
+	BASL_EXEC(basl_table_add_checksum(table, table->len, start, len));
+	BASL_EXEC(basl_table_append_int(table, 0, 1));
 
 	return (0);
 }
@@ -263,6 +374,7 @@ basl_table_create(struct basl_table **const table, struct vmctx *ctx,
 	new_table->alignment = alignment;
 	new_table->off = off;
 
+	STAILQ_INIT(&new_table->checksums);
 	STAILQ_INIT(&new_table->lengths);
 
 	STAILQ_INSERT_TAIL(&basl_tables, new_table, chain);
