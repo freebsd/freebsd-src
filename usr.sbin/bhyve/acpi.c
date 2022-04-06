@@ -952,6 +952,14 @@ basl_make_templates(void)
 	return (err);
 }
 
+static int
+build_dsdt(struct vmctx *const ctx)
+{
+	BASL_EXEC(basl_compile(ctx, basl_fwrite_dsdt, DSDT_OFFSET));
+
+	return (0);
+}
+
 int
 acpi_build(struct vmctx *ctx, int ncpu)
 {
@@ -993,7 +1001,7 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_hpet, HPET_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_mcfg, MCFG_OFFSET));
 	BASL_EXEC(basl_compile(ctx, basl_fwrite_facs, FACS_OFFSET));
-	BASL_EXEC(basl_compile(ctx, basl_fwrite_dsdt, DSDT_OFFSET));
+	BASL_EXEC(build_dsdt(ctx));
 
 	BASL_EXEC(basl_finish());
 
