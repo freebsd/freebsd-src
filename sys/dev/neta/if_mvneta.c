@@ -837,11 +837,9 @@ STATIC int
 mvneta_detach(device_t dev)
 {
 	struct mvneta_softc *sc;
-	struct ifnet *ifp;
 	int q;
 
 	sc = device_get_softc(dev);
-	ifp = sc->ifp;
 
 	if (device_is_attached(dev)) {
 		mvneta_stop(sc);
