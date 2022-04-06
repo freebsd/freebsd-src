@@ -1063,14 +1063,12 @@ static struct mlx5_flow_group *fs_create_fg(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_group *fg;
 	int err;
-	unsigned int end_index;
 	char name[20];
 
 	fg = fs_alloc_fg(fg_in);
 	if (IS_ERR(fg))
 		return fg;
 
-	end_index = fg->start_index + fg->max_ftes - 1;
 	err =  mlx5_cmd_fs_create_fg(dev, fg_in,
 				     ft->vport, ft->type, ft->id,
 				     &fg->id);
