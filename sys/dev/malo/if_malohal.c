@@ -178,13 +178,12 @@ fail:
 static void
 malo_hal_send_cmd(struct malo_hal *mh)
 {
-	uint32_t dummy;
 
 	bus_dmamap_sync(mh->mh_dmat, mh->mh_dmamap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	malo_hal_write4(mh, MALO_REG_GEN_PTR, mh->mh_cmdaddr);
-	dummy = malo_hal_read4(mh, MALO_REG_INT_CODE);
+	malo_hal_read4(mh, MALO_REG_INT_CODE);
 
 	malo_hal_write4(mh, MALO_REG_H2A_INTERRUPT_EVENTS,
 	    MALO_H2ARIC_BIT_DOOR_BELL);
@@ -309,19 +308,18 @@ malo_hal_fw_reset(struct malo_hal *mh)
 static void
 malo_hal_trigger_pcicmd(struct malo_hal *mh)
 {
-	uint32_t dummy;
 
 	bus_dmamap_sync(mh->mh_dmat, mh->mh_dmamap, BUS_DMASYNC_PREWRITE);
 
 	malo_hal_write4(mh, MALO_REG_GEN_PTR, mh->mh_cmdaddr);
-	dummy = malo_hal_read4(mh, MALO_REG_INT_CODE);
+	malo_hal_read4(mh, MALO_REG_INT_CODE);
 
 	malo_hal_write4(mh, MALO_REG_INT_CODE, 0x00);
-	dummy = malo_hal_read4(mh, MALO_REG_INT_CODE);
+	malo_hal_read4(mh, MALO_REG_INT_CODE);
 
 	malo_hal_write4(mh, MALO_REG_H2A_INTERRUPT_EVENTS,
 	    MALO_H2ARIC_BIT_DOOR_BELL);
-	dummy = malo_hal_read4(mh, MALO_REG_INT_CODE);
+	malo_hal_read4(mh, MALO_REG_INT_CODE);
 }
 
 static int
