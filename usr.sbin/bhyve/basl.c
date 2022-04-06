@@ -34,6 +34,13 @@ struct basl_table_length {
 	uint8_t size;
 };
 
+struct basl_table_pointer {
+	STAILQ_ENTRY(basl_table_pointer) chain;
+	uint8_t src_signature[ACPI_NAMESEG_SIZE];
+	uint32_t off;
+	uint8_t size;
+};
+
 struct basl_table {
 	STAILQ_ENTRY(basl_table) chain;
 	struct vmctx *ctx;
@@ -45,9 +52,29 @@ struct basl_table {
 	STAILQ_HEAD(basl_table_checksum_list,
 	    basl_table_checksum) checksums;
 	STAILQ_HEAD(basl_table_length_list, basl_table_length) lengths;
+	STAILQ_HEAD(basl_table_pointer_list, basl_table_pointer) pointers;
 };
 static STAILQ_HEAD(basl_table_list, basl_table) basl_tables = STAILQ_HEAD_INITIALIZER(
     basl_tables);
+
+static __inline uint64_t
+basl_le_dec(void *pp, size_t len)
+{
+	assert(len <= 8);
+
+	switch (len) {
+	case 1:
+		return ((uint8_t *)pp)[0];
+	case 2:
+		return le16dec(pp);
+	case 4:
+		return le32dec(pp);
+	case 8:
+		return le64dec(pp);
+	}
+
+	return 0;
+}
 
 static __inline void
 basl_le_enc(void *pp, uint64_t val, size_t len)
@@ -176,6 +203,73 @@ basl_finish_patch_checksums(struct basl_table *const table)
 	return (0);
 }
 
+static struct basl_table *
+basl_get_table_by_signature(const uint8_t signature[ACPI_NAMESEG_SIZE])
+{
+	struct basl_table *table;
+
+	STAILQ_FOREACH(table, &basl_tables, chain) {
+		const ACPI_TABLE_HEADER *const header =
+		    (const ACPI_TABLE_HEADER *)table->data;
+
+		if (strncmp(header->Signature, signature,
+			sizeof(header->Signature)) == 0) {
+			return (table);
+		}
+	}
+
+	warnx("%s: %.4s not found", __func__, signature);
+	return (NULL);
+}
+
+static int
+basl_finish_patch_pointers(struct basl_table *const table)
+{
+	struct basl_table_pointer *pointer;
+
+	STAILQ_FOREACH(pointer, &table->pointers, chain) {
+		const struct basl_table *src_table;
+		uint8_t *gva;
+		uint64_t gpa, val;
+
+		assert(pointer->off < table->len);
+		assert(pointer->off + pointer->size <= table->len);
+
+		src_table = basl_get_table_by_signature(pointer->src_signature);
+		if (src_table == NULL) {
+			warnx("%s: could not find ACPI table %.4s", __func__,
+			    pointer->src_signature);
+			return (EFAULT);
+		}
+
+		/*
+		 * Install ACPI tables directly in guest memory for use by
+		 * guests which do not boot via EFI. EFI ROMs provide a pointer
+		 * to the firmware generated ACPI tables instead, but it doesn't
+		 * hurt to install the tables always.
+		 */
+		gpa = BHYVE_ACPI_BASE + table->off;
+		if (gpa < BHYVE_ACPI_BASE) {
+			warnx("%s: table offset of 0x%8x is too large",
+			    __func__, table->off);
+			return (EFAULT);
+		}
+
+		gva = vm_map_gpa(table->ctx, gpa, table->len);
+		if (gva == NULL) {
+			warnx("%s: could not map gpa [ 0x%16lx, 0x%16lx ]",
+			    __func__, gpa, gpa + table->len);
+			return (ENOMEM);
+		}
+
+		val = basl_le_dec(gva + pointer->off, pointer->size);
+		val += BHYVE_ACPI_BASE + src_table->off;
+		basl_le_enc(gva + pointer->off, val, pointer->size);
+	}
+
+	return (0);
+}
+
 static int
 basl_finish_set_length(struct basl_table *const table)
 {
@@ -212,6 +306,8 @@ basl_finish(void)
 		BASL_EXEC(basl_finish_install_guest_tables(table));
 	}
 	STAILQ_FOREACH(table, &basl_tables, chain) {
+		BASL_EXEC(basl_finish_patch_pointers(table));
+
 		/*
 		 * Calculate the checksum as last step!
 		 */
@@ -264,6 +360,29 @@ basl_table_add_length(struct basl_table *const table, const uint32_t off,
 	length->size = size;
 
 	STAILQ_INSERT_TAIL(&table->lengths, length, chain);
+
+	return (0);
+}
+
+static int
+basl_table_add_pointer(struct basl_table *const table,
+    const uint8_t src_signature[ACPI_NAMESEG_SIZE], const uint32_t off,
+    const uint8_t size)
+{
+	struct basl_table_pointer *pointer;
+
+	pointer = calloc(1, sizeof(struct basl_table_pointer));
+	if (pointer == NULL) {
+		warnx("%s: failed to allocate pointer", __func__);
+		return (ENOMEM);
+	}
+
+	memcpy(pointer->src_signature, src_signature,
+	    sizeof(pointer->src_signature));
+	pointer->off = off;
+	pointer->size = size;
+
+	STAILQ_INSERT_TAIL(&table->pointers, pointer, chain);
 
 	return (0);
 }
@@ -352,6 +471,19 @@ basl_table_append_length(struct basl_table *const table, const uint8_t size)
 }
 
 int
+basl_table_append_pointer(struct basl_table *const table,
+    const uint8_t src_signature[ACPI_NAMESEG_SIZE], const uint8_t size)
+{
+	assert(table != NULL);
+	assert(size == 4 || size == 8);
+
+	BASL_EXEC(basl_table_add_pointer(table, src_signature, table->len, size));
+	BASL_EXEC(basl_table_append_int(table, 0, size));
+
+	return (0);
+}
+
+int
 basl_table_create(struct basl_table **const table, struct vmctx *ctx,
     const uint8_t *const name, const uint32_t alignment,
     const uint32_t off)
@@ -376,6 +508,7 @@ basl_table_create(struct basl_table **const table, struct vmctx *ctx,
 
 	STAILQ_INIT(&new_table->checksums);
 	STAILQ_INIT(&new_table->lengths);
+	STAILQ_INIT(&new_table->pointers);
 
 	STAILQ_INSERT_TAIL(&basl_tables, new_table, chain);
 
