@@ -46,7 +46,6 @@ oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
-sctp.sh			Waiting for fix							20220308
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
@@ -79,6 +78,7 @@ syzkaller50.sh		panic: Assertion done != job_total_nbytes failed at ...		2022040
 truss3.sh		WiP								20200915
 unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0226.txt		20220111
 unionfs14.sh		WiP								20220111
+write2.sh		panic: Assertion tib != NULL failed at ...			20220405
 
 # Test not to run for other reasons:
 
