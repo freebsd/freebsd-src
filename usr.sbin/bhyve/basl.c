@@ -21,6 +21,12 @@
 
 #include "basl.h"
 
+struct basl_table_length {
+	STAILQ_ENTRY(basl_table_length) chain;
+	uint32_t off;
+	uint8_t size;
+};
+
 struct basl_table {
 	STAILQ_ENTRY(basl_table) chain;
 	struct vmctx *ctx;
@@ -29,6 +35,7 @@ struct basl_table {
 	uint32_t len;
 	uint32_t off;
 	uint32_t alignment;
+	STAILQ_HEAD(basl_table_length_list, basl_table_length) lengths;
 };
 static STAILQ_HEAD(basl_table_list, basl_table) basl_tables = STAILQ_HEAD_INITIALIZER(
     basl_tables);
@@ -102,6 +109,22 @@ basl_finish_install_guest_tables(struct basl_table *const table)
 	return (0);
 }
 
+static int
+basl_finish_set_length(struct basl_table *const table)
+{
+	struct basl_table_length *length;
+
+	STAILQ_FOREACH(length, &table->lengths, chain) {
+		assert(length->off < table->len);
+		assert(length->off + length->size <= table->len);
+
+		basl_le_enc(table->data + length->off, table->len,
+		    length->size);
+	}
+
+	return (0);
+}
+
 int
 basl_finish(void)
 {
@@ -113,6 +136,7 @@ basl_finish(void)
 	}
 
 	STAILQ_FOREACH(table, &basl_tables, chain) {
+		BASL_EXEC(basl_finish_set_length(table));
 		BASL_EXEC(basl_finish_install_guest_tables(table));
 	}
 
@@ -122,6 +146,26 @@ basl_finish(void)
 int
 basl_init(void)
 {
+	return (0);
+}
+
+static int
+basl_table_add_length(struct basl_table *const table, const uint32_t off,
+    const uint8_t size)
+{
+	struct basl_table_length *length;
+
+	length = calloc(1, sizeof(struct basl_table_length));
+	if (length == NULL) {
+		warnx("%s: failed to allocate length", __func__);
+		return (ENOMEM);
+	}
+
+	length->off = off;
+	length->size = size;
+
+	STAILQ_INSERT_TAIL(&table->lengths, length, chain);
+
 	return (0);
 }
 
@@ -185,6 +229,18 @@ basl_table_append_int(struct basl_table *const table, const uint64_t val,
 }
 
 int
+basl_table_append_length(struct basl_table *const table, const uint8_t size)
+{
+	assert(table != NULL);
+	assert(size <= sizeof(table->len));
+
+	BASL_EXEC(basl_table_add_length(table, table->len, size));
+	BASL_EXEC(basl_table_append_int(table, 0, size));
+
+	return (0);
+}
+
+int
 basl_table_create(struct basl_table **const table, struct vmctx *ctx,
     const uint8_t *const name, const uint32_t alignment,
     const uint32_t off)
@@ -206,6 +262,8 @@ basl_table_create(struct basl_table **const table, struct vmctx *ctx,
 
 	new_table->alignment = alignment;
 	new_table->off = off;
+
+	STAILQ_INIT(&new_table->lengths);
 
 	STAILQ_INSERT_TAIL(&basl_tables, new_table, chain);
 
