@@ -9698,7 +9698,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
 	int rc, i, n;
-	uint32_t lo, hi, used, alloc;
+	uint32_t lo, hi, used, free, alloc;
 	static const char *memory[] = {
 		"EDC0:", "EDC1:", "MC:", "MC0:", "MC1:", "HMA:"
 	};
@@ -9899,19 +9899,24 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	mem_region_show(sb, "uP Extmem2:", lo, hi);
 
 	lo = t4_read_reg(sc, A_TP_PMM_RX_MAX_PAGE);
-	sbuf_printf(sb, "\n%u Rx pages of size %uKiB for %u channels\n",
-		   G_PMRXMAXPAGE(lo),
+	for (i = 0, free = 0; i < 2; i++)
+		free += G_FREERXPAGECOUNT(t4_read_reg(sc, A_TP_FLM_FREE_RX_CNT));
+	sbuf_printf(sb, "\n%u Rx pages (%u free) of size %uKiB for %u channels\n",
+		   G_PMRXMAXPAGE(lo), free,
 		   t4_read_reg(sc, A_TP_PMM_RX_PAGE_SIZE) >> 10,
 		   (lo & F_PMRXNUMCHN) ? 2 : 1);
 
 	lo = t4_read_reg(sc, A_TP_PMM_TX_MAX_PAGE);
 	hi = t4_read_reg(sc, A_TP_PMM_TX_PAGE_SIZE);
-	sbuf_printf(sb, "%u Tx pages of size %u%ciB for %u channels\n",
-		   G_PMTXMAXPAGE(lo),
+	for (i = 0, free = 0; i < 4; i++)
+		free += G_FREETXPAGECOUNT(t4_read_reg(sc, A_TP_FLM_FREE_TX_CNT));
+	sbuf_printf(sb, "%u Tx pages (%u free) of size %u%ciB for %u channels\n",
+		   G_PMTXMAXPAGE(lo), free,
 		   hi >= (1 << 20) ? (hi >> 20) : (hi >> 10),
 		   hi >= (1 << 20) ? 'M' : 'K', 1 << G_PMTXNUMCHN(lo));
-	sbuf_printf(sb, "%u p-structs\n",
-		   t4_read_reg(sc, A_TP_CMM_MM_MAX_PSTRUCT));
+	sbuf_printf(sb, "%u p-structs (%u free)\n",
+		   t4_read_reg(sc, A_TP_CMM_MM_MAX_PSTRUCT),
+		   G_FREEPSTRUCTCOUNT(t4_read_reg(sc, A_TP_FLM_FREE_PS_CNT)));
 
 	for (i = 0; i < 4; i++) {
 		if (chip_id(sc) > CHELSIO_T5)
