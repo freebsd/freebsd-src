@@ -1657,12 +1657,12 @@ ppc_setmode(device_t dev, int mode)
 int
 ppc_probe(device_t dev, int rid)
 {
+	struct ppc_data *ppc;
 #ifdef __i386__
 	static short next_bios_ppc = 0;
-#endif
-	struct ppc_data *ppc;
 	int error;
 	rman_res_t port;
+#endif
 
 	/*
 	 * Allocate the ppc_data structure.
@@ -1672,10 +1672,10 @@ ppc_probe(device_t dev, int rid)
 
 	ppc->rid_ioport = rid;
 
+#ifdef __i386__
 	/* retrieve ISA parameters */
 	error = bus_get_resource(dev, SYS_RES_IOPORT, rid, &port, NULL);
 
-#ifdef __i386__
 	/*
 	 * If port not specified, use bios list.
 	 */
