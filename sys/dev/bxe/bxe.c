@@ -8688,7 +8688,7 @@ bxe_handle_fp_tq(void *context,
 {
     struct bxe_fastpath *fp = (struct bxe_fastpath *)context;
     struct bxe_softc *sc = fp->sc;
-    uint8_t more_tx = FALSE;
+    /* uint8_t more_tx = FALSE; */
     uint8_t more_rx = FALSE;
 
     BLOGD(sc, DBG_INTR, "---> FP TASK QUEUE (%d) <---\n", fp->index);
@@ -8712,7 +8712,7 @@ bxe_handle_fp_tq(void *context,
     /* fp->txdata[cos] */
     if (bxe_has_tx_work(fp)) {
         BXE_FP_TX_LOCK(fp);
-        more_tx = bxe_txeof(sc, fp);
+        /* more_tx = */ bxe_txeof(sc, fp);
         BXE_FP_TX_UNLOCK(fp);
     }
 
@@ -8734,7 +8734,7 @@ static void
 bxe_task_fp(struct bxe_fastpath *fp)
 {
     struct bxe_softc *sc = fp->sc;
-    uint8_t more_tx = FALSE;
+    /* uint8_t more_tx = FALSE; */
     uint8_t more_rx = FALSE;
 
     BLOGD(sc, DBG_INTR, "---> FP TASK ISR (%d) <---\n", fp->index);
@@ -8746,7 +8746,7 @@ bxe_task_fp(struct bxe_fastpath *fp)
     /* fp->txdata[cos] */
     if (bxe_has_tx_work(fp)) {
         BXE_FP_TX_LOCK(fp);
-        more_tx = bxe_txeof(sc, fp);
+        /* more_tx = */ bxe_txeof(sc, fp);
         BXE_FP_TX_UNLOCK(fp);
     }
 
@@ -12355,7 +12355,6 @@ bxe_parity_recover(struct bxe_softc *sc)
 {
     uint8_t global = FALSE;
     uint32_t error_recovered, error_unrecovered;
-    bool is_parity;
 
 
     if ((sc->recovery_state == BXE_RECOVERY_FAILED) &&
@@ -12374,7 +12373,7 @@ bxe_parity_recover(struct bxe_softc *sc)
         switch(sc->recovery_state) {
 
         case BXE_RECOVERY_INIT:
-            is_parity = bxe_chk_parity_attn(sc, &global, FALSE);
+            bxe_chk_parity_attn(sc, &global, FALSE);
 
             if ((CHIP_PORT_MODE(sc) == CHIP_4_PORT_MODE) ||
                 (sc->error_status & BXE_ERR_MCP_ASSERT) ||
