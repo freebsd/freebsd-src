@@ -421,7 +421,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info	*sc = ch->parent;
-	u_int32_t r, rsp;
+	u_int32_t r, rsp __unused;
 
 	r = cmpci_rate_to_regvalue(speed);
 	snd_mtxlock(sc->lock);
