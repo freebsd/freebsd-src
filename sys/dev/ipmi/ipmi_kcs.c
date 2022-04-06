@@ -93,11 +93,10 @@ kcs_wait_for_obf(struct ipmi_softc *sc, bool level)
 static void
 kcs_clear_obf(struct ipmi_softc *sc, int status)
 {
-	int data;
 
 	/* Clear OBF */
 	if (status & KCS_STATUS_OBF) {
-		data = INB(sc, KCS_DATA);
+		INB(sc, KCS_DATA);
 	}
 }
 
@@ -266,7 +265,6 @@ static int
 kcs_read_byte(struct ipmi_softc *sc, u_char *data)
 {
 	int status;
-	u_char dummy;
 
 	/* Wait for IBF = 0 */
 	status = kcs_wait_for_ibf(sc, 0);
@@ -296,7 +294,7 @@ kcs_read_byte(struct ipmi_softc *sc, u_char *data)
 			return (0);
 
 		/* Read Dummy */
-		dummy = INB(sc, KCS_DATA);
+		INB(sc, KCS_DATA);
 		return (2);
 	}
 
@@ -545,7 +543,7 @@ ipmi_kcs_attach(struct ipmi_softc *sc)
 int
 ipmi_kcs_probe_align(struct ipmi_softc *sc)
 {
-	int data, status;
+	int status;
 
 	sc->ipmi_io_spacing = 1;
 retry:
@@ -587,7 +585,7 @@ retry:
 
 	/* Clear OBF */
 	if (status & KCS_STATUS_OBF)
-		data = INB(sc, KCS_DATA);
+		INB(sc, KCS_DATA);
 
 	/* 0x00 to DATA_IN */
 	OUTB(sc, KCS_DATA, 0);
@@ -607,7 +605,7 @@ retry:
 		}
 
 		/* Read error status. */
-		data = INB(sc, KCS_DATA);
+		INB(sc, KCS_DATA);
 
 		/* Write dummy READ to DATA_IN. */
 		OUTB(sc, KCS_DATA, KCS_DATA_IN_READ);
@@ -629,7 +627,7 @@ retry:
 
 		/* Clear OBF */
 		if (status & KCS_STATUS_OBF)
-			data = INB(sc, KCS_DATA);
+			INB(sc, KCS_DATA);
 	} else
 		device_printf(sc->ipmi_dev, "KCS probe: end state %x\n",
 		    KCS_STATUS_STATE(status));
