@@ -56,6 +56,7 @@
 .Fl o Ar output_file
 .Nm b64encode
 .Op Fl r
+.Op Fl w Ar column
 .Op Fl o Ar output_file
 .Op Ar file
 .Ar name
@@ -179,6 +180,15 @@ By default
 .Nm uudecode
 deletes any prefix ending with the last slash '/' for security
 reasons.
+.El
+.Pp
+Additionally,
+.Nm b64encode
+accepts the following option:
+.Bl -tag -width ident
+.It Fl w Ar column
+Wrap encoded output after
+.Ar column .
 .El
 .Pp
 .Nm
