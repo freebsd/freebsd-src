@@ -5089,6 +5089,8 @@ DIOCCHANGEADDR_error:
 			free(ioes, M_TEMP);
 			break;
 		}
+		/* Ensure there's no more ethernet rules to clean up. */
+		epoch_drain_callbacks(net_epoch_preempt);
 		PF_RULES_WLOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
