@@ -141,7 +141,7 @@ All other errors will be reported as standard CAM CCB status errors.
 Since the CCB is not copied back to the user process from the pass driver
 in the
 .Dv CAMIOQUEUE
-ioctl, the user's passed-in CCB will not be modfied.
+ioctl, the user's passed-in CCB will not be modified.
 This is the case even with immediate CCBs.
 Instead, the completed CCB must be retrieved via the
 .Dv CAMIOGET
