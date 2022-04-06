@@ -4146,14 +4146,12 @@ psmsmoother(struct psm_softc *sc, finger_t *f, int smoother_id,
 		int x0, y0;
 		int cursor, peer, window;
 		int dx, dy, dxp, dyp;
-		int max_width, max_pressure;
 		int margin_top, margin_right, margin_bottom, margin_left;
 		int na_top, na_right, na_bottom, na_left;
-		int window_min, window_max;
+		int window_max;
 		int multiplicator;
 		int weight_current, weight_previous, weight_len_squared;
 		int div_min, div_max, div_len;
-		int vscroll_hor_area, vscroll_ver_area;
 		int two_finger_scroll;
 		int max_x, max_y;
 		int len, weight_prev_x, weight_prev_y;
@@ -4163,8 +4161,6 @@ psmsmoother(struct psm_softc *sc, finger_t *f, int smoother_id,
 
 		/* Read sysctl. */
 		/* XXX Verify values? */
-		max_width = sc->syninfo.max_width;
-		max_pressure = sc->syninfo.max_pressure;
 		margin_top = sc->syninfo.margin_top;
 		margin_right = sc->syninfo.margin_right;
 		margin_bottom = sc->syninfo.margin_bottom;
@@ -4173,7 +4169,6 @@ psmsmoother(struct psm_softc *sc, finger_t *f, int smoother_id,
 		na_right = sc->syninfo.na_right;
 		na_bottom = sc->syninfo.na_bottom;
 		na_left = sc->syninfo.na_left;
-		window_min = sc->syninfo.window_min;
 		window_max = sc->syninfo.window_max;
 		multiplicator = sc->syninfo.multiplicator;
 		weight_current = sc->syninfo.weight_current;
@@ -4182,8 +4177,6 @@ psmsmoother(struct psm_softc *sc, finger_t *f, int smoother_id,
 		div_min = sc->syninfo.div_min;
 		div_max = sc->syninfo.div_max;
 		div_len = sc->syninfo.div_len;
-		vscroll_hor_area = sc->syninfo.vscroll_hor_area;
-		vscroll_ver_area = sc->syninfo.vscroll_ver_area;
 		two_finger_scroll = sc->syninfo.two_finger_scroll;
 		max_x = sc->syninfo.max_x;
 		max_y = sc->syninfo.max_y;
