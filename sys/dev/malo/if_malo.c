@@ -1032,8 +1032,8 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 {
 #define	IS_DATA_FRAME(wh)						\
 	((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK)) == IEEE80211_FC0_TYPE_DATA)
-	int error, ismcast, iswep;
-	int copyhdrlen, hdrlen, pktlen;
+	int error, iswep;
+	int hdrlen, pktlen;
 	struct ieee80211_frame *wh;
 	struct ieee80211com *ic = &sc->malo_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -1044,13 +1044,10 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_PROTECTED;
-	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
-	copyhdrlen = hdrlen = ieee80211_anyhdrsize(wh);
+	hdrlen = ieee80211_anyhdrsize(wh);
 	pktlen = m0->m_pkthdr.len;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
 		qos = *(uint16_t *)ieee80211_getqos(wh);
-		if (IEEE80211_IS_DSTODS(wh))
-			copyhdrlen -= sizeof(qos);
 	} else
 		qos = 0;
 
