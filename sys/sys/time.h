@@ -220,7 +220,11 @@ static __inline int64_t
 sbttous(sbintime_t _sbt)
 {
 
-	return ((1000000 * _sbt) >> 32);
+#ifdef KASSERT
+	KASSERT(_sbt >= 0, ("Negative values illegal for sbttous: %jx", _sbt));
+#endif
+	return ((_sbt >> 32) * 1000000 +
+		(1000000 * (_sbt & 0xffffffffu) >> 32));
 }
 
 static __inline sbintime_t
@@ -243,8 +247,10 @@ ustosbt(int64_t _us)
 static __inline int64_t
 sbttoms(sbintime_t _sbt)
 {
-
-	return ((1000 * _sbt) >> 32);
+#ifdef KASSERT
+	KASSERT(_sbt >= 0, ("Negative values illegal for sbttoms: %jx", _sbt));
+#endif
+	return ((_sbt >> 32) * 1000 + (1000 * (_sbt & 0xffffffffu) >> 32));
 }
 
 static __inline sbintime_t
