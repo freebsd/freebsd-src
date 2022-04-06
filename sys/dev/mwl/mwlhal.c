@@ -2345,13 +2345,12 @@ mwl_hal_getdiagstate(struct mwl_hal *mh0, int request,
 static void
 mwlSendCmd(struct mwl_hal_priv *mh)
 {
-	uint32_t dummy;
 
 	bus_dmamap_sync(mh->mh_dmat, mh->mh_dmamap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	WR4(mh, MACREG_REG_GEN_PTR, mh->mh_cmdaddr);
-	dummy = RD4(mh, MACREG_REG_INT_CODE);
+	RD4(mh, MACREG_REG_INT_CODE);
 
 	WR4(mh, MACREG_REG_H2A_INTERRUPT_EVENTS, MACREG_H2ARIC_BIT_DOOR_BELL);
 }
@@ -2446,18 +2445,17 @@ mwlFwReset(struct mwl_hal_priv *mh)
 static void
 mwlTriggerPciCmd(struct mwl_hal_priv *mh)
 {
-	uint32_t dummy;
 
 	bus_dmamap_sync(mh->mh_dmat, mh->mh_dmamap, BUS_DMASYNC_PREWRITE);
 
 	WR4(mh, MACREG_REG_GEN_PTR, mh->mh_cmdaddr);
-	dummy = RD4(mh, MACREG_REG_INT_CODE);
+	RD4(mh, MACREG_REG_INT_CODE);
 
 	WR4(mh, MACREG_REG_INT_CODE, 0x00);
-	dummy = RD4(mh, MACREG_REG_INT_CODE);
+	RD4(mh, MACREG_REG_INT_CODE);
 
 	WR4(mh, MACREG_REG_H2A_INTERRUPT_EVENTS, MACREG_H2ARIC_BIT_DOOR_BELL);
-	dummy = RD4(mh, MACREG_REG_INT_CODE);
+	RD4(mh, MACREG_REG_INT_CODE);
 }
 
 static int
