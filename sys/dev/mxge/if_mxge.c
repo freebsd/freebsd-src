@@ -2036,14 +2036,12 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	mcp_kreq_ether_send_t *req;
 	bus_dma_segment_t *seg;
 	struct mbuf *m_tmp;
-	struct ifnet *ifp;
 	mxge_tx_ring_t *tx;
 	int cnt, cum_len, err, i, idx, odd_flag;
 	uint16_t pseudo_hdr_offset;
 	uint8_t flags, cksum_offset;
 
 	sc = ss->sc;
-	ifp = sc->ifp;
 	tx = &ss->tx;
 
 #ifdef MXGE_NEW_VLAN_API
@@ -2557,11 +2555,9 @@ static void
 mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 {
 	struct ether_vlan_header *evl;
-	struct ether_header *eh;
 	uint32_t partial;
 
 	evl = mtod(m, struct ether_vlan_header *);
-	eh = mtod(m, struct ether_header *);
 
 	/*
 	 * fix checksum by subtracting ETHER_VLAN_ENCAP_LEN bytes
@@ -2778,7 +2774,7 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 static inline void
 mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp __unused;
 	mxge_tx_ring_t *tx;
 	struct mbuf *m;
 	bus_dmamap_t map;
