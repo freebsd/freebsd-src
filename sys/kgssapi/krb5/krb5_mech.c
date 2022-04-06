@@ -1045,7 +1045,7 @@ krb5_verify_mic_old(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic,
 {
 	struct mbuf *mlast, *tm;
 	uint8_t *p, *tp, dir;
-	size_t mlen, tlen, elen, miclen;
+	size_t mlen, tlen, elen;
 	size_t cklen;
 	uint32_t seq;
 
@@ -1082,7 +1082,6 @@ krb5_verify_mic_old(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic,
 	 * message.
 	 */
 	cklen = kc->kc_checksumkey->ks_class->ec_checksumlen;
-	miclen = mic->m_len;
 	mic->m_len = p - (uint8_t *) mic->m_data;
 	mic->m_next = m;
 	MGET(tm, M_WAITOK, MT_DATA);
@@ -1606,14 +1605,14 @@ krb5_unwrap_old(struct krb5_context *kc, struct mbuf **mp, int *conf_state,
 	OM_uint32 res;
 	struct mbuf *m, *mlast, *hm, *cm, *n;
 	uint8_t *p, dir;
-	size_t mlen, tlen, elen, datalen, padlen;
+	size_t tlen, elen, datalen, padlen;
 	size_t cklen;
 	uint8_t buf[32];
 	uint32_t seq;
 	int i, conf;
 
 	m = *mp;
-	mlen = m_length(m, &mlast);
+	m_length(m, &mlast);
 
 	tlen = token_length(kc->kc_tokenkey);
 	cklen = kc->kc_tokenkey->ks_class->ec_checksumlen;
@@ -1783,7 +1782,7 @@ krb5_unwrap_new(struct krb5_context *kc, struct mbuf **mp, int *conf_state)
 	struct krb5_key_state *Kc = kc->kc_recv_seal_Kc;
 	const struct krb5_encryption_class *ec = Ke->ks_class;
 	struct mbuf *m, *mlast, *hm, *cm;
-	uint8_t *p, *pp;
+	uint8_t *p;
 	int sealed, flags, EC, RRC;
 	size_t blen, cklen, ctlen, mlen, plen, tlen;
 	char buf[32], buf2[32];
@@ -1902,7 +1901,6 @@ krb5_unwrap_new(struct krb5_context *kc, struct mbuf **mp, int *conf_state)
 		 * plaintext starts after the confounder.
 		 */
 		plen = ctlen - blen - 16 - EC;
-		pp = p + 16 + blen;
 
 		/*
 		 * Checksum the padded plaintext.
