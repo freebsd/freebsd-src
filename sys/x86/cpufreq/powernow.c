@@ -913,7 +913,7 @@ pn_probe(device_t dev)
 		 * mobile processor.  If not, it is a low powered desktop
 		 * processor.
 		 */
-		if (PN7_STA_SFID(status) != PN7_STA_MFID(status)) {
+		if (sfid != mfid) {
 			sc->vid_to_volts = pn7_mobile_vid_to_volts;
 			device_set_desc(dev, "PowerNow! K7");
 		} else {
@@ -930,7 +930,7 @@ pn_probe(device_t dev)
 		sc->vid_to_volts = pn8_vid_to_volts;
 		sc->fsb = rate / 100000 / pn8_fid_to_mult[cfid];
 
-		if (PN8_STA_SFID(status) != PN8_STA_MFID(status))
+		if (sfid != mfid)
 			device_set_desc(dev, "PowerNow! K8");
 		else
 			device_set_desc(dev, "Cool`n'Quiet K8");
