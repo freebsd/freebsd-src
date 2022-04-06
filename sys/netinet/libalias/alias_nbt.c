@@ -251,7 +251,9 @@ static u_char *
 AliasHandleName(u_char *p, char *pmax)
 {
 	u_char *s;
+#ifdef LIBALIAS_DEBUG
 	u_char c;
+#endif
 	int compress;
 
 	/* Following length field */
@@ -283,8 +285,8 @@ AliasHandleName(u_char *p, char *pmax)
 #endif
 		while (s < p) {
 			if (compress == 1) {
-				c = (u_char) (((((*s & 0x0f) << 4) | (*(s + 1) & 0x0f)) - 0x11));
 #ifdef LIBALIAS_DEBUG
+				c = (u_char) (((((*s & 0x0f) << 4) | (*(s + 1) & 0x0f)) - 0x11));
 				if (isprint(c))
 					printf("%c", c);
 				else
