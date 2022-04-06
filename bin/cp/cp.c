@@ -292,6 +292,7 @@ copy_stat(const char *path, struct stat *sb)
 static int
 copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 {
+	char rootname[NAME_MAX];
 	struct stat created_root_stat, to_stat;
 	FTS *ftsp;
 	FTSENT *curr;
@@ -328,45 +329,15 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			;
 		}
 
-		if (curr->fts_info == FTS_D && type != FILE_TO_FILE &&
-		    root_stat != NULL &&
-		    root_stat->st_dev == curr->fts_statp->st_dev &&
-		    root_stat->st_ino == curr->fts_statp->st_ino) {
-			assert(recurse_path == NULL);
-			if (curr->fts_level > FTS_ROOTLEVEL) {
-				/*
-				 * If the recursion isn't at the immediate
-				 * level, we can just not traverse into this
-				 * directory.
-				 */
-				fts_set(ftsp, curr, FTS_SKIP);
-				continue;
-			} else {
-				const char *slash;
-
-				/*
-				 * Grab the last path component and double it,
-				 * to make life easier later and ensure that
-				 * we work even with fts_level == 0 is a couple
-				 * of components deep in fts_path.  No path
-				 * separators are fine and expected in the
-				 * common case, though.
-				 */
-				slash = strrchr(curr->fts_path, '/');
-				if (slash != NULL)
-					slash++;
-				else
-					slash = curr->fts_path;
-				if (asprintf(&recurse_path, "%s/%s",
-				    curr->fts_path, slash) == -1)
-					err(1, "asprintf");
-			}
-		}
-
-		if (recurse_path != NULL &&
-		    strcmp(curr->fts_path, recurse_path) == 0) {
-			fts_set(ftsp, curr, FTS_SKIP);
-			continue;
+		/*
+		 * Stash the root basename off for detecting recursion later.
+		 *
+		 * This will be essential if the root is a symlink and we're
+		 * rolling with -L or -H.  The later bits will need this bit in
+		 * particular.
+		 */
+		if (curr->fts_level == FTS_ROOTLEVEL) {
+			strlcpy(rootname, curr->fts_name, sizeof(rootname));
 		}
 
 		/*
@@ -422,6 +393,41 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			to.p_end = target_mid + nlen;
 			*to.p_end = 0;
 			STRIP_TRAILING_SLASH(to);
+
+			/*
+			 * We're on the verge of recursing on ourselves.  Either
+			 * we need to stop right here (we knowingly just created
+			 * it), or we will in an immediate descendant.  Record
+			 * the path of the immediate descendant to make our
+			 * lives a little less complicated looking.
+			 */
+			if (curr->fts_info == FTS_D && root_stat != NULL &&
+			    root_stat->st_dev == curr->fts_statp->st_dev &&
+			    root_stat->st_ino == curr->fts_statp->st_ino) {
+				assert(recurse_path == NULL);
+
+				if (root_stat == &created_root_stat) {
+					/*
+					 * This directory didn't exist when we
+					 * started, we created it as part of
+					 * traversal.  Stop right here before we
+					 * do something silly.
+					 */
+					fts_set(ftsp, curr, FTS_SKIP);
+					continue;
+				}
+
+
+				if (asprintf(&recurse_path, "%s/%s", to.p_path,
+				    rootname) == -1)
+					err(1, "asprintf");
+			}
+
+			if (recurse_path != NULL &&
+			    strcmp(to.p_path, recurse_path) == 0) {
+				fts_set(ftsp, curr, FTS_SKIP);
+				continue;
+			}
 		}
 
 		if (curr->fts_info == FTS_DP) {
