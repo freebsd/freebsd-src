@@ -157,7 +157,8 @@ dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
 dev/ipmi/ipmi_smbios.c		optional	ipmi
 dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
-dev/isci/isci.c							optional isci
+dev/isci/isci.c							optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/isci_controller.c					optional isci
 dev/isci/isci_domain.c						optional isci
 dev/isci/isci_interrupt.c					optional isci
@@ -176,22 +177,26 @@ dev/isci/scil/sati_inquiry.c					optional isci
 dev/isci/scil/sati_log_sense.c					optional isci
 dev/isci/scil/sati_lun_reset.c					optional isci
 dev/isci/scil/sati_mode_pages.c					optional isci
-dev/isci/scil/sati_mode_select.c				optional isci
+dev/isci/scil/sati_mode_select.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/sati_mode_sense.c					optional isci
 dev/isci/scil/sati_mode_sense_10.c				optional isci
 dev/isci/scil/sati_mode_sense_6.c				optional isci
 dev/isci/scil/sati_move.c					optional isci
-dev/isci/scil/sati_passthrough.c				optional isci
+dev/isci/scil/sati_passthrough.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/sati_read.c					optional isci
 dev/isci/scil/sati_read_buffer.c				optional isci
 dev/isci/scil/sati_read_capacity.c				optional isci
-dev/isci/scil/sati_reassign_blocks.c				optional isci
+dev/isci/scil/sati_reassign_blocks.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/sati_report_luns.c				optional isci
 dev/isci/scil/sati_request_sense.c				optional isci
 dev/isci/scil/sati_start_stop_unit.c				optional isci
 dev/isci/scil/sati_synchronize_cache.c				optional isci
 dev/isci/scil/sati_test_unit_ready.c				optional isci
-dev/isci/scil/sati_unmap.c					optional isci
+dev/isci/scil/sati_unmap.c					optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/sati_util.c					optional isci
 dev/isci/scil/sati_verify.c					optional isci
 dev/isci/scil/sati_write.c					optional isci
@@ -217,29 +222,36 @@ dev/isci/scil/sci_base_state_machine_logger.c			optional isci
 dev/isci/scil/sci_base_state_machine_observer.c			optional isci
 dev/isci/scil/sci_base_subject.c				optional isci
 dev/isci/scil/sci_util.c					optional isci
-dev/isci/scil/scic_sds_controller.c				optional isci
+dev/isci/scil/scic_sds_controller.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scic_sds_library.c				optional isci
 dev/isci/scil/scic_sds_pci.c					optional isci
-dev/isci/scil/scic_sds_phy.c					optional isci
+dev/isci/scil/scic_sds_phy.c					optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scic_sds_port.c					optional isci
 dev/isci/scil/scic_sds_port_configuration_agent.c		optional isci
 dev/isci/scil/scic_sds_remote_device.c				optional isci
 dev/isci/scil/scic_sds_remote_node_context.c			optional isci
 dev/isci/scil/scic_sds_remote_node_table.c			optional isci
-dev/isci/scil/scic_sds_request.c				optional isci
+dev/isci/scil/scic_sds_request.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scic_sds_sgpio.c					optional isci
 dev/isci/scil/scic_sds_smp_remote_device.c			optional isci
-dev/isci/scil/scic_sds_smp_request.c				optional isci
+dev/isci/scil/scic_sds_smp_request.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scic_sds_ssp_request.c				optional isci
 dev/isci/scil/scic_sds_stp_packet_request.c			optional isci
 dev/isci/scil/scic_sds_stp_remote_device.c			optional isci
-dev/isci/scil/scic_sds_stp_request.c				optional isci
+dev/isci/scil/scic_sds_stp_request.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scic_sds_unsolicited_frame_control.c		optional isci
-dev/isci/scil/scif_sas_controller.c				optional isci
+dev/isci/scil/scif_sas_controller.c				optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scif_sas_controller_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_controller_states.c			optional isci
 dev/isci/scil/scif_sas_domain.c					optional isci
-dev/isci/scil/scif_sas_domain_state_handlers.c			optional isci
+dev/isci/scil/scif_sas_domain_state_handlers.c			optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scif_sas_domain_states.c				optional isci
 dev/isci/scil/scif_sas_high_priority_request_queue.c		optional isci
 dev/isci/scil/scif_sas_internal_io_request.c			optional isci
@@ -249,7 +261,8 @@ dev/isci/scil/scif_sas_io_request_states.c			optional isci
 dev/isci/scil/scif_sas_library.c				optional isci
 dev/isci/scil/scif_sas_remote_device.c				optional isci
 dev/isci/scil/scif_sas_remote_device_ready_substate_handlers.c	optional isci
-dev/isci/scil/scif_sas_remote_device_ready_substates.c		optional isci
+dev/isci/scil/scif_sas_remote_device_ready_substates.c		optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scif_sas_remote_device_starting_substate_handlers.c		optional isci
 dev/isci/scil/scif_sas_remote_device_starting_substates.c	optional isci
 dev/isci/scil/scif_sas_remote_device_state_handlers.c		optional isci
@@ -258,7 +271,8 @@ dev/isci/scil/scif_sas_request.c				optional isci
 dev/isci/scil/scif_sas_smp_activity_clear_affiliation.c		optional isci
 dev/isci/scil/scif_sas_smp_io_request.c				optional isci
 dev/isci/scil/scif_sas_smp_phy.c				optional isci
-dev/isci/scil/scif_sas_smp_remote_device.c			optional isci
+dev/isci/scil/scif_sas_smp_remote_device.c			optional isci \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_BUT_SET_VARIABLE}"
 dev/isci/scil/scif_sas_stp_io_request.c				optional isci
 dev/isci/scil/scif_sas_stp_remote_device.c			optional isci
 dev/isci/scil/scif_sas_stp_task_request.c			optional isci
