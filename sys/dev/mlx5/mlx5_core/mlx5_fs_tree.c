@@ -1521,7 +1521,7 @@ static void call_to_add_rule_notifiers(struct mlx5_flow_rule *dst,
 			mutex_unlock(&dst->clients_lock);
 			err  = iter_handler->add_dst_cb(dst,
 							is_new_rule,
-							NULL,
+							data,
 							iter_handler->client_context);
 			if (err)
 				break;
