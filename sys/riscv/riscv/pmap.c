@@ -620,12 +620,14 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
+	vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
 	uint64_t satp;
 	vm_offset_t dpcpu, freemempos, l0pv, msgbufpv;
 	vm_paddr_t l0pa, l1pa, max_pa, min_pa, pa;
 	pd_entry_t *l0p;
 	pt_entry_t *l2p;
 	u_int l1_slot, l2_slot;
+	u_int physmap_idx;
 	int i, mode;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
