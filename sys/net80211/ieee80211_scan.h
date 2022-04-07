@@ -213,6 +213,7 @@ enum {
 	IEEE80211_BPARSE_OFFCHAN	= 0x20,	/* DSPARMS chan != curchan */
 	IEEE80211_BPARSE_BINTVAL_INVALID= 0x40,	/* invalid beacon interval */
 	IEEE80211_BPARSE_CSA_INVALID	= 0x80,	/* invalid CSA ie */
+	IEEE80211_BPARSE_MESHID_INVALID = 0x100, /* invalid Mesh ID ie */
 };
 
 /*
@@ -223,7 +224,7 @@ enum {
  * All multi-byte values must be in host byte order.
  */
 struct ieee80211_scanparams {
-	uint8_t		status;		/* bitmask of IEEE80211_BPARSE_* */
+	uint32_t	status;		/* bitmask of IEEE80211_BPARSE_* */
 	uint8_t		chan;		/* channel # from FH/DSPARMS */
 	uint8_t		bchan;		/* curchan's channel # */
 	uint8_t		fhindex;
