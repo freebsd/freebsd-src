@@ -132,7 +132,7 @@ __FBSDID("$FreeBSD$");
  * Hard upper limit on the length of log messages. Bump this up if you add new
  * data fields such that the line length could exceed the below value.
  */
-#define MAX_LOG_MSG_LEN 200
+#define MAX_LOG_MSG_LEN 300
 /* XXX: Make this a sysctl tunable. */
 #define SIFTR_ALQ_BUFLEN (1000*MAX_LOG_MSG_LEN)
 
@@ -194,15 +194,15 @@ struct pkt_node {
 	/* Foreign TCP port. */
 	uint16_t		tcp_foreignport;
 	/* Congestion Window (bytes). */
-	u_long			snd_cwnd;
+	uint32_t		snd_cwnd;
 	/* Sending Window (bytes). */
-	u_long			snd_wnd;
+	uint32_t		snd_wnd;
 	/* Receive Window (bytes). */
-	u_long			rcv_wnd;
-	/* Unused (was: Bandwidth Controlled Window (bytes)). */
-	u_long			snd_bwnd;
+	uint32_t		rcv_wnd;
+	/* More tcpcb flags storage */
+	uint32_t		t_flags2;
 	/* Slow Start Threshold (bytes). */
-	u_long			snd_ssthresh;
+	uint32_t		snd_ssthresh;
 	/* Current state of the TCP FSM. */
 	int			conn_state;
 	/* Max Segment Size (bytes). */
@@ -455,7 +455,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
-		    "%x:%x:%x:%x:%x,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,"
+		    "%x:%x:%x:%x:%x,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
 		    "%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
@@ -481,7 +481,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    ntohs(pkt_node->tcp_foreignport),
 		    pkt_node->snd_ssthresh,
 		    pkt_node->snd_cwnd,
-		    pkt_node->snd_bwnd,
+		    pkt_node->t_flags2,
 		    pkt_node->snd_wnd,
 		    pkt_node->rcv_wnd,
 		    pkt_node->snd_scale,
@@ -514,8 +514,8 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		/* Construct an IPv4 log message. */
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
-		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%ld,%ld,"
-		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%u,%u,"
+		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    (intmax_t)pkt_node->tval.tv_sec,
@@ -532,7 +532,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    ntohs(pkt_node->tcp_foreignport),
 		    pkt_node->snd_ssthresh,
 		    pkt_node->snd_cwnd,
-		    pkt_node->snd_bwnd,
+		    pkt_node->t_flags2,
 		    pkt_node->snd_wnd,
 		    pkt_node->rcv_wnd,
 		    pkt_node->snd_scale,
@@ -782,7 +782,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->snd_cwnd = tp->snd_cwnd;
 	pn->snd_wnd = tp->snd_wnd;
 	pn->rcv_wnd = tp->rcv_wnd;
-	pn->snd_bwnd = 0;		/* Unused, kept for compat. */
+	pn->t_flags2 = tp->t_flags2;
 	pn->snd_ssthresh = tp->snd_ssthresh;
 	pn->snd_scale = tp->snd_scale;
 	pn->rcv_scale = tp->rcv_scale;
