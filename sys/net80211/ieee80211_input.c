@@ -743,7 +743,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 #ifdef IEEE80211_SUPPORT_MESH
 	if (scan->meshid != NULL) {
 		IEEE80211_VERIFY_ELEMENT(scan->meshid, IEEE80211_MESHID_LEN,
-		    scan->status |= IEEE80211_BPARSE_RATES_INVALID);
+		    scan->status |= IEEE80211_BPARSE_MESHID_INVALID);
 	}
 #endif
 	/*
