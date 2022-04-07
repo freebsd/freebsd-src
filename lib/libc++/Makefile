@@ -670,6 +670,7 @@ RNG_HEADERS+=	subrange.h
 RNG_HEADERS+=	take_view.h
 RNG_HEADERS+=	transform_view.h
 RNG_HEADERS+=	view_interface.h
+RNG_HEADERS+=	views.h
 .for hdr in ${RNG_HEADERS}
 RNG+=		${HDRDIR}/__ranges/${hdr}
 .endfor
