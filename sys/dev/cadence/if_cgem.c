@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <dev/mii/mii_fdt.h>
 
 #include <dev/extres/clk/clk.h>
 
@@ -109,9 +110,11 @@ __FBSDID("$FreeBSD$");
 static struct ofw_compat_data compat_data[] = {
 	{ "cdns,zynq-gem",		HWQUIRK_RXHANGWAR | HWQUIRK_TXCLK },
 	{ "cdns,zynqmp-gem",		HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
+	{ "microchip,mpfs-mss-gem",	HWQUIRK_NEEDNULLQS | HWQUIRK_TXCLK },
 	{ "sifive,fu540-c000-gem",	HWQUIRK_PCLK },
 	{ "sifive,fu740-c000-gem",	HWQUIRK_PCLK },
 	{ "cdns,gem",			HWQUIRK_NONE },
+	{ "cdns,macb",			HWQUIRK_NONE },
 	{ "cadence,gem",		HWQUIRK_NONE },
 	{ NULL,				0 }
 };
@@ -131,6 +134,7 @@ struct cgem_softc {
 	uint32_t		net_cfg_shadow;
 	clk_t			ref_clk;
 	int			neednullqs;
+	int			phy_contype;
 
 	bus_dma_tag_t		desc_dma_tag;
 	bus_dma_tag_t		mbuf_dma_tag;
@@ -1084,6 +1088,12 @@ cgem_config(struct cgem_softc *sc)
 	    CGEM_NET_CFG_GIGE_EN | CGEM_NET_CFG_1536RXEN |
 	    CGEM_NET_CFG_FULL_DUPLEX | CGEM_NET_CFG_SPEED100);
 
+	/* Check connection type, enable SGMII bits if necessary. */
+	if (sc->phy_contype == MII_CONTYPE_SGMII) {
+		sc->net_cfg_shadow |= CGEM_NET_CFG_SGMII_EN;
+		sc->net_cfg_shadow |= CGEM_NET_CFG_PCS_SEL;
+	}
+
 	/* Enable receive checksum offloading? */
 	if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 		sc->net_cfg_shadow |=  CGEM_NET_CFG_RX_CHKSUM_OFFLD_EN;
@@ -1728,6 +1738,7 @@ cgem_attach(device_t dev)
 	int rid, err;
 	u_char eaddr[ETHER_ADDR_LEN];
 	int hwquirks;
+	phandle_t node;
 
 	sc->dev = dev;
 	CGEM_LOCK_INIT(sc);
@@ -1752,6 +1763,9 @@ cgem_attach(device_t dev)
 		else if (clk_enable(sc->ref_clk) != 0)
 			device_printf(dev, "could not enable clock.\n");
 	}
+
+	node = ofw_bus_get_node(dev);
+	sc->phy_contype = mii_fdt_get_contype(node);
 
 	/* Get memory resource. */
 	rid = 0;
