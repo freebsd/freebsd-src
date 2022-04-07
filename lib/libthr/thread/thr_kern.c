@@ -158,7 +158,7 @@ _thr_alloc_wake_addr(void)
 		unsigned i;
 		unsigned pagesize = getpagesize();
 		struct wake_addr *pp = (struct wake_addr *)
-			mmap(NULL, getpagesize(), PROT_READ|PROT_WRITE,
+			mmap(NULL, pagesize, PROT_READ|PROT_WRITE,
 			MAP_ANON|MAP_PRIVATE, -1, 0);
 		for (i = 1; i < pagesize/sizeof(struct wake_addr); ++i)
 			pp[i].link = &pp[i+1];
