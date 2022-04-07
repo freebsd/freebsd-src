@@ -46,9 +46,6 @@ struct riscv_bootparams {
 	vm_offset_t	modulep;	/* loader(8) metadata */
 };
 
-extern vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
-extern u_int physmap_idx;
-
 void initriscv(struct riscv_bootparams *);
 
 #endif /* _MACHINE_MACHDEP_H_ */
