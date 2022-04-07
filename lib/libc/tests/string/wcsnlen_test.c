@@ -41,16 +41,19 @@ static void *
 makebuf(size_t len, int guard_at_end)
 {
 	char *buf;
-	size_t alloc_size = roundup2(len, PAGE_SIZE) + PAGE_SIZE;
+	size_t alloc_size, page_size;
+
+	page_size = getpagesize();
+	alloc_size = roundup2(len, page_size) + page_size;
 
 	buf = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 	ATF_CHECK(buf);
 	if (guard_at_end) {
-		ATF_CHECK(munmap(buf + alloc_size - PAGE_SIZE, PAGE_SIZE) == 0);
-		return (buf + alloc_size - PAGE_SIZE - len);
+		ATF_CHECK(munmap(buf + alloc_size - page_size, page_size) == 0);
+		return (buf + alloc_size - page_size - len);
 	} else {
-		ATF_CHECK(munmap(buf, PAGE_SIZE) == 0);
-		return (buf + PAGE_SIZE);
+		ATF_CHECK(munmap(buf, page_size) == 0);
+		return (buf + page_size);
 	}
 }
 
