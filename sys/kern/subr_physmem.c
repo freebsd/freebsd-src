@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__arm__)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFull
-#elif defined(__aarch64__) || defined(__riscv)
+#elif defined(__aarch64__) || defined(__amd64__) || defined(__riscv)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFFFFFFFFFull
 #endif
 
