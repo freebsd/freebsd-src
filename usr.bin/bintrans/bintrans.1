@@ -67,6 +67,10 @@
 .Op Fl i
 .Fl o Ar output_file
 .Op Ar file
+.Nm base64
+.Op Fl d
+.Op Fl w Ar column
+.Op Ar file
 .Sh DESCRIPTION
 The
 .Nm uuencode
@@ -90,6 +94,33 @@ utility is synonymous with
 with the
 .Fl m
 flag specified.
+.Pp
+The
+.Nm base64
+utility acts as a base64 decoder when passed the
+.Fl -decode
+.Po or
+.Fl d
+.Pc
+flag and as a base64 encoder otherwise.
+As a decoder it only accepts raw base64 input
+and as an encoder it does not produce the framing lines.
+.Nm base64
+reads standard input or
+.Ar file
+if it is provided and writes to standard output.
+Options
+.Fl -wrap
+.Po or
+.Fl w
+.Pc
+and
+.Fl -ignore-garbage
+.Po or
+.Fl i
+.Pc
+are accepted for compatibility with GNU base64,
+but the latter is unimplemented and silently ignored.
 .Pp
 The
 .Nm uuencode
