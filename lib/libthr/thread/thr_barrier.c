@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-_Static_assert(sizeof(struct pthread_barrier) <= PAGE_SIZE,
+_Static_assert(sizeof(struct pthread_barrier) <= THR_PAGE_SIZE_MIN,
     "pthread_barrier is too large for off-page");
 
 __weak_reference(_pthread_barrier_init,		pthread_barrier_init);

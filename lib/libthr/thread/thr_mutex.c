@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-_Static_assert(sizeof(struct pthread_mutex) <= PAGE_SIZE,
+_Static_assert(sizeof(struct pthread_mutex) <= THR_PAGE_SIZE_MIN,
     "pthread_mutex is too large for off-page");
 
 /*
