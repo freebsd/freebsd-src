@@ -1091,7 +1091,8 @@ bhnd_pmu_res_init(struct bhnd_pmu_softc *sc)
 				break;
 			}
 			
-			
+			BHND_PMU_WRITE_4(sc, BHND_PMU_RES_DEP_MASK,
+			    depend_mask);
 		}
 	}
 
