@@ -340,7 +340,7 @@ ATF_TC_BODY(kcov_thread_cmp, tc)
 }
 
 struct multi_thread_data {
-	char *buf;
+	uint64_t *buf;
 	int fd;
 	u_int mode;
 	int thread;
