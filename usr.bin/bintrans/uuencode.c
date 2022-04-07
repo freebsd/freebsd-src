@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 extern int main_encode(int, char *[]);
+extern int main_base64_encode(const char *, const char *);
 
 static void encode(void);
 static void base64_encode(void);
@@ -76,6 +77,21 @@ static int mode;
 static bool raw;
 static char **av;
 static int columns = 76;
+
+int
+main_base64_encode(const char *in, const char *w)
+{
+	raw = 1;
+	if (in != NULL && freopen(in, "r", stdin) == NULL)
+		err(1, "%s", in);
+	output = stdout;
+	if (w != NULL)
+		columns = arg_to_col(w);
+	base64_encode();
+	if (ferror(output))
+		errx(1, "write error");
+	exit(0);
+}
 
 int
 main_encode(int argc, char *argv[])

@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 extern int main_decode(int, char *[]);
+extern int main_base64_decode(const char *);
 
 static const char *infile, *outfile;
 static FILE *infp, *outfp;
@@ -79,6 +80,23 @@ static int	decode(void);
 static int	decode2(void);
 static int	uu_decode(void);
 static int	base64_decode(void);
+
+int
+main_base64_decode(const char *in)
+{
+	base64 = 1;
+	rflag = 1;
+	if (in != NULL) {
+		infile = in;
+		infp = fopen(infile, "r");
+		if (infp == NULL)
+			err(1, "%s", in);
+	} else {
+		infile = "stdin";
+		infp = stdin;
+	}
+	exit(decode());
+}
 
 int
 main_decode(int argc, char *argv[])
