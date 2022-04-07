@@ -449,7 +449,8 @@ main(int argc, char *argv[])
 	}
 
 	/* Must specify either the -a flag or a list of pids. */
-	if (!(aflag == 1 && argc == 0) && !(aflag == 0 && argc > 0))
+	if (!(aflag == 1 && argc == 0) && !(aflag == 0 && argc > 0) &&
+	    (cmd->cmp & PS_MODE_NO_KINFO_PROC) == 0)
 		usage(cmd);
 
 	if (memf != NULL)
@@ -464,6 +465,11 @@ main(int argc, char *argv[])
 		xo_set_version(PROCSTAT_XO_VERSION);
 		xo_open_container(progname);
 		xo_open_container(xocontainer);
+
+		if ((cmd->cmp & PS_MODE_NO_KINFO_PROC) != 0) {
+			cmd->cmd(prstat, NULL);
+			goto iter;
+		}
 
 		if (aflag) {
 			p = procstat_getprocs(prstat, KERN_PROC_PROC, 0, &cnt);
@@ -520,6 +526,7 @@ main(int argc, char *argv[])
 			}
 		}
 
+iter:
 		xo_close_container(xocontainer);
 		xo_close_container(progname);
 		xo_finish();
