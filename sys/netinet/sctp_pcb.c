@@ -3318,7 +3318,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	 * freeing. a) Any local lists. b) Any associations. c) The hash of
 	 * all associations. d) finally the ep itself.
 	 */
-	struct sctp_tcb *asoc, *nasoc;
+	struct sctp_tcb *stcb, *nstcb;
 	struct sctp_laddr *laddr, *nladdr;
 	struct inpcb *ip_pcb;
 	struct socket *so;
@@ -3369,28 +3369,28 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		int cnt_in_sd;
 
 		cnt_in_sd = 0;
-		LIST_FOREACH_SAFE(asoc, &inp->sctp_asoc_list, sctp_tcblist, nasoc) {
-			SCTP_TCB_LOCK(asoc);
-			if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-				asoc->sctp_socket = NULL;
+		LIST_FOREACH_SAFE(stcb, &inp->sctp_asoc_list, sctp_tcblist, nstcb) {
+			SCTP_TCB_LOCK(stcb);
+			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				stcb->sctp_socket = NULL;
 				/* Skip guys being freed */
 				cnt_in_sd++;
-				if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
+				if (stcb->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
 					/*
 					 * Special case - we did not start a
 					 * kill timer on the asoc due to it
 					 * was not closed. So go ahead and
 					 * start it now.
 					 */
-					SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_IN_ACCEPT_QUEUE);
-					sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, asoc, NULL);
+					SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_IN_ACCEPT_QUEUE);
+					sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 				}
-				SCTP_TCB_UNLOCK(asoc);
+				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
-			if (((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT) ||
-			    (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)) &&
-			    (asoc->asoc.total_output_queue_size == 0)) {
+			if (((SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_WAIT) ||
+			    (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)) &&
+			    (stcb->asoc.total_output_queue_size == 0)) {
 				/*
 				 * If we have data in queue, we don't want
 				 * to just free since the app may have done,
@@ -3398,99 +3398,99 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				 * it wants the data to get across first.
 				 */
 				/* Just abandon things in the front states */
-				if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_NOFORCE,
+				if (sctp_free_assoc(inp, stcb, SCTP_PCBFREE_NOFORCE,
 				    SCTP_FROM_SCTP_PCB + SCTP_LOC_2) == 0) {
 					cnt_in_sd++;
 				}
 				continue;
 			}
 			/* Disconnect the socket please */
-			asoc->sctp_socket = NULL;
-			SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_CLOSED_SOCKET);
-			if ((asoc->asoc.size_on_reasm_queue > 0) ||
-			    (asoc->asoc.control_pdapi) ||
-			    (asoc->asoc.size_on_all_streams > 0) ||
+			stcb->sctp_socket = NULL;
+			SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_CLOSED_SOCKET);
+			if ((stcb->asoc.size_on_reasm_queue > 0) ||
+			    (stcb->asoc.control_pdapi) ||
+			    (stcb->asoc.size_on_all_streams > 0) ||
 			    (so && (so->so_rcv.sb_cc > 0))) {
 				/* Left with Data unread */
 				struct mbuf *op_err;
 
 				op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
-				asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_3;
-				sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_3;
+				sctp_send_abort_tcb(stcb, op_err, SCTP_SO_LOCKED);
 				SCTP_STAT_INCR_COUNTER32(sctps_aborted);
-				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
-				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+				if ((SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) ||
+				    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
-				if (sctp_free_assoc(inp, asoc,
+				if (sctp_free_assoc(inp, stcb,
 				    SCTP_PCBFREE_NOFORCE, SCTP_FROM_SCTP_PCB + SCTP_LOC_4) == 0) {
 					cnt_in_sd++;
 				}
 				continue;
-			} else if (TAILQ_EMPTY(&asoc->asoc.send_queue) &&
-				    TAILQ_EMPTY(&asoc->asoc.sent_queue) &&
-			    (asoc->asoc.stream_queue_cnt == 0)) {
-				if ((*asoc->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (asoc, &asoc->asoc)) {
+			} else if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+			    (stcb->asoc.stream_queue_cnt == 0)) {
+				if ((*stcb->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, &stcb->asoc)) {
 					goto abort_anyway;
 				}
-				if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
-				    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
+				if ((SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_SENT) &&
+				    (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 					struct sctp_nets *netp;
 
 					/*
 					 * there is nothing queued to send,
 					 * so I send shutdown
 					 */
-					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
-					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+					if ((SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) ||
+					    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
-					SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
-					sctp_stop_timers_for_shutdown(asoc);
-					if (asoc->asoc.alternate) {
-						netp = asoc->asoc.alternate;
+					SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
+					sctp_stop_timers_for_shutdown(stcb);
+					if (stcb->asoc.alternate) {
+						netp = stcb->asoc.alternate;
 					} else {
-						netp = asoc->asoc.primary_destination;
+						netp = stcb->asoc.primary_destination;
 					}
-					sctp_send_shutdown(asoc, netp);
-					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, asoc->sctp_ep, asoc,
+					sctp_send_shutdown(stcb, netp);
+					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb,
 					    netp);
-					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, asoc->sctp_ep, asoc, NULL);
-					sctp_chunk_output(inp, asoc, SCTP_OUTPUT_FROM_SHUT_TMR, SCTP_SO_LOCKED);
+					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb, NULL);
+					sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_SHUT_TMR, SCTP_SO_LOCKED);
 				}
 			} else {
 				/* mark into shutdown pending */
-				SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, asoc->sctp_ep, asoc, NULL);
-				if ((*asoc->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (asoc, &asoc->asoc)) {
-					SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_PARTIAL_MSG_LEFT);
+				SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
+				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb, NULL);
+				if ((*stcb->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, &stcb->asoc)) {
+					SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_PARTIAL_MSG_LEFT);
 				}
-				if (TAILQ_EMPTY(&asoc->asoc.send_queue) &&
-				    TAILQ_EMPTY(&asoc->asoc.sent_queue) &&
-				    (asoc->asoc.state & SCTP_STATE_PARTIAL_MSG_LEFT)) {
+				if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
+				    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
+				    (stcb->asoc.state & SCTP_STATE_PARTIAL_MSG_LEFT)) {
 					struct mbuf *op_err;
 
 			abort_anyway:
 					op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
-					asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_5;
-					sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_5;
+					sctp_send_abort_tcb(stcb, op_err, SCTP_SO_LOCKED);
 					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
-					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
-					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+					if ((SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) ||
+					    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
-					if (sctp_free_assoc(inp, asoc,
+					if (sctp_free_assoc(inp, stcb,
 					    SCTP_PCBFREE_NOFORCE,
 					    SCTP_FROM_SCTP_PCB + SCTP_LOC_6) == 0) {
 						cnt_in_sd++;
 					}
 					continue;
 				} else {
-					sctp_chunk_output(inp, asoc, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
+					sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING, SCTP_SO_LOCKED);
 				}
 			}
 			cnt_in_sd++;
-			SCTP_TCB_UNLOCK(asoc);
+			SCTP_TCB_UNLOCK(stcb);
 		}
 		/* now is there some left in our SHUTDOWN state? */
 		if (cnt_in_sd) {
@@ -3520,41 +3520,41 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	 * have a contest on the INP lock.. which would cause us to die ...
 	 */
 	cnt = 0;
-	LIST_FOREACH_SAFE(asoc, &inp->sctp_asoc_list, sctp_tcblist, nasoc) {
-		SCTP_TCB_LOCK(asoc);
+	LIST_FOREACH_SAFE(stcb, &inp->sctp_asoc_list, sctp_tcblist, nstcb) {
+		SCTP_TCB_LOCK(stcb);
 		if (immediate != SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE) {
 			/* Disconnect the socket please */
-			asoc->sctp_socket = NULL;
-			SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_CLOSED_SOCKET);
+			stcb->sctp_socket = NULL;
+			SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_CLOSED_SOCKET);
 		}
-		if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
-				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_IN_ACCEPT_QUEUE);
-				sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, asoc, NULL);
+		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+			if (stcb->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
+				SCTP_CLEAR_SUBSTATE(stcb, SCTP_STATE_IN_ACCEPT_QUEUE);
+				sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 			}
 			cnt++;
-			SCTP_TCB_UNLOCK(asoc);
+			SCTP_TCB_UNLOCK(stcb);
 			continue;
 		}
 		/* Free associations that are NOT killing us */
-		if ((SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT) &&
-		    ((asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0)) {
+		if ((SCTP_GET_STATE(stcb) != SCTP_STATE_COOKIE_WAIT) &&
+		    ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0)) {
 			struct mbuf *op_err;
 
 			op_err = sctp_generate_cause(SCTP_CAUSE_USER_INITIATED_ABT, "");
-			asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_7;
-			sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
+			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_7;
+			sctp_send_abort_tcb(stcb, op_err, SCTP_SO_LOCKED);
 			SCTP_STAT_INCR_COUNTER32(sctps_aborted);
-		} else if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+		} else if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 			cnt++;
-			SCTP_TCB_UNLOCK(asoc);
+			SCTP_TCB_UNLOCK(stcb);
 			continue;
 		}
-		if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
-		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+		if ((SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) ||
+		    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_FORCE,
+		if (sctp_free_assoc(inp, stcb, SCTP_PCBFREE_FORCE,
 		    SCTP_FROM_SCTP_PCB + SCTP_LOC_8) == 0) {
 			cnt++;
 		}
@@ -3664,9 +3664,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 
 #ifdef SCTP_TRACK_FREED_ASOCS
 	/* TEMP CODE */
-	LIST_FOREACH_SAFE(asoc, &inp->sctp_asoc_free_list, sctp_tcblist, nasoc) {
-		LIST_REMOVE(asoc, sctp_tcblist);
-		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_asoc), asoc);
+	LIST_FOREACH_SAFE(stcb, &inp->sctp_asoc_free_list, sctp_tcblist, nstcb) {
+		LIST_REMOVE(stcb, sctp_tcblist);
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_asoc), stcb);
 		SCTP_DECR_ASOC_COUNT();
 	}
 	/* *** END TEMP CODE *** */
