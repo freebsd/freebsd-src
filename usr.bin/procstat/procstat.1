@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2021
+.Dd April 7, 2022
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -144,6 +144,23 @@ for details on command line arguments.
 The following commands are available for
 .Nm :
 .Bl -tag -width indent
+.It Ar advlock
+Print information about advisory locks on files.
+All three types of locks are listed, BSD-style
+.Xr lockf 2 ,
+POSIX-style
+.Xr fcntl 2
+.Va F_SETLK ,
+and remote
+.Xr lockd 8
+locks used by NFSv3.
+.Pp
+Note that neither the
+.Fl a
+option nor
+.Va pid
+list can be used to limit the display of the locks, mostly because
+some types of locks do not have local (or any) owning processes.
 .It Ar basic
 Print basic process statistics (this is the default).
 .It Ar binary | Fl b
@@ -709,6 +726,45 @@ command
 auxiliary vector name
 .It VALUE
 auxiliary vector value
+.El
+.Ss Advisory Lock Information
+.Bl -tag -width indent -compact
+.It RW
+Read/Write type,
+.Va RO
+for read,
+.Va RW
+for write lock
+.It TYPE
+Type of the lock, one of
+.Va FLOCK
+for
+.Xr flock 2 ,
+.Va FCNTL
+for
+.Xr fcntl 2 ,
+.Va LOCKD
+for remote
+.It PID
+Process id of the owner, for
+.Va FCNTL
+and remote types
+.It SYSID
+Remote system id if applicable
+.It FSID
+File system id where the locked file resize
+.It RDEV
+rdev for the file system
+.It INO
+Unique file identifier (inode number) of the locked file
+on the file system
+.It START
+Start offset of the locked range
+.It LEN
+Length of the locked range.
+Zero means till EOF
+.It PATH
+If available, the path of the locked file
 .El
 .Sh EXIT STATUS
 .Ex -std
