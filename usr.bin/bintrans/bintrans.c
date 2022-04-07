@@ -26,7 +26,9 @@
  */
 
 #include <sys/param.h>
+#include <getopt.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,11 +36,16 @@
 
 extern int	main_decode(int, char *[]);
 extern int	main_encode(int, char *[]);
+extern int	main_base64_decode(const char *);
+extern int	main_base64_encode(const char *, const char *);
 
 static int	search(const char *const);
+static void	usage_base64(bool);
+static void	version_base64(void);
+static void	base64_encode_or_decode(int, char *[]);
 
 enum coders {
-	uuencode, uudecode, b64encode, b64decode
+	uuencode, uudecode, b64encode, b64decode, base64
 };
 
 int
@@ -61,11 +68,15 @@ main(int argc, char *argv[])
 	case b64decode:
 		main_decode(argc, argv);
 		break;
+	case base64:
+		base64_encode_or_decode(argc, argv);
+		break;
 	default:
 		(void)fprintf(stderr,
-		    "usage: %s <uuencode | uudecode> ...\n"
-		    "       %s <b64encode | b64decode> ...\n",
-		    progname, progname);
+		    "usage: %1$s <uuencode | uudecode> ...\n"
+		    "       %1$s <b64encode | b64decode> ...\n"
+		    "       %1$s <base64> ...\n",
+		    progname);
 		exit(EX_USAGE);
 	}
 }
@@ -78,11 +89,67 @@ search(const char *const progname)
 		DESIGNATE(uuencode),
 		DESIGNATE(uudecode),
 		DESIGNATE(b64encode),
-		DESIGNATE(b64decode)
+		DESIGNATE(b64decode),
+		DESIGNATE(base64)
 	};
 
 	for (size_t i = 0; i < nitems(known); i++)
 		if (strcmp(progname, known[i]) == 0)
 			return ((int)i);
 	return (-1);
+}
+
+static void
+usage_base64(bool failure)
+{
+	(void)fputs("usage: base64 [-w col | --wrap=col] "
+	    "[-d | --decode] [FILE]\n"
+	    "       base64 --help\n"
+	    "       base64 --version\n", stderr);
+	exit(failure ? EXIT_FAILURE : EXIT_SUCCESS);
+}
+
+static void
+version_base64(void)
+{
+	(void)fputs("FreeBSD base64\n", stderr);
+	exit(EXIT_SUCCESS);
+}
+
+static void
+base64_encode_or_decode(int argc, char *argv[])
+{
+	int ch;
+	bool decode = false;
+	const char *w = NULL;
+	enum { HELP, VERSION };
+	static const struct option opts[] =
+	{
+		{"decode",	no_argument,		NULL, 'd'},
+		{"ignore-garbage",no_argument,		NULL, 'i'},
+		{"wrap",	required_argument,	NULL, 'w'},
+		{"help",	no_argument,		NULL, HELP},
+		{"version",	no_argument,		NULL, VERSION},
+		{NULL,		no_argument,		NULL, 0}
+	};
+
+	while ((ch = getopt_long(argc, argv, "diw:", opts, NULL)) != -1)
+		switch (ch) {
+		case 'd':
+			decode = true;
+			break;
+		case 'w':
+			w = optarg;
+			break;
+		case VERSION:
+			version_base64();
+		case HELP:
+		default:
+			usage_base64(ch == '?');
+		}
+
+	if (decode)
+		main_base64_decode(argv[optind]);
+	else
+		main_base64_encode(argv[optind], w);
 }
