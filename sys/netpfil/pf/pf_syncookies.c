@@ -141,10 +141,13 @@ pf_get_syncookies(struct pfioc_nv *nv)
 {
 	nvlist_t	*nvl = NULL;
 	void		*nvlpacked = NULL;
+	int		 error;
+
+#define ERROUT(x)	ERROUT_FUNCTION(errout, x)
 
 	nvl = nvlist_create(0);
 	if (nvl == NULL)
-		return (ENOMEM);
+		ERROUT(ENOMEM);
 
 	nvlist_add_bool(nvl, "enabled",
 	    V_pf_status.syncookies_mode != PF_SYNCOOKIES_NEVER);
@@ -154,21 +157,23 @@ pf_get_syncookies(struct pfioc_nv *nv)
 	nvlist_add_number(nvl, "lowwater", V_pf_syncookie_status.lowat);
 
 	nvlpacked = nvlist_pack(nvl, &nv->len);
-	if (nvlpacked == NULL) {
-		nvlist_destroy(nvl);
-		return (ENOMEM);
-	}
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
 	if (nv->size == 0) {
-		nvlist_destroy(nvl);
-		free(nvlpacked, M_TEMP);
-		return (0);
+		ERROUT(0);
 	} else if (nv->size < nv->len) {
-		nvlist_destroy(nvl);
-		free(nvlpacked, M_TEMP);
-		return (ENOSPC);
+		ERROUT(ENOSPC);
 	}
 
-	return (copyout(nvlpacked, nv->data, nv->len));
+	error = copyout(nvlpacked, nv->data, nv->len);
+
+#undef ERROUT
+errout:
+	nvlist_destroy(nvl);
+	free(nvlpacked, M_TEMP);
+
+	return (error);
 }
 
 int
