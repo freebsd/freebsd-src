@@ -63,7 +63,7 @@
 #define   CGEM_NET_CTRL_RX_EN			(1 << 2)
 #define   CGEM_NET_CTRL_LOOP_LOCAL		(1 << 1)
 
-#define CGEM_NET_CFG			0x004	/* Netowrk Configuration */
+#define CGEM_NET_CFG			0x004	/* Network Configuration */
 #define   CGEM_NET_CFG_UNIDIR_EN		(1U << 31)
 #define   CGEM_NET_CFG_IGNORE_IPG_RX_ER		(1 << 30)
 #define   CGEM_NET_CFG_RX_BAD_PREAMBLE		(1 << 29)
