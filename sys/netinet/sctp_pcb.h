@@ -465,7 +465,6 @@ struct sctp_tcb {
 	uint16_t rport;		/* remote port in network format */
 	uint16_t resv;
 	struct mtx tcb_mtx;
-	struct mtx tcb_send_mtx;
 };
 
 #include <netinet/sctp_lock_bsd.h>
