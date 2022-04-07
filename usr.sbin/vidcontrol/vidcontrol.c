@@ -186,7 +186,7 @@ usage(void)
 {
 	if (vt4_mode)
 		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: vidcontrol [-CHPpx] [-b color] [-c appearance] [-f [[size] file]]",
+"usage: vidcontrol [-Cx] [-b color] [-c appearance] [-f [[size] file]]",
 "                  [-g geometry] [-h size] [-i active | adapter | mode]",
 "                  [-M char] [-m on | off]",
 "                  [-r foreground background] [-S on | off] [-s number]",
@@ -1439,7 +1439,7 @@ main(int argc, char **argv)
 	dumpopt = DUMP_FBF;
 	termmode = NULL;
 	if (vt4_mode)
-		opts = "b:Cc:fg:h:Hi:M:m:pPr:S:s:T:t:x";
+		opts = "b:Cc:fg:h:i:M:m:r:S:s:T:t:x";
 	else
 		opts = "b:Cc:deE:fg:h:Hi:l:LM:m:pPr:S:s:T:t:x";
 
