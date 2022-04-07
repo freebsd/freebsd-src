@@ -604,6 +604,7 @@ ATF_TC_BODY(path_io, tc)
 	char path[PATH_MAX], path2[PATH_MAX];
 	char buf[BUFSIZ];
 	struct iovec iov;
+	size_t page_size;
 	int error, fd, pathfd, sd[2];
 
 	/* It shouldn't be possible to create new files with O_PATH. */
@@ -667,14 +668,15 @@ ATF_TC_BODY(path_io, tc)
 	ATF_REQUIRE_MSG(error == ESPIPE, "posix_fadvise() returned %d", error);
 
 	/* mmap() is not allowed. */
+	page_size = getpagesize();
 	ATF_REQUIRE_ERRNO(ENODEV,
-	    mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, pathfd, 0) ==
+	    mmap(NULL, page_size, PROT_READ, MAP_SHARED, pathfd, 0) ==
 	    MAP_FAILED);
 	ATF_REQUIRE_ERRNO(ENODEV,
-	    mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_SHARED, pathfd, 0) ==
+	    mmap(NULL, page_size, PROT_NONE, MAP_SHARED, pathfd, 0) ==
 	    MAP_FAILED);
 	ATF_REQUIRE_ERRNO(ENODEV,
-	    mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE, pathfd, 0) ==
+	    mmap(NULL, page_size, PROT_READ, MAP_PRIVATE, pathfd, 0) ==
 	    MAP_FAILED);
 
 	/* No fsync() or fdatasync(). */
