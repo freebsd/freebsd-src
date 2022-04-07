@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2019
+.Dd April 7, 2022
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -209,7 +209,7 @@ TCP/IP packet.
 The data is CSV formatted.
 .Bd -literal -offset indent
 o,0xbec491a5,1238556193.463551,172.16.7.28,22,172.16.2.5,55931, \\
-1073725440,172312,6144,66560,66608,8,1,4,1448,936,1,996,255, \\
+1073725440,172312,34,66560,66608,8,1,4,1448,936,1,996,255, \\
 33304,208,66608,0,208,0
 .Ed
 .Pp
@@ -262,7 +262,7 @@ The current congestion window for the flow, in bytes.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 10
-The current bandwidth-controlled window for the flow, in bytes.
+The current state of the t_flags2 field for the flow.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 11
