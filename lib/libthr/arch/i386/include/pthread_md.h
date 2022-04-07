@@ -41,6 +41,9 @@
 
 #define	CPU_SPINWAIT		__asm __volatile("pause")
 
+/* For use in _Static_assert to check structs will fit in a page */
+#define	THR_PAGE_SIZE_MIN	PAGE_SIZE
+
 static __inline struct pthread *
 _get_curthread(void)
 {

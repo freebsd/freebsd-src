@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "thr_private.h"
 
-_Static_assert(sizeof(struct pthread_rwlock) <= PAGE_SIZE,
+_Static_assert(sizeof(struct pthread_rwlock) <= THR_PAGE_SIZE_MIN,
     "pthread_rwlock is too large for off-page");
 
 __weak_reference(_thr_rwlock_destroy, pthread_rwlock_destroy);

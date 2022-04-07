@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-_Static_assert(sizeof(struct pthread_spinlock) <= PAGE_SIZE,
+_Static_assert(sizeof(struct pthread_spinlock) <= THR_PAGE_SIZE_MIN,
     "pthread_spinlock is too large for off-page");
 
 #define SPIN_COUNT 100000
