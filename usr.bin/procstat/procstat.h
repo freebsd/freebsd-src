@@ -44,6 +44,7 @@ enum {
 	PS_OPT_SIGNUM		= 0x08,
 	PS_OPT_VERBOSE		= 0x10,
 	PS_MODE_COMPAT		= 0x20,
+	PS_MODE_NO_KINFO_PROC	= 0x40,
 };
 
 #define PS_SUBCOMMAND_OPTS			\
