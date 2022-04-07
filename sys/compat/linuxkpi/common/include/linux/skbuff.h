@@ -38,6 +38,7 @@
 #ifndef	_LINUXKPI_LINUX_SKBUFF_H
 #define	_LINUXKPI_LINUX_SKBUFF_H
 
+#include <linux/kernel.h>
 #include <linux/page.h>
 #include <linux/dma-mapping.h>
 #include <linux/netdev_features.h>
@@ -84,7 +85,7 @@ enum sk_buff_pkt_type {
 	PACKET_OTHERHOST,
 };
 
-#define	NET_SKB_PAD		CACHE_LINE_SIZE		/* ? */
+#define	NET_SKB_PAD		max(CACHE_LINE_SIZE, 32)
 
 struct sk_buff_head {
 		/* XXX TODO */
@@ -168,6 +169,7 @@ struct sk_buff {
 /* -------------------------------------------------------------------------- */
 
 struct sk_buff *linuxkpi_alloc_skb(size_t, gfp_t);
+struct sk_buff *linuxkpi_dev_alloc_skb(size_t, gfp_t);
 void linuxkpi_kfree_skb(struct sk_buff *);
 
 /* -------------------------------------------------------------------------- */
@@ -187,7 +189,7 @@ __dev_alloc_skb(size_t len, gfp_t gfp)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(len, gfp);
+	skb = linuxkpi_dev_alloc_skb(len, gfp);
 	SKB_IMPROVE();
 	SKB_TRACE(skb);
 	return (skb);
@@ -198,7 +200,7 @@ dev_alloc_skb(size_t len)
 {
 	struct sk_buff *skb;
 
-	skb = alloc_skb(len, GFP_NOWAIT);
+	skb = __dev_alloc_skb(len, GFP_NOWAIT);
 	SKB_IMPROVE();
 	SKB_TRACE(skb);
 	return (skb);
