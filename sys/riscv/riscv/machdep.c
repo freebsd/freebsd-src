@@ -111,9 +111,6 @@ int cold = 1;
 
 #define	DTB_SIZE_MAX	(1024 * 1024)
 
-vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
-u_int physmap_idx;
-
 struct kva_md_info kmi;
 
 int64_t dcache_line_size;	/* The minimum D cache line size */
@@ -553,18 +550,15 @@ initriscv(struct riscv_bootparams *rvbp)
 
 #ifdef FDT
 	/*
-	 * XXX: Exclude the lowest 2MB of physical memory, if it hasn't been
-	 * already, as this area is assumed to contain the SBI firmware. This
-	 * is a little fragile, but it is consistent with the platforms we
-	 * support so far.
+	 * XXX: Unconditionally exclude the lowest 2MB of physical memory, as
+	 * this area is assumed to contain the SBI firmware. This is a little
+	 * fragile, but it is consistent with the platforms we support so far.
 	 *
 	 * TODO: remove this when the all regular booting methods properly
 	 * report their reserved memory in the device tree.
 	 */
-	if (mem_regions[0].mr_start == physmap[0]) {
-		physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
-		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
-	}
+	physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
+	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 #endif
 	physmem_init_kernel_globals();
 
