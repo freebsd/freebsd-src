@@ -509,13 +509,15 @@ ng_tag_rcvdata(hook_p hook, item_p item)
 	uint32_t cookie;
 	hinfo_p dhip;
 	hook_p dest;
+#ifdef NG_TAG_DEBUG
 	int totlen;
+#endif
 	int found = 0, error = 0;
 
 	m = NGI_M(item);	/* 'item' still owns it.. we are peeking */
+#ifdef NG_TAG_DEBUG
 	totlen = m->m_pkthdr.len;
 
-#ifdef NG_TAG_DEBUG
 	hip->stats.recvFrames++;
 	hip->stats.recvOctets += totlen;
 #endif
