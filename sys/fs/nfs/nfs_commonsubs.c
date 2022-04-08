@@ -441,6 +441,10 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 					NFSGETATTR_ATTRBIT(&attrbits);
 				else {
 					NFSWCCATTR_ATTRBIT(&attrbits);
+					/* For AppendWrite, get the size. */
+					if (procnum == NFSPROC_APPENDWRITE)
+						NFSSETBIT_ATTRBIT(&attrbits,
+						    NFSATTRBIT_SIZE);
 					nd->nd_flag |= ND_V4WCCATTR;
 				}
 				(void) nfsrv_putattrbit(nd, &attrbits);

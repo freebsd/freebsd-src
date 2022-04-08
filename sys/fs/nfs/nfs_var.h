@@ -376,7 +376,7 @@ int nfscl_mtofh(struct nfsrv_descript *, struct nfsfh **,
 int nfscl_postop_attr(struct nfsrv_descript *, struct nfsvattr *, int *,
     void *);
 int nfscl_wcc_data(struct nfsrv_descript *, vnode_t,
-    struct nfsvattr *, int *, int *, void *);
+    struct nfsvattr *, int *, int *, uint64_t *);
 int nfsm_loadattr(struct nfsrv_descript *, struct nfsvattr *);
 int nfscl_request(struct nfsrv_descript *, vnode_t,
          NFSPROC_T *, struct ucred *, void *);

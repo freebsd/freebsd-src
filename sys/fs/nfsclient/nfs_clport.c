@@ -781,7 +781,7 @@ nfscl_start_renewthread(struct nfsclclient *clp)
  */
 int
 nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
-    struct nfsvattr *nap, int *flagp, int *wccflagp, void *stuff)
+    struct nfsvattr *nap, int *flagp, int *wccflagp, uint64_t *repsizep)
 {
 	u_int32_t *tl;
 	struct nfsnode *np = VTONFS(vp);
@@ -804,7 +804,7 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 				NFSUNLOCKNODE(np);
 			}
 		}
-		error = nfscl_postop_attr(nd, nap, flagp, stuff);
+		error = nfscl_postop_attr(nd, nap, flagp, NULL);
 		if (wccflagp != NULL && *flagp == 0)
 			*wccflagp = 0;
 	} else if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR))
@@ -820,6 +820,8 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		if (*++tl)
 			nd->nd_flag |= ND_NOMOREDATA;
+		if (repsizep != NULL)
+			*repsizep = nfsva.na_size;
 		if (wccflagp != NULL &&
 		    nfsva.na_vattr.va_mtime.tv_sec != 0) {
 			NFSLOCKNODE(np);
