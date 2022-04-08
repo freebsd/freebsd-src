@@ -285,12 +285,13 @@ rtc_to_secs(struct vrtc *vrtc)
 	struct clocktime ct;
 	struct timespec ts;
 	struct rtcdev *rtc;
-	struct vm *vm __diagused;
+#ifdef KTR
+	struct vm *vm = vtrc->vm;
+#endif
 	int century, error, hour, pm, year;
 
 	KASSERT(VRTC_LOCKED(vrtc), ("%s: vrtc not locked", __func__));
 
-	vm = vrtc->vm;
 	rtc = &vrtc->rtcdev;
 
 	bzero(&ct, sizeof(struct clocktime));
@@ -401,7 +402,6 @@ static int
 vrtc_time_update(struct vrtc *vrtc, time_t newtime, sbintime_t newbase)
 {
 	struct rtcdev *rtc;
-	sbintime_t oldbase __diagused;
 	time_t oldtime;
 	uint8_t alarm_sec, alarm_min, alarm_hour;
 
@@ -416,9 +416,8 @@ vrtc_time_update(struct vrtc *vrtc, time_t newtime, sbintime_t newbase)
 	VM_CTR2(vrtc->vm, "Updating RTC secs from %#lx to %#lx",
 	    oldtime, newtime);
 
-	oldbase = vrtc->base_uptime;
 	VM_CTR2(vrtc->vm, "Updating RTC base uptime from %#lx to %#lx",
-	    oldbase, newbase);
+	    vrtc->base_uptime, newbase);
 	vrtc->base_uptime = newbase;
 
 	if (newtime == oldtime)
