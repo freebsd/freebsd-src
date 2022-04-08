@@ -7374,7 +7374,7 @@ ice_init_dcb_setup(struct ice_softc *sc)
 	/* If there is an error, then FW LLDP is not in a usable state */
 	if (status != 0 && status != ICE_ERR_NOT_READY) {
 		/* Don't print an error message if the return code from the AQ
-		 * cmd performed in ice_init_dcb() is is EPERM; that means the
+		 * cmd performed in ice_init_dcb() is EPERM; that means the
 		 * FW LLDP engine is disabled, and that is a valid state.
 		 */
 		if (!(status == ICE_ERR_AQ_ERROR &&
