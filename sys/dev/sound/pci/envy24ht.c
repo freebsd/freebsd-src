@@ -1156,9 +1156,9 @@ envy24ht_gethwptr(struct sc_info *sc, int dir)
 static void
 envy24ht_updintr(struct sc_info *sc, int dir)
 {
-	int regptr, regintr;
+	int regintr;
 	u_int32_t mask, intr;
-	u_int32_t ptr, size, cnt;
+	u_int32_t cnt;
 	u_int16_t blk;
 
 #if(0)
@@ -1166,28 +1166,18 @@ envy24ht_updintr(struct sc_info *sc, int dir)
 #endif
 	if (dir == PCMDIR_PLAY) {
 		blk = sc->blk[0];
-		size = sc->psize / 4;
-		regptr = ENVY24HT_MT_PCNT;
 		regintr = ENVY24HT_MT_PTERM;
 		mask = ~ENVY24HT_MT_INT_PMASK;
 	}
 	else {
 		blk = sc->blk[1];
-		size = sc->rsize / 4;
-		regptr = ENVY24HT_MT_RCNT;
 		regintr = ENVY24HT_MT_RTERM;
 		mask = ~ENVY24HT_MT_INT_RMASK;
 	}
 
-	ptr = size - envy24ht_rdmt(sc, regptr, 2) - 1;
-	/*
-	cnt = blk - ptr % blk - 1;
-	if (cnt == 0)
-		cnt = blk - 1;
-	*/
 	cnt = blk - 1;
 #if(0)
-	device_printf(sc->dev, "envy24ht_updintr():ptr = %d, blk = %d, cnt = %d\n", ptr, blk, cnt);
+	device_printf(sc->dev, "envy24ht_updintr():blk = %d, cnt = %d\n", blk, cnt);
 #endif
 	envy24ht_wrmt(sc, regintr, cnt, 2);
 	intr = envy24ht_rdmt(sc, ENVY24HT_MT_INT_MASK, 1);
