@@ -855,10 +855,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 				    linkhdr, &linkhdrsize, &lladdr_off) != 0)
 					goto freeit;
 				if (lltable_try_set_entry_addr(ifp, ln, linkhdr,
-				    linkhdrsize, lladdr_off) == 0) {
-					ln = NULL;
+				    linkhdrsize, lladdr_off) == 0)
 					goto freeit;
-				}
 				EVENTHANDLER_INVOKE(lle_event, ln,
 				    LLENTRY_RESOLVED);
 			}
