@@ -4872,7 +4872,10 @@ qlnx_fp_isr(void *arg)
         if (fp == NULL) {
                 ha->err_fp_null++;
         } else {
-		int			rx_int = 0, total_rx_count = 0;
+		int			rx_int = 0;
+#ifdef QLNX_SOFT_LRO
+		int			total_rx_count = 0;
+#endif
 		int 			lro_enable, tc;
 		struct qlnx_tx_queue	*txq;
 		uint16_t		elem_left;
@@ -4918,7 +4921,9 @@ qlnx_fp_isr(void *arg)
 
                         if (rx_int) {
                                 fp->rx_pkts += rx_int;
+#ifdef QLNX_SOFT_LRO
                                 total_rx_count += rx_int;
+#endif
                         }
 
                 } while (rx_int);
