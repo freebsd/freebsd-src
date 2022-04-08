@@ -246,7 +246,7 @@ qlnx_rdma_register_if(qlnx_rdma_if_t *rdma_if)
 		return (0);
 	}
 
-	return (-1);
+	return (ENXIO);
 }
 
 int

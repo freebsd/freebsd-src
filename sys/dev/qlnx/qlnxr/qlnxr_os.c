@@ -1300,7 +1300,7 @@ qlnxr_mod_load(void)
 
 	ret = qlnx_rdma_register_if(&qlnxr_drv);
 
-	return (0);
+	return (ret);
 }
 
 static int
