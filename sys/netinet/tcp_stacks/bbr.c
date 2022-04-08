@@ -1727,7 +1727,7 @@ bbr_init_sysctls(void)
 	    SYSCTL_CHILDREN(bbr_policer),
 	    OID_AUTO, "false_postive", CTLFLAG_RW,
 	    &bbr_lt_intvl_fp, 0,
-	    "What packet epoch do we do false-postive detection at (0=no)?");
+	    "What packet epoch do we do false-positive detection at (0=no)?");
 	SYSCTL_ADD_S32(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_policer),
 	    OID_AUTO, "loss_thresh", CTLFLAG_RW,
@@ -3894,7 +3894,7 @@ bbr_post_recovery(struct tcpcb *tp)
 			}
 		} else {
 			/*
-			 * A strict drop limit of N is is inplace
+			 * A strict drop limit of N is inplace
 			 */
 			if (newcwnd < (bbr_drop_limit * maxseg)) {
 				newcwnd = bbr_drop_limit * maxseg;
