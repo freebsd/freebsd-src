@@ -84,14 +84,11 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
         qla_host_t *ha;
         int rval = 0;
-	device_t pci_dev;
 
 	qls_mpi_dump_t *mpi_dump;
 
         if ((ha = (qla_host_t *)dev->si_drv1) == NULL)
                 return ENXIO;
-
-	pci_dev= ha->pci_dev;
 
         switch(cmd) {
 	case QLA_MPI_DUMP:

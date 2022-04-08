@@ -503,7 +503,6 @@ static void
 qls_wr_ofunc_reg(qla_host_t *ha, uint32_t reg, uint32_t value)
 {
 	uint32_t ofunc;
-	int ret = 0;
 
 	ofunc = qls_get_other_fnum(ha);
 
@@ -512,7 +511,7 @@ qls_wr_ofunc_reg(qla_host_t *ha, uint32_t reg, uint32_t value)
 
 	reg = Q81_CTL_PROC_ADDR_REG_BLOCK | (ofunc << Q81_FUNCTION_SHIFT) | reg;
 
-	ret = qls_wr_mpi_reg(ha, reg, value);
+	qls_wr_mpi_reg(ha, reg, value);
 
 	return;
 }
