@@ -411,7 +411,7 @@ chipc_find_nvram_src(struct chipc_softc *sc, struct chipc_caps *caps)
 
 	/*
 	 * We check for hardware presence in order of precedence. For example,
-	 * SPROM is is always used in preference to internal OTP if found.
+	 * SPROM is always used in preference to internal OTP if found.
 	 */
 	if (CHIPC_QUIRK(sc, SUPPORTS_SPROM) && caps->sprom) {
 		srom_ctrl = bhnd_bus_read_4(sc->core, CHIPC_SPROM_CTRL);

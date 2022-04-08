@@ -153,7 +153,7 @@ typedef enum {
 enum bhndb_alloc_flags {
 	/**
 	 * If resource overcommit prevents fulfilling a request for this
-	 * resource, an in-use resource should be be borrowed to fulfill the
+	 * resource, an in-use resource should be borrowed to fulfill the
 	 * request.
 	 * 
 	 * The only known use case is to support accessing the ChipCommon core
