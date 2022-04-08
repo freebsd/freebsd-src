@@ -263,7 +263,6 @@ buffer_copy(struct sc_chinfo *ch)
 	struct sc_info *sc;
 	int ssize, dsize;
 	int src, dst;
-	int length;
 	int n;
 	int i;
 
@@ -271,9 +270,6 @@ buffer_copy(struct sc_chinfo *ch)
 	sc = scp->sc;
 
 	n = AFMT_CHANNEL(ch->format); /* n channels */
-
-	length = sndbuf_getready(ch->buffer) /
-	    (4 /* Bytes per sample. */ * n);
 
 	if (ch->dir == PCMDIR_PLAY) {
 		src = sndbuf_getreadyptr(ch->buffer);
