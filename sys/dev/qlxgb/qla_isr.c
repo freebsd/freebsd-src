@@ -378,14 +378,12 @@ qla_rcv(void *context, int pending)
 {
 	qla_ivec_t *ivec = context;
 	qla_host_t *ha;
-	device_t dev;
 	qla_hw_t *hw;
 	uint32_t sds_idx;
 	uint32_t ret;
 	struct ifnet *ifp;
 
 	ha = ivec->ha;
-	dev = ha->pci_dev;
 	hw = &ha->hw;
 	sds_idx = ivec->irq_rid - 1;
 	ifp = ha->ifp;
