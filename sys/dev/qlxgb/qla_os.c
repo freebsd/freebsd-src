@@ -409,7 +409,6 @@ static int
 qla_pci_detach(device_t dev)
 {
 	qla_host_t *ha = NULL;
-	struct ifnet *ifp;
 	int i;
 
 	QL_DPRINT2((dev, "%s: enter\n", __func__));
@@ -418,8 +417,6 @@ qla_pci_detach(device_t dev)
                 device_printf(dev, "cannot get softc\n");
                 return (ENOMEM);
         }
-
-	ifp = ha->ifp;
 
 	QLA_LOCK(ha, __func__);
 	qla_stop(ha);
@@ -1130,9 +1127,6 @@ static void
 qla_stop(qla_host_t *ha)
 {
 	struct ifnet *ifp = ha->ifp;
-	device_t	dev;
-
-	dev = ha->pci_dev;
 
 	ha->flags.qla_watchdog_pause = 1;
 	qla_mdelay(__func__, 100);
@@ -1389,13 +1383,10 @@ qla_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp,
 	uint32_t jumbo)
 {
 	struct mbuf *mp = nmp;
-	struct ifnet   *ifp;
 	int             ret = 0;
 	uint32_t	offset;
 
 	QL_DPRINT2((ha->pci_dev, "%s: jumbo(0x%x) enter\n", __func__, jumbo));
-
-	ifp = ha->ifp;
 
 	if (mp == NULL) {
 		if (!jumbo) {
