@@ -202,7 +202,7 @@ static int
 pcx_draw(video_adapter_t *adp)
 {
 	uint8_t *vidmem;
-	int swidth, sheight, sbpsl, sdepth, splanes;
+	int swidth, sheight, sbpsl;
 	int banksize, origin;
 	int c, i, j, pos, scan, x, y;
 	uint8_t line[MAXSCANLINE];
@@ -216,8 +216,6 @@ pcx_draw(video_adapter_t *adp)
 	swidth = adp->va_info.vi_width;
 	sheight = adp->va_info.vi_height;
 	sbpsl = adp->va_line_width;
-	sdepth = adp->va_info.vi_depth;
-	splanes = adp->va_info.vi_planes;
 	banksize = adp->va_window_size;
 
 	for (origin = 0; origin < sheight*sbpsl; origin += banksize) {
