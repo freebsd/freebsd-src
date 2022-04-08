@@ -1315,6 +1315,19 @@ ieee80211_get_tid(struct ieee80211_hdr *hdr)
 	return (linuxkpi_ieee80211_get_tid(hdr));
 }
 
+static __inline struct sk_buff *
+ieee80211_beacon_get_tim(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    uint16_t *tim_offset, uint16_t *tim_len)
+{
+
+	if (tim_offset != NULL)
+		*tim_offset = 0;
+	if (tim_len != NULL)
+		*tim_len = 0;
+	TODO();
+	return (NULL);
+}
+
 static __inline void
 ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
     enum ieee80211_iface_iter flags,
@@ -1672,11 +1685,10 @@ ieee80211_send_eosp_nullfunc(struct ieee80211_sta *sta, uint8_t tid)
 }
 
 static __inline uint16_t
-ieee80211_sn_sub(uint16_t sn, uint16_t n)
+ieee80211_sn_sub(uint16_t sa, uint16_t sb)
 {
-	TODO();
 
-	return (0);
+	return ((sa - sb) & IEEE80211_SEQ_SEQ_MASK);
 }
 
 static __inline void
