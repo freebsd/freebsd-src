@@ -236,7 +236,6 @@ sgx_va_slot_init(struct sgx_softc *sc,
 	uint64_t va_page_idx;
 	uint64_t idx;
 	vm_object_t object;
-	int va_slot;
 	int ret;
 
 	object = enclave->object;
@@ -245,7 +244,6 @@ sgx_va_slot_init(struct sgx_softc *sc,
 
 	pidx = OFF_TO_IDX(addr);
 
-	va_slot = pidx % SGX_VA_PAGE_SLOTS;
 	va_page_idx = pidx / SGX_VA_PAGE_SLOTS;
 	idx = - SGX_VA_PAGES_OFFS - va_page_idx;
 
