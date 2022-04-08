@@ -286,7 +286,7 @@ rtc_to_secs(struct vrtc *vrtc)
 	struct timespec ts;
 	struct rtcdev *rtc;
 #ifdef KTR
-	struct vm *vm = vtrc->vm;
+	struct vm *vm = vrtc->vm;
 #endif
 	int century, error, hour, pm, year;
 
