@@ -1135,7 +1135,7 @@ done:
 
 static void bw_test(struct krping_cb *cb)
 {
-	int ccnt, scnt, rcnt;
+	int ccnt, scnt;
 	int iters=cb->count;
 	struct timeval start_tv, stop_tv;
 	cycles_t *post_cycles_start = NULL;
@@ -1149,7 +1149,6 @@ static void bw_test(struct krping_cb *cb)
 
 	ccnt = 0;
 	scnt = 0;
-	rcnt = 0;
 
 	post_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!post_cycles_start) {
