@@ -98,7 +98,6 @@ qlnxr_ll2_complete_rx_packet(void *cxt,
 	// struct qlnxr_qp *qp = dev->gsi_qp;
 	struct qlnxr_qp *qp = NULL;
 	unsigned long flags;
-	uint32_t qp_num = 0;
 	// uint32_t delay_count = 0, gsi_cons = 0;
 	//void * dest_va;
 
@@ -111,8 +110,6 @@ qlnxr_ll2_complete_rx_packet(void *cxt,
 	if (data->cookie == NULL) {
 		QL_DPRINT12(dev->ha, "cookie is NULL, bad sign\n");
 	}
-
-	qp_num = (0xFF << 16) | data->qp_id;
 
 	if (data->qp_id == 1) {
 		qp = dev->gsi_qp;
