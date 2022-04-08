@@ -444,13 +444,14 @@ amdvi_inv_domain(struct amdvi_softc *softc, uint16_t domain_id)
 static	bool
 amdvi_cmp_wait(struct amdvi_softc *softc)
 {
-	struct amdvi_ctrl *ctrl;
+#ifdef AMDVI_DEBUG_CMD
+	struct amdvi_ctrl *ctrl = softc->ctrl;
+#endif
 	const uint64_t VERIFY = 0xA5A5;
 	volatile uint64_t *read;
 	int i;
 	bool status;
 
-	ctrl = softc->ctrl;
 	read = &softc->cmp_data;
 	*read = 0;
 	amdvi_cmd_cmp(softc, VERIFY);
