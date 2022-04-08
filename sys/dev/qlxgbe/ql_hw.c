@@ -5176,8 +5176,7 @@ ql_rdmux2(qla_host_t *ha,
 
         read_addr = muxEntry->read_addr;
 
-        for (loop_cnt = 0; loop_cnt < muxEntry->select_value_count;
-		loop_cnt++) {
+        for (loop_cnt = 0; loop_cnt < select_value_count; loop_cnt++) {
                 uint32_t temp_sel_val;
 
 		ret = ql_rdwr_indreg32(ha, select_addr_1, &select_value_1, 0);
