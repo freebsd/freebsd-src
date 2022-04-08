@@ -1892,7 +1892,6 @@ ng_ppp_frag_checkstale(node_p node)
 	struct mbuf *m;
 	int seq;
 	item_p item;
-	int endseq;
 	uint16_t proto;
 
 	now.tv_sec = 0;			/* uninitialized state */
@@ -1941,7 +1940,6 @@ ng_ppp_frag_checkstale(node_p node)
 		}
 
 		/* Extract completed packet */
-		endseq = end->seq;
 		ng_ppp_get_packet(node, &m);
 
 		if ((m = ng_ppp_cutproto(m, &proto)) == NULL)
