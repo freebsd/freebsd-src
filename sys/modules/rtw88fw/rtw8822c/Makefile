@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-VERSION=	9911
+VERSION=	9910
 NAME=		8822c
 
 .include <bsd.kmod.mk>
