@@ -628,7 +628,9 @@ smbfs_rename(ap)
 	struct componentname *tcnp = ap->a_tcnp;
 /*	struct componentname *fcnp = ap->a_fcnp;*/
 	struct smb_cred *scred;
+#ifdef notnow
 	u_int16_t flags = 6;
+#endif
 	int error=0;
 
 	scred = NULL;
@@ -643,11 +645,17 @@ smbfs_rename(ap)
 		error = EBUSY;
 		goto out;
 	}
+#ifdef notnow
 	flags = 0x10;			/* verify all writes */
+#endif
 	if (fvp->v_type == VDIR) {
+#ifdef notnow
 		flags |= 2;
+#endif
 	} else if (fvp->v_type == VREG) {
+#ifdef notnow
 		flags |= 1;
+#endif
 	} else {
 		return EINVAL;
 	}
