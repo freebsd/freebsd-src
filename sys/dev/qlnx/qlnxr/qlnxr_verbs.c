@@ -1235,7 +1235,7 @@ qlnxr_alloc_pbl_tbl(struct qlnxr_dev *dev,
 	dma_addr_t		pa;
 	dma_addr_t		*pbl_main_tbl;
 	struct qlnxr_pbl	*pbl_table;
-	int			i, rc = 0;
+	int			i;
 	qlnx_host_t		*ha;
 
 	ha = dev->ha;
@@ -1253,7 +1253,6 @@ qlnxr_alloc_pbl_tbl(struct qlnxr_dev *dev,
 		va = qlnx_dma_alloc_coherent(&dev->ha->cdev, &pa, pbl_info->pbl_size);
 		if (!va) {
 			QL_DPRINT11(ha, "Failed to allocate pbl#%d\n", i);
-			rc = -ENOMEM;
 			goto err;
 		}
 		memset(va, 0, pbl_info->pbl_size);
@@ -2668,7 +2667,6 @@ qlnxr_create_user_qp(struct qlnxr_dev *dev,
 	struct ecore_rdma_create_qp_out_params out_params;
 	struct qlnxr_pd *pd = get_qlnxr_pd(ibpd);
 	struct ib_ucontext *ib_ctx = NULL;
-	struct qlnxr_ucontext *ctx = NULL;
 	struct qlnxr_create_qp_ureq ureq;
 	int alloc_and_init = QLNX_IS_ROCE(dev);
 	int rc = -EINVAL;
@@ -2679,7 +2677,6 @@ qlnxr_create_user_qp(struct qlnxr_dev *dev,
 	QL_DPRINT12(ha, "enter\n");
 
 	ib_ctx = ibpd->uobject->context;
-	ctx = get_qlnxr_ucontext(ib_ctx);
 
 	memset(&ureq, 0, sizeof(ureq));
 	rc = ib_copy_from_udata(&ureq, udata, sizeof(ureq));
