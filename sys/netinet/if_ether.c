@@ -1228,16 +1228,20 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 	/* Calculate full link prepend to use in lle */
 	linkhdrsize = sizeof(linkhdr);
 	if (lltable_calc_llheader(ifp, AF_INET, ar_sha(ah), linkhdr,
-	    &linkhdrsize, &lladdr_off) != 0)
+	    &linkhdrsize, &lladdr_off) != 0) {
+		LLE_WUNLOCK(la);
 		return;
+	}
 
 	/* Check if something has changed */
 	if (memcmp(la->r_linkdata, linkhdr, linkhdrsize) != 0 ||
 	    (la->la_flags & LLE_VALID) == 0) {
 		/* Try to perform LLE update */
 		if (lltable_try_set_entry_addr(ifp, la, linkhdr, linkhdrsize,
-		    lladdr_off) == 0)
+		    lladdr_off) == 0) {
+			LLE_WUNLOCK(la);
 			return;
+		}
 
 		/* Clear fast path feedback request if set */
 		llentry_mark_used(la);
