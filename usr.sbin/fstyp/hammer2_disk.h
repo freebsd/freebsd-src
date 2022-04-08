@@ -472,7 +472,7 @@ typedef uint64_t hammer2_key_t;
 typedef uint32_t hammer2_crc32_t;
 
 /*
- * Miscellanious ranges (all are unsigned).
+ * Miscellaneous ranges (all are unsigned).
  */
 #define HAMMER2_TID_MIN		1ULL
 #define HAMMER2_TID_MAX		0xFFFFFFFFFFFFFFFFULL
