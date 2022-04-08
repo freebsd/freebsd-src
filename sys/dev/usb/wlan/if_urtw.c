@@ -3775,12 +3775,11 @@ static usb_error_t
 urtw_led_blink(struct urtw_softc *sc)
 {
 	uint8_t ing = 0;
-	usb_error_t error;
 
 	if (sc->sc_gpio_blinkstate == URTW_LED_ON)
-		error = urtw_led_on(sc, URTW_LED_GPIO);
+		urtw_led_on(sc, URTW_LED_GPIO);
 	else
-		error = urtw_led_off(sc, URTW_LED_GPIO);
+		urtw_led_off(sc, URTW_LED_GPIO);
 	sc->sc_gpio_blinktime--;
 	if (sc->sc_gpio_blinktime == 0)
 		ing = 1;
@@ -3793,10 +3792,10 @@ urtw_led_blink(struct urtw_softc *sc)
 	if (ing == 1) {
 		if (sc->sc_gpio_ledstate == URTW_LED_ON &&
 		    sc->sc_gpio_ledon == 0)
-			error = urtw_led_on(sc, URTW_LED_GPIO);
+			urtw_led_on(sc, URTW_LED_GPIO);
 		else if (sc->sc_gpio_ledstate == URTW_LED_OFF &&
 		    sc->sc_gpio_ledon == 1)
-			error = urtw_led_off(sc, URTW_LED_GPIO);
+			urtw_led_off(sc, URTW_LED_GPIO);
 
 		sc->sc_gpio_blinktime = 0;
 		sc->sc_gpio_ledinprogress = 0;
@@ -4117,7 +4116,7 @@ urtw_txstatus_eof(struct usb_xfer *xfer)
 {
 	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	int actlen, type, pktretry, seq;
+	int actlen, type, pktretry;
 	uint64_t val;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
@@ -4129,11 +4128,10 @@ urtw_txstatus_eof(struct usb_xfer *xfer)
 	type = (val >> 30) & 0x3;
 	if (type == URTW_STATUS_TYPE_TXCLOSE) {
 		pktretry = val & 0xff;
-		seq = (val >> 16) & 0xff;
 		if (pktretry == URTW_TX_MAXRETRY)
 			counter_u64_add(ic->ic_oerrors, 1);
 		DPRINTF(sc, URTW_DEBUG_TXSTATUS, "pktretry %d seq %#x\n",
-		    pktretry, seq);
+		    pktretry, (val >> 16) & 0xff);
 	}
 }
 
