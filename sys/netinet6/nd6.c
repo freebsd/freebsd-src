@@ -2036,8 +2036,10 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		if (lladdr != NULL) {
 			linkhdrsize = sizeof(linkhdr);
 			if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
-			    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+			    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
+				lltable_free_entry(LLTABLE6(ifp), ln);
 				return;
+			}
 			lltable_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
 			    lladdr_off);
 		}

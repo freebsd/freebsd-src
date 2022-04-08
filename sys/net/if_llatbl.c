@@ -926,8 +926,10 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 		linkhdrsize = sizeof(linkhdr);
 		if (lltable_calc_llheader(ifp, dst->sa_family, LLADDR(dl),
-		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
+		    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
+			lltable_free_entry(llt, lle);
 			return (EINVAL);
+		}
 		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
 		    lladdr_off);
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
