@@ -1811,7 +1811,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
 	struct sysctl_oid *txq_node;
 	struct sfxge_txq *txq;
-	struct sfxge_evq *evq;
 	struct sfxge_tx_dpl *stdp;
 	struct sysctl_oid *dpl_node;
 	efsys_mem_t *esmp;
@@ -1825,8 +1824,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	sc->txq[txq_index] = txq;
 	esmp = &txq->mem;
-
-	evq = sc->evq[evq_index];
 
 	/* Allocate and zero DMA space for the descriptor ring. */
 	if ((rc = sfxge_dma_alloc(sc, EFX_TXQ_SIZE(sc->txq_entries), esmp)) != 0)

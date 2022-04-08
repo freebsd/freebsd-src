@@ -338,7 +338,6 @@ sfxge_intr_setup_msix(struct sfxge_softc *sc)
 static int
 sfxge_intr_setup_msi(struct sfxge_softc *sc)
 {
-	struct sfxge_intr_hdl *table;
 	struct sfxge_intr *intr;
 	device_t dev;
 	int count;
@@ -346,7 +345,6 @@ sfxge_intr_setup_msi(struct sfxge_softc *sc)
 
 	dev = sc->dev;
 	intr = &sc->intr;
-	table = intr->table;
 
 	/*
 	 * Check if MSI is available.  All messages must be written to

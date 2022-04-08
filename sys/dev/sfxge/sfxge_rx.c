@@ -1083,13 +1083,10 @@ sfxge_rx_stop(struct sfxge_softc *sc)
 int
 sfxge_rx_start(struct sfxge_softc *sc)
 {
-	struct sfxge_intr *intr;
 	const efx_nic_cfg_t *encp;
 	size_t hdrlen, align, reserved;
 	int index;
 	int rc;
-
-	intr = &sc->intr;
 
 	/* Initialize the common code receive module. */
 	if ((rc = efx_rx_init(sc->enp)) != 0)
@@ -1273,7 +1270,6 @@ static int
 sfxge_rx_qinit(struct sfxge_softc *sc, unsigned int index)
 {
 	struct sfxge_rxq *rxq;
-	struct sfxge_evq *evq;
 	efsys_mem_t *esmp;
 	int rc;
 
@@ -1288,8 +1284,6 @@ sfxge_rx_qinit(struct sfxge_softc *sc, unsigned int index)
 
 	sc->rxq[index] = rxq;
 	esmp = &rxq->mem;
-
-	evq = sc->evq[index];
 
 	/* Allocate and zero DMA space. */
 	if ((rc = sfxge_dma_alloc(sc, EFX_RXQ_SIZE(sc->rxq_entries), esmp)) != 0)
