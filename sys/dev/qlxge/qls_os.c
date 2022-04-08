@@ -485,7 +485,6 @@ static int
 qls_pci_detach(device_t dev)
 {
 	qla_host_t *ha = NULL;
-	struct ifnet *ifp;
 
 	QL_DPRINT2((dev, "%s: enter\n", __func__));
 
@@ -493,8 +492,6 @@ qls_pci_detach(device_t dev)
                 device_printf(dev, "cannot get softc\n");
                 return (ENOMEM);
         }
-
-	ifp = ha->ifp;
 
 	(void)QLA_LOCK(ha, __func__, 0);
 	qls_stop(ha);
@@ -1207,9 +1204,6 @@ static void
 qls_stop(qla_host_t *ha)
 {
 	struct ifnet *ifp = ha->ifp;
-	device_t	dev;
-
-	dev = ha->pci_dev;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
 
@@ -1372,15 +1366,12 @@ int
 qls_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp)
 {
 	struct mbuf *mp = nmp;
-	struct ifnet   		*ifp;
 	int            		ret = 0;
 	uint32_t		offset;
 	bus_dma_segment_t	segs[1];
 	int			nsegs;
 
 	QL_DPRINT2((ha->pci_dev, "%s: enter\n", __func__));
-
-	ifp = ha->ifp;
 
 	if (mp == NULL) {
 		mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, ha->msize);
