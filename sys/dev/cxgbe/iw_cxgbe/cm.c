@@ -1029,7 +1029,7 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 
 	/* MPA request might have been queued up on the socket already, so we
 	 * initialize the socket/upcall_handler under lock to prevent processing
-	 * MPA request on another thread(via process_req()) simultaniously.
+	 * MPA request on another thread(via process_req()) simultaneously.
 	 */
 	c4iw_get_ep(&new_ep->com); /* Dereferenced at the end below, this is to
 				      avoid freeing of ep before ep unlock. */
