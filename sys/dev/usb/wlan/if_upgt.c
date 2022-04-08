@@ -1153,17 +1153,15 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 	struct upgt_lmac_freq3 *freq3;
 	int i;
 	int elements;
-	int flags;
 	unsigned channel;
 
 	freq3_header = (struct upgt_eeprom_freq3_header *)data;
 	freq3 = (struct upgt_lmac_freq3 *)(freq3_header + 1);
 
-	flags = freq3_header->flags;
 	elements = freq3_header->elements;
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d\n",
-	    flags, elements);
+	    freq3_header->flags, elements);
 
 	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq3[0])))
 		return;
@@ -1190,12 +1188,10 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 	int j;
 	int elements;
 	int settings;
-	int flags;
 	unsigned channel;
 
 	freq4_header = (struct upgt_eeprom_freq4_header *)data;
 	freq4_1 = (struct upgt_eeprom_freq4_1 *)(freq4_header + 1);
-	flags = freq4_header->flags;
 	elements = freq4_header->elements;
 	settings = freq4_header->settings;
 
@@ -1203,7 +1199,7 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 	sc->sc_eeprom_freq6_settings = freq4_header->settings;
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d settings=%d\n",
-	    flags, elements, settings);
+	    freq4_header->flags, elements, settings);
 
 	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq4_1[0])))
 		return;
