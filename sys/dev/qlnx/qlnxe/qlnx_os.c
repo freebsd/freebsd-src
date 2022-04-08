@@ -762,9 +762,9 @@ static int
 qlnx_pci_attach(device_t dev)
 {
 	qlnx_host_t	*ha = NULL;
-	uint32_t	rsrc_len_reg = 0;
+	uint32_t	rsrc_len_reg __unused = 0;
 	uint32_t	rsrc_len_dbells = 0;
-	uint32_t	rsrc_len_msix = 0;
+	uint32_t	rsrc_len_msix __unused = 0;
 	int		i;
 	uint32_t	mfw_ver;
 	uint32_t	num_sp_msix = 0;
@@ -5088,7 +5088,7 @@ qlnx_dma_alloc_coherent(void *ecore_dev, bus_addr_t *phys, uint32_t size)
 {
 	qlnx_dma_t	dma_buf;
 	qlnx_dma_t	*dma_p;
-	qlnx_host_t	*ha;
+	qlnx_host_t	*ha __unused;
 
 	ha = (qlnx_host_t *)ecore_dev;
 
@@ -6508,7 +6508,7 @@ qlnx_start_vport(struct ecore_dev *cdev,
 {
         int					rc, i;
 	struct ecore_sp_vport_start_params	vport_start_params = { 0 };
-	qlnx_host_t				*ha;
+	qlnx_host_t				*ha __unused;
 
 	ha = (qlnx_host_t *)cdev;
 
@@ -6984,7 +6984,7 @@ qlnx_stop_queues(qlnx_host_t *ha)
 
                 /* Stop the Tx Queue(s)*/
                 for (tc = 0; tc < ha->num_tc; tc++) {
-			int tx_queue_id;
+			int tx_queue_id __unused;
 
 			tx_queue_id = tc * ha->num_rss + i;
 			rc = ecore_eth_tx_queue_stop(p_hwfn,
