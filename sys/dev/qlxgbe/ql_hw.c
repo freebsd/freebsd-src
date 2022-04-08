@@ -2264,9 +2264,6 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 	struct tcphdr *th = NULL;
 	uint32_t ehdrlen,  hdrlen, ip_hlen, tcp_hlen, tcp_opt_off;
 	uint16_t etype, opcode, offload = 1;
-	device_t dev;
-
-	dev = ha->pci_dev;
 
 	eh = mtod(mp, struct ether_vlan_header *);
 
@@ -2330,7 +2327,7 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 		break;
 
 		default:
-			QL_DPRINT8(ha, (dev, "%s: type!=ip\n", __func__));
+			QL_DPRINT8(ha, (ha->pci_dev, "%s: type!=ip\n", __func__));
 			offload = 0;
 		break;
 	}
@@ -2387,10 +2384,7 @@ qla_tx_chksum(qla_host_t *ha, struct mbuf *mp, uint32_t *op_code,
 	struct ip6_hdr *ip6;
 	uint32_t ehdrlen, ip_hlen;
 	uint16_t etype, opcode, offload = 1;
-	device_t dev;
 	uint8_t buf[sizeof(struct ip6_hdr)];
-
-	dev = ha->pci_dev;
 
 	*op_code = 0;
 
@@ -2903,13 +2897,10 @@ qla_confirm_9kb_enable(qla_host_t *ha)
 int
 ql_init_hw_if(qla_host_t *ha)
 {
-	device_t	dev;
 	uint32_t	i;
 	uint8_t		bcast_mac[6];
 	qla_rdesc_t	*rdesc;
 	uint32_t	num_msix;
-
-	dev = ha->pci_dev;
 
 	for (i = 0; i < ha->hw.num_sds_rings; i++) {
 		bzero(ha->hw.dma_buf.sds_ring[i].dma_b,
@@ -4652,7 +4643,7 @@ static int
 ql_parse_template(qla_host_t *ha)
 {
 	uint32_t num_of_entries, buff_level, e_cnt, esize;
-	uint32_t end_cnt, rv = 0;
+	uint32_t rv = 0;
 	char *dump_buff, *dbuff;
 	int sane_start = 0, sane_end = 0;
 	ql_minidump_template_hdr_t *template_hdr;
@@ -4729,9 +4720,6 @@ ql_parse_template(qla_host_t *ha)
 			break;
 
 		case RDEND:
-			if (sane_end == 0) {
-				end_cnt = e_cnt;
-			}
 			sane_end++;
 			break;
 
@@ -5457,7 +5445,7 @@ ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
         int ret;
         int loop_cnt;
         uint32_t op_count, select_addr, select_value_stride, select_value;
-        uint32_t read_addr, poll, mask, data_size, data;
+        uint32_t read_addr, poll, mask, data;
         uint32_t wait_count = 0;
 
         select_addr            = entry->select_addr;
@@ -5467,7 +5455,6 @@ ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
         op_count               = entry->op_count;
         poll                   = entry->poll;
         mask                   = entry->mask;
-        data_size              = entry->data_size;
 
         for (loop_cnt = 0; loop_cnt < op_count; loop_cnt++) {
                 ret = ql_rdwr_indreg32(ha, select_addr, &select_value, 0);
@@ -5524,7 +5511,7 @@ ql_pollrd_modify_write(qla_host_t *ha,
 {
 	int ret;
         uint32_t addr_1, addr_2, value_1, value_2, data;
-        uint32_t poll, mask, data_size, modify_mask;
+        uint32_t poll, mask, modify_mask;
         uint32_t wait_count = 0;
 
         addr_1		= entry->addr_1;
@@ -5535,7 +5522,6 @@ ql_pollrd_modify_write(qla_host_t *ha,
         poll		= entry->poll;
         mask		= entry->mask;
         modify_mask	= entry->modify_mask;
-        data_size	= entry->data_size;
 
 	ret = ql_rdwr_indreg32(ha, addr_1, &value_1, 0);
 	if (ret)
