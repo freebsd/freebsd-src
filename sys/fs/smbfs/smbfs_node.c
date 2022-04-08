@@ -230,7 +230,7 @@ int
 smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
 	struct smbfattr *fap, struct vnode **vpp)
 {
-	struct smbnode *dnp, *np;
+	struct smbnode *dnp;
 	struct vnode *vp;
 	int error, sep;
 
@@ -246,7 +246,6 @@ smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
 	if (error)
 		return error;
 	MPASS(vp != NULL);
-	np = VTOSMB(vp);
 	if (fap)
 		smbfs_attr_cacheenter(vp, fap);
 	*vpp = vp;
