@@ -33,7 +33,7 @@ warning(const char *fmt, ...)
 
 	/*
 	 * The original warning() would return "ret" here. We do this to
-	 * check warnings explicitely.
+	 * check warnings explicitly.
 	 */
 	longjmp(env, 1);
 }
