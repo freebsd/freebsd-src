@@ -566,7 +566,7 @@ error:
 		otus_freebuf(sc, bf);
 	OTUS_UNLOCK(sc);
 	m_freem(m);
-	return (ENXIO);
+	return (error);
 }
 
 static void
