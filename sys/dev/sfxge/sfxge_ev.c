@@ -358,13 +358,10 @@ static boolean_t
 sfxge_ev_software(void *arg, uint16_t magic)
 {
 	struct sfxge_evq *evq;
-	struct sfxge_softc *sc;
 	unsigned int label;
 
 	evq = (struct sfxge_evq *)arg;
 	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
-
-	sc = evq->sc;
 
 	label = magic & SFXGE_MAGIC_DMAQ_LABEL_MASK;
 	magic &= ~SFXGE_MAGIC_DMAQ_LABEL_MASK;
