@@ -1333,7 +1333,6 @@ static int
 atiixp_pci_suspend(device_t dev)
 {
 	struct atiixp_info *sc = pcm_getdevinfo(dev);
-	uint32_t value;
 
 	/* quickly disable interrupts and save channels active state */
 	atiixp_lock(sc);
@@ -1352,8 +1351,6 @@ atiixp_pci_suspend(device_t dev)
 
 	/* power down aclink and pci bus */
 	atiixp_lock(sc);
-	value = atiixp_rd(sc, ATI_REG_CMD);
-	value |= ATI_REG_CMD_POWERDOWN | ATI_REG_CMD_AC_RESET;
 	atiixp_wr(sc, ATI_REG_CMD, ATI_REG_CMD_POWERDOWN);
 	atiixp_unlock(sc);
 
