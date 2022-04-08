@@ -543,7 +543,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	qpair->num_intr_handler_calls++;
 
 	/*
-	 * qpair is not enabled, likely because a controller reset is is in
+	 * qpair is not enabled, likely because a controller reset is in
 	 * progress.  Ignore the interrupt - any I/O that was associated with
 	 * this interrupt will get retried when the reset is complete.
 	 */
