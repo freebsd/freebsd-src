@@ -1378,7 +1378,7 @@ nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
 	if (error)
 		return (error);
 	if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4))
-		error = nfscl_wcc_data(nd, vp, rnap, attrflagp, NULL, stuff);
+		error = nfscl_wcc_data(nd, vp, rnap, attrflagp, NULL, NULL);
 	if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) == ND_NFSV4 && !error)
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 	if (!(nd->nd_flag & ND_NFSV3) && !nd->nd_repstat && !error)
@@ -2035,7 +2035,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 		}
 		if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4)) {
 			error = nfscl_wcc_data(nd, vp, nap, attrflagp,
-			    &wccflag, stuff);
+			    &wccflag, NULL);
 			if (error)
 				goto nfsmout;
 		}
@@ -2199,7 +2199,7 @@ nfsrpc_deallocaterpc(vnode_t vp, off_t offs, off_t len,
 	if (error != 0)
 		return (error);
 	wccflag = 0;
-	error = nfscl_wcc_data(nd, vp, nap, attrflagp, &wccflag, stuff);
+	error = nfscl_wcc_data(nd, vp, nap, attrflagp, &wccflag, NULL);
 	if (error != 0)
 		goto nfsmout;
 	if (nd->nd_repstat == 0) {
@@ -2276,7 +2276,7 @@ nfsrpc_mknod(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	if (error)
 		return (error);
 	if (nd->nd_flag & ND_NFSV4)
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if (!nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV4) {
 			NFSM_DISSECT(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
@@ -2289,7 +2289,7 @@ nfsrpc_mknod(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			goto nfsmout;
 	}
 	if (nd->nd_flag & ND_NFSV3)
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if (!error && nd->nd_repstat)
 		error = nd->nd_repstat;
 nfsmout:
@@ -2413,7 +2413,7 @@ nfsrpc_createv23(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			goto nfsmout;
 	}
 	if (nd->nd_flag & ND_NFSV3)
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
 nfsmout:
@@ -2736,7 +2736,7 @@ tryagain:
 				nd->nd_flag |= ND_NOMOREDATA;
 			}
 		}
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	}
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
@@ -2883,8 +2883,7 @@ tryagain:
 			if (*(tl + 1))
 				nd->nd_flag |= ND_NOMOREDATA;
 		}
-		error = nfscl_wcc_data(nd, fdvp, fnap, fattrflagp, NULL,
-		    fstuff);
+		error = nfscl_wcc_data(nd, fdvp, fnap, fattrflagp, NULL, NULL);
 		/* and the second wcc attribute reply. */
 		if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) == ND_NFSV4 &&
 		    !error) {
@@ -2894,7 +2893,7 @@ tryagain:
 		}
 		if (!error)
 			error = nfscl_wcc_data(nd, tdvp, tnap, tattrflagp,
-			    NULL, tstuff);
+			    NULL, NULL);
 	}
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
@@ -2944,7 +2943,7 @@ nfsrpc_link(vnode_t dvp, vnode_t vp, char *name, int namelen,
 		error = nfscl_postop_attr(nd, nap, attrflagp, dstuff);
 		if (!error)
 			error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp,
-			    NULL, dstuff);
+			    NULL, NULL);
 	} else if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) == ND_NFSV4) {
 		/*
 		 * First, parse out the PutFH and Getattr result.
@@ -2957,7 +2956,7 @@ nfsrpc_link(vnode_t dvp, vnode_t vp, char *name, int namelen,
 		/*
 		 * Get the pre-op attributes.
 		 */
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	}
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
@@ -3004,13 +3003,13 @@ nfsrpc_symlink(vnode_t dvp, char *name, int namelen, const char *target,
 	if (error)
 		return (error);
 	if (nd->nd_flag & ND_NFSV4)
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if ((nd->nd_flag & ND_NFSV3) && !error) {
 		if (!nd->nd_repstat)
 			error = nfscl_mtofh(nd, nfhpp, nnap, attrflagp);
 		if (!error)
 			error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp,
-			    NULL, dstuff);
+			    NULL, NULL);
 	}
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
@@ -3074,7 +3073,7 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	if (error)
 		return (error);
 	if (nd->nd_flag & ND_NFSV4)
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if (!nd->nd_repstat && !error) {
 		if (nd->nd_flag & ND_NFSV4) {
 			NFSM_DISSECT(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
@@ -3092,7 +3091,7 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		}
 	}
 	if ((nd->nd_flag & ND_NFSV3) && !error)
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
 nfsmout:
@@ -3128,7 +3127,7 @@ nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
 	if (error)
 		return (error);
 	if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4))
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, dstuff);
+		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
 	m_freem(nd->nd_mrep);
@@ -4178,7 +4177,7 @@ nfsrpc_commit(vnode_t vp, u_quad_t offset, int cnt, struct ucred *cred,
 	error = nfscl_request(nd, vp, p, cred, stuff);
 	if (error)
 		return (error);
-	error = nfscl_wcc_data(nd, vp, nap, attrflagp, NULL, stuff);
+	error = nfscl_wcc_data(nd, vp, nap, attrflagp, NULL, NULL);
 	if (!error && !nd->nd_repstat) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 		NFSLOCKMNT(nmp);
