@@ -402,7 +402,7 @@ AUTHORIZED_KEYS FILE FORMAT
              Enable all restrictions, i.e. disable port, agent and X11
              forwarding, as well as disabling PTY allocation and execution of
              ~/.ssh/rc.  If any future restriction capabilities are added to
-             authorized_keys files they will be included in this set.
+             authorized_keys files, they will be included in this set.
 
      tunnel="n"
              Force a tun(4) device on the server.  Without this option, the
@@ -672,4 +672,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.0                   September 10, 2021                   OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

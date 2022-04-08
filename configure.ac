@@ -48,6 +48,8 @@ AC_PATH_PROG([SED], [sed])
 AC_PATH_PROG([TEST_MINUS_S_SH], [bash])
 AC_PATH_PROG([TEST_MINUS_S_SH], [ksh])
 AC_PATH_PROG([TEST_MINUS_S_SH], [sh])
+AC_PATH_PROG([SH], [bash])
+AC_PATH_PROG([SH], [ksh])
 AC_PATH_PROG([SH], [sh])
 AC_PATH_PROG([GROFF], [groff])
 AC_PATH_PROG([NROFF], [nroff awf])
@@ -1876,6 +1878,7 @@ AC_CHECK_FUNCS([ \
 	inet_ntoa \
 	inet_ntop \
 	innetgr \
+	killpg \
 	llabs \
 	localtime_r \
 	login_getcapbool \
@@ -2090,6 +2093,12 @@ AC_CHECK_DECLS([O_NONBLOCK], , ,
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
+	])
+
+AC_CHECK_DECLS([ftruncate], , ,
+	[
+#include <sys/types.h>
+#include <unistd.h>
 	])
 
 AC_CHECK_DECLS([readv, writev], , , [
@@ -3574,8 +3583,8 @@ AC_RUN_IFELSE(
 	 select_works_with_rlimit=yes],
 	[AC_MSG_RESULT([no])
 	 select_works_with_rlimit=no],
-	[AC_MSG_WARN([cross compiling: assuming yes])
-	 select_works_with_rlimit=yes]
+	[AC_MSG_WARN([cross compiling: assuming no])
+	 select_works_with_rlimit=no]
 )
 
 AC_CHECK_MEMBERS([struct pollfd.fd], [], [], [[

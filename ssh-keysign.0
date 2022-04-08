@@ -36,7 +36,7 @@ FILES
      /etc/ssh/ssh_host_ecdsa_key-cert.pub
      /etc/ssh/ssh_host_ed25519_key-cert.pub
      /etc/ssh/ssh_host_rsa_key-cert.pub
-             If these files exist they are assumed to contain public
+             If these files exist, they are assumed to contain public
              certificate information corresponding with the private keys
              above.
 
@@ -49,4 +49,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 7.0                    November 30, 2019                   OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

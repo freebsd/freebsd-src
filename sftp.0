@@ -53,15 +53,15 @@ DESCRIPTION
 
      -b batchfile
              Batch mode reads a series of commands from an input batchfile
-             instead of stdin.  Since it lacks user interaction it should be
+             instead of stdin.  Since it lacks user interaction, it should be
              used in conjunction with non-interactive authentication to
              obviate the need to enter a password at connection time (see
              sshd(8) and ssh-keygen(1) for details).
 
              A batchfile of M-bM-^@M-^X-M-bM-^@M-^Y may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
-             reget, reput, rename, ln, rm, mkdir, chdir, ls, lchdir, chmod,
-             chown, chgrp, lpwd, df, symlink, and lmkdir.
+             reget, reput, rename, ln, rm, mkdir, chdir, ls, lchdir, copy, cp,
+             chmod, chown, chgrp, lpwd, df, symlink, and lmkdir.
 
              Termination on error can be suppressed on a command by command
              basis by prefixing the command with a M-bM-^@M-^X-M-bM-^@M-^Y character (for example,
@@ -243,6 +243,15 @@ INTERACTIVE COMMANDS
              Note that this is only supported by servers that implement the
              "lsetstat@openssh.com" extension.
 
+     copy oldpath newpath
+             Copy remote file from oldpath to newpath.
+
+             Note that this is only supported by servers that implement the
+             "copy-data" extension.
+
+     cp oldpath newpath
+             Alias to copy command.
+
      df [-hi] [path]
              Display usage information for the filesystem holding the current
              directory (or path if specified).  If the -h flag is specified,
@@ -408,4 +417,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 7.0                      July 2, 2021                      OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

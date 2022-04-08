@@ -25,10 +25,10 @@ DESCRIPTION
      -c      Generate C-shell commands on stdout.  This is the default if
              SHELL looks like it's a csh style of shell.
 
-     -D      Foreground mode.  When this option is specified ssh-agent will
+     -D      Foreground mode.  When this option is specified, ssh-agent will
              not fork.
 
-     -d      Debug mode.  When this option is specified ssh-agent will not
+     -d      Debug mode.  When this option is specified, ssh-agent will not
              fork and will write debug information to standard error.
 
      -E fingerprint_hash
@@ -116,4 +116,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.0                      June 22, 2020                     OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

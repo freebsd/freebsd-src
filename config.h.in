@@ -327,6 +327,10 @@
    */
 #undef HAVE_DECL_BZERO
 
+/* Define to 1 if you have the declaration of `ftruncate', and to 0 if you
+   don't. */
+#undef HAVE_DECL_FTRUNCATE
+
 /* Define to 1 if you have the declaration of `getpeereid', and to 0 if you
    don't. */
 #undef HAVE_DECL_GETPEEREID
@@ -839,6 +843,9 @@
 
 /* Define if you have isblank(3C). */
 #undef HAVE_ISBLANK
+
+/* Define to 1 if you have the `killpg' function. */
+#undef HAVE_KILLPG
 
 /* Define to 1 if you have the `krb5_cc_new_unique' function. */
 #undef HAVE_KRB5_CC_NEW_UNIQUE

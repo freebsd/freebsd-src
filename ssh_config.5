@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.369 2022/02/15 05:13:36 djm Exp $
-.Dd $Mdocdate: February 15 2022 $
+.\" $OpenBSD: ssh_config.5,v 1.371 2022/03/31 17:58:44 naddy Exp $
+.Dd $Mdocdate: March 31 2022 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -435,7 +435,7 @@ directives will add to the list of certificates used for
 authentication.
 .It Cm CheckHostIP
 If set to
-.Cm yes
+.Cm yes ,
 .Xr ssh 1
 will additionally check the host IP address in the
 .Pa known_hosts
@@ -1165,9 +1165,9 @@ character, then the specified algorithms will be placed at the head of the
 default set.
 The default is:
 .Bd -literal -offset indent
+sntrup761x25519-sha512@openssh.com,
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
-sntrup761x25519-sha512@openssh.com,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group16-sha512,
 diffie-hellman-group18-sha512,
@@ -1581,7 +1581,7 @@ If forwarding to a specific destination then the second argument must be
 or a Unix domain socket path,
 otherwise if no destination argument is specified then the remote forwarding
 will be established as a SOCKS proxy.
-When acting as a SOCKS proxy the destination of the connection can be
+When acting as a SOCKS proxy, the destination of the connection can be
 restricted by
 .Cm PermitRemoteOpen .
 .Pp

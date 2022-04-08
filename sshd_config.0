@@ -577,9 +577,9 @@ DESCRIPTION
 
              The default is:
 
+                   sntrup761x25519-sha512@openssh.com,
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
-                   sntrup761x25519-sha512@openssh.com,
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
                    diffie-hellman-group14-sha256
@@ -1191,4 +1191,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.0                    December 4, 2021                    OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

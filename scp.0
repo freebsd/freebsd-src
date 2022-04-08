@@ -30,10 +30,10 @@ DESCRIPTION
 
      -3      Copies between two remote hosts are transferred through the local
              host.  Without this option the data is copied directly between
-             the two remote hosts.  Note that, when using the original SCP
-             protocol (the default), this option selects batch mode for the
-             second host as scp cannot ask for passwords or passphrases for
-             both hosts.  This mode is the default.
+             the two remote hosts.  Note that, when using the legacy SCP
+             protocol (via the -O flag), this option selects batch mode for
+             the second host as scp cannot ask for passwords or passphrases
+             for both hosts.  This mode is the default.
 
      -4      Forces scp to use IPv4 addresses only.
 
@@ -53,7 +53,7 @@ DESCRIPTION
              option is directly passed to ssh(1).
 
      -D sftp_server_path
-             When using the SFTP protocol support via -s, connect directly to
+             When using the SFTP protocol support via -M, connect directly to
              a local SFTP server program rather than a remote one via ssh(1).
              This option may be useful in debugging the client and server.
 
@@ -77,12 +77,11 @@ DESCRIPTION
      -l limit
              Limits the used bandwidth, specified in Kbit/s.
 
-     -O      Use the original SCP protocol for file transfers instead of the
+     -O      Use the legacy SCP protocol for file transfers instead of the
              SFTP protocol.  Forcing the use of the SCP protocol may be
              necessary for servers that do not implement SFTP, for backwards-
              compatibility for particular filename wildcard patterns and for
-             expanding paths with a M-bM-^@M-^X~M-bM-^@M-^Y prefix for older SFTP servers.  This
-             mode is the default.
+             expanding paths with a M-bM-^@M-^X~M-bM-^@M-^Y prefix for older SFTP servers.
 
      -o ssh_option
              Can be used to pass options to ssh in the format used in
@@ -175,9 +174,6 @@ DESCRIPTION
              Name of program to use for the encrypted connection.  The program
              must understand ssh(1) options.
 
-     -s      Use the SFTP protocol for transfers rather than the original scp
-             protocol.
-
      -T      Disable strict filename checking.  By default when copying files
              from a remote host to a local directory scp checks that the
              received filenames match those requested on the command-line to
@@ -203,14 +199,17 @@ HISTORY
      scp is based on the rcp program in BSD source code from the Regents of
      the University of California.
 
+     Since OpenSSH 8.8, scp has use the SFTP protocol for transfers by
+     default.
+
 AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
 CAVEATS
-     The original SCP protocol (used by default) requires execution of the
-     remote user's shell to perform glob(3) pattern matching.  This requires
-     careful quoting of any characters that have special meaning to the remote
-     shell, such as quote characters.
+     The legacy SCP protocol (selected by the -O flag) requires execution of
+     the remote user's shell to perform glob(3) pattern matching.  This
+     requires careful quoting of any characters that have special meaning to
+     the remote shell, such as quote characters.
 
-OpenBSD 7.0                    February 10, 2022                   OpenBSD 7.0
+OpenBSD 7.0                    February 23, 2022                   OpenBSD 7.0

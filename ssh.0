@@ -387,7 +387,7 @@ DESCRIPTION
 
              If the port argument is M-bM-^@M-^X0M-bM-^@M-^Y, the listen port will be dynamically
              allocated on the server and reported to the client at run time.
-             When used together with -O forward the allocated port will be
+             When used together with -O forward, the allocated port will be
              printed to the standard output.
 
      -S ctl_path
@@ -560,11 +560,11 @@ AUTHENTICATION
      normal shell as an interactive session.  All communication with the
      remote command or shell will be automatically encrypted.
 
-     If an interactive session is requested ssh by default will only request a
-     pseudo-terminal (pty) for interactive sessions when the client has one.
+     If an interactive session is requested, ssh by default will only request
+     a pseudo-terminal (pty) for interactive sessions when the client has one.
      The flags -T and -t can be used to override this behaviour.
 
-     If a pseudo-terminal has been allocated the user may use the escape
+     If a pseudo-terminal has been allocated, the user may use the escape
      characters noted below.
 
      If no pseudo-terminal has been allocated, the session is transparent and
@@ -1013,4 +1013,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.0                    February 6, 2022                    OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

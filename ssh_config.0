@@ -213,7 +213,7 @@ DESCRIPTION
              list of certificates used for authentication.
 
      CheckHostIP
-             If set to yes ssh(1) will additionally check the host IP address
+             If set to yes, ssh(1) will additionally check the host IP address
              in the known_hosts file.  This allows it to detect if a host key
              changed due to DNS spoofing and will add addresses of destination
              hosts to ~/.ssh/known_hosts in the process, regardless of the
@@ -670,9 +670,9 @@ DESCRIPTION
              a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified algorithms will be placed at
              the head of the default set.  The default is:
 
+                   sntrup761x25519-sha512@openssh.com,
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
-                   sntrup761x25519-sha512@openssh.com,
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group16-sha512,
                    diffie-hellman-group18-sha512,
@@ -947,7 +947,7 @@ DESCRIPTION
              the second argument must be host:hostport or a Unix domain socket
              path, otherwise if no destination argument is specified then the
              remote forwarding will be established as a SOCKS proxy.  When
-             acting as a SOCKS proxy the destination of the connection can be
+             acting as a SOCKS proxy, the destination of the connection can be
              restricted by PermitRemoteOpen.
 
              IPv6 addresses can be specified by enclosing addresses in square
@@ -1308,4 +1308,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.0                    February 15, 2022                   OpenBSD 7.0
+OpenBSD 7.0                     March 31, 2022                     OpenBSD 7.0

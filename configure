@@ -4794,6 +4794,86 @@ $as_echo "no" >&6; }
 fi
 
 
+# Extract the first word of "bash", so it can be a program name with args.
+set dummy bash; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_SH+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $SH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_SH="$SH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_SH="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+SH=$ac_cv_path_SH
+if test -n "$SH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SH" >&5
+$as_echo "$SH" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "ksh", so it can be a program name with args.
+set dummy ksh; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_SH+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $SH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_SH="$SH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_SH="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+SH=$ac_cv_path_SH
+if test -n "$SH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SH" >&5
+$as_echo "$SH" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
 # Extract the first word of "sh", so it can be a program name with args.
 set dummy sh; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -5524,6 +5604,8 @@ $as_echo_n "checking if $CC supports compile flag -pipe... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5531,6 +5613,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5578,6 +5661,8 @@ $as_echo_n "checking if $CC supports compile flag -Wunknown-warning-option... " 
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5585,6 +5670,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5632,6 +5718,8 @@ $as_echo_n "checking if $CC supports compile flag -Wno-error=format-truncation..
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5639,6 +5727,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5686,6 +5775,8 @@ $as_echo_n "checking if $CC supports compile flag -Qunused-arguments... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5693,6 +5784,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5740,6 +5832,8 @@ $as_echo_n "checking if $CC supports compile flag -Wall... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5747,6 +5841,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5794,6 +5889,8 @@ $as_echo_n "checking if $CC supports compile flag -Wextra... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5801,6 +5898,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5848,6 +5946,8 @@ $as_echo_n "checking if $CC supports compile flag -Wpointer-arith... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5855,6 +5955,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5902,6 +6003,8 @@ $as_echo_n "checking if $CC supports compile flag -Wuninitialized... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5909,6 +6012,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -5956,6 +6060,8 @@ $as_echo_n "checking if $CC supports compile flag -Wsign-compare... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -5963,6 +6069,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6010,6 +6117,8 @@ $as_echo_n "checking if $CC supports compile flag -Wformat-security... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6017,6 +6126,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6064,6 +6174,8 @@ $as_echo_n "checking if $CC supports compile flag -Wsizeof-pointer-memaccess... 
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6071,6 +6183,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6118,6 +6231,8 @@ $as_echo_n "checking if $CC supports compile flag -Wpointer-sign... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6125,6 +6240,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6172,6 +6288,8 @@ $as_echo_n "checking if $CC supports compile flag -Wunused-parameter... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6179,6 +6297,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6226,6 +6345,8 @@ $as_echo_n "checking if $CC supports compile flag -Wunused-result... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6233,6 +6354,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6280,6 +6402,8 @@ $as_echo_n "checking if $CC supports compile flag -Wimplicit-fallthrough... " >&
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6287,6 +6411,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6334,6 +6459,8 @@ $as_echo_n "checking if $CC supports compile flag -Wmisleading-indentation... " 
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6341,6 +6468,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6388,6 +6516,8 @@ $as_echo_n "checking if $CC supports compile flag -Wbitwise-instead-of-logical..
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6395,6 +6525,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6442,6 +6573,8 @@ $as_echo_n "checking if $CC supports compile flag -fno-strict-aliasing... " >&6;
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6449,6 +6582,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6497,6 +6631,8 @@ $as_echo_n "checking if $CC supports compile flag -mretpoline... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6504,6 +6640,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6597,6 +6734,8 @@ $as_echo_n "checking if $CC supports compile flag -D_FORTIFY_SOURCE=2... " >&6; 
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6604,6 +6743,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6840,6 +6980,8 @@ $as_echo_n "checking if $CC supports compile flag -fzero-call-used-regs=all... "
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6847,6 +6989,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -6894,6 +7037,8 @@ $as_echo_n "checking if $CC supports compile flag -ftrivial-auto-var-init=zero..
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -6901,6 +7046,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -7891,6 +8037,8 @@ $as_echo_n "checking if $CC supports compile flag -Wno-attributes... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -7898,6 +8046,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -11547,6 +11696,8 @@ $as_echo_n "checking if $CC supports compile flag -fPIE... " >&6; }
 
 #include <stdlib.h>
 #include <stdio.h>
+/* Trivial function to help test for -fzero-call-used-regs */
+void f(int n) {}
 int main(int argc, char **argv) {
 	(void)argv;
 	/* Some math to catch -ftrapv problems in the toolchain */
@@ -11554,6 +11705,7 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	f(0);
 	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
 	/*
 	 * Test fallthrough behaviour.  clang 10's -Wimplicit-fallthrough does
@@ -11738,6 +11890,7 @@ for ac_func in  \
 	inet_ntoa \
 	inet_ntop \
 	innetgr \
+	killpg \
 	llabs \
 	localtime_r \
 	login_getcapbool \
@@ -12322,6 +12475,22 @@ fi
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_O_NONBLOCK $ac_have_decl
+_ACEOF
+
+
+ac_fn_c_check_decl "$LINENO" "ftruncate" "ac_cv_have_decl_ftruncate" "
+#include <sys/types.h>
+#include <unistd.h>
+
+"
+if test "x$ac_cv_have_decl_ftruncate" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_FTRUNCATE $ac_have_decl
 _ACEOF
 
 
@@ -15329,9 +15498,9 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if select and/or poll works with descriptor rlimit" >&5
 $as_echo_n "checking if select and/or poll works with descriptor rlimit... " >&6; }
 if test "$cross_compiling" = yes; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming yes" >&5
-$as_echo "$as_me: WARNING: cross compiling: assuming yes" >&2;}
-	 select_works_with_rlimit=yes
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming no" >&5
+$as_echo "$as_me: WARNING: cross compiling: assuming no" >&2;}
+	 select_works_with_rlimit=no
 
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
