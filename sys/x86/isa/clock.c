@@ -42,6 +42,11 @@ __FBSDID("$FreeBSD$");
  * Routines to handle clock hardware.
  */
 
+#ifdef __amd64__
+#define	DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
 #include "opt_clock.h"
 #include "opt_isa.h"
 
@@ -415,7 +420,9 @@ cpu_initclocks(void)
 	td = curthread;
 
 	tsc_calibrate();
+#ifdef DEV_APIC
 	lapic_calibrate_timer();
+#endif
 	cpu_initclocks_bsp();
 	CPU_FOREACH(i) {
 		if (i == 0)
@@ -431,7 +438,9 @@ cpu_initclocks(void)
 	thread_unlock(td);
 #else
 	tsc_calibrate();
+#ifdef DEV_APIC
 	lapic_calibrate_timer();
+#endif
 	cpu_initclocks_bsp();
 #endif
 }
