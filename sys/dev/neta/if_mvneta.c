@@ -1707,7 +1707,7 @@ mvneta_rxtxth_intr(void *arg)
 		return;
 	MVNETA_WRITE(sc, MVNETA_PRXTXTIC, ~ic);
 
-	/* Ack maintance interrupt first */
+	/* Ack maintenance interrupt first */
 	if (__predict_false((ic & MVNETA_PRXTXTI_PMISCICSUMMARY) &&
 	    (!sc->phy_attached || sc->use_inband_status))) {
 		mvneta_sc_lock(sc);
