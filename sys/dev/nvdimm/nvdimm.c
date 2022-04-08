@@ -246,7 +246,7 @@ static int
 read_labels(struct nvdimm_dev *nv)
 {
 	struct nvdimm_label_index *indices, *index1;
-	size_t bitfield_size, index_size, num_labels;
+	size_t index_size, num_labels;
 	int error, n;
 	bool index_0_valid, index_1_valid;
 
@@ -259,7 +259,6 @@ read_labels(struct nvdimm_dev *nv)
 	}
 	num_labels = (nv->label_area_size - index_size) /
 	    sizeof(struct nvdimm_label);
-	bitfield_size = roundup2(num_labels, 8) / 8;
 	indices = malloc(2 * index_size, M_NVDIMM, M_WAITOK);
 	index1 = (void *)((uint8_t *)indices + index_size);
 	error = read_label_area(nv, (void *)indices, 0, 2 * index_size);
