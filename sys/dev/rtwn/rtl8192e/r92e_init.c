@@ -195,6 +195,11 @@ r92e_init_rf(struct rtwn_softc *sc)
 		/* Write RF initialization values for this chain. */
 		i += r92c_init_rf_chain(sc, &sc->rf_prog[i], chain);
 
+		/* Restore RF_ENV control type. */
+		reg = rtwn_bb_read(sc, R92C_FPGA0_RFIFACESW(idx));
+		reg &= ~(0x10 << off) | (type << off);
+		rtwn_bb_write(sc, R92C_FPGA0_RFIFACESW(idx), reg);
+
 		/* Cache RF register CHNLBW. */
 		rs->rf_chnlbw[chain] = rtwn_rf_read(sc, chain, R92C_RF_CHNLBW);
 	}
