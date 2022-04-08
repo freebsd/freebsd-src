@@ -659,7 +659,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 	int nent = 0;
 	int i;
 	int err = 0;
-	int ts = 0, tc = 0;
+	int ts __unused = 0, tc = 0;
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
