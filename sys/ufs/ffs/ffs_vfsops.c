@@ -1423,9 +1423,7 @@ ffs_unmount(mp, mntflags)
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
 	if (ump->um_trim_tq != NULL) {
-		while (ump->um_trim_inflight != 0)
-			pause("ufsutr", hz);
-		taskqueue_drain_all(ump->um_trim_tq);
+		MPASS(ump->um_trim_inflight == 0);
 		taskqueue_free(ump->um_trim_tq);
 		free (ump->um_trimhash, M_TRIM);
 	}
@@ -1538,6 +1536,20 @@ ffs_flushfiles(mp, flags, td)
 	 */
 	if (qerror == 0 && (error = vflush(mp, 0, flags, td)) != 0)
 		return (error);
+
+	/*
+	 * If this is a forcible unmount and there were any files that
+	 * were unlinked but still open, then vflush() will have
+	 * truncated and freed those files, which might have started
+	 * some trim work.  Wait here for any trims to complete
+	 * and process the blkfrees which follow the trims.
+	 * This may create more dirty devvp buffers and softdep deps.
+	 */
+	if (ump->um_trim_tq != NULL) {
+		while (ump->um_trim_inflight != 0)
+			pause("ufsutr", hz);
+		taskqueue_drain_all(ump->um_trim_tq);
+	}
 
 	/*
 	 * Flush filesystem metadata.
