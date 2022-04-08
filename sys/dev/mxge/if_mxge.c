@@ -686,7 +686,6 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 	unsigned hdr_offset;
 	int status;
 	unsigned int i;
-	char dummy;
 	size_t fw_len;
 
 	fw = firmware_get(sc->fw_name);
@@ -743,7 +742,7 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 			      inflate_buffer + i,
 			      min(256U, (unsigned)(fw_len - i)));
 		wmb();
-		dummy = *sc->sram;
+		(void)*sc->sram;
 		wmb();
 	}
 
