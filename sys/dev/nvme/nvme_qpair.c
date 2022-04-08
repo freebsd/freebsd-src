@@ -537,7 +537,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	bool in_panic = dumping || SCHEDULER_STOPPED();
 
 	/*
-	 * qpair is not enabled, likely because a controller reset is is in
+	 * qpair is not enabled, likely because a controller reset is in
 	 * progress.  Ignore the interrupt - any I/O that was associated with
 	 * this interrupt will get retried when the reset is complete. Any
 	 * pending completions for when we're in startup will be completed
