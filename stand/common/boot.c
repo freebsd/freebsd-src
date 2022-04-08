@@ -310,7 +310,7 @@ getbootfile(int try)
 
 /*
  * Try to find the /etc/fstab file on the filesystem (rootdev),
- * which should be be the root filesystem, and parse it to find
+ * which should be the root filesystem, and parse it to find
  * out what the kernel ought to think the root filesystem is.
  *
  * If we're successful, set vfs.root.mountfrom to <vfstype>:<path>
