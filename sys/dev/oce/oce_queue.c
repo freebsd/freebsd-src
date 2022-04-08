@@ -637,7 +637,6 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 	struct oce_cq *cq;
 	oce_mq_ext_ctx_t *ctx;
 	uint32_t num_pages;
-	uint32_t page_size;
 	int version;
 
 	cq = oce_cq_create(sc, eq, CQ_LEN_256,
@@ -670,7 +669,6 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 				version);
 
 	num_pages = oce_page_list(mq->ring, &fwcmd->params.req.pages[0]);
-	page_size = mq->ring->num_items * mq->ring->item_size;
 
 	ctx = &fwcmd->params.req.context;
 

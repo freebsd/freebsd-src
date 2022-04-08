@@ -1868,7 +1868,7 @@ int
 oce_alloc_rx_bufs(struct oce_rq *rq, int count)
 {
 	POCE_SOFTC sc = (POCE_SOFTC) rq->parent;
-	int i, in, rc;
+	int i, rc;
 	struct oce_packet_desc *pd;
 	bus_dma_segment_t segs[6];
 	int nsegs, added = 0;
@@ -1879,8 +1879,6 @@ oce_alloc_rx_bufs(struct oce_rq *rq, int count)
 
 	bzero(&rxdb_reg, sizeof(pd_rxulp_db_t));
 	for (i = 0; i < count; i++) {
-		in = (rq->ring->pidx + 1) % OCE_RQ_PACKET_ARRAY_SIZE;
-
 		pd = &rq->pckts[rq->ring->pidx];
 		pd->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, oce_rq_buf_size);
 		if (pd->mbuf == NULL) {
