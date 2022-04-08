@@ -2909,7 +2909,7 @@ qlnx_free_tx_pkt(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	struct mbuf		*mp;
 	bus_dmamap_t		map;
 	int			i;
-	struct eth_tx_bd	*tx_data_bd;
+//	struct eth_tx_bd	*tx_data_bd;
 	struct eth_tx_1st_bd	*first_bd;
 	int			nbds = 0;
 
@@ -2959,7 +2959,7 @@ qlnx_free_tx_pkt(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 //	BD_SET_UNMAP_ADDR_LEN(first_bd, 0, 0);
 
 	for (i = 1; i < nbds; i++) {
-		tx_data_bd = ecore_chain_consume(&txq->tx_pbl);
+		/* tx_data_bd = */ ecore_chain_consume(&txq->tx_pbl);
 //		BD_SET_UNMAP_ADDR_LEN(tx_data_bd, 0, 0);
 	}
 	txq->sw_tx_ring[idx].flags = 0;
