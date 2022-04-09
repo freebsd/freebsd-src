@@ -354,7 +354,7 @@ bhnd_pcie_mdio_cmd_write(struct bhnd_pci_softc *sc, uint32_t cmd)
 }
 
 /**
- * Issue an an MDIO read command, wait for completion, and return
+ * Issue an MDIO read command, wait for completion, and return
  * the result in @p data_read.
  */
 static int
