@@ -345,7 +345,7 @@ kdb_cpu_set_watchpoint(vm_offset_t addr, size_t size, int access)
 		return (EINVAL);
 	}
 
-	return (dbg_setup_watchpoint(addr, size, (enum dbg_access_t)access));
+	return (dbg_setup_watchpoint(addr, size, dbg_access));
 }
 
 int
