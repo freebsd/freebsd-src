@@ -204,15 +204,11 @@ linux_fixup(uintptr_t *stack_base, struct image_params *imgp)
 static int
 linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 {
-	struct proc *p;
 	Elf32_Auxargs *args;
 	Elf32_Auxinfo *argarray, *pos;
-	struct ps_strings *arginfo;
 	int error, issetugid;
 
-	p = imgp->proc;
 	issetugid = imgp->proc->p_flag & P_SUGID ? 1 : 0;
-	arginfo = (struct ps_strings *)PROC_PS_STRINGS(p);
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
 	    M_WAITOK | M_ZERO);
@@ -508,13 +504,12 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct trapframe *regs;
 	struct l_sigframe *fp, frame;
 	l_sigset_t lmask;
-	int sig, code;
+	int sig;
 	int oonstack;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
 	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
