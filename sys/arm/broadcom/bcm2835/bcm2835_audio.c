@@ -207,6 +207,8 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 
 	status = vchi_msg_dequeue(sc->vchi_handle,
 	    &m, sizeof m, &msg_len, VCHI_FLAGS_NONE);
+	if (status != 0)
+		return;
 	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
 		if (m.u.result.success) {
 			device_printf(sc->dev,
