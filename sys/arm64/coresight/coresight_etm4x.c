@@ -173,7 +173,7 @@ static int
 etm_init(device_t dev)
 {
 	struct etm_softc *sc;
-	uint32_t reg;
+	uint32_t reg __unused;
 
 	sc = device_get_softc(dev);
 
