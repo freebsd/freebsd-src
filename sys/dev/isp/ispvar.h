@@ -30,7 +30,7 @@
  *
  */
 /*
- * Soft Definitions for for Qlogic ISP SCSI adapters.
+ * Soft Definitions for Qlogic ISP SCSI adapters.
  */
 
 #ifndef	_ISPVAR_H

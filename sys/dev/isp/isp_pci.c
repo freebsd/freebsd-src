@@ -627,7 +627,7 @@ bad:
 	if (isp->isp_osinfo.fw == NULL && !IS_26XX(isp)) {
 		/*
 		 * Failure to attach at boot time might have been caused
-		 * by a missing ispfw(4).  Except for for 16Gb adapters,
+		 * by a missing ispfw(4).  Except for 16Gb adapters,
 		 * there's no loadable firmware for them.
 		 */
 		isp_prt(isp, ISP_LOGWARN, "See the ispfw(4) man page on "
