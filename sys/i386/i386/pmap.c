@@ -3493,7 +3493,9 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
-	vm_offset_t oldpteva __diagused;
+#ifdef KTR
+	vm_offset_t oldpteva;
+#endif
 	vm_page_t mpte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -3553,8 +3555,10 @@ setpte:
 			    oldpte & ~PG_RW))
 				goto setpte;
 			oldpte &= ~PG_RW;
+#ifdef KTR
 			oldpteva = (oldpte & PG_FRAME & PDRMASK) |
 			    (va & ~PDRMASK);
+#endif
 			CTR2(KTR_PMAP, "pmap_promote_pde: protect for va %#x"
 			    " in pmap %p", oldpteva, pmap);
 		}
