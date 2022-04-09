@@ -346,10 +346,8 @@ uart_mu_bus_getsig(struct uart_softc *sc)
 static int
 uart_mu_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
-	struct uart_bas *bas;
 	int error;
 
-	bas = &sc->sc_bas;
 	error = 0;
 	uart_lock(sc->sc_hwmtx);
 	switch (request) {
@@ -431,14 +429,12 @@ uart_mu_bus_probe(struct uart_softc *sc)
 static int
 uart_mu_bus_receive(struct uart_softc *sc)
 {
-	struct uart_mu_softc *psc;
 	struct uart_bas *bas;
 	uint32_t lsr, xc;
 	int rx;
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	psc = (struct uart_mu_softc *)sc;
 
 	lsr = __uart_getreg(bas, AUX_MU_LSR_REG);
 	while (lsr & LSR_RXREADY) {
