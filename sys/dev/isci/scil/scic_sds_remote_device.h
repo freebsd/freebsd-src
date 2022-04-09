@@ -128,7 +128,7 @@ enum SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATES
    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE,
 
    /**
-    * This is the command state for for the STP remote device.  This state is
+    * This is the command state for the STP remote device.  This state is
     * entered when the device is processing a non-NCQ command.  The device object
     * will fail any new start IO requests until this command is complete.
     */
