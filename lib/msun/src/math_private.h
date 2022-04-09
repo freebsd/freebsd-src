@@ -460,7 +460,7 @@ do {								\
  * or by having |c| a few percent smaller than |a|.  Pre-normalization of
  * (a, b) may help.
  *
- * This is is a variant of an algorithm of Kahan (see Knuth (1981) 4.2.2
+ * This is a variant of an algorithm of Kahan (see Knuth (1981) 4.2.2
  * exercise 19).  We gain considerable efficiency by requiring the terms to
  * be sufficiently normalized and sufficiently increasing.
  */
