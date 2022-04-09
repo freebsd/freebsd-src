@@ -4394,7 +4394,10 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 {
 	uma_cache_t cache;
 	uma_cache_bucket_t bucket;
-	int itemdomain, uz_flags;
+	int itemdomain;
+#ifdef NUMA
+	int uz_flags;
+#endif
 
 	CTR3(KTR_UMA, "uma_zfree_smr zone %s(%p) item %p",
 	    zone->uz_name, zone, item);
@@ -4408,9 +4411,9 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 		return;
 #endif
 	cache = &zone->uz_cpu[curcpu];
-	uz_flags = cache_uz_flags(cache);
 	itemdomain = 0;
 #ifdef NUMA
+	uz_flags = cache_uz_flags(cache);
 	if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
 		itemdomain = item_domain(item);
 #endif
