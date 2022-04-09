@@ -41,7 +41,7 @@
 
 /*
  * ANI processing tunes radio parameters according to PHY errors
- * and related information.  This is done for for noise and spur
+ * and related information.  This is done for noise and spur
  * immunity in all operating modes if the device indicates it's
  * capable at attach time.  In addition, when there is a reference
  * rssi value (e.g. beacon frames from an ap in station mode)
