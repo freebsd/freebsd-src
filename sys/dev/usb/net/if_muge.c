@@ -931,7 +931,7 @@ lan78xx_phy_init(struct muge_softc *sc)
 	    ANAR_10 | ANAR_10_FD | ANAR_TX | ANAR_TX_FD |
 	    ANAR_CSMA | ANAR_FC | ANAR_PAUSE_ASYM);
 
-	/* Restart auto-negotation. */
+	/* Restart auto-negotiation. */
 	bmcr |= BMCR_STARTNEG;
 	bmcr |= BMCR_AUTOEN;
 	lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR, bmcr);
