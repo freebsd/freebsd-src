@@ -2022,13 +2022,11 @@ STATIC int
 mvneta_xmit_locked(struct mvneta_softc *sc, int q)
 {
 	struct ifnet *ifp;
-	struct mvneta_tx_ring *tx;
 	struct mbuf *m;
 	int error;
 
 	KASSERT_TX_MTX(sc, q);
 	ifp = sc->ifp;
-	tx = MVNETA_TX_RING(sc, 0);
 	error = 0;
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -2265,8 +2263,6 @@ STATIC void
 mvneta_stop_locked(struct mvneta_softc *sc)
 {
 	struct ifnet *ifp;
-	struct mvneta_rx_ring *rx;
-	struct mvneta_tx_ring *tx;
 	uint32_t reg;
 	int q;
 
@@ -2291,8 +2287,6 @@ mvneta_stop_locked(struct mvneta_softc *sc)
 
 	/* Disable each of queue */
 	for (q = 0; q < MVNETA_RX_QNUM_MAX; q++) {
-		rx = MVNETA_RX_RING(sc, q);
-
 		mvneta_rx_lockq(sc, q);
 		mvneta_ring_flush_rx_queue(sc, q);
 		mvneta_rx_unlockq(sc, q);
@@ -2306,8 +2300,6 @@ mvneta_stop_locked(struct mvneta_softc *sc)
 	MVNETA_WRITE(sc, MVNETA_PTXINIT, 0x00000001);
 
 	for (q = 0; q < MVNETA_TX_QNUM_MAX; q++) {
-		tx = MVNETA_TX_RING(sc, q);
-
 		mvneta_tx_lockq(sc, q);
 		mvneta_ring_flush_tx_queue(sc, q);
 		mvneta_tx_unlockq(sc, q);
@@ -2686,7 +2678,7 @@ mvneta_tx_queue(struct mvneta_softc *sc, struct mbuf **mbufp, int q)
 	struct mvneta_buf *txbuf;
 	struct mvneta_tx_desc *t;
 	uint32_t ptxsu;
-	int start, used, error, i, txnsegs;
+	int used, error, i, txnsegs;
 
 	mbuf = *mbufp;
 	tx = MVNETA_TX_RING(sc, q);
@@ -2758,7 +2750,6 @@ mvneta_tx_queue(struct mvneta_softc *sc, struct mbuf **mbufp, int q)
 	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 
 	/* load to tx descriptors */
-	start = tx->cpu;
 	used = 0;
 	for (i = 0; i < txnsegs; i++) {
 		t = &tx->desc[tx->cpu];
