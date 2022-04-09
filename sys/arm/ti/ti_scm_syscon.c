@@ -165,7 +165,6 @@ ti_scm_syscon_attach(device_t dev)
 {
 	struct ti_scm_syscon_softc *sc;
 	phandle_t node, child;
-	int err;
 
  	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -191,7 +190,7 @@ ti_scm_syscon_attach(device_t dev)
 
 	simplebus_init(sc->dev, node);
 
-	err = bus_generic_probe(sc->dev);
+	bus_generic_probe(sc->dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		simplebus_add_device(sc->dev, child, 0, NULL, -1, NULL);
 	}
