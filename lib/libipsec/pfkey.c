@@ -431,7 +431,7 @@ pfkey_send_getspi(so, satype, mode, src, dst, min, max, reqid, seq)
 		return -1;
 	}
 
-	/* proccessing spi range */
+	/* processing spi range */
 	if (need_spirange) {
 		struct sadb_spirange spirange;
 
