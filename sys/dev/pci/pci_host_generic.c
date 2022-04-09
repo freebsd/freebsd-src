@@ -463,11 +463,8 @@ static int
 generic_pcie_activate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
-	struct generic_pcie_core_softc *sc;
 	rman_res_t start, end;
 	int res;
-
-	sc = device_get_softc(dev);
 
 	if ((res = rman_activate_resource(r)) != 0)
 		return (res);

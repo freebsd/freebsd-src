@@ -166,10 +166,7 @@ pci_host_generic_setup_fdt(device_t dev)
 int
 pci_host_generic_attach(device_t dev)
 {
-	struct generic_pcie_fdt_softc *sc;
 	int error;
-
-	sc = device_get_softc(dev);
 
 	error = pci_host_generic_setup_fdt(dev);
 	if (error != 0)
