@@ -673,7 +673,7 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 	initial condition, if desired.
 
 	kern.random.initial_seeding.arc4random_bypassed_before_seeding:
-	Similar to the above, but for for arc4random(9) initial seeding.
+	Similar to the above, but for arc4random(9) initial seeding.
 
 	kern.random.initial_seeding.disable_bypass_warnings: tunable; set
 	non-zero to disable warnings in dmesg when the same conditions are
