@@ -338,7 +338,7 @@ static void
 agp_nvidia_flush_tlb (device_t dev)
 {
 	struct agp_nvidia_softc *sc;
-	u_int32_t wbc_reg, temp;
+	u_int32_t wbc_reg;
 	volatile u_int32_t *ag_virtual;
 	int i, pages;
 
@@ -368,9 +368,9 @@ agp_nvidia_flush_tlb (device_t dev)
 	/* Flush TLB entries. */
 	pages = sc->gatt->ag_entries * sizeof(u_int32_t) / PAGE_SIZE;
 	for(i = 0; i < pages; i++)
-		temp = ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
+		(void)ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
 	for(i = 0; i < pages; i++)
-		temp = ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
+		(void)ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
 }
 
 #define	SYSCFG		0xC0010010
