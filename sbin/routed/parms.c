@@ -1019,7 +1019,7 @@ gethost(char *name,
 	 * might be sick because routing is.
 	 */
 	if (inet_aton(name, &in) == 1) {
-		/* get a good number, but check that it it makes some
+		/* get a good number, but check that it makes some
 		 * sense.
 		 */
 		if (ntohl(in.s_addr)>>24 == 0
