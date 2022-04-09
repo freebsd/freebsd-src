@@ -121,7 +121,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 	struct mv_pci_range *pci_space;
 	pcell_t addr_cells, size_cells, par_addr_cells;
 	pcell_t *rangesptr;
-	pcell_t cell0, cell1, cell2;
+	pcell_t cell0, cell2;
 	int tuple_size, tuples, i, rv, offset_cells, len;
 	int  portid, is_io_space;
 
@@ -161,7 +161,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 	for (i = 0; i < tuples; i++) {
 		cell0 = fdt_data_get((void *)rangesptr, 1);
 		rangesptr++;
-		cell1 = fdt_data_get((void *)rangesptr, 1);
+		/* cell1 */
 		rangesptr++;
 		cell2 = fdt_data_get((void *)rangesptr, 1);
 		rangesptr++;

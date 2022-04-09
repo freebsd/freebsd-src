@@ -160,11 +160,8 @@ mv_ap806_sei_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 static int
 mv_ap806_sei_map(device_t dev, struct intr_map_data *data, u_int *irqp)
 {
-	struct mv_ap806_sei_softc *sc;
 	struct intr_map_data_fdt *daf;
 	u_int irq;
-
-	sc = device_get_softc(dev);
 
 	if (data->type != INTR_MAP_DATA_FDT)
 		return (ENOTSUP);

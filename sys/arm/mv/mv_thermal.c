@@ -298,14 +298,12 @@ mv_thermal_attach(device_t dev)
 	struct mv_thermal_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *oid;
-	phandle_t node;
 	char name[255];
 	char desc[255];
 	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	node = ofw_bus_get_node(dev);
 
 	sc->config = (struct mv_thermal_config *)
 	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
@@ -353,10 +351,6 @@ mv_thermal_attach(device_t dev)
 static int
 mv_thermal_detach(device_t dev)
 {
-	struct mv_thermal_softc *sc;
-
-	sc = device_get_softc(dev);
-
 	return (0);
 }
 
