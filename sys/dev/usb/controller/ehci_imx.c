@@ -208,10 +208,9 @@ static int
 imx_usbmisc_attach(device_t dev)
 {
 	struct imx_usbmisc_softc *sc;
-	int err, rid;
+	int rid;
 
 	sc = device_get_softc(dev);
-	err = 0;
 
 	/* Allocate bus_space resources. */
 	rid = 0;
