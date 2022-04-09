@@ -254,7 +254,7 @@ tdfx_attach(device_t dev) {
 static int
 tdfx_detach(device_t dev) {
 	struct tdfx_softc* tdfx_info;
-	int retval;
+	int retval __unused;
 	tdfx_info = device_get_softc(dev);
 
 	/* Delete allocated resource, of course */
