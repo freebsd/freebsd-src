@@ -1192,7 +1192,7 @@ fail1:
 
 
 /*
- * Internal routines for for specific MCDI requests.
+ * Internal routines for specific MCDI requests.
  */
 
 	__checkReturn	efx_rc_t

@@ -312,7 +312,7 @@ ef10_phy_reconfigure(
 		PHY_CAP_PAUSE, (cap_mask >> EFX_PHY_CAP_PAUSE) & 0x1,
 		PHY_CAP_ASYM, (cap_mask >> EFX_PHY_CAP_ASYM) & 0x1,
 		PHY_CAP_AN, (cap_mask >> EFX_PHY_CAP_AN) & 0x1);
-	/* Too many fields for for POPULATE macros, so insert this afterwards */
+	/* Too many fields for POPULATE macros, so insert this afterwards */
 	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
 	    PHY_CAP_40000FDX, (cap_mask >> EFX_PHY_CAP_40000FDX) & 0x1);
 
