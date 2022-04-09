@@ -3167,7 +3167,7 @@ reset_all:
 			return;
 		}
 		if (bbr_lt_intvl_fp == 0) {
-			/* Not doing false-postive detection */
+			/* Not doing false-positive detection */
 			return;
 		}
 		/* False positive detection */
@@ -4455,7 +4455,7 @@ bbr_sack_mergable(struct bbr_sendmap *at,
 {
 	/*
 	 * Given a sack block defined by
-	 * start and end, and a current postion
+	 * start and end, and a current position
 	 * at. Return 1 if either side of at
 	 * would show that the block is mergable
 	 * to that side. A block to be mergable
