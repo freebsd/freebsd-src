@@ -293,7 +293,7 @@ static int
 tegra124_cpufreq_settings(device_t dev, struct cf_setting *sets, int *count)
 {
 	struct tegra124_cpufreq_softc *sc;
-	int i, j, max_cnt;
+	int i, j;
 
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
@@ -301,7 +301,6 @@ tegra124_cpufreq_settings(device_t dev, struct cf_setting *sets, int *count)
 	sc = device_get_softc(dev);
 	memset(sets, CPUFREQ_VAL_UNKNOWN, sizeof(*sets) * (*count));
 
-	max_cnt = min(sc->nspeed_points, *count);
 	for (i = 0, j = sc->nspeed_points - 1; j >= 0; j--) {
 		if (sc->cpu_max_freq < sc->speed_points[j].freq)
 			continue;

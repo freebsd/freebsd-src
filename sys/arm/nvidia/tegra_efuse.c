@@ -334,7 +334,6 @@ tegra210_init(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 {
 	int i, threshold, speedo_rev;
 	uint32_t cpu_speedo[3], soc_speedo[3];
-	uint32_t cpu_iddq, soc_iddq, gpu_iddq;
 
 	cpu_speedo[0] = RD4(sc, TEGRA210_FUSE_CPU_SPEEDO_0);
 	cpu_speedo[1] = RD4(sc, TEGRA210_FUSE_CPU_SPEEDO_1);
@@ -347,10 +346,6 @@ tegra210_init(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 	sku->cpu_iddq_value = RD4(sc, TEGRA210_FUSE_CPU_IDDQ);
 	sku->soc_iddq_value = RD4(sc, TEGRA210_FUSE_SOC_IDDQ);
 	sku->gpu_iddq_value = RD4(sc, TEGRA210_FUSE_GPU_IDDQ);
-
-	cpu_iddq = RD4(sc, TEGRA210_FUSE_CPU_IDDQ) * 4;
-	soc_iddq = RD4(sc, TEGRA210_FUSE_SOC_IDDQ) * 4;
-	gpu_iddq = RD4(sc, TEGRA210_FUSE_GPU_IDDQ) * 5;
 
 	speedo_rev = tegra210_get_speedo_revision(sc);
 device_printf(sc->dev, " Speedo revision: %u\n", speedo_rev);
@@ -444,12 +439,10 @@ static int
 tegra_efuse_attach(device_t dev)
 {
 	int rv, rid;
-	phandle_t node;
 	struct tegra_efuse_softc *sc;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	node = ofw_bus_get_node(dev);
 	sc->soc = (struct efuse_soc *)ofw_bus_search_compatible(dev,
 	    compat_data)->ocd_data;
 

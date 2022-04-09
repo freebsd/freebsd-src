@@ -753,12 +753,9 @@ plle_enable(struct pll_sc *sc)
 {
 	uint32_t reg;
 	int rv;
-	struct mnp_bits *mnp_bits;
 	uint32_t pll_m = 2;
 	uint32_t pll_n = 125;
 	uint32_t pll_cml = 14;
-
-	mnp_bits = &sc->mnp_bits;
 
 	/* Disable lock override. */
 	RD4(sc, sc->base_reg, &reg);

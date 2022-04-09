@@ -150,11 +150,9 @@ tegra_ehci_attach(device_t dev)
 	ehci_softc_t *esc;
 	int rv, rid;
 	uint64_t freq;
-	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	node = ofw_bus_get_node(dev);
 	esc = &sc->ehci_softc;
 
 	/* Allocate resources. */

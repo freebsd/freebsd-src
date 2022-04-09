@@ -383,16 +383,13 @@ static int
 max77620_attach(device_t dev)
 {
 	struct max77620_softc *sc;
-	const char *dname;
-	int dunit, rv, rid;
+	int rv, rid;
 	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->bus_addr = iicbus_get_addr(dev);
 	node = ofw_bus_get_node(sc->dev);
-	dname = device_get_name(dev);
-	dunit = device_get_unit(dev);
 	rv = 0;
 	LOCK_INIT(sc);
 

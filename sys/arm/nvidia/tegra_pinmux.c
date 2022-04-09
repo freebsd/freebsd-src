@@ -702,7 +702,6 @@ static int pinmux_configure(device_t dev, phandle_t cfgxref)
 {
 	struct pinmux_softc *sc;
 	phandle_t node, cfgnode;
-	int rv;
 
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
@@ -710,7 +709,7 @@ static int pinmux_configure(device_t dev, phandle_t cfgxref)
 	for (node = OF_child(cfgnode); node != 0; node = OF_peer(node)) {
 		if (!ofw_bus_node_status_okay(node))
 			continue;
-		rv = pinmux_process_node(sc, node);
+		pinmux_process_node(sc, node);
 	}
 	return (0);
 }
