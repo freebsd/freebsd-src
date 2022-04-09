@@ -150,10 +150,17 @@ efi_1t1_l3(vm_offset_t va)
 vm_offset_t
 efi_phys_to_kva(vm_paddr_t paddr)
 {
+	vm_offset_t vaddr;
 
-	if (!PHYS_IN_DMAP(paddr))
-		return (0);
-	return (PHYS_TO_DMAP(paddr));
+	if (PHYS_IN_DMAP(paddr)) {
+		vaddr = PHYS_TO_DMAP(paddr);
+		if (pmap_klookup(vaddr, NULL))
+			return (vaddr);
+	}
+
+	/* TODO: Map memory not in the DMAP */
+
+	return (0);
 }
 
 /*
