@@ -122,7 +122,7 @@ __env_warnx(const char *msg, const char *name, size_t nameLen)
 
 /*
  * Inline strlen() for performance.  Also, perform check for an equals sign.
- * Cheaper here than peforming a strchr() later.
+ * Cheaper here than performing a strchr() later.
  */
 static inline size_t
 __strleneq(const char *str)
@@ -575,7 +575,7 @@ __merge_environ(void)
 
 
 /*
- * The exposed setenv() that peforms a few tests before calling the function
+ * The exposed setenv() that performs a few tests before calling the function
  * (__setenv()) that does the actual work of inserting a variable into the
  * environment.
  */
