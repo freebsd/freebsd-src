@@ -284,10 +284,9 @@ emac_reset(struct emac_softc *sc)
 static void
 emac_drain_rxfifo(struct emac_softc *sc)
 {
-	uint32_t data;
 
 	while (EMAC_READ_REG(sc, EMAC_RX_FBC) > 0)
-		data = EMAC_READ_REG(sc, EMAC_RX_IO_DATA);
+		(void)EMAC_READ_REG(sc, EMAC_RX_IO_DATA);
 }
 
 static void
