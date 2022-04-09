@@ -1208,9 +1208,7 @@ bcm_gpio_configure_pins(device_t dev, phandle_t cfgxref)
 	uint32_t *pins;
 	uint32_t *pulls;
 	uint32_t function;
-	static struct bcm_gpio_softc *sc;
 
-	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
 
 	pins = NULL;
