@@ -62,6 +62,9 @@
 /* Cap transfers by the maximum addressable by page-sized PRP (4KB -> 2MB). */
 #define NVME_MAX_XFER_SIZE		MIN(maxphys, (PAGE_SIZE/8*PAGE_SIZE))
 
+/* Host memory buffer sizes are always in 4096 byte chunks */
+#define	NVME_HMB_UNITS			4096
+
 /* Register field definitions */
 #define NVME_CAP_LO_REG_MQES_SHIFT			(0)
 #define NVME_CAP_LO_REG_MQES_MASK			(0xFFFF)
