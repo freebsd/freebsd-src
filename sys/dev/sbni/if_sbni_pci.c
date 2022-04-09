@@ -134,7 +134,7 @@ sbni_pci_attach(device_t dev)
 		goto attach_failed;
 	}
 
-	*(u_int32_t*)&flags = 0;
+	memset(&flags, 0, sizeof(flags));
 
 	error = sbni_attach(sc, device_get_unit(dev) * 2, flags);
 	if (error) {
