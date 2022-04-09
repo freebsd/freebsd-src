@@ -85,11 +85,9 @@ a37x0_xtal_attach(device_t dev)
 	struct a37x0_xtal_softc *sc;
 	struct clk_fixed_def def;
 	struct syscon *syscon;
-	phandle_t node;
 	uint32_t reg;
 	int error;
 
-	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 
 	def.clkdef.name = "armada-3700-xtal";
