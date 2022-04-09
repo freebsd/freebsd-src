@@ -535,11 +535,12 @@ bus_dma_tag_set_domain(bus_dma_tag_t dmat, int domain)
 int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-	bus_dma_tag_t dmat_copy;
+#ifdef KTR
+	bus_dma_tag_t dmat_copy = dmat;
+#endif
 	int error;
 
 	error = 0;
-	dmat_copy = dmat;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
