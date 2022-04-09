@@ -245,9 +245,6 @@ tegra124_coretemp_attach(device_t dev)
 static int
 tegra124_coretemp_detach(device_t dev)
 {
-	struct tegra124_coretemp_softc *sc;
-
-	sc = device_get_softc(dev);
 	return (0);
 }
 

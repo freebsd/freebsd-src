@@ -249,9 +249,6 @@ tegra210_coretemp_attach(device_t dev)
 static int
 tegra210_coretemp_detach(device_t dev)
 {
-	struct tegra210_coretemp_softc *sc;
-
-	sc = device_get_softc(dev);
 	return (0);
 }
 

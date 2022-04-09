@@ -710,12 +710,6 @@ static int
 tegra_pcib_msi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
-	struct tegra_pcib_softc *sc;
-	struct tegra_pcib_irqsrc *tgi;
-
-	sc = device_get_softc(dev);
-	tgi = (struct tegra_pcib_irqsrc *)isrc;
-
 	if (data == NULL || data->type != INTR_MAP_DATA_MSI)
 		return (ENOTSUP);
 

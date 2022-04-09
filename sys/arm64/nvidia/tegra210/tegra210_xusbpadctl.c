@@ -1745,7 +1745,6 @@ process_port(struct padctl_softc *sc, phandle_t node)
 {
 
 	struct padctl_port *port;
-	struct padctl_pad *pad;
 	char *name;
 	int rv;
 
@@ -1792,7 +1791,6 @@ process_port(struct padctl_softc *sc, phandle_t node)
 		goto end;
 	}
 
-	pad = port->lane->pad;
 	if (port->type == PADCTL_PORT_USB3) {
 		rv = OF_getencprop(node,  "nvidia,usb2-companion",
 		   &(port->companion), sizeof(port->companion));
