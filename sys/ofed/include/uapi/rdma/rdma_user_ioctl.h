@@ -50,7 +50,7 @@
 
 /*
  * General blocks assignments
- * It is closed on purpose do not expose it it user space
+ * It is closed on purpose do not expose it to user space
  * #define MAD_CMD_BASE		0x00
  */
 
