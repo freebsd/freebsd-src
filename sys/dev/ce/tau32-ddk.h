@@ -339,7 +339,7 @@ typedef struct tag_TAU32_E1_State
 
 struct tag_TAU32_UserContext
 {
-	/* fields provided by user for for TAU32_Initiaize() */
+	/* fields provided by user for TAU32_Initiaize() */
 	TAU32_Controller *pControllerObject;
 	PCI_PHYSICAL_ADDRESS ControllerObjectPhysicalAddress;
 	void *PciBar1VirtualAddress;
