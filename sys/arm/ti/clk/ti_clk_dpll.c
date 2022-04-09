@@ -76,10 +76,6 @@ struct ti_dpll_clknode_sc {
 static int
 ti_dpll_clk_init(struct clknode *clk, device_t dev)
 {
-	struct ti_dpll_clknode_sc *sc;
-
-	sc = clknode_get_softc(clk);
-
 	clknode_init_parent_idx(clk, 0);
 	return (0);
 }

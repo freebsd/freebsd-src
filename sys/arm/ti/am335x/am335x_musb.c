@@ -406,7 +406,6 @@ static int
 musbotg_detach(device_t dev)
 {
 	struct musbotg_super_softc *sc = device_get_softc(dev);
-	int err;
 
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
@@ -417,7 +416,7 @@ musbotg_detach(device_t dev)
 		 */
 		musbotg_uninit(&sc->sc_otg);
 
-		err = bus_teardown_intr(dev, sc->sc_otg.sc_irq_res,
+		bus_teardown_intr(dev, sc->sc_otg.sc_irq_res,
 		    sc->sc_otg.sc_intr_hdl);
 		sc->sc_otg.sc_intr_hdl = NULL;
 	}
