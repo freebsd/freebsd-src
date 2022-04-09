@@ -1761,7 +1761,7 @@ p_candebug(struct thread *td, struct proc *p)
 	if ((p->p_flag & P_INEXEC) != 0)
 		return (EBUSY);
 
-	/* Denied explicitely */
+	/* Denied explicitly */
 	if ((p->p_flag2 & P2_NOTRACE) != 0) {
 		error = priv_check(td, PRIV_DEBUG_DENIED);
 		if (error != 0)
