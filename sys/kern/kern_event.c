@@ -339,7 +339,7 @@ extern struct filterops sig_filtops;
 extern struct filterops fs_filtops;
 
 /*
- * Table for for all system-defined filters.
+ * Table for all system-defined filters.
  */
 static struct mtx	filterops_lock;
 MTX_SYSINIT(kqueue_filterops, &filterops_lock, "protect sysfilt_ops",
