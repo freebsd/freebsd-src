@@ -14045,7 +14045,7 @@ schedule_cleanup(struct mount *mp)
 		/*
 		 * No ast is delivered to kernel threads, so nobody
 		 * would deref the mp.  Some kernel threads
-		 * explicitely check for AST, e.g. NFS daemon does
+		 * explicitly check for AST, e.g. NFS daemon does
 		 * this in the serving loop.
 		 */
 		return;
