@@ -2727,7 +2727,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx5_ib_port *mibport = NULL;
 	enum mlx5_qp_state mlx5_cur, mlx5_new;
 	enum mlx5_qp_optpar optpar;
-	int sqd_event;
 	int mlx5_st;
 	int err;
 	u16 op;
@@ -2862,12 +2861,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	if (qp->rq.wqe_cnt && cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT)
 		context->db_rec_addr = cpu_to_be64(qp->db.dma);
-
-	if (cur_state == IB_QPS_RTS && new_state == IB_QPS_SQD	&&
-	    attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY && attr->en_sqd_async_notify)
-		sqd_event = 1;
-	else
-		sqd_event = 0;
 
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
 		u8 port_num = (attr_mask & IB_QP_PORT ? attr->port_num :
@@ -3919,7 +3912,6 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	unsigned long flags;
 	unsigned idx;
 	int err = 0;
-	int inl = 0;
 	int num_sge;
 	void *seg;
 	int nreq;
@@ -4162,7 +4154,6 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				*bad_wr = wr;
 				goto out;
 			}
-			inl = 1;
 			size += sz;
 		} else {
 			dpseg = seg;
