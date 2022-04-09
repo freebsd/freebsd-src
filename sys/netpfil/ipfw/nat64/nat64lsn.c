@@ -969,7 +969,7 @@ nat64lsn_maintain_hosts(struct nat64lsn_cfg *cfg)
 #endif
 
 /*
- * This procedure is used to perform various maintance
+ * This procedure is used to perform various maintenance
  * on dynamic hash list. Currently it is called every 4 seconds.
  */
 static void
