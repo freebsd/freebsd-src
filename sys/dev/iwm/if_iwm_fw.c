@@ -325,7 +325,7 @@ iwm_send_paging_cmd(struct iwm_softc *sc, const struct iwm_fw_img *fw)
 		.block_num = htole32(sc->num_of_paging_blk),
 	};
 
-	/* loop for for all paging blocks + CSS block */
+	/* loop for all paging blocks + CSS block */
 	for (blk_idx = 0; blk_idx < sc->num_of_paging_blk + 1; blk_idx++) {
 		dev_phy_addr = htole32(
 		    sc->fw_paging_db[blk_idx].fw_paging_block.paddr >>
