@@ -258,7 +258,7 @@ res_nopt(res_state statp,
 }
 
 /*
- * Construct variable data (RDATA) block for OPT psuedo-RR, append it
+ * Construct variable data (RDATA) block for OPT pseudo-RR, append it
  * to the buffer, then update the RDLEN field (previously set to zero by
  * res_nopt()) with the new RDATA length.
  */
