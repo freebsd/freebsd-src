@@ -486,6 +486,12 @@ add_efi_map_entry(struct efi_md *p)
 {
 
 	switch (p->md_type) {
+	case EFI_MD_TYPE_RT_CODE:
+		/*
+		 * Some UEFI implementations put the system table in the
+		 * runtime code section. Include it in the DMAP, but will
+		 * be excluded from phys_avail later.
+		 */
 	case EFI_MD_TYPE_RT_DATA:
 		/*
 		 * Runtime data will be excluded after the DMAP
