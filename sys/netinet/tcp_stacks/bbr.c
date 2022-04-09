@@ -991,7 +991,7 @@ bbr_timer_audit(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts, struct sock
 		    (tmr_up == PACE_TMR_RXT)) {
 			/*
 			 * if we hit enobufs then we would expect the
-			 * possiblity of nothing outstanding and the RXT up
+			 * possibility of nothing outstanding and the RXT up
 			 * (and the hptsi timer).
 			 */
 			return;
