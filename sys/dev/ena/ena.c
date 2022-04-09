@@ -2533,7 +2533,7 @@ ena_calc_max_io_queue_num(device_t pdev, struct ena_com_dev *ena_dev,
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues, io_rx_num);
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues, io_tx_sq_num);
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues, io_tx_cq_num);
-	/* 1 IRQ for for mgmnt and 1 IRQ for each TX/RX pair */
+	/* 1 IRQ for mgmnt and 1 IRQ for each TX/RX pair */
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues,
 	    pci_msix_count(pdev) - 1);
 #ifdef RSS
