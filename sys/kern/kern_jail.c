@@ -2844,7 +2844,7 @@ prison_free_not_last(struct prison *pr)
 }
 
 /*
- * Hold a a prison for user visibility, by incrementing pr_uref.
+ * Hold a prison for user visibility, by incrementing pr_uref.
  * It is generally an error to hold a prison that isn't already
  * user-visible, except through the the jail system calls.  It is also
  * an error to hold an invalid prison.  A prison record will remain
