@@ -332,10 +332,8 @@ mdioproxy_rendezvous_callback(enum rendezvous_op op, struct rendezvous_entry *re
 static void
 mdioproxy_identify(driver_t *driver, device_t parent)
 {
-	device_t child;
-
 	if (device_find_child(parent, driver->name, -1) == NULL) {
-		child = BUS_ADD_CHILD(parent, 0, driver->name, -1);
+		BUS_ADD_CHILD(parent, 0, driver->name, -1);
 	}
 }
 
