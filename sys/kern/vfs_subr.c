@@ -1565,7 +1565,7 @@ vnlru_proc(void)
 		if (usevnodes <= 0)
 			usevnodes = 1;
 		/*
-		 * The trigger value is is chosen to give a conservatively
+		 * The trigger value is chosen to give a conservatively
 		 * large value to ensure that it alone doesn't prevent
 		 * making progress.  The value can easily be so large that
 		 * it is effectively infinite in some congested and
