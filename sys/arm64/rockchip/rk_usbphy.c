@@ -286,9 +286,6 @@ fail:
 static int
 rk_usbphy_detach(device_t dev)
 {
-	struct rk_usbphy_softc *sc;
-	sc = device_get_softc(dev);
-
 	return (0);
 }
 
