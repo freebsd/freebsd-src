@@ -669,7 +669,7 @@ if_free(struct ifnet *ifp)
 	 * Why would we clear the alias now, and not in the deferred
 	 * context?  Indeed there is nothing wrong with some network
 	 * thread obtaining ifp via ifnet_byindex() inside the network
-	 * epoch and then dereferencing ifp while we peform if_free(),
+	 * epoch and then dereferencing ifp while we perform if_free(),
 	 * and after if_free() finished, too.
 	 *
 	 * This early index freeing was important back when ifindex was
