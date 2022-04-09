@@ -157,7 +157,7 @@ extern struct	intr_event *tty_intr_event;
 extern void	*vm_ih;
 
 /* Counts and names for statistics (defined in MD code). */
-extern u_long 	*intrcnt;	/* counts for for each device and stray */
+extern u_long 	*intrcnt;	/* counts for each device and stray */
 extern char 	*intrnames;	/* string table containing device names */
 extern size_t	sintrcnt;	/* size of intrcnt table */
 extern size_t	sintrnames;	/* size of intrnames table */
