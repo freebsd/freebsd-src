@@ -805,7 +805,7 @@ mpt_read(struct mpt_softc *mpt, int offset)
 }
 
 /*
- * Some operations (e.g. diagnostic register writes while the ARM proccessor
+ * Some operations (e.g. diagnostic register writes while the ARM processor
  * is disabled), must be performed using "PCI pio" operations.  On non-PCI
  * buses, these operations likely map to normal register accesses.
  */
