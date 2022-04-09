@@ -180,7 +180,6 @@ int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct mlx4_ib_cq *cq = to_mcq(ibcq);
 	struct mlx4_uar *uar;
-	void *buf_addr;
 	int err;
 	struct mlx4_ib_ucontext *context = rdma_udata_to_drv_context(
 		udata, struct mlx4_ib_ucontext, ibucontext);
@@ -209,7 +208,6 @@ int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			goto err_cq;
 		}
 
-		buf_addr = (void *)(unsigned long)ucmd.buf_addr;
 		err = mlx4_ib_get_cq_umem(dev, udata, &cq->buf, &cq->umem,
 					  ucmd.buf_addr, entries);
 		if (err)
@@ -233,8 +231,6 @@ int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		err = mlx4_ib_alloc_cq_buf(dev, &cq->buf, entries);
 		if (err)
 			goto err_db;
-
-		buf_addr = &cq->buf.buf;
 
 		uar = &dev->priv_uar;
 	}
