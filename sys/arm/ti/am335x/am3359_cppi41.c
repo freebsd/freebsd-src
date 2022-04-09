@@ -127,7 +127,6 @@ static int
 ti_am3359_cppi41_attach(device_t dev)
 {
 	struct ti_am3359_cppi41_softc *sc;
-	phandle_t node;
 	uint32_t reg, reset_bit, timeout=10;
 	uint64_t sysc_address;
 	device_t parent;
@@ -145,7 +144,6 @@ ti_am3359_cppi41_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
 	mtx_init(&sc->mtx, device_get_nameunit(sc->dev), NULL, MTX_DEF);
-	node = ofw_bus_get_node(sc->dev);
 
 	/* variant of am335x_usbss.c */
 	DPRINTF(dev, "-- RESET USB --\n");

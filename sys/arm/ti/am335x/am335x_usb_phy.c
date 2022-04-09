@@ -84,11 +84,9 @@ static int
 ti_usb_phy_attach(device_t dev)
 {
 	struct ti_usb_phy_softc *sc;
-	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	node = ofw_bus_get_node(dev);
 
 	/* FIXME: Add dev/extres/phy/ interface */
 

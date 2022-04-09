@@ -520,7 +520,6 @@ ti_pruss_attach(device_t dev)
 {
 	struct ti_pruss_softc *sc;
 	int rid, i, err, ncells;
-	uint32_t reg;
 	phandle_t node;
 	clk_t l3_gclk, pruss_ocp_gclk;
 	phandle_t ti_prm_ref, *cells;
@@ -680,9 +679,6 @@ ti_pruss_attach(device_t dev)
 			knlist_init_mtx(&sc->sc_irq_devs[i].sc_selinfo.si_note, &sc->sc_irq_devs[i].sc_mtx);
 		}
 	}
-
-	reg = ti_pruss_reg_read(sc,
-	    ti_sysc_get_sysc_address_offset_host(device_get_parent(dev)));
 
 	if (ti_pruss_reg_read(sc, PRUSS_AM33XX_INTC) == PRUSS_AM33XX_REV)
 		device_printf(dev, "AM33xx PRU-ICSS\n");

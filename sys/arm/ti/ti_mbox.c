@@ -224,10 +224,7 @@ ti_mbox_detach(device_t dev)
 static void
 ti_mbox_intr(void *arg)
 {
-	struct ti_mbox_softc *sc;
-
-	sc = arg;
-	DPRINTF("interrupt %p", sc);
+	DPRINTF("interrupt %p", arg);
 }
 
 static int
