@@ -936,11 +936,11 @@ nvme_ctrlr_hmb_alloc(struct nvme_controller *ctrlr)
 	max = (uint64_t)physmem * PAGE_SIZE / 20;
 	TUNABLE_UINT64_FETCH("hw.nvme.hmb_max", &max);
 
-	min = (long long unsigned)ctrlr->cdata.hmmin * 4096;
+	min = (long long unsigned)ctrlr->cdata.hmmin * NVME_HMB_UNITS;
 	if (max == 0 || max < min)
 		return;
-	pref = MIN((long long unsigned)ctrlr->cdata.hmpre * 4096, max);
-	minc = MAX(ctrlr->cdata.hmminds * 4096, PAGE_SIZE);
+	pref = MIN((long long unsigned)ctrlr->cdata.hmpre * NVME_HMB_UNITS, max);
+	minc = MAX(ctrlr->cdata.hmminds * NVME_HMB_UNITS, PAGE_SIZE);
 	if (min > 0 && ctrlr->cdata.hmmaxd > 0)
 		minc = MAX(minc, min / ctrlr->cdata.hmmaxd);
 	ctrlr->hmb_chunk = pref;
@@ -1023,7 +1023,7 @@ again:
 	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
 		ctrlr->hmb_desc_vaddr[i].addr =
 		    htole64(ctrlr->hmb_chunks[i].hmbc_paddr);
-		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / 4096);
+		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / NVME_HMB_UNITS);
 	}
 	bus_dmamap_sync(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_map,
 	    BUS_DMASYNC_PREWRITE);
