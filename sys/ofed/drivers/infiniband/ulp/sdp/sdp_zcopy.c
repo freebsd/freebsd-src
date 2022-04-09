@@ -241,7 +241,7 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 {
 	struct socket *sk = ssk->socket;
-	long timeo = HZ * 5; /* Timeout for for RDMA read */
+	long timeo = HZ * 5; /* Timeout for RDMA read */
 	DEFINE_WAIT(wait);
 
 	sdp_dbg_data(sk, "Sleep till RDMA wr finished.\n");
