@@ -1660,7 +1660,10 @@ vm_phys_early_add_seg(vm_paddr_t start, vm_paddr_t end)
 vm_paddr_t
 vm_phys_early_alloc(int domain, size_t alloc_size)
 {
-	int i, mem_index, biggestone;
+#ifdef NUMA
+	int mem_index;
+#endif
+	int i, biggestone;
 	vm_paddr_t pa, mem_start, mem_end, size, biggestsize, align;
 
 	KASSERT(domain == -1 || (domain >= 0 && domain < vm_ndomains),
@@ -1672,10 +1675,10 @@ vm_phys_early_alloc(int domain, size_t alloc_size)
 	 * the phys_avail selection below.
 	 */
 	biggestsize = 0;
-	mem_index = 0;
 	mem_start = 0;
 	mem_end = -1;
 #ifdef NUMA
+	mem_index = 0;
 	if (mem_affinity != NULL) {
 		for (i = 0;; i++) {
 			size = mem_affinity[i].end - mem_affinity[i].start;
