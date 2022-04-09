@@ -164,7 +164,9 @@ netmap_sync_kloop_tx_ring(const struct sync_kloop_ring_args *a)
 	struct nm_csb_atok *csb_atok = a->csb_atok;
 	struct nm_csb_ktoa *csb_ktoa = a->csb_ktoa;
 	struct netmap_ring shadow_ring; /* shadow copy of the netmap_ring */
+#ifdef SYNC_KLOOP_POLL
 	bool more_txspace = false;
+#endif /* SYNC_KLOOP_POLL */
 	uint32_t num_slots;
 	int batch;
 
@@ -239,7 +241,9 @@ netmap_sync_kloop_tx_ring(const struct sync_kloop_ring_args *a)
 		if (kring->rtail != kring->nr_hwtail) {
 			/* Some more room available in the parent adapter. */
 			kring->rtail = kring->nr_hwtail;
+#ifdef SYNC_KLOOP_POLL
 			more_txspace = true;
+#endif /* SYNC_KLOOP_POLL */
 		}
 
 		if (unlikely(netmap_debug & NM_DEBUG_TXSYNC)) {
@@ -317,7 +321,9 @@ netmap_sync_kloop_rx_ring(const struct sync_kloop_ring_args *a)
 	struct nm_csb_ktoa *csb_ktoa = a->csb_ktoa;
 	struct netmap_ring shadow_ring; /* shadow copy of the netmap_ring */
 	int dry_cycles = 0;
+#ifdef SYNC_KLOOP_POLL
 	bool some_recvd = false;
+#endif /* SYNC_KLOOP_POLL */
 	uint32_t num_slots;
 
 	if (unlikely(nm_kr_tryget(kring, 1, NULL))) {
@@ -371,7 +377,9 @@ netmap_sync_kloop_rx_ring(const struct sync_kloop_ring_args *a)
 		sync_kloop_kernel_write(csb_ktoa, kring->nr_hwcur, hwtail);
 		if (kring->rtail != hwtail) {
 			kring->rtail = hwtail;
+#ifdef SYNC_KLOOP_POLL
 			some_recvd = true;
+#endif /* SYNC_KLOOP_POLL */
 			dry_cycles = 0;
 		} else {
 			dry_cycles++;
