@@ -435,7 +435,7 @@ static int
 find_sdma_controller(struct sc_info *sc)
 {
 	struct sdma_softc *sdma_sc;
-	phandle_t node, sdma_node;
+	phandle_t node;
 	device_t sdma_dev;
 	pcell_t dts_value[DMAS_TOTAL];
 	int len;
@@ -457,8 +457,6 @@ find_sdma_controller(struct sc_info *sc)
 
 	sc->sdma_ev_rx = dts_value[1];
 	sc->sdma_ev_tx = dts_value[5];
-
-	sdma_node = OF_node_from_xref(dts_value[0]);
 
 	sdma_sc = NULL;
 
@@ -659,17 +657,17 @@ ssi_probe(device_t dev)
 static void
 ssi_intr(void *arg)
 {
+#if 0
 	struct sc_pcminfo *scp;
-	struct sc_chinfo *ch;
 	struct sc_info *sc;
-
-	scp = arg;
+ 
+ 	scp = arg;
 	sc = scp->sc;
-	ch = &scp->chan[0];
+#endif
 
 	/* We don't use SSI interrupt */
 #if 0
-	device_printf(sc->dev, "SSI Intr 0x%08x\n",
+	device_printf(scp->sc->dev, "SSI Intr 0x%08x\n",
 	    READ4(sc, SSI_SISR));
 #endif
 }
