@@ -81,9 +81,6 @@ struct imx_clk_sscg_pll_sc {
 static int
 imx_clk_sscg_pll_init(struct clknode *clk, device_t dev)
 {
-	struct imx_clk_sscg_pll_sc *sc;
-
-	sc = clknode_get_softc(clk);
 	if (clknode_get_parents_num(clk) > 1) {
 		device_printf(clknode_get_device(clk),
 		   "error: SSCG PLL does not support more than one parent yet\n");
