@@ -7385,7 +7385,7 @@ ipf_token_flush(ipf_main_softc_t *softc)
 /*              uid(I)  - uid owning the token                              */
 /*              ptr(I)  - context pointer for the token                     */
 /*                                                                          */
-/* This function looks for a a token in the current list that matches up    */
+/* This function looks for a token in the current list that matches up      */
 /* the fields (type, uid, ptr).  If none is found, ESRCH is returned, else  */
 /* call ipf_token_dewref() to remove it from the list. In the event that    */
 /* the token has a reference held elsewhere, setting ipt_complete to 2      */
