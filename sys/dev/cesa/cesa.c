@@ -1637,10 +1637,8 @@ cesa_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
 {
 	struct cesa_session *cs;
-	struct cesa_softc *sc;
 	int error;
 
-	sc = device_get_softc(dev);
 	error = 0;
 
 	/* Allocate session */
