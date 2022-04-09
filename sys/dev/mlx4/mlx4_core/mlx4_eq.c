@@ -501,7 +501,6 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	int i;
 	enum slave_port_gen_event gen_event;
 	unsigned long flags;
-	struct mlx4_vport_state *s_info;
 	int eqe_size = dev->caps.eqe_size;
 
 	while ((eqe = next_eqe_sw(eq, dev->caps.eqe_factor, eqe_size))) {
@@ -611,7 +610,6 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 							continue;
 						mlx4_dbg(dev, "%s: Sending MLX4_PORT_CHANGE_SUBTYPE_DOWN to slave: %d, port:%d\n",
 							 __func__, i, port);
-						s_info = &priv->mfunc.master.vf_oper[i].vport[port].state;
 						if (0 /*IFLA_VF_LINK_STATE_AUTO == s_info->link_state*/) {
 							eqe->event.port_change.port =
 								cpu_to_be32(
@@ -652,7 +650,6 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 							continue;
 						if (i == mlx4_master_func_num(dev))
 							continue;
-						s_info = &priv->mfunc.master.vf_oper[i].vport[port].state;
 						if (0 /*IFLA_VF_LINK_STATE_AUTO == s_info->link_state*/) {
 							eqe->event.port_change.port =
 								cpu_to_be32(
