@@ -690,7 +690,7 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 	build_iovec(&iov, &iovlen, "update", NULL, 0);
 	build_iovec(&iov, &iovlen, "snapshot", NULL, 0);
-	/* Create snapshot, removing old snapshot it it exists */
+	/* Create snapshot, removing old snapshot if it exists */
 	while (nmount(iov, iovlen, mntp->f_flags) < 0) {
 		if (errno == EEXIST && unlink(snapname) == 0)
 			continue;
