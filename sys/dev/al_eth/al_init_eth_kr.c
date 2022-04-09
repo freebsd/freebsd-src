@@ -467,7 +467,7 @@ al_eth_kr_lt_transmitter_task_run(struct al_eth_kr_data *kr_data)
 		break;
 	case DO_PRESET:
 		/*
-		 * Send PRESET and wait for for updated for all
+		 * Send PRESET and wait for updated for all
 		 * coefficients from remote
 		 */
 		if (al_eth_kr_lt_all_not_updated(&report) == 0)
