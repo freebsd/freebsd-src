@@ -8042,7 +8042,7 @@ pmap_zero_page(vm_page_t m)
 }
 
 /*
- * Zero an an area within a single hardware page.  off and size must not
+ * Zero an area within a single hardware page.  off and size must not
  * cover an area beyond a single hardware page.
  */
 void
