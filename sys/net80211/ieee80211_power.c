@@ -582,7 +582,7 @@ ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set)
 		    "%s: wake up from bgscan vap sleep\n",
 		    __func__);
 		/*
-		 * We may be in BGSCAN mode - this means the VAP is is in STA
+		 * We may be in BGSCAN mode - this means the VAP is in STA
 		 * mode powersave.  If it is, we need to wake it up so we
 		 * can process outbound traffic.
 		 */
