@@ -68,11 +68,9 @@ a37x0_periph_d_register_full_clk_dd(struct clkdom *clkdom,
 	struct clk_gate_def *gate;
 	struct clk_div_def *div1;
 	struct clk_div_def *div2;
-	const char *dev_name;
 	int error, dev_id;
 
 	dev_id = device_def->common_def.device_id;
-	dev_name = device_def->common_def.device_name;
 	tbg_mux = &device_def->clk_def.full_dd.tbg_mux;
 	div1 = &device_def->clk_def.full_dd.div1;
 	div2 = &device_def->clk_def.full_dd.div2;
@@ -134,11 +132,9 @@ a37x0_periph_d_register_full_clk(struct clkdom *clkdom,
 	struct clk_mux_def *clk_mux;
 	struct clk_gate_def *gate;
 	struct clk_div_def *div;
-	const char *dev_name;
 	int error, dev_id;
 
 	dev_id = device_def->common_def.device_id;
-	dev_name = device_def->common_def.device_name;
 	tbg_mux = &device_def->clk_def.full_d.tbg_mux;
 	div = &device_def->clk_def.full_d.div;
 	gate = &device_def->clk_def.full_d.gate;
@@ -190,10 +186,8 @@ a37x0_periph_d_register_periph_cpu(struct clkdom *clkdom,
 	struct clk_mux_def *clk_mux;
 	struct clk_mux_def *tbg_mux;
 	struct clk_div_def *div;
-	const char *dev_name;
 	int error, dev_id;
 
-	dev_name = device_def->common_def.device_name;
 	dev_id = device_def->common_def.device_id;
 	tbg_mux = &device_def->clk_def.cpu.tbg_mux;
 	div = &device_def->clk_def.cpu.div;
@@ -237,10 +231,8 @@ a37x0_periph_d_register_mdd(struct clkdom *clkdom,
 	struct clk_mux_def *clk_mux;
 	struct clk_div_def *div1;
 	struct clk_div_def *div2;
-	const char * dev_name;
 	int error, dev_id;
 
-	dev_name = device_def->common_def.device_name;
 	dev_id = device_def->common_def.device_id;
 	tbg_mux = &device_def->clk_def.mdd.tbg_mux;
 	div1 = &device_def->clk_def.mdd.div1;

@@ -60,12 +60,9 @@ a37x0_periph_gate_register_gate(struct clkdom *clkdom,
 {
 	struct clk_gate_def *gate;
 	const char *parent_name;
-	const char *dev_name;
 	int error, dev_id;
 
 	dev_id = device_def->common_def.device_id;
-	dev_name = device_def->common_def.device_name;
-
 	gate = &device_def->clk_def.gate.gate;
 
 	if (device_def->common_def.pname == NULL)
