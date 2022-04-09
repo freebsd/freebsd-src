@@ -1771,7 +1771,7 @@ device		puc
 # namely those which use MII-compliant transceivers or implement
 # transceiver control interfaces that operate like an MII.  Adding
 # "device miibus" to the kernel config pulls in support for the generic
-# miibus API, the common support for for bit-bang'ing the MII and all
+# miibus API, the common support for bit-bang'ing the MII and all
 # of the PHY drivers, including a generic one for PHYs that aren't
 # specifically handled by an individual driver.  Support for specific
 # PHYs may be built by adding "device mii", "device mii_bitbang" if
