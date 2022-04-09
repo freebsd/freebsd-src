@@ -1166,7 +1166,7 @@ again:
 		 * p_prev_slot, so that needs to be the last slot
 		 * we run. The next slot after that should be our
 		 * reserved first slot for new, and then starts
-		 * the running postion. Now the problem is the
+		 * the running position. Now the problem is the
 		 * reserved "not to yet" place does not exist
 		 * and there may be inp's in there that need
 		 * running. We can merge those into the
