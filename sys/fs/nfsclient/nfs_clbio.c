@@ -751,11 +751,8 @@ out:
  * later).
  */
 static int
-nfs_directio_write(vp, uiop, cred, ioflag)
-	struct vnode *vp;
-	struct uio *uiop;
-	struct ucred *cred;
-	int ioflag;
+nfs_directio_write(struct vnode *vp, struct uio *uiop, struct ucred *cred,
+    int ioflag)
 {
 	int error;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
