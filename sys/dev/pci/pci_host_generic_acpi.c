@@ -141,11 +141,9 @@ pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *res, void *arg)
 {
 	device_t dev = (device_t)arg;
 	struct generic_pcie_acpi_softc *sc;
-	struct rman *rm;
 	rman_res_t min, max, off;
 	int r;
 
-	rm = NULL;
 	sc = device_get_softc(dev);
 	r = sc->base.nranges;
 	switch (res->Type) {
