@@ -31,7 +31,7 @@
  */
 
 /*
- * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
+ * Mailbox and Queue Entry Definitions for Qlogic ISP SCSI adapters.
  */
 #ifndef	_ISPMBOX_H
 #define	_ISPMBOX_H
