@@ -882,7 +882,7 @@ nfsmout:
  */
 int
 nfscl_request(struct nfsrv_descript *nd, struct vnode *vp, NFSPROC_T *p,
-    struct ucred *cred, void *stuff)
+    struct ucred *cred)
 {
 	int ret, vers;
 	struct nfsmount *nmp;
