@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 #include <vmmapi.h>
+#define	__diagused
 #define	KASSERT(exp,msg)	assert((exp))
 #define	panic(...)		errx(4, __VA_ARGS__)
 #endif	/* _KERNEL */
