@@ -157,7 +157,7 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 int
 vm_handle_inout(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
-	int bytes, error;
+	int bytes __diagused, error;
 
 	bytes = vmexit->u.inout.bytes;
 	KASSERT(bytes == 1 || bytes == 2 || bytes == 4,
