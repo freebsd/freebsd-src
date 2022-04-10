@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include "atkbdc.h"
 #include "debug.h"
 #include "inout.h"
+#include "ipc.h"
 #include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"
@@ -1428,30 +1429,19 @@ done:
 static int
 handle_message(struct vmctx *ctx, nvlist_t *nvl)
 {
-	int err;
 	const char *cmd;
+	struct ipc_command **ipc_cmd;
 
 	if (!nvlist_exists_string(nvl, "cmd"))
-		return (-1);
+		return (EINVAL);
 
 	cmd = nvlist_get_string(nvl, "cmd");
-	if (strcmp(cmd, "checkpoint") == 0) {
-		if (!nvlist_exists_string(nvl, "filename") ||
-		    !nvlist_exists_bool(nvl, "suspend"))
-			err = -1;
-		else
-			err = vm_checkpoint(ctx, nvlist_get_string(nvl, "filename"),
-			    nvlist_get_bool(nvl, "suspend"));
-	} else {
-		EPRINTLN("Unrecognized checkpoint operation\n");
-		err = -1;
+	IPC_COMMAND_FOREACH(ipc_cmd, ipc_cmd_set) {
+		if (strcmp(cmd, (*ipc_cmd)->name) == 0)
+			return ((*ipc_cmd)->handler(ctx, nvl));
 	}
 
-	if (err != 0)
-		EPRINTLN("Unable to perform the requested operation\n");
-
-	nvlist_destroy(nvl);
-	return (err);
+	return (EOPNOTSUPP);
 }
 
 /*
@@ -1472,10 +1462,28 @@ checkpoint_thread(void *param)
 			handle_message(thread_info->ctx, nvl);
 		else
 			EPRINTLN("nvlist_recv() failed: %s", strerror(errno));
+
+		nvlist_destroy(nvl);
 	}
 
 	return (NULL);
 }
+
+static int
+vm_do_checkpoint(struct vmctx *ctx, const nvlist_t *nvl)
+{
+	int error;
+
+	if (!nvlist_exists_string(nvl, "filename") ||
+	    !nvlist_exists_bool(nvl, "suspend"))
+		error = EINVAL;
+	else
+		error = vm_checkpoint(ctx, nvlist_get_string(nvl, "filename"),
+		    nvlist_get_bool(nvl, "suspend"));
+
+	return (error);
+}
+IPC_COMMAND(ipc_cmd_set, checkpoint, vm_do_checkpoint);
 
 void
 init_snapshot(void)
