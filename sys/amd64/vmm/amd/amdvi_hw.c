@@ -423,7 +423,7 @@ amdvi_cmd_inv_intr_map(struct amdvi_softc *softc,
 static void
 amdvi_inv_domain(struct amdvi_softc *softc, uint16_t domain_id)
 {
-	struct amdvi_cmd *cmd;
+	struct amdvi_cmd *cmd __diagused;
 
 	cmd = amdvi_get_cmd_tail(softc);
 	KASSERT(cmd != NULL, ("Cmd is NULL"));
