@@ -1389,7 +1389,7 @@ vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset)
 static void
 vmx_inject_nmi(struct vmx *vmx, int vcpu)
 {
-	uint32_t gi, info;
+	uint32_t gi __diagused, info;
 
 	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 	KASSERT((gi & NMI_BLOCKING) == 0, ("vmx_inject_nmi: invalid guest "
@@ -1634,7 +1634,7 @@ vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
 static void
 vmx_assert_nmi_blocking(struct vmx *vmx, int vcpuid)
 {
-	uint32_t gi;
+	uint32_t gi __diagused;
 
 	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 	KASSERT(gi & VMCS_INTERRUPTIBILITY_NMI_BLOCKING,
@@ -1958,7 +1958,7 @@ static uint64_t
 inout_str_index(struct vmx *vmx, int vcpuid, int in)
 {
 	uint64_t val;
-	int error;
+	int error __diagused;
 	enum vm_reg_name reg;
 
 	reg = in ? VM_REG_GUEST_RDI : VM_REG_GUEST_RSI;
@@ -1971,7 +1971,7 @@ static uint64_t
 inout_str_count(struct vmx *vmx, int vcpuid, int rep)
 {
 	uint64_t val;
-	int error;
+	int error __diagused;
 
 	if (rep) {
 		error = vmx_getreg(vmx, vcpuid, VM_REG_GUEST_RCX, &val);
@@ -2004,7 +2004,7 @@ static void
 inout_str_seginfo(struct vmx *vmx, int vcpuid, uint32_t inst_info, int in,
     struct vm_inout_str *vis)
 {
-	int error, s;
+	int error __diagused, s;
 
 	if (in) {
 		vis->seg_name = VM_REG_GUEST_ES;
@@ -3860,7 +3860,7 @@ vmx_enable_x2apic_mode_vid(struct vlapic *vlapic)
 	struct vmx *vmx;
 	struct vmcs *vmcs;
 	uint32_t proc_ctls2;
-	int vcpuid, error;
+	int vcpuid, error __diagused;
 
 	vcpuid = vlapic->vcpuid;
 	vmx = ((struct vlapic_vtx *)vlapic)->vmx;
