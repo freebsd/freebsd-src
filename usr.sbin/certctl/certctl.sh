@@ -278,6 +278,8 @@ while getopts D:d:M:nUv flag; do
 done
 shift $(( $OPTIND - 1 ))
 
+DESTDIR=${DESTDIR%/}
+
 : ${METALOG:=${DESTDIR}/METALOG}
 INSTALLFLAGS=
 [ $UNPRIV -eq 1 ] && INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
