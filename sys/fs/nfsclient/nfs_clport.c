@@ -804,7 +804,7 @@ nfscl_wcc_data(struct nfsrv_descript *nd, struct vnode *vp,
 				NFSUNLOCKNODE(np);
 			}
 		}
-		error = nfscl_postop_attr(nd, nap, flagp, NULL);
+		error = nfscl_postop_attr(nd, nap, flagp);
 		if (wccflagp != NULL && *flagp == 0)
 			*wccflagp = 0;
 	} else if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR))
@@ -840,8 +840,7 @@ nfsmout:
  * Get postop attributes.
  */
 int
-nfscl_postop_attr(struct nfsrv_descript *nd, struct nfsvattr *nap, int *retp,
-    void *stuff)
+nfscl_postop_attr(struct nfsrv_descript *nd, struct nfsvattr *nap, int *retp)
 {
 	u_int32_t *tl;
 	int error = 0;
