@@ -993,7 +993,7 @@ vmmdev_destroy(void *arg)
 {
 	struct vmmdev_softc *sc = arg;
 	struct devmem_softc *dsc;
-	int error;
+	int error __diagused;
 
 	error = vcpu_lock_all(sc);
 	KASSERT(error == 0, ("%s: error %d freezing vcpus", __func__, error));
