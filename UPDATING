@@ -74,7 +74,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	this commit you are required to declare at least one congestion
 	control module (e.g. 'options CC_NEWRENO') and to also declare a
 	default using the CC_DEFAULT option (e.g. options CC_DEFAULT="newreno\").
-	The GENERIC configuation includes CC_NEWRENO and defines newreno
+	The GENERIC configuration includes CC_NEWRENO and defines newreno
 	as the default. If no congestion control option is built into the
 	kernel and you are including networking, the kernel compile will
 	fail. Also if no default is declared the kernel compile will fail.
@@ -213,7 +213,8 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 20210525:
 	Commits 17accc08ae15 and de102f870501 add new files to LinuxKPI
 	which break drm-kmod.  In addition various other additions where
-	comitted. Bump __FreeBSD_version to 1400015 to be able to detect this.
+	committed. Bump __FreeBSD_version to 1400015 to be able to
+	detect this.
 
 20210513:
 	Commit ca179c4d74f2 changed the package in which the OpenSSL
@@ -253,7 +254,7 @@ https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 
 20210128:
 	Various LinuxKPI functionality was added which conflicts with DRM.
-	Please update your drm-kmod port to after the __FreeBSD_verison 1400003
+	Please update your drm-kmod port to after the __FreeBSD_version 1400003
 	update.
 
 20210108:
