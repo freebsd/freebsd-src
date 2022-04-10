@@ -533,6 +533,15 @@ dialog_menu_layout()
 	done
 	disks="${new_list# }"
 
+	# Prune out disks that are not available to install to
+	local avail_disks=
+	for disk in $disks; do
+		debug= $disk get name name
+		geom disk list $name | awk '$1 == "Mode:" && $2 != "r0w0e0" { exit 1 }'
+		[ $? -eq 0 ] && avail_disks="$avail_disks $disk"
+	done
+	disks="${avail_disks# }"
+
 	# Debugging
 	if [ "$debug" ]; then
 		local disk_names=
