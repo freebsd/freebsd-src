@@ -351,7 +351,7 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 static void
 svm_msr_perm(uint8_t *perm_bitmap, uint64_t msr, bool read, bool write)
 {
-	int index, bit, error;
+	int index, bit, error __diagused;
 
 	error = svm_msr_index(msr, &index, &bit);
 	KASSERT(error == 0, ("%s: invalid msr %#lx", __func__, msr));
@@ -654,7 +654,7 @@ svm_vcpu_mode(struct vmcb *vmcb)
 {
 	struct vmcb_segment seg;
 	struct vmcb_state *state;
-	int error;
+	int error __diagused;
 
 	state = &vmcb->state;
 
@@ -719,7 +719,7 @@ static void
 svm_inout_str_seginfo(struct svm_softc *svm_sc, int vcpu, int64_t info1,
     int in, struct vm_inout_str *vis)
 {
-	int error, s;
+	int error __diagused, s;
 
 	if (in) {
 		vis->seg_name = VM_REG_GUEST_ES;
@@ -858,7 +858,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	struct vmcb_segment seg;
 	struct vmcb_ctrl *ctrl;
 	char *inst_bytes;
-	int error, inst_len;
+	int error __diagused, inst_len;
 
 	ctrl = &vmcb->ctrl;
 	paging = &vmexit->u.inst_emul.paging;
@@ -1113,7 +1113,7 @@ enable_nmi_blocking(struct svm_softc *sc, int vcpu)
 static void
 clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 {
-	int error;
+	int error __diagused;
 
 	KASSERT(nmi_blocked(sc, vcpu), ("vNMI already unblocked"));
 	VCPU_CTR0(sc->vm, vcpu, "vNMI blocking cleared");
@@ -1146,7 +1146,7 @@ svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
 	struct vm_exit *vme;
 	struct vmcb_state *state;
 	uint64_t changed, lma, oldval;
-	int error;
+	int error __diagused;
 
 	state = svm_get_vmcb_state(sc, vcpu);
 
@@ -1328,7 +1328,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct svm_regctx *ctx;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
-	int error, errcode_valid, handled, idtvec, reflect;
+	int error __diagused, errcode_valid, handled, idtvec, reflect;
 	bool retu;
 
 	ctx = svm_get_guest_regctx(svm_sc, vcpu);
@@ -2554,7 +2554,6 @@ done:
 static int
 svm_vmcx_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpu)
 {
-	struct vmcb *vmcb;
 	struct svm_softc *sc;
 	int err, running, hostcpu;
 
@@ -2562,7 +2561,6 @@ svm_vmcx_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpu)
 	err = 0;
 
 	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
-	vmcb = svm_get_vmcb(sc, vcpu);
 
 	running = vcpu_is_running(sc->vm, vcpu, &hostcpu);
 	if (running && hostcpu !=curcpu) {
