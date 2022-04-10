@@ -373,8 +373,7 @@ u_int8_t *nfscl_getmyip(struct nfsmount *, struct in6_addr *, int *);
 int nfsm_getfh(struct nfsrv_descript *, struct nfsfh **);
 int nfscl_mtofh(struct nfsrv_descript *, struct nfsfh **,
         struct nfsvattr *, int *);
-int nfscl_postop_attr(struct nfsrv_descript *, struct nfsvattr *, int *,
-    void *);
+int nfscl_postop_attr(struct nfsrv_descript *, struct nfsvattr *, int *);
 int nfscl_wcc_data(struct nfsrv_descript *, vnode_t,
     struct nfsvattr *, int *, int *, uint64_t *);
 int nfsm_loadattr(struct nfsrv_descript *, struct nfsvattr *);
