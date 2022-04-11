@@ -553,6 +553,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_ACCEPTCONN);
 	case LINUX_SO_PROTOCOL:
 		return (SO_PROTOCOL);
+	case LINUX_SO_DOMAIN:
+		return (SO_DOMAIN);
 	}
 	return (-1);
 }
@@ -2006,6 +2008,17 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			if (error != 0)
 				return (error);
 			newval = -bsd_to_linux_errno(newval);
+			return (copyout(&newval, PTRIN(args->optval), len));
+			/* NOTREACHED */
+		case SO_DOMAIN:
+			len = sizeof(newval);
+			error = kern_getsockopt(td, args->s, level,
+			    name, &newval, UIO_SYSSPACE, &len);
+			if (error != 0)
+				return (error);
+			newval = bsd_to_linux_domain(newval);
+			if (newval == -1)
+				return (ENOPROTOOPT);
 			return (copyout(&newval, PTRIN(args->optval), len));
 			/* NOTREACHED */
 		default:
