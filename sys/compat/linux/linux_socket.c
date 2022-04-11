@@ -1272,6 +1272,7 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 			return (error);
 		if (fromlen < 0)
 			return (EINVAL);
+		fromlen = min(fromlen, SOCK_MAXADDRLEN);
 		sa = malloc(fromlen, M_SONAME, M_WAITOK);
 	} else {
 		fromlen = 0;
