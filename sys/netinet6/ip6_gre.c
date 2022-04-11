@@ -212,7 +212,7 @@ in6_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
 	}
 }
 
-static void
+static bool
 in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
     const struct sockaddr *sa, void *ctx)
 {
@@ -226,7 +226,7 @@ in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	dst = *(const struct sockaddr_in6 *)sa;
 	if (sa6_embedscope(&dst, 0)) {
 		m_freem(m);
-		return;
+		return (true);
 	}
 	CK_LIST_FOREACH(sc, &gs->list, chain) {
 		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst, &dst.sin6_addr))
@@ -234,9 +234,11 @@ in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	}
 	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0){
 		gre_input(m, off + sizeof(struct udphdr), IPPROTO_UDP, sc);
-		return;
+		return (true);
 	}
 	m_freem(m);
+
+	return (true);
 }
 
 static int

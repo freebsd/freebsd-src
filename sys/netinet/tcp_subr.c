@@ -590,7 +590,7 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 	}
 }
 
-static void
+static bool
 tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
     const struct sockaddr *sa, void *ctx)
 {
@@ -659,9 +659,11 @@ tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 		goto out;
 		break;
 	}
-	return;
+	return (true);
 out:
 	m_freem(m);
+
+	return (true);
 }
 
 static int
