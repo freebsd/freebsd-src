@@ -1289,8 +1289,16 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	if (error != 0)
 		goto out;
 
-	if (PTRIN(args->from) != NULL)
-		error = linux_copyout_sockaddr(sa, PTRIN(args->from), msg.msg_namelen);
+	/*
+	 * XXX. Seems that FreeBSD is different from Linux here. Linux
+	 * fill source address if underlying protocol provides it, while
+	 * FreeBSD fill it if underlying protocol is not connection-oriented.
+	 * So, kern_recvit() set msg.msg_namelen to 0 if protocol pr_flags
+	 * does not contains PR_ADDR flag.
+	 */
+	if (PTRIN(args->from) != NULL && msg.msg_namelen != 0)
+		error = linux_copyout_sockaddr(sa, PTRIN(args->from),
+		    msg.msg_namelen);
 
 	if (error == 0 && PTRIN(args->fromlen) != NULL)
 		error = copyout(&msg.msg_namelen, PTRIN(args->fromlen),
