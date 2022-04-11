@@ -57,9 +57,9 @@ The bigger component is the Lua interpreter.
 .Pp
 During initialization,
 .Nm
-probes for a console and set the
+probes for a console and sets the
 .Va console
-variable, or set it to serial console
+variable, or sets it to serial console
 .Pq Dq Li comconsole
 if the previous boot stage used that.
 If multiple consoles are selected, they are listed separated by spaces.
@@ -79,11 +79,11 @@ is processed if available.
 .Pp
 At this point, if an
 .Ic autoboot
-has not been tried, and if
+has not been attempted, and if
 .Va autoboot_delay
 is not set to
 .Dq Li NO
-(not case sensitive), then an
+(case insensitive), then an
 .Ic autoboot
 is attempted.
 If the system gets past this point,
@@ -131,7 +131,7 @@ The environment variables common to all interpreters are described in the
 section.
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
-by it as arguments, and it is processed by a special parser which
+as arguments, and it is processed by a special parser which
 is not used for regular Lua commands.
 .Sh SECURITY
 Access to the
@@ -147,7 +147,7 @@ or
 .Va loaddev
 variables
 .It
-Executing binary of choice, by setting the
+Executing a binary of choice, by setting the
 .Va init_path
 or
 .Va init_script
@@ -180,7 +180,7 @@ If MD available, a file system can be embedded into the
 .Nm
 with
 .Pa /sys/tools/embed_mfs.sh .
-Then, MD is probed and be set to
+Then, MD is probed and set to
 .Va currdev
 during initialization.
 .Pp
