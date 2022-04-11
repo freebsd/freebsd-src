@@ -85,6 +85,7 @@ static char *chrootenv = NULL;
 
 static void	usage(void);
 static int	install_zoneinfo(const char *zoneinfo);
+static void	message_zoneinfo_file(const char *title, char *prompt);
 static int	install_zoneinfo_file(const char *zoneinfo_file);
 
 #ifdef HAVE_BSDDIALOG
@@ -99,10 +100,9 @@ typedef struct dialogMenuItem {
 } dialogMenuItem;
 
 static int
-xdialog_menu(char *title, char *cprompt, int height, int width,
-	     int menu_height, int item_no, dialogMenuItem *ditems)
+xdialog_menu(char *title, char *cprompt, int item_no, dialogMenuItem *ditems)
 {
-	int i, result, choice = 0;
+	int i, result, menurows, choice = 0;
 	struct bsddialog_menuitem *listitems;
 
 	/* initialize list items */
@@ -118,18 +118,11 @@ xdialog_menu(char *title, char *cprompt, int height, int width,
 		listitems[i].desc = ditems[i].title;
 	}
 
-	if (height < 0)
-		height = BSDDIALOG_AUTOSIZE;
-
-	if (width < 0) {
-		width = BSDDIALOG_AUTOSIZE;
-		conf.auto_minwidth = 24;
-	}
-
 again:
 	conf.title = title;
-	result = bsddialog_menu(&conf, cprompt, height, width,
-	    menu_height, item_no, listitems, &choice);
+	menurows = item_no < 16 ? item_no : 16;
+	result = bsddialog_menu(&conf, cprompt, BSDDIALOG_AUTOSIZE,
+	    BSDDIALOG_AUTOSIZE, menurows, item_no, listitems, &choice);
 	switch (result) {
 	case BSDDIALOG_ESC:
 		result = -1;
@@ -216,7 +209,6 @@ continent_country_menu(dialogMenuItem *continent)
 	char		title[64], prompt[64];
 	struct continent *contp = continent->data;
 	int		isocean = OCEANP(continent - continents);
-	int		menulen;
 	int		rv;
 
 	if (strcmp(continent->title, "UTC") == 0)
@@ -237,12 +229,8 @@ continent_country_menu(dialogMenuItem *continent)
 		snprintf(prompt, sizeof(prompt), "Select an island or group");
 	}
 
-	menulen = contp->nitems < 16 ? contp->nitems : 16;
-	rv = xdialog_menu(title, prompt, -1, -1, menulen, contp->nitems,
-	    contp->menu);
-	if (rv == 0)
-		return (DITEM_LEAVE_MENU);
-	return (DITEM_RECREATE);
+	rv = xdialog_menu(title, prompt, contp->nitems, contp->menu);
+	return (rv == 0 ? DITEM_LEAVE_MENU : DITEM_RECREATE);
 }
 
 static struct continent *
@@ -583,18 +571,13 @@ set_zone_menu(dialogMenuItem *dmi)
 {
 	char		title[64], prompt[64];
 	struct country	*cp = dmi->data;
-	int		menulen;
 	int		rv;
 
 	snprintf(title, sizeof(title), "%s Time Zones", cp->name);
 	snprintf(prompt, sizeof(prompt),
 	    "Select a zone which observes the same time as your locality.");
-	menulen = cp->nzones < 16 ? cp->nzones : 16;
-	rv = xdialog_menu(title, prompt, -1, -1, menulen, cp->nzones,
-	    cp->submenu);
-	if (rv != 0)
-		return (DITEM_RECREATE);
-	return (DITEM_LEAVE_MENU);
+	rv = xdialog_menu(title, prompt, cp->nzones, cp->submenu);
+	return (rv != 0 ? DITEM_RECREATE : DITEM_LEAVE_MENU);
 }
 
 static int
@@ -621,7 +604,7 @@ confirm_zone(const char *filename)
 	snprintf(prompt, sizeof(prompt),
 	    "Does the abbreviation `%s' look reasonable?", tm->tm_zone);
 	conf.title = "Confirmation";
-	rv = !bsddialog_yesno(&conf, prompt, 5, 72);
+	rv = (bsddialog_yesno(&conf, prompt, 5, 72) == BSDDIALOG_YES);
 	return (rv);
 }
 
@@ -653,6 +636,17 @@ set_zone_whole_country(dialogMenuItem *dmi)
 
 #endif
 
+static void message_zoneinfo_file(const char *title, char *prompt)
+{
+#ifdef HAVE_BSDDIALOG
+	if (usedialog) {
+		conf.title = title;
+		bsddialog_msgbox(&conf, prompt, 8, 72);
+	} else
+#endif
+		fprintf(stderr, "%s: %s\n", title, prompt);
+}
+
 static int
 install_zoneinfo_file(const char *zoneinfo_file)
 {
@@ -678,13 +672,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 		snprintf(prompt, sizeof(prompt),
 		    "Creating symbolic link %s to %s",
 		    path_localtime, zoneinfo_file);
-#ifdef HAVE_BSDDIALOG
-	if (usedialog)
-		conf.title = "Info";
-		bsddialog_msgbox(&conf, prompt, 8, 72);
-	else
-#endif
-		fprintf(stderr, "%s\n", prompt);
+		message_zoneinfo_file("Info", prompt);
 #endif
 
 	if (reallydoit) {
@@ -694,13 +682,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				snprintf(prompt, sizeof(prompt),
 				    "Could not open %s: %s", zoneinfo_file,
 				    strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "Error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 
@@ -708,13 +690,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				snprintf(prompt, sizeof(prompt),
 				    "Could not delete %s: %s",
 				    path_localtime, strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 
@@ -724,13 +700,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				snprintf(prompt, sizeof(prompt),
 				    "Could not open %s: %s",
 				    path_localtime, strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "Error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 
@@ -742,13 +712,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				snprintf(prompt, sizeof(prompt),
 				    "Error copying %s to %s %s", zoneinfo_file,
 				    path_localtime, strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "Error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				/* Better to leave none than a corrupt one. */
 				unlink(path_localtime);
 				return (DITEM_FAILURE | DITEM_RECREATE);
@@ -760,26 +724,14 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				snprintf(prompt, sizeof(prompt),
 				    "Cannot access %s: %s", zoneinfo_file,
 				    strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "Error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 			if (unlink(path_localtime) < 0 && errno != ENOENT) {
 				snprintf(prompt, sizeof(prompt),
 				    "Could not delete %s: %s",
 				    path_localtime, strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "Error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 			if (symlink(zoneinfo_file, path_localtime) < 0) {
@@ -787,13 +739,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				    "Cannot create symbolic link %s to %s: %s",
 				    path_localtime, zoneinfo_file,
 				    strerror(errno));
-#ifdef HAVE_BSDDIALOG
-				if (usedialog) {
-					conf.title = "Error";
-					bsddialog_msgbox(&conf, prompt, 8, 72);
-				} else
-#endif
-					fprintf(stderr, "%s\n", prompt);
+				message_zoneinfo_file("Error", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 		}
@@ -807,13 +753,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			snprintf(prompt, sizeof(prompt),
 			    "Created symbolic link from %s to %s",
 			    zoneinfo_file, path_localtime);
-#ifdef HAVE_BSDDIALOG
-		if (usedialog) {
-			conf.title = "Done";
-			bsddialog_msgbox(&conf, prompt, 8, 72);
-		} else
-#endif
-			fprintf(stderr, "%s\n", prompt);
+		message_zoneinfo_file("Done", prompt);
 #endif
 	} /* reallydoit */
 
@@ -966,25 +906,20 @@ main(int argc, char **argv)
 
 	bsddialog_initconf(&conf);
 	conf.clear = true;
+	conf.auto_minwidth = 24;
 	conf.key.enable_esc = true;
 
-	if (bsddialog_init() == BSDDIALOG_ERROR) {
-		printf("Error bsddialog: %s\n", bsddialog_geterror());
-		return (1);
-	}
+	if (bsddialog_init() == BSDDIALOG_ERROR)
+		errx(1, "Error bsddialog: %s\n", bsddialog_geterror());
 
 	if (skiputc == 0) {
-		int yesno;
-
 		snprintf(prompt, sizeof(prompt),
 		    "Is this machine's CMOS clock set to UTC?  "
 		    "If it is set to local time,\n"
 		    "or you don't know, please choose NO here!");
 
-		conf.button.default_cancel = false;
 		conf.title = "Select local or UTC (Greenwich Mean Time) clock";
-		yesno = bsddialog_yesno(&conf, prompt, 7, 73);
-		if (!yesno) {
+		if (bsddialog_yesno(&conf, prompt, 7, 73) == BSDDIALOG_YES) {
 			if (reallydoit)
 				unlink(path_wall_cmos_clock);
 		} else {
@@ -1005,14 +940,14 @@ main(int argc, char **argv)
 		snprintf(prompt, sizeof(prompt),
 		    "\nUse the default `%s' zone?", argv[optind]);
 		conf.title = "Default timezone provided";
-		if (!bsddialog_yesno(&conf, prompt, 7, 72)) {
+		if (bsddialog_yesno(&conf, prompt, 7, 72) == BSDDIALOG_YES) {
 			rv = install_zoneinfo_file(argv[optind]);
 			bsddialog_end();
 			exit(rv & ~DITEM_LEAVE_MENU);
 		}
 	}
-	xdialog_menu("Time Zone Selector", "Select a region", -1, -1,
-	    NCONTINENTS, NCONTINENTS, continents);
+	xdialog_menu("Time Zone Selector", "Select a region", NCONTINENTS,
+	    continents);
 
 	bsddialog_end();
 #else
