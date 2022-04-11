@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2022
+.Dd April 13, 2022
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -742,8 +742,6 @@ main(int argc, char **argv)
     ret = kevent(kq, &event, 1, NULL, 0, NULL);
     if (ret == -1)
 	err(EXIT_FAILURE, "kevent register");
-    if (event.flags & EV_ERROR)
-	errx(EXIT_FAILURE, "Event error: %s", strerror(event.data));
 
     for (;;) {
 	/* Sleep until something happens. */
@@ -751,8 +749,12 @@ main(int argc, char **argv)
 	if (ret == -1) {
 	    err(EXIT_FAILURE, "kevent wait");
 	} else if (ret > 0) {
-	    printf("Something was written in '%s'\en", argv[1]);
-	}
+	    if (tevent.flags & EV_ERROR)
+		errx(EXIT_FAILURE, "Event error: %s", strerror(event.data));
+	    else
+		printf("Something was written in '%s'\en", argv[1]);
+}
+
     }
 }
 .Ed
