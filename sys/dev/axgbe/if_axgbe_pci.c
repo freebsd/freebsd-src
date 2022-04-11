@@ -77,6 +77,7 @@ static void axgbe_if_init(if_ctx_t);
 static int axgbe_if_tx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
 static int axgbe_if_rx_queues_alloc(if_ctx_t, caddr_t *, uint64_t *, int, int);
 static int axgbe_alloc_channels(if_ctx_t);
+static void axgbe_free_channels(struct axgbe_if_softc *);
 static void axgbe_if_queues_free(if_ctx_t);
 static int axgbe_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
 static int axgbe_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
@@ -394,6 +395,7 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	device_t		dev;
 	unsigned int		ma_lo, ma_hi;
 	unsigned int		reg;
+	int			ret;
 
 	sc = iflib_get_softc(ctx);
 	sc->pdata.dev = dev = iflib_get_dev(ctx);
@@ -423,8 +425,11 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 		sc->pdata.vdata = &xgbe_v2b;
 
 	/* PCI setup */
-        if (bus_alloc_resources(dev, axgbe_pci_mac_spec, mac_res))
-                return (ENXIO);
+        if (bus_alloc_resources(dev, axgbe_pci_mac_spec, mac_res)) {
+		axgbe_error("Unable to allocate bus resources\n");
+		ret = ENXIO;
+		goto free_vlans;
+	}
 
         sc->pdata.xgmac_res = mac_res[0];
         sc->pdata.xpcs_res = mac_res[1];
@@ -465,7 +470,8 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	pdata->mac_addr[5] = (ma_hi >> 8) & 0xff;
 	if (!XP_GET_BITS(ma_hi, XP_MAC_ADDR_HI, VALID)) {
 		axgbe_error("Invalid mac address\n");
-		return (EINVAL);
+		ret = EINVAL;
+		goto release_bus_resource;
 	}
 	iflib_set_mac(ctx, pdata->mac_addr);
 
@@ -527,7 +533,8 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	/* Alloc channels */
 	if (axgbe_alloc_channels(ctx)) {
 		axgbe_error("Unable to allocate channel memory\n");
-                return (ENOMEM);
+		ret = ENOMEM;
+		goto release_bus_resource;
         }
 
 	TASK_INIT(&pdata->service_work, 0, xgbe_service, pdata);
@@ -535,13 +542,37 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	/* create the workqueue */
 	pdata->dev_workqueue = taskqueue_create("axgbe", M_WAITOK,
 	    taskqueue_thread_enqueue, &pdata->dev_workqueue);
-	taskqueue_start_threads(&pdata->dev_workqueue, 1, PI_NET,
+	if (pdata->dev_workqueue == NULL) {
+		axgbe_error("Unable to allocate workqueue\n");
+		ret = ENOMEM;
+		goto free_channels;
+	}
+	ret = taskqueue_start_threads(&pdata->dev_workqueue, 1, PI_NET,
 	    "axgbe dev taskq");
+	if (ret) {
+		axgbe_error("Unable to start taskqueue\n");
+		ret = ENOMEM;
+		goto free_task_queue;
+	}
 
 	/* Init timers */
 	xgbe_init_timers(pdata);
 
         return (0);
+
+free_task_queue:
+	taskqueue_free(pdata->dev_workqueue);
+
+free_channels:
+	axgbe_free_channels(sc);
+
+release_bus_resource:
+        bus_release_resources(dev, axgbe_pci_mac_spec, mac_res);
+
+free_vlans:
+	free(pdata->active_vlans, M_AXGBE);
+
+	return (ret);
 } /* axgbe_if_attach_pre */
 
 static void
@@ -738,6 +769,21 @@ axgbe_alloc_channels(if_ctx_t ctx)
 
 	return (0);
 } /* axgbe_alloc_channels */
+
+static void
+axgbe_free_channels(struct axgbe_if_softc *sc)
+{
+	struct xgbe_prv_data	*pdata = &sc->pdata;
+	int i;
+
+	for (i = 0; i < pdata->total_channel_count ; i++) {
+		free(pdata->channel[i], M_AXGBE);
+		pdata->channel[i] = NULL;
+	}
+
+	pdata->total_channel_count = 0;
+	pdata->channel_count = 0;
+}
 
 static void
 xgbe_service(void *ctx, int pending)
@@ -1785,14 +1831,7 @@ axgbe_if_queues_free(if_ctx_t ctx)
 		channel->rx_ring = NULL;
 	}
 
-	/* Free Channels */
-	for (i = 0; i < pdata->total_channel_count ; i++) {
-		free(pdata->channel[i], M_AXGBE);
-		pdata->channel[i] = NULL;
-	}
-
-	pdata->total_channel_count = 0;
-	pdata->channel_count = 0;
+	axgbe_free_channels(sc);
 } /* axgbe_if_queues_free */
 
 static void
