@@ -216,7 +216,7 @@ static void gen_set_enaddr(struct gen_softc *sc);
 static void gen_setup_rxfilter(struct gen_softc *sc);
 static void gen_reset(struct gen_softc *sc);
 static void gen_enable(struct gen_softc *sc);
-static void gen_dma_disable(device_t dev);
+static void gen_dma_disable(struct gen_softc *sc);
 static int gen_bus_dma_init(struct gen_softc *sc);
 static void gen_bus_dma_teardown(struct gen_softc *sc);
 static void gen_enable_intr(struct gen_softc *sc);
@@ -289,7 +289,7 @@ gen_attach(device_t dev)
 	/* reset core */
 	gen_reset(sc);
 
-	gen_dma_disable(dev);
+	gen_dma_disable(sc);
 
 	/* Setup DMA */
 	error = gen_bus_dma_init(sc);
@@ -484,6 +484,12 @@ gen_reset(struct gen_softc *sc)
 	WR4(sc, GENET_UMAC_MIB_CTRL, GENET_UMAC_MIB_RESET_RUNT |
 	    GENET_UMAC_MIB_RESET_RX | GENET_UMAC_MIB_RESET_TX);
 	WR4(sc, GENET_UMAC_MIB_CTRL, 0);
+}
+
+static void
+gen_enable(struct gen_softc *sc)
+{
+	u_int val;
 
 	WR4(sc, GENET_UMAC_MAX_FRAME_LEN, 1536);
 
@@ -492,12 +498,6 @@ gen_reset(struct gen_softc *sc)
 	WR4(sc, GENET_RBUF_CTRL, val);
 
 	WR4(sc, GENET_RBUF_TBUF_SIZE_CTRL, 1);
-}
-
-static void
-gen_enable(struct gen_softc *sc)
-{
-	u_int val;
 
 	/* Enable transmitter and receiver */
 	val = RD4(sc, GENET_UMAC_CMD);
@@ -509,6 +509,33 @@ gen_enable(struct gen_softc *sc)
 	gen_enable_intr(sc);
 	WR4(sc, GENET_INTRL2_CPU_CLEAR_MASK,
 	    GENET_IRQ_TXDMA_DONE | GENET_IRQ_RXDMA_DONE);
+}
+
+static void
+gen_disable_intr(struct gen_softc *sc)
+{
+	/* Disable interrupts */
+	WR4(sc, GENET_INTRL2_CPU_SET_MASK, 0xffffffff);
+	WR4(sc, GENET_INTRL2_CPU_CLEAR_MASK, 0xffffffff);
+}
+
+static void
+gen_disable(struct gen_softc *sc)
+{
+	uint32_t val;
+
+	/* Stop receiver */
+	val = RD4(sc, GENET_UMAC_CMD);
+	val &= ~GENET_UMAC_CMD_RXEN;
+	WR4(sc, GENET_UMAC_CMD, val);
+
+	/* Stop transmitter */
+	val = RD4(sc, GENET_UMAC_CMD);
+	val &= ~GENET_UMAC_CMD_TXEN;
+	WR4(sc, GENET_UMAC_CMD, val);
+
+	/* Disable Interrupt */
+	gen_disable_intr(sc);
 }
 
 static void
@@ -538,9 +565,8 @@ gen_enable_offload(struct gen_softc *sc)
 }
 
 static void
-gen_dma_disable(device_t dev)
+gen_dma_disable(struct gen_softc *sc)
 {
-	struct gen_softc *sc = device_get_softc(dev);
 	int val;
 
 	val = RD4(sc, GENET_TX_DMA_CTRL);
@@ -806,6 +832,44 @@ gen_init_rxrings(struct gen_softc *sc)
 	    RX_DESC_COUNT);
 	sc->rx_queue[DEF_RXQUEUE].hwindex = GENET_DMA_DEFAULT_QUEUE;
 
+}
+
+static void
+gen_stop(struct gen_softc *sc)
+{
+	int i;
+	struct gen_ring_ent *ent;
+
+	GEN_ASSERT_LOCKED(sc);
+
+	callout_stop(&sc->stat_ch);
+	if_setdrvflagbits(sc->ifp, 0, IFF_DRV_RUNNING);
+	gen_reset(sc);
+	gen_disable(sc);
+	gen_dma_disable(sc);
+
+	/* Clear the tx/rx ring buffer */
+	for (i = 0; i < TX_DESC_COUNT; i++) {
+		ent = &sc->tx_ring_ent[i];
+		if (ent->mbuf != NULL) {
+			bus_dmamap_sync(sc->tx_buf_tag, ent->map,
+				BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->tx_buf_tag, ent->map);
+			m_freem(ent->mbuf);
+			ent->mbuf = NULL;
+		}
+	}
+
+	for (i = 0; i < RX_DESC_COUNT; i++) {
+		ent = &sc->rx_ring_ent[i];
+		if (ent->mbuf != NULL) {
+			bus_dmamap_sync(sc->rx_buf_tag, ent->map,
+			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->rx_buf_tag, ent->map);
+			m_freem(ent->mbuf);
+			ent->mbuf = NULL;
+		}
+	}
 }
 
 static void
@@ -1498,7 +1562,7 @@ gen_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				gen_init_locked(sc);
 		} else {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
-				gen_reset(sc);
+				gen_stop(sc);
 		}
 		sc->if_flags = if_getflags(ifp);
 		GEN_UNLOCK(sc);
