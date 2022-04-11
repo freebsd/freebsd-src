@@ -342,7 +342,9 @@ struct ifnet {
 	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_drv_flags;		/* driver-managed status flags */
 	int	if_capabilities;	/* interface features & capabilities */
+	int	if_capabilities2;	/* part 2 */
 	int	if_capenable;		/* enabled features & capabilities */
+	int	if_capenable2;		/* part 2 */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
 	u_int	if_refcount;		/* reference count */
