@@ -41,6 +41,7 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .Op Fl 4AaDdfHnoQqRrv
+.Op Fl .\& Ns Ar chars
 .Op Fl C Ar pcp
 .Op Fl c Ar count
 .Op Fl G Ar sweepmaxsize
@@ -60,6 +61,7 @@ packets to network hosts
 .Ar IPv4-host
 .Nm
 .Op Fl 4AaDdfHLnoQqRrv
+.Op Fl .\& Ns Ar chars
 .Op Fl C Ar pcp
 .Op Fl c Ar count
 .Op Fl I Ar iface
@@ -78,6 +80,7 @@ packets to network hosts
 .Ar IPv4-mcast-group
 .Nm
 .Op Fl 6AaDdEfHNnOoquvYyZ
+.Op Fl .\& Ns Ar chars
 .Op Fl b Ar bufsiz
 .Op Fl c Ar count
 .Op Fl e Ar gateway
@@ -145,6 +148,22 @@ as
 .Nm ping6 .
 .Ss Options common to both IPv4 and IPv6 targets
 .Bl -tag -width indent
+.It Fl .\& Ns Ar chars
+By default, for every
+.Tn ECHO_REQUEST
+sent, a period
+.Dq .\&
+is printed, while for every
+.Tn ECHO_REPLY
+received, a backspace is printed.
+This option takes an optional string argument listing characters
+that will be printed one by one in the provided order
+instead of the default period.
+.Pp
+Example usage:
+.Bd -literal -offset indent
+ping -.0123456789 freebsd.org
+.Ed
 .It Fl A
 Audible.
 Output a bell
@@ -188,13 +207,13 @@ option on the socket being used.
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
 whichever is more.
-For every
+Implies
+.Fl .\&
+to print a period for every
 .Tn ECHO_REQUEST
-sent a period
-.Dq .\&
-is printed, while for every
+sent and a backspace for every
 .Tn ECHO_REPLY
-received a backspace is printed.
+received.
 This provides a rapid display of how many packets are being dropped.
 Only the super-user may use this option.
 .Bf -emphasis
