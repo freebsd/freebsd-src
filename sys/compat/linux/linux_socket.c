@@ -1589,8 +1589,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	 */
 	if (msg->msg_name != NULL && msg->msg_namelen > 0) {
 		msg->msg_name = PTRIN(linux_msghdr.msg_name);
-		error = linux_copyout_sockaddr(sa,
-		    PTRIN(msg->msg_name), msg->msg_namelen);
+		error = linux_copyout_sockaddr(sa, msg->msg_name,
+		    msg->msg_namelen);
 		if (error != 0)
 			goto bad;
 	}
