@@ -36,6 +36,7 @@
 #ifndef _NETINET_UDP_VAR_H_
 #define	_NETINET_UDP_VAR_H_
 
+#include <sys/types.h>
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 
@@ -60,7 +61,8 @@ struct udpiphdr {
 struct inpcb;
 struct mbuf;
 
-typedef void(*udp_tun_func_t)(struct mbuf *, int, struct inpcb *,
+#ifdef _KERNEL
+typedef bool(*udp_tun_func_t)(struct mbuf *, int, struct inpcb *,
 			      const struct sockaddr *, void *);
 typedef void(*udp_tun_icmp_t)(int, struct sockaddr *, void *, void *);
 
@@ -78,6 +80,7 @@ struct udpcb {
 
 #define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
 #define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
+#endif
 
 				/* IPsec: ESP in UDP tunneling: */
 #define	UF_ESPINUDP_NON_IKE	0x00000001	/* w/ non-IKE marker .. */
