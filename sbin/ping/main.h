@@ -40,7 +40,7 @@
 #else
  #define PING4ADDOPTS
 #endif
-#define PING4OPTS "4AaC:c:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:" PING4ADDOPTS
+#define PING4OPTS ".::4AaC:c:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:" PING4ADDOPTS
 
 #if defined(INET6) && defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
  #define PING6ADDOPTS "P:"
@@ -49,7 +49,7 @@
 #else
  #define PING6ADDOPTS
 #endif
-#define PING6OPTS "6Aab:C:c:Dde:fHI:i:k:l:m:nNoOp:qS:s:t:uvyYW:z:" PING6ADDOPTS
+#define PING6OPTS ".::6Aab:C:c:Dde:fHI:i:k:l:m:nNoOp:qS:s:t:uvyYW:z:" PING6ADDOPTS
 
 void usage(void) __dead2;
 
