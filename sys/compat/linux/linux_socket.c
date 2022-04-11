@@ -1046,11 +1046,9 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 
 	if (len != 0) {
 		error = linux_copyout_sockaddr(sa, PTRIN(addr), len);
-
-		/*
-		 * XXX: We should also copyout the len, shouldn't we?
-		 */
-
+		if (error == 0)
+			error = copyout(&len, PTRIN(namelen),
+			    sizeof(len));
 		if (error != 0) {
 			fdclose(td, fp, td->td_retval[0]);
 			td->td_retval[0] = 0;
