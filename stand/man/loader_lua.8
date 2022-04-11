@@ -53,16 +53,16 @@ The smaller one is a set of commands
 designed for direct use by the casual user, called "builtin
 commands" for historical reasons.
 The main drive behind these commands is user-friendliness.
-The bigger component is the Lua interpter.
+The bigger component is the Lua interpreter.
 .Pp
 During initialization,
 .Nm
-will probe for a console and set the
+probes for a console and set the
 .Va console
 variable, or set it to serial console
 .Pq Dq Li comconsole
 if the previous boot stage used that.
-If multiple consoles are selected, they will be listed separated by spaces.
+If multiple consoles are selected, they are listed separated by spaces.
 Then, devices are probed,
 .Va currdev
 and
@@ -85,26 +85,25 @@ is not set to
 .Dq Li NO
 (not case sensitive), then an
 .Ic autoboot
-will be tried.
+is attempted.
 If the system gets past this point,
 .Va prompt
-will be set and
+is set and
 .Nm
-will engage interactive mode.
-Please note that historically even when
+enters interactive mode.
+Please note that, historically, even when
 .Va autoboot_delay
 is set to
-.Dq Li 0
-user will be able to interrupt autoboot process by pressing some key
-on the console while kernel and modules are being loaded.
-In some
-cases such behaviour may be undesirable, to prevent it set
+.Dq Li 0 ,
+the user can interrupt the autoboot process by pressing a key
+on the console while the kernel and modules are being loaded.
+To prevent this set
 .Va autoboot_delay
 to
-.Dq Li -1 ,
-in this case
+.Dq Li -1 .
+In this case
 .Nm
-will engage interactive mode only if
+enters interactive mode only if
 .Ic autoboot
 has failed.
 .Sh BUILTIN COMMANDS
@@ -115,10 +114,10 @@ Presently,
 the only way to call them from a script is by using
 .Pa evaluate
 on a string.
-If an error condition occurs, an exception will be generated,
+If an error condition occurs, an exception is generated,
 which can be intercepted using Lua exception handling.
-If not intercepted, an error message will be displayed and
-the interpreter's state will be reset, emptying the stack and restoring
+If not intercepted, an error message is displayed and
+the interpreter's state is reset, emptying the stack and restoring
 interpreting mode.
 .Pp
 The commands are described in the
@@ -181,7 +180,7 @@ If MD available, a file system can be embedded into the
 .Nm
 with
 .Pa /sys/tools/embed_mfs.sh .
-Then, MD will be probed and be set to
+Then, MD is probed and be set to
 .Va currdev
 during initialization.
 .Pp
