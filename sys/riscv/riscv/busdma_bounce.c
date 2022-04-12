@@ -200,11 +200,13 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 static int
 bounce_bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-	bus_dma_tag_t dmat_copy, parent;
+#ifdef KTR
+	bus_dma_tag_t dmat_copy = dmat;
+#endif
+	bus_dma_tag_t parent;
 	int error;
 
 	error = 0;
-	dmat_copy = dmat;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
