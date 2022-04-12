@@ -369,7 +369,7 @@ aoa_attach(void *xsc)
 	char status[SND_STATUSLEN];
 	struct aoa_softc *sc;
 	device_t self;
-	int err;
+	int err __unused;
 
 	sc = xsc;
 	self = sc->sc_dev;
