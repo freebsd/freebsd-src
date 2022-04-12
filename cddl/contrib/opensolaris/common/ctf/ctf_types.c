@@ -818,8 +818,8 @@ _ctf_member_info(ctf_file_t *fp, ctf_id_t type, const char *name, ulong_t off,
 
 		ctf_get_ctm_info(fp, mp, size, &increment, &type, &offset,
 		    &name1);
-		if (name1 == NULL &&
-		    _ctf_member_info(fp, type, name1, offset + off, mip) == 0)
+		if (name1[0] == '\0' &&
+		    _ctf_member_info(fp, type, name, offset + off, mip) == 0)
 			return (0);
 		if (strcmp(name1, name) == 0) {
 			mip->ctm_type = type;
