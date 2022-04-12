@@ -2435,7 +2435,6 @@ ieee80211_probereq_ie_len(struct ieee80211vap *vap, struct ieee80211com *ic)
 	 * prreq frame format
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
-	 *	[tlv] RSN (optional)
 	 *	[tlv] extended supported rates (if needed)
 	 *	[tlv] HT cap (optional)
 	 *	[tlv] VHT cap (optional)
@@ -2444,8 +2443,6 @@ ieee80211_probereq_ie_len(struct ieee80211vap *vap, struct ieee80211com *ic)
 	 */
 	return ( 2 + IEEE80211_NWID_LEN
 	       + 2 + IEEE80211_RATE_SIZE
-	       + ((vap->iv_flags & IEEE80211_F_WPA2 && vap->iv_rsn_ie != NULL) ?
-	           vap->iv_rsn_ie[1] : 0)
 	       + ((rs->rs_nrates > IEEE80211_RATE_SIZE) ?
 	           2 + (rs->rs_nrates - IEEE80211_RATE_SIZE) : 0)
 	       + (((vap->iv_opmode == IEEE80211_M_IBSS) &&
@@ -2493,7 +2490,6 @@ ieee80211_probereq_ie(struct ieee80211vap *vap, struct ieee80211com *ic,
 		frm = ieee80211_add_ssid(frm, ssid, ssidlen);
 	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 	frm = ieee80211_add_rates(frm, rs);
-	frm = ieee80211_add_rsn(frm, vap);
 	frm = ieee80211_add_xrates(frm, rs);
 
 	/*
