@@ -464,7 +464,6 @@ ttyinq_line_iterate(struct ttyinq *ti,
 		/* Last byte iterated - go to the next block. */
 		if (boff == TTYINQ_DATASIZE - 1)
 			tib = tib->tib_next;
-		MPASS(tib != NULL);
 	}
 }
 
