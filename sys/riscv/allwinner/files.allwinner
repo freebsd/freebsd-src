@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+arm/allwinner/aw_wdog.c			optional	aw_wdog
