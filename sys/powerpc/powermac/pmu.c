@@ -964,7 +964,7 @@ pmu_battery_notify(struct pmu_battstate *batt, struct pmu_battstate *old)
 }
 
 static void
-pmu_battquery_proc()
+pmu_battquery_proc(void)
 {
 	struct pmu_softc *sc;
 	struct pmu_battstate batt;
@@ -977,8 +977,10 @@ pmu_battquery_proc()
 	while (1) {
 		kproc_suspend_check(curproc);
 		error = pmu_query_battery(sc, 0, &batt);
-		pmu_battery_notify(&batt, &cur_batt);
-		cur_batt = batt;
+		if (error == 0) {
+			pmu_battery_notify(&batt, &cur_batt);
+			cur_batt = batt;
+		}
 		pause("pmu_batt", hz);
 	}
 }
