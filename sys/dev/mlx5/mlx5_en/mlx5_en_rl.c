@@ -1448,7 +1448,6 @@ mlx5e_rl_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	unsigned mode_modify;
 	unsigned was_opened;
 	uint64_t value;
-	uint64_t old;
 	int error;
 
 	PRIV_LOCK(priv);
@@ -1458,13 +1457,11 @@ mlx5e_rl_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	MLX5E_RL_RUNLOCK(rl);
 
 	if (req != NULL) {
-		old = value;
 		error = sysctl_handle_64(oidp, &value, 0, req);
 		if (error || req->newptr == NULL ||
 		    value == rl->param.arg[arg2])
 			goto done;
 	} else {
-		old = 0;
 		error = 0;
 	}
 
