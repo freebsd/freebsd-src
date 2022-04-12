@@ -108,8 +108,6 @@ typedef enum {
  */
 #define FP_STKY_OFF	0	/* sticky flags offset */
 
-#ifdef __GNUCLIKE_ASM
-
 #define	__fldcw(addr)	__asm __volatile("fldcw %0" : : "m" (*(addr)))
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
 #define	__fnclex()	__asm __volatile("fnclex")
@@ -146,7 +144,5 @@ __fnldcw(unsigned short _cw, unsigned short _newcw)
 	}
 	__fldcw(&_newcw);
 }
-
-#endif /* __GNUCLIKE_ASM */
 
 #endif/* _X86_X86_IEEEFP_H_ */

@@ -57,7 +57,7 @@ struct region_descriptor;
 #define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
 #define writeq(va, d)	(*(volatile uint64_t *) (va) = (d))
 
-#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
+#if defined(__CC_SUPPORTS___INLINE)
 
 static __inline void
 breakpoint(void)
@@ -964,7 +964,7 @@ sgx_eremove(void *epc)
 	return (sgx_encls(SGX_EREMOVE, 0, (uint64_t)epc, 0));
 }
 
-#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
+#else /* !__CC_SUPPORTS___INLINE */
 
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
@@ -1029,7 +1029,7 @@ void	wbinvd(void);
 void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, uint64_t newval);
 
-#endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
+#endif	/* __CC_SUPPORTS___INLINE */
 
 void	reset_dbregs(void);
 

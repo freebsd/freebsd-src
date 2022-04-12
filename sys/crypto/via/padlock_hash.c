@@ -124,13 +124,11 @@ padlock_do_sha1(const u_char *in, u_char *out, int count)
 	((uint32_t *)result)[3] = 0x10325476;
 	((uint32_t *)result)[4] = 0xC3D2E1F0;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile(
 		".byte  0xf3, 0x0f, 0xa6, 0xc8" /* rep xsha1 */
 			: "+S"(in), "+D"(result)
 			: "c"(count), "a"(0)
 		);
-#endif
 
 	padlock_output_block((uint32_t *)result, (uint32_t *)out,
 	    SHA1_HASH_LEN / sizeof(uint32_t));
@@ -151,13 +149,11 @@ padlock_do_sha256(const char *in, char *out, int count)
 	((uint32_t *)result)[6] = 0x1F83D9AB;
 	((uint32_t *)result)[7] = 0x5BE0CD19;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile(
 		".byte  0xf3, 0x0f, 0xa6, 0xd0" /* rep xsha256 */
 			: "+S"(in), "+D"(result)
 			: "c"(count), "a"(0)
 		);
-#endif
 
 	padlock_output_block((uint32_t *)result, (uint32_t *)out,
 	    SHA2_256_HASH_LEN / sizeof(uint32_t));

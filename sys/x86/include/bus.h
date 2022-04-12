@@ -103,10 +103,6 @@
 #include <machine/cpufunc.h>
 #include <machine/bus_dma.h>
 
-#ifndef __GNUCLIKE_ASM
-#error "no assembler code for your compiler"
-#endif
-
 /*
  * Values for the x86 bus space tag, not to be used directly by MI code.
  */
@@ -285,7 +281,6 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == X86_BUS_SPACE_IO)
 		insb(bsh + offset, addr, count);
 	else {
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	movb (%2),%%al				\n\
 			stosb					\n\
@@ -293,7 +288,6 @@ bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory");
-#endif
 	}
 }
 
@@ -305,7 +299,6 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == X86_BUS_SPACE_IO)
 		insw(bsh + offset, addr, count);
 	else {
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	movw (%2),%%ax				\n\
 			stosw					\n\
@@ -313,7 +306,6 @@ bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory");
-#endif
 	}
 }
 
@@ -325,7 +317,6 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == X86_BUS_SPACE_IO)
 		insl(bsh + offset, addr, count);
 	else {
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	movl (%2),%%eax				\n\
 			stosl					\n\
@@ -333,7 +324,6 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory");
-#endif
 	}
 }
 
@@ -368,7 +358,6 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 
 	if (tag == X86_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	inb %w2,%%al				\n\
 			stosb					\n\
@@ -377,17 +366,14 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=d" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "%eax", "memory", "cc");
-#endif
 	} else {
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			repne					\n\
 			movsb"					:
 		    "=D" (addr), "=c" (count), "=S" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "memory", "cc");
-#endif
 	}
 }
 
@@ -398,7 +384,6 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 
 	if (tag == X86_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	inw %w2,%%ax				\n\
 			stosw					\n\
@@ -407,17 +392,14 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=d" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "%eax", "memory", "cc");
-#endif
 	} else {
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			repne					\n\
 			movsw"					:
 		    "=D" (addr), "=c" (count), "=S" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "memory", "cc");
-#endif
 	}
 }
 
@@ -428,7 +410,6 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 
 	if (tag == X86_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	inl %w2,%%eax				\n\
 			stosl					\n\
@@ -437,17 +418,14 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=D" (addr), "=c" (count), "=d" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "%eax", "memory", "cc");
-#endif
 	} else {
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			repne					\n\
 			movsl"					:
 		    "=D" (addr), "=c" (count), "=S" (_port_)	:
 		    "0" (addr), "1" (count), "2" (_port_)	:
 		    "memory", "cc");
-#endif
 	}
 }
 
@@ -554,7 +532,6 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == X86_BUS_SPACE_IO)
 		outsb(bsh + offset, addr, count);
 	else {
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	lodsb					\n\
 			movb %%al,(%2)				\n\
@@ -562,7 +539,6 @@ bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=S" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory", "cc");
-#endif
 	}
 }
 
@@ -574,7 +550,6 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == X86_BUS_SPACE_IO)
 		outsw(bsh + offset, addr, count);
 	else {
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	lodsw					\n\
 			movw %%ax,(%2)				\n\
@@ -582,7 +557,6 @@ bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=S" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory", "cc");
-#endif
 	}
 }
 
@@ -594,7 +568,6 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == X86_BUS_SPACE_IO)
 		outsl(bsh + offset, addr, count);
 	else {
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	lodsl					\n\
 			movl %%eax,(%2)				\n\
@@ -602,7 +575,6 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=S" (addr), "=c" (count)			:
 		    "r" (bsh + offset), "0" (addr), "1" (count)	:
 		    "%eax", "memory", "cc");
-#endif
 	}
 }
 
@@ -639,7 +611,6 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 
 	if (tag == X86_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	lodsb					\n\
 			outb %%al,%w0				\n\
@@ -648,17 +619,14 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=d" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "%eax", "memory", "cc");
-#endif
 	} else {
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			repne					\n\
 			movsb"					:
 		    "=D" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "memory", "cc");
-#endif
 	}
 }
 
@@ -669,7 +637,6 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 
 	if (tag == X86_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	lodsw					\n\
 			outw %%ax,%w0				\n\
@@ -678,17 +645,14 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=d" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "%eax", "memory", "cc");
-#endif
 	} else {
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			repne					\n\
 			movsw"					:
 		    "=D" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "memory", "cc");
-#endif
 	}
 }
 
@@ -699,7 +663,6 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 
 	if (tag == X86_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 		1:	lodsl					\n\
 			outl %%eax,%w0				\n\
@@ -708,17 +671,14 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		    "=d" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "%eax", "memory", "cc");
-#endif
 	} else {
 		bus_space_handle_t _port_ = bsh + offset;
-#ifdef __GNUCLIKE_ASM
 		__asm __volatile("				\n\
 			repne					\n\
 			movsl"					:
 		    "=D" (_port_), "=S" (addr), "=c" (count)	:
 		    "0" (_port_), "1" (addr), "2" (count)	:
 		    "memory", "cc");
-#endif
 	}
 }
 
@@ -1002,7 +962,6 @@ static __inline void
 bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 		  bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
-#ifdef __GNUCLIKE_ASM
 	if (flags & BUS_SPACE_BARRIER_READ)
 #ifdef __amd64__
 		__asm __volatile("lock; addl $0,0(%%rsp)" : : : "memory");
@@ -1011,7 +970,6 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 #endif
 	else
 		__compiler_membar();
-#endif
 }
 
 #ifdef BUS_SPACE_NO_LEGACY

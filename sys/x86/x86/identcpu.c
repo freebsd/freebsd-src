@@ -1202,7 +1202,6 @@ static	volatile u_int trap_by_rdmsr;
  * be advanced.
  */
 inthand_t	bluetrap6;
-#ifdef __GNUCLIKE_ASM
 __asm
 ("									\n\
 	.text								\n\
@@ -1214,14 +1213,12 @@ __asm
 	addl	$2, (%esp)	/* rdmsr is a 2-byte instruction */	\n\
 	iret								\n\
 ");
-#endif
 
 /*
  * Special exception 13 handler.
  * Accessing non-existent MSR generates general protection fault.
  */
 inthand_t	bluetrap13;
-#ifdef __GNUCLIKE_ASM
 __asm
 ("									\n\
 	.text								\n\
@@ -1234,7 +1231,6 @@ __asm
 	addl	$2, (%esp)	/* rdmsr is a 2-byte instruction */	\n\
 	iret								\n\
 ");
-#endif
 
 /*
  * Distinguish IBM Blue Lightning CPU from Cyrix CPUs that does not
