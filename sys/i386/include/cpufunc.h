@@ -54,7 +54,7 @@ struct region_descriptor;
 #define writew(va, d)	(*(volatile uint16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
 
-#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
+#if defined(__CC_SUPPORTS___INLINE)
 
 static __inline void
 breakpoint(void)
@@ -774,7 +774,7 @@ wrpkru(uint32_t mask)
 	__asm __volatile("wrpkru" :  : "a" (mask),  "c" (0), "d" (0));
 }
 
-#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
+#else /* !__CC_SUPPORTS___INLINE */
 
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
@@ -844,7 +844,7 @@ void	write_cyrix_reg(u_char reg, u_char data);
 void	write_eflags(u_int ef);
 void	wrmsr(u_int msr, uint64_t newval);
 
-#endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
+#endif	/* __CC_SUPPORTS___INLINE */
 
 void    reset_dbregs(void);
 

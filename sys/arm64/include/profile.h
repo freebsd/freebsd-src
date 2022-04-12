@@ -48,7 +48,6 @@ typedef __uintfptr_t    uintfptr_t;
 static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __used; \
 static void _mcount
 
-#ifdef __GNUCLIKE_ASM
 /*
  * Call into _mcount. On arm64 the .mcount is a function so callers will
  * handle caller saved registers. As we don't directly touch any callee
@@ -85,9 +84,6 @@ mcount(uintfptr_t frompc)
 {
 	_mcount(frompc, __builtin_return_address(0));
 }
-#endif
-#else
-#define	MCOUNT
 #endif
 
 #endif /* !_KERNEL */

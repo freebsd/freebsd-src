@@ -69,8 +69,6 @@ __FBSDID("$FreeBSD$");
  * Floating point support.
  */
 
-#if defined(__GNUCLIKE_ASM) && !defined(lint)
-
 #define	fldcw(cw)		__asm __volatile("fldcw %0" : : "m" (cw))
 #define	fnclex()		__asm __volatile("fnclex")
 #define	fninit()		__asm __volatile("fninit")
@@ -144,26 +142,6 @@ xsaveopt64(char *addr, uint64_t mask)
 	__asm __volatile("xsaveopt64 %0" : "=m" (*addr) : "a" (low), "d" (hi) :
 	    "memory");
 }
-
-#else	/* !(__GNUCLIKE_ASM && !lint) */
-
-void	fldcw(u_short cw);
-void	fnclex(void);
-void	fninit(void);
-void	fnstcw(caddr_t addr);
-void	fnstsw(caddr_t addr);
-void	fxsave(caddr_t addr);
-void	fxrstor(caddr_t addr);
-void	ldmxcsr(u_int csr);
-void	stmxcsr(u_int *csr);
-void	xrstor32(char *addr, uint64_t mask);
-void	xrstor64(char *addr, uint64_t mask);
-void	xsave32(char *addr, uint64_t mask);
-void	xsave64(char *addr, uint64_t mask);
-void	xsaveopt32(char *addr, uint64_t mask);
-void	xsaveopt64(char *addr, uint64_t mask);
-
-#endif	/* __GNUCLIKE_ASM && !lint */
 
 #define	start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	stop_emulating()	clts()

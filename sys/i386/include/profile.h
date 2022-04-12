@@ -43,7 +43,6 @@
 
 #define	_MCOUNT_DECL static __inline void _mcount
 
-#ifdef __GNUCLIKE_ASM
 #define	MCOUNT								\
 void									\
 mcount()								\
@@ -75,9 +74,6 @@ mcount()								\
 	_mcount(frompc, selfpc);					\
 	__asm("" : : "c" (ecx));					\
 }
-#else /* !__GNUCLIKE_ASM */
-#define	MCOUNT
-#endif /* __GNUCLIKE_ASM */
 
 typedef	u_int	uintfptr_t;
 
@@ -88,9 +84,7 @@ typedef	u_int	uintfptr_t;
 typedef	u_int	fptrdiff_t;
 
 __BEGIN_DECLS
-#ifdef __GNUCLIKE_ASM
 void	mcount(void) __asm(".mcount");
-#endif
 __END_DECLS
 
 #endif /* !_KERNEL */

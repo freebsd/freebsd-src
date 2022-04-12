@@ -44,8 +44,6 @@
 
 #include <x86/x86_ieeefp.h>
 
-#ifdef __GNUCLIKE_ASM
-
 static __inline fp_rnd_t
 fpgetround(void)
 {
@@ -155,7 +153,5 @@ fpresetsticky(fp_except_t _m)
 	__fldenv(&_env);
 	return (_p);
 }
-
-#endif /* __GNUCLIKE_ASM */
 
 #endif /* !_MACHINE_IEEEFP_H_ */

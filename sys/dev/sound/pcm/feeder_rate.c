@@ -310,7 +310,7 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_quality,
  */
 #define _Z_GCAST(x)		((uint64_t)(x))
 
-#if defined(__GNUCLIKE_ASM) && defined(__i386__)
+#if defined(__i386__)
 /*
  * This is where i386 being beaten to a pulp. Fortunately this function is
  * rarely being called and if it is, it will decide the best (hopefully)

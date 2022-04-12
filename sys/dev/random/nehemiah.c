@@ -65,7 +65,6 @@ VIA_RNG_store(void *buf)
 	uint32_t retval = 0;
 	uint32_t rate = 0;
 
-#ifdef __GNUCLIKE_ASM
 	__asm __volatile(
 		"movl	$0,%%edx\n\t"
 		".byte 0x0f, 0xa7, 0xc0"
@@ -73,7 +72,6 @@ VIA_RNG_store(void *buf)
 			:
 			: "memory"
 	);
-#endif
 	if (rate == 0)
 		return (retval&0x1f);
 	return (0);
