@@ -271,7 +271,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	bool		symbols_provided = false;
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
-	vm_offset_t ksym_sz;
 #endif
 
 	/* First guess at start/end kernel positions */
@@ -323,7 +322,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 		 */
 		char *envp = NULL;
 		uintptr_t md_offset = 0;
-		vm_paddr_t kernelstartphys, kernelendphys;
+		vm_paddr_t kernelendphys;
 
 #ifdef AIM
 		if ((uintptr_t)&powerpc_init > DMAP_BASE_ADDRESS)
@@ -350,8 +349,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 				if (fdt != 0)
 					fdt += md_offset;
 			}
-			kernelstartphys = MD_FETCH(kmdp, MODINFO_ADDR,
-			    vm_offset_t);
 			/* kernelstartphys is already relocated. */
 			kernelendphys = MD_FETCH(kmdp, MODINFOMD_KERNEND,
 			    vm_offset_t);
@@ -361,7 +358,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-			ksym_sz = *(Elf_Size*)ksym_start;
 
 			db_fetch_ksymtab(ksym_start, ksym_end, md_offset);
 			/* Symbols provided by loader. */
@@ -533,7 +529,6 @@ load_external_symtab(void) {
 	int i;
 
 	Elf_Ehdr *ehdr;
-	Elf_Phdr *phdr;
 	Elf_Shdr *shdr;
 
 	vm_offset_t ksym_start, ksym_sz, kstr_start, kstr_sz,
@@ -589,7 +584,6 @@ load_external_symtab(void) {
 	kernelimg = (u_char *)pmap_early_io_map(start, (end - start));
 #endif
 
-	phdr = (Elf_Phdr *)(kernelimg + ehdr->e_phoff);
 	shdr = (Elf_Shdr *)(kernelimg + ehdr->e_shoff);
 
 	ksym_start = 0;
