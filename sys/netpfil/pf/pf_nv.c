@@ -1147,7 +1147,8 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 		if (error != 0)
 			return (error);
 
-		if (krule->ipsrc.addr.type != PF_ADDR_ADDRMASK)
+		if (krule->ipsrc.addr.type != PF_ADDR_ADDRMASK &&
+		    krule->ipsrc.addr.type != PF_ADDR_TABLE)
 			return (EINVAL);
 	}
 
@@ -1157,7 +1158,8 @@ pf_nveth_rule_to_keth_rule(const nvlist_t *nvl,
 		if (error != 0)
 			return (error);
 
-		if (krule->ipdst.addr.type != PF_ADDR_ADDRMASK)
+		if (krule->ipdst.addr.type != PF_ADDR_ADDRMASK &&
+		    krule->ipdst.addr.type != PF_ADDR_TABLE)
 			return (EINVAL);
 	}
 
