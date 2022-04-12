@@ -58,7 +58,6 @@
 /*
  * Private macros, not to be used outside this header file.
  */
-#ifdef __GNUCLIKE___SECTION
 
 /*
  * The userspace address sanitizer inserts redzones around global variables,
@@ -78,9 +77,6 @@
 	__set_##set##_sym_##sym __section("set_" #set)	\
 	__used = &(sym)
 #define __MAKE_SET(set, sym)	__MAKE_SET_QV(set, sym, __MAKE_SET_CONST)
-#else /* !__GNUCLIKE___SECTION */
-#error this file needs to be ported to your compiler
-#endif /* __GNUCLIKE___SECTION */
 
 /*
  * Public macros.
