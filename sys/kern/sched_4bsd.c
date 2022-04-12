@@ -987,13 +987,9 @@ sched_switch(struct thread *td, int flags)
 {
 	struct thread *newtd;
 	struct mtx *tmtx;
-	struct td_sched *ts;
-	struct proc *p;
 	int preempted;
 
 	tmtx = &sched_lock;
-	ts = td_get_sched(td);
-	p = td->td_proc;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
