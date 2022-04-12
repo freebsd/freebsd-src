@@ -986,8 +986,10 @@ zfree(void *addr, struct malloc_type *mtp)
 void *
 realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 {
+#ifndef DEBUG_REDZONE
 	uma_zone_t zone;
 	uma_slab_t slab;
+#endif
 	unsigned long alloc;
 	void *newaddr;
 
@@ -1011,8 +1013,6 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 #endif
 
 #ifdef DEBUG_REDZONE
-	slab = NULL;
-	zone = NULL;
 	alloc = redzone_get_size(addr);
 #else
 	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
