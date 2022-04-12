@@ -297,11 +297,11 @@ For example, they can be used to avoid executing a memory barrier until a
 memory access shows that some condition is satisfied.
 .Ss Interrupt Fence Operations
 The
-.Fn atomic_interrupt_fence()
+.Fn atomic_interrupt_fence
 function establishes ordering between its call location and any interrupt
 handler executing on the same CPU.
 It is modeled after the similar C11 function
-.Fn atomic_signal_fence() ,
+.Fn atomic_signal_fence ,
 and adapted for the kernel environment.
 .Ss Multiple Processors
 In multiprocessor systems, the atomicity of the atomic operations on memory

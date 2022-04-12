@@ -252,7 +252,8 @@ function.
 This is because when switching from one congestion control
 module to another the socket option code will preallocate memory for the
 .Va cb_init
-function. If no memory is allocated by the modules
+function.
+If no memory is allocated by the modules
 .Va cb_init
 then the
 .Va cc_data_sz

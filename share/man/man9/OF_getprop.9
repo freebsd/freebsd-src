@@ -83,7 +83,6 @@
 .Fn OF_setprop "phandle_t node" "const char *propname" \
 "const void *buf" "size_t len"
 .Sh DESCRIPTION
-.Pp
 Device nodes can have associated properties.
 Properties consist of a name and a value.
 A name is a human-readable string from 1 to 31 characters long.
@@ -345,7 +344,7 @@ cannot be created.
         return;
 .Ed
 .Sh SEE ALSO
-.Xr OF_device_from_xref 9
+.Xr OF_device_from_xref 9 ,
 .Xr OF_node_from_xref 9
 .Sh AUTHORS
 .An -nosplit
