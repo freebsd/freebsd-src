@@ -496,11 +496,11 @@ vga_txtcursor_shape(scr_stat *scp, int base, int height, int blink)
 static void
 draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 {
+#ifndef SC_NO_FONT_LOADING
 	sc_softc_t *sc;
 
 	sc = scp->sc;
 
-#ifndef SC_NO_FONT_LOADING
 	if (scp->curs_attr.flags & CONS_CHAR_CURSOR) {
 		unsigned char *font;
 		int h;
