@@ -6,13 +6,7 @@ PROG=	ssh-keygen
 SRCS=	ssh-keygen.c sshsig.c ssh-sk-client.c
 PACKAGE=	ssh
 
-LIBADD=	ssh
-
-.if ${MK_LDNS} != "no"
-CFLAGS+=	-DHAVE_LDNS=1
-.endif
-
-LIBADD+=	crypto
+LIBADD=	crypto ssh
 
 .include <bsd.prog.mk>
 

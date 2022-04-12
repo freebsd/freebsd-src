@@ -45,7 +45,7 @@ SRCS+=	bcrypt_pbkdf.c blowfish.c bsd-misc.c bsd-signal.c explicit_bzero.c \
 SRCS+=	getrrsetbyname.c
 .else
 LDNSDIR=	${SRCTOP}/contrib/ldns
-CFLAGS+=	-DHAVE_LDNS=1 -I${LDNSDIR}
+CFLAGS+=	-I${LDNSDIR}
 SRCS+=	getrrsetbyname-ldns.c
 LIBADD+=	ldns
 .endif
