@@ -81,11 +81,7 @@
 #endif
 
 #ifndef inline
-#   ifdef __CC_SUPPORTS___INLINE__
-#      define inline __inline__
-#   else
-#      define inline /**/
-#   endif
+#   define inline __inline__
 #endif
 
 #ifndef ulong64

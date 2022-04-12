@@ -54,8 +54,6 @@ struct region_descriptor;
 #define writew(va, d)	(*(volatile uint16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
 
-#if defined(__CC_SUPPORTS___INLINE)
-
 static __inline void
 breakpoint(void)
 {
@@ -773,78 +771,6 @@ wrpkru(uint32_t mask)
 
 	__asm __volatile("wrpkru" :  : "a" (mask),  "c" (0), "d" (0));
 }
-
-#else /* !__CC_SUPPORTS___INLINE */
-
-int	breakpoint(void);
-u_int	bsfl(u_int mask);
-u_int	bsrl(u_int mask);
-void	clflush(u_long addr);
-void	clts(void);
-void	cpuid_count(u_int ax, u_int cx, u_int *p);
-void	disable_intr(void);
-void	do_cpuid(u_int ax, u_int *p);
-void	enable_intr(void);
-void	halt(void);
-void	ia32_pause(void);
-u_char	inb(u_int port);
-u_int	inl(u_int port);
-void	insb(u_int port, void *addr, size_t count);
-void	insl(u_int port, void *addr, size_t count);
-void	insw(u_int port, void *addr, size_t count);
-register_t	intr_disable(void);
-void	intr_restore(register_t ef);
-void	invd(void);
-void	invlpg(u_int addr);
-void	invltlb(void);
-u_short	inw(u_int port);
-void	lidt(struct region_descriptor *addr);
-void	lldt(u_short sel);
-void	load_cr0(u_int cr0);
-void	load_cr3(u_int cr3);
-void	load_cr4(u_int cr4);
-void	load_dr0(u_int dr0);
-void	load_dr1(u_int dr1);
-void	load_dr2(u_int dr2);
-void	load_dr3(u_int dr3);
-void	load_dr6(u_int dr6);
-void	load_dr7(u_int dr7);
-void	load_fs(u_short sel);
-void	load_gs(u_short sel);
-void	ltr(u_short sel);
-void	outb(u_int port, u_char data);
-void	outl(u_int port, u_int data);
-void	outsb(u_int port, const void *addr, size_t count);
-void	outsl(u_int port, const void *addr, size_t count);
-void	outsw(u_int port, const void *addr, size_t count);
-void	outw(u_int port, u_short data);
-u_int	rcr0(void);
-u_int	rcr2(void);
-u_int	rcr3(void);
-u_int	rcr4(void);
-uint64_t rdmsr(u_int msr);
-uint64_t rdpmc(u_int pmc);
-u_int	rdr0(void);
-u_int	rdr1(void);
-u_int	rdr2(void);
-u_int	rdr3(void);
-u_int	rdr6(void);
-u_int	rdr7(void);
-uint64_t rdtsc(void);
-u_char	read_cyrix_reg(u_char reg);
-u_int	read_eflags(void);
-u_int	rfs(void);
-uint64_t rgdt(void);
-u_int	rgs(void);
-uint64_t ridt(void);
-u_short	rldt(void);
-u_short	rtr(void);
-void	wbinvd(void);
-void	write_cyrix_reg(u_char reg, u_char data);
-void	write_eflags(u_int ef);
-void	wrmsr(u_int msr, uint64_t newval);
-
-#endif	/* __CC_SUPPORTS___INLINE */
 
 void    reset_dbregs(void);
 
