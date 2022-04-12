@@ -30,10 +30,6 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
-
 /*
  * To express interprocessor (as opposed to processor and device) memory
  * ordering constraints, use the atomic_*() functions with acquire and release

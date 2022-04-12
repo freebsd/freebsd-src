@@ -34,10 +34,6 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
-
 #include <sys/atomic_common.h>
 
 #ifndef __powerpc64__
