@@ -2152,6 +2152,44 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 }
 
 struct pfr_ktable *
+pfr_eth_attach_table(struct pf_keth_ruleset *rs, char *name)
+{
+	struct pfr_ktable	*kt, *rt;
+	struct pfr_table	 tbl;
+	struct pf_keth_anchor	*ac = rs->anchor;
+
+	PF_RULES_WASSERT();
+
+	bzero(&tbl, sizeof(tbl));
+	strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name));
+	if (ac != NULL)
+		strlcpy(tbl.pfrt_anchor, ac->path, sizeof(tbl.pfrt_anchor));
+	kt = pfr_lookup_table(&tbl);
+	if (kt == NULL) {
+		kt = pfr_create_ktable(&tbl, time_second, 1);
+		if (kt == NULL)
+			return (NULL);
+		if (ac != NULL) {
+			bzero(tbl.pfrt_anchor, sizeof(tbl.pfrt_anchor));
+			rt = pfr_lookup_table(&tbl);
+			if (rt == NULL) {
+				rt = pfr_create_ktable(&tbl, 0, 1);
+				if (rt == NULL) {
+					pfr_destroy_ktable(kt, 0);
+					return (NULL);
+				}
+				pfr_insert_ktable(rt);
+			}
+			kt->pfrkt_root = rt;
+		}
+		pfr_insert_ktable(kt);
+	}
+	if (!kt->pfrkt_refcnt[PFR_REFCNT_RULE]++)
+		pfr_setflags_ktable(kt, kt->pfrkt_flags|PFR_TFLAG_REFERENCED);
+	return (kt);
+}
+
+struct pfr_ktable *
 pfr_attach_table(struct pf_kruleset *rs, char *name)
 {
 	struct pfr_ktable	*kt, *rt;

@@ -520,6 +520,11 @@ pf_free_eth_rule(struct pf_keth_rule *rule)
 	if (rule->kif)
 		pfi_kkif_unref(rule->kif);
 
+	if (rule->ipsrc.addr.type == PF_ADDR_TABLE)
+		pfr_detach_table(rule->ipsrc.addr.p.tbl);
+	if (rule->ipdst.addr.type == PF_ADDR_TABLE)
+		pfr_detach_table(rule->ipdst.addr.p.tbl);
+
 	counter_u64_free(rule->evaluations);
 	for (int i = 0; i < 2; i++) {
 		counter_u64_free(rule->packets[i]);
@@ -1425,6 +1430,24 @@ pf_setup_pfsync_matching(struct pf_kruleset *rs)
 	MD5Final(digest, &ctx);
 	memcpy(V_pf_status.pf_chksum, digest, sizeof(V_pf_status.pf_chksum));
 	return (0);
+}
+
+static int
+pf_eth_addr_setup(struct pf_keth_ruleset *ruleset, struct pf_addr_wrap *addr)
+{
+	int error = 0;
+
+	switch (addr->type) {
+	case PF_ADDR_TABLE:
+		addr->p.tbl = pfr_eth_attach_table(ruleset, addr->v.tblname);
+		if (addr->p.tbl == NULL)
+			error = ENOMEM;
+		break;
+	default:
+		error = EINVAL;
+	}
+
+	return (error);
 }
 
 static int
@@ -2842,6 +2865,11 @@ DIOCGETETHRULE_error:
 		if (rule->tagname[0])
 			if ((rule->tag = pf_tagname2tag(rule->tagname)) == 0)
 				error = EBUSY;
+
+		if (error == 0 && rule->ipdst.addr.type == PF_ADDR_TABLE)
+			error = pf_eth_addr_setup(ruleset, &rule->ipdst.addr);
+		if (error == 0 && rule->ipsrc.addr.type == PF_ADDR_TABLE)
+			error = pf_eth_addr_setup(ruleset, &rule->ipsrc.addr);
 
 		if (error) {
 			pf_free_eth_rule(rule);

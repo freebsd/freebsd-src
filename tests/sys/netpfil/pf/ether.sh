@@ -537,10 +537,12 @@ ip_body()
 		"ether block out l3 to 192.0.2.3"
 	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.2
 
-	# We can't use tables in these rules
-	echo "ether pass out l3 from <test>" | \
-	    atf_check -s exit:1 -o ignore -e ignore \
-	    jexec alcatraz pfctl -g -f -
+	# Test table
+	pft_set_rules alcatraz \
+		"table <tbl> { 192.0.2.3 }" \
+		"ether pass" \
+		"ether block out l3 to <tbl>"
+	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.2
 }
 
 ip_cleanup()
