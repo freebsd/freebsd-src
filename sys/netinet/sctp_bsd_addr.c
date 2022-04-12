@@ -486,11 +486,10 @@ sctp_copy_out_packet_log(uint8_t *target, int length)
 	 * We wind through the packet log starting at start copying up to
 	 * length bytes out. We return the number of bytes copied.
 	 */
-	int tocopy, this_copy;
+	int this_copy;
 	int *lenat;
 	int did_delay = 0;
 
-	tocopy = length;
 	if (length < (int)(2 * sizeof(int))) {
 		/* not enough room */
 		return (0);
