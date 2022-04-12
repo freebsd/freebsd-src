@@ -3430,7 +3430,6 @@ moea64_page_array_startup(long pages)
 	vm_paddr_t pa;
 	vm_offset_t va, vm_page_base;
 	vm_size_t needed, size;
-	long page;
 	int domain;
 	int i;
 
@@ -3447,7 +3446,6 @@ moea64_page_array_startup(long pages)
 		return;
 	}
 
-	page = 0;
 	for (i = 0; i < MAXMEMDOM; i++)
 		dom_pages[i] = 0;
 
