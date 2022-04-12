@@ -158,10 +158,8 @@ pmcr_attach(device_t dev)
 static int
 pmcr_settings(device_t dev, struct cf_setting *sets, int *count)
 {
-	struct pmcr_softc *sc;
 	int i;
 
-	sc = device_get_softc(dev);
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
 	if (*count < npstates)
@@ -205,13 +203,11 @@ pmcr_set(device_t dev, const struct cf_setting *set)
 static int
 pmcr_get(device_t dev, struct cf_setting *set)
 {
-	struct pmcr_softc *sc;
 	register_t pmcr;
 	int i, pstate;
 
 	if (set == NULL)
 		return (EINVAL);
-	sc = device_get_softc(dev);
 
 	memset(set, CPUFREQ_VAL_UNKNOWN, sizeof(*set));
 
