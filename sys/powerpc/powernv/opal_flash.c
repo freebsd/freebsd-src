@@ -289,12 +289,10 @@ opalflash_task(void *arg)
 {
 	struct opalflash_softc *sc;
 	struct bio *bp;
-	device_t dev;
 
 	sc = arg;
 
 	for (;;) {
-		dev = sc->sc_dev;
 		OPALFLASH_LOCK(sc);
 		do {
 			bp = bioq_first(&sc->sc_bio_queue);
