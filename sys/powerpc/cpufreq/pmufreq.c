@@ -107,14 +107,12 @@ pmufreq_identify(driver_t *driver, device_t parent)
 static int
 pmufreq_probe(device_t dev)
 {
-	struct pmufreq_softc *sc;
 	phandle_t node;
 	uint32_t min_freq;
 
 	if (resource_disabled("pmufreq", 0))
 		return (ENXIO);
 
-	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(device_get_parent(dev));
 	/*
 	 * A scalable MPC7455 has min-clock-frequency/max-clock-frequency as OFW
