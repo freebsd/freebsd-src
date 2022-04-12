@@ -22,7 +22,6 @@ LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
 
 .if ${MK_TCP_WRAPPERS} != "no"
-CFLAGS+=	-DLIBWRAP=1
 LIBADD+=	wrap
 .endif
 

@@ -12,6 +12,14 @@ CFLAGS+= -include krb5_config.h
 
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE:U/usr/local}/bin/xauth\"
 
+.if ${MK_LDNS} != "no"
+CFLAGS+= -DHAVE_LDNS=1
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+= -DLIBWRAP=1
+.endif
+
 .if ${MK_USB} != "no"
 # Built-in security key support
 CFLAGS+= -include sk_config.h
