@@ -32,7 +32,7 @@
 .Nm ofw_graph_get_endpoint_by_idx ,
 .Nm ofw_graph_get_remote_endpoint ,
 .Nm ofw_graph_get_remote_parent ,
-.Nm ofw_graph_get_device_by_port_ep ,
+.Nm ofw_graph_get_device_by_port_ep
 .Nd Helpers for the graph bindings
 .Sh SYNOPSIS
 .In dev/ofw/openfirm.h
@@ -50,7 +50,6 @@
 .Ft device_t
 .Fn ofw_graph_get_device_by_port_ep "phandle_t node" "uint32_t port_id" "uin32_t ep_id"
 .Sh DESCRIPTION
-.Pp
 The ofw_graph functions are helpers to parse the DTS graph bindings
 .Pp
 .Fn ofw_graph_get_port_by_idx
@@ -96,7 +95,6 @@ if none.
 The device driver should have called
 .Fn OF_device_register_xref
 before.
-.Fn
 .Sh HISTORY
 The
 .Nm ofw_graph

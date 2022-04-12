@@ -456,7 +456,6 @@ invoked in the same order that requests were queued to the session via
 .Fn crypto_dispatch .
 This flag is used by IPsec to ensure that decrypted network packets are
 passed up the network stack in roughly the same order they were received.
-.Pp
 .Ss Other Request Fields
 In addition to the fields and flags enumerated above,
 .Vt struct cryptop
@@ -539,7 +538,7 @@ was passed in
 .Xr crypto 7 ,
 .Xr crypto 9 ,
 .Xr crypto_session 9 ,
-.Xr mbuf 9
+.Xr mbuf 9 ,
 .Xr uio 9
 .Sh BUGS
 Not all drivers properly handle mixing session and per-request keys
