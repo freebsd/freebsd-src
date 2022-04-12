@@ -43,10 +43,6 @@
 #ifndef MACHINE_ARMREG_H
 #define MACHINE_ARMREG_H
 
-#ifndef _SYS_CDEFS_H_
-#error Please include sys/cdefs.h before including machine/armreg.h
-#endif
-
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */

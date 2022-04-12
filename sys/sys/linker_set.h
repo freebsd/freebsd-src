@@ -32,10 +32,6 @@
 #ifndef _SYS_LINKER_SET_H_
 #define _SYS_LINKER_SET_H_
 
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
-
 /*
  * The following macros are used to declare global sets of objects, which
  * are collected by the linker into a `linker_set' as defined below.

@@ -34,10 +34,6 @@
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
-#if !defined(_KERNEL) && !defined(_SYS_CDEFS_H_)
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
-
 #define	FUNCTION_ALIGNMENT	32
 
 typedef u_long	fptrdiff_t;

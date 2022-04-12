@@ -31,10 +31,6 @@
 #ifndef _MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifndef _SYS_CDEFS_H_
-#error "sys/cdefs.h is a prerequisite for this file"
-#endif
-
 #include <machine/segments.h>
 #include <machine/tss.h>
 
