@@ -209,6 +209,10 @@ makeoptions	MODULES_EXTRA+="dtb/sifive"
 device		iicbus		# Bus support, required for iicoc below.
 device		iicoc		# OpenCores I2C controller support
 
+# Allwinner device drivers
+device		aw_wdog		# Allwinner Watchdog
+files		"../allwinner/files.allwinner"
+
 # SiFive device drivers
 device		fu740_pci_dw
 device		sifive_gpio
