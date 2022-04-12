@@ -569,6 +569,9 @@ LIBIFCONFIG?=	${LIBIFCONFIGDIR}/libifconfig${PIE_SUFFIX}.a
 LIBIPFDIR=	${_LIB_OBJTOP}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf${PIE_SUFFIX}.a
 
+LIBNVDIR=	${_LIB_OBJTOP}/lib/libnv
+LIBNV?=		${LIBNVDIR}/libnv${PIE_SUFFIX}.a
+
 LIBISCSIUTILDIR=	${_LIB_OBJTOP}/lib/libiscsiutil
 LIBISCSIUTIL?=	${LIBISCSIUTILDIR}/libiscsiutil${PIE_SUFFIX}.a
 
@@ -662,14 +665,23 @@ LIBAVLDIR=	${OBJTOP}/cddl/lib/libavl
 LIBCTFDIR=	${OBJTOP}/cddl/lib/libctf
 LIBDTRACEDIR=	${OBJTOP}/cddl/lib/libdtrace
 LIBICPDIR=	${OBJTOP}/cddl/lib/libicp
+LIBICP?=	${LIBICPDIR}/libicp${PIE_SUFFIX}.a
+LIBICP_RESCUEDIR=	${OBJTOP}/cddl/lib/libicp_rescue
+LIBICP_RESCUE?=	${LIBICP_RESCUEDIR}/libicp_rescue${PIE_SUFFIX}.a
 LIBNVPAIRDIR=	${OBJTOP}/cddl/lib/libnvpair
+LIBNVPAIR?=	${LIBNVPAIRDIR}/libnvpair${PIE_SUFFIX}.a
 LIBUMEMDIR=	${OBJTOP}/cddl/lib/libumem
 LIBUUTILDIR=	${OBJTOP}/cddl/lib/libuutil
 LIBZFSDIR=	${OBJTOP}/cddl/lib/libzfs
+LIBZFS?=	${LIBZFSDIR}/libzfs${PIE_SUFFIX}.a
 LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
+LIBZFS_CORE?=	${LIBZFS_COREDIR}/libzfs_core${PIE_SUFFIX}.a
 LIBZFSBOOTENVDIR=	${OBJTOP}/cddl/lib/libzfsbootenv
+LIBZFSBOOTENV?=	${LIBZFSBOOTENVDIR}/libzfsbootenv${PIE_SUFFIX}.a
 LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
+LIBZPOOL?=	${LIBZPOOLDIR}/libzpool${PIE_SUFFIX}.a
 LIBZUTILDIR=	${OBJTOP}/cddl/lib/libzutil
+LIBZUTIL?=	${LIBZUTILDIR}/libzutil${PIE_SUFFIX}.a
 LIBTPOOLDIR=	${OBJTOP}/cddl/lib/libtpool
 
 # OFED support
