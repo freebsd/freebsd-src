@@ -92,7 +92,6 @@ static struct ps3fb_softc ps3fb_softc;
 static int
 ps3fb_probe(struct vt_device *vd)
 {
-	struct ps3fb_softc *sc;
 	int disable;
 	char compatible[64];
 	phandle_t root;
@@ -101,8 +100,6 @@ ps3fb_probe(struct vt_device *vd)
 	TUNABLE_INT_FETCH("hw.syscons.disable", &disable);
 	if (disable != 0)
 		return (0);
-
-	sc = &ps3fb_softc;
 
 	TUNABLE_STR_FETCH("hw.platform", compatible, sizeof(compatible));
 	if (strcmp(compatible, "ps3") == 0)
