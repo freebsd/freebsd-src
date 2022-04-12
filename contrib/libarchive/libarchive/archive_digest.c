@@ -243,7 +243,8 @@ __archive_md5init(archive_md5_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
 	return (ARCHIVE_FAILED);
-  EVP_DigestInit(*ctx, EVP_md5());
+  if (!EVP_DigestInit(*ctx, EVP_md5()))
+	return (ARCHIVE_FAILED);
   return (ARCHIVE_OK);
 }
 
@@ -434,7 +435,8 @@ __archive_ripemd160init(archive_rmd160_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
 	return (ARCHIVE_FAILED);
-  EVP_DigestInit(*ctx, EVP_ripemd160());
+  if (!EVP_DigestInit(*ctx, EVP_ripemd160()))
+	return (ARCHIVE_FAILED);
   return (ARCHIVE_OK);
 }
 
@@ -624,7 +626,8 @@ __archive_sha1init(archive_sha1_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
 	return (ARCHIVE_FAILED);
-  EVP_DigestInit(*ctx, EVP_sha1());
+  if (!EVP_DigestInit(*ctx, EVP_sha1()))
+	return (ARCHIVE_FAILED);
   return (ARCHIVE_OK);
 }
 
@@ -887,7 +890,8 @@ __archive_sha256init(archive_sha256_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
 	return (ARCHIVE_FAILED);
-  EVP_DigestInit(*ctx, EVP_sha256());
+  if (!EVP_DigestInit(*ctx, EVP_sha256()))
+	return (ARCHIVE_FAILED);
   return (ARCHIVE_OK);
 }
 
@@ -1122,7 +1126,8 @@ __archive_sha384init(archive_sha384_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
 	return (ARCHIVE_FAILED);
-  EVP_DigestInit(*ctx, EVP_sha384());
+  if (!EVP_DigestInit(*ctx, EVP_sha384()))
+	return (ARCHIVE_FAILED);
   return (ARCHIVE_OK);
 }
 
@@ -1381,7 +1386,8 @@ __archive_sha512init(archive_sha512_ctx *ctx)
 {
   if ((*ctx = EVP_MD_CTX_new()) == NULL)
 	return (ARCHIVE_FAILED);
-  EVP_DigestInit(*ctx, EVP_sha512());
+  if (!EVP_DigestInit(*ctx, EVP_sha512()))
+	return (ARCHIVE_FAILED);
   return (ARCHIVE_OK);
 }
 
