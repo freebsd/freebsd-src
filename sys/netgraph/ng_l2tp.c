@@ -1263,7 +1263,6 @@ static void
 ng_l2tp_seq_reset(priv_p priv)
 {
 	struct l2tp_seq *const seq = &priv->seq;
-	hook_p hook;
 	int i;
 
 	SEQ_LOCK_ASSERT(seq);
@@ -1280,7 +1279,7 @@ ng_l2tp_seq_reset(priv_p priv)
 	}
 
 	/* Reset session hooks' sequence number states */
-	NG_NODE_FOREACH_HOOK(priv->node, ng_l2tp_reset_session, NULL, hook);
+	NG_NODE_FOREACH_HOOK(priv->node, ng_l2tp_reset_session, NULL);
 
 	/* Reset node's sequence number state */
 	seq->ns = 0;

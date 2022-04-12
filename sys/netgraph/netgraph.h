@@ -429,13 +429,11 @@ void	ng_unref_node(node_p node); /* don't move this */
  * iterator will stop and return a pointer to the hook that returned 0.
  */
 typedef	int	ng_fn_eachhook(hook_p hook, void* arg);
-#define _NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			\
+#define _NG_NODE_FOREACH_HOOK(node, fn, arg)				\
 	do {								\
 		hook_p _hook;						\
-		(rethook) = NULL;					\
 		LIST_FOREACH(_hook, &((node)->nd_hooks), hk_hooks) {	\
 			if ((fn)(_hook, arg) == 0) {			\
-				(rethook) = _hook;			\
 				break;					\
 			}						\
 		}							\
@@ -456,7 +454,7 @@ static __inline int _ng_node_is_valid(node_p node, char *file, int line);
 static __inline int _ng_node_not_valid(node_p node, char *file, int line);
 static __inline int _ng_node_numhooks(node_p node, char *file, int line);
 static __inline void _ng_node_force_writer(node_p node, char *file, int line);
-static __inline hook_p _ng_node_foreach_hook(node_p node,
+static __inline void _ng_node_foreach_hook(node_p node,
 			ng_fn_eachhook *fn, void *arg, char *file, int line);
 static __inline void _ng_node_revive(node_p node, char *file, int line);
 
@@ -569,14 +567,12 @@ _ng_node_revive(node_p node, char *file, int line)
 	_NG_NODE_REVIVE(node);
 }
 
-static __inline hook_p
+static __inline void
 _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 						char *file, int line)
 {
-	hook_p hook;
 	_chknode(node, file, line);
-	_NG_NODE_FOREACH_HOOK(node, fn, arg, hook);
-	return (hook);
+	_NG_NODE_FOREACH_HOOK(node, fn, arg);
 }
 
 #define NG_NODE_NAME(node)		_ng_node_name(node, _NN_)	
@@ -593,10 +589,8 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_REALLY_DIE(node) 	_ng_node_really_die(node, _NN_)
 #define NG_NODE_NUMHOOKS(node)		_ng_node_numhooks(node, _NN_)
 #define NG_NODE_REVIVE(node)		_ng_node_revive(node, _NN_)
-#define NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			      \
-	do {								      \
-		rethook = _ng_node_foreach_hook(node, fn, (void *)arg, _NN_); \
-	} while (0)
+#define NG_NODE_FOREACH_HOOK(node, fn, arg)				\
+	_ng_node_foreach_hook(node, fn, (void *)arg, _NN_)
 
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
@@ -614,8 +608,8 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_REALLY_DIE(node) 	_NG_NODE_REALLY_DIE(node)
 #define NG_NODE_NUMHOOKS(node)		_NG_NODE_NUMHOOKS(node)	
 #define NG_NODE_REVIVE(node)		_NG_NODE_REVIVE(node)
-#define NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			\
-		_NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)
+#define NG_NODE_FOREACH_HOOK(node, fn, arg)				\
+	_NG_NODE_FOREACH_HOOK(node, fn, arg)
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
 /***********************************************************************

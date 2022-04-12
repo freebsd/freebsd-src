@@ -273,7 +273,6 @@ static int
 ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 {
 	hinfo_p hip;
-	hook_p tmp;
 	int error;
 
 	/* Create hook private structure */
@@ -284,7 +283,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	NG_HOOK_SET_PRIVATE(hook, hip);
 
 	/* Add our reference into other hooks data. */
-	NG_NODE_FOREACH_HOOK(node, ng_bpf_addrefs, hook, tmp);
+	NG_NODE_FOREACH_HOOK(node, ng_bpf_addrefs, hook);
 
 	/* Attach the default BPF program */
 	if ((error = ng_bpf_setprog(hook, &ng_bpf_default_prog)) != 0) {
@@ -524,12 +523,11 @@ ng_bpf_disconnect(hook_p hook)
 {
 	const node_p node = NG_HOOK_NODE(hook);
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
-	hook_p tmp;
 
 	KASSERT(hip != NULL, ("%s: null info", __func__));
 
 	/* Remove our reference from other hooks data. */
-	NG_NODE_FOREACH_HOOK(node, ng_bpf_remrefs, hook, tmp);
+	NG_NODE_FOREACH_HOOK(node, ng_bpf_remrefs, hook);
 
 	free(hip->prog, M_NETGRAPH_BPF);
 #ifdef BPF_JITTER
