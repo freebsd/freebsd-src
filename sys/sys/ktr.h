@@ -107,6 +107,13 @@ void	ktr_tracepoint(uint64_t mask, const char *file, int line,
 #define	TR5(d, p1, p2, p3, p4, p5)	CTR5(KTR_GEN, d, p1, p2, p3, p4, p5)
 #define	TR6(d, p1, p2, p3, p4, p5, p6)	CTR6(KTR_GEN, d, p1, p2, p3, p4, p5, p6)
 
+#define	_KTR_MACRO(m, format, _1, _2, _3, _4, _5, _6, NAME, ...)	\
+	NAME
+#define	CTR(...)							\
+	_KTR_MACRO(__VA_ARGS__, CTR6, CTR5, CTR4, CTR3, CTR2, CTR1,	\
+	    CTR0)(__VA_ARGS__)
+#define	TR(...)				CTR(KTR_GEN, __VA_ARGS__)
+
 /*
  * The event macros implement KTR graphic plotting facilities provided
  * by src/tools/sched/schedgraph.py.  Three generic types of events are

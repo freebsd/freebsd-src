@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2021
+.Dd April 12, 2022
 .Dt KTR 9
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .Vt "extern int ktr_mask" ;
 .Vt "extern int ktr_verbose" ;
 .Vt "extern struct ktr_entry ktr_buf[]" ;
+.Ft void
+.Fn CTR "u_int mask" "char *format" "..."
 .Ft void
 .Fn CTR0 "u_int mask" "char *format"
 .Ft void
@@ -64,6 +66,8 @@ or
 .Xr ktrdump 8 .
 .Pp
 Events are created and logged in the kernel via the
+.Dv CTR
+and
 .Dv CTR Ns Ar x
 macros.
 The first parameter is a mask of event types
@@ -81,7 +85,7 @@ argument is a
 style format string used to build the text of the event log message.
 Following the
 .Fa format
-string are zero to five arguments referenced by
+string are zero to six arguments referenced by
 .Fa format .
 Each event is logged with a file name and source line number of the
 originating CTR call, and a timestamp in addition to the log message.
@@ -91,7 +95,9 @@ and formatting is done at the dump time.
 Do not use pointers to the objects with limited lifetime, for instance,
 strings, because the pointer may become invalid when buffer is printed.
 .Pp
-Note that the different macros differ only in the number of arguments each
+The
+.Dv CTR Ns Ar x
+macros differ only in the number of arguments each
 one takes, as indicated by its name.
 .Pp
 The
@@ -143,6 +149,11 @@ The KTR kernel tracing facility first appeared in
 .Bsx 3.0
 and was imported into
 .Fx 5.0 .
+.Pp
+The
+.Fn CTR
+macro accepting a variable number of arguments first appeared in
+.Fx 14.0 .
 .Sh BUGS
 Currently there is one global buffer shared among all CPUs.
 It might be profitable at some point in time to use per-CPU buffers instead
