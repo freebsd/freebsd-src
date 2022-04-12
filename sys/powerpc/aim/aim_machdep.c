@@ -649,7 +649,6 @@ flush_disable_caches(void)
 	register_t msscr0;
 	register_t cache_reg;
 	volatile uint32_t *memp;
-	uint32_t temp;
 	int i;
 	int x;
 
@@ -682,7 +681,7 @@ flush_disable_caches(void)
 	 */
 	memp = (volatile uint32_t *)0x00000000;
 	for (i = 0; i < 128 * 1024; i++) {
-		temp = *memp;
+		(void)*memp;
 		__asm__ __volatile__("dcbf 0,%0" :: "r"(memp));
 		memp += 32/sizeof(*memp);
 	}
@@ -693,7 +692,7 @@ flush_disable_caches(void)
 	for (; x != 0xff;) {
 		mtspr(SPR_LDSTCR, x);
 		for (i = 0; i < 128; i++) {
-			temp = *memp;
+			(void)*memp;
 			__asm__ __volatile__("dcbf 0,%0" :: "r"(memp));
 			memp += 32/sizeof(*memp);
 		}
