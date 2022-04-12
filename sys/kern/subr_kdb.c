@@ -292,6 +292,7 @@ void
 kdb_panic(const char *msg)
 {
 
+	kdb_why = KDB_WHY_PANIC;
 	printf("KDB: panic\n");
 	panic("%s", msg);
 }
@@ -300,6 +301,7 @@ void
 kdb_reboot(void)
 {
 
+	kdb_why = KDB_WHY_REBOOT;
 	printf("KDB: reboot requested\n");
 	shutdown_nice(0);
 }
@@ -498,9 +500,9 @@ kdb_enter(const char *why, const char *msg)
 {
 
 	if (kdb_dbbe != NULL && kdb_active == 0) {
+		kdb_why = why;
 		if (msg != NULL)
 			printf("KDB: enter: %s\n", msg);
-		kdb_why = why;
 		breakpoint();
 		kdb_why = KDB_WHY_UNSET;
 	}

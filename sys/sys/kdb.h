@@ -121,6 +121,7 @@ extern const char * volatile kdb_why;
 #define	KDB_WHY_POWERPC		"powerpc"	/* Unhandled powerpc intr. */
 #define	KDB_WHY_UNIONFS		"unionfs"	/* Unionfs bug. */
 #define	KDB_WHY_DTRACE		"dtrace"	/* DTrace action entered debugger. */
+#define	KDB_WHY_REBOOT		"reboot"	/* reboot was requested. */
 
 /* Return values for kdb_alt_break */
 #define	KDB_REQ_DEBUGGER	1	/* User requested Debugger */
