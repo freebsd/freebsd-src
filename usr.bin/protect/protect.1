@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2021
+.Dd April 12, 2022
 .Dt PROTECT 1
 .Os
 .Sh NAME
@@ -102,10 +102,11 @@ In the above example
 .Nm P
 points at the protected flag and
 .Nm PI
-points at the iheritance flag.
+points at the inheritance flag.
 The process is protected if
 .Nm P
-bit is set to 1. All children of this process will also be protected if
+bit is set to 1.
+All children of this process will also be protected if
 .Nm PI
 bit is set to 1.
 .Sh SEE ALSO
