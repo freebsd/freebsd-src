@@ -522,8 +522,7 @@ cuda_intr(void *arg)
 {
 	device_t        dev;
 	struct cuda_softc *sc;
-
-	int i, ending, restart_send, process_inbound;
+	int ending, process_inbound;
 	uint8_t reg;
 
         dev = (device_t)arg;
@@ -531,7 +530,6 @@ cuda_intr(void *arg)
 
 	mtx_lock(&sc->sc_mutex);
 
-	restart_send = 0;
 	process_inbound = 0;
 	reg = cuda_read_reg(sc, vIFR);
 	if ((reg & vSR_INT) != vSR_INT) {
@@ -658,7 +656,7 @@ switch_start:
 		break;
 
 	case CUDA_OUT:
-		i = cuda_read_reg(sc, vSR);	/* reset SR-intr in IFR */
+		cuda_read_reg(sc, vSR);	/* reset SR-intr in IFR */
 
 		sc->sc_sent++;
 		if (cuda_intr_state(sc)) {	/* ADB intr low during write */
