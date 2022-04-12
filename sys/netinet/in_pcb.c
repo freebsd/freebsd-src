@@ -3339,7 +3339,6 @@ in_pcboutput_txrtlmt(struct inpcb *inp, struct ifnet *ifp, struct mbuf *mb)
 	struct socket *socket;
 	uint32_t max_pacing_rate;
 	bool did_upgrade;
-	int error;
 
 	if (inp == NULL)
 		return;
@@ -3370,7 +3369,7 @@ in_pcboutput_txrtlmt(struct inpcb *inp, struct ifnet *ifp, struct mbuf *mb)
 	 */
 	max_pacing_rate = socket->so_max_pacing_rate;
 
-	error = in_pcboutput_txrtlmt_locked(inp, ifp, mb, max_pacing_rate);
+	in_pcboutput_txrtlmt_locked(inp, ifp, mb, max_pacing_rate);
 
 	if (did_upgrade)
 		INP_DOWNGRADE(inp);
