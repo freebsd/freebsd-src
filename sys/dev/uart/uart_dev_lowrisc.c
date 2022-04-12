@@ -371,9 +371,6 @@ lowrisc_uart_bus_transmit(struct uart_softc *sc)
 static void
 lowrisc_uart_bus_grab(struct uart_softc *sc)
 {
-	struct uart_bas *bas;
-
-	bas = &sc->sc_bas;
 
 	uart_lock(sc->sc_hwmtx);
 	/* TODO */
@@ -383,9 +380,6 @@ lowrisc_uart_bus_grab(struct uart_softc *sc)
 static void
 lowrisc_uart_bus_ungrab(struct uart_softc *sc)
 {
-	struct uart_bas *bas;
-
-	bas = &sc->sc_bas;
 
 	uart_lock(sc->sc_hwmtx);
 	/* TODO */
