@@ -16511,9 +16511,6 @@ rack_output(struct tcpcb *tp)
 #ifdef INET
 	struct ip *ip = NULL;
 #endif
-#ifdef TCPDEBUG
-	struct ipovly *ipov = NULL;
-#endif
 	struct udphdr *udp = NULL;
 	struct tcp_rack *rack;
 	struct tcphdr *th;
@@ -18259,9 +18256,6 @@ send:
 #endif				/* INET6 */
 		{
 			ip = mtod(m, struct ip *);
-#ifdef TCPDEBUG
-			ipov = (struct ipovly *)ip;
-#endif
 			if (tp->t_port) {
 				udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
 				udp->uh_sport = htons(V_tcp_udp_tunneling_port);
