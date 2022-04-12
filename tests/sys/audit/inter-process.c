@@ -1454,7 +1454,7 @@ ATF_TC_HEAD(shm_unlink_success, tc)
 ATF_TC_BODY(shm_unlink_success, tc)
 {
 	/* Build an absolute path to a file in the test-case directory */
-	char dirpath[50];
+	char dirpath[PATH_MAX];
 	ATF_REQUIRE(getcwd(dirpath, sizeof(dirpath)) != NULL);
 	strlcat(dirpath, path, sizeof(dirpath));
 	ATF_REQUIRE(shm_open(dirpath, O_CREAT | O_TRUNC | O_RDWR, 0600) != -1);
