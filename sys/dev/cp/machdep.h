@@ -74,10 +74,6 @@
 #   include <sys/libkern.h>
 #   include <sys/systm.h>
 #   define port_t int
-
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
 #endif
 
 #endif
