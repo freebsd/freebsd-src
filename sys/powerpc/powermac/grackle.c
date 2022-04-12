@@ -243,7 +243,6 @@ badaddr(void *addr, size_t size)
 {
 	struct thread	*td;
 	jmp_buf		env, *oldfaultbuf;
-	int		x;
 
 	/* Get rid of any stale machine checks that have been waiting.  */
 	__asm __volatile ("sync; isync");
@@ -262,13 +261,13 @@ badaddr(void *addr, size_t size)
 
 	switch (size) {
 	case 1:
-		x = *(volatile int8_t *)addr;
+		(void)*(volatile int8_t *)addr;
 		break;
 	case 2:
-		x = *(volatile int16_t *)addr;
+		(void)*(volatile int16_t *)addr;
 		break;
 	case 4:
-		x = *(volatile int32_t *)addr;
+		(void)*(volatile int32_t *)addr;
 		break;
 	default:
 		panic("badaddr: invalid size (%zd)", size);
