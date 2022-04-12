@@ -218,7 +218,7 @@ powermac_nvram_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	sc->sc_rpos = sc->sc_wpos = 0;
 	sx_xunlock(&sc->sc_lock);
 
-	return 0;
+	return (err);
 }
 
 static int
