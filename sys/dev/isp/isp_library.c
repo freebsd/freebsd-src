@@ -1631,7 +1631,6 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
 void
 isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint16_t nphdl, uint32_t s_id)
 {
-	fcparam *fcp;
 	fcportdb_t *lp;
 
 	if (nphdl >= MAX_NPORT_HANDLE) {
@@ -1640,7 +1639,6 @@ isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint16_t nphdl, uint
 		return;
 	}
 
-	fcp = FCPARAM(isp, chan);
 	if (isp_find_pdb_by_handle(isp, chan, nphdl, &lp) == 0) {
 		isp_prt(isp, ISP_LOGWARN, "Chan %d WWPN 0x%016llx PortID 0x%06x handle 0x%x cannot be found to be deleted",
 		    chan, (unsigned long long) wwpn, s_id, nphdl);
