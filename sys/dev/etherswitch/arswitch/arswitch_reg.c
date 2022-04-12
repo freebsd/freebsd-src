@@ -184,10 +184,7 @@ arswitch_readreg(device_t dev, int addr)
 int
 arswitch_writereg(device_t dev, int addr, int value)
 {
-	struct arswitch_softc *sc;
 	uint16_t phy, reg;
-
-	sc = device_get_softc(dev);
 
 	arswitch_split_setpage(dev, addr, &phy, &reg);
 	return (arswitch_reg_write32(dev, 0x10 | phy, reg, value));
