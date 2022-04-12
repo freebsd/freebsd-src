@@ -198,7 +198,6 @@ ata_kauai_probe(device_t dev)
 {
 	struct ata_kauai_softc *sc;
 	u_int32_t devid;
-	phandle_t node;
 	const char *compatstring = NULL;
 	int i, found;
 
@@ -214,7 +213,6 @@ ata_kauai_probe(device_t dev)
 	if (!found)
 		return (ENXIO);
 
-	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct ata_kauai_softc));
 
