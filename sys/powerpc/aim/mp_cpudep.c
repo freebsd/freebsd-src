@@ -307,8 +307,10 @@ cpudep_save_config(void *dummy)
 
 void
 cpudep_ap_setup()
-{ 
+{
+#ifndef __powerpc64__
 	register_t	reg;
+#endif
 	uint16_t	vers;
 
 	vers = mfpvr() >> 16;
@@ -390,14 +392,14 @@ cpudep_ap_setup()
 		case MPC7455:
 		case MPC7457:
 			/* Only MPC745x CPUs have an L3 cache. */
-			reg = mpc745x_l3_enable(bsp_state[3]);
+			mpc745x_l3_enable(bsp_state[3]);
 		default:
 			break;
 		}
 		
-		reg = mpc74xx_l2_enable(bsp_state[2]);
-		reg = mpc74xx_l1d_enable();
-		reg = mpc74xx_l1i_enable();
+		mpc74xx_l2_enable(bsp_state[2]);
+		mpc74xx_l1d_enable();
+		mpc74xx_l1i_enable();
 
 		break;
 	case IBMPOWER7:
