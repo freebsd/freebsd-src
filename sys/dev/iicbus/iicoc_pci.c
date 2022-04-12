@@ -68,11 +68,9 @@ iicoc_detach(device_t dev)
 static int
 iicoc_attach(device_t dev)
 {
-	int bus;
 	struct iicoc_softc *sc;
 
 	sc = device_get_softc(dev);
-	bus = device_get_unit(dev);
 
 	sc->dev = dev;
 	mtx_init(&sc->sc_mtx, "iicoc", "iicoc", MTX_DEF);
