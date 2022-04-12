@@ -99,8 +99,6 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 #define MONITOR_STOPSTATE_RUNNING	0
 #define MONITOR_STOPSTATE_STOPPED	1
 
-#if defined(__GNUCLIKE___TYPEOF)
-
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
  */
@@ -205,12 +203,6 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
 #define	IS_BSP()	(PCPU_GET(cpuid) == 0)
-
-#else /* defined(__GNUCLIKE___TYPEOF) */
-
-#error "this file needs to be ported to your compiler"
-
-#endif /* __GNUCLIKE___TYPEOF */
 
 #endif /* _KERNEL */
 
