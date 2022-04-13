@@ -342,9 +342,41 @@ signal to a session attached to a channel. OpenSSH supports one
 extension signal "INFO@openssh.com" that allows sending SIGINFO on
 BSD-derived systems.
 
-3. SFTP protocol changes
+3. Authentication protocol changes
 
-3.1. sftp: Reversal of arguments to SSH_FXP_SYMLINK
+3.1. Host-bound public key authentication
+
+This is trivial change to the traditional "publickey" authentication
+method. The authentication request is identical to the original method
+but for the name and one additional field:
+
+	byte		SSH2_MSG_USERAUTH_REQUEST
+	string		username
+	string		"ssh-connection"
+	string		"publickey-hostbound-v00@openssh.com"
+	bool		has_signature
+	string		pkalg
+	string		public key
+	string		server host key
+
+Because the entire SSH2_MSG_USERAUTH_REQUEST message is included in
+the signed data, this ensures that a binding between the destination
+user, the server identity and the session identifier is visible to the
+signer. OpenSSH uses this binding via signed data to implement per-key
+restrictions in ssh-agent.
+
+A server may advertise this method using the SSH2_MSG_EXT_INFO
+mechanism (RFC8308), with the following message:
+
+	string		"publickey-hostbound@openssh.com"
+	string		"0" (version)
+
+Clients should prefer host-bound authentication when advertised by
+server.
+
+4. SFTP protocol changes
+
+4.1. sftp: Reversal of arguments to SSH_FXP_SYMLINK
 
 When OpenSSH's sftp-server was implemented, the order of the arguments
 to the SSH_FXP_SYMLINK method was inadvertently reversed. Unfortunately,
@@ -357,7 +389,7 @@ SSH_FXP_SYMLINK as follows:
 	string		targetpath
 	string		linkpath
 
-3.2. sftp: Server extension announcement in SSH_FXP_VERSION
+4.2. sftp: Server extension announcement in SSH_FXP_VERSION
 
 OpenSSH's sftp-server lists the extensions it supports using the
 standard extension announcement mechanism in the SSH_FXP_VERSION server
@@ -378,7 +410,7 @@ ever changed in an incompatible way. The server MAY advertise the same
 extension with multiple versions (though this is unlikely). Clients MUST
 check the version number before attempting to use the extension.
 
-3.3. sftp: Extension request "posix-rename@openssh.com"
+4.3. sftp: Extension request "posix-rename@openssh.com"
 
 This operation provides a rename operation with POSIX semantics, which
 are different to those provided by the standard SSH_FXP_RENAME in
@@ -395,7 +427,7 @@ rename(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-3.4. sftp: Extension requests "statvfs@openssh.com" and
+4.4. sftp: Extension requests "statvfs@openssh.com" and
          "fstatvfs@openssh.com"
 
 These requests correspond to the statvfs and fstatvfs POSIX system
@@ -436,7 +468,7 @@ The values of the f_flag bitmask are as follows:
 Both the "statvfs@openssh.com" and "fstatvfs@openssh.com" extensions are
 advertised in the SSH_FXP_VERSION hello with version "2".
 
-3.5. sftp: Extension request "hardlink@openssh.com"
+4.5. sftp: Extension request "hardlink@openssh.com"
 
 This request is for creating a hard link to a regular file. This
 request is implemented as a SSH_FXP_EXTENDED request with the
@@ -452,7 +484,7 @@ link(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-3.6. sftp: Extension request "fsync@openssh.com"
+4.6. sftp: Extension request "fsync@openssh.com"
 
 This request asks the server to call fsync(2) on an open file handle.
 
@@ -466,7 +498,7 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-3.7. sftp: Extension request "lsetstat@openssh.com"
+4.7. sftp: Extension request "lsetstat@openssh.com"
 
 This request is like the "setstat" command, but sets file attributes on
 symlinks.  It is implemented as a SSH_FXP_EXTENDED request with the
@@ -482,7 +514,7 @@ See the "setstat" command for more details.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-3.8. sftp: Extension request "limits@openssh.com"
+4.8. sftp: Extension request "limits@openssh.com"
 
 This request is used to determine various limits the server might impose.
 Clients should not attempt to exceed these limits as the server might sever
@@ -525,7 +557,7 @@ limits.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-3.9. sftp: Extension request "expand-path@openssh.com"
+4.9. sftp: Extension request "expand-path@openssh.com"
 
 This request supports canonicalisation of relative paths and
 those that need tilde-expansion, i.e. "~", "~/..." and "~user/..."
@@ -544,9 +576,9 @@ Its reply is the same format as that of SSH2_FXP_REALPATH.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-4. Miscellaneous changes
+5. Miscellaneous changes
 
-4.1 Public key format
+5.1 Public key format
 
 OpenSSH public keys, as generated by ssh-keygen(1) and appearing in
 authorized_keys files, are formatted as a single line of text consisting
@@ -557,22 +589,27 @@ section 6.6 for RSA and DSA keys, RFC5656 section 3.1 for ECDSA keys
 and the "New public key formats" section of PROTOCOL.certkeys for the
 OpenSSH certificate formats.
 
-4.2 Private key format
+5.2 Private key format
 
 OpenSSH private keys, as generated by ssh-keygen(1) use the format
 described in PROTOCOL.key by default. As a legacy option, PEM format
 (RFC7468) private keys are also supported for RSA, DSA and ECDSA keys
 and were the default format before OpenSSH 7.8.
 
-4.3 KRL format
+5.3 KRL format
 
 OpenSSH supports a compact format for Key Revocation Lists (KRLs). This
 format is described in the PROTOCOL.krl file.
 
-4.4 Connection multiplexing
+5.4 Connection multiplexing
 
 OpenSSH's connection multiplexing uses messages as described in
 PROTOCOL.mux over a Unix domain socket for communications between a
 master instance and later clients.
 
-$OpenBSD: PROTOCOL,v 1.42 2021/08/09 23:47:44 djm Exp $
+5.5. Agent protocol extensions
+
+OpenSSH extends the usual agent protocol. These changes are documented
+in the PROTOCOL.agent file.
+
+$OpenBSD: PROTOCOL,v 1.43 2021/12/19 22:15:42 djm Exp $

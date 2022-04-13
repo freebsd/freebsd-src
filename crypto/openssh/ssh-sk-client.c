@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-client.c,v 1.9 2021/04/03 06:18:41 djm Exp $ */
+/* $OpenBSD: ssh-sk-client.c,v 1.12 2022/01/14 03:34:00 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -232,7 +232,6 @@ sshsk_sign(const char *provider, struct sshkey *key,
     u_int compat, const char *pin)
 {
 	int oerrno, r = SSH_ERR_INTERNAL_ERROR;
-	char *fp = NULL;
 	struct sshbuf *kbuf = NULL, *req = NULL, *resp = NULL;
 
 	*sigp = NULL;
@@ -262,12 +261,6 @@ sshsk_sign(const char *provider, struct sshkey *key,
 		goto out;
 	}
 
-	if ((fp = sshkey_fingerprint(key, SSH_FP_HASH_DEFAULT,
-	    SSH_FP_DEFAULT)) == NULL) {
-		error_f("sshkey_fingerprint failed");
-		r = SSH_ERR_ALLOC_FAIL;
-		goto out;
-	}
 	if ((r = client_converse(req, &resp, SSH_SK_HELPER_SIGN)) != 0)
 		goto out;
 
@@ -375,20 +368,46 @@ sshsk_enroll(int type, const char *provider_path, const char *device,
 	return r;
 }
 
+static void
+sshsk_free_resident_key(struct sshsk_resident_key *srk)
+{
+	if (srk == NULL)
+		return;
+	sshkey_free(srk->key);
+	freezero(srk->user_id, srk->user_id_len);
+	free(srk);
+}
+
+
+void
+sshsk_free_resident_keys(struct sshsk_resident_key **srks, size_t nsrks)
+{
+	size_t i;
+
+	if (srks == NULL || nsrks == 0)
+		return;
+
+	for (i = 0; i < nsrks; i++)
+		sshsk_free_resident_key(srks[i]);
+	free(srks);
+}
+
 int
 sshsk_load_resident(const char *provider_path, const char *device,
-    const char *pin, struct sshkey ***keysp, size_t *nkeysp)
+    const char *pin, u_int flags, struct sshsk_resident_key ***srksp,
+    size_t *nsrksp)
 {
 	int oerrno, r = SSH_ERR_INTERNAL_ERROR;
 	struct sshbuf *kbuf = NULL, *req = NULL, *resp = NULL;
-	struct sshkey *key = NULL, **keys = NULL, **tmp;
-	size_t i, nkeys = 0;
+	struct sshkey *key = NULL;
+	struct sshsk_resident_key *srk = NULL, **srks = NULL, **tmp;
+	u_char *userid = NULL;
+	size_t userid_len = 0, nsrks = 0;
 
-	*keysp = NULL;
-	*nkeysp = 0;
+	*srksp = NULL;
+	*nsrksp = 0;
 
-	if ((resp = sshbuf_new()) == NULL ||
-	    (kbuf = sshbuf_new()) == NULL ||
+	if ((kbuf = sshbuf_new()) == NULL ||
 	    (req = sshbuf_new()) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
@@ -396,7 +415,8 @@ sshsk_load_resident(const char *provider_path, const char *device,
 
 	if ((r = sshbuf_put_cstring(req, provider_path)) != 0 ||
 	    (r = sshbuf_put_cstring(req, device)) != 0 ||
-	    (r = sshbuf_put_cstring(req, pin)) != 0) {
+	    (r = sshbuf_put_cstring(req, pin)) != 0 ||
+	    (r = sshbuf_put_u32(req, flags)) != 0) {
 		error_fr(r, "compose");
 		goto out;
 	}
@@ -405,10 +425,11 @@ sshsk_load_resident(const char *provider_path, const char *device,
 		goto out;
 
 	while (sshbuf_len(resp) != 0) {
-		/* key, comment */
+		/* key, comment, user_id */
 		if ((r = sshbuf_get_stringb(resp, kbuf)) != 0 ||
-		    (r = sshbuf_get_cstring(resp, NULL, NULL)) != 0) {
-			error_fr(r, "parse signature");
+		    (r = sshbuf_get_cstring(resp, NULL, NULL)) != 0 ||
+		    (r = sshbuf_get_string(resp, &userid, &userid_len)) != 0) {
+			error_fr(r, "parse");
 			r = SSH_ERR_INVALID_FORMAT;
 			goto out;
 		}
@@ -416,29 +437,40 @@ sshsk_load_resident(const char *provider_path, const char *device,
 			error_fr(r, "decode key");
 			goto out;
 		}
-		if ((tmp = recallocarray(keys, nkeys, nkeys + 1,
-		    sizeof(*keys))) == NULL) {
+		if ((srk = calloc(1, sizeof(*srk))) == NULL) {
+			error_f("calloc failed");
+			goto out;
+		}
+		srk->key = key;
+		key = NULL;
+		srk->user_id = userid;
+		srk->user_id_len = userid_len;
+		userid = NULL;
+		userid_len = 0;
+		if ((tmp = recallocarray(srks, nsrks, nsrks + 1,
+		    sizeof(*srks))) == NULL) {
 			error_f("recallocarray keys failed");
 			goto out;
 		}
-		debug_f("keys[%zu]: %s %s", nkeys, sshkey_type(key),
-		    key->sk_application);
-		keys = tmp;
-		keys[nkeys++] = key;
-		key = NULL;
+		debug_f("srks[%zu]: %s %s uidlen %zu", nsrks,
+		    sshkey_type(srk->key), srk->key->sk_application,
+		    srk->user_id_len);
+		srks = tmp;
+		srks[nsrks++] = srk;
+		srk = NULL;
 	}
 
 	/* success */
 	r = 0;
-	*keysp = keys;
-	*nkeysp = nkeys;
-	keys = NULL;
-	nkeys = 0;
+	*srksp = srks;
+	*nsrksp = nsrks;
+	srks = NULL;
+	nsrks = 0;
  out:
 	oerrno = errno;
-	for (i = 0; i < nkeys; i++)
-		sshkey_free(keys[i]);
-	free(keys);
+	sshsk_free_resident_key(srk);
+	sshsk_free_resident_keys(srks, nsrks);
+	freezero(userid, userid_len);
 	sshkey_free(key);
 	sshbuf_free(kbuf);
 	sshbuf_free(req);

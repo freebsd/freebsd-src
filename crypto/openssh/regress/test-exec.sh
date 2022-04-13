@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.87 2021/09/01 00:50:27 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.89 2022/01/06 22:14:25 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -262,6 +262,7 @@ fi
 SSHLOGWRAP=$OBJ/ssh-log-wrapper.sh
 cat >$SSHLOGWRAP <<EOD
 #!/bin/sh
+echo "Executing: ${SSH} \$@" >>${TEST_SSH_LOGFILE}
 for i in "\$@";do shift;case "\$i" in -q):;; *) set -- "\$@" "\$i";;esac;done
 exec ${SSH} -E${TEST_SSH_LOGFILE} "\$@"
 EOD
@@ -313,6 +314,12 @@ have_prog()
 jot() {
 	awk "BEGIN { for (i = $2; i < $2 + $1; i++) { printf \"%d\n\", i } exit }"
 }
+if [ ! -x "`which rev`" ]; then
+rev()
+{
+	awk '{for (i=length; i>0; i--) printf "%s", substr($0, i, 1); print ""}'
+}
+fi
 
 # Check whether preprocessor symbols are defined in config.h.
 config_defined ()
@@ -549,7 +556,6 @@ Host *
 	UserKnownHostsFile	$OBJ/known_hosts
 	PubkeyAuthentication	yes
 	ChallengeResponseAuthentication	no
-	HostbasedAuthentication	no
 	PasswordAuthentication	no
 	BatchMode		yes
 	StrictHostKeyChecking	yes
@@ -568,6 +574,8 @@ if ! config_defined ENABLE_SK; then
 	trace skipping sk-dummy
 elif [ -f "${SRC}/misc/sk-dummy/obj/sk-dummy.so" ] ; then
 	SSH_SK_PROVIDER="${SRC}/misc/sk-dummy/obj/sk-dummy.so"
+elif [ -f "${OBJ}/misc/sk-dummy/sk-dummy.so" ] ; then
+	SSH_SK_PROVIDER="${OBJ}/misc/sk-dummy/sk-dummy.so"
 elif [ -f "${SRC}/misc/sk-dummy/sk-dummy.so" ] ; then
 	SSH_SK_PROVIDER="${SRC}/misc/sk-dummy/sk-dummy.so"
 fi
@@ -712,6 +720,24 @@ start_sshd ()
 cleanup
 
 if [ "x$USE_VALGRIND" != "x" ]; then
+	# If there is an EXIT trap handler, invoke it now.
+	# Some tests set these to clean up processes such as ssh-agent.  We
+	# need to wait for all valgrind processes to complete so we can check
+	# their logs, but since the EXIT traps are not invoked until
+	# test-exec.sh exits, waiting here will deadlock.
+	# This is not very portable but then neither is valgrind itself.
+	# As a bonus, dash (as used on the runners) has a "trap" that doesn't
+	# work in a pipeline (hence the temp file) or a subshell.
+	exithandler=""
+	trap >/tmp/trap.$$ && exithandler=$(cat /tmp/trap.$$ | \
+	    awk -F "'" '/EXIT$/{print $2}')
+	rm -f /tmp/trap.$$
+	if [ "x${exithandler}" != "x" ]; then
+		verbose invoking EXIT trap handler early: ${exithandler}
+		eval "${exithandler}"
+		trap '' EXIT
+	fi
+
 	# wait for any running process to complete
 	wait; sleep 1
 	VG_RESULTS=$(find $OBJ/valgrind-out -type f -print)

@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-misc.c,v 1.17 2021/08/11 05:21:32 djm Exp $	*/
+/*	$OpenBSD: sshbuf-misc.c,v 1.18 2022/01/22 00:43:43 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -30,6 +30,7 @@
 #include <string.h>
 #include <resolv.h>
 #include <ctype.h>
+#include <unistd.h>
 
 #include "ssherr.h"
 #define SSHBUF_INTERNAL
@@ -267,5 +268,41 @@ sshbuf_find(const struct sshbuf *b, size_t start_offset,
 		return SSH_ERR_INVALID_FORMAT;
 	if (offsetp != NULL)
 		*offsetp = (const u_char *)p - sshbuf_ptr(b);
+	return 0;
+}
+
+int
+sshbuf_read(int fd, struct sshbuf *buf, size_t maxlen, size_t *rlen)
+{
+	int r, oerrno;
+	size_t adjust;
+	ssize_t rr;
+	u_char *d;
+
+	if (rlen != NULL)
+		*rlen = 0;
+	if ((r = sshbuf_reserve(buf, maxlen, &d)) != 0)
+		return r;
+	rr = read(fd, d, maxlen);
+	oerrno = errno;
+
+	/* Adjust the buffer to include only what was actually read */
+	if ((adjust = maxlen - (rr > 0 ? rr : 0)) != 0) {
+		if ((r = sshbuf_consume_end(buf, adjust)) != 0) {
+			/* avoid returning uninitialised data to caller */
+			memset(d + rr, '\0', adjust);
+			return SSH_ERR_INTERNAL_ERROR; /* shouldn't happen */
+		}
+	}
+	if (rr < 0) {
+		errno = oerrno;
+		return SSH_ERR_SYSTEM_ERROR;
+	} else if (rr == 0) {
+		errno = EPIPE;
+		return SSH_ERR_SYSTEM_ERROR;
+	}
+	/* success */
+	if (rlen != NULL)
+		*rlen = (size_t)rr;
 	return 0;
 }

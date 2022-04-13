@@ -1,4 +1,4 @@
-#	$OpenBSD: percent.sh,v 1.13 2021/07/25 12:13:03 dtucker Exp $
+#	$OpenBSD: percent.sh,v 1.14 2022/02/20 03:47:26 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="percent expansions"
@@ -21,7 +21,8 @@ echo "permitlocalcommand yes" >> $OBJ/ssh_proxy
 
 trial()
 {
-	opt="$1"; arg="$2"; expect="$3"
+	opt="$1"; arg="$2"
+	expect=`echo "$3" | sed 's|^//|/|'` # approximate realpath
 
 	trace "test $opt=$arg $expect"
 	rm -f $OBJ/actual

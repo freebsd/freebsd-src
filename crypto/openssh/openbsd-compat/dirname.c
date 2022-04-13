@@ -23,7 +23,6 @@
 
 #include <errno.h>
 #include <string.h>
-#include <sys/param.h>
 
 char *
 dirname(const char *path)

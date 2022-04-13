@@ -33,7 +33,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.335 2021/09/03 05:25:50 dtucker Exp $
+.\" $OpenBSD: sshd_config.5,v 1.339 2021/12/04 00:05:39 naddy Exp $
 .\" $FreeBSD$
 .Dd $Mdocdate: September 3 2021 $
 .Dt SSHD_CONFIG 5
@@ -966,6 +966,7 @@ The default is:
 .Bd -literal -offset indent
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+sntrup761x25519-sha512@openssh.com,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
 diffie-hellman-group14-sha256
@@ -1191,12 +1192,14 @@ Available keywords are
 .Cm AuthorizedPrincipalsCommandUser ,
 .Cm AuthorizedPrincipalsFile ,
 .Cm Banner ,
+.Cm CASignatureAlgorithms ,
 .Cm ChrootDirectory ,
 .Cm ClientAliveCountMax ,
 .Cm ClientAliveInterval ,
 .Cm DenyGroups ,
 .Cm DenyUsers ,
 .Cm DisableForwarding ,
+.Cm ExposeAuthInfo ,
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
 .Cm GSSAPIAuthentication ,
@@ -1221,6 +1224,7 @@ Available keywords are
 .Cm PermitUserRC ,
 .Cm PubkeyAcceptedAlgorithms ,
 .Cm PubkeyAuthentication ,
+.Cm PubkeyAuthOptions ,
 .Cm RekeyLimit ,
 .Cm RevokedKeys ,
 .Cm RDomain ,
@@ -1807,7 +1811,7 @@ The default is
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Qq FreeBSD-20211221 .
+.Qq FreeBSD-20220413 .
 The value
 .Cm none
 may be used to disable this.

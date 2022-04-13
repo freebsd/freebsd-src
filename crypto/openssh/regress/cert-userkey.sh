@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-userkey.sh,v 1.26 2021/02/25 03:27:34 djm Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.28 2021/09/30 05:26:26 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
@@ -60,126 +60,122 @@ done
 # Test explicitly-specified principals
 for ktype in $EXTRA_TYPES $PLAIN_TYPES ; do
 	t=$(kname $ktype)
-	for privsep in yes ; do
-		_prefix="${ktype} privsep $privsep"
+	_prefix="${ktype}"
 
-		# Setup for AuthorizedPrincipalsFile
-		rm -f $OBJ/authorized_keys_$USER
-		(
-			cat $OBJ/sshd_proxy_bak
-			echo "UsePrivilegeSeparation $privsep"
-			echo "AuthorizedPrincipalsFile " \
-			    "$OBJ/authorized_principals_%u"
-			echo "TrustedUserCAKeys $OBJ/user_ca_key.pub"
-			echo "PubkeyAcceptedAlgorithms ${t}"
-		) > $OBJ/sshd_proxy
-		(
-			cat $OBJ/ssh_proxy_bak
-			echo "PubkeyAcceptedAlgorithms ${t}"
-		) > $OBJ/ssh_proxy
+	# Setup for AuthorizedPrincipalsFile
+	rm -f $OBJ/authorized_keys_$USER
+	(
+		cat $OBJ/sshd_proxy_bak
+		echo "AuthorizedPrincipalsFile " \
+		    "$OBJ/authorized_principals_%u"
+		echo "TrustedUserCAKeys $OBJ/user_ca_key.pub"
+		echo "PubkeyAcceptedAlgorithms ${t}"
+	) > $OBJ/sshd_proxy
+	(
+		cat $OBJ/ssh_proxy_bak
+		echo "PubkeyAcceptedAlgorithms ${t}"
+	) > $OBJ/ssh_proxy
 
-		# Missing authorized_principals
-		verbose "$tid: ${_prefix} missing authorized_principals"
-		rm -f $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -eq 0 ]; then
-			fail "ssh cert connect succeeded unexpectedly"
-		fi
+	# Missing authorized_principals
+	verbose "$tid: ${_prefix} missing authorized_principals"
+	rm -f $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpectedly"
+	fi
 
-		# Empty authorized_principals
-		verbose "$tid: ${_prefix} empty authorized_principals"
-		echo > $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -eq 0 ]; then
-			fail "ssh cert connect succeeded unexpectedly"
-		fi
+	# Empty authorized_principals
+	verbose "$tid: ${_prefix} empty authorized_principals"
+	echo > $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpectedly"
+	fi
 
-		# Wrong authorized_principals
-		verbose "$tid: ${_prefix} wrong authorized_principals"
-		echo gregorsamsa > $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -eq 0 ]; then
-			fail "ssh cert connect succeeded unexpectedly"
-		fi
+	# Wrong authorized_principals
+	verbose "$tid: ${_prefix} wrong authorized_principals"
+	echo gregorsamsa > $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpectedly"
+	fi
 
-		# Correct authorized_principals
-		verbose "$tid: ${_prefix} correct authorized_principals"
-		echo mekmitasdigoat > $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -ne 0 ]; then
-			fail "ssh cert connect failed"
-		fi
+	# Correct authorized_principals
+	verbose "$tid: ${_prefix} correct authorized_principals"
+	echo mekmitasdigoat > $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		fail "ssh cert connect failed"
+	fi
 
-		# authorized_principals with bad key option
-		verbose "$tid: ${_prefix} authorized_principals bad key opt"
-		echo 'blah mekmitasdigoat' > $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -eq 0 ]; then
-			fail "ssh cert connect succeeded unexpectedly"
-		fi
+	# authorized_principals with bad key option
+	verbose "$tid: ${_prefix} authorized_principals bad key opt"
+	echo 'blah mekmitasdigoat' > $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpectedly"
+	fi
 
-		# authorized_principals with command=false
-		verbose "$tid: ${_prefix} authorized_principals command=false"
-		echo 'command="false" mekmitasdigoat' > \
-		    $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -eq 0 ]; then
-			fail "ssh cert connect succeeded unexpectedly"
-		fi
+	# authorized_principals with command=false
+	verbose "$tid: ${_prefix} authorized_principals command=false"
+	echo 'command="false" mekmitasdigoat' > \
+	    $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpectedly"
+	fi
 
 
-		# authorized_principals with command=true
-		verbose "$tid: ${_prefix} authorized_principals command=true"
-		echo 'command="true" mekmitasdigoat' > \
-		    $OBJ/authorized_principals_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost false >/dev/null 2>&1
-		if [ $? -ne 0 ]; then
-			fail "ssh cert connect failed"
-		fi
+	# authorized_principals with command=true
+	verbose "$tid: ${_prefix} authorized_principals command=true"
+	echo 'command="true" mekmitasdigoat' > \
+	    $OBJ/authorized_principals_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost false >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		fail "ssh cert connect failed"
+	fi
 
-		# Setup for principals= key option
-		rm -f $OBJ/authorized_principals_$USER
-		(
-			cat $OBJ/sshd_proxy_bak
-			echo "UsePrivilegeSeparation $privsep"
-			echo "PubkeyAcceptedAlgorithms ${t}"
-		) > $OBJ/sshd_proxy
-		(
-			cat $OBJ/ssh_proxy_bak
-			echo "PubkeyAcceptedAlgorithms ${t}"
-		) > $OBJ/ssh_proxy
+	# Setup for principals= key option
+	rm -f $OBJ/authorized_principals_$USER
+	(
+		cat $OBJ/sshd_proxy_bak
+		echo "PubkeyAcceptedAlgorithms ${t}"
+	) > $OBJ/sshd_proxy
+	(
+		cat $OBJ/ssh_proxy_bak
+		echo "PubkeyAcceptedAlgorithms ${t}"
+	) > $OBJ/ssh_proxy
 
-		# Wrong principals list
-		verbose "$tid: ${_prefix} wrong principals key option"
-		(
-			printf 'cert-authority,principals="gregorsamsa" '
-			cat $OBJ/user_ca_key.pub
-		) > $OBJ/authorized_keys_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -eq 0 ]; then
-			fail "ssh cert connect succeeded unexpectedly"
-		fi
+	# Wrong principals list
+	verbose "$tid: ${_prefix} wrong principals key option"
+	(
+		printf 'cert-authority,principals="gregorsamsa" '
+		cat $OBJ/user_ca_key.pub
+	) > $OBJ/authorized_keys_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpectedly"
+	fi
 
-		# Correct principals list
-		verbose "$tid: ${_prefix} correct principals key option"
-		(
-			printf 'cert-authority,principals="mekmitasdigoat" '
-			cat $OBJ/user_ca_key.pub
-		) > $OBJ/authorized_keys_$USER
-		${SSH} -i $OBJ/cert_user_key_${ktype} \
-		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-		if [ $? -ne 0 ]; then
-			fail "ssh cert connect failed"
-		fi
-	done
+	# Correct principals list
+	verbose "$tid: ${_prefix} correct principals key option"
+	(
+		printf 'cert-authority,principals="mekmitasdigoat" '
+		cat $OBJ/user_ca_key.pub
+	) > $OBJ/authorized_keys_$USER
+	${SSH} -i $OBJ/cert_user_key_${ktype} \
+	    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		fail "ssh cert connect failed"
+	fi
 done
 
 basic_tests() {
@@ -197,75 +193,71 @@ basic_tests() {
 
 	for ktype in $PLAIN_TYPES ; do
 		t=$(kname $ktype)
-		for privsep in yes ; do
-			_prefix="${ktype} privsep $privsep $auth"
-			# Simple connect
-			verbose "$tid: ${_prefix} connect"
-			(
-				cat $OBJ/sshd_proxy_bak
-				echo "UsePrivilegeSeparation $privsep"
-				echo "PubkeyAcceptedAlgorithms ${t}"
-				echo "$extra_sshd"
-			) > $OBJ/sshd_proxy
-			(
-				cat $OBJ/ssh_proxy_bak
-				echo "PubkeyAcceptedAlgorithms ${t}"
-			) > $OBJ/ssh_proxy
-
-			${SSH} -i $OBJ/cert_user_key_${ktype} \
-			    -F $OBJ/ssh_proxy somehost true
-			if [ $? -ne 0 ]; then
-				fail "ssh cert connect failed"
-			fi
-
-			# Revoked keys
-			verbose "$tid: ${_prefix} revoked key"
-			(
-				cat $OBJ/sshd_proxy_bak
-				echo "UsePrivilegeSeparation $privsep"
-				echo "RevokedKeys $OBJ/cert_user_key_revoked"
-				echo "PubkeyAcceptedAlgorithms ${t}"
-				echo "$extra_sshd"
-			) > $OBJ/sshd_proxy
-			cp $OBJ/cert_user_key_${ktype}.pub \
-			    $OBJ/cert_user_key_revoked
-			${SSH} -i $OBJ/cert_user_key_${ktype} \
-			    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-			if [ $? -eq 0 ]; then
-				fail "ssh cert connect succeeded unexpecedly"
-			fi
-			verbose "$tid: ${_prefix} revoked via KRL"
-			rm $OBJ/cert_user_key_revoked
-			${SSHKEYGEN} -kqf $OBJ/cert_user_key_revoked \
-			    $OBJ/cert_user_key_${ktype}.pub
-			${SSH} -i $OBJ/cert_user_key_${ktype} \
-			    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-			if [ $? -eq 0 ]; then
-				fail "ssh cert connect succeeded unexpecedly"
-			fi
-			verbose "$tid: ${_prefix} empty KRL"
-			${SSHKEYGEN} -kqf $OBJ/cert_user_key_revoked
-			${SSH} -i $OBJ/cert_user_key_${ktype} \
-			    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
-			if [ $? -ne 0 ]; then
-				fail "ssh cert connect failed"
-			fi
-		done
-
-		# Revoked CA
-		verbose "$tid: ${ktype} $auth revoked CA key"
+		_prefix="${ktype} $auth"
+		# Simple connect
+		verbose "$tid: ${_prefix} connect"
 		(
 			cat $OBJ/sshd_proxy_bak
-			echo "RevokedKeys $OBJ/user_ca_key.pub"
 			echo "PubkeyAcceptedAlgorithms ${t}"
 			echo "$extra_sshd"
 		) > $OBJ/sshd_proxy
-		${SSH} -i $OBJ/cert_user_key_${ktype} -F $OBJ/ssh_proxy \
-		    somehost true >/dev/null 2>&1
+		(
+			cat $OBJ/ssh_proxy_bak
+			echo "PubkeyAcceptedAlgorithms ${t}"
+		) > $OBJ/ssh_proxy
+
+		${SSH} -i $OBJ/cert_user_key_${ktype} \
+		    -F $OBJ/ssh_proxy somehost true
+		if [ $? -ne 0 ]; then
+			fail "ssh cert connect failed"
+		fi
+
+		# Revoked keys
+		verbose "$tid: ${_prefix} revoked key"
+		(
+			cat $OBJ/sshd_proxy_bak
+			echo "RevokedKeys $OBJ/cert_user_key_revoked"
+			echo "PubkeyAcceptedAlgorithms ${t}"
+			echo "$extra_sshd"
+		) > $OBJ/sshd_proxy
+		cp $OBJ/cert_user_key_${ktype}.pub \
+		    $OBJ/cert_user_key_revoked
+		${SSH} -i $OBJ/cert_user_key_${ktype} \
+		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			fail "ssh cert connect succeeded unexpecedly"
 		fi
+		verbose "$tid: ${_prefix} revoked via KRL"
+		rm $OBJ/cert_user_key_revoked
+		${SSHKEYGEN} -kqf $OBJ/cert_user_key_revoked \
+		    $OBJ/cert_user_key_${ktype}.pub
+		${SSH} -i $OBJ/cert_user_key_${ktype} \
+		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			fail "ssh cert connect succeeded unexpecedly"
+		fi
+		verbose "$tid: ${_prefix} empty KRL"
+		${SSHKEYGEN} -kqf $OBJ/cert_user_key_revoked
+		${SSH} -i $OBJ/cert_user_key_${ktype} \
+		    -F $OBJ/ssh_proxy somehost true >/dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			fail "ssh cert connect failed"
+		fi
 	done
+
+	# Revoked CA
+	verbose "$tid: ${ktype} $auth revoked CA key"
+	(
+		cat $OBJ/sshd_proxy_bak
+		echo "RevokedKeys $OBJ/user_ca_key.pub"
+		echo "PubkeyAcceptedAlgorithms ${t}"
+		echo "$extra_sshd"
+	) > $OBJ/sshd_proxy
+	${SSH} -i $OBJ/cert_user_key_${ktype} -F $OBJ/ssh_proxy \
+	    somehost true >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		fail "ssh cert connect succeeded unexpecedly"
+	fi
 
 	verbose "$tid: $auth CA does not authenticate"
 	(

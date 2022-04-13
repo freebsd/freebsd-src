@@ -16,10 +16,9 @@
 
 #include "includes.h"
 
-#ifndef HAVE_CLOSEFROM
+#if !defined(HAVE_CLOSEFROM) || defined(BROKEN_CLOSEFROM)
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <unistd.h>
 #include <stdio.h>
 #ifdef HAVE_FCNTL_H
@@ -129,6 +128,11 @@ closefrom(int lowfd)
     struct dirent *dent;
     DIR *dirp;
     int len;
+
+#ifdef HAVE_CLOSE_RANGE
+	if (close_range(lowfd, INT_MAX, 0) == 0)
+		return;
+#endif
 
     /* Check for a /proc/$$/fd directory. */
     len = snprintf(fdpath, sizeof(fdpath), "/proc/%ld/fd", (long)getpid());

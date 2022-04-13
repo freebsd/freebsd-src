@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-none.c,v 1.23 2020/10/18 11:32:01 djm Exp $ */
+/* $OpenBSD: auth2-none.c,v 1.24 2021/12/19 22:12:07 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -59,7 +59,7 @@ extern ServerOptions options;
 static int none_enabled = 1;
 
 static int
-userauth_none(struct ssh *ssh)
+userauth_none(struct ssh *ssh, const char *method)
 {
 	int r;
 
@@ -73,6 +73,7 @@ userauth_none(struct ssh *ssh)
 
 Authmethod method_none = {
 	"none",
+	NULL,
 	userauth_none,
 	&none_enabled
 };

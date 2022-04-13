@@ -1,4 +1,4 @@
-/* $OpenBSD: nchan.c,v 1.73 2021/05/19 01:24:05 djm Exp $ */
+/* $OpenBSD: nchan.c,v 1.74 2022/02/01 23:32:51 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -82,8 +82,12 @@ static void	chan_shutdown_write(struct ssh *, Channel *);
 static void	chan_shutdown_read(struct ssh *, Channel *);
 static void	chan_shutdown_extended_read(struct ssh *, Channel *);
 
-static const char *ostates[] = { "open", "drain", "wait_ieof", "closed" };
-static const char *istates[] = { "open", "drain", "wait_oclose", "closed" };
+static const char * const ostates[] = {
+	"open", "drain", "wait_ieof", "closed",
+};
+static const char * const istates[] = {
+	"open", "drain", "wait_oclose", "closed",
+};
 
 static void
 chan_set_istate(Channel *c, u_int next)
