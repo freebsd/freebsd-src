@@ -1438,7 +1438,9 @@ ipfw_chk(struct ip_fw_args *args)
 
 	/* XXX ipv6 variables */
 	int is_ipv6 = 0;
+#ifdef INET6
 	uint8_t	icmp6_type = 0;
+#endif
 	uint16_t ext_hd = 0;	/* bits vector for extension header filtering */
 	/* end of ipv6 variables */
 
@@ -1550,7 +1552,9 @@ do {								\
 			switch (proto) {
 			case IPPROTO_ICMPV6:
 				PULLUP_TO(hlen, ulp, struct icmp6_hdr);
+#ifdef INET6
 				icmp6_type = ICMP6(ulp)->icmp6_type;
+#endif
 				break;
 
 			case IPPROTO_TCP:
