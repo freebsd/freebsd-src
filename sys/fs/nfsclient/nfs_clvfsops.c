@@ -338,7 +338,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 			nfsva.na_vattr.va_size = 512 * 1024;
 		}
 	}
-	(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0, 1);
+	(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 	if (!error) {
 	    mtx_lock(&nmp->nm_mtx);
 	    if (gotfsinfo || (nmp->nm_flag & NFSMNT_NFSV4))
@@ -373,8 +373,7 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	error = nfsrpc_fsinfo(vp, &fs, cred, td, &nfsva, &attrflag, NULL);
 	if (!error) {
 		if (attrflag)
-			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0,
-			    1);
+			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		mtx_lock(&nmp->nm_mtx);
 		nfscl_loadfsinfo(nmp, &fs);
 		mtx_unlock(&nmp->nm_mtx);
@@ -1688,7 +1687,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			nfsva.na_vattr.va_size = 512 * 1024;
 			lease = 60;
 		}
-		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, NULL, 0, 1);
+		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, 0, 1);
 		if ((argp->flags & NFSMNT_NFSV4) != 0) {
 			NFSCL_DEBUG(3, "lease=%d\n", (int)lease);
 			NFSLOCKCLSTATE();
