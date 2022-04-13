@@ -167,12 +167,9 @@ static int
 sp804_timer_intr(void *arg)
 {
 	struct sp804_timer_softc *sc = arg;
-	static uint32_t prev = 0;
-	uint32_t x = 0;
 
-	x = sp804_timer_tc_read_4(SP804_TIMER1_VALUE);
+	(void)sp804_timer_tc_read_4(SP804_TIMER1_VALUE);
 
-	prev =x ;
 	sp804_timer_tc_write_4(SP804_TIMER2_INTCLR, 1);
 	if (sc->et_enabled) {
 		if (sc->et.et_active) {
