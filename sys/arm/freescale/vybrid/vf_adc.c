@@ -142,9 +142,6 @@ adc_probe(device_t dev)
 static void
 adc_intr(void *arg)
 {
-	struct adc_softc *sc;
-
-	sc = arg;
 
 	/* Conversation complete */
 }

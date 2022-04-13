@@ -75,9 +75,6 @@ usbphy_detach(device_t dev)
 static int
 usbphy_attach(device_t dev)
 {
-	struct usbphy_softc *sc;
-
-	sc = device_get_softc(dev);
 
 	/*
          * Turn on the phy clocks.
