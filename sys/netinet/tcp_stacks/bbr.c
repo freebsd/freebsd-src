@@ -442,11 +442,11 @@ static inline uint64_t bbr_get_bw(struct tcp_bbr *bbr);
  */
 static uint32_t
 bbr_get_pacing_length(struct tcp_bbr *bbr, uint16_t gain,
-    uint32_t useconds_time, uint64_t bw);
+		      uint32_t useconds_time, uint64_t bw);
 static uint32_t
 bbr_get_a_state_target(struct tcp_bbr *bbr, uint32_t gain);
 static void
-     bbr_set_state(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t win);
+bbr_set_state(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t win);
 static void
 bbr_set_probebw_gains(struct tcp_bbr *bbr,  uint32_t cts, uint32_t losses);
 static void
@@ -458,66 +458,63 @@ static void
 bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch,
 		 int32_t pkt_epoch, uint32_t losses);
 static uint32_t
-bbr_calc_thresh_rack(struct tcp_bbr *bbr, uint32_t srtt, uint32_t cts, struct bbr_sendmap *rsm);
-static uint32_t bbr_initial_cwnd(struct tcp_bbr *bbr, struct tcpcb *tp);
+bbr_calc_thresh_rack(struct tcp_bbr *bbr, uint32_t srtt, uint32_t cts,
+		     struct bbr_sendmap *rsm);
+static uint32_t
+bbr_initial_cwnd(struct tcp_bbr *bbr, struct tcpcb *tp);
 static uint32_t
 bbr_calc_thresh_tlp(struct tcpcb *tp, struct tcp_bbr *bbr,
-    struct bbr_sendmap *rsm, uint32_t srtt,
-    uint32_t cts);
+		    struct bbr_sendmap *rsm, uint32_t srtt, uint32_t cts);
 static void
 bbr_exit_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts,
-    int32_t line);
+		 int32_t line);
 static void
-     bbr_set_state_target(struct tcp_bbr *bbr, int line);
+bbr_set_state_target(struct tcp_bbr *bbr, int line);
 static void
-     bbr_enter_probe_rtt(struct tcp_bbr *bbr, uint32_t cts, int32_t line);
-
+bbr_enter_probe_rtt(struct tcp_bbr *bbr, uint32_t cts, int32_t line);
 static void
-     bbr_log_progress_event(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t tick, int event, int line);
-
+bbr_log_progress_event(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t tick,
+		       int event, int line);
 static void
-     tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts);
-
+tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts);
 static void
-     bbr_setup_red_bw(struct tcp_bbr *bbr, uint32_t cts);
-
+bbr_setup_red_bw(struct tcp_bbr *bbr, uint32_t cts);
 static void
-     bbr_log_rtt_shrinks(struct tcp_bbr *bbr, uint32_t cts, uint32_t applied, uint32_t rtt,
-			 uint32_t line, uint8_t is_start, uint16_t set);
-
+bbr_log_rtt_shrinks(struct tcp_bbr *bbr, uint32_t cts, uint32_t applied,
+		    uint32_t rtt, uint32_t line, uint8_t is_start,
+		    uint16_t set);
 static struct bbr_sendmap *
-	    bbr_find_lowest_rsm(struct tcp_bbr *bbr);
+bbr_find_lowest_rsm(struct tcp_bbr *bbr);
 static __inline uint32_t
 bbr_get_rtt(struct tcp_bbr *bbr, int32_t rtt_type);
 static void
-     bbr_log_to_start(struct tcp_bbr *bbr, uint32_t cts, uint32_t to, int32_t slot, uint8_t which);
-
+bbr_log_to_start(struct tcp_bbr *bbr, uint32_t cts, uint32_t to, int32_t slot,
+		 uint8_t which);
 static void
-bbr_log_timer_var(struct tcp_bbr *bbr, int mode, uint32_t cts, uint32_t time_since_sent, uint32_t srtt,
-    uint32_t thresh, uint32_t to);
+bbr_log_timer_var(struct tcp_bbr *bbr, int mode, uint32_t cts,
+		  uint32_t time_since_sent, uint32_t srtt,
+		  uint32_t thresh, uint32_t to);
 static void
-     bbr_log_hpts_diag(struct tcp_bbr *bbr, uint32_t cts, struct hpts_diag *diag);
-
+bbr_log_hpts_diag(struct tcp_bbr *bbr, uint32_t cts, struct hpts_diag *diag);
 static void
 bbr_log_type_bbrsnd(struct tcp_bbr *bbr, uint32_t len, uint32_t slot,
-    uint32_t del_by, uint32_t cts, uint32_t sloton, uint32_t prev_delay);
-
+		    uint32_t del_by, uint32_t cts, uint32_t sloton,
+		    uint32_t prev_delay);
 static void
-bbr_enter_persist(struct tcpcb *tp, struct tcp_bbr *bbr,
-    uint32_t cts, int32_t line);
+bbr_enter_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts,
+		  int32_t line);
 static void
-     bbr_stop_all_timers(struct tcpcb *tp);
+bbr_stop_all_timers(struct tcpcb *tp);
 static void
-     bbr_exit_probe_rtt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts);
+bbr_exit_probe_rtt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts);
 static void
-     bbr_check_probe_rtt_limits(struct tcp_bbr *bbr, uint32_t cts);
+bbr_check_probe_rtt_limits(struct tcp_bbr *bbr, uint32_t cts);
 static void
-     bbr_timer_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts);
-
+bbr_timer_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts);
 static void
 bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
-    uint32_t cts, uint32_t usecs, uint64_t bw, uint32_t override, int mod);
-
+			  uint32_t cts, uint32_t usecs, uint64_t bw,
+			  uint32_t override, int mod);
 static int
 bbr_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 
@@ -532,7 +529,8 @@ get_min_cwnd(struct tcp_bbr *bbr)
 {
 	int mss;
 
-	mss = min((bbr->rc_tp->t_maxseg - bbr->rc_last_options), bbr->r_ctl.rc_pace_max_segs);
+	mss = min((bbr->rc_tp->t_maxseg - bbr->rc_last_options),
+		  bbr->r_ctl.rc_pace_max_segs);
 	if (bbr_get_rtt(bbr, BBR_RTT_PROP) < BBR_HIGH_SPEED)
 		return (bbr_cwnd_min_val_hs * mss);
 	else
@@ -7747,7 +7745,7 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (bbr->rc_in_persist)
 			tp->t_rxtshift = 0;
 		if ((th->th_ack == tp->snd_una) && (tiwin == tp->snd_wnd))
-		        bbr_strike_dupack(bbr);
+			bbr_strike_dupack(bbr);
 		sack_changed = bbr_log_ack(tp, to, th, &prev_acked);
 	}
 	bbr_lt_bw_sampling(bbr, bbr->r_ctl.rc_rcvtime, (bbr->r_ctl.rc_lost > lost));
