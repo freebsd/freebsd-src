@@ -252,7 +252,7 @@ powerpc_allocate_pmc(int cpu, int ri, struct pmc *pm,
 int
 powerpc_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));

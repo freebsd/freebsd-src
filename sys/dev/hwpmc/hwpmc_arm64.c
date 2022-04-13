@@ -346,7 +346,7 @@ arm64_stop_pmc(int cpu, int ri)
 static int
 arm64_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[arm64,%d] illegal CPU value %d", __LINE__, cpu));
