@@ -1956,7 +1956,7 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 {
 #ifdef KERN_TLS
 	struct ktls_session *tls, *ntls;
-	struct mbuf *start;
+	struct mbuf *start __diagused;
 #endif
 	struct mbuf *n, **np;
 	struct mbuf *top;
