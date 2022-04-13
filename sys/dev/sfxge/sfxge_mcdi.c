@@ -76,7 +76,7 @@ sfxge_mcdi_poll(struct sfxge_softc *sc, uint32_t timeout_us)
 	efx_nic_t *enp;
 	clock_t delay_total;
 	clock_t delay_us;
-	boolean_t aborted;
+	boolean_t aborted __diagused;
 
 	delay_total = 0;
 	delay_us = SFXGE_MCDI_POLL_INTERVAL_MIN;
@@ -140,7 +140,7 @@ static void
 sfxge_mcdi_ev_cpl(void *arg)
 {
 	struct sfxge_softc *sc;
-	struct sfxge_mcdi *mcdi;
+	struct sfxge_mcdi *mcdi __diagused;
 
 	sc = (struct sfxge_softc *)arg;
 	mcdi = &sc->mcdi;
