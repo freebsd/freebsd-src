@@ -177,7 +177,7 @@ get_pkt_len(u_char *buf)
 static void
 uep_process_pkt(struct uep_softc *sc, u_char *buf)
 {
-	int32_t x, y;
+	int32_t x __usbdebug_used, y __usbdebug_used;
 #ifdef EVDEV_SUPPORT
 	int touch;
 #endif
