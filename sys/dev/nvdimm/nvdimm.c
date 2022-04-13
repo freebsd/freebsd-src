@@ -338,7 +338,6 @@ nvdimm_attach(device_t dev)
 	struct sysctl_oid_list *children;
 	struct sbuf *sb;
 	ACPI_TABLE_NFIT *nfitbl;
-	ACPI_HANDLE handle;
 	ACPI_STATUS status;
 	ACPI_NFIT_MEMORY_MAP **maps;
 	int error, i, num_maps;
@@ -348,8 +347,7 @@ nvdimm_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	oid = device_get_sysctl_tree(dev);
 	children = SYSCTL_CHILDREN(oid);
-	handle = nvdimm_root_get_acpi_handle(dev);
-	MPASS(handle != NULL);
+	MPASS(nvdimm_root_get_acpi_handle(dev) != NULL);
 	nv->nv_dev = dev;
 	nv->nv_handle = nvdimm_root_get_device_handle(dev);
 
