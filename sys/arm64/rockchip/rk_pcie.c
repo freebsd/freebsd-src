@@ -336,7 +336,7 @@ rk_pcie_map_out_atu(struct rk_pcie_softc *sc, int idx, int type,
    int num_bits, uint64_t pa)
 {
 	uint32_t addr0;
-	uint64_t max_size;
+	uint64_t max_size __diagused;
 
 	/* Check HW constrains */
 	max_size = idx == 0 ? ATU_OB_REGION_0_SIZE: ATU_OB_REGION_SIZE;
