@@ -306,7 +306,7 @@ void
 nhgrp_ref_object(struct nhgrp_object *nhg)
 {
 	struct nhgrp_priv *nhg_priv;
-	u_int old;
+	u_int old __diagused;
 
 	nhg_priv = NHGRP_PRIV(nhg);
 	old = refcount_acquire(&nhg_priv->nhg_refcount);
