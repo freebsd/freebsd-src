@@ -1251,7 +1251,7 @@ nicvf_release_all_interrupts(struct nicvf *nic)
 {
 	struct resource *res;
 	int irq;
-	int err;
+	int err __diagused;
 
 	/* Free registered interrupts */
 	for (irq = 0; irq < nic->num_vec; irq++) {
