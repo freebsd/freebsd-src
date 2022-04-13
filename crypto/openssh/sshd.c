@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.583 2022/02/01 07:57:32 dtucker Exp $ */
+/* $OpenBSD: sshd.c,v 1.584 2022/03/01 01:59:19 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1156,9 +1156,9 @@ static void
 server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 {
 	struct pollfd *pfd = NULL;
-	int i, j, ret;
+	int i, j, ret, npfd;
 	int ostartups = -1, startups = 0, listening = 0, lameduck = 0;
-	int startup_p[2] = { -1 , -1 };
+	int startup_p[2] = { -1 , -1 }, *startup_pollfd;
 	char c = 0;
 	struct sockaddr_storage from;
 	socklen_t fromlen;
@@ -1174,6 +1174,7 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 	/* pipes connected to unauthenticated child sshd processes */
 	startup_pipes = xcalloc(options.max_startups, sizeof(int));
 	startup_flags = xcalloc(options.max_startups, sizeof(int));
+	startup_pollfd = xcalloc(options.max_startups, sizeof(int));
 	for (i = 0; i < options.max_startups; i++)
 		startup_pipes[i] = -1;
 
@@ -1189,6 +1190,7 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 	sigaddset(&nsigset, SIGTERM);
 	sigaddset(&nsigset, SIGQUIT);
 
+	/* sized for worst-case */
 	pfd = xcalloc(num_listen_socks + options.max_startups,
 	    sizeof(struct pollfd));
 
@@ -1228,24 +1230,31 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 			pfd[i].fd = listen_socks[i];
 			pfd[i].events = POLLIN;
 		}
+		npfd = num_listen_socks;
 		for (i = 0; i < options.max_startups; i++) {
-			pfd[num_listen_socks+i].fd = startup_pipes[i];
-			if (startup_pipes[i] != -1)
-				pfd[num_listen_socks+i].events = POLLIN;
+			startup_pollfd[i] = -1;
+			if (startup_pipes[i] != -1) {
+				pfd[npfd].fd = startup_pipes[i];
+				pfd[npfd].events = POLLIN;
+				startup_pollfd[i] = npfd++;
+			}
 		}
 
 		/* Wait until a connection arrives or a child exits. */
-		ret = ppoll(pfd, num_listen_socks + options.max_startups,
-		    NULL, &osigset);
-		if (ret == -1 && errno != EINTR)
+		ret = ppoll(pfd, npfd, NULL, &osigset);
+		if (ret == -1 && errno != EINTR) {
 			error("ppoll: %.100s", strerror(errno));
+			if (errno == EINVAL)
+				cleanup_exit(1); /* can't recover */
+		}
 		sigprocmask(SIG_SETMASK, &osigset, NULL);
 		if (ret == -1)
 			continue;
 
 		for (i = 0; i < options.max_startups; i++) {
 			if (startup_pipes[i] == -1 ||
-			    !(pfd[num_listen_socks+i].revents & (POLLIN|POLLHUP)))
+			    startup_pollfd[i] == -1 ||
+			    !(pfd[startup_pollfd[i]].revents & (POLLIN|POLLHUP)))
 				continue;
 			switch (read(startup_pipes[i], &c, sizeof(c))) {
 			case -1:
