@@ -505,14 +505,11 @@ tca6416_regdump_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	char buf[5];
-	struct tca6416_softc *sc;
 	int len, error;
 	uint8_t reg, regval;
 
 	dev = (device_t)arg1;
 	reg = (uint8_t)arg2;
-	sc = device_get_softc(dev);
-
 
 	error = tca6416_read(dev, reg, &regval);
 	if (error != 0) {
