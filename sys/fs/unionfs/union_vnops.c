@@ -2594,7 +2594,7 @@ unionfs_add_writecount(struct vop_add_writecount_args *ap)
 {
 	struct vnode *tvp, *vp;
 	struct unionfs_node *unp;
-	int error, writerefs;
+	int error, writerefs __diagused;
 
 	vp = ap->a_vp;
 	unp = VTOUNIONFS(vp);
