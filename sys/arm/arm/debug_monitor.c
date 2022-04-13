@@ -1013,7 +1013,6 @@ CTASSERT(sizeof(struct dbreg) == sizeof(((struct pcpu *)NULL)->pc_dbreg));
 void
 dbg_monitor_init_secondary(void)
 {
-	u_int cpuid;
 	int err;
 	/*
 	 * This flag is set on the primary CPU
@@ -1022,8 +1021,6 @@ dbg_monitor_init_secondary(void)
 	if (!dbg_capable())
 		return;
 
-	cpuid = PCPU_GET(cpuid);
-
 	err = dbg_reset_state();
 	if (err != 0) {
 		/*
@@ -1031,7 +1028,7 @@ dbg_monitor_init_secondary(void)
 		 * WPs/BPs will not work correctly on this CPU.
 		 */
 		KASSERT(0, ("%s: Failed to reset Debug Architecture "
-		    "state on CPU%d", __func__, cpuid));
+		    "state on CPU%d", __func__, PCPU_GET(cpuid)));
 		/* Disable HW debug capabilities for all CPUs */
 		atomic_set_int(&dbg_capable_var, 0);
 		return;
@@ -1039,7 +1036,7 @@ dbg_monitor_init_secondary(void)
 	err = dbg_enable_monitor();
 	if (err != 0) {
 		KASSERT(0, ("%s: Failed to enable Debug Monitor"
-		    " on CPU%d", __func__, cpuid));
+		    " on CPU%d", __func__, PCPU_GET(cpuid)));
 		atomic_set_int(&dbg_capable_var, 0);
 	}
 }
