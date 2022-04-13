@@ -121,7 +121,8 @@ while pgrep -q swap; do
 	(cd /tmp; timeout 1m ./syzkaller18)
 	[ $((`date +%s` - start)) -ge 60 ] && break
 done
-pkill -9 syzkaller18 swap
+pkill -9 syzkaller18
+while pkill swap; do sleep 1; done
 wait
 
 rm -f /tmp/syzkaller18 /tmp/syzkaller18.c /tmp/syzkaller18.core

@@ -82,7 +82,7 @@ done
 sleep 1
 ../tools/killall.sh
 wait
-umount $mp2
+mount | grep -q "on $mp2 " && umount $mp2
 n=0
 while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint || sleep 1

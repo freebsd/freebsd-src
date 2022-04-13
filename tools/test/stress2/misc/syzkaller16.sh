@@ -410,7 +410,8 @@ mycc -o /tmp/syzkaller16 -Wall -Wextra -O0 -m32 /tmp/syzkaller16.c -pthread ||
 (cd ../testcases/swap; ./swap -t 1m -i 20 -h > /dev/null 2>&1) &
 (cd /tmp; ./syzkaller16) &
 sleep 60
-pkill -9 syzkaller16 swap
+pkill -9 syzkaller16
+while pkill swap; do sleep 1; done
 wait
 
 rm -f /tmp/syzkaller16 /tmp/syzkaller16.c /tmp/syzkaller16.core

@@ -164,7 +164,8 @@ mycc -o /tmp/syzkaller19 -Wall -Wextra -O2 /tmp/syzkaller19.c -lpthread ||
 (cd ../testcases/swap; ./swap -t 1m -i 20 -h > /dev/null 2>&1) &
 (cd /tmp; ./syzkaller19) &
 sleep 60
-pkill -9 syzkaller19 swap
+pkill -9 syzkaller19
+while pkill swap; do sleep 1; done
 wait
 
 rm -f /tmp/syzkaller19 /tmp/syzkaller19.c /tmp/syzkaller19.core
