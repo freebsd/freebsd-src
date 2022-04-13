@@ -3640,7 +3640,9 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct tcptw *tw;
-	struct sockaddr_in *fin, *lin;
+#ifdef INET
+	struct sockaddr_in *fin = NULL, *lin = NULL;
+#endif
 	struct epoch_tracker et;
 #ifdef INET6
 	struct sockaddr_in6 *fin6, *lin6;
@@ -3648,7 +3650,6 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	inp = NULL;
-	fin = lin = NULL;
 #ifdef INET6
 	fin6 = lin6 = NULL;
 #endif
@@ -3677,8 +3678,10 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 				return (EINVAL);
 			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[0]);
 			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[1]);
+#ifdef INET
 			fin = (struct sockaddr_in *)&addrs[0];
 			lin = (struct sockaddr_in *)&addrs[1];
+#endif
 			break;
 		}
 		error = sa6_embedscope(fin6, V_ip6_use_defzone);
@@ -3768,7 +3771,9 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 	/* addrs[0] is a foreign socket, addrs[1] is a local one. */
 	struct sockaddr_storage addrs[2];
 	struct inpcb *inp;
-	struct sockaddr_in *fin, *lin;
+#ifdef INET
+	struct sockaddr_in *fin = NULL, *lin = NULL;
+#endif
 	struct epoch_tracker et;
 #ifdef INET6
 	struct sockaddr_in6 *fin6, *lin6;
@@ -3776,7 +3781,6 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	inp = NULL;
-	fin = lin = NULL;
 #ifdef INET6
 	fin6 = lin6 = NULL;
 #endif
@@ -3805,8 +3809,10 @@ sysctl_switch_tls(SYSCTL_HANDLER_ARGS)
 				return (EINVAL);
 			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[0]);
 			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[1]);
+#ifdef INET
 			fin = (struct sockaddr_in *)&addrs[0];
 			lin = (struct sockaddr_in *)&addrs[1];
+#endif
 			break;
 		}
 		error = sa6_embedscope(fin6, V_ip6_use_defzone);
