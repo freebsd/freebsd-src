@@ -3336,7 +3336,7 @@ out:
 		aa_add->ap.addrp.ph.param_type = SCTP_IPV4_ADDRESS;
 		aa_add->ap.addrp.ph.param_length = sizeof(struct sctp_ipv4addr_param);
 		/* No need to fill the address, we are using 0.0.0.0 */
-		aa_del->ap.aph.ph.param_type = SCTP_ADD_IP_ADDRESS;
+		aa_del->ap.aph.ph.param_type = SCTP_DEL_IP_ADDRESS;
 		aa_del->ap.aph.ph.param_length = sizeof(struct sctp_asconf_addrv4_param);
 		aa_del->ap.addrp.ph.param_type = SCTP_IPV4_ADDRESS;
 		aa_del->ap.addrp.ph.param_length = sizeof(struct sctp_ipv4addr_param);
