@@ -155,7 +155,7 @@ sbi_print_version(void)
 void
 sbi_set_timer(uint64_t val)
 {
-	struct sbi_ret ret;
+	struct sbi_ret ret __diagused;
 
 	/* Use the TIME legacy replacement extension, if available. */
 	if (has_time_extension) {
@@ -169,7 +169,7 @@ sbi_set_timer(uint64_t val)
 void
 sbi_send_ipi(const u_long *hart_mask)
 {
-	struct sbi_ret ret;
+	struct sbi_ret ret __diagused;
 
 	/* Use the IPI legacy replacement extension, if available. */
 	if (has_ipi_extension) {
@@ -184,7 +184,7 @@ sbi_send_ipi(const u_long *hart_mask)
 void
 sbi_remote_fence_i(const u_long *hart_mask)
 {
-	struct sbi_ret ret;
+	struct sbi_ret ret __diagused;
 
 	/* Use the RFENCE legacy replacement extension, if available. */
 	if (has_rfnc_extension) {
@@ -199,7 +199,7 @@ sbi_remote_fence_i(const u_long *hart_mask)
 void
 sbi_remote_sfence_vma(const u_long *hart_mask, u_long start, u_long size)
 {
-	struct sbi_ret ret;
+	struct sbi_ret ret __diagused;
 
 	/* Use the RFENCE legacy replacement extension, if available. */
 	if (has_rfnc_extension) {
@@ -216,7 +216,7 @@ void
 sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start, u_long size,
     u_long asid)
 {
-	struct sbi_ret ret;
+	struct sbi_ret ret __diagused;
 
 	/* Use the RFENCE legacy replacement extension, if available. */
 	if (has_rfnc_extension) {
