@@ -447,7 +447,7 @@ lptout(void *arg)
 {
 	struct lpt_data *sc = arg;
 	device_t dev = sc->sc_dev;
-	device_t ppbus;
+	device_t ppbus __unused;
 
 	ppbus = device_get_parent(dev);
 	ppb_assert_locked(ppbus);
