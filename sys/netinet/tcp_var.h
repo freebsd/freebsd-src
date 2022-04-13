@@ -1087,9 +1087,9 @@ int	 tcp_ctloutput(struct socket *, struct sockopt *);
 void 	 tcp_ctlinput_viaudp(int, struct sockaddr *, void *, void *);
 void	 tcp_drain(void);
 void	 tcp_fini(void *);
-char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
+char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, const void *,
 	    const void *);
-char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
+char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, const void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, tcp_seq *, int *,
 	    struct mbuf *);

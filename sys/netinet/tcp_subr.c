@@ -377,7 +377,7 @@ static struct inpcb *tcp_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc_notify(struct inpcb *, int);
 static struct inpcb *tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
-		    void *ip4hdr, const void *ip6hdr);
+		    const void *ip4hdr, const void *ip6hdr);
 
 static struct tcp_function_block tcp_def_funcblk = {
 	.tfb_tcp_block_name = "freebsd",
@@ -3888,7 +3888,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, switch_to_ifnet_tls,
  * and ip6_hdr pointers have to be passed as void pointers.
  */
 char *
-tcp_log_vain(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+tcp_log_vain(struct in_conninfo *inc, struct tcphdr *th, const void *ip4hdr,
     const void *ip6hdr)
 {
 
@@ -3900,7 +3900,7 @@ tcp_log_vain(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 }
 
 char *
-tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, const void *ip4hdr,
     const void *ip6hdr)
 {
 
@@ -3912,13 +3912,13 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 }
 
 static char *
-tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, const void *ip4hdr,
     const void *ip6hdr)
 {
 	char *s, *sp;
 	size_t size;
 #ifdef INET
-	struct ip *ip = (struct ip *)ip4hdr;
+	const struct ip *ip = (const struct ip *)ip4hdr;
 #endif
 #ifdef INET6
 	const struct ip6_hdr *ip6 = (const struct ip6_hdr *)ip6hdr;
