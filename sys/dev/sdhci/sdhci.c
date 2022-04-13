@@ -683,7 +683,9 @@ static void
 sdhci_card_task(void *arg, int pending __unused)
 {
 	struct sdhci_slot *slot = arg;
+#ifndef MMCCAM
 	device_t d;
+#endif
 
 	SDHCI_LOCK(slot);
 	if (SDHCI_GET_CARD_PRESENT(slot->bus, slot)) {
@@ -714,11 +716,11 @@ sdhci_card_task(void *arg, int pending __unused)
 		if (slot->card_present == 1) {
 #else
 		if (slot->dev != NULL) {
+			d = slot->dev;
 #endif
 			/* If no card present - detach mmc bus. */
 			if (bootverbose || sdhci_debug)
 				slot_printf(slot, "Card removed\n");
-			d = slot->dev;
 			slot->dev = NULL;
 #ifdef MMCCAM
 			slot->card_present = 0;
