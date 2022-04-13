@@ -1290,7 +1290,7 @@ static void
 vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
     int flags, int *rtvals)
 {
-	int rtval;
+	int rtval __diagused;
 	struct vnode *vp;
 	int bytes = count * PAGE_SIZE;
 

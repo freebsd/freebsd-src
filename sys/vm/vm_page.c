@@ -1545,7 +1545,7 @@ static void
 vm_page_object_remove(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t mrem;
+	vm_page_t mrem __diagused;
 
 	vm_page_assert_xbusied(m);
 	object = m->object;
@@ -1770,7 +1770,7 @@ static bool
 vm_page_replace_hold(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mold)
 {
-	vm_page_t mret;
+	vm_page_t mret __diagused;
 	bool dropped;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
