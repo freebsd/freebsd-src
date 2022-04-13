@@ -374,7 +374,7 @@ static int
 cp2112_gpio_read_pin(device_t dev, uint32_t pin_num, bool *on)
 {
 	struct gpio_get_req data;
-	struct cp2112gpio_softc *sc;
+	struct cp2112gpio_softc *sc __diagused;
 	int err;
 
 	sc = device_get_softc(dev);
@@ -393,7 +393,7 @@ static int
 cp2112_gpio_write_pin(device_t dev, uint32_t pin_num, bool on)
 {
 	struct gpio_set_req data;
-	struct cp2112gpio_softc *sc;
+	struct cp2112gpio_softc *sc __diagused;
 	int err;
 	bool actual;
 
@@ -419,7 +419,7 @@ cp2112_gpio_configure_write_pin(device_t dev, uint32_t pin_num,
     bool output, enum cp2112_out_mode *mode)
 {
 	struct gpio_config_req data;
-	struct cp2112gpio_softc *sc;
+	struct cp2112gpio_softc *sc __diagused;
 	int err;
 	uint8_t mask;
 
