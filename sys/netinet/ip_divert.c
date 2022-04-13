@@ -178,7 +178,9 @@ div_port_match(const struct inpcb *inp, void *v)
 static void
 divert_packet(struct mbuf *m, bool incoming)
 {
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 	struct ip *ip;
+#endif
 	struct inpcb *inp;
 	struct socket *sa;
 	u_int16_t nport;
@@ -198,7 +200,6 @@ divert_packet(struct mbuf *m, bool incoming)
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return;
-	ip = mtod(m, struct ip *);
 
 	/* Delayed checksums are currently not compatible with divert. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
@@ -207,6 +208,7 @@ divert_packet(struct mbuf *m, bool incoming)
 	}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+		ip = mtod(m, struct ip *);
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
