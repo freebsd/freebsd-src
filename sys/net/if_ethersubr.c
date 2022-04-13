@@ -202,16 +202,15 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro, u_char *phdr,
 	uint32_t *pflags, struct llentry **plle)
 {
-	struct ether_header *eh;
 	uint32_t lleflags = 0;
 	int error = 0;
 #if defined(INET) || defined(INET6)
+	struct ether_header *eh = (struct ether_header *)phdr;
 	uint16_t etype;
 #endif
 
 	if (plle)
 		*plle = NULL;
-	eh = (struct ether_header *)phdr;
 
 	switch (dst->sa_family) {
 #ifdef INET
