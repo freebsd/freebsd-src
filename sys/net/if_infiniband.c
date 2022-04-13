@@ -223,13 +223,14 @@ infiniband_resolve_addr(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, struct route *ro, uint8_t *phdr,
     uint32_t *pflags, struct llentry **plle)
 {
-	struct infiniband_header *ih;
+#if defined(INET) || defined(INET6)
+	struct infiniband_header *ih = (struct infiniband_header *)phdr;
+#endif
 	uint32_t lleflags = 0;
 	int error = 0;
 
 	if (plle)
 		*plle = NULL;
-	ih = (struct infiniband_header *)phdr;
 
 	switch (dst->sa_family) {
 #ifdef INET
