@@ -631,7 +631,7 @@ destroy_nhop_epoch(epoch_context_t ctx)
 void
 nhop_ref_object(struct nhop_object *nh)
 {
-	u_int old;
+	u_int old __diagused;
 
 	old = refcount_acquire(&nh->nh_priv->nh_refcnt);
 	KASSERT(old > 0, ("%s: nhop object %p has 0 refs", __func__, nh));
