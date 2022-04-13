@@ -1252,7 +1252,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	struct drm_connector *connector;
 	struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
-	struct drm_fb_helper_crtc *best_crtc;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;
 	struct drm_fb_helper_connector *fb_helper_conn;
@@ -1264,7 +1263,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	connector = fb_helper_conn->connector;
 
 	best_crtcs[n] = NULL;
-	best_crtc = NULL;
 	best_score = drm_pick_crtcs(fb_helper, best_crtcs, modes, n+1, width, height);
 	if (modes[n] == NULL)
 		return best_score;
@@ -1313,7 +1311,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		score = my_score + drm_pick_crtcs(fb_helper, crtcs, modes, n + 1,
 						  width, height);
 		if (score > best_score) {
-			best_crtc = crtc;
 			best_score = score;
 			memcpy(best_crtcs, crtcs,
 			       dev->mode_config.num_connector *
@@ -1453,7 +1450,6 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
-	int count = 0;
 	u32 max_width, max_height, bpp_sel;
 	int bound = 0, crtcs_bound = 0;
 	struct drm_crtc *crtc;
@@ -1480,8 +1476,8 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	max_height = fb_helper->fb->height;
 	bpp_sel = fb_helper->fb->bits_per_pixel;
 
-	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
-						    max_height);
+	drm_fb_helper_probe_connector_modes(fb_helper, max_width,
+					    max_height);
 	drm_setup_crtcs(fb_helper);
 	sx_xunlock(&dev->mode_config.mutex);
 
