@@ -1730,14 +1730,13 @@ static void
 vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 {
 	vm_map_entry_t entry;
-	vm_object_t first_object, object;
+	vm_object_t first_object;
 	vm_offset_t end, start;
 	vm_page_t m, m_next;
 	vm_pindex_t pend, pstart;
 	vm_size_t size;
 
-	object = fs->object;
-	VM_OBJECT_ASSERT_UNLOCKED(object);
+	VM_OBJECT_ASSERT_UNLOCKED(fs->object);
 	first_object = fs->first_object;
 	/* Neither fictitious nor unmanaged pages can be reclaimed. */
 	if ((first_object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0) {
