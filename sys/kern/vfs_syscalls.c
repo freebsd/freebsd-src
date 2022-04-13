@@ -907,7 +907,7 @@ sys_fchdir(struct thread *td, struct fchdir_args *uap)
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
-	vref(vp);
+	vrefact(vp);
 	fdrop(fp, td);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
