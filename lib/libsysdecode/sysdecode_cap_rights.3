@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2017
+.Dd April 11, 2022
 .Dt sysdecode_cap_rights 3
 .Os
 .Sh NAME
@@ -46,5 +46,26 @@ function outputs a comma-separated list of capability rights at
 .Fa rightsp
 to the stream
 .Fa fp .
+.Pp
+Note that some capability rights are supersets of others; for example,
+.Dv CAP_PREAD
+is the union of
+.Dv CAP_READ
+and
+.Dv CAP_SEEK .
+.Fn sysdecode_cap_rights
+emits a minimal list of rights whose union is equal to
+.Fa *rightsp .
+For example, if both
+.Dv CAP_READ
+and
+.Dv CAP_SEEK
+are set in
+.Fa *rightsp ,
+then
+.Fn sysdecode_cap_rights
+will include only
+.Dv CAP_PREAD
+in the output list.
 .Sh SEE ALSO
 .Xr sysdecode 3
