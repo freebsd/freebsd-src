@@ -1628,20 +1628,24 @@ em_if_media_change(if_ctx_t ctx)
 		sc->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	case IFM_100_TX:
-		sc->hw.mac.autoneg = false;
-		sc->hw.phy.autoneg_advertised = 0;
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
+		sc->hw.mac.autoneg = DO_AUTO_NEG;
+		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
+			sc->hw.phy.autoneg_advertised = ADVERTISE_100_FULL;
 			sc->hw.mac.forced_speed_duplex = ADVERTISE_100_FULL;
-		else
+		} else {
+			sc->hw.phy.autoneg_advertised = ADVERTISE_100_HALF;
 			sc->hw.mac.forced_speed_duplex = ADVERTISE_100_HALF;
+		}
 		break;
 	case IFM_10_T:
-		sc->hw.mac.autoneg = false;
-		sc->hw.phy.autoneg_advertised = 0;
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
+		sc->hw.mac.autoneg = DO_AUTO_NEG;
+		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX) {
+			sc->hw.phy.autoneg_advertised = ADVERTISE_10_FULL;
 			sc->hw.mac.forced_speed_duplex = ADVERTISE_10_FULL;
-		else
+		} else {
+			sc->hw.phy.autoneg_advertised = ADVERTISE_10_HALF;
 			sc->hw.mac.forced_speed_duplex = ADVERTISE_10_HALF;
+		}
 		break;
 	default:
 		device_printf(sc->dev, "Unsupported media type\n");
