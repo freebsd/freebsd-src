@@ -320,7 +320,7 @@ mphyp_pte_clear(struct pvo_entry *pvo, uint64_t ptebit)
 	struct rm_priotracker track;
 	int64_t refchg;
 	uint64_t ptelo, junk;
-	int err;
+	int err __diagused;
 
 	/*
 	 * This involves two steps (synch and clear) so we need the entry
@@ -589,7 +589,7 @@ mphyp_pte_unset_sp(struct pvo_entry *pvo)
 	uint64_t junk, refchg;
 	int err;
 	vm_offset_t eva;
-	pmap_t pm;
+	pmap_t pm __diagused;
 
 	pm = pvo->pvo_pmap;
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
@@ -624,7 +624,7 @@ mphyp_pte_insert_sp(struct pvo_entry *pvo)
 	int64_t ret;
 	struct lpte pte;
 	vm_offset_t eva;
-	pmap_t pm;
+	pmap_t pm __diagused;
 
 	pm = pvo->pvo_pmap;
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
