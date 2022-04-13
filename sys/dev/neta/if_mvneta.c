@@ -2851,7 +2851,7 @@ mvneta_tx_queue_complete(struct mvneta_softc *sc, int q)
 {
 	struct mvneta_tx_ring *tx;
 	struct mvneta_buf *txbuf;
-	struct mvneta_tx_desc *t;
+	struct mvneta_tx_desc *t __diagused;
 	uint32_t ptxs, ptxsu, ndesc;
 	int i;
 
