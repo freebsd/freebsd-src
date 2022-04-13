@@ -1,4 +1,4 @@
-#	$OpenBSD: sshsig.sh,v 1.7 2021/08/11 08:55:04 djm Exp $
+#	$OpenBSD: sshsig.sh,v 1.14 2022/02/01 23:37:15 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshsig"
@@ -35,6 +35,7 @@ verbose "$tid: make certificates"
 for t in $SSH_KEYTYPES ; do
 	${SSHKEYGEN} -q -s $CA_PRIV -z $$ \
 	    -I "regress signature key for $USER" \
+		-V "19840101:19860101" \
 	    -n $sig_principal $OBJ/${t} || \
 		fatal "couldn't sign ${t}"
 	SIGNKEYS="$SIGNKEYS ${t}-cert.pub"
@@ -47,15 +48,27 @@ for t in $SIGNKEYS; do
 	sigfile=${OBJ}/sshsig-${keybase}.sig
 	sigfile_agent=${OBJ}/sshsig-agent-${keybase}.sig
 	pubkey=${OBJ}/${keybase}.pub
+	cert=${OBJ}/${keybase}-cert.pub
+	sigfile_cert=${OBJ}/sshsig-${keybase}-cert.sig
 
 	${SSHKEYGEN} -vvv -Y sign -f ${OBJ}/$t -n $sig_namespace \
-		< $DATA > $sigfile 2>/dev/null || fail "sign using $t failed"
+	    -Ohashalg=sha1 < $DATA > $sigfile 2>/dev/null && \
+		fail "sign using $t with bad hash algorithm succeeded"
 
-	(printf "$sig_principal " ; cat $pubkey) > $OBJ/allowed_signers
-	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
-		-I $sig_principal -f $OBJ/allowed_signers \
-		< $DATA >/dev/null 2>&1 || \
-		fail "failed signature for $t key"
+	for h in default sha256 sha512 ; do
+		case "$h" in
+		default) hashalg_arg="" ;;
+		*) hashalg_arg="-Ohashalg=$h" ;;
+		esac
+		${SSHKEYGEN} -vvv -Y sign -f ${OBJ}/$t -n $sig_namespace \
+		    $hashalg_arg < $DATA > $sigfile 2>/dev/null || \
+			fail "sign using $t / $h failed"
+		(printf "$sig_principal " ; cat $pubkey) > $OBJ/allowed_signers
+		${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		    -I $sig_principal -f $OBJ/allowed_signers \
+		    < $DATA >/dev/null 2>&1 || \
+			fail "failed signature for $t / $h key"
+	done
 
 	(printf "$sig_principal namespaces=\"$sig_namespace,whatever\" ";
 	 cat $pubkey) > $OBJ/allowed_signers
@@ -146,6 +159,26 @@ for t in $SIGNKEYS; do
 		< $DATA >/dev/null 2>&1 && \
 		fail "failed signature for $t with expired key"
 
+	# key lifespan valid
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19850101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed find-principals for $t key with valid expiry interval"
+	# key not yet valid
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19790101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "failed find-principals for $t not-yet-valid key"
+	# key expired
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19990101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "failed find-principals for $t with expired key"
+	# NB. assumes we're not running this test in the 1980s
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "failed find-principals for $t with expired key"
+
 	# public key in revoked keys file
 	cat $pubkey > $OBJ/revoked_keys
 	(printf "$sig_principal namespaces=\"whatever\" " ;
@@ -175,6 +208,24 @@ for t in $SIGNKEYS; do
 		< $DATA2 >/dev/null 2>&1 && \
 		fail "succeeded checking signature for $t key with invalid data"
 
+	# find-principals with valid public key
+	(printf "$sig_principal " ; cat $pubkey) > $OBJ/allowed_signers
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile -f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed to find valid principals in allowed_signers"
+
+	# find-principals with wrong key not in allowed_signers
+	(printf "$sig_principal " ; cat $WRONG) > $OBJ/allowed_signers
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile -f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "succeeded finding principal with invalid signers file"
+
+	# find-principals with a configured namespace but none on command-line
+	(printf "$sig_principal " ;
+	 printf "namespaces=\"test1,test2\" ";
+	 cat $pubkey) > $OBJ/allowed_signers
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+	    -f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed finding principal when namespaces are configured"
+
 	# Check signing keys using ssh-agent.
 	${SSHADD} -D >/dev/null 2>&1 # Remove all previously-loaded keys.
 	${SSHADD} ${privkey} > /dev/null 2>&1 || fail "ssh-add failed"
@@ -192,20 +243,121 @@ for t in $SIGNKEYS; do
 	# Move private key back
 	mv ${privkey}.tmp ${privkey}
 
+	# Duplicate principals & keys in allowed_signers but with different validities
+	( printf "$sig_principal " ;
+	  printf "valid-after=\"19800101\",valid-before=\"19900101\" " ;
+	  cat $pubkey;
+	  printf "${sig_principal} " ;
+	  printf "valid-after=\"19850101\",valid-before=\"20000101\" " ;
+	  cat $pubkey) > $OBJ/allowed_signers
+
+	# find-principals outside of any validity lifespan
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="20100101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "succeeded find-principals for $t verify-time outside of validity"
+	# find-principals matching only the first lifespan
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19830101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed find-principals for $t verify-time within first span"
+	# find-principals matching both lifespans
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19880101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed find-principals for $t verify-time within both spans"
+	# find-principals matching only the second lifespan
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19950101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed find-principals for $t verify-time within second span"
+
+	# verify outside of any validity lifespan
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-Overify-time="20100101" -I $sig_principal \
+		-r $OBJ/revoked_keys -f $OBJ/allowed_signers \
+		< $DATA >/dev/null 2>&1 && \
+		fail "succeeded verify for $t verify-time outside of validity"
+	# verify matching only the first lifespan
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-Overify-time="19830101" -I $sig_principal \
+		-r $OBJ/revoked_keys -f $OBJ/allowed_signers \
+		< $DATA >/dev/null 2>&1 || \
+		fail "failed verify for $t verify-time within first span"
+	# verify matching both lifespans
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-Overify-time="19880101" -I $sig_principal \
+		-r $OBJ/revoked_keys -f $OBJ/allowed_signers \
+		< $DATA >/dev/null 2>&1 || \
+		fail "failed verify for $t verify-time within both spans"
+	# verify matching only the second lifespan
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-Overify-time="19950101" -I $sig_principal \
+		-r $OBJ/revoked_keys -f $OBJ/allowed_signers \
+		< $DATA >/dev/null 2>&1 || \
+		fail "failed verify for $t verify-time within second span"
+
 	# Remaining tests are for certificates only.
 	case "$keybase" in
 		*-cert) ;;
 		*) continue ;;
 	esac
 
+	# Check key lifespan on find-principals when using the CA
+	( printf "$sig_principal " ;
+	  printf "cert-authority,valid-after=\"19800101\",valid-before=\"19900101\" ";
+	  cat $CA_PUB) > $OBJ/allowed_signers
+	# key lifespan valid
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19850101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed find-principals for $t key with valid expiry interval"
+	# key not yet valid
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19790101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "failed find-principals for $t not-yet-valid key"
+	# key expired
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time="19990101" \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "failed find-principals for $t with expired key"
+	# NB. assumes we're not running this test in the 1980s
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 && \
+		fail "failed find-principals for $t with expired key"
 
 	# correct CA key
 	(printf "$sig_principal cert-authority " ;
 	 cat $CA_PUB) > $OBJ/allowed_signers
 	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
 		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19850101 \
 		< $DATA >/dev/null 2>&1 || \
 		fail "failed signature for $t cert"
+
+	# find-principals
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time=19850101 \
+		-f $OBJ/allowed_signers >/dev/null 2>&1 || \
+		fail "failed find-principals for $t with ca key"
+
+	# CA with wildcard principal
+	(printf "*@example.com cert-authority " ;
+	 cat $CA_PUB) > $OBJ/allowed_signers
+	# find-principals CA with wildcard principal
+	${SSHKEYGEN} -vvv -Y find-principals -s $sigfile \
+		-Overify-time=19850101 \
+		-f $OBJ/allowed_signers 2>/dev/null | \
+		fgrep "$sig_principal" >/dev/null || \
+		fail "failed find-principals for $t with ca key using wildcard principal"
+
+	# verify CA with wildcard principal
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19850101 \
+		< $DATA >/dev/null 2>&1 || \
+		fail "failed signature for $t cert using wildcard principal"
 
 	# signing key listed as cert-authority
 	(printf "$sig_principal cert-authority " ;
@@ -229,6 +381,94 @@ for t in $SIGNKEYS; do
 		-I $sig_principal -f $OBJ/allowed_signers \
 		< $DATA >/dev/null 2>&1 && \
 		fail "accepted signature for $t cert with wrong principal"
+
+	# Cert valid but CA revoked
+	cat $CA_PUB > $OBJ/revoked_keys
+	(printf "$sig_principal " ; cat $pubkey) > $OBJ/allowed_signers
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-r $OBJ/revoked_keys \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t key, but CA key in revoked_keys"
+
+	# Set lifespan of CA key and verify signed user certs behave accordingly
+	( printf "$sig_principal " ;
+	  printf "cert-authority,valid-after=\"19800101\",valid-before=\"19900101\" " ;
+	  cat $CA_PUB) > $OBJ/allowed_signers
+
+	# CA key lifespan valid
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19850101 \
+		< $DATA >/dev/null 2>&1 >/dev/null 2>&1 || \
+		fail "failed signature for $t key with valid CA expiry interval"
+	# CA lifespan is valid but user key not yet valid
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19810101 \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t key with valid CA expiry interval but not yet valid cert"
+	# CA lifespan is valid but user key expired
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19890101 \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t key with valid CA expiry interval but expired cert"
+	# CA key not yet valid
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19790101 \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t not-yet-valid CA key"
+	# CA key expired
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19910101 \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t with expired CA key"
+	# NB. assumes we're not running this test in the 1980s
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t with expired CA key"
+
+	# Set lifespan of CA outside of the cert validity
+	( printf "$sig_principal " ;
+	  printf "cert-authority,valid-after=\"19800101\",valid-before=\"19820101\" " ;
+	  cat $CA_PUB) > $OBJ/allowed_signers
+	# valid cert validity but expired CA
+	${SSHKEYGEN} -vvv -Y verify -s $sigfile -n $sig_namespace \
+		-I $sig_principal -f $OBJ/allowed_signers \
+		-Overify-time=19840101 \
+		< $DATA >/dev/null 2>&1 && \
+		fail "accepted signature for $t key with expired CA but valid cert"
+
+done
+
+# Test key independant match-principals
+(
+	printf "principal1 " ; cat $pubkey;
+	printf "princi* " ; cat $pubkey;
+	printf "unique " ; cat $pubkey;
+) > $OBJ/allowed_signers
+
+verbose "$tid: match principals"
+${SSHKEYGEN} -Y match-principals -f $OBJ/allowed_signers -I "unique" | \
+    fgrep "unique" >/dev/null || \
+	fail "faild to match static principal"
+
+${SSHKEYGEN} -Y match-principals -f $OBJ/allowed_signers -I "princip" | \
+    fgrep "princi*" >/dev/null || \
+	fail "faild to match wildcard principal"
+
+${SSHKEYGEN} -Y match-principals -f $OBJ/allowed_signers -I "principal1" | \
+    fgrep -e "principal1" -e "princi*" >/dev/null || \
+	fail "faild to match static and wildcard principal"
+verbose "$tid: nomatch principals"
+for x in princ prince unknown ; do
+	${SSHKEYGEN} -Y match-principals -f $OBJ/allowed_signers \
+	    -I $x >/dev/null 2>&1 && \
+		fail "succeeded to match unknown principal \"$x\""
 done
 
 trace "kill agent"

@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-rotate.sh,v 1.9 2020/10/07 06:38:16 djm Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.10 2022/01/05 08:25:05 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"
@@ -44,9 +44,14 @@ for k in $SSH_HOSTKEY_TYPES; do
 	echo "Hostkey $OBJ/hkr.${k}" >> $OBJ/sshd_proxy.orig
 	nkeys=`expr $nkeys + 1`
 	test "x$all_algs" = "x" || all_algs="${all_algs},"
-	all_algs="${all_algs}$k"
 	case "$k" in
-		ssh-rsa)	secondary="ssh-rsa" ;;
+	ssh-rsa)
+		secondary="ssh-rsa"
+		all_algs="${all_algs}rsa-sha2-256,rsa-sha2-512,$k"
+		;;
+	*)
+		all_algs="${all_algs}$k"
+		;;
 	esac
 done
 
@@ -92,8 +97,12 @@ done
 
 # Check each key type
 for k in $SSH_HOSTKEY_TYPES; do
+	case "$k" in
+	ssh-rsa) alg="rsa-sha2-256,rsa-sha2-512,ssh-rsa" ;;
+	*) alg="$k" ;;
+	esac
 	verbose "learn additional hostkeys, type=$k"
-	dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$k,$all_algs
+	dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$alg,$all_algs
 	expect_nkeys $nkeys "learn hostkeys $k"
 	check_key_present $k || fail "didn't learn $k correctly"
 done

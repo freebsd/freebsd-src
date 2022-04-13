@@ -1,4 +1,4 @@
-/* $OpenBSD: kexsntrup761x25519.c,v 1.1 2020/12/29 00:59:15 djm Exp $ */
+/* $OpenBSD: kexsntrup761x25519.c,v 1.2 2021/12/05 12:28:27 jsg Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -132,7 +132,7 @@ kex_kem_sntrup761x25519_enc(struct kex *kex,
 	dump_digest("server public key 25519:", server_pub, CURVE25519_SIZE);
 	dump_digest("server cipher text:", ciphertext,
 	    crypto_kem_sntrup761_CIPHERTEXTBYTES);
-	dump_digest("server kem key:", kem_key, sizeof(kem_key));
+	dump_digest("server kem key:", kem_key, crypto_kem_sntrup761_BYTES);
 	dump_digest("concatenation of KEM key and ECDH shared key:",
 	    sshbuf_ptr(buf), sshbuf_len(buf));
 #endif

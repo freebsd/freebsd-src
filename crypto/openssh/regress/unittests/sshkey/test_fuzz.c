@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_fuzz.c,v 1.12 2020/08/27 03:55:22 djm Exp $ */
+/* 	$OpenBSD: test_fuzz.c,v 1.13 2021/12/14 21:25:27 deraadt Exp $ */
 /*
  * Fuzz tests for key parsing
  *
@@ -8,7 +8,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -19,12 +18,14 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef WITH_OPENSSL
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
 #include <openssl/objects.h>
 #ifdef OPENSSL_HAS_NISTP256
 # include <openssl/ec.h>
+#endif
 #endif
 
 #include "../test_helper/test_helper.h"

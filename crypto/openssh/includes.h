@@ -23,7 +23,6 @@
 #endif
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/socket.h> /* For CMSG_* */
 
 #ifdef HAVE_LIMITS_H

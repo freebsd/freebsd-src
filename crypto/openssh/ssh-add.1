@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.81 2020/07/14 23:57:01 djm Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.84 2022/02/04 02:49:17 dtucker Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: July 14 2020 $
+.Dd $Mdocdate: February 4 2022 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@
 .Nm ssh-add
 .Op Fl cDdKkLlqvXx
 .Op Fl E Ar fingerprint_hash
+.Op Fl H Ar hostkey_file
+.Op Fl h Ar destination_constraint
 .Op Fl S Ar provider
 .Op Fl t Ar life
 .Op Ar
@@ -61,12 +63,12 @@ adds private key identities to the authentication agent,
 .Xr ssh-agent 1 .
 When run without arguments, it adds the files
 .Pa ~/.ssh/id_rsa ,
-.Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ecdsa_sk ,
 .Pa ~/.ssh/id_ed25519 ,
+.Pa ~/.ssh/id_ed25519_sk ,
 and
-.Pa ~/.ssh/id_ed25519_sk .
+.Pa ~/.ssh/id_dsa .
 After loading a private key,
 .Nm
 will try to load corresponding certificate information from the
@@ -129,6 +131,84 @@ The default is
 .It Fl e Ar pkcs11
 Remove keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
+.It Fl H Ar hostkey_file
+Specifies a known hosts file to look up hostkeys when using
+destination-constrained keys via the
+.Fl h
+flag.
+This option may be specified multiple times to allow multiple files to be
+searched.
+If no files are specified,
+.Nm
+will use the default
+.Xr ssh_config 5
+known hosts files:
+.Pa ~/.ssh/known_hosts ,
+.Pa ~/.ssh/known_hosts2 ,
+.Pa /etc/ssh/ssh_known_hosts ,
+and
+.Pa /etc/ssh/ssh_known_hosts2 .
+.It Fl h Ar destination_constraint
+When adding keys, constrain them to be usable only through specific hosts or to
+specific destinations.
+.Pp
+Destination constraints of the form
+.Sq [user@]dest-hostname
+permit use of the key only from the origin host (the one running
+.Xr ssh-agent 1 )
+to the listed destination host, with optional user name.
+.Pp
+Constraints of the form
+.Sq src-hostname>[user@]dst-hostname
+allow a key available on a forwarded
+.Xr ssh-agent 1
+to be used through a particular host (as specified by
+.Sq src-hostname )
+to authenticate to a further host,
+specified by
+.Sq dst-hostname .
+.Pp
+Multiple destination constraints may be added when loading keys.
+When attempting authentication with a key that has destination constraints,
+the whole connection path, including
+.Xr ssh-agent 1
+forwarding, is tested against those constraints and each
+hop must be permitted for the attempt to succeed.
+For example, if key is forwarded to a remote host,
+.Sq host-b ,
+and is attempting authentication to another host,
+.Sq host-c ,
+then the operation will be successful only if
+.Sq host-b
+was permitted from the origin host and the subsequent
+.Sq host-b>host-c
+hop is also permitted by destination constraints.
+.Pp
+Hosts are identified by their host keys, and are looked up from known hosts
+files by
+.Nm .
+Wildcards patterns may be used for hostnames and certificate host
+keys are supported.
+By default, keys added by
+.Nm
+are not destination constrained.
+.Pp
+Destination constraints were added in OpenSSH release 8.9.
+Support in both the remote SSH client and server is required when using
+destination-constrained keys over a forwarded
+.Xr ssh-agent 1
+channel.
+.Pp
+It is also important to note that destination constraints can only be
+enforced by
+.Xr ssh-agent 1
+when a key is used, or when it is forwarded by a
+.Sy cooperating
+.Xr ssh 1 .
+Specifically, it does not prevent an attacker with access to a remote
+.Ev SSH_AUTH_SOCK
+from forwarding it again and using it on a different host (but only to
+a permitted destination).
 .It Fl K
 Load resident keys from a FIDO authenticator.
 .It Fl k

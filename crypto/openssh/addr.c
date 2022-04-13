@@ -1,4 +1,4 @@
-/* $OpenBSD: addr.c,v 1.1 2021/01/09 11:58:50 dtucker Exp $ */
+/* $OpenBSD: addr.c,v 1.4 2021/10/22 10:51:57 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -244,7 +244,7 @@ addr_cmp(const struct xaddr *a, const struct xaddr *b)
 		if (a->v4.s_addr == b->v4.s_addr)
 			return 0;
 		return (ntohl(a->v4.s_addr) > ntohl(b->v4.s_addr) ? 1 : -1);
-	case AF_INET6:;
+	case AF_INET6:
 		/*
 		 * Do this a byte at a time to avoid the above issue and
 		 * any endian problems
@@ -268,7 +268,7 @@ addr_is_all0s(const struct xaddr *a)
 	switch (a->af) {
 	case AF_INET:
 		return (a->v4.s_addr == 0 ? 0 : -1);
-	case AF_INET6:;
+	case AF_INET6:
 		for (i = 0; i < 4; i++)
 			if (a->addr32[i] != 0)
 				return -1;
@@ -281,7 +281,7 @@ addr_is_all0s(const struct xaddr *a)
 /*
  * Test whether host portion of address 'a', as determined by 'masklen'
  * is all zeros.
- * Returns 0 on if host portion of address is all-zeros,
+ * Returns 0 if host portion of address is all-zeros,
  * -1 if not all zeros or on failure.
  */
 int
@@ -298,7 +298,7 @@ addr_host_is_all0s(const struct xaddr *a, u_int masklen)
 }
 
 /*
- * Parse string address 'p' into 'n'
+ * Parse string address 'p' into 'n'.
  * Returns 0 on success, -1 on failure.
  */
 int
@@ -312,8 +312,13 @@ addr_pton(const char *p, struct xaddr *n)
 	if (p == NULL || getaddrinfo(p, NULL, &hints, &ai) != 0)
 		return -1;
 
-	if (ai == NULL || ai->ai_addr == NULL)
+	if (ai == NULL)
 		return -1;
+
+	if (ai->ai_addr == NULL) {
+		freeaddrinfo(ai);
+		return -1;
+	}
 
 	if (n != NULL && addr_sa_to_xaddr(ai->ai_addr, ai->ai_addrlen,
 	    n) == -1) {
@@ -336,12 +341,19 @@ addr_sa_pton(const char *h, const char *s, struct sockaddr *sa, socklen_t slen)
 	if (h == NULL || getaddrinfo(h, s, &hints, &ai) != 0)
 		return -1;
 
-	if (ai == NULL || ai->ai_addr == NULL)
+	if (ai == NULL)
 		return -1;
 
+	if (ai->ai_addr == NULL) {
+		freeaddrinfo(ai);
+		return -1;
+	}
+
 	if (sa != NULL) {
-		if (slen < ai->ai_addrlen)
+		if (slen < ai->ai_addrlen) {
+			freeaddrinfo(ai);
 			return -1;
+		}
 		memcpy(sa, &ai->ai_addr, ai->ai_addrlen);
 	}
 
@@ -357,7 +369,7 @@ addr_ntop(const struct xaddr *n, char *p, size_t len)
 
 	if (addr_xaddr_to_sa(n, _SA(&ss), &slen, 0) == -1)
 		return -1;
-	if (n == NULL || p == NULL || len == 0)
+	if (p == NULL || len == 0)
 		return -1;
 	if (getnameinfo(_SA(&ss), slen, p, len, NULL, 0,
 	    NI_NUMERICHOST) == -1)

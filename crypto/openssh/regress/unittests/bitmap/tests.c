@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.1 2015/01/15 07:36:28 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.2 2021/12/14 21:25:27 deraadt Exp $ */
 /*
  * Regress test for bitmap.h bitmap API
  *
@@ -8,7 +8,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>

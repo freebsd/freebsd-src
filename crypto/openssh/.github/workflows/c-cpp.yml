@@ -24,16 +24,28 @@ jobs:
           - { os: ubuntu-20.04, configs: valgrind-4 }
           - { os: ubuntu-20.04, configs: valgrind-unit }
           - { os: ubuntu-20.04, configs: c89 }
+          - { os: ubuntu-20.04, configs: clang-6.0 }
+          - { os: ubuntu-20.04, configs: clang-8 }
+          - { os: ubuntu-20.04, configs: clang-9 }
+          - { os: ubuntu-20.04, configs: clang-10 }
+          - { os: ubuntu-20.04, configs: clang-11 }
+          - { os: ubuntu-20.04, configs: clang-12-Werror }
+          - { os: ubuntu-20.04, configs: gcc-7 }
+          - { os: ubuntu-20.04, configs: gcc-8 }
+          - { os: ubuntu-20.04, configs: gcc-10 }
+          - { os: ubuntu-20.04, configs: gcc-11-Werror }
           - { os: ubuntu-20.04, configs: pam }
           - { os: ubuntu-20.04, configs: kitchensink }
           - { os: ubuntu-20.04, configs: hardenedmalloc }
+          - { os: ubuntu-20.04, configs: tcmalloc }
+          - { os: ubuntu-20.04, configs: musl }
           - { os: ubuntu-latest, configs: libressl-master }
           - { os: ubuntu-latest, configs: libressl-2.2.9 }
           - { os: ubuntu-latest, configs: libressl-2.8.3 }
           - { os: ubuntu-latest, configs: libressl-3.0.2 }
           - { os: ubuntu-latest, configs: libressl-3.2.6 }
           - { os: ubuntu-latest, configs: libressl-3.3.4 }
-          - { os: ubuntu-latest, configs: libressl-3.4.0 }
+          - { os: ubuntu-latest, configs: libressl-3.4.1 }
           - { os: ubuntu-latest, configs: openssl-master }
           - { os: ubuntu-latest, configs: openssl-noec }
           - { os: ubuntu-latest, configs: openssl-1.0.1 }
@@ -46,7 +58,8 @@ jobs:
           - { os: ubuntu-latest, configs: openssl-1.1.1_stable } # stable branch
           - { os: ubuntu-latest, configs: openssl-3.0 }          # stable branch
           - { os: ubuntu-18.04, configs: pam }
-          - { os: ubuntu-18.04, configs: kerberos5 }
+          - { os: ubuntu-18.04, configs: krb5 }
+          - { os: ubuntu-18.04, configs: heimdal }
           - { os: ubuntu-18.04, configs: libedit }
           - { os: ubuntu-18.04, configs: sk }
           - { os: ubuntu-18.04, configs: selinux }
@@ -63,6 +76,13 @@ jobs:
       run: autoreconf
     - name: configure
       run: ./.github/configure.sh ${{ matrix.configs }}
+    - name: save config
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-${{ matrix.configs }}-config
+        path: config.h
+    - name: make clean
+      run: make clean
     - name: make
       run: make -j2
     - name: make tests

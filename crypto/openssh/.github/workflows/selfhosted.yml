@@ -17,6 +17,7 @@ jobs:
       matrix:
         os:
           - ARM64
+          - alpine
           - bbone
           - dfly30
           - dfly48
@@ -26,7 +27,7 @@ jobs:
           - fbsd10
           - fbsd12
           - fbsd13
-          - hurd
+          # - hurd
           - minix3
           # - nbsd2
           - nbsd3
@@ -35,8 +36,8 @@ jobs:
           - nbsd9
           - obsd51
           - obsd67
-          - obsd68
           - obsd69
+          - obsd70
           - obsdsnap
           - openindiana
           # - rocky84
@@ -64,6 +65,7 @@ jobs:
           - { os: sol11,  configs: pam-krb5 }
           - { os: sol11,  configs: sol64 }
           # - { os: sol11,  configs: sol64-pam }
+          - { os: win10,  configs: cygwin-release }
     steps:
     - uses: actions/checkout@v2
     - name: autoreconf
@@ -74,10 +76,18 @@ jobs:
       run: vmstartup
     - name: configure
       run: vmrun ./.github/configure.sh ${{ matrix.configs }}
+    - name: save config
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-${{ matrix.configs }}-config
+        path: config.h
+    - name: make clean
+      run: vmrun make clean
     - name: make
       run: vmrun make
     - name: make tests
       run: vmrun ./.github/run_test.sh ${{ matrix.configs }}
+      timeout-minutes: 300
     - name: save logs
       if: failure()
       uses: actions/upload-artifact@v2

@@ -19,7 +19,7 @@ AC_CONFIG_SRCDIR([ssh.c])
 AC_LANG([C])
 
 AC_CONFIG_HEADERS([config.h])
-AC_PROG_CC([cc gcc])
+AC_PROG_CC([cc gcc clang])
 
 # XXX relax this after reimplementing logit() etc.
 AC_MSG_CHECKING([if $CC supports C99-style variadic macros])
@@ -176,6 +176,8 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	OSSH_CHECK_CFLAG_COMPILE([-Wunused-parameter], [-Wno-unused-parameter])
 	OSSH_CHECK_CFLAG_COMPILE([-Wunused-result], [-Wno-unused-result])
 	OSSH_CHECK_CFLAG_COMPILE([-Wimplicit-fallthrough])
+	OSSH_CHECK_CFLAG_COMPILE([-Wmisleading-indentation])
+	OSSH_CHECK_CFLAG_COMPILE([-Wbitwise-instead-of-logical])
 	OSSH_CHECK_CFLAG_COMPILE([-fno-strict-aliasing])
     if test "x$use_toolchain_hardening" = "x1"; then
 	OSSH_CHECK_CFLAG_COMPILE([-mretpoline]) # clang
@@ -190,6 +192,8 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	# actually links. The test program compiled/linked includes a number
 	# of integer operations that should exercise this.
 	OSSH_CHECK_CFLAG_LINK([-ftrapv])
+	OSSH_CHECK_CFLAG_COMPILE([-fzero-call-used-regs=all])
+	OSSH_CHECK_CFLAG_COMPILE([-ftrivial-auto-var-init=zero])
     fi
 	AC_MSG_CHECKING([gcc version])
 	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
@@ -452,6 +456,7 @@ AC_CHECK_HEADERS([ \
 	sys/mman.h \
 	sys/label.h \
 	sys/ndir.h \
+	sys/param.h \
 	sys/poll.h \
 	sys/prctl.h \
 	sys/procctl.h \
@@ -727,6 +732,10 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	# proc_pidinfo()-based closefrom() replacement.
 	AC_CHECK_HEADERS([libproc.h])
 	AC_CHECK_FUNCS([proc_pidinfo])
+	# poll(2) is broken for character-special devices (at least).
+	# cf. Apple bug 3710161 (not public, but searchable)
+	AC_DEFINE([BROKEN_POLL], [1],
+	    [System poll(2) implementation is broken])
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS -lcrypt"
@@ -761,6 +770,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		if test -z "$GCC"; then
 			CFLAGS="$CFLAGS -Ae"
 		fi
+		AC_DEFINE([BROKEN_GETLINE], [1], [getline is not what we expect])
 		;;
 	*-*-hpux11*)
 		AC_DEFINE([PAM_SUN_CODEBASE], [1],
@@ -834,6 +844,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	dnl Target SUSv3/POSIX.1-2001 plus BSD specifics.
 	dnl _DEFAULT_SOURCE is the new name for _BSD_SOURCE
 	CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE"
+	AC_DEFINE([BROKEN_CLOSEFROM], [1], [broken in chroots on older kernels])
 	AC_DEFINE([PAM_TTY_KLUDGE], [1],
 		[Work around problematic Linux PAM modules handling of PAM_TTY])
 	AC_DEFINE([LOCKED_PASSWD_PREFIX], ["!"],
@@ -957,6 +968,12 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 		AC_MSG_RESULT([architecture not supported])
 	fi
 	;;
+*-*-minix)
+	AC_DEFINE([SETEUID_BREAKS_SETUID])
+	# poll(2) seems to choke on /dev/null; "Bad file descriptor"
+	AC_DEFINE([BROKEN_POLL], [1],
+	    [System poll(2) implementation is broken])
+	;;
 mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE([NEED_SETPGRP], [1], [Need setpgrp to acquire controlling tty])
 	SONY=1
@@ -988,6 +1005,11 @@ mips-sony-bsd|mips-sony-newsos4)
 	# and will crash if they cannot be opened.
 	AC_DEFINE([SANDBOX_SKIP_RLIMIT_NOFILE], [1],
 	    [define if setrlimit RLIMIT_NOFILE breaks things])
+	case "$host" in
+	*-*-freebsd9.*|*-*-freebsd10.*)
+		# Capsicum on 9 and 10 do not allow ppoll() so don't auto-enable.
+		disable_capsicum=yes
+	esac
 	;;
 *-*-bsdi*)
 	AC_DEFINE([SETEUID_BREAKS_SETUID])
@@ -1872,6 +1894,7 @@ AC_CHECK_FUNCS([ \
 	cap_rights_limit \
 	clock \
 	closefrom \
+	close_range \
 	dirfd \
 	endgrent \
 	err \
@@ -1914,7 +1937,6 @@ AC_CHECK_FUNCS([ \
 	localtime_r \
 	login_getcapbool \
 	login_getpwclass \
-	md5_crypt \
 	memmem \
 	memmove \
 	memset_s \
@@ -1925,6 +1947,7 @@ AC_CHECK_FUNCS([ \
 	openlog_r \
 	pledge \
 	poll \
+	ppoll \
 	prctl \
 	procctl \
 	pselect \
@@ -2677,23 +2700,17 @@ AC_ARG_WITH([ssl-dir],
 				./*|../*)	withval="`pwd`/$withval"
 			esac
 			if test -d "$withval/lib"; then
-				if test -n "${rpath_opt}"; then
-					LDFLAGS="-L${withval}/lib ${rpath_opt}${withval}/lib ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval}/lib ${LDFLAGS}"
-				fi
+				libcrypto_path="${withval}/lib"
 			elif test -d "$withval/lib64"; then
-				if test -n "${rpath_opt}"; then
-					LDFLAGS="-L${withval}/lib64 ${rpath_opt}${withval}/lib64 ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval}/lib64 ${LDFLAGS}"
-				fi
+				libcrypto_path="$withval/lib64"
 			else
-				if test -n "${rpath_opt}"; then
-					LDFLAGS="-L${withval} ${rpath_opt}${withval} ${LDFLAGS}"
-				else
-					LDFLAGS="-L${withval} ${LDFLAGS}"
-				fi
+				# Built but not installed
+				libcrypto_path="${withval}"
+			fi
+			if test -n "${rpath_opt}"; then
+				LDFLAGS="-L${libcrypto_path} ${rpath_opt}${libcrypto_path} ${LDFLAGS}"
+			else
+				LDFLAGS="-L${libcrypto_path} ${LDFLAGS}"
 			fi
 			if test -d "$withval/include"; then
 				CPPFLAGS="-I${withval}/include ${CPPFLAGS}"
@@ -3160,8 +3177,6 @@ if test "x$openssl" = "xyes" ; then
 		AC_MSG_RESULT([no])
 	)
 
-	TEST_SSH_ECC=no
-
 	if test x$enable_nistp256 = x1 || test x$enable_nistp384 = x1 || \
 	    test x$enable_nistp521 = x1; then
 		AC_DEFINE(OPENSSL_HAS_ECC, [1], [OpenSSL has ECC])
@@ -3173,7 +3188,6 @@ if test "x$openssl" = "xyes" ; then
 	if test x$enable_nistp256 = x1; then
 		AC_DEFINE([OPENSSL_HAS_NISTP256], [1],
 		    [libcrypto has NID_X9_62_prime256v1])
-		TEST_SSH_ECC=yes
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp256 \
@@ -3182,7 +3196,6 @@ if test "x$openssl" = "xyes" ; then
 	fi
 	if test x$enable_nistp384 = x1; then
 		AC_DEFINE([OPENSSL_HAS_NISTP384], [1], [libcrypto has NID_secp384r1])
-		TEST_SSH_ECC=yes
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdsa-sha2-nistp384 \
@@ -3191,7 +3204,6 @@ if test "x$openssl" = "xyes" ; then
 	fi
 	if test x$enable_nistp521 = x1; then
 		AC_DEFINE([OPENSSL_HAS_NISTP521], [1], [libcrypto has NID_secp521r1])
-		TEST_SSH_ECC=yes
 	else
 		unsupported_algorithms="$unsupported_algorithms \
 			ecdh-sha2-nistp521 \
@@ -3199,7 +3211,6 @@ if test "x$openssl" = "xyes" ; then
 			ecdsa-sha2-nistp521-cert-v01@openssh.com"
 	fi
 
-	AC_SUBST([TEST_SSH_ECC])
 else
 	AC_CHECK_LIB([crypt], [crypt], [LIBS="$LIBS -lcrypt"])
 	AC_CHECK_FUNCS([crypt])
@@ -3210,10 +3221,6 @@ enable_pkcs11=yes
 enable_sk=yes
 if test "x$openssl" != "xyes" ; then
 	enable_pkcs11="disabled; missing libcrypto"
-	enable_sk="disabled; missing libcrypto"
-fi
-if test "x$openssl_ecc" != "xyes" ; then
-	enable_sk="disabled; OpenSSL has no ECC support"
 fi
 if test "x$ac_cv_func_dlopen" != "xyes" ; then
 	enable_pkcs11="disabled; missing dlopen(3)"
@@ -3278,8 +3285,10 @@ if test "x$enable_sk" = "xyes" -a "x$enable_sk_internal" = "xyes" ; then
 	saved_LIBS="$LIBS"
 	LIBS="$LIBS $LIBFIDO2"
 	AC_CHECK_FUNCS([ \
+		fido_assert_set_clientdata \
 		fido_cred_prot \
 		fido_cred_set_prot \
+		fido_cred_set_clientdata \
 		fido_dev_get_touch_begin \
 		fido_dev_get_touch_status \
 		fido_dev_supports_cred_prot \
@@ -3566,10 +3575,11 @@ AC_ARG_WITH([sandbox],
 	]
 )
 
-# Some platforms (seems to be the ones that have a kernel poll(2)-type
-# function with which they implement select(2)) use an extra file descriptor
-# when calling select(2), which means we can't use the rlimit sandbox.
-AC_MSG_CHECKING([if select works with descriptor rlimit])
+# POSIX specifies that poll() "shall fail with EINVAL if the nfds argument
+# is greater than OPEN_MAX".  On some platforms that includes implementions
+# ofselect in userspace on top of poll() so check both work with rlimit NOFILES
+# so check that both work before enabling the rlimit sandbox.
+AC_MSG_CHECKING([if select and/or poll works with descriptor rlimit])
 AC_RUN_IFELSE(
 	[AC_LANG_PROGRAM([[
 #include <sys/types.h>
@@ -3580,6 +3590,11 @@ AC_RUN_IFELSE(
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>
 #endif
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#elif HAVE_SYS_POLL_H
+# include <sys/poll.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -3588,6 +3603,9 @@ AC_RUN_IFELSE(
 	int fd, r;
 	fd_set fds;
 	struct timeval tv;
+#ifdef HAVE_POLL
+	struct pollfd pfd;
+#endif
 
 	fd = open("/dev/null", O_RDONLY);
 	FD_ZERO(&fds);
@@ -3598,7 +3616,16 @@ AC_RUN_IFELSE(
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	r = select(fd+1, &fds, NULL, NULL, &tv);
-	exit (r == -1 ? 1 : 0);
+	if (r == -1)
+		exit(1);
+#ifdef HAVE_POLL
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	r = poll(&pfd, 1, 1);
+	if (r == -1)
+		exit(2);
+#endif
+	exit(0);
 	]])],
 	[AC_MSG_RESULT([yes])
 	 select_works_with_rlimit=yes],
@@ -3607,6 +3634,26 @@ AC_RUN_IFELSE(
 	[AC_MSG_WARN([cross compiling: assuming yes])
 	 select_works_with_rlimit=yes]
 )
+
+AC_CHECK_MEMBERS([struct pollfd.fd], [], [], [[
+#include <sys/types.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#endif
+]])
+
+AC_CHECK_TYPES([nfds_t], , , [
+#include <sys/types.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#endif
+])
 
 AC_MSG_CHECKING([if setrlimit(RLIMIT_NOFILE,{0,0}) works])
 AC_RUN_IFELSE(
@@ -3694,6 +3741,7 @@ elif test "x$sandbox_arg" = "xseccomp_filter" || \
 	AC_DEFINE([SANDBOX_SECCOMP_FILTER], [1], [Sandbox using seccomp filter])
 elif test "x$sandbox_arg" = "xcapsicum" || \
      ( test -z "$sandbox_arg" && \
+       test "x$disable_capsicum" != "xyes" && \
        test "x$ac_cv_header_sys_capsicum_h" = "xyes" && \
        test "x$ac_cv_func_cap_rights_limit" = "xyes") ; then
        test "x$ac_cv_header_sys_capsicum_h" != "xyes" && \
@@ -5008,19 +5056,6 @@ else
 fi
 AC_SUBST([mansubdir])
 
-# Check whether to enable MD5 passwords
-MD5_MSG="no"
-AC_ARG_WITH([md5-passwords],
-	[  --with-md5-passwords    Enable use of MD5 passwords],
-	[
-		if test "x$withval" != "xno" ; then
-			AC_DEFINE([HAVE_MD5_PASSWORDS], [1],
-				[Define if you want to allow MD5 passwords])
-			MD5_MSG="yes"
-		fi
-	]
-)
-
 # Whether to disable shadow password support
 AC_ARG_WITH([shadow],
 	[  --without-shadow        Disable shadow password support],
@@ -5616,7 +5651,6 @@ echo "                   OSF SIA support: $SIA_MSG"
 echo "                 KerberosV support: $KRB5_MSG"
 echo "                   SELinux support: $SELINUX_MSG"
 echo "              TCP Wrappers support: $TCPW_MSG"
-echo "              MD5 password support: $MD5_MSG"
 echo "                   libedit support: $LIBEDIT_MSG"
 echo "                   libldns support: $LDNS_MSG"
 echo "  Solaris process contract support: $SPC_MSG"

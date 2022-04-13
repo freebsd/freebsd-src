@@ -1,4 +1,4 @@
-%global ver 8.8p1
+%global ver 8.9p1
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
@@ -66,7 +66,7 @@
 # rpm -ba|--rebuild --define "smartcard 1"
 %{?smartcard:%global scard 1}
 
-# Is this a build for the rescue CD (without PAM, with MD5)? (1=yes 0=no)
+# Is this a build for the rescue CD (without PAM)? (1=yes 0=no)
 %global rescue 0
 %{?build_rescue:%global rescue 1}
 
@@ -211,7 +211,6 @@ CFLAGS="$RPM_OPT_FLAGS -Os"; export CFLAGS
 	--with-default-path=/usr/local/bin:/bin:/usr/bin \
 	--with-superuser-path=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin \
 	--with-privsep-path=%{_var}/empty/sshd \
-	--with-md5-passwords \
 	--mandir=%{_mandir} \
 	--with-mantype=man \
 	--disable-strip \
@@ -424,7 +423,10 @@ fi
 %endif
 
 %changelog
-* Mon Jul 20 2020 Damien Miller <djm@mindrto.org>
+* Thu Oct 28 2021 Damien Miller <djm@mindrot.org>
+- Remove remaining traces of --with-md5-passwords
+
+* Mon Jul 20 2020 Damien Miller <djm@mindrot.org>
 - Add ssh-sk-helper and corresponding manual page.
 
 * Sat Feb 10 2018 Darren Tucker <dtucker@dtucker.net>

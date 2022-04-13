@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.114 2021/01/31 22:55:29 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.117 2022/01/06 21:55:23 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -105,8 +105,12 @@ enum kex_exchange {
 	KEX_MAX
 };
 
-#define KEX_INIT_SENT	0x0001
-#define KEX_INITIAL	0x0002
+/* kex->flags */
+#define KEX_INIT_SENT			0x0001
+#define KEX_INITIAL			0x0002
+#define KEX_HAS_PUBKEY_HOSTBOUND	0x0004
+#define KEX_RSA_SHA2_256_SUPPORTED 	0x0008 /* only set in server for now */
+#define KEX_RSA_SHA2_512_SUPPORTED 	0x0010 /* only set in server for now */
 
 struct sshenc {
 	char	*name;
@@ -130,6 +134,7 @@ struct newkeys {
 };
 
 struct ssh;
+struct sshbuf;
 
 struct kex {
 	struct newkeys	*newkeys[MODE_MAX];
@@ -148,6 +153,8 @@ struct kex {
 	struct sshbuf *client_version;
 	struct sshbuf *server_version;
 	struct sshbuf *session_id;
+	struct sshbuf *initial_sig;
+	struct sshkey *initial_hostkey;
 	sig_atomic_t done;
 	u_int	flags;
 	int	hash_alg;
