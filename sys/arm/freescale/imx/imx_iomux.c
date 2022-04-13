@@ -264,7 +264,7 @@ iomux_attach(device_t dev)
 uint32_t
 imx_iomux_gpr_get(u_int regaddr)
 {
-	struct iomux_softc * sc;
+	struct iomux_softc *sc __diagused;
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
@@ -278,7 +278,7 @@ imx_iomux_gpr_get(u_int regaddr)
 void
 imx_iomux_gpr_set(u_int regaddr, uint32_t val)
 {
-	struct iomux_softc * sc;
+	struct iomux_softc *sc __diagused;
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
@@ -292,7 +292,7 @@ imx_iomux_gpr_set(u_int regaddr, uint32_t val)
 void
 imx_iomux_gpr_set_masked(u_int regaddr, uint32_t clrbits, uint32_t setbits)
 {
-	struct iomux_softc * sc;
+	struct iomux_softc *sc __diagused;
 	uint32_t val;
 
 	sc = iomux_sc;

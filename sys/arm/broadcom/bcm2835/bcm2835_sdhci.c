@@ -577,7 +577,7 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 {
 	struct sdhci_slot *slot;
 	vm_paddr_t pdst, psrc;
-	int err, idx, len, sync_op, width;
+	int err __diagused, idx, len, sync_op, width;
 
 	slot = &sc->sc_slot;
 	mtx_assert(&slot->mtx, MA_OWNED);
