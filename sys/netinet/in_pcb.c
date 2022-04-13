@@ -603,9 +603,10 @@ int
 in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 {
 	struct inpcb *inp;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT) || defined(MAC)
 	int error;
+#endif
 
-	error = 0;
 	inp = uma_zalloc_smr(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
