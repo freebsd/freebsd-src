@@ -690,7 +690,7 @@ static void
 hv_vss_timeout(void *arg)
 {
 	hv_vss_req_internal *reqp = arg;
-	hv_vss_req_internal *request;
+	hv_vss_req_internal *request __diagused;
 	hv_vss_sc* sc = reqp->sc;
 	uint64_t req_id = reqp->vss_req.opt_msg.msgid;
 	/* This thread is locked */
