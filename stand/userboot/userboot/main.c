@@ -70,6 +70,18 @@ delay(int usec)
 	CALLBACK(delay, usec);
 }
 
+time_t
+getsecs(void)
+{
+
+	/*
+	 * userboot can't do netboot, so this implementation isn't strictly
+	 * required.  Defining it avoids issues with BIND_NOW, and it doesn't
+	 * hurt to do it.
+	 */
+	return (time(NULL));
+}
+
 void
 exit(int v)
 {
