@@ -409,7 +409,6 @@ ad7417_attach(device_t dev)
 	char sysctl_name[32];
 	int i, j;
 	const char *unit;
-	const char *desc;
 
 	sc = device_get_softc(dev);
 
@@ -450,17 +449,17 @@ ad7417_attach(device_t dev)
 
 		if (sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR) {
 			unit = "temp";
-			desc = "sensor unit (C)";
 		} else {
 			unit = "volt";
-			desc = "sensor unit (mV)";
 		}
 		/* I use i to pass the sensor id. */
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 				unit, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 				dev, i, ad7417_sensor_sysctl,
 				sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR ?
-				"IK" : "I", desc);
+				"IK" : "I",
+				sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR ?
+				"sensor unit (C)" : "sensor unit (mV)");
 	}
 	/* Dump sensor location, ID & type. */
 	if (bootverbose) {
