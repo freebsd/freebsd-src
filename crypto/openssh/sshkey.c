@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.119 2021/07/23 03:37:52 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.120 2022/01/06 22:05:42 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -107,10 +107,12 @@ static const struct keytype keytypes[] = {
 	{ "ssh-ed25519", "ED25519", NULL, KEY_ED25519, 0, 0, 0 },
 	{ "ssh-ed25519-cert-v01@openssh.com", "ED25519-CERT", NULL,
 	    KEY_ED25519_CERT, 0, 1, 0 },
+#ifdef ENABLE_SK
 	{ "sk-ssh-ed25519@openssh.com", "ED25519-SK", NULL,
 	    KEY_ED25519_SK, 0, 0, 0 },
 	{ "sk-ssh-ed25519-cert-v01@openssh.com", "ED25519-SK-CERT", NULL,
 	    KEY_ED25519_SK_CERT, 0, 1, 0 },
+#endif
 #ifdef WITH_XMSS
 	{ "ssh-xmss@openssh.com", "XMSS", NULL, KEY_XMSS, 0, 0, 0 },
 	{ "ssh-xmss-cert-v01@openssh.com", "XMSS-CERT", NULL,
@@ -130,10 +132,12 @@ static const struct keytype keytypes[] = {
 	{ "ecdsa-sha2-nistp521", "ECDSA", NULL,
 	    KEY_ECDSA, NID_secp521r1, 0, 0 },
 #  endif /* OPENSSL_HAS_NISTP521 */
+#  ifdef ENABLE_SK
 	{ "sk-ecdsa-sha2-nistp256@openssh.com", "ECDSA-SK", NULL,
 	    KEY_ECDSA_SK, NID_X9_62_prime256v1, 0, 0 },
 	{ "webauthn-sk-ecdsa-sha2-nistp256@openssh.com", "ECDSA-SK", NULL,
 	    KEY_ECDSA_SK, NID_X9_62_prime256v1, 0, 1 },
+#  endif /* ENABLE_SK */
 # endif /* OPENSSL_HAS_ECC */
 	{ "ssh-rsa-cert-v01@openssh.com", "RSA-CERT", NULL,
 	    KEY_RSA_CERT, 0, 1, 0 },
@@ -152,8 +156,10 @@ static const struct keytype keytypes[] = {
 	{ "ecdsa-sha2-nistp521-cert-v01@openssh.com", "ECDSA-CERT", NULL,
 	    KEY_ECDSA_CERT, NID_secp521r1, 1, 0 },
 #  endif /* OPENSSL_HAS_NISTP521 */
+#  ifdef ENABLE_SK
 	{ "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com", "ECDSA-SK-CERT", NULL,
 	    KEY_ECDSA_SK_CERT, NID_X9_62_prime256v1, 1, 0 },
+#  endif /* ENABLE_SK */
 # endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 	{ NULL, NULL, NULL, -1, -1, 0, 0 }
@@ -247,6 +253,29 @@ sshkey_ecdsa_nid_from_name(const char *name)
 			return kt->nid;
 	}
 	return -1;
+}
+
+int
+sshkey_match_keyname_to_sigalgs(const char *keyname, const char *sigalgs)
+{
+	int ktype;
+
+	if (sigalgs == NULL || *sigalgs == '\0' ||
+	    (ktype = sshkey_type_from_name(keyname)) == KEY_UNSPEC)
+		return 0;
+	else if (ktype == KEY_RSA) {
+		return match_pattern_list("ssh-rsa", sigalgs, 0) == 1 ||
+		    match_pattern_list("rsa-sha2-256", sigalgs, 0) == 1 ||
+		    match_pattern_list("rsa-sha2-512", sigalgs, 0) == 1;
+	} else if (ktype == KEY_RSA_CERT) {
+		return match_pattern_list("ssh-rsa-cert-v01@openssh.com",
+		    sigalgs, 0) == 1 ||
+		    match_pattern_list("rsa-sha2-256-cert-v01@openssh.com",
+		    sigalgs, 0) == 1 ||
+		    match_pattern_list("rsa-sha2-512-cert-v01@openssh.com",
+		    sigalgs, 0) == 1;
+	} else
+		return match_pattern_list(keyname, sigalgs, 0) == 1;
 }
 
 char *

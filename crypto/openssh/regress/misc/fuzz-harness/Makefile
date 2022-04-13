@@ -7,7 +7,7 @@ FUZZ_LIBS=-lFuzzer
 CXXFLAGS=-O2 -g -Wall -Wextra -Wno-unused-parameter -I ../../.. $(FUZZ_FLAGS)
 CFLAGS=$(CXXFLAGS)
 LDFLAGS=-L ../../.. -L ../../../openbsd-compat -g $(FUZZ_FLAGS)
-LIBS=-lssh -lopenbsd-compat -lcrypto -lfido2 -lcbor $(FUZZ_LIBS)
+LIBS=-lssh -lopenbsd-compat -lmd -lcrypto -lfido2 -lcbor $(FUZZ_LIBS)
 SK_NULL_OBJS=ssh-sk-null.o
 COMMON_DEPS=../../../libssh.a
 

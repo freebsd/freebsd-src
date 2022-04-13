@@ -84,6 +84,7 @@
 #define blf_key					Fssh_blf_key
 #define blob_section				Fssh_blob_section
 #define cert_free				Fssh_cert_free
+#define cert_parse				Fssh_cert_parse
 #define chacha_encrypt_bytes			Fssh_chacha_encrypt_bytes
 #define chacha_ivsetup				Fssh_chacha_ivsetup
 #define chacha_keysetup				Fssh_chacha_keysetup
@@ -95,13 +96,14 @@
 #define chan_rcvd_ieof				Fssh_chan_rcvd_ieof
 #define chan_rcvd_oclose			Fssh_chan_rcvd_oclose
 #define chan_read_failed			Fssh_chan_read_failed
+#define chan_send_close2			Fssh_chan_send_close2
 #define chan_send_eof2				Fssh_chan_send_eof2
 #define chan_shutdown_extended_read		Fssh_chan_shutdown_extended_read
 #define chan_shutdown_read			Fssh_chan_shutdown_read
 #define chan_shutdown_write			Fssh_chan_shutdown_write
 #define chan_write_failed			Fssh_chan_write_failed
 #define channel_add_permission			Fssh_channel_add_permission
-#define channel_after_select			Fssh_channel_after_select
+#define channel_after_poll			Fssh_channel_after_poll
 #define channel_by_id				Fssh_channel_by_id
 #define channel_by_remote_id			Fssh_channel_by_remote_id
 #define channel_cancel_cleanup			Fssh_channel_cancel_cleanup
@@ -153,7 +155,7 @@
 #define channel_pre_mux_client			Fssh_channel_pre_mux_client
 #define channel_pre_open			Fssh_channel_pre_open
 #define channel_pre_x11_open			Fssh_channel_pre_x11_open
-#define channel_prepare_select			Fssh_channel_prepare_select
+#define channel_prepare_poll			Fssh_channel_prepare_poll
 #define channel_proxy_downstream		Fssh_channel_proxy_downstream
 #define channel_proxy_upstream			Fssh_channel_proxy_upstream
 #define channel_register_cleanup		Fssh_channel_register_cleanup
@@ -178,6 +180,7 @@
 #define channel_update_permission		Fssh_channel_update_permission
 #define check_hostkeys_by_key_or_type		Fssh_check_hostkeys_by_key_or_type
 #define check_key_in_hostkeys			Fssh_check_key_in_hostkeys
+#define check_rsa_length			Fssh_check_rsa_length
 #define child_set_env				Fssh_child_set_env
 #define choose_dh				Fssh_choose_dh
 #define choose_t				Fssh_choose_t
@@ -263,6 +266,7 @@
 #define dangerous_locale			Fssh_dangerous_locale
 #define dbl_p1p1				Fssh_dbl_p1p1
 #define default_key_sign			Fssh_default_key_sign
+#define deserialise_identity2			Fssh_deserialise_identity2
 #define dh_estimate				Fssh_dh_estimate
 #define dh_gen_key				Fssh_dh_gen_key
 #define dh_new_group				Fssh_dh_new_group
@@ -280,8 +284,10 @@
 #define dollar_expand				Fssh_dollar_expand
 #define ecdsa_do_sign				Fssh_ecdsa_do_sign
 #define encode_constraints			Fssh_encode_constraints
+#define encode_dest_constraint_hop		Fssh_encode_dest_constraint_hop
 #define exited_cleanly				Fssh_exited_cleanly
 #define export_dns_rr				Fssh_export_dns_rr
+#define fd_ready				Fssh_fd_ready
 #define filter_list				Fssh_filter_list
 #define fingerprint_b64				Fssh_fingerprint_b64
 #define fingerprint_hex				Fssh_fingerprint_hex
@@ -289,12 +295,15 @@
 #define fmt_scaled				Fssh_fmt_scaled
 #define fmt_timeframe				Fssh_fmt_timeframe
 #define format_absolute_time			Fssh_format_absolute_time
+#define format_timestamp			Fssh_format_timestamp
 #define forward_equals				Fssh_forward_equals
 #define free_hostkeys				Fssh_free_hostkeys
 #define freeargs				Fssh_freeargs
 #define freerrset				Fssh_freerrset
 #define freezero				Fssh_freezero
 #define fwd_ident				Fssh_fwd_ident
+#define g_opendir				Fssh_g_opendir
+#define g_stat					Fssh_g_stat
 #define gen_candidates				Fssh_gen_candidates
 #define get_hram				Fssh_get_hram
 #define get_local_ipaddr			Fssh_get_local_ipaddr
@@ -333,6 +342,7 @@
 #define input_kex_gen_reply			Fssh_input_kex_gen_reply
 #define iptos2str				Fssh_iptos2str
 #define ipv64_normalise_mapped			Fssh_ipv64_normalise_mapped
+#define is_cert_revoked				Fssh_is_cert_revoked
 #define is_key_revoked				Fssh_is_key_revoked
 #define kex_alg_by_name				Fssh_kex_alg_by_name
 #define kex_alg_list				Fssh_kex_alg_list
@@ -341,6 +351,7 @@
 #define kex_c25519_dec				Fssh_kex_c25519_dec
 #define kex_c25519_enc				Fssh_kex_c25519_enc
 #define kex_c25519_keypair			Fssh_kex_c25519_keypair
+#define kex_choose_conf				Fssh_kex_choose_conf
 #define kex_derive_keys				Fssh_kex_derive_keys
 #define kex_dh_compute_key			Fssh_kex_dh_compute_key
 #define kex_dh_dec				Fssh_kex_dh_dec
@@ -412,6 +423,7 @@
 #define match_host_and_ip			Fssh_match_host_and_ip
 #define match_hostname				Fssh_match_hostname
 #define match_list				Fssh_match_list
+#define match_maybe_hashed			Fssh_match_maybe_hashed
 #define match_pattern				Fssh_match_pattern
 #define match_pattern_list			Fssh_match_pattern_list
 #define match_user				Fssh_match_user
@@ -427,7 +439,7 @@
 #define monotime_tv				Fssh_monotime_tv
 #define mprintf					Fssh_mprintf
 #define ms_subtract_diff			Fssh_ms_subtract_diff
-#define ms_to_timeval				Fssh_ms_to_timeval
+#define ms_to_timespec				Fssh_ms_to_timespec
 #define msetlocale				Fssh_msetlocale
 #define newkeys_from_blob			Fssh_newkeys_from_blob
 #define newkeys_to_blob				Fssh_newkeys_to_blob
@@ -437,6 +449,7 @@
 #define notify_complete				Fssh_notify_complete
 #define notify_start				Fssh_notify_start
 #define open_preamble				Fssh_open_preamble
+#define openssh_RSA_verify			Fssh_openssh_RSA_verify
 #define opt_array_append			Fssh_opt_array_append
 #define opt_array_append2			Fssh_opt_array_append2
 #define opt_dequote				Fssh_opt_dequote
@@ -446,6 +459,7 @@
 #define parse_absolute_time			Fssh_parse_absolute_time
 #define parse_ipqos				Fssh_parse_ipqos
 #define parse_prime				Fssh_parse_prime
+#define parse_revoked_certs			Fssh_parse_revoked_certs
 #define parse_uri				Fssh_parse_uri
 #define parse_user_host_path			Fssh_parse_user_host_path
 #define parse_user_host_port			Fssh_parse_user_host_port
@@ -483,7 +497,10 @@
 #define poly_hash				Fssh_poly_hash
 #define port_open_helper			Fssh_port_open_helper
 #define prime_test				Fssh_prime_test
+#define private2_check_padding			Fssh_private2_check_padding
 #define private2_uudecode			Fssh_private2_uudecode
+#define proposals_match				Fssh_proposals_match
+#define put_bitmap				Fssh_put_bitmap
 #define put_host_port				Fssh_put_host_port
 #define put_u16					Fssh_put_u16
 #define put_u32					Fssh_put_u32
@@ -494,16 +511,21 @@
 #define read_mux				Fssh_read_mux
 #define read_passphrase				Fssh_read_passphrase
 #define recallocarray				Fssh_recallocarray
+#define recip					Fssh_recip
 #define record_hostkey				Fssh_record_hostkey
 #define reduce_add_sub				Fssh_reduce_add_sub
 #define refresh_progress_meter			Fssh_refresh_progress_meter
 #define replacearg				Fssh_replacearg
 #define revoke_blob				Fssh_revoke_blob
+#define revoked_blob_tree_RB_FIND		Fssh_revoked_blob_tree_RB_FIND
+#define revoked_blob_tree_RB_NEXT		Fssh_revoked_blob_tree_RB_NEXT
 #define revoked_blob_tree_RB_REMOVE		Fssh_revoked_blob_tree_RB_REMOVE
 #define revoked_certs_for_ca_key		Fssh_revoked_certs_for_ca_key
+#define revoked_certs_generate			Fssh_revoked_certs_generate
 #define revoked_serial_tree_RB_REMOVE		Fssh_revoked_serial_tree_RB_REMOVE
 #define rijndaelEncrypt				Fssh_rijndaelEncrypt
 #define rijndaelKeySetupEnc			Fssh_rijndaelKeySetupEnc
+#define rsa_hash_id_from_keyname		Fssh_rsa_hash_id_from_keyname
 #define rtrim					Fssh_rtrim
 #define safe_path				Fssh_safe_path
 #define safe_path_fd				Fssh_safe_path_fd
@@ -528,6 +550,7 @@
 #define speed_to_baud				Fssh_speed_to_baud
 #define ssh_add_hostkey				Fssh_ssh_add_hostkey
 #define ssh_add_identity_constrained		Fssh_ssh_add_identity_constrained
+#define ssh_agent_bind_hostkey			Fssh_ssh_agent_bind_hostkey
 #define ssh_agent_has_key			Fssh_ssh_agent_has_key
 #define ssh_agent_sign				Fssh_ssh_agent_sign
 #define ssh_alloc_session_state			Fssh_ssh_alloc_session_state
@@ -628,6 +651,7 @@
 #define ssh_packet_not_very_much_data_to_write	Fssh_ssh_packet_not_very_much_data_to_write
 #define ssh_packet_payload			Fssh_ssh_packet_payload
 #define ssh_packet_process_incoming		Fssh_ssh_packet_process_incoming
+#define ssh_packet_process_read			Fssh_ssh_packet_process_read
 #define ssh_packet_put				Fssh_ssh_packet_put
 #define ssh_packet_rdomain_in			Fssh_ssh_packet_rdomain_in
 #define ssh_packet_read				Fssh_ssh_packet_read
@@ -648,6 +672,7 @@
 #define ssh_packet_set_maxsize			Fssh_ssh_packet_set_maxsize
 #define ssh_packet_set_mux			Fssh_ssh_packet_set_mux
 #define ssh_packet_set_nonblocking		Fssh_ssh_packet_set_nonblocking
+#define ssh_packet_set_postauth			Fssh_ssh_packet_set_postauth
 #define ssh_packet_set_protocol_flags		Fssh_ssh_packet_set_protocol_flags
 #define ssh_packet_set_rekey_limits		Fssh_ssh_packet_set_rekey_limits
 #define ssh_packet_set_server			Fssh_ssh_packet_set_server
@@ -663,6 +688,7 @@
 #define ssh_remove_all_identities		Fssh_ssh_remove_all_identities
 #define ssh_remove_identity			Fssh_ssh_remove_identity
 #define ssh_request_reply			Fssh_ssh_request_reply
+#define ssh_request_reply_decode		Fssh_ssh_request_reply_decode
 #define ssh_rsa_complete_crt_parameters		Fssh_ssh_rsa_complete_crt_parameters
 #define ssh_rsa_sign				Fssh_ssh_rsa_sign
 #define ssh_rsa_verify				Fssh_ssh_rsa_verify
@@ -710,6 +736,7 @@
 #define sshbuf_load_fd				Fssh_sshbuf_load_fd
 #define sshbuf_load_file			Fssh_sshbuf_load_file
 #define sshbuf_max_size				Fssh_sshbuf_max_size
+#define sshbuf_maybe_pack			Fssh_sshbuf_maybe_pack
 #define sshbuf_mutable_ptr			Fssh_sshbuf_mutable_ptr
 #define sshbuf_new				Fssh_sshbuf_new
 #define sshbuf_parent				Fssh_sshbuf_parent
@@ -739,6 +766,7 @@
 #define sshbuf_putb				Fssh_sshbuf_putb
 #define sshbuf_putf				Fssh_sshbuf_putf
 #define sshbuf_putfv				Fssh_sshbuf_putfv
+#define sshbuf_read				Fssh_sshbuf_read
 #define sshbuf_refcount				Fssh_sshbuf_refcount
 #define sshbuf_reserve				Fssh_sshbuf_reserve
 #define sshbuf_reset				Fssh_sshbuf_reset
@@ -795,6 +823,7 @@
 #define sshkey_load_private_type		Fssh_sshkey_load_private_type
 #define sshkey_load_private_type_fd		Fssh_sshkey_load_private_type_fd
 #define sshkey_load_public			Fssh_sshkey_load_public
+#define sshkey_match_keyname_to_sigalgs		Fssh_sshkey_match_keyname_to_sigalgs
 #define sshkey_names_valid2			Fssh_sshkey_names_valid2
 #define sshkey_new				Fssh_sshkey_new
 #define sshkey_parse_private2			Fssh_sshkey_parse_private2
@@ -872,6 +901,9 @@
 #define sshpkt_start				Fssh_sshpkt_start
 #define sshpkt_vfatal				Fssh_sshpkt_vfatal
 #define sshsigdie				Fssh_sshsigdie
+#define sshsk_free_resident_keys		Fssh_sshsk_free_resident_keys
+#define start_compression_in			Fssh_start_compression_in
+#define start_compression_out			Fssh_start_compression_out
 #define start_progress_meter			Fssh_start_progress_meter
 #define stdfd_devnull				Fssh_stdfd_devnull
 #define stop_progress_meter			Fssh_stop_progress_meter
@@ -899,6 +931,7 @@
 #define umac_final				Fssh_umac_final
 #define umac_new				Fssh_umac_new
 #define umac_update				Fssh_umac_update
+#define uncompress_buffer			Fssh_uncompress_buffer
 #define unix_listener				Fssh_unix_listener
 #define unset_nonblock				Fssh_unset_nonblock
 #define urldecode				Fssh_urldecode
@@ -911,6 +944,7 @@
 #define vis					Fssh_vis
 #define waitfd					Fssh_waitfd
 #define waitrfd					Fssh_waitrfd
+#define webauthn_check_prepare_hash		Fssh_webauthn_check_prepare_hash
 #define write_host_entry			Fssh_write_host_entry
 #define x11_connect_display			Fssh_x11_connect_display
 #define x11_create_display_inet			Fssh_x11_create_display_inet

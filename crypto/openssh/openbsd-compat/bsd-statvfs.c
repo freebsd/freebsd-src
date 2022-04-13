@@ -18,7 +18,6 @@
 
 #if !defined(HAVE_STATVFS) || !defined(HAVE_FSTATVFS)
 
-#include <sys/param.h>
 #ifdef HAVE_SYS_MOUNT_H
 # include <sys/mount.h>
 #endif

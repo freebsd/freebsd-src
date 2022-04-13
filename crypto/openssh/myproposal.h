@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.68 2020/10/03 04:15:06 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.70 2021/11/10 06:29:25 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -31,6 +31,7 @@
 	"ecdh-sha2-nistp256," \
 	"ecdh-sha2-nistp384," \
 	"ecdh-sha2-nistp521," \
+	"sntrup761x25519-sha512@openssh.com," \
 	"diffie-hellman-group-exchange-sha256," \
 	"diffie-hellman-group16-sha512," \
 	"diffie-hellman-group18-sha512," \

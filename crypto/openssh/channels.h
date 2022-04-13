@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.138 2021/05/19 01:24:05 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.141 2022/01/22 00:49:34 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -136,6 +136,9 @@ struct Channel {
 	int     wfd;		/* write fd */
 	int     efd;		/* extended fd */
 	int     sock;		/* sock fd */
+	u_int	io_want;	/* bitmask of SSH_CHAN_IO_* */
+	u_int	io_ready;	/* bitmask of SSH_CHAN_IO_* */
+	int	pollfd_offset;	/* base offset into pollfd array (or -1) */
 	int     ctl_chan;	/* control channel (multiplexed connections) */
 	int     isatty;		/* rfd is a tty */
 #ifdef _AIX
@@ -144,10 +147,10 @@ struct Channel {
 	int	client_tty;	/* (client) TTY has been requested */
 	int     force_drain;	/* force close on iEOF */
 	time_t	notbefore;	/* Pause IO until deadline (time_t) */
-	int     delayed;	/* post-select handlers for newly created
+	int     delayed;	/* post-IO handlers for newly created
 				 * channels are delayed until the first call
-				 * to a matching pre-select handler.
-				 * this way post-select handlers are not
+				 * to a matching pre-IO handler.
+				 * this way post-IO handlers are not
 				 * accidentally called if a FD gets reused */
 	int	restore_block;	/* fd mask to restore blocking status */
 	struct sshbuf *input;	/* data read from socket, to be sent over
@@ -231,8 +234,21 @@ struct Channel {
 #define CHAN_EOF_RCVD			0x08
 #define CHAN_LOCAL			0x10
 
+/* file descriptor events */
+#define SSH_CHAN_IO_RFD			0x01
+#define SSH_CHAN_IO_WFD			0x02
+#define SSH_CHAN_IO_EFD_R		0x04
+#define SSH_CHAN_IO_EFD_W		0x08
+#define SSH_CHAN_IO_EFD			(SSH_CHAN_IO_EFD_R|SSH_CHAN_IO_EFD_W)
+#define SSH_CHAN_IO_SOCK_R		0x10
+#define SSH_CHAN_IO_SOCK_W		0x20
+#define SSH_CHAN_IO_SOCK		(SSH_CHAN_IO_SOCK_R|SSH_CHAN_IO_SOCK_W)
+
 /* Read buffer size */
 #define CHAN_RBUF	(16*1024)
+
+/* Maximum size for direct reads to buffers */
+#define CHANNEL_MAX_READ	CHAN_SES_PACKET_DEFAULT
 
 /* Maximum channel input buffer size */
 #define CHAN_INPUT_MAX	(16*1024*1024)
@@ -298,10 +314,11 @@ int	 channel_input_window_adjust(int, u_int32_t, struct ssh *);
 int	 channel_input_status_confirm(int, u_int32_t, struct ssh *);
 
 /* file descriptor handling (read/write) */
+struct pollfd;
 
-void	 channel_prepare_select(struct ssh *, fd_set **, fd_set **, int *,
-	    u_int*, time_t*);
-void     channel_after_select(struct ssh *, fd_set *, fd_set *);
+void	 channel_prepare_poll(struct ssh *, struct pollfd **,
+	    u_int *, u_int *, u_int, time_t *);
+void	 channel_after_poll(struct ssh *, struct pollfd *, u_int);
 void     channel_output_poll(struct ssh *);
 
 int      channel_not_very_much_buffered_data(struct ssh *);

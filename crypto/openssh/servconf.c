@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.382 2021/09/06 00:36:01 millert Exp $ */
+/* $OpenBSD: servconf.c,v 1.383 2022/02/08 08:59:12 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -913,7 +913,7 @@ process_permitopen_list(struct ssh *ssh, ServerOpCodes opcode,
 {
 	u_int i;
 	int port;
-	char *host, *arg, *oarg, ch;
+	char *host, *arg, *oarg;
 	int where = opcode == sPermitOpen ? FORWARD_LOCAL : FORWARD_REMOTE;
 	const char *what = lookup_opcode_name(opcode);
 
@@ -931,9 +931,8 @@ process_permitopen_list(struct ssh *ssh, ServerOpCodes opcode,
 	/* Otherwise treat it as a list of permitted host:port */
 	for (i = 0; i < num_opens; i++) {
 		oarg = arg = xstrdup(opens[i]);
-		ch = '\0';
-		host = hpdelim2(&arg, &ch);
-		if (host == NULL || ch == '/')
+		host = hpdelim(&arg);
+		if (host == NULL)
 			fatal_f("missing host in %s", what);
 		host = cleanhostname(host);
 		if (arg == NULL || ((port = permitopen_port(arg)) < 0))
@@ -1279,7 +1278,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
     struct connection_info *connectinfo, int *inc_flags, int depth,
     struct include_list *includes)
 {
-	char ch, *str, ***chararrayptr, **charptr, *arg, *arg2, *p, *keyword;
+	char *str, ***chararrayptr, **charptr, *arg, *arg2, *p, *keyword;
 	int cmdline = 0, *intptr, value, value2, n, port, oactive, r, found;
 	SyslogFacility *log_facility_ptr;
 	LogLevel *log_level_ptr;
@@ -1398,9 +1397,8 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			p = arg;
 		} else {
 			arg2 = NULL;
-			ch = '\0';
-			p = hpdelim2(&arg, &ch);
-			if (p == NULL || ch == '/')
+			p = hpdelim(&arg);
+			if (p == NULL)
 				fatal("%s line %d: bad address:port usage",
 				    filename, linenum);
 			p = cleanhostname(p);
@@ -2229,9 +2227,8 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				xasprintf(&arg2, "*:%s", arg);
 			} else {
 				arg2 = xstrdup(arg);
-				ch = '\0';
-				p = hpdelim2(&arg, &ch);
-				if (p == NULL || ch == '/') {
+				p = hpdelim(&arg);
+				if (p == NULL) {
 					fatal("%s line %d: %s missing host",
 					    filename, linenum, keyword);
 				}

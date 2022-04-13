@@ -372,8 +372,8 @@ function enrollStart(username) {
 	let pkopts = {
 		challenge: challenge,
 		rp: {
-			name: "mindrot.org",
-			id: "mindrot.org",
+			name: window.location.host,
+			id: window.location.host,
 		},
 		user: {
 			id: userid,
@@ -590,7 +590,7 @@ async function assertform_submit(event) {
 function assertStart(message) {
 	let assertReqOpts = {
 		challenge: message,
-		rpId: "mindrot.org",
+		rpId: window.location.host,
 		allowCredentials: [{
 			type: 'public-key',
 			id: window.enrollResult.rawId,

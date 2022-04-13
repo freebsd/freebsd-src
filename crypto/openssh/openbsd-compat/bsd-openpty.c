@@ -66,33 +66,16 @@
 #include <unistd.h>
 
 #include "misc.h"
+#include "log.h"
 
 #ifndef O_NOCTTY
 #define O_NOCTTY 0
 #endif
 
-int
-openpty(int *amaster, int *aslave, char *name, struct termios *termp,
-   struct winsize *winp)
+#if defined(HAVE_DEV_PTMX) && !defined(HAVE__GETPTY)
+static int
+openpty_streams(int *amaster, int *aslave)
 {
-#if defined(HAVE__GETPTY)
-	/*
-	 * _getpty(3) exists in SGI Irix 4.x, 5.x & 6.x -- it generates more
-	 * pty's automagically when needed
-	 */
-	char *slave;
-
-	if ((slave = _getpty(amaster, O_RDWR, 0622, 0)) == NULL)
-		return (-1);
-
-	/* Open the slave side. */
-	if ((*aslave = open(slave, O_RDWR | O_NOCTTY)) == -1) {
-		close(*amaster);
-		return (-1);
-	}
-	return (0);
-
-#elif defined(HAVE_DEV_PTMX)
 	/*
 	 * This code is used e.g. on Solaris 2.x.  (Note that Solaris 2.3
 	 * also has bsd-style ptys, but they simply do not work.)
@@ -141,8 +124,59 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 # ifndef __hpux
 	ioctl(*aslave, I_PUSH, "ttcompat");
 # endif /* __hpux */
-
 	return (0);
+}
+#endif
+
+int
+openpty(int *amaster, int *aslave, char *name, struct termios *termp,
+   struct winsize *winp)
+{
+#if defined(HAVE__GETPTY)
+	/*
+	 * _getpty(3) exists in SGI Irix 4.x, 5.x & 6.x -- it generates more
+	 * pty's automagically when needed
+	 */
+	char *slave;
+
+	if ((slave = _getpty(amaster, O_RDWR, 0622, 0)) == NULL)
+		return (-1);
+
+	/* Open the slave side. */
+	if ((*aslave = open(slave, O_RDWR | O_NOCTTY)) == -1) {
+		close(*amaster);
+		return (-1);
+	}
+	return (0);
+
+#elif defined(HAVE_DEV_PTMX)
+
+#ifdef SSHD_ACQUIRES_CTTY
+	/*
+	 * On some (most? all?) SysV based systems with STREAMS based terminals,
+	 * sshd will acquire a controlling terminal when it pushes the "ptem"
+	 * module.  On such platforms, first allocate a sacrificial pty so
+	 * that sshd already has a controlling terminal before allocating the
+	 * one that will be passed back to the user process.  This ensures
+	 * the second pty is not already the controlling terminal for a
+	 * different session and is available to become controlling terminal
+	 * for the client's subprocess.  See bugzilla #245 for details.
+	 */
+	int r, fd;
+	static int junk_ptyfd = -1, junk_ttyfd;
+
+	r = openpty_streams(amaster, aslave);
+	if (junk_ptyfd == -1 && (fd = open(_PATH_TTY, O_RDWR|O_NOCTTY)) >= 0) {
+		close(fd);
+		junk_ptyfd = *amaster;
+		junk_ttyfd = *aslave;
+		debug("STREAMS bug workaround pty %d tty %d name %s",
+		    junk_ptyfd, junk_ttyfd, ttyname(junk_ttyfd));
+        } else
+		return r;
+#endif
+
+	return openpty_streams(amaster, aslave);
 
 #elif defined(HAVE_DEV_PTS_AND_PTC)
 	/* AIX-style pty code. */

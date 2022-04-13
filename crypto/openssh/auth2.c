@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.161 2021/04/03 06:18:40 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.164 2022/02/23 11:18:13 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -94,6 +94,7 @@ static int input_service_request(int, u_int32_t, struct ssh *);
 static int input_userauth_request(int, u_int32_t, struct ssh *);
 
 /* helper */
+static Authmethod *authmethod_byname(const char *);
 static Authmethod *authmethod_lookup(Authctxt *, const char *);
 static char *authmethods_get(Authctxt *authctxt);
 
@@ -280,6 +281,8 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 	if ((style = strchr(user, ':')) != NULL)
 		*style++ = 0;
 
+	if (authctxt->attempt >= 1024)
+		auth_maxtries_exceeded(ssh);
 	if (authctxt->attempt++ == 0) {
 		/* setup auth context */
 		authctxt->pw = PRIVSEP(getpwnamallow(ssh, user));
@@ -288,6 +291,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 			authctxt->valid = 1;
 			debug2_f("setting up authctxt for %s", user);
 		} else {
+			authctxt->valid = 0;
 			/* Invalid user, fake password information */
 			authctxt->pw = fakepw();
 #ifdef SSH_AUDIT_EVENTS
@@ -333,7 +337,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 	m = authmethod_lookup(authctxt, method);
 	if (m != NULL && authctxt->failures < options.max_authtries) {
 		debug2("input_userauth_request: try method %s", method);
-		authenticated =	m->userauth(ssh);
+		authenticated =	m->userauth(ssh, method);
 	}
 	if (!authctxt->authenticated)
 		ensure_minimum_time_since(tstart,
@@ -348,18 +352,27 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 }
 
 void
-userauth_finish(struct ssh *ssh, int authenticated, const char *method,
+userauth_finish(struct ssh *ssh, int authenticated, const char *packet_method,
     const char *submethod)
 {
 	Authctxt *authctxt = ssh->authctxt;
+	Authmethod *m = NULL;
+	const char *method = packet_method;
 	char *methods;
 	int r, partial = 0;
 
-	if (!authctxt->valid && authenticated)
-		fatal("INTERNAL ERROR: authenticated invalid user %s",
-		    authctxt->user);
-	if (authenticated && authctxt->postponed)
-		fatal("INTERNAL ERROR: authenticated and postponed");
+	if (authenticated) {
+		if (!authctxt->valid) {
+			fatal("INTERNAL ERROR: authenticated invalid user %s",
+			    authctxt->user);
+		}
+		if (authctxt->postponed)
+			fatal("INTERNAL ERROR: authenticated and postponed");
+		/* prefer primary authmethod name to possible synonym */
+		if ((m = authmethod_byname(method)) == NULL)
+			fatal("INTERNAL ERROR: bad method %s", method);
+		method = m->name;
+	}
 
 	/* Special handling for root */
 	if (authenticated && authctxt->pw->pw_uid == 0 &&
@@ -500,21 +513,40 @@ authmethods_get(Authctxt *authctxt)
 }
 
 static Authmethod *
-authmethod_lookup(Authctxt *authctxt, const char *name)
+authmethod_byname(const char *name)
 {
 	int i;
 
-	if (name != NULL)
-		for (i = 0; authmethods[i] != NULL; i++)
-			if (authmethods[i]->enabled != NULL &&
-			    *(authmethods[i]->enabled) != 0 &&
-			    strcmp(name, authmethods[i]->name) == 0 &&
-			    auth2_method_allowed(authctxt,
-			    authmethods[i]->name, NULL))
-				return authmethods[i];
-	debug2("Unrecognized authentication method name: %s",
-	    name ? name : "NULL");
+	if (name == NULL)
+		fatal_f("NULL authentication method name");
+	for (i = 0; authmethods[i] != NULL; i++) {
+		if (strcmp(name, authmethods[i]->name) == 0 ||
+		    (authmethods[i]->synonym != NULL &&
+		    strcmp(name, authmethods[i]->synonym) == 0))
+			return authmethods[i];
+	}
+	debug_f("unrecognized authentication method name: %s", name);
 	return NULL;
+}
+
+static Authmethod *
+authmethod_lookup(Authctxt *authctxt, const char *name)
+{
+	Authmethod *method;
+
+	if ((method = authmethod_byname(name)) == NULL)
+		return NULL;
+
+	if (method->enabled == NULL || *(method->enabled) == 0) {
+		debug3_f("method %s not enabled", name);
+		return NULL;
+	}
+	if (!auth2_method_allowed(authctxt, method->name, NULL)) {
+		debug3_f("method %s not allowed "
+		    "by AuthenticationMethods", name);
+		return NULL;
+	}
+	return method;
 }
 
 /*

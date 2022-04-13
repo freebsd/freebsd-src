@@ -2,7 +2,6 @@
 
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -327,7 +326,7 @@ int main(void)
 	static struct shared_state *st;
 	struct test_state *ts;
 	const int keytypes[] = { KEY_RSA, KEY_DSA, KEY_ECDSA, KEY_ED25519, -1 };
-	const char *kextypes[] = {
+	static const char * const kextypes[] = {
 		"sntrup761x25519-sha512@openssh.com",
 		"curve25519-sha256@libssh.org",
 		"ecdh-sha2-nistp256",

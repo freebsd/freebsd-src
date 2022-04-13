@@ -17,6 +17,7 @@ piddir=@piddir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
 abs_top_srcdir=@abs_top_srcdir@
+abs_top_builddir=@abs_top_builddir@
 
 DESTDIR=
 VPATH=@srcdir@
@@ -30,6 +31,7 @@ PRIVSEP_PATH=@PRIVSEP_PATH@
 SSH_PRIVSEP_USER=@SSH_PRIVSEP_USER@
 STRIP_OPT=@STRIP_OPT@
 TEST_SHELL=@TEST_SHELL@
+BUILDDIR=@abs_top_builddir@
 
 PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SSH_PROGRAM=\"$(SSH_PROGRAM)\" \
@@ -125,7 +127,7 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
 	auth2-none.o auth2-passwd.o auth2-pubkey.o \
 	monitor.o monitor_wrap.o auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
-	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
+	loginrec.o auth-pam.o auth-shadow.o auth-sia.o \
 	srclimit.o sftp-server.o sftp-common.o \
 	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o \
 	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
@@ -333,6 +335,9 @@ distclean:	regressclean
 	rm -f regress/unittests/sshsig/test_sshsig
 	rm -f regress/unittests/utf8/*.o
 	rm -f regress/unittests/utf8/test_utf8
+	rm -f regress/misc/sk-dummy/*.o
+	rm -f regress/misc/sk-dummy/*.lo
+	rm -f regress/misc/sk-dummy/sk-dummy.so
 	(cd openbsd-compat && $(MAKE) distclean)
 	if test -d pkg ; then \
 		rm -fr pkg ; \
@@ -651,7 +656,8 @@ UNITTESTS_TEST_MISC_OBJS=\
 	regress/unittests/misc/test_expand.o \
 	regress/unittests/misc/test_convtime.o \
 	regress/unittests/misc/test_argv.o \
-	regress/unittests/misc/test_strdelim.o
+	regress/unittests/misc/test_strdelim.o \
+	regress/unittests/misc/test_hpdelim.o
 
 regress/unittests/misc/test_misc$(EXEEXT): \
     ${UNITTESTS_TEST_MISC_OBJS} \
@@ -710,46 +716,43 @@ tests:	file-tests t-exec interop-tests unit
 	echo all tests passed
 
 unit: regress-unit-binaries
-	BUILDDIR=`pwd`; \
 	cd $(srcdir)/regress || exit $$?; \
 	$(MAKE) \
-		.OBJDIR="$${BUILDDIR}/regress" \
-		.CURDIR="`pwd`" \
-		OBJ="$${BUILDDIR}/regress" \
+		.CURDIR="$(abs_top_srcdir)/regress" \
+		.OBJDIR="$(BUILDDIR)/regress" \
+		OBJ="$(BUILDDIR)/regress" \
 		$@ && echo $@ tests passed
 
 interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
-	BUILDDIR=`pwd`; \
 	cd $(srcdir)/regress || exit $$?; \
 	EGREP='@EGREP@' \
 	$(MAKE) \
-		.OBJDIR="$${BUILDDIR}/regress" \
-		.CURDIR="`pwd`" \
-		BUILDDIR="$${BUILDDIR}" \
-		OBJ="$${BUILDDIR}/regress/" \
-		PATH="$${BUILDDIR}:$${PATH}" \
+		.CURDIR="$(abs_top_srcdir)/regress" \
+		.OBJDIR="$(BUILDDIR)/regress" \
+		BUILDDIR="$(BUILDDIR)" \
+		OBJ="$(BUILDDIR)/regress" \
+		PATH="$(BUILDDIR):$${PATH}" \
 		TEST_ENV=MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
 		TEST_MALLOC_OPTIONS="@TEST_MALLOC_OPTIONS@" \
-		TEST_SSH_SCP="$${BUILDDIR}/scp" \
-		TEST_SSH_SSH="$${BUILDDIR}/ssh" \
-		TEST_SSH_SSHD="$${BUILDDIR}/sshd" \
-		TEST_SSH_SSHAGENT="$${BUILDDIR}/ssh-agent" \
-		TEST_SSH_SSHADD="$${BUILDDIR}/ssh-add" \
-		TEST_SSH_SSHKEYGEN="$${BUILDDIR}/ssh-keygen" \
-		TEST_SSH_SSHPKCS11HELPER="$${BUILDDIR}/ssh-pkcs11-helper" \
-		TEST_SSH_SSHKEYSCAN="$${BUILDDIR}/ssh-keyscan" \
-		TEST_SSH_SFTP="$${BUILDDIR}/sftp" \
-		TEST_SSH_PKCS11_HELPER="$${BUILDDIR}/ssh-pkcs11-helper" \
-		TEST_SSH_SK_HELPER="$${BUILDDIR}/ssh-sk-helper" \
-		TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server" \
+		TEST_SSH_SCP="$(BUILDDIR)/scp" \
+		TEST_SSH_SSH="$(BUILDDIR)/ssh" \
+		TEST_SSH_SSHD="$(BUILDDIR)/sshd" \
+		TEST_SSH_SSHAGENT="$(BUILDDIR)/ssh-agent" \
+		TEST_SSH_SSHADD="$(BUILDDIR)/ssh-add" \
+		TEST_SSH_SSHKEYGEN="$(BUILDDIR)/ssh-keygen" \
+		TEST_SSH_SSHPKCS11HELPER="$(BUILDDIR)/ssh-pkcs11-helper" \
+		TEST_SSH_SSHKEYSCAN="$(BUILDDIR)/ssh-keyscan" \
+		TEST_SSH_SFTP="$(BUILDDIR)/sftp" \
+		TEST_SSH_PKCS11_HELPER="$(BUILDDIR)/ssh-pkcs11-helper" \
+		TEST_SSH_SK_HELPER="$(BUILDDIR)/ssh-sk-helper" \
+		TEST_SSH_SFTPSERVER="$(BUILDDIR)/sftp-server" \
 		TEST_SSH_MODULI_FILE="$(abs_top_srcdir)/moduli" \
 		TEST_SSH_PLINK="plink" \
 		TEST_SSH_PUTTYGEN="puttygen" \
 		TEST_SSH_CONCH="conch" \
 		TEST_SSH_IPV6="@TEST_SSH_IPV6@" \
 		TEST_SSH_UTF8="@TEST_SSH_UTF8@" \
-		TEST_SSH_ECC="@TEST_SSH_ECC@" \
-		TEST_SHELL="${TEST_SHELL}" \
+		TEST_SHELL="$(TEST_SHELL)" \
 		EXEEXT="$(EXEEXT)" \
 		$@ && echo all $@ passed
 

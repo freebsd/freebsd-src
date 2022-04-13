@@ -3,6 +3,16 @@
 
 tid="cipher speed"
 
+# Enable all supported ciphers and macs.
+ciphers=`${SSH} -Q Ciphers | tr '\n' , | sed 's/,$//'`
+macs=`${SSH} -Q MACs | tr '\n' , | sed 's/,$//'`
+cat >>$OBJ/sshd_proxy <<EOD
+Ciphers $ciphers
+MACs $macs
+EOD
+
+increase_datafile_size 10000 # 10MB
+
 getbytes ()
 {
 	sed -n -e '/transferred/s/.*secs (\(.* bytes.sec\).*/\1/p' \
