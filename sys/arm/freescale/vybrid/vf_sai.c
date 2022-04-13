@@ -222,11 +222,11 @@ static int
 saimixer_set(struct snd_mixer *m, unsigned dev,
     unsigned left, unsigned right)
 {
+#if 0
 	struct sc_pcminfo *scp;
 
 	scp = mix_getdevinfo(m);
 
-#if 0
 	device_printf(scp->dev, "saimixer_set() %d %d\n",
 	    left, right);
 #endif

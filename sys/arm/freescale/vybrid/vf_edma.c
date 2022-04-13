@@ -119,11 +119,13 @@ static void
 edma_err_intr(void *arg)
 {
 	struct edma_softc *sc;
+#if 0
 	int reg;
+#endif
 
 	sc = arg;
 
-	reg = READ4(sc, DMA_ERR);
+	/* reg = */ READ4(sc, DMA_ERR);
 
 #if 0
 	device_printf(sc->dev, "DMA_ERR 0x%08x, ES 0x%08x\n",
