@@ -2359,7 +2359,9 @@ vtnet_txq_offload_ctx(struct vtnet_txq *txq, struct mbuf *m, int *etype,
 {
 	struct vtnet_softc *sc;
 	struct ether_vlan_header *evh;
+#if defined(INET) || defined(INET6)
 	int offset;
+#endif
 
 	sc = txq->vtntx_sc;
 
@@ -2367,10 +2369,14 @@ vtnet_txq_offload_ctx(struct vtnet_txq *txq, struct mbuf *m, int *etype,
 	if (evh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
 		/* BMV: We should handle nested VLAN tags too. */
 		*etype = ntohs(evh->evl_proto);
+#if defined(INET) || defined(INET6)
 		offset = sizeof(struct ether_vlan_header);
+#endif
 	} else {
 		*etype = ntohs(evh->evl_encap_proto);
+#if defined(INET) || defined(INET6)
 		offset = sizeof(struct ether_header);
+#endif
 	}
 
 	switch (*etype) {
