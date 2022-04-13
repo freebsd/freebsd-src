@@ -433,7 +433,7 @@ ncl_copy_vattr(struct vattr *dst, struct vattr *src)
  */
 int
 nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
-    void *stuff, int writeattr, int dontshrink)
+    int writeattr, int dontshrink)
 {
 	struct vnode *vp = *vpp;
 	struct vattr *vap, *nvap = &nap->na_vattr, *vaper = nvaper;
