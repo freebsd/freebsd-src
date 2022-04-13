@@ -3917,13 +3917,12 @@ tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 {
 	char *s, *sp;
 	size_t size;
-	struct ip *ip;
+#ifdef INET
+	struct ip *ip = (struct ip *)ip4hdr;
+#endif
 #ifdef INET6
-	const struct ip6_hdr *ip6;
-
-	ip6 = (const struct ip6_hdr *)ip6hdr;
+	const struct ip6_hdr *ip6 = (const struct ip6_hdr *)ip6hdr;
 #endif /* INET6 */
-	ip = (struct ip *)ip4hdr;
 
 	/*
 	 * The log line looks like this:
