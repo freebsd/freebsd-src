@@ -413,7 +413,7 @@ vtballoon_send_page_frames(struct vtballoon_softc *sc, struct virtqueue *vq,
 	struct sglist sg;
 	struct sglist_seg segs[1];
 	void *c;
-	int error;
+	int error __diagused;
 
 	sglist_init(&sg, 1, segs);
 
