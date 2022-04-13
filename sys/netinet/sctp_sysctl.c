@@ -188,8 +188,15 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 {
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
-	int loopback_scope, ipv4_local_scope, local_scope, site_scope;
-	int ipv4_addr_legal, ipv6_addr_legal;
+	int loopback_scope;
+#ifdef INET
+	int ipv4_local_scope;
+	int ipv4_addr_legal;
+#endif
+#ifdef INET6
+	int local_scope, site_scope;
+	int ipv6_addr_legal;
+#endif
 	struct sctp_vrf *vrf;
 	struct xsctp_laddr xladdr;
 	struct sctp_laddr *laddr;
@@ -199,28 +206,34 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 	if (stcb) {
 		/* use association specific values */
 		loopback_scope = stcb->asoc.scope.loopback_scope;
+#ifdef INET
 		ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+#endif
+#ifdef INET6
 		local_scope = stcb->asoc.scope.local_scope;
 		site_scope = stcb->asoc.scope.site_scope;
-		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
 		ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
+#endif
 	} else {
 		/* Use generic values for endpoints. */
 		loopback_scope = 1;
+#ifdef INET
 		ipv4_local_scope = 1;
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6 &&
+		    SCTP_IPV6_V6ONLY(inp))
+			ipv4_addr_legal = 0;
+		else
+			ipv4_addr_legal = 1;
+#endif
+#ifdef INET6
 		local_scope = 1;
 		site_scope = 1;
-		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6)
 			ipv6_addr_legal = 1;
-			if (SCTP_IPV6_V6ONLY(inp)) {
-				ipv4_addr_legal = 0;
-			} else {
-				ipv4_addr_legal = 1;
-			}
-		} else {
+		else
 			ipv6_addr_legal = 0;
-			ipv4_addr_legal = 1;
-		}
+#endif
 	}
 
 	/* neither Mac OS X nor FreeBSD support multiple routing functions */
