@@ -597,7 +597,9 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 {
 	struct ucred *td_savedcred;
 	struct thread *td;
-	struct file *fp;
+#ifdef MAC
+	struct file *fp = job->fd_file;
+#endif
 	size_t cnt, done, job_total_nbytes __diagused;
 	long ru_before;
 	int error, flags;
@@ -605,7 +607,6 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 	SOCKBUF_UNLOCK(sb);
 	aio_switch_vmspace(job);
 	td = curthread;
-	fp = job->fd_file;
 retry:
 	td_savedcred = td->td_ucred;
 	td->td_ucred = job->cred;

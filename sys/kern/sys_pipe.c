@@ -1646,14 +1646,18 @@ pipe_free_kmem(struct pipe *cpipe)
 static void
 pipeclose(struct pipe *cpipe)
 {
+#ifdef MAC
 	struct pipepair *pp;
+#endif
 	struct pipe *ppipe;
 
 	KASSERT(cpipe != NULL, ("pipeclose: cpipe == NULL"));
 
 	PIPE_LOCK(cpipe);
 	pipelock(cpipe, 0);
+#ifdef MAC
 	pp = cpipe->pipe_pair;
+#endif
 
 	/*
 	 * If the other side is blocked, wake it up saying that
