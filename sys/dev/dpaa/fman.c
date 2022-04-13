@@ -123,14 +123,12 @@ int
 fman_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
-	struct fman_softc *sc;
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	int passthrough, rv;
 
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
-	sc = device_get_softc(bus);
 	if (type != SYS_RES_IRQ) {
 		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
 			rv = bus_deactivate_resource(child, type, rid, res);
