@@ -1015,7 +1015,7 @@ static bool
 swp_pager_xfer_source(vm_object_t srcobject, vm_object_t dstobject,
     vm_pindex_t pindex, daddr_t addr)
 {
-	daddr_t dstaddr;
+	daddr_t dstaddr __diagused;
 
 	KASSERT((srcobject->flags & OBJ_SWAP) != 0,
 	    ("%s: Srcobject not swappable", __func__));

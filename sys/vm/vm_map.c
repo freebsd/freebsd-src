@@ -223,7 +223,7 @@ static void
 kmapent_free(void *item, vm_size_t size, uint8_t pflag)
 {
 	vm_offset_t addr;
-	int error;
+	int error __diagused;
 
 	if ((pflag & UMA_SLAB_PRIV) == 0)
 		/* XXX leaked */
@@ -4250,7 +4250,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 	vm_map_t new_map, old_map;
 	vm_map_entry_t new_entry, old_entry;
 	vm_object_t object;
-	int error, locked;
+	int error, locked __diagused;
 	vm_inherit_t inh;
 
 	old_map = &vm1->vm_map;
@@ -4600,13 +4600,13 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	vm_offset_t gap_end, gap_start, grow_start;
 	vm_size_t grow_amount, guard, max_grow;
 	rlim_t lmemlim, stacklim, vmemlim;
-	int rv, rv1;
+	int rv, rv1 __diagused;
 	bool gap_deleted, grow_down, is_procstack;
 #ifdef notyet
 	uint64_t limit;
 #endif
 #ifdef RACCT
-	int error;
+	int error __diagused;
 #endif
 
 	p = curproc;
