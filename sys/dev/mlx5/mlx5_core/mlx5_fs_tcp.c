@@ -93,15 +93,15 @@ mlx5e_accel_fs_add_inpcb(struct mlx5e_priv *priv,
 {
 	struct mlx5_flow_destination dest = {};
 	struct mlx5e_flow_table *ft = NULL;
-	struct mlx5e_accel_fs_tcp *fs_tcp;
+#if defined(INET) || defined(INET6)
+	struct mlx5e_accel_fs_tcp *fs_tcp = &priv->fts.accel_tcp;
+#endif
 	struct mlx5_flow_rule *flow;
 	struct mlx5_flow_spec *spec;
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return (ERR_PTR(-ENOMEM));
-
-	fs_tcp = &priv->fts.accel_tcp;
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
