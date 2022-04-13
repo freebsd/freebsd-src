@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2021
+.Dd April 22, 2022
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -351,9 +351,6 @@ But operations like
 and any other that operate on file and not on file descriptor (except
 .Xr fstat 2 ),
 are not allowed.
-File opened with the
-.Dv O_PATH
-flag does not prevent non-forced unmount of the volume it belongs to.
 .Pp
 A file descriptor created with the
 .Dv O_PATH
