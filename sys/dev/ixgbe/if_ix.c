@@ -3400,6 +3400,12 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 
 	mcnt = if_foreach_llmaddr(iflib_get_ifp(ctx), ixgbe_mc_filter_apply, sc);
 
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
+		update_ptr = (u8 *)mta;
+		ixgbe_update_mc_addr_list(&sc->hw, update_ptr, mcnt,
+		    ixgbe_mc_array_itr, true);
+	}
+
 	fctrl = IXGBE_READ_REG(&sc->hw, IXGBE_FCTRL);
 
 	if (ifp->if_flags & IFF_PROMISC)
@@ -3412,13 +3418,6 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 		fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_FCTRL, fctrl);
-
-	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
-		update_ptr = (u8 *)mta;
-		ixgbe_update_mc_addr_list(&sc->hw, update_ptr, mcnt,
-		    ixgbe_mc_array_itr, true);
-	}
-
 } /* ixgbe_if_multi_set */
 
 /************************************************************************
