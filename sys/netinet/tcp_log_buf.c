@@ -1495,7 +1495,7 @@ static void
 tcp_log_purge_tp_logbuf(struct tcpcb *tp)
 {
 	struct tcp_log_mem *log_entry;
-	struct inpcb *inp;
+	struct inpcb *inp __diagused;
 
 	inp = tp->t_inpcb;
 	INP_WLOCK_ASSERT(inp);
