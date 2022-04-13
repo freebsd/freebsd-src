@@ -1735,6 +1735,9 @@ em_if_multi_set(if_ctx_t ctx)
 
 	mcnt = if_foreach_llmaddr(ifp, em_copy_maddr, mta);
 
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		e1000_update_mc_addr_list(&sc->hw, mta, mcnt);
+
 	reg_rctl = E1000_READ_REG(&sc->hw, E1000_RCTL);
 
 	if (if_getflags(ifp) & IFF_PROMISC)
@@ -1747,9 +1750,6 @@ em_if_multi_set(if_ctx_t ctx)
 		reg_rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
 
 	E1000_WRITE_REG(&sc->hw, E1000_RCTL, reg_rctl);
-
-	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
-		e1000_update_mc_addr_list(&sc->hw, mta, mcnt);
 
 	if (sc->hw.mac.type == e1000_82542 &&
 	    sc->hw.revision_id == E1000_REVISION_2) {
