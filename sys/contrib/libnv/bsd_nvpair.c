@@ -552,7 +552,7 @@ unsigned char *
 nvpair_pack_string_array(const nvpair_t *nvp, unsigned char *ptr, size_t *leftp)
 {
 	unsigned int ii;
-	size_t size, len;
+	size_t size __unused, len;
 	const char * const *array;
 
 	NVPAIR_ASSERT(nvp);
