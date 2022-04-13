@@ -3087,7 +3087,7 @@ fgetvp_lookup(int fd, struct nameidata *ndp, struct vnode **vpp)
 		error = ENOTDIR;
 		goto out_free;
 	}
-	vref(vp);
+	vrefact(vp);
 	/*
 	 * XXX does not check for VDIR, handled by namei_setup
 	 */
@@ -3537,7 +3537,7 @@ _fgetvp(struct thread *td, int fd, int flags, cap_rights_t *needrightsp,
 		error = EINVAL;
 	} else {
 		*vpp = fp->f_vnode;
-		vref(*vpp);
+		vrefact(*vpp);
 	}
 	fdrop(fp, td);
 
@@ -3573,7 +3573,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 
 	*havecaps = caps;
 	*vpp = fp->f_vnode;
-	vref(*vpp);
+	vrefact(*vpp);
 	fdrop(fp, td);
 
 	return (0);
