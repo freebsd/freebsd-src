@@ -339,10 +339,8 @@ vf_uart_bus_getsig(struct uart_softc *sc)
 static int
 vf_uart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
-	struct uart_bas *bas;
 	int error;
 
-	bas = &sc->sc_bas;
 	error = 0;
 	uart_lock(sc->sc_hwmtx);
 	switch (request) {
@@ -369,7 +367,6 @@ vf_uart_bus_ipend(struct uart_softc *sc)
 	int ipend;
 	uint32_t usr1, usr2;
 	int reg;
-	int sfifo;
 
 	bas = &sc->sc_bas;
 	ipend = 0;
@@ -378,7 +375,7 @@ vf_uart_bus_ipend(struct uart_softc *sc)
 
 	usr1 = uart_getreg(bas, UART_S1);
 	usr2 = uart_getreg(bas, UART_S2);
-	sfifo = uart_getreg(bas, UART_SFIFO);
+	(void)uart_getreg(bas, UART_SFIFO);
 
 	/* ack usr2 */
 	uart_setreg(bas, UART_S2, usr2);
