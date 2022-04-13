@@ -315,7 +315,9 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     video_info_t info;
     struct winsize wsz;
     u_char *font;
+#ifndef SC_NO_HISTORY
     int prev_ysize;
+#endif
     int error;
     int s;
 
