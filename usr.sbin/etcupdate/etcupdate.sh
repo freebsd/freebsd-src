@@ -849,8 +849,8 @@ merge_file()
 			# the conflicts directory.
 			if [ -z "$dryrun" ]; then
 				install_dirs $NEWTREE $CONFLICTS $1
-				log "diff3 -m -A ${DESTDIR}$1 ${CONFLICTS}$1"
-				diff3 -m -A -L "yours" -L "original" -L "new" \
+				log "diff3 -m ${DESTDIR}$1 ${CONFLICTS}$1"
+				diff3 -m -L "yours" -L "original" -L "new" \
 				    ${DESTDIR}$1 ${OLDTREE}$1 ${NEWTREE}$1 > \
 				    ${CONFLICTS}$1
 			fi
