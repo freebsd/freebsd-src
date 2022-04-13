@@ -1219,8 +1219,6 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 		if ((flags & O_PATH) != 0) {
 			finit(fp, (flags & FMASK) | (fp->f_flag & FKQALLOWED),
 			    DTYPE_VNODE, NULL, &path_fileops);
-			vhold(vp);
-			vunref(vp);
 		} else {
 			finit_vnode(fp, flags, NULL, &vnops);
 		}
