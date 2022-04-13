@@ -138,7 +138,7 @@ struct rib_head *
 in6_inithead(uint32_t fibnum)
 {
 	struct rib_head *rh;
-	struct rib_subscription *rs;
+	struct rib_subscription *rs __diagused;
 
 	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3,
 	    AF_INET6, fibnum);

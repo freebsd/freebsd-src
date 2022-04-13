@@ -689,7 +689,7 @@ rip6_detach(struct socket *so)
 static void
 rip6_abort(struct socket *so)
 {
-	struct inpcb *inp;
+	struct inpcb *inp __diagused;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_abort: inp == NULL"));
@@ -700,7 +700,7 @@ rip6_abort(struct socket *so)
 static void
 rip6_close(struct socket *so)
 {
-	struct inpcb *inp;
+	struct inpcb *inp __diagused;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_close: inp == NULL"));

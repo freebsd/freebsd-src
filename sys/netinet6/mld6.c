@@ -2242,7 +2242,7 @@ mld_final_leave(struct in6_multi *inm, struct mld_ifsoftc *mli)
 				inm->in6m_state = MLD_NOT_MEMBER;
 				inm->in6m_sctimer = 0;
 			} else {
-				int retval;
+				int retval __diagused;
 
 				in6m_acquire_locked(inm);
 
