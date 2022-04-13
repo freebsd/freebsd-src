@@ -5138,7 +5138,7 @@ path_close(struct file *fp, struct thread *td)
 {
 	MPASS(fp->f_type == DTYPE_VNODE);
 	fp->f_ops = &badfileops;
-	vdrop(fp->f_vnode);
+	vrele(fp->f_vnode);
 	return (0);
 }
 
