@@ -605,7 +605,7 @@ static void
 mv_gpio_double_edge_init(device_t dev, int pin)
 {
 	uint8_t raw_read;
-	struct mv_gpio_softc *sc;
+	struct mv_gpio_softc *sc __unused;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
 	MV_GPIO_ASSERT_LOCKED();
