@@ -339,6 +339,7 @@ CFLAGS.zprop_common.c= -Wno-cast-qual
 CFLAGS.ddt.c= -Wno-cast-qual
 CFLAGS.dmu.c= -Wno-cast-qual
 CFLAGS.dmu_traverse.c= -Wno-cast-qual
+CFLAGS.dnode.c+= ${NO_WUNUSED_BUT_SET_VARIABLE}
 CFLAGS.dsl_dir.c= -Wno-cast-qual
 CFLAGS.dsl_deadlist.c= -Wno-cast-qual
 CFLAGS.dsl_prop.c= -Wno-cast-qual
