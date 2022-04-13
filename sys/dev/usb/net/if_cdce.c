@@ -1590,7 +1590,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc = usbd_xfer_get_frame(xfer, 0);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct mbuf *m;
-	int sumdata;
+	int sumdata __usbdebug_used;
 	int sumlen;
 	int actlen;
 	int aframes;

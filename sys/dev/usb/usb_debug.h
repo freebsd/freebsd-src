@@ -44,9 +44,11 @@ extern int usb_debug;
   }						\
 } while (0)
 #define	DPRINTF(...)	DPRINTFN(1, __VA_ARGS__)
+#define	__usbdebug_used
 #else
 #define	DPRINTF(...) do { } while (0)
 #define	DPRINTFN(...) do { } while (0)
+#define	__usbdebug_used __unused
 #endif
 #endif
 

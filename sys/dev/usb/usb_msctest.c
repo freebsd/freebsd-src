@@ -964,7 +964,7 @@ usb_error_t
 usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 {
 	struct bbb_transfer *sc;
-	usb_error_t err;
+	usb_error_t err __usbdebug_used;
 
 	sc = bbb_attach(udev, iface_index, UICLASS_MASS);
 	if (sc == NULL)
