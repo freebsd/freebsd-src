@@ -1143,13 +1143,11 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			   ((void *)p == (void *)anchor_call ||
 			   *(--p) == '/')) || (opts & PF_OPT_RECURSE))) {
 				brace++;
-				if ((p = strrchr(anchor_call, '/')) !=
-				    NULL)
-					p++;
-				else
-					p = &anchor_call[0];
-			} else
-				p = &anchor_call[0];
+				int aclen = strlen(anchor_call);
+				if (anchor_call[aclen - 1] == '*')
+					anchor_call[aclen - 2] = '\0';
+			}
+			p = &anchor_call[0];
 		
 			print_rule(&rule, p, rule_numbers, numeric);
 			if (brace)
