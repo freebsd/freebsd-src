@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.c,v 1.12 2019/08/02 01:41:24 djm Exp $	*/
+/*	$OpenBSD: test_helper.c,v 1.13 2021/12/14 21:25:27 deraadt Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -20,7 +20,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/uio.h>
 
 #include <stdarg.h>
@@ -43,6 +42,8 @@
 #if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H) && !defined(BROKEN_STRNVIS)
 # include <vis.h>
 #endif
+
+#define MINIMUM(a, b)    (((a) < (b)) ? (a) : (b))
 
 #include "entropy.h"
 #include "test_helper.h"
@@ -415,8 +416,8 @@ assert_mem(const char *file, int line, const char *a1, const char *a2,
 	r = memcmp(aa1, aa2, l);
 	TEST_CHECK_INT(r, pred);
 	test_header(file, line, a1, a2, "STRING", pred);
-	aa1_tohex = tohex(aa1, MIN(l, 256));
-	aa2_tohex = tohex(aa2, MIN(l, 256));
+	aa1_tohex = tohex(aa1, MINIMUM(l, 256));
+	aa2_tohex = tohex(aa2, MINIMUM(l, 256));
 	fprintf(stderr, "%12s = %s (len %zu)\n", a1, aa1_tohex, l);
 	fprintf(stderr, "%12s = %s (len %zu)\n", a2, aa2_tohex, l);
 	free(aa1_tohex);
@@ -455,7 +456,7 @@ assert_mem_filled(const char *file, int line, const char *a1,
 	r = memvalcmp(aa1, v, l, &where);
 	TEST_CHECK_INT(r, pred);
 	test_header(file, line, a1, NULL, "MEM_ZERO", pred);
-	aa1_tohex = tohex(aa1, MIN(l, 20));
+	aa1_tohex = tohex(aa1, MINIMUM(l, 20));
 	fprintf(stderr, "%20s = %s%s (len %zu)\n", a1,
 	    aa1_tohex, l > 20 ? "..." : "", l);
 	free(aa1_tohex);

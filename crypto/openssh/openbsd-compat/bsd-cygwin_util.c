@@ -194,11 +194,11 @@ _match_pattern(const char *s, const char *pattern)
 	size_t len;
 	int ret;
 
-	if ((len = mbstowcs(NULL, s, 0)) < 0)
+	if ((len = mbstowcs(NULL, s, 0)) == (size_t) -1)
 		return 0;
 	ws = (wchar_t *) xcalloc(len + 1, sizeof (wchar_t));
 	mbstowcs(ws, s, len + 1);
-	if ((len = mbstowcs(NULL, pattern, 0)) < 0)
+	if ((len = mbstowcs(NULL, pattern, 0)) == (size_t) -1)
 		return 0;
 	wpattern = (wchar_t *) xcalloc(len + 1, sizeof (wchar_t));
 	mbstowcs(wpattern, pattern, len + 1);

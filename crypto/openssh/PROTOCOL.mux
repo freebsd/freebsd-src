@@ -15,7 +15,7 @@ Most messages from the client to the server contain a "request id"
 field. This field is returned in replies as "client request id" to
 facilitate matching of responses to requests.
 
-Many muliplexing (mux) client requests yield immediate responses from
+Many multiplexing (mux) client requests yield immediate responses from
 the mux process; requesting a forwarding, performing an alive check or
 requesting the master terminate itself fall in to this category.
 
@@ -216,7 +216,7 @@ MUX_S_FAILURE.
 
 9. Requesting proxy mode
 
-A client may request that the the control connection be placed in proxy
+A client may request that the control connection be placed in proxy
 mode:
 
 	uint32	MUX_C_PROXY
@@ -295,4 +295,4 @@ XXX session inspection via master
 XXX signals via mux request
 XXX list active connections via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.12 2020/03/13 03:17:07 djm Exp $
+$OpenBSD: PROTOCOL.mux,v 1.13 2022/01/01 01:55:30 jsg Exp $

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_file.c,v 1.9 2020/06/19 03:48:49 djm Exp $ */
+/* 	$OpenBSD: test_file.c,v 1.10 2021/12/14 21:25:27 deraadt Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -8,7 +8,6 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -422,6 +421,7 @@ sshkey_file_tests(void)
 
 	sshkey_free(k1);
 
+#ifdef ENABLE_SK
 #if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
 	TEST_START("parse ECDSA-SK from private");
 	buf = load_file("ecdsa_sk1");
@@ -552,6 +552,7 @@ sshkey_file_tests(void)
 	TEST_DONE();
 
 	sshkey_free(k1);
+#endif /* ENABLE_SK */
 
 	sshbuf_free(pw);
 

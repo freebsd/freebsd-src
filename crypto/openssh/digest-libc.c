@@ -36,6 +36,16 @@
 #include <sha2.h>
 #endif
 
+#if !defined(SHA256_BLOCK_LENGTH) && defined(SHA256_HMAC_BLOCK_SIZE)
+#define SHA256_BLOCK_LENGTH SHA256_HMAC_BLOCK_SIZE
+#endif
+#if !defined(SHA384_BLOCK_LENGTH) && defined(SHA512_HMAC_BLOCK_SIZE)
+#define SHA384_BLOCK_LENGTH SHA512_HMAC_BLOCK_SIZE
+#endif
+#if !defined(SHA512_BLOCK_LENGTH) && defined(SHA512_HMAC_BLOCK_SIZE)
+#define SHA512_BLOCK_LENGTH SHA512_HMAC_BLOCK_SIZE
+#endif
+
 #include "ssherr.h"
 #include "sshbuf.h"
 #include "digest.h"

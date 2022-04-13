@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-helper.c,v 1.11 2020/10/18 11:32:02 djm Exp $ */
+/* $OpenBSD: ssh-sk-helper.c,v 1.12 2021/10/28 02:54:18 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -216,15 +216,17 @@ process_load_resident(struct sshbuf *req)
 	int r;
 	char *provider, *pin, *device;
 	struct sshbuf *kbuf, *resp;
-	struct sshkey **keys = NULL;
-	size_t nkeys = 0, i;
+	struct sshsk_resident_key **srks = NULL;
+	size_t nsrks = 0, i;
+	u_int flags;
 
 	if ((kbuf = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __progname);
 
 	if ((r = sshbuf_get_cstring(req, &provider, NULL)) != 0 ||
 	    (r = sshbuf_get_cstring(req, &device, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(req, &pin, NULL)) != 0)
+	    (r = sshbuf_get_cstring(req, &pin, NULL)) != 0 ||
+	    (r = sshbuf_get_u32(req, &flags)) != 0)
 		fatal_r(r, "%s: parse", __progname);
 	if (sshbuf_len(req) != 0)
 		fatal("%s: trailing data in request", __progname);
@@ -232,9 +234,9 @@ process_load_resident(struct sshbuf *req)
 	null_empty(&device);
 	null_empty(&pin);
 
-	if ((r = sshsk_load_resident(provider, device, pin,
-	    &keys, &nkeys)) != 0) {
-		resp = reply_error(r, " sshsk_load_resident failed: %s",
+	if ((r = sshsk_load_resident(provider, device, pin, flags,
+	    &srks, &nsrks)) != 0) {
+		resp = reply_error(r, "sshsk_load_resident failed: %s",
 		    ssh_err(r));
 		goto out;
 	}
@@ -245,21 +247,22 @@ process_load_resident(struct sshbuf *req)
 	if ((r = sshbuf_put_u32(resp, SSH_SK_HELPER_LOAD_RESIDENT)) != 0)
 		fatal_r(r, "%s: compose", __progname);
 
-	for (i = 0; i < nkeys; i++) {
-		debug_f("key %zu %s %s", i, sshkey_type(keys[i]),
-		    keys[i]->sk_application);
+	for (i = 0; i < nsrks; i++) {
+		debug_f("key %zu %s %s uidlen %zu", i,
+		    sshkey_type(srks[i]->key), srks[i]->key->sk_application,
+		    srks[i]->user_id_len);
 		sshbuf_reset(kbuf);
-		if ((r = sshkey_private_serialize(keys[i], kbuf)) != 0)
+		if ((r = sshkey_private_serialize(srks[i]->key, kbuf)) != 0)
 			fatal_r(r, "%s: encode key", __progname);
 		if ((r = sshbuf_put_stringb(resp, kbuf)) != 0 ||
-		    (r = sshbuf_put_cstring(resp, "")) != 0) /* comment */
+		    (r = sshbuf_put_cstring(resp, "")) != 0 || /* comment */
+		    (r = sshbuf_put_string(resp, srks[i]->user_id,
+		    srks[i]->user_id_len)) != 0)
 			fatal_r(r, "%s: compose key", __progname);
 	}
 
  out:
-	for (i = 0; i < nkeys; i++)
-		sshkey_free(keys[i]);
-	free(keys);
+	sshsk_free_resident_keys(srks, nsrks);
 	sshbuf_free(kbuf);
 	free(provider);
 	if (pin != NULL)

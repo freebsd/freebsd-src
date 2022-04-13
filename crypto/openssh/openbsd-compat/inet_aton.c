@@ -56,7 +56,6 @@
 #if !defined(HAVE_INET_ATON)
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <ctype.h>

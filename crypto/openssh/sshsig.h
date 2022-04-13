@@ -1,4 +1,4 @@
-/* $OpenBSD: sshsig.h,v 1.10 2021/07/23 03:37:52 djm Exp $ */
+/* $OpenBSD: sshsig.h,v 1.11 2021/11/27 07:14:46 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -103,5 +103,9 @@ int sshsig_get_pubkey(struct sshbuf *signature, struct sshkey **pubkey);
  */
 int sshsig_find_principals(const char *path, const struct sshkey *sign_key,
     uint64_t verify_time, char **principal);
+
+/* Find all principals in allowed_keys file matching *principal */
+int sshsig_match_principals(const char *path,
+	const char *principal, char ***principalsp, size_t *nprincipalsp);
 
 #endif /* SSHSIG_H */

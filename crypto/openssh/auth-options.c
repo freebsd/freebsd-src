@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.97 2021/07/24 01:55:19 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.98 2022/02/08 08:59:12 dtucker Exp $ */
 /*
  * Copyright (c) 2018 Damien Miller <djm@mindrot.org>
  *
@@ -282,7 +282,7 @@ handle_permit(const char **optsp, int allow_bare_port,
 	}
 	cp = tmp;
 	/* validate syntax before recording it. */
-	host = hpdelim(&cp);
+	host = hpdelim2(&cp, NULL);
 	if (host == NULL || strlen(host) >= NI_MAXHOST) {
 		free(tmp);
 		free(opt);

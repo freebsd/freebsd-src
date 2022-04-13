@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.34 2021/08/09 23:47:44 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.35 2022/01/01 01:55:30 jsg Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -183,7 +183,7 @@ int crossload_dir(struct sftp_conn *from, struct sftp_conn *to,
 char *path_append(const char *, const char *);
 
 /* Make absolute path if relative path and CWD is given. Does not modify
- * original if the the path is already absolute. */
+ * original if the path is already absolute. */
 char *make_absolute(char *, const char *);
 
 /* Check if remote path is directory */
