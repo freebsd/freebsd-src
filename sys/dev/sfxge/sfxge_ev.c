@@ -814,7 +814,7 @@ fail:
 void
 sfxge_ev_stop(struct sfxge_softc *sc)
 {
-	struct sfxge_intr *intr;
+	struct sfxge_intr *intr __diagused;
 	efx_nic_t *enp;
 	int index;
 
@@ -836,7 +836,7 @@ sfxge_ev_stop(struct sfxge_softc *sc)
 int
 sfxge_ev_start(struct sfxge_softc *sc)
 {
-	struct sfxge_intr *intr;
+	struct sfxge_intr *intr __diagused;
 	int index;
 	int rc;
 
@@ -957,7 +957,7 @@ fail_evq_stat_init:
 void
 sfxge_ev_fini(struct sfxge_softc *sc)
 {
-	struct sfxge_intr *intr;
+	struct sfxge_intr *intr __diagused;
 	int index;
 
 	intr = &sc->intr;
