@@ -304,13 +304,11 @@ qman_fqr_create(uint32_t fqids_num, e_QmFQChannel channel, uint8_t wq,
 {
 	struct qman_softc *sc;
 	t_QmFqrParams fqr;
-	unsigned int cpu;
 	t_Handle fqrh, portal;
 
 	sc = qman_sc;
 
 	sched_pin();
-	cpu = PCPU_GET(cpuid);
 
 	/* Ensure we have got QMan port initialized */
 	portal = qman_portal_setup(sc);

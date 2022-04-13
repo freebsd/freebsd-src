@@ -1493,7 +1493,6 @@ static t_Error QmPortalPullFrame(t_Handle h_QmPortal, uint32_t pdqcr, t_DpaaFD *
 {
     t_QmPortal              *p_QmPortal = (t_QmPortal *)h_QmPortal;
     struct qm_dqrr_entry    *p_Dq;
-    struct qman_fq          *p_Fq;
     int                     prefetch;
     uint32_t                *p_Dst, *p_Src;
 
@@ -1516,7 +1515,6 @@ static t_Error QmPortalPullFrame(t_Handle h_QmPortal, uint32_t pdqcr, t_DpaaFD *
         p_Dq = qm_dqrr_current(p_QmPortal->p_LowQmPortal);
         if (!p_Dq)
             continue;
-        p_Fq = ptr_from_aligned_int(p_Dq->contextB);
         ASSERT_COND(p_Dq->fqid);
         p_Dst = (uint32_t *)p_Frame;
         p_Src = (uint32_t *)&p_Dq->fd;
