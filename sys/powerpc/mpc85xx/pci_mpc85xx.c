@@ -551,12 +551,10 @@ fsl_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	struct fsl_pcib_softc *sc = device_get_softc(dev);
-	u_int devfn;
 
 	if (bus == sc->sc_busnr && !sc->sc_pcie &&
 	    slot < PCI_SLOT_FIRST)
 		return (~0);
-	devfn = DEVFN(bus, slot, func);
 
 	return (fsl_pcib_cfgread(sc, bus, slot, func, reg, bytes));
 }
@@ -770,11 +768,9 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 static int fsl_pcib_alloc_msi(device_t dev, device_t child,
     int count, int maxcount, int *irqs)
 {
-	struct fsl_pcib_softc *sc;
 	vmem_addr_t start;
 	int err, i;
 
-	sc = device_get_softc(dev);
 	if (msi_vmem == NULL)
 		return (ENODEV);
 
