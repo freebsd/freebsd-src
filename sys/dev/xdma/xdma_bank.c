@@ -48,11 +48,9 @@ void
 xchan_bank_init(xdma_channel_t *xchan)
 {
 	struct xdma_request *xr;
-	xdma_controller_t *xdma;
 	int i;
 
-	xdma = xchan->xdma;
-	KASSERT(xdma != NULL, ("xdma is NULL"));
+	KASSERT(xchan->xdma != NULL, ("xdma is NULL"));
 
 	xchan->xr_mem = malloc(sizeof(struct xdma_request) * xchan->xr_num,
 	    M_XDMA, M_WAITOK | M_ZERO);

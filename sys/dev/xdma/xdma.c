@@ -265,10 +265,8 @@ xdma_teardown_all_intr(xdma_channel_t *xchan)
 {
 	struct xdma_intr_handler *ih_tmp;
 	struct xdma_intr_handler *ih;
-	xdma_controller_t *xdma;
 
-	xdma = xchan->xdma;
-	KASSERT(xdma != NULL, ("xdma is NULL"));
+	KASSERT(xchan->xdma != NULL, ("xdma is NULL"));
 
 	TAILQ_FOREACH_SAFE(ih, &xchan->ie_handlers, ih_next, ih_tmp) {
 		TAILQ_REMOVE(&xchan->ie_handlers, ih, ih_next);
@@ -326,11 +324,9 @@ xdma_callback(xdma_channel_t *xchan, xdma_transfer_status_t *status)
 {
 	struct xdma_intr_handler *ih_tmp;
 	struct xdma_intr_handler *ih;
-	xdma_controller_t *xdma;
 	struct epoch_tracker et;
 
-	xdma = xchan->xdma;
-	KASSERT(xdma != NULL, ("xdma is NULL"));
+	KASSERT(xchan->xdma != NULL, ("xdma is NULL"));
 
 	TAILQ_FOREACH_SAFE(ih, &xchan->ie_handlers, ih_next, ih_tmp) {
 		if (ih->cb != NULL) {
