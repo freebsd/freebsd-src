@@ -292,11 +292,8 @@ DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclas
 static void
 bcm_systimer_delay(int usec, void *arg)
 {
-	struct bcm_systimer_softc *sc;
 	int32_t counts;
 	uint32_t first, last;
-
-	sc = (struct bcm_systimer_softc *) arg;
 
 	/* Get the number of times to count */
 	counts = usec * (bcm_systimer_tc.tc_frequency / 1000000) + 1;
