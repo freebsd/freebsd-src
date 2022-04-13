@@ -1795,7 +1795,7 @@ vtscsi_transport_reset_event(struct vtscsi_softc *sc,
 static void
 vtscsi_handle_event(struct vtscsi_softc *sc, struct virtio_scsi_event *event)
 {
-	int error;
+	int error __diagused;
 
 	if ((event->event & VIRTIO_SCSI_T_EVENTS_MISSED) == 0) {
 		switch (event->event) {
