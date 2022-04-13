@@ -336,10 +336,9 @@ static int
 cqspi_wait_ready(struct cqspi_softc *sc)
 {
 	uint8_t data;
-	int ret;
 
 	do {
-		ret = cqspi_cmd_read(sc, CMD_READ_STATUS, &data, 1);
+		cqspi_cmd_read(sc, CMD_READ_STATUS, &data, 1);
 	} while (data & STATUS_WIP);
 
 	return (0);
@@ -392,17 +391,16 @@ static int
 cqspi_erase(device_t dev, device_t child, off_t offset)
 {
 	struct cqspi_softc *sc;
-	int ret;
 
 	sc = device_get_softc(dev);
 
 	cqspi_wait_idle(sc);
 	cqspi_wait_ready(sc);
-	ret = cqspi_cmd_write(sc, CMD_WRITE_ENABLE, 0, 0);
+	cqspi_cmd_write(sc, CMD_WRITE_ENABLE, 0, 0);
 
 	cqspi_wait_idle(sc);
 	cqspi_wait_ready(sc);
-	ret = cqspi_cmd_write_addr(sc, CMD_QUAD_SECTOR_ERASE, offset, 4);
+	cqspi_cmd_write_addr(sc, CMD_QUAD_SECTOR_ERASE, offset, 4);
 
 	cqspi_wait_idle(sc);
 
@@ -422,7 +420,7 @@ cqspi_write(device_t dev, device_t child, struct bio *bp,
 	sc = device_get_softc(dev);
 
 	cqspi_wait_ready(sc);
-	reg = cqspi_cmd_write(sc, CMD_WRITE_ENABLE, 0, 0);
+	cqspi_cmd_write(sc, CMD_WRITE_ENABLE, 0, 0);
 
 	cqspi_wait_idle(sc);
 	cqspi_wait_ready(sc);
