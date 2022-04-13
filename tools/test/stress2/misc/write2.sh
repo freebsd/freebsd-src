@@ -32,6 +32,8 @@
 # "panic: Assertion tib != NULL failed at ../../../kern/tty_inq.c:467" seen:
 # https://people.freebsd.org/~pho/stress/log/log0272.txt
 
+# Fixed by: d76960962093
+
 num=`awk '/SYS_write[^a-z]/ {print $NF}' < /usr/include/sys/syscall.h`
 [ -z "$num" ] && exit 0
 
