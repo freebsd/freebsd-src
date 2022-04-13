@@ -140,15 +140,15 @@
 #define	GPR			0xa
 
 /* Bank 1, Offset 0xc: Control Register */
-#define	CTR			0xa
-#define	CTR_STORE		0x0001	/* Store registers to EEPROM */
-#define	CTR_RELOAD		0x0002	/* Reload registers from EEPROM */
-#define	CTR_EEPROM_SELECT	0x0004	/* Select registers to store/reload */
-#define	CTR_TE_ENABLE		0x0020	/* TX error causes EPH interrupt */
-#define	CTR_CR_ENABLE		0x0040	/* Ctr rollover causes EPH interrupt */
-#define	CTR_LE_ENABLE		0x0080	/* Link error causes EPH interrupt */
-#define	CTR_AUTO_RELEASE	0x0800	/* Automatically release TX packets */
-#define	CTR_RCV_BAD		0x4000	/* Receive/discard bad CRC packets */
+#define	CTRL			0xa
+#define	CTRL_STORE		0x0001	/* Store registers to EEPROM */
+#define	CTRL_RELOAD		0x0002	/* Reload registers from EEPROM */
+#define	CTRL_EEPROM_SELECT	0x0004	/* Select registers to store/reload */
+#define	CTRL_TE_ENABLE		0x0020	/* TX error causes EPH interrupt */
+#define	CTRL_CR_ENABLE		0x0040	/* Ctr rollover causes EPH interrupt */
+#define	CTRL_LE_ENABLE		0x0080	/* Link error causes EPH interrupt */
+#define	CTRL_AUTO_RELEASE	0x0800	/* Automatically release TX packets */
+#define	CTRL_RCV_BAD		0x4000	/* Receive/discard bad CRC packets */
 
 /* Bank 2, Offset 0x0: MMU Command Register */
 #define	MMUCR			0x0
