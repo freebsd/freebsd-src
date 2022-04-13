@@ -1812,7 +1812,6 @@ sched_pctcpu_update(struct td_sched *ts, int run)
 static void
 sched_thread_priority(struct thread *td, u_char prio)
 {
-	struct td_sched *ts;
 	struct tdq *tdq;
 	int oldpri;
 
@@ -1827,7 +1826,6 @@ sched_thread_priority(struct thread *td, u_char prio)
 		SDT_PROBE4(sched, , , lend__pri, td, td->td_proc, prio, 
 		    curthread);
 	} 
-	ts = td_get_sched(td);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
@@ -1848,7 +1846,7 @@ sched_thread_priority(struct thread *td, u_char prio)
 	 * information so other cpus are aware of our current priority.
 	 */
 	if (TD_IS_RUNNING(td)) {
-		tdq = TDQ_CPU(ts->ts_cpu);
+		tdq = TDQ_CPU(td_get_sched(td)->ts_cpu);
 		oldpri = td->td_priority;
 		td->td_priority = prio;
 		if (prio < tdq->tdq_lowpri)
