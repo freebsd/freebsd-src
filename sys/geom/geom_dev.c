@@ -570,23 +570,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		if (error == 0 && *(u_int *)data == 0)
 			error = ENOENT;
 		break;
-#ifdef COMPAT_FREEBSD11
-	case DIOCSKERNELDUMP_FREEBSD11:
-	    {
-		struct diocskerneldump_arg kda;
-
-		gone_in(13, "FreeBSD 11.x ABI compat");
-
-		bzero(&kda, sizeof(kda));
-		kda.kda_encryption = KERNELDUMP_ENC_NONE;
-		kda.kda_index = (*(u_int *)data ? 0 : KDA_REMOVE_ALL);
-		if (kda.kda_index == KDA_REMOVE_ALL)
-			error = dumper_remove(devtoname(dev), &kda);
-		else
-			error = g_dev_setdumpdev(dev, &kda);
-		break;
-	    }
-#endif
 #ifdef COMPAT_FREEBSD12
 	case DIOCSKERNELDUMP_FREEBSD12:
 	    {
