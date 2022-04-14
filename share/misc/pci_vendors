@@ -1,8 +1,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2022.03.06
-#	Date:    2022-03-06 03:15:01
+#	Version: 2022.03.22
+#	Date:    2022-03-22 03:15:02
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at https://pci-ids.ucw.cz/.
@@ -111,11 +111,18 @@
 	920b  JH920-I
 	920c  JH920-M
 	9210  JM9210
+		0731 9210  JM9210
+		0731 9211  JM9210-I
 	9211  JM9210-I
 	9230  JM9230
+		0731 9230  JM9230
+		0731 9231  JM9230-I
 	9231  JM9231-I
 	9250  JM9250
+		0731 9250  JM9250
 	930a  JH930-I
+		0731 930a  JH930-I
+		0731 930b  JH930-M
 	930b  JH930-M
 0777  Ubiquiti Networks, Inc.
 0795  Wired Inc.
@@ -937,6 +944,8 @@
 	10e2  MegaRAID 12GSAS/PCIe Secure SAS39xx
 # 9560 16 internal port RAID controller
 		1000 4000  MegaRAID 9560-16i
+# 9561 16 internal port RAID controller
+		1000 4002  MegaRAID 9561-16i
 # 9560 8 internal port RAID controller
 		1000 4010  MegaRAID 9560-8i
 # 9580 8 internal & 8 external port RAID controller
@@ -3760,11 +3769,12 @@
 		1eae 6701  XFX Speedster MERC 319 AMD Radeon RX 6800 XT Black
 	73c3  Navi 22
 	73c4  Navi 22 USB
-	73df  Navi 22 [Radeon RX 6700/6700 XT / 6800M]
+	73df  Navi 22 [Radeon RX 6700/6700 XT/6750 XT / 6800M]
 	73e0  Navi 23
 	73e1  Navi 23 WKS-XM [Radeon PRO W6600M]
 	73e3  Navi 23 WKS-XL [Radeon PRO W6600]
 	73e4  Navi 23 USB
+	73ef  Navi 23 [Radeon RX 6650 XT]
 	73ff  Navi 23 [Radeon RX 6600/6600 XT/6600M]
 		148c 2412  PowerColor Red Devil RX 6600 XT
 	7408  Aldebaran
@@ -4174,7 +4184,7 @@
 	ab10  Lexa HDMI Audio
 	ab18  Vega 12 HDMI Audio
 	ab20  Vega 20 HDMI Audio [Radeon VII]
-	ab28  Navi 21 HDMI Audio [Radeon RX 6800/6800 XT / 6900 XT]
+	ab28  Navi 21/23 HDMI/DP Audio Controller
 	ab38  Navi 10 HDMI Audio
 	ac00  Theater 506 World-Wide Analog Decoder
 	ac01  Theater 506 World-Wide Analog Decoder
@@ -12455,6 +12465,7 @@
 	2321  GA103
 	2414  GA103 [GeForce RTX 3060 Ti]
 	2420  GA103M [GeForce RTX 3080 Ti Mobile]
+	2438  GA103GLM [RTX A5500 Laptop GPU]
 	2460  GA103M [GeForce RTX 3080 Ti Laptop GPU]
 	2482  GA104 [GeForce RTX 3070 Ti]
 	2483  GA104
@@ -12477,6 +12488,9 @@
 	24b6  GA104GLM [RTX A5000 Mobile]
 	24b7  GA104GLM [RTX A4000 Mobile]
 	24b8  GA104GLM [RTX A3000 Mobile]
+	24b9  GA104GLM [RTX A3000 12GB Laptop GPU]
+	24ba  GA104GLM [RTX A4500 Laptop GPU]
+	24bb  GA104GLM [RTX A3000 Laptop GPU]
 	24bf  GA104 [GeForce RTX 3070 Engineering Sample]
 	24dc  GA104M [GeForce RTX 3080 Mobile / Max-Q 8GB/16GB]
 	24dd  GA104M [GeForce RTX 3070 Mobile / Max-Q]
@@ -12508,6 +12522,7 @@
 	25b6  GA107GL [A2 / A16]
 	25b8  GA107GLM [RTX A2000 Mobile]
 	25b9  GA107GLM [RTX A1000 Laptop GPU]
+	25ba  GA107GLM [RTX A2000 8GB Laptop GPU]
 	25e0  GA107BM [GeForce RTX 3050 Ti Mobile]
 	25e2  GA107BM [GeForce RTX 3050 Mobile]
 	25e5  GA107BM [GeForce RTX 3050 Mobile]
@@ -12743,6 +12758,7 @@
 		1028 09be  Latitude 7410
 		17aa 224f  ThinkPad X1 Carbon 5th Gen
 	5260  RTS5260 PCI Express Card Reader
+	5261  RTS5261 PCI Express Card Reader
 	5286  RTS5286 PCI Express Card Reader
 	5287  RTL8411B PCI Express Card Reader
 		1025 1094  Acer Aspire E5-575G
@@ -19138,8 +19154,10 @@
 		103c 1240  Myrinet M2L-PCI64/2-3.0 LANai 7.4 (HP OEM)
 14c2  DTK Computer
 14c3  MEDIATEK Corp.
+	0608  RZ608 Wi-Fi 6E 80MHz
 	0616  MT7922 802.11ax PCI Express Wireless Network Adapter
 	7612  MT7612E 802.11acbgn PCI Express Wireless Network Adapter
+	7615  MT7615E 802.11ac PCI Express Wireless Network Adapter
 	7630  MT7630e 802.11bgn Wireless Network Adapter
 # MT7612E too?
 	7662  MT7662E 802.11ac PCI Express Wireless Network Adapter
@@ -20702,6 +20720,7 @@
 	07b0  VMXNET3 Ethernet Controller
 	07c0  PVSCSI SCSI Controller
 	07e0  SATA AHCI controller
+	07f0  NVMe SSD Controller
 	0801  Virtual Machine Interface
 		15ad 0800  Hypervisor ROM Interface
 	0820  Paravirtual RDMA controller
@@ -20756,6 +20775,7 @@
 	0271  Spectrum-4L, RMA
 	0274  Spectrum-4C, Flash recovery mode
 	0275  Spectrum-4C RMA
+	0277  Spectrum-4TOR RMA
 	0281  NPS-600 Flash Recovery
 	1002  MT25400 Family [ConnectX-2 Virtual Function]
 	1003  MT27500 Family [ConnectX-3]
@@ -21030,8 +21050,9 @@
 15cc  Hotrail Inc
 15cd  Dreamtech Co Ltd
 15ce  Genrad Inc
-15cf  Hilscher GmbH
-	0000  CIFX 50E-DP(M/S)
+# https://www.hilscher.com/imprint/
+15cf  Hilscher Gesellschaft für Systemautomation mbH
+	0000  CIFX PCI/PCIe
 15d1  Infineon Technologies AG
 15d2  FIC (First International Computer Inc)
 15d3  NDS Technologies Israel Ltd
@@ -22034,6 +22055,7 @@
 	1000  QCS405 PCIe Root Complex
 	1101  QCA6390 Wireless Network Adapter [AX500-DBS (2x2)]
 	1103  Atheros QCNFA765
+	1104  QCN6024/9024/9074 Wireless Network Adapter
 17cc  NetChip Technology, Inc
 	2280  USB 2.0
 17cd  Cadence Design Systems, Inc.
@@ -23423,12 +23445,15 @@
 	1080  ASM1083/1085 PCIe to PCI Bridge
 		1849 1080  Motherboard
 	1142  ASM1042A USB 3.0 Host Controller
+	1166  ASM1166 Serial ATA Controller
 	1182  ASM1182e 2-Port PCIe x1 Gen2 Packet Switch
 		1b21 118f  ASM1182e 2-Port PCIe x1 Gen2 Packet Switch
 	1184  ASM1184e 4-Port PCIe x1 Gen2 Packet Switch
 		1849 1184  ASM1184e 4-Port PCIe x1 Gen2 Packet Switch
+	1187  ASM1187e 7-Port PCIe x1 Gen2 Packet Switch
 	1242  ASM1142 USB 3.1 Host Controller
 	1343  ASM1143 USB 3.1 Host Controller
+	1812  ASM1812 6-Port PCIe x4 Gen2 Packet Switch
 	2142  ASM2142 USB 3.1 Host Controller
 		1462 7a72  H270 PC MATE
 	2824  ASM2824 PCIe Gen3 Packet Switch
@@ -23655,6 +23680,10 @@
 		1bb1 0155  Nytro 5050M
 # Nytro 5050M TCG (Ebonhawk Mainstream Performance)
 		1bb1 0156  Nytro 5050M TCG
+# Nytro 5050M (Ebonhawk Mainstream Performance) - 7mm
+		1bb1 0157  Nytro 5050M 7mm
+# Nytro 5050M (Ebonhawk Mainstream Performance) TCG - 7mm
+		1bb1 0158  Nytro 5050M TCG 7mm
 		1bb1 01a1  Nytro XP7102
 	5012  FireCuda 510 SSD
 	5016  FireCuda 520 SSD
@@ -24452,7 +24481,7 @@
 	0102  Xplorer X1600
 # https://www.medion.com/
 1e39  MEDION AG
-1e3b  Shenzhen DAPU Microelectronics Co., Ltd
+1e3b  DapuStor Corporation
 	0600  NVMe SSD Controller DPU600
 		1e3b 0030  Enterprise NVMe SSD U.2 3.84TB (J5100)
 		1e3b 0031  Enterprise NVMe SSD U.2 7.68TB (J5100)
@@ -24534,6 +24563,9 @@
 		0000 0100  PY8800 64GB Accelerator
 1e59  Oxford Nanopore Technologies
 	0001  MinION Mk1C
+1e5d  ASR Microelectronics
+	7000  AI controller A7000
+	7010  AI controller A7010
 1e60  Hailo Technologies Ltd.
 	2864  Hailo-8 AI Processor
 1e68  Jiangsu Xinsheng Intelligent Technology Co., Ltd
@@ -24605,6 +24637,12 @@
 	5236  IG5236-Based NVMe SSD
 	5636  IG5636-Based NVMe SSD
 1f2f  China Mobile (Hangzhou) Information Technology Co.Ltd.
+	1513  DERA MENG NVMe Controller
+		1f2f 6113  KM660 U.2 1.6TB NVMe SSD
+		1f2f 6114  KM560 U.2 1.92TB NVMe SSD
+		1f2f 6115  KM660 U.2 3.2TB NVMe SSD
+		1f2f 6116  KM560 U.2 3.84TB NVMe SSD
+		1f2f 6118  KM560 U.2 7.68TB NVMe SSD
 1fab  Unifabrix Ltd.
 	0000  Nexus Alpha IVPU
 # nee Tumsan Oy
@@ -25366,6 +25404,9 @@
 7401  EndRun Technologies
 	e100  PTP3100 PCIe PTP Slave Clock
 7470  TP-LINK Technologies Co., Ltd.
+7526  HongQin (Beijing) Technology Co., Ltd.
+	0082  HQ SSD 1TB
+	0083  HQ SSD 2TB M.2 NVMe
 7604  O.N. Electronic Co Ltd.
 7bde  MIDAC Corporation
 7fed  PowerTV
@@ -26299,6 +26340,8 @@
 		8086 0010  Ethernet Network Adapter I710-T4L for OCP 3.0
 		8086 401a  Ethernet Network Adapter I710-T4L
 		8086 401b  Ethernet Network Adapter I710-T4L for OCP 3.0
+	0dda  Ethernet Connection X722 for 10GbE SFP+
+		1bd4 0076  Ethernet Connection X722 for 10GbE SFP+
 	0e00  Xeon E7 v2/Xeon E5 v2/Core i7 DMI2
 		1028 04f7  Xeon E5 v2 on PowerEdge R320 server
 		15d9 066b  X9SRL-F
@@ -27649,7 +27692,7 @@
 		8086 000c  Ethernet 100G 2P E810-C OCP
 		8086 000d  Ethernet Network Adapter E810-L-Q2 for OCP 3.0
 		8086 000e  Ethernet Network Adapter E810-2C-Q2
-		8086 0010  Intel(R) Ethernet 100G 2P E810-C-stg Adapter
+		8086 0010  Ethernet 100G 2P E810-C-stg Adapter
 	1593  Ethernet Controller E810-C for SFP
 		1137 02c3  E810XXVDA4 4x25/10 GbE SFP28 PCIe NIC
 		8086 0002  Ethernet Network Adapter E810-L-2
@@ -31374,6 +31417,7 @@
 	3432  5520/5500/X58 Chipset QuickData Technology Device
 	3433  5520/5500/X58 Chipset QuickData Technology Device
 	3438  7500/5520/5500/X58 I/O Hub Throttle Registers
+	347e  Ice Lake Xeon Non-Transparent Bridge
 	3482  Ice Lake-LP LPC Controller
 	34a3  Ice Lake-LP SMBus Controller
 	34a4  Ice Lake-LP SPI Controller
@@ -34459,6 +34503,8 @@ cddd  Tyzx, Inc.
 	0101  DeepSea 1 High Speed Stereo Vision Frame Grabber
 	0200  DeepSea 2 High Speed Stereo Vision Frame Grabber
 ceba  KEBA AG
+cf86  Spectrum-4TOR
+	0276  Spectrum-4TOR in Flash Recovery Mode
 d161  Digium, Inc.
 	0120  Wildcard TE120P single-span T1/E1/J1 card
 	0205  Wildcard TE205P/TE207P dual-span T1/E1/J1 card 5.0V
