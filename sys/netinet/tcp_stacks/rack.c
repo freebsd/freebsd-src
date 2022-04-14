@@ -240,6 +240,7 @@ static int32_t rack_enobuf_hw_boost_mult = 2;	/* How many times the hw rate we b
 static int32_t rack_enobuf_hw_max = 12000;	/* 12 ms in usecs */
 static int32_t rack_enobuf_hw_min = 10000;	/* 10 ms in usecs */
 static int32_t rack_hw_rwnd_factor = 2;		/* How many max_segs the rwnd must be before we hold off sending */
+
 /*
  * Currently regular tcp has a rto_min of 30ms
  * the backoff goes 12 times so that ends up
@@ -326,6 +327,10 @@ static int32_t rack_timely_no_stopping = 0;
 static int32_t rack_down_raise_thresh = 100;
 static int32_t rack_req_segs = 1;
 static uint64_t rack_bw_rate_cap = 0;
+static uint32_t rack_trace_point_config = 0;
+static uint32_t rack_trace_point_bb_mode = 4;
+static int32_t rack_trace_point_count = 0;
+
 
 /* Weird delayed ack mode */
 static int32_t rack_use_imac_dack = 0;
@@ -546,6 +551,25 @@ static void
 rack_apply_deferred_options(struct tcp_rack *rack);
 
 int32_t rack_clear_counter=0;
+
+static inline void
+rack_trace_point(struct tcp_rack *rack, int num)
+{
+	if (((rack_trace_point_config == num)  ||
+	     (rack_trace_point_config = 0xffffffff)) &&
+	    (rack_trace_point_bb_mode != 0) &&
+	    (rack_trace_point_count > 0) &&
+	    (rack->rc_tp->t_logstate == 0)) {
+		int res;
+		res = atomic_fetchadd_int(&rack_trace_point_count, -1);
+		if (res > 0) {
+			rack->rc_tp->t_logstate = rack_trace_point_bb_mode;
+		} else {
+			/* Loss a race assure its zero now */
+			rack_trace_point_count = 0;
+		}
+	}
+}
 
 static void
 rack_set_cc_pacing(struct tcp_rack *rack)
@@ -785,6 +809,7 @@ rack_init_sysctls(void)
 	struct sysctl_oid *rack_measure;
 	struct sysctl_oid *rack_probertt;
 	struct sysctl_oid *rack_hw_pacing;
+	struct sysctl_oid *rack_tracepoint;
 
 	rack_attack = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
@@ -915,6 +940,28 @@ rack_init_sysctls(void)
 	    OID_AUTO, "hbp_threshold", CTLFLAG_RW,
 	    &rack_hbp_thresh, 3,
 	    "We are highly buffered if min_rtt_seen / max_rtt_seen > this-threshold");
+
+	rack_tracepoint = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_sysctl_root),
+	    OID_AUTO,
+	    "tp",
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+	    "Rack tracepoint facility");
+	SYSCTL_ADD_U32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_tracepoint),
+	    OID_AUTO, "number", CTLFLAG_RW,
+	    &rack_trace_point_config, 0,
+	    "What is the trace point number to activate (0=none, 0xffffffff = all)?");
+	SYSCTL_ADD_U32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_tracepoint),
+	    OID_AUTO, "bbmode", CTLFLAG_RW,
+	    &rack_trace_point_bb_mode, 4,
+	    "What is BB logging mode that is activated?");
+	SYSCTL_ADD_S32(&rack_sysctl_ctx,
+	    SYSCTL_CHILDREN(rack_tracepoint),
+	    OID_AUTO, "count", CTLFLAG_RW,
+	    &rack_trace_point_count, 0,
+	    "How many connections will have BB logging turned on that hit the tracepoint?");
 	/* Pacing related sysctls */
 	rack_pacing = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
@@ -10286,6 +10333,7 @@ rack_collapsed_window(struct tcp_rack *rack)
 #endif
 	tcp_seq max_seq;
 
+	rack_trace_point(rack, RACK_TP_COLLAPSED_WND);
 	max_seq = rack->rc_tp->snd_una + rack->rc_tp->snd_wnd;
 	memset(&fe, 0, sizeof(fe));
 	fe.r_start = max_seq;
@@ -15983,6 +16031,10 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 	counter_u64_add(rack_fto_rsm_send, 1);
 	if (error && (error == ENOBUFS)) {
+		if (rack->r_ctl.crte != NULL) {
+			rack_trace_point(rack, RACK_TP_HWENOBUF);
+		} else
+			rack_trace_point(rack, RACK_TP_ENOBUF);
 		slot = ((1 + rack->rc_enobuf) * HPTS_USEC_IN_MSEC);
 		if (rack->rc_enobuf < 0x7f)
 			rack->rc_enobuf++;
@@ -18839,6 +18891,10 @@ nomore:
 			 * Pace us right away to retry in a some
 			 * time
 			 */
+			if (rack->r_ctl.crte != NULL) {
+				rack_trace_point(rack, RACK_TP_HWENOBUF);
+			} else
+				rack_trace_point(rack, RACK_TP_ENOBUF);
 			slot = ((1 + rack->rc_enobuf) * HPTS_USEC_IN_MSEC);
 			if (rack->rc_enobuf < 0x7f)
 				rack->rc_enobuf++;

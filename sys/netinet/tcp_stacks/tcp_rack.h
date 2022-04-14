@@ -261,6 +261,36 @@ struct rack_opts_stats {
 #define RACK_QUALITY_PROBERTT	4	/* A measurement where we went into or exited probe RTT */
 #define RACK_QUALITY_ALLACKED	5	/* All data is now acknowledged */
 
+/*********************/
+/* Rack Trace points */
+/*********************/
+/*
+ * Rack trace points are interesting points within
+ * the rack code that the author/debugger may want
+ * to have BB logging enabled if we hit that point.
+ * In order to enable a trace point you set the
+ * sysctl var net.inet.tcp.<stack>.tp.number to
+ * one of the numbers listed below. You also
+ * must make sure net.inet.tcp.<stack>.tp.bbmode is
+ * non-zero, the default is 4 for continous tracing.
+ * You also set in the number of connections you want
+ * have get BB logs in net.inet.tcp.<stack>.tp.count.
+ * 
+ * Count will decrement every time BB logging is assigned
+ * to a connection that hit your tracepoint.
+ *
+ * You can enable all trace points by setting the number
+ * to 0xffffffff. You can disable all trace points by
+ * setting number to zero (or count to 0).
+ *
+ * Below are the enumerated list of tracepoints that
+ * have currently been defined in the code. Add more
+ * as you add a call to rack_trace_point(rack, <name>);
+ * where <name> is defined below.
+ */
+#define RACK_TP_HWENOBUF	0x00000001	/* When we are doing hardware pacing and hit enobufs */
+#define RACK_TP_ENOBUF		0x00000002	/* When we hit enobufs with software pacing */
+#define RACK_TP_COLLAPSED_WND	0x00000003	/* When a peer to collapses its rwnd on us */
 
 #define MIN_GP_WIN 6	/* We need at least 6 MSS in a GP measurement */
 #ifdef _KERNEL
