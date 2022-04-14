@@ -10,7 +10,8 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 TESTSDIR=	${TESTSBASE}/sys/kern
 
 ATF_TESTS_C+=	basic_signal
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH} != "powerpc" && \
+	${MACHINE_ARCH} != "powerpcspe"
 # No support for atomic_load_64 on i386 or (32-bit) powerpc
 ATF_TESTS_C+=	kcov
 .endif
