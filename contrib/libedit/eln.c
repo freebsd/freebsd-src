@@ -1,4 +1,4 @@
-/*	$NetBSD: eln.c,v 1.36 2021/08/15 10:08:41 christos Exp $	*/
+/*	$NetBSD: eln.c,v 1.37 2022/01/11 18:30:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: eln.c,v 1.36 2021/08/15 10:08:41 christos Exp $");
+__RCSID("$NetBSD: eln.c,v 1.37 2022/01/11 18:30:15 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <errno.h>
@@ -385,4 +385,10 @@ int
 el_insertstr(EditLine *el, const char *str)
 {
 	return el_winsertstr(el, ct_decode_string(str, &el->el_lgcyconv));
+}
+
+int
+el_replacestr(EditLine *el, const char *str)
+{
+	return el_wreplacestr(el, ct_decode_string(str, &el->el_lgcyconv));
 }
