@@ -1,4 +1,4 @@
-/*	$NetBSD: chartype.h,v 1.36 2019/09/15 21:09:11 christos Exp $	*/
+/*	$NetBSD: chartype.h,v 1.37 2022/04/11 19:37:20 tnn Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -35,6 +35,7 @@
  * been around since 2001... */
 #if	!defined(__NetBSD__) && \
 	!defined(__sun) && \
+	!defined(__osf__) && \
 	!(defined(__APPLE__) && defined(__MACH__)) && \
 	!defined(__OpenBSD__) && \
 	!defined(__FreeBSD__) && \

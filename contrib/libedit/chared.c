@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.59 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.62 2022/02/08 21:13:22 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: chared.c,v 1.59 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: chared.c,v 1.62 2022/02/08 21:13:22 rillig Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -622,6 +622,69 @@ el_deletestr(EditLine *el, int n)
 	el->el_line.cursor -= n;
 	if (el->el_line.cursor < el->el_line.buffer)
 		el->el_line.cursor = el->el_line.buffer;
+}
+
+/* el_deletestr1():
+ *	Delete characters between start and end
+ */
+int
+el_deletestr1(EditLine *el, int start, int end)
+{
+	size_t line_length, len;
+	wchar_t *p1, *p2;
+
+	if (end <= start)
+		return 0;
+
+	line_length = (size_t)(el->el_line.lastchar - el->el_line.buffer);
+
+	if (start >= (int)line_length || end >= (int)line_length)
+		return 0;
+
+	len = (size_t)(end - start);
+	if (len > line_length - (size_t)end)
+		len = line_length - (size_t)end;
+
+	p1 = el->el_line.buffer + start;
+	p2 = el->el_line.buffer + end;
+	for (size_t i = 0; i < len; i++) {
+		*p1++ = *p2++;
+		el->el_line.lastchar--;
+	}
+
+	if (el->el_line.cursor < el->el_line.buffer)
+		el->el_line.cursor = el->el_line.buffer;
+
+	return end - start;
+}
+
+/* el_wreplacestr():
+ *	Replace the contents of the line with the provided string
+ */
+int
+el_wreplacestr(EditLine *el, const wchar_t *s)
+{
+	size_t len;
+	wchar_t * p;
+
+	if (s == NULL || (len = wcslen(s)) == 0)
+		return -1;
+
+	if (el->el_line.buffer + len >= el->el_line.limit) {
+		if (!ch_enlargebufs(el, len))
+			return -1;
+	}
+
+	p = el->el_line.buffer;
+	for (size_t i = 0; i < len; i++)
+		*p++ = *s++;
+
+	el->el_line.buffer[len] = '\0';
+	el->el_line.lastchar = el->el_line.buffer + len;
+	if (el->el_line.cursor > el->el_line.lastchar)
+		el->el_line.cursor = el->el_line.lastchar;
+
+	return 0;
 }
 
 /* el_cursor():
