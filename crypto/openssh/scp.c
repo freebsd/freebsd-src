@@ -449,7 +449,7 @@ main(int argc, char **argv)
 	const char *errstr;
 	extern char *optarg;
 	extern int optind;
-	enum scp_mode_e mode = MODE_SCP;
+	enum scp_mode_e mode = MODE_SFTP;
 	char *sftp_direct = NULL;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
