@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.168 2021/09/10 18:51:36 rillig Exp $	*/
+/*	$NetBSD: readline.c,v 1.174 2022/04/08 20:11:31 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.168 2021/09/10 18:51:36 rillig Exp $");
+__RCSID("$NetBSD: readline.c,v 1.174 2022/04/08 20:11:31 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -43,6 +43,7 @@ __RCSID("$NetBSD: readline.c,v 1.168 2021/09/10 18:51:36 rillig Exp $");
 #include <limits.h>
 #include <pwd.h>
 #include <setjmp.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,8 +113,8 @@ const char *rl_basic_quote_characters = "\"'";
 rl_compentry_func_t *rl_completion_entry_function = NULL;
 char *(*rl_completion_word_break_hook)(void) = NULL;
 rl_completion_func_t *rl_attempted_completion_function = NULL;
-Function *rl_pre_input_hook = NULL;
-Function *rl_startup1_hook = NULL;
+rl_hook_func_t *rl_pre_input_hook = NULL;
+rl_hook_func_t *rl_startup1_hook = NULL;
 int (*rl_getc_function)(FILE *) = NULL;
 char *rl_terminal_name = NULL;
 int rl_already_prompted = 0;
@@ -122,12 +123,12 @@ int rl_ignore_completion_duplicates = 0;
 int readline_echoing_p = 1;
 int _rl_print_completions_horizontally = 0;
 VFunction *rl_redisplay_function = NULL;
-Function *rl_startup_hook = NULL;
+rl_hook_func_t *rl_startup_hook = NULL;
 VFunction *rl_completion_display_matches_hook = NULL;
 VFunction *rl_prep_term_function = (VFunction *)rl_prep_terminal;
 VFunction *rl_deprep_term_function = (VFunction *)rl_deprep_terminal;
 KEYMAP_ENTRY_ARRAY emacs_meta_keymap;
-unsigned long rl_readline_state;
+unsigned long rl_readline_state = RL_STATE_NONE;
 int _rl_complete_mark_directories;
 rl_icppfunc_t *rl_directory_completion_hook;
 int rl_completion_suppress_append;
@@ -136,11 +137,13 @@ int _rl_completion_prefix_display_length;
 int _rl_echoing_p;
 int history_max_entries;
 char *rl_display_prompt;
+int rl_erase_empty_line;
 
 /*
  * The current prompt string.
  */
 char *rl_prompt = NULL;
+char *rl_prompt_saved = NULL;
 /*
  * This is set to character indicating type of completion being done by
  * rl_complete_internal(); this is available for application completion
@@ -278,6 +281,21 @@ rl_set_prompt(const char *prompt)
 	return 0;
 }
 
+void
+rl_save_prompt(void)
+{
+	rl_prompt_saved = strdup(rl_prompt);
+}
+
+void
+rl_restore_prompt(void)
+{
+	if (!rl_prompt_saved)
+		return;
+	rl_prompt = rl_prompt_saved;
+	rl_prompt_saved = NULL;
+}
+
 /*
  * initialize rl compat stuff
  */
@@ -292,6 +310,8 @@ rl_initialize(void)
 		el_end(e);
 	if (h != NULL)
 		history_end(h);
+
+	RL_UNSETSTATE(RL_STATE_DONE);
 
 	if (!rl_instream)
 		rl_instream = stdin;
@@ -425,7 +445,7 @@ readline(const char *p)
 	if (e == NULL || h == NULL)
 		rl_initialize();
 	if (rl_startup_hook) {
-		(*rl_startup_hook)(NULL, 0);
+		(*rl_startup_hook)();
 	}
 	tty_init(e);
 
@@ -440,7 +460,7 @@ readline(const char *p)
 		goto out;
 
 	if (rl_pre_input_hook)
-		(*rl_pre_input_hook)(NULL, 0);
+		(*rl_pre_input_hook)();
 
 	if (rl_event_hook && !(e->el_flags & NO_TTY)) {
 		el_set(e, EL_GETCFN, _rl_event_read_char);
@@ -2127,10 +2147,12 @@ rl_callback_read_char(void)
 		if (done == 2) {
 			if ((wbuf = strdup(buf)) != NULL)
 				wbuf[count] = '\0';
+			RL_SETSTATE(RL_STATE_DONE);
 		} else
 			wbuf = NULL;
 		(*(void (*)(const char *))rl_linefunc)(wbuf);
 	}
+	_rl_update_pos();
 }
 
 void
@@ -2158,6 +2180,7 @@ rl_redisplay(void)
 	a[0] = (char)e->el_tty.t_c[TS_IO][C_REPRINT];
 	a[1] = '\0';
 	el_push(e, a);
+	rl_forced_update_display();
 }
 
 int
@@ -2281,6 +2304,56 @@ _rl_update_pos(void)
 	rl_line_buffer[rl_end] = '\0';
 }
 
+char *
+rl_copy_text(int from, int to)
+{
+	const LineInfo *li;
+	size_t len;
+	char * out;
+
+	if (h == NULL || e == NULL)
+		rl_initialize();
+
+	li = el_line(e);
+
+	if (from > to)
+		return NULL;
+
+	if (li->buffer + from > li->lastchar)
+		from = (int)(li->lastchar - li->buffer);
+
+	if (li->buffer + to > li->lastchar)
+		to = (int)(li->lastchar - li->buffer);
+
+	len = (size_t)(to - from);
+	out = el_malloc((size_t)len + 1);
+	(void)strlcpy(out, li->buffer + from , len);
+
+	return out;
+}
+
+void
+rl_replace_line(const char * text, int clear_undo __attribute__((__unused__)))
+{
+	if (!text || *text == 0)
+		return;
+
+	if (h == NULL || e == NULL)
+		rl_initialize();
+
+	el_replacestr(e, text);
+}
+
+int
+rl_delete_text(int start, int end)
+{
+
+	if (h == NULL || e == NULL)
+		rl_initialize();
+
+	return el_deletestr1(e, start, end);
+}
+
 void
 rl_get_screen_size(int *rows, int *cols)
 {
@@ -2288,6 +2361,21 @@ rl_get_screen_size(int *rows, int *cols)
 		el_get(e, EL_GETTC, "li", rows);
 	if (cols)
 		el_get(e, EL_GETTC, "co", cols);
+}
+
+#define MAX_MESSAGE 160
+void
+rl_message(const char *format, ...)
+{
+	char msg[MAX_MESSAGE];
+	va_list args;
+
+	va_start(args, format);
+	vsnprintf(msg, sizeof(msg), format, args);
+	va_end(args);
+
+	rl_set_prompt(msg);
+	rl_forced_update_display();
 }
 
 void
@@ -2433,6 +2521,14 @@ int
 rl_bind_key_in_map(int key __attribute__((__unused__)),
     rl_command_func_t *fun __attribute__((__unused__)),
     Keymap k __attribute__((__unused__)))
+{
+	return 0;
+}
+
+int
+rl_set_key(const char *keyseq  __attribute__((__unused__)),
+	rl_command_func_t *function __attribute__((__unused__)),
+	Keymap k __attribute__((__unused__)))
 {
 	return 0;
 }
