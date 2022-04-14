@@ -37,7 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 /** @file drm_vm.c
- * Support code for mapping of DRM maps.
+ * Support code for mmaping of DRM maps.
  */
 
 #include <dev/drm2/drmP.h>
