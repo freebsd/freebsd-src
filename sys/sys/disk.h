@@ -58,12 +58,6 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * disk label formats.  Don't use it unless you have to.
 	 */
 
-#define	DIOCSKERNELDUMP_FREEBSD11 _IOW('d', 133, u_int)
-	/*
-	 * Enable/Disable (the argument is boolean) the device for kernel
-	 * core dumps.
-	 */
-
 #define	DIOCGFLUSH _IO('d', 135)		/* Flush write cache */
 	/*
 	 * Flush write cache of the device.
