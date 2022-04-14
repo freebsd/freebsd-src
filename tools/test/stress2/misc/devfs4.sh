@@ -32,4 +32,7 @@
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
+# This test creates havoc for a lot of programs
+exit 0
+
 umount -f /dev && mount /dev
