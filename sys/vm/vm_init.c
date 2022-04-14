@@ -235,7 +235,7 @@ again:
 	if (bio_transient_maxcnt != 0) {
 		size = (long)bio_transient_maxcnt * maxphys;
 		vmem_init(transient_arena, "transient arena",
-		    firstaddr, size, PAGE_SIZE, 0, 0);
+		    firstaddr, size, PAGE_SIZE, 0, M_WAITOK);
 		firstaddr += size;
 	}
 	if (firstaddr != kmi->clean_eva)
