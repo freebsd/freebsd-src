@@ -254,6 +254,8 @@ struct vi_info {
 	struct sysctl_oid *ofld_txq_oid;
 
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
+	u_int txq_rr;
+	u_int rxq_rr;
 };
 
 struct tx_ch_rl_params {

@@ -376,6 +376,11 @@ enum {
 	OPEN_TYPE_DONTCARE = 'D',
 };
 
+enum {
+	QUEUE_RANDOM = -1,
+	QUEUE_ROUNDROBIN = -2,
+};
+
 struct offload_settings {
 	int8_t offload;
 	int8_t rx_coalesce;
