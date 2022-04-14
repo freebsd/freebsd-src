@@ -90,9 +90,8 @@ struct hpts_diag {
 				 * Note do not set this to 0.
 				 */
 #define DYNAMIC_MIN_SLEEP DEFAULT_MIN_SLEEP
-#define DYNAMIC_MAX_SLEEP 100000	/* 100ms */
-/* No of connections when wee start aligning to the cpu from syscalls */
-#define OLDEST_THRESHOLD 1200
+#define DYNAMIC_MAX_SLEEP 5000	/* 5ms */
+
 /* Thresholds for raising/lowering sleep */
 #define TICKS_INDICATE_MORE_SLEEP 100		/* This would be 1ms */
 #define TICKS_INDICATE_LESS_SLEEP 1000		/* This would indicate 10ms */
