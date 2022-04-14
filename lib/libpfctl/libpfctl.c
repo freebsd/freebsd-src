@@ -59,6 +59,49 @@ const char* PFCTL_SYNCOOKIES_MODE_NAMES[] = {
 static int	_pfctl_clear_states(int , const struct pfctl_kill *,
 		    unsigned int *, uint64_t);
 
+static int
+pfctl_do_ioctl(int dev, uint cmd, size_t size, nvlist_t **nvl)
+{
+	struct pfioc_nv nv;
+	void *data;
+	size_t nvlen;
+	int ret;
+
+	data = nvlist_pack(*nvl, &nvlen);
+
+retry:
+	nv.data = malloc(size);
+	memcpy(nv.data, data, nvlen);
+	free(data);
+
+	nv.len = nvlen;
+	nv.size = size;
+
+	ret = ioctl(dev, cmd, &nv);
+	if (ret == -1 && errno == ENOSPC) {
+		size *= 2;
+		free(nv.data);
+		goto retry;
+	}
+
+	nvlist_destroy(*nvl);
+	*nvl = NULL;
+
+	if (ret == 0) {
+		*nvl = nvlist_unpack(nv.data, nv.len, 0);
+		if (*nvl == NULL) {
+			free(nv.data);
+			return (EIO);
+		}
+	} else {
+		ret = errno;
+	}
+
+	free(nv.data);
+
+	return (ret);
+}
+
 static void
 pf_nvuint_8_array(const nvlist_t *nvl, const char *name, size_t maxelems,
     uint8_t *numbers, size_t *nelems)
@@ -159,7 +202,6 @@ _pfctl_get_status_counters(const nvlist_t *nvl,
 struct pfctl_status *
 pfctl_get_status(int dev)
 {
-	struct pfioc_nv	 nv;
 	struct pfctl_status	*status;
 	nvlist_t	*nvl;
 	size_t		 len;
@@ -169,18 +211,9 @@ pfctl_get_status(int dev)
 	if (status == NULL)
 		return (NULL);
 
-	nv.data = malloc(4096);
-	nv.len = nv.size = 4096;
+	nvl = nvlist_create(0);
 
-	if (ioctl(dev, DIOCGETSTATUSNV, &nv)) {
-		free(nv.data);
-		free(status);
-		return (NULL);
-	}
-
-	nvl = nvlist_unpack(nv.data, nv.len, 0);
-	free(nv.data);
-	if (nvl == NULL) {
+	if (pfctl_do_ioctl(dev, DIOCGETSTATUSNV, 4096, &nvl)) {
 		free(status);
 		return (NULL);
 	}
@@ -626,31 +659,16 @@ int
 pfctl_get_eth_rulesets_info(int dev, struct pfctl_eth_rulesets_info *ri,
     const char *path)
 {
-	uint8_t buf[1024];
-	struct pfioc_nv nv;
 	nvlist_t *nvl;
-	void *packed;
-	size_t len;
+	int ret;
 
 	bzero(ri, sizeof(*ri));
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "path", path);
-	packed = nvlist_pack(nvl, &len);
-	memcpy(buf, packed, len);
-	free(packed);
-	nvlist_destroy(nvl);
 
-	nv.data = buf;
-	nv.len = len;
-	nv.size = sizeof(buf);
-
-	if (ioctl(dev, DIOCGETETHRULESETS, &nv) != 0)
-		return (errno);
-
-	nvl = nvlist_unpack(buf, nv.len, 0);
-	if (nvl == NULL)
-		return (EIO);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULESETS, 256, &nvl)) != 0)
+		return (ret);
 
 	ri->nr = nvlist_get_number(nvl, "nr");
 
@@ -662,32 +680,17 @@ int
 pfctl_get_eth_ruleset(int dev, const char *path, int nr,
     struct pfctl_eth_ruleset_info *ri)
 {
-	uint8_t buf[1024];
-	struct pfioc_nv nv;
 	nvlist_t *nvl;
-	void *packed;
-	size_t len;
+	int ret;
 
 	bzero(ri, sizeof(*ri));
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "path", path);
 	nvlist_add_number(nvl, "nr", nr);
-	packed = nvlist_pack(nvl, &len);
-	memcpy(buf, packed, len);
-	free(packed);
-	nvlist_destroy(nvl);
 
-	nv.data = buf;
-	nv.len = len;
-	nv.size = sizeof(buf);
-
-	if (ioctl(dev, DIOCGETETHRULESET, &nv) != 0)
-		return (errno);
-
-	nvl = nvlist_unpack(buf, nv.len, 0);
-	if (nvl == NULL)
-		return (EIO);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULESET, 1024, &nvl)) != 0)
+		return (ret);
 
 	ri->nr = nvlist_get_number(nvl, "nr");
 	strlcpy(ri->path, nvlist_get_string(nvl, "path"), MAXPATHLEN);
@@ -701,31 +704,16 @@ int
 pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules,
     const char *path)
 {
-	uint8_t buf[1024];
-	struct pfioc_nv nv;
 	nvlist_t *nvl;
-	void *packed;
-	size_t len;
+	int ret;
 
 	bzero(rules, sizeof(*rules));
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "anchor", path);
-	packed = nvlist_pack(nvl, &len);
-	memcpy(buf, packed, len);
-	free(packed);
-	nvlist_destroy(nvl);
 
-	nv.data = buf;
-	nv.len = len;
-	nv.size = sizeof(buf);
-
-	if (ioctl(dev, DIOCGETETHRULES, &nv) != 0)
-		return (errno);
-
-	nvl = nvlist_unpack(buf, nv.len, 0);
-	if (nvl == NULL)
-		return (EIO);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULES, 1024, &nvl)) != 0)
+		return (ret);
 
 	rules->nr = nvlist_get_number(nvl, "nr");
 	rules->ticket = nvlist_get_number(nvl, "ticket");
@@ -739,11 +727,8 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
     const char *path, struct pfctl_eth_rule *rule, bool clear,
     char *anchor_call)
 {
-	uint8_t buf[2048];
-	struct pfioc_nv nv;
 	nvlist_t *nvl;
-	void *data;
-	size_t len;
+	int ret;
 
 	nvl = nvlist_create(0);
 
@@ -752,22 +737,8 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 	nvlist_add_number(nvl, "nr", nr);
 	nvlist_add_bool(nvl, "clear", clear);
 
-	data = nvlist_pack(nvl, &len);
-	nv.data = buf;
-	memcpy(buf, data, len);
-	free(data);
-	nv.len = len;
-	nv.size = sizeof(buf);
-	if (ioctl(dev, DIOCGETETHRULE, &nv)) {
-		nvlist_destroy(nvl);
-		return (errno);
-	}
-	nvlist_destroy(nvl);
-
-	nvl = nvlist_unpack(buf, nv.len, 0);
-	if (nvl == NULL) {
-		return (EIO);
-	}
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULE, 2048, &nvl)) != 0)
+		return (ret);
 
 	pfctl_nveth_rule_to_eth_rule(nvl, rule);
 
@@ -1004,9 +975,7 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call, bool clear)
 {
-	struct pfioc_nv nv;
 	nvlist_t *nvl;
-	void *nvlpacked;
 	int ret;
 
 	nvl = nvlist_create(0);
@@ -1021,30 +990,8 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 	if (clear)
 		nvlist_add_bool(nvl, "clear_counter", true);
 
-	nvlpacked = nvlist_pack(nvl, &nv.len);
-	if (nvlpacked == NULL) {
-		nvlist_destroy(nvl);
-		return (ENOMEM);
-	}
-	nv.data = malloc(8182);
-	nv.size = 8192;
-	assert(nv.len <= nv.size);
-	memcpy(nv.data, nvlpacked, nv.len);
-	nvlist_destroy(nvl);
-	nvl = NULL;
-	free(nvlpacked);
-
-	ret = ioctl(dev, DIOCGETRULENV, &nv);
-	if (ret != 0) {
-		free(nv.data);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETRULENV, 8192, &nvl)) != 0)
 		return (ret);
-	}
-
-	nvl = nvlist_unpack(nv.data, nv.len, 0);
-	if (nvl == NULL) {
-		free(nv.data);
-		return (EIO);
-	}
 
 	pf_nvrule_to_rule(nvlist_get_nvlist(nvl, "rule"), rule);
 
@@ -1052,7 +999,6 @@ int	pfctl_get_clear_rule(int dev, uint32_t nr, uint32_t ticket,
 		strlcpy(anchor_call, nvlist_get_string(nvl, "anchor_call"),
 		    MAXPATHLEN);
 
-	free(nv.data);
 	nvlist_destroy(nvl);
 
 	return (0);
@@ -1238,22 +1184,8 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_add_string(nvl, "label", kill->label);
 	nvlist_add_bool(nvl, "kill_match", kill->kill_match);
 
-	nv.data = nvlist_pack(nvl, &nv.len);
-	nv.size = nv.len;
-	nvlist_destroy(nvl);
-	nvl = NULL;
-
-	ret = ioctl(dev, ioctlval, &nv);
-	if (ret != 0) {
-		free(nv.data);
+	if ((ret = pfctl_do_ioctl(dev, ioctlval, 1024, &nvl)) != 0)
 		return (ret);
-	}
-
-	nvl = nvlist_unpack(nv.data, nv.len, 0);
-	if (nvl == NULL) {
-		free(nv.data);
-		return (EIO);
-	}
 
 	if (killed)
 		*killed = nvlist_get_number(nvl, "killed");
@@ -1415,7 +1347,6 @@ pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 int
 pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 {
-	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
 	int		 ret;
 	uint		 state_limit;
@@ -1427,19 +1358,10 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 
 	bzero(s, sizeof(*s));
 
-	nv.data = malloc(256);
-	nv.len = nv.size = 256;
+	nvl = nvlist_create(0);
 
-	if (ioctl(dev, DIOCGETSYNCOOKIES, &nv)) {
-		free(nv.data);
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETSYNCOOKIES, 256, &nvl)) != 0)
 		return (errno);
-	}
-
-	nvl = nvlist_unpack(nv.data, nv.len, 0);
-	free(nv.data);
-	if (nvl == NULL) {
-		return (EIO);
-	}
 
 	enabled = nvlist_get_bool(nvl, "enabled");
 	adaptive = nvlist_get_bool(nvl, "adaptive");
