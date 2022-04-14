@@ -26,6 +26,9 @@
 
 # Fixed by r368116
 
+# May change policy for random threads to to domainset_fixed
+exit 0
+
 . ../default.cfg
 cat > /tmp/syzkaller29.c <<EOF
 // https://syzkaller.appspot.com/bug?id=c3452066dba9238c4551010eb130944442d9174f
