@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2021
+.Dd April 14, 2022
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -649,18 +649,22 @@ must be one of
 .It Cm class Ar sc
 Bind the connection to the specified tx scheduling class.
 Valid range is 0 to 14 (for T4) and 0 to 15 (T5 onwards).
-.It Cm rxq Ar qid
+.It Cm rxq Ar qnum
 Use the specified offload rx queue.
-.Ar qid
-should be between 0 and nofldrxq for the ifnet.
+.Ar qnum
+should be
+.Cm random Ns , Cm roundrobin Ns ,
+or a number between 0 and nofldrxq for the ifnet.
 .It Cm txq Ar qnum
 Use the specified offload tx queue.
-.Ar qid
-should be between 0 and nofldtxq for the ifnet.
+.Ar qnum
+should be
+.Cm random Ns , Cm roundrobin Ns ,
+or a number between 0 and nofldtxq for the ifnet.
 .It Cm bind Ar qnum
 Shorthand for
 .Cm rxq Ar qnum Cm txq Ar qnum Ns .
-Use only when nofldrxq is the same as nofldtxq.
+Use when nofldrxq is the same as nofldtxq.
 .It Cm mss Ar val
 Set the advertised TCP MSS in the SYN for this connection to
 .Ar val
