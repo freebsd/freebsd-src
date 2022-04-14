@@ -57,17 +57,6 @@
 #define	na_seqno	da_seqno
 #endif /* !_KERNEL */
 
-struct netdump_conf_freebsd12 {
-	struct diocskerneldump_arg_freebsd12 ndc12_kda;
-	char		ndc12_iface[IFNAMSIZ];
-	struct in_addr	ndc12_server;
-	struct in_addr	ndc12_client;
-	struct in_addr	ndc12_gateway;
-};
-
-#define	NETDUMPGCONF_FREEBSD12	_IOR('n', 1, struct netdump_conf_freebsd12)
-#define	NETDUMPSCONF_FREEBSD12	_IOW('n', 2, struct netdump_conf_freebsd12)
-
 #define	_PATH_NETDUMP	"/dev/netdump"
 
 #endif /* _NETINET_NETDUMP_H_ */

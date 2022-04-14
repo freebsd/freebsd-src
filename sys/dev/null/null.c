@@ -109,12 +109,6 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 
 	error = 0;
 	switch (cmd) {
-#ifdef COMPAT_FREEBSD12
-	case DIOCSKERNELDUMP_FREEBSD12:
-		if (cmd == DIOCSKERNELDUMP_FREEBSD12)
-			gone_in(14, "FreeBSD 12.x ABI compat");
-		/* FALLTHROUGH */
-#endif
 	case DIOCSKERNELDUMP:
 		bzero(&kda, sizeof(kda));
 		kda.kda_index = KDA_REMOVE_ALL;
