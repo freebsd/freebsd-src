@@ -4007,7 +4007,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    free(nfhp, M_NFSFH);
 				} else {
 				    error = nfscl_nget(vp->v_mount, vp,
-				      nfhp, cnp, p, &np, NULL, LK_EXCLUSIVE);
+				      nfhp, cnp, p, &np, LK_EXCLUSIVE);
 				    if (!error) {
 					newvp = NFSTOV(np);
 					unlocknewvp = 1;

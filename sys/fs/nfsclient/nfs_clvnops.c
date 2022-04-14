@@ -1413,8 +1413,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			free(nfhp, M_NFSFH);
 			return (EISDIR);
 		}
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
-		    LK_EXCLUSIVE);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, LK_EXCLUSIVE);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1458,7 +1457,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 				return (error);
 		}
 		NFSVOPUNLOCK(dvp);
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np,
 		    cnp->cn_lkflags);
 		if (error == 0)
 			newvp = NFSTOV(np);
@@ -1485,7 +1484,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (attrflag)
 			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, 0, 1);
 	} else {
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np,
 		    cnp->cn_lkflags);
 		if (error)
 			return (error);
@@ -1691,7 +1690,7 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 			    NULL, 0);
 		if (nfhp)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
-			    curthread, &np, NULL, LK_EXCLUSIVE);
+			    curthread, &np, LK_EXCLUSIVE);
 	}
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, 0, 1);
@@ -1806,7 +1805,7 @@ again:
 			    NULL, 0);
 		if (nfhp != NULL)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
-			    curthread, &np, NULL, LK_EXCLUSIVE);
+			    curthread, &np, LK_EXCLUSIVE);
 	}
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, 0, 1);
@@ -2261,7 +2260,7 @@ nfs_symlink(struct vop_symlink_args *ap)
 	    &nfsva, &nfhp, &attrflag, &dattrflag, NULL);
 	if (nfhp) {
 		ret = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, curthread,
-		    &np, NULL, LK_EXCLUSIVE);
+		    &np, LK_EXCLUSIVE);
 		if (!ret)
 			newvp = NFSTOV(np);
 		else if (!error)
@@ -2355,7 +2354,7 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	}
 	if (nfhp) {
 		ret = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, curthread,
-		    &np, NULL, LK_EXCLUSIVE);
+		    &np, LK_EXCLUSIVE);
 		if (!ret) {
 			newvp = NFSTOV(np);
 			if (attrflag)
@@ -2776,7 +2775,7 @@ printf("replace=%s\n",nnn);
 		    cn.cn_nameptr = name;
 		    cn.cn_namelen = len;
 		    error = nfscl_nget(dvp->v_mount, dvp, nfhp, &cn, td,
-			&np, NULL, LK_EXCLUSIVE);
+			&np, LK_EXCLUSIVE);
 		    if (error)
 			return (error);
 		    newvp = NFSTOV(np);
