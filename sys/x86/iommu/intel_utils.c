@@ -508,6 +508,9 @@ dmar_disable_protected_regions(struct dmar_unit *unit)
 		return (0);
 
 	reg = dmar_read4(unit, DMAR_PMEN_REG);
+	if ((reg & DMAR_PMEN_EPM) == 0)
+		return (0);
+
 	reg &= ~DMAR_PMEN_EPM;
 	dmar_write4(unit, DMAR_PMEN_REG, reg);
 	DMAR_WAIT_UNTIL(((dmar_read4(unit, DMAR_PMEN_REG) & DMAR_PMEN_PRS)
