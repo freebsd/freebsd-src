@@ -127,7 +127,7 @@ newnfs_vncmpf(struct vnode *vp, void *arg)
 int
 nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
     struct componentname *cnp, struct thread *td, struct nfsnode **npp,
-    void *stuff, int lkflags)
+    int lkflags)
 {
 	struct nfsnode *np, *dnp;
 	struct vnode *vp, *nvp;
