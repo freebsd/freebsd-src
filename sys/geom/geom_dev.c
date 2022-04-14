@@ -531,9 +531,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	struct g_provider *pp;
 	off_t offset, length, chunk, odd;
 	int i, error;
-#ifdef COMPAT_FREEBSD12
-	struct diocskerneldump_arg kda_copy;
-#endif
 
 	cp = dev->si_drv2;
 	pp = cp->provider;
@@ -570,24 +567,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		if (error == 0 && *(u_int *)data == 0)
 			error = ENOENT;
 		break;
-#ifdef COMPAT_FREEBSD12
-	case DIOCSKERNELDUMP_FREEBSD12:
-	    {
-		struct diocskerneldump_arg_freebsd12 *kda12;
-
-		gone_in(14, "FreeBSD 12.x ABI compat");
-
-		kda12 = (void *)data;
-		memcpy(&kda_copy, kda12, sizeof(kda_copy));
-		kda_copy.kda_index = (kda12->kda12_enable ?
-		    0 : KDA_REMOVE_ALL);
-
-		explicit_bzero(kda12, sizeof(*kda12));
-		/* Kludge to pass kda_copy to kda in fallthrough. */
-		data = (void *)&kda_copy;
-	    }
-	    /* FALLTHROUGH */
-#endif
 	case DIOCSKERNELDUMP:
 	    {
 		struct diocskerneldump_arg *kda;
