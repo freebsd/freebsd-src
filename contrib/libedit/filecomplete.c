@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.c,v 1.68 2021/05/05 14:49:59 christos Exp $	*/
+/*	$NetBSD: filecomplete.c,v 1.70 2022/03/12 15:29:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: filecomplete.c,v 1.68 2021/05/05 14:49:59 christos Exp $");
+__RCSID("$NetBSD: filecomplete.c,v 1.70 2022/03/12 15:29:17 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -69,20 +69,21 @@ fn_tilde_expand(const char *txt)
 	char pwbuf[1024];
 #endif
 	struct passwd *pass;
+	const char *pos;
 	char *temp;
 	size_t len = 0;
 
 	if (txt[0] != '~')
 		return strdup(txt);
 
-	temp = strchr(txt + 1, '/');
-	if (temp == NULL) {
+	pos = strchr(txt + 1, '/');
+	if (pos == NULL) {
 		temp = strdup(txt + 1);
 		if (temp == NULL)
 			return NULL;
 	} else {
 		/* text until string after slash */
-		len = (size_t)(temp - txt + 1);
+		len = (size_t)(pos - txt + 1);
 		temp = el_calloc(len, sizeof(*temp));
 		if (temp == NULL)
 			return NULL;
@@ -126,7 +127,7 @@ fn_tilde_expand(const char *txt)
 }
 
 static int
-needs_escaping(char c)
+needs_escaping(wchar_t c)
 {
 	switch (c) {
 	case '\'':
@@ -212,9 +213,10 @@ escape_filename(EditLine * el, const char *filename, int single_match,
 	while (temp != el->el_line.cursor) {
 		/*
 		 * If we see a single quote but have not seen a double quote
-		 * so far set/unset s_quote
+		 * so far set/unset s_quote, unless it is already quoted
 		 */
-		if (temp[0] == '\'' && !d_quoted)
+		if (temp[0] == '\'' && !d_quoted &&
+		    (temp == el->el_line.buffer || temp[-1] != '\\'))
 			s_quoted = !s_quoted;
 		/*
 		 * vice versa to the above condition
@@ -327,14 +329,15 @@ fn_filename_completion_function(const char *text, int state)
 	static size_t filename_len = 0;
 	struct dirent *entry;
 	char *temp;
+	const char *pos;
 	size_t len;
 
 	if (state == 0 || dir == NULL) {
-		temp = strrchr(text, '/');
-		if (temp) {
+		pos = strrchr(text, '/');
+		if (pos) {
 			char *nptr;
-			temp++;
-			nptr = el_realloc(filename, (strlen(temp) + 1) *
+			pos++;
+			nptr = el_realloc(filename, (strlen(pos) + 1) *
 			    sizeof(*nptr));
 			if (nptr == NULL) {
 				el_free(filename);
@@ -342,8 +345,8 @@ fn_filename_completion_function(const char *text, int state)
 				return NULL;
 			}
 			filename = nptr;
-			(void)strcpy(filename, temp);
-			len = (size_t)(temp - text);	/* including last slash */
+			(void)strcpy(filename, pos);
+			len = (size_t)(pos - text);	/* including last slash */
 
 			nptr = el_realloc(dirname, (len + 1) *
 			    sizeof(*nptr));
@@ -609,13 +612,13 @@ find_word_to_complete(const wchar_t * cursor, const wchar_t * buffer,
 	for (;;) {
 		if (ctemp <= buffer)
 			break;
-		if (wcschr(word_break, ctemp[-1])) {
-			if (ctemp - buffer >= 2 && ctemp[-2] == '\\') {
-				ctemp -= 2;
-				continue;
-			}
-			break;
+		if (ctemp - buffer >= 2 && ctemp[-2] == '\\' &&
+		    needs_escaping(ctemp[-1])) {
+			ctemp -= 2;
+			continue;
 		}
+		if (wcschr(word_break, ctemp[-1]))
+			break;
 		if (special_prefixes && wcschr(special_prefixes, ctemp[-1]))
 			break;
 		ctemp--;
