@@ -203,7 +203,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 	int error;
 
 	/* Turn on all the appropriate scope */
-	if (stcb) {
+	if (stcb != NULL) {
 		/* use association specific values */
 		loopback_scope = stcb->asoc.scope.loopback_scope;
 #ifdef INET
@@ -220,41 +220,53 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 		loopback_scope = 1;
 #ifdef INET
 		ipv4_local_scope = 1;
-		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6 &&
-		    SCTP_IPV6_V6ONLY(inp))
-			ipv4_addr_legal = 0;
-		else
-			ipv4_addr_legal = 1;
 #endif
 #ifdef INET6
 		local_scope = 1;
 		site_scope = 1;
-		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6)
+#endif
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+#ifdef INET6
 			ipv6_addr_legal = 1;
-		else
+#endif
+#ifdef INET
+			if (SCTP_IPV6_V6ONLY(inp)) {
+				ipv4_addr_legal = 0;
+			} else {
+				ipv4_addr_legal = 1;
+			}
+#endif
+		} else {
+#ifdef INET6
 			ipv6_addr_legal = 0;
 #endif
+#ifdef INET
+			ipv4_addr_legal = 1;
+#endif
+		}
 	}
 
-	/* neither Mac OS X nor FreeBSD support multiple routing functions */
+	/* Neither Mac OS X nor FreeBSD support multiple routing functions. */
 	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_INP_INFO_RUNLOCK();
-		return (-1);
+		return (ENOENT);
 	}
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
-			if ((loopback_scope == 0) && SCTP_IFN_IS_IFT_LOOP(sctp_ifn))
-				/* Skip loopback if loopback_scope not set */
+			if ((loopback_scope == 0) && SCTP_IFN_IS_IFT_LOOP(sctp_ifn)) {
+				/* Skip loopback if loopback_scope not set. */
 				continue;
+			}
 			LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
-				if (stcb) {
+				if (stcb != NULL) {
 					/*
-					 * ignore if blacklisted at
-					 * association level
+					 * Ignore if blacklisted at
+					 * association level.
 					 */
-					if (sctp_is_addr_restricted(stcb, sctp_ifa))
+					if (sctp_is_addr_restricted(stcb, sctp_ifa)) {
 						continue;
+					}
 				}
 				switch (sctp_ifa->address.sa.sa_family) {
 #ifdef INET
@@ -263,14 +275,16 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						struct sockaddr_in *sin;
 
 						sin = &sctp_ifa->address.sin;
-						if (sin->sin_addr.s_addr == 0)
+						if (sin->sin_addr.s_addr == 0) {
 							continue;
+						}
 						if (prison_check_ip4(inp->ip_inp.inp.inp_cred,
 						    &sin->sin_addr) != 0) {
 							continue;
 						}
-						if ((ipv4_local_scope == 0) && (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)))
+						if ((ipv4_local_scope == 0) && (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
 							continue;
+						}
 					} else {
 						continue;
 					}
@@ -282,18 +296,21 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						struct sockaddr_in6 *sin6;
 
 						sin6 = &sctp_ifa->address.sin6;
-						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 							continue;
+						}
 						if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
 						    &sin6->sin6_addr) != 0) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-							if (local_scope == 0)
+							if (local_scope == 0) {
 								continue;
+							}
 						}
-						if ((site_scope == 0) && (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)))
+						if ((site_scope == 0) && (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
 							continue;
+						}
 					} else {
 						continue;
 					}
@@ -307,7 +324,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_INP_INFO_RUNLOCK();
 				error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
-				if (error) {
+				if (error != 0) {
 					return (error);
 				} else {
 					SCTP_INP_INFO_RLOCK();
@@ -318,7 +335,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 	} else {
 		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 			/* ignore if blacklisted at association level */
-			if (stcb && sctp_is_addr_restricted(stcb, laddr->ifa))
+			if (stcb != NULL && sctp_is_addr_restricted(stcb, laddr->ifa))
 				continue;
 			memset((void *)&xladdr, 0, sizeof(struct xsctp_laddr));
 			memcpy((void *)&xladdr.address, (const void *)&laddr->ifa->address, sizeof(union sctp_sockstore));
@@ -327,7 +344,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_INP_INFO_RUNLOCK();
 			error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
-			if (error) {
+			if (error != 0) {
 				return (error);
 			} else {
 				SCTP_INP_INFO_RLOCK();
@@ -341,7 +358,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 	SCTP_INP_INFO_RUNLOCK();
 	error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
 
-	if (error) {
+	if (error != 0) {
 		return (error);
 	} else {
 		SCTP_INP_INFO_RLOCK();
