@@ -405,6 +405,7 @@ dmar_attach(device_t dev)
 	struct dmar_unit *unit;
 	ACPI_DMAR_HARDWARE_UNIT *dmaru;
 	uint64_t timeout;
+	int disable_pmr;
 	int i, error;
 
 	unit = device_get_softc(dev);
@@ -528,6 +529,16 @@ dmar_attach(device_t dev)
 		dmar_release_resources(dev, unit);
 		return (error);
 	}
+
+	disable_pmr = 0;
+	TUNABLE_INT_FETCH("hw.dmar.pmr.disable", &disable_pmr);
+	if (disable_pmr) {
+		error = dmar_disable_protected_regions(unit);
+		if (error != 0)
+			device_printf(dev,
+			    "Failed to disable protected regions\n");
+	}
+
 	error = iommu_init_busdma(&unit->iommu);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
