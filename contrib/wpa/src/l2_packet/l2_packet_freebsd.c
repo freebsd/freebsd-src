@@ -77,7 +77,7 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 {
 	struct l2_packet_data *l2 = eloop_ctx;
 	pcap_t *pcap = sock_ctx;
-	struct pcap_pkthdr hdr;
+	struct pcap_pkthdr *hdr;
 	const u_char *packet;
 	struct l2_ethhdr *ethhdr;
 	unsigned char *buf;
@@ -88,16 +88,16 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		eloop_terminate();
 	}
 
-	if (!l2->rx_callback || !packet || hdr.caplen < sizeof(*ethhdr))
+	if (!l2->rx_callback || !packet || hdr->caplen < sizeof(*ethhdr))
 		return;
 
 	ethhdr = (struct l2_ethhdr *) packet;
 	if (l2->l2_hdr) {
 		buf = (unsigned char *) ethhdr;
-		len = hdr.caplen;
+		len = hdr->caplen;
 	} else {
 		buf = (unsigned char *) (ethhdr + 1);
-		len = hdr.caplen - sizeof(*ethhdr);
+		len = hdr->caplen - sizeof(*ethhdr);
 	}
 	l2->rx_callback(l2->rx_callback_ctx, ethhdr->h_source, buf, len);
 }
