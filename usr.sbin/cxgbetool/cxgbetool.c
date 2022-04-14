@@ -3150,14 +3150,17 @@ parse_offload_settings_word(const char *s, char **pnext, const char *ws,
 			os->sched_class = val;
 		} else if (!strcmp(s, "bind") || !strcmp(s, "txq") ||
 		    !strcmp(s, "rxq")) {
-			val = -1;
-			if (strcmp(param, "random")) {
+			if (!strcmp(param, "random")) {
+				val = QUEUE_RANDOM;
+			} else if (!strcmp(param, "roundrobin")) {
+				val = QUEUE_ROUNDROBIN;
+			} else {
 				p = str_to_number(param, &val, NULL);
 				if (*p || val < 0 || val > 0xffff) {
 					warnx("invalid queue specification "
 					    "\"%s\".  \"%s\" needs an integer"
-					    " value, or \"random\".",
-					    param, s);
+					    " value, \"random\", or "
+					    "\"roundrobin\".", param, s);
 					return (EINVAL);
 				}
 			}
@@ -3207,8 +3210,8 @@ parse_offload_settings(const char *settings_ro, struct offload_settings *os)
 		.ecn = -1,
 		.ddp = -1,
 		.tls = -1,
-		.txq = -1,
-		.rxq = -1,
+		.txq = QUEUE_RANDOM,
+		.rxq = QUEUE_RANDOM,
 		.mss = -1,
 	};
 
