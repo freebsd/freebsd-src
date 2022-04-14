@@ -1377,17 +1377,23 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 	cp->mtu_idx = find_best_mtu_idx(sc, inc, s);
 
 	/* Tx queue for this connection. */
-	if (s->txq >= 0 && s->txq < vi->nofldtxq)
-		cp->txq_idx = s->txq;
+	if (s->txq == QUEUE_RANDOM)
+		cp->txq_idx = arc4random();
+	else if (s->txq == QUEUE_ROUNDROBIN)
+		cp->txq_idx = atomic_fetchadd_int(&vi->txq_rr, 1);
 	else
-		cp->txq_idx = arc4random() % vi->nofldtxq;
+		cp->txq_idx = s->txq;
+	cp->txq_idx %= vi->nofldtxq;
 	cp->txq_idx += vi->first_ofld_txq;
 
 	/* Rx queue for this connection. */
-	if (s->rxq >= 0 && s->rxq < vi->nofldrxq)
-		cp->rxq_idx = s->rxq;
+	if (s->rxq == QUEUE_RANDOM)
+		cp->rxq_idx = arc4random();
+	else if (s->rxq == QUEUE_ROUNDROBIN)
+		cp->rxq_idx = atomic_fetchadd_int(&vi->rxq_rr, 1);
 	else
-		cp->rxq_idx = arc4random() % vi->nofldrxq;
+		cp->rxq_idx = s->rxq;
+	cp->rxq_idx %= vi->nofldrxq;
 	cp->rxq_idx += vi->first_ofld_rxq;
 
 	if (SOLISTENING(so)) {
@@ -1747,8 +1753,8 @@ lookup_offload_policy(struct adapter *sc, int open_type, struct mbuf *m,
 		.ecn = -1,
 		.ddp = -1,
 		.tls = -1,
-		.txq = -1,
-		.rxq = -1,
+		.txq = QUEUE_RANDOM,
+		.rxq = QUEUE_RANDOM,
 		.mss = -1,
 	};
 	static const struct offload_settings disallow_offloading_settings = {
