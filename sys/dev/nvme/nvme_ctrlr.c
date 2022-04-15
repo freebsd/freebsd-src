@@ -474,7 +474,8 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 	 */
 	if (ctrlr->cdata.mdts > 0)
 		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size,
-		    ctrlr->min_page_size * (1 << (ctrlr->cdata.mdts)));
+		    1 << (ctrlr->cdata.mdts + NVME_MPS_SHIFT +
+			NVME_CAP_HI_MPSMIN(ctrlr->cap_hi)));
 
 	return (0);
 }
