@@ -907,6 +907,7 @@ void linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *);
 void linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *);
 struct sk_buff *linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *,
     uint8_t *, uint8_t *, size_t, size_t);
+void linuxkpi_ieee80211_tx_status(struct ieee80211_hw *, struct sk_buff *);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1754,41 +1755,8 @@ ieee80211_sta_set_buffered(struct ieee80211_sta *sta, uint8_t tid, bool t)
 static __inline void
 ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info;
-	int status;
 
-	info = IEEE80211_SKB_CB(skb);
-
-	/* XXX-BZ this check is probably over-simplified? */
-	/* XXX-BZ but then we have no full feedback in net80211 yet. */
-	if (info->flags & IEEE80211_TX_STAT_ACK)
-		status = 0;	/* No error. */
-	else
-		status = 1;
-#if 0
-	printf("XXX-BZ: %s: hw %p skb %p status %d : flags %#x "
-	    "band %u hw_queue %u tx_time_est %d : "
-	    "rates [ %u %u %#x, %u %u %#x, %u %u %#x, %u %u %#x ] "
-	    "ack_signal %u ampdu_ack_len %u ampdu_len %u antenna %u tx_time %u "
-	    "is_valid_ack_signal %u status_driver_data [ %p %p ]\n",
-	    __func__, hw, skb, status, info->flags,
-	    info->band, info->hw_queue, info->tx_time_est,
-	    info->status.rates[0].idx, info->status.rates[0].count,
-	    info->status.rates[0].flags,
-	    info->status.rates[1].idx, info->status.rates[1].count,
-	    info->status.rates[1].flags,
-	    info->status.rates[2].idx, info->status.rates[2].count,
-	    info->status.rates[2].flags,
-	    info->status.rates[3].idx, info->status.rates[3].count,
-	    info->status.rates[3].flags,
-	    info->status.ack_signal, info->status.ampdu_ack_len,
-	    info->status.ampdu_len, info->status.antenna,
-	    info->status.tx_time, info->status.is_valid_ack_signal,
-	    info->status.status_driver_data[0],
-	    info->status.status_driver_data[1]);
-#endif
-	IMPROVE();
-	linuxkpi_ieee80211_free_txskb(hw, skb, status);
+	linuxkpi_ieee80211_tx_status(hw, skb);
 }
 
 static __inline void
