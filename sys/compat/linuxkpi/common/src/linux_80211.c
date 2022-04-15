@@ -2261,9 +2261,9 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 		return (NULL);
 	}
 
-	LKPI_80211_LHW_LOCK(lhw);
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_INSERT_TAIL(&lhw->lvif_head, lvif, lvif_entry);
-	LKPI_80211_LHW_UNLOCK(lhw);
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 
 	/* Set bss_info. */
 	changed = 0;
@@ -2329,9 +2329,9 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	lhw = ic->ic_softc;
 	hw = LHW_TO_HW(lhw);
 
-	LKPI_80211_LHW_LOCK(lhw);
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_REMOVE(&lhw->lvif_head, lvif, lvif_entry);
-	LKPI_80211_LHW_UNLOCK(lhw);
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 	lkpi_80211_mo_remove_interface(hw, vif);
 
 	ieee80211_ratectl_deinit(vap);
@@ -3240,6 +3240,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	lhw->ops = ops;
 
 	mtx_init(&lhw->mtx, "lhw", NULL, MTX_DEF | MTX_RECURSE);
+	sx_init_flags(&lhw->lvif_sx, "lhw-lvif", SX_RECURSE | SX_DUPOK);
 	TAILQ_INIT(&lhw->lvif_head);
 
 	/*
@@ -3273,6 +3274,7 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 	lhw->ic = NULL;
 
 	/* Cleanup more of lhw here or in wiphy_free()? */
+	sx_destroy(&lhw->lvif_sx);
 	mtx_destroy(&lhw->mtx);
 	IMPROVE();
 }
@@ -3497,7 +3499,7 @@ linuxkpi_ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 	nin_drv = (flags & IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER) != 0;
 
 	if (atomic)
-		LKPI_80211_LHW_LOCK(lhw);
+		LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
 		struct ieee80211vap *vap;
 
@@ -3530,7 +3532,7 @@ linuxkpi_ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 			iterfunc(arg, vif->addr, vif);
 	}
 	if (atomic)
-		LKPI_80211_LHW_UNLOCK(lhw);
+		LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
 
 void
@@ -3568,7 +3570,7 @@ linuxkpi_ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 
 	lhw = HW_TO_LHW(hw);
 
-	LKPI_80211_LHW_LOCK(lhw);
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
 
 		LKPI_80211_LVIF_LOCK(lvif);
@@ -3580,7 +3582,7 @@ linuxkpi_ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 		}
 		LKPI_80211_LVIF_UNLOCK(lvif);
 	}
-	LKPI_80211_LHW_UNLOCK(lhw);
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
 
 int
@@ -3974,7 +3976,7 @@ linuxkpi_ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
 	lhw = wiphy_priv(hw->wiphy);
 	sta = NULL;
 
-	LKPI_80211_LHW_LOCK(lhw);
+	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
 
 		/* XXX-BZ check our address from the vif. */
@@ -3987,7 +3989,7 @@ linuxkpi_ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
 		if (sta != NULL)
 			break;
 	}
-	LKPI_80211_LHW_UNLOCK(lhw);
+	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 
 	if (sta != NULL) {
 		lsta = STA_TO_LSTA(sta);

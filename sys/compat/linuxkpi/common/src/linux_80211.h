@@ -140,6 +140,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct lkpi_radiotap_rx_hdr	rtap_rx;
 
 	TAILQ_HEAD(, lkpi_vif)		lvif_head;
+	struct sx			lvif_sx;
 
 	struct mtx			mtx;
 
@@ -178,6 +179,9 @@ struct lkpi_wiphy {
     mtx_assert(&(_lhw)->mtx, MA_OWNED)
 #define	LKPI_80211_LHW_UNLOCK_ASSERT(_lhw) \
     mtx_assert(&(_lhw)->mtx, MA_NOTOWNED)
+
+#define	LKPI_80211_LHW_LVIF_LOCK(_lhw)	sx_xlock(&(_lhw)->lvif_sx)
+#define	LKPI_80211_LHW_LVIF_UNLOCK(_lhw) sx_xunlock(&(_lhw)->lvif_sx)
 
 #define	LKPI_80211_LVIF_LOCK(_lvif)	mtx_lock(&(_lvif)->mtx)
 #define	LKPI_80211_LVIF_UNLOCK(_lvif)	mtx_unlock(&(_lvif)->mtx)
