@@ -65,6 +65,9 @@
 /* Host memory buffer sizes are always in 4096 byte chunks */
 #define	NVME_HMB_UNITS			4096
 
+/* Many items are expressed in terms of power of two times MPS */
+#define NVME_MPS_SHIFT			12
+
 /* Register field definitions */
 #define NVME_CAP_LO_REG_MQES_SHIFT			(0)
 #define NVME_CAP_LO_REG_MQES_MASK			(0xFFFF)
