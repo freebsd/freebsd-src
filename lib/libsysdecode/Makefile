@@ -141,4 +141,7 @@ ioctl.c: ioctl.c.tmp
 
 beforedepend: ioctl.c tables.h
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.lib.mk>

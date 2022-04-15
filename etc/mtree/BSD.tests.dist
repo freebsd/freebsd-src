@@ -404,6 +404,8 @@
         ..
         libsbuf
         ..
+        libsysdecode
+        ..
         libthr
             dlopen
             ..
