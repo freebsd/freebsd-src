@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <a.out.h>
 #include <err.h>
 #include <locale.h>
 #include <signal.h>
@@ -703,7 +702,6 @@ cleanup(int signo __unused)
 static int
 test(const char *file)
 {
-	struct exec execb;
 	size_t dlen;
 	int fd;
 	char *cp, *dirpath;
@@ -727,14 +725,6 @@ test(const char *file)
 	if ((fd = open(file, O_RDONLY)) < 0) {
 		printf("%s: cannot open %s\n", progname, file);
 		return(-1);
-	}
-	/*
-	 * XXX Shall we add a similar test for ELF?
-	 */
-	if (read(fd, &execb, sizeof(execb)) == sizeof(execb) &&
-	    !N_BADMAG(execb)) {
-		printf("%s: %s is an executable program", progname, file);
-		goto error1;
 	}
 	(void) close(fd);
 	if (rflag) {
@@ -763,11 +753,6 @@ test(const char *file)
 		printf("%s: %s: is not removable by you\n", progname, file);
 	}
 	return(0);
-
-error1:
-	printf(" and is unprintable\n");
-	(void) close(fd);
-	return(-1);
 }
 
 static int
