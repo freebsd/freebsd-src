@@ -340,6 +340,9 @@ class MockFS {
 	/* pid of child process, for two-process test cases */
 	pid_t m_child_pid;
 
+	/* the expected errno of the next write to /dev/fuse */
+	int m_expected_write_errno;
+
 	/* Maximum size of a FUSE_WRITE write */
 	uint32_t m_maxwrite;
 
