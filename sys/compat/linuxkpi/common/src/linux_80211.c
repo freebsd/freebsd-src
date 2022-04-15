@@ -4117,6 +4117,40 @@ linuxkpi_ieee80211_queue_work(struct ieee80211_hw *hw,
 }
 
 struct sk_buff *
+linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *hw, uint8_t *addr,
+    uint8_t *ssid, size_t ssid_len, size_t tailroom)
+{
+	struct sk_buff *skb;
+	struct ieee80211_frame *wh;
+	uint8_t *p;
+	size_t len;
+
+	len = sizeof(*wh);
+	len += 2 + ssid_len;
+
+	skb = dev_alloc_skb(hw->extra_tx_headroom + len + tailroom);
+	if (skb == NULL)
+		return (NULL);
+
+	skb_reserve(skb, hw->extra_tx_headroom);
+
+	wh = skb_put_zero(skb, sizeof(*wh));
+	wh->i_fc[0] = IEEE80211_FC0_VERSION_0;
+	wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_PROBE_REQ | IEEE80211_FC0_TYPE_MGT;
+	IEEE80211_ADDR_COPY(wh->i_addr1, ieee80211broadcastaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr2, addr);
+	IEEE80211_ADDR_COPY(wh->i_addr3, ieee80211broadcastaddr);
+
+	p = skb_put(skb, 2 + ssid_len);
+	*p++ = IEEE80211_ELEMID_SSID;
+	*p++ = ssid_len;
+	if (ssid_len > 0)
+		memcpy(p, ssid, ssid_len);
+
+	return (skb);
+}
+
+struct sk_buff *
 linuxkpi_ieee80211_pspoll_get(struct ieee80211_hw *hw,
     struct ieee80211_vif *vif)
 {
