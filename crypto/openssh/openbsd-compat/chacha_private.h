@@ -1,10 +1,12 @@
+/* OPENBSD ORIGINAL: lib/libc/crypt/chacha_private.h */
+
 /*
 chacha-merged.c version 20080118
 D. J. Bernstein
 Public domain.
 */
 
-/* $OpenBSD: chacha_private.h,v 1.2 2013/10/04 07:02:27 djm Exp $ */
+/* $OpenBSD: chacha_private.h,v 1.3 2022/02/28 21:56:29 dtucker Exp $ */
 
 typedef unsigned char u8;
 typedef unsigned int u32;
@@ -52,7 +54,7 @@ static const char sigma[16] = "expand 32-byte k";
 static const char tau[16] = "expand 16-byte k";
 
 static void
-chacha_keysetup(chacha_ctx *x,const u8 *k,u32 kbits,u32 ivbits)
+chacha_keysetup(chacha_ctx *x,const u8 *k,u32 kbits)
 {
   const char *constants;
 

@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.317 2021/09/10 11:38:38 dtucker Exp $
+.\" $OpenBSD: sshd.8,v 1.318 2022/03/31 17:27:27 naddy Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: September 10 2021 $
+.Dd $Mdocdate: March 31 2022 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -652,7 +652,7 @@ Enable all restrictions, i.e. disable port, agent and X11 forwarding,
 as well as disabling PTY allocation
 and execution of
 .Pa ~/.ssh/rc .
-If any future restriction capabilities are added to authorized_keys files
+If any future restriction capabilities are added to authorized_keys files,
 they will be included in this set.
 .It Cm tunnel="n"
 Force a

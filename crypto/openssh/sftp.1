@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.138 2021/07/02 05:11:21 dtucker Exp $
+.\" $OpenBSD: sftp.1,v 1.140 2022/03/31 17:27:27 naddy Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: July 2 2021 $
+.Dd $Mdocdate: March 31 2022 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -126,7 +126,7 @@ Batch mode reads a series of commands from an input
 .Ar batchfile
 instead of
 .Em stdin .
-Since it lacks user interaction it should be used in conjunction with
+Since it lacks user interaction, it should be used in conjunction with
 non-interactive authentication to obviate the need to enter a password
 at connection time (see
 .Xr sshd 8
@@ -144,7 +144,7 @@ will abort if any of the following
 commands fail:
 .Ic get , put , reget , reput , rename , ln ,
 .Ic rm , mkdir , chdir , ls ,
-.Ic lchdir , chmod , chown ,
+.Ic lchdir , copy , cp , chmod , chown ,
 .Ic chgrp , lpwd , df , symlink ,
 and
 .Ic lmkdir .
@@ -400,6 +400,18 @@ If the
 flag is specified, then symlinks will not be followed.
 Note that this is only supported by servers that implement
 the "lsetstat@openssh.com" extension.
+.It Ic copy Ar oldpath Ar newpath
+Copy remote file from
+.Ar oldpath
+to
+.Ar newpath .
+.Pp
+Note that this is only supported by servers that implement the "copy-data"
+extension.
+.It Ic cp Ar oldpath Ar newpath
+Alias to
+.Ic copy
+command.
 .It Xo Ic df
 .Op Fl hi
 .Op Ar path

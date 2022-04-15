@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.112 2021/12/19 22:12:30 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.113 2022/02/27 01:33:59 naddy Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -166,8 +166,8 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		goto done;
 	}
 	if (match_pattern_list(pkalg, options.pubkey_accepted_algos, 0) != 1) {
-		logit_f("key type %s not in PubkeyAcceptedAlgorithms",
-		    sshkey_ssh_name(key));
+		logit_f("signature algorithm %s not in "
+		    "PubkeyAcceptedAlgorithms", pkalg);
 		goto done;
 	}
 	if ((r = sshkey_check_cert_sigtype(key,

@@ -1,5 +1,4 @@
-# uncomment if you run a non bourne compatible shell. Ie. csh
-#SHELL = @SH@
+SHELL=@SH@
 
 AUTORECONF=autoreconf
 
@@ -688,7 +687,7 @@ SK_DUMMY_LIBRARY=@SK_DUMMY_LIBRARY@
 	$(CC) $(CFLAGS_NOPIE) $(PICFLAG) $(CPPFLAGS) -c $< -o $@
 
 regress/misc/sk-dummy/sk-dummy.so: $(SK_DUMMY_OBJS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -fPIC -shared -o $@ $(SK_DUMMY_OBJS) \
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(PICFLAG) -shared -o $@ $(SK_DUMMY_OBJS) \
 	    -L. -Lopenbsd-compat -lopenbsd-compat $(LDFLAGS_NOPIE) $(LIBS)
 
 regress-binaries: regress-prep $(LIBCOMPAT) \

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.212 2021/09/11 09:05:50 schwarze Exp $ */
+/* $OpenBSD: sftp.c,v 1.214 2022/03/31 03:07:03 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -137,6 +137,7 @@ enum sftp_command {
 	I_CHGRP,
 	I_CHMOD,
 	I_CHOWN,
+	I_COPY,
 	I_DF,
 	I_GET,
 	I_HELP,
@@ -180,6 +181,8 @@ static const struct CMD cmds[] = {
 	{ "chgrp",	I_CHGRP,	REMOTE	},
 	{ "chmod",	I_CHMOD,	REMOTE	},
 	{ "chown",	I_CHOWN,	REMOTE	},
+	{ "copy",	I_COPY,		REMOTE	},
+	{ "cp",		I_COPY,		REMOTE	},
 	{ "df",		I_DF,		REMOTE	},
 	{ "dir",	I_LS,		REMOTE	},
 	{ "exit",	I_QUIT,		NOARGS	},
@@ -286,6 +289,8 @@ help(void)
 	    "chgrp [-h] grp path                Change group of file 'path' to 'grp'\n"
 	    "chmod [-h] mode path               Change permissions of file 'path' to 'mode'\n"
 	    "chown [-h] own path                Change owner of file 'path' to 'own'\n"
+	    "copy oldpath newpath               Copy remote file\n"
+	    "cp oldpath newpath                 Copy remote file\n"
 	    "df [-hi] [path]                    Display statistics for current directory or\n"
 	    "                                   filesystem containing 'path'\n"
 	    "exit                               Quit sftp\n"
@@ -1369,6 +1374,10 @@ parse_args(const char **cpp, int *ignore_errors, int *disable_echo, int *aflag,
 		if ((optidx = parse_link_flags(cmd, argv, argc, sflag)) == -1)
 			return -1;
 		goto parse_two_paths;
+	case I_COPY:
+		if ((optidx = parse_no_flags(cmd, argv, argc)) == -1)
+			return -1;
+		goto parse_two_paths;
 	case I_RENAME:
 		if ((optidx = parse_rename_flags(cmd, argv, argc, lflag)) == -1)
 			return -1;
@@ -1535,6 +1544,11 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	case I_PUT:
 		err = process_put(conn, path1, path2, *pwd, pflag,
 		    rflag, aflag, fflag);
+		break;
+	case I_COPY:
+		path1 = make_absolute(path1, *pwd);
+		path2 = make_absolute(path2, *pwd);
+		err = do_copy(conn, path1, path2);
 		break;
 	case I_RENAME:
 		path1 = make_absolute(path1, *pwd);
@@ -2272,7 +2286,6 @@ static void
 connect_to_server(char *path, char **args, int *in, int *out)
 {
 	int c_in, c_out;
-
 #ifdef USE_PIPES
 	int pin[2], pout[2];
 
