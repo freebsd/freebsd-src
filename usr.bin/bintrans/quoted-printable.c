@@ -18,6 +18,8 @@ WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
 #include <string.h>
 #include <ctype.h>
 
+extern int	main_quotedprintable(int, char *[]);
+
 static int
 PendingBoundary(char *s, char **Boundaries, int *BoundaryCt)
 {
@@ -211,8 +213,15 @@ fromqp(FILE *infile, FILE *outfile, char **boundaries, int *boundaryct)
 	}
 }
 
+static void
+usage(void)
+{
+	fprintf(stderr,
+	   "usage: bintrans qp [-u] [-o outputfile] [file name]\n");
+}
+
 int
-main(int argc, char *argv[])
+main_quotedprintable(int argc, char *argv[])
 {
 	int i;
 	bool encode = true;
@@ -224,7 +233,7 @@ main(int argc, char *argv[])
 			switch (argv[i][1]) {
 			case 'o':
 				if (++i >= argc) {
-					fprintf(stderr, "mimencode: -o requires a file name.\n");
+					fprintf(stderr, "qp: -o requires a file name.\n");
 					exit(EXIT_FAILURE);
 				}
 				fpo = fopen(argv[i], "w");
@@ -237,8 +246,7 @@ main(int argc, char *argv[])
 				encode = false;
 				break;
 			default:
-				fprintf(stderr,
-				   "Usage: mmencode [-u] [-o outputfile] [file name]\n");
+				usage();
 				exit(EXIT_FAILURE);
 			}
 		} else {

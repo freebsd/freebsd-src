@@ -38,6 +38,7 @@ extern int	main_decode(int, char *[]);
 extern int	main_encode(int, char *[]);
 extern int	main_base64_decode(const char *);
 extern int	main_base64_encode(const char *, const char *);
+extern int	main_quotedprintable(int, char*[]);
 
 static int	search(const char *const);
 static void	usage_base64(bool);
@@ -45,7 +46,7 @@ static void	version_base64(void);
 static void	base64_encode_or_decode(int, char *[]);
 
 enum coders {
-	uuencode, uudecode, b64encode, b64decode, base64
+	uuencode, uudecode, b64encode, b64decode, base64, qp
 };
 
 int
@@ -71,11 +72,15 @@ main(int argc, char *argv[])
 	case base64:
 		base64_encode_or_decode(argc, argv);
 		break;
+	case qp:
+		main_quotedprintable(argc, argv);
+		break;
 	default:
 		(void)fprintf(stderr,
 		    "usage: %1$s <uuencode | uudecode> ...\n"
 		    "       %1$s <b64encode | b64decode> ...\n"
-		    "       %1$s <base64> ...\n",
+		    "       %1$s <base64> ...\n"
+		    "       %1$s <qp> ...\n",
 		    progname);
 		exit(EX_USAGE);
 	}
@@ -90,7 +95,8 @@ search(const char *const progname)
 		DESIGNATE(uudecode),
 		DESIGNATE(b64encode),
 		DESIGNATE(b64decode),
-		DESIGNATE(base64)
+		DESIGNATE(base64),
+		DESIGNATE(qp)
 	};
 
 	for (size_t i = 0; i < nitems(known); i++)

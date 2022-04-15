@@ -225,6 +225,19 @@ Wrap encoded output after
 .Nm
 is a generic utility that can run
 any of the aforementioned encoders and decoders.
+It can also run algorithms that are not available
+through a dedicated program:
+.Pp
+.Nm qp
+is a quoted-printable converter
+and accepts the following options:
+.Bl -tag -width ident
+.It Fl u
+Decode.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of standard output.
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
 uuencodes it and mails it to a user on another system.
