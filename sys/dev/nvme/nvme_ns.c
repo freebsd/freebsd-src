@@ -561,7 +561,8 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	 *  not >=.
 	 */
 	if (flbas_fmt > ns->data.nlbaf) {
-		printf("lba format %d exceeds number supported (%d)\n",
+		nvme_printf(ctrlr,
+		    "lba format %d exceeds number supported (%d)\n",
 		    flbas_fmt, ns->data.nlbaf + 1);
 		return (ENXIO);
 	}
