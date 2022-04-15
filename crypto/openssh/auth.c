@@ -103,62 +103,18 @@ int
 allowed_user(struct ssh *ssh, struct passwd * pw)
 {
 	struct stat st;
-	const char *hostname = NULL, *ipaddr = NULL, *passwd = NULL;
+	const char *hostname = NULL, *ipaddr = NULL;
 	u_int i;
 	int r;
-#ifdef USE_SHADOW
-	struct spwd *spw = NULL;
-#endif
 
 	/* Shouldn't be called if pw is NULL, but better safe than sorry... */
 	if (!pw || !pw->pw_name)
 		return 0;
 
-#ifdef USE_SHADOW
-	if (!options.use_pam)
-		spw = getspnam(pw->pw_name);
-#ifdef HAS_SHADOW_EXPIRE
-	if (!options.use_pam && spw != NULL && auth_shadow_acctexpired(spw))
+	if (!options.use_pam && platform_locked_account(pw)) {
+		logit("User %.100s not allowed because account is locked",
+		    pw->pw_name);
 		return 0;
-#endif /* HAS_SHADOW_EXPIRE */
-#endif /* USE_SHADOW */
-
-	/* grab passwd field for locked account check */
-	passwd = pw->pw_passwd;
-#ifdef USE_SHADOW
-	if (spw != NULL)
-#ifdef USE_LIBIAF
-		passwd = get_iaf_password(pw);
-#else
-		passwd = spw->sp_pwdp;
-#endif /* USE_LIBIAF */
-#endif
-
-	/* check for locked account */
-	if (!options.use_pam && passwd && *passwd) {
-		int locked = 0;
-
-#ifdef LOCKED_PASSWD_STRING
-		if (strcmp(passwd, LOCKED_PASSWD_STRING) == 0)
-			 locked = 1;
-#endif
-#ifdef LOCKED_PASSWD_PREFIX
-		if (strncmp(passwd, LOCKED_PASSWD_PREFIX,
-		    strlen(LOCKED_PASSWD_PREFIX)) == 0)
-			 locked = 1;
-#endif
-#ifdef LOCKED_PASSWD_SUBSTR
-		if (strstr(passwd, LOCKED_PASSWD_SUBSTR))
-			locked = 1;
-#endif
-#ifdef USE_LIBIAF
-		free((void *) passwd);
-#endif /* USE_LIBIAF */
-		if (locked) {
-			logit("User %.100s not allowed because account is locked",
-			    pw->pw_name);
-			return 0;
-		}
 	}
 
 	/*

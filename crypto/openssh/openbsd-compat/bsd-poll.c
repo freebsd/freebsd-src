@@ -91,11 +91,11 @@ ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *tmoutp,
 		fds[i].revents = 0;
 		if (fd == -1)
 			continue;
-		if (FD_ISSET(fd, readfds))
+		if ((fds[i].events & POLLIN) && FD_ISSET(fd, readfds))
 			fds[i].revents |= POLLIN;
-		if (FD_ISSET(fd, writefds))
+		if ((fds[i].events & POLLOUT) && FD_ISSET(fd, writefds))
 			fds[i].revents |= POLLOUT;
-		if (FD_ISSET(fd, exceptfds))
+		if ((fds[i].events & POLLPRI) && FD_ISSET(fd, exceptfds))
 			fds[i].revents |= POLLPRI;
 	}
 
