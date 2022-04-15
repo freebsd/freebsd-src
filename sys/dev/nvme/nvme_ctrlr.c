@@ -941,24 +941,32 @@ nvme_ctrlr_hmb_alloc(struct nvme_controller *ctrlr)
 	max = (uint64_t)physmem * PAGE_SIZE / 20;
 	TUNABLE_UINT64_FETCH("hw.nvme.hmb_max", &max);
 
+	/*
+	 * Units of Host Memory Buffer in the Identify info are always in terms
+	 * of 4k units.
+	 */
 	min = (long long unsigned)ctrlr->cdata.hmmin * NVME_HMB_UNITS;
 	if (max == 0 || max < min)
 		return;
 	pref = MIN((long long unsigned)ctrlr->cdata.hmpre * NVME_HMB_UNITS, max);
-	minc = MAX(ctrlr->cdata.hmminds * NVME_HMB_UNITS, PAGE_SIZE);
+	minc = MAX(ctrlr->cdata.hmminds * NVME_HMB_UNITS, ctrlr->page_size);
 	if (min > 0 && ctrlr->cdata.hmmaxd > 0)
 		minc = MAX(minc, min / ctrlr->cdata.hmmaxd);
 	ctrlr->hmb_chunk = pref;
 
 again:
-	ctrlr->hmb_chunk = roundup2(ctrlr->hmb_chunk, PAGE_SIZE);
+	/*
+	 * However, the chunk sizes, number of chunks, and alignment of chunks
+	 * are all based on the current MPS (ctrlr->page_size).
+	 */
+	ctrlr->hmb_chunk = roundup2(ctrlr->hmb_chunk, ctrlr->page_size);
 	ctrlr->hmb_nchunks = howmany(pref, ctrlr->hmb_chunk);
 	if (ctrlr->cdata.hmmaxd > 0 && ctrlr->hmb_nchunks > ctrlr->cdata.hmmaxd)
 		ctrlr->hmb_nchunks = ctrlr->cdata.hmmaxd;
 	ctrlr->hmb_chunks = malloc(sizeof(struct nvme_hmb_chunk) *
 	    ctrlr->hmb_nchunks, M_NVME, M_WAITOK);
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    ctrlr->page_size, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    ctrlr->hmb_chunk, 1, ctrlr->hmb_chunk, 0, NULL, NULL, &ctrlr->hmb_tag);
 	if (err != 0) {
 		nvme_printf(ctrlr, "HMB tag create failed %d\n", err);
@@ -1028,7 +1036,7 @@ again:
 	for (i = 0; i < ctrlr->hmb_nchunks; i++) {
 		ctrlr->hmb_desc_vaddr[i].addr =
 		    htole64(ctrlr->hmb_chunks[i].hmbc_paddr);
-		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / NVME_HMB_UNITS);
+		ctrlr->hmb_desc_vaddr[i].size = htole32(ctrlr->hmb_chunk / ctrlr->page_size);
 	}
 	bus_dmamap_sync(ctrlr->hmb_desc_tag, ctrlr->hmb_desc_map,
 	    BUS_DMASYNC_PREWRITE);
@@ -1051,8 +1059,9 @@ nvme_ctrlr_hmb_enable(struct nvme_controller *ctrlr, bool enable, bool memret)
 		cdw11 |= 2;
 	status.done = 0;
 	nvme_ctrlr_cmd_set_feature(ctrlr, NVME_FEAT_HOST_MEMORY_BUFFER, cdw11,
-	    ctrlr->hmb_nchunks * ctrlr->hmb_chunk / 4096, ctrlr->hmb_desc_paddr,
-	    ctrlr->hmb_desc_paddr >> 32, ctrlr->hmb_nchunks, NULL, 0,
+	    ctrlr->hmb_nchunks * ctrlr->hmb_chunk / ctrlr->page_size,
+	    ctrlr->hmb_desc_paddr, ctrlr->hmb_desc_paddr >> 32,
+	    ctrlr->hmb_nchunks, NULL, 0,
 	    nvme_completion_poll_cb, &status);
 	nvme_completion_poll(&status);
 	if (nvme_completion_is_error(&status.cpl))
