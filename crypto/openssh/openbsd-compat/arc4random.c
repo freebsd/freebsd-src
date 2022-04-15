@@ -79,7 +79,7 @@ _rs_init(u_char *buf, size_t n)
 {
 	if (n < KEYSZ + IVSZ)
 		return;
-	chacha_keysetup(&rs, buf, KEYSZ * 8, 0);
+	chacha_keysetup(&rs, buf, KEYSZ * 8);
 	chacha_ivsetup(&rs, buf + KEYSZ);
 }
 

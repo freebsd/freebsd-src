@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.448 2022/02/01 23:32:51 djm Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.450 2022/03/18 02:32:22 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -3538,6 +3538,13 @@ main(int argc, char **argv)
 			return sig_sign(identity_file, cert_principals,
 			    argc, argv, opts, nopts);
 		} else if (strncmp(sign_op, "check-novalidate", 16) == 0) {
+			/* NB. cert_principals is actually namespace, via -n */
+			if (cert_principals == NULL ||
+			    *cert_principals == '\0') {
+				error("Too few arguments for check-novalidate: "
+				    "missing namespace");
+				exit(1);
+			}
 			if (ca_key_path == NULL) {
 				error("Too few arguments for check-novalidate: "
 				    "missing signature file");

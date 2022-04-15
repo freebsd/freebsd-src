@@ -16,9 +16,11 @@ jobs:
       # default config.  "os" corresponds to a label associated with the worker.
       matrix:
         os:
+          - aix51
           - ARM64
           - alpine
           - bbone
+          - debian-i386
           - dfly30
           - dfly48
           - dfly58
@@ -40,6 +42,8 @@ jobs:
           - obsd70
           - obsdsnap
           - openindiana
+          - openwrt-mips
+          - openwrt-mipsel
           # - rocky84
           - sol10
           - sol11
@@ -49,6 +53,7 @@ jobs:
         # Then we include any extra configs we want to test for specific VMs.
         include:
           - { os: ARM64,  configs: pam }
+          - { os: debian-i386, configs: pam }
           - { os: dfly30, configs: without-openssl}
           - { os: dfly48, configs: pam }
           - { os: dfly58, configs: pam }
@@ -87,7 +92,7 @@ jobs:
       run: vmrun make
     - name: make tests
       run: vmrun ./.github/run_test.sh ${{ matrix.configs }}
-      timeout-minutes: 300
+      timeout-minutes: 600
     - name: save logs
       if: failure()
       uses: actions/upload-artifact@v2

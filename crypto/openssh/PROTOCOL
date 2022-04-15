@@ -492,7 +492,7 @@ This request asks the server to call fsync(2) on an open file handle.
 	string		"fsync@openssh.com"
 	string		handle
 
-One receiving this request, a server will call fsync(handle_fd) and will
+On receiving this request, a server will call fsync(handle_fd) and will
 respond with a SSH_FXP_STATUS message.
 
 This extension is advertised in the SSH_FXP_VERSION hello with version
@@ -576,6 +576,43 @@ Its reply is the same format as that of SSH2_FXP_REALPATH.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
+4.10. sftp: Extension request "copy-data"
+
+This request asks the server to copy data from one open file handle and
+write it to a different open file handle.  This avoids needing to transfer
+the data across the network twice (a download followed by an upload).
+
+	byte		SSH_FXP_EXTENDED
+	uint32		id
+	string		"copy-data"
+	string		read-from-handle
+	uint64		read-from-offset
+	uint64		read-data-length
+	string		write-to-handle
+	uint64		write-to-offset
+
+The server will copy read-data-length bytes starting from
+read-from-offset from the read-from-handle and write them to
+write-to-handle starting from write-to-offset, and then respond with a
+SSH_FXP_STATUS message.
+
+It's equivalent to issuing a series of SSH_FXP_READ requests on
+read-from-handle and a series of requests of SSH_FXP_WRITE on
+write-to-handle.
+
+If read-from-handle and write-to-handle are the same, the server will
+fail the request and respond with a SSH_FX_INVALID_PARAMETER message.
+
+If read-data-length is 0, then the server will read data from the
+read-from-handle until EOF is reached.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+This request is identical to the "copy-data" request documented in:
+
+https://tools.ietf.org/html/draft-ietf-secsh-filexfer-extensions-00#section-7
+
 5. Miscellaneous changes
 
 5.1 Public key format
@@ -612,4 +649,4 @@ master instance and later clients.
 OpenSSH extends the usual agent protocol. These changes are documented
 in the PROTOCOL.agent file.
 
-$OpenBSD: PROTOCOL,v 1.43 2021/12/19 22:15:42 djm Exp $
+$OpenBSD: PROTOCOL,v 1.44 2022/03/31 03:05:49 djm Exp $

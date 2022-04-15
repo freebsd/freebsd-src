@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.139 2022/02/01 23:32:51 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.140 2022/03/31 03:05:49 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 
+#include "atomicio.h"
 #include "xmalloc.h"
 #include "sshbuf.h"
 #include "ssherr.h"
@@ -119,6 +120,7 @@ static void process_extended_fsync(u_int32_t id);
 static void process_extended_lsetstat(u_int32_t id);
 static void process_extended_limits(u_int32_t id);
 static void process_extended_expand(u_int32_t id);
+static void process_extended_copy_data(u_int32_t id);
 static void process_extended(u_int32_t id);
 
 struct sftp_handler {
@@ -164,6 +166,7 @@ static const struct sftp_handler extended_handlers[] = {
 	{ "limits", "limits@openssh.com", 0, process_extended_limits, 0 },
 	{ "expand-path", "expand-path@openssh.com", 0,
 	    process_extended_expand, 0 },
+	{ "copy-data", "copy-data", 0, process_extended_copy_data, 1 },
 	{ NULL, NULL, 0, NULL, 0 }
 };
 
@@ -720,6 +723,7 @@ process_init(void)
 	compose_extension(msg, "lsetstat@openssh.com", "1");
 	compose_extension(msg, "limits@openssh.com", "1");
 	compose_extension(msg, "expand-path@openssh.com", "1");
+	compose_extension(msg, "copy-data", "1");
 
 	send_msg(msg);
 	sshbuf_free(msg);
@@ -1590,6 +1594,94 @@ process_extended_expand(u_int32_t id)
 	send_names(id, 1, &s);
  out:
 	free(path);
+}
+
+static void
+process_extended_copy_data(u_int32_t id)
+{
+	u_char buf[64*1024];
+	int read_handle, read_fd, write_handle, write_fd;
+	u_int64_t len, read_off, read_len, write_off;
+	int r, copy_until_eof, status = SSH2_FX_OP_UNSUPPORTED;
+	size_t ret;
+
+	if ((r = get_handle(iqueue, &read_handle)) != 0 ||
+	    (r = sshbuf_get_u64(iqueue, &read_off)) != 0 ||
+	    (r = sshbuf_get_u64(iqueue, &read_len)) != 0 ||
+	    (r = get_handle(iqueue, &write_handle)) != 0 ||
+	    (r = sshbuf_get_u64(iqueue, &write_off)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	debug("request %u: copy-data from \"%s\" (handle %d) off %llu len %llu "
+	    "to \"%s\" (handle %d) off %llu",
+	    id, handle_to_name(read_handle), read_handle,
+	    (unsigned long long)read_off, (unsigned long long)read_len,
+	    handle_to_name(write_handle), write_handle,
+	    (unsigned long long)write_off);
+
+	/* For read length of 0, we read until EOF. */
+	if (read_len == 0) {
+		read_len = (u_int64_t)-1 - read_off;
+		copy_until_eof = 1;
+	} else
+		copy_until_eof = 0;
+
+	read_fd = handle_to_fd(read_handle);
+	write_fd = handle_to_fd(write_handle);
+
+	/* Disallow reading & writing to the same handle or same path or dirs */
+	if (read_handle == write_handle || read_fd < 0 || write_fd < 0 ||
+	    !strcmp(handle_to_name(read_handle), handle_to_name(write_handle))) {
+		status = SSH2_FX_FAILURE;
+		goto out;
+	}
+
+	if (lseek(read_fd, read_off, SEEK_SET) < 0) {
+		status = errno_to_portable(errno);
+		error("%s: read_seek failed", __func__);
+		goto out;
+	}
+
+	if ((handle_to_flags(write_handle) & O_APPEND) == 0 &&
+	    lseek(write_fd, write_off, SEEK_SET) < 0) {
+		status = errno_to_portable(errno);
+		error("%s: write_seek failed", __func__);
+		goto out;
+	}
+
+	/* Process the request in chunks. */
+	while (read_len > 0 || copy_until_eof) {
+		len = MINIMUM(sizeof(buf), read_len);
+		read_len -= len;
+
+		ret = atomicio(read, read_fd, buf, len);
+		if (ret == 0 && errno == EPIPE) {
+			status = copy_until_eof ? SSH2_FX_OK : SSH2_FX_EOF;
+			break;
+		} else if (ret == 0) {
+			status = errno_to_portable(errno);
+			error("%s: read failed: %s", __func__, strerror(errno));
+			break;
+		}
+		len = ret;
+		handle_update_read(read_handle, len);
+
+		ret = atomicio(vwrite, write_fd, buf, len);
+		if (ret != len) {
+			status = errno_to_portable(errno);
+			error("%s: write failed: %llu != %llu: %s", __func__,
+			    (unsigned long long)ret, (unsigned long long)len,
+			    strerror(errno));
+			break;
+		}
+		handle_update_write(write_handle, len);
+	}
+
+	if (read_len == 0)
+		status = SSH2_FX_OK;
+
+ out:
+	send_status(id, status);
 }
 
 static void

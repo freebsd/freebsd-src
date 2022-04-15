@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.161 2022/01/17 21:41:04 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.162 2022/03/31 03:07:03 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -103,6 +103,7 @@ struct sftp_conn {
 #define SFTP_EXT_LSETSTAT	0x00000020
 #define SFTP_EXT_LIMITS		0x00000040
 #define SFTP_EXT_PATH_EXPAND	0x00000080
+#define SFTP_EXT_COPY_DATA	0x00000100
 	u_int exts;
 	u_int64_t limit_kbps;
 	struct bwlimit bwlimit_in, bwlimit_out;
@@ -533,6 +534,10 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 		} else if (strcmp(name, "expand-path@openssh.com") == 0 &&
 		    strcmp((char *)value, "1") == 0) {
 			ret->exts |= SFTP_EXT_PATH_EXPAND;
+			known = 1;
+		} else if (strcmp(name, "copy-data") == 0 &&
+		    strcmp((char *)value, "1") == 0) {
+			ret->exts |= SFTP_EXT_COPY_DATA;
 			known = 1;
 		}
 		if (known) {
@@ -1076,6 +1081,121 @@ do_expand_path(struct sftp_conn *conn, const char *path)
 		return do_realpath_expand(conn, path, 0);
 	}
 	return do_realpath_expand(conn, path, 1);
+}
+
+int
+do_copy(struct sftp_conn *conn, const char *oldpath, const char *newpath)
+{
+	Attrib junk, *a;
+	struct sshbuf *msg;
+	u_char *old_handle, *new_handle;
+	u_int mode, status, id;
+	size_t old_handle_len, new_handle_len;
+	int r;
+
+	/* Return if the extension is not supported */
+	if ((conn->exts & SFTP_EXT_COPY_DATA) == 0) {
+		error("Server does not support copy-data extension");
+		return -1;
+	}
+
+	/* Make sure the file exists, and we can copy its perms */
+	if ((a = do_stat(conn, oldpath, 0)) == NULL)
+		return -1;
+
+	/* Do not preserve set[ug]id here, as we do not preserve ownership */
+	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+		mode = a->perm & 0777;
+
+		if (!S_ISREG(a->perm)) {
+			error("Cannot copy non-regular file: %s", oldpath);
+			return -1;
+		}
+	} else {
+		/* NB: The user's umask will apply to this */
+		mode = 0666;
+	}
+
+	/* Set up the new perms for the new file */
+	attrib_clear(a);
+	a->perm = mode;
+	a->flags |= SSH2_FILEXFER_ATTR_PERMISSIONS;
+
+	if ((msg = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+
+	attrib_clear(&junk); /* Send empty attributes */
+
+	/* Open the old file for reading */
+	id = conn->msg_id++;
+	if ((r = sshbuf_put_u8(msg, SSH2_FXP_OPEN)) != 0 ||
+	    (r = sshbuf_put_u32(msg, id)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, oldpath)) != 0 ||
+	    (r = sshbuf_put_u32(msg, SSH2_FXF_READ)) != 0 ||
+	    (r = encode_attrib(msg, &junk)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	send_msg(conn, msg);
+	debug3("Sent message SSH2_FXP_OPEN I:%u P:%s", id, oldpath);
+
+	sshbuf_reset(msg);
+
+	old_handle = get_handle(conn, id, &old_handle_len,
+	    "remote open(\"%s\")", oldpath);
+	if (old_handle == NULL) {
+		sshbuf_free(msg);
+		return -1;
+	}
+
+	/* Open the new file for writing */
+	id = conn->msg_id++;
+	if ((r = sshbuf_put_u8(msg, SSH2_FXP_OPEN)) != 0 ||
+	    (r = sshbuf_put_u32(msg, id)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, newpath)) != 0 ||
+	    (r = sshbuf_put_u32(msg, SSH2_FXF_WRITE|SSH2_FXF_CREAT|
+	    SSH2_FXF_TRUNC)) != 0 ||
+	    (r = encode_attrib(msg, a)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	send_msg(conn, msg);
+	debug3("Sent message SSH2_FXP_OPEN I:%u P:%s", id, newpath);
+
+	sshbuf_reset(msg);
+
+	new_handle = get_handle(conn, id, &new_handle_len,
+	    "remote open(\"%s\")", newpath);
+	if (new_handle == NULL) {
+		sshbuf_free(msg);
+		free(old_handle);
+		return -1;
+	}
+
+	/* Copy the file data */
+	id = conn->msg_id++;
+	if ((r = sshbuf_put_u8(msg, SSH2_FXP_EXTENDED)) != 0 ||
+	    (r = sshbuf_put_u32(msg, id)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, "copy-data")) != 0 ||
+	    (r = sshbuf_put_string(msg, old_handle, old_handle_len)) != 0 ||
+	    (r = sshbuf_put_u64(msg, 0)) != 0 ||
+	    (r = sshbuf_put_u64(msg, 0)) != 0 ||
+	    (r = sshbuf_put_string(msg, new_handle, new_handle_len)) != 0 ||
+	    (r = sshbuf_put_u64(msg, 0)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	send_msg(conn, msg);
+	debug3("Sent message copy-data \"%s\" 0 0 -> \"%s\" 0",
+	       oldpath, newpath);
+
+	status = get_status(conn, id);
+	if (status != SSH2_FX_OK)
+		error("Couldn't copy file \"%s\" to \"%s\": %s", oldpath,
+		    newpath, fx2txt(status));
+
+	/* Clean up everything */
+	sshbuf_free(msg);
+	do_close(conn, old_handle, old_handle_len);
+	do_close(conn, new_handle, new_handle_len);
+	free(old_handle);
+	free(new_handle);
+
+	return status == SSH2_FX_OK ? 0 : -1;
 }
 
 int
