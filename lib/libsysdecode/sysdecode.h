@@ -28,6 +28,10 @@
 #ifndef __SYSDECODE_H__
 #define	__SYSDECODE_H__
 
+#include <sys/types.h>
+#include <stdbool.h>
+#include <stdio.h>
+
 enum sysdecode_abi {
 	SYSDECODE_ABI_UNKNOWN = 0,
 	SYSDECODE_ABI_FREEBSD,
