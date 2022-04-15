@@ -288,8 +288,9 @@ struct nvme_controller {
 	uint32_t		cap_lo;
 	uint32_t		cap_hi;
 
-	/** minimum page size supported by this controller in bytes */
-	uint32_t		min_page_size;
+	/** Page size and log2(page_size) - 12 that we're currently using */
+	uint32_t		page_size;
+	uint32_t		mps;
 
 	/** interrupt coalescing time period (in microseconds) */
 	uint32_t		int_coal_time;
