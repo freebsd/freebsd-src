@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.584 2022/03/01 01:59:19 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.585 2022/03/18 04:04:11 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1807,7 +1807,7 @@ main(int ac, char **av)
 		load_server_config(config_file_name, cfg);
 
 	parse_server_config(&options, rexeced_flag ? "rexec" : config_file_name,
-	    cfg, &includes, NULL);
+	    cfg, &includes, NULL, rexeced_flag);
 
 #ifdef WITH_OPENSSL
 	if (options.moduli_file != NULL)

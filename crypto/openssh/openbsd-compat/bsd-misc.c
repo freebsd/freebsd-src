@@ -107,7 +107,7 @@ const char *strerror(int e)
 #endif
 
 #ifndef HAVE_UTIMES
-int utimes(char *filename, struct timeval *tvp)
+int utimes(const char *filename, struct timeval *tvp)
 {
 	struct utimbuf ub;
 
@@ -409,6 +409,14 @@ getsid(pid_t pid)
 {
 	errno = ENOSYS;
 	return -1;
+}
+#endif
+
+#ifndef HAVE_KILLPG
+int
+killpg(pid_t pgrp, int sig)
+{
+	return kill(pgrp, sig);
 }
 #endif
 
