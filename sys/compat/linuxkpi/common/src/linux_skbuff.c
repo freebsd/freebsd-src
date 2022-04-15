@@ -111,6 +111,44 @@ linuxkpi_dev_alloc_skb(size_t size, gfp_t gfp)
 	return (skb);
 }
 
+struct sk_buff *
+linuxkpi_skb_copy(struct sk_buff *skb, gfp_t gfp)
+{
+	struct sk_buff *new;
+	struct skb_shared_info *shinfo;
+	size_t len;
+	unsigned int headroom;
+
+	/* Full buffer size + any fragments. */
+	len = skb->end - skb->head + skb->data_len;
+
+	new = linuxkpi_alloc_skb(len, gfp);
+	if (new == NULL)
+		return (NULL);
+
+	headroom = skb_headroom(skb);
+	/* Fixup head and end. */
+	skb_reserve(new, headroom);	/* data and tail move headroom forward. */
+	skb_put(new, skb->len);		/* tail and len get adjusted */
+
+	/* Copy data. */
+	memcpy(new->head, skb->data - headroom, headroom + skb->len);
+
+	/* Deal with fragments. */
+	shinfo = skb->shinfo;
+	if (shinfo->nr_frags > 0) {
+		printf("%s:%d: NOT YET SUPPORTED; missing %d frags\n",
+		    __func__, __LINE__, shinfo->nr_frags);
+		SKB_TODO();
+	}
+
+	/* Deal with header fields. */
+	memcpy(new->cb, skb->cb, sizeof(skb->cb));
+	SKB_IMPROVE("more header fields to copy?");
+
+	return (new);
+}
+
 void
 linuxkpi_kfree_skb(struct sk_buff *skb)
 {
