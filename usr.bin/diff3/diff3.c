@@ -139,7 +139,7 @@ static int skip(int, int, const char *);
 static void change(int, struct range *, bool);
 static void keep(int, struct range *);
 static void merge(int, int);
-static void prange(struct range *);
+static void prange(struct range *, bool);
 static void repos(int);
 static void edscript(int) __dead2;
 static void increase(void);
@@ -382,7 +382,7 @@ change(int i, struct range *rold, bool dup)
 
 	printf("%d:", i);
 	last[i] = rold->to;
-	prange(rold);
+	prange(rold, false);
 	if (dup)
 		return;
 	i--;
@@ -395,7 +395,7 @@ change(int i, struct range *rold, bool dup)
  * n1.
  */
 static void
-prange(struct range *rold)
+prange(struct range *rold, bool delete)
 {
 
 	if (rold->to <= rold->from)
@@ -404,7 +404,10 @@ prange(struct range *rold)
 		printf("%d", rold->from);
 		if (rold->to > rold->from + 1)
 			printf(",%d", rold->to - 1);
-		printf("c\n");
+		if (delete)
+			printf("d\n");
+		else
+			printf("c\n");
 	}
 }
 
@@ -514,12 +517,14 @@ static void
 edscript(int n)
 {
 	int k;
+	bool delete;
 	size_t j;
 	char block[BUFSIZ];
 
 	for (; n > 0; n--) {
+		delete = (de[n].new.from == de[n].new.to);
 		if (!oflag || !overlap[n]) {
-			prange(&de[n].old);
+			prange(&de[n].old, delete);
 		} else {
 			printf("%da\n", de[n].old.to - 1);
 			if (Aflag) {
@@ -550,9 +555,10 @@ edscript(int n)
 				j = r;
 			(void)fwrite(block, 1, j, stdout);
 		}
-		if (!oflag || !overlap[n])
-			printf(".\n");
-		else {
+		if (!oflag || !overlap[n]) {
+			if (!delete)
+				printf(".\n");
+		} else {
 			printf("%s\n.\n", f3mark);
 			printf("%da\n%s\n.\n", de[n].old.from - 1, f1mark);
 		}
