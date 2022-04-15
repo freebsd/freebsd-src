@@ -702,9 +702,10 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 
 	/* Note: NVMe PRP format is restricted to 4-byte alignment. */
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
-	    4, PAGE_SIZE, BUS_SPACE_MAXADDR,
+	    4, ctrlr->page_size, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, ctrlr->max_xfer_size,
-	    btoc(ctrlr->max_xfer_size) + 1, PAGE_SIZE, 0,
+	    howmany(ctrlr->max_xfer_size, ctrlr->page_size) + 1,
+	    ctrlr->page_size, 0,
 	    NULL, NULL, &qpair->dma_tag_payload);
 	if (err != 0) {
 		nvme_printf(ctrlr, "payload tag create failed %d\n", err);
@@ -716,20 +717,21 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	 * cannot cross a page boundary.
 	 */
 	cmdsz = qpair->num_entries * sizeof(struct nvme_command);
-	cmdsz = roundup2(cmdsz, PAGE_SIZE);
+	cmdsz = roundup2(cmdsz, ctrlr->page_size);
 	cplsz = qpair->num_entries * sizeof(struct nvme_completion);
-	cplsz = roundup2(cplsz, PAGE_SIZE);
+	cplsz = roundup2(cplsz, ctrlr->page_size);
 	/*
 	 * For commands requiring more than 2 PRP entries, one PRP will be
 	 * embedded in the command (prp1), and the rest of the PRP entries
 	 * will be in a list pointed to by the command (prp2).
 	 */
-	prpsz = sizeof(uint64_t) * btoc(ctrlr->max_xfer_size);
+	prpsz = sizeof(uint64_t) *
+	    howmany(ctrlr->max_xfer_size, ctrlr->page_size);
 	prpmemsz = qpair->num_trackers * prpsz;
 	allocsz = cmdsz + cplsz + prpmemsz;
 
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
-	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    ctrlr->page_size, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    allocsz, 1, allocsz, 0, NULL, NULL, &qpair->dma_tag);
 	if (err != 0) {
 		nvme_printf(ctrlr, "tag create failed %d\n", err);
@@ -791,13 +793,13 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 
 		/*
 		 * Make sure that the PRP list for this tracker doesn't
-		 * overflow to another page.
+		 * overflow to another nvme page.
 		 */
 		if (trunc_page(list_phys) !=
 		    trunc_page(list_phys + prpsz - 1)) {
-			list_phys = roundup2(list_phys, PAGE_SIZE);
+			list_phys = roundup2(list_phys, ctrlr->page_size);
 			prp_list =
-			    (uint8_t *)roundup2((uintptr_t)prp_list, PAGE_SIZE);
+			    (uint8_t *)roundup2((uintptr_t)prp_list, ctrlr->page_size);
 		}
 
 		tr = malloc_domainset(sizeof(*tr), M_NVME,
@@ -1101,10 +1103,9 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	}
 
 	/*
-	 * Note that we specified PAGE_SIZE for alignment and max
-	 *  segment size when creating the bus dma tags.  So here
-	 *  we can safely just transfer each segment to its
-	 *  associated PRP entry.
+	 * Note that we specified ctrlr->page_size for alignment and max
+	 * segment size when creating the bus dma tags.  So here we can safely
+	 * just transfer each segment to its associated PRP entry.
 	 */
 	tr->req->cmd.prp1 = htole64(seg[0].ds_addr);
 
