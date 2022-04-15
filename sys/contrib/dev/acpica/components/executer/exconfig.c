@@ -471,9 +471,7 @@ AcpiExLoadOp (
     }
     if (Target->Common.Type != ACPI_TYPE_INTEGER)
     {
-#ifndef _KERNEL
-        fprintf (stderr, "Type not integer: %X\n", Target->Common.Type);
-#endif
+        ACPI_ERROR ((AE_INFO, "Type not integer: %X", Target->Common.Type));
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
 
