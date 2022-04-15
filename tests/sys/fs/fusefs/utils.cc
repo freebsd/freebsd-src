@@ -217,7 +217,7 @@ FuseTest::expect_destroy(int error)
 			return (in.header.opcode == FUSE_DESTROY);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke( ReturnImmediate([&](auto in, auto& out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
 		m_mock->m_quit = true;
 		out.header.len = sizeof(out.header);
 		out.header.unique = in.header.unique;
