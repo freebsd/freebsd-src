@@ -1454,7 +1454,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	ctrlr->enable_aborts = 0;
 	TUNABLE_INT_FETCH("hw.nvme.enable_aborts", &ctrlr->enable_aborts);
 
-	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
+	/* Cap transfers by the maximum addressable by page-sized PRP (4KB pages -> 2MB). */
+	ctrlr->max_xfer_size = MIN(maxphys, (ctrlr->page_size / 8 * ctrlr->page_size));
 	if (nvme_ctrlr_construct_admin_qpair(ctrlr) != 0)
 		return (ENXIO);
 
