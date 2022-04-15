@@ -567,14 +567,16 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	}
 
 	/*
-	 * Older Intel devices advertise in vendor specific space an alignment
-	 * that improves performance.  If present use for the stripe size.  NVMe
-	 * 1.3 standardized this as NOIOB, and newer Intel drives use that.
+	 * Older Intel devices (like the PC35xxx and P45xx series) advertise in
+	 * vendor specific space an alignment that improves performance.  If
+	 * present use for the stripe size.  NVMe 1.3 standardized this as
+	 * NOIOB, and newer Intel drives use that.
 	 */
 	if ((ctrlr->quirks & QUIRK_INTEL_ALIGNMENT) != 0) {
 		if (ctrlr->cdata.vs[3] != 0)
 			ns->boundary =
-			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
+			    1 << (ctrlr->cdata.vs[3] + NVME_MPS_SHIFT +
+				NVME_CAP_HI_MPSMIN(ctrlr->cap_hi));
 		else
 			ns->boundary = 0;
 	} else {
