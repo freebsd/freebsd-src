@@ -905,6 +905,8 @@ void linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *, unsigned long *,
 struct wireless_dev *linuxkpi_ieee80211_vif_to_wdev(struct ieee80211_vif *);
 void linuxkpi_ieee80211_connection_loss(struct ieee80211_vif *);
 void linuxkpi_ieee80211_beacon_loss(struct ieee80211_vif *);
+struct sk_buff *linuxkpi_ieee80211_probereq_get(struct ieee80211_hw *,
+    uint8_t *, uint8_t *, size_t, size_t);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1868,10 +1870,11 @@ ieee80211_nullfunc_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 static __inline struct sk_buff *
 ieee80211_probereq_get(struct ieee80211_hw *hw, uint8_t *addr,
-    uint8_t *ssid, size_t ssid_len, int _x)
+    uint8_t *ssid, size_t ssid_len, size_t tailroom)
 {
-	TODO();
-	return (NULL);
+
+	return (linuxkpi_ieee80211_probereq_get(hw, addr, ssid, ssid_len,
+	    tailroom));
 }
 
 static __inline void
