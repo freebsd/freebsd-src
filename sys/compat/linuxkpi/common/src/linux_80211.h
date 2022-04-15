@@ -155,6 +155,11 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	uint32_t			sc_flags;
 #define	LKPI_SCAN_RUNNING		0x00000001
 	uint32_t			scan_flags;
+
+	int				supbands;	/* Number of supported bands. */
+	int				max_rates;	/* Maximum number of bitrates supported in any channel. */
+	int				scan_ie_len;	/* Length of common per-band scan IEs. */
+
 	bool				update_mc;
 
 	/* Must be last! */
