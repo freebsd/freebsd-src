@@ -2424,15 +2424,72 @@ linuxkpi_ieee80211_ie_advance(size_t *xp, const u8 *ies, size_t ies_len)
 	return (true);
 }
 
-static int
-lkpi_ieee80211_probereq_ie_alloc(struct ieee80211vap *vap,
-    struct ieee80211com *ic, struct ieee80211_scan_ies *scan_ies,
-    const uint8_t *ssid, size_t ssidlen)
+static uint8_t *
+lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
+    uint32_t band_mask, struct ieee80211vap *vap, struct ieee80211_hw *hw)
 {
+	struct ieee80211_supported_band *supband;
+	struct linuxkpi_ieee80211_channel *channels;
+	const struct ieee80211_channel *chan;
+	const struct ieee80211_rateset *rs;
+	uint8_t *pb;
+	int band, i;
 
-	return (ieee80211_probereq_ie(vap, ic,
-	    &scan_ies->common_ies, &scan_ies->common_ie_len,
-	    ssid, ssidlen, true));
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		if ((band_mask & (1 << band)) == 0)
+			continue;
+
+		supband = hw->wiphy->bands[band];
+		/*
+		 * This should not happen;
+		 * band_mask is a bitmask of valid bands to scan on.
+		 */
+		if (supband == NULL || supband->n_channels == 0)
+			continue;
+
+		/* Find a first channel to get the mode and rates from. */
+		channels = supband->channels;
+		chan = NULL;
+		for (i = 0; i < supband->n_channels; i++) {
+
+			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+				continue;
+
+			chan = ieee80211_find_channel(vap->iv_ic,
+			    channels[i].center_freq, 0);
+			if (chan != NULL)
+				break;
+		}
+
+		/* This really should not happen. */
+		if (chan == NULL)
+			continue;
+
+		pb = p;
+		rs = ieee80211_get_suprates(vap->iv_ic, chan);	/* calls chan2mode */
+		p = ieee80211_add_rates(p, rs);
+		p = ieee80211_add_xrates(p, rs);
+
+		scan_ies->ies[band] = pb;
+		scan_ies->len[band] = p - pb;
+	}
+
+	/* Add common_ies */
+	pb = p;
+	if ((vap->iv_flags & IEEE80211_F_WPA1) != 0 &&
+	    vap->iv_wpa_ie != NULL) {
+		memcpy(p, vap->iv_wpa_ie, 2 + vap->iv_wpa_ie[1]);
+		p += 2 + vap->iv_wpa_ie[1];
+	}
+	if (vap->iv_appie_probereq != NULL) {
+		memcpy(p, vap->iv_appie_probereq->ie_data,
+		    vap->iv_appie_probereq->ie_len);
+		p += vap->iv_appie_probereq->ie_len;
+	}
+	scan_ies->common_ies = pb;
+	scan_ies->common_ie_len = p - pb;
+
+	return (p);
 }
 
 static void
@@ -2482,26 +2539,50 @@ sw_scan:
 		struct cfg80211_ssid *ssids;
 		struct cfg80211_scan_6ghz_params *s6gp;
 		size_t chan_len, nchan, ssids_len, s6ghzlen;
-		int i;
+		int band, i, ssid_count, common_ie_len;
+		uint32_t band_mask;
+		uint8_t *ie, *ieend;
 
-		ssids_len = ss->ss_nssid * sizeof(*ssids);;
+		if (!ieee80211_hw_check(hw, SINGLE_SCAN_ON_ALL_BANDS)) {
+			IMPROVE("individual band scans not yet supported");
+			/* In theory net80211 would have to drive this. */
+			return;
+		}
+
+		ssid_count = min(ss->ss_nssid, hw->wiphy->max_scan_ssids);
+		ssids_len = ssid_count * sizeof(*ssids);
 		s6ghzlen = 0 * (sizeof(*s6gp));			/* XXX-BZ */
 
+		band_mask = 0;
 		nchan = 0;
-		for (i = ss->ss_next; i < ss->ss_last; i++)
+		for (i = ss->ss_next; i < ss->ss_last; i++) {
 			nchan++;
+			band = lkpi_net80211_chan_to_nl80211_band(
+			    ss->ss_chans[ss->ss_next + i]);
+			band_mask |= (1 << band);
+		}
 		chan_len = nchan * (sizeof(lc) + sizeof(*lc));
+
+		common_ie_len = 0;
+		if ((vap->iv_flags & IEEE80211_F_WPA1) != 0 &&
+		    vap->iv_wpa_ie != NULL)
+			common_ie_len += vap->iv_wpa_ie[1];
+		if (vap->iv_appie_probereq != NULL)
+			common_ie_len += vap->iv_appie_probereq->ie_len;
+
+		/* We would love to check this at an earlier stage... */
+		if (common_ie_len >  hw->wiphy->max_scan_ie_len) {
+			ic_printf(ic, "WARNING: %s: common_ie_len %d > "
+			    "wiphy->max_scan_ie_len %d\n", __func__,
+			    common_ie_len, hw->wiphy->max_scan_ie_len);
+		}
 
 		KASSERT(lhw->hw_req == NULL, ("%s: ic %p lhw %p hw_req %p "
 		    "!= NULL\n", __func__, ic, lhw, lhw->hw_req));
-		lhw->hw_req = hw_req = malloc(sizeof(*hw_req) + ssids_len +
-		    s6ghzlen + chan_len, M_LKPI80211, M_WAITOK | M_ZERO);
 
-		error = lkpi_ieee80211_probereq_ie_alloc(vap, ic,
-		    &hw_req->ies, NULL, -1);
-		if (error != 0)
-			ic_printf(ic, "ERROR: %s: probereq_ie returned %d\n",
-			    __func__, error);
+		lhw->hw_req = hw_req = malloc(sizeof(*hw_req) + ssids_len +
+		    s6ghzlen + chan_len + lhw->supbands * lhw->scan_ie_len +
+		    common_ie_len, M_LKPI80211, M_WAITOK | M_ZERO);
 
 		hw_req->req.flags = 0;			/* XXX ??? */
 		/* hw_req->req.wdev */
@@ -2516,14 +2597,6 @@ sw_scan:
 		hw_req->req.flags |= NL80211_SCAN_FLAG_RANDOM_ADDR;
 		memcpy(hw_req->req.mac_addr, xxx, IEEE80211_ADDR_LEN);
 		memset(hw_req->req.mac_addr_mask, 0xxx, IEEE80211_ADDR_LEN);
-#endif
-#if 0
-		hw_req->req.ie_len = ;
-		hw_req->req.ie = ;
-#endif
-#if 0
-		hw->wiphy->max_scan_ie_len
-		hw->wiphy->max_scan_ssids
 #endif
 
 		hw_req->req.n_channels = nchan;
@@ -2545,11 +2618,11 @@ sw_scan:
 			lc++;
 		}
 
-		hw_req->req.n_ssids = ss->ss_nssid;
+		hw_req->req.n_ssids = ssid_count;
 		if (hw_req->req.n_ssids > 0) {
 			ssids = (struct cfg80211_ssid *)lc;
 			hw_req->req.ssids = ssids;
-			for (i = 0; i < ss->ss_nssid; i++) {
+			for (i = 0; i < ssid_count; i++) {
 				ssids->ssid_len = ss->ss_ssid[i].len;
 				memcpy(ssids->ssid, ss->ss_ssid[i].ssid,
 				    ss->ss_ssid[i].len);
@@ -2566,15 +2639,21 @@ sw_scan:
 		hw_req->req.scan_6ghz = false;	/* Weird boolean; not what you think. */
 		/* s6gp->... */
 
+		ie = ieend = (uint8_t *)s6gp;
+		/* Copy per-band IEs, copy common IEs */
+		ieend = lkpi_scan_ies_add(ie, &hw_req->ies, band_mask, vap, hw);
+		hw_req->req.ie = ie;
+		hw_req->req.ie_len = ieend - ie;
+
 		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
 		error = lkpi_80211_mo_hw_scan(hw, vif, hw_req);
 		if (error != 0) {
-			free(hw_req->ies.common_ies, M_80211_VAP);
+			ieee80211_cancel_scan(vap);
+
 			free(hw_req, M_LKPI80211);
 			lhw->hw_req = NULL;
 
-			ieee80211_cancel_scan(vap);
 			/*
 			 * XXX-SIGH magic number.
 			 * rtw88 has a magic "return 1" if offloading scan is
@@ -3434,7 +3513,10 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	/*
 	 * Assign the first possible channel for now;  seems Realtek drivers
 	 * expect one.
+	 * Also remember the amount of bands we support and the most rates
+	 * in any band so we can scale [(ext) sup rates] IE(s) accordingly.
 	 */
+	lhw->supbands = lhw->max_rates = 0;
 	for (band = 0; band < NUM_NL80211_BANDS &&
 	    hw->conf.chandef.chan == NULL; band++) {
 		struct ieee80211_supported_band *supband;
@@ -3443,6 +3525,9 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		supband = hw->wiphy->bands[band];
 		if (supband == NULL || supband->n_channels == 0)
 			continue;
+
+		lhw->supbands++;
+		lhw->max_rates = max(lhw->max_rates, supband->n_bitrates);
 
 		channels = supband->channels;
 		for (i = 0; i < supband->n_channels; i++) {
@@ -3455,6 +3540,36 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 			break;
 		}
 	}
+
+	IMPROVE("see net80211::ieee80211_chan_init vs. wiphy->bands[].bitrates possibly in lkpi_ic_getradiocaps?");
+
+	/* Make sure we do not support more than net80211 is willing to take. */
+	if (lhw->max_rates > IEEE80211_RATE_MAXSIZE) {
+		ic_printf(ic, "%s: limiting max_rates %d to %d!\n", __func__,
+		    lhw->max_rates, IEEE80211_RATE_MAXSIZE);
+		lhw->max_rates = IEEE80211_RATE_MAXSIZE;
+	}
+
+	/*
+	 * The maximum supported bitrates on any band + size for
+	 * DSSS Parameter Set give our per-band IE size.
+	 * XXX-BZ FIXME add HT VHT ... later
+	 * SSID is the responsibility of the driver and goes on the side.
+	 * The user specified bits coming from the vap go into the
+	 * "common ies" fields.
+	 */
+	lhw->scan_ie_len = 2 + IEEE80211_RATE_SIZE;
+	if (lhw->max_rates > IEEE80211_RATE_SIZE)
+		lhw->scan_ie_len += 2 + (lhw->max_rates - IEEE80211_RATE_SIZE);
+	/*
+	 * net80211 does not seem to support the DSSS Parameter Set but some of
+	 * the drivers insert it so calculate the extra fixed space in.
+	 */
+	lhw->scan_ie_len += 2 + 1;
+
+	/* Reduce the max_scan_ie_len "left" by the amount we consume already. */
+	if (hw->wiphy->max_scan_ie_len > 0)
+		hw->wiphy->max_scan_ie_len -= lhw->scan_ie_len;
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -3623,7 +3738,6 @@ linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *hw,
 	ieee80211_scan_done(ss->ss_vap);
 
 	LKPI_80211_LHW_LOCK(lhw);
-	free(lhw->hw_req->ies.common_ies, M_80211_VAP);
 	free(lhw->hw_req, M_LKPI80211);
 	lhw->hw_req = NULL;
 	lhw->scan_flags &= ~LKPI_SCAN_RUNNING;
