@@ -59,9 +59,6 @@
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
 
-/* Cap transfers by the maximum addressable by page-sized PRP (4KB -> 2MB). */
-#define NVME_MAX_XFER_SIZE		MIN(maxphys, (PAGE_SIZE/8*PAGE_SIZE))
-
 /* Host memory buffer sizes are always in 4096 byte chunks */
 #define	NVME_HMB_UNITS			4096
 
