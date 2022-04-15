@@ -2326,15 +2326,22 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/*
 	 * compute the signature/digest for the cookie
 	 */
-	ep = &(*inp_p)->sctp_ep;
-	l_inp = *inp_p;
-	if (l_stcb) {
+	if (l_stcb != NULL) {
+		atomic_add_int(&l_stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(l_stcb);
 	}
+	l_inp = *inp_p;
 	SCTP_INP_RLOCK(l_inp);
-	if (l_stcb) {
+	if (l_stcb != NULL) {
 		SCTP_TCB_LOCK(l_stcb);
+		atomic_subtract_int(&l_stcb->asoc.refcnt, 1);
 	}
+	if (l_inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
+		SCTP_INP_RUNLOCK(l_inp);
+		sctp_m_freem(m_sig);
+		return (NULL);
+	}
+	ep = &(*inp_p)->sctp_ep;
 	/* which cookie is it? */
 	if ((cookie->time_entered.tv_sec < (long)ep->time_of_secret_change) &&
 	    (ep->current_secret_number != ep->last_secret_number)) {
