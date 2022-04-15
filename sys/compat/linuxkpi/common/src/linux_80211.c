@@ -4064,6 +4064,99 @@ linuxkpi_ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb,
 	kfree_skb(skb);
 }
 
+void
+linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+	struct ieee80211_ratectl_tx_status txs;
+	struct ieee80211_node *ni;
+	int status;
+
+	info = IEEE80211_SKB_CB(skb);
+
+	if (skb->m != NULL) {
+		struct mbuf *m;
+
+		m = skb->m;
+		ni = m->m_pkthdr.PH_loc.ptr;
+		memset(&txs, 0, sizeof(txs));
+	} else {
+		ni = NULL;
+	}
+
+	if (info->flags & IEEE80211_TX_STAT_ACK) {
+		status = 0;	/* No error. */
+		txs.status = IEEE80211_RATECTL_TX_SUCCESS;
+	} else {
+		status = 1;
+		txs.status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+	}
+
+	if (ni != NULL) {
+		int ridx __diagused;
+#ifdef LINUXKPI_DEBUG_80211
+		int old_rate;
+
+		old_rate = ni->ni_vap->iv_bss->ni_txrate;
+#endif
+		txs.pktlen = skb->len;
+		txs.flags |= IEEE80211_RATECTL_STATUS_PKTLEN;
+		if (info->status.rates[0].count > 1) {
+			txs.long_retries = info->status.rates[0].count - 1;	/* 1 + retries in drivers. */
+			txs.flags |= IEEE80211_RATECTL_STATUS_LONG_RETRY;
+		}
+#if 0		/* Unused in net80211 currently. */
+		/* XXX-BZ conver;t check .flags for MCS/VHT/.. */
+		txs.final_rate = info->status.rates[0].idx;
+		txs.flags |= IEEE80211_RATECTL_STATUS_FINAL_RATE;
+#endif
+		if (info->status.is_valid_ack_signal) {
+			txs.rssi = info->status.ack_signal;		/* XXX-BZ CONVERT? */
+			txs.flags |= IEEE80211_RATECTL_STATUS_RSSI;
+		}
+
+		IMPROVE("only update of rate matches but that requires us to get a proper rate");
+		ieee80211_ratectl_tx_complete(ni, &txs);
+		ridx = ieee80211_ratectl_rate(ni->ni_vap->iv_bss, NULL, 0);
+
+#ifdef LINUXKPI_DEBUG_80211
+		if (linuxkpi_debug_80211 & D80211_TRACE_TX) {
+			printf("TX-RATE: %s: old %d new %d ridx %d, "
+			    "long_retries %d\n", __func__,
+			    old_rate, ni->ni_vap->iv_bss->ni_txrate,
+			    ridx, txs.long_retries);
+		}
+#endif
+	}
+
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
+		printf("TX-STATUS: %s: hw %p skb %p status %d : flags %#x "
+		    "band %u hw_queue %u tx_time_est %d : "
+		    "rates [ %u %u %#x, %u %u %#x, %u %u %#x, %u %u %#x ] "
+		    "ack_signal %u ampdu_ack_len %u ampdu_len %u antenna %u "
+		    "tx_time %u is_valid_ack_signal %u "
+		    "status_driver_data [ %p %p ]\n",
+		    __func__, hw, skb, status, info->flags,
+		    info->band, info->hw_queue, info->tx_time_est,
+		    info->status.rates[0].idx, info->status.rates[0].count,
+		    info->status.rates[0].flags,
+		    info->status.rates[1].idx, info->status.rates[1].count,
+		    info->status.rates[1].flags,
+		    info->status.rates[2].idx, info->status.rates[2].count,
+		    info->status.rates[2].flags,
+		    info->status.rates[3].idx, info->status.rates[3].count,
+		    info->status.rates[3].flags,
+		    info->status.ack_signal, info->status.ampdu_ack_len,
+		    info->status.ampdu_len, info->status.antenna,
+		    info->status.tx_time, info->status.is_valid_ack_signal,
+		    info->status.status_driver_data[0],
+		    info->status.status_driver_data[1]);
+#endif
+
+	linuxkpi_ieee80211_free_txskb(hw, skb, status);
+}
+
 /*
  * This is an internal bandaid for the moment for the way we glue
  * skbs and mbufs together for TX.  Once we have skbs backed by
