@@ -388,8 +388,12 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc |= 6 << NVME_CC_REG_IOSQES_SHIFT; /* SQ entry size == 64 == 2^6 */
 	cc |= 4 << NVME_CC_REG_IOCQES_SHIFT; /* CQ entry size == 16 == 2^4 */
 
-	/* This evaluates to 0, which is according to spec. */
-	cc |= (PAGE_SHIFT - NVME_BASE_SHIFT) << NVME_CC_REG_MPS_SHIFT;
+	/*
+	 * Use the Memory Page Size selected during device initialization.  Note
+	 * that value stored in mps is suitable to use here without adjusting by
+	 * NVME_MPS_SHIFT.
+	 */
+	cc |= ctrlr->mps << NVME_CC_REG_MPS_SHIFT;
 
 	nvme_ctrlr_barrier(ctrlr, BUS_SPACE_BARRIER_WRITE);
 	nvme_mmio_write_4(ctrlr, cc, cc);
