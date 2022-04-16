@@ -44,6 +44,7 @@ oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
+rename14.sh		https://people.freebsd.org/~pho/stress/log/log0279.txt		20220415
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
