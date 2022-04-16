@@ -5136,7 +5136,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			 * style sockets.
 			 */
 			if (events->sctp_sender_dry_event) {
-				if (((stcb->sctp_ep->sctp_flags & (SCTP_PCB_FLAGS_TCPTYPE | SCTP_PCB_FLAGS_IN_TCPPOOL)) != 0) &&
+				if (((inp->sctp_flags & (SCTP_PCB_FLAGS_TCPTYPE | SCTP_PCB_FLAGS_IN_TCPPOOL)) != 0) &&
 				    !SCTP_IS_LISTENING(inp)) {
 					stcb = LIST_FIRST(&inp->sctp_asoc_list);
 					if (stcb != NULL) {
