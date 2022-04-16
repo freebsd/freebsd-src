@@ -4836,7 +4836,10 @@ sctp_wakeup_the_read_socket(struct sctp_inpcb *inp,
     SCTP_UNUSED
 )
 {
-	if ((inp != NULL) && (inp->sctp_socket != NULL)) {
+	if ((inp != NULL) &&
+	    (inp->sctp_socket != NULL) &&
+	    (((stcb->sctp_ep->sctp_flags & (SCTP_PCB_FLAGS_TCPTYPE | SCTP_PCB_FLAGS_IN_TCPPOOL)) == 0) ||
+	    !SCTP_IS_LISTENING(inp))) {
 		sctp_sorwakeup(inp, inp->sctp_socket);
 	}
 }

@@ -5076,9 +5076,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			} else {
 				sctp_feature_off(inp, SCTP_PCB_FLAGS_STREAM_RESETEVNT);
 			}
-			SCTP_INP_WUNLOCK(inp);
 
-			SCTP_INP_RLOCK(inp);
 			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 				SCTP_TCB_LOCK(stcb);
 				if (events->sctp_association_event) {
@@ -5138,10 +5136,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			 * style sockets.
 			 */
 			if (events->sctp_sender_dry_event) {
-				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
-				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
+				if (((stcb->sctp_ep->sctp_flags & (SCTP_PCB_FLAGS_TCPTYPE | SCTP_PCB_FLAGS_IN_TCPPOOL)) != 0) &&
+				    !SCTP_IS_LISTENING(inp)) {
 					stcb = LIST_FIRST(&inp->sctp_asoc_list);
-					if (stcb) {
+					if (stcb != NULL) {
 						SCTP_TCB_LOCK(stcb);
 						if (TAILQ_EMPTY(&stcb->asoc.send_queue) &&
 						    TAILQ_EMPTY(&stcb->asoc.sent_queue) &&
@@ -5152,7 +5150,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					}
 				}
 			}
-			SCTP_INP_RUNLOCK(inp);
+			SCTP_INP_WUNLOCK(inp);
 			break;
 		}
 	case SCTP_ADAPTATION_LAYER:
