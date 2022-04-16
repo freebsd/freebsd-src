@@ -129,26 +129,26 @@ struct nfsclwritedsdorpc {
 };
 
 static int nfsrpc_setattrrpc(vnode_t , struct vattr *, nfsv4stateid_t *,
-    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
+    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *);
 static int nfsrpc_readrpc(vnode_t , struct uio *, struct ucred *,
-    nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *, void *);
+    nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *);
 static int nfsrpc_writerpc(vnode_t , struct uio *, int *, int *,
     struct ucred *, nfsv4stateid_t *, NFSPROC_T *, struct nfsvattr *, int *,
     void *);
 static int nfsrpc_deallocaterpc(vnode_t, off_t, off_t, nfsv4stateid_t *,
-    struct nfsvattr *, int *, struct ucred *, NFSPROC_T *, void *);
+    struct nfsvattr *, int *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_createv23(vnode_t , char *, int, struct vattr *,
     nfsquad_t, int, struct ucred *, NFSPROC_T *, struct nfsvattr *,
-    struct nfsvattr *, struct nfsfh **, int *, int *, void *);
+    struct nfsvattr *, struct nfsfh **, int *, int *);
 static int nfsrpc_createv4(vnode_t , char *, int, struct vattr *,
     nfsquad_t, int, struct nfsclowner *, struct nfscldeleg **, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, struct nfsvattr *, struct nfsfh **, int *,
-    int *, void *, int *);
+    int *, int *);
 static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
     struct nfscllockowner *, u_int64_t, u_int64_t,
     u_int32_t, struct ucred *, NFSPROC_T *, int);
 static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
-    struct acl *, nfsv4stateid_t *, void *);
+    struct acl *, nfsv4stateid_t *);
 static int nfsrpc_layouterror(struct nfsmount *, uint8_t *, int, uint64_t,
     uint64_t, nfsv4stateid_t *, struct ucred *, NFSPROC_T *, uint32_t,
     uint32_t, char *);
@@ -194,7 +194,7 @@ static int nfsrpc_adviseds(vnode_t, uint64_t, int, int, struct nfsclds *,
     struct nfsfh *, int, int, struct ucred *, NFSPROC_T *);
 #endif
 static int nfsrpc_allocaterpc(vnode_t, off_t, off_t, nfsv4stateid_t *,
-    struct nfsvattr *, int *, struct ucred *, NFSPROC_T *, void *);
+    struct nfsvattr *, int *, struct ucred *, NFSPROC_T *);
 static void nfsrv_setuplayoutget(struct nfsrv_descript *, int, uint64_t,
     uint64_t, uint64_t, nfsv4stateid_t *, int, int, int);
 static int nfsrv_parseug(struct nfsrv_descript *, int, uid_t *, gid_t *,
@@ -207,7 +207,7 @@ static int nfsrpc_getopenlayout(struct nfsmount *, vnode_t, u_int8_t *,
 static int nfsrpc_getcreatelayout(vnode_t, char *, int, struct vattr *,
     nfsquad_t, int, struct nfsclowner *, struct nfscldeleg **,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    struct nfsfh **, int *, int *, void *, int *);
+    struct nfsfh **, int *, int *, int *);
 static int nfsrpc_openlayoutrpc(struct nfsmount *, vnode_t, u_int8_t *,
     int, uint8_t *, int, uint32_t, struct nfsclopen *, uint8_t *, int,
     struct nfscldeleg **, nfsv4stateid_t *, int, int, int, int *,
@@ -215,7 +215,7 @@ static int nfsrpc_openlayoutrpc(struct nfsmount *, vnode_t, u_int8_t *,
 static int nfsrpc_createlayout(vnode_t, char *, int, struct vattr *,
     nfsquad_t, int, struct nfsclowner *, struct nfscldeleg **,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    struct nfsfh **, int *, int *, void *, int *, nfsv4stateid_t *,
+    struct nfsfh **, int *, int *, int *, nfsv4stateid_t *,
     int, int, int, int *, struct nfsclflayouthead *, int *);
 static int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t,
     uint64_t, uint64_t, int, int, nfsv4stateid_t *, int *,
@@ -1312,10 +1312,9 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		}
 		if (vap != NULL)
 			error = nfsrpc_setattrrpc(vp, vap, &stateid, cred, p,
-			    rnap, attrflagp, stuff);
+			    rnap, attrflagp);
 		else
-			error = nfsrpc_setaclrpc(vp, cred, p, aclp, &stateid,
-			    stuff);
+			error = nfsrpc_setaclrpc(vp, cred, p, aclp, &stateid);
 		if (error == NFSERR_OPENMODE && mode == NFSV4OPEN_ACCESSREAD) {
 			NFSLOCKMNT(nmp);
 			nmp->nm_state |= NFSSTA_OPENMODE;
@@ -1352,7 +1351,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 static int
 nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
     nfsv4stateid_t *stateidp, struct ucred *cred, NFSPROC_T *p,
-    struct nfsvattr *rnap, int *attrflagp, void *stuff)
+    struct nfsvattr *rnap, int *attrflagp)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -1717,7 +1716,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			    NFSV4OPEN_ACCESSREAD, 0, newcred, p, &stateid,
 			    &lckp);
 		error = nfsrpc_readrpc(vp, uiop, newcred, &stateid, p, nap,
-		    attrflagp, stuff);
+		    attrflagp);
 		if (error == NFSERR_OPENMODE) {
 			NFSLOCKMNT(nmp);
 			nmp->nm_state |= NFSSTA_OPENMODE;
@@ -1756,7 +1755,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 static int
 nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
     nfsv4stateid_t *stateidp, NFSPROC_T *p, struct nfsvattr *nap,
-    int *attrflagp, void *stuff)
+    int *attrflagp)
 {
 	u_int32_t *tl;
 	int error = 0, len, retlen, tsiz, eof = 0;
@@ -2142,7 +2141,7 @@ nfsrpc_deallocate(vnode_t vp, off_t offs, off_t len, struct nfsvattr *nap,
 				    cred, p, &stateid, &lckp);
 		}
 		error = nfsrpc_deallocaterpc(vp, offs, len, &stateid, nap,
-		    attrflagp, cred, p, stuff);
+		    attrflagp, cred, p);
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
@@ -2175,7 +2174,7 @@ nfsrpc_deallocate(vnode_t vp, off_t offs, off_t len, struct nfsvattr *nap,
 static int
 nfsrpc_deallocaterpc(vnode_t vp, off_t offs, off_t len,
     nfsv4stateid_t *stateidp, struct nfsvattr *nap, int *attrflagp,
-    struct ucred *cred, NFSPROC_T *p, void *stuff)
+    struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsnode *np = VTONFS(vp);
@@ -2331,11 +2330,11 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		    nfs_numnfscbd == 0 || retrycnt > 0)
 			error = nfsrpc_createv4(dvp, name, namelen, vap, cverf,
 			  fmode, owp, &dp, cred, p, dnap, nnap, nfhpp,
-			  attrflagp, dattrflagp, dstuff, &unlocked);
+			  attrflagp, dattrflagp, &unlocked);
 		else
 			error = nfsrpc_getcreatelayout(dvp, name, namelen, vap,
 			  cverf, fmode, owp, &dp, cred, p, dnap, nnap, nfhpp,
-			  attrflagp, dattrflagp, dstuff, &unlocked);
+			  attrflagp, dattrflagp, &unlocked);
 		/*
 		 * There is no need to invalidate cached attributes here,
 		 * since new post-delegation issue attributes are always
@@ -2364,8 +2363,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		    error = EIO;
 	} else {
 		error = nfsrpc_createv23(dvp, name, namelen, vap, cverf,
-		    fmode, cred, p, dnap, nnap, nfhpp, attrflagp, dattrflagp,
-		    dstuff);
+		    fmode, cred, p, dnap, nnap, nfhpp, attrflagp, dattrflagp);
 	}
 	return (error);
 }
@@ -2377,7 +2375,7 @@ static int
 nfsrpc_createv23(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     nfsquad_t cverf, int fmode, struct ucred *cred, NFSPROC_T *p,
     struct nfsvattr *dnap, struct nfsvattr *nnap, struct nfsfh **nfhpp,
-    int *attrflagp, int *dattrflagp, void *dstuff)
+    int *attrflagp, int *dattrflagp)
 {
 	u_int32_t *tl;
 	int error = 0;
@@ -2426,7 +2424,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     nfsquad_t cverf, int fmode, struct nfsclowner *owp, struct nfscldeleg **dpp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
-    int *dattrflagp, void *dstuff, int *unlockedp)
+    int *dattrflagp, int *unlockedp)
 {
 	u_int32_t *tl;
 	int error = 0, deleg, newone, ret, acesize, limitby;
@@ -5000,7 +4998,7 @@ nfsrpc_setacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
  */
 static int
 nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
-    struct acl *aclp, nfsv4stateid_t *stateidp, void *stuff)
+    struct acl *aclp, nfsv4stateid_t *stateidp)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
@@ -7381,7 +7379,7 @@ nfsrpc_allocate(vnode_t vp, off_t off, off_t len, struct nfsvattr *nap,
 			error = EIO;
 		else
 			error = nfsrpc_allocaterpc(vp, off, len, &stateid,
-			    nap, attrflagp, cred, p, stuff);
+			    nap, attrflagp, cred, p);
 		if (error == NFSERR_STALESTATEID)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
@@ -7411,8 +7409,7 @@ nfsrpc_allocate(vnode_t vp, off_t off, off_t len, struct nfsvattr *nap,
  */
 static int
 nfsrpc_allocaterpc(vnode_t vp, off_t off, off_t len, nfsv4stateid_t *stateidp,
-    struct nfsvattr *nap, int *attrflagp, struct ucred *cred, NFSPROC_T *p,
-    void *stuff)
+    struct nfsvattr *nap, int *attrflagp, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	int error;
@@ -8068,7 +8065,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     nfsquad_t cverf, int fmode, struct nfsclowner *owp, struct nfscldeleg **dpp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
-    int *dattrflagp, void *dstuff, int *unlockedp, nfsv4stateid_t *stateidp,
+    int *dattrflagp, int *unlockedp, nfsv4stateid_t *stateidp,
     int usecurstateid, int layouttype, int layoutlen, int *retonclosep,
     struct nfsclflayouthead *flhp, int *laystatp)
 {
@@ -8326,7 +8323,7 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     nfsquad_t cverf, int fmode, struct nfsclowner *owp, struct nfscldeleg **dpp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
-    int *dattrflagp, void *dstuff, int *unlockedp)
+    int *dattrflagp, int *unlockedp)
 {
 	struct nfscllayout *lyp;
 	struct nfsclflayouthead flh;
@@ -8347,7 +8344,7 @@ nfsrpc_getcreatelayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	layoutlen = tsep->nfsess_maxcache - (NFSX_STATEID + 3 * NFSX_UNSIGNED);
 	error = nfsrpc_createlayout(dvp, name, namelen, vap, cverf, fmode,
 	    owp, dpp, cred, p, dnap, nnap, nfhpp, attrflagp, dattrflagp,
-	    dstuff, unlockedp, &stateid, 1, layouttype, layoutlen, &retonclose,
+	    unlockedp, &stateid, 1, layouttype, layoutlen, &retonclose,
 	    &flh, &laystat);
 	NFSCL_DEBUG(4, "aft nfsrpc_createlayoutrpc laystat=%d err=%d\n",
 	    laystat, error);
