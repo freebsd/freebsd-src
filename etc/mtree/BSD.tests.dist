@@ -884,6 +884,8 @@
         ..
         basename
         ..
+        bintrans
+        ..
         bmake
             archives
                 fmt_44bsd
@@ -1087,8 +1089,6 @@
         truncate
         ..
         units
-        ..
-        uuencode
         ..
         unifdef
         ..

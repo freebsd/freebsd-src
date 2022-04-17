@@ -52,6 +52,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220418: uudecode merged into uuencode and renamed to bintrans
+OLD_FILES+=usr/lib/debug/usr/bin/uuencode.debug
+OLD_FILES+=usr/lib/debug/usr/bin/uudecode.debug
+OLD_FILES+=usr/tests/usr.bin/uuencode/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/uuencode/legacy_test
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.base64.in
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.traditional.out
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.traditional.in
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.out
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.sh
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.in
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.153276.in
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.base64.out
+OLD_FILES+=usr/tests/usr.bin/uuencode/regress.153276.out
+OLD_FILES+=usr/tests/usr.bin/uudecode/regress.base64.in
+OLD_FILES+=usr/tests/usr.bin/uudecode/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/uudecode/regress.out
+OLD_FILES+=usr/tests/usr.bin/uudecode/regress.sh
+OLD_FILES+=usr/tests/usr.bin/uudecode/regress.153276.out
+OLD_FILES+=usr/tests/usr.bin/uudecode/regress.traditional.in
+OLD_FILES+=usr/tests/usr.bin/uudecode/legacy_test
+OLD_FILES+=usr/tests/usr.bin/uudecode/regress.153276.in
+OLD_DIRS+=usr/tests/usr.bin/uuencode
+OLD_DIRS+=usr/tests/usr.bin/uudecode
+
 # 20220318: snd_ds1 and snd_maestro drivers removed
 OLD_FILES+=usr/share/man/man4/snd_ds1.4.gz
 OLD_FILES+=usr/share/man/man4/snd_maestro.4.gz

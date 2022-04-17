@@ -266,6 +266,7 @@ DIRDEPS= \
       tests/sys/vm \
       usr.bin/apply/tests \
       usr.bin/basename/tests \
+      usr.bin/bintrans/tests \
       usr.bin/bmake/tests \
       usr.bin/bmake/tests/archives \
       usr.bin/bmake/tests/archives/fmt_44bsd \
@@ -358,7 +359,6 @@ DIRDEPS= \
       usr.bin/truncate/tests \
       usr.bin/uniq/tests \
       usr.bin/units/tests \
-      usr.bin/uuencode/tests \
       usr.bin/xargs/tests \
       usr.bin/xinstall/tests \
       usr.bin/xo/tests \
