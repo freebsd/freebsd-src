@@ -68,7 +68,7 @@ const uchar dc_sig_msg_len = (uchar) (sizeof(dc_sig_msg) - 1);
 
 /// The copyright banner.
 const char bc_copyright[] =
-	"Copyright (c) 2018-2021 Gavin D. Howard and contributors\n"
+	"Copyright (c) 2018-2022 Gavin D. Howard and contributors\n"
 	"Report bugs at: https://git.yzena.com/gavin/bc\n\n"
 	"This is free software with ABSOLUTELY NO WARRANTY.\n";
 
