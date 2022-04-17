@@ -131,13 +131,13 @@ A lifetime specified for an identity with
 .Xr ssh-add 1
 overrides this value.
 Without this option the default maximum lifetime is forever.
+.It Fl x
+Exit after the last client has disconnected.
 .It Ar command Op Ar arg ...
 If a command (and optional arguments) is given,
 this is executed as a subprocess of the agent.
 The agent exits automatically when the command given on the command
 line terminates.
-.It Fl x
-Exit after the last client has disconnected.
 .El
 .Pp
 There are two main ways to get an agent set up.
