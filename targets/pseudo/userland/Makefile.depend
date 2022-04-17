@@ -147,6 +147,7 @@ DIRDEPS+= \
 	usr.bin/basename \
 	usr.bin/bc \
 	usr.bin/biff \
+	usr.bin/bintrans \
 	usr.bin/bluetooth/bthost \
 	usr.bin/bluetooth/btsockstat \
 	usr.bin/bluetooth/rfcomm_sppd \
@@ -365,7 +366,6 @@ DIRDEPS+= \
 	usr.bin/usbhidaction \
 	usr.bin/usbhidctl \
 	usr.bin/users \
-	usr.bin/uuencode \
 	usr.bin/vacation \
 	usr.bin/vgrind \
 	usr.bin/vi \
