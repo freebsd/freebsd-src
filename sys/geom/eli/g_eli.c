@@ -97,15 +97,19 @@ static int sysctl_g_eli_minbufs(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_kern_geom_eli, OID_AUTO, minbufs, CTLTYPE_UINT | CTLFLAG_RW |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_g_eli_minbufs, "IU",
     "Number of GELI bufs reserved for swap transactions");
+static bool g_eli_blocking_malloc = false;
+SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, blocking_malloc, CTLFLAG_RWTUN,
+    &g_eli_blocking_malloc, 0, "Use blocking malloc calls for GELI buffers");
+static bool g_eli_unmapped_io = true;
+SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, unmapped_io, CTLFLAG_RDTUN,
+    &g_eli_unmapped_io, 0, "Enable support for unmapped I/O");
+
 static struct sx g_eli_umalock;	/* Controls changes to UMA zone. */
 SX_SYSINIT(g_eli_umalock, &g_eli_umalock, "GELI UMA");
 static uma_zone_t g_eli_uma = NULL;
 static int g_eli_alloc_sz;
 static volatile int g_eli_umaoutstanding;
 static volatile int g_eli_devs;
-static bool g_eli_blocking_malloc = false;
-SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, blocking_malloc, CTLFLAG_RWTUN,
-    &g_eli_blocking_malloc, 0, "Use blocking malloc calls for GELI buffers");
 
 /*
  * Control the number of reserved entries in the GELI zone.
@@ -1137,7 +1141,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 */
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	if (CRYPTO_HAS_VMPAGE) {
+	if (g_eli_unmapped_io && CRYPTO_HAS_VMPAGE) {
 		/*
 		 * On DMAP architectures we can use unmapped I/O.  But don't
 		 * use it with data integrity verification.  That code hasn't
