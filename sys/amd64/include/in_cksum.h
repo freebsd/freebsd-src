@@ -37,8 +37,6 @@
 #ifndef _MACHINE_IN_CKSUM_H_
 #define	_MACHINE_IN_CKSUM_H_	1
 
-#include <sys/cdefs.h>
-
 #define in_cksum(m, len)	in_cksum_skip(m, len, 0)
 
 #ifdef _KERNEL
