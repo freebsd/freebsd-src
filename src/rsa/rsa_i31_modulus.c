@@ -28,7 +28,7 @@
 size_t
 br_rsa_i31_compute_modulus(void *n, const br_rsa_private_key *sk)
 {
-	uint32_t tmp[2 * ((BR_MAX_RSA_SIZE + 30) / 31) + 5];
+	uint32_t tmp[4 * (((BR_MAX_RSA_SIZE / 2) + 30) / 31) + 5];
 	uint32_t *t, *p, *q;
 	const unsigned char *pbuf, *qbuf;
 	size_t nlen, plen, qlen, tlen;
