@@ -496,13 +496,18 @@ static void
 capsicate(struct iscsid_connection *conn)
 {
 	cap_rights_t rights;
+	const unsigned long cmds[] = {
 #ifdef ICL_KERNEL_PROXY
-	const unsigned long cmds[] = { ISCSIDCONNECT, ISCSIDSEND, ISCSIDRECEIVE,
-	    ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD, ISCSISREMOVE, ISCSISMODIFY };
-#else
-	const unsigned long cmds[] = { ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD,
-	    ISCSISREMOVE, ISCSISMODIFY };
+		ISCSIDCONNECT,
+		ISCSIDSEND,
+		ISCSIDRECEIVE,
 #endif
+		ISCSIDHANDOFF,
+		ISCSIDFAIL,
+		ISCSISADD,
+		ISCSISREMOVE,
+		ISCSISMODIFY
+	};
 
 	cap_rights_init(&rights, CAP_IOCTL);
 	if (caph_rights_limit(conn->conn_iscsi_fd, &rights) < 0)
