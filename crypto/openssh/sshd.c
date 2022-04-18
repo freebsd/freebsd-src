@@ -920,7 +920,8 @@ drop_connection(int sock, int startups, int notify_pipe)
 static void
 usage(void)
 {
-	if (options.version_addendum && *options.version_addendum != '\0')
+	if (options.version_addendum != NULL &&
+	    *options.version_addendum != '\0')
 		fprintf(stderr, "%s %s, %s\n",
 		    SSH_RELEASE,
 		    options.version_addendum, OPENSSL_VERSION_STRING);
