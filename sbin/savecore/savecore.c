@@ -304,6 +304,43 @@ writekey(int savedirfd, const char *keyname, uint8_t *dumpkey,
 	return (true);
 }
 
+static int
+write_header_info(xo_handle_t *xostdout, const struct kerneldumpheader *kdh,
+    int savedirfd, const char *infoname, const char *device, int bounds,
+    int status)
+{
+	xo_handle_t *xoinfo;
+	FILE *info;
+
+	/*
+	 * Create or overwrite any existing dump header files.
+	 */
+	if ((info = xfopenat(savedirfd, infoname,
+	    O_WRONLY | O_CREAT | O_TRUNC, "w", 0600)) == NULL) {
+		logmsg(LOG_ERR, "open(%s): %m", infoname);
+		return (-1);
+	}
+
+	xoinfo = xo_create_to_file(info, xo_get_style(NULL), 0);
+	if (xoinfo == NULL) {
+		logmsg(LOG_ERR, "%s: %m", infoname);
+		fclose(info);
+		return (-1);
+	}
+	xo_open_container_h(xoinfo, "crashdump");
+
+	if (verbose)
+		printheader(xostdout, kdh, device, bounds, status);
+
+	printheader(xoinfo, kdh, device, bounds, status);
+	xo_close_container_h(xoinfo, "crashdump");
+	xo_flush_h(xoinfo);
+	xo_finish_h(xoinfo);
+	fclose(info);
+
+	return (0);
+}
+
 static off_t
 file_size(int savedirfd, const char *path)
 {
@@ -698,16 +735,16 @@ static void
 DoFile(const char *savedir, int savedirfd, const char *device)
 {
 	static char *buf = NULL;
-	xo_handle_t *xostdout, *xoinfo;
+	xo_handle_t *xostdout;
 	char infoname[32], corename[32], linkname[32], keyname[32];
 	char *temp = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	uint8_t *dumpkey;
 	off_t mediasize, dumpextent, dumplength, firsthd, lasthd;
-	FILE *core, *info;
+	FILE *core;
 	int fdcore, fddev, error;
 	int bounds, status;
-	u_int sectorsize, xostyle;
+	u_int sectorsize;
 	uint32_t dumpkeysize;
 	bool iscompressed, isencrypted, istextdump, ret;
 
@@ -915,18 +952,6 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 
 	saved_dump_remove(savedirfd, bounds);
 
-	snprintf(infoname, sizeof(infoname), "info.%d", bounds);
-
-	/*
-	 * Create or overwrite any existing dump header files.
-	 */
-	if ((info = xfopenat(savedirfd, infoname,
-	    O_WRONLY | O_CREAT | O_TRUNC, "w", 0600)) == NULL) {
-		logmsg(LOG_ERR, "open(%s): %m", infoname);
-		nerr++;
-		goto closefd;
-	}
-
 	isencrypted = (dumpkeysize > 0);
 	if (compress)
 		snprintf(corename, sizeof(corename), "%s.%d.gz",
@@ -943,7 +968,6 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 	    0600);
 	if (fdcore < 0) {
 		logmsg(LOG_ERR, "open(%s): %m", corename);
-		fclose(info);
 		nerr++;
 		goto closefd;
 	}
@@ -955,30 +979,17 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 	if (core == NULL) {
 		logmsg(LOG_ERR, "%s: %m", corename);
 		(void)close(fdcore);
-		(void)fclose(info);
 		nerr++;
 		goto closefd;
 	}
 	fdcore = -1;
 
-	xostyle = xo_get_style(NULL);
-	xoinfo = xo_create_to_file(info, xostyle, 0);
-	if (xoinfo == NULL) {
-		logmsg(LOG_ERR, "%s: %m", infoname);
-		fclose(info);
+	snprintf(infoname, sizeof(infoname), "info.%d", bounds);
+	if (write_header_info(xostdout, &kdhl, savedirfd, infoname, device,
+	    bounds, status) != 0) {
 		nerr++;
 		goto closeall;
 	}
-	xo_open_container_h(xoinfo, "crashdump");
-
-	if (verbose)
-		printheader(xostdout, &kdhl, device, bounds, status);
-
-	printheader(xoinfo, &kdhl, device, bounds, status);
-	xo_close_container_h(xoinfo, "crashdump");
-	xo_flush_h(xoinfo);
-	xo_finish_h(xoinfo);
-	fclose(info);
 
 	if (isencrypted) {
 		dumpkey = calloc(1, dumpkeysize);
