@@ -318,7 +318,7 @@ file_size(int savedirfd, const char *path)
 static off_t
 saved_dump_size(int savedirfd, int bounds)
 {
-	static char path[PATH_MAX];
+	char path[32];
 	off_t dumpsize;
 
 	dumpsize = 0;
@@ -342,7 +342,7 @@ saved_dump_size(int savedirfd, int bounds)
 static void
 saved_dump_remove(int savedirfd, int bounds)
 {
-	static char path[PATH_MAX];
+	char path[32];
 
 	(void)snprintf(path, sizeof(path), "info.%d", bounds);
 	(void)unlinkat(savedirfd, path, 0);
@@ -697,10 +697,9 @@ DoTextdumpFile(int fd, off_t dumpsize, off_t lasthd, char *buf,
 static void
 DoFile(const char *savedir, int savedirfd, const char *device)
 {
-	xo_handle_t *xostdout, *xoinfo;
-	static char infoname[PATH_MAX], corename[PATH_MAX], linkname[PATH_MAX];
-	static char keyname[PATH_MAX];
 	static char *buf = NULL;
+	xo_handle_t *xostdout, *xoinfo;
+	char infoname[32], corename[32], linkname[32], keyname[32];
 	char *temp = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	uint8_t *dumpkey;
@@ -719,7 +718,7 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 
 	xostdout = xo_create_to_file(stdout, XO_STYLE_TEXT, 0);
 	if (xostdout == NULL) {
-		logmsg(LOG_ERR, "%s: %m", infoname);
+		logmsg(LOG_ERR, "xo_create_to_file() failed: %m");
 		return;
 	}
 
