@@ -107,15 +107,16 @@ typedef struct {
 	const uint32_t *b;
 	const uint32_t *R2;
 	uint32_t p0i;
+	size_t point_len;
 } curve_params;
 
 static inline const curve_params *
 id_to_curve(int curve)
 {
 	static const curve_params pp[] = {
-		{ P256_P, P256_B, P256_R2, 0x00000001 },
-		{ P384_P, P384_B, P384_R2, 0x00000001 },
-		{ P521_P, P521_B, P521_R2, 0x00000001 }
+		{ P256_P, P256_B, P256_R2, 0x00000001,  65 },
+		{ P384_P, P384_B, P384_R2, 0x00000001,  97 },
+		{ P521_P, P521_B, P521_R2, 0x00000001, 133 }
 	};
 
 	return &pp[curve - BR_EC_secp256r1];
@@ -734,6 +735,9 @@ api_mul(unsigned char *G, size_t Glen,
 	jacobian P;
 
 	cc = id_to_curve(curve);
+	if (Glen != cc->point_len) {
+		return 0;
+	}
 	r = point_decode(&P, G, Glen, cc);
 	point_mul(&P, x, xlen, cc);
 	point_encode(G, &P, cc);
@@ -769,6 +773,9 @@ api_muladd(unsigned char *A, const unsigned char *B, size_t len,
 	 */
 
 	cc = id_to_curve(curve);
+	if (len != cc->point_len) {
+		return 0;
+	}
 	r = point_decode(&P, A, len, cc);
 	if (B == NULL) {
 		size_t Glen;

@@ -106,7 +106,7 @@ preamble {
  *     -- Extensions: extension values are processed in due order.
  *
  *        -- Basic Constraints: for all certificates except EE, must be
- *        present, indicate a CA, and have a path legnth compatible with
+ *        present, indicate a CA, and have a path length compatible with
  *        the chain length so far.
  *
  *        -- Key Usage: for the EE, if present, must allow signatures
@@ -698,41 +698,59 @@ cc: copy-name-SAN ( bool tag -- ) {
 	\ Return the CN match flag.
 	eename-matches ;
 
-\ Get the validation date and time from the context or system.
-cc: get-system-date ( -- days seconds ) {
-	if (CTX->days == 0 && CTX->seconds == 0) {
-#if BR_USE_UNIX_TIME
-		time_t x = time(NULL);
-
-		T0_PUSH((uint32_t)(x / 86400) + 719528);
-		T0_PUSH((uint32_t)(x % 86400));
-#elif BR_USE_WIN32_TIME
-		FILETIME ft;
-		uint64_t x;
-
-		GetSystemTimeAsFileTime(&ft);
-		x = ((uint64_t)ft.dwHighDateTime << 32)
-			+ (uint64_t)ft.dwLowDateTime;
-		x = (x / 10000000);
-		T0_PUSH((uint32_t)(x / 86400) + 584754);
-		T0_PUSH((uint32_t)(x % 86400));
-#else
-		CTX->err = BR_ERR_X509_TIME_UNKNOWN;
-		T0_CO();
-#endif
+\ Check the provided validity range against the current (or configured)
+\ date and time ("na" = notAfter, "nb = notBefore). Returned value:
+\   -1   current date/time is before the notBefore date
+\    0   current date/time is within the allowed range
+\   +1   current date/time is after the notAfter range
+\ If the current date/time is not available, then this function triggers a
+\ failure and does not return.
+cc: check-validity-range ( na-days na-seconds nb-days nb-seconds -- int ) {
+	uint32_t nbs = T0_POP();
+	uint32_t nbd = T0_POP();
+	uint32_t nas = T0_POP();
+	uint32_t nad = T0_POP();
+	int r;
+	if (CTX->itime != 0) {
+		r = CTX->itime(CTX->itime_ctx, nbd, nbs, nad, nas);
+		if (r < -1 || r > 1) {
+			CTX->err = BR_ERR_X509_TIME_UNKNOWN;
+			T0_CO();
+		}
 	} else {
-		T0_PUSH(CTX->days);
-		T0_PUSH(CTX->seconds);
+		uint32_t vd = CTX->days;
+		uint32_t vs = CTX->seconds;
+		if (vd == 0 && vs == 0) {
+#if BR_USE_UNIX_TIME
+			time_t x = time(NULL);
+
+			vd = (uint32_t)(x / 86400) + 719528;
+			vs = (uint32_t)(x % 86400);
+#elif BR_USE_WIN32_TIME
+			FILETIME ft;
+			uint64_t x;
+
+			GetSystemTimeAsFileTime(&ft);
+			x = ((uint64_t)ft.dwHighDateTime << 32)
+				+ (uint64_t)ft.dwLowDateTime;
+			x = (x / 10000000);
+			vd = (uint32_t)(x / 86400) + 584754;
+			vs = (uint32_t)(x % 86400);
+#else
+			CTX->err = BR_ERR_X509_TIME_UNKNOWN;
+			T0_CO();
+#endif
+		}
+		if (vd < nbd || (vd == nbd && vs < nbs)) {
+			r = -1;
+		} else if (vd > nad || (vd == nad && vs > nas)) {
+			r = 1;
+		} else {
+			r = 0;
+		}
 	}
+	T0_PUSHi(r);
 }
-
-\ Compare two dates (days+seconds) together.
-: before ( days1 seconds1 days2 seconds2 -- bool )
-	{ d1 s1 d2 s2 }
-	d1 d2 = if s1 s2 < else d1 d2 < then ;
-
-: after ( days1 seconds1 days2 seconds2 -- bool )
-	swap2 before ;
 
 \ Swap the top two elements with the two elements immediately below.
 : swap2 ( a b c d -- c d a b )
@@ -1189,8 +1207,8 @@ OID: subjectInfoAccess             1.3.6.1.5.5.7.1.11
 
 	\ Validity dates.
 	read-sequence-open
-	read-date get-system-date after if ERR_X509_EXPIRED fail then
-	read-date get-system-date before if ERR_X509_EXPIRED fail then
+	read-date { nbd nbs } read-date nbd nbs check-validity-range
+	if ERR_X509_EXPIRED fail then
 	close-elt
 
 	\ Subject name.

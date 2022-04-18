@@ -6783,7 +6783,7 @@ test_RSA_keygen(const char *name, br_rsa_keygen kg, br_rsa_compute_modulus cm,
 		uint32_t mod[256];
 		uint32_t cc;
 		size_t u, v;
-		unsigned char sig[257], hv[32], hv2[sizeof hv];
+		unsigned char sig[257], hv[32], hv2[32];
 		unsigned mask1, mask2;
 		int j;
 
@@ -8316,7 +8316,7 @@ test_EC_inner(const char *sk, const char *sU,
 static void
 test_EC_P256_carry_inner(const br_ec_impl *impl, const char *sP, const char *sQ)
 {
-	unsigned char P[65], Q[sizeof P], k[1];
+	unsigned char P[65], Q[65], k[1];
 	size_t plen, qlen;
 
 	plen = hextobin(P, sP);

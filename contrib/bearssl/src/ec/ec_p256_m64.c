@@ -99,6 +99,9 @@ f256_add(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	unsigned __int128 w;
 	uint64_t t;
 
+	/*
+	 * Do the addition, with an extra carry in t.
+	 */
 	w = (unsigned __int128)a[0] + b[0];
 	d[0] = (uint64_t)w;
 	w = (unsigned __int128)a[1] + b[1] + (w >> 64);
@@ -110,7 +113,7 @@ f256_add(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	t = (uint64_t)(w >> 64);
 
 	/*
-	 * 2^256 = 2^224 - 2^192 - 2^96 + 1 in the field.
+	 * Fold carry t, using: 2^256 = 2^224 - 2^192 - 2^96 + 1 mod p.
 	 */
 	w = (unsigned __int128)d[0] + t;
 	d[0] = (uint64_t)w;
@@ -119,8 +122,22 @@ f256_add(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	/* Here, carry "w >> 64" can only be 0 or -1 */
 	w = (unsigned __int128)d[2] - ((w >> 64) & 1);
 	d[2] = (uint64_t)w;
-	/* Again, carry is 0 or -1 */
-	d[3] += (uint64_t)(w >> 64) + (t << 32) - t;
+	/* Again, carry is 0 or -1. But there can be carry only if t = 1,
+	   in which case the addition of (t << 32) - t is positive. */
+	w = (unsigned __int128)d[3] - ((w >> 64) & 1) + (t << 32) - t;
+	d[3] = (uint64_t)w;
+	t = (uint64_t)(w >> 64);
+
+	/*
+	 * There can be an extra carry here, which we must fold again.
+	 */
+	w = (unsigned __int128)d[0] + t;
+	d[0] = (uint64_t)w;
+	w = (unsigned __int128)d[1] + (w >> 64) - (t << 32);
+	d[1] = (uint64_t)w;
+	w = (unsigned __int128)d[2] - ((w >> 64) & 1);
+	d[2] = (uint64_t)w;
+	d[3] += (t << 32) - t - (uint64_t)((w >> 64) & 1);
 
 #elif BR_UMUL128
 
@@ -135,6 +152,15 @@ f256_add(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	/*
 	 * If there is a carry, then we want to subtract p, which we
 	 * do by adding 2^256 - p.
+	 */
+	t = cc;
+	cc = _addcarry_u64(cc, d[0], 0, &d[0]);
+	cc = _addcarry_u64(cc, d[1], -(t << 32), &d[1]);
+	cc = _addcarry_u64(cc, d[2], -t, &d[2]);
+	cc = _addcarry_u64(cc, d[3], (t << 32) - (t << 1), &d[3]);
+
+	/*
+	 * We have to do it again if there still is a carry.
 	 */
 	t = cc;
 	cc = _addcarry_u64(cc, d[0], 0, &d[0]);
@@ -167,6 +193,7 @@ f256_sub(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	t = (uint64_t)(w >> 64) & 1;
 
 	/*
+	 * If there is a borrow (t = 1), then we must add the modulus
 	 * p = 2^256 - 2^224 + 2^192 + 2^96 - 1.
 	 */
 	w = (unsigned __int128)d[0] - t;
@@ -177,6 +204,20 @@ f256_sub(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	w = (unsigned __int128)d[2] + (w >> 64);
 	d[2] = (uint64_t)w;
 	/* Again, carry is 0 or +1 */
+	w = (unsigned __int128)d[3] + (w >> 64) - (t << 32) + t;
+	d[3] = (uint64_t)w;
+	t = (uint64_t)(w >> 64) & 1;
+
+	/*
+	 * There may be again a borrow, in which case we must add the
+	 * modulus again.
+	 */
+	w = (unsigned __int128)d[0] - t;
+	d[0] = (uint64_t)w;
+	w = (unsigned __int128)d[1] + (t << 32) - ((w >> 64) & 1);
+	d[1] = (uint64_t)w;
+	w = (unsigned __int128)d[2] + (w >> 64);
+	d[2] = (uint64_t)w;
 	d[3] += (uint64_t)(w >> 64) - (t << 32) + t;
 
 #elif BR_UMUL128
@@ -190,13 +231,23 @@ f256_sub(uint64_t *d, const uint64_t *a, const uint64_t *b)
 	cc = _subborrow_u64(cc, a[3], b[3], &d[3]);
 
 	/*
-	 * If there is a carry, then we need to add p.
+	 * If there is a borrow, then we need to add p. We (virtually)
+	 * add 2^256, then subtract 2^256 - p.
 	 */
 	t = cc;
-	cc = _addcarry_u64(0, d[0], -t, &d[0]);
-	cc = _addcarry_u64(cc, d[1], (-t) >> 32, &d[1]);
-	cc = _addcarry_u64(cc, d[2], 0, &d[2]);
-	(void)_addcarry_u64(cc, d[3], t - (t << 32), &d[3]);
+	cc = _subborrow_u64(0, d[0], t, &d[0]);
+	cc = _subborrow_u64(cc, d[1], -(t << 32), &d[1]);
+	cc = _subborrow_u64(cc, d[2], -t, &d[2]);
+	cc = _subborrow_u64(cc, d[3], (t << 32) - (t << 1), &d[3]);
+
+	/*
+	 * If there still is a borrow, then we need to add p again.
+	 */
+	t = cc;
+	cc = _subborrow_u64(0, d[0], t, &d[0]);
+	cc = _subborrow_u64(cc, d[1], -(t << 32), &d[1]);
+	cc = _subborrow_u64(cc, d[2], -t, &d[2]);
+	(void)_subborrow_u64(cc, d[3], (t << 32) - (t << 1), &d[3]);
 
 #endif
 }
