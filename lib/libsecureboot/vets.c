@@ -432,7 +432,7 @@ ve_trust_init(void)
 
 #ifdef HAVE_BR_X509_TIME_CHECK
 static int
-verify_time_cb(void *tctx,
+verify_time_cb(void *tctx __unused,
     uint32_t not_before_days, uint32_t not_before_seconds,
     uint32_t not_after_days, uint32_t not_after_seconds)
 {

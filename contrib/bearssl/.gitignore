@@ -1,0 +1,6 @@
+/build/
+/libbearssl.a
+/brssl
+/testcrypto
+/testspeed
+/testx509

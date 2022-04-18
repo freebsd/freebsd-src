@@ -281,7 +281,7 @@ run_ssl_engine(br_ssl_engine_context *cc, unsigned long fd, unsigned flags)
 		}
 		if (cc->iaes_ctr != 0) {
 			fprintf(stderr, "   AES/CTR:       %s\n",
-				get_algo_name(cc->iaes_cbcdec, 0));
+				get_algo_name(cc->iaes_ctr, 0));
 		}
 		if (cc->iaes_ctrcbc != 0) {
 			fprintf(stderr, "   AES/CCM:       %s\n",

@@ -11,6 +11,8 @@ libsecureboot_src:= ${.PARSEDIR}
 
 CFLAGS+= -I${libsecureboot_src}/h
 
+CFLAGS+= -DHAVE_BR_X509_TIME_CHECK
+
 .PATH: ${.PARSEDIR}
 
 SRCS+= \
