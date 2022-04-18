@@ -37,8 +37,6 @@
 #ifndef _MACHINE_IN_CKSUM_H_
 #define	_MACHINE_IN_CKSUM_H_	1
 
-#include <sys/cdefs.h>
-
 #ifdef _KERNEL
 
 #define	HAVE_MD_IN_CKSUM
