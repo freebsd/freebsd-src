@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 # define TRUST_ANCHOR_STR ta_PEM
 #endif
 
+#define EPOCH_YEAR		1970
+#define AVG_SECONDS_PER_YEAR	31556952L
 #define SECONDS_PER_DAY		86400
 #define SECONDS_PER_YEAR	365 * SECONDS_PER_DAY
 #ifndef VE_UTC_MAX_JUMP
@@ -51,6 +53,11 @@ __FBSDID("$FreeBSD$");
 #define X509_DAYS_TO_UTC0	719528
 
 int DebugVe = 0;
+
+#ifndef VE_VERIFY_FLAGS
+# define VE_VERIFY_FLAGS VEF_VERBOSE
+#endif
+int VerifyFlags = VE_VERIFY_FLAGS;
 
 typedef VECTOR(br_x509_certificate) cert_list;
 typedef VECTOR(hash_data) digest_list;
@@ -109,8 +116,59 @@ ve_error_set(const char *fmt, ...)
 	return (rc);
 }
 
+#define isleap(y) (((y) % 4) == 0 && (((y) % 100) != 0 || ((y) % 400) == 0))
+
+/*
+ * The *approximate* date.
+ *
+ * When certificate verification fails for being
+ * expired or not yet valid, it helps to indicate
+ * our current date.
+ * Since libsa lacks strftime and gmtime,
+ * this simple implementation suffices.
+ */
+static const char *
+gdate(char *buf, size_t bufsz, time_t clock)
+{
+	int days[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+	int year, y, m, d;
+
+	y = clock / AVG_SECONDS_PER_YEAR;
+	year = EPOCH_YEAR + y;
+	for (y = EPOCH_YEAR; y < year; y++) {
+		clock -= SECONDS_PER_YEAR;
+		if (isleap(y))
+			clock -= SECONDS_PER_DAY;
+	}
+	d = clock / SECONDS_PER_DAY;
+	for (m = 0; d > 1 && m < 12; m++) {
+		if (d > days[m]) {
+			d -= days[m];
+			if (m == 1 && d > 0 && isleap(year))
+				d--;
+		} else
+			break;
+	}
+	d++;
+	if (d > days[m]) {
+	    d = 1;
+	    m++;
+	    if (m >= 12) {
+		year++;
+		m = 0;
+	    }
+	}
+	(void)snprintf(buf, bufsz, "%04d-%02d-%02d", year, m+1, d);
+	return(buf);
+}
+
 /* this is the time we use for verifying certs */
+#ifdef UNIT_TEST
+extern time_t ve_utc;
+time_t ve_utc = 0;
+#else
 static time_t ve_utc = 0;
+#endif
 
 /**
  * @brief
@@ -372,6 +430,40 @@ ve_trust_init(void)
 	return (once);
 }
 
+#ifdef HAVE_BR_X509_TIME_CHECK
+static int
+verify_time_cb(void *tctx,
+    uint32_t not_before_days, uint32_t not_before_seconds,
+    uint32_t not_after_days, uint32_t not_after_seconds)
+{
+	time_t not_before;
+	time_t not_after;
+	int rc;
+#ifdef UNIT_TEST
+	char date[12], nb_date[12], na_date[12];
+#endif
+
+	not_before = ((not_before_days - X509_DAYS_TO_UTC0) * SECONDS_PER_DAY) + not_before_seconds;
+	not_after =  ((not_after_days - X509_DAYS_TO_UTC0) * SECONDS_PER_DAY) + not_after_seconds;
+	if (ve_utc < not_before)
+		rc = -1;
+	else if (ve_utc > not_after)
+		rc = 1;
+	else
+		rc = 0;
+#ifdef UNIT_TEST
+	printf("notBefore %s notAfter %s date %s rc %d\n",
+	    gdate(nb_date, sizeof(nb_date), not_before),
+	    gdate(na_date, sizeof(na_date), not_after),
+	    gdate(date, sizeof(date), ve_utc), rc);
+#endif
+#if defined(_STANDALONE)
+	rc = 0;				/* don't fail */
+#endif
+	return rc;
+}
+#endif
+
 /**
  * if we can verify the certificate chain in "certs",
  * return the public key and if "xcp" is !NULL the associated
@@ -425,14 +517,17 @@ verify_signer_xcs(br_x509_certificate *xcs,
 #endif
 	br_x509_minimal_set_name_elements(&mc, elts, num_elts);
 
-#ifdef _STANDALONE
+#ifdef HAVE_BR_X509_TIME_CHECK
+	br_x509_minimal_set_time_callback(&mc, NULL, verify_time_cb);
+#else
+#if defined(_STANDALONE) || defined(UNIT_TEST)
 	/*
 	 * Clock is probably bogus so we use ve_utc.
 	 */
 	mc.days = (ve_utc / SECONDS_PER_DAY) + X509_DAYS_TO_UTC0;
 	mc.seconds = (ve_utc % SECONDS_PER_DAY);
 #endif
-
+#endif
 	mc.vtable->start_chain(&mc.vtable, NULL);
 	for (u = 0; u < VEC_LEN(chain); u ++) {
 		xc = &VEC_ELT(chain, u);
@@ -452,7 +547,17 @@ verify_signer_xcs(br_x509_certificate *xcs,
 	err = mc.vtable->end_chain(&mc.vtable);
 	pk = NULL;
 	if (err) {
-		ve_error_set("Validation failed, err = %d", err);
+		char date[12];
+
+		switch (err) {
+		case 54:
+			ve_error_set("Validation failed, certificate not valid as of %s",
+			    gdate(date, sizeof(date), ve_utc));
+			break;
+		default:
+			ve_error_set("Validation failed, err = %d", err);
+			break;
+		}
 	} else {
 		tpk = mc.vtable->get_pkey(&mc.vtable, &usages);
 		if (tpk != NULL) {
@@ -866,7 +971,7 @@ verify_sig(const char *sigfile, int flags)
 	if (!ucp) {
 		printf("Unverified %s (%s)\n", pbuf,
 		    cn.status ? cn_buf : "unknown");
-	} else if ((flags & 1) != 0) {
+	} else if ((flags & VEF_VERBOSE) != 0) {
 		printf("Verified %s signed by %s\n", pbuf,
 		    cn.status ? cn_buf : "someone we trust");
 	}

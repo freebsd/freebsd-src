@@ -34,20 +34,22 @@ read_fd(int fd, size_t len)
 	unsigned char *buf;
 
 	buf = malloc(len + 1);
-	for (x = 0, m = len; m > 0; ) {
-		n = read(fd, &buf[x], m);
-		if (n < 0)
-			break;
-		if (n > 0) {
-			m -= n;
-			x += n;
+	if (buf != NULL) {
+		for (x = 0, m = len; m > 0; ) {
+			n = read(fd, &buf[x], m);
+			if (n < 0)
+				break;
+			if (n > 0) {
+				m -= n;
+				x += n;
+			}
 		}
+		if (m == 0) {
+			buf[len] = '\0';
+			return (buf);
+		}
+		free(buf);
 	}
-	if (m == 0) {
-		buf[len] = '\0';
-		return (buf);
-	}
-	free(buf);
 	return (NULL);
 }
 
@@ -65,8 +67,16 @@ read_file(const char *path, size_t *len)
 	fstat(fd, &st);
 	ucp = read_fd(fd, st.st_size);
 	close(fd);
-	if (len != NULL && ucp != NULL)
-		*len = st.st_size;
+	if (ucp != NULL) {
+		if (len != NULL)
+			*len = st.st_size;
+	}
+#ifdef _STANDALONE
+	else
+		printf("%s: out of memory! %lu\n", __func__,
+		    (unsigned long)len);
+#endif
+
 	return (ucp);
 }
 
