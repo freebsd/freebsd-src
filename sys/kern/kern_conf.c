@@ -58,6 +58,7 @@ static void destroy_devl(struct cdev *dev);
 static int destroy_dev_sched_cbl(struct cdev *dev,
     void (*cb)(void *), void *arg);
 static void destroy_dev_tq(void *ctx, int pending);
+static void destroy_dev_tq_giant(void *ctx, int pending);
 static int make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
     int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap);
@@ -1428,23 +1429,28 @@ clone_cleanup(struct clonedevs **cdp)
 
 static TAILQ_HEAD(, cdev_priv) dev_ddtr =
 	TAILQ_HEAD_INITIALIZER(dev_ddtr);
-static struct task dev_dtr_task = TASK_INITIALIZER(0, destroy_dev_tq, NULL);
+static TAILQ_HEAD(, cdev_priv) dev_ddtr_giant =
+	TAILQ_HEAD_INITIALIZER(dev_ddtr_giant);
+static struct task dev_dtr_task = TASK_INITIALIZER(0, destroy_dev_tq, &dev_ddtr);
+static struct task dev_dtr_task_giant = TASK_INITIALIZER(0, destroy_dev_tq_giant,
+    &dev_ddtr_giant);
 
 static void
 destroy_dev_tq(void *ctx, int pending)
 {
+	TAILQ_HEAD(, cdev_priv) *ddtr = ctx;
 	struct cdev_priv *cp;
 	struct cdev *dev;
 	void (*cb)(void *);
 	void *cb_arg;
 
 	dev_lock();
-	while (!TAILQ_EMPTY(&dev_ddtr)) {
-		cp = TAILQ_FIRST(&dev_ddtr);
+	while (!TAILQ_EMPTY(ddtr)) {
+		cp = TAILQ_FIRST(ddtr);
 		dev = &cp->cdp_c;
 		KASSERT(cp->cdp_flags & CDP_SCHED_DTR,
 		    ("cdev %p in dev_destroy_tq without CDP_SCHED_DTR", cp));
-		TAILQ_REMOVE(&dev_ddtr, cp, cdp_dtr_list);
+		TAILQ_REMOVE(ddtr, cp, cdp_dtr_list);
 		cb = cp->cdp_dtr_cb;
 		cb_arg = cp->cdp_dtr_cb_arg;
 		destroy_devl(dev);
@@ -1457,6 +1463,14 @@ destroy_dev_tq(void *ctx, int pending)
 	dev_unlock();
 }
 
+static void
+destroy_dev_tq_giant(void *ctx, int pending)
+{
+	mtx_lock(&Giant);
+	destroy_dev_tq(ctx, pending);
+	mtx_unlock(&Giant);
+}
+
 /*
  * devmtx shall be locked on entry. devmtx will be unlocked after
  * function return.
@@ -1465,6 +1479,7 @@ static int
 destroy_dev_sched_cbl(struct cdev *dev, void (*cb)(void *), void *arg)
 {
 	struct cdev_priv *cp;
+	bool need_giant;
 
 	dev_lock_assert_locked();
 	cp = cdev2priv(dev);
@@ -1476,9 +1491,16 @@ destroy_dev_sched_cbl(struct cdev *dev, void (*cb)(void *), void *arg)
 	cp->cdp_flags |= CDP_SCHED_DTR;
 	cp->cdp_dtr_cb = cb;
 	cp->cdp_dtr_cb_arg = arg;
-	TAILQ_INSERT_TAIL(&dev_ddtr, cp, cdp_dtr_list);
+	need_giant = (dev->si_devsw->d_flags & D_NEEDGIANT) != 0;
+	if (need_giant)
+		TAILQ_INSERT_TAIL(&dev_ddtr_giant, cp, cdp_dtr_list);
+	else
+		TAILQ_INSERT_TAIL(&dev_ddtr, cp, cdp_dtr_list);
 	dev_unlock();
-	taskqueue_enqueue(taskqueue_swi_giant, &dev_dtr_task);
+	if (need_giant)
+		taskqueue_enqueue(taskqueue_thread, &dev_dtr_task_giant);
+	else
+		taskqueue_enqueue(taskqueue_thread, &dev_dtr_task);
 	return (1);
 }
 
