@@ -4209,7 +4209,7 @@ linuxkpi_ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (ni != NULL) {
-		int ridx __diagused;
+		int ridx __unused;
 #ifdef LINUXKPI_DEBUG_80211
 		int old_rate;
 
