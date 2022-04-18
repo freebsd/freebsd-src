@@ -48,8 +48,11 @@ unsigned char * read_file(const char *, size_t *);
 #endif
 
 extern int DebugVe;
+extern int VerifyFlags;
 
+#ifndef DEBUG_PRINTF
 #define DEBUG_PRINTF(n, x) if (DebugVe >= n) printf x
+#endif
 
 int ve_trust_init(void);
 size_t ve_trust_anchors_add_buf(unsigned char *, size_t);
