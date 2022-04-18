@@ -2,10 +2,12 @@
 # $FreeBSD$
 
 PACKAGE=runtime
+MOUNT= ${.CURDIR}/../../sbin/mount
 
 PROG=	df
 SRCS=	df.c
 
+CFLAGS+= -I${MOUNT}
 CFLAGS+= -DMOUNT_CHAR_DEVS
 
 LIBADD=	xo util
