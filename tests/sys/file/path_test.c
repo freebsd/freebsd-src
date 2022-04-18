@@ -452,14 +452,17 @@ ATF_TC_BODY(path_event, tc)
 	ATF_REQUIRE_MSG(kevent(kq, &ev, 1, NULL, 0, NULL) == 0,
 	    FMT_ERR("kevent"));
 
-	/* Try to get a EVFILT_VNODE/NOTE_LINK event through a path fd. */
-	EV_SET(&ev, pathfd, EVFILT_VNODE, EV_ADD | EV_ENABLE, NOTE_LINK, 0, 0);
+	/* Try to get a EVFILT_VNODE/NOTE_DELETE event through a path fd. */
+	EV_SET(&ev, pathfd, EVFILT_VNODE, EV_ADD | EV_ENABLE, NOTE_DELETE, 0,
+	    0);
 	ATF_REQUIRE_MSG(kevent(kq, &ev, 1, NULL, 0, NULL) == 0,
 	    FMT_ERR("kevent"));
 	ATF_REQUIRE_MSG(funlinkat(AT_FDCWD, path, pathfd, 0) == 0,
 	    FMT_ERR("funlinkat"));
 	ATF_REQUIRE_MSG(kevent(kq, NULL, 0, &ev, 1, NULL) == 1,
 	    FMT_ERR("kevent"));
+	ATF_REQUIRE_MSG(ev.fflags == NOTE_DELETE,
+	    "unexpected fflags %#x", ev.fflags);
 	EV_SET(&ev, pathfd, EVFILT_VNODE, EV_DELETE, 0, 0, 0);
 	ATF_REQUIRE_MSG(kevent(kq, &ev, 1, NULL, 0, NULL) == 0,
 	    FMT_ERR("kevent"));
