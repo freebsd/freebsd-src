@@ -1896,7 +1896,7 @@ cfiscsi_ioctl_limits(struct ctl_iscsi *ci)
 
 	cilp = (struct ctl_iscsi_limits_params *)&(ci->data);
 
-	error = icl_limits(cilp->offload, false, &idl);
+	error = icl_limits(cilp->offload, false, cilp->socket, &idl);
 	if (error != 0) {
 		ci->status = CTL_ISCSI_ERROR;
 		snprintf(ci->error_str, sizeof(ci->error_str),
