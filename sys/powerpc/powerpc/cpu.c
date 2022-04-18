@@ -784,11 +784,11 @@ cpu_idle_e500mc(sbintime_t sbt)
 static void
 cpu_idle_booke(sbintime_t sbt)
 {
+#ifdef BOOKE_E500
 	register_t msr;
 
 	msr = mfmsr();
 
-#ifdef BOOKE_E500
 	powerpc_sync();
 	mtmsr(msr | PSL_WE);
 #endif
