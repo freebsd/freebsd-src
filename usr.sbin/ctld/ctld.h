@@ -356,7 +356,7 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct ctld_connection *conn);
-void			kernel_limits(const char *offload,
+void			kernel_limits(const char *offload, int s,
 			    int *max_recv_data_segment_length,
 			    int *max_send_data_segment_length,
 			    int *max_burst_length,
