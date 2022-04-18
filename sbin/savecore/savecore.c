@@ -257,6 +257,8 @@ getbounds(int savedirfd)
 	ret = (int)strtol(buf, NULL, 10);
 	if (ret == 0 && (errno == EINVAL || errno == ERANGE))
 		logmsg(LOG_WARNING, "invalid value found in bounds, using 0");
+	if (maxdumps > 0 && ret == maxdumps)
+		ret = 0;
 	fclose(fp);
 	return (ret);
 }
@@ -720,9 +722,6 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 		logmsg(LOG_ERR, "%s: %m", infoname);
 		return;
 	}
-
-	if (maxdumps > 0 && bounds == maxdumps)
-		bounds = 0;
 
 	if (buf == NULL) {
 		buf = malloc(BUFFERSIZE);
