@@ -153,7 +153,7 @@ qoriq_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	GPIO_LOCK(sc);
 	ret = qoriq_gpio_pin_configure(dev, pin, flags);
 	GPIO_UNLOCK(sc);
-	return (0);
+	return (ret);
 }
 
 static int
