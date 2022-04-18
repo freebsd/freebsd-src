@@ -90,6 +90,9 @@ SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RWTUN, &g_eli_threads, 0,
 u_int g_eli_batch = 0;
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RWTUN, &g_eli_batch, 0,
     "Use crypto operations batching");
+static bool g_eli_unmapped_io = true;
+SYSCTL_BOOL(_kern_geom_eli, OID_AUTO, unmapped_io, CTLFLAG_RDTUN,
+    &g_eli_unmapped_io, 0, "Enable support for unmapped I/O");
 
 /*
  * Passphrase cached during boot, in order to be more user-friendly if
@@ -973,7 +976,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 */
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	if (CRYPTO_HAS_VMPAGE) {
+	if (g_eli_unmapped_io && CRYPTO_HAS_VMPAGE) {
 		/*
 		 * On DMAP architectures we can use unmapped I/O.  But don't
 		 * use it with data integrity verification.  That code hasn't

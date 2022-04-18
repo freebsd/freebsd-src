@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 15, 2020
+.Dd April 18, 2022
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -886,6 +886,12 @@ Reports how many times we were looking up a Data Key and it was not in cache.
 This sysctl is not updated for providers that need fewer Data Keys than the limit
 specified in
 .Va kern.geom.eli.key_cache_limit .
+.Va kern.geom.eli.unmapped_io
+Enable support for unmapped I/O buffers, currently implemented only on 64-bit
+platforms.
+This is an optimization which reduces the overhead of I/O processing.
+This variable is intended for debugging purposes and must be set in
+.Pa /boot/loader.conf .
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
