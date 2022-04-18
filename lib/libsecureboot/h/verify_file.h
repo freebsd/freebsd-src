@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 #ifndef _VERIFY_FILE_H_
 #define _VERIFY_FILE_H_
@@ -37,6 +35,11 @@
 #define VE_UNVERIFIED_OK 0           /* not verified but that's ok */
 #define VE_NOT_VERIFYING 2	     /* we are not verifying */
 
+/* suitable buf size for hash_string */
+#ifndef SHA_DIGEST_LENGTH
+# define SHA_DIGEST_LENGTH 20
+#endif
+
 struct stat;
 
 int	verify_prep(int, const char *, off_t, struct stat *, const char *);
@@ -47,8 +50,12 @@ int	ve_status_get(int);
 int	load_manifest(const char *, const char *, const char *, struct stat *);
 int	pass_manifest(const char *, const char *);
 int	pass_manifest_export_envs(void);
+void	verify_report(const char *, int, int, struct stat *);
 int	verify_file(int, const char *, off_t, int, const char *);
 void	verify_pcr_export(void);
+int	hash_string(char *s, size_t n, char *buf, size_t bufsz);
+int	is_verified(struct stat *);
+void	add_verify_status(struct stat *, int);
 
 struct vectx;
 struct vectx* vectx_open(int, const char *, off_t, struct stat *, int *, const char *);

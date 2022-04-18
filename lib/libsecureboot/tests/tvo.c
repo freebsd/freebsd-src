@@ -31,6 +31,12 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <verify_file.h>
 
+/* keep clang quiet */
+extern char *Destdir;
+extern size_t DestdirLen;
+extern char *Skip;
+extern time_t ve_utc;
+
 size_t DestdirLen;
 char *Destdir;
 char *Skip;
@@ -42,9 +48,9 @@ main(int argc, char *argv[])
 	int fd;
 	int c;
 	int Vflag;
+	int vflag;
 	char *cp;
 	char *prefix;
-	char *destdir;
 
 	Destdir = NULL;
 	DestdirLen = 0;
@@ -52,10 +58,10 @@ main(int argc, char *argv[])
 	Skip = NULL;
 
 	n = ve_trust_init();
-	printf("Trust %d\n", n);
 	Vflag = 0;
+	vflag = 0;
 
-	while ((c = getopt(argc, argv, "D:dp:s:T:V")) != -1) {
+	while ((c = getopt(argc, argv, "D:dp:s:T:u:Vv")) != -1) {
 		switch (c) {
 		case 'D':
 			Destdir = optarg;
@@ -77,17 +83,25 @@ main(int argc, char *argv[])
 		case 'V':
 			Vflag = 1;
 			break;
+		case 'v':
+			vflag = 1;
+			break;
+		case 'u':
+			ve_utc = (time_t)atoi(optarg);
+			break;
 		default:
 			errx(1, "unknown option: -%c", c);
 			break;
 		}
 	}
 
+	if (!vflag) {
+		printf("Trust %d\n", n);
 #ifdef VE_PCR_SUPPORT
-	ve_pcr_updating_set(1);
+		ve_pcr_updating_set(1);
 #endif
-	ve_self_tests();
-
+		ve_self_tests();
+	}
 	for ( ; optind < argc; optind++) {
 		if (Vflag) {
 			/*
@@ -113,8 +127,9 @@ main(int argc, char *argv[])
 			if (cp) {
 				printf("Verified: %s: %.28s...\n",
 				    argv[optind], cp);
-				fingerprint_info_add(argv[optind],
-				    prefix, Skip, cp, NULL);
+				if (!vflag)
+				    fingerprint_info_add(argv[optind],
+					prefix, Skip, cp, NULL);
 			} else {
 				fprintf(stderr, "%s: %s\n",
 				    argv[optind], ve_error_get());
@@ -126,8 +141,9 @@ main(int argc, char *argv[])
 			if (cp) {
 				printf("Verified: %s: %.28s...\n",
 				    argv[optind], cp);
-				fingerprint_info_add(argv[optind],
-				    prefix, Skip, cp, NULL);
+				if (!vflag)
+					fingerprint_info_add(argv[optind],
+					    prefix, Skip, cp, NULL);
 			} else {
 				fprintf(stderr, "%s: %s\n",
 				    argv[optind], ve_error_get());
@@ -150,7 +166,8 @@ main(int argc, char *argv[])
 				char buf[BUFSIZ];
 				struct stat st;
 				int error;
-				size_t off, n;
+				off_t off;
+				size_t nb;
 
 				fstat(fd, &st);
 				lseek(fd, 0, SEEK_SET);
@@ -167,10 +184,10 @@ main(int argc, char *argv[])
 					/* we can seek backwards! */
 					off = vectx_lseek(vp, off/2, SEEK_SET);
 					if (off < st.st_size) {
-						n = vectx_read(vp, buf,
+						nb = vectx_read(vp, buf,
 						    sizeof(buf));
-						if (n > 0)
-							off += n;
+						if (nb > 0)
+							off += nb;
 					}
 					off = vectx_lseek(vp, 0, SEEK_END);
 					/* repeating that should be harmless */

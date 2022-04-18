@@ -77,6 +77,13 @@ fingerprint_info_add(const char *filename, const char *prefix,
 
 	fingerprint_info_init();
 	nfip = malloc(sizeof(struct fingerprint_info));
+	if (nfip == NULL) {
+#ifdef _STANDALONE
+		printf("%s: out of memory! %lu\n", __func__,
+		    (unsigned long)sizeof(struct fingerprint_info));
+#endif
+		return;
+	}
 	if (prefix) {
 		nfip->fi_prefix = strdup(prefix);
 	} else {
@@ -115,10 +122,9 @@ fingerprint_info_add(const char *filename, const char *prefix,
 		if (n == 0)
 			break;
 	}
+	nfip->fi_dev = stp->st_dev;
 #ifdef UNIT_TEST
 	nfip->fi_dev = 0;
-#else
-	nfip->fi_dev = stp->st_dev;
 #endif
 	nfip->fi_data = data;
 	nfip->fi_prefix_len = strlen(nfip->fi_prefix);
@@ -198,9 +204,10 @@ fingerprint_info_lookup(int fd, const char *path)
 	n = strlcpy(pbuf, path, sizeof(pbuf));
 	if (n >= sizeof(pbuf))
 		return (NULL);
-#ifndef UNIT_TEST
 	if (fstat(fd, &st) == 0)
 		dev = st.st_dev;
+#ifdef UNIT_TEST
+	dev = 0;
 #endif
 	/*
 	 * get the first entry - it will have longest prefix

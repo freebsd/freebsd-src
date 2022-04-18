@@ -57,13 +57,26 @@ extern char *Skip;
  * The extra slot is for tracking most recently opened.
  */
 #ifndef SOPEN_MAX
-#define	SOPEN_MAX	64
+#define SOPEN_MAX       64
 #endif
 static int ve_status[SOPEN_MAX+1];
 static int ve_status_state;
 struct verify_status;
-struct verify_status *verified_files = NULL;
+static struct verify_status *verified_files = NULL;
 static int loaded_manifests = 0;	/* have we loaded anything? */
+
+enum {
+	VE_VERBOSE_SILENT,		/* only report errors */
+	VE_VERBOSE_UNVERIFIED,		/* all unverified files */
+	VE_VERBOSE_MUST,		/* report VE_MUST */
+	VE_VERBOSE_ALL,			/* report all */
+	VE_VERBOSE_DEBUG,		/* extra noise */
+};
+
+#ifndef VE_VERBOSE_DEFAULT
+# define VE_VERBOSE_DEFAULT VE_VERBOSE_MUST
+#endif
+static int Verbose = VE_VERBOSE_DEFAULT;
 
 #define VE_STATUS_NONE	1
 #define VE_STATUS_VALID	2
@@ -138,11 +151,13 @@ add_verify_status(struct stat *stp, int status)
 	struct verify_status *vsp;
 
 	vsp = malloc(sizeof(struct verify_status));
-	vsp->vs_next = verified_files;
-	vsp->vs_dev = stp->st_dev;
-	vsp->vs_ino = stp->st_ino;
-	vsp->vs_status = status;
-	verified_files = vsp;
+	if (vsp) {
+		vsp->vs_next = verified_files;
+		vsp->vs_dev = stp->st_dev;
+		vsp->vs_ino = stp->st_ino;
+		vsp->vs_status = status;
+		verified_files = vsp;
+	}
 }
 
 
@@ -173,7 +188,7 @@ load_manifest(const char *name, const char *prefix,
 		}
 		/* loader has no sense of time */
 		ve_utc_set(stp->st_mtime);
-		content = (char *)verify_signed(name, VEF_VERBOSE);
+		content = (char *)verify_signed(name, VerifyFlags);
 		if (content) {
 #ifdef UNIT_TEST
 			if (DestdirLen > 0 &&
@@ -216,6 +231,11 @@ find_manifest(const char *name)
 	rc = VE_FINGERPRINT_NONE;
 	for (tp = manifest_names; *tp; tp++) {
 		snprintf(buf, sizeof(buf), "%s/%s", prefix, *tp);
+		if (*tp[0] == '.') {
+			/* skip /../ */
+			if (prefix[0] == '\0' || prefix[1] == '\0')
+				continue;
+		}
 		DEBUG_PRINTF(5, ("looking for %s\n", buf));
 		if (stat(buf, &st) == 0 && st.st_size > 0) {
 #ifdef MANIFEST_SKIP_ALWAYS		/* very unlikely */
@@ -243,20 +263,21 @@ find_manifest(const char *name)
 #else
 # define ACCEPT_NO_FP_DEFAULT	VE_MUST
 #endif
-#ifndef VE_VERBOSE_DEFAULT
-# define VE_VERBOSE_DEFAULT	0
-#endif
 
 static int
 severity_guess(const char *filename)
 {
 	const char *cp;
 
-	/* Some files like *.conf and *.hints may be unsigned */
+	/*
+	 * Some files like *.conf and *.hints may be unsigned,
+	 * a *.tgz is expected to have its own signed manifest.
+	 */
 	if ((cp = strrchr(filename, '.'))) {
 		if (strcmp(cp, ".conf") == 0 ||
 		    strcmp(cp, ".cookie") == 0 ||
-			strcmp(cp, ".hints") == 0)
+		    strcmp(cp, ".hints") == 0 ||
+		    strcmp(cp, ".tgz") == 0)
 			return (VE_TRY);
 		if (strcmp(cp, ".4th") == 0 ||
 		    strcmp(cp, ".lua") == 0 ||
@@ -270,15 +291,14 @@ static int Verifying = -1;		/* 0 if not verifying */
 
 static void
 verify_tweak(int fd, off_t off, struct stat *stp,
-    char *tweak, int *accept_no_fp,
-    int *verbose)
+    char *tweak, int *accept_no_fp)
 {
 	if (strcmp(tweak, "off") == 0) {
 		Verifying = 0;
 	} else if (strcmp(tweak, "strict") == 0) {
 		/* anything caller wants verified must be */
 		*accept_no_fp = VE_WANT;
-		*verbose = 1; /* warn of anything unverified */
+		Verbose = VE_VERBOSE_ALL;
 		/* treat self test failure as fatal */
 		if (!ve_self_tests()) {
 			panic("verify self tests failed");
@@ -290,9 +310,13 @@ verify_tweak(int fd, off_t off, struct stat *stp,
 		/* best effort: always accept no fp */
 		*accept_no_fp = VE_MUST + 1;
 	} else if (strcmp(tweak, "verbose") == 0) {
-		*verbose = 1;
+		Verbose = VE_VERBOSE_ALL;
 	} else if (strcmp(tweak, "quiet") == 0) {
-		*verbose = 0;
+		Verbose = VE_VERBOSE_UNVERIFIED;
+		VerifyFlags = 0;
+	} else if (strcmp(tweak, "silent") == 0) {
+		Verbose = VE_VERBOSE_SILENT;
+		VerifyFlags = 0;
 	} else if (strncmp(tweak, "trust", 5) == 0) {
 		/* content is trust anchor to add or revoke */
 		unsigned char *ucp;
@@ -339,6 +363,68 @@ getenv_int(const char *var, int def)
 
 
 /**
+ * @brief report verification status
+ *
+ * @param[in] path
+ *	path we attempted to verify
+ *
+ * @param[in] severity
+ * 	indicator of how to handle case of missing fingerprint
+ *
+ * @param[in] status
+ *	result of verification
+ *	0 not a file to be verified, > 0 success, < 0 error
+ *
+ * @param[in] stp
+ *	pointer to struct stat, used in extra info to be output
+ *
+ * The output is dictated by combinations of the above and the setting
+ * of Verbose:
+ *
+ * VE_VERBOSE_SILENT
+ * 	report only failure to verify if severity is VE_WANT or higher.
+ *
+ * VE_VERBOSE_UNVERIFIED
+ * 	report any unverified file.
+ *
+ * VE_VERBOSE_MUST
+ * 	report verified only if severity is VE_MUST or higher.
+ *
+ * VE_VERBOSE_ALL
+ * 	report all verified files.
+ *
+ * VE_VERBOSE_DEBUG
+ * 	if stp is not NULL report dev,inode for path
+ */
+void
+verify_report(const char *path, int severity, int status, struct stat *stp)
+{
+	if (status < 0 || status == VE_FINGERPRINT_IGNORE) {
+		if (Verbose >= VE_VERBOSE_UNVERIFIED || severity > VE_TRY ||
+		    status <= VE_FINGERPRINT_WRONG) {
+			if (Verbose == VE_VERBOSE_DEBUG && stp != NULL)
+				printf("Unverified %s %llu,%llu\n",
+				    ve_error_get(),
+				    (long long)stp->st_dev,
+				    (long long)stp->st_ino);
+			else
+				printf("Unverified %s\n", ve_error_get());
+		}
+	} else if (status > 0 && Verbose >= VE_VERBOSE_MUST) {
+		if (severity >= VE_MUST || Verbose >= VE_VERBOSE_ALL) {
+			if (Verbose == VE_VERBOSE_DEBUG && stp != NULL)
+				printf("Unverified %s %llu,%llu\n",
+				    path,
+				    (long long)stp->st_dev,
+				    (long long)stp->st_ino);
+			else
+				printf("Verified %s\n", path);
+		}
+	}
+}
+
+
+/**
  * @brief prepare to verify an open file
  *
  * @param[in] fd
@@ -358,9 +444,6 @@ verify_prep(int fd, const char *filename, off_t off, struct stat *stp,
 
 	if (Verifying < 0) {
 		Verifying = ve_trust_init();
-#ifndef UNIT_TEST
-		ve_debug_set(getenv_int("VE_DEBUG_LEVEL", VE_DEBUG_LEVEL));
-#endif
 		/* initialize ve_status with default result */
 		rc = Verifying ? VE_NOT_CHECKED : VE_NOT_VERIFYING;
 		ve_status_set(0, rc);
@@ -377,9 +460,9 @@ verify_prep(int fd, const char *filename, off_t off, struct stat *stp,
 			return (0);
 	}
 	DEBUG_PRINTF(2,
-	    ("verify_prep: caller=%s,fd=%d,name='%s',off=%lld,dev=%lld,ino=%lld\n",
+	    ("verify_prep: caller=%s,fd=%d,name='%s',off=%lld,dev=%lld,ino=%llu\n",
 		caller, fd, filename, (long long)off, (long long)stp->st_dev,
-		(long long)stp->st_ino));
+		(unsigned long long)stp->st_ino));
 	rc = is_verified(stp);
 	DEBUG_PRINTF(4,("verify_prep: is_verified()->%d\n", rc));
 	if (rc == VE_NOT_CHECKED) {
@@ -421,22 +504,25 @@ int
 verify_file(int fd, const char *filename, off_t off, int severity,
     const char *caller)
 {
-	static int once;
+	static int check_verbose = 1;
 	static int accept_no_fp = ACCEPT_NO_FP_DEFAULT;
-	static int verbose = VE_VERBOSE_DEFAULT;
 	struct stat st;
 	char *cp;
 	int rc;
+
+	if (check_verbose) {
+		check_verbose = 0;
+		Verbose = getenv_int("VE_VERBOSE", VE_VERBOSE_DEFAULT);
+		VerifyFlags = getenv_int("VE_VERIFY_FLAGS", VEF_VERBOSE);
+#ifndef UNIT_TEST
+		ve_debug_set(getenv_int("VE_DEBUG_LEVEL", VE_DEBUG_LEVEL));
+#endif
+	}
 
 	rc = verify_prep(fd, filename, off, &st, caller);
 
 	if (!rc)
 		return (0);
-
-	if (!once) {
-		once++;
-		verbose = getenv_int("VE_VERBOSE", VE_VERBOSE_DEFAULT);
-	}
 
 	if (rc != VE_FINGERPRINT_WRONG && loaded_manifests) {
 		if (severity <= VE_GUESS)
@@ -455,26 +541,16 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 			filename += DestdirLen;
 		}
 #endif
-		if ((rc = verify_fd(fd, filename, off, &st)) >= 0) {
-			if (verbose || severity > VE_WANT) {
-#if defined(VE_DEBUG_LEVEL) && VE_DEBUG_LEVEL > 0
-				printf("%serified %s %llu,%llu\n",
-				    (rc == VE_FINGERPRINT_IGNORE) ? "Unv" : "V",
-				    filename,
-				    (long long)st.st_dev, (long long)st.st_ino);
-#else
-				printf("%serified %s\n",
-				    (rc == VE_FINGERPRINT_IGNORE) ? "Unv" : "V",
-				    filename);
-#endif
-			}
+		rc = verify_fd(fd, filename, off, &st);
+		verify_report(filename, severity, rc, &st);
+		if (rc >= 0) {
 			if (severity < VE_MUST) { /* not a kernel or module */
 				if ((cp = strrchr(filename, '/'))) {
 					cp++;
 					if (strncmp(cp, "loader.ve.", 10) == 0) {
 						cp += 10;
 						verify_tweak(fd, off, &st, cp,
-						    &accept_no_fp, &verbose);
+						    &accept_no_fp);
 					}
 				}
 			}
@@ -482,15 +558,17 @@ verify_file(int fd, const char *filename, off_t off, int severity,
 			ve_status_set(fd, rc);
 			return (rc);
 		}
-
-		if (severity || verbose || rc == VE_FINGERPRINT_WRONG)
-			printf("Unverified: %s\n", ve_error_get());
 		if (rc == VE_FINGERPRINT_UNKNOWN && severity < VE_MUST)
 			rc = VE_UNVERIFIED_OK;
 		else if (rc == VE_FINGERPRINT_NONE && severity < accept_no_fp)
 			rc = VE_UNVERIFIED_OK;
 
 		add_verify_status(&st, rc);
+
+		/* recheck debug/verbose level next time we are called */
+		if (rc == VE_UNVERIFIED_OK) {
+			check_verbose = 1;
+		}
 	}
 #ifdef LOADER_VERIEXEC_TESTING
 	else if (rc != VE_FINGERPRINT_WRONG) {
@@ -550,7 +628,7 @@ verify_pcr_export(void)
 					hlen += KENV_MVALLEN -
 					    (hlen % KENV_MVALLEN);
 					if (snprintf(mvallen, sizeof(mvallen),
-						"%d", (int) hlen) < sizeof(mvallen))
+						"%d", (int) hlen) < (int)sizeof(mvallen))
 						setenv("kenv_mvallen", mvallen, 1);
 				}
 				free(hinfo);
@@ -559,3 +637,37 @@ verify_pcr_export(void)
 	}
 #endif
 }
+
+/*
+ * For tftp and http we need to hash pathname
+ * to be able to fake stat(2) data.
+ */
+int
+hash_string(char *s, size_t n, char *buf, size_t bufsz)
+{
+	br_hash_compat_context mctx;
+	const br_hash_class *md;
+
+	switch (bufsz) {
+	case br_sha1_SIZE:
+		md = &br_sha1_vtable;
+		break;
+	case br_sha256_SIZE:
+		md = &br_sha256_vtable;
+		break;
+	default:
+		if (bufsz < br_sha1_SIZE)
+			return -1;
+		md = &br_sha1_vtable;
+		bufsz = br_sha1_SIZE;
+		break;
+	}
+	if (n == 0)
+		n = strlen(s);
+	md->init(&mctx.vtable);
+	md->update(&mctx.vtable, s, n);
+	md->out(&mctx.vtable, buf);
+	return bufsz;
+}
+
+
