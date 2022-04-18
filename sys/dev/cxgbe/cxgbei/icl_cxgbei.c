@@ -1750,6 +1750,7 @@ icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *arg)
 	}
 }
 
+#ifdef COMPAT_FREEBSD13
 static void
 cxgbei_limits(struct adapter *sc, void *arg)
 {
@@ -1776,6 +1777,62 @@ cxgbei_limits(struct adapter *sc, void *arg)
 
 	end_synchronized_op(sc, LOCK_HELD);
 }
+#endif
+
+static int
+cxgbei_limits_fd(struct icl_drv_limits *idl, int fd)
+{
+	struct find_ofld_adapter_rr fa;
+	struct file *fp;
+	struct socket *so;
+	struct adapter *sc;
+	struct cxgbei_data *ci;
+	cap_rights_t rights;
+	int error;
+
+	error = fget(curthread, fd,
+	    cap_rights_init_one(&rights, CAP_SOCK_CLIENT), &fp);
+	if (error != 0)
+		return (error);
+	if (fp->f_type != DTYPE_SOCKET) {
+		fdrop(fp, curthread);
+		return (EINVAL);
+	}
+	so = fp->f_data;
+	if (so->so_type != SOCK_STREAM ||
+	    so->so_proto->pr_protocol != IPPROTO_TCP) {
+		fdrop(fp, curthread);
+		return (EINVAL);
+	}
+
+	/* Find the adapter offloading this socket. */
+	fa.sc = NULL;
+	fa.so = so;
+	t4_iterate(find_offload_adapter, &fa);
+	if (fa.sc == NULL) {
+		fdrop(fp, curthread);
+		return (ENXIO);
+	}
+	fdrop(fp, curthread);
+
+	sc = fa.sc;
+	error = begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4lims");
+	if (error != 0)
+		return (error);
+
+	if (uld_active(sc, ULD_ISCSI)) {
+		ci = sc->iscsi_ulp_softc;
+		MPASS(ci != NULL);
+
+		idl->idl_max_recv_data_segment_length = ci->max_rx_data_len;
+		idl->idl_max_send_data_segment_length = ci->max_tx_data_len;
+	} else
+		error = ENXIO;
+
+	end_synchronized_op(sc, LOCK_HELD);
+
+	return (error);
+}
 
 static int
 icl_cxgbei_limits(struct icl_drv_limits *idl, int socket)
@@ -1789,9 +1846,14 @@ icl_cxgbei_limits(struct icl_drv_limits *idl, int socket)
 	idl->idl_max_burst_length = max_burst_length;
 	idl->idl_first_burst_length = first_burst_length;
 
-	t4_iterate(cxgbei_limits, idl);
+#ifdef COMPAT_FREEBSD13
+	if (socket == 0) {
+		t4_iterate(cxgbei_limits, idl);
+		return (0);
+	}
+#endif
 
-	return (0);
+	return (cxgbei_limits_fd(idl, socket));
 }
 
 int
