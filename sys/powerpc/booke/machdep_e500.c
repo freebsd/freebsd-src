@@ -134,9 +134,6 @@ booke_disable_l2_cache(void)
 int
 cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
 {
-	register_t mcsr;
-
-	mcsr = mfspr(SPR_MCSR);
 
 	*ucode = BUS_OBJERR;
 	return (SIGBUS);
