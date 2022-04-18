@@ -395,8 +395,19 @@ retry:
 
 		fwo = ((struct fuse_write_out *)fdi.answ);
 
+		if (fwo->size > fwi->size) {
+			fuse_warn(data, FSESS_WARN_WROTE_LONG,
+				"wrote more data than we provided it.");
+			/* This is bonkers.  Clear attr cache. */
+			fvdat->flag &= ~FN_SIZECHANGE;
+			fuse_vnode_clear_attr_cache(vp);
+			err = EINVAL;
+			break;
+		}
+
 		/* Adjust the uio in the case of short writes */
 		diff = fwi->size - fwo->size;
+
 		as_written_offset = uio->uio_offset - diff;
 
 		if (as_written_offset - diff > filesize) {
@@ -406,12 +417,7 @@ retry:
 		if (as_written_offset - diff >= filesize)
 			fvdat->flag &= ~FN_SIZECHANGE;
 
-		if (diff < 0) {
-			fuse_warn(data, FSESS_WARN_WROTE_LONG,
-				"wrote more data than we provided it.");
-			err = EINVAL;
-			break;
-		} else if (diff > 0) {
+		if (diff > 0) {
 			/* Short write */
 			if (!direct_io) {
 				fuse_warn(data, FSESS_WARN_SHORT_WRITE,
