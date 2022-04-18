@@ -31,10 +31,13 @@ SUBDIR+=	xray-profiling
 .endif # amd64
 
 .if ${MACHINE_CPUARCH} == "riscv"
+SUBDIR+=	include
 SUBDIR+=	asan
 SUBDIR+=	asan-preinit
 SUBDIR+=	asan_cxx
 SUBDIR+=	asan_dynamic
+SUBDIR+=	stats
+SUBDIR+=	stats_client
 SUBDIR+=	ubsan_minimal
 SUBDIR+=	ubsan_standalone
 SUBDIR+=	ubsan_standalone_cxx
