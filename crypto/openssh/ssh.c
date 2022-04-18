@@ -873,7 +873,7 @@ main(int ac, char **av)
 			}
 			break;
 		case 'V':
-			if (options.version_addendum &&
+			if (options.version_addendum != NULL &&
 			    *options.version_addendum != '\0')
 				fprintf(stderr, "%s %s, %s\n", SSH_RELEASE,
 				    options.version_addendum,
