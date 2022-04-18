@@ -410,6 +410,67 @@ TEST_F(Write, indirect_io_short_write)
 	leak(fd);
 }
 
+/* It is an error if the daemon claims to have written more data than we sent */
+TEST_F(Write, indirect_io_long_write)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t bufsize_out = 100;
+	off_t some_other_size = 25;
+	struct stat sb;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	expect_write(ino, 0, bufsize, bufsize_out, CONTENTS);
+	expect_getattr(ino, some_other_size);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(-1, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	ASSERT_EQ(EINVAL, errno);
+
+	/*
+	 * Following such an error, we should requery the server for the file's
+	 * size.
+	 */
+	fstat(fd, &sb);
+	ASSERT_EQ(sb.st_size, some_other_size);
+
+	leak(fd);
+}
+
+/*
+ * Don't crash if the server returns a write that can't be represented as a
+ * signed 32 bit number.  Regression test for
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=263263
+ */
+TEST_F(Write, indirect_io_very_long_write)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefghijklmnop";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t bufsize_out = 3 << 30;
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, 0, 1);
+	expect_write(ino, 0, bufsize, bufsize_out, CONTENTS);
+
+	fd = open(FULLPATH, O_WRONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(-1, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	ASSERT_EQ(EINVAL, errno);
+	leak(fd);
+}
+
 /* 
  * When the direct_io option is used, filesystems are allowed to write less
  * data than requested.  We should return the short write to userland.
