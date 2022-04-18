@@ -4388,8 +4388,27 @@ vtnet_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 }
 
 static void
-vtnet_debugnet_event(struct ifnet *ifp __unused, enum debugnet_ev event __unused)
+vtnet_debugnet_event(struct ifnet *ifp, enum debugnet_ev event)
 {
+	struct vtnet_softc *sc;
+	static bool sw_lro_enabled = false;
+
+	/*
+	 * Disable software LRO, since it would require entering the network
+	 * epoch when calling vtnet_txq_eof() in vtnet_debugnet_poll().
+	 */
+	sc = if_getsoftc(ifp);
+	switch (event) {
+	case DEBUGNET_START:
+		sw_lro_enabled = (sc->vtnet_flags & VTNET_FLAG_SW_LRO) != 0;
+		if (sw_lro_enabled)
+			sc->vtnet_flags &= ~VTNET_FLAG_SW_LRO;
+		break;
+	case DEBUGNET_END:
+		if (sw_lro_enabled)
+			sc->vtnet_flags |= VTNET_FLAG_SW_LRO;
+		break;
+	}
 }
 
 static int
