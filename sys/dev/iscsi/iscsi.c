@@ -76,6 +76,20 @@ __FBSDID("$FreeBSD$");
 FEATURE(iscsi_kernel_proxy, "iSCSI initiator built with ICL_KERNEL_PROXY");
 #endif
 
+#ifdef COMPAT_FREEBSD13
+struct iscsi_daemon_request13 {
+	unsigned int			idr_session_id;
+	struct iscsi_session_conf	idr_conf;
+	uint8_t				idr_isid[6];
+	uint16_t			idr_tsih;
+	uint16_t			idr_spare_cid;
+	struct iscsi_session_limits	idr_limits;
+	int				idr_spare[4];
+};
+
+#define	ISCSIDWAIT13	_IOR('I', 0x01, struct iscsi_daemon_request13)
+#endif
+
 /*
  * XXX: This is global so the iscsi_unload() can access it.
  * 	Think about how to do this properly.
@@ -1397,10 +1411,9 @@ iscsi_pdu_handle_reject(struct icl_pdu *response)
 
 static int
 iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
-    struct iscsi_daemon_request *request)
+    struct iscsi_daemon_request *request, bool freebsd13)
 {
 	struct iscsi_session *is;
-	struct icl_drv_limits idl;
 	int error;
 
 	sx_slock(&sc->sc_lock);
@@ -1446,27 +1459,76 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 		memcpy(&request->idr_conf, &is->is_conf,
 		    sizeof(request->idr_conf));
 
-		error = icl_limits(is->is_conf.isc_offload,
-		    is->is_conf.isc_iser, &idl);
-		if (error != 0) {
-			ISCSI_SESSION_WARN(is, "icl_limits for offload \"%s\" "
-			    "failed with error %d", is->is_conf.isc_offload,
-			    error);
-			sx_sunlock(&sc->sc_lock);
-			return (error);
-		}
-		request->idr_limits.isl_max_recv_data_segment_length =
-		    idl.idl_max_recv_data_segment_length;
-		request->idr_limits.isl_max_send_data_segment_length =
-		    idl.idl_max_send_data_segment_length;
-		request->idr_limits.isl_max_burst_length =
-		    idl.idl_max_burst_length;
-		request->idr_limits.isl_first_burst_length =
-		    idl.idl_first_burst_length;
+#ifdef COMPAT_FREEBSD13
+		if (freebsd13) {
+			struct icl_drv_limits idl;
+			struct iscsi_daemon_request13 *request13;
 
+			error = icl_limits(is->is_conf.isc_offload,
+			    is->is_conf.isc_iser, 0, &idl);
+			if (error != 0) {
+				ISCSI_SESSION_WARN(is, "icl_limits for "
+				    "offload \"%s\" failed with error %d",
+				    is->is_conf.isc_offload, error);
+				sx_sunlock(&sc->sc_lock);
+				return (error);
+			}
+			request13 = (struct iscsi_daemon_request13 *)request;
+			request13->idr_limits.isl_max_recv_data_segment_length =
+			    idl.idl_max_recv_data_segment_length;
+			request13->idr_limits.isl_max_send_data_segment_length =
+			    idl.idl_max_send_data_segment_length;
+			request13->idr_limits.isl_max_burst_length =
+			    idl.idl_max_burst_length;
+			request13->idr_limits.isl_first_burst_length =
+			    idl.idl_first_burst_length;
+		}
+#endif
 		sx_sunlock(&sc->sc_lock);
 		return (0);
 	}
+}
+
+static int
+iscsi_ioctl_daemon_limits(struct iscsi_softc *sc,
+    struct iscsi_daemon_limits *limits)
+{
+	struct icl_drv_limits idl;
+	struct iscsi_session *is;
+	int error;
+
+	sx_slock(&sc->sc_lock);
+
+	/*
+	 * Find the session to fetch limits for.
+	 */
+	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
+		if (is->is_id == limits->idl_session_id)
+			break;
+	}
+	if (is == NULL) {
+		sx_sunlock(&sc->sc_lock);
+		return (ESRCH);
+	}
+
+	error = icl_limits(is->is_conf.isc_offload, is->is_conf.isc_iser,
+	    limits->idl_socket, &idl);
+	sx_sunlock(&sc->sc_lock);
+	if (error != 0) {
+		ISCSI_SESSION_WARN(is, "icl_limits for offload \"%s\" "
+		    "failed with error %d", is->is_conf.isc_offload, error);
+		return (error);
+	}
+	limits->idl_limits.isl_max_recv_data_segment_length =
+	    idl.idl_max_recv_data_segment_length;
+	limits->idl_limits.isl_max_send_data_segment_length =
+	    idl.idl_max_send_data_segment_length;
+	limits->idl_limits.isl_max_burst_length =
+	    idl.idl_max_burst_length;
+	limits->idl_limits.isl_first_burst_length =
+	    idl.idl_first_burst_length;
+	
+	return (0);
 }
 
 static int
@@ -2139,7 +2201,15 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	switch (cmd) {
 	case ISCSIDWAIT:
 		return (iscsi_ioctl_daemon_wait(sc,
-		    (struct iscsi_daemon_request *)arg));
+		    (struct iscsi_daemon_request *)arg, false));
+#ifdef COMPAT_FREEBSD13
+	case ISCSIDWAIT13:
+		return (iscsi_ioctl_daemon_wait(sc,
+		    (struct iscsi_daemon_request *)arg, true));
+#endif
+	case ISCSIDLIMITS:
+		return (iscsi_ioctl_daemon_limits(sc,
+		    (struct iscsi_daemon_limits *)arg));
 	case ISCSIDHANDOFF:
 		return (iscsi_ioctl_daemon_handoff(sc,
 		    (struct iscsi_daemon_handoff *)arg));

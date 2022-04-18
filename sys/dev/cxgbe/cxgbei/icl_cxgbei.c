@@ -1778,7 +1778,7 @@ cxgbei_limits(struct adapter *sc, void *arg)
 }
 
 static int
-icl_cxgbei_limits(struct icl_drv_limits *idl)
+icl_cxgbei_limits(struct icl_drv_limits *idl, int socket)
 {
 
 	/* Maximum allowed by the RFC.	cxgbei_limits will clip them. */

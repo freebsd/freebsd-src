@@ -223,7 +223,6 @@ static struct iscsid_connection *
 connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 {
 	struct iscsid_connection *conn;
-	struct iscsi_session_limits *isl;
 	struct addrinfo *from_ai, *to_ai;
 	const char *from_addr, *to_addr;
 #ifdef ICL_KERNEL_PROXY
@@ -246,38 +245,6 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	memcpy(&conn->conn.conn_isid, &request->idr_isid,
 	    sizeof(conn->conn.conn_isid));
 	conn->conn.conn_tsih = request->idr_tsih;
-
-	/*
-	 * Read the driver limits and provide reasonable defaults for the ones
-	 * the driver doesn't care about.  If a max_snd_dsl is not explicitly
-	 * provided by the driver then we'll make sure both conn->max_snd_dsl
-	 * and isl->max_snd_dsl are set to the rcv_dsl.  This preserves historic
-	 * behavior.
-	 */
-	isl = &conn->conn_limits;
-	memcpy(isl, &request->idr_limits, sizeof(*isl));
-	if (isl->isl_max_recv_data_segment_length == 0)
-		isl->isl_max_recv_data_segment_length = (1 << 24) - 1;
-	if (isl->isl_max_send_data_segment_length == 0)
-		isl->isl_max_send_data_segment_length =
-		    isl->isl_max_recv_data_segment_length;
-	if (isl->isl_max_burst_length == 0)
-		isl->isl_max_burst_length = (1 << 24) - 1;
-	if (isl->isl_first_burst_length == 0)
-		isl->isl_first_burst_length = (1 << 24) - 1;
-	if (isl->isl_first_burst_length > isl->isl_max_burst_length)
-		isl->isl_first_burst_length = isl->isl_max_burst_length;
-
-	/*
-	 * Limit default send length in case it won't be negotiated.
-	 * We can't do it for other limits, since they may affect both
-	 * sender and receiver operation, and we must obey defaults.
-	 */
-	if (conn->conn.conn_max_send_data_segment_length >
-	    isl->isl_max_send_data_segment_length) {
-		conn->conn.conn_max_send_data_segment_length =
-		    isl->isl_max_send_data_segment_length;
-	}
 
 	from_addr = conn->conn_conf.isc_initiator_addr;
 	to_addr = conn->conn_conf.isc_target_addr;
@@ -407,6 +374,56 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 }
 
 static void
+limits(struct iscsid_connection *conn)
+{
+	struct iscsi_daemon_limits idl;
+	struct iscsi_session_limits *isl;
+	int error;
+
+	log_debugx("fetching limits from the kernel");
+
+	memset(&idl, 0, sizeof(idl));
+	idl.idl_session_id = conn->conn_session_id;
+	idl.idl_socket = conn->conn.conn_socket;
+
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDLIMITS, &idl);
+	if (error != 0)
+		log_err(1, "ISCSIDLIMITS");
+	
+	/*
+	 * Read the driver limits and provide reasonable defaults for the ones
+	 * the driver doesn't care about.  If a max_snd_dsl is not explicitly
+	 * provided by the driver then we'll make sure both conn->max_snd_dsl
+	 * and isl->max_snd_dsl are set to the rcv_dsl.  This preserves historic
+	 * behavior.
+	 */
+	isl = &conn->conn_limits;
+	memcpy(isl, &idl.idl_limits, sizeof(*isl));
+	if (isl->isl_max_recv_data_segment_length == 0)
+		isl->isl_max_recv_data_segment_length = (1 << 24) - 1;
+	if (isl->isl_max_send_data_segment_length == 0)
+		isl->isl_max_send_data_segment_length =
+		    isl->isl_max_recv_data_segment_length;
+	if (isl->isl_max_burst_length == 0)
+		isl->isl_max_burst_length = (1 << 24) - 1;
+	if (isl->isl_first_burst_length == 0)
+		isl->isl_first_burst_length = (1 << 24) - 1;
+	if (isl->isl_first_burst_length > isl->isl_max_burst_length)
+		isl->isl_first_burst_length = isl->isl_max_burst_length;
+
+	/*
+	 * Limit default send length in case it won't be negotiated.
+	 * We can't do it for other limits, since they may affect both
+	 * sender and receiver operation, and we must obey defaults.
+	 */
+	if (conn->conn.conn_max_send_data_segment_length >
+	    isl->isl_max_send_data_segment_length) {
+		conn->conn.conn_max_send_data_segment_length =
+		    isl->isl_max_send_data_segment_length;
+	}
+}
+
+static void
 handoff(struct iscsid_connection *conn)
 {
 	struct iscsi_daemon_handoff idh;
@@ -472,6 +489,7 @@ capsicate(struct iscsid_connection *conn)
 		ISCSIDSEND,
 		ISCSIDRECEIVE,
 #endif
+		ISCSIDLIMITS,
 		ISCSIDHANDOFF,
 		ISCSIDFAIL,
 		ISCSISADD,
@@ -596,8 +614,9 @@ handle_request(int iscsi_fd, const struct iscsi_daemon_request *request, int tim
 	}
 
 	conn = connection_new(iscsi_fd, request);
-	set_timeout(timeout);
 	capsicate(conn);
+	limits(conn);
+	set_timeout(timeout);
 	login(conn);
 	if (conn->conn_conf.isc_discovery != 0)
 		discovery(conn);

@@ -698,6 +698,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 		conn->conn_max_burst_limit = (1 << 24) - 1;
 		conn->conn_first_burst_limit = (1 << 24) - 1;
 		kernel_limits(conn->conn_portal->p_portal_group->pg_offload,
+		    conn->conn.conn_socket,
 		    &conn->conn_max_recv_data_segment_limit,
 		    &conn->conn_max_send_data_segment_limit,
 		    &conn->conn_max_burst_limit,

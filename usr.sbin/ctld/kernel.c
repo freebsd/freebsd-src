@@ -954,7 +954,7 @@ kernel_handoff(struct ctld_connection *conn)
 }
 
 void
-kernel_limits(const char *offload, int *max_recv_dsl, int *max_send_dsl,
+kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
     int *max_burst_length, int *first_burst_length)
 {
 	struct ctl_iscsi req;
@@ -967,6 +967,7 @@ kernel_limits(const char *offload, int *max_recv_dsl, int *max_send_dsl,
 	if (offload != NULL) {
 		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
 	}
+	cilp->socket = s;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
 		log_err(1, "error issuing CTL_ISCSI ioctl; "

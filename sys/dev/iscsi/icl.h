@@ -137,10 +137,10 @@ typedef void (*icl_pdu_cb)(struct icl_pdu *, int error);
 
 struct icl_conn	*icl_new_conn(const char *offload, bool iser, const char *name,
 		    struct mtx *lock);
-int		icl_limits(const char *offload, bool iser,
+int		icl_limits(const char *offload, bool iser, int socket,
 		    struct icl_drv_limits *idl);
 int		icl_register(const char *offload, bool iser, int priority,
-		    int (*limits)(struct icl_drv_limits *),
+		    int (*limits)(struct icl_drv_limits *, int),
 		    struct icl_conn *(*new_conn)(const char *, struct mtx *));
 int		icl_unregister(const char *offload, bool rdma);
 
