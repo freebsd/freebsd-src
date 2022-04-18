@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #define	TCP_LOG_EXPIRE_INTVL	((sbintime_t)5 * SBT_1S)
 
 bool	tcp_log_verbose;
-static uma_zone_t tcp_log_bucket_zone, tcp_log_node_zone, tcp_log_zone;
+static uma_zone_t tcp_log_id_bucket_zone, tcp_log_id_node_zone, tcp_log_zone;
 static int	tcp_log_session_limit = TCP_LOG_BUF_DEFAULT_SESSION_LIMIT;
 static uint32_t	tcp_log_version = TCP_LOG_BUF_VER;
 RB_HEAD(tcp_log_id_tree, tcp_log_id_bucket);
@@ -94,16 +94,16 @@ SYSCTL_UMA_CUR(_net_inet_tcp_bb, OID_AUTO, log_global_entries, CTLFLAG_RD,
     &tcp_log_zone, "Current number of events maintained for all TCP sessions");
 
 SYSCTL_UMA_MAX(_net_inet_tcp_bb, OID_AUTO, log_id_limit, CTLFLAG_RW,
-    &tcp_log_bucket_zone, "Maximum number of log IDs");
+    &tcp_log_id_bucket_zone, "Maximum number of log IDs");
 
 SYSCTL_UMA_CUR(_net_inet_tcp_bb, OID_AUTO, log_id_entries, CTLFLAG_RD,
-    &tcp_log_bucket_zone, "Current number of log IDs");
+    &tcp_log_id_bucket_zone, "Current number of log IDs");
 
 SYSCTL_UMA_MAX(_net_inet_tcp_bb, OID_AUTO, log_id_tcpcb_limit, CTLFLAG_RW,
-    &tcp_log_node_zone, "Maximum number of tcpcbs with log IDs");
+    &tcp_log_id_node_zone, "Maximum number of tcpcbs with log IDs");
 
 SYSCTL_UMA_CUR(_net_inet_tcp_bb, OID_AUTO, log_id_tcpcb_entries, CTLFLAG_RD,
-    &tcp_log_node_zone, "Current number of tcpcbs with log IDs");
+    &tcp_log_id_node_zone, "Current number of tcpcbs with log IDs");
 
 SYSCTL_U32(_net_inet_tcp_bb, OID_AUTO, log_version, CTLFLAG_RD, &tcp_log_version,
     0, "Version of log formats exported");
@@ -334,7 +334,7 @@ tcp_log_remove_bucket(struct tcp_log_id_bucket *tlb)
 #endif
 	}
 	TCPID_BUCKET_LOCK_DESTROY(tlb);
-	uma_zfree(tcp_log_bucket_zone, tlb);
+	uma_zfree(tcp_log_id_bucket_zone, tlb);
 }
 
 /*
@@ -582,7 +582,7 @@ restart:
 		 * will unlock the bucket.
 		 */
 		if (tln != NULL)
-			uma_zfree(tcp_log_node_zone, tln);
+			uma_zfree(tcp_log_id_node_zone, tln);
 		tln = tp->t_lin;
 		tlb = NULL;
 		bucket_locked = false;
@@ -615,7 +615,8 @@ restart:
 	if (*id) {
 		/* Get a new tln, if we don't already have one to reuse. */
 		if (tln == NULL) {
-			tln = uma_zalloc(tcp_log_node_zone, M_NOWAIT | M_ZERO);
+			tln = uma_zalloc(tcp_log_id_node_zone,
+				M_NOWAIT | M_ZERO);
 			if (tln == NULL) {
 				rv = ENOBUFS;
 				goto done;
@@ -669,7 +670,7 @@ refind:
 		/* If we need to add a new bucket, do it now. */
 		if (tmp_tlb == NULL) {
 			/* Allocate new bucket. */
-			tlb = uma_zalloc(tcp_log_bucket_zone, M_NOWAIT);
+			tlb = uma_zalloc(tcp_log_id_bucket_zone, M_NOWAIT);
 			if (tlb == NULL) {
 				rv = ENOBUFS;
 				goto done_noinp;
@@ -703,7 +704,7 @@ refind:
 
 #define	FREE_NEW_TLB()	do {				\
 	TCPID_BUCKET_LOCK_DESTROY(tlb);			\
-	uma_zfree(tcp_log_bucket_zone, tlb);		\
+	uma_zfree(tcp_log_id_bucket_zone, tlb);		\
 	bucket_locked = false;				\
 	tlb = NULL;					\
 } while (0)
@@ -790,7 +791,7 @@ done_noinp:
 	} else
 		TCPID_TREE_UNLOCK_ASSERT();
 	if (tln != NULL)
-		uma_zfree(tcp_log_node_zone, tln);
+		uma_zfree(tcp_log_id_node_zone, tln);
 	return (rv);
 }
 
@@ -984,10 +985,10 @@ tcp_log_init(void)
 #endif
 	    NULL, UMA_ALIGN_PTR, 0);
 	(void)uma_zone_set_max(tcp_log_zone, TCP_LOG_BUF_DEFAULT_GLOBAL_LIMIT);
-	tcp_log_bucket_zone = uma_zcreate("tcp_log_bucket",
+	tcp_log_id_bucket_zone = uma_zcreate("tcp_log_id_bucket",
 	    sizeof(struct tcp_log_id_bucket), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	tcp_log_node_zone = uma_zcreate("tcp_log_node",
+	tcp_log_id_node_zone = uma_zcreate("tcp_log_id_node",
 	    sizeof(struct tcp_log_id_node), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 #ifdef TCPLOG_DEBUG_COUNTERS
@@ -1092,7 +1093,7 @@ tcp_log_expire(void *unused __unused)
 		tcp_log_free_entries(&tln->tln_entries, &tln->tln_count);
 
 		/* Free the node. */
-		uma_zfree(tcp_log_node_zone, tln);
+		uma_zfree(tcp_log_id_node_zone, tln);
 
 		/* Relock the expiry queue. */
 		TCPLOG_EXPIREQ_LOCK();
@@ -2235,7 +2236,7 @@ no_inp:
 				 */
 				tcp_log_free_entries(&cur_tln->tln_entries,
 				    &cur_tln->tln_count);
-				uma_zfree(tcp_log_node_zone, cur_tln);
+				uma_zfree(tcp_log_id_node_zone, cur_tln);
 				goto done;
 			}
 
@@ -2257,7 +2258,7 @@ no_inp:
 			}
 
 			/* No matter what, we are done with the node now. */
-			uma_zfree(tcp_log_node_zone, cur_tln);
+			uma_zfree(tcp_log_id_node_zone, cur_tln);
 
 			/*
 			 * Because we removed this entry from the list, prev_tln
