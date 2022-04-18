@@ -80,7 +80,7 @@ cc: read-blob-inner ( addr len -- addr len ) {
 
 \ Get the length of the key_data buffer.
 : len-key_data
-	CX 0 8191 { 3 * BR_X509_BUFSIZE_KEY } ;
+	CX 0 8191 { 3 * BR_X509_BUFSIZE_SIG } ;
 
 \ Get the address and length for the key_data buffer.
 : addr-len-key_data ( -- addr len )

@@ -1438,6 +1438,21 @@ eqpkey(const br_x509_pkey *pk1, const br_x509_pkey *pk2)
 static size_t max_dp_usage;
 static size_t max_rp_usage;
 
+static int
+check_time(void *ctx, uint32_t nbd, uint32_t nbs, uint32_t nad, uint32_t nas)
+{
+	test_case *tc;
+
+	tc = ctx;
+	if (tc->days < nbd || (tc->days == nbd && tc->seconds < nbs)) {
+		return -1;
+	}
+	if (tc->days > nad || (tc->days == nad && tc->seconds > nas)) {
+		return 1;
+	}
+	return 0;
+}
+
 static void
 run_test_case(test_case *tc)
 {
@@ -1452,6 +1467,7 @@ run_test_case(test_case *tc)
 	const br_x509_pkey *ee_pkey;
 	unsigned usages;
 	unsigned status;
+	int j;
 
 	printf("%s: ", tc->name);
 	fflush(stdout);
@@ -1520,110 +1536,130 @@ run_test_case(test_case *tc)
 	}
 
 	/*
-	 * Initialise the engine.
+	 * We do the test twice, to exercise distinct API functions.
 	 */
-	br_x509_minimal_init(&ctx, dnhash, anchors, num_anchors);
-	for (u = 0; hash_impls[u].id; u ++) {
-		int id;
+	for (j = 0; j < 2; j ++) {
+		/*
+		 * Initialise the engine.
+		 */
+		br_x509_minimal_init(&ctx, dnhash, anchors, num_anchors);
+		for (u = 0; hash_impls[u].id; u ++) {
+			int id;
 
-		id = hash_impls[u].id;
-		if ((tc->hashes & ((unsigned)1 << id)) != 0) {
-			br_x509_minimal_set_hash(&ctx, id, hash_impls[u].impl);
-		}
-	}
-	br_x509_minimal_set_rsa(&ctx, br_rsa_pkcs1_vrfy_get_default());
-	br_x509_minimal_set_ecdsa(&ctx,
-		br_ec_get_default(), br_ecdsa_vrfy_asn1_get_default());
-
-	/*
-	 * Set the validation date.
-	 */
-	br_x509_minimal_set_time(&ctx, tc->days, tc->seconds);
-
-	/*
-	 * Put "canaries" to detect actual stack usage.
-	 */
-	for (u = 0; u < (sizeof ctx.dp_stack) / sizeof(uint32_t); u ++) {
-		ctx.dp_stack[u] = 0xA7C083FE;
-	}
-	for (u = 0; u < (sizeof ctx.rp_stack) / sizeof(uint32_t); u ++) {
-		ctx.rp_stack[u] = 0xA7C083FE;
-	}
-
-	/*
-	 * Run the engine. We inject certificates by chunks of 100 bytes
-	 * in order to exercise the coroutine API.
-	 */
-	ctx.vtable->start_chain(&ctx.vtable, tc->servername);
-	for (u = 0; u < num_certs; u ++) {
-		size_t v;
-
-		ctx.vtable->start_cert(&ctx.vtable, certs[u].len);
-		v = 0;
-		while (v < certs[u].len) {
-			size_t w;
-
-			w = certs[u].len - v;
-			if (w > 100) {
-				w = 100;
+			id = hash_impls[u].id;
+			if ((tc->hashes & ((unsigned)1 << id)) != 0) {
+				br_x509_minimal_set_hash(&ctx,
+					id, hash_impls[u].impl);
 			}
-			ctx.vtable->append(&ctx.vtable, certs[u].data + v, w);
-			v += w;
 		}
-		ctx.vtable->end_cert(&ctx.vtable);
-	}
-	status = ctx.vtable->end_chain(&ctx.vtable);
-	ee_pkey = ctx.vtable->get_pkey(&ctx.vtable, &usages);
+		br_x509_minimal_set_rsa(&ctx, br_rsa_pkcs1_vrfy_get_default());
+		br_x509_minimal_set_ecdsa(&ctx,
+			br_ec_get_default(), br_ecdsa_vrfy_asn1_get_default());
 
-	/*
-	 * Check key type and usage.
-	 */
-	if (ee_pkey != NULL) {
-		unsigned ktu;
+		/*
+		 * Set the validation date.
+		 */
+		if (j == 0) {
+			br_x509_minimal_set_time(&ctx, tc->days, tc->seconds);
+		} else {
+			br_x509_minimal_set_time_callback(&ctx,
+				tc, &check_time);
+		}
 
-		ktu = ee_pkey->key_type | usages;
-		if (tc->key_type_usage != (ktu & tc->key_type_usage)) {
-			fprintf(stderr, "wrong key type + usage"
-				" (expected 0x%02X, got 0x%02X)\n",
-				tc->key_type_usage, ktu);
+		/*
+		 * Put "canaries" to detect actual stack usage.
+		 */
+		for (u = 0; u < (sizeof ctx.dp_stack) / sizeof(uint32_t);
+			u ++)
+		{
+			ctx.dp_stack[u] = 0xA7C083FE;
+		}
+		for (u = 0; u < (sizeof ctx.rp_stack) / sizeof(uint32_t);
+			u ++)
+		{
+			ctx.rp_stack[u] = 0xA7C083FE;
+		}
+
+		/*
+		 * Run the engine. We inject certificates by chunks of 100
+		 * bytes in order to exercise the coroutine API.
+		 */
+		ctx.vtable->start_chain(&ctx.vtable, tc->servername);
+		for (u = 0; u < num_certs; u ++) {
+			size_t v;
+
+			ctx.vtable->start_cert(&ctx.vtable, certs[u].len);
+			v = 0;
+			while (v < certs[u].len) {
+				size_t w;
+
+				w = certs[u].len - v;
+				if (w > 100) {
+					w = 100;
+				}
+				ctx.vtable->append(&ctx.vtable,
+					certs[u].data + v, w);
+				v += w;
+			}
+			ctx.vtable->end_cert(&ctx.vtable);
+		}
+		status = ctx.vtable->end_chain(&ctx.vtable);
+		ee_pkey = ctx.vtable->get_pkey(&ctx.vtable, &usages);
+
+		/*
+		 * Check key type and usage.
+		 */
+		if (ee_pkey != NULL) {
+			unsigned ktu;
+
+			ktu = ee_pkey->key_type | usages;
+			if (tc->key_type_usage != (ktu & tc->key_type_usage)) {
+				fprintf(stderr, "wrong key type + usage"
+					" (expected 0x%02X, got 0x%02X)\n",
+					tc->key_type_usage, ktu);
+				exit(EXIT_FAILURE);
+			}
+		}
+
+		/*
+		 * Check results. Note that we may still get a public key if
+		 * the path is "not trusted" (but otherwise fine).
+		 */
+		if (status != tc->status) {
+			fprintf(stderr, "wrong status (got %d, expected %d)\n",
+				status, tc->status);
 			exit(EXIT_FAILURE);
 		}
-	}
-
-	/*
-	 * Check results. Note that we may still get a public key if
-	 * the path is "not trusted" (but otherwise fine).
-	 */
-	if (status != tc->status) {
-		fprintf(stderr, "wrong status (got %d, expected %d)\n",
-			status, tc->status);
-		exit(EXIT_FAILURE);
-	}
-	if (status == BR_ERR_X509_NOT_TRUSTED) {
-		ee_pkey = NULL;
-	}
-	if (!eqpkey(ee_pkey, ee_pkey_ref)) {
-		fprintf(stderr, "wrong EE public key\n");
-		exit(EXIT_FAILURE);
-	}
-
-	/*
-	 * Check stack usage.
-	 */
-	for (u = (sizeof ctx.dp_stack) / sizeof(uint32_t); u > 0; u --) {
-		if (ctx.dp_stack[u - 1] != 0xA7C083FE) {
-			if (max_dp_usage < u) {
-				max_dp_usage = u;
-			}
-			break;
+		if (status == BR_ERR_X509_NOT_TRUSTED) {
+			ee_pkey = NULL;
 		}
-	}
-	for (u = (sizeof ctx.rp_stack) / sizeof(uint32_t); u > 0; u --) {
-		if (ctx.rp_stack[u - 1] != 0xA7C083FE) {
-			if (max_rp_usage < u) {
-				max_rp_usage = u;
+		if (!eqpkey(ee_pkey, ee_pkey_ref)) {
+			fprintf(stderr, "wrong EE public key\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/*
+		 * Check stack usage.
+		 */
+		for (u = (sizeof ctx.dp_stack) / sizeof(uint32_t);
+			u > 0; u --)
+		{
+			if (ctx.dp_stack[u - 1] != 0xA7C083FE) {
+				if (max_dp_usage < u) {
+					max_dp_usage = u;
+				}
+				break;
 			}
-			break;
+		}
+		for (u = (sizeof ctx.rp_stack) / sizeof(uint32_t);
+			u > 0; u --)
+		{
+			if (ctx.rp_stack[u - 1] != 0xA7C083FE) {
+				if (max_rp_usage < u) {
+					max_rp_usage = u;
+				}
+				break;
+			}
 		}
 	}
 

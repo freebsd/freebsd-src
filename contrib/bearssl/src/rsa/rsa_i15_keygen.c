@@ -318,9 +318,9 @@ mkprime(const br_prng_class **rng, uint16_t *x, uint32_t esize,
 			continue;
 		}
 		if ((pubexp == 3 && m3 == 1)
-			|| (pubexp == 5 && m5 == 5)
-			|| (pubexp == 7 && m5 == 7)
-			|| (pubexp == 11 && m5 == 11))
+			|| (pubexp == 5 && m5 == 1)
+			|| (pubexp == 7 && m7 == 1)
+			|| (pubexp == 11 && m11 == 1))
 		{
 			continue;
 		}

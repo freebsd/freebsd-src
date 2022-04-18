@@ -580,7 +580,7 @@ f256_final_reduce(uint64_t *a)
 	w = t[2] - cc;
 	t[2] = w & MASK52;
 	cc = w >> 63;
-	w = t[3] - BIT(36);
+	w = t[3] - BIT(36) - cc;
 	t[3] = w & MASK52;
 	cc = w >> 63;
 	t[4] -= cc;

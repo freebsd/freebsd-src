@@ -480,7 +480,7 @@ OID: id-at-commonName            2.5.4.3
 \ 66 noncharacters, and also the surrogate range; this function does NOT
 \ check that the value is in the 0..10FFFF range.
 : valid-unicode? ( val -- bool )
-	dup 0xFDD0 0xFEDF between? if drop 0 ret then
+	dup 0xFDD0 0xFDEF between? if drop 0 ret then
 	dup 0xD800 0xDFFF between? if drop 0 ret then
 	0xFFFF and 0xFFFE < ;
 

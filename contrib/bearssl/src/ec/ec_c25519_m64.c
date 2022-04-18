@@ -158,10 +158,6 @@ f255_add(uint64_t *d, const uint64_t *a, const uint64_t *b)
 
 /*
  * Subtraction.
- * On input, limbs must fit on 60 bits each. On output, result is
- * partially reduced, with max value 2^255+19456; moreover, all
- * limbs will fit on 51 bits, except the low limb, which may have
- * value up to 2^51+19455.
  */
 static inline void
 f255_sub(uint64_t *d, const uint64_t *a, const uint64_t *b)
