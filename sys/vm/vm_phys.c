@@ -487,7 +487,9 @@ vm_phys_init(void)
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *end_seg, *prev_seg, *seg, *tmp_seg;
+#if defined(VM_DMA32_NPAGES_THRESHOLD) || defined(VM_PHYSSEG_SPARSE)
 	u_long npages;
+#endif
 	int dom, flind, freelist, oind, pind, segind;
 
 	/*
@@ -497,7 +499,9 @@ vm_phys_init(void)
 	 * Initially, the entries of vm_freelist_to_flind[] are set to either
 	 * 0 or 1 to indicate which free lists should be created.
 	 */
+#ifdef	VM_DMA32_NPAGES_THRESHOLD
 	npages = 0;
+#endif
 	for (segind = vm_phys_nsegs - 1; segind >= 0; segind--) {
 		seg = &vm_phys_segs[segind];
 #ifdef	VM_FREELIST_LOWMEM
@@ -520,7 +524,9 @@ vm_phys_init(void)
 		else
 #endif
 		{
+#ifdef	VM_DMA32_NPAGES_THRESHOLD
 			npages += atop(seg->end - seg->start);
+#endif
 			vm_freelist_to_flind[VM_FREELIST_DEFAULT] = 1;
 		}
 	}
