@@ -28,7 +28,7 @@
 .\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2020
+.Dd April 4, 2022
 .Dt SAVECORE 8
 .Os
 .Sh NAME
@@ -43,6 +43,11 @@
 .Fl C
 .Op Fl v
 .Op Ar device ...
+.Nm
+.Fl L
+.Op Fl fvZz
+.Op Fl m Ar maxdumps
+.Op Ar directory
 .Nm
 .Op Fl -libxo
 .Op Fl fkuvz
@@ -86,6 +91,11 @@ Force a dump to be taken even if either the dump was cleared or if the
 dump header information is inconsistent.
 .It Fl k
 Do not clear the dump after saving it.
+.It Fl L
+Instruct
+.Nm
+to generate and save a kernel dump of the running system, rather than
+copying one from a dump device.
 .It Fl m Ar maxdumps
 Maximum number of dumps to store.
 Once the number of stored dumps is equal to
@@ -97,6 +107,14 @@ Uncompress the dump in case it was compressed by the kernel.
 .It Fl v
 Print out some additional debugging information.
 Specify twice for more information.
+.It Fl Z
+Compress the dump (see
+.Xr zstd 1 ) .
+This option is only supported in conjunction with the
+.Fl L
+option.
+Regular dumps can be configured for compression with zstd using
+.Xr dumpon 8 .
 .It Fl z
 Compress the dump (see
 .Xr gzip 1 ) .
@@ -104,6 +122,10 @@ The dump may already be compressed if the kernel was configured to
 do so by
 .Xr dumpon 8 .
 In this case, the option has no effect.
+.Pp
+If used in conjunction with the
+.Fl L
+option, the requested live dump will be compressed with gzip.
 .El
 .Pp
 The
@@ -171,9 +193,11 @@ is meant to be called near the end of the initialization file
 .Xr rc 8 ) .
 .Sh SEE ALSO
 .Xr gzip 1 ,
+.Xr zstd 1 ,
 .Xr getbootfile 3 ,
 .Xr libxo 3 ,
 .Xr xo_parse_args 3 ,
+.Xr mem 4 ,
 .Xr textdump 4 ,
 .Xr tar 5 ,
 .Xr crashinfo 8 ,
