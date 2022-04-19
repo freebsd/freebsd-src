@@ -1110,6 +1110,7 @@ int
 devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 {
 	driverlink_t dl;
+	devclass_t child_dc;
 	const char *parentname;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
@@ -1141,7 +1142,9 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 		parentname = driver->baseclasses[0]->name;
 	else
 		parentname = NULL;
-	*dcp = devclass_find_internal(driver->name, parentname, TRUE);
+	child_dc = devclass_find_internal(driver->name, parentname, TRUE);
+	if (dcp != NULL)
+		*dcp = child_dc;
 
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
