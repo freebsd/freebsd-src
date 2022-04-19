@@ -132,6 +132,4 @@ driver_t mdio_driver = {
 	0
 };
 
-devclass_t mdio_devclass;
-
 MODULE_VERSION(mdio, 1);
