@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2017
+.Dd April 19, 2022
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -39,6 +39,11 @@
 .Nm
 is a lightweight OS capability and sandbox framework implementing a hybrid
 capability system model.
+Capabilities are unforgeable tokens of authority that can be delegated and must
+be presented to perform an action.
+.Nm
+makes file descriptors into capabilities.
+.Pp
 .Nm
 can be used for application and library compartmentalisation, the
 decomposition of larger bodies of software into isolated (sandboxed)
