@@ -425,13 +425,11 @@ static driver_t t6iov_driver = {
 	sizeof(struct t4iov_softc)
 };
 
-static devclass_t t4iov_devclass, t5iov_devclass, t6iov_devclass;
-
-DRIVER_MODULE(t4iov, pci, t4iov_driver, t4iov_devclass, 0, 0);
+DRIVER_MODULE(t4iov, pci, t4iov_driver, 0, 0);
 MODULE_VERSION(t4iov, 1);
 
-DRIVER_MODULE(t5iov, pci, t5iov_driver, t5iov_devclass, 0, 0);
+DRIVER_MODULE(t5iov, pci, t5iov_driver, 0, 0);
 MODULE_VERSION(t5iov, 1);
 
-DRIVER_MODULE(t6iov, pci, t6iov_driver, t6iov_devclass, 0, 0);
+DRIVER_MODULE(t6iov, pci, t6iov_driver, 0, 0);
 MODULE_VERSION(t6iov, 1);
