@@ -1253,6 +1253,8 @@ ATF_TC_BODY(largepage_config, tc)
 	size_t ps[MAXPAGESIZES + 1]; /* silence warnings if MAXPAGESIZES == 1 */
 	int error, fd;
 
+	(void)pagesizes(ps);
+
 	fd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0);
 	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; error=%d", errno);
 
