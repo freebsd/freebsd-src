@@ -230,8 +230,7 @@ static driver_t imx_ata_driver = {
         imx_ata_methods,
         sizeof(struct ata_pci_controller)
 };
-DRIVER_MODULE(imx_ata, simplebus, imx_ata_driver, ata_pci_devclass, NULL,
-    NULL);
+DRIVER_MODULE(imx_ata, simplebus, imx_ata_driver, NULL, NULL);
 MODULE_VERSION(imx_ata, 1);
 MODULE_DEPEND(imx_ata, ata, 1, 1, 1);
 MODULE_DEPEND(imx_ata, atapci, 1, 1, 1);
