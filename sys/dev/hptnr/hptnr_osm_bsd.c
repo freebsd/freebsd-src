@@ -1559,17 +1559,15 @@ static driver_t hpt_pci_driver = {
 	sizeof(HBA)
 };
 
-static devclass_t	hpt_devclass;
-
 #ifndef TARGETNAME
 #error "no TARGETNAME found"
 #endif
 
 /* use this to make TARGETNAME be expanded */
-#define __DRIVER_MODULE(p1, p2, p3, p4, p5, p6) DRIVER_MODULE(p1, p2, p3, p4, p5, p6)
+#define __DRIVER_MODULE(p1, p2, p3, p4, p5) DRIVER_MODULE(p1, p2, p3, p4, p5)
 #define __MODULE_VERSION(p1, p2) MODULE_VERSION(p1, p2)
 #define __MODULE_DEPEND(p1, p2, p3, p4, p5) MODULE_DEPEND(p1, p2, p3, p4, p5)
-__DRIVER_MODULE(TARGETNAME, pci, hpt_pci_driver, hpt_devclass, 0, 0);
+__DRIVER_MODULE(TARGETNAME, pci, hpt_pci_driver, 0, 0);
 __MODULE_VERSION(TARGETNAME, 1);
 __MODULE_DEPEND(TARGETNAME, cam, 1, 1, 1);
 
