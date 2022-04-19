@@ -1015,8 +1015,8 @@ MODULE_DEPEND(viapropm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(viapm, 1);
 
 #ifdef DEV_ISA
-DRIVER_MODULE(isa, viapm, isa_driver, isa_devclass, 0, 0);
-DRIVER_MODULE(isa, viapropm, isa_driver, isa_devclass, 0, 0);
+DRIVER_MODULE(isa, viapm, isa_driver, 0, 0);
+DRIVER_MODULE(isa, viapropm, isa_driver, 0, 0);
 MODULE_DEPEND(viapm, isa, 1, 1, 1);
 MODULE_DEPEND(viapropm, isa, 1, 1, 1);
 #endif

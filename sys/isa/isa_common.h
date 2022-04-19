@@ -77,4 +77,3 @@ extern int isa_release_resource(device_t bus, device_t child,
     int type, int rid, struct resource *r);
 
 extern driver_t isa_driver;
-extern devclass_t isa_devclass;
