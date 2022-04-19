@@ -223,6 +223,7 @@ SUBDIR=	\
 	mac_none \
 	mac_ntpd \
 	mac_partition \
+	mac_pimd \
 	mac_portacl \
 	mac_priority \
 	mac_seeotheruids \
