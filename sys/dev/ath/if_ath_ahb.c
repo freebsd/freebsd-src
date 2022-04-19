@@ -338,14 +338,15 @@ static device_method_t ath_ahb_methods[] = {
 	DEVMETHOD(device_resume,	ath_ahb_resume),
 	{ 0,0 }
 };
+
 static driver_t ath_ahb_driver = {
 	"ath",
 	ath_ahb_methods,
 	sizeof (struct ath_ahb_softc)
 };
-static	devclass_t ath_devclass;
-DRIVER_MODULE(if_ath_ahb, nexus, ath_ahb_driver, ath_devclass, 0, 0);
-DRIVER_MODULE(if_ath_ahb, apb, ath_ahb_driver, ath_devclass, 0, 0);
+
+DRIVER_MODULE(if_ath_ahb, nexus, ath_ahb_driver, 0, 0);
+DRIVER_MODULE(if_ath_ahb, apb, ath_ahb_driver, 0, 0);
 MODULE_VERSION(if_ath_ahb, 1);
 MODULE_DEPEND(if_ath_ahb, wlan, 1, 1, 1);		/* 802.11 media layer */
 MODULE_DEPEND(if_ath_ahb, ath_main, 1, 1, 1);		/* if_ath driver */
