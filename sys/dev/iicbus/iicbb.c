@@ -132,8 +132,6 @@ driver_t iicbb_driver = {
 	sizeof(struct iicbb_softc),
 };
 
-devclass_t iicbb_devclass;
-
 static int
 iicbb_probe(device_t dev)
 {

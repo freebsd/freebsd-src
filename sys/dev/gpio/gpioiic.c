@@ -371,6 +371,6 @@ static driver_t gpioiic_driver = {
 
 DRIVER_MODULE(gpioiic, gpiobus, gpioiic_driver, gpioiic_devclass, 0, 0);
 DRIVER_MODULE(gpioiic, simplebus, gpioiic_driver, gpioiic_devclass, 0, 0);
-DRIVER_MODULE(iicbb, gpioiic, iicbb_driver, iicbb_devclass, 0, 0);
+DRIVER_MODULE(iicbb, gpioiic, iicbb_driver, 0, 0);
 MODULE_DEPEND(gpioiic, iicbb, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 MODULE_DEPEND(gpioiic, gpiobus, 1, 1, 1);
