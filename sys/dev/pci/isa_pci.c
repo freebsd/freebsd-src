@@ -95,7 +95,7 @@ static driver_t isab_driver = {
     sizeof(struct isab_pci_softc),
 };
 
-DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
+DRIVER_MODULE(isab, pci, isab_driver, 0, 0);
 
 /*
  * XXX we need to add a quirk list here for bridges that don't correctly

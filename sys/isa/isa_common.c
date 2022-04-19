@@ -1113,8 +1113,6 @@ MODULE_VERSION(isa, 1);
  * Code common to ISA bridges.
  */
 
-devclass_t isab_devclass;
-
 int
 isab_attach(device_t dev)
 {
