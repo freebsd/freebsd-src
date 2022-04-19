@@ -855,7 +855,7 @@ DEFINE_CLASS_0(adm6996fc, adm6996fc_driver, adm6996fc_methods,
 static devclass_t adm6996fc_devclass;
 
 DRIVER_MODULE(adm6996fc, mdio, adm6996fc_driver, adm6996fc_devclass, 0, 0);
-DRIVER_MODULE(miibus, adm6996fc, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, adm6996fc, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, adm6996fc, mdio_driver, mdio_devclass, 0, 0);
 DRIVER_MODULE(etherswitch, adm6996fc, etherswitch_driver, etherswitch_devclass,
     0, 0);

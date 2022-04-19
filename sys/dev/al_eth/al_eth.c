@@ -257,7 +257,7 @@ static driver_t al_driver = {
 };
 
 DRIVER_MODULE(al, pci, al_driver, al_devclass, 0, 0);
-DRIVER_MODULE(miibus, al, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, al, miibus_driver, 0, 0);
 
 static int
 al_probe(device_t dev)

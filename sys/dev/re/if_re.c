@@ -353,7 +353,7 @@ static driver_t re_driver = {
 static devclass_t re_devclass;
 
 DRIVER_MODULE(re, pci, re_driver, re_devclass, 0, 0);
-DRIVER_MODULE(miibus, re, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, re, miibus_driver, 0, 0);
 
 #define EE_SET(x)					\
 	CSR_WRITE_1(sc, RL_EECMD,			\

@@ -220,7 +220,7 @@ static device_method_t mvneta_methods[] = {
 
 DEFINE_CLASS_0(mvneta, mvneta_driver, mvneta_methods, sizeof(struct mvneta_softc));
 
-DRIVER_MODULE(miibus, mvneta, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, mvneta, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, mvneta, mdio_driver, mdio_devclass, 0, 0);
 MODULE_DEPEND(mvneta, mdio, 1, 1, 1);
 MODULE_DEPEND(mvneta, ether, 1, 1, 1);

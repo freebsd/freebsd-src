@@ -166,7 +166,7 @@ static driver_t enetc_driver = {
 };
 
 static devclass_t enetc_devclass;
-DRIVER_MODULE(miibus, enetc, miibus_fdt_driver, miibus_fdt_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, enetc, miibus_fdt_driver, NULL, NULL);
 /* Make sure miibus gets procesed first. */
 DRIVER_MODULE_ORDERED(enetc, pci, enetc_driver, enetc_devclass, NULL, NULL,
     SI_ORDER_ANY);

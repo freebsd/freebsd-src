@@ -188,7 +188,7 @@ DEFINE_CLASS_0(e6000sw, e6000sw_driver, e6000sw_methods,
 DRIVER_MODULE(e6000sw, mdio, e6000sw_driver, e6000sw_devclass, 0, 0);
 DRIVER_MODULE(etherswitch, e6000sw, etherswitch_driver, etherswitch_devclass, 0,
     0);
-DRIVER_MODULE(miibus, e6000sw, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, e6000sw, miibus_driver, 0, 0);
 MODULE_DEPEND(e6000sw, mdio, 1, 1, 1);
 
 

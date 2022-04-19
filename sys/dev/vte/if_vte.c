@@ -167,7 +167,7 @@ static driver_t vte_driver = {
 static devclass_t vte_devclass;
 
 DRIVER_MODULE(vte, pci, vte_driver, vte_devclass, 0, 0);
-DRIVER_MODULE(miibus, vte, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, vte, miibus_driver, 0, 0);
 
 static int
 vte_miibus_readreg(device_t dev, int phy, int reg)

@@ -1772,7 +1772,7 @@ static driver_t smsc_driver = {
 static devclass_t smsc_devclass;
 
 DRIVER_MODULE(smsc, uhub, smsc_driver, smsc_devclass, NULL, 0);
-DRIVER_MODULE(miibus, smsc, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, smsc, miibus_driver, 0, 0);
 MODULE_DEPEND(smsc, uether, 1, 1, 1);
 MODULE_DEPEND(smsc, usb, 1, 1, 1);
 MODULE_DEPEND(smsc, ether, 1, 1, 1);

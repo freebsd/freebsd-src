@@ -237,7 +237,7 @@ static driver_t gpiomdio_driver = {
 
 EARLY_DRIVER_MODULE(gpiomdio, gpiobus, gpiomdio_driver, gpiomdio_devclass,
     0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-DRIVER_MODULE(miibus, gpiomdio, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, gpiomdio, miibus_driver, 0, 0);
 MODULE_DEPEND(gpiomdio, gpiobus, 1, 1, 1);
 MODULE_DEPEND(gpiomdio, miibus, 1, 1, 1);
 MODULE_DEPEND(gpiomdio, mii_bitbang, 1, 1, 1);

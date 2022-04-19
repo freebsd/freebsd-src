@@ -240,7 +240,7 @@ MODULE_DEPEND(cpswss, etherswitch, 1, 1, 1);
 #endif
 
 DRIVER_MODULE(cpsw, cpswss, cpswp_driver, cpswp_devclass, 0, 0);
-DRIVER_MODULE(miibus, cpsw, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, cpsw, miibus_driver, 0, 0);
 MODULE_DEPEND(cpsw, ether, 1, 1, 1);
 MODULE_DEPEND(cpsw, miibus, 1, 1, 1);
 

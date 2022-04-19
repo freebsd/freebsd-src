@@ -649,7 +649,7 @@ DEFINE_CLASS_0(ip17x, ip17x_driver, ip17x_methods,
 static devclass_t ip17x_devclass;
 
 DRIVER_MODULE(ip17x, mdio, ip17x_driver, ip17x_devclass, 0, 0);
-DRIVER_MODULE(miibus, ip17x, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, ip17x, miibus_driver, 0, 0);
 DRIVER_MODULE(etherswitch, ip17x, etherswitch_driver, etherswitch_devclass, 0, 0);
 MODULE_VERSION(ip17x, 1);
 

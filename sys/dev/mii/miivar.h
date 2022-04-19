@@ -263,11 +263,9 @@ enum miibus_device_ivars {
 
 MIIBUS_ACCESSOR(flags,		FLAGS,		u_int)
 
-extern devclass_t	miibus_devclass;
 DECLARE_CLASS(miibus_driver);
 
 #ifdef FDT
-extern devclass_t	miibus_fdt_devclass;
 DECLARE_CLASS(miibus_fdt_driver);
 #endif
 

@@ -190,7 +190,7 @@ static devclass_t et_devclass;
 DRIVER_MODULE(et, pci, et_driver, et_devclass, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, et, et_devices,
     nitems(et_devices) - 1);
-DRIVER_MODULE(miibus, et, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, et, miibus_driver, 0, 0);
 
 static int	et_rx_intr_npkts = 32;
 static int	et_rx_intr_delay = 20;		/* x10 usec */
