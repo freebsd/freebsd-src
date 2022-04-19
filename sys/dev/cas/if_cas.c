@@ -172,8 +172,6 @@ static void	cas_tx_task(void *arg, int pending __unused);
 static inline void cas_txkick(struct cas_softc *sc);
 static void	cas_watchdog(struct cas_softc *sc);
 
-static devclass_t cas_devclass;
-
 MODULE_DEPEND(cas, ether, 1, 1, 1);
 MODULE_DEPEND(cas, miibus, 1, 1, 1);
 
@@ -2612,7 +2610,7 @@ static const struct cas_pci_dev {
 	{ 0, 0, 0, NULL }
 };
 
-DRIVER_MODULE(cas, pci, cas_pci_driver, cas_devclass, 0, 0);
+DRIVER_MODULE(cas, pci, cas_pci_driver, 0, 0);
 MODULE_PNP_INFO("W32:vendor/device", pci, cas, cas_pci_devlist,
     nitems(cas_pci_devlist) - 1);
 DRIVER_MODULE(miibus, cas, miibus_driver, 0, 0);
