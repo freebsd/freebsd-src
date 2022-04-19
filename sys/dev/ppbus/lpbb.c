@@ -264,7 +264,7 @@ static driver_t lpbb_driver = {
 };
 
 DRIVER_MODULE(lpbb, ppbus, lpbb_driver, lpbb_devclass, 0, 0);
-DRIVER_MODULE(iicbb, lpbb, iicbb_driver, iicbb_devclass, 0, 0);
+DRIVER_MODULE(iicbb, lpbb, iicbb_driver, 0, 0);
 MODULE_DEPEND(lpbb, ppbus, 1, 1, 1);
 MODULE_DEPEND(lpbb, iicbb, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 MODULE_VERSION(lpbb, 1);
