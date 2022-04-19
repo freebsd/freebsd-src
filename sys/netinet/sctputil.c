@@ -2885,7 +2885,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 */
 			tmr_net = tmr->net;
 			tmr->net = NULL;
-			sctp_free_remote_addr((struct sctp_nets *)tmr_net);
+			sctp_free_remote_addr(tmr_net);
 		}
 	} else {
 		SCTPDBG(SCTP_DEBUG_TIMER2,
