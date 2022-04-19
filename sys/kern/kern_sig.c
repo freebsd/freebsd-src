@@ -2019,11 +2019,10 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	struct sigacts *ps;
 	struct proc *p;
 	sigset_t sigmask;
-	int code, sig;
+	int sig;
 
 	p = td->td_proc;
 	sig = ksi->ksi_signo;
-	code = ksi->ksi_code;
 	KASSERT(_SIG_VALID(sig), ("invalid signal"));
 
 	sigfastblock_fetch(td);
@@ -2038,7 +2037,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_PSIG))
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
-			    &td->td_sigmask, code);
+			    &td->td_sigmask, ksi->ksi_code);
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)],
 		    ksi, &td->td_sigmask);
