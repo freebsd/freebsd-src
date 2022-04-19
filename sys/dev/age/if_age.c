@@ -178,9 +178,7 @@ static driver_t age_driver = {
 	sizeof(struct age_softc)
 };
 
-static devclass_t age_devclass;
-
-DRIVER_MODULE(age, pci, age_driver, age_devclass, 0, 0);
+DRIVER_MODULE(age, pci, age_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, age, age_devs,
     nitems(age_devs));
 DRIVER_MODULE(miibus, age, miibus_driver, 0, 0);
