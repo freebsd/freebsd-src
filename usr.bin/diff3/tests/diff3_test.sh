@@ -4,6 +4,7 @@ atf_test_case diff3
 atf_test_case diff3_lesssimple
 atf_test_case diff3_ed
 atf_test_case diff3_A
+atf_test_case diff3_merge
 
 diff3_body()
 {
@@ -56,10 +57,22 @@ diff3_A_body()
 		diff3 -A -L long-m.txt -L long-o.txt -L long-y.txt $(atf_get_srcdir)/long-m.txt $(atf_get_srcdir)/long-o.txt $(atf_get_srcdir)/long-y.txt
 }
 
+
+diff3_merge_body()
+{
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/9.out \
+		diff3 -m -L 1 -L 2 -L 3 $(atf_get_srcdir)/1.txt $(atf_get_srcdir)/2.txt $(atf_get_srcdir)/3.txt
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/tao-merge.out \
+		diff3 -m -L lao.txt -L tzu.txt -L tao.txt $(atf_get_srcdir)/lao.txt $(atf_get_srcdir)/tzu.txt $(atf_get_srcdir)/tao.txt
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/long-merge.out \
+		diff3 -m -L long-m.txt -L long-o.txt -L long-y.txt $(atf_get_srcdir)/long-m.txt $(atf_get_srcdir)/long-o.txt $(atf_get_srcdir)/long-y.txt
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case diff3
 #	atf_add_test_case diff3_lesssimple
 	atf_add_test_case diff3_ed
 	atf_add_test_case diff3_A
+	atf_add_test_case diff3_merge
 }

@@ -38,7 +38,7 @@
 .Nd 3-way differential file comparison
 .Sh SYNOPSIS
 .Nm diff3
-.Op Fl 3AaEeiTXx
+.Op Fl 3AaEeimTXx
 .Op Fl Fl diff-program Ar program
 .Op Fl Fl strip-trailing-cr
 .Op Fl L | Fl Fl label Ar label1
@@ -117,6 +117,8 @@ Defines labels to print instead of file names
 .Ar file2
 and
 .Ar file3 .
+.It Fl m, Fl Fl merge
+Merge output instead of generating ed script.
 .It Fl T, Fl Fl initial-tab
 In the normal listing,
 use a tab instead of two spaces
