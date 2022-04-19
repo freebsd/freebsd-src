@@ -396,7 +396,7 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 #endif
 	struct ifnet *ifp;
 	struct timeval tv;
-	struct inpcb *inp;
+	struct inpcb *inp __diagused;
 	int32_t retval, nxt_pkt, tlen, off;
 	int etype = 0;
 	uint16_t drop_hdrlen;
