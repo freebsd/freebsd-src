@@ -345,9 +345,11 @@ static __inline int
 uart_intr_rxready(void *arg)
 {
 	struct uart_softc *sc = arg;
+#if defined(KDB)
 	int rxp;
 
 	rxp = sc->sc_rxput;
+#endif
 	UART_RECEIVE(sc);
 #if defined(KDB)
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
