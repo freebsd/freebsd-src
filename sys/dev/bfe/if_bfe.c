@@ -153,9 +153,7 @@ static driver_t bfe_driver = {
 	sizeof(struct bfe_softc)
 };
 
-static devclass_t bfe_devclass;
-
-DRIVER_MODULE(bfe, pci, bfe_driver, bfe_devclass, 0, 0);
+DRIVER_MODULE(bfe, pci, bfe_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bfe, bfe_devs,
     nitems(bfe_devs) - 1);
 DRIVER_MODULE(miibus, bfe, miibus_driver, 0, 0);
