@@ -13198,45 +13198,41 @@ done_unload:
 	return (rc);
 }
 
-static devclass_t t4_devclass, t5_devclass, t6_devclass;
-static devclass_t cxgbe_devclass, cxl_devclass, cc_devclass;
-static devclass_t vcxgbe_devclass, vcxl_devclass, vcc_devclass;
-
-DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, mod_event, 0);
+DRIVER_MODULE(t4nex, pci, t4_driver, mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 MODULE_DEPEND(t4nex, firmware, 1, 1, 1);
 #ifdef DEV_NETMAP
 MODULE_DEPEND(t4nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
-DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, mod_event, 0);
+DRIVER_MODULE(t5nex, pci, t5_driver, mod_event, 0);
 MODULE_VERSION(t5nex, 1);
 MODULE_DEPEND(t5nex, firmware, 1, 1, 1);
 #ifdef DEV_NETMAP
 MODULE_DEPEND(t5nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
-DRIVER_MODULE(t6nex, pci, t6_driver, t6_devclass, mod_event, 0);
+DRIVER_MODULE(t6nex, pci, t6_driver, mod_event, 0);
 MODULE_VERSION(t6nex, 1);
 MODULE_DEPEND(t6nex, firmware, 1, 1, 1);
 #ifdef DEV_NETMAP
 MODULE_DEPEND(t6nex, netmap, 1, 1, 1);
 #endif /* DEV_NETMAP */
 
-DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
+DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, 0, 0);
 MODULE_VERSION(cxgbe, 1);
 
-DRIVER_MODULE(cxl, t5nex, cxl_driver, cxl_devclass, 0, 0);
+DRIVER_MODULE(cxl, t5nex, cxl_driver, 0, 0);
 MODULE_VERSION(cxl, 1);
 
-DRIVER_MODULE(cc, t6nex, cc_driver, cc_devclass, 0, 0);
+DRIVER_MODULE(cc, t6nex, cc_driver, 0, 0);
 MODULE_VERSION(cc, 1);
 
-DRIVER_MODULE(vcxgbe, cxgbe, vcxgbe_driver, vcxgbe_devclass, 0, 0);
+DRIVER_MODULE(vcxgbe, cxgbe, vcxgbe_driver, 0, 0);
 MODULE_VERSION(vcxgbe, 1);
 
-DRIVER_MODULE(vcxl, cxl, vcxl_driver, vcxl_devclass, 0, 0);
+DRIVER_MODULE(vcxl, cxl, vcxl_driver, 0, 0);
 MODULE_VERSION(vcxl, 1);
 
-DRIVER_MODULE(vcc, cc, vcc_driver, vcc_devclass, 0, 0);
+DRIVER_MODULE(vcc, cc, vcc_driver, 0, 0);
 MODULE_VERSION(vcc, 1);
