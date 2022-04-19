@@ -367,8 +367,7 @@ static struct
     { 0, 0, 0, NULL }
 };
 
-static devclass_t	ciss_devclass;
-DRIVER_MODULE(ciss, pci, ciss_pci_driver, ciss_devclass, 0, 0);
+DRIVER_MODULE(ciss, pci, ciss_pci_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;", pci, ciss, ciss_vendor_data,
     nitems(ciss_vendor_data) - 1);
 MODULE_DEPEND(ciss, cam, 1, 1, 1);
