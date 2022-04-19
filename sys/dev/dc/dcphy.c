@@ -101,15 +101,13 @@ static device_method_t dcphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t dcphy_devclass;
-
 static driver_t dcphy_driver = {
 	"dcphy",
 	dcphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(dcphy, miibus, dcphy_driver, dcphy_devclass, 0, 0);
+DRIVER_MODULE(dcphy, miibus, dcphy_driver, 0, 0);
 
 static int	dcphy_service(struct mii_softc *, struct mii_data *, int);
 static void	dcphy_status(struct mii_softc *);
