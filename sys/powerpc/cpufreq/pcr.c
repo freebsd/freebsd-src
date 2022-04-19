@@ -74,8 +74,7 @@ static driver_t pcr_driver = {
 	sizeof(struct pcr_softc)
 };
 
-static devclass_t pcr_devclass;
-DRIVER_MODULE(pcr, cpu, pcr_driver, pcr_devclass, 0, 0);
+DRIVER_MODULE(pcr, cpu, pcr_driver, 0, 0);
 
 /*
  * States

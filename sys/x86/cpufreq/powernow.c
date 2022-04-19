@@ -263,14 +263,13 @@ static device_method_t pn_methods[] = {
 	{0, 0}
 };
 
-static devclass_t pn_devclass;
 static driver_t pn_driver = {
 	"powernow",
 	pn_methods,
 	sizeof(struct pn_softc),
 };
 
-DRIVER_MODULE(powernow, cpu, pn_driver, pn_devclass, 0, 0);
+DRIVER_MODULE(powernow, cpu, pn_driver, 0, 0);
 
 static int
 pn7_setfidvid(struct pn_softc *sc, int fid, int vid)

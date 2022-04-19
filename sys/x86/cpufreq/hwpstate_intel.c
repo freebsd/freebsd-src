@@ -102,15 +102,13 @@ struct hwp_softc {
 	uint8_t			low;
 };
 
-static devclass_t hwpstate_intel_devclass;
 static driver_t hwpstate_intel_driver = {
 	"hwpstate_intel",
 	intel_hwpstate_methods,
 	sizeof(struct hwp_softc),
 };
 
-DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver,
-    hwpstate_intel_devclass, NULL, NULL);
+DRIVER_MODULE(hwpstate_intel, cpu, hwpstate_intel_driver, NULL, NULL);
 MODULE_VERSION(hwpstate_intel, 1);
 
 static bool hwpstate_pkg_ctrl_enable = true;

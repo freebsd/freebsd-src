@@ -71,8 +71,7 @@ static driver_t dfs_driver = {
 	sizeof(struct dfs_softc)
 };
 
-static devclass_t dfs_devclass;
-DRIVER_MODULE(dfs, cpu, dfs_driver, dfs_devclass, 0, 0);
+DRIVER_MODULE(dfs, cpu, dfs_driver, 0, 0);
 
 /*
  * Bits of the HID1 register to enable DFS. See page 2-24 of "MPC7450

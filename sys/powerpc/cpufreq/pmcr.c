@@ -111,8 +111,7 @@ static driver_t pmcr_driver = {
 	sizeof(struct pmcr_softc)
 };
 
-static devclass_t pmcr_devclass;
-DRIVER_MODULE(pmcr, cpu, pmcr_driver, pmcr_devclass, 0, 0);
+DRIVER_MODULE(pmcr, cpu, pmcr_driver, 0, 0);
 
 static void
 pmcr_identify(driver_t *driver, device_t parent)

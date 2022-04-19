@@ -79,8 +79,7 @@ static driver_t pmufreq_driver = {
 	sizeof(struct pmufreq_softc)
 };
 
-static devclass_t pmufreq_devclass;
-DRIVER_MODULE(pmufreq, cpu, pmufreq_driver, pmufreq_devclass, 0, 0);
+DRIVER_MODULE(pmufreq, cpu, pmufreq_driver, 0, 0);
 
 static void
 pmufreq_identify(driver_t *driver, device_t parent)
