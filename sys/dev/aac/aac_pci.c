@@ -83,9 +83,7 @@ static driver_t aac_pci_driver = {
 	sizeof(struct aac_softc)
 };
 
-static devclass_t	aac_devclass;
-
-DRIVER_MODULE(aac, pci, aac_pci_driver, aac_devclass, NULL, NULL);
+DRIVER_MODULE(aac, pci, aac_pci_driver, NULL, NULL);
 MODULE_DEPEND(aac, pci, 1, 1, 1);
 
 static const struct aac_ident
@@ -492,8 +490,7 @@ static driver_t aacch_driver = {
 	1	/* no softc */
 };
 
-static devclass_t	aacch_devclass;
-DRIVER_MODULE(aacch, pci, aacch_driver, aacch_devclass, NULL, NULL);
+DRIVER_MODULE(aacch, pci, aacch_driver, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;", pci, aacch,
     aac_identifiers, nitems(aac_identifiers) - 1);
 
