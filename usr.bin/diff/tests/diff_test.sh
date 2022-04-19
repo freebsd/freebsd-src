@@ -243,17 +243,15 @@ label_body()
 
 report_identical_head()
 {
-	atf_set "require.config" unprivileged_user
-	atf_set "require.user" root
+	atf_set "require.user" unprivileged
 }
 report_identical_body()
 {
-	UNPRIVILEGED_USER=$(atf_config_get unprivileged_user)
 	printf "\tA\n" > A
 	printf "\tB\n" > B
 	chmod -r B
 	atf_check -s exit:2 -e inline:"diff: B: Permission denied\n" \
-		-o empty su -m "$UNPRIVILEGED_USER" -c 'diff -s A B'
+		-o empty diff -s A B
 }
 
 non_regular_file_body()
