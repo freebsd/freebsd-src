@@ -153,6 +153,7 @@ static void prange(struct range *, bool);
 static void repos(int);
 static void edscript(int) __dead2;
 static void Ascript(int) __dead2;
+static void mergescript(int) __dead2;
 static void increase(void);
 static void usage(void) __dead2;
 static void printrange(FILE *, struct range *);
@@ -389,7 +390,9 @@ merge(int m1, int m2)
 		}
 	}
 
-	if (Aflag)
+	if (mflag)
+		mergescript(j);
+	else if (Aflag)
 		Ascript(j);
 	else if (eflag)
 		edscript(j);
@@ -684,6 +687,86 @@ Ascript(int n)
 	if (iflag)
 		printf("w\nq\n");
 
+	exit(overlapcnt > 0);
+}
+
+/*
+ * Output the merged file directly (don't generate an ed script). When
+ * regurgitating diffs we need to walk forward through the file and print any
+ * inbetween lines.
+ */
+static void
+mergescript(int i)
+{
+	struct range r;
+	int n;
+
+	r.from = 1;
+	r.to = 1;
+
+	for (n = 1; n < i+1; n++) {
+		/* print any lines leading up to here */
+		r.to = de[n].old.from;
+		printrange(fp[0], &r);
+
+		if (de[n].type == DIFF_TYPE2) {
+			printf("%s %s\n", oldmark, f2mark);
+			printrange(fp[1], &de[n].old);
+			printf("=======\n");
+			printrange(fp[2], &de[n].new);
+			printf("%s %s\n", newmark, f3mark);
+		} else if (de[n].type == DIFF_TYPE3) {
+			if (!oflag || !overlap[n]) {
+				printrange(fp[2], &de[n].new);
+			} else {
+
+				printf("%s %s\n", oldmark, f1mark);
+				printrange(fp[0], &de[n].old);
+
+				printf("%s %s\n", orgmark, f2mark);
+				if (de[n].old.from == de[n].old.to) {
+					struct range or;
+					or.from = de[n].old.from -1;
+					or.to = de[n].new.to;
+					printrange(fp[1], &or);
+				} else
+					printrange(fp[1], &de[n].old);
+
+				printf("=======\n");
+
+				printrange(fp[2], &de[n].new);
+				printf("%s %s\n", newmark, f3mark);
+			}
+		}
+
+		if (de[n].old.from == de[n].old.to)
+			r.from = de[n].new.to;
+		else
+			r.from = de[n].old.to;
+	}
+	/*
+	 * Print from the final range to the end of 'myfile'. Any deletions or
+	 * additions to this file should have been handled by now.
+	 *
+	 * If the ranges are the same we need to rewind a line.
+	 * If the new range is 0 length (from == to), we need to use the old
+	 * range.
+	 */
+	if ((de[n-1].old.from == de[n-1].new.from) &&
+		(de[n-1].old.to == de[n-1].new.to))
+		r.from--;
+	else if (de[n-1].new.from == de[n-1].new.to)
+		r.from = de[n-1].old.from;
+
+	/*
+	 * If the range is a 3 way merge then we need to skip a line in the
+	 * trailing output.
+	 */
+	if (de[n-1].type == DIFF_TYPE3)
+		r.from++;
+
+	r.to = INT_MAX;
+	printrange(fp[0], &r);
 	exit(overlapcnt > 0);
 }
 

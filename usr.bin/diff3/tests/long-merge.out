@@ -1,0 +1,35 @@
+This is a long file
+These lines are the same in all three files
+These lines are the same in all three files
+This line is different in mine, not better
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+This line is different in yours, much butter
+These lines are the same in all three files
+These lines are the same in all three files
+<<<<<<< long-o.txt
+This line is different in yours and mine, but the same
+=======
+This line is different in yours and mine, the same is in both
+>>>>>>> long-y.txt
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+<<<<<<< long-m.txt
+This line is different in yours and mine, best change in mine
+||||||| long-o.txt
+This line is different in yours and mine, but the different in each
+=======
+This line is different in yours and mine, but the best in yours
+>>>>>>> long-y.txt
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files
+These lines are the same in all three files

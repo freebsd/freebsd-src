@@ -22,6 +22,7 @@ ${PACKAGE}FILES+=	\
 	8.out \
 	9.out \
 	long-ed.out \
-	long-A.out
+	long-A.out \
+	long-merge.out \
 
 .include <bsd.test.mk>
