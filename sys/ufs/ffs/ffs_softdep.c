@@ -2177,7 +2177,7 @@ softdep_flushfiles(oldmnt, flags, td)
 	int flags;
 	struct thread *td;
 {
-	struct ufsmount *ump;
+	struct ufsmount *ump __unused;
 #ifdef QUOTA
 	int i;
 #endif
