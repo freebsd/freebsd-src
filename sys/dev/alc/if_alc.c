@@ -240,9 +240,7 @@ static driver_t alc_driver = {
 	sizeof(struct alc_softc)
 };
 
-static devclass_t alc_devclass;
-
-DRIVER_MODULE(alc, pci, alc_driver, alc_devclass, 0, 0);
+DRIVER_MODULE(alc, pci, alc_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, alc, alc_ident_table,
     nitems(alc_ident_table) - 1);
 DRIVER_MODULE(miibus, alc, miibus_driver, 0, 0);
