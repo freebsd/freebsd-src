@@ -163,7 +163,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		sbuf_printf(sb, "} is not implemented");
 		sbuf_finish(sb);
 		sysctl_string = sbuf_data(sb);
-		linux_msg(td, "%s", sbuf_data(sb));
+		linux_msg(td, "%s", sysctl_string);
 		LIN_SDT_PROBE1(sysctl, linux_sysctl, unsupported_sysctl,
 		    sysctl_string);
 		sbuf_delete(sb);
