@@ -68,15 +68,13 @@ static device_method_t inphy_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t inphy_devclass;
-
 static driver_t inphy_driver = {
 	"inphy",
 	inphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(inphy, miibus, inphy_driver, inphy_devclass, 0, 0);
+DRIVER_MODULE(inphy, miibus, inphy_driver, 0, 0);
 
 static int	inphy_service(struct mii_softc *, struct mii_data *, int);
 static void	inphy_status(struct mii_softc *);

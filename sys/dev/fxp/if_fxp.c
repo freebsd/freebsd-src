@@ -303,10 +303,7 @@ static driver_t fxp_driver = {
 	sizeof(struct fxp_softc),
 };
 
-static devclass_t fxp_devclass;
-
-DRIVER_MODULE_ORDERED(fxp, pci, fxp_driver, fxp_devclass, NULL, NULL,
-    SI_ORDER_ANY);
+DRIVER_MODULE_ORDERED(fxp, pci, fxp_driver, NULL, NULL, SI_ORDER_ANY);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, fxp, fxp_ident_table,
     nitems(fxp_ident_table) - 1);
 DRIVER_MODULE(miibus, fxp, miibus_driver, NULL, NULL);
