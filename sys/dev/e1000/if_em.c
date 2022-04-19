@@ -377,8 +377,7 @@ static driver_t em_driver = {
 	"em", em_methods, sizeof(struct e1000_softc),
 };
 
-static devclass_t em_devclass;
-DRIVER_MODULE(em, pci, em_driver, em_devclass, 0, 0);
+DRIVER_MODULE(em, pci, em_driver, 0, 0);
 
 MODULE_DEPEND(em, pci, 1, 1, 1);
 MODULE_DEPEND(em, ether, 1, 1, 1);
@@ -390,8 +389,7 @@ static driver_t igb_driver = {
 	"igb", igb_methods, sizeof(struct e1000_softc),
 };
 
-static devclass_t igb_devclass;
-DRIVER_MODULE(igb, pci, igb_driver, igb_devclass, 0, 0);
+DRIVER_MODULE(igb, pci, igb_driver, 0, 0);
 
 MODULE_DEPEND(igb, pci, 1, 1, 1);
 MODULE_DEPEND(igb, ether, 1, 1, 1);
