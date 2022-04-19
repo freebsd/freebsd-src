@@ -69,8 +69,6 @@ static	disk_close_t	aac_disk_close;
 static	disk_strategy_t	aac_disk_strategy;
 static	dumper_t	aac_disk_dump;
 
-static devclass_t	aac_disk_devclass;
-
 static device_method_t aac_disk_methods[] = {
 	DEVMETHOD(device_probe,	aac_disk_probe),
 	DEVMETHOD(device_attach,	aac_disk_attach),
@@ -84,7 +82,7 @@ static driver_t aac_disk_driver = {
 	sizeof(struct aac_disk)
 };
 
-DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, NULL, NULL);
+DRIVER_MODULE(aacd, aac, aac_disk_driver, NULL, NULL);
 
 /*
  * Handle open from generic layer.
