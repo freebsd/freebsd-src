@@ -417,8 +417,5 @@ static driver_t ahci_fsl_fdt_driver = {
 	sizeof(struct ahci_fsl_fdt_controller),
 };
 
-static devclass_t ahci_fsl_fdt_devclass;
-DRIVER_MODULE(ahci_fsl, simplebus, ahci_fsl_fdt_driver, ahci_fsl_fdt_devclass,
-    NULL, NULL);
-DRIVER_MODULE(ahci_fsl, ofwbus, ahci_fsl_fdt_driver, ahci_fsl_fdt_devclass,
-    NULL, NULL);
+DRIVER_MODULE(ahci_fsl, simplebus, ahci_fsl_fdt_driver, NULL, NULL);
+DRIVER_MODULE(ahci_fsl, ofwbus, ahci_fsl_fdt_driver, NULL, NULL);
