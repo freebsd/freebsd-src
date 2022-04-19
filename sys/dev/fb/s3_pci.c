@@ -564,6 +564,4 @@ static driver_t s3pci_driver = {
 	sizeof(struct s3pci_softc),
 };
 
-static devclass_t s3pci_devclass;
-
-DRIVER_MODULE(s3pci, pci, s3pci_driver, s3pci_devclass, 0, 0);
+DRIVER_MODULE(s3pci, pci, s3pci_driver, 0, 0);
