@@ -666,7 +666,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	    ("softclock_call_cc: act %p %x", c, c->c_flags));
 	class = (c->c_lock != NULL) ? LOCK_CLASS(c->c_lock) : NULL;
 	lock_status = 0;
-	if (c->c_flags & CALLOUT_SHAREDLOCK) {
+	if (c->c_iflags & CALLOUT_SHAREDLOCK) {
 		if (class == &lock_class_rm)
 			lock_status = (uintptr_t)&tracker;
 		else
