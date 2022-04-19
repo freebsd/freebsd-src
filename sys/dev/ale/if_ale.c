@@ -175,9 +175,7 @@ static driver_t ale_driver = {
 	sizeof(struct ale_softc)
 };
 
-static devclass_t ale_devclass;
-
-DRIVER_MODULE(ale, pci, ale_driver, ale_devclass, NULL, NULL);
+DRIVER_MODULE(ale, pci, ale_driver, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ale, ale_devs,
     nitems(ale_devs));
 DRIVER_MODULE(miibus, ale, miibus_driver, NULL, NULL);
