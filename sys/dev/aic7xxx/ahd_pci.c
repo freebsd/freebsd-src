@@ -53,9 +53,7 @@ static driver_t ahd_pci_driver = {
 	sizeof(struct ahd_softc)
 };
 
-static devclass_t ahd_devclass;
-
-DRIVER_MODULE(ahd, pci, ahd_pci_driver, ahd_devclass, 0, 0);
+DRIVER_MODULE(ahd, pci, ahd_pci_driver, 0, 0);
 MODULE_DEPEND(ahd_pci, ahd, 1, 1, 1);
 MODULE_VERSION(ahd_pci, 1);
 
