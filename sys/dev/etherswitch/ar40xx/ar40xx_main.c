@@ -959,7 +959,7 @@ static devclass_t ar40xx_devclass;
 
 DRIVER_MODULE(ar40xx, simplebus, ar40xx_driver, ar40xx_devclass, 0, 0);
 DRIVER_MODULE(ar40xx, ofwbus, ar40xx_driver, ar40xx_devclass, 0, 0);
-DRIVER_MODULE(miibus, ar40xx, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, ar40xx, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, ar40xx, mdio_driver, mdio_devclass, 0, 0);
 DRIVER_MODULE(etherswitch, ar40xx, etherswitch_driver, etherswitch_devclass, 0, 0);
 MODULE_DEPEND(ar40xx, mdio, 1, 1, 1);

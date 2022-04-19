@@ -193,7 +193,7 @@ static driver_t jme_driver = {
 static devclass_t jme_devclass;
 
 DRIVER_MODULE(jme, pci, jme_driver, jme_devclass, 0, 0);
-DRIVER_MODULE(miibus, jme, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, jme, miibus_driver, 0, 0);
 
 static struct resource_spec jme_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE },

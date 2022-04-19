@@ -1347,7 +1347,7 @@ DEFINE_CLASS_0(arswitch, arswitch_driver, arswitch_methods,
 static devclass_t arswitch_devclass;
 
 DRIVER_MODULE(arswitch, mdio, arswitch_driver, arswitch_devclass, 0, 0);
-DRIVER_MODULE(miibus, arswitch, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, arswitch, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, arswitch, mdio_driver, mdio_devclass, 0, 0);
 DRIVER_MODULE(etherswitch, arswitch, etherswitch_driver, etherswitch_devclass, 0, 0);
 MODULE_VERSION(arswitch, 1);

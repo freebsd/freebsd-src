@@ -190,7 +190,7 @@ static driver_t lge_driver = {
 static devclass_t lge_devclass;
 
 DRIVER_MODULE(lge, pci, lge_driver, lge_devclass, 0, 0);
-DRIVER_MODULE(miibus, lge, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, lge, miibus_driver, 0, 0);
 MODULE_DEPEND(lge, pci, 1, 1, 1);
 MODULE_DEPEND(lge, ether, 1, 1, 1);
 MODULE_DEPEND(lge, miibus, 1, 1, 1);

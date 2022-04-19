@@ -1825,6 +1825,6 @@ static driver_t gen_driver = {
 static devclass_t gen_devclass;
 
 DRIVER_MODULE(genet, simplebus, gen_driver, gen_devclass, 0, 0);
-DRIVER_MODULE(miibus, genet, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, genet, miibus_driver, 0, 0);
 MODULE_DEPEND(genet, ether, 1, 1, 1);
 MODULE_DEPEND(genet, miibus, 1, 1, 1);

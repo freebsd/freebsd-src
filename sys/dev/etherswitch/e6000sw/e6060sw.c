@@ -1025,7 +1025,7 @@ DEFINE_CLASS_0(e6060sw, e6060sw_driver, e6060sw_methods,
 static devclass_t e6060sw_devclass;
 
 DRIVER_MODULE(e6060sw, mdio, e6060sw_driver, e6060sw_devclass, 0, 0);
-DRIVER_MODULE(miibus, e6060sw, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, e6060sw, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, e6060sw, mdio_driver, mdio_devclass, 0, 0);
 DRIVER_MODULE(etherswitch, e6060sw, etherswitch_driver, etherswitch_devclass, 0, 0);
 MODULE_VERSION(e6060sw, 1);

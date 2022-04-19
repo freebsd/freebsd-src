@@ -157,4 +157,4 @@ static driver_t atse_driver_nexus = {
 };
 
 DRIVER_MODULE(atse, nexus, atse_driver_nexus, atse_devclass, 0, 0);
-DRIVER_MODULE(miibus, atse, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, atse, miibus_driver, 0, 0);

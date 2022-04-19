@@ -184,7 +184,7 @@ static driver_t nfe_driver = {
 static devclass_t nfe_devclass;
 
 DRIVER_MODULE(nfe, pci, nfe_driver, nfe_devclass, 0, 0);
-DRIVER_MODULE(miibus, nfe, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, nfe, miibus_driver, 0, 0);
 
 static struct nfe_type nfe_devs[] = {
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE_LAN,

@@ -376,7 +376,7 @@ static devclass_t msk_devclass;
 
 DRIVER_MODULE(mskc, pci, mskc_driver, mskc_devclass, NULL, NULL);
 DRIVER_MODULE(msk, mskc, msk_driver, msk_devclass, NULL, NULL);
-DRIVER_MODULE(miibus, msk, miibus_driver, miibus_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, msk, miibus_driver, NULL, NULL);
 
 static struct resource_spec msk_res_spec_io[] = {
 	{ SYS_RES_IOPORT,	PCIR_BAR(1),	RF_ACTIVE },

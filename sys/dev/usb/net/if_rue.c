@@ -216,7 +216,7 @@ static devclass_t rue_devclass;
 
 DRIVER_MODULE_ORDERED(rue, uhub, rue_driver, rue_devclass, NULL, NULL,
     SI_ORDER_ANY);
-DRIVER_MODULE(miibus, rue, miibus_driver, miibus_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, rue, miibus_driver, NULL, NULL);
 MODULE_DEPEND(rue, uether, 1, 1, 1);
 MODULE_DEPEND(rue, usb, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);

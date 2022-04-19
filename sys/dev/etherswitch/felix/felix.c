@@ -146,8 +146,7 @@ DEFINE_CLASS_0(felix, felix_driver, felix_methods,
 
 DRIVER_MODULE_ORDERED(felix, pci, felix_driver, felix_devclass,
     NULL, NULL, SI_ORDER_ANY);
-DRIVER_MODULE(miibus, felix, miibus_fdt_driver, miibus_fdt_devclass,
-    NULL, NULL);
+DRIVER_MODULE(miibus, felix, miibus_fdt_driver, NULL, NULL);
 DRIVER_MODULE(etherswitch, felix, etherswitch_driver, etherswitch_devclass,
     NULL, NULL);
 MODULE_VERSION(felix, 1);

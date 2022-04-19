@@ -110,7 +110,7 @@ static void	tsec_setup_multicast(struct tsec_softc *sc);
 static int	tsec_set_mtu(struct tsec_softc *sc, unsigned int mtu);
 
 devclass_t tsec_devclass;
-DRIVER_MODULE(miibus, tsec, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, tsec, miibus_driver, 0, 0);
 MODULE_DEPEND(tsec, ether, 1, 1, 1);
 MODULE_DEPEND(tsec, miibus, 1, 1, 1);
 

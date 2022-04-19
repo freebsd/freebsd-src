@@ -134,7 +134,7 @@ static inline void gem_txkick(struct gem_softc *sc);
 static int	gem_watchdog(struct gem_softc *sc);
 
 devclass_t gem_devclass;
-DRIVER_MODULE(miibus, gem, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, gem, miibus_driver, 0, 0);
 MODULE_DEPEND(gem, miibus, 1, 1, 1);
 
 #ifdef GEM_DEBUG

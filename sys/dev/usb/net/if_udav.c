@@ -188,7 +188,7 @@ static const STRUCT_USB_HOST_ID udav_devs[] = {
 };
 
 DRIVER_MODULE(udav, uhub, udav_driver, udav_devclass, NULL, 0);
-DRIVER_MODULE(miibus, udav, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, udav, miibus_driver, 0, 0);
 MODULE_DEPEND(udav, uether, 1, 1, 1);
 MODULE_DEPEND(udav, usb, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);

@@ -101,7 +101,6 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t miibus_devclass;
 DEFINE_CLASS_0(miibus, miibus_driver, miibus_methods, sizeof(struct mii_data));
 
 struct miibus_ivars {

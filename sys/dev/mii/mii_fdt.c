@@ -350,6 +350,5 @@ static device_method_t miibus_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t miibus_fdt_devclass;
 DEFINE_CLASS_1(miibus, miibus_fdt_driver, miibus_fdt_methods,
     sizeof(struct mii_data), miibus_driver);

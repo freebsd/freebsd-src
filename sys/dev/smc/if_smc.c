@@ -500,7 +500,7 @@ driver_t smc_driver = {
 	sizeof(struct smc_softc),
 };
 
-DRIVER_MODULE(miibus, smc, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, smc, miibus_driver, 0, 0);
 
 static void
 smc_start(struct ifnet *ifp)

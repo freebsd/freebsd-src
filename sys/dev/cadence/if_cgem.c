@@ -1962,7 +1962,7 @@ static driver_t cgem_driver = {
 };
 
 DRIVER_MODULE(cgem, simplebus, cgem_driver, cgem_devclass, NULL, NULL);
-DRIVER_MODULE(miibus, cgem, miibus_driver, miibus_devclass, NULL, NULL);
+DRIVER_MODULE(miibus, cgem, miibus_driver, NULL, NULL);
 MODULE_DEPEND(cgem, miibus, 1, 1, 1);
 MODULE_DEPEND(cgem, ether, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

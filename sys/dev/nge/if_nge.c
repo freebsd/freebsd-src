@@ -243,7 +243,7 @@ static driver_t nge_driver = {
 static devclass_t nge_devclass;
 
 DRIVER_MODULE(nge, pci, nge_driver, nge_devclass, 0, 0);
-DRIVER_MODULE(miibus, nge, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, nge, miibus_driver, 0, 0);
 
 #define NGE_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\

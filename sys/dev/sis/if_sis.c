@@ -2413,4 +2413,4 @@ static driver_t sis_driver = {
 static devclass_t sis_devclass;
 
 DRIVER_MODULE(sis, pci, sis_driver, sis_devclass, 0, 0);
-DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, sis, miibus_driver, 0, 0);

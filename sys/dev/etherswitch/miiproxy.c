@@ -436,6 +436,6 @@ devclass_t miiproxy_devclass;
 static devclass_t mdioproxy_devclass;
 
 DRIVER_MODULE(mdioproxy, mdio, mdioproxy_driver, mdioproxy_devclass, 0, 0);
-DRIVER_MODULE(miibus, miiproxy, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(miibus, miiproxy, miibus_driver, 0, 0);
 MODULE_VERSION(miiproxy, 1);
 MODULE_DEPEND(miiproxy, miibus, 1, 1, 1);
