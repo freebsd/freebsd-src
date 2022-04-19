@@ -100,6 +100,14 @@ struct range {
 };
 
 struct diff {
+#define DIFF_TYPE2 2
+#define DIFF_TYPE3 3
+	int type;
+#if DEBUG
+	char *line;
+#endif	/* DEBUG */
+
+	/* Ranges as lines */
 	struct range old;
 	struct range new;
 };
@@ -129,10 +137,11 @@ static int oflag;		/* indicates whether to mark overlaps (-E or -X) */
 static int strip_cr;
 static char *f1mark, *f2mark, *f3mark;
 static const char *oldmark = "<<<<<<<";
+static const char *orgmark = "|||||||";
 static const char *newmark = ">>>>>>>";
 
 static bool duplicate(struct range *, struct range *);
-static int edit(struct diff *, bool, int);
+static int edit(struct diff *, bool, int, int);
 static char *getchange(FILE *);
 static char *get_line(FILE *, size_t *);
 static int readin(int fd, struct diff **);
@@ -143,6 +152,7 @@ static void merge(int, int);
 static void prange(struct range *, bool);
 static void repos(int);
 static void edscript(int) __dead2;
+static void Ascript(int) __dead2;
 static void increase(void);
 static void usage(void) __dead2;
 static void printrange(FILE *, struct range *);
@@ -189,6 +199,10 @@ readin(int fd, struct diff **dd)
 	if (f == NULL)
 		err(2, "fdopen");
 	for (i = 0; (p = getchange(f)); i++) {
+#if DEBUG
+		(*dd)[i].line = strdup(p);
+#endif	/* DEBUG */
+
 		if (i >= szchanges - 1)
 			increase();
 		a = b = (int)strtoimax(p, &p, 10);
@@ -309,6 +323,9 @@ merge(int m1, int m2)
 				keep(1, &d2->new);
 				change(3, &d2->new, false);
 				change(2, &d2->old, false);
+			} else if (Aflag || mflag) {
+				// XXX-THJ: What does it mean for the second file to differ?
+				j = edit(d2, dup, j, DIFF_TYPE2);
 			}
 			d2++;
 			continue;
@@ -344,8 +361,10 @@ merge(int m1, int m2)
 				change(2, &d2->old, false);
 				d3 = d1->old.to > d1->old.from ? d1 : d2;
 				change(3, &d3->new, false);
-			} else
-				j = edit(d1, dup, j);
+			} else {
+				j = edit(d1, dup, j, DIFF_TYPE3);
+			}
+			dup = false;
 			d1++;
 			d2++;
 			continue;
@@ -369,7 +388,10 @@ merge(int m1, int m2)
 			d1->new.to = d2->new.to;
 		}
 	}
-	if (eflag)
+
+	if (Aflag)
+		Ascript(j);
+	else if (eflag)
 		edscript(j);
 }
 
@@ -498,7 +520,7 @@ repos(int nchar)
  * collect an editing script for later regurgitation
  */
 static int
-edit(struct diff *diff, bool dup, int j)
+edit(struct diff *diff, bool dup, int j, int difftype)
 {
 
 	if (((dup + 1) & eflag) == 0)
@@ -507,6 +529,12 @@ edit(struct diff *diff, bool dup, int j)
 	overlap[j] = !dup;
 	if (!dup)
 		overlapcnt++;
+
+	de[j].type = difftype;
+#if DEBUG
+	de[j].line = diff->line;
+#endif	/* DEBUG */
+
 	de[j].old.from = diff->old.from;
 	de[j].old.to = diff->old.to;
 	de[j].new.from = diff->new.from;
@@ -572,6 +600,91 @@ edscript(int n)
 		printf("w\nq\n");
 
 	exit(eflag == 0 ? overlapcnt : 0);
+}
+
+/*
+ * Output an edit script to turn mine into yours, when there is a conflict
+ * between the 3 files bracket the changes. Regurgitate the diffs in reverse
+ * order to allow the ed script to track down where the lines are as changes
+ * are made.
+ */
+static void
+Ascript(int n)
+{
+	int startmark;
+	bool deletenew;
+	bool deleteold;
+
+	for (; n > 0; n--) {
+
+		deletenew = (de[n].new.from == de[n].new.to);
+		deleteold = (de[n].old.from == de[n].old.to);
+		startmark = de[n].old.from + (de[n].old.to - de[n].old.from) - 1;
+
+		if (de[n].type == DIFF_TYPE2) {
+			if (!oflag || !overlap[n]) {
+				prange(&de[n].old, deletenew);
+				printrange(fp[2], &de[n].new);
+			} else {
+				startmark = de[n].new.from +
+					(de[n].new.to - de[n].new.from);
+
+				if (!deletenew)
+					startmark--;
+
+				printf("%da\n", startmark);
+				printf("%s %s\n", newmark, f3mark);
+
+				printf(".\n");
+
+				printf("%da\n", startmark -
+					(de[n].new.to - de[n].new.from));
+				printf("%s %s\n", oldmark, f2mark);
+				if (!deleteold)
+					printrange(fp[1], &de[n].old);
+				printf("=======\n.\n");
+			}
+
+		} else if (de[n].type == DIFF_TYPE3) {
+			if (!oflag || !overlap[n]) {
+				prange(&de[n].old, deletenew);
+				printrange(fp[2], &de[n].new);
+			} else {
+				printf("%da\n", startmark);
+				printf("%s %s\n", orgmark, f2mark);
+
+				if (deleteold) {
+					struct range r;
+					r.from = de[n].old.from-1;
+					r.to = de[n].new.to;
+					printrange(fp[1], &r);
+				} else
+					printrange(fp[1], &de[n].old);
+
+				printf("=======\n");
+				printrange(fp[2], &de[n].new);
+			}
+
+			if (!oflag || !overlap[n]) {
+				if (!deletenew)
+					printf(".\n");
+			} else {
+				printf("%s %s\n.\n", newmark, f3mark);
+
+				/*
+				 * Go to the start of the conflict in original
+				 * file and append lines
+				 */
+				printf("%da\n%s %s\n.\n",
+					startmark - (de[n].old.to - de[n].old.from),
+					oldmark, f1mark);
+			}
+		}
+	}
+	if (iflag)
+		printf("w\nq\n");
+
+	exit(overlapcnt > 0);
 }
 
 static void

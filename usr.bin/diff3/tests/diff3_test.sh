@@ -3,6 +3,7 @@
 atf_test_case diff3
 atf_test_case diff3_lesssimple
 atf_test_case diff3_ed
+atf_test_case diff3_A
 
 diff3_body()
 {
@@ -46,9 +47,19 @@ diff3_ed_body()
 		diff3 -e $(atf_get_srcdir)/long-m.txt $(atf_get_srcdir)/long-o.txt $(atf_get_srcdir)/long-y.txt
 }
 
+diff3_A_body()
+{
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/8.out \
+		diff3 -A -L 1 -L 2 -L 3 $(atf_get_srcdir)/1.txt $(atf_get_srcdir)/2.txt $(atf_get_srcdir)/3.txt
+
+	atf_check -s exit:1 -o file:$(atf_get_srcdir)/long-A.out \
+		diff3 -A -L long-m.txt -L long-o.txt -L long-y.txt $(atf_get_srcdir)/long-m.txt $(atf_get_srcdir)/long-o.txt $(atf_get_srcdir)/long-y.txt
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case diff3
 #	atf_add_test_case diff3_lesssimple
 	atf_add_test_case diff3_ed
+	atf_add_test_case diff3_A
 }
