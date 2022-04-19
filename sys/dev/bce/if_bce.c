@@ -515,13 +515,11 @@ static driver_t bce_driver = {
 	sizeof(struct bce_softc)
 };
 
-static devclass_t bce_devclass;
-
 MODULE_DEPEND(bce, pci, 1, 1, 1);
 MODULE_DEPEND(bce, ether, 1, 1, 1);
 MODULE_DEPEND(bce, miibus, 1, 1, 1);
 
-DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, NULL, NULL);
+DRIVER_MODULE(bce, pci, bce_driver, NULL, NULL);
 DRIVER_MODULE(miibus, bce, miibus_driver, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;U16:#;U16:#;D:#", pci, bce,
     bce_devs, nitems(bce_devs) - 1);
