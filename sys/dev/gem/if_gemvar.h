@@ -263,8 +263,6 @@ do {									\
 #define	GEM_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->sc_mtx)
 
 #ifdef _KERNEL
-extern devclass_t gem_devclass;
-
 int	gem_attach(struct gem_softc *sc);
 void	gem_detach(struct gem_softc *sc);
 void	gem_intr(void *v);
