@@ -21,6 +21,7 @@ ${PACKAGE}FILES+=	\
 	7.out \
 	8.out \
 	9.out \
-	long-ed.out
+	long-ed.out \
+	long-A.out
 
 .include <bsd.test.mk>

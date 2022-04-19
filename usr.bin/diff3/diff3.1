@@ -30,7 +30,7 @@
 .\"     @(#)diff3.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2021
+.Dd April 19, 2022
 .Dt DIFF3 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd 3-way differential file comparison
 .Sh SYNOPSIS
 .Nm diff3
-.Op Fl 3aEeiTXx
+.Op Fl 3AaEeiTXx
 .Op Fl Fl diff-program Ar program
 .Op Fl Fl strip-trailing-cr
 .Op Fl L | Fl Fl label Ar label1
@@ -71,6 +71,8 @@ Produces an output script suitable for
 with changes
 specific only to
 .Ar file3 .
+.It Fl A Fl Fl show-all
+Output all changes, bracketing conflicts.
 .It Fl a , Fl Fl text
 Treat all files as ASCII.
 .It Fl E , Fl Fl show-overlap
