@@ -83,8 +83,6 @@ static driver_t aacraid_pci_driver = {
 	sizeof(struct aac_softc)
 };
 
-static devclass_t	aacraid_devclass;
-
 struct aac_ident
 {
 	u_int16_t		vendor;
@@ -104,7 +102,7 @@ struct aac_ident
 	{0, 0, 0, 0, 0, 0, 0}
 };
 
-DRIVER_MODULE(aacraid, pci, aacraid_pci_driver, aacraid_devclass, 0, 0);
+DRIVER_MODULE(aacraid, pci, aacraid_pci_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, aacraid,
     aacraid_family_identifiers,
     nitems(aacraid_family_identifiers) - 1);
