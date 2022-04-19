@@ -67,9 +67,7 @@ static driver_t foo_driver = {
 	sizeof(struct foo_softc)
 };
 
-static devclass_t foo_devclass;
-
-DRIVER_MODULE(foo, bogo, foo_driver, foo_devclass, NULL, NULL);
+DRIVER_MODULE(foo, bogo, foo_driver, NULL, NULL);
 .Ed
 .Sh DESCRIPTION
 Each driver in the kernel is described by a
