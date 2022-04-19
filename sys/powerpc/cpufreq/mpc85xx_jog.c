@@ -97,8 +97,7 @@ static driver_t mpc85xx_jog_driver = {
 	sizeof(struct mpc85xx_jog_softc)
 };
 
-static devclass_t mpc85xx_jog_devclass;
-DRIVER_MODULE(mpc85xx_jog, cpu, mpc85xx_jog_driver, mpc85xx_jog_devclass, 0, 0);
+DRIVER_MODULE(mpc85xx_jog, cpu, mpc85xx_jog_driver, 0, 0);
 
 struct mpc85xx_constraints {
 	int threshold; /* Threshold frequency, in MHz, for setting CORE_SPD bit. */

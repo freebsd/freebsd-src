@@ -619,7 +619,5 @@ static driver_t cpufreq_dt_driver = {
 	sizeof(struct cpufreq_dt_softc),
 };
 
-static devclass_t cpufreq_dt_devclass;
-
-DRIVER_MODULE(cpufreq_dt, cpu, cpufreq_dt_driver, cpufreq_dt_devclass, 0, 0);
+DRIVER_MODULE(cpufreq_dt, cpu, cpufreq_dt_driver, 0, 0);
 MODULE_VERSION(cpufreq_dt, 1);
