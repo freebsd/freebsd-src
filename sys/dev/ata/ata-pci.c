@@ -601,15 +601,13 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD_END
 };
 
-devclass_t ata_pci_devclass;
-
 static driver_t ata_pci_driver = {
     "atapci",
     ata_pci_methods,
     sizeof(struct ata_pci_controller),
 };
 
-DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_pci_devclass, NULL, NULL);
+DRIVER_MODULE(atapci, pci, ata_pci_driver, NULL, NULL);
 MODULE_VERSION(atapci, 1);
 MODULE_DEPEND(atapci, ata, 1, 1, 1);
 
