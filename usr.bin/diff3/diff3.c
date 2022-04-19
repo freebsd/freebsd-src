@@ -128,6 +128,8 @@ static int Aflag, eflag, iflag, mflag, Tflag;
 static int oflag;		/* indicates whether to mark overlaps (-E or -X) */
 static int strip_cr;
 static char *f1mark, *f2mark, *f3mark;
+static const char *oldmark = "<<<<<<<";
+static const char *newmark = ">>>>>>>";
 
 static bool duplicate(struct range *, struct range *);
 static int edit(struct diff *, bool, int);
@@ -561,8 +563,9 @@ edscript(int n)
 			if (!delete)
 				printf(".\n");
 		} else {
-			printf("%s\n.\n", f3mark);
-			printf("%da\n%s\n.\n", de[n].old.from - 1, f1mark);
+			printf("%s %s\n.\n", newmark, f3mark);
+			printf("%da\n%s %s\n.\n", de[n].old.from - 1,
+				oldmark, f1mark);
 		}
 	}
 	if (iflag)
@@ -705,15 +708,15 @@ main(int argc, char **argv)
 	file3 = argv[2];
 
 	if (oflag) {
-		asprintf(&f1mark, "<<<<<<< %s",
+		asprintf(&f1mark, "%s",
 		    labels[0] != NULL ? labels[0] : file1);
 		if (f1mark == NULL)
 			err(2, "asprintf");
-		asprintf(&f2mark, "||||||| %s",
+		asprintf(&f2mark, "%s",
 		    labels[1] != NULL ? labels[1] : file2);
 		if (f2mark == NULL)
 			err(2, "asprintf");
-		asprintf(&f3mark, ">>>>>>> %s",
+		asprintf(&f3mark, "%s",
 		    labels[2] != NULL ? labels[2] : file3);
 		if (f3mark == NULL)
 			err(2, "asprintf");
