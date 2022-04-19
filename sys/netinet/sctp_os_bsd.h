@@ -428,9 +428,11 @@ typedef struct route sctp_route_t;
 	                                                                     \
 	m_clrprotoflags(o_pak);                                              \
 	if (local_inp != NULL) {                                             \
+		INP_RLOCK(&local_inp->ip_inp.inp);                           \
 		result = ip6_output(o_pak,                                   \
 		                    local_inp->ip_inp.inp.in6p_outputopts,   \
 		                    (ro), 0, 0, ifp, NULL);                  \
+		INP_RUNLOCK(&local_inp->ip_inp.inp);                         \
 	} else {                                                             \
 		result = ip6_output(o_pak, NULL, (ro), 0, 0, ifp, NULL);     \
 	}                                                                    \
