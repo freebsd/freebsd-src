@@ -77,8 +77,6 @@ __FBSDID("$FreeBSD$");
 static const char driver_name[] = "hptiop";
 static const char driver_version[] = "v1.9";
 
-static devclass_t hptiop_devclass;
-
 static int hptiop_send_sync_msg(struct hpt_iop_hba *hba,
 				u_int32_t msg, u_int32_t millisec);
 static void hptiop_request_callback_itl(struct hpt_iop_hba *hba,
@@ -1796,7 +1794,7 @@ static driver_t hptiop_pci_driver = {
 	sizeof(struct hpt_iop_hba)
 };
 
-DRIVER_MODULE(hptiop, pci, hptiop_pci_driver, hptiop_devclass, 0, 0);
+DRIVER_MODULE(hptiop, pci, hptiop_pci_driver, 0, 0);
 MODULE_DEPEND(hptiop, cam, 1, 1, 1);
 
 static int hptiop_probe(device_t dev)
