@@ -2902,7 +2902,7 @@ static devclass_t rtmdio_devclass;
 
 DRIVER_MODULE(miiproxy, rt, miiproxy_driver, miiproxy_devclass, 0, 0);
 DRIVER_MODULE(rtmdio, simplebus, rtmdio_driver, rtmdio_devclass, 0, 0);
-DRIVER_MODULE(mdio, rtmdio, mdio_driver, mdio_devclass, 0, 0);
+DRIVER_MODULE(mdio, rtmdio, mdio_driver, 0, 0);
 
 static int
 rtmdio_probe(device_t dev)
