@@ -297,6 +297,6 @@ static driver_t ahc_isa_driver = {
 	sizeof(struct ahc_softc)
 };
 
-DRIVER_MODULE(ahc_isa, isa, ahc_isa_driver, ahc_devclass, 0, 0);
+DRIVER_MODULE(ahc_isa, isa, ahc_isa_driver, 0, 0);
 MODULE_DEPEND(ahc_isa, ahc, 1, 1, 1);
 MODULE_VERSION(ahc_isa, 1);

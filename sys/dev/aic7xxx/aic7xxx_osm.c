@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #define ccb_scb_ptr spriv_ptr0
 
-devclass_t ahc_devclass;
-
 #if 0
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
 #endif
