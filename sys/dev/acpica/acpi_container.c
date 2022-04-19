@@ -88,10 +88,7 @@ static driver_t acpi_syscont_driver = {
     0,
 };
 
-static devclass_t acpi_syscont_devclass;
-
-DRIVER_MODULE(acpi_syscontainer, acpi, acpi_syscont_driver,
-    acpi_syscont_devclass, NULL, NULL);
+DRIVER_MODULE(acpi_syscontainer, acpi, acpi_syscont_driver, NULL, NULL);
 MODULE_DEPEND(acpi_syscontainer, acpi, 1, 1, 1);
 
 static int

@@ -543,8 +543,6 @@ static driver_t	acpi_dock_driver = {
 	sizeof(struct acpi_dock_softc),
 };
 
-static devclass_t acpi_dock_devclass;
-
-DRIVER_MODULE(acpi_dock, acpi, acpi_dock_driver, acpi_dock_devclass, 0, 0);
+DRIVER_MODULE(acpi_dock, acpi, acpi_dock_driver, 0, 0);
 MODULE_DEPEND(acpi_dock, acpi, 1, 1, 1);
 ACPI_PNP_INFO(acpi_dock_pnp_ids);

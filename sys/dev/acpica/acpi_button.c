@@ -97,9 +97,7 @@ static driver_t acpi_button_driver = {
     sizeof(struct acpi_button_softc),
 };
 
-static devclass_t acpi_button_devclass;
-DRIVER_MODULE(acpi_button, acpi, acpi_button_driver, acpi_button_devclass,
-	      0, 0);
+DRIVER_MODULE(acpi_button, acpi, acpi_button_driver, 0, 0);
 MODULE_DEPEND(acpi_button, acpi, 1, 1, 1);
 
 static int

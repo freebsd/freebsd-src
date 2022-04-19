@@ -563,7 +563,6 @@ hest_parse_table(struct apei_softc *sc)
 }
 
 static char *apei_ids[] = { "PNP0C33", NULL };
-static devclass_t apei_devclass;
 
 static ACPI_STATUS
 apei_find(ACPI_HANDLE handle, UINT32 level, void *context,
@@ -779,5 +778,5 @@ static driver_t	apei_driver = {
 	sizeof(struct apei_softc),
 };
 
-DRIVER_MODULE(apei, acpi, apei_driver, apei_devclass, 0, 0);
+DRIVER_MODULE(apei, acpi, apei_driver, 0, 0);
 MODULE_DEPEND(apei, acpi, 1, 1, 1);

@@ -187,10 +187,7 @@ static driver_t acpi_video_driver = {
 	sizeof(struct acpi_video_softc),
 };
 
-static devclass_t acpi_video_devclass;
-
-DRIVER_MODULE(acpi_video, vgapci, acpi_video_driver, acpi_video_devclass,
-	      acpi_video_modevent, NULL);
+DRIVER_MODULE(acpi_video, vgapci, acpi_video_driver, acpi_video_modevent, NULL);
 MODULE_DEPEND(acpi_video, acpi, 1, 1, 1);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(acpi_video, evdev, 1, 1, 1);

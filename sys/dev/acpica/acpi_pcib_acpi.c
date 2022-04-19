@@ -156,11 +156,9 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD_END
 };
 
-static devclass_t pcib_devclass;
-
 DEFINE_CLASS_0(pcib, acpi_pcib_acpi_driver, acpi_pcib_acpi_methods,
     sizeof(struct acpi_hpcib_softc));
-DRIVER_MODULE(acpi_pcib, acpi, acpi_pcib_acpi_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(acpi_pcib, acpi, acpi_pcib_acpi_driver, 0, 0);
 MODULE_DEPEND(acpi_pcib, acpi, 1, 1, 1);
 
 static int
