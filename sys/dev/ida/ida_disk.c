@@ -64,8 +64,6 @@ static int idad_detach(device_t dev);
 static	d_strategy_t	idad_strategy;
 static	dumper_t	idad_dump;
 
-static devclass_t	idad_devclass;
-
 static device_method_t idad_methods[] = {
 	DEVMETHOD(device_probe,		idad_probe),
 	DEVMETHOD(device_attach,	idad_attach),
@@ -79,7 +77,7 @@ static driver_t idad_driver = {
 	sizeof(struct idad_softc)
 };
 
-DRIVER_MODULE(idad, ida, idad_driver, idad_devclass, 0, 0);
+DRIVER_MODULE(idad, ida, idad_driver, 0, 0);
 
 /*
  * Read/write routine for a buffer.  Finds the proper unit, range checks
