@@ -114,7 +114,7 @@ static driver_t gem_pci_driver = {
 	sizeof(struct gem_softc)
 };
 
-DRIVER_MODULE(gem, pci, gem_pci_driver, gem_devclass, 0, 0);
+DRIVER_MODULE(gem, pci, gem_pci_driver, 0, 0);
 MODULE_PNP_INFO("W32:vendor/device", pci, gem, gem_pci_devlist,
     nitems(gem_pci_devlist) - 1);
 MODULE_DEPEND(gem, pci, 1, 1, 1);
