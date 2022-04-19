@@ -586,6 +586,7 @@ siena_phy_stats_update(
 	siena_phy_decode_stats(enp, vmask, esmp, &smask, stat);
 	EFSYS_ASSERT(smask == encp->enc_phy_stat_mask);
 
+	(void)rc; /* XXX? */
 	return (0);
 
 fail2:
