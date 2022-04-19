@@ -132,8 +132,7 @@ static driver_t acpi_perf_driver = {
 	sizeof(struct acpi_perf_softc),
 };
 
-static devclass_t acpi_perf_devclass;
-DRIVER_MODULE(acpi_perf, cpu, acpi_perf_driver, acpi_perf_devclass, 0, 0);
+DRIVER_MODULE(acpi_perf, cpu, acpi_perf_driver, 0, 0);
 MODULE_DEPEND(acpi_perf, acpi, 1, 1, 1);
 
 static MALLOC_DEFINE(M_ACPIPERF, "acpi_perf", "ACPI Performance states");

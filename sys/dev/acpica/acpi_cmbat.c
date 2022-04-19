@@ -109,8 +109,7 @@ static driver_t acpi_cmbat_driver = {
     sizeof(struct acpi_cmbat_softc),
 };
 
-static devclass_t acpi_cmbat_devclass;
-DRIVER_MODULE(acpi_cmbat, acpi, acpi_cmbat_driver, acpi_cmbat_devclass, 0, 0);
+DRIVER_MODULE(acpi_cmbat, acpi, acpi_cmbat_driver, 0, 0);
 MODULE_DEPEND(acpi_cmbat, acpi, 1, 1, 1);
 
 static int

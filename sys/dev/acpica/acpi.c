@@ -249,8 +249,7 @@ static driver_t acpi_driver = {
     sizeof(struct acpi_softc),
 };
 
-static devclass_t acpi_devclass;
-EARLY_DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0,
+EARLY_DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_modevent, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(acpi, 1);
 

@@ -165,8 +165,7 @@ static driver_t acpi_tz_driver = {
 
 static char *acpi_tz_tmp_name = "_TMP";
 
-static devclass_t acpi_tz_devclass;
-DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
+DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, 0, 0);
 MODULE_DEPEND(acpi_tz, acpi, 1, 1, 1);
 
 static struct sysctl_ctx_list	acpi_tz_sysctl_ctx;

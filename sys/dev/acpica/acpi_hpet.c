@@ -69,8 +69,6 @@ __FBSDID("$FreeBSD$");
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
-static devclass_t hpet_devclass;
-
 /* ACPI CA debugging */
 #define _COMPONENT	ACPI_TIMER
 ACPI_MODULE_NAME("HPET")
@@ -1009,5 +1007,5 @@ static driver_t	hpet_driver = {
 	sizeof(struct hpet_softc),
 };
 
-DRIVER_MODULE(hpet, acpi, hpet_driver, hpet_devclass, 0, 0);
+DRIVER_MODULE(hpet, acpi, hpet_driver, 0, 0);
 MODULE_DEPEND(hpet, acpi, 1, 1, 1);

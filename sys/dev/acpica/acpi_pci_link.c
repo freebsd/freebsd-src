@@ -1123,8 +1123,5 @@ static driver_t acpi_pci_link_driver = {
 	sizeof(struct acpi_pci_link_softc),
 };
 
-static devclass_t pci_link_devclass;
-
-DRIVER_MODULE(acpi_pci_link, acpi, acpi_pci_link_driver, pci_link_devclass, 0,
-    0);
+DRIVER_MODULE(acpi_pci_link, acpi, acpi_pci_link_driver, 0, 0);
 MODULE_DEPEND(acpi_pci_link, acpi, 1, 1, 1);
