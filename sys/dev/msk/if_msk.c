@@ -349,8 +349,6 @@ static driver_t mskc_driver = {
 	sizeof(struct msk_softc)
 };
 
-static devclass_t mskc_devclass;
-
 static device_method_t msk_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		msk_probe),
@@ -372,10 +370,8 @@ static driver_t msk_driver = {
 	sizeof(struct msk_if_softc)
 };
 
-static devclass_t msk_devclass;
-
-DRIVER_MODULE(mskc, pci, mskc_driver, mskc_devclass, NULL, NULL);
-DRIVER_MODULE(msk, mskc, msk_driver, msk_devclass, NULL, NULL);
+DRIVER_MODULE(mskc, pci, mskc_driver, NULL, NULL);
+DRIVER_MODULE(msk, mskc, msk_driver, NULL, NULL);
 DRIVER_MODULE(miibus, msk, miibus_driver, NULL, NULL);
 
 static struct resource_spec msk_res_spec_io[] = {
