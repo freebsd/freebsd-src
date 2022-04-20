@@ -576,8 +576,6 @@ mvs_set_edma_mode(device_t dev, enum mvs_edma_mode mode)
 		ATA_OUTL(ch->r_mem, EDMA_CMD, EDMA_CMD_EENEDMA);
 }
 
-devclass_t mvs_devclass;
-devclass_t mvsch_devclass;
 static device_method_t mvsch_methods[] = {
 	DEVMETHOD(device_probe,     mvs_ch_probe),
 	DEVMETHOD(device_attach,    mvs_ch_attach),
@@ -591,8 +589,8 @@ static driver_t mvsch_driver = {
         mvsch_methods,
         sizeof(struct mvs_channel)
 };
-DRIVER_MODULE(mvsch, mvs, mvsch_driver, mvsch_devclass, 0, 0);
-DRIVER_MODULE(mvsch, sata, mvsch_driver, mvsch_devclass, 0, 0);
+DRIVER_MODULE(mvsch, mvs, mvsch_driver, 0, 0);
+DRIVER_MODULE(mvsch, sata, mvsch_driver, 0, 0);
 
 static void
 mvs_phy_check_events(device_t dev, u_int32_t serr)
