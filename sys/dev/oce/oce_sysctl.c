@@ -103,7 +103,7 @@ oce_add_sysctls(POCE_SOFTC sc)
 			CTLFLAG_RW,
 			&oce_max_rsp_handled,
 			sizeof(oce_max_rsp_handled),
-			"Maximum receive frames handled per interupt");
+			"Maximum receive frames handled per interrupt");
 
 	if ((sc->function_mode & FNM_FLEX10_MODE) || 
 	    (sc->function_mode & FNM_UMC_MODE))
