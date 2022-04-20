@@ -187,9 +187,7 @@ static driver_t lge_driver = {
 	sizeof(struct lge_softc)
 };
 
-static devclass_t lge_devclass;
-
-DRIVER_MODULE(lge, pci, lge_driver, lge_devclass, 0, 0);
+DRIVER_MODULE(lge, pci, lge_driver, 0, 0);
 DRIVER_MODULE(miibus, lge, miibus_driver, 0, 0);
 MODULE_DEPEND(lge, pci, 1, 1, 1);
 MODULE_DEPEND(lge, ether, 1, 1, 1);
