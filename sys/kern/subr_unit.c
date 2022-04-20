@@ -347,6 +347,8 @@ init_unrhdr(struct unrhdr *uh, int low, int high, struct mtx *mutex)
 	uh->high = high;
 	uh->first = 0;
 	uh->last = 1 + (high - low);
+	uh->busy = 0;
+	uh->alloc = 0;
 	check_unrhdr(uh, __LINE__);
 }
 
