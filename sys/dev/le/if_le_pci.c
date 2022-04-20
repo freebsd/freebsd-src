@@ -136,7 +136,7 @@ static device_method_t le_pci_methods[] = {
 };
 
 DEFINE_CLASS_0(le, le_pci_driver, le_pci_methods, sizeof(struct le_pci_softc));
-DRIVER_MODULE(le, pci, le_pci_driver, le_devclass, 0, 0);
+DRIVER_MODULE(le, pci, le_pci_driver, 0, 0);
 MODULE_DEPEND(le, ether, 1, 1, 1);
 
 static const int le_home_supmedia[] = {
