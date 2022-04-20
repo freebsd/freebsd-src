@@ -180,12 +180,11 @@ struct mmc_host {
 
 #ifdef _KERNEL
 extern driver_t   mmc_driver;
-extern devclass_t mmc_devclass;
 
 #define	MMC_VERSION	5
 
 #define	MMC_DECLARE_BRIDGE(name)					\
-    DRIVER_MODULE(mmc, name, mmc_driver, mmc_devclass, NULL, NULL);	\
+    DRIVER_MODULE(mmc, name, mmc_driver, NULL, NULL);			\
     MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);
 #define	MMC_DEPEND(name)						\
     MODULE_DEPEND(name, mmc, MMC_VERSION, MMC_VERSION, MMC_VERSION);

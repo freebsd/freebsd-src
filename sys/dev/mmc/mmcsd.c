@@ -1555,7 +1555,6 @@ static driver_t mmcsd_driver = {
 	mmcsd_methods,
 	sizeof(struct mmcsd_softc),
 };
-static devclass_t mmcsd_devclass;
 
 static int
 mmcsd_handler(module_t mod __unused, int what, void *arg __unused)
@@ -1573,6 +1572,6 @@ mmcsd_handler(module_t mod __unused, int what, void *arg __unused)
 	return (0);
 }
 
-DRIVER_MODULE(mmcsd, mmc, mmcsd_driver, mmcsd_devclass, mmcsd_handler, NULL);
+DRIVER_MODULE(mmcsd, mmc, mmcsd_driver, mmcsd_handler, NULL);
 MODULE_DEPEND(mmcsd, g_flashmap, 0, 0, 0);
 MMC_DEPEND(mmcsd);

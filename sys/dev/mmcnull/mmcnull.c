@@ -458,6 +458,4 @@ static driver_t mmcnull_driver = {
 	"mmcnull", mmcnull_methods, sizeof(struct mmcnull_softc)
 };
 
-static devclass_t mmcnull_devclass;
-
-DRIVER_MODULE(mmcnull, isa, mmcnull_driver, mmcnull_devclass, 0, 0);
+DRIVER_MODULE(mmcnull, isa, mmcnull_driver, 0, 0);

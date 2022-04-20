@@ -186,9 +186,7 @@ static driver_t mmc_pwrseq_driver = {
 	sizeof(struct mmc_pwrseq_softc),
 };
 
-static devclass_t mmc_pwrseq_devclass;
-
-EARLY_DRIVER_MODULE(mmc_pwrseq, simplebus, mmc_pwrseq_driver, mmc_pwrseq_devclass, 0, 0,
+EARLY_DRIVER_MODULE(mmc_pwrseq, simplebus, mmc_pwrseq_driver, 0, 0,
 	BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(mmc_pwrseq, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
