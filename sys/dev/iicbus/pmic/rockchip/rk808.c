@@ -271,7 +271,7 @@ static devclass_t rk808_devclass;
 
 EARLY_DRIVER_MODULE(rk808_pmu, iicbus, rk808_driver, rk808_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
-EARLY_DRIVER_MODULE(iicbus, rk808_pmu, iicbus_driver, iicbus_devclass, 0, 0,
+EARLY_DRIVER_MODULE(iicbus, rk808_pmu, iicbus_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 MODULE_DEPEND(rk808_pmu, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(rk808_pmu, 1);

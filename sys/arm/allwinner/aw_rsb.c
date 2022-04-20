@@ -503,7 +503,7 @@ static driver_t rsb_driver = {
 
 static devclass_t rsb_devclass;
 
-EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, iicbus_devclass, 0, 0,
+EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 EARLY_DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

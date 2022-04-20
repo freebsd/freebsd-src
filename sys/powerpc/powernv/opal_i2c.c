@@ -247,5 +247,5 @@ opal_i2c_get_node(device_t bus, device_t dev)
 
 DRIVER_MODULE(opal_i2c, opal_i2cm, opal_i2c_driver, opal_i2c_devclass, NULL,
     NULL);
-DRIVER_MODULE(iicbus, opal_i2c, iicbus_driver, iicbus_devclass, NULL, NULL);
+DRIVER_MODULE(iicbus, opal_i2c, iicbus_driver, NULL, NULL);
 MODULE_DEPEND(opal_i2c, iicbus, 1, 1, 1);

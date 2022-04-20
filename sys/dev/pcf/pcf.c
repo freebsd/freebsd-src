@@ -478,6 +478,6 @@ error:
 	return (error);
 }
 
-DRIVER_MODULE(iicbus, pcf, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, pcf, iicbus_driver, 0, 0);
 MODULE_DEPEND(pcf, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
 MODULE_VERSION(pcf, PCF_MODVER);

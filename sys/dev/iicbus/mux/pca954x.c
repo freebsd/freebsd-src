@@ -202,7 +202,7 @@ DRIVER_MODULE(pca9548, iicbus, pca954x_driver, pca954x_devclass, 0, 0);
 #ifdef FDT
 DRIVER_MODULE(ofw_iicbus, pca9548, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
 #else
-DRIVER_MODULE(iicbus, pca9548, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, pca9548, iicbus_driver, 0, 0);
 #endif
 
 MODULE_DEPEND(pca9548, iicmux, 1, 1, 1);

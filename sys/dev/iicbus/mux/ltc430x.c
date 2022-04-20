@@ -250,7 +250,7 @@ DRIVER_MODULE(ltc430x, iicbus, ltc430x_driver, ltc430x_devclass, 0, 0);
 #ifdef FDT
 DRIVER_MODULE(ofw_iicbus, ltc430x, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
 #else
-DRIVER_MODULE(iicbus, ltc430x, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, ltc430x, iicbus_driver, 0, 0);
 #endif
 
 MODULE_DEPEND(ltc430x, iicmux, 1, 1, 1);

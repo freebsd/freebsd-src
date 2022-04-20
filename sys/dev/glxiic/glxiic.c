@@ -279,7 +279,7 @@ static driver_t glxiic_driver = {
 static devclass_t glxiic_devclass;
 
 DRIVER_MODULE(glxiic, isab, glxiic_driver, glxiic_devclass, 0, 0);
-DRIVER_MODULE(iicbus, glxiic, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, glxiic, iicbus_driver, 0, 0);
 MODULE_DEPEND(glxiic, iicbus, 1, 1, 1);
 
 static void
