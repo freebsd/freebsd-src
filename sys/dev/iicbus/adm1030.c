@@ -85,9 +85,7 @@ static driver_t	adm1030_driver = {
 	sizeof(struct adm1030_softc)
 };
 
-static devclass_t adm1030_devclass;
-
-DRIVER_MODULE(adm1030, iicbus, adm1030_driver, adm1030_devclass, 0, 0);
+DRIVER_MODULE(adm1030, iicbus, adm1030_driver, 0, 0);
 
 static int
 adm1030_write_byte(device_t dev, uint32_t addr, uint8_t reg, uint8_t byte)

@@ -353,9 +353,8 @@ static driver_t isl12xx_driver = {
 	isl12xx_methods,
 	sizeof(struct isl12xx_softc),
 };
-static devclass_t isl12xx_devclass;
 
-DRIVER_MODULE(isl12xx, iicbus, isl12xx_driver, isl12xx_devclass, NULL, NULL);
+DRIVER_MODULE(isl12xx, iicbus, isl12xx_driver, NULL, NULL);
 MODULE_VERSION(isl12xx, 1);
 MODULE_DEPEND(isl12xx, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 IICBUS_FDT_PNP_INFO(compat_data);

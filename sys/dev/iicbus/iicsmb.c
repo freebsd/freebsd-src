@@ -100,8 +100,6 @@ static int iicsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short
 static int iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf);
 static int iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf);
 
-static devclass_t iicsmb_devclass;
-
 static device_method_t iicsmb_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_identify,	iicsmb_identify),
@@ -475,7 +473,7 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	return (iic2smb_error(error));
 }
 
-DRIVER_MODULE(iicsmb, iicbus, iicsmb_driver, iicsmb_devclass, 0, 0);
+DRIVER_MODULE(iicsmb, iicbus, iicsmb_driver, 0, 0);
 DRIVER_MODULE(smbus, iicsmb, smbus_driver, 0, 0);
 MODULE_DEPEND(iicsmb, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_DEPEND(iicsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);

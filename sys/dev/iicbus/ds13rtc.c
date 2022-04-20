@@ -613,9 +613,7 @@ static driver_t ds13rtc_driver = {
 	sizeof(struct ds13rtc_softc),
 };
 
-static devclass_t ds13rtc_devclass;
-
-DRIVER_MODULE(ds13rtc, iicbus, ds13rtc_driver, ds13rtc_devclass, NULL, NULL);
+DRIVER_MODULE(ds13rtc, iicbus, ds13rtc_driver, NULL, NULL);
 MODULE_VERSION(ds13rtc, 1);
 MODULE_DEPEND(ds13rtc, iicbus, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 IICBUS_FDT_PNP_INFO(compat_data);

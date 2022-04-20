@@ -250,12 +250,10 @@ static device_method_t gpiomux_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t gpiomux_devclass;
-
 DEFINE_CLASS_1(iic_gpiomux, iic_gpiomux_driver, gpiomux_methods,
     sizeof(struct gpiomux_softc), iicmux_driver);
-DRIVER_MODULE(iic_gpiomux, simplebus, iic_gpiomux_driver, gpiomux_devclass, 0, 0);
-DRIVER_MODULE(iic_gpiomux, ofw_simplebus, iic_gpiomux_driver, gpiomux_devclass, 0, 0);
+DRIVER_MODULE(iic_gpiomux, simplebus, iic_gpiomux_driver, 0, 0);
+DRIVER_MODULE(iic_gpiomux, ofw_simplebus, iic_gpiomux_driver, 0, 0);
 
 #ifdef FDT
 DRIVER_MODULE(ofw_iicbus, iic_gpiomux, ofw_iicbus_driver, 0, 0);

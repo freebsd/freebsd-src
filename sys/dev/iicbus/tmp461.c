@@ -79,14 +79,12 @@ static driver_t tmp461_driver = {
 	0
 };
 
-static devclass_t tmp461_devclass;
-
 static struct ofw_compat_data tmp461_compat_data[] = {
 	{ "ti,tmp461",		1 },
 	{ NULL,			0 }
 };
 
-DRIVER_MODULE(tmp461, iicbus, tmp461_driver, tmp461_devclass, 0, 0);
+DRIVER_MODULE(tmp461, iicbus, tmp461_driver, 0, 0);
 IICBUS_FDT_PNP_INFO(tmp461_compat_data);
 
 static int

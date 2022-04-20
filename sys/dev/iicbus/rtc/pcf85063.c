@@ -271,7 +271,5 @@ static driver_t pcf85063_driver = {
 	0
 };
 
-static devclass_t pcf85063_devclass;
-
-DRIVER_MODULE(pcf85063, iicbus, pcf85063_driver, pcf85063_devclass, NULL, NULL);
+DRIVER_MODULE(pcf85063, iicbus, pcf85063_driver, NULL, NULL);
 IICBUS_FDT_PNP_INFO(pcf85063_compat_data);

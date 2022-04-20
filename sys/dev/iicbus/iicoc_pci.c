@@ -138,4 +138,4 @@ static driver_t iicoc_driver = {
 	sizeof(struct iicoc_softc),
 };
 
-DRIVER_MODULE(iicoc, pci, iicoc_driver, iicoc_devclass, 0, 0);
+DRIVER_MODULE(iicoc, pci, iicoc_driver, 0, 0);

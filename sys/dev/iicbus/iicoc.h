@@ -92,8 +92,6 @@ struct iicoc_softc {
 
 #endif
 
-extern devclass_t iicoc_devclass;
-
 int iicoc_iicbus_start(device_t dev, u_char slave, int timeout);
 int iicoc_iicbus_stop(device_t dev);
 int iicoc_iicbus_read(device_t dev, char *buf, int len, int *read, int last,

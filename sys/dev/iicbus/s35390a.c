@@ -363,8 +363,7 @@ static driver_t s390rtc_driver = {
 	s390rtc_methods,
 	sizeof(struct s390rtc_softc),
 };
-static devclass_t s390rtc_devclass;
 
-DRIVER_MODULE(s35390a, iicbus, s390rtc_driver, s390rtc_devclass, NULL, NULL);
+DRIVER_MODULE(s35390a, iicbus, s390rtc_driver, NULL, NULL);
 MODULE_VERSION(s35390a, 1);
 MODULE_DEPEND(s35390a, iicbus, 1, 1, 1);

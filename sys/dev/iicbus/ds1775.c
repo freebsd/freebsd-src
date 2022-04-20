@@ -86,9 +86,7 @@ static driver_t ds1775_driver = {
 	sizeof(struct ds1775_softc)
 };
 
-static devclass_t ds1775_devclass;
-
-DRIVER_MODULE(ds1775, iicbus, ds1775_driver, ds1775_devclass, 0, 0);
+DRIVER_MODULE(ds1775, iicbus, ds1775_driver, 0, 0);
 
 static int
 ds1775_read_2(device_t dev, uint32_t addr, uint8_t reg, uint16_t *data)
