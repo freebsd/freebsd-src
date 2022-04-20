@@ -73,8 +73,6 @@ static disk_close_t	mfi_syspd_close;
 static disk_strategy_t	mfi_syspd_strategy;
 static dumper_t		mfi_syspd_dump;
 
-static devclass_t	mfi_syspd_devclass;
-
 static device_method_t mfi_syspd_methods[] = {
 	DEVMETHOD(device_probe,		mfi_syspd_probe),
 	DEVMETHOD(device_attach,	mfi_syspd_attach),
@@ -88,7 +86,7 @@ static driver_t mfi_syspd_driver = {
 	sizeof(struct mfi_system_pd)
 };
 
-DRIVER_MODULE(mfisyspd, mfi, mfi_syspd_driver, mfi_syspd_devclass, 0, 0);
+DRIVER_MODULE(mfisyspd, mfi, mfi_syspd_driver, 0, 0);
 
 static int
 mfi_syspd_probe(device_t dev)

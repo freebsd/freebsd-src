@@ -108,8 +108,6 @@ static driver_t mfi_pci_driver = {
 	sizeof(struct mfi_softc)
 };
 
-static devclass_t	mfi_devclass;
-
 static int	mfi_msi = 1;
 SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
     "Enable use of MSI interrupts");
@@ -161,7 +159,7 @@ struct mfi_ident {
 	{0, 0, 0, 0, 0, NULL}
 };
 
-DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
+DRIVER_MODULE(mfi, pci, mfi_pci_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;U16:subvendor;U16:subdevice", pci, mfi,
     mfi_identifiers, nitems(mfi_identifiers) - 1);
 MODULE_VERSION(mfi, 1);
