@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/le/lancereg.h>
 #include <dev/le/lancevar.h>
 
-devclass_t le_devclass;
-
 static void lance_start(struct ifnet *);
 static void lance_stop(struct lance_softc *);
 static void lance_init(void *);
