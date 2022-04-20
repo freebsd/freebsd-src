@@ -121,7 +121,7 @@ DEFINE_CLASS_1(twsi, mv_twsi_driver, mv_twsi_methods,
 static devclass_t mv_twsi_devclass;
 
 DRIVER_MODULE(twsi, simplebus, mv_twsi_driver, mv_twsi_devclass, 0, 0);
-DRIVER_MODULE(iicbus, twsi, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, twsi, iicbus_driver, 0, 0);
 MODULE_DEPEND(twsi, iicbus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
 

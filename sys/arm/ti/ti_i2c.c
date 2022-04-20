@@ -971,7 +971,7 @@ static driver_t ti_i2c_driver = {
 static devclass_t ti_i2c_devclass;
 
 DRIVER_MODULE(ti_iic, simplebus, ti_i2c_driver, ti_i2c_devclass, 0, 0);
-DRIVER_MODULE(iicbus, ti_iic, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, ti_iic, iicbus_driver, 0, 0);
 
 MODULE_DEPEND(ti_iic, ti_sysc, 1, 1, 1);
 MODULE_DEPEND(ti_iic, iicbus, 1, 1, 1);

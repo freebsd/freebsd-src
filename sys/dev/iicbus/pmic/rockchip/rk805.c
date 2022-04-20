@@ -196,7 +196,7 @@ static devclass_t rk805_devclass;
 
 EARLY_DRIVER_MODULE(rk805_pmu, iicbus, rk805_driver, rk805_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
-EARLY_DRIVER_MODULE(iicbus, rk805_pmu, iicbus_driver, iicbus_devclass, 0, 0,
+EARLY_DRIVER_MODULE(iicbus, rk805_pmu, iicbus_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 MODULE_DEPEND(rk805_pmu, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(rk805_pmu, 1);

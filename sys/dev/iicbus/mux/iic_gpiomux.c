@@ -260,7 +260,7 @@ DRIVER_MODULE(iic_gpiomux, ofw_simplebus, iic_gpiomux_driver, gpiomux_devclass, 
 #ifdef FDT
 DRIVER_MODULE(ofw_iicbus, iic_gpiomux, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
 #else
-DRIVER_MODULE(iicbus, iic_gpiomux, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(iicbus, iic_gpiomux, iicbus_driver, 0, 0);
 #endif
 
 MODULE_DEPEND(iic_gpiomux, iicmux, 1, 1, 1);
