@@ -167,8 +167,7 @@ static driver_t igc_driver = {
 	"igc", igc_methods, sizeof(struct igc_adapter),
 };
 
-static devclass_t igc_devclass;
-DRIVER_MODULE(igc, pci, igc_driver, igc_devclass, 0, 0);
+DRIVER_MODULE(igc, pci, igc_driver, 0, 0);
 
 MODULE_DEPEND(igc, pci, 1, 1, 1);
 MODULE_DEPEND(igc, ether, 1, 1, 1);
