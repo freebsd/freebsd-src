@@ -205,8 +205,8 @@ static device_method_t isp_pci_methods[] = {
 static driver_t isp_pci_driver = {
 	"isp", isp_pci_methods, sizeof (struct isp_pcisoftc)
 };
-static devclass_t isp_devclass;
-DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
+
+DRIVER_MODULE(isp, pci, isp_pci_driver, 0, 0);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 MODULE_DEPEND(isp, firmware, 1, 1, 1);
 static int isp_nvports = 0;
