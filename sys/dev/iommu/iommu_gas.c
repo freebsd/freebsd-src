@@ -305,7 +305,7 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 
 	a->entry->start = roundup2(beg + IOMMU_PAGE_SIZE,
 	    a->common->alignment);
-	if (a->entry->start + a->size > maxaddr)
+	if (a->entry->start + a->offset + a->size > maxaddr)
 		return (false);
 
 	/* IOMMU_PAGE_SIZE to create gap after new entry. */
