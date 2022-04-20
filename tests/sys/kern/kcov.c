@@ -50,6 +50,14 @@ static const char *modes[] = {
     "comparison tracing",
 };
 
+static size_t page_size;
+
+static void
+init_page_size(void)
+{
+	page_size = getpagesize();
+}
+
 static int
 open_kcov(void)
 {
@@ -62,7 +70,12 @@ open_kcov(void)
 	return (fd);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_bufsize);
+ATF_TC(kcov_bufsize);
+ATF_TC_HEAD(kcov_bufsize, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_bufsize, tc)
 {
 	int fd;
@@ -77,7 +90,12 @@ ATF_TC_BODY(kcov_bufsize, tc)
 	close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_mmap);
+ATF_TC(kcov_mmap);
+ATF_TC_HEAD(kcov_mmap, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_mmap, tc)
 {
 	void *data1, *data2;
@@ -85,19 +103,19 @@ ATF_TC_BODY(kcov_mmap, tc)
 
 	fd = open_kcov();
 
-	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+	ATF_CHECK(mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) == MAP_FAILED);
 
 	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE,
-	    2 * PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
+	    2 * page_size / KCOV_ENTRY_SIZE) == 0);
 
-	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+	ATF_CHECK(mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) == MAP_FAILED);
-	ATF_CHECK(mmap(NULL, 3 * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+	ATF_CHECK(mmap(NULL, 3 * page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) == MAP_FAILED);
-	ATF_REQUIRE((data1 = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
+	ATF_REQUIRE((data1 = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
 	    MAP_SHARED, fd, 0)) != MAP_FAILED);
-	ATF_REQUIRE((data2 = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
+	ATF_REQUIRE((data2 = mmap(NULL, 2 * page_size, PROT_READ | PROT_WRITE,
 	    MAP_SHARED, fd, 0)) != MAP_FAILED);
 
 	*(uint64_t *)data1 = 0x123456789abcdeful;
@@ -105,38 +123,48 @@ ATF_TC_BODY(kcov_mmap, tc)
 	*(uint64_t *)data2 = 0xfedcba9876543210ul;
 	ATF_REQUIRE(*(uint64_t *)data1 == 0xfedcba9876543210ull);
 
-	munmap(data1, 2 * PAGE_SIZE);
-	munmap(data2, 2 * PAGE_SIZE);
+	munmap(data1, 2 * page_size);
+	munmap(data2, 2 * page_size);
 
 	close(fd);
 }
 
 /* This shouldn't panic */
-ATF_TC_WITHOUT_HEAD(kcov_mmap_no_munmap);
+ATF_TC(kcov_mmap_no_munmap);
+ATF_TC_HEAD(kcov_mmap_no_munmap, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_mmap_no_munmap, tc)
 {
 	int fd;
 
 	fd = open_kcov();
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, page_size / KCOV_ENTRY_SIZE) == 0);
 
-	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+	ATF_CHECK(mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) != MAP_FAILED);
 
 	close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_mmap_no_munmap_no_close);
+ATF_TC(kcov_mmap_no_munmap_no_close);
+ATF_TC_HEAD(kcov_mmap_no_munmap_no_close, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_mmap_no_munmap_no_close, tc)
 {
 	int fd;
 
 	fd = open_kcov();
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, page_size / KCOV_ENTRY_SIZE) == 0);
 
-	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+	ATF_CHECK(mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) != MAP_FAILED);
 }
 
@@ -150,8 +178,8 @@ kcov_mmap_enable_thread(void *data)
 	fd = open_kcov();
 	*(int *)data = fd;
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
-	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, page_size / KCOV_ENTRY_SIZE) == 0);
+	ATF_CHECK(mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) != MAP_FAILED);
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == 0);
 
@@ -161,7 +189,12 @@ kcov_mmap_enable_thread(void *data)
 	return (NULL);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_mmap_enable_thread_close);
+ATF_TC(kcov_mmap_enable_thread_close);
+ATF_TC_HEAD(kcov_mmap_enable_thread_close, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_mmap_enable_thread_close, tc)
 {
 	pthread_t thread;
@@ -177,7 +210,12 @@ ATF_TC_BODY(kcov_mmap_enable_thread_close, tc)
 	pthread_join(thread, NULL);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_enable);
+ATF_TC(kcov_enable);
+ATF_TC_HEAD(kcov_enable, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_enable, tc)
 {
 	int fd;
@@ -186,7 +224,7 @@ ATF_TC_BODY(kcov_enable, tc)
 
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == -1);
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, page_size / KCOV_ENTRY_SIZE) == 0);
 
 	/* We need to enable before disable */
 	ATF_CHECK(ioctl(fd, KIODISABLE, 0) == -1);
@@ -208,24 +246,34 @@ ATF_TC_BODY(kcov_enable, tc)
 	close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_enable_no_disable);
+ATF_TC(kcov_enable_no_disable);
+ATF_TC_HEAD(kcov_enable_no_disable, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_enable_no_disable, tc)
 {
 	int fd;
 
 	fd = open_kcov();
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, page_size / KCOV_ENTRY_SIZE) == 0);
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == 0);
 	close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_enable_no_disable_no_close);
+ATF_TC(kcov_enable_no_disable_no_close);
+ATF_TC_HEAD(kcov_enable_no_disable_no_close, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_enable_no_disable_no_close, tc)
 {
 	int fd;
 
 	fd = open_kcov();
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, page_size / KCOV_ENTRY_SIZE) == 0);
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == 0);
 }
 
@@ -238,10 +286,10 @@ common_head(int *fdp)
 	fd = open_kcov();
 
 	ATF_REQUIRE_MSG(ioctl(fd, KIOSETBUFSIZE,
-	    PAGE_SIZE / KCOV_ENTRY_SIZE) == 0,
+	    page_size / KCOV_ENTRY_SIZE) == 0,
 	    "Unable to set the kcov buffer size");
 
-	data = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	data = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	ATF_REQUIRE_MSG(data != MAP_FAILED, "Unable to mmap the kcov buffer");
 
 	*fdp = fd;
@@ -252,7 +300,7 @@ static void
 common_tail(int fd, void *data)
 {
 
-	ATF_REQUIRE_MSG(munmap(data, PAGE_SIZE) == 0,
+	ATF_REQUIRE_MSG(munmap(data, page_size) == 0,
 	    "Unable to unmap the kcov buffer");
 
 	close(fd);
@@ -280,13 +328,23 @@ basic_test(u_int mode)
 	common_tail(fd, buf);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_basic_pc);
+ATF_TC(kcov_basic_pc);
+ATF_TC_HEAD(kcov_basic_pc, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_basic_pc, tc)
 {
 	basic_test(KCOV_MODE_TRACE_PC);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_basic_cmp);
+ATF_TC(kcov_basic_cmp);
+ATF_TC_HEAD(kcov_basic_cmp, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_basic_cmp, tc)
 {
 	basic_test(KCOV_MODE_TRACE_CMP);
@@ -327,13 +385,23 @@ thread_test(u_int mode)
 	common_tail(fd, buf);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_thread_pc);
+ATF_TC(kcov_thread_pc);
+ATF_TC_HEAD(kcov_thread_pc, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_thread_pc, tc)
 {
 	thread_test(KCOV_MODE_TRACE_PC);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_thread_cmp);
+ATF_TC(kcov_thread_cmp);
+ATF_TC_HEAD(kcov_thread_cmp, tc)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_thread_cmp, tc)
 {
 	thread_test(KCOV_MODE_TRACE_CMP);
@@ -364,7 +432,12 @@ multi_thread_test_helper(void *ptr)
 	return (NULL);
 }
 
-ATF_TC_WITHOUT_HEAD(kcov_enable_multi_thread);
+ATF_TC(kcov_enable_multi_thread);
+ATF_TC_HEAD(kcov_enable_multi_thread, t)
+{
+	init_page_size();
+}
+
 ATF_TC_BODY(kcov_enable_multi_thread, t)
 {
 	struct multi_thread_data data;
