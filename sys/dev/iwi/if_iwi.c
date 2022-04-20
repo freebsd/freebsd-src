@@ -242,9 +242,7 @@ static driver_t iwi_driver = {
 	sizeof (struct iwi_softc)
 };
 
-static devclass_t iwi_devclass;
-
-DRIVER_MODULE(iwi, pci, iwi_driver, iwi_devclass, NULL, NULL);
+DRIVER_MODULE(iwi, pci, iwi_driver, NULL, NULL);
 
 MODULE_VERSION(iwi, 1);
 
