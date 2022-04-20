@@ -233,8 +233,7 @@ static driver_t ix_driver = {
 	"ix", ix_methods, sizeof(struct ixgbe_softc),
 };
 
-devclass_t ix_devclass;
-DRIVER_MODULE(ix, pci, ix_driver, ix_devclass, 0, 0);
+DRIVER_MODULE(ix, pci, ix_driver, 0, 0);
 IFLIB_PNP_INFO(pci, ix_driver, ixgbe_vendor_info_array);
 MODULE_DEPEND(ix, pci, 1, 1, 1);
 MODULE_DEPEND(ix, ether, 1, 1, 1);
