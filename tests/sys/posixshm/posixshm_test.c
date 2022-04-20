@@ -185,15 +185,17 @@ static int
 shm_fill(int fd, off_t offset, off_t len)
 {
 	int error;
-	size_t blen;
+	size_t blen, page_size;
 	char *buf;
+
 	error = 0;
-	buf = malloc(PAGE_SIZE);
+	page_size = getpagesize();
+	buf = malloc(page_size);
 	if (buf == NULL)
 		return (1);
 
 	while (len > 0) {
-		blen = len < (off_t)PAGE_SIZE ? len : PAGE_SIZE;
+		blen = len < (off_t)page_size ? len : page_size;
 		memset(buf, byte_to_fill, blen);
 		if (pwrite(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
@@ -211,18 +213,19 @@ static int
 check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 {
 	int error;
-	size_t blen;
+	size_t blen, page_size;
 	off_t offset, resid;
 	struct stat statbuf;
 	char *buf, *sblk;
 
 	error = 0;
-	buf = malloc(PAGE_SIZE * 2);
+	page_size = getpagesize();
+	buf = malloc(page_size * 2);
 	if (buf == NULL)
 		return (1);
-	sblk = buf + PAGE_SIZE;
+	sblk = buf + page_size;
 
-	memset(sblk, 0, PAGE_SIZE);
+	memset(sblk, 0, page_size);
 
 	if ((uint64_t)hole_start + hole_len > (uint64_t)shm_sz)
 		hole_len = shm_sz - hole_start;
@@ -233,7 +236,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = hole_start;
 	resid = hole_len;
 	while (resid > 0) {
-		blen = resid < (off_t)PAGE_SIZE ? resid : PAGE_SIZE;
+		blen = resid < (off_t)page_size ? resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -246,7 +249,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 		offset += blen;
 	}
 
-	memset(sblk, byte_to_fill, PAGE_SIZE);
+	memset(sblk, byte_to_fill, page_size);
 
 	/*
 	 * Check file region before hole is zeroed.
@@ -254,7 +257,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = 0;
 	resid = hole_start;
 	while (resid > 0) {
-		blen = resid < (off_t)PAGE_SIZE ? resid : PAGE_SIZE;
+		blen = resid < (off_t)page_size ? resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -273,7 +276,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = hole_start + hole_len;
 	resid = shm_sz - offset;
 	while (resid > 0) {
-		blen = resid < (off_t)PAGE_SIZE ? resid : PAGE_SIZE;
+		blen = resid < (off_t)page_size ? resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -1088,9 +1091,11 @@ ATF_TC_BODY(fspacectl, tc)
 {
 	struct spacectl_range range;
 	off_t offset, length, shm_sz;
+	size_t page_size;
 	int fd, error;
 
-	shm_sz = shm_max_pages << PAGE_SHIFT;
+	page_size = getpagesize();
+	shm_sz = shm_max_pages * page_size;
 
 	fd = shm_open("/testtest", O_RDWR|O_CREAT, 0666);
 	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno:%d", errno);
@@ -1099,8 +1104,8 @@ ATF_TC_BODY(fspacectl, tc)
 
 	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
-	range.r_offset = offset = PAGE_SIZE;
-	range.r_len = length = ((shm_max_pages - 1) << PAGE_SHIFT) -
+	range.r_offset = offset = page_size;
+	range.r_len = length = ((shm_max_pages - 1) * page_size) -
 	    range.r_offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl failed; errno=%d", errno);
@@ -1109,9 +1114,9 @@ ATF_TC_BODY(fspacectl, tc)
 
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
-	range.r_offset = offset = 1 << (PAGE_SHIFT - 1);
-	range.r_len = length = ((shm_max_pages - 1) << PAGE_SHIFT) +
-	    (1 << (PAGE_SHIFT - 1)) - offset;
+	range.r_offset = offset = page_size / 2;
+	range.r_len = length = ((shm_max_pages - 1) * page_size) +
+	    (page_size / 2) - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
@@ -1119,7 +1124,7 @@ ATF_TC_BODY(fspacectl, tc)
 
 	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) to OFF_MAX */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
-	range.r_offset = offset = PAGE_SHIFT;
+	range.r_offset = offset = page_size;
 	range.r_len = length = OFF_MAX - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl to OFF_MAX failed; errno=%d", errno);
@@ -1128,7 +1133,7 @@ ATF_TC_BODY(fspacectl, tc)
 
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) to OFF_MAX */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
-	range.r_offset = offset = 1 << (PAGE_SHIFT - 1);
+	range.r_offset = offset = page_size / 2;
 	range.r_len = length = OFF_MAX - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl to OFF_MAX failed; errno=%d", errno);
@@ -1137,8 +1142,8 @@ ATF_TC_BODY(fspacectl, tc)
 
 	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
-	range.r_offset = offset = PAGE_SIZE;
-	range.r_len = length = ((shm_max_pages + 1) << PAGE_SHIFT) - offset;
+	range.r_offset = offset = page_size;
+	range.r_len = length = ((shm_max_pages + 1) * page_size) - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl past shm_sz failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
@@ -1146,8 +1151,8 @@ ATF_TC_BODY(fspacectl, tc)
 
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
-	range.r_offset = offset = 1 << (PAGE_SHIFT - 1);
-	range.r_len = length = ((shm_max_pages + 1) << PAGE_SHIFT) - offset;
+	range.r_offset = offset = page_size / 2;
+	range.r_len = length = ((shm_max_pages + 1) * page_size) - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl past shm_sz failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
@@ -1185,7 +1190,7 @@ pagesizes(size_t ps[MAXPAGESIZES])
 
 	pscnt = getpagesizes(ps, MAXPAGESIZES);
 	ATF_REQUIRE_MSG(pscnt != -1, "getpagesizes failed; errno=%d", errno);
-	ATF_REQUIRE_MSG(ps[0] == PAGE_SIZE, "psind 0 is %zu", ps[0]);
+	ATF_REQUIRE_MSG(ps[0] != 0, "psind 0 is %zu", ps[0]);
 	ATF_REQUIRE_MSG(pscnt <= MAXPAGESIZES, "invalid pscnt %d", pscnt);
 	if (pscnt == 1)
 		atf_tc_skip("no large page support");
@@ -1195,14 +1200,14 @@ pagesizes(size_t ps[MAXPAGESIZES])
 ATF_TC_WITHOUT_HEAD(largepage_basic);
 ATF_TC_BODY(largepage_basic, tc)
 {
-	char zeroes[PAGE_SIZE];
+	char *zeroes;
 	char *addr, *vec;
 	size_t ps[MAXPAGESIZES];
 	int error, fd, pscnt;
 
-	memset(zeroes, 0, PAGE_SIZE);
-
 	pscnt = pagesizes(ps);
+	zeroes = calloc(1, ps[0]);
+	ATF_REQUIRE(zeroes != NULL);
 	for (int i = 1; i < pscnt; i++) {
 		fd = shm_open_large(i, SHM_LARGEPAGE_ALLOC_DEFAULT, ps[i]);
 
@@ -1217,13 +1222,13 @@ ATF_TC_BODY(largepage_basic, tc)
 		/* Force a page fault. */
 		*(volatile char *)addr = 0;
 
-		vec = malloc(ps[i] / PAGE_SIZE);
+		vec = malloc(ps[i] / ps[0]);
 		ATF_REQUIRE(vec != NULL);
 		error = mincore(addr, ps[i], vec);
 		ATF_REQUIRE_MSG(error == 0, "mincore failed; errno=%d", errno);
 
 		/* Verify that all pages in the run are mapped. */
-		for (size_t p = 0; p < ps[i] / PAGE_SIZE; p++) {
+		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_INCORE) != 0,
 			    "page %zu is not mapped", p);
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_PSIND(i)) != 0,
@@ -1232,15 +1237,17 @@ ATF_TC_BODY(largepage_basic, tc)
 		}
 
 		/* Validate zeroing. */
-		for (size_t p = 0; p < ps[i] / PAGE_SIZE; p++) {
-			ATF_REQUIRE_MSG(memcmp(addr + p * PAGE_SIZE, zeroes,
-			    PAGE_SIZE) == 0, "page %zu miscompare", p);
+		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
+			ATF_REQUIRE_MSG(memcmp(addr + p * ps[0], zeroes,
+			    ps[0]) == 0, "page %zu miscompare", p);
 		}
 
 		free(vec);
 		ATF_REQUIRE(munmap(addr, ps[i]) == 0);
 		ATF_REQUIRE(close(fd) == 0);
 	}
+
+	free(zeroes);
 }
 
 extern int __sys_shm_open2(const char *, int, mode_t, int, const char *);
@@ -1291,9 +1298,9 @@ ATF_TC_BODY(largepage_config, tc)
 	ATF_REQUIRE(addr == MAP_FAILED);
 	ATF_REQUIRE_MSG(errno == EINVAL, "mmap returned %d", errno);
 
-	buf = calloc(1, PAGE_SIZE);
+	buf = calloc(1, ps[0]);
 	ATF_REQUIRE(buf != NULL);
-	ATF_REQUIRE(write(fd, buf, PAGE_SIZE) == -1);
+	ATF_REQUIRE(write(fd, buf, ps[0]) == -1);
 	ATF_REQUIRE_MSG(errno == EINVAL, "write returned %d", errno);
 	free(buf);
 	buf = calloc(1, ps[1]);
@@ -1302,7 +1309,7 @@ ATF_TC_BODY(largepage_config, tc)
 	ATF_REQUIRE_MSG(errno == EINVAL, "write returned %d", errno);
 	free(buf);
 
-	error = posix_fallocate(fd, 0, PAGE_SIZE);
+	error = posix_fallocate(fd, 0, ps[0]);
 	ATF_REQUIRE_MSG(error == EINVAL, "posix_fallocate returned %d", error);
 
 	ATF_REQUIRE(close(fd) == 0);
@@ -1370,7 +1377,7 @@ ATF_TC_BODY(largepage_mmap, tc)
 		ATF_REQUIRE(munmap(addr, ps[i] == 0));
 
 		/* Clobber an anonymous mapping with a superpage. */
-		addr1 = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
+		addr1 = mmap(NULL, ps[0], PROT_READ | PROT_WRITE,
 		    MAP_ANON | MAP_PRIVATE | MAP_ALIGNED(ffsl(ps[i]) - 1), -1,
 		    0);
 		ATF_REQUIRE_MSG(addr1 != MAP_FAILED,
@@ -1384,7 +1391,7 @@ ATF_TC_BODY(largepage_mmap, tc)
 		    "mmap disobeyed MAP_FIXED, %p %p", addr, addr1);
 		*(volatile char *)addr = 0; /* fault */
 		ATF_REQUIRE(mincore(addr, ps[i], vec) == 0);
-		for (size_t p = 0; p < ps[i] / PAGE_SIZE; p++) {
+		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_INCORE) != 0,
 			    "page %zu is not resident", p);
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_PSIND(i)) != 0,
@@ -1470,27 +1477,27 @@ ATF_TC_BODY(largepage_madvise, tc)
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
 
 		/* Advice that requires clipping. */
-		largepage_madvise(addr, PAGE_SIZE, MADV_NORMAL, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_NORMAL, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_NORMAL, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_RANDOM, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_RANDOM, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_RANDOM, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_SEQUENTIAL, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_SEQUENTIAL, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_SEQUENTIAL, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_NOSYNC, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_NOSYNC, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_NOSYNC, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_AUTOSYNC, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_AUTOSYNC, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_AUTOSYNC, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_CORE, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_CORE, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_CORE, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_NOCORE, EINVAL);
+		largepage_madvise(addr, ps[0], MADV_NOCORE, EINVAL);
 		largepage_madvise(addr, ps[i], MADV_NOCORE, 0);
 
 		/* Advice that does not result in clipping. */
-		largepage_madvise(addr, PAGE_SIZE, MADV_DONTNEED, 0);
+		largepage_madvise(addr, ps[0], MADV_DONTNEED, 0);
 		largepage_madvise(addr, ps[i], MADV_DONTNEED, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_WILLNEED, 0);
+		largepage_madvise(addr, ps[0], MADV_WILLNEED, 0);
 		largepage_madvise(addr, ps[i], MADV_WILLNEED, 0);
-		largepage_madvise(addr, PAGE_SIZE, MADV_FREE, 0);
+		largepage_madvise(addr, ps[0], MADV_FREE, 0);
 		largepage_madvise(addr, ps[i], MADV_FREE, 0);
 
 		ATF_REQUIRE(munmap(addr, ps[i]) == 0);
@@ -1530,7 +1537,7 @@ ATF_TC_BODY(largepage_mlock, tc)
 
 	pscnt = pagesizes(ps);
 	for (int i = 1; i < pscnt; i++) {
-		if (ps[i] / PAGE_SIZE > max_wired - wired) {
+		if (ps[i] / ps[0] > max_wired - wired) {
 			/* Cannot wire past the limit. */
 			atf_tc_skip("test would exceed wiring limit");
 		}
@@ -1541,10 +1548,10 @@ ATF_TC_BODY(largepage_mlock, tc)
 		ATF_REQUIRE_MSG(addr != MAP_FAILED,
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
 
-		ATF_REQUIRE(mlock(addr, PAGE_SIZE) != 0);
+		ATF_REQUIRE(mlock(addr, ps[0]) != 0);
 		ATF_REQUIRE_MSG(errno == EINVAL,
 		    "unexpected error %d from mlock(%zu bytes)", errno, ps[i]);
-		ATF_REQUIRE(mlock(addr, ps[i] - PAGE_SIZE) != 0);
+		ATF_REQUIRE(mlock(addr, ps[i] - ps[0]) != 0);
 		ATF_REQUIRE_MSG(errno == EINVAL,
 		    "unexpected error %d from mlock(%zu bytes)", errno, ps[i]);
 
@@ -1585,16 +1592,16 @@ ATF_TC_BODY(largepage_msync, tc)
 		 * "Sync" requests are no-ops for SHM objects, so small
 		 * PAGE_SIZE-sized requests succeed.
 		 */
-		ATF_REQUIRE_MSG(msync(addr, PAGE_SIZE, MS_ASYNC) == 0,
+		ATF_REQUIRE_MSG(msync(addr, ps[0], MS_ASYNC) == 0,
 		    "msync(MS_ASYNC) failed; error=%d", errno);
 		ATF_REQUIRE_MSG(msync(addr, ps[i], MS_ASYNC) == 0,
 		    "msync(MS_ASYNC) failed; error=%d", errno);
-		ATF_REQUIRE_MSG(msync(addr, PAGE_SIZE, MS_SYNC) == 0,
+		ATF_REQUIRE_MSG(msync(addr, ps[0], MS_SYNC) == 0,
 		    "msync(MS_SYNC) failed; error=%d", errno);
 		ATF_REQUIRE_MSG(msync(addr, ps[i], MS_SYNC) == 0,
 		    "msync(MS_SYNC) failed; error=%d", errno);
 
-		ATF_REQUIRE_MSG(msync(addr, PAGE_SIZE, MS_INVALIDATE) != 0,
+		ATF_REQUIRE_MSG(msync(addr, ps[0], MS_INVALIDATE) != 0,
 		    "msync(MS_INVALIDATE) succeeded");
 		/* XXX wrong errno */
 		ATF_REQUIRE_MSG(errno == EBUSY,
@@ -1652,22 +1659,22 @@ ATF_TC_BODY(largepage_mprotect, tc)
 		 * These should be no-ops from the pmap perspective since the
 		 * page is not yet entered into the pmap.
 		 */
-		largepage_protect(addr, PAGE_SIZE, PROT_READ, EINVAL);
+		largepage_protect(addr, ps[0], PROT_READ, EINVAL);
 		largepage_protect(addr, ps[i], PROT_READ, 0);
-		largepage_protect(addr, PAGE_SIZE, PROT_NONE, EINVAL);
+		largepage_protect(addr, ps[0], PROT_NONE, EINVAL);
 		largepage_protect(addr, ps[i], PROT_NONE, 0);
-		largepage_protect(addr, PAGE_SIZE,
+		largepage_protect(addr, ps[0],
 		    PROT_READ | PROT_WRITE | PROT_EXEC, EINVAL);
 		largepage_protect(addr, ps[i],
 		    PROT_READ | PROT_WRITE | PROT_EXEC, 0);
 
 		/* Trigger creation of a mapping and try again. */
 		*(volatile char *)addr = 0;
-		largepage_protect(addr, PAGE_SIZE, PROT_READ, EINVAL);
+		largepage_protect(addr, ps[0], PROT_READ, EINVAL);
 		largepage_protect(addr, ps[i], PROT_READ, 0);
-		largepage_protect(addr, PAGE_SIZE, PROT_NONE, EINVAL);
+		largepage_protect(addr, ps[0], PROT_NONE, EINVAL);
 		largepage_protect(addr, ps[i], PROT_NONE, 0);
-		largepage_protect(addr, PAGE_SIZE,
+		largepage_protect(addr, ps[0],
 		    PROT_READ | PROT_WRITE | PROT_EXEC, EINVAL);
 		largepage_protect(addr, ps[i],
 		    PROT_READ | PROT_WRITE | PROT_EXEC, 0);
@@ -1680,7 +1687,7 @@ ATF_TC_BODY(largepage_mprotect, tc)
 		ATF_REQUIRE_MSG(addr1 != MAP_FAILED,
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
 
-		largepage_protect(addr1 - PAGE_SIZE, PAGE_SIZE * 2,
+		largepage_protect(addr1 - ps[0], ps[0] * 2,
 		    PROT_READ | PROT_WRITE, EINVAL);
 		largepage_protect(addr, ps[i] * 2, PROT_READ | PROT_WRITE, 0);
 
@@ -1708,7 +1715,7 @@ ATF_TC_BODY(largepage_minherit, tc)
 		ATF_REQUIRE_MSG(addr != MAP_FAILED,
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
 
-		ATF_REQUIRE(minherit(addr, PAGE_SIZE, INHERIT_SHARE) != 0);
+		ATF_REQUIRE(minherit(addr, ps[0], INHERIT_SHARE) != 0);
 
 		ATF_REQUIRE_MSG(minherit(addr, ps[i], INHERIT_SHARE) == 0,
 		    "minherit(%zu bytes) failed; error=%d", ps[i], errno);
@@ -1718,7 +1725,7 @@ ATF_TC_BODY(largepage_minherit, tc)
 			char v;
 
 			*(volatile char *)addr = 0;
-			if (mincore(addr, PAGE_SIZE, &v) != 0)
+			if (mincore(addr, ps[0], &v) != 0)
 				_exit(1);
 			if ((v & MINCORE_PSIND(i)) == 0)
 				_exit(2);
@@ -1738,7 +1745,7 @@ ATF_TC_BODY(largepage_minherit, tc)
 		if (child == 0) {
 			char v;
 
-			if (mincore(addr, PAGE_SIZE, &v) == 0)
+			if (mincore(addr, ps[0], &v) == 0)
 				_exit(1);
 			_exit(0);
 		}
@@ -1761,7 +1768,7 @@ ATF_TC_BODY(largepage_minherit, tc)
 			char v;
 
 			*(volatile char *)addr = 0;
-			if (mincore(addr, PAGE_SIZE, &v) != 0)
+			if (mincore(addr, ps[0], &v) != 0)
 				_exit(1);
 			if ((v & MINCORE_SUPER) != 0)
 				_exit(2);
@@ -1865,7 +1872,7 @@ ATF_TC_BODY(largepage_reopen, tc)
 	/* Trigger a fault and mapping creation. */
 	*(volatile char *)addr = 0;
 
-	vec = malloc(ps[psind] / PAGE_SIZE);
+	vec = malloc(ps[psind] / ps[0]);
 	ATF_REQUIRE(vec != NULL);
 	ATF_REQUIRE_MSG(mincore(addr, ps[psind], vec) == 0,
 	    "mincore failed; error=%d", errno);
