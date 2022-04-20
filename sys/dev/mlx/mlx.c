@@ -64,8 +64,6 @@ static struct cdevsw mlx_cdevsw = {
 	.d_name =	"mlx",
 };
 
-devclass_t	mlx_devclass;
-
 /*
  * Per-interface accessor methods
  */

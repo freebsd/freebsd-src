@@ -75,7 +75,7 @@ static driver_t mlx_pci_driver = {
 	sizeof(struct mlx_softc)
 };
 
-DRIVER_MODULE(mlx, pci, mlx_pci_driver, mlx_devclass, 0, 0);
+DRIVER_MODULE(mlx, pci, mlx_pci_driver, 0, 0);
 
 struct mlx_ident
 {
