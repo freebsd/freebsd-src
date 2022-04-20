@@ -82,16 +82,11 @@ struct ofw_iicbus_devinfo {
 	struct ofw_bus_devinfo	opd_obdinfo;
 };
 
-devclass_t ofw_iicbus_devclass;
-
 DEFINE_CLASS_1(iicbus, ofw_iicbus_driver, ofw_iicbus_methods,
     sizeof(struct iicbus_softc), iicbus_driver);
-EARLY_DRIVER_MODULE(ofw_iicbus, iicbb, ofw_iicbus_driver, ofw_iicbus_devclass,
-    0, 0, BUS_PASS_BUS);
-EARLY_DRIVER_MODULE(ofw_iicbus, iichb, ofw_iicbus_driver, ofw_iicbus_devclass,
-    0, 0, BUS_PASS_BUS);
-EARLY_DRIVER_MODULE(ofw_iicbus, twsi, ofw_iicbus_driver, ofw_iicbus_devclass,
-    0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ofw_iicbus, iicbb, ofw_iicbus_driver, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ofw_iicbus, iichb, ofw_iicbus_driver, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ofw_iicbus, twsi, ofw_iicbus_driver, 0, 0, BUS_PASS_BUS);
 MODULE_VERSION(ofw_iicbus, 1);
 MODULE_DEPEND(ofw_iicbus, iicbus, 1, 1, 1);
 
