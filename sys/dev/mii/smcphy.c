@@ -69,15 +69,13 @@ static device_method_t smcphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t smcphy_devclass;
-
 static driver_t smcphy_driver = {
 	"smcphy",
 	smcphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(smcphy, miibus, smcphy_driver, smcphy_devclass, 0, 0);
+DRIVER_MODULE(smcphy, miibus, smcphy_driver, 0, 0);
 
 static const struct mii_phydesc smcphys[] = {
 	MII_PHY_DESC(SEEQ, 80220),

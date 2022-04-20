@@ -92,15 +92,13 @@ static device_method_t acphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t acphy_devclass;
-
 static driver_t acphy_driver = {
 	"acphy",
 	acphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(acphy, miibus, acphy_driver, acphy_devclass, 0, 0);
+DRIVER_MODULE(acphy, miibus, acphy_driver, 0, 0);
 
 static int	acphy_service(struct mii_softc *, struct mii_data *, int);
 static void	acphy_reset(struct mii_softc *);

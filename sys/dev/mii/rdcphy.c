@@ -70,15 +70,13 @@ static device_method_t rdcphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rdcphy_devclass;
-
 static driver_t rdcphy_driver = {
 	"rdcphy",
 	rdcphy_methods,
 	sizeof(struct rdcphy_softc)
 };
 
-DRIVER_MODULE(rdcphy, miibus, rdcphy_driver, rdcphy_devclass, 0, 0);
+DRIVER_MODULE(rdcphy, miibus, rdcphy_driver, 0, 0);
 
 static int	rdcphy_service(struct mii_softc *, struct mii_data *, int);
 static void	rdcphy_status(struct mii_softc *);

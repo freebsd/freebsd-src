@@ -94,15 +94,13 @@ static device_method_t icsphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t icsphy_devclass;
-
 static driver_t icsphy_driver = {
 	"icsphy",
 	icsphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(icsphy, miibus, icsphy_driver, icsphy_devclass, 0, 0);
+DRIVER_MODULE(icsphy, miibus, icsphy_driver, 0, 0);
 
 static int	icsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	icsphy_status(struct mii_softc *);

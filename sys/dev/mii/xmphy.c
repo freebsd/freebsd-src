@@ -71,15 +71,13 @@ static device_method_t xmphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t xmphy_devclass;
-
 static driver_t xmphy_driver = {
 	"xmphy",
 	xmphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(xmphy, miibus, xmphy_driver, xmphy_devclass, 0, 0);
+DRIVER_MODULE(xmphy, miibus, xmphy_driver, 0, 0);
 
 static int	xmphy_service(struct mii_softc *, struct mii_data *, int);
 static void	xmphy_status(struct mii_softc *);

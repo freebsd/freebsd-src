@@ -91,15 +91,13 @@ static device_method_t ukphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ukphy_devclass;
-
 static driver_t ukphy_driver = {
 	"ukphy",
 	ukphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(ukphy, miibus, ukphy_driver, ukphy_devclass, 0, 0);
+DRIVER_MODULE(ukphy, miibus, ukphy_driver, 0, 0);
 
 static int	ukphy_service(struct mii_softc *, struct mii_data *, int);
 

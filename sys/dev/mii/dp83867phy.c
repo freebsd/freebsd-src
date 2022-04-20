@@ -285,12 +285,10 @@ static device_method_t dp_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t dp_devclass;
-
 static driver_t dp_driver = {
 	"dp83867phy",
 	dp_methods,
 	sizeof(struct dp83867_softc)
 };
 
-DRIVER_MODULE(dp83867phy, miibus, dp_driver, dp_devclass, 0, 0);
+DRIVER_MODULE(dp83867phy, miibus, dp_driver, 0, 0);

@@ -72,15 +72,13 @@ static device_method_t rlphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rlphy_devclass;
-
 static driver_t rlphy_driver = {
 	"rlphy",
 	rlphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
+DRIVER_MODULE(rlphy, miibus, rlphy_driver, 0, 0);
 
 static int	rlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	rlphy_status(struct mii_softc *);

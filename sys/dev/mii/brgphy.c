@@ -89,15 +89,13 @@ static device_method_t brgphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t brgphy_devclass;
-
 static driver_t brgphy_driver = {
 	"brgphy",
 	brgphy_methods,
 	sizeof(struct brgphy_softc)
 };
 
-DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
+DRIVER_MODULE(brgphy, miibus, brgphy_driver, 0, 0);
 
 static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
 static void	brgphy_setmedia(struct mii_softc *, int);
