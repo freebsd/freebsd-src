@@ -335,10 +335,8 @@ rrenum_statement:
 match_prefix_definition:
 		rrenum_cmd MATCH_PREFIX_CMD prefixval maxlen minlen
 		{
-			struct icmp6_router_renum *irr;
 			struct rr_pco_match *rpm;
 
-			irr = &ple_cur.pl_irr;
 			rpm = &ple_cur.pl_rpm;
 			memset(rpm, 0, sizeof(*rpm));
 
