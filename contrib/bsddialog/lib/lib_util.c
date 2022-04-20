@@ -823,7 +823,7 @@ draw_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
 
 	getmaxyx(widget, h, w);
 
-	if (shadow != NULL)
+	if (conf->shadow)
 		wnoutrefresh(shadow);
 
 	draw_borders(conf, widget, h, w, RAISED);
@@ -883,7 +883,7 @@ update_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
 {
 	int error;
 
-	if (shadow != NULL) {
+	if (conf->shadow) {
 		wclear(shadow);
 		mvwin(shadow, y + t.shadow.h, x + t.shadow.w);
 		wresize(shadow, h, w);
@@ -962,7 +962,7 @@ end_dialog(struct bsddialog_conf *conf, WINDOW *shadow, WINDOW *widget,
 		delwin(shadow);
 
 	if (conf->clear)
-		hide_widget(y, x, h, w, shadow != NULL);
+		hide_widget(y, x, h, w, conf->shadow);
 
 	if (conf->get_height != NULL)
 		*conf->get_height = h;

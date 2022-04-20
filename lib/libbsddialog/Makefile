@@ -24,6 +24,4 @@ MAN=	bsddialog.3
 LIBADD=	ncursesw tinfow formw
 CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED
 
-WARNS=	2
-
 .include <bsd.lib.mk>
