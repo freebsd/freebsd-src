@@ -658,7 +658,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     scr_stat *scp;
     struct proc *p1;
     int s;
-    int f;
+    int f __unused;
 
     scp = SC_STAT(tp);
 
