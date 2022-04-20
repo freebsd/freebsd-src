@@ -546,7 +546,7 @@ iichid_event_task(void *context, int pending)
 		} else
 			++sc->missing_samples;
 	} else
-		DPRINTF(sc, "read error occured: %d\n", error);
+		DPRINTF(sc, "read error occurred: %d\n", error);
 
 rearm:
 	if (sc->callout_setup && sc->sampling_rate_slow > 0) {
@@ -600,7 +600,7 @@ iichid_intr(void *context)
 				DPRINTF(sc, "no data received\n");
 		}
 	} else
-		DPRINTF(sc, "read error occured: %d\n", error);
+		DPRINTF(sc, "read error occurred: %d\n", error);
 
 	iicbus_release_bus(parent, sc->dev);
 }
