@@ -476,7 +476,7 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 }
 
 DRIVER_MODULE(iicsmb, iicbus, iicsmb_driver, iicsmb_devclass, 0, 0);
-DRIVER_MODULE(smbus, iicsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, iicsmb, smbus_driver, 0, 0);
 MODULE_DEPEND(iicsmb, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_DEPEND(iicsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(iicsmb, 1);

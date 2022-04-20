@@ -240,6 +240,4 @@ driver_t smbus_driver = {
         sizeof(struct smbus_softc),
 };
 
-devclass_t smbus_devclass;
-
 MODULE_VERSION(smbus, SMBUS_MODVER);
