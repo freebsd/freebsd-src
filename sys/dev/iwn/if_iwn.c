@@ -374,9 +374,8 @@ static driver_t iwn_driver = {
 	iwn_methods,
 	sizeof(struct iwn_softc)
 };
-static devclass_t iwn_devclass;
 
-DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, NULL, NULL);
+DRIVER_MODULE(iwn, pci, iwn_driver, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, iwn, iwn_ident_table,
     nitems(iwn_ident_table) - 1);
 MODULE_VERSION(iwn, 1);
