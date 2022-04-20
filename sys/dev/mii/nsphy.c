@@ -96,15 +96,13 @@ static device_method_t nsphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t nsphy_devclass;
-
 static driver_t nsphy_driver = {
 	"nsphy",
 	nsphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(nsphy, miibus, nsphy_driver, nsphy_devclass, 0, 0);
+DRIVER_MODULE(nsphy, miibus, nsphy_driver, 0, 0);
 
 static int	nsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphy_status(struct mii_softc *);

@@ -95,15 +95,13 @@ static device_method_t micphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t micphy_devclass;
-
 static driver_t micphy_driver = {
 	"micphy",
 	micphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(micphy, miibus, micphy_driver, micphy_devclass, 0, 0);
+DRIVER_MODULE(micphy, miibus, micphy_driver, 0, 0);
 
 static const struct mii_phydesc micphys[] = {
 	MII_PHY_DESC(MICREL, KSZ8081),

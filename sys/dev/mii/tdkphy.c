@@ -76,15 +76,13 @@ static device_method_t tdkphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tdkphy_devclass;
-
 static driver_t tdkphy_driver = {
 	"tdkphy",
 	tdkphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(tdkphy, miibus, tdkphy_driver, tdkphy_devclass, 0, 0);
+DRIVER_MODULE(tdkphy, miibus, tdkphy_driver, 0, 0);
 
 static int tdkphy_service(struct mii_softc *, struct mii_data *, int);
 static void tdkphy_status(struct mii_softc *);

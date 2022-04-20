@@ -76,14 +76,13 @@ static device_method_t e1000phy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t e1000phy_devclass;
 static driver_t e1000phy_driver = {
 	"e1000phy",
 	e1000phy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, e1000phy_devclass, 0, 0);
+DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, 0, 0);
 
 static int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
 static void	e1000phy_status(struct mii_softc *);

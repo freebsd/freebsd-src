@@ -96,15 +96,13 @@ static device_method_t bmtphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t	bmtphy_devclass;
-
 static driver_t	bmtphy_driver = {
 	"bmtphy",
 	bmtphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(bmtphy, miibus, bmtphy_driver, bmtphy_devclass, 0, 0);
+DRIVER_MODULE(bmtphy, miibus, bmtphy_driver, 0, 0);
 
 static int	bmtphy_service(struct mii_softc *, struct mii_data *, int);
 static void	bmtphy_status(struct mii_softc *);

@@ -100,15 +100,13 @@ static device_method_t gentbi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t gentbi_devclass;
-
 static driver_t gentbi_driver = {
 	"gentbi",
 	gentbi_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(gentbi, miibus, gentbi_driver, gentbi_devclass, 0, 0);
+DRIVER_MODULE(gentbi, miibus, gentbi_driver, 0, 0);
 
 static int	gentbi_service(struct mii_softc *, struct mii_data *, int);
 static void	gentbi_status(struct mii_softc *);

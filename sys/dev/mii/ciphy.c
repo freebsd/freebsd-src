@@ -72,15 +72,13 @@ static device_method_t ciphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ciphy_devclass;
-
 static driver_t ciphy_driver = {
 	"ciphy",
 	ciphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(ciphy, miibus, ciphy_driver, ciphy_devclass, 0, 0);
+DRIVER_MODULE(ciphy, miibus, ciphy_driver, 0, 0);
 
 static int	ciphy_service(struct mii_softc *, struct mii_data *, int);
 static void	ciphy_status(struct mii_softc *);

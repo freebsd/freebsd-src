@@ -99,15 +99,13 @@ static device_method_t nsphyter_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t nsphyter_devclass;
-
 static driver_t nsphyter_driver = {
 	"nsphyter",
 	nsphyter_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(nsphyter, miibus, nsphyter_driver, nsphyter_devclass, 0, 0);
+DRIVER_MODULE(nsphyter, miibus, nsphyter_driver, 0, 0);
 
 static int	nsphyter_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphyter_status(struct mii_softc *);

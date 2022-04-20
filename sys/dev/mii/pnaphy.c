@@ -74,15 +74,13 @@ static device_method_t pnaphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t pnaphy_devclass;
-
 static driver_t pnaphy_driver = {
 	"pnaphy",
 	pnaphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, pnaphy_devclass, 0, 0);
+DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, 0, 0);
 
 static int	pnaphy_service(struct mii_softc *, struct mii_data *,int);
 

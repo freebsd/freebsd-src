@@ -67,15 +67,13 @@ static device_method_t smscphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t smscphy_devclass;
-
 static driver_t smscphy_driver = {
 	"smscphy",
 	smscphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(smscphy, miibus, smscphy_driver, smscphy_devclass, 0, 0);
+DRIVER_MODULE(smscphy, miibus, smscphy_driver, 0, 0);
 
 static const struct mii_phydesc smscphys[] = {
 	MII_PHY_DESC(SMC, LAN8710A),

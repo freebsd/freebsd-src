@@ -88,15 +88,13 @@ static device_method_t nsgphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t nsgphy_devclass;
-
 static driver_t nsgphy_driver = {
 	"nsgphy",
 	nsgphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, nsgphy_devclass, 0, 0);
+DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, 0, 0);
 
 static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
 static void	nsgphy_status(struct mii_softc *);

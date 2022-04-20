@@ -71,15 +71,13 @@ static device_method_t amphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t amphy_devclass;
-
 static driver_t amphy_driver = {
 	"amphy",
 	amphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(amphy, miibus, amphy_driver, amphy_devclass, 0, 0);
+DRIVER_MODULE(amphy, miibus, amphy_driver, 0, 0);
 
 static int	amphy_service(struct mii_softc *, struct mii_data *, int);
 static void	amphy_status(struct mii_softc *);
