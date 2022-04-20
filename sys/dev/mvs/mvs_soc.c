@@ -465,6 +465,6 @@ static driver_t mvs_driver = {
         mvs_methods,
         sizeof(struct mvs_controller)
 };
-DRIVER_MODULE(mvs, simplebus, mvs_driver, mvs_devclass, 0, 0);
+DRIVER_MODULE(mvs, simplebus, mvs_driver, 0, 0);
 MODULE_VERSION(mvs, 1);
 MODULE_DEPEND(mvs, cam, 1, 1, 1);

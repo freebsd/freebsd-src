@@ -631,8 +631,6 @@ struct mvs_intr_arg {
 	u_int cause;
 };
 
-extern devclass_t mvs_devclass;
-
 /* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \
 	bus_read_1((res), (offset))
