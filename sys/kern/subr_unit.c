@@ -312,12 +312,15 @@ clean_unrhdrl(struct unrhdr *uh)
 {
 	struct unr *up;
 
-	mtx_assert(uh->mtx, MA_OWNED);
+	if (uh->mtx != NULL)
+		mtx_assert(uh->mtx, MA_OWNED);
 	while ((up = TAILQ_FIRST(&uh->ppfree)) != NULL) {
 		TAILQ_REMOVE(&uh->ppfree, up, list);
-		mtx_unlock(uh->mtx);
+		if (uh->mtx != NULL)
+			mtx_unlock(uh->mtx);
 		Free(up);
-		mtx_lock(uh->mtx);
+		if (uh->mtx != NULL)
+			mtx_lock(uh->mtx);
 	}
 
 }
@@ -326,9 +329,11 @@ void
 clean_unrhdr(struct unrhdr *uh)
 {
 
-	mtx_lock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_lock(uh->mtx);
 	clean_unrhdrl(uh);
-	mtx_unlock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_unlock(uh->mtx);
 }
 
 void
@@ -337,7 +342,9 @@ init_unrhdr(struct unrhdr *uh, int low, int high, struct mtx *mutex)
 
 	KASSERT(low >= 0 && low <= high,
 	    ("UNR: use error: new_unrhdr(%d, %d)", low, high));
-	if (mutex != NULL)
+	if (mutex == UNR_NO_MTX)
+		uh->mtx = NULL;
+	else if (mutex != NULL)
 		uh->mtx = mutex;
 	else
 		uh->mtx = &unitmtx;
@@ -608,7 +615,8 @@ alloc_unrl(struct unrhdr *uh)
 	u_int x;
 	int y;
 
-	mtx_assert(uh->mtx, MA_OWNED);
+	if (uh->mtx != NULL)
+		mtx_assert(uh->mtx, MA_OWNED);
 	check_unrhdr(uh, __LINE__);
 	x = uh->low + uh->first;
 
@@ -653,10 +661,12 @@ alloc_unr(struct unrhdr *uh)
 {
 	int i;
 
-	mtx_lock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_lock(uh->mtx);
 	i = alloc_unrl(uh);
 	clean_unrhdrl(uh);
-	mtx_unlock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_unlock(uh->mtx);
 	return (i);
 }
 
@@ -667,7 +677,8 @@ alloc_unr_specificl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 	struct unrb *ub;
 	u_int i, last, tl;
 
-	mtx_assert(uh->mtx, MA_OWNED);
+	if (uh->mtx != NULL)
+		mtx_assert(uh->mtx, MA_OWNED);
 
 	if (item < uh->low + uh->first || item > uh->high)
 		return (-1);
@@ -773,9 +784,11 @@ alloc_unr_specific(struct unrhdr *uh, u_int item)
 	p1 = Malloc(sizeof(struct unr));
 	p2 = Malloc(sizeof(struct unr));
 
-	mtx_lock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_lock(uh->mtx);
 	i = alloc_unr_specificl(uh, item, &p1, &p2);
-	mtx_unlock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_unlock(uh->mtx);
 
 	if (p1 != NULL)
 		Free(p1);
@@ -906,10 +919,12 @@ free_unr(struct unrhdr *uh, u_int item)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "free_unr");
 	p1 = Malloc(sizeof(struct unr));
 	p2 = Malloc(sizeof(struct unr));
-	mtx_lock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_lock(uh->mtx);
 	free_unrl(uh, item, &p1, &p2);
 	clean_unrhdrl(uh);
-	mtx_unlock(uh->mtx);
+	if (uh->mtx != NULL)
+		mtx_unlock(uh->mtx);
 	if (p1 != NULL)
 		Free(p1);
 	if (p2 != NULL)
