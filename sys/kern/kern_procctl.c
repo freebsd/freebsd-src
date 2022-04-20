@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/_unrhdr.h>
 #include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/lock.h>
@@ -293,14 +294,17 @@ reap_kill_children(struct thread *td, struct proc *reaper,
 	}
 }
 
-static void
-reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
-    struct procctl_reaper_kill *rk, ksiginfo_t *ksi, int *error)
+static bool
+reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
+    struct procctl_reaper_kill *rk, ksiginfo_t *ksi, int *error,
+    struct unrhdr *pids)
 {
 	struct reap_kill_tracker_head tracker;
 	struct reap_kill_tracker *t;
 	struct proc *p2;
+	bool res;
 
+	res = false;
 	TAILQ_INIT(&tracker);
 	reap_kill_sched(&tracker, reaper);
 	while ((t = TAILQ_FIRST(&tracker)) != NULL) {
@@ -313,10 +317,32 @@ reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
 				continue;
 			if ((p2->p_treeflag & P_TREE_REAPER) != 0)
 				reap_kill_sched(&tracker, p2);
-			reap_kill_proc(td, p2, ksi, rk, error);
+			if (alloc_unr_specific(pids, p2->p_pid) == p2->p_pid) {
+				reap_kill_proc(td, p2, ksi, rk, error);
+				res = true;
+			}
 		}
 		free(t, M_TEMP);
 	}
+	return (res);
+}
+
+static void
+reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
+    struct procctl_reaper_kill *rk, ksiginfo_t *ksi, int *error)
+{
+	struct unrhdr pids;
+
+	/*
+	 * pids records processes which were already signalled, to
+	 * avoid doubling signals to them if iteration needs to be
+	 * repeated.
+	 */
+	init_unrhdr(&pids, 1, PID_MAX, UNR_NO_MTX);
+	while (reap_kill_subtree_once(td, p, reaper, rk, ksi, error, &pids))
+	       ;
+	clean_unrhdr(&pids);
+	clear_unrhdr(&pids);
 }
 
 static bool
