@@ -237,7 +237,5 @@ static driver_t rx8803_driver = {
 	0,			/* We don't need softc for this one. */
 };
 
-static devclass_t rx8803_devclass;
-
-DRIVER_MODULE(rx8803, iicbus, rx8803_driver, rx8803_devclass, NULL, NULL);
+DRIVER_MODULE(rx8803, iicbus, rx8803_driver, NULL, NULL);
 MODULE_DEPEND(rx8803, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);

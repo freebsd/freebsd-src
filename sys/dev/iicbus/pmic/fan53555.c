@@ -466,12 +466,10 @@ static device_method_t fan53555_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t fan53555_devclass;
 static DEFINE_CLASS_0(fan53555_pmic, fan53555_driver, fan53555_methods,
     sizeof(struct fan53555_softc));
 
-EARLY_DRIVER_MODULE(fan53555, iicbus, fan53555_driver, fan53555_devclass, 0, 0,
-    BUS_PASS_RESOURCE);
+EARLY_DRIVER_MODULE(fan53555, iicbus, fan53555_driver, 0, 0, BUS_PASS_RESOURCE);
 MODULE_VERSION(fan53555, 1);
 MODULE_DEPEND(fan53555, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 IICBUS_FDT_PNP_INFO(compat_data);

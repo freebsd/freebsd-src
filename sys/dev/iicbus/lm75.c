@@ -120,9 +120,7 @@ static driver_t lm75_driver = {
 	sizeof(struct lm75_softc)
 };
 
-static devclass_t lm75_devclass;
-
-DRIVER_MODULE(lm75, iicbus, lm75_driver, lm75_devclass, 0, 0);
+DRIVER_MODULE(lm75, iicbus, lm75_driver, 0, 0);
 
 static int
 lm75_read(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data, size_t len)

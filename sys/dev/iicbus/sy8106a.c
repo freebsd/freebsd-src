@@ -293,10 +293,7 @@ static driver_t sy8106a_driver = {
 	sizeof(struct sy8106a_softc),
 };
 
-static devclass_t sy8106a_devclass;
-
-EARLY_DRIVER_MODULE(sy8106a, iicbus, sy8106a_driver, sy8106a_devclass, 0, 0,
-    BUS_PASS_RESOURCE);
+EARLY_DRIVER_MODULE(sy8106a, iicbus, sy8106a_driver, 0, 0, BUS_PASS_RESOURCE);
 MODULE_VERSION(sy8106a, 1);
 MODULE_DEPEND(sy8106a, iicbus, 1, 1, 1);
 IICBUS_FDT_PNP_INFO(compat_data);

@@ -106,9 +106,7 @@ static struct ofw_compat_data tca6408_compat_data[] = {
 	{ NULL, 0}
 };
 
-devclass_t tca6408_devclass;
-
-DRIVER_MODULE(tca6408, iicbus, tca6408_driver, tca6408_devclass, 0, 0);
+DRIVER_MODULE(tca6408, iicbus, tca6408_driver, 0, 0);
 IICBUS_FDT_PNP_INFO(tca6408_compat_data);
 
 static int

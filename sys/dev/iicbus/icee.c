@@ -348,9 +348,8 @@ static driver_t icee_driver = {
 	icee_methods,
 	sizeof(struct icee_softc),
 };
-static devclass_t icee_devclass;
 
-DRIVER_MODULE(icee, iicbus, icee_driver, icee_devclass, 0, 0);
+DRIVER_MODULE(icee, iicbus, icee_driver, 0, 0);
 MODULE_VERSION(icee, 1);
 MODULE_DEPEND(icee, iicbus, 1, 1, 1);
 IICBUS_FDT_PNP_INFO(compat_data);

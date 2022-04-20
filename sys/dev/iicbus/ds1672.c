@@ -187,8 +187,7 @@ static driver_t ds1672_driver = {
 	ds1672_methods,
 	sizeof(struct ds1672_softc),
 };
-static devclass_t ds1672_devclass;
 
-DRIVER_MODULE(ds1672, iicbus, ds1672_driver, ds1672_devclass, 0, 0);
+DRIVER_MODULE(ds1672, iicbus, ds1672_driver, 0, 0);
 MODULE_VERSION(ds1672, 1);
 MODULE_DEPEND(ds1672, iicbus, 1, 1, 1);

@@ -192,9 +192,7 @@ static device_method_t rk805_methods[] = {
 DEFINE_CLASS_1(rk805_pmu, rk805_driver, rk805_methods,
     sizeof(struct rk8xx_softc), rk8xx_driver);
 
-static devclass_t rk805_devclass;
-
-EARLY_DRIVER_MODULE(rk805_pmu, iicbus, rk805_driver, rk805_devclass, 0, 0,
+EARLY_DRIVER_MODULE(rk805_pmu, iicbus, rk805_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 EARLY_DRIVER_MODULE(iicbus, rk805_pmu, iicbus_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

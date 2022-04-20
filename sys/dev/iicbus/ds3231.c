@@ -617,8 +617,6 @@ static driver_t ds3231_driver = {
 	sizeof(struct ds3231_softc),
 };
 
-static devclass_t ds3231_devclass;
-
-DRIVER_MODULE(ds3231, iicbus, ds3231_driver, ds3231_devclass, NULL, NULL);
+DRIVER_MODULE(ds3231, iicbus, ds3231_driver, NULL, NULL);
 MODULE_VERSION(ds3231, 1);
 MODULE_DEPEND(ds3231, iicbus, 1, 1, 1);

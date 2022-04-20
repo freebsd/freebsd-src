@@ -186,7 +186,7 @@ static driver_t iicoc_driver = {
 };
 
 SIMPLEBUS_PNP_INFO(compat_data);
-DRIVER_MODULE(iicoc, simplebus, iicoc_driver, iicoc_devclass, 0, 0);
+DRIVER_MODULE(iicoc, simplebus, iicoc_driver, 0, 0);
 DRIVER_MODULE(ofw_iicbus, iicoc, ofw_iicbus_driver, 0, 0);
 MODULE_DEPEND(iicoc, iicbus, 1, 1, 1);
 MODULE_DEPEND(iicoc, ofw_iicbus, 1, 1, 1);

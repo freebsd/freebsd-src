@@ -258,9 +258,7 @@ static driver_t pcf8591_driver = {
 	sizeof(struct pcf8591_softc)
 };
 
-static devclass_t pcf8591_devclass;
-
-DRIVER_MODULE(pcf8591, iicbus, pcf8591_driver, pcf8591_devclass, 0, 0);
+DRIVER_MODULE(pcf8591, iicbus, pcf8591_driver, 0, 0);
 MODULE_DEPEND(pcf8591, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(pcf8591, 1);
 #ifdef FDT

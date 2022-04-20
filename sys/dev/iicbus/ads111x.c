@@ -606,8 +606,7 @@ static driver_t ads111x_driver = {
 	ads111x_methods,
 	sizeof(struct ads111x_softc),
 };
-static devclass_t ads111x_devclass;
 
-DRIVER_MODULE(ads111x, iicbus, ads111x_driver, ads111x_devclass, NULL, NULL);
+DRIVER_MODULE(ads111x, iicbus, ads111x_driver, NULL, NULL);
 MODULE_VERSION(ads111x, 1);
 MODULE_DEPEND(ads111x, iicbus, 1, 1, 1);

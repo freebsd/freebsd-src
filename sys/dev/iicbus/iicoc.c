@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 #include "iicoc.h"
 
-devclass_t iicoc_devclass;
-
 DRIVER_MODULE(iicbus, iicoc, iicbus_driver, 0, 0);
 
 static void

@@ -99,9 +99,7 @@ static driver_t max6690_driver = {
 	sizeof(struct max6690_softc)
 };
 
-static devclass_t max6690_devclass;
-
-DRIVER_MODULE(max6690, iicbus, max6690_driver, max6690_devclass, 0, 0);
+DRIVER_MODULE(max6690, iicbus, max6690_driver, 0, 0);
 static MALLOC_DEFINE(M_MAX6690, "max6690", "Temp-Monitor MAX6690");
 
 static int

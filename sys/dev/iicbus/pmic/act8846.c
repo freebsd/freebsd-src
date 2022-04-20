@@ -247,10 +247,9 @@ static device_method_t act8846_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t act8846_devclass;
 static DEFINE_CLASS_0(act8846_pmu, act8846_driver, act8846_methods,
     sizeof(struct act8846_softc));
-EARLY_DRIVER_MODULE(act8846_pmic, iicbus, act8846_driver, act8846_devclass,
+EARLY_DRIVER_MODULE(act8846_pmic, iicbus, act8846_driver,
     NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 MODULE_VERSION(act8846_pmic, 1);
 MODULE_DEPEND(act8846_pmic, iicbus, IICBUS_MINVER, IICBUS_PREFVER,

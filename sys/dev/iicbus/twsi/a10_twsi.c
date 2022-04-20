@@ -147,9 +147,7 @@ static device_method_t a10_twsi_methods[] = {
 DEFINE_CLASS_1(iichb, a10_twsi_driver, a10_twsi_methods,
     sizeof(struct twsi_softc), twsi_driver);
 
-static devclass_t a10_twsi_devclass;
-
-EARLY_DRIVER_MODULE(a10_twsi, simplebus, a10_twsi_driver, a10_twsi_devclass,
+EARLY_DRIVER_MODULE(a10_twsi, simplebus, a10_twsi_driver,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(iicbus, a10_twsi, iicbus_driver,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

@@ -241,11 +241,9 @@ static device_method_t ltc430x_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ltc430x_devclass;
-
 DEFINE_CLASS_1(ltc430x, ltc430x_driver, ltc430x_methods,
     sizeof(struct ltc430x_softc), iicmux_driver);
-DRIVER_MODULE(ltc430x, iicbus, ltc430x_driver, ltc430x_devclass, 0, 0);
+DRIVER_MODULE(ltc430x, iicbus, ltc430x_driver, 0, 0);
 
 #ifdef FDT
 DRIVER_MODULE(ofw_iicbus, ltc430x, ofw_iicbus_driver, 0, 0);

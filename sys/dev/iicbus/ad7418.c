@@ -222,8 +222,7 @@ static driver_t ad7418_driver = {
 	ad7418_methods,
 	sizeof(struct ad7418_softc),
 };
-static devclass_t ad7418_devclass;
 
-DRIVER_MODULE(ad7418, iicbus, ad7418_driver, ad7418_devclass, 0, 0);
+DRIVER_MODULE(ad7418, iicbus, ad7418_driver, 0, 0);
 MODULE_VERSION(ad7418, 1);
 MODULE_DEPEND(ad7418, iicbus, 1, 1, 1);

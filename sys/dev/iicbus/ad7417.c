@@ -120,9 +120,7 @@ static driver_t ad7417_driver = {
 	sizeof(struct ad7417_softc)
 };
 
-static devclass_t ad7417_devclass;
-
-DRIVER_MODULE(ad7417, iicbus, ad7417_driver, ad7417_devclass, 0, 0);
+DRIVER_MODULE(ad7417, iicbus, ad7417_driver, 0, 0);
 static MALLOC_DEFINE(M_AD7417, "ad7417", "Supply-Monitor AD7417");
 
 

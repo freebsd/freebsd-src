@@ -131,9 +131,7 @@ static driver_t tca6416_driver = {
 	sizeof(struct tca6416_softc)
 };
 
-static devclass_t tca6416_devclass;
-
-DRIVER_MODULE(tca6416, iicbus, tca6416_driver, tca6416_devclass, 0, 0);
+DRIVER_MODULE(tca6416, iicbus, tca6416_driver, 0, 0);
 MODULE_VERSION(tca6416, 1);
 
 static struct ofw_compat_data compat_data[] = {

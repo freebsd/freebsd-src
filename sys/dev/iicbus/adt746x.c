@@ -143,9 +143,7 @@ static driver_t adt746x_driver = {
 	sizeof(struct adt746x_softc)
 };
 
-static devclass_t adt746x_devclass;
-
-DRIVER_MODULE(adt746x, iicbus, adt746x_driver, adt746x_devclass, 0, 0);
+DRIVER_MODULE(adt746x, iicbus, adt746x_driver, 0, 0);
 static MALLOC_DEFINE(M_ADT746X, "adt746x", "ADT Sensor Information");
 
 

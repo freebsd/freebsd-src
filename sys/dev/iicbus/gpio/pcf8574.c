@@ -414,9 +414,7 @@ static driver_t pcf8574_driver = {
 	sizeof(struct pcf8574_softc)
 };
 
-static devclass_t pcf8574_devclass;
-
-DRIVER_MODULE(pcf8574, iicbus, pcf8574_driver, pcf8574_devclass, 0, 0);
+DRIVER_MODULE(pcf8574, iicbus, pcf8574_driver, 0, 0);
 MODULE_DEPEND(pcf8574, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_DEPEND(pcf8574, gpiobus, 1, 1, 1);
 MODULE_VERSION(pcf8574, 1);

@@ -185,9 +185,7 @@ static driver_t max44009_driver = {
 	sizeof(struct max44009_softc)
 };
 
-static devclass_t max44009_devclass;
-
-DRIVER_MODULE(max44009, iicbus, max44009_driver, max44009_devclass, 0, 0);
+DRIVER_MODULE(max44009, iicbus, max44009_driver, 0, 0);
 MODULE_DEPEND(max44009, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(max44009, 1);
 IICBUS_FDT_PNP_INFO(compat_data);
