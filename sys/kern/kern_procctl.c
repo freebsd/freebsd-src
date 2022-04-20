@@ -278,13 +278,52 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 	TAILQ_INSERT_TAIL(tracker, t, link);
 }
 
+static void
+reap_kill_children(struct thread *td, struct proc *reaper,
+    struct procctl_reaper_kill *rk, ksiginfo_t *ksi, int *error)
+{
+	struct proc *p2;
+
+	LIST_FOREACH(p2, &reaper->p_children, p_sibling) {
+		reap_kill_proc(td, p2, ksi, rk, error);
+		/*
+		 * Do not end the loop on error, signal everything we
+		 * can.
+		 */
+	}
+}
+
+static void
+reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
+    struct procctl_reaper_kill *rk, ksiginfo_t *ksi, int *error)
+{
+	struct reap_kill_tracker_head tracker;
+	struct reap_kill_tracker *t;
+	struct proc *p2;
+
+	TAILQ_INIT(&tracker);
+	reap_kill_sched(&tracker, reaper);
+	while ((t = TAILQ_FIRST(&tracker)) != NULL) {
+		MPASS((t->parent->p_treeflag & P_TREE_REAPER) != 0);
+		TAILQ_REMOVE(&tracker, t, link);
+		LIST_FOREACH(p2, &t->parent->p_reaplist, p_reapsibling) {
+			if (t->parent == reaper &&
+			    (rk->rk_flags & REAPER_KILL_SUBTREE) != 0 &&
+			    p2->p_reapsubtree != rk->rk_subtree)
+				continue;
+			if ((p2->p_treeflag & P_TREE_REAPER) != 0)
+				reap_kill_sched(&tracker, p2);
+			reap_kill_proc(td, p2, ksi, rk, error);
+		}
+		free(t, M_TEMP);
+	}
+}
+
 static int
 reap_kill(struct thread *td, struct proc *p, void *data)
 {
-	struct proc *reaper, *p2;
+	struct proc *reaper;
 	ksiginfo_t ksi;
-	struct reap_kill_tracker_head tracker;
-	struct reap_kill_tracker *t;
 	struct procctl_reaper_kill *rk;
 	int error;
 
@@ -309,31 +348,9 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 	rk->rk_killed = 0;
 	rk->rk_fpid = -1;
 	if ((rk->rk_flags & REAPER_KILL_CHILDREN) != 0) {
-		LIST_FOREACH(p2, &reaper->p_children, p_sibling) {
-			reap_kill_proc(td, p2, &ksi, rk, &error);
-			/*
-			 * Do not end the loop on error, signal
-			 * everything we can.
-			 */
-		}
+		reap_kill_children(td, reaper, rk, &ksi, &error);
 	} else {
-		TAILQ_INIT(&tracker);
-		reap_kill_sched(&tracker, reaper);
-		while ((t = TAILQ_FIRST(&tracker)) != NULL) {
-			MPASS((t->parent->p_treeflag & P_TREE_REAPER) != 0);
-			TAILQ_REMOVE(&tracker, t, link);
-			LIST_FOREACH(p2, &t->parent->p_reaplist,
-			    p_reapsibling) {
-				if (t->parent == reaper &&
-				    (rk->rk_flags & REAPER_KILL_SUBTREE) != 0 &&
-				    p2->p_reapsubtree != rk->rk_subtree)
-					continue;
-				if ((p2->p_treeflag & P_TREE_REAPER) != 0)
-					reap_kill_sched(&tracker, p2);
-				reap_kill_proc(td, p2, &ksi, rk, &error);
-			}
-			free(t, M_TEMP);
-		}
+		reap_kill_subtree(td, p, reaper, rk, &ksi, &error);
 	}
 	PROC_LOCK(p);
 	return (error);
