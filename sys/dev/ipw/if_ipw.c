@@ -199,9 +199,7 @@ static driver_t ipw_driver = {
 	sizeof (struct ipw_softc)
 };
 
-static devclass_t ipw_devclass;
-
-DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, NULL, NULL);
+DRIVER_MODULE(ipw, pci, ipw_driver, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ipw, ipw_ident_table,
     nitems(ipw_ident_table) - 1);
 
