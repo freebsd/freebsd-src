@@ -219,5 +219,4 @@ static driver_t ips_pci_driver = {
         sizeof(ips_softc_t),
 };
 
-static devclass_t ips_devclass;
-DRIVER_MODULE(ips, pci, ips_pci_driver, ips_devclass, 0, 0);
+DRIVER_MODULE(ips, pci, ips_pci_driver, 0, 0);
