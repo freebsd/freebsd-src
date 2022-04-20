@@ -47,6 +47,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <vis.h>
 #include <zlib.h>
 
 #include <libcasper.h>
@@ -371,6 +372,7 @@ static int loc_at_comparator(const void *la1, const void *la2);
 static const char *mips_abi_fp(uint64_t fp);
 static const char *note_type(const char *note_name, unsigned int et,
     unsigned int nt);
+static const char *note_type_fdo(unsigned int nt);
 static const char *note_type_freebsd(unsigned int nt);
 static const char *note_type_freebsd_core(unsigned int nt);
 static const char *note_type_go(unsigned int nt);
@@ -1150,6 +1152,8 @@ note_type(const char *name, unsigned int et, unsigned int nt)
 			return note_type_freebsd_core(nt);
 		else
 			return note_type_freebsd(nt);
+	else if (strcmp(name, "FDO") == 0 && et != ET_CORE)
+		return note_type_fdo(nt);
 	else if (strcmp(name, "GNU") == 0 && et != ET_CORE)
 		return note_type_gnu(nt);
 	else if (strcmp(name, "Go") == 0 && et != ET_CORE)
@@ -1161,6 +1165,15 @@ note_type(const char *name, unsigned int et, unsigned int nt)
 	else if (strcmp(name, "Xen") == 0 && et != ET_CORE)
 		return note_type_xen(nt);
 	return note_type_unknown(nt);
+}
+
+static const char *
+note_type_fdo(unsigned int nt)
+{
+	switch (nt) {
+	case NT_FDO_PACKAGING_METADATA: return "NT_FDO_PACKAGING_METADATA";
+	default: return (note_type_unknown(nt));
+	}
 }
 
 static const char *
@@ -3819,7 +3832,30 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 	}
 	ubuf = (const uint32_t *)(const void *)buf;
 
-	if (strcmp(name, "FreeBSD") == 0) {
+	if (strcmp(name, "FDO") == 0) {
+		switch (type) {
+		case NT_FDO_PACKAGING_METADATA:
+		{
+			char *visbuf;
+
+			if (sz > SIZE_MAX / 4 - 1) {
+				warnx("invalid note data");
+				return;
+			}
+			/* Ignore trailing NULs. */
+			while (sz > 0 && buf[sz - 1] == '\0') {
+				sz--;
+			}
+			if ((visbuf = malloc(sz * 4 + 1)) == NULL) {
+				err(1, "malloc");
+			}
+			(void)strvisx(visbuf, buf, sz, VIS_CSTYLE);
+			printf("   Package metadata: %s\n", visbuf);
+			free(visbuf);
+			return;
+		}
+		}
+	} else if (strcmp(name, "FreeBSD") == 0) {
 		switch (type) {
 		case NT_FREEBSD_ABI_TAG:
 			if (sz != 4)
