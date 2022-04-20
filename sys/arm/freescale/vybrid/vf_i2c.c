@@ -611,4 +611,4 @@ static devclass_t i2c_devclass;
 static DEFINE_CLASS_0(i2c, i2c_driver, i2c_methods, sizeof(struct i2c_softc));
 DRIVER_MODULE(vybrid_i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, 0, 0);
-DRIVER_MODULE(ofw_iicbus, i2c, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
+DRIVER_MODULE(ofw_iicbus, i2c, ofw_iicbus_driver, 0, 0);

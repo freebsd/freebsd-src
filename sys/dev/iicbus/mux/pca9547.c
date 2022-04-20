@@ -156,7 +156,6 @@ DEFINE_CLASS_1(iicmux, pca9547_driver, pca9547_methods,
     sizeof(struct pca9547_softc), iicmux_driver);
 DRIVER_MODULE(pca_iicmux, iicbus, pca9547_driver, pca9547_devclass, 0, 0);
 DRIVER_MODULE(iicbus, iicmux, iicbus_driver, 0, 0);
-DRIVER_MODULE(ofw_iicbus, iicmux, ofw_iicbus_driver, ofw_iicbus_devclass,
-    0, 0);
+DRIVER_MODULE(ofw_iicbus, iicmux, ofw_iicbus_driver, 0, 0);
 MODULE_DEPEND(pca9547, iicmux, 1, 1, 1);
 MODULE_DEPEND(pca9547, iicbus, 1, 1, 1);
