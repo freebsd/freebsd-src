@@ -190,9 +190,7 @@ static driver_t jme_driver = {
 	sizeof(struct jme_softc)
 };
 
-static devclass_t jme_devclass;
-
-DRIVER_MODULE(jme, pci, jme_driver, jme_devclass, 0, 0);
+DRIVER_MODULE(jme, pci, jme_driver, 0, 0);
 DRIVER_MODULE(miibus, jme, miibus_driver, 0, 0);
 
 static struct resource_spec jme_res_spec_mem[] = {
