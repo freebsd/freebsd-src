@@ -143,8 +143,7 @@ static driver_t ixv_driver = {
 	"ixv", ixv_methods, sizeof(struct ixgbe_softc),
 };
 
-devclass_t ixv_devclass;
-DRIVER_MODULE(ixv, pci, ixv_driver, ixv_devclass, 0, 0);
+DRIVER_MODULE(ixv, pci, ixv_driver, 0, 0);
 IFLIB_PNP_INFO(pci, ixv_driver, ixv_vendor_info_array);
 MODULE_DEPEND(ixv, iflib, 1, 1, 1);
 MODULE_DEPEND(ixv, pci, 1, 1, 1);
