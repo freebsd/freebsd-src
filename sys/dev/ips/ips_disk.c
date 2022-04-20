@@ -62,8 +62,7 @@ static driver_t ipsd_driver = {
 	sizeof(ipsdisk_softc_t)
 };
 
-static devclass_t ipsd_devclass;
-DRIVER_MODULE(ipsd, ips, ipsd_driver, ipsd_devclass, 0, 0);
+DRIVER_MODULE(ipsd, ips, ipsd_driver, 0, 0);
 
 /* handle opening of disk device.  It must set up all
    information about the geometry and size of the disk */
