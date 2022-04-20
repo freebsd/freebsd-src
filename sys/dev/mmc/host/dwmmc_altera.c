@@ -93,15 +93,11 @@ static device_method_t altera_dwmmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t altera_dwmmc_devclass;
-
 DEFINE_CLASS_1(altera_dwmmc, altera_dwmmc_driver, altera_dwmmc_methods,
     sizeof(struct dwmmc_softc), dwmmc_driver);
 
-DRIVER_MODULE(altera_dwmmc, simplebus, altera_dwmmc_driver,
-    altera_dwmmc_devclass, 0, 0);
-DRIVER_MODULE(altera_dwmmc, ofwbus, altera_dwmmc_driver, altera_dwmmc_devclass
-    , NULL, NULL);
+DRIVER_MODULE(altera_dwmmc, simplebus, altera_dwmmc_driver, 0, 0);
+DRIVER_MODULE(altera_dwmmc, ofwbus, altera_dwmmc_driver, NULL, NULL);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(altera_dwmmc);
 #endif
