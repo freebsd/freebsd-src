@@ -551,6 +551,6 @@ DRIVER_MODULE(imcsmb, imcsmb_pci, imcsmb_driver, imcsmb_devclass, 0, 0);
 MODULE_DEPEND(imcsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(imcsmb, 1);
 
-DRIVER_MODULE(smbus, imcsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, imcsmb, smbus_driver, 0, 0);
 
 /* vi: set ts=8 sw=4 sts=8 noet: */

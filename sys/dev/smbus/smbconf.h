@@ -95,7 +95,6 @@ SMBUS_ACCESSOR(addr,		ADDR,		int)
 #undef SMBUS_ACCESSOR
 
 extern driver_t smbus_driver;
-extern devclass_t smbus_devclass;
 
 #define smbus_quick(bus,slave,how) \
 	(SMBUS_QUICK(device_get_parent(bus), slave, how))

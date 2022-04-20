@@ -648,7 +648,7 @@ static driver_t nfsmbsub_driver = {
 
 DRIVER_MODULE(nfsmb, pci, nfsmb_driver, nfsmb_devclass, 0, 0);
 DRIVER_MODULE(nfsmb, nfsmb, nfsmbsub_driver, nfsmb_devclass, 0, 0);
-DRIVER_MODULE(smbus, nfsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, nfsmb, smbus_driver, 0, 0);
 
 MODULE_DEPEND(nfsmb, pci, 1, 1, 1);
 MODULE_DEPEND(nfsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);

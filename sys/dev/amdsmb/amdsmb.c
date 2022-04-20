@@ -575,7 +575,7 @@ static driver_t amdsmb_driver = {
 };
 
 DRIVER_MODULE(amdsmb, pci, amdsmb_driver, amdsmb_devclass, 0, 0);
-DRIVER_MODULE(smbus, amdsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, amdsmb, smbus_driver, 0, 0);
 
 MODULE_DEPEND(amdsmb, pci, 1, 1, 1);
 MODULE_DEPEND(amdsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
