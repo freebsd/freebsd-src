@@ -3772,6 +3772,7 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	uint32_t mask;
 	uint8_t index;
 	uint8_t epno;
+	uint8_t drop;
 
 	pepext = xhci_get_endpoint_ext(xfer->xroot->udev,
 	    xfer->endpoint->edesc);
@@ -3813,15 +3814,19 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 */
 	switch (xhci_get_endpoint_state(udev, epno)) {
 	case XHCI_EPCTX_0_EPSTATE_DISABLED:
-                break;
+		drop = 0;
+		break;
 	case XHCI_EPCTX_0_EPSTATE_STOPPED:
+		drop = 1;
 		break;
 	case XHCI_EPCTX_0_EPSTATE_HALTED:
 		err = xhci_cmd_reset_ep(sc, 0, epno, index);
-		if (err != 0)
+		drop = (err != 0);
+		if (drop)
 			DPRINTF("Could not reset endpoint %u\n", epno);
 		break;
 	default:
+		drop = 1;
 		err = xhci_cmd_stop_ep(sc, 0, epno, index);
 		if (err != 0)
 			DPRINTF("Could not stop endpoint %u\n", epno);
@@ -3842,11 +3847,25 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 */
 
 	mask = (1U << epno);
-	xhci_configure_mask(udev, mask | 1U, 0);
+
+	if (epno != 1 && drop != 0) {
+		/* drop endpoint context to reset data toggle value, if any. */
+	  	xhci_configure_mask(udev, mask, 1);
+		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+		if (err != 0) {
+			DPRINTF("Could not drop "
+			    "endpoint %u at slot %u.\n", epno, index);
+		} else {
+			sc->sc_hw.devs[index].ep_configured &= ~mask;
+		}
+	}
+
+	xhci_configure_mask(udev, mask, 0);
 
 	if (!(sc->sc_hw.devs[index].ep_configured & mask)) {
-		sc->sc_hw.devs[index].ep_configured |= mask;
 		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
+		if (err == 0)
+			sc->sc_hw.devs[index].ep_configured |= mask;
 	} else {
 		err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
 	}
