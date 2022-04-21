@@ -399,7 +399,8 @@ acpi_cpu_attach(device_t dev)
 	sc->cpu_features |= ACPI_CAP_SMP_C1_NATIVE | ACPI_CAP_SMP_C3_NATIVE;
 #endif
 
-    if (devclass_get_drivers(acpi_cpu_devclass, &drivers, &drv_count) == 0) {
+    if (devclass_get_drivers(device_get_devclass(dev), &drivers,
+	&drv_count) == 0) {
 	for (i = 0; i < drv_count; i++) {
 	    if (ACPI_GET_FEATURES(drivers[i], &features) == 0)
 		sc->cpu_features |= features;
