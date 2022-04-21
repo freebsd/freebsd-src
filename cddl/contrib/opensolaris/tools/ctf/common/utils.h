@@ -39,8 +39,6 @@ extern "C" {
 #define	E_ERROR		1		/* Exit status for error */
 #define	E_USAGE		2		/* Exit status for usage error */
 
-extern void vwarn(const char *, va_list);
-extern void warn(const char *, ...);
 extern void vdie(const char  *, va_list);
 extern void die(const char *, ...);
 
