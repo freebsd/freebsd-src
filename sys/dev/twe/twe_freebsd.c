@@ -1166,7 +1166,7 @@ twe_report(void)
     struct twe_softc	*sc;
     int			i;
 
-    for (i = 0; (sc = devclass_get_softc(twe_devclass, i)) != NULL; i++)
+    for (i = 0; (sc = devclass_get_softc(devclass_find("twe"), i)) != NULL; i++)
 	twe_print_controller(sc);
     printf("twed: total bio count in %u  out %u\n", twed_bio_in, twed_bio_out);
 }
