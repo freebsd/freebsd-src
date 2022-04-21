@@ -1,5 +1,5 @@
 #
-# GENERIC-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file 
+# GENERIC-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file
 #		     for FreeBSD/powerpc
 #
 # This configuration file removes several debugging options, including

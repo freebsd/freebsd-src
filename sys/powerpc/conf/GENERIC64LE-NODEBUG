@@ -1,11 +1,11 @@
 #
-# GENERIC64-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file
+# GENERIC64LE-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file
 #		     for FreeBSD/powerpc
 #
 # This configuration file removes several debugging options, including
 # WITNESS and INVARIANTS checking, which are known to have significant
 # performance impact on running systems.  When benchmarking new features
-# this kernel should be used instead of the standard GENERIC64.
+# this kernel should be used instead of the standard GENERIC64LE.
 # This kernel configuration should never appear outside of the HEAD
 # of the FreeBSD tree.
 #
@@ -26,7 +26,7 @@
 #
 # $FreeBSD$
 
-include GENERIC64
+include GENERIC64LE
 include "../../conf/std.nodebug"
 
-ident   GENERIC64-NODEBUG
+ident   GENERIC64LE-NODEBUG
