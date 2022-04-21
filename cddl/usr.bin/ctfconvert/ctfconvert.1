@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2010
+.Dd April 21, 2022
 .Dt CTFCONVERT 1
 .Os
 .Sh NAME
@@ -44,8 +44,9 @@ object_file
 .Sh DESCRIPTION
 The
 .Nm
-utility converts debug information from a binary file to CTF data and replaces
-the debug section of that file with a CTF section called SUNW_ctf.
+utility converts debug information from a binary file to CTF (Compact C Type
+Format) data and replaces the debug section of that file with a CTF section
+called SUNW_ctf.
 This new section is added to the input file, unless the -o
 option is present.
 You can also opt to keep the original debugging section with the
@@ -75,7 +76,8 @@ Write the output to file in
 .Ex -std
 .Sh SEE ALSO
 .Xr ctfdump 1 ,
-.Xr ctfmerge 1
+.Xr ctfmerge 1 ,
+.Xr ctf 5
 .Sh HISTORY
 The
 .Nm
