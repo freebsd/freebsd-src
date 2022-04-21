@@ -147,8 +147,12 @@ base64_encode_or_decode(int argc, char *argv[])
 		case 'w':
 			w = optarg;
 			break;
+		case 'i':
+			/* silently ignore */
+			break;
 		case VERSION:
 			version_base64();
+			break;
 		case HELP:
 		default:
 			usage_base64(ch == '?');
