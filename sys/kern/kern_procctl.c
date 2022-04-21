@@ -244,22 +244,94 @@ reap_getpids(struct thread *td, struct proc *p, void *data)
 }
 
 static void
+reap_kill_proc_relock(struct proc *p, int xlocked)
+{
+	PROC_UNLOCK(p);
+	if (xlocked)
+		sx_xlock(&proctree_lock);
+	else
+		sx_slock(&proctree_lock);
+	PROC_LOCK(p);
+}
+
+static bool
+reap_kill_proc_locked(struct thread *td, struct proc *p2,
+    ksiginfo_t *ksi, struct procctl_reaper_kill *rk, int *error)
+{
+	int error1, r, xlocked;
+	bool need_stop;
+
+	PROC_LOCK_ASSERT(p2, MA_OWNED);
+	PROC_ASSERT_HELD(p2);
+
+	error1 = p_cansignal(td, p2, rk->rk_sig);
+	if (error1 != 0) {
+		if (*error == ESRCH) {
+			rk->rk_fpid = p2->p_pid;
+			*error = error1;
+		}
+		return (true);
+	}
+
+	/*
+	 * The need_stop indicates if the target process needs to be
+	 * suspended before being signalled.  This is needed when we
+	 * guarantee that all processes in subtree are signalled,
+	 * avoiding the race with some process not yet fully linked
+	 * into all structures during fork, ignored by iterator, and
+	 * then escaping signalling.
+	 *
+	 * If need_stop is true, then reap_kill_proc() returns true if
+	 * the process was successfully stopped and signalled, and
+	 * false if stopping failed and the signal was not sent.
+	 *
+	 * The thread cannot usefully stop itself anyway, and if other
+	 * thread of the current process forks while the current
+	 * thread signals the whole subtree, it is an application
+	 * race.
+	 */
+	need_stop = p2 != td->td_proc &&
+	    (p2->p_flag & (P_KPROC | P_SYSTEM)) == 0 &&
+	    (rk->rk_flags & REAPER_KILL_CHILDREN) == 0;
+
+	if (need_stop) {
+		if (P_SHOULDSTOP(p2) == P_STOPPED_SINGLE)
+			return (false);	/* retry later */
+		xlocked = sx_xlocked(&proctree_lock);
+		sx_unlock(&proctree_lock);
+		r = thread_single(p2, SINGLE_ALLPROC);
+		if (r != 0) {
+			reap_kill_proc_relock(p2, xlocked);
+			return (false);
+		}
+	}
+
+	pksignal(p2, rk->rk_sig, ksi);
+	rk->rk_killed++;
+	*error = error1;
+
+	if (need_stop) {
+		reap_kill_proc_relock(p2, xlocked);
+		thread_single_end(p2, SINGLE_ALLPROC);
+	}
+	return (true);
+}
+
+static bool
 reap_kill_proc(struct thread *td, struct proc *p2, ksiginfo_t *ksi,
     struct procctl_reaper_kill *rk, int *error)
 {
-	int error1;
+	bool res;
 
+	res = true;
 	PROC_LOCK(p2);
-	error1 = p_cansignal(td, p2, rk->rk_sig);
-	if (error1 == 0) {
-		pksignal(p2, rk->rk_sig, ksi);
-		rk->rk_killed++;
-		*error = error1;
-	} else if (*error == ESRCH) {
-		rk->rk_fpid = p2->p_pid;
-		*error = error1;
+	if ((p2->p_flag & P_WEXIT) == 0) {
+		_PHOLD_LITE(p2);
+		res = reap_kill_proc_locked(td, p2, ksi, rk, error);
+		_PRELE(p2);
 	}
 	PROC_UNLOCK(p2);
+	return (res);
 }
 
 struct reap_kill_tracker {
@@ -286,7 +358,7 @@ reap_kill_children(struct thread *td, struct proc *reaper,
 	struct proc *p2;
 
 	LIST_FOREACH(p2, &reaper->p_children, p_sibling) {
-		reap_kill_proc(td, p2, ksi, rk, error);
+		(void)reap_kill_proc(td, p2, ksi, rk, error);
 		/*
 		 * Do not end the loop on error, signal everything we
 		 * can.
@@ -317,10 +389,11 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 				continue;
 			if ((p2->p_treeflag & P_TREE_REAPER) != 0)
 				reap_kill_sched(&tracker, p2);
-			if (alloc_unr_specific(pids, p2->p_pid) == p2->p_pid) {
-				reap_kill_proc(td, p2, ksi, rk, error);
-				res = true;
-			}
+			if (alloc_unr_specific(pids, p2->p_pid) != p2->p_pid)
+				continue;
+			if (!reap_kill_proc(td, p2, ksi, rk, error))
+				free_unr(pids, p2->p_pid);
+			res = true;
 		}
 		free(t, M_TEMP);
 	}
