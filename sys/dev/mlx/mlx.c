@@ -980,7 +980,7 @@ mlx_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	error = ENOENT;
 	MLX_CONFIG_LOCK(sc);
 	bus_topo_lock();
-	mlxd = (struct mlxd_softc *)devclass_get_softc(mlxd_devclass, *arg);
+	mlxd = devclass_get_softc(devclass_find("mlxd"), *arg);
 	bus_topo_unlock();
 	if ((mlxd != NULL) && (mlxd->mlxd_drive >= sc->mlx_sysdrive) && 
 	    (mlxd->mlxd_drive < (sc->mlx_sysdrive + MLX_MAXDRIVES))) {
