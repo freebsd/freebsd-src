@@ -586,7 +586,6 @@ IFMEDIA_DEBUG		opt_ifmedia.h
 
 # Fb options
 FB_DEBUG		opt_fb.h
-FB_INSTALL_CDEV		opt_fb.h
 
 # ppbus related options
 PERIPH_1284		opt_ppb_1284.h

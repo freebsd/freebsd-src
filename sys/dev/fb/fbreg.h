@@ -294,37 +294,6 @@ video_adapter_t	*vid_get_adapter(int index);
 int		vid_configure(int flags);
 #define VIO_PROBE_ONLY	(1 << 0)	/* probe only, don't initialize */
 
-#ifdef FB_INSTALL_CDEV
-
-/* virtual frame buffer driver functions */
-int		fb_attach(int unit, video_adapter_t *adp,
-			  struct cdevsw *cdevsw);
-int		fb_detach(int unit, video_adapter_t *adp,
-			  struct cdevsw *cdevsw);
-
-/* generic frame buffer cdev driver functions */
-
-typedef struct genfb_softc {
-	int		gfb_flags;	/* flag/status bits */
-#define FB_OPEN		(1 << 0)
-} genfb_softc_t;
-
-int		genfbopen(genfb_softc_t *sc, video_adapter_t *adp,
-			  int flag, int mode, struct thread *td);
-int		genfbclose(genfb_softc_t *sc, video_adapter_t *adp,
-			   int flag, int mode, struct thread *td);
-int		genfbread(genfb_softc_t *sc, video_adapter_t *adp,
-			  struct uio *uio, int flag);
-int		genfbwrite(genfb_softc_t *sc, video_adapter_t *adp,
-			   struct uio *uio, int flag);
-int		genfbioctl(genfb_softc_t *sc, video_adapter_t *adp,
-			   u_long cmd, caddr_t arg, int flag, struct thread *td);
-int		genfbmmap(genfb_softc_t *sc, video_adapter_t *adp,
-			  vm_ooffset_t offset, vm_paddr_t *paddr,
-			  int prot, vm_memattr_t *memattr);
-
-#endif /* FB_INSTALL_CDEV */
-
 /* generic low-level driver functions */
 
 void		fb_dump_adp_info(char *driver, video_adapter_t *adp, int level);

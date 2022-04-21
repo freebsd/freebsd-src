@@ -66,11 +66,6 @@ static video_adapter_t	**adapter = &adp_ini;
 static video_switch_t	*vidsw_ini;
        video_switch_t	**vidsw = &vidsw_ini;
 
-#ifdef FB_INSTALL_CDEV
-static struct cdevsw	*vidcdevsw_ini;
-static struct cdevsw	**vidcdevsw = &vidcdevsw_ini;
-#endif
-
 #define ARRAY_DELTA	4
 
 static int
@@ -78,9 +73,6 @@ vid_realloc_array(void)
 {
 	video_adapter_t **new_adp;
 	video_switch_t **new_vidsw;
-#ifdef FB_INSTALL_CDEV
-	struct cdevsw **new_cdevsw;
-#endif
 	int newsize;
 	int s;
 
@@ -92,27 +84,14 @@ vid_realloc_array(void)
 	new_adp = malloc(sizeof(*new_adp)*newsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	new_vidsw = malloc(sizeof(*new_vidsw)*newsize, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
-#ifdef FB_INSTALL_CDEV
-	new_cdevsw = malloc(sizeof(*new_cdevsw)*newsize, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
-#endif
 	bcopy(adapter, new_adp, sizeof(*adapter)*adapters);
 	bcopy(vidsw, new_vidsw, sizeof(*vidsw)*adapters);
-#ifdef FB_INSTALL_CDEV
-	bcopy(vidcdevsw, new_cdevsw, sizeof(*vidcdevsw)*adapters);
-#endif
 	if (adapters > 1) {
 		free(adapter, M_DEVBUF);
 		free(vidsw, M_DEVBUF);
-#ifdef FB_INSTALL_CDEV
-		free(vidcdevsw, M_DEVBUF);
-#endif
 	}
 	adapter = new_adp;
 	vidsw = new_vidsw;
-#ifdef FB_INSTALL_CDEV
-	vidcdevsw = new_cdevsw;
-#endif
 	adapters = newsize;
 	splx(s);
 
@@ -296,229 +275,7 @@ vid_configure(int flags)
 	return 0;
 }
 
-/*
- * Virtual frame buffer cdev driver functions
- * The virtual frame buffer driver dispatches driver functions to
- * appropriate subdrivers.
- */
-
 #define FB_DRIVER_NAME	"fb"
-
-#ifdef FB_INSTALL_CDEV
-
-#if 0 /* experimental */
-
-static devclass_t	fb_devclass;
-
-static int		fbprobe(device_t dev);
-static int		fbattach(device_t dev);
-
-static device_method_t fb_methods[] = {
-	DEVMETHOD(device_probe,		fbprobe),
-	DEVMETHOD(device_attach,	fbattach),
-
-	DEVMETHOD_END
-};
-
-static driver_t fb_driver = {
-	FB_DRIVER_NAME,
-	fb_methods,
-	0,
-};
-
-static int
-fbprobe(device_t dev)
-{
-	int unit;
-
-	unit = device_get_unit(dev);
-	if (unit >= adapters)
-		return ENXIO;
-	if (adapter[unit] == NULL)
-		return ENXIO;
-
-	device_set_desc(dev, "generic frame buffer");
-	return 0;
-}
-
-static int
-fbattach(device_t dev)
-{
-	printf("fbattach: about to attach children\n");
-	bus_generic_attach(dev);
-	return 0;
-}
-
-#endif
-
-#define FB_UNIT(dev)	dev2unit(dev)
-#define FB_MKMINOR(unit) (u)
-
-#if 0 /* experimental */
-static d_open_t		fbopen;
-static d_close_t	fbclose;
-static d_read_t		fbread;
-static d_write_t	fbwrite;
-static d_ioctl_t	fbioctl;
-static d_mmap_t		fbmmap;
-
-
-static struct cdevsw fb_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	fbopen,
-	.d_close =	fbclose,
-	.d_read =	fbread,
-	.d_write =	fbwrite,
-	.d_ioctl =	fbioctl,
-	.d_mmap =	fbmmap,
-	.d_name =	FB_DRIVER_NAME,
-};
-#endif
-
-
-static int
-fb_modevent(module_t mod, int type, void *data) 
-{ 
-
-	switch (type) { 
-	case MOD_LOAD: 
-		break; 
-	case MOD_UNLOAD: 
-		printf("fb module unload - not possible for this module type\n"); 
-		return EINVAL; 
-	default:
-		return EOPNOTSUPP;
-	} 
-	return 0; 
-} 
-
-static moduledata_t fb_mod = { 
-	"fb", 
-	fb_modevent, 
-	NULL
-}; 
-
-DECLARE_MODULE(fb, fb_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-
-int
-fb_attach(int unit, video_adapter_t *adp, struct cdevsw *cdevsw)
-{
-	int s;
-
-	if (adp->va_index >= adapters)
-		return EINVAL;
-	if (adapter[adp->va_index] != adp)
-		return EINVAL;
-
-	s = spltty();
-	adp->va_minor = unit;
-	vidcdevsw[adp->va_index] = cdevsw;
-	splx(s);
-
-	printf("fb%d at %s%d\n", adp->va_index, adp->va_name, adp->va_unit);
-	return 0;
-}
-
-int
-fb_detach(int unit, video_adapter_t *adp, struct cdevsw *cdevsw)
-{
-	int s;
-
-	if (adp->va_index >= adapters)
-		return EINVAL;
-	if (adapter[adp->va_index] != adp)
-		return EINVAL;
-	if (vidcdevsw[adp->va_index] != cdevsw)
-		return EINVAL;
-
-	s = spltty();
-	vidcdevsw[adp->va_index] = NULL;
-	splx(s);
-	return 0;
-}
-
-/*
- * Generic frame buffer cdev driver functions
- * Frame buffer subdrivers may call these functions to implement common
- * driver functions.
- */
-
-int genfbopen(genfb_softc_t *sc, video_adapter_t *adp, int flag, int mode,
-	      struct thread *td)
-{
-	int s;
-
-	s = spltty();
-	if (!(sc->gfb_flags & FB_OPEN))
-		sc->gfb_flags |= FB_OPEN;
-	splx(s);
-	return 0;
-}
-
-int genfbclose(genfb_softc_t *sc, video_adapter_t *adp, int flag, int mode,
-	       struct thread *td)
-{
-	int s;
-
-	s = spltty();
-	sc->gfb_flags &= ~FB_OPEN;
-	splx(s);
-	return 0;
-}
-
-int genfbread(genfb_softc_t *sc, video_adapter_t *adp, struct uio *uio,
-	      int flag)
-{
-	int size;
-	int offset;
-	int error;
-	int len;
-
-	error = 0;
-	size = adp->va_buffer_size/adp->va_info.vi_planes;
-	while (uio->uio_resid > 0) {
-		if (uio->uio_offset >= size)
-			break;
-		offset = uio->uio_offset%adp->va_window_size;
-		len = imin(uio->uio_resid, size - uio->uio_offset);
-		len = imin(len, adp->va_window_size - offset);
-		if (len <= 0)
-			break;
-		vidd_set_win_org(adp, uio->uio_offset);
-		error = uiomove((caddr_t)(adp->va_window + offset), len, uio);
-		if (error)
-			break;
-	}
-	return error;
-}
-
-int genfbwrite(genfb_softc_t *sc, video_adapter_t *adp, struct uio *uio,
-	       int flag)
-{
-	return ENODEV;
-}
-
-int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
-	       caddr_t arg, int flag, struct thread *td)
-{
-	int error;
-
-	if (adp == NULL)	/* XXX */
-		return ENXIO;
-	error = vidd_ioctl(adp, cmd, arg);
-	if (error == ENOIOCTL)
-		error = ENODEV;
-	return error;
-}
-
-int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_ooffset_t offset,
-	      vm_paddr_t *paddr, int prot, vm_memattr_t *memattr)
-{
-	return vidd_mmap(adp, offset, paddr, prot, memattr);
-}
-
-#endif /* FB_INSTALL_CDEV */
 
 static char
 *adapter_name(int type)
