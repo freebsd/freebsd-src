@@ -586,7 +586,8 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	softc->vnic_info.def_ring_grp = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.cos_rule = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.lb_rule = (uint16_t)HWRM_NA_SIGNATURE;
-	softc->vnic_info.rx_mask = HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_BCAST;
+	softc->vnic_info.rx_mask = HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_BCAST |
+		HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN;
 	softc->vnic_info.mc_list_count = 0;
 	softc->vnic_info.flags = BNXT_VNIC_FLAG_DEFAULT;
 	rc = iflib_dma_alloc(ctx, BNXT_MAX_MC_ADDRS * ETHER_ADDR_LEN,
@@ -1391,8 +1392,7 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN;
 	else
 		softc->vnic_info.rx_mask &=
-		    ~(HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS |
-		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN);
+		    ~(HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS);
 
 	rc = bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
 
