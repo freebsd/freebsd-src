@@ -766,7 +766,7 @@ DB_SHOW_COMMAND(ccp, db_show_ccp)
 
 	unit = (unsigned)addr;
 
-	sc = devclass_get_softc(ccp_devclass, unit);
+	sc = devclass_get_softc(devclass_find("ccp"), unit);
 	if (sc == NULL) {
 		db_printf("No such device ccp%u\n", unit);
 		goto usage;
