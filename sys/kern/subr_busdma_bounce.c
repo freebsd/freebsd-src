@@ -65,6 +65,7 @@ struct bounce_page {
 struct bounce_zone {
 	STAILQ_ENTRY(bounce_zone) links;
 	STAILQ_HEAD(, bounce_page) bounce_page_list;
+	STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
 	int		total_bpages;
 	int		free_bpages;
 	int		reserved_bpages;
@@ -88,7 +89,6 @@ static int total_bpages;
 static int busdma_zonecount;
 
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
-static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
 static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
 
 static MALLOC_DEFINE(M_BOUNCE, "bounce", "busdma bounce pages");
@@ -103,6 +103,7 @@ static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 static int
 _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
 {
+	struct bounce_zone *bz;
 
 	/* Reserve Necessary Bounce Pages */
 	mtx_lock(&bounce_lock);
@@ -115,7 +116,9 @@ _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
 	} else {
 		if (reserve_bounce_pages(dmat, map, 1) != 0) {
 			/* Queue us for resources */
-			STAILQ_INSERT_TAIL(&bounce_map_waitinglist, map, links);
+			bz = dmat->bounce_zone;
+			STAILQ_INSERT_TAIL(&bz->bounce_map_waitinglist, map,
+			    links);
 			mtx_unlock(&bounce_lock);
 			return (EINPROGRESS);
 		}
@@ -131,7 +134,6 @@ init_bounce_pages(void *dummy __unused)
 
 	total_bpages = 0;
 	STAILQ_INIT(&bounce_zone_list);
-	STAILQ_INIT(&bounce_map_waitinglist);
 	STAILQ_INIT(&bounce_map_callbacklist);
 	mtx_init(&bounce_lock, "bounce pages lock", NULL, MTX_DEF);
 }
@@ -174,6 +176,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 		return (ENOMEM);
 
 	STAILQ_INIT(&bz->bounce_page_list);
+	STAILQ_INIT(&bz->bounce_map_waitinglist);
 	bz->free_bpages = 0;
 	bz->reserved_bpages = 0;
 	bz->active_bpages = 0;
@@ -403,9 +406,9 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 	STAILQ_INSERT_HEAD(&bz->bounce_page_list, bpage, links);
 	bz->free_bpages++;
 	bz->active_bpages--;
-	if ((map = STAILQ_FIRST(&bounce_map_waitinglist)) != NULL) {
+	if ((map = STAILQ_FIRST(&bz->bounce_map_waitinglist)) != NULL) {
 		if (reserve_bounce_pages(map->dmat, map, 1) == 0) {
-			STAILQ_REMOVE_HEAD(&bounce_map_waitinglist, links);
+			STAILQ_REMOVE_HEAD(&bz->bounce_map_waitinglist, links);
 			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
 			    map, links);
 			bz->total_deferred++;
