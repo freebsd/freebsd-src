@@ -123,11 +123,11 @@ ENCODINGS=	UTF-8 \
 		UTF-32
 
 # CLDR files
-CLDRVERSION=	39.0
+CLDRVERSION=	41.0
 CLDRFILES_CORE= https://unicode.org/Public/cldr/${CLDRVERSION:R}/core.zip
 CLDRFILES_KEY=	https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-keyboards-${CLDRVERSION}.zip
 CLDRFILES_TOOLS=https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-tools-${CLDRVERSION}.jar
-CLDRFILES_UCD=	http://www.unicode.org/Public/zipped/13.0.0/UCD.zip
+CLDRFILES_UCD=	http://www.unicode.org/Public/zipped/14.0.0/UCD.zip
 
 # fetch and extract targets
 ${UNIDIR}:
