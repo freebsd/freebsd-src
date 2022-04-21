@@ -2350,6 +2350,19 @@ dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset,
 	}
 
 	/*
+	 * Handle odd block sizes, mirrors dmu_read_impl().  Data can't exist
+	 * past the first block, so we'll clip the read to the portion of the
+	 * buffer within bsize and zero out the remainder.
+	 */
+	if (dnode->dn_maxblkid == 0) {
+		size_t newbuflen;
+
+		newbuflen = offset > bsize ? 0 : MIN(buflen, bsize - offset);
+		bzero((char *)buf + newbuflen, buflen - newbuflen);
+		buflen = newbuflen;
+	}
+
+	/*
 	 * Note: bsize may not be a power of two here so we need to do an
 	 * actual divide rather than a bitshift.
 	 */
