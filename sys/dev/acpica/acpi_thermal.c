@@ -331,7 +331,7 @@ acpi_tz_startup(void *arg __unused)
     device_t *devs;
     int devcount, error, i;
 
-    devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
+    devclass_get_devices(devclass_find("acpi_tz"), &devs, &devcount);
     if (devcount == 0) {
 	free(devs, M_TEMP);
 	return;
@@ -949,6 +949,7 @@ acpi_tz_power_profile(void *arg)
 static void
 acpi_tz_thread(void *arg)
 {
+    devclass_t	acpi_tz_devclass;
     device_t	*devs;
     int		devcount, i;
     int		flags;
@@ -956,6 +957,7 @@ acpi_tz_thread(void *arg)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+    acpi_tz_devclass = devclass_find("acpi_tz");
     devs = NULL;
     devcount = 0;
     sc = NULL;
