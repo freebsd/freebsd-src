@@ -382,53 +382,52 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 }
 
 static void
-free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
+free_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	struct bus_dmamap *map;
+	struct bounce_page *bpage;
 	struct bounce_zone *bz;
 	bool schedule_thread;
+	u_int count;
+
+	if (STAILQ_EMPTY(&map->bpages))
+		return;
 
 	bz = dmat->bounce_zone;
-	bpage->datavaddr = 0;
-	bpage->datacount = 0;
-	if (dmat_flags(dmat) & BUS_DMA_KEEP_PG_OFFSET) {
-		/*
-		 * Reset the bounce page to start at offset 0.  Other uses
-		 * of this bounce page may need to store a full page of
-		 * data and/or assume it starts on a page boundary.
-		 */
-		bpage->vaddr &= ~PAGE_MASK;
-		bpage->busaddr &= ~PAGE_MASK;
+	count = 0;
+	schedule_thread = false;
+	STAILQ_FOREACH(bpage, &map->bpages, links) {
+		bpage->datavaddr = 0;
+		bpage->datacount = 0;
+
+		if (dmat_flags(dmat) & BUS_DMA_KEEP_PG_OFFSET) {
+			/*
+			 * Reset the bounce page to start at offset 0.
+			 * Other uses of this bounce page may need to
+			 * store a full page of data and/or assume it
+			 * starts on a page boundary.
+			 */
+			bpage->vaddr &= ~PAGE_MASK;
+			bpage->busaddr &= ~PAGE_MASK;
+		}
+		count++;
 	}
 
-	schedule_thread = false;
 	mtx_lock(&bounce_lock);
-	STAILQ_INSERT_HEAD(&bz->bounce_page_list, bpage, links);
-	bz->free_bpages++;
-	bz->active_bpages--;
-	if ((map = STAILQ_FIRST(&bz->bounce_map_waitinglist)) != NULL) {
-		if (reserve_bounce_pages(map->dmat, map, 1) == 0) {
-			STAILQ_REMOVE_HEAD(&bz->bounce_map_waitinglist, links);
-			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
-			    map, links);
-			bz->total_deferred++;
-			schedule_thread = true;
-		}
+	STAILQ_CONCAT(&bz->bounce_page_list, &map->bpages);
+	bz->free_bpages += count;
+	bz->active_bpages -= count;
+	while ((map = STAILQ_FIRST(&bz->bounce_map_waitinglist)) != NULL) {
+		if (reserve_bounce_pages(map->dmat, map, 1) != 0)
+			break;
+
+		STAILQ_REMOVE_HEAD(&bz->bounce_map_waitinglist, links);
+		STAILQ_INSERT_TAIL(&bounce_map_callbacklist, map, links);
+		bz->total_deferred++;
+		schedule_thread = true;
 	}
 	mtx_unlock(&bounce_lock);
 	if (schedule_thread)
 		wakeup(&bounce_map_callbacklist);
-}
-
-static void
-free_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
-{
-	struct bounce_page *bpage;
-
-	while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-		STAILQ_REMOVE_HEAD(&map->bpages, links);
-		free_bounce_page(dmat, bpage);
-	}
 }
 
 static void
