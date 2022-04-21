@@ -45,6 +45,9 @@
  *   - dmat_lockarg()
  */
 
+#include <sys/kthread.h>
+#include <sys/sched.h>
+
 struct bounce_page {
 	vm_offset_t	vaddr;		/* kva of bounce buffer */
 	bus_addr_t	busaddr;	/* Physical address */
@@ -87,13 +90,13 @@ static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
 static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
-static void *busdma_ih;
 
 static MALLOC_DEFINE(M_BOUNCE, "bounce", "busdma bounce pages");
 
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
    "Total bounce pages");
 
+static void busdma_thread(void *);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     int commit);
 
@@ -152,6 +155,7 @@ static int
 alloc_bounce_zone(bus_dma_tag_t dmat)
 {
 	struct bounce_zone *bz;
+	bool start_thread;
 
 	/* Check to see if we already have a suitable zone */
 	STAILQ_FOREACH(bz, &bounce_zone_list, links) {
@@ -183,6 +187,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	busdma_zonecount++;
 	snprintf(bz->lowaddrid, sizeof(bz->lowaddrid), "%#jx",
 	    (uintmax_t)bz->lowaddr);
+	start_thread = STAILQ_EMPTY(&bounce_zone_list);
 	STAILQ_INSERT_TAIL(&bounce_zone_list, bz, links);
 	dmat->bounce_zone = bz;
 
@@ -232,6 +237,11 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	    "memory domain");
 #endif
 
+	if (start_thread) {
+		if (kproc_create(busdma_thread, NULL, NULL, 0, 0, "busdma") !=
+		    0)
+			printf("failed to create busdma thread");
+	}
 	return (0);
 }
 
@@ -373,7 +383,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 {
 	struct bus_dmamap *map;
 	struct bounce_zone *bz;
-	bool schedule_swi;
+	bool schedule_thread;
 
 	bz = dmat->bounce_zone;
 	bpage->datavaddr = 0;
@@ -388,7 +398,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 		bpage->busaddr &= ~PAGE_MASK;
 	}
 
-	schedule_swi = false;
+	schedule_thread = false;
 	mtx_lock(&bounce_lock);
 	STAILQ_INSERT_HEAD(&bz->bounce_page_list, bpage, links);
 	bz->free_bpages++;
@@ -399,40 +409,41 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 			STAILQ_INSERT_TAIL(&bounce_map_callbacklist,
 			    map, links);
 			bz->total_deferred++;
-			schedule_swi = true;
+			schedule_thread = true;
 		}
 	}
 	mtx_unlock(&bounce_lock);
-	if (schedule_swi)
-		swi_sched(busdma_ih, 0);
+	if (schedule_thread)
+		wakeup(&bounce_map_callbacklist);
 }
 
 static void
-busdma_swi(void *dummy __unused)
+busdma_thread(void *dummy __unused)
 {
+	STAILQ_HEAD(, bus_dmamap) callbacklist;
 	bus_dma_tag_t dmat;
-	struct bus_dmamap *map;
+	struct bus_dmamap *map, *nmap;
 
-	mtx_lock(&bounce_lock);
-	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
-		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
-		mtx_unlock(&bounce_lock);
-		dmat = map->dmat;
-		dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat), BUS_DMA_LOCK);
-		bus_dmamap_load_mem(map->dmat, map, &map->mem, map->callback,
-		    map->callback_arg, BUS_DMA_WAITOK);
-		dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat), BUS_DMA_UNLOCK);
+	thread_lock(curthread);
+	sched_prio(curthread, PI_SWI(SWI_BUSDMA));
+	thread_unlock(curthread);
+	for (;;) {
 		mtx_lock(&bounce_lock);
-	}
-	mtx_unlock(&bounce_lock);
-}
+		while (STAILQ_EMPTY(&bounce_map_callbacklist))
+			mtx_sleep(&bounce_map_callbacklist, &bounce_lock, 0,
+			    "-", 0);
+		STAILQ_INIT(&callbacklist);
+		STAILQ_CONCAT(&callbacklist, &bounce_map_callbacklist);
+		mtx_unlock(&bounce_lock);
 
-static void
-start_busdma_swi(void *dummy __unused)
-{
-	if (swi_add(NULL, "busdma", busdma_swi, NULL, SWI_BUSDMA, INTR_MPSAFE,
-	    &busdma_ih))
-		panic("died while creating busdma swi ithread");
+		STAILQ_FOREACH_SAFE(map, &callbacklist, links, nmap) {
+			dmat = map->dmat;
+			dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat),
+			    BUS_DMA_LOCK);
+			bus_dmamap_load_mem(map->dmat, map, &map->mem,
+			    map->callback, map->callback_arg, BUS_DMA_WAITOK);
+			dmat_lockfunc(dmat)(dmat_lockfuncarg(dmat),
+			    BUS_DMA_UNLOCK);
+		}
+	}
 }
-SYSINIT(start_busdma_swi, SI_SUB_SOFTINTR, SI_ORDER_ANY, start_busdma_swi,
-    NULL);
