@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2022
+.Dd April 22, 2022
 .Dt FREEBSD-UPDATE 8
 .Os
 .Sh NAME
@@ -33,16 +33,17 @@
 .Nd fetch and install binary updates to FreeBSD
 .Sh SYNOPSIS
 .Nm
+.Op Fl F
 .Op Fl b Ar basedir
+.Op Fl -currently-running Ar release
 .Op Fl d Ar workdir
 .Op Fl f Ar conffile
-.Op Fl F
 .Op Fl j Ar jail
 .Op Fl k Ar KEY
+.Op Fl -not-running-from-cron
 .Op Fl r Ar newrelease
 .Op Fl s Ar server
 .Op Fl t Ar address
-.Op Fl -not-running-from-cron
 .Ar command ...
 .Sh DESCRIPTION
 The
