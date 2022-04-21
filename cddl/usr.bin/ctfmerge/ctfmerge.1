@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2010
+.Dd April 21, 2022
 .Dt CTFMERGE 1
 .Os
 .Sh NAME
@@ -64,8 +64,8 @@ file ...
 .Sh DESCRIPTION
 The
 .Nm
-utility merges several CTF data sections from several files into one
-output file, unifying common data.
+utility merges several CTF (Compact C Type Format) data sections from several
+files into one output file, unifying common data.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -110,7 +110,8 @@ into
 .Ex -std
 .Sh SEE ALSO
 .Xr ctfconvert 1 ,
-.Xr ctfdump 1
+.Xr ctfdump 1 ,
+.Xr ctf 5
 .Sh HISTORY
 The
 .Nm
