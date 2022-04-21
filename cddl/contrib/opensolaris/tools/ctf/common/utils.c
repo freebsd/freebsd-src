@@ -24,8 +24,7 @@
  * All rights reserved.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
+#include <err.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -35,31 +34,6 @@
 #include "utils.h"
 
 /*LINTLIBRARY*/
-
-void
-vwarn(const char *format, va_list alist)
-{
-	int err = errno;
-
-	if (pname != NULL)
-		(void) fprintf(stderr, "%s: ", pname);
-
-	(void) vfprintf(stderr, format, alist);
-
-	if (strchr(format, '\n') == NULL)
-		(void) fprintf(stderr, ": %s\n", strerror(err));
-}
-
-/*PRINTFLIKE1*/
-void
-warn(const char *format, ...)
-{
-	va_list alist;
-
-	va_start(alist, format);
-	vwarn(format, alist);
-	va_end(alist);
-}
 
 void
 vdie(const char *format, va_list alist)

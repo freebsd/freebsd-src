@@ -24,13 +24,12 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
 #include <sys/sysmacros.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <err.h>
 #include <strings.h>
 #include <unistd.h>
 #include <stdlib.h>
