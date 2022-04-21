@@ -421,6 +421,17 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 }
 
 static void
+free_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
+{
+	struct bounce_page *bpage;
+
+	while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
+		STAILQ_REMOVE_HEAD(&map->bpages, links);
+		free_bounce_page(dmat, bpage);
+	}
+}
+
+static void
 busdma_thread(void *dummy __unused)
 {
 	STAILQ_HEAD(, bus_dmamap) callbacklist;
