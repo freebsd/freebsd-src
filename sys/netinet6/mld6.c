@@ -104,8 +104,6 @@ __FBSDID("$FreeBSD$");
 #define KTR_MLD KTR_INET6
 #endif
 
-static struct mld_ifsoftc *
-		mli_alloc_locked(struct ifnet *);
 static void	mli_delete_locked(const struct ifnet *);
 static void	mld_dispatch_packet(struct mbuf *);
 static void	mld_dispatch_queue(struct mbufq *, int);
@@ -466,45 +464,17 @@ mld_is_addr_reported(const struct in6_addr *addr)
 }
 
 /*
- * Attach MLD when PF_INET6 is attached to an interface.
- *
- * SMPng: Normally called with IF_AFDATA_LOCK held.
+ * Attach MLD when PF_INET6 is attached to an interface.  Assumes that the
+ * current VNET is set by the caller.
  */
 struct mld_ifsoftc *
 mld_domifattach(struct ifnet *ifp)
 {
 	struct mld_ifsoftc *mli;
 
-	CTR3(KTR_MLD, "%s: called for ifp %p(%s)",
-	    __func__, ifp, if_name(ifp));
+	CTR3(KTR_MLD, "%s: called for ifp %p(%s)", __func__, ifp, if_name(ifp));
 
-	MLD_LOCK();
-
-	mli = mli_alloc_locked(ifp);
-	if (!(ifp->if_flags & IFF_MULTICAST))
-		mli->mli_flags |= MLIF_SILENT;
-	if (mld_use_allow)
-		mli->mli_flags |= MLIF_USEALLOW;
-
-	MLD_UNLOCK();
-
-	return (mli);
-}
-
-/*
- * VIMAGE: assume curvnet set by caller.
- */
-static struct mld_ifsoftc *
-mli_alloc_locked(/*const*/ struct ifnet *ifp)
-{
-	struct mld_ifsoftc *mli;
-
-	MLD_LOCK_ASSERT();
-
-	mli = malloc(sizeof(struct mld_ifsoftc), M_MLD, M_NOWAIT|M_ZERO);
-	if (mli == NULL)
-		goto out;
-
+	mli = malloc(sizeof(struct mld_ifsoftc), M_MLD, M_WAITOK | M_ZERO);
 	mli->mli_ifp = ifp;
 	mli->mli_version = MLD_VERSION_2;
 	mli->mli_flags = 0;
@@ -513,13 +483,15 @@ mli_alloc_locked(/*const*/ struct ifnet *ifp)
 	mli->mli_qri = MLD_QRI_INIT;
 	mli->mli_uri = MLD_URI_INIT;
 	mbufq_init(&mli->mli_gq, MLD_MAX_RESPONSE_PACKETS);
+	if ((ifp->if_flags & IFF_MULTICAST) == 0)
+		mli->mli_flags |= MLIF_SILENT;
+	if (mld_use_allow)
+		mli->mli_flags |= MLIF_USEALLOW;
 
+	MLD_LOCK();
 	LIST_INSERT_HEAD(&V_mli_head, mli, mli_link);
+	MLD_UNLOCK();
 
-	CTR2(KTR_MLD, "allocate mld_ifsoftc for ifp %p(%s)",
-	     ifp, if_name(ifp));
-
-out:
 	return (mli);
 }
 
