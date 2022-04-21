@@ -2249,6 +2249,7 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 	int			 idx = -1, use_counter = 0;
 
 	MPASS(pidx != NULL);
+	MPASS(counter != NULL);
 
 	switch (af) {
 	case AF_INET:
@@ -2268,7 +2269,7 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 		return (-1);
 
 	idx = *pidx;
-	if (counter != NULL && idx >= 0)
+	if (idx >= 0)
 		use_counter = 1;
 	if (idx < 0)
 		idx = 0;
