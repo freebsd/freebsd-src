@@ -563,8 +563,7 @@ _bad:
 		pfr_detach_table(dyn->pfid_kt);
 	if (ruleset != NULL)
 		pf_remove_if_empty_kruleset(ruleset);
-	if (dyn->pfid_kif != NULL)
-		pfi_kkif_unref(dyn->pfid_kif);
+	pfi_kkif_unref(dyn->pfid_kif);
 	free(dyn, PFI_MTYPE);
 
 	return (rv);
