@@ -260,7 +260,7 @@ static void
 acpi_acad_ac_only(void __unused *arg)
 {
 
-    if (devclass_get_count(acpi_acad_devclass) == 0)
+    if (devclass_get_count(devclass_find("acpi_acad")) == 0)
 	acpi_UserNotify("ACAD", ACPI_ROOT_OBJECT, 1);
 }
 
@@ -273,7 +273,7 @@ acpi_acad_get_acline(int *status)
     struct acpi_acad_softc *sc;
     device_t dev;
 
-    dev = devclass_get_device(acpi_acad_devclass, 0);
+    dev = devclass_get_device(devclass_find("acpi_acad"), 0);
     if (dev == NULL)
 	return (ENXIO);
     sc = device_get_softc(dev);
