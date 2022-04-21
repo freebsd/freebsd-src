@@ -105,55 +105,6 @@ vga_attach_unit(int unit, vga_softc_t *sc, int flags)
 	return (*sw->init)(unit, sc->adp, flags);
 }
 
-/* cdev driver functions */
-
-#ifdef FB_INSTALL_CDEV
-
-int
-vga_open(struct cdev *dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
-{
-	if (sc == NULL)
-		return ENXIO;
-	if (mode & (O_CREAT | O_APPEND | O_TRUNC))
-		return ENODEV;
-
-	return genfbopen(&sc->gensc, sc->adp, flag, mode, td);
-}
-
-int
-vga_close(struct cdev *dev, vga_softc_t *sc, int flag, int mode, struct thread *td)
-{
-	return genfbclose(&sc->gensc, sc->adp, flag, mode, td);
-}
-
-int
-vga_read(struct cdev *dev, vga_softc_t *sc, struct uio *uio, int flag)
-{
-	return genfbread(&sc->gensc, sc->adp, uio, flag);
-}
-
-int
-vga_write(struct cdev *dev, vga_softc_t *sc, struct uio *uio, int flag)
-{
-	return genfbread(&sc->gensc, sc->adp, uio, flag);
-}
-
-int
-vga_ioctl(struct cdev *dev, vga_softc_t *sc, u_long cmd, caddr_t arg, int flag,
-	  struct thread *td)
-{
-	return genfbioctl(&sc->gensc, sc->adp, cmd, arg, flag, td);
-}
-
-int
-vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_ooffset_t offset,
-    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr)
-{
-	return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot, memattr);
-}
-
-#endif /* FB_INSTALL_CDEV */
-
 /* LOW-LEVEL */
 
 #include <isa/rtc.h>

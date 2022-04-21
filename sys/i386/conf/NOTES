@@ -877,8 +877,6 @@ options 	PV_STATS
 # More undocumented options for linting.
 # Note that documenting these are not considered an affront.
 
-options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
-
 options 	KBDIO_DEBUG=2
 options 	KBD_MAXRETRY=4
 options 	KBD_MAXWAIT=6
