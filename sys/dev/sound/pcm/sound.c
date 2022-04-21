@@ -1425,12 +1425,9 @@ static int
 sound_modevent(module_t mod, int type, void *data)
 {
 	int ret;
-#if 0
-	return (midi_modevent(mod, type, data));
-#else
-	ret = 0;
 
-	switch(type) {
+	ret = 0;
+	switch (type) {
 		case MOD_LOAD:
 			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
 			break;
@@ -1447,7 +1444,6 @@ sound_modevent(module_t mod, int type, void *data)
 	}
 
 	return ret;
-#endif
 }
 
 DEV_MODULE(sound, sound_modevent, NULL);
