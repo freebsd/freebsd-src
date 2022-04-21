@@ -87,6 +87,7 @@
 
 #define	PI_REALTIME		(PRI_MIN_ITHD + 0)
 #define	PI_AV			(PRI_MIN_ITHD + 4)
+#define	PI_SOFTCLOCK		PI_AV
 #define	PI_NET			(PRI_MIN_ITHD + 8)
 #define	PI_DISK			(PRI_MIN_ITHD + 12)
 #define	PI_TTY			(PRI_MIN_ITHD + 16)
