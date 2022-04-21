@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2012
+.Dd April 21, 2022
 .Dt SIGTIMEDWAIT 2
 .Os
 .Sh NAME
@@ -70,7 +70,9 @@ If
 .Fa timeout
 is the
 .Dv NULL
-pointer, the behavior is unspecified.
+pointer,
+.Fn sigtimedwait
+blocks indefinitely.
 .Dv CLOCK_MONOTONIC
 clock is used to measure the time interval specified by the
 .Fa timeout
@@ -204,3 +206,10 @@ and
 .Fn sigwaitinfo
 system calls conform to
 .St -p1003.1-96 .
+POSIX
+leaves the behavior of
+.Fn sigtimedwait
+with a
+.Dv NULL
+.Fa timeout
+pointer unspecified.
