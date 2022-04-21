@@ -669,6 +669,7 @@ ktls_ocf_free(struct ktls_session *tls)
 
 	os = tls->ocf_session;
 	crypto_freesession(os->sid);
+	crypto_freesession(os->mac_sid);
 	mtx_destroy(&os->lock);
 	zfree(os, M_KTLS_OCF);
 }
