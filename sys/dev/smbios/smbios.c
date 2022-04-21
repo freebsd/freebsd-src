@@ -209,10 +209,7 @@ smbios_detach (device_t dev)
 }
 
 static int
-smbios_modevent (mod, what, arg)
-        module_t        mod;
-        int             what;
-        void *          arg;
+smbios_modevent (module_t mod, int what, void *arg)
 {
 	device_t *	devs;
 	int		count;
@@ -222,7 +219,7 @@ smbios_modevent (mod, what, arg)
 	case MOD_LOAD:
 		break;
 	case MOD_UNLOAD:
-		devclass_get_devices(smbios_devclass, &devs, &count);
+		devclass_get_devices(devclass_find("smbios"), &devs, &count);
 		for (i = 0; i < count; i++) {
 			device_delete_child(device_get_parent(devs[i]), devs[i]);
 		}

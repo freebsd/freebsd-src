@@ -252,10 +252,7 @@ vpd_detach (device_t dev)
 }
 
 static int
-vpd_modevent (mod, what, arg)
-        module_t        mod;
-        int             what;
-        void *          arg;
+vpd_modevent (module_t mod, int what, void *arg)
 {
 	device_t *	devs;
 	int		count;
@@ -265,7 +262,7 @@ vpd_modevent (mod, what, arg)
 	case MOD_LOAD:
 		break;
 	case MOD_UNLOAD:
-		devclass_get_devices(vpd_devclass, &devs, &count);
+		devclass_get_devices(devclass_find("vpd"), &devs, &count);
 		for (i = 0; i < count; i++) {
 			device_delete_child(device_get_parent(devs[i]), devs[i]);
 		}
