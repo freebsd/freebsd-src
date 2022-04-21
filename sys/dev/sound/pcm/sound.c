@@ -1429,6 +1429,7 @@ sound_modevent(module_t mod, int type, void *data)
 	ret = 0;
 	switch (type) {
 		case MOD_LOAD:
+			pcm_devclass = devclass_create("pcm");
 			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
 			break;
 		case MOD_UNLOAD:
