@@ -801,17 +801,12 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 void
 bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	struct bounce_page *bpage;
-
 	if (dmat->iommu) {
 		IOMMU_UNMAP(dmat->iommu, map->segments, map->nsegs, dmat->iommu_cookie);
 		map->nsegs = 0;
 	}
 
-	while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-		STAILQ_REMOVE_HEAD(&map->bpages, links);
-		free_bounce_page(dmat, bpage);
-	}
+	free_bounce_pages(dmat, map);
 }
 
 void

@@ -969,13 +969,7 @@ bounce_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 static void
 bounce_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	struct bounce_page *bpage;
-
-	while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-		STAILQ_REMOVE_HEAD(&map->bpages, links);
-		free_bounce_page(dmat, bpage);
-	}
-
+	free_bounce_pages(dmat, map);
 	map->sync_count = 0;
 	map->flags &= ~DMAMAP_MBUF;
 }
