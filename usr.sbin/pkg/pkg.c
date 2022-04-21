@@ -236,9 +236,7 @@ fetch_to_fd(const char *url, char *path, const char *fetchOpts)
 			--retry;
 			if (retry <= 0)
 				goto fetchfail;
-			if (mirrors == NULL) {
-				sleep(1);
-			} else {
+			if (mirrors != NULL) {
 				current = current->next;
 				if (current == NULL)
 					current = mirrors;
