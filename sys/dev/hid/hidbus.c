@@ -293,10 +293,10 @@ hidbus_detach_children(device_t dev)
 
 	error = 0;
 
-	is_bus = device_get_devclass(dev) == hidbus_devclass;
+	is_bus = device_get_devclass(dev) == devclass_find("hidbus");
 	bus = is_bus ? dev : device_get_parent(dev);
 
-	KASSERT(device_get_devclass(bus) == hidbus_devclass,
+	KASSERT(device_get_devclass(bus) == devclass_find("hidbus"),
 	    ("Device is not hidbus or it's child"));
 
 	if (is_bus) {
@@ -686,7 +686,7 @@ hid_get_report_descr(device_t dev, void **data, hid_size_t *len)
 	device_t bus;
 	struct hidbus_softc *sc;
 
-	bus = device_get_devclass(dev) == hidbus_devclass ?
+	bus = device_get_devclass(dev) == devclass_find("hidbus") ?
 	    dev : device_get_parent(dev);
 	sc = device_get_softc(bus);
 
@@ -726,7 +726,7 @@ hid_set_report_descr(device_t dev, const void *data, hid_size_t len)
 
 	bus_topo_assert();
 
-	is_bus = device_get_devclass(dev) == hidbus_devclass;
+	is_bus = device_get_devclass(dev) == devclass_find("hidbus");
 	bus = is_bus ? dev : device_get_parent(dev);
 	sc = device_get_softc(bus);
 
@@ -804,7 +804,7 @@ hidbus_lookup_id(device_t dev, const struct hid_device_id *id, int nitems_id)
 
 	id_end = id + nitems_id;
 	info = hid_get_device_info(dev);
-	is_child = device_get_devclass(dev) != hidbus_devclass;
+	is_child = device_get_devclass(dev) != devclass_find("hidbus");
 	if (is_child)
 		usage = hidbus_get_usage(dev);
 
@@ -880,7 +880,7 @@ hid_get_device_info(device_t dev)
 {
 	device_t bus;
 
-	bus = device_get_devclass(dev) == hidbus_devclass ?
+	bus = device_get_devclass(dev) == devclass_find("hidbus") ?
 	    dev : device_get_parent(dev);
 
 	return (device_get_ivars(bus));
