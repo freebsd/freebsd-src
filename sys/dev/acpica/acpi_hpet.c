@@ -421,7 +421,7 @@ hpet_identify(driver_t *driver, device_t parent)
 	int		i;
 
 	/* Only one HPET device can be added. */
-	if (devclass_get_device(hpet_devclass, 0))
+	if (devclass_get_device(devclass_find("hpet"), 0))
 		return;
 	for (i = 1; ; i++) {
 		/* Search for HPET table. */
