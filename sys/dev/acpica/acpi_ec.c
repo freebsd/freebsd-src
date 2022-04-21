@@ -395,7 +395,7 @@ acpi_ec_probe(device_t dev)
      * checks DF_ENABLED at the start and so disabling it here is too late to
      * prevent device_attach() from being called.
      */
-    peer = devclass_get_device(acpi_ec_devclass, params->uid);
+    peer = devclass_get_device(device_get_devclass(dev), params->uid);
     if (peer != NULL && device_is_alive(peer)) {
 	device_disable(dev);
 	goto out;
