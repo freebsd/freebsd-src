@@ -10,10 +10,10 @@ AED
 د.إ.‏
 #
 # mon_decimal_point
-٫
+.
 #
 # mon_thousands_sep
-٬
+,
 #
 # mon_grouping
 3
@@ -22,7 +22,7 @@ AED
 
 #
 # negative_sign
-؜-
+‎-
 #
 # int_frac_digits
 2

@@ -62,13 +62,13 @@ SAME+=		en_US.UTF-8 en_HK.UTF-8
 SAME+=		en_US.UTF-8 en_GB.UTF-8
 SAME+=		en_US.UTF-8 en_CA.UTF-8
 SAME+=		en_US.UTF-8 en_AU.UTF-8
+SAME+=		en_US.UTF-8 ar_AE.UTF-8
 SAME+=		en_US.UTF-8 am_ET.UTF-8
 SAME+=		fa_IR.UTF-8 fa_AF.UTF-8
 SAME+=		fa_IR.UTF-8 ar_SA.UTF-8
 SAME+=		fa_IR.UTF-8 ar_QA.UTF-8
 SAME+=		fa_IR.UTF-8 ar_JO.UTF-8
 SAME+=		fa_IR.UTF-8 ar_EG.UTF-8
-SAME+=		fa_IR.UTF-8 ar_AE.UTF-8
 SAME+=		tr_TR.UTF-8 sr_RS.UTF-8@latin
 SAME+=		tr_TR.UTF-8 sr_RS.UTF-8
 SAME+=		tr_TR.UTF-8 sl_SI.UTF-8
@@ -107,7 +107,6 @@ SYMLINKS+=	../$f/${FILESNAME} \
 
 .for f in ${LOCALES}
 FILESDIR_${f}.out= ${LOCALEDIR}/${f}
-FILESDIR_${f}.outPACKAGE=	locales
 .endfor
 
 .include <bsd.prog.mk>
