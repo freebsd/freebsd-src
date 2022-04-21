@@ -1735,13 +1735,15 @@ pfsync_defer(struct pf_kstate *st, struct mbuf *m)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_deferral *pd;
-	struct pfsync_bucket *b = pfsync_get_bucket(sc, st);
+	struct pfsync_bucket *b;
 
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		return (0);
 
 	if (sc == NULL)
 		return (0);
+
+	b = pfsync_get_bucket(sc, st);
 
 	PFSYNC_LOCK(sc);
 
