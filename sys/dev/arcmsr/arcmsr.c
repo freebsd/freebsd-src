@@ -240,8 +240,7 @@ static struct cdevsw arcmsr_cdevsw={
 */
 static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
 {
-	int	unit = dev2unit(dev);
-	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
+	struct AdapterControlBlock *acb = dev->si_drv1;
 
 	if (acb == NULL) {
 		return ENXIO;
@@ -254,8 +253,7 @@ static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc
 */
 static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
 {
-	int	unit = dev2unit(dev);
-	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
+	struct AdapterControlBlock *acb = dev->si_drv1;
 
 	if (acb == NULL) {
 		return ENXIO;
@@ -268,8 +266,7 @@ static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *pro
 */
 static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
 {
-	int	unit = dev2unit(dev);
-	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
+	struct AdapterControlBlock *acb = dev->si_drv1;
 
 	if (acb == NULL) {
 		return ENXIO;
@@ -4927,6 +4924,7 @@ irq_alloc_failed:
 */
 static int arcmsr_attach(device_t dev)
 {
+	struct make_dev_args args;
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)device_get_softc(dev);
 	u_int32_t unit=device_get_unit(dev);
 	struct ccb_setasync csa;
@@ -4996,7 +4994,13 @@ irqx:
 	xpt_action((union ccb *)&csa);
 	ARCMSR_LOCK_RELEASE(&acb->isr_lock);
 	/* Create the control device.  */
-	acb->ioctl_dev = make_dev(&arcmsr_cdevsw, unit, UID_ROOT, GID_WHEEL /* GID_OPERATOR */, S_IRUSR | S_IWUSR, "arcmsr%d", unit);
+	make_dev_args_init(&args);
+	args.mda_devsw = &arcmsr_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_WHEEL /* GID_OPERATOR */;
+	args.mda_mode = S_IRUSR | S_IWUSR;
+	args.mda_si_drv1 = acb;
+	(void)make_dev_s(&args, &acb->ioctl_dev, "arcmsr%d", unit);
 		
 	(void)make_dev_alias(acb->ioctl_dev, "arc%d", unit);
 	arcmsr_callout_init(&acb->devmap_callout);
