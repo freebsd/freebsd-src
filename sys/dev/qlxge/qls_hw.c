@@ -808,14 +808,11 @@ qls_del_hw_if(qla_host_t *ha)
 int
 qls_init_hw_if(qla_host_t *ha)
 {
-	device_t	dev;
 	uint32_t	value;
 	int		ret = 0;
 	int		i;
 
 	QL_DPRINT2((ha->pci_dev, "%s:enter\n", __func__));
-
-	dev = ha->pci_dev;
 
 	ret = qls_hw_reset(ha);
 	if (ret)
@@ -929,7 +926,8 @@ qls_init_hw_if(qla_host_t *ha)
 		Q81_WR_LBQ_PROD_IDX(i, ha->rx_ring[i].lbq_in);
 		Q81_WR_SBQ_PROD_IDX(i, ha->rx_ring[i].sbq_in);
 
-		QL_DPRINT2((dev, "%s: [wq_idx, cq_idx, lbq_idx, sbq_idx]"
+		QL_DPRINT2((ha->pci_dev,
+			"%s: [wq_idx, cq_idx, lbq_idx, sbq_idx]"
 			"[0x%08x, 0x%08x, 0x%08x, 0x%08x]\n", __func__,
 			Q81_RD_WQ_IDX(i), Q81_RD_CQ_IDX(i), Q81_RD_LBQ_IDX(i),
 			Q81_RD_SBQ_IDX(i)));
