@@ -280,7 +280,7 @@ vgapm_suspend(device_t dev)
 	error = bus_generic_suspend(dev);
 	if (error != 0)
 		return (error);
-	vga_dev = devclass_get_device(isavga_devclass, 0);
+	vga_dev = devclass_get_device(devclass_find(VGA_DRIVER_NAME), 0);
 	if (vga_dev == NULL)
 		return (0);
 	vga_suspend(vga_dev);
@@ -293,7 +293,7 @@ vgapm_resume(device_t dev)
 {
 	device_t vga_dev;
 
-	vga_dev = devclass_get_device(isavga_devclass, 0);
+	vga_dev = devclass_get_device(devclass_find(VGA_DRIVER_NAME), 0);
 	if (vga_dev != NULL)
 		vga_resume(vga_dev);
 
