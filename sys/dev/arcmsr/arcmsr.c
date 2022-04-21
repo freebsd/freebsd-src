@@ -240,11 +240,6 @@ static struct cdevsw arcmsr_cdevsw={
 */
 static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
 {
-	struct AdapterControlBlock *acb = dev->si_drv1;
-
-	if (acb == NULL) {
-		return ENXIO;
-	}
 	return (0);
 }
 /*
@@ -253,11 +248,6 @@ static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc
 */
 static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
 {
-	struct AdapterControlBlock *acb = dev->si_drv1;
-
-	if (acb == NULL) {
-		return ENXIO;
-	}
 	return 0;
 }
 /*
@@ -268,9 +258,6 @@ static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int fla
 {
 	struct AdapterControlBlock *acb = dev->si_drv1;
 
-	if (acb == NULL) {
-		return ENXIO;
-	}
 	return (arcmsr_iop_ioctlcmd(acb, ioctl_cmd, arg));
 }
 /*
