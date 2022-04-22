@@ -564,7 +564,6 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 	struct tls_aead_data_13 *ad;
 	struct cryptop *crp;
 	struct ktls_ocf_session *os;
-	char nonce[12];
 	int error;
 
 	os = tls->ocf_session;
@@ -575,8 +574,8 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 	crypto_initreq(crp, os->sid);
 
 	/* Setup the nonce. */
-	memcpy(nonce, tls->params.iv, tls->params.iv_len);
-	*(uint64_t *)(nonce + 4) ^= htobe64(m->m_epg_seqno);
+	memcpy(crp->crp_iv, tls->params.iv, tls->params.iv_len);
+	*(uint64_t *)(crp->crp_iv + 4) ^= htobe64(m->m_epg_seqno);
 
 	/* Setup the AAD. */
 	ad = &state->aead13;
@@ -613,8 +612,6 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
 
 	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
-
-	memcpy(crp->crp_iv, nonce, sizeof(nonce));
 
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
 		counter_u64_add(ocf_tls13_gcm_encrypts, 1);
