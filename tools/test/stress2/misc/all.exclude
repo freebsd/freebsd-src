@@ -60,6 +60,7 @@ syzkaller16.sh		WiP								20210722
 syzkaller25.sh		WiP								20201116
 syzkaller28.sh		WiP								20201120
 syzkaller50.sh		panic: Assertion done != job_total_nbytes failed at ...		20220405
+syzkaller51.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20220422
 truss3.sh		WiP								20200915
 unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0226.txt		20220111
 unionfs14.sh		WiP								20220111
