@@ -859,7 +859,9 @@ qls_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int ret = 0;
 	struct ifreq *ifr = (struct ifreq *)data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	qla_host_t *ha;
 
 	ha = (qla_host_t *)ifp->if_softc;
@@ -869,6 +871,7 @@ qls_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		QL_DPRINT4((ha->pci_dev, "%s: SIOCSIFADDR (0x%lx)\n",
 			__func__, cmd));
 
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
@@ -882,9 +885,10 @@ qls_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ntohl(IA_SIN(ifa)->sin_addr.s_addr)));
 
 			arp_ifinit(ifp, ifa);
-		} else {
-			ether_ioctl(ifp, cmd, data);
+			break;
 		}
+#endif
+		ether_ioctl(ifp, cmd, data);
 		break;
 
 	case SIOCSIFMTU:
@@ -1450,6 +1454,7 @@ qls_tx_done(void *context, int pending)
 static int
 qls_config_lro(qla_host_t *ha)
 {
+#if defined(INET) || defined(INET6)
         int i;
         struct lro_ctrl *lro;
 
@@ -1465,12 +1470,14 @@ qls_config_lro(qla_host_t *ha)
         ha->flags.lro_init = 1;
 
         QL_DPRINT2((ha->pci_dev, "%s: LRO initialized\n", __func__));
+#endif
         return (0);
 }
 
 static void
 qls_free_lro(qla_host_t *ha)
 {
+#if defined(INET) || defined(INET6)
         int i;
         struct lro_ctrl *lro;
 
@@ -1482,6 +1489,7 @@ qls_free_lro(qla_host_t *ha)
                 tcp_lro_free(lro);
         }
         ha->flags.lro_init = 0;
+#endif
 }
 
 static void

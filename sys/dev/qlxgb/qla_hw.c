@@ -1770,6 +1770,7 @@ qla_update_link_state(qla_host_t *ha)
 int
 qla_config_lro(qla_host_t *ha)
 {
+#if defined(INET) || defined(INET6)
 	int i;
         qla_hw_t *hw = &ha->hw;
 	struct lro_ctrl *lro;
@@ -1786,12 +1787,14 @@ qla_config_lro(qla_host_t *ha)
 	ha->flags.lro_init = 1;
 
 	QL_DPRINT2((ha->pci_dev, "%s: LRO initialized\n", __func__));
+#endif
 	return (0);
 }
 
 void
 qla_free_lro(qla_host_t *ha)
 {
+#if defined(INET) || defined(INET6)
 	int i;
         qla_hw_t *hw = &ha->hw;
 	struct lro_ctrl *lro;
@@ -1804,6 +1807,7 @@ qla_free_lro(qla_host_t *ha)
 		tcp_lro_free(lro);
 	}
 	ha->flags.lro_init = 0;
+#endif
 }
 
 void

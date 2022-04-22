@@ -68,9 +68,11 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 	uint32_t		i, rem_len = 0;
 	uint32_t		r_idx = 0;
 	qla_rx_ring_t		*rx_ring;
+#if defined(INET) || defined(INET6)
 	struct lro_ctrl		*lro;
 
 	lro = &ha->hw.sds[sds_idx].lro;
+#endif
 
 	if (ha->hw.num_rds_rings > 1)
 		r_idx = sds_idx;
@@ -173,6 +175,7 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 #endif
 #endif /* #if __FreeBSD_version >= 1100000 */
 
+#if defined(INET) || defined(INET6)
 	if (ha->hw.enable_soft_lro) {
 #if (__FreeBSD_version >= 1100101)
 
@@ -184,7 +187,9 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 
 #endif /* #if (__FreeBSD_version >= 1100101) */
 
-	} else {
+	} else
+#endif
+	{
 		(*ifp->if_input)(ifp, mpf);
 	}
 
@@ -725,6 +730,7 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		}
 	}
 
+#if defined(INET) || defined(INET6)
 	if (ha->hw.enable_soft_lro) {
 		struct lro_ctrl		*lro;
 
@@ -745,6 +751,7 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 
 #endif /* #if (__FreeBSD_version >= 1100101) */
 	}
+#endif
 
 	if (ha->stop_rcv)
 		goto ql_rcv_isr_exit;
