@@ -283,6 +283,8 @@ device		cpufreq
 # Network interfaces:
 #
 
+# axp: AMD EPYC integrated NIC
+#	Requires the miibus module
 # bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
 # ice:	Intel 800 Series Physical Function
@@ -303,9 +305,8 @@ device		cpufreq
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
-# axp: AMD EPYC integrated NIC
-#   Requires the miibus module
 
+device		axp		# AMD EPYC integrated NIC
 device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		igc		# Intel I225 2.5G Ethernet
 device		ipw		# Intel 2100 wireless NICs.
@@ -323,7 +324,6 @@ device		nfe		# nVidia nForce MCP on-board Ethernet
 device		sfxge		# Solarflare SFC9000 10Gb Ethernet
 device		vmx		# VMware VMXNET3 Ethernet
 device		wpi		# Intel 3945ABG wireless NICs.
-device		axp		# AMD EPYC integrated NIC
 
 # IEEE 802.11 adapter firmware modules
 
