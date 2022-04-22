@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.333 2022/03/03 19:46:31 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.334 2022/04/15 09:33:20 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -95,7 +95,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.333 2022/03/03 19:46:31 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.334 2022/04/15 09:33:20 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -710,7 +710,7 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 	return true;
 }
 
-/* Parse a function call expression, such as 'defined(${file})'. */
+/* Parse a function call expression, such as 'exists(${file})'. */
 static bool
 CondParser_FuncCall(CondParser *par, bool doEval, Token *out_token)
 {

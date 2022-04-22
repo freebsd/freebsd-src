@@ -1468,12 +1468,11 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1m.PHONY   [22mApply the [1m.PHONY [22mattribute to any specified sources.
 
-     [1m.POSIX   [22mThis should be the first non-comment line in a Makefile.  It re-
-              sults in the variable [4m%POSIX[24m being defined with the value
-              `1003.2'.  The first time [1m.POSIX [22mis encountered, the makefile
-              `posix.mk' will be included if possible, to provide POSIX com-
-              patible default rules.  If [1mbmake [22mis run with the [1m-r [22mflag, then
-              only `posix.mk' will contribute to the default rules.
+     [1m.POSIX   [22mIf this is the first non-comment line in the main makefile, the
+              variable [4m%POSIX[24m is set to the value `1003.2' and the makefile
+              `<posix.mk>' is included if it exists, to provide POSIX-compati-
+              ble default rules.  If [1mbmake [22mis run with the [1m-r [22mflag, then only
+              `posix.mk' will contribute to the default rules.
 
      [1m.PRECIOUS[0m
               Apply the [1m.PRECIOUS [22mattribute to any specified sources.  If no
@@ -1629,4 +1628,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 13.0                    March 24, 2022                    FreeBSD 13.0
+FreeBSD 13.0                    April 18, 2022                    FreeBSD 13.0

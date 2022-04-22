@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.579 2022/03/22 23:37:09 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.580 2022/04/18 15:06:27 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -111,7 +111,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.579 2022/03/22 23:37:09 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.580 2022/04/18 15:06:27 rillig Exp $");
 #if defined(MAKE_NATIVE) && !defined(lint)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -1507,6 +1507,7 @@ main_ReadFiles(void)
 	if (!opts.noBuiltins)
 		ReadBuiltinRules();
 
+	posix_state = PS_MAYBE_NEXT_LINE;
 	if (!Lst_IsEmpty(&opts.makefiles))
 		ReadAllMakefiles(&opts.makefiles);
 	else
