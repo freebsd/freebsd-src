@@ -146,6 +146,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	struct socket *so;
 	struct mbuf *opts = NULL, *tmp_opts;
 	struct udpcb *up;
+	bool filtered;
 
 	INP_LOCK_ASSERT(inp);
 
@@ -156,10 +157,11 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	if (up->u_tun_func != NULL) {
 		in_pcbref(inp);
 		INP_RUNLOCK(inp);
-		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)&fromsa[0],
-		    up->u_tun_ctx);
+		filtered = (*up->u_tun_func)(n, off, inp,
+		    (struct sockaddr *)&fromsa[0], up->u_tun_ctx);
 		INP_RLOCK(inp);
-		return (in_pcbrele_rlocked(inp));
+		if (filtered)
+			return (in_pcbrele_rlocked(inp));
 	}
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	/* Check AH/ESP integrity. */
