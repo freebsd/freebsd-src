@@ -187,6 +187,7 @@ iwm_te_handle_notif(struct iwm_softc *sc,
 	    le32toh(notif->action));
 
 	if (!le32toh(notif->status)) {
+#ifdef IWM_DEBUG
 		const char *msg;
 
 		if (notif->action & htole32(IWM_TE_V2_NOTIF_HOST_EVENT_START))
@@ -195,6 +196,7 @@ iwm_te_handle_notif(struct iwm_softc *sc,
 			msg = "Time Event end notification failure";
 
 		IWM_DPRINTF(sc, IWM_DEBUG_TE, "%s\n", msg);
+#endif
 	}
 
 	if (le32toh(notif->action) & IWM_TE_V2_NOTIF_HOST_EVENT_END) {
