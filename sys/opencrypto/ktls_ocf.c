@@ -47,7 +47,20 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/ktls.h>
 
+struct ktls_ocf_sw {
+	/* Encrypt a single outbound TLS record. */
+	int	(*encrypt)(struct ktls_ocf_encrypt_state *state,
+	    struct ktls_session *tls, struct mbuf *m,
+	    struct iovec *outiov, int outiovcnt);
+
+	/* Decrypt a received TLS record. */
+	int	(*decrypt)(struct ktls_session *tls,
+	    const struct tls_record_layer *hdr, struct mbuf *m,
+	    uint64_t seqno, int *trailer_len);
+};
+
 struct ktls_ocf_session {
+	const struct ktls_ocf_sw *sw;
 	crypto_session_t sid;
 	crypto_session_t mac_sid;
 	struct mtx lock;
@@ -386,6 +399,10 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 	return (error);
 }
 
+static const struct ktls_ocf_sw ktls_ocf_tls_cbc_sw = {
+	.encrypt = ktls_ocf_tls_cbc_encrypt
+};
+
 static int
 ktls_ocf_tls12_aead_encrypt(struct ktls_ocf_encrypt_state *state,
     struct ktls_session *tls, struct mbuf *m, struct iovec *outiov,
@@ -532,6 +549,11 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 	return (error);
 }
 
+static const struct ktls_ocf_sw ktls_ocf_tls12_aead_sw = {
+	.encrypt = ktls_ocf_tls12_aead_encrypt,
+	.decrypt = ktls_ocf_tls12_aead_decrypt,
+};
+
 static int
 ktls_ocf_tls13_aead_encrypt(struct ktls_ocf_encrypt_state *state,
     struct ktls_session *tls, struct mbuf *m, struct iovec *outiov,
@@ -661,6 +683,11 @@ ktls_ocf_tls13_aead_decrypt(struct ktls_session *tls,
 	*trailer_len = tag_len;
 	return (error);
 }
+
+static const struct ktls_ocf_sw ktls_ocf_tls13_aead_sw = {
+	.encrypt = ktls_ocf_tls13_aead_encrypt,
+	.decrypt = ktls_ocf_tls13_aead_decrypt,
+};
 
 void
 ktls_ocf_free(struct ktls_session *tls)
@@ -806,19 +833,12 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 	tls->ocf_session = os;
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16 ||
 	    tls->params.cipher_algorithm == CRYPTO_CHACHA20_POLY1305) {
-		if (direction == KTLS_TX) {
-			if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)
-				tls->sw_encrypt = ktls_ocf_tls13_aead_encrypt;
-			else
-				tls->sw_encrypt = ktls_ocf_tls12_aead_encrypt;
-		} else {
-			if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)
-				tls->sw_decrypt = ktls_ocf_tls13_aead_decrypt;
-			else
-				tls->sw_decrypt = ktls_ocf_tls12_aead_decrypt;
-		}
+		if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)
+			os->sw = &ktls_ocf_tls13_aead_sw;
+		else
+			os->sw = &ktls_ocf_tls12_aead_sw;
 	} else {
-		tls->sw_encrypt = ktls_ocf_tls_cbc_encrypt;
+		os->sw = &ktls_ocf_tls_cbc_sw;
 		if (tls->params.tls_vminor == TLS_MINOR_VER_ZERO) {
 			os->implicit_iv = true;
 			memcpy(os->iv, tls->params.iv, AES_BLOCK_LEN);
@@ -836,4 +856,20 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 	tls->sync_dispatch = CRYPTO_SESS_SYNC(os->sid) ||
 	    tls->params.cipher_algorithm == CRYPTO_AES_CBC;
 	return (0);
+}
+
+int
+ktls_ocf_encrypt(struct ktls_ocf_encrypt_state *state,
+    struct ktls_session *tls, struct mbuf *m, struct iovec *outiov,
+    int outiovcnt)
+{
+	return (tls->ocf_session->sw->encrypt(state, tls, m, outiov,
+	    outiovcnt));
+}
+
+int
+ktls_ocf_decrypt(struct ktls_session *tls, const struct tls_record_layer *hdr,
+    struct mbuf *m, uint64_t seqno, int *trailer_len)
+{
+	return (tls->ocf_session->sw->decrypt(tls, hdr, m, seqno, trailer_len));
 }

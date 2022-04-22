@@ -2073,7 +2073,7 @@ ktls_decrypt(struct socket *so)
 		SBCHECK(sb);
 		SOCKBUF_UNLOCK(sb);
 
-		error = tls->sw_decrypt(tls, hdr, data, seqno, &trail_len);
+		error = ktls_ocf_decrypt(tls, hdr, data, seqno, &trail_len);
 		if (error == 0) {
 			if (tls13)
 				error = tls13_find_record_type(tls, data,
@@ -2262,7 +2262,7 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 
 	/* Anonymous mbufs are encrypted in place. */
 	if ((m->m_epg_flags & EPG_FLAG_ANON) != 0)
-		return (tls->sw_encrypt(state, tls, m, NULL, 0));
+		return (ktls_ocf_encrypt(state, tls, m, NULL, 0));
 
 	/*
 	 * For file-backed mbufs (from sendfile), anonymous wired
@@ -2292,7 +2292,7 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 	state->dst_iov[i].iov_base = m->m_epg_trail;
 	state->dst_iov[i].iov_len = m->m_epg_trllen;
 
-	error = tls->sw_encrypt(state, tls, m, state->dst_iov, i + 1);
+	error = ktls_ocf_encrypt(state, tls, m, state->dst_iov, i + 1);
 
 	if (__predict_false(error != 0)) {
 		/* Free the anonymous pages. */
