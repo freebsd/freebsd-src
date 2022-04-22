@@ -5030,6 +5030,7 @@ static const struct
 	{PCIC_DASP,		PCIS_DASP_PERFCNTRS,	1, "performance counters"},
 	{PCIC_DASP,		PCIS_DASP_COMM_SYNC,	1, "communication synchronizer"},
 	{PCIC_DASP,		PCIS_DASP_MGMT_CARD,	1, "signal processing management"},
+	{PCIC_INSTRUMENT,	-1,			0, "non-essential instrumentation"},
 	{0, 0, 0,		NULL}
 };
 
