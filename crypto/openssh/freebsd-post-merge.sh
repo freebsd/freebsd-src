@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
-#
 
 xargs perl -n -i -e '
 	print;

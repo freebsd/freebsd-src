@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
-#
 
 :>keywords
 :>rcsid
