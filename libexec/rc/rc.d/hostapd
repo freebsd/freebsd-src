@@ -15,9 +15,11 @@ command=${hostapd_program}
 start_postcmd="hostapd_poststart"
 
 hostapd_poststart() {
-	ifconfig ${ifn} down
-	sleep 2
-	ifconfig ${ifn} up
+	if [ -n "$ifn" ]; then
+		ifconfig ${ifn} down
+		sleep 2
+		ifconfig ${ifn} up
+	fi
 }
 
 ifn="$2"
