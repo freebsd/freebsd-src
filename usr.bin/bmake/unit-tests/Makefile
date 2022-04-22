@@ -2,9 +2,9 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 # $FreeBSD$
-# $Id: Makefile,v 1.178 2022/03/26 23:10:27 sjg Exp $
+# $Id: Makefile,v 1.180 2022/04/18 21:25:37 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.311 2022/03/26 12:44:57 rillig Exp $
+# $NetBSD: Makefile,v 1.312 2022/04/18 15:06:28 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -146,6 +146,7 @@ TESTS+=		deptgt-order
 TESTS+=		deptgt-path
 TESTS+=		deptgt-path-suffix
 TESTS+=		deptgt-phony
+TESTS+=		deptgt-posix
 TESTS+=		deptgt-precious
 TESTS+=		deptgt-shell
 TESTS+=		deptgt-silent
@@ -444,31 +445,26 @@ TESTS+=		varparse-mod
 TESTS+=		varparse-undef-partial
 TESTS+=		varquote
 
-# for now at least
-.if ${.SHELL:T} == "ksh"
+# some shells have quirks
+_shell := ${.SHELL:tA:T}
+.if ${_shell} == "dash" 
+# dash fails -x output
+BROKEN_TESTS+= opt-debug-x-trace
+.elif ${_shell} == "ksh"
 BROKEN_TESTS+= sh-flags
 .endif
+
 .if ${.MAKE.OS:NDarwin} == ""
 BROKEN_TESTS+= shell-ksh
 .endif
-.if ${.MAKE.OS} == "Linux" && ${.SHELL:tA:T} != "bash"
-.if exists(/etc/os-release)
-distro!= . /etc/os-release && echo $$NAME
-.endif
-# dash fails -x output
-# .SHELL is not bash so may be dash
-# if distro is Ubuntu or we cannot tell, assume the worst
-.if ${distro:U:NUbuntu} == ""
-BROKEN_TESTS+= opt-debug-x-trace
-.endif
-.endif
+
 .if ${.MAKE.OS} == "SCO_SV"
 BROKEN_TESTS+= \
 	opt-debug-graph[23] \
 	varmod-localtime \
 	varmod-to-separator \
 
-.if ${.SHELL:T} == "bash"
+.if ${_shell} == "bash"
 BROKEN_TESTS+= job-output-null
 .else
 BROKEN_TESTS+= \

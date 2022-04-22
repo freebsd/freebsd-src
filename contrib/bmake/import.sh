@@ -84,7 +84,7 @@ if [ -z "$ECHO" ]; then
     test -s $TF.rm && xargs rm -f < $TF.rm
     $GIT add -A
     $GIT diff --staged | tee $SB/tmp/bmake-import.diff
-    { echo "$GIT tag -a vendor/NetBSD/bmake/$VERSION"
+    { echo "$GIT tag -a -m \"Tag bmake/$VERSION\" vendor/NetBSD/bmake/$VERSION"
       echo "echo \"When ready do: $GIT push --follow-tags\""
     } > $SB/tmp/bmake-post.sh
     echo "After you commit, run $SB/tmp/bmake-post.sh"

@@ -1,4 +1,4 @@
-# $NetBSD: deptgt-silent-jobs.mk,v 1.2 2022/02/12 11:14:48 rillig Exp $
+# $NetBSD: deptgt-silent-jobs.mk,v 1.3 2022/04/15 09:33:20 rillig Exp $
 #
 # Ensure that the special dependency target '.SILENT' only affects the amount
 # of output, but not the kind of error handling.
@@ -28,7 +28,6 @@ compat:
 	@${MAKE} -r -f ${MAKEFILE} test VARIANT=compat
 
 # expect: jobs: testing 1
-# expect: echo 'jobs: testing 2'
 # expect: jobs: testing 2
 # expect: jobs: testing 3
 jobs:

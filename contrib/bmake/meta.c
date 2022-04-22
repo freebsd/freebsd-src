@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.199 2022/03/04 23:17:16 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.200 2022/04/15 12:28:16 rillig Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -387,12 +387,10 @@ printCMDs(GNode *gn, FILE *fp)
 /*
  * Certain node types never get a .meta file
  */
-#define SKIP_META_TYPE(_type) do { \
-    if ((gn->type & __CONCAT(OP_, _type))) { \
-	if (verbose) { \
-	    debug_printf("Skipping meta for %s: .%s\n", \
-		    gn->name, __STRING(_type)); \
-	} \
+#define SKIP_META_TYPE(flag, str) do { \
+    if ((gn->type & (flag))) { \
+	if (verbose) \
+	    debug_printf("Skipping meta for %s: .%s\n", gn->name, str); \
 	return false; \
     } \
 } while (false)
@@ -413,12 +411,12 @@ meta_needed(GNode *gn, const char *dname,
     /* This may be a phony node which we don't want meta data for... */
     /* Skip .meta for .BEGIN, .END, .ERROR etc as well. */
     /* Or it may be explicitly flagged as .NOMETA */
-    SKIP_META_TYPE(NOMETA);
+    SKIP_META_TYPE(OP_NOMETA, "NOMETA");
     /* Unless it is explicitly flagged as .META */
     if (!(gn->type & OP_META)) {
-	SKIP_META_TYPE(PHONY);
-	SKIP_META_TYPE(SPECIAL);
-	SKIP_META_TYPE(MAKE);
+	SKIP_META_TYPE(OP_PHONY, "PHONY");
+	SKIP_META_TYPE(OP_SPECIAL, "SPECIAL");
+	SKIP_META_TYPE(OP_MAKE, "MAKE");
     }
 
     /* Check if there are no commands to execute. */

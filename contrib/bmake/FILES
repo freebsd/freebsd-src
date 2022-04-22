@@ -274,6 +274,8 @@ unit-tests/deptgt-path.exp
 unit-tests/deptgt-path.mk
 unit-tests/deptgt-phony.exp
 unit-tests/deptgt-phony.mk
+unit-tests/deptgt-posix.exp
+unit-tests/deptgt-posix.mk
 unit-tests/deptgt-precious.exp
 unit-tests/deptgt-precious.mk
 unit-tests/deptgt-shell.exp

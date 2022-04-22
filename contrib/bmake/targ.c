@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.176 2022/01/07 20:50:35 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.177 2022/04/15 12:19:28 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -107,7 +107,7 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.176 2022/01/07 20:50:35 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.177 2022/04/15 12:19:28 rillig Exp $");
 
 /*
  * All target nodes that appeared on the left-hand side of one of the
@@ -410,6 +410,7 @@ Targ_PrintType(GNodeType type)
 		{ OP_IGNORE,	false,	"IGNORE"	},
 		{ OP_EXEC,	false,	"EXEC"		},
 		{ OP_USE,	false,	"USE"		},
+		{ OP_USEBEFORE,	false,	"USEBEFORE"	},
 		{ OP_OPTIONAL,	false,	"OPTIONAL"	},
 	};
 	size_t i;

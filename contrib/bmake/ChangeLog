@@ -1,3 +1,21 @@
+2022-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220418
+	Merge with NetBSD make, pick up
+	o ignore '.POSIX:' if not in first non-comment line
+	of Makefile as specified by POSIX.
+	add unit-tests for above.
+	o meta.c: make it easier to find usage of identifiers
+	o targ.c: add .USEBEFORE to Targ_PrintType
+
+2022-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20220414
+
+	* unit-tests/Makefile: simplify checks for shells with
+	BROKEN_TESTS, this helps with other Linux distros that
+	use dash.
+
 2022-03-30  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20220330

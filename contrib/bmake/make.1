@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.307 2022/03/26 15:39:58 sjg Exp $
+.\"	$NetBSD: make.1,v 1.308 2022/04/18 15:06:27 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd March 24, 2022
+.Dd April 18, 2022
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -2302,17 +2302,15 @@ Apply the
 .Ic .PHONY
 attribute to any specified sources.
 .It Ic .POSIX
-This should be the first non-comment line in a Makefile.
-It results in the variable
+If this is the first non-comment line in the main makefile,
+the variable
 .Va %POSIX
-being defined with the value
-.Ql 1003.2 .
-The first time
-.Ic .POSIX
-is encountered, the makefile
-.Ql posix.mk
-will be included if possible,
-to provide POSIX compatible default rules.
+is set to the value
+.Ql 1003.2
+and the makefile
+.Ql <posix.mk>
+is included if it exists,
+to provide POSIX-compatible default rules.
 If
 .Nm
 is run with the
