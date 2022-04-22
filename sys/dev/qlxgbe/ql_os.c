@@ -1022,7 +1022,9 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int ret = 0;
 	struct ifreq *ifr = (struct ifreq *)data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	qla_host_t *ha;
 
 	ha = (qla_host_t *)ifp->if_softc;
@@ -1034,6 +1036,7 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		QL_DPRINT4(ha, (ha->pci_dev, "%s: SIOCSIFADDR (0x%lx)\n",
 			__func__, cmd));
 
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ret = QLA_LOCK(ha, __func__,
 					QLA_LOCK_DEFAULT_MS_TIMEOUT,
@@ -1058,9 +1061,10 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ntohl(IA_SIN(ifa)->sin_addr.s_addr)));
 
 			arp_ifinit(ifp, ifa);
-		} else {
-			ether_ioctl(ifp, cmd, data);
+			break;
 		}
+#endif
+		ether_ioctl(ifp, cmd, data);
 		break;
 
 	case SIOCSIFMTU:

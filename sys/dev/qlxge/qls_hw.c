@@ -527,9 +527,12 @@ qls_init_fw_routing_table_exit:
 static int
 qls_tx_tso_chksum(qla_host_t *ha, struct mbuf *mp, q81_tx_tso_t *tx_mac)
 {
+#if defined(INET) || defined(INET6)
         struct ether_vlan_header *eh;
         struct ip *ip;
+#if defined(INET6)
         struct ip6_hdr *ip6;
+#endif
 	struct tcphdr *th;
         uint32_t ehdrlen, ip_hlen;
 	int ret = 0;
@@ -547,6 +550,7 @@ qls_tx_tso_chksum(qla_host_t *ha, struct mbuf *mp, q81_tx_tso_t *tx_mac)
         }
 
         switch (etype) {
+#ifdef INET
                 case ETHERTYPE_IP:
                         ip = (struct ip *)(mp->m_data + ehdrlen);
 
@@ -587,7 +591,9 @@ qls_tx_tso_chksum(qla_host_t *ha, struct mbuf *mp, q81_tx_tso_t *tx_mac)
 				tx_mac->flags |= Q81_TX_TSO_FLAGS_UC;
                         }
                 break;
+#endif
 
+#ifdef INET6
                 case ETHERTYPE_IPV6:
                         ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 
@@ -613,6 +619,7 @@ qls_tx_tso_chksum(qla_host_t *ha, struct mbuf *mp, q81_tx_tso_t *tx_mac)
 				tx_mac->flags |= Q81_TX_TSO_FLAGS_UC;
                         }
                 break;
+#endif
 
                 default:
                         ret = -1;
@@ -620,6 +627,9 @@ qls_tx_tso_chksum(qla_host_t *ha, struct mbuf *mp, q81_tx_tso_t *tx_mac)
         }
 
         return (ret);
+#else
+	return (-1);
+#endif
 }
 
 #define QLA_TX_MIN_FREE 2

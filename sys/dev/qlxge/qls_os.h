@@ -36,6 +36,8 @@
 #ifndef _QLS_OS_H_
 #define _QLS_OS_H_
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
