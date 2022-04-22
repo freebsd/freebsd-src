@@ -167,8 +167,8 @@ struct tls_session_params {
 #define	KTLS_RX		2
 
 struct iovec;
-struct ktls_ocf_session;
 struct ktls_ocf_encrypt_state;
+struct ktls_ocf_session;
 struct ktls_session;
 struct m_snd_tag;
 struct mbuf;
@@ -176,14 +176,6 @@ struct sockbuf;
 struct socket;
 
 struct ktls_session {
-	union {
-		int	(*sw_encrypt)(struct ktls_ocf_encrypt_state *state,
-		    struct ktls_session *tls, struct mbuf *m,
-		    struct iovec *outiov, int outiovcnt);
-		int	(*sw_decrypt)(struct ktls_session *tls,
-		    const struct tls_record_layer *hdr, struct mbuf *m,
-		    uint64_t seqno, int *trailer_len);
-	};
 	struct ktls_ocf_session *ocf_session;
 	struct m_snd_tag *snd_tag;
 	struct tls_session_params params;
