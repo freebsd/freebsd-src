@@ -3056,7 +3056,12 @@ static int
 iwm_get_noise(struct iwm_softc *sc,
     const struct iwm_statistics_rx_non_phy *stats)
 {
-	int i, total, nbant, noise;
+	int i, noise;
+#ifdef IWM_DEBUG
+	int nbant, total;
+#else
+	int nbant __unused, total __unused;
+#endif
 
 	total = nbant = noise = 0;
 	for (i = 0; i < 3; i++) {
@@ -5487,12 +5492,14 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			break;
 
 		case IWM_SCAN_ITERATION_COMPLETE_UMAC: {
+#ifdef IWM_DEBUG
 			struct iwm_umac_scan_iter_complete_notif *notif;
 			notif = (void *)pkt->data;
 
 			IWM_DPRINTF(sc, IWM_DEBUG_SCAN, "UMAC scan iteration "
 			    "complete, status=0x%x, %d channels scanned\n",
 			    notif->status, notif->scanned_channels);
+#endif
 			break;
 		}
 
@@ -5522,6 +5529,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			break;
 
 		case IWM_SCD_QUEUE_CFG: {
+#ifdef IWM_DEBUG
 			struct iwm_scd_txq_cfg_rsp *rsp;
 			rsp = (void *)pkt->data;
 
@@ -5530,6 +5538,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			    "tid=%d scd_queue=%d\n",
 			    rsp->token, rsp->sta_id, rsp->tid,
 			    rsp->scd_queue);
+#endif
 			break;
 		}
 
