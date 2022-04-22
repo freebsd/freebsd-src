@@ -139,9 +139,12 @@ qla_rx_intr(qla_host_t *ha, uint64_t data, uint32_t sds_idx,
 		mp->m_pkthdr.csum_flags = 0;
 	}
 
+#if defined(INET) || defined(INET6)
 	if (lro->lro_cnt && (tcp_lro_rx(lro, mp, 0) == 0)) {
 		/* LRO packet has been successfully queued */
-	} else {
+	} else
+#endif
+	{
 		(*ifp->if_input)(ifp, mp);
 	}
 
@@ -322,7 +325,9 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		}
 	}
 
+#if defined(INET) || defined(INET6)
 	tcp_lro_flush_all(lro);
+#endif
 
 	if (hw->sds[sds_idx].sdsr_next != comp_idx) {
 		QL_UPDATE_SDS_CONSUMER_INDEX(ha, sds_idx, comp_idx);
