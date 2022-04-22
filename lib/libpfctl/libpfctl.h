@@ -99,6 +99,7 @@ struct pfctl_eth_rule {
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
 	uint64_t		 bytes[2];
+	uint32_t		 last_active_timestamp;
 
 	/* Action */
 	char			 qname[PF_QNAME_SIZE];
@@ -171,6 +172,7 @@ struct pfctl_rule {
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
 	uint64_t		 bytes[2];
+	uint32_t		 last_active_timestamp;
 
 	struct pfi_kif		*kif;
 	struct pfctl_anchor	*anchor;

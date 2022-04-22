@@ -512,6 +512,10 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 	pf_nvuint_64_array(nvl, "packets", 2, rule->packets, NULL);
 	pf_nvuint_64_array(nvl, "bytes", 2, rule->bytes, NULL);
 
+	if (nvlist_exists_number(nvl, "timestamp")) {
+		rule->last_active_timestamp = nvlist_get_number(nvl, "timestamp");
+	}
+
 	rule->os_fingerprint = nvlist_get_number(nvl, "os_fingerprint");
 
 	rule->rtableid = nvlist_get_number(nvl, "rtableid");
@@ -642,6 +646,10 @@ pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
 	rule->bytes[0] = nvlist_get_number(nvl, "bytes-in");
 	rule->bytes[1] = nvlist_get_number(nvl, "bytes-out");
 
+	if (nvlist_exists_number(nvl, "timestamp")) {
+		rule->last_active_timestamp = nvlist_get_number(nvl, "timestamp");
+	}
+
 	strlcpy(rule->qname, nvlist_get_string(nvl, "qname"), PF_QNAME_SIZE);
 	strlcpy(rule->tagname, nvlist_get_string(nvl, "tagname"),
 	    PF_TAG_NAME_SIZE);
@@ -737,7 +745,7 @@ pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
 	nvlist_add_number(nvl, "nr", nr);
 	nvlist_add_bool(nvl, "clear", clear);
 
-	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULE, 2048, &nvl)) != 0)
+	if ((ret = pfctl_do_ioctl(dev, DIOCGETETHRULE, 4096, &nvl)) != 0)
 		return (ret);
 
 	pfctl_nveth_rule_to_eth_rule(nvl, rule);

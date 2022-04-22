@@ -286,6 +286,26 @@ pf_counter_u64_zero(struct pf_counter_u64 *pfcu64)
 }
 #endif
 
+#define pf_get_timestamp(prule)({					\
+	uint32_t _ts = 0;						\
+	uint32_t __ts;							\
+	int cpu;							\
+	CPU_FOREACH(cpu) {						\
+		__ts = *zpcpu_get_cpu(prule->timestamp, cpu);		\
+		if (__ts > _ts)						\
+			_ts = __ts;					\
+	}								\
+	_ts;								\
+})
+
+#define pf_update_timestamp(prule)					\
+	do {								\
+		critical_enter();					\
+		*zpcpu_get((prule)->timestamp) = time_second;		\
+		critical_exit();					\
+	} while (0)
+
+
 SYSCTL_DECL(_net_pf);
 MALLOC_DECLARE(M_PFHASH);
 
@@ -657,6 +677,7 @@ struct pf_keth_rule {
 	counter_u64_t		 evaluations;
 	counter_u64_t		 packets[2];
 	counter_u64_t		 bytes[2];
+	uint32_t		*timestamp;
 
 	/* Action */
 	char			 qname[PF_QNAME_SIZE];
@@ -696,6 +717,7 @@ struct pf_krule {
 	struct pf_counter_u64	 evaluations;
 	struct pf_counter_u64	 packets[2];
 	struct pf_counter_u64	 bytes[2];
+	uint32_t		*timestamp;
 
 	struct pfi_kkif		*kif;
 	struct pf_kanchor	*anchor;

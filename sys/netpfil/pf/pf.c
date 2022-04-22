@@ -3971,6 +3971,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	/* Execute action. */
 	counter_u64_add(r->packets[dir == PF_OUT], 1);
 	counter_u64_add(r->bytes[dir == PF_OUT], m_length(m, NULL));
+	pf_update_timestamp(r);
 
 	/* Shortcut. Don't tag if we're just going to drop anyway. */
 	if (r->action == PF_DROP) {
@@ -7198,6 +7199,8 @@ done:
 		dirndx = (dir == PF_OUT);
 		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
 		pf_counter_u64_add_protected(&r->bytes[dirndx], pd.tot_len);
+		pf_update_timestamp(r);
+
 		if (a != NULL) {
 			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
 			pf_counter_u64_add_protected(&a->bytes[dirndx], pd.tot_len);
