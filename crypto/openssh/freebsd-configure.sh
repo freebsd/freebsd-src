@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
-#
 
 configure_args="
     --prefix=/usr
@@ -49,10 +47,9 @@ mv config.h config.h.sk-builtin
 sh configure $configure_args --without-kerberos5 --without-security-key-builtin
 
 # Extract the difference
-echo '/* $Free''BSD$ */' > krb5_config.h
 diff -u config.h.kerberos5 config.h |
 	sed -n '/^-#define/s/^-//p' |
-	grep -Ff /dev/stdin config.h.kerberos5 >> krb5_config.h
+	grep -Ff /dev/stdin config.h.kerberos5 > krb5_config.h
 
 # Extract the difference - SK
 diff -u config.h.sk-builtin config.h |
