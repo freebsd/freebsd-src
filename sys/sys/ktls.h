@@ -187,7 +187,12 @@ struct ktls_session {
 
 	struct task reset_tag_task;
 	struct task disable_ifnet_task;
-	struct inpcb *inp;
+	union {
+		struct inpcb *inp;	/* Used by transmit tasks. */
+		struct socket *so;	/* Used by receive task. */
+	};
+	struct ifnet *rx_ifp;
+	u_short rx_vlan_id;
 	bool reset_pending;
 	bool disable_ifnet_pending;
 	bool sync_dispatch;
@@ -200,7 +205,14 @@ struct ktls_session {
 
 extern unsigned int ktls_ifnet_max_rexmit_pct;
 
+typedef enum {
+	KTLS_MBUF_CRYPTO_ST_MIXED = 0,
+	KTLS_MBUF_CRYPTO_ST_ENCRYPTED = 1,
+	KTLS_MBUF_CRYPTO_ST_DECRYPTED = -1,
+} ktls_mbuf_crypto_st_t;
+
 void ktls_check_rx(struct sockbuf *sb);
+ktls_mbuf_crypto_st_t ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len);
 void ktls_disable_ifnet(void *arg);
 int ktls_enable_rx(struct socket *so, struct tls_enable *en);
 int ktls_enable_tx(struct socket *so, struct tls_enable *en);
@@ -215,6 +227,7 @@ int ktls_get_rx_mode(struct socket *so, int *modep);
 int ktls_set_tx_mode(struct socket *so, int mode);
 int ktls_get_tx_mode(struct socket *so, int *modep);
 int ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq);
+void ktls_input_ifp_mismatch(struct sockbuf *sb, struct ifnet *ifp);
 int ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls);
 #ifdef RATELIMIT
 int ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate);
