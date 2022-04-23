@@ -872,14 +872,8 @@ main(int ac, char **av)
 			}
 			break;
 		case 'V':
-			if (options.version_addendum != NULL &&
-			    *options.version_addendum != '\0')
-				fprintf(stderr, "%s %s, %s\n", SSH_RELEASE,
-				    options.version_addendum,
-				    SSH_OPENSSL_VERSION);
-			else
-				fprintf(stderr, "%s, %s\n", SSH_RELEASE,
-				    SSH_OPENSSL_VERSION);
+			fprintf(stderr, "%s, %s\n",
+			    SSH_RELEASE, SSH_OPENSSL_VERSION);
 			if (opt == 'V')
 				exit(0);
 			break;
@@ -1146,7 +1140,6 @@ main(int ac, char **av)
 	    !use_syslog);
 
 	if (debug_flag)
-		/* version_addendum is always NULL at this point */
 		logit("%s, %s", SSH_RELEASE, SSH_OPENSSL_VERSION);
 
 	/* Parse the configuration files */

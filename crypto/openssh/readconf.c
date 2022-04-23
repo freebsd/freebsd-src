@@ -67,7 +67,6 @@
 #include "uidswap.h"
 #include "myproposal.h"
 #include "digest.h"
-#include "version.h"
 
 /* Format of the configuration file:
 
@@ -142,7 +141,6 @@ static int process_config_line_depth(Options *options, struct passwd *pw,
 
 typedef enum {
 	oBadOption,
-	oVersionAddendum,
 	oHost, oMatch, oInclude,
 	oForwardAgent, oForwardX11, oForwardX11Trusted, oForwardX11Timeout,
 	oGatewayPorts, oExitOnForwardFailure,
@@ -329,7 +327,7 @@ static struct {
 	{ "tcprcvbuf", oDeprecated },
 	{ "noneenabled", oUnsupported },
 	{ "noneswitch", oUnsupported },
-	{ "versionaddendum", oVersionAddendum },
+	{ "versionaddendum", oDeprecated },
 
 	{ NULL, oBadOption }
 };
@@ -1983,22 +1981,6 @@ parse_pubkey_algos:
 		intptr = &options->fork_after_authentication;
 		goto parse_flag;
 
-	case oVersionAddendum:
-		if (str == NULL)
-			fatal("%.200s line %d: Missing argument.", filename,
-			    linenum);
-		len = strspn(str, WHITESPACE);
-		if (*activep && options->version_addendum == NULL) {
-			if (strcasecmp(str + len, "none") == 0)
-				options->version_addendum = xstrdup("");
-			else if (strchr(str + len, '\r') != NULL)
-				fatal("%.200s line %d: Invalid argument",
-				    filename, linenum);
-			else
-				options->version_addendum = xstrdup(str + len);
-		}
-		return 0;
-
 	case oIgnoreUnknown:
 		charptr = &options->ignored_unknown;
 		goto parse_string;
@@ -2353,7 +2335,6 @@ void
 initialize_options(Options * options)
 {
 	memset(options, 'X', sizeof(*options));
-	options->version_addendum = NULL;
 	options->forward_agent = -1;
 	options->forward_agent_sock_path = NULL;
 	options->forward_x11 = -1;
@@ -2731,8 +2712,6 @@ fill_default_options(Options * options)
 	/* options->hostname will be set in the main program if appropriate */
 	/* options->host_key_alias should not be set by default */
 	/* options->preferred_authentications will be set in ssh */
-	if (options->version_addendum == NULL)
-		options->version_addendum = xstrdup(SSH_VERSION_FREEBSD);
 
 	/* success */
 	ret = 0;
