@@ -923,10 +923,10 @@ usage(void)
 	    *options.version_addendum != '\0')
 		fprintf(stderr, "%s %s, %s\n",
 		    SSH_RELEASE,
-		    options.version_addendum, OPENSSL_VERSION_STRING);
+		    options.version_addendum, SSH_OPENSSL_VERSION);
 	else
 		fprintf(stderr, "%s, %s\n",
-		    SSH_RELEASE, OPENSSL_VERSION_STRING);
+		    SSH_RELEASE, SSH_OPENSSL_VERSION);
 	fprintf(stderr,
 "usage: sshd [-46DdeiqTt] [-C connection_spec] [-c host_cert_file]\n"
 "            [-E log_file] [-f config_file] [-g login_grace_time]\n"
