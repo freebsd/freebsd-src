@@ -53,6 +53,7 @@
 #define	SB_STOP		0x1000		/* backpressure indicator */
 #define	SB_AIO_RUNNING	0x2000		/* AIO operation running */
 #define	SB_TLS_IFNET	0x4000		/* has used / is using ifnet KTLS */
+#define	SB_TLS_RX_RESYNC 0x8000		/* KTLS RX lost HW sync */
 
 #define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
 #define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
