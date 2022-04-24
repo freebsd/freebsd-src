@@ -3704,6 +3704,9 @@ adashutdown(void *arg, int howto)
 {
 	int how;
 
+	if ((howto & RB_NOSYNC) != 0)
+		return;
+
 	adaflush();
 
 	/*

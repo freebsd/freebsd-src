@@ -1354,6 +1354,9 @@ static void
 ndashutdown(void *arg, int howto)
 {
 
+	if ((howto & RB_NOSYNC) != 0)
+		return;
+
 	ndaflush();
 }
 
