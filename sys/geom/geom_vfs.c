@@ -143,8 +143,11 @@ g_vfs_done(struct bio *bip)
 	cp = bip->bio_from;
 	sc = cp->geom->softc;
 	if (bip->bio_error != 0 && bip->bio_error != EOPNOTSUPP) {
-		if ((bp->b_xflags & BX_CVTENXIO) != 0)
-			sc->sc_enxio_active = 1;
+		if ((bp->b_xflags & BX_CVTENXIO) != 0) {
+			if (atomic_cmpset_int(&sc->sc_enxio_active, 0, 1))
+				printf("g_vfs_done(): %s converting all errors to ENXIO\n",
+				    bip->bio_to->name);
+		}
 		if (sc->sc_enxio_active)
 			bip->bio_error = ENXIO;
 		g_print_bio("g_vfs_done():", bip, "error = %d",
