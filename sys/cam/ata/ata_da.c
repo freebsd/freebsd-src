@@ -1246,6 +1246,10 @@ adaoninvalidate(struct cam_periph *periph)
 	 */
 	cam_iosched_flush(softc->cam_iosched, NULL, ENXIO);
 
+	/*
+	 * Tell GEOM that we've gone away, we'll get a callback when it is
+	 * done cleaning up its resources.
+	 */
 	disk_gone(softc->disk);
 }
 
