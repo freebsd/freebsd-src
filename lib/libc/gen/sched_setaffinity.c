@@ -34,6 +34,7 @@ int
 sched_setaffinity(pid_t pid, size_t cpusetsz, const cpuset_t *cpuset)
 {
 	cpuset_t c;
+	int error;
 
 	if (cpusetsz > sizeof(cpuset_t)) {
 		errno = EINVAL;
@@ -42,6 +43,10 @@ sched_setaffinity(pid_t pid, size_t cpusetsz, const cpuset_t *cpuset)
 		memset(&c, 0, sizeof(c));
 		memcpy(&c, cpuset, cpusetsz);
 	}
-	return (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
-	    pid == 0 ? -1 : pid, sizeof(cpuset_t), &c));
+	error = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID,
+	    pid == 0 ? -1 : pid, sizeof(cpuset_t), &c);
+	if (error == -1 && errno == EDEADLK)
+		errno = EINVAL;
+
+	return (error);
 }
