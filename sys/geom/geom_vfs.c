@@ -55,7 +55,7 @@ struct g_vfs_softc {
 	struct bufobj	*sc_bo;
 	struct g_event	*sc_event;
 	int		 sc_active;
-	int		 sc_orphaned;
+	bool		 sc_orphaned;
 	int		 sc_enxio_active;
 };
 
@@ -233,7 +233,7 @@ g_vfs_orphan(struct g_consumer *cp)
 	event = g_alloc_event(M_WAITOK);
 	mtx_lock(&sc->sc_mtx);
 	KASSERT(sc->sc_event == NULL, ("g_vfs %p already has an event", sc));
-	sc->sc_orphaned = 1;
+	sc->sc_orphaned = true;
 	destroy = (sc->sc_active == 0);
 	if (!destroy) {
 		sc->sc_event = event;
