@@ -1691,7 +1691,8 @@ static __inline uint16_t
 ieee80211_sn_sub(uint16_t sa, uint16_t sb)
 {
 
-	return ((sa - sb) & IEEE80211_SEQ_SEQ_MASK);
+	return ((sa - sb) &
+	    (IEEE80211_SEQ_SEQ_MASK >> IEEE80211_SEQ_SEQ_SHIFT));
 }
 
 static __inline void
