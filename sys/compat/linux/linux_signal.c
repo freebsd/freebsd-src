@@ -58,8 +58,13 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
 
-static int	linux_do_tkill(struct thread *td, struct thread *tdt,
+static int	linux_pksignal(struct thread *td, int pid, int sig,
 		    ksiginfo_t *ksi);
+static int	linux_psignal(struct thread *td, int pid, int sig);
+static int	linux_tdksignal(struct thread *td, lwpid_t tid,
+		    int tgid, int sig, ksiginfo_t *ksi);
+static int	linux_tdsignal(struct thread *td, lwpid_t tid,
+		    int tgid, int sig);
 static void	sicode_to_lsicode(int si_code, int *lsi_code);
 static int	linux_common_rt_sigtimedwait(struct thread *,
 		    l_sigset_t *, struct timespec *, l_siginfo_t *,
@@ -510,7 +515,7 @@ linux_rt_sigtimedwait_time64(struct thread *td,
 int
 linux_kill(struct thread *td, struct linux_kill_args *args)
 {
-	int l_signum;
+	int sig;
 
 	/*
 	 * Allow signal 0 as a means to check for privileges
@@ -519,40 +524,19 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 		return (EINVAL);
 
 	if (args->signum > 0)
-		l_signum = linux_to_bsd_signal(args->signum);
+		sig = linux_to_bsd_signal(args->signum);
 	else
-		l_signum = 0;
+		sig = 0;
 
-	return (kern_kill(td, args->pid, l_signum));
-}
-
-static int
-linux_do_tkill(struct thread *td, struct thread *tdt, ksiginfo_t *ksi)
-{
-	struct proc *p;
-	int error;
-
-	p = tdt->td_proc;
-	AUDIT_ARG_SIGNUM(ksi->ksi_signo);
-	AUDIT_ARG_PID(p->p_pid);
-	AUDIT_ARG_PROCESS(p);
-
-	error = p_cansignal(td, p, ksi->ksi_signo);
-	if (error != 0 || ksi->ksi_signo == 0)
-		goto out;
-
-	tdksignal(tdt, ksi->ksi_signo, ksi);
-
-out:
-	PROC_UNLOCK(p);
-	return (error);
+	if (args->pid > PID_MAX)
+		return (linux_psignal(td, args->pid, sig));
+	else
+		return (kern_kill(td, args->pid, sig));
 }
 
 int
 linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 {
-	struct thread *tdt;
-	ksiginfo_t ksi;
 	int sig;
 
 	if (args->pid <= 0 || args->tgid <=0)
@@ -569,17 +553,7 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 	else
 		sig = 0;
 
-	tdt = linux_tdfind(td, args->pid, args->tgid);
-	if (tdt == NULL)
-		return (ESRCH);
-
-	ksiginfo_init(&ksi);
-	ksi.ksi_signo = sig;
-	ksi.ksi_code = SI_LWP;
-	ksi.ksi_errno = 0;
-	ksi.ksi_pid = td->td_proc->p_pid;
-	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
-	return (linux_do_tkill(td, tdt, &ksi));
+	return (linux_tdsignal(td, args->pid, args->tgid, sig));
 }
 
 /*
@@ -588,8 +562,6 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 int
 linux_tkill(struct thread *td, struct linux_tkill_args *args)
 {
-	struct thread *tdt;
-	ksiginfo_t ksi;
 	int sig;
 
 	if (args->tid <= 0)
@@ -600,17 +572,7 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 
 	sig = linux_to_bsd_signal(args->sig);
 
-	tdt = linux_tdfind(td, args->tid, -1);
-	if (tdt == NULL)
-		return (ESRCH);
-
-	ksiginfo_init(&ksi);
-	ksi.ksi_signo = sig;
-	ksi.ksi_code = SI_LWP;
-	ksi.ksi_errno = 0;
-	ksi.ksi_pid = td->td_proc->p_pid;
-	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
-	return (linux_do_tkill(td, tdt, &ksi));
+	return (linux_tdsignal(td, args->tid, -1, sig));
 }
 
 static void
@@ -756,7 +718,6 @@ int
 linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args)
 {
 	l_siginfo_t linfo;
-	struct proc *p;
 	ksiginfo_t ksi;
 	int error;
 	int sig;
@@ -778,25 +739,13 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 	if (error != 0)
 		return (error);
 
-	error = ESRCH;
-	if ((p = pfind_any(args->pid)) != NULL) {
-		error = p_cansignal(td, p, sig);
-		if (error != 0) {
-			PROC_UNLOCK(p);
-			return (error);
-		}
-		error = tdsendsignal(p, NULL, sig, &ksi);
-		PROC_UNLOCK(p);
-	}
-
-	return (error);
+	return (linux_pksignal(td, args->pid, sig, &ksi));
 }
 
 int
 linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *args)
 {
 	l_siginfo_t linfo;
-	struct thread *tds;
 	ksiginfo_t ksi;
 	int error;
 	int sig;
@@ -817,11 +766,7 @@ linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *
 	if (error != 0)
 		return (error);
 
-	tds = linux_tdfind(td, args->tid, args->tgid);
-	if (tds == NULL)
-		return (ESRCH);
-
-	return (linux_do_tkill(td, tds, &ksi));
+	return (linux_tdksignal(td, args->tid, args->tgid, sig, &ksi));
 }
 
 int
@@ -840,4 +785,85 @@ linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
 
 	linux_to_bsd_sigset(&lmask, &sigmask);
 	return (kern_sigsuspend(td, sigmask));
+}
+
+static int
+linux_tdksignal(struct thread *td, lwpid_t tid, int tgid, int sig,
+    ksiginfo_t *ksi)
+{
+	struct thread *tdt;
+	struct proc *p;
+	int error;
+
+	tdt = linux_tdfind(td, tid, tgid);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	p = tdt->td_proc;
+	AUDIT_ARG_SIGNUM(sig);
+	AUDIT_ARG_PID(p->p_pid);
+	AUDIT_ARG_PROCESS(p);
+
+	error = p_cansignal(td, p, sig);
+	if (error != 0 || sig == 0)
+		goto out;
+
+	tdksignal(tdt, sig, ksi);
+
+out:
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+static int
+linux_tdsignal(struct thread *td, lwpid_t tid, int tgid, int sig)
+{
+	ksiginfo_t ksi;
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = SI_LWP;
+	ksi.ksi_pid = td->td_proc->p_pid;
+	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
+	return (linux_tdksignal(td, tid, tgid, sig, &ksi));
+}
+
+static int
+linux_pksignal(struct thread *td, int pid, int sig, ksiginfo_t *ksi)
+{
+	struct thread *tdt;
+	struct proc *p;
+	int error;
+
+	tdt = linux_tdfind(td, pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	p = tdt->td_proc;
+	AUDIT_ARG_SIGNUM(sig);
+	AUDIT_ARG_PID(p->p_pid);
+	AUDIT_ARG_PROCESS(p);
+
+	error = p_cansignal(td, p, sig);
+	if (error != 0 || sig == 0)
+		goto out;
+
+	pksignal(p, sig, ksi);
+
+out:
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+static int
+linux_psignal(struct thread *td, int pid, int sig)
+{
+	ksiginfo_t ksi;
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = SI_LWP;
+	ksi.ksi_pid = td->td_proc->p_pid;
+	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
+	return (linux_pksignal(td, pid, sig, &ksi));
 }
