@@ -97,13 +97,25 @@ MLINKS+=	ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
 		ATOMIC_VAR_INIT.3 atomic_store_explicit.3
 MLINKS+=	bitstring.3 bit_alloc.3 \
 		bitstring.3 bit_clear.3 \
+		bitstring.3 bit_count.3 \
 		bitstring.3 bit_decl.3 \
 		bitstring.3 bit_ffc.3 \
+		bitstring.3 bit_ffc_area.3 \
+		bitstring.3 bit_ffc_area_at.3 \
 		bitstring.3 bit_ffc_at.3 \
 		bitstring.3 bit_ffs.3 \
+		bitstring.3 bit_ffs_area.3 \
+		bitstring.3 bit_ffs_area_at.3 \
 		bitstring.3 bit_ffs_at.3 \
+		bitstring.3 bit_ff_at.3 \
+		bitstring.3 bit_ff_area_at.3 \
+		bitstring.3 bit_foreach.3 \
+		bitstring.3 bit_foreach_at.3 \
+		bitstring.3 bit_foreach_unset.3 \
+		bitstring.3 bit_foreach_unset_at.3 \
 		bitstring.3 bit_nclear.3 \
 		bitstring.3 bit_nset.3 \
+		bitstring.3 bit_ntest.3 \
 		bitstring.3 bit_set.3 \
 		bitstring.3 bitstr_size.3 \
 		bitstring.3 bit_test.3
