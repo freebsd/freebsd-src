@@ -1258,15 +1258,13 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	struct sigacts *ps;
 	sigset_t saved_mask, new_block;
 	struct proc *p;
-	int error, sig, timo, timevalid = 0;
-	struct timespec rts, ets, ts;
-	struct timeval tv;
+	int error, sig, timevalid = 0;
+	sbintime_t sbt, precision, tsbt;
+	struct timespec ts;
 	bool traced;
 
 	p = td->td_proc;
 	error = 0;
-	ets.tv_sec = 0;
-	ets.tv_nsec = 0;
 	traced = false;
 
 	/* Ensure the sigfastblock value is up to date. */
@@ -1275,10 +1273,19 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	if (timeout != NULL) {
 		if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
 			timevalid = 1;
-			getnanouptime(&rts);
-			timespecadd(&rts, timeout, &ets);
+			ts = *timeout;
+			if (ts.tv_sec < INT32_MAX / 2) {
+				tsbt = tstosbt(ts);
+				precision = tsbt;
+				precision >>= tc_precexp;
+				if (TIMESEL(&sbt, tsbt))
+					sbt += tc_tick_sbt;
+				sbt += tsbt;
+			} else
+				precision = sbt = 0;
 		}
-	}
+	} else
+		precision = sbt = 0;
 	ksiginfo_init(ksi);
 	/* Some signals can not be waited for. */
 	SIG_CANTMASK(waitset);
@@ -1312,21 +1319,9 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		 * POSIX says this must be checked after looking for pending
 		 * signals.
 		 */
-		if (timeout != NULL) {
-			if (!timevalid) {
-				error = EINVAL;
-				break;
-			}
-			getnanouptime(&rts);
-			if (timespeccmp(&rts, &ets, >=)) {
-				error = EAGAIN;
-				break;
-			}
-			timespecsub(&ets, &rts, &ts);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts);
-			timo = tvtohz(&tv);
-		} else {
-			timo = 0;
+		if (timeout != NULL && !timevalid) {
+			error = EINVAL;
+			break;
 		}
 
 		if (traced) {
@@ -1334,16 +1329,12 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 			break;
 		}
 
-		error = msleep(&p->p_sigacts, &p->p_mtx, PPAUSE | PCATCH,
-		    "sigwait", timo);
+		error = msleep_sbt(&p->p_sigacts, &p->p_mtx, PPAUSE | PCATCH,
+		    "sigwait", sbt, precision, C_ABSOLUTE);
 
 		/* The syscalls can not be restarted. */
 		if (error == ERESTART)
 			error = EINTR;
-
-		/* We will calculate timeout by ourself. */
-		if (timeout != NULL && error == EAGAIN)
-			error = 0;
 
 		/*
 		 * If PTRACE_SCE or PTRACE_SCX were set after
