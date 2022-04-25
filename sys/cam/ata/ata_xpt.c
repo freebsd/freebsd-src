@@ -2039,52 +2039,46 @@ static void
 ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 	      struct cam_ed *device, void *async_arg)
 {
-	cam_status status;
-	struct cam_path newpath;
-
 	/*
 	 * We only need to handle events for real devices.
 	 */
-	if (target->target_id == CAM_TARGET_WILDCARD
-	 || device->lun_id == CAM_LUN_WILDCARD)
+	if (target->target_id == CAM_TARGET_WILDCARD ||
+	    device->lun_id == CAM_LUN_WILDCARD)
 		return;
 
-	/*
-	 * We need our own path with wildcards expanded to
-	 * handle certain types of events.
-	 */
-	if ((async_code == AC_SENT_BDR)
-	 || (async_code == AC_BUS_RESET)
-	 || (async_code == AC_INQ_CHANGED))
+	switch (async_code) {
+	case AC_SENT_BDR:
+	case AC_BUS_RESET:
+	case AC_INQ_CHANGED: {
+		cam_status status;
+		struct cam_path newpath;
+		cam_flags flags;
+
+		/*
+		 * We need our own path with wildcards expanded to handle these
+		 * events.
+		 */
 		status = xpt_compile_path(&newpath, NULL,
 					  bus->path_id,
 					  target->target_id,
 					  device->lun_id);
-	else
-		status = CAM_REQ_CMP_ERR;
+		if (status != CAM_REQ_CMP)
+			break; /* fail safe and just drop it */
 
-	if (status == CAM_REQ_CMP) {
-		if (async_code == AC_INQ_CHANGED) {
-			/*
-			 * We've sent a start unit command, or
-			 * something similar to a device that
-			 * may have caused its inquiry data to
-			 * change. So we re-scan the device to
-			 * refresh the inquiry data for it.
-			 */
-			ata_scan_lun(newpath.periph, &newpath,
-				     CAM_EXPECT_INQ_CHANGE, NULL);
-		} else {
-			/* We need to reinitialize device after reset. */
-			ata_scan_lun(newpath.periph, &newpath,
-				     0, NULL);
-		}
+		/*
+		 * For AC_INQ_CHANGED, we've sent a start unit command, or
+		 * something similar to a device that may have caused its
+		 * inquiry data to change. So we re-scan the device to refresh
+		 * the inquiry data for it, allowing changes. Otherwise we rescan
+		 * without allowing changes to respond to the reset, not allowing
+		 * changes.
+		 */
+		flags = async_code == AC_INQ_CHANGED ? CAM_EXPECT_INQ_CHANGE : 0;
+		ata_scan_lun(newpath.periph, &newpath, flags, NULL);
 		xpt_release_path(&newpath);
-	} else if (async_code == AC_LOST_DEVICE &&
-	    (device->flags & CAM_DEV_UNCONFIGURED) == 0) {
-		device->flags |= CAM_DEV_UNCONFIGURED;
-		xpt_release_device(device);
-	} else if (async_code == AC_TRANSFER_NEG) {
+		break;
+	}
+	case AC_TRANSFER_NEG: {
 		struct ccb_trans_settings *settings;
 		struct cam_path path;
 
@@ -2094,6 +2088,14 @@ ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		ata_set_transfer_settings(settings, &path,
 					  /*async_update*/TRUE);
 		xpt_release_path(&path);
+		break;
+	}
+	case AC_LOST_DEVICE:
+		if ((device->flags & CAM_DEV_UNCONFIGURED) == 0) {
+			device->flags |= CAM_DEV_UNCONFIGURED;
+			xpt_release_device(device);
+		}
+		break;
 	}
 }
 
