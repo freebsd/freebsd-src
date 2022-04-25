@@ -109,10 +109,10 @@ xentimer_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Handle all Xen PV timers in one device instance. */
-	if (devclass_get_device(xentimer_devclass, 0))
+	if (devclass_get_device(devclass_find(driver->name), 0))
 		return;
 
-	BUS_ADD_CHILD(parent, 0, "xen_et", 0);
+	BUS_ADD_CHILD(parent, 0, driver->name, 0);
 }
 
 static int
