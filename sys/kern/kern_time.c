@@ -411,7 +411,7 @@ kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		return (error);
 	if (clock_id != CLOCK_REALTIME)
 		return (EINVAL);
-	if (ats->tv_nsec < 0 || ats->tv_nsec >= NS_PER_SEC || ats->tv_sec < 0)
+	if (!timespecvalid_interval(ats))
 		return (EINVAL);
 	if (!allow_insane_settime &&
 	    (ats->tv_sec > 8000ULL * 365 * 24 * 60 * 60 ||
@@ -1644,7 +1644,7 @@ static int
 itimespecfix(struct timespec *ts)
 {
 
-	if (ts->tv_sec < 0 || ts->tv_nsec < 0 || ts->tv_nsec >= NS_PER_SEC)
+	if (!timespecvalid_interval(ts))
 		return (EINVAL);
 	if ((UINT64_MAX - ts->tv_nsec) / NS_PER_SEC < ts->tv_sec)
 		return (EINVAL);

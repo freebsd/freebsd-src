@@ -3772,9 +3772,7 @@ umtx_copyin_timeout(const void *uaddr, struct timespec *tsp)
 
 	error = copyin(uaddr, tsp, sizeof(*tsp));
 	if (error == 0) {
-		if (tsp->tv_sec < 0 ||
-		    tsp->tv_nsec >= 1000000000 ||
-		    tsp->tv_nsec < 0)
+		if (!timespecvalid_interval(tsp))
 			error = EINVAL;
 	}
 	return (error);
@@ -3793,8 +3791,7 @@ umtx_copyin_umtx_time(const void *uaddr, size_t size, struct _umtx_time *tp)
 		error = copyin(uaddr, tp, sizeof(*tp));
 	if (error != 0)
 		return (error);
-	if (tp->_timeout.tv_sec < 0 ||
-	    tp->_timeout.tv_nsec >= 1000000000 || tp->_timeout.tv_nsec < 0)
+	if (!timespecvalid_interval(&tp->_timeout))
 		return (EINVAL);
 	return (0);
 }
@@ -4640,9 +4637,7 @@ umtx_copyin_timeouti386(const void *uaddr, struct timespec *tsp)
 
 	error = copyin(uaddr, &ts32, sizeof(ts32));
 	if (error == 0) {
-		if (ts32.tv_sec < 0 ||
-		    ts32.tv_nsec >= 1000000000 ||
-		    ts32.tv_nsec < 0)
+		if (!timespecvalid_interval(&ts32))
 			error = EINVAL;
 		else {
 			CP(ts32, *tsp, tv_sec);
@@ -4666,8 +4661,7 @@ umtx_copyin_umtx_timei386(const void *uaddr, size_t size, struct _umtx_time *tp)
 		error = copyin(uaddr, &t32, sizeof(t32));
 	if (error != 0)
 		return (error);
-	if (t32._timeout.tv_sec < 0 ||
-	    t32._timeout.tv_nsec >= 1000000000 || t32._timeout.tv_nsec < 0)
+	if (!timespecvalid_interval(&t32._timeout))
 		return (EINVAL);
 	TS_CP(t32, *tp, _timeout);
 	CP(t32, *tp, _flags);
@@ -4704,9 +4698,7 @@ umtx_copyin_timeoutx32(const void *uaddr, struct timespec *tsp)
 
 	error = copyin(uaddr, &ts32, sizeof(ts32));
 	if (error == 0) {
-		if (ts32.tv_sec < 0 ||
-		    ts32.tv_nsec >= 1000000000 ||
-		    ts32.tv_nsec < 0)
+		if (!timespecvalid_interval(&ts32))
 			error = EINVAL;
 		else {
 			CP(ts32, *tsp, tv_sec);
@@ -4730,8 +4722,7 @@ umtx_copyin_umtx_timex32(const void *uaddr, size_t size, struct _umtx_time *tp)
 		error = copyin(uaddr, &t32, sizeof(t32));
 	if (error != 0)
 		return (error);
-	if (t32._timeout.tv_sec < 0 ||
-	    t32._timeout.tv_nsec >= 1000000000 || t32._timeout.tv_nsec < 0)
+	if (!timespecvalid_interval(&t32._timeout))
 		return (EINVAL);
 	TS_CP(t32, *tp, _timeout);
 	CP(t32, *tp, _flags);

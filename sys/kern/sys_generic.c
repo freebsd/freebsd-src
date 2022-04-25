@@ -1501,9 +1501,7 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 
 	precision = 0;
 	if (tsp != NULL) {
-		if (tsp->tv_sec < 0)
-			return (EINVAL);
-		if (tsp->tv_nsec < 0 || tsp->tv_nsec >= 1000000000)
+		if (!timespecvalid_interval(tsp))
 			return (EINVAL);
 		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
 			sbt = 0;

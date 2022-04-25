@@ -142,7 +142,7 @@ int
 linux_to_native_timespec(struct timespec *ntp, struct l_timespec *ltp)
 {
 
-	if (ltp->tv_sec < 0 || ltp->tv_nsec < 0 || ltp->tv_nsec > 999999999)
+	if (!timespecvalid_interval(ltp))
 		return (EINVAL);
 	ntp->tv_sec = ltp->tv_sec;
 	ntp->tv_nsec = ltp->tv_nsec;
@@ -165,7 +165,7 @@ int
 linux_to_native_timespec64(struct timespec *ntp, struct l_timespec64 *ltp64)
 {
 
-	if (ltp64->tv_sec < 0 || ltp64->tv_nsec < 0 || ltp64->tv_nsec > 999999999)
+	if (!timespecvalid_interval(ltp64))
 		return (EINVAL);
 	ntp->tv_sec = ltp64->tv_sec;
 	ntp->tv_nsec = ltp64->tv_nsec;
