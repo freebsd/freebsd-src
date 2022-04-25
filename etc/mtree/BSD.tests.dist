@@ -805,6 +805,8 @@
         mqueue
         ..
         net
+            if_ovpn
+            ..
             routing
             ..
         ..
