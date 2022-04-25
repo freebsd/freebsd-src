@@ -309,8 +309,7 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 	rk->rk_killed = 0;
 	rk->rk_fpid = -1;
 	if ((rk->rk_flags & REAPER_KILL_CHILDREN) != 0) {
-		for (p2 = LIST_FIRST(&reap->p_children); p2 != NULL;
-		    p2 = LIST_NEXT(p2, p_sibling)) {
+		LIST_FOREACH(p2, &reap->p_children, p_sibling) {
 			reap_kill_proc(td, p2, &ksi, rk, &error);
 			/*
 			 * Do not end the loop on error, signal
@@ -323,8 +322,8 @@ reap_kill(struct thread *td, struct proc *p, void *data)
 		while ((t = TAILQ_FIRST(&tracker)) != NULL) {
 			MPASS((t->parent->p_treeflag & P_TREE_REAPER) != 0);
 			TAILQ_REMOVE(&tracker, t, link);
-			for (p2 = LIST_FIRST(&t->parent->p_reaplist); p2 != NULL;
-			    p2 = LIST_NEXT(p2, p_reapsibling)) {
+			LIST_FOREACH(p2, &t->parent->p_reaplist,
+			    p_reapsibling) {
 				if (t->parent == reap &&
 				    (rk->rk_flags & REAPER_KILL_SUBTREE) != 0 &&
 				    p2->p_reapsubtree != rk->rk_subtree)
