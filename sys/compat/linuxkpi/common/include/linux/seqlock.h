@@ -30,6 +30,7 @@
 #define	_LINUXKPI_LINUX_SEQLOCK_H__
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/seqc.h>
@@ -100,29 +101,52 @@ seqlock_init(struct seqlock *seqlock)
 }
 
 static inline void
-write_seqlock(struct seqlock *seqlock)
+lkpi_write_seqlock(struct seqlock *seqlock, const bool irqsave)
 {
 	mtx_lock(&seqlock->seql_lock);
+	if (irqsave)
+		critical_enter();
 	write_seqcount_begin(&seqlock->seql_count);
+}
+
+static inline void
+write_seqlock(struct seqlock *seqlock)
+{
+	lkpi_write_seqlock(seqlock, false);
+}
+
+static inline void
+lkpi_write_sequnlock(struct seqlock *seqlock, const bool irqsave)
+{
+	write_seqcount_end(&seqlock->seql_count);
+	if (irqsave)
+		critical_exit();
+	mtx_unlock(&seqlock->seql_lock);
 }
 
 static inline void
 write_sequnlock(struct seqlock *seqlock)
 {
-	write_seqcount_end(&seqlock->seql_count);
-	mtx_unlock(&seqlock->seql_lock);
+	lkpi_write_sequnlock(seqlock, false);
 }
 
+/*
+ * Disable preemption when the consumer wants to disable interrupts.  This
+ * ensures that the caller won't be starved if it is preempted by a
+ * higher-priority reader, but assumes that the caller won't perform any
+ * blocking operations while holding the write lock; probably a safe
+ * assumption.
+ */
 #define	write_seqlock_irqsave(seqlock, flags)	do {	\
 	(flags) = 0;					\
-	write_seqlock(seqlock);				\
+	lkpi_write_seqlock(seqlock, true);		\
 } while (0)
 
 static inline void
 write_sequnlock_irqrestore(struct seqlock *seqlock,
     unsigned long flags __unused)
 {
-	write_sequnlock(seqlock);
+	lkpi_write_sequnlock(seqlock, true);
 }
 
 static inline unsigned
