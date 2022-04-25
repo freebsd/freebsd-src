@@ -141,8 +141,9 @@ test_sigtimedwait_timeout_eagain(time_t sec, bool zero_tmo)
 	/* now >= ts */
 	ATF_REQUIRE(clock_gettime(CLOCK_REALTIME, &now) == 0);
 	ATF_REQUIRE_MSG(timespeccmp(&now, &ts, >=) == true,
-	    "timespeccmp: now { %ld.%ld } < ts { %ld.%ld }",
-	    now.tv_sec, now.tv_nsec, ts.tv_sec, ts.tv_nsec);
+	    "timespeccmp: now { %jd.%ld } < ts { %jd.%ld }",
+	    (intmax_t)now.tv_sec, now.tv_nsec,
+	    (intmax_t)ts.tv_sec, ts.tv_nsec);
 }
 
 ATF_TC(test_sigtimedwait_timeout_eagain0);
