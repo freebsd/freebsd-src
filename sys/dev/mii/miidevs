@@ -315,6 +315,7 @@ model xxQUALSEMI QS6612		0x0000 QS6612 10/100 media interface
 
 /* RDC Semiconductor PHYs */
 model RDC R6040			0x0003 R6040 10/100 media interface
+model RDC R6040_2		0x0005 R6040 10/100 media interface
 
 /* RealTek Semicondctor PHYs */
 model yyREALTEK RTL8201L	0x0020 RTL8201L 10/100 media interface

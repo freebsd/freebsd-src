@@ -85,6 +85,7 @@ static void	rdcphy_status(struct mii_softc *);
 
 static const struct mii_phydesc rdcphys[] = {
 	MII_PHY_DESC(RDC, R6040),
+	MII_PHY_DESC(RDC, R6040_2),
 	MII_PHY_END
 };
 
