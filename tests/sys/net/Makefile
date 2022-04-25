@@ -15,6 +15,7 @@ ATF_TESTS_SH+=	if_stf
 ATF_TESTS_SH+=	if_tun_test
 ATF_TESTS_SH+=	if_vlan
 
+TESTS_SUBDIRS+=	if_ovpn
 TESTS_SUBDIRS+=	routing
 
 # The tests are written to be run in parallel, but doing so leads to random
