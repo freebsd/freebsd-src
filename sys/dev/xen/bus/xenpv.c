@@ -77,14 +77,14 @@ xenpv_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Make sure there's only one xenpv device. */
-	if (devclass_get_device(xenpv_devclass, 0))
+	if (devclass_get_device(devclass_find(driver->name), 0))
 		return;
 
 	/*
 	 * The xenpv bus should be the last to attach in order
 	 * to properly detect if an ISA bus has already been added.
 	 */
-	if (BUS_ADD_CHILD(parent, UINT_MAX, "xenpv", 0) == NULL)
+	if (BUS_ADD_CHILD(parent, UINT_MAX, driver->name, 0) == NULL)
 		panic("Unable to attach xenpv bus.");
 }
 
