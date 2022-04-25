@@ -400,28 +400,20 @@ bsd_to_linux_sockaddr(const struct sockaddr *sa, struct l_sockaddr **lsa,
     socklen_t len)
 {
 	struct l_sockaddr *kosa;
-	int error, bdom;
+	int bdom;
 
 	*lsa = NULL;
 	if (len < 2 || len > UCHAR_MAX)
 		return (EINVAL);
+	bdom = bsd_to_linux_domain(sa->sa_family);
+	if (bdom == -1)
+		return (EAFNOSUPPORT);
 
 	kosa = malloc(len, M_SONAME, M_WAITOK);
 	bcopy(sa, kosa, len);
-
-	bdom = bsd_to_linux_domain(sa->sa_family);
-	if (bdom == -1) {
-		error = EAFNOSUPPORT;
-		goto out;
-	}
-
 	kosa->sa_family = bdom;
 	*lsa = kosa;
 	return (0);
-
-out:
-	free(kosa, M_SONAME);
-	return (error);
 }
 
 int
