@@ -2710,34 +2710,34 @@ linux_tdfind(struct thread *td, lwpid_t tid, pid_t pid)
 
 	tdt = NULL;
 	if (tid == 0 || tid == td->td_tid) {
-		tdt = td;
-		PROC_LOCK(tdt->td_proc);
+		if (pid != -1 && td->td_proc->p_pid != pid)
+			return (NULL);
+		PROC_LOCK(td->td_proc);
+		return (td);
 	} else if (tid > PID_MAX)
-		tdt = tdfind(tid, pid);
-	else {
-		/*
-		 * Initial thread where the tid equal to the pid.
-		 */
-		p = pfind(tid);
-		if (p != NULL) {
-			if (SV_PROC_ABI(p) != SV_ABI_LINUX) {
-				/*
-				 * p is not a Linuxulator process.
-				 */
-				PROC_UNLOCK(p);
-				return (NULL);
-			}
-			FOREACH_THREAD_IN_PROC(p, tdt) {
-				em = em_find(tdt);
-				if (tid == em->em_tid)
-					return (tdt);
-			}
-			PROC_UNLOCK(p);
-		}
-		return (NULL);
-	}
+		return (tdfind(tid, pid));
 
-	return (tdt);
+	/*
+	 * Initial thread where the tid equal to the pid.
+	 */
+	p = pfind(tid);
+	if (p != NULL) {
+		if (SV_PROC_ABI(p) != SV_ABI_LINUX ||
+		    (pid != -1 && tid != pid)) {
+			/*
+			 * p is not a Linuxulator process.
+			 */
+			PROC_UNLOCK(p);
+			return (NULL);
+		}
+		FOREACH_THREAD_IN_PROC(p, tdt) {
+			em = em_find(tdt);
+			if (tid == em->em_tid)
+				return (tdt);
+		}
+		PROC_UNLOCK(p);
+	}
+	return (NULL);
 }
 
 void
