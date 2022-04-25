@@ -404,6 +404,8 @@ tvtosbt(struct timeval _tv)
 			(vsp)->tv_nsec += 1000000000L;			\
 		}							\
 	} while (0)
+#define	timespecvalid_interval(tsp)	((tsp)->tv_sec >= 0 &&		\
+	    (tsp)->tv_nsec >= 0 && (tsp)->tv_nsec < 1000000000L)
 
 #ifdef _KERNEL
 
