@@ -98,7 +98,92 @@ atf_test_case "4in4" "cleanup"
 	ovpn_cleanup
 }
 
+atf_test_case "timeout_client" "cleanup"
+timeout_client_head()
+{
+	atf_set descr 'IPv4 in IPv4 tunnel'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+timeout_client_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a 192.0.2.1/24 up
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping -c 1 192.0.2.2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp4
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local 192.0.2.1
+		server 198.51.100.0 255.255.255.0
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 2 10
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		ping 2
+		ping-exit 10
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+
+	# Kill the server
+	jexec a killall openvpn
+
+	# Now wait for the client to notice
+	sleep 20
+
+	if [ jexec b pgrep openvpn ]; then
+		jexec b ps auxf
+		atf_fail "OpenVPN client still running?"
+	fi
+}
+
+timeout_client_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "4in4"
+	atf_add_test_case "timeout_client"
 }
