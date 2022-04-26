@@ -746,15 +746,18 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
 	DEVMETHOD_END
 };
+
 static driver_t ahci_driver = {
         "ahci",
         ahci_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, NULL, NULL);
+
+DRIVER_MODULE(ahci, pci, ahci_driver, NULL, NULL);
 /* Also matches class / subclass / progid XXX need to add when we have masking support */
 MODULE_PNP_INFO("W32:vendor/device", pci, ahci, ahci_ids,
     nitems(ahci_ids) - 1);
+
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_ata_probe),
 	DEVMETHOD(device_attach,    ahci_pci_attach),
@@ -769,9 +772,11 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_child_location, ahci_child_location),
 	DEVMETHOD_END
 };
+
 static driver_t ahci_ata_driver = {
         "ahci",
         ahci_ata_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, NULL, NULL);
+
+DRIVER_MODULE(ahci, atapci, ahci_ata_driver, NULL, NULL);
