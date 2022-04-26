@@ -136,7 +136,7 @@ reaper_abandon_children(struct proc *p, bool exiting)
 {
 	struct proc *p1, *p2, *ptmp;
 
-	sx_assert(&proctree_lock, SX_LOCKED);
+	sx_assert(&proctree_lock, SX_XLOCKED);
 	KASSERT(p != initproc, ("reaper_abandon_children for initproc"));
 	if ((p->p_treeflag & P_TREE_REAPER) == 0)
 		return;
