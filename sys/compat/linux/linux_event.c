@@ -535,6 +535,62 @@ linux_epoll_pwait(struct thread *td, struct linux_epoll_pwait_args *args)
 	    args->maxevents, args->timeout, pmask));
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_epoll_pwait2_64(struct thread *td, struct linux_epoll_pwait2_64_args *args)
+{
+	struct timespec ts, *tsa;
+	struct l_timespec64 lts;
+	sigset_t mask, *pmask;
+	int error;
+
+	error = linux_copyin_sigset(args->mask, sizeof(l_sigset_t),
+	    &mask, &pmask);
+	if (error != 0)
+		return (error);
+
+	if (args->timeout) {
+		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
+			return (error);
+		error = linux_to_native_timespec64(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsa = &ts;
+	} else
+		tsa = NULL;
+
+	return (linux_epoll_wait_ts(td, args->epfd, args->events,
+	    args->maxevents, tsa, pmask));
+}
+#else
+int
+linux_epoll_pwait2(struct thread *td, struct linux_epoll_pwait2_args *args)
+{
+	struct timespec ts, *tsa;
+	struct l_timespec lts;
+	sigset_t mask, *pmask;
+	int error;
+
+	error = linux_copyin_sigset(args->mask, sizeof(l_sigset_t),
+	    &mask, &pmask);
+	if (error != 0)
+		return (error);
+
+	if (args->timeout) {
+		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
+			return (error);
+		error = linux_to_native_timespec(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsa = &ts;
+	} else
+		tsa = NULL;
+
+	return (linux_epoll_wait_ts(td, args->epfd, args->events,
+	    args->maxevents, tsa, pmask));
+}
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
 static int
 epoll_register_kevent(struct thread *td, struct file *epfp, int fd, int filter,
     unsigned int flags)
