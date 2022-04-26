@@ -2379,7 +2379,7 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 {
 	struct l_timespec lts;
 	struct timespec ts, *tsp;
-	int error;
+	int error, error2;
 
 	if (args->tsp != NULL) {
 		error = copyin(args->tsp, &lts, sizeof(lts));
@@ -2394,13 +2394,11 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 
 	error = linux_common_pselect6(td, args->nfds, args->readfds,
 	    args->writefds, args->exceptfds, tsp, args->sig);
-	if (error != 0)
-		return (error);
 
 	if (args->tsp != NULL) {
-		error = native_to_linux_timespec(&lts, tsp);
-		if (error == 0)
-			error = copyout(&lts, args->tsp, sizeof(lts));
+		error2 = native_to_linux_timespec(&lts, tsp);
+		if (error2 == 0)
+			copyout(&lts, args->tsp, sizeof(lts));
 	}
 	return (error);
 }
@@ -2452,21 +2450,17 @@ linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
 	error = kern_pselect(td, nfds, readfds, writefds,
 	    exceptfds, tvp, ssp, LINUX_NFDBITS);
 
-	if (error == 0 && tsp != NULL) {
-		if (td->td_retval[0] != 0) {
-			/*
-			 * Compute how much time was left of the timeout,
-			 * by subtracting the current time and the time
-			 * before we started the call, and subtracting
-			 * that result from the user-supplied value.
-			 */
-
-			microtime(&tv1);
-			timevalsub(&tv1, &tv0);
-			timevalsub(&utv, &tv1);
-			if (utv.tv_sec < 0)
-				timevalclear(&utv);
-		} else
+	if (tsp != NULL) {
+		/*
+		 * Compute how much time was left of the timeout,
+		 * by subtracting the current time and the time
+		 * before we started the call, and subtracting
+		 * that result from the user-supplied value.
+		 */
+		microtime(&tv1);
+		timevalsub(&tv1, &tv0);
+		timevalsub(&utv, &tv1);
+		if (utv.tv_sec < 0)
 			timevalclear(&utv);
 		TIMEVAL_TO_TIMESPEC(&utv, tsp);
 	}
@@ -2480,7 +2474,7 @@ linux_pselect6_time64(struct thread *td,
 {
 	struct l_timespec64 lts;
 	struct timespec ts, *tsp;
-	int error;
+	int error, error2;
 
 	if (args->tsp != NULL) {
 		error = copyin(args->tsp, &lts, sizeof(lts));
@@ -2495,13 +2489,11 @@ linux_pselect6_time64(struct thread *td,
 
 	error = linux_common_pselect6(td, args->nfds, args->readfds,
 	    args->writefds, args->exceptfds, tsp, args->sig);
-	if (error != 0)
-		return (error);
 
 	if (args->tsp != NULL) {
-		error = native_to_linux_timespec64(&lts, tsp);
-		if (error == 0)
-			error = copyout(&lts, args->tsp, sizeof(lts));
+		error2 = native_to_linux_timespec64(&lts, tsp);
+		if (error2 == 0)
+			copyout(&lts, args->tsp, sizeof(lts));
 	}
 	return (error);
 }
