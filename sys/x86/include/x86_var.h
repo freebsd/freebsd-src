@@ -134,7 +134,6 @@ void	initializecpu(void);
 void	initializecpucache(void);
 bool	fix_cpuid(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
-int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
 void	handle_ibrs_entry(void);
 void	handle_ibrs_exit(void);

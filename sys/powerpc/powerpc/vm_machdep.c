@@ -209,23 +209,6 @@ cpu_exit(struct thread *td)
 }
 
 /*
- * Tell whether this address is in some physical memory region.
- * Currently used by the kernel coredump code in order to avoid
- * dumping the ``ISA memory hole'' which could cause indefinite hangs,
- * or other unpredictable behaviour.
- */
-int
-is_physical_memory(vm_offset_t addr)
-{
-
-	/*
-	 * stuff other tests for known memory-mapped devices (PCI?)
-	 * here
-	 */
-	return (1);
-}
-
-/*
  * CPU threading functions related to the VM layer. These could be used
  * to map the SLB bits required for the kernel stack instead of forcing a
  * fixed-size KVA.
