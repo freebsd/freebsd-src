@@ -2031,7 +2031,8 @@ repeat_set_config:
 			goto repeat_set_config;
 		}
 #if USB_HAVE_MSCTEST
-		if (config_index == 0) {
+		if (config_index == 0 &&
+		    usb_test_quirk(&uaa, UQ_MSC_NO_INQUIRY) == 0) {
 			/*
 			 * Try to figure out if we have an
 			 * auto-install disk there:
@@ -2051,7 +2052,8 @@ repeat_set_config:
 	    usb_test_quirk(&uaa, UQ_MSC_NO_PREVENT_ALLOW) == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_TEST_UNIT_READY) == 0 &&
-	    usb_test_quirk(&uaa, UQ_MSC_NO_GETMAXLUN) == 0) {
+	    usb_test_quirk(&uaa, UQ_MSC_NO_GETMAXLUN) == 0 &&
+	    usb_test_quirk(&uaa, UQ_MSC_NO_INQUIRY) == 0) {
 		/*
 		 * Try to figure out if there are any MSC quirks we
 		 * should apply automatically:
