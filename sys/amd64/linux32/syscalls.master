@@ -2515,7 +2515,14 @@
 		int linux_process_madvise(void);
 	}
 441    AUE_NULL		STD {
-		int linux_epoll_pwait2(void);
+		int linux_epoll_pwait2_64(
+		    l_int epfd,
+		    struct epoll_event *events,
+		    l_int maxevents,
+		    struct l_timespec64 *timeout,
+		    l_sigset_t *mask,
+		    l_size_t sigsetsize
+		);
 	}
 442    AUE_NULL		STD {
 		int linux_mount_setattr(void);
