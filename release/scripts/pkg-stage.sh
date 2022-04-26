@@ -86,7 +86,9 @@ ${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 # using the on-disc packages.
 mkdir -p ${PKG_REPODIR}/Latest
 (cd ${PKG_REPODIR}/Latest && \
-	ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).txz pkg.txz)
+	ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg pkg.pkg)
+(cd ${PKG_REPODIR}/Latest && \
+	rm -f pkg.txz && ln -s pkg.pkg pkg.txz)
 
 ${PKGCMD} repo ${PKG_REPODIR}
 
