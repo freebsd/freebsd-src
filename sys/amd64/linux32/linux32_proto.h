@@ -1670,8 +1670,13 @@ struct linux_faccessat2_args {
 struct linux_process_madvise_args {
 	syscallarg_t dummy;
 };
-struct linux_epoll_pwait2_args {
-	syscallarg_t dummy;
+struct linux_epoll_pwait2_64_args {
+	char epfd_l_[PADL_(l_int)]; l_int epfd; char epfd_r_[PADR_(l_int)];
+	char events_l_[PADL_(struct epoll_event *)]; struct epoll_event * events; char events_r_[PADR_(struct epoll_event *)];
+	char maxevents_l_[PADL_(l_int)]; l_int maxevents; char maxevents_r_[PADR_(l_int)];
+	char timeout_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * timeout; char timeout_r_[PADR_(struct l_timespec64 *)];
+	char mask_l_[PADL_(l_sigset_t *)]; l_sigset_t * mask; char mask_r_[PADR_(l_sigset_t *)];
+	char sigsetsize_l_[PADL_(l_size_t)]; l_size_t sigsetsize; char sigsetsize_r_[PADR_(l_size_t)];
 };
 struct linux_mount_setattr_args {
 	syscallarg_t dummy;
@@ -2038,7 +2043,7 @@ int	linux_openat2(struct thread *, struct linux_openat2_args *);
 int	linux_pidfd_getfd(struct thread *, struct linux_pidfd_getfd_args *);
 int	linux_faccessat2(struct thread *, struct linux_faccessat2_args *);
 int	linux_process_madvise(struct thread *, struct linux_process_madvise_args *);
-int	linux_epoll_pwait2(struct thread *, struct linux_epoll_pwait2_args *);
+int	linux_epoll_pwait2_64(struct thread *, struct linux_epoll_pwait2_64_args *);
 int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX32_SYS_AUE_linux_exit	AUE_EXIT
 #define	LINUX32_SYS_AUE_linux_fork	AUE_FORK
@@ -2401,7 +2406,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX32_SYS_AUE_linux_pidfd_getfd	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_faccessat2	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_process_madvise	AUE_NULL
-#define	LINUX32_SYS_AUE_linux_epoll_pwait2	AUE_NULL
+#define	LINUX32_SYS_AUE_linux_epoll_pwait2_64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_mount_setattr	AUE_NULL
 
 #undef PAD_

@@ -448,7 +448,7 @@ const char *linux_syscallnames[] = {
 	"linux_pidfd_getfd",			/* 438 = linux_pidfd_getfd */
 	"linux_faccessat2",			/* 439 = linux_faccessat2 */
 	"linux_process_madvise",			/* 440 = linux_process_madvise */
-	"linux_epoll_pwait2",			/* 441 = linux_epoll_pwait2 */
+	"linux_epoll_pwait2_64",			/* 441 = linux_epoll_pwait2_64 */
 	"linux_mount_setattr",			/* 442 = linux_mount_setattr */
 	"#443",			/* 443 = nosys */
 };
