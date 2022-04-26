@@ -402,6 +402,6 @@
 #define	LINUX32_SYS_linux_pidfd_getfd	438
 #define	LINUX32_SYS_linux_faccessat2	439
 #define	LINUX32_SYS_linux_process_madvise	440
-#define	LINUX32_SYS_linux_epoll_pwait2	441
+#define	LINUX32_SYS_linux_epoll_pwait2_64	441
 #define	LINUX32_SYS_linux_mount_setattr	442
 #define	LINUX32_SYS_MAXSYSCALL	444
