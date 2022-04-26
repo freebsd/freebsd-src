@@ -140,7 +140,6 @@ DUMMY(close_range);
 DUMMY(openat2);
 DUMMY(pidfd_getfd);
 DUMMY(process_madvise);
-DUMMY(epoll_pwait2);
 DUMMY(mount_setattr);
 /* Linux 4.18: */
 DUMMY(io_pgetevents);
