@@ -1352,8 +1352,6 @@ adaasync(void *callback_arg, u_int32_t code,
 		adasetflags(softc, &cgd);
 		adasetgeom(softc, &cgd);
 		disk_resize(softc->disk, M_NOWAIT);
-
-		cam_periph_async(periph, code, path, arg);
 		break;
 	}
 	case AC_ADVINFO_CHANGED:
@@ -1374,7 +1372,6 @@ adaasync(void *callback_arg, u_int32_t code,
 	case AC_BUS_RESET:
 	{
 		softc = (struct ada_softc *)periph->softc;
-		cam_periph_async(periph, code, path, arg);
 		if (softc->state != ADA_STATE_NORMAL)
 			break;
 		if (ADA_RA >= 0 && softc->flags & ADA_FLAG_CAN_RAHEAD)
@@ -1385,16 +1382,17 @@ adaasync(void *callback_arg, u_int32_t code,
 		      && (softc->zone_mode != ADA_ZONE_NONE))
 			softc->state = ADA_STATE_LOGDIR;
 		else
-		    break;
+			break;
 		if (cam_periph_acquire(periph) != 0)
 			softc->state = ADA_STATE_NORMAL;
 		else
 			xpt_schedule(periph, CAM_PRIORITY_DEV);
-	}
-	default:
-		cam_periph_async(periph, code, path, arg);
 		break;
 	}
+	default:
+		break;
+	}
+	cam_periph_async(periph, code, path, arg);
 }
 
 static int
