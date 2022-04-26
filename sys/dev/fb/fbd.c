@@ -362,10 +362,8 @@ driver_t fbd_driver = {
 	sizeof(struct fbd_softc)
 };
 
-devclass_t	fbd_devclass;
-
-DRIVER_MODULE(fbd, fb, fbd_driver, fbd_devclass, 0, 0);
-DRIVER_MODULE(fbd, drmn, fbd_driver, fbd_devclass, 0, 0);
-DRIVER_MODULE(fbd, udl, fbd_driver, fbd_devclass, 0, 0);
+DRIVER_MODULE(fbd, fb, fbd_driver, 0, 0);
+DRIVER_MODULE(fbd, drmn, fbd_driver, 0, 0);
+DRIVER_MODULE(fbd, udl, fbd_driver, 0, 0);
 MODULE_VERSION(fbd, 1);
 
