@@ -2039,7 +2039,12 @@
 		int linux_io_pgetevents(void);
 	}
 334	AUE_NULL	STD {
-		int linux_rseq(void);
+		int linux_rseq(
+		    struct linux_rseq *rseq,
+		    uint32_t rseq_len,
+		    l_int flags,
+		    uint32_t sig
+		);
 	}
 ; Linux 5.0:
 335-423	AUE_NULL	UNIMPL	nosys
