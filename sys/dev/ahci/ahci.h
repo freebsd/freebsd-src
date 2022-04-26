@@ -674,5 +674,3 @@ void ahci_attached(device_t dev, struct ahci_channel *ch);
 void ahci_detached(device_t dev, struct ahci_channel *ch);
 struct ahci_channel * ahci_getch(device_t dev, int n);
 void ahci_putch(struct ahci_channel *ch);
-
-extern devclass_t ahci_devclass;
