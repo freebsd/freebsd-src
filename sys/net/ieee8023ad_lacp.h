@@ -222,6 +222,7 @@ struct lacp_port {
 #define	lp_key		lp_actor.lip_key
 #define	lp_systemid	lp_actor.lip_systemid
 	struct timeval		lp_last_lacpdu;
+	struct timeval		lp_last_lacpdu_rx;
 	int			lp_lacpdu_sent;
 	enum lacp_mux_state	lp_mux_state;
 	enum lacp_selected	lp_selected;
