@@ -58,7 +58,6 @@ extern  int hw_direct_map;
 
 void	__syncicache(void *, int);
 
-int	is_physical_memory(vm_offset_t addr);
 int	mem_valid(vm_offset_t addr, int len);
 
 void	decr_init(void);
