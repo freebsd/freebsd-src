@@ -2613,7 +2613,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_rseq */
 	case 334: {
-		*n_args = 0;
+		struct linux_rseq_args *p = params;
+		uarg[a++] = (intptr_t)p->rseq; /* struct linux_rseq * */
+		uarg[a++] = p->rseq_len; /* uint32_t */
+		iarg[a++] = p->flags; /* l_int */
+		uarg[a++] = p->sig; /* uint32_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_pidfd_send_signal */
@@ -6964,6 +6969,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rseq */
 	case 334:
+		switch (ndx) {
+		case 0:
+			p = "userland struct linux_rseq *";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "l_int";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_pidfd_send_signal */
 	case 424:
@@ -8499,6 +8520,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 333:
 	/* linux_rseq */
 	case 334:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_pidfd_send_signal */
 	case 424:
 		if (ndx == 0 || ndx == 1)
