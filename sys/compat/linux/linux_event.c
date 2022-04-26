@@ -421,15 +421,15 @@ leave1:
 /*
  * Wait for a filter to be triggered on the epoll file descriptor.
  */
+
 static int
-linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
-    int maxevents, int timeout, sigset_t *uset)
+linux_epoll_wait_ts(struct thread *td, int epfd, struct epoll_event *events,
+    int maxevents, struct timespec *tsp, sigset_t *uset)
 {
 	struct epoll_copyout_args coargs;
 	struct kevent_copyops k_ops = { &coargs,
 					epoll_kev_copyout,
 					NULL};
-	struct timespec ts, *tsp;
 	cap_rights_t rights;
 	struct file *epfp;
 	sigset_t omask;
@@ -467,20 +467,6 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 	coargs.count = 0;
 	coargs.error = 0;
 
-	/*
-	 * Linux epoll_wait(2) man page states that timeout of -1 causes caller
-	 * to block indefinitely. Real implementation does it if any negative
-	 * timeout value is passed.
-	 */
-	if (timeout >= 0) {
-		/* Convert from milliseconds to timespec. */
-		ts.tv_sec = timeout / 1000;
-		ts.tv_nsec = (timeout % 1000) * 1000000;
-		tsp = &ts;
-	} else {
-		tsp = NULL;
-	}
-
 	error = kern_kevent_fp(td, epfp, 0, maxevents, &k_ops, tsp);
 	if (error == 0 && coargs.error != 0)
 		error = coargs.error;
@@ -498,6 +484,29 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 leave:
 	fdrop(epfp, td);
 	return (error);
+}
+
+static int
+linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
+    int maxevents, int timeout, sigset_t *uset)
+{
+	struct timespec ts, *tsp;
+
+	/*
+	 * Linux epoll_wait(2) man page states that timeout of -1 causes caller
+	 * to block indefinitely. Real implementation does it if any negative
+	 * timeout value is passed.
+	 */
+	if (timeout >= 0) {
+		/* Convert from milliseconds to timespec. */
+		ts.tv_sec = timeout / 1000;
+		ts.tv_nsec = (timeout % 1000) * 1000000;
+		tsp = &ts;
+	} else {
+		tsp = NULL;
+	}
+	return (linux_epoll_wait_ts(td, epfd, events, maxevents, tsp, uset));
+
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
