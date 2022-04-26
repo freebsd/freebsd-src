@@ -1686,7 +1686,12 @@
 		int linux_io_pgetevents(void);
 	}
 293    AUE_NULL		STD {
-		int linux_rseq(void);
+		int linux_rseq(
+		    struct linux_rseq *rseq,
+		    uint32_t rseq_len,
+		    l_int flags,
+		    uint32_t sig
+		);
 	}
 294    AUE_NULL		STD {
 		int linux_kexec_file_load(void);
