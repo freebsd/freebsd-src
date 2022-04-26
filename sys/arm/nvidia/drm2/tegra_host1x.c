@@ -640,6 +640,5 @@ EARLY_DRIVER_MODULE(host1x, simplebus, host1x_driver,
     host1x_devclass, 0, 0,  BUS_PASS_BUS);
 
 /* Bindings for fbd device. */
-extern devclass_t fbd_devclass;
 extern driver_t fbd_driver;
-DRIVER_MODULE(fbd, host1x, fbd_driver, fbd_devclass, 0, 0);
+DRIVER_MODULE(fbd, host1x, fbd_driver, 0, 0);
