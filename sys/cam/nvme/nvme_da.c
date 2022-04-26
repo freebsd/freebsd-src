@@ -698,9 +698,9 @@ ndaasync(void *callback_arg, u_int32_t code,
 	}
 	case AC_LOST_DEVICE:
 	default:
-		cam_periph_async(periph, code, path, arg);
 		break;
 	}
+	cam_periph_async(periph, code, path, arg);
 }
 
 static void
