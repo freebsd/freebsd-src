@@ -458,17 +458,13 @@ linux_common_rt_sigtimedwait(struct thread *td, l_sigset_t *mask,
     struct timespec *tsa, l_siginfo_t *ptr, l_size_t sigsetsize)
 {
 	int error, sig;
-	l_sigset_t lset;
 	sigset_t bset;
 	l_siginfo_t lsi;
 	ksiginfo_t ksi;
 
-	if (sigsetsize != sizeof(l_sigset_t))
-		return (EINVAL);
-
-	if ((error = copyin(mask, &lset, sizeof(lset))))
+	error = linux_copyin_sigset(mask, sigsetsize, &bset, NULL);
+	if (error != 0)
 		return (error);
-	linux_to_bsd_sigset(&lset, &bset);
 
 	ksiginfo_init(&ksi);
 	error = kern_sigtimedwait(td, bset, &ksi, tsa);
@@ -772,18 +768,14 @@ linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *
 int
 linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
 {
-	l_sigset_t lmask;
 	sigset_t sigmask;
 	int error;
 
-	if (uap->sigsetsize != sizeof(l_sigset_t))
-		return (EINVAL);
-
-	error = copyin(uap->newset, &lmask, sizeof(l_sigset_t));
+	error = linux_copyin_sigset(uap->newset, uap->sigsetsize,
+	    &sigmask, NULL);
 	if (error != 0)
 		return (error);
 
-	linux_to_bsd_sigset(&lmask, &sigmask);
 	return (kern_sigsuspend(td, sigmask));
 }
 
@@ -866,4 +858,25 @@ linux_psignal(struct thread *td, int pid, int sig)
 	ksi.ksi_pid = td->td_proc->p_pid;
 	ksi.ksi_uid = td->td_proc->p_ucred->cr_ruid;
 	return (linux_pksignal(td, pid, sig, &ksi));
+}
+
+int
+linux_copyin_sigset(l_sigset_t *lset, l_size_t sigsetsize, sigset_t *set,
+    sigset_t **pset)
+{
+	l_sigset_t lmask;
+	int error;
+
+	if (sigsetsize != sizeof(l_sigset_t))
+		return (EINVAL);
+	if (lset != NULL) {
+		error = copyin(lset, &lmask, sizeof(l_sigset_t));
+		if (error != 0)
+			return (error);
+		linux_to_bsd_sigset(&lmask, set);
+		if (pset != NULL)
+			*pset = set;
+	} else if (pset != NULL)
+		*pset = NULL;
+	return (0);
 }
