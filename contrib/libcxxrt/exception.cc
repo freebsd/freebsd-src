@@ -197,6 +197,7 @@ struct __cxa_thread_info
 struct __cxa_dependent_exception
 {
 #if __LP64__
+	void *reserve;
 	void *primaryException;
 #endif
 	std::type_info *exceptionType;
@@ -219,6 +220,17 @@ struct __cxa_dependent_exception
 #endif
 	_Unwind_Exception unwindHeader;
 };
+static_assert(sizeof(__cxa_exception) == sizeof(__cxa_dependent_exception),
+    "__cxa_exception and __cxa_dependent_exception should have the same size");
+static_assert(offsetof(__cxa_exception, referenceCount) ==
+    offsetof(__cxa_dependent_exception, primaryException),
+    "referenceCount and primaryException should have the same offset");
+static_assert(offsetof(__cxa_exception, unwindHeader) ==
+    offsetof(__cxa_dependent_exception, unwindHeader),
+    "unwindHeader fields should have the same offset");
+static_assert(offsetof(__cxa_dependent_exception, unwindHeader) ==
+    offsetof(__cxa_dependent_exception, adjustedPtr) + 8,
+    "there should be no padding before unwindHeader");
 
 
 namespace std
