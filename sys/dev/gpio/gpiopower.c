@@ -74,7 +74,7 @@ gpiopower_attach(device_t dev)
 	if ((node = ofw_bus_get_node(dev)) == -1)
 		return (ENXIO);
 
-	if (ofw_gpiobus_parse_gpios(dev, "gpios", &sc->sc_pin) != 0) {
+	if (ofw_gpiobus_parse_gpios(dev, "gpios", &sc->sc_pin) <= 0) {
 		device_printf(dev, "failed to map GPIO pin\n");
 		return (ENXIO);
 	}
