@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2022
+.Dd April 26, 2022
 .Dt RTSX 4
 .Os
 .Sh NAME
@@ -34,18 +34,18 @@
 To compile this driver into the kernel, place the following
 lines in the kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device mmc"
-.Cd "device mmcsd"
-.Cd "device rtsx"
+.Cd device mmc
+.Cd device mmcsd
+.Cd device rtsx
 .Ed
 .Pp
 Alternatively, to load the driver as a module at boot time,
 place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-mmc_load="YES"
-mmcsd_load="YES"
-rtsx_load="YES"
+.Cd mmc_load="YES"
+.Cd mmcsd_load="YES"
+.Cd rtsx_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
@@ -136,4 +136,10 @@ If this automation is wrong, it can be avoided by adding in
 Mounting a filesystem with write access on a card write protected may involve a kernel crash.
 .It
 Suspend/Resume do not work under MMCCAM.
+.It
+For some chips (e.g. RTS5260) after
+.Cd devctl disable/enable
+or
+.Cd kldunload/kldload
+the driver can't detect a card correctly.
 .El
