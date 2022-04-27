@@ -167,11 +167,13 @@ EARLY_DRIVER_MODULE(xics, ofwbus, xics_driver, xics_devclass, 0, 0,
 static struct resource *
 xicp_mem_for_cpu(int cpu)
 {
+	devclass_t dc;
 	device_t dev;
 	struct xicp_softc *sc;
 	int i;
 
-	for (i = 0; (dev = devclass_get_device(xicp_devclass, i)) != NULL; i++){
+	dc = devclass_find(xicp_driver.name);
+	for (i = 0; (dev = devclass_get_device(dc, i)) != NULL; i++){
 		sc = device_get_softc(dev);
 		if (cpu >= sc->cpu_range[0] && cpu < sc->cpu_range[1])
 			return (sc->mem[cpu - sc->cpu_range[0]]);
