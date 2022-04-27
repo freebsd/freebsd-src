@@ -146,7 +146,7 @@ main(int argc, char **argv)
 	 * TLS handshake.
 	 */
 	struct sockaddr_un sun;
-	int ch, debug, fd, oldmask;
+	int ch, fd, oldmask;
 	SVCXPRT *xprt;
 	struct timeval tm;
 	struct timezone tz;
@@ -181,7 +181,6 @@ main(int argc, char **argv)
 		rpctls_dnsname = hostname;
 	}
 
-	debug = 0;
 	rpctls_verbose = false;
 	while ((ch = getopt_long(argc, argv, "2C:D:dhl:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
