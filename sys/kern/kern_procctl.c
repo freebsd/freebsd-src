@@ -319,6 +319,15 @@ reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
 	}
 }
 
+static bool
+reap_kill_sapblk(struct thread *td __unused, void *data)
+{
+	struct procctl_reaper_kill *rk;
+
+	rk = data;
+	return ((rk->rk_flags & REAPER_KILL_CHILDREN) == 0);
+}
+
 static int
 reap_kill(struct thread *td, struct proc *p, void *data)
 {
@@ -737,6 +746,7 @@ struct procctl_cmd_info {
 	int copyin_sz;
 	int copyout_sz;
 	int (*exec)(struct thread *, struct proc *, void *);
+	bool (*sapblk)(struct thread *, void *);
 };
 static const struct procctl_cmd_info procctl_cmds_info[] = {
 	[PROC_SPROTECT] =
@@ -777,7 +787,8 @@ static const struct procctl_cmd_info procctl_cmds_info[] = {
 	      .need_candebug = false,
 	      .copyin_sz = sizeof(struct procctl_reaper_kill),
 	      .copyout_sz = sizeof(struct procctl_reaper_kill),
-	      .exec = reap_kill, .copyout_on_error = true, },
+	      .exec = reap_kill, .copyout_on_error = true,
+	      .sapblk = reap_kill_sapblk, },
 	[PROC_TRACE_CTL] =
 	    { .lock_tree = PCTL_SLOCKED, .one_proc = false,
 	      .esrch_is_einval = false, .no_nonnull_data = false,
@@ -930,11 +941,19 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	struct proc *p;
 	const struct procctl_cmd_info *cmd_info;
 	int error, first_error, ok;
+	bool sapblk;
 
 	MPASS(com > 0 && com < nitems(procctl_cmds_info));
 	cmd_info = &procctl_cmds_info[com];
 	if (idtype != P_PID && cmd_info->one_proc)
 		return (EINVAL);
+
+	sapblk = false;
+	if (cmd_info->sapblk != NULL) {
+		sapblk = cmd_info->sapblk(td, data);
+		if (sapblk)
+			stop_all_proc_block();
+	}
 
 	switch (cmd_info->lock_tree) {
 	case PCTL_XLOCKED:
@@ -1024,5 +1043,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	default:
 		break;
 	}
+	if (sapblk)
+		stop_all_proc_unblock();
 	return (error);
 }
