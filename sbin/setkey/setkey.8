@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2020
+.Dd April 27, 2022
 .Dt SETKEY 8
 .Os
 .\"
@@ -328,7 +328,8 @@ Specify hard/soft life time duration of the SA.
 .It Ar algorithm
 .Bl -tag -width Fl -compact
 .It Fl E Ar ealgo Ar key
-Specify an encryption algorithm
+Specify an encryption or Authenticated Encryption with Associated Data
+(AEAD) algorithm
 .Ar ealgo
 for ESP.
 .It Xo
@@ -573,13 +574,9 @@ for details.
 .El
 .\"
 .Sh ALGORITHMS
-The following list shows the supported algorithms.
-The
-.Sy protocol
-and
-.Sy algorithm
-are almost completely orthogonal.
-The following list of authentication algorithms can be used as
+The following lists show the supported algorithms.
+.Ss Authentication Algorithms
+The following authentication algorithms can be used as
 .Ar aalgo
 in the
 .Fl A Ar aalgo
@@ -588,21 +585,21 @@ of the
 parameter:
 .Bd -literal -offset indent
 algorithm	keylen (bits)	comment
-hmac-sha1	160		ah: rfc2404
-		160		ah-old: 128bit ICV (no document)
+hmac-sha1	160		ah/esp: rfc2404
+		160		ah-old/esp-old: 128bit ICV (no document)
 null		0 to 2048	for debugging
-hmac-sha2-256	256		ah: 128bit ICV (RFC4868)
-		256		ah-old: 128bit ICV (no document)
-hmac-sha2-384	384		ah: 192bit ICV (RFC4868)
-		384		ah-old: 128bit ICV (no document)
-hmac-sha2-512	512		ah: 256bit ICV (RFC4868)
-		512		ah-old: 128bit ICV (no document)
-aes-xcbc-mac	128		ah: 96bit ICV (RFC3566)
-		128		ah-old: 128bit ICV (no document)
+hmac-sha2-256	256		ah/esp: 128bit ICV (RFC4868)
+		256		ah-old/esp-old: 128bit ICV (no document)
+hmac-sha2-384	384		ah/esp: 192bit ICV (RFC4868)
+		384		ah-old/esp-old: 128bit ICV (no document)
+hmac-sha2-512	512		ah/esp: 256bit ICV (RFC4868)
+		512		ah-old/esp-old: 128bit ICV (no document)
+aes-xcbc-mac	128		ah/esp: 96bit ICV (RFC3566)
+		128		ah-old/esp-old: 128bit ICV (no document)
 tcp-md5		8 to 640	tcp: rfc2385
 .Ed
-.Pp
-The following is the list of encryption algorithms that can be used as the
+.Ss Encryption Algorithms
+The following encryption algorithms can be used as the
 .Ar ealgo
 in the
 .Fl E Ar ealgo
@@ -614,14 +611,23 @@ algorithm	keylen (bits)	comment
 null		0 to 2048	rfc2410
 aes-cbc		128/192/256	rfc3602
 aes-ctr		160/224/288	rfc3686
-aes-gcm-16	160/224/288	rfc4106
+aes-gcm-16	160/224/288	AEAD; rfc4106
 .Ed
 .Pp
 Note that the first 128/192/256 bits of a key for
-.Li aes-ctr or aes-gcm-16
-will be used as AES key, and remaining 32 bits will be used as nonce.
+.Li aes-ctr
+or
+.Li aes-gcm-16
+will be used as the AES key,
+and the remaining 32 bits will be used as the nonce.
 .Pp
-The following are the list of compression algorithms that can be used
+AEAD encryption algorithms such as
+.Li aes-gcm-16
+include authentication and should not be
+paired with a separate authentication algorithm via
+.Fl A .
+.Ss Compression Algorithms
+The following compression algorithms can be used
 as the
 .Ar calgo
 in the
@@ -639,7 +645,7 @@ deflate		rfc2394
 .\"
 .Sh EXAMPLES
 Add an ESP SA between two IPv6 addresses using the
-AES-GCM encryption algorithm.
+AES-GCM AEAD algorithm.
 .Bd -literal -offset indent
 add 3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
 	-E aes-gcm-16 0x3ffe050148193ffe050148193ffe050148193ffe ;
