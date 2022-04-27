@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/csan.h>
-#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
@@ -152,7 +151,7 @@ static bool
 is_boot_cpu(uint64_t target_cpu)
 {
 
-	return (cpuid_to_pcpu[0]->pc_mpidr == (target_cpu & CPU_AFF_MASK));
+	return (__pcpu[0].pc_mpidr == (target_cpu & CPU_AFF_MASK));
 }
 
 static void
@@ -214,17 +213,15 @@ init_secondary(uint64_t cpu)
 	 * they can pass random value in it.
 	 */
 	mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
-	if (cpu >= MAXCPU || cpuid_to_pcpu[cpu] == NULL ||
-	    cpuid_to_pcpu[cpu]->pc_mpidr != mpidr) {
+	if  (cpu >= MAXCPU || __pcpu[cpu].pc_mpidr != mpidr) {
 		for (cpu = 0; cpu < mp_maxid; cpu++)
-			if (cpuid_to_pcpu[cpu] != NULL &&
-			    cpuid_to_pcpu[cpu]->pc_mpidr == mpidr)
+			if (__pcpu[cpu].pc_mpidr == mpidr)
 				break;
 		if ( cpu >= MAXCPU)
 			panic("MPIDR for this CPU is not in pcpu table");
 	}
 
-	pcpup = cpuid_to_pcpu[cpu];
+	pcpup = &__pcpu[cpu];
 	/*
 	 * Set the pcpu pointer with a backup in tpidr_el1 to be
 	 * loaded when entering the kernel from userland.
@@ -486,7 +483,7 @@ cpu_mp_probe(void)
  * do nothing. Returns true if the CPU is present and running.
  */
 static bool
-start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
+start_cpu(u_int cpuid, uint64_t target_cpu)
 {
 	struct pcpu *pcpup;
 	vm_paddr_t pa;
@@ -502,17 +499,14 @@ start_cpu(u_int cpuid, uint64_t target_cpu, int domain)
 
 	KASSERT(cpuid < MAXCPU, ("Too many CPUs"));
 
-	pcpup = (void *)kmem_malloc_domainset(DOMAINSET_PREF(domain),
-	    sizeof(*pcpup), M_WAITOK | M_ZERO);
+	pcpup = &__pcpu[cpuid];
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
 	pcpup->pc_mpidr = target_cpu & CPU_AFF_MASK;
 
-	dpcpu[cpuid - 1] = (void *)kmem_malloc_domainset(
-	    DOMAINSET_PREF(domain), DPCPU_SIZE, M_WAITOK | M_ZERO);
+	dpcpu[cpuid - 1] = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 	dpcpu_init(dpcpu[cpuid - 1], cpuid);
 
-	bootstacks[cpuid] = (void *)kmem_malloc_domainset(
-	    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+	bootstacks[cpuid] = (void *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
 
 	naps = atomic_load_int(&aps_started);
 	bootstack = (char *)bootstacks[cpuid] + PAGE_SIZE;
@@ -555,7 +549,6 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_MADT_GENERIC_INTERRUPT *intr;
 	u_int *cpuid;
 	u_int id;
-	int domain;
 
 	switch(entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
@@ -567,14 +560,8 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		else
 			id = *cpuid;
 
-		domain = 0;
-#ifdef NUMA
-		if (vm_ndomains > 1)
-			domain = acpi_pxm_get_cpu_locality(intr->Uid);
-#endif
-		if (start_cpu(id, intr->ArmMpidr, domain)) {
-			MPASS(cpuid_to_pcpu[id] != NULL);
-			cpuid_to_pcpu[id]->pc_acpi_id = intr->Uid;
+		if (start_cpu(id, intr->ArmMpidr)) {
+			__pcpu[id].pc_acpi_id = intr->Uid;
 			/*
 			 * Don't increment for the boot CPU, its CPU ID is
 			 * reserved.
@@ -637,7 +624,7 @@ start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	else
 		cpuid = fdt_cpuid;
 
-	if (!start_cpu(cpuid, target_cpu, 0))
+	if (!start_cpu(cpuid, target_cpu))
 		return (FALSE);
 
 	/*
@@ -650,7 +637,7 @@ start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	if (vm_ndomains == 1 ||
 	    OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) <= 0)
 		domain = 0;
-	cpuid_to_pcpu[cpuid]->pc_domain = domain;
+	__pcpu[cpuid].pc_domain = domain;
 	if (domain < MAXMEMDOM)
 		CPU_SET(cpuid, &cpuset_domain[domain]);
 	return (TRUE);
@@ -681,7 +668,7 @@ cpu_mp_start(void)
 
 	/* CPU 0 is always boot CPU. */
 	CPU_SET(0, &all_cpus);
-	cpuid_to_pcpu[0]->pc_mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
+	__pcpu[0].pc_mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
 
 	switch(arm64_bus_method) {
 #ifdef DEV_ACPI
