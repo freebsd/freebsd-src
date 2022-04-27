@@ -159,6 +159,7 @@ void rtw_tx_report_purge_timer(struct timer_list *t)
 	struct rtw_tx_report *tx_report = &rtwdev->tx_report;
 	unsigned long flags;
 
+#if defined(__linux__)
 	if (skb_queue_len(&tx_report->queue) == 0)
 		return;
 
@@ -167,6 +168,25 @@ void rtw_tx_report_purge_timer(struct timer_list *t)
 	spin_lock_irqsave(&tx_report->q_lock, flags);
 	skb_queue_purge(&tx_report->queue);
 	spin_unlock_irqrestore(&tx_report->q_lock, flags);
+#elif defined(__FreeBSD__)
+	uint32_t qlen;
+
+	spin_lock_irqsave(&tx_report->q_lock, flags);
+	qlen = skb_queue_len(&tx_report->queue);
+	if (qlen > 0)
+		skb_queue_purge(&tx_report->queue);
+	spin_unlock_irqrestore(&tx_report->q_lock, flags);
+
+	/*
+	 * XXX while there could be a new enqueue in the queue
+	 * simply not yet processed given the timer is updated without
+	 * locks after enqueue in rtw_tx_report_enqueue(), the numbers
+	 * seen can be in the 100s.  We revert to rtw_dbg from
+	 * Linux git 584dce175f0461d5d9d63952a1e7955678c91086 .
+	 */
+	rtw_dbg(rtwdev, RTW_DBG_TX, "failed to get tx report from firmware: "
+	    "txreport qlen %u\n", qlen);
+#endif
 }
 
 void rtw_tx_report_enqueue(struct rtw_dev *rtwdev, struct sk_buff *skb, u8 sn)
@@ -515,7 +535,11 @@ void rtw_tx(struct rtw_dev *rtwdev,
 	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control->sta, skb);
 	ret = rtw_hci_tx_write(rtwdev, &pkt_info, skb);
 	if (ret) {
+#if defined(__linux__)
 		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
+#elif defined(__FreeBSD__)
+		rtw_err(rtwdev, "%s: failed to write TX skb to HCI: %d\n", __func__, ret);
+#endif
 		goto out;
 	}
 
@@ -572,7 +596,11 @@ static int rtw_txq_push_skb(struct rtw_dev *rtwdev,
 	rtw_tx_pkt_info_update(rtwdev, &pkt_info, txq->sta, skb);
 	ret = rtw_hci_tx_write(rtwdev, &pkt_info, skb);
 	if (ret) {
+#if defined(__linux__)
 		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
+#elif defined(__FreeBSD__)
+		rtw_err(rtwdev, "%s: failed to write TX skb to HCI: %d\n", __func__, ret);
+#endif
 		return ret;
 	}
 	rtwtxq->last_push = jiffies;
