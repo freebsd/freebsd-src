@@ -554,13 +554,16 @@ void _gone_in_dev(device_t dev, int major, const char *msg);
 #define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
 #define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
 
-#if !defined(INVARIANTS) && !defined(WITNESS)
-#define	__diagused	__unused
-#elif ((defined(INVARIANTS) && !defined(WITNESS)) || \
-	(!defined(INVARIANTS) && defined(WITNESS)))
-#define	__diagused	__unused
-#else
+#ifdef INVARIANTS
 #define	__diagused
+#else
+#define	__diagused	__unused
+#endif
+
+#ifdef WITNESS
+#define	__witness_used
+#else
+#define	__witness_used	__unused
 #endif
 
 #endif /* _KERNEL */

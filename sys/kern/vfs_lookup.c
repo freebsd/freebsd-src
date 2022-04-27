@@ -98,8 +98,8 @@ crossmp_vop_lock1(struct vop_lock1_args *ap)
 {
 	struct vnode *vp;
 	struct lock *lk __diagused;
-	const char *file __diagused;
-	int flags, line __diagused;
+	const char *file __witness_used;
+	int flags, line __witness_used;
 
 	vp = ap->a_vp;
 	lk = vp->v_vnlock;
@@ -115,7 +115,7 @@ crossmp_vop_lock1(struct vop_lock1_args *ap)
 	WITNESS_LOCK(&lk->lock_object, 0, file, line);
 	if ((flags & LK_INTERLOCK) != 0)
 		VI_UNLOCK(vp);
-	LOCK_LOG_LOCK("SLOCK", &lk->lock_object, 0, 0, ap->a_file, line);
+	LOCK_LOG_LOCK("SLOCK", &lk->lock_object, 0, 0, ap->a_file, ap->a_line);
 	return (0);
 }
 
