@@ -1421,6 +1421,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	 * and the result will be the final one returned to the CCB owher.
 	 */
 	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
+	saved_ccb->ccb_h.periph_links = done_ccb->ccb_h.periph_links;
 	bcopy(saved_ccb, done_ccb, sizeof(*done_ccb));
 	xpt_free_ccb(saved_ccb);
 	if (done_ccb->ccb_h.cbfcnp != camperiphdone)
