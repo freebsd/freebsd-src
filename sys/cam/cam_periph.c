@@ -1435,11 +1435,6 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	 * blocking by that also any new recovery attempts for this CCB,
 	 * and the result will be the final one returned to the CCB owher.
 	 */
-
-	/*
-	 * Copy the CCB back, preserving the alloc_flags field.  Things
-	 * will crash horribly if the CCBs are not of the same size.
-	 */
 	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
 	KASSERT(saved_ccb->ccb_h.func_code == XPT_SCSI_IO,
 	    ("%s: saved_ccb func_code %#x != XPT_SCSI_IO",
@@ -1447,6 +1442,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	KASSERT(done_ccb->ccb_h.func_code == XPT_SCSI_IO,
 	    ("%s: done_ccb func_code %#x != XPT_SCSI_IO",
 	     __func__, done_ccb->ccb_h.func_code));
+	saved_ccb->ccb_h.periph_links = done_ccb->ccb_h.periph_links;
 	done_flags = done_ccb->ccb_h.alloc_flags;
 	bcopy(saved_ccb, done_ccb, sizeof(struct ccb_scsiio));
 	done_ccb->ccb_h.alloc_flags = done_flags;
