@@ -2983,6 +2983,12 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 				mps_dprint(sc, MPS_INFO, "Out of chain frames, "
 				    "consider increasing hw.mps.max_chains.\n");
 			cm->cm_flags |= MPS_CM_FLAGS_CHAIN_FAILED;
+			/*
+			 * mpr_complete_command can only be called on commands
+			 * that are in the queue. Since this is an error path
+			 * which gets called before we enqueue, update the state
+			 * to meet this requirement before we complete it.
+			 */
 			cm->cm_state = MPS_CM_STATE_INQUEUE;
 			mps_complete_command(sc, cm);
 			return;
