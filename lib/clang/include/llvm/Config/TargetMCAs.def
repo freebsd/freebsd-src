@@ -4,4 +4,8 @@
 #  error Please define the macro LLVM_TARGETMCA(TargetName)
 #endif
 
+#ifdef LLVM_TARGET_ENABLE_X86
+LLVM_TARGETMCA(X86)
+#endif
+
 #undef LLVM_TARGETMCA
