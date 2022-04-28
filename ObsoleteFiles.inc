@@ -52,7 +52,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20220514: new clang import which bumps version from 13.0.0 to 14.0.0
+# 20220514: new clang import which bumps version from 13.0.0 to 14.0.3
 OLD_FILES+=usr/lib/clang/13.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/13.0.0/include/cuda_wrappers/complex
 OLD_FILES+=usr/lib/clang/13.0.0/include/cuda_wrappers/new
@@ -349,7 +349,7 @@ OLD_DIRS+=usr/lib/clang/13.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/13.0.0/lib
 OLD_DIRS+=usr/lib/clang/13.0.0
 
-# 20220514: new libc++ import which bumps version from 13.0.0 to 14.0.0
+# 20220514: new libc++ import which bumps version from 13.0.0 to 14.0.3
 OLD_FILES+=usr/include/c++/v1/__function_like.h
 OLD_FILES+=usr/include/c++/v1/__memory/pointer_safety.h
 OLD_FILES+=usr/include/c++/v1/__utility/__decay_copy.h
