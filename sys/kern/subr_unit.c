@@ -143,6 +143,8 @@ _Malloc(size_t foo, int line)
 
 struct unrhdr;
 
+#define	UNR_NO_MTX	((void *)(uintptr_t)-1)
+
 struct mtx {
 	int	state;
 } unitmtx;
