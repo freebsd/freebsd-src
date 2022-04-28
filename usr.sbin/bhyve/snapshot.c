@@ -1450,19 +1450,21 @@ handle_message(struct vmctx *ctx, nvlist_t *nvl)
 void *
 checkpoint_thread(void *param)
 {
+	int fd;
 	struct checkpoint_thread_info *thread_info;
 	nvlist_t *nvl;
 
 	pthread_set_name_np(pthread_self(), "checkpoint thread");
 	thread_info = (struct checkpoint_thread_info *)param;
 
-	for (;;) {
-		nvl = nvlist_recv(thread_info->socket_fd, 0);
+	while ((fd = accept(thread_info->socket_fd, NULL, NULL)) != -1) {
+		nvl = nvlist_recv(fd, 0);
 		if (nvl != NULL)
 			handle_message(thread_info->ctx, nvl);
 		else
 			EPRINTLN("nvlist_recv() failed: %s", strerror(errno));
 
+		close(fd);
 		nvlist_destroy(nvl);
 	}
 
@@ -1515,7 +1517,7 @@ init_checkpoint_thread(struct vmctx *ctx)
 
 	memset(&addr, 0, sizeof(addr));
 
-	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
+	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
 		EPRINTLN("Socket creation failed: %s", strerror(errno));
 		err = -1;
@@ -1533,6 +1535,12 @@ init_checkpoint_thread(struct vmctx *ctx)
 		EPRINTLN("Failed to bind socket \"%s\": %s\n",
 		    addr.sun_path, strerror(errno));
 		err = -1;
+		goto fail;
+	}
+
+	if (listen(socket_fd, 10) < 0) {
+		EPRINTLN("ipc socket listen: %s\n", strerror(errno));
+		err = errno;
 		goto fail;
 	}
 
