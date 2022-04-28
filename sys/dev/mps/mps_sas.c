@@ -588,7 +588,9 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 	 * if so.
 	 */
 	if (TAILQ_FIRST(&targ->commands) == NULL) {
-		mps_dprint(sc, MPS_INFO, "No pending commands: starting remove_device\n");
+		mps_dprint(sc, MPS_INFO,
+		    "No pending commands: starting remove_device target %u handle 0x%04x\n",
+		    targ->tid, handle);
 		mps_map_command(sc, tm);
 		targ->pending_remove_tm = NULL;
 	} else {
@@ -2383,7 +2385,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	if (cm->cm_targ->flags & MPSSAS_TARGET_INREMOVAL) {
 		if (TAILQ_FIRST(&cm->cm_targ->commands) == NULL &&
 		    cm->cm_targ->pending_remove_tm != NULL) {
-			mps_dprint(sc, MPS_INFO, "Last pending command complete: starting remove_device\n");
+			mps_dprint(sc, MPS_INFO,
+			    "Last pending command complete: starting remove_device target %u handle 0x%04x\n",
+			    cm->cm_targ->tid, cm->cm_targ->handle);
 			mps_map_command(sc, cm->cm_targ->pending_remove_tm);
 			cm->cm_targ->pending_remove_tm = NULL;
 		}
