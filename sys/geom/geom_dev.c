@@ -471,6 +471,7 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 			atomic_clear_int(&sc->sc_active, SC_A_OPEN);
 		else
 			atomic_set_int(&sc->sc_active, SC_A_OPEN);
+		KNOTE_LOCKED(&sc->sc_selinfo.si_note, NOTE_OPEN);
 		mtx_unlock(&sc->sc_mtx);
 	}
 	return (error);
@@ -517,6 +518,7 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 		atomic_set_int(&sc->sc_active, SC_A_OPEN);
 	while (sc->sc_open == 0 && (sc->sc_active & SC_A_ACTIVE) != 0)
 		msleep(&sc->sc_active, &sc->sc_mtx, 0, "g_dev_close", hz / 10);
+	KNOTE_LOCKED(&sc->sc_selinfo.si_note, NOTE_CLOSE | (w ? NOTE_CLOSE_WRITE : 0));
 	mtx_unlock(&sc->sc_mtx);
 	g_topology_lock();
 	error = g_access(cp, r, w, e);
@@ -736,6 +738,10 @@ g_dev_done(struct bio *bp2)
 		    bp2, bp2->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 	} else {
+		if (bp->bio_cmd == BIO_READ)
+			KNOTE_UNLOCKED(&sc->sc_selinfo.si_note, NOTE_READ);
+		if (bp->bio_cmd == BIO_WRITE)
+			KNOTE_UNLOCKED(&sc->sc_selinfo.si_note, NOTE_WRITE);
 		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %jd",
 		    bp2, bp, bp2->bio_resid, (intmax_t)bp2->bio_completed);
 	}
@@ -893,9 +899,10 @@ g_dev_kqfilter(struct cdev *dev, struct knote *kn)
 	if (kn->kn_filter != EVFILT_VNODE)
 		return (EINVAL);
 
-	/* XXX: extend support for other NOTE_* events */
-	if (kn->kn_sfflags != NOTE_ATTRIB)
-		return (EINVAL);
+#define SUPPORTED_EVENTS (NOTE_ATTRIB | NOTE_OPEN | NOTE_CLOSE | \
+    NOTE_CLOSE_WRITE | NOTE_READ | NOTE_WRITE)
+	if (kn->kn_sfflags & ~SUPPORTED_EVENTS)
+		return (EOPNOTSUPP);
 
 	kn->kn_fop = &gdev_filterops_vnode;
 	kn->kn_hook = sc;
