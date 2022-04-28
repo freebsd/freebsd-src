@@ -1609,7 +1609,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 		 */
 		periph = xpt_path_periph(ccb->ccb_h.path);
 		if (periph->flags & CAM_PERIPH_INVALID) {
-			error = EIO;
+			error = ENXIO;
 			*action_string = "Periph was invalidated";
 		} else if ((sense_flags & SF_RETRY_BUSY) != 0 ||
 		    ccb->ccb_h.retry_count > 0) {
@@ -1959,7 +1959,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* Unconditional requeue if device is still there */
 		if (periph->flags & CAM_PERIPH_INVALID) {
 			action_string = "Periph was invalidated";
-			error = EIO;
+			error = ENXIO;
 		} else if (sense_flags & SF_NO_RETRY) {
 			error = EIO;
 			action_string = "Retry was blocked";
@@ -1987,7 +1987,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	case CAM_DATA_RUN_ERR:
 	default:
 		if (periph->flags & CAM_PERIPH_INVALID) {
-			error = EIO;
+			error = ENXIO;
 			action_string = "Periph was invalidated";
 		} else if (ccb->ccb_h.retry_count == 0) {
 			error = EIO;
