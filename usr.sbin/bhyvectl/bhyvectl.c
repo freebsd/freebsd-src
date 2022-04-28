@@ -1687,7 +1687,7 @@ send_message(const char *vmname, nvlist_t *nvl)
 	struct sockaddr_un addr;
 	int err, socket_fd;
 
-	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
+	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
 		perror("Error creating bhyvectl socket");
 		err = -1;
@@ -1695,11 +1695,12 @@ send_message(const char *vmname, nvlist_t *nvl)
 	}
 
 	memset(&addr, 0, sizeof(struct sockaddr_un));
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s",
+	    BHYVE_RUN_DIR, vmname);
 	addr.sun_family = AF_UNIX;
+	addr.sun_len = SUN_LEN(&addr);
 
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s", BHYVE_RUN_DIR, vmname);
-
-	if (connect(socket_fd, (struct sockaddr *)&addr, SUN_LEN(&addr)) != 0) {
+	if (connect(socket_fd, (struct sockaddr *)&addr, addr.sun_len) != 0) {
 		perror("connect() failed");
 		err = errno;
 		goto done;
