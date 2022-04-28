@@ -415,15 +415,18 @@ TEST_F(Create_7_8, ok)
 	expect_create(RELPATH, mode,
 		ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, create_7_8);
-		out.body.create.entry.attr.mode = mode;
-		out.body.create.entry.nodeid = ino;
-		out.body.create.entry.entry_valid = UINT64_MAX;
-		out.body.create.entry.attr_valid = UINT64_MAX;
+		out.body.create_7_8.entry.attr.mode = mode;
+		out.body.create_7_8.entry.nodeid = ino;
+		out.body.create_7_8.entry.entry_valid = UINT64_MAX;
+		out.body.create_7_8.entry.attr_valid = UINT64_MAX;
+		out.body.create_7_8.open.fh = FH;
 	}));
+	expect_flush(ino, 1, ReturnErrno(0));
+	expect_release(ino, FH);
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	ASSERT_LE(0, fd) << strerror(errno);
-	leak(fd);
+	close(fd);
 }
 
 TEST_F(Create_7_11, ok)
