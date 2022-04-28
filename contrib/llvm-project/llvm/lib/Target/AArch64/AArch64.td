@@ -464,6 +464,11 @@ def FeatureEL3 : SubtargetFeature<"el3", "HasEL3", "true",
 def FeatureFixCortexA53_835769 : SubtargetFeature<"fix-cortex-a53-835769",
   "FixCortexA53_835769", "true", "Mitigate Cortex-A53 Erratum 835769">;
 
+def FeatureNoBTIAtReturnTwice : SubtargetFeature<"no-bti-at-return-twice",
+                                                 "NoBTIAtReturnTwice", "true",
+                                                 "Don't place a BTI instruction "
+                                                 "after a return-twice">;
+
 //===----------------------------------------------------------------------===//
 // Architectures.
 //
@@ -953,7 +958,7 @@ def ProcessorFeatures {
                                  FeatureRCPC, FeatureSSBS];
   list<SubtargetFeature> A77  = [HasV8_2aOps, FeatureCrypto, FeatureFPARMv8,
                                  FeatureNEON, FeatureFullFP16, FeatureDotProd,
-                                 FeatureRCPC];
+                                 FeatureRCPC, FeatureSSBS];
   list<SubtargetFeature> A78  = [HasV8_2aOps, FeatureCrypto, FeatureFPARMv8,
                                  FeatureNEON, FeatureFullFP16, FeatureDotProd,
                                  FeatureRCPC, FeaturePerfMon, FeatureSPE,
@@ -971,11 +976,12 @@ def ProcessorFeatures {
                                  FeatureSB, FeatureSpecRestrict];
   list<SubtargetFeature> X1   = [HasV8_2aOps, FeatureCrypto, FeatureFPARMv8,
                                  FeatureNEON, FeatureRCPC, FeaturePerfMon,
-                                 FeatureSPE, FeatureFullFP16, FeatureDotProd];
+                                 FeatureSPE, FeatureFullFP16, FeatureDotProd,
+                                 FeatureSSBS];
   list<SubtargetFeature> X1C  = [HasV8_2aOps, FeatureCrypto, FeatureFPARMv8,
                                  FeatureNEON, FeatureRCPC, FeaturePerfMon,
                                  FeatureSPE, FeatureFullFP16, FeatureDotProd,
-                                 FeaturePAuth];
+                                 FeaturePAuth, FeatureSSBS];
   list<SubtargetFeature> X2   = [HasV9_0aOps, FeatureNEON, FeaturePerfMon,
                                  FeatureMatMulInt8, FeatureBF16, FeatureAM,
                                  FeatureMTE, FeatureETE, FeatureSVE2BitPerm,

@@ -2544,19 +2544,18 @@ void InnerLoopVectorizer::widenIntOrFpInduction(
     Type *ScalarTy = IntegerType::get(ScalarIV->getContext(),
                                       Step->getType()->getScalarSizeInBits());
 
-    Instruction::BinaryOps IncOp = ID.getInductionOpcode();
-    if (IncOp == Instruction::BinaryOpsEnd)
-      IncOp = Instruction::Add;
     for (unsigned Part = 0; Part < UF; ++Part) {
       Value *StartIdx = ConstantInt::get(ScalarTy, Part);
-      Instruction::BinaryOps MulOp = Instruction::Mul;
+      Value *EntryPart;
       if (Step->getType()->isFloatingPointTy()) {
         StartIdx = Builder.CreateUIToFP(StartIdx, Step->getType());
-        MulOp = Instruction::FMul;
+        Value *MulOp = Builder.CreateFMul(StartIdx, Step);
+        EntryPart = Builder.CreateBinOp(ID.getInductionOpcode(), ScalarIV,
+                                        MulOp, "induction");
+      } else {
+        EntryPart = Builder.CreateAdd(
+            ScalarIV, Builder.CreateMul(StartIdx, Step), "induction");
       }
-
-      Value *Mul = Builder.CreateBinOp(MulOp, StartIdx, Step);
-      Value *EntryPart = Builder.CreateBinOp(IncOp, ScalarIV, Mul, "induction");
       State.set(Def, EntryPart, Part);
       if (Trunc) {
         assert(!Step->getType()->isFloatingPointTy() &&
@@ -6035,6 +6034,18 @@ unsigned LoopVectorizationCostModel::selectInterleaveCount(ElementCount VF,
       !(InterleaveSmallLoopScalarReduction && HasReductions && VF.isScalar()))
     return 1;
 
+  // If we did not calculate the cost for VF (because the user selected the VF)
+  // then we calculate the cost of VF here.
+  if (LoopCost == 0) {
+    InstructionCost C = expectedCost(VF).first;
+    assert(C.isValid() && "Expected to have chosen a VF with valid cost");
+    LoopCost = *C.getValue();
+
+    // Loop body is free and there is no need for interleaving.
+    if (LoopCost == 0)
+      return 1;
+  }
+
   RegisterUsage R = calculateRegisterUsage({VF})[0];
   // We divide by these constants so assume that we have at least one
   // instruction that uses at least one register.
@@ -6125,16 +6136,6 @@ unsigned LoopVectorizationCostModel::selectInterleaveCount(ElementCount VF,
     IC = std::max(1u, IC);
 
   assert(IC > 0 && "Interleave count must be greater than 0.");
-
-  // If we did not calculate the cost for VF (because the user selected the VF)
-  // then we calculate the cost of VF here.
-  if (LoopCost == 0) {
-    InstructionCost C = expectedCost(VF).first;
-    assert(C.isValid() && "Expected to have chosen a VF with valid cost");
-    LoopCost = *C.getValue();
-  }
-
-  assert(LoopCost && "Non-zero loop cost expected");
 
   // Interleave if we vectorized this loop and there is a reduction that could
   // benefit from interleaving.
