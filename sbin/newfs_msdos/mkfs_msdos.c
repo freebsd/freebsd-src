@@ -222,7 +222,9 @@ static const u_int8_t bootcode[] = {
 static volatile sig_atomic_t got_siginfo;
 static void infohandler(int);
 
+#ifndef MAKEFS
 static int check_mounted(const char *, mode_t);
+#endif
 static ssize_t getchunksize(void);
 static int getstdfmt(const char *, struct bpb *);
 static int getdiskinfo(int, const char *, const char *, int, struct bpb *);
@@ -800,6 +802,7 @@ done:
 /*
  * return -1 with error if file system is mounted.
  */
+#ifndef MAKEFS
 static int
 check_mounted(const char *fname, mode_t mode)
 {
@@ -807,7 +810,6 @@ check_mounted(const char *fname, mode_t mode)
  * If getmntinfo() is not available (e.g. Linux) don't check. This should
  * not be a problem since we will only be using makefs to create images.
  */
-#if !defined(MAKEFS)
     struct statfs *mp;
     const char *s1, *s2;
     size_t len;
@@ -832,9 +834,9 @@ check_mounted(const char *fname, mode_t mode)
 	    return -1;
 	}
     }
-#endif
     return 0;
 }
+#endif
 
 /*
  * Get optimal I/O size
@@ -977,6 +979,7 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	lp = &dlp;
     }
 #else
+    (void)dtype;
     /* In the makefs case we only support image files: */
     compute_geometry_from_file(fd, fname, &dlp);
     lp = &dlp;
