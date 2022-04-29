@@ -472,5 +472,5 @@ mycc -o /tmp/syzkaller25 -Wall -Wextra -O0 /tmp/syzkaller25.c -lpthread ||
 while pkill swap; do :; done
 wait
 
-rm -rf /tmp/syzkaller25 syzkaller25.c /tmp/syzkaller.*
+rm -rf /tmp/syzkaller25 /tmp/syzkaller25.c /tmp/syzkaller.*
 exit 0
