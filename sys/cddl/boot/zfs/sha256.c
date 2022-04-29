@@ -203,11 +203,11 @@ SHA256(uint32_t *H, const void *buf, uint64_t size, zio_cksum_t *zcp)
 
 	/* process all blocks up to the last one */
 	for (i = 0; i < size - padsize; i += 64)
-		SHA256Transform(H, (uint8_t *)buf + i);
+		SHA256Transform(H, (const uint8_t *)buf + i);
 
 	/* process the last block and padding */
 	for (k = 0; k < padsize; k++)
-		pad[k] = ((uint8_t *)buf)[k+i];
+		pad[k] = ((const uint8_t *)buf)[k + i];
 
 	for (pad[padsize++] = 0x80; (padsize & 63) != 56; padsize++)
 		pad[padsize] = 0;
@@ -259,11 +259,11 @@ SHA512(uint64_t *H, const void *buf, uint64_t size, zio_cksum_t *zcp)
 
 	/* process all blocks up to the last one */
 	for (i = 0; i < size - padsize; i += 128)
-		SHA512Transform(H, (uint8_t *)buf + i);
+		SHA512Transform(H, (const uint8_t *)buf + i);
 
 	/* process the last block and padding */
 	for (k = 0; k < padsize; k++)
-		pad[k] = ((uint8_t *)buf)[k+i];
+		pad[k] = ((const uint8_t *)buf)[k + i];
 
 	if (padsize < 112) {
 		for (pad[padsize++] = 0x80; padsize < 112; padsize++)
