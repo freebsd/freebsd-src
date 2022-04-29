@@ -409,7 +409,8 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
-	bool noclusterr, unsigned time_gran, bool nointr, bool noatime)
+	bool noclusterr, unsigned time_gran, bool nointr, bool noatime,
+	const char *subtype)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -499,6 +500,10 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	} else {
 		build_iovec(&iov, &iovlen, "intr",
 			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (*subtype) {
+		build_iovec(&iov, &iovlen, "subtype=",
+			__DECONST(void*, subtype), -1);
 	}
 	if (nmount(iov, iovlen, 0))
 		throw(std::system_error(errno, std::system_category(),
