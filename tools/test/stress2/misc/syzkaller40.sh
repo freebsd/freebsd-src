@@ -81,5 +81,5 @@ mycc -o /tmp/syzkaller40 -Wall -Wextra -O0 /tmp/syzkaller40.c -lpthread ||
 
 (cd /tmp; timeout 3m ./syzkaller40)
 
-rm -rf /tmp/syzkaller40 syzkaller40.c /tmp/syzkaller.*
+rm -rf /tmp/syzkaller40 /tmp/syzkaller40.c /tmp/syzkaller.*
 exit 0

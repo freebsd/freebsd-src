@@ -66,5 +66,5 @@ mycc -o /tmp/syzkaller30 -Wall -Wextra -O0 /tmp/syzkaller30.c ||
 
 (cd /tmp; timeout 3m ./syzkaller30)
 
-rm -rf /tmp/syzkaller30 syzkaller30.c /tmp/syzkaller.*
+rm -rf /tmp/syzkaller30 /tmp/syzkaller30.c /tmp/syzkaller.*
 exit 0

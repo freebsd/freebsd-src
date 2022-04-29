@@ -164,6 +164,6 @@ done
 while pkill swap; do :; done
 wait
 
-rm -rf /tmp/syzkaller50 syzkaller50.c /tmp/syzkaller.*
+rm -rf /tmp/syzkaller50 /tmp/syzkaller50.c /tmp/syzkaller.*
 [ $loaded ] && kldunload sctp.ko
 exit 0

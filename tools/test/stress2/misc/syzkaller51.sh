@@ -190,6 +190,6 @@ kldstat | grep -q sctp   || { kldload sctp.ko && loaded=1; }
 
 (cd /tmp; timeout 3m ./syzkaller51)
 
-rm -rf /tmp/syzkaller51 syzkaller51.c /tmp/syzkaller.*
+rm -rf /tmp/syzkaller51 /tmp/syzkaller51.c /tmp/syzkaller.*
 [ $loaded ] && kldunload sctp.ko
 exit 0

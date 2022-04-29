@@ -94,5 +94,5 @@ kldload cryptodev.ko && loaded=1
 (cd /tmp; timeout 3m ./syzkaller36)
 [ $loaded ] && kldunload cryptodev.ko
 
-rm -rf /tmp/syzkaller36 syzkaller36.c /tmp/syzkaller.*
+rm -rf /tmp/syzkaller36 /tmp/syzkaller36.c /tmp/syzkaller.*
 exit 0
