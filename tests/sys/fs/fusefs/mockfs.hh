@@ -361,7 +361,7 @@ class MockFS {
 		enum poll_method pm, uint32_t flags,
 		uint32_t kernel_minor_version, uint32_t max_write, bool async,
 		bool no_clusterr, unsigned time_gran, bool nointr,
-		bool noatime);
+		bool noatime, const char *subtype);
 
 	virtual ~MockFS();
 
