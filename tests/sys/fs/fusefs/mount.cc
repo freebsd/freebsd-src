@@ -43,8 +43,28 @@ extern "C" {
 
 using namespace testing;
 
-class UpdateOk: public FuseTest, public WithParamInterface<const char*> {};
-class UpdateErr: public FuseTest, public WithParamInterface<const char*> {};
+class Mount: public FuseTest {
+public:
+void expect_statfs() {
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in.header.opcode == FUSE_STATFS);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, statfs);
+	})));
+}
+};
+class Subtype: public Mount {
+	void SetUp() {
+		m_subtype = "myfs";
+		Mount::SetUp();
+	}
+};
+
+class UpdateOk: public Mount, public WithParamInterface<const char*> {};
+class UpdateErr: public Mount, public WithParamInterface<const char*> {};
 
 int mntflag_from_string(const char *s)
 {
@@ -62,6 +82,16 @@ int mntflag_from_string(const char *s)
 		return MNT_USER;
 	else
 		return 0;
+}
+
+TEST_F(Subtype, subtype)
+{
+	struct statfs statbuf;
+
+	expect_statfs();
+
+	ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
+	ASSERT_EQ(0, strcmp("fusefs.myfs", statbuf.f_fstypename));
 }
 
 /* Some mount options can be changed by mount -u */
