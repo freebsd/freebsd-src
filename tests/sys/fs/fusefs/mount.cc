@@ -56,6 +56,14 @@ void expect_statfs() {
 	})));
 }
 };
+
+class Fsname: public Mount {
+	void SetUp() {
+		m_fsname = "http://something";
+		Mount::SetUp();
+	}
+};
+
 class Subtype: public Mount {
 	void SetUp() {
 		m_subtype = "myfs";
@@ -84,6 +92,16 @@ int mntflag_from_string(const char *s)
 		return 0;
 }
 
+TEST_F(Fsname, fsname)
+{
+	struct statfs statbuf;
+
+	expect_statfs();
+
+	ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
+	ASSERT_STREQ("http://something", statbuf.f_mntfromname);
+}
+
 TEST_F(Subtype, subtype)
 {
 	struct statfs statbuf;
@@ -91,7 +109,7 @@ TEST_F(Subtype, subtype)
 	expect_statfs();
 
 	ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
-	ASSERT_EQ(0, strcmp("fusefs.myfs", statbuf.f_fstypename));
+	ASSERT_STREQ("fusefs.myfs", statbuf.f_fstypename);
 }
 
 /* Some mount options can be changed by mount -u */
