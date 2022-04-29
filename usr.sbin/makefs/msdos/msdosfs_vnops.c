@@ -537,7 +537,8 @@ static const struct {
 };
 
 struct denode *
-msdosfs_mkdire(const char *path, struct denode *pdep, fsnode *node) {
+msdosfs_mkdire(const char *path __unused, struct denode *pdep, fsnode *node)
+{
 	struct denode ndirent;
 	struct denode *dep;
 	struct componentname cn;
