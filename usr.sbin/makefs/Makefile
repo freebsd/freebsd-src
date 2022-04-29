@@ -16,7 +16,7 @@ SRCS=	cd9660.c \
 	walk.c
 MAN=	makefs.8
 
-WARNS?=	2
+NO_WCAST_ALIGN=
 CSTD=	c11
 
 .include "${SRCDIR}/cd9660/Makefile.inc"
