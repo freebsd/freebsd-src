@@ -410,7 +410,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
 	bool noclusterr, unsigned time_gran, bool nointr, bool noatime,
-	const char *subtype)
+	const char *fsname, const char *subtype)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
@@ -500,6 +500,10 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	} else {
 		build_iovec(&iov, &iovlen, "intr",
 			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (*fsname) {
+		build_iovec(&iov, &iovlen, "fsname=",
+			__DECONST(void*, fsname), -1);
 	}
 	if (*subtype) {
 		build_iovec(&iov, &iovlen, "subtype=",
