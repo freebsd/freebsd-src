@@ -1154,6 +1154,12 @@ addpartform:
 			init_allocated = true;
 			goto addpartform;
 		}
+	} else { /* auto partitioning */
+		items[0].value = strdup(items[0].init);
+		items[1].value = strdup(items[1].init);
+		items[2].value = strdup(items[2].init);
+		if (nitems > 3)
+			items[3].value = strdup(items[3].init);
 	}
 
 	/*
