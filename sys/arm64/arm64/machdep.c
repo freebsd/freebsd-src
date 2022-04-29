@@ -486,6 +486,11 @@ add_efi_map_entry(struct efi_md *p)
 {
 
 	switch (p->md_type) {
+	case EFI_MD_TYPE_RECLAIM:
+		/*
+		 * The recomended location for ACPI tables. Map into the
+		 * DMAP so we can access them from userspace via /dev/mem.
+		 */
 	case EFI_MD_TYPE_RT_CODE:
 		/*
 		 * Some UEFI implementations put the system table in the
