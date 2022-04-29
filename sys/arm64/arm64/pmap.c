@@ -3392,7 +3392,7 @@ retry:
 }
 
 /*
- * pmap_protect_l2: do the things to protect a 2MB page in a pmap
+ * Masks and sets bits in a level 2 page table entries in the specified pmap
  */
 static void
 pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
@@ -3440,34 +3440,16 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
 }
 
 /*
- *	Set the physical protection on the
- *	specified range of this map as requested.
+ * Masks and sets bits in last level page table entries in the specified
+ * pmap and range
  */
-void
-pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
+static void
+pmap_mask_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t mask,
+    pt_entry_t nbits, bool invalidate)
 {
 	vm_offset_t va, va_next;
 	pd_entry_t *l0, *l1, *l2;
-	pt_entry_t *l3p, l3, mask, nbits;
-
-	PMAP_ASSERT_STAGE1(pmap);
-	KASSERT((prot & ~VM_PROT_ALL) == 0, ("invalid prot %x", prot));
-	if (prot == VM_PROT_NONE) {
-		pmap_remove(pmap, sva, eva);
-		return;
-	}
-
-	mask = nbits = 0;
-	if ((prot & VM_PROT_WRITE) == 0) {
-		mask |= ATTR_S1_AP_RW_BIT | ATTR_SW_DBM;
-		nbits |= ATTR_S1_AP(ATTR_S1_AP_RO);
-	}
-	if ((prot & VM_PROT_EXECUTE) == 0) {
-		mask |= ATTR_S1_XN;
-		nbits |= ATTR_S1_XN;
-	}
-	if (mask == 0)
-		return;
+	pt_entry_t *l3p, l3;
 
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
@@ -3493,7 +3475,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
 			if ((pmap_load(l1) & mask) != nbits) {
 				pmap_store(l1, (pmap_load(l1) & ~mask) | nbits);
-				pmap_invalidate_page(pmap, sva, true);
+				if (invalidate)
+					pmap_invalidate_page(pmap, sva, true);
 			}
 			continue;
 		}
@@ -3534,8 +3517,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 */
 			if (!pmap_l3_valid(l3) || (l3 & mask) == nbits) {
 				if (va != va_next) {
-					pmap_invalidate_range(pmap, va, sva,
-					    true);
+					if (invalidate)
+						pmap_invalidate_range(pmap,
+						    va, sva, true);
 					va = va_next;
 				}
 				continue;
@@ -3557,10 +3541,52 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			if (va == va_next)
 				va = sva;
 		}
-		if (va != va_next)
+		if (va != va_next && invalidate)
 			pmap_invalidate_range(pmap, va, sva, true);
 	}
 	PMAP_UNLOCK(pmap);
+}
+
+/*
+ *	Set the physical protection on the
+ *	specified range of this map as requested.
+ */
+void
+pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
+{
+	pt_entry_t mask, nbits;
+
+	PMAP_ASSERT_STAGE1(pmap);
+	KASSERT((prot & ~VM_PROT_ALL) == 0, ("invalid prot %x", prot));
+	if (prot == VM_PROT_NONE) {
+		pmap_remove(pmap, sva, eva);
+		return;
+	}
+
+	mask = nbits = 0;
+	if ((prot & VM_PROT_WRITE) == 0) {
+		mask |= ATTR_S1_AP_RW_BIT | ATTR_SW_DBM;
+		nbits |= ATTR_S1_AP(ATTR_S1_AP_RO);
+	}
+	if ((prot & VM_PROT_EXECUTE) == 0) {
+		mask |= ATTR_S1_XN;
+		nbits |= ATTR_S1_XN;
+	}
+	if (mask == 0)
+		return;
+
+	pmap_mask_set(pmap, sva, eva, mask, nbits, true);
+}
+
+void
+pmap_disable_promotion(vm_offset_t sva, vm_size_t size)
+{
+
+	MPASS((sva & L3_OFFSET) == 0);
+	MPASS(((sva + size) & L3_OFFSET) == 0);
+
+	pmap_mask_set(kernel_pmap, sva, sva + size, ATTR_SW_NO_PROMOTE,
+	    ATTR_SW_NO_PROMOTE, false);
 }
 
 /*
@@ -3606,6 +3632,9 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 	register_t intr;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	if ((newpte & ATTR_SW_NO_PROMOTE) != 0)
+		panic("%s: Updating non-promote pte", __func__);
 
 	/*
 	 * Ensure we don't get switched out with the page table in an
@@ -3699,7 +3728,8 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	firstl3 = pmap_l2_to_l3(l2, sva);
 	newl2 = pmap_load(firstl3);
 
-	if (((newl2 & (~ATTR_MASK | ATTR_AF)) & L2_OFFSET) != ATTR_AF) {
+	if (((newl2 & (~ATTR_MASK | ATTR_AF)) & L2_OFFSET) != ATTR_AF ||
+	    (newl2 & ATTR_SW_NO_PROMOTE) != 0) {
 		atomic_add_long(&pmap_l2_p_failures, 1);
 		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
 		    " in pmap %p", va, pmap);
@@ -6396,6 +6426,9 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 				break;
 			}
 		} else {
+			/* We can't demote/promote this entry */
+			MPASS((pmap_load(ptep) & ATTR_SW_NO_PROMOTE) == 0);
+
 			/*
 			 * Split the entry to an level 3 table, then
 			 * set the new attribute.
@@ -6485,6 +6518,8 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 	    ("pmap_demote_l1: Invalid virtual address %#lx", va));
 	KASSERT((oldl1 & ATTR_SW_MANAGED) == 0,
 	    ("pmap_demote_l1: Level 1 table shouldn't be managed"));
+	KASSERT((oldl1 & ATTR_SW_NO_PROMOTE) == 0,
+	    ("pmap_demote_l1: Demoting entry with no-demote flag set"));
 
 	tmpl1 = 0;
 	if (va <= (vm_offset_t)l1 && va + L1_SIZE > (vm_offset_t)l1) {
@@ -6580,6 +6615,8 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	oldl2 = pmap_load(l2);
 	KASSERT((oldl2 & ATTR_DESCR_MASK) == L2_BLOCK,
 	    ("pmap_demote_l2: Demoting a non-block entry"));
+	KASSERT((oldl2 & ATTR_SW_NO_PROMOTE) == 0,
+	    ("pmap_demote_l2: Demoting entry with no-demote flag set"));
 	va &= ~L2_OFFSET;
 
 	tmpl2 = 0;
