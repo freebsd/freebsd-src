@@ -578,7 +578,7 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		    (long long)fs->fs_cstotal.cs_ndir);
 	}
 
-	if (fs->fs_cstotal.cs_nifree + UFS_ROOTINO < fsopts->inodes) {
+	if (fs->fs_cstotal.cs_nifree + (off_t)UFS_ROOTINO < fsopts->inodes) {
 		warnx(
 		"Image file `%s' has %lld free inodes; %lld are required.",
 		    image,
