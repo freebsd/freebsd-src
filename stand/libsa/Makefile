@@ -191,4 +191,8 @@ SRCS+=  explicit_bzero.c crc32_libkern.c
 .include "${SASRC}/zfs/Makefile.inc"
 .endif
 
+.if ${DO32:U0} == 0
+MAN=libsa.3
+.endif
+
 .include <bsd.lib.mk>
