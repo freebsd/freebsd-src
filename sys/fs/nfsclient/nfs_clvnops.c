@@ -1622,7 +1622,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
  */
 int
 ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
-    int *iomode, int *must_commit, int called_from_strategy)
+    int *iomode, int *must_commit, int called_from_strategy, int ioflag)
 {
 	struct nfsvattr nfsva;
 	int error, attrflag, ret;
@@ -1637,8 +1637,8 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
-		    uiop->uio_td, &nfsva, &attrflag, NULL,
-		    called_from_strategy);
+		    uiop->uio_td, &nfsva, &attrflag, called_from_strategy,
+		    ioflag);
 	if (attrflag) {
 		if (VTONFS(vp)->n_flag & ND_NFSV4)
 			ret = nfscl_loadattrcache(&vp, &nfsva, NULL, 1, 1);
