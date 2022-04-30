@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * CHAR16 related functions moved from loader.
- * Perhaps we should move those to libstand afterall, but they are
+ * Perhaps we should move those to libsa afterall, but they are
  * needed only by UEFI.
  */
 

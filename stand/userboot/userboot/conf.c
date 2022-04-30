@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * XXX rename these arrays to be consistent and less namespace-hostile
  */
 
-/* Exported for libstand */
+/* Exported for libsa */
 struct devsw *devsw[] = {
 	&host_dev,
 	&userboot_disk,
