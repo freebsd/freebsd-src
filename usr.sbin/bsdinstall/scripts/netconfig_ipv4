@@ -49,6 +49,9 @@ esac
 dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --yesno 'Would you like to use DHCP to configure this interface?' 0 0
 if [ $? -eq $DIALOG_OK ]; then
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+		# XXX: get interface down otherwise after installation restart
+		# dhclient does not build a new resolv.conf (see PR262262).
+		ifconfig $INTERFACE down
 		ifconfig $INTERFACE up
 		dialog --backtitle 'FreeBSD Installer' --infobox "Acquiring DHCP lease..." 0 0
 		err=$( pkill -F /var/run/dhclient/dhclient.${INTERFACE}.pid; dhclient $INTERFACE 2>&1 )
