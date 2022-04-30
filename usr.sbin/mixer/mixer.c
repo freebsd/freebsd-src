@@ -341,7 +341,7 @@ mod_volume(struct mix_dev *d, void *p)
 	mix_ctl_t *cp;
 	mix_volume_t v;
 	const char *val;
-	char lstr[8], rstr[8];
+	char *endp, lstr[8], rstr[8];
 	float lprev, rprev, lrel, rrel;
 	int n;
 
@@ -356,25 +356,32 @@ mod_volume(struct mix_dev *d, void *p)
 	lrel = rrel = 0;
 	if (n > 0) {
 		if (*lstr == '+' || *lstr == '-')
-			lrel = rrel = 1;
-		v.left = strtof(lstr, NULL);
+			lrel = 1;
+		v.left = strtof(lstr, &endp);
+		if (*endp != '\0' && (*endp != '%' || *(endp + 1) != '\0')) {
+			warnx("invalid volume value: %s", lstr);
+			return (-1);
+		}
 
-		/* be backwards compatible */
-		if (strstr(lstr, ".") == NULL)
+		if (*endp == '%')
 			v.left /= 100.0f;
 	}
 	if (n > 1) {
 		if (*rstr == '+' || *rstr == '-')
 			rrel = 1;
-		v.right = strtof(rstr, NULL);
+		v.right = strtof(rstr, &endp);
+		if (*endp != '\0' && (*endp != '%' || *(endp + 1) != '\0')) {
+			warnx("invalid volume value: %s", rstr);
+			return (-1);
+		}
 
-		/* be backwards compatible */
-		if (strstr(rstr, ".") == NULL)
+		if (*endp == '%')
 			v.right /= 100.0f;
 	}
 	switch (n) {
 	case 1:
 		v.right = v.left; /* FALLTHROUGH */
+		rrel = lrel;
 	case 2:
 		if (lrel)
 			v.left += m->dev->vol.left;

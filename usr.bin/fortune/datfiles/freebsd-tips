@@ -339,7 +339,7 @@ If you have sudo(8) installed and permissions to use it, type
 ``<ESC>w ! sudo tee %'' to force a write.
 %
 You can adjust the volume of various parts of the sound system in your
-computer by typing 'mixer <type>.volume=<volume>'.  To get a list of what
+computer by typing 'mixer <type>.volume=<volume>%'.  To get a list of what
 you can adjust, just type 'mixer'.
 %
 You can automatically download and install binary packages by doing
