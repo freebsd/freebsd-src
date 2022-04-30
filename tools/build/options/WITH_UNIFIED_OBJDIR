@@ -9,5 +9,5 @@ is used.
 This option is transitional and will be removed in a future version of
 .Fx ,
 at which time
-.va WITH_UNIFIED_OBJDIR
+.Va WITH_UNIFIED_OBJDIR
 will be enabled permanently.
