@@ -793,7 +793,7 @@ do_sync:
 			 */
 			must_commit = 2;
 			error = ncl_writerpc(vp, &uio, cred, &iomode,
-			    &must_commit, 0);
+			    &must_commit, 0, ioflag);
 			KASSERT((must_commit == 2),
 			    ("ncl_directio_write: Updated write verifier"));
 			if (error)
@@ -986,11 +986,21 @@ ncl_write(struct vop_write_args *ap)
 	 * get the append lock.
 	 */
 	if (ioflag & IO_APPEND) {
-		np->n_attrstamp = 0;
-		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
-		error = VOP_GETATTR(vp, &vattr, cred);
-		if (error)
-			return (error);
+		/*
+		 * For NFSv4, the AppendWrite will Verify the size against
+		 * the file's size on the server.  If not the same, the
+		 * write will then be retried, using the file size returned
+		 * by the AppendWrite.  However, for NFSv2 and NFSv3, the
+		 * size must be acquired here via a Getattr RPC.
+		 * The AppendWrite is not done for a pNFS mount.
+		 */
+		if (!NFSHASNFSV4(nmp) || NFSHASPNFS(nmp)) {
+			np->n_attrstamp = 0;
+			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+			error = VOP_GETATTR(vp, &vattr, cred);
+			if (error)
+				return (error);
+		}
 		NFSLOCKNODE(np);
 		uio->uio_offset = np->n_size;
 		NFSUNLOCKNODE(np);
@@ -1633,7 +1643,7 @@ ncl_doio_directwrite(struct buf *bp)
 	 * verifier on the mount point.
 	 */
 	must_commit = 2;
-	ncl_writerpc(bp->b_vp, uiop, bp->b_wcred, &iomode, &must_commit, 0);
+	ncl_writerpc(bp->b_vp, uiop, bp->b_wcred, &iomode, &must_commit, 0, 0);
 	KASSERT((must_commit == 2), ("ncl_doio_directwrite: Updated write"
 	    " verifier"));
 	if (iomode != NFSWRITE_FILESYNC)
@@ -1818,7 +1828,7 @@ ncl_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td,
 		    iomode = NFSWRITE_FILESYNC;
 
 		error = ncl_writerpc(vp, uiop, cr, &iomode, &must_commit,
-		    called_from_strategy);
+		    called_from_strategy, 0);
 
 		/*
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try
