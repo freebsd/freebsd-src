@@ -3322,10 +3322,10 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_SIGFASTBLK, sigfastblk, CTLFLAG_RD |
 static struct sx stop_all_proc_blocker;
 SX_SYSINIT(stop_all_proc_blocker, &stop_all_proc_blocker, "sapblk");
 
-void
+bool
 stop_all_proc_block(void)
 {
-	sx_xlock(&stop_all_proc_blocker);
+	return (sx_xlock_sig(&stop_all_proc_blocker) == 0);
 }
 
 void
@@ -3349,7 +3349,8 @@ stop_all_proc(void)
 	int r, gen;
 	bool restart, seen_stopped, seen_exiting, stopped_some;
 
-	stop_all_proc_block();
+	if (!stop_all_proc_block())
+		return;
 
 	cp = curproc;
 allproc_loop:
