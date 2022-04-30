@@ -1063,8 +1063,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	sapblk = false;
 	if (cmd_info->sapblk != NULL) {
 		sapblk = cmd_info->sapblk(td, data);
-		if (sapblk)
-			stop_all_proc_block();
+		if (sapblk && !stop_all_proc_block())
+			return (ERESTART);
 	}
 
 	switch (cmd_info->lock_tree) {
