@@ -50,7 +50,7 @@ extern struct devsw fwohci;
 #endif
 extern struct devsw vdisk_dev;
 
-/* Exported for libstand */
+/* Exported for libsa */
 struct devsw *devsw[] = {
     &biosfd,
     &bioscd,
