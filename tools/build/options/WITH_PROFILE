@@ -1,5 +1,5 @@
 .\" $FreeBSD$
 Build profiled libraries for use with
 .Xr gprof 8 .
-This option is deprecated and is not present in
-.Fx 14 .
+This option is deprecated and may not be present in a future version of
+.Fx .
