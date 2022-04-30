@@ -1102,8 +1102,13 @@ ieee80211_is_disassoc(__le16 fc)
 static __inline bool
 ieee80211_is_data_present(__le16 fc)
 {
-	TODO();
-	return (false);
+	__le16 v;
+
+	/* If it is a data frame and NODATA is not present. */
+	fc &= htole16(IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_NODATA);
+	v = htole16(IEEE80211_FC0_TYPE_DATA);
+
+	return (fc == v);
 }
 
 static __inline bool
@@ -1166,7 +1171,19 @@ ieee80211_is_back_req(__le16 fc)
 static __inline bool
 ieee80211_is_bufferable_mmpdu(__le16 fc)
 {
-	TODO();
+
+	/* 11.2.2 Bufferable MMPDUs, 80211-2020. */
+	/* XXX we do not care about IBSS yet. */
+
+	if (!ieee80211_is_mgmt(fc))
+		return (false);
+	if (ieee80211_is_action(fc))		/* XXX FTM? */
+		return (true);
+	if (ieee80211_is_disassoc(fc))
+		return (true);
+	if (ieee80211_is_deauth(fc))
+		return (true);
+
 	return (false);
 }
 
