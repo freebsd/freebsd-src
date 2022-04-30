@@ -1238,7 +1238,7 @@ void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_wait(struct proc *p);
 
-void	stop_all_proc_block(void);
+bool	stop_all_proc_block(void);
 void	stop_all_proc_unblock(void);
 void	stop_all_proc(void);
 void	resume_all_proc(void);
