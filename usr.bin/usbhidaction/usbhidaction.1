@@ -139,11 +139,11 @@ The following configuration file can be used to control a pair
 of Philips USB speakers with the HID controls on the speakers.
 .Bd -literal -offset indent
 # Configuration for various Philips USB speakers
-Consumer:Volume_Increment		 1 0 mixer -f $1 vol.volume=+1
-Consumer:Volume_Decrement		 1 0 mixer -f $1 vol.volume=-1
+Consumer:Volume_Increment		 1 0 mixer -f $1 vol.volume=+1%
+Consumer:Volume_Decrement		 1 0 mixer -f $1 vol.volume=-1%
 Consumer:Mute				 1 0 mixer -f $1 vol.mute=^
-Consumer:Channel_Top.Microsoft:Base_Up	 1 0 mixer -f $1 bass.volume=+1
-Consumer:Channel_Top.Microsoft:Base_Down 1 0 mixer -f $1 bass.volume=-1
+Consumer:Channel_Top.Microsoft:Base_Up	 1 0 mixer -f $1 bass.volume=+1%
+Consumer:Channel_Top.Microsoft:Base_Down 1 0 mixer -f $1 bass.volume=-1%
 .Ed
 .Pp
 A sample invocation using this configuration would be
@@ -153,9 +153,9 @@ A sample invocation using this configuration would be
 The following example controls the mixer volume using a Logitech Wingman.
 Notice the debounce of 1 for buttons and 5 for the slider.
 .Bd -literal -offset indent
-Button:Button_1	  1 1	mixer vol.volume=+10
-Button:Button_2	  1 1	mixer vol.volume=-10
-Generic_Desktop:Z * 5	mixer vol.volume=`echo $V | awk '{print int($$1/255*100)}'`
+Button:Button_1	  1 1	mixer vol.volume=+10%
+Button:Button_2	  1 1	mixer vol.volume=-10%
+Generic_Desktop:Z * 5	mixer vol.volume=`echo $V | awk '{printf("%.02f", $$1/255)}'`
 .Ed
 .Sh SEE ALSO
 .Xr usbhidctl 1 ,

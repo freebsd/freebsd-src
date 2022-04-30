@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2022
+.Dd April 29, 2022
 .Dt MIXER 8
 .Os
 .Sh NAME
@@ -112,8 +112,8 @@ with one of the available devices):
 .It Sy Name Ta Sy Value
 .It Ar dev Cm .volume Ta Xo
 .Ar vol |
-.Oo Cm \&+ | Cm \&- Oc Ar lvol
-.Oo Cm \&: Oo Cm \&+ | Cm \&- Oc Ar rvol Oc
+.Oo Cm \&+ | Cm \&- Oc Ar lvol Oo % Oc
+.Oo Cm \&: Oo Cm \&+ | Cm \&- Oc Ar rvol Oo % Oc Oc
 .Xc
 .It Ar dev Cm .mute Ta Cm 0 | 1 | ^
 .It Ar dev Cm .recsrc Ta Cm ^ | + | - | =
@@ -128,16 +128,21 @@ The optional
 and/or
 .Ar rvol
 values have to be specified.
-The values have to be normalized 32-bit floats, from 0.0 to 1.0 inclusively.
-If no
-.Ql \&.
-character is present, the value is treated like a percentage, for backwards compatibility.
+The values should typically be decimal numbers between 0 and 1 with at most 2
+digits after the decimal point.
+A trailing percent sign indicates that the value should be treated as a
+percentage of 1.0, rather than an absolute value.
+Thus, 70% means the same as 0.7.
 If the left or right volume values are prefixed with
 .Cm +
 or
 .Cm - ,
 the value following will be used as a relative adjustment, modifying the
 current settings by the amount specified.
+Note that relative percentages are still relative to 1.0, not to the current
+value.
+If the volume is currently 0.40 and an adjustment of +20% is specified, then
+thet final volume will be set to 0.60.
 .Pp
 Volume can also be set using the shorthand
 .Ar dev Ns Cm =value .
