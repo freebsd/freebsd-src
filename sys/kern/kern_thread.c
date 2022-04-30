@@ -1156,7 +1156,8 @@ restart:
 		}
 		if (TD_CAN_ABORT(td2)) {
 			if ((td2->td_flags & TDF_SBDRY) == 0) {
-				thread_suspend_one(td2);
+				if (!TD_IS_SUSPENDED(td2))
+					thread_suspend_one(td2);
 				td2->td_flags |= TDF_ALLPROCSUSP;
 			} else {
 				wakeup_swapper |= sleepq_abort(td2, ERESTART);
