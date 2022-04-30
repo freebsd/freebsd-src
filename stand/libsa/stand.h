@@ -117,7 +117,7 @@ struct fs_ops {
 };
 
 /*
- * libstand-supplied filesystems
+ * libsa-supplied filesystems
  */
 extern struct fs_ops ufs_fsops;
 extern struct fs_ops tftp_fsops;
@@ -159,7 +159,7 @@ struct devsw {
 };
 
 /*
- * libstand-supplied device switch
+ * libsa-supplied device switch
  */
 extern struct devsw netdev;
 

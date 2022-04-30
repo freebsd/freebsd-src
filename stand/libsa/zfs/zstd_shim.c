@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Small amount of shim code needed to get zfs_zstd.c to compile. These items
- * here should all be defined in the SPL or as part of libstand somewhere, but
+ * here should all be defined in the SPL or as part of libsa somewhere, but
  * aren't for reasons that haven't been tracked down yet. Ideally, they would
  * all go away and we'd compile zfs_zstd.c directly. Based on an original by
  * Matt Macey, but only the #include remains untouched from that.

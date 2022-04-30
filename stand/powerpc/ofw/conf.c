@@ -48,7 +48,7 @@ void (*exitfn)(int) = exit;
  * XXX rename these arrays to be consistent and less namespace-hostile
  */
 
-/* Exported for libstand */
+/* Exported for libsa */
 struct devsw *devsw[] = {
 #if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
     &ofwdisk,

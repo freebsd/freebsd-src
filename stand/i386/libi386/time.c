@@ -38,7 +38,7 @@ static int	bios_seconds(void);
 /*
  * Return the BIOS time-of-day value.
  *
- * XXX uses undocumented BCD support from libstand.
+ * XXX uses undocumented BCD support from libsa.
  */
 static int
 bios_seconds(void)
