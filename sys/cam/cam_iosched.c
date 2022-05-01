@@ -139,6 +139,15 @@ SYSCTL_INT(_kern_cam_iosched, OID_AUTO, buckets, CTLFLAG_RD,
     &lat_buckets, LAT_BUCKETS,
     "Total number of latency buckets published");
 
+/*
+ * Read bias: how many reads do we favor before scheduling a write
+ * when we have a choice.
+ */
+static int default_read_bias = 0;
+SYSCTL_INT(_kern_cam_iosched, OID_AUTO, read_bias, CTLFLAG_RWTUN,
+    &default_read_bias, 0,
+    "Default read bias for new devices.");
+
 struct iop_stats;
 struct cam_iosched_softc;
 
@@ -1149,7 +1158,7 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
 		bioq_init(&(*iscp)->write_queue);
-		(*iscp)->read_bias = 0;
+		(*iscp)->read_bias = default_read_bias;
 		(*iscp)->current_read_bias = 0;
 		(*iscp)->quanta = min(hz, 200);
 		cam_iosched_iop_stats_init(*iscp, &(*iscp)->read_stats);
@@ -1234,7 +1243,7 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 
 	SYSCTL_ADD_INT(ctx, n,
 	    OID_AUTO, "read_bias", CTLFLAG_RW,
-	    &isc->read_bias, 0,
+	    &isc->read_bias, default_read_bias,
 	    "How biased towards read should we be independent of limits");
 
 	SYSCTL_ADD_PROC(ctx, n,
