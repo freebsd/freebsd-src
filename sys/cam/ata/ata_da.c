@@ -2872,7 +2872,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		cam_periph_lock(periph);
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			error = adaerror(done_ccb, 0, 0);
+			error = adaerror(done_ccb, CAM_RETRY_SELTO, 0);
 			if (error == ERESTART) {
 				/* A retry was scheduled, so just return. */
 				cam_periph_unlock(periph);
