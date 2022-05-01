@@ -1505,6 +1505,7 @@ cam_iosched_get_trim(struct cam_iosched_softc *isc)
 }
 
 
+#ifdef CAM_IOSCHED_DYNAMIC
 static struct bio *
 bio_next(struct bio *bp)
 {
@@ -1518,7 +1519,6 @@ bio_next(struct bio *bp)
 	return bp;
 }
 
-#ifdef CAM_IOSCHED_DYNAMIC
 static bool
 cam_iosched_rate_limited(struct iop_stats *ios)
 {
