@@ -1495,6 +1495,28 @@ cam_iosched_get_trim(struct cam_iosched_softc *isc)
 	return cam_iosched_next_trim(isc);
 }
 
+
+static struct bio *
+bio_next(struct bio *bp)
+{
+	bp = TAILQ_NEXT(bp, bio_queue);
+	/*
+	 * After the first commands, the ordered bit terminates
+	 * our search because BIO_ORDERED acts like a barrier.
+	 */
+	if (bp == NULL || bp->bio_flags & BIO_ORDERED)
+		return NULL;
+	return bp;
+}
+
+#ifdef CAM_IOSCHED_DYNAMIC
+static bool
+cam_iosched_rate_limited(struct iop_stats *ios)
+{
+	return ios->state_flags & IOP_RATE_LIMITED;
+}
+#endif
+
 /*
  * Determine what the next bit of work to do is for the periph. The
  * default implementation looks to see if we have trims to do, but no
@@ -1527,27 +1549,54 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 			return bp;
 	}
 #endif
-
 	/*
 	 * next, see if there's other, normal I/O waiting. If so return that.
 	 */
-	if ((bp = bioq_first(&isc->bio_queue)) == NULL)
-		return NULL;
-
 #ifdef CAM_IOSCHED_DYNAMIC
-	/*
-	 * For the dynamic scheduler, bio_queue is only for reads, so enforce
-	 * the limits here. Enforce only for reads.
-	 */
 	if (do_dynamic_iosched) {
-		if (bp->bio_cmd == BIO_READ &&
-		    cam_iosched_limiter_iop(&isc->read_stats, bp) != 0) {
-			isc->read_stats.state_flags |= IOP_RATE_LIMITED;
-			return NULL;
+		for (bp = bioq_first(&isc->bio_queue); bp != NULL;
+		     bp = bio_next(bp)) {
+			/*
+			 * For the dynamic scheduler with a read bias, bio_queue
+			 * is only for reads. However, without one, all
+			 * operations are queued. Enforce limits here for any
+			 * operation we find here.
+			 */
+			if (bp->bio_cmd == BIO_READ) {
+				if (cam_iosched_rate_limited(&isc->read_stats) ||
+				    cam_iosched_limiter_iop(&isc->read_stats, bp) != 0) {
+					isc->read_stats.state_flags |= IOP_RATE_LIMITED;
+					continue;
+				}
+				isc->read_stats.state_flags &= ~IOP_RATE_LIMITED;
+			}
+			/*
+			 * There can only be write requests on the queue when
+			 * the read bias is 0, but we need to process them
+			 * here. We do not assert for read bias == 0, however,
+			 * since it is dynamic and we can have WRITE operations
+			 * in the queue after we transition from 0 to non-zero.
+			 */
+			if (bp->bio_cmd == BIO_WRITE) {
+				if (cam_iosched_rate_limited(&isc->write_stats) ||
+				    cam_iosched_limiter_iop(&isc->write_stats, bp) != 0) {
+					isc->write_stats.state_flags |= IOP_RATE_LIMITED;
+					continue;
+				}
+				isc->write_stats.state_flags &= ~IOP_RATE_LIMITED;
+			}
+			/*
+			 * here we know we have a bp that's != NULL, that's not rate limited
+			 * and can be the next I/O.
+			 */
+			break;
 		}
-	}
-	isc->read_stats.state_flags &= ~IOP_RATE_LIMITED;
+	} else
 #endif
+		bp = bioq_first(&isc->bio_queue);
+
+	if (bp == NULL)
+		return (NULL);
 	bioq_remove(&isc->bio_queue, bp);
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
@@ -1555,6 +1604,10 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 			isc->read_stats.queued--;
 			isc->read_stats.total++;
 			isc->read_stats.pending++;
+		} else if (bp->bio_cmd == BIO_WRITE) {
+			isc->write_stats.queued--;
+			isc->write_stats.total++;
+			isc->write_stats.pending++;
 		} else
 			printf("Found bio_cmd = %#x\n", bp->bio_cmd);
 	}
@@ -1632,7 +1685,8 @@ cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp)
 #endif
 	}
 #ifdef CAM_IOSCHED_DYNAMIC
-	else if (do_dynamic_iosched && (bp->bio_cmd != BIO_READ)) {
+	else if (do_dynamic_iosched && isc->read_bias != 0 &&
+	    (bp->bio_cmd != BIO_READ)) {
 		if (cam_iosched_sort_queue(isc))
 			bioq_disksort(&isc->write_queue, bp);
 		else
