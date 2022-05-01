@@ -3822,6 +3822,11 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 	fhstyle = fxdr_unsigned(int, *tl);
 	switch (fhstyle) {
 	case NFSSECINFONONAME_PARENT:
+		if (dp->v_type != VDIR) {
+			vput(dp);
+			nd->nd_repstat = NFSERR_NOTDIR;
+			goto nfsmout;
+		}
 		NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
 		    LOCKLEAF | SAVESTART);
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
