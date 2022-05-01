@@ -605,12 +605,12 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 		struct periph_driver **p_drv;
 		char   *name;
 		u_int unit;
-		int base_periph_found;
+		bool base_periph_found;
 
 		ccb = (union ccb *)addr;
 		unit = ccb->cgdl.unit_number;
 		name = ccb->cgdl.periph_name;
-		base_periph_found = 0;
+		base_periph_found = false;
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO)
 			ccb->csio.bio = NULL;
@@ -664,7 +664,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			struct cam_ed *device;
 			int i;
 
-			base_periph_found = 1;
+			base_periph_found = true;
 			device = periph->path->device;
 			for (i = 0, periph = SLIST_FIRST(&device->periphs);
 			     periph != NULL;
@@ -732,7 +732,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			 * passthrough driver, but doesn't have one in his
 			 * kernel.
 			 */
-			if (base_periph_found == 1) {
+			if (base_periph_found) {
 				printf("xptioctl: pass driver is not in the "
 				       "kernel\n");
 				printf("xptioctl: put \"device pass\" in "
@@ -2833,9 +2833,9 @@ call_sim:
 		struct ccb_getdevlist	*cgdl;
 		u_int			i;
 		struct cam_ed		*device;
-		int			found;
+		bool			found;
 
-		found = 0;
+		found = false;
 
 		/*
 		 * Don't want anyone mucking with our data.
@@ -2868,10 +2868,10 @@ call_sim:
 					nperiph->periph_name,
 					sizeof(cgdl->periph_name));
 				cgdl->unit_number = nperiph->unit_number;
-				found = 1;
+				found = true;
 			}
 		}
-		if (found == 0) {
+		if (!found) {
 			cgdl->status = CAM_GDEVLIST_ERROR;
 			break;
 		}
@@ -4210,7 +4210,7 @@ xpt_async_process_dev(struct cam_ed *device, void *arg)
 	struct cam_path *path = ccb->ccb_h.path;
 	void *async_arg = ccb->casync.async_arg_ptr;
 	u_int32_t async_code = ccb->casync.async_code;
-	int relock;
+	bool relock;
 
 	if (path->device != device
 	 && path->device->lun_id != CAM_LUN_WILDCARD
@@ -4237,9 +4237,9 @@ xpt_async_process_dev(struct cam_ed *device, void *arg)
 	     path->target->bus->path_id != CAM_BUS_WILDCARD)) {
 		mtx_unlock(&device->device_mtx);
 		xpt_path_lock(path);
-		relock = 1;
+		relock = true;
 	} else
-		relock = 0;
+		relock = false;
 
 	(*(device->target->bus->xport->ops->async))(async_code,
 	    device->target->bus, device->target, device, async_arg);
@@ -5215,7 +5215,7 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 {
 	struct ccb_setasync csa;
 	cam_status status;
-	int xptpath = 0;
+	bool xptpath = false;
 
 	if (path == NULL) {
 		status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
@@ -5223,7 +5223,7 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 		if (status != CAM_REQ_CMP)
 			return (status);
 		xpt_path_lock(path);
-		xptpath = 1;
+		xptpath = true;
 	}
 
 	memset(&csa, 0, sizeof(csa));
