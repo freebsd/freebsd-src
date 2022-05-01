@@ -1149,8 +1149,8 @@ cam_iosched_init(struct cam_iosched_softc **iscp, struct cam_periph *periph)
 #ifdef CAM_IOSCHED_DYNAMIC
 	if (do_dynamic_iosched) {
 		bioq_init(&(*iscp)->write_queue);
-		(*iscp)->read_bias = 100;
-		(*iscp)->current_read_bias = 100;
+		(*iscp)->read_bias = 0;
+		(*iscp)->current_read_bias = 0;
 		(*iscp)->quanta = min(hz, 200);
 		cam_iosched_iop_stats_init(*iscp, &(*iscp)->read_stats);
 		cam_iosched_iop_stats_init(*iscp, &(*iscp)->write_stats);
@@ -1234,7 +1234,7 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 
 	SYSCTL_ADD_INT(ctx, n,
 	    OID_AUTO, "read_bias", CTLFLAG_RW,
-	    &isc->read_bias, 100,
+	    &isc->read_bias, 0,
 	    "How biased towards read should we be independent of limits");
 
 	SYSCTL_ADD_PROC(ctx, n,
