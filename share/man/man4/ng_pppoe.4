@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd February 14, 2018
+.Dd May 1, 2022
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -320,6 +320,18 @@ This node shuts down upon receipt of a
 control message, when all session have been disconnected or when the
 .Dv ethernet
 hook is disconnected.
+.Sh SYSCTL VARIABLES
+The node can mark transmitted LCP Ethernet packets (protocol 0xc021)
+with 3-bit Priority Code Point (PCP) referring to IEEE 802.1p
+class of service with following
+.Xr sysctl 8
+variable.
+.Bl -tag -width indent
+.It Va net.graph.pppoe.lcp_pcp: 0..7 (default: 0)
+Set it to non-zero value to be used by parent network interface driver
+like
+.Xr vlan 4
+.El
 .Sh EXAMPLES
 The following code uses
 .Dv libnetgraph
@@ -556,7 +568,8 @@ setup(char *ethername, char *service, char *sessname,
 .Xr ng_ppp 4 ,
 .Xr ng_socket 4 ,
 .Xr ngctl 8 ,
-.Xr ppp 8
+.Xr ppp 8 ,
+.Xr vlan 4
 .Rs
 .%A L. Mamakos
 .%A K. Lidl
