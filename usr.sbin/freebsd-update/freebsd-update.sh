@@ -3023,6 +3023,14 @@ Kernel updates have been installed.  Please reboot and run
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
 
+		# Restart sshd if running (PR263489).  Note that this does not
+		# affect child sshd processes handling existing sessions.
+		if service sshd status >/dev/null 2>/dev/null; then
+			echo
+			echo "Restarting sshd after upgrade"
+			service sshd restart
+		fi
+
 		# Rehash certs if we actually have certctl installed.
 		if which certctl>/dev/null; then
 			env DESTDIR=${BASEDIR} certctl rehash
