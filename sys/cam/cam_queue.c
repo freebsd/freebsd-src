@@ -46,10 +46,6 @@ static MALLOC_DEFINE(M_CAMQ, "CAM queue", "CAM queue buffers");
 static MALLOC_DEFINE(M_CAMDEVQ, "CAM dev queue", "CAM dev queue buffers");
 static MALLOC_DEFINE(M_CAMCCBQ, "CAM ccb queue", "CAM ccb queue buffers");
 
-static __inline int
-		queue_cmp(cam_pinfo **queue_array, int i, int j);
-static __inline void
-		swap(cam_pinfo **queue_array, int i, int j);
 static void	heap_up(cam_pinfo **queue_array, int new_index);
 static void	heap_down(cam_pinfo **queue_array, int index,
 			  int last_index);
