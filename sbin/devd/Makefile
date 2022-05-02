@@ -13,7 +13,10 @@ DEVD+=	asus.conf
 .endif
 
 .if ${MK_HYPERV} != "no"
-DEVD+=	hyperv.conf
+CONFGROUPS+=	HYPERV
+HYPERVDIR=${DEVDDIR}
+HYPERV+=	hyperv.conf
+HYPERVPACKAGE=	hyperv-tools
 .endif
 
 .if ${MK_USB} != "no"
