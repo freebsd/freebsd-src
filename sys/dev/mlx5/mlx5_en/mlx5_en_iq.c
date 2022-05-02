@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 NVIDIA corporation & affiliates. All rights reserved.
+ * Copyright (c) 2021-2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -279,7 +279,7 @@ mlx5e_iq_enable(struct mlx5e_iq *iq, struct mlx5e_sq_param *param,
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
 	MLX5_SET(wq, wq, uar_page, bfreg->index);
 	MLX5_SET(wq, wq, log_wq_pg_sz, iq->wq_ctrl.buf.page_shift -
-	    PAGE_SHIFT);
+	    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(wq, wq, dbr_addr, iq->wq_ctrl.db.dma);
 
 	mlx5_fill_page_array(&iq->wq_ctrl.buf,
