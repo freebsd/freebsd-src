@@ -248,10 +248,12 @@ static void ib_umem_account(struct work_struct *work)
  */
 void ib_umem_release(struct ib_umem *umem)
 {
-	struct ib_ucontext *context = umem->context;
 	struct mm_struct *mm;
 	struct task_struct *task;
 	unsigned long diff;
+
+	if (!umem)
+		return;
 
 	if (umem->odp_data) {
 		ib_umem_odp_release(umem);
@@ -279,7 +281,7 @@ void ib_umem_release(struct ib_umem *umem)
 	 * up here and not be able to take the mmap_sem.  In that case
 	 * we defer the vm_locked accounting to the system workqueue.
 	 */
-	if (context->closing) {
+	if (umem->context->closing) {
 		if (!down_write_trylock(&mm->mmap_sem)) {
 			INIT_WORK(&umem->work, ib_umem_account);
 			umem->mm   = mm;
