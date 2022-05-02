@@ -6646,6 +6646,8 @@ nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
 	bcopy(sessionid, tl, NFSX_V4SESSIONID);
 	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 	nd->nd_slotseq = tl;
+	nd->nd_slotid = *slotposp;
+	nd->nd_flag |= ND_HASSLOTID;
 	*tl++ = txdr_unsigned(slotseq);
 	*tl++ = txdr_unsigned(*slotposp);
 	*tl++ = txdr_unsigned(maxslot);
