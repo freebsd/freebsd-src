@@ -143,30 +143,6 @@ void		camq_change_priority(struct camq *queue, int index,
 				     u_int32_t new_priority);
 
 static __inline int
-cam_ccbq_pending_ccb_count(struct cam_ccbq *ccbq);
-
-static __inline void
-cam_ccbq_take_opening(struct cam_ccbq *ccbq);
-
-static __inline void
-cam_ccbq_insert_ccb(struct cam_ccbq *ccbq, union ccb *new_ccb);
-
-static __inline void
-cam_ccbq_remove_ccb(struct cam_ccbq *ccbq, union ccb *ccb);
-
-static __inline union ccb *
-cam_ccbq_peek_ccb(struct cam_ccbq *ccbq, int index);
-
-static __inline void
-cam_ccbq_send_ccb(struct cam_ccbq *queue, union ccb *send_ccb);
-
-static __inline void
-cam_ccbq_ccb_done(struct cam_ccbq *ccbq, union ccb *done_ccb);
-
-static __inline void
-cam_ccbq_release_opening(struct cam_ccbq *ccbq);
-
-static __inline int
 cam_ccbq_pending_ccb_count(struct cam_ccbq *ccbq)
 {
 	return (ccbq->queue.entries + ccbq->queue_extra_entries);
