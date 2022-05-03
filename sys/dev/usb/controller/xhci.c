@@ -3550,7 +3550,7 @@ xhci_roothub_exec(struct usb_device *udev,
 
 		switch (value) {
 		case UHF_PORT_U1_TIMEOUT:
-			if (XHCI_PS_SPEED_GET(v) != 4) {
+			if (XHCI_PS_SPEED_GET(v) < XHCI_PS_SPEED_SS) {
 				err = USB_ERR_IOERROR;
 				goto done;
 			}
@@ -3561,7 +3561,7 @@ xhci_roothub_exec(struct usb_device *udev,
 			XWRITE4(sc, oper, port, v);
 			break;
 		case UHF_PORT_U2_TIMEOUT:
-			if (XHCI_PS_SPEED_GET(v) != 4) {
+			if (XHCI_PS_SPEED_GET(v) < XHCI_PS_SPEED_SS) {
 				err = USB_ERR_IOERROR;
 				goto done;
 			}
