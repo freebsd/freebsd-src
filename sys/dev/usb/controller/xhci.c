@@ -3867,7 +3867,11 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 		}
 	}
 
-	xhci_configure_mask(udev, mask, 0);
+	/*
+	 * Always need to evaluate the slot context, because the maximum
+	 * number of endpoint contexts is stored there.
+	 */
+	xhci_configure_mask(udev, mask | 1U, 0);
 
 	if (!(sc->sc_hw.devs[index].ep_configured & mask)) {
 		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
