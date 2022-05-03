@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_TIMEOUT 3"
-.TH SSL_CTX_SET_TIMEOUT 3 "2022-03-15" "1.1.1n" "OpenSSL"
+.TH SSL_CTX_SET_TIMEOUT 3 "2022-05-03" "1.1.1o" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -177,6 +177,16 @@ The default value for session timeout is decided on a per protocol
 basis, see \fBSSL_get_default_timeout\fR\|(3).
 All currently supported protocols have the same default timeout value
 of 300 seconds.
+.PP
+This timeout value is used as the ticket lifetime hint for stateless session
+tickets. It is also used as the timeout value within the ticket itself.
+.PP
+For TLSv1.3, \s-1RFC8446\s0 limits transmission of this value to 1 week (604800
+seconds).
+.PP
+For TLSv1.2, tickets generated during an initial handshake use the value
+as specified. Tickets generated during a resumed handshake have a value
+of 0 for the ticket lifetime hint.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBSSL_CTX_set_timeout()\fR returns the previously set timeout value.
@@ -191,7 +201,7 @@ of 300 seconds.
 \&\fBSSL_get_default_timeout\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
