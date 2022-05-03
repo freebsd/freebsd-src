@@ -111,6 +111,8 @@ dummynet_init()
 		atf_skip "This test requires dummynet"
 	fi
 
+	atf_skip "Skip to avoid dummynet_send() panic after interface removal."
+
 	case $firewall in
 	ipfw|pf)
 		# Nothing. This is okay.
