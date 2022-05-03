@@ -1207,10 +1207,18 @@ thread_single(struct proc *p, int mode)
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	if ((p->p_flag & P_HADTHREADS) == 0 && mode != SINGLE_ALLPROC)
+	/*
+	 * Is someone already single threading?
+	 * Or may be singlethreading is not needed at all.
+	 */
+	if (mode == SINGLE_ALLPROC) {
+		while ((p->p_flag & P_STOPPED_SINGLE) != 0) {
+			if ((p->p_flag2 & P2_WEXIT) != 0)
+				return (1);
+			msleep(&p->p_flag, &p->p_mtx, PCATCH, "thrsgl", 0);
+		}
+	} else if ((p->p_flag & P_HADTHREADS) == 0)
 		return (0);
-
-	/* Is someone already single threading? */
 	if (p->p_singlethread != NULL && p->p_singlethread != td)
 		return (1);
 
@@ -1669,6 +1677,7 @@ thread_single_end(struct proc *p, int mode)
 	PROC_SUNLOCK(p);
 	if (wakeup_swapper)
 		kick_proc0();
+	wakeup(&p->p_flag);
 }
 
 /*
