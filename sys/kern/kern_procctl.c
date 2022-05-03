@@ -254,7 +254,7 @@ reap_kill_proc_relock(struct proc *p, int xlocked)
 	PROC_LOCK(p);
 }
 
-static bool
+static void
 reap_kill_proc_locked(struct thread *td, struct proc *p2,
     ksiginfo_t *ksi, struct procctl_reaper_kill *rk, int *error)
 {
@@ -270,7 +270,7 @@ reap_kill_proc_locked(struct thread *td, struct proc *p2,
 			rk->rk_fpid = p2->p_pid;
 			*error = error1;
 		}
-		return (true);
+		return;
 	}
 
 	/*
@@ -291,47 +291,37 @@ reap_kill_proc_locked(struct thread *td, struct proc *p2,
 	 * race.
 	 */
 	need_stop = p2 != td->td_proc &&
-	    (p2->p_flag & (P_KPROC | P_SYSTEM)) == 0 &&
+	    (p2->p_flag & (P_KPROC | P_SYSTEM | P_STOPPED)) == 0 &&
 	    (rk->rk_flags & REAPER_KILL_CHILDREN) == 0;
 
 	if (need_stop) {
-		if (P_SHOULDSTOP(p2) == P_STOPPED_SINGLE)
-			return (false);	/* retry later */
 		xlocked = sx_xlocked(&proctree_lock);
 		sx_unlock(&proctree_lock);
 		r = thread_single(p2, SINGLE_ALLPROC);
-		if (r != 0) {
-			reap_kill_proc_relock(p2, xlocked);
-			return (false);
-		}
+		reap_kill_proc_relock(p2, xlocked);
+		if (r != 0)
+			need_stop = false;
 	}
 
 	pksignal(p2, rk->rk_sig, ksi);
 	rk->rk_killed++;
 	*error = error1;
 
-	if (need_stop) {
-		reap_kill_proc_relock(p2, xlocked);
+	if (need_stop)
 		thread_single_end(p2, SINGLE_ALLPROC);
-	}
-	return (true);
 }
 
-static bool
+static void
 reap_kill_proc(struct thread *td, struct proc *p2, ksiginfo_t *ksi,
     struct procctl_reaper_kill *rk, int *error)
 {
-	bool res;
-
-	res = true;
 	PROC_LOCK(p2);
 	if ((p2->p_flag2 & P2_WEXIT) == 0) {
 		_PHOLD_LITE(p2);
-		res = reap_kill_proc_locked(td, p2, ksi, rk, error);
+		reap_kill_proc_locked(td, p2, ksi, rk, error);
 		_PRELE(p2);
 	}
 	PROC_UNLOCK(p2);
-	return (res);
 }
 
 struct reap_kill_tracker {
@@ -391,8 +381,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 				reap_kill_sched(&tracker, p2);
 			if (alloc_unr_specific(pids, p2->p_pid) != p2->p_pid)
 				continue;
-			if (!reap_kill_proc(td, p2, ksi, rk, error))
-				free_unr(pids, p2->p_pid);
+			reap_kill_proc(td, p2, ksi, rk, error);
 			res = true;
 		}
 		free(t, M_TEMP);
