@@ -3848,9 +3848,16 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 
 	mask = (1U << epno);
 
-	if (epno != 1 && drop != 0) {
+	/*
+	 * So-called control and isochronous transfer types have
+	 * predefined data toggles (USB 2.0) or sequence numbers (USB
+	 * 3.0) and does not need to be dropped.
+	 */
+	if (drop != 0 &&
+	    (edesc->bmAttributes & UE_XFERTYPE) != UE_CONTROL &&
+	    (edesc->bmAttributes & UE_XFERTYPE) != UE_ISOCHRONOUS) {
 		/* drop endpoint context to reset data toggle value, if any. */
-	  	xhci_configure_mask(udev, mask, 1);
+		xhci_configure_mask(udev, mask, 1);
 		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
 		if (err != 0) {
 			DPRINTF("Could not drop "
