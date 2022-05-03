@@ -70,12 +70,14 @@ struct ebuf *
 ebuf_alloc(size_t size)
 {
 	struct ebuf *eb;
+	size_t page_size;
 	int rerrno;
 
 	eb = malloc(sizeof(*eb));
 	if (eb == NULL)
 		return (NULL);
-	size += PAGE_SIZE;
+	page_size = getpagesize();
+	size += page_size;
 	eb->eb_start = malloc(size);
 	if (eb->eb_start == NULL) {
 		rerrno = errno;
@@ -88,7 +90,7 @@ ebuf_alloc(size_t size)
 	 * We set start address for real data not at the first entry, because
 	 * we want to be able to add data at the front.
 	 */
-	eb->eb_used = eb->eb_start + PAGE_SIZE / 4;
+	eb->eb_used = eb->eb_start + page_size / 4;
 	eb->eb_size = 0;
 	eb->eb_magic = EBUF_MAGIC;
 
@@ -215,17 +217,18 @@ static int
 ebuf_head_extend(struct ebuf *eb, size_t size)
 {
 	unsigned char *newstart, *newused;
-	size_t newsize;
+	size_t newsize, page_size;
 
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
-	newsize = eb->eb_end - eb->eb_start + (PAGE_SIZE / 4) + size;
+	page_size = getpagesize();
+	newsize = eb->eb_end - eb->eb_start + (page_size / 4) + size;
 
 	newstart = malloc(newsize);
 	if (newstart == NULL)
 		return (-1);
 	newused =
-	    newstart + (PAGE_SIZE / 4) + size + (eb->eb_used - eb->eb_start);
+	    newstart + (page_size / 4) + size + (eb->eb_used - eb->eb_start);
 
 	bcopy(eb->eb_used, newused, eb->eb_size);
 
@@ -243,11 +246,12 @@ static int
 ebuf_tail_extend(struct ebuf *eb, size_t size)
 {
 	unsigned char *newstart;
-	size_t newsize;
+	size_t newsize, page_size;
 
 	PJDLOG_ASSERT(eb != NULL && eb->eb_magic == EBUF_MAGIC);
 
-	newsize = eb->eb_end - eb->eb_start + size + ((3 * PAGE_SIZE) / 4);
+	page_size = getpagesize();
+	newsize = eb->eb_end - eb->eb_start + size + ((3 * page_size) / 4);
 
 	newstart = realloc(eb->eb_start, newsize);
 	if (newstart == NULL)
