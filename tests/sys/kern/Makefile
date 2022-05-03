@@ -22,7 +22,8 @@ ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sigaltstack
-.if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH:Mpowerpc*} == ""
+.if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH:Mpowerpc*} == "" && \
+    ${MACHINE_CPUARCH} != "mips"
 ATF_TESTS_C+=	subr_physmem_test
 .endif
 PLAIN_TESTS_C+=	subr_unit_test
