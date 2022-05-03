@@ -23,6 +23,11 @@ RELTOP?= 	${RELDIR:C,[^/]+,..,g}
 RELOBJTOP?=	${RELTOP}
 RELSRCTOP?=	${RELTOP}
 
+.if !defined(OS_REVISION)
+OS_REVISION!=eval `sh ${SRCTOP}/sys/conf/newvers.sh -V REVISION` && echo $$REVISION || echo
+.export OS_REVISION
+.endif
+
 # site customizations that do not depend on anything!
 
 # Save MAKEOBJDIRPREFIX and don't let src-env.conf modify it.
