@@ -949,6 +949,16 @@ fuse_vnop_link(struct vop_link_args *ap)
 	}
 	feo = fdi.answ;
 
+	if (fli.oldnodeid != feo->nodeid) {
+		struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
+		fuse_warn(data, FSESS_WARN_ILLEGAL_INODE,
+			"Assigned wrong inode for a hard link.");
+		fuse_vnode_clear_attr_cache(vp);
+		fuse_vnode_clear_attr_cache(tdvp);
+		err = EIO;
+		goto out;
+	}
+
 	err = fuse_internal_checkentry(feo, vnode_vtype(vp));
 	if (!err) {
 		/* 
@@ -1008,6 +1018,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct mount *mp = vnode_mount(dvp);
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	int default_permissions = data->dataflags & FSESS_DEFAULT_PERMISSIONS;
+	bool is_dot;
 
 	int err = 0;
 	int lookup_err = 0;
@@ -1036,6 +1047,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	else if ((err = fuse_internal_access(dvp, VEXEC, td, cred)))
 		return err;
 
+	is_dot = cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.';
 	if ((flags & ISDOTDOT) && !(data->dataflags & FSESS_EXPORT_SUPPORT))
 	{
 		if (!(VTOFUD(dvp)->flag & FN_PARENT_NID)) {
@@ -1051,7 +1063,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		/* .. is obviously a directory */
 		vtyp = VDIR;
 		filesize = 0;
-	} else if (cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.') {
+	} else if (is_dot) {
 		nid = VTOI(dvp);
 		/* . is obviously a directory */
 		vtyp = VDIR;
@@ -1172,8 +1184,17 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				&vp);
 			*vpp = vp;
 		} else if (nid == VTOI(dvp)) {
-			vref(dvp);
-			*vpp = dvp;
+			if (is_dot) {
+				vref(dvp);
+				*vpp = dvp;
+			} else {
+				fuse_warn(fuse_get_mpdata(mp),
+				    FSESS_WARN_ILLEGAL_INODE,
+				    "Assigned same inode to both parent and "
+				    "child.");
+				err = EIO;
+			}
+
 		} else {
 			struct fuse_vnode_data *fvdat;
 

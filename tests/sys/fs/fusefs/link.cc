@@ -176,6 +176,53 @@ TEST_F(Link, emlink)
 	EXPECT_EQ(EMLINK, errno);
 }
 
+/*
+ * A hard link should always have the same inode as its source.  If it doesn't,
+ * then it's not a hard link.
+ */
+TEST_F(Link, bad_inode)
+{
+	const char FULLPATH[] = "mountpoint/src";
+	const char RELPATH[] = "src";
+	const char FULLDST[] = "mountpoint/dst";
+	const char RELDST[] = "dst";
+	const uint64_t src_ino = 42;
+	const uint64_t dst_ino = 43;
+	mode_t mode = S_IFREG | 0644;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELDST)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.attr.mode = mode;
+		out.body.entry.nodeid = dst_ino;
+		out.body.entry.attr.nlink = 1;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in.body.bytes
+				+ sizeof(struct fuse_link_in);
+			return (in.header.opcode == FUSE_LINK &&
+				in.body.link.oldnodeid == dst_ino &&
+				(0 == strcmp(name, RELPATH)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.entry.nodeid = src_ino;
+		out.body.entry.attr.mode = mode;
+		out.body.entry.attr.nlink = 2;
+		out.body.entry.attr_valid = UINT64_MAX;
+		out.body.entry.entry_valid = UINT64_MAX;
+	})));
+
+	ASSERT_EQ(-1, link(FULLDST, FULLPATH));
+	ASSERT_EQ(EIO, errno);
+}
+
 TEST_F(Link, ok)
 {
 	const char FULLPATH[] = "mountpoint/src";

@@ -45,9 +45,6 @@ using namespace testing;
 #define VNOVAL (-1)	/* Defined in sys/vnode.h */
 #endif
 
-const char FULLPATH[] = "mountpoint/some_file.txt";
-const char RELPATH[] = "some_file.txt";
-
 class Mknod: public FuseTest {
 
 mode_t m_oldmask;
@@ -72,21 +69,19 @@ virtual void TearDown() {
 }
 
 /* Test an OK creation of a file with the given mode and device number */
-void expect_mknod(mode_t mode, dev_t dev) {
-	uint64_t ino = 42;
-
-	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
-	.WillOnce(Invoke(ReturnErrno(ENOENT)));
-
+void expect_mknod(uint64_t parent_ino, const char* relpath, uint64_t ino,
+		mode_t mode, dev_t dev)
+{
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in.body.bytes +
 				sizeof(fuse_mknod_in);
-			return (in.header.opcode == FUSE_MKNOD &&
+			return (in.header.nodeid == parent_ino &&
+				in.header.opcode == FUSE_MKNOD &&
 				in.body.mknod.mode == mode &&
 				in.body.mknod.rdev == (uint32_t)dev &&
 				in.body.mknod.umask == c_umask &&
-				(0 == strcmp(RELPATH, name)));
+				(0 == strcmp(relpath, name)));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -117,20 +112,18 @@ void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 }
 
 /* Test an OK creation of a file with the given mode and device number */
-void expect_mknod(mode_t mode, dev_t dev) {
-	uint64_t ino = 42;
-
-	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
-	.WillOnce(Invoke(ReturnErrno(ENOENT)));
-
+void expect_mknod(uint64_t parent_ino, const char* relpath, uint64_t ino,
+		mode_t mode, dev_t dev)
+{
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *name = (const char*)in.body.bytes +
 				FUSE_COMPAT_MKNOD_IN_SIZE;
-			return (in.header.opcode == FUSE_MKNOD &&
+			return (in.header.nodeid == parent_ino &&
+				in.header.opcode == FUSE_MKNOD &&
 				in.body.mknod.mode == mode &&
 				in.body.mknod.rdev == (uint32_t)dev &&
-				(0 == strcmp(RELPATH, name)));
+				(0 == strcmp(relpath, name)));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -152,17 +145,31 @@ void expect_mknod(mode_t mode, dev_t dev) {
  */
 TEST_F(Mknod, blk)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFBLK | 0755;
 	dev_t rdev = 0xfe00; /* /dev/vda's device number on Linux */
-	expect_mknod(mode, rdev);
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(FUSE_ROOT_ID, RELPATH, ino, mode, rdev);
+
 	EXPECT_EQ(0, mknod(FULLPATH, mode, rdev)) << strerror(errno);
 }
 
 TEST_F(Mknod, chr)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFCHR | 0755;
 	dev_t rdev = 54;			/* /dev/fuse's device number */
-	expect_mknod(mode, rdev);
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(FUSE_ROOT_ID, RELPATH, ino, mode, rdev);
+
 	EXPECT_EQ(0, mknod(FULLPATH, mode, rdev)) << strerror(errno);
 }
 
@@ -172,6 +179,8 @@ TEST_F(Mknod, chr)
  */
 TEST_F(Mknod, eperm)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFIFO | 0755;
 
 	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
@@ -193,9 +202,16 @@ TEST_F(Mknod, eperm)
 
 TEST_F(Mknod, fifo)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFIFO | 0755;
 	dev_t rdev = VNOVAL;		/* Fifos don't have device numbers */
-	expect_mknod(mode, rdev);
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(FUSE_ROOT_ID, RELPATH, ino, mode, rdev);
+
 	EXPECT_EQ(0, mkfifo(FULLPATH, mode)) << strerror(errno);
 }
 
@@ -206,12 +222,17 @@ TEST_F(Mknod, fifo)
  */
 TEST_F(Mknod, socket)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFSOCK | 0755;
 	struct sockaddr_un sa;
 	int fd;
 	dev_t rdev = -1;	/* Really it's a don't care */
+	uint64_t ino = 42;
 
-	expect_mknod(mode, rdev);
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(FUSE_ROOT_ID, RELPATH, ino, mode, rdev);
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -224,23 +245,69 @@ TEST_F(Mknod, socket)
 	leak(fd);
 }
 
+/*
+ * Nothing bad should happen if the server returns the parent's inode number
+ * for the newly created file.  Regression test for bug 263662.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=263662
+ */
+TEST_F(Mknod, parent_inode)
+{
+	const char FULLPATH[] = "mountpoint/parent/some_node";
+	const char PPATH[] = "parent";
+	const char RELPATH[] = "some_node";
+	mode_t mode = S_IFSOCK | 0755;
+	struct sockaddr_un sa;
+	int fd;
+	dev_t rdev = -1;	/* Really it's a don't care */
+	uint64_t ino = 42;
+
+	expect_lookup(PPATH, ino, S_IFDIR | 0755, 0, 1);
+	EXPECT_LOOKUP(ino, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(ino, RELPATH, ino, mode, rdev);
+
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, fd) << strerror(errno);
+	sa.sun_family = AF_UNIX;
+	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	sa.sun_len = sizeof(FULLPATH);
+	ASSERT_EQ(-1, bind(fd, (struct sockaddr*)&sa, sizeof(sa)));
+	ASSERT_EQ(EIO, errno);
+
+	leak(fd);
+}
+
 /* 
  * fusefs(5) lacks VOP_WHITEOUT support.  No bugzilla entry, because that's a
  * feature, not a bug
  */
 TEST_F(Mknod, DISABLED_whiteout)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFWHT | 0755;
 	dev_t rdev = VNOVAL;	/* whiteouts don't have device numbers */
-	expect_mknod(mode, rdev);
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(FUSE_ROOT_ID, RELPATH, ino, mode, rdev);
+
 	EXPECT_EQ(0, mknod(FULLPATH, mode, 0)) << strerror(errno);
 }
 
 /* A server built at protocol version 7.11 or earlier can still use mknod */
 TEST_F(Mknod_7_11, fifo)
 {
+	const char FULLPATH[] = "mountpoint/some_node";
+	const char RELPATH[] = "some_node";
 	mode_t mode = S_IFIFO | 0755;
 	dev_t rdev = VNOVAL;
-	expect_mknod(mode, rdev);
+	uint64_t ino = 42;
+
+	EXPECT_LOOKUP(FUSE_ROOT_ID, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(FUSE_ROOT_ID, RELPATH, ino, mode, rdev);
+
 	EXPECT_EQ(0, mkfifo(FULLPATH, mode)) << strerror(errno);
 }
