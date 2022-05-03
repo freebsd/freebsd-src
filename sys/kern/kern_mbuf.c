@@ -1635,33 +1635,6 @@ m_snd_tag_destroy(struct m_snd_tag *mst)
 	counter_u64_add(snd_tag_count, -1);
 }
 
-void
-m_rcvif_serialize(struct mbuf *m)
-{
-	u_short idx, gen;
-
-	M_ASSERTPKTHDR(m);
-	idx = m->m_pkthdr.rcvif->if_index;
-	gen = m->m_pkthdr.rcvif->if_idxgen;
-	m->m_pkthdr.rcvidx = idx;
-	m->m_pkthdr.rcvgen = gen;
-}
-
-struct ifnet *
-m_rcvif_restore(struct mbuf *m)
-{
-	struct ifnet *ifp;
-
-	M_ASSERTPKTHDR(m);
-	NET_EPOCH_ASSERT();
-
-	ifp = ifnet_byindexgen(m->m_pkthdr.rcvidx, m->m_pkthdr.rcvgen);
-	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
-		return (NULL);
-
-	return (m->m_pkthdr.rcvif = ifp);
-}
-
 /*
  * Allocate an mbuf with anonymous external pages.
  */

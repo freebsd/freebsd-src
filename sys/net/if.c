@@ -313,10 +313,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 /* Table of ifnet by index. */
 static int if_index;
 static int if_indexlim = 8;
-static struct ifindex_entry {
-	struct ifnet	*ife_ifnet;
-	uint16_t	ife_gencnt;
-} *ifindex_table;
+static struct ifnet **ifindex_table;
 
 SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -328,8 +325,8 @@ sysctl_ifcount(SYSCTL_HANDLER_ARGS)
 
 	IFNET_RLOCK();
 	for (int i = 1; i <= if_index; i++)
-		if (ifindex_table[i].ife_ifnet != NULL &&
-		    ifindex_table[i].ife_ifnet->if_vnet == curvnet)
+		if (ifindex_table[i] != NULL &&
+		    ifindex_table[i]->if_vnet == curvnet)
 			rv = i;
 	IFNET_RUNLOCK();
 
@@ -373,7 +370,7 @@ ifnet_byindex(u_int idx)
 	if (__predict_false(idx > if_index))
 		return (NULL);
 
-	ifp = ck_pr_load_ptr(&ifindex_table[idx].ife_ifnet);
+	ifp = ck_pr_load_ptr(&ifindex_table[idx]);
 
 	if (curvnet != NULL && ifp != NULL && ifp->if_vnet != curvnet)
 		ifp = NULL;
@@ -392,24 +389,6 @@ ifnet_byindex_ref(u_int idx)
 	if (!if_try_ref(ifp))
 		return (NULL);
 	return (ifp);
-}
-
-struct ifnet *
-ifnet_byindexgen(uint16_t idx, uint16_t gen)
-{
-	struct ifnet *ifp;
-
-	NET_EPOCH_ASSERT();
-
-	if (__predict_false(idx > if_index))
-		return (NULL);
-
-	ifp = ck_pr_load_ptr(&ifindex_table[idx].ife_ifnet);
-
-	if (ifindex_table[idx].ife_gencnt == gen)
-		return (ifp);
-	else
-		return (NULL);
 }
 
 /*
@@ -578,13 +557,13 @@ if_alloc_domain(u_char type, int numa_domain)
 	 * next slot.
 	 */
 	for (idx = 1; idx <= if_index; idx++) {
-		if (ifindex_table[idx].ife_ifnet == NULL)
+		if (ifindex_table[idx] == NULL)
 			break;
 	}
 
 	/* Catch if_index overflow. */
 	if (idx >= if_indexlim) {
-		struct ifindex_entry *new, *old;
+		struct ifnet **new, **old;
 		int newlim;
 
 		newlim = if_indexlim * 2;
@@ -600,8 +579,7 @@ if_alloc_domain(u_char type, int numa_domain)
 		if_index = idx;
 
 	ifp->if_index = idx;
-	ifp->if_idxgen = ifindex_table[idx].ife_gencnt;
-	ck_pr_store_ptr(&ifindex_table[idx].ife_ifnet, ifp);
+	ck_pr_store_ptr(&ifindex_table[idx], ifp);
 	IFNET_WUNLOCK();
 
 	return (ifp);
@@ -676,10 +654,9 @@ if_free(struct ifnet *ifp)
 	 * virtualized and interface would outlive the vnet.
 	 */
 	IFNET_WLOCK();
-	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
-	ck_pr_store_ptr(&ifindex_table[ifp->if_index].ife_ifnet, NULL);
-	ifindex_table[ifp->if_index].ife_gencnt++;
-	while (if_index > 0 && ifindex_table[if_index].ife_ifnet == NULL)
+	MPASS(ifindex_table[ifp->if_index] == ifp);
+	ck_pr_store_ptr(&ifindex_table[ifp->if_index], NULL);
+	while (if_index > 0 && ifindex_table[if_index] == NULL)
 		if_index--;
 	IFNET_WUNLOCK();
 
@@ -828,7 +805,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
 
-	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
+	MPASS(ifindex_table[ifp->if_index] == ifp);
 
 #ifdef VIMAGE
 	ifp->if_vnet = curvnet;
@@ -4517,8 +4494,8 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%d", if_dunit);
 	IF_DB_PRINTF("%s", if_description);
 	IF_DB_PRINTF("%u", if_index);
-	IF_DB_PRINTF("%d", if_idxgen);
 	IF_DB_PRINTF("%u", if_refcount);
+	IF_DB_PRINTF("%d", if_index_reserved);
 	IF_DB_PRINTF("%p", if_softc);
 	IF_DB_PRINTF("%p", if_l2com);
 	IF_DB_PRINTF("%p", if_llsoftc);
@@ -4573,7 +4550,7 @@ DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 	u_short idx;
 
 	for (idx = 1; idx <= if_index; idx++) {
-		ifp = ifindex_table[idx].ife_ifnet;
+		ifp = ifindex_table[idx];
 		if (ifp == NULL)
 			continue;
 		db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
