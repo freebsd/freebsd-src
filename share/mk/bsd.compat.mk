@@ -30,7 +30,7 @@ LIB32CPUFLAGS=	-march=${COMPAT_CPUTYPE}
 .endif
 .if ${COMPAT_COMPILER_TYPE} == gcc
 .else
-LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd14.0
+LIB32CPUFLAGS+=	-target x86_64-unknown-freebsd${OS_REVISION}
 .endif
 LIB32CPUFLAGS+=	-m32
 LIB32_MACHINE=	i386
@@ -51,7 +51,7 @@ LIB32CPUFLAGS=	-mcpu=${COMPAT_CPUTYPE}
 .if ${COMPAT_COMPILER_TYPE} == "gcc"
 LIB32CPUFLAGS+=	-m32
 .else
-LIB32CPUFLAGS+=	-target powerpc-unknown-freebsd14.0
+LIB32CPUFLAGS+=	-target powerpc-unknown-freebsd${OS_REVISION}
 .endif
 
 LIB32_MACHINE=	powerpc

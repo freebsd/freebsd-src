@@ -138,9 +138,9 @@ TARGET_ABI=	gnueabi
 .endif
 .endif
 MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/sf$//}-${MACHINE_ABI}-freebsd14.0
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/sf$//}-${MACHINE_ABI}-freebsd${OS_REVISION}
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/sf$//}-${TARGET_ABI}-freebsd14.0
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/sf$//}-${TARGET_ABI}-freebsd${OS_REVISION}
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		armv6/arm \
