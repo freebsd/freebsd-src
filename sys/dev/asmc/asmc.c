@@ -341,6 +341,22 @@ struct asmc_model asmc_models[] = {
 	},
 
 	{
+	  "MacBookAir4,1", "Apple SMC Macbook Air 11-inch (Mid 2011)",
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2, 
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_MBA4_TEMPS, ASMC_MBA4_TEMPNAMES, ASMC_MBA4_TEMPDESCS
+	},
+
+	{
+	  "MacBookAir4,2", "Apple SMC Macbook Air 13-inch (Mid 2011)",
+	  ASMC_SMS_FUNCS_DISABLED,
+	  ASMC_FAN_FUNCS2, 
+	  ASMC_LIGHT_FUNCS,
+	  ASMC_MBA4_TEMPS, ASMC_MBA4_TEMPNAMES, ASMC_MBA4_TEMPDESCS
+	},
+
+	{
 	  "MacBookAir5,1", "Apple SMC MacBook Air 11-inch (Mid 2012)",
 	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS2,
