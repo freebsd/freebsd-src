@@ -2407,7 +2407,10 @@
 		);
 	}
 410	AUE_NULL	STD {
-		int linux_timerfd_gettime64(void);
+		int linux_timerfd_gettime64(
+		    l_int fd,
+		    struct l_itimerspec64 *old_value
+		);
 	}
 411	AUE_NULL	STD {
 		int linux_timerfd_settime64(
