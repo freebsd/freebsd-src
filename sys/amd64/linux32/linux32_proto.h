@@ -1561,7 +1561,10 @@ struct linux_timerfd_gettime64_args {
 	syscallarg_t dummy;
 };
 struct linux_timerfd_settime64_args {
-	syscallarg_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char new_value_l_[PADL_(const struct l_itimerspec64 *)]; const struct l_itimerspec64 * new_value; char new_value_r_[PADR_(const struct l_itimerspec64 *)];
+	char old_value_l_[PADL_(struct l_itimerspec64 *)]; struct l_itimerspec64 * old_value; char old_value_r_[PADR_(struct l_itimerspec64 *)];
 };
 struct linux_utimensat_time64_args {
 	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
