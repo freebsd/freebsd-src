@@ -830,6 +830,9 @@ struct proc {
 #define	P2_NO_NEW_PRIVS		0x00008000	/* Ignore setuid */
 #define	P2_WXORX_DISABLE	0x00010000	/* WX mappings enabled */
 #define	P2_WXORX_ENABLE_EXEC	0x00020000	/* WXORX enabled after exec */
+#define	P2_WEXIT		0x00040000	/* exit just started, no
+						   external thread_single() is
+						   permitted */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
