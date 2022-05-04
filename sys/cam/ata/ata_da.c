@@ -2691,6 +2691,12 @@ adaprobedone(struct cam_periph *periph, union ccb *ccb)
 
 	softc = (struct ada_softc *)periph->softc;
 
+	/*
+	 * Since our peripheral may be invalidated by an error we must release
+	 * our CCB before releasing the reference on the peripheral.  The
+	 * peripheral will only go away once the last reference is removed, and
+	 * we need it around for the CCB release operation.
+	 */
 	if (ccb != NULL)
 		xpt_release_ccb(ccb);
 
@@ -2986,15 +2992,6 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 				    /*getcount_only*/0);
 			}
 		}
-
-		/*
-		 * Since our peripheral may be invalidated by an error
-		 * above or an external event, we must release our CCB
-		 * before releasing the reference on the peripheral.
-		 * The peripheral will only go away once the last reference
-		 * is removed, and we need it around for the CCB release
-		 * operation.
-		 */
 
 		xpt_release_ccb(done_ccb);
 		softc->state = ADA_STATE_WCACHE;
