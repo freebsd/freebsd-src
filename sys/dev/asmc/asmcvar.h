@@ -42,7 +42,7 @@ struct asmc_softc {
 	struct sysctl_oid 	*sc_temp_tree;
 	struct sysctl_oid 	*sc_sms_tree;
 	struct sysctl_oid 	*sc_light_tree;
-	struct asmc_model 	*sc_model;
+	const struct asmc_model *sc_model;
 	int 			sc_rid_port;
 	int 			sc_rid_irq;
 	struct resource 	*sc_ioport;
