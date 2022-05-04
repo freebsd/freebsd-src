@@ -251,6 +251,8 @@ exit1(struct thread *td, int rval, int signo)
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
+	p->p_flag2 |= P2_WEXIT;
+
 	/*
 	 * First check if some other thread or external request got
 	 * here before us.  If so, act appropriately: exit or suspend.

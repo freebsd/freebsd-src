@@ -325,7 +325,7 @@ reap_kill_proc(struct thread *td, struct proc *p2, ksiginfo_t *ksi,
 
 	res = true;
 	PROC_LOCK(p2);
-	if ((p2->p_flag & P_WEXIT) == 0) {
+	if ((p2->p_flag2 & P2_WEXIT) == 0) {
 		_PHOLD_LITE(p2);
 		res = reap_kill_proc_locked(td, p2, ksi, rk, error);
 		_PRELE(p2);
