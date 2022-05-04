@@ -1294,6 +1294,7 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp = intotcpcb(inp);
 	u_long wnd;
+	u_int q_idx;
 
 	MPASS(s->offload != 0);
 
@@ -1378,23 +1379,21 @@ init_conn_params(struct vi_info *vi , struct offload_settings *s,
 
 	/* Tx queue for this connection. */
 	if (s->txq == QUEUE_RANDOM)
-		cp->txq_idx = arc4random();
+		q_idx = arc4random();
 	else if (s->txq == QUEUE_ROUNDROBIN)
-		cp->txq_idx = atomic_fetchadd_int(&vi->txq_rr, 1);
+		q_idx = atomic_fetchadd_int(&vi->txq_rr, 1);
 	else
-		cp->txq_idx = s->txq;
-	cp->txq_idx %= vi->nofldtxq;
-	cp->txq_idx += vi->first_ofld_txq;
+		q_idx = s->txq;
+	cp->txq_idx = vi->first_ofld_txq + q_idx % vi->nofldtxq;
 
 	/* Rx queue for this connection. */
 	if (s->rxq == QUEUE_RANDOM)
-		cp->rxq_idx = arc4random();
+		q_idx = arc4random();
 	else if (s->rxq == QUEUE_ROUNDROBIN)
-		cp->rxq_idx = atomic_fetchadd_int(&vi->rxq_rr, 1);
+		q_idx = atomic_fetchadd_int(&vi->rxq_rr, 1);
 	else
-		cp->rxq_idx = s->rxq;
-	cp->rxq_idx %= vi->nofldrxq;
-	cp->rxq_idx += vi->first_ofld_rxq;
+		q_idx = s->rxq;
+	cp->rxq_idx = vi->first_ofld_rxq + q_idx % vi->nofldrxq;
 
 	if (SOLISTENING(so)) {
 		/* Passive open */
