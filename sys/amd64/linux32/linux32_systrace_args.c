@@ -3025,7 +3025,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timerfd_gettime64 */
 	case 410: {
-		*n_args = 0;
+		struct linux_timerfd_gettime64_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		uarg[a++] = (intptr_t)p->old_value; /* struct l_itimerspec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_timerfd_settime64 */
@@ -8176,6 +8179,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_gettime64 */
 	case 410:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timerfd_settime64 */
 	case 411:
@@ -10129,6 +10142,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_gettime64 */
 	case 410:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timerfd_settime64 */
 	case 411:
 		if (ndx == 0 || ndx == 1)
