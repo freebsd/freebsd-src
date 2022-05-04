@@ -146,12 +146,29 @@ linux_timer_gettime(struct thread *td, struct linux_timer_gettime_args *uap)
 	int error;
 
 	error = kern_ktimer_gettime(td, uap->timerid, &val);
-	if (error == 0) {
-		ITS_CP(val, l_val);
+	if (error == 0)
+		error = native_to_linux_itimerspec(&l_val, &val);
+	if (error == 0)
 		error = copyout(&l_val, uap->setting, sizeof(l_val));
-	}
 	return (error);
 }
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_timer_gettime64(struct thread *td, struct linux_timer_gettime64_args *uap)
+{
+	struct l_itimerspec64 l_val;
+	struct itimerspec val;
+	int error;
+
+	error = kern_ktimer_gettime(td, uap->timerid, &val);
+	if (error == 0)
+		error = native_to_linux_itimerspec64(&l_val, &val);
+	if (error == 0)
+		error = copyout(&l_val, uap->setting, sizeof(l_val));
+	return (error);
+}
+#endif
 
 int
 linux_timer_getoverrun(struct thread *td, struct linux_timer_getoverrun_args *uap)
