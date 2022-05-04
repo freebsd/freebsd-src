@@ -2392,7 +2392,12 @@
 		int linux_timerfd_gettime64(void);
 	}
 411	AUE_NULL	STD {
-		int linux_timerfd_settime64(void);
+		int linux_timerfd_settime64(
+		    l_int fd,
+		    l_int flags,
+		    const struct l_itimerspec64 *new_value,
+		    struct l_itimerspec64 *old_value
+		);
 	}
 412	AUE_NULL	STD {
 		int linux_utimensat_time64(
