@@ -13,6 +13,10 @@ unlist_interface()
 
 vnet_init()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/263767"
+	fi
+
 	if [ "`sysctl -i -n kern.features.vimage`" != 1 ]; then
 		atf_skip "This test requires VIMAGE"
 	fi
