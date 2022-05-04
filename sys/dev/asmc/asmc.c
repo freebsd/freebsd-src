@@ -130,7 +130,7 @@ struct asmc_model {
 	const char 	*smc_tempdescs[ASMC_TEMP_MAX];
 };
 
-static struct asmc_model *asmc_match(device_t dev);
+static const struct asmc_model *asmc_match(device_t dev);
 
 #define ASMC_SMS_FUNCS	asmc_mb_sysctl_sms_x, asmc_mb_sysctl_sms_y, \
 			asmc_mb_sysctl_sms_z
@@ -153,7 +153,7 @@ static struct asmc_model *asmc_match(device_t dev);
 
 #define ASMC_LIGHT_FUNCS_DISABLED NULL, NULL, NULL
 
-struct asmc_model asmc_models[] = {
+static const struct asmc_model asmc_models[] = {
 	{
 	  "MacBook1,1", "Apple SMC MacBook Core Duo",
 	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
@@ -443,7 +443,7 @@ static unsigned int light_control = 0;
 DRIVER_MODULE(asmc, acpi, asmc_driver, asmc_devclass, NULL, NULL);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
 
-static struct asmc_model *
+static const struct asmc_model *
 asmc_match(device_t dev)
 {
 	int i;
@@ -467,7 +467,7 @@ asmc_match(device_t dev)
 static int
 asmc_probe(device_t dev)
 {
-	struct asmc_model *model;
+	const struct asmc_model *model;
 	int rv;
 
 	if (resource_disabled("asmc", 0))
@@ -495,7 +495,7 @@ asmc_attach(device_t dev)
 	struct asmc_softc *sc = device_get_softc(dev);
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *sysctlnode;
-	struct asmc_model *model;
+	const struct asmc_model *model;
 
 	sc->sc_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 	    &sc->sc_rid_port, RF_ACTIVE);
