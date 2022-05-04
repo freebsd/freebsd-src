@@ -3454,10 +3454,15 @@ void bwn_ntab_read_bulk(struct bwn_mac *mac, uint32_t offset,
 
 void bwn_ntab_write(struct bwn_mac *mac, uint32_t offset, uint32_t value)
 {
-	uint32_t type, orig;
+	uint32_t type;
+#ifdef INVARIANTS
+	uint32_t orig;
+#endif
 
 	type = offset & BWN_NTAB_TYPEMASK;
+#ifdef INVARIANTS
 	orig = offset;
+#endif
 	offset &= 0xFFFF;
 
 	switch (type) {
@@ -3494,12 +3499,16 @@ void bwn_ntab_write_bulk(struct bwn_mac *mac, uint32_t offset,
 {
 	struct bwn_softc *sc = mac->mac_sc;
 	uint32_t type, value;
+#ifdef INVARIANTS
 	uint32_t orig;
+#endif
 	const uint8_t *data = _data;
 	unsigned int i;
 
 	type = offset & BWN_NTAB_TYPEMASK;
+#ifdef INVARIANTS
 	orig = offset;
+#endif
 	offset &= ~BWN_NTAB_TYPEMASK;
 	KASSERT(offset <= 0xFFFF, ("%s: invalid offset (%d)\n",
 	    __func__, offset));
