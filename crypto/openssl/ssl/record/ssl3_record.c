@@ -186,15 +186,20 @@ int ssl3_get_record(SSL *s)
     size_t num_recs = 0, max_recs, j;
     PACKET pkt, sslv2pkt;
     size_t first_rec_len;
-    int is_ktls_left;
+    int using_ktls;
 
     rr = RECORD_LAYER_get_rrec(&s->rlayer);
     rbuf = RECORD_LAYER_get_rbuf(&s->rlayer);
-    is_ktls_left = (SSL3_BUFFER_get_left(rbuf) > 0);
     max_recs = s->max_pipelines;
     if (max_recs == 0)
         max_recs = 1;
     sess = s->session;
+
+    /*
+     * KTLS reads full records. If there is any data left,
+     * then it is from before enabling ktls.
+     */
+    using_ktls = BIO_get_ktls_recv(s->rbio) && SSL3_BUFFER_get_left(rbuf) == 0;
 
     do {
         thisrr = &rr[num_recs];
@@ -413,7 +418,7 @@ int ssl3_get_record(SSL *s)
 #endif
 
             /* KTLS may use all of the buffer */
-            if (BIO_get_ktls_recv(s->rbio) && !is_ktls_left)
+            if (using_ktls)
                 len = SSL3_BUFFER_get_left(rbuf);
 
             if (thisrr->length > len) {
@@ -522,11 +527,7 @@ int ssl3_get_record(SSL *s)
         return 1;
     }
 
-    /*
-     * KTLS reads full records. If there is any data left,
-     * then it is from before enabling ktls
-     */
-    if (BIO_get_ktls_recv(s->rbio) && !is_ktls_left)
+    if (using_ktls)
         goto skip_decryption;
 
     /*
@@ -787,8 +788,7 @@ int ssl3_get_record(SSL *s)
          * Therefore we have to rely on KTLS to check the plaintext length
          * limit in the kernel.
          */
-        if (thisrr->length > SSL3_RT_MAX_PLAIN_LENGTH
-                && (!BIO_get_ktls_recv(s->rbio) || is_ktls_left)) {
+        if (thisrr->length > SSL3_RT_MAX_PLAIN_LENGTH && !using_ktls) {
             SSLfatal(s, SSL_AD_RECORD_OVERFLOW, SSL_F_SSL3_GET_RECORD,
                      SSL_R_DATA_LENGTH_TOO_LONG);
             return -1;
