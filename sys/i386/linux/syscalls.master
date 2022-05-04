@@ -2465,8 +2465,11 @@
 		    uint32_t val3
 		);
 	}
-423	AUE_NULL	STD {
-		int linux_sched_rr_get_interval_time64(void);
+423	AUE_SCHED_RR_GET_INTERVAL	STD {
+		int linux_sched_rr_get_interval_time64(
+		    l_pid_t pid,
+		    struct l_timespec64 *interval
+		);
 	}
 424	AUE_NULL	STD {
 		int linux_pidfd_send_signal(
