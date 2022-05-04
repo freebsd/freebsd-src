@@ -196,6 +196,30 @@ linux_to_native_itimerspec(struct itimerspec *ntp, struct l_itimerspec *ltp)
 	return (error);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_to_native_itimerspec64(struct itimerspec *ntp, struct l_itimerspec64 *ltp)
+{
+	int error;
+
+	error = linux_to_native_timespec64(&ntp->it_interval, &ltp->it_interval);
+	if (error == 0)
+		error = linux_to_native_timespec64(&ntp->it_value, &ltp->it_value);
+	return (error);
+}
+
+int
+native_to_linux_itimerspec64(struct l_itimerspec64 *ltp, struct itimerspec *ntp)
+{
+	int error;
+
+	error = native_to_linux_timespec64(&ltp->it_interval, &ntp->it_interval);
+	if (error == 0)
+		error = native_to_linux_timespec64(&ltp->it_value, &ntp->it_value);
+	return (error);
+}
+#endif
+
 int
 linux_to_native_clockid(clockid_t *n, clockid_t l)
 {
