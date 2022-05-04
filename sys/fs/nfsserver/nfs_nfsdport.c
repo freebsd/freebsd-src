@@ -1260,8 +1260,8 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				tempsize = nvap->na_size;
 				NFSVNO_ATTRINIT(nvap);
 				nvap->na_size = tempsize;
-				error = VOP_SETATTR(*vpp,
-				    &nvap->na_vattr, nd->nd_cred);
+				error = nfsvno_setattr(*vpp, nvap,
+				    nd->nd_cred, p, exp);
 			}
 		}
 		if (error)
@@ -1930,8 +1930,8 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 					tempsize = nvap->na_size;
 					NFSVNO_ATTRINIT(nvap);
 					nvap->na_size = tempsize;
-					nd->nd_repstat = VOP_SETATTR(vp,
-					    &nvap->na_vattr, cred);
+					nd->nd_repstat = nfsvno_setattr(vp,
+					    nvap, cred, p, exp);
 				}
 			} else if (vp->v_type == VREG) {
 				nd->nd_repstat = nfsrv_opencheck(clientid,
