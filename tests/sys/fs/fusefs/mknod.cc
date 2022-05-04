@@ -245,6 +245,38 @@ TEST_F(Mknod, socket)
 	leak(fd);
 }
 
+/*
+ * Nothing bad should happen if the server returns the parent's inode number
+ * for the newly created file.  Regression test for bug 263662.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=263662
+ */
+TEST_F(Mknod, parent_inode)
+{
+	const char FULLPATH[] = "mountpoint/parent/some_node";
+	const char PPATH[] = "parent";
+	const char RELPATH[] = "some_node";
+	mode_t mode = S_IFSOCK | 0755;
+	struct sockaddr_un sa;
+	int fd;
+	dev_t rdev = -1;	/* Really it's a don't care */
+	uint64_t ino = 42;
+
+	expect_lookup(PPATH, ino, S_IFDIR | 0755, 0, 1);
+	EXPECT_LOOKUP(ino, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_mknod(ino, RELPATH, ino, mode, rdev);
+
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, fd) << strerror(errno);
+	sa.sun_family = AF_UNIX;
+	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	sa.sun_len = sizeof(FULLPATH);
+	ASSERT_EQ(-1, bind(fd, (struct sockaddr*)&sa, sizeof(sa)));
+	ASSERT_EQ(EIO, errno);
+
+	leak(fd);
+}
+
 /* 
  * fusefs(5) lacks VOP_WHITEOUT support.  No bugzilla entry, because that's a
  * feature, not a bug

@@ -165,6 +165,28 @@ TEST_F(Symlink, ok)
 	EXPECT_EQ(0, symlink(dst, FULLPATH)) << strerror(errno);
 }
 
+/*
+ * Nothing bad should happen if the server returns the parent's inode number
+ * for the newly created symlink.  Regression test for bug 263662.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=263662
+ */
+TEST_F(Symlink, parent_ino)
+{
+	const char FULLPATH[] = "mountpoint/parent/src";
+	const char PPATH[] = "parent";
+	const char RELPATH[] = "src";
+	const char dst[] = "dst";
+	const uint64_t ino = 42;
+
+	expect_lookup(PPATH, ino, S_IFDIR | 0755, 0, 1);
+	EXPECT_LOOKUP(ino, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_symlink(ino, dst, RELPATH);
+
+	EXPECT_EQ(-1, symlink(dst, FULLPATH));
+	EXPECT_EQ(EIO, errno);
+}
+
 TEST_F(Symlink_7_8, ok)
 {
 	const char FULLPATH[] = "mountpoint/src";
