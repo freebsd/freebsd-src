@@ -2452,7 +2452,13 @@
 		int linux_io_pgetevents_time64(void);
 	}
 417	AUE_NULL	STD {
-		int linux_recvmmsg_time64(void);
+		int linux_recvmmsg_time64(
+		    l_int s,
+		    struct l_mmsghdr *msg,
+		    l_uint vlen,
+		    l_uint flags,
+		    struct l_timespec64 *timeout
+		);
 	}
 418	AUE_NULL	STD {
 		int linux_mq_timedsend_time64(void);
