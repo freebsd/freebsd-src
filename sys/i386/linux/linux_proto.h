@@ -1603,7 +1603,8 @@ struct linux_sys_futex_time64_args {
 	char val3_l_[PADL_(uint32_t)]; uint32_t val3; char val3_r_[PADR_(uint32_t)];
 };
 struct linux_sched_rr_get_interval_time64_args {
-	syscallarg_t dummy;
+	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
+	char interval_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * interval; char interval_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_pidfd_send_signal_args {
 	char pidfd_l_[PADL_(l_int)]; l_int pidfd; char pidfd_r_[PADR_(l_int)];
@@ -2385,7 +2386,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_semtimedop_time64	AUE_NULL
 #define	LINUX_SYS_AUE_linux_rt_sigtimedwait_time64	AUE_NULL
 #define	LINUX_SYS_AUE_linux_sys_futex_time64	AUE_NULL
-#define	LINUX_SYS_AUE_linux_sched_rr_get_interval_time64	AUE_NULL
+#define	LINUX_SYS_AUE_linux_sched_rr_get_interval_time64	AUE_SCHED_RR_GET_INTERVAL
 #define	LINUX_SYS_AUE_linux_pidfd_send_signal	AUE_NULL
 #define	LINUX_SYS_AUE_linux_io_uring_setup	AUE_NULL
 #define	LINUX_SYS_AUE_linux_io_uring_enter	AUE_NULL
