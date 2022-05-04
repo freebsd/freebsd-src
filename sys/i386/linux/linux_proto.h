@@ -1551,7 +1551,8 @@ struct linux_timer_settime64_args {
 	char old_l_[PADL_(struct l_itimerspec64 *)]; struct l_itimerspec64 * old; char old_r_[PADR_(struct l_itimerspec64 *)];
 };
 struct linux_timerfd_gettime64_args {
-	syscallarg_t dummy;
+	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
+	char old_value_l_[PADL_(struct l_itimerspec64 *)]; struct l_itimerspec64 * old_value; char old_value_r_[PADR_(struct l_itimerspec64 *)];
 };
 struct linux_timerfd_settime64_args {
 	char fd_l_[PADL_(l_int)]; l_int fd; char fd_r_[PADR_(l_int)];
