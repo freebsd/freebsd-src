@@ -271,19 +271,49 @@ struct asmc_softc {
 				  "TMBS", "TP0P", "TPCD", "TW0P", "Th1H", \
 				  "Th2H", "Tm0P", "Ts0P", "Ts0S" }
 
-#define ASMC_MBP9_TEMPS		{ "Ts0P", "Ts0S", "TA0P", "TB1T", "TB2T", \
+#define ASMC_MBP91_TEMPS	{ "TA0P", "TB0T", "TB1T", "TB2T", "TC0E", \
+				  "TC0F", "TC0P", "TC1C", "TC2C", "TC3C", \
+				  "TC4C", "TCGC", "TCSA", "TCXC", "TG0D", \
+				  "TG0P", "TG1D", "TG1F", "TG1d", "TGTC", \
+				  "TGTD", "TM0P", "TM0S", "TP0P", "TPCD", \
+				  "Th1H", "Th2H", "Ts0P", "Ts0S", "Tsqf", NULL }
+
+#define ASMC_MBP91_TEMPNAMES	{ "ambient", "enclosure_bottom_1", "enclosure_bottom_2", \
+				  "enclosure_bottom_3", "cpu_die_peci_0", "cpu_die_peci_1", \
+				  "cpu_proximity", "cpu_core_1", "cpu_core_2", "cpu_core_3", \
+				  "cpu_core_4", "intel_gpu", "cpu_sys_agent", \
+				  "cpu_core_peci", "gpu_analog", \
+				  "gpu_proximity", "geforce_gpu_digital", "tg1f", \
+				  "gpu_2_die", "tgtc", "tgtd", "memory_proximity", \
+				  "mem_bank_a1", "platform_ctrl_hub", "pch_digital", \
+				  "main_heatsink_r", "main_heatsink_l", "palm_rest", \
+				  "bottom_skin", "tsqf" }
+
+#define ASMC_MBP91_TEMPDESCS	{ "Ambient", "Enclosure Bottom 1", "Enclosure Bottom 2", \
+				  "Enclosure Bottom 3", "CPU Die PECI 0", "CPU Die PECI 1", \
+				  "CPU Proximity", "CPU Core 1", "CPU Core 2", \
+				  "CPU Core 3", "CPU Core 4", "Intel GPU", \
+				  "CPU System Agent Core", "CPU Core - PECI", \
+				  "GPU Die - Analog", "GPU Proximity", \
+				  "GeForce GPU Die - Digital", "TG1F", "GPU 2 Die" \
+				  "TGTC", "TGTD", "Memory Proximity", \
+				  "Memory Bank A1", "Platform Controller Hub", "PCH Die - Digital", \
+				  "Main Heatsink Right", "Main Heatsink Left", "Palm Rest",  \
+				  "Bottom Skin", "Tsqf" }
+
+#define ASMC_MBP92_TEMPS	{ "Ts0P", "Ts0S", "TA0P", "TB1T", "TB2T", \
 				  "TB0T", "TC1C", "TC2C", "TC0E", "TC0F", \
 				  "TC0J", "TC0P", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "TCXC", "TG1D", "TM0P", "TM0S", \
 				  "TPCD", NULL }
 
-#define ASMC_MBP9_TEMPNAMES	{ "Ts0P", "Ts0S", "TA0P", "TB1T", "TB2T", \
+#define ASMC_MBP92_TEMPNAMES	{ "Ts0P", "Ts0S", "TA0P", "TB1T", "TB2T", \
 				  "TB0T", "TC1C", "TC2C", "TC0E", "TC0F", \
 				  "TC0J", "TC0P", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "TCXC", "TG1D", "TM0P", "TM0S", \
 				  "TPCD" }
 
-#define ASMC_MBP9_TEMPDESCS	{ "Palm Rest", "Memory Proximity", "Airflow 1", \
+#define ASMC_MBP92_TEMPDESCS	{ "Palm Rest", "Memory Proximity", "Airflow 1", \
 				  "Battery 1", "Battery 2", "Battery TS_MAX", \
 				  "CPU Core 1", "CPU Core 2", "CPU1", "CPU1", \
 				  "TC0J", "CPU 1 Proximity", "TCFC", \
