@@ -475,6 +475,37 @@ struct asmc_softc {
 				  "Power Supply Temperature", \
 				  "Wireless Module Proximity Temperature", }
 
+#define ASMC_MM71_TEMPS		{ "TA0p", "TA1p", \
+				  "TA2p", "TC0c", \
+				  "TC0p", "TC1c", \
+				  "TCGc", "TCSc", \
+				  "TCXC", "TCXR", \
+				  "TM0p", "TPCd", \
+				  "TW0p", "Te0T", \
+				  "Tm0P", NULL }
+
+#define ASMC_MM71_TEMPNAMES	{ "ambient_air1", "ambient_air2", \
+				  "ambient_air3", "cpu_core1_peci", \
+				  "cpu_proximity", "cpu_core2_peci", \
+				  "intel_gpu", "cpu_sa_core_peci", \
+				  "cpu_core", "cpu_peci_dts", \
+				  "memory_proximity", "pch_controller_die", \
+				  "wireless_proximity", "thunderbolt_diode", \
+				  "logic_board", }
+
+#define ASMC_MM71_TEMPDESCS	{ "Ambient Air Temperature 1", \
+				  "Ambient Air Temperature 2", \
+				  "Ambient Air Temperature 3", \
+				  "CPU Core 1 PECI Temperature", "CPU Proximity Temperature", \
+				  "CPU Core 2 PECI Temperature", "Intel GPU Temperature", \
+				  "CPU System Agent Core PECI Temperature", \
+				  "CPU Core Temperature", "CPU PECI DTS Temperature", \
+				  "Memory Proximity Temperature", \
+				  "Platform Controller Hub Die Temperature", \
+				  "Wireless Module Proximity Temperature", \
+				  "Thunderbolt Diode Temperature", \
+				  "Logic Board temperature", }
+
 #define ASMC_MP1_TEMPS		{ "TA0P", \
 				  "TCAH", "TCBH", \
 				  "TC0P", "TC0C", "TC1C", \
