@@ -1585,7 +1585,11 @@ struct linux_io_pgetevents_time64_args {
 	syscallarg_t dummy;
 };
 struct linux_recvmmsg_time64_args {
-	syscallarg_t dummy;
+	char s_l_[PADL_(l_int)]; l_int s; char s_r_[PADR_(l_int)];
+	char msg_l_[PADL_(struct l_mmsghdr *)]; struct l_mmsghdr * msg; char msg_r_[PADR_(struct l_mmsghdr *)];
+	char vlen_l_[PADL_(l_uint)]; l_uint vlen; char vlen_r_[PADR_(l_uint)];
+	char flags_l_[PADL_(l_uint)]; l_uint flags; char flags_r_[PADR_(l_uint)];
+	char timeout_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * timeout; char timeout_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_mq_timedsend_time64_args {
 	syscallarg_t dummy;
