@@ -144,6 +144,13 @@
 #define	NFS_READDIRBLKSIZ	DIRBLKSIZ	/* Minimal nm_readdirsize */
 
 /*
+ * The NFSv4 RFCs do not define an upper limit on the length of Owner and
+ * OwnerGroup strings.  Since FreeBSD handles a group name > 1024bytes in
+ * length, set a generous sanity limit of 10Kbytes.
+ */
+#define	NFSV4_MAXOWNERGROUPLEN	(10 * 1024)
+
+/*
  * Oddballs
  */
 #define	NFS_CMPFH(n, f, s) 						\
