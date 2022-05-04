@@ -371,6 +371,47 @@ TEST_F(Create, ok)
 }
 
 /*
+ * Nothing bad should happen if the server returns the parent's inode number
+ * for the newly created file.  Regression test for bug 263662
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=263662
+ */
+TEST_F(Create, parent_inode)
+{
+	const char FULLPATH[] = "mountpoint/some_dir/some_file.txt";
+	const char RELDIRPATH[] = "some_dir";
+	const char RELPATH[] = "some_file.txt";
+	mode_t mode = 0755;
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELDIRPATH, ino, S_IFDIR | mode, 0, 1);
+	EXPECT_LOOKUP(ino, RELPATH)
+		.WillOnce(Invoke(ReturnErrno(ENOENT)));
+	expect_create(RELPATH, S_IFREG | mode,
+		ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, create);
+		out.body.create.entry.attr.mode = S_IFREG | mode;
+		/* Return the same inode as the parent dir */
+		out.body.create.entry.nodeid = ino;
+		out.body.create.entry.entry_valid = UINT64_MAX;
+		out.body.create.entry.attr_valid = UINT64_MAX;
+	}));
+	// FUSE_RELEASE happens asynchronously, so it may or may not arrive
+	// before the test completes.
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_RELEASE);
+		}, Eq(true)),
+		_)
+	).Times(AtMost(1))
+	.WillOnce(Invoke([=](auto in __unused, auto &out __unused) { }));
+
+	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
+	ASSERT_EQ(-1, fd);
+	EXPECT_EQ(EIO, errno);
+}
+
+/*
  * A regression test for a bug that affected old FUSE implementations:
  * open(..., O_WRONLY | O_CREAT, 0444) should work despite the seeming
  * contradiction between O_WRONLY and 0444

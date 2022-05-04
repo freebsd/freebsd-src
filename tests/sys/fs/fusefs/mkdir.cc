@@ -193,6 +193,59 @@ TEST_F(Mkdir, ok)
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 }
 
+/*
+ * Nothing bad should happen if the server returns the parent's inode number
+ * for the newly created directory.  Regression test for bug 263662.
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=263662
+ */
+TEST_F(Mkdir, parent_inode)
+{
+	const char FULLPATH[] = "mountpoint/parent/some_dir";
+	const char PPATH[] = "parent";
+	const char RELPATH[] = "some_dir";
+	mode_t mode = 0755;
+	uint64_t ino = 42;
+	mode_t mask;
+
+	mask = umask(0);
+	(void)umask(mask);
+
+	expect_lookup(PPATH, ino, S_IFDIR | 0755, 0, 1);
+	EXPECT_LOOKUP(ino, RELPATH)
+	.WillOnce(Invoke(ReturnErrno(ENOENT)));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *name = (const char*)in.body.bytes +
+				sizeof(fuse_mkdir_in);
+			return (in.header.opcode == FUSE_MKDIR &&
+				in.body.mkdir.mode == (S_IFDIR | mode) &&
+				in.body.mkdir.umask == mask &&
+				(0 == strcmp(RELPATH, name)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, entry);
+		out.body.create.entry.attr.mode = S_IFDIR | mode;
+		out.body.create.entry.nodeid = ino;
+		out.body.create.entry.entry_valid = UINT64_MAX;
+		out.body.create.entry.attr_valid = UINT64_MAX;
+	})));
+	// FUSE_FORGET happens asynchronously, so it may or may not arrive
+	// before the test completes.
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_FORGET);
+		}, Eq(true)),
+		_)
+	).Times(AtMost(1))
+	.WillOnce(Invoke([=](auto in __unused, auto &out __unused) { }));
+
+	ASSERT_EQ(-1, mkdir(FULLPATH, mode));
+	ASSERT_EQ(EIO, errno);
+	usleep(100000);
+}
+
 TEST_F(Mkdir_7_8, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";

@@ -298,6 +298,12 @@ fuse_vnode_get(struct mount *mp,
 	uint64_t generation = feo ? feo->generation : 0;
 	int err = 0;
 
+	if (dvp != NULL && VTOFUD(dvp)->nid == nodeid) {
+		fuse_warn(fuse_get_mpdata(mp), FSESS_WARN_ILLEGAL_INODE,
+			"Assigned same inode to both parent and child.");
+		return EIO;
+	}
+
 	err = fuse_vnode_alloc(mp, td, nodeid, vtyp, vpp);
 	if (err) {
 		return err;
