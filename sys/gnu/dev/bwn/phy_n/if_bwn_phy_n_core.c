@@ -6070,7 +6070,6 @@ bwn_nphy_op_recalc_txpower(struct bwn_mac *mac, bool ignore_tssi)
 	struct bwn_softc *sc = mac->mac_sc;
 	struct bwn_ppr *ppr = &nphy->tx_pwr_max_ppr;
 	uint8_t max; /* qdBm */
-	bool tx_pwr_state;
 
 	if (nphy->tx_pwr_last_recalc_freq == bwn_get_centre_freq(mac) &&
 	    nphy->tx_pwr_last_recalc_limit == phy->txpower)
@@ -6108,7 +6107,6 @@ bwn_nphy_op_recalc_txpower(struct bwn_mac *mac, bool ignore_tssi)
 	bwn_ppr_apply_min(mac, ppr, INT_TO_Q52(8));
 
 	/* Apply */
-	tx_pwr_state = nphy->txpwrctrl;
 	bwn_mac_suspend(mac);
 	bwn_nphy_tx_power_ctl_setup(mac);
 	if (bhnd_get_hwrev(sc->sc_dev) == 11 || bhnd_get_hwrev(sc->sc_dev) == 12) {
@@ -6214,7 +6212,6 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 	struct bwn_nphy_txgains target;
 	int error;
 	uint16_t tmp;
-	bwn_band_t tmp2;
 	bool do_rssi_cal;
 
 	uint16_t clip[2];
@@ -6308,7 +6305,6 @@ static int bwn_phy_initn(struct bwn_mac *mac)
 		BWN_PHY_WRITE(mac, BWN_NPHY_DUP40_BL, 0x9A4);
 	}
 
-	tmp2 = bwn_current_band(mac);
 	if (bwn_nphy_ipa(mac)) {
 		BWN_PHY_SET(mac, BWN_NPHY_PAPD_EN0, 0x1);
 		BWN_PHY_SETMASK(mac, BWN_NPHY_EPS_TABLE_ADJ0, 0x007F,
