@@ -1736,32 +1736,19 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	    args->flags, &bsd_msg));
 }
 
-int
-linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
+static int
+linux_recvmmsg_common(struct thread *td, l_int s, struct l_mmsghdr *msg,
+    l_uint vlen, l_uint flags, struct timespec *tts)
 {
-	struct l_mmsghdr *msg;
 	struct msghdr bsd_msg;
-	struct l_timespec lts;
-	struct timespec ts, tts;
+	struct timespec ts;
 	l_uint retval;
 	int error, datagrams;
 
-	if (args->timeout) {
-		error = copyin(args->timeout, &lts, sizeof(struct l_timespec));
-		if (error != 0)
-			return (error);
-		error = linux_to_native_timespec(&ts, &lts);
-		if (error != 0)
-			return (error);
-		getnanotime(&tts);
-		timespecadd(&tts, &ts, &tts);
-	}
-
-	msg = PTRIN(args->msg);
 	datagrams = 0;
-	while (datagrams < args->vlen) {
-		error = linux_recvmsg_common(td, args->s, &msg->msg_hdr,
-		    args->flags & ~LINUX_MSG_WAITFORONE, &bsd_msg);
+	while (datagrams < vlen) {
+		error = linux_recvmsg_common(td, s, &msg->msg_hdr,
+		    flags & ~LINUX_MSG_WAITFORONE, &bsd_msg);
 		if (error != 0)
 			break;
 
@@ -1775,15 +1762,15 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 		/*
 		 * MSG_WAITFORONE turns on MSG_DONTWAIT after one packet.
 		 */
-		if (args->flags & LINUX_MSG_WAITFORONE)
-			args->flags |= LINUX_MSG_DONTWAIT;
+		if (flags & LINUX_MSG_WAITFORONE)
+			flags |= LINUX_MSG_DONTWAIT;
 
 		/*
 		 * See BUGS section of recvmmsg(2).
 		 */
-		if (args->timeout) {
+		if (tts) {
 			getnanotime(&ts);
-			timespecsub(&ts, &tts, &ts);
+			timespecsub(&ts, tts, &ts);
 			if (!timespecisset(&ts) || ts.tv_sec > 0)
 				break;
 		}
@@ -1795,6 +1782,56 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 		td->td_retval[0] = datagrams;
 	return (error);
 }
+
+int
+linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
+{
+	struct l_timespec lts;
+	struct timespec ts, tts, *ptts;
+	int error;
+
+	if (args->timeout) {
+		error = copyin(args->timeout, &lts, sizeof(struct l_timespec));
+		if (error != 0)
+			return (error);
+		error = linux_to_native_timespec(&ts, &lts);
+		if (error != 0)
+			return (error);
+		getnanotime(&tts);
+		timespecadd(&tts, &ts, &tts);
+		ptts = &tts;
+	}
+		else ptts = NULL;
+
+	return (linux_recvmmsg_common(td, args->s, PTRIN(args->msg),
+	    args->vlen, args->flags, ptts));
+}
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_recvmmsg_time64(struct thread *td, struct linux_recvmmsg_time64_args *args)
+{
+	struct l_timespec64 lts;
+	struct timespec ts, tts, *ptts;
+	int error;
+
+	if (args->timeout) {
+		error = copyin(args->timeout, &lts, sizeof(struct l_timespec));
+		if (error != 0)
+			return (error);
+		error = linux_to_native_timespec64(&ts, &lts);
+		if (error != 0)
+			return (error);
+		getnanotime(&tts);
+		timespecadd(&tts, &ts, &tts);
+		ptts = &tts;
+	}
+		else ptts = NULL;
+
+	return (linux_recvmmsg_common(td, args->s, PTRIN(args->msg),
+	    args->vlen, args->flags, ptts));
+}
+#endif
 
 int
 linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
