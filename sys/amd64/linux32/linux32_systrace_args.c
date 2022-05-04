@@ -3007,7 +3007,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timer_gettime64 */
 	case 408: {
-		*n_args = 0;
+		struct linux_timer_gettime64_args *p = params;
+		iarg[a++] = p->timerid; /* l_timer_t */
+		uarg[a++] = (intptr_t)p->setting; /* struct l_itimerspec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_timer_settime64 */
@@ -8131,6 +8134,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_gettime64 */
 	case 408:
+		switch (ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		case 1:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_settime64 */
 	case 409:
@@ -10064,6 +10077,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_gettime64 */
 	case 408:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_settime64 */
 	case 409:
 	/* linux_timerfd_gettime64 */
