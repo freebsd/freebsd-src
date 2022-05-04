@@ -348,7 +348,7 @@ struct asmc_softc {
 				  "TaSP", "Th1H", "Th2H", "Ts0P", "Ts0S", \
 				  "Ts1S" }
 
-#define ASMC_MBP113_TEMPS	{ "TB0T", "TB1T", "TB2T", "TBXT", "TC0E",	\
+#define ASMC_MBP113_TEMPS	{ "TB0T", "TB1T", "TB2T", "TBXT", "TC0E", \
 				  "TC0F", "TC0P", "TC1C", "TC2C", "TC3C", \
 				  "TC4C", "TCFC", "TCGC", "TCSA", "TCTD", \
 				  "TCXC", "TG0D", "TG0P", "TG1D", "TG1F", \
