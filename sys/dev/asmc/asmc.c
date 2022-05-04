@@ -298,13 +298,42 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_MM41_TEMPS, ASMC_MM41_TEMPNAMES, ASMC_MM41_TEMPDESCS
 	},
 
+	/* The Mac Mini 5,1 has no SMS */
+	/* - same sensors as Mac Mini 5,2 */
+	{
+	  "Macmini5,1", "Apple SMC Mac Mini 5,1",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS2,
+	  NULL, NULL, NULL,
+	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
+	},
+
 	/* The Mac Mini 5,2 has no SMS */
-	{ 
+	{
 	  "Macmini5,2", "Apple SMC Mac Mini 5,2",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS2,
 	  NULL, NULL, NULL,
 	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
+	},
+
+	/* The Mac Mini 5,3 has no SMS */
+	/* - same sensors as Mac Mini 5,2 */
+	{
+	  "Macmini5,3", "Apple SMC Mac Mini 5,3",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS2,
+	  NULL, NULL, NULL,
+	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
+	},
+
+	/* The Mac Mini 7,1 has no SMS */
+	{
+	  "Macmini7,1", "Apple SMC Mac Mini 7,1",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS2,
+	  NULL, NULL, NULL,
+	  ASMC_MM71_TEMPS, ASMC_MM71_TEMPNAMES, ASMC_MM71_TEMPDESCS
 	},
 
 	/* Idem for the Mac Pro "Quad Core" (original) */
