@@ -1548,7 +1548,8 @@ struct linux_clock_nanosleep_time64_args {
 	char rmtp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * rmtp; char rmtp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_timer_gettime64_args {
-	syscallarg_t dummy;
+	char timerid_l_[PADL_(l_timer_t)]; l_timer_t timerid; char timerid_r_[PADR_(l_timer_t)];
+	char setting_l_[PADL_(struct l_itimerspec64 *)]; struct l_itimerspec64 * setting; char setting_r_[PADR_(struct l_itimerspec64 *)];
 };
 struct linux_timer_settime64_args {
 	syscallarg_t dummy;
