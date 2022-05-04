@@ -1815,7 +1815,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_OWNER:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			j = fxdr_unsigned(int, *tl);
-			if (j < 0) {
+			if (j < 0 || j > NFSV4_MAXOWNERGROUPLEN) {
 				error = NFSERR_BADXDR;
 				goto nfsmout;
 			}
@@ -1848,7 +1848,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_OWNERGROUP:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			j = fxdr_unsigned(int, *tl);
-			if (j < 0) {
+			if (j < 0 || j > NFSV4_MAXOWNERGROUPLEN) {
 				error =  NFSERR_BADXDR;
 				goto nfsmout;
 			}
