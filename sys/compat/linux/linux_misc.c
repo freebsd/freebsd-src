@@ -2658,12 +2658,10 @@ linux_pollout(struct thread *td, struct pollfd *fds, struct pollfd *ufds, u_int 
 	return (0);
 }
 
-int
-linux_sched_rr_get_interval(struct thread *td,
-    struct linux_sched_rr_get_interval_args *uap)
+static int
+linux_sched_rr_get_interval_common(struct thread *td, pid_t pid,
+    struct timespec *ts)
 {
-	struct timespec ts;
-	struct l_timespec lts;
 	struct thread *tdt;
 	int error;
 
@@ -2671,15 +2669,27 @@ linux_sched_rr_get_interval(struct thread *td,
 	 * According to man in case the invalid pid specified
 	 * EINVAL should be returned.
 	 */
-	if (uap->pid < 0)
+	if (pid < 0)
 		return (EINVAL);
 
-	tdt = linux_tdfind(td, uap->pid, -1);
+	tdt = linux_tdfind(td, pid, -1);
 	if (tdt == NULL)
 		return (ESRCH);
 
-	error = kern_sched_rr_get_interval_td(td, tdt, &ts);
+	error = kern_sched_rr_get_interval_td(td, tdt, ts);
 	PROC_UNLOCK(tdt->td_proc);
+	return (error);
+}
+
+int
+linux_sched_rr_get_interval(struct thread *td,
+    struct linux_sched_rr_get_interval_args *uap)
+{
+	struct timespec ts;
+	struct l_timespec lts;
+	int error;
+
+	error = linux_sched_rr_get_interval_common(td, uap->pid, &ts);
 	if (error != 0)
 		return (error);
 	error = native_to_linux_timespec(&lts, &ts);
@@ -2687,6 +2697,25 @@ linux_sched_rr_get_interval(struct thread *td,
 		return (error);
 	return (copyout(&lts, uap->interval, sizeof(lts)));
 }
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_sched_rr_get_interval_time64(struct thread *td,
+    struct linux_sched_rr_get_interval_time64_args *uap)
+{
+	struct timespec ts;
+	struct l_timespec64 lts;
+	int error;
+
+	error = linux_sched_rr_get_interval_common(td, uap->pid, &ts);
+	if (error != 0)
+		return (error);
+	error = native_to_linux_timespec64(&lts, &ts);
+	if (error != 0)
+		return (error);
+	return (copyout(&lts, uap->interval, sizeof(lts)));
+}
+#endif
 
 /*
  * In case when the Linux thread is the initial thread in
