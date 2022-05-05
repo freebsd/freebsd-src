@@ -800,6 +800,26 @@ tdfx_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 	return 0;
 }
 
+static int
+tdfx_mod_event(module_t mod, int what, void *arg)
+{
+	int error;
+
+	switch (what) {
+	case MOD_LOAD:
+		tdfx_devclass = devclass_create("tdfx");
+		error = 0;
+		break;
+	case MOD_UNLOAD:
+		error = 0;
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
+}
+
 /* This is the device driver struct. This is sent to the driver subsystem to
  * register the method structure and the info strcut space for this particular
  * instance of the driver.
@@ -811,6 +831,6 @@ static driver_t tdfx_driver = {
 };
 
 /* Tell Mr. Kernel about us! */
-DRIVER_MODULE(tdfx, pci, tdfx_driver, tdfx_devclass, 0, 0);
+DRIVER_MODULE(tdfx, pci, tdfx_driver, tdfx_mod_event, NULL);
 MODULE_DEPEND(tdfx, mem, 1, 1, 1);
 MODULE_VERSION(tdfx, 1);
