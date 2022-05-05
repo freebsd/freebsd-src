@@ -102,15 +102,8 @@ extern int	smapi32_new(u_long, u_short,
 static int
 smapi_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	struct smapi_softc *sc;
+	struct smapi_softc *sc = dev->si_drv1;
 	int error;
-
-	error = 0;
-	sc = devclass_get_softc(smapi_devclass, dev2unit(dev)); 
-        if (sc == NULL) {
-                error = ENXIO;
-                goto fail;
-        }
 
 	switch (cmd) {
 	case SMAPIOGHEADER:
@@ -127,7 +120,6 @@ smapi_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		error = ENOTTY;
 	}
 
-fail:
 	return (error);
 }
 
@@ -204,6 +196,7 @@ bad:
 static int
 smapi_attach (device_t dev)
 {
+	struct make_dev_args args;
 	struct smapi_softc *sc;
 	int error;
 
@@ -224,12 +217,17 @@ smapi_attach (device_t dev)
 					sc->header->prot32_segment +
 					sc->header->prot32_offset);
 
-        sc->cdev = make_dev(&smapi_cdevsw,
-			device_get_unit(sc->dev),
-			UID_ROOT, GID_WHEEL, 0600,
-			"%s%d",
+	make_dev_args_init(&args);
+	args.mda_devsw = &smapi_cdevsw;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_WHEEL;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = sc;
+        error = make_dev_s(&args, &sc->cdev, "%s%d",
 			smapi_cdevsw.d_name,
 			device_get_unit(sc->dev));
+	if (error != 0)
+		goto bad;
 
 	device_printf(dev, "Version: %d.%02d, Length: %d, Checksum: 0x%02x\n",
 		bcd2bin(sc->header->version_major),
