@@ -107,7 +107,7 @@ am335x_pwm_config_ecap(int unit, int period, int duty)
 	struct am335x_ecap_softc *sc;
 	uint16_t reg;
 
-	dev = devclass_get_device(am335x_ecap_devclass, unit);
+	dev = devclass_get_device(devclass_find(am335x_ecap_driver.name), unit);
 	if (dev == NULL)
 		return (ENXIO);
 
