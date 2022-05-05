@@ -437,6 +437,8 @@ TEST_F(CopyFileRange, same_file)
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_EQ(len, copy_file_range(fd, &off_in, fd, &off_out, len, 0));
+
+	leak(fd);
 }
 
 /*
@@ -597,6 +599,9 @@ TEST_F(CopyFileRange_7_27, fallback)
 	fd2 = open(FULLPATH2, O_WRONLY);
 	ASSERT_GE(fd2, 0);
 	ASSERT_EQ(len, copy_file_range(fd1, &start1, fd2, &start2, len, 0));
+
+	leak(fd1);
+	leak(fd2);
 }
 
 /*
