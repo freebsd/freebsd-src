@@ -1070,9 +1070,7 @@ ipmi_unload(void *arg)
 	int		count;
 	int		i;
 
-	if (ipmi_devclass == NULL)
-		return;
-	if (devclass_get_devices(ipmi_devclass, &devs, &count) != 0)
+	if (devclass_get_devices(devclass_find("ipmi"), &devs, &count) != 0)
 		return;
 	for (i = 0; i < count; i++)
 		device_delete_child(device_get_parent(devs[i]), devs[i]);
