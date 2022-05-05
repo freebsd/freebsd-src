@@ -154,8 +154,8 @@ main(int argc, char **argv)
 	rpctls_ssl_usec = tm.tv_usec;
 
 	rpctls_verbose = false;
-	while ((ch = getopt_long(argc, argv, "CD:dl:mp:r:v", longopts, NULL)) !=
-	    -1) {
+	while ((ch = getopt_long(argc, argv, "C:D:dl:mp:r:v", longopts,
+	    NULL)) != -1) {
 		switch (ch) {
 		case 'C':
 			rpctls_ciphers = optarg;
