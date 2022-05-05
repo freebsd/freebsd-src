@@ -28,7 +28,7 @@
 .\"     @(#)alarm.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd April 2, 2022
 .Dt ALARM 3
 .Os
 .Sh NAME
@@ -89,5 +89,11 @@ If no alarm is currently set, the return value is 0.
 .Sh HISTORY
 An
 .Fn alarm
-function appeared in
+system call appeared in the Programmer's Workbench (PWB/UNIX)
+and was ported to
 .At v7 .
+For
+.Bx 4.1c ,
+it was reimplemented as a wrapper around the
+.Xr setitimer 2
+system call.

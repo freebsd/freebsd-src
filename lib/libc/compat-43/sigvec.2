@@ -28,7 +28,7 @@
 .\"     @(#)sigvec.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd April 2, 2022
 .Dt SIGVEC 2
 .Os
 .Sh NAME
@@ -338,5 +338,14 @@ or
 .Xr signal 3 ,
 .Xr sigsetops 3 ,
 .Xr tty 4
+.Sh HISTORY
+A
+.Fn sigvec
+system call first appeared in
+.Bx 4.2 .
+It was reimplemented as a wrapper around
+.Xr sigaction 2
+in
+.Bx 4.3 Reno .
 .Sh BUGS
 This manual page is still confusing.

@@ -30,7 +30,7 @@
 .\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2021
+.Dd April 3, 2022
 .Dt NANOSLEEP 2
 .Os
 .Sh NAME
@@ -203,3 +203,20 @@ argument was valid but not supported by this implementation of
 .Sh STANDARDS
 These functions conform to
 .St -p1003.1-2008 .
+.Sh HISTORY
+The predecessor of this system call,
+.Fn sleep ,
+appeared in
+.At v3 ,
+but was removed when
+.Xr alarm 3
+was introduced into
+.At v7 .
+The
+.Fn nanosleep
+system call has been available since
+.Nx 1.3
+and was ported to
+.Ox 2.1
+and
+.Fx 3.0 .
