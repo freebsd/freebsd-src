@@ -278,30 +278,6 @@ smapi_detach (device_t dev)
 	return (0);
 }
 
-static int
-smapi_modevent (module_t mod, int what, void *arg)
-{
-	device_t *	devs;
-	int		count;
-	int		i;
-
-	switch (what) {
-	case MOD_LOAD:
-		break;
-	case MOD_UNLOAD:
-		devclass_get_devices(smapi_devclass, &devs, &count);
-		for (i = 0; i < count; i++) {
-			device_delete_child(device_get_parent(devs[i]), devs[i]);
-		}
-		free(devs, M_TEMP);
-		break;
-	default:
-		break;
-	}
-
-	return (0);
-}
-
 static device_method_t smapi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,      smapi_identify),
@@ -316,6 +292,31 @@ static driver_t smapi_driver = {
 	smapi_methods,
 	sizeof(struct smapi_softc),
 };
+
+static int
+smapi_modevent (module_t mod, int what, void *arg)
+{
+	device_t *	devs;
+	int		count;
+	int		i;
+
+	switch (what) {
+	case MOD_LOAD:
+		break;
+	case MOD_UNLOAD:
+		devclass_get_devices(devclass_find(smapi_driver.name), &devs,
+		    &count);
+		for (i = 0; i < count; i++) {
+			device_delete_child(device_get_parent(devs[i]), devs[i]);
+		}
+		free(devs, M_TEMP);
+		break;
+	default:
+		break;
+	}
+
+	return (0);
+}
 
 DRIVER_MODULE(smapi, nexus, smapi_driver, smapi_devclass, smapi_modevent, 0);
 MODULE_VERSION(smapi, 1);
