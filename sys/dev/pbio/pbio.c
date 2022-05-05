@@ -200,7 +200,7 @@ pbioprobe(device_t dev)
 	/* Set all ports to input */
 	/* pboutb(scp, PBIO_CFG, 0x9b); */
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, scp->res);
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 /*
