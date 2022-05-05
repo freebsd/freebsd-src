@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pbio/pbioio.h>		/* pbio IOCTL definitions */
 #include <sys/uio.h>
 #include <sys/fcntl.h>
+#include <sys/sx.h>
 #include <isa/isavar.h>
 
 /* Function prototypes (these should all be static) */
@@ -84,11 +85,8 @@ static char *port_names[] = {"a", "b", "ch", "cl"};
 
 #define	pbio_addr(dev)		((dev)->si_drv1)
 
-#define	PBIOPRI	((PZERO + 5) | PCATCH)
-
 static struct cdevsw pbio_cdevsw = {
 	.d_version = D_VERSION,
-	.d_flags = D_NEEDGIANT,
 	.d_open = pbioopen,
 	.d_read = pbioread,
 	.d_write = pbiowrite,
@@ -117,6 +115,7 @@ struct pbio_softc {
 	int	iomode;			/* Virtualized I/O mode port value */
 					/* The real port is write-only */
 	struct resource *res;
+	struct sx lock;
 };
 
 typedef	struct pbio_softc *sc_p;
@@ -230,6 +229,7 @@ pbioattach (device_t dev)
 	 */
 	sc->iomode = 0x9b;		/* All ports to input */
 
+	sx_init(&sc->lock, "pbio");
 	for (i = 0; i < PBIO_NPORTS; i++) {
 		make_dev_args_init(&args);
 		args.mda_devsw = &pbio_cdevsw;
@@ -249,10 +249,12 @@ pbioioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
 	struct pbio_softc *scp;
-	int port;
+	int error, port;
 
+	error = 0;
 	port = PORT(dev);
 	scp = pbio_addr(dev);
+	sx_xlock(&scp->lock);
 	switch (cmd) {
 	case PBIO_SETDIFF:
 		scp->pd[port].diff = *(int *)data;
@@ -273,16 +275,17 @@ pbioioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		*(int *)data = scp->pd[port].opace;
 		break;
 	default:
-		return ENXIO;
+		error = ENXIO;
 	}
-	return (0);
+	sx_xunlock(&scp->lock);
+	return (error);
 }
 
 static  int
 pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct pbio_softc *scp;
-	int ocfg, port;
+	int error, ocfg, port;
 	int portbit;			/* Port configuration bit */
 
 	port = PORT(dev);
@@ -297,6 +300,8 @@ pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 	ocfg = scp->iomode;
 
+	error = 0;
+	sx_xlock(&scp->lock);
 	if (oflags & FWRITE)
 		/* Writing == output; zero the bit */
 		pboutb(scp, PBIO_CFG, scp->iomode = (ocfg & (~portbit)));
@@ -304,9 +309,10 @@ pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		/* Reading == input; set the bit */
 		pboutb(scp, PBIO_CFG, scp->iomode = (ocfg | portbit));
 	else
-		return (EACCES);
+		error = EACCES;
+	sx_xunlock(&scp->lock);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -341,8 +347,7 @@ portval(int port, struct pbio_softc *scp, char *val)
 				scp->pd[port].oldval = *val;
 				return (0);
 			}
-			err = tsleep((caddr_t)&(scp->pd[port].diff), PBIOPRI,
-				     "pbiopl", max(1, scp->pd[port].ipace));
+			err = pause_sig("pbiopl", max(1, scp->pd[port].ipace));
 			if (err == EINTR)
 				return (EINTR);
 		} else
@@ -354,26 +359,28 @@ static  int
 pbioread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct pbio_softc *scp;
-	int err, i, port, ret, toread;
+	int err, i, port, toread;
 	char val;
 
 	port = PORT(dev);
 	scp = pbio_addr(dev);
 
+	err = 0;
+	sx_xlock(&scp->lock);
 	while (uio->uio_resid > 0) {
 		toread = min(uio->uio_resid, PBIO_BUFSIZ);
-		if ((ret = uiomove(scp->pd[port].buff, toread, uio)) != 0)
-			return (ret);
+		if ((err = uiomove(scp->pd[port].buff, toread, uio)) != 0)
+			break;
 		for (i = 0; i < toread; i++) {
 			if ((err = portval(port, scp, &val)) != 0)
-				return (err);
+				break;
 			scp->pd[port].buff[i] = val;
 			if (!scp->pd[port].diff && scp->pd[port].ipace)
-				tsleep((caddr_t)&(scp->pd[port].ipace), PBIOPRI,
-					"pbioip", scp->pd[port].ipace);
+				pause_sig("pbioip", scp->pd[port].ipace);
 		}
 	}
-	return 0;
+	sx_xunlock(&scp->lock);
+	return (err);
 }
 
 static int
@@ -386,10 +393,12 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 	port = PORT(dev);
 	scp = pbio_addr(dev);
 
+	ret = 0;
+	sx_xlock(&scp->lock);
 	while (uio->uio_resid > 0) {
 		towrite = min(uio->uio_resid, PBIO_BUFSIZ);
 		if ((ret = uiomove(scp->pd[port].buff, towrite, uio)) != 0)
-			return (ret);
+			break;
 		for (i = 0; i < towrite; i++) {
 			val = scp->pd[port].buff[i];
 			switch (port) {
@@ -413,12 +422,11 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 				break;
 			}
 			if (scp->pd[port].opace)
-				tsleep((caddr_t)&(scp->pd[port].opace),
-					PBIOPRI, "pbioop",
-					scp->pd[port].opace);
+				pause_sig("pbioop", scp->pd[port].opace);
 		}
 	}
-	return (0);
+	sx_xunlock(&scp->lock);
+	return (ret);
 }
 
 static  int
