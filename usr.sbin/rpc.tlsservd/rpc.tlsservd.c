@@ -104,6 +104,7 @@ static uint64_t		rpctls_ssl_usec = 0;
 static bool		rpctls_cnuser = false;
 static char		*rpctls_dnsname;
 static const char	*rpctls_cnuseroid = "1.3.6.1.4.1.2238.1.1.1";
+static const char	*rpctls_ciphers = NULL;
 
 static void		rpctlssd_terminate(int);
 static SSL_CTX		*rpctls_setup_ssl(const char *certdir);
@@ -118,6 +119,7 @@ static void		rpctls_huphandler(int sig __unused);
 extern void		rpctlssd_1(struct svc_req *rqstp, SVCXPRT *transp);
 
 static struct option longopts[] = {
+	{ "ciphers",		required_argument,	NULL,	'C' },
 	{ "certdir",		required_argument,	NULL,	'D' },
 	{ "debuglevel",		no_argument,		NULL,	'd' },
 	{ "checkhost",		no_argument,		NULL,	'h' },
@@ -178,9 +180,12 @@ main(int argc, char **argv)
 	}
 
 	rpctls_verbose = false;
-	while ((ch = getopt_long(argc, argv, "D:dhl:n:mp:r:uvWw", longopts,
+	while ((ch = getopt_long(argc, argv, "CD:dhl:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
 		switch (ch) {
+		case 'C':
+			rpctls_ciphers = optarg;
+			break;
 		case 'D':
 			rpctls_certdir = optarg;
 			break;
@@ -558,16 +563,20 @@ rpctls_setup_ssl(const char *certdir)
 	}
 	SSL_CTX_set_ecdh_auto(ctx, 1);
 
-	/*
-	 * Set preferred ciphers, since KERN_TLS only supports a
-	 * few of them.
-	 */
-	ret = SSL_CTX_set_cipher_list(ctx, _PREFERRED_CIPHERS);
-	if (ret == 0) {
-		rpctls_verbose_out("rpctls_setup_ssl: "
-		    "SSL_CTX_set_cipher_list failed to set any ciphers\n");
-		SSL_CTX_free(ctx);
-		return (NULL);
+	if (rpctls_ciphers != NULL) {
+		/*
+		 * Set preferred ciphers, since KERN_TLS only supports a
+		 * few of them.  Normally, not doing this should be ok,
+		 * since the library defaults will work.
+		 */
+		ret = SSL_CTX_set_cipher_list(ctx, rpctls_ciphers);
+		if (ret == 0) {
+			rpctls_verbose_out("rpctls_setup_ssl: "
+			    "SSL_CTX_set_cipher_list failed: %s\n",
+			    rpctls_ciphers);
+			SSL_CTX_free(ctx);
+			return (NULL);
+		}
 	}
 
 	/* Get the cert.pem and certkey.pem files from the directory certdir. */
