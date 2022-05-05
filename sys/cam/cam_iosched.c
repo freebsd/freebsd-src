@@ -1617,8 +1617,7 @@ cam_iosched_next_bio(struct cam_iosched_softc *isc)
 			isc->write_stats.queued--;
 			isc->write_stats.total++;
 			isc->write_stats.pending++;
-		} else
-			printf("Found bio_cmd = %#x\n", bp->bio_cmd);
+		}
 	}
 	if (iosched_debug > 9)
 		printf("HWQ : %p %#x\n", bp, bp->bio_cmd);
