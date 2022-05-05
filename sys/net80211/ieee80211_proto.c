@@ -2584,10 +2584,27 @@ ieee80211_newstate_cb(void *xvap, int npending)
 	 */
 	if (nstate == IEEE80211_S_RUN) {
 		/*
+		 * OACTIVE may be set on the vap if the upper layer
+		 * tried to transmit (e.g. IPv6 NDP) before we reach
+		 * RUN state.  Clear it and restart xmit.
+		 *
+		 * Note this can also happen as a result of SLEEP->RUN
+		 * (i.e. coming out of power save mode).
+		 *
+		 * Historically this was done only for a state change
+		 * but is needed earlier; see next comment.  The 2nd half
+		 * of the work is still only done in case of an actual
+		 * state change below.
+		 */
+		/*
 		 * Unblock the VAP queue; a RUN->RUN state can happen
 		 * on a STA+AP setup on the AP vap.  See wakeupwaiting().
 		 */
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+		/*
+		 * XXX TODO Kick-start a VAP queue - this should be a method!
+		 */
 	}
 
 	/* No actual transition, skip post processing */
@@ -2595,19 +2612,6 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		goto done;
 
 	if (nstate == IEEE80211_S_RUN) {
-		/*
-		 * OACTIVE may be set on the vap if the upper layer
-		 * tried to transmit (e.g. IPv6 NDP) before we reach
-		 * RUN state.  Clear it and restart xmit.
-		 *
-		 * Note this can also happen as a result of SLEEP->RUN
-		 * (i.e. coming out of power save mode).
-		 */
-		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-		/*
-		 * XXX TODO Kick-start a VAP queue - this should be a method!
-		 */
 
 		/* bring up any vaps waiting on us */
 		wakeupwaiting(vap);
