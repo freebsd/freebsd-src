@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 /* Function prototypes (these should all be static) */
 static	d_open_t	pbioopen;
-static	d_close_t	pbioclose;
 static	d_read_t	pbioread;
 static	d_write_t	pbiowrite;
 static	d_ioctl_t	pbioioctl;
@@ -81,8 +80,9 @@ static char *port_names[] = {"a", "b", "ch", "cl"};
 
 #define	PBIO_PNAME(n)		(port_names[(n)])
 
-#define	UNIT(dev)		(dev2unit(dev) >> 2)
-#define	PORT(dev)		(dev2unit(dev) & 0x3)
+#define	PORT(dev)		(dev2unit(dev))
+
+#define	pbio_addr(dev)		((dev)->si_drv1)
 
 #define	PBIOPRI	((PZERO + 5) | PCATCH)
 
@@ -90,7 +90,6 @@ static struct cdevsw pbio_cdevsw = {
 	.d_version = D_VERSION,
 	.d_flags = D_NEEDGIANT,
 	.d_open = pbioopen,
-	.d_close = pbioclose,
 	.d_read = pbioread,
 	.d_write = pbiowrite,
 	.d_ioctl = pbioioctl,
@@ -132,8 +131,6 @@ static device_method_t pbio_methods[] = {
 };
 
 static	devclass_t	pbio_devclass;
-#define	pbio_addr(unit) \
-	    ((struct pbio_softc *) devclass_get_softc(pbio_devclass, unit))
 
 static char driver_name[] = "pbio";
 
@@ -218,6 +215,7 @@ pbioprobe(device_t dev)
 static int
 pbioattach (device_t dev)
 {
+	struct make_dev_args args;
 	int unit;
 	int i;
 	int		rid;
@@ -238,9 +236,17 @@ pbioattach (device_t dev)
 	 */
 	sc->iomode = 0x9b;		/* All ports to input */
 
-	for (i = 0; i < PBIO_NPORTS; i++)
-		sc->pd[i].port = make_dev(&pbio_cdevsw, (unit << 2) + i, 0, 0,
-		    0600, "pbio%d%s", unit, PBIO_PNAME(i));
+	for (i = 0; i < PBIO_NPORTS; i++) {
+		make_dev_args_init(&args);
+		args.mda_devsw = &pbio_cdevsw;
+		args.mda_uid = 0;
+		args.mda_gid = 0;
+		args.mda_mode = 0600;
+		args.mda_unit = i;
+		args.mda_si_drv1 = sc;
+		(void)make_dev_s(&args, &sc->pd[i].port, "pbio%d%s", unit,
+		    PBIO_PNAME(i));
+	}
 	return (0);
 }
 
@@ -249,13 +255,10 @@ pbioioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
 	struct pbio_softc *scp;
-	int port, unit;
+	int port;
 
-	unit = UNIT(dev);
 	port = PORT(dev);
-	scp = pbio_addr(unit);
-	if (scp == NULL)
-		return (ENODEV);
+	scp = pbio_addr(dev);
 	switch (cmd) {
 	case PBIO_SETDIFF:
 		scp->pd[port].diff = *(int *)data;
@@ -285,14 +288,11 @@ static  int
 pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct pbio_softc *scp;
-	int ocfg, port, unit;
+	int ocfg, port;
 	int portbit;			/* Port configuration bit */
 
-	unit = UNIT(dev);
 	port = PORT(dev);
-	scp = pbio_addr(unit);
-	if (scp == NULL)
-		return (ENODEV);
+	scp = pbio_addr(dev);
 
 	switch (port) {
 	case 0: portbit = 0x10; break;	/* Port A */
@@ -311,20 +311,6 @@ pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		pboutb(scp, PBIO_CFG, scp->iomode = (ocfg | portbit));
 	else
 		return (EACCES);
-
-	return (0);
-}
-
-static  int
-pbioclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct pbio_softc *scp;
-	int unit;
-
-	unit = UNIT(dev);
-	scp = pbio_addr(unit);
-	if (scp == NULL)
-		return (ENODEV);
 
 	return (0);
 }
@@ -374,14 +360,11 @@ static  int
 pbioread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct pbio_softc *scp;
-	int err, i, port, ret, toread, unit;
+	int err, i, port, ret, toread;
 	char val;
 
-	unit = UNIT(dev);
 	port = PORT(dev);
-	scp = pbio_addr(unit);
-	if (scp == NULL)
-		return (ENODEV);
+	scp = pbio_addr(dev);
 
 	while (uio->uio_resid > 0) {
 		toread = min(uio->uio_resid, PBIO_BUFSIZ);
@@ -403,14 +386,11 @@ static int
 pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct pbio_softc *scp;
-	int i, port, ret, towrite, unit;
+	int i, port, ret, towrite;
 	char val, oval;
 
-	unit = UNIT(dev);
 	port = PORT(dev);
-	scp = pbio_addr(unit);
-	if (scp == NULL)
-		return (ENODEV);
+	scp = pbio_addr(dev);
 
 	while (uio->uio_resid > 0) {
 		towrite = min(uio->uio_resid, PBIO_BUFSIZ);
@@ -450,14 +430,6 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 static  int
 pbiopoll(struct cdev *dev, int which, struct thread *td)
 {
-	struct pbio_softc *scp;
-	int unit;
-
-	unit = UNIT(dev);
-	scp = pbio_addr(unit);
-	if (scp == NULL)
-		return (ENODEV);
-
 	/*
 	 * Do processing
 	 */
