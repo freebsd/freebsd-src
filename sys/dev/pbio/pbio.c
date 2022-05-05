@@ -117,8 +117,6 @@ struct pbio_softc {
 	int	iomode;			/* Virtualized I/O mode port value */
 					/* The real port is write-only */
 	struct resource *res;
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
 };
 
 typedef	struct pbio_softc *sc_p;
@@ -146,14 +144,14 @@ static __inline uint8_t
 pbinb(struct pbio_softc *scp, int off)
 {
 
-	return bus_space_read_1(scp->bst, scp->bsh, off);
+	return (bus_read_1(scp->res, off));
 }
 
 static __inline void
 pboutb(struct pbio_softc *scp, int off, uint8_t val)
 {
 
-	bus_space_write_1(scp->bst, scp->bsh, off, val);
+	bus_write_1(scp->res, off, val);
 }
 
 static int
@@ -174,8 +172,6 @@ pbioprobe(device_t dev)
 		return (ENXIO);
 
 #ifdef GENERIC_PBIO_PROBE
-	scp->bst = rman_get_bustag(scp->res);
-	scp->bsh = rman_get_bushandle(scp->res);
 	/*
 	 * try see if the device is there.
 	 * This probe works only if the device has no I/O attached to it
@@ -228,8 +224,6 @@ pbioattach (device_t dev)
 	    IO_PBIOSIZE, RF_ACTIVE);
 	if (sc->res == NULL)
 		return (ENXIO);
-	sc->bst = rman_get_bustag(sc->res);
-	sc->bsh = rman_get_bushandle(sc->res);
 
 	/*
 	 * Store whatever seems wise.
