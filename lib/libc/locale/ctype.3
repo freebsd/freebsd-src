@@ -28,7 +28,7 @@
 .\"     @(#)ctype.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2004
+.Dd April 3, 2022
 .Dt CTYPE 3
 .Os
 .Sh NAME
@@ -149,3 +149,18 @@ and
 .Fn toascii ,
 conform to
 .St -isoC .
+.Sh HISTORY
+The functions
+.Fn isalpha ,
+.Fn isupper ,
+.Fn islower ,
+.Fn isdigit ,
+.Fn isalnum ,
+.Fn isspace ,
+.Fn ispunct ,
+.Fn isprint ,
+.Fn iscntrl ,
+and
+.Fn isascii
+first appeared in
+.At v7 .

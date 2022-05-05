@@ -28,7 +28,7 @@
 .\"     @(#)pause.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 3, 2022
 .Dt PAUSE 3
 .Os
 .Sh NAME
@@ -77,6 +77,18 @@ The call was interrupted.
 .Sh HISTORY
 A
 .Fn pause
-syscall
-appeared in
-.At v6 .
+system call first appeared in the Programmer's Workbench (PWB/UNIX)
+and was then ported to
+.At v7 .
+It was reimplemeted as a wrapper around the
+.Fn sigpause
+and
+.Fn sigblock
+system calls in
+.Bx 4.2 ,
+and around the
+.Xr sigsuspend 2
+and
+.Xr sigprocmask 2
+system calls in
+.Bx 4.3 Reno .
