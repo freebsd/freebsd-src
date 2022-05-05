@@ -217,6 +217,7 @@ TEST_F(Open, multiple_creds)
 			perror("open");
 			return(1);
 		}
+		leak(fd0);
 		return 0;
 	}
 	);

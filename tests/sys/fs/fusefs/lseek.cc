@@ -77,6 +77,8 @@ TEST_F(LseekPathconf, already_enosys)
 	EXPECT_EQ(offset_in, lseek(fd, offset_in, SEEK_DATA));
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	EXPECT_EQ(EINVAL, errno);
+
+	leak(fd);
 }
 
 /*
@@ -108,6 +110,8 @@ TEST_F(LseekPathconf, already_seeked)
 	EXPECT_EQ(offset, lseek(fd, offset, SEEK_DATA));
 
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
+
+	leak(fd);
 }
 
 /*
@@ -135,6 +139,8 @@ TEST_F(LseekPathconf, enosys_now)
 
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	EXPECT_EQ(EINVAL, errno);
+
+	leak(fd);
 }
 
 /*
@@ -169,6 +175,8 @@ TEST_F(LseekPathconf, seek_now)
 	EXPECT_EQ(1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	/* And check that the file pointer hasn't changed */
 	EXPECT_EQ(offset_initial, lseek(fd, 0, SEEK_CUR));
+
+	leak(fd);
 }
 
 /*
@@ -194,6 +202,8 @@ TEST_F(LseekPathconf_7_23, already_enosys)
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_EQ(-1, fpathconf(fd, _PC_MIN_HOLE_SIZE));
 	EXPECT_EQ(EINVAL, errno);
+
+	leak(fd);
 }
 
 TEST_F(LseekSeekData, ok)
@@ -224,6 +234,8 @@ TEST_F(LseekSeekData, ok)
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_EQ(offset_out, lseek(fd, offset_in, SEEK_DATA));
 	EXPECT_EQ(offset_out, lseek(fd, 0, SEEK_CUR));
+
+	leak(fd);
 }
 
 /*
@@ -262,6 +274,8 @@ TEST_F(LseekSeekData, enosys)
 	EXPECT_EQ(ENXIO, errno);
 	EXPECT_EQ(-1, lseek(fd, fsize, SEEK_HOLE));
 	EXPECT_EQ(ENXIO, errno);
+
+	leak(fd);
 }
 
 TEST_F(LseekSeekHole, ok)
@@ -292,6 +306,8 @@ TEST_F(LseekSeekHole, ok)
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_EQ(offset_out, lseek(fd, offset_in, SEEK_HOLE));
 	EXPECT_EQ(offset_out, lseek(fd, 0, SEEK_CUR));
+
+	leak(fd);
 }
 
 /*
@@ -330,6 +346,8 @@ TEST_F(LseekSeekHole, enosys)
 	EXPECT_EQ(ENXIO, errno);
 	EXPECT_EQ(-1, lseek(fd, fsize, SEEK_HOLE));
 	EXPECT_EQ(ENXIO, errno);
+
+	leak(fd);
 }
 
 /* lseek should return ENXIO when offset points to EOF */
@@ -357,4 +375,6 @@ TEST_F(LseekSeekHole, enxio)
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_EQ(-1, lseek(fd, offset_in, SEEK_HOLE));
 	EXPECT_EQ(ENXIO, errno);
+
+	leak(fd);
 }
