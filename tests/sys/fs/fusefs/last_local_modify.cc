@@ -119,6 +119,7 @@ static void* allocate_th(void* arg) {
 		return (void*)(intptr_t)errno;
 
 	r = posix_fallocate(fd, 0, 15);
+	LastLocalModify::leak(fd);
 	if (r >= 0)
 		return 0;
 	else
@@ -160,6 +161,7 @@ static void* setattr_th(void* arg) {
 		return (void*)(intptr_t)errno;
 
 	r = ftruncate(fd, 15);
+	LastLocalModify::leak(fd);
 	if (r >= 0)
 		return 0;
 	else
