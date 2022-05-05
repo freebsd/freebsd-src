@@ -34,6 +34,8 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <err.h>
@@ -67,6 +69,7 @@ void shortdump_hdr(void);
 void shortdump(struct sadb_msg *);
 static void printdate(void);
 static int32_t gmt2local(time_t);
+static int modload(const char *name);
 
 #define MODE_SCRIPT	1
 #define MODE_CMDDUMP	2
@@ -100,6 +103,17 @@ usage(void)
 	printf("       setkey [-Pv] -F\n");
 	printf("       setkey [-h] -x\n");
 	exit(1);
+}
+
+static int
+modload(const char *name)
+{
+	if (modfind(name) < 0)
+		if (kldload(name) < 0 || modfind(name) < 0) {
+			warn("%s: module not found", name);
+			return 0;
+	}
+	return 1;
 }
 
 int
@@ -165,6 +179,7 @@ main(int ac, char **av)
 		}
 	}
 
+	modload("ipsec");
 	so = pfkey_open();
 	if (so < 0) {
 		perror("pfkey_open");
