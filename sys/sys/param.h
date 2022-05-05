@@ -361,12 +361,12 @@ __END_DECLS
  * Scale factor for scaled integers used to count %cpu time and load avgs.
  *
  * The number of CPU `tick's that map to a unique `%age' can be expressed
- * by the formula (1 / (2 ^ (FSHIFT - 11))).  The maximum load average that
- * can be calculated (assuming 32 bits) can be closely approximated using
- * the formula (2 ^ (2 * (16 - FSHIFT))) for (FSHIFT < 15).
+ * by the formula (1 / (2 ^ (FSHIFT - 11))).  Since the intermediate
+ * calculation is done with 64-bit precision, the maximum load average that can
+ * be calculated is approximately 2^32 / FSCALE.
  *
  * For the scheduler to maintain a 1:1 mapping of CPU `tick' to `%age',
- * FSHIFT must be at least 11; this gives us a maximum load avg of ~1024.
+ * FSHIFT must be at least 11.  This gives a maximum load avg of 2 million.
  */
 #define	FSHIFT	11		/* bits to right of fixed binary point */
 #define FSCALE	(1<<FSHIFT)
