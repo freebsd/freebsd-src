@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2022
+.Dd May 5, 2022
 .Dt rtw88 4
 .Os
 .Sh NAME
@@ -78,11 +78,27 @@ While
 supports all 802.11 a/b/g/n and ac
 the compatibility code currently only supports 802.11 a/b/g modes.
 Support for 802.11 n/ac is to come.
+.Sh LOADER TUNABLES
+.Bl -tag -width indent
+.It Va compat.linuxkpi.skb.mem_limit
+If you are running a 64bit system with more than 4GB of main mmeory
+you need to set this tunable to
+.Sy 1
+in
+.Xr loader.conf 5
+and reboot once to make it effective.
+This tunable will work around a problem with DMA and limit allocations
+for network buffer memory to the lower 32bit of physical memory and
+make the driver work.
+.El
 .Sh BUGS
 Certainly.
 .Pp
 Does not seem to work (reliably) on machines with more than 4GB of
 main memory.
+See in the
+.Sx LOADER TUNABLES
+section above.
 .Sh SEE ALSO
 .Xr rtw88fw 4 ,
 .Xr wlan 4 ,
