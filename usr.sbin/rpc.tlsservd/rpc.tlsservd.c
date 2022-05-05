@@ -180,7 +180,7 @@ main(int argc, char **argv)
 	}
 
 	rpctls_verbose = false;
-	while ((ch = getopt_long(argc, argv, "CD:dhl:n:mp:r:uvWw", longopts,
+	while ((ch = getopt_long(argc, argv, "C:D:dhl:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
 		switch (ch) {
 		case 'C':
