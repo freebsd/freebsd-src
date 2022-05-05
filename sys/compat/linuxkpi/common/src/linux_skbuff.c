@@ -53,15 +53,33 @@ __FBSDID("$FreeBSD$");
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
+#ifdef __LP64__
+#include <linux/log2.h>
+#endif
 
-#ifdef SKB_DEBUG
 SYSCTL_DECL(_compat_linuxkpi);
 SYSCTL_NODE(_compat_linuxkpi, OID_AUTO, skb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "LinuxKPI skbuff");
 
+#ifdef SKB_DEBUG
 int linuxkpi_debug_skb;
 SYSCTL_INT(_compat_linuxkpi_skb, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug_skb, 0, "SKB debug level");
+#endif
+
+#ifdef __LP64__
+/*
+ * Realtek wireless drivers (e.g., rtw88) require 32bit DMA in a single segment.
+ * busdma(9) has a hard time providing this currently for 3-ish pages at large
+ * quantities (see lkpi_pci_nseg1_fail in linux_pci.c).
+ * Work around this for now by allowing a tunable to enforce physical addresses
+ * allocation limits on 64bit platforms using "old-school" contigmalloc(9) to
+ * avoid bouncing.
+ */
+static int linuxkpi_skb_memlimit;
+SYSCTL_INT(_compat_linuxkpi_skb, OID_AUTO, mem_limit, CTLFLAG_RDTUN,
+    &linuxkpi_skb_memlimit, 0, "SKB memory limit: 0=no limit, "
+    "1=32bit, 2=36bit, other=undef (currently 32bit)");
 #endif
 
 static MALLOC_DEFINE(M_LKPISKB, "lkpiskb", "Linux KPI skbuff compat");
@@ -77,7 +95,28 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 	 * Using our own type here not backing my kmalloc.
 	 * We assume no one calls kfree directly on the skb.
 	 */
+#ifdef __LP64__
+	if (__predict_true(linuxkpi_skb_memlimit == 0)) {
+		skb = malloc(len, M_LKPISKB, linux_check_m_flags(gfp) | M_ZERO);
+	} else {
+		vm_paddr_t high;
+
+		switch (linuxkpi_skb_memlimit) {
+		case 2:
+			high = (0xfffffffff);	/* 1<<36 really. */
+			break;
+		case 1:
+		default:
+			high = (0xffffffff);	/* 1<<32 really. */
+			break;
+		}
+		len = roundup_pow_of_two(len);
+		skb = contigmalloc(len, M_LKPISKB,
+		    linux_check_m_flags(gfp) | M_ZERO, 0, high, PAGE_SIZE, 0);
+	}
+#else
 	skb = malloc(len, M_LKPISKB, linux_check_m_flags(gfp) | M_ZERO);
+#endif
 	if (skb == NULL)
 		return (skb);
 	skb->_alloc_len = len;
@@ -194,7 +233,14 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 		}
 	}
 
+#ifdef __LP64__
+	if (__predict_true(linuxkpi_skb_memlimit == 0))
+		free(skb, M_LKPISKB);
+	else
+		contigfree(skb, skb->_alloc_len, M_LKPISKB);
+#else
 	free(skb, M_LKPISKB);
+#endif
 }
 
 #ifdef DDB
