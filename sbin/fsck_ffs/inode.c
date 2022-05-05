@@ -213,7 +213,7 @@ iblock(struct inodesc *idesc, off_t isize, int type)
 				idesc->id_lbn++;
 				n = (*func)(idesc);
 			} else {
-				n = iblock(idesc, isize, type);
+				n = iblock(idesc, isize, type - 1);
 				idesc->id_level++;
 			}
 			if (n & STOP) {
