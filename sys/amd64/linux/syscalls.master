@@ -472,11 +472,11 @@
 		    l_int semflg
 		);
 	}
-65	AUE_NULL	STD {
-		int linux_semop(
+65	AUE_NULL	NOPROTO {
+		int semop(
 		    l_int semid,
-		    struct l_sembuf *tsops,
-		    l_uint nsops
+		    struct sembuf *sops,
+		    l_size_t nsops
 		);
 	}
 66	AUE_NULL	STD {
