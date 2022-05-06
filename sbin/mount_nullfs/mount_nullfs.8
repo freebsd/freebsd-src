@@ -33,7 +33,7 @@
 .\"     @(#)mount_null.8	8.6 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2022
+.Dd May 6, 2022
 .Dt MOUNT_NULLFS 8
 .Os
 .Sh NAME
@@ -83,8 +83,10 @@ man page for possible options and their meanings.
 Additionally the following option is supported:
 .Bl -tag -width indent
 .It Cm nocache
-Disable caching in the null layer.
+Disable metadata caching in the null layer.
 Some lower-layer file systems may force this option.
+Depending on the access pattern,
+this may result in increased lock contention.
 .El
 .El
 .Pp
