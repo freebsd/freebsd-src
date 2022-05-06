@@ -125,8 +125,7 @@ static driver_t iavf_driver = {
 	"iavf", iavf_methods, sizeof(struct iavf_sc),
 };
 
-devclass_t iavf_devclass;
-DRIVER_MODULE(iavf, pci, iavf_driver, iavf_devclass, 0, 0);
+DRIVER_MODULE(iavf, pci, iavf_driver, 0, 0);
 MODULE_VERSION(iavf, 1);
 
 MODULE_DEPEND(iavf, pci, 1, 1, 1);
