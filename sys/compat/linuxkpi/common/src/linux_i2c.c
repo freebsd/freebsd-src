@@ -117,15 +117,13 @@ static device_method_t lkpi_iic_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t lkpi_iic_devclass;
-
 driver_t lkpi_iic_driver = {
 	"lkpi_iic",
 	lkpi_iic_methods,
 	sizeof(struct lkpi_iic_softc),
 };
 
-DRIVER_MODULE(lkpi_iic, drmn, lkpi_iic_driver, lkpi_iic_devclass, 0, 0);
+DRIVER_MODULE(lkpi_iic, drmn, lkpi_iic_driver, 0, 0);
 DRIVER_MODULE(iicbus, lkpi_iic, iicbus_driver, 0, 0);
 MODULE_DEPEND(linuxkpi, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 
