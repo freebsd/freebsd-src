@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #define	DMAR_QI_IRQ_RID		1
 #define	DMAR_REG_RID		2
 
-static devclass_t dmar_devclass;
 static device_t *dmar_devs;
 static int dmar_devcnt;
 
@@ -600,7 +599,7 @@ static driver_t	dmar_driver = {
 	sizeof(struct dmar_unit),
 };
 
-DRIVER_MODULE(dmar, acpi, dmar_driver, dmar_devclass, 0, 0);
+DRIVER_MODULE(dmar, acpi, dmar_driver, 0, 0);
 MODULE_DEPEND(dmar, acpi, 1, 1, 1);
 
 static void

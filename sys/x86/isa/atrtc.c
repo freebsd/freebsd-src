@@ -676,10 +676,8 @@ static driver_t atrtc_acpi_driver = {
 };
 #endif	/* DEV_ACPI */
 
-static devclass_t atrtc_devclass;
-
-DRIVER_MODULE(atrtc, isa, atrtc_isa_driver, atrtc_devclass, 0, 0);
+DRIVER_MODULE(atrtc, isa, atrtc_isa_driver, 0, 0);
 #ifdef DEV_ACPI
-DRIVER_MODULE(atrtc, acpi, atrtc_acpi_driver, atrtc_devclass, 0, 0);
+DRIVER_MODULE(atrtc, acpi, atrtc_acpi_driver, 0, 0);
 #endif
 ISA_PNP_INFO(atrtc_ids);
