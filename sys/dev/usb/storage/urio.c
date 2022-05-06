@@ -180,8 +180,6 @@ static const struct usb_config urio_config[URIO_T_MAX] = {
 	},
 };
 
-static devclass_t urio_devclass;
-
 static device_method_t urio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, urio_probe),
@@ -203,7 +201,7 @@ static const STRUCT_USB_HOST_ID urio_devs[] = {
 	{USB_VPI(USB_VENDOR_DIAMOND2, USB_PRODUCT_DIAMOND2_RIO800USB, 0)},
 };
 
-DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass, NULL, 0);
+DRIVER_MODULE(urio, uhub, urio_driver, NULL, NULL);
 MODULE_DEPEND(urio, usb, 1, 1, 1);
 MODULE_VERSION(urio, 1);
 USB_PNP_HOST_INFO(urio_devs);

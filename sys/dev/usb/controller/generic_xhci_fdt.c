@@ -124,7 +124,5 @@ static device_method_t xhci_fdt_methods[] = {
 DEFINE_CLASS_1(xhci, xhci_fdt_driver, xhci_fdt_methods,
     sizeof(struct xhci_softc), generic_xhci_driver);
 
-static devclass_t xhci_fdt_devclass;
-
-DRIVER_MODULE(xhci, simplebus, xhci_fdt_driver, xhci_fdt_devclass, 0, 0);
+DRIVER_MODULE(xhci, simplebus, xhci_fdt_driver, 0, 0);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);

@@ -381,7 +381,5 @@ static driver_t ohci_driver = {
 	.size = sizeof(struct ohci_softc),
 };
 
-static devclass_t ohci_devclass;
-
-DRIVER_MODULE(ohci, pci, ohci_driver, ohci_devclass, 0, 0);
+DRIVER_MODULE(ohci, pci, ohci_driver, 0, 0);
 MODULE_DEPEND(ohci, usb, 1, 1, 1);

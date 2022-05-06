@@ -224,9 +224,7 @@ static driver_t cfumass_driver = {
 	.size = sizeof(struct cfumass_softc),
 };
 
-static devclass_t cfumass_devclass;
-
-DRIVER_MODULE(cfumass, uhub, cfumass_driver, cfumass_devclass, NULL, 0);
+DRIVER_MODULE(cfumass, uhub, cfumass_driver, NULL, NULL);
 MODULE_VERSION(cfumass, 0);
 MODULE_DEPEND(cfumass, usb, 1, 1, 1);
 MODULE_DEPEND(cfumass, usb_template, 1, 1, 1);

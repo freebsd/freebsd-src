@@ -133,8 +133,6 @@ static const struct usb_config udl_config[UDL_N_TRANSFER] = {
 /*
  * Driver glue.
  */
-static devclass_t udl_devclass;
-
 static device_method_t udl_methods[] = {
 	DEVMETHOD(device_probe, udl_probe),
 	DEVMETHOD(device_attach, udl_attach),
@@ -149,7 +147,7 @@ static driver_t udl_driver = {
 	.size = sizeof(struct udl_softc),
 };
 
-DRIVER_MODULE(udl, uhub, udl_driver, udl_devclass, NULL, NULL);
+DRIVER_MODULE(udl, uhub, udl_driver, NULL, NULL);
 MODULE_DEPEND(udl, usb, 1, 1, 1);
 MODULE_DEPEND(udl, fbd, 1, 1, 1);
 MODULE_DEPEND(udl, videomode, 1, 1, 1);

@@ -1566,9 +1566,7 @@ static driver_t wsp_driver = {
 	.size = sizeof(struct wsp_softc)
 };
 
-static devclass_t wsp_devclass;
-
-DRIVER_MODULE(wsp, uhub, wsp_driver, wsp_devclass, NULL, 0);
+DRIVER_MODULE(wsp, uhub, wsp_driver, NULL, NULL);
 MODULE_DEPEND(wsp, usb, 1, 1, 1);
 MODULE_DEPEND(wsp, hid, 1, 1, 1);
 #ifdef EVDEV_SUPPORT

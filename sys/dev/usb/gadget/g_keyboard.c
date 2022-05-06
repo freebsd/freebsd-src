@@ -133,8 +133,6 @@ static device_detach_t g_keyboard_detach;
 static usb_handle_request_t g_keyboard_handle_request;
 static usb_callback_t g_keyboard_intr_callback;
 
-static devclass_t g_keyboard_devclass;
-
 static device_method_t g_keyboard_methods[] = {
 	/* USB interface */
 	DEVMETHOD(usb_handle_request, g_keyboard_handle_request),
@@ -153,7 +151,7 @@ static driver_t g_keyboard_driver = {
 	.size = sizeof(struct g_keyboard_softc),
 };
 
-DRIVER_MODULE(g_keyboard, uhub, g_keyboard_driver, g_keyboard_devclass, 0, 0);
+DRIVER_MODULE(g_keyboard, uhub, g_keyboard_driver, 0, 0);
 MODULE_DEPEND(g_keyboard, usb, 1, 1, 1);
 
 static const struct usb_config g_keyboard_config[G_KEYBOARD_N_TRANSFER] = {

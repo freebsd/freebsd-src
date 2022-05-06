@@ -495,8 +495,7 @@ static driver_t uhso_driver = {
 	.size = sizeof(struct uhso_softc)
 };
 
-static devclass_t uhso_devclass;
-DRIVER_MODULE(uhso, uhub, uhso_driver, uhso_devclass, uhso_driver_loaded, 0);
+DRIVER_MODULE(uhso, uhub, uhso_driver, uhso_driver_loaded, NULL);
 MODULE_DEPEND(uhso, ucom, 1, 1, 1);
 MODULE_DEPEND(uhso, usb, 1, 1, 1);
 MODULE_VERSION(uhso, 1);

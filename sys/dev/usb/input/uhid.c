@@ -912,10 +912,6 @@ uhid_detach(device_t dev)
 	return (0);
 }
 
-#ifndef HIDRAW_MAKE_UHID_ALIAS
-static devclass_t uhid_devclass;
-#endif
-
 static device_method_t uhid_methods[] = {
 	DEVMETHOD(device_probe, uhid_probe),
 	DEVMETHOD(device_attach, uhid_attach),
@@ -934,11 +930,7 @@ static driver_t uhid_driver = {
 	.size = sizeof(struct uhid_softc),
 };
 
-#ifdef HIDRAW_MAKE_UHID_ALIAS
 DRIVER_MODULE(uhid, uhub, uhid_driver, NULL, NULL);
-#else
-DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
-#endif
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
 MODULE_DEPEND(uhid, hid, 1, 1, 1);
 MODULE_VERSION(uhid, 1);

@@ -170,8 +170,6 @@ static driver_t udav_driver = {
 	.size = sizeof(struct udav_softc),
 };
 
-static devclass_t udav_devclass;
-
 static const STRUCT_USB_HOST_ID udav_devs[] = {
 	/* ShanTou DM9601 USB NIC */
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
@@ -187,7 +185,7 @@ static const STRUCT_USB_HOST_ID udav_devs[] = {
 	    UDAV_FLAG_NO_PHY)},
 };
 
-DRIVER_MODULE(udav, uhub, udav_driver, udav_devclass, NULL, 0);
+DRIVER_MODULE(udav, uhub, udav_driver, NULL, NULL);
 DRIVER_MODULE(miibus, udav, miibus_driver, 0, 0);
 MODULE_DEPEND(udav, uether, 1, 1, 1);
 MODULE_DEPEND(udav, usb, 1, 1, 1);

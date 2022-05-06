@@ -241,8 +241,6 @@ static const struct usb_config udbp_config[UDBP_T_MAX] = {
 	},
 };
 
-static devclass_t udbp_devclass;
-
 static device_method_t udbp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, udbp_probe),
@@ -269,7 +267,7 @@ static const STRUCT_USB_HOST_ID udbp_devs[] = {
 	{USB_VPI(USB_VENDOR_GENESYS, USB_PRODUCT_GENESYS_GL620USB, 0)},
 };
 
-DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, udbp_modload, 0);
+DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_modload, NULL);
 MODULE_DEPEND(udbp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(udbp, usb, 1, 1, 1);
 MODULE_VERSION(udbp, 1);

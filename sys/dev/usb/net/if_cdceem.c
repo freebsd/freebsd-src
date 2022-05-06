@@ -210,15 +210,13 @@ static driver_t cdceem_driver = {
 	.size = sizeof(struct cdceem_softc),
 };
 
-static devclass_t cdceem_devclass;
-
 static const STRUCT_USB_DUAL_ID cdceem_dual_devs[] = {
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ETHERNET_EMULATION_MODEL),
 		0},
 };
 
-DRIVER_MODULE(cdceem, uhub, cdceem_driver, cdceem_devclass, NULL, NULL);
+DRIVER_MODULE(cdceem, uhub, cdceem_driver, NULL, NULL);
 MODULE_VERSION(cdceem, 1);
 MODULE_DEPEND(cdceem, uether, 1, 1, 1);
 MODULE_DEPEND(cdceem, usb, 1, 1, 1);

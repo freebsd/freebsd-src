@@ -259,8 +259,6 @@ static device_method_t uftdi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t uftdi_devclass;
-
 static driver_t uftdi_driver = {
 	.name = "uftdi",
 	.methods = uftdi_methods,
@@ -915,7 +913,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 #undef UFTDI_DEV
 };
 
-DRIVER_MODULE(uftdi, uhub, uftdi_driver, uftdi_devclass, NULL, NULL);
+DRIVER_MODULE(uftdi, uhub, uftdi_driver, NULL, NULL);
 MODULE_DEPEND(uftdi, ucom, 1, 1, 1);
 MODULE_DEPEND(uftdi, usb, 1, 1, 1);
 MODULE_VERSION(uftdi, 1);

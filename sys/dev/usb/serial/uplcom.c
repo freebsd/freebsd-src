@@ -337,15 +337,13 @@ static device_method_t uplcom_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t uplcom_devclass;
-
 static driver_t uplcom_driver = {
 	.name = "uplcom",
 	.methods = uplcom_methods,
 	.size = sizeof(struct uplcom_softc),
 };
 
-DRIVER_MODULE(uplcom, uhub, uplcom_driver, uplcom_devclass, NULL, 0);
+DRIVER_MODULE(uplcom, uhub, uplcom_driver, NULL, NULL);
 MODULE_DEPEND(uplcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uplcom, usb, 1, 1, 1);
 MODULE_VERSION(uplcom, UPLCOM_MODVER);

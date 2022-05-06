@@ -241,15 +241,13 @@ static driver_t imx_usbmisc_driver = {
 	sizeof(struct imx_usbmisc_softc)
 };
 
-static devclass_t imx_usbmisc_devclass;
-
 /*
  * This driver needs to start before the ehci driver, but later than the usual
  * "special" drivers like clocks and cpu.  Ehci starts at DEFAULT so
  * DEFAULT-1000 seems good.
  */
 EARLY_DRIVER_MODULE(imx_usbmisc, simplebus, imx_usbmisc_driver,
-    imx_usbmisc_devclass, 0, 0, BUS_PASS_DEFAULT - 1000);
+    0, 0, BUS_PASS_DEFAULT - 1000);
 
 /*-----------------------------------------------------------------------------
  * imx_ehci driver...
@@ -507,7 +505,5 @@ static driver_t ehci_driver = {
 	sizeof(struct imx_ehci_softc)
 };
 
-static devclass_t ehci_devclass;
-
-DRIVER_MODULE(imx_ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
+DRIVER_MODULE(imx_ehci, simplebus, ehci_driver, 0, 0);
 MODULE_DEPEND(imx_ehci, usb, 1, 1, 1);

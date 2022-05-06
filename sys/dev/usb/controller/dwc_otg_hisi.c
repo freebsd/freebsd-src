@@ -88,10 +88,7 @@ static device_method_t hisi_dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t hisi_dwc_otg_devclass;
-
 DEFINE_CLASS_1(hisi_dwcotg, hisi_dwc_otg_driver, hisi_dwc_otg_methods,
     sizeof(struct dwc_otg_fdt_softc), dwc_otg_driver);
-DRIVER_MODULE(hisi_dwcotg, simplebus, hisi_dwc_otg_driver,
-    hisi_dwc_otg_devclass, 0, 0);
+DRIVER_MODULE(hisi_dwcotg, simplebus, hisi_dwc_otg_driver, 0, 0);
 MODULE_DEPEND(hisi_dwcotg, usb, 1, 1, 1);

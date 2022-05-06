@@ -303,15 +303,13 @@ static device_method_t umodem_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t umodem_devclass;
-
 static driver_t umodem_driver = {
 	.name = "umodem",
 	.methods = umodem_methods,
 	.size = sizeof(struct umodem_softc),
 };
 
-DRIVER_MODULE(umodem, uhub, umodem_driver, umodem_devclass, NULL, 0);
+DRIVER_MODULE(umodem, uhub, umodem_driver, NULL, NULL);
 MODULE_DEPEND(umodem, ucom, 1, 1, 1);
 MODULE_DEPEND(umodem, usb, 1, 1, 1);
 MODULE_VERSION(umodem, UMODEM_MODVER);

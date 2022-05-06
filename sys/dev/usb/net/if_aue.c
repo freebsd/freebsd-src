@@ -278,9 +278,7 @@ static driver_t aue_driver = {
 	.size = sizeof(struct aue_softc)
 };
 
-static devclass_t aue_devclass;
-
-DRIVER_MODULE(aue, uhub, aue_driver, aue_devclass, NULL, 0);
+DRIVER_MODULE(aue, uhub, aue_driver, NULL, NULL);
 DRIVER_MODULE(miibus, aue, miibus_driver, 0, 0);
 MODULE_DEPEND(aue, uether, 1, 1, 1);
 MODULE_DEPEND(aue, usb, 1, 1, 1);

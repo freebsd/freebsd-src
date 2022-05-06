@@ -191,9 +191,7 @@ static driver_t axge_driver = {
 	.size = sizeof(struct axge_softc),
 };
 
-static devclass_t axge_devclass;
-
-DRIVER_MODULE(axge, uhub, axge_driver, axge_devclass, NULL, NULL);
+DRIVER_MODULE(axge, uhub, axge_driver, NULL, NULL);
 DRIVER_MODULE(miibus, axge, miibus_driver, NULL, NULL);
 MODULE_DEPEND(axge, uether, 1, 1, 1);
 MODULE_DEPEND(axge, usb, 1, 1, 1);

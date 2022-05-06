@@ -1077,15 +1077,13 @@ static device_method_t uipaq_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t uipaq_devclass;
-
 static driver_t uipaq_driver = {
 	.name = "uipaq",
 	.methods = uipaq_methods,
 	.size = sizeof(struct uipaq_softc),
 };
 
-DRIVER_MODULE(uipaq, uhub, uipaq_driver, uipaq_devclass, NULL, 0);
+DRIVER_MODULE(uipaq, uhub, uipaq_driver, NULL, NULL);
 MODULE_DEPEND(uipaq, ucom, 1, 1, 1);
 MODULE_DEPEND(uipaq, usb, 1, 1, 1);
 MODULE_VERSION(uipaq, 1);

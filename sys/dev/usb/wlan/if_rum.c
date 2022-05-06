@@ -3294,9 +3294,7 @@ static driver_t rum_driver = {
 	.size = sizeof(struct rum_softc),
 };
 
-static devclass_t rum_devclass;
-
-DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
+DRIVER_MODULE(rum, uhub, rum_driver, NULL, NULL);
 MODULE_DEPEND(rum, wlan, 1, 1, 1);
 MODULE_DEPEND(rum, usb, 1, 1, 1);
 MODULE_VERSION(rum, 1);

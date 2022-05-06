@@ -161,8 +161,6 @@ static driver_t urndis_driver = {
 	.size = sizeof(struct urndis_softc),
 };
 
-static devclass_t urndis_devclass;
-
 static const STRUCT_USB_HOST_ID urndis_host_devs[] = {
 	/* Generic RNDIS class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
@@ -184,7 +182,7 @@ static const STRUCT_USB_HOST_ID urndis_host_devs[] = {
 		USB_IFACE_PROTOCOL(UIPROTO_RNDIS)},
 };
 
-DRIVER_MODULE(urndis, uhub, urndis_driver, urndis_devclass, NULL, NULL);
+DRIVER_MODULE(urndis, uhub, urndis_driver, NULL, NULL);
 MODULE_VERSION(urndis, 1);
 MODULE_DEPEND(urndis, uether, 1, 1, 1);
 MODULE_DEPEND(urndis, usb, 1, 1, 1);

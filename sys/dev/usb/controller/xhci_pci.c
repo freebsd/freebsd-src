@@ -85,9 +85,7 @@ static device_method_t xhci_device_methods[] = {
 DEFINE_CLASS_0(xhci, xhci_pci_driver, xhci_device_methods,
     sizeof(struct xhci_softc));
 
-static devclass_t xhci_devclass;
-
-DRIVER_MODULE(xhci, pci, xhci_pci_driver, xhci_devclass, NULL, NULL);
+DRIVER_MODULE(xhci, pci, xhci_pci_driver, NULL, NULL);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);
 
 static const char *

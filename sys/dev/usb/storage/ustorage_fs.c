@@ -266,9 +266,7 @@ static driver_t ustorage_fs_driver = {
 	.size = sizeof(struct ustorage_fs_softc),
 };
 
-static devclass_t ustorage_fs_devclass;
-
-DRIVER_MODULE(ustorage_fs, uhub, ustorage_fs_driver, ustorage_fs_devclass, NULL, 0);
+DRIVER_MODULE(ustorage_fs, uhub, ustorage_fs_driver, NULL, NULL);
 MODULE_VERSION(ustorage_fs, 0);
 MODULE_DEPEND(ustorage_fs, usb, 1, 1, 1);
 

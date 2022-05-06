@@ -274,9 +274,7 @@ static driver_t rsu_driver = {
 	.size = sizeof(struct rsu_softc)
 };
 
-static devclass_t rsu_devclass;
-
-DRIVER_MODULE(rsu, uhub, rsu_driver, rsu_devclass, NULL, 0);
+DRIVER_MODULE(rsu, uhub, rsu_driver, NULL, NULL);
 MODULE_DEPEND(rsu, wlan, 1, 1, 1);
 MODULE_DEPEND(rsu, usb, 1, 1, 1);
 MODULE_DEPEND(rsu, firmware, 1, 1, 1);

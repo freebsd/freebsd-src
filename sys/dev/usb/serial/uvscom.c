@@ -258,15 +258,13 @@ static device_method_t uvscom_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t uvscom_devclass;
-
 static driver_t uvscom_driver = {
 	.name = "uvscom",
 	.methods = uvscom_methods,
 	.size = sizeof(struct uvscom_softc),
 };
 
-DRIVER_MODULE(uvscom, uhub, uvscom_driver, uvscom_devclass, NULL, 0);
+DRIVER_MODULE(uvscom, uhub, uvscom_driver, NULL, NULL);
 MODULE_DEPEND(uvscom, ucom, 1, 1, 1);
 MODULE_DEPEND(uvscom, usb, 1, 1, 1);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);

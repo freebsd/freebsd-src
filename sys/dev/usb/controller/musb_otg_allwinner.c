@@ -621,7 +621,5 @@ static driver_t awusbdrd_driver = {
 	.size = sizeof(struct awusbdrd_softc),
 };
 
-static devclass_t awusbdrd_devclass;
-
-DRIVER_MODULE(musbotg, simplebus, awusbdrd_driver, awusbdrd_devclass, 0, 0);
+DRIVER_MODULE(musbotg, simplebus, awusbdrd_driver, 0, 0);
 MODULE_DEPEND(musbotg, usb, 1, 1, 1);
