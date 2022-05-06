@@ -226,9 +226,7 @@ static driver_t stge_driver = {
 	sizeof(struct stge_softc)
 };
 
-static devclass_t stge_devclass;
-
-DRIVER_MODULE(stge, pci, stge_driver, stge_devclass, 0, 0);
+DRIVER_MODULE(stge, pci, stge_driver, 0, 0);
 DRIVER_MODULE(miibus, stge, miibus_driver, 0, 0);
 
 static struct resource_spec stge_res_spec_io[] = {
