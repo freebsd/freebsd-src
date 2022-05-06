@@ -73,8 +73,6 @@ struct kvm_clock_softc {
 	u_int				 msr_wc;
 };
 
-static devclass_t	kvm_clock_devclass;
-
 static struct pvclock_wall_clock *kvm_clock_get_wallclock(void *arg);
 static void	kvm_clock_system_time_enable(struct kvm_clock_softc *sc);
 static void	kvm_clock_system_time_enable_pcpu(void *arg);
@@ -263,4 +261,4 @@ static driver_t kvm_clock_driver = {
 	sizeof(struct kvm_clock_softc),
 };
 
-DRIVER_MODULE(kvm_clock, nexus, kvm_clock_driver, kvm_clock_devclass, 0, 0);
+DRIVER_MODULE(kvm_clock, nexus, kvm_clock_driver, 0, 0);
