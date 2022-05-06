@@ -242,10 +242,7 @@ static driver_t vtpci_modern_driver = {
 	.size = sizeof(struct vtpci_modern_softc)
 };
 
-devclass_t vtpci_modern_devclass;
-
-DRIVER_MODULE(virtio_pci_modern, pci, vtpci_modern_driver,
-    vtpci_modern_devclass, 0, 0);
+DRIVER_MODULE(virtio_pci_modern, pci, vtpci_modern_driver, 0, 0);
 
 static int
 vtpci_modern_probe(device_t dev)

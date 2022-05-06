@@ -101,10 +101,8 @@ static driver_t vtrnd_driver = {
 	vtrnd_methods,
 	sizeof(struct vtrnd_softc)
 };
-static devclass_t vtrnd_devclass;
 
-VIRTIO_DRIVER_MODULE(virtio_random, vtrnd_driver, vtrnd_devclass,
-    vtrnd_modevent, 0);
+VIRTIO_DRIVER_MODULE(virtio_random, vtrnd_driver, vtrnd_modevent, NULL);
 MODULE_VERSION(virtio_random, 1);
 MODULE_DEPEND(virtio_random, virtio, 1, 1, 1);
 MODULE_DEPEND(virtio_random, random_device, 1, 1, 1);
