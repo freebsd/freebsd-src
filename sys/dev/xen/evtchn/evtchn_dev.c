@@ -599,7 +599,5 @@ static driver_t evtchn_driver = {
 	0,
 };
 
-devclass_t evtchn_devclass;
-
-DRIVER_MODULE(evtchn, xenpv, evtchn_driver, evtchn_devclass, 0, 0);
+DRIVER_MODULE(evtchn, xenpv, evtchn_driver, 0, 0);
 MODULE_DEPEND(evtchn, xenpv, 1, 1, 1);

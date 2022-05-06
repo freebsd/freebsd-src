@@ -312,7 +312,5 @@ static device_method_t xenbusb_back_methods[] = {
 
 DEFINE_CLASS_0(xenbusb_back, xenbusb_back_driver, xenbusb_back_methods,
 	       sizeof(struct xenbusb_softc));
-devclass_t xenbusb_back_devclass; 
 
-DRIVER_MODULE(xenbusb_back, xenstore, xenbusb_back_driver,
-	      xenbusb_back_devclass, 0, 0);
+DRIVER_MODULE(xenbusb_back, xenstore, xenbusb_back_driver, 0, 0);

@@ -771,8 +771,6 @@ xencons_resume(device_t dev)
 	return (0);
 }
 
-static devclass_t xencons_devclass;
-
 static device_method_t xencons_methods[] = {
 	DEVMETHOD(device_identify, xencons_identify),
 	DEVMETHOD(device_probe, xencons_probe),
@@ -788,4 +786,4 @@ static driver_t xencons_driver = {
 	0,
 };
 
-DRIVER_MODULE(xc, xenpv, xencons_driver, xencons_devclass, 0, 0);
+DRIVER_MODULE(xc, xenpv, xencons_driver, 0, 0);

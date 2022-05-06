@@ -3954,6 +3954,5 @@ static driver_t xbb_driver = {
         xbb_methods,
         sizeof(struct xbb_softc),
 };
-devclass_t xbb_devclass;
 
-DRIVER_MODULE(xbbd, xenbusb_back, xbb_driver, xbb_devclass, 0, 0);
+DRIVER_MODULE(xbbd, xenbusb_back, xbb_driver, 0, 0);

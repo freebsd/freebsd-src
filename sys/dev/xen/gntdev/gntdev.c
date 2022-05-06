@@ -1276,7 +1276,5 @@ static driver_t gntdev_driver = {
 	0,
 };
 
-devclass_t gntdev_devclass;
-
-DRIVER_MODULE(gntdev, xenpv, gntdev_driver, gntdev_devclass, 0, 0);
+DRIVER_MODULE(gntdev, xenpv, gntdev_driver, 0, 0);
 MODULE_DEPEND(gntdev, xenpv, 1, 1, 1);

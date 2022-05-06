@@ -150,7 +150,5 @@ static driver_t xendebug_driver = {
 	0,
 };
 
-devclass_t xendebug_devclass;
-
-DRIVER_MODULE(xendebug, xenpv, xendebug_driver, xendebug_devclass, 0, 0);
+DRIVER_MODULE(xendebug, xenpv, xendebug_driver, 0, 0);
 MODULE_DEPEND(xendebug, xenpv, 1, 1, 1);

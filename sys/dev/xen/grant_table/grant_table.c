@@ -675,7 +675,6 @@ static device_method_t granttable_methods[] = {
 };
 
 DEFINE_CLASS_0(granttable, granttable_driver, granttable_methods, 0);
-devclass_t granttable_devclass;
 
-DRIVER_MODULE_ORDERED(granttable, xenpv, granttable_driver, granttable_devclass,
-    NULL, NULL, SI_ORDER_FIRST);
+DRIVER_MODULE_ORDERED(granttable, xenpv, granttable_driver, NULL, NULL,
+    SI_ORDER_FIRST);

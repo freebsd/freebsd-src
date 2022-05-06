@@ -1237,9 +1237,8 @@ static device_method_t xenstore_methods[] = {
 }; 
 
 DEFINE_CLASS_0(xenstore, xenstore_driver, xenstore_methods, 0);
-static devclass_t xenstore_devclass; 
 
-DRIVER_MODULE(xenstore, xenpv, xenstore_driver, xenstore_devclass, 0, 0);
+DRIVER_MODULE(xenstore, xenpv, xenstore_driver, 0, 0);
 
 /*------------------------------- Sysctl Data --------------------------------*/
 /* XXX Shouldn't the node be somewhere else? */

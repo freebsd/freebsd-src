@@ -2336,7 +2336,5 @@ static driver_t netfront_driver = {
 	netfront_methods,
 	sizeof(struct netfront_info),
 };
-devclass_t netfront_devclass;
 
-DRIVER_MODULE(xe, xenbusb_front, netfront_driver, netfront_devclass, NULL,
-    NULL);
+DRIVER_MODULE(xe, xenbusb_front, netfront_driver, NULL, NULL);

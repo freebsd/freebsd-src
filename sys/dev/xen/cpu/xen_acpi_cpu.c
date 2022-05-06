@@ -600,6 +600,5 @@ static driver_t xen_acpi_cpu_driver = {
     sizeof(struct xen_acpi_cpu_softc),
 };
 
-static devclass_t xen_acpi_cpu_devclass;
-DRIVER_MODULE(xen_cpu, acpi, xen_acpi_cpu_driver, xen_acpi_cpu_devclass, 0, 0);
+DRIVER_MODULE(xen_cpu, acpi, xen_acpi_cpu_driver, 0, 0);
 MODULE_DEPEND(xen_cpu, acpi, 1, 1, 1);

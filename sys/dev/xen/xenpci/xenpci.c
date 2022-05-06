@@ -52,11 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/xen/xenpci/xenpcivar.h>
 
-/*
- * This is used to find our platform device instance.
- */
-static devclass_t xenpci_devclass;
-
 static int
 xenpci_intr_filter(void *trap_frame)
 {
@@ -236,4 +231,4 @@ static driver_t xenpci_driver = {
 	sizeof(struct xenpci_softc),
 };
 
-DRIVER_MODULE(xenpci, pci, xenpci_driver, xenpci_devclass, 0, 0);
+DRIVER_MODULE(xenpci, pci, xenpci_driver, 0, 0);
