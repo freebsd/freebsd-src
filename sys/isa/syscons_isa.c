@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isavar.h>
 
-static devclass_t	sc_devclass;
-
 static sc_softc_t	main_softc;
 
 static void
@@ -230,4 +228,4 @@ static driver_t sc_driver = {
 	sizeof(sc_softc_t),
 };
 
-DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
+DRIVER_MODULE(sc, isa, sc_driver, 0, 0);

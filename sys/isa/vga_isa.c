@@ -131,8 +131,6 @@ vga_resume(device_t dev)
 	}
 }
 
-static devclass_t	isavga_devclass;
-
 static void
 isavga_identify(driver_t *driver, device_t parent)
 {
@@ -239,9 +237,7 @@ static driver_t isavga_driver = {
 	sizeof(vga_softc_t),
 };
 
-DRIVER_MODULE(vga, isa, isavga_driver, isavga_devclass, 0, 0);
-
-static devclass_t	vgapm_devclass;
+DRIVER_MODULE(vga, isa, isavga_driver, 0, 0);
 
 static void
 vgapm_identify(driver_t *driver, device_t parent)
@@ -315,5 +311,5 @@ static driver_t vgapm_driver = {
 	0
 };
 
-DRIVER_MODULE(vgapm, vgapci, vgapm_driver, vgapm_devclass, 0, 0);
+DRIVER_MODULE(vgapm, vgapci, vgapm_driver, 0, 0);
 ISA_PNP_INFO(vga_ids);
