@@ -301,27 +301,6 @@ read_labels(struct nvdimm_dev *nv)
 	return (0);
 }
 
-struct nvdimm_dev *
-nvdimm_find_by_handle(nfit_handle_t nv_handle)
-{
-	struct nvdimm_dev *res;
-	device_t *dimms;
-	int i, error, num_dimms;
-
-	res = NULL;
-	error = devclass_get_devices(nvdimm_devclass, &dimms, &num_dimms);
-	if (error != 0)
-		return (NULL);
-	for (i = 0; i < num_dimms; i++) {
-		if (nvdimm_root_get_device_handle(dimms[i]) == nv_handle) {
-			res = device_get_softc(dimms[i]);
-			break;
-		}
-	}
-	free(dimms, M_TEMP);
-	return (res);
-}
-
 static int
 nvdimm_probe(device_t dev)
 {
@@ -467,6 +446,28 @@ static driver_t	nvdimm_driver = {
 	nvdimm_methods,
 	sizeof(struct nvdimm_dev),
 };
+
+struct nvdimm_dev *
+nvdimm_find_by_handle(nfit_handle_t nv_handle)
+{
+	struct nvdimm_dev *res;
+	device_t *dimms;
+	int i, error, num_dimms;
+
+	res = NULL;
+	error = devclass_get_devices(devclass_find(nvdimm_driver.name), &dimms,
+	    &num_dimms);
+	if (error != 0)
+		return (NULL);
+	for (i = 0; i < num_dimms; i++) {
+		if (nvdimm_root_get_device_handle(dimms[i]) == nv_handle) {
+			res = device_get_softc(dimms[i]);
+			break;
+		}
+	}
+	free(dimms, M_TEMP);
+	return (res);
+}
 
 DRIVER_MODULE(nvdimm, nvdimm_acpi_root, nvdimm_driver, nvdimm_devclass, NULL,
     NULL);

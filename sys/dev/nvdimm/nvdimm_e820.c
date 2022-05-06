@@ -367,7 +367,7 @@ nvdimm_e820_chainevh(struct module *m, int e, void *arg __unused)
 
 	switch (e) {
 	case MOD_UNLOAD:
-		dc = nvdimm_e820_devclass;
+		dc = devclass_find(nvdimm_e820_driver.name);
 		maxunit = devclass_get_maxunit(dc);
 		for (i = 0; i < maxunit; i++) {
 			dev = devclass_get_device(dc, i);
