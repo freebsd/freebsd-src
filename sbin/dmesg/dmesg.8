@@ -28,7 +28,7 @@
 .\"     @(#)dmesg.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2016
+.Dd May 6, 2022
 .Dt DMESG 8
 .Os
 .Sh NAME
@@ -69,6 +69,19 @@ If
 is also specified,
 extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the kernel's placing data into
+the message buffer:
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It  kern.msgbuf_show_timestamp : No 0
+If set to 1, then a timestamp will be added to most lines in the message buffer.
+This may also be set as a boot
+.Xr loader 8
+tunable.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/dmesg.boot" -compact
