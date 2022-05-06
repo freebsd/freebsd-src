@@ -188,7 +188,7 @@
 #define	LINUX_SYS_linux_semget	190
 #define	LINUX_SYS_linux_semctl	191
 #define	LINUX_SYS_linux_semtimedop	192
-#define	LINUX_SYS_linux_semop	193
+#define	LINUX_SYS_semop	193
 #define	LINUX_SYS_linux_shmget	194
 #define	LINUX_SYS_linux_shmctl	195
 #define	LINUX_SYS_linux_shmat	196
