@@ -687,13 +687,23 @@ rpctls_server(SSL_CTX *ctx, int s, uint32_t *flags, uint32_t *uidp,
 		return (NULL);
 	}
 	*flags |= RPCTLS_FLAGS_HANDSHAKE;
+	if (rpctls_verbose) {
+		gethostret = rpctls_gethost(s, sad, hostnam, sizeof(hostnam));
+		if (gethostret == 0)
+			hostnam[0] = '\0';
+		rpctls_verbose_out("rpctls_server: SSL handshake ok for host %s"
+		    " <%s %s>\n", hostnam, SSL_get_version(ssl),
+		    SSL_get_cipher(ssl));
+	}
 	if (rpctls_do_mutual) {
 		cert = SSL_get_peer_certificate(ssl);
 		if (cert != NULL) {
-			gethostret = rpctls_gethost(s, sad, hostnam,
-			    sizeof(hostnam));
-			if (gethostret == 0)
-				hostnam[0] = '\0';
+			if (!rpctls_verbose) {
+				gethostret = rpctls_gethost(s, sad, hostnam,
+				    sizeof(hostnam));
+				if (gethostret == 0)
+					hostnam[0] = '\0';
+			}
 			cp2 = X509_NAME_oneline(
 			    X509_get_subject_name(cert), NULL, 0);
 			*flags |= RPCTLS_FLAGS_GOTCERT;
