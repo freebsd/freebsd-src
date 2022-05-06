@@ -228,9 +228,7 @@ static driver_t vge_driver = {
 	sizeof(struct vge_softc)
 };
 
-static devclass_t vge_devclass;
-
-DRIVER_MODULE(vge, pci, vge_driver, vge_devclass, 0, 0);
+DRIVER_MODULE(vge, pci, vge_driver, 0, 0);
 DRIVER_MODULE(miibus, vge, miibus_driver, 0, 0);
 
 #ifdef VGE_EEPROM
