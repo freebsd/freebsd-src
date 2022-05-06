@@ -423,7 +423,6 @@ siis_get_dma_tag(device_t bus, device_t child)
 	return (bus_get_dma_tag(bus));
 }
 
-devclass_t siis_devclass;
 static device_method_t siis_methods[] = {
 	DEVMETHOD(device_probe,     siis_probe),
 	DEVMETHOD(device_attach,    siis_attach),
@@ -439,12 +438,14 @@ static device_method_t siis_methods[] = {
 	DEVMETHOD(bus_get_dma_tag,  siis_get_dma_tag),
 	{ 0, 0 }
 };
+
 static driver_t siis_driver = {
         "siis",
         siis_methods,
         sizeof(struct siis_controller)
 };
-DRIVER_MODULE(siis, pci, siis_driver, siis_devclass, 0, 0);
+
+DRIVER_MODULE(siis, pci, siis_driver, 0, 0);
 MODULE_VERSION(siis, 1);
 MODULE_DEPEND(siis, cam, 1, 1, 1);
 
@@ -627,7 +628,6 @@ siis_ch_resume(device_t dev)
 	return (0);
 }
 
-devclass_t siisch_devclass;
 static device_method_t siisch_methods[] = {
 	DEVMETHOD(device_probe,     siis_ch_probe),
 	DEVMETHOD(device_attach,    siis_ch_attach),
@@ -636,12 +636,14 @@ static device_method_t siisch_methods[] = {
 	DEVMETHOD(device_resume,    siis_ch_resume),
 	{ 0, 0 }
 };
+
 static driver_t siisch_driver = {
         "siisch",
         siisch_methods,
         sizeof(struct siis_channel)
 };
-DRIVER_MODULE(siisch, siis, siisch_driver, siis_devclass, 0, 0);
+
+DRIVER_MODULE(siisch, siis, siisch_driver, 0, 0);
 
 static void
 siis_ch_led(void *priv, int onoff)
