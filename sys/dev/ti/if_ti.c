@@ -272,9 +272,7 @@ static driver_t ti_driver = {
 	sizeof(struct ti_softc)
 };
 
-static devclass_t ti_devclass;
-
-DRIVER_MODULE(ti, pci, ti_driver, ti_devclass, 0, 0);
+DRIVER_MODULE(ti, pci, ti_driver, 0, 0);
 MODULE_DEPEND(ti, pci, 1, 1, 1);
 MODULE_DEPEND(ti, ether, 1, 1, 1);
 
