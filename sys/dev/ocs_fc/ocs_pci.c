@@ -1004,7 +1004,5 @@ static driver_t ocs_driver = {
 	sizeof(struct ocs_softc)
 };
 
-static devclass_t ocs_devclass;
-
-DRIVER_MODULE(ocs_fc, pci, ocs_driver, ocs_devclass, 0, 0);
+DRIVER_MODULE(ocs_fc, pci, ocs_driver, 0, 0);
 MODULE_VERSION(ocs_fc, 1);
