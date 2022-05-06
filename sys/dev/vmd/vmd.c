@@ -626,9 +626,7 @@ static device_method_t vmd_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t pcib_devclass;
-
 DEFINE_CLASS_0(pcib, vmd_pci_driver, vmd_pci_methods, sizeof(struct vmd_softc));
-DRIVER_MODULE(vmd, pci, vmd_pci_driver, pcib_devclass, NULL, NULL);
+DRIVER_MODULE(vmd, pci, vmd_pci_driver, NULL, NULL);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, vmd,
     vmd_devs, nitems(vmd_devs) - 1);
