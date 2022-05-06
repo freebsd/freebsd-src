@@ -6743,7 +6743,7 @@ pf_pdesc_to_dnflow(int dir, const struct pf_pdesc *pd,
 	if (dir != dndir && pd->act.dnrpipe) {
 		dnflow->rule.info = pd->act.dnrpipe;
 	}
-	else if (dir == dndir) {
+	else if (dir == dndir && pd->act.dnpipe) {
 		dnflow->rule.info = pd->act.dnpipe;
 	}
 	else {
