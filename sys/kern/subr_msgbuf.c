@@ -234,8 +234,16 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr)
 
 		if (msgbuf_show_timestamp && needtime == 1 &&
 		    (mbp->msg_flags & MSGBUF_NEEDNL) == 0) {
-			snprintf(buf, sizeof(buf), "[%jd] ",
-			    (intmax_t)time_uptime);
+			if (msgbuf_show_timestamp == 1) {
+				snprintf(buf, sizeof(buf), "[%jd] ",
+				    (intmax_t)time_uptime);
+			} else {
+				struct timeval tv;
+
+				microuptime(&tv);
+				snprintf(buf, sizeof(buf), "[%jd.%06d] ",
+				    (intmax_t)tv.tv_sec, (int)tv.tv_usec);
+			}
 			for (j = 0; buf[j] != '\0'; j++)
 				msgbuf_do_addchar(mbp, buf[j]);
 			needtime = 0;
