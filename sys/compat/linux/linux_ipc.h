@@ -82,16 +82,4 @@
 #define	LINUX_IPC_64	0x0100	/* New version (support 32-bit UIDs, bigger
 				   message sizes, etc. */
 
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-
-struct linux_semop_args
-{
-	l_int		semid;
-	struct l_sembuf *tsops;
-	l_uint		nsops;
-};
-
-int linux_semop(struct thread *, struct linux_semop_args *);
-#endif	/* __i386__ || (__amd64__ && COMPAT_LINUX32) */
-
 #endif /* _LINUX_IPC_H_ */
