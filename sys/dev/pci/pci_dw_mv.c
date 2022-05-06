@@ -315,6 +315,4 @@ static device_method_t pci_mv_methods[] = {
 
 DEFINE_CLASS_1(pcib, pci_mv_driver, pci_mv_methods,
     sizeof(struct pci_mv_softc), pci_dw_driver);
-static devclass_t pci_mv_devclass;
-DRIVER_MODULE( pci_mv, simplebus, pci_mv_driver, pci_mv_devclass,
-    NULL, NULL);
+DRIVER_MODULE( pci_mv, simplebus, pci_mv_driver, NULL, NULL);

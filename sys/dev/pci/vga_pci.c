@@ -787,7 +787,5 @@ static driver_t vga_pci_driver = {
 	sizeof(struct vga_pci_softc),
 };
 
-static devclass_t vga_devclass;
-
-DRIVER_MODULE(vgapci, pci, vga_pci_driver, vga_devclass, 0, 0);
+DRIVER_MODULE(vgapci, pci, vga_pci_driver, 0, 0);
 MODULE_DEPEND(vgapci, x86bios, 1, 1, 1);
