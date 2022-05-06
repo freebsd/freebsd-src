@@ -154,6 +154,15 @@ linux_ipc(struct thread *td, struct linux_ipc_args *args)
 			return (error);
 		return (linux_semctl(td, &a));
 	}
+	case LINUX_SEMTIMEDOP: {
+		struct linux_semtimedop_args a;
+
+		a.semid = args->arg1;
+		a.tsops = PTRIN(args->ptr);
+		a.nsops = args->arg2;
+		a.timeout = PTRIN(args->arg5);
+		return (linux_semtimedop(td, &a));
+	}
 	case LINUX_MSGSND: {
 		struct linux_msgsnd_args a;
 
