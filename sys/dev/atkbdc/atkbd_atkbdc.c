@@ -52,8 +52,6 @@ typedef struct {
 	void		*ih;
 } atkbd_softc_t;
 
-static devclass_t	atkbd_devclass;
-
 static void	atkbdidentify(driver_t *driver, device_t dev);
 static int	atkbdprobe(device_t dev);
 static int	atkbdattach(device_t dev);
@@ -171,7 +169,7 @@ atkbdintr(void *arg)
 	kbdd_intr(kbd, NULL);
 }
 
-DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
+DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, 0, 0);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(atkbd, evdev, 1, 1, 1);
 #endif

@@ -476,7 +476,6 @@ struct psm_softc {		/* Driver status information */
 	struct evdev_dev *evdev_r;	/* Relative reporting device */
 #endif
 };
-static devclass_t psm_devclass;
 
 /* driver state flags (state) */
 #define	PSM_VALID		0x80
@@ -7438,7 +7437,7 @@ psmresume(device_t dev)
 	return (err);
 }
 
-DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
+DRIVER_MODULE(psm, atkbdc, psm_driver, 0, 0);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(psm, evdev, 1, 1, 1);
 #endif
@@ -7458,8 +7457,6 @@ MODULE_DEPEND(psm, evdev, 1, 1, 1);
  * copy the IRQ resource to the PS/2 mouse device instance hanging
  * under the keyboard controller, then probe and attach it.
  */
-
-static	devclass_t			psmcpnp_devclass;
 
 static	device_probe_t			psmcpnp_probe;
 static	device_attach_t			psmcpnp_attach;
@@ -7619,7 +7616,7 @@ psmcpnp_attach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, psmcpnp_devclass, 0, 0);
-DRIVER_MODULE(psmcpnp, acpi, psmcpnp_driver, psmcpnp_devclass, 0, 0);
+DRIVER_MODULE(psmcpnp, isa, psmcpnp_driver, 0, 0);
+DRIVER_MODULE(psmcpnp, acpi, psmcpnp_driver, 0, 0);
 ISA_PNP_INFO(psmcpnp_ids);
 #endif /* DEV_ISA */
