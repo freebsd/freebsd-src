@@ -124,8 +124,6 @@ __FBSDID("$FreeBSD$");
 #define CBB_START_32_IO 0x1000
 #define CBB_START_16_IO 0x100
 
-devclass_t cbb_devclass;
-
 /* sysctl vars */
 static SYSCTL_NODE(_hw, OID_AUTO, cbb, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CBB parameters");

@@ -108,7 +108,6 @@ struct cbb_softc {
 #define CARD_OFF	(CARD_VCC(0))
 
 extern int cbb_debug;
-extern devclass_t cbb_devclass;
 
 int	cbb_activate_resource(device_t brdev, device_t child,
 	    int type, int rid, struct resource *r);
