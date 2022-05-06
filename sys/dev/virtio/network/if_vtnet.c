@@ -361,10 +361,7 @@ static driver_t vtnet_driver = {
     .methods = vtnet_methods,
     .size = sizeof(struct vtnet_softc)
 };
-static devclass_t vtnet_devclass;
-
-VIRTIO_DRIVER_MODULE(vtnet, vtnet_driver, vtnet_devclass,
-    vtnet_modevent, 0);
+VIRTIO_DRIVER_MODULE(vtnet, vtnet_driver, vtnet_modevent, NULL);
 MODULE_VERSION(vtnet, 1);
 MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
 #ifdef DEV_NETMAP

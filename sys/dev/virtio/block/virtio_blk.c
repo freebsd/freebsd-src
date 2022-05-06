@@ -268,10 +268,8 @@ static driver_t vtblk_driver = {
 	vtblk_methods,
 	sizeof(struct vtblk_softc)
 };
-static devclass_t vtblk_devclass;
 
-VIRTIO_DRIVER_MODULE(virtio_blk, vtblk_driver, vtblk_devclass,
-    vtblk_modevent, 0);
+VIRTIO_DRIVER_MODULE(virtio_blk, vtblk_driver, vtblk_modevent, NULL);
 MODULE_VERSION(virtio_blk, 1);
 MODULE_DEPEND(virtio_blk, virtio, 1, 1, 1);
 

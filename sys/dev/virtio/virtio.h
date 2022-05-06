@@ -68,9 +68,9 @@ struct virtio_feature_desc {
 	const char	*vfd_str;
 };
 
-#define VIRTIO_DRIVER_MODULE(name, driver, devclass, evh, arg)		\
-	DRIVER_MODULE(name, virtio_mmio, driver, devclass, evh, arg);	\
-	DRIVER_MODULE(name, virtio_pci, driver, devclass, evh, arg)
+#define VIRTIO_DRIVER_MODULE(name, driver, evh, arg)			\
+	DRIVER_MODULE(name, virtio_mmio, driver, evh, arg);		\
+	DRIVER_MODULE(name, virtio_pci, driver, evh, arg)
 
 struct virtio_pnp_match {
 	uint32_t	 device_type;

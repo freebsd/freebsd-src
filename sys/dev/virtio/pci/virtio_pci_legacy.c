@@ -188,10 +188,7 @@ static driver_t vtpci_legacy_driver = {
 	.size = sizeof(struct vtpci_legacy_softc)
 };
 
-devclass_t vtpci_legacy_devclass;
-
-DRIVER_MODULE(virtio_pci_legacy, pci, vtpci_legacy_driver,
-    vtpci_legacy_devclass, 0, 0);
+DRIVER_MODULE(virtio_pci_legacy, pci, vtpci_legacy_driver, 0, 0);
 
 static int
 vtpci_legacy_probe(device_t dev)
