@@ -128,10 +128,7 @@ static device_method_t sdhci_xenon_acpi_methods[] = {
 DEFINE_CLASS_1(sdhci_xenon, sdhci_xenon_acpi_driver, sdhci_xenon_acpi_methods,
 	sizeof(struct sdhci_xenon_softc), sdhci_xenon_driver);
 
-static devclass_t sdhci_xenon_acpi_devclass;
-
-DRIVER_MODULE(sdhci_xenon, acpi, sdhci_xenon_acpi_driver,
-	sdhci_xenon_acpi_devclass, NULL, NULL);
+DRIVER_MODULE(sdhci_xenon, acpi, sdhci_xenon_acpi_driver, NULL, NULL);
 
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_xenon_acpi);
