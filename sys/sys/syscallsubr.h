@@ -57,6 +57,7 @@ struct ogetdirentries_args;
 struct rlimit;
 struct rusage;
 struct sched_param;
+struct sembuf;
 union semun;
 struct sockaddr;
 struct spacectl_range;
@@ -328,6 +329,8 @@ int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
 int	kern_ktimer_gettime(struct thread *td, int timer_id,
 	    struct itimerspec *val);
 int	kern_ktimer_getoverrun(struct thread *td, int timer_id);
+int	kern_semop(struct thread *td, int usemid, struct sembuf *usops,
+	    size_t nsops, struct timespec *timeout);
 int	kern_thr_alloc(struct proc *, int pages, struct thread **);
 int	kern_thr_exit(struct thread *td);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
