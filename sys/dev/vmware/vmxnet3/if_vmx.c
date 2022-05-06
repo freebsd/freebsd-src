@@ -207,8 +207,7 @@ static driver_t vmxnet3_driver = {
 	"vmx", vmxnet3_methods, sizeof(struct vmxnet3_softc)
 };
 
-static devclass_t vmxnet3_devclass;
-DRIVER_MODULE(vmx, pci, vmxnet3_driver, vmxnet3_devclass, 0, 0);
+DRIVER_MODULE(vmx, pci, vmxnet3_driver, 0, 0);
 IFLIB_PNP_INFO(pci, vmx, vmxnet3_vendor_info_array);
 MODULE_VERSION(vmx, 2);
 
