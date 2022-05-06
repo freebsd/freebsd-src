@@ -881,10 +881,8 @@ static driver_t tws_driver = {
         sizeof(struct tws_softc)
 };
 
-static devclass_t tws_devclass;
-
 /* DEFINE_CLASS_0(tws, tws_driver, tws_methods, sizeof(struct tws_softc)); */
-DRIVER_MODULE(tws, pci, tws_driver, tws_devclass, 0, 0);
+DRIVER_MODULE(tws, pci, tws_driver, 0, 0);
 MODULE_DEPEND(tws, cam, 1, 1, 1);
 MODULE_DEPEND(tws, pci, 1, 1, 1);
 

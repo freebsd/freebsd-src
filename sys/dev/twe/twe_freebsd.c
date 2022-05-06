@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 
-static devclass_t	twe_devclass;
-
 #ifdef TWE_DEBUG
 static u_int32_t	twed_bio_in;
 #define TWED_BIO_IN	twed_bio_in++
@@ -154,7 +152,7 @@ static driver_t twe_pci_driver = {
 	sizeof(struct twe_softc)
 };
 
-DRIVER_MODULE(twe, pci, twe_pci_driver, twe_devclass, 0, 0);
+DRIVER_MODULE(twe, pci, twe_pci_driver, 0, 0);
 
 /********************************************************************************
  * Match a 3ware Escalade ATA RAID controller.
@@ -690,8 +688,7 @@ static driver_t twed_driver = {
     sizeof(struct twed_softc)
 };
 
-static devclass_t	twed_devclass;
-DRIVER_MODULE(twed, twe, twed_driver, twed_devclass, 0, 0);
+DRIVER_MODULE(twed, twe, twed_driver, 0, 0);
 
 /*
  * Disk device control interface.
