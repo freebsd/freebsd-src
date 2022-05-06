@@ -113,8 +113,6 @@ static device_attach_t		hconf_attach;
 static device_detach_t		hconf_detach;
 static device_resume_t		hconf_resume;
 
-static devclass_t hconf_devclass;
-
 static device_method_t hconf_methods[] = {
 
 	DEVMETHOD(device_probe,		hconf_probe),
@@ -323,7 +321,7 @@ hconf_set_input_mode(device_t dev, enum hconf_input_mode mode)
 	return (hconf_set_feature_control(sc, INPUT_MODE, mode));
 }
 
-DRIVER_MODULE(hconf, hidbus, hconf_driver, hconf_devclass, NULL, 0);
+DRIVER_MODULE(hconf, hidbus, hconf_driver, NULL, NULL);
 MODULE_DEPEND(hconf, hidbus, 1, 1, 1);
 MODULE_DEPEND(hconf, hid, 1, 1, 1);
 MODULE_VERSION(hconf, 1);

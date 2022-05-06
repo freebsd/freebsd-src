@@ -894,8 +894,6 @@ hmt_set_input_mode(struct hmt_softc *sc, enum hconf_input_mode mode)
 	return (err);
 }
 
-static devclass_t hmt_devclass;
-
 static device_method_t hmt_methods[] = {
 	DEVMETHOD(device_probe,		hmt_probe),
 	DEVMETHOD(device_attach,	hmt_attach),
@@ -910,7 +908,7 @@ static driver_t hmt_driver = {
 	.size = sizeof(struct hmt_softc),
 };
 
-DRIVER_MODULE(hmt, hidbus, hmt_driver, hmt_devclass, NULL, 0);
+DRIVER_MODULE(hmt, hidbus, hmt_driver, NULL, NULL);
 MODULE_DEPEND(hmt, hidbus, 1, 1, 1);
 MODULE_DEPEND(hmt, hid, 1, 1, 1);
 MODULE_DEPEND(hmt, hconf, 1, 1, 1);

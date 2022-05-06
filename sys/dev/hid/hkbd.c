@@ -2003,8 +2003,6 @@ hkbd_driver_load(module_t mod, int what, void *arg)
 	return (0);
 }
 
-static devclass_t hkbd_devclass;
-
 static device_method_t hkbd_methods[] = {
 	DEVMETHOD(device_probe, hkbd_probe),
 	DEVMETHOD(device_attach, hkbd_attach),
@@ -2020,7 +2018,7 @@ static driver_t hkbd_driver = {
 	.size = sizeof(struct hkbd_softc),
 };
 
-DRIVER_MODULE(hkbd, hidbus, hkbd_driver, hkbd_devclass, hkbd_driver_load, 0);
+DRIVER_MODULE(hkbd, hidbus, hkbd_driver, hkbd_driver_load, NULL);
 MODULE_DEPEND(hkbd, hid, 1, 1, 1);
 MODULE_DEPEND(hkbd, hidbus, 1, 1, 1);
 #ifdef EVDEV_SUPPORT

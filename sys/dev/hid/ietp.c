@@ -609,7 +609,6 @@ ietp_iic_write_reg(device_t dev, uint16_t reg, uint16_t val)
 	return (hid_ioctl(dev, I2CRDWR, (uintptr_t)&ird));
 }
 
-static devclass_t ietp_devclass;
 static device_method_t ietp_methods[] = {
 	DEVMETHOD(device_probe,		ietp_iic_probe),
 	DEVMETHOD(device_attach,	ietp_iic_attach),
@@ -624,7 +623,7 @@ static driver_t ietp_driver = {
 	.size = sizeof(struct ietp_softc),
 };
 
-DRIVER_MODULE(ietp, hidbus, ietp_driver, ietp_devclass, NULL, 0);
+DRIVER_MODULE(ietp, hidbus, ietp_driver, NULL, NULL);
 MODULE_DEPEND(ietp, hidbus, 1, 1, 1);
 MODULE_DEPEND(ietp, hid, 1, 1, 1);
 MODULE_DEPEND(ietp, evdev, 1, 1, 1);
