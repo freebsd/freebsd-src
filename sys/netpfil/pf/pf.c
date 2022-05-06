@@ -7298,9 +7298,7 @@ done:
 			if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
 				pd.pf_mtag->flags |= PF_TAG_DUMMYNET;
 				ip_dn_io_ptr(m0, &dnflow);
-				if (*m0 == NULL)
-					action = PF_DROP;
-				else
+				if (*m0 != NULL)
 					pd.pf_mtag->flags &= ~PF_TAG_DUMMYNET;
 			}
 		}
@@ -7758,9 +7756,7 @@ done:
 			if (pf_pdesc_to_dnflow(dir, &pd, r, s, &dnflow)) {
 				pd.pf_mtag->flags |= PF_TAG_DUMMYNET;
 				ip_dn_io_ptr(m0, &dnflow);
-				if (*m0 == NULL)
-					action = PF_DROP;
-				else
+				if (*m0 != NULL)
 					pd.pf_mtag->flags &= ~PF_TAG_DUMMYNET;
 			}
 		}
