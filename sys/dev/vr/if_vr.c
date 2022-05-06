@@ -235,9 +235,7 @@ static driver_t vr_driver = {
 	sizeof(struct vr_softc)
 };
 
-static devclass_t vr_devclass;
-
-DRIVER_MODULE(vr, pci, vr_driver, vr_devclass, 0, 0);
+DRIVER_MODULE(vr, pci, vr_driver, 0, 0);
 DRIVER_MODULE(miibus, vr, miibus_driver, 0, 0);
 
 static int
