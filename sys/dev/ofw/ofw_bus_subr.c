@@ -495,19 +495,15 @@ int
 ofw_bus_iommu_map(phandle_t node, uint16_t pci_rid, phandle_t *iommu_parent,
     uint32_t *iommu_rid)
 {
-	pcell_t mask, iommu_base, rid_base, rid_length;
-	uint32_t masked_rid;
-	pcell_t map[4];
+	pcell_t *map, mask, iommu_base, rid_base, rid_length;
 	ssize_t len;
+	uint32_t masked_rid;
 	int err, i;
 
-	len = OF_getproplen(node, "iommu-map");
+	len = OF_getencprop_alloc_multi(node, "iommu-map", sizeof(*map),
+	    (void **)&map);
 	if (len <= 0)
 		return (ENOENT);
-        if (len > sizeof(map))
-                return (ENOMEM);
-
-	len = OF_getencprop(node, "iommu-map", map, 16);
 
 	err = ENOENT;
 	mask = 0xffffffff;
@@ -531,6 +527,8 @@ ofw_bus_iommu_map(phandle_t node, uint16_t pci_rid, phandle_t *iommu_parent,
 		err = 0;
 		break;
 	}
+
+	free(map, M_OFWPROP);
 
 	return (err);
 }
