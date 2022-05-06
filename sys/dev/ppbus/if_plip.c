@@ -185,8 +185,6 @@ static int lp_module_handler(module_t, int, void *);
 #define	DEVTOSOFTC(dev) \
 	((struct lp_data *)device_get_softc(dev))
 
-static devclass_t lp_devclass;
-
 static int
 lp_module_handler(module_t mod, int what, void *arg)
 {
@@ -849,5 +847,5 @@ static driver_t lp_driver = {
 	sizeof(struct lp_data),
 };
 
-DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, lp_module_handler, 0);
+DRIVER_MODULE(plip, ppbus, lp_driver, lp_module_handler, NULL);
 MODULE_DEPEND(plip, ppbus, 1, 1, 1);

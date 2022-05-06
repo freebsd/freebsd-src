@@ -112,4 +112,4 @@ ppc_acpi_probe(device_t dev)
 	return (ppc_probe(dev, 0));
 }
 
-DRIVER_MODULE(ppc, acpi, ppc_acpi_driver, ppc_devclass, 0, 0);
+DRIVER_MODULE(ppc, acpi, ppc_acpi_driver, 0, 0);

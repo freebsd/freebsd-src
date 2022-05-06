@@ -50,5 +50,4 @@ int ppc_reset_epp(device_t);
 int ppc_ecp_sync(device_t);
 int ppc_setmode(device_t, int);
 
-extern devclass_t ppc_devclass;
 extern const char ppc_driver_name[];

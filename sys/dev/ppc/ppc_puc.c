@@ -94,4 +94,4 @@ ppc_puc_probe(device_t dev)
 	return (ppc_probe(dev, 0));
 }
 
-DRIVER_MODULE(ppc, puc, ppc_puc_driver, ppc_devclass, 0, 0);
+DRIVER_MODULE(ppc, puc, ppc_puc_driver, 0, 0);

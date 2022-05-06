@@ -113,4 +113,4 @@ ppc_pci_probe(device_t dev)
 	return (ppc_probe(dev, id->rid));
 }
 
-DRIVER_MODULE(ppc, pci, ppc_pci_driver, ppc_devclass, 0, 0);
+DRIVER_MODULE(ppc, pci, ppc_pci_driver, 0, 0);
