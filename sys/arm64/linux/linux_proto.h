@@ -731,7 +731,10 @@ struct linux_semctl_args {
 	char arg_l_[PADL_(union l_semun)]; union l_semun arg; char arg_r_[PADR_(union l_semun)];
 };
 struct linux_semtimedop_args {
-	syscallarg_t dummy;
+	char semid_l_[PADL_(l_int)]; l_int semid; char semid_r_[PADR_(l_int)];
+	char tsops_l_[PADL_(struct sembuf *)]; struct sembuf * tsops; char tsops_r_[PADR_(struct sembuf *)];
+	char nsops_l_[PADL_(l_size_t)]; l_size_t nsops; char nsops_r_[PADR_(l_size_t)];
+	char timeout_l_[PADL_(struct l_timespec *)]; struct l_timespec * timeout; char timeout_r_[PADR_(struct l_timespec *)];
 };
 struct linux_shmget_args {
 	char key_l_[PADL_(l_key_t)]; l_key_t key; char key_r_[PADR_(l_key_t)];

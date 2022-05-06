@@ -437,7 +437,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_recvmmsg_time64_args), .sy_call = (sy_call_t *)linux_recvmmsg_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 417 = linux_recvmmsg_time64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_mq_timedsend_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 418 = linux_mq_timedsend_time64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_mq_timedreceive_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 419 = linux_mq_timedreceive_time64 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_semtimedop_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 420 = linux_semtimedop_time64 */
+	{ .sy_narg = AS(linux_semtimedop_time64_args), .sy_call = (sy_call_t *)linux_semtimedop_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 420 = linux_semtimedop_time64 */
 	{ .sy_narg = AS(linux_rt_sigtimedwait_time64_args), .sy_call = (sy_call_t *)linux_rt_sigtimedwait_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 421 = linux_rt_sigtimedwait_time64 */
 	{ .sy_narg = AS(linux_sys_futex_time64_args), .sy_call = (sy_call_t *)linux_sys_futex_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 422 = linux_sys_futex_time64 */
 	{ .sy_narg = AS(linux_sched_rr_get_interval_time64_args), .sy_call = (sy_call_t *)linux_sched_rr_get_interval_time64, .sy_auevent = AUE_SCHED_RR_GET_INTERVAL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 423 = linux_sched_rr_get_interval_time64 */
