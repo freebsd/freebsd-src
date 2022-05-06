@@ -57,9 +57,7 @@ static driver_t ignore_pci_driver = {
     0,
 };
 
-static devclass_t ignore_pci_devclass;
-
-DRIVER_MODULE(ignore_pci, pci, ignore_pci_driver, ignore_pci_devclass, 0, 0);
+DRIVER_MODULE(ignore_pci, pci, ignore_pci_driver, 0, 0);
 
 static int
 ignore_pci_probe(device_t dev)

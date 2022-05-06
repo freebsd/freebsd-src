@@ -68,9 +68,7 @@ static driver_t fixup_pci_driver = {
     0,
 };
 
-static devclass_t fixup_pci_devclass;
-
-DRIVER_MODULE(fixup_pci, pci, fixup_pci_driver, fixup_pci_devclass, 0, 0);
+DRIVER_MODULE(fixup_pci, pci, fixup_pci_driver, 0, 0);
 
 static int
 fixup_pci_probe(device_t dev)

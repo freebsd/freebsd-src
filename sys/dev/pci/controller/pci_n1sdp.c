@@ -361,7 +361,4 @@ static device_method_t n1sdp_pcie_acpi_methods[] = {
 DEFINE_CLASS_1(pcib, n1sdp_pcie_acpi_driver, n1sdp_pcie_acpi_methods,
     sizeof(struct generic_pcie_n1sdp_softc), generic_pcie_acpi_driver);
 
-static devclass_t n1sdp_pcie_acpi_devclass;
-
-DRIVER_MODULE(n1sdp_pcib, acpi, n1sdp_pcie_acpi_driver,
-    n1sdp_pcie_acpi_devclass, 0, 0);
+DRIVER_MODULE(n1sdp_pcib, acpi, n1sdp_pcie_acpi_driver, 0, 0);
