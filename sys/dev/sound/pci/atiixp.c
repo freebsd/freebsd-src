@@ -1417,6 +1417,6 @@ static driver_t atiixp_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_atiixp, pci, atiixp_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_atiixp, pci, atiixp_driver, 0, 0);
 MODULE_DEPEND(snd_atiixp, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_atiixp, 1);

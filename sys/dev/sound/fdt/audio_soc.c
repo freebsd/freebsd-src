@@ -536,5 +536,5 @@ static driver_t audio_soc_driver = {
 	sizeof(struct audio_soc_softc),
 };
 
-DRIVER_MODULE(audio_soc, simplebus, audio_soc_driver, pcm_devclass, NULL, NULL);
+DRIVER_MODULE(audio_soc, simplebus, audio_soc_driver, NULL, NULL);
 MODULE_VERSION(audio_soc, 1);

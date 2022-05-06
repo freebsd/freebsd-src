@@ -642,6 +642,6 @@ static driver_t via_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_via82c686, pci, via_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_via82c686, pci, via_driver, 0, 0);
 MODULE_DEPEND(snd_via82c686, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_via82c686, 1);

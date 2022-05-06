@@ -964,7 +964,7 @@ static driver_t bcm2835_audio_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(bcm2835_audio, vchiq, bcm2835_audio_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(bcm2835_audio, vchiq, bcm2835_audio_driver, 0, 0);
 MODULE_DEPEND(bcm2835_audio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_DEPEND(bcm2835_audio, vchiq, 1, 1, 1);
 MODULE_VERSION(bcm2835_audio, 1);

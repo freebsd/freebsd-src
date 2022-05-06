@@ -1894,7 +1894,7 @@ static driver_t mss_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_mss, isa, mss_driver, 0, 0);
 MODULE_DEPEND(snd_mss, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_mss, 1);
 
@@ -2204,8 +2204,8 @@ static driver_t pnpmss_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
-DRIVER_MODULE(snd_pnpmss, acpi, pnpmss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, 0, 0);
+DRIVER_MODULE(snd_pnpmss, acpi, pnpmss_driver, 0, 0);
 MODULE_DEPEND(snd_pnpmss, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_pnpmss, 1);
 
@@ -2289,7 +2289,7 @@ static driver_t guspcm_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, 0, 0);
 MODULE_DEPEND(snd_guspcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_guspcm, 1);
 ISA_PNP_INFO(pnpmss_ids);
