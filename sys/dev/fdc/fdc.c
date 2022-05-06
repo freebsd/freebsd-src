@@ -1583,10 +1583,6 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 /*
  * Configuration/initialization stuff, per controller.
  */
-
-devclass_t fdc_devclass;
-static devclass_t fd_devclass;
-
 struct fdc_ivars {
 	int	fdunit;
 	int	fdtype;
@@ -2112,4 +2108,4 @@ fdc_modevent(module_t mod, int type, void *data)
 	return (g_modevent(NULL, type, &g_fd_class));
 }
 
-DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fdc_modevent, 0);
+DRIVER_MODULE(fd, fdc, fd_driver, fdc_modevent, 0);
