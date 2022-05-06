@@ -112,7 +112,7 @@ static driver_t uart_opal_driver = {
 	sizeof(struct uart_opal_softc),
 };
 
-DRIVER_MODULE(uart_opal, opalcons, uart_opal_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart_opal, opalcons, uart_opal_driver, 0, 0);
 
 static int uart_opal_getc(struct uart_opal_softc *sc);
 static cn_probe_t uart_opal_cnprobe;

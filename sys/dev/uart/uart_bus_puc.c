@@ -86,4 +86,4 @@ uart_puc_probe(device_t dev)
 	return (uart_bus_probe(dev, 0, 0, rclk, 0, 0, 0));
 }
 
-DRIVER_MODULE(uart, puc, uart_puc_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, puc, uart_puc_driver, 0, 0);

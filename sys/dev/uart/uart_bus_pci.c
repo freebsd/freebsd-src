@@ -347,4 +347,4 @@ uart_pci_detach(device_t dev)
 	return (uart_bus_detach(dev));
 }
 
-DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, NULL, NULL);
+DRIVER_MODULE(uart, pci, uart_pci_driver, NULL, NULL);
