@@ -164,9 +164,7 @@ static driver_t vte_driver = {
 	sizeof(struct vte_softc)
 };
 
-static devclass_t vte_devclass;
-
-DRIVER_MODULE(vte, pci, vte_driver, vte_devclass, 0, 0);
+DRIVER_MODULE(vte, pci, vte_driver, 0, 0);
 DRIVER_MODULE(miibus, vte, miibus_driver, 0, 0);
 
 static int
