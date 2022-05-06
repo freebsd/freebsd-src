@@ -1794,8 +1794,7 @@ static driver_t pvscsi_driver = {
 	"pvscsi", pvscsi_methods, sizeof(struct pvscsi_softc)
 };
 
-static devclass_t pvscsi_devclass;
-DRIVER_MODULE(pvscsi, pci, pvscsi_driver, pvscsi_devclass, 0, 0);
+DRIVER_MODULE(pvscsi, pci, pvscsi_driver, 0, 0);
 
 MODULE_DEPEND(pvscsi, pci, 1, 1, 1);
 MODULE_DEPEND(pvscsi, cam, 1, 1, 1);
