@@ -181,9 +181,7 @@ static driver_t nfe_driver = {
 	sizeof(struct nfe_softc)
 };
 
-static devclass_t nfe_devclass;
-
-DRIVER_MODULE(nfe, pci, nfe_driver, nfe_devclass, 0, 0);
+DRIVER_MODULE(nfe, pci, nfe_driver, 0, 0);
 DRIVER_MODULE(miibus, nfe, miibus_driver, 0, 0);
 
 static struct nfe_type nfe_devs[] = {
