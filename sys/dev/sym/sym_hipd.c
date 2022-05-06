@@ -8242,9 +8242,7 @@ static driver_t sym_pci_driver = {
 	1	/* no softc */
 };
 
-static devclass_t sym_devclass;
-
-DRIVER_MODULE(sym, pci, sym_pci_driver, sym_devclass, NULL, NULL);
+DRIVER_MODULE(sym, pci, sym_pci_driver, NULL, NULL);
 MODULE_DEPEND(sym, cam, 1, 1, 1);
 MODULE_DEPEND(sym, pci, 1, 1, 1);
 
