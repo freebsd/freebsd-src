@@ -95,8 +95,6 @@ struct vpd_softc {
 #define	RES2VPD(res)	((struct vpd *)rman_get_virtual(res))
 #define	ADDR2VPD(addr)	((struct vpd *)BIOS_PADDRTOVADDR(addr))
 
-static devclass_t vpd_devclass;
-
 static void	vpd_identify	(driver_t *, device_t);
 static int	vpd_probe	(device_t);
 static int	vpd_attach	(device_t);
@@ -289,7 +287,7 @@ static driver_t vpd_driver = {
 	sizeof(struct vpd_softc),
 };
 
-DRIVER_MODULE(vpd, nexus, vpd_driver, vpd_devclass, vpd_modevent, 0);
+DRIVER_MODULE(vpd, nexus, vpd_driver, vpd_modevent, 0);
 MODULE_VERSION(vpd, 1);
 
 /*

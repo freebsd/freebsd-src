@@ -214,10 +214,8 @@ static device_method_t qpi_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t qpi_devclass;
-
 DEFINE_CLASS_0(qpi, qpi_driver, qpi_methods, 0);
-DRIVER_MODULE(qpi, nexus, qpi_driver, qpi_devclass, 0, 0);
+DRIVER_MODULE(qpi, nexus, qpi_driver, 0, 0);
 
 static int
 qpi_pcib_probe(device_t dev)
@@ -311,7 +309,5 @@ static device_method_t qpi_pcib_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t qpi_pcib_devclass;
-
 DEFINE_CLASS_0(pcib, qpi_pcib_driver, qpi_pcib_methods, 0);
-DRIVER_MODULE(pcib, qpi, qpi_pcib_driver, qpi_pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, qpi, qpi_pcib_driver, 0, 0);

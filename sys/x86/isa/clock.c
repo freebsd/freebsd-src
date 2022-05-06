@@ -660,10 +660,8 @@ static driver_t attimer_driver = {
 	sizeof(struct attimer_softc),
 };
 
-static devclass_t attimer_devclass;
-
-DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
-DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
+DRIVER_MODULE(attimer, isa, attimer_driver, 0, 0);
+DRIVER_MODULE(attimer, acpi, attimer_driver, 0, 0);
 ISA_PNP_INFO(attimer_ids);
 
 #endif /* DEV_ISA */

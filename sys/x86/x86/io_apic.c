@@ -1059,8 +1059,7 @@ static device_method_t ioapic_pci_methods[] = {
 
 DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
 
-static devclass_t ioapic_devclass;
-DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, ioapic_devclass, 0, 0);
+DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, 0, 0);
 
 int
 ioapic_get_rid(u_int apic_id, uint16_t *ridp)
@@ -1150,8 +1149,7 @@ static device_method_t apic_methods[] = {
 
 DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);
 
-static devclass_t apic_devclass;
-DRIVER_MODULE(apic, nexus, apic_driver, apic_devclass, 0, 0);
+DRIVER_MODULE(apic, nexus, apic_driver, 0, 0);
 
 #include "opt_ddb.h"
 

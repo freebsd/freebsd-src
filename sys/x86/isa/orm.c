@@ -185,7 +185,5 @@ static driver_t orm_driver = {
 	sizeof (struct orm_softc)
 };
 
-static devclass_t orm_devclass;
-
-DRIVER_MODULE(orm, isa, orm_driver, orm_devclass, 0, 0);
+DRIVER_MODULE(orm, isa, orm_driver, 0, 0);
 ISA_PNP_INFO(orm_ids);

@@ -99,9 +99,8 @@ static driver_t legacy_driver = {
 	legacy_methods,
 	1,			/* no softc */
 };
-static devclass_t legacy_devclass;
 
-DRIVER_MODULE(legacy, nexus, legacy_driver, legacy_devclass, 0, 0);
+DRIVER_MODULE(legacy, nexus, legacy_driver, 0, 0);
 
 static int
 legacy_probe(device_t dev)
@@ -312,8 +311,8 @@ static driver_t cpu_driver = {
 	cpu_methods,
 	1,		/* no softc */
 };
-static devclass_t cpu_devclass;
-DRIVER_MODULE(cpu, legacy, cpu_driver, cpu_devclass, 0, 0);
+
+DRIVER_MODULE(cpu, legacy, cpu_driver, 0, 0);
 
 static void
 cpu_identify(driver_t *driver, device_t parent)
