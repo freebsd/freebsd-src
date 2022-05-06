@@ -1562,15 +1562,13 @@ static const device_method_t sdhci_fsl_fdt_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t sdhci_fsl_fdt_devclass;
 static driver_t sdhci_fsl_fdt_driver = {
 	"sdhci_fsl_fdt",
 	sdhci_fsl_fdt_methods,
 	sizeof(struct sdhci_fsl_fdt_softc),
 };
 
-DRIVER_MODULE(sdhci_fsl_fdt, simplebus, sdhci_fsl_fdt_driver,
-    sdhci_fsl_fdt_devclass, NULL, NULL);
+DRIVER_MODULE(sdhci_fsl_fdt, simplebus, sdhci_fsl_fdt_driver, NULL, NULL);
 SDHCI_DEPEND(sdhci_fsl_fdt);
 
 #ifndef MMCCAM

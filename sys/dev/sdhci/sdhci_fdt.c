@@ -586,10 +586,8 @@ static driver_t sdhci_fdt_driver = {
 	sdhci_fdt_methods,
 	sizeof(struct sdhci_fdt_softc),
 };
-static devclass_t sdhci_fdt_devclass;
 
-DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
-    NULL, NULL);
+DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, NULL, NULL);
 SDHCI_DEPEND(sdhci_fdt);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_fdt);

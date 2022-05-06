@@ -525,10 +525,8 @@ static driver_t sdhci_pci_driver = {
 	sdhci_methods,
 	sizeof(struct sdhci_pci_softc),
 };
-static devclass_t sdhci_pci_devclass;
 
-DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
-    NULL);
+DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, NULL, NULL);
 SDHCI_DEPEND(sdhci_pci);
 
 #ifndef MMCCAM
