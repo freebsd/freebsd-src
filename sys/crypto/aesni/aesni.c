@@ -416,9 +416,8 @@ static driver_t aesni_driver = {
 	aesni_methods,
 	sizeof(struct aesni_softc),
 };
-static devclass_t aesni_devclass;
 
-DRIVER_MODULE(aesni, nexus, aesni_driver, aesni_devclass, 0, 0);
+DRIVER_MODULE(aesni, nexus, aesni_driver, 0, 0);
 MODULE_VERSION(aesni, 1);
 MODULE_DEPEND(aesni, crypto, 1, 1, 1);
 

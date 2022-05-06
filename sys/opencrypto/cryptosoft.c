@@ -1742,7 +1742,6 @@ static driver_t swcr_driver = {
 	swcr_methods,
 	0,		/* NB: no softc */
 };
-static devclass_t swcr_devclass;
 
 /*
  * NB: We explicitly reference the crypto module so we
@@ -1753,6 +1752,6 @@ static devclass_t swcr_devclass;
  */
 extern int crypto_modevent(struct module *, int, void *);
 /* XXX where to attach */
-DRIVER_MODULE(cryptosoft, nexus, swcr_driver, swcr_devclass, crypto_modevent,0);
+DRIVER_MODULE(cryptosoft, nexus, swcr_driver, crypto_modevent, NULL);
 MODULE_VERSION(cryptosoft, 1);
 MODULE_DEPEND(cryptosoft, crypto, 1, 1, 1);

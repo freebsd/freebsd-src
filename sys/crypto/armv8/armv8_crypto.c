@@ -502,7 +502,5 @@ static device_method_t armv8_crypto_methods[] = {
 
 static DEFINE_CLASS_0(armv8crypto, armv8_crypto_driver, armv8_crypto_methods,
     sizeof(struct armv8_crypto_softc));
-static devclass_t armv8_crypto_devclass;
 
-DRIVER_MODULE(armv8crypto, nexus, armv8_crypto_driver, armv8_crypto_devclass,
-    0, 0);
+DRIVER_MODULE(armv8crypto, nexus, armv8_crypto_driver, 0, 0);
