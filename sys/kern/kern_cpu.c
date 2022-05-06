@@ -128,11 +128,12 @@ static device_method_t cpufreq_methods[] = {
         DEVMETHOD(cpufreq_levels,	cf_levels_method),
 	{0, 0}
 };
+
 static driver_t cpufreq_driver = {
 	"cpufreq", cpufreq_methods, sizeof(struct cpufreq_softc)
 };
-static devclass_t cpufreq_dc;
-DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, cpufreq_dc, 0, 0);
+
+DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, 0, 0);
 
 static int		cf_lowest_freq;
 static int		cf_verbose;
