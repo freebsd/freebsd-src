@@ -376,8 +376,6 @@ static driver_t agp_ati_driver = {
 	sizeof(struct agp_ati_softc),
 };
 
-static devclass_t agp_devclass;
-
-DRIVER_MODULE(agp_ati, hostb, agp_ati_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_ati, hostb, agp_ati_driver, 0, 0);
 MODULE_DEPEND(agp_ati, agp, 1, 1, 1);
 MODULE_DEPEND(agp_ati, pci, 1, 1, 1);
