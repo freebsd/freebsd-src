@@ -237,7 +237,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_getdents64_args), .sy_call = (sy_call_t *)linux_getdents64, .sy_auevent = AUE_GETDIRENTRIES, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 217 = linux_getdents64 */
 	{ .sy_narg = AS(linux_set_tid_address_args), .sy_call = (sy_call_t *)linux_set_tid_address, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 218 = linux_set_tid_address */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_restart_syscall, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 219 = linux_restart_syscall */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_semtimedop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 220 = linux_semtimedop */
+	{ .sy_narg = AS(linux_semtimedop_args), .sy_call = (sy_call_t *)linux_semtimedop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 220 = linux_semtimedop */
 	{ .sy_narg = AS(linux_fadvise64_args), .sy_call = (sy_call_t *)linux_fadvise64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 221 = linux_fadvise64 */
 	{ .sy_narg = AS(linux_timer_create_args), .sy_call = (sy_call_t *)linux_timer_create, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 222 = linux_timer_create */
 	{ .sy_narg = AS(linux_timer_settime_args), .sy_call = (sy_call_t *)linux_timer_settime, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 223 = linux_timer_settime */
