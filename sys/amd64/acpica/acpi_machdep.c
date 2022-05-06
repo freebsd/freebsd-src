@@ -286,6 +286,5 @@ static device_method_t nexus_acpi_methods[] = {
 };
 
 DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1, nexus_driver);
-static devclass_t nexus_devclass;
 
-DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, nexus_devclass, 0, 0);
+DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, 0, 0);

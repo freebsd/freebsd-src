@@ -178,8 +178,6 @@ ivhd_teardown_intr(device_t dev)
 	return (0);
 }
 
-static devclass_t amdiommu_devclass;
-
 /* This driver has to be loaded before ivhd */
-DRIVER_MODULE(amdiommu, pci, amdiommu_driver, amdiommu_devclass, 0, 0);
+DRIVER_MODULE(amdiommu, pci, amdiommu_driver, 0, 0);
 MODULE_DEPEND(amdiommu, pci, 1, 1, 1);
