@@ -219,15 +219,9 @@ static driver_t bxe_driver = {
     sizeof(struct bxe_softc) /* extra data */
 };
 
-/*
- * FreeBSD dev class is needed to manage dev instances and
- * to associate with a bus type
- */
-static devclass_t bxe_devclass;
-
 MODULE_DEPEND(bxe, pci, 1, 1, 1);
 MODULE_DEPEND(bxe, ether, 1, 1, 1);
-DRIVER_MODULE(bxe, pci, bxe_driver, bxe_devclass, 0, 0);
+DRIVER_MODULE(bxe, pci, bxe_driver, 0, 0);
 
 DEBUGNET_DEFINE(bxe);
 
