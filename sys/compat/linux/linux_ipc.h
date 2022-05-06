@@ -37,6 +37,7 @@
 #define	LINUX_SEMOP		1
 #define	LINUX_SEMGET		2
 #define	LINUX_SEMCTL		3
+#define	LINUX_SEMTIMEDOP	4
 #define	LINUX_MSGSND		11
 #define	LINUX_MSGRCV		12
 #define	LINUX_MSGGET		13
@@ -81,5 +82,17 @@
 				   architectures) */
 #define	LINUX_IPC_64	0x0100	/* New version (support 32-bit UIDs, bigger
 				   message sizes, etc. */
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+struct linux_semtimedop_args
+{
+	l_int		semid;
+	struct sembuf	*tsops;
+	l_uint		nsops;
+	struct l_timespec *timeout;
+};
+
+int linux_semtimedop(struct thread *, struct linux_semtimedop_args *);
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #endif /* _LINUX_IPC_H_ */

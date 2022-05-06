@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_ipc64.h>
+#include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
 /*
@@ -502,6 +503,50 @@ linux_shminfo_pushdown(l_int ver, struct l_shminfo64 *linux_shminfo64,
 		return (copyout(&linux_shminfo, uaddr,
 		    sizeof(linux_shminfo)));
 	}
+}
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_semtimedop_time64(struct thread *td, struct linux_semtimedop_time64_args *args)
+{
+	struct timespec ts, *tsa;
+	struct l_timespec64 lts;
+	int error;
+
+	if (args->timeout) {
+		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
+			return (error);
+		error = linux_to_native_timespec64(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsa = &ts;
+	} else
+		tsa = NULL;
+
+	return (kern_semop(td, args->semid, PTRIN(args->tsops),
+	    args->nsops, tsa));
+}
+#endif /* __i386__) || (__amd64__ && COMPAT_LINUX32) */
+
+int
+linux_semtimedop(struct thread *td, struct linux_semtimedop_args *args)
+{
+	struct timespec ts, *tsa;
+	struct l_timespec lts;
+	int error;
+
+	if (args->timeout) {
+		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
+			return (error);
+		error = linux_to_native_timespec(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsa = &ts;
+	} else
+		tsa = NULL;
+
+	return (kern_semop(td, args->semid, PTRIN(args->tsops),
+	    args->nsops, tsa));
 }
 
 int

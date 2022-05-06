@@ -73,4 +73,3 @@ DUMMY(clock_adjtime64);
 DUMMY(io_pgetevents_time64);
 DUMMY(mq_timedsend_time64);
 DUMMY(mq_timedreceive_time64);
-DUMMY(semtimedop_time64);
