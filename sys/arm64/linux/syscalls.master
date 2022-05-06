@@ -1137,11 +1137,11 @@
 192	AUE_NULL	STD	{
 		int linux_semtimedop(void);
 	}
-193	AUE_NULL	STD	{
-		int linux_semop(
+193	AUE_NULL	NOPROTO	{
+		int semop(
 		    l_int semid,
-		    struct l_sembuf *tsops,
-		    l_uint nsops
+		    struct sembuf *sops,
+		    l_size_t nsops
 		);
 	}
 194	AUE_NULL	STD	{
