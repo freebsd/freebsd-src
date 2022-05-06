@@ -756,6 +756,7 @@ struct pci_devemu pci_de_vcon = {
 	.pe_emu =	"virtio-console",
 	.pe_init =	pci_vtcon_init,
 	.pe_barwrite =	vi_pci_write,
-	.pe_barread =	vi_pci_read
+	.pe_barread =	vi_pci_read,
+	.pe_legacy_config = pci_vtcon_legacy_config,
 };
 PCI_EMUL_SET(pci_de_vcon);
