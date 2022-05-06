@@ -795,6 +795,4 @@ static driver_t hdacc_driver = {
 	sizeof(struct hdacc_softc),
 };
 
-static devclass_t hdacc_devclass;
-
-DRIVER_MODULE(snd_hda, hdac, hdacc_driver, hdacc_devclass, NULL, NULL);
+DRIVER_MODULE(snd_hda, hdac, hdacc_driver, NULL, NULL);

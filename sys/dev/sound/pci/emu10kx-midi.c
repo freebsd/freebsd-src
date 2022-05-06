@@ -68,7 +68,6 @@ struct emu_midi_softc {
 };
 
 static uint32_t	emu_midi_card_intr(void *p, uint32_t arg);
-static devclass_t emu_midi_devclass;
 
 static unsigned char
 emu_mread(struct mpu401 *arg __unused, void *cookie, int reg)
@@ -248,7 +247,7 @@ static driver_t emu_midi_driver = {
 	emu_midi_methods,
 	sizeof(struct emu_midi_softc),
 };
-DRIVER_MODULE(snd_emu10kx_midi, emu10kx, emu_midi_driver, emu_midi_devclass, 0, 0);
+DRIVER_MODULE(snd_emu10kx_midi, emu10kx, emu_midi_driver, 0, 0);
 MODULE_DEPEND(snd_emu10kx_midi, snd_emu10kx, SND_EMU10KX_MINVER, SND_EMU10KX_PREFVER, SND_EMU10KX_MAXVER);
 MODULE_DEPEND(snd_emu10kx_midi, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_emu10kx_midi, SND_EMU10KX_PREFVER);

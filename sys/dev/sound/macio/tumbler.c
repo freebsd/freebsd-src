@@ -116,9 +116,8 @@ static driver_t tumbler_driver = {
 	tumbler_methods,
 	sizeof(struct tumbler_softc)
 };
-static devclass_t tumbler_devclass;
 
-DRIVER_MODULE(tumbler, iicbus, tumbler_driver, tumbler_devclass, 0, 0);
+DRIVER_MODULE(tumbler, iicbus, tumbler_driver, 0, 0);
 MODULE_VERSION(tumbler, 1);
 MODULE_DEPEND(tumbler, iicbus, 1, 1, 1);
 

@@ -700,8 +700,6 @@ static const struct usb_config
 	},
 };
 
-static devclass_t uaudio_devclass;
-
 static device_method_t uaudio_methods[] = {
 	DEVMETHOD(device_probe, uaudio_probe),
 	DEVMETHOD(device_attach, uaudio_attach),
@@ -6229,7 +6227,7 @@ uaudio_hid_detach(struct uaudio_softc *sc)
 	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
-DRIVER_MODULE_ORDERED(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0, SI_ORDER_ANY);
+DRIVER_MODULE_ORDERED(uaudio, uhub, uaudio_driver, NULL, NULL, SI_ORDER_ANY);
 MODULE_DEPEND(uaudio, usb, 1, 1, 1);
 MODULE_DEPEND(uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_DEPEND(uaudio, hid, 1, 1, 1);

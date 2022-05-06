@@ -121,7 +121,5 @@ static driver_t dummy_codec_driver = {
 	sizeof(struct dummy_codec_softc),
 };
 
-static devclass_t dummy_codec_devclass;
-
-DRIVER_MODULE(dummy_codec, simplebus, dummy_codec_driver, dummy_codec_devclass, 0, 0);
+DRIVER_MODULE(dummy_codec, simplebus, dummy_codec_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

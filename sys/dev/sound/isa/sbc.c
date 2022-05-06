@@ -96,8 +96,6 @@ static int sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
 static int alloc_resource(struct sbc_softc *scp);
 static int release_resource(struct sbc_softc *scp);
 
-static devclass_t sbc_devclass;
-
 static int io_range[3] = {0x10, 0x2, 0x4};
 
 static int sb_rd(struct resource *io, int reg);
@@ -747,8 +745,8 @@ static driver_t sbc_driver = {
 };
 
 /* sbc can be attached to an isa bus. */
-DRIVER_MODULE(snd_sbc, isa, sbc_driver, sbc_devclass, 0, 0);
-DRIVER_MODULE(snd_sbc, acpi, sbc_driver, sbc_devclass, 0, 0);
+DRIVER_MODULE(snd_sbc, isa, sbc_driver, 0, 0);
+DRIVER_MODULE(snd_sbc, acpi, sbc_driver, 0, 0);
 MODULE_DEPEND(snd_sbc, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_sbc, 1);
 ISA_PNP_INFO(sbc_ids);
