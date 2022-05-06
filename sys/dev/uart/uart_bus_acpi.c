@@ -98,4 +98,4 @@ uart_acpi_probe(device_t dev)
 	return (ENXIO);
 }
 
-DRIVER_MODULE(uart, acpi, uart_acpi_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, acpi, uart_acpi_driver, 0, 0);

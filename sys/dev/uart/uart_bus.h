@@ -137,7 +137,6 @@ struct uart_softc {
 	} sc_u;
 };
 
-extern devclass_t uart_devclass;
 extern const char uart_driver_name[];
 
 int uart_bus_attach(device_t dev);

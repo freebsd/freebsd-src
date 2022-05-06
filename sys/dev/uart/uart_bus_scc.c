@@ -114,4 +114,4 @@ uart_scc_probe(device_t dev)
 	return (uart_bus_probe(dev, rs, 0, cl, 0, ch, 0));
 }
 
-DRIVER_MODULE(uart, scc, uart_scc_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, scc, uart_scc_driver, 0, 0);

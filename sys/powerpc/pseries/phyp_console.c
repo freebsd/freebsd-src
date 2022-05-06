@@ -110,7 +110,7 @@ static driver_t uart_phyp_driver = {
 	sizeof(struct uart_phyp_softc),
 };
 
-DRIVER_MODULE(uart_phyp, vdevice, uart_phyp_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart_phyp, vdevice, uart_phyp_driver, 0, 0);
 
 static cn_probe_t uart_phyp_cnprobe;
 static cn_init_t uart_phyp_cninit;

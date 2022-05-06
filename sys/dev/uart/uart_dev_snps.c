@@ -287,4 +287,4 @@ static driver_t snps_uart_driver = {
 	sizeof(struct snps_softc)
 };
 
-DRIVER_MODULE(uart_snps, simplebus, snps_uart_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart_snps, simplebus, snps_uart_driver, 0, 0);

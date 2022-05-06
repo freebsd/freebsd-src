@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
-devclass_t uart_devclass;
 const char uart_driver_name[] = "uart";
 
 SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs =
