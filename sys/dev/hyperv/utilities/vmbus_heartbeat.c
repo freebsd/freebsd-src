@@ -73,10 +73,7 @@ static driver_t vmbus_heartbeat_driver = {
 	sizeof(struct vmbus_ic_softc)
 };
 
-static devclass_t vmbus_heartbeat_devclass;
-
-DRIVER_MODULE(hv_heartbeat, vmbus, vmbus_heartbeat_driver,
-    vmbus_heartbeat_devclass, NULL, NULL);
+DRIVER_MODULE(hv_heartbeat, vmbus, vmbus_heartbeat_driver, NULL, NULL);
 MODULE_VERSION(hv_heartbeat, 1);
 MODULE_DEPEND(hv_heartbeat, vmbus, 1, 1, 1);
 

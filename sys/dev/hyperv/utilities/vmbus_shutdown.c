@@ -74,10 +74,7 @@ static driver_t vmbus_shutdown_driver = {
 	sizeof(struct vmbus_ic_softc)
 };
 
-static devclass_t vmbus_shutdown_devclass;
-
-DRIVER_MODULE(hv_shutdown, vmbus, vmbus_shutdown_driver,
-    vmbus_shutdown_devclass, NULL, NULL);
+DRIVER_MODULE(hv_shutdown, vmbus, vmbus_shutdown_driver, NULL, NULL);
 MODULE_VERSION(hv_shutdown, 1);
 MODULE_DEPEND(hv_shutdown, vmbus, 1, 1, 1);
 
