@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #define LOW_MEM_LIMIT	0
 #endif
 
-static devclass_t xenpv_devclass;
-
 static void
 xenpv_identify(driver_t *driver, device_t parent)
 {
@@ -186,7 +184,7 @@ static driver_t xenpv_driver = {
 	0,
 };
 
-DRIVER_MODULE(xenpv, nexus, xenpv_driver, xenpv_devclass, 0, 0);
+DRIVER_MODULE(xenpv, nexus, xenpv_driver, 0, 0);
 
 struct resource *
 xenmem_alloc(device_t dev, int *res_id, size_t size)

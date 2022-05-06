@@ -189,7 +189,5 @@ static device_method_t xenbusb_front_methods[] = {
 
 DEFINE_CLASS_0(xenbusb_front, xenbusb_front_driver, xenbusb_front_methods,
 	       sizeof(struct xenbusb_softc));
-devclass_t xenbusb_front_devclass; 
 
-DRIVER_MODULE(xenbusb_front, xenstore, xenbusb_front_driver,
-	      xenbusb_front_devclass, 0, 0);
+DRIVER_MODULE(xenbusb_front, xenstore, xenbusb_front_driver, 0, 0);

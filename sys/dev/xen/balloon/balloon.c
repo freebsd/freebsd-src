@@ -408,7 +408,5 @@ static device_method_t xenballoon_methods[] = {
 };
 
 DEFINE_CLASS_0(xenballoon, xenballoon_driver, xenballoon_methods, 0);
-devclass_t xenballoon_devclass;
 
-DRIVER_MODULE(xenballoon, xenstore, xenballoon_driver, xenballoon_devclass,
-    NULL, NULL);
+DRIVER_MODULE(xenballoon, xenstore, xenballoon_driver, NULL, NULL);

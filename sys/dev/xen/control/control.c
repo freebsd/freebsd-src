@@ -487,6 +487,5 @@ static device_method_t xctrl_methods[] = {
 }; 
 
 DEFINE_CLASS_0(xctrl, xctrl_driver, xctrl_methods, sizeof(struct xctrl_softc));
-devclass_t xctrl_devclass; 
 
-DRIVER_MODULE(xctrl, xenstore, xctrl_driver, xctrl_devclass, NULL, NULL);
+DRIVER_MODULE(xctrl, xenstore, xctrl_driver, NULL, NULL);

@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-static devclass_t xentimer_devclass;
-
 #define	NSEC_IN_SEC	1000000000ULL
 #define	NSEC_IN_USEC	1000ULL
 /* 18446744073 = int(2^64 / NSEC_IN_SC) = 1 ns in 64-bit fractions */
@@ -555,5 +553,5 @@ static driver_t xentimer_driver = {
 	sizeof(struct xentimer_softc),
 };
 
-DRIVER_MODULE(xentimer, xenpv, xentimer_driver, xentimer_devclass, 0, 0);
+DRIVER_MODULE(xentimer, xenpv, xentimer_driver, 0, 0);
 MODULE_DEPEND(xentimer, xenpv, 1, 1, 1);

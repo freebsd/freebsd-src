@@ -607,7 +607,5 @@ static driver_t privcmd_driver = {
 	0,
 };
 
-devclass_t privcmd_devclass;
-
-DRIVER_MODULE(privcmd, xenpv, privcmd_driver, privcmd_devclass, 0, 0);
+DRIVER_MODULE(privcmd, xenpv, privcmd_driver, 0, 0);
 MODULE_DEPEND(privcmd, xenpv, 1, 1, 1);

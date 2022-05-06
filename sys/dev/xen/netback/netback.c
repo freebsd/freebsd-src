@@ -2495,9 +2495,8 @@ static driver_t xnb_driver = {
 	xnb_methods,
 	sizeof(struct xnb_softc),
 };
-devclass_t xnb_devclass;
 
-DRIVER_MODULE(xnb, xenbusb_back, xnb_driver, xnb_devclass, 0, 0);
+DRIVER_MODULE(xnb, xenbusb_back, xnb_driver, 0, 0);
 
 /*-------------------------- Unit Tests -------------------------------------*/
 #ifdef XNB_DEBUG
