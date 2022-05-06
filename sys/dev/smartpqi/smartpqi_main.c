@@ -577,13 +577,11 @@ static device_method_t pqi_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t  pqi_devclass;
-
 static driver_t smartpqi_pci_driver = {
 	"smartpqi",
 	pqi_methods,
 	sizeof(struct pqisrc_softstate)
 };
 
-DRIVER_MODULE(smartpqi, pci, smartpqi_pci_driver, pqi_devclass, 0, 0);
+DRIVER_MODULE(smartpqi, pci, smartpqi_pci_driver, 0, 0);
 MODULE_DEPEND(smartpqi, pci, 1, 1, 1);
