@@ -208,11 +208,8 @@ static driver_t vmbus_driver = {
 	sizeof(struct vmbus_softc)
 };
 
-static devclass_t vmbus_devclass;
-
-DRIVER_MODULE(vmbus, pcib, vmbus_driver, vmbus_devclass, NULL, NULL);
-DRIVER_MODULE(vmbus, acpi_syscontainer, vmbus_driver, vmbus_devclass,
-    NULL, NULL);
+DRIVER_MODULE(vmbus, pcib, vmbus_driver, NULL, NULL);
+DRIVER_MODULE(vmbus, acpi_syscontainer, vmbus_driver, NULL, NULL);
 
 MODULE_DEPEND(vmbus, acpi, 1, 1, 1);
 MODULE_DEPEND(vmbus, pci, 1, 1, 1);

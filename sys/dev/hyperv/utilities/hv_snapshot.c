@@ -1054,8 +1054,6 @@ static device_method_t vss_methods[] = {
 
 static driver_t vss_driver = { "hvvss", vss_methods, sizeof(hv_vss_sc)};
 
-static devclass_t vss_devclass;
-
-DRIVER_MODULE(hv_vss, vmbus, vss_driver, vss_devclass, NULL, NULL);
+DRIVER_MODULE(hv_vss, vmbus, vss_driver, NULL, NULL);
 MODULE_VERSION(hv_vss, 1);
 MODULE_DEPEND(hv_vss, vmbus, 1, 1, 1);

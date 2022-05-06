@@ -81,10 +81,7 @@ static driver_t vmbus_timesync_driver = {
 	sizeof(struct vmbus_ic_softc)
 };
 
-static devclass_t vmbus_timesync_devclass;
-
-DRIVER_MODULE(hv_timesync, vmbus, vmbus_timesync_driver,
-    vmbus_timesync_devclass, NULL, NULL);
+DRIVER_MODULE(hv_timesync, vmbus, vmbus_timesync_driver, NULL, NULL);
 MODULE_VERSION(hv_timesync, 1);
 MODULE_DEPEND(hv_timesync, vmbus, 1, 1, 1);
 

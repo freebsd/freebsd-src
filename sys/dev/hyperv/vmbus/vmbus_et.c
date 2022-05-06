@@ -78,9 +78,7 @@ static driver_t vmbus_et_driver = {
 	0
 };
 
-static devclass_t vmbus_et_devclass;
-
-DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, vmbus_et_devclass, NULL, NULL);
+DRIVER_MODULE(hv_et, vmbus, vmbus_et_driver, NULL, NULL);
 MODULE_VERSION(hv_et, 1);
 
 static __inline uint64_t

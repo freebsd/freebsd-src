@@ -523,8 +523,6 @@ static device_method_t kbd_methods[] = {
 
 static driver_t kbd_driver = {HVKBD_DRIVER_NAME , kbd_methods, sizeof(hv_kbd_sc)};
 
-static devclass_t kbd_devclass;
-
-DRIVER_MODULE(hv_kbd, vmbus, kbd_driver, kbd_devclass, hvkbd_driver_load, NULL);
+DRIVER_MODULE(hv_kbd, vmbus, kbd_driver, hvkbd_driver_load, NULL);
 MODULE_VERSION(hv_kbd, 1);
 MODULE_DEPEND(hv_kbd, vmbus, 1, 1, 1);

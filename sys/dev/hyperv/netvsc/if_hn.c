@@ -661,9 +661,7 @@ static driver_t hn_driver = {
 	sizeof(struct hn_softc)
 };
 
-static devclass_t hn_devclass;
-
-DRIVER_MODULE(hn, vmbus, hn_driver, hn_devclass, 0, 0);
+DRIVER_MODULE(hn, vmbus, hn_driver, 0, 0);
 MODULE_VERSION(hn, 1);
 MODULE_DEPEND(hn, vmbus, 1, 1, 1);
 

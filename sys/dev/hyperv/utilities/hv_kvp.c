@@ -913,8 +913,6 @@ static device_method_t kvp_methods[] = {
 
 static driver_t kvp_driver = { "hvkvp", kvp_methods, sizeof(hv_kvp_sc)};
 
-static devclass_t kvp_devclass;
-
-DRIVER_MODULE(hv_kvp, vmbus, kvp_driver, kvp_devclass, NULL, NULL);
+DRIVER_MODULE(hv_kvp, vmbus, kvp_driver, NULL, NULL);
 MODULE_VERSION(hv_kvp, 1);
 MODULE_DEPEND(hv_kvp, vmbus, 1, 1, 1);
