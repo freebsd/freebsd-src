@@ -984,11 +984,7 @@ static driver_t hidraw_driver = {
 	sizeof(struct hidraw_softc)
 };
 
-#ifndef HIDRAW_MAKE_UHID_ALIAS
-devclass_t hidraw_devclass;
-#endif
-
-DRIVER_MODULE(hidraw, hidbus, hidraw_driver, hidraw_devclass, NULL, 0);
+DRIVER_MODULE(hidraw, hidbus, hidraw_driver, NULL, NULL);
 MODULE_DEPEND(hidraw, hidbus, 1, 1, 1);
 MODULE_DEPEND(hidraw, hid, 1, 1, 1);
 MODULE_DEPEND(hidraw, usb, 1, 1, 1);

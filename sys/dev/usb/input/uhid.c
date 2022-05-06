@@ -935,7 +935,7 @@ static driver_t uhid_driver = {
 };
 
 #ifdef HIDRAW_MAKE_UHID_ALIAS
-DRIVER_MODULE(uhid, uhub, uhid_driver, hidraw_devclass, NULL, 0);
+DRIVER_MODULE(uhid, uhub, uhid_driver, NULL, NULL);
 #else
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
 #endif

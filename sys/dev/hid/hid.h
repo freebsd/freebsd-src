@@ -194,9 +194,6 @@
 #define	HID_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
 #define	HID_PNP_ID_SIZE		20	/* includes null terminator */
 
-/* Share unit number pool between uhid and hidraw */
-extern devclass_t hidraw_devclass;
-
 /* Declare global HID debug variable. */
 extern int hid_debug;
 
