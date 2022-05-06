@@ -1389,6 +1389,5 @@ static device_method_t vtvga_methods[] = {
 };
 
 DEFINE_CLASS_0(vtvga, vtvga_driver, vtvga_methods, 0);
-devclass_t vtvga_devclass;
 
-DRIVER_MODULE(vtvga, nexus, vtvga_driver, vtvga_devclass, NULL, NULL);
+DRIVER_MODULE(vtvga, nexus, vtvga_driver, NULL, NULL);
