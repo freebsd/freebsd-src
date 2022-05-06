@@ -803,9 +803,7 @@ static driver_t bcm5974_driver = {
 	.size = sizeof(struct bcm5974_softc)
 };
 
-static devclass_t bcm5974_devclass;
-
-DRIVER_MODULE(bcm5974, hidbus, bcm5974_driver, bcm5974_devclass, NULL, 0);
+DRIVER_MODULE(bcm5974, hidbus, bcm5974_driver, NULL, NULL);
 MODULE_DEPEND(bcm5974, hidbus, 1, 1, 1);
 MODULE_DEPEND(bcm5974, hid, 1, 1, 1);
 MODULE_DEPEND(bcm5974, evdev, 1, 1, 1);

@@ -217,7 +217,6 @@ hgame_detach(device_t dev)
 	return (hidmap_detach(&sc->hm));
 }
 
-static devclass_t hgame_devclass;
 static device_method_t hgame_methods[] = {
 	DEVMETHOD(device_probe,		hgame_probe),
 	DEVMETHOD(device_attach,	hgame_attach),
@@ -227,7 +226,7 @@ static device_method_t hgame_methods[] = {
 };
 
 DEFINE_CLASS_0(hgame, hgame_driver, hgame_methods, sizeof(struct hgame_softc));
-DRIVER_MODULE(hgame, hidbus, hgame_driver, hgame_devclass, NULL, 0);
+DRIVER_MODULE(hgame, hidbus, hgame_driver, NULL, NULL);
 MODULE_DEPEND(hgame, hid, 1, 1, 1);
 MODULE_DEPEND(hgame, hidbus, 1, 1, 1);
 MODULE_DEPEND(hgame, hidmap, 1, 1, 1);

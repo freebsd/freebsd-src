@@ -916,7 +916,6 @@ static device_method_t hidbus_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t hidbus_devclass;
 driver_t hidbus_driver = {
 	"hidbus",
 	hidbus_methods,
@@ -925,5 +924,5 @@ driver_t hidbus_driver = {
 
 MODULE_DEPEND(hidbus, hid, 1, 1, 1);
 MODULE_VERSION(hidbus, 1);
-DRIVER_MODULE(hidbus, iichid, hidbus_driver, hidbus_devclass, 0, 0);
-DRIVER_MODULE(hidbus, usbhid, hidbus_driver, hidbus_devclass, 0, 0);
+DRIVER_MODULE(hidbus, iichid, hidbus_driver, 0, 0);
+DRIVER_MODULE(hidbus, usbhid, hidbus_driver, 0, 0);

@@ -1333,11 +1333,6 @@ ps4dsmtp_detach(device_t dev)
 	return (hidmap_detach(&sc->hm));
 }
 
-static devclass_t ps4dshock_devclass;
-static devclass_t ps4dsacc_devclass;
-static devclass_t ps4dshead_devclass;
-static devclass_t ps4dsmtp_devclass;
-
 static device_method_t ps4dshock_methods[] = {
 	DEVMETHOD(device_identify,	ps4dshock_identify),
 	DEVMETHOD(device_probe,		ps4dshock_probe),
@@ -1370,16 +1365,16 @@ static device_method_t ps4dsmtp_methods[] = {
 
 DEFINE_CLASS_0(ps4dsacc, ps4dsacc_driver, ps4dsacc_methods,
     sizeof(struct ps4dsacc_softc));
-DRIVER_MODULE(ps4dsacc, hidbus, ps4dsacc_driver, ps4dsacc_devclass, NULL, 0);
+DRIVER_MODULE(ps4dsacc, hidbus, ps4dsacc_driver, NULL, NULL);
 DEFINE_CLASS_0(ps4dshead, ps4dshead_driver, ps4dshead_methods,
     sizeof(struct hidmap));
-DRIVER_MODULE(ps4dshead, hidbus, ps4dshead_driver, ps4dshead_devclass, NULL, 0);
+DRIVER_MODULE(ps4dshead, hidbus, ps4dshead_driver, NULL, NULL);
 DEFINE_CLASS_0(ps4dsmtp, ps4dsmtp_driver, ps4dsmtp_methods,
     sizeof(struct ps4dsmtp_softc));
-DRIVER_MODULE(ps4dsmtp, hidbus, ps4dsmtp_driver, ps4dsmtp_devclass, NULL, 0);
+DRIVER_MODULE(ps4dsmtp, hidbus, ps4dsmtp_driver, NULL, NULL);
 DEFINE_CLASS_0(ps4dshock, ps4dshock_driver, ps4dshock_methods,
     sizeof(struct ps4dshock_softc));
-DRIVER_MODULE(ps4dshock, hidbus, ps4dshock_driver, ps4dshock_devclass, NULL, 0);
+DRIVER_MODULE(ps4dshock, hidbus, ps4dshock_driver, NULL, NULL);
 
 MODULE_DEPEND(ps4dshock, hid, 1, 1, 1);
 MODULE_DEPEND(ps4dshock, hidbus, 1, 1, 1);

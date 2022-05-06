@@ -317,7 +317,6 @@ hms_detach(device_t dev)
 	return (error);
 }
 
-static devclass_t hms_devclass;
 static device_method_t hms_methods[] = {
 	DEVMETHOD(device_identify,	hms_identify),
 	DEVMETHOD(device_probe,		hms_probe),
@@ -328,7 +327,7 @@ static device_method_t hms_methods[] = {
 };
 
 DEFINE_CLASS_0(hms, hms_driver, hms_methods, sizeof(struct hms_softc));
-DRIVER_MODULE(hms, hidbus, hms_driver, hms_devclass, NULL, 0);
+DRIVER_MODULE(hms, hidbus, hms_driver, NULL, NULL);
 MODULE_DEPEND(hms, hid, 1, 1, 1);
 MODULE_DEPEND(hms, hidbus, 1, 1, 1);
 MODULE_DEPEND(hms, hidmap, 1, 1, 1);

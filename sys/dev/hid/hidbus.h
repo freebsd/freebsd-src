@@ -172,6 +172,4 @@ int	hid_set_report_descr(device_t, const void *, hid_size_t);
 
 const struct hid_device_info *hid_get_device_info(device_t);
 
-extern devclass_t hidbus_devclass;
-
 #endif	/* _HID_HIDBUS_H_ */
