@@ -46,17 +46,15 @@ kinfo_getproc(pid_t pid)
 	int mib[4];
 	size_t len;
 
-	len = 0;
+	len = sizeof(*kipp);
+	kipp = malloc(len);
+	if (kipp == NULL)
+		return (NULL);
+
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PID;
 	mib[3] = pid;
-	if (sysctl(mib, nitems(mib), NULL, &len, NULL, 0) < 0)
-		return (NULL);
-
-	kipp = malloc(len);
-	if (kipp == NULL)
-		return (NULL);
 
 	if (sysctl(mib, nitems(mib), kipp, &len, NULL, 0) < 0)
 		goto bad;
