@@ -67,8 +67,6 @@ struct smbios_softc {
 
 #define	RES2EPS(res)	((struct smbios_eps *)rman_get_virtual(res))
 
-static devclass_t	smbios_devclass;
-
 static void	smbios_identify	(driver_t *, device_t);
 static int	smbios_probe	(device_t);
 static int	smbios_attach	(device_t);
@@ -247,7 +245,7 @@ static driver_t smbios_driver = {
 	sizeof(struct smbios_softc),
 };
 
-DRIVER_MODULE(smbios, nexus, smbios_driver, smbios_devclass, smbios_modevent, 0);
+DRIVER_MODULE(smbios, nexus, smbios_driver, smbios_modevent, NULL);
 #ifdef ARCH_MAY_USE_EFI
 MODULE_DEPEND(smbios, efirt, 1, 1, 1);
 #endif
