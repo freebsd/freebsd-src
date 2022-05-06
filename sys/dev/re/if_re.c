@@ -350,9 +350,7 @@ static driver_t re_driver = {
 	sizeof(struct rl_softc)
 };
 
-static devclass_t re_devclass;
-
-DRIVER_MODULE(re, pci, re_driver, re_devclass, 0, 0);
+DRIVER_MODULE(re, pci, re_driver, 0, 0);
 DRIVER_MODULE(miibus, re, miibus_driver, 0, 0);
 
 #define EE_SET(x)					\
