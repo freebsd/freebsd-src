@@ -114,8 +114,6 @@ struct nvme_completion_poll_status {
 	int			done;
 };
 
-extern devclass_t nvme_devclass;
-
 #define NVME_REQUEST_VADDR	1
 #define NVME_REQUEST_NULL	2 /* For requests with no payload. */
 #define NVME_REQUEST_UIO	3

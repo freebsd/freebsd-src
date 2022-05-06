@@ -53,8 +53,6 @@ int32_t		nvme_retry_count;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 
-devclass_t nvme_devclass;
-
 static void
 nvme_init(void)
 {
