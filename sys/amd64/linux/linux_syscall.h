@@ -70,7 +70,7 @@
 #define	LINUX_SYS_linux_kill	62
 #define	LINUX_SYS_linux_newuname	63
 #define	LINUX_SYS_linux_semget	64
-#define	LINUX_SYS_linux_semop	65
+#define	LINUX_SYS_semop	65
 #define	LINUX_SYS_linux_semctl	66
 #define	LINUX_SYS_linux_shmdt	67
 #define	LINUX_SYS_linux_msgget	68
