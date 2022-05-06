@@ -853,8 +853,7 @@ DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	EARLY_DRIVER_MODULE_ORDERED8(name, busname, driver, devclass,	\
 	    evh, arg, order, BUS_PASS_DEFAULT)
 
-#define	DRIVER_MODULE_ORDERED6(name, busname, driver, devclass, evh, arg,\
-    order)								\
+#define	DRIVER_MODULE_ORDERED6(name, busname, driver, evh, arg, order)	\
 	EARLY_DRIVER_MODULE_ORDERED7(name, busname, driver, evh, arg,	\
 	    order, BUS_PASS_DEFAULT)
 
