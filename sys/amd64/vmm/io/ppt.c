@@ -195,9 +195,8 @@ static device_method_t ppt_methods[] = {
 	{0, 0}
 };
 
-static devclass_t ppt_devclass;
 DEFINE_CLASS_0(ppt, ppt_driver, ppt_methods, sizeof(struct pptdev));
-DRIVER_MODULE(ppt, pci, ppt_driver, ppt_devclass, NULL, NULL);
+DRIVER_MODULE(ppt, pci, ppt_driver, NULL, NULL);
 
 static int
 ppt_find(struct vm *vm, int bus, int slot, int func, struct pptdev **pptp)

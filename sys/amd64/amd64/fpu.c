@@ -1060,9 +1060,7 @@ static driver_t fpupnp_driver = {
 	1,			/* no softc */
 };
 
-static devclass_t fpupnp_devclass;
-
-DRIVER_MODULE(fpupnp, acpi, fpupnp_driver, fpupnp_devclass, 0, 0);
+DRIVER_MODULE(fpupnp, acpi, fpupnp_driver, 0, 0);
 ISA_PNP_INFO(fpupnp_ids);
 #endif	/* DEV_ISA */
 

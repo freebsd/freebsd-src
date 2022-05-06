@@ -754,12 +754,9 @@ static driver_t ivhd_driver = {
 	sizeof(struct amdvi_softc),
 };
 
-static devclass_t ivhd_devclass;
-
 /*
  * Load this module at the end after PCI re-probing to configure interrupt.
  */
-DRIVER_MODULE_ORDERED(ivhd, acpi, ivhd_driver, ivhd_devclass, 0, 0,
-		      SI_ORDER_ANY);
+DRIVER_MODULE_ORDERED(ivhd, acpi, ivhd_driver, 0, 0, SI_ORDER_ANY);
 MODULE_DEPEND(ivhd, acpi, 1, 1, 1);
 MODULE_DEPEND(ivhd, pci, 1, 1, 1);
