@@ -1924,9 +1924,7 @@ static driver_t agp_i810_driver = {
 	sizeof(struct agp_i810_softc),
 };
 
-static devclass_t agp_devclass;
-
-DRIVER_MODULE(agp_i810, vgapci, agp_i810_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_i810, vgapci, agp_i810_driver, 0, 0);
 MODULE_DEPEND(agp_i810, agp, 1, 1, 1);
 MODULE_DEPEND(agp_i810, pci, 1, 1, 1);
 

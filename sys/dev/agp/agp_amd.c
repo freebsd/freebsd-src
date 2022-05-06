@@ -404,8 +404,6 @@ static driver_t agp_amd_driver = {
 	sizeof(struct agp_amd_softc),
 };
 
-static devclass_t agp_devclass;
-
-DRIVER_MODULE(agp_amd, hostb, agp_amd_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_amd, hostb, agp_amd_driver, 0, 0);
 MODULE_DEPEND(agp_amd, agp, 1, 1, 1);
 MODULE_DEPEND(agp_amd, pci, 1, 1, 1);

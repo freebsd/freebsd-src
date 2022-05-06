@@ -420,8 +420,6 @@ static driver_t agp_via_driver = {
 	sizeof(struct agp_via_softc),
 };
 
-static devclass_t agp_devclass;
-
-DRIVER_MODULE(agp_via, hostb, agp_via_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_via, hostb, agp_via_driver, 0, 0);
 MODULE_DEPEND(agp_via, agp, 1, 1, 1);
 MODULE_DEPEND(agp_via, pci, 1, 1, 1);

@@ -290,8 +290,6 @@ static driver_t agp_apple_driver = {
 	sizeof(struct agp_apple_softc),
 };
 
-static devclass_t agp_devclass;
-
-DRIVER_MODULE(agp_apple, hostb, agp_apple_driver, agp_devclass, 0, 0);
+DRIVER_MODULE(agp_apple, hostb, agp_apple_driver, 0, 0);
 MODULE_DEPEND(agp_apple, agp, 1, 1, 1);
 MODULE_DEPEND(agp_apple, pci, 1, 1, 1);
