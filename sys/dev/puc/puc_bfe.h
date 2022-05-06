@@ -38,7 +38,6 @@ struct puc_port;
 
 extern const struct puc_cfg puc_pci_devices[];
 
-extern devclass_t puc_devclass;
 extern const char puc_driver_name[];
 
 struct puc_bar {
