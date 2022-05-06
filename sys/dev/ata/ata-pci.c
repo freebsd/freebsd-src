@@ -767,7 +767,7 @@ driver_t ata_pcichannel_driver = {
     sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, NULL, NULL);
+DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, NULL, NULL);
 
 /*
  * misc support fucntions
