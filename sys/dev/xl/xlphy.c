@@ -91,15 +91,13 @@ static device_method_t xlphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t xlphy_devclass;
-
 static driver_t xlphy_driver = {
 	"xlphy",
 	xlphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(xlphy, miibus, xlphy_driver, xlphy_devclass, 0, 0);
+DRIVER_MODULE(xlphy, miibus, xlphy_driver, 0, 0);
 
 static int	xlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	xlphy_reset(struct mii_softc *);
