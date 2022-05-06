@@ -222,5 +222,5 @@ static driver_t fdc_driver = {
 	sizeof(struct fdc_data)
 };
 
-DRIVER_MODULE(fdc, isa, fdc_driver, fdc_devclass, 0, 0);
+DRIVER_MODULE(fdc, isa, fdc_driver, 0, 0);
 ISA_PNP_INFO(fdc_ids);

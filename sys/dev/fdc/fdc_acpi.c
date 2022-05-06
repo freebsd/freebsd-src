@@ -273,4 +273,4 @@ static driver_t fdc_acpi_driver = {
 	sizeof(struct fdc_data)
 };
 
-DRIVER_MODULE(fdc, acpi, fdc_acpi_driver, fdc_devclass, 0, 0);
+DRIVER_MODULE(fdc, acpi, fdc_acpi_driver, 0, 0);

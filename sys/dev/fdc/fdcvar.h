@@ -70,8 +70,6 @@ struct fdc_data {
 	struct proc *fdc_thread;
 };
 
-extern devclass_t fdc_devclass;
-
 enum fdc_device_ivars {
 	FDC_IVAR_FDUNIT,
 	FDC_IVAR_FDTYPE,
