@@ -195,8 +195,7 @@ static driver_t ax_driver = {
 	"ax", ax_methods, sizeof(struct axgbe_if_softc),
 };
 
-devclass_t ax_devclass;
-DRIVER_MODULE(axp, pci, ax_driver, ax_devclass, 0, 0);
+DRIVER_MODULE(axp, pci, ax_driver, 0, 0);
 DRIVER_MODULE(miibus, ax, miibus_driver, 0, 0);
 IFLIB_PNP_INFO(pci, ax_driver, axgbe_vendor_info_array);
 

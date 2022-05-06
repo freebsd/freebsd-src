@@ -570,11 +570,9 @@ static device_method_t axgbe_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t axgbe_devclass;
-
 DEFINE_CLASS_0(axgbe, axgbe_driver, axgbe_methods,
     sizeof(struct axgbe_softc));
-DRIVER_MODULE(axa, simplebus, axgbe_driver, axgbe_devclass, 0, 0);
+DRIVER_MODULE(axa, simplebus, axgbe_driver, 0, 0);
 
 
 static struct ofw_compat_data phy_compat_data[] = {
@@ -615,8 +613,6 @@ static device_method_t axgbephy_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t axgbephy_devclass;
-
 DEFINE_CLASS_0(axgbephy, axgbephy_driver, axgbephy_methods, 0);
-EARLY_DRIVER_MODULE(axgbephy, simplebus, axgbephy_driver, axgbephy_devclass,
+EARLY_DRIVER_MODULE(axgbephy, simplebus, axgbephy_driver,
     0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
