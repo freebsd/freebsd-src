@@ -90,9 +90,8 @@ static driver_t onyx_driver = {
 	onyx_methods,
 	sizeof(struct onyx_softc)
 };
-static devclass_t onyx_devclass;
 
-DRIVER_MODULE(onyx, iicbus, onyx_driver, onyx_devclass, 0, 0);
+DRIVER_MODULE(onyx, iicbus, onyx_driver, 0, 0);
 MODULE_VERSION(onyx, 1);
 MODULE_DEPEND(onyx, iicbus, 1, 1, 1);
 

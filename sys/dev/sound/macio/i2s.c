@@ -146,9 +146,8 @@ static driver_t aoagpio_driver = {
 	aoagpio_methods,
 	sizeof(struct aoagpio_softc)
 };
-static devclass_t aoagpio_devclass;
 
-DRIVER_MODULE(aoagpio, macgpio, aoagpio_driver, aoagpio_devclass, 0, 0);
+DRIVER_MODULE(aoagpio, macgpio, aoagpio_driver, 0, 0);
 
 /*****************************************************************************
 			Probe and attachment routines.

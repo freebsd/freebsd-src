@@ -946,8 +946,6 @@ MODULE_VERSION(snd_ess, 1);
 
 /************************************************************/
 
-static devclass_t esscontrol_devclass;
-
 static struct isa_pnp_id essc_ids[] = {
 	{0x06007316, "ESS Control"},
 	{0}
@@ -1010,6 +1008,6 @@ static driver_t esscontrol_driver = {
 	1,
 };
 
-DRIVER_MODULE(esscontrol, isa, esscontrol_driver, esscontrol_devclass, 0, 0);
-DRIVER_MODULE(esscontrol, acpi, esscontrol_driver, esscontrol_devclass, 0, 0);
+DRIVER_MODULE(esscontrol, isa, esscontrol_driver, 0, 0);
+DRIVER_MODULE(esscontrol, acpi, esscontrol_driver, 0, 0);
 ISA_PNP_INFO(essc_ids);

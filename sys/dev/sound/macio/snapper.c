@@ -116,9 +116,8 @@ static driver_t snapper_driver = {
 	snapper_methods,
 	sizeof(struct snapper_softc)
 };
-static devclass_t snapper_devclass;
 
-DRIVER_MODULE(snapper, iicbus, snapper_driver, snapper_devclass, 0, 0);
+DRIVER_MODULE(snapper, iicbus, snapper_driver, 0, 0);
 MODULE_VERSION(snapper, 1);
 MODULE_DEPEND(snapper, iicbus, 1, 1, 1);
 

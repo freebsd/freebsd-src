@@ -2170,6 +2170,4 @@ static driver_t hdac_driver = {
 	sizeof(struct hdac_softc),
 };
 
-static devclass_t hdac_devclass;
-
-DRIVER_MODULE(snd_hda, pci, hdac_driver, hdac_devclass, NULL, NULL);
+DRIVER_MODULE(snd_hda, pci, hdac_driver, NULL, NULL);

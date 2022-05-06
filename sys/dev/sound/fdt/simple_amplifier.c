@@ -200,7 +200,5 @@ static driver_t simple_amp_driver = {
 	sizeof(struct simple_amp_softc),
 };
 
-static devclass_t simple_amp_devclass;
-
-DRIVER_MODULE(simple_amp, simplebus, simple_amp_driver, simple_amp_devclass, 0, 0);
+DRIVER_MODULE(simple_amp, simplebus, simple_amp_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

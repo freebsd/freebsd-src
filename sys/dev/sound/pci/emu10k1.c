@@ -2247,6 +2247,4 @@ static driver_t emujoy_driver = {
 	1	/* no softc */
 };
 
-static devclass_t emujoy_devclass;
-
-DRIVER_MODULE(emujoy, pci, emujoy_driver, emujoy_devclass, NULL, NULL);
+DRIVER_MODULE(emujoy, pci, emujoy_driver, NULL, NULL);

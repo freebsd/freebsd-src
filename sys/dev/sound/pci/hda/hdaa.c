@@ -6847,9 +6847,7 @@ static driver_t hdaa_driver = {
 	sizeof(struct hdaa_devinfo),
 };
 
-static devclass_t hdaa_devclass;
-
-DRIVER_MODULE(snd_hda, hdacc, hdaa_driver, hdaa_devclass, NULL, NULL);
+DRIVER_MODULE(snd_hda, hdacc, hdaa_driver, NULL, NULL);
 
 static void
 hdaa_chan_formula(struct hdaa_devinfo *devinfo, int asid,

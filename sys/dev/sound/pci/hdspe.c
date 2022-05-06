@@ -397,6 +397,4 @@ static driver_t hdspe_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-static devclass_t hdspe_devclass;
-
-DRIVER_MODULE(snd_hdspe, pci, hdspe_driver, hdspe_devclass, 0, 0);
+DRIVER_MODULE(snd_hdspe, pci, hdspe_driver, 0, 0);
