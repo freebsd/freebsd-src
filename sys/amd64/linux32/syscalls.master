@@ -2449,7 +2449,12 @@
 		int linux_mq_timedreceive_time64(void);
 	}
 420	AUE_NULL	STD {
-		int linux_semtimedop_time64(void);
+		int linux_semtimedop_time64(
+		    l_int semid,
+		    struct sembuf *tsops,
+		    l_size_t nsops,
+		    struct l_timespec64 *timeout
+		);
 	}
 421	AUE_NULL	STD {
 		int linux_rt_sigtimedwait_time64(
