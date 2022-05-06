@@ -83,10 +83,8 @@ static driver_t _ ## _bus ## _ ## _table ## _driver = {			\
 	0								\
 };									\
 									\
-static devclass_t _ ## _bus ## _ ## _table ## _devclass;		\
-									\
 DRIVER_MODULE(lkpi_ ## _table, pci, _ ## _bus ## _ ## _table ## _driver,\
-	_ ## _bus ## _ ## _table ## _devclass, 0, 0);			\
+	0, 0);								\
 									\
 MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
     _bus, lkpi_ ## _table, _table, nitems(_table) - 1)
