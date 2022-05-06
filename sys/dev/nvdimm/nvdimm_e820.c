@@ -257,15 +257,15 @@ nvdimm_e820_remove_spas(device_t dev)
 }
 
 static void
-nvdimm_e820_identify(driver_t *driver __unused, device_t parent)
+nvdimm_e820_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 	caddr_t kmdp;
 
-	if (resource_disabled(NVDIMM_E820, 0))
+	if (resource_disabled(driver->name, 0))
 		return;
 	/* Just create a single instance of the fake bus. */
-	if (device_find_child(parent, NVDIMM_E820, -1) != NULL)
+	if (device_find_child(parent, driver->name, -1) != NULL)
 		return;
 
 	kmdp = preload_search_by_type("elf kernel");
@@ -278,9 +278,9 @@ nvdimm_e820_identify(driver_t *driver __unused, device_t parent)
 	if (smapbase == NULL)
 		return;
 
-	child = BUS_ADD_CHILD(parent, 0, NVDIMM_E820, -1);
+	child = BUS_ADD_CHILD(parent, 0, driver->name, -1);
 	if (child == NULL)
-		device_printf(parent, "add %s child failed\n", NVDIMM_E820);
+		device_printf(parent, "add %s child failed\n", driver->name);
 }
 
 static int
