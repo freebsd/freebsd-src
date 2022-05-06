@@ -131,8 +131,6 @@ static device_detach_t g_mouse_detach;
 static usb_handle_request_t g_mouse_handle_request;
 static usb_callback_t g_mouse_intr_callback;
 
-static devclass_t g_mouse_devclass;
-
 static device_method_t g_mouse_methods[] = {
 	/* USB interface */
 	DEVMETHOD(usb_handle_request, g_mouse_handle_request),
@@ -151,7 +149,7 @@ static driver_t g_mouse_driver = {
 	.size = sizeof(struct g_mouse_softc),
 };
 
-DRIVER_MODULE(g_mouse, uhub, g_mouse_driver, g_mouse_devclass, 0, 0);
+DRIVER_MODULE(g_mouse, uhub, g_mouse_driver, 0, 0);
 MODULE_DEPEND(g_mouse, usb, 1, 1, 1);
 
 static const struct usb_config g_mouse_config[G_MOUSE_N_TRANSFER] = {

@@ -1200,8 +1200,6 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
-static devclass_t ums_devclass;
-
 static device_method_t ums_methods[] = {
 	DEVMETHOD(device_probe, ums_probe),
 	DEVMETHOD(device_attach, ums_attach),
@@ -1216,7 +1214,7 @@ static driver_t ums_driver = {
 	.size = sizeof(struct ums_softc),
 };
 
-DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, NULL, 0);
+DRIVER_MODULE(ums, uhub, ums_driver, NULL, NULL);
 MODULE_DEPEND(ums, usb, 1, 1, 1);
 MODULE_DEPEND(ums, hid, 1, 1, 1);
 #ifdef EVDEV_SUPPORT

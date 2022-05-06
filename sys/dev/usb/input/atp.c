@@ -2615,8 +2615,6 @@ atp_sysctl_scale_factor_handler(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static devclass_t atp_devclass;
-
 static device_method_t atp_methods[] = {
 	DEVMETHOD(device_probe,  atp_probe),
 	DEVMETHOD(device_attach, atp_attach),
@@ -2631,7 +2629,7 @@ static driver_t atp_driver = {
 	.size    = sizeof(struct atp_softc)
 };
 
-DRIVER_MODULE(atp, uhub, atp_driver, atp_devclass, NULL, 0);
+DRIVER_MODULE(atp, uhub, atp_driver, NULL, NULL);
 MODULE_DEPEND(atp, usb, 1, 1, 1);
 MODULE_DEPEND(atp, hid, 1, 1, 1);
 MODULE_VERSION(atp, 1);

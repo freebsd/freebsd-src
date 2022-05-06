@@ -749,8 +749,6 @@ ulpt_watchdog(void *arg)
 	    hz, &ulpt_watchdog, sc);
 }
 
-static devclass_t ulpt_devclass;
-
 static device_method_t ulpt_methods[] = {
 	DEVMETHOD(device_probe, ulpt_probe),
 	DEVMETHOD(device_attach, ulpt_attach),
@@ -764,7 +762,7 @@ static driver_t ulpt_driver = {
 	.size = sizeof(struct ulpt_softc),
 };
 
-DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, NULL, 0);
+DRIVER_MODULE(ulpt, uhub, ulpt_driver, NULL, NULL);
 MODULE_DEPEND(ulpt, usb, 1, 1, 1);
 MODULE_VERSION(ulpt, 1);
 USB_PNP_HOST_INFO(ulpt_devs);

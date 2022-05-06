@@ -372,15 +372,13 @@ static device_method_t uslcom_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t uslcom_devclass;
-
 static driver_t uslcom_driver = {
 	.name = "uslcom",
 	.methods = uslcom_methods,
 	.size = sizeof(struct uslcom_softc),
 };
 
-DRIVER_MODULE(uslcom, uhub, uslcom_driver, uslcom_devclass, NULL, 0);
+DRIVER_MODULE(uslcom, uhub, uslcom_driver, NULL, NULL);
 MODULE_DEPEND(uslcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uslcom, usb, 1, 1, 1);
 MODULE_VERSION(uslcom, 1);

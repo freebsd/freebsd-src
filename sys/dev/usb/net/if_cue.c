@@ -172,9 +172,7 @@ static driver_t cue_driver = {
 	.size = sizeof(struct cue_softc),
 };
 
-static devclass_t cue_devclass;
-
-DRIVER_MODULE(cue, uhub, cue_driver, cue_devclass, NULL, 0);
+DRIVER_MODULE(cue, uhub, cue_driver, NULL, NULL);
 MODULE_DEPEND(cue, uether, 1, 1, 1);
 MODULE_DEPEND(cue, usb, 1, 1, 1);
 MODULE_DEPEND(cue, ether, 1, 1, 1);

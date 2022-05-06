@@ -517,8 +517,6 @@ uep_close(struct usb_fifo *fifo, int fflags)
 }
 #endif /* !EVDEV_SUPPORT */
 
-static devclass_t uep_devclass;
-
 static device_method_t uep_methods[] = {
 	DEVMETHOD(device_probe, uep_probe),
        	DEVMETHOD(device_attach, uep_attach),
@@ -532,7 +530,7 @@ static driver_t uep_driver = {
 	.size = sizeof(struct uep_softc),
 };
 
-DRIVER_MODULE(uep, uhub, uep_driver, uep_devclass, NULL, NULL);
+DRIVER_MODULE(uep, uhub, uep_driver, NULL, NULL);
 MODULE_DEPEND(uep, usb, 1, 1, 1);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(uep, evdev, 1, 1, 1);

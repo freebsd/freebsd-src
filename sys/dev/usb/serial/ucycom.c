@@ -169,8 +169,6 @@ static device_method_t ucycom_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ucycom_devclass;
-
 static driver_t ucycom_driver = {
 	.name = "ucycom",
 	.methods = ucycom_methods,
@@ -184,7 +182,7 @@ static const STRUCT_USB_HOST_ID ucycom_devs[] = {
 	{USB_VPI(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, MODEL_CY7C64013)},
 };
 
-DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
+DRIVER_MODULE(ucycom, uhub, ucycom_driver, NULL, NULL);
 MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
 MODULE_DEPEND(ucycom, usb, 1, 1, 1);
 MODULE_DEPEND(ucycom, hid, 1, 1, 1);

@@ -131,8 +131,6 @@ static driver_t ipheth_driver = {
 	.size = sizeof(struct ipheth_softc),
 };
 
-static devclass_t ipheth_devclass;
-
 static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 #if 0
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE,
@@ -162,7 +160,7 @@ static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 #endif
 };
 
-DRIVER_MODULE(ipheth, uhub, ipheth_driver, ipheth_devclass, NULL, 0);
+DRIVER_MODULE(ipheth, uhub, ipheth_driver, NULL, NULL);
 MODULE_VERSION(ipheth, 1);
 MODULE_DEPEND(ipheth, uether, 1, 1, 1);
 MODULE_DEPEND(ipheth, usb, 1, 1, 1);

@@ -209,10 +209,9 @@ static driver_t usie_driver = {
 	.size = sizeof(struct usie_softc),
 };
 
-static devclass_t usie_devclass;
 static eventhandler_tag usie_etag;
 
-DRIVER_MODULE(usie, uhub, usie_driver, usie_devclass, usie_driver_loaded, 0);
+DRIVER_MODULE(usie, uhub, usie_driver, usie_driver_loaded, NULL);
 MODULE_DEPEND(usie, ucom, 1, 1, 1);
 MODULE_DEPEND(usie, usb, 1, 1, 1);
 MODULE_VERSION(usie, 1);

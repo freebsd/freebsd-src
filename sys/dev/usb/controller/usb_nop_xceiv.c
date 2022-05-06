@@ -199,8 +199,6 @@ static device_method_t usb_nop_xceiv_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t usb_nop_xceiv_devclass;
-
 static driver_t usb_nop_xceiv_driver = {
 	"usb_nop_xceiv",
 	usb_nop_xceiv_methods,
@@ -208,4 +206,4 @@ static driver_t usb_nop_xceiv_driver = {
 };
 
 EARLY_DRIVER_MODULE(usb_nop_xceiv, simplebus, usb_nop_xceiv_driver,
-    usb_nop_xceiv_devclass, 0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

@@ -327,8 +327,5 @@ driver_t generic_ohci_driver = {
 	.size = sizeof(struct generic_ohci_softc),
 };
 
-static devclass_t generic_ohci_devclass;
-
-DRIVER_MODULE(ohci, simplebus, generic_ohci_driver,
-    generic_ohci_devclass, 0, 0);
+DRIVER_MODULE(ohci, simplebus, generic_ohci_driver, 0, 0);
 MODULE_DEPEND(ohci, usb, 1, 1, 1);

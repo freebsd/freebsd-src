@@ -638,8 +638,6 @@ static driver_t uhid_snes_driver = {
 	sizeof(struct uhid_snes_softc)
 };
 
-static devclass_t uhid_snes_devclass;
-
-DRIVER_MODULE(uhid_snes, uhub, uhid_snes_driver, uhid_snes_devclass, NULL, 0);
+DRIVER_MODULE(uhid_snes, uhub, uhid_snes_driver, NULL, NULL);
 MODULE_DEPEND(uhid_snes, usb, 1, 1, 1);
 USB_PNP_HOST_INFO(snes_devs);

@@ -263,15 +263,13 @@ static device_method_t ubsa_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ubsa_devclass;
-
 static driver_t ubsa_driver = {
 	.name = "ubsa",
 	.methods = ubsa_methods,
 	.size = sizeof(struct ubsa_softc),
 };
 
-DRIVER_MODULE(ubsa, uhub, ubsa_driver, ubsa_devclass, NULL, 0);
+DRIVER_MODULE(ubsa, uhub, ubsa_driver, NULL, NULL);
 MODULE_DEPEND(ubsa, ucom, 1, 1, 1);
 MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 MODULE_VERSION(ubsa, 1);

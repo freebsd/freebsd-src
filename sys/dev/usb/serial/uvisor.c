@@ -245,8 +245,6 @@ static device_method_t uvisor_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t uvisor_devclass;
-
 static driver_t uvisor_driver = {
 	.name = "uvisor",
 	.methods = uvisor_methods,
@@ -285,7 +283,7 @@ static const STRUCT_USB_HOST_ID uvisor_devs[] = {
 #undef UVISOR_DEV
 };
 
-DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
+DRIVER_MODULE(uvisor, uhub, uvisor_driver, NULL, NULL);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
 MODULE_VERSION(uvisor, 1);

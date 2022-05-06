@@ -2173,8 +2173,6 @@ ukbd_driver_load(module_t mod, int what, void *arg)
 	return (0);
 }
 
-static devclass_t ukbd_devclass;
-
 static device_method_t ukbd_methods[] = {
 	DEVMETHOD(device_probe, ukbd_probe),
 	DEVMETHOD(device_attach, ukbd_attach),
@@ -2190,7 +2188,7 @@ static driver_t ukbd_driver = {
 	.size = sizeof(struct ukbd_softc),
 };
 
-DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
+DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_driver_load, NULL);
 MODULE_DEPEND(ukbd, usb, 1, 1, 1);
 MODULE_DEPEND(ukbd, hid, 1, 1, 1);
 #ifdef EVDEV_SUPPORT

@@ -97,8 +97,6 @@ static usb_error_t	uled_ctrl_msg(struct uled_softc *, uint8_t, uint8_t,
 			    uint16_t, uint16_t, void *, uint16_t);
 static int		uled_enable(struct uled_softc *);
 
-static devclass_t uled_devclass;
-
 static device_method_t uled_methods[] = {
 	DEVMETHOD(device_probe,		uled_probe),
 	DEVMETHOD(device_attach,	uled_attach),
@@ -120,7 +118,7 @@ static const STRUCT_USB_HOST_ID uled_devs[] = {
 #undef ULED_DEV
 };
 
-DRIVER_MODULE(uled, uhub, uled_driver, uled_devclass, NULL, NULL);
+DRIVER_MODULE(uled, uhub, uled_driver, NULL, NULL);
 MODULE_DEPEND(uled, usb, 1, 1, 1);
 MODULE_VERSION(uled, 1);
 USB_PNP_HOST_INFO(uled_devs);

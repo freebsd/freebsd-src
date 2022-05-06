@@ -188,8 +188,6 @@ static device_method_t u3g_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t u3g_devclass;
-
 static driver_t u3g_driver = {
 	.name = "u3g",
 	.methods = u3g_methods,
@@ -600,7 +598,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 #undef	U3G_DEV
 };
 
-DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
+DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_driver_loaded, NULL);
 MODULE_DEPEND(u3g, ucom, 1, 1, 1);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 MODULE_VERSION(u3g, 1);

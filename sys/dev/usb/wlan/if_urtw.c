@@ -4419,14 +4419,14 @@ static device_method_t urtw_methods[] = {
 	DEVMETHOD(device_detach, urtw_detach),
 	DEVMETHOD_END
 };
+
 static driver_t urtw_driver = {
 	.name = "urtw",
 	.methods = urtw_methods,
 	.size = sizeof(struct urtw_softc)
 };
-static devclass_t urtw_devclass;
 
-DRIVER_MODULE(urtw, uhub, urtw_driver, urtw_devclass, NULL, 0);
+DRIVER_MODULE(urtw, uhub, urtw_driver, NULL, NULL);
 MODULE_DEPEND(urtw, wlan, 1, 1, 1);
 MODULE_DEPEND(urtw, usb, 1, 1, 1);
 MODULE_VERSION(urtw, 1);

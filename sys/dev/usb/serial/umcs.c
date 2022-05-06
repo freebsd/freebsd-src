@@ -268,15 +268,13 @@ static device_method_t umcs7840_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t umcs7840_devclass;
-
 static driver_t umcs7840_driver = {
 	.name = "umcs7840",
 	.methods = umcs7840_methods,
 	.size = sizeof(struct umcs7840_softc),
 };
 
-DRIVER_MODULE(umcs7840, uhub, umcs7840_driver, umcs7840_devclass, 0, 0);
+DRIVER_MODULE(umcs7840, uhub, umcs7840_driver, 0, 0);
 MODULE_DEPEND(umcs7840, ucom, 1, 1, 1);
 MODULE_DEPEND(umcs7840, usb, 1, 1, 1);
 MODULE_VERSION(umcs7840, UMCS7840_MODVER);

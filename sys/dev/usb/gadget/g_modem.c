@@ -132,8 +132,6 @@ static usb_callback_t g_modem_bulk_write_callback;
 
 static void g_modem_timeout(void *arg);
 
-static devclass_t g_modem_devclass;
-
 static device_method_t g_modem_methods[] = {
 	/* USB interface */
 	DEVMETHOD(usb_handle_request, g_modem_handle_request),
@@ -152,7 +150,7 @@ static driver_t g_modem_driver = {
 	.size = sizeof(struct g_modem_softc),
 };
 
-DRIVER_MODULE(g_modem, uhub, g_modem_driver, g_modem_devclass, 0, 0);
+DRIVER_MODULE(g_modem, uhub, g_modem_driver, 0, 0);
 MODULE_DEPEND(g_modem, usb, 1, 1, 1);
 
 static const struct usb_config g_modem_config[G_MODEM_N_TRANSFER] = {

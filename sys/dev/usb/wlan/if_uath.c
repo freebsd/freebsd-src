@@ -2864,14 +2864,14 @@ static device_method_t uath_methods[] = {
 	DEVMETHOD(device_detach, uath_detach),
 	DEVMETHOD_END
 };
+
 static driver_t uath_driver = {
 	.name = "uath",
 	.methods = uath_methods,
 	.size = sizeof(struct uath_softc)
 };
-static devclass_t uath_devclass;
 
-DRIVER_MODULE(uath, uhub, uath_driver, uath_devclass, NULL, 0);
+DRIVER_MODULE(uath, uhub, uath_driver, NULL, NULL);
 MODULE_DEPEND(uath, wlan, 1, 1, 1);
 MODULE_DEPEND(uath, usb, 1, 1, 1);
 MODULE_VERSION(uath, 1);

@@ -178,7 +178,5 @@ static driver_t dwc_otg_driver = {
 	.size = sizeof(struct dwc_otg_softc),
 };
 
-static devclass_t dwc_otg_devclass;
-
-DRIVER_MODULE(dwcotg, acpi, dwc_otg_driver, dwc_otg_devclass, 0, 0);
+DRIVER_MODULE(dwcotg, acpi, dwc_otg_driver, 0, 0);
 MODULE_DEPEND(dwcotg, usb, 1, 1, 1);

@@ -1001,8 +1001,6 @@ static const STRUCT_USB_HOST_ID wmt_devs[] = {
 	 USB_IFACE_SUBCLASS(0),},
 };
 
-static devclass_t wmt_devclass;
-
 static device_method_t wmt_methods[] = {
 	DEVMETHOD(device_probe, wmt_probe),
 	DEVMETHOD(device_attach, wmt_attach),
@@ -1017,7 +1015,7 @@ static driver_t wmt_driver = {
 	.size = sizeof(struct wmt_softc),
 };
 
-DRIVER_MODULE(wmt, uhub, wmt_driver, wmt_devclass, NULL, 0);
+DRIVER_MODULE(wmt, uhub, wmt_driver, NULL, NULL);
 MODULE_DEPEND(wmt, usb, 1, 1, 1);
 MODULE_DEPEND(wmt, hid, 1, 1, 1);
 MODULE_DEPEND(wmt, evdev, 1, 1, 1);

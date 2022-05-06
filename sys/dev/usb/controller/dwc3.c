@@ -347,6 +347,5 @@ static driver_t snps_dwc3_driver = {
 	sizeof(struct snps_dwc3_softc)
 };
 
-static devclass_t snps_dwc3_devclass;
-DRIVER_MODULE(snps_dwc3, simplebus, snps_dwc3_driver, snps_dwc3_devclass, 0, 0);
+DRIVER_MODULE(snps_dwc3, simplebus, snps_dwc3_driver, 0, 0);
 MODULE_DEPEND(snps_dwc3, xhci, 1, 1, 1);

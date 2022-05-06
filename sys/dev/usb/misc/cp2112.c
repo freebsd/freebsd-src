@@ -1388,9 +1388,7 @@ static driver_t cp2112hid_driver = {
 	.size = sizeof(struct cp2112_softc),
 };
 
-static devclass_t cp2112hid_devclass;
-DRIVER_MODULE(cp2112hid, uhub, cp2112hid_driver, cp2112hid_devclass,
-    NULL, NULL);
+DRIVER_MODULE(cp2112hid, uhub, cp2112hid_driver, NULL, NULL);
 MODULE_DEPEND(cp2112hid, usb, 1, 1, 1);
 MODULE_VERSION(cp2112hid, 1);
 USB_PNP_HOST_INFO(cp2112_devs);
@@ -1421,9 +1419,7 @@ static driver_t cp2112gpio_driver = {
 	.size = sizeof(struct cp2112gpio_softc),
 };
 
-static devclass_t cp2112gpio_devclass;
-DRIVER_MODULE(cp2112gpio, cp2112hid, cp2112gpio_driver, cp2112gpio_devclass,
-    NULL, NULL);
+DRIVER_MODULE(cp2112gpio, cp2112hid, cp2112gpio_driver, NULL, NULL);
 MODULE_DEPEND(cp2112gpio, cp2112hid, 1, 1, 1);
 MODULE_DEPEND(cp2112gpio, gpiobus, 1, 1, 1);
 MODULE_VERSION(cp2112gpio, 1);
@@ -1448,9 +1444,7 @@ static driver_t cp2112iic_driver = {
 	sizeof(struct cp2112iic_softc)
 };
 
-static devclass_t cp2112iic_devclass;
-DRIVER_MODULE(cp2112iic, cp2112hid, cp2112iic_driver, cp2112iic_devclass,
-    NULL, NULL);
+DRIVER_MODULE(cp2112iic, cp2112hid, cp2112iic_driver, NULL, NULL);
 MODULE_DEPEND(cp2112iic, cp2112hid, 1, 1, 1);
 MODULE_DEPEND(cp2112iic, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(cp2112iic, 1);

@@ -80,7 +80,5 @@ static device_method_t ehci_acpi_methods[] = {
 DEFINE_CLASS_1(ehci, ehci_acpi_driver, ehci_acpi_methods,
     sizeof(ehci_softc_t), generic_ehci_driver);
 
-static devclass_t ehci_acpi_devclass;
-
-DRIVER_MODULE(ehci, acpi, ehci_acpi_driver, ehci_acpi_devclass, 0, 0);
+DRIVER_MODULE(ehci, acpi, ehci_acpi_driver, 0, 0);
 MODULE_DEPEND(ehci, usb, 1, 1, 1);

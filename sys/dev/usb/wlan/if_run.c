@@ -6437,9 +6437,7 @@ static driver_t run_driver = {
 	.size = sizeof(struct run_softc)
 };
 
-static devclass_t run_devclass;
-
-DRIVER_MODULE(run, uhub, run_driver, run_devclass, run_driver_loaded, NULL);
+DRIVER_MODULE(run, uhub, run_driver, run_driver_loaded, NULL);
 MODULE_DEPEND(run, wlan, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);

@@ -214,9 +214,7 @@ static driver_t kue_driver = {
 	.size = sizeof(struct kue_softc),
 };
 
-static devclass_t kue_devclass;
-
-DRIVER_MODULE(kue, uhub, kue_driver, kue_devclass, NULL, 0);
+DRIVER_MODULE(kue, uhub, kue_driver, NULL, NULL);
 MODULE_DEPEND(kue, uether, 1, 1, 1);
 MODULE_DEPEND(kue, usb, 1, 1, 1);
 MODULE_DEPEND(kue, ether, 1, 1, 1);

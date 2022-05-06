@@ -157,8 +157,6 @@ static const struct usb_config uhub_config[UHUB_N_TRANSFER] = {
  * driver instance for "hub" connected to "usb"
  * and "hub" connected to "hub"
  */
-static devclass_t uhub_devclass;
-
 static device_method_t uhub_methods[] = {
 	DEVMETHOD(device_probe, uhub_probe),
 	DEVMETHOD(device_attach, uhub_attach),
@@ -180,8 +178,8 @@ driver_t uhub_driver = {
 	.size = sizeof(struct uhub_softc)
 };
 
-DRIVER_MODULE(uhub, usbus, uhub_driver, uhub_devclass, 0, 0);
-DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, NULL, 0);
+DRIVER_MODULE(uhub, usbus, uhub_driver, 0, 0);
+DRIVER_MODULE(uhub, uhub, uhub_driver, 0, 0);
 MODULE_VERSION(uhub, 1);
 
 static void
