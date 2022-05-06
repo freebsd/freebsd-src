@@ -3905,10 +3905,8 @@ static device_method_t rtsx_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rtsx_devclass;
-
 DEFINE_CLASS_0(rtsx, rtsx_driver, rtsx_methods, sizeof(struct rtsx_softc));
-DRIVER_MODULE(rtsx, pci, rtsx_driver, rtsx_devclass, NULL, NULL);
+DRIVER_MODULE(rtsx, pci, rtsx_driver, NULL, NULL);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(rtsx);
 #endif /* !MMCCAM */
