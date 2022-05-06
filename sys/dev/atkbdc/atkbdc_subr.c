@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
 
-devclass_t atkbdc_devclass;
-
 int
 atkbdc_print_child(device_t bus, device_t dev)
 {

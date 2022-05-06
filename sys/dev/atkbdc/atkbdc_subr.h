@@ -34,8 +34,6 @@
 
 MALLOC_DECLARE(M_ATKBDDEV);
 
-extern devclass_t atkbdc_devclass;
-
 /* children */
 typedef struct atkbdc_device {
 	struct resource_list resources;
