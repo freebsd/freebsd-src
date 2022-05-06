@@ -289,10 +289,7 @@ static driver_t	acpi_asus_wmi_driver = {
 	sizeof(struct acpi_asus_wmi_softc),
 };
 
-static devclass_t acpi_asus_wmi_devclass;
-
-DRIVER_MODULE(acpi_asus_wmi, acpi_wmi, acpi_asus_wmi_driver,
-    acpi_asus_wmi_devclass, 0, 0);
+DRIVER_MODULE(acpi_asus_wmi, acpi_wmi, acpi_asus_wmi_driver, 0, 0);
 MODULE_DEPEND(acpi_asus_wmi, acpi_wmi, 1, 1, 1);
 MODULE_DEPEND(acpi_asus_wmi, acpi, 1, 1, 1);
 
