@@ -88,7 +88,6 @@ static void ppcintr(void *arg);
 #define PPC_CONFIG_LOCK(ppc)		critical_enter()
 #define PPC_CONFIG_UNLOCK(ppc)		critical_exit()
 
-devclass_t ppc_devclass;
 const char ppc_driver_name[] = "ppc";
 
 static char *ppc_models[] = {

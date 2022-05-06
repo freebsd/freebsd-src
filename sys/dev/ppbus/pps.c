@@ -61,8 +61,6 @@ static void 	ppshcpoll(void *arg);
 #define DEVTOSOFTC(dev) \
 	((struct pps_data *)device_get_softc(dev))
 
-static devclass_t pps_devclass;
-
 static	d_open_t	ppsopen;
 static	d_close_t	ppsclose;
 static	d_ioctl_t	ppsioctl;
@@ -345,5 +343,6 @@ static driver_t pps_driver = {
 	pps_methods,
 	sizeof(struct pps_data),
 };
-DRIVER_MODULE(pps, ppbus, pps_driver, pps_devclass, 0, 0);
+
+DRIVER_MODULE(pps, ppbus, pps_driver, 0, 0);
 MODULE_DEPEND(pps, ppbus, 1, 1, 1);

@@ -58,8 +58,6 @@ struct pcfclock_data {
 	struct cdev *cdev;
 };
 
-static devclass_t pcfclock_devclass;
-
 static	d_open_t		pcfclock_open;
 static	d_close_t		pcfclock_close;
 static	d_read_t		pcfclock_read;
@@ -334,4 +332,4 @@ static driver_t pcfclock_driver = {
 	sizeof(struct pcfclock_data),
 };
 
-DRIVER_MODULE(pcfclock, ppbus, pcfclock_driver, pcfclock_devclass, 0, 0);
+DRIVER_MODULE(pcfclock, ppbus, pcfclock_driver, 0, 0);

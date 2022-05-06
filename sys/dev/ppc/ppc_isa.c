@@ -271,5 +271,5 @@ error:
 	return (error);
 }
 
-DRIVER_MODULE(ppc, isa, ppc_isa_driver, ppc_devclass, 0, 0);
+DRIVER_MODULE(ppc, isa, ppc_isa_driver, 0, 0);
 ISA_PNP_INFO(lpc_ids);

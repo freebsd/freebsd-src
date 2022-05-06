@@ -149,8 +149,6 @@ static int	lpt_detect(device_t dev);
 
 static void lptintr(void *arg);
 
-static devclass_t lpt_devclass;
-
 /* bits for state */
 #define	OPEN		(1<<0)	/* device is open */
 #define	ASLP		(1<<1)	/* awaiting draining of printer */
@@ -996,5 +994,5 @@ static driver_t lpt_driver = {
 	sizeof(struct lpt_data),
 };
 
-DRIVER_MODULE(lpt, ppbus, lpt_driver, lpt_devclass, 0, 0);
+DRIVER_MODULE(lpt, ppbus, lpt_driver, 0, 0);
 MODULE_DEPEND(lpt, ppbus, 1, 1, 1);
