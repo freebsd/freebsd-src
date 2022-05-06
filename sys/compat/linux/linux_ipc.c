@@ -505,23 +505,6 @@ linux_shminfo_pushdown(l_int ver, struct l_shminfo64 *linux_shminfo64,
 }
 
 int
-linux_semop(struct thread *td, struct linux_semop_args *args)
-{
-	struct semop_args /* {
-	int	semid;
-	struct	sembuf *sops;
-	int		nsops;
-	} */ bsd_args;
-
-	if (args->nsops < 1 || args->semid < 0)
-		return (EINVAL);
-	bsd_args.semid = args->semid;
-	bsd_args.sops = PTRIN(args->tsops);
-	bsd_args.nsops = args->nsops;
-	return (sys_semop(td, &bsd_args));
-}
-
-int
 linux_semget(struct thread *td, struct linux_semget_args *args)
 {
 	struct semget_args /* {
