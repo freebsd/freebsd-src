@@ -220,8 +220,7 @@ static driver_t arcmsr_driver={
 	"arcmsr", arcmsr_methods, sizeof(struct AdapterControlBlock)
 };
 
-static devclass_t arcmsr_devclass;
-DRIVER_MODULE(arcmsr, pci, arcmsr_driver, arcmsr_devclass, 0, 0);
+DRIVER_MODULE(arcmsr, pci, arcmsr_driver, 0, 0);
 MODULE_DEPEND(arcmsr, pci, 1, 1, 1);
 MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 #ifndef BUS_DMA_COHERENT		
