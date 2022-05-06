@@ -1282,7 +1282,12 @@
 		int linux_restart_syscall(void);
 	}
 220	AUE_NULL	STD {
-		int linux_semtimedop(void);
+		int linux_semtimedop(
+		    l_int semid,
+		    struct sembuf *tsops,
+		    l_size_t nsops,
+		    struct l_timespec *timeout
+		);
 	}
 221	AUE_NULL	STD {
 		int linux_fadvise64(
