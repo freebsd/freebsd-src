@@ -87,7 +87,7 @@ static driver_t pcm_davbus_driver = {
 	PCM_SOFTC_SIZE
 };
 
-DRIVER_MODULE(pcm_davbus, macio, pcm_davbus_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(pcm_davbus, macio, pcm_davbus_driver, 0, 0);
 MODULE_DEPEND(pcm_davbus, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 
 /*****************************************************************************

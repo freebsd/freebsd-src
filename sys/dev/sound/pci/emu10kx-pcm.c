@@ -1530,7 +1530,7 @@ static driver_t emu_pcm_driver = {
 	0,
 	NULL
 };
-DRIVER_MODULE(snd_emu10kx_pcm, emu10kx, emu_pcm_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_emu10kx_pcm, emu10kx, emu_pcm_driver, 0, 0);
 MODULE_DEPEND(snd_emu10kx_pcm, snd_emu10kx, SND_EMU10KX_MINVER, SND_EMU10KX_PREFVER, SND_EMU10KX_MAXVER);
 MODULE_DEPEND(snd_emu10kx_pcm, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_emu10kx_pcm, SND_EMU10KX_PREFVER);

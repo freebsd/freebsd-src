@@ -1072,6 +1072,6 @@ static driver_t ess_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_solo, pci, ess_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_solo, pci, ess_driver, 0, 0);
 MODULE_DEPEND(snd_solo, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_solo, 1);
