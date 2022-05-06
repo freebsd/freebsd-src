@@ -68,6 +68,5 @@ DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
 DUMMY(readahead);
 DUMMY(restart_syscall);
-DUMMY(semtimedop);
 /* Linux 3.15: */
 DUMMY(kexec_file_load);
