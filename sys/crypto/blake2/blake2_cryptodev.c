@@ -253,9 +253,8 @@ static driver_t blake2_driver = {
 	blake2_methods,
 	sizeof(struct blake2_softc),
 };
-static devclass_t blake2_devclass;
 
-DRIVER_MODULE(blake2, nexus, blake2_driver, blake2_devclass, 0, 0);
+DRIVER_MODULE(blake2, nexus, blake2_driver, 0, 0);
 MODULE_VERSION(blake2, 1);
 MODULE_DEPEND(blake2, crypto, 1, 1, 1);
 

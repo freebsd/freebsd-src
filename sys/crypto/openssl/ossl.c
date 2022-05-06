@@ -437,8 +437,6 @@ static driver_t ossl_driver = {
 	sizeof(struct ossl_softc)
 };
 
-static devclass_t ossl_devclass;
-
-DRIVER_MODULE(ossl, nexus, ossl_driver, ossl_devclass, NULL, NULL);
+DRIVER_MODULE(ossl, nexus, ossl_driver, NULL, NULL);
 MODULE_VERSION(ossl, 1);
 MODULE_DEPEND(ossl, crypto, 1, 1, 1);
