@@ -216,9 +216,7 @@ static struct {
 	{ NULL, 0, NULL }
 };
 
-static devclass_t acpi_fujitsu_devclass;
-DRIVER_MODULE(acpi_fujitsu, acpi, acpi_fujitsu_driver,
-    acpi_fujitsu_devclass, 0, 0);
+DRIVER_MODULE(acpi_fujitsu, acpi, acpi_fujitsu_driver, 0, 0);
 MODULE_DEPEND(acpi_fujitsu, acpi, 1, 1, 1);
 MODULE_VERSION(acpi_fujitsu, 1);
 

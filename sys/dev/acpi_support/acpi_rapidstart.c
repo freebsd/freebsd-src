@@ -135,8 +135,5 @@ static driver_t	acpi_rapidstart_driver = {
 	sizeof(struct acpi_rapidstart_softc),
 };
 
-static devclass_t acpi_rapidstart_devclass;
-
-DRIVER_MODULE(acpi_rapidstart, acpi, acpi_rapidstart_driver, acpi_rapidstart_devclass,
-	      0, 0);
+DRIVER_MODULE(acpi_rapidstart, acpi, acpi_rapidstart_driver, 0, 0);
 MODULE_DEPEND(acpi_rapidstart, acpi, 1, 1, 1);
