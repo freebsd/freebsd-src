@@ -269,14 +269,7 @@ static struct if_shared_ctx ice_sctx = {
 	.isc_ntxd_default = {ICE_DEFAULT_DESC_COUNT},
 };
 
-/**
- * @var ice_devclass
- * @brief ice driver device class
- *
- * device class used to setup the ice driver module kobject class.
- */
-devclass_t ice_devclass;
-DRIVER_MODULE(ice, pci, ice_driver, ice_devclass, ice_module_event_handler, 0);
+DRIVER_MODULE(ice, pci, ice_driver, ice_module_event_handler, NULL);
 
 MODULE_VERSION(ice, 1);
 MODULE_DEPEND(ice, pci, 1, 1, 1);

@@ -155,8 +155,7 @@ static driver_t ixl_driver = {
 	"ixl", ixl_methods, sizeof(struct ixl_pf),
 };
 
-devclass_t ixl_devclass;
-DRIVER_MODULE(ixl, pci, ixl_driver, ixl_devclass, 0, 0);
+DRIVER_MODULE(ixl, pci, ixl_driver, 0, 0);
 IFLIB_PNP_INFO(pci, ixl, ixl_vendor_info_array);
 MODULE_VERSION(ixl, 3);
 
