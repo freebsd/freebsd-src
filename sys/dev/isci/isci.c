@@ -69,8 +69,6 @@ int isci_initialize(struct isci_softc *isci);
 void isci_allocate_dma_buffer_callback(void *arg, bus_dma_segment_t *seg,
     int nseg, int error);
 
-static devclass_t isci_devclass;
-
 static device_method_t isci_pci_methods[] = {
 	 /* Device interface */
 	 DEVMETHOD(device_probe,  isci_probe),
@@ -85,7 +83,7 @@ static driver_t isci_pci_driver = {
 	 sizeof(struct isci_softc),
 };
 
-DRIVER_MODULE(isci, pci, isci_pci_driver, isci_devclass, 0, 0);
+DRIVER_MODULE(isci, pci, isci_pci_driver, 0, 0);
 MODULE_DEPEND(isci, cam, 1, 1, 1);
 
 static struct _pcsid
