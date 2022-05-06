@@ -1214,6 +1214,7 @@ ata_module_event_handler(module_t mod, int what, void *arg)
 
     switch (what) {
     case MOD_LOAD:
+	ata_devclass = devclass_find("ata");
 	return 0;
 
     case MOD_UNLOAD:
@@ -1225,6 +1226,6 @@ ata_module_event_handler(module_t mod, int what, void *arg)
 }
 
 static moduledata_t ata_moduledata = { "ata", ata_module_event_handler, NULL };
-DECLARE_MODULE(ata, ata_moduledata, SI_SUB_CONFIGURE, SI_ORDER_SECOND);
+DECLARE_MODULE(ata, ata_moduledata, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(ata, 1);
 MODULE_DEPEND(ata, cam, 1, 1, 1);

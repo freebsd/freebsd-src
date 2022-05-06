@@ -121,7 +121,7 @@ static driver_t ata_kauai_driver = {
 	sizeof(struct ata_kauai_softc),
 };
 
-DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, NULL, NULL);
+DRIVER_MODULE(ata, pci, ata_kauai_driver, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 /*
