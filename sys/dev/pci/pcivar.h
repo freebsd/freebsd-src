@@ -127,6 +127,11 @@ struct pcicfg_msix {
     struct resource *msix_pba_res;	/* Resource containing PBA. */
 };
 
+struct pci_id_ofw_iommu {
+	uint32_t id;
+	uint32_t xref;
+};
+
 /* Interesting values for HyperTransport */
 struct pcicfg_ht {
     uint8_t	ht_slave;	/* Non-zero if device is an HT slave. */
