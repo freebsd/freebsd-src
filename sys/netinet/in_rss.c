@@ -210,7 +210,6 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	const struct ip *ip;
 	const struct tcphdr *th;
 	const struct udphdr *uh;
-	uint32_t flowid;
 	uint32_t flowtype;
 	uint8_t proto;
 	int iphlen;
@@ -261,7 +260,6 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	 * then we shouldn't just "trust" the 2-tuple hash.  We need
 	 * a 4-tuple hash.
 	 */
-	flowid = m->m_pkthdr.flowid;
 	flowtype = M_HASHTYPE_GET(m);
 
 	if (flowtype != M_HASHTYPE_NONE) {
