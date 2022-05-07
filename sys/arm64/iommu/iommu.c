@@ -112,7 +112,7 @@ iommu_domain_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 
 	error = IOMMU_MAP(iommu->dev, iodom, va, ma, size, prot);
 
-	return (0);
+	return (error);
 }
 
 static const struct iommu_domain_map_ops domain_map_ops = {
@@ -299,7 +299,9 @@ iommu_domain_unload(struct iommu_domain *iodom,
     struct iommu_map_entries_tailq *entries, bool cansleep)
 {
 	struct iommu_map_entry *entry, *entry1;
+#ifdef INVARIANTS
 	int error;
+#endif
 
 	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
 		KASSERT((entry->flags & IOMMU_MAP_ENTRY_MAP) != 0,
