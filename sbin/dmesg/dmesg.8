@@ -28,7 +28,7 @@
 .\"     @(#)dmesg.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2022
+.Dd May 7, 2022
 .Dt DMESG 8
 .Os
 .Sh NAME
@@ -73,8 +73,7 @@ which is the kernel image the system has booted from.
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
-variables can be used to control the behavior of the kernel's placing data into
-the message buffer:
+variables control how the kernel timestamps entries in the message buffer:
 The default value is shown next to each variable.
 .Bl -tag -width indent
 .It  kern.msgbuf_show_timestamp : No 0
@@ -85,6 +84,8 @@ If set to 2, then a microsecond granularity timestamp will be added.
 This may also be set as a boot
 .Xr loader 8
 tunable.
+The timestamps are placed at the start of most lines that the kernel generates.
+Some multi-line messages will have only the first line tagged with a timestamp.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/dmesg.boot" -compact
