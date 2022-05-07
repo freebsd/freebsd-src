@@ -299,9 +299,7 @@ iommu_domain_unload(struct iommu_domain *iodom,
     struct iommu_map_entries_tailq *entries, bool cansleep)
 {
 	struct iommu_map_entry *entry, *entry1;
-#ifdef INVARIANTS
-	int error;
-#endif
+	int error __unused;
 
 	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
 		KASSERT((entry->flags & IOMMU_MAP_ENTRY_MAP) != 0,
