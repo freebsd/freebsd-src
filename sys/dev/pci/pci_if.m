@@ -59,6 +59,7 @@ HEADER {
 	enum pci_id_type {
 	    PCI_ID_RID,
 	    PCI_ID_MSI,
+	    PCI_ID_OFW_IOMMU,
 	};
 
 	enum pci_feature {
