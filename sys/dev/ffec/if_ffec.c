@@ -1428,7 +1428,7 @@ ffec_detach(device_t dev)
 		bus_dmamap_destroy(sc->rxdesc_tag, sc->rxdesc_map);
 	}
 	if (sc->rxdesc_tag != NULL)
-	bus_dma_tag_destroy(sc->rxdesc_tag);
+		bus_dma_tag_destroy(sc->rxdesc_tag);
 
 	/* Clean up TX DMA resources. */
 	for (idx = 0; idx < TX_DESC_COUNT; ++idx) {
