@@ -98,13 +98,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/sysctl.h>
 #include <sys/tree.h>
 #include <sys/taskqueue.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-#if DEV_ACPI
+#ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 #endif
@@ -112,6 +114,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/iommu/iommu.h>
 #include <arm64/iommu/iommu_pmap.h>
+
+#include <machine/bus.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "iommu.h"
 #include "iommu_if.h"
@@ -144,6 +154,7 @@ static struct resource_spec smmu_spec[] = {
 	{ SYS_RES_IRQ, 0, RF_ACTIVE },
 	{ SYS_RES_IRQ, 1, RF_ACTIVE },
 	{ SYS_RES_IRQ, 2, RF_ACTIVE },
+	{ SYS_RES_IRQ, 3, RF_ACTIVE },
 	RESOURCE_SPEC_END
 };
 
@@ -1129,7 +1140,7 @@ smmu_enable_interrupts(struct smmu_softc *sc)
 	return (0);
 }
 
-#if DEV_ACPI
+#ifdef DEV_ACPI
 static void
 smmu_configure_intr(struct smmu_softc *sc, struct resource *res)
 {
@@ -1155,14 +1166,15 @@ smmu_setup_interrupts(struct smmu_softc *sc)
 
 	dev = sc->dev;
 
-#if DEV_ACPI
+#ifdef DEV_ACPI
 	/*
 	 * Configure SMMU interrupts as EDGE triggered manually
 	 * as ACPI tables carries no information for that.
 	 */
 	smmu_configure_intr(sc, sc->res[1]);
-	smmu_configure_intr(sc, sc->res[2]);
+	/* PRIQ is not in use. */
 	smmu_configure_intr(sc, sc->res[3]);
+	smmu_configure_intr(sc, sc->res[4]);
 #endif
 
 	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC,
@@ -1172,7 +1184,7 @@ smmu_setup_interrupts(struct smmu_softc *sc)
 		return (ENXIO);
 	}
 
-	error = bus_setup_intr(dev, sc->res[3], INTR_TYPE_MISC,
+	error = bus_setup_intr(dev, sc->res[4], INTR_TYPE_MISC,
 	    smmu_gerr_intr, NULL, sc, &sc->intr_cookie[2]);
 	if (error) {
 		device_printf(dev, "Couldn't setup Gerr interrupt handler\n");
@@ -1761,18 +1773,28 @@ smmu_ctx_alloc(device_t dev, struct iommu_domain *iodom, device_t child,
 	struct smmu_domain *domain;
 	struct smmu_softc *sc;
 	struct smmu_ctx *ctx;
+#ifdef DEV_ACPI
 	uint16_t rid;
-	u_int xref, sid;
+	u_int xref;
 	int seg;
+#else
+	struct pci_id_ofw_iommu pi;
+#endif
+	u_int sid;
 	int err;
 
 	sc = device_get_softc(dev);
 	domain = (struct smmu_domain *)iodom;
 
+#ifdef DEV_ACPI
 	seg = pci_get_domain(child);
 	rid = pci_get_rid(child);
 	err = acpi_iort_map_pci_smmuv3(seg, rid, &xref, &sid);
-	if (err)
+#else
+	err = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
+	sid = pi.id;
+#endif
+	if (err != 0)
 		return (NULL);
 
 	if (sc->features & SMMU_FEATURE_2_LVL_STREAM_TABLE) {
@@ -1852,7 +1874,7 @@ smmu_ctx_lookup_by_sid(device_t dev, u_int sid)
 static struct iommu_ctx *
 smmu_ctx_lookup(device_t dev, device_t child)
 {
-	struct iommu_unit *iommu;
+	struct iommu_unit *iommu __unused;
 	struct smmu_softc *sc;
 	struct smmu_domain *domain;
 	struct smmu_unit *unit;
@@ -1883,15 +1905,24 @@ static int
 smmu_find(device_t dev, device_t child)
 {
 	struct smmu_softc *sc;
-	u_int xref, sid;
-	uint16_t rid;
+	u_int xref;
 	int error;
+#ifdef DEV_ACPI
+	uint16_t rid;
 	int seg;
+	u_int sid;
+#else
+	phandle_t node;
+	uint64_t base, size;
+	struct pci_id_ofw_iommu pi;
+#endif
 
 	sc = device_get_softc(dev);
 
+#ifdef DEV_ACPI
 	rid = pci_get_rid(child);
 	seg = pci_get_domain(child);
+#endif
 
 	/*
 	 * Find an xref of an IOMMU controller that serves traffic for dev.
@@ -1903,8 +1934,16 @@ smmu_find(device_t dev, device_t child)
 		return (ENOENT);
 	}
 #else
-	/* TODO: add FDT support. */
-	return (ENXIO);
+	error = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
+	if (error) {
+		/* Could not find reference to an SMMU device. */
+		return (ENOENT);
+	}
+
+	/* Our xref is memory base address. */
+	node = OF_node_from_xref(pi.xref);
+	fdt_regsize(node, &base, &size);
+	xref = base;
 #endif
 
 	/* Check if xref is ours. */

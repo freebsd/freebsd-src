@@ -106,7 +106,8 @@ arm64/iommu/iommu.c				optional iommu
 arm64/iommu/iommu_if.m				optional iommu
 arm64/iommu/iommu_pmap.c			optional iommu
 arm64/iommu/smmu.c				optional iommu
-arm64/iommu/smmu_acpi.c				optional acpi iommu
+arm64/iommu/smmu_acpi.c				optional iommu acpi
+arm64/iommu/smmu_fdt.c				optional iommu fdt
 arm64/iommu/smmu_quirks.c			optional iommu
 dev/iommu/busdma_iommu.c			optional iommu
 dev/iommu/iommu_gas.c				optional iommu

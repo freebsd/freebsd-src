@@ -136,7 +136,7 @@ struct smmu_strtab {
 
 struct smmu_softc {
 	device_t		dev;
-	struct resource		*res[4];
+	struct resource		*res[5];
 	void			*intr_cookie[3];
 	uint32_t		ias; /* Intermediate Physical Address */
 	uint32_t		oas; /* Physical Address */

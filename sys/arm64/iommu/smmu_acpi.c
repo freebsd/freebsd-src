@@ -146,8 +146,10 @@ smmu_acpi_identify(driver_t *driver, device_t parent)
 		BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
 		    iort_data.smmu[i]->EventGsiv, 1);
 		BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 1,
-		    iort_data.smmu[i]->SyncGsiv, 1);
+		    iort_data.smmu[i]->PriGsiv, 1);
 		BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 2,
+		    iort_data.smmu[i]->SyncGsiv, 1);
+		BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 3,
 		    iort_data.smmu[i]->GerrGsiv, 1);
 		BUS_SET_RESOURCE(parent, dev, SYS_RES_MEMORY, 0,
 		    iort_data.smmu[i]->BaseAddress, MEMORY_RESOURCE_SIZE);
