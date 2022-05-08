@@ -117,6 +117,8 @@ int linux_to_native_timespec(struct timespec *,
 				     struct l_timespec *);
 int linux_put_timespec(struct timespec *,
 				     struct l_timespec *);
+int linux_get_timespec(struct timespec *,
+				     const struct l_timespec *);
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 int native_to_linux_timespec64(struct l_timespec64 *,
 				     struct timespec *);
@@ -124,6 +126,8 @@ int linux_to_native_timespec64(struct timespec *,
 				     struct l_timespec64 *);
 int linux_put_timespec64(struct timespec *,
 				     struct l_timespec64 *);
+int linux_get_timespec64(struct timespec *,
+				    const  struct l_timespec64 *);
 #endif
 int linux_to_native_clockid(clockid_t *, clockid_t);
 int native_to_linux_itimerspec(struct l_itimerspec *,
