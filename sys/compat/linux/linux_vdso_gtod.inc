@@ -37,25 +37,25 @@ fls(int mask)
 
 #ifdef _LP64
 static int
-ffsl(long mask)
+flsl(long mask)
 {
 	int bit;
 
 	if (mask == 0)
 		return (0);
-	for (bit = 1; !(mask & 1); bit++)
+	for (bit = 1; mask != 1; bit++)
 		mask = (unsigned long)mask >> 1;
 	return (bit);
 }
 #else
 static int
-ffsll(long long mask)
+flsll(long long mask)
 {
 	int bit;
 
 	if (mask == 0)
 		return (0);
-	for (bit = 1; !(mask & 1); bit++)
+	for (bit = 1; mask != 1; bit++)
 		mask = (unsigned long long)mask >> 1;
 	return (bit);
 }
@@ -186,9 +186,9 @@ freebsd_binuptime(struct bintime *bt, struct vdso_timekeep *tk, bool abs)
 			return (error);
 		scale = th->th_scale;
 #ifdef _LP64
-		scale_bits = ffsl(scale);
+		scale_bits = flsl(scale);
 #else
-		scale_bits = ffsll(scale);
+		scale_bits = flsll(scale);
 #endif
 		if (__predict_false(scale_bits + fls(delta) > 63)) {
 			x = (scale >> 32) * delta;
