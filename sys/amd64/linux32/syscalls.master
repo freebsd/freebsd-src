@@ -2424,7 +2424,7 @@
 		int linux_ppoll_time64(
 		    struct pollfd *fds,
 		    uint32_t nfds,
-		    struct l_timespec *tsp,
+		    struct l_timespec64 *tsp,
 		    l_sigset_t *sset,
 		    l_size_t ssize
 		);
