@@ -160,6 +160,7 @@ LINUX_VDSO_SYM_INTPTR(__kernel_sigreturn);
 LINUX_VDSO_SYM_INTPTR(__kernel_rt_sigreturn);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
 LINUX_VDSO_SYM_INTPTR(kern_tsc_selector);
+LINUX_VDSO_SYM_INTPTR(kern_cpu_selector);
 
 /*
  * If FreeBSD & Linux have a difference of opinion about what a trap
@@ -942,6 +943,12 @@ linux_exec_sysvec_init(void *param)
 	*ktsc_selector = linux_vdso_tsc_selector_idx();
 	if (bootverbose)
 		printf("Linux i386 vDSO tsc_selector: %u\n", *ktsc_selector);
+
+	tkoff = kern_cpu_selector - linux_vdso_base;
+	ktsc_selector = (l_uintptr_t *)(linux_vdso_mapping + tkoff);
+	*ktsc_selector = linux_vdso_cpu_selector_idx();
+	if (bootverbose)
+		printf("Linux i386 vDSO cpu_selector: %u\n", *ktsc_selector);
 }
 SYSINIT(elf_linux_exec_sysvec_init, SI_SUB_EXEC + 1, SI_ORDER_ANY,
     linux_exec_sysvec_init, &elf_linux_sysvec);

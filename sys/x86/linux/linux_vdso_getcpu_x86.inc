@@ -1,7 +1,8 @@
 /*-
- * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2016, 2017, 2019 The FreeBSD Foundation
- * Copyright (c) 2021 Dmitry Chagin <dchagin@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2021 The FreeBSD Foundation
+ * Copyright (c) 2022 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
@@ -28,30 +29,40 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-#include <x86/cputypes.h>
-#include <x86/x86_var.h>
-#include <x86/specialreg.h>
-
 #include <x86/linux/linux_x86.h>
 
-int
-linux_vdso_tsc_selector_idx()
+static int
+__vdso_getcpu_rdpid(void)
 {
-	bool amd_cpu;
+	register_t res;
 
-	if (cpu_feature == 0)
-		return (2);	/* should not happen due to RDTSC */
+	__asm("rdpid	%0" : "=r" (res));
+	return ((int)res);
+}
 
-	amd_cpu = (cpu_vendor_id == CPU_VENDOR_AMD ||
-	    cpu_vendor_id == CPU_VENDOR_HYGON);
+static int
+__vdso_getcpu_rdtscp(void)
+{
+	int res;
 
-	if ((amd_feature & AMDID_RDTSCP) != 0)
-		return (3);
-	if ((cpu_feature & CPUID_SSE2) == 0)
-		return (2);
-	return (amd_cpu ? 1 : 0);
+	__asm("rdtscp" : "=c" (res) : : "eax", "edx");
+	return (res);
+}
+
+static int
+__vdso_getcpu_try(void)
+{
+	int res;
+
+	switch (kern_cpu_selector) {
+	case LINUX_VDSO_CPU_RDTSCP:
+		res = __vdso_getcpu_rdtscp();
+		break;
+	case LINUX_VDSO_CPU_RDPID:
+		res = __vdso_getcpu_rdpid();
+		break;
+	default:
+		res = -1;
+	}
+	return (res);
 }

@@ -20,7 +20,7 @@ SRCS=	linux_fork.c linux${SFX}_dummy_machdep.c linux_file.c linux_event.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	linux_dummy_x86.c linux_vdso_tsc_selector_x86.c
+SRCS+=	linux_dummy_x86.c linux_vdso_selector_x86.c
 VDSODEPS=linux_vdso_gettc_x86.inc
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
