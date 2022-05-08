@@ -49,8 +49,10 @@ __FBSDID("$FreeBSD$");
 /* The kernel fixup this at vDSO install */
 uintptr_t *kern_timekeep_base = NULL;
 uint32_t kern_tsc_selector = 0;
+uint32_t kern_cpu_selector = 0;
 
 #include <x86/linux/linux_vdso_gettc_x86.inc>
+#include <x86/linux/linux_vdso_getcpu_x86.inc>
 
 static int
 write(int fd, const void *buf, size_t size)
@@ -122,6 +124,21 @@ __vdso_clock_getres_fallback(clockid_t clock_id, struct l_timespec *ts)
 	    "int $0x80"
 	    : "=a"(res)
 	    : "a"(LINUX_SYS_linux_clock_getres), "b"(clock_id), "c"(ts)
+	    : "cc", "memory"
+	);
+	return (res);
+}
+
+static int
+__vdso_getcpu_fallback(uint32_t *cpu, uint32_t *node, void *cache)
+{
+	int res;
+
+	__asm__ __volatile__
+	(
+	    "int $0x80"
+	    : "=a"(res)
+	    : "a"(LINUX_SYS_linux_getcpu), "D"(cpu), "S"(node), "d"(cache)
 	    : "cc", "memory"
 	);
 	return (res);

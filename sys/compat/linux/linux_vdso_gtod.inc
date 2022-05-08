@@ -352,12 +352,19 @@ int clock_gettime64(clockid_t clock_id, struct l_timespec64 *lts)
     __attribute__((weak, alias("__vdso_clock_gettime64")));
 #endif
 
-#if defined(__amd64__) && !defined(COMPAT_LINUX32)
+#if defined(__i386__) || defined(__amd64__)
 int
 __vdso_getcpu(uint32_t *cpu, uint32_t *node, void *cache)
 {
+	int ret;
 
-	return (__vdso_getcpu_fallback(cpu, node, cache));
+	if (node != NULL)
+		return (__vdso_getcpu_fallback(cpu, node, cache));
+	ret = __vdso_getcpu_try();
+	if (ret < 0)
+		return (__vdso_getcpu_fallback(cpu, node, cache));
+	*cpu = ret;
+	return (0);
 }
 #endif
 
