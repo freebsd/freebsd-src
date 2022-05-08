@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2020
+.Dd May 24, 2022
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -1333,6 +1333,74 @@ which includes updating
 and
 .Va if_data.ifi_hwassist
 appropriately.
+.Pp
+.It Dv SIOCGIFCAPNV
+.Xr NV 9
+version of the
+.Dv SIOCGIFCAP
+ioctl.
+Caller must provide a pointer to
+.Vt struct ifreq_cap_nv
+as
+.Fa data ,
+where the member
+.Dv buffer
+points to some buffer containing
+.Dv buf_length
+bytes.
+The serialized nvlist with description of the device capabilities
+is written to the buffer.
+If buffer is too short, the structure is updated with
+.Dv buffer
+member set to
+.Dv NULL ,
+.Dv length
+set to the minimal required length, and error
+.Er EFBIG
+is returned.
+.Pp
+Elements of the returned nvlist for simple capabilities are boolean,
+identified by names.
+Presence of the boolean element means that corresponding capability is
+supported by the interface.
+Element's value describes the current configured state:
+.Dv true
+means that the capability is enabled, and
+.Dv false
+that it is disabled.
+.Pp
+Driver indicates support for both
+.Dv SIOCGIFCAPNV
+and
+.Dv SIOCSIFCAPNV
+requests by setting
+.Dv IFCAP_NV
+non-modifiable capability bit in
+.Dv if_capabilities .
+.Pp
+.It Dv SIOCSIFCAPNV
+.Xr NV 9
+version of the
+.Dv SIOCSIFCAP
+ioctl.
+Caller must provide the pointer to
+.Vt struct ifreq_cap_nv
+as
+.Fa data ,
+where the member
+.Dv buffer
+points to serialized nvlist of
+.Dv length
+bytes.
+Each element of nvlist describes a requested update of one capability,
+identified by the element name.
+For simple capabilities, the element must be boolean.
+Its
+.Dv true
+value means that the caller asks to enable the capability, and
+.Dv false
+value to disable.
+Only capabilities listed in the nvlist are affected by the call.
 .Pp
 .It Dv SIOCSIFFIB
 Sets interface FIB.
