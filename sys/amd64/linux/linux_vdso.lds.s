@@ -68,6 +68,7 @@ VERSION
 		linux_platform;
 		kern_timekeep_base;
 		kern_tsc_selector;
+		kern_cpu_selector;
 	local: *;
 	};
 }

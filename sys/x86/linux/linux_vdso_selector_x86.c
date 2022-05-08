@@ -1,7 +1,10 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
+ * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2016, 2017, 2019, 2021 The FreeBSD Foundation
  * Copyright (c) 2021 Dmitry Chagin <dchagin@FreeBSD.org>
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,14 +28,54 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _X86_INCLUDE_LINUX_LINUX_X86_H_
-#define _X86_INCLUDE_LINUX_LINUX_X86_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	LINUX_VDSO_CPU_DEFAULT		0
-#define	LINUX_VDSO_CPU_RDPID		1
-#define	LINUX_VDSO_CPU_RDTSCP		2
+#include <sys/param.h>
+#include <x86/cputypes.h>
+#include <x86/x86_var.h>
+#include <x86/specialreg.h>
 
-int	linux_vdso_tsc_selector_idx(void);
-int	linux_vdso_cpu_selector_idx(void);
+#include <machine/cpufunc.h>
 
-#endif /* _X86_INCLUDE_LINUX_LINUX_X86_H_ */
+#include <x86/linux/linux_x86.h>
+
+int
+linux_vdso_tsc_selector_idx()
+{
+	bool amd_cpu;
+
+	if (cpu_feature == 0)
+		return (2);	/* should not happen due to RDTSC */
+
+	amd_cpu = (cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON);
+
+	if ((amd_feature & AMDID_RDTSCP) != 0)
+		return (3);
+	if ((cpu_feature & CPUID_SSE2) == 0)
+		return (2);
+	return (amd_cpu ? 1 : 0);
+}
+
+int
+linux_vdso_cpu_selector_idx()
+{
+	u_int amd_feature, cpu_exthigh, p[4];
+
+	if ((cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
+		return (LINUX_VDSO_CPU_RDPID);
+
+	amd_feature = 0;
+	if (cpu_feature != 0) {
+		do_cpuid(0x80000000, p);
+		cpu_exthigh = p[0];
+		if (cpu_exthigh >= 0x80000001) {
+			do_cpuid(0x80000001, p);
+			amd_feature = p[3];
+		}
+	}
+
+	return ((amd_feature & AMDID_RDTSCP) == 0 ?
+	    LINUX_VDSO_CPU_DEFAULT : LINUX_VDSO_CPU_RDTSCP);
+}
