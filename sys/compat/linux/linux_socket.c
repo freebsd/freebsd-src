@@ -1786,15 +1786,11 @@ linux_recvmmsg_common(struct thread *td, l_int s, struct l_mmsghdr *msg,
 int
 linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 {
-	struct l_timespec lts;
 	struct timespec ts, tts, *ptts;
 	int error;
 
 	if (args->timeout) {
-		error = copyin(args->timeout, &lts, sizeof(struct l_timespec));
-		if (error != 0)
-			return (error);
-		error = linux_to_native_timespec(&ts, &lts);
+		error = linux_get_timespec(&ts, args->timeout);
 		if (error != 0)
 			return (error);
 		getnanotime(&tts);
@@ -1811,15 +1807,11 @@ linux_recvmmsg(struct thread *td, struct linux_recvmmsg_args *args)
 int
 linux_recvmmsg_time64(struct thread *td, struct linux_recvmmsg_time64_args *args)
 {
-	struct l_timespec64 lts;
 	struct timespec ts, tts, *ptts;
 	int error;
 
 	if (args->timeout) {
-		error = copyin(args->timeout, &lts, sizeof(struct l_timespec));
-		if (error != 0)
-			return (error);
-		error = linux_to_native_timespec64(&ts, &lts);
+		error = linux_get_timespec64(&ts, args->timeout);
 		if (error != 0)
 			return (error);
 		getnanotime(&tts);

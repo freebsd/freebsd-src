@@ -816,7 +816,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		.val3 = args->val3,
 		.val3_compare = true,
 	};
-	struct l_timespec lts;
 	int error;
 
 	switch (args->op & LINUX_FUTEX_CMD_MASK) {
@@ -825,10 +824,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	case LINUX_FUTEX_LOCK_PI:
 	case LINUX_FUTEX_LOCK_PI2:
 		if (args->timeout != NULL) {
-			error = copyin(args->timeout, &lts, sizeof(lts));
-			if (error != 0)
-				return (error);
-			error = linux_to_native_timespec(&fargs.kts, &lts);
+			error = linux_get_timespec(&fargs.kts, args->timeout);
 			if (error != 0)
 				return (error);
 			fargs.ts = &fargs.kts;
@@ -854,7 +850,6 @@ linux_sys_futex_time64(struct thread *td,
 		.val3 = args->val3,
 		.val3_compare = true,
 	};
-	struct l_timespec64 lts;
 	int error;
 
 	switch (args->op & LINUX_FUTEX_CMD_MASK) {
@@ -863,10 +858,7 @@ linux_sys_futex_time64(struct thread *td,
 	case LINUX_FUTEX_LOCK_PI:
 	case LINUX_FUTEX_LOCK_PI2:
 		if (args->timeout != NULL) {
-			error = copyin(args->timeout, &lts, sizeof(lts));
-			if (error != 0)
-				return (error);
-			error = linux_to_native_timespec64(&fargs.kts, &lts);
+			error = linux_get_timespec64(&fargs.kts, args->timeout);
 			if (error != 0)
 				return (error);
 			fargs.ts = &fargs.kts;

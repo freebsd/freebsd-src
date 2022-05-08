@@ -436,13 +436,10 @@ linux_rt_sigtimedwait(struct thread *td,
 	struct linux_rt_sigtimedwait_args *args)
 {
 	struct timespec ts, *tsa;
-	struct l_timespec lts;
 	int error;
 
 	if (args->timeout) {
-		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
-			return (error);
-		error = linux_to_native_timespec(&ts, &lts);
+		error = linux_get_timespec(&ts, args->timeout);
 		if (error != 0)
 			return (error);
 		tsa = &ts;
@@ -490,13 +487,10 @@ linux_rt_sigtimedwait_time64(struct thread *td,
 	struct linux_rt_sigtimedwait_time64_args *args)
 {
 	struct timespec ts, *tsa;
-	struct l_timespec64 lts;
 	int error;
 
 	if (args->timeout) {
-		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
-			return (error);
-		error = linux_to_native_timespec64(&ts, &lts);
+		error = linux_get_timespec64(&ts, args->timeout);
 		if (error != 0)
 			return (error);
 		tsa = &ts;
