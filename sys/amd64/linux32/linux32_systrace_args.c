@@ -3068,7 +3068,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_ppoll_time64_args *p = params;
 		uarg[a++] = (intptr_t)p->fds; /* struct pollfd * */
 		uarg[a++] = p->nfds; /* uint32_t */
-		uarg[a++] = (intptr_t)p->tsp; /* struct l_timespec * */
+		uarg[a++] = (intptr_t)p->tsp; /* struct l_timespec64 * */
 		uarg[a++] = (intptr_t)p->sset; /* l_sigset_t * */
 		iarg[a++] = p->ssize; /* l_size_t */
 		*n_args = 5;
@@ -8274,7 +8274,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "uint32_t";
 			break;
 		case 2:
-			p = "userland struct l_timespec *";
+			p = "userland struct l_timespec64 *";
 			break;
 		case 3:
 			p = "userland l_sigset_t *";
