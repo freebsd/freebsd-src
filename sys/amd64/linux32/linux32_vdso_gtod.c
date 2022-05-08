@@ -38,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #undef	_KERNEL
 #include <stdbool.h>
 
-#include <machine/atomic.h>
-#include <machine/stdarg.h>
+#include <i386/include/atomic.h>
+#include <i386/include/cpufunc.h>
+#include <i386/include/stdarg.h>
 
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_syscall.h>
