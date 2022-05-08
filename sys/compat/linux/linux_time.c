@@ -177,6 +177,11 @@ int
 linux_to_native_timespec64(struct timespec *ntp, struct l_timespec64 *ltp64)
 {
 
+#if defined(__i386__)
+	/* i386 time_t is still 32-bit */
+	if (ltp64->tv_sec > INT_MAX || ltp64->tv_sec < INT_MIN)
+		return (EOVERFLOW);
+#endif
 	/* Zero out the padding in compat mode. */
 	ntp->tv_nsec = ltp64->tv_nsec & 0xFFFFFFFFUL;
 	ntp->tv_sec = ltp64->tv_sec;
