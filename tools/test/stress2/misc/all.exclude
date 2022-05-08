@@ -28,6 +28,7 @@ lockf5.sh		Spinning threads seen						20160718
 ifconfig.sh		Bug 253824							20210322
 ifconfig2.sh		https://people.freebsd.org/~pho/stress/log/log0051.txt		20210210
 maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
+mdconfig5.sh		https://people.freebsd.org/~pho/stress/log/log0159.txt		20220508
 memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
 memguard2.sh		Waiting for fix commit
 memguard3.sh		Waiting for fix commit
