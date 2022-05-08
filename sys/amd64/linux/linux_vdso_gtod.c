@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 
 #include <machine/atomic.h>
+#include <machine/cpufunc.h>
 #include <machine/stdarg.h>
 
 #include <amd64/linux/linux.h>

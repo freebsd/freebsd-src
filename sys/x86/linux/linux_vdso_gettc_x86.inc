@@ -30,19 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-
-#if defined(__i386__) || defined(COMPAT_LINUX32)
-#include <i386/include/atomic.h>
-#include <i386/include/cpufunc.h>
-#else
-#include <amd64/include/atomic.h>
-#include <amd64/include/cpufunc.h>
-#endif
-
 static inline u_int
 rdtsc_low(const struct vdso_timehands *th)
 {
