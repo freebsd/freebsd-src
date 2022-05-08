@@ -177,10 +177,12 @@ int
 linux_to_native_timespec64(struct timespec *ntp, struct l_timespec64 *ltp64)
 {
 
-	if (!timespecvalid_interval(ltp64))
-		return (EINVAL);
+	/* Zero out the padding in compat mode. */
+	ntp->tv_nsec = ltp64->tv_nsec & 0xFFFFFFFFUL;
 	ntp->tv_sec = ltp64->tv_sec;
-	ntp->tv_nsec = ltp64->tv_nsec;
+
+	if (!timespecvalid_interval(ntp))
+		return (EINVAL);
 
 	return (0);
 }

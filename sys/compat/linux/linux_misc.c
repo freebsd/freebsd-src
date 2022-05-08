@@ -910,6 +910,9 @@ static int
 linux_utimensat_lts64_to_ts(struct l_timespec64 *l_times, struct timespec *times)
 {
 
+	/* Zero out the padding in compat mode. */
+	l_times->tv_nsec &= 0xFFFFFFFFUL;
+
 	if (l_times->tv_nsec != LINUX_UTIME_OMIT &&
 	    l_times->tv_nsec != LINUX_UTIME_NOW &&
 	    (l_times->tv_nsec < 0 || l_times->tv_nsec > 999999999))
