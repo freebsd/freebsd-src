@@ -372,6 +372,4 @@ static driver_t pst_driver = {
     sizeof(struct pst_softc),
 };
 
-static devclass_t pst_devclass;
-
-DRIVER_MODULE(pst, pstpci, pst_driver, pst_devclass, 0, 0);
+DRIVER_MODULE(pst, pstpci, pst_driver, 0, 0);
