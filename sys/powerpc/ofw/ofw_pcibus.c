@@ -100,12 +100,9 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t pci_devclass;
-
 DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
     sizeof(struct pci_softc), pci_driver);
-EARLY_DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, 0, 0, BUS_PASS_BUS);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
 
