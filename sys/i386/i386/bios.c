@@ -721,7 +721,5 @@ static driver_t pnpbios_driver = {
 	1,			/* no softc */
 };
 
-static devclass_t pnpbios_devclass;
-
-DRIVER_MODULE(pnpbios, isa, pnpbios_driver, pnpbios_devclass, 0, 0);
+DRIVER_MODULE(pnpbios, isa, pnpbios_driver, 0, 0);
 #endif /* DEV_ISA */

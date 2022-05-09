@@ -1347,10 +1347,8 @@ static driver_t npxisa_driver = {
 	1,			/* no softc */
 };
 
-static devclass_t npxisa_devclass;
-
-DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
-DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
+DRIVER_MODULE(npxisa, isa, npxisa_driver, 0, 0);
+DRIVER_MODULE(npxisa, acpi, npxisa_driver, 0, 0);
 ISA_PNP_INFO(npxisa_ids);
 #endif /* DEV_ISA */
 
