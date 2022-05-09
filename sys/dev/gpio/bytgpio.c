@@ -674,7 +674,6 @@ static driver_t bytgpio_driver = {
 	sizeof(struct bytgpio_softc),
 };
 
-static devclass_t bytgpio_devclass;
-DRIVER_MODULE(bytgpio, acpi, bytgpio_driver, bytgpio_devclass, 0, 0);
+DRIVER_MODULE(bytgpio, acpi, bytgpio_driver, 0, 0);
 MODULE_DEPEND(bytgpio, acpi, 1, 1, 1);
 MODULE_DEPEND(bytgpio, gpiobus, 1, 1, 1);

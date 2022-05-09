@@ -210,8 +210,6 @@ gpioled_detach(device_t dev)
 	return (0);
 }
 
-static devclass_t gpioled_devclass;
-
 static device_method_t gpioled_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gpioled_probe),
@@ -227,6 +225,6 @@ static driver_t gpioled_driver = {
 	sizeof(struct gpioleds_softc),
 };
 
-DRIVER_MODULE(gpioled, ofwbus, gpioled_driver, gpioled_devclass, 0, 0);
-DRIVER_MODULE(gpioled, simplebus, gpioled_driver, gpioled_devclass, 0, 0);
+DRIVER_MODULE(gpioled, ofwbus, gpioled_driver, 0, 0);
+DRIVER_MODULE(gpioled, simplebus, gpioled_driver, 0, 0);
 MODULE_DEPEND(gpioled, gpiobus, 1, 1, 1);

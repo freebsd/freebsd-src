@@ -405,13 +405,11 @@ static device_method_t gpioths_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t gpioths_devclass;
-
 DEFINE_CLASS_0(gpioths, gpioths_driver, gpioths_methods, sizeof(struct gpioths_softc));
 
 #ifdef FDT
-DRIVER_MODULE(gpioths, simplebus, gpioths_driver, gpioths_devclass, 0, 0);
+DRIVER_MODULE(gpioths, simplebus, gpioths_driver, 0, 0);
 #endif
 
-DRIVER_MODULE(gpioths, gpiobus, gpioths_driver, gpioths_devclass, 0, 0);
+DRIVER_MODULE(gpioths, gpiobus, gpioths_driver, 0, 0);
 MODULE_DEPEND(gpioths, gpiobus, 1, 1, 1);

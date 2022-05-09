@@ -362,13 +362,11 @@ static device_method_t rcc_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rcc_gpio_devclass;
-
 static driver_t rcc_gpio_driver = {
 	"gpio",
 	rcc_gpio_methods,
 	sizeof(struct rcc_gpio_softc),
 };
 
-DRIVER_MODULE(rcc_gpio, isa, rcc_gpio_driver, rcc_gpio_devclass, 0, 0);
+DRIVER_MODULE(rcc_gpio, isa, rcc_gpio_driver, 0, 0);
 MODULE_DEPEND(rcc_gpio, gpiobus, 1, 1, 1);

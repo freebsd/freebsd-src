@@ -781,9 +781,7 @@ static driver_t nct_driver = {
 	sizeof(struct nct_softc)
 };
 
-static devclass_t nct_devclass;
-
-DRIVER_MODULE(nctgpio, superio, nct_driver, nct_devclass, NULL, NULL);
+DRIVER_MODULE(nctgpio, superio, nct_driver, NULL, NULL);
 MODULE_DEPEND(nctgpio, gpiobus, 1, 1, 1);
 MODULE_DEPEND(nctgpio, superio, 1, 1, 1);
 MODULE_VERSION(nctgpio, 1);

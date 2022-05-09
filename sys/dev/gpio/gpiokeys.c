@@ -1038,8 +1038,6 @@ gpiokeys_driver_load(module_t mod, int what, void *arg)
 	return (0);
 }
 
-static devclass_t gpiokeys_devclass;
-
 static device_method_t gpiokeys_methods[] = {
 	DEVMETHOD(device_probe,		gpiokeys_probe),
 	DEVMETHOD(device_attach,	gpiokeys_attach),
@@ -1054,5 +1052,5 @@ static driver_t gpiokeys_driver = {
 	sizeof(struct gpiokeys_softc),
 };
 
-DRIVER_MODULE(gpiokeys, simplebus, gpiokeys_driver, gpiokeys_devclass, gpiokeys_driver_load, 0);
+DRIVER_MODULE(gpiokeys, simplebus, gpiokeys_driver, gpiokeys_driver_load, NULL);
 MODULE_VERSION(gpiokeys, 1);
