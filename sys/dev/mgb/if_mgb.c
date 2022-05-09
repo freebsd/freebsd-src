@@ -206,8 +206,7 @@ static driver_t mgb_driver = {
 	"mgb", mgb_methods, sizeof(struct mgb_softc)
 };
 
-static devclass_t mgb_devclass;
-DRIVER_MODULE(mgb, pci, mgb_driver, mgb_devclass, NULL, NULL);
+DRIVER_MODULE(mgb, pci, mgb_driver, NULL, NULL);
 IFLIB_PNP_INFO(pci, mgb, mgb_vendor_info_array);
 MODULE_VERSION(mgb, 1);
 
