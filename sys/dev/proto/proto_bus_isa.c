@@ -120,5 +120,5 @@ proto_isa_attach(device_t dev)
 	return (proto_attach(dev));
 }
 
-DRIVER_MODULE(proto, acpi, proto_isa_driver, proto_devclass, NULL, NULL);
-DRIVER_MODULE(proto, isa, proto_isa_driver, proto_devclass, NULL, NULL);
+DRIVER_MODULE(proto, acpi, proto_isa_driver, NULL, NULL);
+DRIVER_MODULE(proto, isa, proto_isa_driver, NULL, NULL);

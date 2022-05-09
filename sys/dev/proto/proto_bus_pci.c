@@ -115,4 +115,4 @@ proto_pci_attach(device_t dev)
 	return (proto_attach(dev));
 }
 
-DRIVER_MODULE(proto, pci, proto_pci_driver, proto_devclass, NULL, NULL);
+DRIVER_MODULE(proto, pci, proto_pci_driver, NULL, NULL);
