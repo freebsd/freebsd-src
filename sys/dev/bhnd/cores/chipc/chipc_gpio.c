@@ -834,11 +834,9 @@ static device_method_t chipc_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t gpio_devclass;
-
 DEFINE_CLASS_0(gpio, chipc_gpio_driver, chipc_gpio_methods, sizeof(struct chipc_gpio_softc));
-EARLY_DRIVER_MODULE(chipc_gpio, bhnd_chipc, chipc_gpio_driver,
-    gpio_devclass, NULL, NULL, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(chipc_gpio, bhnd_chipc, chipc_gpio_driver, NULL, NULL,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_DEPEND(chipc_gpio, bhnd, 1, 1, 1);
 MODULE_DEPEND(chipc_gpio, gpiobus, 1, 1, 1);

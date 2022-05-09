@@ -43,7 +43,6 @@ struct bhnd_pmu_query;
 struct bhnd_pmu_io;
 
 DECLARE_CLASS(bhnd_pmu_driver);
-extern devclass_t bhnd_pmu_devclass;
 
 int		bhnd_pmu_probe(device_t dev);
 int		bhnd_pmu_attach(device_t dev, struct bhnd_resource *res);

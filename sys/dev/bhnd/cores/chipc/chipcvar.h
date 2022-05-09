@@ -46,7 +46,6 @@
 #include "chipc.h"
 
 DECLARE_CLASS(bhnd_chipc_driver);
-extern devclass_t bhnd_chipc_devclass;
 
 struct chipc_region;
 

@@ -54,10 +54,6 @@
 
 #include "nvram/bhnd_nvram.h"
 
-extern devclass_t bhnd_devclass;
-extern devclass_t bhnd_hostb_devclass;
-extern devclass_t bhnd_nvram_devclass;
-
 #define	BHND_CHIPID_MAX_NAMELEN	32	/**< maximum buffer required for a
 					     bhnd_format_chip_id() */
 
