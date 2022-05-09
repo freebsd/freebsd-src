@@ -681,8 +681,6 @@ static driver_t wb_driver = {
 	sizeof(struct wb_softc)
 };
 
-static devclass_t wb_devclass;
-
-DRIVER_MODULE(wb, superio, wb_driver, wb_devclass, NULL, NULL);
+DRIVER_MODULE(wb, superio, wb_driver, NULL, NULL);
 MODULE_DEPEND(wb, superio, 1, 1, 1);
 MODULE_VERSION(wb, 1);

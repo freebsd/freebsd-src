@@ -304,8 +304,6 @@ static struct ichwd_device ichwd_smb_devices[] = {
 	{ 0, NULL, 0, 0 },
 };
 
-static devclass_t ichwd_devclass;
-
 #define ichwd_read_tco_1(sc, off) \
 	bus_read_1((sc)->tco_res, (off))
 #define ichwd_read_tco_2(sc, off) \
@@ -988,4 +986,4 @@ static driver_t ichwd_driver = {
 	sizeof(struct ichwd_softc),
 };
 
-DRIVER_MODULE(ichwd, isa, ichwd_driver, ichwd_devclass, NULL, NULL);
+DRIVER_MODULE(ichwd, isa, ichwd_driver, NULL, NULL);
