@@ -1864,8 +1864,7 @@ static driver_t mana_driver = {
     "mana", mana_methods, sizeof(struct gdma_context),
 };
 
-devclass_t mana_devclass;
-DRIVER_MODULE(mana, pci, mana_driver, mana_devclass, 0, 0);
+DRIVER_MODULE(mana, pci, mana_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, mana, mana_id_table,
     nitems(mana_id_table) - 1);
 MODULE_DEPEND(mana, pci, 1, 1, 1);
