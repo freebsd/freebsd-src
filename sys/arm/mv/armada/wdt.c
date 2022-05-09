@@ -140,9 +140,8 @@ static driver_t mv_wdt_driver = {
 	sizeof(struct mv_wdt_softc),
 };
 
-static devclass_t mv_wdt_devclass;
+DRIVER_MODULE(wdt, simplebus, mv_wdt_driver, 0, 0);
 
-DRIVER_MODULE(wdt, simplebus, mv_wdt_driver, mv_wdt_devclass, 0, 0);
 static int
 mv_wdt_probe(device_t dev)
 {

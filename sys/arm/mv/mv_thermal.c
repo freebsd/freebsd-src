@@ -363,13 +363,10 @@ static device_method_t mv_thermal_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t mv_thermal_devclass;
-
 static driver_t mv_thermal_driver = {
 	"mv_thermal",
 	mv_thermal_methods,
 	sizeof(struct mv_thermal_softc),
 };
 
-DRIVER_MODULE(mv_thermal, simplebus, mv_thermal_driver,
-    mv_thermal_devclass, 0, 0);
+DRIVER_MODULE(mv_thermal, simplebus, mv_thermal_driver, 0, 0);

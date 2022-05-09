@@ -407,10 +407,8 @@ static driver_t mv_pcib_driver = {
 	sizeof(struct mv_pcib_softc),
 };
 
-devclass_t pcib_devclass;
-
-DRIVER_MODULE(mv_pcib, ofwbus, mv_pcib_driver, pcib_devclass, 0, 0);
-DRIVER_MODULE(mv_pcib, pcib_ctrl, mv_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(mv_pcib, ofwbus, mv_pcib_driver, 0, 0);
+DRIVER_MODULE(mv_pcib, pcib_ctrl, mv_pcib_driver, 0, 0);
 
 static struct mtx pcicfg_mtx;
 

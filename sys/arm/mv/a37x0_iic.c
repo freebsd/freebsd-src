@@ -472,8 +472,6 @@ static device_method_t a37x0_iic_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t a37x0_iic_devclass;
-
 static driver_t a37x0_iic_driver = {
 	"iichb",
 	a37x0_iic_methods,
@@ -481,4 +479,4 @@ static driver_t a37x0_iic_driver = {
 };
 
 DRIVER_MODULE(iicbus, a37x0_iic, iicbus_driver, 0, 0);
-DRIVER_MODULE(a37x0_iic, simplebus, a37x0_iic_driver, a37x0_iic_devclass, 0, 0);
+DRIVER_MODULE(a37x0_iic, simplebus, a37x0_iic_driver, 0, 0);

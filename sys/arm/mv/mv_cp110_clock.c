@@ -358,13 +358,11 @@ static device_method_t mv_cp110_clock_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t mv_cp110_clock_devclass;
-
 static driver_t mv_cp110_clock_driver = {
 	"mv_cp110_clock",
 	mv_cp110_clock_methods,
 	sizeof(struct mv_cp110_clock_softc),
 };
 
-EARLY_DRIVER_MODULE(mv_cp110_clock, simplebus, mv_cp110_clock_driver,
-    mv_cp110_clock_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(mv_cp110_clock, simplebus, mv_cp110_clock_driver, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_LATE);
