@@ -281,6 +281,9 @@ struct socket {
 #define	SOCK_SENDBUF_UNLOCK_ASSERT(so)					\
 	mtx_assert(SOCK_SENDBUF_MTX(so), MA_NOTOWNED)
 
+/* 'which' values for socket buffer events and upcalls. */
+typedef enum { SO_RCV, SO_SND } sb_which;
+
 /*
  * Macros for sockets and socket buffering.
  */
@@ -443,10 +446,6 @@ struct sockaddr;
 struct ucred;
 struct uio;
 
-/* 'which' values for socket upcalls. */
-#define	SO_RCV		1
-#define	SO_SND		2
-
 /* Return values for socket upcalls. */
 #define	SU_OK		0
 #define	SU_ISCONNECTED	1
@@ -516,8 +515,8 @@ int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
 int	soshutdown(struct socket *so, int how);
-void	soupcall_clear(struct socket *, int);
-void	soupcall_set(struct socket *, int, so_upcall_t, void *);
+void	soupcall_clear(struct socket *, sb_which);
+void	soupcall_set(struct socket *, sb_which, so_upcall_t, void *);
 void	solisten_upcall_set(struct socket *, so_upcall_t, void *);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
 void	sowakeup_aio(struct socket *so, struct sockbuf *sb);
