@@ -104,9 +104,7 @@ enum therm_info {
 	CORETEMP_TJMAX,
 };
 
-static devclass_t coretemp_devclass;
-DRIVER_MODULE(coretemp, cpu, coretemp_driver, coretemp_devclass, NULL,
-    NULL);
+DRIVER_MODULE(coretemp, cpu, coretemp_driver, NULL, NULL);
 
 static void
 coretemp_identify(driver_t *driver, device_t parent)
