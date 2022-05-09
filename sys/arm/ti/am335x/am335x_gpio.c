@@ -149,10 +149,8 @@ static device_method_t am335x_gpio_methods[] = {
 };
 
 extern driver_t ti_gpio_driver;
-static devclass_t am335x_gpio_devclass;
 
 DEFINE_CLASS_1(gpio, am335x_gpio_driver, am335x_gpio_methods,
     sizeof(struct ti_gpio_softc), ti_gpio_driver);
-DRIVER_MODULE(am335x_gpio, simplebus, am335x_gpio_driver, am335x_gpio_devclass,
-    0, 0);
+DRIVER_MODULE(am335x_gpio, simplebus, am335x_gpio_driver, 0, 0);
 MODULE_DEPEND(am335x_gpio, ti_sysc, 1, 1, 1);

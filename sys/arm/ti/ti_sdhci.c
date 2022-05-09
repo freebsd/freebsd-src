@@ -752,16 +752,13 @@ static device_method_t ti_sdhci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ti_sdhci_devclass;
-
 static driver_t ti_sdhci_driver = {
 	"sdhci_ti",
 	ti_sdhci_methods,
 	sizeof(struct ti_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
-    NULL);
+DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, NULL, NULL);
 MODULE_DEPEND(sdhci_ti, ti_sysc, 1, 1, 1);
 SDHCI_DEPEND(sdhci_ti);
 

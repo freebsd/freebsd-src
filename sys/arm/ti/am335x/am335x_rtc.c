@@ -205,9 +205,7 @@ static driver_t am335x_rtc_driver = {
 	sizeof(struct am335x_rtc_softc),
 };
 
-static devclass_t am335x_rtc_devclass;
-
-DRIVER_MODULE(am335x_rtc, simplebus, am335x_rtc_driver, am335x_rtc_devclass, 0, 0);
+DRIVER_MODULE(am335x_rtc, simplebus, am335x_rtc_driver, 0, 0);
 MODULE_VERSION(am335x_rtc, 1);
 MODULE_DEPEND(am335x_rtc, simplebus, 1, 1, 1);
 MODULE_DEPEND(am335x_rtc, ti_sysc, 1, 1, 1);

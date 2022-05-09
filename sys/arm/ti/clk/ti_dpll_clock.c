@@ -368,8 +368,6 @@ static device_method_t ti_dpll_methods[] = {
 DEFINE_CLASS_0(ti_dpll, ti_dpll_driver, ti_dpll_methods,
 	sizeof(struct ti_dpll_softc));
 
-static devclass_t ti_dpll_devclass;
-
-EARLY_DRIVER_MODULE(ti_dpll, simplebus, ti_dpll_driver,
-	ti_dpll_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_dpll, simplebus, ti_dpll_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_dpll, 1);

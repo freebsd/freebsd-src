@@ -275,12 +275,9 @@ static device_method_t ti_prcm_methods[] = {
 DEFINE_CLASS_1(ti_prcm, ti_prcm_driver, ti_prcm_methods,
     sizeof(struct ti_prcm_softc), simplebus_driver);
 
-static devclass_t ti_prcm_devclass;
-
-EARLY_DRIVER_MODULE(ti_prcm, ofwbus, ti_prcm_driver,
-	ti_prcm_devclass, 0, 0, BUS_PASS_BUS);
-EARLY_DRIVER_MODULE(ti_prcm, simplebus, ti_prcm_driver,
-	ti_prcm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_prcm, ofwbus, ti_prcm_driver, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ti_prcm, simplebus, ti_prcm_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_prcm, 1);
 MODULE_DEPEND(ti_prcm, ti_scm, 1, 1, 1);
 

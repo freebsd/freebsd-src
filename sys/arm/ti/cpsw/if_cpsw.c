@@ -209,9 +209,7 @@ static driver_t cpsw_driver = {
 	sizeof(struct cpsw_softc),
 };
 
-static devclass_t cpsw_devclass;
-
-DRIVER_MODULE(cpswss, simplebus, cpsw_driver, cpsw_devclass, 0, 0);
+DRIVER_MODULE(cpswss, simplebus, cpsw_driver, 0, 0);
 
 /* Port/Slave resources. */
 static device_method_t cpswp_methods[] = {
@@ -232,14 +230,12 @@ static driver_t cpswp_driver = {
 	sizeof(struct cpswp_softc),
 };
 
-static devclass_t cpswp_devclass;
-
 #ifdef CPSW_ETHERSWITCH
 DRIVER_MODULE(etherswitch, cpswss, etherswitch_driver, 0, 0);
 MODULE_DEPEND(cpswss, etherswitch, 1, 1, 1);
 #endif
 
-DRIVER_MODULE(cpsw, cpswss, cpswp_driver, cpswp_devclass, 0, 0);
+DRIVER_MODULE(cpsw, cpswss, cpswp_driver, 0, 0);
 DRIVER_MODULE(miibus, cpsw, miibus_driver, 0, 0);
 MODULE_DEPEND(cpsw, ether, 1, 1, 1);
 MODULE_DEPEND(cpsw, miibus, 1, 1, 1);

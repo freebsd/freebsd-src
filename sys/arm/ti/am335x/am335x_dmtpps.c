@@ -615,7 +615,5 @@ static driver_t dmtpps_driver = {
 	sizeof(struct dmtpps_softc),
 };
 
-static devclass_t dmtpps_devclass;
-
-DRIVER_MODULE(am335x_dmtpps, simplebus, dmtpps_driver, dmtpps_devclass, 0, 0);
+DRIVER_MODULE(am335x_dmtpps, simplebus, dmtpps_driver, 0, 0);
 MODULE_DEPEND(am335x_dmtpps, ti_sysc, 1, 1, 1);

@@ -565,13 +565,11 @@ static device_method_t ti_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ti_spi_devclass;
-
 static driver_t ti_spi_driver = {
 	"spi",
 	ti_spi_methods,
 	sizeof(struct ti_spi_softc),
 };
 
-DRIVER_MODULE(ti_spi, simplebus, ti_spi_driver, ti_spi_devclass, 0, 0);
+DRIVER_MODULE(ti_spi, simplebus, ti_spi_driver, 0, 0);
 MODULE_DEPEND(ti_spi, ti_sysc, 1, 1, 1);

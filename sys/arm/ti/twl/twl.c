@@ -452,7 +452,6 @@ static driver_t twl_driver = {
 	twl_methods,
 	sizeof(struct twl_softc),
 };
-static devclass_t twl_devclass;
 
-DRIVER_MODULE(twl, iicbus, twl_driver, twl_devclass, 0, 0);
+DRIVER_MODULE(twl, iicbus, twl_driver, 0, 0);
 MODULE_VERSION(twl, 1);

@@ -453,9 +453,7 @@ static driver_t musbotg_driver = {
 	.size = sizeof(struct musbotg_super_softc),
 };
 
-static devclass_t musbotg_devclass;
-
-DRIVER_MODULE(musbotg, ti_sysc, musbotg_driver, musbotg_devclass, 0, 0);
+DRIVER_MODULE(musbotg, ti_sysc, musbotg_driver, 0, 0);
 MODULE_DEPEND(musbotg, ti_sysc, 1, 1, 1);
 MODULE_DEPEND(musbotg, ti_am3359_cppi41, 1, 1, 1);
 MODULE_DEPEND(usbss, usb, 1, 1, 1);

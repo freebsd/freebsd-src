@@ -645,7 +645,5 @@ static driver_t twl_clks_driver = {
 	sizeof(struct twl_clks_softc),
 };
 
-static devclass_t twl_clks_devclass;
-
-DRIVER_MODULE(twl_clks, twl, twl_clks_driver, twl_clks_devclass, 0, 0);
+DRIVER_MODULE(twl_clks, twl, twl_clks_driver, 0, 0);
 MODULE_VERSION(twl_clks, 1);

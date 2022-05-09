@@ -257,8 +257,6 @@ static device_method_t ti_divider_methods[] = {
 DEFINE_CLASS_0(ti_divider, ti_divider_driver, ti_divider_methods,
 	sizeof(struct ti_divider_softc));
 
-static devclass_t ti_divider_devclass;
-
-EARLY_DRIVER_MODULE(ti_divider, simplebus, ti_divider_driver,
-	ti_divider_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_divider, simplebus, ti_divider_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_divider, 1);

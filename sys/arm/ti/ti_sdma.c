@@ -1242,7 +1242,6 @@ static driver_t ti_sdma_driver = {
 	ti_sdma_methods,
 	sizeof(struct ti_sdma_softc),
 };
-static devclass_t ti_sdma_devclass;
 
-DRIVER_MODULE(ti_sdma, simplebus, ti_sdma_driver, ti_sdma_devclass, 0, 0);
+DRIVER_MODULE(ti_sdma, simplebus, ti_sdma_driver, 0, 0);
 MODULE_DEPEND(ti_sdma, ti_sysc, 1, 1, 1);
