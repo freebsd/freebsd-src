@@ -87,4 +87,4 @@ static driver_t chipc_cfi_driver = {
 	sizeof(struct cfi_softc),
 };
 
-DRIVER_MODULE(cfi, bhnd_chipc, chipc_cfi_driver, cfi_devclass, 0, 0);
+DRIVER_MODULE(cfi, bhnd_chipc, chipc_cfi_driver, 0, 0);

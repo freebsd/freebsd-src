@@ -62,7 +62,6 @@ static void cfi_add_sysctls(struct cfi_softc *);
 extern struct cdevsw cfi_cdevsw;
 
 char cfi_driver_name[] = "cfi";
-devclass_t cfi_devclass;
 devclass_t cfi_diskclass;
 
 uint32_t
