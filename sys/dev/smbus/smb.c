@@ -57,8 +57,6 @@ static int smb_probe(device_t);
 static int smb_attach(device_t);
 static int smb_detach(device_t);
 
-static devclass_t smb_devclass;
-
 static device_method_t smb_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_identify,	smb_identify),
@@ -277,6 +275,6 @@ smbioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	return (error);
 }
 
-DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, 0, 0);
+DRIVER_MODULE(smb, smbus, smb_driver, 0, 0);
 MODULE_DEPEND(smb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(smb, 1);
