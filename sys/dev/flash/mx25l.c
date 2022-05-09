@@ -668,8 +668,6 @@ mx25l_task(void *arg)
 	}
 }
 
-static devclass_t mx25l_devclass;
-
 static device_method_t mx25l_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mx25l_probe),
@@ -685,7 +683,7 @@ static driver_t mx25l_driver = {
 	sizeof(struct mx25l_softc),
 };
 
-DRIVER_MODULE(mx25l, spibus, mx25l_driver, mx25l_devclass, 0, 0);
+DRIVER_MODULE(mx25l, spibus, mx25l_driver, 0, 0);
 MODULE_DEPEND(mx25l, spibus, 1, 1, 1);
 #ifdef	FDT
 MODULE_DEPEND(mx25l, fdt_slicer, 1, 1, 1);

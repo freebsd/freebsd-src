@@ -465,8 +465,6 @@ n25q_task(void *arg)
 	}
 }
 
-static devclass_t n25q_devclass;
-
 static device_method_t n25q_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		n25q_probe),
@@ -482,4 +480,4 @@ static driver_t n25q_driver = {
 	sizeof(struct n25q_softc),
 };
 
-DRIVER_MODULE(n25q, simplebus, n25q_driver, n25q_devclass, 0, 0);
+DRIVER_MODULE(n25q, simplebus, n25q_driver, 0, 0);

@@ -584,8 +584,6 @@ at45d_task(void *arg)
 	}
 }
 
-static devclass_t at45d_devclass;
-
 static device_method_t at45d_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		at45d_probe),
@@ -601,7 +599,7 @@ static driver_t at45d_driver = {
 	sizeof(struct at45d_softc),
 };
 
-DRIVER_MODULE(at45d, spibus, at45d_driver, at45d_devclass, NULL, NULL);
+DRIVER_MODULE(at45d, spibus, at45d_driver, NULL, NULL);
 MODULE_DEPEND(at45d, spibus, 1, 1, 1);
 #ifdef FDT
 MODULE_DEPEND(at45d, fdt_slicer, 1, 1, 1);
