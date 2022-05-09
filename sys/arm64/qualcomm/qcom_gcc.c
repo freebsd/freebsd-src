@@ -141,8 +141,6 @@ static driver_t qcom_gcc_driver = {
 	sizeof(struct qcom_gcc_softc),
 };
 
-static devclass_t qcom_gcc_devclass;
-
-EARLY_DRIVER_MODULE(qcom_gcc, simplebus, qcom_gcc_driver, qcom_gcc_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(qcom_gcc, simplebus, qcom_gcc_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(qcom_gcc, 1);
