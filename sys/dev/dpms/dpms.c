@@ -118,9 +118,7 @@ static driver_t dpms_driver = {
 	sizeof(struct dpms_softc),
 };
 
-static devclass_t dpms_devclass;
-
-DRIVER_MODULE(dpms, vgapm, dpms_driver, dpms_devclass, NULL, NULL);
+DRIVER_MODULE(dpms, vgapm, dpms_driver, NULL, NULL);
 MODULE_DEPEND(dpms, x86bios, 1, 1, 1);
 
 static void
