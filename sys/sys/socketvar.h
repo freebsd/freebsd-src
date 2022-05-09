@@ -301,10 +301,12 @@ typedef enum { SO_RCV, SO_SND } sb_which;
 	soiolock((so), &(so)->so_snd_sx, (flags))
 #define	SOCK_IO_SEND_UNLOCK(so)						\
 	soiounlock(&(so)->so_snd_sx)
+#define	SOCK_IO_SEND_OWNED(so)	sx_xlocked(&(so)->so_snd_sx)
 #define	SOCK_IO_RECV_LOCK(so, flags)					\
 	soiolock((so), &(so)->so_rcv_sx, (flags))
 #define	SOCK_IO_RECV_UNLOCK(so)						\
 	soiounlock(&(so)->so_rcv_sx)
+#define	SOCK_IO_RECV_OWNED(so)	sx_xlocked(&(so)->so_rcv_sx)
 
 /*
  * Do we need to notify the other side when I/O is possible?

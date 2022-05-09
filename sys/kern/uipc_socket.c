@@ -2944,22 +2944,12 @@ done:
 void
 sorflush(struct socket *so)
 {
-	struct socket aso;
 	struct protosw *pr;
 	int error;
 
 	VNET_SO_ASSERT(so);
 
 	/*
-	 * In order to avoid calling dom_dispose with the socket buffer mutex
-	 * held, we make a partial copy of the socket buffer and clear the
-	 * original.  The new socket buffer copy won't have initialized locks so
-	 * we can only call routines that won't use or assert those locks.
-	 * Ideally calling socantrcvmore() would prevent data from being added
-	 * to the buffer, but currently it merely prevents buffered data from
-	 * being read by userspace.  We make this effort to free buffered data
-	 * nonetheless.
-	 *
 	 * Dislodge threads currently blocked in receive and wait to acquire
 	 * a lock against other simultaneous readers before clearing the
 	 * socket buffer.  Don't let our acquire be interrupted by a signal
@@ -2974,28 +2964,15 @@ sorflush(struct socket *so)
 		return;
 	}
 
-	SOCK_RECVBUF_LOCK(so);
-	bzero(&aso, sizeof(aso));
-	aso.so_pcb = so->so_pcb;
-	bcopy(&so->so_rcv.sb_startzero, &aso.so_rcv.sb_startzero,
-	    offsetof(struct sockbuf, sb_endzero) -
-	    offsetof(struct sockbuf, sb_startzero));
-	bzero(&so->so_rcv.sb_startzero,
-	    offsetof(struct sockbuf, sb_endzero) -
-	    offsetof(struct sockbuf, sb_startzero));
-	SOCK_RECVBUF_UNLOCK(so);
-	SOCK_IO_RECV_UNLOCK(so);
-
-	/*
-	 * Dispose of special rights and flush the copied socket.  Don't call
-	 * any unsafe routines (that rely on locks being initialized) on aso.
-	 */
 	pr = so->so_proto;
 	if (pr->pr_flags & PR_RIGHTS) {
 		MPASS(pr->pr_domain->dom_dispose != NULL);
-		(*pr->pr_domain->dom_dispose)(&aso);
+		(*pr->pr_domain->dom_dispose)(so);
+	} else {
+		sbrelease(&so->so_rcv, so);
+		SOCK_IO_RECV_UNLOCK(so);
 	}
-	sbrelease_internal(&aso.so_rcv, so);
+
 }
 
 /*
