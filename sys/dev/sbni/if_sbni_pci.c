@@ -67,9 +67,7 @@ static driver_t sbni_pci_driver = {
 	sizeof(struct sbni_softc)
 };
 
-static devclass_t sbni_pci_devclass;
-
-DRIVER_MODULE(sbni, pci, sbni_pci_driver, sbni_pci_devclass, 0, 0);
+DRIVER_MODULE(sbni, pci, sbni_pci_driver, 0, 0);
 MODULE_DEPEND(sbni, pci, 1, 1, 1);
 
 static int
