@@ -1727,9 +1727,7 @@ driver_t dwc_driver = {
 	sizeof(struct dwc_softc),
 };
 
-static devclass_t dwc_devclass;
-
-DRIVER_MODULE(dwc, simplebus, dwc_driver, dwc_devclass, 0, 0);
+DRIVER_MODULE(dwc, simplebus, dwc_driver, 0, 0);
 DRIVER_MODULE(miibus, dwc, miibus_driver, 0, 0);
 
 MODULE_DEPEND(dwc, ether, 1, 1, 1);
