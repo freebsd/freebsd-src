@@ -437,7 +437,4 @@ static driver_t fpgamgr_a10_driver = {
 	sizeof(struct fpgamgr_a10_softc),
 };
 
-static devclass_t fpgamgr_a10_devclass;
-
-DRIVER_MODULE(fpgamgr_a10, simplebus, fpgamgr_a10_driver,
-    fpgamgr_a10_devclass, 0, 0);
+DRIVER_MODULE(fpgamgr_a10, simplebus, fpgamgr_a10_driver, 0, 0);
