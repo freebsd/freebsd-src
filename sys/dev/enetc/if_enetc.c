@@ -165,11 +165,9 @@ static driver_t enetc_driver = {
 	"enetc", enetc_methods, sizeof(struct enetc_softc)
 };
 
-static devclass_t enetc_devclass;
 DRIVER_MODULE(miibus, enetc, miibus_fdt_driver, NULL, NULL);
 /* Make sure miibus gets procesed first. */
-DRIVER_MODULE_ORDERED(enetc, pci, enetc_driver, enetc_devclass, NULL, NULL,
-    SI_ORDER_ANY);
+DRIVER_MODULE_ORDERED(enetc, pci, enetc_driver, NULL, NULL, SI_ORDER_ANY);
 MODULE_VERSION(enetc, 1);
 
 IFLIB_PNP_INFO(pci, enetc, enetc_vendor_info_array);
