@@ -356,8 +356,6 @@ static driver_t	nvdimm_e820_driver = {
 	sizeof(struct nvdimm_e820_bus),
 };
 
-static devclass_t nvdimm_e820_devclass;
-
 static int
 nvdimm_e820_chainevh(struct module *m, int e, void *arg __unused)
 {
@@ -390,5 +388,5 @@ nvdimm_e820_chainevh(struct module *m, int e, void *arg __unused)
 	return (0);
 }
 
-DRIVER_MODULE(nvdimm_e820, nexus, nvdimm_e820_driver, nvdimm_e820_devclass,
+DRIVER_MODULE(nvdimm_e820, nexus, nvdimm_e820_driver,
     nvdimm_e820_chainevh, NULL);

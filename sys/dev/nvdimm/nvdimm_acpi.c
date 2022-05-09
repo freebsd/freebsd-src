@@ -275,7 +275,5 @@ static driver_t	nvdimm_acpi_driver = {
 	sizeof(struct nvdimm_root_dev),
 };
 
-static devclass_t nvdimm_acpi_root_devclass;
-DRIVER_MODULE(nvdimm_acpi_root, acpi, nvdimm_acpi_driver,
-    nvdimm_acpi_root_devclass, NULL, NULL);
+DRIVER_MODULE(nvdimm_acpi_root, acpi, nvdimm_acpi_driver, NULL, NULL);
 MODULE_DEPEND(nvdimm_acpi_root, acpi, 1, 1, 1);
