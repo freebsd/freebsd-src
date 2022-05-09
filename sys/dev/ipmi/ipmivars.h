@@ -255,7 +255,6 @@ int	ipmi_ssif_attach(struct ipmi_softc *, device_t, int);
 int	ipmi_handle_attn(struct ipmi_softc *);
 #endif
 
-extern devclass_t ipmi_devclass;
 extern int ipmi_attached;
 
 #endif	/* !__IPMIVARS_H__ */

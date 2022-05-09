@@ -286,7 +286,7 @@ static driver_t ipmi_isa_driver = {
 	sizeof(struct ipmi_softc),
 };
 
-DRIVER_MODULE(ipmi_isa, isa, ipmi_isa_driver, ipmi_devclass, 0, 0);
+DRIVER_MODULE(ipmi_isa, isa, ipmi_isa_driver, 0, 0);
 #ifdef ARCH_MAY_USE_EFI
 MODULE_DEPEND(ipmi_isa, efirt, 1, 1, 1);
 #endif
