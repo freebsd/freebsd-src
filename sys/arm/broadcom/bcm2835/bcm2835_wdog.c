@@ -256,6 +256,5 @@ static driver_t bcmwd_driver = {
 	bcmwd_methods,
 	sizeof(struct bcmwd_softc),
 };
-static devclass_t bcmwd_devclass;
 
-DRIVER_MODULE(bcmwd, simplebus, bcmwd_driver, bcmwd_devclass, 0, 0);
+DRIVER_MODULE(bcmwd, simplebus, bcmwd_driver, 0, 0);

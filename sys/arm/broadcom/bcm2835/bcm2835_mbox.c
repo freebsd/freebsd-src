@@ -292,9 +292,7 @@ static driver_t bcm_mbox_driver = {
 	sizeof(struct bcm_mbox_softc),
 };
 
-static devclass_t bcm_mbox_devclass;
-
-EARLY_DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0,
+EARLY_DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
 static void

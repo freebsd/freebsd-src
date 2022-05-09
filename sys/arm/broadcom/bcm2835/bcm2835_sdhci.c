@@ -852,16 +852,13 @@ static device_method_t bcm_sdhci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bcm_sdhci_devclass;
-
 static driver_t bcm_sdhci_driver = {
 	"sdhci_bcm",
 	bcm_sdhci_methods,
 	sizeof(struct bcm_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_bcm, simplebus, bcm_sdhci_driver, bcm_sdhci_devclass,
-    NULL, NULL);
+DRIVER_MODULE(sdhci_bcm, simplebus, bcm_sdhci_driver, NULL, NULL);
 #ifdef NOTYET
 MODULE_DEPEND(sdhci_bcm, bcm2835_clkman, 1, 1, 1);
 #endif

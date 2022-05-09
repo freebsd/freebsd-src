@@ -69,15 +69,14 @@ static device_method_t ns2_pcie_phy_fdt_methods[] = {
 DEFINE_CLASS_0(ns2_pcie_phy, ns2_pcie_phy_fdt_driver, ns2_pcie_phy_fdt_methods,
     sizeof(struct ns2_pcie_phy_softc));
 
-static devclass_t ns2_pcie_phy_fdt_devclass;
-
 static driver_t ns2_pcie_phy_driver = {
         "ns2_pcie_phy",
 	ns2_pcie_phy_fdt_methods,
         sizeof(struct ns2_pcie_phy_softc)
 };
+
 EARLY_DRIVER_MODULE(ns2_pcie_phy, brcm_mdionexus, ns2_pcie_phy_driver,
-    ns2_pcie_phy_fdt_devclass, NULL, NULL, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    NULL, NULL, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int
 ns2_pci_phy_init(device_t dev)

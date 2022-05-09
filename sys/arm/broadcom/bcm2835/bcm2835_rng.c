@@ -549,11 +549,8 @@ static driver_t bcm2835_rng_driver = {
 	bcm2835_rng_methods,
 	sizeof(struct bcm2835_rng_softc)
 };
-static devclass_t bcm2835_rng_devclass;
 
-DRIVER_MODULE(bcm2835_rng, simplebus, bcm2835_rng_driver,
-    bcm2835_rng_devclass, 0, 0);
-DRIVER_MODULE(bcm2835_rng, ofwbus, bcm2835_rng_driver, bcm2835_rng_devclass, 0,
-    0);
+DRIVER_MODULE(bcm2835_rng, simplebus, bcm2835_rng_driver, 0, 0);
+DRIVER_MODULE(bcm2835_rng, ofwbus, bcm2835_rng_driver, 0, 0);
 MODULE_VERSION(bcm2835_rng, 1);
 MODULE_DEPEND(bcm2835_rng, randomdev, 1, 1, 1);

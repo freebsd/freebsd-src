@@ -96,10 +96,7 @@ static device_method_t bcm283x_dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bcm283x_dwc_otg_devclass;
-
 DEFINE_CLASS_1(bcm283x_dwcotg, bcm283x_dwc_otg_driver, bcm283x_dwc_otg_methods,
     sizeof(struct dwc_otg_fdt_softc), dwc_otg_driver);
-DRIVER_MODULE(bcm283x_dwcotg, simplebus, bcm283x_dwc_otg_driver,
-    bcm283x_dwc_otg_devclass, 0, 0);
+DRIVER_MODULE(bcm283x_dwcotg, simplebus, bcm283x_dwc_otg_driver, 0, 0);
 MODULE_DEPEND(bcm283x_dwcotg, usb, 1, 1, 1);

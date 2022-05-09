@@ -194,16 +194,14 @@ static device_method_t bcm_fb_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t bcm_fb_devclass;
-
 static driver_t bcm_fb_driver = {
 	"fb",
 	bcm_fb_methods,
 	sizeof(struct bcmsc_softc),
 };
 
-DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
-DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
+DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, 0, 0);
+DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, 0, 0);
 
 /*
  * Video driver routines and glue.

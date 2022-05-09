@@ -447,7 +447,5 @@ static driver_t bcm_intc_driver = {
 	sizeof(struct bcm_intc_softc),
 };
 
-static devclass_t bcm_intc_devclass;
-
-EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
