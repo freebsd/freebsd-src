@@ -84,8 +84,6 @@ struct dwwdt_softc {
 	}			 sc_status;
 };
 
-static devclass_t dwwdt_devclass;
-
 static struct ofw_compat_data compat_data[] = {
 	{ "snps,dw-wdt",		1 },
 	{ NULL,				0 }
@@ -370,6 +368,6 @@ static driver_t dwwdt_driver = {
 	sizeof(struct dwwdt_softc),
 };
 
-DRIVER_MODULE(dwwdt, simplebus, dwwdt_driver, dwwdt_devclass, NULL, NULL);
+DRIVER_MODULE(dwwdt, simplebus, dwwdt_driver, NULL, NULL);
 MODULE_VERSION(dwwdt, 1);
 OFWBUS_PNP_INFO(compat_data);
