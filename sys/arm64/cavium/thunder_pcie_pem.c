@@ -195,10 +195,9 @@ static device_method_t thunder_pem_methods[] = {
 DEFINE_CLASS_0(pcib, thunder_pem_driver, thunder_pem_methods,
     sizeof(struct thunder_pem_softc));
 
-static devclass_t thunder_pem_devclass;
 extern struct bus_space memmap_bus;
 
-DRIVER_MODULE(thunder_pem, pci, thunder_pem_driver, thunder_pem_devclass, 0, 0);
+DRIVER_MODULE(thunder_pem, pci, thunder_pem_driver, 0, 0);
 MODULE_DEPEND(thunder_pem, pci, 1, 1, 1);
 
 static int
