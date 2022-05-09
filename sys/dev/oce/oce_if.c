@@ -209,7 +209,6 @@ static driver_t oce_driver = {
 	oce_dispatch,
 	sizeof(OCE_SOFTC)
 };
-static devclass_t oce_devclass;
 
 /* global vars */
 const char component_revision[32] = {"///" COMPONENT_REVISION "///"};
@@ -232,7 +231,7 @@ static uint32_t supportedDevices[] =  {
 	(PCI_VENDOR_EMULEX << 16) | PCI_PRODUCT_SH
 };
 
-DRIVER_MODULE(oce, pci, oce_driver, oce_devclass, 0, 0);
+DRIVER_MODULE(oce, pci, oce_driver, 0, 0);
 MODULE_PNP_INFO("W32:vendor/device", pci, oce, supportedDevices,
     nitems(supportedDevices));
 MODULE_DEPEND(oce, pci, 1, 1, 1);
