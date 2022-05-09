@@ -326,11 +326,7 @@ captive_long_body()
 	# Host is client, jail 'gw' is the captive portal gateway, jail 'srv'
 	# is a random (web)server. We use the echo protocol rather than http
 	# for the test, because that's easier.
-	pft_init
-
-	if ! kldstat -q -m dummynet; then
-		atf_skip "This test requires dummynet"
-	fi
+	dummynet_init
 
 	epair_gw=$(vnet_mkepair)
 	epair_srv=$(vnet_mkepair)

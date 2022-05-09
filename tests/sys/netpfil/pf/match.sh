@@ -36,10 +36,7 @@ dummynet_head()
 
 dummynet_body()
 {
-	pft_init
-	if ! kldstat -q -m dummynet; then
-		atf_skip "This test requires dummynet"
-	fi
+	dummynet_init
 
 	epair=$(vnet_mkepair)
 	vnet_mkjail alcatraz ${epair}b
