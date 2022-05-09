@@ -88,8 +88,5 @@ static device_method_t replicator_fdt_methods[] = {
 DEFINE_CLASS_1(replicator, replicator_fdt_driver, replicator_fdt_methods,
     sizeof(struct replicator_softc), replicator_driver);
 
-static devclass_t replicator_fdt_devclass;
-
-EARLY_DRIVER_MODULE(replicator, simplebus, replicator_fdt_driver,
-    replicator_fdt_devclass, 0, 0,
+EARLY_DRIVER_MODULE(replicator, simplebus, replicator_fdt_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

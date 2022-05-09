@@ -102,7 +102,5 @@ static device_method_t funnel_acpi_methods[] = {
 DEFINE_CLASS_1(funnel, funnel_acpi_driver, funnel_acpi_methods,
     sizeof(struct funnel_softc), funnel_driver);
 
-static devclass_t funnel_acpi_devclass;
-
-EARLY_DRIVER_MODULE(funnel, acpi, funnel_acpi_driver, funnel_acpi_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(funnel, acpi, funnel_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

@@ -86,7 +86,5 @@ static device_method_t etm_acpi_methods[] = {
 DEFINE_CLASS_1(etm, etm_acpi_driver, etm_acpi_methods,
     sizeof(struct etm_softc), etm_driver);
 
-static devclass_t etm_acpi_devclass;
-
-EARLY_DRIVER_MODULE(etm, acpi, etm_acpi_driver, etm_acpi_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(etm, acpi, etm_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

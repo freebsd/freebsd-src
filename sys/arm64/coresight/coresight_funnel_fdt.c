@@ -100,7 +100,5 @@ static device_method_t funnel_fdt_methods[] = {
 DEFINE_CLASS_1(funnel, funnel_fdt_driver, funnel_fdt_methods,
     sizeof(struct funnel_softc), funnel_driver);
 
-static devclass_t funnel_fdt_devclass;
-
-EARLY_DRIVER_MODULE(funnel, simplebus, funnel_fdt_driver, funnel_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(funnel, simplebus, funnel_fdt_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
