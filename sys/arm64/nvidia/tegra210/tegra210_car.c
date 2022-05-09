@@ -594,8 +594,7 @@ static device_method_t tegra210_car_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra210_car_devclass;
 static DEFINE_CLASS_0(car, tegra210_car_driver, tegra210_car_methods,
     sizeof(struct tegra210_car_softc));
-EARLY_DRIVER_MODULE(tegra210_car, simplebus, tegra210_car_driver,
-    tegra210_car_devclass, NULL, NULL, BUS_PASS_TIMER);
+EARLY_DRIVER_MODULE(tegra210_car, simplebus, tegra210_car_driver, NULL, NULL,
+    BUS_PASS_TIMER);

@@ -633,11 +633,9 @@ static device_method_t host1x_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t host1x_devclass;
 DEFINE_CLASS_1(host1x, host1x_driver, host1x_methods,
     sizeof(struct host1x_softc), simplebus_driver);
-EARLY_DRIVER_MODULE(host1x, simplebus, host1x_driver,
-    host1x_devclass, 0, 0,  BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(host1x, simplebus, host1x_driver, 0, 0, BUS_PASS_BUS);
 
 /* Bindings for fbd device. */
 extern driver_t fbd_driver;

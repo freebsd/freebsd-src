@@ -262,8 +262,6 @@ static device_method_t tegra210_coretemp_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra210_coretemp_devclass;
 static DEFINE_CLASS_0(tegra210_coretemp, tegra210_coretemp_driver,
     tegra210_coretemp_methods, sizeof(struct tegra210_coretemp_softc));
-DRIVER_MODULE(tegra210_coretemp, cpu, tegra210_coretemp_driver,
-    tegra210_coretemp_devclass, NULL, NULL);
+DRIVER_MODULE(tegra210_coretemp, cpu, tegra210_coretemp_driver, NULL, NULL);

@@ -750,8 +750,7 @@ static device_method_t tegra210_pinmux_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra210_pinmux_devclass;
 static DEFINE_CLASS_0(pinmux, tegra210_pinmux_driver, tegra210_pinmux_methods,
     sizeof(struct pinmux_softc));
 EARLY_DRIVER_MODULE(tegra210_pinmux, simplebus, tegra210_pinmux_driver,
-    tegra210_pinmux_devclass, NULL, NULL, 71);
+    NULL, NULL, 71);

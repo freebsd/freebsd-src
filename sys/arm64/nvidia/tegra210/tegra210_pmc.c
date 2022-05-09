@@ -621,8 +621,7 @@ static device_method_t tegra210_pmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra210_pmc_devclass;
 static DEFINE_CLASS_0(pmc, tegra210_pmc_driver, tegra210_pmc_methods,
     sizeof(struct tegra210_pmc_softc));
-EARLY_DRIVER_MODULE(tegra210_pmc, simplebus, tegra210_pmc_driver,
-    tegra210_pmc_devclass, NULL, NULL, 70);
+EARLY_DRIVER_MODULE(tegra210_pmc, simplebus, tegra210_pmc_driver, NULL, NULL,
+    70);

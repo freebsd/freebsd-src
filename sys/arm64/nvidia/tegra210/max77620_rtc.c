@@ -417,8 +417,6 @@ static device_method_t max77620_rtc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t max77620_rtc_devclass;
 static DEFINE_CLASS_0(rtc, max77620_rtc_driver, max77620_rtc_methods,
     sizeof(struct max77620_rtc_softc));
-EARLY_DRIVER_MODULE(max77620rtc_, iicbus, max77620_rtc_driver,
-    max77620_rtc_devclass, NULL, NULL, 74);
+EARLY_DRIVER_MODULE(max77620rtc_, iicbus, max77620_rtc_driver, NULL, NULL, 74);

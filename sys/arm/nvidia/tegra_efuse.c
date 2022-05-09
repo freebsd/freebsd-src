@@ -524,8 +524,7 @@ static device_method_t tegra_efuse_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra_efuse_devclass;
 static DEFINE_CLASS_0(efuse, tegra_efuse_driver, tegra_efuse_methods,
     sizeof(struct tegra_efuse_softc));
-EARLY_DRIVER_MODULE(tegra_efuse, simplebus, tegra_efuse_driver,
-    tegra_efuse_devclass, NULL, NULL, BUS_PASS_TIMER);
+EARLY_DRIVER_MODULE(tegra_efuse, simplebus, tegra_efuse_driver, NULL, NULL,
+    BUS_PASS_TIMER);
