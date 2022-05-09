@@ -1007,9 +1007,7 @@ static driver_t jedec_dimm_driver = {
 	.size = sizeof(struct jedec_dimm_softc),
 };
 
-static devclass_t jedec_dimm_devclass;
-
-DRIVER_MODULE(jedec_dimm, smbus, jedec_dimm_driver, jedec_dimm_devclass, 0, 0);
+DRIVER_MODULE(jedec_dimm, smbus, jedec_dimm_driver, 0, 0);
 MODULE_DEPEND(jedec_dimm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(jedec_dimm, 1);
 
