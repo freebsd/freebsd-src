@@ -2282,15 +2282,13 @@ static device_method_t qat_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t qat_devclass;
-
 static driver_t qat_driver = {
 	.name		= "qat",
 	.methods	= qat_methods,
 	.size		= sizeof(struct qat_softc),
 };
 
-DRIVER_MODULE(qat, pci, qat_driver, qat_devclass, 0, 0);
+DRIVER_MODULE(qat, pci, qat_driver, 0, 0);
 MODULE_VERSION(qat, 1);
 MODULE_DEPEND(qat, crypto, 1, 1, 1);
 MODULE_DEPEND(qat, pci, 1, 1, 1);
