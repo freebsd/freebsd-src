@@ -371,8 +371,6 @@ owc_gpiobus_reset_and_presence(device_t dev, struct ow_timing *t, int *bit)
 	return (0);
 }
 
-static devclass_t owc_gpiobus_devclass;
-
 static device_method_t owc_gpiobus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		owc_gpiobus_probe),
@@ -393,10 +391,10 @@ static driver_t owc_gpiobus_driver = {
 };
 
 #ifdef FDT
-DRIVER_MODULE(owc_gpiobus, simplebus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
+DRIVER_MODULE(owc_gpiobus, simplebus, owc_gpiobus_driver, 0, 0);
 #endif
 
-DRIVER_MODULE(owc_gpiobus, gpiobus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
+DRIVER_MODULE(owc_gpiobus, gpiobus, owc_gpiobus_driver, 0, 0);
 MODULE_DEPEND(owc_gpiobus, ow, 1, 1, 1);
 MODULE_DEPEND(owc_gpiobus, gpiobus, 1, 1, 1);
 MODULE_VERSION(owc_gpiobus, 1);
