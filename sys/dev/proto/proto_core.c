@@ -66,7 +66,6 @@ CTASSERT(SYS_RES_IRQ != PROTO_RES_BUSDMA &&
     SYS_RES_MEMORY != PROTO_RES_BUSDMA &&
     SYS_RES_IOPORT != PROTO_RES_BUSDMA);
 
-devclass_t proto_devclass;
 char proto_driver_name[] = "proto";
 
 static d_open_t proto_open;

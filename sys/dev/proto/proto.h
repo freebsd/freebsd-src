@@ -58,7 +58,6 @@ struct proto_softc {
 	struct mtx	sc_mtx;
 };
 
-extern devclass_t proto_devclass;
 extern char proto_driver_name[];
 
 int proto_add_resource(struct proto_softc *, int, int, struct resource *);
