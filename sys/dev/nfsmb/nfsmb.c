@@ -632,8 +632,6 @@ static device_method_t nfsmbsub_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t nfsmb_devclass;
-
 static driver_t nfsmb_driver = {
 	"nfsmb",
 	nfsmb_methods,
@@ -646,8 +644,8 @@ static driver_t nfsmbsub_driver = {
 	sizeof(struct nfsmb_softc),
 };
 
-DRIVER_MODULE(nfsmb, pci, nfsmb_driver, nfsmb_devclass, 0, 0);
-DRIVER_MODULE(nfsmb, nfsmb, nfsmbsub_driver, nfsmb_devclass, 0, 0);
+DRIVER_MODULE(nfsmb, pci, nfsmb_driver, 0, 0);
+DRIVER_MODULE(nfsmb, nfsmb, nfsmbsub_driver, 0, 0);
 DRIVER_MODULE(smbus, nfsmb, smbus_driver, 0, 0);
 
 MODULE_DEPEND(nfsmb, pci, 1, 1, 1);
