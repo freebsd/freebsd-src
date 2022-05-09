@@ -380,6 +380,4 @@ static driver_t geode_driver = {
 	0,
 };
 
-static devclass_t geode_devclass;
-
-DRIVER_MODULE(geode, pci, geode_driver, geode_devclass, 0, 0);
+DRIVER_MODULE(geode, pci, geode_driver, 0, 0);
