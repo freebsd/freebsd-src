@@ -2900,7 +2900,7 @@ DEFINE_CLASS_0(rtmdio, rtmdio_driver, rtmdio_methods,
     sizeof(struct rt_softc));
 static devclass_t rtmdio_devclass;
 
-DRIVER_MODULE(miiproxy, rt, miiproxy_driver, miiproxy_devclass, 0, 0);
+DRIVER_MODULE(miiproxy, rt, miiproxy_driver, 0, 0);
 DRIVER_MODULE(rtmdio, simplebus, rtmdio_driver, rtmdio_devclass, 0, 0);
 DRIVER_MODULE(mdio, rtmdio, mdio_driver, 0, 0);
 
