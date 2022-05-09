@@ -347,5 +347,5 @@ static driver_t lbggpiocm_driver = {
 	lbggpiocm_methods,
 	sizeof(struct lbggpiocm_softc)
 };
-static devclass_t lbggpiocm_devclass;
-DRIVER_MODULE(lbggpiocm, p2sb, lbggpiocm_driver, lbggpiocm_devclass, NULL, NULL);
+
+DRIVER_MODULE(lbggpiocm, p2sb, lbggpiocm_driver, NULL, NULL);
