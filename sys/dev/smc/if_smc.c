@@ -90,8 +90,6 @@ __FBSDID("$FreeBSD$");
 #define	SMC_RX_PRIORITY		5
 #define	SMC_TX_PRIORITY		10
 
-devclass_t	smc_devclass;
-
 static const char *smc_chip_ids[16] = {
 	NULL, NULL, NULL,
 	/* 3 */ "SMSC LAN91C90 or LAN91C92",
