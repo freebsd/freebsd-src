@@ -180,12 +180,10 @@ static device_method_t e6000sw_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t e6000sw_devclass;
-
 DEFINE_CLASS_0(e6000sw, e6000sw_driver, e6000sw_methods,
     sizeof(e6000sw_softc_t));
 
-DRIVER_MODULE(e6000sw, mdio, e6000sw_driver, e6000sw_devclass, 0, 0);
+DRIVER_MODULE(e6000sw, mdio, e6000sw_driver, 0, 0);
 DRIVER_MODULE(etherswitch, e6000sw, etherswitch_driver, 0, 0);
 DRIVER_MODULE(miibus, e6000sw, miibus_driver, 0, 0);
 MODULE_DEPEND(e6000sw, mdio, 1, 1, 1);

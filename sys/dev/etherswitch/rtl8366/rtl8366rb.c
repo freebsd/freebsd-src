@@ -957,9 +957,8 @@ static device_method_t rtl8366rb_methods[] = {
 
 DEFINE_CLASS_0(rtl8366rb, rtl8366rb_driver, rtl8366rb_methods,
     sizeof(struct rtl8366rb_softc));
-static devclass_t rtl8366rb_devclass;
 
-DRIVER_MODULE(rtl8366rb, iicbus, rtl8366rb_driver, rtl8366rb_devclass, 0, 0);
+DRIVER_MODULE(rtl8366rb, iicbus, rtl8366rb_driver, 0, 0);
 DRIVER_MODULE(miibus, rtl8366rb, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, rtl8366rb, mdio_driver, 0, 0);
 DRIVER_MODULE(etherswitch, rtl8366rb, etherswitch_driver, 0, 0);
