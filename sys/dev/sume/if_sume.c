@@ -1596,7 +1596,6 @@ mod_event(module_t mod, int cmd, void *arg)
 
 	return (0);
 }
-static devclass_t sume_devclass;
 
-DRIVER_MODULE(sume, pci, sume_driver, sume_devclass, mod_event, 0);
+DRIVER_MODULE(sume, pci, sume_driver, mod_event, NULL);
 MODULE_VERSION(sume, 1);
