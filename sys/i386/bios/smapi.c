@@ -74,8 +74,6 @@ struct smapi_softc {
 extern u_long smapi32_offset;
 extern u_short smapi32_segment;
 
-devclass_t smapi_devclass;
-
 static d_ioctl_t smapi_ioctl;
 
 static struct cdevsw smapi_cdevsw = {
@@ -318,5 +316,5 @@ smapi_modevent (module_t mod, int what, void *arg)
 	return (0);
 }
 
-DRIVER_MODULE(smapi, nexus, smapi_driver, smapi_devclass, smapi_modevent, 0);
+DRIVER_MODULE(smapi, nexus, smapi_driver, smapi_modevent, NULL);
 MODULE_VERSION(smapi, 1);
