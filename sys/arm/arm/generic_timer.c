@@ -504,12 +504,10 @@ static driver_t arm_tmr_fdt_driver = {
 	sizeof(struct arm_tmr_softc),
 };
 
-static devclass_t arm_tmr_fdt_devclass;
-
-EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_fdt_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_fdt_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
 #ifdef DEV_ACPI
@@ -526,10 +524,8 @@ static driver_t arm_tmr_acpi_driver = {
 	sizeof(struct arm_tmr_softc),
 };
 
-static devclass_t arm_tmr_acpi_devclass;
-
-EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, arm_tmr_acpi_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
 static void

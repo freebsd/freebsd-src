@@ -310,9 +310,7 @@ static driver_t sp804_timer_driver = {
 	sizeof(struct sp804_timer_softc),
 };
 
-static devclass_t sp804_timer_devclass;
-
-DRIVER_MODULE(sp804_timer, simplebus, sp804_timer_driver, sp804_timer_devclass, 0, 0);
+DRIVER_MODULE(sp804_timer, simplebus, sp804_timer_driver, 0, 0);
 
 static void
 sp804_timer_delay(int usec, void *arg)
