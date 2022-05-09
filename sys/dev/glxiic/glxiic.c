@@ -276,9 +276,7 @@ static driver_t glxiic_driver = {
 	sizeof(struct glxiic_softc),
 };
 
-static devclass_t glxiic_devclass;
-
-DRIVER_MODULE(glxiic, isab, glxiic_driver, glxiic_devclass, 0, 0);
+DRIVER_MODULE(glxiic, isab, glxiic_driver, 0, 0);
 DRIVER_MODULE(iicbus, glxiic, iicbus_driver, 0, 0);
 MODULE_DEPEND(glxiic, iicbus, 1, 1, 1);
 
