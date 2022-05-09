@@ -80,4 +80,5 @@ static driver_t cfi_nexus_driver = {
 	cfi_nexus_methods,
 	sizeof(struct cfi_softc),
 };
-DRIVER_MODULE(cfi, nexus, cfi_nexus_driver, cfi_devclass, 0, 0);
+
+DRIVER_MODULE(cfi, nexus, cfi_nexus_driver, 0, 0);

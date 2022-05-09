@@ -86,7 +86,6 @@ struct cfi_softc {
 };
 
 extern char cfi_driver_name[];
-extern devclass_t cfi_devclass;
 extern devclass_t cfi_diskclass;
 
 int cfi_probe(device_t);
