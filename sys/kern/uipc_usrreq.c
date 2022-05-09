@@ -2769,12 +2769,13 @@ unp_dispose(struct socket *so)
 {
 	struct unpcb *unp;
 
+	MPASS(!SOLISTENING(so));
+
 	unp = sotounpcb(so);
 	UNP_LINK_WLOCK();
 	unp->unp_gcflag |= UNPGC_IGNORE_RIGHTS;
 	UNP_LINK_WUNLOCK();
-	if (!SOLISTENING(so))
-		unp_dispose_mbuf(so->so_rcv.sb_mb);
+	unp_dispose_mbuf(so->so_rcv.sb_mb);
 }
 
 static void
