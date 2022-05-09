@@ -82,10 +82,78 @@ smmu_fdt_attach(device_t dev)
 	struct smmu_softc *sc;
 	struct smmu_unit *unit;
 	struct iommu_unit *iommu;
+	phandle_t node;
 	int err;
+	int rid;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+
+	node = ofw_bus_get_node(dev);
+
+	rid = 0;
+	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->res[0] == NULL) {
+		device_printf(dev, "Can't allocate memory resource.\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	/*
+	 * Interrupt lines are "eventq", "priq", "cmdq-sync", "gerror".
+	 */
+
+	err = ofw_bus_find_string_index(node, "interrupt-names", "eventq",
+	    &rid);
+	if (err != 0) {
+		device_printf(dev, "Can't get eventq IRQ.\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	sc->res[1] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	if (sc->res[1] == NULL) {
+		device_printf(dev, "Can't allocate eventq IRQ resource.\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	/*
+	 * sc->res[2] is reserved for priq IRQ. It is optional and not used
+	 * by the SMMU driver. This IRQ line may or may not be provided by
+	 * hardware.
+	 */
+
+	err = ofw_bus_find_string_index(node, "interrupt-names", "cmdq-sync",
+	    &rid);
+	if (err != 0) {
+		device_printf(dev, "Can't get cmdq-sync IRQ.\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	sc->res[3] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	if (sc->res[3] == NULL) {
+		device_printf(dev, "Can't allocate cmdq-sync IRQ resource.\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	err = ofw_bus_find_string_index(node, "interrupt-names", "gerror",
+	    &rid);
+	if (err != 0) {
+		device_printf(dev, "Can't get gerror IRQ.\n");
+		err = ENXIO;
+		goto error;
+	}
+
+	sc->res[4] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	if (sc->res[4] == NULL) {
+		device_printf(dev, "Can't allocate gerror IRQ resource.\n");
+		err = ENXIO;
+		goto error;
+	}
 
 	err = smmu_attach(dev);
 	if (err != 0)
