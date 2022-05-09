@@ -1411,13 +1411,13 @@ static driver_t axp2xx_driver = {
 };
 
 static devclass_t axp2xx_devclass;
-extern devclass_t ofwgpiobus_devclass, gpioc_devclass;
+extern devclass_t gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
 EARLY_DRIVER_MODULE(axp2xx, iicbus, axp2xx_driver, axp2xx_devclass,
   0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-EARLY_DRIVER_MODULE(ofw_gpiobus, axp2xx_pmu, ofw_gpiobus_driver,
-    ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(ofw_gpiobus, axp2xx_pmu, ofw_gpiobus_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 DRIVER_MODULE(gpioc, axp2xx_pmu, gpioc_driver, gpioc_devclass,
     0, 0);
 MODULE_VERSION(axp2xx, 1);
