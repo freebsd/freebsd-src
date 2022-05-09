@@ -710,7 +710,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 /*
  * Free mbufs held by a socket, and reserved mbuf space.
  */
-void
+static void
 sbrelease_internal(struct sockbuf *sb, struct socket *so)
 {
 
