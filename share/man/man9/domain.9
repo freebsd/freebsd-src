@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2021
+.Dd January 3, 2022
 .Dt DOMAIN 9
 .Os
 .Sh NAME
@@ -70,8 +70,6 @@ struct domain {
 	char	*dom_name;
 	int	dom_flags;
 	int	(*dom_probe)(void);	/* check for support (optional) */
-	void	(*dom_destroy)		/* cleanup structures / state */
-		(void);
 	int	(*dom_externalize)	/* externalize access rights */
 		(struct mbuf *, struct mbuf **);
 	void	(*dom_dispose)		/* dispose of internalized rights */
@@ -172,9 +170,6 @@ Once a domain is added it cannot be completely unloaded.
 This is because there is
 no reference counting system in place to determine if there are any
 active references from sockets within that domain.
-If the domain defines a
-.Fn dom_destroy
-routine, then it will be invoked during vnet teardown.
 .Pp
 .Fn pffinddomain
 finds a domain by family.
