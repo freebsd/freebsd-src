@@ -938,7 +938,7 @@
 		int linux_prctl(
 		    l_int option,
 		    l_uintptr_t arg2,
-		    l_ulntptr_t arg3,
+		    l_uintptr_t arg3,
 		    l_uintptr_t arg4,
 		    l_uintptr_t arg5
 		);
