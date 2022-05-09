@@ -937,10 +937,10 @@
 172	AUE_PRCTL	STD {
 		int linux_prctl(
 		    l_int option,
-		    l_int arg2,
-		    l_int arg3,
-		    l_int arg4,
-		    l_int arg5
+		    l_uintptr_t arg2,
+		    l_ulntptr_t arg3,
+		    l_uintptr_t arg4,
+		    l_uintptr_t arg5
 		);
 	}
 173	AUE_NULL	STD {
