@@ -59,12 +59,10 @@ static device_method_t thunder_mdio_fdt_methods[] = {
 DEFINE_CLASS_1(thunder_mdio, thunder_mdio_fdt_driver, thunder_mdio_fdt_methods,
     sizeof(struct thunder_mdio_softc), thunder_mdio_driver);
 
-static devclass_t thunder_mdio_fdt_devclass;
-
-EARLY_DRIVER_MODULE(thunder_mdio, ofwbus, thunder_mdio_fdt_driver,
-    thunder_mdio_fdt_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(thunder_mdio, mdionexus, thunder_mdio_fdt_driver,
-    thunder_mdio_fdt_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(thunder_mdio, ofwbus, thunder_mdio_fdt_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(thunder_mdio, mdionexus, thunder_mdio_fdt_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static struct ofw_compat_data mdio_compat_data[] = {
 	{"cavium,octeon-3860-mdio",	true},
@@ -140,10 +138,8 @@ static device_method_t mdionexus_fdt_methods[] = {
 DEFINE_CLASS_0(mdionexus, mdionexus_fdt_driver, mdionexus_fdt_methods,
     sizeof(struct mdionexus_softc));
 
-static devclass_t mdionexus_fdt_devclass;
-
-EARLY_DRIVER_MODULE(mdionexus, mrmlbus, mdionexus_fdt_driver,
-    mdionexus_fdt_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(mdionexus, mrmlbus, mdionexus_fdt_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int mdionexus_ofw_fill_ranges(phandle_t, struct simplebus_softc *);
 static int mdionexus_ofw_bus_attach(device_t);

@@ -155,9 +155,7 @@ static driver_t vnicpf_driver = {
 	sizeof(struct nicpf),
 };
 
-static devclass_t vnicpf_devclass;
-
-DRIVER_MODULE(vnicpf, pci, vnicpf_driver, vnicpf_devclass, 0, 0);
+DRIVER_MODULE(vnicpf, pci, vnicpf_driver, 0, 0);
 MODULE_VERSION(vnicpf, 1);
 MODULE_DEPEND(vnicpf, pci, 1, 1, 1);
 MODULE_DEPEND(vnicpf, ether, 1, 1, 1);
