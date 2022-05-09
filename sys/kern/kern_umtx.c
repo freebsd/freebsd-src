@@ -2263,6 +2263,17 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 		}
 
 		/*
+		 * Nobody owns it, but the acquire failed. This can happen
+		 * with ll/sc atomics.
+		 */
+		if (owner == UMUTEX_UNOWNED) {
+			error = thread_check_susp(td, true);
+			if (error != 0)
+				break;
+			continue;
+		}
+
+		/*
 		 * Avoid overwriting a possible error from sleep due
 		 * to the pending signal with suspension check result.
 		 */
