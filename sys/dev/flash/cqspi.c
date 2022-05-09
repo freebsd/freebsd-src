@@ -759,9 +759,7 @@ static device_method_t cqspi_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t cqspi_devclass;
-
 DEFINE_CLASS_1(cqspi, cqspi_driver, cqspi_methods,
     sizeof(struct cqspi_softc), simplebus_driver);
 
-DRIVER_MODULE(cqspi, simplebus, cqspi_driver, cqspi_devclass, 0, 0);
+DRIVER_MODULE(cqspi, simplebus, cqspi_driver, 0, 0);
