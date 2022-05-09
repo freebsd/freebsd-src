@@ -150,8 +150,6 @@ static driver_t ftwd_driver = {
 	sizeof (struct ftwd_softc)
 };
 
-static devclass_t ftwd_devclass;
-
-DRIVER_MODULE(ftwd, superio, ftwd_driver, ftwd_devclass, NULL, NULL);
+DRIVER_MODULE(ftwd, superio, ftwd_driver, NULL, NULL);
 MODULE_DEPEND(ftwd, superio, 1, 1, 1);
 MODULE_VERSION(ftwd, 1);
