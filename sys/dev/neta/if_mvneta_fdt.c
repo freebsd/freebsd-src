@@ -83,10 +83,8 @@ static device_method_t mvneta_fdt_methods[] = {
 DEFINE_CLASS_1(mvneta, mvneta_fdt_driver, mvneta_fdt_methods,
     sizeof(struct mvneta_softc), mvneta_driver);
 
-static devclass_t mvneta_fdt_devclass;
-
-DRIVER_MODULE(mvneta, ofwbus, mvneta_fdt_driver, mvneta_fdt_devclass, 0, 0);
-DRIVER_MODULE(mvneta, simplebus, mvneta_fdt_driver, mvneta_fdt_devclass, 0, 0);
+DRIVER_MODULE(mvneta, ofwbus, mvneta_fdt_driver, 0, 0);
+DRIVER_MODULE(mvneta, simplebus, mvneta_fdt_driver, 0, 0);
 
 static int mvneta_fdt_phy_acquire(device_t);
 
