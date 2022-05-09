@@ -1937,10 +1937,9 @@ static device_method_t gicv3_its_fdt_methods[] = {
 DEFINE_CLASS_1(its, gicv3_its_fdt_driver, gicv3_its_fdt_methods,
     sizeof(struct gicv3_its_softc), gicv3_its_driver);
 #undef its_baseclasses
-static devclass_t gicv3_its_fdt_devclass;
 
-EARLY_DRIVER_MODULE(its_fdt, gic, gicv3_its_fdt_driver,
-    gicv3_its_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(its_fdt, gic, gicv3_its_fdt_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static int
 gicv3_its_fdt_probe(device_t dev)
@@ -2007,10 +2006,9 @@ static device_method_t gicv3_its_acpi_methods[] = {
 DEFINE_CLASS_1(its, gicv3_its_acpi_driver, gicv3_its_acpi_methods,
     sizeof(struct gicv3_its_softc), gicv3_its_driver);
 #undef its_baseclasses
-static devclass_t gicv3_its_acpi_devclass;
 
-EARLY_DRIVER_MODULE(its_acpi, gic, gicv3_its_acpi_driver,
-    gicv3_its_acpi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(its_acpi, gic, gicv3_its_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static int
 gicv3_its_acpi_probe(device_t dev)

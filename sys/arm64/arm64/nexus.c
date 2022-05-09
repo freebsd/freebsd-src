@@ -482,10 +482,9 @@ static device_method_t nexus_fdt_methods[] = {
 #define nexus_baseclasses nexus_fdt_baseclasses
 DEFINE_CLASS_1(nexus, nexus_fdt_driver, nexus_fdt_methods, 1, nexus_driver);
 #undef nexus_baseclasses
-static devclass_t nexus_fdt_devclass;
 
-EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, nexus_fdt_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
+EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 
 static int
 nexus_fdt_probe(device_t dev)
@@ -543,10 +542,9 @@ static device_method_t nexus_acpi_methods[] = {
 DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1,
     nexus_driver);
 #undef nexus_baseclasses
-static devclass_t nexus_acpi_devclass;
 
-EARLY_DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, nexus_acpi_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
+EARLY_DRIVER_MODULE(nexus_acpi, root, nexus_acpi_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 
 static int
 nexus_acpi_probe(device_t dev)

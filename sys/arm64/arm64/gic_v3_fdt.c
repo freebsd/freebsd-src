@@ -84,12 +84,10 @@ static device_method_t gic_v3_fdt_methods[] = {
 DEFINE_CLASS_1(gic, gic_v3_fdt_driver, gic_v3_fdt_methods,
     sizeof(struct gic_v3_softc), gic_v3_driver);
 
-static devclass_t gic_v3_fdt_devclass;
-
-EARLY_DRIVER_MODULE(gic_v3, simplebus, gic_v3_fdt_driver, gic_v3_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(gic_v3, ofwbus, gic_v3_fdt_driver, gic_v3_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic_v3, simplebus, gic_v3_fdt_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic_v3, ofwbus, gic_v3_fdt_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 /*
  * Helper functions declarations.
