@@ -88,7 +88,5 @@ static device_method_t etm_fdt_methods[] = {
 DEFINE_CLASS_1(etm, etm_fdt_driver, etm_fdt_methods,
     sizeof(struct etm_softc), etm_driver);
 
-static devclass_t etm_fdt_devclass;
-
-EARLY_DRIVER_MODULE(etm, simplebus, etm_fdt_driver, etm_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(etm, simplebus, etm_fdt_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
