@@ -255,6 +255,4 @@ static driver_t rstmgr_driver = {
 	sizeof(struct rstmgr_softc),
 };
 
-static devclass_t rstmgr_devclass;
-
-DRIVER_MODULE(rstmgr, simplebus, rstmgr_driver, rstmgr_devclass, 0, 0);
+DRIVER_MODULE(rstmgr, simplebus, rstmgr_driver, 0, 0);
