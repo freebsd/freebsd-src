@@ -43,7 +43,6 @@
 
 #include "bhndb_bus_if.h"
 
-extern devclass_t bhndb_devclass;
 DECLARE_CLASS(bhnd_bhndb_driver);
 
 int	bhndb_attach_bridge(device_t parent, device_t *bhndb, int unit);

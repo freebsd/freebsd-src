@@ -297,7 +297,7 @@ MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwn_siba,
     siba_devices, nitems(siba_devices) - 1);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwn_bcma,
     bcma_devices, nitems(bcma_devices) - 1);
-DRIVER_MODULE(bhndb, bwn_pci, bhndb_pci_driver, bhndb_devclass, NULL, NULL);
+DRIVER_MODULE(bhndb, bwn_pci, bhndb_pci_driver, NULL, NULL);
 
 MODULE_DEPEND(bwn_pci, bwn, 1, 1, 1);
 MODULE_DEPEND(bwn_pci, bhnd, 1, 1, 1);
