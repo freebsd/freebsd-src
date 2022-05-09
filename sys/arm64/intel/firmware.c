@@ -115,8 +115,6 @@ static device_method_t firmware_methods[] = {
 DEFINE_CLASS_1(firmware, firmware_driver, firmware_methods,
     sizeof(struct firmware_softc), simplebus_driver);
 
-static devclass_t firmware_devclass;
-
-EARLY_DRIVER_MODULE(firmware, simplebus, firmware_driver, firmware_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(firmware, simplebus, firmware_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(firmware, 1);
