@@ -178,11 +178,9 @@ static driver_t psci_fdt_driver = {
 	sizeof(struct psci_softc),
 };
 
-static devclass_t psci_fdt_devclass;
-
-EARLY_DRIVER_MODULE(psci, simplebus, psci_fdt_driver, psci_fdt_devclass, 0, 0,
+EARLY_DRIVER_MODULE(psci, simplebus, psci_fdt_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);
-EARLY_DRIVER_MODULE(psci, ofwbus, psci_fdt_driver, psci_fdt_devclass, 0, 0,
+EARLY_DRIVER_MODULE(psci, ofwbus, psci_fdt_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);
 
 static psci_callfn_t
@@ -254,9 +252,7 @@ static driver_t psci_acpi_driver = {
 	sizeof(struct psci_softc),
 };
 
-static devclass_t psci_acpi_devclass;
-
-EARLY_DRIVER_MODULE(psci, acpi, psci_acpi_driver, psci_acpi_devclass, 0, 0,
+EARLY_DRIVER_MODULE(psci, acpi, psci_acpi_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);
 
 static int
