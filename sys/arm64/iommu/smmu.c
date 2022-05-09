@@ -1874,7 +1874,7 @@ smmu_ctx_lookup_by_sid(device_t dev, u_int sid)
 static struct iommu_ctx *
 smmu_ctx_lookup(device_t dev, device_t child)
 {
-	struct iommu_unit *iommu __unused;
+	struct iommu_unit *iommu __diagused;
 	struct smmu_softc *sc;
 	struct smmu_domain *domain;
 	struct smmu_unit *unit;
