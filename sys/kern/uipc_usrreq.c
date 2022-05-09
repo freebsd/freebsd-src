@@ -2767,7 +2767,9 @@ unp_dispose_mbuf(struct mbuf *m)
 static void
 unp_dispose(struct socket *so)
 {
+	struct sockbuf *sb = &so->so_rcv;
 	struct unpcb *unp;
+	struct mbuf *m;
 
 	MPASS(!SOLISTENING(so));
 
@@ -2775,7 +2777,21 @@ unp_dispose(struct socket *so)
 	UNP_LINK_WLOCK();
 	unp->unp_gcflag |= UNPGC_IGNORE_RIGHTS;
 	UNP_LINK_WUNLOCK();
-	unp_dispose_mbuf(so->so_rcv.sb_mb);
+
+	/*
+	 * Grab our special mbufs before calling sbrelease().
+	 */
+	SOCK_RECVBUF_LOCK(so);
+	m = sbcut_locked(sb, sb->sb_ccc);
+	KASSERT(sb->sb_ccc == 0 && sb->sb_mb == 0 && sb->sb_mbcnt == 0,
+	    ("%s: ccc %u mb %p mbcnt %u", __func__,
+	    sb->sb_ccc, (void *)sb->sb_mb, sb->sb_mbcnt));
+	sbrelease_locked(sb, so);
+	SOCK_RECVBUF_UNLOCK(so);
+	if (SOCK_IO_RECV_OWNED(so))
+		SOCK_IO_RECV_UNLOCK(so);
+
+	unp_dispose_mbuf(m);
 }
 
 static void
