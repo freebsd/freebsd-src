@@ -142,13 +142,13 @@ static device_method_t nexus_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t nexus_devclass;
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
 	1			/* no softc */
 };
-EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
+
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
 
 static int

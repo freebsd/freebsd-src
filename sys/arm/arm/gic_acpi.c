@@ -80,9 +80,7 @@ static device_method_t gic_acpi_methods[] = {
 DEFINE_CLASS_1(gic, gic_acpi_driver, gic_acpi_methods,
     sizeof(struct arm_gic_softc), arm_gic_driver);
 
-static devclass_t gic_acpi_devclass;
-
-EARLY_DRIVER_MODULE(gic, acpi, gic_acpi_driver, gic_acpi_devclass, 0, 0,
+EARLY_DRIVER_MODULE(gic, acpi, gic_acpi_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 struct madt_table_data {
@@ -354,7 +352,5 @@ static device_method_t arm_gicv2m_acpi_methods[] = {
 DEFINE_CLASS_1(gicv2m, arm_gicv2m_acpi_driver, arm_gicv2m_acpi_methods,
     sizeof(struct arm_gicv2m_softc), arm_gicv2m_driver);
 
-static devclass_t arm_gicv2m_acpi_devclass;
-
-EARLY_DRIVER_MODULE(gicv2m_acpi, gic, arm_gicv2m_acpi_driver,
-    arm_gicv2m_acpi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gicv2m_acpi, gic, arm_gicv2m_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
