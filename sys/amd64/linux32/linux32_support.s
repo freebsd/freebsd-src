@@ -39,7 +39,7 @@ futex_fault:
 	je	1f
 	clac
 1:	movq	$0,PCB_ONFAULT(%r8)
-	movl	$-EFAULT,%eax
+	movl	$EFAULT,%eax
 	ret
 
 ENTRY(futex_xchgl_nosmap)
