@@ -87,6 +87,15 @@ pflog_init()
 	fi
 }
 
+dummynet_init()
+{
+	pft_init
+
+	if ! kldstat -q -m dummynet; then
+		atf_skip "This test requires dummynet"
+	fi
+}
+
 pft_set_rules()
 {
 	jname=$1
