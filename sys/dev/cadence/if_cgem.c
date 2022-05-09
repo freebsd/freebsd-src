@@ -234,8 +234,6 @@ struct cgem_softc {
 /* Allow platforms to optionally provide a way to set the reference clock. */
 int cgem_set_ref_clk(int unit, int frequency);
 
-static devclass_t cgem_devclass;
-
 static int cgem_probe(device_t dev);
 static int cgem_attach(device_t dev);
 static int cgem_detach(device_t dev);
@@ -1961,7 +1959,7 @@ static driver_t cgem_driver = {
 	sizeof(struct cgem_softc),
 };
 
-DRIVER_MODULE(cgem, simplebus, cgem_driver, cgem_devclass, NULL, NULL);
+DRIVER_MODULE(cgem, simplebus, cgem_driver, NULL, NULL);
 DRIVER_MODULE(miibus, cgem, miibus_driver, NULL, NULL);
 MODULE_DEPEND(cgem, miibus, 1, 1, 1);
 MODULE_DEPEND(cgem, ether, 1, 1, 1);
