@@ -57,8 +57,6 @@ struct a37x0_xtal_softc {
 	struct clkdom		*clkdom;
 };
 
-static devclass_t a37x0_xtal_devclass;
-
 static int a37x0_xtal_attach(device_t dev);
 static int a37x0_xtal_detach(device_t dev);
 static int a37x0_xtal_probe(device_t dev);
@@ -76,8 +74,8 @@ static driver_t a37x0_xtal_driver = {
 	sizeof(struct a37x0_xtal_softc)
 };
 
-EARLY_DRIVER_MODULE(a37x0_xtal, simplebus, a37x0_xtal_driver,
-    a37x0_xtal_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);
+EARLY_DRIVER_MODULE(a37x0_xtal, simplebus, a37x0_xtal_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY);
 
 static int
 a37x0_xtal_attach(device_t dev)

@@ -483,12 +483,10 @@ static device_method_t a37x0_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t a37x0_spi_devclass;
-
 static driver_t a37x0_spi_driver = {
 	"spi",
 	a37x0_spi_methods,
 	sizeof(struct a37x0_spi_softc),
 };
 
-DRIVER_MODULE(a37x0_spi, simplebus, a37x0_spi_driver, a37x0_spi_devclass, 0, 0);
+DRIVER_MODULE(a37x0_spi, simplebus, a37x0_spi_driver, 0, 0);

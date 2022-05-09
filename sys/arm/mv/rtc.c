@@ -91,9 +91,8 @@ static driver_t mv_rtc_driver = {
 	mv_rtc_methods,
 	sizeof(struct mv_rtc_softc),
 };
-static devclass_t mv_rtc_devclass;
 
-DRIVER_MODULE(mv_rtc, simplebus, mv_rtc_driver, mv_rtc_devclass, 0, 0);
+DRIVER_MODULE(mv_rtc, simplebus, mv_rtc_driver, 0, 0);
 
 static int
 mv_rtc_probe(device_t dev)

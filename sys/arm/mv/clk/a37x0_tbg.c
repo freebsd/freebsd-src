@@ -91,8 +91,6 @@ static const struct a37x0_tbg_def tbg[NUM_TBG] = {
 	{"TBG-B-S", TBG_B_REFDIV, TBG_B_FBDIV, TBG_CTRL1, TBG_B_VCODIV_SEL, 25}
 };
 
-static devclass_t a37x0_tbg_devclass;
-
 static int a37x0_tbg_read_4(device_t, bus_addr_t, uint32_t *);
 static int a37x0_tbg_attach(device_t);
 static int a37x0_tbg_detach(device_t);
@@ -114,8 +112,8 @@ static driver_t a37x0_tbg_driver = {
 	sizeof(struct a37x0_tbg_softc)
 };
 
-EARLY_DRIVER_MODULE(a37x0_tbg, simplebus, a37x0_tbg_driver,
-    a37x0_tbg_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(a37x0_tbg, simplebus, a37x0_tbg_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 static int
 a37x0_tbg_read_4(device_t dev, bus_addr_t offset, uint32_t *val)

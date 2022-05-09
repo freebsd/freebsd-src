@@ -146,9 +146,7 @@ static driver_t mv_ic_driver = {
 	sizeof(struct mv_ic_softc),
 };
 
-static devclass_t mv_ic_devclass;
-
-DRIVER_MODULE(ic, simplebus, mv_ic_driver, mv_ic_devclass, 0, 0);
+DRIVER_MODULE(ic, simplebus, mv_ic_driver, 0, 0);
 
 int
 arm_get_next_irq(int last)

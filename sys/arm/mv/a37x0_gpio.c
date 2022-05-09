@@ -331,12 +331,11 @@ static device_method_t a37x0_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t a37x0_gpio_devclass;
 static driver_t a37x0_gpio_driver = {
 	"gpio",
 	a37x0_gpio_methods,
 	sizeof(struct a37x0_gpio_softc),
 };
 
-EARLY_DRIVER_MODULE(a37x0_gpio, simple_mfd, a37x0_gpio_driver,
-    a37x0_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+EARLY_DRIVER_MODULE(a37x0_gpio, simple_mfd, a37x0_gpio_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

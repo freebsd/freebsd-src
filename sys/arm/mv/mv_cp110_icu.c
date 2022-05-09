@@ -455,13 +455,11 @@ static device_method_t mv_cp110_icu_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t mv_cp110_icu_devclass;
-
 static driver_t mv_cp110_icu_driver = {
 	"mv_cp110_icu",
 	mv_cp110_icu_methods,
 	sizeof(struct mv_cp110_icu_softc),
 };
 
-EARLY_DRIVER_MODULE(mv_cp110_icu, mv_cp110_icu_bus, mv_cp110_icu_driver,
-    mv_cp110_icu_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
+EARLY_DRIVER_MODULE(mv_cp110_icu, mv_cp110_icu_bus, mv_cp110_icu_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

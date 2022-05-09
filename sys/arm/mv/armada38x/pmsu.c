@@ -78,10 +78,8 @@ static driver_t pmsu_driver = {
 	sizeof(struct pmsu_softc)
 };
 
-static devclass_t pmsu_devclass;
-
-DRIVER_MODULE(pmsu, simplebus, pmsu_driver, pmsu_devclass, 0, 0);
-DRIVER_MODULE(pmsu, ofwbus, pmsu_driver, pmsu_devclass, 0, 0);
+DRIVER_MODULE(pmsu, simplebus, pmsu_driver, 0, 0);
+DRIVER_MODULE(pmsu, ofwbus, pmsu_driver, 0, 0);
 
 static int
 pmsu_probe(device_t dev)

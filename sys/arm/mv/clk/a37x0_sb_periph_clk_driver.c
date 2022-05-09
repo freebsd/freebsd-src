@@ -101,10 +101,8 @@ static driver_t a37x0_sb_periph_driver = {
 	sizeof(struct a37x0_periph_clk_softc)
 };
 
-devclass_t a37x0_sb_periph_devclass;
-
-EARLY_DRIVER_MODULE(a37x0_sb_periph, simplebus, a37x0_sb_periph_driver,
-    a37x0_sb_periph_devclass, 0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(a37x0_sb_periph, simplebus, a37x0_sb_periph_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_LATE);
 
 static int
 a37x0_sb_periph_clk_attach(device_t dev)

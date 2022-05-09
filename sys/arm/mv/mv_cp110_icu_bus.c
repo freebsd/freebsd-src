@@ -72,7 +72,6 @@ DEFINE_CLASS_1(mv_cp110_icu_bus, mv_cp110_icu_bus_driver,
     mv_cp110_icu_bus_methods, sizeof(struct simple_mfd_softc),
     simple_mfd_driver);
 
-static devclass_t mv_cp110_icu_bus_devclass;
-EARLY_DRIVER_MODULE(mv_cp110_icu_bus, simplebus, mv_cp110_icu_bus_driver,
-    mv_cp110_icu_bus_devclass, 0, 0, BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(mv_cp110_icu_bus, simplebus, mv_cp110_icu_bus_driver, 0, 0,
+    BUS_PASS_INTERRUPT);
 MODULE_VERSION(mv_cp110_icu_bus, 1);
