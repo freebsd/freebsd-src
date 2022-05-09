@@ -232,8 +232,7 @@ static device_method_t syscon_generic_dmethods[] = {
 
 DEFINE_CLASS_1(syscon_generic_dev, syscon_generic_driver, syscon_generic_dmethods,
     sizeof(struct syscon_generic_softc), simplebus_driver);
-static devclass_t syscon_generic_devclass;
 
-EARLY_DRIVER_MODULE(syscon_generic, simplebus, syscon_generic_driver,
-    syscon_generic_devclass, 0, 0, BUS_PASS_DEFAULT);
+EARLY_DRIVER_MODULE(syscon_generic, simplebus, syscon_generic_driver, 0, 0,
+    BUS_PASS_DEFAULT);
 MODULE_VERSION(syscon_generic, 1);

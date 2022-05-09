@@ -81,7 +81,6 @@ static device_method_t ofw_regulator_bus_methods[] = {
 DEFINE_CLASS_1(ofw_regulator_bus, ofw_regulator_bus_driver,
     ofw_regulator_bus_methods, sizeof(struct ofw_regulator_bus_softc),
     simplebus_driver);
-static devclass_t ofw_regulator_bus_devclass;
 EARLY_DRIVER_MODULE(ofw_regulator_bus, simplebus, ofw_regulator_bus_driver,
-    ofw_regulator_bus_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofw_regulator_bus, 1);
