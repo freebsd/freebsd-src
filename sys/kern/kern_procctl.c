@@ -370,8 +370,20 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 	TAILQ_INIT(&tracker);
 	reap_kill_sched(&tracker, reaper);
 	while ((t = TAILQ_FIRST(&tracker)) != NULL) {
-		MPASS((t->parent->p_treeflag & P_TREE_REAPER) != 0);
 		TAILQ_REMOVE(&tracker, t, link);
+
+		/*
+		 * Since reap_kill_proc() drops proctree_lock sx, it
+		 * is possible that the tracked reaper is no longer.
+		 * In this case the subtree is reparented to the new
+		 * reaper, which should handle it.
+		 */
+		if ((t->parent->p_treeflag & P_TREE_REAPER) == 0) {
+			free(t, M_TEMP);
+			res = true;
+			continue;
+		}
+
 		LIST_FOREACH(p2, &t->parent->p_reaplist, p_reapsibling) {
 			if (t->parent == reaper &&
 			    (rk->rk_flags & REAPER_KILL_SUBTREE) != 0 &&
