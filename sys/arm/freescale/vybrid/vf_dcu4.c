@@ -466,6 +466,4 @@ static driver_t dcu_driver = {
 	sizeof(struct dcu_softc),
 };
 
-static devclass_t dcu_devclass;
-
-DRIVER_MODULE(fb, simplebus, dcu_driver, dcu_devclass, 0, 0);
+DRIVER_MODULE(fb, simplebus, dcu_driver, 0, 0);

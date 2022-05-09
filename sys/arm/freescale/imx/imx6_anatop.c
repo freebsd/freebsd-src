@@ -810,9 +810,7 @@ static driver_t imx6_anatop_driver = {
 	sizeof(struct imx6_anatop_softc)
 };
 
-static devclass_t imx6_anatop_devclass;
-
-EARLY_DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver,
-    imx6_anatop_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(imx6_anatop, ofwbus, imx6_anatop_driver,
-    imx6_anatop_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(imx6_anatop, ofwbus, imx6_anatop_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

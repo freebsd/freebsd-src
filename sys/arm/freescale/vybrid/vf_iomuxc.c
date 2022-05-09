@@ -207,6 +207,4 @@ static driver_t iomuxc_driver = {
 	sizeof(struct iomuxc_softc),
 };
 
-static devclass_t iomuxc_devclass;
-
-DRIVER_MODULE(iomuxc, simplebus, iomuxc_driver, iomuxc_devclass, 0, 0);
+DRIVER_MODULE(iomuxc, simplebus, iomuxc_driver, 0, 0);

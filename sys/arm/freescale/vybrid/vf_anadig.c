@@ -241,6 +241,4 @@ static driver_t anadig_driver = {
 	sizeof(struct anadig_softc),
 };
 
-static devclass_t anadig_devclass;
-
-DRIVER_MODULE(anadig, simplebus, anadig_driver, anadig_devclass, 0, 0);
+DRIVER_MODULE(anadig, simplebus, anadig_driver, 0, 0);

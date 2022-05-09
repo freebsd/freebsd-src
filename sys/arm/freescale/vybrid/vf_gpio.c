@@ -381,6 +381,4 @@ static driver_t vf_gpio_driver = {
 	sizeof(struct vf_gpio_softc),
 };
 
-static devclass_t vf_gpio_devclass;
-
-DRIVER_MODULE(vf_gpio, simplebus, vf_gpio_driver, vf_gpio_devclass, 0, 0);
+DRIVER_MODULE(vf_gpio, simplebus, vf_gpio_driver, 0, 0);

@@ -198,12 +198,10 @@ static driver_t usbphy_driver = {
 	sizeof(struct usbphy_softc)
 };
 
-static devclass_t usbphy_devclass;
-
 /*
  * This driver needs to start before the ehci driver, but later than the usual
  * "special" drivers like clocks and cpu.  Ehci starts at DEFAULT so SUPPORTDEV
  * is where this driver fits most.
  */
-EARLY_DRIVER_MODULE(usbphy, simplebus, usbphy_driver, usbphy_devclass, 0, 0,
+EARLY_DRIVER_MODULE(usbphy, simplebus, usbphy_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

@@ -517,8 +517,6 @@ static driver_t sdma_driver = {
 	sizeof(struct sdma_softc),
 };
 
-static devclass_t sdma_devclass;
-
 /* We want to attach after all interrupt controllers, before anything else. */
-EARLY_DRIVER_MODULE(sdma, simplebus, sdma_driver, sdma_devclass, 0, 0,
+EARLY_DRIVER_MODULE(sdma, simplebus, sdma_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

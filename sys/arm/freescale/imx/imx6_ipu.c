@@ -1265,8 +1265,6 @@ static driver_t ipu_driver = {
 	sizeof(struct ipu_softc),
 };
 
-static devclass_t ipu_devclass;
-
-DRIVER_MODULE(ipu, simplebus, ipu_driver, ipu_devclass, 0, 0);
+DRIVER_MODULE(ipu, simplebus, ipu_driver, 0, 0);
 MODULE_VERSION(ipu, 1);
 MODULE_DEPEND(ipu, simplebus, 1, 1, 1);

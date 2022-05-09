@@ -305,7 +305,4 @@ static driver_t tzic_driver = {
 	sizeof(struct tzic_softc),
 };
 
-static devclass_t tzic_devclass;
-
-EARLY_DRIVER_MODULE(tzic, ofwbus, tzic_driver, tzic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(tzic, ofwbus, tzic_driver, 0, 0, BUS_PASS_INTERRUPT);
