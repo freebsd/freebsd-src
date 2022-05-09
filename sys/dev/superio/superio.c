@@ -992,8 +992,6 @@ superio_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	}
 }
 
-static devclass_t superio_devclass;
-
 static device_method_t superio_methods[] = {
 	DEVMETHOD(device_identify,	superio_identify),
 	DEVMETHOD(device_probe,		superio_probe),
@@ -1030,5 +1028,5 @@ static driver_t superio_driver = {
 	sizeof(struct siosc)
 };
 
-DRIVER_MODULE(superio, isa, superio_driver, superio_devclass, 0, 0);
+DRIVER_MODULE(superio, isa, superio_driver, 0, 0);
 MODULE_VERSION(superio, 1);
