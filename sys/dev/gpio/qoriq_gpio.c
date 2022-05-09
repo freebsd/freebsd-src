@@ -434,11 +434,8 @@ static device_method_t qoriq_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t qoriq_gpio_devclass;
-
 DEFINE_CLASS_0(gpio, qoriq_gpio_driver, qoriq_gpio_methods,
     sizeof(struct qoriq_gpio_softc));
 
-EARLY_DRIVER_MODULE(qoriq_gpio, simplebus, qoriq_gpio_driver,
-    qoriq_gpio_devclass, NULL, NULL,
+EARLY_DRIVER_MODULE(qoriq_gpio, simplebus, qoriq_gpio_driver, NULL, NULL,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

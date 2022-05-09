@@ -116,8 +116,6 @@ gpiopower_assert(device_t dev, int howto)
 	DELAY(10000000);
 }
 
-static devclass_t gpiopower_devclass;
-
 static device_method_t gpiopower_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gpiopower_probe),
@@ -132,5 +130,5 @@ static driver_t gpiopower_driver = {
 	sizeof(struct gpiopower_softc)
 };
 
-DRIVER_MODULE(gpiopower, simplebus, gpiopower_driver, gpiopower_devclass, 0, 0);
+DRIVER_MODULE(gpiopower, simplebus, gpiopower_driver, 0, 0);
 MODULE_DEPEND(gpiopower, gpiobus, 1, 1, 1);
