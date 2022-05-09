@@ -152,7 +152,7 @@ __FBSDID("$FreeBSD$");
 static struct resource_spec smmu_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
 	{ SYS_RES_IRQ, 0, RF_ACTIVE },
-	{ SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ SYS_RES_IRQ, 1, RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ, 2, RF_ACTIVE },
 	{ SYS_RES_IRQ, 3, RF_ACTIVE },
 	RESOURCE_SPEC_END
@@ -1546,12 +1546,6 @@ smmu_attach(device_t dev)
 	sc->dev = dev;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->dev), "smmu", MTX_DEF);
-
-	error = bus_alloc_resources(dev, smmu_spec, sc->res);
-	if (error) {
-		device_printf(dev, "Couldn't allocate resources.\n");
-		return (ENXIO);
-	}
 
 	error = smmu_setup_interrupts(sc);
 	if (error) {
