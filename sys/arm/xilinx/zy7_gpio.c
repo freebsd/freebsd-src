@@ -371,7 +371,5 @@ static driver_t zy7_gpio_driver = {
 	zy7_gpio_methods,
 	sizeof(struct zy7_gpio_softc),
 };
-static devclass_t zy7_gpio_devclass;
 
-DRIVER_MODULE(zy7_gpio, simplebus, zy7_gpio_driver, zy7_gpio_devclass, \
-	      NULL, NULL);
+DRIVER_MODULE(zy7_gpio, simplebus, zy7_gpio_driver, NULL, NULL);

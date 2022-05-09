@@ -365,7 +365,6 @@ static driver_t ehci_driver = {
 	ehci_methods,
 	sizeof(struct ehci_softc),
 };
-static devclass_t ehci_devclass;
 
-DRIVER_MODULE(zy7_ehci, simplebus, ehci_driver, ehci_devclass, NULL, NULL);
+DRIVER_MODULE(zy7_ehci, simplebus, ehci_driver, NULL, NULL);
 MODULE_DEPEND(zy7_ehci, usb, 1, 1, 1);
