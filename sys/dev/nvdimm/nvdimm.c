@@ -63,7 +63,6 @@ static struct uuid intel_nvdimm_dsm_uuid =
 #define INTEL_NVDIMM_DSM_GET_LABEL_SIZE 4
 #define INTEL_NVDIMM_DSM_GET_LABEL_DATA 5
 
-static devclass_t nvdimm_devclass;
 MALLOC_DEFINE(M_NVDIMM, "nvdimm", "NVDIMM driver memory");
 
 static int
@@ -469,6 +468,5 @@ nvdimm_find_by_handle(nfit_handle_t nv_handle)
 	return (res);
 }
 
-DRIVER_MODULE(nvdimm, nvdimm_acpi_root, nvdimm_driver, nvdimm_devclass, NULL,
-    NULL);
+DRIVER_MODULE(nvdimm, nvdimm_acpi_root, nvdimm_driver, NULL, NULL);
 MODULE_DEPEND(nvdimm, acpi, 1, 1, 1);
