@@ -1195,7 +1195,7 @@ sofree(struct socket *so)
 		so->so_dtor(so);
 
 	VNET_SO_ASSERT(so);
-	if (pr->pr_flags & PR_RIGHTS) {
+	if ((pr->pr_flags & PR_RIGHTS) && !SOLISTENING(so)) {
 		MPASS(pr->pr_domain->dom_dispose != NULL);
 		(*pr->pr_domain->dom_dispose)(so);
 	}
