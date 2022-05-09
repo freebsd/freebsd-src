@@ -1210,8 +1210,6 @@ ig4iic_dump(ig4iic_softc_t *sc)
 }
 #undef REGDUMP
 
-devclass_t ig4iic_devclass;
-
 DRIVER_MODULE(iicbus, ig4iic, iicbus_driver, NULL, NULL);
 #ifdef DEV_ACPI
 DRIVER_MODULE(acpi_iicbus, ig4iic, acpi_iicbus_driver, NULL, NULL);

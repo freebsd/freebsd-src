@@ -114,8 +114,6 @@ struct ig4iic_softc {
 
 typedef struct ig4iic_softc ig4iic_softc_t;
 
-extern devclass_t ig4iic_devclass;
-
 /* Attach/Detach called from ig4iic_pci_*() */
 int ig4iic_attach(ig4iic_softc_t *sc);
 int ig4iic_detach(ig4iic_softc_t *sc);
