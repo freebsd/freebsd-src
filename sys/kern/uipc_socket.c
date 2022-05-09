@@ -1195,8 +1195,10 @@ sofree(struct socket *so)
 		so->so_dtor(so);
 
 	VNET_SO_ASSERT(so);
-	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
+	if (pr->pr_flags & PR_RIGHTS) {
+		MPASS(pr->pr_domain->dom_dispose != NULL);
 		(*pr->pr_domain->dom_dispose)(so);
+	}
 	if (pr->pr_usrreqs->pru_detach != NULL)
 		(*pr->pr_usrreqs->pru_detach)(so);
 
@@ -2989,8 +2991,10 @@ sorflush(struct socket *so)
 	 * any unsafe routines (that rely on locks being initialized) on aso.
 	 */
 	pr = so->so_proto;
-	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
+	if (pr->pr_flags & PR_RIGHTS) {
+		MPASS(pr->pr_domain->dom_dispose != NULL);
 		(*pr->pr_domain->dom_dispose)(&aso);
+	}
 	sbrelease_internal(&aso.so_rcv, so);
 }
 
