@@ -456,8 +456,6 @@ static int cyapa_attach(device_t);
 static int cyapa_detach(device_t);
 static void cyapa_cdevpriv_dtor(void*);
 
-static devclass_t cyapa_devclass;
-
 static device_method_t cyapa_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		cyapa_probe),
@@ -1814,7 +1812,7 @@ cyapa_fuzz(int delta, int *fuzzp)
 	return (delta);
 }
 
-DRIVER_MODULE(cyapa, iicbus, cyapa_driver, cyapa_devclass, NULL, NULL);
+DRIVER_MODULE(cyapa, iicbus, cyapa_driver, NULL, NULL);
 MODULE_DEPEND(cyapa, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(cyapa, evdev, 1, 1, 1);
