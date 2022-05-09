@@ -2304,8 +2304,6 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t bhndb_devclass;
-
 DEFINE_CLASS_0(bhndb, bhndb_driver, bhndb_methods, sizeof(struct bhndb_softc));
 
 MODULE_VERSION(bhndb, 1);
