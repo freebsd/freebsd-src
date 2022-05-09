@@ -81,9 +81,7 @@ static device_method_t mrmlbus_fdt_methods[] = {
 DEFINE_CLASS_0(mrmlbus, mrmlbus_fdt_driver, mrmlbus_fdt_methods,
     sizeof(struct simplebus_softc));
 
-static devclass_t mrmlbus_fdt_devclass;
-
-EARLY_DRIVER_MODULE(mrmlbus, pcib, mrmlbus_fdt_driver, mrmlbus_fdt_devclass, 0, 0,
+EARLY_DRIVER_MODULE(mrmlbus, pcib, mrmlbus_fdt_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(mrmlbus, 1);
 
