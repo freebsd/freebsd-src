@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #define	GET_SHARED(a)	(a->flags & FUTEX_SHARED) ? AUTO_SHARE : THREAD_SHARE
 
-static int futex_atomic_op(struct thread *, int, uint32_t *);
+static int futex_atomic_op(struct thread *, int, uint32_t *, int *);
 static int handle_futex_death(struct thread *td, struct linux_emuldata *,
     uint32_t *, unsigned int, bool);
 static int fetch_robust_entry(struct linux_robust_list **,
@@ -130,7 +130,8 @@ futex_wake_pi(struct thread *td, uint32_t *uaddr, bool shared)
 }
 
 static int
-futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
+futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr,
+    int *res)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -158,34 +159,34 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 		ret = futex_xorl(oparg, uaddr, &oldval);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = ENOSYS;
 		break;
 	}
 
-	if (ret)
+	if (ret != 0)
 		return (ret);
 
 	switch (cmp) {
 	case FUTEX_OP_CMP_EQ:
-		ret = (oldval == cmparg);
+		*res = (oldval == cmparg);
 		break;
 	case FUTEX_OP_CMP_NE:
-		ret = (oldval != cmparg);
+		*res = (oldval != cmparg);
 		break;
 	case FUTEX_OP_CMP_LT:
-		ret = (oldval < cmparg);
+		*res = (oldval < cmparg);
 		break;
 	case FUTEX_OP_CMP_GE:
-		ret = (oldval >= cmparg);
+		*res = (oldval >= cmparg);
 		break;
 	case FUTEX_OP_CMP_LE:
-		ret = (oldval <= cmparg);
+		*res = (oldval <= cmparg);
 		break;
 	case FUTEX_OP_CMP_GT:
-		ret = (oldval > cmparg);
+		*res = (oldval > cmparg);
 		break;
 	default:
-		ret = -ENOSYS;
+		ret = ENOSYS;
 	}
 
 	return (ret);
@@ -635,13 +636,7 @@ linux_futex_wakeop(struct thread *td, struct linux_futex_args *args)
 	umtxq_lock(&key);
 	umtxq_busy(&key);
 	umtxq_unlock(&key);
-	op_ret = futex_atomic_op(td, args->val3, args->uaddr2);
-	if (op_ret < 0) {
-		if (op_ret == -ENOSYS)
-			error = ENOSYS;
-		else
-			error = EFAULT;
-	}
+	error = futex_atomic_op(td, args->val3, args->uaddr2, &op_ret);
 	umtxq_lock(&key);
 	umtxq_unbusy(&key);
 	if (error != 0)
