@@ -476,9 +476,7 @@ static driver_t rk_spi_driver = {
 	sizeof(struct rk_spi_softc),
 };
 
-static devclass_t rk_spi_devclass;
-
-DRIVER_MODULE(rk_spi, simplebus, rk_spi_driver, rk_spi_devclass, 0, 0);
+DRIVER_MODULE(rk_spi, simplebus, rk_spi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, rk_spi, ofw_spibus_driver, 0, 0);
 MODULE_DEPEND(rk_spi, ofw_spibus, 1, 1, 1);
 OFWBUS_PNP_INFO(compat_data);

@@ -1337,11 +1337,9 @@ static device_method_t rk_pinctrl_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rk_pinctrl_devclass;
-
 DEFINE_CLASS_1(rk_pinctrl, rk_pinctrl_driver, rk_pinctrl_methods,
     sizeof(struct rk_pinctrl_softc), simplebus_driver);
 
-EARLY_DRIVER_MODULE(rk_pinctrl, simplebus, rk_pinctrl_driver,
-    rk_pinctrl_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_pinctrl, simplebus, rk_pinctrl_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_pinctrl, 1);

@@ -297,8 +297,7 @@ static device_method_t rk_usbphy_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rk_usbphy_devclass;
 static DEFINE_CLASS_0(rk_usbphy, rk_usbphy_driver, rk_usbphy_methods,
     sizeof(struct rk_usbphy_softc));
-EARLY_DRIVER_MODULE(rk_usbphy, simplebus, rk_usbphy_driver,
-    rk_usbphy_devclass, NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);
+EARLY_DRIVER_MODULE(rk_usbphy, simplebus, rk_usbphy_driver, NULL, NULL,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);

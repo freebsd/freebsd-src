@@ -71,7 +71,6 @@ static device_method_t rk_pmu_methods[] = {
 DEFINE_CLASS_1(rk_pmu, rk_pmu_driver, rk_pmu_methods,
     sizeof(struct simple_mfd_softc), simple_mfd_driver);
 
-static devclass_t rk_pmu_devclass;
-EARLY_DRIVER_MODULE(rk_pmu, simplebus, rk_pmu_driver, rk_pmu_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_pmu, simplebus, rk_pmu_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_pmu, 1);

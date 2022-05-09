@@ -786,8 +786,7 @@ static device_method_t rk_tsadc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rk_tsadc_devclass;
 static DEFINE_CLASS_0(rk_tsadc, rk_tsadc_driver, rk_tsadc_methods,
     sizeof(struct tsadc_softc));
-EARLY_DRIVER_MODULE(rk_tsadc, simplebus, rk_tsadc_driver,
-    rk_tsadc_devclass, NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);
+EARLY_DRIVER_MODULE(rk_tsadc, simplebus, rk_tsadc_driver, NULL, NULL,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);

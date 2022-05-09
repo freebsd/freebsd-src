@@ -468,7 +468,6 @@ static driver_t rk_typec_phy_driver = {
 	sizeof(struct rk_typec_phy_softc)
 };
 
-static devclass_t rk_typec_phy_devclass;
-EARLY_DRIVER_MODULE(rk_typec_phy, simplebus, rk_typec_phy_driver,
-    rk_typec_phy_devclass, 0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_typec_phy, simplebus, rk_typec_phy_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_typec_phy, 1);

@@ -73,7 +73,6 @@ static device_method_t rk_grf_methods[] = {
 DEFINE_CLASS_1(rk_grf, rk_grf_driver, rk_grf_methods,
     sizeof(struct simple_mfd_softc), simple_mfd_driver);
 
-static devclass_t rk_grf_devclass;
-EARLY_DRIVER_MODULE(rk_grf, simplebus, rk_grf_driver, rk_grf_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_grf, simplebus, rk_grf_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_grf, 1);

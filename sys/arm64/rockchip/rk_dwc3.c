@@ -202,8 +202,6 @@ static device_method_t rk_dwc3_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rk_dwc3_devclass;
-
 DEFINE_CLASS_1(rk_dwc3, rk_dwc3_driver, rk_dwc3_methods,
     sizeof(struct rk_dwc3_softc), simplebus_driver);
-DRIVER_MODULE(rk_dwc3, simplebus, rk_dwc3_driver, rk_dwc3_devclass, 0, 0);
+DRIVER_MODULE(rk_dwc3, simplebus, rk_dwc3_driver, 0, 0);

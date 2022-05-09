@@ -466,12 +466,10 @@ static driver_t rk_gpio_driver = {
 	sizeof(struct rk_gpio_softc),
 };
 
-static devclass_t rk_gpio_devclass;
-
 /*
  * GPIO driver is always a child of rk_pinctrl driver and should be probed
  * and attached within rk_pinctrl_attach function. Due to this, bus pass order
  * must be same as bus pass order of rk_pinctrl driver.
  */
-EARLY_DRIVER_MODULE(rk_gpio, simplebus, rk_gpio_driver,
-    rk_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_gpio, simplebus, rk_gpio_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

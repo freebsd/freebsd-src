@@ -335,7 +335,6 @@ static driver_t rk_emmcphy_driver = {
 	sizeof(struct rk_emmcphy_softc)
 };
 
-static devclass_t rk_emmcphy_devclass;
-EARLY_DRIVER_MODULE(rk_emmcphy, simplebus, rk_emmcphy_driver,
-    rk_emmcphy_devclass, 0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_emmcphy, simplebus, rk_emmcphy_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_emmcphy, 1);
