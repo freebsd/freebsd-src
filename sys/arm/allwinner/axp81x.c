@@ -1652,14 +1652,13 @@ static driver_t axp8xx_driver = {
 };
 
 static devclass_t axp8xx_devclass;
-extern devclass_t gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
 EARLY_DRIVER_MODULE(axp8xx, iicbus, axp8xx_driver, axp8xx_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 EARLY_DRIVER_MODULE(ofw_gpiobus, axp8xx_pmu, ofw_gpiobus_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
-DRIVER_MODULE(gpioc, axp8xx_pmu, gpioc_driver, gpioc_devclass, 0, 0);
+DRIVER_MODULE(gpioc, axp8xx_pmu, gpioc_driver, 0, 0);
 MODULE_VERSION(axp8xx, 1);
 MODULE_DEPEND(axp8xx, iicbus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
