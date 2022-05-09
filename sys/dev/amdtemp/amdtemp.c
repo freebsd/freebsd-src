@@ -229,8 +229,7 @@ static driver_t amdtemp_driver = {
 	sizeof(struct amdtemp_softc),
 };
 
-static devclass_t amdtemp_devclass;
-DRIVER_MODULE(amdtemp, hostb, amdtemp_driver, amdtemp_devclass, NULL, NULL);
+DRIVER_MODULE(amdtemp, hostb, amdtemp_driver, NULL, NULL);
 MODULE_VERSION(amdtemp, 1);
 MODULE_DEPEND(amdtemp, amdsmn, 1, 1, 1);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, amdtemp, amdtemp_products,

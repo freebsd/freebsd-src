@@ -129,8 +129,7 @@ static driver_t amdsmn_driver = {
 	sizeof(struct amdsmn_softc),
 };
 
-static devclass_t amdsmn_devclass;
-DRIVER_MODULE(amdsmn, hostb, amdsmn_driver, amdsmn_devclass, NULL, NULL);
+DRIVER_MODULE(amdsmn, hostb, amdsmn_driver, NULL, NULL);
 MODULE_VERSION(amdsmn, 1);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, amdsmn, amdsmn_ids,
     nitems(amdsmn_ids));
