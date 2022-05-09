@@ -917,8 +917,6 @@ done:
 	NET_EPOCH_EXIT(et);
 }
 
-static devclass_t fwip_devclass;
-
 static device_method_t fwip_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_identify,	fwip_identify),
@@ -935,6 +933,6 @@ static driver_t fwip_driver = {
 };
 
 
-DRIVER_MODULE(fwip, firewire, fwip_driver, fwip_devclass, 0, 0);
+DRIVER_MODULE(fwip, firewire, fwip_driver, 0, 0);
 MODULE_VERSION(fwip, 1);
 MODULE_DEPEND(fwip, firewire, 1, 1, 1);
