@@ -102,9 +102,6 @@ struct viapm_softc {
 	struct mtx lock;
 };
 
-static devclass_t viapm_devclass;
-static devclass_t viapropm_devclass;
-
 /*
  * VT82C586B definitions
  */
@@ -1003,8 +1000,8 @@ static driver_t viapropm_driver = {
 	sizeof(struct viapm_softc),
 };
 
-DRIVER_MODULE(viapm, pci, viapm_driver, viapm_devclass, 0, 0);
-DRIVER_MODULE(viapropm, pci, viapropm_driver, viapropm_devclass, 0, 0);
+DRIVER_MODULE(viapm, pci, viapm_driver, 0, 0);
+DRIVER_MODULE(viapropm, pci, viapropm_driver, 0, 0);
 DRIVER_MODULE(iicbb, viapm, iicbb_driver, 0, 0);
 DRIVER_MODULE(smbus, viapropm, smbus_driver, 0, 0);
 
