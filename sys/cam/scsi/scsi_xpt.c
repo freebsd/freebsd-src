@@ -1621,7 +1621,7 @@ probe_device_check:
 				 * trailing spaces. Remove them.
 				 */
 				while (slen > 0 &&
-				    serial_buf->serial_num[slen - 1] == ' ')
+				    serial_buf->serial_num[start + slen - 1] == ' ')
 					slen--;
 				memcpy(path->device->serial_num,
 				       &serial_buf->serial_num[start], slen);
