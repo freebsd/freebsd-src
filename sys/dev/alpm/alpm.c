@@ -627,8 +627,6 @@ error:
 	return (error);
 }
 
-static devclass_t alpm_devclass;
-
 static device_method_t alpm_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		alpm_probe),
@@ -655,7 +653,7 @@ static driver_t alpm_driver = {
 	sizeof(struct alpm_softc)
 };
 
-DRIVER_MODULE(alpm, pci, alpm_driver, alpm_devclass, 0, 0);
+DRIVER_MODULE(alpm, pci, alpm_driver, 0, 0);
 DRIVER_MODULE(smbus, alpm, smbus_driver, 0, 0);
 MODULE_DEPEND(alpm, pci, 1, 1, 1);
 MODULE_DEPEND(alpm, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
