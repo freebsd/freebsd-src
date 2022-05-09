@@ -196,10 +196,8 @@ static driver_t qlnx_pci_driver = {
 	"ql", qlnx_pci_methods, sizeof (qlnx_host_t),
 };
 
-static devclass_t qlnx_devclass;
-
 MODULE_VERSION(if_qlnxe,1);
-DRIVER_MODULE(if_qlnxe, pci, qlnx_pci_driver, qlnx_devclass, 0, 0);
+DRIVER_MODULE(if_qlnxe, pci, qlnx_pci_driver, 0, 0);
 
 MODULE_DEPEND(if_qlnxe, pci, 1, 1, 1);
 MODULE_DEPEND(if_qlnxe, ether, 1, 1, 1);
@@ -218,9 +216,8 @@ static driver_t qlnxv_pci_driver = {
 	"ql", qlnxv_pci_methods, sizeof (qlnx_host_t),
 };
 
-static devclass_t qlnxv_devclass;
 MODULE_VERSION(if_qlnxev,1);
-DRIVER_MODULE(if_qlnxev, pci, qlnxv_pci_driver, qlnxv_devclass, 0, 0);
+DRIVER_MODULE(if_qlnxev, pci, qlnxv_pci_driver, 0, 0);
 
 MODULE_DEPEND(if_qlnxev, pci, 1, 1, 1);
 MODULE_DEPEND(if_qlnxev, ether, 1, 1, 1);

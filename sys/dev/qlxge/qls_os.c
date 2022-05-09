@@ -108,9 +108,7 @@ static driver_t qla_pci_driver = {
 	"ql", qla_pci_methods, sizeof (qla_host_t),
 };
 
-static devclass_t qla8000_devclass;
-
-DRIVER_MODULE(qla8000, pci, qla_pci_driver, qla8000_devclass, 0, 0);
+DRIVER_MODULE(qla8000, pci, qla_pci_driver, 0, 0);
 
 MODULE_DEPEND(qla8000, pci, 1, 1, 1);
 MODULE_DEPEND(qla8000, ether, 1, 1, 1);
