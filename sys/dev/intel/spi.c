@@ -528,7 +528,6 @@ static driver_t intelspi_driver = {
 	sizeof(struct intelspi_softc),
 };
 
-static devclass_t intelspi_devclass;
-DRIVER_MODULE(intelspi, acpi, intelspi_driver, intelspi_devclass, 0, 0);
+DRIVER_MODULE(intelspi, acpi, intelspi_driver, 0, 0);
 MODULE_DEPEND(intelspi, acpi, 1, 1, 1);
 MODULE_DEPEND(intelspi, spibus, 1, 1, 1);

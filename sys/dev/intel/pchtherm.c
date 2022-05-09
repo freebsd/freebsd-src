@@ -307,6 +307,7 @@ static int pchtherm_detach(device_t dev)
 
 	return 0;
 }
+
 static device_method_t pchtherm_methods[] =
 {
 	DEVMETHOD(device_probe, pchtherm_probe),
@@ -315,12 +316,12 @@ static device_method_t pchtherm_methods[] =
 
 	DEVMETHOD_END
 };
+
 static driver_t pchtherm_driver = {
 	"pchtherm",
 	pchtherm_methods,
 	sizeof(struct pchtherm_softc)
 };
 
-static devclass_t pchtherm_devclass;
-DRIVER_MODULE(pchtherm, pci, pchtherm_driver, pchtherm_devclass, 0, 0);
+DRIVER_MODULE(pchtherm, pci, pchtherm_driver, 0, 0);
 PCI_PNP_INFO(pchtherm_devices);
