@@ -131,8 +131,6 @@ static int isl_detach(device_t);
 
 static int isl_sysctl(SYSCTL_HANDLER_ARGS);
 
-static devclass_t isl_devclass;
-
 static device_method_t isl_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		isl_probe),
@@ -339,6 +337,6 @@ isl_read_sensor(device_t dev, uint8_t cmd_mask)
 	return (ret);
 }
 
-DRIVER_MODULE(isl, iicbus, isl_driver, isl_devclass, NULL, NULL);
+DRIVER_MODULE(isl, iicbus, isl_driver, NULL, NULL);
 MODULE_DEPEND(isl, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(isl, 1);
