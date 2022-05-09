@@ -276,7 +276,5 @@ driver_t spibus_driver = {
 	sizeof(struct spibus_softc)
 };
 
-devclass_t	spibus_devclass;
-
-DRIVER_MODULE(spibus, spi, spibus_driver, spibus_devclass, 0, 0);
+DRIVER_MODULE(spibus, spi, spibus_driver, 0, 0);
 MODULE_VERSION(spibus, 1);
