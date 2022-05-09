@@ -274,9 +274,8 @@ static device_method_t clk_fixed_methods[] = {
 
 DEFINE_CLASS_0(clk_fixed, clk_fixed_driver, clk_fixed_methods,
     sizeof(struct clk_fixed_softc));
-static devclass_t clk_fixed_devclass;
-EARLY_DRIVER_MODULE(clk_fixed, simplebus, clk_fixed_driver,
-    clk_fixed_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(clk_fixed, simplebus, clk_fixed_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(clk_fixed, 1);
 
 #endif

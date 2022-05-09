@@ -192,7 +192,5 @@ static device_method_t syscon_power_methods[] = {
 
 DEFINE_CLASS_0(syscon_power, syscon_power_driver, syscon_power_methods,
     sizeof(struct syscon_power_softc));
-static devclass_t syscon_power_devclass;
 
-DRIVER_MODULE(syscon_power, simplebus, syscon_power_driver,
-    syscon_power_devclass, NULL, NULL);
+DRIVER_MODULE(syscon_power, simplebus, syscon_power_driver, NULL, NULL);

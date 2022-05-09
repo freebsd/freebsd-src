@@ -507,10 +507,8 @@ static device_method_t regfix_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t regfix_devclass;
 DEFINE_CLASS_0(regfix, regfix_driver, regfix_methods,
     sizeof(struct regfix_softc));
-EARLY_DRIVER_MODULE(regfix, simplebus, regfix_driver,
-   regfix_devclass, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(regfix, simplebus, regfix_driver, 0, 0, BUS_PASS_BUS);
 
 #endif /* FDT */
