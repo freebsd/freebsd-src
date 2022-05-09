@@ -99,9 +99,7 @@ static driver_t ti_mbox_driver = {
 	sizeof(struct ti_mbox_softc)
 };
 
-static devclass_t ti_mbox_devclass;
-
-DRIVER_MODULE(ti_mbox, simplebus, ti_mbox_driver, ti_mbox_devclass, 0, 0);
+DRIVER_MODULE(ti_mbox, simplebus, ti_mbox_driver, 0, 0);
 MODULE_DEPEND(ti_mbox, ti_sysc, 1, 1, 1);
 
 static __inline uint32_t

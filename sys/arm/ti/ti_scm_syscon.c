@@ -289,9 +289,7 @@ static device_method_t ti_scm_syscon_methods[] = {
 DEFINE_CLASS_1(ti_scm_syscon, ti_scm_syscon_driver, ti_scm_syscon_methods,
     sizeof(struct ti_scm_syscon_softc), simplebus_driver);
 
-static devclass_t ti_scm_syscon_devclass;
-
-EARLY_DRIVER_MODULE(ti_scm_syscon, simplebus, ti_scm_syscon_driver,
-    ti_scm_syscon_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_scm_syscon, simplebus, ti_scm_syscon_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_scm_syscon, 1);
 MODULE_DEPEND(ti_scm_syscon, ti_scm, 1, 1, 1);

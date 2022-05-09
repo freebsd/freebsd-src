@@ -161,9 +161,7 @@ static driver_t ti_pruss_driver = {
 	sizeof(struct ti_pruss_softc)
 };
 
-static devclass_t ti_pruss_devclass;
-
-DRIVER_MODULE(ti_pruss, simplebus, ti_pruss_driver, ti_pruss_devclass, 0, 0);
+DRIVER_MODULE(ti_pruss, simplebus, ti_pruss_driver, 0, 0);
 MODULE_DEPEND(ti_pruss, ti_sysc, 1, 1, 1);
 MODULE_DEPEND(ti_pruss, ti_prm, 1, 1, 1);
 

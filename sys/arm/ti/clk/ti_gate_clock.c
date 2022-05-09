@@ -259,8 +259,6 @@ static device_method_t ti_gate_methods[] = {
 DEFINE_CLASS_0(ti_gate, ti_gate_driver, ti_gate_methods,
 	sizeof(struct ti_gate_softc));
 
-static devclass_t ti_gate_devclass;
-
-EARLY_DRIVER_MODULE(ti_gate, simplebus, ti_gate_driver,
-	ti_gate_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_gate, simplebus, ti_gate_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_gate, 1);

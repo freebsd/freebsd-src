@@ -1024,7 +1024,5 @@ static driver_t twl_vreg_driver = {
 	sizeof(struct twl_vreg_softc),
 };
 
-static devclass_t twl_vreg_devclass;
-
-DRIVER_MODULE(twl_vreg, twl, twl_vreg_driver, twl_vreg_devclass, 0, 0);
+DRIVER_MODULE(twl_vreg, twl, twl_vreg_driver, 0, 0);
 MODULE_VERSION(twl_vreg, 1);

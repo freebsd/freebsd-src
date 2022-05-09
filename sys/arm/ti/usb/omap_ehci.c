@@ -463,6 +463,4 @@ static driver_t ehci_driver = {
 	sizeof(struct omap_ehci_softc),
 };
 
-static devclass_t ehci_devclass;
-
-DRIVER_MODULE(omap_ehci, omap_uhh, ehci_driver, ehci_devclass, 0, 0);
+DRIVER_MODULE(omap_ehci, omap_uhh, ehci_driver, 0, 0);

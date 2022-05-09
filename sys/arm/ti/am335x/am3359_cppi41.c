@@ -180,9 +180,7 @@ DEFINE_CLASS_1(ti_am3359_cppi41, ti_am3359_cppi41_driver,
     ti_am3359_cppi41_methods,sizeof(struct ti_am3359_cppi41_softc),
     simplebus_driver);
 
-static devclass_t ti_am3359_cppi41_devclass;
-
-EARLY_DRIVER_MODULE(ti_am3359_cppi41, simplebus, ti_am3359_cppi41_driver,
-    ti_am3359_cppi41_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_am3359_cppi41, simplebus, ti_am3359_cppi41_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_am3359_cppi41, 1);
 MODULE_DEPEND(ti_am3359_cppi41, ti_sysc, 1, 1, 1);

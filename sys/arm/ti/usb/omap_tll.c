@@ -356,6 +356,4 @@ static driver_t omap_tll_driver = {
 	sizeof(struct omap_tll_softc),
 };
 
-static devclass_t omap_tll_devclass;
-
-DRIVER_MODULE(omap_tll, simplebus, omap_tll_driver, omap_tll_devclass, 0, 0);
+DRIVER_MODULE(omap_tll, simplebus, omap_tll_driver, 0, 0);

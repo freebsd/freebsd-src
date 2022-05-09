@@ -242,8 +242,6 @@ static device_method_t ti_mux_methods[] = {
 DEFINE_CLASS_0(ti_mux, ti_mux_driver, ti_mux_methods,
 	sizeof(struct ti_mux_softc));
 
-static devclass_t ti_mux_devclass;
-
-EARLY_DRIVER_MODULE(ti_mux, simplebus, ti_mux_driver,
-	ti_mux_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_mux, simplebus, ti_mux_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_mux, 1);

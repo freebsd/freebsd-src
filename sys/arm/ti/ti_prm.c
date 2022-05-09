@@ -196,9 +196,7 @@ static device_method_t ti_prm_methods[] = {
 DEFINE_CLASS_1(ti_prm, ti_prm_driver, ti_prm_methods,
     sizeof(struct ti_prm_softc), simplebus_driver);
 
-static devclass_t ti_prm_devclass;
-
-EARLY_DRIVER_MODULE(ti_prm, simplebus, ti_prm_driver,
-    ti_prm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_prm, simplebus, ti_prm_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_prm, 1);
 MODULE_DEPEND(ti_prm, ti_sysc, 1, 1, 1);

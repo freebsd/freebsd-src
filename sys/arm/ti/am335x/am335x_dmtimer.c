@@ -379,9 +379,7 @@ static driver_t am335x_dmtimer_driver = {
 	sizeof(struct am335x_dmtimer_softc),
 };
 
-static devclass_t am335x_dmtimer_devclass;
-
-DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, am335x_dmtimer_devclass, 0, 0);
+DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, 0, 0);
 MODULE_DEPEND(am335x_dmtimer, ti_sysc, 1, 1, 1);
 
 static void

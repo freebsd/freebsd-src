@@ -95,8 +95,6 @@ static driver_t am335x_ecap_driver = {
 	sizeof(struct am335x_ecap_softc),
 };
 
-static devclass_t am335x_ecap_devclass;
-
 /*
  * API function to set period/duty cycles for ECAPx
  */
@@ -194,6 +192,6 @@ am335x_ecap_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(am335x_ecap, am335x_pwmss, am335x_ecap_driver, am335x_ecap_devclass, 0, 0);
+DRIVER_MODULE(am335x_ecap, am335x_pwmss, am335x_ecap_driver, 0, 0);
 MODULE_VERSION(am335x_ecap, 1);
 MODULE_DEPEND(am335x_ecap, am335x_pwmss, 1, 1, 1);

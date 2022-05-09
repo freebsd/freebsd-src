@@ -141,9 +141,7 @@ static device_method_t omap4_gpio_methods[] = {
 };
 
 extern driver_t ti_gpio_driver;
-static devclass_t omap4_gpio_devclass;
 
 DEFINE_CLASS_1(gpio, omap4_gpio_driver, omap4_gpio_methods,
     sizeof(struct ti_gpio_softc), ti_gpio_driver);
-DRIVER_MODULE(omap4_gpio, simplebus, omap4_gpio_driver, omap4_gpio_devclass,
-    0, 0);
+DRIVER_MODULE(omap4_gpio, simplebus, omap4_gpio_driver, 0, 0);

@@ -1096,9 +1096,7 @@ static driver_t am335x_lcd_driver = {
 	sizeof(struct am335x_lcd_softc),
 };
 
-static devclass_t am335x_lcd_devclass;
-
-DRIVER_MODULE(am335x_lcd, simplebus, am335x_lcd_driver, am335x_lcd_devclass, 0, 0);
+DRIVER_MODULE(am335x_lcd, simplebus, am335x_lcd_driver, 0, 0);
 MODULE_VERSION(am335x_lcd, 1);
 MODULE_DEPEND(am335x_lcd, simplebus, 1, 1, 1);
 MODULE_DEPEND(am335x_lcd, ti_sysc, 1, 1, 1);

@@ -321,8 +321,6 @@ static driver_t am335x_pmic_driver = {
 	sizeof(struct am335x_pmic_softc),
 };
 
-static devclass_t am335x_pmic_devclass;
-
-DRIVER_MODULE(am335x_pmic, iicbus, am335x_pmic_driver, am335x_pmic_devclass, 0, 0);
+DRIVER_MODULE(am335x_pmic, iicbus, am335x_pmic_driver, 0, 0);
 MODULE_VERSION(am335x_pmic, 1);
 MODULE_DEPEND(am335x_pmic, iicbus, 1, 1, 1);

@@ -344,9 +344,7 @@ static device_method_t ti_clkctrl_methods[] = {
 DEFINE_CLASS_0(ti_clkctrl, ti_clkctrl_driver, ti_clkctrl_methods,
     sizeof(struct ti_clkctrl_softc));
 
-static devclass_t ti_clkctrl_devclass;
-
-EARLY_DRIVER_MODULE(ti_clkctrl, simplebus, ti_clkctrl_driver,
-ti_clkctrl_devclass, 0, 0, BUS_PASS_BUS+BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_clkctrl, simplebus, ti_clkctrl_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_VERSION(ti_clkctrl, 1);

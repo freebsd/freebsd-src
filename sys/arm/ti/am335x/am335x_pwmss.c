@@ -173,7 +173,6 @@ am335x_pwmss_detach(device_t dev)
 
 DEFINE_CLASS_1(am335x_pwmss, am335x_pwmss_driver, am335x_pwmss_methods,
     sizeof(struct am335x_pwmss_softc), simplebus_driver);
-static devclass_t am335x_pwmss_devclass;
-DRIVER_MODULE(am335x_pwmss, simplebus, am335x_pwmss_driver, am335x_pwmss_devclass, 0, 0);
+DRIVER_MODULE(am335x_pwmss, simplebus, am335x_pwmss_driver, 0, 0);
 MODULE_VERSION(am335x_pwmss, 1);
 MODULE_DEPEND(am335x_pwmss, ti_sysc, 1, 1, 1);
