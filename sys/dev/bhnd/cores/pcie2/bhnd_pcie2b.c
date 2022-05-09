@@ -91,8 +91,7 @@ static device_method_t bhnd_pcie2b_methods[] = {
 DEFINE_CLASS_1(pcib, bhnd_pcie2b_driver, bhnd_pcie2b_methods,
     sizeof(struct bhnd_pcie2b_softc), bhnd_pcie2_driver);
 
-static devclass_t pcib_devclass;
-DRIVER_MODULE(bhnd_pcie2b, bhnd, bhnd_pcie2b_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(bhnd_pcie2b, bhnd, bhnd_pcie2b_driver, 0, 0);
 
 MODULE_VERSION(bhnd_pcie2b, 1);
 MODULE_DEPEND(bhnd_pcie2b, bhnd, 1, 1, 1);

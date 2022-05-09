@@ -83,7 +83,7 @@ static device_method_t bhndb_pci_sprom_methods[] = {
 
 DEFINE_CLASS_1(bhnd_nvram, bhndb_pci_sprom_driver, bhndb_pci_sprom_methods, sizeof(struct bhnd_sprom_softc), bhnd_sprom_driver);
 
-DRIVER_MODULE(bhndb_pci_sprom, bhndb, bhndb_pci_sprom_driver, bhnd_nvram_devclass, NULL, NULL);
+DRIVER_MODULE(bhndb_pci_sprom, bhndb, bhndb_pci_sprom_driver, NULL, NULL);
 MODULE_DEPEND(bhndb_pci_sprom, bhnd, 1, 1, 1);
 MODULE_DEPEND(bhndb_pci_sprom, bhnd_sprom, 1, 1, 1);
 MODULE_VERSION(bhndb_pci_sprom, 1);

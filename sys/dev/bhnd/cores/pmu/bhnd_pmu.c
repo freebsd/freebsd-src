@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
  * offsets within the ChipCommon core.
  */
 
-devclass_t bhnd_pmu_devclass;	/**< bhnd(4) PMU device class */
-
 static int	bhnd_pmu_sysctl_bus_freq(SYSCTL_HANDLER_ARGS);
 static int	bhnd_pmu_sysctl_cpu_freq(SYSCTL_HANDLER_ARGS);
 static int	bhnd_pmu_sysctl_mem_freq(SYSCTL_HANDLER_ARGS);

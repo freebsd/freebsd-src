@@ -491,10 +491,8 @@ static device_method_t bhnd_usb_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bhnd_usb_devclass;
-
 DEFINE_CLASS_0(bhnd_usb, bhnd_usb_driver, bhnd_usb_methods,
     sizeof(struct bhnd_usb_softc));
-DRIVER_MODULE(bhnd_usb, bhnd, bhnd_usb_driver, bhnd_usb_devclass, 0, 0);
+DRIVER_MODULE(bhnd_usb, bhnd, bhnd_usb_driver, 0, 0);
 
 MODULE_VERSION(bhnd_usb, 1);

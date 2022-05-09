@@ -487,7 +487,7 @@ static device_method_t bhnd_pwrctl_methods[] = {
 DEFINE_CLASS_0(bhnd_pwrctl, bhnd_pwrctl_driver, bhnd_pwrctl_methods,
     sizeof(struct bhnd_pwrctl_softc));
 EARLY_DRIVER_MODULE(bhnd_pwrctl, bhnd_chipc, bhnd_pwrctl_driver,
-    bhnd_pmu_devclass, NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+    NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_DEPEND(bhnd_pwrctl, bhnd, 1, 1, 1);
 MODULE_VERSION(bhnd_pwrctl, 1);

@@ -119,7 +119,7 @@ static device_method_t bhnd_pmu_chipc_methods[] = {
 DEFINE_CLASS_1(bhnd_pmu, bhnd_pmu_chipc_driver, bhnd_pmu_chipc_methods,
     sizeof(struct bhnd_pmu_softc), bhnd_pmu_driver);
 EARLY_DRIVER_MODULE(bhnd_pmu_chipc, bhnd_chipc, bhnd_pmu_chipc_driver,
-    bhnd_pmu_devclass, NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+    NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_DEPEND(bhnd_pmu_chipc, bhnd, 1, 1, 1);
 MODULE_VERSION(bhnd_pmu_chipc, 1);

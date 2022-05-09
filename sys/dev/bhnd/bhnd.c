@@ -1164,9 +1164,5 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t bhnd_devclass;	/**< bhnd bus. */
-devclass_t bhnd_hostb_devclass;	/**< bhnd bus host bridge. */
-devclass_t bhnd_nvram_devclass;	/**< bhnd NVRAM device */
-
 DEFINE_CLASS_0(bhnd, bhnd_driver, bhnd_methods, sizeof(struct bhnd_softc));
 MODULE_VERSION(bhnd, 1);

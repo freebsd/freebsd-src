@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #include "chipc_private.h"
 
-devclass_t bhnd_chipc_devclass;	/**< bhnd(4) chipcommon device class */
-
 static struct bhnd_device_quirk chipc_quirks[];
 
 /* Supported device identifiers */
@@ -1421,7 +1419,7 @@ static device_method_t chipc_methods[] = {
 };
 
 DEFINE_CLASS_0(bhnd_chipc, bhnd_chipc_driver, chipc_methods, sizeof(struct chipc_softc));
-EARLY_DRIVER_MODULE(bhnd_chipc, bhnd, bhnd_chipc_driver, bhnd_chipc_devclass, 0, 0,
+EARLY_DRIVER_MODULE(bhnd_chipc, bhnd, bhnd_chipc_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_DEPEND(bhnd_chipc, bhnd, 1, 1, 1);
 MODULE_VERSION(bhnd_chipc, 1);
