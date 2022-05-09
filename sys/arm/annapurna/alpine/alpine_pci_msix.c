@@ -107,10 +107,8 @@ static driver_t al_msix_driver = {
 	sizeof(struct al_msix_softc),
 };
 
-devclass_t al_msix_devclass;
-
-DRIVER_MODULE(al_msix, ofwbus, al_msix_driver, al_msix_devclass, 0, 0);
-DRIVER_MODULE(al_msix, simplebus, al_msix_driver, al_msix_devclass, 0, 0);
+DRIVER_MODULE(al_msix, ofwbus, al_msix_driver, 0, 0);
+DRIVER_MODULE(al_msix, simplebus, al_msix_driver, 0, 0);
 
 MALLOC_DECLARE(M_AL_MSIX);
 MALLOC_DEFINE(M_AL_MSIX, "al_msix", "Alpine MSIX");

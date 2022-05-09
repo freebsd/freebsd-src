@@ -70,12 +70,10 @@ static driver_t nb_service_driver = {
 	sizeof(struct nb_service_softc)
 };
 
-static devclass_t nb_service_devclass;
-
-EARLY_DRIVER_MODULE(nb_service, simplebus, nb_service_driver,
-    nb_service_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(nb_service, ofwbus, nb_service_driver,
-    nb_service_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(nb_service, simplebus, nb_service_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(nb_service, ofwbus, nb_service_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static int
 nb_service_probe(device_t dev)
