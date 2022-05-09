@@ -1044,9 +1044,7 @@ static driver_t ofwfb_sc_driver = {
 	sizeof(sc_softc_t),
 };
 
-static devclass_t	sc_devclass;
-
-DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
+DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, 0, 0);
 
 /*
  * Utility routines from <dev/fb/fbreg.h>

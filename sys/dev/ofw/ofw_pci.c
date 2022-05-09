@@ -63,11 +63,9 @@ static device_method_t ofw_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t pci_devclass;
-
 DEFINE_CLASS_1(pci, ofw_pci_driver, ofw_pci_methods, sizeof(struct pci_softc),
     pci_driver);
-DRIVER_MODULE(ofw_pci, pcib, ofw_pci_driver, pci_devclass, 0, 0);
+DRIVER_MODULE(ofw_pci, pcib, ofw_pci_driver, 0, 0);
 MODULE_DEPEND(ofw_pci, simplebus, 1, 1, 1);
 MODULE_DEPEND(ofw_pci, pci, 1, 1, 1);
 MODULE_VERSION(ofw_pci, 1);

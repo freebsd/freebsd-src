@@ -71,8 +71,6 @@ static device_method_t ofw_pcib_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t pcib_devclass;
-
 struct ofw_pcib_softc {
         /*
          * This is here so that we can use pci bridge methods, too - the
@@ -86,8 +84,7 @@ struct ofw_pcib_softc {
 
 DEFINE_CLASS_1(pcib, ofw_pcib_pci_driver, ofw_pcib_pci_methods,
     sizeof(struct ofw_pcib_softc), pcib_driver);
-EARLY_DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_pci_driver, pcib_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_pci_driver, 0, 0, BUS_PASS_BUS);
 
 static int
 ofw_pcib_pci_probe(device_t dev)
