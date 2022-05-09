@@ -320,8 +320,6 @@ static device_method_t simple_mfd_methods[] = {
 DEFINE_CLASS_1(simple_mfd, simple_mfd_driver, simple_mfd_methods,
   sizeof(struct simple_mfd_softc), simplebus_driver);
 
-static devclass_t simple_mfd_devclass;
-
-EARLY_DRIVER_MODULE(simple_mfd, simplebus, simple_mfd_driver,
-    simple_mfd_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(simple_mfd, simplebus, simple_mfd_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_LATE);
 MODULE_VERSION(simple_mfd, 1);
