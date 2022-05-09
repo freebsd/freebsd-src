@@ -577,9 +577,12 @@ show_devices(int ac, char **av)
 
 		type = get_device_type(le32toh(device->DeviceInfo));
 
-		if (device->PhyNum < nphys) {
-			phydata = &sas0->PhyData[device->PhyNum];
-			speed = get_device_speed(phydata->NegotiatedLinkRate);
+		if (device->DeviceInfo & 0x800) {	/* Direct Attached */
+			if (device->PhyNum < nphys) {
+				phydata = &sas0->PhyData[device->PhyNum];
+				speed = get_device_speed(phydata->NegotiatedLinkRate);
+			} else
+				speed = "";
 		} else if (device->ParentDevHandle > 0) {
 			exp1 = mps_read_extended_config_page(fd,
 			    MPI2_CONFIG_EXTPAGETYPE_SAS_EXPANDER,
@@ -597,13 +600,13 @@ show_devices(int ac, char **av)
 					free(device);
 					return (error);
 				}
-				speed = " ";
+				speed = "";
 			} else {
 				speed = get_device_speed(exp1->NegotiatedLinkRate);
 				free(exp1);
 			}
 		} else
-			speed = " ";
+			speed = "";
 
 		if (device->EnclosureHandle != 0) {
 			snprintf(enchandle, sizeof(enchandle), "%04x", le16toh(device->EnclosureHandle));
