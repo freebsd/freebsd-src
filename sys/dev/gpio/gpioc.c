@@ -1059,7 +1059,5 @@ driver_t gpioc_driver = {
 	sizeof(struct gpioc_softc)
 };
 
-devclass_t	gpioc_devclass;
-
-DRIVER_MODULE(gpioc, gpio, gpioc_driver, gpioc_devclass, 0, 0);
+DRIVER_MODULE(gpioc, gpio, gpioc_driver, 0, 0);
 MODULE_VERSION(gpioc, 1);
