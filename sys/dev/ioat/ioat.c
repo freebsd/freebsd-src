@@ -147,8 +147,7 @@ static driver_t ioat_pci_driver = {
 	sizeof(struct ioat_softc),
 };
 
-static devclass_t ioat_devclass;
-DRIVER_MODULE(ioat, pci, ioat_pci_driver, ioat_devclass, ioat_modevent, NULL);
+DRIVER_MODULE(ioat, pci, ioat_pci_driver, ioat_modevent, NULL);
 MODULE_VERSION(ioat, 1);
 
 /*
