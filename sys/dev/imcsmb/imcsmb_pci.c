@@ -318,9 +318,6 @@ imcsmb_pci_request_bus(device_t dev)
 	return (rc);
 }
 
-/* Our device class */
-static devclass_t imcsmb_pci_devclass;
-
 /* Device methods */
 static device_method_t imcsmb_pci_methods[] = {
 	/* Device interface */
@@ -337,7 +334,7 @@ static driver_t imcsmb_pci_driver = {
 	.size = sizeof(struct imcsmb_pci_softc),
 };
 
-DRIVER_MODULE(imcsmb_pci, pci, imcsmb_pci_driver, imcsmb_pci_devclass, 0, 0);
+DRIVER_MODULE(imcsmb_pci, pci, imcsmb_pci_driver, 0, 0);
 MODULE_DEPEND(imcsmb_pci, pci, 1, 1, 1);
 MODULE_VERSION(imcsmb_pci, 1);
 
