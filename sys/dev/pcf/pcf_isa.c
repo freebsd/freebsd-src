@@ -83,8 +83,6 @@ static device_method_t pcf_isa_methods[] = {
 	{ 0, 0 }
 };
 
-static devclass_t pcf_isa_devclass;
-
 static driver_t pcf_isa_driver = {
 	PCF_NAME,
 	pcf_isa_methods,
@@ -210,4 +208,4 @@ pcf_isa_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(pcf_isa, isa, pcf_isa_driver, pcf_isa_devclass, 0, 0);
+DRIVER_MODULE(pcf_isa, isa, pcf_isa_driver, 0, 0);
