@@ -118,6 +118,17 @@ getnfds(void)
 	return (n);
 }
 
+static int
+openfiles(void)
+{
+	int files;
+	size_t len = sizeof(files);
+
+	ATF_REQUIRE(sysctlbyname("kern.openfiles", &files, &len, NULL, 0) == 0);
+
+	return (files);
+}
+
 static void
 putfds(char *buf, int fd, int nfds)
 {
@@ -333,6 +344,28 @@ ATF_TC_BODY(send_and_cancel, tc)
 	tempfile(&putfd);
 	sendfd(fd[0], putfd);
 	close(putfd);
+	closesocketpair(fd);
+}
+
+/*
+ * Send file then shutdown receive side to exercise unp_dispose() call
+ * via soshutdown().  Check that shutdown(SHUT_RD) would gc the file
+ * reference sitting in the receive buffer.  There is no good way of
+ * checking that except using global open file count.
+ */
+ATF_TC_WITHOUT_HEAD(send_and_shutdown);
+ATF_TC_BODY(send_and_shutdown, tc)
+{
+	int fd[2], putfd, nfiles;
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+	sendfd(fd[0], putfd);
+	nfiles = openfiles();
+	close(putfd);
+	ATF_REQUIRE(openfiles() == nfiles);
+	shutdown(fd[1], SHUT_RD);
+	ATF_REQUIRE(openfiles() == nfiles - 1);
 	closesocketpair(fd);
 }
 
@@ -722,6 +755,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, simple_send_fd_msg_cmsg_cloexec);
 	ATF_TP_ADD_TC(tp, send_and_close);
 	ATF_TP_ADD_TC(tp, send_and_cancel);
+	ATF_TP_ADD_TC(tp, send_and_shutdown);
 	ATF_TP_ADD_TC(tp, two_files);
 	ATF_TP_ADD_TC(tp, bundle);
 	ATF_TP_ADD_TC(tp, bundle_cancel);
