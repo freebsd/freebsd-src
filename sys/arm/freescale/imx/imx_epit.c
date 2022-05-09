@@ -485,7 +485,4 @@ static driver_t epit_driver = {
 	sizeof(struct epit_softc),
 };
 
-static devclass_t epit_devclass;
-
-EARLY_DRIVER_MODULE(imx_epit, simplebus, epit_driver, epit_devclass, 0,
-    0, BUS_PASS_TIMER);
+EARLY_DRIVER_MODULE(imx_epit, simplebus, epit_driver, 0, 0, BUS_PASS_TIMER);

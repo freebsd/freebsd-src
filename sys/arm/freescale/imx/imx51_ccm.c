@@ -148,10 +148,7 @@ static driver_t imxccm_driver = {
 	sizeof(struct imxccm_softc),
 };
 
-static devclass_t imxccm_devclass;
-
-EARLY_DRIVER_MODULE(imxccm, simplebus, imxccm_driver, imxccm_devclass, 0, 0,
-    BUS_PASS_CPU);
+EARLY_DRIVER_MODULE(imxccm, simplebus, imxccm_driver, 0, 0, BUS_PASS_CPU);
 
 static inline uint32_t
 pll_read_4(struct imxccm_softc *sc, int pll, int reg)

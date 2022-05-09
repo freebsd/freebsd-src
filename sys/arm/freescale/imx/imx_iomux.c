@@ -324,7 +324,5 @@ static driver_t imx_iomux_driver = {
 	sizeof(struct iomux_softc),
 };
 
-static devclass_t imx_iomux_devclass;
-
-EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver, 
-    imx_iomux_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_LATE);

@@ -130,6 +130,4 @@ static driver_t tcon_driver = {
 	sizeof(struct tcon_softc),
 };
 
-static devclass_t tcon_devclass;
-
-DRIVER_MODULE(tcon, simplebus, tcon_driver, tcon_devclass, 0, 0);
+DRIVER_MODULE(tcon, simplebus, tcon_driver, 0, 0);

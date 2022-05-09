@@ -239,9 +239,7 @@ static driver_t imx7gpc_driver = {
 	sizeof(struct imx7gpc_softc),
 };
 
-static devclass_t imx7gpc_devclass;
-
-EARLY_DRIVER_MODULE(imx7gpc, ofwbus, imx7gpc_driver, imx7gpc_devclass, 0, 0,
+EARLY_DRIVER_MODULE(imx7gpc, ofwbus, imx7gpc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(imx7gpc, simplebus, imx7gpc_driver, imx7gpc_devclass, 0, 0,
+EARLY_DRIVER_MODULE(imx7gpc, simplebus, imx7gpc_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

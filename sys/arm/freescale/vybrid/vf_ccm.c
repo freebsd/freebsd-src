@@ -496,6 +496,4 @@ static driver_t ccm_driver = {
 	sizeof(struct ccm_softc),
 };
 
-static devclass_t ccm_devclass;
-
-DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0);
+DRIVER_MODULE(ccm, simplebus, ccm_driver, 0, 0);

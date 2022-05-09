@@ -213,6 +213,4 @@ static driver_t imx_hdmi_driver = {
 	sizeof(struct imx_hdmi_softc)
 };
 
-static devclass_t imx_hdmi_devclass;
-
-DRIVER_MODULE(hdmi, simplebus, imx_hdmi_driver, imx_hdmi_devclass, 0, 0);
+DRIVER_MODULE(hdmi, simplebus, imx_hdmi_driver, 0, 0);

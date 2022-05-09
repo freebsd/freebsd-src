@@ -121,6 +121,4 @@ static driver_t mscm_driver = {
 	sizeof(struct mscm_softc),
 };
 
-static devclass_t mscm_devclass;
-
-DRIVER_MODULE(mscm, simplebus, mscm_driver, mscm_devclass, 0, 0);
+DRIVER_MODULE(mscm, simplebus, mscm_driver, 0, 0);

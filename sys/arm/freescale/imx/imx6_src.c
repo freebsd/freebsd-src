@@ -168,6 +168,4 @@ static driver_t src_driver = {
 	sizeof(struct src_softc)
 };
 
-static devclass_t src_devclass;
-
-DRIVER_MODULE(src, simplebus, src_driver, src_devclass, 0, 0);
+DRIVER_MODULE(src, simplebus, src_driver, 0, 0);

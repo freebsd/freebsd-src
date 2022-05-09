@@ -235,6 +235,4 @@ static driver_t adc_driver = {
 	sizeof(struct adc_softc),
 };
 
-static devclass_t adc_devclass;
-
-DRIVER_MODULE(adc, simplebus, adc_driver, adc_devclass, 0, 0);
+DRIVER_MODULE(adc, simplebus, adc_driver, 0, 0);

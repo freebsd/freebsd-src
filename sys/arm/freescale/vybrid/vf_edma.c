@@ -335,6 +335,4 @@ static driver_t edma_driver = {
 	sizeof(struct edma_softc),
 };
 
-static devclass_t edma_devclass;
-
-DRIVER_MODULE(edma, simplebus, edma_driver, edma_devclass, 0, 0);
+DRIVER_MODULE(edma, simplebus, edma_driver, 0, 0);

@@ -244,6 +244,4 @@ static driver_t port_driver = {
 	sizeof(struct port_softc),
 };
 
-static devclass_t port_devclass;
-
-DRIVER_MODULE(port, simplebus, port_driver, port_devclass, 0, 0);
+DRIVER_MODULE(port, simplebus, port_driver, 0, 0);
