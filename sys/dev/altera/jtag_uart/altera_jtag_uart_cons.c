@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/altera/jtag_uart/altera_jtag_uart.h>
 
-devclass_t	altera_jtag_uart_devclass;
-
 static SYSCTL_NODE(_hw, OID_AUTO, altera_jtag_uart,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Altera JTAG UART configuration knobs");

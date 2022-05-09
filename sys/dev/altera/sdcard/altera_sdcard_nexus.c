@@ -112,5 +112,4 @@ static driver_t altera_sdcard_nexus_driver = {
 	sizeof(struct altera_sdcard_softc),
 };
 
-DRIVER_MODULE(altera_sdcard, nexus, altera_sdcard_nexus_driver,
-    altera_sdcard_devclass, 0, 0);
+DRIVER_MODULE(altera_sdcard, nexus, altera_sdcard_nexus_driver, 0, 0);

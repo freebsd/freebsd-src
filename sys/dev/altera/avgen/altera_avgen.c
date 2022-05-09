@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
  * system-on-chip bus environments would work fine with the same code.
  */
 
-devclass_t altera_avgen_devclass;
-
 static d_mmap_t altera_avgen_mmap;
 static d_read_t altera_avgen_read;
 static d_write_t altera_avgen_write;

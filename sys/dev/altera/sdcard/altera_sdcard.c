@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
  * 3. Handle read-only SD Cards.
  * 4. Tune timeouts based on real-world SD Card speeds.
  */
-devclass_t	altera_sdcard_devclass;
 
 void
 altera_sdcard_attach(struct altera_sdcard_softc *sc)

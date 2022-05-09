@@ -139,5 +139,4 @@ static driver_t altera_jtag_uart_nexus_driver = {
 	sizeof(struct altera_jtag_uart_softc),
 };
 
-DRIVER_MODULE(altera_jtag_uart, nexus, altera_jtag_uart_nexus_driver,
-    altera_jtag_uart_devclass, 0, 0);
+DRIVER_MODULE(altera_jtag_uart, nexus, altera_jtag_uart_nexus_driver, 0, 0);

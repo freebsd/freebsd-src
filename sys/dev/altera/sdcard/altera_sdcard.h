@@ -246,6 +246,4 @@ void	altera_sdcard_start(struct altera_sdcard_softc *sc);
 void	altera_sdcard_disk_insert(struct altera_sdcard_softc *sc);
 void	altera_sdcard_disk_remove(struct altera_sdcard_softc *sc);
 
-extern devclass_t	altera_sdcard_devclass;
-
 #endif	/* _DEV_ALTERA_SDCARD_H_ */
