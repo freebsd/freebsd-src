@@ -251,6 +251,4 @@ static device_method_t qorif_dw_pci_methods[] = {
 
 DEFINE_CLASS_1(pcib, qorif_dw_pci_driver, qorif_dw_pci_methods,
     sizeof(struct qorif_dw_pci_softc), pci_dw_driver);
-static devclass_t qorif_dw_pci_devclass;
-DRIVER_MODULE( qorif_dw_pci, simplebus, qorif_dw_pci_driver, qorif_dw_pci_devclass,
-    NULL, NULL);
+DRIVER_MODULE( qorif_dw_pci, simplebus, qorif_dw_pci_driver, NULL, NULL);

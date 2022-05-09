@@ -303,8 +303,7 @@ static device_method_t ls1028a_flexspi_clk_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ls1028a_flexspi_clk_devclass;
 static DEFINE_CLASS_0(fspi_clk, ls1028a_flexspi_clk_driver, ls1028a_flexspi_clk_methods,
     sizeof(struct ls1028a_flexspi_clk_softc));
 EARLY_DRIVER_MODULE(ls1028a_flexspi_clk, simple_mfd, ls1028a_flexspi_clk_driver,
-    ls1028a_flexspi_clk_devclass, NULL, NULL, BUS_PASS_TIMER);
+    NULL, NULL, BUS_PASS_TIMER);

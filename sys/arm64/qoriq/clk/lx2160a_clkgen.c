@@ -203,9 +203,7 @@ static device_method_t lx2160a_clkgen_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t lx2160a_clkgen_devclass;
-
 DEFINE_CLASS_1(lx2160a_clkgen, lx2160a_clkgen_driver, lx2160a_clkgen_methods,
     sizeof(struct qoriq_clkgen_softc), qoriq_clkgen_driver);
-EARLY_DRIVER_MODULE(lx2160a_clkgen, simplebus, lx2160a_clkgen_driver,
-    lx2160a_clkgen_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(lx2160a_clkgen, simplebus, lx2160a_clkgen_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
