@@ -783,9 +783,7 @@ static driver_t rtwn_pci_driver = {
 	sizeof(struct rtwn_pci_softc)
 };
 
-static devclass_t rtwn_pci_devclass;
-
-DRIVER_MODULE(rtwn_pci, pci, rtwn_pci_driver, rtwn_pci_devclass, NULL, NULL);
+DRIVER_MODULE(rtwn_pci, pci, rtwn_pci_driver, NULL, NULL);
 MODULE_VERSION(rtwn_pci, 1);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, rtwn, rtwn_pci_ident_table,
     nitems(rtwn_pci_ident_table));
