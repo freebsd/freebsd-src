@@ -221,9 +221,7 @@ static driver_t otus_driver = {
 	.size = sizeof(struct otus_softc)
 };
 
-static devclass_t otus_devclass;
-
-DRIVER_MODULE(otus, uhub, otus_driver, otus_devclass, NULL, 0);
+DRIVER_MODULE(otus, uhub, otus_driver, NULL, NULL);
 MODULE_DEPEND(otus, wlan, 1, 1, 1);
 MODULE_DEPEND(otus, usb, 1, 1, 1);
 MODULE_DEPEND(otus, firmware, 1, 1, 1);
