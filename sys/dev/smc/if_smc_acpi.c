@@ -72,9 +72,7 @@ static device_method_t smc_acpi_methods[] = {
 DEFINE_CLASS_1(smc, smc_acpi_driver, smc_acpi_methods,
     sizeof(struct smc_softc), smc_driver);
 
-extern devclass_t smc_devclass;
-
-DRIVER_MODULE(smc, acpi, smc_acpi_driver, smc_devclass, 0, 0);
+DRIVER_MODULE(smc, acpi, smc_acpi_driver, 0, 0);
 MODULE_DEPEND(smc, acpi, 1, 1, 1);
 MODULE_DEPEND(smc, ether, 1, 1, 1);
 MODULE_DEPEND(smc, miibus, 1, 1, 1);
