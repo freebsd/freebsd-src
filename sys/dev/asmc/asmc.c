@@ -471,11 +471,9 @@ ACPI_MODULE_NAME("ASMC")
 /* NB: can't be const */
 static char *asmc_ids[] = { "APP0001", NULL };
 
-static devclass_t asmc_devclass;
-
 static unsigned int light_control = 0;
 
-DRIVER_MODULE(asmc, acpi, asmc_driver, asmc_devclass, NULL, NULL);
+DRIVER_MODULE(asmc, acpi, asmc_driver, NULL, NULL);
 MODULE_DEPEND(asmc, acpi, 1, 1, 1);
 
 static const struct asmc_model *
