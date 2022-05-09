@@ -1830,9 +1830,7 @@ static driver_t ffec_driver = {
 	sizeof(struct ffec_softc)
 };
 
-static devclass_t ffec_devclass;
-
-DRIVER_MODULE(ffec, simplebus, ffec_driver, ffec_devclass, 0, 0);
+DRIVER_MODULE(ffec, simplebus, ffec_driver, 0, 0);
 DRIVER_MODULE(miibus, ffec, miibus_driver, 0, 0);
 
 MODULE_DEPEND(ffec, ether, 1, 1, 1);
