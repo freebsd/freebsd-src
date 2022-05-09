@@ -237,8 +237,7 @@ static driver_t bnxt_driver = {
 	"bnxt", bnxt_methods, sizeof(struct bnxt_softc),
 };
 
-devclass_t bnxt_devclass;
-DRIVER_MODULE(bnxt, pci, bnxt_driver, bnxt_devclass, 0, 0);
+DRIVER_MODULE(bnxt, pci, bnxt_driver, 0, 0);
 
 MODULE_DEPEND(bnxt, pci, 1, 1, 1);
 MODULE_DEPEND(bnxt, ether, 1, 1, 1);
