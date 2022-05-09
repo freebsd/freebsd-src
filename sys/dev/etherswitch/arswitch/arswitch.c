@@ -1349,7 +1349,7 @@ static devclass_t arswitch_devclass;
 DRIVER_MODULE(arswitch, mdio, arswitch_driver, arswitch_devclass, 0, 0);
 DRIVER_MODULE(miibus, arswitch, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, arswitch, mdio_driver, 0, 0);
-DRIVER_MODULE(etherswitch, arswitch, etherswitch_driver, etherswitch_devclass, 0, 0);
+DRIVER_MODULE(etherswitch, arswitch, etherswitch_driver, 0, 0);
 MODULE_VERSION(arswitch, 1);
 MODULE_DEPEND(arswitch, miibus, 1, 1, 1); /* XXX which versions? */
 MODULE_DEPEND(arswitch, etherswitch, 1, 1, 1); /* XXX which versions? */
