@@ -138,12 +138,10 @@ static device_method_t brcm_iproc_mdio_fdt_methods[] = {
 DEFINE_CLASS_0(brcm_iproc_mdio, brcm_iproc_mdio_driver,
     brcm_iproc_mdio_fdt_methods, sizeof(struct brcm_iproc_mdio_softc));
 
-static devclass_t brcm_iproc_mdio_fdt_devclass;
-
-EARLY_DRIVER_MODULE(brcm_iproc_mdio, ofwbus, brcm_iproc_mdio_driver,
-    brcm_iproc_mdio_fdt_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(brcm_iproc_mdio, simplebus, brcm_iproc_mdio_driver,
-    brcm_iproc_mdio_fdt_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(brcm_iproc_mdio, ofwbus, brcm_iproc_mdio_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(brcm_iproc_mdio, simplebus, brcm_iproc_mdio_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static struct ofw_compat_data mdio_compat_data[] = {
 	{"brcm,mdio-mux-iproc",	true},

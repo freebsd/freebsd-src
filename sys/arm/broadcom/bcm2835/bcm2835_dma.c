@@ -764,7 +764,5 @@ static driver_t bcm_dma_driver = {
 	sizeof(struct bcm_dma_softc),
 };
 
-static devclass_t bcm_dma_devclass;
-
-DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, bcm_dma_devclass, 0, 0);
+DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, 0, 0);
 MODULE_VERSION(bcm_dma, 1);

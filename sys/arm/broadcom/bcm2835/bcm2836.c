@@ -739,7 +739,5 @@ static driver_t bcm_lintc_driver = {
 	sizeof(struct bcm_lintc_softc),
 };
 
-static devclass_t bcm_lintc_devclass;
-
-EARLY_DRIVER_MODULE(lintc, simplebus, bcm_lintc_driver, bcm_lintc_devclass,
-    0, 0, BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(lintc, simplebus, bcm_lintc_driver, 0, 0,
+    BUS_PASS_INTERRUPT);

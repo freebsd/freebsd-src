@@ -174,11 +174,10 @@ static device_method_t bcm2835_firmware_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bcm2835_firmware_devclass;
 DEFINE_CLASS_1(bcm2835_firmware, bcm2835_firmware_driver,
     bcm2835_firmware_methods, sizeof(struct bcm2835_firmware_softc),
     simplebus_driver);
 
-EARLY_DRIVER_MODULE(bcm2835_firmware, simplebus, bcm2835_firmware_driver,
-    bcm2835_firmware_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(bcm2835_firmware, simplebus, bcm2835_firmware_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(bcm2835_firmware, mbox, 1, 1, 1);

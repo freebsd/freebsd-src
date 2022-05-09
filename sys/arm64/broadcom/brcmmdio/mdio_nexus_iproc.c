@@ -95,15 +95,14 @@ static device_method_t brcm_mdionexus_fdt_methods[] = {
 DEFINE_CLASS_0(brcm_mdionexus, brcm_mdionexus_fdt_driver, brcm_mdionexus_fdt_methods,
     sizeof(struct brcm_mdionexus_softc));
 
-static devclass_t brcm_mdionexus_fdt_devclass;
-
 static driver_t brcm_mdionexus_driver = {
         "brcm_mdionexus",
 	brcm_mdionexus_fdt_methods,
         sizeof(struct brcm_mdionexus_softc)
 };
+
 EARLY_DRIVER_MODULE(brcm_mdionexus, brcm_iproc_mdio, brcm_mdionexus_driver,
-    brcm_mdionexus_fdt_devclass, NULL, NULL, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    NULL, NULL, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int brcm_mdionexus_ofw_bus_attach(device_t);
 

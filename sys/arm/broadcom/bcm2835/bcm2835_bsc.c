@@ -715,8 +715,6 @@ static device_method_t bcm_bsc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bcm_bsc_devclass;
-
 static driver_t bcm_bsc_driver = {
 	"iichb",
 	bcm_bsc_methods,
@@ -724,4 +722,4 @@ static driver_t bcm_bsc_driver = {
 };
 
 DRIVER_MODULE(iicbus, bcm2835_bsc, iicbus_driver, 0, 0);
-DRIVER_MODULE(bcm2835_bsc, simplebus, bcm_bsc_driver, bcm_bsc_devclass, 0, 0);
+DRIVER_MODULE(bcm2835_bsc, simplebus, bcm_bsc_driver, 0, 0);

@@ -561,12 +561,10 @@ static device_method_t bcm_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bcm_spi_devclass;
-
 static driver_t bcm_spi_driver = {
 	"spi",
 	bcm_spi_methods,
 	sizeof(struct bcm_spi_softc),
 };
 
-DRIVER_MODULE(bcm2835_spi, simplebus, bcm_spi_driver, bcm_spi_devclass, 0, 0);
+DRIVER_MODULE(bcm2835_spi, simplebus, bcm_spi_driver, 0, 0);

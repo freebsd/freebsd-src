@@ -285,9 +285,7 @@ static driver_t bcm_systimer_driver = {
 	sizeof(struct bcm_systimer_softc),
 };
 
-static devclass_t bcm_systimer_devclass;
-
-DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclass, 0, 0);
+DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, 0, 0);
 
 static void
 bcm_systimer_delay(int usec, void *arg)

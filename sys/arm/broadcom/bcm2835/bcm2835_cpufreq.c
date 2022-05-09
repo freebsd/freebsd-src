@@ -1594,13 +1594,11 @@ static device_method_t bcm2835_cpufreq_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bcm2835_cpufreq_devclass;
 static driver_t bcm2835_cpufreq_driver = {
 	"bcm2835_cpufreq",
 	bcm2835_cpufreq_methods,
 	sizeof(struct bcm2835_cpufreq_softc),
 };
 
-DRIVER_MODULE(bcm2835_cpufreq, cpu, bcm2835_cpufreq_driver,
-    bcm2835_cpufreq_devclass, 0, 0);
+DRIVER_MODULE(bcm2835_cpufreq, cpu, bcm2835_cpufreq_driver, 0, 0);
 MODULE_DEPEND(bcm2835_cpufreq, bcm2835_firmware, 1, 1, 1);

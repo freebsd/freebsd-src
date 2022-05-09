@@ -445,13 +445,11 @@ static device_method_t rpi_fw_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rpi_fw_gpio_devclass;
-
 static driver_t rpi_fw_gpio_driver = {
 	"gpio",
 	rpi_fw_gpio_methods,
 	sizeof(struct rpi_fw_gpio_softc),
 };
 
-EARLY_DRIVER_MODULE(rpi_fw_gpio, bcm2835_firmware, rpi_fw_gpio_driver,
-    rpi_fw_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(rpi_fw_gpio, bcm2835_firmware, rpi_fw_gpio_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
