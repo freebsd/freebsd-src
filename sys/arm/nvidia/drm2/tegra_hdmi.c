@@ -1313,8 +1313,6 @@ static device_method_t tegra_hdmi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra_hdmi_devclass;
 DEFINE_CLASS_0(tegra_hdmi, tegra_hdmi_driver, tegra_hdmi_methods,
     sizeof(struct hdmi_softc));
-DRIVER_MODULE(tegra_hdmi, host1x, tegra_hdmi_driver,
-tegra_hdmi_devclass, 0, 0);
+DRIVER_MODULE(tegra_hdmi, host1x, tegra_hdmi_driver, 0, 0);

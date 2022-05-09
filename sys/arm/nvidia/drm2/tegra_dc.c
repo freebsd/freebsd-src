@@ -1435,7 +1435,6 @@ static device_method_t tegra_dc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra_dc_devclass;
 DEFINE_CLASS_0(tegra_dc, tegra_dc_driver, tegra_dc_methods,
     sizeof(struct dc_softc));
-DRIVER_MODULE(tegra_dc, host1x, tegra_dc_driver, tegra_dc_devclass, NULL, NULL);
+DRIVER_MODULE(tegra_dc, host1x, tegra_dc_driver, NULL, NULL);

@@ -794,8 +794,6 @@ static device_method_t tegra_i2c_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra_i2c_devclass;
 static DEFINE_CLASS_0(iichb, tegra_i2c_driver, tegra_i2c_methods,
     sizeof(struct tegra_i2c_softc));
-EARLY_DRIVER_MODULE(tegra_iic, simplebus, tegra_i2c_driver, tegra_i2c_devclass,
-    NULL, NULL, 73);
+EARLY_DRIVER_MODULE(tegra_iic, simplebus, tegra_i2c_driver, NULL, NULL, 73);

@@ -281,8 +281,7 @@ static device_method_t tegra_lic_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t tegra_lic_devclass;
 static DEFINE_CLASS_0(lic, tegra_lic_driver, tegra_lic_methods,
     sizeof(struct tegra_lic_sc));
-EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, tegra_lic_devclass,
-    NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);
+EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, NULL, NULL,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);

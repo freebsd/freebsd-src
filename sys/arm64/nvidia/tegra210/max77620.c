@@ -501,8 +501,6 @@ static device_method_t max77620_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t max77620_devclass;
 static DEFINE_CLASS_0(gpio, max77620_driver, max77620_methods,
     sizeof(struct max77620_softc));
-EARLY_DRIVER_MODULE(max77620, iicbus, max77620_driver, max77620_devclass,
-    NULL, NULL, 74);
+EARLY_DRIVER_MODULE(max77620, iicbus, max77620_driver, NULL, NULL, 74);

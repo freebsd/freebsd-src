@@ -398,8 +398,6 @@ static device_method_t as3722_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t as3722_devclass;
 static DEFINE_CLASS_0(gpio, as3722_driver, as3722_methods,
     sizeof(struct as3722_softc));
-EARLY_DRIVER_MODULE(as3722, iicbus, as3722_driver, as3722_devclass,
-    NULL, NULL, 74);
+EARLY_DRIVER_MODULE(as3722, iicbus, as3722_driver, NULL, NULL, 74);

@@ -1199,8 +1199,7 @@ static device_method_t tegra_xusbpadctl_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t tegra_xusbpadctl_devclass;
 static DEFINE_CLASS_0(xusbpadctl, tegra_xusbpadctl_driver,
     tegra_xusbpadctl_methods, sizeof(struct padctl_softc));
 EARLY_DRIVER_MODULE(tegra_xusbpadctl, simplebus, tegra_xusbpadctl_driver,
-    tegra_xusbpadctl_devclass, NULL, NULL, 73);
+    NULL, NULL, 73);
