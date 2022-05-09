@@ -537,10 +537,10 @@ struct linux_getresgid16_args {
 };
 struct linux_prctl_args {
 	char option_l_[PADL_(l_int)]; l_int option; char option_r_[PADR_(l_int)];
-	char arg2_l_[PADL_(l_int)]; l_int arg2; char arg2_r_[PADR_(l_int)];
-	char arg3_l_[PADL_(l_int)]; l_int arg3; char arg3_r_[PADR_(l_int)];
-	char arg4_l_[PADL_(l_int)]; l_int arg4; char arg4_r_[PADR_(l_int)];
-	char arg5_l_[PADL_(l_int)]; l_int arg5; char arg5_r_[PADR_(l_int)];
+	char arg2_l_[PADL_(l_uintptr_t)]; l_uintptr_t arg2; char arg2_r_[PADR_(l_uintptr_t)];
+	char arg3_l_[PADL_(l_ulntptr_t)]; l_ulntptr_t arg3; char arg3_r_[PADR_(l_ulntptr_t)];
+	char arg4_l_[PADL_(l_uintptr_t)]; l_uintptr_t arg4; char arg4_r_[PADR_(l_uintptr_t)];
+	char arg5_l_[PADL_(l_uintptr_t)]; l_uintptr_t arg5; char arg5_r_[PADR_(l_uintptr_t)];
 };
 struct linux_rt_sigreturn_args {
 	char ucp_l_[PADL_(struct l_ucontext *)]; struct l_ucontext * ucp; char ucp_r_[PADR_(struct l_ucontext *)];
