@@ -127,8 +127,6 @@ static	driver_t ce_driver = {
 	sizeof(bdrv_t),
 };
 
-static	devclass_t ce_devclass;
-
 static void ce_receive (ce_chan_t *c, unsigned char *data, int len);
 static void ce_transmit (ce_chan_t *c, void *attachment, int len);
 static void ce_error (ce_chan_t *c, int data);
@@ -1808,7 +1806,7 @@ static struct ng_type typestruct = {
 
 MODULE_DEPEND (ng_ce, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 #ifdef KLD_MODULE
-DRIVER_MODULE (cemod, pci, ce_driver, ce_devclass, ce_modevent, NULL);
+DRIVER_MODULE (cemod, pci, ce_driver, ce_modevent, NULL);
 #else
-DRIVER_MODULE (ce, pci, ce_driver, ce_devclass, ce_modevent, NULL);
+DRIVER_MODULE (ce, pci, ce_driver, ce_modevent, NULL);
 #endif
