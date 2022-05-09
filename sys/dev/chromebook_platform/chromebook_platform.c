@@ -94,9 +94,6 @@ static driver_t chromebook_i2c_driver = {
 	0	/* no softc */
 };
 
-static devclass_t chromebook_i2c_devclass;
-
-DRIVER_MODULE(chromebook_i2c, iicbus, chromebook_i2c_driver,
-    chromebook_i2c_devclass, 0, 0);
+DRIVER_MODULE(chromebook_i2c, iicbus, chromebook_i2c_driver, 0, 0);
 MODULE_VERSION(chromebook_i2c, 1);
 
