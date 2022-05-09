@@ -1760,6 +1760,42 @@ smmu_set_buswide(device_t dev, struct smmu_domain *domain,
 	return (0);
 }
 
+#ifdef DEV_ACPI
+static int
+smmu_pci_get_sid_acpi(device_t child, u_int *sid0)
+{
+	uint16_t rid;
+	u_int xref;
+	int seg;
+	int err;
+	int sid;
+
+	seg = pci_get_domain(child);
+	rid = pci_get_rid(child);
+
+	err = acpi_iort_map_pci_smmuv3(seg, rid, &xref, &sid);
+	if (err == 0)
+		*sid0 = sid;
+
+	return (err);
+}
+#endif
+
+#ifdef FDT
+static int
+smmu_pci_get_sid_fdt(device_t child, u_int *sid0)
+{
+	struct pci_id_ofw_iommu pi;
+	int err;
+
+	err = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
+	if (err == 0)
+		*sid0 = pi.id;
+
+	return (err);
+}
+#endif
+
 static struct iommu_ctx *
 smmu_ctx_alloc(device_t dev, struct iommu_domain *iodom, device_t child,
     bool disabled)
@@ -1767,28 +1803,23 @@ smmu_ctx_alloc(device_t dev, struct iommu_domain *iodom, device_t child,
 	struct smmu_domain *domain;
 	struct smmu_softc *sc;
 	struct smmu_ctx *ctx;
-#ifdef DEV_ACPI
-	uint16_t rid;
-	u_int xref;
-	int seg;
-#else
-	struct pci_id_ofw_iommu pi;
-#endif
+	devclass_t pci_class;
 	u_int sid;
 	int err;
 
 	sc = device_get_softc(dev);
 	domain = (struct smmu_domain *)iodom;
 
+	pci_class = devclass_find("pci");
+	if (device_get_devclass(device_get_parent(child)) != pci_class)
+		return (NULL);
+
 #ifdef DEV_ACPI
-	seg = pci_get_domain(child);
-	rid = pci_get_rid(child);
-	err = acpi_iort_map_pci_smmuv3(seg, rid, &xref, &sid);
+	err = smmu_pci_get_sid_acpi(child, &sid);
 #else
-	err = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
-	sid = pi.id;
+	err = smmu_pci_get_sid_fdt(child, &sid);
 #endif
-	if (err != 0)
+	if (err)
 		return (NULL);
 
 	if (sc->features & SMMU_FEATURE_2_LVL_STREAM_TABLE) {
