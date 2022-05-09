@@ -31,7 +31,6 @@
 #ifndef	__DEV_ETHERSWITCH_MIIPROXY_H__
 #define	__DEV_ETHERSWITCH_MIIPROXY_H__
 
-extern devclass_t miiproxy_devclass;
 extern driver_t miiproxy_driver;
 
 device_t mii_attach_proxy(device_t dev);
