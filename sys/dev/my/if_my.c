@@ -159,9 +159,7 @@ static driver_t my_driver = {
 	sizeof(struct my_softc)
 };
 
-static devclass_t my_devclass;
-
-DRIVER_MODULE(my, pci, my_driver, my_devclass, 0, 0);
+DRIVER_MODULE(my, pci, my_driver, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, my, my_devs,
     nitems(my_devs) - 1);
 MODULE_DEPEND(my, pci, 1, 1, 1);
