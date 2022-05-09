@@ -1689,10 +1689,8 @@ static device_method_t ntb_transport_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t ntb_transport_devclass;
 static DEFINE_CLASS_0(ntb_transport, ntb_transport_driver,
     ntb_transport_methods, sizeof(struct ntb_transport_ctx));
-DRIVER_MODULE(ntb_transport, ntb_hw, ntb_transport_driver,
-    ntb_transport_devclass, NULL, NULL);
+DRIVER_MODULE(ntb_transport, ntb_hw, ntb_transport_driver, NULL, NULL);
 MODULE_DEPEND(ntb_transport, ntb, 1, 1, 1);
 MODULE_VERSION(ntb_transport, 1);

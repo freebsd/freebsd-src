@@ -1487,9 +1487,8 @@ static device_method_t ntb_tool_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t ntb_tool_devclass;
 static DEFINE_CLASS_0(ntb_tool, ntb_tool_driver, ntb_tool_methods,
     sizeof(struct tool_ctx));
-DRIVER_MODULE(ntb_tool, ntb_hw, ntb_tool_driver, ntb_tool_devclass, NULL, NULL);
+DRIVER_MODULE(ntb_tool, ntb_hw, ntb_tool_driver, NULL, NULL);
 MODULE_DEPEND(ntb_tool, ntb, 1, 1, 1);
 MODULE_VERSION(ntb_tool, 1.0);

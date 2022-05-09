@@ -505,10 +505,8 @@ static device_method_t ntb_net_methods[] = {
 	DEVMETHOD_END
 };
 
-devclass_t ntb_net_devclass;
 static DEFINE_CLASS_0(ntb, ntb_net_driver, ntb_net_methods,
     sizeof(struct ntb_net_ctx));
-DRIVER_MODULE(if_ntb, ntb_transport, ntb_net_driver, ntb_net_devclass,
-    NULL, NULL);
+DRIVER_MODULE(if_ntb, ntb_transport, ntb_net_driver, NULL, NULL);
 MODULE_DEPEND(if_ntb, ntb_transport, 1, 1, 1);
 MODULE_VERSION(if_ntb, 1);

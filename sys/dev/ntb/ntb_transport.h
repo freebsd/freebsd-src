@@ -28,8 +28,6 @@
 
 struct ntb_transport_qp;
 
-extern devclass_t ntb_transport_devclass;
-
 enum ntb_link_event {
 	NTB_LINK_DOWN = 0,
 	NTB_LINK_UP,
