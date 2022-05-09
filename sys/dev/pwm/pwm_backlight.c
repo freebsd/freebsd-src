@@ -304,9 +304,7 @@ driver_t pwm_backlight_driver = {
 	pwm_backlight_methods,
 	sizeof(struct pwm_backlight_softc),
 };
-devclass_t pwm_backlight_devclass;
 
-DRIVER_MODULE(pwm_backlight, simplebus, pwm_backlight_driver,
-    pwm_backlight_devclass, 0, 0);
+DRIVER_MODULE(pwm_backlight, simplebus, pwm_backlight_driver, 0, 0);
 MODULE_DEPEND(pwm_backlight, backlight, 1, 1, 1);
 OFWBUS_PNP_INFO(compat_data);

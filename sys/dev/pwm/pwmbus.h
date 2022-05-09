@@ -66,8 +66,6 @@ PWMBUS_ACCESSOR(channel, CHANNEL, u_int)
 #endif
 
 extern driver_t   pwmbus_driver;
-extern devclass_t pwmbus_devclass;
 extern driver_t   ofw_pwmbus_driver;
-extern devclass_t ofw_pwmbus_devclass;
 
 #endif /* _PWMBUS_H_ */
