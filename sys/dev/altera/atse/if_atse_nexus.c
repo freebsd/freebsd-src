@@ -156,5 +156,5 @@ static driver_t atse_driver_nexus = {
 	sizeof(struct atse_softc)
 };
 
-DRIVER_MODULE(atse, nexus, atse_driver_nexus, atse_devclass, 0, 0);
+DRIVER_MODULE(atse, nexus, atse_driver_nexus, 0, 0);
 DRIVER_MODULE(miibus, atse, miibus_driver, 0, 0);

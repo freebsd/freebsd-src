@@ -121,5 +121,4 @@ static driver_t altera_sdcard_fdt_driver = {
 	sizeof(struct altera_sdcard_softc),
 };
 
-DRIVER_MODULE(altera_sdcard, simplebus, altera_sdcard_fdt_driver,
-    altera_sdcard_devclass, 0, 0);
+DRIVER_MODULE(altera_sdcard, simplebus, altera_sdcard_fdt_driver, 0, 0);

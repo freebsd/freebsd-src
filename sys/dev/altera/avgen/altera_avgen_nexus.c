@@ -141,5 +141,4 @@ static driver_t altera_avgen_nexus_driver = {
 	sizeof(struct altera_avgen_softc),
 };
 
-DRIVER_MODULE(avgen, nexus, altera_avgen_nexus_driver, altera_avgen_devclass,
-    0, 0);
+DRIVER_MODULE(avgen, nexus, altera_avgen_nexus_driver, 0, 0);

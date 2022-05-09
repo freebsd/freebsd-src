@@ -195,8 +195,6 @@ pxx_read_2(struct atse_softc *sc, bus_addr_t bmcr, uint32_t reg, const char *f,
 static void atse_tick(void *);
 static int atse_detach(device_t);
 
-devclass_t atse_devclass;
-
 static int
 atse_rx_enqueue(struct atse_softc *sc, uint32_t n)
 {

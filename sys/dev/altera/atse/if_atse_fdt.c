@@ -143,5 +143,5 @@ static driver_t atse_driver_fdt = {
 	sizeof(struct atse_softc)
 };
 
-DRIVER_MODULE(atse, simplebus, atse_driver_fdt, atse_devclass, 0, 0);
+DRIVER_MODULE(atse, simplebus, atse_driver_fdt, 0, 0);
 DRIVER_MODULE(miibus, atse, miibus_driver, 0, 0);

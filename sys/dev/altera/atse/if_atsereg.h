@@ -463,6 +463,4 @@ int	atse_miibus_readreg(device_t, int, int);
 int	atse_miibus_writereg(device_t, int, int, int);
 void	atse_miibus_statchg(device_t);
 
-extern devclass_t atse_devclass;
-
 #endif /* _DEV_IF_ATSEREG_H */
