@@ -646,9 +646,8 @@ static device_method_t ip17x_methods[] = {
 
 DEFINE_CLASS_0(ip17x, ip17x_driver, ip17x_methods,
     sizeof(struct ip17x_softc));
-static devclass_t ip17x_devclass;
 
-DRIVER_MODULE(ip17x, mdio, ip17x_driver, ip17x_devclass, 0, 0);
+DRIVER_MODULE(ip17x, mdio, ip17x_driver, 0, 0);
 DRIVER_MODULE(miibus, ip17x, miibus_driver, 0, 0);
 DRIVER_MODULE(etherswitch, ip17x, etherswitch_driver, 0, 0);
 MODULE_VERSION(ip17x, 1);

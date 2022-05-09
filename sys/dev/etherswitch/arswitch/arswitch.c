@@ -1344,9 +1344,8 @@ static device_method_t arswitch_methods[] = {
 
 DEFINE_CLASS_0(arswitch, arswitch_driver, arswitch_methods,
     sizeof(struct arswitch_softc));
-static devclass_t arswitch_devclass;
 
-DRIVER_MODULE(arswitch, mdio, arswitch_driver, arswitch_devclass, 0, 0);
+DRIVER_MODULE(arswitch, mdio, arswitch_driver, 0, 0);
 DRIVER_MODULE(miibus, arswitch, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, arswitch, mdio_driver, 0, 0);
 DRIVER_MODULE(etherswitch, arswitch, etherswitch_driver, 0, 0);

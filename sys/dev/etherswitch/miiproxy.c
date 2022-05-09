@@ -432,9 +432,7 @@ DEFINE_CLASS_0(miiproxy, miiproxy_driver, miiproxy_methods,
 DEFINE_CLASS_0(mdioproxy, mdioproxy_driver, mdioproxy_methods,
     sizeof(struct mdioproxy_softc));
 
-static devclass_t mdioproxy_devclass;
-
-DRIVER_MODULE(mdioproxy, mdio, mdioproxy_driver, mdioproxy_devclass, 0, 0);
+DRIVER_MODULE(mdioproxy, mdio, mdioproxy_driver, 0, 0);
 DRIVER_MODULE(miibus, miiproxy, miibus_driver, 0, 0);
 MODULE_VERSION(miiproxy, 1);
 MODULE_DEPEND(miiproxy, miibus, 1, 1, 1);
