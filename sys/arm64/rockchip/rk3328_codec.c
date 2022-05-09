@@ -606,7 +606,5 @@ static driver_t rkcodec_driver = {
 	sizeof(struct rkcodec_softc),
 };
 
-static devclass_t rkcodec_devclass;
-
-DRIVER_MODULE(rkcodec, simplebus, rkcodec_driver, rkcodec_devclass, 0, 0);
+DRIVER_MODULE(rkcodec, simplebus, rkcodec_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

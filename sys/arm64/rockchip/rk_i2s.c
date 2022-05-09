@@ -652,7 +652,5 @@ static driver_t rk_i2s_driver = {
 	sizeof(struct rk_i2s_softc),
 };
 
-static devclass_t rk_i2s_devclass;
-
-DRIVER_MODULE(rk_i2s, simplebus, rk_i2s_driver, rk_i2s_devclass, 0, 0);
+DRIVER_MODULE(rk_i2s, simplebus, rk_i2s_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

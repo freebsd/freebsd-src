@@ -398,7 +398,5 @@ static driver_t rk_pwm_driver = {
 	sizeof(struct rk_pwm_softc),
 };
 
-static devclass_t rk_pwm_devclass;
-
-DRIVER_MODULE(rk_pwm, simplebus, rk_pwm_driver, rk_pwm_devclass, 0, 0);
+DRIVER_MODULE(rk_pwm, simplebus, rk_pwm_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

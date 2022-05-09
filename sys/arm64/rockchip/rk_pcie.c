@@ -1384,6 +1384,4 @@ static device_method_t rk_pcie_methods[] = {
 
 DEFINE_CLASS_1(pcib, rk_pcie_driver, rk_pcie_methods,
     sizeof(struct rk_pcie_softc), ofw_pcib_driver);
-static devclass_t rk_pcie_devclass;
-DRIVER_MODULE( rk_pcie, simplebus, rk_pcie_driver, rk_pcie_devclass,
-    NULL, NULL);
+DRIVER_MODULE( rk_pcie, simplebus, rk_pcie_driver, NULL, NULL);

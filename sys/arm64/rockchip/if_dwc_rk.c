@@ -615,11 +615,9 @@ static device_method_t if_dwc_rk_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t dwc_rk_devclass;
-
 extern driver_t dwc_driver;
 
 DEFINE_CLASS_1(dwc, dwc_rk_driver, if_dwc_rk_methods,
     sizeof(struct if_dwc_rk_softc), dwc_driver);
-DRIVER_MODULE(dwc_rk, simplebus, dwc_rk_driver, dwc_rk_devclass, 0, 0);
+DRIVER_MODULE(dwc_rk, simplebus, dwc_rk_driver, 0, 0);
 MODULE_DEPEND(dwc_rk, dwc, 1, 1, 1);

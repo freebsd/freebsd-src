@@ -216,7 +216,5 @@ static driver_t rk_iodomain_driver = {
 	sizeof(struct rk_iodomain_softc),
 };
 
-static devclass_t rk_iodomain_devclass;
-
-EARLY_DRIVER_MODULE(rk_iodomain, simplebus, rk_iodomain_driver,
-  rk_iodomain_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_iodomain, simplebus, rk_iodomain_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

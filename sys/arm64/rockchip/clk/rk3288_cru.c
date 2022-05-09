@@ -918,10 +918,8 @@ static device_method_t rk3288_cru_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t rk3288_cru_devclass;
-
 DEFINE_CLASS_1(rk3288_cru, rk3288_cru_driver, rk3288_cru_methods,
   sizeof(struct rk_cru_softc), rk_cru_driver);
 
-EARLY_DRIVER_MODULE(rk3288_cru, simplebus, rk3288_cru_driver,
-    rk3288_cru_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE + 1);
+EARLY_DRIVER_MODULE(rk3288_cru, simplebus, rk3288_cru_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE + 1);
