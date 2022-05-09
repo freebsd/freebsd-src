@@ -119,8 +119,6 @@ static	driver_t cp_driver = {
 	sizeof(bdrv_t),
 };
 
-static	devclass_t cp_devclass;
-
 static void cp_receive (cp_chan_t *c, unsigned char *data, int len);
 static void cp_transmit (cp_chan_t *c, void *attachment, int len);
 static void cp_error (cp_chan_t *c, int data);
@@ -1961,5 +1959,5 @@ static struct ng_type typestruct = {
 };
 
 MODULE_DEPEND (ng_cp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
-DRIVER_MODULE (cp, pci, cp_driver, cp_devclass, cp_modevent, NULL);
+DRIVER_MODULE (cp, pci, cp_driver, cp_modevent, NULL);
 MODULE_VERSION (cp, 1);
