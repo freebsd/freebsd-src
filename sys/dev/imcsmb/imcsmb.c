@@ -521,9 +521,6 @@ out:
 	return (rc);
 }
 
-/* Our device class */
-static devclass_t imcsmb_devclass;
-
 /* Device methods */
 static device_method_t imcsmb_methods[] = {
 	/* Device interface */
@@ -547,7 +544,7 @@ static driver_t imcsmb_driver = {
 	.size = sizeof(struct imcsmb_softc),
 };
 
-DRIVER_MODULE(imcsmb, imcsmb_pci, imcsmb_driver, imcsmb_devclass, 0, 0);
+DRIVER_MODULE(imcsmb, imcsmb_pci, imcsmb_driver, 0, 0);
 MODULE_DEPEND(imcsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(imcsmb, 1);
 

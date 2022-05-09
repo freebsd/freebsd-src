@@ -869,8 +869,6 @@ intsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	return (error);
 }
 
-static devclass_t intsmb_devclass;
-
 static device_method_t intsmb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		intsmb_probe),
@@ -899,8 +897,7 @@ static driver_t intsmb_driver = {
 	sizeof(struct intsmb_softc),
 };
 
-DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, intsmb_devclass, 0, 0,
-    SI_ORDER_ANY);
+DRIVER_MODULE_ORDERED(intsmb, pci, intsmb_driver, 0, 0, SI_ORDER_ANY);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, 0, 0);
 MODULE_DEPEND(intsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 MODULE_VERSION(intsmb, 1);
