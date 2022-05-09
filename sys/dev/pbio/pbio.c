@@ -127,8 +127,6 @@ static device_method_t pbio_methods[] = {
 	{ 0, 0 }
 };
 
-static	devclass_t	pbio_devclass;
-
 static char driver_name[] = "pbio";
 
 static driver_t pbio_driver = {
@@ -137,7 +135,7 @@ static driver_t pbio_driver = {
 	sizeof(struct pbio_softc),
 };
 
-DRIVER_MODULE(pbio, isa, pbio_driver, pbio_devclass, 0, 0);
+DRIVER_MODULE(pbio, isa, pbio_driver, 0, 0);
 
 static __inline uint8_t
 pbinb(struct pbio_softc *scp, int off)
