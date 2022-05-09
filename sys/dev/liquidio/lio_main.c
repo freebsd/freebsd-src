@@ -412,8 +412,7 @@ static driver_t lio_driver = {
 	LIO_DRV_NAME, lio_methods, sizeof(struct octeon_device),
 };
 
-devclass_t lio_devclass;
-DRIVER_MODULE(lio, pci, lio_driver, lio_devclass, lio_event, 0);
+DRIVER_MODULE(lio, pci, lio_driver, lio_event, NULL);
 
 MODULE_DEPEND(lio, pci, 1, 1, 1);
 MODULE_DEPEND(lio, ether, 1, 1, 1);
