@@ -3511,7 +3511,7 @@ static device_method_t ntb_intel_methods[] = {
 
 static DEFINE_CLASS_0(ntb_hw, ntb_intel_driver, ntb_intel_methods,
     sizeof(struct ntb_softc));
-DRIVER_MODULE(ntb_hw_intel, pci, ntb_intel_driver, ntb_hw_devclass, NULL, NULL);
+DRIVER_MODULE(ntb_hw_intel, pci, ntb_intel_driver, NULL, NULL);
 MODULE_DEPEND(ntb_hw_intel, ntb, 1, 1, 1);
 MODULE_VERSION(ntb_hw_intel, 1);
 MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ntb_hw_intel, pci_ids,
