@@ -266,10 +266,8 @@ static device_method_t ls1028a_clkgen_methods[] = {
 DEFINE_CLASS_1(ls1028a_clkgen, ls1028a_clkgen_driver, ls1028a_clkgen_methods,
     sizeof(struct qoriq_clkgen_softc), qoriq_clkgen_driver);
 
-static devclass_t ls1028a_clkgen_devclass;
-
-EARLY_DRIVER_MODULE(ls1028a_clkgen, simplebus, ls1028a_clkgen_driver,
-    ls1028a_clkgen_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ls1028a_clkgen, simplebus, ls1028a_clkgen_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int
 ls1028a_clkgen_probe(device_t dev)

@@ -400,8 +400,6 @@ static device_method_t qoriq_qoriq_therm_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t qoriq_qoriq_therm_devclass;
 static DEFINE_CLASS_0(soctherm, qoriq_qoriq_therm_driver, qoriq_qoriq_therm_methods,
     sizeof(struct qoriq_therm_softc));
-DRIVER_MODULE(qoriq_soctherm, simplebus, qoriq_qoriq_therm_driver,
-    qoriq_qoriq_therm_devclass, NULL, NULL);
+DRIVER_MODULE(qoriq_soctherm, simplebus, qoriq_qoriq_therm_driver, NULL, NULL);

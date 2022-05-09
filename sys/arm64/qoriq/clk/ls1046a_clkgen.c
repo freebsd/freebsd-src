@@ -194,10 +194,8 @@ static device_method_t ls1046a_clkgen_methods[] = {
 DEFINE_CLASS_1(ls1046a_clkgen, ls1046a_clkgen_driver, ls1046a_clkgen_methods,
     sizeof(struct qoriq_clkgen_softc), qoriq_clkgen_driver);
 
-static devclass_t ls1046a_clkgen_devclass;
-
-EARLY_DRIVER_MODULE(ls1046a_clkgen, simplebus, ls1046a_clkgen_driver,
-    ls1046a_clkgen_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ls1046a_clkgen, simplebus, ls1046a_clkgen_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int
 ls1046a_fman_init(device_t dev)
