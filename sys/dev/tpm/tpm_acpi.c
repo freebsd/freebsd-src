@@ -72,9 +72,9 @@ static device_method_t tpm_acpi_methods[] = {
 	DEVMETHOD(device_resume,	tpm_resume),
 	{ 0, 0 }
 };
+
 static driver_t tpm_acpi_driver = {
 	"tpm", tpm_acpi_methods, sizeof(struct tpm_softc),
 };
 
-devclass_t tpm_devclass;
-DRIVER_MODULE(tpm, acpi, tpm_acpi_driver, tpm_devclass, 0, 0);
+DRIVER_MODULE(tpm, acpi, tpm_acpi_driver, 0, 0);

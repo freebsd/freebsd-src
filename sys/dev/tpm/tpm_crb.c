@@ -415,9 +415,9 @@ static device_method_t	tpmcrb_methods[] = {
 	DEVMETHOD(device_suspend,	tpm20_suspend),
 	{0, 0}
 };
+
 static driver_t	tpmcrb_driver = {
 	"tpmcrb", tpmcrb_methods, sizeof(struct tpmcrb_sc),
 };
 
-devclass_t tpmcrb_devclass;
-DRIVER_MODULE(tpmcrb, acpi, tpmcrb_driver, tpmcrb_devclass, 0, 0);
+DRIVER_MODULE(tpmcrb, acpi, tpmcrb_driver, 0, 0);
