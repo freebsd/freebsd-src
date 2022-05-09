@@ -7738,13 +7738,14 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_resume,	bwn_resume),
 	DEVMETHOD_END
 };
+
 static driver_t bwn_driver = {
 	"bwn",
 	bwn_methods,
 	sizeof(struct bwn_softc)
 };
-static devclass_t bwn_devclass;
-DRIVER_MODULE(bwn, bhnd, bwn_driver, bwn_devclass, 0, 0);
+
+DRIVER_MODULE(bwn, bhnd, bwn_driver, 0, 0);
 MODULE_DEPEND(bwn, bhnd, 1, 1, 1);
 MODULE_DEPEND(bwn, gpiobus, 1, 1, 1);
 MODULE_DEPEND(bwn, wlan, 1, 1, 1);		/* 802.11 media layer */

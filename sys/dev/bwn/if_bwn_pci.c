@@ -287,12 +287,9 @@ static device_method_t bwn_pci_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t bwn_pci_devclass;
-
 DEFINE_CLASS_0(bwn_pci, bwn_pci_driver, bwn_pci_methods,
     sizeof(struct bwn_pci_softc));
-DRIVER_MODULE_ORDERED(bwn_pci, pci, bwn_pci_driver, bwn_pci_devclass, NULL,
-    NULL, SI_ORDER_ANY);
+DRIVER_MODULE_ORDERED(bwn_pci, pci, bwn_pci_driver, NULL, NULL, SI_ORDER_ANY);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwn_siba,
     siba_devices, nitems(siba_devices) - 1);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, bwn_bcma,
