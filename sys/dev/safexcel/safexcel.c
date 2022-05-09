@@ -2602,14 +2602,12 @@ static device_method_t safexcel_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t safexcel_devclass;
-
 static driver_t safexcel_driver = {
 	.name 		= "safexcel",
 	.methods 	= safexcel_methods,
 	.size		= sizeof(struct safexcel_softc),
 };
 
-DRIVER_MODULE(safexcel, simplebus, safexcel_driver, safexcel_devclass, 0, 0);
+DRIVER_MODULE(safexcel, simplebus, safexcel_driver, 0, 0);
 MODULE_VERSION(safexcel, 1);
 MODULE_DEPEND(safexcel, crypto, 1, 1, 1);
