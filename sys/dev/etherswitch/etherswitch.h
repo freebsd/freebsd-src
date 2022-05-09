@@ -9,7 +9,6 @@
 #include <net/ethernet.h>
 
 #ifdef _KERNEL
-extern devclass_t       etherswitch_devclass;
 extern driver_t         etherswitch_driver;
 #endif /* _KERNEL */
 

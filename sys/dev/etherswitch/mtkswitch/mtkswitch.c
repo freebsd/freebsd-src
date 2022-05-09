@@ -668,8 +668,7 @@ static devclass_t mtkswitch_devclass;
 DRIVER_MODULE(mtkswitch, simplebus, mtkswitch_driver, mtkswitch_devclass, 0, 0);
 DRIVER_MODULE(miibus, mtkswitch, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, mtkswitch, mdio_driver, 0, 0);
-DRIVER_MODULE(etherswitch, mtkswitch, etherswitch_driver, etherswitch_devclass,
-    0, 0);
+DRIVER_MODULE(etherswitch, mtkswitch, etherswitch_driver, 0, 0);
 MODULE_VERSION(mtkswitch, 1);
 MODULE_DEPEND(mtkswitch, miibus, 1, 1, 1);
 MODULE_DEPEND(mtkswitch, etherswitch, 1, 1, 1);

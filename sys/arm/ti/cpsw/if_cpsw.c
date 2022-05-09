@@ -235,7 +235,7 @@ static driver_t cpswp_driver = {
 static devclass_t cpswp_devclass;
 
 #ifdef CPSW_ETHERSWITCH
-DRIVER_MODULE(etherswitch, cpswss, etherswitch_driver, etherswitch_devclass, 0, 0);
+DRIVER_MODULE(etherswitch, cpswss, etherswitch_driver, 0, 0);
 MODULE_DEPEND(cpswss, etherswitch, 1, 1, 1);
 #endif
 

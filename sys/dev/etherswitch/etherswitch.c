@@ -56,8 +56,6 @@ static int etherswitch_attach(device_t);
 static int etherswitch_detach(device_t);
 static void etherswitch_identify(driver_t *driver, device_t parent);
 
-devclass_t etherswitch_devclass;
-
 static device_method_t etherswitch_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_identify,	etherswitch_identify),

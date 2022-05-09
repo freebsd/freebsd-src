@@ -958,8 +958,7 @@ static devclass_t ksz8995ma_devclass;
 
 DRIVER_MODULE(ksz8995ma, spibus, ksz8995ma_driver, ksz8995ma_devclass, 0, 0);
 DRIVER_MODULE(miibus, ksz8995ma, miibus_driver, 0, 0);
-DRIVER_MODULE(etherswitch, ksz8995ma, etherswitch_driver, etherswitch_devclass,
-    0, 0);
+DRIVER_MODULE(etherswitch, ksz8995ma, etherswitch_driver, 0, 0);
 MODULE_VERSION(ksz8995ma, 1);
 MODULE_DEPEND(ksz8995ma, spibus, 1, 1, 1); /* XXX which versions? */
 MODULE_DEPEND(ksz8995ma, miibus, 1, 1, 1); /* XXX which versions? */
