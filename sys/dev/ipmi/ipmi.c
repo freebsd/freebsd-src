@@ -1060,8 +1060,6 @@ ipmi_release_resources(device_t dev)
 			    sc->ipmi_io_rid + i, sc->ipmi_io_res[i]);
 }
 
-devclass_t ipmi_devclass;
-
 /* XXX: Why? */
 static void
 ipmi_unload(void *arg)

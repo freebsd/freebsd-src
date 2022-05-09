@@ -327,4 +327,4 @@ static driver_t opal_ipmi_driver = {
 	sizeof(struct opal_ipmi_softc)
 };
 
-DRIVER_MODULE(opal_ipmi, opal, opal_ipmi_driver, ipmi_devclass, NULL, NULL);
+DRIVER_MODULE(opal_ipmi, opal, opal_ipmi_driver, NULL, NULL);

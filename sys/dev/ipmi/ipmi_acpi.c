@@ -210,5 +210,5 @@ static driver_t ipmi_acpi_driver = {
 	sizeof(struct ipmi_softc),
 };
 
-DRIVER_MODULE(ipmi_acpi, acpi, ipmi_acpi_driver, ipmi_devclass, 0, 0);
+DRIVER_MODULE(ipmi_acpi, acpi, ipmi_acpi_driver, 0, 0);
 MODULE_DEPEND(ipmi_acpi, acpi, 1, 1, 1);

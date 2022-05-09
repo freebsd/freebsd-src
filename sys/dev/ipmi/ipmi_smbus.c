@@ -130,7 +130,7 @@ static driver_t ipmi_smbus_driver = {
 	sizeof(struct ipmi_softc)
 };
 
-DRIVER_MODULE(ipmi_smbus, smbus, ipmi_smbus_driver, ipmi_devclass, 0, 0);
+DRIVER_MODULE(ipmi_smbus, smbus, ipmi_smbus_driver, 0, 0);
 MODULE_DEPEND(ipmi_smbus, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
 #ifdef ARCH_MAY_USE_EFI
 MODULE_DEPEND(ipmi_smbus, efirt, 1, 1, 1);
