@@ -1992,8 +1992,6 @@ ubt_modevent(module_t mod, int event, void *data)
 	return (error);
 } /* ubt_modevent */
 
-devclass_t	ubt_devclass;
-
 static device_method_t	ubt_methods[] =
 {
 	DEVMETHOD(device_probe,	ubt_probe),
@@ -2009,7 +2007,7 @@ driver_t		ubt_driver =
 	.size =	   sizeof(struct ubt_softc),
 };
 
-DRIVER_MODULE(ng_ubt, uhub, ubt_driver, ubt_devclass, ubt_modevent, 0);
+DRIVER_MODULE(ng_ubt, uhub, ubt_driver, ubt_modevent, 0);
 MODULE_VERSION(ng_ubt, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(ng_ubt, ng_hci, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);
