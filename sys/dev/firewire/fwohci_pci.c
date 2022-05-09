@@ -466,9 +466,7 @@ static driver_t fwohci_driver = {
 	sizeof(fwohci_softc_t),
 };
 
-static devclass_t fwohci_devclass;
-
 #ifdef FWOHCI_MODULE
 MODULE_DEPEND(fwohci, firewire, 1, 1, 1);
 #endif
-DRIVER_MODULE(fwohci, pci, fwohci_driver, fwohci_devclass, 0, 0);
+DRIVER_MODULE(fwohci, pci, fwohci_driver, 0, 0);

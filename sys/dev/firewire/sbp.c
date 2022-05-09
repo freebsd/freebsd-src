@@ -2829,8 +2829,6 @@ sbp_abort_all_ocbs(struct sbp_dev *sdev, int status)
 	}
 }
 
-static devclass_t sbp_devclass;
-
 static device_method_t sbp_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_identify,	sbp_identify),
@@ -2847,7 +2845,7 @@ static driver_t sbp_driver = {
 	sbp_methods,
 	sizeof(struct sbp_softc),
 };
-DRIVER_MODULE(sbp, firewire, sbp_driver, sbp_devclass, 0, 0);
+DRIVER_MODULE(sbp, firewire, sbp_driver, 0, 0);
 MODULE_VERSION(sbp, 1);
 MODULE_DEPEND(sbp, firewire, 1, 1, 1);
 MODULE_DEPEND(sbp, cam, 1, 1, 1);

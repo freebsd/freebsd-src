@@ -613,8 +613,6 @@ fwe_as_input(struct fw_xferq *xferq)
 }
 
 
-static devclass_t fwe_devclass;
-
 static device_method_t fwe_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_identify,	fwe_identify),
@@ -631,6 +629,6 @@ static driver_t fwe_driver = {
 };
 
 
-DRIVER_MODULE(fwe, firewire, fwe_driver, fwe_devclass, 0, 0);
+DRIVER_MODULE(fwe, firewire, fwe_driver, 0, 0);
 MODULE_VERSION(fwe, 1);
 MODULE_DEPEND(fwe, firewire, 1, 1, 1);
