@@ -646,17 +646,17 @@ struct asmc_softc {
 #define ASMC_MP6_TEMPS		{ "TA0P", "TA1P", "TC0P", "TG0D", "TG0P", \
 				  "TG1D", "TG1P", "TM0P", "TM1P", NULL }
 
-#define ASMC_MP6_TEMPNAMES	{ "AMBIENT_AIR_0", "AMBIENT_AIR_1", \
-				  "CPU_0_PROXIMITY", "GPU_0_DIODE", \
-				  "GPU_0_PROXIMITY", "GPU_1_DIODE", \
-				  "GPU_1_PROXIMITY", "MEM_SLOTS_0_PROXIMITY", \
-				  "MEM_SLOTS_1_PROXIMITY" }
+#define ASMC_MP6_TEMPNAMES	{ "ambient_air_1", "ambient_air_2", \
+				  "cpu_proximity", "gpu_diode_1", \
+				  "gpu_proximity_1", "gpu_diode_2", \
+				  "gpu_proximity_2", "mem_proximity_1", \
+				  "mem_proximity_2" }
 
-#define ASMC_MP6_TEMPDESCS	{ "Ambient Air 0", "Ambient Air 1", \
-				  "CPU Proximity 0", "GPU Diode 0", \
-				  "GPU Proximity 0", "GPU Diode 1", \
-				  "GPU Proximity 1", "Memory Proximity 0", \
-				  "Memory Proximity 1" }
+#define ASMC_MP6_TEMPDESCS	{ "Ambient Air 1", "Ambient Air 2", \
+				  "CPU Proximity", "GPU Diode 1", \
+				  "GPU Proximity 1", "GPU Diode 2", \
+				  "GPU Proximity 2", "Memory Bank A", \
+				  "Memory Bank B" }
 
 #define	ASMC_MBA_TEMPS		{ "TB0T", NULL }
 #define	ASMC_MBA_TEMPNAMES	{ "enclosure" }
