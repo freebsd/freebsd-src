@@ -2232,12 +2232,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 		 * Fill in credential information.
 		 */
 		case SCM_CREDS:
-			*controlp = sbcreatecontrol(NULL, sizeof(*cmcred),
-			    SCM_CREDS, SOL_SOCKET);
-			if (*controlp == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
+			*controlp = sbcreatecontrol_how(NULL, sizeof(*cmcred),
+			    SCM_CREDS, SOL_SOCKET, M_WAITOK);
 			cmcred = (struct cmsgcred *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			cmcred->cmcred_pid = p->p_pid;
@@ -2280,13 +2276,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * file structure and capability rights.
 			 */
 			newlen = oldfds * sizeof(fdep[0]);
-			*controlp = sbcreatecontrol(NULL, newlen,
-			    SCM_RIGHTS, SOL_SOCKET);
-			if (*controlp == NULL) {
-				FILEDESC_SUNLOCK(fdesc);
-				error = E2BIG;
-				goto out;
-			}
+			*controlp = sbcreatecontrol_how(NULL, newlen,
+			    SCM_RIGHTS, SOL_SOCKET, M_WAITOK);
 			fdp = data;
 			for (i = 0; i < oldfds; i++, fdp++) {
 				if (!fhold(fdesc->fd_ofiles[*fdp].fde_file)) {
@@ -2317,48 +2308,32 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			break;
 
 		case SCM_TIMESTAMP:
-			*controlp = sbcreatecontrol(NULL, sizeof(*tv),
-			    SCM_TIMESTAMP, SOL_SOCKET);
-			if (*controlp == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
+			*controlp = sbcreatecontrol_how(NULL, sizeof(*tv),
+			    SCM_TIMESTAMP, SOL_SOCKET, M_WAITOK);
 			tv = (struct timeval *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			microtime(tv);
 			break;
 
 		case SCM_BINTIME:
-			*controlp = sbcreatecontrol(NULL, sizeof(*bt),
-			    SCM_BINTIME, SOL_SOCKET);
-			if (*controlp == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
+			*controlp = sbcreatecontrol_how(NULL, sizeof(*bt),
+			    SCM_BINTIME, SOL_SOCKET, M_WAITOK);
 			bt = (struct bintime *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			bintime(bt);
 			break;
 
 		case SCM_REALTIME:
-			*controlp = sbcreatecontrol(NULL, sizeof(*ts),
-			    SCM_REALTIME, SOL_SOCKET);
-			if (*controlp == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
+			*controlp = sbcreatecontrol_how(NULL, sizeof(*ts),
+			    SCM_REALTIME, SOL_SOCKET, M_WAITOK);
 			ts = (struct timespec *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			nanotime(ts);
 			break;
 
 		case SCM_MONOTONIC:
-			*controlp = sbcreatecontrol(NULL, sizeof(*ts),
-			    SCM_MONOTONIC, SOL_SOCKET);
-			if (*controlp == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
+			*controlp = sbcreatecontrol_how(NULL, sizeof(*ts),
+			    SCM_MONOTONIC, SOL_SOCKET, M_WAITOK);
 			ts = (struct timespec *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
 			nanouptime(ts);
