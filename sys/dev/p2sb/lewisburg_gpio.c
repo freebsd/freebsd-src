@@ -263,7 +263,5 @@ static driver_t lbggpio_driver = {
 	sizeof(struct lbggpio_softc)
 };
 
-static devclass_t lbggpio_devclass;
-
-DRIVER_MODULE(lbggpio, lbggpiocm, lbggpio_driver, lbggpio_devclass, NULL, NULL);
+DRIVER_MODULE(lbggpio, lbggpiocm, lbggpio_driver, NULL, NULL);
 MODULE_DEPEND(lbggpio, gpiobus, 1, 1, 1);

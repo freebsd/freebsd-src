@@ -209,7 +209,5 @@ static device_method_t p2sb_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t p2sb_devclass;
-
 DEFINE_CLASS_0(p2sb, p2sb_driver, p2sb_methods, sizeof(struct p2sb_softc));
-DRIVER_MODULE(p2sb, pci, p2sb_driver, p2sb_devclass, 0, 0);
+DRIVER_MODULE(p2sb, pci, p2sb_driver, 0, 0);
