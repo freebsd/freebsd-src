@@ -109,11 +109,9 @@ static device_method_t	simplebus_methods[] = {
 DEFINE_CLASS_0(simplebus, simplebus_driver, simplebus_methods,
     sizeof(struct simplebus_softc));
 
-static devclass_t simplebus_devclass;
-EARLY_DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, simplebus_devclass,
-    0, 0, BUS_PASS_BUS);
-EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int
 simplebus_probe(device_t dev)
