@@ -746,9 +746,8 @@ static driver_t zy7_qspi_driver = {
 	zy7_qspi_methods,
 	sizeof(struct zy7_qspi_softc),
 };
-static devclass_t zy7_qspi_devclass;
 
-DRIVER_MODULE(zy7_qspi, simplebus, zy7_qspi_driver, zy7_qspi_devclass, 0, 0);
+DRIVER_MODULE(zy7_qspi, simplebus, zy7_qspi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, zy7_qspi, ofw_spibus_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);
 MODULE_DEPEND(zy7_qspi, ofw_spibus, 1, 1, 1);
