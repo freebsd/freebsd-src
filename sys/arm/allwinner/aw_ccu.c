@@ -246,9 +246,7 @@ static device_method_t aw_ccu_methods[] = {
 DEFINE_CLASS_1(aw_ccu, aw_ccu_driver, aw_ccu_methods,
     sizeof(struct aw_ccu_softc), simplebus_driver);
 
-static devclass_t aw_ccu_devclass;
-
-EARLY_DRIVER_MODULE(aw_ccu, simplebus, aw_ccu_driver, aw_ccu_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(aw_ccu, simplebus, aw_ccu_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_VERSION(aw_ccu, 1);

@@ -290,8 +290,7 @@ static driver_t awusb3phy_driver = {
 	sizeof(struct awusb3phy_softc)
 };
 
-static devclass_t awusb3phy_devclass;
 /* aw_usb3phy needs to come up after regulators/gpio/etc, but before ehci/ohci */
-EARLY_DRIVER_MODULE(awusb3phy, simplebus, awusb3phy_driver, awusb3phy_devclass,
-    0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(awusb3phy, simplebus, awusb3phy_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(awusb3phy, 1);

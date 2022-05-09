@@ -1510,16 +1510,13 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t aw_mmc_devclass;
-
 static driver_t aw_mmc_driver = {
 	"aw_mmc",
 	aw_mmc_methods,
 	sizeof(struct aw_mmc_softc),
 };
 
-DRIVER_MODULE(aw_mmc, simplebus, aw_mmc_driver, aw_mmc_devclass, NULL,
-    NULL);
+DRIVER_MODULE(aw_mmc, simplebus, aw_mmc_driver, NULL, NULL);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(aw_mmc);
 #endif

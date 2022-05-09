@@ -209,13 +209,11 @@ static device_method_t ccu_sun8i_r_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ccu_sun8i_r_devclass;
-
 DEFINE_CLASS_1(ccu_sun8i_r, ccu_sun8i_r_driver, ccu_sun8i_r_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
-EARLY_DRIVER_MODULE(ccu_sun8i_r, simplebus, ccu_sun8i_r_driver,
-    ccu_sun8i_r_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ccu_sun8i_r, simplebus, ccu_sun8i_r_driver, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
 
 static int
 ccu_a83t_r_probe(device_t dev)
@@ -256,10 +254,8 @@ static device_method_t ccu_a83t_r_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ccu_a83t_r_devclass;
-
 DEFINE_CLASS_1(ccu_a83t_r, ccu_a83t_r_driver, ccu_a83t_r_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
-EARLY_DRIVER_MODULE(ccu_a83t_r, simplebus, ccu_a83t_r_driver,
-    ccu_a83t_r_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ccu_a83t_r, simplebus, ccu_a83t_r_driver, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

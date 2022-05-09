@@ -2015,9 +2015,7 @@ static driver_t awg_driver = {
 	sizeof(struct awg_softc),
 };
 
-static devclass_t awg_devclass;
-
-DRIVER_MODULE(awg, simplebus, awg_driver, awg_devclass, 0, 0);
+DRIVER_MODULE(awg, simplebus, awg_driver, 0, 0);
 DRIVER_MODULE(miibus, awg, miibus_driver, 0, 0);
 MODULE_DEPEND(awg, ether, 1, 1, 1);
 MODULE_DEPEND(awg, miibus, 1, 1, 1);

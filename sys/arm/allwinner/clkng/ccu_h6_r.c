@@ -163,10 +163,8 @@ static device_method_t ccu_sun50i_h6_r_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ccu_sun50i_h6_r_devclass;
-
 DEFINE_CLASS_1(ccu_sun50i_h6_r, ccu_sun50i_h6_r_driver, ccu_sun50i_h6_r_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
-EARLY_DRIVER_MODULE(ccu_sun50i_h6_r, simplebus, ccu_sun50i_h6_r_driver,
-    ccu_sun50i_h6_r_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ccu_sun50i_h6_r, simplebus, ccu_sun50i_h6_r_driver, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

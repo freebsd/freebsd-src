@@ -1168,9 +1168,7 @@ static driver_t emac_driver = {
 	sizeof(struct emac_softc)
 };
 
-static devclass_t emac_devclass;
-
-DRIVER_MODULE(emac, simplebus, emac_driver, emac_devclass, 0, 0);
+DRIVER_MODULE(emac, simplebus, emac_driver, 0, 0);
 DRIVER_MODULE(miibus, emac, miibus_driver, 0, 0);
 MODULE_DEPEND(emac, miibus, 1, 1, 1);
 MODULE_DEPEND(emac, ether, 1, 1, 1);

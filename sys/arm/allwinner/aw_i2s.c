@@ -806,7 +806,5 @@ static driver_t aw_i2s_driver = {
 	sizeof(struct aw_i2s_softc),
 };
 
-static devclass_t aw_i2s_devclass;
-
-DRIVER_MODULE(aw_i2s, simplebus, aw_i2s_driver, aw_i2s_devclass, 0, 0);
+DRIVER_MODULE(aw_i2s, simplebus, aw_i2s_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

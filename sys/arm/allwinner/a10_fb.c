@@ -657,6 +657,4 @@ static driver_t a10fb_driver = {
 	sizeof(struct a10fb_softc),
 };
 
-static devclass_t a10fb_devclass;
-
-DRIVER_MODULE(fb, simplebus, a10fb_driver, a10fb_devclass, 0, 0);
+DRIVER_MODULE(fb, simplebus, a10fb_driver, 0, 0);

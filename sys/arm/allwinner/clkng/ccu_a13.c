@@ -561,10 +561,8 @@ static device_method_t ccu_a13ng_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ccu_a13ng_devclass;
-
 DEFINE_CLASS_1(ccu_a13ng, ccu_a13ng_driver, ccu_a13ng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
-EARLY_DRIVER_MODULE(ccu_a13ng, simplebus, ccu_a13ng_driver,
-    ccu_a13ng_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ccu_a13ng, simplebus, ccu_a13ng_driver, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
