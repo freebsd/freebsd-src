@@ -183,9 +183,7 @@ static driver_t aw_rtc_driver = {
 	sizeof(struct aw_rtc_softc),
 };
 
-static devclass_t aw_rtc_devclass;
-
-EARLY_DRIVER_MODULE(aw_rtc, simplebus, aw_rtc_driver, aw_rtc_devclass, 0, 0,
+EARLY_DRIVER_MODULE(aw_rtc, simplebus, aw_rtc_driver, 0, 0,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(aw_rtc, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

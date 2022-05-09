@@ -785,10 +785,8 @@ static device_method_t ccu_h3ng_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t ccu_h3ng_devclass;
-
 DEFINE_CLASS_1(ccu_h3ng, ccu_h3ng_driver, ccu_h3ng_methods,
   sizeof(struct aw_ccung_softc), aw_ccung_driver);
 
-EARLY_DRIVER_MODULE(ccu_h3ng, simplebus, ccu_h3ng_driver,
-    ccu_h3ng_devclass, 0, 0, BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ccu_h3ng, simplebus, ccu_h3ng_driver, 0, 0,
+    BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

@@ -295,6 +295,5 @@ static driver_t aw_wdog_driver = {
 	aw_wdog_methods,
 	sizeof(struct aw_wdog_softc),
 };
-static devclass_t aw_wdog_devclass;
 
-DRIVER_MODULE(aw_wdog, simplebus, aw_wdog_driver, aw_wdog_devclass, 0, 0);
+DRIVER_MODULE(aw_wdog, simplebus, aw_wdog_driver, 0, 0);

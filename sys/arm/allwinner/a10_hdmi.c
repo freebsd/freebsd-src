@@ -719,7 +719,5 @@ static driver_t a10hdmi_driver = {
 	sizeof(struct a10hdmi_softc),
 };
 
-static devclass_t a10hdmi_devclass;
-
-DRIVER_MODULE(a10hdmi, simplebus, a10hdmi_driver, a10hdmi_devclass, 0, 0);
+DRIVER_MODULE(a10hdmi, simplebus, a10hdmi_driver, 0, 0);
 MODULE_VERSION(a10hdmi, 1);

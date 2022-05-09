@@ -501,11 +501,9 @@ static driver_t rsb_driver = {
 	sizeof(struct rsb_softc),
 };
 
-static devclass_t rsb_devclass;
-
 EARLY_DRIVER_MODULE(iicbus, rsb, iicbus_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(rsb, simplebus, rsb_driver, rsb_devclass, 0, 0,
+EARLY_DRIVER_MODULE(rsb, simplebus, rsb_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rsb, 1);
 MODULE_DEPEND(rsb, iicbus, 1, 1, 1);

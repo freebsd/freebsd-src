@@ -556,7 +556,6 @@ static driver_t aw_ir_driver = {
 	aw_ir_methods,
 	sizeof(struct aw_ir_softc),
 };
-static devclass_t aw_ir_devclass;
 
-DRIVER_MODULE(aw_ir, simplebus, aw_ir_driver, aw_ir_devclass, 0, 0);
+DRIVER_MODULE(aw_ir, simplebus, aw_ir_driver, 0, 0);
 MODULE_DEPEND(aw_ir, evdev, 1, 1, 1);

@@ -482,7 +482,5 @@ static driver_t a64codec_driver = {
 	sizeof(struct a64codec_softc),
 };
 
-static devclass_t a64codec_devclass;
-
-DRIVER_MODULE(a64codec, simplebus, a64codec_driver, a64codec_devclass, 0, 0);
+DRIVER_MODULE(a64codec, simplebus, a64codec_driver, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);

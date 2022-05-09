@@ -79,8 +79,7 @@ static device_method_t aw_syscon_methods[] = {
 DEFINE_CLASS_1(aw_syscon, aw_syscon_driver, aw_syscon_methods,
     sizeof(struct syscon_generic_softc), syscon_generic_driver);
 
-static devclass_t aw_syscon_devclass;
 /* aw_syscon needs to attach prior to if_awg */
-EARLY_DRIVER_MODULE(aw_syscon, simplebus, aw_syscon_driver, aw_syscon_devclass,
-    0, 0, BUS_PASS_SCHEDULER + BUS_PASS_ORDER_LAST);
+EARLY_DRIVER_MODULE(aw_syscon, simplebus, aw_syscon_driver, 0, 0,
+    BUS_PASS_SCHEDULER + BUS_PASS_ORDER_LAST);
 MODULE_VERSION(aw_syscon, 1);

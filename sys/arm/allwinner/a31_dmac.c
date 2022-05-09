@@ -554,6 +554,4 @@ static driver_t a31dmac_driver = {
 	sizeof(struct a31dmac_softc)
 };
 
-static devclass_t a31dmac_devclass;
-
-DRIVER_MODULE(a31dmac, simplebus, a31dmac_driver, a31dmac_devclass, 0, 0);
+DRIVER_MODULE(a31dmac, simplebus, a31dmac_driver, 0, 0);

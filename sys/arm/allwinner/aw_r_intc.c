@@ -287,13 +287,11 @@ static device_method_t aw_r_intc_gicp_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t aw_r_intc_gicp_devclass;
-
 static driver_t aw_r_intc_gicp_driver = {
 	"aw_r_intc_gicp",
 	aw_r_intc_gicp_methods,
 	sizeof(struct aw_r_intc_gicp_softc),
 };
 
-EARLY_DRIVER_MODULE(aw_r_intc_gicp, simplebus, aw_r_intc_gicp_driver,
-    aw_r_intc_gicp_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(aw_r_intc_gicp, simplebus, aw_r_intc_gicp_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

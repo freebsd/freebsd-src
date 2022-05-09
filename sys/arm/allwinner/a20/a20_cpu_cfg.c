@@ -116,9 +116,7 @@ static driver_t a20_cpu_cfg_driver = {
 	sizeof(struct a20_cpu_cfg_softc),
 };
 
-static devclass_t a20_cpu_cfg_devclass;
-
-EARLY_DRIVER_MODULE(a20_cpu_cfg, simplebus, a20_cpu_cfg_driver, a20_cpu_cfg_devclass, 0, 0,
+EARLY_DRIVER_MODULE(a20_cpu_cfg, simplebus, a20_cpu_cfg_driver, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_FIRST);
 
 uint64_t

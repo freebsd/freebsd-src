@@ -414,7 +414,5 @@ static driver_t aw_nmi_driver = {
 	sizeof(struct aw_nmi_softc),
 };
 
-static devclass_t aw_nmi_devclass;
-
-EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver,
-    aw_nmi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
