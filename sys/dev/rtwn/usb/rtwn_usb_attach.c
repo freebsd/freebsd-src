@@ -480,9 +480,7 @@ static driver_t rtwn_usb_driver = {
 	sizeof(struct rtwn_usb_softc)
 };
 
-static devclass_t rtwn_usb_devclass;
-
-DRIVER_MODULE(rtwn_usb, uhub, rtwn_usb_driver, rtwn_usb_devclass, NULL, NULL);
+DRIVER_MODULE(rtwn_usb, uhub, rtwn_usb_driver, NULL, NULL);
 MODULE_VERSION(rtwn_usb, 1);
 MODULE_DEPEND(rtwn_usb, usb, 1, 1, 1);
 MODULE_DEPEND(rtwn_usb, wlan, 1, 1, 1);
