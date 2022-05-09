@@ -175,8 +175,6 @@ MALLOC_DEFINE(M_IFAL, "if_al_malloc", "All allocated data for AL ETH driver");
 #define	AL_100BASE_TX_SPEED	100
 #define	AL_1000BASE_T_SPEED	1000
 
-static devclass_t al_devclass;
-
 #define	AL_RX_LOCK_INIT(_sc)	mtx_init(&((_sc)->if_rx_lock), "ALRXL", "ALRXL", MTX_DEF)
 #define	AL_RX_LOCK(_sc)		mtx_lock(&((_sc)->if_rx_lock))
 #define	AL_RX_UNLOCK(_sc)	mtx_unlock(&((_sc)->if_rx_lock))
@@ -256,7 +254,7 @@ static driver_t al_driver = {
 	sizeof(struct al_eth_adapter),
 };
 
-DRIVER_MODULE(al, pci, al_driver, al_devclass, 0, 0);
+DRIVER_MODULE(al, pci, al_driver, 0, 0);
 DRIVER_MODULE(miibus, al, miibus_driver, 0, 0);
 
 static int
