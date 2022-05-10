@@ -423,12 +423,10 @@ static device_method_t fsl_espi_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t fsl_espi_devclass;
-
 static driver_t fsl_espi_driver = {
 	"spi",
 	fsl_espi_methods,
 	sizeof(struct fsl_espi_softc),
 };
 
-DRIVER_MODULE(fsl_espi, simplebus, fsl_espi_driver, fsl_espi_devclass, 0, 0);
+DRIVER_MODULE(fsl_espi, simplebus, fsl_espi_driver, 0, 0);

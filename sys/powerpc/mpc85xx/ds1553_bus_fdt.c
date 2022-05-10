@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include "ds1553_reg.h"
 #include "clock_if.h"
 
-static devclass_t rtc_devclass;
-
 static int rtc_attach(device_t dev);
 static int rtc_probe(device_t dev);
 
@@ -73,7 +71,7 @@ static driver_t rtc_driver = {
 	sizeof(struct ds1553_softc),
 };
 
-DRIVER_MODULE(rtc, lbc, rtc_driver, rtc_devclass, 0, 0);
+DRIVER_MODULE(rtc, lbc, rtc_driver, 0, 0);
 
 static int
 rtc_probe(device_t dev)

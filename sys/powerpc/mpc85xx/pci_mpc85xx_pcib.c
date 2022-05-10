@@ -102,8 +102,6 @@ static device_method_t fsl_pcib_rc_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t fsl_pcib_rc_devclass;
 DEFINE_CLASS_1(pcib, fsl_pcib_rc_driver, fsl_pcib_rc_methods,
     sizeof(struct fsl_pcib_softc), ofw_pcib_pci_driver);
-EARLY_DRIVER_MODULE(rcpcib, pci, fsl_pcib_rc_driver, fsl_pcib_rc_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(rcpcib, pci, fsl_pcib_rc_driver, 0, 0, BUS_PASS_BUS);

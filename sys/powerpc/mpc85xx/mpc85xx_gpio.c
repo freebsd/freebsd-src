@@ -289,8 +289,6 @@ static driver_t mpc85xx_gpio_driver = {
 	mpc85xx_gpio_methods,
 	sizeof(struct mpc85xx_gpio_softc),
 };
-static devclass_t mpc85xx_gpio_devclass;
 
-EARLY_DRIVER_MODULE(mpc85xx_gpio, simplebus, mpc85xx_gpio_driver,
-    mpc85xx_gpio_devclass, NULL, NULL,
+EARLY_DRIVER_MODULE(mpc85xx_gpio, simplebus, mpc85xx_gpio_driver, NULL, NULL,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);

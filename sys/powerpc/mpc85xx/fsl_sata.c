@@ -544,7 +544,6 @@ fsl_sata_resume(device_t dev)
 	return (0);
 }
 
-devclass_t fsl_satach_devclass;
 static device_method_t fsl_satach_methods[] = {
 	DEVMETHOD(device_probe,     fsl_sata_probe),
 	DEVMETHOD(device_attach,    fsl_sata_attach),
@@ -553,12 +552,14 @@ static device_method_t fsl_satach_methods[] = {
 	DEVMETHOD(device_resume,    fsl_sata_resume),
 	DEVMETHOD_END
 };
+
 static driver_t fsl_satach_driver = {
 	"fslsata",
 	fsl_satach_methods,
 	sizeof(struct fsl_sata_channel)
 };
-DRIVER_MODULE(fsl_satach, simplebus, fsl_satach_driver, fsl_satach_devclass, NULL, NULL);
+
+DRIVER_MODULE(fsl_satach, simplebus, fsl_satach_driver, NULL, NULL);
 
 struct fsl_sata_dc_cb_args {
 	bus_addr_t maddr;

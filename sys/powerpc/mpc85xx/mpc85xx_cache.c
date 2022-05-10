@@ -157,8 +157,6 @@ static driver_t mpc85xx_cache_driver = {
 	mpc85xx_cache_methods,
 	sizeof(struct mpc85xx_cache_softc),
 };
-static devclass_t mpc85xx_cache_devclass;
 
-EARLY_DRIVER_MODULE(mpc85xx_cache, simplebus, mpc85xx_cache_driver,
-    mpc85xx_cache_devclass, NULL, NULL,
+EARLY_DRIVER_MODULE(mpc85xx_cache, simplebus, mpc85xx_cache_driver, NULL, NULL,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_MIDDLE);
