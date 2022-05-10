@@ -601,6 +601,7 @@ clang_flags="-Weverything -Wno-padded -Wno-switch-enum -Wno-format-nonliteral"
 clang_flags="$clang_flags -Wno-cast-align -Wno-missing-noreturn -Wno-disabled-macro-expansion"
 clang_flags="$clang_flags -Wno-unreachable-code -Wno-unreachable-code-return"
 clang_flags="$clang_flags -Wno-implicit-fallthrough -Wno-unused-macros -Wno-gnu-label-as-value"
+clang_flags="$clang_flags -Wno-declaration-after-statement"
 # -Wno-undef is here because Clang seems to think BC_C11 is undefined, when it's defined.
 clang_flags="$clang_flags -Wno-undef"
 gcc_flags="-Wno-maybe-uninitialized -Wno-clobbered"
