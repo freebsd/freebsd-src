@@ -305,7 +305,7 @@ bit_ff_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 
 	_mask = _match ? _BITSTR_MASK : 0;
 	_maxshft = _bit_idx(_size - 1) == 0 ? _size : (int)_BITSTR_BITS;
-	_value = 0;
+	_value = _start;
 	_curbitstr = _bitstr + _bit_idx(_start);
 	_test = ~(_BITSTR_MASK << _bit_offset(_start));
 	for (_last = _size - 1, _test |= _mask ^ *_curbitstr;
