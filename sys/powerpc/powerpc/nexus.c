@@ -111,11 +111,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t nexus_devclass;
-
 DEFINE_CLASS_0(nexus, nexus_driver, nexus_methods, 1);
-EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, 0, 0, BUS_PASS_BUS);
 MODULE_VERSION(nexus, 1);
 
 static int
