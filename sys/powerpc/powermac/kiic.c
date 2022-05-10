@@ -145,10 +145,9 @@ static driver_t kiic_driver = {
 	kiic_methods,
 	sizeof(struct kiic_softc)
 };
-static devclass_t kiic_devclass;
 
-DRIVER_MODULE(kiic, macio, kiic_driver, kiic_devclass, 0, 0);
-DRIVER_MODULE(kiic, unin, kiic_driver, kiic_devclass, 0, 0);
+DRIVER_MODULE(kiic, macio, kiic_driver, 0, 0);
+DRIVER_MODULE(kiic, unin, kiic_driver, 0, 0);
 
 static int
 kiic_probe(device_t self)

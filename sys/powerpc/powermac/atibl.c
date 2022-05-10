@@ -101,9 +101,7 @@ static driver_t	atibl_driver = {
 	sizeof(struct atibl_softc)
 };
 
-static devclass_t atibl_devclass;
-
-DRIVER_MODULE(atibl, vgapci, atibl_driver, atibl_devclass, 0, 0);
+DRIVER_MODULE(atibl, vgapci, atibl_driver, 0, 0);
 
 static void
 atibl_identify(driver_t *driver, device_t parent)

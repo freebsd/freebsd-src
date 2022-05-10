@@ -61,10 +61,7 @@ static driver_t tbgpio_driver = {
 	sizeof(struct tbgpio_softc)
 };
 
-static devclass_t tbgpio_devclass;
-
-EARLY_DRIVER_MODULE(tbgpio, macgpio, tbgpio_driver, tbgpio_devclass, 0, 0,
-    BUS_PASS_CPU);
+EARLY_DRIVER_MODULE(tbgpio, macgpio, tbgpio_driver, 0, 0, BUS_PASS_CPU);
 
 static int
 tbgpio_probe(device_t dev)

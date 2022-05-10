@@ -70,10 +70,7 @@ static driver_t pswitch_driver = {
 	sizeof(struct pswitch_softc)
 };
 
-static devclass_t pswitch_devclass;
-
-EARLY_DRIVER_MODULE(pswitch, macgpio, pswitch_driver, pswitch_devclass,
-    0, 0, BUS_PASS_RESOURCE);
+EARLY_DRIVER_MODULE(pswitch, macgpio, pswitch_driver, 0, 0, BUS_PASS_RESOURCE);
 
 static int
 pswitch_probe(device_t dev)

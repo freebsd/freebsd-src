@@ -79,9 +79,7 @@ static driver_t	nvbl_driver = {
 	sizeof(struct nvbl_softc)
 };
 
-static devclass_t nvbl_devclass;
-
-DRIVER_MODULE(nvbl, vgapci, nvbl_driver, nvbl_devclass, 0, 0);
+DRIVER_MODULE(nvbl, vgapci, nvbl_driver, 0, 0);
 
 static void
 nvbl_identify(driver_t *driver, device_t parent)
