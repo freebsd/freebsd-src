@@ -282,11 +282,8 @@ def test_eof(exe, args, env):
 	child = pexpect.spawn(exe, args=args, env=env)
 
 	try:
-		send(child, "123")
-		expect(child, "123")
-		send(child, "\x01")
-		send(child, "\x04")
-		send(child, "\x04")
+		send(child, "\t")
+		expect(child, "        ")
 		send(child, "\x04")
 		wait(child)
 	except pexpect.TIMEOUT:
