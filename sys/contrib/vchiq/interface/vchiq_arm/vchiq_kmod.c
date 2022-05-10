@@ -235,7 +235,5 @@ static driver_t bcm_vchiq_driver = {
 	sizeof(struct bcm_vchiq_softc),
 };
 
-static devclass_t bcm_vchiq_devclass;
-
-DRIVER_MODULE(vchiq, simplebus, bcm_vchiq_driver, bcm_vchiq_devclass, 0, 0);
+DRIVER_MODULE(vchiq, simplebus, bcm_vchiq_driver, 0, 0);
 MODULE_VERSION(vchiq, 1);
