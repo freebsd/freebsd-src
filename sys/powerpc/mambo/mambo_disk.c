@@ -274,6 +274,5 @@ static driver_t mambodisk_driver = {
 	mambodisk_methods,
 	sizeof(struct mambodisk_softc),
 };
-static devclass_t mambodisk_devclass;
 
-DRIVER_MODULE(mambodisk, mambo, mambodisk_driver, mambodisk_devclass, 0, 0);
+DRIVER_MODULE(mambodisk, mambo, mambodisk_driver, 0, 0);
