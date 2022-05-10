@@ -67,9 +67,7 @@ static driver_t qman_driver = {
 	sizeof(struct qman_softc),
 };
 
-static devclass_t qman_devclass;
-EARLY_DRIVER_MODULE(qman, simplebus, qman_driver, qman_devclass, 0, 0,
-    BUS_PASS_SUPPORTDEV);
+EARLY_DRIVER_MODULE(qman, simplebus, qman_driver, 0, 0, BUS_PASS_SUPPORTDEV);
 
 static int
 qman_fdt_probe(device_t dev)
@@ -106,9 +104,8 @@ static driver_t qm_portals_driver = {
 	sizeof(struct dpaa_portals_softc),
 };
 
-static devclass_t qm_portals_devclass;
-EARLY_DRIVER_MODULE(qman_portals, ofwbus, qm_portals_driver,
-    qm_portals_devclass, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(qman_portals, ofwbus, qm_portals_driver, 0, 0,
+    BUS_PASS_BUS);
 
 static void
 get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)

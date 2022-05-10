@@ -67,9 +67,7 @@ static driver_t bman_driver = {
 	sizeof(struct bman_softc),
 };
 
-static devclass_t bman_devclass;
-EARLY_DRIVER_MODULE(bman, simplebus, bman_driver, bman_devclass, 0, 0,
-    BUS_PASS_SUPPORTDEV);
+EARLY_DRIVER_MODULE(bman, simplebus, bman_driver, 0, 0, BUS_PASS_SUPPORTDEV);
 
 static int
 bman_fdt_probe(device_t dev)
@@ -106,9 +104,8 @@ static driver_t bm_portals_driver = {
 	sizeof(struct dpaa_portals_softc),
 };
 
-static devclass_t bm_portals_devclass;
-EARLY_DRIVER_MODULE(bman_portals, ofwbus, bm_portals_driver,
-    bm_portals_devclass, 0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(bman_portals, ofwbus, bm_portals_driver, 0, 0,
+    BUS_PASS_BUS);
 
 static void
 get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep)
