@@ -902,9 +902,7 @@ static driver_t qcom_spi_driver = {
 	sizeof(struct qcom_spi_softc),
 };
 
-static devclass_t qcom_spi_devclass;
-
-DRIVER_MODULE(qcom_spi, simplebus, qcom_spi_driver, qcom_spi_devclass, 0, 0);
+DRIVER_MODULE(qcom_spi, simplebus, qcom_spi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, qcom_spi, ofw_spibus_driver, 0, 0);
 MODULE_DEPEND(qcom_spi, ofw_spibus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

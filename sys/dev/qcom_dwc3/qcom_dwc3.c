@@ -172,9 +172,6 @@ static device_method_t qcom_dwc3_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t qcom_dwc3_devclass;
-
 DEFINE_CLASS_1(qcom_dwc3, qcom_dwc3_driver, qcom_dwc3_methods,
     sizeof(struct qcom_dwc3_softc), simplebus_driver);
-DRIVER_MODULE(qcom_dwc3, simplebus, qcom_dwc3_driver, qcom_dwc3_devclass,
-    0, 0);
+DRIVER_MODULE(qcom_dwc3, simplebus, qcom_dwc3_driver, 0, 0);

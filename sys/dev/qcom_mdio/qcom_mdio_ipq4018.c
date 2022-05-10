@@ -285,11 +285,9 @@ static driver_t qcom_mdio_ipq4018_driver = {
 	qcom_mdio_ipq4018_methods,
 	sizeof(struct qcom_mdio_ipq4018_softc),
 };
-static devclass_t qcom_mdio_ipq4018_devclass;
 
 EARLY_DRIVER_MODULE(qcom_mdio_ipq4018, simplebus, qcom_mdio_ipq4018_driver,
-    qcom_mdio_ipq4018_devclass, NULL, 0,
-    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_LATE);
+    NULL, NULL, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_LATE);
 
 MODULE_DEPEND(qcom_mdio_ipq4018, ether, 1, 1, 1);
 MODULE_DEPEND(qcom_mdio_ipq4018, mdio, 1, 1, 1);
