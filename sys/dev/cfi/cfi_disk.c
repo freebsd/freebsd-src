@@ -356,4 +356,4 @@ static driver_t cfi_disk_driver = {
 	cfi_disk_methods,
 	sizeof(struct cfi_disk_softc),
 };
-DRIVER_MODULE(cfid, cfi, cfi_disk_driver, cfi_diskclass, 0, NULL);
+DRIVER_MODULE(cfid, cfi, cfi_disk_driver, NULL, NULL);
