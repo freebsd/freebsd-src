@@ -98,10 +98,9 @@ static device_method_t	grackle_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t	grackle_devclass;
 DEFINE_CLASS_1(pcib, grackle_driver, grackle_methods,
     sizeof(struct grackle_softc), ofw_pcib_driver);
-DRIVER_MODULE(grackle, ofwbus, grackle_driver, grackle_devclass, 0, 0);
+DRIVER_MODULE(grackle, ofwbus, grackle_driver, 0, 0);
 
 static int
 grackle_probe(device_t dev)
@@ -317,6 +316,5 @@ static driver_t grackle_hb_driver = {
 	grackle_hb_methods,
 	1,
 };
-static devclass_t grackle_hb_devclass;
 
-DRIVER_MODULE(grackle_hb, pci, grackle_hb_driver, grackle_hb_devclass, 0, 0);
+DRIVER_MODULE(grackle_hb, pci, grackle_hb_driver, 0, 0);

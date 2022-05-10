@@ -139,10 +139,7 @@ static driver_t macio_pci_driver = {
 	sizeof(struct macio_softc)
 };
 
-devclass_t macio_devclass;
-
-EARLY_DRIVER_MODULE(macio, pci, macio_pci_driver, macio_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(macio, pci, macio_pci_driver, 0, 0, BUS_PASS_BUS);
 
 /*
  * PCI ID search table

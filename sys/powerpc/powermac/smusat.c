@@ -88,9 +88,7 @@ static driver_t smusat_driver = {
 	sizeof(struct smusat_softc)
 };
 
-static devclass_t smusat_devclass;
-
-DRIVER_MODULE(smusat, iicbus, smusat_driver, smusat_devclass, 0, 0);
+DRIVER_MODULE(smusat, iicbus, smusat_driver, 0, 0);
 
 static int
 smusat_probe(device_t dev)

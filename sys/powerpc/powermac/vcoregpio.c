@@ -63,9 +63,7 @@ static driver_t vcoregpio_driver = {
 	0
 };
 
-static devclass_t vcoregpio_devclass;
-
-DRIVER_MODULE(vcoregpio, macgpio, vcoregpio_driver, vcoregpio_devclass, 0, 0);
+DRIVER_MODULE(vcoregpio, macgpio, vcoregpio_driver, 0, 0);
 
 static int
 vcoregpio_probe(device_t dev)

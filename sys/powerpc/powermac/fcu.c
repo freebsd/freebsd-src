@@ -130,9 +130,7 @@ static driver_t fcu_driver = {
 	sizeof(struct fcu_softc)
 };
 
-static devclass_t fcu_devclass;
-
-DRIVER_MODULE(fcu, iicbus, fcu_driver, fcu_devclass, 0, 0);
+DRIVER_MODULE(fcu, iicbus, fcu_driver, 0, 0);
 static MALLOC_DEFINE(M_FCU, "fcu", "FCU Sensor Information");
 
 static int

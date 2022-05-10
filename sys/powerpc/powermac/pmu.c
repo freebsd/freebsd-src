@@ -154,10 +154,7 @@ static driver_t pmu_driver = {
 	sizeof(struct pmu_softc),
 };
 
-static devclass_t pmu_devclass;
-
-EARLY_DRIVER_MODULE(pmu, macio, pmu_driver, pmu_devclass, 0, 0,
-    BUS_PASS_RESOURCE);
+EARLY_DRIVER_MODULE(pmu, macio, pmu_driver, 0, 0, BUS_PASS_RESOURCE);
 DRIVER_MODULE(adb, pmu, adb_driver, 0, 0);
 
 static int	pmuextint_probe(device_t);
@@ -176,10 +173,8 @@ static driver_t pmuextint_driver = {
 	0
 };
 
-static devclass_t pmuextint_devclass;
-
-EARLY_DRIVER_MODULE(pmuextint, macgpio, pmuextint_driver, pmuextint_devclass,
-    0, 0, BUS_PASS_RESOURCE);
+EARLY_DRIVER_MODULE(pmuextint, macgpio, pmuextint_driver, 0, 0,
+    BUS_PASS_RESOURCE);
 
 /* Make sure uhid is loaded, as it turns off some of the ADB emulation */
 MODULE_DEPEND(pmu, usb, 1, 1, 1);

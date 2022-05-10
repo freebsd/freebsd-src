@@ -113,9 +113,7 @@ static driver_t cuda_driver = {
 	sizeof(struct cuda_softc),
 };
 
-static devclass_t cuda_devclass;
-
-DRIVER_MODULE(cuda, macio, cuda_driver, cuda_devclass, 0, 0);
+DRIVER_MODULE(cuda, macio, cuda_driver, 0, 0);
 DRIVER_MODULE(adb, cuda, adb_driver, 0, 0);
 
 static void cuda_intr(void *arg);
