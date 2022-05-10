@@ -1144,25 +1144,20 @@ restart:
 		 * ALLPROC suspend tries to avoid spurious EINTR for
 		 * threads sleeping interruptable, by suspending the
 		 * thread directly, similarly to sig_suspend_threads().
-		 * Since such sleep is not performed at the user
-		 * boundary, TDF_BOUNDARY flag is not set, and TDF_ALLPROCSUSP
-		 * is used to avoid immediate un-suspend.
+		 * Since such sleep is not neccessary performed at the user
+		 * boundary, TDF_ALLPROCSUSP is used to avoid immediate
+		 * un-suspend.
 		 */
-		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & (TDF_BOUNDARY |
-		    TDF_ALLPROCSUSP)) == 0) {
+		if (TD_IS_SUSPENDED(td2) && (td2->td_flags &
+		    TDF_ALLPROCSUSP) == 0) {
 			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 			thread_lock(td2);
 			goto restart;
 		}
 		if (TD_CAN_ABORT(td2)) {
-			if ((td2->td_flags & TDF_SBDRY) == 0) {
-				if (!TD_IS_SUSPENDED(td2))
-					thread_suspend_one(td2);
-				td2->td_flags |= TDF_ALLPROCSUSP;
-			} else {
-				wakeup_swapper |= sleepq_abort(td2, ERESTART);
-				return (wakeup_swapper);
-			}
+			td2->td_flags |= TDF_ALLPROCSUSP;
+			wakeup_swapper |= sleepq_abort(td2, ERESTART);
+			return (wakeup_swapper);
 		}
 		break;
 	default:
