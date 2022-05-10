@@ -115,9 +115,7 @@ static driver_t iobus_driver = {
         sizeof(struct iobus_softc)
 };
 
-devclass_t iobus_devclass;
-
-DRIVER_MODULE(iobus, ofwbus, iobus_driver, iobus_devclass, 0, 0);
+DRIVER_MODULE(iobus, ofwbus, iobus_driver, 0, 0);
 
 static int
 iobus_probe(device_t dev)
