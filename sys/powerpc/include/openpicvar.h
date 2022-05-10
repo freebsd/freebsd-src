@@ -69,8 +69,6 @@ struct openpic_softc {
 
 };
 
-extern devclass_t openpic_devclass;
-
 /*
  * Bus-independent attach i/f
  */
