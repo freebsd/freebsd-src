@@ -2858,11 +2858,9 @@ static driver_t rt_driver =
 	sizeof(struct rt_softc)
 };
 
-static devclass_t rt_dev_class;
-
-DRIVER_MODULE(rt, nexus, rt_driver, rt_dev_class, 0, 0);
+DRIVER_MODULE(rt, nexus, rt_driver, 0, 0);
 #ifdef FDT
-DRIVER_MODULE(rt, simplebus, rt_driver, rt_dev_class, 0, 0);
+DRIVER_MODULE(rt, simplebus, rt_driver, 0, 0);
 #endif
 
 MODULE_DEPEND(rt, ether, 1, 1, 1);
@@ -2898,10 +2896,9 @@ static device_method_t rtmdio_methods[] = {
 
 DEFINE_CLASS_0(rtmdio, rtmdio_driver, rtmdio_methods,
     sizeof(struct rt_softc));
-static devclass_t rtmdio_devclass;
 
 DRIVER_MODULE(miiproxy, rt, miiproxy_driver, 0, 0);
-DRIVER_MODULE(rtmdio, simplebus, rtmdio_driver, rtmdio_devclass, 0, 0);
+DRIVER_MODULE(rtmdio, simplebus, rtmdio_driver, 0, 0);
 DRIVER_MODULE(mdio, rtmdio, mdio_driver, 0, 0);
 
 static int
