@@ -313,6 +313,4 @@ static driver_t feaon_driver = {
 	sizeof(struct feaon_softc)
 };
 
-static devclass_t feaon_devclass;
-
-DRIVER_MODULE(fe310aon, simplebus, feaon_driver, feaon_devclass, 0, 0);
+DRIVER_MODULE(fe310aon, simplebus, feaon_driver, 0, 0);
