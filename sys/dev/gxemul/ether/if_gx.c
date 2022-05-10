@@ -109,9 +109,7 @@ static driver_t gx_driver = {
 	sizeof (struct gx_softc),
 };
 
-static devclass_t gx_devclass;
-
-DRIVER_MODULE(gx, nexus, gx_driver, gx_devclass, 0, 0);
+DRIVER_MODULE(gx, nexus, gx_driver, 0, 0);
 
 static void
 gx_identify(driver_t *drv, device_t parent)

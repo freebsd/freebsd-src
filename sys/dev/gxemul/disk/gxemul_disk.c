@@ -328,5 +328,4 @@ static driver_t gxemul_disk_driver = {
 	sizeof (struct gxemul_disk_softc)
 };
 
-static devclass_t gxemul_disk_devclass;
-DRIVER_MODULE(gxemul_disk, nexus, gxemul_disk_driver, gxemul_disk_devclass, 0, 0);
+DRIVER_MODULE(gxemul_disk, nexus, gxemul_disk_driver, 0, 0);
