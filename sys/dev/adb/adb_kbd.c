@@ -111,9 +111,7 @@ static driver_t adb_kbd_driver = {
 	sizeof(struct adb_kbd_softc),
 };
 
-static devclass_t adb_kbd_devclass;
-
-DRIVER_MODULE(akbd, adb, adb_kbd_driver, adb_kbd_devclass, 0, 0);
+DRIVER_MODULE(akbd, adb, adb_kbd_driver, 0, 0);
 
 #ifdef AKBD_EMULATE_ATKBD
 

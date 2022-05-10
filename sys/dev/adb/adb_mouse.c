@@ -116,9 +116,7 @@ static driver_t adb_mouse_driver = {
 	sizeof(struct adb_mouse_softc),
 };
 
-static devclass_t adb_mouse_devclass;
-
-DRIVER_MODULE(ams, adb, adb_mouse_driver, adb_mouse_devclass, 0, 0);
+DRIVER_MODULE(ams, adb, adb_mouse_driver, 0, 0);
 
 static struct cdevsw ams_cdevsw = {
 	.d_version = 	D_VERSION,
