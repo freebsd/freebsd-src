@@ -7,8 +7,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/agp/agpreg.h>
 #include <dev/pci/pcireg.h>
 
-devclass_t drm_devclass;
-
 MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
 MALLOC_DEFINE(DRM_MEM_SAREA, "drm_sarea", "DRM SAREA Data Structures");
 MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
