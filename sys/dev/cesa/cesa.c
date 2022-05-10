@@ -112,9 +112,8 @@ static driver_t cesa_driver = {
 	cesa_methods,
 	sizeof (struct cesa_softc)
 };
-static devclass_t cesa_devclass;
 
-DRIVER_MODULE(cesa, simplebus, cesa_driver, cesa_devclass, 0, 0);
+DRIVER_MODULE(cesa, simplebus, cesa_driver, 0, 0);
 MODULE_DEPEND(cesa, crypto, 1, 1, 1);
 
 static void
