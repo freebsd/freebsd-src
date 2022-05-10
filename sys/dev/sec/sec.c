@@ -138,8 +138,7 @@ static driver_t sec_driver = {
 	sizeof(struct sec_softc),
 };
 
-static devclass_t sec_devclass;
-DRIVER_MODULE(sec, simplebus, sec_driver, sec_devclass, 0, 0);
+DRIVER_MODULE(sec, simplebus, sec_driver, 0, 0);
 MODULE_DEPEND(sec, crypto, 1, 1, 1);
 
 static struct sec_eu_methods sec_eus[] = {
