@@ -1053,10 +1053,8 @@ static driver_t dme_driver = {
 	sizeof(struct dme_softc)
 };
 
-static devclass_t dme_devclass;
-
 MODULE_DEPEND(dme, ether, 1, 1, 1);
 MODULE_DEPEND(dme, miibus, 1, 1, 1);
-DRIVER_MODULE(dme, simplebus, dme_driver, dme_devclass, 0, 0);
+DRIVER_MODULE(dme, simplebus, dme_driver, 0, 0);
 DRIVER_MODULE(miibus, dme, miibus_driver, 0, 0);
 
