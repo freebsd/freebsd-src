@@ -633,6 +633,7 @@ struct kinfo_sigtramp {
 #define	KMAP_FLAG_ASLR_IGNSTART	0x04	/* ASLR may map into sbrk grow region */
 #define	KMAP_FLAG_WXORX		0x08	/* W^X mapping policy is enforced */
 #define	KMAP_FLAG_ASLR_STACK	0x10	/* the stack location is randomized */
+#define	KMAP_FLAG_ASLR_SHARED_PAGE 0x20	/* the shared page location is randomized */
 
 struct kinfo_vm_layout {
 	uintptr_t	kvm_min_user_addr;
@@ -644,7 +645,9 @@ struct kinfo_vm_layout {
 	uintptr_t	kvm_stack_addr;
 	size_t		kvm_stack_size;
 	int		kvm_map_flags;
-	uintptr_t	kvm_spare[14];
+	uintptr_t	kvm_shp_addr;
+	size_t		kvm_shp_size;
+	uintptr_t	kvm_spare[12];
 };
 
 #ifdef _KERNEL

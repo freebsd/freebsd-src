@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
+#include <sys/mman.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -72,26 +73,20 @@ copyin_checker2(uintptr_t uaddr)
 }
 #endif
 
-#ifdef __amd64__
-static uintptr_t
-get_maxuser_address(void)
+static int
+get_vm_layout(struct kinfo_vm_layout *kvm)
 {
-	struct kinfo_vm_layout kvm;
 	size_t len;
-	int error, mib[4];
+	int mib[4];
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_VM_LAYOUT;
 	mib[3] = getpid();
-	len = sizeof(kvm);
-	error = sysctl(mib, nitems(mib), &kvm, &len, NULL, 0);
-	if (error != 0)
-		return (0);
+	len = sizeof(*kvm);
 
-	return (kvm.kvm_max_user_addr);
+	return (sysctl(mib, nitems(mib), kvm, &len, NULL, 0));
 }
-#endif
 
 #define	FMAX	ULONG_MAX
 #if __SIZEOF_POINTER__ == 8
@@ -103,26 +98,36 @@ ATF_TC_WITHOUT_HEAD(kern_copyin);
 ATF_TC_BODY(kern_copyin, tc)
 {
 	char template[] = "copyin.XXXXXX";
+	struct kinfo_vm_layout kvm;
 	uintptr_t maxuser;
+	long page_size;
+	void *addr;
+	int error;
 
-#if defined(__mips__)
-	/*
-	 * MIPS has different VM layout: the UVA map on mips ends the
-	 * highest mapped entry at the VM_MAXUSER_ADDRESS - PAGE_SIZE,
-	 * while all other arches map either stack or shared page up
-	 * to the VM_MAXUSER_ADDRESS.
-	 */
-	maxuser = VM_MAXUSER_ADDRESS - PAGE_SIZE;
-#elif defined(__amd64__)
-	maxuser = get_maxuser_address();
-	ATF_REQUIRE(maxuser != 0);
-#else
-	maxuser = VM_MAXUSER_ADDRESS;
-#endif
+	addr = MAP_FAILED;
 
+	error = get_vm_layout(&kvm);
+	ATF_REQUIRE(error == 0);
+
+	page_size = sysconf(_SC_PAGESIZE);
+	ATF_REQUIRE(page_size != (long)-1);
+
+	maxuser = kvm.kvm_max_user_addr;
 	scratch_file = mkstemp(template);
 	ATF_REQUIRE(scratch_file != -1);
 	unlink(template);
+
+	/*
+	 * Since the shared page address can be randomized we need to make
+	 * sure that something is mapped at the top of the user address space.
+	 * Otherwise reading bytes from maxuser-X will fail rendering this test
+	 * useless.
+	 */
+	if (kvm.kvm_shp_addr + kvm.kvm_shp_size < maxuser) {
+		addr = mmap((void *)(maxuser - page_size), page_size, PROT_READ,
+		    MAP_ANON | MAP_FIXED, -1, 0);
+		ATF_REQUIRE(addr != MAP_FAILED);
+	}
 
 	ATF_CHECK(copyin_checker(0, 0) == 0);
 	ATF_CHECK(copyin_checker(maxuser - 10, 9) == 0);
@@ -141,6 +146,9 @@ ATF_TC_BODY(kern_copyin, tc)
 	ATF_CHECK(copyin_checker(ADDR_SIGNED, 1) == EFAULT);
 	ATF_CHECK(copyin_checker2(ADDR_SIGNED) == EFAULT);
 #endif
+
+	if (addr != MAP_FAILED)
+		munmap(addr, PAGE_SIZE);
 }
 
 ATF_TP_ADD_TCS(tp)
