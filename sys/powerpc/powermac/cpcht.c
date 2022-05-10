@@ -549,8 +549,8 @@ static driver_t openpic_cpcht_driver = {
 	sizeof(struct openpic_cpcht_softc),
 };
 
-EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, openpic_devclass,
-    0, 0, BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, 0, 0,
+    BUS_PASS_INTERRUPT);
 
 static int
 openpic_cpcht_probe(device_t dev)

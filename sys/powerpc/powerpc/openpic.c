@@ -54,8 +54,6 @@
 
 #define	OPENPIC_NIPIS		4
 
-devclass_t openpic_devclass;
-
 /*
  * Local routines
  */
