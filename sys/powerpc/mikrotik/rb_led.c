@@ -67,9 +67,7 @@ static driver_t rbled_driver = {
 	sizeof(struct rbled_softc),
 };
 
-static devclass_t rbled_devclass;
-
-DRIVER_MODULE(rbled, simplebus, rbled_driver, rbled_devclass, 0, 0);
+DRIVER_MODULE(rbled, simplebus, rbled_driver, 0, 0);
 
 static int
 rbled_probe(device_t dev)
