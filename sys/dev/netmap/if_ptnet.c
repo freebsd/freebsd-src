@@ -249,9 +249,8 @@ static driver_t ptnet_driver = {
 };
 
 /* We use (SI_ORDER_MIDDLE+2) here, see DEV_MODULE_ORDERED() invocation. */
-static devclass_t ptnet_devclass;
-DRIVER_MODULE_ORDERED(ptnet, pci, ptnet_driver, ptnet_devclass,
-		      NULL, NULL, SI_ORDER_MIDDLE + 2);
+DRIVER_MODULE_ORDERED(ptnet, pci, ptnet_driver, NULL, NULL,
+		      SI_ORDER_MIDDLE + 2);
 
 static int
 ptnet_probe(device_t dev)
