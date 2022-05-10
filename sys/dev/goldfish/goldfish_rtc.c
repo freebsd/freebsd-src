@@ -176,7 +176,5 @@ static device_method_t goldfish_rtc_methods[] = {
 
 DEFINE_CLASS_0(goldfish_rtc, goldfish_rtc_driver, goldfish_rtc_methods,
     sizeof(struct goldfish_rtc_softc));
-static devclass_t goldfish_rtc_devclass;
 
-DRIVER_MODULE(goldfish_rtc, simplebus, goldfish_rtc_driver,
-    goldfish_rtc_devclass, NULL, NULL);
+DRIVER_MODULE(goldfish_rtc, simplebus, goldfish_rtc_driver, NULL, NULL);
