@@ -103,9 +103,7 @@ static driver_t vdevice_driver = {
 	0
 };
 
-static devclass_t vdevice_devclass;
-
-DRIVER_MODULE(vdevice, ofwbus, vdevice_driver, vdevice_devclass, 0, 0);
+DRIVER_MODULE(vdevice, ofwbus, vdevice_driver, 0, 0);
 
 static int 
 vdevice_probe(device_t dev) 

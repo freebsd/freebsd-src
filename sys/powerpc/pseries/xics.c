@@ -155,13 +155,8 @@ static driver_t xics_driver = {
 static uint32_t cpu_xirr[MAXCPU];
 #endif
 
-static devclass_t xicp_devclass;
-static devclass_t xics_devclass;
-
-EARLY_DRIVER_MODULE(xicp, ofwbus, xicp_driver, xicp_devclass, 0, 0,
-    BUS_PASS_INTERRUPT-1);
-EARLY_DRIVER_MODULE(xics, ofwbus, xics_driver, xics_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(xicp, ofwbus, xicp_driver, 0, 0, BUS_PASS_INTERRUPT - 1);
+EARLY_DRIVER_MODULE(xics, ofwbus, xics_driver, 0, 0, BUS_PASS_INTERRUPT);
 
 #ifdef POWERNV
 static struct resource *

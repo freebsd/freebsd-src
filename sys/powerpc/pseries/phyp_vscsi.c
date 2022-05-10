@@ -250,7 +250,6 @@ static void	vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs,
 static void	vscsi_task_management(struct vscsi_softc *sc, union ccb *ccb);
 static void	vscsi_srp_response(struct vscsi_xfer *, struct vscsi_crq *);
 
-static devclass_t	vscsi_devclass;
 static device_method_t	vscsi_methods[] = {
 	DEVMETHOD(device_probe,		vscsi_probe),
 	DEVMETHOD(device_attach,	vscsi_attach),
@@ -258,12 +257,14 @@ static device_method_t	vscsi_methods[] = {
 
 	DEVMETHOD_END
 };
+
 static driver_t vscsi_driver = {
 	"vscsi",
 	vscsi_methods,
 	sizeof(struct vscsi_softc)
 };
-DRIVER_MODULE(vscsi, vdevice, vscsi_driver, vscsi_devclass, 0, 0);
+
+DRIVER_MODULE(vscsi, vdevice, vscsi_driver, 0, 0);
 MALLOC_DEFINE(M_VSCSI, "vscsi", "CAM device queue for VSCSI");
 
 static int
