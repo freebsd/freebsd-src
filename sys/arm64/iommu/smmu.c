@@ -1762,7 +1762,7 @@ smmu_set_buswide(device_t dev, struct smmu_domain *domain,
 
 #ifdef DEV_ACPI
 static int
-smmu_pci_get_sid_acpi(device_t child, u_int *sid0)
+smmu_pci_get_sid_acpi(device_t child, u_int *xref0, u_int *sid0)
 {
 	uint16_t rid;
 	u_int xref;
@@ -1774,8 +1774,12 @@ smmu_pci_get_sid_acpi(device_t child, u_int *sid0)
 	rid = pci_get_rid(child);
 
 	err = acpi_iort_map_pci_smmuv3(seg, rid, &xref, &sid);
-	if (err == 0)
-		*sid0 = sid;
+	if (err == 0) {
+		if (sid0)
+			*sid0 = sid;
+		if (xref0)
+			*xref0 = xref;
+	}
 
 	return (err);
 }
@@ -1783,14 +1787,26 @@ smmu_pci_get_sid_acpi(device_t child, u_int *sid0)
 
 #ifdef FDT
 static int
-smmu_pci_get_sid_fdt(device_t child, u_int *sid0)
+smmu_pci_get_sid_fdt(device_t child, u_int *xref0, u_int *sid0)
 {
 	struct pci_id_ofw_iommu pi;
+	uint64_t base, size;
+	phandle_t node;
+	u_int xref;
 	int err;
 
 	err = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
-	if (err == 0)
-		*sid0 = pi.id;
+	if (err == 0) {
+		/* Our xref is memory base address. */
+		node = OF_node_from_xref(pi.xref);
+		fdt_regsize(node, &base, &size);
+		xref = base;
+
+		if (sid0)
+			*sid0 = pi.id;
+		if (xref0)
+			*xref0 = xref;
+	}
 
 	return (err);
 }
@@ -1815,9 +1831,9 @@ smmu_ctx_alloc(device_t dev, struct iommu_domain *iodom, device_t child,
 		return (NULL);
 
 #ifdef DEV_ACPI
-	err = smmu_pci_get_sid_acpi(child, &sid);
+	err = smmu_pci_get_sid_acpi(child, NULL, &sid);
 #else
-	err = smmu_pci_get_sid_fdt(child, &sid);
+	err = smmu_pci_get_sid_fdt(child, NULL, &sid);
 #endif
 	if (err)
 		return (NULL);
@@ -1931,45 +1947,17 @@ smmu_find(device_t dev, device_t child)
 {
 	struct smmu_softc *sc;
 	u_int xref;
-	int error;
-#ifdef DEV_ACPI
-	uint16_t rid;
-	int seg;
-	u_int sid;
-#else
-	phandle_t node;
-	uint64_t base, size;
-	struct pci_id_ofw_iommu pi;
-#endif
+	int err;
 
 	sc = device_get_softc(dev);
 
 #ifdef DEV_ACPI
-	rid = pci_get_rid(child);
-	seg = pci_get_domain(child);
-#endif
-
-	/*
-	 * Find an xref of an IOMMU controller that serves traffic for dev.
-	 */
-#ifdef DEV_ACPI
-	error = acpi_iort_map_pci_smmuv3(seg, rid, &xref, &sid);
-	if (error) {
-		/* Could not find reference to an SMMU device. */
-		return (ENOENT);
-	}
+	err = smmu_pci_get_sid_acpi(child, &xref, NULL);
 #else
-	error = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
-	if (error) {
-		/* Could not find reference to an SMMU device. */
-		return (ENOENT);
-	}
-
-	/* Our xref is memory base address. */
-	node = OF_node_from_xref(pi.xref);
-	fdt_regsize(node, &base, &size);
-	xref = base;
+	err = smmu_pci_get_sid_fdt(child, &xref, NULL);
 #endif
+	if (err)
+		return (ENOENT);
 
 	/* Check if xref is ours. */
 	if (xref != sc->xref)
