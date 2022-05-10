@@ -35,7 +35,6 @@
 # * git
 # * stat
 # * tar
-# * gzip
 # * xz
 # * sha512sum
 # * sha256sum
@@ -183,14 +182,6 @@ cd ..
 parent="$repo/.."
 
 # Cleanup old stuff.
-if [ -f "$projver.tar.gz" ]; then
-	rm -rf "$projver.tar.gz"
-fi
-
-if [ -f "$projver.tar.gz.sig" ]; then
-	rm -rf "$projver.tar.gz.sig"
-fi
-
 if [ -f "$projver.tar.xz" ]; then
 	rm -rf "$projver.tar.xz"
 fi
@@ -201,8 +192,6 @@ fi
 
 # Tar and compress and move into the parent directory of the repo.
 tar cf "$projver.tar" "$projver/"
-gzip -k "$projver.tar"
-mv "$projver.tar.gz" "$parent"
 xz -z -v -9 -e "$projver.tar" > /dev/null 2> /dev/null
 mv "$projver.tar.xz" "$parent"
 
@@ -253,8 +242,6 @@ rm -rf windows/lib/{Win32,x64}/{Debug,ReleaseMD,ReleaseMT}/bcl.vcxproj.FileListA
 # Zip the Windows stuff.
 zip -r $projver-windows.zip windows > /dev/null
 
-printf '\n'
-shasum "$projver.tar.gz"
 printf '\n'
 shasum "$projver.tar.xz"
 printf '\n'
