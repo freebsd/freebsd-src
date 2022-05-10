@@ -127,19 +127,20 @@ static void	llan_rx_load_cb(void *xsc, bus_dma_segment_t *segs, int nsegs,
 static int	llan_add_rxbuf(struct llan_softc *sc, struct llan_xfer *rx);
 static int	llan_set_multicast(struct llan_softc *sc);
 
-static devclass_t       llan_devclass;
 static device_method_t  llan_methods[] = {
         DEVMETHOD(device_probe,         llan_probe),
         DEVMETHOD(device_attach,        llan_attach),
         
         DEVMETHOD_END
 };
+
 static driver_t llan_driver = {
         "llan",
         llan_methods,
         sizeof(struct llan_softc)
 };
-DRIVER_MODULE(llan, vdevice, llan_driver, llan_devclass, 0, 0);
+
+DRIVER_MODULE(llan, vdevice, llan_driver, 0, 0);
 
 static int
 llan_probe(device_t dev)
