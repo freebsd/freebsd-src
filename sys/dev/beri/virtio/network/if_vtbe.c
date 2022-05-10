@@ -648,7 +648,5 @@ static driver_t vtbe_driver = {
 	sizeof(struct vtbe_softc),
 };
 
-static devclass_t vtbe_devclass;
-
-DRIVER_MODULE(vtbe, simplebus, vtbe_driver, vtbe_devclass, 0, 0);
+DRIVER_MODULE(vtbe, simplebus, vtbe_driver, 0, 0);
 MODULE_DEPEND(vtbe, ether, 1, 1, 1);

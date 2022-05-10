@@ -553,7 +553,4 @@ static driver_t beri_vtblk_driver = {
 	sizeof(struct beri_vtblk_softc),
 };
 
-static devclass_t beri_vtblk_devclass;
-
-DRIVER_MODULE(beri_vtblk, simplebus, beri_vtblk_driver,
-    beri_vtblk_devclass, 0, 0);
+DRIVER_MODULE(beri_vtblk, simplebus, beri_vtblk_driver, 0, 0);

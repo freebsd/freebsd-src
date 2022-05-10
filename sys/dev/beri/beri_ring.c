@@ -524,6 +524,4 @@ static driver_t beri_driver = {
 	sizeof(struct beri_softc),
 };
 
-static devclass_t beri_devclass;
-
-DRIVER_MODULE(beri_ring, simplebus, beri_driver, beri_devclass, 0, 0);
+DRIVER_MODULE(beri_ring, simplebus, beri_driver, 0, 0);
