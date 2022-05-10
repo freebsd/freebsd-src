@@ -78,8 +78,6 @@ driver_t adb_driver = {
 	sizeof(struct adb_softc),
 };
 
-devclass_t adb_devclass;
-
 static int
 adb_bus_probe(device_t dev)
 {
