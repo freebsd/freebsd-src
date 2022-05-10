@@ -93,4 +93,4 @@ static driver_t scc_macio_driver = {
 	sizeof(struct scc_softc),
 };
 
-DRIVER_MODULE(scc, macio, scc_macio_driver, scc_devclass, NULL, NULL);
+DRIVER_MODULE(scc, macio, scc_macio_driver, NULL, NULL);
