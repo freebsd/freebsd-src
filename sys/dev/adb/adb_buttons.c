@@ -78,9 +78,7 @@ static driver_t abtn_driver = {
 	sizeof(struct abtn_softc),
 };
 
-static devclass_t abtn_devclass;
-
-DRIVER_MODULE(abtn, adb, abtn_driver, abtn_devclass, 0, 0);
+DRIVER_MODULE(abtn, adb, abtn_driver, 0, 0);
 
 static int
 abtn_probe(device_t dev)
