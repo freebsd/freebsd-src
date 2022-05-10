@@ -110,8 +110,6 @@ static device_method_t opal_i2c_methods[] = {
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
 	    "i2c", MTX_DEF)
 
-static devclass_t opal_i2c_devclass;
-
 static driver_t opal_i2c_driver = {
 	"iichb",
 	opal_i2c_methods,
@@ -245,7 +243,6 @@ opal_i2c_get_node(device_t bus, device_t dev)
 	return (ofw_bus_get_node(bus));
 }
 
-DRIVER_MODULE(opal_i2c, opal_i2cm, opal_i2c_driver, opal_i2c_devclass, NULL,
-    NULL);
+DRIVER_MODULE(opal_i2c, opal_i2cm, opal_i2c_driver, NULL, NULL);
 DRIVER_MODULE(iicbus, opal_i2c, iicbus_driver, NULL, NULL);
 MODULE_DEPEND(opal_i2c, iicbus, 1, 1, 1);

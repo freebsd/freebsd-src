@@ -76,8 +76,6 @@ static device_method_t powernv_xscom_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t powernv_xscom_devclass;
-
 static int
 powernv_xscom_probe(device_t dev)
 {
@@ -125,5 +123,4 @@ powernv_xscom_get_devinfo(device_t dev, device_t child)
 
 DEFINE_CLASS_0(powernv_xscom, powernv_xscom_driver, powernv_xscom_methods,
     sizeof(struct powernv_xscom_softc));
-DRIVER_MODULE(powernv_xscom, ofwbus, powernv_xscom_driver, powernv_xscom_devclass, NULL,
-    NULL);
+DRIVER_MODULE(powernv_xscom, ofwbus, powernv_xscom_driver, NULL, NULL);

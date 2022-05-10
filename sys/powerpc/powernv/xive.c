@@ -202,13 +202,8 @@ static driver_t xics_driver = {
 	0
 };
 
-static devclass_t xive_devclass;
-static devclass_t xics_devclass;
-
-EARLY_DRIVER_MODULE(xive, ofwbus, xive_driver, xive_devclass, 0, 0,
-    BUS_PASS_INTERRUPT-1);
-EARLY_DRIVER_MODULE(xivevc, ofwbus, xics_driver, xics_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(xive, ofwbus, xive_driver, 0, 0, BUS_PASS_INTERRUPT - 1);
+EARLY_DRIVER_MODULE(xivevc, ofwbus, xics_driver, 0, 0, BUS_PASS_INTERRUPT);
 
 MALLOC_DEFINE(M_XIVE, "xive", "XIVE Memory");
 

@@ -76,8 +76,6 @@ static device_method_t powernv_centaur_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t powernv_centaur_devclass;
-
 static int
 powernv_centaur_probe(device_t dev)
 {
@@ -125,5 +123,4 @@ powernv_centaur_get_devinfo(device_t dev, device_t child)
 
 DEFINE_CLASS_0(powernv_centaur, powernv_centaur_driver, powernv_centaur_methods,
     sizeof(struct powernv_centaur_softc));
-DRIVER_MODULE(powernv_centaur, ofwbus, powernv_centaur_driver, powernv_centaur_devclass, NULL,
-    NULL);
+DRIVER_MODULE(powernv_centaur, ofwbus, powernv_centaur_driver, NULL, NULL);

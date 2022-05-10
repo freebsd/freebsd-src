@@ -255,10 +255,7 @@ static driver_t opal_sensor_driver = {
         sizeof(struct opal_sensor_softc)
 };
 
-static devclass_t opal_sensor_devclass;
-
-DRIVER_MODULE(opal_sensor, opalsens, opal_sensor_driver, opal_sensor_devclass,
-    NULL, NULL);
+DRIVER_MODULE(opal_sensor, opalsens, opal_sensor_driver, NULL, NULL);
 
 static int
 opalsens_probe(device_t dev)
@@ -327,6 +324,4 @@ static driver_t opalsens_driver = {
         0
 };
 
-static devclass_t opalsens_devclass;
-
-DRIVER_MODULE(opalsens, opal, opalsens_driver, opalsens_devclass, NULL, NULL);
+DRIVER_MODULE(opalsens, opal, opalsens_driver, NULL, NULL);
