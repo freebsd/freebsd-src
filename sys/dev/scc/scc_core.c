@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include "scc_if.h"
 
-devclass_t scc_devclass;
 const char scc_driver_name[] = "scc";
 
 static MALLOC_DEFINE(M_SCC, "SCC", "SCC driver");

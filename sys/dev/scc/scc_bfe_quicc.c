@@ -98,4 +98,4 @@ static driver_t scc_quicc_driver = {
 	sizeof(struct scc_softc),
 };
 
-DRIVER_MODULE(scc, quicc, scc_quicc_driver, scc_devclass, NULL, NULL);
+DRIVER_MODULE(scc, quicc, scc_quicc_driver, NULL, NULL);
