@@ -256,10 +256,8 @@ static driver_t riscv_timer_driver = {
 	sizeof(struct riscv_timer_softc),
 };
 
-static devclass_t riscv_timer_devclass;
-
-EARLY_DRIVER_MODULE(timer, nexus, riscv_timer_driver, riscv_timer_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, nexus, riscv_timer_driver, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void
 DELAY(int usec)

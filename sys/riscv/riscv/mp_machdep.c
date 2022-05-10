@@ -125,14 +125,13 @@ static device_method_t riscv64_cpu_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t riscv64_cpu_devclass;
 static driver_t riscv64_cpu_driver = {
 	"riscv64_cpu",
 	riscv64_cpu_methods,
 	0
 };
 
-DRIVER_MODULE(riscv64_cpu, cpu, riscv64_cpu_driver, riscv64_cpu_devclass, 0, 0);
+DRIVER_MODULE(riscv64_cpu, cpu, riscv64_cpu_driver, 0, 0);
 
 static void
 riscv64_cpu_identify(driver_t *driver, device_t parent)

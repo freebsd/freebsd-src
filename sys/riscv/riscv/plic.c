@@ -467,7 +467,5 @@ static driver_t plic_driver = {
 	sizeof(struct plic_softc),
 };
 
-static devclass_t plic_devclass;
-
-EARLY_DRIVER_MODULE(plic, simplebus, plic_driver, plic_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(plic, simplebus, plic_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

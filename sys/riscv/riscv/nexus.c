@@ -446,10 +446,8 @@ nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
 	return (0);
 }
 
-static devclass_t nexus_fdt_devclass;
-
-EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, nexus_fdt_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
+EARLY_DRIVER_MODULE(nexus_fdt, root, nexus_fdt_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 
 static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
