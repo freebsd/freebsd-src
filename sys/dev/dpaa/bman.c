@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bman.h"
 
-devclass_t bman_devclass;
-
 static struct bman_softc *bman_sc;
 
 extern t_Handle bman_portal_setup(struct bman_softc *bsc);
