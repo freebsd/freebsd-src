@@ -174,10 +174,9 @@ static device_method_t mge_methods[] = {
 
 DEFINE_CLASS_0(mge, mge_driver, mge_methods, sizeof(struct mge_softc));
 
-static devclass_t mge_devclass;
 static int switch_attached = 0;
 
-DRIVER_MODULE(mge, simplebus, mge_driver, mge_devclass, 0, 0);
+DRIVER_MODULE(mge, simplebus, mge_driver, 0, 0);
 DRIVER_MODULE(miibus, mge, miibus_driver, 0, 0);
 DRIVER_MODULE(mdio, mge, mdio_driver, 0, 0);
 MODULE_DEPEND(mge, ether, 1, 1, 1);
