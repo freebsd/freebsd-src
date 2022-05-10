@@ -462,6 +462,4 @@ static driver_t diu_driver = {
 	sizeof(struct diu_softc),
 };
 
-static devclass_t diu_devclass;
-
-DRIVER_MODULE(fb, simplebus, diu_driver, diu_devclass, 0, 0);
+DRIVER_MODULE(fb, simplebus, diu_driver, 0, 0);
