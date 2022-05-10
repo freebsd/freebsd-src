@@ -55,7 +55,6 @@ struct quicc_softc {
 	int		sc_polled:1;
 };
 
-extern devclass_t quicc_devclass;
 extern char quicc_driver_name[];
 
 int quicc_bfe_attach(device_t);

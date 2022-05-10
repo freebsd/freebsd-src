@@ -89,4 +89,4 @@ quicc_fdt_probe(device_t dev)
 	return (quicc_bfe_probe(dev, (uintptr_t)clock));
 }
 
-DRIVER_MODULE(quicc, simplebus, quicc_fdt_driver, quicc_devclass, 0, 0);
+DRIVER_MODULE(quicc, simplebus, quicc_fdt_driver, 0, 0);
