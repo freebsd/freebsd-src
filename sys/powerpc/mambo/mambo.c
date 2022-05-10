@@ -75,9 +75,7 @@ static driver_t mambobus_driver = {
 	0
 };
 
-static devclass_t mambobus_devclass;
-
-DRIVER_MODULE(mambo, ofwbus, mambobus_driver, mambobus_devclass, 0, 0);
+DRIVER_MODULE(mambo, ofwbus, mambobus_driver, 0, 0);
 
 static int
 mambobus_probe(device_t dev)
