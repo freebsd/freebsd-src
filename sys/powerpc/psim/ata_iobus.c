@@ -92,10 +92,7 @@ static driver_t ata_iobus_driver = {
 	0,
 };
 
-static devclass_t ata_iobus_devclass;
-
-DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, NULL,
-    NULL);
+DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
