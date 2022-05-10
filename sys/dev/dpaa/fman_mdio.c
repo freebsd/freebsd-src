@@ -204,8 +204,7 @@ pqmdio_miibus_writereg(device_t dev, int phy, int reg, int value)
 	return (0);
 }
 
-static devclass_t pqmdio_devclass;
-DRIVER_MODULE(pqmdio, fman, pqmdio_driver, pqmdio_devclass, 0, 0);
+DRIVER_MODULE(pqmdio, fman, pqmdio_driver, 0, 0);
 DRIVER_MODULE(miibus, pqmdio, miibus_driver, 0, 0);
 MODULE_DEPEND(pqmdio, miibus, 1, 1, 1);
 
