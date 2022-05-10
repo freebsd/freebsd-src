@@ -62,8 +62,7 @@ static device_method_t nvram2env_mips_methods[] = {
 
 DEFINE_CLASS_1(nvram2env, nvram2env_mips_driver, nvram2env_mips_methods,
 		sizeof(struct nvram2env_softc), nvram2env_driver);
-DRIVER_MODULE(nvram2env_mips, nexus, nvram2env_mips_driver, nvram2env_devclass,
-    NULL, NULL);
+DRIVER_MODULE(nvram2env_mips, nexus, nvram2env_mips_driver, NULL, NULL);
 
 MODULE_VERSION(nvram2env_mips, 1);
 MODULE_DEPEND(nvram2env_mips, nvram2env, 1, 1, 1);

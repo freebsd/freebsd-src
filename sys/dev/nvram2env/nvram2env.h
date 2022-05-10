@@ -81,7 +81,6 @@ struct nvram {
 int		nvram2env_attach(device_t);
 int		nvram2env_probe(device_t);
 
-extern devclass_t	nvram2env_devclass;
 extern driver_t		nvram2env_driver;
 
 #endif /* SYS_DEV_NVRAM2ENV_NVRAM2ENV_H_ */
