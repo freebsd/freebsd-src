@@ -1535,12 +1535,20 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			}
 
 #ifndef _WIN32
-			// Act as end-of-file.
+			// Act as end-of-file or delete-forward-char.
 			case BC_ACTION_CTRL_D:
 			{
-				bc_history_printCtrl(h, c);
-				BC_SIG_UNLOCK;
-				return BC_STATUS_EOF;
+				// Act as EOF if there's no chacters, otherwise emulate Emacs
+				// delete next character to match historical gnu bc behavior.
+				if (BC_HIST_BUF_LEN(h) == 0) {
+					bc_history_printCtrl(h, c);
+					BC_SIG_UNLOCK;
+					return BC_STATUS_EOF;
+				}
+
+				bc_history_edit_delete(h);
+
+				break;
 			}
 #endif // _WIN32
 
