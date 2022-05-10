@@ -638,7 +638,6 @@ static device_method_t sdiob_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t sdiob_devclass;
 static driver_t sdiob_driver = {
 	SDIOB_NAME_S,
 	sdiob_methods,
@@ -947,7 +946,7 @@ sdio_newbus_sim_add(struct sdiob_softc *sc)
 
 	bus_topo_lock();
 	error = devclass_add_driver(bus_devclass, &sdiob_driver,
-	    BUS_PASS_DEFAULT, &sdiob_devclass);
+	    BUS_PASS_DEFAULT, NULL);
 	bus_topo_unlock();
 	if (error != 0) {
 		printf("%s: Failed to add driver to devclass: %d.\n",
