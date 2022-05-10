@@ -36,7 +36,7 @@
 
 #ifdef _KERNEL
 
-/*					0x01 unused. */
+#define	PF_TAG_ROUTE_TO			0x01
 #define	PF_TAG_DUMMYNET			0x02
 #define	PF_TAG_TRANSLATE_LOCALHOST	0x04
 #define	PF_PACKET_LOOPED		0x08
@@ -54,6 +54,9 @@ struct pf_mtag {
 	u_int8_t	 routed;
 	u_int16_t	 dnpipe;
 	u_int32_t	 dnflags;
+	u_int16_t	 if_index;	/* For ROUTE_TO */
+	u_int16_t	 if_idxgen;	/* For ROUTE_TO */
+	struct sockaddr_storage	dst;	/* For ROUTE_TO */
 };
 
 static __inline struct pf_mtag *
