@@ -268,11 +268,12 @@ static device_method_t drm_iic_dp_aux_methods[] = {
 	DEVMETHOD(iicbus_transfer,	iic_dp_aux_xfer),
 	DEVMETHOD_END
 };
+
 static driver_t drm_iic_dp_aux_driver = {
 	"drm_iic_dp_aux",
 	drm_iic_dp_aux_methods,
 	sizeof(struct iic_dp_aux_data)
 };
-static devclass_t drm_iic_dp_aux_devclass;
-DRIVER_MODULE_ORDERED(drm_iic_dp_aux, drmn, drm_iic_dp_aux_driver,
-    drm_iic_dp_aux_devclass, 0, 0, SI_ORDER_SECOND);
+
+DRIVER_MODULE_ORDERED(drm_iic_dp_aux, drmn, drm_iic_dp_aux_driver, 0, 0,
+    SI_ORDER_SECOND);
