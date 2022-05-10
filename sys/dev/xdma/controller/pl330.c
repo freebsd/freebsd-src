@@ -640,7 +640,5 @@ static driver_t pl330_driver = {
 	sizeof(struct pl330_softc),
 };
 
-static devclass_t pl330_devclass;
-
-EARLY_DRIVER_MODULE(pl330, simplebus, pl330_driver, pl330_devclass, 0, 0,
+EARLY_DRIVER_MODULE(pl330, simplebus, pl330_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
