@@ -611,6 +611,4 @@ static driver_t opalcons_driver = {
         0
 };
 
-static devclass_t opalcons_devclass;
-
-DRIVER_MODULE(opalcons, opal, opalcons_driver, opalcons_devclass, 0, 0);
+DRIVER_MODULE(opalcons, opal, opalcons_driver, 0, 0);

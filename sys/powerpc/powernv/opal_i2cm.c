@@ -76,8 +76,6 @@ static device_method_t opal_i2cm_methods[] = {
 	DEVMETHOD_END
 };
 
-static devclass_t opal_i2cm_devclass;
-
 static int
 opal_i2cm_probe(device_t dev)
 {
@@ -126,7 +124,5 @@ opal_i2cm_get_devinfo(device_t dev, device_t child)
 
 DEFINE_CLASS_0(opal_i2cm, opal_i2cm_driver, opal_i2cm_methods,
     sizeof(struct opal_i2cm_softc));
-DRIVER_MODULE(opal_i2cm, powernv_xscom, opal_i2cm_driver, opal_i2cm_devclass, NULL,
-    NULL);
-DRIVER_MODULE(opal_i2cm, powernv_centaur, opal_i2cm_driver, opal_i2cm_devclass, NULL,
-    NULL);
+DRIVER_MODULE(opal_i2cm, powernv_xscom, opal_i2cm_driver, NULL, NULL);
+DRIVER_MODULE(opal_i2cm, powernv_centaur, opal_i2cm_driver, NULL, NULL);

@@ -93,9 +93,7 @@ static driver_t	opal_nvram_driver = {
 	sizeof(struct opal_nvram_softc)
 };
 
-static devclass_t opal_nvram_devclass;
-
-DRIVER_MODULE(opal_nvram, opal, opal_nvram_driver, opal_nvram_devclass, 0, 0);
+DRIVER_MODULE(opal_nvram, opal, opal_nvram_driver, 0, 0);
 
 /*
  * Cdev methods.
