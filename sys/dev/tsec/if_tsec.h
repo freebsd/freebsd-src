@@ -290,8 +290,6 @@ struct tsec_rx_fcb {
 		== (TSEC_RX_FCB_TCP_UDP_FOUND | TSEC_RX_FCB_TCP_UDP_CSUM))
 
 /* Prototypes */
-extern devclass_t tsec_devclass;
-
 int	tsec_attach(struct tsec_softc *sc);
 int	tsec_detach(struct tsec_softc *sc);
 
