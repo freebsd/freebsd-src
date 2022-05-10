@@ -102,7 +102,7 @@ static driver_t tsec_fdt_driver = {
 	sizeof(struct tsec_softc),
 };
 
-DRIVER_MODULE(tsec, simplebus, tsec_fdt_driver, tsec_devclass, 0, 0);
+DRIVER_MODULE(tsec, simplebus, tsec_fdt_driver, 0, 0);
 
 static int
 tsec_fdt_probe(device_t dev)
