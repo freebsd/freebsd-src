@@ -284,5 +284,3 @@ driver_t nvram2env_driver = {
 	nvram2env_methods,
 	sizeof(struct nvram2env_softc),
 };
-
-devclass_t nvram2env_devclass;
