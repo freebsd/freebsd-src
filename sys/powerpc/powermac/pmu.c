@@ -158,7 +158,7 @@ static devclass_t pmu_devclass;
 
 EARLY_DRIVER_MODULE(pmu, macio, pmu_driver, pmu_devclass, 0, 0,
     BUS_PASS_RESOURCE);
-DRIVER_MODULE(adb, pmu, adb_driver, adb_devclass, 0, 0);
+DRIVER_MODULE(adb, pmu, adb_driver, 0, 0);
 
 static int	pmuextint_probe(device_t);
 static int	pmuextint_attach(device_t);
