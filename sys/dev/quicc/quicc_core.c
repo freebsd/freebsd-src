@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #define	quicc_write4(r, o, v)	\
 	bus_space_write_4((r)->r_bustag, (r)->r_bushandle, o, v)
 
-devclass_t quicc_devclass;
 char quicc_driver_name[] = "quicc";
 
 static MALLOC_DEFINE(M_QUICC, "QUICC", "QUICC driver");
