@@ -1146,9 +1146,7 @@ driver_t xae_driver = {
 	sizeof(struct xae_softc),
 };
 
-static devclass_t xae_devclass;
-
-DRIVER_MODULE(xae, simplebus, xae_driver, xae_devclass, 0, 0);
+DRIVER_MODULE(xae, simplebus, xae_driver, 0, 0);
 DRIVER_MODULE(miibus, xae, miibus_driver, 0, 0);
 
 MODULE_DEPEND(xae, ether, 1, 1, 1);

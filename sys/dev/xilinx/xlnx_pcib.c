@@ -785,9 +785,5 @@ static device_method_t xlnx_pcib_fdt_methods[] = {
 DEFINE_CLASS_1(pcib, xlnx_pcib_fdt_driver, xlnx_pcib_fdt_methods,
     sizeof(struct xlnx_pcib_softc), generic_pcie_fdt_driver);
 
-static devclass_t xlnx_pcib_fdt_devclass;
-
-DRIVER_MODULE(xlnx_pcib, simplebus, xlnx_pcib_fdt_driver,
-    xlnx_pcib_fdt_devclass, 0, 0);
-DRIVER_MODULE(xlnx_pcib, ofwbus, xlnx_pcib_fdt_driver,
-    xlnx_pcib_fdt_devclass, 0, 0);
+DRIVER_MODULE(xlnx_pcib, simplebus, xlnx_pcib_fdt_driver, 0, 0);
+DRIVER_MODULE(xlnx_pcib, ofwbus, xlnx_pcib_fdt_driver, 0, 0);
