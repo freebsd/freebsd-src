@@ -398,8 +398,6 @@ static driver_t sfspi_driver = {
 	sizeof(struct sfspi_softc)
 };
 
-static devclass_t sfspi_devclass;
-
-DRIVER_MODULE(sifive_spi, simplebus, sfspi_driver, sfspi_devclass, 0, 0);
+DRIVER_MODULE(sifive_spi, simplebus, sfspi_driver, 0, 0);
 DRIVER_MODULE(ofw_spibus, sifive_spi, ofw_spibus_driver, 0, 0);
 MODULE_DEPEND(sifive_spi, ofw_spibus, 1, 1, 1);

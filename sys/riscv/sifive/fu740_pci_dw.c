@@ -460,6 +460,4 @@ static device_method_t fupci_methods[] = {
 
 DEFINE_CLASS_1(pcib, fupci_driver, fupci_methods,
     sizeof(struct fupci_softc), pci_dw_driver);
-static devclass_t fupci_devclass;
-DRIVER_MODULE(fu740_pci_dw, simplebus, fupci_driver, fupci_devclass,
-    NULL, NULL);
+DRIVER_MODULE(fu740_pci_dw, simplebus, fupci_driver, NULL, NULL);
