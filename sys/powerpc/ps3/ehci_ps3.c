@@ -180,7 +180,5 @@ static driver_t ehci_ps3_driver = {
 	.size = sizeof(ehci_softc_t),
 };
 
-static devclass_t ehci_ps3_devclass;
-
-DRIVER_MODULE(ehci_ps3, ps3bus, ehci_ps3_driver, ehci_ps3_devclass, 0, 0);
+DRIVER_MODULE(ehci_ps3, ps3bus, ehci_ps3_driver, 0, 0);
 MODULE_DEPEND(ehci_ps3, usb, 1, 1, 1);

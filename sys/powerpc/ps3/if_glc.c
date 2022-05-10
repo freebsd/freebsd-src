@@ -92,9 +92,7 @@ static driver_t glc_driver = {
 	sizeof(struct glc_softc)
 };
 
-static devclass_t glc_devclass;
-
-DRIVER_MODULE(glc, ps3bus, glc_driver, glc_devclass, 0, 0);
+DRIVER_MODULE(glc, ps3bus, glc_driver, 0, 0);
 
 static int 
 glc_probe(device_t dev) 

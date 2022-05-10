@@ -141,9 +141,7 @@ static driver_t ps3bus_driver = {
 	sizeof(struct ps3bus_softc)
 };
 
-static devclass_t ps3bus_devclass;
-
-DRIVER_MODULE(ps3bus, nexus, ps3bus_driver, ps3bus_devclass, 0, 0);
+DRIVER_MODULE(ps3bus, nexus, ps3bus_driver, 0, 0);
 
 static void
 ps3bus_identify(driver_t *driver, device_t parent)

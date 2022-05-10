@@ -705,7 +705,5 @@ static driver_t ps3cdrom_driver = {
 	sizeof(struct ps3cdrom_softc),
 };
 
-static devclass_t ps3cdrom_devclass;
-
-DRIVER_MODULE(ps3cdrom, ps3bus, ps3cdrom_driver, ps3cdrom_devclass, 0, 0);
+DRIVER_MODULE(ps3cdrom, ps3bus, ps3cdrom_driver, 0, 0);
 MODULE_DEPEND(ps3cdrom, cam, 1, 1, 1);
