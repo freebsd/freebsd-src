@@ -26,6 +26,7 @@ ATF_TESTS_C+=	module_test
 ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
+ATF_TESTS_C+=	sched_affinity
 ATF_TESTS_C+=	sigaltstack
 ATF_TESTS_C+=	sigwait
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH:Mpowerpc*} == ""
