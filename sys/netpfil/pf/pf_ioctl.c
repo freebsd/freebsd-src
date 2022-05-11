@@ -3618,6 +3618,7 @@ DIOCGETRULENV_error:
 #undef ERROUT
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
+		PF_CONFIG_UNLOCK();
 		pf_krule_free(newrule);
 		pf_kkif_free(kif);
 		break;
