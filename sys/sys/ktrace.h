@@ -307,6 +307,8 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 	ktrstruct("stat", (s), sizeof(struct stat))
 #define ktrstat_error(s, error) \
 	ktrstruct_error("stat", (s), sizeof(struct stat), error)
+#define ktrcpuset(s, l) \
+	ktrstruct("cpuset_t", (s), l)
 extern u_int ktr_geniosize;
 #ifdef	KTRACE
 extern int ktr_filesize_limit_signal;

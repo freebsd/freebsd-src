@@ -48,8 +48,11 @@ __FBSDID("$FreeBSD$");
 #define	_WANT_KEVENT32
 #endif
 #define	_WANT_FREEBSD11_KEVENT
+#define	_WANT_FREEBSD_BITSET
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/_bitset.h>
+#include <sys/bitset.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/uio.h>
@@ -119,6 +122,7 @@ void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
 void ktrkevent(struct kevent *);
 void ktrstructarray(struct ktr_struct_array *, size_t);
+void ktrbitset(char *, struct bitset *, size_t);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -1968,6 +1972,30 @@ ktrstat(struct stat *statp)
 }
 
 void
+ktrbitset(char *name, struct bitset *set, size_t setlen)
+{
+	int i, maxi, c = 0;
+
+	if (setlen > INT32_MAX)
+		setlen = INT32_MAX;
+	maxi = setlen * CHAR_BIT;
+	printf("%s [ ", name);
+	for (i = 0; i < maxi; i++) {
+		if (!BIT_ISSET(setlen, i, set))
+			continue;
+		if (c == 0)
+			printf("%d", i);
+		else
+			printf(", %d", i);
+		c++;
+	}
+	if (c == 0)
+		printf(" empty ]\n");
+	else
+		printf(" ]\n");
+}
+
+void
 ktrstruct(char *buf, size_t buflen)
 {
 	char *name, *data;
@@ -1977,6 +2005,7 @@ ktrstruct(char *buf, size_t buflen)
 	struct itimerval it;
 	struct stat sb;
 	struct sockaddr_storage ss;
+	struct bitset *set;
 
 	for (name = buf, namelen = 0;
 	     namelen < buflen && name[namelen] != '\0';
@@ -1992,7 +2021,7 @@ ktrstruct(char *buf, size_t buflen)
 		goto invalid;
 	/* sanity check */
 	for (i = 0; i < (int)namelen; ++i)
-		if (!isalpha(name[i]))
+		if (!isalpha(name[i]) && name[i] != '_')
 			goto invalid;
 	if (strcmp(name, "caprights") == 0) {
 		if (datalen != sizeof(cap_rights_t))
@@ -2016,6 +2045,15 @@ ktrstruct(char *buf, size_t buflen)
 		if (datalen != ss.ss_len)
 			goto invalid;
 		ktrsockaddr((struct sockaddr *)&ss);
+	} else if (strcmp(name, "cpuset_t") == 0) {
+		if (datalen < 1)
+			goto invalid;
+		set = malloc(datalen);
+		if (set == NULL)
+			errx(1, "%s", strerror(ENOMEM));
+		memcpy(set, data, datalen);
+		ktrbitset(name, set, datalen);
+		free(set);
 	} else {
 		printf("unknown structure\n");
 	}
