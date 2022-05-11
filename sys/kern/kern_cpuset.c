@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/vmmeter.h>
+#include <sys/ktrace.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -1995,6 +1997,10 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				cp++;
 			}
 		}
+#ifdef KTRACE
+		if ( KTRPOINT(td, KTR_STRUCT))
+			ktrcpuset(mask, size);
+#endif
 	}
 out:
 	free(mask, M_TEMP);
@@ -2028,6 +2034,10 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	struct proc *p;
 	int error;
 
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrcpuset(mask, sizeof(cpuset_t));
+#endif
 	error = cpuset_check_capabilities(td, level, which, id);
 	if (error != 0)
 		return (error);
