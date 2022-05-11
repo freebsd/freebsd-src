@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -2256,22 +2257,22 @@ int
 linux_sched_getaffinity(struct thread *td,
     struct linux_sched_getaffinity_args *args)
 {
-	int error;
 	struct thread *tdt;
-
-	if (args->len < sizeof(cpuset_t))
-		return (EINVAL);
+	int error;
+	id_t tid;
 
 	tdt = linux_tdfind(td, args->pid, -1);
 	if (tdt == NULL)
 		return (ESRCH);
-
+	tid = tdt->td_tid;
 	PROC_UNLOCK(tdt->td_proc);
 
 	error = kern_cpuset_getaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
-	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *)args->user_mask_ptr);
+	    tid, args->len, (cpuset_t *)args->user_mask_ptr);
+	if (error == ERANGE)
+		error = EINVAL;
 	if (error == 0)
-		td->td_retval[0] = sizeof(cpuset_t);
+		td->td_retval[0] = min(args->len, sizeof(cpuset_t));
 
 	return (error);
 }
@@ -2284,18 +2285,34 @@ linux_sched_setaffinity(struct thread *td,
     struct linux_sched_setaffinity_args *args)
 {
 	struct thread *tdt;
-
-	if (args->len < sizeof(cpuset_t))
-		return (EINVAL);
+	cpuset_t *mask;
+	int cpu, error;
+	size_t len;
+	id_t tid;
 
 	tdt = linux_tdfind(td, args->pid, -1);
 	if (tdt == NULL)
 		return (ESRCH);
-
+	tid = tdt->td_tid;
 	PROC_UNLOCK(tdt->td_proc);
 
-	return (kern_cpuset_setaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
-	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *) args->user_mask_ptr));
+	len = min(args->len, sizeof(cpuset_t));
+	mask = malloc(sizeof(cpuset_t), M_TEMP, M_WAITOK | M_ZERO);;
+	error = copyin(args->user_mask_ptr, mask, len);
+	if (error != 0)
+		goto out;
+	/* Linux ignore high bits */
+	CPU_FOREACH_ISSET(cpu, mask)
+		if (cpu > mp_maxid)
+			CPU_CLR(cpu, mask);
+
+	error = kern_cpuset_setaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
+	    tid, mask);
+	if (error == EDEADLK)
+		error = EINVAL;
+out:
+	free(mask, M_TEMP);
+	return (error);
 }
 
 struct linux_rlimit64 {
