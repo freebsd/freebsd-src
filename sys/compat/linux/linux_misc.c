@@ -1076,14 +1076,6 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	 */
 	options |= WEXITED | WTRAPPED;
 
-	/*
-	 * As FreeBSD does not have __WALL option bit analogue explicitly set all
-	 * possible option bits to emulate Linux __WALL wait option bit. The same
-	 * for waitid system call.
-	 */
-	if ((args->options & __WALL) != 0)
-		options |= WUNTRACED | WCONTINUED | WLINUXCLONE;
-
 	if (args->pid == WAIT_ANY) {
 		idtype = P_ALL;
 		id = 0;
@@ -1119,9 +1111,6 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 
 	options = 0;
 	linux_to_bsd_waitopts(args->options, &options);
-	if ((args->options & __WALL) != 0)
-		options |= WEXITED | WTRAPPED | WUNTRACED |
-		    WCONTINUED | WLINUXCLONE;
 
 	id = args->id;
 	switch (args->idtype) {
