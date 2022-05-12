@@ -872,8 +872,7 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 	struct unpcb *unp;
 	int error;
 
-	if (so->so_type != SOCK_STREAM && so->so_type != SOCK_SEQPACKET)
-		return (EOPNOTSUPP);
+	MPASS(so->so_type != SOCK_DGRAM);
 
 	/*
 	 * Synchronize with concurrent connection attempts.
@@ -1312,7 +1311,6 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
-	.pru_listen =		uipc_listen,
 	.pru_peeraddr =		uipc_peeraddr,
 	.pru_send =		uipc_send,
 	.pru_sense =		uipc_sense,
