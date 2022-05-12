@@ -42,6 +42,7 @@
 #include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/rmlock.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -215,6 +216,11 @@ VNET_DEFINE_STATIC(struct if_clone *, ovpn_cloner);
 
 #define TO_IN(x)		((struct sockaddr_in *)(x))
 #define TO_IN6(x)		((struct sockaddr_in6 *)(x))
+
+SDT_PROVIDER_DEFINE(if_ovpn);
+SDT_PROBE_DEFINE1(if_ovpn, tx, transmit, start, "struct mbuf *");
+SDT_PROBE_DEFINE2(if_ovpn, tx, route, ip4, "struct in_addr *", "struct ovpn_kpeer *");
+SDT_PROBE_DEFINE2(if_ovpn, tx, route, ip6, "struct in6_addr *", "struct ovpn_kpeer *");
 
 static const char ovpnname[] = "ovpn";
 static const char ovpngroupname[] = "openvpn";
@@ -1636,12 +1642,16 @@ ovpn_route_peer(struct ovpn_softc *sc, struct mbuf **m0,
 		}
 
 		peer = ovpn_find_peer_by_ip(sc, *ip_dst);
+		SDT_PROBE2(if_ovpn, tx, route, ip4, ip_dst, peer);
 		if (peer == NULL) {
 			nh = fib4_lookup(M_GETFIB(*m0), *ip_dst, 0,
 			    NHR_NONE, 0);
-			if (nh && (nh->nh_flags & NHF_GATEWAY))
+			if (nh && (nh->nh_flags & NHF_GATEWAY)) {
 				peer = ovpn_find_peer_by_ip(sc,
 				    nh->gw4_sa.sin_addr);
+				SDT_PROBE2(if_ovpn, tx, route, ip4,
+				    &nh->gw4_sa.sin_addr, peer);
+			}
 		}
 		break;
 	}
@@ -1666,12 +1676,16 @@ ovpn_route_peer(struct ovpn_softc *sc, struct mbuf **m0,
 		}
 
 		peer = ovpn_find_peer_by_ip6(sc, ip6_dst);
+		SDT_PROBE2(if_ovpn, tx, route, ip6, ip6_dst, peer);
 		if (peer == NULL) {
 			nh = fib6_lookup(M_GETFIB(*m0), ip6_dst, 0,
 			    NHR_NONE, 0);
-			if (nh && (nh->nh_flags & NHF_GATEWAY))
+			if (nh && (nh->nh_flags & NHF_GATEWAY)) {
 				peer = ovpn_find_peer_by_ip6(sc,
 				    &nh->gw6_sa.sin6_addr);
+				SDT_PROBE2(if_ovpn, tx, route, ip6,
+				    &nh->gw6_sa.sin6_addr, peer);
+			}
 		}
 		break;
 	}
@@ -1957,6 +1971,8 @@ ovpn_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	sc = ifp->if_softc;
 
 	OVPN_RLOCK(sc);
+
+	SDT_PROBE1(if_ovpn, tx, transmit, start, m);
 
 	if (__predict_false(ifp->if_link_state != LINK_STATE_UP)) {
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
