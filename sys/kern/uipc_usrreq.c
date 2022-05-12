@@ -1314,7 +1314,6 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_disconnect =	uipc_disconnect,
 	.pru_listen =		uipc_listen,
 	.pru_peeraddr =		uipc_peeraddr,
-	.pru_rcvd =		uipc_rcvd,
 	.pru_send =		uipc_send,
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
