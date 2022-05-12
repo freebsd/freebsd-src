@@ -39,9 +39,5 @@ sched_getaffinity(pid_t pid, size_t cpusetsz, cpuset_t *cpuset)
 	    pid == 0 ? -1 : pid, cpusetsz, cpuset);
 	if (error == -1 && errno == ERANGE)
 		errno = EINVAL;
-	if (error == 0)
-		return (cpusetsz < sizeof(cpuset_t) ? cpusetsz :
-		    sizeof(cpuset_t));
-
 	return (error);
 }
