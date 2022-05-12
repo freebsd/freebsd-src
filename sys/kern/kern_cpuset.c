@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysent.h>
 #include <sys/capsicum.h>
 #include <sys/cpuset.h>
 #include <sys/domainset.h>
@@ -1646,6 +1647,11 @@ cpuset_check_capabilities(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	return (0);
 }
 
+static const struct cpuset_copy_cb copy_set = {
+	.copyin = copyin,
+	.copyout = copyout
+};
+
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_args {
 	cpusetid_t	*setid;
@@ -1787,12 +1793,12 @@ sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 {
 
 	return (kern_cpuset_getaffinity(td, uap->level, uap->which,
-	    uap->id, uap->cpusetsize, uap->mask));
+	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
 }
 
 int
 kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
-    id_t id, size_t cpusetsize, cpuset_t *maskp)
+    id_t id, size_t cpusetsize, cpuset_t *maskp, const struct cpuset_copy_cb *cb)
 {
 	struct thread *ttd;
 	struct cpuset *nset;
@@ -1879,7 +1885,7 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (p)
 		PROC_UNLOCK(p);
 	if (error == 0)
-		error = copyout(mask, maskp, size);
+		error = cb->copyout(mask, maskp, size);
 out:
 	free(mask, M_TEMP);
 	return (error);
@@ -1899,12 +1905,13 @@ sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 {
 
 	return (kern_cpuset_setaffinity(td, uap->level, uap->which,
-	    uap->id, uap->cpusetsize, uap->mask));
+	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
 }
 
 int
 kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
-    id_t id, size_t cpusetsize, const cpuset_t *maskp)
+    id_t id, size_t cpusetsize, const cpuset_t *maskp,
+    const struct cpuset_copy_cb *cb)
 {
 	struct cpuset *nset;
 	struct cpuset *set;
@@ -1919,7 +1926,7 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (error != 0)
 		return (error);
 	mask = malloc(cpusetsize, M_TEMP, M_WAITOK | M_ZERO);
-	error = copyin(maskp, mask, cpusetsize);
+	error = cb->cpuset_copyin(maskp, mask, cpusetsize);
 	if (error)
 		goto out;
 	/*
@@ -2025,12 +2032,13 @@ sys_cpuset_getdomain(struct thread *td, struct cpuset_getdomain_args *uap)
 {
 
 	return (kern_cpuset_getdomain(td, uap->level, uap->which,
-	    uap->id, uap->domainsetsize, uap->mask, uap->policy));
+	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
 }
 
 int
 kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
-    id_t id, size_t domainsetsize, domainset_t *maskp, int *policyp)
+    id_t id, size_t domainsetsize, domainset_t *maskp, int *policyp,
+    const struct cpuset_copy_cb *cb)
 {
 	struct domainset outset;
 	struct thread *ttd;
@@ -2128,7 +2136,7 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	}
 	DOMAINSET_COPY(&outset.ds_mask, mask);
 	if (error == 0)
-		error = copyout(mask, maskp, domainsetsize);
+		error = cb->copyout(mask, maskp, domainsetsize);
 	if (error == 0)
 		if (suword32(policyp, outset.ds_policy) != 0)
 			error = EFAULT;
@@ -2152,12 +2160,13 @@ sys_cpuset_setdomain(struct thread *td, struct cpuset_setdomain_args *uap)
 {
 
 	return (kern_cpuset_setdomain(td, uap->level, uap->which,
-	    uap->id, uap->domainsetsize, uap->mask, uap->policy));
+	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
 }
 
 int
 kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
-    id_t id, size_t domainsetsize, const domainset_t *maskp, int policy)
+    id_t id, size_t domainsetsize, const domainset_t *maskp, int policy,
+    const struct cpuset_copy_cb *cb)
 {
 	struct cpuset *nset;
 	struct cpuset *set;
@@ -2178,7 +2187,7 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		return (error);
 	memset(&domain, 0, sizeof(domain));
 	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
-	error = copyin(maskp, mask, domainsetsize);
+	error = cb->copyin(maskp, mask, domainsetsize);
 	if (error)
 		goto out;
 	/*
