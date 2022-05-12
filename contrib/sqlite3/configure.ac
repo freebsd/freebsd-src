@@ -10,7 +10,7 @@
 #
 
 AC_PREREQ(2.61)
-AC_INIT(sqlite, 3.37.2, http://www.sqlite.org)
+AC_INIT(sqlite, 3.38.5, http://www.sqlite.org)
 AC_CONFIG_SRCDIR([sqlite3.c])
 AC_CONFIG_AUX_DIR([.])
 
@@ -168,21 +168,6 @@ if test x"$enable_fts5" = "xyes"; then
   AC_MSG_RESULT([enabled])
   AC_SEARCH_LIBS(log, m)
   BUILD_CFLAGS="$BUILD_CFLAGS -DSQLITE_ENABLE_FTS5"
-else
-  AC_MSG_RESULT([disabled])
-fi
-#-----------------------------------------------------------------------
-
-#-----------------------------------------------------------------------
-#   --enable-json1
-#
-AC_ARG_ENABLE(json1, [AS_HELP_STRING(
-  [--enable-json1], [include json1 support [default=yes]])], 
-  [],[enable_json1=yes])
-AC_MSG_CHECKING([JSON functions])
-if test x"$enable_json1" = "xyes"; then
-  BUILD_CFLAGS="$BUILD_CFLAGS -DSQLITE_ENABLE_JSON1"
-  AC_MSG_RESULT([enabled])
 else
   AC_MSG_RESULT([disabled])
 fi
