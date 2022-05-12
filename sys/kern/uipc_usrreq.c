@@ -790,18 +790,6 @@ uipc_detach(struct socket *so)
 	vp = NULL;
 	vplock = NULL;
 
-	SOCK_LOCK(so);
-	if (!SOLISTENING(so)) {
-		/*
-		 * Once the socket is removed from the global lists,
-		 * uipc_ready() will not be able to locate its socket buffer, so
-		 * clear the buffer now.  At this point internalized rights have
-		 * already been disposed of.
-		 */
-		sbrelease(&so->so_rcv, so);
-	}
-	SOCK_UNLOCK(so);
-
 	UNP_LINK_WLOCK();
 	LIST_REMOVE(unp, unp_link);
 	if (unp->unp_gcflag & UNPGC_DEAD)
