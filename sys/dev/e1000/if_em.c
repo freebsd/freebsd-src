@@ -2477,7 +2477,7 @@ em_reset(if_ctx_t ctx)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct ifnet *ifp = iflib_get_ifp(ctx);
 	struct e1000_hw *hw = &sc->hw;
-	u16 rx_buffer_size;
+	u32 rx_buffer_size;
 	u32 pba;
 
 	INIT_DEBUGOUT("em_reset: begin");
