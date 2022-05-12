@@ -154,6 +154,15 @@ struct prison;
 struct proc;
 struct thread;
 
+/*
+ * Callbacks for copying in/out a cpuset or domainset.  Used for alternate
+ * ABIs, like compat32.
+ */
+struct cpuset_copy_cb {
+	int (*copyin)(const void *, void *, size_t);
+	int (*copyout)(const void *, void *, size_t);
+};
+
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
 void	cpuset_rel(struct cpuset *);
