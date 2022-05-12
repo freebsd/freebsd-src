@@ -218,27 +218,6 @@ ATF_TC_BODY(test_getsetsize, tc)
 	CPU_FREE(set);
 }
 
-ATF_TC_WITHOUT_HEAD(test_schedgetsetsize);
-ATF_TC_BODY(test_schedgetsetsize, tc)
-{
-	cpuset_t *set;
-	int cpusetsize;
-
-	cpusetsize = CPU_ALLOC_SIZE(maxcpuid + 1);
-	set = CPU_ALLOC(maxcpuid + 1);
-	ATF_REQUIRE(set != NULL);
-	CPU_ZERO_S(maxcpuid + 1, set);
-	ATF_REQUIRE(sched_getaffinity(0, cpusetsize, set) == cpusetsize);
-	CPU_FREE(set);
-
-	set = CPU_ALLOC(CPU_SETSIZE);
-	ATF_REQUIRE(set != NULL);
-	cpusetsize = CPU_ALLOC_SIZE(CPU_SETSIZE);
-	CPU_ZERO(set);
-	ATF_REQUIRE(sched_getaffinity(0, cpusetsize, set) == cpusetsize);
-	CPU_FREE(set);
-}
-
 ATF_TC_WITHOUT_HEAD(test_holes);
 ATF_TC_BODY(test_holes, tc)
 {
@@ -288,8 +267,6 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, test_getminsetsize);
 	ATF_TP_ADD_TC(tp, test_getsetsize);
-
-	ATF_TP_ADD_TC(tp, test_schedgetsetsize);
 
 	ATF_TP_ADD_TC(tp, test_holes);
 
