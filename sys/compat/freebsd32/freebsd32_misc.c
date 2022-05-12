@@ -3310,13 +3310,72 @@ freebsd32_cpuset_getid(struct thread *td,
 	    PAIR32TO64(id_t, uap->id), uap->setid));
 }
 
+static int
+copyin32_set(const void *u, void *k, size_t size)
+{
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	int rv;
+	struct bitset *kb = k;
+	int *p;
+
+	rv = copyin(u, k, size);
+	if (rv != 0)
+		return (rv);
+
+	p = (int *)kb->__bits;
+	/* Loop through swapping words.
+	 * `size' is in bytes, we need bits. */
+	for (int i = 0; i < __bitset_words(size * 8); i++) {
+		int tmp = p[0];
+		p[0] = p[1];
+		p[1] = tmp;
+		p += 2;
+	}
+	return (0);
+#else
+	return (copyin(u, k, size));
+#endif
+}
+
+static int
+copyout32_set(const void *k, void *u, size_t size)
+{
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	const struct bitset *kb = k;
+	struct bitset *ub = u;
+	const int *kp = (const int *)kb->__bits;
+	int *up = (int *)ub->__bits;
+	int rv;
+
+	for (int i = 0; i < __bitset_words(CPU_SETSIZE); i++) {
+		/* `size' is in bytes, we need bits. */
+		for (int i = 0; i < __bitset_words(size * 8); i++) {
+			rv = suword32(up, kp[1]);
+			if (rv == 0)
+				rv = suword32(up + 1, kp[0]);
+			if (rv != 0)
+				return (EFAULT);
+		}
+	}
+	return (0);
+#else
+	return (copyout(k, u, size));
+#endif
+}
+
+static const struct cpuset_copy_cb cpuset_copy32_cb = {
+	.copyin = copyin32_set,
+	.copyout = copyout32_set
+};
+
 int
 freebsd32_cpuset_getaffinity(struct thread *td,
     struct freebsd32_cpuset_getaffinity_args *uap)
 {
 
 	return (kern_cpuset_getaffinity(td, uap->level, uap->which,
-	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask));
+	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask,
+	    &cpuset_copy32_cb));
 }
 
 int
@@ -3325,7 +3384,8 @@ freebsd32_cpuset_setaffinity(struct thread *td,
 {
 
 	return (user_cpuset_setaffinity(td, uap->level, uap->which,
-	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask));
+	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask,
+	    &cpuset_copy32_cb));
 }
 
 int
@@ -3334,7 +3394,8 @@ freebsd32_cpuset_getdomain(struct thread *td,
 {
 
 	return (kern_cpuset_getdomain(td, uap->level, uap->which,
-	    PAIR32TO64(id_t,uap->id), uap->domainsetsize, uap->mask, uap->policy));
+	    PAIR32TO64(id_t,uap->id), uap->domainsetsize, uap->mask, uap->policy,
+	    &cpuset_copy32_cb));
 }
 
 int
@@ -3343,7 +3404,8 @@ freebsd32_cpuset_setdomain(struct thread *td,
 {
 
 	return (kern_cpuset_setdomain(td, uap->level, uap->which,
-	    PAIR32TO64(id_t,uap->id), uap->domainsetsize, uap->mask, uap->policy));
+	    PAIR32TO64(id_t,uap->id), uap->domainsetsize, uap->mask, uap->policy,
+	    &cpuset_copy32_cb));
 }
 
 int
