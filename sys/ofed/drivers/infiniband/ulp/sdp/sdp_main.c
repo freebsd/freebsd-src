@@ -1142,7 +1142,7 @@ restart:
 				error = EWOULDBLOCK;
 				goto release;
 			}
-			error = sbwait(&so->so_snd);
+			error = sbwait(so, SO_SND);
 			SOCKBUF_UNLOCK(&so->so_snd);
 			if (error)
 				goto release;
@@ -1336,7 +1336,7 @@ restart:
 	 * Wait and block until (more) data comes in.
 	 * NB: Drops the sockbuf lock during wait.
 	 */
-	error = sbwait(sb);
+	error = sbwait(so, SO_RCV);
 	if (error)
 		goto out;
 	goto restart;

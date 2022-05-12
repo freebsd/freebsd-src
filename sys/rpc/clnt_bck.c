@@ -326,7 +326,7 @@ if (error != 0) printf("sosend=%d\n", error);
 	if (error == EMSGSIZE) {
 printf("emsgsize\n");
 		SOCKBUF_LOCK(&xprt->xp_socket->so_snd);
-		sbwait(&xprt->xp_socket->so_snd);
+		sbwait(xprt->xp_socket, SO_SND);
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_snd);
 		sx_xunlock(&xprt->xp_lock);
 		AUTH_VALIDATE(auth, xid, NULL, NULL);

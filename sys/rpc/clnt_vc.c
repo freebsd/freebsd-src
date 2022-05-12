@@ -447,7 +447,7 @@ call_again:
 	if (error == EMSGSIZE || (error == ERESTART &&
 	    (ct->ct_waitflag & PCATCH) == 0 && trycnt-- > 0)) {
 		SOCKBUF_LOCK(&ct->ct_socket->so_snd);
-		sbwait(&ct->ct_socket->so_snd);
+		sbwait(ct->ct_socket, SO_SND);
 		SOCKBUF_UNLOCK(&ct->ct_socket->so_snd);
 		AUTH_VALIDATE(auth, xid, NULL, NULL);
 		mtx_lock(&ct->ct_lock);

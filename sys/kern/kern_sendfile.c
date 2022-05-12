@@ -814,7 +814,7 @@ retry_space:
 			 * state may have changed and we retest
 			 * for it.
 			 */
-			error = sbwait(&so->so_snd);
+			error = sbwait(so, SO_SND);
 			/*
 			 * An error from sbwait usually indicates that we've
 			 * been interrupted by a signal. If we've sent anything

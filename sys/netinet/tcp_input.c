@@ -1921,8 +1921,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * Give up when limit is reached.
 				 */
 				if (newsize)
-					if (!sbreserve_locked(&so->so_rcv,
-					    newsize, so, NULL))
+					if (!sbreserve_locked(so, SO_RCV,
+					    newsize, NULL))
 						so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m, 0);
@@ -3848,7 +3848,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 		if (bufsize > sb_max)
 			bufsize = sb_max;
 		if (bufsize > so->so_snd.sb_hiwat)
-			(void)sbreserve_locked(&so->so_snd, bufsize, so, NULL);
+			(void)sbreserve_locked(so, SO_SND, bufsize, NULL);
 	}
 	SOCKBUF_UNLOCK(&so->so_snd);
 	/*
@@ -3871,7 +3871,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 		if (bufsize > sb_max)
 			bufsize = sb_max;
 		if (bufsize > so->so_rcv.sb_hiwat)
-			(void)sbreserve_locked(&so->so_rcv, bufsize, so, NULL);
+			(void)sbreserve_locked(so, SO_RCV, bufsize, NULL);
 	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
