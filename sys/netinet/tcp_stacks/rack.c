@@ -10882,8 +10882,7 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * reached.
 		 */
 		if (newsize)
-			if (!sbreserve_locked(&so->so_rcv,
-			    newsize, so, NULL))
+			if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
 				so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
 		m_adj(m, drop_hdrlen);	/* delayed header drop */
 #ifdef NETFLIX_SB_LIMITS
@@ -16125,7 +16124,7 @@ rack_sndbuf_autoscale(struct tcp_rack *rack)
 			scaleup += so->so_snd.sb_hiwat;
 			if (scaleup > V_tcp_autosndbuf_max)
 				scaleup = V_tcp_autosndbuf_max;
-			if (!sbreserve_locked(&so->so_snd, scaleup, so, curthread))
+			if (!sbreserve_locked(so, SO_SND, scaleup, curthread))
 				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
 		}
 	}

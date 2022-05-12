@@ -786,7 +786,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 			int newsize = min(sb->sb_hiwat + V_tcp_autosndbuf_inc,
 			    V_tcp_autosndbuf_max);
 
-			if (!sbreserve_locked(sb, newsize, so, NULL))
+			if (!sbreserve_locked(so, SO_SND, newsize, NULL))
 				sb->sb_flags &= ~SB_AUTOSIZE;
 			else
 				sowwakeup = 1;	/* room available */
@@ -1108,7 +1108,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		unsigned int newsize = min(hiwat + sc->tt.autorcvbuf_inc,
 		    V_tcp_autorcvbuf_max);
 
-		if (!sbreserve_locked(sb, newsize, so, NULL))
+		if (!sbreserve_locked(so, SO_RCV, newsize, NULL))
 			sb->sb_flags &= ~SB_AUTOSIZE;
 	}
 
