@@ -5640,7 +5640,7 @@ restart_nosblocks:
 			}
 		}
 		if (block_allowed) {
-			error = sbwait(&so->so_rcv);
+			error = sbwait(so, SO_RCV);
 			if (error) {
 				goto out;
 			}
@@ -6255,7 +6255,7 @@ wait_some_more:
 			goto release;
 		}
 		if (so->so_rcv.sb_cc <= control->held_length) {
-			error = sbwait(&so->so_rcv);
+			error = sbwait(so, SO_RCV);
 			if (error) {
 				goto release;
 			}

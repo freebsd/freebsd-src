@@ -396,27 +396,27 @@ void
 socantsendmore_locked(struct socket *so)
 {
 
-	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	SOCK_SENDBUF_LOCK_ASSERT(so);
 
 	so->so_snd.sb_state |= SBS_CANTSENDMORE;
 	sowwakeup_locked(so);
-	mtx_assert(SOCKBUF_MTX(&so->so_snd), MA_NOTOWNED);
+	SOCK_SENDBUF_UNLOCK_ASSERT(so);
 }
 
 void
 socantsendmore(struct socket *so)
 {
 
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	socantsendmore_locked(so);
-	mtx_assert(SOCKBUF_MTX(&so->so_snd), MA_NOTOWNED);
+	SOCK_SENDBUF_UNLOCK_ASSERT(so);
 }
 
 void
 socantrcvmore_locked(struct socket *so)
 {
 
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+	SOCK_RECVBUF_LOCK_ASSERT(so);
 
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 #ifdef KERN_TLS
@@ -424,53 +424,55 @@ socantrcvmore_locked(struct socket *so)
 		ktls_check_rx(&so->so_rcv);
 #endif
 	sorwakeup_locked(so);
-	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
+	SOCK_RECVBUF_UNLOCK_ASSERT(so);
 }
 
 void
 socantrcvmore(struct socket *so)
 {
 
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	socantrcvmore_locked(so);
-	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
+	SOCK_RECVBUF_UNLOCK_ASSERT(so);
 }
 
 void
 soroverflow_locked(struct socket *so)
 {
 
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+	SOCK_RECVBUF_LOCK_ASSERT(so);
 
 	if (so->so_options & SO_RERROR) {
 		so->so_rerror = ENOBUFS;
 		sorwakeup_locked(so);
 	} else
-		SOCKBUF_UNLOCK(&so->so_rcv);
+		SOCK_RECVBUF_UNLOCK(so);
 
-	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
+	SOCK_RECVBUF_UNLOCK_ASSERT(so);
 }
 
 void
 soroverflow(struct socket *so)
 {
 
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
 	soroverflow_locked(so);
-	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
+	SOCK_RECVBUF_UNLOCK_ASSERT(so);
 }
 
 /*
  * Wait for data to arrive at/drain from a socket buffer.
  */
 int
-sbwait(struct sockbuf *sb)
+sbwait(struct socket *so, sb_which which)
 {
+	struct sockbuf *sb;
 
-	SOCKBUF_LOCK_ASSERT(sb);
+	SOCK_BUF_LOCK_ASSERT(so, which);
 
+	sb = sobuf(so, which);
 	sb->sb_flags |= SB_WAIT;
-	return (msleep_sbt(&sb->sb_acc, SOCKBUF_MTX(sb),
+	return (msleep_sbt(&sb->sb_acc, soeventmtx(so, which),
 	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
 	    sb->sb_timeo, 0, 0));
 }
@@ -487,13 +489,15 @@ sbwait(struct sockbuf *sb)
  * then release it to avoid lock order issues.  It's not clear that's
  * correct.
  */
-void
-sowakeup(struct socket *so, struct sockbuf *sb)
+static __always_inline void
+sowakeup(struct socket *so, const sb_which which)
 {
+	struct sockbuf *sb;
 	int ret;
 
-	SOCKBUF_LOCK_ASSERT(sb);
+	SOCK_BUF_LOCK_ASSERT(so, which);
 
+	sb = sobuf(so, which);
 	selwakeuppri(sb->sb_sel, PSOCK);
 	if (!SEL_WAITING(sb->sb_sel))
 		sb->sb_flags &= ~SB_SEL;
@@ -512,13 +516,43 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	} else
 		ret = SU_OK;
 	if (sb->sb_flags & SB_AIO)
-		sowakeup_aio(so, sb);
-	SOCKBUF_UNLOCK(sb);
+		sowakeup_aio(so, which);
+	SOCK_BUF_UNLOCK(so, which);
 	if (ret == SU_ISCONNECTED)
 		soisconnected(so);
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);
-	mtx_assert(SOCKBUF_MTX(sb), MA_NOTOWNED);
+	SOCK_BUF_UNLOCK_ASSERT(so, which);
+}
+
+/*
+ * Do we need to notify the other side when I/O is possible?
+ */
+static __always_inline bool
+sb_notify(const struct sockbuf *sb)
+{
+	return ((sb->sb_flags & (SB_WAIT | SB_SEL | SB_ASYNC |
+	    SB_UPCALL | SB_AIO | SB_KNOTE)) != 0);
+}
+
+void
+sorwakeup_locked(struct socket *so)
+{
+	SOCK_RECVBUF_LOCK_ASSERT(so);
+	if (sb_notify(&so->so_rcv))
+		sowakeup(so, SO_RCV);
+	else
+		SOCK_RECVBUF_UNLOCK(so);
+}
+
+void
+sowwakeup_locked(struct socket *so)
+{
+	SOCK_SENDBUF_LOCK_ASSERT(so);
+	if (sb_notify(&so->so_snd))
+		sowakeup(so, SO_SND);
+	else
+		SOCK_SENDBUF_UNLOCK(so);
 }
 
 /*
@@ -557,11 +591,11 @@ soreserve(struct socket *so, u_long sndcc, u_long rcvcc)
 {
 	struct thread *td = curthread;
 
-	SOCKBUF_LOCK(&so->so_snd);
-	SOCKBUF_LOCK(&so->so_rcv);
-	if (sbreserve_locked(&so->so_snd, sndcc, so, td) == 0)
+	SOCK_SENDBUF_LOCK(so);
+	SOCK_RECVBUF_LOCK(so);
+	if (sbreserve_locked(so, SO_SND, sndcc, td) == 0)
 		goto bad;
-	if (sbreserve_locked(&so->so_rcv, rcvcc, so, td) == 0)
+	if (sbreserve_locked(so, SO_RCV, rcvcc, td) == 0)
 		goto bad2;
 	if (so->so_rcv.sb_lowat == 0)
 		so->so_rcv.sb_lowat = 1;
@@ -569,14 +603,14 @@ soreserve(struct socket *so, u_long sndcc, u_long rcvcc)
 		so->so_snd.sb_lowat = MCLBYTES;
 	if (so->so_snd.sb_lowat > so->so_snd.sb_hiwat)
 		so->so_snd.sb_lowat = so->so_snd.sb_hiwat;
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_RECVBUF_UNLOCK(so);
+	SOCK_SENDBUF_UNLOCK(so);
 	return (0);
 bad2:
-	sbrelease_locked(&so->so_snd, so);
+	sbrelease_locked(so, SO_SND);
 bad:
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_RECVBUF_UNLOCK(so);
+	SOCK_SENDBUF_UNLOCK(so);
 	return (ENOBUFS);
 }
 
@@ -600,13 +634,14 @@ sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
  * Allot mbufs to a sockbuf.  Attempt to scale mbmax so that mbcnt doesn't
  * become limiting if buffering efficiency is near the normal case.
  */
-int
-sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
+bool
+sbreserve_locked(struct socket *so, sb_which which, u_long cc,
     struct thread *td)
 {
+	struct sockbuf *sb = sobuf(so, which);
 	rlim_t sbsize_limit;
 
-	SOCKBUF_LOCK_ASSERT(sb);
+	SOCK_BUF_LOCK_ASSERT(so, which);
 
 	/*
 	 * When a thread is passed, we take into account the thread's socket
@@ -616,24 +651,25 @@ sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	 * we don't apply a process limit.
 	 */
 	if (cc > sb_max_adj)
-		return (0);
+		return (false);
 	if (td != NULL) {
 		sbsize_limit = lim_cur(td, RLIMIT_SBSIZE);
 	} else
 		sbsize_limit = RLIM_INFINITY;
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
 	    sbsize_limit))
-		return (0);
+		return (false);
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;
-	return (1);
+	return (true);
 }
 
 int
 sbsetopt(struct socket *so, int cmd, u_long cc)
 {
 	struct sockbuf *sb;
+	sb_which wh;
 	short *flags;
 	u_int *hiwat, *lowat;
 	int error;
@@ -660,16 +696,18 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 			case SO_SNDLOWAT:
 			case SO_SNDBUF:
 				sb = &so->so_snd;
+				wh = SO_SND;
 				break;
 			case SO_RCVLOWAT:
 			case SO_RCVBUF:
 				sb = &so->so_rcv;
+				wh = SO_RCV;
 				break;
 		}
 		flags = &sb->sb_flags;
 		hiwat = &sb->sb_hiwat;
 		lowat = &sb->sb_lowat;
-		SOCKBUF_LOCK(sb);
+		SOCK_BUF_LOCK(so, wh);
 	}
 
 	error = 0;
@@ -685,7 +723,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 			if (*lowat > *hiwat)
 				*lowat = *hiwat;
 		} else {
-			if (!sbreserve_locked(sb, cc, so, curthread))
+			if (!sbreserve_locked(so, wh, cc, curthread))
 				error = ENOBUFS;
 		}
 		if (error == 0)
@@ -702,7 +740,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 	}
 
 	if (!SOLISTENING(so))
-		SOCKBUF_UNLOCK(sb);
+		SOCK_BUF_UNLOCK(so, wh);
 	SOCK_UNLOCK(so);
 	return (error);
 }
@@ -711,8 +749,9 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
  * Free mbufs held by a socket, and reserved mbuf space.
  */
 static void
-sbrelease_internal(struct sockbuf *sb, struct socket *so)
+sbrelease_internal(struct socket *so, sb_which which)
 {
+	struct sockbuf *sb = sobuf(so, which);
 
 	sbflush_internal(sb);
 	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
@@ -721,33 +760,34 @@ sbrelease_internal(struct sockbuf *sb, struct socket *so)
 }
 
 void
-sbrelease_locked(struct sockbuf *sb, struct socket *so)
+sbrelease_locked(struct socket *so, sb_which which)
 {
 
-	SOCKBUF_LOCK_ASSERT(sb);
+	SOCK_BUF_LOCK_ASSERT(so, which);
 
-	sbrelease_internal(sb, so);
+	sbrelease_internal(so, which);
 }
 
 void
-sbrelease(struct sockbuf *sb, struct socket *so)
+sbrelease(struct socket *so, sb_which which)
 {
 
-	SOCKBUF_LOCK(sb);
-	sbrelease_locked(sb, so);
-	SOCKBUF_UNLOCK(sb);
+	SOCK_BUF_LOCK(so, which);
+	sbrelease_locked(so, which);
+	SOCK_BUF_UNLOCK(so, which);
 }
 
 void
-sbdestroy(struct sockbuf *sb, struct socket *so)
+sbdestroy(struct socket *so, sb_which which)
 {
-
-	sbrelease_internal(sb, so);
 #ifdef KERN_TLS
+	struct sockbuf *sb = sobuf(so, which);
+
 	if (sb->sb_tls_info != NULL)
 		ktls_free(sb->sb_tls_info);
 	sb->sb_tls_info = NULL;
 #endif
+	sbrelease_internal(so, which);
 }
 
 /*

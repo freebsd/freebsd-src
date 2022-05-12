@@ -77,8 +77,8 @@ enum socket_qstate {
  * Locking key to struct socket:
  * (a) constant after allocation, no locking required.
  * (b) locked by SOCK_LOCK(so).
- * (cr) locked by SOCK_RECVBUF_LOCK(so)/SOCKBUF_LOCK(&so->so_rcv).
- * (cs) locked by SOCK_SENDBUF_LOCK(so)/SOCKBUF_LOCK(&so->so_snd).
+ * (cr) locked by SOCK_RECVBUF_LOCK(so)
+ * (cs) locked by SOCK_SENDBUF_LOCK(so)
  * (e) locked by SOLISTEN_LOCK() of corresponding listening socket.
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.
@@ -256,8 +256,8 @@ struct socket {
 } while (0)
 
 /*
- * Socket buffer locks.  These manipulate the same mutexes as SOCKBUF_LOCK()
- * and related macros.
+ * Socket buffer locks.  These are strongly preferred over SOCKBUF_LOCK(sb)
+ * macros, as we are moving towards protocol specific socket buffers.
  */
 #define	SOCK_RECVBUF_MTX(so)						\
 	(&(so)->so_rcv_mtx)
@@ -281,8 +281,26 @@ struct socket {
 #define	SOCK_SENDBUF_UNLOCK_ASSERT(so)					\
 	mtx_assert(SOCK_SENDBUF_MTX(so), MA_NOTOWNED)
 
-/* 'which' values for socket buffer events and upcalls. */
-typedef enum { SO_RCV, SO_SND } sb_which;
+#define	SOCK_BUF_LOCK(so, which)					\
+	mtx_lock(soeventmtx(so, which))
+#define	SOCK_BUF_UNLOCK(so, which)					\
+	mtx_unlock(soeventmtx(so, which))
+#define	SOCK_BUF_LOCK_ASSERT(so, which)					\
+	mtx_assert(soeventmtx(so, which), MA_OWNED)
+#define	SOCK_BUF_UNLOCK_ASSERT(so, which)				\
+	mtx_assert(soeventmtx(so, which), MA_NOTOWNED)
+
+static inline struct sockbuf *
+sobuf(struct socket *so, const sb_which which)
+{
+	return (which == SO_RCV ? &so->so_rcv : &so->so_snd);
+}
+
+static inline struct mtx *
+soeventmtx(struct socket *so, const sb_which which)
+{
+	return (which == SO_RCV ? SOCK_RECVBUF_MTX(so) : SOCK_SENDBUF_MTX(so));
+}
 
 /*
  * Macros for sockets and socket buffering.
@@ -307,12 +325,6 @@ typedef enum { SO_RCV, SO_SND } sb_which;
 #define	SOCK_IO_RECV_UNLOCK(so)						\
 	soiounlock(&(so)->so_rcv_sx)
 #define	SOCK_IO_RECV_OWNED(so)	sx_xlocked(&(so)->so_rcv_sx)
-
-/*
- * Do we need to notify the other side when I/O is possible?
- */
-#define	sb_notify(sb)	(((sb)->sb_flags & (SB_WAIT | SB_SEL | SB_ASYNC | \
-    SB_UPCALL | SB_AIO | SB_KNOTE)) != 0)
 
 /* do we have to send all at once on a socket? */
 #define	sosendallatonce(so) \
@@ -357,29 +369,13 @@ typedef enum { SO_RCV, SO_SND } sb_which;
  * directly invokes the underlying sowakeup() primitives, it must
  * maintain the same semantics.
  */
-#define	sorwakeup_locked(so) do {					\
-	SOCKBUF_LOCK_ASSERT(&(so)->so_rcv);				\
-	if (sb_notify(&(so)->so_rcv))					\
-		sowakeup((so), &(so)->so_rcv);	 			\
-	else								\
-		SOCKBUF_UNLOCK(&(so)->so_rcv);				\
-} while (0)
-
 #define	sorwakeup(so) do {						\
-	SOCKBUF_LOCK(&(so)->so_rcv);					\
+	SOCK_RECVBUF_LOCK(so);						\
 	sorwakeup_locked(so);						\
 } while (0)
 
-#define	sowwakeup_locked(so) do {					\
-	SOCKBUF_LOCK_ASSERT(&(so)->so_snd);				\
-	if (sb_notify(&(so)->so_snd))					\
-		sowakeup((so), &(so)->so_snd); 				\
-	else								\
-		SOCKBUF_UNLOCK(&(so)->so_snd);				\
-} while (0)
-
 #define	sowwakeup(so) do {						\
-	SOCKBUF_LOCK(&(so)->so_snd);					\
+	SOCK_SENDBUF_LOCK(so);						\
 	sowwakeup_locked(so);						\
 } while (0)
 
@@ -520,8 +516,9 @@ int	soshutdown(struct socket *so, int how);
 void	soupcall_clear(struct socket *, sb_which);
 void	soupcall_set(struct socket *, sb_which, so_upcall_t, void *);
 void	solisten_upcall_set(struct socket *, so_upcall_t, void *);
-void	sowakeup(struct socket *so, struct sockbuf *sb);
-void	sowakeup_aio(struct socket *so, struct sockbuf *sb);
+void	sorwakeup_locked(struct socket *);
+void	sowwakeup_locked(struct socket *);
+void	sowakeup_aio(struct socket *, sb_which);
 void	solisten_wakeup(struct socket *);
 int	selsocket(struct socket *so, int events, struct timeval *tv,
 	    struct thread *td);

@@ -179,12 +179,12 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 				so->sol_sbrcv_flags |= SB_ASYNC;
 				so->sol_sbsnd_flags |= SB_ASYNC;
 			} else {
-				SOCKBUF_LOCK(&so->so_rcv);
+				SOCK_RECVBUF_LOCK(so);
 				so->so_rcv.sb_flags |= SB_ASYNC;
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				SOCKBUF_LOCK(&so->so_snd);
+				SOCK_RECVBUF_UNLOCK(so);
+				SOCK_SENDBUF_LOCK(so);
 				so->so_snd.sb_flags |= SB_ASYNC;
-				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCK_SENDBUF_UNLOCK(so);
 			}
 			SOCK_UNLOCK(so);
 		} else {
@@ -194,12 +194,12 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 				so->sol_sbrcv_flags &= ~SB_ASYNC;
 				so->sol_sbsnd_flags &= ~SB_ASYNC;
 			} else {
-				SOCKBUF_LOCK(&so->so_rcv);
+				SOCK_RECVBUF_LOCK(so);
 				so->so_rcv.sb_flags &= ~SB_ASYNC;
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				SOCKBUF_LOCK(&so->so_snd);
+				SOCK_RECVBUF_UNLOCK(so);
+				SOCK_SENDBUF_LOCK(so);
 				so->so_snd.sb_flags &= ~SB_ASYNC;
-				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCK_SENDBUF_UNLOCK(so);
 			}
 			SOCK_UNLOCK(so);
 		}
@@ -751,10 +751,12 @@ soaio_snd(void *context, int pending)
 }
 
 void
-sowakeup_aio(struct socket *so, struct sockbuf *sb)
+sowakeup_aio(struct socket *so, sb_which which)
 {
+	struct sockbuf *sb = sobuf(so, which);
 
-	SOCKBUF_LOCK_ASSERT(sb);
+	SOCK_BUF_LOCK_ASSERT(so, which);
+
 	sb->sb_flags &= ~SB_AIO;
 	if (sb->sb_flags & SB_AIO_RUNNING)
 		return;
@@ -799,6 +801,7 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 {
 	struct socket *so;
 	struct sockbuf *sb;
+	sb_which which;
 	int error;
 
 	so = fp->f_data;
@@ -809,12 +812,14 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	/* Lock through the socket, since this may be a listening socket. */
 	switch (job->uaiocb.aio_lio_opcode & (LIO_WRITE | LIO_READ)) {
 	case LIO_READ:
-		sb = &so->so_rcv;
 		SOCK_RECVBUF_LOCK(so);
+		sb = &so->so_rcv;
+		which = SO_RCV;
 		break;
 	case LIO_WRITE:
-		sb = &so->so_snd;
 		SOCK_SENDBUF_LOCK(so);
+		sb = &so->so_snd;
+		which = SO_SND;
 		break;
 	default:
 		return (EINVAL);
@@ -833,7 +838,7 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	TAILQ_INSERT_TAIL(&sb->sb_aiojobq, job, list);
 	if (!(sb->sb_flags & SB_AIO_RUNNING)) {
 		if (soaio_ready(so, sb))
-			sowakeup_aio(so, sb);
+			sowakeup_aio(so, which);
 		else
 			sb->sb_flags |= SB_AIO;
 	}

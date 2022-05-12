@@ -420,8 +420,8 @@ soalloc(struct vnet *vnet)
 	mtx_init(&so->so_lock, "socket", NULL, MTX_DEF | MTX_DUPOK);
 	so->so_snd.sb_mtx = &so->so_snd_mtx;
 	so->so_rcv.sb_mtx = &so->so_rcv_mtx;
-	SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
-	SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
+	mtx_init(&so->so_snd_mtx, "so_snd", NULL, MTX_DEF);
+	mtx_init(&so->so_rcv_mtx, "so_rcv", NULL, MTX_DEF);
 	so->so_rcv.sb_sel = &so->so_rdsel;
 	so->so_snd.sb_sel = &so->so_wrsel;
 	sx_init(&so->so_snd_sx, "so_snd_sx");
@@ -491,8 +491,8 @@ sodealloc(struct socket *so)
 			    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 		sx_destroy(&so->so_snd_sx);
 		sx_destroy(&so->so_rcv_sx);
-		SOCKBUF_LOCK_DESTROY(&so->so_snd);
-		SOCKBUF_LOCK_DESTROY(&so->so_rcv);
+		mtx_destroy(&so->so_snd_mtx);
+		mtx_destroy(&so->so_rcv_mtx);
 	}
 	crfree(so->so_cred);
 	mtx_destroy(&so->so_lock);
@@ -990,8 +990,8 @@ solisten_proto(struct socket *so, int backlog)
 	sbrcv_timeo = so->so_rcv.sb_timeo;
 	sbsnd_timeo = so->so_snd.sb_timeo;
 
-	sbdestroy(&so->so_snd, so);
-	sbdestroy(&so->so_rcv, so);
+	sbdestroy(so, SO_SND);
+	sbdestroy(so, SO_RCV);
 
 #ifdef INVARIANTS
 	bzero(&so->so_rcv,
@@ -1208,8 +1208,8 @@ sofree(struct socket *so)
 	 * to be acquired or held.
 	 */
 	if (!SOLISTENING(so)) {
-		sbdestroy(&so->so_snd, so);
-		sbdestroy(&so->so_rcv, so);
+		sbdestroy(so, SO_SND);
+		sbdestroy(so, SO_RCV);
 	}
 	seldrain(&so->so_rdsel);
 	seldrain(&so->so_wrsel);
@@ -1735,7 +1735,7 @@ restart:
 				error = EWOULDBLOCK;
 				goto release;
 			}
-			error = sbwait(&so->so_snd);
+			error = sbwait(so, SO_SND);
 			SOCKBUF_UNLOCK(&so->so_snd);
 			if (error)
 				goto release;
@@ -2067,7 +2067,7 @@ restart:
 		}
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
-		error = sbwait(&so->so_rcv);
+		error = sbwait(so, SO_RCV);
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		if (error)
 			goto release;
@@ -2389,7 +2389,7 @@ dontblock:
 			 * the protocol. Skip blocking in this case.
 			 */
 			if (so->so_rcv.sb_mb == NULL) {
-				error = sbwait(&so->so_rcv);
+				error = sbwait(so, SO_RCV);
 				if (error) {
 					SOCKBUF_UNLOCK(&so->so_rcv);
 					goto release;
@@ -2570,7 +2570,7 @@ restart:
 	 * Wait and block until (more) data comes in.
 	 * NB: Drops the sockbuf lock during wait.
 	 */
-	error = sbwait(sb);
+	error = sbwait(so, SO_RCV);
 	if (error)
 		goto out;
 	goto restart;
@@ -2742,7 +2742,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		}
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
-		error = sbwait(&so->so_rcv);
+		error = sbwait(so, SO_RCV);
 		if (error) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (error);
@@ -2960,7 +2960,7 @@ sorflush(struct socket *so)
 		MPASS(pr->pr_domain->dom_dispose != NULL);
 		(*pr->pr_domain->dom_dispose)(so);
 	} else {
-		sbrelease(&so->so_rcv, so);
+		sbrelease(so, SO_RCV);
 		SOCK_IO_RECV_UNLOCK(so);
 	}
 
@@ -3610,8 +3610,8 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 		}
 	} else {
 		revents = 0;
-		SOCKBUF_LOCK(&so->so_snd);
-		SOCKBUF_LOCK(&so->so_rcv);
+		SOCK_SENDBUF_LOCK(so);
+		SOCK_RECVBUF_LOCK(so);
 		if (events & (POLLIN | POLLRDNORM))
 			if (soreadabledata(so))
 				revents |= events & (POLLIN | POLLRDNORM);
@@ -3642,8 +3642,8 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 				so->so_snd.sb_flags |= SB_SEL;
 			}
 		}
-		SOCKBUF_UNLOCK(&so->so_rcv);
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_RECVBUF_UNLOCK(so);
+		SOCK_SENDBUF_UNLOCK(so);
 	}
 	SOCK_UNLOCK(so);
 	return (revents);
@@ -4297,12 +4297,12 @@ so_rdknl_assert_lock(void *arg, int what)
 		if (SOLISTENING(so))
 			SOCK_LOCK_ASSERT(so);
 		else
-			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+			SOCK_RECVBUF_LOCK_ASSERT(so);
 	} else {
 		if (SOLISTENING(so))
 			SOCK_UNLOCK_ASSERT(so);
 		else
-			SOCKBUF_UNLOCK_ASSERT(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK_ASSERT(so);
 	}
 }
 
@@ -4314,7 +4314,7 @@ so_wrknl_lock(void *arg)
 	if (SOLISTENING(so))
 		SOCK_LOCK(so);
 	else
-		SOCKBUF_LOCK(&so->so_snd);
+		SOCK_SENDBUF_LOCK(so);
 }
 
 static void
@@ -4325,7 +4325,7 @@ so_wrknl_unlock(void *arg)
 	if (SOLISTENING(so))
 		SOCK_UNLOCK(so);
 	else
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_SENDBUF_UNLOCK(so);
 }
 
 static void
@@ -4337,12 +4337,12 @@ so_wrknl_assert_lock(void *arg, int what)
 		if (SOLISTENING(so))
 			SOCK_LOCK_ASSERT(so);
 		else
-			SOCKBUF_LOCK_ASSERT(&so->so_snd);
+			SOCK_SENDBUF_LOCK_ASSERT(so);
 	} else {
 		if (SOLISTENING(so))
 			SOCK_UNLOCK_ASSERT(so);
 		else
-			SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK_ASSERT(so);
 	}
 }
 

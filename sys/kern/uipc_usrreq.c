@@ -2771,7 +2771,7 @@ unp_dispose(struct socket *so)
 	KASSERT(sb->sb_ccc == 0 && sb->sb_mb == 0 && sb->sb_mbcnt == 0,
 	    ("%s: ccc %u mb %p mbcnt %u", __func__,
 	    sb->sb_ccc, (void *)sb->sb_mb, sb->sb_mbcnt));
-	sbrelease_locked(sb, so);
+	sbrelease_locked(so, SO_RCV);
 	SOCK_RECVBUF_UNLOCK(so);
 	if (SOCK_IO_RECV_OWNED(so))
 		SOCK_IO_RECV_UNLOCK(so);
