@@ -1634,6 +1634,9 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	    sotounpcb(so2) == unp2,
 	    ("%s: unp2 %p so2 %p", __func__, unp2, so2));
 	unp_connect2(so, so2, PRU_CONNECT);
+	KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
+	    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
+	unp->unp_flags &= ~UNP_CONNECTING;
 	unp_pcb_unlock_pair(unp, unp2);
 bad2:
 	mtx_unlock(vplock);
@@ -1642,11 +1645,13 @@ bad:
 		vput(vp);
 	}
 	free(sa, M_SONAME);
-	UNP_PCB_LOCK(unp);
-	KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
-	    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
-	unp->unp_flags &= ~UNP_CONNECTING;
-	UNP_PCB_UNLOCK(unp);
+	if (__predict_false(error)) {
+		UNP_PCB_LOCK(unp);
+		KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
+		    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
+		unp->unp_flags &= ~UNP_CONNECTING;
+		UNP_PCB_UNLOCK(unp);
+	}
 	return (error);
 }
 
