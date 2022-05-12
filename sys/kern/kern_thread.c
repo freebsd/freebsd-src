@@ -1246,7 +1246,7 @@ thread_single(struct proc *p, int mode)
 			if (TD_IS_INHIBITED(td2)) {
 				wakeup_swapper |= weed_inhib(mode, td2, p);
 #ifdef SMP
-			} else if (TD_IS_RUNNING(td2) && td != td2) {
+			} else if (TD_IS_RUNNING(td2)) {
 				forward_signal(td2);
 				thread_unlock(td2);
 #endif
