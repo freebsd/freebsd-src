@@ -293,7 +293,7 @@ static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
 static int	unp_connectat(int, struct socket *, struct sockaddr *,
 		    struct thread *);
-static int	unp_connect2(struct socket *so, struct socket *so2, int);
+static void	unp_connect2(struct socket *so, struct socket *so2, int);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
 static void	unp_dispose_mbuf(struct mbuf *);
@@ -764,16 +764,19 @@ static int
 uipc_connect2(struct socket *so1, struct socket *so2)
 {
 	struct unpcb *unp, *unp2;
-	int error;
+
+	if (so1->so_type != so2->so_type)
+		return (EPROTOTYPE);
 
 	unp = so1->so_pcb;
 	KASSERT(unp != NULL, ("uipc_connect2: unp == NULL"));
 	unp2 = so2->so_pcb;
 	KASSERT(unp2 != NULL, ("uipc_connect2: unp2 == NULL"));
 	unp_pcb_lock_pair(unp, unp2);
-	error = unp_connect2(so1, so2, PRU_CONNECT2);
+	unp_connect2(so1, so2, PRU_CONNECT2);
 	unp_pcb_unlock_pair(unp, unp2);
-	return (error);
+
+	return (0);
 }
 
 static void
@@ -1630,7 +1633,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	KASSERT(unp2 != NULL && so2 != NULL && unp2->unp_socket == so2 &&
 	    sotounpcb(so2) == unp2,
 	    ("%s: unp2 %p so2 %p", __func__, unp2, so2));
-	error = unp_connect2(so, so2, PRU_CONNECT);
+	unp_connect2(so, so2, PRU_CONNECT);
 	unp_pcb_unlock_pair(unp, unp2);
 bad2:
 	mtx_unlock(vplock);
@@ -1667,12 +1670,13 @@ unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
 	client_unp->unp_flags |= (listen_unp->unp_flags & UNP_WANTCRED_MASK);
 }
 
-static int
+static void
 unp_connect2(struct socket *so, struct socket *so2, int req)
 {
 	struct unpcb *unp;
 	struct unpcb *unp2;
 
+	MPASS(so2->so_type == so->so_type);
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("unp_connect2: unp == NULL"));
 	unp2 = sotounpcb(so2);
@@ -1683,8 +1687,6 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 	KASSERT(unp->unp_conn == NULL,
 	    ("%s: socket %p is already connected", __func__, unp));
 
-	if (so2->so_type != so->so_type)
-		return (EPROTOTYPE);
 	unp->unp_conn = unp2;
 	unp_pcb_hold(unp2);
 	unp_pcb_hold(unp);
@@ -1712,7 +1714,6 @@ unp_connect2(struct socket *so, struct socket *so2, int req)
 	default:
 		panic("unp_connect2");
 	}
-	return (0);
 }
 
 static void
