@@ -326,7 +326,7 @@ LDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
 .else
 LDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
 .endif
-.else
+.elif ${COMPILER_TYPE} == "gcc"
 # GCC does not support an absolute path for -fuse-ld so we just print this
 # warning instead and let the user add the required symlinks.
 # However, we can avoid this warning if -B is set appropriately (e.g. for
