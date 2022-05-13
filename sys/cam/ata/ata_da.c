@@ -1099,7 +1099,7 @@ adastrategy(struct bio *bp)
 }
 
 static int
-adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+adadump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct	    cam_periph *periph;
 	struct	    ada_softc *softc;
@@ -3562,7 +3562,7 @@ adaflush(void)
 			/* If we panicked with the lock held, do not recurse. */
 			if (!cam_periph_owned(periph) &&
 			    (softc->flags & ADA_FLAG_OPEN)) {
-				adadump(softc->disk, NULL, 0, 0, 0);
+				adadump(softc->disk, NULL, 0, 0);
 			}
 			continue;
 		}

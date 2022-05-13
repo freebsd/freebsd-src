@@ -269,7 +269,7 @@ failure:
 
 static int
 g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
-    void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
+    void *virtual, off_t boffset, size_t blength)
 {
 	struct g_raid_volume *vol;
 	char *addr;
@@ -296,8 +296,8 @@ g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
 
 	do {
 		length = MIN(strip_size - start, remain);
-		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
-		    addr, 0, offset + start, length);
+		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no], addr,
+		    offset + start, length);
 		if (error != 0)
 			return (error);
 		if (++no >= vol->v_disks_count) {

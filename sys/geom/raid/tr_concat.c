@@ -286,8 +286,8 @@ failure:
 }
 
 static int
-g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
-    void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
+g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr, void *virtual,
+    off_t boffset, size_t blength)
 {
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
@@ -314,7 +314,7 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
 		sd = &vol->v_subdisks[no];
 		length = MIN(sd->sd_size - offset, remain);
 		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
-		    addr, 0, offset, length);
+		    addr, offset, length);
 		if (error != 0)
 			return (error);
 		remain -= length;

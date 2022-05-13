@@ -134,7 +134,7 @@ static int	vtblk_open(struct disk *);
 static int	vtblk_close(struct disk *);
 static int	vtblk_ioctl(struct disk *, u_long, void *, int,
 		    struct thread *);
-static int	vtblk_dump(void *, void *, vm_offset_t, off_t, size_t);
+static int	vtblk_dump(void *, void *, off_t, size_t);
 static void	vtblk_strategy(struct bio *);
 
 static int	vtblk_negotiate_features(struct vtblk_softc *);
@@ -531,8 +531,7 @@ vtblk_ioctl(struct disk *dp, u_long cmd, void *addr, int flag,
 }
 
 static int
-vtblk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
-    size_t length)
+vtblk_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct disk *dp;
 	struct vtblk_softc *sc;

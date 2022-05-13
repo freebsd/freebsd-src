@@ -88,7 +88,7 @@ static bool g_union_getmap(struct bio *bp, struct g_union_softc *sc,
 	off_t *len2read);
 static void g_union_done(struct bio *bp);
 static void g_union_kerneldump(struct bio *bp, struct g_union_softc *sc);
-static int g_union_dumper(void *, void *, vm_offset_t, off_t, size_t);
+static int g_union_dumper(void *, void *, off_t, size_t);
 static int g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force);
 
 /*
@@ -1222,8 +1222,7 @@ g_union_kerneldump(struct bio *bp, struct g_union_softc *sc)
  * Handler for g_union_kerneldump().
  */
 static int
-g_union_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
-    size_t length)
+g_union_dumper(void *priv, void *virtual, off_t offset, size_t length)
 {
 
 	return (0);

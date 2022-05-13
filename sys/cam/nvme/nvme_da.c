@@ -499,7 +499,7 @@ ndastrategy(struct bio *bp)
 }
 
 static int
-ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+ndadump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct	    cam_periph *periph;
 	struct	    nda_softc *softc;
@@ -1329,7 +1329,7 @@ ndaflush(void)
 			 */
 			if (!cam_periph_owned(periph) &&
 			    (softc->flags & NDA_FLAG_OPEN)) {
-				ndadump(softc->disk, NULL, 0, 0, 0);
+				ndadump(softc->disk, NULL, 0, 0);
 			}
 			continue;
 		}

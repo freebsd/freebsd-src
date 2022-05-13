@@ -89,7 +89,7 @@ static void	 netdump_cleanup(void);
 static int	 netdump_configure(struct diocskerneldump_arg *,
 		    struct thread *);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
-		    vm_offset_t physical __unused, off_t offset, size_t length);
+		    off_t offset, size_t length);
 static bool	 netdump_enabled(void);
 static int	 netdump_enabled_sysctl(SYSCTL_HANDLER_ARGS);
 static int	 netdump_ioctl(struct cdev *dev __unused, u_long cmd,
@@ -227,7 +227,6 @@ netdump_flush_buf(void)
  * Parameters:
  *	priv	 Unused. Optional private pointer.
  *	virtual  Virtual address (where to read the data from)
- *	physical Unused. Physical memory address.
  *	offset	 Offset from start of core file
  *	length	 Data length
  *
@@ -236,8 +235,7 @@ netdump_flush_buf(void)
  *	errno on error
  */
 static int
-netdump_dumper(void *priv __unused, void *virtual,
-    vm_offset_t physical __unused, off_t offset, size_t length)
+netdump_dumper(void *priv __unused, void *virtual, off_t offset, size_t length)
 {
 	int error;
 

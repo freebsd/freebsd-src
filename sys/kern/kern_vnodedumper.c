@@ -150,7 +150,6 @@ vnode_dumper_start(struct dumperinfo *di, void *key, uint32_t keysize)
  * Parameters:
  *	arg	 Opaque private pointer to vnode
  *	virtual  Virtual address (where to read the data from)
- *	physical Physical memory address (unused)
  *	offset	 Offset from start of core file
  *	length	 Data length
  *
@@ -159,8 +158,7 @@ vnode_dumper_start(struct dumperinfo *di, void *key, uint32_t keysize)
  *	errno on error
  */
 int
-vnode_dump(void *arg, void *virtual, vm_offset_t physical __unused,
-    off_t offset, size_t length)
+vnode_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct vnode *vp;
 	int error = 0;

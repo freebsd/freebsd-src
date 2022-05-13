@@ -899,8 +899,8 @@ rebuild_round_done:
 }
 
 static int
-g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
-    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr, void *virtual,
+    off_t offset, size_t length)
 {
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
@@ -935,8 +935,7 @@ g_raid_tr_kerneldump_raid1(struct g_raid_tr_object *tr,
 		default:
 			continue;
 		}
-		error = g_raid_subdisk_kerneldump(sd,
-		    virtual, physical, offset, length);
+		error = g_raid_subdisk_kerneldump(sd, virtual, offset, length);
 		if (error == 0)
 			ok++;
 	}
