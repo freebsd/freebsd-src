@@ -190,12 +190,11 @@ TEST_P(BmapEof, eof)
 	const off_t filesize = 2 * m_maxbcachebuf;
 	const ino_t ino = 42;
 	mode_t mode = S_IFREG | 0644;
-	void *contents, *buf;
+	void *buf;
 	int fd;
 	int ngetattrs;
 
 	ngetattrs = GetParam();
-	contents = calloc(1, filesize);
 	FuseTest::expect_lookup(RELPATH, ino, mode, filesize, 1, 0);
 	expect_open(ino, 0, 1);
 	// Depending on ngetattrs, FUSE_READ could be called with either
