@@ -237,6 +237,16 @@ LENTRY(drop_to_el1)
 	b.eq	1f
 	ret
 1:
+	/*
+	 * Disable the MMU. If the HCR_EL2.E2H field is set we will clear it
+	 * which may break address translation.
+	 */
+	dsb	sy
+	mrs	x2, sctlr_el2
+	bic	x2, x2, SCTLR_M
+	msr	sctlr_el2, x2
+	isb
+
 	/* Configure the Hypervisor */
 	mov	x2, #(HCR_RW)
 	msr	hcr_el2, x2
