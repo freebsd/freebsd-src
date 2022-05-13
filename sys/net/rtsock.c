@@ -786,7 +786,7 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 	 * TODO: move this logic to userland.
 	 */
 	if (rtm->rtm_flags & RTF_ANNOUNCE) {
-		struct sockaddr laddr;
+		struct sockaddr_storage laddr;
 
 		if (nh->nh_ifp != NULL &&
 		    nh->nh_ifp->if_type == IFT_PROPVIRTUAL) {
@@ -796,17 +796,17 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 					RT_ALL_FIBS);
 			if (ifa != NULL)
 				rt_maskedcopy(ifa->ifa_addr,
-					      &laddr,
+					      (struct sockaddr *)&laddr,
 					      ifa->ifa_netmask);
 		} else
 			rt_maskedcopy(nh->nh_ifa->ifa_addr,
-				      &laddr,
+				      (struct sockaddr *)&laddr,
 				      nh->nh_ifa->ifa_netmask);
 		/* 
 		 * refactor rt and no lock operation necessary
 		 */
-		rc->rc_rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
-		    &rnh->head);
+		rc->rc_rt = (struct rtentry *)rnh->rnh_matchaddr(
+		    (struct sockaddr *)&laddr, &rnh->head);
 		if (rc->rc_rt == NULL) {
 			RIB_RUNLOCK(rnh);
 			return (ESRCH);
