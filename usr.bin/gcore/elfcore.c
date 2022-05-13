@@ -234,7 +234,7 @@ elf_coredump(int efd, int fd, pid_t pid)
 	/* Put notes. */
 	elf_putnotes(pid, sb, &notesz);
 	/* Align up to a page boundary for the program segments. */
-	sbuf_end_section(sb, -1, PAGE_SIZE, 0);
+	sbuf_end_section(sb, -1, getpagesize(), 0);
 	if (sbuf_finish(sb) != 0)
 		err(1, "sbuf_finish");
 	hdr = sbuf_data(sb);
@@ -295,15 +295,17 @@ cb_put_phdr(struct map_entry *entry, void *closure)
 {
 	struct phdr_closure *phc = (struct phdr_closure *)closure;
 	Elf_Phdr *phdr = phc->phdr;
+	size_t page_size;
 
-	phc->offset = round_page(phc->offset);
+	page_size = getpagesize();
+	phc->offset = roundup2(phc->offset, page_size);
 
 	phdr->p_type = PT_LOAD;
 	phdr->p_offset = phc->offset;
 	phdr->p_vaddr = entry->start;
 	phdr->p_paddr = 0;
 	phdr->p_filesz = phdr->p_memsz = entry->end - entry->start;
-	phdr->p_align = PAGE_SIZE;
+	phdr->p_align = page_size;
 	phdr->p_flags = 0;
 	if (entry->protection & VM_PROT_READ)
 		phdr->p_flags |= PF_R;
