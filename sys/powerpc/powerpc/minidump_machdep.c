@@ -89,7 +89,7 @@ blk_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_append(di, crashdumpmap, 0, fragsz);
+	error = dump_append(di, crashdumpmap, fragsz);
 	DBG(dumptotal += fragsz;)
 	fragsz = 0;
 	return (error);
@@ -134,7 +134,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		dumpsys_pb_progress(len);
 
 		if (ptr) {
-			error = dump_append(di, ptr, 0, len);
+			error = dump_append(di, ptr, len);
 			if (error)
 				return (error);
 			DBG(dumptotal += len;)

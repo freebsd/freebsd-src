@@ -1416,10 +1416,8 @@ g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd, void *virtual,
 		return (ENXIO);
 	if (sd->sd_disk->d_kd.di.dumper == NULL)
 		return (EOPNOTSUPP);
-	return (dump_write(&sd->sd_disk->d_kd.di,
-	    virtual, 0,
-	    sd->sd_disk->d_kd.di.mediaoffset + sd->sd_offset + offset,
-	    length));
+	return (dump_write(&sd->sd_disk->d_kd.di, virtual,
+	    sd->sd_disk->d_kd.di.mediaoffset + sd->sd_offset + offset, length));
 }
 
 static void
