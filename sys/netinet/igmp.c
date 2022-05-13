@@ -2801,7 +2801,7 @@ igmp_v3_enqueue_group_record(struct mbufq *mq, struct in_multi *inm,
 	m0 = mbufq_last(mq);
 	if (!is_group_query &&
 	    m0 != NULL &&
-	    (m0->m_pkthdr.PH_vt.vt_nrecs + 1 <= IGMP_V3_REPORT_MAXRECS) &&
+	    (m0->m_pkthdr.vt_nrecs + 1 <= IGMP_V3_REPORT_MAXRECS) &&
 	    (m0->m_pkthdr.len + minrec0len) <
 	     (ifp->if_mtu - IGMP_LEADINGSPACE)) {
 		m0srcs = (ifp->if_mtu - m0->m_pkthdr.len -
@@ -2921,10 +2921,10 @@ igmp_v3_enqueue_group_record(struct mbufq *mq, struct in_multi *inm,
 	 */
 	if (m != m0) {
 		CTR1(KTR_IGMPV3, "%s: enqueueing first packet", __func__);
-		m->m_pkthdr.PH_vt.vt_nrecs = 1;
+		m->m_pkthdr.vt_nrecs = 1;
 		mbufq_enqueue(mq, m);
 	} else
-		m->m_pkthdr.PH_vt.vt_nrecs++;
+		m->m_pkthdr.vt_nrecs++;
 
 	/*
 	 * No further work needed if no source list in packet(s).
@@ -2963,7 +2963,7 @@ igmp_v3_enqueue_group_record(struct mbufq *mq, struct in_multi *inm,
 			CTR1(KTR_IGMPV3, "%s: m_append() failed.", __func__);
 			return (-ENOMEM);
 		}
-		m->m_pkthdr.PH_vt.vt_nrecs = 1;
+		m->m_pkthdr.vt_nrecs = 1;
 		nbytes += sizeof(struct igmp_grouprec);
 
 		m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
@@ -3091,7 +3091,7 @@ igmp_v3_enqueue_filter_change(struct mbufq *mq, struct in_multi *inm)
 		do {
 			m0 = mbufq_last(mq);
 			if (m0 != NULL &&
-			    (m0->m_pkthdr.PH_vt.vt_nrecs + 1 <=
+			    (m0->m_pkthdr.vt_nrecs + 1 <=
 			     IGMP_V3_REPORT_MAXRECS) &&
 			    (m0->m_pkthdr.len + MINRECLEN) <
 			     (ifp->if_mtu - IGMP_LEADINGSPACE)) {
@@ -3115,7 +3115,7 @@ igmp_v3_enqueue_filter_change(struct mbufq *mq, struct in_multi *inm)
 					    "%s: m_get*() failed", __func__);
 					return (-ENOMEM);
 				}
-				m->m_pkthdr.PH_vt.vt_nrecs = 0;
+				m->m_pkthdr.vt_nrecs = 0;
 				igmp_save_context(m, ifp);
 				m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
 				    sizeof(struct igmp_grouprec)) /
@@ -3236,7 +3236,7 @@ igmp_v3_enqueue_filter_change(struct mbufq *mq, struct in_multi *inm)
 			 * Count the new group record, and enqueue this
 			 * packet if it wasn't already queued.
 			 */
-			m->m_pkthdr.PH_vt.vt_nrecs++;
+			m->m_pkthdr.vt_nrecs++;
 			if (m != m0)
 				mbufq_enqueue(mq, m);
 			nbytes += npbytes;
@@ -3298,8 +3298,8 @@ igmp_v3_merge_state_changes(struct in_multi *inm, struct mbufq *scq)
 		if (mt != NULL) {
 			recslen = m_length(m, NULL);
 
-			if ((mt->m_pkthdr.PH_vt.vt_nrecs +
-			    m->m_pkthdr.PH_vt.vt_nrecs <=
+			if ((mt->m_pkthdr.vt_nrecs +
+			    m->m_pkthdr.vt_nrecs <=
 			    IGMP_V3_REPORT_MAXRECS) &&
 			    (mt->m_pkthdr.len + recslen <=
 			    (inm->inm_ifp->if_mtu - IGMP_LEADINGSPACE)))
@@ -3343,8 +3343,8 @@ igmp_v3_merge_state_changes(struct in_multi *inm, struct mbufq *scq)
 			mtl = m_last(mt);
 			m0->m_flags &= ~M_PKTHDR;
 			mt->m_pkthdr.len += recslen;
-			mt->m_pkthdr.PH_vt.vt_nrecs +=
-			    m0->m_pkthdr.PH_vt.vt_nrecs;
+			mt->m_pkthdr.vt_nrecs +=
+			    m0->m_pkthdr.vt_nrecs;
 
 			mtl->m_next = m0;
 		}
@@ -3564,10 +3564,10 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 	igmp->ir_type = IGMP_v3_HOST_MEMBERSHIP_REPORT;
 	igmp->ir_rsv1 = 0;
 	igmp->ir_rsv2 = 0;
-	igmp->ir_numgrps = htons(m->m_pkthdr.PH_vt.vt_nrecs);
+	igmp->ir_numgrps = htons(m->m_pkthdr.vt_nrecs);
 	igmp->ir_cksum = 0;
 	igmp->ir_cksum = in_cksum(m, sizeof(struct igmp_report) + igmpreclen);
-	m->m_pkthdr.PH_vt.vt_nrecs = 0;
+	m->m_pkthdr.vt_nrecs = 0;
 
 	m->m_data -= sizeof(struct ip);
 	m->m_len += sizeof(struct ip);

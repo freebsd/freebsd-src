@@ -207,8 +207,7 @@ struct pkthdr {
 };
 #define	ether_vtag	PH_per.sixteen[0]
 #define tcp_tun_port	PH_per.sixteen[0] /* outbound */
-#define	PH_vt		PH_per
-#define	vt_nrecs	sixteen[0]	  /* mld and v6-ND */
+#define	vt_nrecs	PH_per.sixteen[0]	  /* mld and v6-ND */
 #define	tso_segsz	PH_per.sixteen[1] /* inbound after LRO */
 #define	lro_nsegs	tso_segsz	  /* inbound after LRO */
 #define	csum_data	PH_per.thirtytwo[1] /* inbound from hardware up */
