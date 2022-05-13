@@ -593,7 +593,7 @@ where the body of the rule specifies which information is used
 for filtering packets, among the following:
 .Pp
 .Bl -tag -width "Source and dest. addresses and ports" -offset XXX -compact
-.It Layer-2 header fields
+.It Layer2 header fields
 When available
 .It IPv4 and IPv6 Protocol
 SCTP, TCP, UDP, ICMP, etc.
@@ -911,7 +911,7 @@ the local routing table for that IP.
 .br
 A
 .Ar fwd
-rule will not match layer-2 packets (those received
+rule will not match layer2 packets (those received
 on ether_input, ether_output, or bridged).
 .br
 The
@@ -4088,7 +4088,7 @@ Limits the number of messages produced by a verbose firewall.
 .It Va net.inet6.ip6.fw.deny_unknown_exthdrs : No 1
 If enabled packets with unknown IPv6 Extension Headers will be denied.
 .It Va net.link.ether.ipfw : No 0
-Controls whether layer-2 packets are passed to
+Controls whether layer2 packets are passed to
 .Nm .
 Default is no.
 .It Va net.link.bridge.ipfw : No 0
