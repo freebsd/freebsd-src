@@ -264,9 +264,7 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
-/* We currently provide no external definitions of the functions below. */
-
-static inline int
+__fenv_static inline int
 feenableexcept(int __mask)
 {
 	union __fpscr __r;
@@ -279,7 +277,7 @@ feenableexcept(int __mask)
 	return ((__oldmask & _ENABLE_MASK) << _FPUSW_SHIFT);
 }
 
-static inline int
+__fenv_static inline int
 fedisableexcept(int __mask)
 {
 	union __fpscr __r;
@@ -292,6 +290,7 @@ fedisableexcept(int __mask)
 	return ((__oldmask & _ENABLE_MASK) << _FPUSW_SHIFT);
 }
 
+/* We currently provide no external definition of fegetexcept(). */
 static inline int
 fegetexcept(void)
 {
