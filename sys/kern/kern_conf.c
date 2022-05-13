@@ -301,7 +301,6 @@ dead_strategy(struct bio *bp)
 	biofinish(bp, NULL, ENXIO);
 }
 
-#define dead_dump	(dumper_t *)enxio
 #define dead_kqfilter	(d_kqfilter_t *)enxio
 #define dead_mmap_single (d_mmap_single_t *)enodev
 
@@ -316,7 +315,6 @@ static struct cdevsw dead_cdevsw = {
 	.d_mmap =	dead_mmap,
 	.d_strategy =	dead_strategy,
 	.d_name =	"dead",
-	.d_dump =	dead_dump,
 	.d_kqfilter =	dead_kqfilter,
 	.d_mmap_single = dead_mmap_single
 };
@@ -345,8 +343,6 @@ no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 
 	return (poll_no_poll(events));
 }
-
-#define no_dump		(dumper_t *)enodev
 
 static int
 giant_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
@@ -662,7 +658,6 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 		devsw->d_mmap = dead_mmap;
 		devsw->d_mmap_single = dead_mmap_single;
 		devsw->d_strategy = dead_strategy;
-		devsw->d_dump = dead_dump;
 		devsw->d_kqfilter = dead_kqfilter;
 	}
 
@@ -700,8 +695,6 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 	FIXUP(d_strategy,	no_strategy,	giant_strategy);
 	FIXUP(d_kqfilter,	no_kqfilter,	giant_kqfilter);
 	FIXUP(d_mmap_single,	no_mmap_single,	giant_mmap_single);
-
-	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
 
 	LIST_INIT(&devsw->d_devs);
 

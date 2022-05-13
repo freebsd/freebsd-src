@@ -209,17 +209,17 @@ struct cdevsw {
 	d_poll_t		*d_poll;
 	d_mmap_t		*d_mmap;
 	d_strategy_t		*d_strategy;
-	dumper_t		*d_dump;
+	void			*d_spare0;
 	d_kqfilter_t		*d_kqfilter;
 	d_purge_t		*d_purge;
 	d_mmap_single_t		*d_mmap_single;
 
-	int32_t			d_spare0[3];
-	void			*d_spare1[3];
+	int32_t			d_spare1[3];
+	void			*d_spare2[3];
 
 	/* These fields should not be messed with by drivers */
 	LIST_HEAD(, cdev)	d_devs;
-	int			d_spare2;
+	int			d_spare3;
 	union {
 		struct cdevsw		*gianttrick;
 		SLIST_ENTRY(cdevsw)	postfree_list;
