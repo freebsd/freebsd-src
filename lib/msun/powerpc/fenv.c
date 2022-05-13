@@ -54,6 +54,8 @@ extern inline int fegetenv(fenv_t *__envp);
 extern inline int feholdexcept(fenv_t *__envp);
 extern inline int fesetenv(const fenv_t *__envp);
 extern inline int feupdateenv(const fenv_t *__envp);
+extern inline int feenableexcept(int __mask);
+extern inline int fedisableexcept(int __mask);
 
 #ifdef __SPE__
 #define	PMAX	0x7f7fffff

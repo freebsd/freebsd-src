@@ -11,3 +11,8 @@ FBSD_1.3 {
 	feholdexcept;
 	feupdateenv;
 };
+
+FBSD_1.7 {
+	feenableexcept;
+	fedisableexcept;
+};
