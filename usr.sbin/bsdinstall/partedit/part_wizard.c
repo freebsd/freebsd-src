@@ -105,7 +105,7 @@ boot_disk_select(struct gmesh *mesh)
 	const char *type, *desc;
 	char diskdesc[512];
 	char *chosen;
-	int i, button, selected, n = 0;
+	int i, button, fd, selected, n = 0;
 	struct bsddialog_conf conf;
 
 	bsddialog_initconf(&conf);
