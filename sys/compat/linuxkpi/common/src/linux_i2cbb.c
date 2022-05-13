@@ -100,6 +100,15 @@ lkpi_iicbb_add_adapter(device_t dev, struct i2c_adapter *adapter)
 	return (0);
 }
 
+static struct i2c_adapter *
+lkpi_iicbb_get_adapter(device_t dev)
+{
+	struct lkpi_iicbb_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->adapter);
+}
+
 static device_method_t lkpi_iicbb_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		lkpi_iicbb_probe),
@@ -117,6 +126,7 @@ static device_method_t lkpi_iicbb_methods[] = {
 
 	/* lkpi_iicbb interface */
 	DEVMETHOD(lkpi_iic_add_adapter,	lkpi_iicbb_add_adapter),
+	DEVMETHOD(lkpi_iic_get_adapter,	lkpi_iicbb_get_adapter),
 
 	DEVMETHOD_END
 };
