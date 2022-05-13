@@ -2427,7 +2427,7 @@ mld_v2_enqueue_group_record(struct mbufq *mq, struct in6_multi *inm,
 	m0 = mbufq_last(mq);
 	if (!is_group_query &&
 	    m0 != NULL &&
-	    (m0->m_pkthdr.PH_vt.vt_nrecs + 1 <= MLD_V2_REPORT_MAXRECS) &&
+	    (m0->m_pkthdr.vt_nrecs + 1 <= MLD_V2_REPORT_MAXRECS) &&
 	    (m0->m_pkthdr.len + minrec0len) <
 	     (ifp->if_mtu - MLD_MTUSPACE)) {
 		m0srcs = (ifp->if_mtu - m0->m_pkthdr.len -
@@ -2548,10 +2548,10 @@ mld_v2_enqueue_group_record(struct mbufq *mq, struct in6_multi *inm,
 	 */
 	if (m != m0) {
 		CTR1(KTR_MLD, "%s: enqueueing first packet", __func__);
-		m->m_pkthdr.PH_vt.vt_nrecs = 1;
+		m->m_pkthdr.vt_nrecs = 1;
 		mbufq_enqueue(mq, m);
 	} else
-		m->m_pkthdr.PH_vt.vt_nrecs++;
+		m->m_pkthdr.vt_nrecs++;
 
 	/*
 	 * No further work needed if no source list in packet(s).
@@ -2585,7 +2585,7 @@ mld_v2_enqueue_group_record(struct mbufq *mq, struct in6_multi *inm,
 			CTR1(KTR_MLD, "%s: m_append() failed.", __func__);
 			return (-ENOMEM);
 		}
-		m->m_pkthdr.PH_vt.vt_nrecs = 1;
+		m->m_pkthdr.vt_nrecs = 1;
 		nbytes += sizeof(struct mldv2_record);
 
 		m0srcs = (ifp->if_mtu - MLD_MTUSPACE -
@@ -2714,7 +2714,7 @@ mld_v2_enqueue_filter_change(struct mbufq *mq, struct in6_multi *inm)
 		do {
 			m0 = mbufq_last(mq);
 			if (m0 != NULL &&
-			    (m0->m_pkthdr.PH_vt.vt_nrecs + 1 <=
+			    (m0->m_pkthdr.vt_nrecs + 1 <=
 			     MLD_V2_REPORT_MAXRECS) &&
 			    (m0->m_pkthdr.len + MINRECLEN) <
 			     (ifp->if_mtu - MLD_MTUSPACE)) {
@@ -2733,7 +2733,7 @@ mld_v2_enqueue_filter_change(struct mbufq *mq, struct in6_multi *inm)
 					    "%s: m_get*() failed", __func__);
 					return (-ENOMEM);
 				}
-				m->m_pkthdr.PH_vt.vt_nrecs = 0;
+				m->m_pkthdr.vt_nrecs = 0;
 				mld_save_context(m, ifp);
 				m0srcs = (ifp->if_mtu - MLD_MTUSPACE -
 				    sizeof(struct mldv2_record)) /
@@ -2856,7 +2856,7 @@ mld_v2_enqueue_filter_change(struct mbufq *mq, struct in6_multi *inm)
 			 * Count the new group record, and enqueue this
 			 * packet if it wasn't already queued.
 			 */
-			m->m_pkthdr.PH_vt.vt_nrecs++;
+			m->m_pkthdr.vt_nrecs++;
 			if (m != m0)
 				mbufq_enqueue(mq, m);
 			nbytes += npbytes;
@@ -2918,8 +2918,8 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct mbufq *scq)
 		if (mt != NULL) {
 			recslen = m_length(m, NULL);
 
-			if ((mt->m_pkthdr.PH_vt.vt_nrecs +
-			    m->m_pkthdr.PH_vt.vt_nrecs <=
+			if ((mt->m_pkthdr.vt_nrecs +
+			    m->m_pkthdr.vt_nrecs <=
 			    MLD_V2_REPORT_MAXRECS) &&
 			    (mt->m_pkthdr.len + recslen <=
 			    (inm->in6m_ifp->if_mtu - MLD_MTUSPACE)))
@@ -2963,8 +2963,8 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct mbufq *scq)
 			mtl = m_last(mt);
 			m0->m_flags &= ~M_PKTHDR;
 			mt->m_pkthdr.len += recslen;
-			mt->m_pkthdr.PH_vt.vt_nrecs +=
-			    m0->m_pkthdr.PH_vt.vt_nrecs;
+			mt->m_pkthdr.vt_nrecs +=
+			    m0->m_pkthdr.vt_nrecs;
 
 			mtl->m_next = m0;
 		}
@@ -3216,8 +3216,8 @@ mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 	mld->mld_code = 0;
 	mld->mld_cksum = 0;
 	mld->mld_v2_reserved = 0;
-	mld->mld_v2_numrecs = htons(m->m_pkthdr.PH_vt.vt_nrecs);
-	m->m_pkthdr.PH_vt.vt_nrecs = 0;
+	mld->mld_v2_numrecs = htons(m->m_pkthdr.vt_nrecs);
+	m->m_pkthdr.vt_nrecs = 0;
 
 	mh->m_next = m;
 	mld->mld_cksum = in6_cksum(mh, IPPROTO_ICMPV6,
