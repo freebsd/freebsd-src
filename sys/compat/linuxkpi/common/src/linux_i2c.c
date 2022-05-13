@@ -53,6 +53,27 @@ struct lkpi_iic_softc {
 	struct i2c_adapter	*adapter;
 };
 
+static struct sx lkpi_sx_i2c;
+
+static void
+lkpi_sysinit_i2c(void *arg __unused)
+{
+
+	sx_init(&lkpi_sx_i2c, "lkpi-i2c");
+}
+
+static void
+lkpi_sysuninit_i2c(void *arg __unused)
+{
+
+	sx_destroy(&lkpi_sx_i2c);
+}
+
+SYSINIT(lkpi_i2c, SI_SUB_DRIVERS, SI_ORDER_ANY,
+    lkpi_sysinit_i2c, NULL);
+SYSUNINIT(lkpi_i2c, SI_SUB_DRIVERS, SI_ORDER_ANY,
+    lkpi_sysuninit_i2c, NULL);
+
 static int
 lkpi_iic_probe(device_t dev)
 {
@@ -98,6 +119,15 @@ lkpi_iic_add_adapter(device_t dev, struct i2c_adapter *adapter)
 	return (0);
 }
 
+static struct i2c_adapter *
+lkpi_iic_get_adapter(device_t dev)
+{
+	struct lkpi_iic_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->adapter);
+}
+
 static device_method_t lkpi_iic_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		lkpi_iic_probe),
@@ -113,6 +143,7 @@ static device_method_t lkpi_iic_methods[] = {
 
 	/* lkpi_iic interface */
 	DEVMETHOD(lkpi_iic_add_adapter,	lkpi_iic_add_adapter),
+	DEVMETHOD(lkpi_iic_get_adapter,	lkpi_iic_get_adapter),
 
 	DEVMETHOD_END
 };
@@ -177,12 +208,16 @@ lkpi_i2c_add_adapter(struct i2c_adapter *adapter)
 	device_t lkpi_iic;
 	int error;
 
+	if (adapter->name[0] == '\0')
+		return (-EINVAL);
 	if (bootverbose)
 		device_printf(adapter->dev.parent->bsddev,
 		    "Adding i2c adapter %s\n", adapter->name);
+	sx_xlock(&lkpi_sx_i2c);
 	lkpi_iic = device_add_child(adapter->dev.parent->bsddev, "lkpi_iic", -1);
 	if (lkpi_iic == NULL) {
 		device_printf(adapter->dev.parent->bsddev, "Couldn't add lkpi_iic\n");
+		sx_xunlock(&lkpi_sx_i2c);
 		return (ENXIO);
 	}
 
@@ -190,9 +225,11 @@ lkpi_i2c_add_adapter(struct i2c_adapter *adapter)
 	if (error) {
 		device_printf(adapter->dev.parent->bsddev,
 		  "failed to attach child: error %d\n", error);
+		sx_xunlock(&lkpi_sx_i2c);
 		return (ENXIO);
 	}
 	LKPI_IIC_ADD_ADAPTER(lkpi_iic, adapter);
+	sx_xunlock(&lkpi_sx_i2c);
 	return (0);
 }
 
@@ -200,18 +237,35 @@ int
 lkpi_i2c_del_adapter(struct i2c_adapter *adapter)
 {
 	device_t child;
+	int unit, rv;
 
+	if (adapter == NULL)
+		return (-EINVAL);
 	if (bootverbose)
 		device_printf(adapter->dev.parent->bsddev,
 		    "Removing i2c adapter %s\n", adapter->name);
+	sx_xlock(&lkpi_sx_i2c);
+	unit = 0;
+	while ((child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iic", unit++)) != NULL) {
 
-	child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iic", -1);
-	if (child != NULL)
-		device_delete_child(adapter->dev.parent->bsddev, child);
+		if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
+			device_delete_child(adapter->dev.parent->bsddev, child);
+			rv = 0;
+			goto out;
+		}
+	}
 
-	child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iicbb", -1);
-	if (child != NULL)
-		device_delete_child(adapter->dev.parent->bsddev, child);
+	unit = 0;
+	while ((child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iicbb", unit++)) != NULL) {
 
-	return (0);
+		if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
+			device_delete_child(adapter->dev.parent->bsddev, child);
+			rv = 0;
+			goto out;
+		}
+	}
+	rv = -EINVAL;
+out:
+	sx_xunlock(&lkpi_sx_i2c);
+	return (rv);
 }
