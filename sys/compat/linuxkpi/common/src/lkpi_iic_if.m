@@ -35,3 +35,7 @@ METHOD int add_adapter {
 	device_t dev;
 	struct i2c_adapter *adapter;
 };
+
+METHOD struct i2c_adapter * get_adapter {
+	device_t dev;
+};
