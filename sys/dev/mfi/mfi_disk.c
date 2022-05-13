@@ -315,7 +315,7 @@ mfi_disk_complete(struct bio *bio)
 }
 
 static int
-mfi_disk_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
+mfi_disk_dump(void *arg, void *virt, off_t offset, size_t len)
 {
 	struct mfi_disk *sc;
 	struct mfi_softc *parent_sc;

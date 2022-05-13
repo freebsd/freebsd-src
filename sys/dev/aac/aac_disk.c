@@ -232,7 +232,7 @@ aac_dump_map_sg64(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
  * Send out one command at a time with up to maxio of data.
  */
 static int
-aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+aac_disk_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct aac_disk *ad;
 	struct aac_softc *sc;
@@ -311,8 +311,8 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 
 		if (aac_sync_fib(sc, command, 0, fib, size)) {
 			device_printf(sc->aac_dev,
-			     "Error dumping block 0x%jx\n",
-			     (uintmax_t)physical);
+			     "Error dumping block to 0x%jx\n",
+			     (uintmax_t)offset);
 			return (EIO);
 		}
 

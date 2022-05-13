@@ -173,8 +173,7 @@ static int mmcsd_shutdown(device_t dev);
 
 /* disk routines */
 static int mmcsd_close(struct disk *dp);
-static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
-    off_t offset, size_t length);
+static int mmcsd_dump(void *arg, void *virtual, off_t offset, size_t length);
 static int mmcsd_getattr(struct bio *);
 static int mmcsd_ioctl_disk(struct disk *disk, u_long cmd, void *data,
     int fflag, struct thread *td);
@@ -1378,8 +1377,7 @@ unpause:
 }
 
 static int
-mmcsd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
-    size_t length)
+mmcsd_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct bio bp;
 	daddr_t block, end;

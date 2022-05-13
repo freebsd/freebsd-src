@@ -593,8 +593,7 @@ xbd_dump_complete(struct xbd_command *cm)
 }
 
 static int
-xbd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
-    size_t length)
+xbd_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct disk *dp = arg;
 	struct xbd_softc *sc = dp->d_drv1;

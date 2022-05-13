@@ -1915,7 +1915,7 @@ dastrategy(struct bio *bp)
 }
 
 static int
-dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+dadump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct	    cam_periph *periph;
 	struct	    da_softc *softc;
@@ -6274,7 +6274,7 @@ dashutdown(void * arg, int howto)
 			/* If we paniced with the lock held, do not recurse. */
 			if (!cam_periph_owned(periph) &&
 			    (softc->flags & DA_FLAG_OPEN)) {
-				dadump(softc->disk, NULL, 0, 0, 0);
+				dadump(softc->disk, NULL, 0, 0);
 			}
 			continue;
 		}

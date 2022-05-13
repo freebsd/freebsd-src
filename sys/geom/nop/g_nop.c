@@ -130,8 +130,7 @@ g_nop_resize(struct g_consumer *cp)
 }
 
 static int
-g_nop_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
-    size_t length)
+g_nop_dumper(void *priv, void *virtual, off_t offset, size_t length)
 {
 
 	return (0);
