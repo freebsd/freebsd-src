@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "opt_osname.h"
+
 /* Data to process */
 static const char *distdir = NULL;
 static struct archive *archive = NULL;
@@ -82,7 +84,7 @@ main(void)
 		errx(EXIT_FAILURE, "Error libbsdialog: %s",
 		    bsddialog_geterror());
 	bsddialog_initconf(&conf);
-	bsddialog_backtitle(&conf, "FreeBSD Installer");
+	bsddialog_backtitle(&conf, OSNAME " Installer");
 	bsddialog_infobox(&conf,
 	    "Checking distribution archives.\nPlease wait...", 4, 35);
 

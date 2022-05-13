@@ -35,6 +35,8 @@
 #include <inttypes.h>
 #include <fstab.h>
 
+#include "opt_osname.h"
+
 struct gprovider;
 struct gmesh;
 struct ggeom;
