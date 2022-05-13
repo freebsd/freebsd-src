@@ -130,7 +130,6 @@ typedef void d_purge_t(struct cdev *dev);
 typedef int dumper_t(
 	void *_priv,		/* Private to the driver. */
 	void *_virtual,		/* Virtual (mapped) address. */
-	vm_offset_t _physical,	/* Physical address of virtual. */
 	off_t _offset,		/* Byte-offset to write at. */
 	size_t _length);	/* Number of bytes to dump. */
 typedef int dumper_start_t(struct dumperinfo *di, void *key, uint32_t keysize);

@@ -1033,8 +1033,7 @@ g_raid_tr_kerneldump_common(struct g_raid_tr_object *tr,
 }
 
 static int
-g_raid_dump(void *arg,
-    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+g_raid_dump(void *arg, void *virtual, off_t offset, size_t length)
 {
 	struct g_raid_volume *vol;
 	int error;
@@ -1043,8 +1042,7 @@ g_raid_dump(void *arg,
 	G_RAID_DEBUG1(3, vol->v_softc, "Dumping at off %llu len %llu.",
 	    (long long unsigned)offset, (long long unsigned)length);
 
-	error = G_RAID_TR_KERNELDUMP(vol->v_tr,
-	    virtual, physical, offset, length);
+	error = G_RAID_TR_KERNELDUMP(vol->v_tr, virtual, offset, length);
 	return (error);
 }
 
@@ -1397,7 +1395,7 @@ nodisk:
 		G_RAID_LOGREQ(3, bp, "Sending dumping request.");
 		if (bp->bio_cmd == BIO_WRITE) {
 			bp->bio_error = g_raid_subdisk_kerneldump(sd,
-			    bp->bio_data, 0, bp->bio_offset, bp->bio_length);
+			    bp->bio_data, bp->bio_offset, bp->bio_length);
 		} else
 			bp->bio_error = EOPNOTSUPP;
 		g_raid_disk_done(bp);
@@ -1410,8 +1408,8 @@ nodisk:
 }
 
 int
-g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd,
-    void *virtual, vm_offset_t physical, off_t offset, size_t length)
+g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd, void *virtual,
+    off_t offset, size_t length)
 {
 
 	if (sd->sd_disk == NULL)
@@ -1419,7 +1417,7 @@ g_raid_subdisk_kerneldump(struct g_raid_subdisk *sd,
 	if (sd->sd_disk->d_kd.di.dumper == NULL)
 		return (EOPNOTSUPP);
 	return (dump_write(&sd->sd_disk->d_kd.di,
-	    virtual, physical,
+	    virtual, 0,
 	    sd->sd_disk->d_kd.di.mediaoffset + sd->sd_offset + offset,
 	    length));
 }

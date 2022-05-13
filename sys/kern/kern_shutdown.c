@@ -1709,7 +1709,7 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 	error = dump_check_bounds(di, offset, length);
 	if (error != 0)
 		return (error);
-	return (di->dumper(di->priv, virtual, physical, offset, length));
+	return (di->dumper(di->priv, virtual, offset, length));
 }
 
 /*
