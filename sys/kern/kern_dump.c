@@ -122,7 +122,7 @@ dumpsys_buf_seek(struct dumperinfo *di, size_t sz)
 	while (sz > 0) {
 		nbytes = MIN(sz, sizeof(buf));
 
-		error = dump_append(di, buf, 0, nbytes);
+		error = dump_append(di, buf, nbytes);
 		if (error)
 			return (error);
 		sz -= nbytes;
@@ -146,7 +146,7 @@ dumpsys_buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 		ptr += len;
 		sz -= len;
 		if (fragsz == di->blocksize) {
-			error = dump_append(di, di->blockbuf, 0, di->blocksize);
+			error = dump_append(di, di->blockbuf, di->blocksize);
 			if (error)
 				return (error);
 			fragsz = 0;
@@ -163,7 +163,7 @@ dumpsys_buf_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_append(di, di->blockbuf, 0, di->blocksize);
+	error = dump_append(di, di->blockbuf, di->blocksize);
 	fragsz = 0;
 	return (error);
 }
@@ -209,7 +209,7 @@ dumpsys_cb_dumpdata(struct dump_pa *mdp, int seqnr, void *arg)
 		dumpsys_map_chunk(pa, chunk, &va);
 		wdog_kern_pat(WD_LASTVAL);
 
-		error = dump_append(di, va, 0, sz);
+		error = dump_append(di, va, sz);
 		dumpsys_unmap_chunk(pa, chunk, va);
 		if (error)
 			break;
