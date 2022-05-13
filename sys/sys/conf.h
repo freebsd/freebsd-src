@@ -376,8 +376,8 @@ void dumper_ddb_insert(struct dumperinfo *);
 void dumper_ddb_remove(struct dumperinfo *);
 
 int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh);
-int dump_append(struct dumperinfo *, void *, vm_offset_t, size_t);
-int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
+int dump_append(struct dumperinfo *, void *, size_t);
+int dump_write(struct dumperinfo *, void *, off_t, size_t);
 int dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh);
 void dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
     const char *magic, uint32_t archver, uint64_t dumplen);
