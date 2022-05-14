@@ -76,7 +76,7 @@ sctp_sblog(struct sockbuf *sb, struct sctp_tcb *stcb, int from, int incr)
 	struct sctp_cwnd_log sctp_clog;
 
 	sctp_clog.x.sb.stcb = stcb;
-	sctp_clog.x.sb.so_sbcc = sb->sb_cc;
+	sctp_clog.x.sb.so_sbcc = SCTP_SBAVAIL(sb);
 	if (stcb)
 		sctp_clog.x.sb.stcb_sbcc = stcb->asoc.sb_cc;
 	else
@@ -5565,11 +5565,11 @@ sctp_sorecvmsg(struct socket *so,
 	in_eeor_mode = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTER,
-		    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, (uint32_t)uio->uio_resid);
+		    rwnd_req, in_eeor_mode, SCTP_SBAVAIL(&so->so_rcv), (uint32_t)uio->uio_resid);
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTERPL,
-		    rwnd_req, block_allowed, so->so_rcv.sb_cc, (uint32_t)uio->uio_resid);
+		    rwnd_req, block_allowed, SCTP_SBAVAIL(&so->so_rcv), (uint32_t)uio->uio_resid);
 	}
 
 	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(in_flags));
@@ -5588,21 +5588,21 @@ restart_nosblocks:
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		goto out;
 	}
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && (so->so_rcv.sb_cc == 0)) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && SCTP_SBAVAIL(&so->so_rcv) == 0) {
 		if (so->so_error) {
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0)
 				so->so_error = 0;
 			goto out;
 		} else {
-			if (so->so_rcv.sb_cc == 0) {
+			if (SCTP_SBAVAIL(&so->so_rcv) == 0) {
 				/* indicate EOF */
 				error = 0;
 				goto out;
 			}
 		}
 	}
-	if (so->so_rcv.sb_cc <= held_length) {
+	if (SCTP_SBAVAIL(&so->so_rcv) <= held_length) {
 		if (so->so_error) {
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0) {
@@ -5610,7 +5610,7 @@ restart_nosblocks:
 			}
 			goto out;
 		}
-		if ((so->so_rcv.sb_cc == 0) &&
+		if ((SCTP_SBAVAIL(&so->so_rcv) == 0) &&
 		    ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
@@ -5670,7 +5670,7 @@ restart_nosblocks:
 			SCTP_INP_READ_LOCK(inp);
 		}
 		control = TAILQ_FIRST(&inp->read_queue);
-		if ((control == NULL) && (so->so_rcv.sb_cc != 0)) {
+		if ((control == NULL) && (SCTP_SBAVAIL(&so->so_rcv) > 0)) {
 #ifdef INVARIANTS
 			panic("Huh, its non zero and nothing on control?");
 #endif
@@ -5805,8 +5805,8 @@ restart_nosblocks:
 		 * <or> fragment interleave is NOT on. So stuff the sb_cc
 		 * into the our held count, and its time to sleep again.
 		 */
-		held_length = so->so_rcv.sb_cc;
-		control->held_length = so->so_rcv.sb_cc;
+		held_length = SCTP_SBAVAIL(&so->so_rcv);
+		control->held_length = SCTP_SBAVAIL(&so->so_rcv);
 		goto restart;
 	}
 	/* Clear the held length since there is something to read */
@@ -6255,7 +6255,7 @@ wait_some_more:
 		    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE))) {
 			goto release;
 		}
-		if (so->so_rcv.sb_cc <= control->held_length) {
+		if (SCTP_SBAVAIL(&so->so_rcv) <= control->held_length) {
 			error = sbwait(so, SO_RCV);
 			if (error) {
 				goto release;
@@ -6282,8 +6282,8 @@ wait_some_more:
 				}
 				goto done_with_control;
 			}
-			if (so->so_rcv.sb_cc > held_length) {
-				control->held_length = so->so_rcv.sb_cc;
+			if (SCTP_SBAVAIL(&so->so_rcv) > held_length) {
+				control->held_length = SCTP_SBAVAIL(&so->so_rcv);
 				held_length = 0;
 			}
 			goto wait_some_more;
@@ -6432,13 +6432,13 @@ out:
 			    freed_so_far,
 			    (uint32_t)((uio) ? (slen - uio->uio_resid) : slen),
 			    stcb->asoc.my_rwnd,
-			    so->so_rcv.sb_cc);
+			    SCTP_SBAVAIL(&so->so_rcv));
 		} else {
 			sctp_misc_ints(SCTP_SORECV_DONE,
 			    freed_so_far,
 			    (uint32_t)((uio) ? (slen - uio->uio_resid) : slen),
 			    0,
-			    so->so_rcv.sb_cc);
+			    SCTP_SBAVAIL(&so->so_rcv));
 		}
 	}
 stage_left:
