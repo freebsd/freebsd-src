@@ -605,8 +605,8 @@ debugnet_free(struct debugnet_pcb *pcb)
 {
 	struct ifnet *ifp;
 
-	MPASS(g_debugnet_pcb_inuse);
 	MPASS(pcb == &g_dnet_pcb);
+	MPASS(pcb->dp_drv_input == NULL || g_debugnet_pcb_inuse);
 
 	ifp = pcb->dp_ifp;
 	if (ifp != NULL) {
@@ -646,6 +646,7 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		.dp_seqno = 1,
 		.dp_ifp = dcp->dc_ifp,
 		.dp_rx_handler = dcp->dc_rx_handler,
+		.dp_drv_input = NULL,
 	};
 
 	/* Switch to the debugnet mbuf zones. */
