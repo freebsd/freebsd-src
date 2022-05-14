@@ -541,8 +541,8 @@ sctp_process_asconf_set_primary(struct sockaddr *src,
 		/* notify upper layer */
 		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_SET_PRIMARY, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
 		if ((stcb->asoc.primary_destination->dest_state & SCTP_ADDR_REACHABLE) &&
-		    (!(stcb->asoc.primary_destination->dest_state & SCTP_ADDR_PF)) &&
-		    (stcb->asoc.alternate)) {
+		    ((stcb->asoc.primary_destination->dest_state & SCTP_ADDR_PF) == 0) &&
+		    (stcb->asoc.alternate != NULL)) {
 			sctp_free_remote_addr(stcb->asoc.alternate);
 			stcb->asoc.alternate = NULL;
 		}
