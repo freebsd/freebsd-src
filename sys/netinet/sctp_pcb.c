@@ -3504,8 +3504,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		}
 	}
 	inp->sctp_socket = NULL;
-	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) !=
-	    SCTP_PCB_FLAGS_UNBOUND) {
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) == 0) {
 		/*
 		 * ok, this guy has been bound. It's port is somewhere in
 		 * the SCTP_BASE_INFO(hash table). Remove it!
@@ -4265,7 +4264,7 @@ sctp_aloc_assoc_locked(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			    (sin->sin_addr.s_addr == INADDR_ANY) ||
 			    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
 			    IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) ||
-			    (((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) != 0) &&
+			    ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
 			    (SCTP_IPV6_V6ONLY(inp) != 0))) {
 				/* Invalid address */
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
@@ -6687,7 +6686,8 @@ sctp_set_primary_addr(struct sctp_tcb *stcb, struct sockaddr *sa,
 			return (0);
 		}
 		stcb->asoc.primary_destination = net;
-		if (!(net->dest_state & SCTP_ADDR_PF) && (stcb->asoc.alternate)) {
+		if (((net->dest_state & SCTP_ADDR_PF) == 0) &&
+		    (stcb->asoc.alternate != NULL)) {
 			sctp_free_remote_addr(stcb->asoc.alternate);
 			stcb->asoc.alternate = NULL;
 		}

@@ -4157,7 +4157,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 				 * count, this is optional.
 				 */
 				net->error_count = 0;
-				if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
+				if ((net->dest_state & SCTP_ADDR_REACHABLE) == 0) {
 					/* addr came good */
 					net->dest_state |= SCTP_ADDR_REACHABLE;
 					sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
@@ -4900,7 +4900,7 @@ hopeless_peer:
 				 * count, this is optional.
 				 */
 				net->error_count = 0;
-				if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
+				if ((net->dest_state & SCTP_ADDR_REACHABLE) == 0) {
 					/* addr came good */
 					net->dest_state |= SCTP_ADDR_REACHABLE;
 					sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,

@@ -1422,8 +1422,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		}
 	}
 #endif				/* INET6 */
-	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
-	    SCTP_PCB_FLAGS_UNBOUND) {
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
 		error = sctp_inpcb_bind(so, NULL, NULL, p);
 		if (error) {
@@ -5327,8 +5326,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				if (net != NULL) {
 					/************************NET SPECIFIC SET ******************/
 					if (paddrp->spp_flags & SPP_HB_DISABLE) {
-						if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
-						    !(net->dest_state & SCTP_ADDR_NOHB)) {
+						if (((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) &&
+						    ((net->dest_state & SCTP_ADDR_NOHB) == 0)) {
 							sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net,
 							    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_9);
 						}
@@ -5484,9 +5483,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					}
 					if (paddrp->spp_flags & SPP_HB_DISABLE) {
 						TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-							if (!(net->dest_state & SCTP_ADDR_NOHB)) {
+							if ((net->dest_state & SCTP_ADDR_NOHB) == 0) {
 								net->dest_state |= SCTP_ADDR_NOHB;
-								if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+								if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) {
 									sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT,
 									    inp, stcb, net,
 									    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_15);
@@ -5800,11 +5799,11 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			if ((stcb != NULL) && (net != NULL)) {
 				if (net != stcb->asoc.primary_destination) {
-					if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+					if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) {
 						/* Ok we need to set it */
 						if (sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net) == 0) {
 							if ((stcb->asoc.alternate) &&
-							    (!(net->dest_state & SCTP_ADDR_PF)) &&
+							    ((net->dest_state & SCTP_ADDR_PF) == 0) &&
 							    (net->dest_state & SCTP_ADDR_REACHABLE)) {
 								sctp_free_remote_addr(stcb->asoc.alternate);
 								stcb->asoc.alternate = NULL;
@@ -7015,8 +7014,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		goto out_now;
 	}
 #endif
-	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
-	    SCTP_PCB_FLAGS_UNBOUND) {
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
 		error = sctp_inpcb_bind(so, NULL, NULL, p);
 		if (error) {

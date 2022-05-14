@@ -2844,8 +2844,7 @@ sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 #ifdef INET6
 		if (stcb && fam == AF_INET6 &&
 		    sctp_is_mobility_feature_on(stcb->sctp_ep, SCTP_MOBILITY_BASE)) {
-			if (sctp_v6src_match_nexthop(&sifa->address.sin6, ro)
-			    == 0) {
+			if (sctp_v6src_match_nexthop(&sifa->address.sin6, ro) == 0) {
 				continue;
 			}
 		}
@@ -7869,7 +7868,7 @@ nothing_to_send:
 			net->window_probe = 0;
 			if ((net != stcb->asoc.alternate) &&
 			    ((net->dest_state & SCTP_ADDR_PF) ||
-			    (!(net->dest_state & SCTP_ADDR_REACHABLE)) ||
+			    ((net->dest_state & SCTP_ADDR_REACHABLE) == 0) ||
 			    (net->dest_state & SCTP_ADDR_UNCONFIRMED))) {
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 					sctp_log_cwnd(stcb, net, 1,
@@ -10035,7 +10034,7 @@ do_it_again:
 #endif
 	/* Check for bad destinations, if they exist move chunks around. */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
+		if ((net->dest_state & SCTP_ADDR_REACHABLE) == 0) {
 			/*-
 			 * if possible move things off of this address we
 			 * still may send below due to the dormant state but
@@ -10496,7 +10495,7 @@ sctp_send_sack(struct sctp_tcb *stcb, int so_locked)
 	a_chk->sent = SCTP_DATAGRAM_UNSENT;
 	a_chk->whoTo = NULL;
 
-	if (!(asoc->last_data_chunk_from->dest_state & SCTP_ADDR_REACHABLE)) {
+	if ((asoc->last_data_chunk_from->dest_state & SCTP_ADDR_REACHABLE) == 0) {
 		/*-
 		 * Ok, the destination for the SACK is unreachable, lets see if
 		 * we can select an alternate to asoc->last_data_chunk_from
