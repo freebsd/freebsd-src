@@ -452,6 +452,10 @@ netdump_configure(struct diocskerneldump_arg *conf, struct thread *td)
 		CURVNET_SET(vnet0);
 		ifp = ifunit_ref(conf->kda_iface);
 		CURVNET_RESTORE();
+		if (!DEBUGNET_SUPPORTED_NIC(ifp)) {
+			if_rele(ifp);
+			return (ENODEV);
+		}
 	} else
 		ifp = NULL;
 
