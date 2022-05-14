@@ -2300,7 +2300,8 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		} else {
 			to_ticks = UINT32_MAX;
 		}
-		if (((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) &&
+		if (!((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
+		    (net->dest_state & SCTP_ADDR_REACHABLE)) &&
 		    ((net->dest_state & SCTP_ADDR_PF) == 0)) {
 			if (net->heart_beat_delay < (UINT32_MAX - to_ticks)) {
 				to_ticks += net->heart_beat_delay;
