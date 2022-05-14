@@ -145,7 +145,11 @@ CFLAGS.gcc+= --param large-function-growth=1000
 # share/mk/src.sys.mk, but the following is important for out-of-tree modules
 # (e.g. ports).
 CFLAGS+=	-fno-common
-LDFLAGS+=	-d -warn-common
+.if ${LINKER_TYPE} != "lld" || ${LINKER_VERSION} < 140000
+# lld >= 14 warns that -d is deprecated, and will be removed.
+LDFLAGS+=	-d
+.endif
+LDFLAGS+=	-warn-common
 
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mbuild-id}
 LDFLAGS+=	--build-id=sha1
@@ -247,7 +251,7 @@ ${KMOD}.kld: ${OBJS} ${BLOB_OBJS}
 .else
 ${FULLPROG}: ${OBJS} ${BLOB_OBJS}
 .endif
-	${LD} -m ${LD_EMULATION} ${_LDFLAGS} ${LDSCRIPT_FLAGS} -r -d \
+	${LD} -m ${LD_EMULATION} ${_LDFLAGS} ${LDSCRIPT_FLAGS} -r \
 	    -o ${.TARGET} ${OBJS} ${BLOB_OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} ${BLOB_OBJS}
