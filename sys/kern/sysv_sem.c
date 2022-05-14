@@ -606,7 +606,7 @@ sem_find_prison(struct ucred *cred)
 	prison_lock(pr);
 	rpr = osd_jail_get(pr, sem_prison_slot);
 	prison_unlock(pr);
-	return rpr;
+	return (rpr);
 }
 
 static int
