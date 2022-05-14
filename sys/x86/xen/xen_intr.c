@@ -410,7 +410,7 @@ static int
 xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
     enum evtchn_type type, const char *intr_owner, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags,
-    xen_intr_handle_t *port_handlep)
+    xen_intr_handle_t *const port_handlep)
 {
 	struct xenisrc *isrc;
 	int error;
@@ -420,6 +420,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		printf("%s: %s: Bad event handle\n", intr_owner, __func__);
 		return (EINVAL);
 	}
+	*port_handlep = NULL;
 
 	mtx_lock(&xen_intr_isrc_lock);
 	isrc = xen_intr_find_unused_isrc(type);
@@ -436,9 +437,6 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	refcount_init(&isrc->xi_refcount, 1);
 	mtx_unlock(&xen_intr_isrc_lock);
 
-	/* Assign the opaque handler */
-	*port_handlep = xen_intr_handle_from_isrc(isrc);
-
 #ifdef SMP
 	if (type == EVTCHN_TYPE_PORT) {
 		/*
@@ -450,23 +448,23 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	}
 #endif
 
-	if (filter == NULL && handler == NULL) {
-		/*
-		 * No filter/handler provided, leave the event channel
-		 * masked and without a valid handler, the caller is
-		 * in charge of setting that up.
-		 */
-		*isrcp = isrc;
-		return (0);
+	/*
+	 * If a filter or handler function is provided, add it to the event.
+	 * Otherwise the event channel is left masked and without a handler,
+	 * the caller is in charge of setting that up.
+	 */
+	if (filter != NULL || handler != NULL) {
+		error = xen_intr_add_handler(intr_owner, filter, handler, arg,
+		    flags, xen_intr_handle_from_isrc(isrc));
+		if (error != 0) {
+			xen_intr_release_isrc(isrc);
+			return (error);
+		}
 	}
 
-	error = xen_intr_add_handler(intr_owner, filter, handler, arg, flags,
-	    *port_handlep);
-	if (error != 0) {
-		xen_intr_release_isrc(isrc);
-		return (error);
-	}
 	*isrcp = isrc;
+	/* Assign the opaque handler */
+	*port_handlep = xen_intr_handle_from_isrc(isrc);
 	return (0);
 }
 
