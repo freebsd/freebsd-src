@@ -187,6 +187,25 @@ find_gateway(const char *ifname)
 }
 
 static void
+check_link_status(const char *ifname)
+{
+	struct ifaddrs *ifap, *ifa;
+
+	if (getifaddrs(&ifap) != 0)
+		err(EX_OSERR, "getifaddrs");
+
+	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+		if (strcmp(ifname, ifa->ifa_name) != 0)
+			continue;
+		if ((ifa->ifa_flags & IFF_UP) == 0) {
+			warnx("warning: %s's link is down", ifname);
+		}
+		break;
+	}
+	freeifaddrs(ifap);
+}
+
+static void
 check_size(int fd, const char *fn)
 {
 	int name[] = { CTL_HW, HW_PHYSMEM };
@@ -659,6 +678,9 @@ main(int argc, char *argv[])
 		else
 			error = errno;
 	}
+	/* Emit a warning if the user configured a downed interface. */
+	if (error == 0 && netdump)
+		check_link_status(kdap->kda_iface);
 	explicit_bzero(kdap->kda_encryptedkey, kdap->kda_encryptedkeysize);
 	free(kdap->kda_encryptedkey);
 	explicit_bzero(kdap, sizeof(*kdap));
@@ -669,10 +691,7 @@ main(int argc, char *argv[])
 			 * errors, especially as users don't have any great
 			 * discoverability into which NICs support netdump.
 			 */
-			if (error == ENXIO)
-				errx(EX_OSERR, "Unable to configure netdump "
-				    "because the interface's link is down.");
-			else if (error == ENODEV)
+			if (error == ENODEV)
 				errx(EX_OSERR, "Unable to configure netdump "
 				    "because the interface driver does not yet "
 				    "support netdump.");
