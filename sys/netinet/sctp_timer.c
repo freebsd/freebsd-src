@@ -107,7 +107,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			}
 		} else if ((net->pf_threshold < net->failure_threshold) &&
 		    (net->error_count > net->pf_threshold)) {
-			if (!(net->dest_state & SCTP_ADDR_PF)) {
+			if ((net->dest_state & SCTP_ADDR_PF) == 0) {
 				net->dest_state |= SCTP_ADDR_PF;
 				net->last_active = sctp_get_tick_count();
 				sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
@@ -355,7 +355,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		}
 		if (((alt->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE) &&
 		    (alt->ro.ro_nh != NULL) &&
-		    (!(alt->dest_state & SCTP_ADDR_UNCONFIRMED)) &&
+		    ((alt->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) &&
 		    (alt != net)) {
 			/* Found an alternate net, which is reachable. */
 			break;
@@ -385,7 +385,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 					break;
 				}
 			}
-			if ((!(alt->dest_state & SCTP_ADDR_UNCONFIRMED)) &&
+			if (((alt->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) &&
 			    (alt != net)) {
 				/*
 				 * Found an alternate net, which is
@@ -931,7 +931,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 	/* Backoff the timer and cwnd */
 	sctp_backoff_on_timeout(stcb, net, win_probe, num_mk, num_abandoned);
-	if ((!(net->dest_state & SCTP_ADDR_REACHABLE)) ||
+	if (((net->dest_state & SCTP_ADDR_REACHABLE) == 0) ||
 	    (net->dest_state & SCTP_ADDR_PF)) {
 		/* Move all pending over too */
 		sctp_move_chunks_from_net(stcb, net);
@@ -940,7 +940,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		 * Get the address that failed, to force a new src address
 		 * selection and a route allocation.
 		 */
-		if (net->ro._s_addr) {
+		if (net->ro._s_addr != NULL) {
 			sctp_free_ifa(net->ro._s_addr);
 			net->ro._s_addr = NULL;
 		}
@@ -958,7 +958,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			 * change-primary then this flag must be cleared
 			 * from any net structures.
 			 */
-			if (stcb->asoc.alternate) {
+			if (stcb->asoc.alternate != NULL) {
 				sctp_free_remote_addr(stcb->asoc.alternate);
 			}
 			stcb->asoc.alternate = alt;
@@ -1157,7 +1157,7 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 			atomic_add_int(&alt->ref_count, 1);
 		}
 	}
-	if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
+	if ((net->dest_state & SCTP_ADDR_REACHABLE) == 0) {
 		/*
 		 * If the address went un-reachable, we need to move to
 		 * alternates for ALL chk's in queue
@@ -1253,7 +1253,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			chk->sent = SCTP_DATAGRAM_RESEND;
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 		}
-		if (!(net->dest_state & SCTP_ADDR_REACHABLE)) {
+		if ((net->dest_state & SCTP_ADDR_REACHABLE) == 0) {
 			/*
 			 * If the address went un-reachable, we need to move
 			 * to the alternate for ALL chunks in queue
@@ -1411,15 +1411,11 @@ int
 sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-	uint8_t net_was_pf;
+	bool net_was_pf;
 
-	if (net->dest_state & SCTP_ADDR_PF) {
-		net_was_pf = 1;
-	} else {
-		net_was_pf = 0;
-	}
+	net_was_pf = (net->dest_state & SCTP_ADDR_PF) != 0;
 	if (net->hb_responded == 0) {
-		if (net->ro._s_addr) {
+		if (net->ro._s_addr != NULL) {
 			/*
 			 * Invalidate the src address if we did not get a
 			 * response last time.
@@ -1435,7 +1431,7 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 	}
 	/* Zero PBA, if it needs it */
-	if (net->partial_bytes_acked) {
+	if (net->partial_bytes_acked > 0) {
 		net->partial_bytes_acked = 0;
 	}
 	if ((stcb->asoc.total_output_queue_size > 0) &&
@@ -1443,11 +1439,11 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    (TAILQ_EMPTY(&stcb->asoc.sent_queue))) {
 		sctp_audit_stream_queues_for_size(inp, stcb);
 	}
-	if (!(net->dest_state & SCTP_ADDR_NOHB) &&
-	    !((net_was_pf == 0) && (net->dest_state & SCTP_ADDR_PF))) {
+	if (((net->dest_state & SCTP_ADDR_NOHB) == 0) &&
+	    (net_was_pf || ((net->dest_state & SCTP_ADDR_PF) == 0))) {
 		/*
-		 * when move to PF during threshold management, a HB has
-		 * been queued in that routine
+		 * When moving to PF during threshold management, a HB has
+		 * been queued in that routine.
 		 */
 		uint32_t ms_gone_by;
 
