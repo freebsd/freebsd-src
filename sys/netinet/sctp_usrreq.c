@@ -545,7 +545,7 @@ sctp_close(struct socket *so)
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
 		inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP;
 		if (((so->so_options & SO_LINGER) && (so->so_linger == 0)) ||
-		    (so->so_rcv.sb_cc > 0)) {
+		    (SCTP_SBAVAIL(&so->so_rcv) > 0)) {
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, NULL, 13);
 #endif
@@ -707,9 +707,8 @@ sctp_disconnect(struct socket *so)
 				return (0);
 			}
 			NET_EPOCH_ENTER(et);
-			if (((so->so_options & SO_LINGER) &&
-			    (so->so_linger == 0)) ||
-			    (so->so_rcv.sb_cc > 0)) {
+			if (((so->so_options & SO_LINGER) && (so->so_linger == 0)) ||
+			    (SCTP_SBAVAIL(&so->so_rcv) > 0)) {
 				if (SCTP_GET_STATE(stcb) != SCTP_STATE_COOKIE_WAIT) {
 					/* Left with Data unread */
 					struct mbuf *op_err;

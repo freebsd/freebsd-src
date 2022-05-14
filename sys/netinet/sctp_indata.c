@@ -1942,7 +1942,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 * When we have NO room in the rwnd we check to make sure
 		 * the reader is doing its job...
 		 */
-		if (stcb->sctp_socket->so_rcv.sb_cc) {
+		if (SCTP_SBAVAIL(&stcb->sctp_socket->so_rcv) > 0) {
 			/* some to read, wake-up */
 			sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
 		}
