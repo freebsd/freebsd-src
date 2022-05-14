@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2022
+.Dd May 14, 2022
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -851,10 +851,6 @@ The
 system and this manual page were written by
 .An Jonathan Lemon Aq Mt jlemon@FreeBSD.org .
 .Sh BUGS
-The
-.Fa timeout
-value is limited to 24 hours; longer timeouts will be silently
-reinterpreted as 24 hours.
 .Pp
 In versions older than
 .Fx 12.0 ,
