@@ -183,8 +183,8 @@ struct linux32_ps_strings {
 				    sizeof(struct linux32_ps_strings))
 
 LINUX_VDSO_SYM_INTPTR(__kernel_vsyscall);
-LINUX_VDSO_SYM_INTPTR(__kernel_sigreturn);
-LINUX_VDSO_SYM_INTPTR(__kernel_rt_sigreturn);
+LINUX_VDSO_SYM_INTPTR(linux32_vdso_sigcode);
+LINUX_VDSO_SYM_INTPTR(linux32_vdso_rt_sigcode);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
 LINUX_VDSO_SYM_INTPTR(kern_tsc_selector);
 LINUX_VDSO_SYM_INTPTR(kern_cpu_selector);
@@ -367,7 +367,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Build context to run handler in. */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = __kernel_rt_sigreturn;
+	regs->tf_rip = linux32_vdso_rt_sigcode;
 	regs->tf_rdi = PTROUT(catcher);
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
@@ -473,7 +473,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Build context to run handler in. */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = __kernel_sigreturn;
+	regs->tf_rip = linux32_vdso_sigcode;
 	regs->tf_rdi = PTROUT(catcher);
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;

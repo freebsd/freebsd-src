@@ -14,30 +14,96 @@ linux_platform:
 .text
 .code32
 
-ENTRY(__kernel_sigreturn)
+ENTRY(linux32_vdso_sigcode)
+	.cfi_startproc
+	.cfi_signal_frame
+	.cfi_def_cfa	%esp, LINUX_SIGF_SC
+	.cfi_offset	%gs, L_SC_GS
+	.cfi_offset	%fs, L_SC_FS
+	.cfi_offset	%es, L_SC_ES
+	.cfi_offset	%ds, L_SC_DS
+	.cfi_offset	%cs, L_SC_CS
+	.cfi_offset	%ss, L_SC_SS
+	.cfi_offset	%flags, L_SC_EFLAGS
+	.cfi_offset	%edi, L_SC_EDI
+	.cfi_offset	%esi, L_SC_ESI
+	.cfi_offset	%ebp, L_SC_EBP
+	.cfi_offset	%ebx, L_SC_EBX
+	.cfi_offset	%edx, L_SC_EDX
+	.cfi_offset	%ecx, L_SC_ECX
+	.cfi_offset	%eax, L_SC_EAX
+	.cfi_offset	%eip, L_SC_EIP
+	.cfi_offset	%esp, L_SC_ESP
+
 	movl	%esp, %ebx			/* sigframe for sigreturn */
 	call	*%edi				/* call signal handler */
-.startsigcode:
+	popl	%eax				/* gcc unwind code need this */
+	.cfi_def_cfa	%esp, LINUX_SIGF_SC-4
+	movl	$LINUX32_SYS_linux_sigreturn, %eax
+	int	$0x80
+0:	jmp	0b
+	.cfi_endproc
+END(linux32_vdso_sigcode)
+
+
+ENTRY(linux32_vdso_rt_sigcode)
+	.cfi_startproc
+	.cfi_signal_frame
+	.cfi_def_cfa	%esp, LINUX_RT_SIGF_UC + LINUX_RT_SIGF_SC
+	.cfi_offset	%gs, L_SC_GS
+	.cfi_offset	%fs, L_SC_FS
+	.cfi_offset	%es, L_SC_ES
+	.cfi_offset	%ds, L_SC_DS
+	.cfi_offset	%cs, L_SC_CS
+	.cfi_offset	%ss, L_SC_SS
+	.cfi_offset	%flags, L_SC_EFLAGS
+	.cfi_offset	%edi, L_SC_EDI
+	.cfi_offset	%esi, L_SC_ESI
+	.cfi_offset	%ebp, L_SC_EBP
+	.cfi_offset	%ebx, L_SC_EBX
+	.cfi_offset	%edx, L_SC_EDX
+	.cfi_offset	%ecx, L_SC_ECX
+	.cfi_offset	%eax, L_SC_EAX
+	.cfi_offset	%eip, L_SC_EIP
+	.cfi_offset	%esp, L_SC_ESP
+
+	leal	LINUX_RT_SIGF_UC(%esp), %ebx	/* linux ucontext for rt_sigreturn */
+	call	*%edi				/* call signal handler */
+	movl	$LINUX32_SYS_linux_rt_sigreturn, %eax
+	int	$0x80
+0:	jmp	0b
+	.cfi_endproc
+END(linux32_vdso_rt_sigcode)
+
+ENTRY(__kernel_sigreturn)
+	.cfi_startproc
+	.cfi_signal_frame
+	movl	%esp, %ebx			/* sigframe for sigreturn */
+	call	*%edi				/* call signal handler */
 	popl	%eax				/* gcc unwind code need this */
 	movl	$LINUX32_SYS_linux_sigreturn, %eax
 	int	$0x80
-.endsigcode:
 0:	jmp	0b
+	.cfi_endproc
+END(__kernel_sigreturn)
 
 ENTRY(__kernel_rt_sigreturn)
+	.cfi_startproc
+	.cfi_signal_frame
 	leal	LINUX_RT_SIGF_UC(%esp), %ebx	/* linux ucontext for rt_sigreturn */
 	call	*%edi				/* call signal handler */
-.startrtsigcode:
 	movl	$LINUX32_SYS_linux_rt_sigreturn, %eax
 	int	$0x80
-.endrtsigcode:
 0:	jmp	0b
+	.cfi_endproc
+END(__kernel_rt_sigreturn)
 
 ENTRY(__kernel_vsyscall)
-.startvsyscall:
+	.cfi_startproc
 	int $0x80
 	ret
-.endvsyscall:
+	.cfi_endproc
+END(__kernel_vsyscall)
 
 #if 0
 	.section .note.Linux, "a",@note
@@ -55,86 +121,3 @@ ENTRY(__kernel_vsyscall)
 	.balign 4
 	.previous
 #endif
-
-#define do_cfa_expr(offset)						\
-	.byte 0x0f;			/* DW_CFA_def_cfa_expression */	\
-	.uleb128 11f-10f;		/*   length */			\
-10:	.byte 0x74;			/*     DW_OP_breg4 */		\
-	.sleb128 offset;		/*      offset */		\
-	.byte 0x06;			/*     DW_OP_deref */		\
-11:
-
-
-	/* CIE */
-	.section .eh_frame,"a",@progbits
-.LSTARTFRAMEDLSI1:
-	.long .LENDCIEDLSI1-.LSTARTCIEDLSI1
-.LSTARTCIEDLSI1:
-	.long 0					/* CIE ID */
-	.byte 1					/* Version number */
-	.string "zRS"				/* NULL-terminated
-						 * augmentation string
-						 */
-	.uleb128 1				/* Code alignment factor */
-	.sleb128 -4				/* Data alignment factor */
-	.byte 8					/* Return address
-						 * register column
-						 */
-	.uleb128 1				/* Augmentation value length */
-	.byte 0x1b				/* DW_EH_PE_pcrel|DW_EH_PE_sdata4. */
-	.byte 0					/* DW_CFA_nop */
-	.align 4
-.LENDCIEDLSI1:
-
-	/* FDE */
-	.long .LENDFDEDLSI1-.LSTARTFDEDLSI1	/* Length FDE */
-.LSTARTFDEDLSI1:
-	.long .LSTARTFDEDLSI1-.LSTARTFRAMEDLSI1 /* CIE pointer */
-	.long .startsigcode-.			/* PC-relative start address */
-	.long .endsigcode-.startsigcode
-	.uleb128 0				/* Augmentation */
-	do_cfa_expr(LINUX_SIGF_SC-8)
-	.align 4
-.LENDFDEDLSI1:
-
-	.long .LENDFDEDLSI2-.LSTARTFDEDLSI2	/* Length FDE */
-.LSTARTFDEDLSI2:
-	.long .LSTARTFDEDLSI2-.LSTARTFRAMEDLSI1	/* CIE pointer */
-	.long .startrtsigcode-.			/* PC-relative start address */
-	.long .endrtsigcode-.startrtsigcode
-	.uleb128 0				/* Augmentation */
-	do_cfa_expr(LINUX_RT_SIGF_SC-4+LINUX_SC_ESP)
-	.align 4
-.LENDFDEDLSI2:
-	.previous
-
-	.section .eh_frame,"a",@progbits
-.LSTARTFRAMEDLSI2:
-	.long .LENDCIEDLSI2-.LSTARTCIEDLSI2
-.LSTARTCIEDLSI2:
-	.long 0					/* CIE ID */
-	.byte 1					/* Version number */
-	.string "zR"				/* NULL-terminated
-						 * augmentation string
-						 */
-	.uleb128 1				/* Code alignment factor */
-	.sleb128 -4				/* Data alignment factor */
-	.byte 8					/* Return address register column */
-	.uleb128 1				/* Augmentation value length */
-	.byte 0x1b				/* DW_EH_PE_pcrel|DW_EH_PE_sdata4. */
-	.byte 0x0c				/* DW_CFA_def_cfa */
-	.uleb128 4
-	.uleb128 4
-	.byte 0x88				/* DW_CFA_offset, column 0x8 */
-	.uleb128 1
-	.align 4
-.LENDCIEDLSI2:
-	.long .LENDFDEDLSI3-.LSTARTFDEDLSI3 /* Length FDE */
-.LSTARTFDEDLSI3:
-	.long .LSTARTFDEDLSI3-.LSTARTFRAMEDLSI2 /* CIE pointer */
-	.long .startvsyscall-.			/* PC-relative start address */
-	.long .endvsyscall-.startvsyscall
-	.uleb128 0
-	.align 4
-.LENDFDEDLSI3:
-	.previous
