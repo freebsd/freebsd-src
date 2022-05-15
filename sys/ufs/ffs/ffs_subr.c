@@ -253,7 +253,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	fs = *fsp;
 	if (fs->fs_magic == FS_BAD_MAGIC)
 		return (EINVAL);
-	if (((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
+	if (!(((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
 	      sblockloc <= SBLOCK_UFS1)) ||
 	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
 	      sblockloc == fs->fs_sblockloc))) &&
@@ -261,54 +261,53 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	    fs->fs_bsize >= MINBSIZE &&
 	    fs->fs_bsize <= MAXBSIZE &&
 	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
-	    fs->fs_sbsize <= SBLOCKSIZE) {
-		/*
-		 * If the filesystem has been run on a kernel without
-		 * metadata check hashes, disable them.
-		 */
-		if ((fs->fs_flags & FS_METACKHASH) == 0)
-			fs->fs_metackhash = 0;
-		/*
-		 * Clear any check-hashes that are not maintained
-		 * by this kernel. Also clear any unsupported flags.
-		 */
-		fs->fs_metackhash &= CK_SUPPORTED;
-		fs->fs_flags &= FS_SUPPORTED;
-		if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
-			if (chkhash == STDSB_NOMSG)
-				return (EINTEGRITY);
-			if (chkhash == STDSB_NOHASHFAIL_NOMSG)
-				return (0);
-#ifdef _KERNEL
-			res = uprintf("Superblock check-hash failed: recorded "
-			    "check-hash 0x%x != computed check-hash 0x%x%s\n",
-			    fs->fs_ckhash, ckhash,
-			    chkhash == STDSB_NOHASHFAIL ? " (Ignored)" : "");
-#else
-			res = 0;
-#endif
-			/*
-			 * Print check-hash failure if no controlling terminal
-			 * in kernel or always if in user-mode (libufs).
-			 */
-			if (res == 0)
-				printf("Superblock check-hash failed: recorded "
-				    "check-hash 0x%x != computed check-hash "
-				    "0x%x%s\n", fs->fs_ckhash, ckhash,
-				    chkhash == STDSB_NOHASHFAIL ?
-				    " (Ignored)" : "");
-			if (chkhash == STDSB)
-				return (EINTEGRITY);
-			/* chkhash == STDSB_NOHASHFAIL */
+	    fs->fs_sbsize <= SBLOCKSIZE))
+		return (ENOENT);
+	/*
+	 * If the filesystem has been run on a kernel without
+	 * metadata check hashes, disable them.
+	 */
+	if ((fs->fs_flags & FS_METACKHASH) == 0)
+		fs->fs_metackhash = 0;
+	/*
+	 * Clear any check-hashes that are not maintained
+	 * by this kernel. Also clear any unsupported flags.
+	 */
+	fs->fs_metackhash &= CK_SUPPORTED;
+	fs->fs_flags &= FS_SUPPORTED;
+	if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
+		if (chkhash == STDSB_NOMSG)
+			return (EINTEGRITY);
+		if (chkhash == STDSB_NOHASHFAIL_NOMSG)
 			return (0);
-		}
-		/* Have to set for old filesystems that predate this field */
-		fs->fs_sblockactualloc = sblockloc;
-		/* Not yet any summary information */
-		fs->fs_si = NULL;
+#ifdef _KERNEL
+		res = uprintf("Superblock check-hash failed: recorded "
+		    "check-hash 0x%x != computed check-hash 0x%x%s\n",
+		    fs->fs_ckhash, ckhash,
+		    chkhash == STDSB_NOHASHFAIL ? " (Ignored)" : "");
+#else
+		res = 0;
+#endif
+		/*
+		 * Print check-hash failure if no controlling terminal
+		 * in kernel or always if in user-mode (libufs).
+		 */
+		if (res == 0)
+			printf("Superblock check-hash failed: recorded "
+			    "check-hash 0x%x != computed check-hash "
+			    "0x%x%s\n", fs->fs_ckhash, ckhash,
+			    chkhash == STDSB_NOHASHFAIL ?
+			    " (Ignored)" : "");
+		if (chkhash == STDSB)
+			return (EINTEGRITY);
+		/* chkhash == STDSB_NOHASHFAIL */
 		return (0);
 	}
-	return (ENOENT);
+	/* Have to set for old filesystems that predate this field */
+	fs->fs_sblockactualloc = sblockloc;
+	/* Not yet any summary information */
+	fs->fs_si = NULL;
+	return (0);
 }
 
 /*
