@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2018 Turing Robotic Industries Inc.
  * Copyright (C) 2020 Andrew Turner <andrew@FreeBSD.org>
+ * Copyright (C) 2022 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +30,7 @@
  */
 
 /*
- * arm64 Linux VDSO implementation.
+ * arm64 Linux VDSO signal trampoline.
  */
 
 #include <machine/asm.h>
@@ -45,8 +46,14 @@ linux_platform:
 	.text
 
 	nop	/* This is what Linux calls a "Mysterious NOP". */
-ENTRY(__kernel_rt_sigreturn)
+EENTRY(__kernel_rt_sigreturn)
 	mov	x8, #LINUX_SYS_linux_rt_sigreturn
 	svc	#0
-	ret
-END(__kernel_rt_sigreturn)
+EEND(__kernel_rt_sigreturn)
+
+EENTRY(linux_vdso_sigcode)
+	blr	x8
+
+	mov	x8, #LINUX_SYS_linux_rt_sigreturn
+	svc	#0
+EEND(linux_vdso_sigcode)
