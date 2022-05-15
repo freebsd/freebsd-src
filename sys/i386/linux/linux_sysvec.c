@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
+#include <x86/linux/linux_x86_sigframe.h>
+
 MODULE_VERSION(linux, 1);
 
 #define	LINUX_VDSOPAGE_SIZE	PAGE_SIZE * 2
@@ -423,8 +425,8 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	bzero(&frame, sizeof(frame));
 
 	frame.sf_sig = sig;
-	frame.sf_siginfo = &fp->sf_si;
-	frame.sf_ucontext = &fp->sf_sc;
+	frame.sf_siginfo = PTROUT(&fp->sf_si);
+	frame.sf_ucontext = PTROUT(&fp->sf_sc);
 
 	/* Fill in POSIX parts. */
 	siginfo_to_lsiginfo(&ksi->ksi_info, &frame.sf_si, sig);
@@ -470,9 +472,9 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	/* Build context to run handler in. */
-	regs->tf_esp = (int)fp;
+	regs->tf_esp = PTROUT(fp);
 	regs->tf_eip = __kernel_rt_sigreturn;
-	regs->tf_edi = catcher;
+	regs->tf_edi = PTROUT(catcher);
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -571,9 +573,9 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	/* Build context to run handler in. */
-	regs->tf_esp = (int)fp;
+	regs->tf_esp = PTROUT(fp);
 	regs->tf_eip = __kernel_sigreturn;
-	regs->tf_edi = catcher;
+	regs->tf_edi = PTROUT(catcher);
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
