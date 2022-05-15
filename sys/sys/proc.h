@@ -691,6 +691,8 @@ struct proc {
 	int		p_pendingexits; /* (c) Count of pending thread exits. */
 	struct filemon	*p_filemon;	/* (c) filemon-specific data. */
 	int		p_pdeathsig;	/* (c) Signal from parent on exit. */
+	int		p_singlethr;	/* (c) Count of threads doing
+					   external thread_single() */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -1158,6 +1160,7 @@ void	proc_linkup(struct proc *p, struct thread *td);
 struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent, bool set_oppid);
+void	proc_set_p2_wexit(struct proc *p);
 void	proc_set_traced(struct proc *p, bool stop);
 void	proc_wkilled(struct proc *p);
 struct	pstats *pstats_alloc(void);

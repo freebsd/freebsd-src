@@ -307,8 +307,17 @@ pre_execve(struct thread *td, struct vmspace **oldvmspace)
 	p = td->td_proc;
 	if ((p->p_flag & P_HADTHREADS) != 0) {
 		PROC_LOCK(p);
+		while (p->p_singlethr > 0) {
+			error = msleep(&p->p_singlethr, &p->p_mtx,
+			    PWAIT | PCATCH, "exec1t", 0);
+			if (error != 0) {
+				error = ERESTART;
+				goto unlock;
+			}
+		}
 		if (thread_single(p, SINGLE_BOUNDARY) != 0)
 			error = ERESTART;
+unlock:
 		PROC_UNLOCK(p);
 	}
 	KASSERT(error != 0 || (td->td_pflags & TDP_EXECVMSPC) == 0,
