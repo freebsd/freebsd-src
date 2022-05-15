@@ -319,9 +319,19 @@ fork_norfproc(struct thread *td, int flags)
 	 * must ensure that other threads do not concurrently create a second
 	 * process sharing the vmspace, see vmspace_unshare().
 	 */
+again:
 	if ((p1->p_flag & (P_HADTHREADS | P_SYSTEM)) == P_HADTHREADS &&
 	    ((flags & (RFCFDG | RFFDG)) != 0 || (flags & RFMEM) == 0)) {
 		PROC_LOCK(p1);
+		while (p1->p_singlethr > 0) {
+			error = msleep(&p1->p_singlethr, &p1->p_mtx,
+			    PWAIT | PCATCH, "rfork1t", 0);
+			if (error != 0) {
+				PROC_UNLOCK(p1);
+				return (ERESTART);
+			}
+			goto again;
+		}
 		if (thread_single(p1, SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p1);
 			return (ERESTART);

@@ -213,6 +213,15 @@ sys_exit(struct thread *td, struct exit_args *uap)
 	__unreachable();
 }
 
+void
+proc_set_p2_wexit(struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	p->p_flag2 |= P2_WEXIT;
+	while (p->p_singlethr > 0)
+		msleep(&p->p_singlethr, &p->p_mtx, PWAIT | PCATCH, "exit1t", 0);
+}
+
 /*
  * Exit: deallocate address space and other resources, change proc state to
  * zombie, and unlink proc from allproc and parent's lists.  Save exit status
@@ -251,7 +260,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
-	p->p_flag2 |= P2_WEXIT;
+	proc_set_p2_wexit(p);
 
 	/*
 	 * First check if some other thread or external request got
