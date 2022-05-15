@@ -314,7 +314,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bzero(&frame, sizeof(frame));
 
-	frame.sf_handler = PTROUT(catcher);
 	frame.sf_sig = sig;
 	frame.sf_siginfo = PTROUT(&fp->sf_si);
 	frame.sf_ucontext = PTROUT(&fp->sf_sc);
@@ -367,6 +366,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build context to run handler in. */
 	regs->tf_rsp = PTROUT(fp);
 	regs->tf_rip = __kernel_rt_sigreturn;
+	regs->tf_rdi = PTROUT(catcher);
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -431,7 +431,6 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bzero(&frame, sizeof(frame));
 
-	frame.sf_handler = PTROUT(catcher);
 	frame.sf_sig = sig;
 
 	bsd_to_linux_sigset(mask, &lmask);
@@ -473,6 +472,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build context to run handler in. */
 	regs->tf_rsp = PTROUT(fp);
 	regs->tf_rip = __kernel_sigreturn;
+	regs->tf_rdi = PTROUT(catcher);
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;

@@ -14,38 +14,22 @@ linux_platform:
 .text
 .code32
 
-/*
- * To avoid excess stack frame the signal trampoline code emulates
- * the 'call' instruction.
- */
 ENTRY(__kernel_sigreturn)
-	movl	%esp, %ebx			/* preserve sigframe */
-	call .getip0
-.getip0:
-	popl	%eax
-	add	$.startsigcode-.getip0, %eax	/* ret address */
-	push	%eax
-	jmp	*LINUX_SIGF_HANDLER(%ebx)
+	movl	%esp, %ebx			/* sigframe for sigreturn */
+	call	*%edi				/* call signal handler */
 .startsigcode:
-	popl	%eax
-	movl	$LINUX32_SYS_linux_sigreturn,%eax	/* linux_sigreturn() */
-	int	$0x80				/* enter kernel with args */
+	popl	%eax				/* gcc unwind code need this */
+	movl	$LINUX32_SYS_linux_sigreturn, %eax
+	int	$0x80
 .endsigcode:
 0:	jmp	0b
 
 ENTRY(__kernel_rt_sigreturn)
-	leal	LINUX_RT_SIGF_UC(%esp),%ebx	/* linux ucp */
-	leal	LINUX_RT_SIGF_SC(%ebx),%ecx	/* linux sigcontext */
-	movl	%esp, %edi
-	call	.getip1
-.getip1:
-	popl	%eax
-	add	$.startrtsigcode-.getip1, %eax	/* ret address */
-	push	%eax
-	jmp	*LINUX_RT_SIGF_HANDLER(%edi)
+	leal	LINUX_RT_SIGF_UC(%esp), %ebx	/* linux ucontext for rt_sigreturn */
+	call	*%edi				/* call signal handler */
 .startrtsigcode:
-	movl	$LINUX32_SYS_linux_rt_sigreturn,%eax   /* linux_rt_sigreturn() */
-	int	$0x80				/* enter kernel with args */
+	movl	$LINUX32_SYS_linux_rt_sigreturn, %eax
+	int	$0x80
 .endrtsigcode:
 0:	jmp	0b
 

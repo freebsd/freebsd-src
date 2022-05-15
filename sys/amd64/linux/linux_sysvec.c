@@ -685,10 +685,10 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rax = 0;
 	regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
 	regs->tf_rdx = (register_t)&sfp->sf_sc;	/* arg 3 in %rdx */
+	regs->tf_rcx = (register_t)catcher;
 
 	/* Fill in POSIX parts. */
 	siginfo_to_lsiginfo(&ksi->ksi_info, &sf.sf_si, sig);
-	sf.sf_handler = catcher;
 
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
