@@ -404,15 +404,12 @@ struct l_fpstate {
 /*
  * We make the stack look like Linux expects it when calling a signal
  * handler, but use the BSD way of calling the handler and sigreturn().
- * This means that we need to pass the pointer to the handler too.
- * It is appended to the frame to not interfere with the rest of it.
  */
 struct l_sigframe {
 	l_int			sf_sig;
 	struct l_sigcontext	sf_sc;
 	struct l_fpstate	sf_fpstate;
 	l_uint			sf_extramask[LINUX_NSIG_WORDS-1];
-	l_handler_t		sf_handler;
 };
 
 struct l_rt_sigframe {
@@ -421,7 +418,6 @@ struct l_rt_sigframe {
 	struct l_ucontext	*sf_ucontext;
 	l_siginfo_t		sf_si;
 	struct l_ucontext	sf_sc;
-	l_handler_t		sf_handler;
 };
 
 extern struct sysentvec linux_sysvec;

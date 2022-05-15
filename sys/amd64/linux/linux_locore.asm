@@ -11,23 +11,14 @@
 linux_platform:
 	.asciz "x86_64"
 
-
 	.text
-/*
- * To avoid excess stack frame the signal trampoline code emulates
- * the 'call' instruction.
- */
+
 ENTRY(linux_rt_sigcode)
-	movq	%rsp, %rbx			/* preserve sigframe */
-	call	.getip
-.getip:
-	popq	%rax
-	add	$.startrtsigcode-.getip, %rax	/* ret address */
-	pushq	%rax
-	jmp	*LINUX_RT_SIGF_HANDLER(%rbx)
+	movq	%rsp, %rbx			/* rt_sigframe for rt_sigreturn */
+	call	*%rcx				/* call signal handler */
 .startrtsigcode:
-	movq	$LINUX_SYS_linux_rt_sigreturn,%rax   /* linux_rt_sigreturn() */
-	syscall					/* enter kernel with args */
+	movq	$LINUX_SYS_linux_rt_sigreturn, %rax
+	syscall
 	hlt
 .endrtsigcode:
 0:	jmp	0b

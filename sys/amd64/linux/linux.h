@@ -314,7 +314,6 @@ typedef struct l_siginfo {
 struct l_rt_sigframe {
 	struct l_ucontext	sf_sc;
 	struct l_siginfo	sf_si;
-	l_handler_t		sf_handler;
 };
 
 /*
