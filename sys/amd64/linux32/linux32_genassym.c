@@ -12,7 +12,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/linux/linux_x86_sigframe.h>
 
 ASSYM(LINUX_SIGF_SC, offsetof(struct l_sigframe, sf_sc));
-ASSYM(LINUX_RT_SIGF_UC, offsetof(struct l_rt_sigframe, sf_sc));
+ASSYM(LINUX_RT_SIGF_UC, offsetof(struct l_rt_sigframe, sf_uc));
 ASSYM(LINUX_RT_SIGF_SC, offsetof(struct l_ucontext, uc_mcontext));
 ASSYM(LINUX_VERSION_CODE, LINUX_VERSION_CODE);
 ASSYM(LINUX_SC_ESP, offsetof(struct l_sigcontext, sc_esp));

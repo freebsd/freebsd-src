@@ -639,36 +639,36 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
-	bsd_to_linux_sigset(mask, &sf.sf_sc.uc_sigmask);
-	bsd_to_linux_sigset(mask, &sf.sf_sc.uc_mcontext.sc_mask);
+	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_sigmask);
+	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_mcontext.sc_mask);
 
-	sf.sf_sc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
-	sf.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
-	sf.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
+	sf.sf_uc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
+	sf.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 
-	sf.sf_sc.uc_mcontext.sc_rdi    = regs->tf_rdi;
-	sf.sf_sc.uc_mcontext.sc_rsi    = regs->tf_rsi;
-	sf.sf_sc.uc_mcontext.sc_rdx    = regs->tf_rdx;
-	sf.sf_sc.uc_mcontext.sc_rbp    = regs->tf_rbp;
-	sf.sf_sc.uc_mcontext.sc_rbx    = regs->tf_rbx;
-	sf.sf_sc.uc_mcontext.sc_rcx    = regs->tf_rcx;
-	sf.sf_sc.uc_mcontext.sc_rax    = regs->tf_rax;
-	sf.sf_sc.uc_mcontext.sc_rip    = regs->tf_rip;
-	sf.sf_sc.uc_mcontext.sc_rsp    = regs->tf_rsp;
-	sf.sf_sc.uc_mcontext.sc_r8     = regs->tf_r8;
-	sf.sf_sc.uc_mcontext.sc_r9     = regs->tf_r9;
-	sf.sf_sc.uc_mcontext.sc_r10    = regs->tf_r10;
-	sf.sf_sc.uc_mcontext.sc_r11    = regs->tf_r11;
-	sf.sf_sc.uc_mcontext.sc_r12    = regs->tf_r12;
-	sf.sf_sc.uc_mcontext.sc_r13    = regs->tf_r13;
-	sf.sf_sc.uc_mcontext.sc_r14    = regs->tf_r14;
-	sf.sf_sc.uc_mcontext.sc_r15    = regs->tf_r15;
-	sf.sf_sc.uc_mcontext.sc_cs     = regs->tf_cs;
-	sf.sf_sc.uc_mcontext.sc_rflags = regs->tf_rflags;
-	sf.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
-	sf.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
-	sf.sf_sc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
+	sf.sf_uc.uc_mcontext.sc_rdi    = regs->tf_rdi;
+	sf.sf_uc.uc_mcontext.sc_rsi    = regs->tf_rsi;
+	sf.sf_uc.uc_mcontext.sc_rdx    = regs->tf_rdx;
+	sf.sf_uc.uc_mcontext.sc_rbp    = regs->tf_rbp;
+	sf.sf_uc.uc_mcontext.sc_rbx    = regs->tf_rbx;
+	sf.sf_uc.uc_mcontext.sc_rcx    = regs->tf_rcx;
+	sf.sf_uc.uc_mcontext.sc_rax    = regs->tf_rax;
+	sf.sf_uc.uc_mcontext.sc_rip    = regs->tf_rip;
+	sf.sf_uc.uc_mcontext.sc_rsp    = regs->tf_rsp;
+	sf.sf_uc.uc_mcontext.sc_r8     = regs->tf_r8;
+	sf.sf_uc.uc_mcontext.sc_r9     = regs->tf_r9;
+	sf.sf_uc.uc_mcontext.sc_r10    = regs->tf_r10;
+	sf.sf_uc.uc_mcontext.sc_r11    = regs->tf_r11;
+	sf.sf_uc.uc_mcontext.sc_r12    = regs->tf_r12;
+	sf.sf_uc.uc_mcontext.sc_r13    = regs->tf_r13;
+	sf.sf_uc.uc_mcontext.sc_r14    = regs->tf_r14;
+	sf.sf_uc.uc_mcontext.sc_r15    = regs->tf_r15;
+	sf.sf_uc.uc_mcontext.sc_cs     = regs->tf_cs;
+	sf.sf_uc.uc_mcontext.sc_rflags = regs->tf_rflags;
+	sf.sf_uc.uc_mcontext.sc_err    = regs->tf_err;
+	sf.sf_uc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
+	sf.sf_uc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -687,7 +687,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rax = 0;
 	regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
-	regs->tf_rdx = (register_t)&sfp->sf_sc;	/* arg 3 in %rdx */
+	regs->tf_rdx = (register_t)&sfp->sf_uc;	/* arg 3 in %rdx */
 	regs->tf_rcx = (register_t)catcher;
 
 	/* Fill in POSIX parts. */

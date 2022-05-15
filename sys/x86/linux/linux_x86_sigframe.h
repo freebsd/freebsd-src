@@ -124,7 +124,7 @@ struct l_rt_sigframe {
 	l_uintptr_t		sf_siginfo;
 	l_uintptr_t		sf_ucontext;
 	l_siginfo_t		sf_si;
-	struct l_ucontext	sf_sc;
+	struct l_ucontext	sf_uc;
 };
 
 #else
@@ -187,7 +187,7 @@ struct l_ucontext {
  * handler, but use the BSD way of calling the handler and sigreturn().
  */
 struct l_rt_sigframe {
-	struct l_ucontext	sf_sc;
+	struct l_ucontext	sf_uc;
 	struct l_siginfo	sf_si;
 };
 
