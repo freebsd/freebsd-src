@@ -81,4 +81,6 @@ struct l_sigframe {
 	ucontext_t	uc;
 };
 
+#define	LINUX_MINSIGSTKSZ	roundup(sizeof(struct l_sigframe), 16)
+
 #endif /* _ARM64_LINUX_SIGFRAME_H_ */
