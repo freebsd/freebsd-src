@@ -95,6 +95,10 @@
 
 #define	LINUX_AT_RANDOM_LEN	16	/* size of random bytes */
 
+#ifndef LINUX_AT_MINSIGSTKSZ
+#define	LINUX_AT_MINSIGSTKSZ	51	/* min stack size required by the kernel */
+#endif
+
 /* Linux sets the i387 to extended precision. */
 #if defined(__i386__) || defined(__amd64__)
 #define	__LINUX_NPXCW__		0x37f
