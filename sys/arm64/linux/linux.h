@@ -81,7 +81,7 @@ typedef struct {
 #define	l_fd_set	fd_set
 
 /* Miscellaneous */
-#define	LINUX_AT_COUNT		20
+#define	LINUX_AT_COUNT		21
 
 struct l___sysctl_args
 {
@@ -162,9 +162,6 @@ struct l_newstat {
 #define	LINUX_SIG_BLOCK		0
 #define	LINUX_SIG_UNBLOCK	1
 #define	LINUX_SIG_SETMASK	2
-
-/* sigaltstack */
-#define	LINUX_MINSIGSTKSZ	5664		/* sigframe */
 
 typedef void	(*l_handler_t)(l_int);
 
