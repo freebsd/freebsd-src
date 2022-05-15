@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1994-1996 Søren Schmidt
- * Copyright (c) 2013 Dmitry Chagin <dchagin@FreeBSD.org>
  * Copyright (c) 2018 Turing Robotic Industries Inc.
+ * Copyright (c) 2022 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,22 +23,62 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-
-/*
+ *
  * $FreeBSD$
  */
+
 #ifndef _ARM64_LINUX_SIGFRAME_H_
 #define	_ARM64_LINUX_SIGFRAME_H_
 
-/*
- * This structure is different from the one used by Linux,
- * but it doesn't matter - it's not user-accessible.  We need
- * it instead of the native one because of l_siginfo.
- */
+struct _l_aarch64_ctx {
+	uint32_t	magic;
+	uint32_t	size;
+};
+
+#define	L_FPSIMD_MAGIC	0x46508001
+#define	L_ESR_MAGIC	0x45535201
+
+struct l_fpsimd_context {
+	struct _l_aarch64_ctx head;
+	uint32_t	fpsr;
+	uint32_t	fpcr;
+	__uint128_t	vregs[32];
+};
+
+struct l_esr_context {
+	struct _l_aarch64_ctx head;
+	uint64_t	esr;
+};
+
+struct l_sigcontext {
+	uint64_t	fault_address;
+	uint64_t	regs[31];
+	uint64_t	sp;
+	uint64_t	pc;
+	uint64_t	pstate;
+	uint8_t		__reserved[4096] __attribute__((__aligned__(16)));
+};
+
+struct l_ucontext {
+	unsigned long	uc_flags;
+	struct l_ucontext *uc_link;
+	l_stack_t	uc_stack;
+	l_sigset_t	uc_sigmask;
+	uint8_t		__glibc_hole[1024 / 8 - sizeof(l_sigset_t)];
+	struct l_sigcontext uc_sc;
+};
+
+struct l_rt_sigframe {
+	l_siginfo_t	sf_si;
+	struct l_ucontext sf_uc;
+} __attribute__((__aligned__(16)));
+
 struct l_sigframe {
-	struct l_siginfo	sf_si;
-	ucontext_t		sf_uc;
+	struct l_rt_sigframe sf;
+	/* frame_record */
+	uint64_t	fp;
+	uint64_t	lr;
+	ucontext_t	uc;
 };
 
 #endif /* _ARM64_LINUX_SIGFRAME_H_ */

@@ -1,6 +1,6 @@
 /*
  * Linker script for 64-bit vDSO.
- * Copied from Linux kernel arch/x86/vdso/vdso-layout.lds.S
+ * Copied from Linux kernel arch/arm64/kernel/vdso/vdso.lds.S
  *
  * $FreeBSD$
  */
@@ -17,29 +17,32 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
+	/DISCARD/	: {
+		*(.note.GNU-stack .note.gnu.property)
+	}
+
 	.note		: { *(.note.*) }		:text	:note
 
-	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
-	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
+	. = ALIGN(0x100);
+
+	.text		: { *(.text*) }			:text	=0x90909090
+	PROVIDE (__etext = .);
+	PROVIDE (_etext = .);
+	PROVIDE (etext = .);
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
 	.rodata		: { *(.rodata*) }		:text
 	.data		: {
-	      *(.data*)
-	      *(.sdata*)
-	      *(.got.plt) *(.got)
-	      *(.gnu.linkonce.d.*)
-	      *(.bss*)
-	      *(.dynbss*)
-	      *(.gnu.linkonce.b.*)
+		*(.data*)
 	}
 
-	.altinstructions	: { *(.altinstructions) }
-	.altinstr_replacement	: { *(.altinstr_replacement) }
+	_end = .;
+	PROVIDE(end = .);
 
-	. = ALIGN(0x100);
-	.text		: { *(.test .text*) }			:text	=0x90909090
+	/DISCARD/	: {
+		*(.eh_frame .eh_frame_hdr)
+	}
 }
 
 PHDRS
@@ -47,7 +50,6 @@ PHDRS
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
 	note		PT_NOTE		FLAGS(4);		/* PF_R */
-	eh_frame_hdr	PT_GNU_EH_FRAME;
 }
 
 /*
@@ -68,6 +70,7 @@ VERSION
 	global:
 		linux_platform;
 		kern_timekeep_base;
+		linux_vdso_sigcode;
 	local: *;
 	};
 }

@@ -164,7 +164,7 @@ struct l_newstat {
 #define	LINUX_SIG_SETMASK	2
 
 /* sigaltstack */
-#define	LINUX_MINSIGSTKSZ	2048		/* XXX */
+#define	LINUX_MINSIGSTKSZ	5664		/* sigframe */
 
 typedef void	(*l_handler_t)(l_int);
 
