@@ -336,9 +336,23 @@ reap_kill_sched(struct reap_kill_tracker_head *tracker, struct proc *p2)
 {
 	struct reap_kill_tracker *t;
 
+	PROC_LOCK(p2);
+	if ((p2->p_flag2 & P2_WEXIT) != 0) {
+		PROC_UNLOCK(p2);
+		return;
+	}
+	_PHOLD_LITE(p2);
+	PROC_UNLOCK(p2);
 	t = malloc(sizeof(struct reap_kill_tracker), M_TEMP, M_WAITOK);
 	t->parent = p2;
 	TAILQ_INSERT_TAIL(tracker, t, link);
+}
+
+static void
+reap_kill_sched_free(struct reap_kill_tracker *t)
+{
+	PRELE(t->parent);
+	free(t, M_TEMP);
 }
 
 static void
@@ -379,7 +393,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 		 * reaper, which should handle it.
 		 */
 		if ((t->parent->p_treeflag & P_TREE_REAPER) == 0) {
-			free(t, M_TEMP);
+			reap_kill_sched_free(t);
 			res = true;
 			continue;
 		}
@@ -396,7 +410,7 @@ reap_kill_subtree_once(struct thread *td, struct proc *p, struct proc *reaper,
 			reap_kill_proc(td, p2, ksi, rk, error);
 			res = true;
 		}
-		free(t, M_TEMP);
+		reap_kill_sched_free(t);
 	}
 	return (res);
 }
