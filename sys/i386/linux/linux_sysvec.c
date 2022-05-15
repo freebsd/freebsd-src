@@ -426,41 +426,41 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	frame.sf_sig = sig;
 	frame.sf_siginfo = PTROUT(&fp->sf_si);
-	frame.sf_ucontext = PTROUT(&fp->sf_sc);
+	frame.sf_ucontext = PTROUT(&fp->sf_uc);
 
 	/* Fill in POSIX parts. */
 	siginfo_to_lsiginfo(&ksi->ksi_info, &frame.sf_si, sig);
 
 	/* Build the signal context to be used by sigreturn. */
-	frame.sf_sc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
-	frame.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
-	frame.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
+	frame.sf_uc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
+	frame.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 	PROC_UNLOCK(p);
 
-	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
+	bsd_to_linux_sigset(mask, &frame.sf_uc.uc_sigmask);
 
-	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__mask;
-	frame.sf_sc.uc_mcontext.sc_gs     = rgs();
-	frame.sf_sc.uc_mcontext.sc_fs     = regs->tf_fs;
-	frame.sf_sc.uc_mcontext.sc_es     = regs->tf_es;
-	frame.sf_sc.uc_mcontext.sc_ds     = regs->tf_ds;
-	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_edi;
-	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_esi;
-	frame.sf_sc.uc_mcontext.sc_ebp    = regs->tf_ebp;
-	frame.sf_sc.uc_mcontext.sc_ebx    = regs->tf_ebx;
-	frame.sf_sc.uc_mcontext.sc_esp    = regs->tf_esp;
-	frame.sf_sc.uc_mcontext.sc_edx    = regs->tf_edx;
-	frame.sf_sc.uc_mcontext.sc_ecx    = regs->tf_ecx;
-	frame.sf_sc.uc_mcontext.sc_eax    = regs->tf_eax;
-	frame.sf_sc.uc_mcontext.sc_eip    = regs->tf_eip;
-	frame.sf_sc.uc_mcontext.sc_cs     = regs->tf_cs;
-	frame.sf_sc.uc_mcontext.sc_eflags = regs->tf_eflags;
-	frame.sf_sc.uc_mcontext.sc_esp_at_signal = regs->tf_esp;
-	frame.sf_sc.uc_mcontext.sc_ss     = regs->tf_ss;
-	frame.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
-	frame.sf_sc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
-	frame.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
+	frame.sf_uc.uc_mcontext.sc_mask   = frame.sf_uc.uc_sigmask.__mask;
+	frame.sf_uc.uc_mcontext.sc_gs     = rgs();
+	frame.sf_uc.uc_mcontext.sc_fs     = regs->tf_fs;
+	frame.sf_uc.uc_mcontext.sc_es     = regs->tf_es;
+	frame.sf_uc.uc_mcontext.sc_ds     = regs->tf_ds;
+	frame.sf_uc.uc_mcontext.sc_edi    = regs->tf_edi;
+	frame.sf_uc.uc_mcontext.sc_esi    = regs->tf_esi;
+	frame.sf_uc.uc_mcontext.sc_ebp    = regs->tf_ebp;
+	frame.sf_uc.uc_mcontext.sc_ebx    = regs->tf_ebx;
+	frame.sf_uc.uc_mcontext.sc_esp    = regs->tf_esp;
+	frame.sf_uc.uc_mcontext.sc_edx    = regs->tf_edx;
+	frame.sf_uc.uc_mcontext.sc_ecx    = regs->tf_ecx;
+	frame.sf_uc.uc_mcontext.sc_eax    = regs->tf_eax;
+	frame.sf_uc.uc_mcontext.sc_eip    = regs->tf_eip;
+	frame.sf_uc.uc_mcontext.sc_cs     = regs->tf_cs;
+	frame.sf_uc.uc_mcontext.sc_eflags = regs->tf_eflags;
+	frame.sf_uc.uc_mcontext.sc_esp_at_signal = regs->tf_esp;
+	frame.sf_uc.uc_mcontext.sc_ss     = regs->tf_ss;
+	frame.sf_uc.uc_mcontext.sc_err    = regs->tf_err;
+	frame.sf_uc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
+	frame.sf_uc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
