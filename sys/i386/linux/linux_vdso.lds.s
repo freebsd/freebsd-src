@@ -77,6 +77,8 @@ VERSION
 		kern_timekeep_base;
 		kern_tsc_selector;
 		kern_cpu_selector;
+		linux_vdso_sigcode;
+		linux_vdso_rt_sigcode;
 	local: *;
 	};
 }

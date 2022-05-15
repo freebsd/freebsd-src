@@ -158,8 +158,8 @@ static int _bsd_to_linux_trapcode[] = {
 
 LINUX_VDSO_SYM_CHAR(linux_platform);
 LINUX_VDSO_SYM_INTPTR(__kernel_vsyscall);
-LINUX_VDSO_SYM_INTPTR(__kernel_sigreturn);
-LINUX_VDSO_SYM_INTPTR(__kernel_rt_sigreturn);
+LINUX_VDSO_SYM_INTPTR(linux_vdso_sigcode);
+LINUX_VDSO_SYM_INTPTR(linux_vdso_rt_sigcode);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
 LINUX_VDSO_SYM_INTPTR(kern_tsc_selector);
 LINUX_VDSO_SYM_INTPTR(kern_cpu_selector);
@@ -473,7 +473,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Build context to run handler in. */
 	regs->tf_esp = PTROUT(fp);
-	regs->tf_eip = __kernel_rt_sigreturn;
+	regs->tf_eip = linux_vdso_rt_sigcode;
 	regs->tf_edi = PTROUT(catcher);
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
@@ -574,7 +574,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Build context to run handler in. */
 	regs->tf_esp = PTROUT(fp);
-	regs->tf_eip = __kernel_sigreturn;
+	regs->tf_eip = linux_vdso_sigcode;
 	regs->tf_edi = PTROUT(catcher);
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
