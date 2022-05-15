@@ -5,8 +5,6 @@
 
 #include <i386/linux/linux_syscall.h>		/* system call numbers */
 
-#include "assym.inc"
-
 	.data
 
 	.globl linux_platform
