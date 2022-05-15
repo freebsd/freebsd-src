@@ -422,7 +422,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bzero(&frame, sizeof(frame));
 
-	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
 	frame.sf_siginfo = &fp->sf_si;
 	frame.sf_ucontext = &fp->sf_sc;
@@ -473,6 +472,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build context to run handler in. */
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = __kernel_rt_sigreturn;
+	regs->tf_edi = catcher;
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -532,7 +532,6 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	bzero(&frame, sizeof(frame));
 
-	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
 
 	bsd_to_linux_sigset(mask, &lmask);
@@ -574,6 +573,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build context to run handler in. */
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = __kernel_sigreturn;
+	regs->tf_edi = catcher;
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
