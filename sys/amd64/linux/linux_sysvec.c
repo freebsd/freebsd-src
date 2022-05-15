@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
+#include <x86/linux/linux_x86_sigframe.h>
+
 MODULE_VERSION(linux64, 1);
 
 #define	LINUX_VDSOPAGE_SIZE	PAGE_SIZE * 2

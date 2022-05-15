@@ -8,6 +8,8 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux.h>
 #include <compat/linux/linux_mib.h>
 
+#include <x86/linux/linux_x86_sigframe.h>
+
 ASSYM(LINUX_SIGF_SC, offsetof(struct l_sigframe, sf_sc));
 ASSYM(LINUX_SC_GS, offsetof(struct l_sigcontext, sc_gs));
 ASSYM(LINUX_SC_EFLAGS, offsetof(struct l_sigcontext, sc_eflags));

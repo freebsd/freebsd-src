@@ -91,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
+#include <x86/linux/linux_x86_sigframe.h>
+
 MODULE_VERSION(linux, 1);
 
 #define	LINUX32_MAXUSER		((1ul << 32) - PAGE_SIZE)

@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
+#include <arm64/linux/linux_sigframe.h>
+
 #include <machine/md_var.h>
 
 #ifdef VFP
