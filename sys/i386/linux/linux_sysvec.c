@@ -431,9 +431,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	siginfo_to_lsiginfo(&ksi->ksi_info, &frame.sf_si, sig);
 
 	/* Build the signal context to be used by sigreturn. */
-	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
-	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
-
 	frame.sf_sc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
 	frame.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
 	frame.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
