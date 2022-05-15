@@ -182,59 +182,6 @@ typedef struct {
 	l_size_t	ss_size;
 } l_stack_t;
 
-struct l_fpstate {
-	u_int16_t cwd;
-	u_int16_t swd;
-	u_int16_t twd;
-	u_int16_t fop;
-	u_int64_t rip;
-	u_int64_t rdp;
-	u_int32_t mxcsr;
-	u_int32_t mxcsr_mask;
-	u_int32_t st_space[32];
-	u_int32_t xmm_space[64];
-	u_int32_t reserved2[24];
-};
-
-struct l_sigcontext {
-	l_ulong		sc_r8;
-	l_ulong		sc_r9;
-	l_ulong		sc_r10;
-	l_ulong		sc_r11;
-	l_ulong		sc_r12;
-	l_ulong		sc_r13;
-	l_ulong		sc_r14;
-	l_ulong		sc_r15;
-	l_ulong		sc_rdi;
-	l_ulong		sc_rsi;
-	l_ulong		sc_rbp;
-	l_ulong		sc_rbx;
-	l_ulong		sc_rdx;
-	l_ulong		sc_rax;
-	l_ulong		sc_rcx;
-	l_ulong		sc_rsp;
-	l_ulong		sc_rip;
-	l_ulong		sc_rflags;
-	l_ushort	sc_cs;
-	l_ushort	sc_gs;
-	l_ushort	sc_fs;
-	l_ushort	sc___pad0;
-	l_ulong		sc_err;
-	l_ulong		sc_trapno;
-	l_sigset_t	sc_mask;
-	l_ulong		sc_cr2;
-	struct l_fpstate *sc_fpstate;
-	l_ulong		sc_reserved1[8];
-};
-
-struct l_ucontext {
-	l_ulong		uc_flags;
-	l_uintptr_t	uc_link;
-	l_stack_t	uc_stack;
-	struct l_sigcontext	uc_mcontext;
-	l_sigset_t	uc_sigmask;
-};
-
 #define LINUX_SI_PREAMBLE_SIZE	(4 * sizeof(int))
 #define	LINUX_SI_MAX_SIZE	128
 #define	LINUX_SI_PAD_SIZE	((LINUX_SI_MAX_SIZE - \
@@ -303,18 +250,6 @@ typedef struct l_siginfo {
 #define	lsi_addr	_sifields._sigfault._addr
 #define	lsi_band	_sifields._sigpoll._band
 #define	lsi_fd		_sifields._sigpoll._fd
-
-/*
- * We make the stack look like Linux expects it when calling a signal
- * handler, but use the BSD way of calling the handler and sigreturn().
- * This means that we need to pass the pointer to the handler too.
- * It is appended to the frame to not interfere with the rest of it.
- */
-
-struct l_rt_sigframe {
-	struct l_ucontext	sf_sc;
-	struct l_siginfo	sf_si;
-};
 
 /*
  * mount flags
