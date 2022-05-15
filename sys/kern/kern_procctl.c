@@ -412,8 +412,21 @@ reap_kill_subtree(struct thread *td, struct proc *p, struct proc *reaper,
 	 * repeated.
 	 */
 	init_unrhdr(&pids, 1, PID_MAX, UNR_NO_MTX);
+	PROC_LOCK(td->td_proc);
+	if ((td->td_proc->p_flag2 & P2_WEXIT) != 0) {
+		PROC_UNLOCK(td->td_proc);
+		goto out;
+	}
+	td->td_proc->p_singlethr++;
+	PROC_UNLOCK(td->td_proc);
 	while (reap_kill_subtree_once(td, p, reaper, rk, ksi, error, &pids))
 	       ;
+	PROC_LOCK(td->td_proc);
+	td->td_proc->p_singlethr--;
+	if (td->td_proc->p_singlethr == 0)
+		wakeup(&p->p_singlethr);
+	PROC_UNLOCK(td->td_proc);
+out:
 	clean_unrhdr(&pids);
 	clear_unrhdr(&pids);
 }

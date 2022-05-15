@@ -3436,7 +3436,8 @@ sigexit(struct thread *td, int sig)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_flag2 |= P2_WEXIT;
+	proc_set_p2_wexit(p);
+
 	p->p_acflag |= AXSIG;
 	/*
 	 * We must be single-threading to generate a core dump.  This

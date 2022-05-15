@@ -318,9 +318,19 @@ fork_norfproc(struct thread *td, int flags)
 	 * must ensure that other threads do not concurrently create a second
 	 * process sharing the vmspace, see vmspace_unshare().
 	 */
+again:
 	if ((p1->p_flag & (P_HADTHREADS | P_SYSTEM)) == P_HADTHREADS &&
 	    ((flags & (RFCFDG | RFFDG)) != 0 || (flags & RFMEM) == 0)) {
 		PROC_LOCK(p1);
+		while (p1->p_singlethr > 0) {
+			error = msleep(&p1->p_singlethr, &p1->p_mtx,
+			    PWAIT | PCATCH, "rfork1t", 0);
+			if (error != 0) {
+				PROC_UNLOCK(p1);
+				return (ERESTART);
+			}
+			goto again;
+		}
 		if (thread_single(p1, SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p1);
 			return (ERESTART);
@@ -384,6 +394,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
+	p2->p_singlethr = 0;
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);

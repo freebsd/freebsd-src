@@ -727,6 +727,8 @@ struct proc {
 	char		*p_binname;	/* (b) Binary hardlink name. */
 	void		*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
 						 non ELF binaries. */
+	int		p_singlethr;	/* (c) Count of threads doing
+					   external thread_single() */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -1132,6 +1134,7 @@ void	proc_linkup(struct proc *p, struct thread *td);
 struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent, bool set_oppid);
+void	proc_set_p2_wexit(struct proc *p);
 void	proc_set_traced(struct proc *p, bool stop);
 void	proc_wkilled(struct proc *p);
 struct	pstats *pstats_alloc(void);
