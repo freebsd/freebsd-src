@@ -804,8 +804,8 @@ tryagain:
 		}
 
 		/*
-		 * A return of ENXIO indicates that there is a
-		 * non-application data record at the head of the
+		 * A return of ENXIO indicates that there is an
+		 * alert record at the head of the
 		 * socket's receive queue, for TLS connections.
 		 * This record needs to be handled in userland
 		 * via an SSL_read() call, so do an upcall to the daemon.
@@ -863,10 +863,10 @@ tryagain:
 			    cmsg->cmsg_len == CMSG_LEN(sizeof(tgr))) {
 				memcpy(&tgr, CMSG_DATA(cmsg), sizeof(tgr));
 				/*
-				 * This should have been handled by
-				 * the rpctls_svc_handlerecord()
-				 * upcall.  If not, all we can do is
-				 * toss it away.
+				 * TLS_RLTYPE_ALERT records should be handled
+				 * since soreceive() would have returned
+				 * ENXIO.  Just throw any other
+				 * non-TLS_RLTYPE_APP records away.
 				 */
 				if (tgr.tls_type != TLS_RLTYPE_APP) {
 					m_freem(m);
