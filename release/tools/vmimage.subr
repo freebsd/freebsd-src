@@ -251,6 +251,8 @@ vm_create_disk() {
 		${ROOTFSPART} \
 		-o ${VMIMAGE}
 
+	echo "Disk image ${VMIMAGE} created."
+
 	if [ ${ESP} = "yes" ]; then
 		rm ${espfilename}
 	fi
