@@ -1117,6 +1117,13 @@ rfkill_blocked(int rfkill)		/* argument type? */
 	return (false);
 }
 
+static __inline bool
+rfkill_soft_blocked(int rfkill)
+{
+	TODO();
+	return (false);
+}
+
 static __inline int
 reg_query_regdb_wmm(uint8_t *alpha2, uint32_t center_freq,
     struct ieee80211_reg_rule *rule)
