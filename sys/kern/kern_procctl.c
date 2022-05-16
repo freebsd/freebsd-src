@@ -291,6 +291,7 @@ reap_kill_proc_locked(struct thread *td, struct proc *p2,
 	 * race.
 	 */
 	need_stop = p2 != td->td_proc &&
+	    (td->td_proc->p_flag2 & P2_WEXIT) == 0 &&
 	    (p2->p_flag & (P_KPROC | P_SYSTEM | P_STOPPED)) == 0 &&
 	    (rk->rk_flags & REAPER_KILL_CHILDREN) == 0;
 
