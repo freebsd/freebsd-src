@@ -3460,7 +3460,6 @@ kern_truncate(struct thread *td, const char *path, enum uio_seg pathseg,
 	struct mount *mp;
 	struct vnode *vp;
 	void *rl_cookie;
-	struct vattr vattr;
 	struct nameidata nd;
 	int error;
 
@@ -3480,18 +3479,21 @@ retry:
 		return (error);
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	if (vp->v_type == VDIR)
+	if (vp->v_type == VDIR) {
 		error = EISDIR;
+		goto out;
+	}
 #ifdef MAC
-	else if ((error = mac_vnode_check_write(td->td_ucred, NOCRED, vp))) {
-	}
+	error = mac_vnode_check_write(td->td_ucred, NOCRED, vp);
+	if (error != 0)
+		goto out;
 #endif
-	else if ((error = vn_writechk(vp)) == 0 &&
-	    (error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td)) == 0) {
-		VATTR_NULL(&vattr);
-		vattr.va_size = length;
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
-	}
+	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
+	if (error != 0)
+		goto out;
+
+	error = vn_truncate_locked(vp, 0, false, td->td_ucred);
+out:
 	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 	vn_rangelock_unlock(vp, rl_cookie);
