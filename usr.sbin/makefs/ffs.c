@@ -324,7 +324,6 @@ ffs_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 static void
 ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 {
-	int32_t	ncg = 1;
 #ifdef notyet
 	int32_t	spc, nspf, ncyl, fssize;
 #endif
@@ -395,22 +394,26 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		fsopts->size =
 		    fsopts->size * (100 + fsopts->freeblockpc) / 100;
 
-		/* add space needed for superblocks */
 	/*
-	 * The old SBOFF (SBLOCK_UFS1) is used here because makefs is
-	 * typically used for small filesystems where space matters.
-	 * XXX make this an option.
+	 * Add space needed for superblock, cylblock and to store inodes.
+	 * All of those segments are aligned to the block size.
+	 * XXX: This has to match calculations done in ffs_mkfs.
 	 */
-	fsopts->size += (SBLOCK_UFS1 + SBLOCKSIZE) * ncg;
-		/* add space needed to store inodes, x3 for blockmaps, etc */
-	if (ffs_opts->version == 1)
-		fsopts->size += ncg * DINODE1_SIZE *
-		    roundup(fsopts->inodes / ncg, 
-			ffs_opts->bsize / DINODE1_SIZE);
-	else
-		fsopts->size += ncg * DINODE2_SIZE *
-		    roundup(fsopts->inodes / ncg, 
-			ffs_opts->bsize / DINODE2_SIZE);
+	if (ffs_opts->version == 1) {
+		fsopts->size +=
+		    roundup(SBLOCK_UFS1 + SBLOCKSIZE, ffs_opts->bsize);
+		fsopts->size += roundup(SBLOCKSIZE, ffs_opts->bsize);
+		fsopts->size += ffs_opts->bsize;
+		fsopts->size +=  DINODE1_SIZE *
+		    roundup(fsopts->inodes, ffs_opts->bsize / DINODE1_SIZE);
+	} else {
+		fsopts->size +=
+		    roundup(SBLOCK_UFS2 + SBLOCKSIZE, ffs_opts->bsize);
+		fsopts->size += roundup(SBLOCKSIZE, ffs_opts->bsize);
+		fsopts->size += ffs_opts->bsize;
+		fsopts->size += DINODE2_SIZE *
+		    roundup(fsopts->inodes, ffs_opts->bsize / DINODE2_SIZE);
+	}
 
 		/* add minfree */
 	if (ffs_opts->minfree > 0)
@@ -620,12 +623,19 @@ ffs_size_dir(fsnode *root, fsinfo_t *fsopts)
 		    e, tmpdir.d_namlen, this, curdirsize);		\
 } while (0);
 
-	/*
-	 * XXX	this needs to take into account extra space consumed
-	 *	by indirect blocks, etc.
-	 */
 #define	ADDSIZE(x) do {							\
-	fsopts->size += roundup((x), ffs_opts->fsize);			\
+	if ((size_t)(x) < UFS_NDADDR * (size_t)ffs_opts->bsize) {	\
+		fsopts->size += roundup((x), ffs_opts->fsize);		\
+	} else {							\
+		/* Count space consumed by indirecttion blocks. */	\
+		fsopts->size +=	ffs_opts->bsize *			\
+		    (howmany((x), UFS_NDADDR * ffs_opts->bsize) - 1);	\
+		/*							\
+		 * If the file is big enough to use indirect blocks,	\
+		 * we allocate bsize block for trailing data.		\
+		 */							\
+		fsopts->size += roundup((x), ffs_opts->bsize);		\
+	}								\
 } while (0);
 
 	curdirsize = 0;
