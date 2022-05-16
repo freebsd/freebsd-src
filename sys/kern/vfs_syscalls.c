@@ -3472,13 +3472,13 @@ retry:
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
+	NDFREE_NOTHING(&nd);
 	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
 		vn_rangelock_unlock(vp, rl_cookie);
 		vrele(vp);
 		return (error);
 	}
-	NDFREE_PNBUF(&nd);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
