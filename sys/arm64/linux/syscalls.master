@@ -148,7 +148,8 @@
 	}
 23	AUE_DUP		NOPROTO	{
 		int dup(
-		    u_int fd);
+		    u_int fd
+		);
 	}
 24	AUE_NULL	STD	{
 		int linux_dup3(
@@ -300,7 +301,8 @@
 	}
 50	AUE_FCHDIR	NOPROTO	{
 		int fchdir(
-		    int fd);
+		    int fd
+		);
 	}
 51	AUE_CHROOT	NOPROTO	{
 		int chroot(
@@ -333,7 +335,8 @@
 		int fchown(
 		    int fd,
 		    int uid,
-		    int gid);
+		    int gid
+		);
 	}
 56	AUE_OPEN_RWTC	STD	{
 		int linux_openat(
@@ -345,7 +348,8 @@
 	}
 57	AUE_CLOSE	NOPROTO	{
 		int close(
-		    int fd);
+		    int fd
+		);
 	}
 58	AUE_NULL	STD	{
 		int linux_vhangup(void);
@@ -504,11 +508,13 @@
 81	AUE_NULL	UNIMPL	linux_sync
 82	AUE_FSYNC	NOPROTO	{
 		int fsync(
-		    int fd);
+		    int fd
+		);
 	}
 83	AUE_NULL	STD	{
 		int linux_fdatasync(
-		    l_uint fd);
+		    l_uint fd
+		);
 	}
 84	AUE_NULL	STD	{
 		int linux_sync_file_range(
@@ -650,7 +656,8 @@
 		int linux_timer_create(
 		    clockid_t clock_id,
 		    struct sigevent *evp,
-		    l_timer_t *timerid);
+		    l_timer_t *timerid
+		);
 	}
 108	AUE_NULL	STD	{
 		int linux_timer_gettime(
@@ -660,18 +667,21 @@
 	}
 109	AUE_NULL	STD	{
 		int linux_timer_getoverrun(
-		    l_timer_t timerid);
+		    l_timer_t timerid
+		);
 	}
 110	AUE_NULL	STD	{
 		int linux_timer_settime(
 		    l_timer_t timerid,
 		    l_int flags,
 		    const struct itimerspec *new,
-		    struct itimerspec *old);
+		    struct itimerspec *old
+		);
 	}
 111	AUE_NULL	STD	{
 		int linux_timer_delete(
-		    l_timer_t timerid);
+		    l_timer_t timerid
+		);
 	}
 112	AUE_CLOCK_SETTIME	STD	{
 		int linux_clock_settime(
@@ -729,7 +739,8 @@
 	}
 120	AUE_SCHED_GETSCHEDULER	STD {
 		int linux_sched_getscheduler(
-		    l_pid_t pid);
+		    l_pid_t pid
+		);
 	}
 121	AUE_SCHED_GETPARAM	STD	{
 		int linux_sched_getparam(
@@ -756,13 +767,11 @@
 	}
 125	AUE_SCHED_GET_PRIORITY_MAX	STD {
 		int linux_sched_get_priority_max(
-		    \
 		    l_int policy
 		);
 	}
 126	AUE_SCHED_GET_PRIORITY_MIN	STD {
 		int linux_sched_get_priority_min(
-		    \
 		    l_int policy
 		);
 	}
@@ -868,52 +877,62 @@
 143	AUE_SETREGID	NOPROTO	{
 		int setregid(
 		    gid_t rgid,
-		    gid_t egid);
+		    gid_t egid
+		);
 	}
 144	AUE_SETGID	NOPROTO	{
 		int setgid(
-		    gid_t gid);
+		    gid_t gid
+		);
 	}
 145	AUE_SETREUID	NOPROTO	{
 		int setreuid(
 		    uid_t ruid,
-		    uid_t euid);
+		    uid_t euid
+		);
 	}
 146	AUE_SETUID	NOPROTO	{
 		int setuid(
-		    uid_t uid);
+		    uid_t uid
+		);
 	}
 147	AUE_SETRESUID	NOPROTO	{
 		int setresuid(
 		    uid_t ruid,
 		    uid_t euid,
-		    uid_t suid);
+		    uid_t suid
+		);
 	}
 148	AUE_GETRESUID	NOPROTO	{
 		int getresuid(
 		    uid_t *ruid,
 		    uid_t *euid,
-		    uid_t *suid);
+		    uid_t *suid
+		);
 	}
 149	AUE_SETRESGID	NOPROTO	{
 		int setresgid(
 		    gid_t rgid,
 		    gid_t egid,
-		    gid_t sgid);
+		    gid_t sgid
+		);
 	}
 150	AUE_GETRESGID	NOPROTO	{
 		int getresgid(
 		    gid_t *rgid,
 		    gid_t *egid,
-		    gid_t *sgid);
+		    gid_t *sgid
+		);
 	}
 151	AUE_SETFSUID	STD	{
 		int linux_setfsuid(
-		    l_uid_t uid);
+		    l_uid_t uid
+		);
 	}
 152	AUE_SETFSGID	STD	{
 		int linux_setfsgid(
-		    l_gid_t gid);
+		    l_gid_t gid
+		);
 	}
 153	AUE_NULL	STD	{
 		int linux_times(
@@ -923,15 +942,18 @@
 154	AUE_SETPGRP	NOPROTO	{
 		int setpgid(
 		    int pid,
-		    int pgid);
+		    int pgid
+		);
 	}
 155	AUE_GETPGID	NOPROTO	{
 		int getpgid(
-		    int pid);
+		    int pid
+		);
 	}
 156	AUE_GETSID	STD	{
 		int linux_getsid(
-		    l_pid_t pid);
+		    l_pid_t pid
+		);
 	}
 157	AUE_SETSID	NOPROTO	{
 		int setsid(void);
@@ -1292,7 +1314,8 @@
 213	AUE_NULL	UNIMPL	linux_readahead
 214	AUE_NULL	STD	{
 		int linux_brk(
-		    l_ulong dsend);
+		    l_ulong dsend
+		);
 	}
 215	AUE_MUNMAP	NOPROTO	{
 		int munmap(
@@ -1468,7 +1491,8 @@
 		    l_pid_t pid,
 		    l_uint resource,
 		    struct rlimit *new,
-		    struct rlimit *old);
+		    struct rlimit *old
+		);
 	}
 262	AUE_NULL	STD	{
 		int linux_fanotify_init(void);
@@ -1497,7 +1521,8 @@
 	}
 267	AUE_SYNC	STD	{
 		int linux_syncfs(
-		    l_int fd);
+		    l_int fd
+		);
 	}
 268	AUE_NULL	STD	{
 		int linux_setns(
