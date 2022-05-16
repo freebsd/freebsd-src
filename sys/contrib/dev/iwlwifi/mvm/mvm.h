@@ -892,17 +892,6 @@ struct iwl_mvm {
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
 
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
-	/* broadcast filters to configure for each associated station */
-	const struct iwl_fw_bcast_filter *bcast_filters;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct {
-		bool override;
-		struct iwl_bcast_filter_cmd cmd;
-	} dbgfs_bcast_filtering;
-#endif
-#endif
-
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
 	struct iwl_mvm_int_sta snif_sta;
@@ -1083,7 +1072,6 @@ struct iwl_mvm {
 
 
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
-	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 
 	struct cfg80211_ftm_responder_stats ftm_resp_stats;
 	struct {
@@ -1602,8 +1590,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm);
 int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm);
 
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm);
-bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
-				    struct iwl_bcast_filter_cmd *cmd);
 
 /*
  * FW notifications / CMD responses handlers
@@ -2233,7 +2219,7 @@ static inline void iwl_mvm_mei_device_down(struct iwl_mvm *mvm)
 static inline void iwl_mvm_mei_set_sw_rfkill_state(struct iwl_mvm *mvm)
 {
 	bool sw_rfkill =
-		mvm->hw_registered ? rfkill_blocked(mvm->hw->wiphy->rfkill) : false;
+		mvm->hw_registered ? rfkill_soft_blocked(mvm->hw->wiphy->rfkill) : false;
 
 	if (mvm->mei_registered)
 		iwl_mei_set_rfkill_state(iwl_mvm_is_radio_killed(mvm),
