@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FWVERSION=	68
+FWVERSION=	71
 NAME=		QuZ-a0-jf-b0
 
 .include <bsd.kmod.mk>
