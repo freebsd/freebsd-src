@@ -50,4 +50,10 @@ cpu_latency_qos_remove_request(struct pm_qos_request *qos)
 {
 }
 
+static inline bool
+cpu_latency_qos_request_active(struct pm_qos_request *qos)
+{
+	return (false);
+}
+
 #endif	/* _LINUXKPI_LINUX_PM_QOS_H */
