@@ -56,9 +56,9 @@ fsu_fault_nopcb:
 END(fsu_fault)
 
 /*
- * int casueword32(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
+ * int casueword32_llsc(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
  */
-ENTRY(casueword32)
+ENTRY(casueword32_llsc)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	mov	w5, #1
@@ -73,12 +73,32 @@ ENTRY(casueword32)
 	str	w4, [x2]		/* Store the read data */
 	mov	w0, w5			/* Result same as store status */
 	ret				/* Return */
-END(casueword32)
+END(casueword32_llsc)
 
 /*
- * int casueword(volatile u_long *, u_long, u_long *, u_long)
+ * int casueword32_lse(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
  */
-ENTRY(casueword)
+ENTRY(casueword32_lse)
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
+	adr	x6, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
+	mov	w7, w1			/* Back up the compare value */
+	.arch_extension lse
+	cas	w1, w3, [x0]		/* Compare and Swap */
+	.arch_extension nolse
+	cmp	w1, w7			/* Check if successful */
+	cset	w0, ne			/* Return 0 on success, 1 on failure */
+	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
+	str	w1, [x2]		/* Store the read data */
+	ret				/* Return */
+END(casueword32_lse)
+
+/*
+ * int casueword_llsc(volatile u_long *, u_long, u_long *, u_long)
+ */
+ENTRY(casueword_llsc)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-7), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	mov	w5, #1
@@ -93,7 +113,27 @@ ENTRY(casueword)
 	str	x4, [x2]		/* Store the read data */
 	mov	w0, w5			/* Result same as store status */
 	ret				/* Return */
-END(casueword)
+END(casueword_llsc)
+
+/*
+ * int casueword_lse(volatile u_long *, u_long, u_long *, u_long)
+ */
+ENTRY(casueword_lse)
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
+	adr	x6, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
+	mov	x7, x1			/* Back up the compare value */
+	.arch_extension lse
+	cas	x1, x3, [x0]		/* Compare and Swap */
+	.arch_extension nolse
+	cmp	x1, x7			/* Check if successful */
+	cset	w0, ne			/* Return 0 on success, 1 on failure */
+	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
+	str	x1, [x2]		/* Store the read data */
+	ret				/* Return */
+END(casueword_lse)
 
 .macro fsudata insn, ret_reg, user_arg
 	adr	x7, fsu_fault		/* Load the fault handler */
