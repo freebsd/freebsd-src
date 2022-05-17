@@ -240,7 +240,7 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 
 # Needed to build config (since it uses libnv)
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
-		${SRCTOP}/sys/sys/dnv.h
+		${SRCTOP}/sys/sys/dnv.h ${SRCTOP}/sys/sys/nv_namespace.h
 
 # Needed when bootstrapping ldd (since it uses DF_1_PIE)
 SYSINCS+=	${SRCTOP}/sys/sys/elf32.h

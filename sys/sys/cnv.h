@@ -38,6 +38,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/nv_namespace.h>
 #endif
 
 #ifndef	_NVLIST_T_DECLARED
