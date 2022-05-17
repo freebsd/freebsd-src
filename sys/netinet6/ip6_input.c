@@ -1413,7 +1413,7 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 		 */
 		if (ip6->ip6_nxt == IPPROTO_HOPOPTS) {
 			struct ip6_hbh *hbh;
-			int hbhlen;
+			u_int hbhlen;
 
 			hbh = (struct ip6_hbh *)(ip6 + 1);
 			hbhlen = (hbh->ip6h_len + 1) << 3;
@@ -1445,7 +1445,7 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 		 */
 		while (1) {	/* is explicit loop prevention necessary? */
 			struct ip6_ext *ip6e = NULL;
-			int elen;
+			u_int elen;
 
 			/*
 			 * if it is not an extension header, don't try to

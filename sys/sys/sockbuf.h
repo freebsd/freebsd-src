@@ -158,7 +158,8 @@ void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
 void	sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0);
 void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
 struct mbuf *
-	sbcreatecontrol(void *p, int size, int type, int level, int wait);
+	sbcreatecontrol(const void *p, u_int size, int type, int level,
+	    int wait);
 void	sbdestroy(struct socket *, sb_which);
 void	sbdrop(struct sockbuf *sb, int len);
 void	sbdrop_locked(struct sockbuf *sb, int len);

@@ -1760,29 +1760,35 @@ sbdroprecord(struct sockbuf *sb)
  * type for presentation on a socket buffer.
  */
 struct mbuf *
-sbcreatecontrol(void *p, int size, int type, int level, int wait)
+sbcreatecontrol(const void *p, u_int size, int type, int level, int wait)
 {
 	struct cmsghdr *cp;
 	struct mbuf *m;
 
 	MBUF_CHECKSLEEP(wait);
-	if (CMSG_SPACE((u_int)size) > MCLBYTES)
-		return ((struct mbuf *) NULL);
-	if (CMSG_SPACE((u_int)size) > MLEN)
+
+	if (wait == M_NOWAIT) {
+		if (CMSG_SPACE(size) > MCLBYTES)
+			return (NULL);
+	} else
+		KASSERT(size <= MCLBYTES, ("%s: passed size %u > MCLBYTES",
+		    __func__, size));
+
+	if (CMSG_SPACE(size) > MLEN)
 		m = m_getcl(wait, MT_CONTROL, 0);
 	else
 		m = m_get(wait, MT_CONTROL);
 	if (m == NULL)
-		return ((struct mbuf *) NULL);
-	cp = mtod(m, struct cmsghdr *);
-	m->m_len = 0;
-	KASSERT(CMSG_SPACE((u_int)size) <= M_TRAILINGSPACE(m),
+		return (NULL);
+
+	KASSERT(CMSG_SPACE(size) <= M_TRAILINGSPACE(m),
 	    ("sbcreatecontrol: short mbuf"));
 	/*
 	 * Don't leave the padding between the msg header and the
 	 * cmsg data and the padding after the cmsg data un-initialized.
 	 */
-	bzero(cp, CMSG_SPACE((u_int)size));
+	cp = mtod(m, struct cmsghdr *);
+	bzero(cp, CMSG_SPACE(size));
 	if (p != NULL)
 		(void)memcpy(CMSG_DATA(cp), p, size);
 	m->m_len = CMSG_SPACE(size);
