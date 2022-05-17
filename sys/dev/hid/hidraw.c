@@ -569,6 +569,7 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	struct hidraw_gen_descriptor *hgd;
 	struct hidraw_report_descriptor *hrd;
 	struct hidraw_devinfo *hdi;
+	const char *devname;
 	uint32_t size;
 	int id, len;
 	int error = 0;
@@ -825,10 +826,13 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	switch (IOCBASECMD(cmd)) {
 	case HIDIOCGRAWNAME(0):
 		strlcpy(addr, sc->sc_hw->name, len);
+		td->td_retval[0] = min(strlen(sc->sc_hw->name) + 1, len);
 		return (0);
 
 	case HIDIOCGRAWPHYS(0):
-		strlcpy(addr, device_get_nameunit(sc->sc_dev), len);
+		devname = device_get_nameunit(sc->sc_dev);
+		strlcpy(addr, devname, len);
+		td->td_retval[0] = min(strlen(devname) + 1, len);
 		return (0);
 
 	case HIDIOCSFEATURE(0):
@@ -859,6 +863,7 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	case HIDIOCGRAWUNIQ(0):
 		strlcpy(addr, sc->sc_hw->serial, len);
+		td->td_retval[0] = min(strlen(sc->sc_hw->serial) + 1, len);
 		return (0);
 	}
 
