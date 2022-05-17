@@ -34,13 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/eventhandler.h>
-#include <sys/mutex.h>
+#include <sys/sx.h>
 
 #include <linux/compat.h>
 #include <linux/shrinker.h>
 
 TAILQ_HEAD(, shrinker) lkpi_shrinkers = TAILQ_HEAD_INITIALIZER(lkpi_shrinkers);
-static struct mtx mtx_shrinker;
+static struct sx sx_shrinker;
 
 int
 linuxkpi_register_shrinker(struct shrinker *s)
@@ -49,9 +49,9 @@ linuxkpi_register_shrinker(struct shrinker *s)
 	KASSERT(s != NULL, ("NULL shrinker"));
 	KASSERT(s->count_objects != NULL, ("NULL shrinker"));
 	KASSERT(s->scan_objects != NULL, ("NULL shrinker"));
-	mtx_lock(&mtx_shrinker);
+	sx_xlock(&sx_shrinker);
 	TAILQ_INSERT_TAIL(&lkpi_shrinkers, s, next);
-	mtx_unlock(&mtx_shrinker);
+	sx_xunlock(&sx_shrinker);
 	return (0);
 }
 
@@ -59,9 +59,9 @@ void
 linuxkpi_unregister_shrinker(struct shrinker *s)
 {
 
-	mtx_lock(&mtx_shrinker);
+	sx_xlock(&sx_shrinker);
 	TAILQ_REMOVE(&lkpi_shrinkers, s, next);
-	mtx_unlock(&mtx_shrinker);
+	sx_xunlock(&sx_shrinker);
 }
 
 #define	SHRINKER_BATCH	512
@@ -94,12 +94,11 @@ linuxkpi_vm_lowmem(void *arg __unused)
 {
 	struct shrinker *s;
 
-	linux_set_current(curthread);
-	mtx_lock(&mtx_shrinker);
+	sx_xlock(&sx_shrinker);
 	TAILQ_FOREACH(s, &lkpi_shrinkers, next) {
 		shrinker_shrink(s);
 	}
-	mtx_unlock(&mtx_shrinker);
+	sx_xunlock(&sx_shrinker);
 }
 
 static eventhandler_tag lowmem_tag;
@@ -108,7 +107,7 @@ static void
 linuxkpi_sysinit_shrinker(void *arg __unused)
 {
 
-	mtx_init(&mtx_shrinker, "lkpi-shrinker", NULL, MTX_DEF);
+	sx_init(&sx_shrinker, "lkpi-shrinker");
 	lowmem_tag = EVENTHANDLER_REGISTER(vm_lowmem, linuxkpi_vm_lowmem,
 	    NULL, EVENTHANDLER_PRI_FIRST);
 }
@@ -117,7 +116,7 @@ static void
 linuxkpi_sysuninit_shrinker(void *arg __unused)
 {
 
-	mtx_destroy(&mtx_shrinker);
+	sx_destroy(&sx_shrinker);
 	EVENTHANDLER_DEREGISTER(vm_lowmem, lowmem_tag);
 }
 
