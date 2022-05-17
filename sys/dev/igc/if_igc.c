@@ -1610,7 +1610,7 @@ igc_reset(if_ctx_t ctx)
 	device_t dev = iflib_get_dev(ctx);
 	struct igc_adapter *adapter = iflib_get_softc(ctx);
 	struct igc_hw *hw = &adapter->hw;
-	u16 rx_buffer_size;
+	u32 rx_buffer_size;
 	u32 pba;
 
 	INIT_DEBUGOUT("igc_reset: begin");
