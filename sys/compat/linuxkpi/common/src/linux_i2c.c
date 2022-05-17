@@ -124,6 +124,7 @@ driver_t lkpi_iic_driver = {
 };
 
 DRIVER_MODULE(lkpi_iic, drmn, lkpi_iic_driver, 0, 0);
+DRIVER_MODULE(lkpi_iic, drm, lkpi_iic_driver, 0, 0);
 DRIVER_MODULE(iicbus, lkpi_iic, iicbus_driver, 0, 0);
 MODULE_DEPEND(linuxkpi, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 
