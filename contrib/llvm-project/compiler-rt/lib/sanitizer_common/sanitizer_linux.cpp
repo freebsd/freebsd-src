@@ -2080,12 +2080,19 @@ static void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp) {
   *sp = ucontext->uc_mcontext.gregs[REG_UESP];
 # endif
 #elif defined(__powerpc__) || defined(__powerpc64__)
+#    if SANITIZER_FREEBSD
+  ucontext_t *ucontext = (ucontext_t *)context;
+  *pc = ucontext->uc_mcontext.mc_srr0;
+  *sp = ucontext->uc_mcontext.mc_frame[1];
+  *bp = ucontext->uc_mcontext.mc_frame[31];
+#    else
   ucontext_t *ucontext = (ucontext_t*)context;
   *pc = ucontext->uc_mcontext.regs->nip;
   *sp = ucontext->uc_mcontext.regs->gpr[PT_R1];
   // The powerpc{,64}-linux ABIs do not specify r31 as the frame
   // pointer, but GCC always uses r31 when we need a frame pointer.
   *bp = ucontext->uc_mcontext.regs->gpr[PT_R31];
+#    endif
 #elif defined(__sparc__)
 #if defined(__arch64__) || defined(__sparcv9)
 #define STACK_BIAS 2047
@@ -2174,17 +2181,6 @@ void CheckASLR() {
            GetArgv()[0]);
     Die();
   }
-#elif SANITIZER_PPC64V2
-  // Disable ASLR for Linux PPC64LE.
-  int old_personality = personality(0xffffffff);
-  if (old_personality != -1 && (old_personality & ADDR_NO_RANDOMIZE) == 0) {
-    VReport(1, "WARNING: Program is being run with address space layout "
-               "randomization (ASLR) enabled which prevents the thread and "
-               "memory sanitizers from working on powerpc64le.\n"
-               "ASLR will be disabled and the program re-executed.\n");
-    CHECK_NE(personality(old_personality | ADDR_NO_RANDOMIZE), -1);
-    ReExec();
-  }
 #elif SANITIZER_FREEBSD
   int aslr_status;
   if (UNLIKELY(procctl(P_PID, 0, PROC_ASLR_STATUS, &aslr_status) == -1)) {
@@ -2199,6 +2195,18 @@ void CheckASLR() {
                "ASLR will be disabled and the program re-executed.\n");
     int aslr_ctl = PROC_ASLR_FORCE_DISABLE;
     CHECK_NE(procctl(P_PID, 0, PROC_ASLR_CTL, &aslr_ctl), -1);
+    ReExec();
+  }
+#  elif SANITIZER_PPC64V2
+  // Disable ASLR for Linux PPC64LE.
+  int old_personality = personality(0xffffffff);
+  if (old_personality != -1 && (old_personality & ADDR_NO_RANDOMIZE) == 0) {
+    VReport(1,
+            "WARNING: Program is being run with address space layout "
+            "randomization (ASLR) enabled which prevents the thread and "
+            "memory sanitizers from working on powerpc64le.\n"
+            "ASLR will be disabled and the program re-executed.\n");
+    CHECK_NE(personality(old_personality | ADDR_NO_RANDOMIZE), -1);
     ReExec();
   }
 #else
@@ -2225,9 +2233,9 @@ void CheckMPROTECT() {
     Printf("This sanitizer is not compatible with enabled MPROTECT\n");
     Die();
   }
-#else
+#  else
   // Do nothing
-#endif
+#  endif
 }
 
 void CheckNoDeepBind(const char *filename, int flag) {
