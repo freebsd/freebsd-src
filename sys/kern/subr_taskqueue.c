@@ -59,6 +59,7 @@ static void	 taskqueue_swi_giant_enqueue(void *);
 struct taskqueue_busy {
 	struct task		*tb_running;
 	u_int			 tb_seq;
+	bool			 tb_canceling;
 	LIST_ENTRY(taskqueue_busy) tb_link;
 };
 
@@ -123,6 +124,19 @@ TQ_SLEEP(struct taskqueue *tq, void *p, const char *wm)
 	if (tq->tq_spin)
 		return (msleep_spin(p, (struct mtx *)&tq->tq_mutex, wm, 0));
 	return (msleep(p, &tq->tq_mutex, 0, wm, 0));
+}
+
+static struct taskqueue_busy *
+task_get_busy(struct taskqueue *queue, struct task *task)
+{
+	struct taskqueue_busy *tb;
+
+	TQ_ASSERT_LOCKED(queue);
+	LIST_FOREACH(tb, &queue->tq_active, tb_link) {
+		if (tb->tb_running == task)
+			return (tb);
+	}
+	return (NULL);
 }
 
 static struct taskqueue *
@@ -217,16 +231,32 @@ taskqueue_free(struct taskqueue *queue)
 }
 
 static int
-taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
+taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task, int flags)
 {
 	struct task *ins;
 	struct task *prev;
+	struct taskqueue_busy *tb;
 
 	KASSERT(task->ta_func != NULL, ("enqueueing task with NULL func"));
+	/*
+	 * Ignore canceling task if requested.
+	 */
+	if (__predict_false((flags & TASKQUEUE_FAIL_IF_CANCELING) != 0)) {
+		tb = task_get_busy(queue, task);
+		if (tb != NULL && tb->tb_canceling) {
+			TQ_UNLOCK(queue);
+			return (ECANCELED);
+		}
+	}
+
 	/*
 	 * Count multiple enqueues.
 	 */
 	if (task->ta_pending) {
+		if (__predict_false((flags & TASKQUEUE_FAIL_IF_PENDING) != 0)) {
+			TQ_UNLOCK(queue);
+			return (EEXIST);
+		}
 		if (task->ta_pending < USHRT_MAX)
 			task->ta_pending++;
 		TQ_UNLOCK(queue);
@@ -274,15 +304,21 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 }
 
 int
-taskqueue_enqueue(struct taskqueue *queue, struct task *task)
+taskqueue_enqueue_flags(struct taskqueue *queue, struct task *task, int flags)
 {
 	int res;
 
 	TQ_LOCK(queue);
-	res = taskqueue_enqueue_locked(queue, task);
+	res = taskqueue_enqueue_locked(queue, task, flags);
 	/* The lock is released inside. */
 
 	return (res);
+}
+
+int
+taskqueue_enqueue(struct taskqueue *queue, struct task *task)
+{
+	return (taskqueue_enqueue_flags(queue, task, 0));
 }
 
 static void
@@ -296,7 +332,7 @@ taskqueue_timeout_func(void *arg)
 	KASSERT((timeout_task->f & DT_CALLOUT_ARMED) != 0, ("Stray timeout"));
 	timeout_task->f &= ~DT_CALLOUT_ARMED;
 	queue->tq_callouts--;
-	taskqueue_enqueue_locked(timeout_task->q, &timeout_task->t);
+	taskqueue_enqueue_locked(timeout_task->q, &timeout_task->t, 0);
 	/* The lock is released inside. */
 }
 
@@ -316,7 +352,7 @@ taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
 		TQ_UNLOCK(queue);
 		res = -1;
 	} else if (sbt == 0) {
-		taskqueue_enqueue_locked(queue, &timeout_task->t);
+		taskqueue_enqueue_locked(queue, &timeout_task->t, 0);
 		/* The lock is released inside. */
 	} else {
 		if ((timeout_task->f & DT_CALLOUT_ARMED) != 0) {
@@ -464,6 +500,7 @@ taskqueue_run_locked(struct taskqueue *queue)
 		task->ta_pending = 0;
 		tb.tb_running = task;
 		tb.tb_seq = ++queue->tq_seq;
+		tb.tb_canceling = false;
 		TQ_UNLOCK(queue);
 
 		KASSERT(task->ta_func != NULL, ("task->ta_func is NULL"));
@@ -493,19 +530,6 @@ taskqueue_run(struct taskqueue *queue)
 	TQ_UNLOCK(queue);
 }
 
-static int
-task_is_running(struct taskqueue *queue, struct task *task)
-{
-	struct taskqueue_busy *tb;
-
-	TQ_ASSERT_LOCKED(queue);
-	LIST_FOREACH(tb, &queue->tq_active, tb_link) {
-		if (tb->tb_running == task)
-			return (1);
-	}
-	return (0);
-}
-
 /*
  * Only use this function in single threaded contexts. It returns
  * non-zero if the given task is either pending or running. Else the
@@ -517,7 +541,7 @@ taskqueue_poll_is_busy(struct taskqueue *queue, struct task *task)
 	int retval;
 
 	TQ_LOCK(queue);
-	retval = task->ta_pending > 0 || task_is_running(queue, task);
+	retval = task->ta_pending > 0 || task_get_busy(queue, task) != NULL;
 	TQ_UNLOCK(queue);
 
 	return (retval);
@@ -527,6 +551,8 @@ static int
 taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
     u_int *pendp)
 {
+	struct taskqueue_busy *tb;
+	int retval = 0;
 
 	if (task->ta_pending > 0) {
 		STAILQ_REMOVE(&queue->tq_queue, task, task, ta_link);
@@ -536,7 +562,13 @@ taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
 	if (pendp != NULL)
 		*pendp = task->ta_pending;
 	task->ta_pending = 0;
-	return (task_is_running(queue, task) ? EBUSY : 0);
+	tb = task_get_busy(queue, task);
+	if (tb != NULL) {
+		tb->tb_canceling = true;
+		retval = EBUSY;
+	}
+
+	return (retval);
 }
 
 int
@@ -580,7 +612,7 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	TQ_LOCK(queue);
-	while (task->ta_pending != 0 || task_is_running(queue, task))
+	while (task->ta_pending != 0 || task_get_busy(queue, task) != NULL)
 		TQ_SLEEP(queue, task, "tq_drain");
 	TQ_UNLOCK(queue);
 }

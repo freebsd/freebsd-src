@@ -165,3 +165,19 @@ linux_kthread_fn(void *arg __unused)
 	}
 	kthread_exit();
 }
+
+void
+lkpi_kthread_work_fn(void *context, int pending __unused)
+{
+	struct kthread_work *work = context;
+
+	work->func(work);
+}
+
+void
+lkpi_kthread_worker_init_fn(void *context, int pending __unused)
+{
+	struct kthread_worker *worker = context;
+
+	worker->task = current;
+}
