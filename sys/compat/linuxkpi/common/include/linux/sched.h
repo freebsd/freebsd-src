@@ -134,9 +134,9 @@ cond_resched_lock(spinlock_t *lock)
 
 	if (need_resched() == 0)
 		return (0);
-	spin_lock(lock);
-	cond_resched();
 	spin_unlock(lock);
+	cond_resched();
+	spin_lock(lock);
 	return (1);
 }
 
