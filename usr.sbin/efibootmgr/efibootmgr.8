@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 15, 2023
+.Dd October 26, 2023
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
@@ -115,6 +115,11 @@ When creating or modifying an entry, use
 .Ar bootnum
 as the index.
 When creating a new entry, fail if it already exists.
+For convenience, if
+.Ar bootnum
+is prefixed with
+.Dq boot ,
+that prefix is ignored.
 .It Fl B -delete
 Delete the given
 .Ar bootnum
