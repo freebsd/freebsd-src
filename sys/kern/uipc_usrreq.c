@@ -296,7 +296,6 @@ static int	unp_connectat(int, struct socket *, struct sockaddr *,
 static void	unp_connect2(struct socket *so, struct socket *so2, int);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
-static void	unp_dispose_mbuf(struct mbuf *);
 static void	unp_shutdown(struct unpcb *);
 static void	unp_drop(struct unpcb *);
 static void	unp_gc(__unused void *, int);
@@ -1160,7 +1159,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		UNP_PCB_UNLOCK(unp);
 	}
 	if (control != NULL && error != 0)
-		unp_dispose_mbuf(control);
+		unp_scan(control, unp_freerights);
 
 release:
 	if (control != NULL)
@@ -2744,14 +2743,6 @@ unp_gc(__unused void *arg, int pending)
 	free(unref, M_TEMP);
 }
 
-static void
-unp_dispose_mbuf(struct mbuf *m)
-{
-
-	if (m)
-		unp_scan(m, unp_freerights);
-}
-
 /*
  * Synchronize against unp_gc, which can trip over data as we are freeing it.
  */
@@ -2783,7 +2774,7 @@ unp_dispose(struct socket *so)
 		SOCK_IO_RECV_UNLOCK(so);
 
 	if (m != NULL) {
-		unp_dispose_mbuf(m);
+		unp_scan(m, unp_freerights);
 		m_freem(m);
 	}
 }
