@@ -54,6 +54,9 @@ static struct sigaction sigact = {
 
 /*
  * Fill socket to a state when next send(len) would fail.
+ *
+ * Note that every datagram is prepended with sender address,
+ * size of struct sockaddr.
  */
 static void
 fill(int fd, void *buf, ssize_t len)
@@ -64,7 +67,9 @@ fill(int fd, void *buf, ssize_t len)
 
 	ATF_REQUIRE(sysctlbyname("net.local.dgram.recvspace", &recvspace,
 	    &llen, NULL, 0) == 0);
-	for (sent = 0; sent + len < (ssize_t)recvspace; sent += len)
+	for (sent = 0;
+	    sent + len + sizeof(struct sockaddr) < recvspace;
+	    sent += len + sizeof(struct sockaddr))
 		ATF_REQUIRE(send(fd, buf, len, 0) == len);
 }
 
