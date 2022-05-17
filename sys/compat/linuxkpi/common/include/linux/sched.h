@@ -41,6 +41,7 @@
 #include <linux/bitmap.h>
 #include <linux/compat.h>
 #include <linux/completion.h>
+#include <linux/hrtimer.h>
 #include <linux/mm_types.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
@@ -60,6 +61,8 @@
 #define	TASK_PARKED		0x0200
 
 #define	TASK_COMM_LEN		(MAXCOMLEN + 1)
+
+struct seq_file;
 
 struct work_struct;
 struct task_struct {
