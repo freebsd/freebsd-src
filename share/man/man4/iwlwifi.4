@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2022
+.Dd June 3, 2022
 .Dt iwlwifi 4
 .Os
 .Sh NAME
@@ -60,7 +60,129 @@ driver is derived from Intel's Linux iwlwifi driver and provides support for
 all chipsets supported by the
 .Em mvm
 part of that driver.
-.\" XXX-BZ find way to add full list of chipsets automatically
+.Pp
+.Bl -bullet -compact
+.% ---------------------------------------------------------------------
+.% This list is manually generated from a sysctl and post-processing.
+.% Edits will be overwritten on next update.
+.% ---------------------------------------------------------------------
+.It
+Intel(R) Dual Band Wireless AC 7260
+.It
+Intel(R) Dual Band Wireless N 7260
+.It
+Intel(R) Wireless N 7260
+.It
+Intel(R) Dual Band Wireless AC 3160
+.It
+Intel(R) Dual Band Wireless N 3160
+.It
+Intel(R) Wireless N 3160
+.It
+Intel(R) Dual Band Wireless AC 3165
+.It
+Intel(R) Dual Band Wireless AC 3168
+.It
+Intel(R) Dual Band Wireless AC 7265
+.It
+Intel(R) Wireless N 7265
+.It
+Intel(R) Dual Band Wireless N 7265
+.It
+Intel(R) Dual Band Wireless AC 8260
+.It
+Intel(R) Dual Band Wireless N 8260
+.It
+Intel(R) Dual Band Wireless AC 4165
+.It
+Intel(R) Dual Band Wireless AC 8265
+.It
+Intel(R) Dual Band Wireless AC 8275
+.It
+Killer (R) Wireless-AC 1550 Wireless Network Adapter (9260NGW) 160MHz
+.It
+Killer (R) Wireless-AC 1550s Wireless Network Adapter (9560NGW)
+.It
+Killer (R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)
+.It
+Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz
+.It
+Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz
+.It
+Killer(R) Wi-Fi 6E AX1690s 160MHz Wireless Network Adapter (411D2W)
+.It
+Killer(R) Wi-Fi 6E AX1690i 160MHz Wireless Network Adapter (411NGW)
+.It
+Intel(R) Wireless-AC 9260-1
+.It
+Intel(R) Wi-Fi 6 AX200 160MHz
+.It
+Killer(R) Wi-Fi 6 AX1650w 160MHz Wireless Network Adapter (200D2W)
+.It
+Killer(R) Wi-Fi 6 AX1650x 160MHz Wireless Network Adapter (200NGW)
+.It
+Intel(R) Wi-Fi 6 AX201 160MHz
+.It
+Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201D2W)
+.It
+Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)
+.It
+Killer(R) Wi-Fi 6 AX1650s 160MHz Wireless Network Adapter (201NGW)
+.It
+Killer(R) Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201D2W)
+.It
+Intel(R) Wi-Fi 6E AX211 160MHz
+.It
+Intel(R) Wi-Fi 6 AX210 160MHz
+.It
+Killer(R) Wi-Fi 6E AX1675w 160MHz Wireless Network Adapter (210D2W)
+.It
+Killer(R) Wi-Fi 6E AX1675x 160MHz Wireless Network Adapter (210NGW)
+.It
+Intel(R) Wi-Fi 6E AX411 160MHz
+.It
+Killer(R) Wi-Fi 6E AX1675s 160MHz Wireless Network Adapter (211NGW)
+.It
+Killer(R) Wi-Fi 6E AX1675i 160MHz Wireless Network Adapter (211NGW)
+.It
+Intel(R) Wireless-AC 9461 160MHz
+.It
+Intel(R) Wireless-AC 9461
+.It
+Intel(R) Wireless-AC 9462 160MHz
+.It
+Intel(R) Wireless-AC 9462
+.It
+Intel(R) Wireless-AC 9560 160MHz
+.It
+Intel(R) Wireless-AC 9560
+.It
+Intel(R) Wireless-AC 9270 160MHz
+.It
+Intel(R) Wireless-AC 9270
+.It
+Intel(R) Wireless-AC 9162 160MHz
+.It
+Intel(R) Wireless-AC 9162
+.It
+Intel(R) Wireless-AC 9260 160MHz
+.It
+Intel(R) Wireless-AC 9260
+.It
+Intel(R) Wi-Fi 6 AX101
+.It
+Intel(R) Wi-Fi 6 AX203
+.It
+Intel(R) Wi-Fi 6E AX221 160MHz
+.It
+Intel(R) Wi-Fi 6E AX231 160MHz
+.It
+Intel(R) TBD Bz device
+.It
+Intel(R) Wi-Fi 6 AX204 160MHz
+.% ---------------------------------------------------------------------
+.El
+.Pp
 .Nm
 will be a successor to
 .Xr iwm 4
