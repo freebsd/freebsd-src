@@ -183,8 +183,9 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	    inp->inp_socket->so_options & SO_TIMESTAMP)
 		ip6_savecontrol(inp, n, &opts);
 	if ((inp->inp_vflag & INP_IPV6) && (inp->inp_flags2 & INP_ORIGDSTADDR)) {
-		tmp_opts = sbcreatecontrol((caddr_t)&fromsa[1],
-                        sizeof(struct sockaddr_in6), IPV6_ORIGDSTADDR, IPPROTO_IPV6);
+		tmp_opts = sbcreatecontrol(&fromsa[1],
+		    sizeof(struct sockaddr_in6), IPV6_ORIGDSTADDR,
+		    IPPROTO_IPV6, M_NOWAIT);
                 if (tmp_opts) {
                         if (opts) {
                                 tmp_opts->m_next = opts;
