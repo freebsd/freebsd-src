@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/rtprio.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/time.h>
@@ -215,6 +216,26 @@ get_task_comm(char *buf, struct task_struct *task)
 
 	buf[0] = 0; /* buffer is too small */
 	return (task->comm);
+}
+
+static inline void
+sched_set_fifo(struct task_struct *t)
+{
+	struct rtprio rtp;
+
+	rtp.prio = (RTP_PRIO_MIN + RTP_PRIO_MAX) / 2;
+	rtp.type = RTP_PRIO_FIFO;
+	rtp_to_pri(&rtp, t->task_thread);
+}
+
+static inline void
+sched_set_fifo_low(struct task_struct *t)
+{
+	struct rtprio rtp;
+
+	rtp.prio = RTP_PRIO_MAX;	/* lowest priority */
+	rtp.type = RTP_PRIO_FIFO;
+	rtp_to_pri(&rtp, t->task_thread);
 }
 
 #endif	/* _LINUXKPI_LINUX_SCHED_H_ */
