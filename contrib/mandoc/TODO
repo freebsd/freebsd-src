@@ -563,9 +563,7 @@ are mere guesses, and some may be wrong.
   reported again by Franco Fichtner Fri, 27 Sep 2013 21:02:28 +0200
   reported again by Bruce Evans Fri, 17 Feb 2017 21:22:44 +0100 via bapt@
   loc ***  exist ***  algo ***  size **  imp ***
-  An easy partial fix would be to just skip the first word if it starts
-  with a dot, including any following white space, when measuring.
-  loc *  exist *  algo *  size *  imp ***
+  An easy partial fix has been implemented as skip_leading_dot_word().
 
 - The \& zero-width character counts as output.
   That is, when it is alone on a line between two .Pp,
