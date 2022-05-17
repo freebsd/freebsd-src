@@ -34,8 +34,9 @@
 #include <sys/param.h>
 #include <sys/taskqueue.h>
 
+#include <linux/llist.h>
+
 struct irq_work;
-struct llist_node;
 typedef void (*irq_work_func_t)(struct irq_work *);
 
 struct irq_work {
