@@ -61,6 +61,10 @@ enum taskqueue_callback_type {
 #define	TASKQUEUE_NUM_CALLBACKS		TASKQUEUE_CALLBACK_TYPE_MAX + 1
 #define	TASKQUEUE_NAMELEN		32
 
+/* taskqueue_enqueue flags */
+#define	TASKQUEUE_FAIL_IF_PENDING	(1 << 0)
+#define	TASKQUEUE_FAIL_IF_CANCELING	(1 << 1)
+
 typedef void (*taskqueue_callback_fn)(void *context);
 
 /*
@@ -82,6 +86,8 @@ int	taskqueue_start_threads_in_proc(struct taskqueue **tqp, int count,
 int	taskqueue_start_threads_cpuset(struct taskqueue **tqp, int count,
 	    int pri, cpuset_t *mask, const char *name, ...) __printflike(5, 6);
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
+int	taskqueue_enqueue_flags(struct taskqueue *queue, struct task *task,
+	    int flags);
 int	taskqueue_enqueue_timeout(struct taskqueue *queue,
 	    struct timeout_task *timeout_task, int ticks);
 int	taskqueue_enqueue_timeout_sbt(struct taskqueue *queue,
