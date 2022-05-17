@@ -1819,6 +1819,45 @@ post_bl_block(POST_ARGS)
 }
 
 /*
+ * If "in" begins with a dot, a word, and whitespace, return a dynamically
+ * allocated copy of "in" that skips all of those.  Otherwise, return NULL.
+ *
+ * This is a partial workaround for the TODO list item beginning with:
+ * - When the -width string contains macros, the macros must be rendered
+ */
+static char *
+skip_leading_dot_word(const char *in)
+{
+	const char *iter = in;
+	const char *space;
+
+	if (*iter != '.')
+		return NULL;
+	iter++;
+
+	while (*iter != '\0' && !isspace(*iter))
+		iter++;
+	/*
+	 * If the dot was followed by space or NUL,
+	 * do not skip anything.
+	 */
+	if (iter == in + 1)
+		return NULL;
+
+	space = iter;
+	while (isspace(*iter))
+		iter++;
+	/*
+	 * If the word was not followed by space,
+	 * do not skip anything.
+	 */
+	if (iter == space)
+		return NULL;
+
+	return strdup(iter);
+}
+
+/*
  * If the argument of -offset or -width is a macro,
  * replace it with the associated default width.
  */
@@ -1827,18 +1866,23 @@ rewrite_macro2len(struct roff_man *mdoc, char **arg)
 {
 	size_t		  width;
 	enum roff_tok	  tok;
+	char		 *newarg;
 
+	newarg = NULL;
 	if (*arg == NULL)
 		return;
 	else if ( ! strcmp(*arg, "Ds"))
 		width = 6;
-	else if ((tok = roffhash_find(mdoc->mdocmac, *arg, 0)) == TOKEN_NONE)
-		return;
-	else
+	else if ((tok = roffhash_find(mdoc->mdocmac, *arg, 0)) != TOKEN_NONE)
 		width = macro2len(tok);
+	else if ((newarg = skip_leading_dot_word(*arg)) == NULL)
+		return;
 
 	free(*arg);
-	mandoc_asprintf(arg, "%zun", width);
+	if (newarg != NULL)
+		*arg = newarg;
+	else
+		mandoc_asprintf(arg, "%zun", width);
 }
 
 static void
