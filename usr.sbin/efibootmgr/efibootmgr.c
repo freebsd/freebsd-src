@@ -226,6 +226,8 @@ parse_args(int argc, char *argv[])
 		case 'C':
 			opts.copy = true;
 			opts.cp_src = strtoul(optarg, NULL, 16);
+			errx(1, "Copy not implemented");
+			break;
 		case 'c':
 			opts.create = true;
 			break;
