@@ -59,6 +59,8 @@ options 	ALT_BREAK_TO_DEBUGGER
 device		xz
 options 	GEOM_UZIP
 
+device		clk
+
 # Device tree
 options 	FDT
 options 	FDT_DTB_STATIC
