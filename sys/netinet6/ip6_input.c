@@ -1216,8 +1216,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			} else {
 				microtime(&t.tv);
 			}
-			*mp = sbcreatecontrol((caddr_t) &t.tv, sizeof(t.tv),
-			    SCM_TIMESTAMP, SOL_SOCKET);
+			*mp = sbcreatecontrol(&t.tv, sizeof(t.tv),
+			    SCM_TIMESTAMP, SOL_SOCKET, M_NOWAIT);
 			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
 				stamped = true;
@@ -1234,8 +1234,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			} else {
 				bintime(&t.bt);
 			}
-			*mp = sbcreatecontrol((caddr_t)&t.bt, sizeof(t.bt),
-			    SCM_BINTIME, SOL_SOCKET);
+			*mp = sbcreatecontrol(&t.bt, sizeof(t.bt), SCM_BINTIME,
+			    SOL_SOCKET, M_NOWAIT);
 			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
 				stamped = true;
@@ -1252,8 +1252,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			} else {
 				nanotime(&t.ts);
 			}
-			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
-			    SCM_REALTIME, SOL_SOCKET);
+			*mp = sbcreatecontrol(&t.ts, sizeof(t.ts),
+			    SCM_REALTIME, SOL_SOCKET, M_NOWAIT);
 			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
 				stamped = true;
@@ -1266,8 +1266,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 				mbuf_tstmp2timespec(m, &t.ts);
 			else
 				nanouptime(&t.ts);
-			*mp = sbcreatecontrol((caddr_t)&t.ts, sizeof(t.ts),
-			    SCM_MONOTONIC, SOL_SOCKET);
+			*mp = sbcreatecontrol(&t.ts, sizeof(t.ts),
+			    SCM_MONOTONIC, SOL_SOCKET, M_NOWAIT);
 			if (*mp != NULL) {
 				mp = &(*mp)->m_next;
 				stamped = true;
@@ -1285,8 +1285,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			sti.st_info_flags = ST_INFO_HW;
 			if ((m->m_flags & M_TSTMP_HPREC) != 0)
 				sti.st_info_flags |= ST_INFO_HW_HPREC;
-			*mp = sbcreatecontrol((caddr_t)&sti, sizeof(sti),
-			    SCM_TIME_INFO, SOL_SOCKET);
+			*mp = sbcreatecontrol(&sti, sizeof(sti), SCM_TIME_INFO,
+			    SOL_SOCKET, M_NOWAIT);
 			if (*mp != NULL)
 				mp = &(*mp)->m_next;
 		}
@@ -1318,9 +1318,9 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 		pi6.ipi6_ifindex =
 		    (m && m->m_pkthdr.rcvif) ? m->m_pkthdr.rcvif->if_index : 0;
 
-		*mp = sbcreatecontrol((caddr_t) &pi6,
-		    sizeof(struct in6_pktinfo),
-		    IS2292(inp, IPV6_2292PKTINFO, IPV6_PKTINFO), IPPROTO_IPV6);
+		*mp = sbcreatecontrol(&pi6, sizeof(struct in6_pktinfo),
+		    IS2292(inp, IPV6_2292PKTINFO, IPV6_PKTINFO), IPPROTO_IPV6,
+		    M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1341,9 +1341,9 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 		} else {
 			hlim = ip6->ip6_hlim & 0xff;
 		}
-		*mp = sbcreatecontrol((caddr_t) &hlim, sizeof(int),
+		*mp = sbcreatecontrol(&hlim, sizeof(int),
 		    IS2292(inp, IPV6_2292HOPLIMIT, IPV6_HOPLIMIT),
-		    IPPROTO_IPV6);
+		    IPPROTO_IPV6, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1368,8 +1368,8 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
 			flowinfo >>= 20;
 			tclass = flowinfo & 0xff;
 		}
-		*mp = sbcreatecontrol((caddr_t) &tclass, sizeof(int),
-		    IPV6_TCLASS, IPPROTO_IPV6);
+		*mp = sbcreatecontrol(&tclass, sizeof(int), IPV6_TCLASS,
+		    IPPROTO_IPV6, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1425,9 +1425,9 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 			 * RFC2292.
 			 * Note: this constraint is removed in RFC3542
 			 */
-			*mp = sbcreatecontrol((caddr_t)hbh, hbhlen,
+			*mp = sbcreatecontrol(hbh, hbhlen,
 			    IS2292(inp, IPV6_2292HOPOPTS, IPV6_HOPOPTS),
-			    IPPROTO_IPV6);
+			    IPPROTO_IPV6, M_NOWAIT);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}
@@ -1476,10 +1476,9 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 				if (!(inp->inp_flags & IN6P_DSTOPTS))
 					break;
 
-				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
-				    IS2292(inp,
-					IPV6_2292DSTOPTS, IPV6_DSTOPTS),
-				    IPPROTO_IPV6);
+				*mp = sbcreatecontrol(ip6e, elen,
+				    IS2292(inp, IPV6_2292DSTOPTS, IPV6_DSTOPTS),
+				    IPPROTO_IPV6, M_NOWAIT);
 				if (*mp)
 					mp = &(*mp)->m_next;
 				break;
@@ -1487,9 +1486,9 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 				if (!(inp->inp_flags & IN6P_RTHDR))
 					break;
 
-				*mp = sbcreatecontrol((caddr_t)ip6e, elen,
+				*mp = sbcreatecontrol(ip6e, elen,
 				    IS2292(inp, IPV6_2292RTHDR, IPV6_RTHDR),
-				    IPPROTO_IPV6);
+				    IPPROTO_IPV6, M_NOWAIT);
 				if (*mp)
 					mp = &(*mp)->m_next;
 				break;
@@ -1526,12 +1525,12 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 		 * XXX should handle the failure of one or the
 		 * other - don't populate both?
 		 */
-		*mp = sbcreatecontrol((caddr_t) &flowid,
-		    sizeof(uint32_t), IPV6_FLOWID, IPPROTO_IPV6);
+		*mp = sbcreatecontrol(&flowid, sizeof(uint32_t), IPV6_FLOWID,
+		    IPPROTO_IPV6, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
-		*mp = sbcreatecontrol((caddr_t) &flow_type,
-		    sizeof(uint32_t), IPV6_FLOWTYPE, IPPROTO_IPV6);
+		*mp = sbcreatecontrol(&flow_type, sizeof(uint32_t),
+		    IPV6_FLOWTYPE, IPPROTO_IPV6, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1545,8 +1544,8 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 		flow_type = M_HASHTYPE_GET(m);
 
 		if (rss_hash2bucket(flowid, flow_type, &rss_bucketid) == 0) {
-			*mp = sbcreatecontrol((caddr_t) &rss_bucketid,
-			   sizeof(uint32_t), IPV6_RSSBUCKETID, IPPROTO_IPV6);
+			*mp = sbcreatecontrol(&rss_bucketid, sizeof(uint32_t),
+			    IPV6_RSSBUCKETID, IPPROTO_IPV6, M_NOWAIT);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}
@@ -1583,8 +1582,8 @@ ip6_notify_pmtu(struct inpcb *inp, struct sockaddr_in6 *dst, u_int32_t mtu)
 	if (sa6_recoverscope(&mtuctl.ip6m_addr))
 		return;
 
-	if ((m_mtu = sbcreatecontrol((caddr_t)&mtuctl, sizeof(mtuctl),
-	    IPV6_PATHMTU, IPPROTO_IPV6)) == NULL)
+	if ((m_mtu = sbcreatecontrol(&mtuctl, sizeof(mtuctl), IPV6_PATHMTU,
+	    IPPROTO_IPV6, M_NOWAIT)) == NULL)
 		return;
 
 	so =  inp->inp_socket;

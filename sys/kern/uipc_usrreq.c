@@ -2043,7 +2043,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 			 */
 			newlen = newfds * sizeof(int);
 			*controlp = sbcreatecontrol(NULL, newlen,
-			    SCM_RIGHTS, SOL_SOCKET);
+			    SCM_RIGHTS, SOL_SOCKET, M_NOWAIT);
 			if (*controlp == NULL) {
 				FILEDESC_XUNLOCK(fdesc);
 				error = E2BIG;
@@ -2081,7 +2081,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 			if (error || controlp == NULL)
 				goto next;
 			*controlp = sbcreatecontrol(NULL, datalen,
-			    cm->cmsg_type, cm->cmsg_level);
+			    cm->cmsg_type, cm->cmsg_level, M_NOWAIT);
 			if (*controlp == NULL) {
 				error = ENOBUFS;
 				goto next;
@@ -2222,7 +2222,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 		 * Fill in credential information.
 		 */
 		case SCM_CREDS:
-			*controlp = sbcreatecontrol_how(NULL, sizeof(*cmcred),
+			*controlp = sbcreatecontrol(NULL, sizeof(*cmcred),
 			    SCM_CREDS, SOL_SOCKET, M_WAITOK);
 			cmcred = (struct cmsgcred *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
@@ -2266,7 +2266,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * file structure and capability rights.
 			 */
 			newlen = oldfds * sizeof(fdep[0]);
-			*controlp = sbcreatecontrol_how(NULL, newlen,
+			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET, M_WAITOK);
 			fdp = data;
 			for (i = 0; i < oldfds; i++, fdp++) {
@@ -2298,7 +2298,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			break;
 
 		case SCM_TIMESTAMP:
-			*controlp = sbcreatecontrol_how(NULL, sizeof(*tv),
+			*controlp = sbcreatecontrol(NULL, sizeof(*tv),
 			    SCM_TIMESTAMP, SOL_SOCKET, M_WAITOK);
 			tv = (struct timeval *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
@@ -2306,7 +2306,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			break;
 
 		case SCM_BINTIME:
-			*controlp = sbcreatecontrol_how(NULL, sizeof(*bt),
+			*controlp = sbcreatecontrol(NULL, sizeof(*bt),
 			    SCM_BINTIME, SOL_SOCKET, M_WAITOK);
 			bt = (struct bintime *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
@@ -2314,7 +2314,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			break;
 
 		case SCM_REALTIME:
-			*controlp = sbcreatecontrol_how(NULL, sizeof(*ts),
+			*controlp = sbcreatecontrol(NULL, sizeof(*ts),
 			    SCM_REALTIME, SOL_SOCKET, M_WAITOK);
 			ts = (struct timespec *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
@@ -2322,7 +2322,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			break;
 
 		case SCM_MONOTONIC:
-			*controlp = sbcreatecontrol_how(NULL, sizeof(*ts),
+			*controlp = sbcreatecontrol(NULL, sizeof(*ts),
 			    SCM_MONOTONIC, SOL_SOCKET, M_WAITOK);
 			ts = (struct timespec *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
@@ -2370,7 +2370,7 @@ unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
 		cmsgtype = SCM_CREDS;
 	}
 
-	m = sbcreatecontrol(NULL, ctrlsz, cmsgtype, SOL_SOCKET);
+	m = sbcreatecontrol(NULL, ctrlsz, cmsgtype, SOL_SOCKET, M_NOWAIT);
 	if (m == NULL)
 		return (control);
 

@@ -2119,7 +2119,7 @@ ktls_decrypt(struct socket *so)
 		tgr.tls_vminor = hdr->tls_vminor;
 		tgr.tls_length = htobe16(tls_len - tls->params.tls_hlen -
 		    trail_len);
-		control = sbcreatecontrol_how(&tgr, sizeof(tgr),
+		control = sbcreatecontrol(&tgr, sizeof(tgr),
 		    TLS_GET_RECORD, IPPROTO_TCP, M_WAITOK);
 
 		SOCKBUF_LOCK(sb);

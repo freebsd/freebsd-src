@@ -1035,7 +1035,7 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* Allocate the control message mbuf. */
 	control = sbcreatecontrol(NULL, sizeof(*tgr), TLS_GET_RECORD,
-	    IPPROTO_TCP);
+	    IPPROTO_TCP, M_NOWAIT);
 	if (control == NULL) {
 		m_freem(m);
 		m_freem(tls_data);

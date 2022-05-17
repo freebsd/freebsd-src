@@ -1167,8 +1167,8 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		} else {
 			bintime(&bt);
 		}
-		*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
-		    SCM_BINTIME, SOL_SOCKET);
+		*mp = sbcreatecontrol(&bt, sizeof(bt), SCM_BINTIME,
+		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
 			stamped = true;
@@ -1189,8 +1189,8 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		} else {
 			microtime(&tv);
 		}
-		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
-		    SCM_TIMESTAMP, SOL_SOCKET);
+		*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv), SCM_TIMESTAMP,
+		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
 			stamped = true;
@@ -1208,8 +1208,8 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		} else {
 			nanotime(&ts);
 		}
-		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
-		    SCM_REALTIME, SOL_SOCKET);
+		*mp = sbcreatecontrol(&ts, sizeof(ts), SCM_REALTIME,
+		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
 			stamped = true;
@@ -1222,8 +1222,8 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 			mbuf_tstmp2timespec(m, &ts);
 		else
 			nanouptime(&ts);
-		*mp = sbcreatecontrol((caddr_t)&ts, sizeof(ts),
-		    SCM_MONOTONIC, SOL_SOCKET);
+		*mp = sbcreatecontrol(&ts, sizeof(ts), SCM_MONOTONIC,
+		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL) {
 			mp = &(*mp)->m_next;
 			stamped = true;
@@ -1237,20 +1237,20 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		sti.st_info_flags = ST_INFO_HW;
 		if ((m->m_flags & M_TSTMP_HPREC) != 0)
 			sti.st_info_flags |= ST_INFO_HW_HPREC;
-		*mp = sbcreatecontrol((caddr_t)&sti, sizeof(sti), SCM_TIME_INFO,
-		    SOL_SOCKET);
+		*mp = sbcreatecontrol(&sti, sizeof(sti), SCM_TIME_INFO,
+		    SOL_SOCKET, M_NOWAIT);
 		if (*mp != NULL)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
-		*mp = sbcreatecontrol((caddr_t)&ip->ip_dst,
-		    sizeof(struct in_addr), IP_RECVDSTADDR, IPPROTO_IP);
+		*mp = sbcreatecontrol(&ip->ip_dst, sizeof(struct in_addr),
+		    IP_RECVDSTADDR, IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVTTL) {
-		*mp = sbcreatecontrol((caddr_t)&ip->ip_ttl,
-		    sizeof(u_char), IP_RECVTTL, IPPROTO_IP);
+		*mp = sbcreatecontrol(&ip->ip_ttl, sizeof(u_char), IP_RECVTTL,
+		    IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1261,15 +1261,15 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 	 */
 	/* options were tossed already */
 	if (inp->inp_flags & INP_RECVOPTS) {
-		*mp = sbcreatecontrol((caddr_t)opts_deleted_above,
-		    sizeof(struct in_addr), IP_RECVOPTS, IPPROTO_IP);
+		*mp = sbcreatecontrol(opts_deleted_above,
+		    sizeof(struct in_addr), IP_RECVOPTS, IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	/* ip_srcroute doesn't do what we want here, need to fix */
 	if (inp->inp_flags & INP_RECVRETOPTS) {
-		*mp = sbcreatecontrol((caddr_t)ip_srcroute(m),
-		    sizeof(struct in_addr), IP_RECVRETOPTS, IPPROTO_IP);
+		*mp = sbcreatecontrol(ip_srcroute(m), sizeof(struct in_addr),
+		    IP_RECVRETOPTS, IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1301,14 +1301,14 @@ makedummy:
 			sdl2->sdl_index = 0;
 			sdl2->sdl_nlen = sdl2->sdl_alen = sdl2->sdl_slen = 0;
 		}
-		*mp = sbcreatecontrol((caddr_t)sdl2, sdl2->sdl_len,
-		    IP_RECVIF, IPPROTO_IP);
+		*mp = sbcreatecontrol(sdl2, sdl2->sdl_len, IP_RECVIF,
+		    IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVTOS) {
-		*mp = sbcreatecontrol((caddr_t)&ip->ip_tos,
-		    sizeof(u_char), IP_RECVTOS, IPPROTO_IP);
+		*mp = sbcreatecontrol(&ip->ip_tos, sizeof(u_char), IP_RECVTOS,
+		    IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1323,12 +1323,12 @@ makedummy:
 		 * XXX should handle the failure of one or the
 		 * other - don't populate both?
 		 */
-		*mp = sbcreatecontrol((caddr_t) &flowid,
-		    sizeof(uint32_t), IP_FLOWID, IPPROTO_IP);
+		*mp = sbcreatecontrol(&flowid, sizeof(uint32_t), IP_FLOWID,
+		    IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
-		*mp = sbcreatecontrol((caddr_t) &flow_type,
-		    sizeof(uint32_t), IP_FLOWTYPE, IPPROTO_IP);
+		*mp = sbcreatecontrol(&flow_type, sizeof(uint32_t),
+		    IP_FLOWTYPE, IPPROTO_IP, M_NOWAIT);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
@@ -1342,8 +1342,8 @@ makedummy:
 		flow_type = M_HASHTYPE_GET(m);
 
 		if (rss_hash2bucket(flowid, flow_type, &rss_bucketid) == 0) {
-			*mp = sbcreatecontrol((caddr_t) &rss_bucketid,
-			   sizeof(uint32_t), IP_RSSBUCKETID, IPPROTO_IP);
+			*mp = sbcreatecontrol(&rss_bucketid, sizeof(uint32_t),
+			    IP_RSSBUCKETID, IPPROTO_IP, M_NOWAIT);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}

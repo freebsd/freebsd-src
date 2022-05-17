@@ -1760,7 +1760,7 @@ sbdroprecord(struct sockbuf *sb)
  * type for presentation on a socket buffer.
  */
 struct mbuf *
-sbcreatecontrol_how(void *p, int size, int type, int level, int wait)
+sbcreatecontrol(void *p, int size, int type, int level, int wait)
 {
 	struct cmsghdr *cp;
 	struct mbuf *m;
@@ -1790,13 +1790,6 @@ sbcreatecontrol_how(void *p, int size, int type, int level, int wait)
 	cp->cmsg_level = level;
 	cp->cmsg_type = type;
 	return (m);
-}
-
-struct mbuf *
-sbcreatecontrol(caddr_t p, int size, int type, int level)
-{
-
-	return (sbcreatecontrol_how(p, size, type, level, M_NOWAIT));
 }
 
 /*
