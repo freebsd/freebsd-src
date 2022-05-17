@@ -1771,6 +1771,7 @@ pf_krule_alloc(void)
 
 	rule = malloc(sizeof(struct pf_krule), M_PFRULE, M_WAITOK | M_ZERO);
 	mtx_init(&rule->rpool.mtx, "pf_krule_pool", NULL, MTX_DEF);
+	rule->timestamp = uma_zalloc_pcpu(pcpu_zone_4, M_WAITOK | M_ZERO);
 	return (rule);
 }
 
@@ -2134,7 +2135,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	rule->states_cur = counter_u64_alloc(M_WAITOK);
 	rule->states_tot = counter_u64_alloc(M_WAITOK);
 	rule->src_nodes = counter_u64_alloc(M_WAITOK);
-	rule->timestamp = uma_zalloc_pcpu(pcpu_zone_4, M_WAITOK | M_ZERO);
 	rule->cuid = td->td_ucred->cr_ruid;
 	rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 	TAILQ_INIT(&rule->rpool.list);
@@ -3412,7 +3412,7 @@ DIOCGETRULENV_error:
 			newrule = pf_krule_alloc();
 			error = pf_rule_to_krule(&pcr->rule, newrule);
 			if (error != 0) {
-				free(newrule, M_PFRULE);
+				pf_krule_free(newrule);
 				break;
 			}
 
