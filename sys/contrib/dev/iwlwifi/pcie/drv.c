@@ -1767,3 +1767,65 @@ void iwl_pci_unregister_driver(void)
 {
 	pci_unregister_driver(&iwl_pci_driver);
 }
+
+#if defined(__FreeBSD__)
+static int
+sysctl_iwlwifi_pci_ids_name(SYSCTL_HANDLER_ARGS)
+{
+	const struct pci_device_id *id;
+	struct sbuf *sb;
+	int error, i;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 512, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	id = iwl_hw_card_ids;
+	while (id != NULL && id->vendor != 0) {
+
+		if ((id->driver_data & TRANS_CFG_MARKER) != 0) {
+			/* Skip and print them below. */
+
+		} else if (id->driver_data != 0) {
+			const struct iwl_cfg *cfg;
+
+			cfg = (void *)(id->driver_data & ~TRANS_CFG_MARKER);
+			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\n",
+			    id->vendor, id->device, id->subvendor, id->subdevice,
+			    cfg->name, cfg->fw_name_pre);
+		} else {
+			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\n",
+			    id->vendor, id->device, id->subvendor, id->subdevice,
+			    "","");
+		}
+		id++;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(iwl_dev_info_table); i++) {
+		const struct iwl_dev_info *dev_info = &iwl_dev_info_table[i];
+		const char *name;
+
+		if (dev_info->name)
+			name = dev_info->name;
+		else if (dev_info->cfg && dev_info->cfg->name)
+			name = dev_info->cfg->name;
+		else
+			name = "";
+
+		sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\n",
+		    PCI_VENDOR_ID_INTEL, dev_info->device, PCI_ANY_ID, dev_info->subdevice,
+		    name, dev_info->cfg->fw_name_pre);
+	}
+
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (error);
+}
+SYSCTL_PROC(LINUXKPI_PARAM_PARENT, OID_AUTO, LINUXKPI_PARAM_NAME(pci_ids_name),
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_iwlwifi_pci_ids_name, "", "iwlwifi PCI IDs and names");
+#endif
