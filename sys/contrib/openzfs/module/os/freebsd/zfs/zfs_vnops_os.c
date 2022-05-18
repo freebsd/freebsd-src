@@ -97,6 +97,10 @@
 
 VFS_SMR_DECLARE;
 
+#if __FreeBSD_version < 1300103
+#define	NDFREE_PNBUF(ndp)	NDFREE((ndp), NDF_ONLY_PNBUF)
+#endif
+
 #if __FreeBSD_version >= 1300047
 #define	vm_page_wire_lock(pp)
 #define	vm_page_wire_unlock(pp)
@@ -237,7 +241,7 @@ zfs_open(vnode_t **vpp, int flag, cred_t *cr)
 	}
 
 	/* Keep a count of the synchronous opens in the znode */
-	if (flag & (FSYNC | FDSYNC))
+	if (flag & O_SYNC)
 		atomic_inc_32(&zp->z_sync_cnt);
 
 	ZFS_EXIT(zfsvfs);
@@ -255,7 +259,7 @@ zfs_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
 	ZFS_VERIFY_ZP(zp);
 
 	/* Decrement the synchronous opens in the znode */
-	if ((flag & (FSYNC | FDSYNC)) && (count == 1))
+	if ((flag & O_SYNC) && (count == 1))
 		atomic_dec_32(&zp->z_sync_cnt);
 
 	ZFS_EXIT(zfsvfs);
@@ -4036,8 +4040,8 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	int pgsin_b, pgsin_a;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	ZFS_ENTER_ERROR(zfsvfs, zfs_vm_pagerret_error);
+	ZFS_VERIFY_ZP_ERROR(zp, zfs_vm_pagerret_error);
 
 	start = IDX_TO_OFF(ma[0]->pindex);
 	end = IDX_TO_OFF(ma[count - 1]->pindex + 1);
@@ -4161,18 +4165,17 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 	int		err;
 	int		i;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
-
 	object = vp->v_object;
-	pcount = btoc(len);
-	ncount = pcount;
-
 	KASSERT(ma[0]->object == object, ("mismatching object"));
 	KASSERT(len > 0 && (len & PAGE_MASK) == 0, ("unexpected length"));
 
+	pcount = btoc(len);
+	ncount = pcount;
 	for (i = 0; i < pcount; i++)
 		rtvals[i] = zfs_vm_pagerret_error;
+
+	ZFS_ENTER_ERROR(zfsvfs, zfs_vm_pagerret_error);
+	ZFS_VERIFY_ZP_ERROR(zp, zfs_vm_pagerret_error);
 
 	off = IDX_TO_OFF(ma[0]->pindex);
 	blksz = zp->z_blksz;
@@ -4399,11 +4402,11 @@ ioflags(int ioflags)
 	int flags = 0;
 
 	if (ioflags & IO_APPEND)
-		flags |= FAPPEND;
+		flags |= O_APPEND;
 	if (ioflags & IO_NDELAY)
-		flags |= FNONBLOCK;
+		flags |= O_NONBLOCK;
 	if (ioflags & IO_SYNC)
-		flags |= (FSYNC | FDSYNC | FRSYNC);
+		flags |= O_SYNC;
 
 	return (flags);
 }
@@ -4624,7 +4627,7 @@ zfs_freebsd_create(struct vop_create_args *ap)
 	zfsvfs = ap->a_dvp->v_mount->mnt_data;
 	*ap->a_vpp = NULL;
 
-	rc = zfs_create(VTOZ(ap->a_dvp), cnp->cn_nameptr, vap, !EXCL, mode,
+	rc = zfs_create(VTOZ(ap->a_dvp), cnp->cn_nameptr, vap, 0, mode,
 	    &zp, cnp->cn_cred, 0 /* flag */, NULL /* vsecattr */);
 	if (rc == 0)
 		*ap->a_vpp = ZTOV(zp);
@@ -5447,7 +5450,7 @@ zfs_getextattr(struct vop_getextattr_args *ap)
 
 	error = ENOENT;
 	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp)
+	ZFS_VERIFY_ZP(zp);
 	rw_enter(&zp->z_xattr_lock, RW_READER);
 
 	error = zfs_getextattr_impl(ap, zfs_xattr_compat);

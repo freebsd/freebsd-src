@@ -48,8 +48,8 @@ function cleanup
 function count_snap_cmds
 {
 	typeset expected_count=$1
-	count=$(grep -E "command: (lt-)?zfs snapshot $FS@testsnapshot" | wc -l)
-	log_must eval "[[ $count -eq $expected_count ]]"
+	count=$(grep -cE "command: (lt-)?zfs snapshot $FS@testsnapshot")
+	log_must [ "$count" -eq "$expected_count" ]
 }
 
 typeset -r ZFS_DBGMSG=/proc/spl/kstat/zfs/dbgmsg
@@ -85,7 +85,7 @@ done
 
 # Clear out old messages and check that they really are gone
 echo 0 >$ZFS_DBGMSG || log_fail "failed to write to $ZFS_DBGMSG"
-cat $ZFS_DBGMSG | count_snap_cmds 0
+count_snap_cmds 0 < $ZFS_DBGMSG
 #
 # Even though we don't expect any messages in the file, reading should still
 # succeed.

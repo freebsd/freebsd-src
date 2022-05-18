@@ -76,11 +76,11 @@ function cleanup_all
 	#
 	# Try import individually if 'import -a' failed.
 	#
-	for pool in `zpool import | grep "pool:" | awk '{print $2}'`; do
+	for pool in $(zpool import | awk '/pool:/ {print $2}'); do
 		zpool import -f $pool
 	done
 
-	for pool in `zpool import -d $DEVICE_DIR | grep "pool:" | awk '{print $2}'`; do
+	for pool in $(zpool import -d $DEVICE_DIR | awk '/pool:/ {print $2}'); do
 		log_must zpool import -d $DEVICE_DIR -f $pool
 	done
 
@@ -108,9 +108,8 @@ function checksum_all #alter_root
 		[[ ! -e $file ]] && \
 			log_fail "$file missing after import."
 
-		checksum2=$(sum $file | awk '{print $1}')
-		[[ "$checksum1" != "$checksum2" ]] && \
-			log_fail "Checksums differ ($checksum1 != $checksum2)"
+		read -r checksum2 _ < <(cksum $file)
+		log_must [ "$checksum1" = "$checksum2" ]
 
 		(( id = id + 1 ))
 	done
@@ -122,7 +121,7 @@ function checksum_all #alter_root
 log_assert "Verify that 'zpool import -a' succeeds as root."
 log_onexit cleanup_all
 
-checksum1=$(sum $MYTESTFILE | awk '{print $1}')
+read -r checksum1 _ < <(cksum $MYTESTFILE)
 number=1
 
 #

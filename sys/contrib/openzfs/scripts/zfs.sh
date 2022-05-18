@@ -3,7 +3,7 @@
 # A simple script to load/unload the ZFS module stack.
 #
 
-BASE_DIR=$(dirname "$0")
+BASE_DIR=${0%/*}
 SCRIPT_COMMON=common.sh
 if [ -f "${BASE_DIR}/${SCRIPT_COMMON}" ]; then
 	. "${BASE_DIR}/${SCRIPT_COMMON}"
@@ -11,7 +11,6 @@ else
 	echo "Missing helper script ${SCRIPT_COMMON}" && exit 1
 fi
 
-PROG=zfs.sh
 VERBOSE="no"
 UNLOAD="no"
 LOAD="yes"
@@ -19,44 +18,35 @@ STACK_TRACER="no"
 
 ZED_PIDFILE=${ZED_PIDFILE:-/var/run/zed.pid}
 LDMOD=${LDMOD:-/sbin/modprobe}
+DELMOD=${DELMOD:-/sbin/rmmod}
 
 KMOD_ZLIB_DEFLATE=${KMOD_ZLIB_DEFLATE:-zlib_deflate}
 KMOD_ZLIB_INFLATE=${KMOD_ZLIB_INFLATE:-zlib_inflate}
 KMOD_SPL=${KMOD_SPL:-spl}
-KMOD_ZAVL=${KMOD_ZAVL:-zavl}
-KMOD_ZNVPAIR=${KMOD_ZNVPAIR:-znvpair}
-KMOD_ZUNICODE=${KMOD_ZUNICODE:-zunicode}
-KMOD_ZCOMMON=${KMOD_ZCOMMON:-zcommon}
-KMOD_ZLUA=${KMOD_ZLUA:-zlua}
-KMOD_ICP=${KMOD_ICP:-icp}
 KMOD_ZFS=${KMOD_ZFS:-zfs}
 KMOD_FREEBSD=${KMOD_FREEBSD:-openzfs}
-KMOD_ZZSTD=${KMOD_ZZSTD:-zzstd}
 
 
 usage() {
-cat << EOF
+	cat << EOF
 USAGE:
-$0 [hvudS] [module-options]
+$0 [hvudS]
 
 DESCRIPTION:
 	Load/unload the ZFS module stack.
 
 OPTIONS:
-	-h      Show this message
-	-v      Verbose
+	-h	Show this message
+	-v	Verbose
 	-r	Reload modules
-	-u      Unload modules
-	-S      Enable kernel stack tracer
+	-u	Unload modules
+	-S	Enable kernel stack tracer
 EOF
+	exit 1
 }
 
 while getopts 'hvruS' OPTION; do
 	case $OPTION in
-	h)
-		usage
-		exit 1
-		;;
 	v)
 		VERBOSE="yes"
 		;;
@@ -71,18 +61,17 @@ while getopts 'hvruS' OPTION; do
 	S)
 		STACK_TRACER="yes"
 		;;
-	?)
-		usage
-		exit
-		;;
 	*)
+		usage
 		;;
 	esac
 done
+shift $(( OPTIND - 1 ))
+[ $# -eq 0 ] || usage
 
 kill_zed() {
 	if [ -f "$ZED_PIDFILE" ]; then
-		PID=$(cat "$ZED_PIDFILE")
+		read -r PID <"$ZED_PIDFILE"
 		kill "$PID"
 	fi
 }
@@ -91,8 +80,7 @@ check_modules_linux() {
 	LOADED_MODULES=""
 	MISSING_MODULES=""
 
-	for KMOD in $KMOD_SPL $KMOD_ZAVL $KMOD_ZNVPAIR $KMOD_ZUNICODE $KMOD_ZCOMMON \
-	    $KMOD_ZLUA $KMOD_ZZSTD $KMOD_ICP $KMOD_ZFS; do
+	for KMOD in $KMOD_SPL $KMOD_ZFS; do
 		NAME="${KMOD##*/}"
 		NAME="${NAME%.ko}"
 
@@ -106,7 +94,7 @@ check_modules_linux() {
 	done
 
 	if [ -n "$LOADED_MODULES" ]; then
-		printf "Unload the kernel modules by running '%s -u':\n" "$PROG"
+		printf "Unload the kernel modules by running '%s -u':\n" "$0"
 		printf "%b" "$LOADED_MODULES"
 		exit 1
 	fi
@@ -123,10 +111,11 @@ check_modules_linux() {
 load_module_linux() {
 	KMOD=$1
 
-	FILE=$(modinfo "$KMOD" | awk '/^filename:/ {print $2}')
-	VERSION=$(modinfo "$KMOD" | awk '/^version:/ {print $2}')
+	FILE=$(modinfo "$KMOD" 2>&1 | awk 'NR == 1 && /zlib/ && /not found/ {print "(builtin)"; exit}  /^filename:/ {print $2}')
+	[ "$FILE" = "(builtin)" ] && return
 
 	if [ "$VERBOSE" = "yes" ]; then
+		VERSION=$(modinfo "$KMOD" | awk '/^version:/ {print $2}')
 		echo "Loading: $FILE ($VERSION)"
 	fi
 
@@ -151,40 +140,13 @@ load_modules_freebsd() {
 load_modules_linux() {
 	mkdir -p /etc/zfs
 
-	if modinfo "$KMOD_ZLIB_DEFLATE" >/dev/null 2>&1; then
-		modprobe "$KMOD_ZLIB_DEFLATE" >/dev/null 2>&1
-	fi
-
-	if modinfo "$KMOD_ZLIB_INFLATE">/dev/null 2>&1; then
-		modprobe "$KMOD_ZLIB_INFLATE" >/dev/null 2>&1
-	fi
-
-	for KMOD in $KMOD_SPL $KMOD_ZAVL $KMOD_ZNVPAIR \
-	    $KMOD_ZUNICODE $KMOD_ZCOMMON $KMOD_ZLUA $KMOD_ZZSTD \
-	    $KMOD_ICP $KMOD_ZFS; do
+	for KMOD in "$KMOD_ZLIB_DEFLATE" "$KMOD_ZLIB_INFLATE" $KMOD_SPL $KMOD_ZFS; do
 		load_module_linux "$KMOD" || return 1
 	done
 
 	if [ "$VERBOSE" = "yes" ]; then
 		echo "Successfully loaded ZFS module stack"
 	fi
-
-	return 0
-}
-
-unload_module_linux() {
-	KMOD=$1
-
-	NAME="${KMOD##*/}"
-	NAME="${NAME%.ko}"
-	FILE=$(modinfo "$KMOD" | awk '/^filename:/ {print $2}')
-	VERSION=$(modinfo "$KMOD" | awk '/^version:/ {print $2}')
-
-	if [ "$VERBOSE" = "yes" ]; then
-		echo "Unloading: $KMOD ($VERSION)"
-	fi
-
-	rmmod "$NAME" || echo "Failed to unload $NAME"
 
 	return 0
 }
@@ -200,33 +162,16 @@ unload_modules_freebsd() {
 }
 
 unload_modules_linux() {
-	for KMOD in $KMOD_ZFS $KMOD_ICP $KMOD_ZZSTD $KMOD_ZLUA $KMOD_ZCOMMON \
-	    $KMOD_ZUNICODE $KMOD_ZNVPAIR  $KMOD_ZAVL $KMOD_SPL; do
+	legacy_kmods="icp zzstd zlua zcommon zunicode znvpair zavl"
+	for KMOD in "$KMOD_ZFS" $legacy_kmods "$KMOD_SPL"; do
 		NAME="${KMOD##*/}"
 		NAME="${NAME%.ko}"
-		USE_COUNT=$(lsmod | awk '/^'"${NAME}"'/ {print $3}')
-
-		if [ "$USE_COUNT" = "0" ] ; then
-			unload_module_linux "$KMOD" || return 1
-		elif [ "$USE_COUNT" != "" ] ; then
-			echo "Module ${NAME} is still in use!"
-			return 1
-		fi
+		! [ -d "/sys/module/$NAME" ] || $DELMOD "$NAME" || return
 	done
-
-	if modinfo "$KMOD_ZLIB_DEFLATE" >/dev/null 2>&1; then
-		modprobe -r "$KMOD_ZLIB_DEFLATE" >/dev/null 2>&1
-	fi
-
-	if modinfo "$KMOD_ZLIB_INFLATE">/dev/null 2>&1; then
-		modprobe -r "$KMOD_ZLIB_INFLATE" >/dev/null 2>&1
-	fi
 
 	if [ "$VERBOSE" = "yes" ]; then
 		echo "Successfully unloaded ZFS module stack"
 	fi
-
-	return 0
 }
 
 stack_clear_linux() {
@@ -245,8 +190,7 @@ stack_check_linux() {
 	STACK_LIMIT=15362
 
 	if [ -e "$STACK_MAX_SIZE" ]; then
-		STACK_SIZE=$(cat "$STACK_MAX_SIZE")
-
+		read -r STACK_SIZE <"$STACK_MAX_SIZE"
 		if [ "$STACK_SIZE" -ge "$STACK_LIMIT" ]; then
 			echo
 			echo "Warning: max stack size $STACK_SIZE bytes"
@@ -260,22 +204,22 @@ if [ "$(id -u)" != 0 ]; then
 	exit 1
 fi
 
-UNAME=$(uname -s)
+UNAME=$(uname)
 
 if [ "$UNLOAD" = "yes" ]; then
 	kill_zed
 	umount -t zfs -a
 	case $UNAME in
 		FreeBSD)
-	           unload_modules_freebsd
+		   unload_modules_freebsd
 		   ;;
 		Linux)
-	           stack_check_linux
-	           unload_modules_linux
+		   stack_check_linux
+		   unload_modules_linux
 		   ;;
 		*)
-	           echo "unknown system: $UNAME" >&2
-	           exit 1
+		   echo "unknown system: $UNAME" >&2
+		   exit 1
 		   ;;
 	esac
 fi
@@ -287,13 +231,13 @@ if [ "$LOAD" = "yes" ]; then
 		Linux)
 		   stack_clear_linux
 		   check_modules_linux
-		   load_modules_linux "$@"
+		   load_modules_linux
 		   udevadm trigger
 		   udevadm settle
 		   ;;
 		*)
-	           echo "unknown system: $UNAME" >&2
-	           exit 1
+		   echo "unknown system: $UNAME" >&2
+		   exit 1
 		   ;;
 	esac
 fi

@@ -60,13 +60,17 @@ function cleanup
 	[[ -e $TESTDIR ]] && log_must rm -f $FILE
 }
 
-function check_disk_size
+function check_reported_size
 {
 	typeset expected_size=$1
 
-	disk_size=$(du $TESTDIR/file | awk '{print $1}')
-	if [ $disk_size -ne $expected_size ]; then
-		log_fail "Incorrect size: $disk_size != $expected_size"
+	if ! [ -e "${FILE}" ]; then
+		log_fail "$FILE does not exist"
+	fi
+		
+	reported_size=$(du "${FILE}" | awk '{print $1}')
+	if [ "$reported_size" != "$expected_size" ]; then
+		log_fail "Incorrect reported size: $reported_size != $expected_size"
 	fi
 }
 
@@ -74,9 +78,9 @@ function check_apparent_size
 {
 	typeset expected_size=$1
 
-	apparent_size=$(stat_size)
-	if [ $apparent_size -ne $expected_size ]; then
-		log_fail "Incorrect size: $apparent_size != $expected_size"
+	apparent_size=$(stat_size "${FILE}")
+	if [ "$apparent_size" != "$expected_size" ]; then
+		log_fail "Incorrect apparent size: $apparent_size != $expected_size"
 	fi
 }
 
@@ -86,25 +90,30 @@ log_onexit cleanup
 
 # Create a dense file and check it is the correct size.
 log_must file_write -o create -f $FILE -b $BLKSZ -c 8
-log_must check_disk_size  $((131072 * 8))
+sync_pool $TESTPOOL
+log_must check_reported_size 1027
 
 # Punch a hole for the first full block.
 log_must punch_hole 0 $BLKSZ $FILE
-log_must check_disk_size  $((131072 * 7))
+sync_pool $TESTPOOL
+log_must check_reported_size 899
 
 # Partially punch a hole in the second block.
 log_must punch_hole $BLKSZ $((BLKSZ / 2)) $FILE
-log_must check_disk_size  $((131072 * 7))
+sync_pool $TESTPOOL
+log_must check_reported_size 899
 
-# Punch a hole which overlaps the third and forth block.
+# Punch a hole which overlaps the third and fourth block.
 log_must punch_hole $(((BLKSZ * 2) + (BLKSZ / 2))) $((BLKSZ)) $FILE
-log_must check_disk_size  $((131072 * 7))
+sync_pool $TESTPOOL
+log_must check_reported_size 899
 
 # Punch a hole from the fifth block past the end of file.  The apparent
 # file size should not change since --keep-size is implied.
 apparent_size=$(stat_size $FILE)
 log_must punch_hole $((BLKSZ * 4)) $((BLKSZ * 10)) $FILE
-log_must check_disk_size  $((131072 * 4))
+sync_pool $TESTPOOL
+log_must check_reported_size 387
 log_must check_apparent_size $apparent_size
 
 log_pass "Ensure holes can be punched in files making them sparse"

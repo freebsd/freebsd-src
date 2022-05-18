@@ -1,5 +1,5 @@
 /*
- * This file is part of the ZFS Linux port.
+ * This file is part of OpenZFS.
  *
  * Copyright (c) 2009 Lawrence Livermore National Security, LLC.
  * Produced at Lawrence Livermore National Laboratory
@@ -30,8 +30,8 @@
  * CDDL HEADER END
  */
 
-AC_INIT(m4_esyscmd(grep ^Name: META | cut -d ':' -f 2 | tr -d ' \n'),
-	m4_esyscmd(grep ^Version: META | cut -d ':' -f 2 | tr -d ' \n'))
+AC_INIT(m4_esyscmd(awk '/^Name:/ {printf $2}' META),
+	m4_esyscmd(awk '/^Version:/ {printf $2}' META))
 AC_LANG(C)
 ZFS_AC_META
 AC_CONFIG_AUX_DIR([config])
@@ -39,11 +39,11 @@ AC_CONFIG_MACRO_DIR([config])
 AC_CANONICAL_TARGET
 AM_MAINTAINER_MODE
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
-AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE([subdir-objects foreign])
+# Remove default macros from config.h:
+#   PACKAGE, PACKAGE_{BUGREPORT,NAME,STRING,TARNAME,VERSION}, STDC_HEADERS, VERSION
 AC_CONFIG_HEADERS([zfs_config.h], [
-	(mv zfs_config.h zfs_config.h.tmp &&
-	awk -f ${ac_srcdir}/config/config.awk zfs_config.h.tmp >zfs_config.h &&
-	rm zfs_config.h.tmp) || exit 1])
+	sed -nEi~ -e '/^$/be' -e 'N;N;/#define (PACKAGE|VERSION|STDC_HEADERS)/d' -e ':e' -e 'p' zfs_config.h && rm zfs_config.h~ || exit])
 
 LT_INIT
 AC_PROG_INSTALL
@@ -66,356 +66,19 @@ ZFS_AC_DEBUG_INVARIANTS
 
 AC_CONFIG_FILES([
 	Makefile
-	cmd/Makefile
-	cmd/arc_summary/Makefile
-	cmd/arcstat/Makefile
-	cmd/dbufstat/Makefile
-	cmd/fsck_zfs/Makefile
-	cmd/mount_zfs/Makefile
-	cmd/raidz_test/Makefile
-	cmd/vdev_id/Makefile
-	cmd/zdb/Makefile
-	cmd/zed/Makefile
-	cmd/zed/zed.d/Makefile
-	cmd/zfs/Makefile
-	cmd/zfs_ids_to_path/Makefile
-	cmd/zgenhostid/Makefile
-	cmd/zhack/Makefile
-	cmd/zinject/Makefile
-	cmd/zpool/Makefile
-	cmd/zstream/Makefile
-	cmd/ztest/Makefile
-	cmd/zvol_id/Makefile
-	cmd/zvol_wait/Makefile
-	cmd/zpool_influxdb/Makefile
-	contrib/Makefile
-	contrib/bash_completion.d/Makefile
-	contrib/bpftrace/Makefile
-	contrib/dracut/02zfsexpandknowledge/Makefile
-	contrib/dracut/90zfs/Makefile
-	contrib/dracut/Makefile
-	contrib/initramfs/Makefile
-	contrib/initramfs/conf.d/Makefile
-	contrib/initramfs/conf-hooks.d/Makefile
-	contrib/initramfs/hooks/Makefile
-	contrib/initramfs/scripts/Makefile
-	contrib/initramfs/scripts/local-top/Makefile
-	contrib/pam_zfs_key/Makefile
-	contrib/pyzfs/Makefile
-	contrib/pyzfs/setup.py
-	contrib/zcp/Makefile
-	etc/Makefile
-	etc/default/Makefile
-	etc/init.d/Makefile
-	etc/modules-load.d/Makefile
-	etc/sudoers.d/Makefile
-	etc/systemd/Makefile
-	etc/systemd/system-generators/Makefile
-	etc/systemd/system/Makefile
-	etc/zfs/Makefile
 	include/Makefile
-	include/os/Makefile
-	include/os/freebsd/Makefile
-	include/os/freebsd/linux/Makefile
-	include/os/freebsd/spl/Makefile
-	include/os/freebsd/spl/acl/Makefile
-	include/os/freebsd/spl/rpc/Makefile
-	include/os/freebsd/spl/sys/Makefile
-	include/os/freebsd/zfs/Makefile
-	include/os/freebsd/zfs/sys/Makefile
-	include/os/linux/Makefile
-	include/os/linux/kernel/Makefile
-	include/os/linux/kernel/linux/Makefile
-	include/os/linux/spl/Makefile
-	include/os/linux/spl/rpc/Makefile
-	include/os/linux/spl/sys/Makefile
-	include/os/linux/zfs/Makefile
-	include/os/linux/zfs/sys/Makefile
-	include/sys/Makefile
-	include/sys/crypto/Makefile
-	include/sys/fm/Makefile
-	include/sys/fm/fs/Makefile
-	include/sys/fs/Makefile
-	include/sys/lua/Makefile
-	include/sys/sysevent/Makefile
-	include/sys/zstd/Makefile
-	lib/Makefile
-	lib/libavl/Makefile
-	lib/libefi/Makefile
-	lib/libicp/Makefile
-	lib/libnvpair/Makefile
-	lib/libshare/Makefile
-	lib/libspl/Makefile
-	lib/libspl/include/Makefile
-	lib/libspl/include/os/Makefile
-	lib/libspl/include/os/freebsd/Makefile
-	lib/libspl/include/os/freebsd/sys/Makefile
-	lib/libspl/include/os/linux/Makefile
-	lib/libspl/include/os/linux/sys/Makefile
-	lib/libspl/include/rpc/Makefile
-	lib/libspl/include/sys/Makefile
-	lib/libspl/include/sys/dktp/Makefile
-	lib/libspl/include/util/Makefile
-	lib/libtpool/Makefile
-	lib/libunicode/Makefile
-	lib/libuutil/Makefile
-	lib/libzfs/Makefile
 	lib/libzfs/libzfs.pc
-	lib/libzfsbootenv/Makefile
-	lib/libzfsbootenv/libzfsbootenv.pc
-	lib/libzfs_core/Makefile
 	lib/libzfs_core/libzfs_core.pc
-	lib/libzpool/Makefile
-	lib/libzstd/Makefile
-	lib/libzutil/Makefile
-	man/Makefile
+	lib/libzfsbootenv/libzfsbootenv.pc
 	module/Kbuild
 	module/Makefile
-	module/avl/Makefile
-	module/icp/Makefile
-	module/lua/Makefile
-	module/nvpair/Makefile
-	module/os/linux/spl/Makefile
-	module/os/linux/zfs/Makefile
-	module/spl/Makefile
-	module/unicode/Makefile
-	module/zcommon/Makefile
-	module/zfs/Makefile
-	module/zstd/Makefile
-	rpm/Makefile
-	rpm/generic/Makefile
 	rpm/generic/zfs-dkms.spec
 	rpm/generic/zfs-kmod.spec
 	rpm/generic/zfs.spec
-	rpm/redhat/Makefile
 	rpm/redhat/zfs-dkms.spec
 	rpm/redhat/zfs-kmod.spec
 	rpm/redhat/zfs.spec
-	scripts/Makefile
-	tests/Makefile
-	tests/runfiles/Makefile
-	tests/test-runner/Makefile
-	tests/test-runner/bin/Makefile
-	tests/test-runner/include/Makefile
-	tests/test-runner/man/Makefile
-	tests/zfs-tests/Makefile
-	tests/zfs-tests/callbacks/Makefile
-	tests/zfs-tests/cmd/Makefile
-	tests/zfs-tests/cmd/badsend/Makefile
-	tests/zfs-tests/cmd/btree_test/Makefile
-	tests/zfs-tests/cmd/chg_usr_exec/Makefile
-	tests/zfs-tests/cmd/devname2devid/Makefile
-	tests/zfs-tests/cmd/draid/Makefile
-	tests/zfs-tests/cmd/dir_rd_update/Makefile
-	tests/zfs-tests/cmd/file_check/Makefile
-	tests/zfs-tests/cmd/file_trunc/Makefile
-	tests/zfs-tests/cmd/file_write/Makefile
-	tests/zfs-tests/cmd/get_diff/Makefile
-	tests/zfs-tests/cmd/getversion/Makefile
-	tests/zfs-tests/cmd/largest_file/Makefile
-	tests/zfs-tests/cmd/libzfs_input_check/Makefile
-	tests/zfs-tests/cmd/mkbusy/Makefile
-	tests/zfs-tests/cmd/mkfile/Makefile
-	tests/zfs-tests/cmd/mkfiles/Makefile
-	tests/zfs-tests/cmd/mktree/Makefile
-	tests/zfs-tests/cmd/mmap_exec/Makefile
-	tests/zfs-tests/cmd/mmap_libaio/Makefile
-	tests/zfs-tests/cmd/mmap_seek/Makefile
-	tests/zfs-tests/cmd/mmapwrite/Makefile
-	tests/zfs-tests/cmd/nvlist_to_lua/Makefile
-	tests/zfs-tests/cmd/randfree_file/Makefile
-	tests/zfs-tests/cmd/randwritecomp/Makefile
-	tests/zfs-tests/cmd/readmmap/Makefile
-	tests/zfs-tests/cmd/read_dos_attributes/Makefile
-	tests/zfs-tests/cmd/rename_dir/Makefile
-	tests/zfs-tests/cmd/rm_lnkcnt_zero_file/Makefile
-	tests/zfs-tests/cmd/send_doall/Makefile
-	tests/zfs-tests/cmd/stride_dd/Makefile
-	tests/zfs-tests/cmd/threadsappend/Makefile
-	tests/zfs-tests/cmd/user_ns_exec/Makefile
-	tests/zfs-tests/cmd/write_dos_attributes/Makefile
-	tests/zfs-tests/cmd/xattrtest/Makefile
-	tests/zfs-tests/include/Makefile
 	tests/zfs-tests/tests/Makefile
-	tests/zfs-tests/tests/functional/Makefile
-	tests/zfs-tests/tests/functional/acl/Makefile
-	tests/zfs-tests/tests/functional/acl/off/Makefile
-	tests/zfs-tests/tests/functional/acl/posix/Makefile
-	tests/zfs-tests/tests/functional/acl/posix-sa/Makefile
-	tests/zfs-tests/tests/functional/alloc_class/Makefile
-	tests/zfs-tests/tests/functional/arc/Makefile
-	tests/zfs-tests/tests/functional/atime/Makefile
-	tests/zfs-tests/tests/functional/bootfs/Makefile
-	tests/zfs-tests/tests/functional/btree/Makefile
-	tests/zfs-tests/tests/functional/cache/Makefile
-	tests/zfs-tests/tests/functional/cachefile/Makefile
-	tests/zfs-tests/tests/functional/casenorm/Makefile
-	tests/zfs-tests/tests/functional/channel_program/Makefile
-	tests/zfs-tests/tests/functional/channel_program/lua_core/Makefile
-	tests/zfs-tests/tests/functional/channel_program/synctask_core/Makefile
-	tests/zfs-tests/tests/functional/chattr/Makefile
-	tests/zfs-tests/tests/functional/checksum/Makefile
-	tests/zfs-tests/tests/functional/clean_mirror/Makefile
-	tests/zfs-tests/tests/functional/cli_root/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zdb/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_bookmark/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_change-key/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_clone/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_copies/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_create/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_destroy/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_diff/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_get/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_ids_to_path/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_inherit/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_jail/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_load-key/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_mount/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_program/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_promote/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_property/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_receive/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_rename/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_reservation/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_rollback/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_send/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_set/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_share/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_snapshot/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_sysfs/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_unload-key/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_unmount/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_unshare/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_upgrade/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zfs_wait/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zhack/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_add/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_attach/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_clear/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_create/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_destroy/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_detach/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_events/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_expand/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_export/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_get/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_history/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_import/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_import/blockfiles/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_initialize/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_labelclear/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_offline/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_online/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_remove/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_reopen/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_replace/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_resilver/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_scrub/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_set/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_split/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_status/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_sync/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_trim/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_upgrade/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_upgrade/blockfiles/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_wait/Makefile
-	tests/zfs-tests/tests/functional/cli_root/zpool_wait/scan/Makefile
-	tests/zfs-tests/tests/functional/cli_user/Makefile
-	tests/zfs-tests/tests/functional/cli_user/misc/Makefile
-	tests/zfs-tests/tests/functional/cli_user/zfs_list/Makefile
-	tests/zfs-tests/tests/functional/cli_user/zpool_iostat/Makefile
-	tests/zfs-tests/tests/functional/cli_user/zpool_list/Makefile
-	tests/zfs-tests/tests/functional/cli_user/zpool_status/Makefile
-	tests/zfs-tests/tests/functional/compression/Makefile
-	tests/zfs-tests/tests/functional/cp_files/Makefile
-	tests/zfs-tests/tests/functional/crtime/Makefile
-	tests/zfs-tests/tests/functional/ctime/Makefile
-	tests/zfs-tests/tests/functional/deadman/Makefile
-	tests/zfs-tests/tests/functional/delegate/Makefile
-	tests/zfs-tests/tests/functional/devices/Makefile
-	tests/zfs-tests/tests/functional/dos_attributes/Makefile
-	tests/zfs-tests/tests/functional/events/Makefile
-	tests/zfs-tests/tests/functional/exec/Makefile
-	tests/zfs-tests/tests/functional/fallocate/Makefile
-	tests/zfs-tests/tests/functional/fault/Makefile
-	tests/zfs-tests/tests/functional/features/Makefile
-	tests/zfs-tests/tests/functional/features/async_destroy/Makefile
-	tests/zfs-tests/tests/functional/features/large_dnode/Makefile
-	tests/zfs-tests/tests/functional/grow/Makefile
-	tests/zfs-tests/tests/functional/history/Makefile
-	tests/zfs-tests/tests/functional/hkdf/Makefile
-	tests/zfs-tests/tests/functional/inheritance/Makefile
-	tests/zfs-tests/tests/functional/inuse/Makefile
-	tests/zfs-tests/tests/functional/io/Makefile
-	tests/zfs-tests/tests/functional/l2arc/Makefile
-	tests/zfs-tests/tests/functional/large_files/Makefile
-	tests/zfs-tests/tests/functional/largest_pool/Makefile
-	tests/zfs-tests/tests/functional/libzfs/Makefile
-	tests/zfs-tests/tests/functional/limits/Makefile
-	tests/zfs-tests/tests/functional/link_count/Makefile
-	tests/zfs-tests/tests/functional/log_spacemap/Makefile
-	tests/zfs-tests/tests/functional/migration/Makefile
-	tests/zfs-tests/tests/functional/mmap/Makefile
-	tests/zfs-tests/tests/functional/mmp/Makefile
-	tests/zfs-tests/tests/functional/mount/Makefile
-	tests/zfs-tests/tests/functional/mv_files/Makefile
-	tests/zfs-tests/tests/functional/nestedfs/Makefile
-	tests/zfs-tests/tests/functional/no_space/Makefile
-	tests/zfs-tests/tests/functional/nopwrite/Makefile
-	tests/zfs-tests/tests/functional/online_offline/Makefile
-	tests/zfs-tests/tests/functional/pam/Makefile
-	tests/zfs-tests/tests/functional/pool_checkpoint/Makefile
-	tests/zfs-tests/tests/functional/pool_names/Makefile
-	tests/zfs-tests/tests/functional/poolversion/Makefile
-	tests/zfs-tests/tests/functional/privilege/Makefile
-	tests/zfs-tests/tests/functional/procfs/Makefile
-	tests/zfs-tests/tests/functional/projectquota/Makefile
-	tests/zfs-tests/tests/functional/pyzfs/Makefile
-	tests/zfs-tests/tests/functional/quota/Makefile
-	tests/zfs-tests/tests/functional/raidz/Makefile
-	tests/zfs-tests/tests/functional/redacted_send/Makefile
-	tests/zfs-tests/tests/functional/redundancy/Makefile
-	tests/zfs-tests/tests/functional/refquota/Makefile
-	tests/zfs-tests/tests/functional/refreserv/Makefile
-	tests/zfs-tests/tests/functional/removal/Makefile
-	tests/zfs-tests/tests/functional/rename_dirs/Makefile
-	tests/zfs-tests/tests/functional/replacement/Makefile
-	tests/zfs-tests/tests/functional/reservation/Makefile
-	tests/zfs-tests/tests/functional/rootpool/Makefile
-	tests/zfs-tests/tests/functional/rsend/Makefile
-	tests/zfs-tests/tests/functional/scrub_mirror/Makefile
-	tests/zfs-tests/tests/functional/simd/Makefile
-	tests/zfs-tests/tests/functional/slog/Makefile
-	tests/zfs-tests/tests/functional/snapshot/Makefile
-	tests/zfs-tests/tests/functional/snapused/Makefile
-	tests/zfs-tests/tests/functional/sparse/Makefile
-	tests/zfs-tests/tests/functional/stat/Makefile
-	tests/zfs-tests/tests/functional/suid/Makefile
-	tests/zfs-tests/tests/functional/threadsappend/Makefile
-	tests/zfs-tests/tests/functional/tmpfile/Makefile
-	tests/zfs-tests/tests/functional/trim/Makefile
-	tests/zfs-tests/tests/functional/truncate/Makefile
-	tests/zfs-tests/tests/functional/upgrade/Makefile
-	tests/zfs-tests/tests/functional/user_namespace/Makefile
-	tests/zfs-tests/tests/functional/userquota/Makefile
-	tests/zfs-tests/tests/functional/vdev_zaps/Makefile
-	tests/zfs-tests/tests/functional/write_dirs/Makefile
-	tests/zfs-tests/tests/functional/xattr/Makefile
-	tests/zfs-tests/tests/functional/zpool_influxdb/Makefile
-	tests/zfs-tests/tests/functional/zvol/Makefile
-	tests/zfs-tests/tests/functional/zvol/zvol_ENOSPC/Makefile
-	tests/zfs-tests/tests/functional/zvol/zvol_cli/Makefile
-	tests/zfs-tests/tests/functional/zvol/zvol_misc/Makefile
-	tests/zfs-tests/tests/functional/zvol/zvol_swap/Makefile
-	tests/zfs-tests/tests/perf/Makefile
-	tests/zfs-tests/tests/perf/fio/Makefile
-	tests/zfs-tests/tests/perf/regression/Makefile
-	tests/zfs-tests/tests/perf/scripts/Makefile
-	tests/zfs-tests/tests/stress/Makefile
-	udev/Makefile
-	udev/rules.d/Makefile
 	zfs.release
 ])
 

@@ -55,18 +55,15 @@ function hasflag
 	typeset path=$2
 
 	if is_linux; then
-		read_dos_attributes $path | awk \
-		'{ gsub(",", "\n", $1); print $1 }' | grep -qxF $flag
+		read_dos_attributes $path
 	else
-		ls -lo $path | awk '{ gsub(",", "\n", $5); print $5 }' | \
-		grep -qxF $flag
-	fi
+		ls -lo $path | awk '{ print $5 }'
+	fi | grep -qwF $flag
 }
 
 log_assert "Verify DOS mode flags function correctly"
 log_onexit cleanup
 
-tests_base=$STF_SUITE/tests/functional/acl/off
 testfile=$TESTDIR/testfile
 owner=$ZFS_ACL_STAFF1
 other=$ZFS_ACL_STAFF2
@@ -159,7 +156,7 @@ log_must rm $testfile
 # READONLY is set.  We have a special test program for that.
 log_must user_run $owner touch $testfile
 log_mustnot user_run $other $changeflags rdonly $testfile
-log_must user_run $owner $tests_base/dosmode_readonly_write $testfile
+log_must user_run $owner dosmode_readonly_write $testfile
 log_mustnot user_run $other $changeflags nordonly $testfile
 log_must hasflag rdonly $testfile
 if ! is_linux; then

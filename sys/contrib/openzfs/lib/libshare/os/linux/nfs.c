@@ -45,7 +45,8 @@
 #define	ZFS_EXPORTS_FILE	ZFS_EXPORTS_DIR"/zfs.exports"
 #define	ZFS_EXPORTS_LOCK	ZFS_EXPORTS_FILE".lock"
 
-static sa_fstype_t *nfs_fstype;
+
+static boolean_t nfs_available(void);
 
 typedef int (*nfs_shareopt_callback_t)(const char *opt, const char *value,
     void *cookie);
@@ -229,7 +230,6 @@ foreach_nfs_host(sa_share_impl_t impl_share, FILE *tmpfile,
     nfs_host_callback_t callback, void *cookie)
 {
 	nfs_host_cookie_t udata;
-	char *shareopts;
 
 	udata.callback = callback;
 	udata.sharepath = impl_share->sa_mountpoint;
@@ -237,10 +237,8 @@ foreach_nfs_host(sa_share_impl_t impl_share, FILE *tmpfile,
 	udata.tmpfile = tmpfile;
 	udata.security = "sys";
 
-	shareopts = FSINFO(impl_share, nfs_fstype)->shareopts;
-
-	return (foreach_nfs_shareopt(shareopts, foreach_nfs_host_cb,
-	    &udata));
+	return (foreach_nfs_shareopt(impl_share->sa_shareopts,
+	    foreach_nfs_host_cb, &udata));
 }
 
 /*
@@ -299,6 +297,11 @@ add_linux_shareopt(char **plinux_opts, const char *key, const char *value)
 	return (SA_OK);
 }
 
+static int string_cmp(const void *lhs, const void *rhs) {
+	const char *const *l = lhs, *const *r = rhs;
+	return (strcmp(*l, *r));
+}
+
 /*
  * Validates and converts a single Solaris share option to its Linux
  * equivalent.
@@ -306,6 +309,15 @@ add_linux_shareopt(char **plinux_opts, const char *key, const char *value)
 static int
 get_linux_shareopts_cb(const char *key, const char *value, void *cookie)
 {
+	/* This list must remain sorted, since we bsearch() it */
+	static const char *const valid_keys[] = { "all_squash", "anongid",
+	    "anonuid", "async", "auth_nlm", "crossmnt", "fsid", "fsuid", "hide",
+	    "insecure", "insecure_locks", "mountpoint", "mp", "no_acl",
+	    "no_all_squash", "no_auth_nlm", "no_root_squash",
+	    "no_subtree_check", "no_wdelay", "nohide", "refer", "replicas",
+	    "root_squash", "secure", "secure_locks", "subtree_check", "sync",
+	    "wdelay" };
+
 	char **plinux_opts = (char **)cookie;
 
 	/* host-specific options, these are taken care of elsewhere */
@@ -324,26 +336,9 @@ get_linux_shareopts_cb(const char *key, const char *value, void *cookie)
 	if (strcmp(key, "nosub") == 0)
 		key = "subtree_check";
 
-	if (strcmp(key, "insecure") != 0 && strcmp(key, "secure") != 0 &&
-	    strcmp(key, "async") != 0 && strcmp(key, "sync") != 0 &&
-	    strcmp(key, "no_wdelay") != 0 && strcmp(key, "wdelay") != 0 &&
-	    strcmp(key, "nohide") != 0 && strcmp(key, "hide") != 0 &&
-	    strcmp(key, "crossmnt") != 0 &&
-	    strcmp(key, "no_subtree_check") != 0 &&
-	    strcmp(key, "subtree_check") != 0 &&
-	    strcmp(key, "insecure_locks") != 0 &&
-	    strcmp(key, "secure_locks") != 0 &&
-	    strcmp(key, "no_auth_nlm") != 0 && strcmp(key, "auth_nlm") != 0 &&
-	    strcmp(key, "no_acl") != 0 && strcmp(key, "mountpoint") != 0 &&
-	    strcmp(key, "mp") != 0 && strcmp(key, "fsuid") != 0 &&
-	    strcmp(key, "refer") != 0 && strcmp(key, "replicas") != 0 &&
-	    strcmp(key, "root_squash") != 0 &&
-	    strcmp(key, "no_root_squash") != 0 &&
-	    strcmp(key, "all_squash") != 0 &&
-	    strcmp(key, "no_all_squash") != 0 && strcmp(key, "fsid") != 0 &&
-	    strcmp(key, "anonuid") != 0 && strcmp(key, "anongid") != 0) {
+	if (bsearch(&key, valid_keys, ARRAY_SIZE(valid_keys),
+	    sizeof (*valid_keys), string_cmp) == NULL)
 		return (SA_SYNTAX_ERR);
-	}
 
 	(void) add_linux_shareopt(plinux_opts, key, value);
 
@@ -395,14 +390,21 @@ nfs_add_entry(FILE *tmpfile, const char *sharepath,
 	if (linux_opts == NULL)
 		linux_opts = "";
 
-	if (fprintf(tmpfile, "%s %s(sec=%s,%s,%s)\n", sharepath,
+	boolean_t need_free;
+	char *mp;
+	int rc = nfs_escape_mountpoint(sharepath, &mp, &need_free);
+	if (rc != SA_OK)
+		return (rc);
+	if (fprintf(tmpfile, "%s %s(sec=%s,%s,%s)\n", mp,
 	    get_linux_hostspec(host), security, access_opts,
 	    linux_opts) < 0) {
 		fprintf(stderr, "failed to write to temporary file\n");
-		return (SA_SYSTEM_ERR);
+		rc = SA_SYSTEM_ERR;
 	}
 
-	return (SA_OK);
+	if (need_free)
+		free(mp);
+	return (rc);
 }
 
 /*
@@ -411,11 +413,8 @@ nfs_add_entry(FILE *tmpfile, const char *sharepath,
 static int
 nfs_enable_share_impl(sa_share_impl_t impl_share, FILE *tmpfile)
 {
-	char *shareopts, *linux_opts;
-	int error;
-
-	shareopts = FSINFO(impl_share, nfs_fstype)->shareopts;
-	error = get_linux_shareopts(shareopts, &linux_opts);
+	char *linux_opts = NULL;
+	int error = get_linux_shareopts(impl_share->sa_shareopts, &linux_opts);
 	if (error != SA_OK)
 		return (error);
 
@@ -428,6 +427,9 @@ nfs_enable_share_impl(sa_share_impl_t impl_share, FILE *tmpfile)
 static int
 nfs_enable_share(sa_share_impl_t impl_share)
 {
+	if (!nfs_available())
+		return (SA_SYSTEM_ERR);
+
 	return (nfs_toggle_share(
 	    ZFS_EXPORTS_LOCK, ZFS_EXPORTS_FILE, ZFS_EXPORTS_DIR, impl_share,
 	    nfs_enable_share_impl));
@@ -446,6 +448,9 @@ nfs_disable_share_impl(sa_share_impl_t impl_share, FILE *tmpfile)
 static int
 nfs_disable_share(sa_share_impl_t impl_share)
 {
+	if (!nfs_available())
+		return (SA_SYSTEM_ERR);
+
 	return (nfs_toggle_share(
 	    ZFS_EXPORTS_LOCK, ZFS_EXPORTS_FILE, ZFS_EXPORTS_DIR, impl_share,
 	    nfs_disable_share_impl));
@@ -454,6 +459,9 @@ nfs_disable_share(sa_share_impl_t impl_share)
 static boolean_t
 nfs_is_shared(sa_share_impl_t impl_share)
 {
+	if (!nfs_available())
+		return (SA_SYSTEM_ERR);
+
 	return (nfs_is_shared_impl(ZFS_EXPORTS_FILE, impl_share));
 }
 
@@ -463,11 +471,8 @@ nfs_is_shared(sa_share_impl_t impl_share)
 static int
 nfs_validate_shareopts(const char *shareopts)
 {
-	char *linux_opts;
-	int error;
-
-	error = get_linux_shareopts(shareopts, &linux_opts);
-
+	char *linux_opts = NULL;
+	int error = get_linux_shareopts(shareopts, &linux_opts);
 	if (error != SA_OK)
 		return (error);
 
@@ -476,50 +481,40 @@ nfs_validate_shareopts(const char *shareopts)
 }
 
 static int
-nfs_update_shareopts(sa_share_impl_t impl_share, const char *shareopts)
-{
-	FSINFO(impl_share, nfs_fstype)->shareopts = (char *)shareopts;
-	return (SA_OK);
-}
-
-/*
- * Clears a share's NFS options. Used by libshare to
- * clean up shares that are about to be free()'d.
- */
-static void
-nfs_clear_shareopts(sa_share_impl_t impl_share)
-{
-	FSINFO(impl_share, nfs_fstype)->shareopts = NULL;
-}
-
-static int
 nfs_commit_shares(void)
 {
+	if (!nfs_available())
+		return (SA_SYSTEM_ERR);
+
 	char *argv[] = {
-	    "/usr/sbin/exportfs",
-	    "-ra",
+	    (char *)"/usr/sbin/exportfs",
+	    (char *)"-ra",
 	    NULL
 	};
 
 	return (libzfs_run_process(argv[0], argv, 0));
 }
 
-static const sa_share_ops_t nfs_shareops = {
+const sa_fstype_t libshare_nfs_type = {
 	.enable_share = nfs_enable_share,
 	.disable_share = nfs_disable_share,
 	.is_shared = nfs_is_shared,
 
 	.validate_shareopts = nfs_validate_shareopts,
-	.update_shareopts = nfs_update_shareopts,
-	.clear_shareopts = nfs_clear_shareopts,
 	.commit_shares = nfs_commit_shares,
 };
 
-/*
- * Initializes the NFS functionality of libshare.
- */
-void
-libshare_nfs_init(void)
+static boolean_t
+nfs_available(void)
 {
-	nfs_fstype = register_fstype("nfs", &nfs_shareops);
+	static int avail;
+
+	if (!avail) {
+		if (access("/usr/sbin/exportfs", F_OK) != 0)
+			avail = -1;
+		else
+			avail = 1;
+	}
+
+	return (avail == 1);
 }

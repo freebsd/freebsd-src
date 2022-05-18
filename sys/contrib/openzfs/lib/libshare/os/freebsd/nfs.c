@@ -52,10 +52,8 @@ __FBSDID("$FreeBSD$");
 #define	ZFS_EXPORTS_FILE	"/etc/zfs/exports"
 #define	ZFS_EXPORTS_LOCK	ZFS_EXPORTS_FILE".lock"
 
-static sa_fstype_t *nfs_fstype;
-
 /*
- * This function translate options to a format acceptable by exports(5), eg.
+ * This function translates options to a format acceptable by exports(5), eg.
  *
  *	-ro -network=192.168.0.0 -mask=255.255.255.0 -maproot=0 \
  *	zfs.freebsd.org 69.147.83.54
@@ -72,17 +70,14 @@ static sa_fstype_t *nfs_fstype;
  *
  *	ro, maproot, mapall, mask, network, sec, alldirs, public, webnfs,
  *	index, quiet
- *
- * NOTE: This function returns a static buffer and thus is not thread-safe.
  */
-static char *
-translate_opts(const char *shareopts)
+static int
+translate_opts(const char *shareopts, FILE *out)
 {
-	static const char *known_opts[] = { "ro", "maproot", "mapall", "mask",
-	    "network", "sec", "alldirs", "public", "webnfs", "index", "quiet",
-	    NULL };
-	static char newopts[OPTSSIZE];
-	char oldopts[OPTSSIZE];
+	static const char *const known_opts[] = { "ro", "maproot", "mapall",
+	    "mask", "network", "sec", "alldirs", "public", "webnfs", "index",
+	    "quiet" };
+	char oldopts[OPTSSIZE], newopts[OPTSSIZE];
 	char *o, *s = NULL;
 	unsigned int i;
 	size_t len;
@@ -93,7 +88,7 @@ translate_opts(const char *shareopts)
 	while ((o = strsep(&s, "-, ")) != NULL) {
 		if (o[0] == '\0')
 			continue;
-		for (i = 0; known_opts[i] != NULL; i++) {
+		for (i = 0; i < ARRAY_SIZE(known_opts); ++i) {
 			len = strlen(known_opts[i]);
 			if (strncmp(known_opts[i], o, len) == 0 &&
 			    (o[len] == '\0' || o[len] == '=')) {
@@ -104,23 +99,34 @@ translate_opts(const char *shareopts)
 		strlcat(newopts, o, sizeof (newopts));
 		strlcat(newopts, " ", sizeof (newopts));
 	}
-	return (newopts);
+	return (fputs(newopts, out));
 }
 
 static int
 nfs_enable_share_impl(sa_share_impl_t impl_share, FILE *tmpfile)
 {
-	char *shareopts = FSINFO(impl_share, nfs_fstype)->shareopts;
+	const char *shareopts = impl_share->sa_shareopts;
 	if (strcmp(shareopts, "on") == 0)
 		shareopts = "";
 
-	if (fprintf(tmpfile, "%s\t%s\n", impl_share->sa_mountpoint,
-	    translate_opts(shareopts)) < 0) {
+	boolean_t need_free;
+	char *mp;
+	int rc  = nfs_escape_mountpoint(impl_share->sa_mountpoint, &mp,
+	    &need_free);
+	if (rc != SA_OK)
+		return (rc);
+
+	if (fputs(mp, tmpfile) == EOF ||
+	    fputc('\t', tmpfile) == EOF ||
+	    translate_opts(shareopts, tmpfile) == EOF ||
+	    fputc('\n', tmpfile) == EOF) {
 		fprintf(stderr, "failed to write to temporary file\n");
-		return (SA_SYSTEM_ERR);
+		rc = SA_SYSTEM_ERR;
 	}
 
-	return (SA_OK);
+	if (need_free)
+		free(mp);
+	return (rc);
 }
 
 static int
@@ -159,19 +165,6 @@ nfs_validate_shareopts(const char *shareopts)
 	return (SA_OK);
 }
 
-static int
-nfs_update_shareopts(sa_share_impl_t impl_share, const char *shareopts)
-{
-	FSINFO(impl_share, nfs_fstype)->shareopts = (char *)shareopts;
-	return (SA_OK);
-}
-
-static void
-nfs_clear_shareopts(sa_share_impl_t impl_share)
-{
-	FSINFO(impl_share, nfs_fstype)->shareopts = NULL;
-}
-
 /*
  * Commit the shares by restarting mountd.
  */
@@ -202,22 +195,11 @@ start:
 	return (SA_OK);
 }
 
-static const sa_share_ops_t nfs_shareops = {
+const sa_fstype_t libshare_nfs_type = {
 	.enable_share = nfs_enable_share,
 	.disable_share = nfs_disable_share,
 	.is_shared = nfs_is_shared,
 
 	.validate_shareopts = nfs_validate_shareopts,
-	.update_shareopts = nfs_update_shareopts,
-	.clear_shareopts = nfs_clear_shareopts,
 	.commit_shares = nfs_commit_shares,
 };
-
-/*
- * Initializes the NFS functionality of libshare.
- */
-void
-libshare_nfs_init(void)
-{
-	nfs_fstype = register_fstype("nfs", &nfs_shareops);
-}

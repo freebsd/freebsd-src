@@ -45,9 +45,7 @@ function scan_scsi_hosts
 				log_must eval "echo '- - -' > $host/scan"
 			done
 		else
-			log_must eval \
-			    "echo /sys/class/scsi_host/host$hostnum/scan" \
-			    > /dev/null
+			log_note "/sys/class/scsi_host/host$hostnum/scan"
 			log_must eval \
 			    "echo '- - -' > /sys/class/scsi_host/host$hostnum/scan"
 		fi
@@ -115,21 +113,18 @@ function is_physical_device #device
 
 	if is_linux; then
 		is_disk_device "$DEV_DSKDIR/$device" && \
-		[[ -f /sys/module/loop/parameters/max_part ]]
-		return $?
+		[ -f /sys/module/loop/parameters/max_part ]
 	elif is_freebsd; then
 		is_disk_device "$DEV_DSKDIR/$device" && \
-		echo $device | egrep -q \
+		echo $device | grep -qE \
 		    -e '^a?da[0-9]+$' \
 		    -e '^md[0-9]+$' \
 		    -e '^mfid[0-9]+$' \
 		    -e '^nda[0-9]+$' \
 		    -e '^nvd[0-9]+$' \
 		    -e '^vtbd[0-9]+$'
-		return $?
 	else
-		echo $device | egrep "^c[0-F]+([td][0-F]+)+$" > /dev/null 2>&1
-		return $?
+		echo $device | grep -qE "^c[0-F]+([td][0-F]+)+$"
 	fi
 }
 
@@ -143,8 +138,7 @@ function is_real_device #disk
 
 	if is_linux; then
 		lsblk $DEV_RDSKDIR/$disk -o TYPE 2>/dev/null | \
-		    egrep disk >/dev/null
-		return $?
+		    grep -q disk
 	fi
 }
 
@@ -158,8 +152,7 @@ function is_loop_device #disk
 
 	if is_linux; then
 		lsblk $DEV_RDSKDIR/$disk -o TYPE 2>/dev/null | \
-		    egrep loop >/dev/null
-		return $?
+		    grep -q loop
 	fi
 }
 
@@ -181,13 +174,11 @@ function is_mpath_device #disk
 	[[ -z $disk ]] && log_fail "No argument for disk given."
 
 	if is_linux; then
-		lsblk $DEV_MPATHDIR/$disk -o TYPE 2>/dev/null | \
-		   egrep mpath >/dev/null
-		if (($? == 0)); then
+		if lsblk $DEV_MPATHDIR/$disk -o TYPE 2>/dev/null | \
+		   grep -q mpath; then
 			readlink $DEV_MPATHDIR/$disk > /dev/null 2>&1
-			return $?
 		else
-			return $?
+			false
 		fi
 	elif is_freebsd; then
 		is_disk_device $DEV_MPATHDIR/$disk
@@ -223,13 +214,11 @@ function set_slice_prefix
 
 	if is_linux; then
 		while (( i < $DISK_ARRAY_NUM )); do
-			disk="$(echo $DISKS | nawk '{print $(i + 1)}')"
-			if ( is_mpath_device $disk ) && [[ -z $(echo $disk | awk 'substr($1,18,1)\
-			     ~ /^[[:digit:]]+$/') ]] || ( is_real_device $disk ); then
+			disk="$(echo $DISKS | awk '{print $(i + 1)}')"
+			if is_mpath_device $disk && ! echo $disk | awk 'substr($1,18,1) ~ /^[[:digit:]]+$/ {exit 1}' || is_real_device $disk; then
 				export SLICE_PREFIX=""
 				return 0
-			elif ( is_mpath_device $disk || is_loop_device \
-			    $disk ); then
+			elif is_mpath_device $disk || is_loop_device $disk; then
 				export SLICE_PREFIX="p"
 				return 0
 			else
@@ -255,7 +244,7 @@ function set_device_dir
 
 	if is_linux; then
 		while (( i < $DISK_ARRAY_NUM )); do
-			disk="$(echo $DISKS | nawk '{print $(i + 1)}')"
+			disk="$(echo $DISKS | awk '{print $(i + 1)}')"
 			if is_mpath_device $disk; then
 				export DEV_DSKDIR=$DEV_MPATHDIR
 				return 0
@@ -296,20 +285,15 @@ function get_device_dir #device
 function get_persistent_disk_name #device
 {
 	typeset device=$1
-	typeset dev_id
 
 	if is_linux; then
 		if is_real_device $device; then
-			dev_id="$(udevadm info -q all -n $DEV_DSKDIR/$device \
-			    | egrep disk/by-id | nawk '{print $2; exit}' \
-			    | nawk -F / '{print $3}')"
-			echo $dev_id
+			udevadm info -q all -n $DEV_DSKDIR/$device \
+			    | awk '/disk\/by-id/ {print $2; exit}' | cut -d/ -f3
 		elif is_mpath_device $device; then
-			dev_id="$(udevadm info -q all -n $DEV_DSKDIR/$device \
-			    | egrep disk/by-id/dm-uuid \
-			    | nawk '{print $2; exit}' \
-			    | nawk -F / '{print $3}')"
-			echo $dev_id
+			udevadm info -q all -n $DEV_DSKDIR/$device \
+			    | awk '/disk\/by-id\/dm-uuid/ {print $2; exit}' \
+			    | cut -d/ -f3
 		else
 			echo $device
 		fi
@@ -336,42 +320,33 @@ function on_off_disk # disk state{online,offline} host
 
 	if is_linux; then
 		if [[ $state == "offline" ]] && ( is_mpath_device $disk ); then
-			dm_name="$(readlink $DEV_DSKDIR/$disk \
-			    | nawk -F / '{print $2}')"
-			dep="$(ls /sys/block/${dm_name}/slaves \
-			    | nawk '{print $1}')"
+			dm_name="$(readlink $DEV_DSKDIR/$disk | cut -d/ -f2)"
+			dep="$(ls /sys/block/${dm_name}/slaves | awk '{print $1}')"
 			while [[ -n $dep ]]; do
 				#check if disk is online
-				lsscsi | egrep $dep > /dev/null
-				if (($? == 0)); then
+				if lsscsi | grep -qF $dep; then
 					dep_dir="/sys/block/${dm_name}"
 					dep_dir+="/slaves/${dep}/device"
 					ss="${dep_dir}/state"
 					sd="${dep_dir}/delete"
 					log_must eval "echo 'offline' > ${ss}"
 					log_must eval "echo '1' > ${sd}"
-					lsscsi | egrep $dep > /dev/null
-						if (($? == 0)); then
-							log_fail "Offlining" \
-							    "$disk failed"
-						fi
+					if lsscsi | grep -qF $dep; then
+						log_fail "Offlining $disk failed"
+					fi
 				fi
-				dep="$(ls /sys/block/$dm_name/slaves \
-				    2>/dev/null | nawk '{print $1}')"
+				dep="$(ls /sys/block/$dm_name/slaves 2>/dev/null | awk '{print $1}')"
 			done
 		elif [[ $state == "offline" ]] && ( is_real_device $disk ); then
 			#check if disk is online
-			lsscsi | egrep $disk > /dev/null
-			if (($? == 0)); then
+			if lsscsi | grep -qF $disk; then
 				dev_state="/sys/block/$disk/device/state"
 				dev_delete="/sys/block/$disk/device/delete"
 				log_must eval "echo 'offline' > ${dev_state}"
 				log_must eval "echo '1' > ${dev_delete}"
-				lsscsi | egrep $disk > /dev/null
-					if (($? == 0)); then
-						log_fail "Offlining $disk" \
-						    "failed"
-					fi
+				if lsscsi | grep -qF $disk; then
+					log_fail "Offlining $disk failed"
+				fi
 			else
 				log_note "$disk is already offline"
 			fi
@@ -380,18 +355,15 @@ function on_off_disk # disk state{online,offline} host
 			scan_scsi_hosts $host
 			block_device_wait
 			if is_mpath_device $disk; then
-				dm_name="$(readlink $DEV_DSKDIR/$disk \
-				    | nawk -F / '{print $2}')"
-				dep="$(ls /sys/block/$dm_name/slaves \
-				    | nawk '{print $1}')"
-				lsscsi | egrep $dep > /dev/null
-				if (($? != 0)); then
+				dm_name="$(readlink $DEV_DSKDIR/$disk | cut -d/ -f2)"
+				dep="$(ls /sys/block/$dm_name/slaves | awk '{print $1}')"
+				if lsscsi | grep -qF $dep; then
 					log_fail "Onlining $disk failed"
 				fi
 			elif is_real_device $disk; then
 				block_device_wait
 				typeset -i retries=0
-				while ! lsscsi | egrep -q $disk; do
+				while ! lsscsi | grep -qF $disk; do
 					if (( $retries > 2 )); then
 						log_fail "Onlining $disk failed"
 						break
@@ -462,21 +434,16 @@ function load_scsi_debug # dev_size_mb add_host num_tgts max_luns blksz
 	esac
 
 	if is_linux; then
-		modprobe -n scsi_debug
-		if (($? != 0)); then
-			log_unsupported "Platform does not have scsi_debug"
-			    "module"
-		fi
-		lsmod | egrep scsi_debug > /dev/null
-		if (($? == 0)); then
+		modprobe -n scsi_debug ||
+			log_unsupported "Platform does not have scsi_debug module"
+		if lsmod | grep -q scsi_debug; then
 			log_fail "scsi_debug module already installed"
 		else
 			log_must modprobe scsi_debug dev_size_mb=$devsize \
 			    add_host=$hosts num_tgts=$tgts max_luns=$luns \
 			    sector_size=$sector physblk_exp=$blkexp
 			block_device_wait
-			lsscsi | egrep scsi_debug > /dev/null
-			if (($? == 1)); then
+			if ! lsscsi | grep -q scsi_debug; then
 				log_fail "scsi_debug module install failed"
 			fi
 		fi
@@ -498,7 +465,7 @@ function unload_scsi_debug
 function get_debug_device
 {
 	for i in {1..10} ; do
-		val=$(lsscsi | nawk '/scsi_debug/ {print $6; exit}' | cut -d / -f3)
+		val=$(lsscsi | awk '/scsi_debug/ {print $6; exit}' | cut -d/ -f3)
 
 		# lsscsi can take time to settle
 		if [ "$val" != "-" ] ; then
@@ -518,11 +485,11 @@ function get_pool_devices #testpool #devdir
 	typeset devdir=$2
 	typeset out=""
 
-	if is_linux || is_freebsd; then
-		out=$(zpool status -P $testpool |grep ${devdir} | awk '{print $1}')
-		out=$(echo $out | sed -e "s|${devdir}/||g" | tr '\n' ' ')
-	fi
-	echo $out
+	case "$UNAME" in
+	Linux|FreeBSD)
+		zpool status -P $testpool | awk -v d="$devdir" '$1 ~ d {sub(d "/", ""); printf("%s ", $1)}'
+		;;
+	esac
 }
 
 #

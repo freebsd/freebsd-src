@@ -36,9 +36,9 @@
 # $1 full file name
 function getsum #fname
 {
-	(( ${#1} == 0 )) && \
-		log_fail "Need give file name."
-	return $(sum $1 | awk '{print $1}')
+	typeset sum
+	read -r sum _ < <(cksum "$1")
+	echo $sum
 }
 
 # Define global variable checksum, get the original file sum.
@@ -270,11 +270,7 @@ function check_files
 			typeset sum0=$(getsum $file0)
 			typeset sum1=$(getsum $file1)
 			typeset sum2=$(getsum $file2)
-			if [[ $sum0 != $origsum || \
-				$sum1 != $origsum || sum2 != $origsum ]]
-			then
-				log_fail "After rollback, file sum is changed."
-			fi
+			log_must [ $sum0 = $origsum \&\& $sum1 = $origsum \&\& sum2 = $origsum ]
 			;;
 		$TESTSNAP1)
 			log_must files_exist $file0 $file1
@@ -282,19 +278,14 @@ function check_files
 
 			typeset sum0=$(getsum $file0)
 			typeset sum1=$(getsum $file1)
-			if [[ $sum0 != $origsum || $sum1 != $origsum ]]
-			then
-				log_fail "After rollback, file sum is changed."
-			fi
+			log_must [ $sum0 = $origsum \&\& $sum1 = $origsum ]
 			;;
 		$TESTSNAP)
 			log_must files_exist $file0
 			log_must files_nonexist $file1 $file2
 
 			typeset sum0=$(getsum $file0)
-			if [[ $sum0 != $origsum ]]; then
-				log_fail "After rollback, file sum is changed."
-			fi
+			log_must [ $sum0 = $origsum ]
 			;;
 	esac
 }

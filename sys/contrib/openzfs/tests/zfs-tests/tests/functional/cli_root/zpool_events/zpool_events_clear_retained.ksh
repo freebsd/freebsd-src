@@ -55,8 +55,6 @@ OLD_LEN_MAX=$(get_tunable ZEVENT_LEN_MAX)
 RETAIN_MAX=$(get_tunable ZEVENT_RETAIN_MAX)
 OLD_CHECKSUMS=$(get_tunable CHECKSUM_EVENTS_PER_SECOND)
 
-EREPORTS="$STF_SUITE/tests/functional/cli_root/zpool_events/ereports"
-
 function cleanup
 {
 	log_must set_tunable64 CHECKSUM_EVENTS_PER_SECOND $OLD_CHECKSUMS
@@ -66,7 +64,7 @@ function cleanup
 	if poolexists $POOL ; then
 		zpool export $POOL
 	fi
-	log_must rm -f $VDEV1 $VDEV2 $VDEV3
+	log_must rm -fd $VDEV1 $VDEV2 $VDEV3 $SUPPLY $MOUNTDIR
 }
 
 function damage_and_repair
@@ -78,9 +76,9 @@ function damage_and_repair
 	log_must dd conv=notrunc if=$SUPPLY of=$VDEV1 bs=1M seek=4 count=$DAMAGEBLKS
 	log_must zpool scrub $POOL
 	log_must zpool wait -t scrub $POOL
-	log_note "pass $1 observed $($EREPORTS | grep -c checksum) checksum ereports"
+	log_note "pass $1 observed $(ereports | grep -c checksum) checksum ereports"
 
-	repaired=$(zpool status $POOL | grep "scan: scrub repaired" | awk '{print $4}')
+	repaired=$(zpool status $POOL | awk '/scan: scrub repaired/ {print $4}')
 	if [ "$repaired" == "0B" ]; then
 		log_fail "INVALID TEST -- expected scrub to repair some blocks"
 	else
@@ -90,7 +88,7 @@ function damage_and_repair
 
 function checksum_error_count
 {
-	zpool status -p $POOL | grep $VDEV1 | awk '{print $5}'
+	zpool status -p $POOL | awk -v dev=$VDEV1 '$0 ~ dev {print $5}'
 }
 
 assertion="Damage to recently repaired blocks should be reported/counted"
@@ -132,4 +130,3 @@ else
 	log_note observed $errcnt new checksum errors after a scrub
 	log_pass "$assertion"
 fi
-

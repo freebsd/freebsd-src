@@ -54,12 +54,6 @@ function cleanup {
 }
 
 
-zpool set 2>&1 | grep bootfs > /dev/null
-if [ $? -ne 0 ]
-then
-        log_unsupported "bootfs pool property not supported on this release."
-fi
-
 log_onexit cleanup
 
 log_assert "Valid pool names are accepted by zpool set bootfs"
@@ -74,7 +68,7 @@ do
 	log_must zfs create $POOL/$TESTFS
 
 	log_must zpool set bootfs=$POOL/$TESTFS $POOL
-	RES=$(zpool get bootfs $POOL | tail -1 | awk '{print $3}' )
+	RES=$(zpool get bootfs $POOL | awk 'END {print $3}' )
 	if [ $RES != "$POOL/$TESTFS" ]
 	then
 		log_fail "Expected $RES == $POOL/$TESTFS"

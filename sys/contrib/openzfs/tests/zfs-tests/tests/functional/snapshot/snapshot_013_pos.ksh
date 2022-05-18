@@ -51,8 +51,7 @@ function cleanup
 	datasetexists $ctrfs && destroy_dataset $ctrfs -r
 	snapexists $snappool && destroy_dataset $snappool -r
 
-	[[ -e $TESTDIR ]] && \
-		log_must rm -rf $TESTDIR/* > /dev/null 2>&1
+	[ -e $TESTDIR ] && log_must rm -rf $TESTDIR/*
 }
 
 log_assert "Verify snapshots from 'snapshot -r' can be used for zfs send/recv"
@@ -67,8 +66,7 @@ snapctrfs=$ctrfs@$TESTSNAP
 fsdir=/$ctrfs
 snapdir=$fsdir/.zfs/snapshot/$TESTSNAP
 
-[[ -n $TESTDIR ]] && \
-    log_must rm -rf $TESTDIR/* > /dev/null 2>&1
+[ -n $TESTDIR ] && log_must rm -rf $TESTDIR/*
 
 typeset -i COUNT=10
 
@@ -89,7 +87,7 @@ if ! datasetexists $ctrfs || ! snapexists $snapctrfs; then
 fi
 
 for dir in $fsdir $snapdir; do
-	FILE_COUNT=`ls -Al $dir | grep -v "total" | wc -l`
+	FILE_COUNT=$(ls -A $dir | wc -l)
 	(( FILE_COUNT != COUNT )) && log_fail "Got $FILE_COUNT expected $COUNT"
 done
 

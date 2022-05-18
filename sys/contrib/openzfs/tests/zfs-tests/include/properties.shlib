@@ -69,26 +69,6 @@ function get_rand_prop_vals
 	echo $retstr
 }
 
-function get_rand_checksum
-{
-	get_rand_prop_vals checksum $1 2
-}
-
-function get_rand_checksum_any
-{
-	get_rand_prop_vals checksum $1 0
-}
-
-function get_rand_recsize
-{
-	get_rand_prop_vals recsize $1 0
-}
-
-function get_rand_large_recsize
-{
-	get_rand_prop_vals recsize $1 9
-}
-
 #
 # Functions to toggle on/off properties
 #
@@ -100,12 +80,8 @@ else
 	binary_props+=('zoned')
 fi
 
-if is_linux; then
-	# Only older kernels support non-blocking mandatory locks
-	if [[ $(linux_version) -lt $(linux_version "4.4") ]]; then
-		binary_props+=('nbmand')
-	fi
-else
+# Newer Linuxes dropped non-blocking mandatory locks
+if ! is_linux || [ $(linux_version) -lt $(linux_version "4.4") ]; then
 	binary_props+=('nbmand')
 fi
 
@@ -114,7 +90,6 @@ function toggle_prop
 	typeset ds=$1
 	typeset prop=$2
 
-	datasetexists $ds || log_fail "$ds does not exist"
 	typeset val=$(get_prop $prop $ds)
 	typeset newval='off'
 
@@ -137,7 +112,6 @@ function randomize_ds_props
 	typeset ds=$1
 	typeset prop proplist val
 
-	datasetexists $ds || log_fail "$ds does not exist"
 	if ds_is_volume $ds; then
 		toggle_prop $ds readonly
 		proplist="${vol_props[@]}"

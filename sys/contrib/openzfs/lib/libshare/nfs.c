@@ -24,13 +24,11 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
 #include <libshare.h>
 #include "nfs.h"
-
-
-static int nfs_lock_fd = -1;
 
 
 /*
@@ -39,24 +37,24 @@ static int nfs_lock_fd = -1;
  * providing the necessary locking to ensure consistency.
  */
 static int
-nfs_exports_lock(const char *name)
+nfs_exports_lock(const char *name, int *nfs_lock_fd)
 {
 	int err;
 
-	nfs_lock_fd = open(name, O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-	if (nfs_lock_fd == -1) {
+	*nfs_lock_fd = open(name, O_RDWR | O_CREAT | O_CLOEXEC, 0600);
+	if (*nfs_lock_fd == -1) {
 		err = errno;
 		fprintf(stderr, "failed to lock %s: %s\n", name, strerror(err));
 		return (err);
 	}
 
-	while ((err = flock(nfs_lock_fd, LOCK_EX)) != 0 && errno == EINTR)
+	while ((err = flock(*nfs_lock_fd, LOCK_EX)) != 0 && errno == EINTR)
 		;
 	if (err != 0) {
 		err = errno;
 		fprintf(stderr, "failed to lock %s: %s\n", name, strerror(err));
-		(void) close(nfs_lock_fd);
-		nfs_lock_fd = -1;
+		(void) close(*nfs_lock_fd);
+		*nfs_lock_fd = -1;
 		return (err);
 	}
 
@@ -64,17 +62,16 @@ nfs_exports_lock(const char *name)
 }
 
 static void
-nfs_exports_unlock(const char *name)
+nfs_exports_unlock(const char *name, int *nfs_lock_fd)
 {
-	verify(nfs_lock_fd > 0);
+	verify(*nfs_lock_fd > 0);
 
-	if (flock(nfs_lock_fd, LOCK_UN) != 0) {
+	if (flock(*nfs_lock_fd, LOCK_UN) != 0)
 		fprintf(stderr, "failed to unlock %s: %s\n",
 		    name, strerror(errno));
-	}
 
-	(void) close(nfs_lock_fd);
-	nfs_lock_fd = -1;
+	(void) close(*nfs_lock_fd);
+	*nfs_lock_fd = -1;
 }
 
 struct tmpfile {
@@ -147,6 +144,34 @@ nfs_fini_tmpfile(const char *exports, struct tmpfile *tmpf)
 	return (SA_OK);
 }
 
+int
+nfs_escape_mountpoint(const char *mp, char **out, boolean_t *need_free)
+{
+	if (strpbrk(mp, "\t\n\v\f\r \\") == NULL) {
+		*out = (char *)mp;
+		*need_free = B_FALSE;
+		return (SA_OK);
+	} else {
+		size_t len = strlen(mp);
+		*out = malloc(len * 4 + 1);
+		if (!*out)
+			return (SA_NO_MEMORY);
+		*need_free = B_TRUE;
+
+		char *oc = *out;
+		for (const char *c = mp; c < mp + len; ++c)
+			if (memchr("\t\n\v\f\r \\", *c,
+			    strlen("\t\n\v\f\r \\"))) {
+				sprintf(oc, "\\%03hho", *c);
+				oc += 4;
+			} else
+				*oc++ = *c;
+		*oc = '\0';
+	}
+
+	return (SA_OK);
+}
+
 static int
 nfs_process_exports(const char *exports, const char *mountpoint,
     boolean_t (*cbk)(void *userdata, char *line, boolean_t found_mountpoint),
@@ -157,8 +182,16 @@ nfs_process_exports(const char *exports, const char *mountpoint,
 
 	FILE *oldfp = fopen(exports, "re");
 	if (oldfp != NULL) {
+		boolean_t need_mp_free;
+		char *mp;
+		if ((error = nfs_escape_mountpoint(mountpoint,
+		    &mp, &need_mp_free)) != SA_OK) {
+			(void) fclose(oldfp);
+			return (error);
+		}
+
 		char *buf = NULL, *sep;
-		size_t buflen = 0, mplen = strlen(mountpoint);
+		size_t buflen = 0, mplen = strlen(mp);
 
 		while (cont && getline(&buf, &buflen, oldfp) != -1) {
 			if (buf[0] == '\n' || buf[0] == '#')
@@ -167,9 +200,11 @@ nfs_process_exports(const char *exports, const char *mountpoint,
 			cont = cbk(userdata, buf,
 			    (sep = strpbrk(buf, "\t \n")) != NULL &&
 			    sep - buf == mplen &&
-			    strncmp(buf, mountpoint, mplen) == 0);
+			    strncmp(buf, mp, mplen) == 0);
 		}
 		free(buf);
+		if (need_mp_free)
+			free(mp);
 
 		if (ferror(oldfp) != 0)
 			error = ferror(oldfp);
@@ -216,13 +251,13 @@ nfs_toggle_share(const char *lockfile, const char *exports,
     const char *expdir, sa_share_impl_t impl_share,
     int(*cbk)(sa_share_impl_t impl_share, FILE *tmpfile))
 {
-	int error;
+	int error, nfs_lock_fd = -1;
 	struct tmpfile tmpf;
 
 	if (!nfs_init_tmpfile(exports, expdir, &tmpf))
 		return (SA_SYSTEM_ERR);
 
-	error = nfs_exports_lock(lockfile);
+	error = nfs_exports_lock(lockfile, &nfs_lock_fd);
 	if (error != 0) {
 		nfs_abort_tmpfile(&tmpf);
 		return (error);
@@ -237,12 +272,12 @@ nfs_toggle_share(const char *lockfile, const char *exports,
 		goto fullerr;
 
 	error = nfs_fini_tmpfile(exports, &tmpf);
-	nfs_exports_unlock(lockfile);
+	nfs_exports_unlock(lockfile, &nfs_lock_fd);
 	return (error);
 
 fullerr:
 	nfs_abort_tmpfile(&tmpf);
-	nfs_exports_unlock(lockfile);
+	nfs_exports_unlock(lockfile, &nfs_lock_fd);
 	return (error);
 }
 

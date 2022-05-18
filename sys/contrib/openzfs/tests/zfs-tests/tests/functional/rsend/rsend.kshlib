@@ -128,7 +128,7 @@ function cleanup_pool
 		#
 		# https://github.com/openzfs/zfs/issues/6143
 		#
-		log_must df >/dev/null
+		log_must eval "df >/dev/null"
 		log_must_busy zfs destroy -Rf $pool
 	else
 		typeset list=$(zfs list -H -r -t all -o name $pool)
@@ -153,23 +153,13 @@ function cleanup_pool
 	if [[ -d $mntpnt ]]; then
 		rm -rf $mntpnt/*
 	fi
-
-	return 0
-}
-
-function cleanup_pools
-{
-	cleanup_pool $POOL2
-	destroy_pool $POOL3
 }
 
 function cmp_md5s {
 	typeset file1=$1
 	typeset file2=$2
 
-	typeset sum1=$(md5digest $file1)
-	typeset sum2=$(md5digest $file2)
-	test "$sum1" = "$sum2"
+	[ "$(md5digest $file1)" = "$(md5digest $file2)" ]
 }
 
 #
@@ -183,18 +173,9 @@ function cmp_ds_subs
 	typeset src_fs=$1
 	typeset dst_fs=$2
 
-	zfs list -r -H -t all -o name $src_fs > $BACKDIR/src1
-	zfs list -r -H -t all -o name $dst_fs > $BACKDIR/dst1
-
-	eval sed -e 's:^$src_fs:PREFIX:g' < $BACKDIR/src1 > $BACKDIR/src
-	eval sed -e 's:^$dst_fs:PREFIX:g' < $BACKDIR/dst1 > $BACKDIR/dst
-
-	diff $BACKDIR/src $BACKDIR/dst
-	typeset -i ret=$?
-
-	rm -f $BACKDIR/src $BACKDIR/dst $BACKDIR/src1 $BACKDIR/dst1
-
-	return $ret
+	diff \
+		<(zfs list -rHt all -o name $src_fs | sed "s:^$src_fs:PREFIX:g") \
+		<(zfs list -rHt all -o name $dst_fs | sed "s:^$dst_fs:PREFIX:g")
 }
 
 #
@@ -213,7 +194,6 @@ function cmp_ds_cont
 	dstdir=$(get_prop mountpoint $dst_fs)
 
 	replay_directory_diff $srcdir $dstdir
-	return $?
 }
 
 #
@@ -221,39 +201,30 @@ function cmp_ds_cont
 #
 # $1 dataset 1
 # $2 dataset 2
+# $3 -n == don't track property source
+# $4 -n == don't track the origin property
 #
 function cmp_ds_prop
 {
 	typeset dtst1=$1
 	typeset dtst2=$2
-	typeset -a props=("type" "origin" "volblocksize" "acltype" "dnodesize" \
-	    "atime" "canmount" "checksum" "compression" "copies" "devices" \
-	    "exec" "quota" "readonly" "recordsize" "reservation" "setuid" \
-	    "snapdir" "version" "volsize" "xattr" "mountpoint");
+	typeset nosource=$3
+	typeset noorigin=$4
+	typeset source=",source"; [ -n "$nosource" ] && source=
+	typeset origin=",origin"; [ -n "$noorigin" ] && origin=
+	typeset props="type$origin,volblocksize,acltype,dnodesize"
+	props+=",atime,canmount,checksum,compression,copies,devices"
+	props+=",exec,quota,readonly,recordsize,reservation,setuid"
+	props+=",snapdir,version,volsize,xattr,mountpoint"
 	if is_freebsd; then
-		props+=("jailed")
+		props+=",jailed"
 	else
-		props+=("zoned")
+		props+=",zoned"
 	fi
 
-	for prop in $props;
-	do
-		zfs get -H -o property,value,source $prop $dtst1 >> \
-		    $BACKDIR/dtst1
-		zfs get -H -o property,value,source $prop $dtst2 >> \
-		    $BACKDIR/dtst2
-	done
-
-	eval sed -e 's:$dtst1:PREFIX:g' < $BACKDIR/dtst1 > $BACKDIR/dtst1
-	eval sed -e 's:$dtst2:PREFIX:g' < $BACKDIR/dtst2 > $BACKDIR/dtst2
-
-	diff $BACKDIR/dtst1 $BACKDIR/dtst2
-	typeset -i ret=$?
-
-	rm -f $BACKDIR/dtst1 $BACKDIR/dtst2
-
-	return $ret
-
+	diff \
+		<(zfs get -Ho property,value$source $props $dtst1 | sed -e "s:$dtst1:PREFIX:g" -e 's/^origin	[^@]*/origin	POOL/' -e 's/	inherited from [^/]*/	inherited from POOL/') \
+		<(zfs get -Ho property,value$source $props $dtst2 | sed -e "s:$dtst2:PREFIX:g" -e 's/^origin	[^@]*/origin	POOL/' -e 's/	inherited from [^/]*/	inherited from POOL/')
 }
 
 #
@@ -295,7 +266,6 @@ function snapshot_tree
 	typeset -i ret=0
 	if [[ $type == "filesystem" ]]; then
 		typeset mntpnt=$(get_prop mountpoint $ds)
-		((ret |= $?))
 
 		if ((ret == 0)) ; then
 			eval random_tree $mntpnt/${snap##$ds}
@@ -347,9 +317,7 @@ function getds_with_suffix
 	typeset ds=$1
 	typeset suffix=$2
 
-	typeset list=$(zfs list -r -H -t all -o name $ds | grep "$suffix$")
-
-	echo $list
+	zfs list -rHt all -o name $ds | grep "$suffix$"
 }
 
 #
@@ -366,8 +334,7 @@ function fs_inherit_prop
 		fi
 	else
 		fs_prop=$(zfs inherit 2>&1 | \
-		    awk '$2=="YES" && $3=="YES" {print $1}'|
-		    egrep -v "devices|mlslabel|sharenfs|sharesmb|zoned")
+		    awk '$2=="YES" && $3=="YES" && !/devices|mlslabel|sharenfs|sharesmb|zoned/ {print $1}')
 	fi
 
 	echo $fs_prop
@@ -378,7 +345,7 @@ function fs_inherit_prop
 #
 function vol_inherit_prop
 {
-	echo "checksum readonly"
+	echo checksum readonly
 }
 
 #
@@ -597,8 +564,8 @@ function mess_send_file
 	# We use zstream dump to verify there is an intact DRR_BEGIN record.
 	offset=$(((($RANDOM * $RANDOM) % ($filesize - $minsize)) + $minsize))
 	nr_begins=$(head -c $offset $file | zstream dump | \
-	    grep DRR_BEGIN | awk '{ print $5 }')
-	log_must test "$nr_begins" -eq 1
+	    awk '/DRR_BEGIN/ { print $5 }')
+	log_must [ "$nr_begins" -eq 1 ]
 
 	if (($RANDOM % 7 <= 1)); then
 		#
@@ -625,13 +592,11 @@ function file_check
 
 	if [[ -d /$recvfs/.zfs/snapshot/a && -d \
 	    /$sendfs/.zfs/snapshot/a ]]; then
-		directory_diff /$recvfs/.zfs/snapshot/a /$sendfs/.zfs/snapshot/a
-		[[ $? -eq 0 ]] || log_fail "Differences found in snap a"
+		log_must directory_diff /$recvfs/.zfs/snapshot/a /$sendfs/.zfs/snapshot/a
 	fi
 	if [[ -d /$recvfs/.zfs/snapshot/b && -d \
 	    /$sendfs/.zfs/snapshot/b ]]; then
-		directory_diff /$recvfs/.zfs/snapshot/b /$sendfs/.zfs/snapshot/b
-		[[ $? -eq 0 ]] || log_fail "Differences found in snap b"
+		log_must directory_diff /$recvfs/.zfs/snapshot/b /$sendfs/.zfs/snapshot/b
 	fi
 }
 
@@ -655,20 +620,18 @@ function resume_test
 
 	for ((i=0; i<2; i=i+1)); do
 		mess_send_file /$streamfs/$stream_num
-		log_mustnot zfs recv -suv $recvfs </$streamfs/$stream_num
+		log_mustnot eval "zfs recv -suv $recvfs </$streamfs/$stream_num"
 		stream_num=$((stream_num+1))
 
-		token=$(zfs get -Hp -o value receive_resume_token $recvfs)
+		token=$(get_prop receive_resume_token $recvfs)
 
 		# Do a dry-run
 		[ $dryrun -ne 0 ] && \
 			log_must eval "zfs send -nvt $token > /dev/null"
 
 		log_must eval "zfs send -t $token  >/$streamfs/$stream_num"
-		[[ -f /$streamfs/$stream_num ]] || \
-		    log_fail "NO FILE /$streamfs/$stream_num"
 	done
-	log_must zfs recv -suv $recvfs </$streamfs/$stream_num
+	log_must eval "zfs recv -suv $recvfs </$streamfs/$stream_num"
 }
 
 function get_resume_token
@@ -679,11 +642,8 @@ function get_resume_token
 
 	log_must eval "$sendcmd > /$streamfs/1"
 	mess_send_file /$streamfs/1
-	log_mustnot zfs recv -suv $recvfs < /$streamfs/1 2>&1
-	token=$(zfs get -Hp -o value receive_resume_token $recvfs)
-	echo "$token" > /$streamfs/resume_token
-
-	return 0
+	log_mustnot eval "zfs recv -suv $recvfs < /$streamfs/1 2>&1"
+	get_prop receive_resume_token $recvfs > /$streamfs/resume_token
 }
 
 #
@@ -747,7 +707,7 @@ function stream_has_features
 	shift
 
 	[[ -f $file ]] || log_fail "Couldn't find file: $file"
-	typeset flags=$(cat $file | zstream dump | \
+	typeset flags=$(zstream dump $file | \
 	    awk '/features =/ {features = $3} END {print features}')
 	typeset -A feature
 	feature[dedup]="1"
@@ -797,7 +757,7 @@ function verify_stream_size
 	[[ -f $stream ]] || log_fail "No such file: $stream"
 	datasetexists $ds || log_fail "No such dataset: $ds"
 
-	typeset stream_size=$(cat $stream | zstream dump | sed -n \
+	typeset stream_size=$(zstream dump $stream | sed -n \
 	    's/	Total payload size = \(.*\) (0x.*)/\1/p')
 
 	typeset inc_size=0
@@ -815,8 +775,7 @@ function verify_stream_size
 	fi
 	ds_size=$((ds_size - inc_size))
 
-	within_percent $stream_size $ds_size $percent || log_fail \
-	    "$stream_size $ds_size differed by too much"
+	log_must within_percent $stream_size $ds_size $percent
 }
 
 # Cleanup function for tests involving resumable send

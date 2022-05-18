@@ -142,7 +142,6 @@ function setup_test_env
 	log_must zpool create -O compression=off -f -m $TESTDIR $pool $keyword $vdevs
 
 	log_note "Filling up the filesystem ..."
-	typeset -i ret=0
 	typeset -i i=0
 	typeset file=$TESTDIR/file
 	typeset -i limit
@@ -150,9 +149,7 @@ function setup_test_env
 
 	while true ; do
 		[[ $(get_prop available $pool) -lt $limit ]] && break
-		file_write -o create -f $file.$i -b $BLOCKSZ -c $NUM_WRITES
-		ret=$?
-		(( $ret != 0 )) && break
+		file_write -o create -f $file.$i -b $BLOCKSZ -c $NUM_WRITES || break
 		(( i = i + 1 ))
 	done
 
@@ -163,16 +160,13 @@ function refill_test_env
 {
 	log_note "Re-filling the filesystem ..."
 	typeset pool=$1
-	typeset -i ret=0
 	typeset -i i=0
 	typeset mntpnt
 	mntpnt=$(get_prop mountpoint $pool)
 	typeset file=$mntpnt/file
 	while [[ -e $file.$i ]]; do
 		log_must rm -f $file.$i
-		file_write -o create -f $file.$i -b $BLOCKSZ -c $NUM_WRITES
-		ret=$?
-		(( $ret != 0 )) && break
+		file_write -o create -f $file.$i -b $BLOCKSZ -c $NUM_WRITES || break
 		(( i = i + 1 ))
 	done
 
@@ -195,15 +189,12 @@ function is_healthy
 		return 0
 	else
 		typeset -i ret
-		zpool status -x $pool | grep "state:" | \
-			grep "FAULTED" >/dev/null 2>&1
-		ret=$?
-		(( $ret == 0 )) && return 1
+		zpool status -x $pool | grep "state:" | grep -q "FAULTED" && return 1
 		typeset l_scan
-		typeset errnum
+		typeset errnum _
 		l_scan=$(zpool status -x $pool | grep "scan:")
 		l_scan=${l_scan##*"with"}
-		errnum=$(echo $l_scan | awk '{print $1}')
+		read -r errnum _ <<<"$l_scan"
 
 		return $errnum
 	fi
@@ -221,7 +212,7 @@ function is_data_valid
 	log_must zpool scrub -w $pool
 
 	record_data $pool $PST_RECORD_FILE
-	if ! diff $PRE_RECORD_FILE $PST_RECORD_FILE > /dev/null 2>&1; then
+	if ! cmp $PRE_RECORD_FILE $PST_RECORD_FILE > /dev/null; then
 		log_must cat $PRE_RECORD_FILE
 		log_must cat $PST_RECORD_FILE
 		diff -u $PRE_RECORD_FILE $PST_RECORD_FILE
@@ -242,13 +233,14 @@ function get_vdevs #pool cnt
 	typeset pool=$1
 	typeset -i cnt=$2
 
-	typeset all_devs=$(zpool iostat -v $pool | awk '{print $1}'| \
-		egrep -v "^pool$|^capacity$|^mirror\-[0-9]$|^raidz[1-3]\-[0-9]$|^draid[1-3].*\-[0-9]$|---" | \
-		egrep -v "/old$|^$pool$")
+	typeset all_devs=$(zpool iostat -v $pool | awk '{print $1}' | \
+		grep -vEe "^pool$|^capacity$|^mirror\-[0-9]$|^raidz[1-3]\-[0-9]$|^draid[1-3].*\-[0-9]$|---" \
+		-e "/old$|^$pool$")
 	typeset -i i=0
 	typeset vdevs
 	while ((i < cnt)); do
-		typeset dev=$(echo $all_devs | awk '{print $1}')
+		typeset dev _
+		read -r dev _ <<<"$all_devs"
 		eval all_devs=\${all_devs##*$dev}
 
 		vdevs="$dev $vdevs"

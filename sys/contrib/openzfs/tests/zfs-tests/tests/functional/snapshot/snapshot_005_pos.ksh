@@ -35,7 +35,7 @@
 #
 # DESCRIPTION:
 # to the originally snapshot'd file system, after the file
-# system has been changed. Uses 'sum -r'.
+# system has been changed. Uses 'cksum'.
 #
 # STRATEGY:
 # 1) Create a file in the zfs dataset
@@ -49,17 +49,14 @@ verify_runnable "both"
 
 function cleanup
 {
-	snapexists $SNAPCTR
-	if [[ $? -eq 0 ]]; then
-		log_must zfs destroy $SNAPCTR
+	snapexists $SNAPCTR && log_must zfs destroy $SNAPCTR
+
+	if [ -e $SNAPDIR1 ]; then
+		log_must rm -rf $SNAPDIR1
 	fi
 
-	if [[ -e $SNAPDIR1 ]]; then
-		log_must rm -rf $SNAPDIR1 > /dev/null 2>&1
-	fi
-
-	if [[ -e $TESTDIR ]]; then
-		log_must rm -rf $TESTDIR/* > /dev/null 2>&1
+	if [ -e $TESTDIR ]; then
+		log_must rm -rf $TESTDIR/*
 	fi
 }
 
@@ -72,7 +69,7 @@ log_must file_write -o create -f $TESTDIR1/$TESTFILE -b $BLOCKSZ \
     -c $NUM_WRITES -d $DATA
 
 log_note "Sum the file, save for later comparison..."
-FILE_SUM=`sum -r $TESTDIR1/$TESTFILE | awk  '{ print $1 }'`
+read -r FILE_SUM _ < <(cksum $TESTDIR1/$TESTFILE)
 log_note "FILE_SUM = $FILE_SUM"
 
 log_note "Create a snapshot and mount it..."
@@ -82,8 +79,8 @@ log_note "Append to the original file..."
 log_must file_write -o append -f $TESTDIR1/$TESTFILE -b $BLOCKSZ \
     -c $NUM_WRITES -d $DATA
 
-SNAP_FILE_SUM=`sum -r $SNAPDIR1/$TESTFILE | awk '{ print $1 }'`
-if [[ $SNAP_FILE_SUM -ne $FILE_SUM ]]; then
+read -r SNAP_FILE_SUM _ < <(cksum $SNAPDIR1/$TESTFILE)
+if [ $SNAP_FILE_SUM -ne $FILE_SUM ]; then
 	log_fail "Sums do not match, aborting!! ($SNAP_FILE_SUM != $FILE_SUM)"
 fi
 

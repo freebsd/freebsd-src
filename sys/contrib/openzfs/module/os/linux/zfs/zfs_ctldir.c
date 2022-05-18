@@ -162,7 +162,7 @@ zfsctl_snapshot_free(zfs_snapentry_t *se)
 	zfs_refcount_destroy(&se->se_refcount);
 	kmem_strfree(se->se_name);
 	kmem_strfree(se->se_path);
-	rw_destroy(se->se_taskqid_lock);
+	rw_destroy(&se->se_taskqid_lock);
 
 	kmem_free(se, sizeof (zfs_snapentry_t));
 }
@@ -496,6 +496,8 @@ zfsctl_inode_alloc(zfsvfs_t *zfsvfs, uint64_t id,
 	zp->z_pflags = 0;
 	zp->z_mode = 0;
 	zp->z_sync_cnt = 0;
+	zp->z_sync_writes_cnt = 0;
+	zp->z_async_writes_cnt = 0;
 	ip->i_generation = 0;
 	ip->i_ino = id;
 	ip->i_mode = (S_IFDIR | S_IRWXUGO);

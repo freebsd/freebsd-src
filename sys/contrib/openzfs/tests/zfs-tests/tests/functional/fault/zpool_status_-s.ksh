@@ -67,11 +67,10 @@ log_must mkfile 1048576 /$TESTPOOL/testfile
 sync_pool $TESTPOOL
 
 log_must zinject -c all
-SLOW_IOS=$(zpool status -sp | grep "$DISK" | awk '{print $6}')
-DELAY_EVENTS=$(zpool events | grep delay | wc -l)
+SLOW_IOS=$(zpool status -sp | awk -v d="$DISK" '$0 ~ d {print $6}')
+DELAY_EVENTS=$(zpool events | grep -c delay)
 
-if [ $SLOW_IOS -gt 0 ] && [ $DELAY_EVENTS -gt 0 ] ; then
-	log_pass "Correctly saw $SLOW_IOS slow IOs and $DELAY_EVENTS delay events"
-else
-	log_fail "Only saw $SLOW_IOS slow IOs and $DELAY_EVENTS delay events"
-fi
+log_must [ $SLOW_IOS -gt 0 ]
+log_must [ $DELAY_EVENTS -gt 0 ]
+
+log_pass "Correctly saw $SLOW_IOS slow IOs and $DELAY_EVENTS delay events"

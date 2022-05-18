@@ -31,11 +31,11 @@
 # Use is subject to license terms.
 #
 
+. ${STF_SUITE}/include/tunables.cfg
+
 . ${STF_TOOLS}/include/logapi.shlib
 . ${STF_SUITE}/include/math.shlib
 . ${STF_SUITE}/include/blkdev.shlib
-
-. ${STF_SUITE}/include/tunables.cfg
 
 #
 # Apply constrained path when available.  This is required since the
@@ -52,11 +52,7 @@ fi
 #
 function compare_version_gte
 {
-	if [[ "$(printf "$1\n$2" | sort -V | tail -n1)" == "$1" ]]; then
-		return 0
-	else
-		return 1
-	fi
+	[ "$(printf "$1\n$2" | sort -V | tail -n1)" = "$1" ]
 }
 
 # Linux kernel version comparison function
@@ -69,17 +65,16 @@ function linux_version
 {
 	typeset ver="$1"
 
-	[[ -z "$ver" ]] && ver=$(uname -r | grep -Eo "^[0-9]+\.[0-9]+\.[0-9]+")
+	[ -z "$ver" ] && ver=$(uname -r | grep -Eo "^[0-9]+\.[0-9]+\.[0-9]+")
 
-	typeset version=$(echo $ver | cut -d '.' -f 1)
-	typeset major=$(echo $ver | cut -d '.' -f 2)
-	typeset minor=$(echo $ver | cut -d '.' -f 3)
+	typeset version major minor _
+	IFS='.' read -r version major minor _ <<<"$ver"
 
-	[[ -z "$version" ]] && version=0
-	[[ -z "$major" ]] && major=0
-	[[ -z "$minor" ]] && minor=0
+	[ -z "$version" ] && version=0
+	[ -z "$major" ] && major=0
+	[ -z "$minor" ] && minor=0
 
-	echo $((version * 10000 + major * 100 + minor))
+	echo $((version * 100000 + major * 1000 + minor))
 }
 
 # Determine if this is a Linux test system
@@ -88,11 +83,7 @@ function linux_version
 
 function is_linux
 {
-	if [[ $(uname -o) == "GNU/Linux" ]]; then
-		return 0
-	else
-		return 1
-	fi
+	[ "$UNAME" = "Linux" ]
 }
 
 # Determine if this is an illumos test system
@@ -100,11 +91,7 @@ function is_linux
 # Return 0 if platform illumos, 1 if otherwise
 function is_illumos
 {
-	if [[ $(uname -o) == "illumos" ]]; then
-		return 0
-	else
-		return 1
-	fi
+	[ "$UNAME" = "illumos" ]
 }
 
 # Determine if this is a FreeBSD test system
@@ -113,26 +100,7 @@ function is_illumos
 
 function is_freebsd
 {
-	if [[ $(uname -o) == "FreeBSD" ]]; then
-		return 0
-	else
-		return 1
-	fi
-}
-
-# Determine if this is a DilOS test system
-#
-# Return 0 if platform DilOS, 1 if otherwise
-
-function is_dilos
-{
-	typeset ID=""
-	[[ -f /etc/os-release ]] && . /etc/os-release
-	if [[ $ID == "dilos" ]]; then
-		return 0
-	else
-		return 1
-	fi
+	[ "$UNAME" = "FreeBSD" ]
 }
 
 # Determine if this is a 32-bit system
@@ -141,11 +109,7 @@ function is_dilos
 
 function is_32bit
 {
-	if [[ $(getconf LONG_BIT) == "32" ]]; then
-		return 0
-	else
-		return 1
-	fi
+	[ $(getconf LONG_BIT) = "32" ]
 }
 
 # Determine if kmemleak is enabled
@@ -154,11 +118,7 @@ function is_32bit
 
 function is_kmemleak
 {
-	if is_linux && [[ -e /sys/kernel/debug/kmemleak ]]; then
-		return 0
-	else
-		return 1
-	fi
+	is_linux && [ -e /sys/kernel/debug/kmemleak ]
 }
 
 # Determine whether a dataset is mounted
@@ -172,18 +132,14 @@ function ismounted
 {
 	typeset fstype=$2
 	[[ -z $fstype ]] && fstype=zfs
-	typeset out dir name ret
+	typeset out dir name
 
 	case $fstype in
 		zfs)
 			if [[ "$1" == "/"* ]] ; then
-				for out in $(zfs mount | awk '{print $2}'); do
-					[[ $1 == $out ]] && return 0
-				done
+				! zfs mount | awk -v fs="$1" '$2 == fs {exit 1}'
 			else
-				for out in $(zfs mount | awk '{print $1}'); do
-					[[ $1 == $out ]] && return 0
-				done
+				! zfs mount | awk -v ds="$1" '$1 == ds {exit 1}'
 			fi
 		;;
 		ufs|nfs)
@@ -192,9 +148,7 @@ function ismounted
 					[[ "$1" == "$dev" || "$1" == "$dir" ]] && return 0
 				done
 			else
-				out=$(df -F $fstype $1 2>/dev/null)
-				ret=$?
-				(($ret != 0)) && return $ret
+				out=$(df -F $fstype $1 2>/dev/null) || return
 
 				dir=${out%%\(*}
 				dir=${dir%% *}
@@ -206,8 +160,7 @@ function ismounted
 			fi
 		;;
 		ext*)
-			out=$(df -t $fstype $1 2>/dev/null)
-			return $?
+			df -t $fstype $1 > /dev/null 2>&1
 		;;
 		zvol)
 			if [[ -L "$ZVOL_DEVDIR/$1" ]]; then
@@ -217,9 +170,10 @@ function ismounted
 						return 0
 			fi
 		;;
+		*)
+			false
+		;;
 	esac
-
-	return 1
 }
 
 # Return 0 if a dataset is mounted; 1 otherwise
@@ -230,8 +184,6 @@ function ismounted
 function mounted
 {
 	ismounted $1 $2
-	(($? == 0)) && return 0
-	return 1
 }
 
 # Return 0 if a dataset is unmounted; 1 otherwise
@@ -241,18 +193,7 @@ function mounted
 
 function unmounted
 {
-	ismounted $1 $2
-	(($? == 1)) && return 0
-	return 1
-}
-
-# split line on ","
-#
-# $1 - line to split
-
-function splitline
-{
-	echo $1 | tr ',' ' '
+	! ismounted $1 $2
 }
 
 function default_setup
@@ -493,48 +434,6 @@ function default_mirror_setup_noexit
 }
 
 #
-# create a number of mirrors.
-# We create a number($1) of 2 way mirrors using the pairs of disks named
-# on the command line. These mirrors are *not* mounted
-# @parameters: $1 the number of mirrors to create
-#  $... the devices to use to create the mirrors on
-# @uses: ZPOOL ZFS TESTPOOL
-function setup_mirrors
-{
-	typeset -i nmirrors=$1
-
-	shift
-	while ((nmirrors > 0)); do
-		log_must test -n "$1" -a -n "$2"
-		[[ -d /$TESTPOOL$nmirrors ]] && rm -rf /$TESTPOOL$nmirrors
-		log_must zpool create -f $TESTPOOL$nmirrors mirror $1 $2
-		shift 2
-		((nmirrors = nmirrors - 1))
-	done
-}
-
-#
-# create a number of raidz pools.
-# We create a number($1) of 2 raidz pools  using the pairs of disks named
-# on the command line. These pools are *not* mounted
-# @parameters: $1 the number of pools to create
-#  $... the devices to use to create the pools on
-# @uses: ZPOOL ZFS TESTPOOL
-function setup_raidzs
-{
-	typeset -i nraidzs=$1
-
-	shift
-	while ((nraidzs > 0)); do
-		log_must test -n "$1" -a -n "$2"
-		[[ -d /$TESTPOOL$nraidzs ]] && rm -rf /$TESTPOOL$nraidzs
-		log_must zpool create -f $TESTPOOL$nraidzs raidz $1 $2
-		shift 2
-		((nraidzs = nraidzs - 1))
-	done
-}
-
-#
 # Destroy the configured testpool mirrors.
 # the mirrors are of the form ${TESTPOOL}{number}
 # @uses: ZPOOL ZFS TESTPOOL
@@ -645,10 +544,8 @@ function default_cleanup_noexit
 				log_must zfs set reservation=none $fs
 				log_must zfs set recordsize=128K $fs
 				log_must zfs set mountpoint=/$fs $fs
-				typeset enc=""
-				enc=$(get_prop encryption $fs)
-				if [[ $? -ne 0 ]] || [[ -z "$enc" ]] || \
-					[[ "$enc" == "off" ]]; then
+				typeset enc=$(get_prop encryption $fs)
+				if [ -z "$enc" ] || [ "$enc" = "off" ]; then
 					log_must zfs set checksum=on $fs
 				fi
 				log_must zfs set compression=off $fs
@@ -686,15 +583,14 @@ function default_container_cleanup
 		reexport_pool
 	fi
 
-	ismounted $TESTPOOL/$TESTCTR/$TESTFS1
-	[[ $? -eq 0 ]] && \
+	ismounted $TESTPOOL/$TESTCTR/$TESTFS1 &&
 	    log_must zfs unmount $TESTPOOL/$TESTCTR/$TESTFS1
 
 	destroy_dataset "$TESTPOOL/$TESTCTR/$TESTFS1" "-R"
 	destroy_dataset "$TESTPOOL/$TESTCTR" "-Rf"
 
 	[[ -e $TESTDIR1 ]] && \
-	    log_must rm -rf $TESTDIR1 > /dev/null 2>&1
+	    log_must rm -rf $TESTDIR1
 
 	default_cleanup
 }
@@ -721,8 +617,6 @@ function destroy_snapshot
 	typeset mtpt=""
 	if ismounted $snap; then
 		mtpt=$(get_prop mountpoint $snap)
-		(($? != 0)) && \
-			log_fail "get_prop mountpoint $snap failed."
 	fi
 
 	destroy_dataset "$snap"
@@ -747,8 +641,6 @@ function destroy_clone
 	typeset mtpt=""
 	if ismounted $clone; then
 		mtpt=$(get_prop mountpoint $clone)
-		(($? != 0)) && \
-			log_fail "get_prop mountpoint $clone failed."
 	fi
 
 	destroy_dataset "$clone"
@@ -780,7 +672,6 @@ function destroy_bookmark
 function snapexists
 {
 	zfs list -H -t snapshot "$1" > /dev/null 2>&1
-	return $?
 }
 
 #
@@ -791,7 +682,6 @@ function snapexists
 function bkmarkexists
 {
 	zfs list -H -t bookmark "$1" > /dev/null 2>&1
-	return $?
 }
 
 #
@@ -802,8 +692,7 @@ function bkmarkexists
 #
 function holdexists
 {
-	zfs holds "$2" | awk '{ print $2 }' | grep "$1" > /dev/null 2>&1
-	return $?
+	! zfs holds "$2" | awk -v t="$1" '$2 ~ t { exit 1 }'
 }
 
 #
@@ -835,46 +724,6 @@ function dataset_setprop
 		log_note "Return Code: $rv"
 		log_note "Output: $output"
 		return $rv
-	fi
-	return 0
-}
-
-#
-# Assign suite defined dataset properties.
-# This function is used to apply the suite's defined default set of
-# properties to a dataset.
-# @parameters: $1 dataset to use
-# @uses: ZFS COMPRESSION_PROP CHECKSUM_PROP
-# @returns:
-#   0 if the dataset has been altered.
-#   1 if no pool name was passed in.
-#   2 if the dataset could not be found.
-#   3 if the dataset could not have it's properties set.
-#
-function dataset_set_defaultproperties
-{
-	typeset dataset="$1"
-
-	[[ -z $dataset ]] && return 1
-
-	typeset confset=
-	typeset -i found=0
-	for confset in $(zfs list); do
-		if [[ $dataset = $confset ]]; then
-			found=1
-			break
-		fi
-	done
-	[[ $found -eq 0 ]] && return 2
-	if [[ -n $COMPRESSION_PROP ]]; then
-		dataset_setprop $dataset compression $COMPRESSION_PROP || \
-			return 3
-		log_note "Compression set to '$COMPRESSION_PROP' on $dataset"
-	fi
-	if [[ -n $CHECKSUM_PROP ]]; then
-		dataset_setprop $dataset checksum $CHECKSUM_PROP || \
-			return 3
-		log_note "Checksum set to '$CHECKSUM_PROP' on $dataset"
 	fi
 	return 0
 }
@@ -938,7 +787,7 @@ function set_partition
 	typeset disk=${4#$DEV_DSKDIR/}
 	disk=${disk#$DEV_RDSKDIR/}
 
-	case "$(uname)" in
+	case "$UNAME" in
 	Linux)
 		if [[ -z $size || -z $disk ]]; then
 			log_fail "The size or disk name is unspecified."
@@ -956,8 +805,7 @@ function set_partition
 		parted $disk -s -- print 1 >/dev/null
 		typeset ret_val=$?
 		if [[ $slicenum -eq 0 || $ret_val -ne 0 ]]; then
-			parted $disk -s -- mklabel gpt
-			if [[ $? -ne 0 ]]; then
+			if ! parted $disk -s -- mklabel gpt; then
 				log_note "Failed to create GPT partition table on $disk"
 				return 1
 			fi
@@ -971,9 +819,8 @@ function set_partition
 		# Determine the cylinder size for the device and using
 		# that calculate the end offset in cylinders.
 		typeset -i cly_size_kb=0
-		cly_size_kb=$(parted -m $disk -s -- \
-			unit cyl print | head -3 | tail -1 | \
-			awk -F '[:k.]' '{print $4}')
+		cly_size_kb=$(parted -m $disk -s -- unit cyl print |
+			awk -F '[:k.]' 'NR == 3 {print $4}')
 		((end = (size_mb * 1024 / cly_size_kb) + start))
 
 		parted $disk -s -- \
@@ -995,8 +842,7 @@ function set_partition
 
 		if [[ $slicenum -eq 0 ]] || ! gpart show $disk >/dev/null 2>&1; then
 			gpart destroy -F $disk >/dev/null 2>&1
-			gpart create -s GPT $disk
-			if [[ $? -ne 0 ]]; then
+			if ! gpart create -s GPT $disk; then
 				log_note "Failed to create GPT partition table on $disk"
 				return 1
 			fi
@@ -1094,7 +940,7 @@ function get_endslice #<disk> <slice>
 		log_fail "The disk name or slice number is unspecified."
 	fi
 
-	case "$(uname)" in
+	case "$UNAME" in
 	Linux)
 		endcyl=$(parted -s $DEV_DSKDIR/$disk -- unit cyl print | \
 			awk "/part${slice}/"' {sub(/cyl/, "", $3); print $3}')
@@ -1114,15 +960,14 @@ function get_endslice #<disk> <slice>
 
 		typeset -i ratio=0
 		ratio=$(prtvtoc /dev/rdsk/${disk}s2 | \
-		    grep "sectors\/cylinder" | \
-		    awk '{print $2}')
+		    awk '/sectors\/cylinder/ {print $2}')
 
 		if ((ratio == 0)); then
 			return
 		fi
 
 		typeset -i endcyl=$(prtvtoc -h /dev/rdsk/${disk}s2 |
-		    nawk -v token="$slice" '{if ($1==token) print $6}')
+		    awk -v token="$slice" '$1 == token {print $6}')
 
 		((endcyl = (endcyl + 1) / ratio))
 		;;
@@ -1195,61 +1040,26 @@ function fill_fs # destdir dirnum filenum bytes num_writes data
 	mkdir -p $destdir/{1..$dirnum}
 	for f in $destdir/{1..$dirnum}/$TESTFILE{1..$filenum}; do
 		file_write -o create -f $f -b $bytes -c $num_writes -d $data \
-		|| return $?
+		|| return
 	done
-	return 0
 }
 
-#
-# Simple function to get the specified property. If unable to
-# get the property then exits.
-#
-# Note property is in 'parsable' format (-p)
-#
+# Get the specified dataset property in parsable format or fail
 function get_prop # property dataset
 {
-	typeset prop_val
 	typeset prop=$1
 	typeset dataset=$2
 
-	prop_val=$(zfs get -pH -o value $prop $dataset 2>/dev/null)
-	if [[ $? -ne 0 ]]; then
-		log_note "Unable to get $prop property for dataset " \
-		"$dataset"
-		return 1
-	fi
-
-	echo "$prop_val"
-	return 0
+	zfs get -Hpo value "$prop" "$dataset" || log_fail "zfs get $prop $dataset"
 }
 
-#
-# Simple function to get the specified property of pool. If unable to
-# get the property then exits.
-#
-# Note property is in 'parsable' format (-p)
-#
+# Get the specified pool property in parsable format or fail
 function get_pool_prop # property pool
 {
-	typeset prop_val
 	typeset prop=$1
 	typeset pool=$2
 
-	if poolexists $pool ; then
-		prop_val=$(zpool get -pH $prop $pool 2>/dev/null | tail -1 | \
-			awk '{print $3}')
-		if [[ $? -ne 0 ]]; then
-			log_note "Unable to get $prop property for pool " \
-			"$pool"
-			return 1
-		fi
-	else
-		log_note "Pool $pool not exists."
-		return 1
-	fi
-
-	echo "$prop_val"
-	return 0
+	zpool get -Hpo value "$prop" "$pool" || log_fail "zpool get $prop $pool"
 }
 
 # Return 0 if a pool exists; $? otherwise
@@ -1266,7 +1076,6 @@ function poolexists
 	fi
 
 	zpool get name "$pool" > /dev/null 2>&1
-	return $?
 }
 
 # Return 0 if all the specified datasets exist; $? otherwise
@@ -1279,13 +1088,7 @@ function datasetexists
 		return 1
 	fi
 
-	while (($# > 0)); do
-		zfs get name $1 > /dev/null 2>&1 || \
-			return $?
-		shift
-	done
-
-	return 0
+	zfs get name "$@" > /dev/null 2>&1
 }
 
 # return 0 if none of the specified datasets exists, otherwise return 1.
@@ -1307,11 +1110,23 @@ function datasetnonexists
 	return 0
 }
 
+# FreeBSD breaks exports(5) at whitespace and doesn't process escapes
+# Solaris just breaks
+#
+# cf. https://github.com/openzfs/zfs/pull/13165#issuecomment-1059845807
+#
+# Linux can have spaces (which are \OOO-escaped),
+# but can't have backslashes because they're parsed recursively
+function shares_can_have_whitespace
+{
+	is_linux
+}
+
 function is_shared_freebsd
 {
 	typeset fs=$1
 
-	pgrep -q mountd && showmount -E | grep -qx $fs
+	pgrep -q mountd && showmount -E | grep -qx "$fs"
 }
 
 function is_shared_illumos
@@ -1336,14 +1151,7 @@ function is_shared_illumos
 function is_shared_linux
 {
 	typeset fs=$1
-	typeset mtpt
-
-	for mtpt in `share | awk '{print $1}'` ; do
-		if [[ $mtpt == $fs ]] ; then
-			return 0
-		fi
-	done
-	return 1
+	! exportfs -s | awk -v fs="${fs//\\/\\\\}" '/^\// && $1 == fs {exit 1}'
 }
 
 #
@@ -1361,7 +1169,7 @@ function is_shared
 			return 1
 		else
 			mtpt=$(get_prop mountpoint "$fs")
-			case $mtpt in
+			case "$mtpt" in
 				none|legacy|-) return 1
 					;;
 				*)	fs=$mtpt
@@ -1370,7 +1178,7 @@ function is_shared
 		fi
 	fi
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)	is_shared_freebsd "$fs"	;;
 	Linux)		is_shared_linux "$fs"	;;
 	*)		is_shared_illumos "$fs"	;;
@@ -1380,13 +1188,11 @@ function is_shared
 function is_exported_illumos
 {
 	typeset fs=$1
-	typeset mtpt
+	typeset mtpt _
 
-	for mtpt in `awk '{print $1}' /etc/dfs/sharetab` ; do
-		if [[ $mtpt == $fs ]] ; then
-			return 0
-		fi
-	done
+	while read -r mtpt _; do
+		[ "$mtpt" = "$fs" ] && return
+	done < /etc/dfs/sharetab
 
 	return 1
 }
@@ -1394,13 +1200,11 @@ function is_exported_illumos
 function is_exported_freebsd
 {
 	typeset fs=$1
-	typeset mtpt
+	typeset mtpt _
 
-	for mtpt in `awk '{print $1}' /etc/zfs/exports` ; do
-		if [[ $mtpt == $fs ]] ; then
-			return 0
-		fi
-	done
+	while read -r mtpt _; do
+		[ "$mtpt" = "$fs" ] && return
+	done < /etc/zfs/exports
 
 	return 1
 }
@@ -1408,13 +1212,11 @@ function is_exported_freebsd
 function is_exported_linux
 {
 	typeset fs=$1
-	typeset mtpt
+	typeset mtpt _
 
-	for mtpt in `awk '{print $1}' /etc/exports.d/zfs.exports` ; do
-		if [[ $mtpt == $fs ]] ; then
-			return 0
-		fi
-	done
+	while read -r mtpt _; do
+		[ "$(printf "$mtpt")" = "$fs" ] && return
+	done < /etc/exports.d/zfs.exports
 
 	return 1
 }
@@ -1444,7 +1246,7 @@ function is_exported
 		fi
 	fi
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)	is_exported_freebsd "$fs"	;;
 	Linux)		is_exported_linux "$fs"	;;
 	*)		is_exported_illumos "$fs"	;;
@@ -1459,23 +1261,13 @@ function is_exported
 function is_shared_smb
 {
 	typeset fs=$1
-	typeset mtpt
 
-	if datasetnonexists "$fs" ; then
-		return 1
-	else
-		fs=$(echo $fs | tr / _)
-	fi
+	datasetexists "$fs" || return
 
 	if is_linux; then
-		for mtpt in `net usershare list | awk '{print $1}'` ; do
-			if [[ $mtpt == $fs ]] ; then
-				return 0
-			fi
-		done
-		return 1
+		net usershare list | grep -xFq "${fs//\//_}"
 	else
-		log_note "Currently unsupported by the test framework"
+		log_note "SMB on $UNAME currently unsupported by the test framework"
 		return 1
 	fi
 }
@@ -1487,14 +1279,7 @@ function is_shared_smb
 #
 function not_shared
 {
-	typeset fs=$1
-
-	is_shared $fs
-	if (($? == 0)); then
-		return 1
-	fi
-
-	return 0
+	! is_shared $1
 }
 
 #
@@ -1504,14 +1289,7 @@ function not_shared
 #
 function not_shared_smb
 {
-	typeset fs=$1
-
-	is_shared_smb $fs
-	if (($? == 0)); then
-		return 1
-	fi
-
-	return 0
+	! is_shared_smb $1
 }
 
 #
@@ -1521,12 +1299,9 @@ function unshare_fs #fs
 {
 	typeset fs=$1
 
-	is_shared $fs || is_shared_smb $fs
-	if (($? == 0)); then
-		zfs unshare $fs || log_fail "zfs unshare $fs failed"
+	if is_shared $fs || is_shared_smb $fs; then
+		log_must zfs unshare $fs
 	fi
-
-	return 0
 }
 
 #
@@ -1536,17 +1311,22 @@ function share_nfs #fs
 {
 	typeset fs=$1
 
-	if is_linux; then
-		is_shared $fs
-		if (($? != 0)); then
-			log_must share "*:$fs"
-		fi
-	else
-		is_shared $fs
-		if (($? != 0)); then
-			log_must share -F nfs $fs
-		fi
-	fi
+	is_shared "$fs" && return
+
+	case "$UNAME" in
+	Linux)
+		log_must exportfs "*:$fs"
+		;;
+	FreeBSD)
+		typeset mountd
+		read -r mountd < /var/run/mountd.pid
+		log_must eval "printf '%s\t\n' \"$fs\" >> /etc/zfs/exports"
+		log_must kill -s HUP "$mountd"
+		;;
+	*)
+		log_must share -F nfs "$fs"
+		;;
+	esac
 
 	return 0
 }
@@ -1558,17 +1338,23 @@ function unshare_nfs #fs
 {
 	typeset fs=$1
 
-	if is_linux; then
-		is_shared $fs
-		if (($? == 0)); then
-			log_must unshare -u "*:$fs"
-		fi
-	else
-		is_shared $fs
-		if (($? == 0)); then
-			log_must unshare -F nfs $fs
-		fi
-	fi
+	! is_shared "$fs" && return
+
+	case "$UNAME" in
+	Linux)
+		log_must exportfs -u "*:$fs"
+		;;
+	FreeBSD)
+		typeset mountd
+		read -r mountd < /var/run/mountd.pid
+		awk -v fs="${fs//\\/\\\\}" '$1 != fs' /etc/zfs/exports > /etc/zfs/exports.$$
+		log_must mv /etc/zfs/exports.$$ /etc/zfs/exports
+		log_must kill -s HUP "$mountd"
+		;;
+	*)
+		log_must unshare -F nfs $fs
+		;;
+	esac
 
 	return 0
 }
@@ -1578,42 +1364,32 @@ function unshare_nfs #fs
 #
 function showshares_nfs
 {
-	if is_linux; then
-		share -v
-	else
+	case "$UNAME" in
+	Linux)
+		exportfs -v
+		;;
+	FreeBSD)
+		showmount
+		;;
+	*)
 		share -F nfs
-	fi
-
-	return 0
-}
-
-#
-# Helper function to show SMB shares.
-#
-function showshares_smb
-{
-	if is_linux; then
-		net usershare list
-	else
-		share -F smb
-	fi
-
-	return 0
+		;;
+	esac
 }
 
 function check_nfs
 {
-	if is_linux; then
-		share -s
-	elif is_freebsd; then
+	case "$UNAME" in
+	Linux)
+		exportfs -s
+		;;
+	FreeBSD)
 		showmount -e
-	else
+		;;
+	*)
 		log_unsupported "Unknown platform"
-	fi
-
-	if [[ $? -ne 0 ]]; then
-		log_unsupported "The NFS utilities are not installed"
-	fi
+		;;
+	esac || log_unsupported "The NFS utilities are not installed"
 }
 
 #
@@ -1633,12 +1409,12 @@ function setup_nfs_server
 		# Re-synchronize /var/lib/nfs/etab with /etc/exports and
 		# /etc/exports.d./* to provide a clean test environment.
 		#
-		log_must share -r
+		log_must exportfs -r
 
 		log_note "NFS server must be started prior to running ZTS."
 		return
 	elif is_freebsd; then
-		kill -s HUP $(cat /var/run/mountd.pid)
+		log_must kill -s HUP $(</var/run/mountd.pid)
 
 		log_note "NFS server must be started prior to running ZTS."
 		return
@@ -1693,10 +1469,7 @@ function is_global_zone
 		return 0
 	else
 		typeset cur_zone=$(zonename 2>/dev/null)
-		if [[ $cur_zone != "global" ]]; then
-			return 1
-		fi
-		return 0
+		[ $cur_zone = "global" ]
 	fi
 }
 
@@ -1841,7 +1614,7 @@ function create_dataset #dataset dataset_options
 # $2 - custom arguments for zfs destroy
 # Destroy dataset with the given parameters.
 
-function destroy_dataset #dataset #args
+function destroy_dataset # dataset [args]
 {
 	typeset dataset=$1
 	typeset mtpt
@@ -1857,8 +1630,7 @@ function destroy_dataset #dataset #args
 			mtpt=$(get_prop mountpoint "$dataset")
 			log_must_busy zfs destroy $args $dataset
 
-			[[ -d $mtpt ]] && \
-				log_must rm -rf $mtpt
+			[ -d $mtpt ] && log_must rm -rf $mtpt
 		else
 			log_note "Dataset does not exist. ($dataset)"
 			return 1
@@ -1866,118 +1638,6 @@ function destroy_dataset #dataset #args
 	fi
 
 	return 0
-}
-
-#
-# Firstly, create a pool with 5 datasets. Then, create a single zone and
-# export the 5 datasets to it. In addition, we also add a ZFS filesystem
-# and a zvol device to the zone.
-#
-# $1 zone name
-# $2 zone root directory prefix
-# $3 zone ip
-#
-function zfs_zones_setup #zone_name zone_root zone_ip
-{
-	typeset zone_name=${1:-$(hostname)-z}
-	typeset zone_root=${2:-"/zone_root"}
-	typeset zone_ip=${3:-"10.1.1.10"}
-	typeset prefix_ctr=$ZONE_CTR
-	typeset pool_name=$ZONE_POOL
-	typeset -i cntctr=5
-	typeset -i i=0
-
-	# Create pool and 5 container within it
-	#
-	[[ -d /$pool_name ]] && rm -rf /$pool_name
-	log_must zpool create -f $pool_name $DISKS
-	while ((i < cntctr)); do
-		log_must zfs create $pool_name/$prefix_ctr$i
-		((i += 1))
-	done
-
-	# create a zvol
-	log_must zfs create -V 1g $pool_name/zone_zvol
-	block_device_wait
-
-	#
-	# Add slog device for pool
-	#
-	typeset sdevs="$TEST_BASE_DIR/sdev1 $TEST_BASE_DIR/sdev2"
-	log_must mkfile $MINVDEVSIZE $sdevs
-	log_must zpool add $pool_name log mirror $sdevs
-
-	# this isn't supported just yet.
-	# Create a filesystem. In order to add this to
-	# the zone, it must have it's mountpoint set to 'legacy'
-	# log_must zfs create $pool_name/zfs_filesystem
-	# log_must zfs set mountpoint=legacy $pool_name/zfs_filesystem
-
-	[[ -d $zone_root ]] && \
-		log_must rm -rf $zone_root/$zone_name
-	[[ ! -d $zone_root ]] && \
-		log_must mkdir -p -m 0700 $zone_root/$zone_name
-
-	# Create zone configure file and configure the zone
-	#
-	typeset zone_conf=/tmp/zone_conf.$$
-	echo "create" > $zone_conf
-	echo "set zonepath=$zone_root/$zone_name" >> $zone_conf
-	echo "set autoboot=true" >> $zone_conf
-	i=0
-	while ((i < cntctr)); do
-		echo "add dataset" >> $zone_conf
-		echo "set name=$pool_name/$prefix_ctr$i" >> \
-			$zone_conf
-		echo "end" >> $zone_conf
-		((i += 1))
-	done
-
-	# add our zvol to the zone
-	echo "add device" >> $zone_conf
-	echo "set match=/dev/zvol/dsk/$pool_name/zone_zvol" >> $zone_conf
-	echo "end" >> $zone_conf
-
-	# add a corresponding zvol rdsk to the zone
-	echo "add device" >> $zone_conf
-	echo "set match=$ZVOL_RDEVDIR/$pool_name/zone_zvol" >> $zone_conf
-	echo "end" >> $zone_conf
-
-	# once it's supported, we'll add our filesystem to the zone
-	# echo "add fs" >> $zone_conf
-	# echo "set type=zfs" >> $zone_conf
-	# echo "set special=$pool_name/zfs_filesystem" >> $zone_conf
-	# echo "set dir=/export/zfs_filesystem" >> $zone_conf
-	# echo "end" >> $zone_conf
-
-	echo "verify" >> $zone_conf
-	echo "commit" >> $zone_conf
-	log_must zonecfg -z $zone_name -f $zone_conf
-	log_must rm -f $zone_conf
-
-	# Install the zone
-	zoneadm -z $zone_name install
-	if (($? == 0)); then
-		log_note "SUCCESS: zoneadm -z $zone_name install"
-	else
-		log_fail "FAIL: zoneadm -z $zone_name install"
-	fi
-
-	# Install sysidcfg file
-	#
-	typeset sysidcfg=$zone_root/$zone_name/root/etc/sysidcfg
-	echo "system_locale=C" > $sysidcfg
-	echo  "terminal=dtterm" >> $sysidcfg
-	echo  "network_interface=primary {" >> $sysidcfg
-	echo  "hostname=$zone_name" >> $sysidcfg
-	echo  "}" >> $sysidcfg
-	echo  "name_service=NONE" >> $sysidcfg
-	echo  "root_password=mo791xfZ/SFiw" >> $sysidcfg
-	echo  "security_policy=NONE" >> $sysidcfg
-	echo  "timezone=US/Eastern" >> $sysidcfg
-
-	# Boot this zone
-	log_must zoneadm -z $zone_name boot
 }
 
 #
@@ -2020,14 +1680,10 @@ function check_state # pool disk state{online,offline,degraded}
 
 	if [[ -z $disk ]]; then
 		#check pool state only
-		zpool get -H -o value health $pool \
-		    | grep -i "$state" > /dev/null 2>&1
+		zpool get -H -o value health $pool | grep -qi "$state"
 	else
-		zpool status -v $pool | grep "$disk"  \
-		    | grep -i "$state" > /dev/null 2>&1
+		zpool status -v $pool | grep "$disk" | grep -qi "$state"
 	fi
-
-	return $?
 }
 
 #
@@ -2061,19 +1717,16 @@ function verify_ashift # device ashift
 	typeset device="$1"
 	typeset ashift="$2"
 
-	zdb -e -lll $device | awk -v ashift=$ashift '/ashift: / {
-	    if (ashift != $2)
-	        exit 1;
-	    else
-	        count++;
-	    } END {
-	    if (count != 4)
-	        exit 1;
-	    else
-	        exit 0;
+	zdb -e -lll $device | awk -v ashift=$ashift '
+	    /ashift: / {
+	        if (ashift != $2)
+	            exit 1;
+	        else
+	            count++;
+	    }
+	    END {
+	        exit (count != 4);
 	    }'
-
-	return $?
 }
 
 #
@@ -2104,10 +1757,10 @@ function verify_filesys # pool filesystem dir
 
 	log_must zpool import $search_path $pool
 
-	zdb -cudi $filesys > $zdbout 2>&1
-	if [[ $? != 0 ]]; then
+	if ! zdb -cudi $filesys > $zdbout 2>&1; then
 		log_note "Output: zdb -cudi $filesys"
 		cat $zdbout
+		rm -f $zdbout
 		log_fail "zdb detected errors with: '$filesys'"
 	fi
 
@@ -2142,13 +1795,8 @@ function verify_pool
 #
 function get_disklist # pool
 {
-	typeset disklist=""
-
-	disklist=$(zpool iostat -v $1 | nawk '(NR >4) {print $1}' | \
-	    grep -v "\-\-\-\-\-" | \
-	    egrep -v -e "^(mirror|raidz[1-3]|draid[1-3]|spare|log|cache|special|dedup)|\-[0-9]$")
-
-	echo $disklist
+	echo $(zpool iostat -v $1 | awk '(NR > 4) {print $1}' | \
+	    grep -vEe '^-----' -e "^(mirror|raidz[1-3]|draid[1-3]|spare|log|cache|special|dedup)|\-[0-9]$")
 }
 
 #
@@ -2157,8 +1805,7 @@ function get_disklist # pool
 #
 function get_disklist_fullpath # pool
 {
-	args="-P $1"
-	get_disklist $args
+	get_disklist "-P $1"
 }
 
 
@@ -2186,10 +1833,8 @@ function stress_timeout
 	log_note "Killing child processes after ${TIMEOUT} stress timeout."
 	typeset pid
 	for pid in $cpids; do
-		ps -p $pid > /dev/null 2>&1
-		if (($? == 0)); then
+		ps -p $pid > /dev/null 2>&1 &&
 			log_must kill -USR1 $pid
-		fi
 	done
 }
 
@@ -2206,10 +1851,7 @@ function check_hotspare_state # pool disk state{inuse,avail}
 
 	cur_state=$(get_device_state $pool $disk "spares")
 
-	if [[ $state != ${cur_state} ]]; then
-		return 1
-	fi
-	return 0
+	[ $state = $cur_state ]
 }
 
 #
@@ -2238,25 +1880,6 @@ function wait_hotspare_state # pool disk state timeout
 }
 
 #
-# Verify a given slog disk is inuse or avail
-#
-# Return 0 is pool/disk matches expected state, 1 otherwise
-#
-function check_slog_state # pool disk state{online,offline,unavail}
-{
-	typeset pool=$1
-	typeset disk=${2#$DEV_DSKDIR/}
-	typeset state=$3
-
-	cur_state=$(get_device_state $pool $disk "logs")
-
-	if [[ $state != ${cur_state} ]]; then
-		return 1
-	fi
-	return 0
-}
-
-#
 # Verify a given vdev disk is inuse or avail
 #
 # Return 0 is pool/disk matches expected state, 1 otherwise
@@ -2269,10 +1892,7 @@ function check_vdev_state # pool disk state{online,offline,unavail}
 
 	cur_state=$(get_device_state $pool $disk)
 
-	if [[ $state != ${cur_state} ]]; then
-		return 1
-	fi
-	return 0
+	[ $state = $cur_state ]
 }
 
 #
@@ -2313,14 +1933,11 @@ function check_pool_status # pool token keyword <verbose>
 	typeset keyword=$3
 	typeset verbose=${4:-false}
 
-	scan=$(zpool status -v "$pool" 2>/dev/null | nawk -v token="$token:" '
-		($1==token) {print $0}')
+	scan=$(zpool status -v "$pool" 2>/dev/null | awk -v token="$token:" '$1==token')
 	if [[ $verbose == true ]]; then
 		log_note $scan
 	fi
-	echo $scan | egrep -i "$keyword" > /dev/null 2>&1
-
-	return $?
+	echo $scan | grep -qi "$keyword"
 }
 
 #
@@ -2339,55 +1956,46 @@ function is_pool_resilvering #pool <verbose>
 {
 	check_pool_status "$1" "scan" \
 	    "resilver[ ()0-9A-Za-z:_-]* in progress since" $2
-	return $?
 }
 
 function is_pool_resilvered #pool <verbose>
 {
 	check_pool_status "$1" "scan" "resilvered " $2
-	return $?
 }
 
 function is_pool_scrubbing #pool <verbose>
 {
 	check_pool_status "$1" "scan" "scrub in progress since " $2
-	return $?
 }
 
 function is_pool_scrubbed #pool <verbose>
 {
 	check_pool_status "$1" "scan" "scrub repaired" $2
-	return $?
 }
 
 function is_pool_scrub_stopped #pool <verbose>
 {
 	check_pool_status "$1" "scan" "scrub canceled" $2
-	return $?
 }
 
 function is_pool_scrub_paused #pool <verbose>
 {
 	check_pool_status "$1" "scan" "scrub paused since " $2
-	return $?
 }
 
 function is_pool_removing #pool
 {
 	check_pool_status "$1" "remove" "in progress since "
-	return $?
 }
 
 function is_pool_removed #pool
 {
 	check_pool_status "$1" "remove" "completed on"
-	return $?
 }
 
 function is_pool_discarding #pool
 {
 	check_pool_status "$1" "checkpoint" "discarding"
-	return $?
 }
 
 function wait_for_degraded
@@ -2454,55 +2062,39 @@ function find_disks
 	swap -l > $sfi
 	dumpadm > $dmpi 2>/dev/null
 
-# write an awk script that can process the output of format
-# to produce a list of disks we know about. Note that we have
-# to escape "$2" so that the shell doesn't interpret it while
-# we're creating the awk script.
-# -------------------
-	cat > /tmp/find_disks.awk <<EOF
-#!/bin/nawk -f
-	BEGIN { FS="."; }
+	disks=${@:-$(echo "" | format -e 2>/dev/null | awk '
+BEGIN { FS="."; }
 
-	/^Specify disk/{
-		searchdisks=0;
+/^Specify disk/{
+	searchdisks=0;
+}
+
+{
+	if (searchdisks && $2 !~ "^$"){
+		split($2,arr," ");
+		print arr[1];
 	}
+}
 
-	{
-		if (searchdisks && \$2 !~ "^$"){
-			split(\$2,arr," ");
-			print arr[1];
-		}
-	}
-
-	/^AVAILABLE DISK SELECTIONS:/{
-		searchdisks=1;
-	}
-EOF
-#---------------------
-
-	chmod 755 /tmp/find_disks.awk
-	disks=${@:-$(echo "" | format -e 2>/dev/null | /tmp/find_disks.awk)}
-	rm /tmp/find_disks.awk
+/^AVAILABLE DISK SELECTIONS:/{
+	searchdisks=1;
+}
+')}
 
 	unused=""
 	for disk in $disks; do
 	# Check for mounted
-		grep "${disk}[sp]" /etc/mnttab >/dev/null
-		(($? == 0)) && continue
+		grep -q "${disk}[sp]" /etc/mnttab && continue
 	# Check for swap
-		grep "${disk}[sp]" $sfi >/dev/null
-		(($? == 0)) && continue
+		grep -q "${disk}[sp]" $sfi && continue
 	# check for dump device
-		grep "${disk}[sp]" $dmpi >/dev/null
-		(($? == 0)) && continue
+		grep -q "${disk}[sp]" $dmpi && continue
 	# check to see if this disk hasn't been explicitly excluded
 	# by a user-set environment variable
-		echo "${ZFS_HOST_DEVICES_IGNORE}" | grep "${disk}" > /dev/null
-		(($? == 0)) && continue
+		echo "${ZFS_HOST_DEVICES_IGNORE}" | grep -q "${disk}" && continue
 		unused_candidates="$unused_candidates $disk"
 	done
-	rm $sfi
-	rm $dmpi
+	rm $sfi $dmpi
 
 # now just check to see if those disks do actually exist
 # by looking for a device pointing to the first slice in
@@ -2535,10 +2127,8 @@ function add_user_freebsd #<group_name> <user_name> <basedir>
 	# Assign 1000 as the base uid
 	typeset -i uid=1000
 	while true; do
-		typeset -i ret
 		pw useradd -u $uid -g $group -d $basedir/$user -m -n $user
-		ret=$?
-		case $ret in
+		case $? in
 			0) break ;;
 			# The uid is not unique
 			65) ((uid += 1)) ;;
@@ -2589,8 +2179,7 @@ function add_group_freebsd #<group_name>
 	typeset -i gid=1000
 	while true; do
 		pw groupadd -g $gid -n $group > /dev/null 2>&1
-		typeset -i ret=$?
-		case $ret in
+		case $? in
 			0) return 0 ;;
 			# The gid is not  unique
 			65) ((gid += 1)) ;;
@@ -2612,8 +2201,7 @@ function del_group_freebsd #<group_name>
 	typeset group=$1
 
 	pw groupdel -n $group > /dev/null 2>&1
-	typeset -i ret=$?
-	case $ret in
+	case $? in
 		# Group does not exist, or was deleted successfully.
 		0|6|65) return 0 ;;
 		# Name already exists as a group name
@@ -2653,8 +2241,7 @@ function add_group_illumos #<group_name>
 	typeset -i gid=100
 	while true; do
 		groupadd -g $gid $group > /dev/null 2>&1
-		typeset -i ret=$?
-		case $ret in
+		case $? in
 			0) return 0 ;;
 			# The gid is not  unique
 			4) ((gid += 1)) ;;
@@ -2668,8 +2255,7 @@ function del_group_illumos #<group_name>
 	typeset group=$1
 
 	groupmod -n $grp $grp > /dev/null 2>&1
-	typeset -i ret=$?
-	case $ret in
+	case $? in
 		# Group does not exist.
 		6) return 0 ;;
 		# Name already exists as a group name
@@ -2689,7 +2275,7 @@ function add_user_linux #<group_name> <user_name> <basedir>
 	# Add new users to the same group and the command line utils.
 	# This allows them to be run out of the original users home
 	# directory as long as it permissioned to be group readable.
-	cmd_group=$(stat --format="%G" $(which zfs))
+	cmd_group=$(stat --format="%G" $(command -v zfs))
 	log_must usermod -a -G $cmd_group $user
 
 	return 0
@@ -2702,8 +2288,6 @@ function del_user_linux #<user_name>
 	if id $user > /dev/null 2>&1; then
 		log_must_retry "currently used" 6 userdel $user
 	fi
-
-	return 0
 }
 
 function add_group_linux #<group_name>
@@ -2714,8 +2298,7 @@ function add_group_linux #<group_name>
 	# Linux because for many distributions 1000 and under are reserved.
 	while true; do
 		groupadd $group > /dev/null 2>&1
-		typeset -i ret=$?
-		case $ret in
+		case $? in
 			0) return 0 ;;
 			*) return 1 ;;
 		esac
@@ -2727,8 +2310,7 @@ function del_group_linux #<group_name>
 	typeset group=$1
 
 	getent group $group > /dev/null 2>&1
-	typeset -i ret=$?
-	case $ret in
+	case $? in
 		# Group does not exist.
 		2) return 0 ;;
 		# Name already exists as a group name
@@ -2756,7 +2338,7 @@ function add_user #<group_name> <user_name> <basedir>
 		log_fail "group name or user name are not defined."
 	fi
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		add_user_freebsd "$group" "$user" "$basedir"
 		;;
@@ -2786,7 +2368,7 @@ function del_user #<logname> <basedir>
 		log_fail "login name is necessary."
 	fi
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		del_user_freebsd "$user"
 		;;
@@ -2816,7 +2398,7 @@ function add_group #<group_name>
 		log_fail "group name is necessary."
 	fi
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		add_group_freebsd "$group"
 		;;
@@ -2844,7 +2426,7 @@ function del_group #<group_name>
 		log_fail "group name is necessary."
 	fi
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		del_group_freebsd "$group"
 		;;
@@ -2880,23 +2462,21 @@ function safe_to_destroy_pool { # $1 the pool name
 
 		# this is a list of the top-level directories in each of the
 		# files that make up the path to the files the pool is based on
-		FILEPOOL=$(zpool status -v $pool | grep /$1/ | \
-			awk '{print $1}')
+		FILEPOOL=$(zpool status -v $pool | awk -v pool="/$1/" '$0 ~ pool {print $1}')
 
 		# this is a list of the zvols that make up the pool
-		ZVOLPOOL=$(zpool status -v $pool | grep "$ZVOL_DEVDIR/$1$" \
-		    | awk '{print $1}')
+		ZVOLPOOL=$(zpool status -v $pool | awk -v zvols="$ZVOL_DEVDIR/$1$" '$0 ~ zvols {print $1}')
 
 		# also want to determine if it's a file-based pool using an
 		# alternate mountpoint...
 		POOL_FILE_DIRS=$(zpool status -v $pool | \
-					grep / | awk '{print $1}' | \
-					awk -F/ '{print $2}' | grep -v "dev")
+					awk '/\// {print $1}' | \
+					awk -F/ '!/dev/ {print $2}')
 
 		for pooldir in $POOL_FILE_DIRS
 		do
 			OUTPUT=$(zfs list -H -r -o mountpoint $1 | \
-					grep "${pooldir}$" | awk '{print $1}')
+					awk -v pd="${pooldir}$" '$0 ~ pd {print $1}')
 
 			ALTMOUNTPOOL="${ALTMOUNTPOOL}${OUTPUT}"
 		done
@@ -3009,26 +2589,15 @@ function get_config
 {
 	typeset pool=$1
 	typeset config=$2
-	typeset alt_root
 
 	if ! poolexists "$pool" ; then
 		return 1
 	fi
-	alt_root=$(zpool list -H $pool | awk '{print $NF}')
-	if [[ $alt_root == "-" ]]; then
-		value=$(zdb -C $pool | grep "$config:" | awk -F: \
-		    '{print $2}')
+	if [ "$(get_pool_prop cachefile "$pool")" = "none" ]; then
+		zdb -e $pool
 	else
-		value=$(zdb -e $pool | grep "$config:" | awk -F: \
-		    '{print $2}')
-	fi
-	if [[ -n $value ]] ; then
-		value=${value#'}
-		value=${value%'}
-	fi
-	echo $value
-
-	return 0
+		zdb -C $pool
+	fi | awk -F: -v cfg="$config:" '$0 ~ cfg {sub(/^'\''/, $2); sub(/'\''$/, $2); print $2}'
 }
 
 #
@@ -3046,8 +2615,7 @@ function _random_get
 	typeset -i ind
 	((ind = RANDOM % cnt + 1))
 
-	typeset ret=$(echo "$str" | cut -f $ind -d ' ')
-	echo $ret
+	echo "$str" | cut -f $ind -d ' '
 }
 
 #
@@ -3110,20 +2678,7 @@ function datasetcksum
 	typeset cksum
 	sync
 	sync_all_pools
-	cksum=$(zdb -vvv $1 | grep "^Dataset $1 \[" | grep "cksum" \
-		| awk -F= '{print $7}')
-	echo $cksum
-}
-
-#
-# Get cksum of file
-# #1 file path
-#
-function checksum
-{
-	typeset cksum
-	cksum=$(cksum $1 | awk '{print $1}')
-	echo $cksum
+	zdb -vvv $1 | awk -F= -v ds="^Dataset $1 "'\\[' '$0 ~ ds && /cksum/ {print $7}'
 }
 
 #
@@ -3135,99 +2690,14 @@ function get_device_state #pool disk field("", "spares","logs")
 	typeset disk=${2#$DEV_DSKDIR/}
 	typeset field=${3:-$pool}
 
-	state=$(zpool status -v "$pool" 2>/dev/null | \
-		nawk -v device=$disk -v pool=$pool -v field=$field \
+	zpool status -v "$pool" 2>/dev/null | \
+		awk -v device=$disk -v pool=$pool -v field=$field \
 		'BEGIN {startconfig=0; startfield=0; }
 		/config:/ {startconfig=1}
 		(startconfig==1) && ($1==field) {startfield=1; next;}
 		(startfield==1) && ($1==device) {print $2; exit;}
 		(startfield==1) &&
-		($1==field || $1 ~ "^spares$" || $1 ~ "^logs$") {startfield=0}')
-	echo $state
-}
-
-
-#
-# print the given directory filesystem type
-#
-# $1 directory name
-#
-function get_fstype
-{
-	typeset dir=$1
-
-	if [[ -z $dir ]]; then
-		log_fail "Usage: get_fstype <directory>"
-	fi
-
-	#
-	#  $ df -n /
-	#  /		  : ufs
-	#
-	df -n $dir | awk '{print $3}'
-}
-
-#
-# Given a disk, label it to VTOC regardless what label was on the disk
-# $1 disk
-#
-function labelvtoc
-{
-	typeset disk=$1
-	if [[ -z $disk ]]; then
-		log_fail "The disk name is unspecified."
-	fi
-	typeset label_file=/var/tmp/labelvtoc.$$
-	typeset arch=$(uname -p)
-
-	if is_linux || is_freebsd; then
-		log_note "Currently unsupported by the test framework"
-		return 1
-	fi
-
-	if [[ $arch == "i386" ]]; then
-		echo "label" > $label_file
-		echo "0" >> $label_file
-		echo "" >> $label_file
-		echo "q" >> $label_file
-		echo "q" >> $label_file
-
-		fdisk -B $disk >/dev/null 2>&1
-		# wait a while for fdisk finishes
-		sleep 60
-	elif [[ $arch == "sparc" ]]; then
-		echo "label" > $label_file
-		echo "0" >> $label_file
-		echo "" >> $label_file
-		echo "" >> $label_file
-		echo "" >> $label_file
-		echo "q" >> $label_file
-	else
-		log_fail "unknown arch type"
-	fi
-
-	format -e -s -d $disk -f $label_file
-	typeset -i ret_val=$?
-	rm -f $label_file
-	#
-	# wait the format to finish
-	#
-	sleep 60
-	if ((ret_val != 0)); then
-		log_fail "unable to label $disk as VTOC."
-	fi
-
-	return 0
-}
-
-#
-# check if the system was installed as zfsroot or not
-# return: 0 if zfsroot, non-zero if not
-#
-function is_zfsroot
-{
-	df -n / | grep zfs > /dev/null 2>&1
-	return $?
+		($1==field || $1 ~ "^spares$" || $1 ~ "^logs$") {startfield=0}'
 }
 
 #
@@ -3241,14 +2711,13 @@ function get_rootfs
 	if is_freebsd; then
 		rootfs=$(mount -p | awk '$2 == "/" && $3 == "zfs" {print $1}')
 	elif ! is_linux; then
-		rootfs=$(awk '{if ($2 == "/" && $3 == "zfs") print $1}' \
+		rootfs=$(awk '$2 == "/" && $3 == "zfs" {print $1}' \
 			/etc/mnttab)
 	fi
 	if [[ -z "$rootfs" ]]; then
 		log_fail "Can not get rootfs"
 	fi
-	zfs list $rootfs > /dev/null 2>&1
-	if (($? == 0)); then
+	if datasetexists $rootfs; then
 		echo $rootfs
 	else
 		log_fail "This is not a zfsroot system."
@@ -3262,32 +2731,8 @@ function get_rootfs
 #
 function get_rootpool
 {
-	typeset rootfs=""
-	typeset rootpool=""
-
-	if is_freebsd; then
-		rootfs=$(mount -p | awk '$2 == "/" && $3 == "zfs" {print $1}')
-	elif ! is_linux; then
-		rootfs=$(awk '{if ($2 == "/" && $3 =="zfs") print $1}' \
-			 /etc/mnttab)
-	fi
-	if [[ -z "$rootfs" ]]; then
-		log_fail "Can not get rootpool"
-	fi
-	zfs list $rootfs > /dev/null 2>&1
-	if (($? == 0)); then
-		echo ${rootfs%%/*}
-	else
-		log_fail "This is not a zfsroot system."
-	fi
-}
-
-#
-# Get the word numbers from a string separated by white space
-#
-function get_word_count
-{
-	echo $1 | wc -w
+	typeset rootfs=$(get_rootfs)
+	echo ${rootfs%%/*}
 }
 
 #
@@ -3297,7 +2742,7 @@ function verify_disk_count
 {
 	typeset -i min=${2:-1}
 
-	typeset -i count=$(get_word_count "$1")
+	typeset -i count=$(echo "$1" | wc -w)
 
 	if ((count < min)); then
 		log_untested "A minimum of $min disks is required to run." \
@@ -3308,22 +2753,13 @@ function verify_disk_count
 function ds_is_volume
 {
 	typeset type=$(get_prop type $1)
-	[[ $type = "volume" ]] && return 0
-	return 1
+	[ $type = "volume" ]
 }
 
 function ds_is_filesystem
 {
 	typeset type=$(get_prop type $1)
-	[[ $type = "filesystem" ]] && return 0
-	return 1
-}
-
-function ds_is_snapshot
-{
-	typeset type=$(get_prop type $1)
-	[[ $type = "snapshot" ]] && return 0
-	return 1
+	[ $type = "filesystem" ]
 }
 
 #
@@ -3331,26 +2767,23 @@ function ds_is_snapshot
 #
 function is_te_enabled
 {
-	svcs -H -o state labeld 2>/dev/null | grep "enabled"
-	if (($? != 0)); then
-		return 1
-	else
-		return 0
-	fi
+	svcs -H -o state labeld 2>/dev/null | grep -q "enabled"
 }
 
 # Utility function to determine if a system has multiple cpus.
 function is_mp
 {
-	if is_linux; then
-		(($(nproc) > 1))
-	elif is_freebsd; then
-		sysctl -n kern.smp.cpus
-	else
-		(($(psrinfo | wc -l) > 1))
-	fi
-
-	return $?
+	case "$UNAME" in
+		Linux)
+			(($(grep -c '^processor' /proc/cpuinfo) > 1))
+			;;
+		FreeBSD)
+			sysctl -n kern.smp.cpus
+			;;
+		*)
+			(($(psrinfo | wc -l) > 1))
+			;;
+	esac
 }
 
 function get_cpu_freq
@@ -3409,14 +2842,12 @@ function vdevs_in_pool
 	# therefore we use the 'zpool status' output.
 	typeset tmpfile=$(mktemp)
 	zpool status -v "$pool" | grep -A 1000 "config:" >$tmpfile
-	for vdev in $@; do
-		grep -w ${vdev##*/} $tmpfile >/dev/null 2>&1
-		[[ $? -ne 0 ]] && return 1
+	for vdev in "$@"; do
+		grep -wq ${vdev##*/} $tmpfile || return 1
 	done
 
 	rm -f $tmpfile
-
-	return 0;
+	return 0
 }
 
 function get_max
@@ -3429,18 +2860,6 @@ function get_max
 	done
 
 	echo $max
-}
-
-function get_min
-{
-	typeset -l i min=$1
-	shift
-
-	for i in "$@"; do
-		min=$((min < i ? min : i))
-	done
-
-	echo $min
 }
 
 # Write data that can be compressed into a directory
@@ -3474,20 +2893,21 @@ function write_compressible
 			done
 		done
 	else
-		log_must eval "fio \
+		command -v fio > /dev/null || log_unsupported "fio missing"
+		log_must eval fio \
 		    --name=job \
 		    --fallocate=0 \
 		    --minimal \
 		    --randrepeat=0 \
 		    --buffer_compress_percentage=66 \
 		    --buffer_compress_chunk=4096 \
-		    --directory=$dir \
-		    --numjobs=$nfiles \
-		    --nrfiles=$nfiles \
+		    --directory="$dir" \
+		    --numjobs="$nfiles" \
+		    --nrfiles="$nfiles" \
 		    --rw=write \
-		    --bs=$bs \
-		    --filesize=$megs \
-		    --filename_format='$fname.\$jobnum' >/dev/null"
+		    --bs="$bs" \
+		    --filesize="$megs" \
+		    "--filename_format='$fname.\$jobnum' >/dev/null"
 	fi
 }
 
@@ -3565,9 +2985,7 @@ function wait_freeing #pool
 function wait_replacing #pool
 {
 	typeset pool=${1:-$TESTPOOL}
-	while true; do
-		[[ "" == "$(zpool status $pool |
-		    awk '/replacing-[0-9]+/ {print $1}')" ]] && break
+	while zpool status $pool | grep -qE 'replacing-[0-9]+'; do
 		log_must sleep 1
 	done
 }
@@ -3609,7 +3027,7 @@ function zed_rc_restore
 function zed_setup
 {
 	if ! is_linux; then
-		log_unsupported "No zed on $(uname)"
+		log_unsupported "No zed on $UNAME"
 	fi
 
 	if [[ ! -d $ZEDLET_DIR ]]; then
@@ -3658,24 +3076,13 @@ function zed_cleanup
 	if ! is_linux; then
 		return
 	fi
-	EXTRA_ZEDLETS=$@
 
-	log_must rm -f ${ZEDLET_DIR}/zed.rc
-	log_must rm -f ${ZEDLET_DIR}/zed-functions.sh
-	log_must rm -f ${ZEDLET_DIR}/all-syslog.sh
-	log_must rm -f ${ZEDLET_DIR}/all-debug.sh
-	log_must rm -f ${ZEDLET_DIR}/state
-
-	if [[ -n "$EXTRA_ZEDLETS" ]] ; then
-		for i in $EXTRA_ZEDLETS ; do
-			log_must rm -f ${ZEDLET_DIR}/$i
-		done
-	fi
-	log_must rm -f $ZED_LOG
-	log_must rm -f $ZED_DEBUG_LOG
-	log_must rm -f $VDEVID_CONF_ETC
-	log_must rm -f $VDEVID_CONF
-	rmdir $ZEDLET_DIR
+	for extra_zedlet; do
+		log_must rm -f ${ZEDLET_DIR}/$extra_zedlet
+	done
+	log_must rm -fd ${ZEDLET_DIR}/zed.rc ${ZEDLET_DIR}/zed-functions.sh ${ZEDLET_DIR}/all-syslog.sh ${ZEDLET_DIR}/all-debug.sh ${ZEDLET_DIR}/state \
+	                $ZED_LOG $ZED_DEBUG_LOG $VDEVID_CONF_ETC $VDEVID_CONF \
+	                $ZEDLET_DIR
 }
 
 #
@@ -3687,9 +3094,7 @@ function zed_check
 		return
 	fi
 	zedpids="$(pgrep -x zed)"
-#	ret1=$?
 	zedpids2="$(pgrep -x lt-zed)"
-#	ret2=$?
 	echo ${zedpids} ${zedpids2}
 }
 
@@ -3788,15 +3193,17 @@ function is_swap_inuse
 		return 1
 	fi
 
-	if is_linux; then
-		swapon -s | grep -w $(readlink -f $device) > /dev/null 2>&1
-	elif is_freebsd; then
-		swapctl -l | grep -w $device
-	else
-		swap -l | grep -w $device > /dev/null 2>&1
-	fi
-
-	return $?
+	case "$UNAME" in
+	Linux)
+		swapon -s | grep -wq $(readlink -f $device)
+		;;
+	FreeBSD)
+		swapctl -l | grep -wq $device
+		;;
+	*)
+		swap -l | grep -wq $device
+		;;
+	esac
 }
 
 #
@@ -3806,14 +3213,18 @@ function swap_setup
 {
 	typeset swapdev=$1
 
-	if is_linux; then
+	case "$UNAME" in
+	Linux)
 		log_must eval "mkswap $swapdev > /dev/null 2>&1"
 		log_must swapon $swapdev
-	elif is_freebsd; then
+		;;
+	FreeBSD)
 		log_must swapctl -a $swapdev
-	else
-	        log_must swap -a $swapdev
-	fi
+		;;
+	*)
+    log_must swap -a $swapdev
+		;;
+	esac
 
 	return 0
 }
@@ -3865,12 +3276,11 @@ function set_tunable_impl
 	typeset name="$1"
 	typeset value="$2"
 	typeset mdb_cmd="$3"
-	typeset module="${4:-zfs}"
 
 	eval "typeset tunable=\$$name"
 	case "$tunable" in
 	UNSUPPORTED)
-		log_unsupported "Tunable '$name' is unsupported on $(uname)"
+		log_unsupported "Tunable '$name' is unsupported on $UNAME"
 		;;
 	"")
 		log_fail "Tunable '$name' must be added to tunables.cfg"
@@ -3882,21 +3292,16 @@ function set_tunable_impl
 	[[ -z "$value" ]] && return 1
 	[[ -z "$mdb_cmd" ]] && return 1
 
-	case "$(uname)" in
+	case "$UNAME" in
 	Linux)
-		typeset zfs_tunables="/sys/module/$module/parameters"
-		[[ -w "$zfs_tunables/$tunable" ]] || return 1
-		cat >"$zfs_tunables/$tunable" <<<"$value"
-		return $?
+		typeset zfs_tunables="/sys/module/zfs/parameters"
+		echo "$value" >"$zfs_tunables/$tunable"
 		;;
 	FreeBSD)
 		sysctl vfs.zfs.$tunable=$value
-		return "$?"
 		;;
 	SunOS)
-		[[ "$module" -eq "zfs" ]] || return 1
 		echo "${tunable}/${mdb_cmd}0t${value}" | mdb -kw
-		return $?
 		;;
 	esac
 }
@@ -3919,7 +3324,7 @@ function get_tunable_impl
 	eval "typeset tunable=\$$name"
 	case "$tunable" in
 	UNSUPPORTED)
-		log_unsupported "Tunable '$name' is unsupported on $(uname)"
+		log_unsupported "Tunable '$name' is unsupported on $UNAME"
 		;;
 	"")
 		log_fail "Tunable '$name' must be added to tunables.cfg"
@@ -3928,12 +3333,10 @@ function get_tunable_impl
 		;;
 	esac
 
-	case "$(uname)" in
+	case "$UNAME" in
 	Linux)
 		typeset zfs_tunables="/sys/module/$module/parameters"
-		[[ -f "$zfs_tunables/$tunable" ]] || return 1
 		cat $zfs_tunables/$tunable
-		return $?
 		;;
 	FreeBSD)
 		sysctl -n vfs.zfs.$tunable
@@ -3942,69 +3345,6 @@ function get_tunable_impl
 		[[ "$module" -eq "zfs" ]] || return 1
 		;;
 	esac
-
-	return 1
-}
-
-#
-# Prints the current time in seconds since UNIX Epoch.
-#
-function current_epoch
-{
-	printf '%(%s)T'
-}
-
-#
-# Get decimal value of global uint32_t variable using mdb.
-#
-function mdb_get_uint32
-{
-	typeset variable=$1
-	typeset value
-
-	value=$(mdb -k -e "$variable/X | ::eval .=U")
-	if [[ $? -ne 0 ]]; then
-		log_fail "Failed to get value of '$variable' from mdb."
-		return 1
-	fi
-
-	echo $value
-	return 0
-}
-
-#
-# Set global uint32_t variable to a decimal value using mdb.
-#
-function mdb_set_uint32
-{
-	typeset variable=$1
-	typeset value=$2
-
-	mdb -kw -e "$variable/W 0t$value" > /dev/null
-	if [[ $? -ne 0 ]]; then
-		echo "Failed to set '$variable' to '$value' in mdb."
-		return 1
-	fi
-
-	return 0
-}
-
-#
-# Set global scalar integer variable to a hex value using mdb.
-# Note: Target should have CTF data loaded.
-#
-function mdb_ctf_set_int
-{
-	typeset variable=$1
-	typeset value=$2
-
-	mdb -kw -e "$variable/z $value" > /dev/null
-	if [[ $? -ne 0 ]]; then
-		echo "Failed to set '$variable' to '$value' in mdb."
-		return 1
-	fi
-
-	return 0
 }
 
 #
@@ -4015,12 +3355,14 @@ function md5digest
 {
 	typeset file=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		md5 -q $file
 		;;
 	*)
-		md5sum -b $file | awk '{ print $1 }'
+		typeset sum _
+		read -r sum _ < <(md5sum -b $file)
+		echo $sum
 		;;
 	esac
 }
@@ -4033,19 +3375,21 @@ function sha256digest
 {
 	typeset file=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		sha256 -q $file
 		;;
 	*)
-		sha256sum -b $file | awk '{ print $1 }'
+		typeset sum _
+		read -r sum _ < <(sha256sum -b $file)
+		echo $sum
 		;;
 	esac
 }
 
 function new_fs #<args>
 {
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		newfs "$@"
 		;;
@@ -4059,7 +3403,7 @@ function stat_size #<path>
 {
 	typeset path=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		stat -f %z "$path"
 		;;
@@ -4073,7 +3417,7 @@ function stat_ctime #<path>
 {
 	typeset path=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		stat -f %c "$path"
 		;;
@@ -4087,7 +3431,7 @@ function stat_crtime #<path>
 {
 	typeset path=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		stat -f %B "$path"
 		;;
@@ -4101,7 +3445,7 @@ function stat_generation #<path>
 {
 	typeset path=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	Linux)
 		getversion "${path}"
 		;;
@@ -4146,7 +3490,7 @@ function get_xattr # name path
 	typeset name=$1
 	typeset path=$2
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		getextattr -qq user "${name}" "${path}"
 		;;
@@ -4162,7 +3506,7 @@ function set_xattr # name value path
 	typeset value=$2
 	typeset path=$3
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		setextattr user "${name}" "${value}" "${path}"
 		;;
@@ -4177,7 +3521,7 @@ function set_xattr_stdin # name value
 	typeset name=$1
 	typeset path=$2
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		setextattr -i user "${name}" "${path}"
 		;;
@@ -4192,7 +3536,7 @@ function rm_xattr # name path
 	typeset name=$1
 	typeset path=$2
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		rmextattr -q user "${name}" "${path}"
 		;;
@@ -4206,7 +3550,7 @@ function ls_xattr # path
 {
 	typeset path=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		lsextattr -qq user "${path}"
 		;;
@@ -4221,14 +3565,12 @@ function kstat # stat flags?
 	typeset stat=$1
 	typeset flags=${2-"-n"}
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		sysctl $flags kstat.zfs.misc.$stat
 		;;
 	Linux)
-		typeset zfs_kstat="/proc/spl/kstat/zfs/$stat"
-		[[ -f "$zfs_kstat" ]] || return 1
-		cat $zfs_kstat
+		cat "/proc/spl/kstat/zfs/$stat" 2>/dev/null
 		;;
 	*)
 		false
@@ -4240,12 +3582,12 @@ function get_arcstat # stat
 {
 	typeset stat=$1
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		kstat arcstats.$stat
 		;;
 	Linux)
-		kstat arcstats | awk "/$stat/ { print \$3 }"
+		kstat arcstats | awk "/$stat/"' { print $3 }'
 		;;
 	*)
 		false
@@ -4259,12 +3601,28 @@ function punch_hole # offset length file
 	typeset length=$2
 	typeset file=$3
 
-	case $(uname) in
+	case "$UNAME" in
 	FreeBSD)
 		truncate -d -o $offset -l $length "$file"
 		;;
 	Linux)
 		fallocate --punch-hole --offset $offset --length $length "$file"
+		;;
+	*)
+		false
+		;;
+	esac
+}
+
+function zero_range # offset length file
+{
+	typeset offset=$1
+	typeset length=$2
+	typeset file=$3
+
+	case "$UNAME" in
+	Linux)
+		fallocate --zero-range --offset $offset --length $length "$file"
 		;;
 	*)
 		false
@@ -4371,10 +3729,10 @@ function directory_diff # dir_a dir_b
 	# We check ctimes even with zil_replay=1 because the ZIL does store
 	# creation times and we should make sure they match (if the creation times
 	# do not match there is a "c" entry in one of the columns).
-	if ( rsync --version | grep -q "[, ] crtimes" >/dev/null ); then
+	if rsync --version | grep -q "[, ] crtimes"; then
 		args+=("--crtimes")
 	else
-		echo "NOTE: This rsync package does not support --crtimes (-N)."
+		log_note "This rsync package does not support --crtimes (-N)."
 	fi
 
 	# If we are testing a ZIL replay, we need to ignore timestamp changes.
@@ -4411,5 +3769,48 @@ function directory_diff # dir_a dir_b
 function replay_directory_diff # dir_a dir_b
 {
 	LIBTEST_DIFF_ZIL_REPLAY=1 directory_diff "$@"
-	return $?
+}
+
+#
+# Put coredumps into $1/core.{basename}
+#
+# Output must be saved and passed to pop_coredump_pattern on cleanup
+#
+function push_coredump_pattern # dir
+{
+	ulimit -c unlimited
+	case "$UNAME" in
+	Linux)
+		cat /proc/sys/kernel/core_pattern /proc/sys/kernel/core_uses_pid
+		echo "$1/core.%e" >/proc/sys/kernel/core_pattern &&
+		    echo 0 >/proc/sys/kernel/core_uses_pid
+		;;
+	FreeBSD)
+		sysctl -n kern.corefile
+		sysctl kern.corefile="$1/core.%N" >/dev/null
+		;;
+	*)
+		# Nothing to output – set only for this shell
+		coreadm -p "$1/core.%f"
+		;;
+	esac
+}
+
+#
+# Put coredumps back into the default location
+#
+function pop_coredump_pattern
+{
+	[ -s "$1" ] || return 0
+	case "$UNAME" in
+	Linux)
+		typeset pat pid
+		{ read -r pat; read -r pid; } < "$1"
+		echo "$pat" >/proc/sys/kernel/core_pattern &&
+		    echo "$pid" >/proc/sys/kernel/core_uses_pid
+		;;
+	FreeBSD)
+		sysctl kern.corefile="$(<"$1")" >/dev/null
+		;;
+	esac
 }

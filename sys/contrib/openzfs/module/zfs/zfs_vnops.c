@@ -68,7 +68,9 @@ zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
 	if (zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
 		ZFS_ENTER(zfsvfs);
 		ZFS_VERIFY_ZP(zp);
+		atomic_inc_32(&zp->z_sync_writes_cnt);
 		zil_commit(zfsvfs->z_log, zp->z_id);
+		atomic_dec_32(&zp->z_sync_writes_cnt);
 		ZFS_EXIT(zfsvfs);
 	}
 	tsd_set(zfs_fsyncer_key, NULL);
@@ -357,11 +359,11 @@ zfs_clear_setid_bits_if_necessary(zfsvfs_t *zfsvfs, znode_t *zp, cred_t *cr,
 		if (*clear_setid_bits_txgp != dmu_tx_get_txg(tx)) {
 			vattr_t va = {0};
 
-			va.va_mask = AT_MODE;
+			va.va_mask = ATTR_MODE;
 			va.va_nodeid = zp->z_id;
 			va.va_mode = newmode;
-			zfs_log_setattr(zilog, tx, TX_SETATTR, zp, &va, AT_MODE,
-			    NULL);
+			zfs_log_setattr(zilog, tx, TX_SETATTR, zp, &va,
+			    ATTR_MODE, NULL);
 			*clear_setid_bits_txgp = dmu_tx_get_txg(tx);
 		}
 	} else {
