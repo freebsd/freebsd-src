@@ -776,8 +776,8 @@ smmu_init_ste_s1(struct smmu_softc *sc, struct smmu_cd *cd,
 	return (0);
 }
 
-static int
-smmu_init_ste(struct smmu_softc *sc, struct smmu_cd *cd, int sid, bool bypass)
+static uint64_t *
+smmu_get_ste_addr(struct smmu_softc *sc, int sid)
 {
 	struct smmu_strtab *strtab;
 	struct l1_desc *l1_desc;
@@ -794,6 +794,16 @@ smmu_init_ste(struct smmu_softc *sc, struct smmu_cd *cd, int sid, bool bypass)
 		    STRTAB_STE_DWORDS * 8 * sid);
 	};
 
+	return (addr);
+}
+
+static int
+smmu_init_ste(struct smmu_softc *sc, struct smmu_cd *cd, int sid, bool bypass)
+{
+	uint64_t *addr;
+
+	addr = smmu_get_ste_addr(sc, sid);
+
 	if (bypass)
 		smmu_init_ste_bypass(sc, sid, addr);
 	else
@@ -802,6 +812,21 @@ smmu_init_ste(struct smmu_softc *sc, struct smmu_cd *cd, int sid, bool bypass)
 	smmu_sync(sc);
 
 	return (0);
+}
+
+static void
+smmu_deinit_ste(struct smmu_softc *sc, int sid)
+{
+	uint64_t *ste;
+
+	ste = smmu_get_ste_addr(sc, sid);
+	ste[0] = 0;
+
+	smmu_invalidate_sid(sc, sid);
+	smmu_sync_cd(sc, sid, 0, true);
+	smmu_invalidate_sid(sc, sid);
+
+	smmu_sync(sc);
 }
 
 static int
@@ -990,6 +1015,10 @@ smmu_init_l1_entry(struct smmu_softc *sc, int sid)
 
 	strtab = &sc->strtab;
 	l1_desc = &strtab->l1[sid >> STRTAB_SPLIT];
+	if (l1_desc->va) {
+		/* Already allocated. */
+		return (0);
+	}
 
 	size = 1 << (STRTAB_SPLIT + ilog2(STRTAB_STE_DWORDS) + 3);
 
@@ -1021,7 +1050,7 @@ smmu_init_l1_entry(struct smmu_softc *sc, int sid)
 	return (0);
 }
 
-static void
+static void __unused
 smmu_deinit_l1_entry(struct smmu_softc *sc, int sid)
 {
 	struct smmu_strtab *strtab;
@@ -1036,10 +1065,8 @@ smmu_deinit_l1_entry(struct smmu_softc *sc, int sid)
 	    STRTAB_L1_DESC_DWORDS * 8 * i);
 	*addr = 0;
 
-	if (sc->features & SMMU_FEATURE_2_LVL_STREAM_TABLE) {
-		l1_desc = &strtab->l1[sid >> STRTAB_SPLIT];
-		contigfree(l1_desc->va, l1_desc->size, M_SMMU);
-	}
+	l1_desc = &strtab->l1[sid >> STRTAB_SPLIT];
+	contigfree(l1_desc->va, l1_desc->size, M_SMMU);
 }
 
 static int
@@ -1883,7 +1910,7 @@ smmu_ctx_free(device_t dev, struct iommu_ctx *ioctx)
 	sc = device_get_softc(dev);
 	ctx = (struct smmu_ctx *)ioctx;
 
-	smmu_deinit_l1_entry(sc, ctx->sid);
+	smmu_deinit_ste(sc, ctx->sid);
 
 	LIST_REMOVE(ctx, next);
 
