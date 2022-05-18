@@ -176,6 +176,8 @@ smmu_fdt_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	OF_device_register_xref(OF_xref_from_node(node), dev);
+
 	return (0);
 
 error:
