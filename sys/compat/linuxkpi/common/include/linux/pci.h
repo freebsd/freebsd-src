@@ -129,6 +129,7 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	PCI_EXP_DEVCAP2		PCIER_DEVICE_CAP2		/* Device Capabilities 2 */
 #define	PCI_EXP_DEVCTL2		PCIER_DEVICE_CTL2		/* Device Control 2 */
 #define	PCI_EXP_DEVCTL2_LTR_EN	PCIEM_CTL2_LTR_ENABLE
+#define	PCI_EXP_DEVCTL2_COMP_TMOUT_DIS	PCIEM_CTL2_COMP_TIMO_DISABLE
 #define	PCI_EXP_LNKCAP2		PCIER_LINK_CAP2			/* Link Capabilities 2 */
 #define	PCI_EXP_LNKCTL2		PCIER_LINK_CTL2			/* Link Control 2 */
 #define	PCI_EXP_LNKSTA2		PCIER_LINK_STA2			/* Link Status 2 */
@@ -1139,6 +1140,22 @@ pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
 		return 0;
 
 	return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
+}
+
+static inline int
+pcie_capability_set_word(struct pci_dev *dev, int pos, uint16_t val)
+{
+	int error;
+	uint16_t v;
+
+	error = pcie_capability_read_word(dev, pos, &v);
+	if (error != 0)
+		return (error);
+
+	v |= val;
+
+	error = pcie_capability_write_word(dev, pos, v);
+	return (error);
 }
 
 static inline int pcie_get_minimum_link(struct pci_dev *dev,
