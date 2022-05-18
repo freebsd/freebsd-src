@@ -67,19 +67,17 @@ function cleanup
 	fi
 }
 
-typeset swap_disks=$(swap -l | grep -v "swapfile" | awk '{print $1}')
-typeset dump_device=$(dumpadm | grep "Dump device" | awk '{print $3}')
+typeset swap_disks=$(swap -l | awk '!/swapfile/ {print $1}')
+typeset dump_device=$(dumpadm | awk '/Dump device/ {print $3}')
 
 log_assert "'zpool create' should success with no device in swap."
 log_onexit cleanup
 
 for sdisk in $swap_disks; do
 	log_note "Executing: swap -d $sdisk"
-	swap -d $sdisk >/dev/null 2>&1;
-	if [[ $? != 0 ]]; then
+	swap -d $sdisk >/dev/null 2>&1 ||
 		log_untested "Unable to delete swap device $sdisk because of" \
 				"insufficient RAM"
-	fi
 done
 
 log_must zpool create $TESTPOOL $DISK0

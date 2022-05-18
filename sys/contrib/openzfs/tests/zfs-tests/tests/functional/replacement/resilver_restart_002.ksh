@@ -57,14 +57,14 @@ log_must set_tunable32 SCAN_LEGACY 1
  # create the pool and a 32M file (32k blocks)
 log_must truncate -s $VDEV_FILE_SIZE ${VDEV_FILES[0]} $SPARE_VDEV_FILE
 log_must zpool create -f -O recordsize=1k $TESTPOOL1 ${VDEV_FILES[0]}
-log_must dd if=/dev/urandom of=/$TESTPOOL1/file bs=1M count=32 > /dev/null 2>&1
+log_must eval "dd if=/dev/urandom of=/$TESTPOOL1/file bs=1M count=32 2>/dev/null"
 
 # determine objset/object
 objset=$(zdb -d $TESTPOOL1/ | sed -ne 's/.*ID \([0-9]*\).*/\1/p')
 object=$(ls -i /$TESTPOOL1/file | awk '{print $1}')
 
 # inject event to cause error during resilver
-log_must zinject -b `printf "%x:%x:0:3fff" $objset $object` $TESTPOOL1
+log_must zinject -b $(printf "%x:%x:0:3fff" $objset $object) $TESTPOOL1
 
 # clear events and start resilver
 log_must zpool events -c
@@ -74,7 +74,7 @@ log_note "waiting for read errors to start showing up"
 for iter in {0..59}
 do
 	sync_pool $TESTPOOL1
-	err=$(zpool status $TESTPOOL1 | grep ${VDEV_FILES[0]} | awk '{print $3}')
+	err=$(zpool status $TESTPOOL1 | awk -v dev=${VDEV_FILES[0]} '$0 ~ dev {print $3}')
 	(( $err > 0 )) && break
 	sleep 1
 done
@@ -84,7 +84,7 @@ done
 log_note "waiting for resilver to finish"
 for iter in {0..59}
 do
-	finish=$(zpool events | grep "sysevent.fs.zfs.resilver_finish" | wc -l)
+	finish=$(zpool events | grep -cF "sysevent.fs.zfs.resilver_finish")
 	(( $finish > 0 )) && break
 	sleep 1
 done
@@ -96,7 +96,7 @@ sync_pool $TESTPOOL1
 sync_pool $TESTPOOL1
 
 # check if resilver was restarted
-start=$(zpool events | grep "sysevent.fs.zfs.resilver_start" | wc -l)
+start=$(zpool events | grep -cF "sysevent.fs.zfs.resilver_start")
 (( $start != 1 )) && log_fail "resilver restarted unnecessarily"
 
 log_pass "Resilver did not restart unnecessarily from scan errors"

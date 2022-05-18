@@ -30,8 +30,8 @@
 . $STF_SUITE/include/libtest.shlib
 . $STF_SUITE/tests/functional/xattr/xattr_common.kshlib
 
-USES_NIS=$(cat $TEST_BASE_DIR/zfs-xattr-test-nis.txt)
-rm $TEST_BASE_DIR/zfs-xattr-test-nis.txt
+USES_NIS=$(<$TEST_BASE_DIR/zfs-xattr-test-nis.txt)
+rm $TEST_BASE_DIR/zfs-xattr-test-nis.txt $TEST_BASE_DIR/zfs-xattr-test-user.txt
 
 if [ "${USES_NIS}" == "true" ]
 then

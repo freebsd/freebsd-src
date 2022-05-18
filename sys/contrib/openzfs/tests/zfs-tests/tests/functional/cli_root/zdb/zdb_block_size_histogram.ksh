@@ -115,8 +115,7 @@ function histo_populate_test_pool
 			    of=/${pool}/B_${this_rs}/file_${filenum} \
 			    bs=${this_rs} count=${thiscount} \
 			    iflag=fullblock 2>&1 | \
-			    egrep -v -e "records in" -e "records out" \
-				-e "bytes.*copied"
+			    grep -ve "records in" -e "records out" -e "bytes.*copied"
 			((filenum+=1))
 		done
 	done
@@ -146,8 +145,6 @@ function histo_check_test_pool
 	typeset -i this_rs
 	typeset -i this_ri
 	typeset -i sum_filesizes=0
-	typeset dumped
-	typeset stripped
 
 	let histo_check_pool_size=$(get_pool_prop size ${pool})
 	if [[ ! ${histo_check_pool_size} =~ ${re_number} ]]; then
@@ -158,11 +155,9 @@ function histo_check_test_pool
 		log_fail "hctp: max_pool_record_size is not numeric ${max_pool_record_size}"
 	fi
 
-	dumped="${TEST_BASE_DIR}/${pool}_dump.txt"
 	stripped="${TEST_BASE_DIR}/${pool}_stripped.txt"
 
 	zdb -Pbbb ${pool} | \
-	    tee ${dumped} | \
 	    sed -e '1,/^block[ 	][ 	]*psize[ 	][ 	]*lsize.*$/d' \
 	    -e '/^size[ 	]*Count/d' -e '/^$/,$d' \
 	    > ${stripped}
@@ -247,6 +242,8 @@ function histo_check_test_pool
 			fi
 		fi
 	done < ${stripped}
+	rm "${stripped}"
+
 	if [ ${fail_value} -gt 0 ]; then
 		if [ ${error_count} -eq 1 ]; then
 			log_note "hctp: There was ${error_count} error"

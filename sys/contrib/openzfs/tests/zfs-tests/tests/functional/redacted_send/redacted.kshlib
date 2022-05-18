@@ -29,6 +29,10 @@
 . $STF_SUITE/tests/functional/rsend/rsend.kshlib
 . $STF_SUITE/tests/functional/redacted_send/redacted.cfg
 
+if ! is_linux; then
+	alias udevadm=:
+fi
+
 function setup_dataset
 {
 	typeset ds_name=$1
@@ -227,7 +231,7 @@ function compare_files
 	[[ -f $file2 ]] || log_fail "File $file2 does not exist."
 
 	log_must eval "get_diff $file1 $file2 >$tmpfile"
-	typeset range="$(cat $tmpfile)"
+	typeset range="$(<$tmpfile)"
 	log_must unmount_redacted $recvfs
 	[[ "$expected" = "$range" ]] || log_fail "Unexpected range: $range"
 }

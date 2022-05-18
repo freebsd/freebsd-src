@@ -1790,8 +1790,8 @@ zpool_do_create(int argc, char **argv)
 			    tname ? tname : poolname, ZFS_TYPE_FILESYSTEM);
 			if (pool != NULL) {
 				if (zfs_mount(pool, NULL, 0) == 0) {
-					ret = zfs_shareall(pool);
-					zfs_commit_all_shares();
+					ret = zfs_share(pool, NULL);
+					zfs_commit_shares(NULL);
 				}
 				zfs_close(pool);
 			}
@@ -1987,40 +1987,21 @@ static int
 max_width(zpool_handle_t *zhp, nvlist_t *nv, int depth, int max,
     int name_flags)
 {
-	char *name;
-	nvlist_t **child;
-	uint_t c, children;
-	int ret;
+	static const char *const subtypes[] =
+	    {ZPOOL_CONFIG_SPARES, ZPOOL_CONFIG_L2CACHE, ZPOOL_CONFIG_CHILDREN};
 
-	name = zpool_vdev_name(g_zfs, zhp, nv, name_flags);
-	if (strlen(name) + depth > max)
-		max = strlen(name) + depth;
-
+	char *name = zpool_vdev_name(g_zfs, zhp, nv, name_flags);
+	max = MAX(strlen(name) + depth, max);
 	free(name);
 
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_SPARES,
-	    &child, &children) == 0) {
-		for (c = 0; c < children; c++)
-			if ((ret = max_width(zhp, child[c], depth + 2,
-			    max, name_flags)) > max)
-				max = ret;
-	}
-
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_L2CACHE,
-	    &child, &children) == 0) {
-		for (c = 0; c < children; c++)
-			if ((ret = max_width(zhp, child[c], depth + 2,
-			    max, name_flags)) > max)
-				max = ret;
-	}
-
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-	    &child, &children) == 0) {
-		for (c = 0; c < children; c++)
-			if ((ret = max_width(zhp, child[c], depth + 2,
-			    max, name_flags)) > max)
-				max = ret;
-	}
+	nvlist_t **child;
+	uint_t children;
+	for (size_t i = 0; i < ARRAY_SIZE(subtypes); ++i)
+		if (nvlist_lookup_nvlist_array(nv, subtypes[i],
+		    &child, &children) == 0)
+			for (uint_t c = 0; c < children; ++c)
+				max = MAX(max_width(zhp, child[c], depth + 2,
+				    max, name_flags), max);
 
 	return (max);
 }
@@ -2472,7 +2453,7 @@ print_status_config(zpool_handle_t *zhp, status_cbdata_t *cb, const char *name,
 
 	if (vs->vs_scan_removing != 0) {
 		(void) printf(gettext("  (removing)"));
-	} else if (vs->vs_noalloc != 0) {
+	} else if (VDEV_STAT_VALID(vs_noalloc, vsc) && vs->vs_noalloc != 0) {
 		(void) printf(gettext("  (non-allocating)"));
 	}
 
@@ -6162,7 +6143,7 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 		 * 'toplevel' boolean value is passed to the print_one_column()
 		 * to indicate that the value is valid.
 		 */
-		if (vs->vs_pspace)
+		if (VDEV_STAT_VALID(vs_pspace, c) && vs->vs_pspace)
 			print_one_column(ZPOOL_PROP_SIZE, vs->vs_pspace, NULL,
 			    scripted, B_TRUE, format);
 		else
@@ -10924,7 +10905,7 @@ main(int argc, char **argv)
 	 * Many commands modify input strings for string parsing reasons.
 	 * We create a copy to protect the original argv.
 	 */
-	newargv = malloc((argc + 1) * sizeof (newargv[0]));
+	newargv = safe_malloc((argc + 1) * sizeof (newargv[0]));
 	for (i = 0; i < argc; i++)
 		newargv[i] = strdup(argv[i]);
 	newargv[argc] = NULL;

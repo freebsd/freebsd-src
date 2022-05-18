@@ -55,10 +55,9 @@ log_onexit cleanup
 NR_FILES=60000
 BATCH=1000
 
-log_must mkdir $TESTDIR/src
-log_must mkdir $TESTDIR/dst
+log_must mkdir $TESTDIR/src $TESTDIR/dst
 
-WD=$(pwd)
+WD=$PWD
 cd $TESTDIR/src
 # create NR_FILES in BATCH at a time to prevent overflowing argument buffer
 for i in $(seq $(($NR_FILES/$BATCH))); do touch $(seq $((($i-1)*$BATCH+1)) $(($i*$BATCH))); done
@@ -67,7 +66,7 @@ cd $WD
 log_must test $NR_FILES -eq $(ls -U $TESTDIR/src | wc -l)
 
 # copy files from src to dst, use cp_files to make sure we copy in readdir order
-log_must $STF_SUITE/tests/functional/cp_files/cp_files $TESTDIR/src $TESTDIR/dst
+log_must cp_files $TESTDIR/src $TESTDIR/dst
 
 log_must test $NR_FILES -eq $(ls -U $TESTDIR/dst | wc -l)
 

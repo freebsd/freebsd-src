@@ -58,51 +58,26 @@ use Getopt::Std;
 use strict;
 
 my $usage =
-"usage: cstyle [-cghpvCP] [-o constructs] file ...
+"usage: cstyle [-cgpvP] file...
 	-c	check continuation indentation inside functions
 	-g	print github actions' workflow commands
-	-h	perform heuristic checks that are sometimes wrong
 	-p	perform some of the more picky checks
 	-v	verbose
-	-C	don't check anything in header block comments
 	-P	check for use of non-POSIX types
-	-o constructs
-		allow a comma-separated list of optional constructs:
-		    doxygen	allow doxygen-style block comments (/** /*!)
-		    splint	allow splint-style lint comments (/*@ ... @*/)
 ";
 
 my %opts;
 
-if (!getopts("cgho:pvCP", \%opts)) {
+if (!getopts("cghpvCP", \%opts)) {
 	print $usage;
 	exit 2;
 }
 
 my $check_continuation = $opts{'c'};
 my $github_workflow = $opts{'g'} || $ENV{'CI'};
-my $heuristic = $opts{'h'};
 my $picky = $opts{'p'};
 my $verbose = $opts{'v'};
-my $ignore_hdr_comment = $opts{'C'};
 my $check_posix_types = $opts{'P'};
-
-my $doxygen_comments = 0;
-my $splint_comments = 0;
-
-if (defined($opts{'o'})) {
-	for my $x (split /,/, $opts{'o'}) {
-		if ($x eq "doxygen") {
-			$doxygen_comments = 1;
-		} elsif ($x eq "splint") {
-			$splint_comments = 1;
-		} else {
-			print "cstyle: unrecognized construct \"$x\"\n";
-			print $usage;
-			exit 2;
-		}
-	}
-}
 
 my ($filename, $line, $prev);		# shared globals
 
@@ -115,12 +90,7 @@ if ($verbose) {
 	$fmt = "%s: %d: %s\n";
 }
 
-if ($doxygen_comments) {
-	# doxygen comments look like "/*!" or "/**"; allow them.
-	$hdr_comment_start = qr/^\s*\/\*[\!\*]?$/;
-} else {
-	$hdr_comment_start = qr/^\s*\/\*$/;
-}
+$hdr_comment_start = qr/^\s*\/\*$/;
 
 # Note, following must be in single quotes so that \s and \w work right.
 my $typename = '(int|char|short|long|unsigned|float|double' .
@@ -145,8 +115,6 @@ my $lint_re = qr/\/\*(?:
 	FALLTHRU|FALLTHROUGH|LINTED.*?|PRINTFLIKE[0-9]*|
 	PROTOLIB[0-9]*|SCANFLIKE[0-9]*|CSTYLED.*?
     )\*\//x;
-
-my $splint_re = qr/\/\*@.*?@\*\//x;
 
 my $warlock_re = qr/\/\*\s*(?:
 	VARIABLES\ PROTECTED\ BY|
@@ -241,7 +209,6 @@ my $in_cpp = 0;
 my $next_in_cpp = 0;
 
 my $in_comment = 0;
-my $in_header_comment = 0;
 my $comment_done = 0;
 my $in_warlock_comment = 0;
 my $in_function = 0;
@@ -472,7 +439,6 @@ line: while (<$filehandle>) {
 
 	if ($comment_done) {
 		$in_comment = 0;
-		$in_header_comment = 0;
 		$comment_done = 0;
 	}
 	# does this looks like the start of a block comment?
@@ -483,9 +449,6 @@ line: while (<$filehandle>) {
 		$in_comment = 1;
 		/^(\s*)\//;
 		$comment_prefix = $1;
-		if ($comment_prefix eq "") {
-			$in_header_comment = 1;
-		}
 		$prev = $line;
 		next line;
 	}
@@ -495,18 +458,11 @@ line: while (<$filehandle>) {
 			$comment_done = 1;
 		} elsif (/\*\//) {
 			$comment_done = 1;
-			err("improper block comment close")
-			    unless ($ignore_hdr_comment && $in_header_comment);
+			err("improper block comment close");
 		} elsif (!/^$comment_prefix \*[ \t]/ &&
 		    !/^$comment_prefix \*$/) {
-			err("improper block comment")
-			    unless ($ignore_hdr_comment && $in_header_comment);
+			err("improper block comment");
 		}
-	}
-
-	if ($in_header_comment && $ignore_hdr_comment) {
-		$prev = $line;
-		next line;
 	}
 
 	# check for errors that might occur in comments and in code.
@@ -536,12 +492,10 @@ line: while (<$filehandle>) {
 		next line;
 	}
 
-	if ((/[^(]\/\*\S/ || /^\/\*\S/) &&
-	    !(/$lint_re/ || ($splint_comments && /$splint_re/))) {
+	if ((/[^(]\/\*\S/ || /^\/\*\S/) && !/$lint_re/) {
 		err("missing blank after open comment");
 	}
-	if (/\S\*\/[^)]|\S\*\/$/ &&
-	    !(/$lint_re/ || ($splint_comments && /$splint_re/))) {
+	if (/\S\*\/[^)]|\S\*\/$/ && !/$lint_re/) {
 		err("missing blank before close comment");
 	}
 	if (/\/\/\S/) {		# C++ comments
@@ -733,19 +687,6 @@ line: while (<$filehandle>) {
 		# but historically these have been used.
 		if (/\b(unchar|ushort|uint|ulong|u_int|u_short|u_long|u_char|quad)\b/) {
 			err("non-POSIX typedef $1 used: use $old2posix{$1} instead");
-		}
-	}
-	if ($heuristic) {
-		# cannot check this everywhere due to "struct {\n...\n} foo;"
-		if ($in_function && !$in_declaration &&
-		    /\}./ && !/\}\s+=/ && !/\{.*\}[;,]$/ && !/\}(\s|)*$/ &&
-		    !/\} (else|while)/ && !/\}\}/) {
-			err("possible bad text following right brace");
-		}
-		# cannot check this because sub-blocks in
-		# the middle of code are ok
-		if ($in_function && /^\s+\{/) {
-			err("possible left brace starting a line");
 		}
 	}
 	if (/^\s*else\W/) {

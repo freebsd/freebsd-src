@@ -30,7 +30,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl chpvCP
-.Op Fl o Ar construct Ns Op , Ns Ar construct Ns …
 .Oo Ar file Oc Ns …
 .Sh DESCRIPTION
 .Nm
@@ -45,7 +44,6 @@ does not mean that you've followed Sun's C style.
 .Em Caveat emptor .
 .
 .Sh OPTIONS
-The following options are supported:
 .Bl -tag -width "-c"
 .It Fl c
 Check continuation line indentation inside of functions.
@@ -59,9 +57,6 @@ continuation line problems within functions only.
 The checks have some limitations; see
 .Sy CONTINUATION CHECKING ,
 below.
-.It Fl h
-Performs heuristic checks that are sometimes wrong.
-Not generally used.
 .It Fl p
 Performs some of the more picky checks.
 Includes ANSI
@@ -74,10 +69,6 @@ Used as part of the putback checks.
 Verbose output; includes the text of the line of error, and, for
 .Fl c ,
 the first statement in the current continuation block.
-.It Fl C
-Ignore errors in header comments (i.e. block comments starting in the
-first column).
-Not generally used.
 .It Fl P
 Check for use of non-POSIX types.
 Historically, types like
@@ -91,16 +82,17 @@ types
 etc.
 This detects any use of the deprecated types.
 Used as part of the putback checks.
-.It Fl o Ar construct Ns Op , Ns Ar construct Ns …
-Available constructs include:
-.Bl -tag -compact -width "doxygen"
-.It Sy doxygen
-Allow doxygen-style block comments
-.Pq Sy /** No and Sy /*!\& .
-.It Sy splint
-Allow splint-style lint comments
-.Pq Sy /*@ Ns ... Ns Sy @*/ .
+.It Fl g
+Also print GitHub-Actions-style
+.Li ::error
+output.
 .El
+.
+.Sh ENVIRONMENT
+.Bl -tag -compact -width ".Ev CI"
+.It Ev CI
+If set and nonempty, equivalent to
+.Fl g .
 .El
 .
 .Sh CONTINUATION CHECKING

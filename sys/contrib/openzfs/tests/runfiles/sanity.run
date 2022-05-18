@@ -438,7 +438,9 @@ tests = ['history_004_pos', 'history_005_neg', 'history_007_pos',
 tags = ['functional', 'history']
 
 [tests/functional/hkdf]
-tests = ['run_hkdf_test']
+pre =
+post =
+tests = ['hkdf_test']
 tags = ['functional', 'hkdf']
 
 [tests/functional/inuse]
@@ -582,7 +584,7 @@ tests = ['suid_write_to_suid', 'suid_write_to_sgid', 'suid_write_to_suid_sgid',
     'suid_write_to_none']
 tags = ['functional', 'suid']
 
-[tests/functional/threadsappend]
+[tests/functional/append]
 tests = ['threadsappend_001_pos']
 tags = ['functional', 'threadsappend']
 

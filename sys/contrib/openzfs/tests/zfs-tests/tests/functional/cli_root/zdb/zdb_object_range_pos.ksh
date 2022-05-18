@@ -42,8 +42,8 @@ function get_object_list_range
 	begin=$2
 	end=$3
 	get_object_list $dataset |
-	while read line; do
-		obj=$(echo $line | awk '{print $1}')
+	while read -r line; do
+		read -r obj _ <<<"$line"
 		if [[ $obj -ge $begin && $obj -le $end ]] ; then
 			echo "$line"
 		elif [[ $obj -gt $end ]] ; then
@@ -60,8 +60,7 @@ function get_object_list_range
 function get_object_list
 {
 	zdb -P -dd $@ 2>/dev/null |
-	egrep "^ +-?([0-9]+ +){7}" |
-	sed 's/^[[:space:]]*//' |
+	sed -E '/^ +-?([0-9]+ +){7}/!d;s/^[[:space:]]*//' |
 	sort -n
 }
 
@@ -142,7 +141,7 @@ log_must test "\n$actual\n" == "\n$expected\n"
 # Specifying individual object IDs works
 objects="$start1 $end1 $start2 $end2"
 expected="$objects"
-actual=$(get_object_list $TESTPOOL/$TESTFS $objects | awk '{print $1}' | tr '\n' ' ')
+actual=$(get_object_list $TESTPOOL/$TESTFS $objects | awk '{printf("%s ", $1)}' | tr '\n' ' ')
 log_must test "${actual% }" == "$expected"
 
 # Get all objects in the meta-objset to test m (spacemap) and z (zap) flags

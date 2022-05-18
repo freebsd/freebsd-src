@@ -1,15 +1,12 @@
-include $(top_srcdir)/config/Rules.am
-
-sbin_PROGRAMS = zinject
+sbin_PROGRAMS   += zinject
+CPPCHECKTARGETS += zinject
 
 zinject_SOURCES = \
-	translate.c \
-	zinject.c \
-	zinject.h
+	%D%/translate.c \
+	%D%/zinject.c \
+	%D%/zinject.h
 
 zinject_LDADD = \
-	$(abs_top_builddir)/lib/libzfs/libzfs.la \
-	$(abs_top_builddir)/lib/libzfs_core/libzfs_core.la \
-	$(abs_top_builddir)/lib/libnvpair/libnvpair.la
-
-include $(top_srcdir)/config/CppCheck.am
+	libzfs.la \
+	libzfs_core.la \
+	libnvpair.la

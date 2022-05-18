@@ -47,29 +47,21 @@ function edited_prop
 	typeset behaviour=$1
 	typeset ds=$2
 	typeset backfile=$TESTDIR/edited_prop_$ds
+	typeset te=0
 
 	case $behaviour in
 		"get")
+			is_te_enabled && te=1
 			typeset props=$(zfs inherit 2>&1 | \
-				awk '$2=="YES" {print $1}' | \
-				grep -Ev "^vol|\.\.\.$")
-			for item in $props ; do
-				if [[ $item == "mlslabel" ]] && \
-					! is_te_enabled ; then
-					continue
-				fi
-				log_must eval "zfs get -H -o property,value $item $ds >> $backfile"
-			done
+				awk -v te=$te '$2=="YES" && $1 !~ /^vol|\.\.\.$/ && (te || $1 != "mlslabel") {printf("%s,", $1)}')
+			log_must eval "zfs get -Ho property,value ${props%,} $ds >> $backfile"
 			;;
 		"set")
 			if [[ ! -f $backfile ]] ; then
 				log_fail "$ds need backup properties firstly."
 			fi
 
-			typeset prop value
-			while read -r prop value; do
-				log_must zfs set "$prop=$value" "$ds"
-			done < $backfile
+			log_must zfs set $(tr '\t' '=' < $backfile) "$ds"
 			;;
 		*)
 			log_fail "Unrecognized behaviour: $behaviour"
@@ -159,20 +151,16 @@ set -A pair 	"$POOL" 		"$POOL2" 		\
 
 typeset -i i=0
 while ((i < ${#pair[@]})); do
-	log_must cmp_ds_prop ${pair[$i]} ${pair[((i+1))]}
-
+	log_must cmp_ds_prop ${pair[$i]} ${pair[((i+1))]} nosource
 	((i += 2))
 done
 
 
-zpool upgrade -v | grep "Snapshot properties" > /dev/null 2>&1
-if (( $? == 0 )) ; then
-	i=0
-	while ((i < ${#pair[@]})); do
-		log_must cmp_ds_prop ${pair[$i]}@final ${pair[((i+1))]}@final
-		((i += 2))
-	done
-fi
+i=0
+while ((i < ${#pair[@]})); do
+	log_must cmp_ds_prop ${pair[$i]}@final ${pair[((i+1))]}@final
+	((i += 2))
+done
 
-log_pass "Verify zfs send -R will backup all the filesystem properties " \
+log_pass "Verify zfs send -R will backup all the filesystem properties" \
 	"correctly."

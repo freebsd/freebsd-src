@@ -36,6 +36,8 @@
 
 verify_runnable "global"
 
+command -v fio > /dev/null || log_unsupported "fio missing"
+
 log_assert "Trim of L2ARC succeeds."
 
 function cleanup
@@ -95,8 +97,8 @@ done
 
 verify_trim_io $TESTPOOL "ind" 5 $TRIM_VDEV2
 
-typeset cache_size=$(zpool list -vp | grep $TRIM_VDEV2 | awk '{print $2}')
-typeset cache_alloc=$(zpool list -vp | grep $TRIM_VDEV2 | awk '{print $3}')
+typeset cache_size cache_alloc _
+read -r _ cache_size cache_alloc _ < <(zpool list -vp | grep $TRIM_VDEV2)
 
 log_must test $cache_alloc -lt $cache_size
 

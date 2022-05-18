@@ -39,6 +39,9 @@ The pre-requisites for running the ZFS Test Suite are:
   * The ZFS Test Suite will add users and groups to test machine to
     verify functionality.  Therefore it is strongly advised that a
     dedicated test machine, which can be a VM, be used for testing.
+  * On FreeBSD, mountd(8) must use `/etc/zfs/exports`
+    as one of its export files – by default this can be done by setting
+    `zfs_enable=yes` in `/etc/rc.conf`.
 
 Once the pre-requisites are satisfied simply run the zfs-tests.sh script:
 
@@ -88,6 +91,7 @@ The following zfs-tests.sh options are supported:
 
     -d DIR      Create sparse files for vdevs in the DIR directory.  By
                 default these files are created under /var/tmp/.
+                This directory must be world-writable.
 
     -s SIZE     Use vdevs of SIZE (default: 4G)
 

@@ -48,6 +48,9 @@
 /* Define if host toolchain supports AES */
 #define HAVE_AES 1
 
+/* Define if you have [rt] */
+#define HAVE_AIO_H 1
+
 #ifdef __amd64__
 #ifndef RESCUE
 /* Define if host toolchain supports AVX */
@@ -359,6 +362,9 @@
 /* iops->mknod() takes struct user_namespace* */
 /* #undef HAVE_IOPS_MKNOD_USERNS */
 
+/* iops->permission() takes struct user_namespace* */
+/* #undef HAVE_IOPS_PERMISSION_USERNS */
+
 /* iops->rename() takes struct user_namespace* */
 /* #undef HAVE_IOPS_RENAME_USERNS */
 
@@ -664,6 +670,9 @@
 /* super_block->s_user_ns exists */
 /* #undef HAVE_SUPER_USER_NS */
 
+/* struct kobj_type has default_groups */
+/* #undef HAVE_SYSFS_DEFAULT_GROUPS */
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
@@ -709,6 +718,9 @@
 /* aops->direct_IO() uses iov_iter with rw and offset */
 /* #undef HAVE_VFS_DIRECT_IO_ITER_RW_OFFSET */
 
+/* filemap_dirty_folio exists */
+/* #undef HAVE_VFS_FILEMAP_DIRTY_FOLIO */
+
 /* All required iov_iter interfaces are available */
 /* #undef HAVE_VFS_IOV_ITER */
 
@@ -720,6 +732,9 @@
 
 /* fops->readdir() is available */
 /* #undef HAVE_VFS_READDIR */
+
+/* address_space_operations->readpages exists */
+/* #undef HAVE_VFS_READPAGES */
 
 /* fops->read/write_iter() are available */
 /* #undef HAVE_VFS_RW_ITERATE */
@@ -865,6 +880,12 @@
 /* enum zone_stat_item contains NR_INACTIVE_FILE */
 /* #undef ZFS_ENUM_ZONE_STAT_ITEM_NR_INACTIVE_FILE */
 
+/* GENHD_FL_EXT_DEVT flag is not available */
+/* #undef ZFS_GENHD_FL_EXT_DEVT */
+
+/* GENHD_FL_NO_PART_SCAN flag is available */
+/* #undef ZFS_GENHD_FL_NO_PART */
+
 /* global_node_page_state() exists */
 /* #undef ZFS_GLOBAL_NODE_PAGE_STATE */
 
@@ -875,7 +896,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gbc3f12bfa"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gc0cf6ed67"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -905,7 +926,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gbc3f12bfa"
+#define ZFS_META_RELEASE "FreeBSD_gc0cf6ed67"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

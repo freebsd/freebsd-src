@@ -52,7 +52,7 @@ function verify_object_class # <path> <symbol>
 	symbol="$2"
 
 	log_must eval "zfs diff -F $TESTSNAP1 $TESTSNAP2 > $FILEDIFF"
-	diffsym="$(awk -v path="$path" '$NF == path { print $2 }' < $FILEDIFF)"
+	diffsym="$(awk -v path="$path" '$NF == path { print $2 }' $FILEDIFF)"
 	if [[ "$diffsym" != "$symbol" ]]; then
 		log_fail "Unexpected type for $path ('$diffsym' != '$symbol')"
 	else
@@ -111,11 +111,7 @@ verify_object_class "$MNTPOINT/cdev" "C"
 
 # 2. | (Named pipe)
 log_must zfs snapshot "$TESTSNAP1"
-if is_freebsd; then
-    log_must mkfifo "$MNTPOINT/fifo"
-else
-    log_must mknod "$MNTPOINT/fifo" p
-fi
+log_must mkfifo "$MNTPOINT/fifo"
 log_must zfs snapshot "$TESTSNAP2"
 verify_object_class "$MNTPOINT/fifo" "|"
 
@@ -127,7 +123,7 @@ verify_object_class "$MNTPOINT/dir" "/"
 
 # 2. = (Socket)
 log_must zfs snapshot "$TESTSNAP1"
-log_must $STF_SUITE/tests/functional/cli_root/zfs_diff/socket "$MNTPOINT/sock"
+log_must zfs_diff-socket "$MNTPOINT/sock"
 log_must zfs snapshot "$TESTSNAP2"
 verify_object_class "$MNTPOINT/sock" "="
 

@@ -74,24 +74,20 @@ child_pools=""
 
 function zpool_stress
 {
-	typeset pool=$1
+	typeset pool="$1-$$"
 	typeset vdev0="$TEST_BASE_DIR/$pool-vdev0.img"
 	typeset vdev1="$TEST_BASE_DIR/$pool-vdev1.img"
 	typeset -i iters=$2
 	typeset retry=10
 	typeset j=0
 
-	truncate -s $FILESIZE $vdev0
-	truncate -s $FILESIZE $vdev1
+	truncate -s $FILESIZE $vdev0 $vdev1
 
 	while [[ $j -lt $iters ]]; do
 		((j = j + 1))
 		sleep 1
 
-		zpool create $pool $vdev0 $vdev1
-		if [ $? -ne 0 ]; then
-			return 1;
-		fi
+		zpool create $pool $vdev0 $vdev1 || return 1
 
 		# The 'zfs destroy' command is retried because it can
 		# transiently return EBUSY when blkid is concurrently
@@ -100,13 +96,8 @@ function zpool_stress
 		while [[ $k -lt $retry ]]; do
 			((k = k + 1))
 
-			zpool destroy $pool
-			if [ $? -eq 0 ]; then
-				break;
-			elif [ $k -eq $retry ]; then
-				return 1;
-			fi
-
+			zpool destroy $pool && break
+			[ $k -eq $retry ] && return 1
 			sleep 3
 		done
 	done
@@ -118,13 +109,11 @@ function zpool_stress
 # 1. Create 128 process each of which create/destroy a pool 5 times.
 typeset i=0
 while [[ $i -lt 128 ]]; do
-	typeset uuid=$(uuidgen | cut -c1-13)
-
-	zpool_stress $TESTPOOL-$uuid 5 &
+	zpool_stress $TESTPOOL-$i 5 &
 	typeset pid=$!
 
 	child_pids="$child_pids $pid"
-	child_pools="$child_pools $TESTPOOL-$uuid"
+	child_pools="$child_pools $TESTPOOL-$i-$pid"
 	((i = i + 1))
 done
 

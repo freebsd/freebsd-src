@@ -66,29 +66,20 @@ log_must zpool get all $TESTPOOL
 zpool get all $TESTPOOL > $values
 
 log_note "Checking zpool get all output for a header."
-grep ^"NAME " $values > /dev/null 2>&1
-if [ $? -ne 0 ]
-then
-	log_fail "The header was not printed from zpool get all"
-fi
+log_must grep -q ^"NAME " $values
 
 
 while [ $i -lt "${#properties[@]}" ]
 do
 	log_note "Checking for ${properties[$i]} property"
-	grep "$TESTPOOL *${properties[$i]}" $values > /dev/null 2>&1
-	if [ $? -ne 0 ]
-	then
-		log_fail "zpool property ${properties[$i]} was not found\
- in pool output."
-	fi
+	log_must grep -q "$TESTPOOL *${properties[$i]}" $values
 	i=$(( $i + 1 ))
 done
 
 # increment the counter to include the header line
 i=$(( $i + 1 ))
 
-COUNT=$(wc $values | awk '{print $1}')
+COUNT=$(wc -l < $values)
 if [ $i -ne $COUNT ]
 then
 	log_fail "Found zpool features not in the zpool_get test config $i/$COUNT."
