@@ -427,6 +427,13 @@ dummynet_body()
 
 	# We should now be hitting the limits and get this packet dropped.
 	atf_check -s exit:2 -o ignore ping -c 1 -s 1200 192.0.2.2
+
+	# We can now also dummynet outbound traffic!
+	pft_set_rules alcatraz \
+		"ether pass out dnpipe 1"
+
+	# We should still be hitting the limits and get this packet dropped.
+	atf_check -s exit:2 -o ignore ping -c 1 -s 1200 192.0.2.2
 }
 
 dummynet_cleanup()
