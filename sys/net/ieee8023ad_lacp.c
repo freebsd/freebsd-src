@@ -1090,6 +1090,8 @@ lacp_update_portmap(struct lacp_softc *lsc)
 		speed = lacp_aggregator_bandwidth(la);
 	}
 	sc->sc_ifp->if_baudrate = speed;
+	EVENTHANDLER_INVOKE(ifnet_event, sc->sc_ifp,
+	    IFNET_EVENT_UPDATE_BAUDRATE);
 
 	/* switch the active portmap over */
 	atomic_store_rel_int(&lsc->lsc_activemap, newmap);
