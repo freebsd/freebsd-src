@@ -221,6 +221,7 @@ static MALLOC_DEFINE(M_VLAN, vlanname, "802.1Q Virtual LAN Interface");
 
 static eventhandler_tag ifdetach_tag;
 static eventhandler_tag iflladdr_tag;
+static eventhandler_tag ifevent_tag;
 
 /*
  * if_vlan uses two module-level synchronizations primitives to allow concurrent
@@ -327,6 +328,7 @@ static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
 
 static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
 static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
+static  void vlan_ifevent(void *arg, struct ifnet *ifp, int event);
 
 static  void vlan_lladdr_fn(void *arg, int pending);
 
@@ -674,6 +676,34 @@ vlan_setmulti(struct ifnet *ifp)
 }
 
 /*
+ * A handler for interface ifnet events.
+ */
+static void
+vlan_ifevent(void *arg __unused, struct ifnet *ifp, int event)
+{
+	struct epoch_tracker et;
+	struct ifvlan *ifv;
+	struct ifvlantrunk *trunk;
+
+	if (event != IFNET_EVENT_UPDATE_BAUDRATE)
+		return;
+
+	NET_EPOCH_ENTER(et);
+	trunk = ifp->if_vlantrunk;
+	if (trunk == NULL) {
+		NET_EPOCH_EXIT(et);
+		return;
+	}
+
+	TRUNK_WLOCK(trunk);
+	VLAN_FOREACH(ifv, trunk) {
+		ifv->ifv_ifp->if_baudrate = ifp->if_baudrate;
+	}
+	TRUNK_WUNLOCK(trunk);
+	NET_EPOCH_EXIT(et);
+}
+
+/*
  * A handler for parent interface link layer address changes.
  * If the parent interface link layer address is changed we
  * should also change it on all children vlans.
@@ -886,6 +916,10 @@ vlan_modevent(module_t mod, int type, void *data)
 		    vlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 		if (iflladdr_tag == NULL)
 			return (ENOMEM);
+		ifevent_tag = EVENTHANDLER_REGISTER(ifnet_event,
+		    vlan_ifevent, NULL, EVENTHANDLER_PRI_ANY);
+		if (ifevent_tag == NULL)
+			return (ENOMEM);
 		VLAN_LOCKING_INIT();
 		vlan_input_p = vlan_input;
 		vlan_link_state_p = vlan_link_state;
@@ -916,6 +950,7 @@ vlan_modevent(module_t mod, int type, void *data)
 #endif
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_tag);
+		EVENTHANDLER_DEREGISTER(ifnet_event, ifevent_tag);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
