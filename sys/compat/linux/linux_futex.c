@@ -411,6 +411,17 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 		}
 
 		/*
+		 * Nobody owns it, but the acquire failed. This can happen
+		 * with ll/sc atomic.
+		 */
+		if (owner == 0) {
+			error = thread_check_susp(td, true);
+			if (error != 0)
+				break;
+			continue;
+		}
+
+		/*
 		 * Avoid overwriting a possible error from sleep due
 		 * to the pending signal with suspension check result.
 		 */
