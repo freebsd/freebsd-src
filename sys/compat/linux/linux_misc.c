@@ -2172,6 +2172,11 @@ linux_sched_getparam(struct thread *td,
 	return (error);
 }
 
+static const struct cpuset_copy_cb copy_set = {
+	.copyin = copyin,
+	.copyout = copyout
+};
+
 /*
  * Get affinity of a process.
  */
@@ -2192,7 +2197,8 @@ linux_sched_getaffinity(struct thread *td,
 	PROC_UNLOCK(tdt->td_proc);
 
 	error = kern_cpuset_getaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
-	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *)args->user_mask_ptr);
+	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *)args->user_mask_ptr,
+	    &copy_set);
 	if (error == 0)
 		td->td_retval[0] = sizeof(cpuset_t);
 
@@ -2218,7 +2224,8 @@ linux_sched_setaffinity(struct thread *td,
 	PROC_UNLOCK(tdt->td_proc);
 
 	return (kern_cpuset_setaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
-	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *) args->user_mask_ptr));
+	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *) args->user_mask_ptr,
+	    &copy_set));
 }
 
 struct linux_rlimit64 {
