@@ -766,12 +766,12 @@ dummynet_send(struct mbuf *m)
 			/* extract the dummynet info, rename the tag
 			 * to carry reinject info.
 			 */
+			ifp = ifnet_byindexgen(pkt->if_index, pkt->if_idxgen);
 			if (pkt->dn_dir == (DIR_OUT | PROTO_LAYER2) &&
-				pkt->ifp == NULL) {
+				ifp == NULL) {
 				dst = DIR_DROP;
 			} else {
 				dst = pkt->dn_dir;
-				ifp = pkt->ifp;
 				tag->m_tag_cookie = MTAG_IPFW_RULE;
 				tag->m_tag_id = 0;
 			}
@@ -852,7 +852,11 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	/* only keep this info */
 	dt->rule.info &= (IPFW_ONEPASS | IPFW_IS_DUMMYNET);
 	dt->dn_dir = dir;
-	dt->ifp = fwa->flags & IPFW_ARGS_OUT ? fwa->ifp : NULL;
+	if (fwa->flags & IPFW_ARGS_OUT && fwa->ifp != NULL) {
+		NET_EPOCH_ASSERT();
+		dt->if_index = fwa->ifp->if_index;
+		dt->if_idxgen = fwa->ifp->if_idxgen;
+	}
 	/* dt->output tame is updated as we move through */
 	dt->output_time = V_dn_cfg.curr_time;
 	dt->iphdr_off = (dir & PROTO_LAYER2) ? ETHER_HDR_LEN : 0;
