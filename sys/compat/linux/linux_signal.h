@@ -31,18 +31,6 @@
 #ifndef _LINUX_SIGNAL_H_
 #define _LINUX_SIGNAL_H_
 
-/*
- * si_code values
- */
-#define	LINUX_SI_USER		0	/* sent by kill, sigsend, raise */
-#define	LINUX_SI_KERNEL		0x80	/* sent by the kernel from somewhere */
-#define	LINUX_SI_QUEUE		-1	/* sent by sigqueue */
-#define	LINUX_SI_TIMER		-2	/* sent by timer expiration */
-#define	LINUX_SI_MESGQ		-3	/* sent by real time mesq state change */
-#define	LINUX_SI_ASYNCIO	-4	/* sent by AIO completion */
-#define	LINUX_SI_SIGIO		-5	/* sent by queued SIGIO */
-#define	LINUX_SI_TKILL		-6	/* sent by tkill system call */
-
 int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);
 void siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig);
 int lsiginfo_to_siginfo(struct thread *td, const l_siginfo_t *lsi,

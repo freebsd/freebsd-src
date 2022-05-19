@@ -36,6 +36,18 @@
 #ifndef _LINUX_SIGINFO_H_
 #define _LINUX_SIGINFO_H_
 
+/*
+ * si_code values
+ */
+#define	LINUX_SI_USER		0	/* sent by kill, sigsend, raise */
+#define	LINUX_SI_KERNEL		0x80	/* sent by the kernel from somewhere */
+#define	LINUX_SI_QUEUE		-1	/* sent by sigqueue */
+#define	LINUX_SI_TIMER		-2	/* sent by timer expiration */
+#define	LINUX_SI_MESGQ		-3	/* sent by real time mesq state change */
+#define	LINUX_SI_ASYNCIO	-4	/* sent by AIO completion */
+#define	LINUX_SI_SIGIO		-5	/* sent by queued SIGIO */
+#define	LINUX_SI_TKILL		-6	/* sent by tkill system call */
+
 typedef union l_sigval {
 	l_int		sival_int;
 	l_uintptr_t	sival_ptr;
