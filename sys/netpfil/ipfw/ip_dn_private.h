@@ -374,7 +374,8 @@ struct dn_pkt_tag {
 	int dn_dir;		/* action when packet comes out.*/
 				/* see ip_fw_private.h		*/
 	uint64_t output_time;	/* when the pkt is due for delivery*/
-	struct ifnet *ifp;	/* interface, for ip_output	*/
+	uint16_t if_index;
+	uint16_t if_idxgen;
 	struct _ip6dn_args ip6opt;	/* XXX ipv6 options	*/
 	uint16_t iphdr_off;	/* IP header offset for mtodo()	*/
 };
