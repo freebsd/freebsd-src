@@ -65,7 +65,7 @@ static int	linux_tdksignal(struct thread *td, lwpid_t tid,
 		    int tgid, int sig, ksiginfo_t *ksi);
 static int	linux_tdsignal(struct thread *td, lwpid_t tid,
 		    int tgid, int sig);
-static void	sicode_to_lsicode(int si_code, int *lsi_code);
+static void	sicode_to_lsicode(int sig, int si_code, int *lsi_code);
 static int	linux_common_rt_sigtimedwait(struct thread *,
 		    l_sigset_t *, struct timespec *, l_siginfo_t *,
 		    l_size_t);
@@ -565,8 +565,62 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 	return (linux_tdsignal(td, args->tid, -1, sig));
 }
 
+static int
+sigfpe_sicode2lsicode(int si_code)
+{
+
+	switch (si_code) {
+	case FPE_INTOVF:
+		return (LINUX_FPE_INTOVF);
+	case FPE_INTDIV:
+		return (LINUX_FPE_INTDIV);
+	case FPE_FLTIDO:
+		return (LINUX_FPE_FLTUNK);
+	default:
+		return (si_code);
+	}
+}
+
+static int
+sigbus_sicode2lsicode(int si_code)
+{
+
+	switch (si_code) {
+	case BUS_OOMERR:
+		return (LINUX_BUS_MCEERR_AR);
+	default:
+		return (si_code);
+	}
+}
+
+static int
+sigsegv_sicode2lsicode(int si_code)
+{
+
+	switch (si_code) {
+	case SEGV_PKUERR:
+		return (LINUX_SEGV_PKUERR);
+	default:
+		return (si_code);
+	}
+}
+
+static int
+sigtrap_sicode2lsicode(int si_code)
+{
+
+	switch (si_code) {
+	case TRAP_DTRACE:
+		return (LINUX_TRAP_TRACE);
+	case TRAP_CAP:
+		return (LINUX_TRAP_UNK);
+	default:
+		return (si_code);
+	}
+}
+
 static void
-sicode_to_lsicode(int si_code, int *lsi_code)
+sicode_to_lsicode(int sig, int si_code, int *lsi_code)
 {
 
 	switch (si_code) {
@@ -592,7 +646,23 @@ sicode_to_lsicode(int si_code, int *lsi_code)
 		*lsi_code = LINUX_SI_TKILL;
 		break;
 	default:
-		*lsi_code = si_code;
+		switch (sig) {
+		case LINUX_SIGFPE:
+			*lsi_code = sigfpe_sicode2lsicode(si_code);
+			break;
+		case LINUX_SIGBUS:
+			*lsi_code = sigbus_sicode2lsicode(si_code);
+			break;
+		case LINUX_SIGSEGV:
+			*lsi_code = sigsegv_sicode2lsicode(si_code);
+			break;
+		case LINUX_SIGTRAP:
+			*lsi_code = sigtrap_sicode2lsicode(si_code);
+			break;
+		default:
+			*lsi_code = si_code;
+			break;
+		}
 		break;
 	}
 }
@@ -603,7 +673,7 @@ siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 
 	/* sig alredy converted */
 	lsi->lsi_signo = sig;
-	sicode_to_lsicode(si->si_code, &lsi->lsi_code);
+	sicode_to_lsicode(sig, si->si_code, &lsi->lsi_code);
 
 	switch (si->si_code) {
 	case SI_LWP:
