@@ -484,6 +484,7 @@ EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 #define IFNET_EVENT_UP		0
 #define IFNET_EVENT_DOWN	1
 #define IFNET_EVENT_PCP		2	/* priority code point, PCP */
+#define	IFNET_EVENT_UPDATE_BAUDRATE	3
 
 typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
 EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
