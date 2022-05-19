@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 
 #define	FUTEX_SHARED	0x8     /* shared futex */
+#define	FUTEX_UNOWNED	0
 
 #define	GET_SHARED(a)	(a->flags & FUTEX_SHARED) ? AUTO_SHARE : THREAD_SHARE
 
@@ -399,7 +400,7 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 	umtxq_unlock(&uq->uq_key);
 	for (;;) {
 		/* Try uncontested case first. */
-		rv = casueword32(args->uaddr, 0, &owner, em->em_tid);
+		rv = casueword32(args->uaddr, FUTEX_UNOWNED, &owner, em->em_tid);
 		/* The acquire succeeded. */
 		if (rv == 0) {
 			error = 0;
@@ -414,7 +415,7 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 		 * Nobody owns it, but the acquire failed. This can happen
 		 * with ll/sc atomic.
 		 */
-		if (owner == 0) {
+		if (owner == FUTEX_UNOWNED) {
 			error = thread_check_susp(td, true);
 			if (error != 0)
 				break;
@@ -441,7 +442,7 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 		 * Futex owner died, handle_futex_death() set the OWNER_DIED bit
 		 * and clear tid. Try to acquire it.
 		 */
-		if ((owner & FUTEX_TID_MASK) == 0) {
+		if ((owner & FUTEX_TID_MASK) == FUTEX_UNOWNED) {
 			old_owner = owner;
 			owner = owner & (FUTEX_WAITERS | FUTEX_OWNER_DIED);
 			owner |= em->em_tid;
@@ -486,7 +487,7 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 		 * Linux does some checks of futex state, we return EINVAL,
 		 * as the user space can take care of this.
 		 */
-		if ((owner & FUTEX_OWNER_DIED) != 0) {
+		if ((owner & FUTEX_OWNER_DIED) != FUTEX_UNOWNED) {
 			error = EINVAL;
 			break;
 		}
@@ -608,7 +609,7 @@ linux_futex_unlock_pi(struct thread *td, bool rb, struct linux_futex_args *args)
 	if (count > 1)
 		new_owner = FUTEX_WAITERS;
 	else
-		new_owner = 0;
+		new_owner = FUTEX_UNOWNED;
 
 again:
 	error = casueword32(args->uaddr, owner, &old, new_owner);
