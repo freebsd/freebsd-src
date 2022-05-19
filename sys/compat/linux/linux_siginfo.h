@@ -48,6 +48,116 @@
 #define	LINUX_SI_SIGIO		-5	/* sent by queued SIGIO */
 #define	LINUX_SI_TKILL		-6	/* sent by tkill system call */
 
+/*
+ * SIGILL si_codes
+ */
+#define	LINUX_ILL_ILLOPC	1	/* illegal opcode */
+#define	LINUX_ILL_ILLOPN	2	/* illegal operand */
+#define	LINUX_ILL_ILLADR	3	/* illegal addressing mode */
+#define	LINUX_ILL_ILLTRP	4	/* illegal trap */
+#define	LINUX_ILL_PRVOPC	5	/* privileged opcode */
+#define	LINUX_ILL_PRVREG	6	/* privileged register */
+#define	LINUX_ILL_COPROC	7	/* coprocessor error */
+#define	LINUX_ILL_BADSTK	8	/* internal stack error */
+#define	LINUX_ILL_BADIADDR	9	/* unimplemented instruction address */
+#define	LINUX___ILL_BREAK	10	/* (ia64) illegal break */
+#define	LINUX___ILL_BNDMOD	11	/* (ia64) bundle-update (modification)
+					 * in progress
+					 */
+
+/*
+ * SIGFPE si_codes
+ */
+#define	LINUX_FPE_INTDIV	1	/* integer divide by zero */
+#define	LINUX_FPE_INTOVF	2	/* integer overflow */
+#define	LINUX_FPE_FLTDIV	3	/* floating point divide by zero */
+#define	LINUX_FPE_FLTOVF	4	/* floating point overflow */
+#define	LINUX_FPE_FLTUND	5	/* floating point underflow */
+#define	LINUX_FPE_FLTRES	6	/* floating point inexact result */
+#define	LINUX_FPE_FLTINV	7	/* floating point invalid operation */
+#define	LINUX_FPE_FLTSUB	8	/* (ia64) subscript out of range */
+#define	LINUX___FPE_DECOVF	9	/* (ia64) decimal overflow */
+#define	LINUX___FPE_DECDIV	10	/* (ia64) decimal division by zero */
+#define	LINUX___FPE_DECERR	11	/* (ia64) packed decimal error */
+#define	LINUX___FPE_INVASC	12	/* (ia64) invalid ASCII digit */
+#define	LINUX___FPE_INVDEC	13	/* (ia64) invalid decimal digit */
+#define	LINUX_FPE_FLTUNK	14	/* undiagnosed floating-point exception */
+#define	LINUX_FPE_CONDTRAP	15	/* trap on condition */
+
+/*
+ * SIGSEGV si_codes
+ */
+#define	LINUX_SEGV_MAPERR	1	/* address not mapped to object */
+#define	LINUX_SEGV_ACCERR	2	/* invalid permissions for mapped object */
+#define	LINUX_SEGV_BNDERR	3	/* failed address bound checks */
+#ifdef __ia64__
+#define	LINUX___SEGV_PSTKOVF	4	/* paragraph stack overflow */
+#else
+#define	LINUX_SEGV_PKUERR	4	/* failed protection key checks */
+#endif
+#define	LINUX_SEGV_ACCADI	5	/* ADI not enabled for mapped object */
+#define	LINUX_SEGV_ADIDERR	6	/* Disrupting MCD error */
+#define	LINUX_SEGV_ADIPERR	7	/* Precise MCD exception */
+#define	LINUX_SEGV_MTEAERR	8	/* Asynchronous ARM MTE error */
+#define	LINUX_SEGV_MTESERR	9	/* Synchronous ARM MTE exception */
+
+/*
+ * SIGBUS si_codes
+ */
+#define	LINUX_BUS_ADRALN	1	/* invalid address alignment */
+#define	LINUX_BUS_ADRERR	2	/* non-existent physical address */
+#define	LINUX_BUS_OBJERR	3	/* object specific hardware error */
+
+#define	LINUX_BUS_MCEERR_AR	4	/* hardware memory error consumed
+					 * on a machine check:
+					 * action required
+					 */
+#define	LINUX_BUS_MCEERR_AO	5	/* hardware memory error detected
+					 * in process but not consumed:
+					 * action optional
+					 */
+
+/*
+ * SIGTRAP si_codes
+ */
+#define	LINUX_TRAP_BRKPT	1	/* process breakpoint */
+#define	LINUX_TRAP_TRACE	2	/* process trace trap */
+#define	LINUX_TRAP_BRANCH	3	/* process taken branch trap */
+#define	LINUX_TRAP_HWBKPT	4	/* hardware breakpoint/watchpoint */
+#define	LINUX_TRAP_UNK		5	/* undiagnosed trap */
+#define	LINUX_TRAP_PERF		6	/* perf event with sigtrap=1 */
+
+/*
+ * SIGCHLD si_codes
+ */
+#define	LINUX_CLD_EXITED	1	/* child has exited */
+#define	LINUX_CLD_KILLED	2	/* child was killed */
+#define	LINUX_CLD_DUMPED	3	/* child terminated abnormally */
+#define	LINUX_CLD_TRAPPED	4	/* traced child has trapped */
+#define	LINUX_CLD_STOPPED	5	/* child has stopped */
+#define	LINUX_CLD_CONTINUED	6	/* stopped child has continued */
+
+/*
+ * SIGPOLL (or any other signal without signal specific si_codes) si_codes
+ */
+#define	LINUX_POLL_IN		1	/* data input available */
+#define	LINUX_POLL_OUT		2	/* output buffers available */
+#define	LINUX_POLL_MSG		3	/* input message available */
+#define	LINUX_POLL_ERR		4	/* i/o error */
+#define	LINUX_POLL_PRI		5	/* high priority input available */
+#define	LINUX_POLL_HUP		6	/* device disconnected */
+
+/*
+ * SIGSYS si_codes
+ */
+#define	LINUX_SYS_SECCOMP	1	/* seccomp triggered */
+#define	LINUX_SYS_USER_DISPATCH	2	/* syscall user dispatch triggered */
+
+/*
+ * SIGEMT si_codes
+ */
+#define	LINUX_EMT_TAGOVF	1	/* tag overflow */
+
 typedef union l_sigval {
 	l_int		sival_int;
 	l_uintptr_t	sival_ptr;
@@ -123,3 +233,4 @@ _Static_assert(sizeof(l_siginfo_t) == LINUX_SI_MAX_SIZE, "l_siginfo_t size");
 #define	lsi_fd		_sifields._sigpoll._fd
 
 #endif /* _LINUX_SIGINFO_H_ */
+
