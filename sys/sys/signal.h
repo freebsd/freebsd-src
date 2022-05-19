@@ -339,6 +339,7 @@ struct siginfo32 {
 #define FPE_FLTRES	6	/* Floating point inexact result.	*/
 #define FPE_FLTINV	7	/* Invalid floating point operation.	*/
 #define FPE_FLTSUB	8	/* Subscript out of range.		*/
+#define FPE_FLTIDO	9	/* Input denormal operation		*/
 
 /* codes for SIGTRAP */
 #define TRAP_BRKPT	1	/* Process breakpoint.			*/
