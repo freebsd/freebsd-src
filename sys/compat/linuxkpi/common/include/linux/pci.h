@@ -59,6 +59,7 @@
 #include <asm/atomic.h>
 #include <linux/device.h>
 #include <linux/pci_ids.h>
+#include <linux/pm.h>
 
 struct pci_device_id {
 	uint32_t	vendor;
