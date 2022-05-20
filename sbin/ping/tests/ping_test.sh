@@ -49,6 +49,18 @@ ping_c1_s56_t1_body() {
     check_ping_statistics std.out $(atf_get_srcdir)/ping_c1_s56_t1.out
 }
 
+atf_test_case ping_c1_s56_t1_S127
+ping_c1_s56_t1_S127_head() {
+    atf_set "descr" "Check that ping -S 127.0.0.1 localhost succeeds"
+}
+ping_c1_s56_t1_S127_body() {
+    require_ipv4
+    require_ipv6
+    atf_check -s exit:0 -o save:std.out -e empty \
+	      ping -c 1 -s 56 -t 1 -S 127.0.0.1 localhost
+    check_ping_statistics std.out $(atf_get_srcdir)/ping_c1_s56_t1_S127.out
+}
+
 atf_test_case ping_6_c1_s8_t1
 ping_6_c1_s8_t1_head() {
     atf_set "descr" "Stop after receiving 1 ECHO_RESPONSE packet"
@@ -58,6 +70,18 @@ ping_6_c1_s8_t1_body() {
     atf_check -s exit:0 -o save:std.out -e empty \
 	      ping -6 -c 1 -s 8 -t 1 localhost
     check_ping_statistics std.out $(atf_get_srcdir)/ping_6_c1_s8_t1.out
+}
+
+atf_test_case ping_c1_s8_t1_S1
+ping_c1_s8_t1_S1_head() {
+    atf_set "descr" "Check that ping -S ::1 localhost succeeds"
+}
+ping_c1_s8_t1_S1_body() {
+    require_ipv4
+    require_ipv6
+    atf_check -s exit:0 -o save:std.out -e empty \
+	      ping -c 1 -s 8 -t 1 -S ::1 localhost
+    check_ping_statistics std.out $(atf_get_srcdir)/ping_c1_s8_t1_S1.out
 }
 
 atf_test_case ping6_c1_s8_t1
@@ -104,7 +128,9 @@ ping6_46_body() {
 
 atf_init_test_cases() {
     atf_add_test_case ping_c1_s56_t1
+    atf_add_test_case ping_c1_s56_t1_S127
     atf_add_test_case ping_6_c1_s8_t1
+    atf_add_test_case ping_c1_s8_t1_S1
     atf_add_test_case ping6_c1_s8_t1
     atf_add_test_case ping_c1t6
     atf_add_test_case ping6_c1t4
