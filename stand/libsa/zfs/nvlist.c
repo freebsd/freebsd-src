@@ -1213,6 +1213,7 @@ nvlist_add_common(nvlist_t *nvl, const char *name, data_type_t type,
 	nvl->nv_idx += sizeof(*hp);
 
 	xdr.xdr_buf = nvl->nv_data;
+	xdr.xdr_buf_size = nvl->nv_asize;
 	xdr.xdr_idx = nvl->nv_idx;
 
 	xdr.xdr_idx += xdr.xdr_putuint(&xdr, namelen);
