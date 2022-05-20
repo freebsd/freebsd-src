@@ -35,6 +35,8 @@
 #include <crypto/intake.h>
 #endif
 
+#include "nvlist.h"
+
 #define	ZFS_MAXNAMELEN	256
 
 /*
@@ -45,107 +47,6 @@ struct zfs_devdesc {
 	uint64_t	pool_guid;
 	uint64_t	root_guid;
 };
-
-/* nvp implementation version */
-#define	NV_VERSION		0
-
-/* nvlist persistent unique name flags, stored in nvl_nvflags */
-#define	NV_UNIQUE_NAME		0x1
-#define	NV_UNIQUE_NAME_TYPE	0x2
-
-#define	NV_ALIGN4(x)		(((x) + 3) & ~3)
-#define	NV_ALIGN(x)		(((x) + 7) & ~7)
-
-/*
- * nvlist header.
- * nvlist has 4 bytes header followed by version and flags, then nvpairs
- * and the list is terminated by double zero.
- */
-typedef struct {
-	char nvh_encoding;
-	char nvh_endian;
-	char nvh_reserved1;
-	char nvh_reserved2;
-} nvs_header_t;
-
-typedef struct {
-	nvs_header_t nv_header;
-	size_t nv_asize;
-	size_t nv_size;
-	uint8_t *nv_data;
-	uint8_t *nv_idx;
-} nvlist_t;
-
-/*
- * nvpair header.
- * nvpair has encoded and decoded size
- * name string (size and data)
- * data type and number of elements
- * data
- */
-typedef struct {
-	unsigned encoded_size;
-	unsigned decoded_size;
-} nvp_header_t;
-
-/*
- * nvlist stream head.
- */
-typedef struct {
-	unsigned nvl_version;
-	unsigned nvl_nvflag;
-	nvp_header_t nvl_pair;
-} nvs_data_t;
-
-typedef struct {
-	unsigned nv_size;
-	uint8_t nv_data[];	/* NV_ALIGN4(string) */
-} nv_string_t;
-
-typedef struct {
-	unsigned nv_type;	/* data_type_t */
-	unsigned nv_nelem;	/* number of elements */
-	uint8_t nv_data[];	/* data stream */
-} nv_pair_data_t;
-
-nvlist_t *nvlist_create(int);
-void nvlist_destroy(nvlist_t *);
-nvlist_t *nvlist_import(const char *, size_t);
-int nvlist_export(nvlist_t *);
-int nvlist_remove(nvlist_t *, const char *, data_type_t);
-int nvpair_type_from_name(const char *);
-nvp_header_t *nvpair_find(nvlist_t *, const char *);
-void nvpair_print(nvp_header_t *, unsigned int);
-void nvlist_print(const nvlist_t *, unsigned int);
-char *nvstring_get(nv_string_t *);
-int nvlist_find(const nvlist_t *, const char *, data_type_t,
-    int *, void *, int *);
-nvp_header_t *nvlist_next_nvpair(nvlist_t *, nvp_header_t *);
-
-int nvlist_add_boolean_value(nvlist_t *, const char *, boolean_t);
-int nvlist_add_byte(nvlist_t *, const char *, uint8_t);
-int nvlist_add_int8(nvlist_t *, const char *, int8_t);
-int nvlist_add_uint8(nvlist_t *, const char *, uint8_t);
-int nvlist_add_int16(nvlist_t *, const char *, int16_t);
-int nvlist_add_uint16(nvlist_t *, const char *, uint16_t);
-int nvlist_add_int32(nvlist_t *, const char *, int32_t);
-int nvlist_add_uint32(nvlist_t *, const char *, uint32_t);
-int nvlist_add_int64(nvlist_t *, const char *, int64_t);
-int nvlist_add_uint64(nvlist_t *, const char *, uint64_t);
-int nvlist_add_string(nvlist_t *, const char *, const char *);
-int nvlist_add_boolean_array(nvlist_t *, const char *, boolean_t *, uint32_t);
-int nvlist_add_byte_array(nvlist_t *, const char *, uint8_t *, uint32_t);
-int nvlist_add_int8_array(nvlist_t *, const char *, int8_t *, uint32_t);
-int nvlist_add_uint8_array(nvlist_t *, const char *, uint8_t *, uint32_t);
-int nvlist_add_int16_array(nvlist_t *, const char *, int16_t *, uint32_t);
-int nvlist_add_uint16_array(nvlist_t *, const char *, uint16_t *, uint32_t);
-int nvlist_add_int32_array(nvlist_t *, const char *, int32_t *, uint32_t);
-int nvlist_add_uint32_array(nvlist_t *, const char *, uint32_t *, uint32_t);
-int nvlist_add_int64_array(nvlist_t *, const char *, int64_t *, uint32_t);
-int nvlist_add_uint64_array(nvlist_t *, const char *, uint64_t *, uint32_t);
-int nvlist_add_string_array(nvlist_t *, const char *, char * const *, uint32_t);
-int nvlist_add_nvlist(nvlist_t *, const char *, nvlist_t *);
-int nvlist_add_nvlist_array(nvlist_t *, const char *, nvlist_t **, uint32_t);
 
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
 		     const char **path);
