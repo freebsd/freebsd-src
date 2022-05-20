@@ -558,23 +558,29 @@ struct ieee80211_sta_txpwr {
 	short				power;
 };
 
-#define	IEEE80211_NUM_TIDS			16	/* net80211::WME_NUM_TID */
-struct ieee80211_sta {
-	/* TODO FIXME */
-	int		max_amsdu_len, max_amsdu_subframes, max_rc_amsdu_len, max_sp;
-	int		mfp, rx_nss, smps_mode, tdls, tdls_initiator, uapsd_queues, wme;
-	enum ieee80211_sta_rx_bw		bandwidth;
+struct ieee80211_link_sta {
+	uint32_t				supp_rates[NUM_NL80211_BANDS];
 	struct ieee80211_sta_ht_cap		ht_cap;
 	struct ieee80211_sta_vht_cap		vht_cap;
 	struct ieee80211_sta_he_cap		he_cap;
 	struct ieee80211_sta_he_6ghz_capa	he_6ghz_capa;
+	uint8_t					rx_nss;
+	enum ieee80211_sta_rx_bw		bandwidth;
+	struct ieee80211_sta_txpwr		txpwr;
+};
+
+#define	IEEE80211_NUM_TIDS			16	/* net80211::WME_NUM_TID */
+struct ieee80211_sta {
+	/* TODO FIXME */
+	int		max_amsdu_len, max_amsdu_subframes, max_rc_amsdu_len, max_sp;
+	int		mfp, smps_mode, tdls, tdls_initiator, uapsd_queues, wme;
 	struct ieee80211_txq			*txq[IEEE80211_NUM_TIDS + 1];	/* iwlwifi: 8 and adds +1 to tid_data, net80211::IEEE80211_TID_SIZE */
 	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */
-	struct ieee80211_sta_txpwr		txpwr;
 	uint32_t				max_tid_amsdu_len[IEEE80211_NUM_TIDS];
-	uint32_t				supp_rates[NUM_NL80211_BANDS];
 	uint8_t					addr[ETH_ALEN];
 	uint16_t				aid;
+
+	struct ieee80211_link_sta		deflink;
 
 	/* Must stay last. */
 	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
