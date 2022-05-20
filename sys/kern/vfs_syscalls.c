@@ -3492,7 +3492,7 @@ retry:
 	if (error != 0)
 		goto out;
 
-	error = vn_truncate_locked(vp, 0, false, td->td_ucred);
+	error = vn_truncate_locked(vp, length, false, td->td_ucred);
 out:
 	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
