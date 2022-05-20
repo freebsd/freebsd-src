@@ -26,13 +26,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stand.h>
-#include <stdbool.h>
+#include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/stdint.h>
-#include <sys/param.h>
-#include <zfsimpl.h>
-#include "libzfs.h"
+#ifdef _STANDALONE
+#include <stand.h>
+#else
+#include <errno.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
+
+#include "nvlist.h"
 
 enum xdr_op {
 	XDR_OP_ENCODE = 1,
@@ -1342,7 +1349,7 @@ nvlist_add_common(nvlist_t *nvl, const char *name, data_type_t type,
 }
 
 int
-nvlist_add_boolean_value(nvlist_t *nvl, const char *name, boolean_t value)
+nvlist_add_boolean_value(nvlist_t *nvl, const char *name, int value)
 {
 	return (nvlist_add_common(nvl, name, DATA_TYPE_BOOLEAN_VALUE, 1,
 	    &value));
@@ -1409,8 +1416,7 @@ nvlist_add_string(nvlist_t *nvl, const char *name, const char *value)
 }
 
 int
-nvlist_add_boolean_array(nvlist_t *nvl, const char *name,
-    boolean_t *a, uint32_t n)
+nvlist_add_boolean_array(nvlist_t *nvl, const char *name, int *a, uint32_t n)
 {
 	return (nvlist_add_common(nvl, name, DATA_TYPE_BOOLEAN_ARRAY, n, a));
 }
