@@ -1052,10 +1052,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	}
 
 	/*
-	 * The 'cdev' will be destroyed asynchronously when 'si_threadcount'
-	 * goes down to 0 so we should not do it again in the callback.
-	 *
-	 * Setting 'sc->cdev' to NULL is also used to indicate that the VM
+	 * Setting 'sc->cdev' to NULL is used to indicate that the VM
 	 * is scheduled for destruction.
 	 */
 	cdev = sc->cdev;
@@ -1063,21 +1060,19 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	mtx_unlock(&vmmdev_mtx);
 
 	/*
-	 * Schedule all cdevs to be destroyed:
+	 * Destroy all cdevs:
 	 *
 	 * - any new operations on the 'cdev' will return an error (ENXIO).
-	 *
-	 * - when the 'si_threadcount' dwindles down to zero the 'cdev' will
-	 *   be destroyed and the callback will be invoked in a taskqueue
-	 *   context.
 	 *
 	 * - the 'devmem' cdevs are destroyed before the virtual machine 'cdev'
 	 */
 	SLIST_FOREACH(dsc, &sc->devmem, link) {
 		KASSERT(dsc->cdev != NULL, ("devmem cdev already destroyed"));
-		destroy_dev_sched_cb(dsc->cdev, devmem_destroy, dsc);
+		destroy_dev(dsc->cdev);
+		devmem_destroy(dsc);
 	}
-	destroy_dev_sched_cb(cdev, vmmdev_destroy, sc);
+	destroy_dev(cdev);
+	vmmdev_destroy(sc);
 	error = 0;
 
 out:
