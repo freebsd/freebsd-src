@@ -2024,8 +2024,8 @@ linux_sched_getparam(struct thread *td,
 }
 
 static const struct cpuset_copy_cb copy_set = {
-	.copyin = copyin,
-	.copyout = copyout
+	.cpuset_copyin = copyin,
+	.cpuset_copyout = copyout
 };
 
 /*
