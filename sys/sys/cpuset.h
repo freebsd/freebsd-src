@@ -159,8 +159,8 @@ struct thread;
  * ABIs, like compat32.
  */
 struct cpuset_copy_cb {
-	int (*copyin)(const void *, void *, size_t);
-	int (*copyout)(const void *, void *, size_t);
+	int (*cpuset_copyin)(const void *, void *, size_t);
+	int (*cpuset_copyout)(const void *, void *, size_t);
 };
 
 struct cpuset *cpuset_thread0(void);
