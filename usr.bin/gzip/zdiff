@@ -38,48 +38,48 @@ USAGE="usage: $0 [options] file1 [file2]"
 check_suffix() {
 	case "$1" in
 	*[._-][Zz])
-		setvar $2 "${1%??}"
-		setvar $3 "gzip -cdqf"
+		eval "$2=\${1%??}"
+		eval "$3=\"gzip -cdqf\""
 		;;
 	*[._-]bz)
-		setvar $2 "${1%???}"
-		setvar $3 "bzip2 -cdqf"
+		eval "$2=\${1%???}"
+		eval "$3=\"bzip2 -cdqf\""
 		;;
 	*[._-]gz)
-		setvar $2 "${1%???}"
-		setvar $3 "gzip -cdqf"
+		eval "$2=\${1%???}"
+		eval "$3=\"gzip -cdqf\""
 		;;
 	*[._-]xz)
-		setvar $2 "${1%???}"
-		setvar $3 "xz -cdqf"
+		eval "$2=\${1%???}"
+		eval "$3=\"xz -cdqf\""
 		;;
 	*[._-]bz2)
-		setvar $2 "${1%????}"
-		setvar $3 "bzip2 -cdqf"
+		eval "$2=\${1%????}"
+		eval "$3=\"bzip2 -cdqf\""
 		;;
 	*[._-]lzma)
-		setvar $2 "${1%?????}"
-		setvar $3 "xz -cdqf"
+		eval "$2=\${1%?????}"
+		eval "$3=\"xz -cdqf\""
 		;;
 	*.t[ag]z)
-		setvar $2 "${1%??}"ar
-		setvar $3 "gzip -cdqf"
+		eval "$2=\${1%??}ar"
+		eval "$3=\"gzip -cdqf\""
 		;;
 	*.tbz)
-		setvar $2 "${1%??}"ar
-		setvar $3 "bzip2 -cdqf"
+		eval "$2=\${1%??}ar"
+		eval "$3=\"bzip2 -cdqf\""
 		;;
 	*.tbz2)
-		setvar $2 "${1%???}"ar
-		setvar $3 "bzip2 -cdqf"
+		eval "$2=\${1%???}ar"
+		eval "$3=\"bzip2 -cdqf\""
 		;;
 	*.t[lx]z)
-		setvar $2 "${1%??}"ar
-		setvar $3 "xz -cdqf"
+		eval "$2=\${1%??}ar"
+		eval "$3=\"xz -cdqf\""
 		;;
 	*)
-		setvar $2 "$1"
-		setvar $3 ""
+		eval "$2=\$1"
+		eval "$3=\"\""
 		;;
 	esac
 }
