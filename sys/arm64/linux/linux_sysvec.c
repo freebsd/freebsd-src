@@ -121,7 +121,6 @@ static int	linux_on_exec_vmspace(struct proc *p,
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 /* DTrace probes */
-LIN_SDT_PROBE_DEFINE2(sysvec, linux_translate_traps, todo, "int", "int");
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_exec_setregs, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_copyout_auxargs, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_elf_fixup, todo);
@@ -129,15 +128,6 @@ LIN_SDT_PROBE_DEFINE0(sysvec, linux_elf_fixup, todo);
 LINUX_VDSO_SYM_CHAR(linux_platform);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
 LINUX_VDSO_SYM_INTPTR(linux_vdso_sigcode);
-
-/* LINUXTODO: do we have traps to translate? */
-static int
-linux_translate_traps(int signal, int trap_code)
-{
-
-	LIN_SDT_PROBE2(sysvec, linux_translate_traps, todo, signal, trap_code);
-	return (signal);
-}
 
 static int
 linux_fetch_syscall_args(struct thread *td)
@@ -552,7 +542,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_transtrap	= linux_translate_traps,
+	.sv_transtrap	= NULL,
 	.sv_fixup	= linux_elf_fixup,
 	.sv_sendsig	= linux_rt_sendsig,
 	.sv_sigcode	= &_binary_linux_vdso_so_o_start,
