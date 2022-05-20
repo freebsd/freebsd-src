@@ -98,6 +98,151 @@ atf_test_case "4in4" "cleanup"
 	ovpn_cleanup
 }
 
+atf_test_case "6in4" "cleanup"
+6in4_head()
+{
+	atf_set descr 'IPv6 in IPv4 tunnel'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+6in4_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a 192.0.2.1/24 up
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping -c 1 192.0.2.2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local 192.0.2.1
+		server-ipv6 2001:db8:1::/64
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping6 -c 3 2001:db8:1::1
+}
+
+6in4_cleanup()
+{
+	ovpn_cleanup
+}
+
+atf_test_case "4in6" "cleanup"
+4in6_head()
+{
+	atf_set descr 'IPv4 in IPv6 tunnel'
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+4in6_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a inet6 2001:db8::1/64 up no_dad
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b inet6 2001:db8::2/64 up no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping6 -c 1 2001:db8::2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp6
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local 2001:db8::1
+		server 198.51.100.0 255.255.255.0
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 2001:db8::1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+}
+
+4in6_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_test_case "6in6" "cleanup"
 6in6_head()
 {
@@ -258,6 +403,8 @@ timeout_client_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "4in4"
+	atf_add_test_case "6in4"
 	atf_add_test_case "6in6"
+	atf_add_test_case "4in6"
 	atf_add_test_case "timeout_client"
 }
