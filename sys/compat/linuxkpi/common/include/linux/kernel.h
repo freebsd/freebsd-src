@@ -597,10 +597,6 @@ extern bool linux_cpu_has_clflush;
 #define	cpu_has_clflush		linux_cpu_has_clflush
 #endif
 
-typedef struct pm_message {
-	int event;
-} pm_message_t;
-
 /* Swap values of a and b */
 #define swap(a, b) do {			\
 	typeof(a) _swap_tmp = a;	\
