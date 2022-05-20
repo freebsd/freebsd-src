@@ -1742,8 +1742,8 @@ cpuset_check_capabilities(struct thread *td, cpulevel_t level, cpuwhich_t which,
 }
 
 static const struct cpuset_copy_cb copy_set = {
-	.copyin = copyin,
-	.copyout = copyout
+	.cpuset_copyin = copyin,
+	.cpuset_copyout = copyout
 };
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1979,7 +1979,7 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (p)
 		PROC_UNLOCK(p);
 	if (error == 0)
-		error = cb->copyout(mask, maskp, size);
+		error = cb->cpuset_copyout(mask, maskp, size);
 out:
 	free(mask, M_TEMP);
 	return (error);
@@ -2229,7 +2229,7 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	}
 	DOMAINSET_COPY(&outset.ds_mask, mask);
 	if (error == 0)
-		error = cb->copyout(mask, maskp, domainsetsize);
+		error = cb->cpuset_copyout(mask, maskp, domainsetsize);
 	if (error == 0)
 		if (suword32(policyp, outset.ds_policy) != 0)
 			error = EFAULT;
@@ -2280,7 +2280,7 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		return (error);
 	memset(&domain, 0, sizeof(domain));
 	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
-	error = cb->copyin(maskp, mask, domainsetsize);
+	error = cb->cpuset_copyin(maskp, mask, domainsetsize);
 	if (error)
 		goto out;
 	/*

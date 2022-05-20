@@ -3303,8 +3303,8 @@ copyout32_set(const void *k, void *u, size_t size)
 }
 
 static const struct cpuset_copy_cb cpuset_copy32_cb = {
-	.copyin = copyin32_set,
-	.copyout = copyout32_set
+	.cpuset_copyin = copyin32_set,
+	.cpuset_copyout = copyout32_set
 };
 
 int
