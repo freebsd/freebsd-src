@@ -294,7 +294,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	int sig;
 	int code;
 
-	sig = ksi->ksi_signo;
+	sig = linux_translate_traps(ksi->ksi_signo, ksi->ksi_trapno);
 	code = ksi->ksi_code;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
@@ -404,7 +404,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	int oonstack;
 	int sig, code;
 
-	sig = ksi->ksi_signo;
+	sig = linux_translate_traps(ksi->ksi_signo, ksi->ksi_trapno);
 	code = ksi->ksi_code;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
@@ -923,7 +923,6 @@ linux32_fixlimit(struct rlimit *rl, int which)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX32_SYS_MAXSYSCALL,
 	.sv_table	= linux32_sysent,
-	.sv_transtrap	= linux_translate_traps,
 	.sv_fixup	= linux_fixup_elf,
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux32_vdso_so_o_start,

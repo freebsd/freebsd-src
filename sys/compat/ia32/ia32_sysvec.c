@@ -106,7 +106,6 @@ SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxvmem, CTLFLAG_RWTUN, &ia32_maxvmem, 0, "
 struct sysentvec ia32_freebsd_sysvec = {
 	.sv_size	= FREEBSD32_SYS_MAXSYSCALL,
 	.sv_table	= freebsd32_sysent,
-	.sv_transtrap	= NULL,
 	.sv_fixup	= elf32_freebsd_fixup,
 	.sv_sendsig	= ia32_sendsig,
 	.sv_sigcode	= _binary_elf_vdso32_so_1_start,
