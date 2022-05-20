@@ -105,6 +105,7 @@ static bool		rpctls_cnuser = false;
 static char		*rpctls_dnsname;
 static const char	*rpctls_cnuseroid = "1.3.6.1.4.1.2238.1.1.1";
 static const char	*rpctls_ciphers = NULL;
+static int		rpctls_mintls = TLS1_3_VERSION;
 
 static void		rpctlssd_terminate(int);
 static SSL_CTX		*rpctls_setup_ssl(const char *certdir);
@@ -119,6 +120,7 @@ static void		rpctls_huphandler(int sig __unused);
 extern void		rpctlssd_1(struct svc_req *rqstp, SVCXPRT *transp);
 
 static struct option longopts[] = {
+	{ "allowtls1_2",	no_argument,		NULL,	'2' },
 	{ "ciphers",		required_argument,	NULL,	'C' },
 	{ "certdir",		required_argument,	NULL,	'D' },
 	{ "debuglevel",		no_argument,		NULL,	'd' },
@@ -180,9 +182,12 @@ main(int argc, char **argv)
 	}
 
 	rpctls_verbose = false;
-	while ((ch = getopt_long(argc, argv, "C:D:dhl:n:mp:r:uvWw", longopts,
+	while ((ch = getopt_long(argc, argv, "2C:D:dhl:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
 		switch (ch) {
+		case '2':
+			rpctls_mintls = TLS1_2_VERSION;
+			break;
 		case 'C':
 			rpctls_ciphers = optarg;
 			break;
@@ -577,6 +582,21 @@ rpctls_setup_ssl(const char *certdir)
 			SSL_CTX_free(ctx);
 			return (NULL);
 		}
+	}
+
+	ret = SSL_CTX_set_min_proto_version(ctx, rpctls_mintls);
+	if (ret == 0) {
+		rpctls_verbose_out("rpctls_setup_ssl: "
+		    "SSL_CTX_set_min_proto_version failed\n");
+		SSL_CTX_free(ctx);
+		return (NULL);
+	}
+	ret = SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
+	if (ret == 0) {
+		rpctls_verbose_out("rpctls_setup_ssl: "
+		    "SSL_CTX_set_max_proto_version failed\n");
+		SSL_CTX_free(ctx);
+		return (NULL);
 	}
 
 	/* Get the cert.pem and certkey.pem files from the directory certdir. */
