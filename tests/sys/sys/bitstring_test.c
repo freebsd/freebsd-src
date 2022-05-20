@@ -29,6 +29,7 @@
  *
  * $FreeBSD$
  */
+
 #include <sys/param.h>
 
 #include <bitstring.h>
@@ -321,26 +322,72 @@ BITSTRING_TC_DEFINE(bit_ffc_at)
 			nbits, memloc, nbits + 3, found_clear_bit);
 }
 
-BITSTRING_TC_DEFINE(bit_ffc_area_no_match)
+BITSTRING_TC_DEFINE(bit_ffc_area_at_all_or_nothing)
 /* bitstr_t *bitstr, int nbits, const char *memloc */
 {
-	int found_clear_bits;
-
-	memset(bitstr, 0xFF, bitstr_size(nbits));
-	bit_ffc_area(bitstr, nbits, 2, &found_clear_bits);
-	ATF_REQUIRE_EQ_MSG(-1, found_clear_bits,
-		"bit_ffc_area_%d_%s: Failed all set bits.", nbits, memloc);
-}
-
-BITSTRING_TC_DEFINE(bit_ffs_area_no_match)
-/* bitstr_t *bitstr, int nbits, const char *memloc */
-{
-	int found_clear_bits;
+	int found;
 
 	memset(bitstr, 0, bitstr_size(nbits));
-	bit_ffs_area(bitstr, nbits, 2, &found_clear_bits);
-	ATF_REQUIRE_EQ_MSG(-1, found_clear_bits,
-		"bit_ffs_area_%d_%s: Failed all clear bits.", nbits, memloc);
+	if (nbits % _BITSTR_BITS != 0)
+		bit_nset(bitstr, nbits, roundup2(nbits, _BITSTR_BITS) - 1);
+
+	for (int start = 0; start < nbits; start++) {
+		for (int size = 1; size < nbits - start; size++) {
+			bit_ffc_area_at(bitstr, start, nbits, size, &found);
+			ATF_REQUIRE_EQ_MSG(start, found,
+			    "bit_ffc_area_at_%d_%s: "
+			    "Did not find %d clear bits at %d",
+			    nbits, memloc, size, start);
+		}
+	}
+
+	memset(bitstr, 0xff, bitstr_size(nbits));
+	if (nbits % _BITSTR_BITS != 0)
+		bit_nclear(bitstr, nbits, roundup2(nbits, _BITSTR_BITS) - 1);
+
+	for (int start = 0; start < nbits; start++) {
+		for (int size = 1; size < nbits - start; size++) {
+			bit_ffc_area_at(bitstr, start, nbits, size, &found);
+			ATF_REQUIRE_EQ_MSG(-1, found,
+			    "bit_ffc_area_at_%d_%s: "
+			    "Found %d clear bits at %d",
+			    nbits, memloc, size, start);
+		}
+	}
+}
+
+BITSTRING_TC_DEFINE(bit_ffs_area_at_all_or_nothing)
+/* bitstr_t *bitstr, int nbits, const char *memloc */
+{
+	int found;
+
+	memset(bitstr, 0, bitstr_size(nbits));
+	if (nbits % _BITSTR_BITS != 0)
+		bit_nset(bitstr, nbits, roundup2(nbits, _BITSTR_BITS) - 1);
+
+	for (int start = 0; start < nbits; start++) {
+		for (int size = 1; size < nbits - start; size++) {
+			bit_ffs_area_at(bitstr, start, nbits, size, &found);
+			ATF_REQUIRE_EQ_MSG(-1, found,
+			    "bit_ffs_area_at_%d_%s: "
+			    "Found %d set bits at %d",
+			    nbits, memloc, size, start);
+		}
+	}
+
+	memset(bitstr, 0xff, bitstr_size(nbits));
+	if (nbits % _BITSTR_BITS != 0)
+		bit_nclear(bitstr, nbits, roundup2(nbits, _BITSTR_BITS) - 1);
+
+	for (int start = 0; start < nbits; start++) {
+		for (int size = 1; size < nbits - start; size++) {
+			bit_ffs_area_at(bitstr, start, nbits, size, &found);
+			ATF_REQUIRE_EQ_MSG(start, found,
+			    "bit_ffs_area_at_%d_%s: "
+			    "Did not find %d set bits at %d",
+			    nbits, memloc, size, start);
+		}
+	}
 }
 
 ATF_TC_WITHOUT_HEAD(bit_ffs_area);
@@ -833,8 +880,8 @@ ATF_TP_ADD_TCS(tp)
 	BITSTRING_TC_ADD(tp, bit_nclear);
 	BITSTRING_TC_ADD(tp, bit_nset);
 	BITSTRING_TC_ADD(tp, bit_count);
-	BITSTRING_TC_ADD(tp, bit_ffs_area_no_match);
-	BITSTRING_TC_ADD(tp, bit_ffc_area_no_match);
+	BITSTRING_TC_ADD(tp, bit_ffs_area_at_all_or_nothing);
+	BITSTRING_TC_ADD(tp, bit_ffc_area_at_all_or_nothing);
 	BITSTRING_TC_ADD(tp, bit_foreach);
 	BITSTRING_TC_ADD(tp, bit_foreach_at);
 	BITSTRING_TC_ADD(tp, bit_foreach_unset);
