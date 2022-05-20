@@ -94,6 +94,18 @@ main(int argc, char *argv[])
 			ipv6 = true;
 			break;
 #endif
+#if defined(INET) && defined(INET6)
+		case 'S':
+			/*
+			 * If -S is given with a numeric parameter,
+			 * force use of the corresponding version.
+			 */
+			if (inet_pton(AF_INET, optarg, &a) == 1)
+				ipv4 = true;
+			else if (inet_pton(AF_INET6, optarg, &a) == 1)
+				ipv6 = true;
+			break;
+#endif
 		default:
 			break;
 		}
