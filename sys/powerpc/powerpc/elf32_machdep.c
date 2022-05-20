@@ -90,7 +90,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 #else
 	.sv_table	= sysent,
 #endif
-	.sv_transtrap	= NULL,
 	.sv_fixup	= __elfN(freebsd_fixup),
 	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
 	.sv_sendsig	= sendsig,

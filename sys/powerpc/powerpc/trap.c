@@ -495,8 +495,6 @@ trap(struct trapframe *frame)
 	}
 
 	if (sig != 0) {
-		if (p->p_sysent->sv_transtrap != NULL)
-			sig = (p->p_sysent->sv_transtrap)(sig, type);
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = sig;
 		ksi.ksi_code = (int) ucode; /* XXX, not POSIX */

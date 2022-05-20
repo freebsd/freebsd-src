@@ -620,10 +620,6 @@ trap(struct trapframe *frame)
 		return;
 	}
 
-	/* Translate fault for emulators (e.g. Linux) */
-	if (*p->p_sysent->sv_transtrap != NULL)
-		signo = (*p->p_sysent->sv_transtrap)(signo, type);
-
 	ksiginfo_init_trap(&ksi);
 	ksi.ksi_signo = signo;
 	ksi.ksi_code = ucode;

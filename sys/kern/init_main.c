@@ -416,7 +416,6 @@ null_set_fork_retval(struct thread *td __unused)
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
-	.sv_transtrap	= NULL,
 	.sv_fixup	= NULL,
 	.sv_sendsig	= NULL,
 	.sv_sigcode	= NULL,

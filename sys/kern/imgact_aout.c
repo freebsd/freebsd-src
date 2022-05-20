@@ -76,7 +76,6 @@ static int	aout_fixup(uintptr_t *stack_base, struct image_params *imgp);
 struct sysentvec aout_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
-	.sv_transtrap	= NULL,
 	.sv_fixup	= aout_fixup,
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= sigcode,
@@ -127,7 +126,6 @@ static int aout_szsigcode;
 struct sysentvec aout_sysvec = {
 	.sv_size	= FREEBSD32_SYS_MAXSYSCALL,
 	.sv_table	= freebsd32_sysent,
-	.sv_transtrap	= NULL,
 	.sv_fixup	= aout_fixup,
 	.sv_sendsig	= ia32_sendsig,
 	.sv_sigcode	= _binary_elf_vdso32_so_1_start,

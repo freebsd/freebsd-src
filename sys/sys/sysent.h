@@ -103,8 +103,6 @@ struct note_info_list;
 struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
-	int		(*sv_transtrap)(int, int);
-					/* translate trap-to-signal mapping */
 	int		(*sv_fixup)(uintptr_t *, struct image_params *);
 					/* stack fixup function */
 	void		(*sv_sendsig)(void (*)(int), struct ksiginfo *, struct __sigset *);
