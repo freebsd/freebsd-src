@@ -12,6 +12,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20220701:
+	LinuxKPI pm.h changes require an update to the latest drm-kmod version
+	before re-compiling to avoid errors.
+
 20220327:
 	Bump __FreeBSD_verion to 1301501 after merging LinuxKPI and
 	net80211 changes in order to help out-of-tree consumers to deal

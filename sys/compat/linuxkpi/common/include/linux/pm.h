@@ -33,6 +33,10 @@
 #ifndef	_LINUXKPI_LINUX_PM_H
 #define	_LINUXKPI_LINUX_PM_H
 
+typedef struct pm_message {
+	int event;
+} pm_message_t;
+
 #ifdef CONFIG_PM_SLEEP
 #define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
 const struct dev_pm_ops _name = {				\
