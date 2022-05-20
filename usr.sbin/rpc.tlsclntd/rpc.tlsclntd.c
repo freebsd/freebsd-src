@@ -96,6 +96,7 @@ static const char	*rpctls_ciphers = NULL;
 static uint64_t		rpctls_ssl_refno = 0;
 static uint64_t		rpctls_ssl_sec = 0;
 static uint64_t		rpctls_ssl_usec = 0;
+static int		rpctls_tlsvers = TLS1_3_VERSION;
 
 static void		rpctlscd_terminate(int);
 static SSL_CTX		*rpctls_setupcl_ssl(void);
@@ -106,6 +107,7 @@ static void		rpctls_huphandler(int sig __unused);
 extern void rpctlscd_1(struct svc_req *rqstp, SVCXPRT *transp);
 
 static struct option longopts[] = {
+	{ "usetls1_2",		no_argument,		NULL,	'2' },
 	{ "certdir",		required_argument,	NULL,	'D' },
 	{ "ciphers",		required_argument,	NULL,	'C' },
 	{ "debuglevel",		no_argument,		NULL,	'd' },
@@ -154,9 +156,12 @@ main(int argc, char **argv)
 	rpctls_ssl_usec = tm.tv_usec;
 
 	rpctls_verbose = false;
-	while ((ch = getopt_long(argc, argv, "C:D:dl:mp:r:v", longopts,
+	while ((ch = getopt_long(argc, argv, "2C:D:dl:mp:r:v", longopts,
 	    NULL)) != -1) {
 		switch (ch) {
+		case '2':
+			rpctls_tlsvers = TLS1_2_VERSION;
+			break;
 		case 'C':
 			rpctls_ciphers = optarg;
 			break;
@@ -463,7 +468,6 @@ static SSL_CTX *
 rpctls_setupcl_ssl(void)
 {
 	SSL_CTX *ctx;
-	long flags;
 	char path[PATH_MAX];
 	size_t len, rlen;
 	int ret;
@@ -567,17 +571,30 @@ rpctls_setupcl_ssl(void)
 			    SSL_load_client_CA_file(rpctls_verify_cafile));
 	}
 
-	/* RPC-over-TLS must use TLSv1.3, according to the IETF draft.*/
-#ifdef notyet
-	flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
-	    SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
-#else
-	flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1_3;
-#endif
+	/*
+	 * The RFC specifies that RPC-over-TLS must use TLS1.3.
+	 * However, early FreeBSD versions (13.0, 13.1) did not
+	 * support RX for KTLS1.3, so TLS1.2 needs to be used for
+	 * these servers.
+	 */
+	ret = SSL_CTX_set_min_proto_version(ctx, rpctls_tlsvers);
+	if (ret == 0) {
+		rpctls_verbose_out("rpctls_setupcl_ssl: "
+		    "SSL_CTX_set_min_proto_version failed\n");
+		SSL_CTX_free(ctx);
+		return (NULL);
+	}
+	ret = SSL_CTX_set_max_proto_version(ctx, rpctls_tlsvers);
+	if (ret == 0) {
+		rpctls_verbose_out("rpctls_setupcl_ssl: "
+		    "SSL_CTX_set_max_proto_version failed\n");
+		SSL_CTX_free(ctx);
+		return (NULL);
+	}
+
 #ifdef SSL_OP_ENABLE_KTLS
-	flags |= SSL_OP_ENABLE_KTLS;
+	SSL_CTX_set_options(ctx, SSL_OP_ENABLE_KTLS);
 #endif
-	SSL_CTX_set_options(ctx, flags);
 #ifdef SSL_MODE_NO_KTLS_TX
 	SSL_CTX_clear_mode(ctx, SSL_MODE_NO_KTLS_TX | SSL_MODE_NO_KTLS_RX);
 #endif
