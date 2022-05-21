@@ -350,6 +350,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	 */
 
 	sz = 0;
+	mm = NULL;
 
 	/*
 	 * Matthew Garrett has observed at least one system changing the
