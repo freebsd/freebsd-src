@@ -61,10 +61,16 @@ if [ $retval -ne $BSDDIALOG_OK ]; then
 fi
 
 havedump=
+havemouse=
 for daemon in $DAEMONS; do
 	[ "$daemon" = "dumpdev" ] && havedump=1 continue
+	[ "$daemon" = "moused" ] && havemouse=1
 	echo ${daemon}_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 done
+
+if [ ! "$havemouse" ]; then
+	echo moused_nondefault_enable=\"NO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+fi
 
 echo '# Set dumpdev to "AUTO" to enable crash dumps, "NO"' \
      'to disable' >> $BSDINSTALL_TMPETC/rc.conf.services
