@@ -40,6 +40,9 @@ f_include $BSDCFG_SHARE/dialog.subr
 
 ############################################################ MAIN
 
+: ${BSDDIALOG_OK=0}
+: ${BSDDIALOG_CANCEL=1}
+
 #
 # TODO:
 # - Add DHCPv6 support once FreeBSD ships with it.
@@ -47,7 +50,7 @@ f_include $BSDCFG_SHARE/dialog.subr
 
 INTERFACE=$1
 case "${INTERFACE}" in
-"")	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+"")	bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
 	    --msgbox 'No interface specified for IPv6 configuration.' 0 0
 	exit 1
 	;;
@@ -56,17 +59,17 @@ esac
 AGAIN=""
 while : ; do
 	MSG="Would you like to try stateless address autoconfiguration (SLAAC)${AGAIN}?"
-	dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
 	    --yesno "${MSG}" 0 0
-	if [ $? -eq $DIALOG_OK ]; then
+	if [ $? -eq $BSDDIALOG_OK ]; then
 		if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
-			dialog --backtitle 'FreeBSD Installer' \
+			bsddialog --backtitle 'FreeBSD Installer' \
 			    --infobox "Sending Router Solicitation ..." 0 0
 			ifconfig ${INTERFACE} inet6 -ifdisabled accept_rtadv up
 			err=$( rtsol -F $INTERFACE 2>&1 )
 			if [ $? -ne 0 ]; then
 				f_dprintf "%s" "$err"
-				dialog --backtitle 'FreeBSD Installer' --msgbox "SLAAC failed." 0 0
+				bsddialog --backtitle 'FreeBSD Installer' --msgbox "SLAAC failed." 0 0
 				AGAIN=" again"
 				continue
 			fi
@@ -90,27 +93,27 @@ BEGIN {
 		# For the moment ignore all but the first address; it might confuse the user.
 		if (n > 0) { next; };
 		n++;
-		printf "\"IPv6 Address\" %d 0 \"%s/%s\" %d 16 50 0 0 ", n, $2, $4, n;
+		printf "\"IPv6 Address\" %d 1 \"%s/%s\" %d 16 50 50 0 ", n, $2, $4, n;
 	}
 }
 END {
 	if (n == 0) {
 		n++;
-		printf "\"IPv6 Address\" %d 0 \"\" %d 16 50 0 0 ", n, n;
+		printf "\"IPv6 Address\" %d 1 \"\" %d 16 50 50 0 ", n, n;
 	}
 	n++;
 	# Nasty trick adding a (hidden, same y) read-only field as a marker
 	# to separate interface address(es) from the default router.
-	printf "\"Default Router\" %d 0 \"%s\" %d 16 50 0 2 ", n, "DefaultRouter", n;
-	printf "\"Default Router\" %d 0 \"%s\" %d 16 50 0 0 ", n, dfr, n;
+	printf "\"Default Router\" %d 1 \"%s\" %d 1 14 14 2 ", n, "DefaultRouter", n;
+	printf "\"Default Router\" %d 1 \"%s\" %d 16 50 50 0 ", n, dfr, n;
 }'`
 
 exec 3>&1
-IF_CONFIG=$(echo ${ADDRS} | xargs dialog --backtitle 'FreeBSD Installer' \
+IF_CONFIG=$(echo ${ADDRS} | xargs -o bsddialog --backtitle 'FreeBSD Installer' \
 	--title 'Network Configuration' \
 	--mixedform 'Static IPv6 Network Interface Configuration' 0 0 0 \
 2>&1 1>&3)
-if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
+if [ $? -eq $BSDDIALOG_CANCEL ]; then exit 1; fi
 exec 3>&-
 
 echo ${IF_CONFIG} | tr ' ' '\n' | \
