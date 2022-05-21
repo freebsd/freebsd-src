@@ -60,8 +60,6 @@
  */
 
 #include <sys/queue.h>
-#include <sys/list.h>
-#include <bootstrap.h>
 
 #ifndef _ZFSIMPL_H_
 #define	_ZFSIMPL_H_
@@ -399,6 +397,21 @@ _NOTE(CONSTCOND) } while (0)
 #define	BP_PHYSICAL_BIRTH(bp)		\
 	((bp)->blk_phys_birth ? (bp)->blk_phys_birth : (bp)->blk_birth)
 
+#define	BP_SET_BIRTH(bp, logical, physical)	\
+{						\
+	ASSERT(!BP_IS_EMBEDDED(bp));		\
+	(bp)->blk_birth = (logical);		\
+	(bp)->blk_phys_birth = ((logical) == (physical) ? 0 : (physical)); \
+}
+
+#define	BP_GET_FILL(bp)				\
+	((BP_IS_EMBEDDED(bp)) ? 1 : (bp)->blk_fill)
+
+#define	BP_SET_FILL(bp, fill)			\
+{						\
+	(bp)->blk_fill = fill;			\
+}
+
 #define	BP_GET_ASIZE(bp)	\
 	(DVA_GET_ASIZE(&(bp)->blk_dva[0]) + DVA_GET_ASIZE(&(bp)->blk_dva[1]) + \
 		DVA_GET_ASIZE(&(bp)->blk_dva[2]))
@@ -544,7 +557,8 @@ typedef struct vdev_boot_envblock {
  	zio_eck_t	vbe_zbt;
 } vdev_boot_envblock_t;
 
-CTASSERT(sizeof (vdev_boot_envblock_t) == VDEV_PAD_SIZE);
+_Static_assert(sizeof (vdev_boot_envblock_t) == VDEV_PAD_SIZE,
+    "bad size for vdev_boot_envblock_t");
 
 typedef struct vdev_label {
 	char		vl_pad1[VDEV_PAD_SIZE];			/*  8K  */
@@ -1141,8 +1155,8 @@ typedef enum dmu_object_type {
 	DMU_OT_OBJECT_ARRAY,		/* UINT64 */
 	DMU_OT_PACKED_NVLIST,		/* UINT8 (XDR by nvlist_pack/unpack) */
 	DMU_OT_PACKED_NVLIST_SIZE,	/* UINT64 */
-	DMU_OT_BPLIST,			/* UINT64 */
-	DMU_OT_BPLIST_HDR,		/* UINT64 */
+	DMU_OT_BPOBJ,			/* UINT64 */
+	DMU_OT_BPOBJ_HDR,		/* UINT64 */
 	/* spa: */
 	DMU_OT_SPACE_MAP_HEADER,	/* UINT64 */
 	DMU_OT_SPACE_MAP,		/* UINT64 */
@@ -1194,6 +1208,10 @@ typedef enum dmu_object_type {
 	DMU_OT_SA_ATTR_LAYOUTS,		/* ZAP */
 	DMU_OT_SCAN_XLATE,		/* ZAP */
 	DMU_OT_DEDUP,			/* fake dedup BP from ddt_bp_create() */
+	DMU_OT_DEADLIST,		/* ZAP */
+	DMU_OT_DEADLIST_HDR,		/* UINT64 */
+	DMU_OT_DSL_CLONES,		/* ZAP */
+	DMU_OT_BPOBJ_SUBOBJ,		/* UINT64 */
 	DMU_OT_NUMTYPES,
 
 	/*
@@ -1264,6 +1282,16 @@ typedef struct sa_hdr_phys {
 	BF32_SET(x, 0, 10, num); \
 }
 
+#define	SA_ATTR_BSWAP(x)	BF32_GET(x, 16, 8)
+#define	SA_ATTR_LENGTH(x)	BF32_GET(x, 24, 16)
+#define	SA_ATTR_NUM(x)		BF32_GET(x, 0, 16)
+#define	SA_ATTR_ENCODE(x, attr, length, bswap) \
+{ \
+	BF64_SET(x, 24, 16, length); \
+	BF64_SET(x, 16, 8, bswap); \
+	BF64_SET(x, 0, 16, attr); \
+}
+
 #define	SA_MODE_OFFSET		0
 #define	SA_SIZE_OFFSET		8
 #define	SA_GEN_OFFSET		16
@@ -1271,6 +1299,19 @@ typedef struct sa_hdr_phys {
 #define	SA_GID_OFFSET		32
 #define	SA_PARENT_OFFSET	40
 #define	SA_SYMLINK_OFFSET	160
+
+#define	SA_REGISTRY	"REGISTRY"
+#define	SA_LAYOUTS	"LAYOUTS"
+
+typedef enum sa_bswap_type {
+	SA_UINT64_ARRAY,
+	SA_UINT32_ARRAY,
+	SA_UINT16_ARRAY,
+	SA_UINT8_ARRAY,
+	SA_ACL,
+} sa_bswap_type_t;
+
+typedef uint16_t	sa_attr_type_t;
 
 #define	ZIO_OBJSET_MAC_LEN		32
 
@@ -1306,6 +1347,62 @@ typedef struct objset_phys {
 	    sizeof (dnode_phys_t)];
 } objset_phys_t;
 
+typedef struct space_map_phys {
+	/* object number: not needed but kept for backwards compatibility */
+	uint64_t	smp_object;
+
+	/* length of the object in bytes */
+	uint64_t	smp_length;
+
+	/* space allocated from the map */
+	int64_t		smp_alloc;
+} space_map_phys_t;
+
+typedef enum {
+	SM_ALLOC,
+	SM_FREE
+} maptype_t;
+
+/* one-word entry constants */
+#define	SM_DEBUG_PREFIX	2
+#define	SM_OFFSET_BITS	47
+#define	SM_RUN_BITS	15
+
+/* two-word entry constants */
+#define	SM2_PREFIX	3
+#define	SM2_OFFSET_BITS	63
+#define	SM2_RUN_BITS	36
+
+#define	SM_PREFIX_DECODE(x)	BF64_DECODE(x, 62, 2)
+#define	SM_PREFIX_ENCODE(x)	BF64_ENCODE(x, 62, 2)
+
+#define	SM_DEBUG_ACTION_DECODE(x)	BF64_DECODE(x, 60, 2)
+#define	SM_DEBUG_ACTION_ENCODE(x)	BF64_ENCODE(x, 60, 2)
+#define	SM_DEBUG_SYNCPASS_DECODE(x)	BF64_DECODE(x, 50, 10)
+#define	SM_DEBUG_SYNCPASS_ENCODE(x)	BF64_ENCODE(x, 50, 10)
+#define	SM_DEBUG_TXG_DECODE(x)		BF64_DECODE(x, 0, 50)
+#define	SM_DEBUG_TXG_ENCODE(x)		BF64_ENCODE(x, 0, 50)
+
+#define	SM_OFFSET_DECODE(x)	BF64_DECODE(x, 16, SM_OFFSET_BITS)
+#define	SM_OFFSET_ENCODE(x)	BF64_ENCODE(x, 16, SM_OFFSET_BITS)
+#define	SM_TYPE_DECODE(x)	BF64_DECODE(x, 15, 1)
+#define	SM_TYPE_ENCODE(x)	BF64_ENCODE(x, 15, 1)
+#define	SM_RUN_DECODE(x)	(BF64_DECODE(x, 0, SM_RUN_BITS) + 1)
+#define	SM_RUN_ENCODE(x)	BF64_ENCODE((x) - 1, 0, SM_RUN_BITS)
+#define	SM_RUN_MAX		SM_RUN_DECODE(~0ULL)
+#define	SM_OFFSET_MAX		SM_OFFSET_DECODE(~0ULL)
+
+#define	SM2_RUN_DECODE(x)	(BF64_DECODE(x, 24, SM2_RUN_BITS) + 1)
+#define	SM2_RUN_ENCODE(x)	BF64_ENCODE((x) - 1, 24, SM2_RUN_BITS)
+#define	SM2_VDEV_DECODE(x)	BF64_DECODE(x, 0, 24)
+#define	SM2_VDEV_ENCODE(x)	BF64_ENCODE(x, 0, 24)
+#define	SM2_TYPE_DECODE(x)	BF64_DECODE(x, SM2_OFFSET_BITS, 1)
+#define	SM2_TYPE_ENCODE(x)	BF64_ENCODE(x, SM2_OFFSET_BITS, 1)
+#define	SM2_OFFSET_DECODE(x)	BF64_DECODE(x, 0, SM2_OFFSET_BITS)
+#define	SM2_OFFSET_ENCODE(x)	BF64_ENCODE(x, 0, SM2_OFFSET_BITS)
+#define	SM2_RUN_MAX		SM2_RUN_DECODE(~0ULL)
+#define	SM2_OFFSET_MAX		SM2_OFFSET_DECODE(~0ULL)
+
 typedef struct dsl_dir_phys {
 	uint64_t dd_creation_time; /* not actually used */
 	uint64_t dd_head_dataset_obj;
@@ -1324,7 +1421,9 @@ typedef struct dsl_dir_phys {
 	/* Administrative reservation setting */
 	uint64_t dd_reserved;
 	uint64_t dd_props_zapobj;
-	uint64_t dd_pad[21]; /* pad out to 256 bytes for good measure */
+	uint64_t dd_pad[7];
+	uint64_t dd_clones;
+	uint64_t dd_pad1[13]; /* pad out to 256 bytes for good measure */
 } dsl_dir_phys_t;
 
 typedef struct dsl_dataset_phys {
@@ -1353,12 +1452,33 @@ typedef struct dsl_dataset_phys {
 	uint64_t ds_pad[8]; /* pad out to 320 bytes for good measure */
 } dsl_dataset_phys_t;
 
+typedef struct dsl_deadlist_phys {
+	uint64_t dl_used;
+	uint64_t dl_comp;
+	uint64_t dl_uncomp;
+	uint64_t dl_pad[37]; /* pad out to 320b for future expansion */
+} dsl_deadlist_phys_t;
+
+#define	BPOBJ_SIZE_V2	(6 * sizeof (uint64_t))
+
+typedef struct bpobj_phys {
+	uint64_t	bpo_num_blkptrs;
+	uint64_t	bpo_bytes;
+	uint64_t	bpo_comp;
+	uint64_t	bpo_uncomp;
+	uint64_t	bpo_subobjs;
+	uint64_t	bpo_num_subobjs;
+	uint64_t	bpo_num_freed;
+} bpobj_phys_t;
+
 /*
  * The names of zap entries in the DIRECTORY_OBJECT of the MOS.
  */
 #define	DMU_POOL_DIRECTORY_OBJECT	1
 #define	DMU_POOL_CONFIG			"config"
 #define	DMU_POOL_FEATURES_FOR_READ	"features_for_read"
+#define	DMU_POOL_FEATURES_FOR_WRITE	"features_for_write"
+#define	DMU_POOL_FEATURE_DESCRIPTIONS	"feature_descriptions"
 #define	DMU_POOL_ROOT_DATASET		"root_dataset"
 #define	DMU_POOL_SYNC_BPLIST		"sync_bplist"
 #define	DMU_POOL_ERRLOG_SCRUB		"errlog_scrub"
@@ -1367,6 +1487,10 @@ typedef struct dsl_dataset_phys {
 #define	DMU_POOL_DEFLATE		"deflate"
 #define	DMU_POOL_HISTORY		"history"
 #define	DMU_POOL_PROPS			"pool_props"
+#define	DMU_POOL_FREE_BPOBJ		"free_bpobj"
+#define	DMU_POOL_BPTREE_OBJ		"bptree_obj"
+#define	DMU_POOL_EMPTY_BPOBJ		"empty_bpobj"
+#define	DMU_POOL_TMP_USERREFS		"tmp_userrefs"
 #define	DMU_POOL_CHECKSUM_SALT		"org.illumos:checksum_salt"
 #define	DMU_POOL_REMOVING		"com.delphix:removing"
 #define	DMU_POOL_OBSOLETE_BPOBJ		"com.delphix:obsolete_bpobj"
@@ -1380,8 +1504,10 @@ typedef struct dsl_dataset_phys {
 #define	ZAP_MAXCD		(uint32_t)(-1)
 #define	ZAP_HASHBITS		28
 #define	MZAP_ENT_LEN		64
+#define	MZAP_ENT_MAX		\
+	((MZAP_MAX_BLKSZ - sizeof(mzap_phys_t)) / sizeof(mzap_ent_phys_t) + 1)
 #define	MZAP_NAME_LEN		(MZAP_ENT_LEN - 8 - 4 - 2)
-#define	MZAP_MAX_BLKSZ		SPA_OLD_MAXBLOCKSIZE
+#define	MZAP_MAX_BLKSZ		SPA_OLDMAXBLOCKSIZE
 
 typedef struct mzap_ent_phys {
 	uint64_t mze_value;
@@ -1430,6 +1556,8 @@ typedef struct mzap_phys {
 #define	ZAP_EMBEDDED_PTRTBL_ENT(zap, idx) \
 	((uint64_t *)(zap)->zap_phys) \
 	[(idx) + (1<<ZAP_EMBEDDED_PTRTBL_SHIFT(zap))]
+
+#define	ZAP_HASH_IDX(hash, n)	(((n) == 0) ? 0 : ((hash) >> (64 - (n))))
 
 /*
  * TAKE NOTE:
@@ -1518,9 +1646,15 @@ typedef struct fat_zap {
  * chunk_t.
  */
 #define	ZAP_LEAF_CHUNK(l, idx) \
-	((zap_leaf_chunk_t *) \
+	((zap_leaf_chunk_t *)(void *) \
 	((l)->l_phys->l_hash + ZAP_LEAF_HASH_NUMENTRIES(l)))[idx]
 #define	ZAP_LEAF_ENTRY(l, idx) (&ZAP_LEAF_CHUNK(l, idx).l_entry)
+
+#define	ZAP_LEAF_HASH(l, h) \
+	((ZAP_LEAF_HASH_NUMENTRIES(l)-1) & \
+	((h) >> \
+	(64 - ZAP_LEAF_HASH_SHIFT(l) - (l)->l_phys->l_hdr.lh_prefix_len)))
+#define	ZAP_LEAF_HASH_ENTPTR(l, h) (&(l)->l_phys->l_hash[ZAP_LEAF_HASH(l, h)])
 
 typedef enum zap_chunk_type {
 	ZAP_CHUNK_FREE = 253,
@@ -1589,12 +1723,78 @@ typedef struct zap_leaf {
 	zap_leaf_phys_t *l_phys;
 } zap_leaf_t;
 
+#define	ZAP_MAXNAMELEN 256
+#define	ZAP_MAXVALUELEN (1024 * 8)
+
+#define	ACE_READ_DATA		0x00000001	/* file: read data */
+#define	ACE_LIST_DIRECTORY	0x00000001	/* dir: list files */
+#define	ACE_WRITE_DATA		0x00000002	/* file: write data */
+#define	ACE_ADD_FILE		0x00000002	/* dir: create file */
+#define	ACE_APPEND_DATA		0x00000004	/* file: append data */
+#define	ACE_ADD_SUBDIRECTORY	0x00000004	/* dir: create subdir */
+#define	ACE_READ_NAMED_ATTRS	0x00000008	/* FILE_READ_EA */
+#define	ACE_WRITE_NAMED_ATTRS	0x00000010	/* FILE_WRITE_EA */
+#define	ACE_EXECUTE		0x00000020	/* file: execute */
+#define	ACE_TRAVERSE		0x00000020	/* dir: lookup name */
+#define	ACE_DELETE_CHILD	0x00000040	/* dir: unlink child */
+#define	ACE_READ_ATTRIBUTES	0x00000080	/* (all) stat, etc. */
+#define	ACE_WRITE_ATTRIBUTES	0x00000100	/* (all) utimes, etc. */
+#define	ACE_DELETE		0x00010000	/* (all) unlink self */
+#define	ACE_READ_ACL		0x00020000	/* (all) getsecattr */
+#define	ACE_WRITE_ACL		0x00040000	/* (all) setsecattr */
+#define	ACE_WRITE_OWNER		0x00080000	/* (all) chown */
+#define	ACE_SYNCHRONIZE		0x00100000	/* (all) */
+
+#define	ACE_FILE_INHERIT_ACE		0x0001
+#define	ACE_DIRECTORY_INHERIT_ACE	0x0002
+#define	ACE_NO_PROPAGATE_INHERIT_ACE	0x0004
+#define	ACE_INHERIT_ONLY_ACE		0x0008
+#define	ACE_SUCCESSFUL_ACCESS_ACE_FLAG	0x0010
+#define	ACE_FAILED_ACCESS_ACE_FLAG	0x0020
+#define	ACE_IDENTIFIER_GROUP		0x0040
+#define	ACE_INHERITED_ACE		0x0080
+#define	ACE_OWNER			0x1000
+#define	ACE_GROUP			0x2000
+#define	ACE_EVERYONE			0x4000
+
+#define	ACE_ACCESS_ALLOWED_ACE_TYPE	0x0000
+#define	ACE_ACCESS_DENIED_ACE_TYPE	0x0001
+#define	ACE_SYSTEM_AUDIT_ACE_TYPE	0x0002
+#define	ACE_SYSTEM_ALARM_ACE_TYPE	0x0003
+
+typedef struct zfs_ace_hdr {
+	uint16_t z_type;
+	uint16_t z_flags;
+	uint32_t z_access_mask;
+} zfs_ace_hdr_t;
+
 /*
  * Define special zfs pflags
  */
-#define	ZFS_XATTR	0x1		/* is an extended attribute */
-#define	ZFS_INHERIT_ACE	0x2		/* ace has inheritable ACEs */
-#define	ZFS_ACL_TRIVIAL 0x4		/* files ACL is trivial */
+#define	ZFS_XATTR		0x1		/* is an extended attribute */
+#define	ZFS_INHERIT_ACE		0x2		/* ace has inheritable ACEs */
+#define	ZFS_ACL_TRIVIAL		0x4		/* files ACL is trivial */
+#define	ZFS_ACL_OBJ_ACE		0x8		/* ACL has CMPLX Object ACE */
+#define	ZFS_ACL_PROTECTED	0x10		/* ACL protected */
+#define	ZFS_ACL_DEFAULTED	0x20		/* ACL should be defaulted */
+#define	ZFS_ACL_AUTO_INHERIT	0x40		/* ACL should be inherited */
+#define	ZFS_BONUS_SCANSTAMP	0x80		/* Scanstamp in bonus area */
+#define	ZFS_NO_EXECS_DENIED	0x100		/* exec was given to everyone */
+
+#define	ZFS_READONLY		0x0000000100000000ull
+#define	ZFS_HIDDEN		0x0000000200000000ull
+#define	ZFS_SYSTEM		0x0000000400000000ull
+#define	ZFS_ARCHIVE		0x0000000800000000ull
+#define	ZFS_IMMUTABLE		0x0000001000000000ull
+#define	ZFS_NOUNLINK		0x0000002000000000ull
+#define	ZFS_APPENDONLY		0x0000004000000000ull
+#define	ZFS_NODUMP		0x0000008000000000ull
+#define	ZFS_OPAQUE		0x0000010000000000ull
+#define	ZFS_AV_QUARANTINED	0x0000020000000000ull
+#define	ZFS_AV_MODIFIED		0x0000040000000000ull
+#define	ZFS_REPARSE		0x0000080000000000ull
+#define	ZFS_OFFLINE		0x0000100000000000ull
+#define	ZFS_SPARSE		0x0000200000000000ull
 
 #define	MASTER_NODE_OBJ	1
 
@@ -1608,6 +1808,7 @@ typedef struct zap_leaf {
 #define	ZPL_VERSION_OBJ		"VERSION"
 #define	ZFS_PROP_BLOCKPERPAGE	"BLOCKPERPAGE"
 #define	ZFS_PROP_NOGROWBLOCKS	"NOGROWBLOCKS"
+#define	ZFS_SA_ATTRS		"SA_ATTRS"
 
 #define	ZFS_FLAG_BLOCKPERPAGE	0x1
 #define	ZFS_FLAG_NOGROWBLOCKS	0x2
@@ -1709,12 +1910,6 @@ typedef struct vdev_indirect_mapping_entry_phys {
 	BF64_GET_SB((vimep)->vimep_src, 0, 63, SPA_MINBLOCKSHIFT, 0)
 #define	DVA_MAPPING_SET_SRC_OFFSET(vimep, x)	\
 	BF64_SET_SB((vimep)->vimep_src, 0, 63, SPA_MINBLOCKSHIFT, 0, x)
-
-typedef struct vdev_indirect_mapping_entry {
-	vdev_indirect_mapping_entry_phys_t	vime_mapping;
-	uint32_t				vime_obsolete_count;
-	list_node_t				vime_node;
-} vdev_indirect_mapping_entry_t;
 
 /*
  * This is stored in the bonus buffer of the mapping object, see comment of
@@ -1864,6 +2059,6 @@ typedef struct zio {
 	int		io_error;
 } zio_t;
 
-static void decode_embedded_bp_compressed(const blkptr_t *, void *);
+extern void decode_embedded_bp_compressed(const blkptr_t *, void *);
 
 #endif /* _ZFSIMPL_H_ */
