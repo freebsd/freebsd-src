@@ -34,6 +34,8 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 
 ############################################################ MAIN
 
+: ${BSDDIALOG_OK=0}
+
 f_dprintf "Began Installation at %s" "$( date )"
 export BSDINSTALL_CHROOT=$1
 
@@ -42,10 +44,10 @@ error() {
 	if [ -n "$1" ]; then
 		msg="$1\n\n"
 	fi
-	dialog --backtitle "FreeBSD Installer" --title "Abort" \
+	bsddialog --backtitle "FreeBSD Installer" --title "Abort" \
 	    --no-label "Exit" --yes-label "Restart" --yesno \
 	    "${msg}An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
-	if [ $? -ne 0 ]; then
+	if [ $? -ne $BSDDIALOG_OK ]; then
 		exit
 	else
 		exec $0 $BSDINSTALL_CHROOT
@@ -81,9 +83,9 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
     if [ ! "$nonInteractive" == "YES" ]
     then
 	    exec 3>&1
-	    EXTRA_DISTS=$(echo $DISTMENU | xargs dialog \
+	    EXTRA_DISTS=$(echo $DISTMENU | xargs -o bsddialog \
 	        --backtitle "FreeBSD Installer" \
-	        --title "Distribution Select" --nocancel --separate-output \
+	        --title "Distribution Select" --no-cancel --separate-output \
 	        --checklist "Choose optional system components to install:" \
 	        0 0 0 \
 	    2>&1 1>&3)
@@ -128,7 +130,7 @@ if [ ! "$nonInteractive" == "YES" ]
 then
 bsdinstall services
 
-    dialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
+    bsddialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
         "Would you like to add users to the installed system now?" 0 0 && \
         bsdinstall adduser
 fi
