@@ -8,5 +8,7 @@ PACKAGE= tests
 ATF_TESTS_SH+=	ping_test
 ${PACKAGE}FILES+= ping_c1_s56_t1.out
 ${PACKAGE}FILES+= ping_6_c1_s8_t1.out
+${PACKAGE}FILES+= ping_c1_s56_t1_S127.out
+${PACKAGE}FILES+= ping_c1_s8_t1_S1.out
 
 .include <bsd.test.mk>
