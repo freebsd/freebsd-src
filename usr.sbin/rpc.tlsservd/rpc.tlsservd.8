@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Modified from gssd.8 for rpc.tlsservd.8 by Rick Macklem.
-.Dd January 29, 2021
+.Dd May 17, 2022
 .Dt RPC.TLSSERVD 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nd "Sun RPC over TLS Server Daemon"
 .Sh SYNOPSIS
 .Nm
+.Op Fl C Ar available_ciphers
 .Op Fl D Ar certdir
 .Op Fl d
 .Op Fl h
@@ -140,6 +141,24 @@ option has been specified.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl C Ar available_ciphers , Fl Fl ciphers= Ns Ar available_ciphers
+Specify which ciphers are available during TLS handshake.
+If this option is specified,
+.Dq SSL_CTX_set_ciphersuites()
+will be called with
+.Dq available_ciphers
+as the argument.
+If this option is not specified, the cipher will be chosen by
+.Xr ssl 7 ,
+which should be adequate for most cases.
+The format for the available ciphers is a simple
+.So
+:
+.Sc
+separated list, in order of preference.
+The command
+.Dq openssl ciphers -s -tls1_3
+lists available ciphers.
 .It Fl D Ar certdir , Fl Fl certdir= Ns Ar certdir
 Use
 .Dq certdir
@@ -324,6 +343,7 @@ options is allowed.
 .Xr openssl 1 ,
 .Xr ktls 4 ,
 .Xr exports 5 ,
+.Xr ssl 7 ,
 .Xr mount_nfs 8 ,
 .Xr nfsuserd 8 ,
 .Xr rpc.tlsclntd 8 ,
