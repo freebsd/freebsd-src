@@ -188,6 +188,7 @@ main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr, "usage: %s "
+			    "[-2/--usetls1_2] "
 			    "[-C/--ciphers available_ciphers] "
 			    "[-D/--certdir certdir] [-d/--debuglevel] "
 			    "[-l/--verifylocs CAfile] [-m/--mutualverf] "
