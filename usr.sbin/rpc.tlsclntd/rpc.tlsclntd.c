@@ -188,7 +188,7 @@ main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr, "usage: %s "
-			    "[-C/--ciphers preferred_ciphers] "
+			    "[-C/--ciphers available_ciphers] "
 			    "[-D/--certdir certdir] [-d/--debuglevel] "
 			    "[-l/--verifylocs CAfile] [-m/--mutualverf] "
 			    "[-p/--verifydir CApath] [-r/--crl CRLfile] "
@@ -486,13 +486,13 @@ rpctls_setupcl_ssl(void)
 
 	if (rpctls_ciphers != NULL) {
 		/*
-		 * Set preferred ciphers, since KERN_TLS only supports a
+		 * Set available ciphers, since KERN_TLS only supports a
 		 * few of them.
 		 */
-		ret = SSL_CTX_set_cipher_list(ctx, rpctls_ciphers);
+		ret = SSL_CTX_set_ciphersuites(ctx, rpctls_ciphers);
 		if (ret == 0) {
 			rpctls_verbose_out("rpctls_setupcl_ssl: "
-			    "SSL_CTX_set_cipher_list failed: %s\n",
+			    "SSL_CTX_set_ciphersuites failed: %s\n",
 			    rpctls_ciphers);
 			SSL_CTX_free(ctx);
 			return (NULL);
