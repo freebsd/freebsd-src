@@ -237,6 +237,7 @@ main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr, "usage: %s "
+			    "[-2/--allowtls1_2] "
 			    "[-C/--ciphers available_ciphers] "
 			    "[-D/--certdir certdir] [-d/--debuglevel] "
 			    "[-h/--checkhost] "
