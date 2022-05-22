@@ -2864,7 +2864,7 @@ main(int argc, char *argv[])
 	if (anchoropt != NULL) {
 		int len = strlen(anchoropt);
 
-		if (anchoropt[len - 1] == '*') {
+		if (len >= 1 && anchoropt[len - 1] == '*') {
 			if (len >= 2 && anchoropt[len - 2] == '/')
 				anchoropt[len - 2] = '\0';
 			else
