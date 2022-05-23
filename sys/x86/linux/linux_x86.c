@@ -1,7 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2021 Dmitry Chagin <dchagin@FreeBSD.org>
+ * Copyright (c) 1994-1996 Søren Schmidt
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,16 +26,31 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _X86_INCLUDE_LINUX_LINUX_X86_H_
-#define _X86_INCLUDE_LINUX_LINUX_X86_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	LINUX_VDSO_CPU_DEFAULT		0
-#define	LINUX_VDSO_CPU_RDPID		1
-#define	LINUX_VDSO_CPU_RDTSCP		2
+#include <sys/param.h>
+#include <sys/signal.h>
+#include <x86/trap.h>
 
-int	linux_vdso_tsc_selector_idx(void);
-int	linux_vdso_cpu_selector_idx(void);
+#include <x86/linux/linux_x86.h>
 
-int	linux_translate_traps(int, int);
-
-#endif /* _X86_INCLUDE_LINUX_LINUX_X86_H_ */
+/*
+ * If FreeBSD & Linux have a difference of opinion about what a trap
+ * means, deal with it here.
+ */
+int
+linux_translate_traps(int signal, int trap_code)
+{
+	if (signal != SIGBUS)
+		return (signal);
+	switch (trap_code) {
+	case T_PROTFLT:
+	case T_TSSFLT:
+	case T_DOUBLEFLT:
+	case T_PAGEFLT:
+		return (SIGSEGV);
+	default:
+		return (signal);
+	}
+}
