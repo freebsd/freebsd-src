@@ -536,7 +536,7 @@ bcm_pcib_msi_attach(device_t dev)
 	    INTR_MPSAFE, bcm_pcib_msi_intr, NULL, sc, &sc->msi_intr_cookie);
 	if (error != 0) {
 		device_printf(dev, "error: failed to setup MSI handler.\n");
-		return (ENXIO);
+		return (error);
 	}
 
 	bcm_name = device_get_nameunit(dev);
@@ -547,7 +547,7 @@ bcm_pcib_msi_attach(device_t dev)
 		if (error != 0) {
 			device_printf(dev,
 			"error: failed to register interrupt %d.\n", i);
-			return (ENXIO);
+			return (error);
 		}
 	}
 
@@ -557,7 +557,7 @@ bcm_pcib_msi_attach(device_t dev)
 
 	error = intr_msi_register(dev, xref);
 	if (error != 0)
-		return (ENXIO);
+		return (error);
 
 	mtx_init(&sc->msi_mtx, "bcm_pcib: msi_mtx", NULL, MTX_DEF);
 
