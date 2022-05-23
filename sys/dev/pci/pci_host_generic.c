@@ -97,8 +97,9 @@ pci_host_generic_core_attach(device_t dev)
 	rid = 0;
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->res == NULL) {
-		device_printf(dev, "could not map memory.\n");
-		return (ENXIO);
+		device_printf(dev, "could not allocate memory.\n");
+		error = ENXIO;
+		goto err_resource;
 	}
 
 	sc->bst = rman_get_bustag(sc->res);
@@ -118,19 +119,19 @@ pci_host_generic_core_attach(device_t dev)
 	error = rman_init(&sc->pmem_rman);
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
-		return (error);
+		goto err_pmem_rman;
 	}
 
 	error = rman_init(&sc->mem_rman);
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
-		return (error);
+		goto err_mem_rman;
 	}
 
 	error = rman_init(&sc->io_rman);
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
-		return (error);
+		goto err_io_rman;
 	}
 
 	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
@@ -159,12 +160,42 @@ pci_host_generic_core_attach(device_t dev)
 		if (error) {
 			device_printf(dev, "rman_manage_region() failed."
 						"error = %d\n", error);
-			rman_fini(&sc->pmem_rman);
-			rman_fini(&sc->mem_rman);
-			rman_fini(&sc->io_rman);
-			return (error);
+			goto err_rman_manage;
 		}
 	}
+
+	return (0);
+
+err_rman_manage:
+	rman_fini(&sc->io_rman);
+err_io_rman:
+	rman_fini(&sc->mem_rman);
+err_mem_rman:
+	rman_fini(&sc->pmem_rman);
+err_pmem_rman:
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
+err_resource:
+	bus_dma_tag_destroy(sc->dmat);
+	return (error);
+}
+
+int
+pci_host_generic_core_detach(device_t dev)
+{
+	struct generic_pcie_core_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
+	rman_fini(&sc->io_rman);
+	rman_fini(&sc->mem_rman);
+	rman_fini(&sc->pmem_rman);
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
+	bus_dma_tag_destroy(sc->dmat);
 
 	return (0);
 }
@@ -538,6 +569,8 @@ generic_pcie_get_dma_tag(device_t dev, device_t child)
 
 static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(device_attach,		pci_host_generic_core_attach),
+	DEVMETHOD(device_detach,		pci_host_generic_core_detach),
+
 	DEVMETHOD(bus_read_ivar,		generic_pcie_read_ivar),
 	DEVMETHOD(bus_write_ivar,		generic_pcie_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		pci_host_generic_core_alloc_resource),
