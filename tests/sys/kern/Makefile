@@ -38,6 +38,7 @@ ATF_TESTS_C+=	sysctl_kern_proc
 ATF_TESTS_C+=	sys_getrandom
 ATF_TESTS_C+=	unix_dgram
 ATF_TESTS_C+=	unix_passfd_test
+TEST_METADATA.unix_passfd_test+=	is_exclusive="true"
 ATF_TESTS_C+=	unix_seqpacket_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 ATF_TESTS_C+=	unix_socketpair_test
