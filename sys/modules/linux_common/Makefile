@@ -1,11 +1,15 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/sys/compat/linux
+.PATH: ${SRCTOP}/sys/compat/linux ${SRCTOP}/sys/x86/linux
 
 KMOD=	linux_common
 SRCS=	linux_common.c linux_mib.c linux_mmap.c linux_util.c linux_emul.c \
 	linux_dummy.c linux_errno.c \
 	linux.c device_if.h vnode_if.h bus_if.h opt_inet6.h
+
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCS+=	linux_x86.c
+.endif
 
 EXPORT_SYMS=
 EXPORT_SYMS+=	linux_emul_path

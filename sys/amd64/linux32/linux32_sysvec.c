@@ -190,28 +190,6 @@ LINUX_VDSO_SYM_INTPTR(kern_tsc_selector);
 LINUX_VDSO_SYM_INTPTR(kern_cpu_selector);
 LINUX_VDSO_SYM_CHAR(linux_platform);
 
-/*
- * If FreeBSD & Linux have a difference of opinion about what a trap
- * means, deal with it here.
- *
- * MPSAFE
- */
-static int
-linux_translate_traps(int signal, int trap_code)
-{
-	if (signal != SIGBUS)
-		return (signal);
-	switch (trap_code) {
-	case T_PROTFLT:
-	case T_TSSFLT:
-	case T_DOUBLEFLT:
-	case T_PAGEFLT:
-		return (SIGSEGV);
-	default:
-		return (signal);
-	}
-}
-
 static int
 linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 {
