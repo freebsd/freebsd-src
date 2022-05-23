@@ -12,6 +12,7 @@ SUBDIR= \
 	libcxgb4 \
 	libmlx4 \
 	libmlx5 \
+	libirdma \
 	libibnetdisc \
 	libopensm
 
@@ -22,6 +23,7 @@ SUBDIR_DEPEND_libvendor= libibumad
 SUBDIR_DEPEND_libcxgb4= libibverbs
 SUBDIR_DEPEND_libmlx4= libibverbs
 SUBDIR_DEPEND_libmlx5= libibverbs
+SUBDIR_DEPEND_libirdma= libibverbs
 SUBDIR_DEPEND_libibnetdisc= libibmad libibumad complib
 
 SUBDIR_PARALLEL=

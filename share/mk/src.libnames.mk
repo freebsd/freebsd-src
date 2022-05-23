@@ -243,6 +243,7 @@ _LIBRARIES+= \
 		ibnetdisc \
 		ibumad \
 		ibverbs \
+		irdma \
 		mlx4 \
 		mlx5 \
 		rdmacm \
@@ -431,6 +432,7 @@ _DP_ibmad=	ibumad
 _DP_ibnetdisc=	osmcomp ibmad ibumad
 _DP_ibumad=	
 _DP_ibverbs=
+_DP_irdma=	ibverbs pthread
 _DP_mlx4=	ibverbs pthread
 _DP_mlx5=	ibverbs pthread
 _DP_rdmacm=	ibverbs
@@ -677,6 +679,7 @@ LIBIBMADDIR=	${OBJTOP}/lib/ofed/libibmad
 LIBIBNETDISCDIR=${OBJTOP}/lib/ofed/libibnetdisc
 LIBIBUMADDIR=	${OBJTOP}/lib/ofed/libibumad
 LIBIBVERBSDIR=	${OBJTOP}/lib/ofed/libibverbs
+LIBIRDMADIR=	${OBJTOP}/lib/ofed/libirdma
 LIBMLX4DIR=	${OBJTOP}/lib/ofed/libmlx4
 LIBMLX5DIR=	${OBJTOP}/lib/ofed/libmlx5
 LIBRDMACMDIR=	${OBJTOP}/lib/ofed/librdmacm
