@@ -546,7 +546,7 @@ bcm_pcib_msi_attach(device_t dev)
 		    "%s,%u", bcm_name, i);
 		if (error != 0) {
 			device_printf(dev,
-			"error: failed to register interrupt %d.\n", i);
+			    "error: failed to register interrupt %d.\n", i);
 			return (error);
 		}
 	}
