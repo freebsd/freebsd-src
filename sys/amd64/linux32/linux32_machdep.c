@@ -134,11 +134,15 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	char *path;
 	int error;
 
-	LCONVPATHEXIST(args->path, &path);
-
-	error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
-	    args->argp, args->envp);
-	free(path, M_TEMP);
+	if (!LUSECONVPATH(td)) {
+		error = freebsd32_exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
+		    args->argp, args->envp);
+	} else {
+		LCONVPATHEXIST(args->path, &path);
+		error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
+		    args->argp, args->envp);
+		LFREEPATH(path);
+	}
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
