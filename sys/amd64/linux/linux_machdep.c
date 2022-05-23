@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
@@ -83,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <x86/reg.h>
 #include <x86/sysarch.h>
 
-#include <security/audit/audit.h>
-
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
@@ -97,30 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 
 #define	LINUX_ARCH_AMD64		0xc000003e
-
-int
-linux_execve(struct thread *td, struct linux_execve_args *args)
-{
-	struct image_args eargs;
-	char *path;
-	int error;
-
-	LINUX_CTR(execve);
-
-	if (!LUSECONVPATH(td)) {
-		error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-		    args->argp, args->envp);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
-		    args->envp);
-		LFREEPATH(path);
-	}
-	if (error == 0)
-		error = linux_common_execve(td, &eargs);
-	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
-	return (error);
-}
 
 int
 linux_set_upcall(struct thread *td, register_t stack)

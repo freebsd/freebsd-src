@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -60,8 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm.h>
 #include <vm/vm_map.h>
-
-#include <security/audit/audit.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -96,28 +93,6 @@ struct l_old_select_argv {
 	l_fd_set	*exceptfds;
 	struct l_timeval	*timeout;
 };
-
-int
-linux_execve(struct thread *td, struct linux_execve_args *args)
-{
-	struct image_args eargs;
-	char *newpath;
-	int error;
-
-	if (!LUSECONVPATH(td)) {
-		error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-		    args->argp, args->envp);
-	} else {
-		LCONVPATHEXIST(args->path, &newpath);
-		error = exec_copyin_args(&eargs, newpath, UIO_SYSSPACE,
-		    args->argp, args->envp);
-		LFREEPATH(newpath);
-	}
-	if (error == 0)
-		error = linux_common_execve(td, &eargs);
-	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
-	return (error);
-}
 
 struct l_ipc_kludge {
 	struct l_msgbuf *msgp;
