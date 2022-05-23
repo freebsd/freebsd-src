@@ -292,6 +292,8 @@ device		cpufreq
 # igc:	Intel I225 2.5Gb Ethernet adapter
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 #	Requires the ipw firmware module
+# irdma: Intel 800 Series RDMA driver
+#        Requires the ice module
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
 #	Requires the iwi firmware module
 # iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
@@ -319,6 +321,7 @@ device		ixl		# Intel 700 Series Physical Function
 device		iavf		# Intel Adaptive Virtual Function
 device		ice		# Intel 800 Series Physical Function
 device		ice_ddp		# Intel 800 Series DDP Package
+device		irdma		# Intel 800 Series RDMA driver
 device  	mthca		# Mellanox HCA InfiniBand
 device  	mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand

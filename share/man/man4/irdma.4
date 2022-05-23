@@ -1,0 +1,233 @@
+.\" Copyright(c) 2016 - 2022 Intel Corporation
+.\" All rights reserved.
+.\"
+.\" This software is available to you under a choice of one of two
+.\" licenses. You may choose to be licensed under the terms of the GNU
+.\" General Public License (GPL) Version 2, available from the file
+.\" COPYING in the main directory of this source tree, or the
+.\" OpenFabrics.org BSD license below:
+.\"
+.\"   Redistribution and use in source and binary forms, with or
+.\"   without modification, are permitted provided that the following
+.\"   conditions are met:
+.\"
+.\"   - Redistributions of source code must retain the above
+.\"     copyright notice, this list of conditions and the following
+.\"     disclaimer.
+.\"
+.\"   - Redistributions in binary form must reproduce the above
+.\"     copyright notice, this list of conditions and the following
+.\"     disclaimer in the documentation and/or other materials
+.\"     provided with the distribution.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+.\" EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+.\" NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+.\" BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+.\" ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+.\" CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+.\" SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 30, 2022
+.Dt IRDMA 4
+.Os
+.Sh NAME
+.Nm irdma
+.Nd RDMA FreeBSD driver for Intel(R) Ethernet Controller E810
+.Sh SYNOPSIS
+This module relies on
+.Xr if_ice 4
+.Bl -tag -nested-width indent
+.It The following kernel options should be included in the configuration:
+.Cd options OFED
+.Cd options OFED_DEBUG_INIT
+.Cd options COMPAT_LINUXKPI
+.Cd options SDP
+.Cd options IPOIB_CM
+.El
+.Sh DESCRIPTION
+.Ss Features
+The
+.Nm
+driver provides RDMA protocol support on RDMA-capable Intel Ethernet 800 Series NICs which are supported by
+.Xr if_ice 4
+.
+.Pp
+The driver supports both iWARP and RoCEv2 protocols.
+.Sh CONFIGURATION
+.Ss TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va dev.irdma<interface_number>.roce_enable
+enables RoCEv2 protocol usage on <interface_numer> interface.
+.Pp By default RoCEv2 protocol is used.
+.It Va dev.irdma<interface_number>.dcqcn_cc_cfg_valid
+indicates that all DCQCN parameters are valid and should be updated in registers or QP context.
+.Pp
+Setting this parameter to 1 means that settings in 
+.Em dcqcn_min_dec_factor, dcqcn_min_rate_MBps, dcqcn_F, dcqcn_T, 
+.Em dcqcn_B, dcqcn_rai_factor, dcqcn_hai_factor, dcqcn_rreduce_mperiod 
+are taken into account. Otherwise default values are used.
+.Pp
+Note: "roce_enable" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_min_dec_factor
+The minimum factor by which the current transmit rate can be changed when processing a CNP. Value is given as a percentage (1-100).
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_min_rate_MBps
+The minimum value, in Mbits per second, for rate to limit.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_F
+The number of times to stay in each stage of bandwidth recovery.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_T
+The number of microseconds that should elapse before increasing the CWND in DCQCN mode.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_B
+The number of bytes to transmit before updating CWND in DCQCN mode.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_rai_factor
+The number of MSS to add to the congestion window in additive increase mode.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_hai_factor
+The number of MSS to add to the congestion window in hyperactive increase mode.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.It Va dev.irdma<interface_number>.dcqcn_rreduce_mperiod
+The minimum time between 2 consecutive rate reductions for a single flow. Rate reduction will occur only if a CNP is received during the relevant time interval.
+.Pp
+Note: "roce_enable" and "dcqcn_cc_cfg_valid" must also be set for this tunable to take effect.
+.Ss SYSCTL PROCEDURES
+Sysctl controls are available for runtime adjustments.
+.Bl -tag -width indent
+.It Va dev.irdma<interface_number>.debug
+defines level of debug messages.
+.Pp
+Typical value: 1 for errors only, 0x7fffffff for full debug.
+.It Va dev.irdma<interface_number>.dcqcn_enable
+enables the DCQCN algorithm for RoCEv2.
+.Pp
+Note: "roce_enable" must also be set for this sysctl to take effect.
+.Pp
+Note: The change may be set at any time, but it will be applied only to newly created QPs.
+.Ss TESTING
+.Bl -enum
+.It
+To load the irdma driver, run:
+.Bl -tag -width indent
+.It
+kldload irdma
+.El
+If if_ice is not already loaded, the system will load it on its own. Please check whether the value of sysctl
+.Va hw.ice.irdma
+is 1, if the irdma driver is not loading. To change the value put:
+.Bl -tag -width indent
+.It
+hw.ice.irdma=1
+.El
+to
+.Pa /boot/loader.conf
+and reboot.
+.It
+To check that the driver was loaded, run:
+.Bl -tag -width indent
+.It
+sysctl -a | grep infiniband
+.El
+Typically, if everything goes well, around 190 entries per PF will appear.
+.It
+Each interface of the card may work in either iWARP or RoCEv2 mode. To enable RoCEv2 compatibility, add:
+.Bl -tag -width indent
+.It
+dev.irdma<interface_number>.roce_enable=1
+.El
+where <interface_number> is a desired ice interface number on which
+RoCEv2 protocol needs to be enabled, to:
+.Bl -tag -width indent
+.It
+.Pa /boot/loader.conf
+.El
+for instance:
+.Bl -tag -width indent
+.It
+dev.irdma0.roce_enable=0
+.It
+dev.irdma1.roce_enable=1
+.El
+will keep iWARP mode on ice0 and enable RoCEv2 mode on interface ice1. The RoCEv2 mode is the default.
+.Dl
+To check irdma roce_enable status, run:
+.Bl -tag -width indent
+.It
+sysctl dev.irdma<interface_number>.roce_enable
+.El
+for instance:
+.Bl -tag -width indent
+.It
+sysctl dev.irdma2.roce_enable
+.El
+with returned value of '0' indicate the iWARP mode, and the value of '1' indicate the RoCEv2 mode.
+.Pp
+Note: An interface configured in one mode will not be able to connect
+to a node configured in another mode.
+.Pp
+Note: RoCEv2 has currently limited support, for functional testing only.
+DCB and Priority Flow Controller (PFC) are not currently supported which
+may lead to significant performance loss or connectivity issues.
+.It
+Enable flow control in the ice driver:
+.Bl -tag -width indent
+.It
+sysctl dev.ice.<interface_number>.fc=3
+.El
+Enable flow control on the switch your system is connected to. See your
+switch documentation for details.
+.It
+The source code for krping software is provided with the kernel in
+/usr/src/sys/contrib/rdma/krping/. To compile the software, change
+directory to /usr/src/sys/modules/rdma/krping/ and invoke the following:
+.Bl -tag -width indent
+.It
+make clean
+.It
+make
+.It
+make install
+.El
+.It
+Start a krping server on one machine:
+.Bl -tag -width indent
+.It
+ echo size=64,count=1,port=6601,addr=100.0.0.189,server > /dev/krping
+.El
+.It
+Connect a client from another machine:
+.Bl -tag -width indent
+.It
+ echo size=64,count=1,port=6601,addr=100.0.0.189,client > /dev/krping
+.El
+.Sh SUPPORT
+For general information and support, go to the Intel support website at:
+.Lk http://support.intel.com/ .
+.Pp
+If an issue is identified with this driver with a supported adapter, email all the specific information related to the issue to
+.Mt freebsd@intel.com .
+.Sh SEE ALSO
+.Xr if_ice 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was prepared by
+.An Bartosz Sobczak Aq Mt bartosz.sobczak@intel.com .

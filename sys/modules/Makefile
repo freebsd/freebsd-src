@@ -150,6 +150,7 @@ SUBDIR=	\
 	${_ichwd} \
 	${_ice} \
 	${_ice_ddp} \
+	${_irdma} \
 	${_ida} \
 	if_bridge \
 	${_if_cgem} \
@@ -618,6 +619,9 @@ _cxgbe=		cxgbe
 _ice=		ice
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ice_ddp=	ice_ddp
+.endif
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_irdma=		irdma
 .endif
 .endif
 
