@@ -36,5 +36,6 @@ int	linux_vdso_tsc_selector_idx(void);
 int	linux_vdso_cpu_selector_idx(void);
 
 int	linux_translate_traps(int, int);
+int	bsd_to_linux_trapcode(int);
 
 #endif /* _X86_INCLUDE_LINUX_LINUX_X86_H_ */
