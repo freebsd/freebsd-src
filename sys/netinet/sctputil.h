@@ -239,33 +239,9 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp, struct sockaddr *sa,
 
 int sctp_local_addr_count(struct sctp_tcb *stcb);
 
-#ifdef SCTP_MBCNT_LOGGING
 void
 sctp_free_bufspace(struct sctp_tcb *, struct sctp_association *,
     struct sctp_tmit_chunk *, int);
-
-#else
-#define sctp_free_bufspace(stcb, asoc, tp1, chk_cnt)  \
-do { \
-	if (tp1->data != NULL) { \
-		atomic_subtract_int(&((asoc)->chunks_on_out_queue), chk_cnt); \
-		if ((asoc)->total_output_queue_size >= tp1->book_size) { \
-			atomic_subtract_int(&((asoc)->total_output_queue_size), tp1->book_size); \
-		} else { \
-			(asoc)->total_output_queue_size = 0; \
-		} \
-		if (stcb->sctp_socket && ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) || \
-		    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) { \
-			if (stcb->sctp_socket->so_snd.sb_cc >= tp1->book_size) { \
-				atomic_subtract_int(&((stcb)->sctp_socket->so_snd.sb_cc), tp1->book_size); \
-			} else { \
-				stcb->sctp_socket->so_snd.sb_cc = 0; \
-			} \
-		} \
-	} \
-} while (0)
-
-#endif
 
 #define sctp_free_spbufspace(stcb, asoc, sp)  \
 do { \
