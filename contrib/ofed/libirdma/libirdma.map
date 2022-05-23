@@ -1,0 +1,10 @@
+/* Export symbols should be added below according to
+   Documentation/versioning.md document. */
+IRDMA_1.0 {
+	global: *;
+	local: *;
+};
+
+IRDMA_1.1 {
+	global: *;
+} IRDMA_1.0;
