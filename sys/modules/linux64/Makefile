@@ -15,7 +15,7 @@ SRCS=	linux_elf64.c linux_fork.c linux_dummy_machdep.c linux_file.c \
 	vnode_if.h device_if.h bus_if.h \
 	linux_support.s
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	linux_dummy_x86.c linux_vdso_selector_x86.c
+SRCS+=	linux_dummy_x86.c
 .endif
 DPSRCS=	assym.inc linux_genassym.c
 
