@@ -396,7 +396,7 @@ xlnx_pcib_fdt_attach(device_t dev)
 	if (error)
 		return (error);
 
-	return (pci_host_generic_attach(dev));
+	return (pci_host_generic_fdt_attach(dev));
 }
 
 static int

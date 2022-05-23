@@ -205,7 +205,7 @@ thunder_pcie_fdt_attach(device_t dev)
 	if (thunder_pcie_ofw_bus_attach(dev) != 0)
 		return (ENXIO);
 
-	return (pci_host_generic_attach(dev));
+	return (pci_host_generic_fdt_attach(dev));
 }
 
 static int
