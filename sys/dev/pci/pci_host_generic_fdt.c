@@ -164,7 +164,7 @@ pci_host_generic_setup_fdt(device_t dev)
 }
 
 int
-pci_host_generic_attach(device_t dev)
+pci_host_generic_fdt_attach(device_t dev)
 {
 	int error;
 
@@ -481,7 +481,7 @@ generic_pcie_ofw_bus_attach(device_t dev)
 
 static device_method_t generic_pcie_fdt_methods[] = {
 	DEVMETHOD(device_probe,		generic_pcie_fdt_probe),
-	DEVMETHOD(device_attach,	pci_host_generic_attach),
+	DEVMETHOD(device_attach,	pci_host_generic_fdt_attach),
 	DEVMETHOD(bus_alloc_resource,	pci_host_generic_core_alloc_resource),
 	DEVMETHOD(bus_release_resource,	pci_host_generic_core_release_resource),
 

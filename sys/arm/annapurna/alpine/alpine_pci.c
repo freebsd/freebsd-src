@@ -105,7 +105,7 @@ al_pcib_attach(device_t dev)
 {
 	int rv;
 
-	rv = pci_host_generic_attach(dev);
+	rv = pci_host_generic_fdt_attach(dev);
 
 	/* Annapurna quirk: configure vendor-specific registers */
 	if (rv == 0)
