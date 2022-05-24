@@ -853,7 +853,7 @@ zfs_create_diskpart()
 
 			# We'll configure the ESP in bootconfig
 			if [ -z "$efibootpart" ]; then
-				efibootpart="/dev/$(echo $justaddedpart | cut -f 1 -d ' ')"
+				efibootpart="/dev/gpt/efiboot$index"
 				f_dprintf "$funcname: configuring ESP at [%s]" \
 				          "${efibootpart}"
 
