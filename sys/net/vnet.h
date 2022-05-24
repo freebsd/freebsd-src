@@ -65,6 +65,7 @@
  * as required for libkvm.
  */
 #if defined(_KERNEL) || defined(_WANT_VNET)
+#include <machine/param.h>	/* for CACHE_LINE_SIZE */
 #include <sys/queue.h>
 
 struct vnet {
