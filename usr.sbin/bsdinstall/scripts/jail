@@ -44,7 +44,7 @@ error() {
 	if [ -n "$1" ]; then
 		msg="$1\n\n"
 	fi
-	bsddialog --backtitle "FreeBSD Installer" --title "Abort" \
+	bsddialog --backtitle "$OSNAME Installer" --title "Abort" \
 	    --no-label "Exit" --yes-label "Restart" --yesno \
 	    "${msg}An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
 	if [ $? -ne $BSDDIALOG_OK ]; then
@@ -84,7 +84,7 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
     then
 	    exec 3>&1
 	    EXTRA_DISTS=$(echo $DISTMENU | xargs -o bsddialog \
-	        --backtitle "FreeBSD Installer" \
+	        --backtitle "$OSNAME Installer" \
 	        --title "Distribution Select" --no-cancel --separate-output \
 	        --checklist "Choose optional system components to install:" \
 	        0 0 0 \
@@ -130,7 +130,7 @@ if [ ! "$nonInteractive" == "YES" ]
 then
 bsdinstall services
 
-    bsddialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
+    bsddialog --backtitle "$OSNAME Installer" --title "Add User Accounts" --yesno \
         "Would you like to add users to the installed system now?" 0 0 && \
         bsdinstall adduser
 fi

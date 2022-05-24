@@ -36,6 +36,12 @@ if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
 : ${TERMINAL_STDOUT_PASSTHRU:=3}
 : ${TERMINAL_STDERR_PASSTHRU:=4}
 
+#
+# Default OSNAME shown in the installer
+#
+: ${OSNAME:=FreeBSD}
+: ${EFI_LABEL_NAME:=FreeBSD}
+
 ############################################################ GLOBALS
 
 #

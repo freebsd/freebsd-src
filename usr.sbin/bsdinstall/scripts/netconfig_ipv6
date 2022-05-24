@@ -50,7 +50,7 @@ f_include $BSDCFG_SHARE/dialog.subr
 
 INTERFACE=$1
 case "${INTERFACE}" in
-"")	bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+"")	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --msgbox 'No interface specified for IPv6 configuration.' 0 0
 	exit 1
 	;;
@@ -59,17 +59,17 @@ esac
 AGAIN=""
 while : ; do
 	MSG="Would you like to try stateless address autoconfiguration (SLAAC)${AGAIN}?"
-	bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --yesno "${MSG}" 0 0
 	if [ $? -eq $BSDDIALOG_OK ]; then
 		if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
-			bsddialog --backtitle 'FreeBSD Installer' \
+			bsddialog --backtitle "$OSNAME Installer" \
 			    --infobox "Sending Router Solicitation ..." 0 0
 			ifconfig ${INTERFACE} inet6 -ifdisabled accept_rtadv up
 			err=$( rtsol -F $INTERFACE 2>&1 )
 			if [ $? -ne 0 ]; then
 				f_dprintf "%s" "$err"
-				bsddialog --backtitle 'FreeBSD Installer' --msgbox "SLAAC failed." 0 0
+				bsddialog --backtitle "$OSNAME Installer" --msgbox "SLAAC failed." 0 0
 				AGAIN=" again"
 				continue
 			fi
@@ -109,7 +109,7 @@ END {
 }'`
 
 exec 3>&1
-IF_CONFIG=$(echo ${ADDRS} | xargs -o bsddialog --backtitle 'FreeBSD Installer' \
+IF_CONFIG=$(echo ${ADDRS} | xargs -o bsddialog --backtitle "$OSNAME Installer" \
 	--title 'Network Configuration' \
 	--mixedform 'Static IPv6 Network Interface Configuration' 0 0 0 \
 2>&1 1>&3)

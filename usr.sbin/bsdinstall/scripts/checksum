@@ -28,6 +28,9 @@
 
 test -f $BSDINSTALL_DISTDIR/MANIFEST || exit 0
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 percentage=0
 for dist in $DISTRIBUTIONS; do
 	distname=$(basename $dist .txz)
@@ -37,7 +40,7 @@ for dist in $DISTRIBUTIONS; do
 	for i in $DISTRIBUTIONS; do
 		items="$items $i `eval echo \\\${status_$(basename $i .txz):--11}`"
 	done
-	bsddialog --backtitle "FreeBSD Installer" --title "Checksum Verification" \
+	bsddialog --backtitle "$OSNAME Installer" --title "Checksum Verification" \
 	    --mixedgauge "\nVerifying checksums of selected distributions.\n" \
 	    0 0 $percentage  -- $items
 
@@ -64,11 +67,11 @@ for dist in $DISTRIBUTIONS; do
 		eval "status_$distname=-2"
 		case $(/bin/freebsd-version -u) in
 		*-ALPHA*|*-CURRENT|*-STABLE|*-PRERELEASE)
-			bsddialog --backtitle "FreeBSD Installer" --title "Error" \
+			bsddialog --backtitle "$OSNAME Installer" --title "Error" \
 			    --msgbox "The checksum for $dist does not match. It may have become corrupted, or it may be from a newer version of FreeBSD. Please check for a newer snapshot." 0 0
 			;;
 		*)
-			bsddialog --backtitle "FreeBSD Installer" --title "Error" \
+			bsddialog --backtitle "$OSNAME Installer" --title "Error" \
 			    --msgbox "The checksum for $dist does not match. It may have become corrupted, and should be redownloaded." 0 0
 			;;
 		esac
