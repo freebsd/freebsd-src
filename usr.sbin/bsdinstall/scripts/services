@@ -26,6 +26,9 @@
 #
 # $FreeBSD$
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 : ${BSDDIALOG_OK=0}
 
 if [ -f $BSDINSTALL_TMPETC/rc.conf.services ]; then
@@ -39,7 +42,7 @@ fi
 echo -n > $BSDINSTALL_TMPETC/rc.conf.services
 
 exec 3>&1
-DAEMONS=$( bsddialog --backtitle "FreeBSD Installer" \
+DAEMONS=$( bsddialog --backtitle "$OSNAME Installer" \
     --title "System Configuration" --no-cancel --separate-output \
     --checklist "Choose the services you would like to be started at boot:" \
     0 0 0 \

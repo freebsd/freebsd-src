@@ -26,8 +26,11 @@
 #
 # $FreeBSD$
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 clear
-echo "FreeBSD Installer"
+echo "$OSNAME Installer"
 echo "========================"
 echo "Add Users"
 echo

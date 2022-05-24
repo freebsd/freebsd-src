@@ -79,7 +79,7 @@ else
 	VERIFY_MANIFEST_SIG=1
 
 	# XXX actually verify signature on manifest
-	bsddialog --backtitle "FreeBSD Installer" --title "Warning" --msgbox "Manifest not found on local disk and will be fetched from an unverified source. This is a potential security risk. If you do not wish to proceed, press control-C now." 0 0
+	bsddialog --backtitle "$OSNAME Installer" --title "Warning" --msgbox "Manifest not found on local disk and will be fetched from an unverified source. This is a potential security risk. If you do not wish to proceed, press control-C now." 0 0
 fi
 
 if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then

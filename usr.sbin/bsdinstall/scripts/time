@@ -26,6 +26,9 @@
 #
 # $FreeBSD$
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 # Select timezone
 chroot $BSDINSTALL_CHROOT tzsetup
 
@@ -36,7 +39,7 @@ export TZ
 
 # Set date
 exec 3>&1
-DATE=$(bsddialog --backtitle 'FreeBSD Installer' \
+DATE=$(bsddialog --backtitle "$OSNAME Installer" \
 	--title 'Time & Date' \
 	--ok-label 'Set Date' \
 	--cancel-label 'Skip' \
@@ -48,7 +51,7 @@ exec 3>&-
 
 # Set time
 exec 3>&1
-TIME=$(bsddialog --backtitle 'FreeBSD Installer' \
+TIME=$(bsddialog --backtitle "$OSNAME Installer" \
 	--title 'Time & Date' \
 	--ok-label 'Set Time' \
 	--cancel-label 'Skip' \

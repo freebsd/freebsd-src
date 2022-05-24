@@ -31,6 +31,9 @@
 #
 # $FreeBSD$
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 INTERFACES=""
 BSDDIALOG_ITEMS=""
 
@@ -63,14 +66,14 @@ for IF in $INTERFACES; do
 done
 
 if [ -z "$INTERFACES" ]; then
-	bsddialog --backtitle 'FreeBSD Installer' \
+	bsddialog --backtitle "$OSNAME Installer" \
 	    --title 'Network Configuration Error' \
 	    --msgbox 'No network interfaces present to configure.' 0 0
 	exit 1
 fi
 
 exec 3>&1
-INTERFACE=`echo $BSDDIALOG_ITEMS | xargs -o bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&3`
+INTERFACE=`echo $BSDDIALOG_ITEMS | xargs -o bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&3`
 if [ $? -eq $BSDDIALOG_CANCEL ]; then exit 1; fi
 exec 3>&-
 
@@ -101,7 +104,7 @@ case $? in
 esac
 
 if [ ${IPV4_AVAIL} -eq 1 ]; then
-	bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --yesno 'Would you like to configure IPv4 for this interface?' 0 0
 	if [ $? -eq $BSDDIALOG_OK ]; then
 		bsdinstall netconfig_ipv4 ${INTERFACE} "${IFCONFIG_PREFIX}" || \
@@ -116,7 +119,7 @@ if [ ${IPV4_AVAIL} -eq 0 -a -n ${IFCONFIG_PREFIX} ]; then
 	echo ifconfig_${INTERFACE}=\"${IFCONFIG_PREFIX}\" >> $BSDINSTALL_TMPETC/._rc.conf.net
 fi
 if [ ${IPV6_AVAIL} -eq 1 ]; then
-	bsddialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' \
+	bsddialog --backtitle "$OSNAME Installer" --title 'Network Configuration' \
 	    --yesno 'Would you like to configure IPv6 for this interface?' 0 0
 	if [ $? -eq $BSDDIALOG_OK ]; then
 		bsdinstall netconfig_ipv6 ${INTERFACE} || exec $0
@@ -181,7 +184,7 @@ else
 fi
 
 exec 3>&1
-RESOLV=$(echo "${RESOLV}" | xargs -o bsddialog --backtitle 'FreeBSD Installer' \
+RESOLV=$(echo "${RESOLV}" | xargs -o bsddialog --backtitle "$OSNAME Installer" \
 	--title 'Network Configuration' \
 	--mixedform 'Resolver Configuration' 0 0 0 \
 2>&1 1>&3)

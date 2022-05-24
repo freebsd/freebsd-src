@@ -28,8 +28,6 @@
 # $FreeBSD$
 
 
-FREEBSD_BOOTLABEL="FreeBSD"
-
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading_includes..." "$0"
@@ -65,31 +63,31 @@ dialog_uefi_entryname()
 
 update_uefi_bootentry()
 {
-	nentries=$(efibootmgr | grep -c 'FreeBSD$')
+	nentries=$(efibootmgr | grep -c "${EFI_LABEL_NAME}$")
 	# No entries so directly create one and return
 	if [ ${nentries} -eq 0 ]; then
 		f_dprintf "Creating UEFI boot entry"
-		efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+		efibootmgr --create --activate --label "$EFI_LABEL_NAME" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 		return
 	fi
 
-	$DIALOG --backtitle 'FreeBSD Installer' --title 'Boot configuration' \
-	    --yesno 'There are multiple "FreeBSD" EFI boot entries. Would you like to remove them all and add a new one?' 0 0
+	$DIALOG --backtitle "$OSNAME Installer" --title 'Boot configuration' \
+	    --yesno "There are multiple \"$OSNAME\" EFI boot entries. Would you like to remove them all and add a new one?" 0 0
 	if [ $? -eq $DIALOG_OK ]; then
-		for entry in $(efibootmgr | awk '$NF == "FreeBSD" { sub(/.*Boot/,"", $1); sub(/\*/,"", $1); print $1 }'); do
+		for entry in $(efibootmgr | awk "\$NF == \"$EFI_LABEL_NAME\" { sub(/.*Boot/,\"\", \$1); sub(/\*/,\"\", \$1); print \$1 }"); do
 			efibootmgr -B -b ${entry}
 		done
-		efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+		efibootmgr --create --activate --label "$EFI_LABEL_NAME" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 		return
 	fi
 
-	FREEBSD_BOOTLABEL=$(dialog_uefi_entryname "${FREEBSD_BOOTLABEL}")
+	FREEBSD_BOOTLABEL=$(dialog_uefi_entryname "${EFI_LABEL_NAME}")
 	[ $? -eq $DIALOG_CANCEL ] && exit 1
 	efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 }
 
 f_dialog_title "Boot configuration"
-f_dialog_backtitle "FreeBSD Installer"
+f_dialog_backtitle "$OSNAME Installer"
 
 if [ `uname -m` == powerpc ]; then
 	platform=`sysctl -n hw.platform`

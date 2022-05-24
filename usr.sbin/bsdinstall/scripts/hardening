@@ -26,6 +26,9 @@
 #
 # $FreeBSD$
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 : ${BSDDIALOG_OK=0}
 
 echo -n > $BSDINSTALL_TMPETC/rc.conf.hardening
@@ -33,7 +36,7 @@ echo -n > $BSDINSTALL_TMPETC/sysctl.conf.hardening
 echo -n > $BSDINSTALL_TMPBOOT/loader.conf.hardening
 
 exec 3>&1
-FEATURES=$( bsddialog --backtitle "FreeBSD Installer" \
+FEATURES=$( bsddialog --backtitle "$OSNAME Installer" \
     --title "System Hardening" --nocancel --separate-output \
     --checklist "Choose system security hardening options:" \
     0 0 0 \
