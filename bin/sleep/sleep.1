@@ -40,13 +40,21 @@
 .Nd suspend execution for an interval of time
 .Sh SYNOPSIS
 .Nm
-.Ar seconds
+.Ar number[unit]
 .Sh DESCRIPTION
 The
 .Nm
 command
 suspends execution for a minimum of
-.Ar seconds .
+.Ar number
+seconds (the default, or unit
+.Ar s ) ,
+or minutes (unit
+.Ar m ) ,
+hours (unit
+.Ar h ) ,
+or days (unit
+.Ar d ) .
 .Pp
 If the
 .Nm

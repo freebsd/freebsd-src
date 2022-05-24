@@ -66,6 +66,7 @@ main(int argc, char *argv[])
 	struct timespec time_to_sleep;
 	double d;
 	time_t original;
+	char unit;
 	char buf[2];
 
 	if (caph_limit_stdio() < 0 || caph_enter() < 0)
@@ -74,8 +75,17 @@ main(int argc, char *argv[])
 	if (argc != 2)
 		usage();
 
-	if (sscanf(argv[1], "%lf%1s", &d, buf) != 1)
-		usage();
+	if (sscanf(argv[1], "%lf%c%1s", &d, &unit, buf) == 2)
+		switch(unit) {
+			case 'd': d *= 24;
+			case 'h': d *= 60;
+			case 'm': d *= 60;
+			case 's': break;
+			default:  usage();
+		}
+	else
+		if (sscanf(argv[1], "%lf%1s", &d, buf) != 1)
+			usage();
 	if (d > INT_MAX)
 		usage();
 	if (d <= 0)
@@ -106,6 +116,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: sleep seconds\n");
+	fprintf(stderr, "usage: sleep number[unit]\n");
+	fprintf(stderr, "Unit can be 's' (seconds, the default), "
+			"m (minutes), h (hours), or d (days).\n");
 	exit(1);
 }
