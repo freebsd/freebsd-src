@@ -775,8 +775,8 @@ icmp_reflect(struct mbuf *m)
 	NET_EPOCH_ASSERT();
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
-	    IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) ||
-	    IN_ZERONET(ntohl(ip->ip_src.s_addr)) ) {
+	    (IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net240) ||
+	    (IN_ZERONET(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net0) ) {
 		m_freem(m);	/* Bad return address */
 		ICMPSTAT_INC(icps_badaddr);
 		goto done;	/* Ip_output() will check for broadcast */

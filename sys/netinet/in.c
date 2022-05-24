@@ -97,6 +97,28 @@ SYSCTL_BOOL(_net_inet_ip, OID_AUTO, broadcast_lowest, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(broadcast_lowest), 0,
 	"Treat lowest address on a subnet (host 0) as broadcast");
 
+VNET_DEFINE(bool, ip_allow_net240) = false;
+#define	V_ip_allow_net240		VNET(ip_allow_net240)
+SYSCTL_BOOL(_net_inet_ip, OID_AUTO, allow_net240,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_allow_net240), 0,
+	"Allow use of Experimental addresses, aka Class E (240/4)");
+/* see https://datatracker.ietf.org/doc/draft-schoen-intarea-unicast-240 */
+
+VNET_DEFINE(bool, ip_allow_net0) = false;
+SYSCTL_BOOL(_net_inet_ip, OID_AUTO, allow_net0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_allow_net0), 0,
+	"Allow use of addresses in network 0/8");
+/* see https://datatracker.ietf.org/doc/draft-schoen-intarea-unicast-0 */
+
+VNET_DEFINE(uint32_t, in_loopback_mask) = IN_LOOPBACK_MASK_DFLT;
+#define	V_in_loopback_mask	VNET(in_loopback_mask)
+static int sysctl_loopback_prefixlen(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, loopback_prefixlen,
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW,
+	NULL, 0, sysctl_loopback_prefixlen, "I",
+	"Prefix length of address space reserved for loopback");
+/* see https://datatracker.ietf.org/doc/draft-schoen-intarea-unicast-127 */
+
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
@@ -251,10 +273,34 @@ in_canforward(struct in_addr in)
 {
 	u_long i = ntohl(in.s_addr);
 
-	if (IN_EXPERIMENTAL(i) || IN_MULTICAST(i) || IN_LINKLOCAL(i) ||
-	    IN_ZERONET(i) || IN_LOOPBACK(i))
+	if (IN_MULTICAST(i) || IN_LINKLOCAL(i) || IN_LOOPBACK(i))
+		return (0);
+	if (IN_EXPERIMENTAL(i) && !V_ip_allow_net240)
+		return (0);
+	if (IN_ZERONET(i) && !V_ip_allow_net0)
 		return (0);
 	return (1);
+}
+
+/*
+ * Sysctl to manage prefix of reserved loopback network; translate
+ * to/from mask.  The mask is always contiguous high-order 1 bits
+ * followed by all 0 bits.
+ */
+static int
+sysctl_loopback_prefixlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, preflen;
+
+	/* ffs is 1-based; compensate. */
+	preflen = 33 - ffs(V_in_loopback_mask);
+	error = sysctl_handle_int(oidp, &preflen, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (preflen < 8 || preflen > 32)
+		return (EINVAL);
+	V_in_loopback_mask = 0xffffffff << (32 - preflen);
+	return (0);
 }
 
 /*
