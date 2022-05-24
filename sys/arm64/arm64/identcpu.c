@@ -188,6 +188,7 @@ struct cpu_implementers {
 static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_AEM_V8, "AEMv8" },
 	{ CPU_PART_FOUNDATION, "Foundation-Model" },
+	{ CPU_PART_CORTEX_A34, "Cortex-A34" },
 	{ CPU_PART_CORTEX_A35, "Cortex-A35" },
 	{ CPU_PART_CORTEX_A53, "Cortex-A53" },
 	{ CPU_PART_CORTEX_A55, "Cortex-A55" },
@@ -199,7 +200,17 @@ static const struct cpu_parts cpu_parts_arm[] = {
 	{ CPU_PART_CORTEX_A76, "Cortex-A76" },
 	{ CPU_PART_CORTEX_A76AE, "Cortex-A76AE" },
 	{ CPU_PART_CORTEX_A77, "Cortex-A77" },
+	{ CPU_PART_CORTEX_A78, "Cortex-A78" },
+	{ CPU_PART_CORTEX_A78C, "Cortex-A78C" },
+	{ CPU_PART_CORTEX_A510, "Cortex-A510" },
+	{ CPU_PART_CORTEX_A710, "Cortex-A710" },
+	{ CPU_PART_CORTEX_X1, "Cortex-X1" },
+	{ CPU_PART_CORTEX_X1C, "Cortex-X1C" },
+	{ CPU_PART_CORTEX_X2, "Cortex-X2" },
+	{ CPU_PART_NEOVERSE_E1, "Neoverse-E1" },
 	{ CPU_PART_NEOVERSE_N1, "Neoverse-N1" },
+	{ CPU_PART_NEOVERSE_N2, "Neoverse-N2" },
+	{ CPU_PART_NEOVERSE_V1, "Neoverse-V1" },
 	CPU_PART_NONE,
 };
 
