@@ -48,6 +48,8 @@ f_include $BSDCFG_SHARE/dialog.subr
 
 ############################################################ GLOBALS
 
+: ${BSDDIALOG_CANCEL=1}
+
 #
 # Strings that should be moved to an i18n file and loaded with f_include_lang()
 #
@@ -71,21 +73,17 @@ SET_HOSTNAME='hostname -s "%s"'
 dialog_hostname()
 {
 	local prompt="$msg_please_choose_a_hostname"
-	local hline=
+	local hline="Use TAB and Enter to select $msg_ok"
 	local value="$*"
 
-	local height width
-	f_dialog_inputbox_size height width \
-		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$prompt" "$value" "$hline"
-
-	$DIALOG \
+	bsddialog \
 		--title "$DIALOG_TITLE"         \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--hline "$hline"                \
 		--ok-label "$msg_ok"            \
 		--no-cancel                     \
 		--inputbox "$prompt"            \
-		$height $width "$value"         \
+		0 56 "$value"                   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 }
 
@@ -101,7 +99,7 @@ f_dialog_backtitle "$msg_freebsd_installer"
 # Get user input
 #
 HOSTNAME=$( dialog_hostname "$HOSTNAME" )
-[ $? -eq $DIALOG_CANCEL ] && exit 1
+[ $? -eq $BSDDIALOG_CANCEL ] && exit 1
 
 #
 # Store the user's choice
