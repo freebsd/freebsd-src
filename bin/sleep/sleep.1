@@ -70,9 +70,10 @@ signal is not handled specially by this implementation.
 .Pp
 The
 .Nm
-command allows and honors a non-integer number of seconds to sleep
-in any form acceptable by
-.Xr strtod 3 and it accepts more than one delay value.
+command supports other time units than seconds,
+honors a non-integer number of time units to sleep in any form acceptable by
+.Xr strtod 3 ,
+and accepts more than one delay value.
 These are non-portable extensions, but they have also been implemented
 in GNU sh-utils since version 2.0a (released in 2002).
 .Sh EXIT STATUS
