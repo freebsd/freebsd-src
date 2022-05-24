@@ -1108,6 +1108,9 @@ static struct mrs_field_value id_aa64pfr0_ras[] = {
 
 static struct mrs_field_value id_aa64pfr0_gic[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR0, GIC, CPUIF_NONE, CPUIF_EN),
+	MRS_FIELD_VALUE(ID_AA64PFR0_GIC_CPUIF_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64PFR0_GIC_CPUIF_EN, "GIC"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_GIC_CPUIF_4_1, "GIC 4.1"),
 	MRS_FIELD_VALUE_END,
 };
 
