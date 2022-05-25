@@ -32,7 +32,7 @@
 .\"	@(#)sleep.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2022
+.Dd May 25, 2022
 .Dt SLEEP 1
 .Os
 .Sh NAME
@@ -40,20 +40,21 @@
 .Nd suspend execution for an interval of time
 .Sh SYNOPSIS
 .Nm
-.Ar number[unit] ...
+.Ar number Ns Op Ar unit
+.Ar ...
 .Sh DESCRIPTION
 The
 .Nm
 command suspends execution for a minimum of
 .Ar number
 seconds (the default, or unit
-.Ar s ) ,
+.Cm s ) ,
 minutes (unit
-.Ar m ) ,
+.Cm m ) ,
 hours (unit
-.Ar h ) ,
+.Cm h ) ,
 or days (unit
-.Ar d ) .
+.Cm d ) .
 If multiple arguments are passed, the delay will be the sum of all values.
 .Pp
 If the
