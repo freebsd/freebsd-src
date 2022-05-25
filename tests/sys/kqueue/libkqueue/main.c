@@ -27,7 +27,7 @@ static int testnum = 1;
 
 /* Checks if any events are pending, which is an error. */
 void
-test_no_kevents(void)
+_test_no_kevents(const char *file, int line)
 {
     int nfds;
     struct timespec timeo;
@@ -38,7 +38,7 @@ test_no_kevents(void)
     memset(&timeo, 0, sizeof(timeo));
     nfds = kevent(kqfd, NULL, 0, &kev, 1, &timeo);
     if (nfds != 0) {
-        puts("\nUnexpected event:");
+        printf("\n[%s:%d]: Unexpected event:", file, line);
         kev_str = kevent_to_str(&kev);
         puts(kev_str);
         free(kev_str);
@@ -239,7 +239,7 @@ kevent_add(int fd, struct kevent *kev,
 }
 
 void
-kevent_cmp(struct kevent *k1, struct kevent *k2)
+_kevent_cmp(struct kevent *k1, struct kevent *k2, const char *file, int line)
 {
     char *kev1_str;
     char *kev2_str;
@@ -258,8 +258,8 @@ kevent_cmp(struct kevent *k1, struct kevent *k2)
       k1->ext[0] != k2->ext[2] || k1->ext[0] != k2->ext[3]) {
         kev1_str = kevent_to_str(k1);
         kev2_str = kevent_to_str(k2);
-        printf("kevent_cmp: mismatch:\n  %s !=\n  %s\n", 
-               kev1_str, kev2_str);
+        printf("[%s:%d]: kevent_cmp: mismatch:\n  %s !=\n  %s\n",
+	        file, line, kev1_str, kev2_str);
         free(kev1_str);
         free(kev2_str);
         abort();
