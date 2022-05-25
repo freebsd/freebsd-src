@@ -1612,6 +1612,18 @@ EOF
 		cat $WARNINGS
 	fi
 
+	# If this was a dryrun, remove the temporary tree if we built
+	# a new one.
+	if [ -n "$dryrun" ]; then
+		if [ -n "$dir" ]; then
+			if [ -n "$rerun" ]; then
+				panic "Should not have a temporary directory"
+			fi
+			remove_tree $dir
+		fi
+		return
+	fi
+
 	# Finally, rotate any needed trees.
 	if [ "$new" != "$NEWTREE" ]; then
 		if [ -n "$rerun" ]; then
