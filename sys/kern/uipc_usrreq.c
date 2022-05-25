@@ -2241,6 +2241,19 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			oldfds = datalen / sizeof (int);
 			if (oldfds == 0)
 				break;
+			/* On some machines sizeof pointer is bigger than
+			 * sizeof int, so we need to check if data fits into
+			 * single mbuf.  We could allocate several mbufs, and
+			 * unp_externalize() should even properly handle that.
+			 * But it is not worth to complicate the code for an
+			 * insane scenario of passing over 200 file descriptors
+			 * at once.
+			 */
+			newlen = oldfds * sizeof(fdep[0]);
+			if (CMSG_SPACE(newlen) > MCLBYTES) {
+				error = EMSGSIZE;
+				goto out;
+			}
 			/*
 			 * Check that all the FDs passed in refer to legal
 			 * files.  If not, reject the entire operation.
@@ -2265,7 +2278,6 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * Now replace the integer FDs with pointers to the
 			 * file structure and capability rights.
 			 */
-			newlen = oldfds * sizeof(fdep[0]);
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET, M_WAITOK);
 			fdp = data;
