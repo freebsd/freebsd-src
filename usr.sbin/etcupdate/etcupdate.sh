@@ -673,8 +673,9 @@ install_resolved()
 		return 1
 	fi
 
-	log "cp -Rp ${CONFLICTS}$1 ${DESTDIR}$1"
-	cp -Rp ${CONFLICTS}$1 ${DESTDIR}$1 >&3 2>&1
+	# Use cat rather than cp to preserve metadata
+	log "cat ${CONFLICTS}$1 > ${DESTDIR}$1"
+	cat ${CONFLICTS}$1 > ${DESTDIR}$1 2>&3
 	post_install_file $1
 	return 0
 }
