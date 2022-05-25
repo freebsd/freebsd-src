@@ -58,6 +58,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #IgnoreRhosts yes
 
 # Change to yes to enable built-in password authentication.
+# Note that passwords may also be accepted via KbdInteractiveAuthentication.
 #PasswordAuthentication no
 #PermitEmptyPasswords no
 
