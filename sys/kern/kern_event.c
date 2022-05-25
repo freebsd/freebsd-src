@@ -739,7 +739,7 @@ filt_timerexpire_l(struct knote *kn, bool proc_locked)
 		if (delta == 0)
 			delta = 1;
 		kn->kn_data += delta;
-		kc->next += (delta + 1) * kc->to;
+		kc->next += delta * kc->to;
 		if (now >= kc->next)	/* overflow */
 			kc->next = now + kc->to;
 		KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
