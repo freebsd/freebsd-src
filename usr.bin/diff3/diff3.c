@@ -304,7 +304,7 @@ merge(int m1, int m2)
 	d2 = d23;
 	j = 0;
 
-	while ((t1 = d1 < d13 + m1) | (t2 = d2 < d23 + m2)) {
+	while (t1 = d1 < d13 + m1, t2 = d2 < d23 + m2, t1 || t2) {
 		/* first file is different from the others */
 		if (!t2 || (t1 && d1->new.to < d2->new.from)) {
 			/* stuff peculiar to 1st file */
