@@ -6724,6 +6724,8 @@ out:
 	mtx_unlock_spin(&set->asid_set_mutex);
 }
 
+static uint64_t __read_mostly ttbr_flags;
+
 /*
  * Compute the value that should be stored in ttbr0 to activate the specified
  * pmap.  This value may change from time to time.
@@ -6731,10 +6733,70 @@ out:
 uint64_t
 pmap_to_ttbr0(pmap_t pmap)
 {
+	uint64_t ttbr;
 
-	return (ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie)) |
-	    pmap->pm_ttbr);
+	ttbr = pmap->pm_ttbr;
+	ttbr |= ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie));
+	ttbr |= ttbr_flags;
+
+	return (ttbr);
 }
+
+static void
+pmap_set_cnp(void *arg)
+{
+	uint64_t ttbr0, ttbr1;
+	u_int cpuid;
+
+	cpuid = *(u_int *)arg;
+	if (cpuid == curcpu) {
+		/*
+		 * Set the flags while all CPUs are handling the
+		 * smp_rendezvous so will not call pmap_to_ttbr0. Any calls
+		 * to pmap_to_ttbr0 after this will have the CnP flag set.
+		 * The dsb after invalidating the TLB will act as a barrier
+		 * to ensure all CPUs can observe this change.
+		 */
+		ttbr_flags |= TTBR_CnP;
+	}
+
+	ttbr0 = READ_SPECIALREG(ttbr0_el1);
+	ttbr0 |= TTBR_CnP;
+
+	ttbr1 = READ_SPECIALREG(ttbr1_el1);
+	ttbr1 |= TTBR_CnP;
+
+	/* Update ttbr{0,1}_el1 with the CnP flag */
+	WRITE_SPECIALREG(ttbr0_el1, ttbr0);
+	WRITE_SPECIALREG(ttbr1_el1, ttbr1);
+	isb();
+	__asm __volatile("tlbi vmalle1is");
+	dsb(ish);
+	isb();
+}
+
+/*
+ * Defer enabling CnP until we have read the ID registers to know if it's
+ * supported on all CPUs.
+ */
+static void
+pmap_init_cnp(void *dummy __unused)
+{
+	uint64_t reg;
+	u_int cpuid;
+
+	if (!get_kernel_reg(ID_AA64MMFR2_EL1, &reg))
+		return;
+
+	if (ID_AA64MMFR2_CnP_VAL(reg) != ID_AA64MMFR2_CnP_NONE) {
+		if (bootverbose)
+			printf("Enabling CnP\n");
+		cpuid = curcpu;
+		smp_rendezvous(NULL, pmap_set_cnp, NULL, &cpuid);
+	}
+
+}
+SYSINIT(pmap_init_cnp, SI_SUB_SMP, SI_ORDER_ANY, pmap_init_cnp, NULL);
 
 static bool
 pmap_activate_int(pmap_t pmap)
