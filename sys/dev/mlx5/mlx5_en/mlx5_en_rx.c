@@ -319,6 +319,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 	}
 	mb->m_pkthdr.rcvif = ifp;
+	mb->m_pkthdr.leaf_rcvif = ifp;
 
 	if (cqe_is_tunneled(cqe)) {
 		/*
@@ -598,6 +599,7 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 		memset(mb->m_data, 255, 14);
 		mb->m_data[14] = rq->ix;
 		mb->m_pkthdr.rcvif = rq->ifp;
+		mb->m_pkthdr.leaf_rcvif = rq->ifp;
 		rq->ifp->if_input(rq->ifp, mb);
 	}
 #endif
