@@ -2015,10 +2015,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 	if (controlp != NULL) /* controlp == NULL => free control messages */
 		*controlp = NULL;
 	while (cm != NULL) {
-		if (sizeof(*cm) > clen || cm->cmsg_len > clen) {
-			error = EINVAL;
-			break;
-		}
+		MPASS(clen >= sizeof(*cm) && clen <= cm->cmsg_len);
+
 		data = CMSG_DATA(cm);
 		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 		if (cm->cmsg_level == SOL_SOCKET
