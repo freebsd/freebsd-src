@@ -155,12 +155,16 @@ static void edscript(int) __dead2;
 static void Ascript(int) __dead2;
 static void mergescript(int) __dead2;
 static void increase(void);
-static void usage(void) __dead2;
+static void usage(void);
 static void printrange(FILE *, struct range *);
+
+static const char diff3_version[] = "FreeBSD diff3 20220517";
 
 enum {
 	DIFFPROG_OPT,
 	STRIPCR_OPT,
+	HELP_OPT,
+	VERSION_OPT
 };
 
 #define DIFF_PATH "/usr/bin/diff"
@@ -178,6 +182,8 @@ static struct option longopts[] = {
 	{ "merge",		no_argument,		NULL,	'm' },
 	{ "label",		required_argument,	NULL,	'L' },
 	{ "diff-program",	required_argument,	NULL,	DIFFPROG_OPT },
+	{ "help",		no_argument,		NULL,	HELP_OPT},
+	{ "version",		no_argument,		NULL,	VERSION_OPT}
 };
 
 static void
@@ -185,7 +191,6 @@ usage(void)
 {
 	fprintf(stderr, "usage: diff3 [-3aAeEimTxX] [-L label1] [-L label2] "
 	    "[-L label3] file1 file2 file3\n");
-	exit(2);
 }
 
 static int
@@ -872,6 +877,12 @@ main(int argc, char **argv)
 			strip_cr = 1;
 			diffargv[diffargc++] = __DECONST(char *, "--strip-trailing-cr");
 			break;
+		case HELP_OPT:
+			usage();
+			exit(0);
+		case VERSION_OPT:
+			printf("%s\n", diff3_version);
+			exit(0);
 		}
 	}
 	argc -= optind;
@@ -882,8 +893,10 @@ main(int argc, char **argv)
 		oflag = 1;
 	}
 
-	if (argc != 3)
+	if (argc != 3) {
 		usage();
+		exit(2);
+	}
 
 	if (caph_limit_stdio() == -1)
 		err(2, "unable to limit stdio");
