@@ -535,7 +535,7 @@ edit(struct diff *diff, bool dup, int j, int difftype)
 
 	de[j].type = difftype;
 #if DEBUG
-	de[j].line = diff->line;
+	de[j].line = strdup(diff->line);
 #endif	/* DEBUG */
 
 	de[j].old.from = diff->old.from;
