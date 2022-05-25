@@ -163,6 +163,7 @@ typedef struct zio_compress_info {
 
 #include "lzjb.c"
 #include "zle.c"
+#include "gzip.c"
 
 /*
  * Compression vectors.
@@ -173,15 +174,15 @@ static zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS] = {
 	{NULL,			NULL,			0,	"uncompressed"},
 	{NULL,			lzjb_decompress,	0,	"lzjb"},
 	{NULL,			NULL,			0,	"empty"},
-	{NULL,			NULL,			1,	"gzip-1"},
-	{NULL,			NULL,			2,	"gzip-2"},
-	{NULL,			NULL,			3,	"gzip-3"},
-	{NULL,			NULL,			4,	"gzip-4"},
-	{NULL,			NULL,			5,	"gzip-5"},
-	{NULL,			NULL,			6,	"gzip-6"},
-	{NULL,			NULL,			7,	"gzip-7"},
-	{NULL,			NULL,			8,	"gzip-8"},
-	{NULL,			NULL,			9,	"gzip-9"},
+	{NULL,			gzip_decompress,	1,	"gzip-1"},
+	{NULL,			gzip_decompress,	2,	"gzip-2"},
+	{NULL,			gzip_decompress,	3,	"gzip-3"},
+	{NULL,			gzip_decompress,	4,	"gzip-4"},
+	{NULL,			gzip_decompress,	5,	"gzip-5"},
+	{NULL,			gzip_decompress,	6,	"gzip-6"},
+	{NULL,			gzip_decompress,	7,	"gzip-7"},
+	{NULL,			gzip_decompress,	8,	"gzip-8"},
+	{NULL,			gzip_decompress,	9,	"gzip-9"},
 	{NULL,			zle_decompress,		64,	"zle"},
 	{NULL,			lz4_decompress,		0,	"lz4"},
 #ifdef HAS_ZSTD_ZFS

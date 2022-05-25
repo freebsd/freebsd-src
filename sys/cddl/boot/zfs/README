@@ -5,6 +5,7 @@ are used by the ZFS bootstrap:
 
     fletcher.c			checksum support
     sha256.c			checksum support
+    gzip.c			compression support
     lz4.c			compression support
     lzjb.c			compression support
     blkptr.c			ZFS embedded-data block pointers support
