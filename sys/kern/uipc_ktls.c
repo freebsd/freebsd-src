@@ -1615,10 +1615,11 @@ ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate)
 		return (0);
 	}
 
-	MPASS(tls->snd_tag != NULL);
-	MPASS(tls->snd_tag->sw->type == IF_SND_TAG_TYPE_TLS_RATE_LIMIT);
-
 	mst = tls->snd_tag;
+
+	MPASS(mst != NULL);
+	MPASS(mst->sw->type == IF_SND_TAG_TYPE_TLS_RATE_LIMIT);
+
 	return (mst->sw->snd_tag_modify(mst, &params));
 }
 #endif
