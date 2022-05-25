@@ -73,8 +73,10 @@ backlight_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		/* Call the driver function so it fills up the props */
 		bcopy(data, &props, sizeof(struct backlight_props));
 		error = BACKLIGHT_GET_STATUS(sc->dev, &props);
-		if (error == 0)
+		if (error == 0) {
 			bcopy(&props, data, sizeof(struct backlight_props));
+			sc->cached_brightness = props.brightness;
+		}
 		break;
 	case BACKLIGHTUPDATESTATUS:
 		bcopy(data, &props, sizeof(struct backlight_props));
