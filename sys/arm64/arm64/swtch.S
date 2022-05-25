@@ -94,18 +94,12 @@ ENTRY(cpu_throw)
 	msr	tpidr_el0, x6
 	ldr	x6, [x4, #PCB_TPIDRRO]
 	msr	tpidrro_el0, x6
-	ldp	x8, x9, [x4, #PCB_REGS + 8 * 8]
-	ldp	x10, x11, [x4, #PCB_REGS + 10 * 8]
-	ldp	x12, x13, [x4, #PCB_REGS + 12 * 8]
-	ldp	x14, x15, [x4, #PCB_REGS + 14 * 8]
-	ldp	x16, x17, [x4, #PCB_REGS + 16 * 8]
-	ldr	     x19, [x4, #PCB_REGS + 19 * 8]
-	ldp	x20, x21, [x4, #PCB_REGS + 20 * 8]
-	ldp	x22, x23, [x4, #PCB_REGS + 22 * 8]
-	ldp	x24, x25, [x4, #PCB_REGS + 24 * 8]
-	ldp	x26, x27, [x4, #PCB_REGS + 26 * 8]
-	ldp	x28, x29, [x4, #PCB_REGS + 28 * 8]
-	ldr	lr, [x4, #PCB_LR]
+	ldp	x19, x20, [x4, #PCB_REGS + 19 * 8]
+	ldp	x21, x22, [x4, #PCB_REGS + 21 * 8]
+	ldp	x23, x24, [x4, #PCB_REGS + 23 * 8]
+	ldp	x25, x26, [x4, #PCB_REGS + 25 * 8]
+	ldp	x27, x28, [x4, #PCB_REGS + 27 * 8]
+	ldp	x29, lr, [x4, #PCB_REGS + 29 * 8]
 
 	ret
 END(cpu_throw)
@@ -125,18 +119,12 @@ ENTRY(cpu_switch)
 	ldr	x4, [x0, #TD_PCB]
 
 	/* Store the callee-saved registers */
-	stp	x8, x9, [x4, #PCB_REGS + 8 * 8]
-	stp	x10, x11, [x4, #PCB_REGS + 10 * 8]
-	stp	x12, x13, [x4, #PCB_REGS + 12 * 8]
-	stp	x14, x15, [x4, #PCB_REGS + 14 * 8]
-	stp	x16, x17, [x4, #PCB_REGS + 16 * 8]
-	stp	x18, x19, [x4, #PCB_REGS + 18 * 8]
-	stp	x20, x21, [x4, #PCB_REGS + 20 * 8]
-	stp	x22, x23, [x4, #PCB_REGS + 22 * 8]
-	stp	x24, x25, [x4, #PCB_REGS + 24 * 8]
-	stp	x26, x27, [x4, #PCB_REGS + 26 * 8]
-	stp	x28, x29, [x4, #PCB_REGS + 28 * 8]
-	str	lr, [x4, #PCB_LR]
+	stp	x19, x20, [x4, #PCB_REGS + 19 * 8]
+	stp	x21, x22, [x4, #PCB_REGS + 21 * 8]
+	stp	x23, x24, [x4, #PCB_REGS + 23 * 8]
+	stp	x25, x26, [x4, #PCB_REGS + 25 * 8]
+	stp	x27, x28, [x4, #PCB_REGS + 27 * 8]
+	stp	x29, lr, [x4, #PCB_REGS + 29 * 8]
 	/* And the old stack pointer */
 	mov	x5, sp
 	mrs	x6, tpidrro_el0
@@ -195,26 +183,20 @@ ENTRY(cpu_switch)
 	msr	tpidr_el0, x6
 	ldr	x6, [x4, #PCB_TPIDRRO]
 	msr	tpidrro_el0, x6
-	ldp	x8, x9, [x4, #PCB_REGS + 8 * 8]
-	ldp	x10, x11, [x4, #PCB_REGS + 10 * 8]
-	ldp	x12, x13, [x4, #PCB_REGS + 12 * 8]
-	ldp	x14, x15, [x4, #PCB_REGS + 14 * 8]
-	ldp	x16, x17, [x4, #PCB_REGS + 16 * 8]
-	ldr	     x19, [x4, #PCB_REGS + 19 * 8]
-	ldp	x20, x21, [x4, #PCB_REGS + 20 * 8]
-	ldp	x22, x23, [x4, #PCB_REGS + 22 * 8]
-	ldp	x24, x25, [x4, #PCB_REGS + 24 * 8]
-	ldp	x26, x27, [x4, #PCB_REGS + 26 * 8]
-	ldp	x28, x29, [x4, #PCB_REGS + 28 * 8]
-	ldr	lr, [x4, #PCB_LR]
+	ldp	x19, x20, [x4, #PCB_REGS + 19 * 8]
+	ldp	x21, x22, [x4, #PCB_REGS + 21 * 8]
+	ldp	x23, x24, [x4, #PCB_REGS + 23 * 8]
+	ldp	x25, x26, [x4, #PCB_REGS + 25 * 8]
+	ldp	x27, x28, [x4, #PCB_REGS + 27 * 8]
+	ldp	x29, lr, [x4, #PCB_REGS + 29 * 8]
 
 	str	xzr, [x4, #PCB_REGS + 18 * 8]
 	ret
 END(cpu_switch)
 
 ENTRY(fork_trampoline)
-	mov	x0, x8
-	mov	x1, x9
+	mov	x0, x19
+	mov	x1, x20
 	mov	x2, sp
 	mov	fp, #0	/* Stack traceback stops here. */
 	bl	_C_LABEL(fork_exit)
@@ -263,18 +245,12 @@ END(fork_trampoline)
 
 ENTRY(savectx)
 	/* Store the callee-saved registers */
-	stp	x8,  x9,  [x0, #PCB_REGS + 8 * 8]
-	stp	x10, x11, [x0, #PCB_REGS + 10 * 8]
-	stp	x12, x13, [x0, #PCB_REGS + 12 * 8]
-	stp	x14, x15, [x0, #PCB_REGS + 14 * 8]
-	stp	x16, x17, [x0, #PCB_REGS + 16 * 8]
-	stp	x18, x19, [x0, #PCB_REGS + 18 * 8]
-	stp	x20, x21, [x0, #PCB_REGS + 20 * 8]
-	stp	x22, x23, [x0, #PCB_REGS + 22 * 8]
-	stp	x24, x25, [x0, #PCB_REGS + 24 * 8]
-	stp	x26, x27, [x0, #PCB_REGS + 26 * 8]
-	stp	x28, x29, [x0, #PCB_REGS + 28 * 8]
-	str	lr, [x0, #PCB_LR]
+	stp	x19, x20, [x0, #PCB_REGS + 19 * 8]
+	stp	x21, x22, [x0, #PCB_REGS + 21 * 8]
+	stp	x23, x24, [x0, #PCB_REGS + 23 * 8]
+	stp	x25, x26, [x0, #PCB_REGS + 25 * 8]
+	stp	x27, x28, [x0, #PCB_REGS + 27 * 8]
+	stp	x29, lr, [x0, #PCB_REGS + 29 * 8]
 	/* And the old stack pointer */
 	mov	x5, sp
 	mrs	x6, tpidrro_el0
