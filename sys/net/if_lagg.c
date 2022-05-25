@@ -1836,6 +1836,7 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 	struct lagg_snd_tag *lst;
 	struct lagg_port *lp;
 	struct ifnet *lp_ifp;
+	struct m_snd_tag *mst;
 	int error;
 
 	switch (params->hdr.type) {
@@ -1850,6 +1851,10 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 #ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS:
 		sw = &lagg_snd_tag_tls_sw;
+		break;
+	case IF_SND_TAG_TYPE_TLS_RX:
+		/* Return tag from port interface directly. */
+		sw = NULL;
 		break;
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
@@ -1876,22 +1881,30 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 	if_ref(lp_ifp);
 	NET_EPOCH_EXIT(et);
 
-	lst = malloc(sizeof(*lst), M_LAGG, M_NOWAIT);
-	if (lst == NULL) {
-		if_rele(lp_ifp);
-		return (ENOMEM);
-	}
+	if (sw != NULL) {
+		lst = malloc(sizeof(*lst), M_LAGG, M_NOWAIT);
+		if (lst == NULL) {
+			if_rele(lp_ifp);
+			return (ENOMEM);
+		}
+	} else
+		lst = NULL;
 
-	error = m_snd_tag_alloc(lp_ifp, params, &lst->tag);
+	error = m_snd_tag_alloc(lp_ifp, params, &mst);
 	if_rele(lp_ifp);
 	if (error) {
 		free(lst, M_LAGG);
 		return (error);
 	}
 
-	m_snd_tag_init(&lst->com, ifp, sw);
+	if (sw != NULL) {
+		m_snd_tag_init(&lst->com, ifp, sw);
+		lst->tag = mst;
 
-	*ppmt = &lst->com;
+		*ppmt = &lst->com;
+	} else
+		*ppmt = mst;
+
 	return (0);
 }
 
