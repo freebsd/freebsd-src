@@ -1771,8 +1771,8 @@ sbcreatecontrol(const void *p, u_int size, int type, int level, int wait)
 		if (CMSG_SPACE(size) > MCLBYTES)
 			return (NULL);
 	} else
-		KASSERT(size <= MCLBYTES, ("%s: passed size %u > MCLBYTES",
-		    __func__, size));
+		KASSERT(CMSG_SPACE(size) <= MCLBYTES,
+		    ("%s: passed CMSG_SPACE(%u) > MCLBYTES", __func__, size));
 
 	if (CMSG_SPACE(size) > MLEN)
 		m = m_getcl(wait, MT_CONTROL, 0);
