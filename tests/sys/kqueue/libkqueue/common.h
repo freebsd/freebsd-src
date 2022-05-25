@@ -49,8 +49,8 @@ char * kevent_to_str(struct kevent *);
 struct kevent * kevent_get(int);
 struct kevent * kevent_get_timeout(int, int);
 
-
-void kevent_cmp(struct kevent *, struct kevent *);
+#define kevent_cmp(a,b) _kevent_cmp(a,b, __FILE__, __LINE__)
+void _kevent_cmp(struct kevent *expected, struct kevent *got, const char *file, int line);
 
 void
 kevent_add(int kqfd, struct kevent *kev, 
@@ -72,7 +72,8 @@ kevent_add(int kqfd, struct kevent *kev,
 } while (0);
 
 /* Checks if any events are pending, which is an error. */
-void test_no_kevents(void);
+#define test_no_kevents() _test_no_kevents(__FILE__, __LINE__)
+void _test_no_kevents(const char *, int);
 void test_no_kevents_quietly(void);
 
 void test_begin(const char *);
