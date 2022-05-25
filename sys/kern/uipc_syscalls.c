@@ -1521,7 +1521,7 @@ sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type)
 		else
 #endif
 			if (buflen > MCLBYTES)
-				return (EINVAL);
+				return (EMSGSIZE);
 	}
 	m = m_get2(buflen, M_WAITOK, type, 0);
 	m->m_len = buflen;
