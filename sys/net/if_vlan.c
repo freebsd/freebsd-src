@@ -2204,7 +2204,11 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 	struct vlan_snd_tag *vst;
 	struct ifvlan *ifv;
 	struct ifnet *parent;
+	struct m_snd_tag *mst;
 	int error;
+
+	NET_EPOCH_ENTER(et);
+	ifv = ifp->if_softc;
 
 	switch (params->hdr.type) {
 #ifdef RATELIMIT
@@ -2219,6 +2223,12 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 	case IF_SND_TAG_TYPE_TLS:
 		sw = &vlan_snd_tag_tls_sw;
 		break;
+	case IF_SND_TAG_TYPE_TLS_RX:
+		sw = NULL;
+		if (params->tls_rx.vlan_id != 0)
+			goto failure;
+		params->tls_rx.vlan_id = ifv->ifv_vid;
+		break;
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		sw = &vlan_snd_tag_tls_rl_sw;
@@ -2226,39 +2236,46 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 #endif
 #endif
 	default:
-		return (EOPNOTSUPP);
+		goto failure;
 	}
 
-	NET_EPOCH_ENTER(et);
-	ifv = ifp->if_softc;
 	if (ifv->ifv_trunk != NULL)
 		parent = PARENT(ifv);
 	else
 		parent = NULL;
-	if (parent == NULL) {
-		NET_EPOCH_EXIT(et);
-		return (EOPNOTSUPP);
-	}
+	if (parent == NULL)
+		goto failure;
 	if_ref(parent);
 	NET_EPOCH_EXIT(et);
 
-	vst = malloc(sizeof(*vst), M_VLAN, M_NOWAIT);
-	if (vst == NULL) {
-		if_rele(parent);
-		return (ENOMEM);
-	}
+	if (sw != NULL) {
+		vst = malloc(sizeof(*vst), M_VLAN, M_NOWAIT);
+		if (vst == NULL) {
+			if_rele(parent);
+			return (ENOMEM);
+		}
+	} else
+		vst = NULL;
 
-	error = m_snd_tag_alloc(parent, params, &vst->tag);
+	error = m_snd_tag_alloc(parent, params, &mst);
 	if_rele(parent);
 	if (error) {
 		free(vst, M_VLAN);
 		return (error);
 	}
 
-	m_snd_tag_init(&vst->com, ifp, sw);
+	if (sw != NULL) {
+		m_snd_tag_init(&vst->com, ifp, sw);
+		vst->tag = mst;
 
-	*ppmt = &vst->com;
+		*ppmt = &vst->com;
+	} else
+		*ppmt = mst;
+
 	return (0);
+failure:
+	NET_EPOCH_EXIT(et);
+	return (EOPNOTSUPP);
 }
 
 static struct m_snd_tag *
