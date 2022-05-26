@@ -2928,7 +2928,7 @@ sigprocess(struct thread *td, int sig)
 
 	/*
 	 * We should allow pending but ignored signals below
-	 * only if there is sigwait() active, or P_TRACED was
+	 * if there is sigwait() active, or P_TRACED was
 	 * on when they were posted.
 	 */
 	if (SIGISMEMBER(ps->ps_sigignore, sig) &&
@@ -2936,6 +2936,16 @@ sigprocess(struct thread *td, int sig)
 	    (td->td_flags & TDF_SIGWAIT) == 0) {
 		return (SIGSTATUS_IGNORE);
 	}
+
+	/*
+	 * If the process is going to single-thread mode to prepare
+	 * for exit, there is no sense in delivering any signal
+	 * to usermode.  Another important consequence is that
+	 * msleep(..., PCATCH, ...) now is only interruptible by a
+	 * suspend request.
+	 */
+	if ((p->p_flag2 & P2_WEXIT) != 0)
+		return (SIGSTATUS_IGNORE);
 
 	if ((p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED) {
 		/*
