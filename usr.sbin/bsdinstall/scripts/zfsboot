@@ -644,7 +644,7 @@ dialog_menu_layout()
 		while :; do
 			# Loop over list of available disks, resetting state
 			for disk in $disks; do
-				f_isset _${disk}_status && _${disk}_status=
+				f_isset _${disk}_status && setvar _${disk}_status
 			done
 
 			# Loop over list of selected disks and create temporary
@@ -654,7 +654,7 @@ dialog_menu_layout()
 					$disk $DEVICE_TYPE_DISK disk
 				f_isset _${disk}_status ||
 					local _${disk}_status
-				_${disk}_status=on
+				setvar _${disk}_status on
 			done
 
 			# Create the checklist menu of discovered disk devices
