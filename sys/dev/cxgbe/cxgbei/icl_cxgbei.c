@@ -1103,7 +1103,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	struct tcpcb *tp;
 	struct toepcb *toep;
 	cap_rights_t rights;
-	u_int max_rx_pdu_len, max_tx_pdu_len;
+	u_int max_iso_payload, max_rx_pdu_len, max_tx_pdu_len;
 	int error, max_iso_pdus;
 
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
@@ -1195,7 +1195,9 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 
 	if (icc->sc->tt.iso && chip_id(icc->sc) >= CHELSIO_T5 &&
 	    !is_memfree(icc->sc)) {
-		max_iso_pdus = CXGBEI_MAX_ISO_PAYLOAD / max_tx_pdu_len;
+		max_iso_payload = rounddown(CXGBEI_MAX_ISO_PAYLOAD,
+		    tp->t_maxseg);
+		max_iso_pdus = max_iso_payload / max_tx_pdu_len;
 		ic->ic_hw_isomax = max_iso_pdus *
 		    ic->ic_max_send_data_segment_length;
 	} else
