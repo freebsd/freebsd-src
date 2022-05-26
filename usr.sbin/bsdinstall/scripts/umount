@@ -26,6 +26,13 @@
 #
 # $FreeBSD$
 
+# If we mounted the DVD packages, unmount them
+if [ -d $BSDINSTALL_CHROOT/dist/packages ]; then
+	umount $BSDINSTALL_CHROOT/dist/packages
+	rmdir $BSDINSTALL_CHROOT/dist/packages
+	rmdir $BSDINSTALL_CHROOT/dist
+fi
+
 TMP_FSTAB=${TMPDIR:-"/tmp"}/bsdinstall-tmp-fstab
 
 cat $PATH_FSTAB | awk -v BSDINSTALL_CHROOT=$BSDINSTALL_CHROOT '{
