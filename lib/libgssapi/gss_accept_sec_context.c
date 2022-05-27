@@ -45,17 +45,17 @@ parse_header(const gss_buffer_t input_token, gss_OID mech_oid)
 	unsigned char *p = input_token->value;
 	size_t len = input_token->length;
 	size_t a, b;
-	
+
 	/*
 	 * Token must start with [APPLICATION 0] SEQUENCE.
 	 * But if it doesn't assume it is DCE-STYLE Kerberos!
 	 */
 	if (len == 0)
 		return (GSS_S_DEFECTIVE_TOKEN);
-	
+
 	p++;
 	len--;
-		
+
 	/*
 	 * Decode the length and make sure it agrees with the
 	 * token length.
@@ -82,7 +82,7 @@ parse_header(const gss_buffer_t input_token, gss_OID mech_oid)
 	}
 	if (a != len)
 		return (GSS_S_DEFECTIVE_TOKEN);
-		
+
 	/*
 	 * Decode the OID for the mechanism. Simplify life by
 	 * assuming that the OID length is less than 128 bytes.
@@ -95,9 +95,9 @@ parse_header(const gss_buffer_t input_token, gss_OID mech_oid)
 	p += 2;
 	len -= 2;
 	mech_oid->elements = p;
-	
+
 	return (GSS_S_COMPLETE);
-}		       
+}
 
 static gss_OID_desc krb5_mechanism =
 {9, __DECONST(void *, "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02")};
@@ -119,12 +119,12 @@ choose_mech(const gss_buffer_t input, gss_OID mech_oid)
 	status = parse_header(input, mech_oid);
 	if (status == GSS_S_COMPLETE)
 		return (GSS_S_COMPLETE);
-    
+
 	/*
 	 * Lets guess what mech is really is, callback function to mech ??
 	 */
 
-	if (input->length > 8 && 
+	if (input->length > 8 &&
 	    memcmp((const char *)input->value, "NTLMSSP\x00", 8) == 0)
 	{
 		*mech_oid = ntlm_mechanism;
@@ -136,7 +136,7 @@ choose_mech(const gss_buffer_t input, gss_OID mech_oid)
 		*mech_oid = krb5_mechanism;
 		return (GSS_S_COMPLETE);
 	} else if (input->length == 0) {
-		/* 
+		/*
 		 * There is the a weird mode of SPNEGO (in CIFS and
 		 * SASL GSS-SPENGO where the first token is zero
 		 * length and the acceptor returns a mech_list, lets
@@ -221,7 +221,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 		acceptor_mc = GSS_C_NO_CREDENTIAL;
 	}
 	delegated_mc = GSS_C_NO_CREDENTIAL;
-	
+
 	mech_ret_flags = 0;
 	major_status = m->gm_accept_sec_context(minor_status,
 	    &ctx->gc_ctx,
