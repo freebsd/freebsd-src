@@ -1,6 +1,7 @@
 CLANG_SUBDIR=clang/14.0.3
 CLANGDIR=	/usr/lib/${CLANG_SUBDIR}
 SANITIZER_LIBDIR=		${CLANGDIR}/lib/freebsd
+SANITIZER_SHAREDIR=		${CLANGDIR}/share
 
 # armv[67] is a bit special since we allow a soft-floating version via
 # CPUTYPE matching *soft*. This variant may not actually work though.
