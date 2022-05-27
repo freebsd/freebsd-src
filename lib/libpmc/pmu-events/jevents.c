@@ -252,6 +252,11 @@ static struct map {
 	{ "QPI LL", "uncore_qpi" },
 	{ "SBO", "uncore_sbox" },
 	{ "iMPH-U", "uncore_arb" },
+	{ "UPI LL", "uncore_upi" },
+	{ "L3PMC", "amd_l3" },
+	{ "DFPMC", "amd_df" },
+	{ "cpu_core", "cpu_core" },
+	{ "cpu_atom", "cpu_atom" },
 	{}
 };
 
