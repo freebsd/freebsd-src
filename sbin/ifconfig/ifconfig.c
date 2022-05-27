@@ -1407,7 +1407,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
-"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP"
+"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP\25STICKYARP"
 
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
@@ -1771,6 +1771,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-mextpg",	-IFCAP_MEXTPG,	setifcap),
 	DEF_CMD("staticarp",	IFF_STATICARP,	setifflags),
 	DEF_CMD("-staticarp",	-IFF_STATICARP,	setifflags),
+	DEF_CMD("stickyarp",	IFF_STICKYARP,	setifflags),
+	DEF_CMD("-stickyarp",	-IFF_STICKYARP,	setifflags),
 	DEF_CMD("rxcsum6",	IFCAP_RXCSUM_IPV6,	setifcap),
 	DEF_CMD("-rxcsum6",	-IFCAP_RXCSUM_IPV6,	setifcap),
 	DEF_CMD("txcsum6",	IFCAP_TXCSUM_IPV6,	setifcap),

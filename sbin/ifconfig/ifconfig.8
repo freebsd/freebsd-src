@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2022
+.Dd May 26, 2022
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -419,6 +419,23 @@ and will never send any requests.
 If the Address Resolution Protocol is enabled,
 the host will perform normally,
 sending out requests and listening for replies.
+.It Cm stickyarp
+Enable so-called sticky ARP mode for the interface.
+If this option is enabled on the given interface, any resolved address is
+marked as a static one and never expires. This may be used to increase
+security of the network by preventing ARP spoofing or to reduce latency for
+high-performance Ethernet networks where the time needed for ARP resolution is
+too high. Please note that a similar feature is also provided for bridges. See
+the sticky option in the
+.Sx Bridge Interface Parameters
+section. Enabling this
+option may impact techniques which rely on ARP expiration/overwriting feature
+such as load-balancers or high-availabity solutions such as
+.Xr carp 4 .
+.It Fl stickyarp
+Disable so-called sticky ARP mode for the interface (default).
+Resolved addresses will expire normally respecting the kernel ARP
+configuration.
 .It Cm broadcast
 (Inet only.)
 Specify the address to use to represent broadcasts to the
