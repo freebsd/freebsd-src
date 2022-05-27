@@ -2765,8 +2765,7 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 			error = nfsrpc_renew(clp, NULL, cred, p);
 			if (error == NFSERR_CBPATHDOWN)
 			    cbpathdown = 1;
-			else if (error == NFSERR_STALECLIENTID ||
-			    error == NFSERR_BADSESSION) {
+			else if (error == NFSERR_STALECLIENTID) {
 			    NFSLOCKCLSTATE();
 			    clp->nfsc_flags |= NFSCLFLAGS_RECOVER;
 			    NFSUNLOCKCLSTATE();
