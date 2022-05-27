@@ -186,7 +186,7 @@ static void	in_arpinput(struct mbuf *);
 
 static void arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr,
     struct ifnet *ifp, int bridged, struct llentry *la);
-static void arp_mark_lle_reachable(struct llentry *la);
+static void arp_mark_lle_reachable(struct llentry *la, struct ifnet *ifp);
 static void arp_iflladdr(void *arg __unused, struct ifnet *ifp);
 
 static eventhandler_tag iflladdr_tag;
@@ -999,7 +999,7 @@ match:
 		IF_AFDATA_WUNLOCK(ifp);
 
 		if (la_tmp == NULL) {
-			arp_mark_lle_reachable(la);
+			arp_mark_lle_reachable(la, ifp);
 			LLE_WUNLOCK(la);
 		} else {
 			/* Free newly-create entry and handle packet */
@@ -1247,7 +1247,7 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		llentry_mark_used(la);
 	}
 
-	arp_mark_lle_reachable(la);
+	arp_mark_lle_reachable(la, ifp);
 
 	/*
 	 * The packets are all freed within the call to the output
@@ -1267,7 +1267,7 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 }
 
 static void
-arp_mark_lle_reachable(struct llentry *la)
+arp_mark_lle_reachable(struct llentry *la, struct ifnet *ifp)
 {
 	int canceled, wtime;
 
@@ -1275,6 +1275,9 @@ arp_mark_lle_reachable(struct llentry *la)
 
 	la->ln_state = ARP_LLINFO_REACHABLE;
 	EVENTHANDLER_INVOKE(lle_event, la, LLENTRY_RESOLVED);
+
+	if ((ifp->if_flags & IFF_STICKYARP) != 0)
+		la->la_flags |= LLE_STATIC;
 
 	if (!(la->la_flags & LLE_STATIC)) {
 		LLE_ADDREF(la);
