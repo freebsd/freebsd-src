@@ -153,10 +153,8 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 		if ((m->m_flags & M_EXTPG) && m->m_len <= MLEN &&
 		    !mbuf_has_tls_session(m)) {
 			ext_size = m->m_ext.ext_size;
-			if (mb_unmapped_compress(m) == 0) {
+			if (mb_unmapped_compress(m) == 0)
 				sb->sb_mbcnt -= ext_size;
-				sb->sb_ccnt -= 1;
-			}
 		}
 
 		while ((n != NULL) && (n != end) && (m->m_flags & M_EOR) == 0 &&
@@ -178,11 +176,8 @@ sbready_compress(struct sockbuf *sb, struct mbuf *m0, struct mbuf *end)
 				sb->sb_mbtail = m;
 
 			sb->sb_mbcnt -= MSIZE;
-			sb->sb_mcnt -= 1;
-			if (n->m_flags & M_EXT) {
+			if (n->m_flags & M_EXT)
 				sb->sb_mbcnt -= n->m_ext.ext_size;
-				sb->sb_ccnt -= 1;
-			}
 			m_free(n);
 			n = m->m_next;
 		}
@@ -281,12 +276,9 @@ sballoc(struct sockbuf *sb, struct mbuf *m)
 		sb->sb_ctl += m->m_len;
 
 	sb->sb_mbcnt += MSIZE;
-	sb->sb_mcnt += 1;
 
-	if (m->m_flags & M_EXT) {
+	if (m->m_flags & M_EXT)
 		sb->sb_mbcnt += m->m_ext.ext_size;
-		sb->sb_ccnt += 1;
-	}
 }
 
 /*
@@ -324,11 +316,8 @@ sbfree(struct sockbuf *sb, struct mbuf *m)
 		sb->sb_ctl -= m->m_len;
 
 	sb->sb_mbcnt -= MSIZE;
-	sb->sb_mcnt -= 1;
-	if (m->m_flags & M_EXT) {
+	if (m->m_flags & M_EXT)
 		sb->sb_mbcnt -= m->m_ext.ext_size;
-		sb->sb_ccnt -= 1;
-	}
 
 	if (sb->sb_sndptr == m) {
 		sb->sb_sndptr = NULL;
@@ -354,12 +343,9 @@ sballoc_ktls_rx(struct sockbuf *sb, struct mbuf *m)
 	sb->sb_tlscc += m->m_len;
 
 	sb->sb_mbcnt += MSIZE;
-	sb->sb_mcnt += 1;
 
-	if (m->m_flags & M_EXT) {
+	if (m->m_flags & M_EXT)
 		sb->sb_mbcnt += m->m_ext.ext_size;
-		sb->sb_ccnt += 1;
-	}
 }
 
 void
@@ -374,12 +360,9 @@ sbfree_ktls_rx(struct sockbuf *sb, struct mbuf *m)
 	sb->sb_tlscc -= m->m_len;
 
 	sb->sb_mbcnt -= MSIZE;
-	sb->sb_mcnt -= 1;
 
-	if (m->m_flags & M_EXT) {
+	if (m->m_flags & M_EXT)
 		sb->sb_mbcnt -= m->m_ext.ext_size;
-		sb->sb_ccnt -= 1;
-	}
 }
 #endif
 
@@ -1812,8 +1795,6 @@ sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 	xsb->sb_cc = sb->sb_ccc;
 	xsb->sb_hiwat = sb->sb_hiwat;
 	xsb->sb_mbcnt = sb->sb_mbcnt;
-	xsb->sb_mcnt = sb->sb_mcnt;	
-	xsb->sb_ccnt = sb->sb_ccnt;
 	xsb->sb_mbmax = sb->sb_mbmax;
 	xsb->sb_lowat = sb->sb_lowat;
 	xsb->sb_flags = sb->sb_flags;
