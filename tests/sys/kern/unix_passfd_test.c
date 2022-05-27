@@ -411,7 +411,7 @@ ATF_TC_BODY(send_a_lot, tc)
 	ATF_REQUIRE(sendmsg(fd[0], &msghdr, 0) == 1);
 	nfds = getnfds();
 	ATF_REQUIRE(recvmsg(fd[1], &msghdr, 0) == 1);
-	ATF_REQUIRE(getnfds() == nfds + MAXFDS);
+	ATF_REQUIRE(getnfds() == (int)(nfds + MAXFDS));
 
 	/* Limit our process open files... */
 	ATF_REQUIRE(getrlimit(RLIMIT_NOFILE, &rlim) == 0);
