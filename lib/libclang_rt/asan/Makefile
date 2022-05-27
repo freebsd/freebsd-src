@@ -80,4 +80,7 @@ SRCS+=		ubsan/ubsan_init.cpp
 SRCS+=		ubsan/ubsan_monitor.cpp
 SRCS+=		ubsan/ubsan_value.cpp
 
+FILESDIR=	${SANITIZER_SHAREDIR}
+FILES+=		asan/asan_ignorelist.txt
+
 .include <bsd.lib.mk>
