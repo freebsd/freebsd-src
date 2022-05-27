@@ -7610,7 +7610,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	}
 	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
-	if (error == NFSERR_STALECLIENTID || error == NFSERR_BADSESSION)
+	if (error == NFSERR_STALECLIENTID)
 		nfscl_initiate_recovery(owp->nfsow_clp);
 nfsmout:
 	NFSCL_DEBUG(4, "eo nfsrpc_createlayout err=%d\n", error);
