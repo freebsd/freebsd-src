@@ -50,6 +50,7 @@ uint32_t ffs_calc_sbhash(struct fs *);
 struct malloc_type;
 #define UFS_MALLOC(size, type, flags) malloc(size)
 #define UFS_FREE(ptr, type) free(ptr)
+#define maxphys MAXPHYS
 /*
  * Request standard superblock location in ffs_sbget
  */
@@ -65,6 +66,7 @@ struct malloc_type;
 #include <sys/vnode.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/sysctl.h>
 #include <sys/ucred.h>
 
 #include <ufs/ufs/quota.h>
@@ -130,6 +132,7 @@ ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int, int,
 	int (*)(void *, off_t, void **, int));
+static int validate_sblock(struct fs *, int);
 
 /*
  * Read a superblock from the devfd device.
@@ -262,57 +265,265 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	fs = *fsp;
 	if (fs->fs_magic == FS_BAD_MAGIC)
 		return (EINVAL);
-	if (((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
-	      sblockloc <= SBLOCK_UFS1)) ||
-	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
-	      sblockloc == fs->fs_sblockloc))) &&
-	    fs->fs_ncg >= 1 &&
-	    fs->fs_bsize >= MINBSIZE &&
-	    fs->fs_bsize <= MAXBSIZE &&
-	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
-	    fs->fs_sbsize <= SBLOCKSIZE) {
-		/*
-		 * If the filesystem has been run on a kernel without
-		 * metadata check hashes, disable them.
-		 */
-		if ((fs->fs_flags & FS_METACKHASH) == 0)
-			fs->fs_metackhash = 0;
-		/*
-		 * Clear any check-hashes that are not maintained
-		 * by this kernel. Also clear any unsupported flags.
-		 */
-		fs->fs_metackhash &= CK_SUPPORTED;
-		fs->fs_flags &= FS_SUPPORTED;
-		if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
+	/*
+	 * For UFS1 with a 65536 block size, the first backup superblock
+	 * is at the same location as the UFS2 superblock. Since SBLOCK_UFS2
+	 * is the first location checked, the first backup is the superblock
+	 * that will be accessed. Here we fail the lookup so that we can
+	 * retry with the correct location for the UFS1 superblock.
+	 */
+	if (fs->fs_magic == FS_UFS1_MAGIC && !isaltsblk &&
+	    fs->fs_bsize == SBLOCK_UFS2 && sblockloc == SBLOCK_UFS2)
+		return (ENOENT);
+	if ((error = validate_sblock(fs, isaltsblk)) > 0)
+		return (error);
+	/*
+	 * If the filesystem has been run on a kernel without
+	 * metadata check hashes, disable them.
+	 */
+	if ((fs->fs_flags & FS_METACKHASH) == 0)
+		fs->fs_metackhash = 0;
+	/*
+	 * Clear any check-hashes that are not maintained
+	 * by this kernel. Also clear any unsupported flags.
+	 */
+	fs->fs_metackhash &= CK_SUPPORTED;
+	fs->fs_flags &= FS_SUPPORTED;
+	if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
 #ifdef _KERNEL
-			res = uprintf("Superblock check-hash failed: recorded "
-			    "check-hash 0x%x != computed check-hash 0x%x%s\n",
-			    fs->fs_ckhash, ckhash,
-			    chkhash == 0 ? " (Ignored)" : "");
+		res = uprintf("Superblock check-hash failed: recorded "
+		    "check-hash 0x%x != computed check-hash 0x%x%s\n",
+		    fs->fs_ckhash, ckhash,
+		    chkhash == 0 ? " (Ignored)" : "");
 #else
-			res = 0;
+		res = 0;
 #endif
-			/*
-			 * Print check-hash failure if no controlling terminal
-			 * in kernel or always if in user-mode (libufs).
-			 */
-			if (res == 0)
-				printf("Superblock check-hash failed: recorded "
-				    "check-hash 0x%x != computed check-hash "
-				    "0x%x%s\n", fs->fs_ckhash, ckhash,
-				    chkhash == 0 ? " (Ignored)" : "");
-			/* STDSB_NOHASHFAIL */
-			if (chkhash == 0)
-				return (0);
-			return (EINTEGRITY);
-		}
-		/* Have to set for old filesystems that predate this field */
-		fs->fs_sblockactualloc = sblockloc;
-		/* Not yet any summary information */
-		fs->fs_si = NULL;
-		return (0);
+		/*
+		 * Print check-hash failure if no controlling terminal
+		 * in kernel or always if in user-mode (libufs).
+		 */
+		if (res == 0)
+			printf("Superblock check-hash failed: recorded "
+			    "check-hash 0x%x != computed check-hash "
+			    "0x%x%s\n", fs->fs_ckhash, ckhash,
+			    chkhash == 0 ? " (Ignored)" : "");
+		/* STDSB_NOHASHFAIL */
+		if (chkhash == 0)
+			return (0);
+		return (EINTEGRITY);
 	}
-	return (ENOENT);
+	/* Have to set for old filesystems that predate this field */
+	fs->fs_sblockactualloc = sblockloc;
+	/* Not yet any summary information */
+	fs->fs_si = NULL;
+	return (0);
+}
+
+/*
+ * Verify the filesystem values.
+ */
+#define ILOG2(num)	(fls(num) - 1)
+#define MPRINT		if (prtmsg) printf
+/*
+ * Print error messages when bad superblock values are found.
+ */
+static int prtmsg = 1;
+#ifdef _KERNEL
+SYSCTL_DECL(_vfs_ffs);
+SYSCTL_INT(_vfs_ffs, OID_AUTO, prtsberrmsg, CTLFLAG_RWTUN, &prtmsg, 0,
+    "Print error messages when bad superblock values are found");
+#endif
+#undef CHK
+#define CHK(lhs, op, rhs, fmt)						\
+	if (lhs op rhs) {						\
+		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
+		    #fmt ")\n", fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2,	\
+		    #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs);	\
+		if (error == 0)						\
+			error = ENOENT;					\
+	}
+#define CHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
+	if (lhs1 op1 rhs1 && lhs2 op2 rhs2) {				\
+		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
+		    #fmt ") && %s (" #fmt ") %s %s (" #fmt ")\n",	\
+		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1,	\
+		    (intmax_t)lhs1, #op1, #rhs1, (intmax_t)rhs1, #lhs2,	\
+		    (intmax_t)lhs2, #op2, #rhs2, (intmax_t)rhs2);	\
+		if (error == 0)						\
+			error = ENOENT;					\
+	}
+
+static int
+validate_sblock(struct fs *fs, int isaltsblk)
+{
+	u_long i, sectorsize;
+	u_int64_t maxfilesize, sizepb;
+	int error;
+
+	error = 0;
+	sectorsize = dbtob(1);
+	if (fs->fs_magic == FS_UFS2_MAGIC) {
+		if (!isaltsblk)
+			CHK2(fs->fs_sblockactualloc, !=, SBLOCK_UFS2,
+			    fs->fs_sblockactualloc, !=, 0, %jd);
+		CHK(fs->fs_sblockloc, !=, SBLOCK_UFS2, %#jx);
+		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
+			sizeof(ufs2_daddr_t)), %jd);
+		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs2_daddr_t),
+		    %jd);
+		CHK(fs->fs_inopb, !=,
+		    fs->fs_bsize / sizeof(struct ufs2_dinode), %jd);
+	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
+		if (!isaltsblk)
+			CHK(fs->fs_sblockactualloc, >, SBLOCK_UFS1, %jd);
+		CHK(fs->fs_sblockloc, <, 0, %jd);
+		CHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
+		CHK(fs->fs_nindir, !=, fs->fs_bsize / sizeof(ufs1_daddr_t),
+		    %jd);
+		CHK(fs->fs_inopb, !=,
+		    fs->fs_bsize / sizeof(struct ufs1_dinode), %jd);
+		CHK(fs->fs_maxsymlinklen, !=, ((UFS_NDADDR + UFS_NIADDR) *
+			sizeof(ufs1_daddr_t)), %jd);
+		CHK(fs->fs_old_inodefmt, !=, FS_44INODEFMT, %jd);
+		CHK(fs->fs_old_rotdelay, !=, 0, %jd);
+		CHK(fs->fs_old_rps, !=, 60, %jd);
+		CHK(fs->fs_old_nspf, !=, fs->fs_fsize / sectorsize, %jd);
+		CHK(fs->fs_old_cpg, !=, 1, %jd);
+		CHK(fs->fs_old_interleave, !=, 1, %jd);
+		CHK(fs->fs_old_trackskew, !=, 0, %jd);
+		CHK(fs->fs_old_cpc, !=, 0, %jd);
+		CHK(fs->fs_old_postblformat, !=, 1, %jd);
+		CHK(fs->fs_old_nrpos, !=, 1, %jd);
+		CHK(fs->fs_old_spc, !=, fs->fs_fpg * fs->fs_old_nspf, %jd);
+		CHK(fs->fs_old_nsect, !=, fs->fs_old_spc, %jd);
+		CHK(fs->fs_old_npsect, !=, fs->fs_old_spc, %jd);
+		CHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
+	} else {
+		/* Bad magic number, so assume not a superblock */
+		return (ENOENT);
+	}
+	CHK(fs->fs_bsize, <, MINBSIZE, %jd);
+	CHK(fs->fs_bsize, >, MAXBSIZE, %jd);
+	CHK(fs->fs_bsize, <, roundup(sizeof(struct fs), DEV_BSIZE), %jd);
+	CHK(powerof2(fs->fs_bsize), ==, 0, %jd);
+	CHK(fs->fs_frag, <, 1, %jd);
+	CHK(fs->fs_frag, >, MAXFRAG, %jd);
+	CHK(fs->fs_frag, !=, numfrags(fs, fs->fs_bsize), %jd);
+	CHK(fs->fs_fsize, <, sectorsize, %jd);
+	CHK(fs->fs_fsize * fs->fs_frag, !=, fs->fs_bsize, %jd);
+	CHK(powerof2(fs->fs_fsize), ==, 0, %jd);
+	CHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
+	CHK(fs->fs_ncg, <, 1, %jd);
+	CHK(fs->fs_ipg, <, fs->fs_inopb, %jd);
+	CHK((u_int64_t)fs->fs_ipg * fs->fs_ncg, >,
+	    (((int64_t)(1)) << 32) - INOPB(fs), %jd);
+	CHK(fs->fs_cstotal.cs_nifree, <, 0, %jd);
+	CHK(fs->fs_cstotal.cs_nifree, >, (u_int64_t)fs->fs_ipg * fs->fs_ncg,
+	    %jd);
+	CHK(fs->fs_cstotal.cs_ndir, <, 0, %jd);
+	CHK(fs->fs_cstotal.cs_ndir, >,
+	    ((u_int64_t)fs->fs_ipg * fs->fs_ncg) - fs->fs_cstotal.cs_nifree,
+	    %jd);
+	CHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
+	CHK(fs->fs_sbsize, <, (unsigned)sizeof(struct fs), %jd);
+	CHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
+	CHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
+	CHK(fs->fs_maxbsize, >, FS_MAXCONTIG * fs->fs_bsize, %jd);
+	CHK(fs->fs_bmask, !=, ~(fs->fs_bsize - 1), %#jx);
+	CHK(fs->fs_fmask, !=, ~(fs->fs_fsize - 1), %#jx);
+	CHK(fs->fs_qbmask, !=, ~fs->fs_bmask, %#jx);
+	CHK(fs->fs_qfmask, !=, ~fs->fs_fmask, %#jx);
+	CHK(fs->fs_bshift, !=, ILOG2(fs->fs_bsize), %jd);
+	CHK(fs->fs_fshift, !=, ILOG2(fs->fs_fsize), %jd);
+	CHK(fs->fs_fragshift, !=, ILOG2(fs->fs_frag), %jd);
+	CHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
+	CHK(fs->fs_old_cgoffset, <, 0, %jd);
+	CHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
+	CHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg, %jd);
+	/*
+	 * If anything has failed up to this point, it is usafe to proceed
+	 * as checks below may divide by zero or make other fatal calculations.
+	 * So if we have any errors at this point, give up.
+	 */
+	if (error)
+		return (error);
+	CHK(fs->fs_sbsize % dbtob(1), !=, 0, %jd);
+	CHK(fs->fs_ipg % fs->fs_inopb, !=, 0, %jd);
+	CHK(fs->fs_sblkno, !=, roundup(
+	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
+	    fs->fs_frag), %jd);
+	CHK(fs->fs_cblkno, !=, fs->fs_sblkno +
+	    roundup(howmany(SBLOCKSIZE, fs->fs_fsize), fs->fs_frag), %jd);
+	CHK(fs->fs_iblkno, !=, fs->fs_cblkno + fs->fs_frag, %jd);
+	CHK(fs->fs_dblkno, !=, fs->fs_iblkno + fs->fs_ipg / INOPF(fs), %jd);
+	CHK(fs->fs_cgsize, >, fs->fs_bsize, %jd);
+	CHK(fs->fs_cgsize, <, fs->fs_fsize, %jd);
+	CHK(fs->fs_cgsize % fs->fs_fsize, !=, 0, %jd);
+	/*
+	 * This test is valid, however older versions of growfs failed
+	 * to correctly update fs_dsize so will fail this test. Thus we
+	 * exclude it from the requirements.
+	 */
+#ifdef notdef
+	CHK(fs->fs_dsize, !=, fs->fs_size - fs->fs_sblkno -
+		fs->fs_ncg * (fs->fs_dblkno - fs->fs_sblkno) -
+		howmany(fs->fs_cssize, fs->fs_fsize), %jd);
+#endif
+	CHK(fs->fs_metaspace, <, 0, %jd);
+	CHK(fs->fs_metaspace, >, fs->fs_fpg / 2, %jd);
+	CHK(fs->fs_minfree, >, 99, %jd%%);
+	maxfilesize = fs->fs_bsize * UFS_NDADDR - 1;
+	for (sizepb = fs->fs_bsize, i = 0; i < UFS_NIADDR; i++) {
+		sizepb *= NINDIR(fs);
+		maxfilesize += sizepb;
+	}
+	CHK(fs->fs_maxfilesize, !=, maxfilesize, %jd);
+	/*
+	 * These values have a tight interaction with each other that
+	 * makes it hard to tightly bound them. So we can only check
+	 * that they are within a broader possible range.
+	 *
+	 * The size cannot always be accurately determined, but ensure
+	 * that it is consistent with the number of cylinder groups (fs_ncg)
+	 * and the number of fragments per cylinder group (fs_fpg). Ensure
+	 * that the summary information size is correct and that it starts
+	 * and ends in the data area of the same cylinder group.
+	 */
+	CHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
+	CHK(fs->fs_size, <=, ((int64_t)fs->fs_ncg - 1) * fs->fs_fpg, %jd);
+	CHK(fs->fs_size, >, (int64_t)fs->fs_ncg * fs->fs_fpg, %jd);
+	CHK(fs->fs_csaddr, <, 0, %jd);
+	CHK(fs->fs_cssize, !=,
+	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
+	CHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
+	CHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)), %jd);
+	CHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
+	    dtog(fs, fs->fs_csaddr), %jd);
+	/*
+	 * With file system clustering it is possible to allocate
+	 * many contiguous blocks. The kernel variable maxphys defines
+	 * the maximum transfer size permitted by the controller and/or
+	 * buffering. The fs_maxcontig parameter controls the maximum
+	 * number of blocks that the filesystem will read or write
+	 * in a single transfer. It is calculated when the filesystem
+	 * is created as maxphys / fs_bsize. The loader uses a maxphys
+	 * of 128K even when running on a system that supports larger
+	 * values. If the filesystem was built on a system that supports
+	 * a larger maxphys (1M is typical) it will have configured
+	 * fs_maxcontig for that larger system. So we bound the upper
+	 * allowable limit for fs_maxconfig to be able to at least 
+	 * work with a 1M maxphys on the smallest block size filesystem:
+	 * 1M / 4096 == 256. There is no harm in allowing the mounting of
+	 * filesystems that make larger than maxphys I/O requests because
+	 * those (mostly 32-bit machines) can (very slowly) handle I/O
+	 * requests that exceed maxphys.
+	 */
+	CHK(fs->fs_maxcontig, <, 0, %jd);
+	CHK(fs->fs_maxcontig, >, MAX(256, maxphys / fs->fs_bsize), %jd);
+	CHK2(fs->fs_maxcontig, ==, 0, fs->fs_contigsumsize, !=, 0, %jd);
+	CHK2(fs->fs_maxcontig, >, 1, fs->fs_contigsumsize, !=,
+	    MIN(fs->fs_maxcontig, FS_MAXCONTIG), %jd);
+	return (error);
 }
 
 /*
