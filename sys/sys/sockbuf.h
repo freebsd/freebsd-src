@@ -95,8 +95,6 @@ struct sockbuf {
 	u_int	sb_ccc;		/* (a) claimed chars in buffer */
 	u_int	sb_hiwat;	/* (a) max actual char count */
 	u_int	sb_mbcnt;	/* (a) chars of mbufs used */
-	u_int   sb_mcnt;        /* (a) number of mbufs in buffer */
-	u_int   sb_ccnt;        /* (a) number of clusters in buffer */
 	u_int	sb_mbmax;	/* (a) max chars of mbufs to use */
 	u_int	sb_ctl;		/* (a) non-data chars in buffer */
 	u_int	sb_tlscc;	/* (a) TLS chain characters */

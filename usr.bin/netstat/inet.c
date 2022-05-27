@@ -147,8 +147,6 @@ sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 	xsb->sb_cc = sb->sb_ccc;
 	xsb->sb_hiwat = sb->sb_hiwat;
 	xsb->sb_mbcnt = sb->sb_mbcnt;
-	xsb->sb_mcnt = sb->sb_mcnt;
-	xsb->sb_ccnt = sb->sb_ccnt;
 	xsb->sb_mbmax = sb->sb_mbmax;
 	xsb->sb_lowat = sb->sb_lowat;
 	xsb->sb_flags = sb->sb_flags;
@@ -351,11 +349,9 @@ protopr(u_long off, const char *name, int af1, int proto)
 					xo_emit(" {T:/%-11.11s}", "(state)");
 			}
 			if (xflag) {
-				xo_emit(" {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} "
-				    "{T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} "
+				xo_emit("{T:/%-6.6s} {T:/%-6.6s} "
 				    "{T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} "
 				    "{T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s}",
-				    "R-MBUF", "S-MBUF", "R-CLUS", "S-CLUS",
 				    "R-HIWA", "S-HIWA", "R-LOWA", "S-LOWA",
 				    "R-BCNT", "S-BCNT", "R-BMAX", "S-BMAX");
 				xo_emit(" {T:/%7.7s} {T:/%7.7s} {T:/%7.7s} "
@@ -500,15 +496,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 #endif /* INET6 */
 		}
 		if (xflag) {
-			xo_emit("{:receive-mbufs/%6u} {:send-mbufs/%6u} "
-			    "{:receive-clusters/%6u} {:send-clusters/%6u} "
-			    "{:receive-high-water/%6u} {:send-high-water/%6u} "
+			xo_emit("{:receive-high-water/%6u} "
+			    "{:send-high-water/%6u} "
 			    "{:receive-low-water/%6u} {:send-low-water/%6u} "
 			    "{:receive-mbuf-bytes/%6u} {:send-mbuf-bytes/%6u} "
 			    "{:receive-mbuf-bytes-max/%6u} "
 			    "{:send-mbuf-bytes-max/%6u}",
-			    so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
-			    so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
 			    so->so_rcv.sb_hiwat, so->so_snd.sb_hiwat,
 			    so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 			    so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
