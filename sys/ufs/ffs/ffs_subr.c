@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/limits.h>
 
 #ifndef _KERNEL
 #include <stdio.h>
@@ -50,6 +51,7 @@ uint32_t ffs_calc_sbhash(struct fs *);
 struct malloc_type;
 #define UFS_MALLOC(size, type, flags) malloc(size)
 #define UFS_FREE(ptr, type) free(ptr)
+#define maxphys MAXPHYS
 
 #else /* _KERNEL */
 #include <sys/systm.h>
@@ -125,6 +127,7 @@ ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int, int,
 	int (*)(void *, off_t, void **, int));
+static int validate_sblock(struct fs *, int);
 
 /*
  * Read a superblock from the devfd device.
@@ -141,7 +144,7 @@ static int readsuper(void *, struct fs **, off_t, int, int,
  *     EIO: non-existent or truncated superblock.
  *     EIO: error reading summary information.
  *     ENOENT: no usable known superblock found.
- *     ENOSPC: failed to allocate space for the superblock.
+ *     ENOMEM: failed to allocate space for the superblock.
  *     EINVAL: The previous newfs operation on this volume did not complete.
  *         The administrator must complete newfs before using this volume.
  */
@@ -152,7 +155,8 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 {
 	struct fs *fs;
 	struct fs_summary_info *fs_si;
-	int i, error, size, blks;
+	int i, error;
+	uint64_t size, blks;
 	uint8_t *space;
 	int32_t *lp;
 	char *buf;
@@ -190,17 +194,16 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
 	size += fs->fs_ncg * sizeof(u_int8_t);
-	/* When running in libufs or libsa, UFS_MALLOC may fail */
-	if ((fs_si = UFS_MALLOC(sizeof(*fs_si), filltype, M_WAITOK)) == NULL) {
+	if ((fs_si = UFS_MALLOC(sizeof(*fs_si), filltype, M_NOWAIT)) == NULL) {
 		UFS_FREE(fs, filltype);
-		return (ENOSPC);
+		return (ENOMEM);
 	}
 	bzero(fs_si, sizeof(*fs_si));
 	fs->fs_si = fs_si;
-	if ((space = UFS_MALLOC(size, filltype, M_WAITOK)) == NULL) {
+	if ((space = UFS_MALLOC(size, filltype, M_NOWAIT)) == NULL) {
 		UFS_FREE(fs->fs_si, filltype);
 		UFS_FREE(fs, filltype);
-		return (ENOSPC);
+		return (ENOMEM);
 	}
 	fs->fs_csp = (struct csum *)space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
@@ -253,16 +256,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	fs = *fsp;
 	if (fs->fs_magic == FS_BAD_MAGIC)
 		return (EINVAL);
-	if (!(((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
-	      sblockloc <= SBLOCK_UFS1)) ||
-	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
-	      sblockloc == fs->fs_sblockloc))) &&
-	    fs->fs_ncg >= 1 &&
-	    fs->fs_bsize >= MINBSIZE &&
-	    fs->fs_bsize <= MAXBSIZE &&
-	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
-	    fs->fs_sbsize <= SBLOCKSIZE))
-		return (ENOENT);
+	if ((error = validate_sblock(fs, isaltsblk)) != 0)
+		return (error);
 	/*
 	 * If the filesystem has been run on a kernel without
 	 * metadata check hashes, disable them.
@@ -307,6 +302,140 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	fs->fs_sblockactualloc = sblockloc;
 	/* Not yet any summary information */
 	fs->fs_si = NULL;
+	return (0);
+}
+
+/*
+ * Verify the filesystem values.
+ */
+#define ILOG2(num) (fls(num) - 1)
+
+static int
+validate_sblock(struct fs *fs, int isaltsblk)
+{
+	int i, sectorsize;
+	u_int64_t maxfilesize, minfpg, sizepb;
+
+	sectorsize = dbtob(1);
+	if (fs->fs_magic == FS_UFS2_MAGIC) {
+		if ((!isaltsblk && (fs->fs_sblockloc != SBLOCK_UFS2 ||
+		    fs->fs_sblockactualloc != SBLOCK_UFS2)) ||
+		    fs->fs_maxsymlinklen != ((UFS_NDADDR + UFS_NIADDR) *
+			sizeof(ufs2_daddr_t)) ||
+		    fs->fs_nindir != fs->fs_bsize / sizeof(ufs2_daddr_t) ||
+		    fs->fs_inopb != fs->fs_bsize / sizeof(struct ufs2_dinode))
+			return (ENOENT);
+	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
+		if ((!isaltsblk && (fs->fs_sblockloc > SBLOCK_UFS1 ||
+		    fs->fs_sblockactualloc != SBLOCK_UFS1)) ||
+		    fs->fs_nindir != fs->fs_bsize / sizeof(ufs1_daddr_t) ||
+		    fs->fs_inopb != fs->fs_bsize / sizeof(struct ufs1_dinode) ||
+		    fs->fs_maxsymlinklen != ((UFS_NDADDR + UFS_NIADDR) *
+			sizeof(ufs1_daddr_t)) ||
+		    fs->fs_old_inodefmt != FS_44INODEFMT ||
+		    fs->fs_old_cgoffset != 0 ||
+		    fs->fs_old_cgmask != 0xffffffff ||
+		    fs->fs_old_size != fs->fs_size ||
+		    fs->fs_old_rotdelay != 0 ||
+		    fs->fs_old_rps != 60 ||
+		    fs->fs_old_nspf != fs->fs_fsize / sectorsize ||
+		    fs->fs_old_cpg != 1 ||
+		    fs->fs_old_interleave != 1 ||
+		    fs->fs_old_trackskew != 0 ||
+		    fs->fs_old_cpc != 0 ||
+		    fs->fs_old_postblformat != 1 ||
+		    fs->fs_old_nrpos != 1 ||
+		    fs->fs_old_spc != fs->fs_fpg * fs->fs_old_nspf ||
+		    fs->fs_old_nsect != fs->fs_old_spc ||
+		    fs->fs_old_npsect != fs->fs_old_spc ||
+		    fs->fs_old_dsize != fs->fs_dsize ||
+		    fs->fs_old_ncyl != fs->fs_ncg)
+			return (ENOENT);
+	} else {
+		return (ENOENT);
+	}
+	if (fs->fs_bsize < MINBSIZE || fs->fs_bsize > MAXBSIZE ||
+	    fs->fs_bsize < roundup(sizeof(struct fs), DEV_BSIZE) ||
+	    fs->fs_sbsize > SBLOCKSIZE || fs->fs_sbsize < fs->fs_fsize ||
+	    !powerof2(fs->fs_bsize))
+		return (ENOENT);
+	if (fs->fs_fsize < sectorsize || fs->fs_fsize > fs->fs_bsize ||
+	    fs->fs_fsize * MAXFRAG < fs->fs_bsize || !powerof2(fs->fs_fsize))
+		return (ENOENT);
+	if (fs->fs_maxbsize < fs->fs_bsize || !powerof2(fs->fs_maxbsize) ||
+	    fs->fs_maxbsize > FS_MAXCONTIG * fs->fs_bsize)
+		return (ENOENT);
+	if (fs->fs_bmask != ~(fs->fs_bsize - 1) ||
+	    fs->fs_fmask != ~(fs->fs_fsize - 1) ||
+	    fs->fs_qbmask != ~fs->fs_bmask ||
+	    fs->fs_qfmask != ~fs->fs_fmask ||
+	    fs->fs_bshift != ILOG2(fs->fs_bsize) ||
+	    fs->fs_fshift != ILOG2(fs->fs_fsize) ||
+	    fs->fs_frag != numfrags(fs, fs->fs_bsize) ||
+	    fs->fs_fragshift != ILOG2(fs->fs_frag) ||
+	    fs->fs_frag > MAXFRAG ||
+	    fs->fs_fsbtodb != ILOG2(fs->fs_fsize / sectorsize))
+		return (ENOENT);
+	if (fs->fs_sblkno !=
+		roundup(howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
+		    fs->fs_frag) ||
+	    fs->fs_cblkno != fs->fs_sblkno +
+		roundup(howmany(SBLOCKSIZE, fs->fs_fsize), fs->fs_frag) ||
+	    fs->fs_iblkno != fs->fs_cblkno + fs->fs_frag ||
+	    fs->fs_dblkno != fs->fs_iblkno + fs->fs_ipg / INOPF(fs) ||
+	    fs->fs_cgsize != fragroundup(fs, CGSIZE(fs)))
+		return (ENOENT);
+	if (fs->fs_csaddr != cgdmin(fs, 0) ||
+	    fs->fs_cssize !=
+		fragroundup(fs, fs->fs_ncg * sizeof(struct csum)) ||
+	    fs->fs_dsize != fs->fs_size - fs->fs_sblkno -
+		fs->fs_ncg * (fs->fs_dblkno - fs->fs_sblkno) -
+		howmany(fs->fs_cssize, fs->fs_fsize) ||
+	    fs->fs_metaspace < 0 || fs->fs_metaspace > fs->fs_fpg / 2 ||
+	    fs->fs_minfree > 99)
+		return (ENOENT);
+	maxfilesize = fs->fs_bsize * UFS_NDADDR - 1;
+	for (sizepb = fs->fs_bsize, i = 0; i < UFS_NIADDR; i++) {
+		sizepb *= NINDIR(fs);
+		maxfilesize += sizepb;
+	}
+	if (fs->fs_maxfilesize != maxfilesize)
+		return (ENOENT);
+	/*
+	 * These values have a tight interaction with each other that
+	 * makes it hard to tightly bound them. So we can only check
+	 * that they are within a broader possible range.
+	 *
+	 * Calculate minfpg, the minimum number of fragments that can be
+	 * in a cylinder group. The value 12289 is calculated in newfs(8)
+	 * when creating the smallest block size UFS version 1 filesystem
+	 * (4096 block size) with no fragments (4096 fragment size). That
+	 * number may be depressed even further for very small filesystems
+	 * since newfs(8) strives to have at least four cylinder groups.
+	 */
+	minfpg = MIN(12289, fs->fs_size / 4);
+	if (fs->fs_ncg < 1 || fs->fs_ncg > (fs->fs_size / minfpg) + 1 ||
+	    fs->fs_fpg < minfpg || fs->fs_fpg > fs->fs_size ||
+	    fs->fs_ipg * fs->fs_ncg > (((int64_t)(1)) << 32) - INOPB(fs) ||
+	    fs->fs_ipg > fs->fs_fpg || fs->fs_size < 8 * fs->fs_frag)
+		return (ENOENT);
+	if (fs->fs_size <= (fs->fs_ncg - 1) * fs->fs_fpg ||
+	    fs->fs_size > fs->fs_ncg * fs->fs_fpg)
+		return (ENOENT);
+	/*
+	 * Maxcontig sets the default for the maximum number of blocks
+	 * that may be allocated sequentially. With file system clustering
+	 * it is possible to allocate contiguous blocks up to the maximum
+	 * transfer size permitted by the controller or buffering.
+	 */
+	if (fs->fs_maxcontig < 1 ||
+	    fs->fs_maxcontig > MAX(1, maxphys / fs->fs_bsize))
+		return (ENOENT);
+	if (fs->fs_maxcontig < 0 ||
+	    (fs->fs_maxcontig == 0 && fs->fs_contigsumsize != 0) ||
+	    (fs->fs_maxcontig > 1 &&
+	    fs->fs_contigsumsize != MIN(fs->fs_maxcontig, FS_MAXCONTIG)))
+		return (ENOENT);
 	return (0);
 }
 
