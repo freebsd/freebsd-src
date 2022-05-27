@@ -55,7 +55,7 @@ gss_pname_to_uid(OM_uint32 *minor_status, const gss_name_t pname,
 
 	if (m->gm_pname_to_uid == NULL)
 		return (GSS_S_UNAVAILABLE);
-    
+
 	major_status = _gss_find_mn(minor_status, name, mech, &mn);
 	if (major_status != GSS_S_COMPLETE) {
 		_gss_mg_error(m, major_status, *minor_status);

@@ -51,7 +51,7 @@ gss_inquire_mechs_for_name(OM_uint32 *minor_status,
 	major_status = gss_create_empty_oid_set(minor_status, mech_types);
 	if (major_status)
 		return (major_status);
-    
+
 	/*
 	 * We go through all the loaded mechanisms and see if this
 	 * name's type is supported by the mechanism. If it is, add
