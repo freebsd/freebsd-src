@@ -57,6 +57,8 @@
                 lib
                     freebsd
                     ..
+                share
+                    ..
                 ..
             ..
         ..

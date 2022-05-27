@@ -36,4 +36,7 @@ SRCS+=		sanitizer_common/sanitizer_thread_registry.cpp
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cpp
 SRCS+=		sanitizer_common/sanitizer_type_traits.cpp
 
+FILESDIR=	${SANITIZER_SHAREDIR}
+FILES+=		cfi/cfi_ignorelist.txt
+
 .include <bsd.lib.mk>
