@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 #include <compat/linux/linux_common.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_socket.h>
@@ -547,7 +548,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_RCVTIMEO);
 	case LINUX_SO_SNDTIMEO:
 		return (SO_SNDTIMEO);
-	case LINUX_SO_TIMESTAMP:
+	case LINUX_SO_TIMESTAMPO:
+	case LINUX_SO_TIMESTAMPN:
 		return (SO_TIMESTAMP);
 	case LINUX_SO_ACCEPTCONN:
 		return (SO_ACCEPTCONN);
@@ -644,8 +646,11 @@ linux_to_bsd_cmsg_type(int cmsg_type)
 }
 
 static int
-bsd_to_linux_cmsg_type(int cmsg_type)
+bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type)
 {
+	struct linux_pemuldata *pem;
+
+	pem = pem_find(p);
 
 	switch (cmsg_type) {
 	case SCM_RIGHTS:
@@ -655,7 +660,7 @@ bsd_to_linux_cmsg_type(int cmsg_type)
 	case SCM_CREDS2:
 		return (LINUX_SCM_CREDENTIALS);
 	case SCM_TIMESTAMP:
-		return (LINUX_SCM_TIMESTAMP);
+		return (pem->so_timestamp);
 	}
 	return (-1);
 }
@@ -1583,28 +1588,55 @@ recvmsg_scm_creds2(socklen_t *datalen, void **data, void **udata)
 _Static_assert(sizeof(struct sockcred2) >= sizeof(struct l_ucred),
     "scm_creds2 sizeof l_ucred");
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 static int
-recvmsg_scm_timestamp(socklen_t *datalen, void **data, void **udata)
+recvmsg_scm_timestamp(l_int msg_type, socklen_t *datalen, void **data,
+    void **udata)
 {
-	struct timeval *ftmvl;
-	l_timeval *ltv;
+	l_sock_timeval ltv64;
+	l_timeval ltv;
+	struct timeval *tv;
+	socklen_t len;
+	void *buf;
 
 	if (*datalen != sizeof(struct timeval))
 		return (EMSGSIZE);
 
-	ftmvl = *data;
-	ltv = malloc(sizeof(*ltv), M_LINUX, M_WAITOK);
-	ltv->tv_sec = ftmvl->tv_sec;
-	ltv->tv_usec = ftmvl->tv_usec;
-	*data = *udata = ltv;
-	*datalen = sizeof(*ltv);
+	tv = *data;
+#if defined(COMPAT_LINUX32)
+	if (msg_type == LINUX_SCM_TIMESTAMPO &&
+	    (tv->tv_sec > INT_MAX || tv->tv_sec < INT_MIN))
+		return (EOVERFLOW);
+#endif
+	if (msg_type == LINUX_SCM_TIMESTAMPN)
+		len = sizeof(ltv64);
+	else
+		len = sizeof(ltv);
+
+	buf = malloc(len, M_LINUX, M_WAITOK);
+	if (msg_type == LINUX_SCM_TIMESTAMPN) {
+		ltv64.tv_sec = tv->tv_sec;
+		ltv64.tv_usec = tv->tv_usec;
+		memmove(buf, &ltv64, len);
+	} else {
+		ltv.tv_sec = tv->tv_sec;
+		ltv.tv_usec = tv->tv_usec;
+		memmove(buf, &ltv, len);
+	}
+	*data = *udata = buf;
+	*datalen = len;
 	return (0);
 }
+#else
+_Static_assert(sizeof(struct timeval) == sizeof(l_timeval),
+    "scm_timestamp sizeof l_timeval");
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
 linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags, struct msghdr *msg)
 {
+	struct proc *p = td->td_proc;
 	struct cmsghdr *cm;
 	struct l_cmsghdr *linux_cmsg = NULL;
 	socklen_t datalen, maxlen, outlen;
@@ -1685,7 +1717,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		outlen = 0;
 		while (cm != NULL) {
 			linux_cmsg->cmsg_type =
-			    bsd_to_linux_cmsg_type(cm->cmsg_type);
+			    bsd_to_linux_cmsg_type(p, cm->cmsg_type);
 			linux_cmsg->cmsg_level =
 			    bsd_to_linux_sockopt_level(cm->cmsg_level);
 			if (linux_cmsg->cmsg_type == -1 ||
@@ -1718,8 +1750,10 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				break;
 
 			case SCM_TIMESTAMP:
-				error = recvmsg_scm_timestamp(&datalen,
-				    &data, &udata);
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+				error = recvmsg_scm_timestamp(linux_cmsg->cmsg_type,
+				    &datalen, &data, &udata);
+#endif
 				break;
 			}
 			if (error != 0)
@@ -1894,6 +1928,8 @@ linux_shutdown(struct thread *td, struct linux_shutdown_args *args)
 int
 linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 {
+	struct proc *p = td->td_proc;
+	struct linux_pemuldata *pem;
 	l_timeval linux_tv;
 	struct sockaddr *sa;
 	struct timeval tv;
@@ -1920,6 +1956,10 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			return (kern_setsockopt(td, args->s, level,
 			    name, &tv, UIO_SYSSPACE, sizeof(tv)));
 			/* NOTREACHED */
+		case SO_TIMESTAMP:
+			pem = pem_find(p);
+			pem->so_timestamp = args->optname;
+			break;
 		default:
 			break;
 		}

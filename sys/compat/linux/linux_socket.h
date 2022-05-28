@@ -187,7 +187,8 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_SO_RCVTIMEO	20
 #define	LINUX_SO_SNDTIMEO	21
 #endif
-#define	LINUX_SO_TIMESTAMP	29
+#define	LINUX_SO_TIMESTAMPO	29
+#define	LINUX_SO_TIMESTAMPN	63
 #define	LINUX_SO_ACCEPTCONN	30
 #define	LINUX_SO_PEERSEC	31
 #define	LINUX_SO_SNDBUFFORCE	32
@@ -200,7 +201,8 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 
 #define LINUX_SCM_RIGHTS	0x01
 #define LINUX_SCM_CREDENTIALS	0x02
-#define LINUX_SCM_TIMESTAMP	LINUX_SO_TIMESTAMP
+#define LINUX_SCM_TIMESTAMPO	LINUX_SO_TIMESTAMPO
+#define LINUX_SCM_TIMESTAMPN	LINUX_SO_TIMESTAMPN
 
 /* Socket options */
 #define	LINUX_IP_TOS		1
