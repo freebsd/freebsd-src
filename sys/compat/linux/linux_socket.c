@@ -1984,7 +1984,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	struct sockaddr *sa;
 	struct timeval tv;
 	socklen_t len;
-	int error, level, name;
+	int error, level, name, val;
 
 	level = linux_to_bsd_sockopt_level(args->level);
 	switch (level) {
@@ -2007,10 +2007,22 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 			    name, &tv, UIO_SYSSPACE, sizeof(tv)));
 			/* NOTREACHED */
 		case SO_TIMESTAMP:
+			/* overwrite SO_BINTIME */
+			val = 0;
+			error = kern_setsockopt(td, args->s, level,
+			    SO_BINTIME, &val, UIO_SYSSPACE, sizeof(val));
+			if (error != 0)
+				return (error);
 			pem = pem_find(p);
 			pem->so_timestamp = args->optname;
 			break;
 		case SO_BINTIME:
+			/* overwrite SO_TIMESTAMP */
+			val = 0;
+			error = kern_setsockopt(td, args->s, level,
+			    SO_TIMESTAMP, &val, UIO_SYSSPACE, sizeof(val));
+			if (error != 0)
+				return (error);
 			pem = pem_find(p);
 			pem->so_timestampns = args->optname;
 			break;
