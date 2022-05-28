@@ -198,4 +198,16 @@ bool	linux_use_real_ifname(const struct ifnet *ifp);
 		}						\
 	} while (0)
 
+#define LINUX_RATELIMIT_MSG_OPT2(_message, _opt1, _opt2)	\
+	do {							\
+		static int seen = 0;				\
+								\
+		if (seen == 0) {				\
+			linux_msg(curthread, _message, _opt1, _opt2); \
+								\
+			if (linux_debug < 3)			\
+				seen = 1;			\
+		}						\
+	} while (0)
+
 #endif /* ! _LINUX_UTIL_H_ */
