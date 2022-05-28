@@ -551,6 +551,9 @@ linux_to_bsd_so_sockopt(int opt)
 	case LINUX_SO_TIMESTAMPO:
 	case LINUX_SO_TIMESTAMPN:
 		return (SO_TIMESTAMP);
+	case LINUX_SO_TIMESTAMPNSO:
+	case LINUX_SO_TIMESTAMPNSN:
+		return (SO_BINTIME);
 	case LINUX_SO_ACCEPTCONN:
 		return (SO_ACCEPTCONN);
 	case LINUX_SO_PROTOCOL:
@@ -661,6 +664,8 @@ bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type)
 		return (LINUX_SCM_CREDENTIALS);
 	case SCM_TIMESTAMP:
 		return (pem->so_timestamp);
+	case SCM_BINTIME:
+		return (pem->so_timestampns);
 	}
 	return (-1);
 }
@@ -1554,6 +1559,7 @@ recvmsg_scm_rights(struct thread *td, l_uint flags, socklen_t *datalen,
 	return (0);
 }
 
+
 static int
 recvmsg_scm_creds(socklen_t *datalen, void **data, void **udata)
 {
@@ -1630,6 +1636,53 @@ recvmsg_scm_timestamp(l_int msg_type, socklen_t *datalen, void **data,
 #else
 _Static_assert(sizeof(struct timeval) == sizeof(l_timeval),
     "scm_timestamp sizeof l_timeval");
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+static int
+recvmsg_scm_timestampns(l_int msg_type, socklen_t *datalen, void **data,
+    void **udata)
+{
+	struct l_timespec64 ts64;
+	struct l_timespec ts32;
+	struct timespec ts;
+	socklen_t len;
+	void *buf;
+
+	if (msg_type == LINUX_SCM_TIMESTAMPNSO)
+		len = sizeof(ts32);
+	else
+		len = sizeof(ts64);
+
+	buf = malloc(len, M_LINUX, M_WAITOK);
+	bintime2timespec(*data, &ts);
+	if (msg_type == LINUX_SCM_TIMESTAMPNSO) {
+		ts32.tv_sec = ts.tv_sec;
+		ts32.tv_nsec = ts.tv_nsec;
+		memmove(buf, &ts32, len);
+	} else {
+		ts64.tv_sec = ts.tv_sec;
+		ts64.tv_nsec = ts.tv_nsec;
+		memmove(buf, &ts64, len);
+	}
+	*data = *udata = buf;
+	*datalen = len;
+	return (0);
+}
+#else
+static int
+recvmsg_scm_timestampns(l_int msg_type, socklen_t *datalen, void **data,
+    void **udata)
+{
+	struct timespec ts;
+
+	bintime2timespec(*data, &ts);
+	memmove(*data, &ts, sizeof(struct timespec));
+	*datalen = sizeof(struct timespec);
+	return (0);
+}
+_Static_assert(sizeof(struct bintime) >= sizeof(struct timespec),
+    "scm_timestampns sizeof timespec");
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
@@ -1754,6 +1807,11 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				error = recvmsg_scm_timestamp(linux_cmsg->cmsg_type,
 				    &datalen, &data, &udata);
 #endif
+				break;
+
+			case SCM_BINTIME:
+				error = recvmsg_scm_timestampns(linux_cmsg->cmsg_type,
+				    &datalen, &data, &udata);
 				break;
 			}
 			if (error != 0)
@@ -1959,6 +2017,10 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		case SO_TIMESTAMP:
 			pem = pem_find(p);
 			pem->so_timestamp = args->optname;
+			break;
+		case SO_BINTIME:
+			pem = pem_find(p);
+			pem->so_timestampns = args->optname;
 			break;
 		default:
 			break;
