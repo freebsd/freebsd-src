@@ -1819,7 +1819,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 
 		if (lcm->cmsg_type == -1 ||
 		    cm->cmsg_level != SOL_SOCKET) {
-			linux_msg(curthread,
+			LINUX_RATELIMIT_MSG_OPT2(
 			    "unsupported recvmsg cmsg level %d type %d",
 			    cm->cmsg_level, cm->cmsg_type);
 			error = EINVAL;
