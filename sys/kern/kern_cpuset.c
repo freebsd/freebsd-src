@@ -1888,29 +1888,26 @@ int
 sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 {
 
-	return (kern_cpuset_getaffinity(td, uap->level, uap->which,
+	return (user_cpuset_getaffinity(td, uap->level, uap->which,
 	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
 }
 
 int
 kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
-    id_t id, size_t cpusetsize, cpuset_t *maskp, const struct cpuset_copy_cb *cb)
+    id_t id, size_t cpusetsize, cpuset_t *mask)
 {
 	struct thread *ttd;
 	struct cpuset *nset;
 	struct cpuset *set;
 	struct proc *p;
-	cpuset_t *mask;
 	int error;
-	size_t size;
 
 	error = cpuset_check_capabilities(td, level, which, id);
 	if (error != 0)
 		return (error);
-	mask = malloc(sizeof(cpuset_t), M_TEMP, M_WAITOK | M_ZERO);
 	error = cpuset_which(which, id, &p, &ttd, &set);
-	if (error)
-		goto out;
+	if (error != 0)
+		return (error);
 	switch (level) {
 	case CPU_LEVEL_ROOT:
 	case CPU_LEVEL_CPUSET:
@@ -1928,8 +1925,7 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 		case CPU_WHICH_INTRHANDLER:
 		case CPU_WHICH_ITHREAD:
 		case CPU_WHICH_DOMAIN:
-			error = EINVAL;
-			goto out;
+			return (EINVAL);
 		}
 		if (level == CPU_LEVEL_ROOT)
 			nset = cpuset_refroot(set);
@@ -1978,11 +1974,28 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (p)
 		PROC_UNLOCK(p);
 	if (error == 0) {
-		if (cpusetsize < howmany(CPU_FLS(mask), NBBY)) {
-			error = ERANGE;
-			goto out;
-		}
-		size = min(cpusetsize, sizeof(cpuset_t));
+		if (cpusetsize < howmany(CPU_FLS(mask), NBBY))
+			return (ERANGE);
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			ktrcpuset(mask, cpusetsize);
+#endif
+	}
+	return (error);
+}
+
+int
+user_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
+    id_t id, size_t cpusetsize, cpuset_t *maskp, const struct cpuset_copy_cb *cb)
+{
+	cpuset_t *mask;
+	size_t size;
+	int error;
+
+	mask = malloc(sizeof(cpuset_t), M_TEMP, M_WAITOK | M_ZERO);
+	size = min(cpusetsize, sizeof(cpuset_t));
+	error = kern_cpuset_getaffinity(td, level, which, id, size, mask);
+	if (error == 0) {
 		error = cb->cpuset_copyout(mask, maskp, size);
 		if (error != 0)
 			goto out;
@@ -2003,10 +2016,6 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				cp++;
 			}
 		}
-#ifdef KTRACE
-		if ( KTRPOINT(td, KTR_STRUCT))
-			ktrcpuset(mask, size);
-#endif
 	}
 out:
 	free(mask, M_TEMP);
