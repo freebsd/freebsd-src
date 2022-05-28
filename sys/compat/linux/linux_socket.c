@@ -1533,25 +1533,89 @@ linux_sendmmsg(struct thread *td, struct linux_sendmmsg_args *args)
 }
 
 static int
+recvmsg_scm_rights(struct thread *td, l_uint flags, socklen_t *datalen,
+    void **data, void **udata)
+{
+	int i, fd, fds, *fdp;
+
+	if (flags & LINUX_MSG_CMSG_CLOEXEC) {
+		fds = *datalen / sizeof(int);
+		fdp = *data;
+		for (i = 0; i < fds; i++) {
+			fd = *fdp++;
+			(void)kern_fcntl(td, fd, F_SETFD, FD_CLOEXEC);
+		}
+	}
+	return (0);
+}
+
+static int
+recvmsg_scm_creds(socklen_t *datalen, void **data, void **udata)
+{
+	struct cmsgcred *cmcred;
+	struct l_ucred lu;
+
+	cmcred = *data;
+	lu.pid = cmcred->cmcred_pid;
+	lu.uid = cmcred->cmcred_uid;
+	lu.gid = cmcred->cmcred_gid;
+	memmove(*data, &lu, sizeof(lu));
+	*datalen = sizeof(lu);
+	return (0);
+}
+_Static_assert(sizeof(struct cmsgcred) >= sizeof(struct l_ucred),
+    "scm_creds sizeof l_ucred");
+
+static int
+recvmsg_scm_creds2(socklen_t *datalen, void **data, void **udata)
+{
+	struct sockcred2 *scred;
+	struct l_ucred lu;
+
+	scred = *data;
+	lu.pid = scred->sc_pid;
+	lu.uid = scred->sc_uid;
+	lu.gid = scred->sc_gid;
+	memmove(*data, &lu, sizeof(lu));
+	*datalen = sizeof(lu);
+	return (0);
+}
+_Static_assert(sizeof(struct sockcred2) >= sizeof(struct l_ucred),
+    "scm_creds2 sizeof l_ucred");
+
+static int
+recvmsg_scm_timestamp(socklen_t *datalen, void **data, void **udata)
+{
+	struct timeval *ftmvl;
+	l_timeval *ltv;
+
+	if (*datalen != sizeof(struct timeval))
+		return (EMSGSIZE);
+
+	ftmvl = *data;
+	ltv = malloc(sizeof(*ltv), M_LINUX, M_WAITOK);
+	ltv->tv_sec = ftmvl->tv_sec;
+	ltv->tv_usec = ftmvl->tv_usec;
+	*data = *udata = ltv;
+	*datalen = sizeof(*ltv);
+	return (0);
+}
+
+static int
 linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags, struct msghdr *msg)
 {
 	struct cmsghdr *cm;
-	struct cmsgcred *cmcred;
-	struct sockcred2 *scred;
 	struct l_cmsghdr *linux_cmsg = NULL;
-	struct l_ucred linux_ucred;
 	socklen_t datalen, maxlen, outlen;
 	struct l_msghdr linux_msghdr;
 	struct iovec *iov, *uiov;
 	struct mbuf *control = NULL;
 	struct mbuf **controlp;
-	struct timeval *ftmvl;
 	struct sockaddr *sa;
-	l_timeval ltmvl;
 	caddr_t outbuf;
-	void *data;
-	int error, i, fd, fds, *fdp;
+	void *data, *udata;
+	int error;
 
 	error = copyin(msghdr, &linux_msghdr, sizeof(linux_msghdr));
 	if (error != 0)
@@ -1635,69 +1699,40 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 
 			data = CMSG_DATA(cm);
 			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+			udata = NULL;
 
 			switch (cm->cmsg_type) {
 			case SCM_RIGHTS:
-				if (flags & LINUX_MSG_CMSG_CLOEXEC) {
-					fds = datalen / sizeof(int);
-					fdp = data;
-					for (i = 0; i < fds; i++) {
-						fd = *fdp++;
-						(void)kern_fcntl(td, fd,
-						    F_SETFD, FD_CLOEXEC);
-					}
-				}
+				error = recvmsg_scm_rights(td, flags,
+				    &datalen, &data, &udata);
 				break;
 
 			case SCM_CREDS:
-				/*
-				 * Currently LOCAL_CREDS is never in
-				 * effect for Linux so no need to worry
-				 * about sockcred
-				 */
-				if (datalen != sizeof(*cmcred)) {
-					error = EMSGSIZE;
-					goto bad;
-				}
-				cmcred = (struct cmsgcred *)data;
-				bzero(&linux_ucred, sizeof(linux_ucred));
-				linux_ucred.pid = cmcred->cmcred_pid;
-				linux_ucred.uid = cmcred->cmcred_uid;
-				linux_ucred.gid = cmcred->cmcred_gid;
-				data = &linux_ucred;
-				datalen = sizeof(linux_ucred);
+				error = recvmsg_scm_creds(&datalen,
+				    &data, &udata);
 				break;
 
 			case SCM_CREDS2:
-				scred = data;
-				bzero(&linux_ucred, sizeof(linux_ucred));
-				linux_ucred.pid = scred->sc_pid;
-				linux_ucred.uid = scred->sc_uid;
-				linux_ucred.gid = scred->sc_gid;
-				data = &linux_ucred;
-				datalen = sizeof(linux_ucred);
+				error = recvmsg_scm_creds2(&datalen,
+				    &data, &udata);
 				break;
 
 			case SCM_TIMESTAMP:
-				if (datalen != sizeof(struct timeval)) {
-					error = EMSGSIZE;
-					goto bad;
-				}
-				ftmvl = (struct timeval *)data;
-				ltmvl.tv_sec = ftmvl->tv_sec;
-				ltmvl.tv_usec = ftmvl->tv_usec;
-				data = &ltmvl;
-				datalen = sizeof(ltmvl);
+				error = recvmsg_scm_timestamp(&datalen,
+				    &data, &udata);
 				break;
 			}
+			if (error != 0)
+				goto bad;
 
 			if (outlen + LINUX_CMSG_LEN(datalen) > maxlen) {
 				if (outlen == 0) {
 					error = EMSGSIZE;
-					goto bad;
+					goto err;
 				} else {
 					linux_msghdr.msg_flags |= LINUX_MSG_CTRUNC;
 					m_dispose_extcontrolm(control);
+					free(udata, M_LINUX);
 					goto out;
 				}
 			}
@@ -1705,18 +1740,19 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			linux_cmsg->cmsg_len = LINUX_CMSG_LEN(datalen);
 
 			error = copyout(linux_cmsg, outbuf, L_CMSG_HDRSZ);
+			if (error == 0) {
+				outbuf += L_CMSG_HDRSZ;
+				error = copyout(data, outbuf, datalen);
+				if (error == 0) {
+					outbuf += LINUX_CMSG_ALIGN(datalen);
+					outlen += LINUX_CMSG_LEN(datalen);
+					cm = CMSG_NXTHDR(msg, cm);
+				}
+			}
+err:
+			free(udata, M_LINUX);
 			if (error != 0)
 				goto bad;
-			outbuf += L_CMSG_HDRSZ;
-
-			error = copyout(data, outbuf, datalen);
-			if (error != 0)
-				goto bad;
-
-			outbuf += LINUX_CMSG_ALIGN(datalen);
-			outlen += LINUX_CMSG_LEN(datalen);
-
-			cm = CMSG_NXTHDR(msg, cm);
 		}
 		linux_msghdr.msg_controllen = outlen;
 	}
