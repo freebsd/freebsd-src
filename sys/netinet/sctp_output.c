@@ -12537,17 +12537,19 @@ sctp_lower_sosend(struct socket *so,
 	if (flags & MSG_EOF) {
 		sinfo_flags |= SCTP_EOF;
 	}
-	if (sinfo_flags & SCTP_SENDALL) {
-		error = sctp_sendall(inp, uio, top, srcv);
-		top = NULL;
-		goto out_unlocked;
-	}
 	if ((sinfo_flags & SCTP_ADDR_OVER) && (addr == NULL)) {
 		error = EINVAL;
 		goto out_unlocked;
 	}
-	/* Now we must find the association. */
 	SCTP_INP_RLOCK(inp);
+	if ((sinfo_flags & SCTP_SENDALL) &&
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE)) {
+		SCTP_INP_RUNLOCK(inp);
+		error = sctp_sendall(inp, uio, top, srcv);
+		top = NULL;
+		goto out_unlocked;
+	}
+	/* Now we must find the association. */
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
