@@ -93,6 +93,11 @@ typedef struct {
 	l_suseconds_t	tv_usec;
 } l_timeval;
 
+typedef struct {
+	l_time64_t	tv_sec;
+	l_time64_t	tv_usec;
+} l_sock_timeval;
+
 #define	l_fd_set	fd_set
 
 /*
