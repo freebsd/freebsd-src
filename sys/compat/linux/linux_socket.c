@@ -1992,6 +1992,22 @@ linux_getsockopt_so_peersec(struct thread *td,
 	    len, args));
 }
 
+static int
+linux_getsockopt_so_linger(struct thread *td,
+    struct linux_getsockopt_args *args)
+{
+	struct linger ling;
+	socklen_t len;
+	int error;
+
+	len = sizeof(ling);
+	error = kern_getsockopt(td, args->s, SOL_SOCKET,
+	    SO_LINGER, &ling, UIO_SYSSPACE, &len);
+	if (error != 0)
+		return (error);
+	ling.l_onoff = ((ling.l_onoff & SO_LINGER) != 0);
+	return (linux_sockopt_copyout(td, &ling, len, args));
+}
 
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
@@ -2074,6 +2090,9 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 				return (ENOPROTOOPT);
 			return (linux_sockopt_copyout(td, &newval,
 			    len, args));
+			/* NOTREACHED */
+		case SO_LINGER:
+			return (linux_getsockopt_so_linger(td, args));
 			/* NOTREACHED */
 		default:
 			break;
