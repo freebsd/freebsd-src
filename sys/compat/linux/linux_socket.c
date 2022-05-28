@@ -180,6 +180,8 @@ linux_to_bsd_ip_sockopt(int opt)
 	case LINUX_MCAST_LEAVE_SOURCE_GROUP:
 		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_MCAST_LEAVE_SOURCE_GROUP");
 		return (MCAST_LEAVE_SOURCE_GROUP);
+	case LINUX_IP_RECVORIGDSTADDR:
+		return (IP_RECVORIGDSTADDR);
 
 	/* known but not implemented sockopts */
 	case LINUX_IP_ROUTER_ALERT:
@@ -649,9 +651,25 @@ linux_to_bsd_cmsg_type(int cmsg_type)
 }
 
 static int
-bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type)
+bsd_to_linux_ip_cmsg_type(int cmsg_type)
+{
+
+	switch (cmsg_type) {
+	case IP_RECVORIGDSTADDR:
+		return (LINUX_IP_RECVORIGDSTADDR);
+	}
+	return (-1);
+}
+
+static int
+bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 {
 	struct linux_pemuldata *pem;
+
+	if (cmsg_level == IPPROTO_IP)
+		return (bsd_to_linux_ip_cmsg_type(cmsg_type));
+	if (cmsg_level != SOL_SOCKET)
+		return (-1);
 
 	pem = pem_find(p);
 
@@ -1686,6 +1704,20 @@ _Static_assert(sizeof(struct bintime) >= sizeof(struct timespec),
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 static int
+recvmsg_scm_ip_origdstaddr(socklen_t *datalen, void **data, void **udata)
+{
+	struct l_sockaddr *lsa;
+	int error;
+
+	error = bsd_to_linux_sockaddr(*data, &lsa, *datalen);
+	if (error == 0) {
+		*data = *udata = lsa;
+		*datalen = sizeof(*lsa);
+	}
+	return (error);
+}
+
+static int
 linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags, struct msghdr *msg)
 {
@@ -1769,8 +1801,22 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	outbuf = PTRIN(l_msghdr.msg_control);
 	outlen = 0;
 	while (cm != NULL) {
-		lcm->cmsg_type = bsd_to_linux_cmsg_type(p, cm->cmsg_type);
+		lcm->cmsg_type = bsd_to_linux_cmsg_type(p, cm->cmsg_type,
+		    cm->cmsg_level);
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
+
+		data = CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+		udata = NULL;
+		error = 0;
+
+		/* Process non SOL_SOCKET types. */
+		if (cm->cmsg_level == IPPROTO_IP &&
+		    lcm->cmsg_type == LINUX_IP_ORIGDSTADDR) {
+			error = recvmsg_scm_ip_origdstaddr(&datalen, &data, &udata);
+			goto cont;
+		}
+
 		if (lcm->cmsg_type == -1 ||
 		    cm->cmsg_level != SOL_SOCKET) {
 			linux_msg(curthread,
@@ -1780,9 +1826,6 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			goto bad;
 		}
 
-		data = CMSG_DATA(cm);
-		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
-		udata = NULL;
 
 		switch (cm->cmsg_type) {
 		case SCM_RIGHTS:
@@ -1808,6 +1851,8 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			    &datalen, &data, &udata);
 			break;
 		}
+
+cont:
 		if (error != 0)
 			goto bad;
 
