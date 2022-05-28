@@ -12418,6 +12418,7 @@ sctp_lower_sosend(struct socket *so,
     struct thread *p
 )
 {
+	struct sctp_nonpad_sndrcvinfo sndrcvninfo;
 	struct epoch_tracker et;
 	ssize_t sndlen = 0, max_len, local_add_more;
 	int error;
@@ -12723,7 +12724,9 @@ sctp_lower_sosend(struct socket *so,
 	atomic_add_int(&asoc->refcnt, 1);
 	free_cnt_applied = true;
 	if (srcv == NULL) {
-		srcv = (struct sctp_sndrcvinfo *)&asoc->def_send;
+		/* Use a local copy to have a consistent view. */
+		sndrcvninfo = asoc->def_send;
+		srcv = (struct sctp_sndrcvinfo *)&sndrcvninfo;
 		sinfo_flags = srcv->sinfo_flags;
 		if (flags & MSG_EOR) {
 			sinfo_flags |= SCTP_EOR;
