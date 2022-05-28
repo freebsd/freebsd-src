@@ -1727,7 +1727,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	socklen_t datalen, maxlen, outlen;
 	struct l_msghdr l_msghdr;
 	struct iovec *iov, *uiov;
-	struct mbuf *control = NULL;
+	struct mbuf *m, *control = NULL;
 	struct mbuf **controlp;
 	struct sockaddr *sa;
 	caddr_t outbuf;
@@ -1797,10 +1797,10 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	lcm = malloc(L_CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
 	msg->msg_control = mtod(control, struct cmsghdr *);
 	msg->msg_controllen = control->m_len;
-	cm = CMSG_FIRSTHDR(msg);
 	outbuf = PTRIN(l_msghdr.msg_control);
 	outlen = 0;
-	while (cm != NULL) {
+	for (m = control; m != NULL; m = m->m_next) {
+		cm = mtod(m, struct cmsghdr *);
 		lcm->cmsg_type = bsd_to_linux_cmsg_type(p, cm->cmsg_type,
 		    cm->cmsg_level);
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
@@ -1876,7 +1876,6 @@ cont:
 			if (error == 0) {
 				outbuf += LINUX_CMSG_ALIGN(datalen);
 				outlen += LINUX_CMSG_LEN(datalen);
-				cm = CMSG_NXTHDR(msg, cm);
 			}
 		}
 err:
