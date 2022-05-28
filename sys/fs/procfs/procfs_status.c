@@ -52,7 +52,6 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
-#include <sys/sysent.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>

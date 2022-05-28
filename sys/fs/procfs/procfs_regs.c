@@ -45,7 +45,6 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/sysent.h>
 #include <sys/uio.h>
 
 #include <fs/pseudofs/pseudofs.h>
@@ -53,6 +52,7 @@
 
 #ifdef COMPAT_FREEBSD32
 #include <sys/procfs.h>
+#include <sys/sysent.h>
 #include <machine/fpu.h>
 
 /*
