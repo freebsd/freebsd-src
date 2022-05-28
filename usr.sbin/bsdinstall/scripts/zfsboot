@@ -667,7 +667,8 @@ dialog_menu_layout()
 			for disk in $ZFSBOOT_DISKS; do
 				debug= f_device_find -1 \
 					$disk $DEVICE_TYPE_DISK disk
-				local _${disk}_status
+				f_isset _${disk}_status ||
+					local _${disk}_status
 				setvar _${disk}_status on
 			done
 
