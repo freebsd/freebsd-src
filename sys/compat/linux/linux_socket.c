@@ -1731,7 +1731,14 @@ int
 linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 {
 	struct msghdr bsd_msg;
+	struct file *fp;
+	int error;
 
+	error = getsock_cap(td, args->s, &cap_recv_rights,
+	    &fp, NULL, NULL);
+	if (error != 0)
+		return (error);
+	fdrop(fp, td);
 	return (linux_recvmsg_common(td, args->s, PTRIN(args->msg),
 	    args->flags, &bsd_msg));
 }
@@ -1742,9 +1749,14 @@ linux_recvmmsg_common(struct thread *td, l_int s, struct l_mmsghdr *msg,
 {
 	struct msghdr bsd_msg;
 	struct timespec ts;
+	struct file *fp;
 	l_uint retval;
 	int error, datagrams;
 
+	error = getsock_cap(td, s, &cap_recv_rights,
+	    &fp, NULL, NULL);
+	if (error != 0)
+		return (error);
 	datagrams = 0;
 	while (datagrams < vlen) {
 		error = linux_recvmsg_common(td, s, &msg->msg_hdr,
@@ -1780,6 +1792,7 @@ linux_recvmmsg_common(struct thread *td, l_int s, struct l_mmsghdr *msg,
 	}
 	if (error == 0)
 		td->td_retval[0] = datagrams;
+	fdrop(fp, td);
 	return (error);
 }
 
