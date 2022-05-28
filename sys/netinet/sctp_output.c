@@ -6348,8 +6348,8 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED) ||
 	    (stcb->asoc.state & SCTP_STATE_SHUTDOWN_PENDING)) {
 		/* got data while shutting down */
-		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ECONNRESET);
-		error = ECONNRESET;
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EPIPE);
+		error = EPIPE;
 		goto out_now;
 	}
 	sctp_alloc_a_strmoq(stcb, sp);
@@ -12293,20 +12293,10 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	 * sb is locked however. When data is copied the protocol processing
 	 * should be enabled since this is a slower operation...
 	 */
-	struct sctp_stream_queue_pending *sp = NULL;
+	struct sctp_stream_queue_pending *sp;
 	int resv_in_first;
 
 	*error = 0;
-	/* Now can we send this? */
-	if ((SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_SENT) ||
-	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_ACK_SENT) ||
-	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED) ||
-	    (asoc->state & SCTP_STATE_SHUTDOWN_PENDING)) {
-		/* got data while shutting down */
-		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ECONNRESET);
-		*error = ECONNRESET;
-		goto out_now;
-	}
 	sctp_alloc_a_strmoq(stcb, sp);
 	if (sp == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
@@ -12925,13 +12915,6 @@ sctp_lower_sosend(struct socket *so,
 	KASSERT((asoc->state & SCTP_STATE_WAS_ABORTED) == 0,
 	    ("Association was aborted"));
 
-	if ((SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_SENT) ||
-	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED) ||
-	    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_ACK_SENT) ||
-	    (asoc->state & SCTP_STATE_SHUTDOWN_PENDING)) {
-		error = EPIPE;
-		goto out_unlocked;
-	}
 	/* Ok, we will attempt a msgsnd :> */
 	if (p != NULL) {
 		p->td_ru.ru_msgsnd++;
@@ -13085,6 +13068,28 @@ skip_preblock:
 			}
 			if (error != 0) {
 				goto out;
+			}
+			/*
+			 * Reject the sending of a new user message, if the
+			 * association is about to be shut down.
+			 */
+			if ((SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_SENT) ||
+			    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED) ||
+			    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_ACK_SENT) ||
+			    (asoc->state & SCTP_STATE_SHUTDOWN_PENDING)) {
+				if (sp->data != 0) {
+					sctp_m_freem(sp->data);
+					sp->data = NULL;
+					sp->tail_mbuf = NULL;
+					sp->length = 0;
+				}
+				if (sp->net != NULL) {
+					sctp_free_remote_addr(sp->net);
+					sp->net = NULL;
+				}
+				sctp_free_a_strmoq(stcb, sp, SCTP_SO_LOCKED);
+				error = EPIPE;
+				goto out_unlocked;
 			}
 			/* The out streams might be reallocated. */
 			strm = &asoc->strmout[srcv->sinfo_stream];
