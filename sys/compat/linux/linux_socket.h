@@ -229,6 +229,8 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_IP_PASSSEC	18
 #define	LINUX_IP_TRANSPARENT	19
 
+#define	LINUX_IP_ORIGDSTADDR		20
+#define	LINUX_IP_RECVORIGDSTADDR	LINUX_IP_ORIGDSTADDR
 #define	LINUX_IP_MINTTL		21
 #define	LINUX_IP_NODEFRAG	22
 #define	LINUX_IP_CHECKSUM	23
