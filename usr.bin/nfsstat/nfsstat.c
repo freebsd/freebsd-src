@@ -750,13 +750,16 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 			  (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_COMMITDS]);
 
 			xo_emit("{T:OpenLayout/%13.13s}{T:CreateLayout/%13.13s}"
-			    "{T:BindConnSess/%13.13s}{T:LookupOpen/%13.13s}\n");
+			    "{T:BindConnSess/%13.13s}{T:LookupOpen/%13.13s}"
+			    "{T:AppendWrite/%13.13s}\n");
 			xo_emit("{:openlayout/%13ju}{:createlayout/%13ju}"
-			    "{:bindconnsess/%13ju}{:lookupopen/%13ju}\n",
-			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_OPENLAYGET],
-			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_CREATELAYGET],
-			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_BINDCONNTOSESS],
-			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_LOOKUPOPEN]);
+			    "{:bindconnsess/%13ju}{:lookupopen/%13ju}"
+			    "{:appendwrite/%13ju}\n",
+			 (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_OPENLAYGET],
+			 (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_CREATELAYGET],
+			 (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_BINDCONNTOSESS],
+			 (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_LOOKUPOPEN],
+			 (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_APPENDWRITE]);
 
 			xo_close_container("nfsv41");
 
