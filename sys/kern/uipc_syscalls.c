@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
+#ifdef COMPAT_43
 #include <sys/sysent.h>
+#endif
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/unpcb.h>

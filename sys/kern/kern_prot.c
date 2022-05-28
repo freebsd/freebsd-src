@@ -63,7 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#ifdef COMPAT_43
 #include <sys/sysent.h>
+#endif
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 #include <sys/racct.h>

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscall.h>
-#include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/sx.h>
@@ -2723,6 +2722,7 @@ filt_lio(struct knote *kn, long hint)
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/socket.h>
+#include <sys/sysent.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/freebsd32/freebsd32_signal.h>

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/posix4.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
 

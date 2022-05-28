@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#include <sys/sysent.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
