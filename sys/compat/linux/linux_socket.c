@@ -1691,9 +1691,9 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 {
 	struct proc *p = td->td_proc;
 	struct cmsghdr *cm;
-	struct l_cmsghdr *linux_cmsg = NULL;
+	struct l_cmsghdr *lcm = NULL;
 	socklen_t datalen, maxlen, outlen;
-	struct l_msghdr linux_msghdr;
+	struct l_msghdr l_msghdr;
 	struct iovec *iov, *uiov;
 	struct mbuf *control = NULL;
 	struct mbuf **controlp;
@@ -1702,7 +1702,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	void *data, *udata;
 	int error;
 
-	error = copyin(msghdr, &linux_msghdr, sizeof(linux_msghdr));
+	error = copyin(msghdr, &l_msghdr, sizeof(l_msghdr));
 	if (error != 0)
 		return (error);
 
@@ -1710,9 +1710,9 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	 * Pass user-supplied recvmsg() flags in msg_flags field,
 	 * following sys_recvmsg() convention.
 	*/
-	linux_msghdr.msg_flags = flags;
+	l_msghdr.msg_flags = flags;
 
-	error = linux_to_bsd_msghdr(msg, &linux_msghdr);
+	error = linux_to_bsd_msghdr(msg, &l_msghdr);
 	if (error != 0)
 		return (error);
 
@@ -1746,111 +1746,103 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	 * Note that kern_recvit() updates msg->msg_namelen.
 	 */
 	if (msg->msg_name != NULL && msg->msg_namelen > 0) {
-		msg->msg_name = PTRIN(linux_msghdr.msg_name);
+		msg->msg_name = PTRIN(l_msghdr.msg_name);
 		error = linux_copyout_sockaddr(sa, msg->msg_name,
 		    msg->msg_namelen);
 		if (error != 0)
 			goto bad;
 	}
 
-	error = bsd_to_linux_msghdr(msg, &linux_msghdr);
+	error = bsd_to_linux_msghdr(msg, &l_msghdr);
 	if (error != 0)
 		goto bad;
 
-	maxlen = linux_msghdr.msg_controllen;
-	linux_msghdr.msg_controllen = 0;
-	if (control) {
-		linux_cmsg = malloc(L_CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
+	maxlen = l_msghdr.msg_controllen;
+	l_msghdr.msg_controllen = 0;
+	if (control == NULL)
+		goto out;
 
-		msg->msg_control = mtod(control, struct cmsghdr *);
-		msg->msg_controllen = control->m_len;
-
-		cm = CMSG_FIRSTHDR(msg);
-		outbuf = PTRIN(linux_msghdr.msg_control);
-		outlen = 0;
-		while (cm != NULL) {
-			linux_cmsg->cmsg_type =
-			    bsd_to_linux_cmsg_type(p, cm->cmsg_type);
-			linux_cmsg->cmsg_level =
-			    bsd_to_linux_sockopt_level(cm->cmsg_level);
-			if (linux_cmsg->cmsg_type == -1 ||
-			    cm->cmsg_level != SOL_SOCKET) {
-				linux_msg(curthread,
-				    "unsupported recvmsg cmsg level %d type %d",
-				    cm->cmsg_level, cm->cmsg_type);
-				error = EINVAL;
-				goto bad;
-			}
-
-			data = CMSG_DATA(cm);
-			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
-			udata = NULL;
-
-			switch (cm->cmsg_type) {
-			case SCM_RIGHTS:
-				error = recvmsg_scm_rights(td, flags,
-				    &datalen, &data, &udata);
-				break;
-
-			case SCM_CREDS:
-				error = recvmsg_scm_creds(&datalen,
-				    &data, &udata);
-				break;
-
-			case SCM_CREDS2:
-				error = recvmsg_scm_creds2(&datalen,
-				    &data, &udata);
-				break;
-
-			case SCM_TIMESTAMP:
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-				error = recvmsg_scm_timestamp(linux_cmsg->cmsg_type,
-				    &datalen, &data, &udata);
-#endif
-				break;
-
-			case SCM_BINTIME:
-				error = recvmsg_scm_timestampns(linux_cmsg->cmsg_type,
-				    &datalen, &data, &udata);
-				break;
-			}
-			if (error != 0)
-				goto bad;
-
-			if (outlen + LINUX_CMSG_LEN(datalen) > maxlen) {
-				if (outlen == 0) {
-					error = EMSGSIZE;
-					goto err;
-				} else {
-					linux_msghdr.msg_flags |= LINUX_MSG_CTRUNC;
-					m_dispose_extcontrolm(control);
-					free(udata, M_LINUX);
-					goto out;
-				}
-			}
-
-			linux_cmsg->cmsg_len = LINUX_CMSG_LEN(datalen);
-
-			error = copyout(linux_cmsg, outbuf, L_CMSG_HDRSZ);
-			if (error == 0) {
-				outbuf += L_CMSG_HDRSZ;
-				error = copyout(data, outbuf, datalen);
-				if (error == 0) {
-					outbuf += LINUX_CMSG_ALIGN(datalen);
-					outlen += LINUX_CMSG_LEN(datalen);
-					cm = CMSG_NXTHDR(msg, cm);
-				}
-			}
-err:
-			free(udata, M_LINUX);
-			if (error != 0)
-				goto bad;
+	lcm = malloc(L_CMSG_HDRSZ, M_LINUX, M_WAITOK | M_ZERO);
+	msg->msg_control = mtod(control, struct cmsghdr *);
+	msg->msg_controllen = control->m_len;
+	cm = CMSG_FIRSTHDR(msg);
+	outbuf = PTRIN(l_msghdr.msg_control);
+	outlen = 0;
+	while (cm != NULL) {
+		lcm->cmsg_type = bsd_to_linux_cmsg_type(p, cm->cmsg_type);
+		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
+		if (lcm->cmsg_type == -1 ||
+		    cm->cmsg_level != SOL_SOCKET) {
+			linux_msg(curthread,
+			    "unsupported recvmsg cmsg level %d type %d",
+			    cm->cmsg_level, cm->cmsg_type);
+			error = EINVAL;
+			goto bad;
 		}
-		linux_msghdr.msg_controllen = outlen;
+
+		data = CMSG_DATA(cm);
+		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+		udata = NULL;
+
+		switch (cm->cmsg_type) {
+		case SCM_RIGHTS:
+			error = recvmsg_scm_rights(td, flags,
+			    &datalen, &data, &udata);
+			break;
+		case SCM_CREDS:
+			error = recvmsg_scm_creds(&datalen,
+			    &data, &udata);
+			break;
+		case SCM_CREDS2:
+			error = recvmsg_scm_creds2(&datalen,
+			    &data, &udata);
+			break;
+		case SCM_TIMESTAMP:
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+			error = recvmsg_scm_timestamp(lcm->cmsg_type,
+			    &datalen, &data, &udata);
+#endif
+			break;
+		case SCM_BINTIME:
+			error = recvmsg_scm_timestampns(lcm->cmsg_type,
+			    &datalen, &data, &udata);
+			break;
+		}
+		if (error != 0)
+			goto bad;
+
+		if (outlen + LINUX_CMSG_LEN(datalen) > maxlen) {
+			if (outlen == 0) {
+				error = EMSGSIZE;
+				goto err;
+			} else {
+				l_msghdr.msg_flags |= LINUX_MSG_CTRUNC;
+				m_dispose_extcontrolm(control);
+				free(udata, M_LINUX);
+				goto out;
+			}
+		}
+
+		lcm->cmsg_len = LINUX_CMSG_LEN(datalen);
+		error = copyout(lcm, outbuf, L_CMSG_HDRSZ);
+		if (error == 0) {
+			outbuf += L_CMSG_HDRSZ;
+			error = copyout(data, outbuf, datalen);
+			if (error == 0) {
+				outbuf += LINUX_CMSG_ALIGN(datalen);
+				outlen += LINUX_CMSG_LEN(datalen);
+				cm = CMSG_NXTHDR(msg, cm);
+			}
+		}
+err:
+		free(udata, M_LINUX);
+		if (error != 0)
+			goto bad;
 	}
+	l_msghdr.msg_controllen = outlen;
 
 out:
-	error = copyout(&linux_msghdr, msghdr, sizeof(linux_msghdr));
+	error = copyout(&l_msghdr, msghdr, sizeof(l_msghdr));
 
 bad:
 	if (control != NULL) {
@@ -1859,7 +1851,7 @@ bad:
 		m_freem(control);
 	}
 	free(iov, M_IOV);
-	free(linux_cmsg, M_LINUX);
+	free(lcm, M_LINUX);
 	free(sa, M_SONAME);
 
 	return (error);
