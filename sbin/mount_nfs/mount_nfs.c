@@ -139,7 +139,7 @@ enum tryret {
 
 static int	sec_name_to_num(const char *sec);
 static const char	*sec_num_to_name(int num);
-static int	getnfsargs(char *, struct iovec **iov, int *iovlen);
+static int	getnfsargs(char **, char **, struct iovec **iov, int *iovlen);
 /* void	set_rpc_maxgrouplist(int); */
 static struct netconfig *getnetconf_cached(const char *netid);
 static const char	*netidbytype(int af, int sotype);
@@ -156,7 +156,7 @@ main(int argc, char *argv[])
 	int c;
 	struct iovec *iov;
 	int num, iovlen;
-	char *mntname, *p, *spec, *tmp;
+	char *host, *mntname, *p, *spec, *tmp;
 	char mntpath[MAXPATHLEN], errmsg[255];
 	char hostname[MAXHOSTNAMELEN + 1], gssn[MAXHOSTNAMELEN + 50];
 	const char *gssname, *nmount_errstr;
@@ -461,7 +461,7 @@ main(int argc, char *argv[])
 		    __DECONST(void *, gssname), strlen(gssname) + 1);
 	}
 
-	if (!getnfsargs(spec, &iov, &iovlen))
+	if (!getnfsargs(&spec, &host, &iov, &iovlen))
 		exit(1);
 
 	/* resolve the mountpoint with realpath(3) */
@@ -479,6 +479,9 @@ main(int argc, char *argv[])
 		else
 			err(1, "nmount: %s%s%s", mntpath, errmsg[0] ? ", " : "",
 			    errmsg);
+	} else if (mountmode != V4 && !add_mtab(host, spec)) {
+		/* Add mounted file system to PATH_MOUNTTAB */
+		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, host, spec);
 	}
 
 	exit(0);
@@ -568,15 +571,16 @@ rtm_ifinfo_sleep(time_t sec)
 }
 
 static int
-getnfsargs(char *spec, struct iovec **iov, int *iovlen)
+getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 {
 	struct addrinfo hints, *ai_nfs, *ai;
 	enum tryret ret;
 	int ecode, speclen, remoteerr, offset, have_bracket = 0;
-	char *hostp, *delimp, *errstr;
+	char *hostp, *delimp, *errstr, *spec;
 	size_t len;
 	static char nam[MNAMELEN + 1], pname[MAXHOSTNAMELEN + 5];
 
+	spec = *specp;
 	if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
 	    *(delimp + 1) == ':') {
 		hostp = spec + 1;
@@ -718,9 +722,9 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	freeaddrinfo(ai_nfs);
 
 	build_iovec(iov, iovlen, "hostname", nam, (size_t)-1);
-	/* Add mounted file system to PATH_MOUNTTAB */
-	if (mountmode != V4 && !add_mtab(hostp, spec))
-		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, hostp, spec);
+
+	*specp = spec;
+	*hostpp = hostp;
 	return (1);
 }
 
