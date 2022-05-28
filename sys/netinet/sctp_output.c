@@ -12248,8 +12248,9 @@ sctp_copy_resume(struct uio *uio,
 	m = m_uiotombuf(uio, M_WAITOK, max_send_len, 0,
 	    (M_PKTHDR | (user_marks_eor ? M_EOR : 0)));
 	if (m == NULL) {
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, ENOBUFS);
-		*error = ENOBUFS;
+		/* The only possible error is EFAULT. */
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
+		*error = EFAULT;
 	} else {
 		*sndout = m_length(m, NULL);
 		*new_tail = m_last(m);
@@ -12262,13 +12263,12 @@ sctp_copy_one(struct sctp_stream_queue_pending *sp,
     struct uio *uio,
     int resv_upfront)
 {
-	sp->data = m_uiotombuf(uio, M_WAITOK, sp->length,
-	    resv_upfront, 0);
+	sp->data = m_uiotombuf(uio, M_WAITOK, sp->length, resv_upfront, 0);
 	if (sp->data == NULL) {
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, ENOBUFS);
-		return (ENOBUFS);
+		/* The only possible error is EFAULT. */
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
+		return (EFAULT);
 	}
-
 	sp->tail_mbuf = m_last(sp->data);
 	return (0);
 }
@@ -12319,7 +12319,6 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->context = srcv->sinfo_context;
 	sp->fsn = 0;
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
-
 	sp->sid = srcv->sinfo_stream;
 	sp->length = (uint32_t)min(uio->uio_resid, max_send_len);
 	if ((sp->length == (uint32_t)uio->uio_resid) &&
@@ -12517,13 +12516,13 @@ sctp_lower_sosend(struct socket *so,
 		error = EINVAL;
 		goto out_unlocked;
 	}
-	atomic_add_int(&inp->total_sends, 1);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    SCTP_IS_LISTENING(inp)) {
 		/* The listener can NOT send. */
 		error = EINVAL;
 		goto out_unlocked;
 	}
+	atomic_add_int(&inp->total_sends, 1);
 
 	if (srcv != NULL) {
 		sinfo_flags = srcv->sinfo_flags;
