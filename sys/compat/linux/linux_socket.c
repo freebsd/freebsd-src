@@ -1238,19 +1238,29 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 {
 	struct msghdr msg;
 	struct iovec aiov;
+	struct socket *so;
+	struct file *fp;
+	int error;
 
 	if (linux_check_hdrincl(td, args->s) == 0)
 		/* IP_HDRINCL set, tweak the packet before sending */
 		return (linux_sendto_hdrincl(td, args));
 
-	msg.msg_name = PTRIN(args->to);
-	msg.msg_namelen = args->tolen;
+	bzero(&msg, sizeof(msg));
+	error = getsock_cap(td, args->s, &cap_send_connect_rights,
+	    &fp, NULL, NULL);
+	if (error != 0)
+		return (error);
+	so = fp->f_data;
+	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING)) == 0) {
+		msg.msg_name = PTRIN(args->to);
+		msg.msg_namelen = args->tolen;
+	}
 	msg.msg_iov = &aiov;
 	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_flags = 0;
 	aiov.iov_base = PTRIN(args->msg);
 	aiov.iov_len = args->len;
+	fdrop(fp, td);
 	return (linux_sendit(td, args->s, &msg, args->flags, NULL,
 	    UIO_USERSPACE));
 }
