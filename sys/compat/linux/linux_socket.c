@@ -1925,6 +1925,18 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 }
 
 static int
+linux_sockopt_copyout(struct thread *td, void *val, socklen_t len,
+    struct linux_getsockopt_args *args)
+{
+	int error;
+
+	error = copyout(val, PTRIN(args->optval), len);
+	if (error == 0)
+		error = copyout(&len, PTRIN(args->optlen), sizeof(len));
+	return (error);
+}
+
+static int
 linux_getsockopt_so_peergroups(struct thread *td,
     struct linux_getsockopt_args *args)
 {
@@ -1976,12 +1988,10 @@ linux_getsockopt_so_peersec(struct thread *td,
 		return (error);
 	}
 
-	error = copyout(SECURITY_CONTEXT_STRING,
-	    PTRIN(args->optval), sizeof(SECURITY_CONTEXT_STRING));
-	if (error == 0)
-		error = copyout(&len, PTRIN(args->optlen), sizeof(len));
-	return (error);
+	return (linux_sockopt_copyout(td, SECURITY_CONTEXT_STRING,
+	    len, args));
 }
+
 
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
@@ -2021,8 +2031,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 				return (error);
 			linux_tv.tv_sec = tv.tv_sec;
 			linux_tv.tv_usec = tv.tv_usec;
-			return (copyout(&linux_tv, PTRIN(args->optval),
-			    sizeof(linux_tv)));
+			return (linux_sockopt_copyout(td, &linux_tv,
+			    sizeof(linux_tv), args));
 			/* NOTREACHED */
 		case LOCAL_PEERCRED:
 			if (args->optlen < sizeof(lxu))
@@ -2040,7 +2050,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			lxu.pid = xu.cr_pid;
 			lxu.uid = xu.cr_uid;
 			lxu.gid = xu.cr_gid;
-			return (copyout(&lxu, PTRIN(args->optval), sizeof(lxu)));
+			return (linux_sockopt_copyout(td, &lxu,
+			    sizeof(lxu), args));
 			/* NOTREACHED */
 		case SO_ERROR:
 			len = sizeof(newval);
@@ -2049,7 +2060,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			if (error != 0)
 				return (error);
 			newval = -bsd_to_linux_errno(newval);
-			return (copyout(&newval, PTRIN(args->optval), len));
+			return (linux_sockopt_copyout(td, &newval,
+			    len, args));
 			/* NOTREACHED */
 		case SO_DOMAIN:
 			len = sizeof(newval);
@@ -2060,7 +2072,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			newval = bsd_to_linux_domain(newval);
 			if (newval == -1)
 				return (ENOPROTOOPT);
-			return (copyout(&newval, PTRIN(args->optval), len));
+			return (linux_sockopt_copyout(td, &newval,
+			    len, args));
 			/* NOTREACHED */
 		default:
 			break;
