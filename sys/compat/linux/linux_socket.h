@@ -53,12 +53,6 @@
 #define LINUX_MSG_WAITFORONE	0x10000
 #define LINUX_MSG_CMSG_CLOEXEC	0x40000000
 
-/* Socket-level control message types */
-
-#define LINUX_SCM_RIGHTS	0x01
-#define LINUX_SCM_CREDENTIALS	0x02
-#define LINUX_SCM_TIMESTAMP	0x1D
-
 struct l_msghdr {
 	l_uintptr_t	msg_name;
 	l_int		msg_namelen;
@@ -201,6 +195,12 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_SO_PROTOCOL	38
 #define	LINUX_SO_DOMAIN		39
 #define	LINUX_SO_PEERGROUPS	59
+
+/* Socket-level control message types */
+
+#define LINUX_SCM_RIGHTS	0x01
+#define LINUX_SCM_CREDENTIALS	0x02
+#define LINUX_SCM_TIMESTAMP	LINUX_SO_TIMESTAMP
 
 /* Socket options */
 #define	LINUX_IP_TOS		1
