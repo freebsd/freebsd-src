@@ -409,7 +409,7 @@ bsd_to_linux_sockaddr(const struct sockaddr *sa, struct l_sockaddr **lsa,
 	if (bdom == -1)
 		return (EAFNOSUPPORT);
 
-	kosa = malloc(len, M_SONAME, M_WAITOK);
+	kosa = malloc(len, M_LINUX, M_WAITOK);
 	bcopy(sa, kosa, len);
 	kosa->sa_family = bdom;
 	*lsa = kosa;

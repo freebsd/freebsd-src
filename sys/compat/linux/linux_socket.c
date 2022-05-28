@@ -731,7 +731,7 @@ linux_copyout_sockaddr(const struct sockaddr *sa, void *uaddr, size_t len)
 		return (error);
 
 	error = copyout(lsa, uaddr, len);
-	free(lsa, M_SONAME);
+	free(lsa, M_LINUX);
 
 	return (error);
 }
