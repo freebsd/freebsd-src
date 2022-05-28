@@ -3373,7 +3373,7 @@ freebsd32_cpuset_getaffinity(struct thread *td,
     struct freebsd32_cpuset_getaffinity_args *uap)
 {
 
-	return (kern_cpuset_getaffinity(td, uap->level, uap->which,
+	return (user_cpuset_getaffinity(td, uap->level, uap->which,
 	    PAIR32TO64(id_t,uap->id), uap->cpusetsize, uap->mask,
 	    &cpuset_copy32_cb));
 }
