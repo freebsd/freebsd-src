@@ -28,6 +28,7 @@ cscope.in.out
 cscope.out
 cscope.po.out
 compile_commands.json
+compile_commands.events.json
 tags
 .clangd
 .ccls-cache
