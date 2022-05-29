@@ -88,19 +88,19 @@ struct pmc_md_iap_op_pmcallocate {
  * Bit Position    Use
  * 63 - 12         Reserved (do not touch)
  * 11              Ctr 2 PMI
- * 10              Reserved (do not touch)
+ * 10              Ctr 2 Any Thread (v3)
  * 9-8             Ctr 2 Enable
  * 7               Ctr 1 PMI
- * 6               Reserved (do not touch)
+ * 6               Ctr 1 Any Thread (v3)
  * 5-4             Ctr 1 Enable
  * 3               Ctr 0 PMI
- * 2               Reserved (do not touch)
+ * 2               Ctr 0 Any Thread (v3)
  * 1-0             Ctr 0 Enable (3: All Levels, 2: User, 1: OS, 0: Disable)
  */
 
 #define	IAF_OFFSET				32
 #define	IAF_CTRL				0x38D
-#define	IAF_CTRL_MASK				0x0000000000000bbb
+#define	IAF_CTRL_MASK				0x0000000000000fff
 
 /*
  * Programmable counters.
@@ -117,7 +117,7 @@ struct pmc_md_iap_op_pmcallocate {
  * 31-24           Counter Mask
  * 23              Invert
  * 22              Enable
- * 21              Reserved (do not touch)
+ * 21              Any Thread (v3)
  * 20              APIC Interrupt Enable
  * 19              Pin Control
  * 18              Edge Detect
@@ -127,7 +127,7 @@ struct pmc_md_iap_op_pmcallocate {
  * 7-0             Event Select
  */
 
-#define	IAP_EVSEL_MASK				0x00000000ffdfffff
+#define	IAP_EVSEL_MASK				0x00000000ffffffff
 #define	IAP_EVSEL0				0x186
 
 /*
@@ -159,9 +159,18 @@ struct pmc_md_iap_op_pmcallocate {
 #define IA_GLOBAL_CTRL_MASK			0x00000007ffffffff
 
 #define	IA_GLOBAL_OVF_CTRL			0x390
+#define	IA_GLOBAL_STATUS_RESET			0x390
+#define	IA_GLOBAL_STATUS_SET			0x391		/* v4 */
 
 #define	IA_GLOBAL_STATUS_FLAG_CONDCHG		(1ULL << 63)
 #define	IA_GLOBAL_STATUS_FLAG_OVFBUF		(1ULL << 62)
+#define	IA_GLOBAL_STATUS_FLAG_OVFUNCORE		(1ULL << 61)	/* v3 */
+#define	IA_GLOBAL_STATUS_FLAG_ASCI		(1ULL << 60)	/* v4 */
+#define	IA_GLOBAL_STATUS_FLAG_CTR_FRZ		(1ULL << 59)	/* v4 */
+#define	IA_GLOBAL_STATUS_FLAG_LBP_FRZ		(1ULL << 58)	/* v4 */
+#define	IA_GLOBAL_STATUS_FLAG_TRACETOPAPMI	(1ULL << 55)	/* v4 */
+
+#define	IA_GLOBAL_INUSE				0x392		/* v4 */
 
 /*
  * Offcore response configuration.
