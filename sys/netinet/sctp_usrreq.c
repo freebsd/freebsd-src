@@ -7221,6 +7221,15 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
 		goto out;
 	}
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
+	    ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED))) {
+		SOCK_UNLOCK(so);
+		solisten_proto_abort(so);
+		error = EINVAL;
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
+		goto out;
+	}
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		if ((error = sctp_inpcb_bind_locked(inp, NULL, NULL, p))) {
 			SOCK_UNLOCK(so);
