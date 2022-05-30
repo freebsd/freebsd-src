@@ -181,7 +181,7 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	sig = linux_to_bsd_signal(linux_sig);
 
 	error = kern_sigaction(td, sig, nsa, osa, 0);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	if (linux_osa != NULL)
@@ -250,7 +250,7 @@ linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
 
 	if (args->act != NULL) {
 		error = copyin(args->act, &nsa, sizeof(l_sigaction_t));
-		if (error)
+		if (error != 0)
 			return (error);
 	}
 
@@ -258,9 +258,8 @@ linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
 				   args->act ? &nsa : NULL,
 				   args->oact ? &osa : NULL);
 
-	if (args->oact != NULL && !error) {
+	if (args->oact != NULL && error == 0)
 		error = copyout(&osa, args->oact, sizeof(l_sigaction_t));
-	}
 
 	return (error);
 }
@@ -305,7 +304,7 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 
 	if (args->mask != NULL) {
 		error = copyin(args->mask, &mask, sizeof(l_osigset_t));
-		if (error)
+		if (error != 0)
 			return (error);
 		LINUX_SIGEMPTYSET(lset);
 		lset.__mask = mask;
@@ -316,7 +315,7 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 				     args->mask ? &set : NULL,
 				     args->omask ? &oset : NULL);
 
-	if (args->omask != NULL && !error) {
+	if (args->omask != NULL && error == 0) {
 		mask = oset.__mask;
 		error = copyout(&mask, args->omask, sizeof(l_osigset_t));
 	}
@@ -340,9 +339,8 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 	error = linux_do_sigprocmask(td, args->how, pset,
 				     args->omask ? &oset : NULL);
 
-	if (args->omask != NULL && !error) {
+	if (args->omask != NULL && error == 0)
 		error = copyout(&oset, args->omask, sizeof(l_sigset_t));
-	}
 
 	return (error);
 }
@@ -457,7 +455,7 @@ linux_common_rt_sigtimedwait(struct thread *td, l_sigset_t *mask,
 
 	ksiginfo_init(&ksi);
 	error = kern_sigtimedwait(td, bset, &ksi, tsa);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	sig = bsd_to_linux_signal(ksi.ksi_signo);
