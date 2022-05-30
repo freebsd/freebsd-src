@@ -340,7 +340,7 @@ static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
 #endif
 static int ethofld_fw4_ack(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
-static int ethofld_transmit(struct ifnet *, struct mbuf *);
+static int ethofld_transmit(if_t, struct mbuf *);
 #endif
 
 static counter_u64_t extfree_refs;
@@ -1095,13 +1095,13 @@ t4_teardown_adapter_queues(struct adapter *sc)
 
 /* Maximum payload that could arrive with a single iq descriptor. */
 static inline int
-max_rx_payload(struct adapter *sc, struct ifnet *ifp, const bool ofld)
+max_rx_payload(struct adapter *sc, if_t ifp, const bool ofld)
 {
 	int maxp;
 
 	/* large enough even when hw VLAN extraction is disabled */
 	maxp = sc->params.sge.fl_pktshift + ETHER_HDR_LEN +
-	    ETHER_VLAN_ENCAP_LEN + ifp->if_mtu;
+	    ETHER_VLAN_ENCAP_LEN + if_getmtu(ifp);
 	if (ofld && sc->tt.tls && sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
 	    maxp < sc->params.tp.max_rx_pdu)
 		maxp = sc->params.tp.max_rx_pdu;
@@ -1126,7 +1126,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	struct sge_nm_txq *nm_txq;
 #endif
 	struct adapter *sc = vi->adapter;
-	struct ifnet *ifp = vi->ifp;
+	if_t ifp = vi->ifp;
 	int maxp;
 
 	/* Interrupt vector to start from (when using multiple vectors) */
@@ -1134,7 +1134,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 
 #ifdef DEV_NETMAP
 	saved_idx = intr_idx;
-	if (ifp->if_capabilities & IFCAP_NETMAP) {
+	if (if_getcapabilities(ifp) & IFCAP_NETMAP) {
 
 		/* netmap is supported with direct interrupts only. */
 		MPASS(!forwarding_intr_to_fwq(sc));
@@ -1177,7 +1177,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 			intr_idx++;
 	}
 #ifdef DEV_NETMAP
-	if (ifp->if_capabilities & IFCAP_NETMAP)
+	if (if_getcapabilities(ifp) & IFCAP_NETMAP)
 		intr_idx = saved_idx + max(vi->nrxq, vi->nnmrxq);
 #endif
 #ifdef TCP_OFFLOAD
@@ -1234,7 +1234,7 @@ t4_teardown_vi_queues(struct vi_info *vi)
 #endif
 
 #ifdef DEV_NETMAP
-	if (vi->ifp->if_capabilities & IFCAP_NETMAP) {
+	if (if_getcapabilities(vi->ifp) & IFCAP_NETMAP) {
 		for_each_nm_txq(vi, i, nm_txq) {
 			free_nm_txq(vi, nm_txq);
 		}
@@ -1940,9 +1940,9 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
     u_int plen)
 {
 	struct mbuf *m0;
-	struct ifnet *ifp = rxq->ifp;
+	if_t ifp = rxq->ifp;
 	struct sge_fl *fl = &rxq->fl;
-	struct vi_info *vi = ifp->if_softc;
+	struct vi_info *vi = if_getsoftc(ifp);
 	const struct cpl_rx_pkt *cpl;
 #if defined(INET) || defined(INET6)
 	struct lro_ctrl *lro = &rxq->lro;
@@ -1993,7 +1993,7 @@ eth_rx(struct adapter *sc, struct sge_rxq *rxq, const struct iq_desc *d,
 		slen = get_segment_len(sc, fl, plen) -
 		    sc->params.sge.fl_pktshift;
 		frame = sd->cl + fl->rx_offset + sc->params.sge.fl_pktshift;
-		CURVNET_SET_QUIET(ifp->if_vnet);
+		CURVNET_SET_QUIET(if_getvnet(ifp));
 		rc = pfil_mem_in(vi->pfil, frame, slen, ifp, &m0);
 		CURVNET_RESTORE();
 		if (rc == PFIL_DROPPED || rc == PFIL_CONSUMED) {
@@ -2040,11 +2040,11 @@ have_mbuf:
 		    (cpl->l2info & htobe32(F_RXF_IP6)));
 		m0->m_pkthdr.csum_data = be16toh(cpl->csum);
 		if (tnl_type == 0) {
-			if (!ipv6 && ifp->if_capenable & IFCAP_RXCSUM) {
+			if (!ipv6 && if_getcapenable(ifp) & IFCAP_RXCSUM) {
 				m0->m_pkthdr.csum_flags = CSUM_L3_CALC |
 				    CSUM_L3_VALID | CSUM_L4_CALC |
 				    CSUM_L4_VALID;
-			} else if (ipv6 && ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
+			} else if (ipv6 && if_getcapenable(ifp) & IFCAP_RXCSUM_IPV6) {
 				m0->m_pkthdr.csum_flags = CSUM_L4_CALC |
 				    CSUM_L4_VALID;
 			}
@@ -2109,7 +2109,7 @@ have_mbuf:
 	}
 
 #ifdef NUMA
-	m0->m_pkthdr.numa_domain = ifp->if_numa_domain;
+	m0->m_pkthdr.numa_domain = if_getnumadomain(ifp);
 #endif
 #if defined(INET) || defined(INET6)
 	if (rxq->iq.flags & IQ_LRO_ENABLED && tnl_type == 0 &&
@@ -2123,7 +2123,7 @@ have_mbuf:
 			return (0); /* queued for LRO */
 	}
 #endif
-	ifp->if_input(ifp, m0);
+	if_input(ifp, m0);
 
 	return (0);
 }
@@ -2246,9 +2246,9 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 }
 
 void
-t4_update_fl_bufsize(struct ifnet *ifp)
+t4_update_fl_bufsize(if_t ifp)
 {
-	struct vi_info *vi = ifp->if_softc;
+	struct vi_info *vi = if_getsoftc(ifp);
 	struct adapter *sc = vi->adapter;
 	struct sge_rxq *rxq;
 #ifdef TCP_OFFLOAD
@@ -3124,10 +3124,10 @@ static u_int
 eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 {
 	struct sge_txq *txq = r->cookie;
-	struct ifnet *ifp = txq->ifp;
+	if_t ifp = txq->ifp;
 	struct sge_eq *eq = &txq->eq;
 	struct txpkts *txp = &txq->txp;
-	struct vi_info *vi = ifp->if_softc;
+	struct vi_info *vi = if_getsoftc(ifp);
 	struct adapter *sc = vi->adapter;
 	u_int total, remaining;		/* # of packets */
 	u_int n, avail, dbdiff;		/* # of hardware descriptors */
@@ -3945,7 +3945,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int idx, int intr_idx,
 {
 	int rc;
 	struct adapter *sc = vi->adapter;
-	struct ifnet *ifp = vi->ifp;
+	if_t ifp = vi->ifp;
 	struct sysctl_oid *oid;
 	char name[16];
 
@@ -3967,10 +3967,10 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int idx, int intr_idx,
 		init_iq(&rxq->iq, sc, vi->tmr_idx, vi->pktc_idx, vi->qsize_rxq,
 		    intr_idx, cong_drop, IQ_ETH);
 #if defined(INET) || defined(INET6)
-		if (ifp->if_capenable & IFCAP_LRO)
+		if (if_getcapenable(ifp) & IFCAP_LRO)
 			rxq->iq.flags |= IQ_LRO_ENABLED;
 #endif
-		if (ifp->if_capenable & IFCAP_HWRXTSTMP)
+		if (if_getcapenable(ifp) & IFCAP_HWRXTSTMP)
 			rxq->iq.flags |= IQ_RX_TIMESTAMP;
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(vi->dev), idx);
@@ -6785,7 +6785,7 @@ ethofld_tx(struct cxgbe_rate_tag *cst)
 }
 
 static int
-ethofld_transmit(struct ifnet *ifp, struct mbuf *m0)
+ethofld_transmit(if_t ifp, struct mbuf *m0)
 {
 	struct cxgbe_rate_tag *cst;
 	int rc;
@@ -6799,7 +6799,7 @@ ethofld_transmit(struct ifnet *ifp, struct mbuf *m0)
 	MPASS(cst->flags & EO_SND_TAG_REF);
 
 	if (__predict_false(cst->flags & EO_FLOWC_PENDING)) {
-		struct vi_info *vi = ifp->if_softc;
+		struct vi_info *vi = if_getsoftc(ifp);
 		struct port_info *pi = vi->pi;
 		struct adapter *sc = pi->adapter;
 		const uint32_t rss_mask = vi->rss_size - 1;

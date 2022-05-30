@@ -90,7 +90,7 @@ enum {
 
 struct port_info {
 	struct adapter	*adapter;
-	struct ifnet	*ifp;
+	if_t		ifp;
 	int		if_flags;
 	int		flags;
 	const struct port_type_info *port_type;
@@ -549,8 +549,8 @@ static inline int offload_running(adapter_t *adapter)
 }
 
 void cxgb_tx_watchdog(void *arg);
-int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
-void cxgb_qflush(struct ifnet *ifp);
+int cxgb_transmit(if_t ifp, struct mbuf *m);
+void cxgb_qflush(if_t ifp);
 void t3_iterate(void (*)(struct adapter *, void *), void *);
 void cxgb_refresh_stats(struct port_info *);
 

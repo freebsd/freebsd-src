@@ -177,7 +177,7 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 	if (check_pktsize) {
 		if (p->pktsize < 0)
 			return (EINVAL);
-		if (!in_range(p->pktsize, 64, pi->vi[0].ifp->if_mtu))
+		if (!in_range(p->pktsize, 64, if_getmtu(pi->vi[0].ifp)))
 			return (ERANGE);
 	}
 
@@ -508,7 +508,7 @@ t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
 	if (pi->sched_params->pktsize > 0)
 		pktsize = pi->sched_params->pktsize;
 	else
-		pktsize = pi->vi[0].ifp->if_mtu;
+		pktsize = if_getmtu(pi->vi[0].ifp);
 	if (pi->sched_params->burstsize > 0)
 		burstsize = pi->sched_params->burstsize;
 	else
@@ -798,11 +798,11 @@ static const struct if_snd_tag_sw cxgbe_rate_tag_sw = {
 };
 
 int
-cxgbe_rate_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+cxgbe_rate_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
 {
 	int rc, schedcl;
-	struct vi_info *vi = ifp->if_softc;
+	struct vi_info *vi = if_getsoftc(ifp);
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
 	struct cxgbe_rate_tag *cst;
@@ -947,16 +947,16 @@ cxgbe_rate_tag_free(struct m_snd_tag *mst)
 }
 
 void
-cxgbe_ratelimit_query(struct ifnet *ifp, struct if_ratelimit_query_results *q)
+cxgbe_ratelimit_query(if_t ifp, struct if_ratelimit_query_results *q)
 {
-	struct vi_info *vi = ifp->if_softc;
+	struct vi_info *vi = if_getsoftc(ifp);
 	struct adapter *sc = vi->adapter;
 
 	q->rate_table = NULL;
 	q->flags = RT_IS_SELECTABLE;
 	/*
 	 * Absolute max limits from the firmware configuration.  Practical
-	 * limits depend on the burstsize, pktsize (ifp->if_mtu ultimately) and
+	 * limits depend on the burstsize, pktsize (if_getmtu(ifp) ultimately) and
 	 * the card's cclk.
 	 */
 	q->max_flows = sc->tids.netids;

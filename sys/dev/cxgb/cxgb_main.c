@@ -92,12 +92,12 @@ static void cxgb_init(void *);
 static int cxgb_init_locked(struct port_info *);
 static int cxgb_uninit_locked(struct port_info *);
 static int cxgb_uninit_synchronized(struct port_info *);
-static int cxgb_ioctl(struct ifnet *, unsigned long, caddr_t);
-static int cxgb_media_change(struct ifnet *);
+static int cxgb_ioctl(if_t, unsigned long, caddr_t);
+static int cxgb_media_change(if_t);
 static int cxgb_ifm_type(int);
 static void cxgb_build_medialist(struct port_info *);
-static void cxgb_media_status(struct ifnet *, struct ifmediareq *);
-static uint64_t cxgb_get_counter(struct ifnet *, ift_counter);
+static void cxgb_media_status(if_t, struct ifmediareq *);
+static uint64_t cxgb_get_counter(if_t, ift_counter);
 static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
 static void cxgb_tick_handler(void *, int);
@@ -983,7 +983,7 @@ static int
 cxgb_makedev(struct port_info *pi)
 {
 	
-	pi->port_cdev = make_dev(&cxgb_cdevsw, pi->ifp->if_dunit,
+	pi->port_cdev = make_dev(&cxgb_cdevsw, if_getdunit(pi->ifp),
 	    UID_ROOT, GID_WHEEL, 0600, "%s", if_name(pi->ifp));
 	
 	if (pi->port_cdev == NULL)
@@ -1003,7 +1003,7 @@ static int
 cxgb_port_attach(device_t dev)
 {
 	struct port_info *p;
-	struct ifnet *ifp;
+	if_t ifp;
 	int err;
 	struct adapter *sc;
 
@@ -1024,33 +1024,33 @@ cxgb_port_attach(device_t dev)
 	}
 	
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_init = cxgb_init;
-	ifp->if_softc = p;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = cxgb_ioctl;
-	ifp->if_transmit = cxgb_transmit;
-	ifp->if_qflush = cxgb_qflush;
-	ifp->if_get_counter = cxgb_get_counter;
+	if_setinitfn(ifp, cxgb_init);
+	if_setsoftc(ifp, p);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, cxgb_ioctl);
+	if_settransmitfn(ifp, cxgb_transmit);
+	if_setqflushfn(ifp, cxgb_qflush);
+	if_setgetcounterfn(ifp, cxgb_get_counter);
 
-	ifp->if_capabilities = CXGB_CAP;
+	if_setcapabilities(ifp, CXGB_CAP);
 #ifdef TCP_OFFLOAD
 	if (is_offload(sc))
-		ifp->if_capabilities |= IFCAP_TOE4;
+		if_setcapabilitiesbit(ifp, IFCAP_TOE4, 0);
 #endif
-	ifp->if_capenable = CXGB_CAP_ENABLE;
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
-	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6;
-	ifp->if_hw_tsomax = IP_MAXPACKET;
-	ifp->if_hw_tsomaxsegcount = 36;
-	ifp->if_hw_tsomaxsegsize = 65536;
+	if_setcapenable(ifp, CXGB_CAP_ENABLE);
+	if_sethwassist(ifp, CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+	if_sethwtsomax(ifp, IP_MAXPACKET);
+	if_sethwtsomaxsegcount(ifp, 36);
+	if_sethwtsomaxsegsize(ifp, 65536);
 
 	/*
 	 * Disable TSO on 4-port - it isn't supported by the firmware.
 	 */	
 	if (sc->params.nports > 2) {
-		ifp->if_capabilities &= ~(IFCAP_TSO | IFCAP_VLAN_HWTSO);
-		ifp->if_capenable &= ~(IFCAP_TSO | IFCAP_VLAN_HWTSO);
-		ifp->if_hwassist &= ~CSUM_TSO;
+		if_setcapabilitiesbit(ifp, 0, IFCAP_TSO | IFCAP_VLAN_HWTSO);
+		if_setcapenablebit(ifp, 0, IFCAP_TSO | IFCAP_VLAN_HWTSO);
+		if_sethwassistbits(ifp, 0, CSUM_TSO);
 	}
 
 	ether_ifattach(ifp, p->hw_addr);
@@ -1060,7 +1060,7 @@ cxgb_port_attach(device_t dev)
 
 #ifdef DEFAULT_JUMBO
 	if (sc->params.nports <= 2)
-		ifp->if_mtu = ETHERMTU_JUMBO;
+		if_setmtu(ifp, ETHERMTU_JUMBO);
 #endif
 	if ((err = cxgb_makedev(p)) != 0) {
 		printf("makedev failed %d\n", err);
@@ -1231,7 +1231,7 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
      int duplex, int fc, int mac_was_reset)
 {
 	struct port_info *pi = &adapter->port[port_id];
-	struct ifnet *ifp = pi->ifp;
+	if_t ifp = pi->ifp;
 
 	/* no race with detach, so ifp should always be good */
 	KASSERT(ifp, ("%s: if detached.", __func__));
@@ -1244,7 +1244,7 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 	}
 
 	if (link_status) {
-		ifp->if_baudrate = IF_Mbps(speed);
+		if_setbaudrate(ifp, IF_Mbps(speed));
 		if_link_state_change(ifp, LINK_STATE_UP);
 	} else
 		if_link_state_change(ifp, LINK_STATE_DOWN);
@@ -1300,20 +1300,20 @@ t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[])
 static void
 cxgb_update_mac_settings(struct port_info *p)
 {
-	struct ifnet *ifp = p->ifp;
+	if_t ifp = p->ifp;
 	struct t3_rx_mode rm;
 	struct cmac *mac = &p->mac;
 	int mtu, hwtagging;
 
 	PORT_LOCK_ASSERT_OWNED(p);
 
-	bcopy(IF_LLADDR(ifp), p->hw_addr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(ifp), p->hw_addr, ETHER_ADDR_LEN);
 
-	mtu = ifp->if_mtu;
-	if (ifp->if_capenable & IFCAP_VLAN_MTU)
+	mtu = if_getmtu(ifp);
+	if (if_getcapenable(ifp) & IFCAP_VLAN_MTU)
 		mtu += ETHER_VLAN_ENCAP_LEN;
 
-	hwtagging = (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0;
+	hwtagging = (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0;
 
 	t3_mac_set_mtu(mac, mtu);
 	t3_set_vlan_accel(p->adapter, 1 << p->tx_chan, hwtagging);
@@ -1686,7 +1686,7 @@ static int
 cxgb_init_locked(struct port_info *p)
 {
 	struct adapter *sc = p->adapter;
-	struct ifnet *ifp = p->ifp;
+	if_t ifp = p->ifp;
 	struct cmac *mac = &p->mac;
 	int i, rc = 0, may_sleep = 0, gave_up_lock = 0;
 
@@ -1722,7 +1722,7 @@ cxgb_init_locked(struct port_info *p)
 
 	PORT_LOCK(p);
 	if (isset(&sc->open_device_map, p->port_id) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		PORT_UNLOCK(p);
 		goto done;
 	}
@@ -1732,8 +1732,7 @@ cxgb_init_locked(struct port_info *p)
 	cxgb_update_mac_settings(p);
 	t3_link_start(&p->phy, mac, &p->link_config);
 	t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	PORT_UNLOCK(p);
 
 	for (i = p->first_qset; i < p->first_qset + p->nqsets; i++) {
@@ -1802,7 +1801,7 @@ static int
 cxgb_uninit_synchronized(struct port_info *pi)
 {
 	struct adapter *sc = pi->adapter;
-	struct ifnet *ifp = pi->ifp;
+	if_t ifp = pi->ifp;
 
 	/*
 	 * taskqueue_drain may cause a deadlock if the adapter lock is held.
@@ -1829,7 +1828,7 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	taskqueue_drain(sc->tq, &pi->link_check_task);
 
 	PORT_LOCK(pi);
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	/* disable pause frames */
 	t3_set_reg_field(sc, A_XGM_TX_CFG + pi->mac.offset, F_TXPAUSEEN, 0);
@@ -1878,9 +1877,9 @@ cxgb_set_lro(struct port_info *p, int enabled)
 }
 
 static int
-cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
+cxgb_ioctl(if_t ifp, unsigned long command, caddr_t data)
 {
-	struct port_info *p = ifp->if_softc;
+	struct port_info *p = if_getsoftc(ifp);
 	struct adapter *sc = p->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int flags, error = 0, mtu;
@@ -1900,7 +1899,7 @@ fail:
 		if ((mtu < ETHERMIN) || (mtu > ETHERMTU_JUMBO)) {
 			error = EINVAL;
 		} else {
-			ifp->if_mtu = mtu;
+			if_setmtu(ifp, mtu);
 			PORT_LOCK(p);
 			cxgb_update_mac_settings(p);
 			PORT_UNLOCK(p);
@@ -1913,11 +1912,11 @@ fail:
 			error = ENXIO;
 			goto fail;
 		}
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				flags = p->if_flags;
-				if (((ifp->if_flags ^ flags) & IFF_PROMISC) ||
-				    ((ifp->if_flags ^ flags) & IFF_ALLMULTI)) {
+				if (((if_getflags(ifp) ^ flags) & IFF_PROMISC) ||
+				    ((if_getflags(ifp) ^ flags) & IFF_ALLMULTI)) {
 					if (IS_BUSY(sc)) {
 						error = EBUSY;
 						goto fail;
@@ -1929,8 +1928,8 @@ fail:
 				ADAPTER_UNLOCK(sc);
 			} else
 				error = cxgb_init_locked(p);
-			p->if_flags = ifp->if_flags;
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			p->if_flags = if_getflags(ifp);
+		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			error = cxgb_uninit_locked(p);
 		else
 			ADAPTER_UNLOCK(sc);
@@ -1944,7 +1943,7 @@ fail:
 		if (error)
 			goto fail;
 
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			PORT_LOCK(p);
 			cxgb_update_mac_settings(p);
 			PORT_UNLOCK(p);
@@ -1958,35 +1957,35 @@ fail:
 		if (error)
 			goto fail;
 
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if (mask & IFCAP_TXCSUM) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if_togglehwassist(ifp, CSUM_TCP | CSUM_UDP | CSUM_IP);
 
-			if (IFCAP_TSO4 & ifp->if_capenable &&
-			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+			if (IFCAP_TSO4 & if_getcapenable(ifp) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(ifp))) {
 				mask &= ~IFCAP_TSO4;
-				ifp->if_capenable &= ~IFCAP_TSO4;
+				if_setcapenablebit(ifp, 0, IFCAP_TSO4);
 				if_printf(ifp,
 				    "tso4 disabled due to -txcsum.\n");
 			}
 		}
 		if (mask & IFCAP_TXCSUM_IPV6) {
-			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
-			ifp->if_hwassist ^= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+			if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
+			if_togglehwassist(ifp, CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
 
-			if (IFCAP_TSO6 & ifp->if_capenable &&
-			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
+			if (IFCAP_TSO6 & if_getcapenable(ifp) &&
+			    !(IFCAP_TXCSUM_IPV6 & if_getcapenable(ifp))) {
 				mask &= ~IFCAP_TSO6;
-				ifp->if_capenable &= ~IFCAP_TSO6;
+				if_setcapenablebit(ifp, 0, IFCAP_TSO6);
 				if_printf(ifp,
 				    "tso6 disabled due to -txcsum6.\n");
 			}
 		}
 		if (mask & IFCAP_RXCSUM)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if (mask & IFCAP_RXCSUM_IPV6)
-			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+			if_togglecapenable(ifp, IFCAP_RXCSUM_IPV6);
 
 		/*
 		 * Note that we leave CSUM_TSO alone (it is always set).  The
@@ -1995,58 +1994,58 @@ fail:
 		 * IFCAP_TSOx only.
 		 */
 		if (mask & IFCAP_TSO4) {
-			if (!(IFCAP_TSO4 & ifp->if_capenable) &&
-			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+			if (!(IFCAP_TSO4 & if_getcapenable(ifp)) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(ifp))) {
 				if_printf(ifp, "enable txcsum first.\n");
 				error = EAGAIN;
 				goto fail;
 			}
-			ifp->if_capenable ^= IFCAP_TSO4;
+			if_togglecapenable(ifp, IFCAP_TSO4);
 		}
 		if (mask & IFCAP_TSO6) {
-			if (!(IFCAP_TSO6 & ifp->if_capenable) &&
-			    !(IFCAP_TXCSUM_IPV6 & ifp->if_capenable)) {
+			if (!(IFCAP_TSO6 & if_getcapenable(ifp)) &&
+			    !(IFCAP_TXCSUM_IPV6 & if_getcapenable(ifp))) {
 				if_printf(ifp, "enable txcsum6 first.\n");
 				error = EAGAIN;
 				goto fail;
 			}
-			ifp->if_capenable ^= IFCAP_TSO6;
+			if_togglecapenable(ifp, IFCAP_TSO6);
 		}
 		if (mask & IFCAP_LRO) {
-			ifp->if_capenable ^= IFCAP_LRO;
+			if_togglecapenable(ifp, IFCAP_LRO);
 
 			/* Safe to do this even if cxgb_up not called yet */
-			cxgb_set_lro(p, ifp->if_capenable & IFCAP_LRO);
+			cxgb_set_lro(p, if_getcapenable(ifp) & IFCAP_LRO);
 		}
 #ifdef TCP_OFFLOAD
 		if (mask & IFCAP_TOE4) {
-			int enable = (ifp->if_capenable ^ mask) & IFCAP_TOE4;
+			int enable = (if_getcapenable(ifp) ^ mask) & IFCAP_TOE4;
 
 			error = toe_capability(p, enable);
 			if (error == 0)
-				ifp->if_capenable ^= mask;
+				if_togglecapenable(ifp, mask);
 		}
 #endif
 		if (mask & IFCAP_VLAN_HWTAGGING) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				PORT_LOCK(p);
 				cxgb_update_mac_settings(p);
 				PORT_UNLOCK(p);
 			}
 		}
 		if (mask & IFCAP_VLAN_MTU) {
-			ifp->if_capenable ^= IFCAP_VLAN_MTU;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				PORT_LOCK(p);
 				cxgb_update_mac_settings(p);
 				PORT_UNLOCK(p);
 			}
 		}
 		if (mask & IFCAP_VLAN_HWTSO)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
 		if (mask & IFCAP_VLAN_HWCSUM)
-			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+			if_togglecapenable(ifp, IFCAP_VLAN_HWCSUM);
 
 #ifdef VLAN_CAPABILITIES
 		VLAN_CAPABILITIES(ifp);
@@ -2065,7 +2064,7 @@ fail:
 }
 
 static int
-cxgb_media_change(struct ifnet *ifp)
+cxgb_media_change(if_t ifp)
 {
 	return (EOPNOTSUPP);
 }
@@ -2166,9 +2165,9 @@ cxgb_build_medialist(struct port_info *p)
 }
 
 static void
-cxgb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+cxgb_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct port_info *p = ifp->if_softc;
+	struct port_info *p = if_getsoftc(ifp);
 	struct ifmedia_entry *cur = p->media.ifm_cur;
 	int speed = p->link_config.speed;
 
@@ -2207,9 +2206,9 @@ cxgb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static uint64_t
-cxgb_get_counter(struct ifnet *ifp, ift_counter c)
+cxgb_get_counter(if_t ifp, ift_counter c)
 {
-	struct port_info *pi = ifp->if_softc;
+	struct port_info *pi = if_getsoftc(ifp);
 	struct adapter *sc = pi->adapter;
 	struct cmac *mac = &pi->mac;
 	struct mac_stats *mstats = &mac->stats;
@@ -2332,16 +2331,16 @@ check_t3b2_mac(struct adapter *sc)
 		struct port_info *p = &sc->port[i];
 		int status;
 #ifdef INVARIANTS
-		struct ifnet *ifp = p->ifp;
+		if_t ifp = p->ifp;
 #endif		
 
 		if (!isset(&sc->open_device_map, p->port_id) || p->link_fault ||
 		    !p->link_config.link_ok)
 			continue;
 
-		KASSERT(ifp->if_drv_flags & IFF_DRV_RUNNING,
+		KASSERT(if_getdrvflags(ifp) & IFF_DRV_RUNNING,
 			("%s: state mismatch (drv_flags %x, device_map %x)",
-			 __func__, ifp->if_drv_flags, sc->open_device_map));
+			 __func__, if_getdrvflags(ifp), sc->open_device_map));
 
 		PORT_LOCK(p);
 		status = t3b2_mac_watchdog_task(&p->mac);
@@ -3596,7 +3595,7 @@ cxgbc_mod_event(module_t mod, int cmd, void *arg)
 
 #ifdef DEBUGNET
 static void
-cxgb_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+cxgb_debugnet_init(if_t ifp, int *nrxr, int *ncl, int *clsize)
 {
 	struct port_info *pi;
 	adapter_t *adap;
@@ -3611,7 +3610,7 @@ cxgb_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 }
 
 static void
-cxgb_debugnet_event(struct ifnet *ifp, enum debugnet_ev event)
+cxgb_debugnet_event(if_t ifp, enum debugnet_ev event)
 {
 	struct port_info *pi;
 	struct sge_qset *qs;
@@ -3630,7 +3629,7 @@ cxgb_debugnet_event(struct ifnet *ifp, enum debugnet_ev event)
 }
 
 static int
-cxgb_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
+cxgb_debugnet_transmit(if_t ifp, struct mbuf *m)
 {
 	struct port_info *pi;
 	struct sge_qset *qs;
@@ -3645,7 +3644,7 @@ cxgb_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-cxgb_debugnet_poll(struct ifnet *ifp, int count)
+cxgb_debugnet_poll(if_t ifp, int count)
 {
 	struct port_info *pi;
 	adapter_t *adap;

@@ -345,8 +345,8 @@ static void
 send_flowc_wr_synqe(struct adapter *sc, struct synq_entry *synqe)
 {
 	struct mbuf *m = synqe->syn;
-	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct vi_info *vi = ifp->if_softc;
+	if_t ifp = m->m_pkthdr.rcvif;
+	struct vi_info *vi = if_getsoftc(ifp);
 	struct port_info *pi = vi->pi;
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
@@ -566,7 +566,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 		pi = sc->port[i];
 		for_each_vi(pi, v, vi) {
 			if (vi->flags & VI_INIT_DONE &&
-			    vi->ifp->if_capenable & IFCAP_TOE)
+			    if_getcapenable(vi->ifp) & IFCAP_TOE)
 				goto found;
 		}
 	}
@@ -1075,7 +1075,7 @@ pass_accept_req_to_protohdrs(struct adapter *sc, const struct mbuf *m,
 }
 
 static struct l2t_entry *
-get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
+get_l2te_for_nexthop(struct port_info *pi, if_t ifp,
     struct in_conninfo *inc)
 {
 	struct l2t_entry *e;
@@ -1191,7 +1191,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	struct tcpopt to;
 	struct port_info *pi;
 	struct vi_info *vi;
-	struct ifnet *hw_ifp, *ifp;
+	if_t hw_ifp, ifp;
 	struct l2t_entry *e = NULL;
 	struct synq_entry *synqe = NULL;
 	int reject_reason, v, ntids;
@@ -1273,14 +1273,14 @@ found:
 	 * Don't offload if the ifnet that the SYN came in on is not in the same
 	 * vnet as the listening socket.
 	 */
-	if (lctx->vnet != ifp->if_vnet)
+	if (lctx->vnet != if_getvnet(ifp))
 		REJECT_PASS_ACCEPT_REQ(true);
 
 	pass_accept_req_to_protohdrs(sc, m, &inc, &th, &iptos);
 	if (inc.inc_flags & INC_ISIPV6) {
 
 		/* Don't offload if the ifcap isn't enabled */
-		if ((ifp->if_capenable & IFCAP_TOE6) == 0)
+		if ((if_getcapenable(ifp) & IFCAP_TOE6) == 0)
 			REJECT_PASS_ACCEPT_REQ(true);
 
 		/*
@@ -1297,7 +1297,7 @@ found:
 	} else {
 
 		/* Don't offload if the ifcap isn't enabled */
-		if ((ifp->if_capenable & IFCAP_TOE4) == 0)
+		if ((if_getcapenable(ifp) & IFCAP_TOE4) == 0)
 			REJECT_PASS_ACCEPT_REQ(true);
 
 		/*
@@ -1421,7 +1421,7 @@ reject:
 		m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID |
 		    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 		m->m_pkthdr.csum_data = 0xffff;
-		hw_ifp->if_input(hw_ifp, m);
+		if_input(hw_ifp, m);
 	}
 
 	return (reject_reason);
@@ -1455,7 +1455,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 {
 	struct adapter *sc = iq->adapter;
 	struct vi_info *vi;
-	struct ifnet *ifp;
+	if_t ifp;
 	const struct cpl_pass_establish *cpl = (const void *)(rss + 1);
 #if defined(KTR) || defined(INVARIANTS)
 	unsigned int stid = G_PASS_OPEN_TID(be32toh(cpl->tos_stid));
@@ -1491,7 +1491,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    __func__, stid, tid, synqe, synqe->flags, inp->inp_flags);
 
 	ifp = synqe->syn->m_pkthdr.rcvif;
-	vi = ifp->if_softc;
+	vi = if_getsoftc(ifp);
 	KASSERT(vi->adapter == sc,
 	    ("%s: vi %p, sc %p mismatch", __func__, vi, sc));
 
