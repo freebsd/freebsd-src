@@ -76,13 +76,18 @@ struct smbios_structure {
 	uint16_t	handle;
 } __packed;
 
+struct smbios_string {
+	const char *node;
+	const char *value;
+};
+
 typedef int (*initializer_func_t)(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
 struct smbios_template_entry {
 	struct smbios_structure	*entry;
-	const char		**strings;
+	struct smbios_string 	*strings;
 	initializer_func_t	initializer;
 };
 
@@ -350,11 +355,11 @@ struct smbios_table_type0 smbios_type0_template = {
 	0xff	/* embedded controller firmware minor release */
 };
 
-const char *smbios_type0_strings[] = {
-	"BHYVE",		/* vendor string */
-	FIRMWARE_VERSION,	/* bios version string */
-	FIRMWARE_RELEASE_DATE,	/* bios release date string */
-	NULL
+struct smbios_string smbios_type0_strings[] = {
+	{ "bios.vendor", "BHYVE" },			/* vendor string */
+	{ "bios.version", FIRMWARE_VERSION },		/* bios version string */
+	{ "bios.release_date", FIRMWARE_RELEASE_DATE },	/* bios release date string */
+	{ 0 }
 };
 
 struct smbios_table_type1 smbios_type1_template = {
@@ -370,17 +375,17 @@ struct smbios_table_type1 smbios_type1_template = {
 };
 
 static int smbios_type1_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
-const char *smbios_type1_strings[] = {
-	"FreeBSD",		/* manufacturer string */
-	"BHYVE",		/* product name string */
-	"1.0",			/* version string */
-	"None",			/* serial number string */
-	"None",			/* sku string */
-	"Virtual Machine",	/* family name string */
-	NULL
+struct smbios_string smbios_type1_strings[] = {
+	{ "system.manufacturer", "FreeBSD" },	     /* manufacturer string */
+	{ "system.product_name", "BHYVE" },	     /* product string */
+	{ "system.version", "1.0" },		     /* version string */
+	{ "system.serial_number", "None" },	     /* serial number string */
+	{ "system.sku", "None" },		     /* sku string */
+	{ "system.family_name", "Virtual Machine" }, /* family string */
+	{ 0 }
 };
 
 struct smbios_table_type2 smbios_type2_template = {
@@ -397,14 +402,14 @@ struct smbios_table_type2 smbios_type2_template = {
 	0
 };
 
-const char *smbios_type2_strings[] = {
-	"FreeBSD",		/* manufacturer string */
-	"BHYVE",		/* product name string */
-	"1.0",			/* version string */
-	"None",			/* serial number string */
-	"None",			/* asset tag string */
-	"None",			/* location string */
-	NULL
+struct smbios_string smbios_type2_strings[] = {
+	{ "board.manufacturer", "FreeBSD" },	/* manufacturer string */
+	{ "board.product_name", "BHYVE" },	/* product name string */
+	{ "board.version", "1.0" },		/* version string */
+	{ "board.serial_number", "None" },	/* serial number string */
+	{ "board.asset_tag", "None" },		/* asset tag string */
+	{ "board.location", "None" },		/* location string */
+	{ 0 }
 };
 
 struct smbios_table_type3 smbios_type3_template = {
@@ -426,13 +431,13 @@ struct smbios_table_type3 smbios_type3_template = {
 	5		/* sku number string */
 };
 
-const char *smbios_type3_strings[] = {
-	"FreeBSD",	/* manufacturer string */
-	"1.0",		/* version string */
-	"None",		/* serial number string */
-	"None",		/* asset tag string */
-	"None",		/* sku number string */
-	NULL
+struct smbios_string smbios_type3_strings[] = {
+	{ "chassis.manufacturer", "FreeBSD" },	/* manufacturer string */
+	{ "chassis.version", "1.0" },		/* version string */
+	{ "chassis.serial_number", "None" },	/* serial number string */
+	{ "chassis.asset_tag", "None" },	/* asset tag string */
+	{ "chassis.sku", "None" },		/* sku number string */
+	{ 0 }
 };
 
 struct smbios_table_type4 smbios_type4_template = {
@@ -462,18 +467,18 @@ struct smbios_table_type4 smbios_type4_template = {
 	SMBIOS_PRF_OTHER
 };
 
-const char *smbios_type4_strings[] = {
-	" ",		/* socket designation string */
-	" ",		/* manufacturer string */
-	" ",		/* version string */
-	"None",		/* serial number string */
-	"None",		/* asset tag string */
-	"None",		/* part number string */
-	NULL
+struct smbios_string smbios_type4_strings[] = {
+	{ NULL, " " },		/* socket designation string */
+	{ NULL, " " },		/* manufacturer string */
+	{ NULL, " " },		/* version string */
+	{ NULL, "None" },	/* serial number string */
+	{ NULL, "None" },	/* asset tag string */
+	{ NULL, "None" },	/* part number string */
+	{ 0 }
 };
 
 static int smbios_type4_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
 struct smbios_table_type16 smbios_type16_template = {
@@ -488,7 +493,7 @@ struct smbios_table_type16 smbios_type16_template = {
 };
 
 static int smbios_type16_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
 struct smbios_table_type17 smbios_type17_template = {
@@ -517,18 +522,18 @@ struct smbios_table_type17 smbios_type17_template = {
 	0		/* configured voltage in mv (0=unknown) */
 };
 
-const char *smbios_type17_strings[] = {
-	" ",		/* device locator string */
-	" ",		/* physical bank locator string */
-	" ",		/* manufacturer string */
-	"None",		/* serial number string */
-	"None",		/* asset tag string */
-	"None",		/* part number string */
-	NULL
+struct smbios_string smbios_type17_strings[] = {
+	{ NULL, " " },		/* device locator string */
+	{ NULL, " " },		/* physical bank locator string */
+	{ NULL, " " },		/* manufacturer string */
+	{ NULL, "None" },	/* serial number string */
+	{ NULL, "None" },	/* asset tag string */
+	{ NULL, "None" },	/* part number string */
+	{ 0 }
 };
 
 static int smbios_type17_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
 struct smbios_table_type19 smbios_type19_template = {
@@ -542,7 +547,7 @@ struct smbios_table_type19 smbios_type19_template = {
 };
 
 static int smbios_type19_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
 struct smbios_table_type32 smbios_type32_template = {
@@ -556,7 +561,7 @@ struct smbios_table_type127 smbios_type127_template = {
 };
 
 static int smbios_generic_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
 static struct smbios_template_entry smbios_template[] = {
@@ -598,7 +603,7 @@ static uint16_t type16_handle;
 
 static int
 smbios_generic_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_structure *entry;
@@ -610,11 +615,20 @@ smbios_generic_initializer(struct smbios_structure *template_entry,
 	if (template_strings != NULL) {
 		int	i;
 
-		for (i = 0; template_strings[i] != NULL; i++) {
+		for (i = 0; template_strings[i].value != NULL; i++) {
 			const char *string;
 			int len;
 
-			string = template_strings[i];
+			if (template_strings[i].node == NULL) {
+				string = template_strings[i].value;
+			} else {
+				set_config_value_if_unset(
+				    template_strings[i].node,
+				    template_strings[i].value);
+				string = get_config_value(
+				    template_strings[i].node);
+			}
+
 			len = strlen(string) + 1;
 			memcpy(curaddr, string, len);
 			curaddr += len;
@@ -636,7 +650,7 @@ smbios_generic_initializer(struct smbios_structure *template_entry,
 
 static int
 smbios_type1_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_table_type1 *type1;
@@ -692,7 +706,7 @@ smbios_type1_initializer(struct smbios_structure *template_entry,
 
 static int
 smbios_type4_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size)
 {
 	int i;
@@ -734,7 +748,7 @@ smbios_type4_initializer(struct smbios_structure *template_entry,
 
 static int
 smbios_type16_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_table_type16 *type16;
@@ -751,7 +765,7 @@ smbios_type16_initializer(struct smbios_structure *template_entry,
 
 static int
 smbios_type17_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_table_type17 *type17;
@@ -795,7 +809,7 @@ smbios_type17_initializer(struct smbios_structure *template_entry,
 
 static int
 smbios_type19_initializer(struct smbios_structure *template_entry,
-    const char **template_strings, char *curaddr, char **endaddr,
+    struct smbios_string *template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_table_type19 *type19;
@@ -892,7 +906,7 @@ smbios_build(struct vmctx *ctx)
 	maxssize = 0;
 	for (i = 0; smbios_template[i].entry != NULL; i++) {
 		struct smbios_structure	*entry;
-		const char		**strings;
+		struct smbios_string	*strings;
 		initializer_func_t      initializer;
 		char			*endaddr;
 		uint16_t		size;

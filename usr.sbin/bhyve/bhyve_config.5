@@ -158,6 +158,52 @@ then
 .Xr bhyve 8
 will write all of its configuration variables to stdout and exit.
 No VM will be started.
+.It Va bios.vendor Ta string Ta BHYVE Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va bios.version Ta string Ta 14.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va bios.release_date Ta string Ta 10/17/2021 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.family_name Ta string Ta Virtual Machine Ta
+Family the computer belongs to.
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.manufacturer Ta string Ta FreeBSD Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.product_name Ta string Ta BHYVE Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.serial_number Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.sku Ta string Ta None Ta
+Stock keeping unit of the computer.
+It's also called product ID or purchase order number.
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va system.version Ta string Ta 1.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.manufacturer Ta string Ta FreeBSD Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.product_name Ta string Ta BHYVE Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.version Ta string Ta 1.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.serial_number Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.asset_tag Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va board.location Ta string Ta None Ta
+Describes the board's location within the chassis.
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.manufacturer Ta string Ta FreeBSD Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.version Ta string Ta 1.0 Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.serial_number Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.asset_tag Ta string Ta None Ta
+This value is used for the guest's System Management BIOS System Information structure.
+.It Va chassis.sku Ta string Ta None Ta
+Stock keeping unit of the chassis.
+It's also called product ID or purchase order number.
+This value is used for the guest's System Management BIOS System Information structure.
 .El
 .Ss x86-Specific Settings
 .Bl -column "x86.vmexit_on_pause" "integer" "Default"
