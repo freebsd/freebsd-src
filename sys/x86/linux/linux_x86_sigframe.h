@@ -116,7 +116,7 @@ struct l_sigframe {
 	l_int			sf_sig;
 	struct l_sigcontext	sf_sc;
 	struct l_fpstate	sf_fpstate;
-	l_uint			sf_extramask[1];
+	sigset_t		sf_sigmask;
 };
 
 struct l_rt_sigframe {

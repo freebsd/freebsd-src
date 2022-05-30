@@ -474,7 +474,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	bzero(&frame, sizeof(frame));
 
 	frame.sf_sig = sig;
-
+	frame.sf_sigmask = *mask;
 	bsd_to_linux_sigset(mask, &lmask);
 
 	/* Build the signal context to be used by sigreturn. */
@@ -499,8 +499,6 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_cr2    = (register_t)ksi->ksi_addr;
 	frame.sf_sc.sc_trapno = bsd_to_linux_trapcode(ksi->ksi_trapno);
-
-	frame.sf_extramask[0] = lmask.__mask;
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
@@ -540,8 +538,6 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 {
 	struct l_sigframe frame;
 	struct trapframe *regs;
-	l_sigset_t lmask;
-	sigset_t bmask;
 	int eflags;
 	ksiginfo_t ksi;
 
@@ -577,9 +573,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 		return (EINVAL);
 	}
 
-	lmask.__mask = frame.sf_sc.sc_mask;
-	linux_to_bsd_sigset(&lmask, &bmask);
-	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
+	kern_sigprocmask(td, SIG_SETMASK, &frame.sf_sigmask, NULL, 0);
 
 	/* Restore signal context. */
 	/* %gs was restored by the trampoline. */
