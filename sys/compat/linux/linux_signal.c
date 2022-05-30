@@ -201,7 +201,7 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	LINUX_CTR2(sigaltstack, "%p, %p", uap->uss, uap->uoss);
 
 	if (uap->uss != NULL) {
-		error = copyin(uap->uss, &lss, sizeof(l_stack_t));
+		error = copyin(uap->uss, &lss, sizeof(lss));
 		if (error != 0)
 			return (error);
 
@@ -215,7 +215,7 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 		lss.ss_sp = PTROUT(oss.ss_sp);
 		lss.ss_size = oss.ss_size;
 		lss.ss_flags = bsd_to_linux_sigaltstack(oss.ss_flags);
-		error = copyout(&lss, uap->uoss, sizeof(l_stack_t));
+		error = copyout(&lss, uap->uoss, sizeof(lss));
 	}
 
 	return (error);
@@ -249,7 +249,7 @@ linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
 		return (EINVAL);
 
 	if (args->act != NULL) {
-		error = copyin(args->act, &nsa, sizeof(l_sigaction_t));
+		error = copyin(args->act, &nsa, sizeof(nsa));
 		if (error != 0)
 			return (error);
 	}
@@ -259,7 +259,7 @@ linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
 				   args->oact ? &osa : NULL);
 
 	if (args->oact != NULL && error == 0)
-		error = copyout(&osa, args->oact, sizeof(l_sigaction_t));
+		error = copyout(&osa, args->oact, sizeof(osa));
 
 	return (error);
 }
@@ -303,7 +303,7 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 	int error;
 
 	if (args->mask != NULL) {
-		error = copyin(args->mask, &mask, sizeof(l_osigset_t));
+		error = copyin(args->mask, &mask, sizeof(mask));
 		if (error != 0)
 			return (error);
 		LINUX_SIGEMPTYSET(lset);
@@ -317,7 +317,7 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 
 	if (args->omask != NULL && error == 0) {
 		mask = oset.__mask;
-		error = copyout(&mask, args->omask, sizeof(l_osigset_t));
+		error = copyout(&mask, args->omask, sizeof(mask));
 	}
 
 	return (error);
@@ -340,7 +340,7 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 				     args->omask ? &oset : NULL);
 
 	if (args->omask != NULL && error == 0)
-		error = copyout(&oset, args->omask, sizeof(l_sigset_t));
+		error = copyout(&oset, args->omask, sizeof(oset));
 
 	return (error);
 }
@@ -924,7 +924,7 @@ linux_copyin_sigset(l_sigset_t *lset, l_size_t sigsetsize, sigset_t *set,
 	if (sigsetsize != sizeof(l_sigset_t))
 		return (EINVAL);
 	if (lset != NULL) {
-		error = copyin(lset, &lmask, sizeof(l_sigset_t));
+		error = copyin(lset, &lmask, sizeof(lmask));
 		if (error != 0)
 			return (error);
 		linux_to_bsd_sigset(&lmask, set);
