@@ -83,9 +83,9 @@ enum core_arch_events {
 };
 
 static enum pmc_cputype	core_cputype;
+static int core_version;
 
 struct core_cpu {
-	volatile uint32_t	pc_resync;
 	volatile uint32_t	pc_iafctrl;	/* Fixed function control. */
 	volatile uint64_t	pc_globalctrl;	/* Global control register. */
 	struct pmc_hw		pc_corepmcs[];
@@ -131,7 +131,7 @@ core_pcpu_init(struct pmc_mdep *md, int cpu)
 	core_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_ri;
 	npmc = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_num;
 
-	if (core_cputype != PMC_CPU_INTEL_CORE)
+	if (core_version >= 2)
 		npmc += md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAF].pcd_num;
 
 	cc = malloc(sizeof(struct core_cpu) + npmc * sizeof(struct pmc_hw),
@@ -151,6 +151,11 @@ core_pcpu_init(struct pmc_mdep *md, int cpu)
 		pc->pc_hwpmcs[n + core_ri]  = phw;
 	}
 
+	if (core_version >= 2) {
+		/* Enable Freezing PMCs on PMI. */
+		wrmsr(MSR_DEBUGCTLMSR, rdmsr(MSR_DEBUGCTLMSR) | 0x1000);
+	}
+
 	return (0);
 }
 
@@ -160,7 +165,6 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 	int core_ri, n, npmc;
 	struct pmc_cpu *pc;
 	struct core_cpu *cc;
-	uint64_t msr = 0;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] insane cpu number (%d)", __LINE__, cpu));
@@ -180,14 +184,11 @@ core_pcpu_fini(struct pmc_mdep *md, int cpu)
 	npmc = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_num;
 	core_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAP].pcd_ri;
 
-	for (n = 0; n < npmc; n++) {
-		msr = rdmsr(IAP_EVSEL0 + n) & ~IAP_EVSEL_MASK;
-		wrmsr(IAP_EVSEL0 + n, msr);
-	}
+	for (n = 0; n < npmc; n++)
+		wrmsr(IAP_EVSEL0 + n, 0);
 
-	if (core_cputype != PMC_CPU_INTEL_CORE) {
-		msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
-		wrmsr(IAF_CTRL, msr);
+	if (core_version >= 2) {
+		wrmsr(IAF_CTRL, 0);
 		npmc += md->pmd_classdep[PMC_MDEP_CLASS_INDEX_IAF].pcd_num;
 	}
 
@@ -412,8 +413,7 @@ static int
 iaf_start_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
-	struct core_cpu *iafc;
-	uint64_t msr = 0;
+	struct core_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal CPU value %d", __LINE__, cpu));
@@ -422,25 +422,18 @@ iaf_start_pmc(int cpu, int ri)
 
 	PMCDBG2(MDP,STA,1,"iaf-start cpu=%d ri=%d", cpu, ri);
 
-	iafc = core_pcpu[cpu];
-	pm = iafc->pc_corepmcs[ri + core_iaf_ri].phw_pmc;
+	cc = core_pcpu[cpu];
+	pm = cc->pc_corepmcs[ri + core_iaf_ri].phw_pmc;
 
-	iafc->pc_iafctrl |= pm->pm_md.pm_iaf.pm_iaf_ctrl;
+	cc->pc_iafctrl |= pm->pm_md.pm_iaf.pm_iaf_ctrl;
+	wrmsr(IAF_CTRL, cc->pc_iafctrl);
 
- 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
- 	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
-
-	do {
-		iafc->pc_resync = 0;
-		iafc->pc_globalctrl |= (1ULL << (ri + IAF_OFFSET));
- 		msr = rdmsr(IA_GLOBAL_CTRL) & ~IAF_GLOBAL_CTRL_MASK;
- 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl &
- 					     IAF_GLOBAL_CTRL_MASK));
-	} while (iafc->pc_resync != 0);
+	cc->pc_globalctrl |= (1ULL << (ri + IAF_OFFSET));
+	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
 
 	PMCDBG4(MDP,STA,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
-	    iafc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
-	    iafc->pc_globalctrl, rdmsr(IA_GLOBAL_CTRL));
+	    cc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
+	    cc->pc_globalctrl, rdmsr(IA_GLOBAL_CTRL));
 
 	return (0);
 }
@@ -448,38 +441,26 @@ iaf_start_pmc(int cpu, int ri)
 static int
 iaf_stop_pmc(int cpu, int ri)
 {
-	uint32_t fc;
-	struct core_cpu *iafc;
-	uint64_t msr = 0;
-
-	PMCDBG2(MDP,STO,1,"iaf-stop cpu=%d ri=%d", cpu, ri);
-
-	iafc = core_pcpu[cpu];
+	struct core_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < core_iaf_npmc,
 	    ("[core,%d] illegal row-index %d", __LINE__, ri));
 
-	fc = (IAF_MASK << (ri * 4));
+	PMCDBG2(MDP,STA,1,"iaf-stop cpu=%d ri=%d", cpu, ri);
 
-	iafc->pc_iafctrl &= ~fc;
+	cc = core_pcpu[cpu];
 
-	PMCDBG1(MDP,STO,1,"iaf-stop iafctrl=%x", iafc->pc_iafctrl);
- 	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
- 	wrmsr(IAF_CTRL, msr | (iafc->pc_iafctrl & IAF_CTRL_MASK));
+	cc->pc_iafctrl &= ~(IAF_MASK << (ri * 4));
+	wrmsr(IAF_CTRL, cc->pc_iafctrl);
 
-	do {
-		iafc->pc_resync = 0;
-		iafc->pc_globalctrl &= ~(1ULL << (ri + IAF_OFFSET));
- 		msr = rdmsr(IA_GLOBAL_CTRL) & ~IAF_GLOBAL_CTRL_MASK;
- 		wrmsr(IA_GLOBAL_CTRL, msr | (iafc->pc_globalctrl &
- 					     IAF_GLOBAL_CTRL_MASK));
-	} while (iafc->pc_resync != 0);
+	cc->pc_globalctrl &= ~(1ULL << (ri + IAF_OFFSET));
+	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
 
 	PMCDBG4(MDP,STO,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
-	    iafc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
-	    iafc->pc_globalctrl, rdmsr(IA_GLOBAL_CTRL));
+	    cc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
+	    cc->pc_globalctrl, rdmsr(IA_GLOBAL_CTRL));
 
 	return (0);
 }
@@ -489,7 +470,6 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 {
 	struct core_cpu *cc;
 	struct pmc *pm;
-	uint64_t msr;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal cpu value %d", __LINE__, cpu));
@@ -505,15 +485,13 @@ iaf_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = iaf_reload_count_to_perfctr_value(v);
 
-	/* Turn off fixed counters */
-	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
-	wrmsr(IAF_CTRL, msr);
+	/* Turn off the fixed counter */
+	wrmsr(IAF_CTRL, cc->pc_iafctrl & ~(IAF_MASK << (ri * 4)));
 
 	wrmsr(IAF_CTR0 + ri, v & ((1ULL << core_iaf_width) - 1));
 
 	/* Turn on fixed counters */
-	msr = rdmsr(IAF_CTRL) & ~IAF_CTRL_MASK;
-	wrmsr(IAF_CTRL, msr | (cc->pc_iafctrl & IAF_CTRL_MASK));
+	wrmsr(IAF_CTRL, cc->pc_iafctrl);
 
 	PMCDBG6(MDP,WRI,1, "iaf-write cpu=%d ri=%d msr=0x%x v=%jx iafctrl=%jx "
 	    "pmc=%jx", cpu, ri, IAF_RI_TO_MSR(ri), v,
@@ -942,14 +920,10 @@ iap_start_pmc(int cpu, int ri)
 
 	wrmsr(IAP_EVSEL0 + ri, evsel | IAP_EN);
 
-	if (core_cputype == PMC_CPU_INTEL_CORE)
-		return (0);
-
-	do {
-		cc->pc_resync = 0;
+	if (core_version >= 2) {
 		cc->pc_globalctrl |= (1ULL << ri);
 		wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
-	} while (cc->pc_resync != 0);
+	}
 
 	return (0);
 }
@@ -959,7 +933,6 @@ iap_stop_pmc(int cpu, int ri)
 {
 	struct pmc *pm __diagused;
 	struct core_cpu *cc;
-	uint64_t msr;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[core,%d] illegal cpu value %d", __LINE__, cpu));
@@ -975,18 +948,12 @@ iap_stop_pmc(int cpu, int ri)
 
 	PMCDBG2(MDP,STO,1, "iap-stop cpu=%d ri=%d", cpu, ri);
 
-	msr = rdmsr(IAP_EVSEL0 + ri) & ~IAP_EVSEL_MASK;
-	wrmsr(IAP_EVSEL0 + ri, msr);	/* stop hw */
+	wrmsr(IAP_EVSEL0 + ri, 0);
 
-	if (core_cputype == PMC_CPU_INTEL_CORE)
-		return (0);
-
-	do {
-		cc->pc_resync = 0;
+	if (core_version >= 2) {
 		cc->pc_globalctrl &= ~(1ULL << ri);
-		msr = rdmsr(IA_GLOBAL_CTRL) & ~IA_GLOBAL_CTRL_MASK;
 		wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
-	} while (cc->pc_resync != 0);
+	}
 
 	return (0);
 }
@@ -1071,7 +1038,6 @@ core_intr(struct trapframe *tf)
 	struct pmc *pm;
 	struct core_cpu *cc;
 	int error, found_interrupt, ri;
-	uint64_t msr;
 
 	PMCDBG3(MDP,INT, 1, "cpu=%d tf=%p um=%d", curcpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
@@ -1102,24 +1068,22 @@ core_intr(struct trapframe *tf)
 		 * Stop the counter, reload it but only restart it if
 		 * the PMC is not stalled.
 		 */
-		msr = rdmsr(IAP_EVSEL0 + ri) & ~IAP_EVSEL_MASK;
-		wrmsr(IAP_EVSEL0 + ri, msr);
+		wrmsr(IAP_EVSEL0 + ri, pm->pm_md.pm_iap.pm_iap_evsel);
 		wrmsr(core_iap_wroffset + IAP_PMC0 + ri, v);
 
-		if (error)
+		if (__predict_false(error))
 			continue;
 
-		wrmsr(IAP_EVSEL0 + ri, msr | (pm->pm_md.pm_iap.pm_iap_evsel |
-					      IAP_EN));
+		wrmsr(IAP_EVSEL0 + ri, pm->pm_md.pm_iap.pm_iap_evsel | IAP_EN);
 	}
-
-	if (found_interrupt)
-		lapic_reenable_pmc();
 
 	if (found_interrupt)
 		counter_u64_add(pmc_stats.pm_intr_processed, 1);
 	else
 		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
+
+	if (found_interrupt)
+		lapic_reenable_pmc();
 
 	return (found_interrupt);
 }
@@ -1127,8 +1091,8 @@ core_intr(struct trapframe *tf)
 static int
 core2_intr(struct trapframe *tf)
 {
-	int error, found_interrupt, n, cpu;
-	uint64_t flag, intrstatus, intrenable, msr;
+	int error, found_interrupt = 0, n, cpu;
+	uint64_t flag, intrstatus, intrdisable = 0;
 	struct pmc *pm;
 	struct core_cpu *cc;
 	pmc_value_t v;
@@ -1144,27 +1108,17 @@ core2_intr(struct trapframe *tf)
 	 * after stopping them.
 	 */
 	intrstatus = rdmsr(IA_GLOBAL_STATUS);
-	intrenable = intrstatus & core_pmcmask;
-
 	PMCDBG2(MDP,INT, 1, "cpu=%d intrstatus=%jx", cpu,
 	    (uintmax_t) intrstatus);
 
-	found_interrupt = 0;
-	cc = core_pcpu[cpu];
-
-	KASSERT(cc != NULL, ("[core,%d] null pcpu", __LINE__));
-
-	cc->pc_globalctrl &= ~intrenable;
-	cc->pc_resync = 1;	/* MSRs now potentially out of sync. */
-
 	/*
-	 * Stop PMCs and clear overflow status bits.
+	 * Stop PMCs unless hardware already done it.
 	 */
-	msr = rdmsr(IA_GLOBAL_CTRL) & ~IA_GLOBAL_CTRL_MASK;
-	wrmsr(IA_GLOBAL_CTRL, msr);
-	wrmsr(IA_GLOBAL_OVF_CTRL, intrenable |
-	    IA_GLOBAL_STATUS_FLAG_OVFBUF |
-	    IA_GLOBAL_STATUS_FLAG_CONDCHG);
+	if ((intrstatus & IA_GLOBAL_STATUS_FLAG_CTR_FRZ) == 0)
+		wrmsr(IA_GLOBAL_CTRL, 0);
+
+	cc = core_pcpu[cpu];
+	KASSERT(cc != NULL, ("[core,%d] null pcpu", __LINE__));
 
 	/*
 	 * Look for interrupts from fixed function PMCs.
@@ -1183,9 +1137,8 @@ core2_intr(struct trapframe *tf)
 			continue;
 
 		error = pmc_process_interrupt(PMC_HR, pm, tf);
-
-		if (error)
-			intrenable &= ~flag;
+		if (__predict_false(error))
+			intrdisable |= flag;
 
 		v = iaf_reload_count_to_perfctr_value(pm->pm_sc.pm_reloadcount);
 
@@ -1211,8 +1164,8 @@ core2_intr(struct trapframe *tf)
 			continue;
 
 		error = pmc_process_interrupt(PMC_HR, pm, tf);
-		if (error)
-			intrenable &= ~flag;
+		if (__predict_false(error))
+			intrdisable |= flag;
 
 		v = iap_reload_count_to_perfctr_value(pm->pm_sc.pm_reloadcount);
 
@@ -1223,29 +1176,33 @@ core2_intr(struct trapframe *tf)
 		wrmsr(core_iap_wroffset + IAP_PMC0 + n, v);
 	}
 
-	/*
-	 * Reenable all non-stalled PMCs.
-	 */
-	PMCDBG2(MDP,INT, 1, "cpu=%d intrenable=%jx", cpu,
-	    (uintmax_t) intrenable);
-
-	cc->pc_globalctrl |= intrenable;
-
-	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl & IA_GLOBAL_CTRL_MASK);
-
-	PMCDBG5(MDP,INT, 1, "cpu=%d fixedctrl=%jx globalctrl=%jx status=%jx "
-	    "ovf=%jx", cpu, (uintmax_t) rdmsr(IAF_CTRL),
-	    (uintmax_t) rdmsr(IA_GLOBAL_CTRL),
-	    (uintmax_t) rdmsr(IA_GLOBAL_STATUS),
-	    (uintmax_t) rdmsr(IA_GLOBAL_OVF_CTRL));
-
-	if (found_interrupt)
-		lapic_reenable_pmc();
-
 	if (found_interrupt)
 		counter_u64_add(pmc_stats.pm_intr_processed, 1);
 	else
 		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
+
+	/*
+	 * Reenable all non-stalled PMCs.
+	 */
+	if ((intrstatus & IA_GLOBAL_STATUS_FLAG_CTR_FRZ) == 0) {
+		wrmsr(IA_GLOBAL_OVF_CTRL, intrstatus);
+		cc->pc_globalctrl &= ~intrdisable;
+		wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
+	} else {
+		if (__predict_false(intrdisable)) {
+			cc->pc_globalctrl &= ~intrdisable;
+			wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
+		}
+		wrmsr(IA_GLOBAL_OVF_CTRL, intrstatus);
+	}
+
+	PMCDBG4(MDP, INT, 1, "cpu=%d fixedctrl=%jx globalctrl=%jx status=%jx",
+	    cpu, (uintmax_t) rdmsr(IAF_CTRL),
+	    (uintmax_t) rdmsr(IA_GLOBAL_CTRL),
+	    (uintmax_t) rdmsr(IA_GLOBAL_STATUS));
+
+	if (found_interrupt)
+		lapic_reenable_pmc();
 
 	return (found_interrupt);
 }
@@ -1254,22 +1211,22 @@ int
 pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 {
 	int cpuid[CORE_CPUID_REQUEST_SIZE];
-	int ipa_version, flags, nflags;
+	int flags, nflags;
 
 	do_cpuid(CORE_CPUID_REQUEST, cpuid);
 
-	ipa_version = (version_override > 0) ? version_override :
-	    cpuid[CORE_CPUID_EAX] & 0xFF;
 	core_cputype = md->pmd_cputype;
+	core_version = (version_override > 0) ? version_override :
+	    cpuid[CORE_CPUID_EAX] & 0xFF;
 
-	PMCDBG3(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
-	    core_cputype, maxcpu, ipa_version);
+	PMCDBG3(MDP,INI,1,"core-init cputype=%d ncpu=%d version=%d",
+	    core_cputype, maxcpu, core_version);
 
-	if (ipa_version < 1 || ipa_version > 5 ||
-	    (core_cputype != PMC_CPU_INTEL_CORE && ipa_version == 1)) {
+	if (core_version < 1 || core_version > 5 ||
+	    (core_cputype != PMC_CPU_INTEL_CORE && core_version == 1)) {
 		/* Unknown PMC architecture. */
 		printf("hwpc_core: unknown PMC architecture: %d\n",
-		    ipa_version);
+		    core_version);
 		return (EPROGMISMATCH);
 	}
 
@@ -1303,7 +1260,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 	/*
 	 * Initialize fixed function counters, if present.
 	 */
-	if (core_cputype != PMC_CPU_INTEL_CORE) {
+	if (core_version >= 2) {
 		core_iaf_ri = core_iap_npmc;
 		core_iaf_npmc = cpuid[CORE_CPUID_EDX] & 0x1F;
 		core_iaf_width = (cpuid[CORE_CPUID_EDX] >> 5) & 0xFF;
@@ -1321,10 +1278,10 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 	/*
 	 * Choose the appropriate interrupt handler.
 	 */
-	if (ipa_version == 1)
-		md->pmd_intr = core_intr;
-	else
+	if (core_version >= 2)
 		md->pmd_intr = core2_intr;
+	else
+		md->pmd_intr = core_intr;
 
 	md->pmd_pcpu_fini = NULL;
 	md->pmd_pcpu_init = NULL;
