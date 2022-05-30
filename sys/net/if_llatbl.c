@@ -970,15 +970,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		 */
 		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_RESOLVED);
 		LLE_WUNLOCK(lle);
-#ifdef INET
-		/* gratuitous ARP */
-		if ((laflags & LLE_PUB) && dst->sa_family == AF_INET)
-			arprequest(ifp,
-			    &((struct sockaddr_in *)dst)->sin_addr,
-			    &((struct sockaddr_in *)dst)->sin_addr,
-			    (u_char *)LLADDR(dl));
-#endif
-
+		llt->llt_post_resolved(llt, lle);
 		break;
 
 	case RTM_DELETE:

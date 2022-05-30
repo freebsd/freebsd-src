@@ -1681,6 +1681,17 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	return (error);
 }
 
+static void
+in_lltable_post_resolved(struct lltable *llt, struct llentry *lle)
+{
+	struct ifnet *ifp = llt->llt_ifp;
+
+	/* gratuitous ARP */
+	if ((lle->la_flags & LLE_PUB) != 0)
+		arprequest(ifp, &lle->r_l3addr.addr4, &lle->r_l3addr.addr4,
+		    lle->ll_addr);
+}
+
 static struct lltable *
 in_lltattach(struct ifnet *ifp)
 {
@@ -1699,6 +1710,7 @@ in_lltattach(struct ifnet *ifp)
 	llt->llt_free_entry = in_lltable_free_entry;
 	llt->llt_match_prefix = in_lltable_match_prefix;
 	llt->llt_mark_used = llentry_mark_used;
+	llt->llt_post_resolved = in_lltable_post_resolved;
  	lltable_link(llt);
 
 	return (llt);
