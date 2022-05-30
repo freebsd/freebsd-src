@@ -2420,7 +2420,6 @@ linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
 {
 	struct timeval utv, tv0, tv1, *tvp;
 	struct l_pselect6arg lpse6;
-	l_sigset_t l_ss;
 	sigset_t *ssp;
 	sigset_t ss;
 	int error;
@@ -2430,16 +2429,10 @@ linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
 		error = copyin(sig, &lpse6, sizeof(lpse6));
 		if (error != 0)
 			return (error);
-		if (lpse6.ss_len != sizeof(l_ss))
-			return (EINVAL);
-		if (lpse6.ss != 0) {
-			error = copyin(PTRIN(lpse6.ss), &l_ss,
-			    sizeof(l_ss));
-			if (error != 0)
-				return (error);
-			linux_to_bsd_sigset(&l_ss, &ss);
-			ssp = &ss;
-		}
+		error = linux_copyin_sigset(PTRIN(lpse6.ss),
+		    lpse6.ss_len, &ss, &ssp);
+		if (error != 0)
+		    return (error);
 	} else
 		ssp = NULL;
 
@@ -2530,7 +2523,6 @@ linux_common_ppoll(struct thread *td, struct pollfd *fds, uint32_t nfds,
 	struct timespec ts0, ts1;
 	struct pollfd stackfds[32];
 	struct pollfd *kfds;
- 	l_sigset_t l_ss;
  	sigset_t *ssp;
  	sigset_t ss;
  	int error;
@@ -2538,13 +2530,9 @@ linux_common_ppoll(struct thread *td, struct pollfd *fds, uint32_t nfds,
 	if (kern_poll_maxfds(nfds))
 		return (EINVAL);
 	if (sset != NULL) {
-		if (ssize != sizeof(l_ss))
-			return (EINVAL);
-		error = copyin(sset, &l_ss, sizeof(l_ss));
-		if (error)
-			return (error);
-		linux_to_bsd_sigset(&l_ss, &ss);
-		ssp = &ss;
+		error = linux_copyin_sigset(sset, ssize, &ss, &ssp);
+		if (error != 0)
+		    return (error);
 	} else
 		ssp = NULL;
 	if (tsp != NULL)
