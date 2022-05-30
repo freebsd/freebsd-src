@@ -326,6 +326,7 @@ ZFS+=		zfsbe
 ZFS+=		zfsd
 ZFS+=		zfskeys
 ZFS+=		zpool
+ZFS+=		zpoolreguid
 ZFS+=		zvol
 ZFSPACKAGE=	rc
 .endif
