@@ -466,6 +466,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	struct l_sigcontext *context;
 	struct trapframe *regs;
 	unsigned long rflags;
+	sigset_t bmask;
 	int error;
 	ksiginfo_t ksi;
 
@@ -514,11 +515,8 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 		return (EINVAL);
 	}
 
-	PROC_LOCK(p);
-	linux_to_bsd_sigset(&uc.uc_sigmask, &td->td_sigmask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	linux_to_bsd_sigset(&uc.uc_sigmask, &bmask);
+	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	regs->tf_rdi    = context->sc_rdi;
 	regs->tf_rsi    = context->sc_rsi;
