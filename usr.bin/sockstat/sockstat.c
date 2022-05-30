@@ -161,6 +161,28 @@ xprintf(const char *fmt, ...)
 	return (len);
 }
 
+static bool
+_check_ksize(size_t received_size, size_t expected_size, const char *struct_name)
+{
+	if (received_size != expected_size) {
+		warnx("%s size mismatch: expected %zd, received %zd",
+		    struct_name, expected_size, received_size);
+		return false;
+	}
+	return true;
+}
+#define check_ksize(_sz, _struct)	(_check_ksize(_sz, sizeof(_struct), #_struct))
+
+static void
+_enforce_ksize(size_t received_size, size_t expected_size, const char *struct_name)
+{
+	if (received_size != expected_size) {
+		errx(1, "fatal: struct %s size mismatch: expected %zd, received %zd",
+		    struct_name, expected_size, received_size);
+	}
+}
+#define enforce_ksize(_sz, _struct)	(_enforce_ksize(_sz, sizeof(_struct), #_struct))
+
 static int
 get_proto_type(const char *proto)
 {
@@ -648,9 +670,8 @@ gather_inet(int proto)
 		xig = (struct xinpgen *)buf;
 		exig = (struct xinpgen *)(void *)
 		    ((char *)buf + len - sizeof *exig);
-		if (xig->xig_len != sizeof *xig ||
-		    exig->xig_len != sizeof *exig)
-			errx(1, "struct xinpgen size mismatch");
+		enforce_ksize(xig->xig_len, struct xinpgen);
+		enforce_ksize(exig->xig_len, struct xinpgen);
 	} while (xig->xig_gen != exig->xig_gen && retry--);
 
 	if (xig->xig_gen != exig->xig_gen && opt_v)
@@ -664,19 +685,15 @@ gather_inet(int proto)
 		case IPPROTO_TCP:
 			xtp = (struct xtcpcb *)xig;
 			xip = &xtp->xt_inp;
-			if (xtp->xt_len != sizeof(*xtp)) {
-				warnx("struct xtcpcb size mismatch");
+			if (!check_ksize(xtp->xt_len, struct xtcpcb))
 				goto out;
-			}
 			protoname = xtp->t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
 			xip = (struct xinpcb *)xig;
-			if (xip->xi_len != sizeof(*xip)) {
-				warnx("struct xinpcb size mismatch");
+			if (!check_ksize(xip->xi_len, struct xinpcb))
 				goto out;
-			}
 			break;
 		default:
 			errx(1, "protocol %d not supported", proto);
@@ -798,11 +815,9 @@ gather_unix(int proto)
 		xug = (struct xunpgen *)buf;
 		exug = (struct xunpgen *)(void *)
 		    ((char *)buf + len - sizeof(*exug));
-		if (xug->xug_len != sizeof(*xug) ||
-		    exug->xug_len != sizeof(*exug)) {
-			warnx("struct xinpgen size mismatch");
+		if (!check_ksize(xug->xug_len, struct xunpgen) ||
+		    !check_ksize(exug->xug_len, struct xunpgen))
 			goto out;
-		}
 	} while (xug->xug_gen != exug->xug_gen && retry--);
 
 	if (xug->xug_gen != exug->xug_gen && opt_v)
@@ -813,10 +828,8 @@ gather_unix(int proto)
 		if (xug >= exug)
 			break;
 		xup = (struct xunpcb *)xug;
-		if (xup->xu_len != sizeof(*xup)) {
-			warnx("struct xunpcb size mismatch");
+		if (!check_ksize(xup->xu_len, struct xunpcb))
 			goto out;
-		}
 		if ((xup->unp_conn == 0 && !opt_l) ||
 		    (xup->unp_conn != 0 && !opt_c))
 			continue;
@@ -864,8 +877,8 @@ getfiles(void)
 		if ((xfiles = realloc(xfiles, len)) == NULL)
 			err(1, "realloc()");
 	}
-	if (len > 0 && xfiles->xf_size != sizeof(*xfiles))
-		errx(1, "struct xfile size mismatch");
+	if (len > 0)
+		enforce_ksize(xfiles->xf_size, struct xfile);
 	nxfiles = len / sizeof(*xfiles);
 }
 
