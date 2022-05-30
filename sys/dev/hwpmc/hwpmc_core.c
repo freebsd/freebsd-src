@@ -245,15 +245,31 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	ev = IAP_EVSEL_GET(config);
 	umask = IAP_UMASK_GET(config);
 
-	/* INST_RETIRED.ANY */
-	if (ev == 0xC0 && ri != 0)
-		return (EINVAL);
-	/* CPU_CLK_UNHALTED.THREAD */
-	if (ev == 0x3C && ri != 1)
-		return (EINVAL);
-	/* CPU_CLK_UNHALTED.REF */
-	if (ev == 0x0 && umask == 0x3 && ri != 2)
-		return (EINVAL);
+	if (ev == 0x0) {
+		if (umask != ri + 1)
+			return (EINVAL);
+	} else {
+		switch (ri) {
+		case 0:	/* INST_RETIRED.ANY */
+			if (ev != 0xC0 || umask != 0x00)
+				return (EINVAL);
+			break;
+		case 1:	/* CPU_CLK_UNHALTED.THREAD */
+			if (ev != 0x3C || umask != 0x00)
+				return (EINVAL);
+			break;
+		case 2:	/* CPU_CLK_UNHALTED.REF */
+			if (ev != 0x3C || umask != 0x01)
+				return (EINVAL);
+			break;
+		case 3:	/* TOPDOWN.SLOTS */
+			if (ev != 0xA4 || umask != 0x01)
+				return (EINVAL);
+			break;
+		default:
+			return (EINVAL);
+		}
+	}
 
 	pmc_alloc_refs++;
 	if ((cpu_stdext_feature3 & CPUID_STDEXT3_TSXFA) != 0 &&
