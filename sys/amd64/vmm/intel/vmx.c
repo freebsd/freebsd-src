@@ -168,6 +168,10 @@ static int cap_pause_exit;
 SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, pause_exit, CTLFLAG_RD, &cap_pause_exit,
     0, "PAUSE triggers a VM-exit");
 
+static int cap_wbinvd_exit;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, wbinvd_exit, CTLFLAG_RD, &cap_wbinvd_exit,
+    0, "WBINVD triggers a VM-exit");
+
 static int cap_rdpid;
 SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, rdpid, CTLFLAG_RD, &cap_rdpid, 0,
     "Guests are allowed to use RDPID");
@@ -777,6 +781,12 @@ vmx_modinit(int ipinum)
 					 PROCBASED_PAUSE_EXITING, 0,
 					 &tmp) == 0);
 
+	cap_wbinvd_exit = (vmx_set_ctlreg(MSR_VMX_PROCBASED_CTLS2,
+					MSR_VMX_PROCBASED_CTLS2,
+					PROCBASED2_WBINVD_EXITING,
+					0,
+					&tmp) == 0);
+
 	/*
 	 * Check support for RDPID and/or RDTSCP.
 	 *
@@ -1117,6 +1127,10 @@ vmx_init(struct vm *vm, pmap_t pmap)
 		error += vmwrite(VMCS_EPTP, vmx->eptp);
 		error += vmwrite(VMCS_PIN_BASED_CTLS, pinbased_ctls);
 		error += vmwrite(VMCS_PRI_PROC_BASED_CTLS, procbased_ctls);
+		if (vcpu_trap_wbinvd(vm, i)) {
+			KASSERT(cap_wbinvd_exit, ("WBINVD trap not available"));
+			procbased_ctls2 |= PROCBASED2_WBINVD_EXITING;
+		}
 		error += vmwrite(VMCS_SEC_PROC_BASED_CTLS, procbased_ctls2);
 		error += vmwrite(VMCS_EXIT_CTLS, exit_ctls);
 		error += vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
@@ -2775,6 +2789,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_VMXON:
 		SDT_PROBE3(vmm, vmx, exit, vminsn, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_VMINSN;
+		break;
+	case EXIT_REASON_WBINVD:
+		/* ignore WBINVD */
+		handled = HANDLED;
 		break;
 	default:
 		SDT_PROBE4(vmm, vmx, exit, unknown,
