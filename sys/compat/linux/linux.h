@@ -167,6 +167,11 @@ void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
 int linux_to_bsd_signal(int sig);
 int bsd_to_linux_signal(int sig);
 
+/* sigprocmask actions */
+#define	LINUX_SIG_BLOCK		0
+#define	LINUX_SIG_UNBLOCK	1
+#define	LINUX_SIG_SETMASK	2
+
 void linux_dev_shm_create(void);
 void linux_dev_shm_destroy(void);
 
