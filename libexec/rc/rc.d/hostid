@@ -138,7 +138,7 @@ hostid_start()
 	if [ -r ${hostid_file} ]; then
 		read saved_hostid < ${hostid_file}
 		if valid_hostid ${saved_hostid}; then
-			hostid_set `cat ${hostid_file}`
+			hostid_set ${saved_hostid}
 			exit 0
 		fi
 	fi
