@@ -160,6 +160,7 @@ typedef void (llt_free_tbl_t)(struct lltable *);
 typedef int (llt_link_entry_t)(struct lltable *, struct llentry *);
 typedef int (llt_unlink_entry_t)(struct llentry *);
 typedef void (llt_mark_used_t)(struct llentry *);
+typedef void (llt_post_resolved_t)(struct lltable *, struct llentry *);
 
 typedef int (llt_foreach_cb_t)(struct lltable *, struct llentry *, void *);
 typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
@@ -188,6 +189,7 @@ struct lltable {
 	llt_fill_sa_entry_t	*llt_fill_sa_entry;
 	llt_free_tbl_t		*llt_free_tbl;
 	llt_mark_used_t		*llt_mark_used;
+	llt_post_resolved_t	*llt_post_resolved;
 };
 
 MALLOC_DECLARE(M_LLTABLE);

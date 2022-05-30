@@ -2460,6 +2460,12 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	return (error);
 }
 
+static void
+in6_lltable_post_resolved(struct lltable *llt, struct llentry *lle)
+{
+	/* Handle proxy NDP entries (not yet). */
+}
+
 static struct lltable *
 in6_lltattach(struct ifnet *ifp)
 {
@@ -2478,6 +2484,7 @@ in6_lltattach(struct ifnet *ifp)
 	llt->llt_free_entry = in6_lltable_free_entry;
 	llt->llt_match_prefix = in6_lltable_match_prefix;
 	llt->llt_mark_used = llentry_mark_used;
+	llt->llt_post_resolved = in6_lltable_post_resolved;
  	lltable_link(llt);
 
 	return (llt);
