@@ -730,6 +730,51 @@ lltable_prefix_free(int af, struct sockaddr *addr, struct sockaddr *mask,
 	LLTABLE_LIST_RUNLOCK();
 }
 
+/*
+ * Delete llentries that func() returns true.
+ */
+struct lle_match_data {
+	struct llentries dchain;
+	llt_match_cb_t *func;
+	void *farg;
+};
+
+static int
+lltable_delete_conditional_cb(struct lltable *llt, struct llentry *lle,
+    void *farg)
+{
+	struct lle_match_data *lmd;
+
+	lmd = (struct lle_match_data *)farg;
+	if (lmd->func(llt, lle, lmd->farg)) {
+		LLE_WLOCK(lle);
+		CK_LIST_INSERT_HEAD(&lmd->dchain, lle, lle_chain);
+	}
+
+	return (0);
+}
+
+void
+lltable_delete_conditional(struct lltable *llt, llt_match_cb_t *func,
+    void *farg)
+{
+	struct llentry *lle, *next;
+	struct lle_match_data lmd;
+
+	bzero(&lmd, sizeof(lmd));
+	CK_LIST_INIT(&lmd.dchain);
+	lmd.func = func;
+	lmd.farg = farg;
+
+	IF_AFDATA_WLOCK(llt->llt_ifp);
+	lltable_foreach_lle(llt, lltable_delete_conditional_cb, &lmd);
+	llentries_unlink(llt, &lmd.dchain);
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+
+	CK_LIST_FOREACH_SAFE(lle, &lmd.dchain, lle_chain, next)
+		llt->llt_delete_entry(llt, lle);
+}
+
 struct lltable *
 lltable_allocate_htbl(uint32_t hsize)
 {
@@ -955,6 +1000,9 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			lltable_unlink_entry(llt, lle_tmp);
 		}
 		lltable_link_entry(llt, lle);
+		if ((lle->la_flags & LLE_PUB) != 0 &&
+		    (llt->llt_flags & LLT_ADDEDPROXY) == 0)
+			llt->llt_flags |= LLT_ADDEDPROXY;
 		IF_AFDATA_WUNLOCK(ifp);
 
 		if (lle_tmp != NULL) {

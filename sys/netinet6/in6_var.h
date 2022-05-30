@@ -916,6 +916,8 @@ int	in6_is_addr_deprecated(struct sockaddr_in6 *);
 int	in6_src_ioctl(u_long, caddr_t);
 
 void	in6_newaddrmsg(struct in6_ifaddr *, int);
+
+void	in6_purge_proxy_ndp(struct ifnet *);
 /*
  * Extended API for IPv6 FIB support.
  */
