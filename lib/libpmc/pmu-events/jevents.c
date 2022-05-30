@@ -35,22 +35,18 @@
 #include <sys/resource.h>		/* getrlimit */
 #include <sys/stat.h>
 #include <sys/time.h>			/* getrlimit */
-
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
-#include <fts.h>
-#include <ftw.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <ftw.h>
 #include "list.h"
 #include "jsmn.h"
 #include "json.h"
@@ -60,11 +56,12 @@ static int
 nftw_ordered(const char *path, int (*fn)(const char *, const struct stat *, int,
 	struct FTW *), int nfds, int ftwflags);
 
+_Noreturn void	 _Exit(int);
+
 int verbose;
 static char *prog;
 
-int
-eprintf(int level, int var, const char *fmt, ...)
+int eprintf(int level, int var, const char *fmt, ...)
 {
 
 	int ret;
@@ -82,14 +79,13 @@ eprintf(int level, int var, const char *fmt, ...)
 	return ret;
 }
 
-__attribute__((weak)) char *
-get_cpu_str(void)
+__attribute__((weak)) char *get_cpu_str(void)
 {
 	return NULL;
 }
 
-static void
-addfield(char *map, char **dst, const char *sep, const char *a, jsmntok_t *bt)
+static void addfield(char *map, char **dst, const char *sep,
+		     const char *a, jsmntok_t *bt)
 {
 	unsigned int len = strlen(a) + 1 + strlen(sep);
 	int olen = *dst ? strlen(*dst) : 0;
@@ -112,15 +108,13 @@ addfield(char *map, char **dst, const char *sep, const char *a, jsmntok_t *bt)
 		strncat(*dst, map + bt->start, blen);
 }
 
-static void
-fixname(char *s)
+static void fixname(char *s)
 {
 	for (; *s; s++)
 		*s = tolower(*s);
 }
 
-static void
-fixdesc(char *s)
+static void fixdesc(char *s)
 {
 	char *e = s + strlen(s);
 
@@ -133,8 +127,7 @@ fixdesc(char *s)
 }
 
 /* Add escapes for '\' so they are proper C strings. */
-static char *
-fixregex(char *s)
+static char *fixregex(char *s)
 {
 	int len = 0;
 	int esc_count = 0;
@@ -198,8 +191,7 @@ static struct field {
 	{ NULL, NULL }
 };
 
-static void
-cut_comma(char *map, jsmntok_t *newval)
+static void cut_comma(char *map, jsmntok_t *newval)
 {
 	int i;
 
@@ -210,8 +202,8 @@ cut_comma(char *map, jsmntok_t *newval)
 	}
 }
 
-static int
-match_field(char *map, jsmntok_t *field, int nz, char **event, jsmntok_t *val)
+static int match_field(char *map, jsmntok_t *field, int nz,
+		       char **event, jsmntok_t *val)
 {
 	struct field *f;
 	jsmntok_t newval = *val;
@@ -225,8 +217,7 @@ match_field(char *map, jsmntok_t *field, int nz, char **event, jsmntok_t *val)
 	return 0;
 }
 
-static struct msrmap *
-lookup_msr(char *map, jsmntok_t *val)
+static struct msrmap *lookup_msr(char *map, jsmntok_t *val)
 {
 	jsmntok_t newval = *val;
 	static bool warned;
@@ -260,8 +251,7 @@ static struct map {
 	{}
 };
 
-static const char *
-field_to_perf(struct map *table, char *map, jsmntok_t *val)
+static const char *field_to_perf(struct map *table, char *map, jsmntok_t *val)
 {
 	int i;
 
@@ -285,8 +275,7 @@ field_to_perf(struct map *table, char *map, jsmntok_t *val)
 
 static char *topic;
 
-static char *
-get_topic(void)
+static char *get_topic(void)
 {
 	char *tp;
 	int i;
@@ -312,8 +301,7 @@ get_topic(void)
 	return tp;
 }
 
-static int
-add_topic(const char *bname)
+static int add_topic(const char *bname)
 {
 	free(topic);
 	topic = strdup(bname);
@@ -332,17 +320,17 @@ struct perf_entry_data {
 
 static int close_table;
 
-static void
-print_events_table_prefix(FILE *fp, const char *tblname)
+static void print_events_table_prefix(FILE *fp, const char *tblname)
 {
 	fprintf(fp, "static struct pmu_event %s[] = {\n", tblname);
 	close_table = 1;
 }
 
-static int
-print_events_table_entry(void *data, char *name, const char *event, char *desc,
-    char *long_desc, char *pmu, char *unit, char *perpkg, char *metric_expr,
-    char *metric_name, char *metric_group)
+static int print_events_table_entry(void *data, char *name, const char *event,
+				    char *desc, char *long_desc,
+				    char *pmu, char *unit, char *perpkg,
+				    char *metric_expr,
+				    char *metric_name, char *metric_group)
 {
 	struct perf_entry_data *pd = data;
 	FILE *outfp = pd->outfp;
@@ -422,8 +410,7 @@ struct event_struct {
 
 static LIST_HEAD(arch_std_events);
 
-static void
-free_arch_std_events(void)
+static void free_arch_std_events(void)
 {
 	struct event_struct *es, *next;
 
@@ -434,10 +421,10 @@ free_arch_std_events(void)
 	}
 }
 
-static int
-save_arch_std_events(void *data __unused, char *name, const char *event,
-    char *desc, char *long_desc, char *pmu, char *unit, char *perpkg,
-    char *metric_expr, char *metric_name, char *metric_group)
+static int save_arch_std_events(void *data __unused, char *name, const char *event,
+				char *desc, char *long_desc, char *pmu,
+				char *unit, char *perpkg, char *metric_expr,
+				char *metric_name, char *metric_group)
 {
 	struct event_struct *es;
 
@@ -454,8 +441,7 @@ out_free:
 	return -ENOMEM;
 }
 
-static void
-print_events_table_suffix(FILE *outfp)
+static void print_events_table_suffix(FILE *outfp)
 {
 	fprintf(outfp, "{\n");
 
@@ -483,8 +469,7 @@ static struct fixed {
 /*
  * Handle different fixed counter encodings between JSON and perf.
  */
-static const char *
-real_event(const char *name, char *event)
+static const char *real_event(const char *name, char *event)
 {
 	int i;
 
@@ -499,9 +484,9 @@ real_event(const char *name, char *event)
 
 static int
 try_fixup(const char *fn, char *arch_std, char **event, char **desc,
-    char **name, char **long_desc, char **pmu, char **filter __unused,
-    char **perpkg, char **unit, char **metric_expr, char **metric_name,
-    char **metric_group, unsigned long long eventcode)
+	  char **name, char **long_desc, char **pmu, char **filter __unused,
+	  char **perpkg, char **unit, char **metric_expr, char **metric_name,
+	  char **metric_group, unsigned long long eventcode)
 {
 	/* try to find matching event from arch standard values */
 	struct event_struct *es;
@@ -524,8 +509,7 @@ try_fixup(const char *fn, char *arch_std, char **event, char **desc,
 }
 
 /* Call func with each event in the json file */
-int
-json_events(const char *fn,
+int json_events(const char *fn,
 	  int (*func)(void *data, char *name, const char *event, char *desc,
 		      char *long_desc,
 		      char *pmu, char *unit, char *perpkg,
@@ -713,8 +697,7 @@ out_free:
 	return err;
 }
 
-static char *
-file_name_to_table_name(const char *fname)
+static char *file_name_to_table_name(const char *fname)
 {
 	unsigned int i;
 	int n;
@@ -756,14 +739,12 @@ file_name_to_table_name(const char *fname)
 	return tblname;
 }
 
-static void
-print_mapping_table_prefix(FILE *outfp)
+static void print_mapping_table_prefix(FILE *outfp)
 {
 	fprintf(outfp, "struct pmu_events_map pmu_events_map[] = {\n");
 }
 
-static void
-print_mapping_table_suffix(FILE *outfp)
+static void print_mapping_table_suffix(FILE *outfp)
 {
 	/*
 	 * Print the terminating, NULL entry.
@@ -779,8 +760,7 @@ print_mapping_table_suffix(FILE *outfp)
 	fprintf(outfp, "};\n");
 }
 
-static int
-process_mapfile(FILE *outfp, char *fpath)
+static int process_mapfile(FILE *outfp, char *fpath)
 {
 	int n = 16384;
 	FILE *mapfp;
@@ -868,8 +848,7 @@ out:
  * table. This would at least allow perf to build even if we can't find/use
  * the aliases.
  */
-static void
-create_empty_mapping(const char *output_file)
+static void create_empty_mapping(const char *output_file)
 {
 	FILE *outfp;
 
@@ -888,8 +867,7 @@ create_empty_mapping(const char *output_file)
 	fclose(outfp);
 }
 
-static int
-get_maxfds(void)
+static int get_maxfds(void)
 {
 	struct rlimit rlim;
 
@@ -909,8 +887,7 @@ get_maxfds(void)
 static FILE *eventsfp;
 static char *mapfile;
 
-static int
-is_leaf_dir(const char *fpath)
+static int is_leaf_dir(const char *fpath)
 {
 	DIR *d;
 	struct dirent *dir;
@@ -948,8 +925,7 @@ is_leaf_dir(const char *fpath)
 	return res;
 }
 
-static int
-is_json_file(const char *name)
+static int is_json_file(const char *name)
 {
 	const char *suffix;
 
@@ -963,9 +939,8 @@ is_json_file(const char *name)
 	return 0;
 }
 
-static int
-preprocess_arch_std_files(const char *fpath, const struct stat *sb,
-    int typeflag, struct FTW *ftwbuf)
+static int preprocess_arch_std_files(const char *fpath, const struct stat *sb,
+				int typeflag, struct FTW *ftwbuf)
 {
 	int level = ftwbuf->level;
 	int is_file = typeflag == FTW_F;
@@ -976,9 +951,8 @@ preprocess_arch_std_files(const char *fpath, const struct stat *sb,
 	return 0;
 }
 
-static int
-process_one_file(const char *fpath, const struct stat *sb, int typeflag,
-    struct FTW *ftwbuf)
+static int process_one_file(const char *fpath, const struct stat *sb,
+			    int typeflag, struct FTW *ftwbuf)
 {
 	char *tblname;
 	const char *bname;
@@ -1103,8 +1077,7 @@ process_one_file(const char *fpath, const struct stat *sb, int typeflag,
  *
  * Write out the PMU events tables and the mapping table to pmu-event.c.
  */
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int rc;
 	int maxfds;
@@ -1205,6 +1178,8 @@ empty_map:
 	free_arch_std_events();
 	return 0;
 }
+
+#include <fts.h>
 
 static int
 fts_compare(const FTSENT * const *a, const FTSENT * const *b)
