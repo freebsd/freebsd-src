@@ -576,7 +576,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_sigmask);
-	bsd_to_linux_sigset(mask, &sf.sf_uc.uc_mcontext.sc_mask);
+	sf.sf_uc.uc_mcontext.sc_mask = sf.sf_uc.uc_sigmask;
 
 	sf.sf_uc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
 	sf.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
