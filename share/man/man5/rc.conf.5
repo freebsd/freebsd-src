@@ -2051,6 +2051,12 @@ If set to
 .Pa /etc/rc.d/zfs
 will attempt to automatically mount ZFS file systems and initialize ZFS volumes
 (ZVOLs).
+.It Va zpool_reguid
+.Pq Vt str
+A space-separated list of ZFS pool names for which new pool GUIDs should be
+assigned upon first boot.
+This is useful when using a ZFS pool copied from a template, such as a virtual
+machine image.
 .It Va gptboot_enable
 .Pq Vt bool
 If set to
