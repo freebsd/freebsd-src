@@ -79,7 +79,7 @@ struct felix_pci_id {
 };
 
 struct felix_port {
-	struct ifnet            *ifp;
+	if_t			ifp;
 	device_t                miibus;
 	char                    *ifname;
 

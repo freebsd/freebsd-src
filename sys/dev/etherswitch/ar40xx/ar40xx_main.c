@@ -627,7 +627,7 @@ ar40xx_setport(device_t dev, etherswitch_port_t *p)
 	struct ar40xx_softc *sc = device_get_softc(dev);
 	struct ifmedia *ifm;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	int ret;
 
 	if (p->es_port < 0 || p->es_port > sc->sc_info.es_nports)

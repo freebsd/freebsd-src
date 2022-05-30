@@ -75,7 +75,7 @@ struct rtl8366rb_softc {
 	int		vid[RTL8366_NUM_VLANS];
 	char		*ifname[RTL8366_NUM_PHYS];
 	device_t	miibus[RTL8366_NUM_PHYS];
-	struct ifnet	*ifp[RTL8366_NUM_PHYS];
+	if_t ifp[RTL8366_NUM_PHYS];
 	struct callout	callout_tick;
 	etherswitch_info_t	info;
 	int		chip_type;
@@ -126,8 +126,8 @@ static int smi_read(device_t dev, uint16_t addr, uint16_t *data, int sleep);
 static int smi_write(device_t dev, uint16_t addr, uint16_t data, int sleep);
 static int smi_rmw(device_t dev, uint16_t addr, uint16_t mask, uint16_t data, int sleep);
 static void rtl8366rb_tick(void *arg);
-static int rtl8366rb_ifmedia_upd(struct ifnet *);
-static void rtl8366rb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int rtl8366rb_ifmedia_upd(if_t );
+static void rtl8366rb_ifmedia_sts(if_t , struct ifmediareq *);
 
 static void
 rtl8366rb_identify(driver_t *driver, device_t parent)
@@ -246,9 +246,9 @@ rtl8366rb_attach(device_t dev)
 			break;
 		}
 
-		sc->ifp[i]->if_softc = sc;
-		sc->ifp[i]->if_flags |= IFF_UP | IFF_BROADCAST | IFF_DRV_RUNNING
-			| IFF_SIMPLEX;
+		if_setsoftc(sc->ifp[i], sc);
+		if_setflagbits(sc->ifp[i], IFF_UP | IFF_BROADCAST | IFF_DRV_RUNNING
+			| IFF_SIMPLEX, 0);
 		snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(dev));
 		sc->ifname[i] = malloc(strlen(name)+1, M_DEVBUF, M_WAITOK);
 		bcopy(name, sc->ifname[i], strlen(name)+1);
@@ -895,26 +895,26 @@ rtl_writephy(device_t dev, int phy, int reg, int data)
 }
 
 static int
-rtl8366rb_ifmedia_upd(struct ifnet *ifp)
+rtl8366rb_ifmedia_upd(if_t ifp)
 {
 	struct rtl8366rb_softc *sc;
 	struct mii_data *mii;
 	
-	sc = ifp->if_softc;
-	mii = device_get_softc(sc->miibus[ifp->if_dunit]);
+	sc = if_getsoftc(ifp);
+	mii = device_get_softc(sc->miibus[if_getdunit(ifp)]);
 	
 	mii_mediachg(mii);
 	return (0);
 }
 
 static void
-rtl8366rb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+rtl8366rb_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct rtl8366rb_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
-	mii = device_get_softc(sc->miibus[ifp->if_dunit]);
+	sc = if_getsoftc(ifp);
+	mii = device_get_softc(sc->miibus[if_getdunit(ifp)]);
 
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;

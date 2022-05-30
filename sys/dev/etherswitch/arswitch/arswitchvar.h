@@ -76,7 +76,7 @@ struct arswitch_softc {
 	/* should be the max of both pre-AR8327 and AR8327 ports */
 	char		*ifname[ARSWITCH_NUM_PHYS];
 	device_t	miibus[ARSWITCH_NUM_PHYS];
-	struct ifnet	*ifp[ARSWITCH_NUM_PHYS];
+	if_t ifp[ARSWITCH_NUM_PHYS];
 	struct arswitch_dev_led	dev_led[ARSWITCH_NUM_PHYS][ARSWITCH_NUM_LEDS];
 	struct callout	callout_tick;
 	etherswitch_info_t info;
