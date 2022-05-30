@@ -92,6 +92,8 @@ static int bsd_to_linux_sigtbl[LINUX_SIGTBLSZ] = {
 	LINUX_SIGUSR2	/* SIGUSR2 */
 };
 
+#define	LINUX_SIGPWREMU	(SIGRTMIN + (LINUX_SIGRTMAX - LINUX_SIGRTMIN) + 1)
+
 static int linux_to_bsd_sigtbl[LINUX_SIGTBLSZ] = {
 	SIGHUP,		/* LINUX_SIGHUP */
 	SIGINT,		/* LINUX_SIGINT */
@@ -127,7 +129,7 @@ static int linux_to_bsd_sigtbl[LINUX_SIGTBLSZ] = {
 	 * to the first unused FreeBSD signal number. Since Linux supports
 	 * signals from 1 to 64 we are ok here as our SIGRTMIN = 65.
 	 */
-	SIGRTMIN,	/* LINUX_SIGPWR */
+	LINUX_SIGPWREMU,/* LINUX_SIGPWR */
 	SIGSYS		/* LINUX_SIGSYS */
 };
 
@@ -144,14 +146,14 @@ static inline int
 linux_to_bsd_rt_signal(int sig)
 {
 
-	return (SIGRTMIN + 1 + sig - LINUX_SIGRTMIN);
+	return (SIGRTMIN + sig - LINUX_SIGRTMIN);
 }
 
 static inline int
 bsd_to_linux_rt_signal(int sig)
 {
 
-	return (sig - SIGRTMIN - 1 + LINUX_SIGRTMIN);
+	return (sig - SIGRTMIN + LINUX_SIGRTMIN);
 }
 
 int
@@ -172,7 +174,7 @@ bsd_to_linux_signal(int sig)
 
 	if (sig <= LINUX_SIGTBLSZ)
 		return (bsd_to_linux_sigtbl[_SIG_IDX(sig)]);
-	if (sig == SIGRTMIN)
+	if (sig == LINUX_SIGPWREMU)
 		return (LINUX_SIGPWR);
 
 	return (bsd_to_linux_rt_signal(sig));
