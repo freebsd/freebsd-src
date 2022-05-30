@@ -166,7 +166,8 @@ typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
-	int			llt_af;
+	sa_family_t		llt_af;
+	uint8_t			llt_spare[3];
 	int			llt_hsize;
 	int			llt_entries;
 	int			llt_maxentries;
