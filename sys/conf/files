@@ -4715,35 +4715,35 @@ ofed/drivers/infiniband/ulp/sdp/sdp_cma.c	optional sdp inet 	\
 ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/ ${NO_WUNUSED_BUT_SET_VARIABLE}"
 
-dev/irdma/icrdma.c		optional irdma ice pci ofed \
+dev/irdma/icrdma.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_cm.c		optional irdma ice pci ofed \
+dev/irdma/irdma_cm.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_ctrl.c		optional irdma ice pci ofed \
+dev/irdma/irdma_ctrl.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_hmc.c		optional irdma ice pci ofed \
+dev/irdma/irdma_hmc.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_hw.c		optional irdma ice pci ofed \
+dev/irdma/irdma_hw.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/icrdma_hw.c		optional irdma ice pci ofed \
+dev/irdma/icrdma_hw.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/fbsd_kcompat.c	optional irdma ice pci ofed \
+dev/irdma/fbsd_kcompat.c	optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_kcompat.c	optional irdma ice pci ofed \
+dev/irdma/irdma_kcompat.c	optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_pble.c		optional irdma ice pci ofed \
+dev/irdma/irdma_pble.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_puda.c		optional irdma ice pci ofed \
+dev/irdma/irdma_puda.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_uda.c		optional irdma ice pci ofed \
+dev/irdma/irdma_uda.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_uk.c		optional irdma ice pci ofed \
+dev/irdma/irdma_uk.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_utils.c		optional irdma ice pci ofed \
+dev/irdma/irdma_utils.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_verbs.c		optional irdma ice pci ofed \
+dev/irdma/irdma_verbs.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
-dev/irdma/irdma_ws.c		optional irdma ice pci ofed \
+dev/irdma/irdma_ws.c		optional irdma ice inet inet6 pci ofed \
 	compile-with "${OFED_C} -I$S/dev/ice/"
 
 dev/mthca/mthca_allocator.c		optional mthca pci ofed \

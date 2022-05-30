@@ -577,7 +577,9 @@ _ice=		ice
 _ice_ddp=	ice_ddp
 .endif
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
+.if ${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no"
 _irdma=		irdma
+.endif
 .endif
 .endif
 
