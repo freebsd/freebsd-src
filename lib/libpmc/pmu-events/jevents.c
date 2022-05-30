@@ -480,12 +480,14 @@ static struct fixed {
 	const char *name;
 	const char *event;
 } fixed[] = {
+#if 0
 	{ "inst_retired.any", "event=0xc0,period=2000003" },
 	{ "inst_retired.any_p", "event=0xc0,period=2000003" },
 	{ "cpu_clk_unhalted.ref", "event=0x0,umask=0x03,period=2000003" },
 	{ "cpu_clk_unhalted.thread", "event=0x3c,period=2000003" },
 	{ "cpu_clk_unhalted.core", "event=0x3c,period=2000003" },
 	{ "cpu_clk_unhalted.thread_any", "event=0x3c,any=1,period=2000003" },
+#endif
 	{ NULL, NULL},
 };
 
