@@ -577,6 +577,8 @@ struct xsocket {
 		uint32_t	sb_cc;
 		uint32_t	sb_hiwat;
 		uint32_t	sb_mbcnt;
+		uint32_t	sb_spare0;	/* was sb_mcnt */
+		uint32_t	sb_spare1;	/* was sb_ccnt */
 		uint32_t	sb_mbmax;
 		int32_t		sb_lowat;
 		int32_t		sb_timeo;
