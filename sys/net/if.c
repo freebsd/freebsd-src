@@ -1017,6 +1017,16 @@ if_purgeaddrs(struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
 
+#ifdef INET6
+	/*
+	 * Need to leave multicast addresses of proxy NDP llentries
+	 * before in6_purgeifaddr() because the llentries are keys
+	 * for in6_multi objects of proxy NDP entries.
+	 * in6_purgeifaddr()s clean up llentries including proxy NDPs
+	 * then we would lose the keys if they are called earlier.
+	 */
+	in6_purge_proxy_ndp(ifp);
+#endif
 	while (1) {
 		struct epoch_tracker et;
 
