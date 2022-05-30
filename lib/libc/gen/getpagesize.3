@@ -28,7 +28,7 @@
 .\"     @(#)getpagesize.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2017
+.Dd June 1, 2022
 .Dt GETPAGESIZE 3
 .Os
 .Sh NAME
@@ -51,9 +51,17 @@ management calls.
 The page size is a system
 page size and may not be the same as the underlying
 hardware page size.
+.Pp
+.St -p1003.1-2001
+removed
+.Nm .
+Portable applications should use
+.Ql sysconf(_SC_PAGESIZE)
+instead.
 .Sh SEE ALSO
 .Xr pagesize 1 ,
-.Xr sbrk 2
+.Xr sbrk 2 ,
+.Xr sysconf 3
 .Sh HISTORY
 The
 .Fn getpagesize
