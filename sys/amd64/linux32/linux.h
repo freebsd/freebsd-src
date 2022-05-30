@@ -263,11 +263,6 @@ struct l_statfs64 {
 #define	LINUX_SA_NOMASK		0x40000000
 #define	LINUX_SA_ONESHOT	0x80000000
 
-/* sigprocmask actions */
-#define	LINUX_SIG_BLOCK		0
-#define	LINUX_SIG_UNBLOCK	1
-#define	LINUX_SIG_SETMASK	2
-
 /* sigaltstack */
 #define	LINUX_MINSIGSTKSZ	2048
 
