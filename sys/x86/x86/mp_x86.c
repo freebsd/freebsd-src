@@ -871,6 +871,25 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	nchildren = 0;
 	node = root;
 	while (node != NULL) {
+		/*
+		 * When some APICs are disabled by tunables, nodes can end up
+		 * with an empty cpuset. Nodes with an empty cpuset will be
+		 * translated into cpu groups with empty cpusets. smp_topo_fill
+		 * will then set cg_first and cg_last to -1. This isn't
+		 * correctly handled in all functions. E.g. when
+		 * cpu_search_lowest and cpu_search_highest loop through all
+		 * cpus, they call CPU_ISSET on cpu -1 which ends up in a
+		 * general protection fault.
+		 *
+		 * We could fix the scheduler to handle empty cpu groups
+		 * correctly. Nevertheless, empty cpu groups are causing
+		 * overhead for no value. So, it makes more sense to just don't
+		 * create them.
+		 */
+		if (CPU_EMPTY(&node->cpuset)) {
+			node = topo_next_node(root, node);
+			continue;
+		}
 		if (CPU_CMP(&node->cpuset, &root->cpuset) == 0) {
 			if (node->type == TOPO_TYPE_CACHE &&
 			    cg_root->cg_level < node->subtype)
@@ -896,8 +915,14 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 	if (nchildren == root->cpu_count)
 		return;
 
-	cg_root->cg_child = smp_topo_alloc(nchildren);
+	/*
+	 * We are not interested in nodes without children.
+	 */
 	cg_root->cg_children = nchildren;
+	if (nchildren == 0)
+		return;
+
+	cg_root->cg_child = smp_topo_alloc(nchildren);
 
 	/*
 	 * Now find again the same cache nodes as above and recursively
@@ -909,7 +934,8 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 		if ((node->type != TOPO_TYPE_GROUP &&
 		    node->type != TOPO_TYPE_NODE &&
 		    node->type != TOPO_TYPE_CACHE) ||
-		    CPU_CMP(&node->cpuset, &root->cpuset) == 0) {
+		    CPU_CMP(&node->cpuset, &root->cpuset) == 0 ||
+		    CPU_EMPTY(&node->cpuset)) {
 			node = topo_next_node(root, node);
 			continue;
 		}
