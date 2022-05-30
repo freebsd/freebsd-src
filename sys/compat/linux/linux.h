@@ -118,8 +118,8 @@ typedef struct {
 
 /* primitives to manipulate sigset_t */
 #define	LINUX_SIGEMPTYSET(set)		(set).__mask = 0
-#define	LINUX_SIGISMEMBER(set, sig)	(1UL & ((set).__mask >> _SIG_IDX(sig)))
-#define	LINUX_SIGADDSET(set, sig)	(set).__mask |= 1UL << _SIG_IDX(sig)
+#define	LINUX_SIGISMEMBER(set, sig)	(1ULL & ((set).__mask >> _SIG_IDX(sig)))
+#define	LINUX_SIGADDSET(set, sig)	(set).__mask |= 1ULL << _SIG_IDX(sig)
 
 void linux_to_bsd_sigset(l_sigset_t *, sigset_t *);
 void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
