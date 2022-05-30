@@ -337,7 +337,7 @@ c4iw_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 	struct c4iw_dev *dev;
 	struct adapter *sc;
 	struct port_info *pi;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	CTR4(KTR_IW_CXGBE, "%s ibdev %p, port %d, props %p", __func__, ibdev,
 	    port, props);
@@ -351,13 +351,13 @@ c4iw_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 
 	memset(props, 0, sizeof(struct ib_port_attr));
 	props->max_mtu = IB_MTU_4096;
-	if (ifp->if_mtu >= 4096)
+	if (if_getmtu(ifp) >= 4096)
 		props->active_mtu = IB_MTU_4096;
-	else if (ifp->if_mtu >= 2048)
+	else if (if_getmtu(ifp) >= 2048)
 		props->active_mtu = IB_MTU_2048;
-	else if (ifp->if_mtu >= 1024)
+	else if (if_getmtu(ifp) >= 1024)
 		props->active_mtu = IB_MTU_1024;
-	else if (ifp->if_mtu >= 512)
+	else if (if_getmtu(ifp) >= 512)
 		props->active_mtu = IB_MTU_512;
 	else
 		props->active_mtu = IB_MTU_256;

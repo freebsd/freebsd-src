@@ -128,7 +128,7 @@ static int rem_ep_from_listenlist(struct c4iw_listen_ep *lep);
 static struct c4iw_listen_ep *
 find_real_listen_ep(struct c4iw_listen_ep *master_lep, struct socket *so);
 static int get_ifnet_from_raddr(struct sockaddr_storage *raddr,
-		struct ifnet **ifp);
+		if_t *ifp);
 static void process_newconn(struct c4iw_listen_ep *master_lep,
 		struct socket *new_so);
 #define START_EP_TIMER(ep) \
@@ -337,7 +337,7 @@ find_real_listen_ep(struct c4iw_listen_ep *master_lep, struct socket *so)
 {
 	struct adapter *adap = NULL;
 	struct c4iw_listen_ep *lep = NULL;
-	struct ifnet *ifp = NULL, *hw_ifp = NULL;
+	if_t ifp = NULL, hw_ifp = NULL;
 	struct listen_port_info *port_info = NULL;
 	int i = 0, found_portinfo = 0, found_lep = 0;
 	uint16_t port;
@@ -348,7 +348,7 @@ find_real_listen_ep(struct c4iw_listen_ep *master_lep, struct socket *so)
 	 * TBD: lagg support, lagg + vlan support.
 	 */
 	ifp = TOEPCB(so)->l2te->ifp;
-	if (ifp->if_type == IFT_L2VLAN) {
+	if (if_gettype(ifp) == IFT_L2VLAN) {
 		hw_ifp = VLAN_TRUNKDEV(ifp);
 		if (hw_ifp == NULL) {
 			CTR4(KTR_IW_CXGBE, "%s: Failed to get parent ifnet of "
@@ -533,7 +533,7 @@ done:
 
 }
 static int
-get_ifnet_from_raddr(struct sockaddr_storage *raddr, struct ifnet **ifp)
+get_ifnet_from_raddr(struct sockaddr_storage *raddr, if_t *ifp)
 {
 	int err = 0;
 	struct nhop_object *nh;
@@ -2593,7 +2593,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int err = 0;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
-	struct ifnet    *nh_ifp;        /* Logical egress interface */
+	if_t nh_ifp;        /* Logical egress interface */
 	struct epoch_tracker et;
 #ifdef VIMAGE
 	struct rdma_cm_id *rdma_id = (struct rdma_cm_id*)cm_id->context;
@@ -2659,7 +2659,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		return err;
 	}
 
-	if (!(nh_ifp->if_capenable & IFCAP_TOE) ||
+	if (!(if_getcapenable(nh_ifp) & IFCAP_TOE) ||
 	    TOEDEV(nh_ifp) == NULL) {
 		err = -ENOPROTOOPT;
 		goto fail;

@@ -118,7 +118,7 @@ mst_to_tls(struct m_snd_tag *t)
 }
 
 static struct tlspcb *
-alloc_tlspcb(struct ifnet *ifp, struct vi_info *vi, int flags)
+alloc_tlspcb(if_t ifp, struct vi_info *vi, int flags)
 {
 	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
@@ -373,7 +373,7 @@ ktls_set_tcb_fields(struct tlspcb *tlsp, struct tcpcb *tp, struct sge_txq *txq)
 }
 
 int
-t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
 {
 	const struct ktls_session *tls;
@@ -434,7 +434,7 @@ t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		return (EPROTONOSUPPORT);
 	}
 
-	vi = ifp->if_softc;
+	vi = if_getsoftc(ifp);
 	sc = vi->adapter;
 
 	tlsp = alloc_tlspcb(ifp, vi, M_WAITOK);
@@ -1761,7 +1761,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
 	} else if (tlsp->prev_mss != 0)
 		mss = tlsp->prev_mss;
 	else
-		mss = tlsp->vi->ifp->if_mtu -
+		mss = if_getmtu(tlsp->vi->ifp) -
 		    (m->m_pkthdr.l3hlen + m->m_pkthdr.l4hlen);
 	if (offset == 0) {
 		tx_data->len = htobe32(V_TX_DATA_MSS(mss) | V_TX_LENGTH(tlen));
@@ -2109,7 +2109,7 @@ t6_ktls_modunload(void)
 #else
 
 int
-t6_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+t6_tls_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
 {
 	return (ENXIO);

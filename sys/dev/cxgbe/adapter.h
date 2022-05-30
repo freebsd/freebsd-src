@@ -197,7 +197,7 @@ struct vi_info {
 	struct port_info *pi;
 	struct adapter *adapter;
 
-	struct ifnet *ifp;
+	if_t ifp;
 	struct pfil_head *pfil;
 
 	unsigned long flags;
@@ -603,7 +603,7 @@ struct txpkts {
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
 
-	struct ifnet *ifp;	/* the interface this txq belongs to */
+	if_t ifp;		/* the interface this txq belongs to */
 	struct mp_ring *r;	/* tx software ring */
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct sglist *gl;
@@ -654,7 +654,7 @@ struct sge_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;	/* MUST follow iq */
 
-	struct ifnet *ifp;	/* the interface this rxq belongs to */
+	if_t ifp;		/* the interface this rxq belongs to */
 	struct lro_ctrl lro;	/* LRO state */
 
 	/* stats for common events first */
@@ -956,7 +956,7 @@ struct adapter {
 
 	char ifp_lockname[16];
 	struct mtx ifp_lock;
-	struct ifnet *ifp;	/* tracer ifp */
+	if_t ifp;		/* tracer ifp */
 	struct ifmedia media;
 	int traceq;		/* iq used by all tracers, -1 if none */
 	int tracer_valid;	/* bitmap of valid tracers */
@@ -1359,7 +1359,7 @@ void t4_sysctls(struct adapter *);
 int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
 void doom_vi(struct adapter *, struct vi_info *);
 void end_synchronized_op(struct adapter *, int);
-int update_mac_settings(struct ifnet *, int);
+int update_mac_settings(if_t, int);
 int adapter_init(struct adapter *);
 int vi_init(struct vi_info *);
 void vi_sysctls(struct vi_info *);
@@ -1368,17 +1368,17 @@ int alloc_atid(struct adapter *, void *);
 void *lookup_atid(struct adapter *, int);
 void free_atid(struct adapter *, int);
 void release_tid(struct adapter *, int, struct sge_wrq *);
-int cxgbe_media_change(struct ifnet *);
-void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
+int cxgbe_media_change(if_t);
+void cxgbe_media_status(if_t, struct ifmediareq *);
 void t4_os_cim_err(struct adapter *);
 
 #ifdef KERN_TLS
 /* t6_kern_tls.c */
-int t6_tls_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
+int t6_tls_tag_alloc(if_t, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
 void t6_ktls_modload(void);
 void t6_ktls_modunload(void);
-int t6_ktls_try(struct ifnet *, struct socket *, struct ktls_session *);
+int t6_ktls_try(if_t, struct socket *, struct ktls_session *);
 int t6_ktls_parse_pkt(struct mbuf *);
 int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int);
 #endif
@@ -1451,7 +1451,7 @@ void t4_vi_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
 void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
-void t4_update_fl_bufsize(struct ifnet *);
+void t4_update_fl_bufsize(if_t);
 struct mbuf *alloc_wr_mbuf(int, int);
 int parse_pkt(struct mbuf **, bool);
 void *start_wrq_wr(struct sge_wrq *, int, struct wrq_cookie *);
@@ -1489,10 +1489,10 @@ int sysctl_tc_params(SYSCTL_HANDLER_ARGS);
 void t4_init_etid_table(struct adapter *);
 void t4_free_etid_table(struct adapter *);
 struct cxgbe_rate_tag *lookup_etid(struct adapter *, int);
-int cxgbe_rate_tag_alloc(struct ifnet *, union if_snd_tag_alloc_params *,
+int cxgbe_rate_tag_alloc(if_t, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
 void cxgbe_rate_tag_free_locked(struct cxgbe_rate_tag *);
-void cxgbe_ratelimit_query(struct ifnet *, struct if_ratelimit_query_results *);
+void cxgbe_ratelimit_query(if_t, struct if_ratelimit_query_results *);
 #endif
 
 /* t4_filter.c */

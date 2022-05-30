@@ -35,9 +35,9 @@
 #include "t4_l2t.h"
 
 int t4_l2t_send_slow(struct adapter *, struct wrqe *, struct l2t_entry *);
-struct l2t_entry *t4_l2t_get(struct port_info *, struct ifnet *,
+struct l2t_entry *t4_l2t_get(struct port_info *, if_t,
     struct sockaddr *);
-void t4_l2_update(struct toedev *, struct ifnet *, struct sockaddr *,
+void t4_l2_update(struct toedev *, if_t, struct sockaddr *,
     uint8_t *, uint16_t);
 int do_l2t_write_rpl2(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
