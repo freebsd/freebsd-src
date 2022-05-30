@@ -100,7 +100,7 @@ struct adm6996fc_softc {
 	int		*portphy;
 	char		**ifname;
 	device_t	**miibus;
-	struct ifnet	**ifp;
+	if_t *ifp;
 	struct callout	callout_tick;
 	etherswitch_info_t	info;
 };
@@ -122,8 +122,8 @@ struct adm6996fc_softc {
 
 static inline int adm6996fc_portforphy(struct adm6996fc_softc *, int);
 static void adm6996fc_tick(void *);
-static int adm6996fc_ifmedia_upd(struct ifnet *);
-static void adm6996fc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int adm6996fc_ifmedia_upd(if_t );
+static void adm6996fc_ifmedia_sts(if_t , struct ifmediareq *);
 
 #define	ADM6996FC_READREG(dev, x)					\
 	MDIO_READREG(dev, ((x) >> 5), ((x) & 0x1f));
@@ -254,7 +254,7 @@ adm6996fc_attach(device_t dev)
 	sc->info.es_nvlangroups = 16;
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT | ETHERSWITCH_VLAN_DOT1Q;
 
-	sc->ifp = malloc(sizeof(struct ifnet *) * sc->numports, M_ADM6996FC,
+	sc->ifp = malloc(sizeof(if_t ) * sc->numports, M_ADM6996FC,
 	    M_WAITOK | M_ZERO);
 	sc->ifname = malloc(sizeof(char *) * sc->numports, M_ADM6996FC,
 	    M_WAITOK | M_ZERO);
@@ -355,7 +355,7 @@ adm6996fc_miiforport(struct adm6996fc_softc *sc, int port)
 	return (device_get_softc(*sc->miibus[port]));
 }
 
-static inline struct ifnet *
+static inline if_t 
 adm6996fc_ifpforport(struct adm6996fc_softc *sc, int port)
 {
 
@@ -504,7 +504,7 @@ adm6996fc_setport(device_t dev, etherswitch_port_t *p)
 	struct adm6996fc_softc	*sc;
 	struct ifmedia		*ifm;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
+	if_t ifp;
 	device_t		 parent;
 	int 			 err;
 	int			 data;
@@ -721,13 +721,13 @@ adm6996fc_statchg(device_t dev)
 }
 
 static int
-adm6996fc_ifmedia_upd(struct ifnet *ifp)
+adm6996fc_ifmedia_upd(if_t ifp)
 {
 	struct adm6996fc_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
-	mii = adm6996fc_miiforport(sc, ifp->if_dunit);
+	sc = if_getsoftc(ifp);
+	mii = adm6996fc_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 	if (mii == NULL)
@@ -737,13 +737,13 @@ adm6996fc_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-adm6996fc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+adm6996fc_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct adm6996fc_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
-	mii = adm6996fc_miiforport(sc, ifp->if_dunit);
+	sc = if_getsoftc(ifp);
+	mii = adm6996fc_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
 
 	DPRINTF(sc->sc_dev, "%s\n", __func__);
 

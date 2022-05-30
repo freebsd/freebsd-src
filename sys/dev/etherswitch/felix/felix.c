@@ -88,8 +88,8 @@ static int felix_setup(felix_softc_t);
 static void felix_setup_port(felix_softc_t, int);
 
 static void felix_tick(void *);
-static int felix_ifmedia_upd(struct ifnet *);
-static void felix_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int felix_ifmedia_upd(if_t );
+static void felix_ifmedia_sts(if_t , struct ifmediareq *);
 
 static void felix_get_port_cfg(felix_softc_t, etherswitch_port_t *);
 static void felix_set_port_cfg(felix_softc_t, etherswitch_port_t *);
@@ -246,9 +246,9 @@ felix_init_interface(felix_softc_t sc, int port)
 	if (sc->ports[port].ifp == NULL)
 		return (ENOMEM);
 
-	sc->ports[port].ifp->if_softc = sc;
-	sc->ports[port].ifp->if_flags = IFF_UP | IFF_BROADCAST | IFF_MULTICAST |
-	    IFF_DRV_RUNNING | IFF_SIMPLEX;
+	if_setsoftc(sc->ports[port].ifp, sc);
+	if_setflags(sc->ports[port].ifp, IFF_UP | IFF_BROADCAST | IFF_MULTICAST |
+	    IFF_DRV_RUNNING | IFF_SIMPLEX);
 	sc->ports[port].ifname = malloc(strlen(name) + 1, M_FELIX, M_NOWAIT);
 	if (sc->ports[port].ifname == NULL) {
 		if_free(sc->ports[port].ifp);
@@ -964,13 +964,13 @@ felix_tick(void *arg)
 }
 
 static int
-felix_ifmedia_upd(struct ifnet *ifp)
+felix_ifmedia_upd(if_t ifp)
 {
 	struct mii_data *mii;
 	felix_softc_t sc;
 
-	sc = ifp->if_softc;
-	mii = felix_miiforport(sc, ifp->if_dunit);
+	sc = if_getsoftc(ifp);
+	mii = felix_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
 	if (mii == NULL)
 		return (ENXIO);
 
@@ -979,13 +979,13 @@ felix_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-felix_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+felix_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	felix_softc_t sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
-	mii = felix_miiforport(sc, ifp->if_dunit);
+	sc = if_getsoftc(ifp);
+	mii = felix_miiforport(sc, ifp->if_dunit); /* XXX - DRVAPI */
 	if (mii == NULL)
 		return;
 
