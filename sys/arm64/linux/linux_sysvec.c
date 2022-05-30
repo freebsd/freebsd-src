@@ -430,7 +430,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	ucontext_t uc;
 	uint8_t *scr;
 	struct sigacts *psp;
-	int onstack, sig;
+	int onstack, sig, issiginfo;
 
 	td = curthread;
 	p = td->td_proc;
@@ -442,6 +442,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	tf = td->td_frame;
 	onstack = sigonstack(tf->tf_sp);
+	issiginfo = SIGISMEMBER(psp->ps_siginfo, sig);
 
 	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
 	    catcher, sig);
@@ -528,8 +529,13 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	free(frame, M_LINUX);
 
 	tf->tf_x[0]= sig;
-	tf->tf_x[1] = (register_t)&fp->sf.sf_si;
-	tf->tf_x[2] = (register_t)&fp->sf.sf_uc;
+	if (issiginfo) {
+		tf->tf_x[1] = (register_t)&fp->sf.sf_si;
+		tf->tf_x[2] = (register_t)&fp->sf.sf_uc;
+	} else {
+		tf->tf_x[1] = 0;
+		tf->tf_x[2] = 0;
+	}
 	tf->tf_x[8] = (register_t)catcher;
 	tf->tf_sp = (register_t)fp;
 	tf->tf_elr = (register_t)linux_vdso_sigcode;
