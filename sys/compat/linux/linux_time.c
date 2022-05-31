@@ -283,7 +283,7 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 			    unsupported_clockid, l);
 			return (ENOTSUP);
 		}
-		if (LINUX_CPUCLOCK_WHICH(l) >= LINUX_CPUCLOCK_MAX)
+		if ((l & LINUX_CLOCKFD_MASK) == LINUX_CLOCKFD_MASK)
 			return (EINVAL);
 
 		if (LINUX_CPUCLOCK_PERTHREAD(l))
