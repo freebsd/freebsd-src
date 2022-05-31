@@ -1301,6 +1301,7 @@ SRCS_MIN+=	Target/Mips/MipsLegalizerInfo.cpp
 SRCS_MIN+=	Target/Mips/MipsMCInstLower.cpp
 SRCS_MIN+=	Target/Mips/MipsMachineFunction.cpp
 SRCS_MIN+=	Target/Mips/MipsModuleISelDAGToDAG.cpp
+SRCS_MIN+=	Target/Mips/MipsMulMulBugPass.cpp
 SRCS_MIN+=	Target/Mips/MipsOptimizePICCall.cpp
 SRCS_MIN+=	Target/Mips/MipsOs16.cpp
 SRCS_MIN+=	Target/Mips/MipsPreLegalizerCombiner.cpp
