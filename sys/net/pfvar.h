@@ -672,6 +672,10 @@ struct pf_keth_rule {
 	uint16_t		 proto;
 	struct pf_keth_rule_addr src, dst;
 	struct pf_rule_addr	 ipsrc, ipdst;
+	char			 match_tagname[PF_TAG_NAME_SIZE];
+	uint16_t		 match_tag;
+	bool			 match_tag_not;
+
 
 	/* Stats */
 	counter_u64_t		 evaluations;

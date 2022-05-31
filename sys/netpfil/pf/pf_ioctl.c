@@ -515,6 +515,8 @@ pf_free_eth_rule(struct pf_keth_rule *rule)
 
 	if (rule->tag)
 		tag_unref(&V_pf_tags, rule->tag);
+	if (rule->match_tag)
+		tag_unref(&V_pf_tags, rule->match_tag);
 #ifdef ALTQ
 	pf_qid_unref(rule->qid);
 #endif
@@ -2890,6 +2892,10 @@ DIOCGETETHRULE_error:
 #endif
 		if (rule->tagname[0])
 			if ((rule->tag = pf_tagname2tag(rule->tagname)) == 0)
+				error = EBUSY;
+		if (rule->match_tagname[0])
+			if ((rule->match_tag = pf_tagname2tag(
+			    rule->match_tagname)) == 0)
 				error = EBUSY;
 
 		if (error == 0 && rule->ipdst.addr.type == PF_ADDR_TABLE)
