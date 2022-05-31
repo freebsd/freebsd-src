@@ -2700,6 +2700,9 @@ in6_purge_proxy_ndp(struct ifnet *ifp)
 	struct lltable *llt;
 	bool need_purge;
 
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return;
+
 	llt = LLTABLE6(ifp);
 	IF_AFDATA_WLOCK(ifp);
 	need_purge = ((llt->llt_flags & LLT_ADDEDPROXY) != 0);
