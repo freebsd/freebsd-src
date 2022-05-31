@@ -40,6 +40,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/event.h>
 #include <sys/mdioctl.h>
 #include <sys/module.h>
 #include <sys/resource.h>
@@ -92,7 +93,6 @@ struct aio_context {
 };
 
 static sem_t		completions;
-
 
 /*
  * Fill a buffer given a seed that can be fed into srandom() to initialize
@@ -252,6 +252,47 @@ waitcomplete(struct aiocb *aio)
 	ret = aio_waitcomplete(&aiop, NULL);
 	ATF_REQUIRE_EQ(aio, aiop);
 	return (ret);
+}
+
+/*
+ * Setup an iocb for kqueue notification.  This isn't thread
+ * safe, but it's ok because ATF runs every test case in a separate process.
+ */
+static struct sigevent*
+setup_kqueue(void)
+{
+	static struct sigevent sev;
+	static int kq;
+
+	kq = kqueue();
+	ATF_REQUIRE(kq >= 0);
+
+	memset(&sev, 0, sizeof(sev));
+	sev.sigev_notify_kqueue = kq;
+	sev.sigev_value.sival_ptr = (void*)0xdeadbeef;
+	sev.sigev_notify = SIGEV_KEVENT;
+
+	return (&sev);
+}
+
+static ssize_t
+poll_kqueue(struct aiocb *aio)
+{
+	int kq, nevents;
+	struct kevent events[1];
+
+	kq = aio->aio_sigevent.sigev_notify_kqueue;
+
+	nevents = kevent(kq, NULL, 0, events, 1, NULL);
+	ATF_CHECK_EQ(1, nevents);
+	ATF_CHECK_EQ(events[0].ident, (uintptr_t) aio);
+	ATF_CHECK_EQ(events[0].filter, EVFILT_AIO);
+	ATF_CHECK_EQ(events[0].flags, EV_EOF);
+	ATF_CHECK_EQ(events[0].fflags, 0);
+	ATF_CHECK_EQ(events[0].data, 0);
+	ATF_CHECK_EQ((uintptr_t)events[0].udata, 0xdeadbeef);
+
+	return (aio_return(aio));
 }
 
 /*
@@ -430,6 +471,12 @@ aio_file_test(completion comp, struct sigevent *sev, bool vectored)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(file_kq);
+ATF_TC_BODY(file_kq, tc)
+{
+	aio_file_test(poll_kqueue, setup_kqueue(), false);
+}
+
 ATF_TC_WITHOUT_HEAD(file_poll);
 ATF_TC_BODY(file_poll, tc)
 {
@@ -499,6 +546,12 @@ aio_fifo_test(completion comp, struct sigevent *sev)
 	close(write_fd);
 }
 
+ATF_TC_WITHOUT_HEAD(fifo_kq);
+ATF_TC_BODY(fifo_kq, tc)
+{
+	aio_fifo_test(poll_kqueue, setup_kqueue());
+}
+
 ATF_TC_WITHOUT_HEAD(fifo_poll);
 ATF_TC_BODY(fifo_poll, tc)
 {
@@ -559,6 +612,12 @@ aio_unix_socketpair_test(completion comp, struct sigevent *sev, bool vectored)
 
 	close(sockets[0]);
 	close(sockets[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(socket_kq);
+ATF_TC_BODY(socket_kq, tc)
+{
+	aio_unix_socketpair_test(poll_kqueue, setup_kqueue(), false);
 }
 
 ATF_TC_WITHOUT_HEAD(socket_poll);
@@ -632,6 +691,12 @@ aio_pty_test(completion comp, struct sigevent *sev)
 	close(write_fd);
 }
 
+ATF_TC_WITHOUT_HEAD(pty_kq);
+ATF_TC_BODY(pty_kq, tc)
+{
+	aio_pty_test(poll_kqueue, setup_kqueue());
+}
+
 ATF_TC_WITHOUT_HEAD(pty_poll);
 ATF_TC_BODY(pty_poll, tc)
 {
@@ -681,6 +746,12 @@ aio_pipe_test(completion comp, struct sigevent *sev)
 
 	close(pipes[0]);
 	close(pipes[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(pipe_kq);
+ATF_TC_BODY(pipe_kq, tc)
+{
+	aio_pipe_test(poll_kqueue, setup_kqueue());
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_poll);
@@ -806,6 +877,21 @@ aio_md_test(completion comp, struct sigevent *sev, bool vectored)
 	}
 	
 	close(fd);
+}
+
+ATF_TC_WITH_CLEANUP(md_kq);
+ATF_TC_HEAD(md_kq, tc)
+{
+
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(md_kq, tc)
+{
+	aio_md_test(poll_kqueue, setup_kqueue(), false);
+}
+ATF_TC_CLEANUP(md_kq, tc)
+{
+	aio_md_cleanup();
 }
 
 ATF_TC_WITH_CLEANUP(md_poll);
@@ -1525,7 +1611,7 @@ ATF_TC_BODY(aio_writev_dos_iov_len, tc)
 	const struct aiocb *const iocbs[] = {&aio};
 	const char *wbuf = "Hello, world!";
 	struct iovec iov[1];
-	ssize_t len, r;
+	ssize_t r;
 	int fd;
 
 	ATF_REQUIRE_KERNEL_MODULE("aio");
@@ -1534,7 +1620,6 @@ ATF_TC_BODY(aio_writev_dos_iov_len, tc)
 	fd = open("testfile", O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
-	len = strlen(wbuf);
 	iov[0].iov_base = __DECONST(void*, wbuf);
 	iov[0].iov_len = 1 << 30;
 	bzero(&aio, sizeof(aio));
@@ -1679,6 +1764,59 @@ ATF_TC_BODY(aio_writev_empty_file_signal, tc)
 
 	close(fd);
 }
+
+/*
+ * Use an aiocb with kqueue and EV_ONESHOT.  kqueue should deliver the event
+ * only once, even if the user doesn't promptly call aio_return.
+ */
+ATF_TC_WITHOUT_HEAD(ev_oneshot);
+ATF_TC_BODY(ev_oneshot, tc)
+{
+	int fd, kq, nevents;
+	struct aiocb iocb;
+	struct kevent events[1];
+	struct timespec timeout;
+
+	ATF_REQUIRE_KERNEL_MODULE("aio");
+
+	kq = kqueue();
+	ATF_REQUIRE(kq >= 0);
+
+	fd = open(FILE_PATHNAME, O_RDWR | O_CREAT, 0600);
+	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
+
+	memset(&iocb, 0, sizeof(iocb));
+	iocb.aio_fildes = fd;
+	iocb.aio_sigevent.sigev_notify_kqueue = kq;
+	iocb.aio_sigevent.sigev_value.sival_ptr = (void*)0xdeadbeef;
+	iocb.aio_sigevent.sigev_notify_kevent_flags = EV_ONESHOT;
+	iocb.aio_sigevent.sigev_notify = SIGEV_KEVENT;
+
+	ATF_CHECK_EQ(0, aio_fsync(O_SYNC, &iocb));
+
+	nevents = kevent(kq, NULL, 0, events, 1, NULL);
+	ATF_CHECK_EQ(1, nevents);
+	ATF_CHECK_EQ(events[0].ident, (uintptr_t) &iocb);
+	ATF_CHECK_EQ(events[0].filter, EVFILT_AIO);
+	ATF_CHECK_EQ(events[0].flags, EV_EOF | EV_ONESHOT);
+	ATF_CHECK_EQ(events[0].fflags, 0);
+	ATF_CHECK_EQ(events[0].data, 0);
+	ATF_CHECK_EQ((uintptr_t)events[0].udata, 0xdeadbeef);
+
+	/*
+	 * Even though we haven't called aio_return, kevent will not return the
+	 * event again due to EV_ONESHOT.
+	 */
+	timeout.tv_sec = 0;
+	timeout.tv_nsec = 100000000;
+	nevents = kevent(kq, NULL, 0, events, 1, &timeout);
+	ATF_CHECK_EQ(0, nevents);
+
+	ATF_CHECK_EQ(0, aio_return(&iocb));
+	close(fd);
+	close(kq);
+}
+
 
 // aio_writev and aio_readv should still work even if the iovcnt is greater
 // than the number of buffered AIO operations permitted per process.
@@ -1917,36 +2055,45 @@ ATF_TC_CLEANUP(vectored_zvol_poll, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
+	/* Test every file type with every completion method */
+	ATF_TP_ADD_TC(tp, file_kq);
 	ATF_TP_ADD_TC(tp, file_poll);
 	ATF_TP_ADD_TC(tp, file_signal);
 	ATF_TP_ADD_TC(tp, file_suspend);
 	ATF_TP_ADD_TC(tp, file_thread);
 	ATF_TP_ADD_TC(tp, file_waitcomplete);
+	ATF_TP_ADD_TC(tp, fifo_kq);
 	ATF_TP_ADD_TC(tp, fifo_poll);
 	ATF_TP_ADD_TC(tp, fifo_signal);
 	ATF_TP_ADD_TC(tp, fifo_suspend);
 	ATF_TP_ADD_TC(tp, fifo_thread);
 	ATF_TP_ADD_TC(tp, fifo_waitcomplete);
+	ATF_TP_ADD_TC(tp, socket_kq);
 	ATF_TP_ADD_TC(tp, socket_poll);
 	ATF_TP_ADD_TC(tp, socket_signal);
 	ATF_TP_ADD_TC(tp, socket_suspend);
 	ATF_TP_ADD_TC(tp, socket_thread);
 	ATF_TP_ADD_TC(tp, socket_waitcomplete);
+	ATF_TP_ADD_TC(tp, pty_kq);
 	ATF_TP_ADD_TC(tp, pty_poll);
 	ATF_TP_ADD_TC(tp, pty_signal);
 	ATF_TP_ADD_TC(tp, pty_suspend);
 	ATF_TP_ADD_TC(tp, pty_thread);
 	ATF_TP_ADD_TC(tp, pty_waitcomplete);
+	ATF_TP_ADD_TC(tp, pipe_kq);
 	ATF_TP_ADD_TC(tp, pipe_poll);
 	ATF_TP_ADD_TC(tp, pipe_signal);
 	ATF_TP_ADD_TC(tp, pipe_suspend);
 	ATF_TP_ADD_TC(tp, pipe_thread);
 	ATF_TP_ADD_TC(tp, pipe_waitcomplete);
+	ATF_TP_ADD_TC(tp, md_kq);
 	ATF_TP_ADD_TC(tp, md_poll);
 	ATF_TP_ADD_TC(tp, md_signal);
 	ATF_TP_ADD_TC(tp, md_suspend);
 	ATF_TP_ADD_TC(tp, md_thread);
 	ATF_TP_ADD_TC(tp, md_waitcomplete);
+
+	/* Various special cases */
 	ATF_TP_ADD_TC(tp, aio_fsync_errors);
 	ATF_TP_ADD_TC(tp, aio_fsync_sync_test);
 	ATF_TP_ADD_TC(tp, aio_fsync_dsync_test);
@@ -1963,6 +2110,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, aio_writev_efault);
 	ATF_TP_ADD_TC(tp, aio_writev_empty_file_poll);
 	ATF_TP_ADD_TC(tp, aio_writev_empty_file_signal);
+	ATF_TP_ADD_TC(tp, ev_oneshot);
 	ATF_TP_ADD_TC(tp, vectored_big_iovcnt);
 	ATF_TP_ADD_TC(tp, vectored_file_poll);
 	ATF_TP_ADD_TC(tp, vectored_md_poll);
