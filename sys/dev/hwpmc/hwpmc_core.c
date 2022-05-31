@@ -781,6 +781,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	case PMC_CPU_INTEL_SKYLAKE_XEON:
 	case PMC_CPU_INTEL_ICELAKE:
 	case PMC_CPU_INTEL_ICELAKE_XEON:
+	case PMC_CPU_INTEL_ALDERLAKE:
 	default:
 		break;
 	}
