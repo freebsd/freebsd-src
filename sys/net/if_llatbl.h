@@ -221,6 +221,8 @@ void		lltable_link(struct lltable *llt);
 void		lltable_prefix_free(int, struct sockaddr *,
 		    struct sockaddr *, u_int);
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
+size_t		lltable_append_entry_queue(struct llentry *,
+		    struct mbuf *, size_t);
 
 struct lltable *in_lltable_get(struct ifnet *ifp);
 struct lltable *in6_lltable_get(struct ifnet *ifp);

@@ -128,6 +128,41 @@ done:
 }
 
 /*
+ * Adds a mbuf to hold queue. Drops old packets if the queue is full.
+ *
+ * Returns the number of held packets that were dropped.
+ */
+size_t
+lltable_append_entry_queue(struct llentry *lle, struct mbuf *m,
+    size_t maxheld)
+{
+	size_t pkts_dropped = 0;
+
+	LLE_WLOCK_ASSERT(lle);
+
+	while (lle->la_numheld >= maxheld && lle->la_hold != NULL) {
+		struct mbuf *next = lle->la_hold->m_nextpkt;
+		m_freem(lle->la_hold);
+		lle->la_hold = next;
+		lle->la_numheld--;
+		pkts_dropped++;
+	}
+
+	if (lle->la_hold != NULL) {
+		struct mbuf *curr = lle->la_hold;
+		while (curr->m_nextpkt != NULL)
+			curr = curr->m_nextpkt;
+		curr->m_nextpkt = m;
+	} else
+		lle->la_hold = m;
+
+	lle->la_numheld++;
+
+	return pkts_dropped;
+}
+
+
+/*
  * Common function helpers for chained hash table.
  */
 
@@ -285,14 +320,12 @@ llentries_unlink(struct lltable *llt, struct llentries *head)
 size_t
 lltable_drop_entry_queue(struct llentry *lle)
 {
-	size_t pkts_dropped;
-	struct mbuf *next;
+	size_t pkts_dropped = 0;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	pkts_dropped = 0;
-	while ((lle->la_numheld > 0) && (lle->la_hold != NULL)) {
-		next = lle->la_hold->m_nextpkt;
+	while (lle->la_hold != NULL) {
+		struct mbuf *next = lle->la_hold->m_nextpkt;
 		m_freem(lle->la_hold);
 		lle->la_hold = next;
 		lle->la_numheld--;

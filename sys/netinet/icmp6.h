@@ -602,6 +602,7 @@ struct icmp6stat {
 	uint64_t icp6s_tooshort;	/* packet < sizeof(struct icmp6_hdr) */
 	uint64_t icp6s_checksum;	/* bad checksum */
 	uint64_t icp6s_badlen;		/* calculated bound mismatch */
+	uint64_t icp6s_dropped;		/* # of packets dropped waiting for a resolution */
 	/*
 	 * number of responses: this member is inherited from netinet code, but
 	 * for netinet6 code, it is already available in icp6s_outhist[].
