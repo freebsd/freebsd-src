@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 	size_t max_queue_per_proc_size;
 	char buffer[32768];
 	int kq;
-	struct kevent ke, kq_returned;
+	struct kevent kq_returned;
 	struct timespec ts;
 	struct sigevent sig;
 	time_t time1, time2;
@@ -153,15 +153,12 @@ main(int argc, char *argv[])
 			}
 
 			for (;;) {
-				bzero(&ke, sizeof(ke));
-				bzero(&kq_returned, sizeof(ke));
+				bzero(&kq_returned, sizeof(kq_returned));
 				ts.tv_sec = 0;
 				ts.tv_nsec = 1;
 #ifdef DEBUG
 				printf("FOO lio %d -> %p\n", j, lio[j]);
 #endif
-				EV_SET(&ke, (uintptr_t)lio[j],
-				       EVFILT_LIO, EV_ONESHOT, 0, 0, iocb[j]);
 				result = kevent(kq, NULL, 0,
 						&kq_returned, 1, &ts);
 				error = errno;
