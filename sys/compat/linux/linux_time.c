@@ -278,8 +278,11 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 
 	if (l < 0) {
 		/* cpu-clock */
-		if ((l & LINUX_CLOCKFD_MASK) == LINUX_CLOCKFD)
-			return (EINVAL);
+		if (LINUX_CPUCLOCK_WHICH(l) == LINUX_CLOCKFD) {
+			LIN_SDT_PROBE1(time, linux_to_native_clockid,
+			    unsupported_clockid, l);
+			return (ENOTSUP);
+		}
 		if (LINUX_CPUCLOCK_WHICH(l) >= LINUX_CPUCLOCK_MAX)
 			return (EINVAL);
 
@@ -319,11 +322,11 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 	case LINUX_CLOCK_TAI:
 		LIN_SDT_PROBE1(time, linux_to_native_clockid,
 		    unsupported_clockid, l);
-		return (EINVAL);
+		return (ENOTSUP);
 	default:
 		LIN_SDT_PROBE1(time, linux_to_native_clockid,
 		    unknown_clockid, l);
-		return (EINVAL);
+		return (ENOTSUP);
 	}
 
 	return (0);
