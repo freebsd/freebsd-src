@@ -510,7 +510,7 @@ pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 		if (ped->ped_edge)
 			amd->pm_amd_config |= AMD_PMC_EDGE;
 		if (ped->ped_inv)
-			amd->pm_amd_config |= AMD_PMC_EDGE;
+			amd->pm_amd_config |= AMD_PMC_INVERT;
 		if (pm->pm_caps & PMC_CAP_INTERRUPT)
 			amd->pm_amd_config |= AMD_PMC_INT;
 	}
@@ -553,7 +553,7 @@ pmc_pmu_intel_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	if (ped->ped_any)
 		iap->pm_iap_config |= IAP_ANY;
 	if (ped->ped_inv)
-		iap->pm_iap_config |= IAP_EDGE;
+		iap->pm_iap_config |= IAP_INV;
 	if (pm->pm_caps & PMC_CAP_INTERRUPT)
 		iap->pm_iap_config |= IAP_INT;
 	return (0);
