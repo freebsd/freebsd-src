@@ -744,6 +744,11 @@ is not the last matching rule.
 Further matching rules can replace the tag with a
 new one but will not remove a previously applied tag.
 A packet is only ever assigned one tag at a time.
+.It Ar tagged Aq Ar string
+Used to specify that packets must already be tagged with the given tag in order
+to match the rule.
+Inverse tag matching can also be done by specifying the !  operator before the
+tagged keyword.
 .Sh TRAFFIC NORMALIZATION
 Traffic normalization is used to sanitize packet content in such
 a way that there are no ambiguities in packet interpretation on
@@ -3083,7 +3088,7 @@ logopts        = logopt [ "," logopts ]
 logopt         = "all" | "user" | "to" interface-name
 
 etherfilteropt-list = etherfilteropt-list etherfilteropt | etherfilteropt
-etherfilteropt = "tag" string | "queue" ( string )
+etherfilteropt = "tag" string | "tagged" string | "queue" ( string )
 
 filteropt-list = filteropt-list filteropt | filteropt
 filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |

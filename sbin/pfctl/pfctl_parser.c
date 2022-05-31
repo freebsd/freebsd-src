@@ -791,6 +791,11 @@ print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
 		printf(" queue %s", r->qname);
 	if (r->tagname[0])
 		printf(" tag %s", r->tagname);
+	if (r->match_tagname[0]) {
+		if (r->match_tag_not)
+			printf(" !");
+		printf(" tagged %s", r->match_tagname);
+	}
 	if (r->dnpipe)
 		printf(" %s %d",
 		    r->dnflags & PFRULE_DN_IS_PIPE ? "dnpipe" : "dnqueue",
