@@ -1395,8 +1395,6 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	bool found;
 	bool shutdown;
 
-	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
-
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
 	pr = prison_find_child(td->td_ucred->cr_prison, jid);
@@ -2414,7 +2412,6 @@ ifunit_ref(const char *name)
 	}
 	if (ifp != NULL) {
 		if_ref(ifp);
-		MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
 	}
 
 	NET_EPOCH_EXIT(et);
