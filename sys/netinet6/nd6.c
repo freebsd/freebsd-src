@@ -138,7 +138,6 @@ static void nd6_free(struct llentry **, int);
 static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
-static void clear_llinfo_pqueue(struct llentry *);
 static int nd6_resolve_slow(struct ifnet *, int, int, struct mbuf *,
     const struct sockaddr_in6 *, u_char *, uint32_t *, struct llentry **);
 static int nd6_need_cache(struct ifnet *);
@@ -804,18 +803,19 @@ nd6_llinfo_timer(void *arg)
 			/* Send NS to multicast address */
 			pdst = NULL;
 		} else {
-			struct mbuf *m = ln->la_hold;
-			if (m) {
-				struct mbuf *m0;
+			struct mbuf *m;
 
+			ICMP6STAT_ADD(icp6s_dropped, ln->la_numheld);
+
+			m = ln->la_hold;
+			if (m != NULL) {
 				/*
 				 * assuming every packet in la_hold has the
 				 * same IP header.  Send error after unlock.
 				 */
-				m0 = m->m_nextpkt;
+				ln->la_hold = m->m_nextpkt;
 				m->m_nextpkt = NULL;
-				ln->la_hold = m0;
-				clear_llinfo_pqueue(ln);
+				ln->la_numheld--;
 			}
 			nd6_free(&ln, 0);
 			if (m != NULL) {
@@ -2199,6 +2199,7 @@ nd6_grab_holdchain(struct llentry *ln)
 
 	chain = ln->la_hold;
 	ln->la_hold = NULL;
+	ln->la_numheld = 0;
 
 	if (ln->ln_state == ND6_LLINFO_STALE) {
 		/*
@@ -2418,6 +2419,7 @@ nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
 	struct in6_addr *psrc, src;
 	int send_ns, ll_len;
 	char *lladdr;
+	size_t dropped;
 
 	NET_EPOCH_ASSERT();
 
@@ -2484,28 +2486,8 @@ nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
 	 * packet queue in the mbuf.  When it exceeds nd6_maxqueuelen,
 	 * the oldest packet in the queue will be removed.
 	 */
-
-	if (lle->la_hold != NULL) {
-		struct mbuf *m_hold;
-		int i;
-		
-		i = 0;
-		for (m_hold = lle->la_hold; m_hold; m_hold = m_hold->m_nextpkt){
-			i++;
-			if (m_hold->m_nextpkt == NULL) {
-				m_hold->m_nextpkt = m;
-				break;
-			}
-		}
-		while (i >= V_nd6_maxqueuelen) {
-			m_hold = lle->la_hold;
-			lle->la_hold = lle->la_hold->m_nextpkt;
-			m_freem(m_hold);
-			i--;
-		}
-	} else {
-		lle->la_hold = m;
-	}
+	dropped = lltable_append_entry_queue(lle, m, V_nd6_maxqueuelen);
+	ICMP6STAT_ADD(icp6s_dropped, dropped);
 
 	/*
 	 * If there has been no NS for the neighbor after entering the
@@ -2698,19 +2680,6 @@ nd6_rem_ifa_lle(struct in6_ifaddr *ia, int all)
 		lltable_prefix_free(AF_INET6, saddr, smask, LLE_STATIC);
 	else
 		lltable_delete_addr(LLTABLE6(ifp), LLE_IFADDR, saddr);
-}
-
-static void 
-clear_llinfo_pqueue(struct llentry *ln)
-{
-	struct mbuf *m_hold, *m_hold_next;
-
-	for (m_hold = ln->la_hold; m_hold; m_hold = m_hold_next) {
-		m_hold_next = m_hold->m_nextpkt;
-		m_freem(m_hold);
-	}
-
-	ln->la_hold = NULL;
 }
 
 static int
