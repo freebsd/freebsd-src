@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 static int ident_lock;
 static void print_cpu_features(u_int cpu);
 static u_long parse_cpu_features_hwcap(u_int cpu);
+static void print_cpu_caches(struct sbuf *sb, u_int);
 
 char machine[] = "arm64";
 
@@ -59,6 +60,8 @@ static char cpu_model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
 	cpu_model, sizeof(cpu_model), "Machine model");
 
+#define	MAX_CACHES	8	/* Maximum number of caches supported
+				   architecturally. */
 /*
  * Per-CPU affinity as provided in MPIDR_EL1
  * Indexed by CPU number in logical order selected by the system.
@@ -92,6 +95,8 @@ struct cpu_desc {
 	uint64_t	id_aa64mmfr2;
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
+	uint64_t	clidr;
+	uint32_t	ccsidr[MAX_CACHES][2]; /* 2 possible types. */
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
@@ -518,6 +523,62 @@ parse_cpu_features_hwcap(u_int cpu)
 	}
 
 	return (hwcap);
+}
+
+static void
+print_cpu_cache(u_int cpu, struct sbuf *sb, uint64_t ccs, bool icache,
+    bool unified)
+{
+	size_t cache_size;
+	size_t line_size;
+
+	/* LineSize is Log2(S) - 4. */
+	line_size = 1 << ((ccs & CCSIDR_LineSize_MASK) + 4);
+	/*
+	 * Calculate cache size (sets * ways * line size).  There are different
+	 * formats depending on the FEAT_CCIDX bit in ID_AA64MMFR2 feature
+	 * register.
+	 */
+	if ((cpu_desc[cpu].id_aa64mmfr2 & ID_AA64MMFR2_CCIDX_64))
+		cache_size = (CCSIDR_NSETS_64(ccs) + 1) *
+		    (CCSIDR_ASSOC_64(ccs) + 1);
+	else
+		cache_size = (CCSIDR_NSETS(ccs) + 1) * (CCSIDR_ASSOC(ccs) + 1);
+
+	cache_size *= line_size;
+	sbuf_printf(sb, "%zuKB (%s)", cache_size / 1024,
+	    icache ? "instruction" : unified ? "unified" : "data");
+}
+
+static void
+print_cpu_caches(struct sbuf *sb, u_int cpu)
+{
+	/* Print out each cache combination */
+	uint64_t clidr;
+	int i = 1;
+	clidr = cpu_desc[cpu].clidr;
+
+	for (i = 0; (clidr & CLIDR_CTYPE_MASK) != 0; i++, clidr >>= 3) {
+		int j = 0;
+		int ctype_m = (clidr & CLIDR_CTYPE_MASK);
+
+		sbuf_printf(sb, " L%d cache: ", i + 1);
+		if ((clidr & CLIDR_CTYPE_IO)) {
+			print_cpu_cache(cpu, sb, cpu_desc[cpu].ccsidr[i][j++],
+			    true, false);
+			/* If there's more, add to the line. */
+			if ((ctype_m & ~CLIDR_CTYPE_IO) != 0)
+				sbuf_printf(sb, ", ");
+		}
+		if ((ctype_m & ~CLIDR_CTYPE_IO) != 0) {
+			print_cpu_cache(cpu, sb, cpu_desc[cpu].ccsidr[i][j],
+			    false, (clidr & CLIDR_CTYPE_UNIFIED));
+		}
+		sbuf_printf(sb, "\n");
+
+	}
+	sbuf_finish(sb);
+	printf("%s", sbuf_data(sb));
 }
 
 static void
@@ -1351,6 +1412,8 @@ print_cpu_features(u_int cpu)
 		printf("         Auxiliary Features 1 = <%#lx>\n",
 		    cpu_desc[cpu].id_aa64afr1);
 	}
+	if (bootverbose)
+		print_cpu_caches(sb, cpu);
 
 	sbuf_delete(sb);
 	sb = NULL;
@@ -1360,6 +1423,7 @@ print_cpu_features(u_int cpu)
 void
 identify_cpu(void)
 {
+	uint64_t clidr;
 	u_int midr;
 	u_int impl_id;
 	u_int part_id;
@@ -1407,7 +1471,6 @@ identify_cpu(void)
 	/* Save affinity for current CPU */
 	cpu_desc[cpu].mpidr = get_mpidr();
 	CPU_AFFINITY(cpu) = cpu_desc[cpu].mpidr & CPU_AFF_MASK;
-
 	cpu_desc[cpu].id_aa64dfr0 = READ_SPECIALREG(ID_AA64DFR0_EL1);
 	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(ID_AA64DFR1_EL1);
 	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(ID_AA64ISAR0_EL1);
@@ -1417,6 +1480,24 @@ identify_cpu(void)
 	cpu_desc[cpu].id_aa64mmfr2 = READ_SPECIALREG(ID_AA64MMFR2_EL1);
 	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(ID_AA64PFR0_EL1);
 	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(ID_AA64PFR1_EL1);
+
+	cpu_desc[cpu].clidr = READ_SPECIALREG(clidr_el1);
+
+	clidr = cpu_desc[cpu].clidr;
+
+	for (int i = 0; (clidr & CLIDR_CTYPE_MASK) != 0; i++, clidr >>= 3) {
+		int j = 0;
+		if ((clidr & CLIDR_CTYPE_IO)) {
+			WRITE_SPECIALREG(CSSELR_EL1,
+			    CSSELR_Level(i) | CSSELR_InD);
+			cpu_desc[cpu].ccsidr[i][j++] =
+			    READ_SPECIALREG(CCSIDR_EL1);
+		}
+		if ((clidr & ~CLIDR_CTYPE_IO) == 0)
+			continue;
+		WRITE_SPECIALREG(CSSELR_EL1, CSSELR_Level(i));
+		cpu_desc[cpu].ccsidr[i][j] = READ_SPECIALREG(CCSIDR_EL1);
+	}
 
 	if (cpu != 0) {
 		/*
