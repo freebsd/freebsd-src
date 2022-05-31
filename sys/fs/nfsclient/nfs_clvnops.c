@@ -1323,11 +1323,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 
 	openmode = 0;
-#if 0
-	/*
-	 * The use of LookupOpen breaks some builds.  It is disabled
-	 * until that is fixed.
-	 */
 	/*
 	 * If this an NFSv4.1/4.2 mount using the "oneopenown" mount
 	 * option, it is possible to do the Open operation in the same
@@ -1347,7 +1342,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 			openmode |= NFSV4OPEN_ACCESSWRITE;
 	}
 	NFSUNLOCKMNT(nmp);
-#endif
 
 	newvp = NULLVP;
 	NFSINCRGLOBAL(nfsstatsv1.lookupcache_misses);
