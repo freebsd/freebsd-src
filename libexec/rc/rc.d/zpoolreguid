@@ -16,7 +16,7 @@ zpoolreguid_start()
 {
 	local pool
 
-	for pool in "${zpool_reguid}"; do
+	for pool in ${zpool_reguid}; do
 		zpool reguid $pool
 	done
 }
