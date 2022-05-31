@@ -69,6 +69,32 @@
 
 #define	UL(x)	UINT64_C(x)
 
+/* CCSIDR_EL1 - Cache Size ID Register */
+#define	CCSIDR_NumSets_MASK	0x0FFFE000
+#define	CCSIDR_NumSets64_MASK	0x00FFFFFF00000000
+#define	CCSIDR_NumSets_SHIFT	13
+#define	CCSIDR_NumSets64_SHIFT	32
+#define	CCSIDR_Assoc_MASK	0x00001FF8
+#define	CCSIDR_Assoc64_MASK	0x0000000000FFFFF8
+#define	CCSIDR_Assoc_SHIFT	3
+#define	CCSIDR_Assoc64_SHIFT	3
+#define	CCSIDR_LineSize_MASK	0x7
+#define	CCSIDR_NSETS(idr)						\
+	(((idr) & CCSIDR_NumSets_MASK) >> CCSIDR_NumSets_SHIFT)
+#define	CCSIDR_ASSOC(idr)						\
+	(((idr) & CCSIDR_Assoc_MASK) >> CCSIDR_Assoc_SHIFT)
+#define	CCSIDR_NSETS_64(idr)						\
+	(((idr) & CCSIDR_NumSets64_MASK) >> CCSIDR_NumSets64_SHIFT)
+#define	CCSIDR_ASSOC_64(idr)						\
+	(((idr) & CCSIDR_Assoc64_MASK) >> CCSIDR_Assoc64_SHIFT)
+
+/* CLIDR_EL1 - Cache level ID register */
+#define	CLIDR_CTYPE_MASK	0x7	/* Cache type mask bits */
+#define	CLIDR_CTYPE_IO		0x1	/* Instruction only */
+#define	CLIDR_CTYPE_DO		0x2	/* Data only */
+#define	CLIDR_CTYPE_ID		0x3	/* Split instruction and data */
+#define	CLIDR_CTYPE_UNIFIED	0x4	/* Unified */
+
 /* CNTHCTL_EL2 - Counter-timer Hypervisor Control register */
 #define	CNTHCTL_EVNTI_MASK	(0xf << 4) /* Bit to trigger event stream */
 #define	CNTHCTL_EVNTDIR		(1 << 3) /* Control transition trigger bit */
@@ -118,6 +144,10 @@
 #define	 CPACR_FPEN_TRAP_ALL2	(0x2 << 20) /* Traps from EL0 and EL1 */
 #define	 CPACR_FPEN_TRAP_NONE	(0x3 << 20) /* No traps */
 #define	CPACR_TTA		(0x1 << 28)
+
+/* CSSELR_EL1 - Cache size selection register */
+#define	CSSELR_Level(i)		(i << 1)
+#define	CSSELR_InD		0x00000001
 
 /* CTR_EL0 - Cache Type Register */
 #define	CTR_RES1		(1 << 31)
