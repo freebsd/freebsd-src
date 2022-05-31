@@ -1514,6 +1514,7 @@ bootpc_init(void)
 	struct thread *td;
 	int timeout;
 	int delay;
+	char *s;
 
 	timeout = BOOTP_IFACE_WAIT_TIMEOUT * hz;
 	delay = hz / 10;
@@ -1526,6 +1527,21 @@ bootpc_init(void)
 	 */
 	if (nfs_diskless_valid != 0)
 		return;
+
+	/*
+	 * If "vfs.root.mountfrom" is set and the value is something other
+	 * than "nfs:", it means the user doesn't want to mount root via nfs,
+	 * there's no reason to continue with bootpc
+	 */
+	if ((s = kern_getenv("vfs.root.mountfrom")) != NULL) {
+		if ((strncmp(s, "nfs:", 4)) != 0) {
+			printf("%s: vfs.root.mountfrom set to %s. "
+			       "BOOTP aborted.\n", __func__, s);
+			freeenv(s);
+			return;
+		}
+		freeenv(s);
+	}
 
 	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK | M_ZERO);
 	STAILQ_INIT(&gctx->interfaces);
