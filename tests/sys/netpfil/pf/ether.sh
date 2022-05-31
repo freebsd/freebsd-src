@@ -553,6 +553,47 @@ ip_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "match_tag" "cleanup"
+match_tag_head()
+{
+	atf_set descr 'Test matching tags'
+	atf_set require.user root
+}
+
+match_tag_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"ether block out tagged foo" \
+		"pass in proto icmp tag foo"
+
+	atf_check -s exit:2 -o ignore ping -c 1 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"ether block out tagged bar" \
+		"pass in proto icmp tag foo"
+
+	# Still passes when tagged differently
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+match_tag_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
@@ -563,4 +604,5 @@ atf_init_test_cases()
 	atf_add_test_case "dummynet"
 	atf_add_test_case "anchor"
 	atf_add_test_case "ip"
+	atf_add_test_case "match_tag"
 }
