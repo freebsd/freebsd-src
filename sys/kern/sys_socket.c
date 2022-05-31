@@ -772,22 +772,25 @@ soo_aio_cancel(struct kaiocb *job)
 	struct sockbuf *sb;
 	long done;
 	int opcode;
+	sb_which which;
 
 	so = job->fd_file->f_data;
 	opcode = job->uaiocb.aio_lio_opcode;
-	if (opcode & LIO_READ)
+	if (opcode & LIO_READ) {
 		sb = &so->so_rcv;
-	else {
+		which = SO_RCV;
+	} else {
 		MPASS(opcode & LIO_WRITE);
 		sb = &so->so_snd;
+		which = SO_SND;
 	}
 
-	SOCKBUF_LOCK(sb);
+	SOCK_BUF_LOCK(so, which);
 	if (!aio_cancel_cleared(job))
 		TAILQ_REMOVE(&sb->sb_aiojobq, job, list);
 	if (TAILQ_EMPTY(&sb->sb_aiojobq))
 		sb->sb_flags &= ~SB_AIO;
-	SOCKBUF_UNLOCK(sb);
+	SOCK_BUF_UNLOCK(so, which);
 
 	done = job->aio_done;
 	if (done != 0)
@@ -826,10 +829,7 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	}
 
 	if (SOLISTENING(so)) {
-		if (sb == &so->so_rcv)
-			SOCK_RECVBUF_UNLOCK(so);
-		else
-			SOCK_SENDBUF_UNLOCK(so);
+		SOCK_BUF_UNLOCK(so, which);
 		return (EINVAL);
 	}
 
@@ -842,6 +842,6 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 		else
 			sb->sb_flags |= SB_AIO;
 	}
-	SOCKBUF_UNLOCK(sb);
+	SOCK_BUF_UNLOCK(so, which);
 	return (0);
 }
