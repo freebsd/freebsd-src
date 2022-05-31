@@ -1979,6 +1979,21 @@ linprocfs_do_oom_score_adj(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/vm/max_map_count
+ *
+ * Maximum number of active map areas, on Linux this limits the number
+ * of vmaps per mm struct. We don't limit mappings, return a suitable
+ * large value.
+ */
+static int
+linprocfs_domax_map_cnt(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", INT32_MAX);
+	return (0);
+}
+
+/*
  * Constructor
  */
 static int
@@ -2121,6 +2136,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	/* /proc/sys/vm/.... */
 	dir = pfs_create_dir(sys, "vm", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "min_free_kbytes", &linprocfs_dominfree,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "max_map_count", &linprocfs_domax_map_cnt,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
