@@ -20,31 +20,35 @@ gjournal4.sh		CAM stuck in vmwait						20180517
 gnop7.sh		Waiting for patch commit					20190820
 gnop8.sh		Waiting for patch commit					20201214
 gnop9.sh		Waiting for patch commit					20201214
-gunion.sh		Waiting for fix							20220308
-gunion2.sh		Waiting for fix							20220308
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
-lockf5.sh		Spinning threads seen						20160718
+gunion.sh		Waiting for fix							20220308
+gunion2.sh		Waiting for fix							20220308
 ifconfig.sh		Bug 253824							20210322
 ifconfig2.sh		https://people.freebsd.org/~pho/stress/log/log0051.txt		20210210
+lockf5.sh		Spinning threads seen						20160718
 maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
-mdconfig5.sh		https://people.freebsd.org/~pho/stress/log/log0159.txt		20220508
 memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
 memguard2.sh		Waiting for fix commit
 memguard3.sh		Waiting for fix commit
-msetdomain.sh		May change policy for random threads to to domainset_fixed	20210104
 mlockall2.sh		Unrecoverable OOM killing seen					20190203
 mlockall7.sh		Needs further investigation					20210123
-nfs15lockd.sh		panic: Assertion td->td_realucred == td->td_ucred failed ...	20210211
+msetdomain.sh		May change policy for random threads to to domainset_fixed	20210104
 newfs4.sh		watchdog fired. newbuf						20190225
 nfs10.sh		Double fault							20151013
 nfs13.sh		mount_nfs hangs in mntref					20191007
+nfs15lockd.sh		panic: Assertion td->td_realucred == td->td_ucred failed ...	20210211
 nfs16.sh		panic: Failed to register NFS lock locally - error=11		20160608
 nullfs28.sh		Hang in "mount drain" seen					20220111
 oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
+reaper.sh		Waiting for commit
+reaper2.sh		Waiting for commit
+reaper3.sh		Waiting for commit
+reaper4.sh		Waiting for commit
+reaper5.sh		Waiting for commit
 rename14.sh		https://people.freebsd.org/~pho/stress/log/log0279.txt		20220415
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
@@ -59,12 +63,17 @@ systrace2.sh		WiP								20200227
 syzkaller15.sh		WiP								20200712
 syzkaller16.sh		WiP								20210722
 syzkaller25.sh		WiP								20201116
+syzkaller27.sh		watchdogd fires							20220512
 syzkaller28.sh		WiP								20201120
 syzkaller50.sh		panic: Assertion done != job_total_nbytes failed at ...		20220405
-syzkaller51.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20220422
+syzkaller52.sh		Waiting for commit
+syzkaller53.sh		Waiting for commit
+syzkaller54.sh		panic: td 0xfffffe014f7193a0 is not suspended			20220527
+syzkaller55.sh		panic: Counter goes negative					20220525
+timeout.sh		Waiting for commit
 truss3.sh		WiP								20200915
-unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0226.txt		20220111
 unionfs14.sh		WiP								20220111
+unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0226.txt		20220111
 
 # Test not to run for other reasons:
 
