@@ -58,8 +58,8 @@
 #define	PPC_OVERFLOWCNT_MAX	0x200000000UL
 
 struct powerpc_cpu {
-	struct pmc_hw   *pc_ppcpmcs;
-	enum pmc_class	 pc_class;
+	enum pmc_class	pc_class;
+	struct pmc_hw	pc_ppcpmcs[];
 };
 
 struct pmc_ppc_event {

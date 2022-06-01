@@ -167,10 +167,8 @@ powerpc_pcpu_init(struct pmc_mdep *md, int cpu)
 	    ("[powerpc,%d] wrong cpu number %d", __LINE__, cpu));
 	PMCDBG1(MDP,INI,1,"powerpc-init cpu=%d", cpu);
 
-	powerpc_pcpu[cpu] = pac = malloc(sizeof(struct powerpc_cpu), M_PMC,
-	    M_WAITOK|M_ZERO);
-	pac->pc_ppcpmcs = malloc(sizeof(struct pmc_hw) * ppc_max_pmcs,
-	    M_PMC, M_WAITOK|M_ZERO);
+	powerpc_pcpu[cpu] = pac = malloc(sizeof(struct powerpc_cpu) +
+	    ppc_max_pmcs * sizeof(struct pmc_hw), M_PMC, M_WAITOK | M_ZERO);
 	pac->pc_class =
 	    md->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC].pcd_class;
 
@@ -193,8 +191,8 @@ powerpc_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
 	PMCDBG1(MDP,INI,1,"powerpc-fini cpu=%d", cpu);
 
-	free(powerpc_pcpu[cpu]->pc_ppcpmcs, M_PMC);
 	free(powerpc_pcpu[cpu], M_PMC);
+	powerpc_pcpu[cpu] = NULL;
 
 	return (0);
 }
