@@ -319,7 +319,8 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	sectorsize = dbtob(1);
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		if ((!isaltsblk && (fs->fs_sblockloc != SBLOCK_UFS2 ||
-		    fs->fs_sblockactualloc != SBLOCK_UFS2)) ||
+		    !(fs->fs_sblockactualloc == 0 ||
+		    fs->fs_sblockactualloc == SBLOCK_UFS2))) ||
 		    fs->fs_maxsymlinklen != ((UFS_NDADDR + UFS_NIADDR) *
 			sizeof(ufs2_daddr_t)) ||
 		    fs->fs_nindir != fs->fs_bsize / sizeof(ufs2_daddr_t) ||
@@ -327,7 +328,8 @@ validate_sblock(struct fs *fs, int isaltsblk)
 			return (ENOENT);
 	} else if (fs->fs_magic == FS_UFS1_MAGIC) {
 		if ((!isaltsblk && (fs->fs_sblockloc > SBLOCK_UFS1 ||
-		    fs->fs_sblockactualloc != SBLOCK_UFS1)) ||
+		    !(fs->fs_sblockactualloc == SBLOCK_UFS1 ||
+		    fs->fs_sblockactualloc == 0))) ||
 		    fs->fs_nindir != fs->fs_bsize / sizeof(ufs1_daddr_t) ||
 		    fs->fs_inopb != fs->fs_bsize / sizeof(struct ufs1_dinode) ||
 		    fs->fs_maxsymlinklen != ((UFS_NDADDR + UFS_NIADDR) *
@@ -423,13 +425,26 @@ validate_sblock(struct fs *fs, int isaltsblk)
 	    fs->fs_size > fs->fs_ncg * fs->fs_fpg)
 		return (ENOENT);
 	/*
-	 * Maxcontig sets the default for the maximum number of blocks
-	 * that may be allocated sequentially. With file system clustering
-	 * it is possible to allocate contiguous blocks up to the maximum
-	 * transfer size permitted by the controller or buffering.
+	 * With file system clustering it is possible to allocate
+	 * many contiguous blocks. The kernel variable maxphys defines
+	 * the maximum transfer size permitted by the controller and/or
+	 * buffering. The fs_maxcontig parameter controls the maximum
+	 * number of blocks that the filesystem will read or write
+	 * in a single transfer. It is calculated when the filesystem
+	 * is created as maxphys / fs_bsize. The loader uses a maxphys
+	 * of 128K even when running on a system that supports larger
+	 * values. If the filesystem was built on a system that supports
+	 * a larger maxphys (1M is typical) it will have configured
+	 * fs_maxcontig for that larger system. So we bound the upper
+	 * allowable limit for fs_maxconfig to be able to at least 
+	 * work with a 1M maxphys on the smallest block size filesystem:
+	 * 1M / 4096 == 256. There is no harm in allowing the mounting of
+	 * filesystems that make larger than maxphys I/O requests because
+	 * those (mostly 32-bit machines) can (very slowly) handle I/O
+	 * requests that exceed maxphys.
 	 */
 	if (fs->fs_maxcontig < 1 ||
-	    fs->fs_maxcontig > MAX(1, maxphys / fs->fs_bsize))
+	    fs->fs_maxcontig > MAX(256, maxphys / fs->fs_bsize))
 		return (ENOENT);
 	if (fs->fs_maxcontig < 0 ||
 	    (fs->fs_maxcontig == 0 && fs->fs_contigsumsize != 0) ||
