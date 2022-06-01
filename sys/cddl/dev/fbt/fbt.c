@@ -70,7 +70,6 @@ dtrace_provider_id_t	fbt_id;
 fbt_probe_t		**fbt_probetab;
 int			fbt_probetab_mask;
 
-static d_open_t	fbt_open;
 static int	fbt_unload(void);
 static void	fbt_getargdesc(void *, dtrace_id_t, void *, dtrace_argdesc_t *);
 static void	fbt_provide_module(void *, modctl_t *);
@@ -80,12 +79,6 @@ static void	fbt_disable(void *, dtrace_id_t, void *);
 static void	fbt_load(void *);
 static void	fbt_suspend(void *, dtrace_id_t, void *);
 static void	fbt_resume(void *, dtrace_id_t, void *);
-
-static struct cdevsw fbt_cdevsw = {
-	.d_version	= D_VERSION,
-	.d_open		= fbt_open,
-	.d_name		= "fbt",
-};
 
 static dtrace_pattr_t fbt_attr = {
 { DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
@@ -108,7 +101,6 @@ static dtrace_pops_t fbt_pops = {
 	.dtps_destroy =		fbt_destroy
 };
 
-static struct cdev		*fbt_cdev;
 static int			fbt_probetab_size;
 static int			fbt_verbose = 0;
 
@@ -1255,10 +1247,6 @@ fbt_linker_file_cb(linker_file_t lf, void *arg)
 static void
 fbt_load(void *dummy)
 {
-	/* Create the /dev/dtrace/fbt entry. */
-	fbt_cdev = make_dev(&fbt_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "dtrace/fbt");
-
 	/* Default the probe table size if not specified. */
 	if (fbt_probetab_size == 0)
 		fbt_probetab_size = FBT_PROBETAB_SIZE;
@@ -1300,8 +1288,6 @@ fbt_unload()
 	fbt_probetab = NULL;
 	fbt_probetab_mask = 0;
 
-	destroy_dev(fbt_cdev);
-
 	return (error);
 }
 
@@ -1327,12 +1313,6 @@ fbt_modevent(module_t mod __unused, int type, void *data __unused)
 	}
 
 	return (error);
-}
-
-static int
-fbt_open(struct cdev *dev __unused, int oflags __unused, int devtype __unused, struct thread *td __unused)
-{
-	return (0);
 }
 
 SYSINIT(fbt_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, fbt_load, NULL);
