@@ -39,7 +39,6 @@
 extern bool dtrace_malloc_enabled;
 static uint32_t dtrace_malloc_enabled_count;
 
-static d_open_t	dtmalloc_open;
 static int	dtmalloc_unload(void);
 static void	dtmalloc_getargdesc(void *, dtrace_id_t, void *, dtrace_argdesc_t *);
 static void	dtmalloc_provide(void *, dtrace_probedesc_t *);
@@ -47,12 +46,6 @@ static void	dtmalloc_destroy(void *, dtrace_id_t, void *);
 static void	dtmalloc_enable(void *, dtrace_id_t, void *);
 static void	dtmalloc_disable(void *, dtrace_id_t, void *);
 static void	dtmalloc_load(void *);
-
-static struct cdevsw dtmalloc_cdevsw = {
-	.d_version	= D_VERSION,
-	.d_open		= dtmalloc_open,
-	.d_name		= "dtmalloc",
-};
 
 static dtrace_pattr_t dtmalloc_attr = {
 { DTRACE_STABILITY_STABLE, DTRACE_STABILITY_STABLE, DTRACE_CLASS_COMMON },
@@ -75,7 +68,6 @@ static dtrace_pops_t dtmalloc_pops = {
 	.dtps_destroy =		dtmalloc_destroy
 };
 
-static struct cdev		*dtmalloc_cdev;
 static dtrace_provider_id_t	dtmalloc_id;
 
 static void
@@ -173,10 +165,6 @@ dtmalloc_disable(void *arg, dtrace_id_t id, void *parg)
 static void
 dtmalloc_load(void *dummy)
 {
-	/* Create the /dev/dtrace/dtmalloc entry. */
-	dtmalloc_cdev = make_dev(&dtmalloc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "dtrace/dtmalloc");
-
 	if (dtrace_register("dtmalloc", &dtmalloc_attr, DTRACE_PRIV_USER,
 	    NULL, &dtmalloc_pops, NULL, &dtmalloc_id) != 0)
 		return;
@@ -194,8 +182,6 @@ dtmalloc_unload()
 
 	if ((error = dtrace_unregister(dtmalloc_id)) != 0)
 		return (error);
-
-	destroy_dev(dtmalloc_cdev);
 
 	return (error);
 }
@@ -222,12 +208,6 @@ dtmalloc_modevent(module_t mod __unused, int type, void *data __unused)
 	}
 
 	return (error);
-}
-
-static int
-dtmalloc_open(struct cdev *dev __unused, int oflags __unused, int devtype __unused, struct thread *td __unused)
-{
-	return (0);
 }
 
 SYSINIT(dtmalloc_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, dtmalloc_load, NULL);
