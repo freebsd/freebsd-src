@@ -254,6 +254,11 @@ test_diskread(void *arg, int unit, uint64_t offset, void *dst, size_t size,
 	if (unit > disk_index || disk_fd[unit] == -1)
 		return (EIO);
 	n = pread(disk_fd[unit], dst, size, offset);
+	if (n == 0) {
+		printf("%s: end of disk (%ju)\n", __func__, (intmax_t)offset);
+		return (EIO);
+	}
+
 	if (n < 0)
 		return (errno);
 	*resid_return = size - n;
