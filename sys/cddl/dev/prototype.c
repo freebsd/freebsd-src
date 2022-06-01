@@ -82,7 +82,10 @@ prototype_disable(void *arg, dtrace_id_t id, void *parg)
 static void
 prototype_load(void *dummy)
 {
-	/* Create the /dev/dtrace/prototype entry. */
+	/*
+	 * Create the /dev/dtrace/prototype entry.
+	 * XXX: Remove this if the provider does not need any customs ioctls.
+	 */
 	prototype_cdev = make_dev(&prototype_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "dtrace/prototype");
 
