@@ -472,8 +472,7 @@ iaf_stop_pmc(int cpu, int ri)
 	cc->pc_iafctrl &= ~(IAF_MASK << (ri * 4));
 	wrmsr(IAF_CTRL, cc->pc_iafctrl);
 
-	cc->pc_globalctrl &= ~(1ULL << (ri + IAF_OFFSET));
-	wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
+	/* Don't need to write IA_GLOBAL_CTRL, one disable is enough. */
 
 	PMCDBG4(MDP,STO,1,"iafctrl=%x(%x) globalctrl=%jx(%jx)",
 	    cc->pc_iafctrl, (uint32_t) rdmsr(IAF_CTRL),
@@ -975,10 +974,7 @@ iap_stop_pmc(int cpu, int ri)
 
 	wrmsr(IAP_EVSEL0 + ri, 0);
 
-	if (core_version >= 2) {
-		cc->pc_globalctrl &= ~(1ULL << ri);
-		wrmsr(IA_GLOBAL_CTRL, cc->pc_globalctrl);
-	}
+	/* Don't need to write IA_GLOBAL_CTRL, one disable is enough. */
 
 	return (0);
 }
