@@ -171,7 +171,7 @@ pf_get_syncookies(struct pfioc_nv *nv)
 #undef ERROUT
 errout:
 	nvlist_destroy(nvl);
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 
 	return (error);
 }
@@ -191,7 +191,7 @@ pf_set_syncookies(struct pfioc_nv *nv)
 	if (nv->len > pf_ioctl_maxcount)
 		return (ENOMEM);
 
-	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
 	if (nvlpacked == NULL)
 		return (ENOMEM);
 
@@ -232,7 +232,7 @@ pf_set_syncookies(struct pfioc_nv *nv)
 #undef ERROUT
 errout:
 	nvlist_destroy(nvl);
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 
 	return (error);
 }
