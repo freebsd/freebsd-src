@@ -238,7 +238,7 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs->tf_esp = (int)fp;
 	if (p->p_sysent->sv_sigcode_base != 0) {
-		regs->tf_eip = p->p_sysent->sv_sigcode_base + szsigcode -
+		regs->tf_eip = PROC_SIGCODE(p) + szsigcode -
 		    szosigcode;
 	} else {
 		/* a.out sysentvec does not use shared page */
@@ -363,7 +363,7 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_esp = (int)sfp;
-	regs->tf_eip = p->p_sysent->sv_sigcode_base + szsigcode -
+	regs->tf_eip = PROC_SIGCODE(p) + szsigcode -
 	    szfreebsd4_sigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
@@ -525,7 +525,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_esp = (int)sfp;
-	regs->tf_eip = p->p_sysent->sv_sigcode_base;
+	regs->tf_eip = PROC_SIGCODE(p);
 	if (regs->tf_eip == 0)
 		regs->tf_eip = PROC_PS_STRINGS(p) - szsigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_D);

@@ -535,7 +535,7 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_rsp = (uintptr_t)sfp;
-	regs->tf_rip = p->p_sysent->sv_sigcode_base +
+	regs->tf_rip = PROC_SIGCODE(p) +
 	    VDSO_FREEBSD4_IA32_SIGCODE_OFFSET - VDSO_IA32_SIGCODE_OFFSET;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
@@ -670,7 +670,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	fpstate_drop(td);
 	regs->tf_rsp = (uintptr_t)sfp;
-	regs->tf_rip = p->p_sysent->sv_sigcode_base;
+	regs->tf_rip = PROC_SIGCODE(p);
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
