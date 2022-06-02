@@ -564,15 +564,16 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 	struct iommu_ctx *ctx;
 	struct iommu_domain *domain;
 	struct iommu_map_entry *entry;
-	iommu_gaddr_t size;
 	bus_size_t buflen1;
-	int error, idx, gas_flags, seg;
+	int error, e_flags, idx, gas_flags, seg;
 
 	KASSERT(offset < IOMMU_PAGE_SIZE, ("offset %d", offset));
 	if (segs == NULL)
 		segs = tag->segments;
 	ctx = tag->ctx;
 	domain = ctx->domain;
+	e_flags = IOMMU_MAP_ENTRY_READ |
+	    ((flags & BUS_DMA_NOWRITE) == 0 ? IOMMU_MAP_ENTRY_WRITE : 0);
 	seg = *segp;
 	error = 0;
 	idx = 0;
@@ -584,7 +585,6 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		}
 		buflen1 = buflen > tag->common.maxsegsz ?
 		    tag->common.maxsegsz : buflen;
-		size = round_page(offset + buflen1);
 
 		/*
 		 * (Too) optimistically allow split if there are more
@@ -594,30 +594,14 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		if (seg + 1 < tag->common.nsegments)
 			gas_flags |= IOMMU_MF_CANSPLIT;
 
-		error = iommu_map(domain, &tag->common, size, offset,
-		    IOMMU_MAP_ENTRY_READ |
-		    ((flags & BUS_DMA_NOWRITE) == 0 ? IOMMU_MAP_ENTRY_WRITE : 0),
-		    gas_flags, ma + idx, &entry);
+		error = iommu_map(domain, &tag->common,
+		    round_page(offset + buflen1),
+		    offset, e_flags, gas_flags, ma + idx, &entry);
 		if (error != 0)
 			break;
-		if ((gas_flags & IOMMU_MF_CANSPLIT) != 0) {
-			KASSERT(size >= entry->end - entry->start,
-			    ("split increased entry size %jx %jx %jx",
-			    (uintmax_t)size, (uintmax_t)entry->start,
-			    (uintmax_t)entry->end));
-			size = entry->end - entry->start;
-			if (buflen1 > size)
-				buflen1 = size;
-		} else {
-			KASSERT(entry->end - entry->start == size,
-			    ("no split allowed %jx %jx %jx",
-			    (uintmax_t)size, (uintmax_t)entry->start,
-			    (uintmax_t)entry->end));
-		}
-		if (offset + buflen1 > size)
-			buflen1 = size - offset;
-		if (buflen1 > tag->common.maxsegsz)
-			buflen1 = tag->common.maxsegsz;
+		/* Update buflen1 in case buffer split. */
+		if (buflen1 > entry->end - entry->start - offset)
+			buflen1 = entry->end - entry->start - offset;
 
 		KASSERT(vm_addr_align_ok(entry->start + offset,
 		    tag->common.alignment),
