@@ -1468,6 +1468,12 @@ nfscl_checkwritelocked(vnode_t vp, struct flock *fl,
 	 */
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
 	if (dp != NULL) {
+		/* No need to flush if it is a write delegation. */
+		if ((dp->nfsdl_flags & NFSCLDL_WRITE) != 0) {
+			nfscl_clrelease(clp);
+			NFSUNLOCKCLSTATE();
+			return (0);
+		}
 		LIST_FOREACH(lp, &dp->nfsdl_lock, nfsl_list) {
 			if (!NFSBCMP(lp->nfsl_owner, own,
 			    NFSV4CL_LOCKNAMELEN))
