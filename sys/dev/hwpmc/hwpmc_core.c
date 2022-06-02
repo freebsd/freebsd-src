@@ -226,7 +226,8 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	uint8_t ev, umask;
-	uint32_t caps, flags, config;
+	uint32_t caps;
+	uint64_t config, flags;
 	const struct pmc_md_iap_op_pmcallocate *iap;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -907,7 +908,7 @@ static int
 iap_start_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
-	uint32_t evsel;
+	uint64_t evsel;
 	struct core_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),

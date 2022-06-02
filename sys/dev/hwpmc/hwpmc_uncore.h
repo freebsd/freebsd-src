@@ -45,7 +45,7 @@ struct pmc_md_ucf_op_pmcallocate {
  * Programmable PMCs.
  */
 struct pmc_md_ucp_op_pmcallocate {
-	uint32_t	pm_ucp_config;
+	uint64_t	pm_ucp_config;
 };
 
 #define	UCP_EVSEL(C)	((C) & 0xFF)
@@ -106,7 +106,7 @@ struct pmc_md_ucf_pmc {
 };
 
 struct pmc_md_ucp_pmc {
-	uint32_t	pm_ucp_evsel;
+	uint64_t	pm_ucp_evsel;
 };
 
 /*
