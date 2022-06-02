@@ -34,6 +34,7 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 {
 	Elf_Auxargs *args;
 	Elf_Auxinfo *argarray, *pos;
+	struct vmspace *vmspace;
 	int error;
 
 	/*
@@ -58,6 +59,8 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	argarray = pos = malloc(AT_OLD_COUNT * sizeof(*pos), M_TEMP,
 	    M_WAITOK | M_ZERO);
 
+	vmspace = imgp->proc->p_vmspace;
+
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_OLD_EXECFD, args->execfd);
 	AUXARGS_ENTRY(pos, AT_OLD_PHDR, args->phdr);
@@ -81,9 +84,9 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 		AUXARGS_ENTRY_PTR(pos, AT_OLD_PAGESIZES, imgp->pagesizes);
 		AUXARGS_ENTRY(pos, AT_OLD_PAGESIZESLEN, imgp->pagesizeslen);
 	}
-	if (imgp->sysent->sv_timekeep_base != 0) {
+	if ((imgp->sysent->sv_flags & SV_TIMEKEEP) != 0) {
 		AUXARGS_ENTRY(pos, AT_OLD_TIMEKEEP,
-		    imgp->sysent->sv_timekeep_base);
+		    vmspace->vm_shp_base + imgp->sysent->sv_timekeep_offset);
 	}
 	AUXARGS_ENTRY(pos, AT_OLD_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :

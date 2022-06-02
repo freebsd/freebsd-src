@@ -418,7 +418,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	tf->tf_elr = (register_t)catcher;
 	tf->tf_x[13] = (register_t)fp;
 	sysent = p->p_sysent;
-	if (sysent->sv_sigcode_base != 0)
+	if (PROC_HAS_SHP(p))
 		tf->tf_x[14] = (register_t)PROC_SIGCODE(p);
 	else
 		tf->tf_x[14] = (register_t)(PROC_PS_STRINGS(p) -

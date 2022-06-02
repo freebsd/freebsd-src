@@ -237,7 +237,7 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_esp = (int)fp;
-	if (p->p_sysent->sv_sigcode_base != 0) {
+	if (PROC_HAS_SHP(p)) {
 		regs->tf_eip = PROC_SIGCODE(p) + szsigcode -
 		    szosigcode;
 	} else {
