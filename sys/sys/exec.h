@@ -90,6 +90,14 @@ struct execsw {
 #define	PROC_PS_STRINGS(p)	\
 	((p)->p_vmspace->vm_stacktop - (p)->p_sysent->sv_psstringssz)
 
+/*
+ * Address of signal trampoline (in user space).
+ * This assumes that the sigcode resides in the shared page, which is true
+ * in all cases, except for a.out binaries.
+ */
+#define PROC_SIGCODE(p)		\
+	((p)->p_sysent->sv_sigcode_base)
+
 int exec_map_first_page(struct image_params *);        
 void exec_unmap_first_page(struct image_params *);       
 
