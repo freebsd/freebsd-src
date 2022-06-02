@@ -387,7 +387,7 @@ kasan_shadow_check(unsigned long addr, size_t size, bool write,
 		return;
 	if (__predict_false(kasan_md_unsupported(addr)))
 		return;
-	if (__predict_false(panicstr != NULL))
+	if (KERNEL_PANICKED())
 		return;
 
 	if (__builtin_constant_p(size)) {

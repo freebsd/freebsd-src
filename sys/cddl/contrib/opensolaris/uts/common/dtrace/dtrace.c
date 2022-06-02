@@ -7335,7 +7335,7 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 	volatile uint16_t *flags;
 	hrtime_t now;
 
-	if (panicstr != NULL)
+	if (KERNEL_PANICKED())
 		return;
 
 #ifdef illumos
@@ -7366,7 +7366,7 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 #ifdef illumos
 	if (panic_quiesce) {
 #else
-	if (panicstr != NULL) {
+	if (KERNEL_PANICKED()) {
 #endif
 		/*
 		 * We don't trace anything if we're panicking.
