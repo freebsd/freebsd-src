@@ -655,7 +655,7 @@ static int
 ucp_start_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
-	uint32_t evsel;
+	uint64_t evsel;
 	struct uncore_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
