@@ -366,8 +366,7 @@ ucf_stop_pmc(int cpu, int ri)
 	PMCDBG1(MDP,STO,1,"ucf-stop ucfctrl=%x", ucfc->pc_ucfctrl);
 	wrmsr(UCF_CTRL, ucfc->pc_ucfctrl);
 
-	ucfc->pc_globalctrl &= ~(1ULL << (ri + SELECTOFF(uncore_cputype)));
-	wrmsr(UC_GLOBAL_CTRL, ucfc->pc_globalctrl);
+	/* Don't need to write UC_GLOBAL_CTRL, one disable is enough. */
 
 	PMCDBG4(MDP,STO,1,"ucfctrl=%x(%x) globalctrl=%jx(%jx)",
 	    ucfc->pc_ucfctrl, (uint32_t) rdmsr(UCF_CTRL),
@@ -724,8 +723,7 @@ ucp_stop_pmc(int cpu, int ri)
 	/* stop hw. */
 	wrmsr(SELECTSEL(uncore_cputype) + ri, 0);
 
-	cc->pc_globalctrl &= ~(1ULL << ri);
-	wrmsr(UC_GLOBAL_CTRL, cc->pc_globalctrl);
+	/* Don't need to write UC_GLOBAL_CTRL, one disable is enough. */
 
 	return (0);
 }
