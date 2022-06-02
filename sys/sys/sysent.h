@@ -137,19 +137,19 @@ struct sysentvec {
 	void		(*sv_set_syscall_retval)(struct thread *, int);
 	int		(*sv_fetch_syscall_args)(struct thread *);
 	const char	**sv_syscallnames;
-	vm_offset_t	sv_timekeep_base;
+	vm_offset_t	sv_timekeep_offset;
 	vm_offset_t	sv_shared_page_base;
 	vm_offset_t	sv_shared_page_len;
-	vm_offset_t	sv_sigcode_base;
+	vm_offset_t	sv_sigcode_offset;
 	void		*sv_shared_page_obj;
-	vm_offset_t	sv_vdso_base;
+	vm_offset_t	sv_vdso_offset;
 	void		(*sv_schedtail)(struct thread *);
 	void		(*sv_thread_detach)(struct thread *);
 	int		(*sv_trap)(struct thread *);
 	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
 	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
 	const char	*(*sv_machine_arch)(struct proc *);
-	vm_offset_t	sv_fxrng_gen_base;
+	vm_offset_t	sv_fxrng_gen_offset;
 	void		(*sv_onexec_old)(struct thread *td);
 	int		(*sv_onexec)(struct proc *, struct image_params *);
 	void		(*sv_onexit)(struct proc *);

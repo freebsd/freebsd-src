@@ -924,7 +924,7 @@ linux_exec_sysvec_init(void *param)
 
 	tkoff = kern_timekeep_base - linux_vdso_base;
 	ktimekeep_base = (l_uintptr_t *)(linux_vdso_mapping + tkoff);
-	*ktimekeep_base = sv->sv_timekeep_base;
+	*ktimekeep_base = sv->sv_shared_page_base + sv->sv_timekeep_offset;
 
 	tkoff = kern_tsc_selector - linux_vdso_base;
 	ktsc_selector = (l_uintptr_t *)(linux_vdso_mapping + tkoff);

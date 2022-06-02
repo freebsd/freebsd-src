@@ -619,7 +619,7 @@ linux_exec_sysvec_init(void *param)
 
 	tkoff = kern_timekeep_base - linux_vdso_base;
 	ktimekeep_base = (l_uintptr_t *)(linux_vdso_mapping + tkoff);
-	*ktimekeep_base = sv->sv_timekeep_base;
+	*ktimekeep_base = sv->sv_shared_page_base + sv->sv_timekeep_offset;
 }
 SYSINIT(elf_linux_exec_sysvec_init, SI_SUB_EXEC + 1, SI_ORDER_ANY,
     linux_exec_sysvec_init, &elf_linux_sysvec);

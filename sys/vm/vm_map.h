@@ -295,6 +295,7 @@ struct vmspace {
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
 	vm_offset_t vm_stacktop; /* top of the stack, may not be page-aligned */
+	vm_offset_t vm_shp_base; /* shared page address */
 	u_int vm_refcnt;	/* number of references */
 	/*
 	 * Keep the PMAP last, so that CPU-specific variations of that

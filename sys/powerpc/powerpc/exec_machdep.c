@@ -94,7 +94,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #ifdef FPU_EMU
 #include <powerpc/fpu/fpu_extern.h>

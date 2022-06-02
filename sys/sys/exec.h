@@ -92,11 +92,13 @@ struct execsw {
 
 /*
  * Address of signal trampoline (in user space).
- * This assumes that the sigcode resides in the shared page, which is true
- * in all cases, except for a.out binaries.
+ * This assumes that the sigcode resides in the shared page.
  */
 #define PROC_SIGCODE(p)		\
-	((p)->p_sysent->sv_sigcode_base)
+	((p)->p_vmspace->vm_shp_base + (p)->p_sysent->sv_sigcode_offset)
+
+#define PROC_HAS_SHP(p)		\
+	((p)->p_sysent->sv_shared_page_obj != NULL)
 
 int exec_map_first_page(struct image_params *);        
 void exec_unmap_first_page(struct image_params *);       

@@ -3096,7 +3096,7 @@ sysctl_kern_proc_sigtramp(SYSCTL_HANDLER_ARGS)
 	if ((req->flags & SCTL_MASK32) != 0) {
 		bzero(&kst32, sizeof(kst32));
 		if (SV_PROC_FLAG(p, SV_ILP32)) {
-			if (sv->sv_sigcode_base != 0) {
+			if (PROC_HAS_SHP(p)) {
 				kst32.ksigtramp_start = PROC_SIGCODE(p);
 				kst32.ksigtramp_end = kst32.ksigtramp_start +
 				    ((sv->sv_flags & SV_DSO_SIG) == 0 ?
@@ -3114,7 +3114,7 @@ sysctl_kern_proc_sigtramp(SYSCTL_HANDLER_ARGS)
 	}
 #endif
 	bzero(&kst, sizeof(kst));
-	if (sv->sv_sigcode_base != 0) {
+	if (PROC_HAS_SHP(p)) {
 		kst.ksigtramp_start = (char *)PROC_SIGCODE(p);
 		kst.ksigtramp_end = (char *)kst.ksigtramp_start +
 		    ((sv->sv_flags & SV_DSO_SIG) == 0 ? *sv->sv_szsigcode :

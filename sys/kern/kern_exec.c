@@ -1106,18 +1106,16 @@ void
 exec_free_abi_mappings(struct proc *p)
 {
 	struct vmspace *vmspace;
-	struct sysentvec *sv;
 
 	vmspace = p->p_vmspace;
 	if (refcount_load(&vmspace->vm_refcnt) != 1)
 		return;
 
-	sv = p->p_sysent;
-	if (sv->sv_shared_page_obj == NULL)
+	if (!PROC_HAS_SHP(p))
 		return;
 
-	pmap_remove(vmspace_pmap(vmspace), sv->sv_shared_page_base,
-	    sv->sv_shared_page_base + sv->sv_shared_page_len);
+	pmap_remove(vmspace_pmap(vmspace), vmspace->vm_shp_base,
+	    vmspace->vm_shp_base + p->p_sysent->sv_shared_page_len);
 }
 
 /*
@@ -1192,6 +1190,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 			vm_object_deallocate(obj);
 			return (vm_mmap_to_errno(error));
 		}
+		vmspace->vm_shp_base = sv->sv_shared_page_base;
 	}
 
 	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0);
@@ -1633,7 +1632,7 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	/*
 	 * Install sigcode.
 	 */
-	if (sysent->sv_sigcode_base == 0 && sysent->sv_szsigcode != NULL) {
+	if (sysent->sv_shared_page_base == 0 && sysent->sv_szsigcode != NULL) {
 		szsigcode = *(sysent->sv_szsigcode);
 		destp -= szsigcode;
 		destp = rounddown2(destp, sizeof(void *));
