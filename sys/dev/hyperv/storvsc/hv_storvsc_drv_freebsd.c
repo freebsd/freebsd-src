@@ -718,7 +718,7 @@ hv_storvsc_io_request(struct storvsc_softc *sc,
 	 * always uses sc->hs_chan, then we must send to that channel or a poll
 	 * timeout will occur.
 	 */
-	if (panicstr) {
+	if (KERNEL_PANICKED()) {
 		outgoing_channel = sc->hs_chan;
 	} else {
 		outgoing_channel = sc->hs_sel_chan[ch_sel];

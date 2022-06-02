@@ -178,7 +178,7 @@ kmsan_report_hook(const void *addr, size_t size, size_t off, const char *hook)
 	char buf[128];
 	int type;
 
-	if (__predict_false(panicstr != NULL || kdb_active || kmsan_reporting))
+	if (__predict_false(KERNEL_PANICKED() || kdb_active || kmsan_reporting))
 		return;
 
 	kmsan_reporting = true;
@@ -234,7 +234,7 @@ kmsan_report_inline(msan_orig_t orig, unsigned long pc)
 	long foff;
 	int type;
 
-	if (__predict_false(panicstr != NULL || kdb_active || kmsan_reporting))
+	if (__predict_false(KERNEL_PANICKED() || kdb_active || kmsan_reporting))
 		return;
 
 	kmsan_reporting = true;
