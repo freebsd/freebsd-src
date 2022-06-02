@@ -296,13 +296,16 @@ again:
 				 */
 				p = NULL;
 				goto after_sack_rexmit;
-			} else
+			} else {
 				/* Can rexmit part of the current hole */
-				len = ((long)ulmin(cwin,
-						   tp->snd_recover - p->rxmit));
-		} else
-			len = ((long)ulmin(cwin, p->end - p->rxmit));
-		off = p->rxmit - tp->snd_una;
+				len = ((int32_t)ulmin(cwin,
+				    SEQ_SUB(tp->snd_recover, p->rxmit)));
+			}
+		} else {
+			len = ((int32_t)ulmin(cwin,
+			    SEQ_SUB(p->end, p->rxmit)));
+		}
+		off = SEQ_SUB(p->rxmit, tp->snd_una);
 		KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 		    __func__, off));
 		if (len > 0) {
