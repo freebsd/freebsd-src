@@ -74,6 +74,8 @@ AC_DEFUN([ZFS_AC_KERNEL_BLK_QUEUE_UPDATE_READAHEAD], [
 		AC_DEFINE(HAVE_BLK_QUEUE_UPDATE_READAHEAD, 1,
 		    [blk_queue_update_readahead() exists])
 	],[
+		AC_MSG_RESULT(no)
+
 		AC_MSG_CHECKING([whether disk_update_readahead() exists])
 		ZFS_LINUX_TEST_RESULT([disk_update_readahead], [
 			AC_MSG_RESULT(yes)
@@ -86,10 +88,19 @@ AC_DEFUN([ZFS_AC_KERNEL_BLK_QUEUE_UPDATE_READAHEAD], [
 ])
 
 dnl #
-dnl # 2.6.32 API,
-dnl #   blk_queue_discard()
+dnl # 5.19: bdev_max_discard_sectors() available
+dnl # 2.6.32: blk_queue_discard() available
 dnl #
 AC_DEFUN([ZFS_AC_KERNEL_SRC_BLK_QUEUE_DISCARD], [
+	ZFS_LINUX_TEST_SRC([bdev_max_discard_sectors], [
+		#include <linux/blkdev.h>
+	],[
+		struct block_device *bdev __attribute__ ((unused)) = NULL;
+		unsigned int error __attribute__ ((unused));
+
+		error = bdev_max_discard_sectors(bdev);
+	])
+
 	ZFS_LINUX_TEST_SRC([blk_queue_discard], [
 		#include <linux/blkdev.h>
 	],[
@@ -102,22 +113,40 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BLK_QUEUE_DISCARD], [
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_BLK_QUEUE_DISCARD], [
-	AC_MSG_CHECKING([whether blk_queue_discard() is available])
-	ZFS_LINUX_TEST_RESULT([blk_queue_discard], [
+	AC_MSG_CHECKING([whether bdev_max_discard_sectors() is available])
+	ZFS_LINUX_TEST_RESULT([bdev_max_discard_sectors], [
 		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_BDEV_MAX_DISCARD_SECTORS, 1,
+		    [bdev_max_discard_sectors() is available])
 	],[
-		ZFS_LINUX_TEST_ERROR([blk_queue_discard])
+		AC_MSG_RESULT(no)
+
+		AC_MSG_CHECKING([whether blk_queue_discard() is available])
+		ZFS_LINUX_TEST_RESULT([blk_queue_discard], [
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_BLK_QUEUE_DISCARD, 1,
+			    [blk_queue_discard() is available])
+		],[
+			ZFS_LINUX_TEST_ERROR([blk_queue_discard])
+		])
 	])
 ])
 
 dnl #
-dnl # 4.8 API,
-dnl #   blk_queue_secure_erase()
-dnl #
-dnl # 2.6.36 - 4.7 API,
-dnl #   blk_queue_secdiscard()
+dnl # 5.19: bdev_max_secure_erase_sectors() available
+dnl # 4.8: blk_queue_secure_erase() available
+dnl # 2.6.36: blk_queue_secdiscard() available
 dnl #
 AC_DEFUN([ZFS_AC_KERNEL_SRC_BLK_QUEUE_SECURE_ERASE], [
+	ZFS_LINUX_TEST_SRC([bdev_max_secure_erase_sectors], [
+		#include <linux/blkdev.h>
+	],[
+		struct block_device *bdev __attribute__ ((unused)) = NULL;
+		unsigned int error __attribute__ ((unused));
+
+		error = bdev_max_secure_erase_sectors(bdev);
+	])
+
 	ZFS_LINUX_TEST_SRC([blk_queue_secure_erase], [
 		#include <linux/blkdev.h>
 	],[
@@ -140,21 +169,30 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BLK_QUEUE_SECURE_ERASE], [
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_BLK_QUEUE_SECURE_ERASE], [
-	AC_MSG_CHECKING([whether blk_queue_secure_erase() is available])
-	ZFS_LINUX_TEST_RESULT([blk_queue_secure_erase], [
+	AC_MSG_CHECKING([whether bdev_max_secure_erase_sectors() is available])
+	ZFS_LINUX_TEST_RESULT([bdev_max_secure_erase_sectors], [
 		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_BLK_QUEUE_SECURE_ERASE, 1,
-		    [blk_queue_secure_erase() is available])
+		AC_DEFINE(HAVE_BDEV_MAX_SECURE_ERASE_SECTORS, 1,
+		    [bdev_max_secure_erase_sectors() is available])
 	],[
 		AC_MSG_RESULT(no)
 
-		AC_MSG_CHECKING([whether blk_queue_secdiscard() is available])
-		ZFS_LINUX_TEST_RESULT([blk_queue_secdiscard], [
+		AC_MSG_CHECKING([whether blk_queue_secure_erase() is available])
+		ZFS_LINUX_TEST_RESULT([blk_queue_secure_erase], [
 			AC_MSG_RESULT(yes)
-			AC_DEFINE(HAVE_BLK_QUEUE_SECDISCARD, 1,
-			    [blk_queue_secdiscard() is available])
+			AC_DEFINE(HAVE_BLK_QUEUE_SECURE_ERASE, 1,
+			    [blk_queue_secure_erase() is available])
 		],[
-			ZFS_LINUX_TEST_ERROR([blk_queue_secure_erase])
+			AC_MSG_RESULT(no)
+
+			AC_MSG_CHECKING([whether blk_queue_secdiscard() is available])
+			ZFS_LINUX_TEST_RESULT([blk_queue_secdiscard], [
+				AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_BLK_QUEUE_SECDISCARD, 1,
+				    [blk_queue_secdiscard() is available])
+			],[
+				ZFS_LINUX_TEST_ERROR([blk_queue_secure_erase])
+			])
 		])
 	])
 ])

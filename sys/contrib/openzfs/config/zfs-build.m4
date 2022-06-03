@@ -268,6 +268,7 @@ AC_DEFUN([ZFS_AC_CONFIG], [
 		user)	ZFS_AC_CONFIG_USER   ;;
 		all)    ZFS_AC_CONFIG_USER
 			ZFS_AC_CONFIG_KERNEL ;;
+		dist)                        ;;
 		srpm)                        ;;
 		*)
 		AC_MSG_RESULT([Error!])
@@ -332,6 +333,10 @@ AC_DEFUN([ZFS_AC_RPM], [
 	RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --define "$(DEBUG_KMEM_TRACKING_ZFS) 1"'
 	RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --define "$(ASAN_ZFS) 1"'
 	RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --define "$(UBSAN_ZFS) 1"'
+
+	AS_IF([test "x$enable_debuginfo" = xyes], [
+		RPM_DEFINE_COMMON=${RPM_DEFINE_COMMON}' --define "__strip /bin/true"'
+	])
 
 	RPM_DEFINE_UTIL=' --define "_initconfdir $(initconfdir)"'
 
