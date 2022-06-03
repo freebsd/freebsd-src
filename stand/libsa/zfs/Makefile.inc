@@ -84,7 +84,7 @@ CFLAGS.zstd_decompress.c=	-U__BMI__
 CFLAGS.zstd_decompress.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 CFLAGS.zstd_decompress_block.c=	-U__BMI__
 CFLAGS.zstd_decompress_block.c+=	${NO_WBITWISE_INSTEAD_OF_LOGICAL}
-CFLAGS.zstd_shim.c+= -DIN_BASE -I${OZFS}/include
+CFLAGS.zstd_shim.c+= -DIN_BASE -DIN_LIBSA -I${OZFS}/include
 
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111

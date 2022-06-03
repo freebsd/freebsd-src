@@ -91,6 +91,15 @@
 /* bdev_check_media_change() exists */
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
+/* bdev_*_io_acct() available */
+/* #undef HAVE_BDEV_IO_ACCT */
+
+/* bdev_max_discard_sectors() is available */
+/* #undef HAVE_BDEV_MAX_DISCARD_SECTORS */
+
+/* bdev_max_secure_erase_sectors() is available */
+/* #undef HAVE_BDEV_MAX_SECURE_ERASE_SECTORS */
+
 /* block_device_operations->submit_bio() returns void */
 /* #undef HAVE_BDEV_SUBMIT_BIO_RETURNS_VOID */
 
@@ -133,6 +142,12 @@
 /* blkdev_get_by_path() handles ERESTARTSYS */
 /* #undef HAVE_BLKDEV_GET_ERESTARTSYS */
 
+/* blkdev_issue_discard() is available */
+/* #undef HAVE_BLKDEV_ISSUE_DISCARD */
+
+/* blkdev_issue_secure_erase() is available */
+/* #undef HAVE_BLKDEV_ISSUE_SECURE_ERASE */
+
 /* blkdev_reread_part() exists */
 /* #undef HAVE_BLKDEV_REREAD_PART */
 
@@ -153,6 +168,9 @@
 
 /* blk queue backing_dev_info is dynamic */
 /* #undef HAVE_BLK_QUEUE_BDI_DYNAMIC */
+
+/* blk_queue_discard() is available */
+/* #undef HAVE_BLK_QUEUE_DISCARD */
 
 /* blk_queue_flag_clear() exists */
 /* #undef HAVE_BLK_QUEUE_FLAG_CLEAR */
@@ -404,6 +422,9 @@
 /* kernel fpu internal */
 /* #undef HAVE_KERNEL_FPU_INTERNAL */
 
+/* kernel has asm/fpu/internal.h */
+/* #undef HAVE_KERNEL_FPU_INTERNAL_HEADER */
+
 /* uncached_acl_sentinel() exists */
 /* #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE */
 
@@ -614,7 +635,7 @@
 /* new shrinker callback wants 2 args */
 /* #undef HAVE_SINGLE_SHRINKER_CALLBACK */
 
-/* ->count_objects exists */
+/* cs->count_objects exists */
 /* #undef HAVE_SPLIT_SHRINKER_CALLBACK */
 
 #if defined(__amd64__) || defined(__i386__)
@@ -735,6 +756,9 @@
 
 /* address_space_operations->readpages exists */
 /* #undef HAVE_VFS_READPAGES */
+
+/* read_folio exists */
+/* #undef HAVE_VFS_READ_FOLIO */
 
 /* fops->read/write_iter() are available */
 /* #undef HAVE_VFS_RW_ITERATE */
@@ -896,7 +920,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gc0cf6ed67"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gb9d98453f"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -905,7 +929,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.17"
+#define ZFS_META_KVER_MAX "5.18"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -926,7 +950,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gc0cf6ed67"
+#define ZFS_META_RELEASE "FreeBSD_gb9d98453f"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

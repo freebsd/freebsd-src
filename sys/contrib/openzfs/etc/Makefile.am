@@ -2,7 +2,7 @@ sudoersddir = $(sysconfdir)/sudoers.d
 sudoersd_DATA = \
 	%D%/sudoers.d/zfs
 
-EXTRA_DIST += $(sudoersd_DATA)
+dist_noinst_DATA += $(sudoersd_DATA)
 
 
 sysconf_zfsdir = $(sysconfdir)/zfs
@@ -14,25 +14,25 @@ dist_sysconf_zfs_DATA = \
 	%D%/zfs/vdev_id.conf.sas_switch.example \
 	%D%/zfs/vdev_id.conf.scsi.example
 
-sysconf_zfs_SCRIPTS = \
+sysconf_zfs_DATA = \
 	%D%/zfs/zfs-functions
 
-SUBSTFILES          += $(sysconf_zfs_SCRIPTS)
-SHELLCHECKSCRIPTS   += $(sysconf_zfs_SCRIPTS)
-$(call SHELLCHECK_OPTS,$(sysconf_zfs_SCRIPTS)): SHELLCHECK_SHELL = sh
+SUBSTFILES          += $(sysconf_zfs_DATA)
+SHELLCHECKSCRIPTS   += $(sysconf_zfs_DATA)
+$(call SHELLCHECK_OPTS,$(sysconf_zfs_DATA)): SHELLCHECK_SHELL = sh
 
 
 if BUILD_LINUX
-initconf_SCRIPTS = \
+initconf_DATA = \
 	%D%/default/zfs
 
-SUBSTFILES          += $(initconf_SCRIPTS)
-SHELLCHECKSCRIPTS   += $(initconf_SCRIPTS)
-$(call SHELLCHECK_OPTS,$(initconf_SCRIPTS)): SHELLCHECK_SHELL = sh
+SUBSTFILES          += $(initconf_DATA)
+SHELLCHECKSCRIPTS   += $(initconf_DATA)
+$(call SHELLCHECK_OPTS,$(initconf_DATA)): SHELLCHECK_SHELL = sh
 
 
 if INIT_SYSV
-EXTRA_DIST += $(addprefix %D%/,init.d/README.md)
+dist_noinst_DATA += %D%/init.d/README.md
 
 init_SCRIPTS = \
 	%D%/init.d/zfs-import \
