@@ -322,17 +322,17 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred)
 		 * in the receive buffer, the socket is still readable.
 		 */
 		sb = &so->so_rcv;
-		SOCKBUF_LOCK(sb);
+		SOCK_RECVBUF_LOCK(so);
 		if ((sb->sb_state & SBS_CANTRCVMORE) == 0 || sbavail(sb))
 			ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
 		ub->st_size = sbavail(sb) - sb->sb_ctl;
-		SOCKBUF_UNLOCK(sb);
+		SOCK_RECVBUF_UNLOCK(so);
 
 		sb = &so->so_snd;
-		SOCKBUF_LOCK(sb);
+		SOCK_SENDBUF_LOCK(so);
 		if ((sb->sb_state & SBS_CANTSENDMORE) == 0)
 			ub->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
-		SOCKBUF_UNLOCK(sb);
+		SOCK_SENDBUF_UNLOCK(so);
 	}
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
@@ -593,10 +593,11 @@ soaio_ready(struct socket *so, struct sockbuf *sb)
 }
 
 static void
-soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
+soaio_process_job(struct socket *so, sb_which which, struct kaiocb *job)
 {
 	struct ucred *td_savedcred;
 	struct thread *td;
+	struct sockbuf *sb = sobuf(so, which);
 #ifdef MAC
 	struct file *fp = job->fd_file;
 #endif
@@ -604,7 +605,7 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 	long ru_before;
 	int error, flags;
 
-	SOCKBUF_UNLOCK(sb);
+	SOCK_BUF_UNLOCK(so, which);
 	aio_switch_vmspace(job);
 	td = curthread;
 retry:
@@ -669,28 +670,28 @@ retry:
 		 * queue to try again when the socket is ready.
 		 */
 		MPASS(done != job_total_nbytes);
-		SOCKBUF_LOCK(sb);
+		SOCK_BUF_LOCK(so, which);
 		if (done == 0 || !(so->so_state & SS_NBIO)) {
 			empty_results++;
 			if (soaio_ready(so, sb)) {
 				empty_retries++;
-				SOCKBUF_UNLOCK(sb);
+				SOCK_BUF_UNLOCK(so, which);
 				goto retry;
 			}
 			
 			if (!aio_set_cancel_function(job, soo_aio_cancel)) {
-				SOCKBUF_UNLOCK(sb);
+				SOCK_BUF_UNLOCK(so, which);
 				if (done != 0)
 					aio_complete(job, done, 0);
 				else
 					aio_cancel(job);
-				SOCKBUF_LOCK(sb);
+				SOCK_BUF_LOCK(so, which);
 			} else {
 				TAILQ_INSERT_HEAD(&sb->sb_aiojobq, job, list);
 			}
 			return;
 		}
-		SOCKBUF_UNLOCK(sb);
+		SOCK_BUF_UNLOCK(so, which);
 	}		
 	if (done != 0 && (error == ERESTART || error == EINTR ||
 	    error == EWOULDBLOCK))
@@ -699,23 +700,24 @@ retry:
 		aio_complete(job, -1, error);
 	else
 		aio_complete(job, done, 0);
-	SOCKBUF_LOCK(sb);
+	SOCK_BUF_LOCK(so, which);
 }
 
 static void
-soaio_process_sb(struct socket *so, struct sockbuf *sb)
+soaio_process_sb(struct socket *so, sb_which which)
 {
 	struct kaiocb *job;
+	struct sockbuf *sb = sobuf(so, which);
 
 	CURVNET_SET(so->so_vnet);
-	SOCKBUF_LOCK(sb);
+	SOCK_BUF_LOCK(so, which);
 	while (!TAILQ_EMPTY(&sb->sb_aiojobq) && soaio_ready(so, sb)) {
 		job = TAILQ_FIRST(&sb->sb_aiojobq);
 		TAILQ_REMOVE(&sb->sb_aiojobq, job, list);
 		if (!aio_clear_cancel_function(job))
 			continue;
 
-		soaio_process_job(so, sb, job);
+		soaio_process_job(so, which, job);
 	}
 
 	/*
@@ -726,7 +728,7 @@ soaio_process_sb(struct socket *so, struct sockbuf *sb)
 	if (!TAILQ_EMPTY(&sb->sb_aiojobq))
 		sb->sb_flags |= SB_AIO;
 	sb->sb_flags &= ~SB_AIO_RUNNING;
-	SOCKBUF_UNLOCK(sb);
+	SOCK_BUF_UNLOCK(so, which);
 
 	sorele(so);
 	CURVNET_RESTORE();
@@ -738,7 +740,7 @@ soaio_rcv(void *context, int pending)
 	struct socket *so;
 
 	so = context;
-	soaio_process_sb(so, &so->so_rcv);
+	soaio_process_sb(so, SO_RCV);
 }
 
 void
@@ -747,7 +749,7 @@ soaio_snd(void *context, int pending)
 	struct socket *so;
 
 	so = context;
-	soaio_process_sb(so, &so->so_snd);
+	soaio_process_sb(so, SO_SND);
 }
 
 void
