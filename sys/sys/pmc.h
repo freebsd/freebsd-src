@@ -114,6 +114,8 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
 	__PMC_CPU(INTEL_ICELAKE, 0x9B,	"Intel Icelake")		\
 	__PMC_CPU(INTEL_ICELAKE_XEON, 0x9C,	"Intel Icelake Xeon")	\
 	__PMC_CPU(INTEL_ALDERLAKE, 0x9D,	"Intel Alderlake")	\
+	__PMC_CPU(INTEL_ATOM_GOLDMONT_P, 0x9E,	"Intel Atom Goldmont Plus")    \
+	__PMC_CPU(INTEL_ATOM_TREMONT, 0x9F,	"Intel Atom Tremont")    \
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
