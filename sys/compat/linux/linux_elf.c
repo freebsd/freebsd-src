@@ -155,13 +155,16 @@ __linuxN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 			    sizeof(psinfo->pr_psargs), SBUF_FIXEDLEN);
 			error = proc_getargv(curthread, p, &sbarg);
 			PRELE(p);
-			if (sbuf_finish(&sbarg) == 0)
+			if (sbuf_finish(&sbarg) == 0) {
 				len = sbuf_len(&sbarg) - 1;
-			else
+				if (len > 0)
+					len--;
+			} else {
 				len = sizeof(psinfo->pr_psargs) - 1;
+			}
 			sbuf_delete(&sbarg);
 		}
-		if (error || len == 0)
+		if (error != 0 || len == 0 || (ssize_t)len == -1)
 			strlcpy(psinfo->pr_psargs, p->p_comm,
 			    sizeof(psinfo->pr_psargs));
 		else {
