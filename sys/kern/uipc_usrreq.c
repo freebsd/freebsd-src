@@ -156,7 +156,7 @@ static struct task	unp_defer_task;
 #endif
 static u_long	unpst_sendspace = PIPSIZ;
 static u_long	unpst_recvspace = PIPSIZ;
-static u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
+static u_long	unpdg_maxdgram = 2*1024;
 static u_long	unpdg_recvspace = 16*1024;	/* support 8KB syslog msgs */
 static u_long	unpsp_sendspace = PIPSIZ;	/* really max datagram size */
 static u_long	unpsp_recvspace = PIPSIZ;
@@ -178,7 +178,7 @@ SYSCTL_ULONG(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW,
 SYSCTL_ULONG(_net_local_stream, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpst_recvspace, 0, "Default stream receive space.");
 SYSCTL_ULONG(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
-	   &unpdg_sendspace, 0, "Default datagram send space.");
+	   &unpdg_maxdgram, 0, "Maximum datagram size.");
 SYSCTL_ULONG(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpdg_recvspace, 0, "Default datagram receive space.");
 SYSCTL_ULONG(_net_local_seqpacket, OID_AUTO, maxseqpacket, CTLFLAG_RW,
@@ -528,7 +528,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 			break;
 
 		case SOCK_DGRAM:
-			sendspace = unpdg_sendspace;
+			sendspace = unpdg_maxdgram;
 			recvspace = unpdg_recvspace;
 			break;
 
