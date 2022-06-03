@@ -82,9 +82,13 @@ linux_dmi_matches(const struct dmi_system_id *dsi)
 	for (i = 0; i < nitems(dsi->matches); i++) {
 		if (dsi->matches[i].slot == DMI_NONE)
 			break;
-		if (dmi_match(dsi->matches[i].slot,
-		    dsi->matches[i].substr) == false)
-			return (false);
+		if (dsi->matches[i].exact_match) {
+			return (dmi_match(dsi->matches[i].slot,
+			    dsi->matches[i].substr));
+		} else {
+			return (strstr(dmi_data[dsi->matches[i].slot],
+				    dsi->matches[i].substr) != NULL);
+		}
 	}
 
 	return (true);
