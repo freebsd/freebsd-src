@@ -118,10 +118,6 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_CORE2EXTREME;
 			nclasses = 3;
 			break;
-		case 0x1C:	/* Per Intel document 320047-002. */
-			cputype = PMC_CPU_INTEL_ATOM;
-			nclasses = 3;
-			break;
 		case 0x1A:
 		case 0x1E:	/*
 				 * Per Intel document 253669-032 9/2009,
@@ -221,6 +217,14 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_ALDERLAKE;
 			nclasses = 3;
 			break;
+		case 0x1C:	/* Per Intel document 320047-002. */
+		case 0x26:
+		case 0x27:
+		case 0x35:
+		case 0x36:
+			cputype = PMC_CPU_INTEL_ATOM;
+			nclasses = 3;
+			break;
 		case 0x37:
 		case 0x4A:
 		case 0x4D:      /* Per Intel document 330061-001 01/2014. */
@@ -232,6 +236,15 @@ pmc_intel_initialize(void)
 		case 0x5C:	/* Per Intel document 325462-071US 10/2019. */
 		case 0x5F:
 			cputype = PMC_CPU_INTEL_ATOM_GOLDMONT;
+			nclasses = 3;
+			break;
+		case 0x7A:
+			cputype = PMC_CPU_INTEL_ATOM_GOLDMONT_P;
+			nclasses = 3;
+			break;
+		case 0x86:
+		case 0x96:
+			cputype = PMC_CPU_INTEL_ATOM_TREMONT;
 			nclasses = 3;
 			break;
 		}
