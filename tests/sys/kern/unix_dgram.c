@@ -26,9 +26,13 @@
  */
 
 #include <sys/time.h>
+#include <sys/event.h>
+#include <sys/ioctl.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#include <aio.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -50,6 +54,12 @@ sigalarm(int sig __unused)
 
 static struct sigaction sigact = {
 	.sa_handler = sigalarm,
+};
+
+static struct sockaddr_un sun = {
+	.sun_family = AF_LOCAL,
+	.sun_len = sizeof(sun),
+	.sun_path = "unix_dgram_listener",
 };
 
 /*
@@ -160,17 +170,11 @@ ATF_TC_BODY(basic, tc)
 ATF_TC_WITHOUT_HEAD(one2many);
 ATF_TC_BODY(one2many, tc)
 {
-	struct sockaddr_un sun;
-	const char *path = "unix_dgram_listener";
 	int one, many[2], two;
 	char buf[1024];
 
 	/* Establish one to many connection. */
 	ATF_REQUIRE((one = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
-	bzero(&sun, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	sun.sun_len = sizeof(sun);
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 	ATF_REQUIRE(bind(one, (struct sockaddr *)&sun, sizeof(sun)) == 0);
 	/* listen(2) shall fail. */
 	ATF_REQUIRE(listen(one, -1) != 0);
@@ -212,11 +216,99 @@ ATF_TC_BODY(one2many, tc)
 	ATF_REQUIRE(send(many[1], buf, sizeof(buf), 0) == sizeof(buf));
 }
 
+/*
+ * Check that various mechanism report socket as readable and having
+ * 42 bytes of data.
+ */
+static void
+test42(int fd)
+{
+
+	/* ioctl(FIONREAD) */
+	int data;
+
+	ATF_REQUIRE(ioctl(fd, FIONREAD, &data) != -1);
+	ATF_REQUIRE(data == 42);
+
+	/* select(2) */
+	fd_set rfds;
+
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
+	ATF_REQUIRE(select(fd + 1, &rfds, NULL, NULL, NULL) == 1);
+	ATF_REQUIRE(FD_ISSET(fd, &rfds));
+
+	/* kevent(2) */
+	struct kevent ev;
+	int kq;
+
+	ATF_REQUIRE((kq = kqueue()) != -1);
+	EV_SET(&ev, fd, EVFILT_READ, EV_ADD, NOTE_LOWAT, 41, NULL);
+	ATF_REQUIRE(kevent(kq, &ev, 1, NULL, 0, NULL) == 0);
+	ATF_REQUIRE(kevent(kq, NULL, 0, &ev, 1, NULL) == 1);
+	ATF_REQUIRE(ev.filter == EVFILT_READ);
+	ATF_REQUIRE(ev.data == 42);
+
+	/* aio(4) */
+	char buf[50];
+	struct aiocb aio = {
+		.aio_nbytes = 50,
+		.aio_fildes = fd,
+		.aio_buf = buf,
+	}, *aiop;
+
+	ATF_REQUIRE(aio_read(&aio) == 0);
+	ATF_REQUIRE(aio_waitcomplete(&aiop, NULL) == 42);
+	ATF_REQUIRE(aiop == &aio);
+}
+
+/*
+ * Send data and control in connected & unconnected mode and check that
+ * various event mechanisms see the data, but don't count control bytes.
+ */
+ATF_TC_WITHOUT_HEAD(event);
+ATF_TC_BODY(event, tc)
+{
+	int fd[2];
+	char buf[50];
+	struct iovec iov = {
+		.iov_base = buf,
+		.iov_len = 42,
+	};
+	struct cmsghdr cmsg = {
+		.cmsg_len = CMSG_LEN(0),
+		.cmsg_level = SOL_SOCKET,
+		.cmsg_type = SCM_TIMESTAMP,
+	};
+	struct msghdr msghdr = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = &cmsg,
+		.msg_controllen = CMSG_LEN(0),
+	};
+
+	/* Connected socket */
+	ATF_REQUIRE(socketpair(PF_UNIX, SOCK_DGRAM, 0, fd) != -1);
+	ATF_REQUIRE(sendmsg(fd[0], &msghdr, 0) == 42);
+	test42(fd[1]);
+	close(fd[0]);
+	close(fd[1]);
+
+	/* Not-connected send */
+	ATF_REQUIRE((fd[0] = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE((fd[1] = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(bind(fd[0], (struct sockaddr *)&sun, sizeof(sun)) == 0);
+	ATF_REQUIRE(sendto(fd[1], buf, 42, 0, (struct sockaddr *)&sun,
+	    sizeof(sun)) == 42);
+	test42(fd[0]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, basic);
 	ATF_TP_ADD_TC(tp, one2many);
+	ATF_TP_ADD_TC(tp, event);
 
 	return (atf_no_error());
 }
