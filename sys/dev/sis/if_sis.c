@@ -1965,7 +1965,7 @@ sis_initl(struct sis_softc *sc)
 	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
 		/*
 		 * Configure 400usec of interrupt holdoff.  This is based
-		 * on emperical tests on a Soekris 4801.
+		 * on empirical tests on a Soekris 4801.
  		 */
 		CSR_WRITE_4(sc, NS_IHR, 0x100 | 4);
 	}
