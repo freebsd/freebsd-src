@@ -310,8 +310,8 @@ static int32_t rack_gp_per_bw_mul_down = 4;	/* 4% */
 static int32_t rack_gp_rtt_maxmul = 3;		/* 3 x maxmin */
 static int32_t rack_gp_rtt_minmul = 1;		/* minrtt + (minrtt/mindiv) is lower rtt */
 static int32_t rack_gp_rtt_mindiv = 4;		/* minrtt + (minrtt * minmul/mindiv) is lower rtt */
-static int32_t rack_gp_decrease_per = 20;	/* 20% decrease in multipler */
-static int32_t rack_gp_increase_per = 2;	/* 2% increase in multipler */
+static int32_t rack_gp_decrease_per = 20;	/* 20% decrease in multiplier */
+static int32_t rack_gp_increase_per = 2;	/* 2% increase in multiplier */
 static int32_t rack_per_lower_bound = 50;	/* Don't allow to drop below this multiplier */
 static int32_t rack_per_upper_bound_ss = 0;	/* Don't allow SS to grow above this */
 static int32_t rack_per_upper_bound_ca = 0;	/* Don't allow CA to grow above this */
@@ -1107,7 +1107,7 @@ rack_init_sysctls(void)
 	    SYSCTL_CHILDREN(rack_timely),
 	    OID_AUTO, "rtt_max_mul", CTLFLAG_RW,
 	    &rack_gp_rtt_maxmul, 3,
-	    "Rack timely multipler of lowest rtt for rtt_max");
+	    "Rack timely multiplier of lowest rtt for rtt_max");
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_timely),
 	    OID_AUTO, "rtt_min_div", CTLFLAG_RW,
@@ -3110,7 +3110,7 @@ rack_bw_can_be_raised(struct tcp_rack *rack, uint64_t cur_bw, uint64_t last_bw_e
 	 * rate to push us faster there is no sense of
 	 * increasing.
 	 *
-	 * We first caculate our actual pacing rate (ss or ca multipler
+	 * We first caculate our actual pacing rate (ss or ca multiplier
 	 * times our cur_bw).
 	 *
 	 * Then we take the last measured rate and multipy by our
@@ -3863,7 +3863,7 @@ rack_update_multiplier(struct tcp_rack *rack, int32_t timely_says, uint64_t last
 	    (rack->use_fixed_rate) ||
 	    (rack->in_probe_rtt) ||
 	    (rack->rc_always_pace == 0)) {
-		/* No dynamic GP multipler in play */
+		/* No dynamic GP multiplier in play */
 		return;
 	}
 	losses = rack->r_ctl.rc_loss_count - rack->r_ctl.rc_loss_at_start;
@@ -4030,7 +4030,7 @@ rack_make_timely_judgement(struct tcp_rack *rack, uint32_t rtt, int32_t rtt_diff
 	log_rtt_a_diff |= (uint32_t)rtt_diff;
 	if (rtt >= (get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) *
 		    rack_gp_rtt_maxmul)) {
-		/* Reduce the b/w multipler */
+		/* Reduce the b/w multiplier */
 		timely_says = 2;
 		log_mult = get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) * rack_gp_rtt_maxmul;
 		log_mult <<= 32;
@@ -4041,7 +4041,7 @@ rack_make_timely_judgement(struct tcp_rack *rack, uint32_t rtt, int32_t rtt_diff
 	} else if (rtt <= (get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) +
 			   ((get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) * rack_gp_rtt_minmul) /
 			    max(rack_gp_rtt_mindiv , 1)))) {
-		/* Increase the b/w multipler */
+		/* Increase the b/w multiplier */
 		log_mult = get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) +
 			((get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt) * rack_gp_rtt_minmul) /
 			 max(rack_gp_rtt_mindiv , 1));
@@ -4068,13 +4068,13 @@ rack_make_timely_judgement(struct tcp_rack *rack, uint32_t rtt, int32_t rtt_diff
 		if (rtt_diff <= 0) {
 			/*
 			 * Rttdiff is less than zero, increase the
-			 * b/w multipler (its 0 or negative)
+			 * b/w multiplier (its 0 or negative)
 			 */
 			timely_says = 0;
 			rack_log_timely(rack,  timely_says, log_mult,
 					get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt), log_rtt_a_diff, __LINE__, 6);
 		} else {
-			/* Reduce the b/w multipler */
+			/* Reduce the b/w multiplier */
 			timely_says = 1;
 			rack_log_timely(rack,  timely_says, log_mult,
 					get_filter_value_small(&rack->r_ctl.rc_gp_min_rtt), log_rtt_a_diff, __LINE__, 7);
@@ -9854,7 +9854,7 @@ rack_check_bottom_drag(struct tcpcb *tp,
 		 *
 		 * This means we need to boost the b/w in
 		 * addition to any earlier boosting of
-		 * the multipler.
+		 * the multiplier.
 		 */
 		rack->rc_dragged_bottom = 1;
 		rack_validate_multipliers_at_or_above100(rack);
