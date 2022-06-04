@@ -141,7 +141,7 @@ am335x_scm_attach(device_t dev)
 	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, 0);
 	reg = SYSCON_READ_4(sc->syscon, SCM_BGAP_CTRL);
 	DELAY(500);
-	/* Set continous mode. */
+	/* Set continuous mode. */
 	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, SCM_BGAP_CONTCONV);
 	reg = SYSCON_READ_4(sc->syscon, SCM_BGAP_CTRL);
 	DELAY(500);
