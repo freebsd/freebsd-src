@@ -2038,78 +2038,87 @@ do {								\
 
 			case O_IP_DST_LOOKUP:
 			{
-				void *pkey;
-				uint32_t vidx, key;
-				uint16_t keylen;
-
 				if (cmdlen > F_INSN_SIZE(ipfw_insn_u32)) {
+					void *pkey;
+					uint32_t vidx, key;
+					uint16_t keylen = 0; /* zero if can't match the packet */
+
 					/* Determine lookup key type */
 					vidx = ((ipfw_insn_u32 *)cmd)->d[1];
-					if (vidx != 4 /* uid */ &&
-					    vidx != 5 /* jail */ &&
-					    is_ipv6 == 0 && is_ipv4 == 0)
-						break;
-					/* Determine key length */
-					if (vidx == 0 /* dst-ip */ ||
-					    vidx == 1 /* src-ip */)
-						keylen = is_ipv6 ?
-						    sizeof(struct in6_addr):
-						    sizeof(in_addr_t);
-					else {
-						keylen = sizeof(key);
-						pkey = &key;
-					}
-					if (vidx == 0 /* dst-ip */)
-						pkey = is_ipv4 ? (void *)&dst_ip:
-						    (void *)&args->f_id.dst_ip6;
-					else if (vidx == 1 /* src-ip */)
-						pkey = is_ipv4 ? (void *)&src_ip:
-						    (void *)&args->f_id.src_ip6;
-					else if (vidx == 6 /* dscp */) {
-						if (is_ipv4)
-							key = ip->ip_tos >> 2;
+					switch (vidx) {
+					case LOOKUP_DST_IP:
+					case LOOKUP_SRC_IP:
+						/* Need IP frame */
+						if (is_ipv6 == 0 && is_ipv4 == 0)
+							break;
+						if (vidx == LOOKUP_DST_IP)
+							pkey = is_ipv6 ?
+								(void *)&args->f_id.dst_ip6:
+								(void *)&dst_ip;
 						else
-							key = IPV6_DSCP(
-							    (struct ip6_hdr *)ip) >> 2;
-						key &= 0x3f;
-					} else if (vidx == 2 /* dst-port */ ||
-					    vidx == 3 /* src-port */) {
+							pkey = is_ipv6 ?
+								(void *)&args->f_id.src_ip6:
+								(void *)&src_ip;
+						keylen = is_ipv6 ?
+							sizeof(struct in6_addr):
+							sizeof(in_addr_t);
+						break;
+					case LOOKUP_DST_PORT:
+					case LOOKUP_SRC_PORT:
+						/* Need IP frame */
+						if (is_ipv6 == 0 && is_ipv4 == 0)
+							break;
 						/* Skip fragments */
 						if (offset != 0)
 							break;
 						/* Skip proto without ports */
 						if (proto != IPPROTO_TCP &&
-						    proto != IPPROTO_UDP &&
-						    proto != IPPROTO_UDPLITE &&
-						    proto != IPPROTO_SCTP)
+							proto != IPPROTO_UDP &&
+							proto != IPPROTO_UDPLITE &&
+							proto != IPPROTO_SCTP)
 							break;
-						if (vidx == 2 /* dst-port */)
-							key = dst_port;
-						else
-							key = src_port;
-					}
-#ifndef USERSPACE
-					else if (vidx == 4 /* uid */ ||
-					    vidx == 5 /* jail */) {
+						key = vidx == LOOKUP_DST_PORT ?
+							dst_port:
+							src_port;
+						pkey = &key;
+						keylen = sizeof(key);
+						break;
+					case LOOKUP_UID:
+					case LOOKUP_JAIL:
 						check_uidgid(
 						    (ipfw_insn_u32 *)cmd,
 						    args, &ucred_lookup,
-#ifdef __FreeBSD__
 						    &ucred_cache);
-						if (vidx == 4 /* uid */)
-							key = ucred_cache->cr_uid;
-						else if (vidx == 5 /* jail */)
-							key = ucred_cache->cr_prison->pr_id;
-#else /* !__FreeBSD__ */
-						    (void *)&ucred_cache);
-						if (vidx == 4 /* uid */)
-							key = ucred_cache.uid;
-						else if (vidx == 5 /* jail */)
-							key = ucred_cache.xid;
-#endif /* !__FreeBSD__ */
+						key = vidx == LOOKUP_UID ?
+							ucred_cache->cr_uid:
+							ucred_cache->cr_prison->pr_id;
+						pkey = &key;
+						keylen = sizeof(key);
+						break;
+					case LOOKUP_DSCP:
+						/* Need IP frame */
+						if (is_ipv6 == 0 && is_ipv4 == 0)
+							break;
+						if (is_ipv6)
+							key = IPV6_DSCP(
+							    (struct ip6_hdr *)ip) >> 2;
+						else
+							key = ip->ip_tos >> 2;
+						pkey = &key;
+						keylen = sizeof(key);
+						break;
+					case LOOKUP_DST_MAC:
+					case LOOKUP_SRC_MAC:
+						/* Need ether frame */
+						if ((args->flags & IPFW_ARGS_ETHER) == 0)
+							break;
+						pkey = vidx == LOOKUP_DST_MAC ?
+							eh->ether_dhost:
+							eh->ether_shost;
+						keylen = ETHER_ADDR_LEN;
+						break;
 					}
-#endif /* !USERSPACE */
-					else
+					if (keylen == 0)
 						break;
 					match = ipfw_lookup_table(chain,
 					    cmd->arg1, keylen, pkey, &vidx);
@@ -2141,6 +2150,36 @@ do {								\
 						pkey = &args->f_id.src_ip6;
 				} else
 					break;
+				match = ipfw_lookup_table(chain, cmd->arg1,
+				    keylen, pkey, &vidx);
+				if (!match)
+					break;
+				if (cmdlen == F_INSN_SIZE(ipfw_insn_u32)) {
+					match = ((ipfw_insn_u32 *)cmd)->d[0] ==
+					    TARG_VAL(chain, vidx, tag);
+					if (!match)
+						break;
+				}
+				tablearg = vidx;
+				break;
+			}
+
+			case O_MAC_SRC_LOOKUP:
+			case O_MAC_DST_LOOKUP:
+			{
+				void *pkey;
+				uint32_t vidx;
+				uint16_t keylen = ETHER_ADDR_LEN;
+
+				/* Need ether frame */
+				if ((args->flags & IPFW_ARGS_ETHER) == 0)
+					break;
+
+				if (cmd->opcode == O_MAC_DST_LOOKUP)
+					pkey = eh->ether_dhost;
+				else
+					pkey = eh->ether_shost;
+
 				match = ipfw_lookup_table(chain, cmd->arg1,
 				    keylen, pkey, &vidx);
 				if (!match)

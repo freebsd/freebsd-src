@@ -2752,26 +2752,19 @@ classify_srcdst(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 		 */
 		v = ((ipfw_insn_u32 *)cmd)->d[1];
 		switch (v) {
-		case 0:
-		case 1:
-			/* IPv4 src/dst */
+		case LOOKUP_DST_IP:
+		case LOOKUP_SRC_IP:
 			break;
-		case 2:
-		case 3:
-			/* src/dst port */
+		case LOOKUP_DST_PORT:
+		case LOOKUP_SRC_PORT:
+		case LOOKUP_UID:
+		case LOOKUP_JAIL:
+		case LOOKUP_DSCP:
 			*ptype = IPFW_TABLE_NUMBER;
 			break;
-		case 4:
-			/* uid/gid */
-			*ptype = IPFW_TABLE_NUMBER;
-			break;
-		case 5:
-			/* jid */
-			*ptype = IPFW_TABLE_NUMBER;
-			break;
-		case 6:
-			/* dscp */
-			*ptype = IPFW_TABLE_NUMBER;
+		case LOOKUP_DST_MAC:
+		case LOOKUP_SRC_MAC:
+			*ptype = IPFW_TABLE_MAC;
 			break;
 		}
 	}
@@ -2802,6 +2795,14 @@ classify_flow(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 	*puidx = cmd->arg1;
 	*ptype = IPFW_TABLE_FLOW;
 
+	return (0);
+}
+
+static int
+classify_mac_lookup(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+{
+	*puidx = cmd->arg1;
+	*ptype = IPFW_TABLE_MAC;
 	return (0);
 }
 
@@ -2949,6 +2950,26 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode = O_IP_FLOW_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_flow,
+		.update = update_arg1,
+		.find_byname = table_findbyname,
+		.find_bykidx = table_findbykidx,
+		.create_object = create_table_compat,
+		.manage_sets = table_manage_sets,
+	},
+	{
+		.opcode = O_MAC_SRC_LOOKUP,
+		.etlv = IPFW_TLV_TBL_NAME,
+		.classifier = classify_mac_lookup,
+		.update = update_arg1,
+		.find_byname = table_findbyname,
+		.find_bykidx = table_findbykidx,
+		.create_object = create_table_compat,
+		.manage_sets = table_manage_sets,
+	},
+	{
+		.opcode = O_MAC_DST_LOOKUP,
+		.etlv = IPFW_TLV_TBL_NAME,
+		.classifier = classify_mac_lookup,
 		.update = update_arg1,
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
