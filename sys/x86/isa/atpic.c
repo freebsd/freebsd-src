@@ -100,7 +100,6 @@ inthand_t
 			.pic_eoi_source = (eoi),			\
 			.pic_enable_intr = atpic_enable_intr,		\
 			.pic_disable_intr = atpic_disable_intr,		\
-			.pic_vector = atpic_vector,			\
 			.pic_source_pending = atpic_source_pending,	\
 			.pic_resume = atpic_resume,			\
 			.pic_config_intr = atpic_config_intr,		\
@@ -239,7 +238,7 @@ atpic_register_sources(struct pic *pic)
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		intr_register_source(&ai->at_intsrc);
+		intr_register_source(i, &ai->at_intsrc);
 	}
 }
 
