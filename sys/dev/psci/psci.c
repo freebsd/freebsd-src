@@ -348,6 +348,10 @@ psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 	if (psci_init(dev, default_version))
 		return (ENXIO);
 
+#ifdef __aarch64__
+	smccc_init();
+#endif
+
 	psci_softc = sc;
 
 	return (0);
