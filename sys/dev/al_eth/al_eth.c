@@ -1884,7 +1884,7 @@ al_eth_hw_stop(struct al_eth_adapter *adapter)
 
 	/*
 	 * wait till pending rx packets written and UDMA becomes idle,
-	 * the MAC has ~10KB fifo, 10us should be enought time for the
+	 * the MAC has ~10KB fifo, 10us should be enough time for the
 	 * UDMA to write to the memory
 	 */
 	DELAY(10);
