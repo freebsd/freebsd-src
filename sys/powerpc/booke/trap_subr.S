@@ -108,7 +108,7 @@
  * 3. switches to kstack if needed
  *
  * 4. notes:
- *   - R31 can be used as scratch register until a new frame is layed on
+ *   - R31 can be used as scratch register until a new frame is laid on
  *     the stack with FRAME_SETUP
  *
  *   - potential TLB miss: NO. Saveareas are always acessible via TLB1 
