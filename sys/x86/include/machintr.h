@@ -30,6 +30,12 @@
 
 #ifdef _KERNEL
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 /*
  * Values used in determining the allocation of IRQ values among
  * different types of I/O interrupts.  These values are used as

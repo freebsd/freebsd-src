@@ -35,6 +35,12 @@
 
 #include <sys/systm.h>
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 enum intr_map_data_type {
