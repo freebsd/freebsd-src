@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
+#include <net/ethernet.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
 #include <net/route.h>
@@ -315,15 +316,17 @@ static int bdel(const void *key, void *base, size_t nmemb, size_t size,
  */
 #define KEY_LEN(v)	*((uint8_t *)&(v))
 /*
- * Do not require radix to compare more than actual IPv4/IPv6 address
+ * Do not require radix to compare more than actual IPv4/IPv6/MAC address
  */
 #define KEY_LEN_INET	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
 #define KEY_LEN_INET6	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
+#define KEY_LEN_MAC	(offsetof(struct sa_mac, mac_addr) + ETHER_ADDR_LEN)
 
 #define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
 #define OFF_LEN_INET6	(8 * offsetof(struct sa_in6, sin6_addr))
+#define OFF_LEN_MAC	(8 * offsetof(struct sa_mac, mac_addr))
 
-struct radix_addr_entry {
+struct addr_radix_entry {
 	struct radix_node	rn[2];
 	struct sockaddr_in	addr;
 	uint32_t		value;
@@ -337,18 +340,23 @@ struct sa_in6 {
 	struct in6_addr		sin6_addr;
 };
 
-struct radix_addr_xentry {
+struct addr_radix_xentry {
 	struct radix_node	rn[2];
 	struct sa_in6		addr6;
 	uint32_t		value;
 	uint8_t			masklen;
 };
 
-struct radix_cfg {
+struct addr_radix_cfg {
 	struct radix_node_head	*head4;
 	struct radix_node_head	*head6;
 	size_t			count4;
 	size_t			count6;
+};
+
+struct sa_mac {
+	uint8_t			mac_len;
+	struct ether_addr	mac_addr;
 };
 
 struct ta_buf_radix
@@ -365,32 +373,36 @@ struct ta_buf_radix
 			struct sa_in6 sa;
 			struct sa_in6 ma;
 		} a6;
+		struct {
+			struct sa_mac sa;
+			struct sa_mac ma;
+		} mac;
 	} addr;
 };
 
-static int ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
+static int ta_lookup_addr_radix(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val);
-static int ta_init_radix(struct ip_fw_chain *ch, void **ta_state,
+static int ta_init_addr_radix(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static int flush_radix_entry(struct radix_node *rn, void *arg);
-static void ta_destroy_radix(void *ta_state, struct table_info *ti);
-static void ta_dump_radix_tinfo(void *ta_state, struct table_info *ti,
+static void ta_destroy_addr_radix(void *ta_state, struct table_info *ti);
+static void ta_dump_addr_radix_tinfo(void *ta_state, struct table_info *ti,
     ipfw_ta_tinfo *tinfo);
-static int ta_dump_radix_tentry(void *ta_state, struct table_info *ti,
+static int ta_dump_addr_radix_tentry(void *ta_state, struct table_info *ti,
     void *e, ipfw_obj_tentry *tent);
-static int ta_find_radix_tentry(void *ta_state, struct table_info *ti,
+static int ta_find_addr_radix_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
-static void ta_foreach_radix(void *ta_state, struct table_info *ti,
+static void ta_foreach_addr_radix(void *ta_state, struct table_info *ti,
     ta_foreach_f *f, void *arg);
-static void tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
+static void tei_to_sockaddr_ent_addr(struct tentry_info *tei, struct sockaddr *sa,
     struct sockaddr *ma, int *set_mask);
-static int ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
+static int ta_prepare_add_addr_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
-static int ta_add_radix(void *ta_state, struct table_info *ti,
+static int ta_add_addr_radix(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static int ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
+static int ta_prepare_del_addr_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
-static int ta_del_radix(void *ta_state, struct table_info *ti,
+static int ta_del_addr_radix(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
 static void ta_flush_radix_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
@@ -398,29 +410,29 @@ static int ta_need_modify_radix(void *ta_state, struct table_info *ti,
     uint32_t count, uint64_t *pflags);
 
 static int
-ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
+ta_lookup_addr_radix(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val)
 {
 	struct radix_node_head *rnh;
 
 	if (keylen == sizeof(in_addr_t)) {
-		struct radix_addr_entry *ent;
+		struct addr_radix_entry *ent;
 		struct sockaddr_in sa;
 		KEY_LEN(sa) = KEY_LEN_INET;
 		sa.sin_addr.s_addr = *((in_addr_t *)key);
 		rnh = (struct radix_node_head *)ti->state;
-		ent = (struct radix_addr_entry *)(rnh->rnh_matchaddr(&sa, &rnh->rh));
+		ent = (struct addr_radix_entry *)(rnh->rnh_matchaddr(&sa, &rnh->rh));
 		if (ent != NULL) {
 			*val = ent->value;
 			return (1);
 		}
-	} else {
-		struct radix_addr_xentry *xent;
+	} else if (keylen == sizeof(struct in6_addr)) {
+		struct addr_radix_xentry *xent;
 		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
-		xent = (struct radix_addr_xentry *)(rnh->rnh_matchaddr(&sa6, &rnh->rh));
+		xent = (struct addr_radix_xentry *)(rnh->rnh_matchaddr(&sa6, &rnh->rh));
 		if (xent != NULL) {
 			*val = xent->value;
 			return (1);
@@ -434,10 +446,10 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
  * New table
  */
 static int
-ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+ta_init_addr_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
     char *data, uint8_t tflags)
 {
-	struct radix_cfg *cfg;
+	struct addr_radix_cfg *cfg;
 
 	if (!rn_inithead(&ti->state, OFF_LEN_INET))
 		return (ENOMEM);
@@ -446,10 +458,10 @@ ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 		return (ENOMEM);
 	}
 
-	cfg = malloc(sizeof(struct radix_cfg), M_IPFW, M_WAITOK | M_ZERO);
+	cfg = malloc(sizeof(struct addr_radix_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
 	*ta_state = cfg;
-	ti->lookup = ta_lookup_radix;
+	ti->lookup = ta_lookup_addr_radix;
 
 	return (0);
 }
@@ -458,9 +470,9 @@ static int
 flush_radix_entry(struct radix_node *rn, void *arg)
 {
 	struct radix_node_head * const rnh = arg;
-	struct radix_addr_entry *ent;
+	struct addr_radix_entry *ent;
 
-	ent = (struct radix_addr_entry *)
+	ent = (struct addr_radix_entry *)
 	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, &rnh->rh);
 	if (ent != NULL)
 		free(ent, M_IPFW_TBL);
@@ -468,12 +480,12 @@ flush_radix_entry(struct radix_node *rn, void *arg)
 }
 
 static void
-ta_destroy_radix(void *ta_state, struct table_info *ti)
+ta_destroy_addr_radix(void *ta_state, struct table_info *ti)
 {
-	struct radix_cfg *cfg;
+	struct addr_radix_cfg *cfg;
 	struct radix_node_head *rnh;
 
-	cfg = (struct radix_cfg *)ta_state;
+	cfg = (struct addr_radix_cfg *)ta_state;
 
 	rnh = (struct radix_node_head *)(ti->state);
 	rnh->rnh_walktree(&rnh->rh, flush_radix_entry, rnh);
@@ -490,31 +502,31 @@ ta_destroy_radix(void *ta_state, struct table_info *ti)
  * Provide algo-specific table info
  */
 static void
-ta_dump_radix_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+ta_dump_addr_radix_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 {
-	struct radix_cfg *cfg;
+	struct addr_radix_cfg *cfg;
 
-	cfg = (struct radix_cfg *)ta_state;
+	cfg = (struct addr_radix_cfg *)ta_state;
 
 	tinfo->flags = IPFW_TATFLAGS_AFDATA | IPFW_TATFLAGS_AFITEM;
 	tinfo->taclass4 = IPFW_TACLASS_RADIX;
 	tinfo->count4 = cfg->count4;
-	tinfo->itemsize4 = sizeof(struct radix_addr_entry);
+	tinfo->itemsize4 = sizeof(struct addr_radix_entry);
 	tinfo->taclass6 = IPFW_TACLASS_RADIX;
 	tinfo->count6 = cfg->count6;
-	tinfo->itemsize6 = sizeof(struct radix_addr_xentry);
+	tinfo->itemsize6 = sizeof(struct addr_radix_xentry);
 }
 
 static int
-ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
+ta_dump_addr_radix_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct radix_addr_entry *n;
+	struct addr_radix_entry *n;
 #ifdef INET6
-	struct radix_addr_xentry *xn;
+	struct addr_radix_xentry *xn;
 #endif
 
-	n = (struct radix_addr_entry *)e;
+	n = (struct addr_radix_entry *)e;
 
 	/* Guess IPv4/IPv6 radix by sockaddr family */
 	if (n->addr.sin_family == AF_INET) {
@@ -524,7 +536,7 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->v.kidx = n->value;
 #ifdef INET6
 	} else {
-		xn = (struct radix_addr_xentry *)e;
+		xn = (struct addr_radix_xentry *)e;
 		memcpy(&tent->k.addr6, &xn->addr6.sin6_addr,
 		    sizeof(struct in6_addr));
 		tent->masklen = xn->masklen;
@@ -537,7 +549,7 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_radix_tentry(void *ta_state, struct table_info *ti,
+ta_find_addr_radix_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent)
 {
 	struct radix_node_head *rnh;
@@ -550,7 +562,7 @@ ta_find_radix_tentry(void *ta_state, struct table_info *ti,
 		sa.sin_addr.s_addr = tent->k.addr.s_addr;
 		rnh = (struct radix_node_head *)ti->state;
 		e = rnh->rnh_matchaddr(&sa, &rnh->rh);
-	} else {
+	} else if (tent->subtype == AF_INET6) {
 		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, &tent->k.addr6, sizeof(struct in6_addr));
@@ -559,7 +571,7 @@ ta_find_radix_tentry(void *ta_state, struct table_info *ti,
 	}
 
 	if (e != NULL) {
-		ta_dump_radix_tentry(ta_state, ti, e, tent);
+		ta_dump_addr_radix_tentry(ta_state, ti, e, tent);
 		return (0);
 	}
 
@@ -567,7 +579,7 @@ ta_find_radix_tentry(void *ta_state, struct table_info *ti,
 }
 
 static void
-ta_foreach_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+ta_foreach_addr_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
     void *arg)
 {
 	struct radix_node_head *rnh;
@@ -595,7 +607,7 @@ ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 #endif
 
 static void
-tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
+tei_to_sockaddr_ent_addr(struct tentry_info *tei, struct sockaddr *sa,
     struct sockaddr *ma, int *set_mask)
 {
 	int mlen;
@@ -647,13 +659,13 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 }
 
 static int
-ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
+ta_prepare_add_addr_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 	struct ta_buf_radix *tb;
-	struct radix_addr_entry *ent;
+	struct addr_radix_entry *ent;
 #ifdef INET6
-	struct radix_addr_xentry *xent;
+	struct addr_radix_xentry *xent;
 #endif
 	struct sockaddr *addr, *mask;
 	int mlen, set_mask;
@@ -691,7 +703,7 @@ ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 		return (EINVAL);
 	}
 
-	tei_to_sockaddr_ent(tei, addr, mask, &set_mask);
+	tei_to_sockaddr_ent_addr(tei, addr, mask, &set_mask);
 	/* Set pointers */
 	tb->addr_ptr = addr;
 	if (set_mask != 0)
@@ -701,25 +713,25 @@ ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+ta_add_addr_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
-	struct radix_cfg *cfg;
+	struct addr_radix_cfg *cfg;
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_radix *tb;
 	uint32_t *old_value, value;
 
-	cfg = (struct radix_cfg *)ta_state;
+	cfg = (struct addr_radix_cfg *)ta_state;
 	tb = (struct ta_buf_radix *)ta_buf;
 
 	/* Save current entry value from @tei */
 	if (tei->subtype == AF_INET) {
 		rnh = ti->state;
-		((struct radix_addr_entry *)tb->ent_ptr)->value = tei->value;
+		((struct addr_radix_entry *)tb->ent_ptr)->value = tei->value;
 	} else {
 		rnh = ti->xstate;
-		((struct radix_addr_xentry *)tb->ent_ptr)->value = tei->value;
+		((struct addr_radix_xentry *)tb->ent_ptr)->value = tei->value;
 	}
 
 	/* Search for an entry first */
@@ -729,9 +741,9 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 			return (EEXIST);
 		/* Record already exists. Update value if we're asked to */
 		if (tei->subtype == AF_INET)
-			old_value = &((struct radix_addr_entry *)rn)->value;
+			old_value = &((struct addr_radix_entry *)rn)->value;
 		else
-			old_value = &((struct radix_addr_xentry *)rn)->value;
+			old_value = &((struct addr_radix_xentry *)rn)->value;
 
 		value = *old_value;
 		*old_value = tei->value;
@@ -764,7 +776,7 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static int
-ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
+ta_prepare_del_addr_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 	struct ta_buf_radix *tb;
@@ -793,7 +805,7 @@ ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 	} else
 		return (EINVAL);
 
-	tei_to_sockaddr_ent(tei, addr, mask, &set_mask);
+	tei_to_sockaddr_ent_addr(tei, addr, mask, &set_mask);
 	tb->addr_ptr = addr;
 	if (set_mask != 0)
 		tb->mask_ptr = mask;
@@ -802,15 +814,15 @@ ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+ta_del_addr_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
-	struct radix_cfg *cfg;
+	struct addr_radix_cfg *cfg;
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_radix *tb;
 
-	cfg = (struct radix_cfg *)ta_state;
+	cfg = (struct addr_radix_cfg *)ta_state;
 	tb = (struct ta_buf_radix *)ta_buf;
 
 	if (tei->subtype == AF_INET)
@@ -825,9 +837,9 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	/* Save entry value to @tei */
 	if (tei->subtype == AF_INET)
-		tei->value = ((struct radix_addr_entry *)rn)->value;
+		tei->value = ((struct addr_radix_entry *)rn)->value;
 	else
-		tei->value = ((struct radix_addr_xentry *)rn)->value;
+		tei->value = ((struct addr_radix_xentry *)rn)->value;
 
 	tb->ent_ptr = rn;
 
@@ -871,17 +883,17 @@ struct table_algo addr_radix = {
 	.type		= IPFW_TABLE_ADDR,
 	.flags		= TA_FLAG_DEFAULT,
 	.ta_buf_size	= sizeof(struct ta_buf_radix),
-	.init		= ta_init_radix,
-	.destroy	= ta_destroy_radix,
-	.prepare_add	= ta_prepare_add_radix,
-	.prepare_del	= ta_prepare_del_radix,
-	.add		= ta_add_radix,
-	.del		= ta_del_radix,
+	.init		= ta_init_addr_radix,
+	.destroy	= ta_destroy_addr_radix,
+	.prepare_add	= ta_prepare_add_addr_radix,
+	.prepare_del	= ta_prepare_del_addr_radix,
+	.add		= ta_add_addr_radix,
+	.del		= ta_del_addr_radix,
 	.flush_entry	= ta_flush_radix_entry,
-	.foreach	= ta_foreach_radix,
-	.dump_tentry	= ta_dump_radix_tentry,
-	.find_tentry	= ta_find_radix_tentry,
-	.dump_tinfo	= ta_dump_radix_tinfo,
+	.foreach	= ta_foreach_addr_radix,
+	.dump_tentry	= ta_dump_addr_radix_tentry,
+	.find_tentry	= ta_find_addr_radix_tentry,
+	.dump_tinfo	= ta_dump_addr_radix_tinfo,
 	.need_modify	= ta_need_modify_radix,
 };
 
@@ -4006,6 +4018,328 @@ struct table_algo addr_kfib = {
 	.print_config	= ta_print_kfib_config,
 };
 
+struct mac_radix_entry {
+	struct radix_node	rn[2];
+	uint32_t		value;
+	uint8_t			masklen;
+	struct sa_mac		sa;
+};
+
+struct mac_radix_cfg {
+	struct radix_node_head	*head;
+	size_t			count;
+};
+
+static int
+ta_lookup_mac_radix(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct radix_node_head *rnh;
+
+	if (keylen == ETHER_ADDR_LEN) {
+		struct mac_radix_entry *ent;
+		struct sa_mac sa;
+		KEY_LEN(sa) = KEY_LEN_MAC;
+		memcpy(sa.mac_addr.octet, key, ETHER_ADDR_LEN);
+		rnh = (struct radix_node_head *)ti->state;
+		ent = (struct mac_radix_entry *)(rnh->rnh_matchaddr(&sa, &rnh->rh));
+		if (ent != NULL) {
+			*val = ent->value;
+			return (1);
+		}
+	}
+	return (0);
+}
+
+static int
+ta_init_mac_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data, uint8_t tflags)
+{
+	struct mac_radix_cfg *cfg;
+
+	if (!rn_inithead(&ti->state, OFF_LEN_MAC))
+		return (ENOMEM);
+
+	cfg = malloc(sizeof(struct mac_radix_cfg), M_IPFW, M_WAITOK | M_ZERO);
+
+	*ta_state = cfg;
+	ti->lookup = ta_lookup_mac_radix;
+
+	return (0);
+}
+
+static void
+ta_destroy_mac_radix(void *ta_state, struct table_info *ti)
+{
+	struct mac_radix_cfg *cfg;
+	struct radix_node_head *rnh;
+
+	cfg = (struct mac_radix_cfg *)ta_state;
+
+	rnh = (struct radix_node_head *)(ti->state);
+	rnh->rnh_walktree(&rnh->rh, flush_radix_entry, rnh);
+	rn_detachhead(&ti->state);
+
+	free(cfg, M_IPFW);
+}
+
+static void
+tei_to_sockaddr_ent_mac(struct tentry_info *tei, struct sockaddr *sa,
+    struct sockaddr *ma, int *set_mask)
+{
+	int mlen, i;
+	struct sa_mac *addr, *mask;
+	u_char *cp;
+
+	mlen = tei->masklen;
+	addr = (struct sa_mac *)sa;
+	mask = (struct sa_mac *)ma;
+	/* Set 'total' structure length */
+	KEY_LEN(*addr) = KEY_LEN_MAC;
+	KEY_LEN(*mask) = KEY_LEN_MAC;
+
+	for (i = mlen, cp = mask->mac_addr.octet; i >= 8; i -= 8)
+		*cp++ = 0xFF;
+	if (i > 0)
+		*cp = ~((1 << (8 - i)) - 1);
+
+	addr->mac_addr = *((struct ether_addr *)tei->paddr);
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		addr->mac_addr.octet[i] &= mask->mac_addr.octet[i];
+
+	if (mlen != 8 * ETHER_ADDR_LEN)
+		*set_mask = 1;
+	else
+		*set_mask = 0;
+}
+
+static int
+ta_prepare_add_mac_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_radix *tb;
+	struct mac_radix_entry *ent;
+	struct sockaddr *addr, *mask;
+	int mlen, set_mask;
+
+	tb = (struct ta_buf_radix *)ta_buf;
+
+	mlen = tei->masklen;
+	set_mask = 0;
+
+	if (tei->subtype == AF_LINK) {
+		if (mlen > 8 * ETHER_ADDR_LEN)
+			return (EINVAL);
+		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
+		ent->masklen = mlen;
+
+		addr = (struct sockaddr *)&ent->sa;
+		mask = (struct sockaddr *)&tb->addr.mac.ma;
+		tb->ent_ptr = ent;
+	} else {
+		/* Unknown CIDR type */
+		return (EINVAL);
+	}
+
+	tei_to_sockaddr_ent_mac(tei, addr, mask, &set_mask);
+	/* Set pointers */
+	tb->addr_ptr = addr;
+	if (set_mask != 0)
+		tb->mask_ptr = mask;
+
+	return (0);
+}
+
+static int
+ta_add_mac_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint32_t *pnum)
+{
+	struct mac_radix_cfg *cfg;
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct ta_buf_radix *tb;
+	uint32_t *old_value, value;
+
+	cfg = (struct mac_radix_cfg *)ta_state;
+	tb = (struct ta_buf_radix *)ta_buf;
+
+	/* Save current entry value from @tei */
+	rnh = ti->state;
+	((struct mac_radix_entry *)tb->ent_ptr)->value = tei->value;
+
+	/* Search for an entry first */
+	rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, &rnh->rh);
+	if (rn != NULL) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+		/* Record already exists. Update value if we're asked to */
+		old_value = &((struct mac_radix_entry *)rn)->value;
+
+		value = *old_value;
+		*old_value = tei->value;
+		tei->value = value;
+
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+		*pnum = 0;
+
+		return (0);
+	}
+
+	if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
+		return (EFBIG);
+
+	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, &rnh->rh, tb->ent_ptr);
+	if (rn == NULL) {
+		/* Unknown error */
+		return (EINVAL);
+	}
+
+	cfg->count++;
+	tb->ent_ptr = NULL;
+	*pnum = 1;
+
+	return (0);
+}
+
+static int
+ta_prepare_del_mac_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_radix *tb;
+	struct sockaddr *addr, *mask;
+	int mlen, set_mask;
+
+	tb = (struct ta_buf_radix *)ta_buf;
+
+	mlen = tei->masklen;
+	set_mask = 0;
+
+	if (tei->subtype == AF_LINK) {
+		if (mlen > 8 * ETHER_ADDR_LEN)
+			return (EINVAL);
+
+		addr = (struct sockaddr *)&tb->addr.mac.sa;
+		mask = (struct sockaddr *)&tb->addr.mac.ma;
+	} else
+		return (EINVAL);
+
+	tei_to_sockaddr_ent_mac(tei, addr, mask, &set_mask);
+	tb->addr_ptr = addr;
+	if (set_mask != 0)
+		tb->mask_ptr = mask;
+
+	return (0);
+}
+
+static int
+ta_del_mac_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint32_t *pnum)
+{
+	struct mac_radix_cfg *cfg;
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct ta_buf_radix *tb;
+
+	cfg = (struct mac_radix_cfg *)ta_state;
+	tb = (struct ta_buf_radix *)ta_buf;
+	rnh = ti->state;
+
+	rn = rnh->rnh_deladdr(tb->addr_ptr, tb->mask_ptr, &rnh->rh);
+
+	if (rn == NULL)
+		return (ENOENT);
+
+	/* Save entry value to @tei */
+	tei->value = ((struct mac_radix_entry *)rn)->value;
+
+	tb->ent_ptr = rn;
+	cfg->count--;
+	*pnum = 1;
+
+	return (0);
+}
+
+static void
+ta_foreach_mac_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+    void *arg)
+{
+	struct radix_node_head *rnh;
+
+	rnh = (struct radix_node_head *)(ti->state);
+	rnh->rnh_walktree(&rnh->rh, (walktree_f_t *)f, arg);
+}
+
+static void
+ta_dump_mac_radix_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+	struct mac_radix_cfg *cfg;
+
+	cfg = (struct mac_radix_cfg *)ta_state;
+
+	tinfo->flags = IPFW_TATFLAGS_AFDATA | IPFW_TATFLAGS_AFITEM;
+	tinfo->taclass4 = IPFW_TACLASS_RADIX;
+	tinfo->count4 = cfg->count;
+	tinfo->itemsize4 = sizeof(struct mac_radix_entry);
+}
+
+static int
+ta_dump_mac_radix_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
+{
+	struct mac_radix_entry *n = (struct mac_radix_entry *)e;
+
+	memcpy(tent->k.mac, n->sa.mac_addr.octet, ETHER_ADDR_LEN);
+	tent->masklen = n->masklen;
+	tent->subtype = AF_LINK;
+	tent->v.kidx = n->value;
+
+	return (0);
+}
+
+static int
+ta_find_mac_radix_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
+{
+	struct radix_node_head *rnh;
+	void *e;
+
+	e = NULL;
+	if (tent->subtype == AF_LINK) {
+		struct sa_mac sa;
+		KEY_LEN(sa) = KEY_LEN_MAC;
+		memcpy(tent->k.mac, sa.mac_addr.octet, ETHER_ADDR_LEN);
+		rnh = (struct radix_node_head *)ti->state;
+		e = rnh->rnh_matchaddr(&sa, &rnh->rh);
+	}
+
+	if (e != NULL) {
+		ta_dump_mac_radix_tentry(ta_state, ti, e, tent);
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+struct table_algo mac_radix = {
+	.name		= "mac:radix",
+	.type		= IPFW_TABLE_MAC,
+	.flags		= TA_FLAG_DEFAULT,
+	.ta_buf_size	= sizeof(struct ta_buf_radix),
+	.init		= ta_init_mac_radix,
+	.destroy	= ta_destroy_mac_radix,
+	.prepare_add	= ta_prepare_add_mac_radix,
+	.prepare_del	= ta_prepare_del_mac_radix,
+	.add		= ta_add_mac_radix,
+	.del		= ta_del_mac_radix,
+	.flush_entry	= ta_flush_radix_entry,
+	.foreach	= ta_foreach_mac_radix,
+	.dump_tentry	= ta_dump_mac_radix_tentry,
+	.find_tentry	= ta_find_mac_radix_tentry,
+	.dump_tinfo	= ta_dump_mac_radix_tinfo,
+	.need_modify	= ta_need_modify_radix,
+};
+
 void
 ipfw_table_algo_init(struct ip_fw_chain *ch)
 {
@@ -4021,6 +4355,7 @@ ipfw_table_algo_init(struct ip_fw_chain *ch)
 	ipfw_add_table_algo(ch, &number_array, sz, &number_array.idx);
 	ipfw_add_table_algo(ch, &flow_hash, sz, &flow_hash.idx);
 	ipfw_add_table_algo(ch, &addr_kfib, sz, &addr_kfib.idx);
+	ipfw_add_table_algo(ch, &mac_radix, sz, &mac_radix.idx);
 }
 
 void
@@ -4033,4 +4368,5 @@ ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 	ipfw_del_table_algo(ch, number_array.idx);
 	ipfw_del_table_algo(ch, flow_hash.idx);
 	ipfw_del_table_algo(ch, addr_kfib.idx);
+	ipfw_del_table_algo(ch, mac_radix.idx);
 }

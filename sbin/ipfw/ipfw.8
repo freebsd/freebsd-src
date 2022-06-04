@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2021
+.Dd June 4, 2022
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1610,6 +1610,20 @@ Matches IPv6 packets containing any of the flow labels given in
 .Ar labels .
 .Ar labels
 is a comma separated list of numeric flow labels.
+.It Cm dst-mac Ar table Ns Pq Ar name Ns Op , Ns Ar value
+Search for the destination MAC address entry in lookup table
+.Ar name .
+If not found, the match fails.
+Otherwise, the match succeeds and
+.Cm tablearg
+is set to the value extracted from the table.
+.It Cm src-mac Ar table Ns Pq Ar name Ns Op , Ns Ar value
+Search for the source MAC address entry in lookup table
+.Ar name .
+If not found, the match fails.
+Otherwise, the match succeeds and
+.Cm tablearg
+is set to the value extracted from the table.
 .It Cm frag Ar spec
 Matches IPv4 packets whose
 .Cm ip_off
@@ -1823,7 +1837,7 @@ set of parameters as specified in the rule.
 One or more
 of source and destination addresses and ports can be
 specified.
-.It Cm lookup Bro Cm dst-ip | dst-port | src-ip | src-port | uid | jail Brc Ar name
+.It Cm lookup Bro Cm dst-ip | dst-port | dst-mac | src-ip | src-port | src-mac | uid | jail Brc Ar name
 Search an entry in lookup table
 .Ar name
 that matches the field specified as argument.
@@ -2133,7 +2147,7 @@ There may be up to 65535 different lookup tables.
 .Pp
 The following table types are supported:
 .Bl -tag -width indent
-.It Ar table-type : Ar addr | iface | number | flow
+.It Ar table-type : Ar addr | iface | number | flow | mac
 .It Ar table-key : Ar addr Ns Oo / Ns Ar masklen Oc | iface-name | number | flow-spec
 .It Ar flow-spec : Ar flow-field Ns Op , Ns Ar flow-spec
 .It Ar flow-field : src-ip | proto | src-port | dst-ip | dst-port
@@ -2163,6 +2177,20 @@ Ranges are not supported.
 Matches packet fields specified by
 .Ar flow
 type suboptions with table entries.
+.It Cm mac
+Matches MAC address.
+Each entry is represented by an
+.Ar addr Ns Op / Ns Ar masklen
+and will match all addresses with base
+.Ar addr
+and mask width of
+.Ar masklen
+bits.
+If
+.Ar masklen
+is not specified, it defaults to 48.
+When looking up an MAC address in a table, the most specific
+entry will match.
 .El
 .Pp
 Tables require explicit creation via
@@ -2266,7 +2294,7 @@ Shows generic table information and algo-specific data.
 The following lookup algorithms are supported:
 .Bl -tag -width indent
 .It Ar algo-desc : algo-name | "algo-name algo-data"
-.It Ar algo-name : Ar addr: radix | addr: hash | iface: array | number: array | flow: hash
+.It Ar algo-name : Ar addr: radix | addr: hash | iface: array | number: array | flow: hash | mac: radix
 .It Cm addr: radix
 Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
 .Xr route 4 ) .
@@ -2291,6 +2319,8 @@ Array storing sorted u32 numbers.
 Auto-growing hash storing flow entries.
 Search calculates hash on required packet fields and searches for matching
 entries in selected bucket.
+.It Cm mac: radix
+Radix tree for MAC address
 .El
 .Pp
 The

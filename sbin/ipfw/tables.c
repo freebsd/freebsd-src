@@ -31,6 +31,7 @@
 #include <string.h>
 #include <sysexits.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
@@ -77,6 +78,7 @@ static int tables_foreach(table_cb_t *f, void *arg, int sort);
 
 static struct _s_x tabletypes[] = {
       { "addr",		IPFW_TABLE_ADDR },
+      { "mac",		IPFW_TABLE_MAC },
       { "iface",	IPFW_TABLE_INTERFACE },
       { "number",	IPFW_TABLE_NUMBER },
       { "flow",		IPFW_TABLE_FLOW },
@@ -1188,6 +1190,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 	char *p, *pp;
 	int mask, af;
 	struct in6_addr *paddr, tmp;
+	struct ether_addr *mac;
 	struct tflow_entry *tfe;
 	uint32_t key, *pkey;
 	uint16_t port;
@@ -1233,6 +1236,24 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			type = IPFW_TABLE_ADDR;
 			af = AF_INET;
 		}
+		break;
+	case IPFW_TABLE_MAC:
+		/* Remove / if exists */
+		if ((p = strchr(arg, '/')) != NULL) {
+			*p = '\0';
+			mask = atoi(p + 1);
+		}
+
+		if (p != NULL && mask > 8 * ETHER_ADDR_LEN)
+			errx(EX_DATAERR, "bad MAC mask width: %s",
+			    p + 1);
+
+		if ((mac = ether_aton(arg)) == NULL)
+			errx(EX_DATAERR, "Incorrect MAC address");
+
+		memcpy(tentry->k.mac, mac->octet, ETHER_ADDR_LEN);
+		masklen = p ? mask : 8 * ETHER_ADDR_LEN;
+		af = AF_LINK;
 		break;
 	case IPFW_TABLE_INTERFACE:
 		/* Assume interface name. Copy significant data only */
@@ -1872,6 +1893,7 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 {
 	char tbuf[128], pval[128];
 	const char *comma;
+	const u_char *mac;
 	void *paddr;
 	struct tflow_entry *tfe;
 
@@ -1883,6 +1905,13 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 		/* IPv4 or IPv6 prefixes */
 		inet_ntop(tent->subtype, &tent->k, tbuf, sizeof(tbuf));
 		printf("%s/%u %s\n", tbuf, tent->masklen, pval);
+		break;
+	case IPFW_TABLE_MAC:
+		/* MAC prefixes */
+		mac = tent->k.mac;
+		printf("%02x:%02x:%02x:%02x:%02x:%02x/%u %s\n",
+		    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+		    tent->masklen, pval);
 		break;
 	case IPFW_TABLE_INTERFACE:
 		/* Interface names */

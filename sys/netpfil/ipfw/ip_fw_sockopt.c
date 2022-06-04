@@ -1909,6 +1909,8 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			ci->object_opcodes++;
 			break;
 		case O_IP_FLOW_LOOKUP:
+		case O_MAC_DST_LOOKUP:
+		case O_MAC_SRC_LOOKUP:
 			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",
 				    cmd->arg1);
