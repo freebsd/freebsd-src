@@ -969,6 +969,7 @@ static const struct iwl_dump_sanitize_ops iwl_mvm_sanitize_ops = {
 	.frob_mem = iwl_mvm_frob_mem,
 };
 
+#if IS_ENABLED(CONFIG_IWLMEI)
 static void iwl_mvm_me_conn_status(void *priv, const struct iwl_mei_conn_info *conn_info)
 {
 	struct iwl_mvm *mvm = priv;
@@ -1014,6 +1015,7 @@ static void iwl_mvm_mei_roaming_forbidden(void *priv, bool forbidden)
 
 	iwl_mvm_send_roaming_forbidden_event(mvm, mvm->csme_vif, forbidden);
 }
+#endif
 
 static void iwl_mvm_sap_connected_wk(struct work_struct *wk)
 {
@@ -1047,6 +1049,7 @@ out_free:
 	ieee80211_free_hw(mvm->hw);
 }
 
+#if IS_ENABLED(CONFIG_IWLMEI)
 static void iwl_mvm_mei_sap_connected(void *priv)
 {
 	struct iwl_mvm *mvm = priv;
@@ -1071,6 +1074,7 @@ static const struct iwl_mei_ops mei_ops = {
 	.sap_connected = iwl_mvm_mei_sap_connected,
 	.nic_stolen = iwl_mvm_mei_nic_stolen,
 };
+#endif
 
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
@@ -1336,7 +1340,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mvm->debugfs_dir = dbgfs_dir;
 
+#if IS_ENABLED(CONFIG_IWLMEI)
 	mvm->mei_registered = !iwl_mei_register(mvm, &mei_ops);
+#else
+	mvm->mei_registered = false;
+#endif
 
 	if (iwl_mvm_start_get_nvm(mvm)) {
 		/*
