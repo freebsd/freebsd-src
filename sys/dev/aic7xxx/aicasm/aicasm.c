@@ -175,7 +175,7 @@ main(int argc, char *argv[])
 			listfilename = optarg;
 			break;
 		case 'n':
-			/* Don't complain about the -nostdinc directrive */
+			/* Don't complain about the -nostdinc directive */
 			if (strcmp(optarg, "ostdinc")) {
 				fprintf(stderr, "%s: Unknown option -%c%s\n",
 					appname, ch, optarg);
@@ -257,7 +257,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "%s: No input file specifiled\n", appname);
+		fprintf(stderr, "%s: No input file specified\n", appname);
 		usage();
 		/* NOTREACHED */
 	}
@@ -284,9 +284,9 @@ main(int argc, char *argv[])
 		/* Process outmost scope */
 		process_scope(SLIST_FIRST(&scope_stack));
 		/*
-		 * Decend the tree of scopes and insert/emit
+		 * Descend the tree of scopes and insert/emit
 		 * patches as appropriate.  We perform a depth first
-		 * tranversal, recursively handling each scope.
+		 * transversal, recursively handling each scope.
 		 */
 		/* start at the root scope */
 		dump_scope(SLIST_FIRST(&scope_stack));
