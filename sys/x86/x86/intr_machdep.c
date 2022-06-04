@@ -216,12 +216,11 @@ SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
  * called.
  */
 int
-intr_register_source(struct intsrc *isrc)
+intr_register_source(unsigned int vector, struct intsrc *isrc)
 {
-	int error, vector;
+	int error;
 
 	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
-	vector = isrc->is_pic->pic_vector(isrc);
 	KASSERT(vector < num_io_irqs, ("IRQ %d too large (%u irqs)", vector,
 	    num_io_irqs));
 	if (interrupt_sources[vector] != NULL)
@@ -356,7 +355,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * XXX: We assume that IRQ 0 is only used for the ISA timer
 	 * device (clk).
 	 */
-	vector = isrc->is_pic->pic_vector(isrc);
+	vector = ie->ie_irq;
 	if (vector == 0)
 		clkintr_pending = 1;
 
@@ -465,7 +464,7 @@ intrcnt_register(struct intsrc *is)
 	is->is_index = intrcnt_index;
 	intrcnt_index += 2;
 	snprintf(straystr, sizeof(straystr), "stray irq%d",
-	    is->is_pic->pic_vector(is));
+	    is->is_event->ie_irq);
 	intrcnt_updatename(is);
 	is->is_count = &intrcnt[is->is_index];
 	intrcnt_setname(straystr, is->is_index + 1);

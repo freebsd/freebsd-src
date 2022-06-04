@@ -117,7 +117,6 @@ static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
 static void	ioapic_enable_intr(struct intsrc *isrc);
 static void	ioapic_disable_intr(struct intsrc *isrc);
-static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
@@ -134,7 +133,6 @@ struct pic ioapic_template = {
 	.pic_eoi_source = ioapic_eoi_source,
 	.pic_enable_intr = ioapic_enable_intr,
 	.pic_disable_intr = ioapic_disable_intr,
-	.pic_vector = ioapic_vector,
 	.pic_source_pending = ioapic_source_pending,
 	.pic_suspend = NULL,
 	.pic_resume = ioapic_resume,
@@ -529,15 +527,6 @@ ioapic_disable_intr(struct intsrc *isrc)
 }
 
 static int
-ioapic_vector(struct intsrc *isrc)
-{
-	struct ioapic_intsrc *pin;
-
-	pin = (struct ioapic_intsrc *)isrc;
-	return (pin->io_irq);
-}
-
-static int
 ioapic_source_pending(struct intsrc *isrc)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
@@ -929,7 +918,7 @@ ioapic_register_sources(struct pic *pic)
 	io = (struct ioapic *)pic;
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++) {
 		if (pin->io_irq >= 0)
-			intr_register_source(&pin->io_intsrc);
+			intr_register_source(pin->io_irq, &pin->io_intsrc);
 	}
 }
 

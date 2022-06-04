@@ -34,7 +34,6 @@
 
 typedef struct {
 	struct intsrc		intsrc;		/* @TOP -> *xen_arch_isrc */
-	u_int			vector;		/* Global isrc vector number */
 } xen_arch_isrc_t;
 
 #include <dev/xen/bus/intr-internal.h>

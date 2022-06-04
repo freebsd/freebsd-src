@@ -192,24 +192,6 @@ xen_intr_pic_disable_intr(struct intsrc *isrc)
 }
 
 /**
- * Determine the global interrupt vector number for
- * a Xen interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \return  The vector number corresponding to the given interrupt source.
- */
-static int
-xen_intr_pic_vector(struct intsrc *isrc)
-{
-
-	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
-	    "xi_arch MUST be at top of xenisrc for x86");
-
-	return (((struct xenisrc *)isrc)->xi_arch.vector);
-}
-
-/**
  * Determine whether or not interrupt events are pending on the
  * the given interrupt source.
  *
@@ -282,7 +264,6 @@ static struct pic xen_intr_pic = {
 	.pic_eoi_source     = xen_intr_pic_eoi_source,
 	.pic_enable_intr    = xen_intr_pic_enable_intr,
 	.pic_disable_intr   = xen_intr_pic_disable_intr,
-	.pic_vector         = xen_intr_pic_vector,
 	.pic_source_pending = xen_intr_pic_source_pending,
 	.pic_suspend        = xen_intr_pic_suspend,
 	.pic_resume         = xen_intr_pic_resume,
@@ -354,8 +335,7 @@ xen_arch_intr_alloc(void)
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
 	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
-	isrc->xi_arch.vector = vector;
-	error = intr_register_source(&isrc->xi_arch.intsrc);
+	error = intr_register_source(vector, &isrc->xi_arch.intsrc);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);

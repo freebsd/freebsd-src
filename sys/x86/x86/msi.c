@@ -131,7 +131,6 @@ static void	msi_disable_source(struct intsrc *isrc, int eoi);
 static void	msi_eoi_source(struct intsrc *isrc);
 static void	msi_enable_intr(struct intsrc *isrc);
 static void	msi_disable_intr(struct intsrc *isrc);
-static int	msi_vector(struct intsrc *isrc);
 static int	msi_source_pending(struct intsrc *isrc);
 static int	msi_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
@@ -143,7 +142,6 @@ struct pic msi_pic = {
 	.pic_eoi_source = msi_eoi_source,
 	.pic_enable_intr = msi_enable_intr,
 	.pic_disable_intr = msi_disable_intr,
-	.pic_vector = msi_vector,
 	.pic_source_pending = msi_source_pending,
 	.pic_suspend = NULL,
 	.pic_resume = NULL,
@@ -232,14 +230,6 @@ msi_disable_intr(struct intsrc *isrc)
 		for (u_int i = 0; i < msi->msi_count; i++)
 			apic_disable_vector(msi->msi_cpu, msi->msi_vector + i);
 	}
-}
-
-static int
-msi_vector(struct intsrc *isrc)
-{
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
-
-	return (msi->msi_irq);
 }
 
 static int
@@ -400,7 +390,7 @@ msi_create_source(void)
 	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
 	msi->msi_intsrc.is_pic = &msi_pic;
 	msi->msi_irq = irq;
-	intr_register_source(&msi->msi_intsrc);
+	intr_register_source(irq, &msi->msi_intsrc);
 	nexus_add_irq(irq);
 }
 
