@@ -37,6 +37,12 @@
 
 #include <machine/intr.h>
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #define INTR_ROOT_IRQ	0
