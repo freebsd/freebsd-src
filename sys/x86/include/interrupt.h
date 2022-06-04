@@ -30,6 +30,12 @@
 
 #ifdef _KERNEL
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #include <sys/_cpuset.h>
 #include <sys/_interrupt.h>
 #include <sys/types.h>
@@ -69,8 +75,6 @@ extern u_int num_msi_irqs;
 typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
-
-struct intsrc;
 
 /*
  * Methods that a PIC provides to mask/unmask a given interrupt source,
