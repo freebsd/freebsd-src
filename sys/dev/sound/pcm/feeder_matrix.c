@@ -308,7 +308,7 @@ feed_matrix_setup(struct feed_matrix_info *info, struct pcmchan_matrix *m_in,
 
 	/*
 	 * If both in and out are part of standard matrix and identical, skip
-	 * everything alltogether.
+	 * everything altogether.
 	 */
 	if (m_in->id == m_out->id && !(m_in->id < SND_CHN_MATRIX_BEGIN ||
 	    m_in->id > SND_CHN_MATRIX_END))
