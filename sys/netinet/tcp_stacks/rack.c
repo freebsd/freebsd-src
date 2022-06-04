@@ -4282,7 +4282,7 @@ rack_do_goodput_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 		addpart = rack->r_ctl.num_measurements;
 		rack->r_ctl.num_measurements++;
 		if (rack->r_ctl.num_measurements >= RACK_REQ_AVG) {
-			/* We have collected enought to move forward */
+			/* We have collected enough to move forward */
 			rack->r_ctl.gp_bw /= (uint64_t)rack->r_ctl.num_measurements;
 		}
 		did_add = 3;
