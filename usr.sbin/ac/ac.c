@@ -68,7 +68,7 @@ struct user_entry {
 };
 
 /*
- * this is for chosing whether to ignore a login
+ * this is for choosing whether to ignore a login
  */
 struct tty_entry {
 	SLIST_ENTRY(tty_entry) next;
