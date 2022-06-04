@@ -106,27 +106,30 @@ pci_host_generic_core_attach(device_t dev)
 	if (error != 0)
 		return (error);
 
-	rid = 0;
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    PCI_RF_FLAGS | RF_ACTIVE);
-	if (sc->res == NULL) {
-		device_printf(dev, "could not allocate memory.\n");
-		error = ENXIO;
-		goto err_resource;
-	}
+	if ((sc->quirks & PCIE_CUSTOM_CONFIG_SPACE_QUIRK) == 0) {
+		rid = 0;
+		sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+		    PCI_RF_FLAGS | RF_ACTIVE);
+		if (sc->res == NULL) {
+			device_printf(dev, "could not allocate memory.\n");
+			error = ENXIO;
+			goto err_resource;
+		}
 #ifdef PCI_UNMAPPED
-	resource_init_map_request(&req);
-	req.memattr = VM_MEMATTR_DEVICE_NP;
-	error = bus_map_resource(dev, SYS_RES_MEMORY, sc->res, &req, &map);
-	if (error != 0) {
-		device_printf(dev, "could not map memory.\n");
-		return (error);
-	}
-	rman_set_mapping(sc->res, &map);
+		resource_init_map_request(&req);
+		req.memattr = VM_MEMATTR_DEVICE_NP;
+		error = bus_map_resource(dev, SYS_RES_MEMORY, sc->res, &req,
+		    &map);
+		if (error != 0) {
+			device_printf(dev, "could not map memory.\n");
+			return (error);
+		}
+		rman_set_mapping(sc->res, &map);
 #endif
 
-	sc->bst = rman_get_bustag(sc->res);
-	sc->bsh = rman_get_bushandle(sc->res);
+		sc->bst = rman_get_bustag(sc->res);
+		sc->bsh = rman_get_bushandle(sc->res);
+	}
 
 	sc->has_pmem = false;
 	sc->pmem_rman.rm_type = RMAN_ARRAY;
@@ -196,7 +199,8 @@ err_io_rman:
 err_mem_rman:
 	rman_fini(&sc->pmem_rman);
 err_pmem_rman:
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
+	if (sc->res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
 err_resource:
 	bus_dma_tag_destroy(sc->dmat);
 	return (error);
@@ -217,7 +221,8 @@ pci_host_generic_core_detach(device_t dev)
 	rman_fini(&sc->io_rman);
 	rman_fini(&sc->mem_rman);
 	rman_fini(&sc->pmem_rman);
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
+	if (sc->res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->res);
 	bus_dma_tag_destroy(sc->dmat);
 
 	return (0);
