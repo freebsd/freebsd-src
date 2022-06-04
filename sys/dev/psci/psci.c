@@ -344,6 +344,8 @@ psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 	if (psci_init(dev, default_version))
 		return (ENXIO);
 
+	smccc_init();
+
 	psci_softc = sc;
 
 	return (0);
