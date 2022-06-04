@@ -968,7 +968,7 @@ __FBSDID("$FreeBSD$");
 #define sctp_sowwakeup(inp, so) \
 do { \
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) { \
-		inp->sctp_flags |= SCTP_PCB_FLAGS_WAKEOUTPUT; \
+		sctp_pcb_add_flags(inp, SCTP_PCB_FLAGS_WAKEOUTPUT); \
 	} else { \
 		sowwakeup(so); \
 	} \
@@ -977,8 +977,8 @@ do { \
 #define sctp_sowwakeup_locked(inp, so) \
 do { \
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) { \
+		sctp_pcb_add_flags(inp, SCTP_PCB_FLAGS_WAKEOUTPUT); \
 		SOCKBUF_UNLOCK(&((so)->so_snd)); \
-		inp->sctp_flags |= SCTP_PCB_FLAGS_WAKEOUTPUT; \
 	} else { \
 		sowwakeup_locked(so); \
 	} \
@@ -987,7 +987,7 @@ do { \
 #define sctp_sorwakeup(inp, so) \
 do { \
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) { \
-		inp->sctp_flags |= SCTP_PCB_FLAGS_WAKEINPUT; \
+		sctp_pcb_add_flags(inp, SCTP_PCB_FLAGS_WAKEINPUT); \
 	} else { \
 		sorwakeup(so); \
 	} \
@@ -996,7 +996,7 @@ do { \
 #define sctp_sorwakeup_locked(inp, so) \
 do { \
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) { \
-		inp->sctp_flags |= SCTP_PCB_FLAGS_WAKEINPUT; \
+		sctp_pcb_add_flags(inp, SCTP_PCB_FLAGS_WAKEINPUT); \
 		SOCKBUF_UNLOCK(&((so)->so_rcv)); \
 	} else { \
 		sorwakeup_locked(so); \
