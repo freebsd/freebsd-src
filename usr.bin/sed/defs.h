@@ -88,7 +88,7 @@ struct s_tr {
 
 /*
  * An internally compiled command.
- * Initialy, label references are stored in t, on a second pass they
+ * Initially, label references are stored in t, on a second pass they
  * are updated to pointers.
  */
 struct s_command {
