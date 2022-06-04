@@ -31,6 +31,12 @@
 #include <sys/_interrupt.h>
 #include <sys/types.h>
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct powerpc_intr interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #define	INTR_VECTORS	256
 
 #define	MAX_PICS		32

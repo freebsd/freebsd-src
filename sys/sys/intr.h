@@ -42,6 +42,12 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
