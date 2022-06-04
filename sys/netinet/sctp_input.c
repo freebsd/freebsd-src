@@ -1491,8 +1491,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 				 * init/init-ack/cookie done before the
 				 * init-ack came back..
 				 */
-				stcb->sctp_ep->sctp_flags |=
-				    SCTP_PCB_FLAGS_CONNECTED;
+				sctp_pcb_add_flags(stcb->sctp_ep, SCTP_PCB_FLAGS_CONNECTED);
 				soisconnected(stcb->sctp_socket);
 			}
 			/* notify upper layer */
@@ -1689,7 +1688,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 			    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 			    (!SCTP_IS_LISTENING(inp))) {
-				stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
+				sctp_pcb_add_flags(stcb->sctp_ep, SCTP_PCB_FLAGS_CONNECTED);
 				soisconnected(stcb->sctp_socket);
 			}
 			if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)
@@ -2182,7 +2181,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		 *
 		 * XXXMJ unlocked
 		 */
-		stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
+		sctp_pcb_add_flags(stcb->sctp_ep, SCTP_PCB_FLAGS_CONNECTED);
 		soisconnected(stcb->sctp_socket);
 	} else if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    (SCTP_IS_LISTENING(inp))) {
@@ -2793,7 +2792,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 		if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 		    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-			stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
+			sctp_pcb_add_flags(stcb->sctp_ep, SCTP_PCB_FLAGS_CONNECTED);
 			if ((stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) == 0) {
 				soisconnected(stcb->sctp_socket);
 			}
