@@ -251,10 +251,384 @@ bulk_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "pbr" "cleanup"
+pbr_head()
+{
+	atf_set descr 'route_to and reply_to directives test'
+	atf_set require.user root
+	atf_set timeout '600'
+}
+
+pbr_body()
+{
+	pbr_common_body
+}
+
+pbr_cleanup()
+{
+	pbr_common_cleanup
+}
+
+atf_test_case "pfsync_pbr" "cleanup"
+pfsync_pbr_head()
+{
+	atf_set descr 'route_to and reply_to directives pfsync test'
+	atf_set require.user root
+	atf_set timeout '600'
+}
+
+pfsync_pbr_body()
+{
+	pbr_common_body backup_promotion
+}
+
+pfsync_pbr_cleanup()
+{
+	pbr_common_cleanup
+}
+
+pbr_common_body()
+{
+	# + builds bellow topology and initiate a single ping session
+	#   from client to server.
+	# + gw* forward traffic through pbr not fib lookups.
+	# + if backup_promotion arg is given, a carp failover event occurs
+	#   during the ping session on both gateways.
+	#                   ┌──────┐
+	#                   │client│
+	#                   └───┬──┘
+	#                       │
+	#                   ┌───┴───┐
+	#                   │bridge0│
+	#                   └┬─────┬┘
+	#                    │     │
+	#   ┌────────────────┴─┐ ┌─┴────────────────┐
+	#   │gw_route_to_master├─┤gw_route_to_backup│
+	#   └────────────────┬─┘ └─┬────────────────┘
+	#                    │     │
+	#                   ┌┴─────┴┐
+	#                   │bridge1│
+	#                   └┬─────┬┘
+	#                    │     │
+	#   ┌────────────────┴─┐ ┌─┴────────────────┐
+	#   │gw_reply_to_master├─┤gw_reply_to_backup│
+	#   └────────────────┬─┘ └─┬────────────────┘
+	#                    │     │
+	#                   ┌┴─────┴┐
+	#                   │bridge2│
+	#                   └───┬───┘
+	#                       │
+	#                   ┌───┴──┐
+	#                   │server│
+	#                   └──────┘
+
+	if ! kldstat -q -m carp
+	then
+		atf_skip "This test requires carp"
+	fi
+	pfsynct_init
+
+	bridge0=$(vnet_mkbridge)
+	bridge1=$(vnet_mkbridge)
+	bridge2=$(vnet_mkbridge)
+
+	epair_sync_gw_route_to=$(vnet_mkepair)
+	epair_sync_gw_reply_to=$(vnet_mkepair)
+	epair_client_bridge0=$(vnet_mkepair)
+
+	epair_gw_route_to_master_bridge0=$(vnet_mkepair)
+	epair_gw_route_to_backup_bridge0=$(vnet_mkepair)
+	epair_gw_route_to_master_bridge1=$(vnet_mkepair)
+	epair_gw_route_to_backup_bridge1=$(vnet_mkepair)
+
+	epair_gw_reply_to_master_bridge1=$(vnet_mkepair)
+	epair_gw_reply_to_backup_bridge1=$(vnet_mkepair)
+	epair_gw_reply_to_master_bridge2=$(vnet_mkepair)
+	epair_gw_reply_to_backup_bridge2=$(vnet_mkepair)
+
+	epair_server_bridge2=$(vnet_mkepair)
+
+	ifconfig ${bridge0} up
+	ifconfig ${epair_client_bridge0}b up
+	ifconfig ${epair_gw_route_to_master_bridge0}b up
+	ifconfig ${epair_gw_route_to_backup_bridge0}b up
+	ifconfig ${bridge0} \
+		addm ${epair_client_bridge0}b \
+		addm ${epair_gw_route_to_master_bridge0}b \
+		addm ${epair_gw_route_to_backup_bridge0}b
+
+	ifconfig ${bridge1} up
+	ifconfig ${epair_gw_route_to_master_bridge1}b up
+	ifconfig ${epair_gw_route_to_backup_bridge1}b up
+	ifconfig ${epair_gw_reply_to_master_bridge1}b up
+	ifconfig ${epair_gw_reply_to_backup_bridge1}b up
+	ifconfig ${bridge1} \
+		addm ${epair_gw_route_to_master_bridge1}b \
+		addm ${epair_gw_route_to_backup_bridge1}b \
+		addm ${epair_gw_reply_to_master_bridge1}b \
+		addm ${epair_gw_reply_to_backup_bridge1}b
+
+	ifconfig ${bridge2} up
+	ifconfig ${epair_gw_reply_to_master_bridge2}b up
+	ifconfig ${epair_gw_reply_to_backup_bridge2}b up
+	ifconfig ${epair_server_bridge2}b up
+	ifconfig ${bridge2} \
+		addm ${epair_gw_reply_to_master_bridge2}b \
+		addm ${epair_gw_reply_to_backup_bridge2}b \
+		addm ${epair_server_bridge2}b
+
+	vnet_mkjail client ${epair_client_bridge0}a
+	jexec client hostname client
+	vnet_mkjail gw_route_to_master \
+		${epair_gw_route_to_master_bridge0}a \
+		${epair_gw_route_to_master_bridge1}a \
+		${epair_sync_gw_route_to}a
+	jexec gw_route_to_master hostname gw_route_to_master
+	vnet_mkjail gw_route_to_backup \
+		${epair_gw_route_to_backup_bridge0}a \
+		${epair_gw_route_to_backup_bridge1}a \
+		${epair_sync_gw_route_to}b
+	jexec gw_route_to_backup hostname gw_route_to_backup
+	vnet_mkjail gw_reply_to_master \
+		${epair_gw_reply_to_master_bridge1}a \
+		${epair_gw_reply_to_master_bridge2}a \
+		${epair_sync_gw_reply_to}a
+	jexec gw_reply_to_master hostname gw_reply_to_master
+	vnet_mkjail gw_reply_to_backup \
+		${epair_gw_reply_to_backup_bridge1}a \
+		${epair_gw_reply_to_backup_bridge2}a \
+		${epair_sync_gw_reply_to}b
+	jexec gw_reply_to_backup hostname gw_reply_to_backup
+	vnet_mkjail server ${epair_server_bridge2}a
+	jexec server hostname server
+
+	jexec client ifconfig ${epair_client_bridge0}a inet 198.18.0.1/24 up
+	jexec client route add 198.18.2.0/24 198.18.0.10
+
+	jexec gw_route_to_master ifconfig ${epair_sync_gw_route_to}a \
+		inet 198.19.10.1/24 up
+	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge0}a \
+		inet 198.18.0.8/24 up
+	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge0}a \
+		alias 198.18.0.10/32 vhid 10 pass 3WjvVVw7 advskew 50
+	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge1}a \
+		inet 198.18.1.8/24 up
+	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge1}a \
+		alias 198.18.1.10/32 vhid 11 pass 3WjvVVw7 advskew 50
+	jexec gw_route_to_master sysctl net.inet.ip.forwarding=1
+	jexec gw_route_to_master sysctl net.inet.carp.preempt=1
+	jexec gw_route_to_master ifconfig ${epair_sync_gw_route_to}a name if_pfsync
+	sed -i '' -e 's/'${epair_sync_gw_route_to}'a/if_pfsync/g' created_interfaces.lst
+	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge0}a name if_br0
+	sed -i '' -e 's/'${epair_gw_route_to_master_bridge0}'a/if_br0/g' created_interfaces.lst
+	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge1}a name if_br1
+	sed -i '' -e 's/'${epair_gw_route_to_master_bridge1}'a/if_br1/g' created_interfaces.lst
+	jexec gw_route_to_master ifconfig pfsync0 \
+		syncpeer 198.19.10.2 \
+		syncdev if_pfsync \
+		maxupd 1 \
+		up
+	pft_set_rules gw_route_to_master \
+		"keep_state = 'tag auth_packet keep state'" \
+		"set timeout { icmp.first 120, icmp.error 60 }" \
+		"block log all" \
+		"pass quick on if_pfsync proto pfsync keep state (no-sync)" \
+		"pass quick on { if_br0 if_br1 } proto carp keep state (no-sync)" \
+		"block drop in quick to 224.0.0.18/32" \
+		"pass out quick tagged auth_packet keep state" \
+		"pass in quick log on if_br0 route-to (if_br1 198.18.1.20) proto { icmp udp tcp } from 198.18.0.0/24 to 198.18.2.0/24 \$keep_state"
+	jexec gw_route_to_master pfctl -e
+
+	jexec gw_route_to_backup ifconfig ${epair_sync_gw_route_to}b \
+		inet 198.19.10.2/24 up
+	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge0}a \
+		inet 198.18.0.9/24 up
+	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge0}a \
+		alias 198.18.0.10/32 vhid 10 pass 3WjvVVw7 advskew 100
+	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge1}a \
+		inet 198.18.1.9/24 up
+	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge1}a \
+		alias 198.18.1.10/32 vhid 11 pass 3WjvVVw7 advskew 100
+	jexec gw_route_to_backup sysctl net.inet.ip.forwarding=1
+	jexec gw_route_to_backup sysctl net.inet.carp.preempt=1
+	jexec gw_route_to_backup ifconfig ${epair_sync_gw_route_to}b name if_pfsync
+	sed -i '' -e 's/'${epair_sync_gw_route_to}'b/if_pfsync/g' created_interfaces.lst
+	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge0}a name if_br0
+	sed -i '' -e 's/'${epair_gw_route_to_backup_bridge0}'a/if_br0/g' created_interfaces.lst
+	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge1}a name if_br1
+	sed -i '' -e 's/'${epair_gw_route_to_backup_bridge1}'a/if_br1/g' created_interfaces.lst
+	jexec gw_route_to_backup ifconfig pfsync0 \
+		syncpeer 198.19.10.1 \
+		syncdev if_pfsync \
+		up
+	pft_set_rules gw_route_to_backup \
+		"keep_state = 'tag auth_packet keep state'" \
+		"set timeout { icmp.first 120, icmp.error 60 }" \
+		"block log all" \
+		"pass quick on if_pfsync proto pfsync keep state (no-sync)" \
+		"pass quick on { if_br0 if_br1 } proto carp keep state (no-sync)" \
+		"block drop in quick to 224.0.0.18/32" \
+		"pass out quick tagged auth_packet keep state" \
+		"pass in quick log on if_br0 route-to (if_br1 198.18.1.20) proto { icmp udp tcp } from 198.18.0.0/24 to 198.18.2.0/24 \$keep_state"
+	jexec gw_route_to_backup pfctl -e
+
+	jexec gw_reply_to_master ifconfig ${epair_sync_gw_reply_to}a \
+		inet 198.19.20.1/24 up
+	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge1}a \
+		inet 198.18.1.18/24 up
+	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge1}a \
+		alias 198.18.1.20/32 vhid 21 pass 3WjvVVw7 advskew 50
+	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge2}a \
+		inet 198.18.2.18/24 up
+	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge2}a \
+		alias 198.18.2.20/32 vhid 22 pass 3WjvVVw7 advskew 50
+	jexec gw_reply_to_master sysctl net.inet.ip.forwarding=1
+	jexec gw_reply_to_master sysctl net.inet.carp.preempt=1
+	jexec gw_reply_to_master ifconfig ${epair_sync_gw_reply_to}a name if_pfsync
+	sed -i '' -e 's/'${epair_sync_gw_reply_to}'a/if_pfsync/g' created_interfaces.lst
+	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge1}a name if_br1
+	sed -i '' -e 's/'${epair_gw_reply_to_master_bridge1}'a/if_br1/g' created_interfaces.lst
+	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge2}a name if_br2
+	sed -i '' -e 's/'${epair_gw_reply_to_master_bridge2}'a/if_br2/g' created_interfaces.lst
+	jexec gw_reply_to_master ifconfig pfsync0 \
+		syncpeer 198.19.20.2 \
+		syncdev if_pfsync \
+		maxupd 1 \
+		up
+	pft_set_rules gw_reply_to_master \
+		"set timeout { icmp.first 120, icmp.error 60 }" \
+		"block log all" \
+		"pass quick on if_pfsync proto pfsync keep state (no-sync)" \
+		"pass quick on { if_br1 if_br2 } proto carp keep state (no-sync)" \
+		"block drop in quick to 224.0.0.18/32" \
+		"pass out quick on if_br2 reply-to (if_br1 198.18.1.10) tagged auth_packet_reply_to keep state" \
+		"pass in quick log on if_br1 proto { icmp udp tcp } from 198.18.0.0/24 to 198.18.2.0/24 tag auth_packet_reply_to keep state"
+	jexec gw_reply_to_master pfctl -e
+
+	jexec gw_reply_to_backup ifconfig ${epair_sync_gw_reply_to}b \
+		inet 198.19.20.2/24 up
+	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge1}a \
+		inet 198.18.1.19/24 up
+	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge1}a \
+		alias 198.18.1.20/32 vhid 21 pass 3WjvVVw7 advskew 100
+	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge2}a \
+		inet 198.18.2.19/24 up
+	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge2}a \
+		alias 198.18.2.20/32 vhid 22 pass 3WjvVVw7 advskew 100
+	jexec gw_reply_to_backup sysctl net.inet.ip.forwarding=1
+	jexec gw_reply_to_backup sysctl net.inet.carp.preempt=1
+	jexec gw_reply_to_backup ifconfig ${epair_sync_gw_reply_to}b name if_pfsync
+	sed -i '' -e 's/'${epair_sync_gw_reply_to}'b/if_pfsync/g' created_interfaces.lst
+	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge1}a name if_br1
+	sed -i '' -e 's/'${epair_gw_reply_to_backup_bridge1}'a/if_br1/g' created_interfaces.lst
+	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge2}a name if_br2
+	sed -i '' -e 's/'${epair_gw_reply_to_backup_bridge2}'a/if_br2/g' created_interfaces.lst
+	jexec gw_reply_to_backup ifconfig pfsync0 \
+		syncpeer 198.19.20.1 \
+		syncdev if_pfsync \
+		up
+	pft_set_rules gw_reply_to_backup \
+		"set timeout { icmp.first 120, icmp.error 60 }" \
+		"block log all" \
+		"pass quick on if_pfsync proto pfsync keep state (no-sync)" \
+		"pass quick on { if_br1 if_br2 } proto carp keep state (no-sync)" \
+		"block drop in quick to 224.0.0.18/32" \
+		"pass out quick on if_br2 reply-to (if_br1 198.18.1.10) tagged auth_packet_reply_to keep state" \
+		"pass in quick log on if_br1 proto { icmp udp tcp } from 198.18.0.0/24 to 198.18.2.0/24 tag auth_packet_reply_to keep state"
+	jexec gw_reply_to_backup pfctl -e
+
+	jexec server ifconfig ${epair_server_bridge2}a inet 198.18.2.1/24 up
+	jexec server route add 198.18.0.0/24 198.18.2.20
+
+	# Waiting for platform to settle
+	while ! jexec gw_route_to_backup ifconfig | grep 'carp: BACKUP'
+	do
+		sleep 1
+	done
+	while ! jexec gw_reply_to_backup ifconfig | grep 'carp: BACKUP'
+	do
+		sleep 1
+	done
+	while ! jexec client ping -c 10 198.18.2.1 | grep ', 0.0% packet loss'
+	do
+		sleep 1
+	done
+
+	# Checking cluster members pf.conf checksums match
+	gw_route_to_master_checksum=$(jexec gw_route_to_master pfctl -si -v | grep 'Checksum:' | cut -d ' ' -f 2)
+	gw_route_to_backup_checksum=$(jexec gw_route_to_backup pfctl -si -v | grep 'Checksum:' | cut -d ' ' -f 2)
+	gw_reply_to_master_checksum=$(jexec gw_reply_to_master pfctl -si -v | grep 'Checksum:' | cut -d ' ' -f 2)
+	gw_reply_to_backup_checksum=$(jexec gw_reply_to_backup pfctl -si -v | grep 'Checksum:' | cut -d ' ' -f 2)
+	if [ "$gw_route_to_master_checksum" != "$gw_route_to_backup_checksum" ]
+	then
+		atf_fail "gw_route_to cluster members pf.conf do not match each others"
+	fi
+	if [ "$gw_reply_to_master_checksum" != "$gw_reply_to_backup_checksum" ]
+	then
+		atf_fail "gw_reply_to cluster members pf.conf do not match each others"
+	fi
+
+	# Creating state entries
+	(jexec client ping -c 10 198.18.2.1 >ping.stdout) &
+
+	if [ "$1" = "backup_promotion" ]
+	then
+		sleep 1
+		jexec gw_route_to_backup ifconfig if_br0 vhid 10 advskew 0
+		jexec gw_route_to_backup ifconfig if_br1 vhid 11 advskew 0
+		jexec gw_reply_to_backup ifconfig if_br1 vhid 21 advskew 0
+		jexec gw_reply_to_backup ifconfig if_br2 vhid 22 advskew 0
+	fi
+	while ! grep -q -e 'packet loss' ping.stdout
+	do
+		sleep 1
+	done
+
+	# As cleanup is long and may lead to a timeout,
+	# it's run directly into the body part.
+	# (as cleanup timeout is not settable)
+	jail -r \
+		client \
+		gw_route_to_master \
+		gw_route_to_backup \
+		gw_reply_to_master \
+		gw_reply_to_backup \
+		server
+	for ifname in $(grep -E -e 'if_' -e 'epair.*a' -e 'bridge' created_interfaces.lst)
+	do
+		ifconfig $ifname >/dev/null 2>&1 && ifconfig $ifname destroy
+	done
+
+	atf_check -s exit:0 -e ignore -o ignore grep ', 0.0% packet loss' ping.stdout
+}
+
+pbr_common_cleanup()
+{
+	for jailname in client gw_route_to_master gw_route_to_backup gw_reply_to_master gw_reply_to_backup server
+	do
+		if $(jls | grep -q $jailname); then
+			jail -r $jailname
+		else
+			echo "$jailname already cleaned"
+		fi
+	done
+	for ifname in $(grep -E -e 'if_' -e 'epair.*a' -e 'bridge' created_interfaces.lst)
+	do
+		ifconfig $ifname >/dev/null 2>&1
+		if [ "$?" -eq "0" ]; then
+			ifconfig $ifname destroy
+		else
+			echo "$ifname already destroyed"
+		fi
+	done
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
 	atf_add_test_case "basic_defer"
 	atf_add_test_case "defer"
 	atf_add_test_case "bulk"
+	atf_add_test_case "pbr"
+	atf_add_test_case "pfsync_pbr"
 }
