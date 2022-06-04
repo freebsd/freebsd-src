@@ -90,8 +90,6 @@ inthand_t
 	IDTVEC(atpic_intr12_pti), IDTVEC(atpic_intr13_pti),
 	IDTVEC(atpic_intr14_pti), IDTVEC(atpic_intr15_pti);
 
-#define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
-
 #define	ATPIC(io, base, eoi) {						\
 		.at_pic = {						\
 			.pic_register_sources = atpic_register_sources,	\
@@ -100,7 +98,6 @@ inthand_t
 			.pic_eoi_source = (eoi),			\
 			.pic_enable_intr = atpic_enable_intr,		\
 			.pic_disable_intr = atpic_disable_intr,		\
-			.pic_vector = atpic_vector,			\
 			.pic_source_pending = atpic_source_pending,	\
 			.pic_resume = atpic_resume,			\
 			.pic_config_intr = atpic_config_intr,		\
@@ -144,7 +141,6 @@ static void atpic_eoi_master(struct intsrc *isrc);
 static void atpic_eoi_slave(struct intsrc *isrc);
 static void atpic_enable_intr(struct intsrc *isrc);
 static void atpic_disable_intr(struct intsrc *isrc);
-static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(struct pic *pic, bool suspend_cancelled);
 static int atpic_source_pending(struct intsrc *isrc);
 static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
@@ -239,7 +235,7 @@ atpic_register_sources(struct pic *pic)
 	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		intr_register_source(&ai->at_intsrc);
+		intr_register_source(i, &ai->at_intsrc);
 	}
 }
 
@@ -315,15 +311,6 @@ atpic_disable_intr(struct intsrc *isrc)
 }
 
 static int
-atpic_vector(struct intsrc *isrc)
-{
-	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
-
-	return (IRQ(ap, ai));
-}
-
-static int
 atpic_source_pending(struct intsrc *isrc)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
@@ -347,14 +334,14 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	u_int vector;
+	struct atpic *ap = (struct atpic *)isrc->is_pic;
+	const u_int vector = ap->at_irqbase + ai->at_irq;
 
 	/* Map conforming values to edge/hi and sanity check the values. */
 	if (trig == INTR_TRIGGER_CONFORM)
 		trig = INTR_TRIGGER_EDGE;
 	if (pol == INTR_POLARITY_CONFORM)
 		pol = INTR_POLARITY_HIGH;
-	vector = atpic_vector(isrc);
 	if ((trig == INTR_TRIGGER_EDGE && pol == INTR_POLARITY_LOW) ||
 	    (trig == INTR_TRIGGER_LEVEL && pol == INTR_POLARITY_HIGH)) {
 		printf(
@@ -392,7 +379,7 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		printf("atpic: Programming IRQ%u as %s\n", vector,
 		    trig == INTR_TRIGGER_EDGE ? "edge/high" : "level/low");
 	spinlock_enter();
-	elcr_write_trigger(atpic_vector(isrc), trig);
+	elcr_write_trigger(vector, trig);
 	ai->at_trigger = trig;
 	spinlock_exit();
 	return (0);
