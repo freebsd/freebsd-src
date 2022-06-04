@@ -190,7 +190,7 @@ static struct val2str str_sp_scope[] = {
 };
 
 /*
- * dump SADB_MSG formated.  For debugging, you should use kdebug_sadb().
+ * dump SADB_MSG formatted.  For debugging, you should use kdebug_sadb().
  */
 void
 pfkey_sadump(m)
