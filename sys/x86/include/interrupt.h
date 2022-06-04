@@ -30,6 +30,12 @@
 
 #ifdef _KERNEL
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #include <sys/_cpuset.h>
 #include <sys/_types_interrupt.h>
 #include <sys/kobj.h>
@@ -74,8 +80,6 @@ extern u_int num_msi_irqs;
 typedef void inthand_t(void);
 
 #define	IDTVEC(name)	__CONCAT(X,name)
-
-struct intsrc;
 
 typedef const kobj_method_t x86pic_func_t[];
 #define	X86PIC_FUNC(func, impl) DEVMETHOD(func, impl)
