@@ -295,7 +295,25 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_SKIP_ACTION,		/* none				*/
 	O_TCPMSS,		/* arg1=MSS value */
 
+	O_MAC_SRC_LOOKUP,	/* arg1=table number, u32=value */
+	O_MAC_DST_LOOKUP,	/* arg1=table number, u32=value */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
+};
+
+/*
+ * Defines key types used by lookup instruction
+ */
+enum ipfw_table_lookup_type {
+	LOOKUP_DST_IP,
+	LOOKUP_SRC_IP,
+	LOOKUP_DST_PORT,
+	LOOKUP_SRC_PORT,
+	LOOKUP_UID,
+	LOOKUP_JAIL,
+	LOOKUP_DSCP,
+	LOOKUP_DST_MAC,
+	LOOKUP_SRC_MAC,
 };
 
 /*
@@ -754,7 +772,8 @@ struct _ipfw_dyn_rule {
 #define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
 #define	IPFW_TABLE_NUMBER	3	/* Table for holding ports/uid/gid/etc */
 #define	IPFW_TABLE_FLOW		4	/* Table for holding flow data */
-#define	IPFW_TABLE_MAXTYPE	4	/* Maximum valid number */
+#define	IPFW_TABLE_MAC		5	/* Table for holding mac address prefixes */
+#define	IPFW_TABLE_MAXTYPE	5	/* Maximum valid number */
 
 #define	IPFW_TABLE_CIDR	IPFW_TABLE_ADDR	/* compat */
 
@@ -771,6 +790,9 @@ struct _ipfw_dyn_rule {
 #define	IPFW_VTYPE_LIMIT	0x00000100	/* limit */
 #define	IPFW_VTYPE_NH4		0x00000200	/* IPv4 nexthop */
 #define	IPFW_VTYPE_NH6		0x00000400	/* IPv6 nexthop */
+
+/* MAC/InfiniBand/etc address length */
+#define	IPFW_MAX_L2_ADDR_LEN	20
 
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
@@ -895,10 +917,11 @@ typedef struct	_ipfw_obj_tentry {
 	uint16_t	spare1;
 	union {
 		/* Longest field needs to be aligned by 8-byte boundary	*/
-		struct in_addr		addr;	/* IPv4 address		*/
-		uint32_t		key;		/* uid/gid/port	*/
-		struct in6_addr		addr6;	/* IPv6 address 	*/
-		char	iface[IF_NAMESIZE];	/* interface name	*/
+		struct in_addr		addr;		/* IPv4 address		*/
+		uint32_t		key;		/* uid/gid/port		*/
+		struct in6_addr		addr6;		/* IPv6 address 	*/
+		char	iface[IF_NAMESIZE];		/* interface name	*/
+		u_char	mac[IPFW_MAX_L2_ADDR_LEN];	/* MAC address		*/
 		struct tflow_entry	flow;
 	} k;
 	union {
