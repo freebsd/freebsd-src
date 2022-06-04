@@ -555,7 +555,7 @@ acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
 		printf("\tGICR ADDR=%016jx\n",
 		    (uintmax_t)gicc->GicrBaseAddress);
 		printf("\tMPIDR=%jx\n", (uintmax_t)gicc->ArmMpidr);
-		printf("\tEfficency Class=%d\n", (u_int)gicc->EfficiencyClass);
+		printf("\tEfficiency Class=%d\n", (u_int)gicc->EfficiencyClass);
 		printf("\tSPE INTR=%d\n", gicc->SpeInterrupt);
 		break;
 	case ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR:
