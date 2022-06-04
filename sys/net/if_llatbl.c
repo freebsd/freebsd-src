@@ -300,7 +300,7 @@ lltable_drop_entry_queue(struct llentry *lle)
 	}
 
 	KASSERT(lle->la_numheld == 0,
-		("%s: la_numheld %d > 0, pkts_droped %zd", __func__,
+		("%s: la_numheld %d > 0, pkts_dropped %zd", __func__,
 		 lle->la_numheld, pkts_dropped));
 
 	return (pkts_dropped);
