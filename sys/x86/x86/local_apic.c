@@ -1292,15 +1292,16 @@ void
 lapic_handle_intr(int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
+	u_int irq;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 	kmsan_mark(&vector, sizeof(vector), KMSAN_STATE_INITED);
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 	trap_check_kstack();
 
-	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
-	    vector));
-	intr_execute_handlers(isrc, frame);
+	irq = apic_idt_to_irq(PCPU_GET(apic_id), vector);
+	isrc = intr_lookup_source(irq);
+	intr_execute_handlers(irq, isrc, frame);
 }
 
 void

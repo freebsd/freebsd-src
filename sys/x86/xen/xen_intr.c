@@ -137,7 +137,6 @@ static void	xen_intr_disable_source(struct intsrc *isrc, int eoi);
 static void	xen_intr_eoi_source(struct intsrc *isrc);
 static void	xen_intr_enable_intr(struct intsrc *isrc);
 static void	xen_intr_disable_intr(struct intsrc *isrc);
-static int	xen_intr_vector(struct intsrc *isrc);
 static int	xen_intr_source_pending(struct intsrc *isrc);
 static int	xen_intr_config_intr(struct intsrc *isrc,
 		     enum intr_trigger trig, enum intr_polarity pol);
@@ -152,7 +151,6 @@ struct pic xen_intr_pic = {
 	.pic_eoi_source     = xen_intr_eoi_source,
 	.pic_enable_intr    = xen_intr_enable_intr,
 	.pic_disable_intr   = xen_intr_disable_intr,
-	.pic_vector         = xen_intr_vector,
 	.pic_source_pending = xen_intr_source_pending,
 	.pic_suspend        = xen_intr_suspend,
 	.pic_resume         = xen_intr_resume,
@@ -329,7 +327,7 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	isrc->xi_intsrc.is_pic = &xen_intr_pic;
 	isrc->xi_vector = vector;
 	isrc->xi_type = type;
-	intr_register_source(&isrc->xi_intsrc);
+	intr_register_source(vector, &isrc->xi_intsrc);
 	mtx_lock(&xen_intr_isrc_lock);
 
 	return (isrc);
@@ -568,7 +566,8 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 				("Received unexpected event on vCPU#%d, event bound to vCPU#%d",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
-			intr_execute_handlers(&isrc->xi_intsrc, trap_frame);
+			intr_execute_handlers(isrc->xi_vector,
+			    &isrc->xi_intsrc, trap_frame);
 
 			/*
 			 * If this is the final port processed,
@@ -787,22 +786,6 @@ xen_intr_disable_intr(struct intsrc *base_isrc)
 	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
 
 	evtchn_mask_port(isrc->xi_port);
-}
-
-/**
- * Determine the global interrupt vector number for
- * a Xen interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \return  The vector number corresponding to the given interrupt source.
- */
-static int
-xen_intr_vector(struct intsrc *base_isrc)
-{
-	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
-
-	return (isrc->xi_vector);
 }
 
 /**

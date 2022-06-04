@@ -84,7 +84,6 @@ struct pic {
 	void (*pic_eoi_source)(struct intsrc *);
 	void (*pic_enable_intr)(struct intsrc *);
 	void (*pic_disable_intr)(struct intsrc *);
-	int (*pic_vector)(struct intsrc *);
 	int (*pic_source_pending)(struct intsrc *);
 	void (*pic_suspend)(struct pic *);
 	void (*pic_resume)(struct pic *, bool suspend_cancelled);
@@ -146,11 +145,12 @@ int	intr_add_handler(const char *name, struct intsrc *isrc,
 int	intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol);
 int	intr_describe(struct intsrc *isrc, void *ih, const char *descr);
-void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
+void	intr_execute_handlers(u_int vector, struct intsrc *isrc,
+    struct trapframe *frame);
 u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
-int	intr_register_source(struct intsrc *isrc);
+int	intr_register_source(u_int vector, struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
