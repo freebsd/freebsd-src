@@ -37,6 +37,12 @@
 #error "sys/intr.h included without architecture interrupt header!"
 #endif
 
+/* FreeBSD standard interrupt controller interface */
+
+typedef struct intr_irqsrc interrupt_t;
+
+/* FreeBSD standard interrupt controller interface */
+
 #define	INTR_IRQ_INVALID	0xFFFFFFFF
 
 #ifndef LOCORE
