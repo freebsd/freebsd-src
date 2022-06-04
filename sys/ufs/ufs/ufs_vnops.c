@@ -1092,7 +1092,7 @@ ufs_link(ap)
 		goto out;
 	}
 	/*
-	 * The file may have been removed after namei droped the original
+	 * The file may have been removed after namei dropped the original
 	 * lock.
 	 */
 	if (ip->i_effnlink == 0) {
