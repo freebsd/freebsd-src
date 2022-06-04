@@ -272,7 +272,7 @@ struct rack_opts_stats {
  * sysctl var net.inet.tcp.<stack>.tp.number to
  * one of the numbers listed below. You also
  * must make sure net.inet.tcp.<stack>.tp.bbmode is
- * non-zero, the default is 4 for continous tracing.
+ * non-zero, the default is 4 for continuous tracing.
  * You also set in the number of connections you want
  * have get BB logs in net.inet.tcp.<stack>.tp.count.
  * 
