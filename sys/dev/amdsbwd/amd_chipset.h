@@ -53,7 +53,7 @@
  *     "KERNCZ" or "CZ")
  *
  * The register definitions are compatible within the classes and may be
- * incompatible accross them.
+ * incompatible across them.
  */
 
 /*
