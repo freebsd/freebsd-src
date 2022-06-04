@@ -60,7 +60,7 @@ void	kproc_start(const void *);
 int	kproc_suspend(struct proc *, int);
 void	kproc_suspend_check(struct proc *);
 
-/* create a thread inthe given process. create the process if needed */
+/* create a thread in the given process. create the process if needed */
 int     kproc_kthread_add(void (*)(void *), void *,
 	    struct proc **,
 	    struct thread **,
