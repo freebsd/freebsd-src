@@ -1389,7 +1389,7 @@ tegra_pcib_attach_msi(device_t dev)
 	tegra_pcib_set_bar(sc, 9, vtophys(sc->msi_page), vtophys(sc->msi_page),
 	    PAGE_SIZE, 0);
 
-	/* Disble and clear all interrupts. */
+	/* Disable and clear all interrupts. */
 	for (i = 0; i < AFI_MSI_REGS; i++) {
 		AFI_WR4(sc, AFI_MSI_EN_VEC(i), 0);
 		AFI_WR4(sc, AFI_MSI_VEC(i), 0xFFFFFFFF);
