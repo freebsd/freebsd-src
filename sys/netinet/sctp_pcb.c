@@ -7067,3 +7067,18 @@ sctp_initiate_iterator(inp_func inpf,
 	/* sa_ignore MEMLEAK {memory is put on the tailq for the iterator} */
 	return (0);
 }
+
+/*
+ * Atomically add flags to the sctp_flags of an inp.
+ * To be used when the write lock of the inp is not held.
+ */
+void
+sctp_pcb_add_flags(struct sctp_inpcb *inp, uint32_t flags)
+{
+	uint32_t old_flags, new_flags;
+
+	do {
+		old_flags = inp->sctp_flags;
+		new_flags = old_flags | flags;
+	} while (atomic_cmpset_int(&inp->sctp_flags, old_flags, new_flags) == 0);
+}
