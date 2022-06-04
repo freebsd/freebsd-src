@@ -55,8 +55,8 @@ struct dmsg_hdr {
 	uint64_t	reserved18;	/* 18 */
 
 	uint32_t	cmd;		/* 20 flags | cmd | hdr_size / ALIGN */
-	uint32_t	aux_crc;	/* 24 auxillary data crc */
-	uint32_t	aux_bytes;	/* 28 auxillary data length (bytes) */
+	uint32_t	aux_crc;	/* 24 auxiliary data crc */
+	uint32_t	aux_bytes;	/* 28 auxiliary data length (bytes) */
 	uint32_t	error;		/* 2C error code or 0 */
 	uint64_t	aux_descr;	/* 30 negotiated OOB data descr */
 	uint32_t	reserved38;	/* 38 */
