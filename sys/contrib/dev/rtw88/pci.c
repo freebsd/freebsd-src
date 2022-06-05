@@ -965,6 +965,9 @@ static int rtw_pci_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 
 	ret = rtw_pci_tx_write_data(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_BCN);
 	if (ret) {
+#if defined(__FreeBSD__)
+		dev_kfree_skb_any(skb);
+#endif
 		rtw_err(rtwdev, "failed to write rsvd page data\n");
 		return ret;
 	}
@@ -989,6 +992,9 @@ static int rtw_pci_write_data_h2c(struct rtw_dev *rtwdev, u8 *buf, u32 size)
 
 	ret = rtw_pci_tx_write_data(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_H2C);
 	if (ret) {
+#if defined(__FreeBSD__)
+		dev_kfree_skb_any(skb);
+#endif
 		rtw_err(rtwdev, "failed to write h2c data\n");
 		return ret;
 	}

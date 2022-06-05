@@ -638,7 +638,12 @@ static void rtw_txq_push(struct rtw_dev *rtwdev,
 
 		ret = rtw_txq_push_skb(rtwdev, rtwtxq, skb);
 		if (ret) {
+#if defined(__FreeBSD__)
+			dev_kfree_skb_any(skb);
+			rtw_err(rtwdev, "failed to push skb, ret %d\n", ret);
+#else
 			rtw_err(rtwdev, "failed to pusk skb, ret %d\n", ret);
+#endif
 			break;
 		}
 	}
