@@ -106,7 +106,7 @@ __elf_is_okay__(Elf_Ehdr *ehdr)
 	 * We need to check magic, class size, endianess,
 	 * and version before we look at the rest of the
 	 * Elf_Ehdr structure.  These few elements are
-	 * represented in a machine independant fashion.
+	 * represented in a machine independent fashion.
 	 */
 	if (IS_ELF(*ehdr) &&
 	    ehdr->e_ident[EI_CLASS] == ELF_TARG_CLASS &&
