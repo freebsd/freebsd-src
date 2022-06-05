@@ -3870,6 +3870,7 @@ no_trace_beacons:
 
 	ok = ieee80211_add_rx_params(m, &rx_stats);
 	if (ok == 0) {
+		m_freem(m);
 		counter_u64_add(ic->ic_ierrors, 1);
 		goto err;
 	}
@@ -3960,8 +3961,11 @@ skip_device_ts:
 	if (ni != NULL) {
 		ok = ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
+		if (ok < 0)
+			m_freem(m);
 	} else {
 		ok = ieee80211_input_mimo_all(ic, m);
+		/* mbuf got consumed. */
 	}
 	NET_EPOCH_EXIT(et);
 
