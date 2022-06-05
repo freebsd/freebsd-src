@@ -37,7 +37,7 @@
 KMOD=if_qlxge
 SRCS=qls_os.c qls_dbg.c qls_hw.c qls_isr.c qls_dump.c
 SRCS+=qls_ioctl.c
-SRCS+= device_if.h bus_if.h pci_if.h
+SRCS+= device_if.h bus_if.h pci_if.h opt_inet.h
 
 CFLAGS += -DQL_DBG
 
