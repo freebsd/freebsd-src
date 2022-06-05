@@ -916,7 +916,7 @@ twe_free_request(struct twe_request *tr)
  * Map/unmap (tr)'s command and data in the controller's addressable space.
  *
  * These routines ensure that the data which the controller is going to try to
- * access is actually visible to the controller, in a machine-independant 
+ * access is actually visible to the controller, in a machine-independent
  * fashion.  Due to a hardware limitation, I/O buffers must be 512-byte aligned
  * and we take care of that here as well.
  */
