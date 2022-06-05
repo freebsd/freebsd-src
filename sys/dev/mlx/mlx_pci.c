@@ -205,7 +205,7 @@ mlx_pci_attach(device_t dev)
     }
 
     /*
-     * Do bus-independant initialisation.
+     * Do bus-independent initialisation.
      */
     error = mlx_attach(sc);
     if (error != 0) {
