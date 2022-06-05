@@ -1590,12 +1590,9 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	}
 
 	/* Update sta_state (ASSOC to AUTHORIZED). */
-	ni = ieee80211_ref_node(vap->iv_bss);
-	lsta = ni->ni_drv_data;
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
 	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
 	    "ASSOC: %#x\n", __func__, lsta, lsta->state));
-	sta = LSTA_TO_STA(lsta);
 	error = lkpi_80211_mo_sta_state(hw, vif, sta, IEEE80211_STA_AUTHORIZED);
 	if (error != 0) {
 		IMPROVE("undo some changes?");
