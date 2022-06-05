@@ -42,7 +42,7 @@ SRCS+= ql_fw.c
 SRCS+= ql_boot.c
 SRCS+= ql_minidump.c
 
-SRCS+= device_if.h bus_if.h pci_if.h
+SRCS+= device_if.h bus_if.h pci_if.h opt_inet.h
 
 CFLAGS += -DQLA_LOCK_NO_SLEEP=1
 #CFLAGS += -DQL_DBG -g
