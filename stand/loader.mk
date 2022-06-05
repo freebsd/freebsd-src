@@ -65,7 +65,7 @@ SRCS+=	md.c
 CLEANFILES+=	md.o
 .endif
 
-# Machine-independant ISA PnP
+# Machine-independent ISA PnP
 .if defined(HAVE_ISABUS)
 SRCS+=	isapnp.c
 .endif
