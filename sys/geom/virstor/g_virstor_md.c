@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/virstor/binstream.h>
 
 /*
- * Encode data from g_virstor_metadata structure into a endian-independant
+ * Encode data from g_virstor_metadata structure into a endian-independent
  * byte stream.
  */
 void
@@ -64,7 +64,7 @@ virstor_metadata_encode(struct g_virstor_metadata *md, unsigned char *data)
 }
 
 /*
- * Decode data from endian-independant byte stream into g_virstor_metadata
+ * Decode data from endian-independent byte stream into g_virstor_metadata
  * structure.
  */
 void
