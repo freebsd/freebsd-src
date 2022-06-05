@@ -2640,7 +2640,7 @@ age_init_locked(struct age_softc *sc)
 	 * it's hard to separate code path between Tx and Rx without
 	 * locking. If L1 hardware have a separate mail box register
 	 * for Tx and Rx consumer/producer management we could have
-	 * indepent Tx/Rx handler which in turn Rx handler could have
+	 * independent Tx/Rx handler which in turn Rx handler could have
 	 * been run without any locking.
 	 */
 	AGE_COMMIT_MBOX(sc);
