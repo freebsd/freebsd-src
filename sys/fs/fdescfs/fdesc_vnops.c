@@ -492,9 +492,15 @@ fdesc_setattr(struct vop_setattr_args *ap)
 
 	/*
 	 * Allow setattr where there is an underlying vnode.
+	 * For O_PATH descriptors, disallow truncate.
 	 */
-	error = getvnode(td, fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+	if (vap->va_size != VNOVAL) {
+		error = getvnode(td, fd,
+		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+	} else {
+		error = getvnode_path(td, fd,
+		    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+	}
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
