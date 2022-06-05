@@ -45,7 +45,7 @@ gss_compare_name(OM_uint32 *minor_status,
 	struct _gss_name *name2 = (struct _gss_name *) name2_arg;
 
 	/*
-	 * First check the implementation-independant name if both
+	 * First check the implementation-independent name if both
 	 * names have one. Otherwise, try to find common mechanism
 	 * names and compare them.
 	 */
