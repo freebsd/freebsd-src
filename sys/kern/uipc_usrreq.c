@@ -2193,22 +2193,20 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	fdesc = p->p_fd;
 	error = 0;
 	control = *controlp;
-	clen = control->m_len;
 	*controlp = NULL;
 	initial_controlp = controlp;
-	for (cm = mtod(control, struct cmsghdr *); cm != NULL;) {
-		if (sizeof(*cm) > clen || cm->cmsg_level != SOL_SOCKET
-		    || cm->cmsg_len > clen || cm->cmsg_len < sizeof(*cm)) {
-			error = EINVAL;
-			goto out;
-		}
-		data = CMSG_DATA(cm);
-		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+	for (clen = control->m_len, cm = mtod(control, struct cmsghdr *),
+	    data = CMSG_DATA(cm);
 
+	    clen >= sizeof(*cm) && cm->cmsg_level == SOL_SOCKET &&
+	    clen >= cm->cmsg_len && cm->cmsg_len >= sizeof(*cm) &&
+	    (char *)cm + cm->cmsg_len >= (char *)data;
+
+	    clen -= min(CMSG_SPACE(datalen), clen),
+	    cm = (struct cmsghdr *) ((char *)cm + CMSG_SPACE(datalen)),
+	    data = CMSG_DATA(cm)) {
+		datalen = (char *)cm + cm->cmsg_len - (char *)data;
 		switch (cm->cmsg_type) {
-		/*
-		 * Fill in credential information.
-		 */
 		case SCM_CREDS:
 			*controlp = sbcreatecontrol(NULL, sizeof(*cmcred),
 			    SCM_CREDS, SOL_SOCKET, M_WAITOK);
@@ -2228,7 +2226,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 		case SCM_RIGHTS:
 			oldfds = datalen / sizeof (int);
 			if (oldfds == 0)
-				break;
+				continue;
 			/* On some machines sizeof pointer is bigger than
 			 * sizeof int, so we need to check if data fits into
 			 * single mbuf.  We could allocate several mbufs, and
@@ -2334,17 +2332,10 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			goto out;
 		}
 
-		if (*controlp != NULL)
-			controlp = &(*controlp)->m_next;
-		if (CMSG_SPACE(datalen) < clen) {
-			clen -= CMSG_SPACE(datalen);
-			cm = (struct cmsghdr *)
-			    ((caddr_t)cm + CMSG_SPACE(datalen));
-		} else {
-			clen = 0;
-			cm = NULL;
-		}
+		controlp = &(*controlp)->m_next;
 	}
+	if (clen > 0)
+		error = EINVAL;
 
 out:
 	if (error != 0 && initial_controlp != NULL)
