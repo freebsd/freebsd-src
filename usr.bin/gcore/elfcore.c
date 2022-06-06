@@ -624,7 +624,9 @@ readmap(pid_t pid)
 			errx(1, "out of memory");
 		ent->start = (vm_offset_t)kve->kve_start;
 		ent->end = (vm_offset_t)kve->kve_end;
-		ent->protection = VM_PROT_READ | VM_PROT_WRITE;
+		ent->protection = VM_PROT_READ;
+		if ((kve->kve_protection & KVME_PROT_WRITE) != 0)
+			ent->protection |= VM_PROT_WRITE;
 		if ((kve->kve_protection & KVME_PROT_EXEC) != 0)
 			ent->protection |= VM_PROT_EXECUTE;
 
