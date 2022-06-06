@@ -152,7 +152,7 @@ bsdinstall keymap
 trap error SIGINT	# Catch cntrl-C here
 bsdinstall hostname || error "Set hostname failed"
 
-export DISTRIBUTIONS="base.txz kernel.txz"
+export DISTRIBUTIONS="${DISTRIBUTIONS:-base.txz kernel.txz}"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	DISTMENU=`awk -F'\t' '!/^(kernel\.txz|base\.txz)/{print $1,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
 	DISTMENU="$(echo ${DISTMENU} | sed -E 's/\.txz//g')"
