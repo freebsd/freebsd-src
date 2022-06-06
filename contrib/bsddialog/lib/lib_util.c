@@ -443,9 +443,10 @@ text_autosize(struct bsddialog_conf *conf, const char *text, int maxrows,
 			continue;
 		}
 
-		if (nword + tablen >= maxwords) {
+		if (nword + tablen + 1 >= maxwords) {
 			maxwords += 1024;
-			if (realloc(words, maxwords * sizeof(int)) == NULL)
+			words = realloc(words, maxwords * sizeof(int));
+			if (words == NULL)
 				RETURN_ERROR("Cannot realloc memory for text "
 				    "autosize");
 		}
