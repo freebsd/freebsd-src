@@ -1088,7 +1088,7 @@ s32 ixgbe_disable_mc(struct ixgbe_hw *hw)
  * ixgbe_clear_vfta - Clear VLAN filter table
  * @hw: pointer to hardware structure
  *
- * Clears the VLAN filer table, and the VMDq index associated with the filter
+ * Clears the VLAN filter table, and the VMDq index associated with the filter
  **/
 s32 ixgbe_clear_vfta(struct ixgbe_hw *hw)
 {
