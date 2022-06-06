@@ -500,8 +500,8 @@ smp_rendezvous_action(void)
 	 * function before moving on to the action function.
 	 */
 	if (local_setup_func != smp_no_rendezvous_barrier) {
-		if (smp_rv_setup_func != NULL)
-			smp_rv_setup_func(smp_rv_func_arg);
+		if (local_setup_func != NULL)
+			local_setup_func(local_func_arg);
 		atomic_add_int(&smp_rv_waiters[1], 1);
 		while (smp_rv_waiters[1] < smp_rv_ncpus)
                 	cpu_spinwait();
