@@ -956,7 +956,9 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	*sack_bytes_rexmt = tp->sackhint.sack_bytes_rexmit;
 	hole = tp->sackhint.nexthole;
-	if (hole == NULL || SEQ_LT(hole->rxmit, hole->end))
+	if (hole == NULL)
+		return (hole);
+	if (SEQ_LT(hole->rxmit, hole->end))
 		goto out;
 	while ((hole = TAILQ_NEXT(hole, scblink)) != NULL) {
 		if (SEQ_LT(hole->rxmit, hole->end)) {
