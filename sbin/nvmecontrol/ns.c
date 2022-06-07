@@ -372,7 +372,7 @@ static struct ns_result_str ns_result[] = {
 	{ 0xa,  "Invalid Format"},
 	{ 0xb,  "Invalid Namespace or format"},
 	{ 0x15, "Namespace insufficient capacity"},
-	{ 0x16, "Namespace ID unavaliable"},
+	{ 0x16, "Namespace ID unavailable"},
 	{ 0x18, "Namespace already attached"},
 	{ 0x19, "Namespace is private"},
 	{ 0x1a, "Namespace is not attached"},
