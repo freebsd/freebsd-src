@@ -1493,10 +1493,11 @@ alc_attach(device_t dev)
 			sc->alc_dma_wr_burst = 3;
 		/*
 		 * Force maximum payload size to 128 bytes for
-		 * E2200/E2400/E2500.
+		 * E2200/E2400/E2500/AR8162/AR8171/AR8172.
 		 * Otherwise it triggers DMA write error.
 		 */
-		if ((sc->alc_flags & ALC_FLAG_E2X00) != 0)
+		if ((sc->alc_flags &
+		    (ALC_FLAG_E2X00 | ALC_FLAG_AR816X_FAMILY)) != 0)
 			sc->alc_dma_wr_burst = 0;
 		alc_init_pcie(sc);
 	}
