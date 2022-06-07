@@ -249,9 +249,6 @@ static void	pmc_process_thread_delete(struct thread *td);
 static void	pmc_process_thread_userret(struct thread *td);
 static void	pmc_remove_owner(struct pmc_owner *po);
 static void	pmc_remove_process_descriptor(struct pmc_process *pp);
-static void	pmc_restore_cpu_binding(struct pmc_binding *pb);
-static void	pmc_save_cpu_binding(struct pmc_binding *pb);
-static void	pmc_select_cpu(int cpu);
 static int	pmc_start(struct pmc *pm);
 static int	pmc_stop(struct pmc *pm);
 static int	pmc_syscall_handler(struct thread *td, void *syscall_args);
@@ -739,13 +736,14 @@ pmc_ri_to_classdep(struct pmc_mdep *md, int ri, int *adjri)
  * save the cpu binding of the current kthread
  */
 
-static void
+void
 pmc_save_cpu_binding(struct pmc_binding *pb)
 {
 	PMCDBG0(CPU,BND,2, "save-cpu");
 	thread_lock(curthread);
 	pb->pb_bound = sched_is_bound(curthread);
 	pb->pb_cpu   = curthread->td_oncpu;
+	pb->pb_priority = curthread->td_priority;
 	thread_unlock(curthread);
 	PMCDBG1(CPU,BND,2, "save-cpu cpu=%d", pb->pb_cpu);
 }
@@ -754,16 +752,16 @@ pmc_save_cpu_binding(struct pmc_binding *pb)
  * restore the cpu binding of the current thread
  */
 
-static void
+void
 pmc_restore_cpu_binding(struct pmc_binding *pb)
 {
 	PMCDBG2(CPU,BND,2, "restore-cpu curcpu=%d restore=%d",
 	    curthread->td_oncpu, pb->pb_cpu);
 	thread_lock(curthread);
-	if (pb->pb_bound)
-		sched_bind(curthread, pb->pb_cpu);
-	else
+	sched_bind(curthread, pb->pb_cpu);
+	if (!pb->pb_bound)
 		sched_unbind(curthread);
+	sched_prio(curthread, pb->pb_priority);
 	thread_unlock(curthread);
 	PMCDBG0(CPU,BND,2, "restore-cpu done");
 }
@@ -772,7 +770,7 @@ pmc_restore_cpu_binding(struct pmc_binding *pb)
  * move execution over the specified cpu and bind it there.
  */
 
-static void
+void
 pmc_select_cpu(int cpu)
 {
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -784,6 +782,7 @@ pmc_select_cpu(int cpu)
 
 	PMCDBG1(CPU,SEL,2, "select-cpu cpu=%d", cpu);
 	thread_lock(curthread);
+	sched_prio(curthread, PRI_MIN);
 	sched_bind(curthread, cpu);
 	thread_unlock(curthread);
 
