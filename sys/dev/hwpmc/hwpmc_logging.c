@@ -764,6 +764,7 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 {
 	int error;
 	struct pmclog_buffer *lb;
+	struct pmc_binding pb;
 
 	PMCDBG1(LOG,CFG,1, "de-config po=%p", po);
 
@@ -787,19 +788,16 @@ pmclog_deconfigure_log(struct pmc_owner *po)
 		PMCLOG_RESET_BUFFER_DESCRIPTOR(lb);
 		pmc_plb_rele(lb);
 	}
+	pmc_save_cpu_binding(&pb);
 	for (int i = 0; i < mp_ncpus; i++) {
-		thread_lock(curthread);
-		sched_bind(curthread, i);
-		thread_unlock(curthread);
+		pmc_select_cpu(i);
 		/* return the 'current' buffer to the global pool */
 		if ((lb = po->po_curbuf[curcpu]) != NULL) {
 			PMCLOG_RESET_BUFFER_DESCRIPTOR(lb);
 			pmc_plb_rele(lb);
 		}
 	}
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	pmc_restore_cpu_binding(&pb);
 
 	/* drop a reference to the fd */
 	if (po->po_file != NULL) {
@@ -869,18 +867,17 @@ pmclog_schedule_one_cond(struct pmc_owner *po)
 static void
 pmclog_schedule_all(struct pmc_owner *po)
 {
+	struct pmc_binding pb;
+
 	/*
 	 * Schedule the current buffer if any and not empty.
 	 */
+	pmc_save_cpu_binding(&pb);
 	for (int i = 0; i < mp_ncpus; i++) {
-		thread_lock(curthread);
-		sched_bind(curthread, i);
-		thread_unlock(curthread);
+		pmc_select_cpu(i);
 		pmclog_schedule_one_cond(po);
 	}
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	pmc_restore_cpu_binding(&pb);
 }
 
 int

@@ -997,6 +997,7 @@ struct pmc_cpu {
 struct pmc_binding {
 	int	pb_bound;	/* is bound? */
 	int	pb_cpu;		/* if so, to which CPU */
+	u_char	pb_priority;	/* Thread active priority. */
 };
 
 struct pmc_mdep;
@@ -1225,6 +1226,9 @@ int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
+void	pmc_restore_cpu_binding(struct pmc_binding *pb);
+void	pmc_save_cpu_binding(struct pmc_binding *pb);
+void	pmc_select_cpu(int cpu);
 struct pmc_mdep *pmc_mdep_alloc(int nclasses);
 void pmc_mdep_free(struct pmc_mdep *md);
 uint64_t pmc_rdtsc(void);
