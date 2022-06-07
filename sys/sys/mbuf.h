@@ -150,7 +150,7 @@ struct m_snd_tag {
 
 /*
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
- * Size ILP32: 52
+ * Size ILP32: 56
  *	 LP64: 64
  * Compile-time assertions in uipc_mbuf.c test these values to ensure that
  * they are correct.
