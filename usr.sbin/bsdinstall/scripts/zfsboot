@@ -1473,9 +1473,18 @@ zfs_create_boot()
 	# Set canmount=noauto so that the default Boot Environment (BE) does
 	# not get mounted if a different BE is selected from the beastie menu
 	#
-	f_dprintf "$funcname: Set canmount=noauto for the root of the pool..."
-	f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
-		"$zroot_name/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"
+	f_dprintf "$funcname: Set canmount=noauto for any datasets under the BE..."
+	echo "$ZFSBOOT_DATASETS" | while read dataset options; do
+		# Skip blank lines and comments
+		case "$dataset" in "#"*|"") continue; esac
+		options="${options%%#*}"
+		#
+		case "$dataset" in "/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"*)
+			f_eval_catch $funcname zfs "$ZFS_SET" "canmount=noauto" \
+				"$zroot_name$dataset" || return $FAILURE ;;
+		*) continue ;;
+		esac
+	done
 
 	# Last, but not least... required lines for rc.conf(5)/loader.conf(5)
 	# NOTE: We later concatenate these into their destination
