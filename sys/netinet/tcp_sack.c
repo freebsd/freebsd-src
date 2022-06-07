@@ -965,6 +965,18 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 		}
 	}
 out:
+	KASSERT(SEQ_LT(hole->start, hole->end), ("%s: hole.start >= hole.end", __func__));
+	KASSERT(SEQ_LT(hole->start, tp->snd_fack), ("%s: hole.start >= snd.fack", __func__));
+	KASSERT(SEQ_LT(hole->end, tp->snd_fack), ("%s: hole.end >= snd.fack", __func__));
+	KASSERT(SEQ_LT(hole->rxmit, tp->snd_fack), ("%s: hole.rxmit >= snd.fack", __func__));
+	if (SEQ_GEQ(hole->start, hole->end) ||
+	    SEQ_GEQ(hole->start, tp->snd_fack) ||
+	    SEQ_GEQ(hole->end, tp->snd_fack) ||
+	    SEQ_GEQ(hole->rxmit, tp->snd_fack)) {
+		log(LOG_CRIT,"tcp: invalid SACK hole (%u-%u,%u) vs fwd ack %u, ignoring.\n",
+				hole->start, hole->end, hole->rxmit, tp->snd_fack);
+		return (NULL);
+	}
 	return (hole);
 }
 
