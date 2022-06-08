@@ -32,10 +32,11 @@
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/condvar.h>
-#include <sys/interrupt.h>
 #include <sys/unistd.h>
 
 #include <sys/queue.h>
+
+#include <machine/interrupt.h>
 
 #define	MLX5E_RL_MAX_WORKERS		128	/* limited by Toeplitz hash */
 #define	MLX5E_RL_MAX_TX_RATES		(64 * 1024)	/* software limit */
