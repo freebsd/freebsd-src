@@ -60,7 +60,7 @@
 
 #include <machine/cpu.h>
 #ifdef INTRNG
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #endif
 
 #include <vm/uma.h>
