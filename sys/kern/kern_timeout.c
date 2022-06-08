@@ -45,7 +45,6 @@
 #include <sys/callout.h>
 #include <sys/domainset.h>
 #include <sys/file.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/kthread.h>
@@ -70,6 +69,7 @@
 #ifdef SMP
 #include <machine/cpu.h>
 #endif
+#include <machine/interrupt.h>
 
 DPCPU_DECLARE(sbintime_t, hardclocktime);
 

@@ -28,7 +28,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kexec.h>
 #include <vm/vm.h>

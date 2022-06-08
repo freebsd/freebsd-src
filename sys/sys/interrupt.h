@@ -30,6 +30,10 @@
 #define _SYS_INTERRUPT_H_
 #ifdef	_KERNEL
 
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/interrupt.h included without architecture interrupt header!"
+#endif
+
 #include <sys/_cpuset.h>
 #include <sys/_interrupt.h>
 #include <sys/_lock.h>

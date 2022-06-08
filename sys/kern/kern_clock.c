@@ -66,7 +66,6 @@
 #include <vm/vm_map.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/limits.h>
 #include <sys/timetc.h>
 
@@ -77,6 +76,8 @@ PMC_SOFT_DEFINE( , , clock, stat);
 PMC_SOFT_DEFINE_EX( , , clock, prof, \
     cpu_startprofclock, cpu_stopprofclock);
 #endif
+
+#include <machine/interrupt.h>
 
 #ifdef DEVICE_POLLING
 extern void hardclock_device_poll(void);

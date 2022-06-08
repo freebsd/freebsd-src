@@ -42,7 +42,6 @@
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/cpuset.h>
-#include <sys/interrupt.h>
 #include <sys/smp.h>
 
 #include <machine/bus.h>

@@ -61,7 +61,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/sysctl.h>
 #include <sys/timeet.h>

@@ -36,7 +36,6 @@
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/interrupt.h>
 #include <sys/sbuf.h>
 #include <sys/stdarg.h>
 
@@ -60,6 +59,7 @@
 #include <cam/mmc/mmc_bus.h>
 
 #include <machine/_inttypes.h>  /* for PRIu64 */
+#include <machine/interrupt.h>
 
 FEATURE(mmccam, "CAM-based MMC/SD/SDIO stack");
 
