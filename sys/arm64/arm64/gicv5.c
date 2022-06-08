@@ -47,7 +47,7 @@
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/cpu_feat.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 
 #ifdef FDT

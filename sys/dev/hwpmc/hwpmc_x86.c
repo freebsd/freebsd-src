@@ -40,7 +40,7 @@
 
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/intr_machdep.h>	/* For x86/apicvar.h */
+#include <machine/interrupt.h>	/* For x86/apicvar.h */
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
 #include <machine/stack.h>

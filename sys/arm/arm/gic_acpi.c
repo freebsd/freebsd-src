@@ -44,7 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>

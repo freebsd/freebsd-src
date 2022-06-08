@@ -43,9 +43,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#ifdef INTRNG
-#include <machine/intr.h>
-#endif
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 struct apm_clone_data;

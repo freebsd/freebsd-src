@@ -39,8 +39,8 @@
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr_machdep.h>
 #include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>

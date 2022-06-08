@@ -46,7 +46,7 @@
 #include <vm/pmap.h>
 
 #include <machine/atomic.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/vmparam.h>
 
 #ifdef FDT
