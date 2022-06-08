@@ -26,7 +26,7 @@
 INTERFACE pic;
 
 HEADER {
-	#include <machine/intr_machdep.h>
+	#include <machine/interrupt.h>
 };
 
 CODE {
