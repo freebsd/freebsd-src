@@ -49,7 +49,7 @@
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include "thunder_pcie_common.h"
 #include "thunder_pcie_pem.h"

@@ -64,7 +64,7 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <x86/init.h>
 #include <x86/ppireg.h>
