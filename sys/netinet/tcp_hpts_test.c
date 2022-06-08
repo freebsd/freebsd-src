@@ -29,7 +29,6 @@
 #include "opt_inet.h"
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -37,6 +36,8 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+
+#include <machine/interrupt.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
