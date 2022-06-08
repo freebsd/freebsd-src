@@ -65,7 +65,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/nexusvar.h>

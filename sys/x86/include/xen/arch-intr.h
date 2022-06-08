@@ -29,7 +29,7 @@
 #ifndef	_MACHINE__XEN_ARCH_INTR_H_
 #define	_MACHINE__XEN_ARCH_INTR_H_
 
-#include <x86/intr_machdep.h>
+#include <x86/interrupt.h>
 #include <x86/apicvar.h>
 
 typedef struct {
