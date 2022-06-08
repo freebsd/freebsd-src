@@ -98,7 +98,7 @@
 #include <machine/md_var.h>
 #ifdef DEV_APIC
 #include <sys/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #endif
 #include <x86/ifunc.h>

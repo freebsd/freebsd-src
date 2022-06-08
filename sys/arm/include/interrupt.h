@@ -36,8 +36,8 @@
  *
  */
 
-#ifndef _MACHINE_INTR_H_
-#define _MACHINE_INTR_H_
+#ifndef __MACHINE_INTERRUPT_H__
+#define __MACHINE_INTERRUPT_H__
 
 #ifndef LOCORE
 #include <sys/intr.h>
@@ -52,4 +52,4 @@ void arm_irq_memory_barrier(uintptr_t);
 #define	INTR_ROOT_IRQ	0
 #define	INTR_ROOT_COUNT	1
 
-#endif	/* _MACHINE_INTR_H */
+#endif	/* __MACHINE_INTERRUPT_H__ */

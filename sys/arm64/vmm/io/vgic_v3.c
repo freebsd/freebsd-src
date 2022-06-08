@@ -51,11 +51,11 @@
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/param.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
-#include <machine/intr.h>
 #include <machine/vmm.h>
 #include <machine/vmm_instruction_emul.h>
 

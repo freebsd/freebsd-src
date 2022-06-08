@@ -46,7 +46,7 @@
 #include <sys/callout.h>
 #include <sys/gpio.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
