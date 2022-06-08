@@ -1,0 +1,15 @@
+$ORIGIN dnssec-failures.test.
+
+@       SOA     ns      hostmaster      (
+                1       ; serial
+                14400   ; refresh (4 hours)
+                1800    ; retry (30 minutes)
+                2419200 ; expire (4 weeks)
+                300     ; minimum (5 minutes)
+)
+        NS      ns
+ns      A       192.0.2.1
+notyetincepted  TXT     "Not yet incepted"
+expired         TXT     "Expired"
+sigsinvalid     TXT     "Signatures invalid"
+missingrrsigs   TXT     "Signatures missing"

@@ -209,11 +209,13 @@ sldns_hexdigit_to_int(char ch)
 }
 
 uint32_t
-sldns_str2period(const char *nptr, const char **endptr)
+sldns_str2period(const char *nptr, const char **endptr, int* overflow)
 {
 	int sign = 0;
 	uint32_t i = 0;
 	uint32_t seconds = 0;
+	const uint32_t maxint = 0xffffffff;
+	*overflow = 0;
 
 	for(*endptr = nptr; **endptr; (*endptr)++) {
 		switch (**endptr) {
@@ -236,26 +238,46 @@ sldns_str2period(const char *nptr, const char **endptr)
 				break;
 			case 's':
 			case 'S':
+				if(seconds > maxint-i) {
+					*overflow = 1;
+					return 0;
+				}
 				seconds += i;
 				i = 0;
 				break;
 			case 'm':
 			case 'M':
+				if(i > maxint/60 || seconds > maxint-(i*60)) {
+					*overflow = 1;
+					return 0;
+				}
 				seconds += i * 60;
 				i = 0;
 				break;
 			case 'h':
 			case 'H':
+				if(i > maxint/(60*60) || seconds > maxint-(i*60*60)) {
+					*overflow = 1;
+					return 0;
+				}
 				seconds += i * 60 * 60;
 				i = 0;
 				break;
 			case 'd':
 			case 'D':
+				if(i > maxint/(60*60*24) || seconds > maxint-(i*60*60*24)) {
+					*overflow = 1;
+					return 0;
+				}
 				seconds += i * 60 * 60 * 24;
 				i = 0;
 				break;
 			case 'w':
 			case 'W':
+				if(i > maxint/(60*60*24*7) || seconds > maxint-(i*60*60*24*7)) {
+					*overflow = 1;
+					return 0;
+				}
 				seconds += i * 60 * 60 * 24 * 7;
 				i = 0;
 				break;
@@ -269,14 +291,26 @@ sldns_str2period(const char *nptr, const char **endptr)
 			case '7':
 			case '8':
 			case '9':
+				if(i > maxint/10 || i*10 > maxint - (**endptr - '0')) {
+					*overflow = 1;
+					return 0;
+				}
 				i *= 10;
 				i += (**endptr - '0');
 				break;
 			default:
+				if(seconds > maxint-i) {
+					*overflow = 1;
+					return 0;
+				}
 				seconds += i;
 				/* disregard signedness */
 				return seconds;
 		}
+	}
+	if(seconds > maxint-i) {
+		*overflow = 1;
+		return 0;
 	}
 	seconds += i;
 	/* disregard signedness */

@@ -18,27 +18,45 @@ AC_DEFUN([AC_PYTHON_DEVEL],[
 			print(sys.version.split()[[0]])"`
 	fi
 
-        #
-        # Check if you have distutils, else fail
-        #
-        AC_MSG_CHECKING([for the distutils Python package])
-        if ac_distutils_result=`$PYTHON -c "import distutils" 2>&1`; then
+	# Check if you have sysconfig
+	AC_MSG_CHECKING([for the sysconfig Python module])
+        if ac_sysconfig_result=`$PYTHON -c "import sysconfig" 2>&1`; then
                 AC_MSG_RESULT([yes])
-        else
+		sysconfig_module="sysconfig"
+		# if yes, use sysconfig, because distutils is deprecated.
+	else
                 AC_MSG_RESULT([no])
-                AC_MSG_ERROR([cannot import Python module "distutils".
-Please check your Python installation. The error was:
-$ac_distutils_result])
-                PYTHON_VERSION=""
-        fi
+		# if no, try to use distutils
+
+		#
+		# Check if you have distutils, else fail
+		#
+		AC_MSG_CHECKING([for the distutils Python package])
+		if ac_distutils_result=`$PYTHON -c "import distutils" 2>&1`; then
+			AC_MSG_RESULT([yes])
+		else
+			AC_MSG_RESULT([no])
+			AC_MSG_ERROR([cannot import Python module "distutils".
+	Please check your Python installation. The error was:
+	$ac_distutils_result])
+			PYTHON_VERSION=""
+		fi
+
+		sysconfig_module="distutils.sysconfig"
+	fi
 
         #
         # Check for Python include path
         #
         AC_MSG_CHECKING([for Python include path])
         if test -z "$PYTHON_CPPFLAGS"; then
-                python_path=`$PYTHON -c "import distutils.sysconfig; \
-                        print(distutils.sysconfig.get_python_inc());"`
+		if test "$sysconfig_module" = "sysconfig"; then
+			python_path=`$PYTHON -c 'import sysconfig; \
+				print(sysconfig.get_path("include"));'`
+		else
+			python_path=`$PYTHON -c "import distutils.sysconfig; \
+				print(distutils.sysconfig.get_python_inc());"`
+		fi
                 if test -n "${python_path}"; then
                         python_path="-I$python_path"
                 fi
@@ -52,14 +70,14 @@ $ac_distutils_result])
         #
         AC_MSG_CHECKING([for Python library path])
         if test -z "$PYTHON_LDFLAGS"; then
-                PYTHON_LDFLAGS=`$PYTHON -c "from distutils.sysconfig import *; \
+                PYTHON_LDFLAGS=`$PYTHON -c "from $sysconfig_module import *; \
                         print('-L'+get_config_var('LIBDIR')+' -L'+get_config_var('LIBDEST')+' '+get_config_var('BLDLIBRARY'));"`
         fi
         AC_MSG_RESULT([$PYTHON_LDFLAGS])
         AC_SUBST([PYTHON_LDFLAGS])
 
         if test -z "$PYTHON_LIBDIR"; then
-                PYTHON_LIBDIR=`$PYTHON -c "from distutils.sysconfig import *; \
+                PYTHON_LIBDIR=`$PYTHON -c "from $sysconfig_module import *; \
                         print(get_config_var('LIBDIR'));"`
         fi
 
@@ -68,8 +86,13 @@ $ac_distutils_result])
         #
         AC_MSG_CHECKING([for Python site-packages path])
         if test -z "$PYTHON_SITE_PKG"; then
-                PYTHON_SITE_PKG=`$PYTHON -c "import distutils.sysconfig; \
-                        print(distutils.sysconfig.get_python_lib(1,0));"`
+		if test "$sysconfig_module" = "sysconfig"; then
+			PYTHON_SITE_PKG=`$PYTHON -c 'import sysconfig; \
+				print(sysconfig.get_path("platlib"));'`
+		else
+			PYTHON_SITE_PKG=`$PYTHON -c "import distutils.sysconfig; \
+				print(distutils.sysconfig.get_python_lib(1,0));"`
+		fi
         fi
         AC_MSG_RESULT([$PYTHON_SITE_PKG])
         AC_SUBST([PYTHON_SITE_PKG])

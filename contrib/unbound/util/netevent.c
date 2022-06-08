@@ -1209,23 +1209,22 @@ squelch_err_ssl_handshake(unsigned long err)
 {
 	if(verbosity >= VERB_QUERY)
 		return 0; /* only squelch on low verbosity */
-	/* this is very specific, we could filter on ERR_GET_REASON()
-	 * (the third element in ERR_PACK) */
-	if(err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_GET_RECORD, SSL_R_HTTPS_PROXY_REQUEST) ||
-		err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_GET_RECORD, SSL_R_HTTP_REQUEST) ||
-		err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_GET_RECORD, SSL_R_WRONG_VERSION_NUMBER) ||
-		err == ERR_PACK(ERR_LIB_SSL, SSL_F_SSL3_READ_BYTES, SSL_R_SSLV3_ALERT_BAD_CERTIFICATE)
+	if(ERR_GET_LIB(err) == ERR_LIB_SSL &&
+		(ERR_GET_REASON(err) == SSL_R_HTTPS_PROXY_REQUEST ||
+		 ERR_GET_REASON(err) == SSL_R_HTTP_REQUEST ||
+		 ERR_GET_REASON(err) == SSL_R_WRONG_VERSION_NUMBER ||
+		 ERR_GET_REASON(err) == SSL_R_SSLV3_ALERT_BAD_CERTIFICATE
 #ifdef SSL_F_TLS_POST_PROCESS_CLIENT_HELLO
-		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_POST_PROCESS_CLIENT_HELLO, SSL_R_NO_SHARED_CIPHER)
+		 || ERR_GET_REASON(err) == SSL_R_NO_SHARED_CIPHER
 #endif
 #ifdef SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO
-		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO, SSL_R_UNKNOWN_PROTOCOL)
-		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO, SSL_R_UNSUPPORTED_PROTOCOL)
+		 || ERR_GET_REASON(err) == SSL_R_UNKNOWN_PROTOCOL
+		 || ERR_GET_REASON(err) == SSL_R_UNSUPPORTED_PROTOCOL
 #  ifdef SSL_R_VERSION_TOO_LOW
-		|| err == ERR_PACK(ERR_LIB_SSL, SSL_F_TLS_EARLY_POST_PROCESS_CLIENT_HELLO, SSL_R_VERSION_TOO_LOW)
+		 || ERR_GET_REASON(err) == SSL_R_VERSION_TOO_LOW
 #  endif
 #endif
-		)
+		))
 		return 1;
 	return 0;
 }
@@ -1278,6 +1277,12 @@ ssl_handshake(struct comm_point* c)
 			if(errno == ECONNRESET && verbosity < 2)
 				return 0; /* silence reset by peer */
 #endif
+			if(!tcp_connect_errno_needs_log(
+				(struct sockaddr*)&c->repinfo.addr,
+				c->repinfo.addrlen))
+				return 0; /* silence connect failures that
+				show up because after connect this is the
+				first system call that accesses the socket */
 			if(errno != 0)
 				log_err("SSL_handshake syscall: %s",
 					strerror(errno));
@@ -2480,7 +2485,7 @@ http_nonchunk_segment(struct comm_point* c)
 	remainbufferlen = sldns_buffer_capacity(c->buffer) -
 		sldns_buffer_limit(c->buffer);
 	if(remainbufferlen+got_now >= c->tcp_byte_count ||
-		remainbufferlen >= (c->ssl?16384:2048)) {
+		remainbufferlen >= (size_t)(c->ssl?16384:2048)) {
 		size_t total = sldns_buffer_limit(c->buffer);
 		sldns_buffer_clear(c->buffer);
 		sldns_buffer_set_position(c->buffer, total);

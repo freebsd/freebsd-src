@@ -128,7 +128,7 @@ struct delegpt_ns {
 	uint8_t done_pside6;
 	/** the TLS authentication name, (if not NULL) to use. */
 	char* tls_auth_name;
-	/** the port to use; it should mosty be the default 53 but configured
+	/** the port to use; it should mostly be the default 53 but configured
 	 *  upstreams can provide nondefault ports. */
 	int port;
 };

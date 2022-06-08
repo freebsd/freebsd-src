@@ -57,7 +57,7 @@ LEX=@LEX@
 STRIP=@STRIP@
 CC=@CC@
 CPPFLAGS=-I. @CPPFLAGS@
-PYTHON_CPPFLAGS=-I. @PYTHON_CPPFLAGS@
+PYTHON_CPPFLAGS=-I. -I$(srcdir) @PYTHON_CPPFLAGS@
 CFLAGS=-DSRCDIR=$(srcdir) @CFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
@@ -344,7 +344,18 @@ longcheck: longtest
 test:	unittest$(EXEEXT) testbound$(EXEEXT)
 	./unittest$(EXEEXT)
 	./testbound$(EXEEXT) -s
-	for x in $(srcdir)/testdata/*.rpl; do printf "%s" "$$x "; if ./testbound$(EXEEXT) -p $$x >/dev/null 2>&1; then echo OK; else echo failed; exit 1; fi done
+	for x in $(srcdir)/testdata/*.rpl; do \
+		printf "%s" "$$x "; \
+		if ./testbound$(EXEEXT) -p $$x >/dev/null 2>&1; then \
+			echo OK; \
+		else \
+			echo failed; \
+			./testbound$(EXEEXT) -p $$x -o -vvvvv; \
+			printf "%s" "$$x "; \
+			echo failed; \
+			exit 1; \
+		fi; \
+	done
 	@echo test OK
 
 longtest:	tests
@@ -556,7 +567,7 @@ pythonmod-install:
 
 pyunbound-install:
 	$(INSTALL) -m 755 -d $(DESTDIR)$(PYTHON_SITE_PKG)
-	$(INSTALL) -c -m 644 $(srcdir)/libunbound/python/unbound.py $(DESTDIR)$(PYTHON_SITE_PKG)/unbound.py
+	$(INSTALL) -c -m 644 libunbound/python/unbound.py $(DESTDIR)$(PYTHON_SITE_PKG)/unbound.py
 	$(LIBTOOL) --mode=install cp _unbound.la $(DESTDIR)$(PYTHON_SITE_PKG)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(PYTHON_SITE_PKG)
 
@@ -583,6 +594,8 @@ install-lib:	lib $(UNBOUND_EVENT_INSTALL)
 		echo ".so man3/libunbound.3" > $(DESTDIR)$(mandir)/man3/$$mpage.3 ; \
 	done
 	$(LIBTOOL) --mode=install cp unbound.h $(DESTDIR)$(includedir)/unbound.h
+	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)/pkgconfig
+	$(INSTALL) -m 644 contrib/libunbound.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(LIBTOOL) --mode=install cp libunbound.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
 
@@ -592,8 +605,6 @@ install-all:	all $(PYTHONMOD_INSTALL) $(PYUNBOUND_INSTALL) $(UNBOUND_EVENT_INSTA
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man8
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man5
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
-	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)/pkgconfig
-	$(INSTALL) -m 644 contrib/libunbound.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(LIBTOOL) --mode=install cp -f unbound$(EXEEXT) $(DESTDIR)$(sbindir)/unbound$(EXEEXT)
 	$(LIBTOOL) --mode=install cp -f unbound-checkconf$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-checkconf$(EXEEXT)
 	$(LIBTOOL) --mode=install cp -f unbound-control$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control$(EXEEXT)
@@ -1248,7 +1259,7 @@ cachedump.lo cachedump.o: $(srcdir)/daemon/cachedump.c config.h $(srcdir)/daemon
  $(srcdir)/util/regional.h $(srcdir)/util/net_help.h $(srcdir)/util/data/dname.h $(srcdir)/iterator/iterator.h \
  $(srcdir)/services/outbound_list.h $(srcdir)/iterator/iter_delegpt.h $(srcdir)/iterator/iter_utils.h \
  $(srcdir)/iterator/iter_resptype.h $(srcdir)/iterator/iter_fwd.h $(srcdir)/iterator/iter_hints.h \
- $(srcdir)/sldns/wire2str.h $(srcdir)/sldns/str2wire.h
+ $(srcdir)/sldns/wire2str.h $(srcdir)/sldns/str2wire.h $(srcdir)/util/config_file.h $(srcdir)/services/outside_network.h
 daemon.lo daemon.o: $(srcdir)/daemon/daemon.c config.h $(srcdir)/daemon/daemon.h $(srcdir)/util/locks.h \
  $(srcdir)/util/log.h $(srcdir)/util/alloc.h $(srcdir)/services/modstack.h  \
   $(srcdir)/daemon/worker.h $(srcdir)/libunbound/worker.h \
