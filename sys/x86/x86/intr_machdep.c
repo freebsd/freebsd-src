@@ -57,7 +57,7 @@
 #include <sys/vmmeter.h>
 
 #include <machine/clock.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 
 #ifdef DDB
