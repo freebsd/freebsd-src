@@ -1,0 +1,37 @@
+# #-- ede.pre --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+get_random_port 2
+UNBOUND_PORT=$RND_PORT
+UNBOUND_PORT2=$(($RND_PORT + 1))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "UNBOUND_PORT2=$UNBOUND_PORT2" >> .tpkg.var.test
+
+# rewrite config file with created ports
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' < ede.conf > temp.conf
+sed -e 's/@PORT2\@/'$UNBOUND_PORT2'/' < temp.conf > ub.conf
+sed -e 's/@PORT2\@/'$UNBOUND_PORT2'/' < ede-auth.conf > ub2.conf
+
+# create broken dnssec zone
+bogus/make-broken-zone.sh
+
+# start unbound in the background
+PRE="../.."
+$PRE/unbound -d -c ub.conf > unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+# start authoritative unbound in the background
+$PRE/unbound -d -c ub2.conf > unbound2.log 2>&1 &
+UNBOUND_PID2=$!
+echo "UNBOUND_PID2=$UNBOUND_PID2" >> .tpkg.var.test
+
+
+cat .tpkg.var.test
+wait_unbound_up unbound.log
+wait_unbound_up unbound2.log
+

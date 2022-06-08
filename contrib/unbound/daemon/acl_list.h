@@ -154,4 +154,15 @@ acl_addr_lookup(struct acl_list* acl, struct sockaddr_storage* addr,
  */
 size_t acl_list_get_mem(struct acl_list* acl);
 
+/*
+ * Get string for acl access specification
+ * @param acl: access type value
+ * @return string
+ */
+const char* acl_access_to_str(enum acl_access acl);
+
+/* log acl and addr for action */
+void log_acl_action(const char* action, struct sockaddr_storage* addr,
+	socklen_t addrlen, enum acl_access acl, struct acl_addr* acladdr);
+
 #endif /* DAEMON_ACL_LIST_H */

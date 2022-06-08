@@ -1,0 +1,33 @@
+; config options
+server:
+	ede: yes
+CONFIG_END
+
+SCENARIO_BEGIN Test ede-cache-snoop-not-authoritative
+; Scenario overview:
+; - query for example.com. A record with EDNS without the RD bit
+; - check that we get a refused answer with EDE (RFC8914) code 20 - Not Authoritative
+
+; Query without RD flag
+STEP 1 QUERY
+ENTRY_BEGIN
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+	    HEX_EDNSDATA_END
+ENTRY_END
+
+; Check that we got ede 20
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ede=20
+	REPLY QR RA REFUSED
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+	    HEX_EDNSDATA_END
+ENTRY_END
+
+SCENARIO_END

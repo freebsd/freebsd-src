@@ -296,10 +296,13 @@ void mesh_delete(struct mesh_area* mesh);
  * @param edns: edns data from client query.
  * @param rep: where to reply to.
  * @param qid: query id to reply with.
+ * @param rpz_passthru: if true, the rpz passthru was previously found and
+ * 	further rpz processing is stopped.
  */
 void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	struct respip_client_info* cinfo, uint16_t qflags,
-	struct edns_data* edns, struct comm_reply* rep, uint16_t qid);
+	struct edns_data* edns, struct comm_reply* rep, uint16_t qid,
+	int rpz_passthru);
 
 /**
  * New query with callback. Create new query state if needed, and
@@ -314,11 +317,13 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
  * @param qid: query id to reply with.
  * @param cb: callback function.
  * @param cb_arg: callback user arg.
+ * @param rpz_passthru: if true, the rpz passthru was previously found and
+ * 	further rpz processing is stopped.
  * @return 0 on error.
  */
 int mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, struct edns_data* edns, struct sldns_buffer* buf, 
-	uint16_t qid, mesh_cb_func_type cb, void* cb_arg);
+	uint16_t qid, mesh_cb_func_type cb, void* cb_arg, int rpz_passthru);
 
 /**
  * New prefetch message. Create new query state if needed.
@@ -328,9 +333,15 @@ int mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
  * @param qinfo: query from client.
  * @param qflags: flags from client query.
  * @param leeway: TTL leeway what to expire earlier for this update.
+ * @param rpz_passthru: if true, the rpz passthru was previously found and
+ * 	further rpz processing is stopped.
+ * @param rep: comm_reply for the client; to be used when subnet is enabled.
+ * @param opt_list: edns opt_list from the client; to be used when subnet is
+ *	enabled.
  */
 void mesh_new_prefetch(struct mesh_area* mesh, struct query_info* qinfo,
-	uint16_t qflags, time_t leeway);
+	uint16_t qflags, time_t leeway, int rpz_passthru,
+	struct comm_reply* rep, struct edns_option* opt_list);
 
 /**
  * Handle new event from the wire. A serviced query has returned.

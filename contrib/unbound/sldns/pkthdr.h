@@ -97,18 +97,22 @@ extern "C" {
 #define	QDCOUNT(wirebuf)		(ntohs(*(uint16_t *)(wirebuf+QDCOUNT_OFF)))
 */
 #define	LDNS_QDCOUNT(wirebuf)		(sldns_read_uint16(wirebuf+LDNS_QDCOUNT_OFF))
+#define LDNS_QDCOUNT_SET(wirebuf, i)    (sldns_write_uint16(wirebuf+LDNS_QDCOUNT_OFF, i))
 
 /* Counter of the answer section */
 #define LDNS_ANCOUNT_OFF		6
 #define	LDNS_ANCOUNT(wirebuf)		(sldns_read_uint16(wirebuf+LDNS_ANCOUNT_OFF))
+#define LDNS_ANCOUNT_SET(wirebuf, i)    (sldns_write_uint16(wirebuf+LDNS_ANCOUNT_OFF, i))
 
 /* Counter of the authority section */
 #define LDNS_NSCOUNT_OFF		8
 #define	LDNS_NSCOUNT(wirebuf)		(sldns_read_uint16(wirebuf+LDNS_NSCOUNT_OFF))
+#define LDNS_NSCOUNT_SET(wirebuf, i)    (sldns_write_uint16(wirebuf+LDNS_NSCOUNT_OFF, i))
 
 /* Counter of the additional section */
 #define LDNS_ARCOUNT_OFF		10
 #define	LDNS_ARCOUNT(wirebuf)		(sldns_read_uint16(wirebuf+LDNS_ARCOUNT_OFF))
+#define LDNS_ARCOUNT_SET(wirebuf, i)    (sldns_write_uint16(wirebuf+LDNS_ARCOUNT_OFF, i))
 
 /**
  * The sections of a packet

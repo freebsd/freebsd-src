@@ -176,12 +176,14 @@ void rpz_remove_rr(struct rpz* r, size_t aznamelen, uint8_t* dname,
  * @param taglist: taglist to lookup.
  * @param taglen: length of taglist.
  * @param stats: worker stats struct
+ * @param passthru: returns if the query can passthru further rpz processing.
  * @return: 1 if client answer is ready, 0 to continue resolving
  */
 int rpz_callback_from_worker_request(struct auth_zones* az, struct module_env* env,
 	struct query_info* qinfo, struct edns_data* edns, sldns_buffer* buf,
 	struct regional* temp, struct comm_reply* repinfo,
-	uint8_t* taglist, size_t taglen, struct ub_server_stats* stats);
+	uint8_t* taglist, size_t taglen, struct ub_server_stats* stats,
+	int* passthru);
 
 /**
  * Callback to process when the iterator module is about to send queries.

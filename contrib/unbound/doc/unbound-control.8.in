@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
+.TH "unbound-control" "8" "Jun  2, 2022" "NLnet Labs" "unbound 1.16.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -289,20 +289,22 @@ just the ratelimited ips, with their estimated qps.  The ratelimited
 ips are dropped before checking the cache.
 .TP
 .B list_auth_zones
-List the auth zones that are configured.  Printed one per line with a
-status, indicating if the zone is expired and current serial number.
+List the auth zones that are configured.  Printed one per line with a status,
+indicating if the zone is expired and current serial number.  Configured RPZ
+zones are included.
 .TP
 .B auth_zone_reload \fIzone\fR
-Reload the auth zone from zonefile.  The zonefile is read in overwriting
-the current contents of the zone in memory.  This changes the auth zone
-contents itself, not the cache contents.  Such cache contents exists if
-you set Unbound to validate with for-upstream yes and that can be cleared
-with \fBflush_zone\fR \fIzone\fR.
+Reload the auth zone (or RPZ zone) from zonefile.  The zonefile is read in
+overwriting the current contents of the zone in memory.  This changes the auth
+zone contents itself, not the cache contents.  Such cache contents exists if
+you set Unbound to validate with for-upstream yes and that can be cleared with
+\fBflush_zone\fR \fIzone\fR.
 .TP
 .B auth_zone_transfer \fIzone\fR
-Transfer the auth zone from master.  The auth zone probe sequence is started,
-where the masters are probed to see if they have an updated zone (with the SOA
-serial check).  And then the zone is transferred for a newer zone version.
+Transfer the auth zone (or RPZ zone) from master.  The auth zone probe sequence
+is started, where the masters are probed to see if they have an updated zone
+(with the SOA serial check).  And then the zone is transferred for a newer zone
+version.
 .TP
 .B rpz_enable \fIzone\fR
 Enable the RPZ zone if it had previously been disabled.

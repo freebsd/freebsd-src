@@ -45,6 +45,7 @@ struct packed_rrset_data;
 struct regional;
 struct ub_packed_rrset_key;
 #include "util/storage/lruhash.h"
+#include "sldns/rrdef.h"
 
 /**
  * A key entry for the validator.
@@ -80,6 +81,8 @@ struct key_entry_data {
 	struct packed_rrset_data* rrset_data;
 	/** not NULL sometimes to give reason why bogus */
 	char* reason;
+        /** not NULL to give reason why bogus */
+        sldns_ede_code reason_bogus;
 	/** list of algorithms signalled, ends with 0, or NULL */
 	uint8_t* algo;
 	/** DNS RR type of the rrset data (host order) */
@@ -151,12 +154,28 @@ int key_entry_isbad(struct key_entry_key* kkey);
 void key_entry_set_reason(struct key_entry_key* kkey, char* reason);
 
 /**
+ * Set the EDE (RFC8914) code why the key is bad, if it
+ * exists (so not LDNS_EDE_NONE).
+ * @param kkey: bad key.
+ * @param ede: EDE code to attach to this key.
+ */
+void key_entry_set_reason_bogus(struct key_entry_key* kkey, sldns_ede_code ede);
+
+
+/**
  * Get reason why a key is bad.
  * @param kkey: bad key
  * @return pointer to string.
  *    String is part of key entry and is deleted with it.
  */
 char* key_entry_get_reason(struct key_entry_key* kkey);
+
+/**
+ * Get the EDE (RFC8914) code why a key is bad. Can return LDNS_EDE_NONE.
+ * @param kkey: bad key
+ * @return the ede code.
+ */
+sldns_ede_code key_entry_get_reason_bogus(struct key_entry_key* kkey);
 
 /**
  * Create a null entry, in the given region.

@@ -1,0 +1,37 @@
+; config options
+server:
+	local-zone: example.com redirect
+	local-data: "example.com CNAME *.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaa."
+	ede: yes
+
+CONFIG_END
+
+SCENARIO_BEGIN Test ede-localzone-dname-expansion
+; Scenario overview:
+; - query for www.qhqwer.qwer.qwer.h.example.com. (a large Qname) A record with EDNS
+; - check that we get a YXDOMAIN answer with EDE (RFC8914) code 0 - Other (which adds a DNAME expansion message)
+
+; Query with RD flag
+STEP 1 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		www.qhqwer.qwer.qwer.h.example.com A
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+	    HEX_EDNSDATA_END
+ENTRY_END
+
+; Check that we got the correct answer (should be cached)
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ede=0
+	REPLY QR AA RD RA YXDOMAIN
+	SECTION QUESTION
+		www.qhqwer.qwer.qwer.h.example.com A
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+	    HEX_EDNSDATA_END
+ENTRY_END
+
+SCENARIO_END

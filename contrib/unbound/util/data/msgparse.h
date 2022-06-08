@@ -294,6 +294,15 @@ int parse_extract_edns_from_response_msg(struct msg_parse* msg,
 	struct edns_data* edns, struct regional* region);
 
 /**
+ * Skip RRs from packet
+ * @param pkt: the packet. position at start must be right after the query
+ *	section. At end, right after EDNS data or no movement if failed.
+ * @param num: Limit of the number of records we want to parse.
+ * @return: 0 on success, 1 on failure.
+ */
+int skip_pkt_rrs(struct sldns_buffer* pkt, int num);
+
+/**
  * If EDNS data follows a query section, extract it and initialize edns struct.
  * @param pkt: the packet. position at start must be right after the query
  *	section. At end, right after EDNS data or no movement if failed.

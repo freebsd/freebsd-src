@@ -408,6 +408,28 @@ interfacechecks(struct config_file* cfg)
 	}
 }
 
+/** check interface-automatic-ports */
+static void
+ifautomaticportschecks(char* ifautomaticports)
+{
+	char* now = ifautomaticports;
+	while(now && *now) {
+		char* after;
+		int extraport;
+		while(isspace((unsigned char)*now))
+			now++;
+		if(!*now)
+			break;
+		after = now;
+		extraport = (int)strtol(now, &after, 10);
+		if(extraport < 0 || extraport > 65535)
+			fatal_exit("interface-automatic-ports: port out of range at position %d in '%s'", (int)(now-ifautomaticports)+1, ifautomaticports);
+		if(extraport == 0 && now == after)
+			fatal_exit("interface-automatic-ports: parse error at position %d in '%s'", (int)(now-ifautomaticports)+1, ifautomaticports);
+		now = after;
+	}
+}
+
 /** check acl ips */
 static void
 aclchecks(struct config_file* cfg)
@@ -608,6 +630,7 @@ morechecks(struct config_file* cfg)
 	warn_hosts("stub-host", cfg->stubs);
 	warn_hosts("forward-host", cfg->forwards);
 	interfacechecks(cfg);
+	ifautomaticportschecks(cfg->if_automatic_ports);
 	aclchecks(cfg);
 	tcpconnlimitchecks(cfg);
 

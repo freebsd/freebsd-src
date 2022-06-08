@@ -1995,6 +1995,9 @@ static int udp_connect_needs_log(int err)
 #  ifdef ENETDOWN
 	case ENETDOWN:
 #  endif
+#  ifdef EADDRNOTAVAIL
+	case EADDRNOTAVAIL:
+#  endif
 	case EPERM:
 	case EACCES:
 		if(verbosity >= VERB_ALGO)
@@ -2294,7 +2297,7 @@ reuse_tcp_select_id(struct reuse_tcp* reuse, struct outside_network* outnet)
 	node = rbtree_first(&reuse->tree_by_id);
 	log_assert(node && node != RBTREE_NULL); /* tree not empty */
 	/* see if select is before first node */
-	if(select < tree_by_id_get_id(node))
+	if(select < (unsigned)tree_by_id_get_id(node))
 		return select;
 	count += tree_by_id_get_id(node);
 	/* perhaps select is between nodes */

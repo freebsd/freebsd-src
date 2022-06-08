@@ -971,6 +971,10 @@
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
 
+/* defined to use gcc ansi snprintf and sscanf that understands %lld when
+   compiled for windows. */
+#undef __USE_MINGW_ANSI_STDIO
+
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
@@ -1150,7 +1154,7 @@
 #include <ws2tcpip.h>
 #endif
 
-#ifndef USE_WINSOCK
+#if !defined(USE_WINSOCK) || !defined(HAVE_SNPRINTF) || defined(SNPRINTF_RET_BROKEN) || defined(__USE_MINGW_ANSI_STDIO)
 #define ARG_LL "%ll"
 #else
 #define ARG_LL "%I64"

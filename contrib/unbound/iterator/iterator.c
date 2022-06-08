@@ -1547,7 +1547,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * same server reply) if useless-checked.
 		 */
 		if(iter_dp_is_useless(&qstate->qinfo, qstate->query_flags, 
-			iq->dp)) {
+			iq->dp, ie->supports_ipv4, ie->supports_ipv6)) {
 			struct delegpt* retdp = NULL;
 			if(!can_have_last_resort(qstate->env, iq->dp->name, iq->dp->namelen, iq->qchase.qclass, &retdp)) {
 				if(retdp) {
@@ -1831,6 +1831,23 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 	int missing;
 	int toget = 0;
 
+	iter_mark_cycle_targets(qstate, iq->dp);
+	missing = (int)delegpt_count_missing_targets(iq->dp);
+	log_assert(maxtargets != 0); /* that would not be useful */
+
+	/* Generate target requests. Basically, any missing targets
+	 * are queried for here, regardless if it is necessary to do
+	 * so to continue processing. */
+	if(maxtargets < 0 || maxtargets > missing)
+		toget = missing;
+	else	toget = maxtargets;
+	if(toget == 0) {
+		*num = 0;
+		return 1;
+	}
+
+	/* now that we are sure that a target query is going to be made,
+	 * check the limits. */
 	if(iq->depth == ie->max_dependency_depth)
 		return 0;
 	if(iq->depth > 0 && iq->target_count &&
@@ -1850,20 +1867,6 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 		return 0;
 	}
 
-	iter_mark_cycle_targets(qstate, iq->dp);
-	missing = (int)delegpt_count_missing_targets(iq->dp);
-	log_assert(maxtargets != 0); /* that would not be useful */
-
-	/* Generate target requests. Basically, any missing targets 
-	 * are queried for here, regardless if it is necessary to do 
-	 * so to continue processing. */
-	if(maxtargets < 0 || maxtargets > missing)
-		toget = missing;
-	else	toget = maxtargets;
-	if(toget == 0) {
-		*num = 0;
-		return 1;
-	}
 	/* select 'toget' items from the total of 'missing' items */
 	log_assert(toget <= missing);
 
@@ -2512,7 +2515,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 			iq->response = forged_response;
 			next_state(iq, FINISHED_STATE);
 			if(!iter_prepend(iq, qstate->return_msg, qstate->region)) {
-				log_err("rpz, prepend rrsets: out of memory");
+				log_err("rpz: prepend rrsets: out of memory");
 				return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 			}
 			return 0;
@@ -2832,7 +2835,9 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		}
 		if(!qstate->no_cache_store)
 			iter_dns_store(qstate->env, &iq->response->qinfo,
-				iq->response->rep, 0, qstate->prefetch_leeway,
+				iq->response->rep,
+				iq->qchase.qtype != iq->response->qinfo.qtype,
+				qstate->prefetch_leeway,
 				iq->dp&&iq->dp->has_parent_side_NS,
 				qstate->region, qstate->query_flags);
 		/* close down outstanding requests to be discarded */
@@ -3067,7 +3072,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 				iq->response = forged_response;
 				next_state(iq, FINISHED_STATE);
 				if(!iter_prepend(iq, qstate->return_msg, qstate->region)) {
-					log_err("rpz after cname, prepend rrsets: out of memory");
+					log_err("rpz: after cname, prepend rrsets: out of memory");
 					return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 				}
 				qstate->return_msg->qinfo = qstate->qinfo;

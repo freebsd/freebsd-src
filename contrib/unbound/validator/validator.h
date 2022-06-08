@@ -93,7 +93,7 @@ struct val_env {
 	int32_t skew_max;
 
 	/** max number of query restarts, number of IPs to probe */
-	int32_t max_restart;
+	int max_restart;
 
 	/** TTL for bogus data; used instead of untrusted TTL from data.
 	 * Bogus data will not be verified more often than this interval. 
