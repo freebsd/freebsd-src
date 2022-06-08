@@ -41,7 +41,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
