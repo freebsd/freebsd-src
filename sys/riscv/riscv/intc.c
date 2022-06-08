@@ -49,7 +49,7 @@
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <dev/fdt/simplebus.h>
 

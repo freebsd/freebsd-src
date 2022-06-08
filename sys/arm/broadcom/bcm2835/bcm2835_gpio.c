@@ -44,7 +44,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>

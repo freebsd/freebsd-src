@@ -129,7 +129,7 @@
 
 #include <machine/_inttypes.h>
 #if defined(__amd64__) || defined(__i386__)
-#include <machine/intr_machdep.h>
+#include <machine/machintr.h>
 
 #include <x86/apicvar.h>
 #endif

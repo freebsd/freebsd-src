@@ -72,7 +72,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 

@@ -58,7 +58,7 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/smp.h>
 
 #ifdef FDT

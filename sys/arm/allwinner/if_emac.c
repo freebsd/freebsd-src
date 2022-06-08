@@ -44,7 +44,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <net/if.h>
 #include <net/if_var.h>

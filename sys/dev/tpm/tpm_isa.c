@@ -41,7 +41,7 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/conf.h>
 
 #include <dev/isa/isareg.h>

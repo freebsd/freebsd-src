@@ -61,7 +61,7 @@
 #include <machine/stdarg.h>
 
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
-#include <machine/intr_machdep.h>
+#include <machine/machintr.h>
 #endif
 
 #include <sys/pciio.h>

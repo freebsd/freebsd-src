@@ -37,7 +37,7 @@
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/machdep.h> /* For arm_set_delay */
 
 #include <dev/ofw/openfirm.h>

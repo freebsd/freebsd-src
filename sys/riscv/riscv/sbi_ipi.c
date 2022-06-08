@@ -33,7 +33,7 @@
 #include <sys/module.h>
 #include <sys/rman.h>
 
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/sbi.h>
 #include <machine/smp.h>
 

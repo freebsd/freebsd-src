@@ -34,7 +34,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
 

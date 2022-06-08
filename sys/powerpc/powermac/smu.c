@@ -46,7 +46,7 @@
 #include <sys/unistd.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/machintr.h>
 #include <machine/md_var.h>
 
 #include <dev/iicbus/iicbus.h>

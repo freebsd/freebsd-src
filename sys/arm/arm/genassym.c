@@ -48,7 +48,7 @@
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 #include <machine/sysarch.h>
 #include <machine/vmparam.h>	/* For KERNVIRTADDR */
 

@@ -39,7 +39,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/machintr.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
