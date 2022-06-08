@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _MACHINE_INTR_H_
-#define	_MACHINE_INTR_H_
+#ifndef __MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
 
 #ifndef LOCORE
 #include <sys/intr.h>
@@ -50,4 +50,4 @@ arm_irq_memory_barrier(uintptr_t irq)
 #define	INTR_ROOT_FIQ	1
 #define	INTR_ROOT_COUNT	2
 
-#endif	/* _MACHINE_INTR_H */
+#endif	/* __MACHINE_INTERRUPT_H__ */
