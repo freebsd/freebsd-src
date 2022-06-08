@@ -217,7 +217,7 @@ OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 PROG=	${KMOD}.ko
 .endif
 
-.if !defined(DEBUG_FLAGS) || ${MK_KERNEL_SYMBOLS} == "no"
+.if !defined(DEBUG_FLAGS) || ${MK_SPLIT_KERNEL_DEBUG} == "no"
 FULLPROG=	${PROG}
 .else
 FULLPROG=	${PROG}.full
@@ -321,7 +321,7 @@ ${_ILINKS}:
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
-.if defined(DEBUG_FLAGS) && ${MK_KERNEL_SYMBOLS} != "no"
+.if defined(DEBUG_FLAGS) && ${MK_SPLIT_KERNEL_DEBUG} != "no"
 CLEANFILES+= ${FULLPROG} ${PROG}.debug
 .endif
 
