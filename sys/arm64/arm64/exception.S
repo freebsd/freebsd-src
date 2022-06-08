@@ -29,7 +29,7 @@
 
 #include <machine/asm.h>
 #include <machine/armreg.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include "assym.inc"
 

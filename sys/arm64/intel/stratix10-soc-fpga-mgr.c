@@ -58,7 +58,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #define	SVC_BUF_SIZE	(512 * 1024)
 

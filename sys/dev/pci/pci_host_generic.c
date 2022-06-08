@@ -48,7 +48,7 @@
 #include <dev/pci/pci_host_generic.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include "pcib_if.h"
 

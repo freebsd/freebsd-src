@@ -34,8 +34,9 @@
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>

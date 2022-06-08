@@ -50,7 +50,7 @@
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
