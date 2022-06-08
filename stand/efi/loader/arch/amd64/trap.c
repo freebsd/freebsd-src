@@ -78,11 +78,21 @@ static uint32_t loader_tss;		/* Loader TSS segment */
 static struct region_descriptor fw_gdt;	/* Descriptor of pristine GDT */
 static EFI_PHYSICAL_ADDRESS loader_gdt_pa; /* Address of loader shadow GDT */
 
+struct frame {
+	struct frame	*fr_savfp;
+	uintptr_t	fr_savpc;
+};
+
 void report_exc(struct trapframe *tf);
 void
 report_exc(struct trapframe *tf)
 {
+	struct frame *fp;
+	uintptr_t pc, base;
+	char buf[80];
+	int ret;
 
+	base = (uintptr_t)boot_img->ImageBase;
 	/*
 	 * printf() depends on loader runtime and UEFI firmware health
 	 * to produce the console output, in case of exception, the
@@ -108,6 +118,33 @@ report_exc(struct trapframe *tf)
 	    tf->tf_rdi, tf->tf_rsi, tf->tf_rdx, tf->tf_rcx, tf->tf_r8,
 	    tf->tf_r9, tf->tf_rax, tf->tf_rbx, tf->tf_rbp, tf->tf_r10,
 	    tf->tf_r11, tf->tf_r12, tf->tf_r13, tf->tf_r14, tf->tf_r15);
+
+	fp = (struct frame *)tf->tf_rbp;
+	pc = tf->tf_rip;
+
+	printf("Stack trace:\n");
+	pager_open();
+	while (fp != NULL || pc != 0) {
+		char *source = "PC";
+
+		if (pc >= base && pc < base + boot_img->ImageSize) {
+			pc -= base;
+			source = "loader PC";
+		}
+		(void) snprintf(buf, sizeof (buf), "FP %016lx: %s 0x%016lx\n",
+		    (uintptr_t)fp, source, pc);
+		if (pager_output(buf))
+			break;
+
+		if (fp != NULL)
+			fp = fp->fr_savfp;
+
+		if (fp != NULL)
+			pc = fp->fr_savpc;
+		else
+			pc = 0;
+	}
+	pager_close();
 	printf("Machine stopped.\n");
 }
 
