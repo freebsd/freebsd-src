@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Feb 10, 2022" "NLnet Labs" "unbound 1.15.0"
+.TH "unbound.conf" "5" "Jun  2, 2022" "NLnet Labs" "unbound 1.16.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -139,6 +139,15 @@ ip\-transparent, but this option services all interfaces whilst with
 ip\-transparent you can select which (future) interfaces Unbound provides
 service on.  This feature is experimental, and needs support in your OS for
 particular socket options.  Default value is no.
+.TP
+.B interface\-automatic\-ports: \fI<string>
+List the port numbers that interface-automatic listens on. If empty, the
+default port is listened on. The port numbers are separated by spaces in the
+string. Default is "".
+.IP
+This can be used to have interface automatic to deal with the interface,
+and listen on the normal port number, by including it in the list, and
+also https or dns over tls port numbers by putting them in the list as well.
 .TP
 .B outgoing\-interface: \fI<ip address or ip6 netblock>
 Interface to use to connect to the network. This interface is used to send
@@ -499,10 +508,11 @@ Enabled or disable whether the upstream queries use TLS only for transport.
 Default is no.  Useful in tunneling scenarios.  The TLS contains plain DNS in
 TCP wireformat.  The other server must support this (see
 \fBtls\-service\-key\fR).
-If you enable this, also configure a tls\-cert\-bundle or use tls\-win\-cert to
-load CA certs, otherwise the connections cannot be authenticated.
-This option enables TLS for all of them, but if you do not set this you can
-configure TLS specifically for some forward zones with forward\-tls\-upstream.  And also with stub\-tls\-upstream.
+If you enable this, also configure a tls\-cert\-bundle or use tls\-win\-cert or
+tls\-system\-cert to load CA certs, otherwise the connections cannot be
+authenticated. This option enables TLS for all of them, but if you do not set
+this you can configure TLS specifically for some forward zones with
+forward\-tls\-upstream.  And also with stub\-tls\-upstream.
 .TP
 .B ssl\-upstream: \fI<yes or no>
 Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
@@ -551,7 +561,12 @@ Alternate syntax for \fBtls\-cert\-bundle\fR.
 Add the system certificates to the cert bundle certificates for authentication.
 If no cert bundle, it uses only these certificates.  Default is no.
 On windows this option uses the certificates from the cert store.  Use
-the tls\-cert\-bundle option on other systems.
+the tls\-cert\-bundle option on other systems. On other systems, this option
+enables the system certificates.
+.TP
+.B tls\-system\-cert: \fI<yes or no>
+This the same setting as the tls\-win\-cert setting, under a different name.
+Because it is not windows specific.
 .TP
 .B tls\-additional\-port: \fI<portnr>
 List portnumbers as tls\-additional\-port, and when interfaces are defined,
@@ -1320,7 +1335,17 @@ are authoritative DNS answers. By default the zones are class IN.
 .IP
 If you need more complicated authoritative data, with referrals, wildcards,
 CNAME/DNAME support, or DNSSEC authoritative service, setup a stub\-zone for
-it as detailed in the stub zone section below.
+it as detailed in the stub zone section below. A stub\-zone can be used to
+have unbound send queries to another server, an authoritative server, to
+fetch the information. With a forward\-zone, unbound sends queries to a server
+that is a recursive server to fetch the information. With an auth\-zone a
+zone can be loaded from file and used, it can be used like a local\-zone
+for users downstream, or the auth\-zone information can be used to fetch
+information from when resolving like it is an upstream server. The
+forward\-zone and auth\-zone options are described in their sections below.
+If you want to perform filtering of the information that the users can fetch,
+the local\-zone and local\-data statements allow for this, but also the
+rpz functionality can be used, described in the RPZ section.
 .TP 10
 \h'5'\fIdeny\fR
 Do not send an answer, drop the query.
@@ -1761,6 +1786,21 @@ option can be used multiple times. The most specific match will be used.
 EDNS0 option code for the \fIedns\-client\-string\fR option, from 0 to 65535.
 A value from the `Reserved for Local/Experimental` range (65001-65534) should
 be used.  Default is 65001.
+.TP 5
+.B ede: \fI<yes or no>
+If enabled, Unbound will respond with Extended DNS Error codes (RFC8914).
+These EDEs attach informative error messages to a response for various
+errors. Default is "no".
+
+When the \fBval-log-level\fR option is also set to \fB2\fR, responses with
+Extended DNS Errors concerning DNSSEC failures that are not served from cache,
+will also contain a descriptive text message about the reason for the failure.
+.TP
+.B ede\-serve\-expired: \fI<yes or no>
+If enabled, Unbound will attach an Extended DNS Error (RFC8914) Code 3 - Stale
+Answer as EDNS0 option to the expired response. Note that this will not attach
+the EDE code without setting the global \fBede\fR option to "yes" as well.
+Default is "no".
 .SS "Remote Control Options"
 In the
 .B remote\-control:
@@ -1784,7 +1824,7 @@ Use 0.0.0.0 and ::0 to listen to all interfaces.
 If you change this and permissions have been dropped, you must restart
 the server for the change to take effect.
 .IP
-If you set it to an absolute path, a local socket is used.  The local socket
+If you set it to an absolute path, a unix domain socket is used. This socket
 does not use the certificates and keys, so those files need not be present.
 To restrict access, Unbound sets permissions on the file to the user and
 group that is configured, the access bits are set to allow the group members

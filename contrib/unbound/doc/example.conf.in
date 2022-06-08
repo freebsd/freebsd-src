@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.15.0.
+# See unbound.conf(5) man page, version 1.16.0.
 #
 # this is a comment.
 
@@ -54,6 +54,10 @@ server:
 	# enable this feature to copy the source address of queries to reply.
 	# Socket options are not supported on all platforms. experimental.
 	# interface-automatic: no
+
+	# instead of the default port, open additional ports separated by
+	# spaces when interface-automatic is enabled, by listing them here.
+	# interface-automatic-ports: ""
 
 	# port to answer queries from
 	# port: 53
@@ -811,6 +815,8 @@ server:
 
 	# Add system certs to the cert bundle, from the Windows Cert Store
 	# tls-win-cert: no
+	# and on other systems, the default openssl certificates
+	# tls-system-cert: no
 
 	# Pad queries over TLS upstreams
 	# pad-queries: yes
@@ -896,6 +902,14 @@ server:
 	# fast-server-permil: 0
 	# the number of servers that will be used in the fast server selection.
 	# fast-server-num: 3
+
+	# Enable to attach Extended DNS Error codes (RFC8914) to responses.
+	# ede: no
+
+	# Enable to attach an Extended DNS Error (RFC8914) Code 3 - Stale
+	# Answer as EDNS0 option to expired responses.
+	# Note that the ede option above needs to be enabled for this to work.
+	# ede-serve-expired: no
 
 	# Specific options for ipsecmod. Unbound needs to be configured with
 	# --enable-ipsecmod for these to take effect.

@@ -747,6 +747,9 @@ int zonemd_scheme_supported(int scheme);
  * @param region: temp region for allocs during canonicalisation.
  * @param buf: temp buffer during canonicalisation.
  * @param reason: string returned with failure reason.
+ * 	If the hash cannot be checked, but it is allowed, for unknown
+ * 	algorithms, the routine returns success, and the reason is nonNULL,
+ * 	with the allowance reason.
  * @return false on failure.
  */
 int auth_zone_generate_zonemd_check(struct auth_zone* z, int scheme,

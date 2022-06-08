@@ -1,0 +1,10 @@
+# #-- ede.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+# teardown
+. ../common.sh
+kill_pid $UNBOUND_PID
+kill_pid $UNBOUND_PID2

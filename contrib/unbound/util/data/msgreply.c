@@ -117,6 +117,7 @@ construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
 	rep->ar_numrrsets = ar;
 	rep->rrset_count = total;
 	rep->security = sec;
+	rep->reason_bogus = LDNS_EDE_NONE;
 	rep->authoritative = 0;
 	/* array starts after the refs */
 	if(region)
@@ -987,6 +988,36 @@ parse_reply_in_temp_region(sldns_buffer* pkt, struct regional* region,
 		return 0;
 	}
 	return rep;
+}
+
+int edns_opt_list_append_ede(struct edns_option** list, struct regional* region,
+	sldns_ede_code code, const char *txt)
+{
+	struct edns_option** prevp;
+	struct edns_option* opt;
+	size_t txt_len = txt ? strlen(txt) : 0;
+
+	/* allocate new element */
+	opt = (struct edns_option*)regional_alloc(region, sizeof(*opt));
+	if(!opt)
+		return 0;
+	opt->next = NULL;
+	opt->opt_code = LDNS_EDNS_EDE;
+	opt->opt_len = txt_len + sizeof(uint16_t);
+	opt->opt_data = regional_alloc(region, txt_len + sizeof(uint16_t));
+	if(!opt->opt_data)
+		return 0;
+	sldns_write_uint16(opt->opt_data, (uint16_t)code);
+	if (txt_len)
+		memmove(opt->opt_data + 2, txt, txt_len);
+
+	/* append at end of list */
+	prevp = list;
+	while(*prevp != NULL)
+		prevp = &((*prevp)->next);
+	verbose(VERB_ALGO, "attached EDE code: %d with message: %s", code, txt);
+	*prevp = opt;
+	return 1;
 }
 
 int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,

@@ -74,9 +74,11 @@ struct tm * sldns_serial_arithmetics_gmtime_r(int32_t time, time_t now, struct t
  * converts a ttl value (like 5d2h) to a long.
  * \param[in] nptr the start of the string
  * \param[out] endptr points to the last char in case of error
+ * \param[out] overflow returns if the string causes integer overflow error,
+ * 	       the number is too big, string of digits too long.
  * \return the convert duration value
  */
-uint32_t sldns_str2period(const char *nptr, const char **endptr);
+uint32_t sldns_str2period(const char *nptr, const char **endptr, int* overflow);
 
 /**
  * Returns the int value of the given (hex) digit

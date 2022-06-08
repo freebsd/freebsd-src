@@ -650,7 +650,7 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
 	}
 	/* process new query */
 	if(!mesh_new_callback(w->env->mesh, &qinfo, qflags, &edns, 
-		w->back->udp_buff, qid, libworker_fg_done_cb, q)) {
+		w->back->udp_buff, qid, libworker_fg_done_cb, q, 0)) {
 		free(qinfo.qname);
 		return UB_NOMEM;
 	}
@@ -730,7 +730,7 @@ int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
 	if(async_id)
 		*async_id = q->querynum;
 	if(!mesh_new_callback(w->env->mesh, &qinfo, qflags, &edns, 
-		w->back->udp_buff, qid, libworker_event_done_cb, q)) {
+		w->back->udp_buff, qid, libworker_event_done_cb, q, 0)) {
 		free(qinfo.qname);
 		return UB_NOMEM;
 	}
@@ -867,7 +867,7 @@ handle_newq(struct libworker* w, uint8_t* buf, uint32_t len)
 	q->w = w;
 	/* process new query */
 	if(!mesh_new_callback(w->env->mesh, &qinfo, qflags, &edns, 
-		w->back->udp_buff, qid, libworker_bg_done_cb, q)) {
+		w->back->udp_buff, qid, libworker_bg_done_cb, q, 0)) {
 		add_bg_result(w, q, NULL, UB_NOMEM, NULL, 0);
 	}
 	free(qinfo.qname);
