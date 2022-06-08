@@ -1,6 +1,14 @@
 /*-
- * Copyright (c) 2014 Andrew Turner <andrew@FreeBSD.org>
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,34 +32,33 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _MACHINE_INTR_H_
-#define	_MACHINE_INTR_H_
-
-#ifndef LOCORE
-#ifdef FDT
-#include <dev/ofw/openfirm.h>
-#endif
+#ifndef	__MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
 
 #include <sys/intr.h>
 
-static inline void
-arm_irq_memory_barrier(uintptr_t irq)
-{
-}
+#ifndef	NIRQ
+#define	NIRQ			1024
+#endif
+
+#ifndef LOCORE
+enum {
+	IRQ_SOFTWARE_USER,
+	IRQ_SOFTWARE_SUPERVISOR,
+	IRQ_SOFTWARE_HYPERVISOR,
+	IRQ_SOFTWARE_MACHINE,
+	IRQ_TIMER_USER,
+	IRQ_TIMER_SUPERVISOR,
+	IRQ_TIMER_HYPERVISOR,
+	IRQ_TIMER_MACHINE,
+	IRQ_EXTERNAL_USER,
+	IRQ_EXTERNAL_SUPERVISOR,
+	IRQ_EXTERNAL_HYPERVISOR,
+	IRQ_EXTERNAL_MACHINE,
+};
 #endif /* !LOCORE */
 
-#ifndef NIRQ
-#define	NIRQ		16384	/* XXX - It should be an option. */
-#endif
-
-#ifdef DEV_ACPI
-#define	ACPI_INTR_XREF	1
-#define	ACPI_MSI_XREF	2
-#define	ACPI_GPIO_XREF	3
-#endif
-
 #define	INTR_ROOT_IRQ	0
-#define	INTR_ROOT_FIQ	1
-#define	INTR_ROOT_COUNT	2
+#define	INTR_ROOT_COUNT	1
 
-#endif	/* _MACHINE_INTR_H */
+#endif /* !__MACHINE_INTERRUPT_H__ */

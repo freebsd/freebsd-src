@@ -33,7 +33,7 @@
 #error Need INTRNG for this file
 #endif
 
-#if !defined(_MACHINE_INTR_MACHDEP_H_) && !defined(_MACHINE_INTR_H_)
+#ifndef __MACHINE_INTERRUPT_H__
 #error "sys/intr.h included without architecture interrupt header!"
 #endif
 
