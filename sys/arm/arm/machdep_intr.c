@@ -32,7 +32,7 @@
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 /*
  * arm_irq_memory_barrier()

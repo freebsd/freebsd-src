@@ -44,9 +44,7 @@
 #include <sys/module.h>
 #include <sys/rman.h>
 
-#if defined(INTRNG)
-#include <machine/intr.h>
-#endif
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -58,8 +56,6 @@
 #include <dev/pci/pcib_private.h>
 #include <dev/pci/pci_host_generic.h>
 #include <dev/pci/pci_host_generic_fdt.h>
-
-#include <machine/intr.h>
 
 #include "pcib_if.h"
 

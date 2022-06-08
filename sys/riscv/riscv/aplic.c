@@ -36,7 +36,7 @@
 #include <sys/smp.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/riscvreg.h>
 
 #include <dev/ofw/openfirm.h>

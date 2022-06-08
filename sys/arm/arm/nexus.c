@@ -53,7 +53,7 @@
 
 #include <machine/bus.h>
 #include <machine/pcb.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 

@@ -62,8 +62,8 @@
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
 
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
