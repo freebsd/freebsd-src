@@ -48,7 +48,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/atomic.h>
 
 #include <dev/ofw/openfirm.h>
