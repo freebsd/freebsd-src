@@ -38,7 +38,7 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_intr.h>

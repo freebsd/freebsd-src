@@ -64,8 +64,8 @@
 #include <machine/vector.h>
 #include <machine/md_var.h>
 
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>

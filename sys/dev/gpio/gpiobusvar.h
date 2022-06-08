@@ -36,9 +36,7 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#ifdef	INTRNG
-#include <machine/intr.h>
-#endif
+#include <machine/interrupt.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>

@@ -34,6 +34,8 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 
+#include <machine/interrupt.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
@@ -42,8 +44,6 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
-
-#include <machine/intr_machdep.h>
 
 #include "pcib_if.h"
 
