@@ -3434,9 +3434,9 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifi2creq i2c;
 	struct ifrsskey *ifrk;
 	struct ifrsshash *ifrh;
-	struct siocsifcapnv_driver_data *drv_ioctl_data, drv_ioctl_data_d = {};
+	struct siocsifcapnv_driver_data *drv_ioctl_data, drv_ioctl_data_d;
 	int error = 0;
-	int mask = 0;
+	int mask;
 	int size_read = 0;
 	int module_status;
 	int module_num;
@@ -3521,7 +3521,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		drv_ioctl_data = &drv_ioctl_data_d;
 		drv_ioctl_data->reqcap = ifr->ifr_reqcap;
 		PRIV_LOCK(priv);
-		drv_ioctl_data->reqcap2 = ifp->if_capabilities2;
+		drv_ioctl_data->reqcap2 = ifp->if_capenable2;
 		drv_ioctl_data->nvcap = NULL;
 		goto siocsifcap_driver;
 	case SIOCSIFCAPNV:
@@ -3663,6 +3663,11 @@ siocsifcap_driver:
 				priv->clbr_done = 0;
 			}
 		}
+		mask = drv_ioctl_data->reqcap2 ^ ifp->if_capenable2;
+		if (mask & IFCAP2_RXTLS4)
+			ifp->if_capenable2 ^= IFCAP2_RXTLS4;
+		if (mask & IFCAP2_RXTLS6)
+			ifp->if_capenable2 ^= IFCAP2_RXTLS6;
 out:
 		PRIV_UNLOCK(priv);
 		break;
