@@ -132,6 +132,7 @@ msg_create(struct regional* region, struct query_info* qinfo)
 		return NULL;
 	msg->rep->flags = (uint16_t)(BIT_QR | BIT_AA);
 	msg->rep->authoritative = 1;
+	msg->rep->reason_bogus = LDNS_EDE_NONE;
 	msg->rep->qdcount = 1;
 	/* rrsets is NULL, no rrsets yet */
 	return msg;
@@ -1882,6 +1883,8 @@ static int auth_zone_zonemd_check_hash(struct auth_zone* z,
 	struct regional* region = NULL;
 	struct sldns_buffer* buf = NULL;
 	uint32_t soa_serial = 0;
+	char* unsupported_reason = NULL;
+	int only_unsupported = 1;
 	region = env->scratch;
 	regional_free_all(region);
 	buf = env->scratch_buffer;
@@ -1911,6 +1914,7 @@ static int auth_zone_zonemd_check_hash(struct auth_zone* z,
 			&hashalgo, &hash, &hashlen)) {
 			/* malformed RR */
 			*reason = "ZONEMD rdata malformed";
+			only_unsupported = 0;
 			continue;
 		}
 		/* check for duplicates */
@@ -1920,24 +1924,50 @@ static int auth_zone_zonemd_check_hash(struct auth_zone* z,
 			 * is not allowed. */
 			*reason = "ZONEMD RRSet contains more than one RR "
 				"with the same scheme and hash algorithm";
+			only_unsupported = 0;
 			continue;
 		}
 		regional_free_all(region);
 		if(serial != soa_serial) {
 			*reason = "ZONEMD serial is wrong";
+			only_unsupported = 0;
 			continue;
 		}
+		*reason = NULL;
 		if(auth_zone_generate_zonemd_check(z, scheme, hashalgo,
 			hash, hashlen, region, buf, reason)) {
 			/* success */
+			if(*reason) {
+				if(!unsupported_reason)
+					unsupported_reason = *reason;
+				/* continue to check for valid ZONEMD */
+				if(verbosity >= VERB_ALGO) {
+					char zstr[255+1];
+					dname_str(z->name, zstr);
+					verbose(VERB_ALGO, "auth-zone %s ZONEMD %d %d is unsupported: %s", zstr, (int)scheme, (int)hashalgo, *reason);
+				}
+				*reason = NULL;
+				continue;
+			}
 			if(verbosity >= VERB_ALGO) {
 				char zstr[255+1];
 				dname_str(z->name, zstr);
-				verbose(VERB_ALGO, "auth-zone %s ZONEMD hash is correct", zstr);
+				if(!*reason)
+					verbose(VERB_ALGO, "auth-zone %s ZONEMD hash is correct", zstr);
 			}
 			return 1;
 		}
+		only_unsupported = 0;
 		/* try next one */
+	}
+	/* have we seen no failures but only unsupported algo,
+	 * and one unsupported algorithm, or more. */
+	if(only_unsupported && unsupported_reason) {
+		/* only unsupported algorithms, with valid serial, not
+		 * malformed. Did not see supported algorithms, failed or
+		 * successful ones. */
+		*reason = unsupported_reason;
+		return 1;
 	}
 	/* fail, we may have reason */
 	if(!*reason)
@@ -4456,7 +4486,7 @@ chunkline_get_line_collated(struct auth_chunk** chunk, size_t* chunk_pos,
 	return 1;
 }
 
-/** process $ORIGIN for http */
+/** process $ORIGIN for http, 0 nothing, 1 done, 2 error */
 static int
 http_parse_origin(sldns_buffer* buf, struct sldns_file_parse_state* pstate)
 {
@@ -4467,13 +4497,16 @@ http_parse_origin(sldns_buffer* buf, struct sldns_file_parse_state* pstate)
 		pstate->origin_len = sizeof(pstate->origin);
 		s = sldns_str2wire_dname_buf(sldns_strip_ws(line+8),
 			pstate->origin, &pstate->origin_len);
-		if(s) pstate->origin_len = 0;
+		if(s) {
+			pstate->origin_len = 0;
+			return 2;
+		}
 		return 1;
 	}
 	return 0;
 }
 
-/** process $TTL for http */
+/** process $TTL for http, 0 nothing, 1 done, 2 error */
 static int
 http_parse_ttl(sldns_buffer* buf, struct sldns_file_parse_state* pstate)
 {
@@ -4481,8 +4514,12 @@ http_parse_ttl(sldns_buffer* buf, struct sldns_file_parse_state* pstate)
 	if(strncmp(line, "$TTL", 4) == 0 &&
 		isspace((unsigned char)line[4])) {
 		const char* end = NULL;
+		int overflow = 0;
 		pstate->default_ttl = sldns_str2period(
-			sldns_strip_ws(line+5), &end);
+			sldns_strip_ws(line+5), &end, &overflow);
+		if(overflow) {
+			return 2;
+		}
 		return 1;
 	}
 	return 0;
@@ -4493,15 +4530,20 @@ static int
 chunkline_non_comment_RR(struct auth_chunk** chunk, size_t* chunk_pos,
 	sldns_buffer* buf, struct sldns_file_parse_state* pstate)
 {
+	int ret;
 	while(chunkline_get_line_collated(chunk, chunk_pos, buf)) {
 		if(chunkline_is_comment_line_or_empty(buf)) {
 			/* a comment, go to next line */
 			continue;
 		}
-		if(http_parse_origin(buf, pstate)) {
+		if((ret=http_parse_origin(buf, pstate))!=0) {
+			if(ret == 2)
+				return 0;
 			continue; /* $ORIGIN has been handled */
 		}
-		if(http_parse_ttl(buf, pstate)) {
+		if((ret=http_parse_ttl(buf, pstate))!=0) {
+			if(ret == 2)
+				return 0;
 			continue; /* $TTL has been handled */
 		}
 		return 1;
@@ -5007,6 +5049,7 @@ apply_http(struct auth_xfer* xfr, struct auth_zone* z,
 	struct sldns_file_parse_state pstate;
 	struct auth_chunk* chunk;
 	size_t chunk_pos;
+	int ret;
 	memset(&pstate, 0, sizeof(pstate));
 	pstate.default_ttl = 3600;
 	if(xfr->namelen < sizeof(pstate.origin)) {
@@ -5063,10 +5106,24 @@ apply_http(struct auth_xfer* xfr, struct auth_zone* z,
 			continue;
 		}
 		/* parse line and add RR */
-		if(http_parse_origin(scratch_buffer, &pstate)) {
+		if((ret=http_parse_origin(scratch_buffer, &pstate))!=0) {
+			if(ret == 2) {
+				verbose(VERB_ALGO, "error parsing ORIGIN on line [%s:%d] %s",
+					xfr->task_transfer->master->file,
+					pstate.lineno,
+					sldns_buffer_begin(scratch_buffer));
+				return 0;
+			}
 			continue; /* $ORIGIN has been handled */
 		}
-		if(http_parse_ttl(scratch_buffer, &pstate)) {
+		if((ret=http_parse_ttl(scratch_buffer, &pstate))!=0) {
+			if(ret == 2) {
+				verbose(VERB_ALGO, "error parsing TTL on line [%s:%d] %s",
+					xfr->task_transfer->master->file,
+					pstate.lineno,
+					sldns_buffer_begin(scratch_buffer));
+				return 0;
+			}
 			continue; /* $TTL has been handled */
 		}
 		if(!http_parse_add_rr(xfr, z, scratch_buffer, &pstate)) {
@@ -5370,7 +5427,7 @@ xfr_transfer_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	 * called straight away */
 	lock_basic_unlock(&xfr->lock);
 	if(!mesh_new_callback(env->mesh, &qinfo, qflags, &edns, buf, 0,
-		&auth_xfer_transfer_lookup_callback, xfr)) {
+		&auth_xfer_transfer_lookup_callback, xfr, 0)) {
 		lock_basic_lock(&xfr->lock);
 		log_err("out of memory lookup up master %s", master->host);
 		return 0;
@@ -6561,7 +6618,7 @@ xfr_probe_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	 * called straight away */
 	lock_basic_unlock(&xfr->lock);
 	if(!mesh_new_callback(env->mesh, &qinfo, qflags, &edns, buf, 0,
-		&auth_xfer_probe_lookup_callback, xfr)) {
+		&auth_xfer_probe_lookup_callback, xfr, 0)) {
 		lock_basic_lock(&xfr->lock);
 		log_err("out of memory lookup up master %s", master->host);
 		return 0;
@@ -7632,13 +7689,16 @@ int auth_zone_generate_zonemd_check(struct auth_zone* z, int scheme,
 {
 	uint8_t gen[512];
 	size_t genlen = 0;
+	*reason = NULL;
 	if(!zonemd_hashalgo_supported(hashalgo)) {
+		/* allow it */
 		*reason = "unsupported algorithm";
-		return 0;
+		return 1;
 	}
 	if(!zonemd_scheme_supported(scheme)) {
+		/* allow it */
 		*reason = "unsupported scheme";
-		return 0;
+		return 1;
 	}
 	if(hashlen < 12) {
 		/* the ZONEMD draft requires digests to fail if too small */
@@ -7726,7 +7786,7 @@ static int zonemd_dnssec_verify_rrset(struct auth_zone* z,
 		auth_zone_log(z->name, VERB_ALGO,
 			"zonemd: verify %s RRset with DNSKEY", typestr);
 	}
-	sec = dnskeyset_verify_rrset(env, ve, &pk, dnskey, sigalg, why_bogus,
+	sec = dnskeyset_verify_rrset(env, ve, &pk, dnskey, sigalg, why_bogus, NULL,
 		LDNS_SECTION_ANSWER, NULL);
 	if(sec == sec_status_secure) {
 		return 1;
@@ -8003,9 +8063,13 @@ auth_zone_verify_zonemd_with_key(struct auth_zone* z, struct module_env* env,
 	}
 
 	/* success! log the success */
-	auth_zone_log(z->name, VERB_ALGO, "ZONEMD verification successful");
+	if(reason)
+		auth_zone_log(z->name, VERB_ALGO, "ZONEMD %s", reason);
+	else	auth_zone_log(z->name, VERB_ALGO, "ZONEMD verification successful");
 	if(result) {
-		*result = strdup("ZONEMD verification successful");
+		if(reason)
+			*result = strdup(reason);
+		else	*result = strdup("ZONEMD verification successful");
 		if(!*result) log_err("out of memory");
 	}
 }
@@ -8065,7 +8129,7 @@ zonemd_get_dnskey_from_anchor(struct auth_zone* z, struct module_env* env,
 	auth_zone_log(z->name, VERB_QUERY,
 		"zonemd: verify DNSKEY RRset with trust anchor");
 	sec = val_verify_DNSKEY_with_TA(env, ve, keystorage, anchor->ds_rrset,
-		anchor->dnskey_rrset, NULL, why_bogus, NULL);
+		anchor->dnskey_rrset, NULL, why_bogus, NULL, NULL);
 	regional_free_all(env->scratch);
 	if(sec == sec_status_secure) {
 		/* success */
@@ -8123,8 +8187,9 @@ auth_zone_verify_zonemd_key_with_ds(struct auth_zone* z,
 	keystorage->rk.type = htons(LDNS_RR_TYPE_DNSKEY);
 	keystorage->rk.rrset_class = htons(z->dclass);
 	auth_zone_log(z->name, VERB_QUERY, "zonemd: verify zone DNSKEY with DS");
+	// @TODO add EDE here? we currently just pass NULL
 	sec = val_verify_DNSKEY_with_DS(env, ve, keystorage, ds, sigalg,
-		why_bogus, NULL);
+		why_bogus, NULL, NULL);
 	regional_free_all(env->scratch);
 	if(sec == sec_status_secure) {
 		/* success */
@@ -8340,7 +8405,7 @@ zonemd_lookup_dnskey(struct auth_zone* z, struct module_env* env)
 	/* the callback can be called straight away */
 	lock_rw_unlock(&z->lock);
 	if(!mesh_new_callback(env->mesh, &qinfo, qflags, &edns, buf, 0,
-		&auth_zonemd_dnskey_lookup_callback, z)) {
+		&auth_zonemd_dnskey_lookup_callback, z, 0)) {
 		lock_rw_wrlock(&z->lock);
 		log_err("out of memory lookup of %s for zonemd",
 			(fetch_ds?"DS":"DNSKEY"));

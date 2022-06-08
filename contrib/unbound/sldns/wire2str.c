@@ -194,6 +194,7 @@ static sldns_lookup_table sldns_edns_options_data[] = {
 	{ 8, "edns-client-subnet" },
 	{ 11, "edns-tcp-keepalive"},
 	{ 12, "Padding" },
+	{ 15, "EDE"},
 	{ 0, NULL}
 };
 sldns_lookup_table* sldns_edns_options = sldns_edns_options_data;

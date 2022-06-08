@@ -487,3 +487,38 @@ acl_list_get_mem(struct acl_list* acl)
 	if(!acl) return 0;
 	return sizeof(*acl) + regional_get_mem(acl->region);
 }
+
+const char* acl_access_to_str(enum acl_access acl)
+{
+	switch(acl) {
+	case acl_deny: return "deny";
+	case acl_refuse: return "refuse";
+	case acl_deny_non_local: return "deny_non_local";
+	case acl_refuse_non_local: return "refuse_non_local";
+	case acl_allow: return "allow";
+	case acl_allow_snoop: return "allow_snoop";
+	case acl_allow_setrd: return "allow_setrd";
+	default: break;
+	}
+	return "unknown";
+}
+
+void
+log_acl_action(const char* action, struct sockaddr_storage* addr,
+	socklen_t addrlen, enum acl_access acl, struct acl_addr* acladdr)
+{
+	char a[128], n[128];
+	uint16_t port;
+	addr_to_str(addr, addrlen, a, sizeof(a));
+	port = ntohs(((struct sockaddr_in*)addr)->sin_port);
+	if(acladdr) {
+		addr_to_str(&acladdr->node.addr, acladdr->node.addrlen,
+			n, sizeof(n));
+		verbose(VERB_ALGO, "%s query from %s port %d because of "
+			"%s/%d %s", action, a, (int)port, n, acladdr->node.net,
+			acl_access_to_str(acl));
+	} else {
+		verbose(VERB_ALGO, "%s query from %s port %d", action, a,
+			(int)port);
+	}
+}

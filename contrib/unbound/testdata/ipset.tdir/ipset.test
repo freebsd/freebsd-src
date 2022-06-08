@@ -1,0 +1,155 @@
+# #-- ipset.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+if grep "define USE_IPSET 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+# Make all the queries. They need to succeed by the way.
+echo "> dig www.example.net."
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.net. | tee outfile
+echo "> check answer"
+if grep "1.1.1.1" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add 1.1.1.1 to atotallymadeupnamefor4 for www.example.net." unbound.log; then
+	echo "ipset OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig www.example.net. AAAA"
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.net. AAAA | tee outfile
+echo "> check answer"
+if grep "::1" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add ::1 to atotallymadeupnamefor6 for www.example.net." unbound.log; then
+	echo "ipset OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig cname.example.net."
+dig @127.0.0.1 -p $UNBOUND_PORT cname.example.net. | tee outfile
+echo "> check answer"
+if grep "2.2.2.2" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add 2.2.2.2 to atotallymadeupnamefor4 for target.example.net." unbound.log; then
+	echo "ipset OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig cname.example.net. AAAA"
+dig @127.0.0.1 -p $UNBOUND_PORT cname.example.net. AAAA | tee outfile
+echo "> check answer"
+if grep "::2" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add ::2 to atotallymadeupnamefor6 for target.example.net." unbound.log; then
+	echo "ipset OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig outsidecname.example.net."
+dig @127.0.0.1 -p $UNBOUND_PORT outsidecname.example.net. | tee outfile
+echo "> check answer"
+if grep "3.3.3.3" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add 3.3.3.3 to atotallymadeupnamefor4 for target.example.com." unbound.log; then
+	echo "ipset OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> dig outsidecname.example.net. AAAA"
+dig @127.0.0.1 -p $UNBOUND_PORT outsidecname.example.net. AAAA | tee outfile
+echo "> check answer"
+if grep "::3" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+echo "> check ipset"
+if grep "ipset: add ::3 to atotallymadeupnamefor6 for target.example.com." unbound.log; then
+	echo "ipset OK"
+else
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> cat logfiles"
+cat tap.log
+cat tap.errlog
+cat fwd.log
+echo "> OK"
+exit 0

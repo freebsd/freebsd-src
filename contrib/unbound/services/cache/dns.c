@@ -428,6 +428,7 @@ dns_msg_create(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 		return NULL; /* integer overflow protection */
 	msg->rep->flags = BIT_QR; /* with QR, no AA */
 	msg->rep->qdcount = 1;
+	msg->rep->reason_bogus = LDNS_EDE_NONE;
 	msg->rep->rrsets = (struct ub_packed_rrset_key**)
 		regional_alloc(region, 
 		capacity*sizeof(struct ub_packed_rrset_key*));
@@ -524,6 +525,7 @@ gen_dns_msg(struct regional* region, struct query_info* q, size_t num)
 		sizeof(struct reply_info) - sizeof(struct rrset_ref));
 	if(!msg->rep)
 		return NULL;
+	msg->rep->reason_bogus = LDNS_EDE_NONE;
 	if(num > RR_COUNT_MAX)
 		return NULL; /* integer overflow protection */
 	msg->rep->rrsets = (struct ub_packed_rrset_key**)
@@ -577,6 +579,7 @@ tomsg(struct module_env* env, struct query_info* q, struct reply_info* r,
 	msg->rep->ar_numrrsets = r->ar_numrrsets;
 	msg->rep->rrset_count = r->rrset_count;
 	msg->rep->authoritative = r->authoritative;
+	msg->rep->reason_bogus = r->reason_bogus;
 	if(!rrset_array_lock(r->ref, r->rrset_count, now_control)) {
 		return NULL;
 	}
@@ -632,6 +635,7 @@ rrset_msg(struct ub_packed_rrset_key* rrset, struct regional* region,
 	msg->rep->ns_numrrsets = 0;
 	msg->rep->ar_numrrsets = 0;
 	msg->rep->rrset_count = 1;
+	msg->rep->reason_bogus = LDNS_EDE_NONE;
 	msg->rep->rrsets[0] = packed_rrset_copy_region(rrset, region, now);
 	if(!msg->rep->rrsets[0]) /* copy CNAME */
 		return NULL;
@@ -670,6 +674,7 @@ synth_dname_msg(struct ub_packed_rrset_key* rrset, struct regional* region,
 	msg->rep->ns_numrrsets = 0;
 	msg->rep->ar_numrrsets = 0;
 	msg->rep->rrset_count = 1;
+	msg->rep->reason_bogus = LDNS_EDE_NONE;
 	msg->rep->rrsets[0] = packed_rrset_copy_region(rrset, region, now);
 	if(!msg->rep->rrsets[0]) /* copy DNAME */
 		return NULL;

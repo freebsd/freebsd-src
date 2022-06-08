@@ -143,4 +143,11 @@ int ecs_query_response(struct module_qstate* qstate, struct dns_msg* response,
 /** mark subnet msg to be deleted */
 void subnet_markdel(void* key);
 
+/** Add ecs struct to edns list, after parsing it to wire format. */
+void subnet_ecs_opt_list_append(struct ecs_data* ecs, struct edns_option** list,
+	struct module_qstate *qstate);
+
+/** Create ecs_data from the sockaddr_storage information. */
+void subnet_option_from_ss(struct sockaddr_storage *ss, struct ecs_data* ecs,
+	struct config_file* cfg);
 #endif /* SUBNETMOD_H */
