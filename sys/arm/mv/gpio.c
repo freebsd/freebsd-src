@@ -36,7 +36,6 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/interrupt.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -45,6 +44,7 @@
 #include <sys/timetc.h>
 #include <sys/callout.h>
 #include <sys/gpio.h>
+
 #include <machine/bus.h>
 #include <machine/interrupt.h>
 
