@@ -40,7 +40,7 @@
 #include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 

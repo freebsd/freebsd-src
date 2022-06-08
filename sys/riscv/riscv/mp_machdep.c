@@ -59,7 +59,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 #include <machine/sbi.h>
 
