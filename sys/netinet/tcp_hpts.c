@@ -100,7 +100,6 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/hhook.h>
@@ -122,6 +121,8 @@
 
 #include <vm/uma.h>
 #include <vm/vm.h>
+
+#include <machine/interrupt.h>
 
 #include <net/route.h>
 #include <net/vnet.h>
