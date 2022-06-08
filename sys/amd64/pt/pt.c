@@ -44,7 +44,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/hwt.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -58,6 +57,7 @@
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/fpu.h>
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 
