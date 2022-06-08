@@ -37,11 +37,12 @@
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/stddef.h>
+
+#include <machine/interrupt.h>
 
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>

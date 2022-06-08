@@ -47,7 +47,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
-#include <sys/interrupt.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
