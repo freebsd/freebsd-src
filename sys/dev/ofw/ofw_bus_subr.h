@@ -32,9 +32,7 @@
 #define	_DEV_OFW_OFW_BUS_SUBR_H_
 
 #include <sys/bus.h>
-#ifdef INTRNG
-#include <machine/intr.h>
-#endif
+#include <machine/interrupt.h>
 #include <dev/ofw/openfirm.h>
 
 #include "ofw_bus_if.h"

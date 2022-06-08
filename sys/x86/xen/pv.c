@@ -59,13 +59,12 @@
 #include <vm/vm_param.h>
 
 #include <machine/_inttypes.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/acpica_machdep.h>
 #include <x86/apicvar.h>
 #include <x86/init.h>
 #include <machine/pc/bios.h>
 #include <machine/smp.h>
-#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/cpu.h>

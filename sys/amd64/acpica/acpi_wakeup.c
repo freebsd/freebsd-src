@@ -45,7 +45,7 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
