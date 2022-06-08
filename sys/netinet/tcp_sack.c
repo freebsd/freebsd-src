@@ -958,15 +958,17 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 	hole = tp->sackhint.nexthole;
 	if (hole == NULL)
 		return (hole);
-	if (SEQ_LT(hole->rxmit, hole->end))
-		goto out;
-	while ((hole = TAILQ_NEXT(hole, scblink)) != NULL) {
-		if (SEQ_LT(hole->rxmit, hole->end)) {
-			tp->sackhint.nexthole = hole;
-			break;
+	if (SEQ_GEQ(hole->rxmit, hole->end)) {
+		for (;;) {
+			hole = TAILQ_NEXT(hole, scblink);
+			if (hole == NULL)
+				return (hole);
+			if (SEQ_LT(hole->rxmit, hole->end)) {
+				tp->sackhint.nexthole = hole;
+				break;
+			}
 		}
 	}
-out:
 	KASSERT(SEQ_LT(hole->start, hole->end), ("%s: hole.start >= hole.end", __func__));
 	KASSERT(SEQ_LT(hole->start, tp->snd_fack), ("%s: hole.start >= snd.fack", __func__));
 	KASSERT(SEQ_LT(hole->end, tp->snd_fack), ("%s: hole.end >= snd.fack", __func__));
