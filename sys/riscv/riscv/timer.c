@@ -50,7 +50,7 @@
 #include <sys/watchdog.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 

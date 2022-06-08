@@ -61,7 +61,7 @@
 #include <machine/vmm.h>
 #include <machine/atomic.h>
 #include <machine/pmap.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/encoding.h>
 #include <machine/db_machdep.h>
 

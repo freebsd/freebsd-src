@@ -51,10 +51,10 @@
 #include <sys/time.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#ifdef __arm__
-#include <machine/intr.h>
 
+#ifdef __arm__
 #include <arm/freescale/imx/imx_ccmvar.h>
 #endif
 

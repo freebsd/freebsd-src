@@ -30,7 +30,7 @@
 #include <sys/cpuset.h>
 #include <sys/resource.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 INTERFACE pic;
 

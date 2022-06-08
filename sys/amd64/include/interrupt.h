@@ -1,14 +1,7 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
+ * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,33 +25,23 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_MACHINE_INTR_MACHDEP_H_
-#define	_MACHINE_INTR_MACHDEP_H_
+#ifndef __MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
 
-#include <sys/intr.h>
+#include <x86/interrupt.h>
 
-#ifndef	NIRQ
-#define	NIRQ			1024
-#endif
-
-#ifndef LOCORE
-enum {
-	IRQ_SOFTWARE_USER,
-	IRQ_SOFTWARE_SUPERVISOR,
-	IRQ_SOFTWARE_HYPERVISOR,
-	IRQ_SOFTWARE_MACHINE,
-	IRQ_TIMER_USER,
-	IRQ_TIMER_SUPERVISOR,
-	IRQ_TIMER_HYPERVISOR,
-	IRQ_TIMER_MACHINE,
-	IRQ_EXTERNAL_USER,
-	IRQ_EXTERNAL_SUPERVISOR,
-	IRQ_EXTERNAL_HYPERVISOR,
-	IRQ_EXTERNAL_MACHINE,
+/*
+ * The following data structure holds per-cpu data, and is placed just
+ * above the top of the space used for the NMI and MC# stacks.
+ */
+struct nmi_pcpu {
+	register_t	np_pcpu;
+	register_t	__padding;	/* pad to 16 bytes */
 };
-#endif /* !LOCORE */
 
-#define	INTR_ROOT_IRQ	0
-#define	INTR_ROOT_COUNT	1
+#define	DBLFAULT_STACK_SIZE	PAGE_SIZE
+#define	NMI_STACK_SIZE		PAGE_SIZE
+#define	MCE_STACK_SIZE		PAGE_SIZE
+#define	DBG_STACK_SIZE		PAGE_SIZE
 
-#endif /* !_MACHINE_INTR_MACHDEP_H_ */
+#endif	/* !__MACHINE_INTERRUPT_H__ */

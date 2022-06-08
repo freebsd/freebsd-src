@@ -44,7 +44,7 @@
 #endif
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #ifdef SMP
 #include <machine/smp.h>
