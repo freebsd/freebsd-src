@@ -97,7 +97,7 @@
 
 #include <machine/_inttypes.h>
 #if defined(__amd64__) || defined(__i386__)
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 
 #include <x86/apicvar.h>
 #endif
