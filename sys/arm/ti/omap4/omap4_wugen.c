@@ -34,7 +34,7 @@
 #include <sys/systm.h>
 
 #include <machine/fdt.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
