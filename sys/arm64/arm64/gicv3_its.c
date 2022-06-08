@@ -61,7 +61,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/arm/gic_common.h>
 #include <arm64/arm64/gic_v3_reg.h>
