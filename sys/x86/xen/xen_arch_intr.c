@@ -45,6 +45,8 @@
 
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
+
+#include <machine/interrupt.h>
 #include <machine/xen/arch-intr.h>
 
 #include <x86/apicvar.h>

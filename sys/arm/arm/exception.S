@@ -51,7 +51,7 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/trap.h>
 
 #ifdef KDTRACE_HOOKS
