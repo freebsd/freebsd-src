@@ -51,7 +51,7 @@
 #include <machine/debug_monitor.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/vmparam.h>
 #ifdef VFP
 #include <machine/vfp.h>
