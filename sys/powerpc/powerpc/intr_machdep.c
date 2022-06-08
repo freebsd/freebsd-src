@@ -66,7 +66,6 @@
 #include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
-#include <sys/interrupt.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>

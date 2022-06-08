@@ -29,6 +29,10 @@
 #if !defined(_SYS_INTERRUPT_H_) && defined(_KERNEL)
 #define _SYS_INTERRUPT_H_
 
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/interrupt.h included without architecture interrupt header!"
+#endif
+
 #include <sys/_lock.h>
 #include <sys/_types_interrupt.h>
 #include <sys/ck.h>

@@ -50,7 +50,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
