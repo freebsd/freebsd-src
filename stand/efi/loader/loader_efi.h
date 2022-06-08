@@ -32,6 +32,7 @@
 
 #include <stand.h>
 #include <readin.h>
+#include <efi.h>
 
 #ifdef __amd64__
 enum {
@@ -41,6 +42,8 @@ enum {
 };
 extern int copy_staging;
 #endif
+
+extern EFI_LOADED_IMAGE *boot_img;
 
 int	efi_autoload(void);
 
