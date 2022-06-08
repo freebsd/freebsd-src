@@ -40,20 +40,30 @@ struct sldns_file_parse_state;
 	ENTRY_BEGIN
 	; first give MATCH lines, that say what queries are matched
 	; by this entry.
-	; 'opcode' makes the query match the opcode from the reply
-	; if you leave it out, any opcode matches this entry.
-	; 'qtype' makes the query match the qtype from the reply
-	; 'qname' makes the query match the qname from the reply
-	; 'subdomain' makes the query match subdomains of qname from the reply
-	; 'serial=1023' makes the query match if ixfr serial is 1023. 
+	; 'opcode' makes the query match the opcode from the reply;
+	;	if you leave it out, any opcode matches this entry.
+	; 'qtype' makes the query match the qtype from the reply.
+	; 'qname' makes the query match the qname from the reply.
+	; 'subdomain' makes the query match subdomains of qname from the reply.
+	; 'serial=1023' makes the query match if ixfr serial is 1023.
 	; 'all' has to match header byte for byte and all rrs in packet.
+	; 'all_noedns' has to match header byte for byte and all rrs in packet;
+	;	ignoring EDNS.
 	; 'ttl' used with all, rrs in packet must also have matching TTLs.
 	; 'DO' will match only queries with DO bit set.
 	; 'noedns' matches queries without EDNS OPT records.
-	; 'rcode' makes the query match the rcode from the reply
-	; 'question' makes the query match the question section
-	; 'answer' makes the query match the answer section
+	; 'rcode' makes the query match the rcode from the reply.
+	; 'question' makes the query match the question section.
+	; 'answer' makes the query match the answer section.
 	; 'ednsdata' matches queries to HEX_EDNS section.
+	; 'UDP' matches if the transport is UDP.
+	; 'TCP' matches if the transport is TCP.
+	; 'ede=2' makes the query match if the EDNS EDE info-code is 2.
+	;	It also snips the EDE record out of the packet to facilitate
+	;	other matches.
+	; 'ede=any' makes the query match any EDNS EDE info-code.
+	;	It also snips the EDE record out of the packet to facilitate
+	;	other matches.
 	MATCH [opcode] [qtype] [qname] [serial=<value>] [all] [ttl]
 	MATCH [UDP|TCP] DO
 	MATCH ...
@@ -72,6 +82,12 @@ struct sldns_file_parse_state;
 	; 'sleep=10' sleeps for 10 seconds before giving the answer (TCP is open)
 	ADJUST [sleep=<num>]    ; sleep before giving any reply
 	ADJUST [packet_sleep=<num>]  ; sleep before this packet in sequence
+	; 'copy_ednsdata_assume_clientsubnet' copies ednsdata to reply, assumes
+	; it is clientsubnet and adjusts scopemask to match sourcemask.
+	ADJUST copy_ednsdata_assume_clientsubnet
+	; 'increment_ecs_scope' increments the ECS scope copied from the
+	;  sourcemask by one.
+	ADJUST increment_ecs_scope
 	SECTION QUESTION
 	<RRs, one per line>    ; the RRcount is determined automatically.
 	SECTION ANSWER
@@ -167,11 +183,11 @@ struct entry {
 	/* match */
 	/* How to match an incoming query with this canned reply */
 	/** match query opcode with answer opcode */
-	uint8_t match_opcode; 
+	uint8_t match_opcode;
 	/** match qtype with answer qtype */
-	uint8_t match_qtype;  
+	uint8_t match_qtype;
 	/** match qname with answer qname */
-	uint8_t match_qname;  
+	uint8_t match_qname;
 	/** match rcode with answer rcode */
 	uint8_t match_rcode;
 	/** match question section */
@@ -179,11 +195,17 @@ struct entry {
 	/** match answer section */
 	uint8_t match_answer;
 	/** match qname as subdomain of answer qname */
-	uint8_t match_subdomain;  
+	uint8_t match_subdomain;
 	/** match SOA serial number, from auth section */
-	uint8_t match_serial; 
+	uint8_t match_serial;
+	/** match EDNS EDE info-code */
+	uint8_t match_ede;
+	/** match any EDNS EDE info-code */
+	uint8_t match_ede_any;
 	/** match all of the packet */
 	uint8_t match_all;
+	/** match all of the packet; ignore EDNS */
+	uint8_t match_all_noedns;
 	/** match ttls in the packet */
 	uint8_t match_ttl;
 	/** match DO bit */
@@ -193,9 +215,11 @@ struct entry {
 	/** match edns data field given in hex */
 	uint8_t match_ednsdata_raw;
 	/** match query serial with this value. */
-	uint32_t ixfr_soa_serial; 
+	uint32_t ixfr_soa_serial;
 	/** match on UDP/TCP */
-	enum transport_type match_transport; 
+	enum transport_type match_transport;
+	/** match EDNS EDE info-code with this value. */
+	uint16_t ede_info_code;
 
 	/** pre canned reply */
 	struct reply_packet *reply_list;
@@ -260,10 +284,11 @@ struct entry* find_match(struct entry* entries, uint8_t* query_pkt,
  * @param mttl: if true, ttls must match, if false, ttls do not need to match
  * @param noloc: if true, rrs may be reordered in their packet-section.
  * 	rrs are then matches without location of the rr being important.
+ * @param noedns: if true, edns is not compared, if false, edns must match.
  * @return true if matched.
  */
 int match_all(uint8_t* q, size_t qlen, uint8_t* p, size_t plen, int mttl,
-	int noloc);
+	int noloc, int noedns);
 
 /**
  * copy & adjust packet, mallocs a copy.

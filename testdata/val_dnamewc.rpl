@@ -8,6 +8,7 @@ server:
 	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	ede: yes
 
 stub-zone:
 	name: "."
@@ -256,13 +257,11 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ede=6
 REPLY QR RD RA DO SERVFAIL
 SECTION QUESTION
 www.sub.example.com. IN A
 SECTION ANSWER
-SECTION AUTHORITY
-SECTION ADDITIONAL
 ENTRY_END
 
 SCENARIO_END

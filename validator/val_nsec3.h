@@ -68,6 +68,7 @@
 #define VALIDATOR_VAL_NSEC3_H
 #include "util/rbtree.h"
 #include "util/data/packed_rrset.h"
+#include "sldns/rrdef.h"
 struct val_env;
 struct regional;
 struct module_env;
@@ -186,6 +187,7 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
  * @param qinfo: query that is verified for.
  * @param kkey: key entry that signed the NSEC3s.
  * @param reason: string for bogus result.
+ * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param qstate: qstate with region.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
@@ -197,7 +199,7 @@ enum sec_status
 nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
 	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
-	struct module_qstate* qstate);
+	sldns_ede_code* reason_bogus, struct module_qstate* qstate);
 
 /**
  * Prove NXDOMAIN or NODATA.

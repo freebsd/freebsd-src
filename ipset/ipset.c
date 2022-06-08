@@ -138,10 +138,10 @@ ipset_add_rrset_data(struct ipset_env *ie, struct mnl_socket *mnl,
 static int
 ipset_check_zones_for_rrset(struct module_env *env, struct ipset_env *ie,
 	struct mnl_socket *mnl, struct ub_packed_rrset_key *rrset,
-	const char *setname, int af)
+	const char *qname, const int qlen, const char *setname, int af)
 {
 	static char dname[BUFF_LEN];
-	const char *s;
+	const char *ds, *qs;
 	int dlen, plen;
 
 	struct config_strlist *p;
@@ -152,70 +152,73 @@ ipset_check_zones_for_rrset(struct module_env *env, struct ipset_env *ie,
 		log_err("bad domain name");
 		return -1;
 	}
-	if (dname[dlen - 1] == '.') {
-		dlen--;
-	}
 
 	for (p = env->cfg->local_zones_ipset; p; p = p->next) {
+		ds = NULL;
+		qs = NULL;
 		plen = strlen(p->str);
 
 		if (dlen >= plen) {
-			s = dname + (dlen - plen);
-
-			if (strncasecmp(p->str, s, plen) == 0) {
-				d = (struct packed_rrset_data*)rrset->entry.data;
-				ipset_add_rrset_data(ie, mnl, d, setname,
-					af, dname);
-				break;
-			}
+			ds = dname + (dlen - plen);
+		}
+		if (qlen >= plen) {
+			qs = qname + (qlen - plen);
+		}
+		if ((ds && strncasecmp(p->str, ds, plen) == 0)
+			|| (qs && strncasecmp(p->str, qs, plen) == 0)) {
+			d = (struct packed_rrset_data*)rrset->entry.data;
+			ipset_add_rrset_data(ie, mnl, d, setname,
+				af, dname);
+			break;
 		}
 	}
 	return 0;
 }
 
-static int ipset_update(struct module_env *env, struct dns_msg *return_msg, struct ipset_env *ie) {
+static int ipset_update(struct module_env *env, struct dns_msg *return_msg,
+	struct query_info qinfo, struct ipset_env *ie)
+{
 	struct mnl_socket *mnl;
-
 	size_t i;
-
 	const char *setname;
-
 	struct ub_packed_rrset_key *rrset;
-
 	int af;
-
+	static char qname[BUFF_LEN];
+	int qlen;
 
 	mnl = (struct mnl_socket *)ie->mnl;
 	if (!mnl) {
-		// retry to create mnl socket
+		/* retry to create mnl socket */
 		mnl = open_mnl_socket();
 		if (!mnl) {
 			return -1;
 		}
-
 		ie->mnl = mnl;
 	}
 
-	for (i = 0; i < return_msg->rep->rrset_count; ++i) {
+	qlen = sldns_wire2str_dname_buf(qinfo.qname, qinfo.qname_len,
+		qname, BUFF_LEN);
+	if(qlen == 0) {
+		log_err("bad domain name");
+		return -1;
+	}
+
+	for(i = 0; i < return_msg->rep->rrset_count; i++) {
 		setname = NULL;
-
 		rrset = return_msg->rep->rrsets[i];
-
-		if (rrset->rk.type == htons(LDNS_RR_TYPE_A)) {
+		if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_A &&
+			ie->v4_enabled == 1) {
 			af = AF_INET;
-			if ((ie->v4_enabled == 1)) {
-				setname = ie->name_v4;
-			}
-		} else {
+			setname = ie->name_v4;
+		} else if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_AAAA &&
+			ie->v6_enabled == 1) {
 			af = AF_INET6;
-			if ((ie->v6_enabled == 1)) {
-				setname = ie->name_v6;
-			}
+			setname = ie->name_v6;
 		}
 
 		if (setname) {
 			if(ipset_check_zones_for_rrset(env, ie, mnl, rrset,
-				setname, af) == -1)
+				qname, qlen, setname, af) == -1)
 				return -1;
 		}
 	}
@@ -311,7 +314,7 @@ void ipset_operate(struct module_qstate *qstate, enum module_ev event, int id,
 
 	if (iq && (event == module_event_moddone)) {
 		if (qstate->return_msg && qstate->return_msg->rep) {
-			ipset_update(qstate->env, qstate->return_msg, ie);
+			ipset_update(qstate->env, qstate->return_msg, qstate->qinfo, ie);
 		}
 		qstate->ext_state[id] = module_finished;
 		return;

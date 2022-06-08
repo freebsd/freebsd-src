@@ -743,9 +743,10 @@ iter_mark_pside_cycle_targets(struct module_qstate* qstate, struct delegpt* dp)
 
 int
 iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
-	struct delegpt* dp)
+	struct delegpt* dp, int supports_ipv4, int supports_ipv6)
 {
 	struct delegpt_ns* ns;
+	struct delegpt_addr* a;
 	/* check:
 	 *      o RD qflag is on.
 	 *      o no addresses are provided.
@@ -758,13 +759,24 @@ iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
 	 */
 	if(!(qflags&BIT_RD))
 		return 0;
-	/* either available or unused targets */
-	if(dp->usable_list || dp->result_list)
-		return 0;
+	/* either available or unused targets,
+	 * if they exist, the dp is not useless. */
+	for(a = dp->usable_list; a; a = a->next_usable) {
+		if(!addr_is_ip6(&a->addr, a->addrlen) && supports_ipv4)
+			return 0;
+		else if(addr_is_ip6(&a->addr, a->addrlen) && supports_ipv6)
+			return 0;
+	}
+	for(a = dp->result_list; a; a = a->next_result) {
+		if(!addr_is_ip6(&a->addr, a->addrlen) && supports_ipv4)
+			return 0;
+		else if(addr_is_ip6(&a->addr, a->addrlen) && supports_ipv6)
+			return 0;
+	}
 
 	/* see if query is for one of the nameservers, which is glue */
-	if( (qinfo->qtype == LDNS_RR_TYPE_A ||
-		qinfo->qtype == LDNS_RR_TYPE_AAAA) &&
+	if( ((qinfo->qtype == LDNS_RR_TYPE_A && supports_ipv4) ||
+		(qinfo->qtype == LDNS_RR_TYPE_AAAA && supports_ipv6)) &&
 		dname_subdomain_c(qinfo->qname, dp->name) &&
 		delegpt_find_ns(dp, qinfo->qname, qinfo->qname_len))
 		return 1;

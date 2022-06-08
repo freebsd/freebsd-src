@@ -60,7 +60,7 @@ EDNS options
 
 .. function:: edns_opt_list_remove(list, code);
 
-    Remove an ENDS option code from the list.
+    Remove an EDNS option code from the list.
     .. note:: All :class:`edns_option` with the code will be removed
 
     :param list: linked list of :class:`edns_option`

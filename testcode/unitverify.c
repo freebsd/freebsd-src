@@ -187,7 +187,7 @@ verifytest_rrset(struct module_env* env, struct val_env* ve,
 	}
 	setup_sigalg(dnskey, sigalg); /* check all algorithms in the dnskey */
 	/* ok to give null as qstate here, won't be used for answer section. */
-	sec = dnskeyset_verify_rrset(env, ve, rrset, dnskey, sigalg, &reason,
+	sec = dnskeyset_verify_rrset(env, ve, rrset, dnskey, sigalg, &reason, NULL,
 		LDNS_SECTION_ANSWER, NULL);
 	if(vsig) {
 		printf("verify outcome is: %s %s\n", sec_status_to_string(sec),

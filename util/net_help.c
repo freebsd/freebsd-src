@@ -1271,7 +1271,13 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem, int wincert)
 			}
 		}
 #else
-		(void)wincert;
+		if(wincert) {
+			if(!SSL_CTX_set_default_verify_paths(ctx)) {
+				log_crypto_err("error in default_verify_paths");
+				SSL_CTX_free(ctx);
+				return NULL;
+			}
+		}
 #endif
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 	}

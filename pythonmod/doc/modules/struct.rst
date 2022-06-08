@@ -77,7 +77,7 @@ module_qstate
 
     .. attribute:: edns_opts_back_in_iter
 
-        Iterator for `ends_opts_back_in`.
+        Iterator for `edns_opts_back_in`.
 
     .. attribute:: edns_opts_front_out
 

@@ -244,11 +244,28 @@ key_entry_set_reason(struct key_entry_key* kkey, char* reason)
 	d->reason = reason;
 }
 
+void
+key_entry_set_reason_bogus(struct key_entry_key* kkey, sldns_ede_code ede)
+{
+	struct key_entry_data* d = (struct key_entry_data*)kkey->entry.data;
+	if (ede != LDNS_EDE_NONE) { /* reason_bogus init is LDNS_EDE_NONE already */
+		d->reason_bogus = ede;
+	}
+}
+
 char*
 key_entry_get_reason(struct key_entry_key* kkey)
 {
 	struct key_entry_data* d = (struct key_entry_data*)kkey->entry.data;
 	return d->reason;
+}
+
+sldns_ede_code
+key_entry_get_reason_bogus(struct key_entry_key* kkey)
+{
+	struct key_entry_data* d = (struct key_entry_data*)kkey->entry.data;
+	return d->reason_bogus;
+
 }
 
 /** setup key entry in region */
@@ -286,6 +303,7 @@ key_entry_create_null(struct regional* region,
 	d->ttl = now + ttl;
 	d->isbad = 0;
 	d->reason = NULL;
+	d->reason_bogus = LDNS_EDE_NONE;
 	d->rrset_type = LDNS_RR_TYPE_DNSKEY;
 	d->rrset_data = NULL;
 	d->algo = NULL;
@@ -306,6 +324,7 @@ key_entry_create_rrset(struct regional* region,
 	d->ttl = rd->ttl + now;
 	d->isbad = 0;
 	d->reason = NULL;
+	d->reason_bogus = LDNS_EDE_NONE;
 	d->rrset_type = ntohs(rrset->rk.type);
 	d->rrset_data = (struct packed_rrset_data*)regional_alloc_init(region,
 		rd, packed_rrset_sizeof(rd));
@@ -332,6 +351,7 @@ key_entry_create_bad(struct regional* region,
 	d->ttl = now + ttl;
 	d->isbad = 1;
 	d->reason = NULL;
+	d->reason_bogus = LDNS_EDE_NONE;
 	d->rrset_type = LDNS_RR_TYPE_DNSKEY;
 	d->rrset_data = NULL;
 	d->algo = NULL;

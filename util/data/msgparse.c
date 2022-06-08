@@ -1157,7 +1157,7 @@ skip_pkt_rr(sldns_buffer* pkt)
 }
 
 /** skip RRs from packet */
-static int
+int
 skip_pkt_rrs(sldns_buffer* pkt, int num)
 {
 	int i;
@@ -1235,3 +1235,4 @@ log_edns_opt_list(enum verbosity_value level, const char* info_str,
 		}
 	}
 }
+

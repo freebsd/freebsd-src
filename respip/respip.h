@@ -176,6 +176,8 @@ int respip_merge_cname(struct reply_info* base_rep,
  *   will be set (or intact) accordingly but the modified reply won't be built.
  * @param az: auth zones containing RPZ information.
  * @param region: allocator to build *new_repp.
+ * @param rpz_passthru: keeps track of query state can have passthru that
+ *   stops further rpz processing. Or NULL for cached answer processing.
  * @return 1 on success, 0 on error.
  */
 int respip_rewrite_reply(const struct query_info* qinfo,
@@ -183,7 +185,8 @@ int respip_rewrite_reply(const struct query_info* qinfo,
 	const struct reply_info *rep, struct reply_info** new_repp,
 	struct respip_action_info* actinfo,
 	struct ub_packed_rrset_key** alias_rrset,
-	int search_only, struct regional* region, struct auth_zones* az);
+	int search_only, struct regional* region, struct auth_zones* az,
+	int* rpz_passthru);
 
 /**
  * Get the response-ip function block.

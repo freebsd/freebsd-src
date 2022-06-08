@@ -6,6 +6,7 @@ server:
 	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	ede: yes
 
 stub-zone:
 	name: "."
@@ -133,7 +134,7 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ede=6
 REPLY QR RD RA DO SERVFAIL
 SECTION QUESTION
 a.c.x.w.example. IN A
@@ -145,7 +146,6 @@ SECTION AUTHORITY
 ; 0p9mhaveqvm6t7vbl5lop2u3t2rp3tom.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  OSgWSm26B+cS+dDL8b5QrWr/dEWhtCsKlwKL IBHYH6blRxK9rC0bMJPwQ4mLIuw85H2EY762 BOCXJZMnpuwhpA== )
 ; b4um86eghhds6nea196smvmlo4ors995.example. NSEC3 1 1 12 aabbccdd ( gjeqe526plbf1g8mklp59enfd789njgi MX RRSIG )
 ; b4um86eghhds6nea196smvmlo4ors995.example. RRSIG   NSEC3 7 2 3600 20150420235959 20051021000000 ( 40430 example.  ZkPG3M32lmoHM6pa3D6gZFGB/rhL//Bs3Omh 5u4m/CUiwtblEVOaAKKZd7S959OeiX43aLX3 pOv0TSTyiTxIZg== )
-SECTION ADDITIONAL
 ENTRY_END
 
 SCENARIO_END

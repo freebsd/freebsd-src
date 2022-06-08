@@ -243,28 +243,28 @@ b64_test(void)
 
 	memset(target, 0, sizeof(target));
 	result = sldns_b64_pton(p1, (uint8_t*)target, tarsize);
-	unit_assert(result == strlen("hello") && strcmp(target, "hello") == 0);
+	unit_assert(result == (int)strlen("hello") && strcmp(target, "hello") == 0);
 	memset(target, 0, sizeof(target));
 	result = sldns_b64_pton(p2, (uint8_t*)target, tarsize);
-	unit_assert(result == strlen("hello>") && strcmp(target, "hello>") == 0);
+	unit_assert(result == (int)strlen("hello>") && strcmp(target, "hello>") == 0);
 	memset(target, 0, sizeof(target));
 	result = sldns_b64_pton(p3, (uint8_t*)target, tarsize);
-	unit_assert(result == strlen("hello?!") && strcmp(target, "hello?!") == 0);
+	unit_assert(result == (int)strlen("hello?!") && strcmp(target, "hello?!") == 0);
 	memset(target, 0, sizeof(target));
 	result = sldns_b64_pton(p4, (uint8_t*)target, tarsize);
 	/* when padding is used everything that is not a block of 4 will be
 	 * ignored */
-	unit_assert(result == strlen("hel") && strcmp(target, "hel") == 0);
+	unit_assert(result == (int)strlen("hel") && strcmp(target, "hel") == 0);
 
 	memset(target, 0, sizeof(target));
 	result = sldns_b64url_pton(u1, strlen(u1), (uint8_t*)target, tarsize);
-	unit_assert(result == strlen("hello") && strcmp(target, "hello") == 0);
+	unit_assert(result == (int)strlen("hello") && strcmp(target, "hello") == 0);
 	memset(target, 0, sizeof(target));
 	result = sldns_b64url_pton(u2, strlen(u2), (uint8_t*)target, tarsize);
-	unit_assert(result == strlen("hello>") && strcmp(target, "hello>") == 0);
+	unit_assert(result == (int)strlen("hello>") && strcmp(target, "hello>") == 0);
 	memset(target, 0, sizeof(target));
 	result = sldns_b64url_pton(u3, strlen(u3), (uint8_t*)target, tarsize);
-	unit_assert(result == strlen("hello+/") && strcmp(target, "hello?!") == 0);
+	unit_assert(result == (int)strlen("hello+/") && strcmp(target, "hello?!") == 0);
 	/* one item in block of four is not allowed */
 	memset(target, 0, sizeof(target));
 	result = sldns_b64url_pton(u4, strlen(u4), (uint8_t*)target, tarsize);

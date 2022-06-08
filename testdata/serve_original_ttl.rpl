@@ -9,6 +9,8 @@ server:
 	cache-min-ttl: 20
 	serve-expired: yes
 	serve-expired-reply-ttl: 123
+	ede: yes
+	ede-serve-expired: yes
 
 stub-zone:
 	name: "example.com"
@@ -110,7 +112,7 @@ STEP 31 TIME_PASSES ELAPSE 3601
 ; Query again
 STEP 40 QUERY
 ENTRY_BEGIN
-	REPLY
+	REPLY DO
 	SECTION QUESTION
 		example.com. IN A
 ENTRY_END
@@ -118,8 +120,8 @@ ENTRY_END
 ; Check that we got a stale answer with the original TTL
 STEP 50 CHECK_ANSWER
 ENTRY_BEGIN
-	MATCH all ttl
-	REPLY QR RA NOERROR
+	MATCH all ttl ede=3
+	REPLY QR RA DO NOERROR
 	SECTION QUESTION
 		example.com. IN A
 	SECTION ANSWER

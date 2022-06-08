@@ -47,14 +47,10 @@ STEP 1 QUERY
 STEP 10 CHECK_ANSWER
 
      ENTRY_BEGIN
-        MATCH TCP ednsdata
+        MATCH TCP
         REPLY RD FORMERR
         SECTION QUESTION
                 www.example.com. IN A
-        SECTION ADDITIONAL
-                HEX_EDNSDATA_BEGIN
-                        ; Empty
-                HEX_EDNSDATA_END
      ENTRY_END
 
 STEP 20 QUERY

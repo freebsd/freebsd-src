@@ -155,7 +155,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_ACCESS_CONTROL_TAG_DATA VAR_VIEW VAR_ACCESS_CONTROL_VIEW
 %token VAR_VIEW_FIRST VAR_SERVE_EXPIRED VAR_SERVE_EXPIRED_TTL
 %token VAR_SERVE_EXPIRED_TTL_RESET VAR_SERVE_EXPIRED_REPLY_TTL
-%token VAR_SERVE_EXPIRED_CLIENT_TIMEOUT VAR_SERVE_ORIGINAL_TTL VAR_FAKE_DSA
+%token VAR_SERVE_EXPIRED_CLIENT_TIMEOUT VAR_EDE_SERVE_EXPIRED
+%token VAR_SERVE_ORIGINAL_TTL VAR_FAKE_DSA
 %token VAR_FAKE_SHA1 VAR_LOG_IDENTITY VAR_HIDE_TRUSTANCHOR
 %token VAR_HIDE_HTTP_USER_AGENT VAR_HTTP_USER_AGENT
 %token VAR_TRUST_ANCHOR_SIGNALING VAR_AGGRESSIVE_NSEC VAR_USE_SYSTEMD
@@ -188,7 +189,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DYNLIB VAR_DYNLIB_FILE VAR_EDNS_CLIENT_STRING
 %token VAR_EDNS_CLIENT_STRING_OPCODE VAR_NSID
 %token VAR_ZONEMD_PERMISSIVE_MODE VAR_ZONEMD_CHECK VAR_ZONEMD_REJECT_ABSENCE
-%token VAR_RPZ_SIGNAL_NXDOMAIN_RA
+%token VAR_RPZ_SIGNAL_NXDOMAIN_RA VAR_INTERFACE_AUTOMATIC_PORTS VAR_EDE
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -292,7 +293,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_serve_expired |
 	server_serve_expired_ttl | server_serve_expired_ttl_reset |
 	server_serve_expired_reply_ttl | server_serve_expired_client_timeout |
-	server_serve_original_ttl | server_fake_dsa | 
+	server_ede_serve_expired | server_serve_original_ttl | server_fake_dsa | 
 	server_log_identity | server_use_systemd |
 	server_response_ip_tag | server_response_ip | server_response_ip_data |
 	server_shm_enable | server_shm_key | server_fake_sha1 |
@@ -311,7 +312,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_tls_use_sni | server_edns_client_string |
 	server_edns_client_string_opcode | server_nsid |
 	server_zonemd_permissive_mode | server_max_reuse_tcp_queries |
-	server_tcp_reuse_timeout | server_tcp_auth_query_timeout
+	server_tcp_reuse_timeout | server_tcp_auth_query_timeout |
+	server_interface_automatic_ports | server_ede
 
 	;
 stubstart: VAR_STUB_ZONE
@@ -798,6 +800,13 @@ server_interface_automatic: VAR_INTERFACE_AUTOMATIC STRING_ARG
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->if_automatic = (strcmp($2, "yes")==0);
 		free($2);
+	}
+	;
+server_interface_automatic_ports: VAR_INTERFACE_AUTOMATIC_PORTS STRING_ARG
+	{
+		OUTYY(("P(server_interface_automatic_ports:%s)\n", $2));
+		free(cfg_parser->cfg->if_automatic_ports);
+		cfg_parser->cfg->if_automatic_ports = $2;
 	}
 	;
 server_do_ip4: VAR_DO_IP4 STRING_ARG
@@ -2026,6 +2035,15 @@ server_serve_expired_client_timeout: VAR_SERVE_EXPIRED_CLIENT_TIMEOUT STRING_ARG
 		free($2);
 	}
 	;
+server_ede_serve_expired: VAR_EDE_SERVE_EXPIRED STRING_ARG
+	{
+		OUTYY(("P(server_ede_serve_expired:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ede_serve_expired = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_serve_original_ttl: VAR_SERVE_ORIGINAL_TTL STRING_ARG
 	{
 		OUTYY(("P(server_serve_original_ttl:%s)\n", $2));
@@ -2167,7 +2185,7 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		   && strcmp($3, "noview")!=0
 		   && strcmp($3, "inform")!=0 && strcmp($3, "inform_deny")!=0
 		   && strcmp($3, "inform_redirect") != 0
-			 && strcmp($3, "ipset") != 0) {
+		   && strcmp($3, "ipset") != 0) {
 			yyerror("local-zone type: expected static, deny, "
 				"refuse, redirect, transparent, "
 				"typetransparent, inform, inform_deny, "
@@ -2184,6 +2202,16 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 			free($3);
 #ifdef USE_IPSET
 		} else if(strcmp($3, "ipset")==0) {
+			size_t len = strlen($2);
+			/* Make sure to add the trailing dot.
+			 * These are str compared to domain names. */
+			if($2[len-1] != '.') {
+				if(!($2 = realloc($2, len+2))) {
+					fatal_exit("out of memory adding local-zone");
+				}
+				$2[len] = '.';
+				$2[len+1] = 0;
+			}
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_zones_ipset, $2))
 				fatal_exit("out of memory adding local-zone");
@@ -2713,7 +2741,15 @@ server_edns_client_string_opcode: VAR_EDNS_CLIENT_STRING_OPCODE STRING_ARG
 			yyerror("option code must be in interval [0, 65535]");
 		else cfg_parser->cfg->edns_client_string_opcode = atoi($2);
 		free($2);
-
+	}
+	;
+server_ede: VAR_EDE STRING_ARG
+	{
+		OUTYY(("P(server_ede:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->ede = (strcmp($2, "yes")==0);
+		free($2);
 	}
 	;
 stub_name: VAR_NAME STRING_ARG
@@ -2982,6 +3018,16 @@ view_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 			free($3);
 #ifdef USE_IPSET
 		} else if(strcmp($3, "ipset")==0) {
+			size_t len = strlen($2);
+			/* Make sure to add the trailing dot.
+			 * These are str compared to domain names. */
+			if($2[len-1] != '.') {
+				if(!($2 = realloc($2, len+2))) {
+					fatal_exit("out of memory adding local-zone");
+				}
+				$2[len] = '.';
+				$2[len+1] = 0;
+			}
 			if(!cfg_strlist_insert(&cfg_parser->cfg->views->
 				local_zones_ipset, $2))
 				fatal_exit("out of memory adding local-zone");

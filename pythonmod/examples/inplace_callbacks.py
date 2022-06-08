@@ -207,7 +207,7 @@ def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
 
     """
     log_info("python: called back while servfail.")
-    # Append the example ENDS option
+    # Append the example EDNS option
     b = bytearray.fromhex("")
     edns_opt_list_append(opt_list_out, 65003, b, region)
 

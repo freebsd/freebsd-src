@@ -9,6 +9,7 @@ server:
 	trust-anchor-signaling: no
 	minimal-responses: no
 	nsid: "ascii_hopsa kidee"
+	ede: yes
 
 stub-zone:
 	name: "."
@@ -157,7 +158,7 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ede=9
 REPLY QR RD RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A

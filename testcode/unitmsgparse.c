@@ -137,7 +137,7 @@ test_buffers(sldns_buffer* pkt, sldns_buffer* out)
 	/* compare packets */
 	unit_assert(match_all(sldns_buffer_begin(pkt), sldns_buffer_limit(pkt),
 		sldns_buffer_begin(out), sldns_buffer_limit(out), 1,
-		matches_nolocation));
+		matches_nolocation, 0));
 	return 0;
 }
 

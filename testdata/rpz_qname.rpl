@@ -6,6 +6,8 @@ server:
 
 rpz:
 	name: "rpz.example.com."
+	rpz-log: yes
+	rpz-log-name: "rpz.example.com"
 	zonefile:
 TEMPFILE_NAME rpz.example.com
 TEMPFILE_CONTENTS rpz.example.com
@@ -20,10 +22,13 @@ a	CNAME 	*. ; duplicate CNAME here on purpose
 *.a	TXT	"wildcard local data"
 b.a	CNAME 	*.
 c.a	CNAME	rpz-passthru.
+c.g	CNAME	rpz-passthru.
 TEMPFILE_END
 
 rpz:
 	name: "rpz2.example.com."
+	rpz-log: yes
+	rpz-log-name: "rpz2.example.com"
 	zonefile:
 TEMPFILE_NAME rpz2.example.com
 TEMPFILE_CONTENTS rpz2.example.com
@@ -39,6 +44,7 @@ e	CNAME	*.a.example.
 *.e	CNAME	*.b.example.
 drop	CNAME	rpz-drop.
 tcp	CNAME	rpz-tcp-only.
+c.g	CNAME	.
 TEMPFILE_END
 
 stub-zone:
@@ -50,6 +56,9 @@ stub-zone:
 stub-zone:
 	name: "tcp."
 	stub-addr: 10.20.30.60
+stub-zone:
+	name: "g."
+	stub-addr: 10.20.30.40
 CONFIG_END
 
 SCENARIO_BEGIN Test all support RPZ action for QNAME trigger
@@ -87,6 +96,16 @@ SECTION QUESTION
 x.b.a. IN TXT
 SECTION ANSWER
 x.b.a. IN TXT "answer from upstream ns"
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+c.g. IN TXT
+SECTION ANSWER
+c.g. IN TXT "answer from upstream ns"
 ENTRY_END
 
 RANGE_END
@@ -394,6 +413,24 @@ f.example.	IN	TXT
 SECTION ANSWER
 f.example.	IN	CNAME	d.
 d.		IN	TXT	"local data 2nd zone"
+ENTRY_END
+
+; check if passthru ends processing
+STEP 110 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+c.g.  IN TXT
+ENTRY_END
+
+STEP 111 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+c.g.	IN	TXT
+SECTION ANSWER
+c.g.	IN	TXT "answer from upstream ns"
 ENTRY_END
 
 ; no answer is checked at exit of testbound.

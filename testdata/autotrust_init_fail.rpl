@@ -4,6 +4,8 @@ server:
 	log-time-ascii: yes
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	ede: yes
+
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
@@ -150,7 +152,7 @@ ENTRY_END
 
 STEP 20 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ede=9
 REPLY QR RD RA DO SERVFAIL
 SECTION QUESTION
 www.example.com. IN A

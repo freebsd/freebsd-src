@@ -40,6 +40,10 @@
 #include "config.h"
 #include "util/module.h"
 #include "sldns/wire2str.h"
+#include "util/config_file.h"
+#include "util/regional.h"
+#include "util/data/dname.h"
+#include "util/net_help.h"
 
 const char* 
 strextstate(enum module_ext_state s)
@@ -69,6 +73,144 @@ strmodulevent(enum module_ev e)
 	case module_event_error: return "module_event_error";
 	}
 	return "bad_event_value";
+}
+
+void errinf(struct module_qstate* qstate, const char* str)
+{
+	errinf_ede(qstate, str, LDNS_EDE_NONE);
+}
+
+void errinf_ede(struct module_qstate* qstate,
+	const char* str, sldns_ede_code reason_bogus)
+{
+	struct errinf_strlist* p;
+	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !str)
+		return;
+	p = (struct errinf_strlist*)regional_alloc(qstate->region, sizeof(*p));
+	if(!p) {
+		log_err("malloc failure in validator-error-info string");
+		return;
+	}
+	p->next = NULL;
+	p->str = regional_strdup(qstate->region, str);
+	p->reason_bogus = reason_bogus;
+	if(!p->str) {
+		log_err("malloc failure in validator-error-info string");
+		return;
+	}
+	/* add at end */
+	if(qstate->errinf) {
+		struct errinf_strlist* q = qstate->errinf;
+		while(q->next)
+			q = q->next;
+		q->next = p;
+	} else	qstate->errinf = p;
+}
+
+void errinf_origin(struct module_qstate* qstate, struct sock_list *origin)
+{
+	struct sock_list* p;
+	if(qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail)
+		return;
+	for(p=origin; p; p=p->next) {
+		char buf[256];
+		if(p == origin)
+			snprintf(buf, sizeof(buf), "from ");
+		else	snprintf(buf, sizeof(buf), "and ");
+		if(p->len == 0)
+			snprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), 
+				"cache");
+		else 
+			addr_to_str(&p->addr, p->len, buf+strlen(buf),
+				sizeof(buf)-strlen(buf));
+		errinf(qstate, buf);
+	}
+}
+
+char* errinf_to_str_bogus(struct module_qstate* qstate)
+{
+	char buf[20480];
+	char* p = buf;
+	size_t left = sizeof(buf);
+	struct errinf_strlist* s;
+	char dname[LDNS_MAX_DOMAINLEN+1];
+	char t[16], c[16];
+	sldns_wire2str_type_buf(qstate->qinfo.qtype, t, sizeof(t));
+	sldns_wire2str_class_buf(qstate->qinfo.qclass, c, sizeof(c));
+	dname_str(qstate->qinfo.qname, dname);
+	snprintf(p, left, "validation failure <%s %s %s>:", dname, t, c);
+	left -= strlen(p); p += strlen(p);
+	if(!qstate->errinf)
+		snprintf(p, left, " misc failure");
+	else for(s=qstate->errinf; s; s=s->next) {
+		snprintf(p, left, " %s", s->str);
+		left -= strlen(p); p += strlen(p);
+	}
+	p = strdup(buf);
+	if(!p)
+		log_err("malloc failure in errinf_to_str");
+	return p;
+}
+
+sldns_ede_code errinf_to_reason_bogus(struct module_qstate* qstate)
+{
+	struct errinf_strlist* s;
+	for(s=qstate->errinf; s; s=s->next) {
+		if (s->reason_bogus != LDNS_EDE_NONE) {
+			return s->reason_bogus;
+		}
+	}
+	return LDNS_EDE_NONE;
+}
+
+char* errinf_to_str_servfail(struct module_qstate* qstate)
+{
+	char buf[20480];
+	char* p = buf;
+	size_t left = sizeof(buf);
+	struct errinf_strlist* s;
+	char dname[LDNS_MAX_DOMAINLEN+1];
+	char t[16], c[16];
+	sldns_wire2str_type_buf(qstate->qinfo.qtype, t, sizeof(t));
+	sldns_wire2str_class_buf(qstate->qinfo.qclass, c, sizeof(c));
+	dname_str(qstate->qinfo.qname, dname);
+	snprintf(p, left, "SERVFAIL <%s %s %s>:", dname, t, c);
+	left -= strlen(p); p += strlen(p);
+	if(!qstate->errinf)
+		snprintf(p, left, " misc failure");
+	else for(s=qstate->errinf; s; s=s->next) {
+		snprintf(p, left, " %s", s->str);
+		left -= strlen(p); p += strlen(p);
+	}
+	p = strdup(buf);
+	if(!p)
+		log_err("malloc failure in errinf_to_str");
+	return p;
+}
+
+void errinf_rrset(struct module_qstate* qstate, struct ub_packed_rrset_key *rr)
+{
+	char buf[1024];
+	char dname[LDNS_MAX_DOMAINLEN+1];
+	char t[16], c[16];
+	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !rr)
+		return;
+	sldns_wire2str_type_buf(ntohs(rr->rk.type), t, sizeof(t));
+	sldns_wire2str_class_buf(ntohs(rr->rk.rrset_class), c, sizeof(c));
+	dname_str(rr->rk.dname, dname);
+	snprintf(buf, sizeof(buf), "for <%s %s %s>", dname, t, c);
+	errinf(qstate, buf);
+}
+
+void errinf_dname(struct module_qstate* qstate, const char* str, uint8_t* dname)
+{
+	char b[1024];
+	char buf[LDNS_MAX_DOMAINLEN+1];
+	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !str || !dname)
+		return;
+	dname_str(dname, buf);
+	snprintf(b, sizeof(b), "%s %s", str, buf);
+	errinf(qstate, b);
 }
 
 int

@@ -6,6 +6,7 @@ server:
 	target-fetch-policy: "0 0 0 0 0"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	ede: yes
 
 stub-zone:
 	name: "."
@@ -223,7 +224,7 @@ ENTRY_END
 ; recursion happens here.
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ede=10
 REPLY QR RD RA DO SERVFAIL
 SECTION QUESTION
 www.sub.example.com. IN A

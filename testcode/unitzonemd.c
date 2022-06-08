@@ -221,10 +221,10 @@ static void zonemd_check_test(void)
 	unit_assert(result && reason == NULL);
 	result = auth_zone_generate_zonemd_check(z, 241, hashalgo,
 		hash, hashlen, region, buf, &reason);
-	unit_assert(!result && strcmp(reason, "unsupported scheme")==0);
+	unit_assert(result && strcmp(reason, "unsupported scheme")==0);
 	result = auth_zone_generate_zonemd_check(z, scheme, 242,
 		hash, hashlen, region, buf, &reason);
-	unit_assert(!result && strcmp(reason, "unsupported algorithm")==0);
+	unit_assert(result && strcmp(reason, "unsupported algorithm")==0);
 	result = auth_zone_generate_zonemd_check(z, scheme, hashalgo,
 		hash, 2, region, buf, &reason);
 	unit_assert(!result && strcmp(reason, "digest length too small, less than 12")==0);
