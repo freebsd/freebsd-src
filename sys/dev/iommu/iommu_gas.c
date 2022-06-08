@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -63,6 +62,7 @@
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
+#include <machine/interrupt.h>
 #include <machine/iommu.h>
 #include <dev/iommu/busdma_iommu.h>
 

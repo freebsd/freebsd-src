@@ -33,7 +33,6 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/domainset.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
