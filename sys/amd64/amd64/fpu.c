@@ -51,7 +51,7 @@
 
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
