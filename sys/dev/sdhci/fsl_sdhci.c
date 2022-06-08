@@ -53,7 +53,7 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #ifdef __arm__
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
 #endif
