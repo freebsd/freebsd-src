@@ -55,9 +55,9 @@
 #include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/smp.h>
-#include <machine/intr.h>
 
 #include <arm64/cavium/thunder_pcie_common.h>
 #include <arm64/cavium/thunder_pcie_pem.h>

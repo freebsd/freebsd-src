@@ -56,7 +56,7 @@
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <machine/machdep.h> /* For arm_set_delay */
 
