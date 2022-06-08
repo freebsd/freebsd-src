@@ -34,7 +34,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>

@@ -25,8 +25,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __X86_INTR_MACHDEP_H__
-#define	__X86_INTR_MACHDEP_H__
+#ifndef __MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
 
 #ifdef _KERNEL
 
@@ -167,4 +167,4 @@ void	xen_intr_alloc_irqs(void);
 
 #endif	/* !LOCORE */
 #endif	/* _KERNEL */
-#endif	/* !__X86_INTR_MACHDEP_H__ */
+#endif	/* !__MACHINE_INTERRUPT_H__ */

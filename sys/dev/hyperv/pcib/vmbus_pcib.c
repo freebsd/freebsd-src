@@ -49,7 +49,7 @@
 #include <vm/pmap.h>
 
 #if defined(__aarch64__)
-#include <arm64/include/intr.h>
+#include <arm64/include/interrupt.h>
 #endif
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -64,7 +64,7 @@
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 #if defined(__i386__) || defined(__amd64__)
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
 #endif

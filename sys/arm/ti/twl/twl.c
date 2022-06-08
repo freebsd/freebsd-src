@@ -58,7 +58,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>

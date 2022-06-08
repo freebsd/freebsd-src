@@ -46,7 +46,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/bus.h>
 
 #include <vm/vm.h>

@@ -40,7 +40,7 @@
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>

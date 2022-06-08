@@ -47,7 +47,7 @@
 #include <dev/pci/pcib_private.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include "pcib_if.h"
 #include "msi_if.h"

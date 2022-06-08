@@ -39,7 +39,7 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/smp.h>
 

@@ -52,7 +52,7 @@
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 struct beri_mem_softc {
 	struct resource		*res[1];

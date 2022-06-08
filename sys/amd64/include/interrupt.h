@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2015 Andrew Turner
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,50 +23,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/pcpu.h>
-#include <sys/smp.h>
+#ifndef __MACHINE_INTR_MACHDEP_H__
+#define	__MACHINE_INTR_MACHDEP_H__
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <x86/interrupt.h>
 
-#include <machine/interrupt.h>
-#include <machine/platformvar.h>
-#include <machine/smp.h>
+/*
+ * The following data structure holds per-cpu data, and is placed just
+ * above the top of the space used for the NMI and MC# stacks.
+ */
+struct nmi_pcpu {
+	register_t	np_pcpu;
+	register_t	__padding;	/* pad to 16 bytes */
+};
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_cpu.h>
-#include <dev/psci/psci.h>
+#define	DBLFAULT_STACK_SIZE	PAGE_SIZE
+#define	NMI_STACK_SIZE		PAGE_SIZE
+#define	MCE_STACK_SIZE		PAGE_SIZE
+#define	DBG_STACK_SIZE		PAGE_SIZE
 
-#include <arm/qemu/virt_mp.h>
-
-static int running_cpus;
-
-static bool
-virt_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
-{
-	int err;
-
-	if (running_cpus >= mp_ncpus)
-		return (false);
-	running_cpus++;
-
-	err = psci_cpu_on(*reg, pmap_kextract((vm_offset_t)mpentry), id);
-
-	if (err != PSCI_RETVAL_SUCCESS)
-		return (false);
-
-	return (true);
-}
-
-void
-virt_mp_start_ap(platform_t plat)
-{
-
-	ofw_cpu_early_foreach(virt_start_ap, true);
-}
+#endif	/* !__MACHINE_INTR_MACHDEP_H__ */

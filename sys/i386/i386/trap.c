@@ -83,7 +83,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>

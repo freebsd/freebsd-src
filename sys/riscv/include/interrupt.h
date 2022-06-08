@@ -1,6 +1,14 @@
 /*-
- * Copyright (c) 2015 Andrew Turner
+ * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,50 +30,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/pcpu.h>
-#include <sys/smp.h>
+#ifndef	__MACHINE_INTERRUPT_H__
+#define	__MACHINE_INTERRUPT_H__
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <sys/intr.h>
 
-#include <machine/interrupt.h>
-#include <machine/platformvar.h>
-#include <machine/smp.h>
+#ifndef	NIRQ
+#define	NIRQ			1024
+#endif
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_cpu.h>
-#include <dev/psci/psci.h>
+enum {
+	IRQ_SOFTWARE_USER,
+	IRQ_SOFTWARE_SUPERVISOR,
+	IRQ_SOFTWARE_HYPERVISOR,
+	IRQ_SOFTWARE_MACHINE,
+	IRQ_TIMER_USER,
+	IRQ_TIMER_SUPERVISOR,
+	IRQ_TIMER_HYPERVISOR,
+	IRQ_TIMER_MACHINE,
+	IRQ_EXTERNAL_USER,
+	IRQ_EXTERNAL_SUPERVISOR,
+	IRQ_EXTERNAL_HYPERVISOR,
+	IRQ_EXTERNAL_MACHINE,
+};
 
-#include <arm/qemu/virt_mp.h>
-
-static int running_cpus;
-
-static bool
-virt_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
-{
-	int err;
-
-	if (running_cpus >= mp_ncpus)
-		return (false);
-	running_cpus++;
-
-	err = psci_cpu_on(*reg, pmap_kextract((vm_offset_t)mpentry), id);
-
-	if (err != PSCI_RETVAL_SUCCESS)
-		return (false);
-
-	return (true);
-}
-
-void
-virt_mp_start_ap(platform_t plat)
-{
-
-	ofw_cpu_early_foreach(virt_start_ap, true);
-}
+#endif /* !__MACHINE_INTERRUPT_H__ */

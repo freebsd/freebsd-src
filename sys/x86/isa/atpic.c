@@ -45,7 +45,7 @@
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/resource.h>
 #include <machine/segments.h>

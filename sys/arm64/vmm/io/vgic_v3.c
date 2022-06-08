@@ -56,7 +56,7 @@
 #include <machine/param.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>

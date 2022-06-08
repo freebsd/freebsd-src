@@ -65,7 +65,7 @@
 #include <machine/cputypes.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>

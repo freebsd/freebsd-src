@@ -34,7 +34,7 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>

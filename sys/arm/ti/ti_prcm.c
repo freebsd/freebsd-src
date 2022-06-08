@@ -42,7 +42,7 @@
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>

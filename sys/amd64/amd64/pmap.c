@@ -153,7 +153,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <x86/apicvar.h>
 #include <x86/ifunc.h>
 #include <machine/cpu.h>
