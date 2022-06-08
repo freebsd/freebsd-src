@@ -31,8 +31,9 @@
 #include <linux/wait.h>
 
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/priority.h>
+
+#include <machine/interrupt.h>
 
 enum {
 	KTHREAD_SHOULD_STOP_MASK = (1 << 0),
