@@ -57,9 +57,7 @@
 #include <net/vnet.h>
 
 #include <machine/cpu.h>
-#ifdef INTRNG
-#include <machine/intr.h>
-#endif
+#include <machine/interrupt.h>
 #include <machine/stdarg.h>
 
 #include <vm/uma.h>

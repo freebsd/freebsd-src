@@ -38,7 +38,7 @@
 
 #ifdef	INTRNG
 /* touched by LINT-ACPI */
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #endif
 
 #ifdef FDT
