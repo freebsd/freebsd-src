@@ -37,7 +37,7 @@
 #include <sys/rman.h>
 
 #ifdef	INTRNG
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #endif
 
 #ifdef FDT
