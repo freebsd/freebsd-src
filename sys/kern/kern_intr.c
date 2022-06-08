@@ -37,7 +37,6 @@
 #include <sys/cpuset.h>
 #include <sys/rtprio.h>
 #include <sys/systm.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
@@ -58,6 +57,7 @@
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>

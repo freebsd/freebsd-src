@@ -29,11 +29,16 @@
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
 
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/interrupt.h included without architecture interrupt header!"
+#endif
+
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_types_interrupt.h>
 #include <sys/ck.h>
 #include <sys/queue.h>
+#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
