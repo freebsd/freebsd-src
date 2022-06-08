@@ -44,7 +44,7 @@
 
 #include <machine/bus.h>
 #ifdef INTRNG
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #endif
 #include <machine/resource.h>
 

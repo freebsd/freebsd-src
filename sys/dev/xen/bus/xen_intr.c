@@ -50,6 +50,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/interrupt.h>
 #include <machine/smp.h>
 
 #include <xen/xen-os.h>

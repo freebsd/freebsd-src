@@ -19,7 +19,7 @@
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/clk/clk.h>
