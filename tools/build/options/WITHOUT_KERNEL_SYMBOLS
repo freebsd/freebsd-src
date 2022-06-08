@@ -1,4 +1,3 @@
 .\" $FreeBSD$
-Do not build or install standalone kernel debug symbol files.
-Debug data (if enabled by the kernel configuration file)
-will be included in the kernel and modules.
+Do not install standalone kernel debug symbol files.
+This option has no effect at build time.
