@@ -34,7 +34,8 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
+
+#include <machine/interrupt.h>
 
 #define	synchronize_irq(irq)	_intr_drain((irq))
 
