@@ -75,12 +75,12 @@
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 
 #include <dev/mfi/mfireg.h>
 #include <dev/mfi/mfi_ioctl.h>
 #include <dev/mfi/mfivar.h>
-#include <sys/interrupt.h>
 #include <sys/priority.h>
 
 static int	mfi_alloc_commands(struct mfi_softc *);

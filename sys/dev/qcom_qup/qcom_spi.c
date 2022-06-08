@@ -30,7 +30,6 @@
 #include <sys/systm.h>
 
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -45,6 +44,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
+#include <machine/interrupt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
