@@ -38,6 +38,7 @@
 #include "dtb.hh"
 
 #include <algorithm>
+#include <limits>
 #include <sstream>
 
 #include <ctype.h>
