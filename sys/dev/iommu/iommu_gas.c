@@ -377,14 +377,6 @@ iommu_gas_lowermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *ent
 {
 	struct iommu_map_entry *child;
 
-	child = RB_RIGHT(entry, rb_entry);
-	if (child != NULL && entry->end < a->common->lowaddr &&
-	    iommu_gas_match_one(a, entry->end, child->first,
-	    a->common->lowaddr)) {
-		iommu_gas_match_insert(a);
-		return (0);
-	}
-
 	/*
 	 * If the subtree doesn't have free space for the requested allocation
 	 * plus two guard pages, give up.
@@ -393,16 +385,22 @@ iommu_gas_lowermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *ent
 		return (ENOMEM);
 	if (entry->first >= a->common->lowaddr)
 		return (ENOMEM);
-	child = RB_LEFT(entry, rb_entry);
+	child = RB_RIGHT(entry, rb_entry);
 	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
 		return (0);
+	if (child != NULL && entry->end < a->common->lowaddr &&
+	    iommu_gas_match_one(a, entry->end, child->first,
+	    a->common->lowaddr)) {
+		iommu_gas_match_insert(a);
+		return (0);
+	}
+	child = RB_LEFT(entry, rb_entry);
 	if (child != NULL && child->last < a->common->lowaddr &&
 	    iommu_gas_match_one(a, child->last, entry->start,
 	    a->common->lowaddr)) {
 		iommu_gas_match_insert(a);
 		return (0);
 	}
-	child = RB_RIGHT(entry, rb_entry);
 	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
 		return (0);
 	return (ENOMEM);
