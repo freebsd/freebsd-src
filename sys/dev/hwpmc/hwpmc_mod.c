@@ -364,6 +364,14 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, threadfreelist_max, CTLFLAG_RW,
 
 
 /*
+ * kern.hwpmc.mincount -- minimum sample count
+ */
+static u_int pmc_mincount = 1000;
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, mincount, CTLFLAG_RWTUN,
+    &pmc_mincount, 0,
+    "minimum count for sampling counters");
+
+/*
  * security.bsd.unprivileged_syspmcs -- allow non-root processes to
  * allocate system-wide PMCs.
  *
@@ -3950,13 +3958,16 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		/* XXX set lower bound on sampling for process counters */
 		if (PMC_IS_SAMPLING_MODE(mode)) {
 			/*
-			 * Don't permit requested sample rate to be less than 1000
+			 * Don't permit requested sample rate to be
+			 * less than pmc_mincount.
 			 */
-			if (pa.pm_count < 1000)
-				log(LOG_WARNING,
-					"pmcallocate: passed sample rate %ju - setting to 1000\n",
-					(uintmax_t)pa.pm_count);
-			pmc->pm_sc.pm_reloadcount = MAX(1000, pa.pm_count);
+			if (pa.pm_count < MAX(1, pmc_mincount))
+				log(LOG_WARNING, "pmcallocate: passed sample "
+				    "rate %ju - setting to %u\n",
+				    (uintmax_t)pa.pm_count,
+				    MAX(1, pmc_mincount));
+			pmc->pm_sc.pm_reloadcount = MAX(MAX(1, pmc_mincount),
+			    pa.pm_count);
 		} else
 			pmc->pm_sc.pm_initial = pa.pm_count;
 
@@ -4474,13 +4485,16 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			/*
-			 * Don't permit requested sample rate to be less than 1000
+			 * Don't permit requested sample rate to be
+			 * less than pmc_mincount.
 			 */
-			if (sc.pm_count < 1000)
-				log(LOG_WARNING,
-					"pmcsetcount: passed sample rate %ju - setting to 1000\n",
-					(uintmax_t)sc.pm_count);
-			pm->pm_sc.pm_reloadcount = MAX(1000, sc.pm_count);
+			if (sc.pm_count < MAX(1, pmc_mincount))
+				log(LOG_WARNING, "pmcsetcount: passed sample "
+				    "rate %ju - setting to %u\n",
+				    (uintmax_t)sc.pm_count,
+				    MAX(1, pmc_mincount));
+			pm->pm_sc.pm_reloadcount = MAX(MAX(1, pmc_mincount),
+			    sc.pm_count);
 		} else
 			pm->pm_sc.pm_initial = sc.pm_count;
 	}
