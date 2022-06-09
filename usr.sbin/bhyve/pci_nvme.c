@@ -2597,7 +2597,7 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
     struct pci_nvme_ioreq *req,
     uint16_t *status)
 {
-	struct nvme_dsm_range *range;
+	struct nvme_dsm_range *range = NULL;
 	uint32_t nr, r, non_zero, dr;
 	int err;
 	bool pending = false;
