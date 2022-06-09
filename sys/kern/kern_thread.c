@@ -1673,7 +1673,7 @@ thread_single_end(struct proc *p, int mode)
 			thread_lock(td);
 			if (TD_IS_SUSPENDED(td)) {
 				wakeup_swapper |= thread_unsuspend_one(td, p,
-				    mode == SINGLE_BOUNDARY);
+				    true);
 			} else
 				thread_unlock(td);
 		}
