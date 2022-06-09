@@ -1821,6 +1821,7 @@ restart:
 	if (error == 0 && retu == false)
 		goto restart;
 
+	vmm_stat_incr(vm, vcpuid, VMEXIT_USERSPACE, 1);
 	VCPU_CTR2(vm, vcpuid, "retu %d/%d", error, vme->exitcode);
 
 	/* copy the exit information */
