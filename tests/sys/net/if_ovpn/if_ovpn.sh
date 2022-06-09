@@ -25,6 +25,7 @@
 # SUCH DAMAGE.
 
 . $(atf_get_srcdir)/utils.subr
+. $(atf_get_srcdir)/../../netpfil/pf/utils.subr
 
 atf_test_case "4in4" "cleanup"
 4in4_head()
@@ -400,6 +401,94 @@ timeout_client_cleanup()
 	ovpn_cleanup
 }
 
+atf_test_case "route_to" "cleanup"
+route_to_head()
+{
+	atf_set descr "Test pf's route-to with OpenVPN tunnels"
+	atf_set require.user root
+	atf_set require.progs openvpn
+}
+
+route_to_body()
+{
+	pft_init
+	ovpn_init
+
+	l=$(vnet_mkepair)
+	n=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a 192.0.2.1/24 up
+	jexec a ifconfig ${l}a inet alias 198.51.100.254/24
+	vnet_mkjail b ${l}b ${n}a
+	jexec b ifconfig ${l}b 192.0.2.2/24 up
+	jexec b ifconfig ${n}a up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping -c 1 192.0.2.2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp4
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		local 192.0.2.1
+		server 198.51.100.0 255.255.255.0
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	# Check the tunnel
+	atf_check -s exit:0 -o ignore jexec b ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore jexec b ping -c 1 198.51.100.254
+
+	# Break our routes so that we need a route-to to make things work.
+	jexec b ifconfig ${n}a 198.51.100.3/24
+	atf_check -s exit:2 -o ignore jexec b ping -c 1 -t 1 -S 198.51.100.2 198.51.100.254
+
+	jexec b pfctl -e
+	pft_set_rules b \
+		"pass out route-to (tun0 198.51.100.1) proto icmp from 198.51.100.2 "
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 -S 198.51.100.2 198.51.100.254
+}
+
+route_to_cleanup()
+{
+	ovpn_cleanup
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "4in4"
@@ -407,4 +496,5 @@ atf_init_test_cases()
 	atf_add_test_case "6in6"
 	atf_add_test_case "4in6"
 	atf_add_test_case "timeout_client"
+	atf_add_test_case "route_to"
 }
