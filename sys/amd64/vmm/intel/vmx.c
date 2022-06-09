@@ -3184,9 +3184,6 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		      handled, vmexit->exitcode);
 	}
 
-	if (!handled)
-		vmm_stat_incr(vm, vcpu, VMEXIT_USERSPACE, 1);
-
 	VCPU_CTR1(vm, vcpu, "returning from vmx_run: exitcode %d",
 	    vmexit->exitcode);
 
