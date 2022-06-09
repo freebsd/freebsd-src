@@ -31,7 +31,7 @@
 .\"     @(#)utimes.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2021
+.Dd June 12, 2022
 .Dt UTIMENSAT 2
 .Os
 .Sh NAME
@@ -169,18 +169,6 @@ operate on the current working directory.
 .El
 .Sh RETURN VALUES
 .Rv -std
-.Sh COMPATIBILITY
-If the running kernel does not support this system call,
-a wrapper emulates it using
-.Xr fstatat 2 ,
-.Xr futimesat 2
-and
-.Xr lutimes 2 .
-As a result, timestamps will be rounded down to the nearest microsecond,
-.Dv UTIME_OMIT
-is not atomic and
-.Dv AT_SYMLINK_NOFOLLOW
-is not available with a path relative to a file descriptor.
 .Sh ERRORS
 These system calls will fail if:
 .Bl -tag -width Er
