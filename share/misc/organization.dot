@@ -6,7 +6,7 @@
 # For a detailed description of the responsibilities and duties of the listed
 # teams, please see our Administration page at
 # https://www.freebsd.org/administration/ .
-# 
+#
 # The graphical output can be generated from this file with the following
 # command:
 # $ dot -T png -o file.png organization.dot
@@ -25,7 +25,7 @@ _misc [label="Miscellaneous Hats"]
 
 # Development teams go here alphabetically sorted by FreeBSD login name
 
-core [label="Core Team\ncore@FreeBSD.org\nbapt, emaste, gnn,\nimp, hrs, kevans,\nmarkj, scottl, seanc"]
+core [label="Core Team\ncore@FreeBSD.org\nbapt, bcr, emaste,\ngrog, jhb, lwhsu,\nmanu, tcberner, 0mp"]
 coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\nbofh"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\nbcr, gabor, gjb, hrs,\nblackend, ryusuke, wblock"]
