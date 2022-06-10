@@ -3455,9 +3455,6 @@ ena_restore_device(struct ena_adapter *adapter)
 
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
 
-	ena_log(dev, INFO,
-	    "Device reset completed successfully, Driver info: %s\n", ena_version);
-
 	return (rc);
 
 err_disable_msix:
@@ -3488,6 +3485,10 @@ ena_reset_task(void *arg, int pending)
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
 		ena_destroy_device(adapter, false);
 		ena_restore_device(adapter);
+
+		ena_log(adapter->pdev, INFO,
+		    "Device reset completed successfully, Driver info: %s\n",
+		    ena_version);
 	}
 	ENA_LOCK_UNLOCK();
 }
