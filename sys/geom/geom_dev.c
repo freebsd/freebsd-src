@@ -273,8 +273,8 @@ g_dev_set_physpath(struct g_consumer *cp)
 		dev = sc->sc_dev;
 		old_alias_dev = sc->sc_alias;
 		alias_devp = (struct cdev **)&sc->sc_alias;
-		make_dev_physpath_alias(MAKEDEV_WAITOK, alias_devp, dev,
-		    old_alias_dev, physpath);
+		make_dev_physpath_alias(MAKEDEV_WAITOK | MAKEDEV_CHECKNAME,
+		    alias_devp, dev, old_alias_dev, physpath);
 	} else if (sc->sc_alias) {
 		destroy_dev((struct cdev *)sc->sc_alias);
 		sc->sc_alias = NULL;
