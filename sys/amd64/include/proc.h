@@ -32,6 +32,10 @@
  * $FreeBSD$
  */
 
+#ifdef __i386__
+#include <i386/proc.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
@@ -117,3 +121,5 @@ extern int max_ldt_segment;
 #endif  /* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */
+
+#endif /* __i386__ */
