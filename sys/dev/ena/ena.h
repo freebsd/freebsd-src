@@ -374,6 +374,8 @@ struct ena_ring {
 	/* Used for LLQ */
 	uint8_t *push_buf_intermediate_buf;
 
+	int tx_last_cleanup_ticks;
+
 #ifdef DEV_NETMAP
 	bool initialized;
 #endif /* DEV_NETMAP */
