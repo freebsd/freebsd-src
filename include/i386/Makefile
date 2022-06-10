@@ -14,6 +14,7 @@ INCS=	\
 # These kernel-only headers are used by procstat's ZFS support.
 # This should be fixed.
 INCS+=	\
+	counter.h \
 	pcpu.h \
 	pcpu_aux.h
 INCSDIR=	${INCLUDEDIR}/i386
