@@ -28,6 +28,10 @@
  * $FreeBSD$
  */
 
+#ifdef __i386__
+#include <i386/pcpu.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
@@ -274,3 +278,5 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_PCPU_H_ */
+
+#endif /* __i386__ */
