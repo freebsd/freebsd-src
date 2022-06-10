@@ -296,7 +296,6 @@ static int
 ena_probe(device_t dev)
 {
 	ena_vendor_info_t *ent;
-	char		adapter_name[60];
 	uint16_t	pci_vendor_id = 0;
 	uint16_t	pci_device_id = 0;
 
@@ -310,8 +309,7 @@ ena_probe(device_t dev)
 			ena_log_raw(DBG, "vendor=%x device=%x\n",
 			    pci_vendor_id, pci_device_id);
 
-			sprintf(adapter_name, DEVICE_DESC);
-			device_set_desc_copy(dev, adapter_name);
+			device_set_desc(dev, DEVICE_DESC);
 			return (BUS_PROBE_DEFAULT);
 		}
 
