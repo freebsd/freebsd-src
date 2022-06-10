@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libopie \
 	lib/libthr \
 	lib/libutil \
-	lib/libxo \
 	lib/msun \
 	usr.bin/yacc.host \
 
