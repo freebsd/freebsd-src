@@ -155,6 +155,7 @@ static int	ena_setup_ifnet(device_t, struct ena_adapter *,
 static int	ena_enable_wc(device_t, struct resource *);
 static int	ena_set_queues_placement_policy(device_t, struct ena_com_dev *,
     struct ena_admin_feature_llq_desc *, struct ena_llq_configurations *);
+static int	ena_map_llq_mem_bar(device_t, struct ena_com_dev *);
 static uint32_t	ena_calc_max_io_queue_num(device_t, struct ena_com_dev *,
     struct ena_com_dev_get_features_ctx *);
 static int	ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *);
@@ -2575,8 +2576,7 @@ ena_set_queues_placement_policy(device_t pdev, struct ena_com_dev *ena_dev,
     struct ena_admin_feature_llq_desc *llq,
     struct ena_llq_configurations *llq_default_configurations)
 {
-	struct ena_adapter *adapter = device_get_softc(pdev);
-	int rc, rid;
+	int rc;
 	uint32_t llq_feature_mask;
 
 	llq_feature_mask = 1 << ENA_ADMIN_LLQ;
@@ -2587,17 +2587,28 @@ ena_set_queues_placement_policy(device_t pdev, struct ena_com_dev *ena_dev,
 		return (0);
 	}
 
+	if (ena_dev->mem_bar == NULL) {
+		ena_log(pdev, WARN,
+		    "LLQ is advertised as supported but device doesn't expose mem bar.\n");
+		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+		return (0);
+	}
+
 	rc = ena_com_config_dev_mode(ena_dev, llq, llq_default_configurations);
 	if (unlikely(rc != 0)) {
 		ena_log(pdev, WARN, "Failed to configure the device mode. "
 		    "Fallback to host mode policy.\n");
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
-		return (0);
 	}
 
-	/* Nothing to config, exit */
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
-		return (0);
+	return (0);
+}
+
+static int
+ena_map_llq_mem_bar(device_t pdev, struct ena_com_dev *ena_dev)
+{
+	struct ena_adapter *adapter = device_get_softc(pdev);
+	int rc, rid;
 
 	/* Try to allocate resources for LLQ bar */
 	rid = PCIR_BAR(ENA_MEM_BAR);
@@ -3598,6 +3609,12 @@ ena_attach(device_t pdev)
 	}
 
 	set_default_llq_configurations(&llq_config, &get_feat_ctx.llq);
+
+	rc = ena_map_llq_mem_bar(pdev, ena_dev);
+	if (unlikely(rc != 0)) {
+		ena_log(pdev, ERR, "failed to map ENA mem bar");
+		goto err_com_free;
+	}
 
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx.llq,
 	     &llq_config);
