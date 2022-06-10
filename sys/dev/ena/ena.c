@@ -439,6 +439,7 @@ ena_init_io_rings_advanced(struct ena_adapter *adapter)
 		/* Allocate Tx statistics. */
 		ena_alloc_counters((counter_u64_t *)&txr->tx_stats,
 		    sizeof(txr->tx_stats));
+		txr->tx_last_cleanup_ticks = ticks;
 
 		/* Allocate Rx statistics. */
 		ena_alloc_counters((counter_u64_t *)&rxr->rx_stats,
@@ -3011,6 +3012,8 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 	device_t pdev = adapter->pdev;
 	struct bintime curtime, time;
 	struct ena_tx_buffer *tx_buf;
+	int time_since_last_cleanup;
+	int missing_tx_comp_to;
 	sbintime_t time_offset;
 	uint32_t missed_tx = 0;
 	int i, rc = 0;
@@ -3044,10 +3047,18 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		/* Check again if packet is still waiting */
 		if (unlikely(time_offset > adapter->missing_tx_timeout)) {
 
-			if (!tx_buf->print_once)
+			if (!tx_buf->print_once) {
+				time_since_last_cleanup = TICKS_2_USEC(ticks -
+				    tx_ring->tx_last_cleanup_ticks);
+				missing_tx_comp_to =
+				    sbttoms(adapter->missing_tx_timeout);
 				ena_log(pdev, WARN, "Found a Tx that wasn't "
-				    "completed on time, qid %d, index %d.\n",
-				    tx_ring->qid, i);
+				    "completed on time, qid %d, index %d."
+				    "%d usecs have passed since last cleanup."
+				    "Missing Tx timeout value %d msecs.\n",
+				    tx_ring->qid, i, time_since_last_cleanup,
+				    missing_tx_comp_to);
+			}
 
 			tx_buf->print_once = true;
 			missed_tx++;
