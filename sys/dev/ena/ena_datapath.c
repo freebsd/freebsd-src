@@ -344,6 +344,8 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		ENA_RING_MTX_UNLOCK(tx_ring);
 	}
 
+	tx_ring->tx_last_cleanup_ticks = ticks;
+
 	return (work_done);
 }
 
