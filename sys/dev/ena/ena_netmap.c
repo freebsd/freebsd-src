@@ -375,9 +375,7 @@ ena_netmap_tx_frames(struct ena_netmap_ctx *ctx)
 	/* If any packet was sent... */
 	if (likely(ctx->nm_i != ctx->kring->nr_hwcur)) {
 		/* ...send the doorbell to the device. */
-		ena_com_write_sq_doorbell(ctx->io_sq);
-		counter_u64_add(ctx->ring->tx_stats.doorbells, 1);
-		tx_ring->acum_pkts = 0;
+		ena_ring_tx_doorbell(tx_ring);
 
 		ctx->ring->next_to_use = ctx->nt;
 		ctx->kring->nr_hwcur = ctx->nm_i;
@@ -431,11 +429,8 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 	/* There are no any offloads, as the netmap doesn't support them */
 
 	if (tx_ring->acum_pkts == DB_THRESHOLD ||
-	    ena_com_is_doorbell_needed(ctx->io_sq, &ena_tx_ctx)) {
-		ena_com_write_sq_doorbell(ctx->io_sq);
-		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
-		tx_ring->acum_pkts = 0;
-	}
+	    ena_com_is_doorbell_needed(ctx->io_sq, &ena_tx_ctx))
+		ena_ring_tx_doorbell(tx_ring);
 
 	rc = ena_com_prepare_tx(ctx->io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (unlikely(rc != 0)) {
