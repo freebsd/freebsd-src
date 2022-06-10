@@ -1100,7 +1100,6 @@ ena_start_xmit(struct ena_ring *tx_ring)
 {
 	struct mbuf *mbuf;
 	struct ena_adapter *adapter = tx_ring->adapter;
-	int ena_qid;
 	int ret = 0;
 
 	ENA_RING_MTX_ASSERT(tx_ring);
@@ -1110,8 +1109,6 @@ ena_start_xmit(struct ena_ring *tx_ring)
 
 	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter)))
 		return;
-
-	ena_qid = ENA_IO_TXQ_IDX(tx_ring->que->id);
 
 	while ((mbuf = drbr_peek(adapter->ifp, tx_ring->br)) != NULL) {
 		ena_log_io(adapter->pdev, DBG,
