@@ -543,4 +543,12 @@ ena_trigger_reset(struct ena_adapter *adapter,
 	}
 }
 
+static inline void
+ena_ring_tx_doorbell(struct ena_ring *tx_ring)
+{
+	ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+	counter_u64_add(tx_ring->tx_stats.doorbells, 1);
+	tx_ring->acum_pkts = 0;
+}
+
 #endif /* !(ENA_H) */
