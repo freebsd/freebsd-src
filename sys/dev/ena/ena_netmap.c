@@ -206,7 +206,7 @@ ena_netmap_free_rx_slot(struct ena_adapter *adapter, struct ena_ring *rx_ring,
 	    BUS_DMASYNC_POSTREAD);
 	netmap_unload_map(na, adapter->rx_buf_tag, rx_info->map);
 
-	KASSERT(kring->ring == NULL, ("Netmap Rx ring is NULL\n"));
+	KASSERT(kring->ring != NULL, ("Netmap Rx ring is NULL\n"));
 
 	slot = &kring->ring->slot[nm_i];
 
