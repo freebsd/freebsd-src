@@ -989,9 +989,11 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 
 	locked = VOP_ISLOCKED(vp);
 	lvp = NULLVPTOLOWERVP(vp);
-	vhold(lvp);
 	mp = vp->v_mount;
-	vfs_ref(mp);
+	error = vfs_busy(mp, MBF_NOWAIT);
+	if (error != 0)
+		return (error);
+	vhold(lvp);
 	VOP_UNLOCK(vp); /* vp is held by vn_vptocnp_locked that called us */
 	ldvp = lvp;
 	vref(lvp);
@@ -999,7 +1001,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	vdrop(lvp);
 	if (error != 0) {
 		vn_lock(vp, locked | LK_RETRY);
-		vfs_rel(mp);
+		vfs_unbusy(mp);
 		return (ENOENT);
 	}
 
@@ -1007,7 +1009,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	if (error != 0) {
 		vrele(ldvp);
 		vn_lock(vp, locked | LK_RETRY);
-		vfs_rel(mp);
+		vfs_unbusy(mp);
 		return (ENOENT);
 	}
 	error = null_nodeget(mp, ldvp, dvp);
@@ -1018,7 +1020,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		VOP_UNLOCK(*dvp); /* keep reference on *dvp */
 	}
 	vn_lock(vp, locked | LK_RETRY);
-	vfs_rel(mp);
+	vfs_unbusy(mp);
 	return (error);
 }
 
