@@ -39,20 +39,20 @@
 #include "ena-com/ena_com.h"
 #include "ena-com/ena_eth_com.h"
 
-#define DRV_MODULE_VER_MAJOR	2
-#define DRV_MODULE_VER_MINOR	5
-#define DRV_MODULE_VER_SUBMINOR 0
+#define ENA_DRV_MODULE_VER_MAJOR	2
+#define ENA_DRV_MODULE_VER_MINOR	5
+#define ENA_DRV_MODULE_VER_SUBMINOR	0
 
-#define DRV_MODULE_NAME		"ena"
+#define ENA_DRV_MODULE_NAME		"ena"
 
-#ifndef DRV_MODULE_VERSION
-#define DRV_MODULE_VERSION				\
-	__XSTRING(DRV_MODULE_VER_MAJOR) "."		\
-	__XSTRING(DRV_MODULE_VER_MINOR) "."		\
-	__XSTRING(DRV_MODULE_VER_SUBMINOR)
+#ifndef ENA_DRV_MODULE_VERSION
+#define ENA_DRV_MODULE_VERSION				\
+	__XSTRING(ENA_DRV_MODULE_VER_MAJOR) "."		\
+	__XSTRING(ENA_DRV_MODULE_VER_MINOR) "."		\
+	__XSTRING(ENA_DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DEVICE_NAME	"Elastic Network Adapter (ENA)"
-#define DEVICE_DESC	"ENA adapter"
+#define ENA_DEVICE_NAME	"Elastic Network Adapter (ENA)"
+#define ENA_DEVICE_DESC	"ENA adapter"
 
 /* Calculate DMA mask - width for ena cannot exceed 48, so it is safe */
 #define ENA_DMA_BIT_MASK(x)		((1ULL << (x)) - 1ULL)
@@ -92,24 +92,24 @@
 
 #define ENA_TX_RESUME_THRESH		(ENA_PKT_MAX_BUFS + 2)
 
-#define DB_THRESHOLD	64
+#define ENA_DB_THRESHOLD	64
 
-#define TX_COMMIT	32
+#define ENA_TX_COMMIT	32
  /*
  * TX budget for cleaning. It should be half of the RX budget to reduce amount
  *  of TCP retransmissions.
  */
-#define TX_BUDGET	128
+#define ENA_TX_BUDGET	128
 /* RX cleanup budget. -1 stands for infinity. */
-#define RX_BUDGET	256
+#define ENA_RX_BUDGET	256
 /*
  * How many times we can repeat cleanup in the io irq handling routine if the
  * RX or TX budget was depleted.
  */
-#define CLEAN_BUDGET	8
+#define ENA_CLEAN_BUDGET	8
 
-#define RX_IRQ_INTERVAL 20
-#define TX_IRQ_INTERVAL 50
+#define ENA_RX_IRQ_INTERVAL	20
+#define ENA_TX_IRQ_INTERVAL	50
 
 #define ENA_MIN_MTU		128
 
@@ -136,16 +136,16 @@
  * ENA device should send keep alive msg every 1 sec.
  * We wait for 6 sec just to be on the safe side.
  */
-#define DEFAULT_KEEP_ALIVE_TO		(SBT_1S * 6)
+#define ENA_DEFAULT_KEEP_ALIVE_TO	(SBT_1S * 6)
 
 /* Time in jiffies before concluding the transmitter is hung. */
-#define DEFAULT_TX_CMP_TO		(SBT_1S * 5)
+#define ENA_DEFAULT_TX_CMP_TO		(SBT_1S * 5)
 
 /* Number of queues to check for missing queues per timer tick */
-#define DEFAULT_TX_MONITORED_QUEUES	(4)
+#define ENA_DEFAULT_TX_MONITORED_QUEUES	(4)
 
 /* Max number of timeouted packets before device reset */
-#define DEFAULT_TX_CMP_THRESHOLD	(128)
+#define ENA_DEFAULT_TX_CMP_THRESHOLD	(128)
 
 /*
  * Supported PCI vendor and devices IDs

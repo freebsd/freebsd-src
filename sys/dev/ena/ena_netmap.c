@@ -428,7 +428,7 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 
 	/* There are no any offloads, as the netmap doesn't support them */
 
-	if (tx_ring->acum_pkts == DB_THRESHOLD ||
+	if (tx_ring->acum_pkts == ENA_DB_THRESHOLD ||
 	    ena_com_is_doorbell_needed(ctx->io_sq, &ena_tx_ctx))
 		ena_ring_tx_doorbell(tx_ring);
 
