@@ -2104,13 +2104,6 @@ ena_up(struct ena_adapter *adapter)
 
 	ena_log(adapter->pdev, INFO, "device is going UP\n");
 
-	/*
-	 * ena_timer_service can use functions, which write to the admin queue.
-	 * Those calls are not protected by ENA_LOCK, and because of that, the
-	 * timer should be stopped when bringing the device up or down.
-	 */
-	ENA_TIMER_DRAIN(adapter);
-
 	/* setup interrupts for IO queues */
 	rc = ena_setup_io_intr(adapter);
 	if (unlikely(rc != 0)) {
@@ -2157,8 +2150,6 @@ ena_up(struct ena_adapter *adapter)
 
 	ena_unmask_all_io_irqs(adapter);
 
-	ENA_TIMER_RESET(adapter);
-
 	return (0);
 
 err_up_complete:
@@ -2168,8 +2159,6 @@ err_up_complete:
 err_create_queues_with_backoff:
 	ena_free_io_irq(adapter);
 error:
-	ENA_TIMER_RESET(adapter);
-
 	return (rc);
 }
 
@@ -2474,9 +2463,6 @@ ena_down(struct ena_adapter *adapter)
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter))
 		return;
 
-	/* Drain timer service to avoid admin queue race condition. */
-	ENA_TIMER_DRAIN(adapter);
-
 	ena_log(adapter->pdev, INFO, "device is going DOWN\n");
 
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEV_UP, adapter);
@@ -2501,8 +2487,6 @@ ena_down(struct ena_adapter *adapter)
 	ena_free_all_rx_resources(adapter);
 
 	counter_u64_add(adapter->dev_stats.interface_down, 1);
-
-	ENA_TIMER_RESET(adapter);
 }
 
 static uint32_t
@@ -3275,24 +3259,7 @@ ena_timer_service(void *data)
 	if ((adapter->eni_metrics_sample_interval != 0) &&
 	    (++adapter->eni_metrics_sample_interval_cnt >=
 	     adapter->eni_metrics_sample_interval)) {
-		/*
-		 * There is no race with other admin queue calls, as:
-		 *   - Timer service runs after attach function ends, so all
-		 *     configuration calls to the admin queue are finished.
-		 *   - Timer service is temporarily stopped when bringing
-		 *     the interface up or down.
-		 *   - After interface is up, the driver doesn't use (at least
-		 *     for now) other functions writing to the admin queue.
-		 *
-		 * It may change in the future, so in that situation, the lock
-		 * will be needed. ENA_LOCK_*() cannot be used for that purpose,
-		 * as callout ena_timer_service is protected by them. It could
-		 * lead to the deadlock if callout_drain() would hold the lock
-		 * before ena_copy_eni_metrics() was executed. It's advised to
-		 * use separate lock in that situation which will be used only
-		 * for the admin queue.
-		 */
-		(void)ena_copy_eni_metrics(adapter);
+		taskqueue_enqueue(adapter->metrics_tq, &adapter->metrics_task);
 		adapter->eni_metrics_sample_interval_cnt = 0;
 	}
 
@@ -3497,6 +3464,16 @@ err:
 	ENA_TIMER_RESET(adapter);
 
 	return (rc);
+}
+
+static void
+ena_metrics_task(void *arg, int pending)
+{
+	struct ena_adapter *adapter = (struct ena_adapter *)arg;
+
+	ENA_LOCK_LOCK();
+	(void)ena_copy_eni_metrics(adapter);
+	ENA_LOCK_UNLOCK();
 }
 
 static void
@@ -3719,6 +3696,13 @@ ena_attach(device_t pdev)
 	taskqueue_start_threads(&adapter->reset_tq, 1, PI_NET,
 	    "%s rstq", device_get_nameunit(adapter->pdev));
 
+	/* Initialize metrics task queue */
+	TASK_INIT(&adapter->metrics_task, 0, ena_metrics_task, adapter);
+	adapter->metrics_tq = taskqueue_create("ena_metrics_enqueue",
+	    M_WAITOK | M_ZERO, taskqueue_thread_enqueue, &adapter->metrics_tq);
+	taskqueue_start_threads(&adapter->metrics_tq, 1, PI_NET,
+	    "%s metricsq", device_get_nameunit(adapter->pdev));
+
 	/* Initialize statistics */
 	ena_alloc_counters((counter_u64_t *)&adapter->dev_stats,
 	    sizeof(struct ena_stats_dev));
@@ -3796,6 +3780,11 @@ ena_detach(device_t pdev)
 	ENA_LOCK_LOCK();
 	ENA_TIMER_DRAIN(adapter);
 	ENA_LOCK_UNLOCK();
+
+	/* Release metrics task */
+	while (taskqueue_cancel(adapter->metrics_tq, &adapter->metrics_task, NULL))
+		taskqueue_drain(adapter->metrics_tq, &adapter->metrics_task);
+	taskqueue_free(adapter->metrics_tq);
 
 	/* Release reset task */
 	while (taskqueue_cancel(adapter->reset_tq, &adapter->reset_task, NULL))
