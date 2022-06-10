@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/eventhandler.h>
 
+#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/in_cksum.h>
@@ -381,7 +382,7 @@ ena_init_io_rings_common(struct ena_adapter *adapter, struct ena_ring *ring,
 	ring->qid = qid;
 	ring->adapter = adapter;
 	ring->ena_dev = adapter->ena_dev;
-	ring->first_interrupt = false;
+	atomic_store_8(&ring->first_interrupt, false);
 	ring->no_interrupt_event_cnt = 0;
 }
 
@@ -2987,7 +2988,7 @@ static int
 check_for_rx_interrupt_queue(struct ena_adapter *adapter,
     struct ena_ring *rx_ring)
 {
-	if (likely(rx_ring->first_interrupt))
+	if (likely(atomic_load_8(&rx_ring->first_interrupt)))
 		return (0);
 
 	if (ena_com_cq_empty(rx_ring->ena_com_io_cq))
@@ -3030,7 +3031,7 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		bintime_sub(&time, &tx_buf->timestamp);
 		time_offset = bttosbt(time);
 
-		if (unlikely(!tx_ring->first_interrupt &&
+		if (unlikely(!atomic_load_8(&tx_ring->first_interrupt) &&
 		    time_offset > 2 * adapter->missing_tx_timeout)) {
 			/*
 			 * If after graceful period interrupt is still not
