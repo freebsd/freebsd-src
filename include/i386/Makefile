@@ -2,7 +2,8 @@
 
 .PATH: ${SRCTOP}/sys/i386/include
 INCS=	\
-	cpufunc.h
+	cpufunc.h \
+	profile.h
 INCSDIR=	${INCLUDEDIR}/i386
 
 .include <bsd.prog.mk>
