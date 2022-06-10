@@ -38,6 +38,10 @@
  * used in preference to this.
  */
 
+#ifdef __i386__
+#include <i386/cpufunc.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
@@ -966,3 +970,5 @@ int	wrmsr_safe(u_int msr, uint64_t newval);
 #endif
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
+
+#endif /* __i386__ */
