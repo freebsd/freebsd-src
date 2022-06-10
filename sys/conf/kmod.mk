@@ -283,6 +283,9 @@ _ILINKS=machine
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _ILINKS+=x86
 .endif
+.if ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+=i386
+.endif
 CLEANFILES+=${_ILINKS}
 
 all: ${PROG}
