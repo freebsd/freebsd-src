@@ -882,7 +882,8 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 	if (likely(req_id < tx_ring->ring_size))
 		return (0);
 
-	ena_log_nm(adapter->pdev, WARN, "Invalid req_id: %hu\n", req_id);
+	ena_log_nm(adapter->pdev, WARN, "Invalid req_id %hu in qid %hu\n",
+	    req_id, tx_ring->qid);
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
 
 	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
