@@ -594,8 +594,7 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		if (seg + 1 < tag->common.nsegments)
 			gas_flags |= IOMMU_MF_CANSPLIT;
 
-		error = iommu_map(domain, &tag->common,
-		    round_page(offset + buflen1),
+		error = iommu_map(domain, &tag->common, buflen1,
 		    offset, e_flags, gas_flags, ma + idx, &entry);
 		if (error != 0)
 			break;

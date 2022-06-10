@@ -364,7 +364,8 @@ iommu_gas_match_insert(struct iommu_gas_match_args *a)
 	 * The page sized gap is created between consequent
 	 * allocations to ensure that out-of-bounds accesses fault.
 	 */
-	a->entry->end = a->entry->start + a->size;
+	a->entry->end = a->entry->start +
+	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE);
 
 	found = iommu_gas_rb_insert(a->domain, a->entry);
 	KASSERT(found, ("found dup %p start %jx size %jx",
@@ -381,7 +382,8 @@ iommu_gas_lowermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *ent
 	 * If the subtree doesn't have free space for the requested allocation
 	 * plus two guard pages, give up.
 	 */
-	if (entry->free_down < a->size + a->offset + 2 * IOMMU_PAGE_SIZE)
+	if (entry->free_down < 2 * IOMMU_PAGE_SIZE +
+	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE))
 		return (ENOMEM);
 	if (entry->first >= a->common->lowaddr)
 		return (ENOMEM);
@@ -415,7 +417,8 @@ iommu_gas_uppermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *ent
 	 * If the subtree doesn't have free space for the requested allocation
 	 * plus two guard pages, give up.
 	 */
-	if (entry->free_down < a->size + a->offset + 2 * IOMMU_PAGE_SIZE)
+	if (entry->free_down < 2 * IOMMU_PAGE_SIZE +
+	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE))
 		return (ENOMEM);
 	if (entry->last < a->common->highaddr)
 		return (ENOMEM);
@@ -450,7 +453,6 @@ iommu_gas_find_space(struct iommu_domain *domain,
 
 	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
 	KASSERT(entry->flags == 0, ("dirty entry %p %p", domain, entry));
-	KASSERT((size & IOMMU_PAGE_MASK) == 0, ("size %jx", (uintmax_t)size));
 
 	a.domain = domain;
 	a.size = size;
