@@ -459,8 +459,9 @@ pass_add_physpath(void *context, int pending)
 	 && strlen(physpath) != 0) {
 
 		mtx_unlock(mtx);
-		make_dev_physpath_alias(MAKEDEV_WAITOK, &softc->alias_dev,
-					softc->dev, softc->alias_dev, physpath);
+		make_dev_physpath_alias(MAKEDEV_WAITOK | MAKEDEV_CHECKNAME,
+				&softc->alias_dev, softc->dev,
+				softc->alias_dev, physpath);
 		mtx_lock(mtx);
 	}
 
