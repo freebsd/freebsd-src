@@ -58,30 +58,28 @@ static int ena_netmap_txsync(struct netmap_kring *, int);
 static int ena_netmap_rxsync(struct netmap_kring *, int);
 
 /* Helper functions */
-static int	ena_netmap_tx_frames(struct ena_netmap_ctx *);
-static int	ena_netmap_tx_frame(struct ena_netmap_ctx *);
+static int ena_netmap_tx_frames(struct ena_netmap_ctx *);
+static int ena_netmap_tx_frame(struct ena_netmap_ctx *);
 static inline uint16_t ena_netmap_count_slots(struct ena_netmap_ctx *);
 static inline uint16_t ena_netmap_packet_len(struct netmap_slot *, u_int,
     uint16_t);
-static int	ena_netmap_copy_data(struct netmap_adapter *,
-    struct netmap_slot *, u_int, uint16_t, uint16_t, void *);
-static int	ena_netmap_map_single_slot(struct netmap_adapter *,
+static int ena_netmap_copy_data(struct netmap_adapter *, struct netmap_slot *,
+    u_int, uint16_t, uint16_t, void *);
+static int ena_netmap_map_single_slot(struct netmap_adapter *,
     struct netmap_slot *, bus_dma_tag_t, bus_dmamap_t, void **, uint64_t *);
-static int	ena_netmap_tx_map_slots(struct ena_netmap_ctx *,
+static int ena_netmap_tx_map_slots(struct ena_netmap_ctx *,
     struct ena_tx_buffer *, void **, uint16_t *, uint16_t *);
-static void	ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *,
+static void ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *,
     struct ena_tx_buffer *);
-static void	ena_netmap_tx_cleanup(struct ena_netmap_ctx *);
-static uint16_t	ena_netmap_tx_clean_one(struct ena_netmap_ctx *,
-    uint16_t);
+static void ena_netmap_tx_cleanup(struct ena_netmap_ctx *);
+static uint16_t ena_netmap_tx_clean_one(struct ena_netmap_ctx *, uint16_t);
 static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static int ena_netmap_rx_frames(struct ena_netmap_ctx *);
 static int ena_netmap_rx_frame(struct ena_netmap_ctx *);
-static int ena_netmap_rx_load_desc(struct ena_netmap_ctx *, uint16_t,
-    int *);
+static int ena_netmap_rx_load_desc(struct ena_netmap_ctx *, uint16_t, int *);
 static void ena_netmap_rx_cleanup(struct ena_netmap_ctx *);
-static void ena_netmap_fill_ctx(struct netmap_kring *,
-    struct ena_netmap_ctx *, uint16_t);
+static void ena_netmap_fill_ctx(struct netmap_kring *, struct ena_netmap_ctx *,
+    uint16_t);
 
 int
 ena_netmap_attach(struct ena_adapter *adapter)
@@ -106,8 +104,8 @@ ena_netmap_attach(struct ena_adapter *adapter)
 }
 
 int
-ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
-    struct ena_ring *rx_ring, struct ena_rx_buffer *rx_info)
+ena_netmap_alloc_rx_slot(struct ena_adapter *adapter, struct ena_ring *rx_ring,
+    struct ena_rx_buffer *rx_info)
 {
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring;
@@ -126,12 +124,14 @@ ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
 	nm_i = kring->nr_hwcur;
 	head = kring->rhead;
 
-	ena_log_nm(adapter->pdev, DBG, "nr_hwcur: %d, nr_hwtail: %d, "
-	    "rhead: %d, rcur: %d, rtail: %d\n", kring->nr_hwcur,
-	    kring->nr_hwtail, kring->rhead, kring->rcur, kring->rtail);
+	ena_log_nm(adapter->pdev, DBG,
+	    "nr_hwcur: %d, nr_hwtail: %d, rhead: %d, rcur: %d, rtail: %d\n",
+	    kring->nr_hwcur, kring->nr_hwtail, kring->rhead, kring->rcur,
+	    kring->rtail);
 
 	if ((nm_i == head) && rx_ring->initialized) {
-		ena_log_nm(adapter->pdev, ERR, "No free slots in netmap ring\n");
+		ena_log_nm(adapter->pdev, ERR,
+		    "No free slots in netmap ring\n");
 		return (ENOMEM);
 	}
 
@@ -169,8 +169,8 @@ ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
 }
 
 void
-ena_netmap_free_rx_slot(struct ena_adapter *adapter,
-    struct ena_ring *rx_ring, struct ena_rx_buffer *rx_info)
+ena_netmap_free_rx_slot(struct ena_adapter *adapter, struct ena_ring *rx_ring,
+    struct ena_rx_buffer *rx_info)
 {
 	struct netmap_adapter *na;
 	struct netmap_kring *kring;
@@ -272,7 +272,7 @@ static int
 ena_netmap_reg(struct netmap_adapter *na, int onoff)
 {
 	struct ifnet *ifp = na->ifp;
-	struct ena_adapter* adapter = ifp->if_softc;
+	struct ena_adapter *adapter = ifp->if_softc;
 	device_t pdev = adapter->pdev;
 	struct netmap_kring *kring;
 	enum txrx t;
@@ -358,13 +358,13 @@ ena_netmap_tx_frames(struct ena_netmap_ctx *ctx)
 	while (ctx->nm_i != ctx->kring->rhead) {
 		if ((rc = ena_netmap_tx_frame(ctx)) != 0) {
 			/*
-			* When there is no empty space in Tx ring, error is
-			* still being returned. It should not be passed to the
-			* netmap, as application knows current ring state from
-			* netmap ring pointers. Returning error there could
-			* cause application to exit, but the Tx ring is commonly
-			* being full.
-			*/
+			 * When there is no empty space in Tx ring, error is
+			 * still being returned. It should not be passed to the
+			 * netmap, as application knows current ring state from
+			 * netmap ring pointers. Returning error there could
+			 * cause application to exit, but the Tx ring is
+			 * commonly being full.
+			 */
 			if (rc == ENA_COM_NO_MEM)
 				rc = 0;
 			break;
@@ -462,7 +462,7 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 
 	for (unsigned int i = 0; i < tx_info->num_of_bufs; i++)
 		bus_dmamap_sync(adapter->tx_buf_tag,
-		   tx_info->nm_info.map_seg[i], BUS_DMASYNC_PREWRITE);
+		    tx_info->nm_info.map_seg[i], BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -604,15 +604,12 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 				return (EINVAL);
 			}
 		/*
-		 * Otherwise, copy whole portion of header from multiple slots
-		 * to intermediate buffer.
+		 * Otherwise, copy whole portion of header from multiple
+		 * slots to intermediate buffer.
 		 */
 		} else {
-			rc = ena_netmap_copy_data(ctx->na,
-			    ctx->slots,
-			    ctx->nm_i,
-			    ctx->lim,
-			    push_len,
+			rc = ena_netmap_copy_data(ctx->na, ctx->slots,
+			    ctx->nm_i, ctx->lim, push_len,
 			    tx_ring->push_buf_intermediate_buf);
 			if (unlikely(rc)) {
 				ena_log_nm(adapter->pdev, ERR,
@@ -631,16 +628,12 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 		    slot->buf_idx, *push_hdr, push_len);
 
 		/*
-		* If header was in linear memory space, map for the dma rest of the data
-		* in the first mbuf of the mbuf chain.
-		*/
+		 * If header was in linear memory space, map for the dma rest of
+		 * the data in the first mbuf of the mbuf chain.
+		 */
 		if (slot_head_len > push_len) {
-			rc = ena_netmap_map_single_slot(ctx->na,
-			    slot,
-			    adapter->tx_buf_tag,
-			    *nm_maps,
-			    &vaddr,
-			    &paddr);
+			rc = ena_netmap_map_single_slot(ctx->na, slot,
+			    adapter->tx_buf_tag, *nm_maps, &vaddr, &paddr);
 			if (unlikely(rc != 0)) {
 				ena_log_nm(adapter->pdev, ERR,
 				    "DMA mapping error\n");
@@ -688,11 +681,8 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 				 * Map the data and then assign it with the
 				 * offsets
 				 */
-				rc = ena_netmap_map_single_slot(ctx->na,
-				    slot,
-				    adapter->tx_buf_tag,
-				    *nm_maps,
-				    &vaddr,
+				rc = ena_netmap_map_single_slot(ctx->na, slot,
+				    adapter->tx_buf_tag, *nm_maps, &vaddr,
 				    &paddr);
 				if (unlikely(rc != 0)) {
 					ena_log_nm(adapter->pdev, ERR,
@@ -724,12 +714,12 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 	} else {
 		*push_hdr = NULL;
 		/*
-		* header_len is just a hint for the device. Because netmap is
-		* not giving us any information about packet header length and
-		* it is not guaranteed that all packet headers will be in the
-		* 1st slot, setting header_len to 0 is making the device ignore
-		* this value and resolve header on it's own.
-		*/
+		 * header_len is just a hint for the device. Because netmap is
+		 * not giving us any information about packet header length and
+		 * it is not guaranteed that all packet headers will be in the
+		 * 1st slot, setting header_len to 0 is making the device ignore
+		 * this value and resolve header on it's own.
+		 */
 		*header_len = 0;
 	}
 
@@ -737,15 +727,10 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 	while (remaining_len > 0) {
 		__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
 
-		rc = ena_netmap_map_single_slot(ctx->na,
-			    slot,
-			    adapter->tx_buf_tag,
-			    *nm_maps,
-			    &vaddr,
-			    &paddr);
+		rc = ena_netmap_map_single_slot(ctx->na, slot,
+		    adapter->tx_buf_tag, *nm_maps, &vaddr, &paddr);
 		if (unlikely(rc != 0)) {
-			ena_log_nm(adapter->pdev, ERR,
-			    "DMA mapping error\n");
+			ena_log_nm(adapter->pdev, ERR, "DMA mapping error\n");
 			goto error_map;
 		}
 		nm_maps++;
@@ -928,13 +913,13 @@ ena_netmap_rx_frames(struct ena_netmap_ctx *ctx)
 	ctx->nt = ctx->ring->next_to_clean;
 	ctx->nm_i = ctx->kring->nr_hwtail;
 
-	while((rc = ena_netmap_rx_frame(ctx)) == ENA_NETMAP_MORE_FRAMES) {
+	while ((rc = ena_netmap_rx_frame(ctx)) == ENA_NETMAP_MORE_FRAMES) {
 		frames_counter++;
 		/* In case of multiple frames, it is not an error. */
 		rc = 0;
 		if (frames_counter > ENA_MAX_FRAMES) {
 			ena_log_nm(ctx->adapter->pdev, ERR,
-				"Driver is stuck in the Rx loop\n");
+			    "Driver is stuck in the Rx loop\n");
 			break;
 		}
 	};
@@ -976,11 +961,11 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 	if (unlikely(ena_rx_ctx.descs == 0))
 		return (ENA_NETMAP_NO_MORE_FRAMES);
 
-        ena_log_nm(ctx->adapter->pdev, DBG,
+	ena_log_nm(ctx->adapter->pdev, DBG,
 	    "Rx: q %d got packet from ena. descs #:"
-	    " %d l3 proto %d l4 proto %d hash: %x\n", ctx->ring->qid,
-	    ena_rx_ctx.descs, ena_rx_ctx.l3_proto, ena_rx_ctx.l4_proto,
-	    ena_rx_ctx.hash);
+	    " %d l3 proto %d l4 proto %d hash: %x\n",
+	    ctx->ring->qid, ena_rx_ctx.descs, ena_rx_ctx.l3_proto,
+	    ena_rx_ctx.l4_proto, ena_rx_ctx.hash);
 
 	for (buf = 0; buf < ena_rx_ctx.descs; buf++)
 		if ((rc = ena_netmap_rx_load_desc(ctx, buf, &len)) != 0)
@@ -997,7 +982,7 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 	}
 
 	bus_dmamap_sync(ctx->io_cq->cdesc_addr.mem_handle.tag,
-            ctx->io_cq->cdesc_addr.mem_handle.map, BUS_DMASYNC_PREREAD);
+	    ctx->io_cq->cdesc_addr.mem_handle.map, BUS_DMASYNC_PREREAD);
 
 	counter_enter();
 	counter_u64_add_protected(ctx->ring->rx_stats.bytes, len);
@@ -1012,7 +997,7 @@ rx_clear_desc:
 	nm = ctx->nm_i;
 
 	/* Remove failed packet from ring */
-	while(buf--) {
+	while (buf--) {
 		ctx->slots[nm].flags = 0;
 		ctx->slots[nm].len = 0;
 		nm = nm_prev(nm, ctx->lim);
@@ -1046,9 +1031,10 @@ ena_netmap_rx_load_desc(struct ena_netmap_ctx *ctx, uint16_t buf, int *len)
 	ctx->slots[ctx->nm_i].len = ctx->ring->ena_bufs[buf].len;
 	*len += ctx->slots[ctx->nm_i].len;
 	ctx->ring->free_rx_ids[ctx->nt] = req_id;
-	ena_log_nm(ctx->adapter->pdev, DBG, "rx_info %p, buf_idx %d, paddr %jx, nm: %d\n",
-	    rx_info, ctx->slots[ctx->nm_i].buf_idx,
-	    (uintmax_t)rx_info->ena_buf.paddr, ctx->nm_i);
+	ena_log_nm(ctx->adapter->pdev, DBG,
+	    "rx_info %p, buf_idx %d, paddr %jx, nm: %d\n", rx_info,
+	    ctx->slots[ctx->nm_i].buf_idx, (uintmax_t)rx_info->ena_buf.paddr,
+	    ctx->nm_i);
 
 	ctx->nm_i = nm_next(ctx->nm_i, ctx->lim);
 	ctx->nt = ENA_RX_RING_IDX_NEXT(ctx->nt, ctx->ring->ring_size);

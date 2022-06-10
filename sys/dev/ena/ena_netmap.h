@@ -42,19 +42,21 @@
 #undef unlikely
 #endif /* unlikely */
 
-#include <net/netmap.h>
 #include <sys/selinfo.h>
+
+#include <net/netmap.h>
+
 #include <dev/netmap/netmap_kern.h>
 
-int	ena_netmap_attach(struct ena_adapter *adapter);
-int	ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
+int ena_netmap_attach(struct ena_adapter *adapter);
+int ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
     struct ena_ring *rx_ring, struct ena_rx_buffer *rx_info);
-void	ena_netmap_free_rx_slot(struct ena_adapter *adapter,
+void ena_netmap_free_rx_slot(struct ena_adapter *adapter,
     struct ena_ring *rx_ring, struct ena_rx_buffer *rx_info);
-bool	ena_rx_ring_in_netmap(struct ena_adapter *adapter, int qid);
-bool	ena_tx_ring_in_netmap(struct ena_adapter *adapter, int qid);
-void	ena_netmap_reset_rx_ring(struct ena_adapter *adapter, int qid);
-void	ena_netmap_reset_tx_ring(struct ena_adapter *adapter, int qid);
-void	ena_netmap_unload(struct ena_adapter *adapter, bus_dmamap_t map);
+bool ena_rx_ring_in_netmap(struct ena_adapter *adapter, int qid);
+bool ena_tx_ring_in_netmap(struct ena_adapter *adapter, int qid);
+void ena_netmap_reset_rx_ring(struct ena_adapter *adapter, int qid);
+void ena_netmap_reset_tx_ring(struct ena_adapter *adapter, int qid);
+void ena_netmap_unload(struct ena_adapter *adapter, bus_dmamap_t map);
 
 #endif /* _ENA_NETMAP_H_ */

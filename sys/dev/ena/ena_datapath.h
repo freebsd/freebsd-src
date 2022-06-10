@@ -34,12 +34,12 @@
 #ifndef ENA_TXRX_H
 #define ENA_TXRX_H
 
-void	ena_cleanup(void *arg, int pending);
-void	ena_qflush(if_t ifp);
-int	ena_mq_start(if_t ifp, struct mbuf *m);
-void	ena_deferred_mq_start(void *arg, int pending);
+void ena_cleanup(void *arg, int pending);
+void ena_qflush(if_t ifp);
+int ena_mq_start(if_t ifp, struct mbuf *m);
+void ena_deferred_mq_start(void *arg, int pending);
 
-#define CSUM_OFFLOAD 	(CSUM_IP|CSUM_TCP|CSUM_UDP)
-#define CSUM6_OFFLOAD	(CSUM_IP6_UDP|CSUM_IP6_TCP)
+#define CSUM_OFFLOAD (CSUM_IP | CSUM_TCP | CSUM_UDP)
+#define CSUM6_OFFLOAD (CSUM_IP6_UDP | CSUM_IP6_TCP)
 
 #endif /* ENA_TXRX_H */
