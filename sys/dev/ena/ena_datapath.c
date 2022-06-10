@@ -94,20 +94,20 @@ ena_cleanup(void *arg, int pending)
 	atomic_store_8(&tx_ring->first_interrupt, true);
 	atomic_store_8(&rx_ring->first_interrupt, true);
 
-	for (i = 0; i < CLEAN_BUDGET; ++i) {
+	for (i = 0; i < ENA_CLEAN_BUDGET; ++i) {
 		rxc = ena_rx_cleanup(rx_ring);
 		txc = ena_tx_cleanup(tx_ring);
 
 		if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0))
 			return;
 
-		if ((txc != TX_BUDGET) && (rxc != RX_BUDGET))
+		if ((txc != ENA_TX_BUDGET) && (rxc != ENA_RX_BUDGET))
 			break;
 	}
 
 	/* Signal that work is done and unmask interrupt */
-	ena_com_update_intr_reg(&intr_reg, RX_IRQ_INTERVAL, TX_IRQ_INTERVAL,
-	    true);
+	ena_com_update_intr_reg(&intr_reg, ENA_RX_IRQ_INTERVAL,
+	    ENA_TX_IRQ_INTERVAL, true);
 	counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 	ena_com_unmask_intr(io_cq, &intr_reg);
 }
@@ -249,8 +249,8 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 	uint16_t ena_qid;
 	unsigned int total_done = 0;
 	int rc;
-	int commit = TX_COMMIT;
-	int budget = TX_BUDGET;
+	int commit = ENA_TX_COMMIT;
+	int budget = ENA_TX_BUDGET;
 	int work_done;
 	bool above_thresh;
 
@@ -295,8 +295,8 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		    tx_ring->ring_size);
 
 		if (unlikely(--commit == 0)) {
-			commit = TX_COMMIT;
-			/* update ring state every TX_COMMIT descriptor */
+			commit = ENA_TX_COMMIT;
+			/* update ring state every ENA_TX_COMMIT descriptor */
 			tx_ring->next_to_clean = next_to_clean;
 			ena_com_comp_ack(
 			    &adapter->ena_dev->io_sq_queues[ena_qid],
@@ -306,13 +306,13 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		}
 	} while (likely(--budget));
 
-	work_done = TX_BUDGET - budget;
+	work_done = ENA_TX_BUDGET - budget;
 
 	ena_log_io(adapter->pdev, DBG, "tx: q %d done. total pkts: %d\n",
 	    tx_ring->qid, work_done);
 
 	/* If there is still something to commit update ring state */
-	if (likely(commit != TX_COMMIT)) {
+	if (likely(commit != ENA_TX_COMMIT)) {
 		tx_ring->next_to_clean = next_to_clean;
 		ena_com_comp_ack(&adapter->ena_dev->io_sq_queues[ena_qid],
 		    total_done);
@@ -576,7 +576,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	uint32_t do_if_input = 0;
 	unsigned int qid;
 	int rc, i;
-	int budget = RX_BUDGET;
+	int budget = ENA_RX_BUDGET;
 #ifdef DEV_NETMAP
 	int done;
 #endif /* DEV_NETMAP */
@@ -699,7 +699,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 	tcp_lro_flush_all(&rx_ring->lro);
 
-	return (RX_BUDGET - budget);
+	return (ENA_RX_BUDGET - budget);
 }
 
 static void
@@ -1017,7 +1017,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	/* Set flags and meta data */
 	ena_tx_csum(&ena_tx_ctx, *mbuf, adapter->disable_meta_caching);
 
-	if (tx_ring->acum_pkts == DB_THRESHOLD ||
+	if (tx_ring->acum_pkts == ENA_DB_THRESHOLD ||
 	    ena_com_is_doorbell_needed(tx_ring->ena_com_io_sq, &ena_tx_ctx)) {
 		ena_log_io(pdev, DBG,
 		    "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",

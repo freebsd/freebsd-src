@@ -170,7 +170,8 @@ static void unimplemented_aenq_handler(void *, struct ena_admin_aenq_entry *);
 static int ena_copy_eni_metrics(struct ena_adapter *);
 static void ena_timer_service(void *);
 
-static char ena_version[] = DEVICE_NAME DRV_MODULE_NAME " v" DRV_MODULE_VERSION;
+static char ena_version[] = ENA_DEVICE_NAME ENA_DRV_MODULE_NAME
+    " v" ENA_DRV_MODULE_VERSION;
 
 static ena_vendor_info_t ena_vendor_info_array[] = {
 	{ PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_PF, 0 },
@@ -307,7 +308,7 @@ ena_probe(device_t dev)
 			ena_log_raw(DBG, "vendor=%x device=%x\n", pci_vendor_id,
 			    pci_device_id);
 
-			device_set_desc(dev, DEVICE_DESC);
+			device_set_desc(dev, ENA_DEVICE_DESC);
 			return (BUS_PROBE_DEFAULT);
 		}
 
@@ -2740,9 +2741,9 @@ ena_config_host_info(struct ena_com_dev *ena_dev, device_t dev)
 	strncpy(host_info->os_dist_str, osrelease,
 	    sizeof(host_info->os_dist_str) - 1);
 
-	host_info->driver_version = (DRV_MODULE_VER_MAJOR) |
-	    (DRV_MODULE_VER_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
-	    (DRV_MODULE_VER_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT);
+	host_info->driver_version = (ENA_DRV_MODULE_VER_MAJOR) |
+	    (ENA_DRV_MODULE_VER_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
+	    (ENA_DRV_MODULE_VER_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT);
 	host_info->num_cpus = mp_ncpus;
 	host_info->driver_supported_features =
 	    ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK |
@@ -3508,10 +3509,10 @@ ena_attach(device_t pdev)
 	 * concurrency, as the callout won't be using any locking inside.
 	 */
 	ENA_TIMER_INIT(adapter);
-	adapter->keep_alive_timeout = DEFAULT_KEEP_ALIVE_TO;
-	adapter->missing_tx_timeout = DEFAULT_TX_CMP_TO;
-	adapter->missing_tx_max_queues = DEFAULT_TX_MONITORED_QUEUES;
-	adapter->missing_tx_threshold = DEFAULT_TX_CMP_THRESHOLD;
+	adapter->keep_alive_timeout = ENA_DEFAULT_KEEP_ALIVE_TO;
+	adapter->missing_tx_timeout = ENA_DEFAULT_TX_CMP_TO;
+	adapter->missing_tx_max_queues = ENA_DEFAULT_TX_MONITORED_QUEUES;
+	adapter->missing_tx_threshold = ENA_DEFAULT_TX_CMP_THRESHOLD;
 
 	if (version_printed++ == 0)
 		ena_log(pdev, INFO, "%s\n", ena_version);
