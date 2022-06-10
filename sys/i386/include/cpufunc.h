@@ -98,7 +98,6 @@ clts(void)
 static __inline void
 disable_intr(void)
 {
-
 	__asm __volatile("cli" : : : "memory");
 }
 
@@ -147,14 +146,12 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 static __inline void
 enable_intr(void)
 {
-
 	__asm __volatile("sti");
 }
 
 static __inline void
 cpu_monitor(const void *addr, u_long extensions, u_int hints)
 {
-
 	__asm __volatile("monitor"
 	    : : "a" (addr), "c" (extensions), "d" (hints));
 }
@@ -162,28 +159,24 @@ cpu_monitor(const void *addr, u_long extensions, u_int hints)
 static __inline void
 cpu_mwait(u_long extensions, u_int hints)
 {
-
 	__asm __volatile("mwait" : : "a" (hints), "c" (extensions));
 }
 
 static __inline void
 lfence(void)
 {
-
 	__asm __volatile("lfence" : : : "memory");
 }
 
 static __inline void
 mfence(void)
 {
-
 	__asm __volatile("mfence" : : : "memory");
 }
 
 static __inline void
 sfence(void)
 {
-
 	__asm __volatile("sfence" : : : "memory");
 }
 
