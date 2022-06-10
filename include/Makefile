@@ -8,6 +8,9 @@
 PACKAGE=runtime
 CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
+.if ${MACHINE_CPUARCH} == "amd64"
+SUBDIR+=	i386
+.endif
 SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
@@ -338,6 +341,10 @@ compat:
 	mtree -deU ${NO_ROOT:D-W} ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${SRCTOP}/etc/mtree/BSD.include.dist \
 	    -p ${SDESTDIR}${INCLUDEDIR} > /dev/null
+.if ${MACHINE_CPUARCH} == "amd64"
+	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${SDESTDIR}${INCLUDEDIR}/i386
+.endif
 
 copies: .PHONY .META
 	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto \
