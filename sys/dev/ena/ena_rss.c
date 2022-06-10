@@ -49,7 +49,8 @@ ena_rss_key_fill(void *key, size_t size)
 	static bool key_generated;
 	static uint8_t default_key[ENA_HASH_KEY_SIZE];
 
-	KASSERT(size <= ENA_HASH_KEY_SIZE, ("Requested more bytes than ENA RSS key can hold"));
+	KASSERT(size <= ENA_HASH_KEY_SIZE,
+	    ("Requested more bytes than ENA RSS key can hold"));
 
 	if (!key_generated) {
 		arc4random_buf(default_key, ENA_HASH_KEY_SIZE);
@@ -73,7 +74,8 @@ ena_rss_reorder_hash_key(u8 *reordered_key, const u8 *key, size_t key_size)
 		*reordered_key++ = *key--;
 }
 
-int ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key)
+int
+ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key)
 {
 	enum ena_admin_hash_functions ena_func = ENA_ADMIN_TOEPLITZ;
 	u8 hw_key[ENA_HASH_KEY_SIZE];
@@ -84,7 +86,8 @@ int ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key)
 	    ENA_HASH_KEY_SIZE, 0x0));
 }
 
-int ena_rss_get_hash_key(struct ena_com_dev *ena_dev, u8 *key)
+int
+ena_rss_get_hash_key(struct ena_com_dev *ena_dev, u8 *key)
 {
 	u8 hw_key[ENA_HASH_KEY_SIZE];
 	int rc;
@@ -135,8 +138,8 @@ ena_rss_init_default(struct ena_adapter *adapter)
 		rc = ena_rss_set_hash(ena_dev, hash_key);
 	} else
 #endif
-	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ, NULL,
-	    ENA_HASH_KEY_SIZE, 0x0);
+		rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
+		    NULL, ENA_HASH_KEY_SIZE, 0x0);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
 		ena_log(dev, ERR, "Cannot fill hash function\n");
 		goto err_rss_destroy;
@@ -218,12 +221,14 @@ ena_rss_init_default_deferred(void *arg)
 				ena_log(adapter->pdev, WARN,
 				    "WARNING: RSS was not properly initialized,"
 				    " it will affect bandwidth\n");
-				ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
+				ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE,
+				    adapter);
 			}
 		}
 	}
 }
-SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND, ena_rss_init_default_deferred, NULL);
+SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND,
+    ena_rss_init_default_deferred, NULL);
 
 int
 ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table)
@@ -267,8 +272,7 @@ ena_rss_indir_set(struct ena_adapter *adapter, uint32_t *table)
 		device_printf(adapter->pdev,
 		    "Writing to indirection table not supported\n");
 	else if (rc != 0)
-		device_printf(adapter->pdev,
-		    "Cannot set indirection table\n");
+		device_printf(adapter->pdev, "Cannot set indirection table\n");
 
 	return (rc);
 }

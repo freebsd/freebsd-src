@@ -44,7 +44,7 @@
 
 #include "ena.h"
 
-#define ENA_RX_RSS_MSG_RECORD_SZ	8
+#define ENA_RX_RSS_MSG_RECORD_SZ 8
 
 struct ena_indir {
 	uint32_t table[ENA_RX_RSS_TABLE_SIZE];
@@ -52,12 +52,12 @@ struct ena_indir {
 	char sysctl_buf[ENA_RX_RSS_TABLE_SIZE * ENA_RX_RSS_MSG_RECORD_SZ];
 };
 
-int	ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key);
-int	ena_rss_get_hash_key(struct ena_com_dev *ena_dev, u8 *key);
-int	ena_rss_configure(struct ena_adapter *);
-int	ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table);
-int	ena_rss_indir_set(struct ena_adapter *adapter, uint32_t *table);
-int	ena_rss_indir_init(struct ena_adapter *adapter);
+int ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key);
+int ena_rss_get_hash_key(struct ena_com_dev *ena_dev, u8 *key);
+int ena_rss_configure(struct ena_adapter *);
+int ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table);
+int ena_rss_indir_set(struct ena_adapter *adapter, uint32_t *table);
+int ena_rss_indir_init(struct ena_adapter *adapter);
 
 static inline void
 ena_rss_copy_indir_buf(char *buf, uint32_t *table)
@@ -65,8 +65,8 @@ ena_rss_copy_indir_buf(char *buf, uint32_t *table)
 	int i;
 
 	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; ++i) {
-		buf += snprintf(buf, ENA_RX_RSS_MSG_RECORD_SZ + 1,
-		    "%s%d:%d", i == 0 ? "" : " ", i, table[i]);
+		buf += snprintf(buf, ENA_RX_RSS_MSG_RECORD_SZ + 1, "%s%d:%d",
+		    i == 0 ? "" : " ", i, table[i]);
 	}
 }
 
