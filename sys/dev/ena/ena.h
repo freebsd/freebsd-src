@@ -469,6 +469,8 @@ struct ena_adapter {
 	uint32_t next_monitored_tx_qid;
 	struct task reset_task;
 	struct taskqueue *reset_tq;
+	struct task metrics_task;
+	struct taskqueue *metrics_tq;
 	int wd_active;
 	sbintime_t keep_alive_timeout;
 	sbintime_t missing_tx_timeout;
