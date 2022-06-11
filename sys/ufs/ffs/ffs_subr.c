@@ -385,7 +385,7 @@ validate_sblock(struct fs *fs, int isaltsblk)
 		roundup(howmany(SBLOCKSIZE, fs->fs_fsize), fs->fs_frag) ||
 	    fs->fs_iblkno != fs->fs_cblkno + fs->fs_frag ||
 	    fs->fs_dblkno != fs->fs_iblkno + fs->fs_ipg / INOPF(fs) ||
-	    fs->fs_cgsize != fragroundup(fs, CGSIZE(fs)))
+	    fs->fs_cgsize > fs->fs_bsize)
 		return (ENOENT);
 	if (fs->fs_csaddr != cgdmin(fs, 0) ||
 	    fs->fs_cssize !=
