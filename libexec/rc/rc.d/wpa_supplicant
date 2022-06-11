@@ -20,14 +20,6 @@ if [ -z "$ifn" ]; then
 	return 1
 fi
 
-is_ndis_interface()
-{
-	case `sysctl -n net.wlan.${1#wlan}.%parent 2>/dev/null` in
-		ndis*) true ;;
-		*) false ;;
-	esac
-}
-
 wpa_poststart() {
 	ifconfig ${ifn} down
 	sleep 2
@@ -36,8 +28,6 @@ wpa_poststart() {
 
 if is_wired_interface ${ifn} ; then
 	driver="wired"
-elif is_ndis_interface ${ifn} ; then
-	driver="ndis"
 else
 	driver="bsd"
 fi
