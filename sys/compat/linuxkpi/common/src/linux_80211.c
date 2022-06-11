@@ -3094,6 +3094,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 			printf("%s:%d mo_wake_tx_queue :: %d %u lsta %p sta %p "
 			    "ni %p %6D skb %p lxtq %p { qlen %u, ac %d tid %u } "
 			    "WAKE_TX_Q ac %d prio %u qmap %u\n",
+			    __func__, __LINE__,
 			    curthread->td_tid, (unsigned int)ticks,
 			    lsta, sta, ni, ni->ni_macaddr, ":", skb, ltxq,
 			    skb_queue_len(&ltxq->skbq), ltxq->txq.ac,
