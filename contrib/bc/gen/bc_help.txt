@@ -62,6 +62,14 @@ This bc has three differences to the GNU bc:
 This bc also implements the dot (.) extension of the BSD bc.
 
 Options:
+{{ A H N HN }}
+
+  -E  seed  --seed=seed
+
+      Sets the builtin variable seed to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+{{ end }}
 
   -e  expr  --expression=expr
 
@@ -81,6 +89,12 @@ Options:
   -h  --help
 
       Print this usage message and exit.
+
+  -I  ibase  --ibase=ibase
+
+      Sets the builtin variable ibase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
 
   -i  --interactive
 
@@ -104,6 +118,12 @@ Options:
       This bc may load more functions with these options. See the manpage or
       online documentation for details.
 
+  -O  obase  --obase=obase
+
+      Sets the builtin variable obase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
   -P  --no-prompt
 
       Disable the prompts in interactive mode.
@@ -126,6 +146,12 @@ Options:
   -q  --quiet
 
       Don't print version and copyright.
+
+  -S  scale  --scale=scale
+
+      Sets the builtin variable scale to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
 
   -s  --standard
 

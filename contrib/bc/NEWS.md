@@ -1,5 +1,28 @@
 # News
 
+## 5.3.1
+
+This is a production release that fixes a build problem in the FreeBSD base
+system, as well as a problem in the `en_US` locale. If you don't have problems
+with either, you do not need to upgrade.
+
+## 5.3.0
+
+This is a production release that adds features and has a few bug fixes.
+
+First, support for editline and readline history has been added. To use
+editline, pass `-e` to `configure.sh`, and to use readline, pass `-r`.
+
+Second, history support for Windows has been fixed and re-enabled.
+
+Third, command-line options to set `scale`, `ibase`, `obase`, and `seed` were
+added. This was requested long ago, and I originally disagreed with the idea.
+
+Fourth, the manuals had typos and were missing information. That has been fixed.
+
+Fifth, the manuals received different formatting to be more readable as
+manpages.
+
 ## 5.2.5
 
 This is a production release that fixes this `bc`'s behavior on `^D` to match

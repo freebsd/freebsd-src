@@ -11,6 +11,8 @@ SRCS=		args.c bc.c bc_lex.c bc_parse.c data.c dc.c dc_lex.c dc_parse.c file.c hi
 SRCS+=		lang.c lex.c main.c num.c opt.c parse.c program.c rand.c read.c vector.c  vm.c
 SRCS+=		bc_help.c dc_help.c lib.c lib2.c
 
+LIBADD=		edit
+
 MAN=		bc.1 dc.1
 
 LINKS=		${BINDIR}/bc ${BINDIR}/dc
@@ -39,6 +41,7 @@ CFLAGS+=	-DBC_DEFAULT_PROMPT=0
 CFLAGS+=	-DBC_DEFAULT_SIGINT_RESET
 CFLAGS+=	-DBC_DEFAULT_TTY_MODE
 CFLAGS+=	-DBC_ENABLED
+CFLAGS+=	-DBC_ENABLE_EDITLINE
 CFLAGS+=	-DBC_ENABLE_EXTRA_MATH
 CFLAGS+=	-DBC_ENABLE_LIBRARY=0
 CFLAGS+=	-DBC_ENABLE_LONG_OPTIONS
@@ -104,16 +107,16 @@ NLSLINKS_pt_PT.ISO8859-1+= pt_PT.ISO8859-15
 .endif
 
 lib.c:		lib.bc Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c bc_lib bc_lib_name 1 1
+		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c 0 bc_lib bc_lib_name 1 1
 
 lib2.c:		lib2.bc Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c bc_lib2 bc_lib2_name 1 1
+		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c 0 bc_lib2 bc_lib2_name 1 1
 
 bc_help.c:	bc_help.txt Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c bc_help
+		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c 0 bc_help
 
 dc_help.c:	dc_help.txt Makefile
-		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c dc_help
+		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c 0 dc_help
 
 bc.1:
 		${CP} ${BCDIR}/manuals/${MAN_SRC_BC} ${.OBJDIR}/bc.1

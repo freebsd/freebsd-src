@@ -251,7 +251,7 @@ def test_sigint_sigquit(exe, args, env):
 
 	try:
 		send(child, "\t")
-		expect(child, "        ")
+		expect(child, "\t")
 		send(child, "\x03")
 		# send(child, "\x1c")
 		wait(child)
@@ -320,7 +320,7 @@ def test_sigint(exe, args, env):
 
 	try:
 		send(child, "\t")
-		expect(child, "        ")
+		expect(child, "\t")
 		send(child, "\x03")
 		wait(child)
 	except pexpect.TIMEOUT:
@@ -355,7 +355,7 @@ def test_sigtstp(exe, args, env):
 
 	try:
 		send(child, "\t")
-		expect(child, "        ")
+		expect(child, "\t")
 		send(child, "\x13")
 		time.sleep(1)
 		if not child.isalive():
@@ -395,7 +395,7 @@ def test_sigstop(exe, args, env):
 
 	try:
 		send(child, "\t")
-		expect(child, "        ")
+		expect(child, "\t")
 		send(child, "\x14")
 		time.sleep(1)
 		if not child.isalive():
@@ -678,7 +678,7 @@ def test_bc7(exe, args, env):
 		send(child, "\x1b[0;4\x1b[0A")
 		send(child, "\n")
 		expect(child, prompt)
-		send(child, "        ")
+		send(child, "\t")
 		send(child, "\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb\x1bb")
 		send(child, "\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf\x1bf")
 		send(child, "\n")

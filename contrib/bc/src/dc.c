@@ -45,8 +45,9 @@
  * @param argc  The number of arguments.
  * @param argv  The arguments.
  */
-void dc_main(int argc, char *argv[]) {
-
+void
+dc_main(int argc, char* argv[])
+{
 	// All of these just set dc-specific items in BcVm.
 
 	vm.read_ret = BC_INST_POP_EXEC;

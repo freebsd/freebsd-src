@@ -32,23 +32,38 @@ export LC_CTYPE=C
 
 progname=${0##*/}
 
+script="$0"
+scriptdir=$(dirname "$script")
+. "$scriptdir/../scripts/functions.sh"
+
 # See strgen.c comment on main() for what these mean. Note, however, that this
 # script generates a string literal, not a char array. To understand the
 # consequences of that, see manuals/development.md#strgenc.
 if [ $# -lt 3 ]; then
-	echo "usage: $progname input output name [label [define [remove_tabs]]]"
+	echo "usage: $progname input output exclude name [label [define [remove_tabs]]]"
 	exit 1
 fi
 
 input="$1"
 output="$2"
-name="$3"
-label="$4"
-define="$5"
-remove_tabs="$6"
+exclude="$3"
+name="$4"
+label="$5"
+define="$6"
+remove_tabs="$7"
 
-exec < "$input"
+tmpinput=$(mktemp -t "${input##*/}")
+
+if [ "$exclude" -ne 0 ]; then
+	filter_text "$input" "$tmpinput" "E"
+else
+	filter_text "$input" "$tmpinput" "A"
+fi
+
+exec < "$tmpinput"
 exec > "$output"
+
+rm -f "$tmpinput"
 
 if [ -n "$label" ]; then
 	nameline="const char *${label} = \"${input}\";"
@@ -83,3 +98,7 @@ $(sed -e "$remtabsexpr " -e '1,/^$/d; s:\\n:\\\\n:g; s:":\\":g; s:^:":; s:$:\\n"
 ;
 ${condend}
 EOF
+
+#if [ "$exclude" -ne 0 ]; then
+	#rm -rf "$input"
+#fi
