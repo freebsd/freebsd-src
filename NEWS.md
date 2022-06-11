@@ -1,5 +1,11 @@
 # News
 
+## 5.3.1
+
+This is a production release that fixes a build problem in the FreeBSD base
+system, as well as a problem in the `en_US` locale. If you don't have problems
+with either, you do not need to upgrade.
+
 ## 5.3.0
 
 This is a production release that adds features and has a few bug fixes.

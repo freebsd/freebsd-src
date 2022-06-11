@@ -52,16 +52,18 @@ label="$5"
 define="$6"
 remove_tabs="$7"
 
+tmpinput=$(mktemp -t "${input##*/}")
+
 if [ "$exclude" -ne 0 ]; then
-	filter_text "$input" "$input.tmp" "E"
+	filter_text "$input" "$tmpinput" "E"
 else
-	filter_text "$input" "$input.tmp" "A"
+	filter_text "$input" "$tmpinput" "A"
 fi
 
-input="$input.tmp"
-
-exec < "$input"
+exec < "$tmpinput"
 exec > "$output"
+
+rm -f "$tmpinput"
 
 if [ -n "$label" ]; then
 	nameline="const char *${label} = \"${input}\";"
