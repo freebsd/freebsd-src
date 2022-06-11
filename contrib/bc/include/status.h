@@ -45,6 +45,13 @@
 #endif // __OpenBSD__
 #endif // BC_TEST_OPENBSD
 
+// This is used by configure.sh to test for FreeBSD.
+#ifdef BC_TEST_FREEBSD
+#ifdef __FreeBSD__
+#error On FreeBSD with _POSIX_C_SOURCE
+#endif // __FreeBSD__
+#endif // BC_TEST_FREEBSD
+
 #ifndef BC_ENABLED
 #define BC_ENABLED (1)
 #endif // BC_ENABLED
@@ -295,8 +302,8 @@
 
 /// Statuses, which mark either which category of error happened, or some other
 /// status that matters.
-typedef enum BcStatus {
-
+typedef enum BcStatus
+{
 	/// Normal status.
 	BC_STATUS_SUCCESS = 0,
 
@@ -321,8 +328,8 @@ typedef enum BcStatus {
 } BcStatus;
 
 /// Errors, which are more specific errors.
-typedef enum BcErr {
-
+typedef enum BcErr
+{
 	// Math errors.
 
 	/// Negative number used when not allowed.
@@ -565,13 +572,23 @@ typedef enum BcErr {
 /// bc, and they *must* have signals locked. Other functions are expected to
 /// *not* have signals locked, for reasons. So this is a pre-built assert
 /// (no-op in non-debug mode) that check that signals are locked.
-#define BC_SIG_ASSERT_LOCKED do { assert(vm.sig_lock); } while (0)
+#define BC_SIG_ASSERT_LOCKED \
+	do                       \
+	{                        \
+		assert(vm.sig_lock); \
+	}                        \
+	while (0)
 
 /// Assert that signals are unlocked. There are non-async-signal-safe functions
 /// in bc, and they *must* have signals locked. Other functions are expected to
 /// *not* have signals locked, for reasons. So this is a pre-built assert
 /// (no-op in non-debug mode) that check that signals are unlocked.
-#define BC_SIG_ASSERT_NOT_LOCKED do { assert(vm.sig_lock == 0); } while (0)
+#define BC_SIG_ASSERT_NOT_LOCKED  \
+	do                            \
+	{                             \
+		assert(vm.sig_lock == 0); \
+	}                             \
+	while (0)
 
 #else // NDEBUG
 
@@ -591,35 +608,43 @@ typedef enum BcErr {
 
 /// Locks signals.
 #define BC_SIG_LOCK               \
-	do {                          \
+	do                            \
+	{                             \
 		BC_SIG_ASSERT_NOT_LOCKED; \
 		vm.sig_lock = 1;          \
-	} while (0)
+	}                             \
+	while (0)
 
 /// Unlocks signals. If a signal happened, then this will cause a jump.
 #define BC_SIG_UNLOCK         \
-	do {                      \
+	do                        \
+	{                         \
 		BC_SIG_ASSERT_LOCKED; \
 		vm.sig_lock = 0;      \
 		if (vm.sig) BC_JMP;   \
-	} while (0)
+	}                         \
+	while (0)
 
 /// Locks signals, regardless of if they are already locked. This is really only
 /// used after labels that longjmp() goes to after the jump because the cleanup
 /// code must have signals locked, and BC_LONGJMP_CONT will unlock signals if it
 /// doesn't jump.
 #define BC_SIG_MAYLOCK   \
-	do {                 \
+	do                   \
+	{                    \
 		vm.sig_lock = 1; \
-	} while (0)
+	}                    \
+	while (0)
 
 /// Unlocks signals, regardless of if they were already unlocked. If a signal
 /// happened, then this will cause a jump.
 #define BC_SIG_MAYUNLOCK    \
-	do {                    \
+	do                      \
+	{                       \
 		vm.sig_lock = 0;    \
 		if (vm.sig) BC_JMP; \
-	} while (0)
+	}                       \
+	while (0)
 
 /*
  * Locks signals, but stores the old lock state, to be restored later by
@@ -627,20 +652,24 @@ typedef enum BcErr {
  * @param v  The variable to store the old lock state to.
  */
 #define BC_SIG_TRYLOCK(v) \
-	do {                  \
+	do                    \
+	{                     \
 		v = vm.sig_lock;  \
 		vm.sig_lock = 1;  \
-	} while (0)
+	}                     \
+	while (0)
 
 /* Restores the previous state of a signal lock, and if it is now unlocked,
  * initiates an exception/jump.
  * @param v  The old lock state.
  */
 #define BC_SIG_TRYUNLOCK(v)         \
-	do {                            \
+	do                              \
+	{                               \
 		vm.sig_lock = (v);          \
 		if (!(v) && vm.sig) BC_JMP; \
-	} while (0)
+	}                               \
+	while (0)
 
 /**
  * Sets a jump, and sets it up as well so that if a longjmp() happens, bc will
@@ -653,17 +682,20 @@ typedef enum BcErr {
  * param l  The label to jump to on a longjmp().
  */
 #define BC_SETJMP(l)                     \
-	do {                                 \
+	do                                   \
+	{                                    \
 		sigjmp_buf sjb;                  \
 		BC_SIG_LOCK;                     \
 		bc_vec_grow(&vm.jmp_bufs, 1);    \
-		if (sigsetjmp(sjb, 0)) {         \
+		if (sigsetjmp(sjb, 0))           \
+		{                                \
 			assert(BC_SIG_EXC);          \
 			goto l;                      \
 		}                                \
 		bc_vec_push(&vm.jmp_bufs, &sjb); \
 		BC_SIG_UNLOCK;                   \
-	} while (0)
+	}                                    \
+	while (0)
 
 /**
  * Sets a jump like BC_SETJMP, but unlike BC_SETJMP, it assumes signals are
@@ -673,46 +705,55 @@ typedef enum BcErr {
  * param l  The label to jump to on a longjmp().
  */
 #define BC_SETJMP_LOCKED(l)              \
-	do {                                 \
+	do                                   \
+	{                                    \
 		sigjmp_buf sjb;                  \
 		BC_SIG_ASSERT_LOCKED;            \
-		if (sigsetjmp(sjb, 0)) {         \
+		if (sigsetjmp(sjb, 0))           \
+		{                                \
 			assert(BC_SIG_EXC);          \
 			goto l;                      \
 		}                                \
 		bc_vec_push(&vm.jmp_bufs, &sjb); \
-	} while (0)
+	}                                    \
+	while (0)
 
 /// Used after cleanup labels set by BC_SETJMP and BC_SETJMP_LOCKED to jump to
 /// the next place. This is what continues the stack unwinding. This basically
 /// copies BC_SIG_UNLOCK into itself, but that is because its condition for
 /// jumping is BC_SIG_EXC, not just that a signal happened.
 #define BC_LONGJMP_CONT                            \
-	do {                                           \
+	do                                             \
+	{                                              \
 		BC_SIG_ASSERT_LOCKED;                      \
 		if (!vm.sig_pop) bc_vec_pop(&vm.jmp_bufs); \
 		vm.sig_lock = 0;                           \
 		if (BC_SIG_EXC) BC_JMP;                    \
-	} while (0)
+	}                                              \
+	while (0)
 
 /// Unsets a jump. It always assumes signals are locked. This basically just
 /// pops a jmp_buf off of the stack of jmp_bufs, and since the jump mechanism
 /// always jumps to the location at the top of the stack, this effectively
 /// undoes a setjmp().
 #define BC_UNSETJMP               \
-	do {                          \
+	do                            \
+	{                             \
 		BC_SIG_ASSERT_LOCKED;     \
 		bc_vec_pop(&vm.jmp_bufs); \
-	} while (0)
+	}                             \
+	while (0)
 
 /// Stops a stack unwinding. Technically, a stack unwinding needs to be done
 /// manually, but it will always be done unless certain flags are cleared. This
 /// clears the flags.
 #define BC_LONGJMP_STOP \
-	do {                \
+	do                  \
+	{                   \
 		vm.sig_pop = 0; \
 		vm.sig = 0;     \
-	} while (0)
+	}                   \
+	while (0)
 
 // Various convenience macros for calling the bc's error handling routine.
 #if BC_ENABLE_LIBRARY
@@ -773,7 +814,8 @@ typedef enum BcErr {
 // for easy marking of where functions are entered and exited.
 #if BC_DEBUG_CODE
 #define BC_FUNC_ENTER                                              \
-	do {                                                           \
+	do                                                             \
+	{                                                              \
 		size_t bc_func_enter_i;                                    \
 		for (bc_func_enter_i = 0; bc_func_enter_i < vm.func_depth; \
 		     ++bc_func_enter_i)                                    \
@@ -783,10 +825,12 @@ typedef enum BcErr {
 		vm.func_depth += 1;                                        \
 		bc_file_printf(&vm.ferr, "Entering %s\n", __func__);       \
 		bc_file_flush(&vm.ferr, bc_flush_none);                    \
-	} while (0);
+	}                                                              \
+	while (0);
 
 #define BC_FUNC_EXIT                                               \
-	do {                                                           \
+	do                                                             \
+	{                                                              \
 		size_t bc_func_enter_i;                                    \
 		vm.func_depth -= 1;                                        \
 		for (bc_func_enter_i = 0; bc_func_enter_i < vm.func_depth; \
@@ -796,7 +840,8 @@ typedef enum BcErr {
 		}                                                          \
 		bc_file_printf(&vm.ferr, "Leaving %s\n", __func__);        \
 		bc_file_flush(&vm.ferr, bc_flush_none);                    \
-	} while (0);
+	}                                                              \
+	while (0);
 #else // BC_DEBUG_CODE
 #define BC_FUNC_ENTER
 #define BC_FUNC_EXIT

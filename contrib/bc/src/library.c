@@ -57,8 +57,9 @@
 // have to reset the jumps every time to ensure that the locals will be correct
 // after jumping.
 
-void bcl_handleSignal(void) {
-
+void
+bcl_handleSignal(void)
+{
 	// Signal already in flight, or bc is not executing.
 	if (vm.sig || !vm.running) return;
 
@@ -69,19 +70,23 @@ void bcl_handleSignal(void) {
 	if (!vm.sig_lock) BC_JMP;
 }
 
-bool bcl_running(void) {
+bool
+bcl_running(void)
+{
 	return vm.running != 0;
 }
 
-BclError bcl_init(void) {
-
+BclError
+bcl_init(void)
+{
 	BclError e = BCL_ERROR_NONE;
 
 	BC_SIG_LOCK;
 
 	vm.refs += 1;
 
-	if (vm.refs > 1) {
+	if (vm.refs > 1)
+	{
 		BC_SIG_UNLOCK;
 		return e;
 	}
@@ -110,7 +115,8 @@ BclError bcl_init(void) {
 
 err:
 	// This is why we had to set them to NULL.
-	if (BC_ERR(vm.err)) {
+	if (BC_ERR(vm.err))
+	{
 		if (vm.out.v != NULL) bc_vec_free(&vm.out);
 		if (vm.jmp_bufs.v != NULL) bc_vec_free(&vm.jmp_bufs);
 		if (vm.ctxts.v != NULL) bc_vec_free(&vm.ctxts);
@@ -123,8 +129,9 @@ err:
 	return e;
 }
 
-BclError bcl_pushContext(BclContext ctxt) {
-
+BclError
+bcl_pushContext(BclContext ctxt)
+{
 	BclError e = BCL_ERROR_NONE;
 
 	BC_FUNC_HEADER_LOCK(err);
@@ -136,24 +143,30 @@ err:
 	return e;
 }
 
-void bcl_popContext(void) {
+void
+bcl_popContext(void)
+{
 	if (vm.ctxts.len) bc_vec_pop(&vm.ctxts);
 }
 
-BclContext bcl_context(void) {
+BclContext
+bcl_context(void)
+{
 	if (!vm.ctxts.len) return NULL;
 	return *((BclContext*) bc_vec_top(&vm.ctxts));
 }
 
-void bcl_free(void) {
-
+void
+bcl_free(void)
+{
 	size_t i;
 
 	BC_SIG_LOCK;
 
 	vm.refs -= 1;
 
-	if (vm.refs) {
+	if (vm.refs)
+	{
 		BC_SIG_UNLOCK;
 		return;
 	}
@@ -161,7 +174,8 @@ void bcl_free(void) {
 	bc_rand_free(&vm.rng);
 	bc_vec_free(&vm.out);
 
-	for (i = 0; i < vm.ctxts.len; ++i) {
+	for (i = 0; i < vm.ctxts.len; ++i)
+	{
 		BclContext ctxt = *((BclContext*) bc_vec_item(&vm.ctxts, i));
 		bcl_ctxt_free(ctxt);
 	}
@@ -177,30 +191,41 @@ void bcl_free(void) {
 	assert(!vm.running && !vm.sig && !vm.sig_lock);
 }
 
-void bcl_gc(void) {
+void
+bcl_gc(void)
+{
 	BC_SIG_LOCK;
 	bc_vm_freeTemps();
 	BC_SIG_UNLOCK;
 }
 
-bool bcl_abortOnFatalError(void) {
+bool
+bcl_abortOnFatalError(void)
+{
 	return vm.abrt;
 }
 
-void bcl_setAbortOnFatalError(bool abrt) {
+void
+bcl_setAbortOnFatalError(bool abrt)
+{
 	vm.abrt = abrt;
 }
 
-bool bcl_leadingZeroes(void) {
+bool
+bcl_leadingZeroes(void)
+{
 	return vm.leading_zeroes;
 }
 
-void bcl_setLeadingZeroes(bool leadingZeroes) {
+void
+bcl_setLeadingZeroes(bool leadingZeroes)
+{
 	vm.leading_zeroes = leadingZeroes;
 }
 
-BclContext bcl_ctxt_create(void) {
-
+BclContext
+bcl_ctxt_create(void)
+{
 	BclContext ctxt = NULL;
 
 	BC_FUNC_HEADER_LOCK(err);
@@ -214,10 +239,11 @@ BclContext bcl_ctxt_create(void) {
 
 	ctxt->scale = 0;
 	ctxt->ibase = 10;
-	ctxt->obase= 10;
+	ctxt->obase = 10;
 
 err:
-	if (BC_ERR(vm.err && ctxt != NULL)) {
+	if (BC_ERR(vm.err && ctxt != NULL))
+	{
 		if (ctxt->nums.v != NULL) bc_vec_free(&ctxt->nums);
 		free(ctxt);
 		ctxt = NULL;
@@ -230,7 +256,9 @@ err:
 	return ctxt;
 }
 
-void bcl_ctxt_free(BclContext ctxt) {
+void
+bcl_ctxt_free(BclContext ctxt)
+{
 	BC_SIG_LOCK;
 	bc_vec_free(&ctxt->free_nums);
 	bc_vec_free(&ctxt->nums);
@@ -238,46 +266,62 @@ void bcl_ctxt_free(BclContext ctxt) {
 	BC_SIG_UNLOCK;
 }
 
-void bcl_ctxt_freeNums(BclContext ctxt) {
+void
+bcl_ctxt_freeNums(BclContext ctxt)
+{
 	bc_vec_popAll(&ctxt->nums);
 	bc_vec_popAll(&ctxt->free_nums);
 }
 
-size_t bcl_ctxt_scale(BclContext ctxt) {
+size_t
+bcl_ctxt_scale(BclContext ctxt)
+{
 	return ctxt->scale;
 }
 
-void bcl_ctxt_setScale(BclContext ctxt, size_t scale) {
+void
+bcl_ctxt_setScale(BclContext ctxt, size_t scale)
+{
 	ctxt->scale = scale;
 }
 
-size_t bcl_ctxt_ibase(BclContext ctxt) {
+size_t
+bcl_ctxt_ibase(BclContext ctxt)
+{
 	return ctxt->ibase;
 }
 
-void bcl_ctxt_setIbase(BclContext ctxt, size_t ibase) {
+void
+bcl_ctxt_setIbase(BclContext ctxt, size_t ibase)
+{
 	if (ibase < BC_NUM_MIN_BASE) ibase = BC_NUM_MIN_BASE;
 	else if (ibase > BC_NUM_MAX_IBASE) ibase = BC_NUM_MAX_IBASE;
 	ctxt->ibase = ibase;
 }
 
-size_t bcl_ctxt_obase(BclContext ctxt) {
+size_t
+bcl_ctxt_obase(BclContext ctxt)
+{
 	return ctxt->obase;
 }
 
-void bcl_ctxt_setObase(BclContext ctxt, size_t obase) {
+void
+bcl_ctxt_setObase(BclContext ctxt, size_t obase)
+{
 	ctxt->obase = obase;
 }
 
-BclError bcl_err(BclNumber n) {
-
+BclError
+bcl_err(BclNumber n)
+{
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ERR(ctxt);
 
 	// Errors are encoded as (0 - error_code). If the index is in that range, it
 	// is an encoded error.
-	if (n.i >= ctxt->nums.len) {
+	if (n.i >= ctxt->nums.len)
+	{
 		if (n.i > 0 - (size_t) BCL_ERROR_NELEMS) return (BclError) (0 - n.i);
 		else return BCL_ERROR_INVALID_NUM;
 	}
@@ -290,14 +334,15 @@ BclError bcl_err(BclNumber n) {
  * @param n     The BcNum to insert.
  * @return      The resulting BclNumber from the insert.
  */
-static BclNumber bcl_num_insert(BclContext ctxt, BcNum *restrict n) {
-
+static BclNumber
+bcl_num_insert(BclContext ctxt, BcNum* restrict n)
+{
 	BclNumber idx;
 
 	// If there is a free spot...
-	if (ctxt->free_nums.len) {
-
-		BcNum *ptr;
+	if (ctxt->free_nums.len)
+	{
+		BcNum* ptr;
 
 		// Get the index of the free spot and remove it.
 		idx = *((BclNumber*) bc_vec_top(&ctxt->free_nums));
@@ -307,7 +352,8 @@ static BclNumber bcl_num_insert(BclContext ctxt, BcNum *restrict n) {
 		ptr = bc_vec_item(&ctxt->nums, idx.i);
 		memcpy(ptr, n, sizeof(BcNum));
 	}
-	else {
+	else
+	{
 		// Just push the number onto the vector.
 		idx.i = ctxt->nums.len;
 		bc_vec_push(&ctxt->nums, n);
@@ -318,8 +364,9 @@ static BclNumber bcl_num_insert(BclContext ctxt, BcNum *restrict n) {
 	return idx;
 }
 
-BclNumber bcl_num_create(void) {
-
+BclNumber
+bcl_num_create(void)
+{
 	BclError e = BCL_ERROR_NONE;
 	BcNum n;
 	BclNumber idx;
@@ -348,8 +395,9 @@ err:
  * @param n     The index of the number.
  * @param num   The number to destroy.
  */
-static void bcl_num_dtor(BclContext ctxt, BclNumber n, BcNum *restrict num) {
-
+static void
+bcl_num_dtor(BclContext ctxt, BclNumber n, BcNum* restrict num)
+{
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(num != NULL && num->num != NULL);
@@ -358,9 +406,10 @@ static void bcl_num_dtor(BclContext ctxt, BclNumber n, BcNum *restrict num) {
 	bc_vec_push(&ctxt->free_nums, &n);
 }
 
-void bcl_num_free(BclNumber n) {
-
-	BcNum *num;
+void
+bcl_num_free(BclNumber n)
+{
+	BcNum* num;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -376,10 +425,12 @@ void bcl_num_free(BclNumber n) {
 	BC_SIG_UNLOCK;
 }
 
-BclError bcl_copy(BclNumber d, BclNumber s) {
-
+BclError
+bcl_copy(BclNumber d, BclNumber s)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *dest, *src;
+	BcNum* dest;
+	BcNum* src;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ERR(ctxt);
@@ -404,8 +455,9 @@ err:
 	return e;
 }
 
-BclNumber bcl_dup(BclNumber s) {
-
+BclNumber
+bcl_dup(BclNumber s)
+{
 	BclError e = BCL_ERROR_NONE;
 	BcNum *src, dest;
 	BclNumber idx;
@@ -436,9 +488,10 @@ err:
 	return idx;
 }
 
-void bcl_num_destruct(void *num) {
-
-	BcNum *n = (BcNum*) num;
+void
+bcl_num_destruct(void* num)
+{
+	BcNum* n = (BcNum*) num;
 
 	assert(n != NULL);
 
@@ -448,9 +501,10 @@ void bcl_num_destruct(void *num) {
 	bc_num_clear(num);
 }
 
-bool bcl_num_neg(BclNumber n) {
-
-	BcNum *num;
+bool
+bcl_num_neg(BclNumber n)
+{
+	BcNum* num;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -464,9 +518,10 @@ bool bcl_num_neg(BclNumber n) {
 	return BC_NUM_NEG(num) != 0;
 }
 
-void bcl_num_setNeg(BclNumber n, bool neg) {
-
-	BcNum *num;
+void
+bcl_num_setNeg(BclNumber n, bool neg)
+{
+	BcNum* num;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -480,9 +535,10 @@ void bcl_num_setNeg(BclNumber n, bool neg) {
 	num->rdx = BC_NUM_NEG_VAL(num, neg);
 }
 
-size_t bcl_num_scale(BclNumber n) {
-
-	BcNum *num;
+size_t
+bcl_num_scale(BclNumber n)
+{
+	BcNum* num;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -496,10 +552,11 @@ size_t bcl_num_scale(BclNumber n) {
 	return bc_num_scale(num);
 }
 
-BclError bcl_num_setScale(BclNumber n, size_t scale) {
-
+BclError
+bcl_num_setScale(BclNumber n, size_t scale)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *nptr;
+	BcNum* nptr;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ERR(ctxt);
@@ -526,9 +583,10 @@ err:
 	return e;
 }
 
-size_t bcl_num_len(BclNumber n) {
-
-	BcNum *num;
+size_t
+bcl_num_len(BclNumber n)
+{
+	BcNum* num;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -542,10 +600,11 @@ size_t bcl_num_len(BclNumber n) {
 	return bc_num_len(num);
 }
 
-BclError bcl_bigdig(BclNumber n, BclBigDig *result) {
-
+BclError
+bcl_bigdig(BclNumber n, BclBigDig* result)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *num;
+	BcNum* num;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ERR(ctxt);
@@ -570,8 +629,9 @@ err:
 	return e;
 }
 
-BclNumber bcl_bigdig2num(BclBigDig val) {
-
+BclNumber
+bcl_bigdig2num(BclBigDig val)
+{
 	BclError e = BCL_ERROR_NONE;
 	BcNum n;
 	BclNumber idx;
@@ -602,11 +662,13 @@ err:
  * @param req   The function to get the size of the result for preallocation.
  * @return      The result of the operation.
  */
-static BclNumber bcl_binary(BclNumber a, BclNumber b, const BcNumBinaryOp op,
-                            const BcNumBinaryOpReq req)
+static BclNumber
+bcl_binary(BclNumber a, BclNumber b, const BcNumBinaryOp op,
+           const BcNumBinaryOpReq req)
 {
 	BclError e = BCL_ERROR_NONE;
-	BcNum *aptr, *bptr;
+	BcNum* aptr;
+	BcNum* bptr;
 	BcNum c;
 	BclNumber idx;
 	BclContext ctxt;
@@ -652,42 +714,59 @@ err:
 	return idx;
 }
 
-BclNumber bcl_add(BclNumber a, BclNumber b) {
+BclNumber
+bcl_add(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_add, bc_num_addReq);
 }
 
-BclNumber bcl_sub(BclNumber a, BclNumber b) {
+BclNumber
+bcl_sub(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_sub, bc_num_addReq);
 }
 
-BclNumber bcl_mul(BclNumber a, BclNumber b) {
+BclNumber
+bcl_mul(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_mul, bc_num_mulReq);
 }
 
-BclNumber bcl_div(BclNumber a, BclNumber b) {
+BclNumber
+bcl_div(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_div, bc_num_divReq);
 }
 
-BclNumber bcl_mod(BclNumber a, BclNumber b) {
+BclNumber
+bcl_mod(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_mod, bc_num_divReq);
 }
 
-BclNumber bcl_pow(BclNumber a, BclNumber b) {
+BclNumber
+bcl_pow(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_pow, bc_num_powReq);
 }
 
-BclNumber bcl_lshift(BclNumber a, BclNumber b) {
+BclNumber
+bcl_lshift(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_lshift, bc_num_placesReq);
 }
 
-BclNumber bcl_rshift(BclNumber a, BclNumber b) {
+BclNumber
+bcl_rshift(BclNumber a, BclNumber b)
+{
 	return bcl_binary(a, b, bc_num_rshift, bc_num_placesReq);
 }
 
-BclNumber bcl_sqrt(BclNumber a) {
-
+BclNumber
+bcl_sqrt(BclNumber a)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *aptr;
+	BcNum* aptr;
 	BcNum b;
 	BclNumber idx;
 	BclContext ctxt;
@@ -717,11 +796,13 @@ err:
 	return idx;
 }
 
-BclError bcl_divmod(BclNumber a, BclNumber b, BclNumber *c, BclNumber *d) {
-
+BclError
+bcl_divmod(BclNumber a, BclNumber b, BclNumber* c, BclNumber* d)
+{
 	BclError e = BCL_ERROR_NONE;
 	size_t req;
-	BcNum *aptr, *bptr;
+	BcNum* aptr;
+	BcNum* bptr;
 	BcNum cnum, dnum;
 	BclContext ctxt;
 
@@ -765,8 +846,8 @@ err:
 	if (b.i != a.i) bcl_num_dtor(ctxt, b, bptr);
 
 	// If there was an error...
-	if (BC_ERR(vm.err)) {
-
+	if (BC_ERR(vm.err))
+	{
 		// Free the results.
 		if (cnum.num != NULL) bc_num_free(&cnum);
 		if (dnum.num != NULL) bc_num_free(&dnum);
@@ -777,8 +858,8 @@ err:
 
 		BC_FUNC_FOOTER(e);
 	}
-	else {
-
+	else
+	{
 		BC_FUNC_FOOTER(e);
 
 		// Insert the results into the context.
@@ -791,11 +872,14 @@ err:
 	return e;
 }
 
-BclNumber bcl_modexp(BclNumber a, BclNumber b, BclNumber c) {
-
+BclNumber
+bcl_modexp(BclNumber a, BclNumber b, BclNumber c)
+{
 	BclError e = BCL_ERROR_NONE;
 	size_t req;
-	BcNum *aptr, *bptr, *cptr;
+	BcNum* aptr;
+	BcNum* bptr;
+	BcNum* cptr;
 	BcNum d;
 	BclNumber idx;
 	BclContext ctxt;
@@ -848,9 +932,11 @@ err:
 	return idx;
 }
 
-ssize_t bcl_cmp(BclNumber a, BclNumber b) {
-
-	BcNum *aptr, *bptr;
+ssize_t
+bcl_cmp(BclNumber a, BclNumber b)
+{
+	BcNum* aptr;
+	BcNum* bptr;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -866,9 +952,10 @@ ssize_t bcl_cmp(BclNumber a, BclNumber b) {
 	return bc_num_cmp(aptr, bptr);
 }
 
-void bcl_zero(BclNumber n) {
-
-	BcNum *nptr;
+void
+bcl_zero(BclNumber n)
+{
+	BcNum* nptr;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -882,9 +969,10 @@ void bcl_zero(BclNumber n) {
 	bc_num_zero(nptr);
 }
 
-void bcl_one(BclNumber n) {
-
-	BcNum *nptr;
+void
+bcl_one(BclNumber n)
+{
+	BcNum* nptr;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -898,8 +986,9 @@ void bcl_one(BclNumber n) {
 	bc_num_one(nptr);
 }
 
-BclNumber bcl_parse(const char *restrict val) {
-
+BclNumber
+bcl_parse(const char* restrict val)
+{
 	BclError e = BCL_ERROR_NONE;
 	BcNum n;
 	BclNumber idx;
@@ -920,7 +1009,8 @@ BclNumber bcl_parse(const char *restrict val) {
 
 	if (neg) val += 1;
 
-	if (!bc_num_strValid(val)) {
+	if (!bc_num_strValid(val))
+	{
 		vm.err = BCL_ERROR_PARSE_INVALID_STR;
 		goto err;
 	}
@@ -946,10 +1036,11 @@ err:
 	return idx;
 }
 
-char* bcl_string(BclNumber n) {
-
-	BcNum *nptr;
-	char *str = NULL;
+char*
+bcl_string(BclNumber n)
+{
+	BcNum* nptr;
+	char* str = NULL;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ASSERT(ctxt);
@@ -988,10 +1079,11 @@ err:
 	return str;
 }
 
-BclNumber bcl_irand(BclNumber a) {
-
+BclNumber
+bcl_irand(BclNumber a)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *aptr;
+	BcNum* aptr;
 	BcNum b;
 	BclNumber idx;
 	BclContext ctxt;
@@ -1038,8 +1130,9 @@ err:
  * @param b       The return parameter.
  * @param places  The number of decimal places to generate.
  */
-static void bcl_frandHelper(BcNum *restrict b, size_t places) {
-
+static void
+bcl_frandHelper(BcNum* restrict b, size_t places)
+{
 	BcNum exp, pow, ten;
 	BcDig exp_digs[BC_NUM_BIGDIG_LOG10];
 	BcDig ten_digs[BC_NUM_BIGDIG_LOG10];
@@ -1078,8 +1171,9 @@ err:
 	BC_LONGJMP_CONT;
 }
 
-BclNumber bcl_frand(size_t places) {
-
+BclNumber
+bcl_frand(size_t places)
+{
 	BclError e = BCL_ERROR_NONE;
 	BcNum n;
 	BclNumber idx;
@@ -1117,8 +1211,8 @@ err:
  * @param b       The return parameter.
  * @param places  The number of decimal places to generate.
  */
-static void bcl_ifrandHelper(BcNum *restrict a, BcNum *restrict b,
-                             size_t places)
+static void
+bcl_ifrandHelper(BcNum* restrict a, BcNum* restrict b, size_t places)
 {
 	BcNum ir, fr;
 
@@ -1148,10 +1242,11 @@ err:
 	BC_LONGJMP_CONT;
 }
 
-BclNumber bcl_ifrand(BclNumber a, size_t places) {
-
+BclNumber
+bcl_ifrand(BclNumber a, size_t places)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *aptr;
+	BcNum* aptr;
 	BcNum b;
 	BclNumber idx;
 	BclContext ctxt;
@@ -1191,10 +1286,11 @@ err:
 	return idx;
 }
 
-BclError bcl_rand_seedWithNum(BclNumber n) {
-
+BclError
+bcl_rand_seedWithNum(BclNumber n)
+{
 	BclError e = BCL_ERROR_NONE;
-	BcNum *nptr;
+	BcNum* nptr;
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ERR(ctxt);
@@ -1219,8 +1315,9 @@ err:
 	return e;
 }
 
-BclError bcl_rand_seed(unsigned char seed[BCL_SEED_SIZE]) {
-
+BclError
+bcl_rand_seed(unsigned char seed[BCL_SEED_SIZE])
+{
 	BclError e = BCL_ERROR_NONE;
 	size_t i;
 	ulong vals[BCL_SEED_ULONGS];
@@ -1228,9 +1325,10 @@ BclError bcl_rand_seed(unsigned char seed[BCL_SEED_SIZE]) {
 	BC_FUNC_HEADER(err);
 
 	// Fill the array.
-	for (i = 0; i < BCL_SEED_SIZE; ++i) {
-		ulong val = ((ulong) seed[i]) << (((ulong) CHAR_BIT) *
-		                                  (i % sizeof(ulong)));
+	for (i = 0; i < BCL_SEED_SIZE; ++i)
+	{
+		ulong val = ((ulong) seed[i])
+		            << (((ulong) CHAR_BIT) * (i % sizeof(ulong)));
 		vals[i / sizeof(long)] |= val;
 	}
 
@@ -1242,12 +1340,15 @@ err:
 	return e;
 }
 
-void bcl_rand_reseed(void) {
+void
+bcl_rand_reseed(void)
+{
 	bc_rand_srand(bc_vec_top(&vm.rng.v));
 }
 
-BclNumber bcl_rand_seed2num(void) {
-
+BclNumber
+bcl_rand_seed2num(void)
+{
 	BclError e = BCL_ERROR_NONE;
 	BcNum n;
 	BclNumber idx;
@@ -1275,11 +1376,15 @@ err:
 	return idx;
 }
 
-BclRandInt bcl_rand_int(void) {
+BclRandInt
+bcl_rand_int(void)
+{
 	return (BclRandInt) bc_rand_int(&vm.rng);
 }
 
-BclRandInt bcl_rand_bounded(BclRandInt bound) {
+BclRandInt
+bcl_rand_bounded(BclRandInt bound)
+{
 	if (bound <= 1) return 0;
 	return (BclRandInt) bc_rand_bounded(&vm.rng, (BcRand) bound);
 }

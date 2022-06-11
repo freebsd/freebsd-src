@@ -116,7 +116,7 @@ The following are the options that dc(1) accepts.
 
 **-z**, **-\-leading-zeroes**
 
-:   Makes bc(1) print all numbers greater than **-1** and less than **1**, and
+:   Makes dc(1) print all numbers greater than **-1** and less than **1**, and
     not equal to **0**, with a leading zero.
 
     This can be set for individual numbers with the **plz(x)**, plznl(x)**,
@@ -157,13 +157,40 @@ The following are the options that dc(1) accepts.
 
     This is a **non-portable extension**.
 
+**-I** *ibase*, **-\-ibase**=*ibase*
+
+:   Sets the builtin variable **ibase** to the value *ibase* assuming that
+    *ibase* is in base 10. It is a fatal error if *ibase* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
+**-O** *obase*, **-\-obase**=*obase*
+
+:   Sets the builtin variable **obase** to the value *obase* assuming that
+    *obase* is in base 10. It is a fatal error if *obase* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
+**-S** *scale*, **-\-scale**=*scale*
+
+:   Sets the builtin variable **scale** to the value *scale* assuming that
+    *scale* is in base 10. It is a fatal error if *scale* is not a valid number.
+
+    If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
 All long options are **non-portable extensions**.
 
 # STDIN
 
 If no files are given on the command-line and no files or expressions are given
 by the **-f**, **-\-file**, **-e**, or **-\-expression** options, then dc(1)
-read from **stdin**.
+reads from **stdin**.
 
 However, there is a caveat to this.
 
@@ -1030,8 +1057,8 @@ dc(1) recognizes the following environment variables:
 :   If any expressions or expression files are given on the command-line with
     **-e**, **-\-expression**, **-f**, or **-\-file**, then if this environment
     variable exists and contains an integer, a non-zero value makes dc(1) exit
-    after executing the expressions and expression files, and a non-zero value
-    makes dc(1) not exit.
+    after executing the expressions and expression files, and a zero value makes
+    dc(1) not exit.
 
     This environment variable overrides the default, which can be queried with
     the **-h** or **-\-help** options.
@@ -1130,8 +1157,10 @@ setting is used. The default setting can be queried with the **-h** or
 **-\-help** options.
 
 TTY mode is different from interactive mode because interactive mode is required
-in the [bc(1) specification][1], and interactive mode requires only **stdin**
-and **stdout** to be connected to a terminal.
+in the bc(1) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html , and
+interactive mode requires only **stdin** and **stdout** to be connected to a
+terminal.
 
 ## Command-Line History
 
@@ -1209,8 +1238,9 @@ bc(1)
 
 # STANDARDS
 
-The dc(1) utility operators are compliant with the operators in the bc(1)
-[IEEE Std 1003.1-2017 (“POSIX.1-2017”)][1] specification.
+The dc(1) utility operators are compliant with the operators in the IEEE Std
+1003.1-2017 (“POSIX.1-2017”) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for bc(1).
 
 # BUGS
 
@@ -1219,5 +1249,3 @@ None are known. Report bugs at https://git.yzena.com/gavin/bc.
 # AUTHOR
 
 Gavin D. Howard <gavin@yzena.com> and contributors.
-
-[1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html

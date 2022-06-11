@@ -53,7 +53,9 @@
  * @param i         The index to test.
  * @return          True if @a i is the last index, false otherwise.
  */
-static inline bool bc_opt_longoptsEnd(const BcOptLong *longopts, size_t i) {
+static inline bool
+bc_opt_longoptsEnd(const BcOptLong* longopts, size_t i)
+{
 	return !longopts[i].name && !longopts[i].val;
 }
 
@@ -63,11 +65,13 @@ static inline bool bc_opt_longoptsEnd(const BcOptLong *longopts, size_t i) {
  * @param c         The character to match against.
  * @return          The name of the long option that matches @a c, or "NULL".
  */
-static const char* bc_opt_longopt(const BcOptLong *longopts, int c) {
-
+static const char*
+bc_opt_longopt(const BcOptLong* longopts, int c)
+{
 	size_t i;
 
-	for (i = 0; !bc_opt_longoptsEnd(longopts, i); ++i) {
+	for (i = 0; !bc_opt_longoptsEnd(longopts, i); ++i)
+	{
 		if (longopts[i].val == c) return longopts[i].name;
 	}
 
@@ -85,12 +89,13 @@ static const char* bc_opt_longopt(const BcOptLong *longopts, int c) {
  * @param use_short  True if the short option should be used for error printing,
  *                   false otherwise.
  */
-static void bc_opt_error(BcErr err, int c, const char *str, bool use_short) {
-
-	if (err == BC_ERR_FATAL_OPTION) {
-
-		if (use_short) {
-
+static void
+bc_opt_error(BcErr err, int c, const char* str, bool use_short)
+{
+	if (err == BC_ERR_FATAL_OPTION)
+	{
+		if (use_short)
+		{
 			char short_str[2];
 
 			short_str[0] = (char) c;
@@ -109,13 +114,17 @@ static void bc_opt_error(BcErr err, int c, const char *str, bool use_short) {
  * @param c         The character to match against.
  * @return          The type of the long option as an integer, or -1 if none.
  */
-static int bc_opt_type(const BcOptLong *longopts, char c) {
-
+static int
+bc_opt_type(const BcOptLong* longopts, char c)
+{
 	size_t i;
 
 	if (c == ':') return -1;
 
-	for (i = 0; !bc_opt_longoptsEnd(longopts, i) && longopts[i].val != c; ++i);
+	for (i = 0; !bc_opt_longoptsEnd(longopts, i) && longopts[i].val != c; ++i)
+	{
+		continue;
+	}
 
 	if (bc_opt_longoptsEnd(longopts, i)) return -1;
 
@@ -128,11 +137,12 @@ static int bc_opt_type(const BcOptLong *longopts, char c) {
  * @param longopts  The long options array.
  * @return          The character for the short option, or -1 if none left.
  */
-static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
-
+static int
+bc_opt_parseShort(BcOpt* o, const BcOptLong* longopts)
+{
 	int type;
-	char *next;
-	char *option = o->argv[o->optind];
+	char* next;
+	char* option = o->argv[o->optind];
 	int ret = -1;
 
 	// Make sure to clear these.
@@ -147,8 +157,8 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 	type = bc_opt_type(longopts, option[0]);
 	next = o->argv[o->optind + 1];
 
-	switch (type) {
-
+	switch (type)
+	{
 		case -1:
 		case BC_OPT_BC_ONLY:
 		case BC_OPT_DC_ONLY:
@@ -157,23 +167,24 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 			if (type == -1 || (type == BC_OPT_BC_ONLY && BC_IS_DC) ||
 			    (type == BC_OPT_DC_ONLY && BC_IS_BC))
 			{
-				char str[2] = {0, 0};
+				char str[2] = { 0, 0 };
 
 				str[0] = option[0];
 				o->optind += 1;
 
 				bc_opt_error(BC_ERR_FATAL_OPTION, option[0], str, true);
 			}
+
+			// Fallthrough.
+			BC_FALLTHROUGH
 		}
-		// Fallthrough.
-		BC_FALLTHROUGH
 
 		case BC_OPT_NONE:
 		{
 			// If there is something else, update the suboption.
 			if (option[1]) o->subopt += 1;
-			else {
-
+			else
+			{
 				// Go to the next argument.
 				o->subopt = 0;
 				o->optind += 1;
@@ -187,11 +198,14 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 		case BC_OPT_REQUIRED_BC_ONLY:
 		{
 			if (BC_IS_DC)
+			{
 				bc_opt_error(BC_ERR_FATAL_OPTION, option[0],
 				             bc_opt_longopt(longopts, option[0]), true);
+			}
+
+			// Fallthrough
+			BC_FALLTHROUGH
 		}
-		// Fallthrough
-		BC_FALLTHROUGH
 
 		case BC_OPT_REQUIRED:
 		{
@@ -201,16 +215,18 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 
 			// Use the next characters, if they exist.
 			if (option[1]) o->optarg = option + 1;
-			else if (next != NULL) {
-
+			else if (next != NULL)
+			{
 				// USe the next.
 				o->optarg = next;
 				o->optind += 1;
 			}
 			// No argument, barf.
-			else bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG, option[0],
-			                  bc_opt_longopt(longopts, option[0]), true);
-
+			else
+			{
+				bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG, option[0],
+				             bc_opt_longopt(longopts, option[0]), true);
+			}
 
 			ret = (int) option[0];
 
@@ -228,15 +244,18 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
  * @param option  The command-line argument.
  * @return        True if @a option matches @a name, false otherwise.
  */
-static bool bc_opt_longoptsMatch(const char *name, const char *option) {
-
-	const char *a = option, *n = name;
+static bool
+bc_opt_longoptsMatch(const char* name, const char* option)
+{
+	const char* a = option;
+	const char* n = name;
 
 	// Can never match a NULL name.
 	if (name == NULL) return false;
 
 	// Loop through.
-	for (; *a && *n && *a != '='; ++a, ++n) {
+	for (; *a && *n && *a != '='; ++a, ++n)
+	{
 		if (*a != *n) return false;
 	}
 
@@ -250,35 +269,40 @@ static bool bc_opt_longoptsMatch(const char *name, const char *option) {
  * @param option  The option to find the argument of.
  * @return        A pointer to the argument of the option, or NULL if none.
  */
-static char* bc_opt_longoptsArg(char *option) {
-
+static char*
+bc_opt_longoptsArg(char* option)
+{
 	// Find the end or equals sign.
-	for (; *option && *option != '='; ++option);
+	for (; *option && *option != '='; ++option)
+	{
+		continue;
+	}
 
 	if (*option == '=') return option + 1;
 	else return NULL;
 }
 
-int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
-
+int
+bc_opt_parse(BcOpt* o, const BcOptLong* longopts)
+{
 	size_t i;
-	char *option;
+	char* option;
 	bool empty;
 
 	// This just eats empty options.
-	do {
-
+	do
+	{
 		option = o->argv[o->optind];
 		if (option == NULL) return -1;
 
 		empty = !strcmp(option, "");
 		o->optind += empty;
-
-	} while (empty);
+	}
+	while (empty);
 
 	// If the option is just a "--".
-	if (BC_OPT_ISDASHDASH(option)) {
-
+	if (BC_OPT_ISDASHDASH(option))
+	{
 		// Consume "--".
 		o->optind += 1;
 		return -1;
@@ -297,14 +321,14 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 	o->optind += 1;
 
 	// Loop through the valid long options.
-	for (i = 0; !bc_opt_longoptsEnd(longopts, i); i++) {
-
-		const char *name = longopts[i].name;
+	for (i = 0; !bc_opt_longoptsEnd(longopts, i); i++)
+	{
+		const char* name = longopts[i].name;
 
 		// If we have a match...
-		if (bc_opt_longoptsMatch(name, option)) {
-
-			char *arg;
+		if (bc_opt_longoptsMatch(name, option))
+		{
+			char* arg;
 
 			// Get the option char and the argument.
 			o->optopt = longopts[i].val;
@@ -335,8 +359,11 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 
 				// All's good if it exists; otherwise, barf.
 				if (o->optarg != NULL) o->optind += 1;
-				else bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG,
-				                  o->optopt, name, false);
+				else
+				{
+					bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG, o->optopt, name,
+					             false);
+				}
 			}
 
 			return o->optopt;
@@ -351,7 +378,9 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 	return -1;
 }
 
-void bc_opt_init(BcOpt *o, char *argv[]) {
+void
+bc_opt_init(BcOpt* o, char* argv[])
+{
 	o->argv = argv;
 	o->optind = 1;
 	o->subopt = 0;

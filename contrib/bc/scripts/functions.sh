@@ -326,3 +326,97 @@ gen_nlspath() {
 	# Return the result.
 	printf '%s' "$_gen_nlspath_nlspath"
 }
+
+ALL=0
+NOSKIP=1
+SKIP=2
+
+# Filters text out of a file according to the build type.
+# @param in    File to filter.
+# @param out   File to write the filtered output to.
+# @param type  Build type.
+filter_text() {
+
+	_filter_text_in="$1"
+	shift
+
+	_filter_text_out="$1"
+	shift
+
+	_filter_text_buildtype="$1"
+	shift
+
+	# Set up some local variables.
+	_filter_text_status="$ALL"
+	_filter_text_temp="$_filter_text_out.tmp"
+
+	# We need to set IFS, so we store it here for restoration later.
+	_filter_text_ifs="$IFS"
+
+	# Remove the file- that will be generated.
+	rm -rf "$_filter_text_out" "$_filter_text_temp"
+
+	# Here is the magic. This loop reads the template line-by-line, and based on
+	# _filter_text_status, either prints it to the markdown manual or not.
+	#
+	# Here is how the template is set up: it is a normal markdown file except
+	# that there are sections surrounded tags that look like this:
+	#
+	# {{ <build_type_list> }}
+	# ...
+	# {{ end }}
+	#
+	# Those tags mean that whatever build types are found in the
+	# <build_type_list> get to keep that section. Otherwise, skip.
+	#
+	# Obviously, the tag itself and its end are not printed to the markdown
+	# manual.
+	while IFS= read -r line; do
+
+		# If we have found an end, reset the status.
+		if [ "$line" = "{{ end }}" ]; then
+
+			# Some error checking. This helps when editing the templates.
+			if [ "$_filter_text_status" -eq "$ALL" ]; then
+				err_exit "{{ end }} tag without corresponding start tag" 2
+			fi
+
+			_filter_text_status="$ALL"
+
+		# We have found a tag that allows our build type to use it.
+		elif [ "${line#\{\{* $_filter_text_buildtype *\}\}}" != "$line" ]; then
+
+			# More error checking. We don't want tags nested.
+			if [ "$_filter_text_status" -ne "$ALL" ]; then
+				err_exit "start tag nested in start tag" 3
+			fi
+
+			_filter_text_status="$NOSKIP"
+
+		# We have found a tag that is *not* allowed for our build type.
+		elif [ "${line#\{\{*\}\}}" != "$line" ]; then
+
+			if [ "$_filter_text_status" -ne "$ALL" ]; then
+				err_exit "start tag nested in start tag" 3
+			fi
+
+			_filter_text_status="$SKIP"
+
+		# This is for normal lines. If we are not skipping, print.
+		else
+			if [ "$_filter_text_status" -ne "$SKIP" ]; then
+				printf '%s\n' "$line" >> "$_filter_text_temp"
+			fi
+		fi
+
+	done < "$_filter_text_in"
+
+	# Remove multiple blank lines.
+	uniq "$_filter_text_temp" "$_filter_text_out"
+
+	# Remove the temp file.
+	#rm -rf "$_filter_text_temp"
+
+	# Reset IFS.
+	IFS="$_filter_text_ifs"
+}

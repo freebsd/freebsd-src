@@ -132,52 +132,52 @@
 #if DC_ENABLED
 
 /// The flag for the extended register option.
-#define DC_FLAG_X (UINTMAX_C(1)<<0)
+#define DC_FLAG_X (UINTMAX_C(1) << 0)
 
 #endif // DC_ENABLED
 
 #if BC_ENABLED
 
 /// The flag for the POSIX warning option.
-#define BC_FLAG_W (UINTMAX_C(1)<<1)
+#define BC_FLAG_W (UINTMAX_C(1) << 1)
 
 /// The flag for the POSIX error option.
-#define BC_FLAG_S (UINTMAX_C(1)<<2)
+#define BC_FLAG_S (UINTMAX_C(1) << 2)
 
 /// The flag for the math library option.
-#define BC_FLAG_L (UINTMAX_C(1)<<3)
+#define BC_FLAG_L (UINTMAX_C(1) << 3)
 
 /// The flag for the global stacks option.
-#define BC_FLAG_G (UINTMAX_C(1)<<4)
+#define BC_FLAG_G (UINTMAX_C(1) << 4)
 
 #endif // BC_ENABLED
 
 /// The flag for quiet, though this one is reversed; the option clears the flag.
-#define BC_FLAG_Q (UINTMAX_C(1)<<5)
+#define BC_FLAG_Q (UINTMAX_C(1) << 5)
 
 /// The flag for interactive.
-#define BC_FLAG_I (UINTMAX_C(1)<<6)
+#define BC_FLAG_I (UINTMAX_C(1) << 6)
 
 /// The flag for prompt. This is also reversed; the option clears the flag.
-#define BC_FLAG_P (UINTMAX_C(1)<<7)
+#define BC_FLAG_P (UINTMAX_C(1) << 7)
 
 /// The flag for read prompt. This is also reversed; the option clears the flag.
-#define BC_FLAG_R (UINTMAX_C(1)<<8)
+#define BC_FLAG_R (UINTMAX_C(1) << 8)
 
 /// The flag for a leading zero.
-#define BC_FLAG_Z (UINTMAX_C(1)<<9)
+#define BC_FLAG_Z (UINTMAX_C(1) << 9)
 
 /// The flag for stdin being a TTY.
-#define BC_FLAG_TTYIN (UINTMAX_C(1)<<10)
+#define BC_FLAG_TTYIN (UINTMAX_C(1) << 10)
 
 /// The flag for TTY mode.
-#define BC_FLAG_TTY (UINTMAX_C(1)<<11)
+#define BC_FLAG_TTY (UINTMAX_C(1) << 11)
 
 /// The flag for reset on SIGINT.
-#define BC_FLAG_SIGINT (UINTMAX_C(1)<<12)
+#define BC_FLAG_SIGINT (UINTMAX_C(1) << 12)
 
 /// The flag for exiting with expressions.
-#define BC_FLAG_EXPR_EXIT (UINTMAX_C(1)<<13)
+#define BC_FLAG_EXPR_EXIT (UINTMAX_C(1) << 13)
 
 /// A convenience macro for getting the TTYIN flag.
 #define BC_TTYIN (vm.flags & BC_FLAG_TTYIN)
@@ -320,17 +320,29 @@
 /// Returns the max number of variables that is allowed.
 #define BC_MAX_VARS ((ulong) (SIZE_MAX - 1))
 
+#if BC_ENABLE_LINE_LIB
+
 /// The size of the global buffer.
-#define BC_VM_BUF_SIZE (1<<12)
+#define BC_VM_BUF_SIZE (1 << 10)
+
+/// The amount of the global buffer allocated to stdin.
+#define BC_VM_STDIN_BUF_SIZE (BC_VM_BUF_SIZE - 1)
+
+#else // BC_ENABLE_LINE_LIB
+
+/// The size of the global buffer.
+#define BC_VM_BUF_SIZE (1 << 12)
 
 /// The amount of the global buffer allocated to stdout.
-#define BC_VM_STDOUT_BUF_SIZE (1<<11)
+#define BC_VM_STDOUT_BUF_SIZE (1 << 11)
 
 /// The amount of the global buffer allocated to stderr.
-#define BC_VM_STDERR_BUF_SIZE (1<<10)
+#define BC_VM_STDERR_BUF_SIZE (1 << 10)
 
 /// The amount of the global buffer allocated to stdin.
 #define BC_VM_STDIN_BUF_SIZE (BC_VM_STDERR_BUF_SIZE - 1)
+
+#endif // BC_ENABLE_LINE_LIB
 
 /// The max number of temporary BcNums that can be kept.
 #define BC_VM_MAX_TEMPS (1 << 9)
@@ -360,8 +372,8 @@
 
 /// The global vm struct. This holds all of the global data besides the file
 /// buffers.
-typedef struct BcVm {
-
+typedef struct BcVm
+{
 	/// The current status. This is volatile sig_atomic_t because it is also
 	/// used in the signal handler. See the development manual
 	/// (manuals/development.md#async-signal-safe-signal-handling) for more
@@ -443,7 +455,7 @@ typedef struct BcVm {
 	const char* file;
 
 	/// The message printed when SIGINT happens.
-	const char *sigmsg;
+	const char* sigmsg;
 
 #endif // !BC_ENABLE_LIBRARY
 
@@ -515,10 +527,10 @@ typedef struct BcVm {
 
 	/// The name of the calculator under use. This is used by BC_IS_BC and
 	/// BC_IS_DC.
-	const char *name;
+	const char* name;
 
 	/// The help text for the calculator.
-	const char *help;
+	const char* help;
 
 #if BC_ENABLE_HISTORY
 
@@ -537,17 +549,17 @@ typedef struct BcVm {
 	BcParseExpr expr;
 
 	/// The text to display to label functions in error messages.
-	const char *func_header;
+	const char* func_header;
 
 	/// The names of the categories of errors.
-	const char *err_ids[BC_ERR_IDX_NELEMS + BC_ENABLED];
+	const char* err_ids[BC_ERR_IDX_NELEMS + BC_ENABLED];
 
 	/// The messages for each error.
-	const char *err_msgs[BC_ERR_NELEMS];
+	const char* err_msgs[BC_ERR_NELEMS];
 
 #if BC_ENABLE_NLS
 	/// The locale.
-	const char *locale;
+	const char* locale;
 #endif // BC_ENABLE_NLS
 
 #endif // !BC_ENABLE_LIBRARY
@@ -568,7 +580,7 @@ typedef struct BcVm {
 
 	/// A buffer of environment arguments. This is the actual value of the
 	/// environment variable.
-	char *env_args_buffer;
+	char* env_args_buffer;
 
 	/// A vector for environment arguments after parsing.
 	BcVec env_args;
@@ -615,7 +627,7 @@ typedef struct BcVm {
 #endif // BC_ENABLE_NLS
 
 	/// A pointer to the stdin buffer.
-	char *buf;
+	char* buf;
 
 	/// The number of items in the input buffer.
 	size_t buf_len;
@@ -653,44 +665,51 @@ typedef struct BcVm {
  * Print the copyright banner and help if it's non-NULL.
  * @param help  The help message to print if it's non-NULL.
  */
-void bc_vm_info(const char* const help);
+void
+bc_vm_info(const char* const help);
 
 /**
  * The entrance point for bc/dc together.
  * @param argc  The count of arguments.
  * @param argv  The argument array.
  */
-void bc_vm_boot(int argc, char *argv[]);
+void
+bc_vm_boot(int argc, char* argv[]);
 
 /**
  * Initializes some of the BcVm global. This is separate to make things easier
  * on the library code.
  */
-void bc_vm_init(void);
+void
+bc_vm_init(void);
 
 /**
  * Frees the BcVm global.
  */
-void bc_vm_shutdown(void);
+void
+bc_vm_shutdown(void);
 
 /**
  * Add a temp to the temp array.
  * @param num  The BcDig array to add to the temp array.
  */
-void bc_vm_addTemp(BcDig *num);
+void
+bc_vm_addTemp(BcDig* num);
 
 /**
  * Dish out a temp, or NULL if there are none.
  * @return  A temp, or NULL if none exist.
  */
-BcDig* bc_vm_takeTemp(void);
+BcDig*
+bc_vm_takeTemp(void);
 
 /**
  * Frees all temporaries.
  */
-void bc_vm_freeTemps(void);
+void
+bc_vm_freeTemps(void);
 
-#if !BC_ENABLE_HISTORY
+#if !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
 
 /**
  * Erases the flush argument if history does not exist because it does not
@@ -698,20 +717,22 @@ void bc_vm_freeTemps(void);
  */
 #define bc_vm_putchar(c, t) bc_vm_putchar(c)
 
-#endif // !BC_ENABLE_HISTORY
+#endif // !BC_ENABLE_HISTORY || BC_ENABLE_LINE_LIB
 
 /**
  * Print to stdout with limited formating.
  * @param fmt  The format string.
  */
-void bc_vm_printf(const char *fmt, ...);
+void
+bc_vm_printf(const char* fmt, ...);
 
 /**
  * Puts a char into the stdout buffer.
  * @param c     The character to put on the stdout buffer.
  * @param type  The flush type.
  */
-void bc_vm_putchar(int c, BcFlushType type);
+void
+bc_vm_putchar(int c, BcFlushType type);
 
 /**
  * Multiplies @a n and @a size and throws an allocation error if overflow
@@ -720,7 +741,8 @@ void bc_vm_putchar(int c, BcFlushType type);
  * @param size  The size of each element.
  * @return      The product of @a n and @a size.
  */
-size_t bc_vm_arraySize(size_t n, size_t size);
+size_t
+bc_vm_arraySize(size_t n, size_t size);
 
 /**
  * Adds @a a and @a b and throws an error if overflow occurs.
@@ -728,14 +750,16 @@ size_t bc_vm_arraySize(size_t n, size_t size);
  * @param b  The second operand.
  * @return   The sum of @a a and @a b.
  */
-size_t bc_vm_growSize(size_t a, size_t b);
+size_t
+bc_vm_growSize(size_t a, size_t b);
 
 /**
  * Allocate @a n bytes and throw an allocation error if allocation fails.
  * @param n  The bytes to allocate.
  * @return   A pointer to the allocated memory.
  */
-void* bc_vm_malloc(size_t n);
+void*
+bc_vm_malloc(size_t n);
 
 /**
  * Reallocate @a ptr to be @a n bytes and throw an allocation error if
@@ -744,48 +768,55 @@ void* bc_vm_malloc(size_t n);
  * @param n    The bytes to allocate.
  * @return     A pointer to the reallocated memory.
  */
-void* bc_vm_realloc(void *ptr, size_t n);
+void*
+bc_vm_realloc(void* ptr, size_t n);
 
 /**
  * Allocates space for, and duplicates, @a str.
  * @param str  The string to allocate.
  * @return     The allocated string.
  */
-char* bc_vm_strdup(const char *str);
+char*
+bc_vm_strdup(const char* str);
 
 /**
  * Reads a line from stdin into BcVm's buffer field.
  * @param clear  True if the buffer should be cleared first, false otherwise.
  * @return       True if a line was read, false otherwise.
  */
-bool bc_vm_readLine(bool clear);
+bool
+bc_vm_readLine(bool clear);
 
 /**
  * Reads a line from the command-line expressions into BcVm's buffer field.
  * @param clear  True if the buffer should be cleared first, false otherwise.
  * @return       True if a line was read, false otherwise.
  */
-bool bc_vm_readBuf(bool clear);
+bool
+bc_vm_readBuf(bool clear);
 
 /**
  * A convenience and portability function for OpenBSD's pledge().
  * @param promises      The promises to pledge().
  * @param execpromises  The exec promises to pledge().
  */
-void bc_pledge(const char *promises, const char *execpromises);
+void
+bc_pledge(const char* promises, const char* execpromises);
 
 /**
  * Returns the value of an environment variable.
  * @param var  The environment variable.
  * @return     The value of the environment variable.
  */
-char* bc_vm_getenv(const char* var);
+char*
+bc_vm_getenv(const char* var);
 
 /**
  * Frees an environment variable value.
  * @param val  The value to free.
  */
-void bc_vm_getenvFree(char* val);
+void
+bc_vm_getenvFree(char* val);
 
 #if BC_DEBUG_CODE
 
@@ -793,13 +824,15 @@ void bc_vm_getenvFree(char* val);
  * Start executing a jump series.
  * @param f  The name of the function that started the jump series.
  */
-void bc_vm_jmp(const char *f);
+void
+bc_vm_jmp(const char* f);
 #else // BC_DEBUG_CODE
 
 /**
  * Start executing a jump series.
  */
-void bc_vm_jmp(void);
+void
+bc_vm_jmp(void);
 
 #endif // BC_DEBUG_CODE
 
@@ -811,18 +844,21 @@ void bc_vm_jmp(void);
  * or no POSIX errors are enabled.
  * @param e  The error.
  */
-void bc_vm_handleError(BcErr e);
+void
+bc_vm_handleError(BcErr e);
 
 /**
  * Handle a fatal error.
  * @param e  The error.
  */
-void bc_vm_fatalError(BcErr e);
+void
+bc_vm_fatalError(BcErr e);
 
 /**
  * A function to call at exit.
  */
-void bc_vm_atexit(void);
+void
+bc_vm_atexit(void);
 
 #else // BC_ENABLE_LIBRARY
 
@@ -833,7 +869,8 @@ void bc_vm_atexit(void);
  * @param e     The error.
  * @param line  The source line where the error occurred.
  */
-void bc_vm_handleError(BcErr e, size_t line, ...);
+void
+bc_vm_handleError(BcErr e, size_t line, ...);
 
 /**
  * Handle a fatal error.
@@ -842,13 +879,15 @@ void bc_vm_handleError(BcErr e, size_t line, ...);
 #if !BC_ENABLE_MEMCHECK
 BC_NORETURN
 #endif // !BC_ENABLE_MEMCHECK
-void bc_vm_fatalError(BcErr e);
+void
+bc_vm_fatalError(BcErr e);
 
 /**
  * A function to call at exit.
  * @param status  The exit status.
  */
-int bc_vm_atexit(int status);
+int
+bc_vm_atexit(int status);
 #endif // BC_ENABLE_LIBRARY
 
 /// A reference to the copyright header.
@@ -861,7 +900,7 @@ extern const char* const bc_err_line;
 extern const char* const bc_err_func_header;
 
 /// A reference to the array of default error category names.
-extern const char *bc_errs[];
+extern const char* bc_errs[];
 
 /// A reference to the array of error category indices for each error.
 extern const uchar bc_err_ids[];

@@ -53,9 +53,10 @@
 #include <bc.h>
 #include <dc.h>
 
-int main(int argc, char *argv[]) {
-
-	char *name;
+int
+main(int argc, char* argv[])
+{
+	char* name;
 	size_t len = strlen(BC_EXECPREFIX);
 
 #if BC_ENABLE_NLS
@@ -67,8 +68,8 @@ int main(int argc, char *argv[]) {
 	bc_pledge(bc_pledge_start, NULL);
 
 	// Sometimes, argv[0] can be NULL. Better make sure to be robust against it.
-	if (argv[0] != NULL) {
-
+	if (argv[0] != NULL)
+	{
 		// Figure out the name of the calculator we are using. We can't use
 		// basename because it's not portable, but yes, this is stripping off
 		// the directory.

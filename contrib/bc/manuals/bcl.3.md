@@ -215,7 +215,8 @@ generator in bcl(3).
 # DESCRIPTION
 
 bcl(3) is a library that implements arbitrary-precision decimal math, as
-[standardized by POSIX][1] in bc(1).
+standardized by POSIX
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) in bc(1).
 
 bcl(3) is async-signal-safe if **bcl_handleSignal(**_void_**)** is used
 properly. (See the **SIGNAL HANDLING** section.)
@@ -1184,8 +1185,9 @@ bc(1) and dc(1)
 
 # STANDARDS
 
-bcl(3) is compliant with the arithmetic defined in the
-[IEEE Std 1003.1-2017 (“POSIX.1-2017”)][1] specification for bc(1).
+bcl(3) is compliant with the arithmetic defined in the IEEE Std 1003.1-2017
+(“POSIX.1-2017”) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for bc(1).
 
 Note that the specification explicitly says that bc(1) only accepts numbers that
 use a period (**.**) as a radix point, regardless of the value of
@@ -1198,5 +1200,3 @@ None are known. Report bugs at https://git.yzena.com/gavin/bc.
 # AUTHORS
 
 Gavin D. Howard <gavin@yzena.com> and contributors.
-
-[1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html

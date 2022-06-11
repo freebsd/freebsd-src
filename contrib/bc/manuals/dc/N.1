@@ -25,7 +25,9 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "DC" "1" "June 2021" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "June 2022" "Gavin D. Howard" "General Commands Manual"
+.nh
+.ad l
 .SH Name
 .PP
 dc - arbitrary-precision decimal reverse-Polish notation calculator
@@ -37,7 +39,11 @@ dc - arbitrary-precision decimal reverse-Polish notation calculator
 [\f[B]-e\f[R] \f[I]expr\f[R]]
 [\f[B]--expression\f[R]=\f[I]expr\f[R]\&...] [\f[B]-f\f[R]
 \f[I]file\f[R]\&...] [\f[B]--file\f[R]=\f[I]file\f[R]\&...]
-[\f[I]file\f[R]\&...]
+[\f[I]file\f[R]\&...] [\f[B]-I\f[R] \f[I]ibase\f[R]]
+[\f[B]--ibase\f[R]=\f[I]ibase\f[R]] [\f[B]-O\f[R] \f[I]obase\f[R]]
+[\f[B]--obase\f[R]=\f[I]obase\f[R]] [\f[B]-S\f[R] \f[I]scale\f[R]]
+[\f[B]--scale\f[R]=\f[I]scale\f[R]] [\f[B]-E\f[R] \f[I]seed\f[R]]
+[\f[B]--seed\f[R]=\f[I]seed\f[R]]
 .SH DESCRIPTION
 .PP
 dc(1) is an arbitrary-precision calculator.
@@ -129,7 +135,7 @@ This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
 \f[B]-z\f[R], \f[B]--leading-zeroes\f[R]
-Makes bc(1) print all numbers greater than \f[B]-1\f[R] and less than
+Makes dc(1) print all numbers greater than \f[B]-1\f[R] and less than
 \f[B]1\f[R], and not equal to \f[B]0\f[R], with a leading zero.
 .RS
 .PP
@@ -182,13 +188,57 @@ exit.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
+.TP
+\f[B]-I\f[R] \f[I]ibase\f[R], \f[B]--ibase\f[R]=\f[I]ibase\f[R]
+Sets the builtin variable \f[B]ibase\f[R] to the value \f[I]ibase\f[R]
+assuming that \f[I]ibase\f[R] is in base 10.
+It is a fatal error if \f[I]ibase\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-O\f[R] \f[I]obase\f[R], \f[B]--obase\f[R]=\f[I]obase\f[R]
+Sets the builtin variable \f[B]obase\f[R] to the value \f[I]obase\f[R]
+assuming that \f[I]obase\f[R] is in base 10.
+It is a fatal error if \f[I]obase\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-S\f[R] \f[I]scale\f[R], \f[B]--scale\f[R]=\f[I]scale\f[R]
+Sets the builtin variable \f[B]scale\f[R] to the value \f[I]scale\f[R]
+assuming that \f[I]scale\f[R] is in base 10.
+It is a fatal error if \f[I]scale\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-E\f[R] \f[I]seed\f[R], \f[B]--seed\f[R]=\f[I]seed\f[R]
+Sets the builtin variable \f[B]seed\f[R] to the value \f[I]seed\f[R]
+assuming that \f[I]seed\f[R] is in base 10.
+It is a fatal error if \f[I]seed\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
 .PP
 All long options are \f[B]non-portable extensions\f[R].
 .SH STDIN
 .PP
 If no files are given on the command-line and no files or expressions
 are given by the \f[B]-f\f[R], \f[B]--file\f[R], \f[B]-e\f[R], or
-\f[B]--expression\f[R] options, then dc(1) read from \f[B]stdin\f[R].
+\f[B]--expression\f[R] options, then dc(1) reads from \f[B]stdin\f[R].
 .PP
 However, there is a caveat to this.
 .PP
@@ -1346,8 +1396,7 @@ If any expressions or expression files are given on the command-line
 with \f[B]-e\f[R], \f[B]--expression\f[R], \f[B]-f\f[R], or
 \f[B]--file\f[R], then if this environment variable exists and contains
 an integer, a non-zero value makes dc(1) exit after executing the
-expressions and expression files, and a non-zero value makes dc(1) not
-exit.
+expressions and expression files, and a zero value makes dc(1) not exit.
 .RS
 .PP
 This environment variable overrides the default, which can be queried
@@ -1456,10 +1505,10 @@ The default setting can be queried with the \f[B]-h\f[R] or
 \f[B]--help\f[R] options.
 .PP
 TTY mode is different from interactive mode because interactive mode is
-required in the bc(1)
-specification (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
-and interactive mode requires only \f[B]stdin\f[R] and \f[B]stdout\f[R]
-to be connected to a terminal.
+required in the bc(1) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html , and
+interactive mode requires only \f[B]stdin\f[R] and \f[B]stdout\f[R] to
+be connected to a terminal.
 .SS Command-Line History
 .PP
 Command-line history is only enabled if TTY mode is, i.e., that
@@ -1544,10 +1593,10 @@ section).
 bc(1)
 .SH STANDARDS
 .PP
-The dc(1) utility operators are compliant with the operators in the
-bc(1) IEEE Std 1003.1-2017
-(\[lq]POSIX.1-2017\[rq]) (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
-specification.
+The dc(1) utility operators are compliant with the operators in the IEEE
+Std 1003.1-2017 (\[lq]POSIX.1-2017\[rq]) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for
+bc(1).
 .SH BUGS
 .PP
 None are known.

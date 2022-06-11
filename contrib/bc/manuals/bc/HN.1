@@ -25,7 +25,9 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BC" "1" "June 2021" "Gavin D. Howard" "General Commands Manual"
+.TH "BC" "1" "June 2022" "Gavin D. Howard" "General Commands Manual"
+.nh
+.ad l
 .SH NAME
 .PP
 bc - arbitrary-precision decimal arithmetic language and calculator
@@ -38,13 +40,17 @@ bc - arbitrary-precision decimal arithmetic language and calculator
 [\f[B]-e\f[R] \f[I]expr\f[R]]
 [\f[B]--expression\f[R]=\f[I]expr\f[R]\&...] [\f[B]-f\f[R]
 \f[I]file\f[R]\&...] [\f[B]--file\f[R]=\f[I]file\f[R]\&...]
-[\f[I]file\f[R]\&...]
+[\f[I]file\f[R]\&...] [\f[B]-I\f[R] \f[I]ibase\f[R]]
+[\f[B]--ibase\f[R]=\f[I]ibase\f[R]] [\f[B]-O\f[R] \f[I]obase\f[R]]
+[\f[B]--obase\f[R]=\f[I]obase\f[R]] [\f[B]-S\f[R] \f[I]scale\f[R]]
+[\f[B]--scale\f[R]=\f[I]scale\f[R]] [\f[B]-E\f[R] \f[I]seed\f[R]]
+[\f[B]--seed\f[R]=\f[I]seed\f[R]]
 .SH DESCRIPTION
 .PP
 bc(1) is an interactive processor for a language first standardized in
 1991 by POSIX.
-(The current standard is
-here (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html).)
+(The current standard is at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .)
 The language provides unlimited precision decimal arithmetic and is
 somewhat C-like, but there are differences.
 Such differences will be noted in this document.
@@ -287,26 +293,32 @@ multiple times.
 Keywords are \f[I]not\f[R] redefined when parsing the builtin math
 library (see the \f[B]LIBRARY\f[R] section).
 .PP
-It is a fatal error to redefine keywords mandated by the POSIX standard.
+It is a fatal error to redefine keywords mandated by the POSIX standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html).
 It is a fatal error to attempt to redefine words that this bc(1) does
 not reserve as keywords.
 .RE
 .TP
 \f[B]-q\f[R], \f[B]--quiet\f[R]
-This option is for compatibility with the GNU
-bc(1) (https://www.gnu.org/software/bc/); it is a no-op.
+This option is for compatibility with the GNU bc(1)
+(https://www.gnu.org/software/bc/); it is a no-op.
 Without this option, GNU bc(1) prints a copyright header.
 This bc(1) only prints the copyright header if one or more of the
-\f[B]-v\f[R], \f[B]-V\f[R], or \f[B]--version\f[R] options are given.
+\f[B]-v\f[R], \f[B]-V\f[R], or \f[B]--version\f[R] options are given
+unless the \f[B]BC_BANNER\f[R] environment variable is set and contains
+a non-zero integer or if this bc(1) was built with the header displayed
+by default.
+If \f[I]any\f[R] of that is the case, then this option \f[I]does\f[R]
+prevent bc(1) from printing the header.
 .RS
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
 \f[B]-s\f[R], \f[B]--standard\f[R]
-Process exactly the language defined by the
-standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
-and error if any extensions are used.
+Process exactly the language defined by the standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) and
+error if any extensions are used.
 .RS
 .PP
 This is a \f[B]non-portable extension\f[R].
@@ -382,13 +394,57 @@ exit.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
+.TP
+\f[B]-I\f[R] \f[I]ibase\f[R], \f[B]--ibase\f[R]=\f[I]ibase\f[R]
+Sets the builtin variable \f[B]ibase\f[R] to the value \f[I]ibase\f[R]
+assuming that \f[I]ibase\f[R] is in base 10.
+It is a fatal error if \f[I]ibase\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-O\f[R] \f[I]obase\f[R], \f[B]--obase\f[R]=\f[I]obase\f[R]
+Sets the builtin variable \f[B]obase\f[R] to the value \f[I]obase\f[R]
+assuming that \f[I]obase\f[R] is in base 10.
+It is a fatal error if \f[I]obase\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-S\f[R] \f[I]scale\f[R], \f[B]--scale\f[R]=\f[I]scale\f[R]
+Sets the builtin variable \f[B]scale\f[R] to the value \f[I]scale\f[R]
+assuming that \f[I]scale\f[R] is in base 10.
+It is a fatal error if \f[I]scale\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-E\f[R] \f[I]seed\f[R], \f[B]--seed\f[R]=\f[I]seed\f[R]
+Sets the builtin variable \f[B]seed\f[R] to the value \f[I]seed\f[R]
+assuming that \f[I]seed\f[R] is in base 10.
+It is a fatal error if \f[I]seed\f[R] is not a valid number.
+.RS
+.PP
+If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
 .PP
 All long options are \f[B]non-portable extensions\f[R].
 .SH STDIN
 .PP
 If no files or expressions are given by the \f[B]-f\f[R],
 \f[B]--file\f[R], \f[B]-e\f[R], or \f[B]--expression\f[R] options, then
-bc(1) read from \f[B]stdin\f[R].
+bc(1) reads from \f[B]stdin\f[R].
 .PP
 However, there are a few caveats to this.
 .PP
@@ -435,8 +491,8 @@ redirect \f[B]stderr\f[R] to \f[B]/dev/null\f[R].
 .SH SYNTAX
 .PP
 The syntax for bc(1) programs is mostly C-like, with some differences.
-This bc(1) follows the POSIX
-standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
+This bc(1) follows the POSIX standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
 which is a much more thorough resource for the language this bc(1)
 accepts.
 This section is meant to be a summary and a listing of all the
@@ -1020,8 +1076,8 @@ Note that unlike in C, these operators have a lower precedence than the
 \f[B]assignment\f[R] operators, which means that \f[B]a=b>c\f[R] is
 interpreted as \f[B](a=b)>c\f[R].
 .PP
-Also, unlike the
-standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+Also, unlike the standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
 requires, these operators can appear anywhere any other expressions can
 be used.
 This allowance is a \f[B]non-portable extension\f[R].
@@ -1328,8 +1384,8 @@ when the \f[B]-s\f[R] option, the \f[B]-w\f[R] option, or equivalents
 are given.
 .SS Standard Library
 .PP
-The
-standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+The standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
 defines the following functions for the math library:
 .TP
 \f[B]s(x)\f[R]
@@ -1385,7 +1441,8 @@ Functions\f[R] subsection below).
 The extended library is \f[I]not\f[R] loaded when the
 \f[B]-s\f[R]/\f[B]--standard\f[R] or \f[B]-w\f[R]/\f[B]--warn\f[R]
 options are given since they are not part of the library defined by the
-standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html).
+standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html).
 .PP
 The extended library is a \f[B]non-portable extension\f[R].
 .TP
@@ -1404,13 +1461,13 @@ Functions\f[R] subsection below).
 .TP
 \f[B]r(x, p)\f[R]
 Returns \f[B]x\f[R] rounded to \f[B]p\f[R] decimal places according to
-the rounding mode round half away from
-\f[B]0\f[R] (https://en.wikipedia.org/wiki/Rounding#Round_half_away_from_zero).
+the rounding mode round half away from \f[B]0\f[R]
+(https://en.wikipedia.org/wiki/Rounding#Round_half_away_from_zero).
 .TP
 \f[B]ceil(x, p)\f[R]
 Returns \f[B]x\f[R] rounded to \f[B]p\f[R] decimal places according to
-the rounding mode round away from
-\f[B]0\f[R] (https://en.wikipedia.org/wiki/Rounding#Rounding_away_from_zero).
+the rounding mode round away from \f[B]0\f[R]
+(https://en.wikipedia.org/wiki/Rounding#Rounding_away_from_zero).
 .TP
 \f[B]f(x)\f[R]
 Returns the factorial of the truncated absolute value of \f[B]x\f[R].
@@ -2275,11 +2332,11 @@ subsection of the \f[B]FUNCTIONS\f[R] section).
 .RE
 .SS Transcendental Functions
 .PP
-All transcendental functions can return slightly inaccurate results (up
-to 1 ULP (https://en.wikipedia.org/wiki/Unit_in_the_last_place)).
-This is unavoidable, and this
-article (https://people.eecs.berkeley.edu/~wkahan/LOG10HAF.TXT) explains
-why it is impossible and unnecessary to calculate exact results for the
+All transcendental functions can return slightly inaccurate results, up
+to 1 ULP (https://en.wikipedia.org/wiki/Unit_in_the_last_place).
+This is unavoidable, and the article at
+https://people.eecs.berkeley.edu/\[ti]wkahan/LOG10HAF.TXT explains why
+it is impossible and unnecessary to calculate exact results for the
 transcendental functions.
 .PP
 Because of the possible inaccuracy, I recommend that users call those
@@ -2558,8 +2615,7 @@ If any expressions or expression files are given on the command-line
 with \f[B]-e\f[R], \f[B]--expression\f[R], \f[B]-f\f[R], or
 \f[B]--file\f[R], then if this environment variable exists and contains
 an integer, a non-zero value makes bc(1) exit after executing the
-expressions and expression files, and a non-zero value makes bc(1) not
-exit.
+expressions and expression files, and a zero value makes bc(1) not exit.
 .RS
 .PP
 This environment variable overrides the default, which can be queried
@@ -2646,8 +2702,8 @@ checking, and its normal behavior can be forced by using the
 \f[B]-i\f[R] flag or \f[B]--interactive\f[R] option.
 .SH INTERACTIVE MODE
 .PP
-Per the
-standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
+Per the standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
 bc(1) has an interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both \f[B]stdin\f[R]
 and \f[B]stdout\f[R] are hooked to a terminal, but the \f[B]-i\f[R] flag
@@ -2680,8 +2736,8 @@ The default setting can be queried with the \f[B]-h\f[R] or
 \f[B]--help\f[R] options.
 .PP
 TTY mode is different from interactive mode because interactive mode is
-required in the bc(1)
-specification (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
+required in the bc(1) standard
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
 and interactive mode requires only \f[B]stdin\f[R] and \f[B]stdout\f[R]
 to be connected to a terminal.
 .SS Prompt
@@ -2743,8 +2799,8 @@ dc(1)
 .SH STANDARDS
 .PP
 bc(1) is compliant with the IEEE Std 1003.1-2017
-(\[lq]POSIX.1-2017\[rq]) (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
-specification.
+(\[lq]POSIX.1-2017\[rq]) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 The flags \f[B]-efghiqsvVw\f[R], all long options, and the extensions
 noted above are extensions to that specification.
 .PP

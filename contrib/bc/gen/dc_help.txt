@@ -71,6 +71,14 @@ This dc has a few differences from the two above:
      that requires a register name is taken as the register name.
 
 Options:
+{{ A H N HN }}
+
+  -E  seed  --seed=seed
+
+      Sets the builtin variable seed to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+{{ end }}
 
   -e  expr  --expression=expr
 
@@ -85,6 +93,12 @@ Options:
 
       Print this usage message and exit.
 
+  -I  ibase  --ibase=ibase
+
+      Sets the builtin variable ibase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
   -i  --interactive
 
       Put dc into interactive mode. See the man page for more details.
@@ -93,6 +107,12 @@ Options:
 
       Disable line length checking.
 
+  -O  obase  --obase=obase
+
+      Sets the builtin variable obase to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
+
   -P  --no-prompt
 
       Disable the prompts in interactive mode.
@@ -100,6 +120,12 @@ Options:
   -R  --no-read-prompt
 
       Disable the read prompt in interactive mode.
+
+  -S  scale  --scale=scale
+
+      Sets the builtin variable scale to the given value assuming that the given
+      value is in base 10. It is a fatal error if the given value is not a valid
+      number.
 
   -V  --version
 

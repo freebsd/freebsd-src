@@ -41,9 +41,10 @@
 #include <program.h>
 #include <vm.h>
 
-void bc_const_free(void *constant) {
-
-	BcConst *c = constant;
+void
+bc_const_free(void* constant)
+{
+	BcConst* c = constant;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -53,8 +54,8 @@ void bc_const_free(void *constant) {
 }
 
 #if BC_ENABLED
-void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
-                    BcType type, size_t line)
+void
+bc_func_insert(BcFunc* f, BcProgram* p, char* name, BcType type, size_t line)
 {
 	BcAuto a;
 	size_t i, idx;
@@ -66,15 +67,15 @@ void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
 	idx = bc_program_search(p, name, type == BC_TYPE_VAR);
 
 	// Search through all of the other autos/parameters.
-	for (i = 0; i < f->autos.len; ++i) {
-
+	for (i = 0; i < f->autos.len; ++i)
+	{
 		// Get the auto.
-		BcAuto *aptr = bc_vec_item(&f->autos, i);
+		BcAuto* aptr = bc_vec_item(&f->autos, i);
 
 		// If they match, barf.
-		if (BC_ERR(idx == aptr->idx && type == aptr->type)) {
-
-			const char *array = type == BC_TYPE_ARRAY ? "[]" : "";
+		if (BC_ERR(idx == aptr->idx && type == aptr->type))
+		{
+			const char* array = type == BC_TYPE_ARRAY ? "[]" : "";
 
 			bc_error(BC_ERR_PARSE_DUP_LOCAL, line, name, array);
 		}
@@ -89,8 +90,9 @@ void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
 }
 #endif // BC_ENABLED
 
-void bc_func_init(BcFunc *f, const char *name) {
-
+void
+bc_func_init(BcFunc* f, const char* name)
+{
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(f != NULL && name != NULL);
@@ -104,8 +106,8 @@ void bc_func_init(BcFunc *f, const char *name) {
 #if BC_ENABLED
 
 	// Only bc needs these things.
-	if (BC_IS_BC) {
-
+	if (BC_IS_BC)
+	{
 		bc_vec_init(&f->autos, sizeof(BcAuto), BC_DTOR_NONE);
 		bc_vec_init(&f->labels, sizeof(size_t), BC_DTOR_NONE);
 
@@ -118,8 +120,9 @@ void bc_func_init(BcFunc *f, const char *name) {
 	f->name = name;
 }
 
-void bc_func_reset(BcFunc *f) {
-
+void
+bc_func_reset(BcFunc* f)
+{
 	BC_SIG_ASSERT_LOCKED;
 	assert(f != NULL);
 
@@ -130,8 +133,8 @@ void bc_func_reset(BcFunc *f) {
 	bc_vec_popAll(&f->strs);
 
 #if BC_ENABLED
-	if (BC_IS_BC) {
-
+	if (BC_IS_BC)
+	{
 		bc_vec_popAll(&f->autos);
 		bc_vec_popAll(&f->labels);
 
@@ -142,9 +145,10 @@ void bc_func_reset(BcFunc *f) {
 }
 
 #ifndef NDEBUG
-void bc_func_free(void *func) {
-
-	BcFunc *f = (BcFunc*) func;
+void
+bc_func_free(void* func)
+{
+	BcFunc* f = (BcFunc*) func;
 
 	BC_SIG_ASSERT_LOCKED;
 	assert(f != NULL);
@@ -156,8 +160,8 @@ void bc_func_free(void *func) {
 	bc_vec_free(&f->strs);
 
 #if BC_ENABLED
-	if (BC_IS_BC) {
-
+	if (BC_IS_BC)
+	{
 		bc_vec_free(&f->autos);
 		bc_vec_free(&f->labels);
 	}
@@ -165,8 +169,9 @@ void bc_func_free(void *func) {
 }
 #endif // NDEBUG
 
-void bc_array_init(BcVec *a, bool nums) {
-
+void
+bc_array_init(BcVec* a, bool nums)
+{
 	BC_SIG_ASSERT_LOCKED;
 
 	// Set the proper vector.
@@ -177,8 +182,9 @@ void bc_array_init(BcVec *a, bool nums) {
 	bc_array_expand(a, 1);
 }
 
-void bc_array_copy(BcVec *d, const BcVec *s) {
-
+void
+bc_array_copy(BcVec* d, const BcVec* s)
+{
 	size_t i;
 
 	BC_SIG_ASSERT_LOCKED;
@@ -196,21 +202,27 @@ void bc_array_copy(BcVec *d, const BcVec *s) {
 	bc_vec_expand(d, s->cap);
 	d->len = s->len;
 
-	for (i = 0; i < s->len; ++i) {
-
-		BcNum *dnum, *snum;
+	for (i = 0; i < s->len; ++i)
+	{
+		BcNum* dnum;
+		BcNum* snum;
 
 		dnum = bc_vec_item(d, i);
 		snum = bc_vec_item(s, i);
 
 		// We have to create a copy of the number as well.
-		if (BC_PROG_STR(snum)) memcpy(dnum, snum, sizeof(BcNum));
+		if (BC_PROG_STR(snum))
+		{
+			// NOLINTNEXTLINE
+			memcpy(dnum, snum, sizeof(BcNum));
+		}
 		else bc_num_createCopy(dnum, snum);
 	}
 }
 
-void bc_array_expand(BcVec *a, size_t len) {
-
+void
+bc_array_expand(BcVec* a, size_t len)
+{
 	assert(a != NULL);
 
 	BC_SIG_ASSERT_LOCKED;
@@ -218,36 +230,41 @@ void bc_array_expand(BcVec *a, size_t len) {
 	bc_vec_expand(a, len);
 
 	// If this is true, then we have a num array.
-	if (a->size == sizeof(BcNum) && a->dtor == BC_DTOR_NUM) {
-
+	if (a->size == sizeof(BcNum) && a->dtor == BC_DTOR_NUM)
+	{
 		// Initialize numbers until we reach the target.
-		while (len > a->len) {
-			BcNum *n = bc_vec_pushEmpty(a);
+		while (len > a->len)
+		{
+			BcNum* n = bc_vec_pushEmpty(a);
 			bc_num_init(n, BC_NUM_DEF_SIZE);
 		}
 	}
-	else {
-
+	else
+	{
 		assert(a->size == sizeof(BcVec) && a->dtor == BC_DTOR_VEC);
 
 		// Recursively initialize arrays until we reach the target. Having the
 		// second argument of bc_array_init() be true will activate the base
 		// case, so we're safe.
-		while (len > a->len) {
-			BcVec *v = bc_vec_pushEmpty(a);
+		while (len > a->len)
+		{
+			BcVec* v = bc_vec_pushEmpty(a);
 			bc_array_init(v, true);
 		}
 	}
 }
 
-void bc_result_clear(BcResult *r) {
+void
+bc_result_clear(BcResult* r)
+{
 	r->t = BC_RESULT_TEMP;
 	bc_num_clear(&r->d.n);
 }
 
 #if DC_ENABLED
-void bc_result_copy(BcResult *d, BcResult *src) {
-
+void
+bc_result_copy(BcResult* d, BcResult* src)
+{
 	assert(d != NULL && src != NULL);
 
 	BC_SIG_ASSERT_LOCKED;
@@ -256,8 +273,8 @@ void bc_result_copy(BcResult *d, BcResult *src) {
 	d->t = src->t;
 
 	// Yes, it depends on what type.
-	switch (d->t) {
-
+	switch (d->t)
+	{
 		case BC_RESULT_TEMP:
 		case BC_RESULT_IBASE:
 		case BC_RESULT_SCALE:
@@ -274,12 +291,14 @@ void bc_result_copy(BcResult *d, BcResult *src) {
 		case BC_RESULT_ARRAY:
 		case BC_RESULT_ARRAY_ELEM:
 		{
+			// NOLINTNEXTLINE
 			memcpy(&d->d.loc, &src->d.loc, sizeof(BcLoc));
 			break;
 		}
 
 		case BC_RESULT_STR:
 		{
+			// NOLINTNEXTLINE
 			memcpy(&d->d.n, &src->d.n, sizeof(BcNum));
 			break;
 		}
@@ -305,16 +324,17 @@ void bc_result_copy(BcResult *d, BcResult *src) {
 }
 #endif // DC_ENABLED
 
-void bc_result_free(void *result) {
-
-	BcResult *r = (BcResult*) result;
+void
+bc_result_free(void* result)
+{
+	BcResult* r = (BcResult*) result;
 
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(r != NULL);
 
-	switch (r->t) {
-
+	switch (r->t)
+	{
 		case BC_RESULT_TEMP:
 		case BC_RESULT_IBASE:
 		case BC_RESULT_SCALE:

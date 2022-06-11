@@ -46,12 +46,14 @@
  * @param l  The label to jump to on error.
  */
 #define BC_FUNC_HEADER_LOCK(l)   \
-	do {                         \
+	do                           \
+	{                            \
 		BC_SIG_LOCK;             \
 		BC_SETJMP_LOCKED(l);     \
 		vm.err = BCL_ERROR_NONE; \
 		vm.running = 1;          \
-	} while (0)
+	}                            \
+	while (0)
 
 /**
  * A footer to unlock and stop the jumping if an error happened. It also sets
@@ -59,25 +61,29 @@
  * @param e  The error variable to set.
  */
 #define BC_FUNC_FOOTER_UNLOCK(e) \
-	do {                         \
+	do                           \
+	{                            \
 		BC_SIG_ASSERT_LOCKED;    \
 		e = vm.err;              \
 		vm.running = 0;          \
 		BC_UNSETJMP;             \
 		BC_LONGJMP_STOP;         \
 		vm.sig_lock = 0;         \
-	} while (0)
+	}                            \
+	while (0)
 
 /**
  * A header that sets a jump and sets running.
  * @param l  The label to jump to on error.
  */
 #define BC_FUNC_HEADER(l)        \
-	do {                         \
+	do                           \
+	{                            \
 		BC_SETJMP(l);            \
 		vm.err = BCL_ERROR_NONE; \
 		vm.running = 1;          \
-	} while (0)
+	}                            \
+	while (0)
 
 /**
  * A header that assumes that signals are already locked. It sets a jump and
@@ -85,23 +91,27 @@
  * @param l  The label to jump to on error.
  */
 #define BC_FUNC_HEADER_INIT(l)   \
-	do {                         \
+	do                           \
+	{                            \
 		BC_SETJMP_LOCKED(l);     \
 		vm.err = BCL_ERROR_NONE; \
 		vm.running = 1;          \
-	} while (0)
+	}                            \
+	while (0)
 
 /**
  * A footer for functions that do not return an error code. It clears running
  * and unlocks the signals. It also stops the jumping.
  */
 #define BC_FUNC_FOOTER_NO_ERR \
-	do {                      \
+	do                        \
+	{                         \
 		vm.running = 0;       \
 		BC_UNSETJMP;          \
 		BC_LONGJMP_STOP;      \
 		vm.sig_lock = 0;      \
-	} while (0)
+	}                         \
+	while (0)
 
 /**
  * A footer for functions that *do* return an error code. It clears running and
@@ -109,10 +119,12 @@
  * @param e  The error variable to set.
  */
 #define BC_FUNC_FOOTER(e)      \
-	do {                       \
+	do                         \
+	{                          \
 		e = vm.err;            \
 		BC_FUNC_FOOTER_NO_ERR; \
-	} while (0)
+	}                          \
+	while (0)
 
 /**
  * A footer that sets up n based the value of e and sets up the return value in
@@ -123,13 +135,16 @@
  * @param idx  The idx to set as the return value.
  */
 #define BC_MAYBE_SETUP(c, e, n, idx)                \
-	do {                                            \
-		if (BC_ERR((e) != BCL_ERROR_NONE)) {        \
+	do                                              \
+	{                                               \
+		if (BC_ERR((e) != BCL_ERROR_NONE))          \
+		{                                           \
 			if ((n).num != NULL) bc_num_free(&(n)); \
 			idx.i = 0 - (size_t) (e);               \
 		}                                           \
 		else idx = bcl_num_insert(c, &(n));         \
-	} while (0)
+	}                                               \
+	while (0)
 
 /**
  * A header to check the context and return an error encoded in a number if it
@@ -137,37 +152,44 @@
  * @param c  The context.
  */
 #define BC_CHECK_CTXT(c)                                      \
-	do {                                                      \
+	do                                                        \
+	{                                                         \
 		c = bcl_context();                                    \
-		if (BC_ERR(c == NULL)) {                              \
+		if (BC_ERR(c == NULL))                                \
+		{                                                     \
 			BclNumber n_num;                                  \
 			n_num.i = 0 - (size_t) BCL_ERROR_INVALID_CONTEXT; \
 			return n_num;                                     \
 		}                                                     \
-	} while (0)
-
+	}                                                         \
+	while (0)
 
 /**
  * A header to check the context and return an error directly if it is bad.
  * @param c  The context.
  */
 #define BC_CHECK_CTXT_ERR(c)                  \
-	do {                                      \
+	do                                        \
+	{                                         \
 		c = bcl_context();                    \
-		if (BC_ERR(c == NULL)) {              \
+		if (BC_ERR(c == NULL))                \
+		{                                     \
 			return BCL_ERROR_INVALID_CONTEXT; \
 		}                                     \
-	} while (0)
+	}                                         \
+	while (0)
 
 /**
  * A header to check the context and abort if it is bad.
  * @param c  The context.
  */
 #define BC_CHECK_CTXT_ASSERT(c) \
-	do {                        \
+	do                          \
+	{                           \
 		c = bcl_context();      \
 		assert(c != NULL);      \
-	} while (0)
+	}                           \
+	while (0)
 
 /**
  * A header to check the number in the context and return an error encoded as a
@@ -176,16 +198,22 @@
  * @param n  The BclNumber.
  */
 #define BC_CHECK_NUM(c, n)                                         \
-	do {                                                           \
-		if (BC_ERR((n).i >= (c)->nums.len)) {                      \
+	do                                                             \
+	{                                                              \
+		if (BC_ERR((n).i >= (c)->nums.len))                        \
+		{                                                          \
 			if ((n).i > 0 - (size_t) BCL_ERROR_NELEMS) return (n); \
-			else {                                                 \
+			else                                                   \
+			{                                                      \
 				BclNumber n_num;                                   \
 				n_num.i = 0 - (size_t) BCL_ERROR_INVALID_NUM;      \
 				return n_num;                                      \
 			}                                                      \
 		}                                                          \
-	} while (0)
+	}                                                              \
+	while (0)
+
+//clang-format off
 
 /**
  * A header to check the number in the context and return an error directly if
@@ -194,13 +222,20 @@
  * @param n  The BclNumber.
  */
 #define BC_CHECK_NUM_ERR(c, n)                         \
-	do {                                               \
-		if (BC_ERR((n).i >= (c)->nums.len)) {          \
+	do                                                 \
+	{                                                  \
+		if (BC_ERR((n).i >= (c)->nums.len))            \
+		{                                              \
 			if ((n).i > 0 - (size_t) BCL_ERROR_NELEMS) \
+			{                                          \
 				return (BclError) (0 - (n).i);         \
+			}                                          \
 			else return BCL_ERROR_INVALID_NUM;         \
 		}                                              \
-	} while (0)
+	}                                                  \
+	while (0)
+
+//clang-format on
 
 /**
  * Turns a BclNumber into a BcNum.
@@ -213,11 +248,12 @@
  * Frees a BcNum for bcl. This is a destructor.
  * @param num  The BcNum to free, as a void pointer.
  */
-void bcl_num_destruct(void *num);
+void
+bcl_num_destruct(void* num);
 
 /// The actual context struct.
-typedef struct BclCtxt {
-
+typedef struct BclCtxt
+{
 	/// The context's scale.
 	size_t scale;
 

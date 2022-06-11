@@ -25,7 +25,9 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BCL" "3" "June 2021" "Gavin D. Howard" "Libraries Manual"
+.TH "BCL" "3" "June 2022" "Gavin D. Howard" "Libraries Manual"
+.nh
+.ad l
 .SH NAME
 .PP
 bcl - library of arbitrary precision decimal arithmetic
@@ -228,9 +230,9 @@ generator in bcl(3).
 .SH DESCRIPTION
 .PP
 bcl(3) is a library that implements arbitrary-precision decimal math, as
-standardized by
-POSIX (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
-in bc(1).
+standardized by POSIX
+(https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html) in
+bc(1).
 .PP
 bcl(3) is async-signal-safe if
 \f[B]bcl_handleSignal(\f[R]\f[I]void\f[R]\f[B])\f[R] is used properly.
@@ -1376,9 +1378,9 @@ bc(1) and dc(1)
 .SH STANDARDS
 .PP
 bcl(3) is compliant with the arithmetic defined in the IEEE Std
-1003.1-2017
-(\[lq]POSIX.1-2017\[rq]) (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
-specification for bc(1).
+1003.1-2017 (\[lq]POSIX.1-2017\[rq]) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for
+bc(1).
 .PP
 Note that the specification explicitly says that bc(1) only accepts
 numbers that use a period (\f[B].\f[R]) as a radix point, regardless of

@@ -42,20 +42,28 @@
 #include <vm.h>
 #include <bc.h>
 
-void bc_lex_invalidChar(BcLex *l, char c) {
+void
+bc_lex_invalidChar(BcLex* l, char c)
+{
 	l->t = BC_LEX_INVALID;
 	bc_lex_verr(l, BC_ERR_PARSE_CHAR, c);
 }
 
-void bc_lex_lineComment(BcLex *l) {
+void
+bc_lex_lineComment(BcLex* l)
+{
 	l->t = BC_LEX_WHITESPACE;
-	while (l->i < l->len && l->buf[l->i] != '\n') l->i += 1;
+	while (l->i < l->len && l->buf[l->i] != '\n')
+	{
+		l->i += 1;
+	}
 }
 
-void bc_lex_comment(BcLex *l) {
-
+void
+bc_lex_comment(BcLex* l)
+{
 	size_t i, nlines = 0;
-	const char *buf;
+	const char* buf;
 	bool end = false, got_more;
 	char c;
 
@@ -65,8 +73,8 @@ void bc_lex_comment(BcLex *l) {
 	// This loop is complex because it might need to request more data from
 	// stdin if the comment is not ended. This loop is taken until the comment
 	// is finished or we have EOF.
-	do {
-
+	do
+	{
 		buf = l->buf;
 		got_more = false;
 
@@ -74,17 +82,22 @@ void bc_lex_comment(BcLex *l) {
 		assert(!vm.is_stdin || buf == vm.buffer.v);
 
 		// Find the end of the comment.
-		for (i = l->i; !end; i += !end) {
-
+		for (i = l->i; !end; i += !end)
+		{
 			// While we don't have an asterisk, eat, but increment nlines.
-			for (; (c = buf[i]) && c != '*'; ++i) nlines += (c == '\n');
+			for (; (c = buf[i]) && c != '*'; ++i)
+			{
+				nlines += (c == '\n');
+			}
 
 			// If this is true, we need to request more data.
-			if (BC_ERR(!c || buf[i + 1] == '\0')) {
-
+			if (BC_ERR(!c || buf[i + 1] == '\0'))
+			{
 				// Read more, if possible.
 				if (!vm.eof && (l->is_stdin || l->is_exprs))
+				{
 					got_more = bc_lex_readLine(l);
+				}
 
 				break;
 			}
@@ -92,11 +105,12 @@ void bc_lex_comment(BcLex *l) {
 			// If this turns true, we found the end. Yay!
 			end = (buf[i + 1] == '/');
 		}
-
-	} while (got_more && !end);
+	}
+	while (got_more && !end);
 
 	// If we didn't find the end, barf.
-	if (!end) {
+	if (!end)
+	{
 		l->i = i;
 		bc_lex_err(l, BC_ERR_PARSE_COMMENT);
 	}
@@ -105,17 +119,23 @@ void bc_lex_comment(BcLex *l) {
 	l->line += nlines;
 }
 
-void bc_lex_whitespace(BcLex *l) {
-
+void
+bc_lex_whitespace(BcLex* l)
+{
 	char c;
 
 	l->t = BC_LEX_WHITESPACE;
 
 	// Eat. We don't eat newlines because they can be special.
-	for (c = l->buf[l->i]; c != '\n' && isspace(c); c = l->buf[++l->i]);
+	for (c = l->buf[l->i]; c != '\n' && isspace(c); c = l->buf[++l->i])
+	{
+		continue;
+	}
 }
 
-void bc_lex_commonTokens(BcLex *l, char c) {
+void
+bc_lex_commonTokens(BcLex* l, char c)
+{
 	if (!c) l->t = BC_LEX_EOF;
 	else if (c == '\n') l->t = BC_LEX_NLINE;
 	else bc_lex_whitespace(l);
@@ -128,9 +148,10 @@ void bc_lex_commonTokens(BcLex *l, char c) {
  * @param int_only  Whether this function should only look for an integer. This
  *                  is used to implement the exponent of scientific notation.
  */
-static size_t bc_lex_num(BcLex *l, char start, bool int_only) {
-
-	const char *buf = l->buf + l->i;
+static size_t
+bc_lex_num(BcLex* l, char start, bool int_only)
+{
+	const char* buf = l->buf + l->i;
 	size_t i;
 	char c;
 	bool last_pt, pt = (start == '.');
@@ -140,16 +161,20 @@ static size_t bc_lex_num(BcLex *l, char start, bool int_only) {
 	// thus far, or whether it is a backslash followed by a newline. I can do
 	// i+1 on the buffer because the buffer must have a nul byte.
 	for (i = 0; (c = buf[i]) && (BC_LEX_NUM_CHAR(c, pt, int_only) ||
-	                             (c == '\\' && buf[i + 1] == '\n')); ++i)
+	                             (c == '\\' && buf[i + 1] == '\n'));
+	     ++i)
 	{
 		// I don't need to test that the next character is a newline because
 		// the loop condition above ensures that.
-		if (c == '\\') {
-
+		if (c == '\\')
+		{
 			i += 2;
 
 			// Make sure to eat whitespace at the beginning of the line.
-			while(isspace(buf[i]) && buf[i] != '\n') i += 1;
+			while (isspace(buf[i]) && buf[i] != '\n')
+			{
+				i += 1;
+			}
 
 			c = buf[i];
 
@@ -173,8 +198,9 @@ static size_t bc_lex_num(BcLex *l, char start, bool int_only) {
 	return i;
 }
 
-void bc_lex_number(BcLex *l, char start) {
-
+void
+bc_lex_number(BcLex* l, char start)
+{
 	l->t = BC_LEX_NUMBER;
 
 	// Make sure the string is clear.
@@ -189,8 +215,8 @@ void bc_lex_number(BcLex *l, char start) {
 		char c = l->buf[l->i];
 
 		// Do we have a number in scientific notation?
-		if (c == 'e') {
-
+		if (c == 'e')
+		{
 #if BC_ENABLED
 			// Barf for POSIX.
 			if (BC_IS_POSIX) bc_lex_err(l, BC_ERR_POSIX_EXP_NUM);
@@ -202,7 +228,8 @@ void bc_lex_number(BcLex *l, char start) {
 			c = l->buf[l->i];
 
 			// Check for negative specifically because bc_lex_num() does not.
-			if (c == BC_LEX_NEG_CHAR) {
+			if (c == BC_LEX_NEG_CHAR)
+			{
 				bc_vec_push(&l->str, &c);
 				l->i += 1;
 				c = l->buf[l->i];
@@ -210,7 +237,9 @@ void bc_lex_number(BcLex *l, char start) {
 
 			// We must have a number character, so barf if not.
 			if (BC_ERR(!BC_LEX_NUM_CHAR(c, false, true)))
+			{
 				bc_lex_verr(l, BC_ERR_PARSE_CHAR, c);
+			}
 
 			// Parse the exponent.
 			l->i += bc_lex_num(l, 0, true);
@@ -221,16 +250,20 @@ void bc_lex_number(BcLex *l, char start) {
 	bc_vec_pushByte(&l->str, '\0');
 }
 
-void bc_lex_name(BcLex *l) {
-
+void
+bc_lex_name(BcLex* l)
+{
 	size_t i = 0;
-	const char *buf = l->buf + l->i - 1;
+	const char* buf = l->buf + l->i - 1;
 	char c = buf[i];
 
 	l->t = BC_LEX_NAME;
 
 	// Should be obvious. It's looking for valid characters.
-	while ((c >= 'a' && c <= 'z') || isdigit(c) || c == '_') c = buf[++i];
+	while ((c >= 'a' && c <= 'z') || isdigit(c) || c == '_')
+	{
+		c = buf[++i];
+	}
 
 	// Set the string to the identifier.
 	bc_vec_string(&l->str, i, buf);
@@ -239,26 +272,33 @@ void bc_lex_name(BcLex *l) {
 	l->i += i - 1;
 }
 
-void bc_lex_init(BcLex *l) {
+void
+bc_lex_init(BcLex* l)
+{
 	BC_SIG_ASSERT_LOCKED;
 	assert(l != NULL);
 	bc_vec_init(&l->str, sizeof(char), BC_DTOR_NONE);
 }
 
-void bc_lex_free(BcLex *l) {
+void
+bc_lex_free(BcLex* l)
+{
 	BC_SIG_ASSERT_LOCKED;
 	assert(l != NULL);
 	bc_vec_free(&l->str);
 }
 
-void bc_lex_file(BcLex *l, const char *file) {
+void
+bc_lex_file(BcLex* l, const char* file)
+{
 	assert(l != NULL && file != NULL);
 	l->line = 1;
 	vm.file = file;
 }
 
-void bc_lex_next(BcLex *l) {
-
+void
+bc_lex_next(BcLex* l)
+{
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(l != NULL);
@@ -278,9 +318,11 @@ void bc_lex_next(BcLex *l) {
 
 	// Loop until failure or we don't have whitespace. This
 	// is so the parser doesn't get inundated with whitespace.
-	do {
+	do
+	{
 		vm.next(l);
-	} while (l->t == BC_LEX_WHITESPACE);
+	}
+	while (l->t == BC_LEX_WHITESPACE);
 }
 
 /**
@@ -290,13 +332,16 @@ void bc_lex_next(BcLex *l) {
  * @param text  The text.
  * @param len   The length of the text.
  */
-static void bc_lex_fixText(BcLex *l, const char *text, size_t len) {
+static void
+bc_lex_fixText(BcLex* l, const char* text, size_t len)
+{
 	l->buf = text;
 	l->len = len;
 }
 
-bool bc_lex_readLine(BcLex *l) {
-
+bool
+bc_lex_readLine(BcLex* l)
+{
 	bool good;
 
 	// These are reversed because they should be already locked, but
@@ -305,7 +350,8 @@ bool bc_lex_readLine(BcLex *l) {
 
 	// Make sure we read from the appropriate place.
 	if (l->is_stdin) good = bc_vm_readLine(false);
-	else {
+	else
+	{
 		assert(l->is_exprs);
 		good = bc_vm_readBuf(false);
 	}
@@ -317,8 +363,9 @@ bool bc_lex_readLine(BcLex *l) {
 	return good;
 }
 
-void bc_lex_text(BcLex *l, const char *text, bool is_stdin, bool is_exprs) {
-
+void
+bc_lex_text(BcLex* l, const char* text, bool is_stdin, bool is_exprs)
+{
 	BC_SIG_ASSERT_LOCKED;
 
 	assert(l != NULL && text != NULL);
