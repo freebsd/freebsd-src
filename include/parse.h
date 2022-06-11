@@ -53,23 +53,24 @@
 /// loops, while loops, and if statements. This is because POSIX requires that
 /// certain operators are *only* used in those cases. It's whacked, but that's
 /// how it is.
-#define BC_PARSE_REL (UINTMAX_C(1)<<0)
+#define BC_PARSE_REL (UINTMAX_C(1) << 0)
 
 /// A flag that requires that the expression is valid for a print statement.
-#define BC_PARSE_PRINT (UINTMAX_C(1)<<1)
+#define BC_PARSE_PRINT (UINTMAX_C(1) << 1)
 
 /// A flag that requires that the expression does *not* have any function call.
-#define BC_PARSE_NOCALL (UINTMAX_C(1)<<2)
+#define BC_PARSE_NOCALL (UINTMAX_C(1) << 2)
 
-/// A flag that requires that the expression does *not* have a read() expression.
-#define BC_PARSE_NOREAD (UINTMAX_C(1)<<3)
+/// A flag that requires that the expression does *not* have a read()
+/// expression.
+#define BC_PARSE_NOREAD (UINTMAX_C(1) << 3)
 
 /// A flag that *allows* (rather than requires) that an array appear in the
 /// expression. This is mostly used as parameters in bc.
-#define BC_PARSE_ARRAY (UINTMAX_C(1)<<4)
+#define BC_PARSE_ARRAY (UINTMAX_C(1) << 4)
 
 /// A flag that requires that the expression is not empty and returns a value.
-#define BC_PARSE_NEEDVAL (UINTMAX_C(1)<<5)
+#define BC_PARSE_NEEDVAL (UINTMAX_C(1) << 5)
 
 /**
  * Returns true if the parser has been initialized.
@@ -154,8 +155,8 @@ typedef void (*BcParseParse)(struct BcParse* p);
 typedef void (*BcParseExpr)(struct BcParse* p, uint8_t flags);
 
 /// The parser struct.
-typedef struct BcParse {
-
+typedef struct BcParse
+{
 	/// The lexer.
 	BcLex l;
 
@@ -191,11 +192,11 @@ typedef struct BcParse {
 #endif // BC_ENABLED
 
 	/// A reference to the program to grab the current function when necessary.
-	struct BcProgram *prog;
+	struct BcProgram* prog;
 
 	/// A reference to the current function. The function is what holds the
 	/// bytecode vector that the parser is filling.
-	BcFunc *func;
+	BcFunc* func;
 
 	/// The index of the function.
 	size_t fidx;
@@ -214,40 +215,46 @@ typedef struct BcParse {
  * @param prog  A referenc to the program.
  * @param func  The index of the current function.
  */
-void bc_parse_init(BcParse *p, struct BcProgram *prog, size_t func);
+void
+bc_parse_init(BcParse* p, struct BcProgram* prog, size_t func);
 
 /**
  * Frees a parser. This is not guarded by #ifndef NDEBUG because a separate
  * parser is created at runtime to parse read() expressions and dc strings.
  * @param p  The parser to free.
  */
-void bc_parse_free(BcParse *p);
+void
+bc_parse_free(BcParse* p);
 
 /**
  * Resets the parser. Resetting means erasing all state to the point that the
  * parser would think it was just initialized.
  * @param p  The parser to reset.
  */
-void bc_parse_reset(BcParse *p);
+void
+bc_parse_reset(BcParse* p);
 
 /**
  * Adds a string. See @a BcProgram in include/program.h for more details.
  * @param p  The parser that parsed the string.
  */
-void bc_parse_addString(BcParse *p);
+void
+bc_parse_addString(BcParse* p);
 
 /**
  * Adds a number. See @a BcProgram in include/program.h for more details.
  * @param p  The parser that parsed the number.
  */
-void bc_parse_number(BcParse *p);
+void
+bc_parse_number(BcParse* p);
 
 /**
  * Update the current function in the parser.
  * @param p     The parser.
  * @param fidx  The index of the new function.
  */
-void bc_parse_updateFunc(BcParse *p, size_t fidx);
+void
+bc_parse_updateFunc(BcParse* p, size_t fidx);
 
 /**
  * Adds a new variable or array. See @a BcProgram in include/program.h for more
@@ -256,7 +263,8 @@ void bc_parse_updateFunc(BcParse *p, size_t fidx);
  * @param name  The name of the variable or array to add.
  * @param var   True if the name is for a variable, false if it's for an array.
  */
-void bc_parse_pushName(const BcParse* p, char *name, bool var);
+void
+bc_parse_pushName(const BcParse* p, char* name, bool var);
 
 /**
  * Sets the text that the parser will parse.
@@ -266,7 +274,8 @@ void bc_parse_pushName(const BcParse* p, char *name, bool var);
  * @param is_exprs  True if the text is from command-line expressions, false
  *                  otherwise.
  */
-void bc_parse_text(BcParse *p, const char *text, bool is_stdin, bool is_exprs);
+void
+bc_parse_text(BcParse* p, const char* text, bool is_stdin, bool is_exprs);
 
 // References to const 0 and 1 strings for special cases. bc and dc have
 // specific instructions for 0 and 1 because they pop up so often and (in the

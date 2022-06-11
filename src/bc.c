@@ -45,8 +45,9 @@
  * @param argc  The number of arguments.
  * @param argv  The arguments.
  */
-void bc_main(int argc, char *argv[]) {
-
+void
+bc_main(int argc, char* argv[])
+{
 	// All of these just set bc-specific items in BcVm.
 
 	vm.read_ret = BC_INST_RET;

@@ -1,5 +1,10 @@
 # `bc`
 
+***WARNING: New user registration for https://git.yzena.com/ is disabled because
+of spam. If you need to report a bug with `bc`, email gavin at this site minus
+the `git.` part for an account, and I will create one for you. Or you can report
+an issue at [GitHub][29].***
+
 ***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
 reasons][21], though GitHub will remain a mirror.***
 
@@ -71,8 +76,8 @@ Also, if building with MSBuild, the MSBuild bundled with Visual Studio is
 required.
 
 **Note**: Unlike the POSIX-compatible platforms, only one build configuration is
-supported on Windows: extra math and prompt enabled, history and NLS (locale
-support) disabled, with both calculators built.
+supported on Windows: extra math and history enabled, NLS (locale support)
+disabled, with both calculators built.
 
 #### `bc`
 
@@ -178,9 +183,6 @@ see the [build manual][5].
 
 The library API can be found in [`manuals/bcl.3.md`][26] or `man bcl` once the
 library is installed.
-
-The library is built as `bin/libbcl.a` on POSIX-compatible systems or as
-`Release/bcl/bcl.lib` on Windows.
 
 #### Package and Distro Maintainers
 
@@ -289,8 +291,7 @@ with POSIX `bc`. The math has been tested with 40+ million random problems, so
 it is as correct as I can make it.
 
 This `bc` can be used as a drop-in replacement for any existing `bc`. This `bc`
-is also compatible with MinGW toolchains, though history is not supported on
-Windows.
+is also compatible with MinGW toolchains.
 
 In addition, this `bc` is considered complete; i.e., there will be no more
 releases with additional features. However, it *is* actively maintained, so if
@@ -405,18 +406,18 @@ Files:
 	Makefile.in          The Makefile template.
 	NEWS.md              The changelog.
 	NOTICE.md            List of contributors and copyright owners.
-	RELEASE.md           A checklist for making a release (maintainer use only).
 
 Folders:
 
-	gen      The bc math library, help texts, and code to generate C source.
-	include  All header files.
-	locales  Locale files, in .msg format. Patches welcome for translations.
-	manuals  Manuals for both programs.
-	src      All source code.
-	scripts  A bunch of shell scripts to help with development and building.
-	tests    All tests.
-	vs       Files needed for the build on Windows.
+	benchmarks  A folder of benchmarks for various aspects of bc performance.
+	gen         The bc math library, help texts, and code to generate C source.
+	include     All header files.
+	locales     Locale files, in .msg format. Patches welcome for translations.
+	manuals     Manuals for both programs.
+	src         All source code.
+	scripts     A bunch of shell scripts to help with development and building.
+	tests       All tests.
+	vs          Files needed for the build on Windows.
 
 [1]: https://www.gnu.org/software/bc/
 [4]: ./LICENSE.md
@@ -439,3 +440,4 @@ Folders:
 [26]: ./manuals/bcl.3.md
 [27]: https://en.wikipedia.org/wiki/Bus_factor
 [28]: ./manuals/development.md
+[29]: https://github.com/gavinhoward/bc

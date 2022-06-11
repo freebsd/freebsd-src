@@ -52,12 +52,13 @@ usage() {
 	printf 'usage:\n'
 	printf '    %s -h\n' "$script"
 	printf '    %s --help\n' "$script"
-	printf '    %s [-a|-bD|-dB|-c] [-CEfgGHlmMNtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\\\n' "$script"
+	printf '    %s [-a|-bD|-dB|-c] [-CeEfgGHlmMNrtTvz] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\\\n' "$script"
 	printf '       [-s SETTING] [-S SETTING]\n'
 	printf '    %s \\\n' "$script"
 	printf '       [--library|--bc-only --disable-dc|--dc-only --disable-bc|--coverage]  \\\n'
 	printf '       [--force --debug --disable-extra-math --disable-generated-tests]      \\\n'
 	printf '       [--disable-history --disable-man-pages --disable-nls --disable-strip] \\\n'
+	printf '       [--enable-editline] [--enable-readline]                               \\\n'
 	printf '       [--install-all-locales] [--opt=OPT_LEVEL]                             \\\n'
 	printf '       [--karatsuba-len=KARATSUBA_LEN]                                       \\\n'
 	printf '       [--set-default-on=SETTING] [--set-default-off=SETTING]                \\\n'
@@ -87,6 +88,11 @@ usage() {
 	printf '    -D, --disable-dc\n'
 	printf '        Disable dc. It is an error if "-d", "--dc-only", "-B", or "--disable-bc"\n'
 	printf '        are specified too.\n'
+	printf '    -e, --enable-editline\n'
+	printf '        Enable the use of libedit/editline. This is meant for those users that\n'
+	printf '        want vi-like or Emacs-like behavior in history.This option is ignored if\n'
+	printf '        history is disabled. It is an error if this option is enabled when the\n'
+	printf '        -r/--enable-readline option is enabled.\n'
 	printf '    -E, --disable-extra-math\n'
 	printf '        Disable extra math. This includes: "$" operator (truncate to integer),\n'
 	printf '        "@" operator (set number of decimal places), and r(x, p) (rounding\n'
@@ -125,6 +131,11 @@ usage() {
 	printf '        Set the optimization level. This can also be included in the CFLAGS,\n'
 	printf '        but it is provided, so maintainers can build optimized debug builds.\n'
 	printf '        This is passed through to the compiler, so it must be supported.\n'
+	printf '    -r, --enable-readline\n'
+	printf '        Enable the use of libreadline/readline. This is meant for those users\n'
+	printf '        that want vi-like or Emacs-like behavior in history.This option is\n'
+	printf '        ignored if history is disabled. It is an error if this option is\n'
+	printf '        enabled when the -e/--enable-editline option is enabled.\n'
 	printf '    -s SETTING, --set-default-on SETTING\n'
 	printf '        Set the default named by SETTING to on. See below for possible values\n'
 	printf '        for SETTING. For multiple instances of the -s or -S for the the same\n'
@@ -233,11 +244,10 @@ usage() {
 	printf '                 "$HOSTCC" and run on the host machine. Using `gen/strgen.sh`\n'
 	printf '                 removes the need to compile and run an executable on the host\n'
 	printf '                 machine since `gen/strgen.sh` is a POSIX shell script. However,\n'
-	printf '                 `gen/lib2.bc` is perilously close to 4095 characters, the max\n'
-	printf '                 supported length of a string literal in C99 (and it could be\n'
-	printf '                 added to in the future), and `gen/strgen.sh` generates a string\n'
-	printf '                 literal instead of an array, as `gen/strgen.c` does. For most\n'
-	printf '                 production-ready compilers, this limit probably is not\n'
+	printf '                 `gen/lib2.bc` is over 4095 characters, the max supported length\n'
+	printf '                 of a string literal in C99, and `gen/strgen.sh` generates a\n'
+	printf '                 string literal instead of an array, as `gen/strgen.c` does. For\n'
+	printf '                 most production-ready compilers, this limit probably is not\n'
 	printf '                 enforced, but it could be. Both options are still available for\n'
 	printf '                 this reason. If you are sure your compiler does not have the\n'
 	printf '                 limit and do not want to compile and run a binary on the host\n'
@@ -667,6 +677,8 @@ coverage=0
 karatsuba_len=32
 debug=0
 hist=1
+editline=0
+readline=0
 extra_math=1
 optimization=""
 generate_tests=1
@@ -697,7 +709,7 @@ dc_default_expr_exit=1
 # getopts is a POSIX utility, but it cannot handle long options. Thus, the
 # handling of long options is done by hand, and that's the reason that short and
 # long options cannot be mixed.
-while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
+while getopts "abBcdDeEfgGhHk:lMmNO:rS:s:tTvz-" opt; do
 
 	case "$opt" in
 		a) library=1 ;;
@@ -707,6 +719,7 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 		C) clean=0 ;;
 		d) dc_only=1 ;;
 		D) bc_only=1 ;;
+		e) editline=1 ;;
 		E) extra_math=0 ;;
 		f) force=1 ;;
 		g) debug=1 ;;
@@ -719,6 +732,7 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 		M) install_manpages=0 ;;
 		N) nls=0 ;;
 		O) optimization="$OPTARG" ;;
+		r) readline=1 ;;
 		S) set_default 0 "$OPTARG" ;;
 		s) set_default 1 "$OPTARG" ;;
 		t) time_tests=1 ;;
@@ -844,6 +858,8 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 				disable-man-pages) install_manpages=0 ;;
 				disable-nls) nls=0 ;;
 				disable-strip) strip_bin=0 ;;
+				enable-editline) editline=1 ;;
+				enable-readline) readline=1 ;;
 				enable-test-timing) time_tests=1 ;;
 				enable-valgrind) vg=1 ;;
 				enable-fuzz-mode) fuzz=1 ;;
@@ -862,6 +878,8 @@ while getopts "abBcdDEfgGhHk:lMmNO:S:s:tTvz-" opt; do
 				enable-fuzz-mode* | enable-test-timing* | enable-valgrind*)
 					usage "No arg allowed for --$arg option" ;;
 				enable-memcheck* | install-all-locales*)
+					usage "No arg allowed for --$arg option" ;;
+				enable-editline* | enable-readline*)
 					usage "No arg allowed for --$arg option" ;;
 				'') break ;; # "--" terminates argument processing
 				* ) usage "Invalid option $LONG_OPTARG" ;;
@@ -1333,12 +1351,17 @@ fi
 # Like the above tested locale support, this tests history.
 if [ "$hist" -eq 1 ]; then
 
+	if [ "$editline" -ne 0 ] && [ "$readline" -ne 0 ]; then
+		usage "Must only enable one of readline or editline"
+	fi
+
 	set +e
 
 	printf 'Testing history...\n'
 
 	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
 	flags="$flags -DBC_ENABLE_NLS=$nls -DBC_ENABLE_LIBRARY=0 -DBC_ENABLE_AFL=0"
+	flags="$flags -DBC_ENABLE_EDITLINE=$editline -DBC_ENABLE_READLINE=$readline"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I$scriptdir/include/"
 	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
@@ -1366,13 +1389,56 @@ if [ "$hist" -eq 1 ]; then
 
 fi
 
-# We have to disable the history tests if it is disabled or valgrind is on.
+# We have to disable the history tests if it is disabled or valgrind is on. Or
+# if we are using editline or readline.
 if [ "$hist" -eq 0 ] || [ "$vg" -ne 0 ]; then
 	test_bc_history_prereqs=" test_bc_history_skip"
 	test_dc_history_prereqs=" test_dc_history_skip"
 	history_tests="@printf 'Skipping history tests...\\\\n'"
+	CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=0"
 else
-	history_tests="@printf '\$(TEST_STARS)\\\\n\\\\nRunning history tests...\\\\n\\\\n' \&\& \$(TESTSDIR)/history.sh bc -a \&\& \$(TESTSDIR)/history.sh dc -a \&\& printf '\\\\nAll history tests passed.\\\\n\\\\n\$(TEST_STARS)\\\\n'"
+
+	if [ "$editline" -eq 0 ] && [ "$readline" -eq 0 ]; then
+		history_tests="@printf '\$(TEST_STARS)\\\\n\\\\nRunning history tests...\\\\n\\\\n'"
+		history_tests="$history_tests \&\& \$(TESTSDIR)/history.sh bc -a \&\&"
+		history_tests="$history_tests \$(TESTSDIR)/history.sh dc -a \&\& printf"
+		history_tests="$history_tests '\\\\nAll history tests passed.\\\\n\\\\n\$(TEST_STARS)\\\\n'"
+	else
+		test_bc_history_prereqs=" test_bc_history_skip"
+		test_dc_history_prereqs=" test_dc_history_skip"
+		history_tests="@printf 'Skipping history tests...\\\\n'"
+	fi
+
+	# We are also setting the CFLAGS and LDFLAGS here.
+	if [ "$editline" -ne 0 ]; then
+		LDFLAGS="$LDFLAGS -ledit"
+		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=1 -DBC_ENABLE_READLINE=0"
+	elif [ "$readline" -ne 0 ]; then
+		LDFLAGS="$LDFLAGS -lreadline"
+		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=1"
+	else
+		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=0"
+	fi
+
+fi
+
+# Test FreeBSD. This is not in an if statement because regardless of whatever
+# the user says, we need to know if we are on FreeBSD. If we are, we cannot set
+# _POSIX_C_SOURCE and _XOPEN_SOURCE. The FreeBSD headers turn *off* stuff when
+# that is done.
+set +e
+printf 'Testing for FreeBSD...\n'
+
+flags="-DBC_TEST_FREEBSD -DBC_ENABLE_AFL=0"
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/include/status.h" > /dev/null 2>&1
+
+err="$?"
+
+if [ "$err" -ne 0 ]; then
+	printf 'On FreeBSD. Not using _POSIX_C_SOURCE and _XOPEN_SOURCE.\n\n'
+else
+	printf 'Not on FreeBSD. Using _POSIX_C_SOURCE and _XOPEN_SOURCE.\n\n'
+	CPPFLAGS="$CPPFLAGS -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 fi
 
 # Test OpenBSD. This is not in an if statement because regardless of whatever
@@ -1431,9 +1497,11 @@ headers="\$(HEADERS)"
 
 # This series of if statements figure out what source files are *not* needed.
 if [ "$extra_math" -eq 0 ]; then
+	exclude_extra_math=1
 	manpage_args="E"
 	unneeded="$unneeded rand.c"
 else
+	exclude_extra_math=0
 	headers="$headers \$(EXTRA_MATH_HEADERS)"
 fi
 
@@ -1645,6 +1713,7 @@ contents=$(replace "$contents" "DC_ERROR_TESTS" "$dc_err_tests")
 contents=$(replace "$contents" "DC_TEST_EXEC" "$dc_test_exec")
 
 contents=$(replace "$contents" "BUILD_TYPE" "$manpage_args")
+contents=$(replace "$contents" "EXCLUDE_EXTRA_MATH" "$exclude_extra_math")
 
 contents=$(replace "$contents" "LIBRARY" "$library")
 contents=$(replace "$contents" "HISTORY" "$hist")
