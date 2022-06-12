@@ -356,6 +356,7 @@ OLD_FILES+=usr/lib/clang/14.0.3/lib/freebsd/libclang_rt.xray-profiling-armhf.a
 OLD_FILES+=usr/lib/clang/14.0.3/lib/freebsd/libclang_rt.xray-profiling-x86_64.a
 OLD_FILES+=usr/lib/clang/14.0.3/lib/freebsd/libclang_rt.xray-x86_64.a
 OLD_DIRS+=usr/lib/clang/14.0.3/lib/freebsd
+OLD_DIRS+=usr/lib/clang/14.0.3/lib/share
 OLD_DIRS+=usr/lib/clang/14.0.3/lib
 OLD_FILES+=usr/lib/clang/14.0.3/share/asan_ignorelist.txt
 OLD_FILES+=usr/lib/clang/14.0.3/share/cfi_ignorelist.txt
