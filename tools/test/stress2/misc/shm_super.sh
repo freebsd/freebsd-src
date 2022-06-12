@@ -82,6 +82,7 @@ rm /tmp/shm_super.c
 
 /tmp/shm_super > /tmp/shm_super.log 2>&1
 grep -wq S /tmp/shm_super.log && s=0 || { cat /tmp/shm_super.log; s=1; }
+[ $s -eq 1 ] && echo "No superpage mappings found."
 
 rm -f /tmp/shm_super /tmp/shm_super.log
 exit $s
