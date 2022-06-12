@@ -1,0 +1,48 @@
+FreeBSD still calls blocklistd blacklistd.
+
+In the meantime:
+
+    #!/bin/sh
+
+    # Inside files blocklist -> blacklist
+    # NB: Granted this is wrong for port/debian, but this script is
+    #     already pedestrian.
+    files="$(find contrib/blacklist -print)"
+
+    for file in $files; do
+    	sed -i "" -e 's/blocklist/blacklist/g' "$file"
+    	sed -i "" -e 's/Blocklist/Blacklist/g' "$file"
+    	sed -i "" -e 's/BLOCKLIST/BLACKLIST/g' "$file"
+    done
+
+    # Remove Debian port
+    rm -rf contrib/blacklist/port/debian
+
+    # Remove postfix.diff patch
+    rm -f contrib/blacklist/diff/postfix.diff
+
+    # Filenames blocklist -> blacklist
+    mv contrib/blacklist/bin/blocklistctl.8 contrib/blacklist/bin/blacklistctl.8
+    mv contrib/blacklist/bin/blocklistctl.c contrib/blacklist/bin/blacklistctl.c
+    mv contrib/blacklist/bin/blocklistd.8 contrib/blacklist/bin/blacklistd.8
+    mv contrib/blacklist/bin/blocklistd.c contrib/blacklist/bin/blacklistd.c
+    mv contrib/blacklist/bin/blocklistd.conf.5 contrib/blacklist/bin/blacklistd.conf.5
+    mv contrib/blacklist/etc/blocklistd.conf contrib/blacklist/etc/blacklistd.conf
+    mv contrib/blacklist/etc/rc.d/blocklistd contrib/blacklist/etc/rc.d/blacklistd
+    mv contrib/blacklist/include/blocklist.h contrib/blacklist/include/blacklist.h
+    mv contrib/blacklist/lib/blocklist.c contrib/blacklist/lib/blacklist.c
+    mv contrib/blacklist/lib/libblocklist.3 contrib/blacklist/lib/libblacklist.3
+    mv contrib/blacklist/libexec/blocklistd-helper contrib/blacklist/libexec/blacklistd-helper
+    mv contrib/blacklist/port/debian/blocklist.manpages contrib/blacklist/port/debian/blacklist.manpages
+
+    # /libexec -> /usr/libexec
+    sed -i "" -e 's|/libexec|/usr/libexec|g' contrib/blacklist/bin/blacklistd.8
+
+    # NetBSD: RT_ROUNDUP -> FreeBSD: SA_SIZE (from net/route.h)
+    sed -i "" -e 's/RT_ROUNDUP/SA_SIZE/g' contrib/blacklist/bin/conf.c
+
+    # TODO: Should we add ipf(8) and ipfw(8) as well?
+    sed -i "" -e 's/npfctl/pfctl/g' contrib/blacklist/bin/blacklistd.8
+
+    # TODO: contrib/blacklist/etc/rc.d/blacklistd: should we change it to:
+    # REQUIRE: ipfilter ipfw pf
