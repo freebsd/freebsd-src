@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-# $NetBSD: blacklistd,v 1.2 2016/10/17 22:47:16 christos Exp $
+# $NetBSD: blacklistd,v 1.1 2015/01/22 17:49:41 christos Exp $
 #
 
 # PROVIDE: blacklistd
-# REQUIRE: npf
+# REQUIRE: ipfilter ipfw pf
 # BEFORE:  SERVERS
 
 $_rc_subr_loaded . /etc/rc.subr

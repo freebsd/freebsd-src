@@ -17,12 +17,16 @@ if [ -f "/etc/ipfw-blacklist.rc" ]; then
 fi
 
 if [ -z "$pf" ]; then
-	for f in npf pf ipf; do
-		if [ -f "/etc/$f.conf" ]; then
-			pf="$f"
+	for f in ipf.rules pf.conf; do
+		if [ -f "/etc/$f" ]; then
+			pf="${f%.*}"
 			break
 		fi
 	done
+fi
+
+if [ -z "$pf" -a -x "/sbin/iptables" ]; then
+	pf="iptables"
 fi
 
 if [ -z "$pf" ]; then
@@ -30,11 +34,17 @@ if [ -z "$pf" ]; then
 	exit 1
 fi
 
+flags=
 if [ -n "$3" ]; then
+	raw_proto="$3"
 	proto="proto $3"
+	if [ $3 = "tcp" ]; then
+		flags="flags S/SAFR"
+	fi
 fi
 
 if [ -n "$6" ]; then
+	raw_port="$6"
 	port="port $6"
 fi
 
@@ -52,11 +62,59 @@ case "$1" in
 add)
 	case "$pf" in
 	ipf)
-		/sbin/ipfstat -io | /sbin/ipf -I -f - >/dev/null 2>&1
-		echo block in quick $proto from $addr/$mask to \
-		    any port=$6 head port$6 | \
-		    /sbin/ipf -I -f - -s >/dev/null 2>&1 && echo OK
+		# N.B.:  If you reload /etc/ipf.rules then you need to stop and
+		# restart blacklistd (and make sure blacklistd_flags="-r"):
+		#
+		#	/etc/rc.d/ipfilter reload
+		#	/etc/rc.d/blacklistd restart
+		#
+		# XXX we assume the following rule is present in /etc/ipf.rules:
+		#
+		#	block in proto tcp/udp from any to any head blacklistd
+		#
+		# where "blacklistd" is the default rulename (i.e. "$2")
+		#
+		# This rule can come before any rule that logs connections,
+		# etc., and should be followed by final rules such as:
+		#
+		#	# log all as-yet unblocked incoming TCP connection
+		#	# attempts
+		#	log in proto tcp from any to any flags S/SAFR
+		#	# last "pass" match wins for all non-blocked packets
+		#	pass in all
+		#	pass out all
+		#
+		# I.e. a "pass" rule which will be the final match and override
+		# the "block".  This way the rules added by blacklistd will
+		# actually block packets, and prevent logging of them as
+		# connections, because they include the "quick" flag.
+		#
+		# N.b.:  $port is not included -- abusers are cut off completely
+		# from all services!
+		#
+		# Note RST packets are not returned for blocked SYN packets of
+		# active attacks, so the port will not appear to be closed.
+		# This will probably give away the fact that a firewall has been
+		# triggered to block connections, but it prevents generating
+		# extra outbound traffic, and it may also slow down the attacker
+		# somewhat.
+		#
+		# Note also that we don't block all packets, just new attempts
+		# to open connections (see $flags above).  This allows us to do
+		# counterespionage against the attacker (or continue to make use
+		# of any other services that might be on the same subnet as the
+		# attacker).  However it does not kill any active connections --
+		# we rely on the reporting daemon to do its own protection and
+		# cleanup.
+		#
+		# N.B.:  The generated must exactly match the rule generated for
+		# the "rem" command below!
+		#
+		echo block in log quick $proto \
+		     from $addr/$mask to any $flags group $2 | \
+		    /sbin/ipf -A -f - >/dev/null 2>&1 && echo OK
 		;;
+
 	ipfw)
 		# use $ipfw_offset+$port for rule number
 		rule=$(($ipfw_offset + $6))
@@ -69,10 +127,23 @@ add)
 			table"("$tname")" to any dst-port $6 >/dev/null && \
 			echo OK
 		;;
+
+	iptables)
+		if ! /sbin/iptables --list "$2" >/dev/null 2>&1; then
+			/sbin/iptables --new-chain "$2"
+		fi
+		/sbin/iptables --append INPUT --proto "$raw_proto" \
+		    --dport "$raw_port" --jump "$2"
+		/sbin/iptables --append "$2" --proto "$raw_proto" \
+		    --source "$addr/$mask" --dport "$raw_port" --jump DROP
+		echo OK
+		;;
+
 	npf)
 		/sbin/npfctl rule "$2" add block in final $proto from \
 		    "$addr/$mask" to any $port
 		;;
+
 	pf)
 		# if the filtering rule does not exist, create it
 		/sbin/pfctl -a "$2/$6" -sr 2>/dev/null | \
@@ -83,40 +154,75 @@ add)
 		/sbin/pfctl -qa "$2/$6" -t "port$6" -T add "$addr/$mask" && \
 		    /sbin/pfctl -qk "$addr" && echo OK
 		;;
+
 	esac
 	;;
 rem)
 	case "$pf" in
 	ipf)
-		/sbin/ipfstat -io | /sbin/ipf -I -f - >/dev/null 2>&1
-		echo block in quick $proto from $addr/$mask to \
-		    any port=$6 head port$6 | \
-		    /sbin/ipf -I -r -f - -s >/dev/null 2>&1 && echo OK
+		echo block in log quick $proto \
+		     from $addr/$mask to any $flags group $2 | \
+		    /sbin/ipf -A -r -f - >/dev/null 2>&1 && echo OK
 		;;
+
 	ipfw)
 		/sbin/ipfw table "port$6" delete "$addr/$mask" 2>/dev/null && \
 		    echo OK
 		;;
+
+	iptables)
+		if /sbin/iptables --list "$2" >/dev/null 2>&1; then
+			/sbin/iptables --delete "$2" --proto "$raw_proto" \
+			    --source "$addr/$mask" --dport "$raw_port" \
+			    --jump DROP
+		fi
+		echo OK
+		;;
+
 	npf)
 		/sbin/npfctl rule "$2" rem-id "$7"
 		;;
+
 	pf)
 		/sbin/pfctl -qa "$2/$6" -t "port$6" -T delete "$addr/$mask" && \
 		    echo OK
 		;;
+
 	esac
 	;;
 flush)
 	case "$pf" in
 	ipf)
-		/sbin/ipf -Z -I -Fi -s > /dev/null && echo OK
+		#
+		# XXX this is a slightly convoluted way to remove all the rules
+		# in the group added for "$2" (i.e. normally by default
+		# "blacklistd").
+		#
+		# N.B. WARNING:  This is obviously not reentrant!
+		#
+		/sbin/ipf -I -F a
+		/usr/sbin/ipfstat -io | fgrep -v "group $2" | \
+		    /sbin/ipf -I -f - >/dev/null 2>&1
+		# XXX this MUST be done last and separately as "-s" is executed
+		# _while_ the command arguments are being processed!
+		/sbin/ipf -s && echo OK
 		;;
+
 	ipfw)
 		/sbin/ipfw table "port$6" flush 2>/dev/null && echo OK
 		;;
+
+	iptables)
+		if /sbin/iptables --list "$2" >/dev/null 2>&1; then
+			/sbin/iptables --flush "$2"
+		fi
+		echo OK
+		;;
+
 	npf)
 		/sbin/npfctl rule "$2" flush
 		;;
+
 	pf)
 		# dynamically determine which anchors exist
 		for anchor in $(/sbin/pfctl -a "$2" -s Anchors); do

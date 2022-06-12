@@ -1,4 +1,4 @@
-# $NetBSD: Makefile,v 1.11 2015/01/27 19:40:36 christos Exp $
+# $NetBSD: Makefile,v 1.10 2015/01/22 17:49:41 christos Exp $
 
 BINDIR=/sbin
 

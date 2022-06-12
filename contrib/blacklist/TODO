@@ -1,4 +1,4 @@
-# $NetBSD: TODO,v 1.7 2015/01/23 21:34:01 christos Exp $
+# $NetBSD: TODO,v 1.6 2015/01/22 18:15:56 christos Exp $
 
 - don't poll periodically, find the next timeout
 - use the socket also for commands? Or separate socket?
@@ -19,3 +19,46 @@
 	unblock
 - do we need an api in blacklistctl to perform maintenance
 - fix the blacklistctl output to be more user friendly
+
+- figure out some way to do distributed operation securely (perhaps with
+  a helper daemon that authenticates local sockets and then communicates
+  local DB changes to the central server over a secure channel --
+  perhaps blacklistd-helper can have a back-end that can send updates to
+  a central server)
+
+- add "blacklistd -l" to enable filter logging on all rules by default
+
+- add some new options in the config file
+
+	"/all"	- block both TCP and UDP (on the proto field?)
+
+	"/log"	- enable filter logging (if not the default) (on the name field?)
+	"/nolog"- disable filter logging (if not the default) (on the name field?)
+
+  The latter two probably require a new parameter for blacklistd-helper.
+
+- "blacklistd -f" should (also?) be a blacklistctl function!?!?!
+
+- if blacklistd was started with '-r' then a SIGHUP should also do a
+  "control flush $rulename" and then re-add all the filter rules?
+
+- should/could /etc/rc.conf.d/ipfilter be created with the following?
+
+	reload_postcmd=blacklistd_reload
+	start_postcmd=blacklistd_start
+	stop_precmd=blacklistd_stop
+	blacklistd_reload ()
+	{
+		/etc/rc.d/blacklistd reload	# IFF SIGHUP does flush/re-add
+		# /etc/rc.d/blacklistd restart
+	}
+	blacklistd_stop ()
+	{
+		/etc/rc.d/blacklistd stop
+	}
+	blacklistd_start ()
+	{
+		/etc/rc.d/blacklistd start
+	}
+
+  or is there a better way?
