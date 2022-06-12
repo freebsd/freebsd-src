@@ -22,7 +22,6 @@ fi
 
 wpa_poststart() {
 	ifconfig ${ifn} down
-	sleep 2
 	ifconfig ${ifn} up
 }
 
