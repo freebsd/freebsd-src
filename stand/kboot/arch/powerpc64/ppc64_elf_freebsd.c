@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 
 #include "bootstrap.h"
+#include "syscall_nr.h"
 #include "host_syscall.h"
 
 extern char		end[];
@@ -152,7 +153,7 @@ ppc64_elf_exec(struct preloaded_file *fp)
 		panic("architecture did not provide kexec segment mapping");
 	archsw.arch_kexec_kseg_get(&nseg, &kseg);
 
-	error = kexec_load(trampolinebase, nseg, (uintptr_t)kseg);
+	error = host_kexec_load(trampolinebase, nseg, (uintptr_t)kseg, KEXEC_ARCH << 16);
 	if (error != 0)
 		panic("kexec_load returned error: %d", error);
 
