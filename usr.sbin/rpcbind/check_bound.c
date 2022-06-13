@@ -161,7 +161,7 @@ char *
 mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
 {
 	struct fdlist *fdl;
-	struct svc_dg_data *dg_data;
+	struct netbuf *callee;
 	char *c_uaddr, *s_uaddr, *m_uaddr, *allocated_uaddr = NULL;
 
 	for (fdl = fdhead; fdl; fdl = fdl->next)
@@ -182,12 +182,11 @@ mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
 	 * address by which it contacted us.  Use that for the "client" uaddr,
 	 * otherwise use the info from the SVCXPRT.
 	 */
-	dg_data = (struct svc_dg_data*)xprt->xp_p2;
-	if (dg_data != NULL && dg_data->su_srcaddr.buf != NULL) {
-		c_uaddr = taddr2uaddr(fdl->nconf, &dg_data->su_srcaddr);
+	callee = svc_getrpccallee(xprt);
+	if (callee != NULL && callee->buf != NULL) {
+		c_uaddr = taddr2uaddr(fdl->nconf, callee);
 		allocated_uaddr = c_uaddr;
-	}
-	else if (saddr != NULL) {
+	} else if (saddr != NULL) {
 		c_uaddr = saddr;
 	} else {
 		c_uaddr = taddr2uaddr(fdl->nconf, svc_getrpccaller(xprt));

@@ -165,6 +165,10 @@ struct svc_req {
  *  Approved way of getting address of caller
  */
 #define svc_getrpccaller(x) (&(x)->xp_rtaddr)
+/*
+ *  Approved way of getting address of callee
+ */
+#define svc_getrpccallee(x) (&(x)->xp_ltaddr)
 
 /*
  * Operations defined on an SVCXPRT handle
