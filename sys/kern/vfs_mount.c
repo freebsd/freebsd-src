@@ -2610,6 +2610,8 @@ vfs_copyopt(struct vfsoptlist *opts, const char *name, void *dest, int len)
 int
 __vfs_statfs(struct mount *mp, struct statfs *sbp)
 {
+	struct vnode *vp;
+	uint32_t count;
 
 	/*
 	 * Filesystems only fill in part of the structure for updates, we
@@ -2624,6 +2626,16 @@ __vfs_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_version = STATFS_VERSION;
 	sbp->f_namemax = NAME_MAX;
 	sbp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	sbp->f_nvnodelistsize = mp->mnt_nvnodelistsize;
+
+	count = 0;
+	MNT_ILOCK(mp);
+	TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
+		if (vrefcnt(vp) > 0) /* racy but does not matter */
+			count++;
+	}
+	MNT_IUNLOCK(mp);
+	sbp->f_avnodecount = count;
 
 	return (mp->mnt_op->vfs_statfs(mp, sbp));
 }
