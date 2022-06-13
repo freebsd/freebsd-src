@@ -876,9 +876,6 @@ lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t hash,
 	hash %= count;
 	lp = map[hash];
 
-	KASSERT((lp->lp_state & LACP_STATE_DISTRIBUTING) != 0,
-	    ("aggregated port is not distributing"));
-
 	return (lp->lp_lagg);
 }
 
