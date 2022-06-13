@@ -6,7 +6,8 @@ INCS=	\
 	asmacros.h \
 	atomic.h \
 	cpufunc.h \
-	profile.h
+	profile.h \
+	segments.h
 INCSDIR=	${INCLUDEDIR}/i386
 
 .include <bsd.prog.mk>
