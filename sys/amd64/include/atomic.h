@@ -27,6 +27,11 @@
  *
  * $FreeBSD$
  */
+
+#ifdef __i386__
+#include <i386/atomic.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
@@ -592,3 +597,5 @@ atomic_swap_long(volatile u_long *p, u_long v)
 #endif /* !SAN_NEEDS_INTERCEPTORS || SAN_RUNTIME */
 
 #endif /* !_MACHINE_ATOMIC_H_ */
+
+#endif /* __i386__ */

@@ -4,6 +4,7 @@
 INCS=	\
 	asm.h \
 	asmacros.h \
+	atomic.h \
 	cpufunc.h \
 	profile.h
 INCSDIR=	${INCLUDEDIR}/i386
