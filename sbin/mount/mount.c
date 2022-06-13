@@ -692,6 +692,13 @@ prmount(struct statfs *sfp)
 			xo_emit("{D:, }{Lw:fsid}{:fsid}", fsidbuf);
 			free(fsidbuf);
 		}
+		if (sfp->f_nvnodelistsize != 0 || sfp->f_avnodecount != 0) {
+			xo_open_container("vnodes");
+			xo_emit("{D:, }{Lwc:vnodes}{Lw:count}{w:count/%ju}{Lw:active}{:active/%ju}",
+			    (uintmax_t)sfp->f_nvnodelistsize,
+			    (uintmax_t)sfp->f_avnodecount);
+			xo_close_container("vnodes");
+		}
 	}
 	xo_emit("{D:)}\n");
 }
