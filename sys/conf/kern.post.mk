@@ -360,6 +360,9 @@ _ILINKS+= ${MACHINE_CPUARCH}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _ILINKS+= x86
 .endif
+.if ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+= i386
+.endif
 
 # Ensure that the link exists without depending on it when it exists.
 # Ensure that debug info references the path in the source tree.
