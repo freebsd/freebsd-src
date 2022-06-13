@@ -6,6 +6,7 @@ INCS=	\
 	asmacros.h \
 	atomic.h \
 	cpufunc.h \
+	pmap.h \
 	profile.h \
 	segments.h
 INCSDIR=	${INCLUDEDIR}/i386
