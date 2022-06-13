@@ -43,6 +43,10 @@
  * $FreeBSD$
  */
 
+#ifdef __i386__
+#include <i386/vmparam.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_ 1
 
@@ -302,3 +306,5 @@
 #define MINIDUMP_PAGE_TRACKING	1
 
 #endif /* _MACHINE_VMPARAM_H_ */
+
+#endif /* __i386__ */
