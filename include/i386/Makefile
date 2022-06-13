@@ -2,6 +2,8 @@
 
 .PATH: ${SRCTOP}/sys/i386/include
 INCS=	\
+	asm.h \
+	asmacros.h \
 	cpufunc.h \
 	profile.h
 INCSDIR=	${INCLUDEDIR}/i386

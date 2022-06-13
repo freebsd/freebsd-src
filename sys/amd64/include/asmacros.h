@@ -39,6 +39,10 @@
  * $FreeBSD$
  */
 
+#if defined(__i386__)
+#include <i386/asmacros.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_ASMACROS_H_
 #define _MACHINE_ASMACROS_H_
 
@@ -264,3 +268,5 @@ X\vec_name:
 #endif /* __STDC__ */
 
 #endif /* !_MACHINE_ASMACROS_H_ */
+
+#endif /* __i386__ */
