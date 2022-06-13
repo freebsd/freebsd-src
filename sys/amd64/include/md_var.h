@@ -31,6 +31,10 @@
  * $FreeBSD$
  */
 
+#ifdef __i386__
+#include <i386/md_var.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
@@ -95,3 +99,5 @@ int	set_fpcontext(struct thread *td, struct __mcontext *mcp,
 	    char *xfpustate, size_t xfpustate_len);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
+
+#endif /* __i386__ */
