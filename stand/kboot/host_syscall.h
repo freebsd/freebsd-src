@@ -54,7 +54,7 @@ struct host_timeval {
 int host_close(int fd);
 int host_getdents(int fd, void *dirp, int count);
 int host_gettimeofday(struct host_timeval *a, void *b);
-int kexec_load(uint32_t start, int nsegs, uint32_t segs);
+int host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
 void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
 int host_open(const char *path, int flags, int mode);
