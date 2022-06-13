@@ -101,7 +101,7 @@ bitmaskcmp(struct sockaddr *dst, struct sockaddr *src, struct sockaddr *mask)
 
 /*
  * Find a server address that can be used by `caller' to contact
- * the local service specified by `serv_uaddr'. If `clnt_uaddr' is
+ * the local service specified by `serv_uaddr'. If `contct_uaddr' is
  * non-NULL, it is used instead of `caller' as a hint suggesting
  * the best address (e.g. the `r_addr' field of an rpc, which
  * contains the rpcbind server address that the caller used).
@@ -110,8 +110,8 @@ bitmaskcmp(struct sockaddr *dst, struct sockaddr *src, struct sockaddr *mask)
  * string which should be freed by the caller. On error, returns NULL.
  */
 char *
-addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
-	  const char *netid)
+addrmerge(struct netbuf *caller, const char *serv_uaddr,
+    const char *contct_uaddr, const char *netid)
 {
 	struct ifaddrs *ifap, *ifp = NULL, *bestif;
 	struct netbuf *serv_nbp = NULL, *hint_nbp = NULL, tbuf;
@@ -128,7 +128,7 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 #ifdef ND_DEBUG
 	if (debugging)
 		fprintf(stderr, "addrmerge(caller, %s, %s, %s\n", serv_uaddr,
-		    clnt_uaddr == NULL ? "NULL" : clnt_uaddr, netid);
+		    contct_uaddr == NULL ? "NULL" : contct_uaddr, netid);
 #endif
 	caller_sa = caller->buf;
 	if ((nconf = rpcbind_get_conf(netid)) == NULL)
@@ -137,15 +137,15 @@ addrmerge(struct netbuf *caller, const char *serv_uaddr, const char *clnt_uaddr,
 		goto freeit;
 
 	/*
-	 * Use `clnt_uaddr' as the hint if non-NULL, but ignore it if its
+	 * Use `contct_uaddr' as the hint if non-NULL, but ignore it if its
 	 * address family is different from that of the caller.
 	 */
 	hint_sa = NULL;
-	if (clnt_uaddr != NULL) {
+	if (contct_uaddr != NULL) {
 #ifdef ND_DEBUG
-		hint_uaddr = clnt_uaddr;
+		hint_uaddr = contct_uaddr;
 #endif
-		if ((hint_nbp = uaddr2taddr(nconf, clnt_uaddr)) == NULL)
+		if ((hint_nbp = uaddr2taddr(nconf, contct_uaddr)) == NULL)
 			goto freeit;
 		hint_sa = hint_nbp->buf;
 	}
