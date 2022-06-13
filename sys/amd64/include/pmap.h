@@ -44,6 +44,10 @@
  * $FreeBSD$
  */
 
+#ifdef __i386__
+#include <i386/pmap.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
@@ -584,3 +588,5 @@ pmap_pml5e_index(vm_offset_t va)
 #endif /* !LOCORE */
 
 #endif /* !_MACHINE_PMAP_H_ */
+
+#endif /* __i386__ */
