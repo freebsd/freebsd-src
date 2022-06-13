@@ -11,6 +11,10 @@ INCS=	\
 	profile.h \
 	segments.h \
 	vmparam.h
+# These kernel-only headers are used by procstat's ZFS support.
+# This should be fixed.
+INCS+=	\
+	pcpu.h
 INCSDIR=	${INCLUDEDIR}/i386
 
 .include <bsd.prog.mk>
