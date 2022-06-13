@@ -32,13 +32,9 @@
 
 long host_syscall(int number, ...);
 
-ssize_t host_read(int fd, void *buf, size_t nbyte);
-ssize_t host_write(int fd, const void *buf, size_t nbyte);
-int host_open(const char *path, int flags, int mode);
-ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
-int host_close(int fd);
-void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
-#define host_getmem(size) host_mmap(0, size, 3 /* RW */, 0x22 /* ANON */, -1, 0);
+/*
+ * Data types
+ */
 struct old_utsname {
 	char sysname[65];
 	char nodename[65];
@@ -46,16 +42,32 @@ struct old_utsname {
 	char version[65];
 	char machine[65];
 };
-int host_uname(struct old_utsname *);
+
 struct host_timeval {
 	time_t tv_sec;
 	long tv_usec;
 };
+
+/*
+ * System Calls
+ */
+int host_close(int fd);
+int host_getdents(int fd, void *dirp, int count);
 int host_gettimeofday(struct host_timeval *a, void *b);
+int kexec_load(uint32_t start, int nsegs, uint32_t segs);
+ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
+void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
+int host_open(const char *path, int flags, int mode);
+ssize_t host_read(int fd, void *buf, size_t nbyte);
+int host_reboot(int, int, int, uintptr_t);
 int host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
     struct host_timeval *timeout);
-int kexec_load(uint32_t start, int nsegs, uint32_t segs);
-int host_reboot(int, int, int, uintptr_t);
-int host_getdents(int fd, void *dirp, int count);
+int host_uname(struct old_utsname *);
+ssize_t host_write(int fd, const void *buf, size_t nbyte);
+
+/*
+ * Wrappers / one-liners
+ */
+#define host_getmem(size) host_mmap(0, size, 3 /* RW */, 0x22 /* ANON */, -1, 0);
 
 #endif
