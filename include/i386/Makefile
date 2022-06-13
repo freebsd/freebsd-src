@@ -20,4 +20,12 @@ INCS+=	\
 	pcpu_aux.h
 INCSDIR=	${INCLUDEDIR}/i386
 
+beforeinstall: i386dir
+META_TARGETS+=	i386dir
+
+i386dir:
+	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${DESTDIR}${INCLUDEDIR}/i386
+
+
 .include <bsd.prog.mk>
