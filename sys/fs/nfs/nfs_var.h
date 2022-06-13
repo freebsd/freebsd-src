@@ -443,7 +443,7 @@ int nfsrpc_null(vnode_t, struct ucred *, NFSPROC_T *);
 int nfsrpc_access(vnode_t, int, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, int *);
 int nfsrpc_accessrpc(vnode_t, u_int32_t, struct ucred *,
-    NFSPROC_T *, struct nfsvattr *, int *, u_int32_t *, void *);
+    NFSPROC_T *, struct nfsvattr *, int *, u_int32_t *);
 int nfsrpc_open(vnode_t, int, struct ucred *, NFSPROC_T *);
 int nfsrpc_openrpc(struct nfsmount *, vnode_t, u_int8_t *, int, u_int8_t *, int,
     u_int32_t, struct nfsclopen *, u_int8_t *, int, struct nfscldeleg **, int,
@@ -457,12 +457,11 @@ int nfsrpc_openconfirm(vnode_t, u_int8_t *, int, struct nfsclopen *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_setclient(struct nfsmount *, struct nfsclclient *, int,
     bool *, struct ucred *, NFSPROC_T *);
-int nfsrpc_getattr(vnode_t, struct ucred *, NFSPROC_T *,
-    struct nfsvattr *, void *);
+int nfsrpc_getattr(vnode_t, struct ucred *, NFSPROC_T *, struct nfsvattr *);
 int nfsrpc_getattrnovp(struct nfsmount *, u_int8_t *, int, int,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, u_int64_t *, uint32_t *);
 int nfsrpc_setattr(vnode_t, struct vattr *, NFSACL_T *, struct ucred *,
-    NFSPROC_T *, struct nfsvattr *, int *, void *);
+    NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_lookup(vnode_t, char *, int, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, struct nfsvattr *, struct nfsfh **, int *, int *,
     void *, uint32_t);
