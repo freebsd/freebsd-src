@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef __i386__
+#include <i386/pcpu_aux.h>
+#else /* !__i386__ */
+
 #ifndef _MACHINE_PCPU_AUX_H_
 #define	_MACHINE_PCPU_AUX_H_
 
@@ -60,3 +64,5 @@ __curthread(void)
 #define	curpcb			(&curthread->td_md.md_pcb)
 
 #endif	/* _MACHINE_PCPU_AUX_H_ */
+
+#endif /* __i386__ */
