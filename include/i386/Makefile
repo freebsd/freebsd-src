@@ -9,7 +9,8 @@ INCS=	\
 	pmap.h \
 	proc.h \
 	profile.h \
-	segments.h
+	segments.h \
+	vmparam.h
 INCSDIR=	${INCLUDEDIR}/i386
 
 .include <bsd.prog.mk>
