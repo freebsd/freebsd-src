@@ -70,7 +70,7 @@ host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
 int
 kexec_load(uint32_t start, int nsegs, uint32_t segs)
 {
-	return host_syscall(__NR_kexec_load, start, nsegs, segs, KEXEC_ARCH << 16);
+	return host_syscall(SYS_kexec_load, start, nsegs, segs, KEXEC_ARCH << 16);
 }
 
 int
