@@ -31,6 +31,7 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
+#ifdef __amd64__
 /*
  * On this machine, the only purpose for which sf_buf is used is to implement
  * an opaque pointer required by the machine-independent parts of the kernel.
@@ -50,4 +51,5 @@ sf_buf_page(struct sf_buf *sf)
 
 	return ((vm_page_t)sf);
 }
+#endif /* __amd64__ */
 #endif /* !_MACHINE_SF_BUF_H_ */
