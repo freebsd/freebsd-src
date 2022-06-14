@@ -2099,8 +2099,15 @@ again:
 				goto again;
 			}
 			pmap_copy_page(src_m, dst_m);
-			VM_OBJECT_RUNLOCK(object);
+
+			/*
+			 * The object lock does not guarantee that "src_m" will
+			 * transition from invalid to valid, but it does ensure
+			 * that "src_m" will not transition from valid to
+			 * invalid.
+			 */
 			dst_m->dirty = dst_m->valid = src_m->valid;
+			VM_OBJECT_RUNLOCK(object);
 		} else {
 			dst_m = src_m;
 			if (vm_page_busy_acquire(dst_m, VM_ALLOC_WAITFAIL) == 0)
