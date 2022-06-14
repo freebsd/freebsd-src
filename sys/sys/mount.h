@@ -92,7 +92,7 @@ struct statfs {
 	uint64_t f_syncreads;		/* count of sync reads since mount */
 	uint64_t f_asyncreads;		/* count of async reads since mount */
 	uint32_t f_nvnodelistsize;	/* # of vnodes */
-	uint32_t f_avnodecount;		/* # of active vnodes */
+	uint32_t f_spare0;		/* unused spare */
 	uint64_t f_spare[9];		/* unused spare */
 	uint32_t f_namemax;		/* maximum filename length */
 	uid_t	  f_owner;		/* user that mounted the filesystem */
