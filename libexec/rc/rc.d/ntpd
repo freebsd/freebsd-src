@@ -6,7 +6,7 @@
 # PROVIDE: ntpd
 # REQUIRE: DAEMON ntpdate FILESYSTEMS devfs
 # BEFORE:  LOGIN
-# KEYWORD: nojail shutdown
+# KEYWORD: nojail resume shutdown
 
 . /etc/rc.subr
 
@@ -14,9 +14,10 @@ name="ntpd"
 desc="Network Time Protocol daemon"
 rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
-extra_commands="fetch needfetch"
+extra_commands="fetch needfetch resume"
 fetch_cmd="ntpd_fetch_leapfile"
 needfetch_cmd="ntpd_needfetch_leapfile"
+resume_cmd="ntpd_resume"
 start_precmd="ntpd_precmd"
 
 _ntp_tmp_leapfile="/var/run/ntpd.leap-seconds.list"
@@ -237,6 +238,11 @@ ntpd_fetch_leapfile() {
 			$verbose using existing $ntp_db_leapfile
 		fi
 	fi
+}
+
+ntpd_resume()
+{
+	run_rc_command restart
 }
 
 run_rc_command "$1"
