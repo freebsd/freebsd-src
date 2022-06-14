@@ -760,11 +760,11 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EADDRNOTAVAIL);
 	}
 	NET_EPOCH_EXIT(et);
-	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
+	INP_INFO_WLOCK(&V_ripcbinfo);
 	inp->in6p_laddr = addr->sin6_addr;
-	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
+	INP_WUNLOCK(inp);
 	return (0);
 }
 
