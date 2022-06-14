@@ -94,11 +94,11 @@ extern vm_offset_t ksymtab, kstrtab, ksymtab_size, ksymtab_relbase;
  * - The last one for sub-commands of 'show all'; type 'show all'
  *   without any argument to get a list.
  */
-struct command;
-LIST_HEAD(command_table, command);
-extern struct command_table db_cmd_table;
-extern struct command_table db_show_table;
-extern struct command_table db_show_all_table;
+struct db_command;
+LIST_HEAD(db_command_table, db_command);
+extern struct db_command_table db_cmd_table;
+extern struct db_command_table db_show_table;
+extern struct db_command_table db_show_all_table;
 
 /*
  * Type signature for a function implementing a ddb command.
@@ -109,7 +109,7 @@ typedef void db_cmdfcn_t(db_expr_t addr, bool have_addr, db_expr_t count,
 /*
  * Command table entry.
  */
-struct command {
+struct db_command {
 	char *	name;		/* command name */
 	db_cmdfcn_t *fcn;	/* function to call */
 	int	flag;		/* extra info: */
@@ -117,8 +117,8 @@ struct command {
 #define	CS_MORE		0x2	/* standard syntax, but may have other words
 				 * at end */
 #define	CS_SET_DOT	0x100	/* set dot after command */
-	struct command_table *more; /* another level of command */
-	LIST_ENTRY(command) next; /* next entry in the command table */
+	struct db_command_table *more; /* another level of command */
+	LIST_ENTRY(db_command) next; /* next entry in the command table */
 };
 
 /*
@@ -128,7 +128,7 @@ struct command {
  * the module is loaded.
  */
 #define	_DB_SET(_suffix, _name, _func, list, _flag, _more)	\
-static struct command __CONCAT(_name,_suffix) = {		\
+static struct db_command __CONCAT(_name,_suffix) = {		\
 	.name	= __STRING(_name),				\
 	.fcn	= _func,					\
 	.flag	= _flag,					\
@@ -225,8 +225,10 @@ bool		db_value_of_name(const char *name, db_expr_t *valuep);
 bool		db_value_of_name_pcpu(const char *name, db_expr_t *valuep);
 bool		db_value_of_name_vnet(const char *name, db_expr_t *valuep);
 int		db_write_bytes(vm_offset_t addr, size_t size, char *data);
-void		db_command_register(struct command_table *, struct command *);
-void		db_command_unregister(struct command_table *, struct command *);
+void		db_command_register(struct db_command_table *,
+		    struct db_command *);
+void		db_command_unregister(struct db_command_table *,
+		    struct db_command *);
 int		db_fetch_ksymtab(vm_offset_t ksym_start, vm_offset_t ksym_end,
 		    vm_offset_t relbase);
 

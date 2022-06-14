@@ -83,28 +83,28 @@ static db_cmdfcn_t	db_watchdog;
  * 'show' commands
  */
 
-static struct command db_show_active_cmds[] = {
+static struct db_command db_show_active_cmds[] = {
 	{ "trace",	db_stack_trace_active,	0,	NULL },
 };
-struct command_table db_show_active_table =
+struct db_command_table db_show_active_table =
     LIST_HEAD_INITIALIZER(db_show_active_table);
 
-static struct command db_show_all_cmds[] = {
+static struct db_command db_show_all_cmds[] = {
 	{ "trace",	db_stack_trace_all,	0,	NULL },
 };
-struct command_table db_show_all_table =
+struct db_command_table db_show_all_table =
     LIST_HEAD_INITIALIZER(db_show_all_table);
 
-static struct command db_show_cmds[] = {
+static struct db_command db_show_cmds[] = {
 	{ "active",	0,			0,	&db_show_active_table },
 	{ "all",	0,			0,	&db_show_all_table },
 	{ "registers",	db_show_regs,		0,	NULL },
 	{ "breaks",	db_listbreak_cmd, 	0,	NULL },
 	{ "threads",	db_show_threads,	0,	NULL },
 };
-struct command_table db_show_table = LIST_HEAD_INITIALIZER(db_show_table);
+struct db_command_table db_show_table = LIST_HEAD_INITIALIZER(db_show_table);
 
-static struct command db_cmds[] = {
+static struct db_command db_cmds[] = {
 	{ "print",	db_print_cmd,		0,	NULL },
 	{ "p",		db_print_cmd,		0,	NULL },
 	{ "examine",	db_examine_cmd,		CS_SET_DOT, NULL },
@@ -155,9 +155,9 @@ static struct command db_cmds[] = {
 	{ "textdump",	db_textdump_cmd,	CS_OWN, NULL },
 	{ "findstack",	db_findstack_cmd,	0,	NULL },
 };
-struct command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
+struct db_command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 
-static struct command	*db_last_command = NULL;
+static struct db_command *db_last_command = NULL;
 
 /*
  * if 'ed' style: 'dot' is set at start of last item printed,
@@ -187,13 +187,13 @@ db_skip_to_eol(void)
 #define	CMD_AMBIGUOUS	3
 #define	CMD_HELP	4
 
-static void	db_cmd_match(char *name, struct command *cmd,
-		    struct command **cmdp, int *resultp);
-static void	db_cmd_list(struct command_table *table);
-static int	db_cmd_search(char *name, struct command_table *table,
-		    struct command **cmdp);
-static void	db_command(struct command **last_cmdp,
-		    struct command_table *cmd_table, int dopager);
+static void	db_cmd_match(char *name, struct db_command *cmd,
+		    struct db_command **cmdp, int *resultp);
+static void	db_cmd_list(struct db_command_table *table);
+static int	db_cmd_search(char *name, struct db_command_table *table,
+		    struct db_command **cmdp);
+static void	db_command(struct db_command **last_cmdp,
+		    struct db_command_table *cmd_table, int dopager);
 
 /*
  * Initialize the command lists from the static tables.
@@ -220,9 +220,9 @@ db_command_init(void)
  * Register a command.
  */
 void
-db_command_register(struct command_table *list, struct command *cmd)
+db_command_register(struct db_command_table *list, struct db_command *cmd)
 {
-	struct command *c, *last;
+	struct db_command *c, *last;
 
 	last = NULL;
 	LIST_FOREACH(c, list, next) {
@@ -251,9 +251,9 @@ db_command_register(struct command_table *list, struct command *cmd)
  * Remove a command previously registered with db_command_register.
  */
 void
-db_command_unregister(struct command_table *list, struct command *cmd)
+db_command_unregister(struct db_command_table *list, struct db_command *cmd)
 {
-	struct command *c;
+	struct db_command *c;
 
 	LIST_FOREACH(c, list, next) {
 		if (cmd == c) {
@@ -268,7 +268,7 @@ db_command_unregister(struct command_table *list, struct command *cmd)
  * Helper function to match a single command.
  */
 static void
-db_cmd_match(char *name, struct command *cmd, struct command **cmdp,
+db_cmd_match(char *name, struct db_command *cmd, struct db_command **cmdp,
     int *resultp)
 {
 	char *lp, *rp;
@@ -304,10 +304,11 @@ db_cmd_match(char *name, struct command *cmd, struct command **cmdp,
  * Search for command prefix.
  */
 static int
-db_cmd_search(char *name, struct command_table *table, struct command **cmdp)
+db_cmd_search(char *name, struct db_command_table *table,
+    struct db_command **cmdp)
 {
-	struct command	*cmd;
-	int		result = CMD_NONE;
+	struct db_command *cmd;
+	int result = CMD_NONE;
 
 	LIST_FOREACH(cmd, table, next) {
 		db_cmd_match(name,cmd,cmdp,&result);
@@ -325,9 +326,9 @@ db_cmd_search(char *name, struct command_table *table, struct command **cmdp)
 }
 
 static void
-db_cmd_list(struct command_table *table)
+db_cmd_list(struct db_command_table *table)
 {
-	struct command	*cmd;
+	struct db_command *cmd;
 	int have_subcommands;
 
 	have_subcommands = 0;
@@ -351,10 +352,10 @@ db_cmd_list(struct command_table *table)
 }
 
 static void
-db_command(struct command **last_cmdp, struct command_table *cmd_table,
+db_command(struct db_command **last_cmdp, struct db_command_table *cmd_table,
     int dopager)
 {
-	struct command	*cmd = NULL;
+	struct db_command *cmd = NULL;
 	int		t;
 	char		modif[TOK_STRING_SIZE];
 	db_expr_t	addr, count;
