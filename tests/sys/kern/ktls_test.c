@@ -88,7 +88,7 @@ alloc_buffer(size_t len)
 }
 
 static bool
-socketpair_tcp(int *sv)
+socketpair_tcp(int sv[2])
 {
 	struct pollfd pfd;
 	struct sockaddr_in sin;
@@ -159,6 +159,13 @@ socketpair_tcp(int *sv)
 	sv[0] = cs;
 	sv[1] = as;
 	return (true);
+}
+
+static void
+close_sockets(int sv[2])
+{
+	ATF_REQUIRE(close(sv[1]) == 0);
+	ATF_REQUIRE(close(sv[0]) == 0);
 }
 
 static void
@@ -993,8 +1000,7 @@ test_ktls_transmit_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
 	free(decrypted);
 	free(plaintext);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 	ATF_REQUIRE(close(kq) == 0);
 }
 
@@ -1079,8 +1085,7 @@ test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
 	free(decrypted);
 	free(plaintext);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 }
 
 static void
@@ -1142,8 +1147,7 @@ test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
 out:
 	free(outbuf);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 }
 
 static size_t
@@ -1282,8 +1286,7 @@ test_ktls_receive_app_data(struct tls_enable *en, uint64_t seqno, size_t len,
 	free(received);
 	free(plaintext);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 	ATF_REQUIRE(close(kq) == 0);
 }
 
@@ -1532,8 +1535,7 @@ test_ktls_invalid_transmit_cipher_suite(struct tls_enable *en)
 	    sizeof(*en)) == -1);
 	ATF_REQUIRE(errno == EINVAL);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 }
 
 #define GEN_INVALID_TRANSMIT_TEST(name, cipher_alg, key_size, auth_alg,	\
@@ -1665,8 +1667,7 @@ test_ktls_invalid_receive_cipher_suite(struct tls_enable *en)
 	    sizeof(*en)) == -1);
 	ATF_REQUIRE(errno == EINVAL);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 }
 
 #define GEN_INVALID_RECEIVE_TEST(name, cipher_alg, key_size, auth_alg,	\
@@ -1705,8 +1706,7 @@ test_ktls_unsupported_receive_cipher_suite(struct tls_enable *en)
 	    sizeof(*en)) == -1);
 	ATF_REQUIRE(errno == EPROTONOSUPPORT);
 
-	ATF_REQUIRE(close(sockets[1]) == 0);
-	ATF_REQUIRE(close(sockets[0]) == 0);
+	close_sockets(sockets);
 }
 
 #define GEN_UNSUPPORTED_RECEIVE_TEST(name, cipher_alg, key_size,	\
