@@ -1480,6 +1480,16 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 	for (cmsghdr = CMSG_FIRSTHDR(msghdr);
 	   cmsghdr != NULL;
 	   cmsghdr = CMSG_NXTHDR(msghdr, cmsghdr)) {
+		if (cmsghdr->cmsg_len < sizeof(*cmsghdr)) {
+			fprintf(fp, "{<invalid cmsg, len=%u>}",
+			    cmsghdr->cmsg_len);
+			if (cmsghdr->cmsg_len == 0) {
+				/* Avoid looping forever. */
+				break;
+			}
+			continue;
+		}
+
 		level = cmsghdr->cmsg_level;
 		type = cmsghdr->cmsg_type;
 		len = cmsghdr->cmsg_len;
