@@ -2471,16 +2471,16 @@ kernel_mount(struct mntarg *ma, uint64_t flags)
 	int error;
 
 	KASSERT(ma != NULL, ("kernel_mount NULL ma"));
-	KASSERT(ma->v != NULL, ("kernel_mount NULL ma->v"));
+	KASSERT(ma->error != 0 || ma->v != NULL, ("kernel_mount NULL ma->v"));
 	KASSERT(!(ma->len & 1), ("kernel_mount odd ma->len (%d)", ma->len));
 
-	auio.uio_iov = ma->v;
-	auio.uio_iovcnt = ma->len;
-	auio.uio_segflg = UIO_SYSSPACE;
-
 	error = ma->error;
-	if (!error)
+	if (error == 0) {
+		auio.uio_iov = ma->v;
+		auio.uio_iovcnt = ma->len;
+		auio.uio_segflg = UIO_SYSSPACE;
 		error = vfs_donmount(curthread, flags, &auio);
+	}
 	free_mntarg(ma);
 	return (error);
 }
