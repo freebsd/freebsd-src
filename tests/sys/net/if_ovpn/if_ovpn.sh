@@ -481,6 +481,13 @@ route_to_body()
 	pft_set_rules b \
 		"pass out route-to (tun0 198.51.100.1) proto icmp from 198.51.100.2 "
 	atf_check -s exit:0 -o ignore jexec b ping -c 3 -S 198.51.100.2 198.51.100.254
+
+	# And this keeps working even if we don't have a route to 198.51.100.0/24 via if_ovpn
+	jexec b route del -net 198.51.100.0/24
+	jexec b route add -net 198.51.100.0/24 -interface ${n}a
+	pft_set_rules b \
+		"pass out route-to (tun0 198.51.100.3) proto icmp from 198.51.100.2 "
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 -S 198.51.100.2 198.51.100.254
 }
 
 route_to_cleanup()
