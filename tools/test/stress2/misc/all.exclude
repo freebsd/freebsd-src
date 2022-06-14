@@ -44,11 +44,6 @@ oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
-reaper.sh		Waiting for commit
-reaper2.sh		Waiting for commit
-reaper3.sh		Waiting for commit
-reaper4.sh		Waiting for commit
-reaper5.sh		Waiting for commit
 rename14.sh		https://people.freebsd.org/~pho/stress/log/log0279.txt		20220415
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
@@ -66,8 +61,6 @@ syzkaller25.sh		WiP								20201116
 syzkaller27.sh		watchdogd fires							20220512
 syzkaller28.sh		WiP								20201120
 syzkaller50.sh		panic: Assertion done != job_total_nbytes failed at ...		20220405
-syzkaller52.sh		Waiting for commit
-syzkaller53.sh		Waiting for commit
 syzkaller54.sh		panic: td 0xfffffe014f7193a0 is not suspended			20220527
 syzkaller55.sh		panic: Counter goes negative					20220525
 timeout.sh		Waiting for commit
