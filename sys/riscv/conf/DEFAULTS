@@ -11,6 +11,7 @@ device		mem		# Memory and kernel memory devices
 # Default partitioning schemes
 options 	GEOM_PART_BSD
 options 	GEOM_PART_MBR
+options 	GEOM_PART_GPT
 
 # Default congestion control algorithm
 options 	CC_CUBIC		# include CUBIC congestion control
