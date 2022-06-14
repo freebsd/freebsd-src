@@ -317,7 +317,7 @@ vm_object_color(vm_object_t object, u_short color)
 
 	if ((object->flags & OBJ_COLORED) == 0) {
 		object->pg_color = color;
-		object->flags |= OBJ_COLORED;
+		vm_object_set_flag(object, OBJ_COLORED);
 	}
 }
 
