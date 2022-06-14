@@ -800,6 +800,7 @@ ctl_isc_handler_finish_xfer(struct ctl_softc *ctl_softc,
 	}
 
 	ctsio = &msg_info->hdr.original_sc->scsiio;
+	ctsio->io_hdr.flags &= ~CTL_FLAG_SENT_2OTHER_SC;
 	ctsio->io_hdr.flags |= CTL_FLAG_IO_ACTIVE;
 	ctsio->io_hdr.msg_type = CTL_MSG_FINISH_IO;
 	ctsio->io_hdr.status = msg_info->hdr.status;
@@ -11658,6 +11659,8 @@ ctl_scsiio_precheck(struct ctl_scsiio *ctsio)
 		if ((isc_retval = ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
 		    sizeof(msg_info.scsi) - sizeof(msg_info.scsi.sense_data),
 		    M_WAITOK)) > CTL_HA_STATUS_SUCCESS) {
+			ctsio->io_hdr.flags &= ~CTL_FLAG_SENT_2OTHER_SC;
+			ctsio->io_hdr.flags |= CTL_FLAG_IO_ACTIVE;
 			ctl_set_busy(ctsio);
 			ctl_done((union ctl_io *)ctsio);
 			return;
