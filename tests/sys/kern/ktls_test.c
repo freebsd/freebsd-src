@@ -38,6 +38,7 @@
 #include <assert.h>
 #include <err.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -161,10 +162,72 @@ socketpair_tcp(int sv[2])
 	return (true);
 }
 
+static bool
+echo_socket(const atf_tc_t *tc, int sv[2])
+{
+	const char *cause, *host, *port;
+	struct addrinfo hints, *ai, *tofree;
+	int error, flags, s;
+
+	host = atf_tc_get_config_var(tc, "ktls.host");
+	port = atf_tc_get_config_var_wd(tc, "ktls.port", "echo");
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+	error = getaddrinfo(host, port, &hints, &tofree);
+	if (error != 0) {
+		warnx("getaddrinfo(%s:%s) failed: %s", host, port,
+		    gai_strerror(error));
+		return (false);
+	}
+
+	cause = NULL;
+	for (ai = tofree; ai != NULL; ai = ai->ai_next) {
+		s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (s == -1) {
+			cause = "socket";
+			error = errno;
+			continue;
+		}
+
+		if (connect(s, ai->ai_addr, ai->ai_addrlen) == -1) {
+			cause = "connect";
+			error = errno;
+			close(s);
+			continue;
+		}
+
+		freeaddrinfo(tofree);
+
+		ATF_REQUIRE((flags = fcntl(s, F_GETFL)) != -1);
+		flags |= O_NONBLOCK;
+		ATF_REQUIRE(fcntl(s, F_SETFL, flags) != -1);
+
+		sv[0] = s;
+		sv[1] = s;
+		return (true);
+	}
+
+	warnc(error, "%s", cause);
+	freeaddrinfo(tofree);
+	return (false);
+}
+
+static bool
+open_sockets(const atf_tc_t *tc, int sv[2])
+{
+	if (atf_tc_has_config_var(tc, "ktls.host"))
+		return (echo_socket(tc, sv));
+	else
+		return (socketpair_tcp(sv));
+}
+
 static void
 close_sockets(int sv[2])
 {
-	ATF_REQUIRE(close(sv[1]) == 0);
+	if (sv[0] != sv[1])
+		ATF_REQUIRE(close(sv[1]) == 0);
 	ATF_REQUIRE(close(sv[0]) == 0);
 }
 
@@ -894,7 +957,8 @@ encrypt_tls_record(struct tls_enable *en, uint8_t record_type, uint64_t seqno,
 }
 
 static void
-test_ktls_transmit_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
+test_ktls_transmit_app_data(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len)
 {
 	struct kevent ev;
 	struct tls_record_layer *hdr;
@@ -913,7 +977,7 @@ test_ktls_transmit_app_data(struct tls_enable *en, uint64_t seqno, size_t len)
 
 	ATF_REQUIRE((kq = kqueue()) != -1);
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
@@ -1031,8 +1095,8 @@ ktls_send_control_message(int fd, uint8_t type, void *data, size_t len)
 }
 
 static void
-test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
-    size_t len)
+test_ktls_transmit_control(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, uint8_t type, size_t len)
 {
 	struct tls_record_layer *hdr;
 	char *plaintext, *decrypted, *outbuf;
@@ -1049,7 +1113,7 @@ test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
 	outbuf = malloc(outbuf_cap);
 	hdr = (struct tls_record_layer *)outbuf;
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
@@ -1089,7 +1153,8 @@ test_ktls_transmit_control(struct tls_enable *en, uint64_t seqno, uint8_t type,
 }
 
 static void
-test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
+test_ktls_transmit_empty_fragment(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno)
 {
 	struct tls_record_layer *hdr;
 	char *outbuf;
@@ -1102,7 +1167,7 @@ test_ktls_transmit_empty_fragment(struct tls_enable *en, uint64_t seqno)
 	outbuf = malloc(outbuf_cap);
 	hdr = (struct tls_record_layer *)outbuf;
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
@@ -1195,8 +1260,8 @@ ktls_receive_tls_record(struct tls_enable *en, int fd, uint8_t record_type,
 }
 
 static void
-test_ktls_receive_app_data(struct tls_enable *en, uint64_t seqno, size_t len,
-    size_t padding)
+test_ktls_receive_app_data(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len, size_t padding)
 {
 	struct kevent ev;
 	char *plaintext, *received, *outbuf;
@@ -1212,7 +1277,7 @@ test_ktls_receive_app_data(struct tls_enable *en, uint64_t seqno, size_t len,
 
 	ATF_REQUIRE((kq = kqueue()) != -1);
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
@@ -1354,7 +1419,7 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_##name, tc)			\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
 	    &en);							\
-	test_ktls_transmit_app_data(&en, seqno, len);			\
+	test_ktls_transmit_app_data(tc, &en, seqno, len);		\
 	free_tls_enable(&en);						\
 }
 
@@ -1374,7 +1439,7 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_##name, tc)			\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
 	    &en);							\
-	test_ktls_transmit_control(&en, seqno, type, len);		\
+	test_ktls_transmit_control(tc, &en, seqno, type, len);		\
 	free_tls_enable(&en);						\
 }
 
@@ -1394,7 +1459,7 @@ ATF_TC_BODY(ktls_transmit_##cipher_name##_empty_fragment, tc)		\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
 	    &en);							\
-	test_ktls_transmit_empty_fragment(&en, seqno);			\
+	test_ktls_transmit_empty_fragment(tc, &en, seqno);		\
 	free_tls_enable(&en);						\
 }
 
@@ -1525,11 +1590,12 @@ AES_GCM_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
 CHACHA20_TESTS(GEN_TRANSMIT_EMPTY_FRAGMENT_TEST);
 
 static void
-test_ktls_invalid_transmit_cipher_suite(struct tls_enable *en)
+test_ktls_invalid_transmit_cipher_suite(const atf_tc_t *tc,
+    struct tls_enable *en)
 {
 	int sockets[2];
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == -1);
@@ -1550,7 +1616,7 @@ ATF_TC_BODY(ktls_transmit_invalid_##name, tc)				\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
 	    &en);							\
-	test_ktls_invalid_transmit_cipher_suite(&en);			\
+	test_ktls_invalid_transmit_cipher_suite(tc, &en);		\
 	free_tls_enable(&en);						\
 }
 
@@ -1599,7 +1665,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor, seqno,	\
 	    &en);							\
-	test_ktls_receive_app_data(&en, seqno, len, padding);		\
+	test_ktls_receive_app_data(tc, &en, seqno, len, padding);	\
 	free_tls_enable(&en);						\
 }
 
@@ -1657,11 +1723,12 @@ CHACHA20_TESTS(GEN_RECEIVE_TESTS);
 TLS_13_TESTS(GEN_PADDING_RECEIVE_TESTS);
 
 static void
-test_ktls_invalid_receive_cipher_suite(struct tls_enable *en)
+test_ktls_invalid_receive_cipher_suite(const atf_tc_t *tc,
+    struct tls_enable *en)
 {
 	int sockets[2];
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
 	    sizeof(*en)) == -1);
@@ -1682,7 +1749,7 @@ ATF_TC_BODY(ktls_receive_invalid_##name, tc)				\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
 	    &en);							\
-	test_ktls_invalid_receive_cipher_suite(&en);			\
+	test_ktls_invalid_receive_cipher_suite(tc, &en);		\
 	free_tls_enable(&en);						\
 }
 
@@ -1696,11 +1763,12 @@ ATF_TC_BODY(ktls_receive_invalid_##name, tc)				\
 INVALID_CIPHER_SUITES(GEN_INVALID_RECEIVE_TEST);
 
 static void
-test_ktls_unsupported_receive_cipher_suite(struct tls_enable *en)
+test_ktls_unsupported_receive_cipher_suite(const atf_tc_t *tc,
+    struct tls_enable *en)
 {
 	int sockets[2];
 
-	ATF_REQUIRE_MSG(socketpair_tcp(sockets), "failed to create sockets");
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
 	    sizeof(*en)) == -1);
@@ -1721,7 +1789,7 @@ ATF_TC_BODY(ktls_receive_unsupported_##name, tc)			\
 	seqno = random();						\
 	build_tls_enable(cipher_alg, key_size, auth_alg, minor,	seqno,	\
 	    &en);							\
-	test_ktls_unsupported_receive_cipher_suite(&en);		\
+	test_ktls_unsupported_receive_cipher_suite(tc, &en);		\
 	free_tls_enable(&en);						\
 }
 
