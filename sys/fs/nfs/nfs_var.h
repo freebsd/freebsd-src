@@ -464,11 +464,11 @@ int nfsrpc_setattr(vnode_t, struct vattr *, NFSACL_T *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_lookup(vnode_t, char *, int, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, struct nfsvattr *, struct nfsfh **, int *, int *,
-    void *, uint32_t);
+    uint32_t);
 int nfsrpc_readlink(vnode_t, struct uio *, struct ucred *,
-    NFSPROC_T *, struct nfsvattr *, int *, void *);
+    NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_read(vnode_t, struct uio *, struct ucred *, NFSPROC_T *,
-    struct nfsvattr *, int *, void *);
+    struct nfsvattr *, int *);
 int nfsrpc_write(vnode_t, struct uio *, int *, int *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, int, int);
 int nfsrpc_mknod(vnode_t, char *, int, struct vattr *, u_int32_t,

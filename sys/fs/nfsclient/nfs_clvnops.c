@@ -1346,7 +1346,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	nanouptime(&ts);
 	error = nfsrpc_lookup(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    cnp->cn_cred, td, &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag,
-	    NULL, openmode);
+	    openmode);
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, 0, 1);
 	if (error) {
@@ -1567,7 +1567,7 @@ ncl_readlinkrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	struct nfsvattr nfsva;
 
 	error = nfsrpc_readlink(vp, uiop, cred, uiop->uio_td, &nfsva,
-	    &attrflag, NULL);
+	    &attrflag);
 	if (attrflag) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		if (ret && !error)
@@ -1598,7 +1598,7 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
 	if (error != 0)
 		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
-		    &attrflag, NULL);
+		    &attrflag);
 	if (attrflag) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		if (ret && !error)
@@ -1678,8 +1678,7 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		if (!nfhp)
 			(void) nfsrpc_lookup(dvp, cnp->cn_nameptr,
 			    cnp->cn_namelen, cnp->cn_cred, curthread,
-			    &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag,
-			    NULL, 0);
+			    &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag, 0);
 		if (nfhp)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
 			    curthread, &np, LK_EXCLUSIVE);
@@ -1793,8 +1792,7 @@ again:
 		if (nfhp == NULL)
 			(void) nfsrpc_lookup(dvp, cnp->cn_nameptr,
 			    cnp->cn_namelen, cnp->cn_cred, curthread,
-			    &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag,
-			    NULL, 0);
+			    &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag, 0);
 		if (nfhp != NULL)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
 			    curthread, &np, LK_EXCLUSIVE);
@@ -2711,7 +2709,7 @@ nfs_lookitup(struct vnode *dvp, char *name, int len, struct ucred *cred,
 
 	nanouptime(&ts);
 	error = nfsrpc_lookup(dvp, name, len, cred, td, &dnfsva, &nfsva,
-	    &nfhp, &attrflag, &dattrflag, NULL, 0);
+	    &nfhp, &attrflag, &dattrflag, 0);
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, 0, 1);
 	if (npp && !error) {

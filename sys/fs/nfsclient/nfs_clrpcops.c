@@ -1395,8 +1395,7 @@ nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
 int
 nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *dnap, struct nfsvattr *nap,
-    struct nfsfh **nfhpp, int *attrflagp, int *dattrflagp, void *stuff,
-    uint32_t openmode)
+    struct nfsfh **nfhpp, int *attrflagp, int *dattrflagp, uint32_t openmode)
 {
 	uint32_t deleg, rflags, *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -1635,7 +1634,7 @@ nfsmout:
  */
 int
 nfsrpc_readlink(vnode_t vp, struct uio *uiop, struct ucred *cred,
-    NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
+    NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -1691,7 +1690,7 @@ nfsmout:
  */
 int
 nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
-    NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
+    NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp)
 {
 	int error, expireret = 0, retrycnt;
 	u_int32_t clidrev = 0;
