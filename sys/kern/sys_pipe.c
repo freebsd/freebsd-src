@@ -651,8 +651,8 @@ pipelock(struct pipe *cpipe, int catch)
 		    ("%s: bad waiter count %d", __func__,
 		    cpipe->pipe_waiters));
 		cpipe->pipe_waiters++;
-		error = msleep(cpipe, PIPE_MTX(cpipe),
-		    prio, "pipelk", 0);
+		error = msleep(&cpipe->pipe_waiters, PIPE_MTX(cpipe), prio,
+		    "pipelk", 0);
 		cpipe->pipe_waiters--;
 		if (error != 0)
 			return (error);
@@ -675,9 +675,8 @@ pipeunlock(struct pipe *cpipe)
 	    ("%s: bad waiter count %d", __func__,
 	    cpipe->pipe_waiters));
 	cpipe->pipe_state &= ~PIPE_LOCKFL;
-	if (cpipe->pipe_waiters > 0) {
-		wakeup_one(cpipe);
-	}
+	if (cpipe->pipe_waiters > 0)
+		wakeup_one(&cpipe->pipe_waiters);
 }
 
 void
