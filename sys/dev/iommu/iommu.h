@@ -162,14 +162,6 @@ struct iommu_ctx *iommu_instantiate_ctx(struct iommu_unit *iommu,
 device_t iommu_get_requester(device_t dev, uint16_t *rid);
 int iommu_init_busdma(struct iommu_unit *unit);
 void iommu_fini_busdma(struct iommu_unit *unit);
-struct iommu_map_entry *iommu_map_alloc_entry(struct iommu_domain *iodom,
-    u_int flags);
-void iommu_map_free_entry(struct iommu_domain *, struct iommu_map_entry *);
-int iommu_map(struct iommu_domain *iodom,
-    const struct bus_dma_tag_common *common, iommu_gaddr_t size, int offset,
-    u_int eflags, u_int flags, vm_page_t *ma, struct iommu_map_entry **res);
-int iommu_map_region(struct iommu_domain *domain,
-    struct iommu_map_entry *entry, u_int eflags, u_int flags, vm_page_t *ma);
 
 void iommu_gas_init_domain(struct iommu_domain *domain);
 void iommu_gas_fini_domain(struct iommu_domain *domain);
