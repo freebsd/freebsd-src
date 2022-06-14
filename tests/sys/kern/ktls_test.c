@@ -67,6 +67,22 @@ require_ktls(void)
 
 #define	ATF_REQUIRE_KTLS()	require_ktls()
 
+static void
+check_tls_mode(const atf_tc_t *tc, int s, int sockopt)
+{
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ktls.require_ifnet", false)) {
+		socklen_t len;
+		int mode;
+
+		len = sizeof(mode);
+		if (getsockopt(s, IPPROTO_TCP, sockopt, &mode, &len) == -1)
+			atf_libc_error(errno, "Failed to fetch TLS mode");
+
+		if (mode != TCP_TLS_MODE_IFNET)
+			atf_tc_skip("connection did not use ifnet TLS");
+	}
+}
+
 static char
 rdigit(void)
 {
@@ -981,6 +997,7 @@ test_ktls_transmit_app_data(const atf_tc_t *tc, struct tls_enable *en,
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[1], TCP_TXTLS_MODE);
 
 	EV_SET(&ev, sockets[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
 	ATF_REQUIRE(kevent(kq, &ev, 1, NULL, 0, NULL) == 0);
@@ -1117,6 +1134,7 @@ test_ktls_transmit_control(const atf_tc_t *tc, struct tls_enable *en,
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[1], TCP_TXTLS_MODE);
 
 	fd_set_blocking(sockets[0]);
 	fd_set_blocking(sockets[1]);
@@ -1171,6 +1189,7 @@ test_ktls_transmit_empty_fragment(const atf_tc_t *tc, struct tls_enable *en,
 
 	ATF_REQUIRE(setsockopt(sockets[1], IPPROTO_TCP, TCP_TXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[1], TCP_TXTLS_MODE);
 
 	fd_set_blocking(sockets[0]);
 	fd_set_blocking(sockets[1]);
@@ -1281,6 +1300,7 @@ test_ktls_receive_app_data(const atf_tc_t *tc, struct tls_enable *en,
 
 	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
 	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
 
 	EV_SET(&ev, sockets[0], EVFILT_READ, EV_ADD, 0, 0, NULL);
 	ATF_REQUIRE(kevent(kq, &ev, 1, NULL, 0, NULL) == 0);
