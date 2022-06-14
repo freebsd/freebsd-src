@@ -223,7 +223,9 @@ lkpi_i2c_add_adapter(struct i2c_adapter *adapter)
 		return (ENXIO);
 	}
 
+	bus_topo_lock();
 	error = bus_generic_attach(adapter->dev.parent->bsddev);
+	bus_topo_unlock();
 	if (error) {
 		device_printf(adapter->dev.parent->bsddev,
 		  "failed to attach child: error %d\n", error);
@@ -251,7 +253,9 @@ lkpi_i2c_del_adapter(struct i2c_adapter *adapter)
 	while ((child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iic", unit++)) != NULL) {
 
 		if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
+			bus_topo_lock();
 			device_delete_child(adapter->dev.parent->bsddev, child);
+			bus_topo_unlock();
 			rv = 0;
 			goto out;
 		}
@@ -261,7 +265,9 @@ lkpi_i2c_del_adapter(struct i2c_adapter *adapter)
 	while ((child = device_find_child(adapter->dev.parent->bsddev, "lkpi_iicbb", unit++)) != NULL) {
 
 		if (adapter == LKPI_IIC_GET_ADAPTER(child)) {
+			bus_topo_lock();
 			device_delete_child(adapter->dev.parent->bsddev, child);
+			bus_topo_unlock();
 			rv = 0;
 			goto out;
 		}
