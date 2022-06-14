@@ -594,7 +594,7 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		if (seg + 1 < tag->common.nsegments)
 			gas_flags |= IOMMU_MF_CANSPLIT;
 
-		error = iommu_map(domain, &tag->common, buflen1,
+		error = iommu_gas_map(domain, &tag->common, buflen1,
 		    offset, e_flags, gas_flags, ma + idx, &entry);
 		if (error != 0)
 			break;
@@ -1046,7 +1046,7 @@ bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 	map = (struct bus_dmamap_iommu *)map1;
 	waitok = (flags & BUS_DMA_NOWAIT) != 0;
 
-	entry = iommu_map_alloc_entry(domain, waitok ? 0 : IOMMU_PGF_WAITOK);
+	entry = iommu_gas_alloc_entry(domain, waitok ? 0 : IOMMU_PGF_WAITOK);
 	if (entry == NULL)
 		return (ENOMEM);
 	entry->start = start;
@@ -1054,14 +1054,14 @@ bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 	ma = malloc(sizeof(vm_page_t) * atop(length), M_TEMP, waitok ?
 	    M_WAITOK : M_NOWAIT);
 	if (ma == NULL) {
-		iommu_map_free_entry(domain, entry);
+		iommu_gas_free_entry(domain, entry);
 		return (ENOMEM);
 	}
 	for (i = 0; i < atop(length); i++) {
 		ma[i] = vm_page_getfake(entry->start + PAGE_SIZE * i,
 		    VM_MEMATTR_DEFAULT);
 	}
-	error = iommu_map_region(domain, entry, IOMMU_MAP_ENTRY_READ |
+	error = iommu_gas_map_region(domain, entry, IOMMU_MAP_ENTRY_READ |
 	    ((flags & BUS_DMA_NOWRITE) ? 0 : IOMMU_MAP_ENTRY_WRITE),
 	    waitok ? IOMMU_MF_CANWAIT : 0, ma);
 	if (error == 0) {

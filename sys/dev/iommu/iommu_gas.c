@@ -799,36 +799,6 @@ iommu_gas_reserve_region_extend(struct iommu_domain *domain,
 	return (error);
 }
 
-struct iommu_map_entry *
-iommu_map_alloc_entry(struct iommu_domain *domain, u_int flags)
-{
-	struct iommu_map_entry *res;
-
-	res = iommu_gas_alloc_entry(domain, flags);
-
-	return (res);
-}
-
-void
-iommu_map_free_entry(struct iommu_domain *domain, struct iommu_map_entry *entry)
-{
-
-	iommu_gas_free_entry(domain, entry);
-}
-
-int
-iommu_map(struct iommu_domain *domain,
-    const struct bus_dma_tag_common *common, iommu_gaddr_t size, int offset,
-    u_int eflags, u_int flags, vm_page_t *ma, struct iommu_map_entry **res)
-{
-	int error;
-
-	error = iommu_gas_map(domain, common, size, offset, eflags, flags,
-	    ma, res);
-
-	return (error);
-}
-
 void
 iommu_unmap_msi(struct iommu_ctx *ctx)
 {
@@ -915,17 +885,6 @@ iommu_translate_msi(struct iommu_domain *domain, uint64_t *addr)
 	KASSERT(*addr + sizeof(*addr) <= domain->msi_entry->end,
 	    ("%s: Address is above the MSI entry end address (%jx < %jx)",
 	    __func__, (uintmax_t)*addr, (uintmax_t)domain->msi_entry->end));
-}
-
-int
-iommu_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
-    u_int eflags, u_int flags, vm_page_t *ma)
-{
-	int error;
-
-	error = iommu_gas_map_region(domain, entry, eflags, flags, ma);
-
-	return (error);
 }
 
 SYSCTL_NODE(_hw, OID_AUTO, iommu, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "");
