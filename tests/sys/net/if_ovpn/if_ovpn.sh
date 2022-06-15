@@ -433,6 +433,8 @@ multi_client_body()
 	jexec one ifconfig ${one}b 192.0.2.2/24 up
 	vnet_mkjail two ${two}b
 	jexec two ifconfig ${two}b 192.0.2.3/24 up
+	jexec two ifconfig lo0 127.0.0.1/8 up
+	jexec two ifconfig lo0 inet alias 203.0.113.1/24
 
 	# Sanity checks
 	atf_check -s exit:0 -o ignore jexec one ping -c 1 192.0.2.1
@@ -450,6 +452,9 @@ multi_client_body()
 
 		local 192.0.2.1
 		server 198.51.100.0 255.255.255.0
+
+		push \"route 203.0.113.0 255.255.255.0 198.51.100.1\"
+
 		ca $(atf_get_srcdir)/ca.crt
 		cert $(atf_get_srcdir)/server.crt
 		key $(atf_get_srcdir)/server.key
@@ -462,6 +467,8 @@ multi_client_body()
 		topology subnet
 
 		keepalive 100 600
+
+		client-config-dir $(atf_get_srcdir)/ccd
 	"
 	ovpn_start one "
 		dev tun0
@@ -489,8 +496,8 @@ multi_client_body()
 		auth-user-pass $(atf_get_srcdir)/user.pass
 
 		ca $(atf_get_srcdir)/ca.crt
-		cert $(atf_get_srcdir)/client.crt
-		key $(atf_get_srcdir)/client.key
+		cert $(atf_get_srcdir)/client2.crt
+		key $(atf_get_srcdir)/client2.key
 		dh $(atf_get_srcdir)/dh.pem
 
 		keepalive 100 600
@@ -505,6 +512,9 @@ multi_client_body()
 	# Client-to-client communication
 	atf_check -s exit:0 -o ignore jexec one ping -c 3 198.51.100.3
 	atf_check -s exit:0 -o ignore jexec two ping -c 3 198.51.100.2
+
+	# iroute test
+	atf_check -s exit:0 -o ignore jexec one ping -c 3 203.0.113.1
 }
 
 multi_client_cleanup()
