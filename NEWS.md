@@ -1,5 +1,12 @@
 # News
 
+## 5.3.3
+
+This is a production release that fixes a build problem in the FreeBSD base
+system.
+
+All other users do **NOT** need to upgrade.
+
 ## 5.3.2
 
 This is a production release that fixes prompt bugs with editline and readline

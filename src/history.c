@@ -157,13 +157,14 @@ sigjmp_buf bc_history_jmpbuf;
 volatile sig_atomic_t bc_history_inlinelib;
 
 static char* bc_history_prompt;
+static char bc_history_no_prompt[] = "";
 static HistEvent bc_history_event;
 
 static char*
 bc_history_promptFunc(EditLine* el)
 {
 	BC_UNUSED(el);
-	return bc_history_prompt;
+	return BC_PROMPT ? bc_history_prompt : bc_history_no_prompt;
 }
 
 void
@@ -171,9 +172,6 @@ bc_history_init(BcHistory* h)
 {
 	BcVec v;
 	char* home;
-
-	// Just set a blank prompt when it is turned off.
-	if (!BC_PROMPT) bc_history_prompt = "";
 
 	home = getenv("HOME");
 
