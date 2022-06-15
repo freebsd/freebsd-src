@@ -66,6 +66,12 @@ kasan_md_init(void)
 {
 }
 
+static inline void
+kasan_md_init_early(vm_offset_t bootstack, size_t size)
+{
+	kasan_shadow_map(bootstack, size);
+}
+
 #endif /* KASAN */
 
 #endif /* !_MACHINE_ASAN_H_ */

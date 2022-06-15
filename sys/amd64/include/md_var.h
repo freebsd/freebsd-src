@@ -64,6 +64,7 @@ struct	sysentvec;
 
 void	amd64_conf_fast_syscall(void);
 void	amd64_db_resume_dbreg(void);
+vm_paddr_t amd64_loadaddr(void);
 void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_bsp_pcpu_init1(struct pcpu *pc);
 void	amd64_bsp_pcpu_init2(uint64_t rsp0);

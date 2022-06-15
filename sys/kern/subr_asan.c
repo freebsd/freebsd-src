@@ -139,6 +139,12 @@ kasan_init(void)
 	kasan_enabled = true;
 }
 
+void
+kasan_init_early(vm_offset_t stack, size_t size)
+{
+	kasan_md_init_early(stack, size);
+}
+
 static inline const char *
 kasan_code_name(uint8_t code)
 {
