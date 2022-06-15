@@ -56,11 +56,10 @@
 #define	KASAN_EXEC_ARGS_FREED	0xFF
 
 void kasan_init(void);
+void kasan_init_early(vm_offset_t, size_t);
 void kasan_shadow_map(vm_offset_t, size_t);
-
 void kasan_mark(const void *, size_t, size_t, uint8_t);
 #else /* KASAN */
-#define kasan_early_init(u)
 #define kasan_init()
 #define kasan_shadow_map(a, s)
 #define kasan_mark(p, s, l, c)
