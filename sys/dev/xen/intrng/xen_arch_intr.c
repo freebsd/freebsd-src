@@ -85,13 +85,8 @@ xen_dt_probe(void)
 	vm_guest = VM_GUEST_XEN;
 	setup_xen_features();
 
-/* Implementation for 126b73dd8bd, but no longer works
 	if (xen_feature(XENFEAT_dom0))
-		HYPERVISOR_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
-	else
-		HYPERVISOR_start_info->flags &= ~(SIF_INITDOMAIN|SIF_PRIVILEGED)
-;
-*/
+		hvm_start_flags |= SIF_INITDOMAIN | SIF_PRIVILEGED;
 
 	return (1);
 }
