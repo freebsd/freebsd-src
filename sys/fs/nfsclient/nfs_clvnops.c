@@ -1673,7 +1673,7 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		return (error);
 	error = nfsrpc_mknod(dvp, cnp->cn_nameptr, cnp->cn_namelen, vap,
 	    rdev, vap->va_type, cnp->cn_cred, curthread, &dnfsva,
-	    &nfsva, &nfhp, &attrflag, &dattrflag, NULL);
+	    &nfsva, &nfhp, &attrflag, &dattrflag);
 	if (!error) {
 		if (!nfhp)
 			(void) nfsrpc_lookup(dvp, cnp->cn_nameptr,
@@ -1787,7 +1787,7 @@ again:
 	cverf = nfs_get_cverf();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    vap, cverf, fmode, cnp->cn_cred, curthread, &dnfsva, &nfsva,
-	    &nfhp, &attrflag, &dattrflag, NULL);
+	    &nfhp, &attrflag, &dattrflag);
 	if (!error) {
 		if (nfhp == NULL)
 			(void) nfsrpc_lookup(dvp, cnp->cn_nameptr,
@@ -3845,7 +3845,7 @@ nfs_deallocate(struct vop_deallocate_args *ap)
 			vnode_pager_purge_range(vp, *ap->a_offset,
 			    *ap->a_offset + tlen);
 			error = nfsrpc_deallocate(vp, *ap->a_offset, tlen,
-			    &nfsva, &attrflag, ap->a_cred, td, NULL);
+			    &nfsva, &attrflag, ap->a_cred, td);
 			NFSCL_DEBUG(4, "dealloc: rpc=%d\n", error);
 		}
 		if (error == 0) {
