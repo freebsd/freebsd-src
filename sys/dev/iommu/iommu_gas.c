@@ -376,35 +376,65 @@ iommu_gas_match_insert(struct iommu_gas_match_args *a)
 static int
 iommu_gas_lowermatch(struct iommu_gas_match_args *a, struct iommu_map_entry *entry)
 {
-	struct iommu_map_entry *child;
+	struct iommu_map_entry *first;
+	iommu_gaddr_t min_free;
 
 	/*
 	 * If the subtree doesn't have free space for the requested allocation
-	 * plus two guard pages, give up.
+	 * plus two guard pages, skip it.
 	 */
-	if (entry->free_down < 2 * IOMMU_PAGE_SIZE +
-	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE))
-		return (ENOMEM);
-	if (entry->first >= a->common->lowaddr)
-		return (ENOMEM);
-	child = RB_LEFT(entry, rb_entry);
-	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
-		return (0);
-	if (child != NULL && child->last < a->common->lowaddr &&
-	    iommu_gas_match_one(a, child->last, entry->start,
-	    a->common->lowaddr)) {
-		iommu_gas_match_insert(a);
-		return (0);
+	min_free = 2 * IOMMU_PAGE_SIZE +
+	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE);
+
+	/* Find the first entry that could abut a big-enough range. */
+	first = NULL;
+	while (entry != NULL && entry->free_down >= min_free) {
+		first = entry;
+		entry = RB_LEFT(entry, rb_entry);
 	}
-	child = RB_RIGHT(entry, rb_entry);
-	if (child != NULL && entry->end < a->common->lowaddr &&
-	    iommu_gas_match_one(a, entry->end, child->first,
-	    a->common->lowaddr)) {
-		iommu_gas_match_insert(a);
-		return (0);
+
+	/*
+	 * Walk the big-enough ranges until one satisfies alignment
+	 * requirements, or violates lowaddr address requirement.
+	 */
+	entry = first;
+	while (entry != NULL) {
+		if ((first = RB_LEFT(entry, rb_entry)) != NULL) {
+			if (first->last >= a->common->lowaddr) {
+				/* All remaining ranges >= lowaddr */
+				break;
+			}
+			if (iommu_gas_match_one(a, first->last, entry->start,
+			    a->common->lowaddr)) {
+				iommu_gas_match_insert(a);
+				return (0);
+			}
+		}
+		if (entry->end >= a->common->lowaddr) {
+			/* All remaining ranges >= lowaddr */
+			break;
+		}
+		if ((first = RB_RIGHT(entry, rb_entry)) != NULL &&
+		    iommu_gas_match_one(a, entry->end, first->first,
+		    a->common->lowaddr)) {
+			iommu_gas_match_insert(a);
+			return (0);
+		}
+		/* Find the next entry that might abut a big-enough range. */
+		if (first != NULL && first->free_down >= min_free) {
+			/* Find next entry in right subtree. */
+			do
+				entry = first;
+			while ((first = RB_LEFT(entry, rb_entry)) != NULL &&
+			    first->free_down >= min_free);
+		} else {
+			/* Find next entry in a left-parent ancestor. */
+			while ((first = RB_PARENT(entry, rb_entry)) != NULL &&
+			    entry == RB_RIGHT(first, rb_entry))
+				entry = first;
+			entry = first;
+		}
 	}
-	if (child != NULL && 0 == iommu_gas_lowermatch(a, child))
-		return (0);
 	return (ENOMEM);
 }
 
