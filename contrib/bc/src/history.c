@@ -157,20 +157,23 @@ sigjmp_buf bc_history_jmpbuf;
 volatile sig_atomic_t bc_history_inlinelib;
 
 static char* bc_history_prompt;
+static char bc_history_no_prompt[] = "";
 static HistEvent bc_history_event;
 
 static char*
 bc_history_promptFunc(EditLine* el)
 {
 	BC_UNUSED(el);
-	return bc_history_prompt;
+	return BC_PROMPT ? bc_history_prompt : bc_history_no_prompt;
 }
 
 void
 bc_history_init(BcHistory* h)
 {
 	BcVec v;
-	char* home = getenv("HOME");
+	char* home;
+
+	home = getenv("HOME");
 
 	// This will hold the true path to the editrc.
 	bc_vec_init(&v, 1, BC_DTOR_NONE);
@@ -214,7 +217,7 @@ bc_history_init(BcHistory* h)
 void
 bc_history_free(BcHistory* h)
 {
-	if (bc_history_prompt != NULL) free(bc_history_prompt);
+	if (BC_PROMPT && bc_history_prompt != NULL) free(bc_history_prompt);
 	el_end(h->el);
 	history_end(h->hist);
 }
@@ -238,16 +241,19 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	// This is so the signal handler can handle line libraries properly.
 	bc_history_inlinelib = 1;
 
-	// Make sure to set the prompt.
-	if (bc_history_prompt != NULL)
+	if (BC_PROMPT)
 	{
-		if (strcmp(bc_history_prompt, prompt))
+		// Make sure to set the prompt.
+		if (bc_history_prompt != NULL)
 		{
-			free(bc_history_prompt);
-			bc_history_prompt = bc_vm_strdup(prompt);
+			if (strcmp(bc_history_prompt, prompt))
+			{
+				free(bc_history_prompt);
+				bc_history_prompt = bc_vm_strdup(prompt);
+			}
 		}
+		else bc_history_prompt = bc_vm_strdup(prompt);
 	}
-	else bc_history_prompt = bc_vm_strdup(prompt);
 
 	// Get the line.
 	line = el_gets(h->el, &len);
@@ -261,7 +267,11 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 			if (errno == ENOMEM) bc_err(BC_ERR_FATAL_ALLOC_ERR);
 			bc_err(BC_ERR_FATAL_IO_ERR);
 		}
-		else s = BC_STATUS_EOF;
+		else
+		{
+			bc_file_printf(&vm.fout, "\n");
+			s = BC_STATUS_EOF;
+		}
 	}
 	// If there is a line...
 	else
@@ -341,7 +351,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	}
 
 	// Get the line.
-	h->line = readline(prompt);
+	h->line = readline(BC_PROMPT ? prompt : "");
 
 	// If there was a line, add it to the history. Otherwise, just return an
 	// empty line. Oh, and NULL actually means EOF.
@@ -358,7 +368,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	}
 	else if (h->line == NULL)
 	{
-		bc_file_printf(&vm.fout, "%s", "^D");
+		bc_file_printf(&vm.fout, "%s\n", "^D");
 		s = BC_STATUS_EOF;
 	}
 	else bc_vec_string(vec, 1, "\n");
