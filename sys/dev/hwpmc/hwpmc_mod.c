@@ -292,7 +292,7 @@ SYSCTL_COUNTER_U64(_kern_hwpmc_stats, OID_AUTO, buffer_requests, CTLFLAG_RW,
 SYSCTL_COUNTER_U64(_kern_hwpmc_stats, OID_AUTO, buffer_requests_failed, CTLFLAG_RW,
 				   &pmc_stats.pm_buffer_requests_failed, "# of buffer requests which failed");
 SYSCTL_COUNTER_U64(_kern_hwpmc_stats, OID_AUTO, log_sweeps, CTLFLAG_RW,
-				   &pmc_stats.pm_log_sweeps, "# of ?");
+				   &pmc_stats.pm_log_sweeps, "# of times samples were processed");
 SYSCTL_COUNTER_U64(_kern_hwpmc_stats, OID_AUTO, merges, CTLFLAG_RW,
 				   &pmc_stats.pm_merges, "# of times kernel stack was found for user trace");
 SYSCTL_COUNTER_U64(_kern_hwpmc_stats, OID_AUTO, overwrites, CTLFLAG_RW,
