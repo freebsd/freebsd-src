@@ -1,1 +1,0 @@
-.TH "DC" "1" "June 2021" "Gavin D. Howard" "General Commands Manual"
