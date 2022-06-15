@@ -1208,6 +1208,9 @@ core2_intr(struct trapframe *tf)
 	else
 		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
+	if (found_interrupt)
+		lapic_reenable_pmc();
+
 	/*
 	 * Reenable all non-stalled PMCs.
 	 */
@@ -1227,9 +1230,6 @@ core2_intr(struct trapframe *tf)
 	    cpu, (uintmax_t) rdmsr(IAF_CTRL),
 	    (uintmax_t) rdmsr(IA_GLOBAL_CTRL),
 	    (uintmax_t) rdmsr(IA_GLOBAL_STATUS));
-
-	if (found_interrupt)
-		lapic_reenable_pmc();
 
 	return (found_interrupt);
 }
