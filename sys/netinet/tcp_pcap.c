@@ -75,7 +75,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_pcap_alloc_new_mbuf,
 VNET_DEFINE(int, tcp_pcap_packets) = 0;
 #define V_tcp_pcap_packets	VNET(tcp_pcap_packets)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_pcap_packets,
-	CTLFLAG_RW, &VNET_NAME(tcp_pcap_packets), 0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_pcap_packets), 0,
 	"Default number of packets saved per direction per TCPCB");
 
 /* Initialize the values. */
