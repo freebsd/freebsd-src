@@ -478,13 +478,13 @@ int nfsrpc_create(vnode_t, char *, int, struct vattr *, nfsquad_t,
     int, struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *);
 int nfsrpc_remove(vnode_t, char *, int, vnode_t, struct ucred *, NFSPROC_T *,
-    struct nfsvattr *, int *, void *);
+    struct nfsvattr *, int *);
 int nfsrpc_rename(vnode_t, vnode_t, char *, int, vnode_t, vnode_t, char *, int,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    int *, int *, void *, void *);
+    int *, int *);
 int nfsrpc_link(vnode_t, vnode_t, char *, int,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    int *, int *, void *);
+    int *, int *);
 int nfsrpc_symlink(vnode_t, char *, int, const char *, struct vattr *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
     struct nfsfh **, int *, int *, void *);

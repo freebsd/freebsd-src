@@ -1953,7 +1953,7 @@ nfs_removerpc(struct vnode *dvp, struct vnode *vp, char *name,
 	dnp->n_flag |= NREMOVEINPROG;
 	NFSUNLOCKNODE(dnp);
 	error = nfsrpc_remove(dvp, name, namelen, vp, cred, td, &dnfsva,
-	    &dattrflag, NULL);
+	    &dattrflag);
 	NFSLOCKNODE(dnp);
 	if ((dnp->n_flag & NREMOVEWANT)) {
 		dnp->n_flag &= ~(NREMOVEWANT | NREMOVEINPROG);
@@ -2139,7 +2139,7 @@ nfs_renamerpc(struct vnode *fdvp, struct vnode *fvp, char *fnameptr,
 
 	error = nfsrpc_rename(fdvp, fvp, fnameptr, fnamelen, tdvp, tvp,
 	    tnameptr, tnamelen, cred, td, &fnfsva, &tnfsva, &fattrflag,
-	    &tattrflag, NULL, NULL);
+	    &tattrflag);
 	NFSLOCKNODE(fdnp);
 	fdnp->n_flag |= NMODIFIED;
 	if (fattrflag != 0) {
@@ -2186,8 +2186,7 @@ nfs_link(struct vop_link_args *ap)
 	VOP_FSYNC(vp, MNT_WAIT, curthread);
 
 	error = nfsrpc_link(tdvp, vp, cnp->cn_nameptr, cnp->cn_namelen,
-	    cnp->cn_cred, curthread, &dnfsva, &nfsva, &attrflag,
-	    &dattrflag, NULL);
+	    cnp->cn_cred, curthread, &dnfsva, &nfsva, &attrflag, &dattrflag);
 	tdnp = VTONFS(tdvp);
 	NFSLOCKNODE(tdnp);
 	tdnp->n_flag |= NMODIFIED;
