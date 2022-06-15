@@ -1425,7 +1425,8 @@ ffec_detach(device_t dev)
 		bus_dma_tag_destroy(sc->rxbuf_tag);
 	if (sc->rxdesc_map != NULL) {
 		bus_dmamap_unload(sc->rxdesc_tag, sc->rxdesc_map);
-		bus_dmamap_destroy(sc->rxdesc_tag, sc->rxdesc_map);
+		bus_dmamem_free(sc->rxdesc_tag, sc->rxdesc_ring,
+		    sc->rxdesc_map);
 	}
 	if (sc->rxdesc_tag != NULL)
 		bus_dma_tag_destroy(sc->rxdesc_tag);
@@ -1441,7 +1442,8 @@ ffec_detach(device_t dev)
 		bus_dma_tag_destroy(sc->txbuf_tag);
 	if (sc->txdesc_map != NULL) {
 		bus_dmamap_unload(sc->txdesc_tag, sc->txdesc_map);
-		bus_dmamap_destroy(sc->txdesc_tag, sc->txdesc_map);
+		bus_dmamem_free(sc->txdesc_tag, sc->txdesc_ring,
+		    sc->txdesc_map);
 	}
 	if (sc->txdesc_tag != NULL)
 		bus_dma_tag_destroy(sc->txdesc_tag);
