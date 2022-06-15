@@ -211,8 +211,7 @@ is_kernphys_relocatable(elf_file_t ef)
 {
 	Elf_Sym sym;
 
-	return (__elfN(lookup_symbol)(ef, "kernphys", &sym, STT_OBJECT) == 0 &&
-	    sym.st_size == 8);
+	return (__elfN(lookup_symbol)(ef, "kernphys", &sym, STT_OBJECT) == 0);
 }
 #endif
 
