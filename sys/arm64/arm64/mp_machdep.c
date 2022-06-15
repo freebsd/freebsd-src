@@ -183,7 +183,7 @@ release_aps(void *dummy __unused)
 
 	started = 0;
 	for (i = 0; i < 2000; i++) {
-		if (smp_started) {
+		if (atomic_load_acq_int(&smp_started) != 0) {
 			printf("done\n");
 			return;
 		}
@@ -290,11 +290,6 @@ init_secondary(uint64_t cpu)
 
 	kcsan_cpu_init(cpu);
 
-	/*
-	 * Assert that smp_after_idle_runnable condition is reasonable.
-	 */
-	MPASS(PCPU_GET(curpcb) == NULL);
-
 	/* Enter the scheduler */
 	sched_ap_entry();
 
@@ -305,16 +300,24 @@ init_secondary(uint64_t cpu)
 static void
 smp_after_idle_runnable(void *arg __unused)
 {
-	struct pcpu *pc;
 	int cpu;
 
+	if (mp_ncpus == 1)
+		return;
+
+	KASSERT(smp_started != 0, ("%s: SMP not started yet", __func__));
+
+	/*
+	 * Wait for all APs to handle an interrupt.  After that, we know that
+	 * the APs have entered the scheduler at least once, so the boot stacks
+	 * are safe to free.
+	 */
+	smp_rendezvous(smp_no_rendezvous_barrier, NULL,
+	    smp_no_rendezvous_barrier, NULL);
+
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		if (bootstacks[cpu] != NULL) {
-			pc = pcpu_find(cpu);
-			while (atomic_load_ptr(&pc->pc_curpcb) == NULL)
-				cpu_spinwait();
+		if (bootstacks[cpu] != NULL)
 			kmem_free((vm_offset_t)bootstacks[cpu], PAGE_SIZE);
-		}
 	}
 }
 SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,
