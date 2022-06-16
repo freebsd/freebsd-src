@@ -1536,7 +1536,8 @@ main(int argc, char *argv[])
 	}
 
 	error = smbios_build(ctx);
-	assert(error == 0);
+	if (error != 0)
+		exit(4);
 
 	if (get_config_bool("acpi_tables")) {
 		error = acpi_build(ctx, guest_ncpus);

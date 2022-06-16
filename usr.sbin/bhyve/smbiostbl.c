@@ -666,8 +666,10 @@ smbios_type1_initializer(struct smbios_structure *template_entry,
 		uint32_t	status;
 
 		uuid_from_string(guest_uuid_str, &uuid, &status);
-		if (status != uuid_s_ok)
+		if (status != uuid_s_ok) {
+			EPRINTLN("Invalid UUID");
 			return (-1);
+		}
 
 		uuid_enc_le(&type1->uuid, &uuid);
 	} else {
