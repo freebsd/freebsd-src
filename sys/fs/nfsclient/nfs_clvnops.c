@@ -2536,7 +2536,7 @@ ncl_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		(void)ncl_fsinfo(nmp, vp, cred, td);
 
 	error = nfsrpc_readdir(vp, uiop, &cookie, cred, td, &nfsva,
-	    &attrflag, &eof, NULL);
+	    &attrflag, &eof);
 	if (attrflag)
 		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 
@@ -2599,7 +2599,7 @@ ncl_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	if (NFSHASNFSV3(nmp) && !NFSHASGOTFSINFO(nmp))
 		(void)ncl_fsinfo(nmp, vp, cred, td);
 	error = nfsrpc_readdirplus(vp, uiop, &cookie, cred, td, &nfsva,
-	    &attrflag, &eof, NULL);
+	    &attrflag, &eof);
 	if (attrflag)
 		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 
@@ -2845,7 +2845,7 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 		}
 		mtx_unlock(&nmp->nm_mtx);
 		error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
-		    &attrflag, NULL);
+		    &attrflag);
 	}
 	if (attrflag != 0)
 		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);

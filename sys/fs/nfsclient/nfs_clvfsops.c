@@ -316,7 +316,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 		mtx_unlock(&nmp->nm_mtx);
 	if (!error)
 		error = nfsrpc_statfs(vp, &sb, &fs, td->td_ucred, td, &nfsva,
-		    &attrflag, NULL);
+		    &attrflag);
 	if (error != 0)
 		NFSCL_DEBUG(2, "statfs=%d\n", error);
 	if (attrflag == 0) {
