@@ -254,6 +254,11 @@ struct socket {
 	KASSERT(SOLISTENING(sol),					\
 	    ("%s: %p not listening", __func__, (sol)));			\
 } while (0)
+#define	SOLISTEN_UNLOCK_ASSERT(sol)	do {				\
+	mtx_assert(&(sol)->so_lock, MA_NOTOWNED);			\
+	KASSERT(SOLISTENING(sol),					\
+	    ("%s: %p not listening", __func__, (sol)));			\
+} while (0)
 
 /*
  * Socket buffer locks.  These are strongly preferred over SOCKBUF_LOCK(sb)
