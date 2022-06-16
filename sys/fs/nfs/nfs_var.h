@@ -487,12 +487,12 @@ int nfsrpc_link(vnode_t, vnode_t, char *, int,
     int *, int *);
 int nfsrpc_symlink(vnode_t, char *, int, const char *, struct vattr *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    struct nfsfh **, int *, int *, void *);
+    struct nfsfh **, int *, int *);
 int nfsrpc_mkdir(vnode_t, char *, int, struct vattr *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, struct nfsvattr *,
-    struct nfsfh **, int *, int *, void *);
+    struct nfsfh **, int *, int *);
 int nfsrpc_rmdir(vnode_t, char *, int, struct ucred *, NFSPROC_T *,
-    struct nfsvattr *, int *, void *);
+    struct nfsvattr *, int *);
 int nfsrpc_readdir(vnode_t, struct uio *, nfsuint64 *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, int *, void *);
 int nfsrpc_readdirplus(vnode_t, struct uio *, nfsuint64 *, 

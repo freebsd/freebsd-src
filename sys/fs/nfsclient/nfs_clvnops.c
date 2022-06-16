@@ -2245,7 +2245,7 @@ nfs_symlink(struct vop_symlink_args *ap)
 	vap->va_type = VLNK;
 	error = nfsrpc_symlink(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    ap->a_target, vap, cnp->cn_cred, curthread, &dnfsva,
-	    &nfsva, &nfhp, &attrflag, &dattrflag, NULL);
+	    &nfsva, &nfhp, &attrflag, &dattrflag);
 	if (nfhp) {
 		ret = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, curthread,
 		    &np, LK_EXCLUSIVE);
@@ -2328,7 +2328,7 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	vap->va_type = VDIR;
 	error = nfsrpc_mkdir(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    vap, cnp->cn_cred, curthread, &dnfsva, &nfsva, &nfhp,
-	    &attrflag, &dattrflag, NULL);
+	    &attrflag, &dattrflag);
 	dnp = VTONFS(dvp);
 	NFSLOCKNODE(dnp);
 	dnp->n_flag |= NMODIFIED;
@@ -2405,7 +2405,7 @@ nfs_rmdir(struct vop_rmdir_args *ap)
 	if (dvp == vp)
 		return (EINVAL);
 	error = nfsrpc_rmdir(dvp, cnp->cn_nameptr, cnp->cn_namelen,
-	    cnp->cn_cred, curthread, &dnfsva, &dattrflag, NULL);
+	    cnp->cn_cred, curthread, &dnfsva, &dattrflag);
 	dnp = VTONFS(dvp);
 	NFSLOCKNODE(dnp);
 	dnp->n_flag |= NMODIFIED;

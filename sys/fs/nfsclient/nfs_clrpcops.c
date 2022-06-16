@@ -3012,7 +3012,7 @@ int
 nfsrpc_symlink(vnode_t dvp, char *name, int namelen, const char *target,
     struct vattr *vap, struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
-    int *dattrflagp, void *dstuff)
+    int *dattrflagp)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -3073,7 +3073,7 @@ int
 nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
-    int *dattrflagp, void *dstuff)
+    int *dattrflagp)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -3153,7 +3153,7 @@ nfsmout:
  */
 int
 nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
-    NFSPROC_T *p, struct nfsvattr *dnap, int *dattrflagp, void *dstuff)
+    NFSPROC_T *p, struct nfsvattr *dnap, int *dattrflagp)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error = 0;
