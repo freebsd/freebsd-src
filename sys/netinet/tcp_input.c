@@ -324,7 +324,7 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 			/*
 			 * Compute goodput in bits per millisecond.
 			 */
-			gput = (((int64_t)(th->th_ack - tp->gput_seq)) << 3) /
+			gput = (((int64_t)SEQ_SUB(th->th_ack, tp->gput_seq)) << 3) /
 			    max(1, tcp_ts_getticks() - tp->gput_ts);
 			stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_GPUT,
 			    gput);
