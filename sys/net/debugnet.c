@@ -1049,6 +1049,7 @@ debugnet_parse_ddb_cmd(const char *cmd, struct debugnet_ddb_config *result)
 			if (ifp == NULL) {
 				db_printf("Could not locate interface %s\n",
 				    db_tok_string);
+				error = ENOENT;
 				goto cleanup;
 			}
 		} else {
