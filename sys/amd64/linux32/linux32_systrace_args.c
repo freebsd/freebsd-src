@@ -3029,7 +3029,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timerfd_settime64 */
 	case 411: {
-		*n_args = 0;
+		struct linux_timerfd_settime64_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		iarg[1] = p->flags; /* l_int */
+		uarg[2] = (intptr_t)p->new_value; /* const struct l_itimerspec64 * */
+		uarg[3] = (intptr_t)p->old_value; /* struct l_itimerspec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_utimensat_time64 */
@@ -8173,6 +8178,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timerfd_settime64 */
 	case 411:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland const struct l_itimerspec64 *";
+			break;
+		case 3:
+			p = "userland struct l_itimerspec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_utimensat_time64 */
 	case 412:
@@ -10109,6 +10130,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 410:
 	/* linux_timerfd_settime64 */
 	case 411:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_utimensat_time64 */
 	case 412:
 		if (ndx == 0 || ndx == 1)
