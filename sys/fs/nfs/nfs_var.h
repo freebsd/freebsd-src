@@ -537,7 +537,7 @@ int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutcommit(struct nfsmount *, uint8_t *, int, int,
     uint64_t, uint64_t, uint64_t, nfsv4stateid_t *, int, struct ucred *,
-    NFSPROC_T *, void *);
+    NFSPROC_T *);
 int nfsrpc_layoutreturn(struct nfsmount *, uint8_t *, int, int, int, uint32_t,
     int, uint64_t, uint64_t, nfsv4stateid_t *, struct ucred *, NFSPROC_T *,
     uint32_t, uint32_t, char *);
@@ -549,7 +549,7 @@ int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
     struct nfsclflayout **);
 void nfscl_freenfsclds(struct nfsclds *);
 int nfsrpc_allocate(vnode_t, off_t, off_t, struct nfsvattr *, int *,
-    struct ucred *, NFSPROC_T *, void *);
+    struct ucred *, NFSPROC_T *);
 int nfsrpc_deallocate(vnode_t, off_t, off_t, struct nfsvattr *, int *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_copy_file_range(vnode_t, off_t *, vnode_t, off_t *, size_t *,

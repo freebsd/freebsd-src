@@ -219,7 +219,7 @@ static int nfsrpc_createlayout(vnode_t, char *, int, struct vattr *,
     int, int, int, int *, struct nfsclflayouthead *, int *);
 static int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t,
     uint64_t, uint64_t, int, int, nfsv4stateid_t *, int *,
-    struct nfsclflayouthead *, struct ucred *, NFSPROC_T *, void *);
+    struct nfsclflayouthead *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_layoutgetres(struct nfsmount *, vnode_t, uint8_t *,
     int, nfsv4stateid_t *, int, uint32_t *, struct nfscllayout **,
     struct nfsclflayouthead *, int, int, int *, struct ucred *, NFSPROC_T *);
@@ -5355,8 +5355,7 @@ static int
 nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
     uint64_t offset, uint64_t len, uint64_t minlen, int layouttype,
     int layoutlen, nfsv4stateid_t *stateidp, int *retonclosep,
-    struct nfsclflayouthead *flhp, struct ucred *cred, NFSPROC_T *p,
-    void *stuff)
+    struct nfsclflayouthead *flhp, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
@@ -5620,7 +5619,7 @@ nfsmout:
 int
 nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
     uint64_t off, uint64_t len, uint64_t lastbyte, nfsv4stateid_t *stateidp,
-    int layouttype, struct ucred *cred, NFSPROC_T *p, void *stuff)
+    int layouttype, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -5834,7 +5833,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			error = nfsrpc_layoutget(nmp, nfhp->nfh_fh,
 			    nfhp->nfh_len, iomode, (uint64_t)0, UINT64_MAX,
 			    (uint64_t)0, layouttype, layoutlen, &stateid,
-			    &retonclose, &flh, cred, p, NULL);
+			    &retonclose, &flh, cred, p);
 		} else {
 			islocked = 1;
 			stateid.seqid = lyp->nfsly_stateid.seqid;
@@ -5844,7 +5843,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, vnode_t vp, struct nfsfh *nfhp,
 			error = nfsrpc_layoutget(nmp, nfhp->nfh_fh,
 			    nfhp->nfh_len, iomode, off, UINT64_MAX,
 			    (uint64_t)0, layouttype, layoutlen, &stateid,
-			    &retonclose, &flh, cred, p, NULL);
+			    &retonclose, &flh, cred, p);
 		}
 		error = nfsrpc_layoutgetres(nmp, vp, nfhp->nfh_fh,
 		    nfhp->nfh_len, &stateid, retonclose, notifybitsp, &lyp,
@@ -7382,7 +7381,7 @@ nfsio_adviseds(vnode_t vp, uint64_t offset, int cnt, int advise,
  */
 int
 nfsrpc_allocate(vnode_t vp, off_t off, off_t len, struct nfsvattr *nap,
-    int *attrflagp, struct ucred *cred, NFSPROC_T *p, void *stuff)
+    int *attrflagp, struct ucred *cred, NFSPROC_T *p)
 {
 	int error, expireret = 0, retrycnt, nostateid;
 	uint32_t clidrev = 0;
