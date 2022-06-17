@@ -1204,7 +1204,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_prctl_args *p = params;
 		iarg[0] = p->option; /* l_int */
 		iarg[1] = p->arg2; /* l_uintptr_t */
-		iarg[2] = p->arg3; /* l_ulntptr_t */
+		iarg[2] = p->arg3; /* l_uintptr_t */
 		iarg[3] = p->arg4; /* l_uintptr_t */
 		iarg[4] = p->arg5; /* l_uintptr_t */
 		*n_args = 5;
@@ -5133,7 +5133,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_uintptr_t";
 			break;
 		case 2:
-			p = "l_ulntptr_t";
+			p = "l_uintptr_t";
 			break;
 		case 3:
 			p = "l_uintptr_t";
