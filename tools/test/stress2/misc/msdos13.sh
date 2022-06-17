@@ -40,7 +40,9 @@ set -e
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart
-bsdlabel -w md$mdstart auto
+gpart create -s bsd md$mdstart > /dev/null
+gpart add -t freebsd-ufs md$mdstart > /dev/null
+part=a
 newfs_msdos -F 32 -b 8192 /dev/md$mdstart$part > /dev/null
 mount -t msdosfs /dev/md$mdstart$part $mntpoint
 mkdir $mntpoint/stressX

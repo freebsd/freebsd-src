@@ -31,6 +31,7 @@
 # Fixed in r250966.
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
+[ -z "`which bsdlabel`" ] && exit 0
 
 status=0
 MD_DEV=`mdconfig -an -t swap -s 1m -x 63 -y 16`

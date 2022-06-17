@@ -65,31 +65,29 @@ mp2=${mntpoint}2
 dd if=/dev/zero of=$d1 bs=1m count=${size}k status=none || exit 1
 cp $d1 $d2 || exit 1
 
-mount | grep -q /dev/md${u2}$part && umount -f /dev/md${u2}$part
-mount | grep -q /dev/md${u1}$part && umount -f /dev/md${u1}$part
+mount | grep -q /dev/md$u2 && umount -f /dev/md$u2
+mount | grep -q /dev/md$u1 && umount -f /dev/md$u1
 [ -c /dev/md$u2 ] && mdconfig -d -u $u2
 [ -c /dev/md$u1 ] && mdconfig -d -u $u1
 
 mdconfig -a -t vnode -f $d1 -u $u1 || exit 1
-bsdlabel -w md$u1 auto
-newfs -b 65536 -f 65536 -O2 md${u1}$part > /dev/null
+newfs -b 65536 -f 65536 -O2 md$u1 > /dev/null
 
 mdconfig -a -t vnode -f $d2 -u $u2 || exit 1
-bsdlabel -w md$u2 auto
-newfs -b 65536 -f 65536 -O2 md${u2}$part > /dev/null
+newfs -b 65536 -f 65536 -O2 md$u2 > /dev/null
 
-mount /dev/md${u1}$part $mp1
-mount /dev/md${u2}$part $mp2
+mount /dev/md$u1 $mp1
+mount /dev/md$u2 $mp2
 
 /tmp/nbufkv $mp1 &
 /tmp/nbufkv $mp2 &
 wait
 
-umount /dev/md${u2}$part
-umount /dev/md${u1}$part
+umount /dev/md$u2
+umount /dev/md$u1
 
-mount | grep -q /dev/md${u2}$part && umount -f /dev/md${u2}$part
-mount | grep -q /dev/md${u1}$part && umount -f /dev/md${u1}$part
+mount | grep -q /dev/md$u2 && umount -f /dev/md$u2
+mount | grep -q /dev/md$u1 && umount -f /dev/md$u1
 
 mdconfig -d -u $u2
 mdconfig -d -u $u1

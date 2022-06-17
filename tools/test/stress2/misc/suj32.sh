@@ -44,9 +44,8 @@ mount | grep "on $mntpoint " | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 5g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -U md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint || exit 1
+newfs -U md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint || exit 1
 
 # fill the root directory to become larger than NIDIR * blksize
 (cd $mntpoint; /tmp/suj32)
@@ -54,11 +53,11 @@ while mount | grep -q $mntpoint; do
 	umount $mntpoint || sleep 1
 done
 
-tunefs -j enable /dev/md${mdstart}$part
+tunefs -j enable /dev/md$mdstart
 
-if ! mount /dev/md${mdstart}$part $mntpoint; then
+if ! mount /dev/md$mdstart $mntpoint; then
 	echo FAIL
-	fsck_ffs -y /dev/md${mdstart}$part
+	fsck_ffs -y /dev/md$mdstart
 else
 	umount $mntpoint
 fi

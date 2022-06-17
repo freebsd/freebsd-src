@@ -34,7 +34,7 @@
 
 size=$((32 * 1024 * 1024))
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 s=0
@@ -45,18 +45,17 @@ while [ $size -le $((900 * 1024 * 1024)) ]; do
 	dd if=/dev/zero of=$diskimage bs=1m count=$mb status=none
 	mdconfig -a -t vnode -f $diskimage -u $mdstart ||
 	    { rm $diskimage; exit 1; }
-	bsdlabel -w md$mdstart auto
-	newfs -b 32768 -f 4096 -O2 md${mdstart}$part > /dev/null 2>&1
-	mount /dev/md${mdstart}$part $mntpoint
+	newfs -b 32768 -f 4096 -O2 md$mdstart > /dev/null 2>&1
+	mount /dev/md$mdstart $mntpoint
 	export RUNDIR=$mntpoint/stressX
 	export runRUNTIME=30s
 	export RUNTIME=$runRUNTIME
 	export CTRLDIR=$mntpoint/stressX.control
 	(cd ..; ./run.sh disk.cfg) > /dev/null
-	while mount | grep "$mntpoint" | grep -q md${mdstart}$part; do
+	while mount | grep "$mntpoint" | grep -q md$mdstart; do
 		umount $mntpoint > /dev/null 2>&1
 	done
-	checkfs md${mdstart}$part || s=1
+	checkfs md$mdstart || s=1
 	mdconfig -d -u $mdstart
 	size=$((size + 32 * 1024 * 1024))
 	if [ $((`date '+%s'` - start)) -gt 1200 ]; then

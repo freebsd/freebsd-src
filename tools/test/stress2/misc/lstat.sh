@@ -44,9 +44,8 @@ cd $odir
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs -n -b 4096 -f 512 -i 1024 md${mdstart}$part > /dev/null
-mount -o async /dev/md${mdstart}$part $mntpoint || exit 1
+newfs -n -b 4096 -f 512 -i 1024 md$mdstart > /dev/null
+mount -o async /dev/md$mdstart $mntpoint || exit 1
 
 path=$mntpoint/a/b/c
 mkdir -p $path

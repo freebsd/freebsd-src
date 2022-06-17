@@ -41,9 +41,8 @@ mount | grep -q $mnt2/mp && umount $mnt2/mp
 mount | grep $mnt2 | grep -q /dev/md && umount -f $mnt2
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mnt2
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mnt2
 chmod 777 $mnt2
 
 mount | grep $mntpoint | grep -q tmpfs && umount -f $mntpoint

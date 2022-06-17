@@ -45,9 +45,8 @@ mdconfig -l | grep -q $mdstart  &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
 
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 mkdir $mntpoint/stressX
 chmod 777 $mntpoint/stressX
@@ -66,7 +65,7 @@ sleep 60
 for i in `jot 10`; do
 	umount -f $mntpoint    > /dev/null 2>&1
 	sleep 1
-	mount /dev/md${mdstart}$part $mntpoint
+	mount /dev/md$mdstart $mntpoint
 	sleep 1
 done
 

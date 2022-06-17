@@ -47,9 +47,8 @@ mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags  md${mdstart}$part > /dev/null
-echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" >> \
+newfs $newfs_flags  md$mdstart > /dev/null
+echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" >> \
     /etc/fstab
 mount $mntpoint
 set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
@@ -63,7 +62,7 @@ export QI=$((INODES / 2))
 edquota -u -f $mntpoint -e ${mntpoint}:$((QK - 50)):$QK:$((QI - 50 )):$QI \
 $testuser
 quotaon $mntpoint
-sed -i -e "/md${mdstart}$part/d" /etc/fstab
+sed -i -e "/md$mdstart/d" /etc/fstab
 export RUNDIR=$mntpoint/stressX
 mkdir $mntpoint/stressX
 chmod 777 $mntpoint/stressX

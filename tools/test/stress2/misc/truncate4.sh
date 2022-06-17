@@ -36,18 +36,17 @@
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 s=0
 for size in $((4 * 1024 * 1024 * 1024 - 1)) $((4 * 1024 * 1024 * 1024)); do
-	newfs $newfs_flags md${mdstart}$part > /dev/null
-	mount /dev/md${mdstart}$part $mntpoint
+	newfs $newfs_flags md$mdstart > /dev/null
+	mount /dev/md$mdstart $mntpoint
 
 	truncate -s $size $mntpoint/f1 && rm $mntpoint/f1
 
 	while mount | grep "$mntpoint " | grep -q /dev/md; do
 		umount $mntpoint || sleep 1
 	done
-	checkfs /dev/md${mdstart}$part || s=1
+	checkfs /dev/md$mdstart || s=1
 done
 mdconfig -d -u $mdstart
 rm -f /tmp/fsck.log

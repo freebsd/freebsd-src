@@ -42,11 +42,10 @@ cd $here
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 [ $# -eq 1 ] && opt="$1"
 [ $# -eq 0 ] && opt=$newfs_flags	# No argument == default flag
-newfs $opt -n md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $opt -n md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 set `df -i $mntpoint | tail -1 | awk '{print $3, $6}'`
 

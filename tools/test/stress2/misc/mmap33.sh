@@ -94,9 +94,8 @@ set -e
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags -n md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags -n md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 set +e
 
 file=file
@@ -109,7 +108,7 @@ sum1=`md5 < $mntpoint/$file`
     { ls -l mmap33.core; mv mmap33.core /tmp; s=1; }
 cd $odir
 umount $mntpoint
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 # This fails for truncate size < 512
 sum2=`md5 < $mntpoint/$file`
 [ $sum1 = $sum2 ] ||

@@ -33,13 +33,12 @@
 
 . ../default.cfg
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null && umount $mntpoint
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2m -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 export RUNDIR=$mntpoint/stressX
 export KBLOCKS=30000		# Exaggerate disk capacity

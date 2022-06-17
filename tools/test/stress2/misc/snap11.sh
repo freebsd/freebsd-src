@@ -45,9 +45,8 @@ log=/tmp/snap11.log
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 last=`tail -1 /var/log/messages | cut -c1-15`
 [ -z "$last" ] && last=dummy
@@ -79,7 +78,7 @@ for i in `jot 6`; do
 	umount $mntpoint && break || sleep 10
 done
 [ $i -eq 6 ] && exit 1
-fsck -t ufs -y /dev/md${mdstart}$part > $log 2>&1 || s=1
+fsck -t ufs -y /dev/md$mdstart > $log 2>&1 || s=1
 egrep -v "IS CLEAN" $log | grep -q "[A-Z]" $log || { cat $log; s=1; }
 mdconfig -d -u $mdstart
 rm -rf $log

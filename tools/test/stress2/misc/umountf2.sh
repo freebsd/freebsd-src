@@ -44,13 +44,12 @@ rm -f /tmp/fsx.c
 D=$diskimage
 dd if=/dev/zero of=$D bs=1m count=1k status=none || exit 1
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null && umount $mntpoint
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs md${mdstart}$part > /dev/null 2>&1
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null 2>&1
+mount /dev/md$mdstart $mntpoint
 sleep 5
 for i in `jot 100`; do
 	/tmp/fsx -S $i -q $mntpoint/xxx$i > /dev/null &

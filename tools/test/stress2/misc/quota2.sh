@@ -36,13 +36,12 @@ export PATH_FSTAB=/tmp/fstab
 trap "rm -f $D $PATH_FSTAB" 0
 dd if=/dev/zero of=$D bs=1m count=128 status=none || exit 1
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null && umount $mntpoint
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags  md${mdstart}$part > /dev/null
-echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
+newfs $newfs_flags  md$mdstart > /dev/null
+echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
 mount $mntpoint
 edquota -u -f $mntpoint -e $mntpoint:100000:110000:15000:16000 root
 quotacheck $mntpoint

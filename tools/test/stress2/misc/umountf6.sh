@@ -46,8 +46,7 @@ if [ $# -eq 0 ]; then
 		dd if=/dev/zero of=$D$m bs=1m count=10 status=none
 		mdconfig -a -t vnode -f $D$m -u $m ||
 		    { rm -f $D$m; exit 1; }
-		bsdlabel -w md$m auto
-		newfs $newfs_flags md${m}$part > /dev/null 2>&1
+		newfs $newfs_flags md${m} > /dev/null 2>&1
 	done
 
 	# start the parallel tests
@@ -75,7 +74,7 @@ else
 		for i in `jot 100`; do
 			m=$1
 			opt=`[ $(( m % 2 )) -eq 0 ] && echo -f`
-			mount $opt /dev/md${m}$part ${mntpoint}$m
+			mount $opt /dev/md${m} ${mntpoint}$m
 			cp -r /usr/include/machine/a* ${mntpoint}$m
 			while mount | grep -qw $mntpoint$m; do
 				umount -f ${mntpoint}$m > /dev/null 2>&1

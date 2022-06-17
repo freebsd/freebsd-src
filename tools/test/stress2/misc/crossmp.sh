@@ -48,8 +48,7 @@ if [ $# -eq 0 ]; then
 
 		dd if=/dev/zero of=$D$m bs=1m count=1 status=none
 		mdconfig -a -t vnode -f $D$m -u $m
-		bsdlabel -w md$m auto
-		newfs $newfs_flags md${m}$part > /dev/null 2>&1
+		newfs $newfs_flags md${m} > /dev/null 2>&1
 	done
 
 	# start the parallel tests
@@ -77,7 +76,7 @@ else
 		# The test: Parallel mount and unmounts
 		for i in `jot 1024`; do
 			m=$1
-			mount /dev/md${m}$part ${mntpoint}$m
+			mount /dev/md${m} ${mntpoint}$m
 			while mount | grep -q "on ${mntpoint}$m "; do
 				opt=$([ $((`date '+%s'` % 2)) -eq 0 ] &&
 				    echo "-f")

@@ -37,15 +37,14 @@
 
 . ../default.cfg
 
-mount | grep "on $mntpoint " | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "on $mntpoint " | grep -q md$mdstart && umount $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
+newfs $newfs_flags md$mdstart > /dev/null
 export PATH_FSTAB=/tmp/fstab
 trap "rm -f $PATH_FSTAB" 0
-echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
+echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
 mount $mntpoint
 edquota -u -f $mntpoint -e $mntpoint:1000:2000:100:200 root
 quotaon $mntpoint

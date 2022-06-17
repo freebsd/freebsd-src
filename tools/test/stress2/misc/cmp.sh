@@ -45,10 +45,9 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 # Don't use SU due to bogus "out of inodes" messages.
-newfs md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 daemon sh -c "(cd $here/../testcases/swap; ./swap -t 5m -i 20 -h -l 100)" \
@@ -58,7 +57,7 @@ su $testuser -c "/tmp/cmp $mntpoint" &
 
 while kill -0 $! 2>/dev/null; do
 	umount -f $mntpoint &&
-	    mount /dev/md${mdstart}$part $mntpoint
+	    mount /dev/md$mdstart $mntpoint
 	chmod 777 $mntpoint
 	sleep .1
 done

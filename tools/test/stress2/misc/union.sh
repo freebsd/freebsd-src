@@ -35,31 +35,29 @@
 u1=$mdstart
 u2=$((u1 + 1))
 
-mount | grep -q /dev/md${u2}$part && umount -f /dev/md${u2}$part
-mount | grep -q /dev/md${u1}$part && umount -f /dev/md${u1}$part
+mount | grep -q /dev/md${u2} && umount -f /dev/md${u2}
+mount | grep -q /dev/md${u1} && umount -f /dev/md${u1}
 mdconfig -l | grep -q md$u2 && mdconfig -d -u $u2
 mdconfig -l | grep -q md$u1 && mdconfig -d -u $u1
 
 mdconfig -s 256m -u $u1
-bsdlabel -w md$u1 auto
-newfs md${u1}$part > /dev/null
+newfs md${u1} > /dev/null
 
 mdconfig -s 256m -u $u2
-bsdlabel -w md$u2 auto
-newfs md${u2}$part > /dev/null
+newfs md${u2} > /dev/null
 
-mount -o ro    /dev/md${u1}$part $mntpoint
-mount -o union /dev/md${u2}$part $mntpoint
+mount -o ro    /dev/md${u1} $mntpoint
+mount -o union /dev/md${u2} $mntpoint
 
 export RUNDIR=$mntpoint/stressX
 export runRUNTIME=10m
 (cd ..; ./run.sh marcus.cfg) > /dev/null
 
-umount /dev/md${u2}$part
-umount /dev/md${u1}$part
+umount /dev/md${u2}
+umount /dev/md${u1}
 
-mount | grep -q /dev/md${u2}$part && umount -f /dev/md${u2}$part
-mount | grep -q /dev/md${u1}$part && umount -f /dev/md${u1}$part
+mount | grep -q /dev/md${u2} && umount -f /dev/md${u2}
+mount | grep -q /dev/md${u1} && umount -f /dev/md${u1}
 
 mdconfig -d -u $u2
 mdconfig -d -u $u1

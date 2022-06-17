@@ -37,9 +37,8 @@ mount | grep "$mntpoint " | grep -q md$mdstart && umount $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t malloc -s 128m -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags -t md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags -t md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 mksnap_ffs $mntpoint $mntpoint/.snap/snap
 

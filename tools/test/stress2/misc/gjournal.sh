@@ -55,9 +55,8 @@ here=`pwd`
 cd $mntpoint
 dd if=/dev/zero of=image bs=1m count=1k status=none
 mdconfig -a -t vnode -f image -u $m
-bsdlabel -w md$m auto
-newfs md${m}$part > /dev/null
-mount /dev/md${m}$part $mp2
+newfs md${m} > /dev/null
+mount /dev/md${m} $mp2
 # dd will suspend in wdrain
 echo "Expect \"$mp2: write failed, filesystem is full\""
 dd if=/dev/zero of=$mp2/zero bs=1M > /dev/null 2>&1

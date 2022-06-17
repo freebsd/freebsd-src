@@ -49,9 +49,8 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags -n md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags -n md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 cpus=`sysctl hw.ncpu | sed 's/.*: //'`
 (cd $mntpoint; /tmp/spin $((cpus + 1))) &

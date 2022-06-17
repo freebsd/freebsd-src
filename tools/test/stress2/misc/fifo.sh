@@ -47,15 +47,14 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 (cd $mntpoint; /tmp/fifo)
 
 for i in `jot 10`; do
-	mount | grep -q md${mdstart}$part  && \
+	mount | grep -q md$mdstart  && \
 		umount $mntpoint && mdconfig -d -u $mdstart && break
 	sleep 10
 done

@@ -34,13 +34,12 @@
 
 . ../default.cfg
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount -f $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 12m -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export runRUNTIME=5m
@@ -65,7 +64,7 @@ for i in `jot 10`; do
 			exit 1
 		fi
 	done
-	mount /dev/md${mdstart}$part $mntpoint
+	mount /dev/md$mdstart $mntpoint
 done
 
 umount $mntpoint

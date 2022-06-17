@@ -48,9 +48,8 @@ mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags -m 0 md${mdstart}$part > /dev/null 2>&1
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags -m 0 md$mdstart > /dev/null 2>&1
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 cd $mntpoint

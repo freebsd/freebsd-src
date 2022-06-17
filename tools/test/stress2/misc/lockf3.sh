@@ -40,10 +40,9 @@ mount | grep -q "$mntpoint" && umount $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 40m -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 cd $mntpoint
 for i in `jot 3`; do

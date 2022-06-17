@@ -37,8 +37,8 @@ ftest () {	# option, disk full
 	local args="$@"
 	[ $2 -eq 1 ] && df=", disk full" || df=""
 	echo "`date '+%T'` newfs $1 md${mdstart}${part}$df"
-	newfs $1 md${mdstart}$part > /dev/null
-	mount /dev/md${mdstart}$part $mntpoint
+	newfs $1 md$mdstart > /dev/null
+	mount /dev/md$mdstart $mntpoint
 	chmod 777 $mntpoint
 
 	export RUNDIR=$mntpoint/stressX
@@ -67,14 +67,13 @@ ftest () {	# option, disk full
 			umount -f $mntpoint
 		fi
 	done
-	checkfs /dev/md${mdstart}$part || touch $flag
+	checkfs /dev/md$mdstart || touch $flag
 }
 
-mount | grep "on $mntpoint " | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "on $mntpoint " | grep -q md$mdstart && umount $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 20m -u $mdstart
-bsdlabel -w md$mdstart auto
 
 ftest "-O 1"  0	# ufs1
 ftest "-O 1"  1	# ufs1, disk full

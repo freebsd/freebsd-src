@@ -36,10 +36,9 @@
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t malloc -o reserve -s 128m -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 [ $# -eq 0 ] && trim=-t
-newfs $trim $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $trim $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 echo "This is a Trim (TRIM) test." >> $mntpoint/file
 for i in `jot 20`; do
@@ -52,8 +51,8 @@ while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
 
-grep -a -qm1 Trim /dev/md${mdstart}$part && { echo "Test failed"; s=1; }
+grep -a -qm1 Trim /dev/md$mdstart && { echo "Test failed"; s=1; }
 
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 mdconfig -d -u $mdstart
 exit $s

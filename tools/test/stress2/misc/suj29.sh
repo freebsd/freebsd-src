@@ -41,13 +41,12 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
-newfs -U md${mdstart}$part > /dev/null
-echo "tunefs -j enable -S 10000000 /dev/md${mdstart}$part"
-tunefs -j enable -S 10000000 /dev/md${mdstart}$part
+newfs -U md$mdstart > /dev/null
+echo "tunefs -j enable -S 10000000 /dev/md$mdstart"
+tunefs -j enable -S 10000000 /dev/md$mdstart
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export runRUNTIME=5m
@@ -67,8 +66,8 @@ su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS'
 while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
-checkfs /dev/md${mdstart}$part; s=$?
-tunefs -j disable /dev/md${mdstart}$part
-checkfs /dev/md${mdstart}$part || s=$?
+checkfs /dev/md$mdstart; s=$?
+tunefs -j disable /dev/md$mdstart
+checkfs /dev/md$mdstart || s=$?
 mdconfig -d -u $mdstart
 exit $s

@@ -70,9 +70,8 @@ while mount | grep -q "on $mntpoint "; do
 done
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 cp -a /usr/include $mntpoint
 echo "Testing FFS"
 /tmp/pread $mntpoint

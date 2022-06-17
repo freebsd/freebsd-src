@@ -45,9 +45,8 @@ mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 4g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 avail=`df -k $mntpoint | tail -1 | awk '{print $4}'`
 
 cd $mntpoint
@@ -72,7 +71,7 @@ while mount | grep "on $mntpoint " | grep -q /dev/md; do
 	[ $n -gt 5 ] && { umount -f $mntpoint; break; }
 done
 
-checkfs /dev/md${mdstart}$part || s=$?
+checkfs /dev/md$mdstart || s=$?
 rm -f /tmp/rename10
 mdconfig -d -u $mdstart
 exit $s

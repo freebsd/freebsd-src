@@ -42,11 +42,10 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
-newfs -j md${mdstart}$part > /dev/null
+newfs -j md$mdstart > /dev/null
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export runRUNTIME=30m
@@ -56,7 +55,7 @@ su $testuser -c 'cd ..; ./run.sh jeff.cfg > /dev/null' &
 rpid=$!
 while kill -0 $rpid 2> /dev/null; do
 	sleep 10
-	dump -0aLf /dev/null /dev/md${mdstart}$part
+	dump -0aLf /dev/null /dev/md$mdstart
 done
 wait
 

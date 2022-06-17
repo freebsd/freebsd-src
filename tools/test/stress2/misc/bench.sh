@@ -43,16 +43,15 @@ cd $odir
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
 log=/tmp/stress2.d/bench.sh.log
 [ -f $log ] && old=`tail -1 $log | awk '{print $2}'`
 tmp=/tmp/bench.sh.tmp
 s=0
 for j in `jot 5`; do
-	newfs -n -b 4096 -f 512 -i 1024 md${mdstart}$part > \
+	newfs -n -b 4096 -f 512 -i 1024 md$mdstart > \
 	    /dev/null
-	mount -o async /dev/md${mdstart}$part $mntpoint
+	mount -o async /dev/md$mdstart $mntpoint
 	/usr/bin/time sh -c "(cd $mntpoint; /tmp/bench)" 2>&1 | \
 	    awk '{print $1}'
 	[ $? -ne 0 ] && s=1

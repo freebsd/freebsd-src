@@ -47,9 +47,8 @@ mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs md${mdstart}$part > /dev/null 2>&1
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null 2>&1
+mount /dev/md$mdstart $mntpoint
 export RUNDIR=$mntpoint/stressX
 for i in `jot 25`; do
 	(cd /$mntpoint; /tmp/umountf3) &

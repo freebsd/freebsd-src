@@ -47,8 +47,7 @@ for i in `jot $mounts`; do
 
 	dd if=/dev/zero of=$D$m bs=1m count=1 status=none
 	mdconfig -a -t vnode -f $D$m -u $m || { rm -f $D$m; exit 1; }
-	bsdlabel -w md$m auto
-	newfs md${m}$part > /dev/null
+	newfs md${m} > /dev/null
 done
 
 # start the parallel tests
@@ -57,7 +56,7 @@ for i in `jot $mounts`; do
 	start=`date +%s`
 	while [ $((`date +%s` - start)) -lt 300 ]; do
 		opt=`[ $(( m % 2 )) -eq 0 ] && echo -f`
-		mount /dev/md${m}$part ${mntpoint}$m
+		mount /dev/md${m} ${mntpoint}$m
 		while mount | grep -q ${mntpoint}$m; do
 			umount $opt ${mntpoint}$m > /dev/null 2>&1
 		done

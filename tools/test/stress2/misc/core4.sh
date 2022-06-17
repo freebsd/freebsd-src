@@ -45,11 +45,10 @@ mount | grep -q "$mntpoint" && umount $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
+newfs $newfs_flags md$mdstart > /dev/null
 for i in `jot 20`; do
-	mount /dev/md${mdstart}$part $mntpoint
+	mount /dev/md$mdstart $mntpoint
 	chmod 777 $mntpoint
 	su $testuser -c "(cd $mntpoint; /tmp/core4)" &
 	su $testuser -c "(cd $mntpoint; /tmp/core4)" &

@@ -236,9 +236,8 @@ mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 dd if=/dev/random of=$mntpoint/data bs=123456 count=1 status=none
 ./sendfile6_server $mntpoint/data mysocket &

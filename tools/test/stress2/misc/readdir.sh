@@ -71,9 +71,8 @@ if ping -c 2 `echo $nfs_export | sed 's/:.*//'` > /dev/null 2>&1; then
 fi
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 cp -a /usr/include $mntpoint
 echo "Testing UFS"
 /tmp/readdir $mntpoint
@@ -81,9 +80,8 @@ umount $mntpoint
 mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 cp -a /usr/include $mntpoint
 echo "Testing FFS"
 /tmp/readdir $mntpoint

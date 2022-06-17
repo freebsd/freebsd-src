@@ -43,9 +43,8 @@ touch $continue
 
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 10m -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 for i in `jot $parallel`; do
 	while [ -f $continue ]; do umount $mntpoint; done 2>/dev/null &
@@ -54,7 +53,7 @@ done
 start=`date '+%s'`
 while [ $((`date '+%s'` - start)) -lt 300 ]; do
 	mount | grep -q "on $mntpoint " ||
-	    mount /dev/md${mdstart}$part $mntpoint
+	    mount /dev/md$mdstart $mntpoint
 done > /dev/null 2>&1
 rm $continue
 wait

@@ -59,9 +59,8 @@ umount $mntpoint
 [ $loaded ] && kldunload tmpfs.ko
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 echo "Testing FFS"
 cp $diskimage $mntpoint
 /tmp/sendfile5 $mntpoint/$file

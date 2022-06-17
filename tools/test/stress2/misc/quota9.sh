@@ -54,10 +54,9 @@ mount | grep "$mntpoint" | grep -q md$mdstart &&
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags  md${mdstart}$part > /dev/null
+newfs $newfs_flags  md$mdstart > /dev/null
 export PATH_FSTAB=/tmp/fstab
-echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" \
+echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" \
     > $PATH_FSTAB
 mount $mntpoint
 mkdir $mntpoint/stressX

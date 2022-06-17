@@ -46,12 +46,11 @@ s=0
 for flag in ' ' $opt; do
 	echo "mdconfig -a -t swap -s $size -u $mdstart"
 	mdconfig -a -t swap -s $size -u $mdstart || exit 1
-	bsdlabel -w md$mdstart auto
 
-	echo "newfs $trim $flag md${mdstart}$part"
-	newfs $trim $flag md${mdstart}$part > /dev/null
+	echo "newfs $trim $flag md$mdstart"
+	newfs $trim $flag md$mdstart > /dev/null
 
-	mount /dev/md${mdstart}$part $mntpoint
+	mount /dev/md$mdstart $mntpoint
 	chmod 777 $mntpoint
 
 	export runRUNTIME=7m
@@ -65,7 +64,7 @@ for flag in ' ' $opt; do
 		[ $i -eq 6 ] &&
 		    { echo FAIL; fstat -mf $mntpoint; exit 1; }
 	done
-	checkfs /dev/md${mdstart}$part || s=$?
+	checkfs /dev/md$mdstart || s=$?
 	mdconfig -d -u $mdstart
 done
 exit $s
