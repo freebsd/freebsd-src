@@ -7,6 +7,14 @@
 
 #include "assym.inc"
 
+	.data
+
+	.globl linux_platform
+linux_platform:
+	.asciz "i686"
+
+	.text
+
 /*
  * To avoid excess stack frame the signal trampoline code emulates
  * the 'call' instruction.
