@@ -72,6 +72,8 @@ xen_pv_nics_disabled(void)
 	return (xen_hvm_domain() && xen_disable_pv_nics != 0);
 }
 
+bool xen_has_iommu_maps(void);
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _MACHINE_X86_XEN_XEN_OS_H_ */

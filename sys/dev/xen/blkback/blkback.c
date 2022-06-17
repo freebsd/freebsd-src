@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/gnttab.h>
 #include <xen/xen_intr.h>
 
-#include <contrib/xen/arch-x86/cpuid.h>
 #include <contrib/xen/event_channel.h>
 #include <contrib/xen/grant_table.h>
 
@@ -3318,16 +3317,12 @@ xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt, ...)
 static int
 xbb_probe(device_t dev)
 {
-	uint32_t regs[4];
 
 	if (strcmp(xenbus_get_type(dev), "vbd"))
 		return (ENXIO);
 
-	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
-	cpuid_count(xen_cpuid_base + 4, 0, regs);
-
 	/* Only attach if Xen creates IOMMU entries for grant mapped pages. */
-	if (!(regs[0] & XEN_HVM_CPUID_IOMMU_MAPPINGS)) {
+	if (!xen_has_iommu_maps()) {
 		static bool warned;
 
 		if (!warned) {
