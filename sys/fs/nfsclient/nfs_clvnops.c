@@ -3763,7 +3763,7 @@ nfs_allocate(struct vop_allocate_args *ap)
 			error = ncl_flush(vp, MNT_WAIT, td, 1, 0);
 		if (error == 0)
 			error = nfsrpc_allocate(vp, *ap->a_offset, alen,
-			    &nfsva, &attrflag, ap->a_cred, td, NULL);
+			    &nfsva, &attrflag, ap->a_cred, td);
 		if (error == 0) {
 			*ap->a_offset += alen;
 			*ap->a_len -= alen;
