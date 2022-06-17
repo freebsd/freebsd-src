@@ -81,7 +81,7 @@ GENHDRS=	\
 	termcap.h \
 	unctrl.h
 
-SRCS=	${GENHDRS} ${GENSRCS}
+SRCS=	${GENHDRS} ${GENSRCS} ${SRCHDRS}
 
 .PATH: ${NCURSES_DIR}/ncurses/base
 SRCS+=	\
