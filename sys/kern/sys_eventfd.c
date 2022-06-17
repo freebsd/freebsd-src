@@ -341,6 +341,7 @@ eventfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp
 	mtx_lock(&efd->efd_lock);
 	kif->kf_un.kf_eventfd.kf_eventfd_value = efd->efd_count;
 	kif->kf_un.kf_eventfd.kf_eventfd_flags = efd->efd_flags;
+	kif->kf_un.kf_eventfd.kf_eventfd_addr = (uintptr_t)efd;
 	mtx_unlock(&efd->efd_lock);
 	return (0);
 }

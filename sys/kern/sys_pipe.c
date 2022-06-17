@@ -1613,6 +1613,9 @@ pipe_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	kif->kf_un.kf_pipe.kf_pipe_addr = (uintptr_t)pi;
 	kif->kf_un.kf_pipe.kf_pipe_peer = (uintptr_t)pi->pipe_peer;
 	kif->kf_un.kf_pipe.kf_pipe_buffer_cnt = pi->pipe_buffer.cnt;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_in = pi->pipe_buffer.in;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_out = pi->pipe_buffer.out;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_size = pi->pipe_buffer.size;
 	return (0);
 }
 

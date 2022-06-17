@@ -2324,8 +2324,12 @@ kqueue_close(struct file *fp, struct thread *td)
 static int
 kqueue_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
+	struct kqueue *kq = fp->f_data;
 
 	kif->kf_type = KF_TYPE_KQUEUE;
+	kif->kf_un.kf_kqueue.kf_kqueue_addr = (uintptr_t)kq;
+	kif->kf_un.kf_kqueue.kf_kqueue_count = kq->kq_count;
+	kif->kf_un.kf_kqueue.kf_kqueue_state = kq->kq_state;
 	return (0);
 }
 

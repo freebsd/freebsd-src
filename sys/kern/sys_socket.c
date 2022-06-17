@@ -382,17 +382,19 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	switch (kif->kf_un.kf_sock.kf_sock_domain0) {
 	case AF_INET:
 	case AF_INET6:
-		if (kif->kf_un.kf_sock.kf_sock_protocol0 == IPPROTO_TCP) {
-			if (so->so_pcb != NULL) {
-				inpcb = (struct inpcb *)(so->so_pcb);
-				kif->kf_un.kf_sock.kf_sock_inpcb =
-				    (uintptr_t)inpcb->inp_ppcb;
-				kif->kf_un.kf_sock.kf_sock_sendq =
-				    sbused(&so->so_snd);
-				kif->kf_un.kf_sock.kf_sock_recvq =
-				    sbused(&so->so_rcv);
-			}
+		if (so->so_pcb != NULL) {
+			inpcb = (struct inpcb *)(so->so_pcb);
+			kif->kf_un.kf_sock.kf_sock_inpcb =
+			    (uintptr_t)inpcb->inp_ppcb;
 		}
+		kif->kf_un.kf_sock.kf_sock_rcv_sb_state =
+		    so->so_rcv.sb_state;
+		kif->kf_un.kf_sock.kf_sock_snd_sb_state =
+		    so->so_snd.sb_state;
+		kif->kf_un.kf_sock.kf_sock_sendq =
+		    sbused(&so->so_snd);
+		kif->kf_un.kf_sock.kf_sock_recvq =
+		    sbused(&so->so_rcv);
 		break;
 	case AF_UNIX:
 		if (so->so_pcb != NULL) {
