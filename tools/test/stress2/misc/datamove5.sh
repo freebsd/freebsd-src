@@ -47,9 +47,8 @@ mount | grep -wq $mp2 && umount $mp2
 mount | grep -wq $mp1 && umount $mp1
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mp1
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mp1
 
 mount -t nullfs $opt $mp1 $mp2
 chmod 777 $mp2

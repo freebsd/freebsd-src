@@ -37,24 +37,23 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap  -s 128M -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
 n=0
 s=0
 for i in 1 2 ; do
 	n=$((n + 1))
-	echo "newfs -U md${mdstart}$part"
-	newfs -U md${mdstart}$part > /dev/null
-	[ $n -eq 2 ] && tunefs -j enable /dev/md${mdstart}$part
+	echo "newfs -U md$mdstart"
+	newfs -U md$mdstart > /dev/null
+	[ $n -eq 2 ] && tunefs -j enable /dev/md$mdstart
 
-	mount /dev/md${mdstart}$part $mntpoint
+	mount /dev/md$mdstart $mntpoint
 
 	dd if=/dev/zero of=$mntpoint/big bs=4k > /dev/null 2>&1
 
 	while mount | grep $mntpoint | grep -q /dev/md; do
 		umount $mntpoint || sleep 1
 	done
-	checkfs /dev/md${mdstart}$part || s=1
+	checkfs /dev/md$mdstart || s=1
 done
 
 mdconfig -d -u $mdstart

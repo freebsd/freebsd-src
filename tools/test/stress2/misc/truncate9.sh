@@ -40,9 +40,8 @@ set -e
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags -n md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags -n md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 set +e
 
 (cd $odir/../testcases/swap; ./swap -t 5m -i 20 -l 100) > /dev/null &

@@ -37,13 +37,12 @@
 
 . ../default.cfg
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -j md${mdstart}$part  > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -j md$mdstart  > /dev/null
+mount /dev/md$mdstart $mntpoint
 export RUNDIR=$mntpoint/stressX
 export runRUNTIME=3m            # Run tests for three minutes
 chmod 777 $mntpoint
@@ -61,6 +60,6 @@ for i in `jot 6`; do
 	[ $i -eq 6 ] &&
 	    { echo FAIL; fstat -mf $mntpoint; exit 1; }
 done
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 mdconfig -d -u $mdstart
 exit $s

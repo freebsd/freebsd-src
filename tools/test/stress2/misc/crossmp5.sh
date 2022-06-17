@@ -48,8 +48,7 @@ if [ $# -eq 0 ]; then
 		mdconfig -l | grep -q md$m && mdconfig -d -u $m
 
 		mdconfig -a -t swap -s ${size}m -u $m
-		bsdlabel -w md$m auto
-		newfs $newfs_flags md${m}$part > /dev/null 2>&1
+		newfs $newfs_flags md${m} > /dev/null 2>&1
 	done
 
 	# start the parallel tests
@@ -77,7 +76,7 @@ else
 		# The test: Parallel mount and unmount
 		m=$1
 		for i in `jot 200`; do
-			mount /dev/md${m}$part ${mntpoint}$m
+			mount /dev/md${m} ${mntpoint}$m
 			chmod 777 ${mntpoint}$m
 			l=`jot -r 1 65535`
 			dd if=/dev/zero of=$mntpoint/$i bs=$l count=100 \

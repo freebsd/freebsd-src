@@ -44,7 +44,7 @@ mycc -o newfs4 -Wall -Wextra newfs4.c || exit 1
 rm -f newfs4.c
 cd $odir
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 size=9	# Gb
@@ -58,9 +58,8 @@ dd if=/dev/zero of=$diskimage bs=1m count=$((size * 1024)) status=none ||
 blocksize="-b 65536"
 opt="-O2 -U"
 mdconfig -a -t vnode -f $diskimage -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $blocksize $opt md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $blocksize $opt md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 cd $mntpoint
 truncate -s 2g f1
@@ -73,10 +72,10 @@ truncate -s 2g f4
 /tmp/newfs4 f4 &
 wait
 
-while mount | grep "$mntpoint" | grep -q md${mdstart}$part; do
+while mount | grep "$mntpoint" | grep -q md$mdstart; do
 	umount -f $mntpoint || sleep 1
 done
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 
 mdconfig -d -u $mdstart
 rm -f /tmp/newfs4

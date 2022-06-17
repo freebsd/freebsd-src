@@ -42,12 +42,11 @@ mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
 [ $# -eq 1 ] && newfs_flags=$1	# Problem only seen with SU
-echo newfs $newfs_flags md${mdstart}$part
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+echo newfs $newfs_flags md$mdstart
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 mkdir $mntpoint/dir
 (
@@ -59,7 +58,7 @@ while mount | grep "on $mntpoint " | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
 
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 mdconfig -d -u $mdstart
 rm -rf /tmp/rename11
 exit $s

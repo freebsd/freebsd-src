@@ -36,10 +36,9 @@ mount | grep -q "$mntpoint" && umount $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 400m -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 export RUNDIR=$mntpoint/stressX
 
 here=`pwd`
@@ -62,7 +61,7 @@ while mount | grep -q $mntpoint; do
 	umount $mntpoint
 done
 
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 mdconfig -d -u $mdstart
 exit $s
 EOF

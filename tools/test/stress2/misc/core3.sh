@@ -49,9 +49,8 @@ cd $odir
 mount | grep -q "on $mntpoint " && umount $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 mkdir $mntpoint/d
 chmod 777 $mntpoint/d
 
@@ -65,7 +64,7 @@ while pgrep -q core3; do
 done > /dev/null 2>&1  &
 while pgrep -q core3; do
 	[ -d $mntpoint/d ] ||
-	   mount /dev/md${mdstart}$part $mntpoint
+	   mount /dev/md$mdstart $mntpoint
 done > /dev/null 2>&1
 wait $pid
 status=$?

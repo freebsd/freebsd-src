@@ -54,17 +54,15 @@ opt=$([ $((`date '+%s'` % 2)) -eq 0 ] && echo "-j" || echo "-U")
 mount | grep "on $mp1 " | grep -q /dev/md && umount -f $mp1
 mdconfig -l | grep -q md$md1 &&  mdconfig -d -u $md1
 mdconfig -a -t swap -s ${size}m -u $md1
-bsdlabel -w md$md1 auto
-newfs $opt md${md1}$part > /dev/null
-mount /dev/md${md1}$part $mp1
+newfs $opt md${md1} > /dev/null
+mount /dev/md${md1} $mp1
 chmod 777 $mp1
 
 mount | grep "on $mp2 " | grep -q /dev/md && umount -f $mp2
 mdconfig -l | grep -q md$md2 &&  mdconfig -d -u $md2
 mdconfig -a -t swap -s ${size}m -u $md2
-bsdlabel -w md$md2 auto
-newfs $opt md${md2}$part > /dev/null
-mount /dev/md${md2}$part $mp2
+newfs $opt md${md2} > /dev/null
+mount /dev/md${md2} $mp2
 chmod 777 $mp2
 
 export runRUNTIME=10m

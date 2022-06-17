@@ -39,7 +39,7 @@
 
 . ../default.cfg
 
-mount | grep -q /dev/md${mdstart}$part && umount -f /dev/md${mdstart}$part
+mount | grep -q /dev/md$mdstart && umount -f /dev/md${mdstart}
 mdconfig -l | grep -q md$mdstart && mdconfig -d -u $mdstart
 
 parallel=20
@@ -53,9 +53,8 @@ mx=$((`sysctl -n hw.physmem` / 1024 / 1024 / 1024 / 2))
 truncate -s ${size}G $diskimage
 
 mdconfig -a -t vnode -f $diskimage -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -O2 $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -O2 $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 mycc -o /tmp/fstool -Wall ../tools/fstool.c
 for i in `jot $parallel`; do
@@ -88,8 +87,8 @@ for i in `jot 10`; do
 done
 wait
 
-umount /dev/md${mdstart}$part
+umount /dev/md$mdstart
 
-mount | grep -q /dev/md${mdstart}$part && umount -f /dev/md${mdstart}$part
+mount | grep -q /dev/md$mdstart && umount -f /dev/md${mdstart}
 mdconfig -l | grep -q md$mdstart && mdconfig -d -u $mdstart
 rm -f $diskimage

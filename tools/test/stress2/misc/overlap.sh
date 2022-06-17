@@ -45,11 +45,10 @@ rm -f /tmp/overlap.c
 
 size="1g"
 mdconfig -a -t swap -s $size -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
-newfs -U md${mdstart}$part > /dev/null
+newfs -U md$mdstart > /dev/null
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 (cd $mntpoint; /tmp/overlap)

@@ -37,12 +37,11 @@
 
 . ../default.cfg
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null &&
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null &&
     umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 
 echo "Expect warnings from SU and SU+J."
 log=/tmp/newfs.sh.log
@@ -59,8 +58,8 @@ for opt in -O1 -O2 -U -j; do
 		for i in 8 4 2 1; do
 			fragsize=$((blocksize / i))
 			newfs $opt -b $blocksize -f $fragsize \
-			    md${mdstart}$part > /dev/null 2>&1 || continue
-			mount /dev/md${mdstart}$part $mntpoint
+			    md$mdstart > /dev/null 2>&1 || continue
+			mount /dev/md$mdstart $mntpoint
 			chmod 777 $mntpoint
 			rm -rf /tmp/stressX.control
 			su $testuser -c \
@@ -69,10 +68,10 @@ for opt in -O1 -O2 -U -j; do
 			../tools/killall.sh
 			wait
 			while mount | grep "$mntpoint" | \
-			    grep -q md${mdstart}$part; do
+			    grep -q md$mdstart; do
 				umount $mntpoint > /dev/null 2>&1 || sleep 1
 			done
-			checkfs /dev/md${mdstart}$part > $log 2>&1 || {
+			checkfs /dev/md$mdstart > $log 2>&1 || {
 				cmd="newfs $opt -b $blocksize -f $fragsize"
 #				if ! grep -q -- "$cmd" $0; then
 					s=1

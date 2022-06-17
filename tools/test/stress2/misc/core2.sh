@@ -42,9 +42,8 @@ cd $RUNDIR
 mount | grep "on $mntpoint " | grep -q md$mdstart && umount $mntpoint
 [ -c /dev/mn$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 touch /tmp/continue
 for i in `jot 64`; do

@@ -41,10 +41,9 @@ mount | grep -q "$mntpoint" && umount $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 here=`pwd`
 cd /tmp
@@ -59,11 +58,11 @@ cd $mntpoint
 cd $here
 rm -f /tmp/rename5
 
-while mount | grep -q md${mdstart}$part; do
+while mount | grep -q md$mdstart; do
 	umount $mntpoint || sleep 1
 done
 
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 
 mdconfig -d -u $mdstart
 exit $s

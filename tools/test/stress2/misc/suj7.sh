@@ -35,9 +35,8 @@
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -j md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -j md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 chflags 0 $mntpoint/.sujournal
 rm -f $mntpoint/.sujournal
@@ -51,8 +50,8 @@ done
 # Failed to start journal: 2
 
 echo "Expect: \"mount: /dev/md5a: No such file or directory\""
-[ -c /dev/md${mdstart}$part ] &&
-   mount /dev/md${mdstart}$part $mntpoint
+[ -c /dev/md$mdstart ] &&
+   mount /dev/md$mdstart $mntpoint
 
 while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint > /dev/null 2>&1 || sleep 1

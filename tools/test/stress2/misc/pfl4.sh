@@ -63,9 +63,8 @@ for i in `jot $mounts $start`; do
 
 	mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 	mdconfig -a -t swap -s 2g -u $mdstart
-	bsdlabel -w md$mdstart auto
-	newfs $newfs_flags md${mdstart}$part > /dev/null
-	mount /dev/md${mdstart}$part $mntpoint
+	newfs $newfs_flags md$mdstart > /dev/null
+	mount /dev/md$mdstart $mntpoint
 	chmod 777 $mntpoint
 
 	export RUNDIR=$mntpoint/stressX
@@ -90,7 +89,7 @@ for i in `jot $mounts $start`; do
 		n=$((n += 1))
 		[ $n -gt 60 ] && exit 1
 	done
-	checkfs /dev/md${mdstart}$part || s=$?
+	checkfs /dev/md$mdstart || s=$?
 	mdconfig -d -u $mdstart
 done
 exit $s

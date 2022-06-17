@@ -37,14 +37,13 @@ pgrep -q mountd || exit 0
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 128m -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
+newfs $newfs_flags md$mdstart > /dev/null
 
 routetbl=`vmstat -m | grep routetbl | awk '{print $2}'`
 s=0
 start=`date +%s`
 while [ $((`date +%s` - start)) -lt 60 ]; do
-	mount /dev/md${mdstart}$part $mntpoint &&
+	mount /dev/md$mdstart $mntpoint &&
 	    umount $mntpoint
 done
 routetbl=$((`vmstat -m | grep routetbl | awk '{print $2}'` - routetbl))

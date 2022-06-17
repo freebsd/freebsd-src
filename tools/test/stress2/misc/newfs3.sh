@@ -40,7 +40,7 @@
 size=$((32 * 1024 * 1024))
 opt="-O2"	# newfs option. Eg. -U
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 s=0
@@ -50,14 +50,13 @@ while [ $size -le $((128 * 1024 * 1024)) ]; do
 	dd if=/dev/zero of=$diskimage bs=1m count=$mb status=none
 	mdconfig -a -t vnode -f $diskimage -u $mdstart ||
 	    { rm -f $diskimage; exit 1; }
-	bsdlabel -w md$mdstart auto
 	blocksize=4096
 	while [ $blocksize -le 65536 ]; do
 		for i in 1 2 4 8; do
 			fragsize=$((blocksize / i))
-			newfs -b $blocksize -f $fragsize $opt md${mdstart}$part > \
+			newfs -b $blocksize -f $fragsize $opt md$mdstart > \
 			    /dev/null 2>&1
-			mount /dev/md${mdstart}$part $mntpoint
+			mount /dev/md$mdstart $mntpoint
 			export RUNDIR=$mntpoint/stressX
 			export runRUNTIME=15s
 			export RUNTIME=$runRUNTIME
@@ -67,10 +66,10 @@ while [ $size -le $((128 * 1024 * 1024)) ]; do
 			../tools/killall.sh
 			wait
 			while mount | grep "$mntpoint" | \
-			    grep -q md${mdstart}$part; do
+			    grep -q md$mdstart; do
 				umount $mntpoint > /dev/null 2>&1
 			done
-			checkfs /dev/md${mdstart}$part || s=1
+			checkfs /dev/md$mdstart || s=1
 		done
 		blocksize=$((blocksize * 2))
 	done

@@ -44,7 +44,6 @@ set -e
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 newfs $newfs_flags -n md$mdstart > /dev/null
 mount /dev/md$mdstart $mntpoint
 set +e

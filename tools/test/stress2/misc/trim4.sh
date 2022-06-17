@@ -45,12 +45,11 @@ while [ $((`date +%s` - start)) -lt $((15 * 60)) ]; do
 	echo "Test `date '+%T'`"
 	echo "mdconfig -a -t swap -s $size -u $mdstart"
 	mdconfig -a -t swap -s $size -u $mdstart || exit 1
-	bsdlabel -w md$mdstart auto
 
-	echo "newfs $trim $flag md${mdstart}$part"
-	newfs $trim $flag md${mdstart}$part > /dev/null
+	echo "newfs $trim $flag md$mdstart"
+	newfs $trim $flag md$mdstart > /dev/null
 
-	mount /dev/md${mdstart}$part $mntpoint
+	mount /dev/md$mdstart $mntpoint
 	chmod 777 $mntpoint
 
 	export runRUNTIME=5m
@@ -62,7 +61,7 @@ while [ $((`date +%s` - start)) -lt $((15 * 60)) ]; do
 		umount $mntpoint || sleep 1
 	done
 #	Do not break in case of fsck error
-	checkfs /dev/md${mdstart}$part || s=$?
+	checkfs /dev/md$mdstart || s=$?
 	mdconfig -d -u $mdstart
 done
 exit $s

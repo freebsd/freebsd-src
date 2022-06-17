@@ -40,9 +40,8 @@ kldstat -v | grep -q pty || kldload pty # ignore any load failure
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export LOAD=80
@@ -61,5 +60,5 @@ su $testuser -c 'cd ..; ./testcases/run/run $TESTPROGS'
 while mount | grep "on $mntpoint " | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
-checkfs /dev/md${mdstart}$part
+checkfs /dev/md$mdstart
 mdconfig -d -u $mdstart

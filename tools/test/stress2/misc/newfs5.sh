@@ -39,16 +39,15 @@ mycc -o newfs5 -Wall -Wextra newfs5.c
 rm -f newfs5.c
 cd $odir
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null && umount $mntpoint
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 blocksize="-b 65536"
 opt="-O2 -U"
 size=9	# Gb
 mdconfig -a -t swap -s ${size}g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $blocksize $opt md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $blocksize $opt md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 cd $mntpoint
 truncate -s 2g f1
@@ -61,10 +60,10 @@ truncate -s 2g f4
 /tmp/newfs5 f4 &
 wait
 
-while mount | grep "$mntpoint" | grep -q md${mdstart}$part; do
+while mount | grep "$mntpoint" | grep -q md$mdstart; do
 	umount -f $mntpoint || sleep 1
 done
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 
 mdconfig -d -u $mdstart
 rm -f $diskimage

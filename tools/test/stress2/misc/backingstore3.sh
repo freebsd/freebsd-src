@@ -39,35 +39,33 @@ export here=`pwd`
 
 m1=$mdstart
 m2=$((m1 + 1))
-mount | grep "$mntpoint" | grep -q md$m2 && umount ${mntpoint}$m2
+mount | grep "$mntpoint" | grep -q md$m2 && umount $mntpoint$m2
 mdconfig -l | grep -q md$m2 &&  mdconfig -d -u $m2
-mount | grep "$mntpoint" | grep -q md$m1 && umount ${mntpoint}$m1
+mount | grep "$mntpoint" | grep -q md$m1 && umount $mntpoint$m1
 mdconfig -l | grep -q md$m1 &&  mdconfig -d -u $m1
-[ -d ${mntpoint}$m1 ] || mkdir -p ${mntpoint}$m1
-[ -d ${mntpoint}$m2 ] || mkdir -p ${mntpoint}$m2
+[ -d $mntpoint$m1 ] || mkdir -p $mntpoint$m1
+[ -d $mntpoint$m2 ] || mkdir -p $mntpoint$m2
 
 dd if=/dev=zero of=$D$m bs=25m count=1 status=none || exit 1
 
 mdconfig -a -t vnode -f $D$m1 -u $m1
 
-bsdlabel -w md$m1 auto
-newfs md${m1}$part > /dev/null 2>&1
-mount /dev/md${m1}$part ${mntpoint}$m1
+newfs md$m1 > /dev/null 2>&1
+mount /dev/md$m1 $mntpoint$m1
 
-truncate -s 500M ${mntpoint}$m1/diskimage
-mdconfig -a -t vnode -f ${mntpoint}$m1/diskimage -u $m2
+truncate -s 500M $mntpoint$m1/diskimage
+mdconfig -a -t vnode -f $mntpoint$m1/diskimage -u $m2
 
-bsdlabel -w md$m2 auto
-newfs md${m2}$part > /dev/null 2>&1
-mount /dev/md${m2}$part ${mntpoint}$m2
+newfs md$m2 > /dev/null 2>&1
+mount /dev/md$m2 $mntpoint$m2
 
-dd if=/dev/zero of=${mntpoint}$m2/file bs=1m > /dev/null 2>&1
+dd if=/dev/zero of=$mntpoint$m2/file bs=1m > /dev/null 2>&1
 
 # Reversed umount sequence:
-umount -f /dev/md${m1}$part
-umount -f /dev/md${m2}$part
+umount -f /dev/md$m1
+umount -f /dev/md$m2
 
-mount | grep "$mntpoint" | grep -q md$m2 && umount ${mntpoint}$m2
+mount | grep "$mntpoint" | grep -q md$m2 && umount $mntpoint$m2
 mdconfig -l | grep -q md$m2 &&  mdconfig -d -u $m2
-mount | grep "$mntpoint" | grep -q md$m1 && umount ${mntpoint}$m1
+mount | grep "$mntpoint" | grep -q md$m1 && umount $mntpoint$m1
 mdconfig -l | grep -q md$m1 &&  mdconfig -d -u $m1

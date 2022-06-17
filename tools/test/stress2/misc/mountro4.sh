@@ -77,7 +77,9 @@ umount $mntpoint
 # msdosfs
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
+gpart create -s bsd md$mdstart > /dev/null
+gpart add -t freebsd-ufs md$mdstart > /dev/null
+part=a
 newfs_msdos /dev/md${mdstart}$part > /dev/null
 mount -t msdosfs /dev/md${mdstart}$part $mntpoint || exit 1
 

@@ -38,20 +38,19 @@ D=$diskimage
 trap "rm -f $D" 0
 dd if=/dev/zero of=$D bs=1m count=1k status=none || exit 1
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null && umount \
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount \
     $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags  md${mdstart}$part > /dev/null
-echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" >> \
+newfs $newfs_flags  md$mdstart > /dev/null
+echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" >> \
     /etc/fstab
 mount $mntpoint
 edquota -u -f $mntpoint -e ${mntpoint}:850000:900000:130000:140000 root \
     > /dev/null 2>&1
 quotaon $mntpoint
-sed -i -e "/md${mdstart}$part/d" /etc/fstab	# clean up before any panics
+sed -i -e "/md$mdstart/d" /etc/fstab	# clean up before any panics
 export RUNDIR=$mntpoint/stressX
 ../testcases/rw/rw -t 2m -i 200 -h -n 2>/dev/null &
 sleep 60

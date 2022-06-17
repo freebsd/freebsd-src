@@ -36,18 +36,17 @@
 D=$diskimage
 dd if=/dev/zero of=$D bs=1m count=64 status=none || exit 1
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null && umount $mntpoint
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null && umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart || { rm -f $D; exit 1; }
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null 2>&1
+newfs $newfs_flags md$mdstart > /dev/null 2>&1
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 touch $mntpoint/file
 umount $mntpoint
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 rm $mntpoint/file
 mount -u -o ro $mntpoint	# Should fail with "Device busy"
 

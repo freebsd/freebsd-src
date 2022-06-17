@@ -46,10 +46,9 @@ mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -j  md${mdstart}$part > /dev/null
+newfs -j  md$mdstart > /dev/null
 export PATH_FSTAB=/tmp/fstab
-echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
+echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
 mount $mntpoint
 set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
 export QK=$(($1 / 4))

@@ -42,9 +42,8 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 daemon sh -c "(cd $here/../testcases/swap; ./swap -t 5m -i 20 -h -l 100)" \
     > /dev/null 2>&1
@@ -53,7 +52,7 @@ daemon sh -c "(cd $here/../testcases/swap; ./swap -t 5m -i 20 -h -l 100)" \
 m1=`vmstat -m | awk '/  mount/ {print $2}'`
 for i in `jot 100`; do
 	umount -f $mntpoint &&
-	    mount /dev/md${mdstart}$part $mntpoint
+	    mount /dev/md$mdstart $mntpoint
 	sleep .1
 done
 m2=`vmstat -m | awk '/  mount/ {print $2}'`

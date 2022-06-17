@@ -54,25 +54,24 @@ tst() {
    rm -f $D
    truncate -s 2M $D
    mdconfig -a -t vnode -f $D -u $mdstart
-   bsdlabel -w md$mdstart auto
-   newfs -b 8192 -f 1024 $newfs_flags /dev/md${mdstart}$part > /dev/null 2>&1
-   mount /dev/md${mdstart}$part $mntpoint
+   newfs -b 8192 -f 1024 $newfs_flags /dev/md$mdstart > /dev/null 2>&1
+   mount /dev/md$mdstart $mntpoint
    cp /etc/passwd /etc/group /etc/hosts $mntpoint
    cp -r /usr/include/ufs $mntpoint
    umount $mntpoint
 
    for i in `jot 50`; do
       ./fuzz -n 50 $D
-      if fsck -f -y /dev/md${mdstart}$part 2>&1 | egrep "^[A-Z]" > /dev/null; then
-         if fsck -f -y /dev/md${mdstart}$part 2>&1 | egrep "^[A-Z]" > /dev/null; then
-            if fsck -f -y /dev/md${mdstart}$part 2>&1 | egrep "^[A-Z]" > /dev/null; then
+      if fsck -f -y /dev/md$mdstart 2>&1 | egrep "^[A-Z]" > /dev/null; then
+         if fsck -f -y /dev/md$mdstart 2>&1 | egrep "^[A-Z]" > /dev/null; then
+            if fsck -f -y /dev/md$mdstart 2>&1 | egrep "^[A-Z]" > /dev/null; then
                echo "fsck is giving up in loop $i!"
                break
             fi
          fi
       fi
       sync;sync;sync
-      if mount /dev/md${mdstart}$part $mntpoint; then
+      if mount /dev/md$mdstart $mntpoint; then
          ls -l $mntpoint > /dev/null
          find $mntpoint  -exec dd if={} of=/dev/null bs=1m count=3 \; > /dev/null 2>&1
          umount $mntpoint

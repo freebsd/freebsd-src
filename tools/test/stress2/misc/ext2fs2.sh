@@ -39,11 +39,12 @@ mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
+gpart create -s bsd md$mdstart > /dev/null
+gpart add -t freebsd-ufs md$mdstart > /dev/null
 mke2fs /dev/md${mdstart}a
 # No panic seen when disabling hashed b-tree lookup for large directories
-# tune2fs -O ^dir_index /dev/md${mdstart}$part
-mount -t ext2fs /dev/md${mdstart}$part $mntpoint
+# tune2fs -O ^dir_index /dev/md$mdstart
+mount -t ext2fs /dev/md${mdstart}a $mntpoint
 
 export RUNDIR=$mntpoint/stressX
 export runRUNTIME=10m            # Run tests for 10 minutes

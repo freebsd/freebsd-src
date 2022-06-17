@@ -42,17 +42,16 @@ cp -r ../../stress2 $D 2>/dev/null
 
 mkisofs -o $I -r $D > /dev/null 2>&1
 
-mount | grep -q /dev/md${mdstart}$part && umount -f /dev/md${mdstart}$part
+mount | grep -q /dev/md$mdstart && umount -f /dev/md${mdstart}
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t vnode -f $I -u $mdstart || exit 1
 mount -t cd9660 /dev/md$mdstart $mntpoint || exit 1
 
 m2=$((mdstart + 1))
 mdconfig -s 1g -u $m2
-bsdlabel -w md$m2 auto
-newfs $newfs_flags md${m2}$part > /dev/null
+newfs $newfs_flags md${m2} > /dev/null
 
-mount -o union /dev/md${m2}$part $mntpoint || exit 1
+mount -o union /dev/md${m2} $mntpoint || exit 1
 
 export RUNDIR=$mntpoint/stressX
 export runRUNTIME=5m

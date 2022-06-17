@@ -40,9 +40,8 @@
 mount | grep -q "on $mntpoint " && umount -f $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 5g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 size=$((`sysctl -n hw.physmem` / 1024 / 1024))

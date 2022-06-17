@@ -38,11 +38,10 @@ mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
+newfs $newfs_flags md$mdstart > /dev/null
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export runRUNTIME=5m

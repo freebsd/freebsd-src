@@ -42,12 +42,11 @@ cd $here
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 [ $# -eq 1 ] && opt="$1"
 [ $# -eq 0 ] && opt=$newfs_flags	# No argument == default flag
-echo "newfs $opt md${mdstart}$part"
-newfs $opt md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+echo "newfs $opt md$mdstart"
+newfs $opt md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 if ! su $testuser -c "cd $mntpoint; /tmp/linger $size"; then

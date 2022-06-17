@@ -52,9 +52,8 @@ cd $odir
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 (cd $mntpoint; /tmp/namecache2)
 
@@ -67,8 +66,8 @@ if [ "$f" != '*' ]; then
 	echo "ls -ali $mntpoint"
 	ls -ali $mntpoint
 	echo ""
-	echo "fsdb -r /dev/md${mdstart}$part"
-	fsdb -r /dev/md${mdstart}$part <<-EF
+	echo "fsdb -r /dev/md$mdstart"
+	fsdb -r /dev/md$mdstart <<-EF
 	ls
 	quit
 	EF

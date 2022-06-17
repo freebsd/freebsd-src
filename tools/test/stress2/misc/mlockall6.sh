@@ -46,9 +46,8 @@ cd $odir
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 512m -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags -n md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint || exit 1
+newfs $newfs_flags -n md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint || exit 1
 
 daemon sh -c "(cd $odir/../testcases/swap; ./swap -t 20m -i 20 -l 100)" \
     > /dev/null 2>&1

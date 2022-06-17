@@ -35,14 +35,13 @@
 D=$diskimage
 dd if=/dev/zero of=$D$m bs=1m count=10 status=none
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null &&
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null &&
     umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart || { rm -f $diskimage; exit 1; }
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null 2>&1
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null 2>&1
+mount /dev/md$mdstart $mntpoint
 
 export RUNDIR=$mntpoint/stressX
 export runRUNTIME=2m

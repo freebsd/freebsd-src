@@ -51,9 +51,8 @@ if [ $# -eq 0 ]; then
 
 		dd if=/dev/zero of=$D$m bs=1m count=1 status=none
 		mdconfig -a -t vnode -f $D$m -u $m
-		bsdlabel -w md$m auto
-		newfs md${m}$part > /dev/null 2>&1
-		echo "/dev/md${m}$part ${mntpoint}$m ufs rw,userquota 2 2" \
+		newfs md${m} > /dev/null 2>&1
+		echo "/dev/md${m} ${mntpoint}$m ufs rw,userquota 2 2" \
 		    >> $PATH_FSTAB
 		mount ${mntpoint}$m
 		edquota -u -f ${mntpoint}$m -e \
@@ -92,7 +91,7 @@ else
 		while [ $((`date '+%s'` - start)) -lt 1200 ]; do
 			m=$1
 			opt=`[ $(( m % 2 )) -eq 0 ] && echo -f`
-			mount $opt /dev/md${m}$part ${mntpoint}$m
+			mount $opt /dev/md${m} ${mntpoint}$m
 			while mount | grep -qw $mntpoint$m; do
 				opt=$([ $((`date '+%s'` % 2)) -eq 0 ] &&
 				    echo "-f")

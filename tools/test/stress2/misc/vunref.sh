@@ -55,8 +55,7 @@ if [ $# -eq 0 ]; then
 
 		dd if=/dev/zero of=$D.$m bs=1m count=10 status=none
 		mdconfig -a -t vnode -f $D.$m -u $m
-		bsdlabel -w md$m auto
-		newfs md${m}$part > /dev/null 2>&1
+		newfs md${m} > /dev/null 2>&1
 	done
 
 	# start the parallel tests
@@ -94,7 +93,7 @@ else
 	else
 		# The test: Parallel mount and unmounts
 		m=$1
-		mount $opt /dev/md${m}$part ${mntpoint}$m
+		mount $opt /dev/md${m} ${mntpoint}$m
 		while [ -f $RUNDIR/active.$m ] ; do
 			sleep 0.1
 			n=0
@@ -108,7 +107,7 @@ else
 				fi
 				sleep 0.1
 			done
-			mount $opt /dev/md${m}$part ${mntpoint}$m
+			mount $opt /dev/md${m} ${mntpoint}$m
 		done
 		mount | grep "$mntpoint" | grep -q md$m && umount ${mntpoint}$m
 	fi

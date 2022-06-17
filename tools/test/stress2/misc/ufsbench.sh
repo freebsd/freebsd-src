@@ -37,13 +37,12 @@ mycc -o /tmp/ufsbench -Wall -Wextra -O0 -g ../tools/bench.c || exit 1
 mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 1g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
 s=0
 for j in `jot 5`; do
-	newfs -n -b 4096 -f 512 -i 1024 md${mdstart}$part > \
+	newfs -n -b 4096 -f 512 -i 1024 md$mdstart > \
 	    /dev/null
-	mount -o async /dev/md${mdstart}$part $mntpoint
+	mount -o async /dev/md$mdstart $mntpoint
 	(cd $mntpoint; /tmp/ufsbench)
 	[ $? -ne 0 ] && s=1
 	for i in `jot 6`; do

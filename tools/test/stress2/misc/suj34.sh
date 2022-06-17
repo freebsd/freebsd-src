@@ -38,10 +38,9 @@ mount | grep -q "$mntpoint" && umount $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 4g -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs -j md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -j md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 mkdir $mntpoint/null
 
 mnt2=${mntpoint}2

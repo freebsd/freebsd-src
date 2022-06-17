@@ -63,9 +63,8 @@ cd $odir
 mount | grep -q "on $mntpoint " && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs -n -b 4096 -f 512 -i 512 md${mdstart}$part > /dev/null
-mount -o async /dev/md${mdstart}$part $mntpoint
+newfs -n -b 4096 -f 512 -i 512 md$mdstart > /dev/null
+mount -o async /dev/md$mdstart $mntpoint
 
 ncpu=`sysctl -n hw.ncpu`
 [ $ncpu -lt 4 ] && { rm /tmp/tvnlru; exit 0; }
@@ -84,15 +83,15 @@ cd $mntpoint
 t1=`/tmp/tvnlru $ncpu $newmaxvnodes $newmaxvnodes $mntpoint 2>/dev/null`
 cd $odir
 umount $mntpoint
-newfs -n -b 4096 -f 512 -i 512 md${mdstart}$part > /dev/null
-mount -o async /dev/md${mdstart}$part $mntpoint
+newfs -n -b 4096 -f 512 -i 512 md$mdstart > /dev/null
+mount -o async /dev/md$mdstart $mntpoint
 
 cd $mntpoint
 t1=`/tmp/tvnlru $ncpu $newmaxvnodes $newmaxvnodes $mntpoint 2>$log`
 cd $odir
 umount $mntpoint
-newfs -n -b 4096 -f 512 -i 512 md${mdstart}$part > /dev/null
-mount -o async /dev/md${mdstart}$part $mntpoint
+newfs -n -b 4096 -f 512 -i 512 md$mdstart > /dev/null
+mount -o async /dev/md$mdstart $mntpoint
 
 cd $mntpoint
 echo >> $log

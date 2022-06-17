@@ -41,14 +41,13 @@
 [ -z "`which setfacl`" ] && exit 0
 
 here=`pwd`
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 mkdir -p $mntpoint/.attribute/system
 cd $mntpoint/.attribute/system
@@ -57,9 +56,9 @@ extattrctl initattr -p . 388 posix1e.acl_access
 extattrctl initattr -p . 388 posix1e.acl_default
 cd /
 umount $mntpoint
-tunefs -a enable /dev/md${mdstart}$part
-mount /dev/md${mdstart}$part $mntpoint
-mount | grep md${mdstart}$part
+tunefs -a enable /dev/md$mdstart
+mount /dev/md$mdstart $mntpoint
+mount | grep md$mdstart
 
 export runRUNTIME=10m
 export RUNDIR=$mntpoint/stressX
@@ -89,6 +88,6 @@ for i in `jot 6`; do
 	[ $i -eq 6 ] &&
 	    { echo FAIL; fstat -mf $mntpoint; exit 1; }
 done
-checkfs /dev/md${mdstart}$part || s=1
+checkfs /dev/md$mdstart || s=1
 mdconfig -d -u $mdstart || s=2
 exit $s

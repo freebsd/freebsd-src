@@ -40,11 +40,10 @@ mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 size="128m"
 [ `uname -m` = "amd64" ] && size="1g"
 mdconfig -a -t malloc -o reserve -s $size -S 4096 -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
 
-newfs -j md${mdstart}$part > /dev/null
+newfs -j md$mdstart > /dev/null
 
-mount /dev/md${mdstart}$part $mntpoint
+mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
 export runRUNTIME=20m
@@ -55,6 +54,6 @@ su $testuser -c 'cd ..; ./run.sh marcus.cfg' > /dev/null 2>&1
 while mount | grep $mntpoint | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
 done
-checkfs /dev/md${mdstart}$part; s=$?
+checkfs /dev/md$mdstart; s=$?
 mdconfig -d -u $mdstart
 exit $s

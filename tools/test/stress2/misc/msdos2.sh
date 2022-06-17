@@ -38,14 +38,17 @@ mount | grep "$mntpoint" | grep -q md$mdstart && umount -f $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
+gpart create -s bsd md$mdstart > /dev/null
+gpart add -t freebsd-ufs md$mdstart > /dev/null
+part=a
 newfs_msdos /dev/md${mdstart}$part > /dev/null
 mount -t msdosfs /dev/md${mdstart}$part $mntpoint
 
 u=$((mdstart + 1))
 mdconfig -l | grep -q $u &&  mdconfig -d -u $u
 mdconfig -a -t swap -s 1g -u $u
-bsdlabel -w md$u auto
+gpart create -s bsd md$u > /dev/null
+gpart add -t freebsd-ufs md$u > /dev/null
 newfs_msdos /dev/md${u}$part > /dev/null
 mount -u /dev/md${u}$part $mntpoint > /dev/null 2>&1 # panic
 

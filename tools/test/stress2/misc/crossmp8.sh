@@ -61,8 +61,7 @@ if [ $# -eq 0 ]; then
 		mdconfig -l | grep -q md$m && mdconfig -d -u $m
 
 		mdconfig -a -t swap -s ${size}m -u $m
-		bsdlabel -w md$m auto
-		newfs md${m}$part > /dev/null 2>&1
+		newfs md${m} > /dev/null 2>&1
 	done
 
 	# start the parallel tests
@@ -100,7 +99,7 @@ else
 		start=`date '+%s'`
 		while [ $((`date '+%s'` - start)) -lt 300 ]; do
 			m=$1
-			mount /dev/md${m}$part ${mntpoint}$m &&
+			mount /dev/md${m} ${mntpoint}$m &&
 			   chmod 777 ${mntpoint}$m
 			export RUNDIR=${mntpoint}$m/stressX
 			export CTRLDIR=${mntpoint}$m/stressX.control

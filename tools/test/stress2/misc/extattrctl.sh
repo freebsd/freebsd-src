@@ -43,14 +43,13 @@
 	{ echo "Kernel not build with UFS_EXTATTR"; exit 0; }
 [ -z "`which setfacl`" ] && exit 0
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 20m -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs -O 1 md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -O 1 md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 mkdir -p $mntpoint/.attribute/system
 cd $mntpoint/.attribute/system
@@ -59,9 +58,9 @@ extattrctl initattr -p . 388 posix1e.acl_access
 extattrctl initattr -p . 388 posix1e.acl_default
 cd /
 umount $mntpoint
-tunefs -a enable /dev/md${mdstart}$part
-mount /dev/md${mdstart}$part $mntpoint
-mount | grep md${mdstart}$part
+tunefs -a enable /dev/md$mdstart
+mount /dev/md$mdstart $mntpoint
+mount | grep md$mdstart
 
 touch $mntpoint/acl-test
 setfacl -b $mntpoint/acl-test

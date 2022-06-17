@@ -35,14 +35,13 @@ DUMP=$RUNDIR/dump
 trap "rm -f $D" EXIT INT
 dd if=/dev/zero of=$D bs=1m count=1024 status=none || exit 1
 
-mount | grep "$mntpoint" | grep md${mdstart}$part > /dev/null &&
+mount | grep "$mntpoint" | grep md$mdstart > /dev/null &&
 	umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null && mdconfig -d -u $mdstart
 
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 mount
 
 for i in `jot 10`; do
@@ -52,7 +51,7 @@ for i in `jot 10`; do
 	done
 done
 
-dump -L0a -f $DUMP /dev/md${mdstart}$part
+dump -L0a -f $DUMP /dev/md$mdstart
 
 ls -lf $DUMP
 
@@ -62,8 +61,8 @@ while mount | grep -q $mntpoint; do
 done
 
 for i in `jot 10`; do
-	newfs $newfs_flags -n md${mdstart}$part > /dev/null
-	mount /dev/md${mdstart}$part $mntpoint
+	newfs $newfs_flags -n md$mdstart > /dev/null
+	mount /dev/md$mdstart $mntpoint
 	(cd $mntpoint; restore -rf $DUMP)
 	rm -rf $mntpoint/*
 	while mount | grep -q $mntpoint; do

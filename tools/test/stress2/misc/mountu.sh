@@ -74,7 +74,9 @@ mapfile=/tmp/mountu.sh.map
 mount | grep -q "$mntpoint " && umount $mntpoint
 mdconfig -l | grep -q $mdstart && mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 100m -u $mdstart
-bsdlabel -w md$mdstart auto
+gpart create -s bsd md$mdstart > /dev/null
+gpart add -t freebsd-ufs md$mdstart > /dev/null
+part=a
 newfs $newfs_flags md${mdstart}$part > /dev/null
 mount /dev/md${mdstart}$part $mntpoint
 chmod 777 $mntpoint
@@ -126,7 +128,9 @@ fi
 # msdos
 if [ -x /sbin/mount_msdosfs ]; then
 	mdconfig -a -t swap -s 100m -u $mdstart
-	bsdlabel -w md$mdstart auto
+	gpart create -s bsd md$mdstart > /dev/null
+	gpart add -t freebsd-ufs md$mdstart > /dev/null
+	part=a
 	newfs_msdos -F 16 -b 8192 /dev/md${mdstart}$part > /dev/null 2>&1
 	mount_msdosfs -m 777 /dev/md${mdstart}$part $mntpoint
 	/tmp/mountu MSDOS $file &

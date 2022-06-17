@@ -49,7 +49,9 @@ mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 set -e
 mdconfig -a -t swap -s 4g -u $mdstart
-bsdlabel -w md$mdstart auto
+gpart create -s bsd md$mdstart > /dev/null
+gpart add -t freebsd-ufs md$mdstart > /dev/null
+part=a
 newfs_msdos -b 1024 /dev/md${mdstart}$part > /dev/null
 mount -t msdosfs /dev/md${mdstart}$part $mntpoint
 set +e

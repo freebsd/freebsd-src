@@ -44,9 +44,8 @@ mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 [ -c /dev/md$mdstart ] &&  mdconfig -d -u $mdstart
 [ -c /dev/md$m2 ] && mdconfig -d -u $m2
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 touch $mntpoint/file
 
 rm -f $mntpoint/.snap/stress2
@@ -65,7 +64,7 @@ for i in `jot 6`; do
 	umount $mntpoint && break || sleep 10
 done
 [ $i -eq 6 ] && exit 1
-fsck -t ufs -y /dev/md${mdstart}$part > $log 2>&1 || s=5
+fsck -t ufs -y /dev/md$mdstart > $log 2>&1 || s=5
 egrep -v "IS CLEAN" $log | grep -q "[A-Z]" $log || { cat $log; s=6; }
 mdconfig -d -u $mdstart
 rm -rf $log

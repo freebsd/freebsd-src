@@ -38,8 +38,7 @@ parallel=40
 if [ $# -eq 0 ]; then
 	[ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 	mdconfig -a -t swap -s 10m -u $mdstart || exit 1
-	bsdlabel -w md$mdstart auto
-	newfs $newfs_flags md${mdstart}$part > /dev/null
+	newfs $newfs_flags md$mdstart > /dev/null
 
 	# start the parallel tests
 	for i in `jot $parallel`; do
@@ -61,7 +60,7 @@ if [ $# -eq 0 ]; then
 else
 	start=`date '+%s'`
 	while [ $((`date '+%s'` - start)) -lt 600 ]; do
-		mount /dev/md${mdstart}$part $mntpoint
+		mount /dev/md$mdstart $mntpoint
 		umount $mntpoint
 		mount
 	done > /dev/null 2>&1

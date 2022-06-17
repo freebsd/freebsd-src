@@ -64,15 +64,14 @@ mount | grep -q "$mntpoint" && umount $mntpoint
 mdconfig -l | grep -q $mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs $newfs_flags md${mdstart}$part > /dev/null
+newfs $newfs_flags md$mdstart > /dev/null
 
 # The test:
 
 echo "Expect: mount: /dev/md5a: Device busy"
-mount -r /dev/md${mdstart}$part $mntpoint
-mount -r /dev/md${mdstart}$part $mntpoint
+mount -r /dev/md$mdstart $mntpoint
+mount -r /dev/md$mdstart $mntpoint
 umount $mntpoint
 
 ls -lR $mntpoint > /dev/null	# panic

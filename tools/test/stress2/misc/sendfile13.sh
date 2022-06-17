@@ -57,9 +57,8 @@ md1=$mdstart
 mount | grep "on $mp1 " | grep -q /dev/md && umount -f $mp1
 [ -c /dev/md$md1 ] && mdconfig -d -u $md1
 mdconfig -a -t swap -s $size -u $md1
-bsdlabel -w md$md1 auto
-newfs $newfs_flags -n md${md1}$part > /dev/null 2>&1
-mount /dev/md${md1}$part $mp1
+newfs $newfs_flags -n md${md1} > /dev/null 2>&1
+mount /dev/md${md1} $mp1
 
 md2=$((mdstart + 1))
 mp2=${mntpoint}$md2
@@ -67,9 +66,8 @@ mkdir -p $mp2
 mount | grep "on $mp2 " | grep -q /dev/md && umount -f $mp2
 [ -c /dev/md$md2 ] && mdconfig -d -u $md2
 mdconfig -a -t swap -s $size -u $md2
-bsdlabel -w md$md2 auto
-newfs $newfs_flags -n md${md2}$part > /dev/null 2>&1
-mount /dev/md${md2}$part $mp2
+newfs $newfs_flags -n md${md2} > /dev/null 2>&1
+mount /dev/md${md2} $mp2
 set +e
 
 free=`df $mp1 | tail -1 | awk '{print $4}'`
@@ -99,8 +97,8 @@ for i in `jot 6`; do
 	[ $i -eq 6 ] &&
 	    { echo FATAL; fstat -mf $mp2; exit 1; }
 done
-checkfs /dev/md${md1}$part || s=1
-checkfs /dev/md${md2}$part || s=1
+checkfs /dev/md${md1} || s=1
+checkfs /dev/md${md2} || s=1
 mdconfig -d -u $md1 || s=1
 mdconfig -d -u $md2 || s=1
 
@@ -110,7 +108,7 @@ for i in `jot 6`; do
 	[ $i -eq 6 ] &&
 	    { echo FATAL; fstat -mf $mp2; exit 1; }
 done
-checkfs /dev/md${md2}$part || s=1
+checkfs /dev/md${md2} || s=1
 
 rm -rf $dir/sendfile13
 exit $s

@@ -66,8 +66,8 @@ D=$diskimage
 if [ -n "`find $D -mtime -1h 2>/dev/null`" ]; then
 	# FS left by previous crash
 	mdconfig -a -t vnode -f $D -u $mdstart
-	fsck -t ufs -y md${mdstart}$part
-	fsck -t ufs -y md${mdstart}$part
+	fsck -t ufs -y md$mdstart
+	fsck -t ufs -y md$mdstart
 	rm -f $D
 	exit 0
 fi
@@ -83,9 +83,8 @@ mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 dd if=/dev/zero of=$D bs=1m count=1k status=none || exit 1
 mdconfig -a -t vnode -f $D -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -j md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -j md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 cd $mntpoint
 chmod 777 $mntpoint
@@ -106,8 +105,8 @@ cd $here
 while mount | grep -q $mntpoint; do
 	umount $mntpoint || sleep 1
 done
-fsck -t ufs -y md${mdstart}$part
-fsck -t ufs -y md${mdstart}$part
+fsck -t ufs -y md$mdstart
+fsck -t ufs -y md$mdstart
 mdconfig -d -u $mdstart
 rm -f /tmp/suj22 $D
 exit 0

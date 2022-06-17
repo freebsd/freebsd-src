@@ -91,10 +91,9 @@ mount | grep -q "on $mntpoint " && umount $mntpoint
 [ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 
 mdconfig -a -t malloc -s 1g -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs -b 4096 -f 512 -i 2048 md${mdstart}$part > /dev/null
-mount -o async /dev/md${mdstart}$part $mntpoint || exit 1
+newfs -b 4096 -f 512 -i 2048 md$mdstart > /dev/null
+mount -o async /dev/md$mdstart $mntpoint || exit 1
 
 cp /tmp/core5 $mntpoint
 mkdir $mntpoint/dir

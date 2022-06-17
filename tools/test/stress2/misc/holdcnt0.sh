@@ -50,9 +50,8 @@ cd $here
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 mdconfig -a -t swap -s 5g -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 (cd $mntpoint; /tmp/holdcnt0) &
 pid=$!
@@ -62,7 +61,7 @@ while kill -0 $! 2> /dev/null; do
 done
 wait $pid; s=$?
 
-while mount | grep -q md${mdstart}$part; do
+while mount | grep -q md$mdstart; do
 	umount $mntpoint || sleep 1
 done
 mdconfig -d -u $mdstart

@@ -43,9 +43,8 @@ mount | grep "on $mntpoint " | grep -q /dev/md && umount -f $mntpoint
 diskimage=$mp2/diskimage
 dd if=/dev/zero of=$diskimage bs=1m count=2k status=none
 mdconfig -a -t vnode -f $diskimage -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs -U /dev/md${mdstart}$part > /dev/null
-mount /dev/md${mdstart}$part $mntpoint
+newfs -U /dev/md$mdstart > /dev/null
+mount /dev/md$mdstart $mntpoint
 
 for i in `jot 10`; do
 	umount $mntpoint && break

@@ -35,15 +35,14 @@ exit 0	# Not part of the kernel
 
 sysctl -a | ! grep -q security.mac.chkexec && echo "chkexec.ko must be loaded" && exit 1
 
-mount | grep "$mntpoint" | grep -q md${mdstart}$part && umount $mntpoint
+mount | grep "$mntpoint" | grep -q md$mdstart && umount $mntpoint
 mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 12m -u $mdstart
-bsdlabel -w md$mdstart auto
 
-newfs md${mdstart}$part > /dev/null
-tunefs -l enable /dev/md${mdstart}$part
-mount /dev/md${mdstart}$part $mntpoint
+newfs md$mdstart > /dev/null
+tunefs -l enable /dev/md$mdstart
+mount /dev/md$mdstart $mntpoint
 
 cp /bin/ls $mntpoint
 setfmac chkexec/md5:`md5 -q $mntpoint/ls` $mntpoint/ls

@@ -41,11 +41,10 @@ parallel=40
 if [ $# -eq 0 ]; then
 	[ -c /dev/md$mdstart ] && mdconfig -d -u $mdstart
 	mdconfig -a -t swap -s 10m -u $mdstart || exit 1
-	bsdlabel -w md$mdstart auto
-	newfs $newfs_flags md${mdstart}$part > /dev/null
+	newfs $newfs_flags md$mdstart > /dev/null
 	export PATH_FSTAB=/var/tmp/fstab.$$
-	echo "/dev/md${mdstart}$part $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
-	mount /dev/md${mdstart}$part $mntpoint
+	echo "/dev/md$mdstart $mntpoint ufs rw,userquota 2 2" > $PATH_FSTAB
+	mount /dev/md$mdstart $mntpoint
 	set `df -ik $mntpoint | tail -1 | awk '{print $4,$7}'`
 	export QK=$(($1 / 10 * 8))
 	export QI=$(($2 / 10 * 8))
@@ -76,7 +75,7 @@ if [ $# -eq 0 ]; then
 else
 	start=`date '+%s'`
 	while [ $((`date '+%s'` - start)) -lt 600 ]; do
-		mount /dev/md${mdstart}$part $mntpoint
+		mount /dev/md$mdstart $mntpoint
 		quotaon $mntpoint
 		umount $mntpoint
 		mount

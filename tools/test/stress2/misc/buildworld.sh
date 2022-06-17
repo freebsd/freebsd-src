@@ -45,9 +45,8 @@ mount | grep -q "on $mntpoint " && umount $mntpoint
 dd if=/dev/zero of=$diskimage bs=1m count=3k status=none
 trap "rm -f $diskimage" EXIT INT
 mdconfig -a -t vnode -f $diskimage -u $mdstart
-bsdlabel -w md$mdstart auto
-newfs $newfs_flags md${mdstart}$part > /dev/null
-mount -o async /dev/md${mdstart}$part $mntpoint
+newfs $newfs_flags md$mdstart > /dev/null
+mount -o async /dev/md$mdstart $mntpoint
 
 cd /usr/src
 export MAKEOBJDIRPREFIX=$mntpoint/obj

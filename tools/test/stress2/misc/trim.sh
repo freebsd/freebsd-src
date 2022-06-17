@@ -49,11 +49,10 @@ export MAXSWAPPCT=80
 for flag in ' ' $opt; do
 	echo "mdconfig -a -t malloc -o reserve -s $size -u $mdstart"
 	mdconfig -a -t malloc -o reserve -s $size -u $mdstart || exit 1
-	bsdlabel -w md$mdstart auto
 
-	echo "newfs $trim $flag md${mdstart}$part"
-	newfs $trim $flag md${mdstart}$part > /dev/null
-	mount /dev/md${mdstart}$part $mntpoint || exit 1
+	echo "newfs $trim $flag md$mdstart"
+	newfs $trim $flag md$mdstart > /dev/null
+	mount /dev/md$mdstart $mntpoint || exit 1
 	chmod 777 $mntpoint
 
 	export runRUNTIME=5m
@@ -65,7 +64,7 @@ for flag in ' ' $opt; do
 		umount $mntpoint && break || sleep 10
 	done
 	[ $i -eq 6 ] && { s=1; break; }
-	checkfs /dev/md${mdstart}$part || s=1
+	checkfs /dev/md$mdstart || s=1
 	mdconfig -d -u $mdstart
 done
 [ $malloc_wait != 1 ] && sysctl vm.md_malloc_wait=$malloc_wait

@@ -47,8 +47,7 @@ if [ $# -eq 0 ]; then
 		mdconfig -l | grep -q md$m &&  mdconfig -d -u $m
 
 		mdconfig -a -t swap -s 512m -u $m
-		bsdlabel -w md$m auto
-		newfs $newfs_flags md${m}$part > /dev/null 2>&1
+		newfs $newfs_flags md${m} > /dev/null 2>&1
 	done
 
 	# start the parallel tests
@@ -78,7 +77,7 @@ else
 		start=`date '+%s'`
 		while [ $((`date '+%s'` - start)) -lt 300 ] ; do
 			m=$1
-			mount /dev/md${m}$part ${mntpoint}$m
+			mount /dev/md${m} ${mntpoint}$m
 			while mount | grep -qw ${mntpoint}$m; do
 				opt=$([ $((`date '+%s'` % 2)) -eq 0 ] &&
 				    echo "-f")
