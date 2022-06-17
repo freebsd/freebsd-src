@@ -185,7 +185,7 @@ pcp_cleanup()
 	for i in $(cat ngctl.shutdown); do
 		ngctl shutdown ${i}:
 	done
-	rm ngctl.shutdown
+	rm -f ngctl.shutdown
 }
 
 atf_init_test_cases()
