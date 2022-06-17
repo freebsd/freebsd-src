@@ -23,6 +23,7 @@ ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
 ATF_TESTS_C+=	sigaltstack
+ATF_TESTS_C+=	sigwait
 .if ${MACHINE_ARCH} != "i386" && ${MACHINE_ARCH:Mpowerpc*} == "" && \
     ${MACHINE_CPUARCH} != "mips"
 ATF_TESTS_C+=	subr_physmem_test
@@ -61,6 +62,7 @@ LIBADD.kcov+=				pthread
 LIBADD.ktls_test+=			crypto
 LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
+LIBADD.sigwait+=			rt
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test
