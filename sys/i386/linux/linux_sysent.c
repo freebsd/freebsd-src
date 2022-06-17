@@ -403,7 +403,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_statx_args), .sy_call = (sy_call_t *)linux_statx, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 383 = linux_statx */
 	{ .sy_narg = AS(linux_arch_prctl_args), .sy_call = (sy_call_t *)linux_arch_prctl, .sy_auevent = AUE_PRCTL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 384 = linux_arch_prctl */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_io_pgetevents, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 385 = linux_io_pgetevents */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_rseq, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 386 = linux_rseq */
+	{ .sy_narg = AS(linux_rseq_args), .sy_call = (sy_call_t *)linux_rseq, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 386 = linux_rseq */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 387 = nosys */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 388 = nosys */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 389 = nosys */
