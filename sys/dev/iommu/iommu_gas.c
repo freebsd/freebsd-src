@@ -504,7 +504,7 @@ iommu_gas_find_space(struct iommu_domain *domain,
 	if (common->highaddr >= domain->end)
 		return (ENOMEM);
 	error = iommu_gas_uppermatch(&a, RB_ROOT(&domain->rb_root));
-	KASSERT(error == ENOMEM,
+	KASSERT(error == 0 || error == ENOMEM,
 	    ("error %d from iommu_gas_uppermatch", error));
 	return (error);
 }
