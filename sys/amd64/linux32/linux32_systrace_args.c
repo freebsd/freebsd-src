@@ -3080,7 +3080,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_recvmmsg_time64 */
 	case 417: {
-		*n_args = 0;
+		struct linux_recvmmsg_time64_args *p = params;
+		iarg[0] = p->s; /* l_int */
+		uarg[1] = (intptr_t)p->msg; /* struct l_mmsghdr * */
+		iarg[2] = p->vlen; /* l_uint */
+		iarg[3] = p->flags; /* l_uint */
+		uarg[4] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		*n_args = 5;
 		break;
 	}
 	/* linux_mq_timedsend_time64 */
@@ -8279,6 +8285,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_recvmmsg_time64 */
 	case 417:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct l_mmsghdr *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_timedsend_time64 */
 	case 418:
@@ -10168,6 +10193,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 416:
 	/* linux_recvmmsg_time64 */
 	case 417:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_timedsend_time64 */
 	case 418:
 	/* linux_mq_timedreceive_time64 */
