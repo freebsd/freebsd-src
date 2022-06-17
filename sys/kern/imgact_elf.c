@@ -1301,6 +1301,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	error = exec_new_vmspace(imgp, sv);
 
 	imgp->proc->p_sysent = sv;
+	imgp->proc->p_elf_brandinfo = brand_info;
 
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
