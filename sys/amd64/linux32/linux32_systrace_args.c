@@ -3101,7 +3101,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_semtimedop_time64 */
 	case 420: {
-		*n_args = 0;
+		struct linux_semtimedop_time64_args *p = params;
+		iarg[0] = p->semid; /* l_int */
+		uarg[1] = (intptr_t)p->tsops; /* struct sembuf * */
+		iarg[2] = p->nsops; /* l_size_t */
+		uarg[3] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_rt_sigtimedwait_time64 */
@@ -8313,6 +8318,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_semtimedop_time64 */
 	case 420:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland struct sembuf *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
@@ -10202,6 +10223,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 419:
 	/* linux_semtimedop_time64 */
 	case 420:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
 		if (ndx == 0 || ndx == 1)
