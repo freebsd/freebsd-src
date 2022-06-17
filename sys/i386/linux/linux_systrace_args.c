@@ -3145,7 +3145,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_sched_rr_get_interval_time64 */
 	case 423: {
-		*n_args = 0;
+		struct linux_sched_rr_get_interval_time64_args *p = params;
+		iarg[0] = p->pid; /* l_pid_t */
+		uarg[1] = (intptr_t)p->interval; /* struct l_timespec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_pidfd_send_signal */
@@ -3249,12 +3252,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_epoll_pwait2_64 */
 	case 441: {
 		struct linux_epoll_pwait2_64_args *p = params;
-		iarg[a++] = p->epfd; /* l_int */
-		uarg[a++] = (intptr_t)p->events; /* struct epoll_event * */
-		iarg[a++] = p->maxevents; /* l_int */
-		uarg[a++] = (intptr_t)p->timeout; /* struct l_timespec64 * */
-		uarg[a++] = (intptr_t)p->mask; /* l_sigset_t * */
-		iarg[a++] = p->sigsetsize; /* l_size_t */
+		iarg[0] = p->epfd; /* l_int */
+		uarg[1] = (intptr_t)p->events; /* struct epoll_event * */
+		iarg[2] = p->maxevents; /* l_int */
+		uarg[3] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		uarg[4] = (intptr_t)p->mask; /* l_sigset_t * */
+		iarg[5] = p->sigsetsize; /* l_size_t */
 		*n_args = 6;
 		break;
 	}
@@ -8341,6 +8344,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_rr_get_interval_time64 */
 	case 423:
+		switch (ndx) {
+		case 0:
+			p = "l_pid_t";
+			break;
+		case 1:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_pidfd_send_signal */
 	case 424:
@@ -10199,6 +10212,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_sched_rr_get_interval_time64 */
 	case 423:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_pidfd_send_signal */
 	case 424:
 		if (ndx == 0 || ndx == 1)

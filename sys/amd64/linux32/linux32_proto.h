@@ -1610,7 +1610,8 @@ struct linux_sys_futex_time64_args {
 	char val3_l_[PADL_(uint32_t)]; uint32_t val3; char val3_r_[PADR_(uint32_t)];
 };
 struct linux_sched_rr_get_interval_time64_args {
-	register_t dummy;
+	char pid_l_[PADL_(l_pid_t)]; l_pid_t pid; char pid_r_[PADR_(l_pid_t)];
+	char interval_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * interval; char interval_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_pidfd_send_signal_args {
 	char pidfd_l_[PADL_(l_int)]; l_int pidfd; char pidfd_r_[PADR_(l_int)];
@@ -1670,10 +1671,6 @@ struct linux_faccessat2_args {
 struct linux_process_madvise_args {
 	register_t dummy;
 };
-<<<<<<< HEAD
-struct linux_epoll_pwait2_args {
-	register_t dummy;
-=======
 struct linux_epoll_pwait2_64_args {
 	char epfd_l_[PADL_(l_int)]; l_int epfd; char epfd_r_[PADR_(l_int)];
 	char events_l_[PADL_(struct epoll_event *)]; struct epoll_event * events; char events_r_[PADR_(struct epoll_event *)];
@@ -1681,7 +1678,6 @@ struct linux_epoll_pwait2_64_args {
 	char timeout_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * timeout; char timeout_r_[PADR_(struct l_timespec64 *)];
 	char mask_l_[PADL_(l_sigset_t *)]; l_sigset_t * mask; char mask_r_[PADR_(l_sigset_t *)];
 	char sigsetsize_l_[PADL_(l_size_t)]; l_size_t sigsetsize; char sigsetsize_r_[PADR_(l_size_t)];
->>>>>>> df377f1fb8dd (linux(4): Regen for epoll_pwait2 syscall.)
 };
 struct linux_mount_setattr_args {
 	register_t dummy;
@@ -2442,7 +2438,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX32_SYS_AUE_linux_semtimedop_time64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_rt_sigtimedwait_time64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_sys_futex_time64	AUE_NULL
-#define	LINUX32_SYS_AUE_linux_sched_rr_get_interval_time64	AUE_NULL
+#define	LINUX32_SYS_AUE_linux_sched_rr_get_interval_time64	AUE_SCHED_RR_GET_INTERVAL
 #define	LINUX32_SYS_AUE_linux_pidfd_send_signal	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_io_uring_setup	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_io_uring_enter	AUE_NULL
