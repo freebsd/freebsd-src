@@ -128,6 +128,7 @@ static bool	linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
 static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
+static void	linux32_set_fork_retval(struct thread *td);
 static void	linux32_set_syscall_retval(struct thread *td, int error);
 
 #define LINUX_T_UNKNOWN  255
@@ -698,6 +699,14 @@ linux32_set_syscall_retval(struct thread *td, int error)
 	}
 }
 
+static void
+linux32_set_fork_retval(struct thread *td)
+{
+	struct trapframe *frame = td->td_frame;
+
+	frame->tf_rax = 0;
+}
+
 /*
  * Clear registers on exec
  * XXX copied from ia32_signal.c.
@@ -947,6 +956,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
+	.sv_set_fork_retval = linux32_set_fork_retval,
 };
 
 static int

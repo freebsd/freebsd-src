@@ -152,6 +152,7 @@ int	user_dbreg_trap(register_t dr6);
 int	cpu_minidumpsys(struct dumperinfo *, const struct minidumpstate *);
 struct pcb *get_pcb_td(struct thread *td);
 uint64_t rdtsc_ordered(void);
+void	x86_set_fork_retval(struct thread *td);
 
 /*
  * MSR ops for x86_msr_op()

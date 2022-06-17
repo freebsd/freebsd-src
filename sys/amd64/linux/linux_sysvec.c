@@ -125,6 +125,7 @@ static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 static void	linux_exec_sysvec_init(void *param);
 static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
+static void	linux_set_fork_retval(struct thread *td);
 static int	linux_vsyscall(struct thread *td);
 
 #define LINUX_T_UNKNOWN  255
@@ -266,6 +267,14 @@ linux_set_syscall_retval(struct thread *td, int error)
 	 *      for the error == 0 case.
 	 */
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+}
+
+static void
+linux_set_fork_retval(struct thread *td)
+{
+	struct trapframe *frame = td->td_frame;
+
+	frame->tf_rax = 0;
 }
 
 static int
@@ -784,6 +793,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
+	.sv_set_fork_retval = linux_set_fork_retval,
 };
 
 static int

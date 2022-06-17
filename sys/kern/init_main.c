@@ -402,6 +402,12 @@ null_set_syscall_retval(struct thread *td __unused, int error __unused)
 	panic("null_set_syscall_retval");
 }
 
+static void
+null_set_fork_retval(struct thread *td __unused)
+{
+
+}
+
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
@@ -433,6 +439,7 @@ struct sysentvec null_sysvec = {
 	.sv_trap	= NULL,
 	.sv_regset_begin = NULL,
 	.sv_regset_end  = NULL,
+	.sv_set_fork_retval = null_set_fork_retval,
 };
 
 /*
