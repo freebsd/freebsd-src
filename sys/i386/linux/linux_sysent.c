@@ -458,7 +458,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_pidfd_getfd, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 438 = linux_pidfd_getfd */
 	{ .sy_narg = AS(linux_faccessat2_args), .sy_call = (sy_call_t *)linux_faccessat2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 439 = linux_faccessat2 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_process_madvise, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 440 = linux_process_madvise */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_epoll_pwait2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 441 = linux_epoll_pwait2 */
+	{ .sy_narg = AS(linux_epoll_pwait2_64_args), .sy_call = (sy_call_t *)linux_epoll_pwait2_64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 441 = linux_epoll_pwait2_64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_mount_setattr, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 442 = linux_mount_setattr */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 443 = nosys */
 };
