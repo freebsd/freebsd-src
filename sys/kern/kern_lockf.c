@@ -2479,7 +2479,6 @@ vfs_report_lockf(struct mount *mp, struct sbuf *sb)
 	struct ucred *ucred;
 	char *fullpath, *freepath;
 	struct stat stt;
-	fsid_t fsidx;
 	STAILQ_HEAD(, kinfo_lockf_linked) locks;
 	int error, gerror;
 
@@ -2522,7 +2521,6 @@ vfs_report_lockf(struct mount *mp, struct sbuf *sb)
 
 	gerror = 0;
 	ucred = curthread->td_ucred;
-	fsidx = mp->mnt_stat.f_fsid;
 	while ((klf = STAILQ_FIRST(&locks)) != NULL) {
 		STAILQ_REMOVE_HEAD(&locks, link);
 		vp = klf->vp;
@@ -2532,8 +2530,7 @@ vfs_report_lockf(struct mount *mp, struct sbuf *sb)
 				error = VOP_STAT(vp, &stt, ucred, NOCRED);
 			VOP_UNLOCK(vp);
 			if (error == 0) {
-				memcpy(&klf->kl.kl_file_fsid, &fsidx,
-				    sizeof(fsidx));
+				klf->kl.kl_file_fsid = stt.st_dev;
 				klf->kl.kl_file_rdev = stt.st_rdev;
 				klf->kl.kl_file_fileid = stt.st_ino;
 				freepath = NULL;
