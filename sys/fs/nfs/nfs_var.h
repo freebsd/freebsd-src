@@ -510,9 +510,9 @@ int nfsrpc_lock(struct nfsrv_descript *, struct nfsmount *, vnode_t,
 int nfsrpc_statfs(vnode_t, struct nfsstatfs *, struct nfsfsinfo *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_fsinfo(vnode_t, struct nfsfsinfo *, struct ucred *,
-    NFSPROC_T *, struct nfsvattr *, int *, void *);
+    NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_pathconf(vnode_t, struct nfsv3_pathconf *,
-    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
+    struct ucred *, NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_renew(struct nfsclclient *, struct nfsclds *, struct ucred *,
     NFSPROC_T *);
 int nfsrpc_rellockown(struct nfsmount *, struct nfscllockowner *, uint8_t *,
@@ -521,8 +521,8 @@ int nfsrpc_getdirpath(struct nfsmount *, u_char *, struct ucred *,
     NFSPROC_T *);
 int nfsrpc_delegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *, int);
-int nfsrpc_getacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
-int nfsrpc_setacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
+int nfsrpc_getacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *);
+int nfsrpc_setacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *);
 int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
     struct nfssockreq *, int, uint32_t, struct nfsclds **, struct ucred *,
     NFSPROC_T *);

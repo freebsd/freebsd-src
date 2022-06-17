@@ -309,7 +309,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	if (NFSHASNFSV3(nmp) && !NFSHASGOTFSINFO(nmp)) {
 		mtx_unlock(&nmp->nm_mtx);
 		error = nfsrpc_fsinfo(vp, &fs, td->td_ucred, td, &nfsva,
-		    &attrflag, NULL);
+		    &attrflag);
 		if (!error)
 			gotfsinfo = 1;
 	} else
@@ -370,7 +370,7 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	struct nfsvattr nfsva;
 	int error, attrflag;
 
-	error = nfsrpc_fsinfo(vp, &fs, cred, td, &nfsva, &attrflag, NULL);
+	error = nfsrpc_fsinfo(vp, &fs, cred, td, &nfsva, &attrflag);
 	if (!error) {
 		if (attrflag)
 			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
