@@ -18,7 +18,7 @@ linux_platform:
  * To avoid excess stack frame the signal trampoline code emulates
  * the 'call' instruction.
  */
-NON_GPROF_ENTRY(linux32_sigcode)
+ENTRY(__kernel_sigreturn)
 	movl	%esp, %ebx			/* preserve sigframe */
 	call .getip0
 .getip0:
@@ -33,7 +33,7 @@ NON_GPROF_ENTRY(linux32_sigcode)
 .endsigcode:
 0:	jmp	0b
 
-NON_GPROF_ENTRY(linux32_rt_sigcode)
+ENTRY(__kernel_rt_sigreturn)
 	leal	LINUX_RT_SIGF_UC(%esp),%ebx	/* linux ucp */
 	leal	LINUX_RT_SIGF_SC(%ebx),%ecx	/* linux sigcontext */
 	movl	%esp, %edi
@@ -49,7 +49,7 @@ NON_GPROF_ENTRY(linux32_rt_sigcode)
 .endrtsigcode:
 0:	jmp	0b
 
-NON_GPROF_ENTRY(linux32_vsyscall)
+ENTRY(__kernel_vsyscall)
 .startvsyscall:
 	int $0x80
 	ret

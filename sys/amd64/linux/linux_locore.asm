@@ -17,7 +17,7 @@ linux_platform:
  * To avoid excess stack frame the signal trampoline code emulates
  * the 'call' instruction.
  */
-NON_GPROF_ENTRY(linux_rt_sigcode)
+ENTRY(linux_rt_sigcode)
 	movq	%rsp, %rbx			/* preserve sigframe */
 	call	.getip
 .getip:
