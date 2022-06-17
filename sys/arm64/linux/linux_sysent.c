@@ -210,7 +210,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_semget_args), .sy_call = (sy_call_t *)linux_semget, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 190 = linux_semget */
 	{ .sy_narg = AS(linux_semctl_args), .sy_call = (sy_call_t *)linux_semctl, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 191 = linux_semctl */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_semtimedop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 192 = linux_semtimedop */
-	{ .sy_narg = AS(linux_semop_args), .sy_call = (sy_call_t *)linux_semop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 193 = linux_semop */
+	{ .sy_narg = AS(semop_args), .sy_call = (sy_call_t *)sys_semop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 193 = semop */
 	{ .sy_narg = AS(linux_shmget_args), .sy_call = (sy_call_t *)linux_shmget, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 194 = linux_shmget */
 	{ .sy_narg = AS(linux_shmctl_args), .sy_call = (sy_call_t *)linux_shmctl, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 195 = linux_shmctl */
 	{ .sy_narg = AS(linux_shmat_args), .sy_call = (sy_call_t *)linux_shmat, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 196 = linux_shmat */

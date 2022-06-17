@@ -576,12 +576,19 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* linux_semop */
+	/* semop */
 	case 65: {
+<<<<<<< HEAD
 		struct linux_semop_args *p = params;
 		iarg[0] = p->semid; /* l_int */
 		uarg[1] = (intptr_t)p->tsops; /* struct l_sembuf * */
 		iarg[2] = p->nsops; /* l_uint */
+=======
+		struct semop_args *p = params;
+		iarg[a++] = p->semid; /* l_int */
+		uarg[a++] = (intptr_t)p->sops; /* struct sembuf * */
+		iarg[a++] = p->nsops; /* l_size_t */
+>>>>>>> cd875998dc23 (linux(4): Regen for semop syscall.)
 		*n_args = 3;
 		break;
 	}
@@ -3718,17 +3725,17 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* linux_semop */
+	/* semop */
 	case 65:
 		switch (ndx) {
 		case 0:
 			p = "l_int";
 			break;
 		case 1:
-			p = "userland struct l_sembuf *";
+			p = "userland struct sembuf *";
 			break;
 		case 2:
-			p = "l_uint";
+			p = "l_size_t";
 			break;
 		default:
 			break;
@@ -7435,7 +7442,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* linux_semop */
+	/* semop */
 	case 65:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

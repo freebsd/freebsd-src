@@ -82,7 +82,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_kill_args), .sy_call = (sy_call_t *)linux_kill, .sy_auevent = AUE_KILL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 62 = linux_kill */
 	{ .sy_narg = AS(linux_newuname_args), .sy_call = (sy_call_t *)linux_newuname, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 63 = linux_newuname */
 	{ .sy_narg = AS(linux_semget_args), .sy_call = (sy_call_t *)linux_semget, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 64 = linux_semget */
-	{ .sy_narg = AS(linux_semop_args), .sy_call = (sy_call_t *)linux_semop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 65 = linux_semop */
+	{ .sy_narg = AS(semop_args), .sy_call = (sy_call_t *)sys_semop, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 65 = semop */
 	{ .sy_narg = AS(linux_semctl_args), .sy_call = (sy_call_t *)linux_semctl, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 66 = linux_semctl */
 	{ .sy_narg = AS(linux_shmdt_args), .sy_call = (sy_call_t *)linux_shmdt, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 67 = linux_shmdt */
 	{ .sy_narg = AS(linux_msgget_args), .sy_call = (sy_call_t *)linux_msgget, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 68 = linux_msgget */
