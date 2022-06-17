@@ -489,3 +489,14 @@ xen_hvm_cpu_init(void)
 		DPCPU_SET(vcpu_info, vcpu_info);
 }
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
+
+bool
+xen_has_iommu_maps(void)
+{
+	uint32_t regs[4];
+
+	KASSERT(xen_cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
+	cpuid_count(xen_cpuid_base + 4, 0, regs);
+
+	return (regs[0] & XEN_HVM_CPUID_IOMMU_MAPPINGS);
+}
