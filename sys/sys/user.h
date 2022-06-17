@@ -420,8 +420,9 @@ struct kinfo_file {
 				uint64_t	kf_pipe_addr;
 				uint64_t	kf_pipe_peer;
 				uint32_t	kf_pipe_buffer_cnt;
-				/* Round to 64 bit alignment. */
-				uint32_t	kf_pipe_pad0[3];
+				uint32_t	kf_pipe_buffer_in;
+				uint32_t	kf_pipe_buffer_out;
+				uint32_t	kf_pipe_buffer_size;
 			} kf_pipe;
 			struct {
 				uint32_t	kf_spareint[4];
@@ -440,7 +441,14 @@ struct kinfo_file {
 			struct {
 				uint64_t	kf_eventfd_value;
 				uint32_t	kf_eventfd_flags;
+				uint32_t	kf_eventfd_spareint[3];
+				uint64_t	kf_eventfd_addr;
 			} kf_eventfd;
+			struct {
+				uint64_t	kf_kqueue_addr;
+				int32_t		kf_kqueue_count;
+				int32_t		kf_kqueue_state;
+			} kf_kqueue;
 		} kf_un;
 	};
 	uint16_t	kf_status;		/* Status flags. */
