@@ -43,7 +43,6 @@
  * other purpose will be dangerous. (they make weird assumptions)
  */
 
-#ifndef APPLE
 /*
  * First define what the actual subs. return
  */
@@ -142,7 +141,6 @@ nfsm_dissect_nonblock(struct nfsrv_descript *nd, int siz)
 			goto nfsmout; 					\
 		}							\
 	} while (0)
-#endif	/* !APPLE */
 
 #define	NFSM_STRSIZ(s, m)  						\
 	do {								\

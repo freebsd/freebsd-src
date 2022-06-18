@@ -425,9 +425,6 @@ else printf(" fhl=0\n");
 				    NFS4NODENAME(np->n_v4),
 				    np->n_v4->n4_namelen, &dp, cred, p);
 			if (dp != NULL) {
-#ifdef APPLE
-				OSBitAndAtomic((int32_t)~NDELEGMOD, (UInt32 *)&np->n_flag);
-#else
 				NFSLOCKNODE(np);
 				np->n_flag &= ~NDELEGMOD;
 				/*
@@ -439,7 +436,6 @@ else printf(" fhl=0\n");
 				 */
 				NFSINVALATTRCACHE(np);
 				NFSUNLOCKNODE(np);
-#endif
 				(void) nfscl_deleg(nmp->nm_mountp,
 				    op->nfso_own->nfsow_clp,
 				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, &dp);
@@ -3645,7 +3641,6 @@ nfsmout:
 	return (error);
 }
 
-#ifndef APPLE
 /*
  * NFS V3 readdir plus RPC. Used in place of nfsrpc_readdir().
  * (Also used for NFS V4 when mount flag set.)
@@ -4181,7 +4176,6 @@ nfsmout:
 		m_freem(nd->nd_mrep);
 	return (error);
 }
-#endif	/* !APPLE */
 
 /*
  * Nfs commit rpc
