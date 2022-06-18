@@ -625,7 +625,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 	}
 }
 
-#ifndef APPLE
 /*
  * copies mbuf chain to the uio scatter/gather list
  */
@@ -706,7 +705,6 @@ out:
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
-#endif	/* !APPLE */
 
 /*
  * Help break down an mbuf chain by setting the first siz bytes contiguous
@@ -2531,7 +2529,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		aclp = naclp;
 	}
 	nfsvno_getfs(&fsinf, isdgram);
-#ifndef APPLE
 	/*
 	 * Get the VFS_STATFS(), since some attributes need them.
 	 */
@@ -2558,7 +2555,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		if (fs->f_ffree < 0)
 			fs->f_ffree = 0;
 	}
-#endif
 
 	/*
 	 * And the NFSv4 ACL...
