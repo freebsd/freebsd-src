@@ -196,6 +196,35 @@ ufs_itimes(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
+static int
+ufs_sync_nlink(struct vnode *vp, struct vnode *vp1)
+{
+	struct inode *ip;
+	struct mount *mp;
+	int error;
+
+	ip = VTOI(vp);
+	if (ip->i_nlink < UFS_LINK_MAX)
+		return (0);
+	if (!DOINGSOFTDEP(vp) || ip->i_effnlink >= UFS_LINK_MAX)
+		return (EMLINK);
+
+	mp = vp->v_mount;
+	vfs_ref(mp);
+	VOP_UNLOCK(vp);
+	if (vp1 != NULL)
+		VOP_UNLOCK(vp1);
+	error = vfs_busy(mp, 0);
+	if (error == 0) {
+		VFS_SYNC(mp, MNT_WAIT);
+		vfs_unbusy(mp);
+		error = ERELOOKUP;
+	}
+	vfs_rel(mp);
+	vn_lock_pair(vp, false, vp1, false);
+	return (error);
+}
+
 /*
  * Create a regular file
  */
@@ -1086,11 +1115,11 @@ ufs_link(ap)
 		error = EINVAL;
 		goto out;
 	}
-	ip = VTOI(vp);
-	if (ip->i_nlink >= UFS_LINK_MAX) {
-		error = EMLINK;
+	error = ufs_sync_nlink(vp, tdvp);
+	if (error != 0)
 		goto out;
-	}
+	ip = VTOI(vp);
+
 	/*
 	 * The file may have been removed after namei dropped the original
 	 * lock.
@@ -1950,10 +1979,9 @@ ufs_mkdir(ap)
 		panic("ufs_mkdir: no name");
 #endif
 	dp = VTOI(dvp);
-	if (dp->i_nlink >= UFS_LINK_MAX) {
-		error = EMLINK;
+	error = ufs_sync_nlink(dvp, NULL);
+	if (error != 0)
 		goto out;
-	}
 	dmode = vap->va_mode & 0777;
 	dmode |= IFDIR;
 
