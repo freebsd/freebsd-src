@@ -229,11 +229,11 @@ isrc_increment_count(struct intr_irqsrc *isrc)
 /*
  *  Virtualization for interrupt source interrupt stray counter increment.
  */
-static inline void
+static inline u_long
 isrc_increment_straycount(struct intr_irqsrc *isrc)
 {
 
-	isrc->isrc_count[1]++;
+	return (++isrc->isrc_count[1]);
 }
 
 /*
@@ -362,7 +362,7 @@ intr_child_irq_handler(struct intr_pic *parent, uintptr_t irq)
  *  be called straight from the interrupt controller, when associated interrupt
  *  source is learned.
  */
-int
+u_long
 intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 {
 
@@ -384,8 +384,7 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	}
 
-	isrc_increment_straycount(isrc);
-	return (EINVAL);
+	return (isrc_increment_straycount(isrc));
 }
 
 /*
