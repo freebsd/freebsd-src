@@ -315,7 +315,7 @@ intr_disable_src(void *arg)
 	isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 }
 
-void
+u_long
 intr_execute_handlers(u_int vector, struct intsrc *isrc,
     struct trapframe *frame)
 {
@@ -352,7 +352,9 @@ intr_execute_handlers(u_int vector, struct intsrc *isrc,
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
+		return (*isrc->is_straycount);
 	}
+	return (0);
 }
 
 void
