@@ -87,8 +87,6 @@
 
 #include "pic_if.h"
 
-#define	MAX_STRAY_LOG	5
-
 static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
@@ -660,11 +658,11 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 
 stray:
 	stray_count++;
-	if (stray_count <= MAX_STRAY_LOG) {
+	if (stray_count <= INTR_STRAY_LOG_MAX) {
 		printf("stray irq %d\n", i ? i->irq : -1);
-		if (stray_count >= MAX_STRAY_LOG) {
+		if (stray_count >= INTR_STRAY_LOG_MAX) {
 			printf("got %d stray interrupts, not logging anymore\n",
-			    MAX_STRAY_LOG);
+			    INTR_STRAY_LOG_MAX);
 		}
 	}
 	if (i != NULL)

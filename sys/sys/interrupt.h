@@ -148,6 +148,9 @@ struct intr_event {
 #define	SWI_TQ		6
 #define	SWI_TQ_GIANT	6
 
+/* Maximum number of stray interrupts to log */
+#define	INTR_STRAY_LOG_MAX	5
+
 struct proc;
 
 extern struct	intr_event *clk_intr_event;

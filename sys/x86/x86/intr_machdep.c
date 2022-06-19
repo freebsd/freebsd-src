@@ -72,8 +72,6 @@
 
 #include <vm/vm.h>
 
-#define	MAX_STRAY_LOG	5
-
 typedef void (*mask_fn)(void *);
 
 static int intrcnt_index;
@@ -355,9 +353,9 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	if (intr_event_handle(ie, frame) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
-		if (*isrc->is_straycount < MAX_STRAY_LOG)
+		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
 			log(LOG_ERR, "stray irq%d\n", vector);
-		else if (*isrc->is_straycount == MAX_STRAY_LOG)
+		else if (*isrc->is_straycount == INTR_STRAY_LOG_MAX)
 			log(LOG_CRIT,
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
