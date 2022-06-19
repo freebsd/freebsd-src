@@ -98,7 +98,8 @@
 .Nm RB_INIT ,
 .Nm RB_INSERT ,
 .Nm RB_REMOVE ,
-.Nm RB_REINSERT
+.Nm RB_REINSERT ,
+.Nm RB_AUGMENT
 .Nd "implementations of splay and rank-balanced (wavl) trees"
 .Sh SYNOPSIS
 .In sys/tree.h
@@ -193,6 +194,8 @@
 .Fn RB_REMOVE NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn RB_REINSERT NAME "RB_HEAD *head" "struct TYPE *elm"
+.Ft "void"
+.Fn RB_AUGMENT NAME "struct TYPE *elm"
 .Sh DESCRIPTION
 These macros define data structures for different types of trees:
 splay trees and rank-balanced (wavl) trees.
@@ -581,11 +584,27 @@ is modified in a way that affects comparison, such as by modifying
 a node's key.
 This is a lower overhead alternative to removing the element
 and reinserting it again.
+.Pp
+The
+.Fn RB_AUGMENT
+macro updates augmentation data of the element
+.Fa elm
+in the tree.
+By default, it has no effect.
+It is not meant to be invoked by the RB user.
+If RB_AUGMENT is defined by the RB user, then when an element is
+inserted or removed from the tree, it is invoked for every element in
+the tree that is the root of an altered subtree, working from the
+bottom of the tree up to the top.
+It is typically used to maintain some associative accumulation of tree
+elements, such as sums, minima, maxima, and the like.
 .Sh EXAMPLES
 The following example demonstrates how to declare a rank-balanced tree
 holding integers.
 Values are inserted into it and the contents of the tree are printed
 in order.
+To maintain the sum of the values in the tree, each element maintains
+the sum of its value and the sums from its left and right subtrees.
 Lastly, the internal structure of the tree is printed.
 .Bd -literal -offset 3n
 #include <sys/tree.h>
@@ -595,7 +614,7 @@ Lastly, the internal structure of the tree is printed.
 
 struct node {
 	RB_ENTRY(node) entry;
-	int i;
+	int i, sum;
 };
 
 int
@@ -603,6 +622,17 @@ intcmp(struct node *e1, struct node *e2)
 {
 	return (e1->i < e2->i ? -1 : e1->i > e2->i);
 }
+
+int
+sumaug(struct node *e)
+{
+	e->sum = e->i;
+	if (RB_LEFT(e, entry) != NULL)
+		e->sum += RB_LEFT(e, entry)->sum;
+	if (RB_RIGHT(e, entry) != NULL)
+		e->sum += RB_RIGHT(e, entry)->sum;
+}
+#define RB_AUGMENT(entry) sumaug(entry)
 
 RB_HEAD(inttree, node) head = RB_INITIALIZER(&head);
 RB_GENERATE(inttree, node, entry, intcmp)
@@ -651,6 +681,7 @@ main(void)
 		printf("%d\en", n->i);
 	}
 	print_tree(RB_ROOT(&head));
+	printf("Sum of values = %d\n", RB_ROOT(&head)->sum);
 	printf("\en");
 	return (0);
 }
