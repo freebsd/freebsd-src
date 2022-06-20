@@ -1886,8 +1886,9 @@ vm_pageout_oom_pagecount(struct vmspace *vmspace)
 		if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) != 0 &&
 		    obj->ref_count != 1)
 			continue;
-		if (obj->type == OBJT_DEFAULT || obj->type == OBJT_PHYS ||
-		    obj->type == OBJT_VNODE || (obj->flags & OBJ_SWAP) != 0)
+		if (obj->type == OBJT_DEFAULT || obj->type == OBJT_SWAP ||
+		    obj->type == OBJT_PHYS || obj->type == OBJT_VNODE ||
+		    (obj->flags & OBJ_SWAP) != 0)
 			res += obj->resident_page_count;
 	}
 	return (res);
