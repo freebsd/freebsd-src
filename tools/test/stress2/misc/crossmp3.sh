@@ -86,6 +86,7 @@ else
 	else
 		export runRUNTIME=20s
 		# The test: Parallel mount and unmounts
+		start=`date +%s`
 		for i in `jot 3`; do
 			m=$1
 			mount /dev/md${m} ${mntpoint}$m &&
@@ -101,7 +102,10 @@ else
 				umount $opt ${mntpoint}$m > /dev/null 2>&1
 				[ -f $CONT ] || break 2
 			done
+			[ $((`date +%s` - start)) -gt 600 ] && 
+			    { echo "Timed out"; s=1; }
 		done
 		rm -f $CONT
 	fi
+	exit $s
 fi
