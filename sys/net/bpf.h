@@ -55,8 +55,8 @@ typedef	int64_t	  bpf_int64;
 typedef	u_int64_t bpf_u_int64;
 
 /*
- * Alignment macros.  BPF_WORDALIGN rounds up to the next
- * even multiple of BPF_ALIGNMENT.
+ * Alignment macros.  BPF_WORDALIGN rounds up to the next multiple of
+ * BPF_ALIGNMENT.
  */
 #define BPF_ALIGNMENT sizeof(long)
 #define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
