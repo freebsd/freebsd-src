@@ -53,7 +53,7 @@ static void geli_dev_cleanup(void);
  * geli_devdesc, effectively routing all IO operations through our code.
  */
 static struct devsw geli_devsw = {
-	.dv_name     = "gelidisk",
+	.dv_name     = "disk",
 	.dv_type     = DEVT_DISK,
 	.dv_init     = geli_dev_init,
 	.dv_strategy = geli_dev_strategy,
