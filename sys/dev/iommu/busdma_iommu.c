@@ -634,7 +634,7 @@ iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
 		segs[seg].ds_addr = entry->start + offset;
 		segs[seg].ds_len = buflen1;
 
-		idx += OFF_TO_IDX(trunc_page(offset + buflen1));
+		idx += OFF_TO_IDX(offset + buflen1);
 		offset += buflen1;
 		offset &= IOMMU_PAGE_MASK;
 		buflen -= buflen1;
