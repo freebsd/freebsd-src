@@ -329,6 +329,8 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:} ",
 	    wid_flags - protrusion);
 	p_flags(rtm->rtm_flags, buffer);
+	/* Output path weight as non-visual property */
+	xo_emit("{e:weight/%u}", rtm->rtm_rmx.rmx_weight);
 	if (Wflag) {
 		/* XXX: use=0? */
 		xo_emit("{t:nhop/%*lu} ", wid_mtu, rtm->rtm_rmx.rmx_nhidx);
