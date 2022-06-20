@@ -1805,6 +1805,9 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
 	if ((keg->uk_flags & UMA_ZFLAG_HASH) != 0)
 		domain = 0;
 
+	kmsan_mark(mem, size,
+	    (aflags & M_ZERO) != 0 ? KMSAN_STATE_INITED : KMSAN_STATE_UNINIT);
+
 	/* Point the slab into the allocated memory */
 	if (!(keg->uk_flags & UMA_ZFLAG_OFFPAGE))
 		slab = (uma_slab_t)(mem + keg->uk_pgoff);
