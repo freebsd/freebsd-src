@@ -1763,6 +1763,10 @@ vfs_op_exit_locked(struct mount *mp)
 	if (mp->mnt_vfs_ops <= 0)
 		panic("%s: invalid vfs_ops count %d for mp %p\n",
 		    __func__, mp->mnt_vfs_ops, mp);
+	KASSERT(mp->mnt_vfs_ops > 1 ||
+	    (mp->mnt_kern_flag & (MNTK_UNMOUNT | MNTK_SUSPEND)) == 0,
+	    ("%s: vfs_ops too low (%d) for mp %p in unmount or suspend",
+	    __func__, mp->mnt_vfs_ops, mp));
 	mp->mnt_vfs_ops--;
 }
 
