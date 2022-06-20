@@ -358,8 +358,7 @@ iommu_gas_match_insert(struct iommu_gas_match_args *a)
 
 	/*
 	 * The prev->end is always aligned on the page size, which
-	 * causes page alignment for the entry->start too.  The size
-	 * is checked to be multiple of the page size.
+	 * causes page alignment for the entry->start too.
 	 *
 	 * The page sized gap is created between consequent
 	 * allocations to ensure that out-of-bounds accesses fault.
