@@ -1224,7 +1224,10 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		mode = 0 /* STA */;
 		break;
 	case IEEE80211_MODE_IBSS:
+#if 0
 		mode = IFM_IEEE80211_IBSS;
+#endif
+		mode = IFM_IEEE80211_ADHOC;
 		break;
 	case IEEE80211_MODE_AP:
 		mode = IFM_IEEE80211_HOSTAP;
@@ -1269,6 +1272,13 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 	if (params->wpa_ie_len &&
 	    set80211param(drv, IEEE80211_IOC_WPA,
 			  params->wpa_ie[0] == WLAN_EID_RSN ? 2 : 1) < 0)
+		return -1;
+
+	/*
+	 * NB: interface must be marked UP for association
+	 * or scanning (ap_scan=2)
+	 */
+	if (bsd_get_iface_flags(drv) < 0)
 		return -1;
 
 	os_memset(&mlme, 0, sizeof(mlme));
@@ -1489,6 +1499,17 @@ static int wpa_driver_bsd_capa(struct bsd_driver_data *drv)
 	if (devcaps.dc_drivercaps & IEEE80211_C_WPA2)
 		drv->capa.key_mgmt = WPA_DRIVER_CAPA_KEY_MGMT_WPA2 |
 			WPA_DRIVER_CAPA_KEY_MGMT_WPA2_PSK;
+#ifdef __FreeBSD__
+	drv->capa.enc |= WPA_DRIVER_CAPA_ENC_WEP40 |
+	    WPA_DRIVER_CAPA_ENC_WEP104 |
+	    WPA_DRIVER_CAPA_ENC_TKIP |
+	    WPA_DRIVER_CAPA_ENC_CCMP;
+#else
+	/*
+	 * XXX
+	 * FreeBSD exports hardware cryptocaps.  These have no meaning for wpa
+	 * since net80211 performs software crypto.
+	 */
 
 	if (devcaps.dc_cryptocaps & IEEE80211_CRYPTO_WEP)
 		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_WEP40 |
@@ -1497,6 +1518,7 @@ static int wpa_driver_bsd_capa(struct bsd_driver_data *drv)
 		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_TKIP;
 	if (devcaps.dc_cryptocaps & IEEE80211_CRYPTO_AES_CCM)
 		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_CCMP;
+#endif
 
 	if (devcaps.dc_drivercaps & IEEE80211_C_HOSTAP)
 		drv->capa.flags |= WPA_DRIVER_FLAGS_AP;
@@ -1549,6 +1571,8 @@ get80211opmode(struct bsd_driver_data *drv)
 		}
 		if (ifmr.ifm_current & IFM_IEEE80211_HOSTAP)
 			return IEEE80211_M_HOSTAP;
+		if (ifmr.ifm_current & IFM_IEEE80211_IBSS)
+			return IEEE80211_M_IBSS;
 		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
 			return IEEE80211_M_MONITOR;
 #ifdef IEEE80211_M_MBSS
