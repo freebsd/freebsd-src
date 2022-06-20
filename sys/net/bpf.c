@@ -2536,6 +2536,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
     void (*cpfn)(struct bpf_d *, caddr_t, u_int, void *, u_int),
     struct bintime *bt)
 {
+	static char zeroes[BPF_ALIGNMENT];
 	struct bpf_xhdr hdr;
 #ifndef BURN_BRIDGES
 	struct bpf_hdr hdr_old;
@@ -2543,7 +2544,7 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 	struct bpf_hdr32 hdr32_old;
 #endif
 #endif
-	int caplen, curlen, hdrlen, totlen;
+	int caplen, curlen, hdrlen, pad, totlen;
 	int do_wakeup = 0;
 	int do_timestamp;
 	int tstype;
@@ -2609,13 +2610,25 @@ catchpacket(struct bpf_d *d, u_char *pkt, u_int pktlen, u_int snaplen,
 		ROTATE_BUFFERS(d);
 		do_wakeup = 1;
 		curlen = 0;
-	} else if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT)
-		/*
-		 * Immediate mode is set, or the read timeout has already
-		 * expired during a select call.  A packet arrived, so the
-		 * reader should be woken up.
-		 */
-		do_wakeup = 1;
+	} else {
+		if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT) {
+			/*
+			 * Immediate mode is set, or the read timeout has
+			 * already expired during a select call.  A packet
+			 * arrived, so the reader should be woken up.
+			 */
+			do_wakeup = 1;
+		}
+		pad = curlen - d->bd_slen;
+		KASSERT(pad >= 0 && pad <= sizeof(zeroes),
+		    ("%s: invalid pad byte count %d", __func__, pad));
+		if (pad > 0) {
+			/* Zero pad bytes. */
+			bpf_append_bytes(d, d->bd_sbuf, d->bd_slen, zeroes,
+			    pad);
+		}
+	}
+
 	caplen = totlen - hdrlen;
 	tstype = d->bd_tstamp;
 	do_timestamp = tstype != BPF_T_NONE;
