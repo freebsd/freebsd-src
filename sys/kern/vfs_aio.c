@@ -104,7 +104,7 @@ FEATURE(aio, "Asynchronous I/O");
 SYSCTL_DECL(_p1003_1b);
 
 static MALLOC_DEFINE(M_LIO, "lio", "listio aio control block list");
-static MALLOC_DEFINE(M_AIOS, "aios", "aio_suspend aio control block list");
+static MALLOC_DEFINE(M_AIO, "aio", "structures for asynchronous I/O");
 
 static SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Async IO management");
@@ -339,11 +339,10 @@ static int	filt_lio(struct knote *kn, long hint);
 /*
  * Zones for:
  * 	kaio	Per process async io info
- *	aiop	async io process data
  *	aiocb	async io jobs
  *	aiolio	list io jobs
  */
-static uma_zone_t kaio_zone, aiop_zone, aiocb_zone, aiolio_zone;
+static uma_zone_t kaio_zone, aiocb_zone, aiolio_zone;
 
 /* kqueue filters for aio */
 static struct filterops aio_filtops = {
@@ -412,13 +411,11 @@ aio_onceonly(void)
 	TAILQ_INIT(&aio_jobs);
 	aiod_unr = new_unrhdr(1, INT_MAX, NULL);
 	kaio_zone = uma_zcreate("AIO", sizeof(struct kaioinfo), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	aiop_zone = uma_zcreate("AIOP", sizeof(struct aioproc), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	aiocb_zone = uma_zcreate("AIOCB", sizeof(struct kaiocb), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	aiolio_zone = uma_zcreate("AIOLIO", sizeof(struct aioliojob), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
 	p31b_setcfg(CTL_P1003_1B_ASYNCHRONOUS_IO, _POSIX_ASYNCHRONOUS_IO);
@@ -1091,7 +1088,7 @@ aio_daemon(void *_id)
 	 * Allocate and ready the aio control info.  There is one aiop structure
 	 * per daemon.
 	 */
-	aiop = uma_zalloc(aiop_zone, M_WAITOK);
+	aiop = malloc(sizeof(*aiop), M_AIO, M_WAITOK);
 	aiop->aioproc = p;
 	aiop->aioprocflags = 0;
 
@@ -1157,7 +1154,7 @@ aio_daemon(void *_id)
 	TAILQ_REMOVE(&aio_freeproc, aiop, list);
 	num_aio_procs--;
 	mtx_unlock(&aio_job_mtx);
-	uma_zfree(aiop_zone, aiop);
+	free(aiop, M_AIO);
 	free_unr(aiod_unr, id);
 	vmspace_free(myvm);
 
@@ -2034,11 +2031,11 @@ sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	} else
 		tsp = NULL;
 
-	ujoblist = malloc(uap->nent * sizeof(ujoblist[0]), M_AIOS, M_WAITOK);
+	ujoblist = malloc(uap->nent * sizeof(ujoblist[0]), M_AIO, M_WAITOK);
 	error = copyin(uap->aiocbp, ujoblist, uap->nent * sizeof(ujoblist[0]));
 	if (error == 0)
 		error = kern_aio_suspend(td, uap->nent, ujoblist, tsp);
-	free(ujoblist, M_AIOS);
+	free(ujoblist, M_AIO);
 	return (error);
 }
 
@@ -2957,7 +2954,7 @@ freebsd32_aio_suspend(struct thread *td, struct freebsd32_aio_suspend_args *uap)
 	} else
 		tsp = NULL;
 
-	ujoblist = malloc(uap->nent * sizeof(ujoblist[0]), M_AIOS, M_WAITOK);
+	ujoblist = malloc(uap->nent * sizeof(ujoblist[0]), M_AIO, M_WAITOK);
 	ujoblist32 = (uint32_t *)ujoblist;
 	error = copyin(uap->aiocbp, ujoblist32, uap->nent *
 	    sizeof(ujoblist32[0]));
@@ -2967,7 +2964,7 @@ freebsd32_aio_suspend(struct thread *td, struct freebsd32_aio_suspend_args *uap)
 
 		error = kern_aio_suspend(td, uap->nent, ujoblist, tsp);
 	}
-	free(ujoblist, M_AIOS);
+	free(ujoblist, M_AIO);
 	return (error);
 }
 
