@@ -67,13 +67,12 @@ oid_get_root(struct oid *o)
 }
 
 /* Obtains the OID for a sysctl by name. */
-static void
+static bool
 oid_get_by_name(struct oid *o, const char *name)
 {
 
 	o->len = nitems(o->id);
-	if (sysctlnametomib(name, o->id, &o->len) != 0)
-		err(1, "sysctl(%s)", name);
+	return (sysctlnametomib(name, o->id, &o->len) == 0);
 }
 
 /* Returns whether an OID is placed below another OID. */
@@ -644,7 +643,15 @@ main(int argc, char *argv[])
 		for (i = 0; i < argc; ++i) {
 			struct oid o, root;
 
-			oid_get_by_name(&root, argv[i]);
+			if (!oid_get_by_name(&root, argv[i])) {
+				/*
+				 * Ignore trees provided as arguments that
+				 * can't be found.  They might belong, for
+				 * example, to kernel modules not currently
+				 * loaded.
+				 */
+				continue;
+			}
 			o = root;
 			do {
 				oid_print(&o, &on, print_descriptions, exclude, include, fp);
