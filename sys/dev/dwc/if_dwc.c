@@ -354,12 +354,12 @@ dwc_miibus_statchg(device_t dev)
  */
 
 static void
-dwc_media_status(struct ifnet * ifp, struct ifmediareq *ifmr)
+dwc_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct dwc_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = sc->mii_softc;
 	DWC_LOCK(sc);
 	mii_pollstat(mii);
@@ -376,12 +376,12 @@ dwc_media_change_locked(struct dwc_softc *sc)
 }
 
 static int
-dwc_media_change(struct ifnet * ifp)
+dwc_media_change(if_t ifp)
 {
 	struct dwc_softc *sc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	DWC_LOCK(sc);
 	error = dwc_media_change_locked(sc);
@@ -441,7 +441,7 @@ static void
 dwc_setup_rxfilter(struct dwc_softc *sc)
 {
 	struct dwc_hash_maddr_ctx ctx;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t *eaddr;
 	uint32_t ffval, hi, lo;
 	int nhash, i;
@@ -454,7 +454,7 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	/*
 	 * Set the multicast (group) filter hash.
 	 */
-	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+	if ((if_getflags(ifp) & IFF_ALLMULTI) != 0) {
 		ffval = (FRAME_FILTER_PM);
 		for (i = 0; i < nhash; i++)
 			ctx.hash[i] = ~0;
@@ -469,7 +469,7 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	/*
 	 * Set the individual address filter hash.
 	 */
-	if (ifp->if_flags & IFF_PROMISC)
+	if ((if_getflags(ifp) & IFF_PROMISC) != 0)
 		ffval |= (FRAME_FILTER_PR);
 
 	/*
@@ -802,7 +802,7 @@ static struct mbuf *
 dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
     struct dwc_bufmap *map)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m, *m0;
 	int len;
 	uint32_t rdesc0;
@@ -873,7 +873,7 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 	m_adj(m, -ETHER_CRC_LEN);
 
 	DWC_UNLOCK(sc);
-	(*ifp->if_input)(ifp, m);
+	if_input(ifp, m);
 	DWC_LOCK(sc);
 	return (m0);
 }
@@ -1050,7 +1050,7 @@ out:
 static void
 dwc_txstart_locked(struct dwc_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	int enqueued;
 
@@ -1099,9 +1099,9 @@ dwc_txstart_locked(struct dwc_softc *sc)
 }
 
 static void
-dwc_txstart(struct ifnet *ifp)
+dwc_txstart(if_t ifp)
 {
-	struct dwc_softc *sc = ifp->if_softc;
+	struct dwc_softc *sc = if_getsoftc(ifp);
 
 	DWC_LOCK(sc);
 	dwc_txstart_locked(sc);
@@ -1111,7 +1111,7 @@ dwc_txstart(struct ifnet *ifp)
 static void
 dwc_init_locked(struct dwc_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -1146,7 +1146,7 @@ dwc_init(void *if_softc)
 static void
 dwc_stop_locked(struct dwc_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -1162,14 +1162,14 @@ dwc_stop_locked(struct dwc_softc *sc)
 }
 
 static int
-dwc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+dwc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct dwc_softc *sc;
 	struct mii_data *mii;
 	struct ifreq *ifr;
 	int flags, mask, error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	error = 0;
@@ -1238,7 +1238,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 {
 	struct dwc_bufmap *bmap;
 	struct dwc_hwdesc *desc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int idx, last_idx;
 	bool map_finished;
 
@@ -1369,7 +1369,7 @@ static void dwc_clear_stats(struct dwc_softc *sc)
 static void
 dwc_harvest_stats(struct dwc_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	/* We don't need to harvest too often. */
 	if (++sc->stats_harvest_count < STATS_HARVEST_INTERVAL)
@@ -1402,7 +1402,7 @@ static void
 dwc_tick(void *arg)
 {
 	struct dwc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int link_was_up;
 
 	sc = arg;
@@ -1551,7 +1551,7 @@ dwc_attach(device_t dev)
 {
 	uint8_t macaddr[ETHER_ADDR_LEN];
 	struct dwc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, i;
 	uint32_t reg;
 	phandle_t node;
@@ -1677,7 +1677,7 @@ dwc_attach(device_t dev)
 	/* Set up the ethernet interface. */
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(sc->ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setstartfn(ifp, dwc_txstart);
