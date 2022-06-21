@@ -2035,7 +2035,7 @@ SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_SECOND, inittimecounter, NULL);
 
 /* Cpu tick handling -------------------------------------------------*/
 
-static int cpu_tick_variable;
+static bool cpu_tick_variable;
 static uint64_t	cpu_tick_frequency;
 
 DPCPU_DEFINE_STATIC(uint64_t, tc_cpu_ticks_base);
@@ -2128,14 +2128,14 @@ cpu_tick_calibrate(int reset)
 }
 
 void
-set_cputicker(cpu_tick_f *func, uint64_t freq, unsigned var)
+set_cputicker(cpu_tick_f *func, uint64_t freq, bool isvariable)
 {
 
 	if (func == NULL) {
 		cpu_ticks = tc_cpu_ticks;
 	} else {
 		cpu_tick_frequency = freq;
-		cpu_tick_variable = var;
+		cpu_tick_variable = isvariable;
 		cpu_ticks = func;
 	}
 }
