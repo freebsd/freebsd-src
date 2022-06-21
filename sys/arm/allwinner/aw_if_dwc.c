@@ -62,40 +62,43 @@ a20_if_dwc_probe(device_t dev)
 static int
 a20_if_dwc_init(device_t dev)
 {
+	struct dwc_softc *sc;
 	const char *tx_parent_name;
-	char *phy_type;
 	clk_t clk_tx, clk_tx_parent;
 	regulator_t reg;
-	phandle_t node;
 	int error;
 
-	node = ofw_bus_get_node(dev);
+	sc = device_get_softc(dev);
 
 	/* Configure PHY for MII or RGMII mode */
-	if (OF_getprop_alloc(node, "phy-mode", (void **)&phy_type)) {
-		error = clk_get_by_ofw_name(dev, 0, "allwinner_gmac_tx", &clk_tx);
-		if (error != 0) {
-			device_printf(dev, "could not get tx clk\n");
-			return (error);
-		}
+	switch(sc->phy_mode) {
+	case PHY_MODE_RGMII:
+		tx_parent_name = "gmac_int_tx";
+		break;
+	case PHY_MODE_MII:
+		tx_parent_name = "mii_phy_tx";
+		break;
+	default:
+		device_printf(dev, "unsupported PHY connection type: %d",
+		    sc->phy_mode);
+		return (ENXIO);
+	}
 
-		if (strcmp(phy_type, "rgmii") == 0)
-			tx_parent_name = "gmac_int_tx";
-		else
-			tx_parent_name = "mii_phy_tx";
-
-		error = clk_get_by_name(dev, tx_parent_name, &clk_tx_parent);
-		if (error != 0) {
-			device_printf(dev, "could not get clock '%s'\n",
-			    tx_parent_name);
-			return (error);
-		}
-
-		error = clk_set_parent_by_clk(clk_tx, clk_tx_parent);
-		if (error != 0) {
-			device_printf(dev, "could not set tx clk parent\n");
-			return (error);
-		}
+	error = clk_get_by_ofw_name(dev, 0, "allwinner_gmac_tx", &clk_tx);
+	if (error != 0) {
+		device_printf(dev, "could not get tx clk\n");
+		return (error);
+	}
+	error = clk_get_by_name(dev, tx_parent_name, &clk_tx_parent);
+	if (error != 0) {
+		device_printf(dev, "could not get clock '%s'\n",
+		    tx_parent_name);
+		return (error);
+	}
+	error = clk_set_parent_by_clk(clk_tx, clk_tx_parent);
+	if (error != 0) {
+		device_printf(dev, "could not set tx clk parent\n");
+		return (error);
 	}
 
 	/* Enable PHY regulator if applicable */
