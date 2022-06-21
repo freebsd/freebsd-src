@@ -1043,6 +1043,48 @@ out:
 	return (0);
 }
 
+static void
+free_dma(struct dwc_softc *sc)
+{
+	bus_dmamap_t map;
+	int idx;
+
+	/* Clean up RX DMA resources and free mbufs. */
+	for (idx = 0; idx < RX_DESC_COUNT; ++idx) {
+		if ((map = sc->rxbuf_map[idx].map) != NULL) {
+			bus_dmamap_unload(sc->rxbuf_tag, map);
+			bus_dmamap_destroy(sc->rxbuf_tag, map);
+			m_freem(sc->rxbuf_map[idx].mbuf);
+		}
+	}
+	if (sc->rxbuf_tag != NULL)
+		bus_dma_tag_destroy(sc->rxbuf_tag);
+	if (sc->rxdesc_map != NULL) {
+		bus_dmamap_unload(sc->rxdesc_tag, sc->rxdesc_map);
+		bus_dmamem_free(sc->rxdesc_tag, sc->rxdesc_ring,
+		    sc->rxdesc_map);
+	}
+	if (sc->rxdesc_tag != NULL)
+		bus_dma_tag_destroy(sc->rxdesc_tag);
+
+	/* Clean up TX DMA resources. */
+	for (idx = 0; idx < TX_DESC_COUNT; ++idx) {
+		if ((map = sc->txbuf_map[idx].map) != NULL) {
+			/* TX maps are already unloaded. */
+			bus_dmamap_destroy(sc->txbuf_tag, map);
+		}
+	}
+	if (sc->txbuf_tag != NULL)
+		bus_dma_tag_destroy(sc->txbuf_tag);
+	if (sc->txdesc_map != NULL) {
+		bus_dmamap_unload(sc->txdesc_tag, sc->txdesc_map);
+		bus_dmamem_free(sc->txdesc_tag, sc->txdesc_ring,
+		    sc->txdesc_map);
+	}
+	if (sc->txdesc_tag != NULL)
+		bus_dma_tag_destroy(sc->txdesc_tag);
+}
+
 /*
  * if_ functions
  */
@@ -1709,9 +1751,55 @@ dwc_attach(device_t dev)
 	return (0);
 }
 
+static int
+dwc_detach(device_t dev)
+{
+	struct dwc_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Disable and tear down interrupts before anything else, so we don't
+	 * race with the handler.
+	 */
+	WRITE4(sc, INTERRUPT_ENABLE, 0);
+	if (sc->intr_cookie != NULL) {
+		bus_teardown_intr(dev, sc->res[1], sc->intr_cookie);
+	}
+
+	if (sc->is_attached) {
+		DWC_LOCK(sc);
+		sc->is_detaching = true;
+		dwc_stop_locked(sc);
+		DWC_UNLOCK(sc);
+		callout_drain(&sc->dwc_callout);
+		ether_ifdetach(sc->ifp);
+	}
+
+	if (sc->miibus != NULL) {
+		device_delete_child(dev, sc->miibus);
+		sc->miibus = NULL;
+	}
+	bus_generic_detach(dev);
+
+	/* Free DMA descriptors */
+	free_dma(sc);
+
+	if (sc->ifp != NULL) {
+		if_free(sc->ifp);
+		sc->ifp = NULL;
+	}
+
+	bus_release_resources(dev, dwc_spec, sc->res);
+
+	mtx_destroy(&sc->mtx);
+	return (0);
+}
+
 static device_method_t dwc_methods[] = {
 	DEVMETHOD(device_probe,		dwc_probe),
 	DEVMETHOD(device_attach,	dwc_attach),
+	DEVMETHOD(device_detach,	dwc_detach),
 
 	/* MII Interface */
 	DEVMETHOD(miibus_readreg,	dwc_miibus_read_reg),
