@@ -781,8 +781,10 @@ iommu_gas_reserve_region_extend(struct iommu_domain *domain,
 		if (entry_start != entry_end) {
 			error = iommu_gas_reserve_region_locked(domain,
 			    entry_start, entry_end, entry);
-			if (error != 0)
+			if (error != 0) {
+				IOMMU_DOMAIN_UNLOCK(domain);
 				break;
+			}
 			entry = NULL;
 		}
 		IOMMU_DOMAIN_UNLOCK(domain);
