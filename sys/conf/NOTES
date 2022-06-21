@@ -2034,7 +2034,6 @@ device		sound
 #		    zero if don't know what to put in (and you don't,
 #		    since this is unsupported at the moment...).
 #
-# snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
@@ -2046,10 +2045,7 @@ device		sound
 # snd_envy24:		VIA Envy24 and compatible, needs snd_spicds.
 # snd_envy24ht:		VIA Envy24HT and compatible, needs snd_spicds.
 # snd_es137x:		Ensoniq AudioPCI ES137x PCI.
-# snd_ess:		Ensoniq ESS ISA PnP/non-PnP, to be used in
-#			conjunction with snd_sbc.
 # snd_fm801:		Forte Media FM801 PCI.
-# snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
 # snd_hdspe:		RME HDSPe AIO and RayDAT.
@@ -2057,14 +2053,7 @@ device		sound
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
 # snd_maestro3:		ESS Technology Maestro-3/Allegro PCI.
-# snd_mss:		Microsoft Sound System ISA PnP/non-PnP.
 # snd_neomagic:		Neomagic 256 AV/ZX PCI.
-# snd_sb16:		Creative SoundBlaster16, to be used in
-#			conjunction with snd_sbc.
-# snd_sb8:		Creative SoundBlaster (pre-16), to be used in
-#			conjunction with snd_sbc.
-# snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
-#			Supports ESS and Avance ISA chips as well.
 # snd_solo:		ESS Solo-1x PCI.
 # snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
 # snd_t4dwave:		Trident 4DWave DX/NX PCI, Sis 7018 PCI and Acer Labs
@@ -2074,7 +2063,6 @@ device		sound
 # snd_via82c686:	VIA VT82C686A PCI.
 # snd_vibes:		S3 Sonicvibes PCI.
 
-device		snd_ad1816
 device		snd_als4000
 device		snd_atiixp
 device		snd_cmi
@@ -2085,18 +2073,12 @@ device		snd_emu10kx
 device		snd_envy24
 device		snd_envy24ht
 device		snd_es137x
-device		snd_ess
 device		snd_fm801
-device		snd_gusc
 device		snd_hda
 device		snd_hdspe
 device		snd_ich
 device		snd_maestro3
-device		snd_mss
 device		snd_neomagic
-device		snd_sb16
-device		snd_sb8
-device		snd_sbc
 device		snd_solo
 device		snd_spicds
 device		snd_t4dwave
