@@ -172,6 +172,11 @@ queue_head()
 queue_body()
 {
 	fw=$1
+
+	if [ $fw = "ipfw" ] && [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/264805"
+	fi
+
 	firewall_init $fw
 	dummynet_init $fw
 
