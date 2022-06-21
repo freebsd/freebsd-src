@@ -513,7 +513,6 @@ int	bus_generic_get_device_path(device_t bus, device_t child, const char *locato
 				    struct sbuf *sb);
 int	bus_helper_reset_post(device_t dev, int flags);
 int	bus_helper_reset_prepare(device_t dev, int flags);
-int	bus_null_rescan(device_t dev);
 
 /*
  * Wrapper functions for the BUS_*_RESOURCE methods to make client code
