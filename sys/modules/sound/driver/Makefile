@@ -17,7 +17,7 @@ _maestro3=	maestro3
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-SUBDIR+=	cmi mss
+SUBDIR+=	cmi
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

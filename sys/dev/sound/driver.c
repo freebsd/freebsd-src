@@ -72,7 +72,6 @@ MODULE_DEPEND(snd_driver, snd_fm801, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_hda, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_ich, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_maestro3, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_mss, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_neomagic, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_sb16, 1, 1, 1);
 MODULE_DEPEND(snd_driver, snd_sb8, 1, 1, 1);
