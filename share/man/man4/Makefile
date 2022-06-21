@@ -517,7 +517,6 @@ MAN=	aac.4 \
 	snd_ich.4 \
 	snd_maestro3.4 \
 	snd_neomagic.4 \
-	snd_sbc.4 \
 	snd_solo.4 \
 	snd_spicds.4 \
 	snd_t4dwave.4 \
@@ -737,8 +736,6 @@ MLINKS+=sk.4 if_sk.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=smsc.4 if_smsc.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
-MLINKS+=snd_sbc.4 snd_sb16.4 \
-	snd_sbc.4 snd_sb8.4
 MLINKS+=${_spkr.4} ${_speaker.4}
 MLINKS+=splash.4 screensaver.4
 MLINKS+=ste.4 if_ste.4
