@@ -501,7 +501,6 @@ MAN=	aac.4 \
 	smbus.4 \
 	smp.4 \
 	smsc.4 \
-	snd_ad1816.4 \
 	snd_als4000.4 \
 	snd_atiixp.4 \
 	snd_cmi.4 \
