@@ -3089,7 +3089,6 @@ dev/smc/if_smc_fdt.c		optional smc fdt
 dev/snp/snp.c			optional snp
 dev/sound/clone.c		optional sound
 dev/sound/unit.c		optional sound
-dev/sound/isa/gusc.c		optional snd_gusc isa
 dev/sound/isa/mss.c		optional snd_mss isa
 dev/sound/isa/sb16.c		optional snd_sb16 isa
 dev/sound/isa/sb8.c		optional snd_sb8 isa
