@@ -67,12 +67,14 @@ CODE {
 		panic("bus_add_child is not implemented");
 	}
 
-	static int null_reset_post(device_t bus, device_t dev)
+	static int
+	null_reset_post(device_t bus, device_t dev)
 	{
 		return (0);
 	}
 
-	static int null_reset_prepare(device_t bus, device_t dev)
+	static int
+	null_reset_prepare(device_t bus, device_t dev)
 	{
 		return (0);
 	}
@@ -264,7 +266,7 @@ METHOD device_t add_child {
  */
 METHOD int rescan {
 	device_t _dev;
-}
+} DEFAULT bus_null_rescan;
 
 /**
  * @brief Allocate a system resource

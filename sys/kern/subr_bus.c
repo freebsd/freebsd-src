@@ -4613,7 +4613,7 @@ bus_generic_get_domain(device_t dev, device_t child, int *domain)
 int
 bus_null_rescan(device_t dev)
 {
-	return (ENXIO);
+	return (ENODEV);
 }
 
 /*
