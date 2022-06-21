@@ -824,14 +824,6 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 	m = map->mbuf;
 	ifp = sc->ifp;
 	rdesc0 = desc ->desc0;
-	/* Validate descriptor. */
-	if (rdesc0 & RDESC0_ES) {
-		/*
-		 * Errored packet. Statistic counters are updated
-		 * globally, so do nothing
-		 */
-		return (NULL);
-	}
 
 	if ((rdesc0 & (RDESC0_FS | RDESC0_LS)) !=
 		    (RDESC0_FS | RDESC0_LS)) {
@@ -1441,16 +1433,12 @@ dwc_harvest_stats(struct dwc_softc *sc)
 	sc->stats_harvest_count = 0;
 	ifp = sc->ifp;
 
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, READ4(sc, RXFRAMECOUNT_GB));
-	if_inc_counter(ifp, IFCOUNTER_IMCASTS, READ4(sc, RXMULTICASTFRAMES_G));
 	if_inc_counter(ifp, IFCOUNTER_IERRORS,
 	    READ4(sc, RXOVERSIZE_G) + READ4(sc, RXUNDERSIZE_G) +
 	    READ4(sc, RXCRCERROR) + READ4(sc, RXALIGNMENTERROR) +
 	    READ4(sc, RXRUNTERROR) + READ4(sc, RXJABBERERROR) +
 	    READ4(sc, RXLENGTHERROR));
 
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, READ4(sc, TXFRAMECOUNT_G));
-	if_inc_counter(ifp, IFCOUNTER_OMCASTS, READ4(sc, TXMULTICASTFRAMES_G));
 	if_inc_counter(ifp, IFCOUNTER_OERRORS,
 	    READ4(sc, TXOVERSIZE_G) + READ4(sc, TXEXCESSDEF) +
 	    READ4(sc, TXCARRIERERR) + READ4(sc, TXUNDERFLOWERROR));
