@@ -519,6 +519,20 @@ dwc_enable_mac(struct dwc_softc *sc, bool enable)
 }
 
 static void
+dwc_enable_csum_offload(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+	reg = READ4(sc, MAC_CONFIGURATION);
+	if ((if_getcapenable(sc->ifp) & IFCAP_RXCSUM) != 0)
+		reg |= CONF_IPC;
+	else
+		reg &= ~CONF_IPC;
+	WRITE4(sc, MAC_CONFIGURATION, reg);
+}
+
+static void
 dwc_get_hwaddr(struct dwc_softc *sc, uint8_t *hwaddr)
 {
 	uint32_t hi, lo, rnd;
@@ -1163,6 +1177,7 @@ dwc_init_locked(struct dwc_softc *sc)
 	dwc_setup_rxfilter(sc);
 	dwc_setup_core(sc);
 	dwc_enable_mac(sc, true);
+	dwc_enable_csum_offload(sc);
 	dwc_init_dma(sc);
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
@@ -1261,6 +1276,12 @@ dwc_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			if_sethwassistbits(ifp, CSUM_IP | CSUM_UDP | CSUM_TCP, 0);
 		else
 			if_sethwassistbits(ifp, 0, CSUM_IP | CSUM_UDP | CSUM_TCP);
+
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+			DWC_LOCK(sc);
+			dwc_enable_csum_offload(sc);
+			DWC_UNLOCK(sc);
+		}
 		break;
 
 	default:
