@@ -78,30 +78,17 @@ static struct timecounter riscv_timer_timecount = {
 };
 
 static inline uint64_t
-get_cycles(void)
+get_timecount(void)
 {
 
 	return (rdtime());
 }
 
-static long
-get_counts(struct riscv_timer_softc *sc)
-{
-	uint64_t counts;
-
-	counts = get_cycles();
-
-	return (counts);
-}
-
 static u_int
-riscv_timer_tc_get_timecount(struct timecounter *tc)
+riscv_timer_tc_get_timecount(struct timecounter *tc __unused)
 {
-	struct riscv_timer_softc *sc;
 
-	sc = tc->tc_priv;
-
-	return (get_counts(sc));
+	return (get_timecount());
 }
 
 static uint32_t
@@ -120,7 +107,7 @@ riscv_timer_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
-		sbi_set_timer(get_cycles() + counts);
+		sbi_set_timer(get_timecount() + counts);
 		csr_set(sie, SIE_STIE);
 
 		return (0);
@@ -286,10 +273,10 @@ DELAY(int usec)
 	else
 		counts = usec * counts_per_usec;
 
-	first = get_counts(riscv_timer_sc);
+	first = get_timecount();
 
 	while (counts > 0) {
-		last = get_counts(riscv_timer_sc);
+		last = get_timecount();
 		counts -= (int64_t)(last - first);
 		first = last;
 	}
