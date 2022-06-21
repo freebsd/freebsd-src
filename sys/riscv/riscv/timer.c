@@ -142,7 +142,8 @@ static int
 riscv_timer_stop(struct eventtimer *et)
 {
 
-	/* TODO */
+	/* Disable timer interrupts. */
+	csr_clear(sie, SIE_STIE);
 
 	return (0);
 }
