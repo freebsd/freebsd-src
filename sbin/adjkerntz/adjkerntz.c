@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  * with Garrett Wollman and Bruce Evans fixes.
  *
  */
+#include <errno.h>
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -159,6 +160,12 @@ again:
 
 	len = sizeof(kern_offset);
 	if (sysctlbyname("machdep.adjkerntz", &kern_offset, &len, NULL, 0) == -1) {
+		if (errno == EPERM && !init && geteuid() == 0)
+			/*
+			 * Surplus call from jailed root crontab.
+			 * Avoid spamming logs.
+			 */
+			return 1;
 		syslog(LOG_ERR, "sysctl(\"machdep.adjkerntz\"): %m");
 		return 1;
 	}
