@@ -219,6 +219,8 @@ riscv_timer_attach(device_t dev)
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
+	set_cputicker(get_timecount, sc->clkfreq, false);
+
 	return (0);
 }
 
