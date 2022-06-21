@@ -846,7 +846,7 @@ tsc_levels_changed(void *arg, int unit)
 	error = CPUFREQ_LEVELS(cf_dev, levels, &count);
 	if (error == 0 && count != 0) {
 		max_freq = (uint64_t)levels[0].total_set.freq * 1000000;
-		set_cputicker(rdtsc, max_freq, 1);
+		set_cputicker(rdtsc, max_freq, true);
 	} else
 		printf("tsc_levels_changed: no max freq found\n");
 	free(levels, M_TEMP);
