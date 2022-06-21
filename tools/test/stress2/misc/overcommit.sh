@@ -51,7 +51,8 @@ chmod 777 $mntpoint
 export runRUNTIME=10m
 export RUNDIR=$mntpoint/stressX
 
-su $testuser -c 'cd ..; ./run.sh marcus.cfg'
+timeout 11m \
+    su $testuser -c 'cd ..; ./run.sh marcus.cfg'
 
 while mount | grep "on $mntpoint " | grep -q /dev/md; do
 	umount $mntpoint || sleep 1
