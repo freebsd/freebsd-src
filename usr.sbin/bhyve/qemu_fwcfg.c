@@ -44,6 +44,7 @@
 #define QEMU_FWCFG_INDEX_SIGNATURE 0x00
 #define QEMU_FWCFG_INDEX_ID 0x01
 #define QEMU_FWCFG_INDEX_NB_CPUS 0x05
+#define QEMU_FWCFG_INDEX_MAX_CPUS 0x0F
 #define QEMU_FWCFG_INDEX_FILE_DIR 0x19
 
 #define QEMU_FWCFG_FIRST_FILE_INDEX 0x20
@@ -225,6 +226,24 @@ qemu_fwcfg_add_item_id(void)
 	return (qemu_fwcfg_add_item(QEMU_FWCFG_ARCHITECTURE_GENERIC,
 	    QEMU_FWCFG_INDEX_ID, sizeof(struct qemu_fwcfg_id),
 	    (uint8_t *)fwcfg_id));
+}
+
+static int
+qemu_fwcfg_add_item_max_cpus(void)
+{
+	uint16_t *fwcfg_max_cpus = calloc(1, sizeof(uint16_t));
+	if (fwcfg_max_cpus == NULL) {
+		return (ENOMEM);
+	}
+
+	/*
+	 * We don't support cpu hotplug yet. For that reason, use guest_ncpus instead
+	 * of maxcpus.
+	 */
+	*fwcfg_max_cpus = htole16(guest_ncpus);
+
+	return (qemu_fwcfg_add_item(QEMU_FWCFG_ARCHITECTURE_GENERIC,
+	    QEMU_FWCFG_INDEX_MAX_CPUS, sizeof(uint16_t), fwcfg_max_cpus));
 }
 
 static int
@@ -431,6 +450,10 @@ qemu_fwcfg_init(struct vmctx *const ctx)
 	}
 	if ((error = qemu_fwcfg_add_item_nb_cpus()) != 0) {
 		warnx("%s: Unable to add nb_cpus item", __func__);
+		goto done;
+	}
+	if ((error = qemu_fwcfg_add_item_max_cpus()) != 0) {
+		warnx("%s: Unable to add max_cpus item", __func__);
 		goto done;
 	}
 	if ((error = qemu_fwcfg_add_item_file_dir()) != 0) {
