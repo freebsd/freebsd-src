@@ -2429,7 +2429,7 @@ linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
 		error = copyin(sig, &lpse6, sizeof(lpse6));
 		if (error != 0)
 			return (error);
-		error = linux_copyin_sigset(PTRIN(lpse6.ss),
+		error = linux_copyin_sigset(td, PTRIN(lpse6.ss),
 		    lpse6.ss_len, &ss, &ssp);
 		if (error != 0)
 		    return (error);
@@ -2530,7 +2530,7 @@ linux_common_ppoll(struct thread *td, struct pollfd *fds, uint32_t nfds,
 	if (kern_poll_maxfds(nfds))
 		return (EINVAL);
 	if (sset != NULL) {
-		error = linux_copyin_sigset(sset, ssize, &ss, &ssp);
+		error = linux_copyin_sigset(td, sset, ssize, &ss, &ssp);
 		if (error != 0)
 		    return (error);
 	} else

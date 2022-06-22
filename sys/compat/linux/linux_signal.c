@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ktr.h>
@@ -39,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <security/audit/audit.h>
 
@@ -176,6 +181,11 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	if (linux_nsa != NULL) {
 		nsa = &act;
 		linux_to_bsd_sigaction(linux_nsa, nsa);
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			linux_ktrsigset(&linux_nsa->lsa_mask,
+			    sizeof(linux_nsa->lsa_mask));
+#endif
 	} else
 		nsa = NULL;
 	sig = linux_to_bsd_signal(linux_sig);
@@ -184,9 +194,14 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	if (error != 0)
 		return (error);
 
-	if (linux_osa != NULL)
+	if (linux_osa != NULL) {
 		bsd_to_linux_sigaction(osa, linux_osa);
-
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			linux_ktrsigset(&linux_osa->lsa_mask,
+			    sizeof(linux_osa->lsa_mask));
+#endif
+	}
 	return (0);
 }
 
@@ -308,6 +323,10 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 			return (error);
 		LINUX_SIGEMPTYSET(lset);
 		lset.__mask = mask;
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			linux_ktrsigset(&lset, sizeof(lset));
+#endif
 		linux_to_bsd_sigset(&lset, &set);
 	}
 
@@ -316,6 +335,10 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 				     args->omask ? &oset : NULL);
 
 	if (args->omask != NULL && error == 0) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			linux_ktrsigset(&oset, sizeof(oset));
+#endif
 		mask = oset.__mask;
 		error = copyout(&mask, args->omask, sizeof(mask));
 	}
@@ -331,7 +354,7 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 	sigset_t set, *pset;
 	int error;
 
-	error = linux_copyin_sigset(args->mask, args->sigsetsize,
+	error = linux_copyin_sigset(td, args->mask, args->sigsetsize,
 	    &set, &pset);
 	if (error != 0)
 		return (EINVAL);
@@ -339,8 +362,13 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 	error = linux_do_sigprocmask(td, args->how, pset,
 				     args->omask ? &oset : NULL);
 
-	if (args->omask != NULL && error == 0)
+	if (args->omask != NULL && error == 0) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			linux_ktrsigset(&oset, sizeof(oset));
+#endif
 		error = copyout(&oset, args->omask, sizeof(oset));
+	}
 
 	return (error);
 }
@@ -356,6 +384,10 @@ linux_sgetmask(struct thread *td, struct linux_sgetmask_args *args)
 	bsd_to_linux_sigset(&td->td_sigmask, &mask);
 	PROC_UNLOCK(p);
 	td->td_retval[0] = mask.__mask;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		linux_ktrsigset(&mask, sizeof(mask));
+#endif
 	return (0);
 }
 
@@ -372,6 +404,10 @@ linux_ssetmask(struct thread *td, struct linux_ssetmask_args *args)
 	LINUX_SIGEMPTYSET(lset);
 	lset.__mask = args->mask;
 	linux_to_bsd_sigset(&lset, &bset);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		linux_ktrsigset(&lset, sizeof(lset));
+#endif
 	td->td_sigmask = bset;
 	SIG_CANTMASK(td->td_sigmask);
 	signotify(td);
@@ -393,6 +429,10 @@ linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 	SIGSETAND(bset, td->td_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_linux_sigset(&bset, &lset);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		linux_ktrsigset(&lset, sizeof(lset));
+#endif
 	mask = lset.__mask;
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
@@ -418,6 +458,10 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 	SIGSETAND(bset, td->td_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_linux_sigset(&bset, &lset);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		linux_ktrsigset(&lset, sizeof(lset));
+#endif
 	return (copyout(&lset, args->set, args->sigsetsize));
 }
 
@@ -449,7 +493,7 @@ linux_common_rt_sigtimedwait(struct thread *td, l_sigset_t *mask,
 	l_siginfo_t lsi;
 	ksiginfo_t ksi;
 
-	error = linux_copyin_sigset(mask, sigsetsize, &bset, NULL);
+	error = linux_copyin_sigset(td, mask, sigsetsize, &bset, NULL);
 	if (error != 0)
 		return (error);
 
@@ -825,7 +869,7 @@ linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
 	sigset_t sigmask;
 	int error;
 
-	error = linux_copyin_sigset(uap->newset, uap->sigsetsize,
+	error = linux_copyin_sigset(td, uap->newset, uap->sigsetsize,
 	    &sigmask, NULL);
 	if (error != 0)
 		return (error);
@@ -915,8 +959,8 @@ linux_psignal(struct thread *td, int pid, int sig)
 }
 
 int
-linux_copyin_sigset(l_sigset_t *lset, l_size_t sigsetsize, sigset_t *set,
-    sigset_t **pset)
+linux_copyin_sigset(struct thread *td, l_sigset_t *lset,
+    l_size_t sigsetsize, sigset_t *set, sigset_t **pset)
 {
 	l_sigset_t lmask;
 	int error;
@@ -930,6 +974,10 @@ linux_copyin_sigset(l_sigset_t *lset, l_size_t sigsetsize, sigset_t *set,
 		linux_to_bsd_sigset(&lmask, set);
 		if (pset != NULL)
 			*pset = set;
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_STRUCT))
+			linux_ktrsigset(&lmask, sizeof(lmask));
+#endif
 	} else if (pset != NULL)
 		*pset = NULL;
 	return (0);
