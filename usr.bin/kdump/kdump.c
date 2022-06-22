@@ -124,6 +124,8 @@ void ktrfaultend(struct ktr_faultend *);
 void ktrkevent(struct kevent *);
 void ktrstructarray(struct ktr_struct_array *, size_t);
 void ktrbitset(char *, struct bitset *, size_t);
+void ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
+    int *resnarg, char *resc, u_int sv_flags);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -773,17 +775,50 @@ void
 ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 {
 	int narg = ktr->ktr_narg;
+	register_t *ip;
+
+	syscallname(ktr->ktr_code, sv_flags);
+	ip = &ktr->ktr_args[0];
+	if (narg) {
+		char c = '(';
+		if (fancy) {
+			switch (sv_flags & SV_ABI_MASK) {
+			case SV_ABI_FREEBSD:
+				ktrsyscall_freebsd(ktr, &ip, &narg, &c,
+				    sv_flags);
+				break;
+#ifdef SYSDECODE_HAVE_LINUX
+			case SV_ABI_LINUX:
+#ifdef __amd64__
+				if (sv_flags & SV_ILP32)
+					ktrsyscall_linux32(ktr, &ip,
+					    &narg, &c);
+				else
+#endif
+				ktrsyscall_linux(ktr, &ip, &narg, &c);
+				break;
+#endif /* SYSDECODE_HAVE_LINUX */
+			}
+		}
+		while (narg > 0)
+			print_number(ip, narg, c);
+		putchar(')');
+	}
+	putchar('\n');
+}
+
+void
+ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
+    int *resnarg, char *resc, u_int sv_flags)
+{
+	int narg = ktr->ktr_narg;
 	register_t *ip, *first;
 	intmax_t arg;
 	int quad_align, quad_slots;
 
-	syscallname(ktr->ktr_code, sv_flags);
 	ip = first = &ktr->ktr_args[0];
-	if (narg) {
-		char c = '(';
-		if (fancy &&
-		    (sv_flags == 0 ||
-		    (sv_flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
+	char c = *resc;
+
 			quad_align = 0;
 			if (sv_flags & SV_ILP32) {
 #ifdef __powerpc__
@@ -1515,13 +1550,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				narg--;
 				break;
 			}
-		}
-		while (narg > 0) {
-			print_number(ip, narg, c);
-		}
-		putchar(')');
-	}
-	putchar('\n');
+	*resc = c;
+	*resip = ip;
+	*resnarg = narg;
 }
 
 void
