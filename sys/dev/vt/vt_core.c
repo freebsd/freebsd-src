@@ -2135,7 +2135,7 @@ vt_mouse_paste()
 	buf = VD_PASTEBUF(main_vd);
 	len /= sizeof(term_char_t);
 	for (i = 0; i < len; i++) {
-		if (buf[i] == '\0')
+		if (TCHAR_CHARACTER(buf[i]) == '\0')
 			continue;
 		terminal_input_char(main_vd->vd_curwindow->vw_terminal,
 		    buf[i]);
@@ -2287,8 +2287,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 			VD_PASTEBUFSZ(vd) = len;
 		}
 		/* Request copy/paste buffer data, no more than `len' */
-		vtbuf_extract_marked(&vw->vw_buf, VD_PASTEBUF(vd),
-		    VD_PASTEBUFSZ(vd));
+		vtbuf_extract_marked(&vw->vw_buf, VD_PASTEBUF(vd), len);
 
 		VD_PASTEBUFLEN(vd) = len;
 
