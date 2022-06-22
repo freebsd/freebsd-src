@@ -266,4 +266,9 @@ struct l_statx {
 
 #define	lower_32_bits(n)	((uint32_t)((n) & 0xffffffff))
 
+#ifdef KTRACE
+#define	linux_ktrsigset(s, l)	\
+	ktrstruct("l_sigset_t", (s), l)
+#endif
+
 #endif /* _LINUX_MI_H_ */
