@@ -4852,7 +4852,8 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 void
 vfs_bio_clrbuf(struct buf *bp) 
 {
-	int i, j, mask, sa, ea, slide;
+	int i, j, sa, ea, slide, zbits;
+	vm_page_bits_t mask;
 
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) != B_VMIO) {
 		clrbuf(bp);
@@ -4871,7 +4872,9 @@ vfs_bio_clrbuf(struct buf *bp)
 		if (bp->b_pages[i] == bogus_page)
 			continue;
 		j = sa / DEV_BSIZE;
-		mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
+		zbits = (sizeof(vm_page_bits_t) * NBBY) -
+		    (ea - sa) / DEV_BSIZE;
+		mask = (VM_PAGE_BITS_ALL >> zbits) << j;
 		if ((bp->b_pages[i]->valid & mask) == mask)
 			continue;
 		if ((bp->b_pages[i]->valid & mask) == 0)
