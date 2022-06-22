@@ -31,7 +31,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>
+#include <err.h>
+#include <errno.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sysdecode.h>
 
 #include "kdump.h"
@@ -44,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #elif __i386__
 #include <i386/linux/linux_syscall.h>
 #endif
+
+#include <compat/linux/linux.h>
 
 static void
 print_linux_signal(int signo)
@@ -183,3 +189,41 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 	*resnarg = narg;
 }
 #endif /* __amd64__ */
+
+static void
+ktrsigset(const char *name, const l_sigset_t *mask, size_t sz)
+{
+	unsigned long i, c;
+
+	printf("%s [ ", name);
+	c = 0;
+	for (i = 1; i <= sz * CHAR_BIT; i++) {
+		if (!LINUX_SIGISMEMBER(*mask, i))
+			continue;
+		if (c != 0)
+			printf(", ");
+		printf("%s", sysdecode_linux_signal(i));
+		c++;
+	}
+	if (c == 0)
+		printf("empty ]\n");
+	else
+		printf(" ]\n");
+}
+
+bool
+ktrstruct_linux(const char *name, const char *data, size_t datalen)
+{
+	l_sigset_t mask;
+
+	if (strcmp(name, "l_sigset_t") == 0) {
+		/* Old Linux sigset_t is one word size. */
+		if (datalen < sizeof(int) || datalen > sizeof(l_sigset_t))
+			return (false);
+		memcpy(&mask, data, datalen);
+		ktrsigset(name, &mask, datalen);
+	} else
+		return (false);
+
+	return (true);
+}
