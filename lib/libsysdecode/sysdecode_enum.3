@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2018
+.Dd June 22, 2022
 .Dt sysdecode_enum 3
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Nm sysdecode_getrusage_who ,
 .Nm sysdecode_idtype ,
 .Nm sysdecode_ipproto ,
+.Nm sysdecode_itimer ,
 .Nm sysdecode_kldsym_cmd ,
 .Nm sysdecode_kldunload_flags ,
 .Nm sysdecode_lio_listio_mode ,
@@ -96,6 +97,8 @@
 .Fn sysdecode_idtype "int idtype"
 .Ft const char *
 .Fn sysdecode_ipproto "int protocol"
+.Ft const char *
+.Fn sysdecode_itimer "int which"
 .Ft const char *
 .Fn sysdecode_kldsym_cmd "int cmd"
 .Ft const char *
@@ -186,6 +189,10 @@ Most of these functions decode an argument passed to a system call:
 .Xr procctl 2 ,
 .Xr waitid 2
 .Ta Fa idtype
+.It Fn sysdecode_itimer Ta
+.Xr getitimer 2 ,
+.Xr setitimer 2
+.Ta Fa which
 .It Fn sysdecode_kldsym_cmd Ta Xr kldsym 2 Ta Fa cmd
 .It Fn sysdecode_kldunload_flags Ta Xr kldunloadf 2 Ta Fa flags
 .It Fn sysdecode_lio_listio_mode Ta Xr lio_listio 2 Ta Fa mode

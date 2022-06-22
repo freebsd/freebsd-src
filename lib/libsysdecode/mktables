@@ -168,6 +168,7 @@ else
 	gen_table "sysarchnum" "[A-Z_]+[[:space:]]+[0-9]+"                 "machine/sysarch.h"
 fi
 gen_table "shmflags"  "SHM_[A-Z_]+[[:space:]]+0x[0-9]+"                    "sys/mman.h"         "SHM_ANON"
+gen_table "itimerwhich"     "ITIMER_[A-Z]+[[:space:]]+[0-9]+"              "sys/time.h"
 
 # Generate a .depend file for our output file
 if [ -n "$output_file" ]; then
