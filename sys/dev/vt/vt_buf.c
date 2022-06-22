@@ -741,8 +741,8 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 	si = s.tp_row * vb->vb_scr_size.tp_col + s.tp_col;
 	ei = e.tp_row * vb->vb_scr_size.tp_col + e.tp_col;
 
-	/* Number symbols and number of rows to inject \n */
-	sz = ei - si + ((e.tp_row - s.tp_row) * 2);
+	/* Number symbols and number of rows to inject \r */
+	sz = ei - si + (e.tp_row - s.tp_row);
 
 	return (sz * sizeof(term_char_t));
 }
@@ -750,7 +750,7 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 void
 vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 {
-	int i, r, c, cs, ce;
+	int i, j, r, c, cs, ce;
 	term_pos_t s, e;
 
 	/* Swap according to window coordinates. */
@@ -769,15 +769,28 @@ vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 	for (r = s.tp_row; r <= e.tp_row; r++) {
 		cs = (r == s.tp_row)?s.tp_col:0;
 		ce = (r == e.tp_row)?e.tp_col:vb->vb_scr_size.tp_col;
-		for (c = cs; c < ce; c++) {
+
+		/* Copy characters from terminal window. */
+		j = i;
+		for (c = cs; c < ce; c++)
 			buf[i++] = vb->vb_rows[r][c];
-		}
-		/* Add new line for all rows, but not for last one. */
+
+		/* For all rows, but the last one. */
 		if (r != e.tp_row) {
+			/* Trim trailing word separators, if any. */
+			for (; i != j; i--) {
+				if (TCHAR_CHARACTER(buf[i - 1]) != ' ')
+					break;
+			}
+			/* Add newline character as expected by TTY. */
 			buf[i++] = '\r';
-			buf[i++] = '\n';
 		}
 	}
+	/* Zero rest of expected buffer size, if any. */
+	while ((i * sizeof(buf[0])) < sz)
+		buf[i++] = '\0';
+
+	MPASS((i * sizeof(buf[0])) == sz);
 }
 
 int
