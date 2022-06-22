@@ -183,3 +183,10 @@ sysdecode_linux_signal(int sig)
 		return (linux_signames[sig]);
 	return (NULL);
 }
+
+const char *
+sysdecode_linux_sigprocmask_how(int how)
+{
+
+	return (lookup_value(sigprocmaskhow, how));
+}

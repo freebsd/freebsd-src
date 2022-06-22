@@ -143,6 +143,7 @@ bool	sysdecode_shmflags(FILE *_fp, int _flags, int *_rem);
 
 void	sysdecode_linux_clockid(FILE *_fp, clockid_t _which);
 const char *sysdecode_linux_signal(int _sig);
+const char *sysdecode_linux_sigprocmask_how(int _how);
 
 #endif /* __i386__ || __amd64__ || __aarch64__ */
 
