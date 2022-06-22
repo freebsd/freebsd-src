@@ -205,3 +205,38 @@ sysdecode_linux_atflags(FILE *fp, int flag, int *rem)
 
 	return (print_mask_int(fp, atflags, flag, rem));
 }
+
+bool
+sysdecode_linux_open_flags(FILE *fp, int flags, int *rem)
+{
+	bool printed;
+	int mode;
+	uintmax_t val;
+
+	mode = flags & LINUX_O_ACCMODE;
+	flags &= ~LINUX_O_ACCMODE;
+	switch (mode) {
+	case LINUX_O_RDONLY:
+		fputs("O_RDONLY", fp);
+		printed = true;
+		mode = 0;
+		break;
+	case LINUX_O_WRONLY:
+		fputs("O_WRONLY", fp);
+		printed = true;
+		mode = 0;
+		break;
+	case LINUX_O_RDWR:
+		fputs("O_RDWR", fp);
+		printed = true;
+		mode = 0;
+		break;
+	default:
+		printed = false;
+	}
+	val = (unsigned)flags;
+	print_mask_part(fp, openflags, &val, &printed);
+	if (rem != NULL)
+		*rem = val | mode;
+	return (printed);
+}
