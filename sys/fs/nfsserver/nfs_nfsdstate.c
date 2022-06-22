@@ -3471,8 +3471,8 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	     ((nd->nd_flag & ND_NFSV41) != 0 &&
 	      new_stp->ls_stateid.seqid != 0)))
 		error = NFSERR_OLDSTATEID;
-	if (!error && vnode_vtype(vp) != VREG) {
-		if (vnode_vtype(vp) == VDIR)
+	if (!error && vp->v_type != VREG) {
+		if (vp->v_type == VDIR)
 			error = NFSERR_ISDIR;
 		else
 			error = NFSERR_INVAL;
