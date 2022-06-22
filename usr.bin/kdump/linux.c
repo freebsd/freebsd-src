@@ -117,6 +117,14 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		print_number(ip, narg, c);
 		print_number64(first, ip, narg, c);
 		break;
+	case LINUX_SYS_linux_getitimer:
+	case LINUX_SYS_linux_setitimer:
+		putchar('(');
+		print_integer_arg(sysdecode_itimer, *ip);
+		ip++;
+		narg--;
+		c = ',';
+		break;
 	}
 	*resc = c;
 	*resip = ip;
@@ -182,6 +190,14 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 	case LINUX32_SYS_linux_truncate:
 		print_number(ip, narg, c);
 		print_number64(first, ip, narg, c);
+		break;
+	case LINUX32_SYS_linux_getitimer:
+	case LINUX32_SYS_linux_setitimer:
+		putchar('(');
+		print_integer_arg(sysdecode_itimer, *ip);
+		ip++;
+		narg--;
+		c = ',';
 		break;
 	}
 	*resc = c;

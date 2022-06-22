@@ -101,6 +101,7 @@ enum Argtype {
 	Getfsstatmode,
 	Idtype,
 	Ioctl,
+	Itimerwhich,
 	Kldsymcmd,
 	Kldunloadflags,
 	LioMode,

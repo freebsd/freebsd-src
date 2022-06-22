@@ -1529,6 +1529,14 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				narg--;
 				c = ',';
 				break;
+			case SYS_getitimer:
+			case SYS_setitimer:
+				putchar('(');
+				print_integer_arg(sysdecode_itimer, *ip);
+				ip++;
+				narg--;
+				c = ',';
+				break;
 			}
 			switch (ktr->ktr_code) {
 			case SYS_chflagsat:

@@ -296,7 +296,7 @@ static const struct syscall_decode decoded_syscalls[] = {
 	{ .name = "getfsstat", .ret_type = 1, .nargs = 3,
 	  .args = { { Ptr, 0 }, { Long, 1 }, { Getfsstatmode, 2 } } },
 	{ .name = "getitimer", .ret_type = 1, .nargs = 2,
-	  .args = { { Int, 0 }, { Itimerval | OUT, 2 } } },
+	  .args = { { Itimerwhich, 0 }, { Itimerval | OUT, 2 } } },
 	{ .name = "getpeername", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ .name = "getpgid", .ret_type = 1, .nargs = 1,
@@ -506,7 +506,8 @@ static const struct syscall_decode decoded_syscalls[] = {
 	            { Msgflags, 3 }, { Sockaddr | IN, 4 },
 	            { Socklent | IN, 5 } } },
 	{ .name = "setitimer", .ret_type = 1, .nargs = 3,
-	  .args = { { Int, 0 }, { Itimerval, 1 }, { Itimerval | OUT, 2 } } },
+	  .args = { { Itimerwhich, 0 }, { Itimerval, 1 },
+		    { Itimerval | OUT, 2 } } },
 	{ .name = "setpriority", .ret_type = 1, .nargs = 3,
 	  .args = { { Priowhich, 0 }, { Int, 1 }, { Int, 2 } } },
 	{ .name = "setrlimit", .ret_type = 1, .nargs = 2,
@@ -607,6 +608,8 @@ static const struct syscall_decode decoded_syscalls[] = {
 	{ .name = "linux_execve", .ret_type = 1, .nargs = 3,
 	  .args = { { Name | IN, 0 }, { ExecArgs | IN, 1 },
 		    { ExecEnv | IN, 2 } } },
+	{ .name = "linux_getitimer", .ret_type = 1, .nargs = 2,
+	  .args = { { Itimerwhich, 0 }, { Itimerval | OUT, 2 } } },
 	{ .name = "linux_lseek", .ret_type = 2, .nargs = 3,
 	  .args = { { Int, 0 }, { Int, 1 }, { Whence, 2 } } },
 	{ .name = "linux_mkdir", .ret_type = 1, .nargs = 2,
@@ -619,6 +622,9 @@ static const struct syscall_decode decoded_syscalls[] = {
 	  .args = { { Name, 0 }, { Hex, 1 }, { Octal, 2 } } },
 	{ .name = "linux_readlink", .ret_type = 1, .nargs = 3,
 	  .args = { { Name, 0 }, { Name | OUT, 1 }, { Sizet, 2 } } },
+	{ .name = "linux_setitimer", .ret_type = 1, .nargs = 3,
+	  .args = { { Itimerwhich, 0 }, { Itimerval, 1 },
+		    { Itimerval | OUT, 2 } } },
 	{ .name = "linux_socketcall", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { LinuxSockArgs, 1 } } },
 	{ .name = "linux_stat64", .ret_type = 1, .nargs = 2,
@@ -2444,6 +2450,9 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 	case Getfsstatmode:
 		print_integer_arg(sysdecode_getfsstat_mode, fp,
 		    args[sc->offset]);
+		break;
+	case Itimerwhich:
+		print_integer_arg(sysdecode_itimer, fp, args[sc->offset]);
 		break;
 	case Kldsymcmd:
 		print_integer_arg(sysdecode_kldsym_cmd, fp, args[sc->offset]);
