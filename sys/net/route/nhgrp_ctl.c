@@ -58,6 +58,11 @@
 #include <net/route/nhop_var.h>
 #include <net/route/nhgrp_var.h>
 
+#define	DEBUG_MOD_NAME	nhgrp_ctl
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 /*
  * This file contains the supporting functions for creating multipath groups
  *  and compiling their dataplane parts.
@@ -222,7 +227,8 @@ compile_nhgrp(struct nhgrp_priv *dst_priv, const struct weightened_nhop *x,
 	for (i = 0; i < dst_priv->nhg_nh_count; i++)
 		remaining_sum += x[i].weight;
 	remaining_slots = num_slots;
-	DPRINTF("O: %u/%u", (uint32_t)remaining_sum, remaining_slots);
+	FIB_NH_LOG(LOG_DEBUG3, x[0].nh, "sum: %lu, slots: %d",
+	    remaining_sum, remaining_slots);
 	for (i = 0; i < dst_priv->nhg_nh_count; i++) {
 		/* Calculate number of slots for the current nexthop */
 		if (remaining_sum > 0) {
@@ -234,9 +240,9 @@ compile_nhgrp(struct nhgrp_priv *dst_priv, const struct weightened_nhop *x,
 		remaining_sum -= x[i].weight;
 		remaining_slots -= nh_slots;
 
-		DPRINTF(" OO[%d]: %u/%u curr=%d slot_idx=%d", i,
-		    (uint32_t)remaining_sum, remaining_slots,
-		    (int)nh_slots, slot_idx);
+		FIB_NH_LOG(LOG_DEBUG3, x[0].nh,
+		    " rem_sum: %lu, rem_slots: %d nh_slots: %d, slot_idx: %d",
+		    remaining_sum, remaining_slots, (int)nh_slots, slot_idx);
 
 		KASSERT((slot_idx + nh_slots <= num_slots),
 		    ("index overflow during nhg compilation"));
@@ -267,12 +273,14 @@ alloc_nhgrp(struct weightened_nhop *wn, int num_nhops)
 	size_t sz = get_nhgrp_alloc_size(nhgrp_size, num_nhops);
 	nhg = malloc(sz, M_NHOP, M_NOWAIT | M_ZERO);
 	if (nhg == NULL) {
+		FIB_NH_LOG(LOG_INFO, wn[0].nh,
+		    "unable to allocate group with num_nhops %d (compiled %u)",
+		    num_nhops, nhgrp_size);
 		return (NULL);
 	}
 
 	/* Has to be the first to make NHGRP_PRIV() work */
 	nhg->nhg_size = nhgrp_size;
-	DPRINTF("new mpath group: num_nhops: %u", (uint32_t)nhgrp_size);
 	nhg->nhg_flags = MPF_MULTIPATH;
 
 	nhg_priv = NHGRP_PRIV(nhg);
@@ -285,6 +293,9 @@ alloc_nhgrp(struct weightened_nhop *wn, int num_nhops)
 	nhg_priv->nhg = nhg;
 	memcpy(&nhg_priv->nhg_nh_weights[0], wn,
 	  num_nhops * sizeof(struct weightened_nhop));
+
+	FIB_NH_LOG(LOG_DEBUG, wn[0].nh, "num_nhops: %d, compiled_nhop: %u",
+	    num_nhops, nhgrp_size);
 
 	compile_nhgrp(nhg_priv, wn, nhg->nhg_size);
 
@@ -345,7 +356,8 @@ nhgrp_free(struct nhgrp_object *nhg)
 		ctl = nhg_priv->nh_control;
 		if (unlink_nhgrp(ctl, nhg_priv) == NULL) {
 			/* Do not try to reclaim */
-			DPRINTF("Failed to unlink nexhop group %p", nhg_priv);
+			RT_LOG(LOG_INFO, "Failed to unlink nexhop group %p",
+			    nhg_priv);
 			NET_EPOCH_EXIT(et);
 			return;
 		}
@@ -371,13 +383,16 @@ destroy_nhgrp(struct nhgrp_priv *nhg_priv)
 {
 
 	KASSERT((nhg_priv->nhg_refcount == 0), ("nhg_refcount != 0"));
-
-	DPRINTF("DEL MPATH %p", nhg_priv);
-
 	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
 
-	free_nhgrp_nhops(nhg_priv);
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+	char nhgbuf[NHOP_PRINT_BUFSIZE];
+	FIB_NH_LOG(LOG_DEBUG, nhg_priv->nhg_nh_weights[0].nh,
+	    "destroying %s", nhgrp_print_buf(nhg_priv->nhg,
+	    nhgbuf, sizeof(nhgbuf)));
+#endif
 
+	free_nhgrp_nhops(nhg_priv);
 	destroy_nhgrp_int(nhg_priv);
 }
 
@@ -693,6 +708,37 @@ nhgrp_get_nhops(struct nhgrp_object *nhg, uint32_t *pnum_nhops)
 	*pnum_nhops = nhg_priv->nhg_nh_count;
 
 	return (nhg_priv->nhg_nh_weights);
+}
+
+/*
+ * Prints nexhop group @nhg data in the provided @buf.
+ * Example: nhg#33/sz=3:[#1:100,#2:100,#3:100]
+ * Example: nhg#33/sz=5:[#1:100,#2:100,..]
+ */
+char *
+nhgrp_print_buf(const struct nhgrp_object *nhg, char *buf, size_t bufsize)
+{
+	const struct nhgrp_priv *nhg_priv = NHGRP_PRIV_CONST(nhg);
+
+	int off = snprintf(buf, bufsize, "nhg#%u/sz=%u:[", nhg_priv->nhg_idx,
+	    nhg_priv->nhg_nh_count);
+
+	for (int i = 0; i < nhg_priv->nhg_nh_count; i++) {
+		const struct weightened_nhop *wn = &nhg_priv->nhg_nh_weights[i];
+		int len = snprintf(&buf[off], bufsize - off, "#%u:%u,",
+		    wn->nh->nh_priv->nh_idx, wn->weight);
+		if (len + off + 3 >= bufsize) {
+			int len = snprintf(&buf[off], bufsize - off, "...");
+			off += len;
+			break;
+		}
+		off += len;
+	}
+	if (off > 0)
+		off--; // remove last ","
+	if (off + 1 < bufsize)
+		snprintf(&buf[off], bufsize - off, "]");
+	return buf;
 }
 
 __noinline static int
