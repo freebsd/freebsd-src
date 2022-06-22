@@ -190,3 +190,10 @@ sysdecode_linux_sigprocmask_how(int how)
 
 	return (lookup_value(sigprocmaskhow, how));
 }
+
+bool
+sysdecode_linux_clock_flags(FILE *fp, int flags, int *rem)
+{
+
+	return (print_mask_int(fp, clockflags, flags, rem));
+}
