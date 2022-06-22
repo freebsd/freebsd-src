@@ -64,6 +64,7 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     OPENSSH \
+    RELRO \
     SSP \
     TESTS \
     TOOLCHAIN \

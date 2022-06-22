@@ -3,3 +3,10 @@ Build all binaries with the
 .Dv DF_BIND_NOW
 flag set to indicate that the run-time loader should perform all relocation
 processing at process startup rather than on demand.
+The combination of the
+.Va BIND_NOW
+and
+.Va RELRO
+options provide "full" Relocation Read-Only (RELRO) support.
+With full RELRO the entire GOT is made read-only after performing relocation at
+startup, avoiding GOT overwrite attacks.
