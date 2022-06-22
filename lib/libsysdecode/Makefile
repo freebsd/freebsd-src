@@ -4,7 +4,7 @@
 
 LIB=	sysdecode
 
-SRCS=	errno.c flags.c ioctl.c signal.c syscallnames.c utrace.c
+SRCS=	errno.c flags.c ioctl.c signal.c syscallnames.c utrace.c support.c
 INCS=	sysdecode.h
 
 CFLAGS+= -I${.OBJDIR}
