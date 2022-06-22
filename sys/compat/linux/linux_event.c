@@ -526,7 +526,7 @@ linux_epoll_pwait(struct thread *td, struct linux_epoll_pwait_args *args)
 	sigset_t mask, *pmask;
 	int error;
 
-	error = linux_copyin_sigset(args->mask, sizeof(l_sigset_t),
+	error = linux_copyin_sigset(td, args->mask, sizeof(l_sigset_t),
 	    &mask, &pmask);
 	if (error != 0)
 		return (error);
@@ -543,7 +543,7 @@ linux_epoll_pwait2_64(struct thread *td, struct linux_epoll_pwait2_64_args *args
 	sigset_t mask, *pmask;
 	int error;
 
-	error = linux_copyin_sigset(args->mask, sizeof(l_sigset_t),
+	error = linux_copyin_sigset(td, args->mask, sizeof(l_sigset_t),
 	    &mask, &pmask);
 	if (error != 0)
 		return (error);
@@ -567,7 +567,7 @@ linux_epoll_pwait2(struct thread *td, struct linux_epoll_pwait2_args *args)
 	sigset_t mask, *pmask;
 	int error;
 
-	error = linux_copyin_sigset(args->mask, sizeof(l_sigset_t),
+	error = linux_copyin_sigset(td, args->mask, sizeof(l_sigset_t),
 	    &mask, &pmask);
 	if (error != 0)
 		return (error);
