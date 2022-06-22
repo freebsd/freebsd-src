@@ -801,6 +801,7 @@ ffs_reload(struct mount *mp, int flags)
 	sblockloc = fs->fs_sblockloc;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	brelse(bp);
+	ump->um_bsize = fs->fs_bsize;
 	ump->um_maxsymlinklen = fs->fs_maxsymlinklen;
 	ffs_oldfscompat_read(fs, VFSTOUFS(mp), sblockloc);
 	UFS_LOCK(ump);
@@ -1064,6 +1065,7 @@ ffs_mountfs(odevvp, mp, td)
 			vfs_rel(nmp);
 		vfs_getnewfsid(mp);
 	}
+	ump->um_bsize = fs->fs_bsize;
 	ump->um_maxsymlinklen = fs->fs_maxsymlinklen;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
