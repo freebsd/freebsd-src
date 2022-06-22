@@ -65,6 +65,7 @@ extern bool decimal, fancy, resolv;
 	c = ',';							\
 } while (0)
 
+void	decode_filemode(int value);
 void	print_integer_arg(const char *(*decoder)(int), int value);
 void	print_integer_arg_valid(const char *(*decoder)(int), int value);
 void	print_mask_arg(bool (*decoder)(FILE *, int, int *), int value);
