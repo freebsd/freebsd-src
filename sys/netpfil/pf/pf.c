@@ -3848,6 +3848,12 @@ pf_match_eth_tag(struct mbuf *m, struct pf_keth_rule *r, int *tag, int mtag)
 static int
 pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 {
+#ifdef INET
+	struct ip ip;
+#endif
+#ifdef INET6
+	struct ip6_hdr ip6;
+#endif
 	struct mbuf *m = *m0;
 	struct ether_header *e;
 	struct pf_keth_rule *r, *rm, *a = NULL;
@@ -3893,39 +3899,25 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	switch (proto) {
 #ifdef INET
 	case ETHERTYPE_IP: {
-		struct ip *ip;
-		m = m_pullup(m, sizeof(struct ether_header) +
-		    sizeof(struct ip));
-		if (m == NULL) {
-			*m0 = NULL;
-			return (PF_DROP);
-		}
 		af = AF_INET;
-		ip = mtodo(m, sizeof(struct ether_header));
-		src = (struct pf_addr *)&ip->ip_src;
-		dst = (struct pf_addr *)&ip->ip_dst;
+		m_copydata(m, sizeof(struct ether_header), sizeof(ip),
+		    (caddr_t)&ip);
+		src = (struct pf_addr *)&ip.ip_src;
+		dst = (struct pf_addr *)&ip.ip_dst;
 		break;
 	}
 #endif /* INET */
 #ifdef INET6
 	case ETHERTYPE_IPV6: {
-		struct ip6_hdr *ip6;
-		m = m_pullup(m, sizeof(struct ether_header) +
-		    sizeof(struct ip6_hdr));
-		if (m == NULL) {
-			*m0 = NULL;
-			return (PF_DROP);
-		}
 		af = AF_INET6;
-		ip6 = mtodo(m, sizeof(struct ether_header));
-		src = (struct pf_addr *)&ip6->ip6_src;
-		dst = (struct pf_addr *)&ip6->ip6_dst;
+		m_copydata(m, sizeof(struct ether_header), sizeof(ip6),
+		    (caddr_t)&ip6);
+		src = (struct pf_addr *)&ip6.ip6_src;
+		dst = (struct pf_addr *)&ip6.ip6_dst;
 		break;
 	}
 #endif /* INET6 */
 	}
-	e = mtod(m, struct ether_header *);
-	*m0 = m;
 
 	PF_RULES_RLOCK();
 
