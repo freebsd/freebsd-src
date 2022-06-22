@@ -60,6 +60,11 @@
 #include <net/route/nhop_var.h>
 #include <net/route/nhgrp_var.h>
 
+#define	DEBUG_MOD_NAME	nhgrp
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 /*
  * This file contains data structures management logic for the nexthop
  * groups ("nhgrp") route subsystem.
@@ -163,7 +168,7 @@ link_nhgrp(struct nh_control *ctl, struct nhgrp_priv *grp_priv)
 
 	if (bitmask_alloc_idx(&ctl->nh_idx_head, &idx) != 0) {
 		NHOPS_WUNLOCK(ctl);
-		DPRINTF("Unable to allocate mpath index");
+		FIB_RH_LOG(LOG_INFO, ctl->ctl_rh, "Unable to allocate nhg index");
 		consider_resize(ctl, new_num_buckets, new_num_items);
 		return (0);
 	}
@@ -190,7 +195,7 @@ unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
 	CHT_SLIST_REMOVE(&ctl->gr_head, mpath, key, nhg_priv_ret);
 
 	if (nhg_priv_ret == NULL) {
-		DPRINTF("Unable to find nhop group!");
+		FIB_RH_LOG(LOG_DEBUG, ctl->ctl_rh, "Unable to find nhg");
 		NHOPS_WUNLOCK(ctl);
 		return (NULL);
 	}
@@ -233,7 +238,8 @@ consider_resize(struct nh_control *ctl, uint32_t new_gr_bucket, uint32_t new_idx
 		return;
 	}
 
-	DPRINTF("mp: going to resize: gr:[ptr:%p sz:%u] idx:[ptr:%p sz:%u]",
+	FIB_RH_LOG(LOG_DEBUG, ctl->ctl_rh,
+	    "going to resize nhg hash: [ptr:%p sz:%u] idx:[ptr:%p sz:%u]",
 	    gr_ptr, new_gr_bucket, gr_idx_ptr, new_idx_items);
 
 	old_idx_ptr = NULL;
@@ -271,7 +277,7 @@ nhgrp_ctl_alloc_default(struct nh_control *ctl, int malloc_flags)
 	cht_ptr = malloc(alloc_size, M_NHOP, malloc_flags);
 
 	if (cht_ptr == NULL) {
-		DPRINTF("mpath init failed");
+		FIB_RH_LOG(LOG_WARNING, ctl->ctl_rh, "multipath init failed");
 		return (false);
 	}
 
@@ -287,8 +293,7 @@ nhgrp_ctl_alloc_default(struct nh_control *ctl, int malloc_flags)
 		free(cht_ptr, M_NHOP);
 	}
 
-	DPRINTF("mpath init done for fib/af %d/%d", ctl->rh->rib_fibnum,
-	    ctl->rh->rib_family);
+	FIB_RH_LOG(LOG_DEBUG, ctl->ctl_rh, "multipath init done");
 
 	return (true);
 }
@@ -320,7 +325,11 @@ nhgrp_ctl_unlink_all(struct nh_control *ctl)
 	NHOPS_WLOCK_ASSERT(ctl);
 
 	CHT_SLIST_FOREACH(&ctl->gr_head, mpath, nhg_priv) {
-		DPRINTF("Marking nhgrp %u unlinked", nhg_priv->nhg_idx);
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+		char nhgbuf[NHOP_PRINT_BUFSIZE];
+		FIB_RH_LOG(LOG_DEBUG, ctl->ctl_rh, "marking %s unlinked",
+		    nhgrp_print_buf(nhg_priv->nhg, nhgbuf, sizeof(nhgbuf)));
+#endif
 		refcount_release(&nhg_priv->nhg_linked);
 	} CHT_SLIST_FOREACH_END;
 }
