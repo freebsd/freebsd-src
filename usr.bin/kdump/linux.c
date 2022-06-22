@@ -87,6 +87,17 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		break;
+	case LINUX_SYS_linux_clock_nanosleep:
+		putchar('(');
+		sysdecode_linux_clockid(stdout, *ip);
+		putchar(',');
+		ip++;
+		narg--;
+		print_mask_arg0(sysdecode_linux_clock_flags, *ip);
+		c = ',';
+		ip++;
+		narg--;
+		break;
 	case LINUX_SYS_linux_kill:
 	case LINUX_SYS_linux_tkill:
 	case LINUX_SYS_linux_rt_sigqueueinfo:
@@ -165,6 +176,17 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 	case LINUX32_SYS_linux_clock_getres_time64:
 		putchar('(');
 		sysdecode_linux_clockid(stdout, *ip);
+		c = ',';
+		ip++;
+		narg--;
+		break;
+	case LINUX32_SYS_linux_clock_nanosleep:
+		putchar('(');
+		sysdecode_linux_clockid(stdout, *ip);
+		putchar(',');
+		ip++;
+		narg--;
+		print_mask_arg0(sysdecode_linux_clock_flags, *ip);
 		c = ',';
 		ip++;
 		narg--;
