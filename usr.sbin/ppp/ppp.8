@@ -500,10 +500,7 @@ after altering
 Although not strictly relevant to
 .Nm Ns No 's
 operation, you should configure your resolver so that it works correctly.
-This can be done by configuring a local DNS
-(using
-.Xr named 8 )
-or by adding the correct
+This can be done by configuring a local DNS resolver or by adding the correct
 .Sq nameserver
 lines to the file
 .Pa /etc/resolv.conf .
@@ -6066,7 +6063,6 @@ This socket is used to pass links between different instances of
 .Xr getty 8 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
-.Xr named 8 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppoed 8 ,
