@@ -284,7 +284,7 @@ decode_fileflags(fflags_t value)
 		printf("<invalid>%u", rem);
 }
 
-static void
+void
 decode_filemode(int value)
 {
 	bool invalid;
