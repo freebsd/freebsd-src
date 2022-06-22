@@ -1307,7 +1307,13 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	VM_MAP_ENTRY_FOREACH(entry, map) {
 		name = "";
 		freename = NULL;
-		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
+		/*
+		 * Skip printing of the guard page of the stack region, as
+		 * it confuses glibc pthread_getattr_np() method, where both
+		 * the base address and size of the stack of the initial thread
+		 * are calculated.
+		 */
+		if ((entry->eflags & (MAP_ENTRY_IS_SUB_MAP | MAP_ENTRY_GUARD)) != 0)
 			continue;
 		e_prot = entry->protection;
 		e_start = entry->start;
