@@ -235,6 +235,7 @@ struct linux_pt_regset {
 	l_ulong cpsr;
 };
 
+#ifdef _KERNEL
 struct reg;
 struct syscall_info;
 
@@ -246,5 +247,6 @@ void	linux_ptrace_get_syscall_info_machdep(const struct reg *reg,
 	    struct syscall_info *si);
 int	linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
 	    struct linux_pt_regset *l_regset);
+#endif /* _KERNEL */
 
 #endif /* _ARM64_LINUX_H_ */
