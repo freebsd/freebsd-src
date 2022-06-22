@@ -348,13 +348,13 @@ filter_text() {
 
 	# Set up some local variables.
 	_filter_text_status="$ALL"
-	_filter_text_temp="$_filter_text_out.tmp"
+	_filter_text_last_line=""
 
 	# We need to set IFS, so we store it here for restoration later.
 	_filter_text_ifs="$IFS"
 
 	# Remove the file- that will be generated.
-	rm -rf "$_filter_text_out" "$_filter_text_temp"
+	rm -rf "$_filter_text_out"
 
 	# Here is the magic. This loop reads the template line-by-line, and based on
 	# _filter_text_status, either prints it to the markdown manual or not.
@@ -371,10 +371,10 @@ filter_text() {
 	#
 	# Obviously, the tag itself and its end are not printed to the markdown
 	# manual.
-	while IFS= read -r line; do
+	while IFS= read -r _filter_text_line; do
 
 		# If we have found an end, reset the status.
-		if [ "$line" = "{{ end }}" ]; then
+		if [ "$_filter_text_line" = "{{ end }}" ]; then
 
 			# Some error checking. This helps when editing the templates.
 			if [ "$_filter_text_status" -eq "$ALL" ]; then
@@ -384,7 +384,7 @@ filter_text() {
 			_filter_text_status="$ALL"
 
 		# We have found a tag that allows our build type to use it.
-		elif [ "${line#\{\{* $_filter_text_buildtype *\}\}}" != "$line" ]; then
+		elif [ "${_filter_text_line#\{\{* $_filter_text_buildtype *\}\}}" != "$_filter_text_line" ]; then
 
 			# More error checking. We don't want tags nested.
 			if [ "$_filter_text_status" -ne "$ALL" ]; then
@@ -394,7 +394,7 @@ filter_text() {
 			_filter_text_status="$NOSKIP"
 
 		# We have found a tag that is *not* allowed for our build type.
-		elif [ "${line#\{\{*\}\}}" != "$line" ]; then
+		elif [ "${_filter_text_line#\{\{*\}\}}" != "$_filter_text_line" ]; then
 
 			if [ "$_filter_text_status" -ne "$ALL" ]; then
 				err_exit "start tag nested in start tag" 3
@@ -405,17 +405,14 @@ filter_text() {
 		# This is for normal lines. If we are not skipping, print.
 		else
 			if [ "$_filter_text_status" -ne "$SKIP" ]; then
-				printf '%s\n' "$line" >> "$_filter_text_temp"
+				if [ "$_filter_text_line" != "$_filter_text_last_line" ]; then
+					printf '%s\n' "$_filter_text_line" >> "$_filter_text_out"
+				fi
+				_filter_text_last_line="$_filter_text_line"
 			fi
 		fi
 
 	done < "$_filter_text_in"
-
-	# Remove multiple blank lines.
-	uniq "$_filter_text_temp" "$_filter_text_out"
-
-	# Remove the temp file.
-	#rm -rf "$_filter_text_temp"
 
 	# Reset IFS.
 	IFS="$_filter_text_ifs"
