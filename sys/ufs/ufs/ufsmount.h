@@ -96,6 +96,7 @@ struct ufsmount {
 	u_long	um_nindir;			/* (c) indirect ptrs per blk */
 	u_long	um_bptrtodb;			/* (c) indir disk block ptr */
 	u_long	um_seqinc;			/* (c) inc between seq blocks */
+	u_long	um_bsize;			/* (c) fs block size */
 	uint64_t um_maxsymlinklen;		/* (c) max size of short
 						       symlink */
 	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */

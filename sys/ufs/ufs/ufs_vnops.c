@@ -314,7 +314,8 @@ ufs_open(struct vop_open_args *ap)
 
 	ip = VTOI(vp);
 	vnode_create_vobject(vp, DIP(ip, i_size), ap->a_td);
-	if (vp->v_type == VREG && (vn_irflag_read(vp) & VIRF_PGREAD) == 0) {
+	if (vp->v_type == VREG && (vn_irflag_read(vp) & VIRF_PGREAD) == 0 &&
+	    ip->i_ump->um_bsize >= PAGE_SIZE) {
 		vn_irflag_set_cond(vp, VIRF_PGREAD);
 	}
 
