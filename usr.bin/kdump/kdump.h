@@ -77,6 +77,7 @@ bool	print_mask_arg_part(bool (*decoder)(FILE *, int, int *),
 	    int value, int *rem);
 
 #ifdef SYSDECODE_HAVE_LINUX
+bool ktrstruct_linux(const char *name, const char *data, size_t datalen);
 void ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
     int *resnarg, char *resc);
 #ifdef __amd64__
