@@ -139,6 +139,7 @@ bool	sysdecode_shmflags(FILE *_fp, int _flags, int *_rem);
 #define	SYSDECODE_HAVE_LINUX
 
 void	sysdecode_linux_clockid(FILE *_fp, clockid_t _which);
+const char *sysdecode_linux_signal(int _sig);
 
 #endif /* __i386__ || __amd64__ || __aarch64__ */
 
