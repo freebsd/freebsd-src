@@ -41,15 +41,16 @@ __FBSDID("$FreeBSD$");
 #include "kdump.h"
 
 #ifdef __amd64__
-#include <amd64/linux/linux_syscall.h>
+#include <amd64/linux/linux.h>
 #include <amd64/linux32/linux32_syscall.h>
 #elif __aarch64__
-#include <arm64/linux/linux_syscall.h>
+#include <arm64/linux/linux.h>
 #elif __i386__
-#include <i386/linux/linux_syscall.h>
+#include <i386/linux/linux.h>
 #endif
 
 #include <compat/linux/linux.h>
+#include <compat/linux/linux_file.h>
 
 static void
 print_linux_signal(int signo)
@@ -77,6 +78,99 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 	quad_align = 0;
 	quad_slots = 1;
 	switch (ktr->ktr_code) {
+	case LINUX_SYS_linux_faccessat:
+	case LINUX_SYS_linux_fchmodat:
+	case LINUX_SYS_linux_fchownat:
+#ifdef LINUX_SYS_linux_newfstatat
+	case LINUX_SYS_linux_newfstatat:
+#endif
+#ifdef LINUX_SYS_linux_fstatat64
+	case LINUX_SYS_linux_fstatat64:
+#endif
+#ifdef LINUX_SYS_linux_futimesat
+	case LINUX_SYS_linux_futimesat:
+#endif
+	case LINUX_SYS_linux_linkat:
+	case LINUX_SYS_linux_mkdirat:
+	case LINUX_SYS_linux_mknodat:
+	case LINUX_SYS_linux_openat:
+	case LINUX_SYS_linux_readlinkat:
+	case LINUX_SYS_linux_renameat:
+	case LINUX_SYS_linux_unlinkat:
+	case LINUX_SYS_linux_utimensat:
+		putchar('(');
+		print_integer_arg_valid(sysdecode_atfd, *ip);
+		c = ',';
+		ip++;
+		narg--;
+		break;
+	}
+	switch (ktr->ktr_code) {
+#ifdef LINUX_SYS_linux_access
+	case LINUX_SYS_linux_access:
+#endif
+	case LINUX_SYS_linux_faccessat:
+		print_number(ip, narg, c);
+		putchar(',');
+		print_mask_arg(sysdecode_access_mode, *ip);
+		ip++;
+		narg--;
+		break;
+#ifdef LINUX_SYS_linux_chmod
+	case LINUX_SYS_linux_chmod:
+#endif
+	case LINUX_SYS_linux_fchmodat:
+		print_number(ip, narg, c);
+		putchar(',');
+		decode_filemode(*ip);
+		ip++;
+		narg--;
+		break;
+	case LINUX_SYS_linux_mknodat:
+		print_number(ip, narg, c);
+		putchar(',');
+		decode_filemode(*ip);
+		ip++;
+		narg--;
+		break;
+#ifdef LINUX_SYS_linux_mkdir
+	case LINUX_SYS_linux_mkdir:
+#endif
+	case LINUX_SYS_linux_mkdirat:
+		print_number(ip, narg, c);
+		putchar(',');
+		decode_filemode(*ip);
+		ip++;
+		narg--;
+		break;
+	case LINUX_SYS_linux_linkat:
+	case LINUX_SYS_linux_renameat:
+	case LINUX_SYS_linux_symlinkat:
+		print_number(ip, narg, c);
+		putchar(',');
+		print_integer_arg_valid(sysdecode_atfd, *ip);
+		ip++;
+		narg--;
+		print_number(ip, narg, c);
+		break;
+	case LINUX_SYS_linux_fchownat:
+		print_number(ip, narg, c);
+		print_number(ip, narg, c);
+		print_number(ip, narg, c);
+		break;
+#ifdef LINUX_SYS_linux_newfstatat
+	case LINUX_SYS_linux_newfstatat:
+#endif
+#ifdef LINUX_SYS_linux_fstatat64
+	case LINUX_SYS_linux_fstatat64:
+#endif
+	case LINUX_SYS_linux_utimensat:
+		print_number(ip, narg, c);
+		print_number(ip, narg, c);
+		break;
+	case LINUX_SYS_linux_unlinkat:
+		print_number(ip, narg, c);
+		break;
 	case LINUX_SYS_linux_clock_gettime:
 	case LINUX_SYS_linux_clock_settime:
 	case LINUX_SYS_linux_clock_getres:
@@ -116,6 +210,20 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		break;
+#ifdef LINUX_SYS_linux_open
+	case LINUX_SYS_linux_open:
+#endif
+	case LINUX_SYS_linux_openat:
+		print_number(ip, narg, c);
+		putchar(',');
+		print_mask_arg(sysdecode_linux_open_flags, ip[0]);
+		if ((ip[0] & LINUX_O_CREAT) == LINUX_O_CREAT) {
+			putchar(',');
+			decode_filemode(ip[1]);
+		}
+		ip += 2;
+		narg -= 2;
+		break;
 	case LINUX_SYS_linux_rt_sigaction:
 		putchar('(');
 		print_linux_signal(*ip);
@@ -147,6 +255,25 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		c = ',';
 		break;
 	}
+	switch (ktr->ktr_code) {
+	case LINUX_SYS_linux_fchownat:
+	case LINUX_SYS_linux_faccessat:
+	case LINUX_SYS_linux_fchmodat:
+#ifdef LINUX_SYS_linux_newfstatat
+	case LINUX_SYS_linux_newfstatat:
+#endif
+#ifdef LINUX_SYS_linux_fstatat64
+	case LINUX_SYS_linux_fstatat64:
+#endif
+	case LINUX_SYS_linux_linkat:
+	case LINUX_SYS_linux_unlinkat:
+	case LINUX_SYS_linux_utimensat:
+		putchar(',');
+		print_mask_arg0(sysdecode_linux_atflags, *ip);
+		ip++;
+		narg--;
+		break;
+	}
 	*resc = c;
 	*resip = ip;
 	*resnarg = narg;
@@ -167,6 +294,82 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 	quad_align = 0;
 	quad_slots = 2;
 	switch (ktr->ktr_code) {
+	case LINUX32_SYS_linux_faccessat:
+	case LINUX32_SYS_linux_fchmodat:
+	case LINUX32_SYS_linux_fchownat:
+	case LINUX32_SYS_linux_fstatat64:
+	case LINUX32_SYS_linux_futimesat:
+	case LINUX32_SYS_linux_linkat:
+	case LINUX32_SYS_linux_mkdirat:
+	case LINUX32_SYS_linux_mknodat:
+	case LINUX32_SYS_linux_openat:
+	case LINUX32_SYS_linux_readlinkat:
+	case LINUX32_SYS_linux_renameat:
+	case LINUX32_SYS_linux_unlinkat:
+	case LINUX32_SYS_linux_utimensat:
+		putchar('(');
+		print_integer_arg_valid(sysdecode_atfd, *ip);
+		c = ',';
+		ip++;
+		narg--;
+		break;
+	}
+	switch (ktr->ktr_code) {
+	case LINUX32_SYS_linux_access:
+	case LINUX32_SYS_linux_faccessat:
+		print_number(ip, narg, c);
+		putchar(',');
+		print_mask_arg(sysdecode_access_mode, *ip);
+		ip++;
+		narg--;
+		break;
+	case LINUX32_SYS_linux_chmod:
+	case LINUX32_SYS_fchmod:
+	case LINUX32_SYS_linux_fchmodat:
+		print_number(ip, narg, c);
+		putchar(',');
+		decode_filemode(*ip);
+		ip++;
+		narg--;
+		break;
+	case LINUX32_SYS_linux_mknodat:
+		print_number(ip, narg, c);
+		putchar(',');
+		decode_filemode(*ip);
+		ip++;
+		narg--;
+		break;
+	case LINUX32_SYS_linux_mkdir:
+	case LINUX32_SYS_linux_mkdirat:
+		print_number(ip, narg, c);
+		putchar(',');
+		decode_filemode(*ip);
+		ip++;
+		narg--;
+		break;
+	case LINUX32_SYS_linux_linkat:
+	case LINUX32_SYS_linux_renameat:
+	case LINUX32_SYS_linux_symlinkat:
+		print_number(ip, narg, c);
+		putchar(',');
+		print_integer_arg_valid(sysdecode_atfd, *ip);
+		ip++;
+		narg--;
+		print_number(ip, narg, c);
+		break;
+	case LINUX32_SYS_linux_fchownat:
+		print_number(ip, narg, c);
+		print_number(ip, narg, c);
+		print_number(ip, narg, c);
+		break;
+	case LINUX32_SYS_linux_fstatat64:
+	case LINUX32_SYS_linux_utimensat:
+		print_number(ip, narg, c);
+		print_number(ip, narg, c);
+		break;
+	case LINUX32_SYS_linux_unlinkat:
+		print_number(ip, narg, c);
+		break;
 	case LINUX32_SYS_linux_clock_gettime:
 	case LINUX32_SYS_linux_clock_settime:
 	case LINUX32_SYS_linux_clock_getres:
@@ -209,6 +412,18 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		break;
+	case LINUX32_SYS_linux_open:
+	case LINUX32_SYS_linux_openat:
+		print_number(ip, narg, c);
+		putchar(',');
+		print_mask_arg(sysdecode_linux_open_flags, ip[0]);
+		if ((ip[0] & LINUX_O_CREAT) == LINUX_O_CREAT) {
+			putchar(',');
+			decode_filemode(ip[1]);
+		}
+		ip += 2;
+		narg -= 2;
+		break;
 	case LINUX32_SYS_linux_signal:
 	case LINUX32_SYS_linux_sigaction:
 	case LINUX32_SYS_linux_rt_sigaction:
@@ -238,6 +453,20 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		c = ',';
+		break;
+	}
+	switch (ktr->ktr_code) {
+	case LINUX32_SYS_linux_fchownat:
+	case LINUX32_SYS_linux_faccessat:
+	case LINUX32_SYS_linux_fchmodat:
+	case LINUX32_SYS_linux_fstatat64:
+	case LINUX32_SYS_linux_linkat:
+	case LINUX32_SYS_linux_unlinkat:
+	case LINUX32_SYS_linux_utimensat:
+		putchar(',');
+		print_mask_arg0(sysdecode_linux_atflags, *ip);
+		ip++;
+		narg--;
 		break;
 	}
 	*resc = c;
