@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/linux/linux.h>
+#include <compat/linux/linux_file.h>
 #include <compat/linux/linux_timer.h>
 
 #define	X(a,b)	{ a, #b },
@@ -196,4 +197,11 @@ sysdecode_linux_clock_flags(FILE *fp, int flags, int *rem)
 {
 
 	return (print_mask_int(fp, clockflags, flags, rem));
+}
+
+bool
+sysdecode_linux_atflags(FILE *fp, int flag, int *rem)
+{
+
+	return (print_mask_int(fp, atflags, flag, rem));
 }
