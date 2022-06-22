@@ -2537,7 +2537,9 @@ ixgbe_msix_link(void *arg)
 		} else
 			if (eicr & IXGBE_EICR_ECC) {
 				device_printf(iflib_get_dev(sc->ctx),
-				   "\nCRITICAL: ECC ERROR!! Please Reboot!!\n");
+				   "Received ECC Err, initiating reset\n");
+				hw->mac.flags |= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+				ixgbe_reset_hw(hw);
 				IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_ECC);
 			}
 
