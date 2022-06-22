@@ -488,10 +488,9 @@ specified in "dot" notation (see
 .Pa /etc/networks
 or
 .Pa /etc/hosts ,
-or
-.Xr named 8 ,
-must have been started before
-.Nm . )
+or a method in
+.Xr nsswitch.conf 5
+must be able to resolve it.)
 .Pp
 .Ar Mask
 is an optional number between 1 and 32 indicating the netmask associated
