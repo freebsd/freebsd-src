@@ -90,6 +90,7 @@ _EOF_
 
 gen_table "clockids"    "LINUX_CLOCK_[A-Z_]+[[:space:]]+[0-9]+"          "compat/linux/linux_timer.h"
 gen_table "clockcpuids" "LINUX_CPUCLOCK_[A-Z_]+[[:space:]]+[0-9]+"       "compat/linux/linux_timer.h"	"_MASK|_MAX"
+gen_table "sigprocmaskhow" "LINUX_SIG_[A-Z]+[[:space:]]+[0-9]+"          "compat/linux/linux.h"
 
 # Generate a .depend file for our output file
 if [ -n "$output_file" ]; then

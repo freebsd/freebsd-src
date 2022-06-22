@@ -125,6 +125,16 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		narg--;
 		c = ',';
 		break;
+	case LINUX_SYS_linux_rt_sigprocmask:
+#ifdef LINUX_SYS_linux_sigprocmask
+	case LINUX_SYS_linux_sigprocmask:
+#endif
+		putchar('(');
+		print_integer_arg(sysdecode_linux_sigprocmask_how, *ip);
+		ip++;
+		narg--;
+		c = ',';
+		break;
 	}
 	*resc = c;
 	*resip = ip;
@@ -195,6 +205,14 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 	case LINUX32_SYS_linux_setitimer:
 		putchar('(');
 		print_integer_arg(sysdecode_itimer, *ip);
+		ip++;
+		narg--;
+		c = ',';
+		break;
+	case LINUX32_SYS_linux_rt_sigprocmask:
+	case LINUX32_SYS_linux_sigprocmask:
+		putchar('(');
+		print_integer_arg(sysdecode_linux_sigprocmask_how, *ip);
 		ip++;
 		narg--;
 		c = ',';
