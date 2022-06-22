@@ -76,6 +76,8 @@
 
 /* Same as FIB_LOG, but uses nhop to get fib and family */
 #define FIB_NH_LOG(_l, _nh, _fmt, ...)  FIB_LOG_##_l(_l, nhop_get_fibnum(_nh), nhop_get_upper_family(_nh), _fmt, ## __VA_ARGS__)
+/* Same as FIB_LOG, but uses rib_head to get fib and family */
+#define FIB_RH_LOG(_l, _rh, _fmt, ...)  FIB_LOG_##_l(_l, (_rh)->rib_fibnum, (_rh)->rib_family, _fmt, ## __VA_ARGS__)
 
 /*
  * Generic logging for routing subsystem
@@ -90,7 +92,7 @@
 /*
  * Wrapper logic to avoid compiling high levels of debugging messages for production systems.
  */
-#if DEBUG_MAX_LEVEL>=LOG_DEBUG2
+#if DEBUG_MAX_LEVEL>=LOG_DEBUG3
 #define	FIB_LOG_LOG_DEBUG3	_FIB_LOG
 #define	RT_LOG_LOG_DEBUG3	_RT_LOG
 #else
@@ -129,10 +131,14 @@
 
 /* Helpers for fancy-printing various objects */
 struct nhop_object;
+struct nhgrp_object;
 struct llentry;
 struct nhop_neigh;
 
+#define	NHOP_PRINT_BUFSIZE	48
 char *nhop_print_buf(const struct nhop_object *nh, char *buf, size_t bufsize);
+char *nhop_print_buf_any(const struct nhop_object *nh, char *buf, size_t bufsize);
+char *nhgrp_print_buf(const struct nhgrp_object *nhg, char *buf, size_t bufsize);
 char *llentry_print_buf(const struct llentry *lle, struct ifnet *ifp, int family, char *buf,
     size_t bufsize);
 char *llentry_print_buf_lltable(const struct llentry *lle, char *buf, size_t bufsize);
