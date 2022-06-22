@@ -795,7 +795,8 @@ ffs_read(ap)
 			error = vn_io_fault_uiomove((char *)bp->b_data +
 			    blkoffset, (int)xfersize, uio);
 		} else {
-			error = vn_io_fault_pgmove(bp->b_pages, blkoffset,
+			error = vn_io_fault_pgmove(bp->b_pages,
+			    blkoffset + (bp->b_offset & PAGE_MASK),
 			    (int)xfersize, uio);
 		}
 		if (error)
@@ -947,7 +948,8 @@ ffs_write(ap)
 			error = vn_io_fault_uiomove((char *)bp->b_data +
 			    blkoffset, (int)xfersize, uio);
 		} else {
-			error = vn_io_fault_pgmove(bp->b_pages, blkoffset,
+			error = vn_io_fault_pgmove(bp->b_pages,
+			    blkoffset + (bp->b_offset & PAGE_MASK),
 			    (int)xfersize, uio);
 		}
 		/*
