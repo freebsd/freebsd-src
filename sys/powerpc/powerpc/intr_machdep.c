@@ -631,7 +631,7 @@ powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
 	return (0);
 }
 
-void
+u_long
 powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 {
 	struct powerpc_intr *i;
@@ -656,7 +656,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	if (intr_event_handle(ie, tf) != 0) {
 		goto stray;
 	}
-	return;
+	return (0);
 
 stray:
 	stray_count++;
@@ -669,6 +669,7 @@ stray:
 	}
 	if (i != NULL)
 		PIC_MASK(i->pic, i->intline, i->priv);
+	return (stray_count);
 }
 
 void
