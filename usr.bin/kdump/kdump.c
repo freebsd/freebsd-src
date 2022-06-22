@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 #include "ktrace.h"
+#include "kdump.h"
 
 #ifdef WITH_CASPER
 #include <libcasper.h>
@@ -130,45 +131,14 @@ void usage(void);
 #define	TIMESTAMP_ELAPSED	0x2
 #define	TIMESTAMP_RELATIVE	0x4
 
-static bool abiflag, decimal, fancy = true, resolv, suppressdata, syscallno,
-    tail, threads;
+bool decimal, fancy = true, resolv;
+static bool abiflag, suppressdata, syscallno, tail, threads;
 static int timestamp, maxdata;
 static const char *tracefile = DEF_TRACEFILE;
 static struct ktr_header ktr_header;
 
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
-
-#define	print_number64(first,i,n,c) do {				\
-	uint64_t __v;							\
-									\
-	if (quad_align && (((ptrdiff_t)((i) - (first))) & 1) == 1) {	\
-		(i)++;							\
-		(n)--;							\
-	}								\
-	if (quad_slots == 2)						\
-		__v = (uint64_t)(uint32_t)(i)[0] |			\
-		    ((uint64_t)(uint32_t)(i)[1]) << 32;			\
-	else								\
-		__v = (uint64_t)*(i);					\
-	if (decimal)							\
-		printf("%c%jd", (c), (intmax_t)__v);			\
-	else								\
-		printf("%c%#jx", (c), (uintmax_t)__v);			\
-	(i) += quad_slots;						\
-	(n) -= quad_slots;						\
-	(c) = ',';							\
-} while (0)
-
-#define print_number(i,n,c) do {					\
-	if (decimal)							\
-		printf("%c%jd", c, (intmax_t)*i);			\
-	else								\
-		printf("%c%#jx", c, (uintmax_t)(u_register_t)*i);	\
-	i++;								\
-	n--;								\
-	c = ',';							\
-} while (0)
 
 struct proc_info
 {
@@ -225,7 +195,7 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 }
 #endif	/* WITH_CASPER */
 
-static void
+void
 print_integer_arg(const char *(*decoder)(int), int value)
 {
 	const char *str;
@@ -242,7 +212,7 @@ print_integer_arg(const char *(*decoder)(int), int value)
 }
 
 /* Like print_integer_arg but unknown values are treated as valid. */
-static void
+void
 print_integer_arg_valid(const char *(*decoder)(int), int value)
 {
 	const char *str;
@@ -258,7 +228,7 @@ print_integer_arg_valid(const char *(*decoder)(int), int value)
 	}
 }
 
-static bool
+bool
 print_mask_arg_part(bool (*decoder)(FILE *, int, int *), int value, int *rem)
 {
 
@@ -266,7 +236,7 @@ print_mask_arg_part(bool (*decoder)(FILE *, int, int *), int value, int *rem)
 	return (decoder(stdout, value, rem));
 }
 
-static void
+void
 print_mask_arg(bool (*decoder)(FILE *, int, int *), int value)
 {
 	bool invalid;
@@ -278,7 +248,7 @@ print_mask_arg(bool (*decoder)(FILE *, int, int *), int value)
 		printf("<invalid>%u", rem);
 }
 
-static void
+void
 print_mask_arg0(bool (*decoder)(FILE *, int, int *), int value)
 {
 	bool invalid;
@@ -329,7 +299,7 @@ decode_filemode(int value)
 		printf("<invalid>%u", rem);
 }
 
-static void
+void
 print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), uint32_t value)
 {
 	bool invalid;
@@ -342,7 +312,7 @@ print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), uint32_t value)
 		printf("<invalid>%u", rem);
 }
 
-static void
+void
 print_mask_argul(bool (*decoder)(FILE *, u_long, u_long *), u_long value)
 {
 	bool invalid;
