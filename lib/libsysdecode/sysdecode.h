@@ -134,4 +134,12 @@ bool	sysdecode_wait6_options(FILE *_fp, int _options, int *_rem);
 const char *sysdecode_whence(int _whence);
 bool	sysdecode_shmflags(FILE *_fp, int _flags, int *_rem);
 
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+
+#define	SYSDECODE_HAVE_LINUX
+
+void	sysdecode_linux_clockid(FILE *_fp, clockid_t _which);
+
+#endif /* __i386__ || __amd64__ || __aarch64__ */
+
 #endif /* !__SYSDECODE_H__ */
