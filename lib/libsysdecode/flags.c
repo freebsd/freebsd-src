@@ -1195,3 +1195,10 @@ sysdecode_shmflags(FILE *fp, int flags, int *rem)
 
 	return (print_mask_0(fp, shmflags, flags, rem));
 }
+
+const char *
+sysdecode_itimer(int which)
+{
+
+	return (lookup_value(itimerwhich, which));
+}
