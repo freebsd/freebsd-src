@@ -66,6 +66,76 @@ __FBSDID("$FreeBSD$");
 #undef TABLE_ENTRY
 #undef TABLE_END
 
+static const char *linux_signames[] = {
+	[LINUX_SIGHUP] = "SIGHUP",
+	[LINUX_SIGINT] = "SIGINT",
+	[LINUX_SIGQUIT] = "SIGQUIT",
+	[LINUX_SIGILL] = "SIGILL",
+	[LINUX_SIGTRAP] = "SIGTRAP",
+	[LINUX_SIGABRT] = "SIGABRT",
+	[LINUX_SIGBUS] = "SIGBUS",
+	[LINUX_SIGFPE] = "SIGFPE",
+	[LINUX_SIGKILL] = "SIGKILL",
+	[LINUX_SIGUSR1] = "SIGUSR1",
+	[LINUX_SIGSEGV] = "SIGSEGV",
+	[LINUX_SIGUSR2] = "SIGUSR2",
+	[LINUX_SIGPIPE] = "SIGPIPE",
+	[LINUX_SIGALRM] = "SIGALRM",
+	[LINUX_SIGTERM] = "SIGTERM",
+	[LINUX_SIGSTKFLT] = "SIGSTKFLT",
+	[LINUX_SIGCHLD] = "SIGCHLD",
+	[LINUX_SIGCONT] = "SIGCONT",
+	[LINUX_SIGSTOP] = "SIGSTOP",
+	[LINUX_SIGTSTP] = "SIGTSTP",
+	[LINUX_SIGTTIN] = "SIGTTIN",
+	[LINUX_SIGTTOU] = "SIGTTOU",
+	[LINUX_SIGURG] = "SIGURG",
+	[LINUX_SIGXCPU] = "SIGXCPU",
+	[LINUX_SIGXFSZ] = "SIGXFSZ",
+	[LINUX_SIGVTALRM] = "SIGVTALRM",
+	[LINUX_SIGPROF] = "SIGPROF",
+	[LINUX_SIGWINCH] = "SIGWINCH",
+	[LINUX_SIGIO] = "SIGIO",
+	[LINUX_SIGPWR] = "SIGPWR",
+	[LINUX_SIGSYS] = "SIGSYS",
+
+	[LINUX_SIGRTMIN] = "SIGCANCEL",
+	[LINUX_SIGRTMIN + 1] = "SIGSETXID",
+	[LINUX_SIGRTMIN + 2] = "SIGRT2",
+	[LINUX_SIGRTMIN + 3] = "SIGRT3",
+	[LINUX_SIGRTMIN + 4] = "SIGRT4",
+	[LINUX_SIGRTMIN + 5] = "SIGRT5",
+	[LINUX_SIGRTMIN + 6] = "SIGRT6",
+	[LINUX_SIGRTMIN + 7] = "SIGRT7",
+	[LINUX_SIGRTMIN + 8] = "SIGRT8",
+	[LINUX_SIGRTMIN + 9] = "SIGRT9",
+	[LINUX_SIGRTMIN + 10] = "SIGRT10",
+	[LINUX_SIGRTMIN + 11] = "SIGRT11",
+	[LINUX_SIGRTMIN + 12] = "SIGRT12",
+	[LINUX_SIGRTMIN + 13] = "SIGRT13",
+	[LINUX_SIGRTMIN + 14] = "SIGRT14",
+	[LINUX_SIGRTMIN + 15] = "SIGRT15",
+	[LINUX_SIGRTMIN + 16] = "SIGRT16",
+	[LINUX_SIGRTMIN + 17] = "SIGRT17",
+	[LINUX_SIGRTMIN + 18] = "SIGRT18",
+	[LINUX_SIGRTMIN + 19] = "SIGRT19",
+	[LINUX_SIGRTMIN + 20] = "SIGRT20",
+	[LINUX_SIGRTMIN + 21] = "SIGRT21",
+	[LINUX_SIGRTMIN + 22] = "SIGRT22",
+	[LINUX_SIGRTMIN + 23] = "SIGRT23",
+	[LINUX_SIGRTMIN + 24] = "SIGRT24",
+	[LINUX_SIGRTMIN + 25] = "SIGRT25",
+	[LINUX_SIGRTMIN + 26] = "SIGRT26",
+	[LINUX_SIGRTMIN + 27] = "SIGRT27",
+	[LINUX_SIGRTMIN + 28] = "SIGRT28",
+	[LINUX_SIGRTMIN + 29] = "SIGRT29",
+	[LINUX_SIGRTMIN + 30] = "SIGRT30",
+	[LINUX_SIGRTMIN + 31] = "SIGRT31",
+	[LINUX_SIGRTMIN + 32] = "SIGRTMAX",
+};
+_Static_assert(nitems(linux_signames) == LINUX_SIGRTMAX + 1,
+    "invalid entries count in linux_signames");
+
 void
 sysdecode_linux_clockid(FILE *fp, clockid_t which)
 {
@@ -103,4 +173,13 @@ sysdecode_linux_clockid(FILE *fp, clockid_t which)
 pidp:
 	pid = LINUX_CPUCLOCK_ID(which);
 	fprintf(fp, "(%d)", pid);
+}
+
+const char *
+sysdecode_linux_signal(int sig)
+{
+
+	if ((unsigned)sig < nitems(linux_signames))
+		return (linux_signames[sig]);
+	return (NULL);
 }
