@@ -2761,21 +2761,12 @@ qla_config_soft_lro(qla_host_t *ha)
 
 		bzero(lro, sizeof(struct lro_ctrl));
 
-#if (__FreeBSD_version >= 1100101)
                 if (tcp_lro_init_args(lro, ha->ifp, 0, NUM_RX_DESCRIPTORS)) {
                         device_printf(ha->pci_dev,
 				"%s: tcp_lro_init_args [%d] failed\n",
                                 __func__, i);
                         return (-1);
                 }
-#else
-                if (tcp_lro_init(lro)) {
-                        device_printf(ha->pci_dev,
-				"%s: tcp_lro_init [%d] failed\n",
-                                __func__, i);
-                        return (-1);
-                }
-#endif /* #if (__FreeBSD_version >= 1100101) */
 
                 lro->ifp = ha->ifp;
         }
@@ -2796,17 +2787,7 @@ qla_drain_soft_lro(qla_host_t *ha)
        	for (i = 0; i < hw->num_sds_rings; i++) {
                	lro = &hw->sds[i].lro;
 
-#if (__FreeBSD_version >= 1100101)
 		tcp_lro_flush_all(lro);
-#else
-                struct lro_entry *queued;
-
-		while ((!SLIST_EMPTY(&lro->lro_active))) {
-			queued = SLIST_FIRST(&lro->lro_active);
-			SLIST_REMOVE_HEAD(&lro->lro_active, next);
-			tcp_lro_flush(lro, queued);
-		}
-#endif /* #if (__FreeBSD_version >= 1100101) */
 	}
 #endif
 
