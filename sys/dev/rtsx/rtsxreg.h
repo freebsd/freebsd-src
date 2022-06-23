@@ -28,10 +28,6 @@
 #ifndef	_RTSXREG_H_
 #define	_RTSXREG_H_
 
-#if __FreeBSD_version < 1200000
-#define	IO_SEND_OP_COND		5
-#endif
-
 /* Host command buffer control register. */
 #define	RTSX_HCBAR		0x00
 #define	RTSX_HCBCTLR		0x04
