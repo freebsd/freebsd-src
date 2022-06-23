@@ -40,25 +40,9 @@ $FreeBSD$
 #define MXGE_EEPROM_STRINGS_SIZE 256
 #define MXGE_MAX_SEND_DESC 128
 
-#if ((__FreeBSD_version > 800000 && __FreeBSD_version < 800005) \
-     || __FreeBSD_version < 700111)
-#define MXGE_VIRT_JUMBOS 1
-#else
 #define MXGE_VIRT_JUMBOS 0
-#endif
 
-#if (__FreeBSD_version > 800082)
 #define IFNET_BUF_RING 1
-#endif
-
-#if (__FreeBSD_version < 1000020)
-#undef IF_Kbps
-#undef IF_Mbps
-#undef IF_Gbps
-#define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
-#define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
-#define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
-#endif
 
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
