@@ -81,10 +81,6 @@ struct vmbus_pcpu_data {
 	struct task		message_task;	/* message task */
 } __aligned(CACHE_LINE_SIZE);
 
-#if __FreeBSD_version < 1100000
-typedef u_long rman_res_t;
-#endif
-
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	u_long			*vmbus_tx_evtflags;
