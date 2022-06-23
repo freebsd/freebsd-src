@@ -43,11 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#if (__FreeBSD_version >= 1001511)
 #include <sys/capsicum.h>
-#elif (__FreeBSD_version > 900000)
-#include <sys/capability.h>
-#endif
 
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -108,10 +104,7 @@ mrsas_linux_modevent(module_t mod __unused, int cmd __unused, void *data __unuse
 static int
 mrsas_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 {
-#if (__FreeBSD_version >= 1000000)
 	cap_rights_t rights;
-
-#endif
 	struct file *fp;
 	int error;
 	u_long cmd = args->cmd;
@@ -120,14 +113,7 @@ mrsas_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 		error = ENOTSUP;
 		goto END;
 	}
-#if (__FreeBSD_version >= 1000000)
 	error = fget(p, args->fd, cap_rights_init_one(&rights, CAP_IOCTL), &fp);
-#elif (__FreeBSD_version <= 900000)
-	error = fget(p, args->fd, &fp);
-#else					/* For FreeBSD version greater than
-					 * 9.0.0 but less than 10.0.0 */
-	error = fget(p, args->fd, CAP_IOCTL, &fp);
-#endif
 	if (error != 0)
 		goto END;
 
