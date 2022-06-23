@@ -30,14 +30,14 @@
 .\"     @(#)diff3.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2022
+.Dd June 23, 2022
 .Dt DIFF3 1
 .Os
 .Sh NAME
 .Nm diff3
 .Nd 3-way differential file comparison
 .Sh SYNOPSIS
-.Nm diff3
+.Nm
 .Op Fl 3AaEeimTXx
 .Op Fl Fl diff-program Ar program
 .Op Fl Fl strip-trailing-cr
@@ -45,6 +45,9 @@
 .Op Fl L | Fl Fl label Ar label2
 .Op Fl L | Fl Fl label Ar label3
 .Ar file1 file2 file3
+.Nm
+.Op Fl Fl help
+.Op Fl Fl version
 .Sh DESCRIPTION
 The
 .Nm
@@ -107,6 +110,8 @@ and
 It is useful for backing out changes specific to
 .Ar file2
 only.
+.It Fl Fl help
+Prints usage information and exits.
 .It Fl i
 Appends 'w' and 'q'
 .Xr ed 1
@@ -139,6 +144,8 @@ instead of the default
 to compare files.
 .It Fl Fl strip-trailing-cr
 Strip trailing carriage return on input files.
+.It Fl Fl version
+Prints version information and exits.
 .El
 .Pp
 The
