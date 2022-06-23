@@ -166,6 +166,9 @@
 /* blk_alloc_queue_rh() expects request function */
 /* #undef HAVE_BLK_ALLOC_QUEUE_REQUEST_FN_RH */
 
+/* block multiqueue is available */
+/* #undef HAVE_BLK_MQ */
+
 /* blk queue backing_dev_info is dynamic */
 /* #undef HAVE_BLK_QUEUE_BDI_DYNAMIC */
 
@@ -724,6 +727,9 @@
 /* iops->getattr() takes struct user_namespace* */
 /* #undef HAVE_USERNS_IOPS_GETATTR */
 
+/* user_namespace->ns.inum exists */
+/* #undef HAVE_USER_NS_COMMON_INUM */
+
 /* iops->getattr() takes a vfsmount */
 /* #undef HAVE_VFSMOUNT_IOPS_GETATTR */
 
@@ -920,7 +926,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gb9d98453f"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gdeb121309"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -950,7 +956,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gb9d98453f"
+#define ZFS_META_RELEASE "FreeBSD_gdeb121309"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

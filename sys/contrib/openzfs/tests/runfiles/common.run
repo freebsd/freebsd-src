@@ -113,8 +113,8 @@ tests = ['tst.destroy_fs', 'tst.destroy_snap', 'tst.get_count_and_limit',
 tags = ['functional', 'channel_program', 'synctask_core']
 
 [tests/functional/checksum]
-tests = ['run_edonr_test', 'run_sha2_test', 'run_skein_test', 'filetest_001_pos',
-    'filetest_002_pos']
+tests = ['run_edonr_test', 'run_sha2_test', 'run_skein_test', 'run_blake3_test',
+    'filetest_001_pos', 'filetest_002_pos']
 tags = ['functional', 'checksum']
 
 [tests/functional/clean_mirror]
@@ -937,8 +937,12 @@ tags = ['functional', 'zvol', 'zvol_cli']
 
 [tests/functional/zvol/zvol_misc]
 tests = ['zvol_misc_002_pos', 'zvol_misc_hierarchy', 'zvol_misc_rename_inuse',
-    'zvol_misc_snapdev', 'zvol_misc_volmode', 'zvol_misc_zil']
+    'zvol_misc_snapdev', 'zvol_misc_trim', 'zvol_misc_volmode', 'zvol_misc_zil']
 tags = ['functional', 'zvol', 'zvol_misc']
+
+[tests/functional/zvol/zvol_stress]
+tests = ['zvol_stress']
+tags = ['functional', 'zvol', 'zvol_stress']
 
 [tests/functional/zvol/zvol_swap]
 tests = ['zvol_swap_001_pos', 'zvol_swap_002_pos', 'zvol_swap_004_pos']

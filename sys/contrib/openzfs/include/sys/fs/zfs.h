@@ -93,6 +93,7 @@ typedef enum dmu_objset_type {
 typedef enum {
 	ZPROP_CONT = -2,
 	ZPROP_INVAL = -1,
+	ZPROP_USERPROP = ZPROP_INVAL,
 	ZFS_PROP_TYPE = 0,
 	ZFS_PROP_CREATION,
 	ZFS_PROP_USED,
@@ -310,7 +311,7 @@ typedef int (*zprop_func)(int, void *);
  */
 typedef enum {
 	VDEV_PROP_INVAL = -1,
-#define	VDEV_PROP_USER	VDEV_PROP_INVAL
+	VDEV_PROP_USERPROP = VDEV_PROP_INVAL,
 	VDEV_PROP_NAME,
 	VDEV_PROP_CAPACITY,
 	VDEV_PROP_STATE,
@@ -1450,7 +1451,9 @@ typedef enum zfs_ioc {
 	ZFS_IOC_EVENTS_SEEK,			/* 0x83 (Linux) */
 	ZFS_IOC_NEXTBOOT,			/* 0x84 (FreeBSD) */
 	ZFS_IOC_JAIL,				/* 0x85 (FreeBSD) */
+	ZFS_IOC_USERNS_ATTACH = ZFS_IOC_JAIL,	/* 0x85 (Linux) */
 	ZFS_IOC_UNJAIL,				/* 0x86 (FreeBSD) */
+	ZFS_IOC_USERNS_DETACH = ZFS_IOC_UNJAIL,	/* 0x86 (Linux) */
 	ZFS_IOC_SET_BOOTENV,			/* 0x87 */
 	ZFS_IOC_GET_BOOTENV,			/* 0x88 */
 	ZFS_IOC_LAST
@@ -1531,6 +1534,7 @@ typedef enum {
 	ZFS_ERR_REBUILD_IN_PROGRESS,
 	ZFS_ERR_BADPROP,
 	ZFS_ERR_VDEV_NOTSUP,
+	ZFS_ERR_NOT_USER_NAMESPACE,
 } zfs_errno_t;
 
 /*

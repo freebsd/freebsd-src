@@ -8,6 +8,10 @@ KMOD=	zfs
 .PATH:	${SRCDIR}/avl \
 	${SRCDIR}/lua \
 	${SRCDIR}/nvpair \
+        ${SRCDIR}/icp/algs/blake3 \
+        ${SRCDIR}/icp/asm-aarch64/blake3 \
+        ${SRCDIR}/icp/asm-ppc64/blake3 \
+        ${SRCDIR}/icp/asm-x86_64/blake3 \
 	${SRCDIR}/icp/algs/edonr \
 	${SRCDIR}/os/freebsd/spl \
 	${SRCDIR}/os/freebsd/zfs \
@@ -25,6 +29,7 @@ CFLAGS+= -I${INCDIR}/os/freebsd
 CFLAGS+= -I${INCDIR}/os/freebsd/spl
 CFLAGS+= -I${INCDIR}/os/freebsd/zfs
 CFLAGS+= -I${SRCDIR}/zstd/include
+CFLAGS+= -I${SRCDIR}/icp/include
 CFLAGS+= -I${.CURDIR}
 
 CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS \
@@ -32,7 +37,8 @@ CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS \
 	-D_SYS_VMEM_H_ -DIN_FREEBSD_BASE
 
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_SSE2 -DHAVE_AVX512F -DHAVE_AVX512BW -DHAVE_SSSE3
+CFLAGS+= -D__x86_64 -DHAVE_SSE2 -DHAVE_SSSE3 -DHAVE_SSE4_1 -DHAVE_SSE4_2 \
+	-DHAVE_AVX -DHAVE_AVX2 -DHAVE_AVX512F -DHAVE_AVX512VL -DHAVE_AVX512BW
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
@@ -49,6 +55,26 @@ SRCS+=	avl.c
 
 # icp
 SRCS+=	edonr.c
+
+#icp/algs/blake3
+SRCS+=	blake3.c \
+	blake3_generic.c \
+	blake3_impl.c \
+	blake3_x86-64.c
+
+#icp/asm-aarch64/blake3
+SRCS+=	b3_aarch64_sse2.S \
+	b3_aarch64_sse41.S
+
+#icp/asm-ppc64/blake3
+SRCS+=	b3_ppc64le_sse2.S \
+	b3_ppc64le_sse41.S
+
+#icp/asm-x86_64/blake3
+SRCS+=	blake3_avx2.S \
+	blake3_avx512.S \
+	blake3_sse2.S \
+	blake3_sse41.S
 
 #lua
 SRCS+=	lapi.c \
@@ -162,6 +188,7 @@ SRCS+=	abd.c \
 	aggsum.c \
 	arc.c \
 	arc_os.c \
+        blake3_zfs.c \
 	blkptr.c \
 	bplist.c \
 	bpobj.c \
@@ -263,6 +290,7 @@ SRCS+=	abd.c \
 	zcp_synctask.c \
 	zfeature.c \
 	zfs_byteswap.c \
+        zfs_chksum.c \
 	zfs_debug.c \
 	zfs_file_os.c \
 	zfs_fm.c \

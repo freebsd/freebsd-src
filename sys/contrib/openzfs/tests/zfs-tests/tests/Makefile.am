@@ -545,6 +545,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/checksum/cleanup.ksh \
 	functional/checksum/filetest_001_pos.ksh \
 	functional/checksum/filetest_002_pos.ksh \
+	functional/checksum/run_blake3_test.ksh \
 	functional/checksum/run_edonr_test.ksh \
 	functional/checksum/run_sha2_test.ksh \
 	functional/checksum/run_skein_test.ksh \
@@ -1894,6 +1895,9 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/user_namespace/cleanup.ksh \
 	functional/user_namespace/setup.ksh \
 	functional/user_namespace/user_namespace_001.ksh \
+	functional/user_namespace/user_namespace_002.ksh \
+	functional/user_namespace/user_namespace_003.ksh \
+	functional/user_namespace/user_namespace_004.ksh \
 	functional/userquota/cleanup.ksh \
 	functional/userquota/groupspace_001_pos.ksh \
 	functional/userquota/groupspace_002_pos.ksh \
@@ -1965,11 +1969,16 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/zvol/zvol_misc/zvol_misc_004_pos.ksh \
 	functional/zvol/zvol_misc/zvol_misc_005_neg.ksh \
 	functional/zvol/zvol_misc/zvol_misc_006_pos.ksh \
+	functional/zvol/zvol_misc/zvol_misc_fua.ksh \
 	functional/zvol/zvol_misc/zvol_misc_hierarchy.ksh \
 	functional/zvol/zvol_misc/zvol_misc_rename_inuse.ksh \
 	functional/zvol/zvol_misc/zvol_misc_snapdev.ksh \
+	functional/zvol/zvol_misc/zvol_misc_trim.ksh \
 	functional/zvol/zvol_misc/zvol_misc_volmode.ksh \
 	functional/zvol/zvol_misc/zvol_misc_zil.ksh \
+	functional/zvol/zvol_stress/cleanup.ksh \
+	functional/zvol/zvol_stress/setup.ksh \
+	functional/zvol/zvol_stress/zvol_stress.ksh \
 	functional/zvol/zvol_swap/cleanup.ksh \
 	functional/zvol/zvol_swap/setup.ksh \
 	functional/zvol/zvol_swap/zvol_swap_001_pos.ksh \
