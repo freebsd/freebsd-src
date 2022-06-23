@@ -61,16 +61,6 @@ static uint64_t bhyve_xcpuids;
 SYSCTL_ULONG(_hw_vmm, OID_AUTO, bhyve_xcpuids, CTLFLAG_RW, &bhyve_xcpuids, 0,
     "Number of times an unknown cpuid leaf was accessed");
 
-#if __FreeBSD_version < 1200060	/* Remove after 11 EOL helps MFCing */
-extern u_int threads_per_core;
-SYSCTL_UINT(_hw_vmm_topology, OID_AUTO, threads_per_core, CTLFLAG_RDTUN,
-    &threads_per_core, 0, NULL);
-
-extern u_int cores_per_package;
-SYSCTL_UINT(_hw_vmm_topology, OID_AUTO, cores_per_package, CTLFLAG_RDTUN,
-    &cores_per_package, 0, NULL);
-#endif
-
 static int cpuid_leaf_b = 1;
 SYSCTL_INT(_hw_vmm_topology, OID_AUTO, cpuid_leaf_b, CTLFLAG_RDTUN,
     &cpuid_leaf_b, 0, NULL);
