@@ -241,10 +241,17 @@ contrib/openzfs/module/zcommon/zprop_common.c		optional zfs compile-with "${ZFS_
 # zfs edon-r hash support
 contrib/openzfs/module/icp/algs/edonr/edonr.c		optional zfs compile-with "${ZFS_C}"
 
+# zfs blake3 hash support
+contrib/openzfs/module/icp/algs/blake3/blake3.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/icp/algs/blake3/blake3_generic.c	optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/icp/algs/blake3/blake3_impl.c	optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/icp/algs/blake3/blake3_x86-64.c	optional zfs compile-with "${ZFS_C}"
+
 #zfs core common code
 contrib/openzfs/module/zfs/abd.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/aggsum.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/arc.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/blake3_zfs.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/blkptr.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/bplist.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/bpobj.c		optional zfs compile-with "${ZFS_C}"
@@ -342,6 +349,7 @@ contrib/openzfs/module/zfs/zcp_set.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zcp_synctask.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfeature.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_byteswap.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/zfs_chksum.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_fm.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_fuid.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_ioctl.c		optional zfs compile-with "${ZFS_C}"

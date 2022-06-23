@@ -10,6 +10,8 @@
 #
 
 # There is only an asm version on ppc64.
+contrib/openzfs/module/icp/asm-ppc64/blake3/b3_ppc64le_sse2.S	optional zfs compile-with "${ZFS_S}"
+contrib/openzfs/module/icp/asm-ppc64/blake3/b3_ppc64le_sse41.S	optional zfs compile-with "${ZFS_S}"
 cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc | dtrace powerpc | zfs powerpcspe | dtrace powerpcspe compile-with "${ZFS_C}"
 cddl/dev/dtrace/powerpc/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/powerpc/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}"
