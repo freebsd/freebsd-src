@@ -15,9 +15,23 @@ ASM_SOURCES_AS = \
         asm-x86_64/modes/gcm_pclmulqdq.S \
         asm-x86_64/modes/aesni-gcm-x86_64.S \
         asm-x86_64/sha2/sha256_impl.S \
-        asm-x86_64/sha2/sha512_impl.S
+        asm-x86_64/sha2/sha512_impl.S \
+        asm-x86_64/blake3/blake3_avx2.S \
+        asm-x86_64/blake3/blake3_avx512.S \
+        asm-x86_64/blake3/blake3_sse2.S \
+        asm-x86_64/blake3/blake3_sse41.S
 
 CFLAGS+= -D__amd64 -D_SYS_STACK_H
+.elif ${MACHINE_ARCH} == "aarch64"
+ASM_SOURCES_C =
+ASM_SOURCES_AS = \
+        asm-aarch64/blake3/b3_aarch64_sse2.S \
+        asm-aarch64/blake3/b3_aarch64_sse41.S
+.elif ${MACHINE_ARCH} == "powerpc64"
+ASM_SOURCES_C =
+ASM_SOURCES_AS = \
+        asm-ppc64/blake3/b3_ppc64le_sse2.S \
+        asm-ppc64/blake3/b3_ppc64le_sse41.S
 .else
 ASM_SOURCES_C =
 ASM_SOURCES_AS =
@@ -34,6 +48,10 @@ KERNEL_C = \
         algs/aes/aes_impl_x86-64.c \
         algs/aes/aes_impl.c \
         algs/aes/aes_modes.c \
+        algs/blake3/blake3.c \
+        algs/blake3/blake3_generic.c \
+        algs/blake3/blake3_impl.c \
+        algs/blake3/blake3_x86-64.c \
         algs/edonr/edonr.c \
         algs/modes/modes.c \
         algs/modes/cbc.c \
@@ -81,5 +99,14 @@ CFLAGS.ghash-x86_64.S+= -DLOCORE
 CFLAGS.sha256_impl.S+= -DLOCORE
 CFLAGS.sha512_impl.S+= -DLOCORE
 CFLAGS.gcm.c+= -UCAN_USE_GCM_ASM
+CFLAGS.blake3_avx2.S = -DLOCORE
+CFLAGS.blake3_avx512.S = -DLOCORE
+CFLAGS.blake3_sse2.S = -DLOCORE
+CFLAGS.blake3_sse41.S = -DLOCORE
+CFLAGS.b3_aarch64_sse2.S = -DLOCORE
+CFLAGS.b3_aarch64_sse41.S = -DLOCORE
+CFLAGS.b3_ppc64le_sse2.S = -DLOCORE
+CFLAGS.b3_ppc64le_sse41.S = -DLOCORE
+
 
 .include <bsd.lib.mk>

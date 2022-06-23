@@ -127,6 +127,11 @@ static int zfs_do_jail(int argc, char **argv);
 static int zfs_do_unjail(int argc, char **argv);
 #endif
 
+#ifdef __linux__
+static int zfs_do_zone(int argc, char **argv);
+static int zfs_do_unzone(int argc, char **argv);
+#endif
+
 /*
  * Enable a reasonable set of defaults for libumem debugging on DEBUG builds.
  */
@@ -184,6 +189,8 @@ typedef enum {
 	HELP_JAIL,
 	HELP_UNJAIL,
 	HELP_WAIT,
+	HELP_ZONE,
+	HELP_UNZONE,
 } zfs_help_t;
 
 typedef struct zfs_command {
@@ -253,6 +260,11 @@ static zfs_command_t command_table[] = {
 #ifdef __FreeBSD__
 	{ "jail",	zfs_do_jail,		HELP_JAIL		},
 	{ "unjail",	zfs_do_unjail,		HELP_UNJAIL		},
+#endif
+
+#ifdef __linux__
+	{ "zone",	zfs_do_zone,		HELP_ZONE		},
+	{ "unzone",	zfs_do_unzone,		HELP_UNZONE		},
 #endif
 };
 
@@ -415,6 +427,10 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tunjail <jailid|jailname> <filesystem>\n"));
 	case HELP_WAIT:
 		return (gettext("\twait [-t <activity>] <filesystem>\n"));
+	case HELP_ZONE:
+		return (gettext("\tzone <nsfile> <filesystem>\n"));
+	case HELP_UNZONE:
+		return (gettext("\tunzone <nsfile> <filesystem>\n"));
 	default:
 		__builtin_unreachable();
 	}
@@ -1901,7 +1917,7 @@ get_callback(zfs_handle_t *zhp, void *data)
 		    pl == cbp->cb_proplist)
 			continue;
 
-		if (pl->pl_prop != ZPROP_INVAL) {
+		if (pl->pl_prop != ZPROP_USERPROP) {
 			if (zfs_prop_get(zhp, pl->pl_prop, buf,
 			    sizeof (buf), &sourcetype, source,
 			    sizeof (source),
@@ -2291,7 +2307,7 @@ zfs_do_inherit(int argc, char **argv)
 	argc--;
 	argv++;
 
-	if ((prop = zfs_name_to_prop(propname)) != ZPROP_INVAL) {
+	if ((prop = zfs_name_to_prop(propname)) != ZPROP_USERPROP) {
 		if (zfs_prop_readonly(prop)) {
 			(void) fprintf(stderr, gettext(
 			    "%s property is read-only\n"),
@@ -3427,7 +3443,7 @@ print_header(list_cbdata_t *cb)
 		}
 
 		right_justify = B_FALSE;
-		if (pl->pl_prop != ZPROP_INVAL) {
+		if (pl->pl_prop != ZPROP_USERPROP) {
 			header = zfs_prop_column_name(pl->pl_prop);
 			right_justify = zfs_prop_align_right(pl->pl_prop);
 		} else {
@@ -3478,7 +3494,7 @@ print_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 			    sizeof (property));
 			propstr = property;
 			right_justify = zfs_prop_align_right(pl->pl_prop);
-		} else if (pl->pl_prop != ZPROP_INVAL) {
+		} else if (pl->pl_prop != ZPROP_USERPROP) {
 			if (zfs_prop_get(zhp, pl->pl_prop, property,
 			    sizeof (property), NULL, NULL, 0,
 			    cb->cb_literal) != 0)
@@ -8691,6 +8707,50 @@ main(int argc, char **argv)
 
 	return (ret);
 }
+
+/*
+ * zfs zone nsfile filesystem
+ *
+ * Add or delete the given dataset to/from the namespace.
+ */
+#ifdef __linux__
+static int
+zfs_do_zone_impl(int argc, char **argv, boolean_t attach)
+{
+	zfs_handle_t *zhp;
+	int ret;
+
+	if (argc < 3) {
+		(void) fprintf(stderr, gettext("missing argument(s)\n"));
+		usage(B_FALSE);
+	}
+	if (argc > 3) {
+		(void) fprintf(stderr, gettext("too many arguments\n"));
+		usage(B_FALSE);
+	}
+
+	zhp = zfs_open(g_zfs, argv[2], ZFS_TYPE_FILESYSTEM);
+	if (zhp == NULL)
+		return (1);
+
+	ret = (zfs_userns(zhp, argv[1], attach) != 0);
+
+	zfs_close(zhp);
+	return (ret);
+}
+
+static int
+zfs_do_zone(int argc, char **argv)
+{
+	return (zfs_do_zone_impl(argc, argv, B_TRUE));
+}
+
+static int
+zfs_do_unzone(int argc, char **argv)
+{
+	return (zfs_do_zone_impl(argc, argv, B_FALSE));
+}
+#endif
 
 #ifdef __FreeBSD__
 #include <sys/jail.h>

@@ -299,6 +299,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_VDEV_NOTSUP:
 		return (dgettext(TEXT_DOMAIN, "operation not supported "
 		    "on this type of vdev"));
+	case EZFS_NOT_USER_NAMESPACE:
+		return (dgettext(TEXT_DOMAIN, "the provided file "
+		    "was not a user namespace file"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -484,6 +487,9 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		break;
 	case ZFS_ERR_BADPROP:
 		zfs_verror(hdl, EZFS_BADPROP, fmt, ap);
+		break;
+	case ZFS_ERR_NOT_USER_NAMESPACE:
+		zfs_verror(hdl, EZFS_NOT_USER_NAMESPACE, fmt, ap);
 		break;
 	default:
 		zfs_error_aux(hdl, "%s", strerror(error));
@@ -1276,7 +1282,7 @@ zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 		/*
 		 * 'PROPERTY' column
 		 */
-		if (pl->pl_prop != ZPROP_INVAL) {
+		if (pl->pl_prop != ZPROP_USERPROP) {
 			const char *propname = (type == ZFS_TYPE_POOL) ?
 			    zpool_prop_to_name(pl->pl_prop) :
 			    ((type == ZFS_TYPE_VDEV) ?
@@ -1749,7 +1755,7 @@ addlist(libzfs_handle_t *hdl, const char *propname, zprop_list_t **listp,
 	 * Return failure if no property table entry was found and this isn't
 	 * a user-defined property.
 	 */
-	if (prop == ZPROP_INVAL && ((type == ZFS_TYPE_POOL &&
+	if (prop == ZPROP_USERPROP && ((type == ZFS_TYPE_POOL &&
 	    !zpool_prop_feature(propname) &&
 	    !zpool_prop_unsupported(propname)) ||
 	    ((type == ZFS_TYPE_DATASET) && !zfs_prop_user(propname) &&
@@ -1764,7 +1770,7 @@ addlist(libzfs_handle_t *hdl, const char *propname, zprop_list_t **listp,
 	zprop_list_t *entry = zfs_alloc(hdl, sizeof (*entry));
 
 	entry->pl_prop = prop;
-	if (prop == ZPROP_INVAL) {
+	if (prop == ZPROP_USERPROP) {
 		entry->pl_user_prop = zfs_strdup(hdl, propname);
 		entry->pl_width = strlen(propname);
 	} else {
