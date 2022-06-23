@@ -325,17 +325,11 @@ static void			hn_nvs_handle_rxbuf(struct hn_rx_ring *,
 static void			hn_nvs_ack_rxbuf(struct hn_rx_ring *,
 				    struct vmbus_channel *, uint64_t);
 
-#if __FreeBSD_version >= 1100099
 static int			hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS);
-#endif
 static int			hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_chim_size_sysctl(SYSCTL_HANDLER_ARGS);
-#if __FreeBSD_version < 1100095
-static int			hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS);
-#else
 static int			hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS);
-#endif
 static int			hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_tx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS);
 static int			hn_tx_conf_int_sysctl(SYSCTL_HANDLER_ARGS);
@@ -526,11 +520,9 @@ SYSCTL_INT(_hw_hn, OID_AUTO, direct_tx_size, CTLFLAG_RDTUN,
 
 /* # of LRO entries per RX ring */
 #if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
 static int			hn_lro_entry_count = HN_LROENT_CNT_DEF;
 SYSCTL_INT(_hw_hn, OID_AUTO, lro_entry_count, CTLFLAG_RDTUN,
     &hn_lro_entry_count, 0, "LRO entry count");
-#endif
 #endif
 
 static int			hn_tx_taskq_cnt = 1;
@@ -578,11 +570,9 @@ SYSCTL_INT(_hw_hn, OID_AUTO, tx_swq_depth, CTLFLAG_RDTUN,
     &hn_tx_swq_depth, 0, "Depth of IFQ or BUFRING");
 
 /* Enable sorted LRO, and the depth of the per-channel mbuf queue */
-#if __FreeBSD_version >= 1100095
 static u_int			hn_lro_mbufq_depth = 0;
 SYSCTL_UINT(_hw_hn, OID_AUTO, lro_mbufq_depth, CTLFLAG_RDTUN,
     &hn_lro_mbufq_depth, 0, "Depth of LRO mbuf queue");
-#endif
 
 /* Packet transmission aggregation size limit */
 static int			hn_tx_agg_size = -1;
@@ -665,7 +655,6 @@ DRIVER_MODULE(hn, vmbus, hn_driver, 0, 0);
 MODULE_VERSION(hn, 1);
 MODULE_DEPEND(hn, vmbus, 1, 1, 1);
 
-#if __FreeBSD_version >= 1100099
 static void
 hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
 {
@@ -674,7 +663,6 @@ hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
 		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
 }
-#endif
 
 static int
 hn_txpkt_sglist(struct hn_tx_ring *txr, struct hn_txdesc *txd)
@@ -1430,10 +1418,8 @@ hn_mtu_change_fixup(struct hn_softc *sc)
 	ifp = sc->hn_ifp;
 
 	hn_set_tso_maxsize(sc, hn_tso_maxlen, ifp->if_mtu);
-#if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring[0].hn_lro.lro_length_lim < HN_LRO_LENLIM_MIN(ifp))
 		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
-#endif
 }
 
 static uint32_t
@@ -2268,7 +2254,6 @@ hn_attach(device_t dev)
 	else if (bootverbose)
 		device_printf(dev, "RNDIS mtu %u\n", mtu);
 
-#if __FreeBSD_version >= 1100099
 	if (sc->hn_rx_ring_inuse > 1) {
 		/*
 		 * Reduce TCP segment aggregation limit for multiple
@@ -2276,7 +2261,6 @@ hn_attach(device_t dev)
 		 */
 		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MULTIRX_DEF);
 	}
-#endif
 
 	/*
 	 * Fixup TX/RX stuffs after synthetic parts are attached.
@@ -3421,12 +3405,10 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 static __inline int
 hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
 {
-#if __FreeBSD_version >= 1100095
 	if (hn_lro_mbufq_depth) {
 		tcp_lro_queue_mbuf(lc, m);
 		return 0;
 	}
-#endif
 	return tcp_lro_rx(lc, m, 0);
 }
 #endif
@@ -4166,8 +4148,6 @@ hn_init(void *xsc)
 	HN_UNLOCK(sc);
 }
 
-#if __FreeBSD_version >= 1100099
-
 static int
 hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -4222,8 +4202,6 @@ hn_lro_ackcnt_sysctl(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
-#endif
-
 static int
 hn_trust_hcsum_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -4272,33 +4250,6 @@ hn_chim_size_sysctl(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
-#if __FreeBSD_version < 1100095
-static int
-hn_rx_stat_int_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct hn_softc *sc = arg1;
-	int ofs = arg2, i, error;
-	struct hn_rx_ring *rxr;
-	uint64_t stat;
-
-	stat = 0;
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
-		rxr = &sc->hn_rx_ring[i];
-		stat += *((int *)((uint8_t *)rxr + ofs));
-	}
-
-	error = sysctl_handle_64(oidp, &stat, 0, req);
-	if (error || req->newptr == NULL)
-		return error;
-
-	/* Zero out this stat. */
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
-		rxr = &sc->hn_rx_ring[i];
-		*((int *)((uint8_t *)rxr + ofs)) = 0;
-	}
-	return 0;
-}
-#else
 static int
 hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -4324,8 +4275,6 @@ hn_rx_stat_u64_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	return 0;
 }
-
-#endif
 
 static int
 hn_rx_stat_ulong_sysctl(SYSCTL_HANDLER_ARGS)
@@ -4986,9 +4935,7 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	struct sysctl_ctx_list *ctx;
 	device_t dev = sc->hn_dev;
 #if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
 	int lroent_cnt;
-#endif
 #endif
 	int i;
 
@@ -5015,13 +4962,11 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 #if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
 	lroent_cnt = hn_lro_entry_count;
 	if (lroent_cnt < TCP_LRO_ENTRIES)
 		lroent_cnt = TCP_LRO_ENTRIES;
 	if (bootverbose)
 		device_printf(dev, "LRO: entry count %d\n", lroent_cnt);
-#endif
 #endif	/* INET || INET6 */
 
 	ctx = device_get_sysctl_ctx(dev);
@@ -5061,17 +5006,10 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		 * Initialize LRO.
 		 */
 #if defined(INET) || defined(INET6)
-#if __FreeBSD_version >= 1100095
 		tcp_lro_init_args(&rxr->hn_lro, sc->hn_ifp, lroent_cnt,
 		    hn_lro_mbufq_depth);
-#else
-		tcp_lro_init(&rxr->hn_lro);
-		rxr->hn_lro.ifp = sc->hn_ifp;
-#endif
-#if __FreeBSD_version >= 1100099
 		rxr->hn_lro.lro_length_lim = HN_LRO_LENLIM_DEF;
 		rxr->hn_lro.lro_ackcnt_lim = HN_LRO_ACKCNT_DEF;
-#endif
 #endif	/* INET || INET6 */
 
 		if (sc->hn_rx_sysctl_tree != NULL) {
@@ -5122,26 +5060,17 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_queued",
 	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_queued),
-#if __FreeBSD_version < 1100095
-	    hn_rx_stat_int_sysctl,
-#else
 	    hn_rx_stat_u64_sysctl,
-#endif
 	    "LU", "LRO queued");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_flushed",
 	    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
 	    __offsetof(struct hn_rx_ring, hn_lro.lro_flushed),
-#if __FreeBSD_version < 1100095
-	    hn_rx_stat_int_sysctl,
-#else
 	    hn_rx_stat_u64_sysctl,
-#endif
 	    "LU", "LRO flushed");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_tried",
 	    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_MPSAFE | CTLFLAG_STATS , sc,
 	    __offsetof(struct hn_rx_ring, hn_lro_tried),
 	    hn_rx_stat_ulong_sysctl, "LU", "# of LRO tries");
-#if __FreeBSD_version >= 1100099
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "lro_length_lim",
 	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_lro_lenlim_sysctl, "IU",
@@ -5150,7 +5079,6 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
 	    hn_lro_ackcnt_sysctl, "I",
 	    "Max # of ACKs to be aggregated by LRO");
-#endif
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "trust_hosttcp",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, HN_TRUST_HCSUM_TCP,
 	    hn_trust_hcsum_sysctl, "I",
