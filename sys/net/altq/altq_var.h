@@ -64,25 +64,15 @@ struct acc_filter {
 #endif
 #define	ACC_GET_HINDEX(handle) ((handle) >> 20)
 
-#if (__FreeBSD_version > 500000)
 #define ACC_LOCK_INIT(ac)	mtx_init(&(ac)->acc_mtx, "classifier", MTX_DEF)
 #define ACC_LOCK_DESTROY(ac)	mtx_destroy(&(ac)->acc_mtx)
 #define ACC_LOCK(ac)		mtx_lock(&(ac)->acc_mtx)
 #define ACC_UNLOCK(ac)		mtx_unlock(&(ac)->acc_mtx)
-#else
-#define ACC_LOCK_INIT(ac)
-#define ACC_LOCK_DESTROY(ac)
-#define ACC_LOCK(ac)
-#define ACC_UNLOCK(ac)
-#endif
 
 struct acc_classifier {
 	u_int32_t			acc_fbmask;
 	LIST_HEAD(filt, acc_filter)	acc_filters[ACC_FILTER_TABLESIZE];
-
-#if (__FreeBSD_version > 500000)
 	struct	mtx acc_mtx;
-#endif
 };
 
 /*

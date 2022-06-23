@@ -1448,13 +1448,8 @@ void rmc_dropall(struct rm_class *cl)
 	}
 }
 
-#if (__FreeBSD_version > 300000)
-/* hzto() is removed from FreeBSD-3.0 */
-static int hzto(struct timeval *);
-
 static int
-hzto(tv)
-	struct timeval *tv;
+hzto(struct timeval *tv)
 {
 	struct timeval t2;
 
@@ -1463,7 +1458,6 @@ hzto(tv)
 	t2.tv_usec = tv->tv_usec - t2.tv_usec;
 	return (tvtohz(&t2));
 }
-#endif /* __FreeBSD_version > 300000 */
 
 /*
  * void
