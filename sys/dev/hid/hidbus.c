@@ -610,20 +610,20 @@ hidbus_intr_start(device_t child)
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;
-	int refcnt = 0;
+	bool refcnted = false;
 	int error;
 
 	if (sx_xlock_sig(&sc->sx) != 0)
 		return (EINTR);
 	CK_STAILQ_FOREACH(tlc, &sc->tlcs, link) {
-		refcnt += tlc->refcnt;
+		refcnted |= (tlc->refcnt != 0);
 		if (tlc == ivar) {
 			mtx_lock(tlc->mtx);
 			++tlc->refcnt;
 			mtx_unlock(tlc->mtx);
 		}
 	}
-	error = refcnt != 0 ? 0 : HID_INTR_START(device_get_parent(bus));
+	error = refcnted ? 0 : HID_INTR_START(device_get_parent(bus));
 	sx_unlock(&sc->sx);
 
 	return (error);
@@ -636,7 +636,7 @@ hidbus_intr_stop(device_t child)
 	struct hidbus_softc *sc = device_get_softc(bus);
 	struct hidbus_ivars *ivar = device_get_ivars(child);
 	struct hidbus_ivars *tlc;
-	bool refcnt = 0;
+	bool refcnted = false;
 	int error;
 
 	if (sx_xlock_sig(&sc->sx) != 0)
@@ -648,9 +648,9 @@ hidbus_intr_stop(device_t child)
 			--tlc->refcnt;
 			mtx_unlock(tlc->mtx);
 		}
-		refcnt += tlc->refcnt;
+		refcnted |= (tlc->refcnt != 0);
 	}
-	error = refcnt != 0 ? 0 : HID_INTR_STOP(device_get_parent(bus));
+	error = refcnted ? 0 : HID_INTR_STOP(device_get_parent(bus));
 	sx_unlock(&sc->sx);
 
 	return (error);
