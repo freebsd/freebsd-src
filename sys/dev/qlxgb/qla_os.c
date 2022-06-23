@@ -688,11 +688,6 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_LINKSTATE;
 
-#if defined(__FreeBSD_version) && (__FreeBSD_version < 900002)
-	ifp->if_timer = 0;
-	ifp->if_watchdog = NULL;
-#endif /* #if defined(__FreeBSD_version) && (__FreeBSD_version < 900002) */
-
 	ifp->if_capenable = ifp->if_capabilities;
 
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
