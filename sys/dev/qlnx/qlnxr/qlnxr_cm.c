@@ -494,11 +494,9 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	u16 vlan_id = 0;
 	u16 ether_type;
 
-#if __FreeBSD_version >= 1102000
 	int rc = 0;
 	int ip_ver = 0;
 	bool has_udp = false;
-#endif /* #if __FreeBSD_version >= 1102000 */
 
 #if !DEFINE_IB_AH_ATTR_WITH_DMAC
 	u8 mac[ETH_ALEN];
@@ -517,8 +515,6 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	else
 		sgid = dev->sgid_tbl[0];
 
-#if __FreeBSD_version >= 1102000
-
 	rc = ib_ud_header_init(send_size, false /* LRH */, true /* ETH */,
 			has_vlan, has_grh_ipv6, ip_ver, has_udp,
 			0 /* immediate */, udh);
@@ -527,12 +523,6 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 		QL_DPRINT11(dev->ha, "gsi post send: failed to init header\n");
 		return rc;
 	}
-
-#else
-	ib_ud_header_init(send_size, false /* LRH */, true /* ETH */,
-			  has_vlan, has_grh_ipv6, 0 /* immediate */, udh);
-
-#endif /* #if __FreeBSD_version >= 1102000 */
 
 	/* ENET + VLAN headers*/
 #if DEFINE_IB_AH_ATTR_WITH_DMAC
@@ -846,7 +836,6 @@ qlnxr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		wc[i].byte_len = qp->rqe_wr_id[qp->rq.cons].sg_list[0].length;
 		wc[i].wc_flags |= IB_WC_GRH | IB_WC_IP_CSUM_OK;
 
-#if __FreeBSD_version >= 1100000
 		memcpy(&wc[i].smac, qp->rqe_wr_id[qp->rq.cons].smac, ETH_ALEN);
 		wc[i].wc_flags |= IB_WC_WITH_SMAC;
 
@@ -855,7 +844,6 @@ qlnxr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 			wc[i].vlan_id = qp->rqe_wr_id[qp->rq.cons].vlan_id;
 		}
 
-#endif
 		qlnxr_inc_sw_cons(&qp->rq);
 		i++;
 	}
