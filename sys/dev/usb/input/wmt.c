@@ -261,22 +261,12 @@ static device_probe_t	wmt_probe;
 static device_attach_t	wmt_attach;
 static device_detach_t	wmt_detach;
 
-#if __FreeBSD_version >= 1200077
 static evdev_open_t	wmt_ev_open;
 static evdev_close_t	wmt_ev_close;
-#else
-static evdev_open_t	wmt_ev_open_11;
-static evdev_close_t	wmt_ev_close_11;
-#endif
 
 static const struct evdev_methods wmt_evdev_methods = {
-#if __FreeBSD_version >= 1200077
 	.ev_open = &wmt_ev_open,
 	.ev_close = &wmt_ev_close,
-#else
-	.ev_open = &wmt_ev_open_11,
-	.ev_close = &wmt_ev_close_11,
-#endif
 };
 
 static const struct usb_config wmt_config[WMT_N_TRANSFER] = {
@@ -719,7 +709,6 @@ wmt_ev_open_11(struct evdev_dev *evdev, void *ev_softc)
 	return (0);
 }
 
-#if __FreeBSD_version >= 1200077
 static int
 wmt_ev_close(struct evdev_dev *evdev)
 {
@@ -738,7 +727,6 @@ wmt_ev_open(struct evdev_dev *evdev)
 	return (wmt_ev_open_11(evdev, sc));
 
 }
-#endif
 
 static enum wmt_type
 wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
