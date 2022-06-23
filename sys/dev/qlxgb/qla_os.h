@@ -51,10 +51,6 @@
 #include <machine/atomic.h>
 #include <sys/conf.h>
 
-#if __FreeBSD_version < 700112
-#error FreeBSD Version not supported - use version >= 700112
-#endif
-
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>
