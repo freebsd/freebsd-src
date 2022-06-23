@@ -68,9 +68,7 @@ static device_method_t acpi_syscont_methods[] = {
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-#if __FreeBSD_version >= 1100000
     DEVMETHOD(bus_get_cpus,		bus_generic_get_cpus),
-#endif
 
     /* pcib interface */
     DEVMETHOD(pcib_alloc_msi,		acpi_syscont_alloc_msi),
