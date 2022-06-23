@@ -5010,9 +5010,7 @@ nfsrv_updatestable(NFSPROC_T *p)
 	int i;
 	struct nfsvattr nva;
 	vnode_t vp;
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 500000)
 	mount_t mp = NULL;
-#endif
 	int error;
 
 	if (sf->nsf_fp == NULL || (sf->nsf_flags & NFSNSF_UPDATEDONE))
