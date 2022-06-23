@@ -62,31 +62,14 @@
 #include <sys/sched.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
-#if (__FreeBSD_version < 700000)
-#define	thread_lock(td) mtx_lock_spin(&sched_lock)
-#define	thread_unlock(td) mtx_unlock_spin(&sched_lock)
-#endif
-
-#if (__FreeBSD_version >= 800000)
 static struct proc *usbproc;
 static int usb_pcount;
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kproc_kthread_add((f), (s), &usbproc, (p), RFHIGHPID, \
 		    0, "usb", __VA_ARGS__)
-#if (__FreeBSD_version >= 900000)
 #define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check()
-#else
-#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check(curthread)
-#endif
 #define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
 #define	USB_THREAD_EXIT(err)	kthread_exit()
-#else
-#define	USB_THREAD_CREATE(f, s, p, ...) \
-		kthread_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
-#define	USB_THREAD_SUSPEND_CHECK() kthread_suspend_check(curproc)
-#define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
-#define	USB_THREAD_EXIT(err)	kthread_exit(err)
-#endif
 
 #ifdef USB_DEBUG
 static int usb_proc_debug;
@@ -198,11 +181,9 @@ usb_process(void *arg)
 	up->up_ptr = NULL;
 	cv_signal(&up->up_cv);
 	USB_MTX_UNLOCK(up->up_mtx);
-#if (__FreeBSD_version >= 800000)
 	/* Clear the proc pointer if this is the last thread. */
 	if (--usb_pcount == 0)
 		usbproc = NULL;
-#endif
 
 	USB_THREAD_EXIT(0);
 }
@@ -238,9 +219,7 @@ usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 		up->up_ptr = NULL;
 		goto error;
 	}
-#if (__FreeBSD_version >= 800000)
 	usb_pcount++;
-#endif
 	return (0);
 
 error:
