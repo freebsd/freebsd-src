@@ -4708,6 +4708,19 @@ bus_generic_get_device_path(device_t bus, device_t child, const char *locator,
 	return (0);
 }
 
+
+/**
+ * @brief Helper function for implementing BUS_RESCAN().
+ *
+ * This null implementation of BUS_RESCAN() always fails to indicate
+ * the bus does not support rescanning.
+ */
+int
+bus_null_rescan(device_t dev)
+{
+	return (ENODEV);
+}
+
 /*
  * Some convenience functions to make it easier for drivers to use the
  * resource-management functions.  All these really do is hide the

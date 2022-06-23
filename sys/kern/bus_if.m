@@ -78,12 +78,6 @@ CODE {
 	{
 		return (0);
 	}
-
-	static int
-	null_rescan(device_t dev)
-	{
-		return (ENODEV);
-	}
 };
 
 /**
@@ -260,7 +254,7 @@ METHOD device_t add_child {
  */
 METHOD int rescan {
 	device_t _dev;
-} DEFAULT null_rescan;
+} DEFAULT bus_null_rescan;
 
 /**
  * @brief Allocate a system resource
