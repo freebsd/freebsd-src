@@ -1933,13 +1933,11 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     ccb->ccb_h.status = CAM_REQ_CMP;
     break;
   }
-#if __FreeBSD_version >= 900026
   case XPT_SMP_IO:
   {
     agtiapi_QueueSMP( pmcsc, ccb );
     return;
   }
-#endif /* __FreeBSD_version >= 900026 */
   case XPT_SCSI_IO:
   {
     if(pmcsc->dev_scan == agFALSE)
@@ -2426,7 +2424,6 @@ agtiapi_StartTM(struct agtiapi_softc *pCard, ccb_t *pccb)
   return status;
 } /* agtiapi_StartTM */
 
-#if __FreeBSD_version > 901000
 /******************************************************************************
 agtiapi_PrepareSGList()
 
@@ -2502,87 +2499,7 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
   }
   return tiSuccess;
 }
-#else
-/******************************************************************************
-agtiapi_PrepareSGList()
 
-Purpose:
-  This function prepares scatter-gather list for the given ccb
-Parameters:
-  struct agtiapi_softc *pmsc (IN)  Pointer to the HBA data structure
-  ccb_t *pccb (IN)      A pointer to the driver's own CCB, not CAM's CCB
-Return:
-  0 - success
-  1 - failure
-
-Note:
-******************************************************************************/
-static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
-{
-  union ccb *ccb = pccb->ccb;
-  struct ccb_scsiio *csio = &ccb->csio;
-  struct ccb_hdr *ccbh = &ccb->ccb_h;
-  AGTIAPI_IO( "agtiapi_PrepareSGList: start\n" );
-//  agtiapi_DumpCDB("agtiapi_PrepareSGList", pccb);
-  AGTIAPI_IO( "agtiapi_PrepareSGList: dxfer_len %d\n", csio->dxfer_len );
-
-  if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE)
-  {
-    if ((ccbh->flags & CAM_SCATTER_VALID) == 0)
-    {
-      /* We've been given a pointer to a single buffer. */
-      if ((ccbh->flags & CAM_DATA_PHYS) == 0) 
-      {
-        /* Virtual address that needs to translated into one or more physical address ranges. */
-        int error;
-      //  AG_LOCAL_LOCK(&(pmcsc->pCardInfo->pmIOLock));
-        AGTIAPI_IO( "agtiapi_PrepareSGList: virtual address\n" );
-        error = bus_dmamap_load( pmcsc->buffer_dmat,
-                                 pccb->CCB_dmamap,
-                                 csio->data_ptr,
-                                 csio->dxfer_len,
-                                 agtiapi_PrepareSGListCB,
-                                 pccb,
-                                 BUS_DMA_NOWAIT/* 0 */ );
-      //  AG_LOCAL_UNLOCK( &(pmcsc->pCardInfo->pmIOLock) );
-
-	    if (error == EINPROGRESS) 
-	    {
-          /* So as to maintain ordering, freeze the controller queue until our mapping is returned. */
-          AGTIAPI_PRINTK("agtiapi_PrepareSGList: EINPROGRESS\n");
-          xpt_freeze_simq(pmcsc->sim, 1);
-          pmcsc->SimQFrozen = agTRUE;	  
-          ccbh->status |= CAM_RELEASE_SIMQ;
-        }
-      }
-      else
-      {
-	    /* We have been given a pointer to single physical buffer. */
-	    /* pccb->tiSuperScsiRequest.sglVirtualAddr = seg.ds_addr; */
-        struct bus_dma_segment seg;
-        AGTIAPI_PRINTK("agtiapi_PrepareSGList: physical address\n");
-        seg.ds_addr =
-          (bus_addr_t)(vm_offset_t)csio->data_ptr;
-        seg.ds_len = csio->dxfer_len;
-        // * 0xFF to be defined
-        agtiapi_PrepareSGListCB(pccb, &seg, 1, 0xAABBCCDD);
-      }
-    }
-    else
-    {
-      
-      AGTIAPI_PRINTK("agtiapi_PrepareSGList: unexpected case\n");
-      return tiReject;
-    }
-  }
-  else 
-  {
-    agtiapi_PrepareSGListCB(pccb, NULL, 0, 0xAAAAAAAA);
-  }
-  return tiSuccess;
-}
-
-#endif
 /******************************************************************************
 agtiapi_PrepareSGListCB()
 
@@ -3382,7 +3299,6 @@ STATIC void agtiapi_StartSMP(struct agtiapi_softc *pmcsc)
   return;
 }
 
-#if __FreeBSD_version > 901000
 /******************************************************************************
 agtiapi_PrepareSMPSGList()
 
@@ -3513,142 +3429,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
 
   return tiSuccess;
 }
-#else
 
-/******************************************************************************
-agtiapi_PrepareSMPSGList()
-
-Purpose:
-  This function prepares scatter-gather list for the given ccb
-Parameters:
-  struct agtiapi_softc *pmsc (IN)  Pointer to the HBA data structure
-  ccb_t *pccb (IN)      A pointer to the driver's own CCB, not CAM's CCB
-Return:
-  0 - success
-  1 - failure
-
-Note:
-******************************************************************************/
-static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
-{
-  /* Pointer to CAM's ccb */
-  union ccb *ccb = pccb->ccb;
-  struct ccb_smpio *csmpio = &ccb->smpio;
-  struct ccb_hdr *ccbh = &ccb->ccb_h;
-
-  AGTIAPI_PRINTK("agtiapi_PrepareSMPSGList: start\n");
-
-  if (ccbh->flags & (CAM_DATA_PHYS|CAM_SG_LIST_PHYS)) 
-  {
-    AGTIAPI_PRINTK( "agtiapi_PrepareSMPSGList: Physical Address "
-                    "not supported\n" );
-    ccb->ccb_h.status = CAM_REQ_INVALID;
-    xpt_done(ccb);
-    return tiReject;
-  }
-
-  if (ccbh->flags & CAM_SCATTER_VALID)
-  {
-    /* 
-     * Currently we do not support Multiple SG list 
-     * return error for now 
-     */
-    if ( (csmpio->smp_request_sglist_cnt > 1)
-         || (csmpio->smp_response_sglist_cnt > 1) )
-    {
-      AGTIAPI_PRINTK( "agtiapi_PrepareSMPSGList: Multiple SG list "
-                      "not supported\n" );
-      ccb->ccb_h.status = CAM_REQ_INVALID;
-      xpt_done(ccb);
-      return tiReject;
-    }
-    if ( csmpio->smp_request_sglist_cnt != 0 )
-    {
-      /* 
-       * Virtual address that needs to translated into
-       * one or more physical address ranges.
-       */
-      int error;
-      //AG_LOCAL_LOCK(&(pmcsc->pCardInfo->pmIOLock));  
-      AGTIAPI_PRINTK("agtiapi_PrepareSGList: virtual address\n");
-      error = bus_dmamap_load( pmcsc->buffer_dmat,
-                               pccb->CCB_dmamap, 
-                               csmpio->smp_request, 
-                               csmpio->smp_request_len,
-                               agtiapi_PrepareSMPSGListCB, 
-                               pccb, 
-                               BUS_DMA_NOWAIT /* 0 */ );
-      
-      //AG_LOCAL_UNLOCK(&(pmcsc->pCardInfo->pmIOLock));  
-
-      if (error == EINPROGRESS)
-      {
-        /*
-         * So as to maintain ordering,
-         * freeze the controller queue
-         * until our mapping is
-         * returned.
-         */
-        AGTIAPI_PRINTK( "agtiapi_PrepareSGList: EINPROGRESS\n" );
-        xpt_freeze_simq( pmcsc->sim, 1 );
-        pmcsc->SimQFrozen = agTRUE;	
-        ccbh->status |= CAM_RELEASE_SIMQ;
-      }
-    }
-    if( csmpio->smp_response_sglist_cnt != 0 )
-    {
-      /*
-       * Virtual address that needs to translated into
-       * one or more physical address ranges.
-       */
-      int error;
-      //AG_LOCAL_LOCK( &(pmcsc->pCardInfo->pmIOLock) );  
-      AGTIAPI_PRINTK( "agtiapi_PrepareSGList: virtual address\n" );
-      error = bus_dmamap_load( pmcsc->buffer_dmat,
-                               pccb->CCB_dmamap, 
-                               csmpio->smp_response, 
-                               csmpio->smp_response_len,
-                               agtiapi_PrepareSMPSGListCB, 
-                               pccb, 
-                               BUS_DMA_NOWAIT /* 0 */ );
-      
-      //AG_LOCAL_UNLOCK( &(pmcsc->pCardInfo->pmIOLock) );
-
-      if ( error == EINPROGRESS )
-      {
-        /*
-         * So as to maintain ordering,
-         * freeze the controller queue
-         * until our mapping is
-         * returned.
-         */
-        AGTIAPI_PRINTK( "agtiapi_PrepareSGList: EINPROGRESS\n" );
-        xpt_freeze_simq( pmcsc->sim, 1 );
-        pmcsc->SimQFrozen = agTRUE;	
-        ccbh->status |= CAM_RELEASE_SIMQ;
-      }
-    }
-  }
-  else
-  {
-    if ( (csmpio->smp_request_sglist_cnt == 0) &&
-         (csmpio->smp_response_sglist_cnt == 0) )
-    {
-      AGTIAPI_PRINTK( "agtiapi_PrepareSMPSGList: physical address\n" );
-      pccb->tiSMPFrame.outFrameBuf = (void *)csmpio->smp_request;
-      pccb->tiSMPFrame.outFrameLen = csmpio->smp_request_len;
-      pccb->tiSMPFrame.expectedRespLen = csmpio->smp_response_len;
-
-      // 0xFF to be defined
-      agtiapi_PrepareSMPSGListCB( pccb, NULL, 0, 0xAABBCCDD );
-    }
-    pccb->tiSMPFrame.flag = 0;
-  }
-
-  return tiSuccess;
-}
-
-#endif
 /******************************************************************************
 agtiapi_PrepareSMPSGListCB()
 
