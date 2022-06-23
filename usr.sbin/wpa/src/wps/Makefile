@@ -27,8 +27,6 @@ SRCS=	http_client.c \
 	wps_upnp_ssdp.c \
 	wps_upnp_web.c
 
-CFLAGS+=-DCONFIG_P2P
-
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
 .endif
