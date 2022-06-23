@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #endif
 #include <x86/apicreg.h>
+#include <x86/legacyvar.h>
 #include <x86/mptable.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
