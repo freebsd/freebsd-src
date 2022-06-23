@@ -981,10 +981,9 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 	/* Poll CQ here */
 	mlx4_en_xmit_poll(priv, i);
 
-#if __FreeBSD_version >= 1100000
 	if (unlikely(err != 0))
 		if_inc_counter(dev, IFCOUNTER_IQDROPS, 1);
-#endif
+
 	return (err);
 }
 
