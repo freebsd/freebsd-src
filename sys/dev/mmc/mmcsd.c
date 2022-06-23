@@ -87,11 +87,6 @@ __FBSDID("$FreeBSD$");
 
 #include "mmcbus_if.h"
 
-#if __FreeBSD_version < 800002
-#define	kproc_create	kthread_create
-#define	kproc_exit	kthread_exit
-#endif
-
 #define	MMCSD_CMD_RETRIES	5
 
 #define	MMCSD_FMT_BOOT		"mmcsd%dboot"
