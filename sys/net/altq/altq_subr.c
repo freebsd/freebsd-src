@@ -81,11 +81,7 @@
 static void	tbr_timeout(void *);
 static struct mbuf *tbr_dequeue(struct ifaltq *, int);
 static int tbr_timer = 0;	/* token bucket regulator timer */
-#if !defined(__FreeBSD__) || (__FreeBSD_version < 600000)
-static struct callout tbr_callout = CALLOUT_INITIALIZER;
-#else
 static struct callout tbr_callout;
-#endif
 
 #ifdef ALTQ3_CLFIER_COMPAT
 static int 	extract_ports4(struct mbuf *, struct ip *, struct flowinfo_in *);
@@ -883,7 +879,6 @@ u_int32_t machclk_per_tick;
 extern u_int64_t cpu_tsc_freq;
 #endif
 
-#if (__FreeBSD_version >= 700035)
 /* Update TSC freq with the value indicated by the caller. */
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
@@ -892,7 +887,7 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 	if (status != 0)
 		return;
 
-#if (__FreeBSD_version >= 701102) && (defined(__amd64__) || defined(__i386__))
+#if defined(__amd64__) || defined(__i386__)
 	/* If TSC is P-state invariant, don't do anything. */
 	if (tsc_is_invariant)
 		return;
@@ -903,7 +898,6 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 }
 EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
     EVENTHANDLER_PRI_LAST);
-#endif /* __FreeBSD_version >= 700035 */
 
 static void
 init_machclk_setup(void)
