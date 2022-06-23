@@ -248,16 +248,9 @@ qlnxr_register_device(qlnxr_dev_t *dev)
         ibdev->dereg_mr = qlnxr_dereg_mr;
         ibdev->reg_user_mr = qlnxr_reg_user_mr;
         
-#if __FreeBSD_version >= 1102000
 	ibdev->alloc_mr = qlnxr_alloc_mr;
 	ibdev->map_mr_sg = qlnxr_map_mr_sg;
 	ibdev->get_port_immutable = qlnxr_get_port_immutable;
-#else
-        ibdev->reg_phys_mr = qlnxr_reg_kernel_mr;
-        ibdev->alloc_fast_reg_mr = qlnxr_alloc_frmr;
-        ibdev->alloc_fast_reg_page_list = qlnxr_alloc_frmr_page_list;
-        ibdev->free_fast_reg_page_list = qlnxr_free_frmr_page_list;
-#endif /* #if __FreeBSD_version >= 1102000 */
 
         ibdev->poll_cq = qlnxr_poll_cq;
         ibdev->post_send = qlnxr_post_send;
@@ -281,14 +274,9 @@ qlnxr_register_device(qlnxr_dev_t *dev)
                 iwcm->accept = qlnxr_iw_accept;
                 iwcm->reject = qlnxr_iw_reject;
 
-#if (__FreeBSD_version >= 1004000) && (__FreeBSD_version < 1102000)
-
-                iwcm->create_listen_ep = qlnxr_iw_create_listen;
-                iwcm->destroy_listen_ep = qlnxr_iw_destroy_listen;
-#else
                 iwcm->create_listen = qlnxr_iw_create_listen;
                 iwcm->destroy_listen = __qlnxr_iw_destroy_listen;
-#endif
+
                 iwcm->add_ref = qlnxr_iw_qp_add_ref;
                 iwcm->rem_ref = qlnxr_iw_qp_rem_ref;
                 iwcm->get_qp = qlnxr_iw_get_qp;
@@ -949,27 +937,6 @@ static bool qlnxr_del_sgid(struct qlnxr_dev *dev, union ib_gid *gid)
 	return found;
 }
 
-#if __FreeBSD_version < 1100000
-
-static inline int
-is_vlan_dev(struct ifnet *ifp)
-{
-	return (ifp->if_type == IFT_L2VLAN);
-}
-
-static inline uint16_t
-vlan_dev_vlan_id(struct ifnet *ifp)
-{
-	uint16_t vtag;
-
-	if (VLAN_TAG(ifp, &vtag) == 0)
-		return (vtag);
-
-	return (0);
-}
-
-#endif /* #if __FreeBSD_version < 1100000 */
-
 static void
 qlnxr_add_sgids(struct qlnxr_dev *dev)
 {
@@ -1342,9 +1309,6 @@ static moduledata_t qlnxr_mod_info = {
 MODULE_VERSION(qlnxr, 1);
 MODULE_DEPEND(qlnxr, if_qlnxe, 1, 1, 1);
 MODULE_DEPEND(qlnxr, ibcore, 1, 1, 1);
-
-#if __FreeBSD_version >= 1100000
 MODULE_DEPEND(qlnxr, linuxkpi, 1, 1, 1);
-#endif /* #if __FreeBSD_version >= 1100000 */
 
 DECLARE_MODULE(qlnxr, qlnxr_mod_info, SI_SUB_LAST, SI_ORDER_ANY);

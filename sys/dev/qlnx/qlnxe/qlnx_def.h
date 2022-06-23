@@ -715,17 +715,6 @@ extern int qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info,
 #define QLNX_IFM_25G_CR IFM_UNKNOWN
 #endif /* #if (defined IFM_25G_SR) */
 
-#if __FreeBSD_version < 1100000
-
-#define QLNX_INC_IERRORS(ifp)		ifp->if_ierrors++
-#define QLNX_INC_IQDROPS(ifp)		ifp->if_iqdrops++
-#define QLNX_INC_IPACKETS(ifp)		ifp->if_ipackets++
-#define QLNX_INC_OPACKETS(ifp)		ifp->if_opackets++
-#define QLNX_INC_OBYTES(ifp, len)	ifp->if_obytes += len
-#define QLNX_INC_IBYTES(ifp, len)	ifp->if_ibytes += len
-
-#else
-
 #define QLNX_INC_IERRORS(ifp)	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1)
 #define QLNX_INC_IQDROPS(ifp)	if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1)
 #define QLNX_INC_IPACKETS(ifp)	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1)
@@ -735,8 +724,6 @@ extern int qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info,
 			if_inc_counter(ifp, IFCOUNTER_OBYTES, len)
 #define QLNX_INC_IBYTES(ifp, len)	\
 			if_inc_counter(ha->ifp, IFCOUNTER_IBYTES, len)
-
-#endif /* #if __FreeBSD_version < 1100000 */
 
 #define CQE_L3_PACKET(flags)    \
         ((((flags) & PARSING_AND_ERR_FLAGS_L3TYPE_MASK) == e_l3_type_ipv4) || \

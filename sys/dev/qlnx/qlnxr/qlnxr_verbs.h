@@ -59,14 +59,10 @@ extern int qlnxr_post_srq_recv(struct ib_srq *,
 			const struct ib_recv_wr *,
 			const struct ib_recv_wr **bad_recv_wr);
 
-#if __FreeBSD_version < 1102000
-extern int qlnxr_query_device(struct ib_device *, struct ib_device_attr *);
-#else
 extern int qlnxr_query_device(struct ib_device *, struct ib_device_attr *,
 		struct ib_udata *);
 extern int qlnxr_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 		struct ib_port_immutable *immutable);
-#endif
 
 extern int qlnxr_query_port(struct ib_device *,
 			u8 port,
@@ -130,7 +126,6 @@ extern int qlnxr_query_ah(struct ib_ah *ibah,
 extern int qlnxr_modify_ah(struct ib_ah *ibah,
 			struct ib_ah_attr *attr);
 
-#if __FreeBSD_version >= 1102000
 extern int qlnxr_process_mad(struct ib_device *ibdev,
 			int process_mad_flags,
 			u8 port_num,
@@ -141,15 +136,6 @@ extern int qlnxr_process_mad(struct ib_device *ibdev,
 			struct ib_mad_hdr *out_mad,
 			size_t *out_mad_size,
 			u16 *out_mad_pkey_index);
-#else
-extern int qlnxr_process_mad(struct ib_device *ibdev,
-			int process_mad_flags,
-			u8 port_num,
-			struct ib_wc *in_wc,
-			struct ib_grh *in_grh,
-			struct ib_mad *in_mad,
-			struct ib_mad *out_mad);
-#endif /* #if __FreeBSD_version >= 1102000 */
 
 extern int qlnxr_post_send(struct ib_qp *,
 			const struct ib_send_wr *,
@@ -165,34 +151,14 @@ extern int qlnxr_arm_cq(struct ib_cq *,
 extern struct ib_mr *qlnxr_get_dma_mr(struct ib_pd *,
 			int acc);
 
-#if __FreeBSD_version < 1102000
-extern struct ib_mr *qlnxr_reg_kernel_mr(struct ib_pd *,
-			struct ib_phys_buf *buffer_list,
-			int num_phys_buf,
-			int acc,
-			u64 *iova_start);
-#endif /* #if __FreeBSD_version < 1102000 */
-
 extern int qlnxr_dereg_mr(struct ib_mr *, struct ib_udata *);
 
-#if __FreeBSD_version >= 1102000
 extern struct ib_mr *qlnxr_reg_user_mr(struct ib_pd *,
 			u64 start,
 			u64 length,
 			u64 virt,
 			int acc,
 			struct ib_udata *);
-#else
-extern struct ib_mr *qlnxr_reg_user_mr(struct ib_pd *,
-			u64 start,
-			u64 length,
-			u64 virt,
-			int acc,
-			struct ib_udata *,
-			int mr_id);
-#endif /* #if __FreeBSD_version >= 1102000 */
-
-#if __FreeBSD_version >= 1102000
 
 extern struct ib_mr *qlnxr_alloc_mr(struct ib_pd *pd,
 			enum ib_mr_type mr_type, u32 max_num_sg,
@@ -200,18 +166,6 @@ extern struct ib_mr *qlnxr_alloc_mr(struct ib_pd *pd,
 
 extern int qlnxr_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg,
 			int sg_nents, unsigned int *sg_offset);
-#else
-
-extern struct ib_mr *qlnxr_alloc_frmr(struct ib_pd *pd,
-			int max_page_list_len);
-
-extern struct ib_fast_reg_page_list *qlnxr_alloc_frmr_page_list(
-			struct ib_device *ibdev,
-			int page_list_len);
-
-extern void qlnxr_free_frmr_page_list(struct ib_fast_reg_page_list *page_list);
-
-#endif /* #if  __FreeBSD_version >= 1102000 */
 
 extern int qlnxr_alloc_ucontext(struct ib_ucontext *uctx,
 				struct ib_udata *udata);

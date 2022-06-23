@@ -35,16 +35,7 @@
 #include <sys/bitstring.h>
 
 #include <linux/types.h>
-
-#if __FreeBSD_version >= 1200032
 #include <linux/bitmap.h>
-#else
-#if __FreeBSD_version >= 1100090
-#include <compat/linuxkpi/common/include/linux/bitops.h>
-#else
-#include <ofed/include/linux/bitops.h>
-#endif
-#endif
 
 #define OSAL_NUM_CPUS()	mp_ncpus
 /*
@@ -481,33 +472,11 @@ qlnx_test_and_change_bit(long bit, volatile unsigned long *var)
 
 	val = *var;
 
-#if __FreeBSD_version >= 1100000
 	if (val & bit) 
 		return (test_and_clear_bit(bit, var));
 
 	return (test_and_set_bit(bit, var));
-#else
-	if (val & bit) 
-		return (test_and_clear_bit(bit, (long *)var));
-
-	return (test_and_set_bit(bit, (long *)var));
-
-#endif
 }
-
-#if __FreeBSD_version < 1100000
-static inline unsigned
-bitmap_weight(unsigned long *bitmap, unsigned nbits)
-{
-        unsigned bit;
-        unsigned retval = 0;
-
-        for_each_set_bit(bit, bitmap, nbits)
-                retval++;
-        return (retval);
-}
-
-#endif
 
 #define OSAL_TEST_AND_FLIP_BIT qlnx_test_and_change_bit
 #define OSAL_TEST_AND_CLEAR_BIT test_and_clear_bit
