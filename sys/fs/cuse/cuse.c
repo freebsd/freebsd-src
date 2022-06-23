@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010-2020 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2022 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,6 +63,13 @@
 
 #include <fs/cuse/cuse_defs.h>
 #include <fs/cuse/cuse_ioctl.h>
+
+#define	CUSE_ALLOC_PAGES_MAX \
+	(CUSE_ALLOC_BYTES_MAX / PAGE_SIZE)
+
+#if (CUSE_ALLOC_PAGES_MAX == 0)
+#error "PAGE_SIZE is too big!"
+#endif
 
 static int
 cuse_modevent(module_t mod, int type, void *data)

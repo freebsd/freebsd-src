@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2014 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2014-2022 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,13 +30,13 @@
 #include <sys/ioccom.h>
 #include <sys/types.h>
 
-#define	CUSE_BUFFER_MAX		PAGE_SIZE
+#define	CUSE_BUFFER_MAX		(1 << 12)	/* bytes */
 #define	CUSE_DEVICES_MAX	64	/* units */
 #define	CUSE_BUF_MIN_PTR	0x10000UL
 #define	CUSE_BUF_MAX_PTR	0x20000UL
 #define	CUSE_ALLOC_UNIT_MAX	128	/* units */
 /* All memory allocations must be less than the following limit */
-#define	CUSE_ALLOC_PAGES_MAX	(((16UL * 1024UL * 1024UL) + PAGE_SIZE - 1) / PAGE_SIZE)
+#define	CUSE_ALLOC_BYTES_MAX	(1UL << 24)	/* bytes */
 
 struct cuse_dev;
 

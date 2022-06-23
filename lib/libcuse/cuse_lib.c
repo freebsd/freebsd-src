@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010-2012 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2010-2022 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -142,7 +142,7 @@ cuse_vmoffset(void *_ptr)
 	uint8_t *ptr_max;
 	uint8_t *ptr = _ptr;
 	unsigned long remainder;
-	int n;
+	unsigned long n;
 
 	CUSE_LOCK();
 	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
@@ -158,9 +158,10 @@ cuse_vmoffset(void *_ptr)
 
 			remainder = (ptr - ptr_min);
 
-			remainder -= remainder % PAGE_SIZE;
+			remainder -= remainder %
+			    (unsigned long)getpagesize();
 
-			return ((n * PAGE_SIZE * CUSE_ALLOC_PAGES_MAX) + remainder);
+			return ((n * CUSE_ALLOC_BYTES_MAX) + remainder);
 		}
 	}
 	CUSE_UNLOCK();
@@ -172,9 +173,10 @@ void   *
 cuse_vmalloc(int size)
 {
 	struct cuse_alloc_info info;
+	unsigned long pgsize;
+	unsigned long n;
 	void *ptr;
 	int error;
-	int n;
 
 	if (f_cuse < 0)
 		return (NULL);
@@ -184,7 +186,8 @@ cuse_vmalloc(int size)
 	if (size < 1)
 		return (NULL);
 
-	info.page_count = howmany(size, PAGE_SIZE);
+	pgsize = getpagesize();
+	info.page_count = howmany(size, pgsize);
 
 	CUSE_LOCK();
 	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
@@ -212,10 +215,9 @@ cuse_vmalloc(int size)
 			else
 				break;
 		}
-		ptr = mmap(NULL, info.page_count * PAGE_SIZE,
+		ptr = mmap(NULL, info.page_count * pgsize,
 		    PROT_READ | PROT_WRITE,
-		    MAP_SHARED, f_cuse, CUSE_ALLOC_PAGES_MAX *
-		    PAGE_SIZE * n);
+		    MAP_SHARED, f_cuse, CUSE_ALLOC_BYTES_MAX * n);
 
 		if (ptr == MAP_FAILED) {
 
