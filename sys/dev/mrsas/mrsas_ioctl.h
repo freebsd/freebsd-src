@@ -49,9 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_FREEBSD32
 /* Compilation error FIX */
-#if (__FreeBSD_version <= 900000)
-#include <sys/socket.h>
-#endif
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
 #endif
