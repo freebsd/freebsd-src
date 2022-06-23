@@ -273,7 +273,6 @@
 	(CSUM_IP|CSUM_IP_TSO)
 
 /* Pre-11 counter(9) compatibility */
-#if __FreeBSD_version >= 1100036
 #define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
 #define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
 #define IXL_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
@@ -286,20 +285,6 @@
 #define IXL_SET_IQDROPS(vsi, count)	(vsi)->iqdrops = (count)
 #define IXL_SET_OQDROPS(vsi, count)	(vsi)->oqdrops = (count)
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
-#else
-#define IXL_SET_IPACKETS(vsi, count)	(vsi)->ifp->if_ipackets = (count)
-#define IXL_SET_IERRORS(vsi, count)	(vsi)->ifp->if_ierrors = (count)
-#define IXL_SET_OPACKETS(vsi, count)	(vsi)->ifp->if_opackets = (count)
-#define IXL_SET_OERRORS(vsi, count)	(vsi)->ifp->if_oerrors = (count)
-#define IXL_SET_COLLISIONS(vsi, count)	(vsi)->ifp->if_collisions = (count)
-#define IXL_SET_IBYTES(vsi, count)	(vsi)->ifp->if_ibytes = (count)
-#define IXL_SET_OBYTES(vsi, count)	(vsi)->ifp->if_obytes = (count)
-#define IXL_SET_IMCASTS(vsi, count)	(vsi)->ifp->if_imcasts = (count)
-#define IXL_SET_OMCASTS(vsi, count)	(vsi)->ifp->if_omcasts = (count)
-#define IXL_SET_IQDROPS(vsi, count)	(vsi)->ifp->if_iqdrops = (count)
-#define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
-#define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
-#endif
 
 /* For stats sysctl naming */
 #define IXL_QUEUE_NAME_LEN 32

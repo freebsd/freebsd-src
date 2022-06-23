@@ -2275,16 +2275,7 @@ ixl_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
 {
 	u64 new_data;
 
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 1000000) && defined(__amd64__)
 	new_data = rd64(hw, loreg);
-#else
-	/*
-	 * Use two rd32's instead of one rd64; FreeBSD versions before
-	 * 10 don't support 64-bit bus reads/writes.
-	 */
-	new_data = rd32(hw, loreg);
-	new_data |= ((u64)(rd32(hw, hireg) & 0xFFFF)) << 32;
-#endif
 
 	if (!offset_loaded)
 		*offset = new_data;
