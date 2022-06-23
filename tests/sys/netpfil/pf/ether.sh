@@ -634,6 +634,51 @@ match_tag_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "short_pkt" "cleanup"
+short_pkt_head()
+{
+	atf_set descr 'Test overly short Ethernet packets'
+	atf_set require.user root
+}
+
+short_pkt_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"ether pass in" \
+		"ether pass out" \
+		"ether pass in l3 from 192.0.2.1"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -se -v
+
+	# Try sending ever shorter ping requests
+	# BPF won't let us send anything shorter than an Ethernet header, but
+	# that's good enough for this test
+	for i in `seq 46 14`
+	do
+		$(atf_get_srcdir)/pft_ether.py \
+		    --sendif ${epair}a \
+		    --to 192.0.2.2 \
+		    --len ${i}
+	done
+}
+
+short_pkt_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
@@ -646,4 +691,5 @@ atf_init_test_cases()
 	atf_add_test_case "ip"
 	atf_add_test_case "tag"
 	atf_add_test_case "match_tag"
+	atf_add_test_case "short_pkt"
 }
