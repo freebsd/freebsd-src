@@ -592,6 +592,8 @@ struct pci_devemu pci_de_vblk = {
 	.pe_barread =	vi_pci_read,
 #ifdef BHYVE_SNAPSHOT
 	.pe_snapshot =	vi_pci_snapshot,
+	.pe_pause =     vi_pci_pause,
+	.pe_resume =    vi_pci_resume,
 #endif
 };
 PCI_EMUL_SET(pci_de_vblk);
