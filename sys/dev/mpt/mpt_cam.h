@@ -145,11 +145,6 @@ mpt_wakeup_recovery_thread(struct mpt_softc *mpt)
 }
 
 /************************** Version Compatibility *************************/
-#if	__FreeBSD_version < 700031
-#define	mpt_sim_alloc(a, b, c, mpt, e, f, g)	\
-	cam_sim_alloc(a, b, c, mpt, (mpt)->unit, e, f, g)
-#else
 #define	mpt_sim_alloc(a, b, c, mpt, e, f, g)	\
 	cam_sim_alloc(a, b, c, mpt, (mpt)->unit, &(mpt)->mpt_lock, e, f, g)
-#endif
 #endif /*_MPT_CAM_H_ */
