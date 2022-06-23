@@ -4582,10 +4582,7 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 
 	for (i = 0; i < sc->num_slices; i++) {
 		err = bus_setup_intr(sc->dev, sc->msix_irq_res[i],
-				     INTR_TYPE_NET | INTR_MPSAFE,
-#if __FreeBSD_version > 700030
-				     NULL,
-#endif
+				     INTR_TYPE_NET | INTR_MPSAFE, NULL,
 				     mxge_intr, &sc->ss[i], &sc->msix_ih[i]);
 		if (err != 0) {
 			device_printf(sc->dev, "couldn't setup intr for "
@@ -4658,10 +4655,7 @@ mxge_add_single_irq(mxge_softc_t *sc)
 			      sc->legacy_irq ? "INTx" : "MSI",
 			      rman_get_start(sc->irq_res));
 	err = bus_setup_intr(sc->dev, sc->irq_res,
-			     INTR_TYPE_NET | INTR_MPSAFE,
-#if __FreeBSD_version > 700030
-			     NULL,
-#endif
+			     INTR_TYPE_NET | INTR_MPSAFE, NULL,
 			     mxge_intr, &sc->ss[0], &sc->ih);
 	if (err != 0) {
 		bus_release_resource(sc->dev, SYS_RES_IRQ,
