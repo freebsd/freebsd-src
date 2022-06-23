@@ -36,9 +36,7 @@
 #include <dev/mlx5/mlx5_fpga_tools/tools.h>
 #include <dev/mlx5/mlx5_fpga_tools/tools_char.h>
 
-#if (__FreeBSD_version >= 1100000)
 MODULE_DEPEND(mlx5fpga_tools, linuxkpi, 1, 1, 1);
-#endif
 MODULE_DEPEND(mlx5fpga_tools, mlx5, 1, 1, 1);
 MODULE_DEPEND(mlx5fpga_tools, mlx5fpga, 1, 1, 1);
 MODULE_VERSION(mlx5fpga_tools, 1);
