@@ -10,7 +10,8 @@ TESTS_SUBDIRS+=	libalias
 ATF_TESTS_C=	ip_reass_test \
 		so_reuseport_lb_test \
 		socket_afinet \
-		tcp_connect_port_test
+		tcp_connect_port_test \
+		tcp_md5_getsockopt
 
 ATF_TESTS_SH=	carp fibs fibs_test redirect divert forward output lpm arp
 TEST_METADATA.output+=	required_programs="python"
