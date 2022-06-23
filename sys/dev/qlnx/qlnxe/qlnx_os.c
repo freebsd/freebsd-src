@@ -152,9 +152,7 @@ static int qlnx_alloc_tpa_mbuf(qlnx_host_t *ha, uint16_t rx_buf_size,
 		struct qlnx_agg_info *tpa);
 static void qlnx_free_tpa_mbuf(qlnx_host_t *ha, struct qlnx_agg_info *tpa);
 
-#if __FreeBSD_version >= 1100000
 static uint64_t qlnx_get_counter(if_t ifp, ift_counter cnt);
-#endif
 
 /*
  * Hooks to the Operating Systems
@@ -274,12 +272,6 @@ SYSCTL_NODE(_hw, OID_AUTO, qlnxe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 /* Number of Queues: 0 (Auto) or 1 to 32 (fixed queue number) */
 static int qlnxe_queue_count = QLNX_DEFAULT_RSS;
 
-#if __FreeBSD_version < 1100000
-
-TUNABLE_INT("hw.qlnxe.queue_count", &qlnxe_queue_count);
-
-#endif
-
 SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
 		&qlnxe_queue_count, 0, "Multi-Queue queue count");
 
@@ -304,19 +296,8 @@ SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
 /* RDMA configuration; 64bit field allows setting for 16 physical functions*/
 static uint64_t qlnxe_rdma_configuration = 0x22222222; 
 
-#if __FreeBSD_version < 1100000
-
-TUNABLE_QUAD("hw.qlnxe.rdma_configuration", &qlnxe_rdma_configuration);
-
-SYSCTL_UQUAD(_hw_qlnxe, OID_AUTO, rdma_configuration, CTLFLAG_RDTUN,
-               &qlnxe_rdma_configuration, 0, "RDMA Configuration");
-
-#else
-
 SYSCTL_U64(_hw_qlnxe, OID_AUTO, rdma_configuration, CTLFLAG_RDTUN,
                 &qlnxe_rdma_configuration, 0, "RDMA Configuration");
-
-#endif /* #if __FreeBSD_version < 1100000 */
 
 int
 qlnx_vf_device(qlnx_host_t *ha)
@@ -2333,8 +2314,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
 	device_id = pci_get_device(ha->pci_dev);
 
-#if __FreeBSD_version >= 1000000
-
         if (device_id == QLOGIC_PCI_DEVICE_ID_1634) 
 		ifp->if_baudrate = IF_Gbps(40);
         else if ((device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
@@ -2346,11 +2325,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 		ifp->if_baudrate = IF_Gbps(100);
 
         ifp->if_capabilities = IFCAP_LINKSTATE;
-#else
-        ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
-
-#endif /* #if __FreeBSD_version >= 1000000 */
 
         ifp->if_init = qlnx_init;
         ifp->if_softc = ha;
@@ -2363,9 +2337,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         ifp->if_snd.ifq_drv_maxlen = qlnx_get_ifq_snd_maxlen(ha);
         IFQ_SET_READY(&ifp->if_snd);
 
-#if __FreeBSD_version >= 1100036
 	if_setgetcounterfn(ifp, qlnx_get_counter);
-#endif
 
         ha->max_frame_size = ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
@@ -2789,8 +2761,6 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		VLAN_CAPABILITIES(ifp);
 		break;
 
-#if (__FreeBSD_version >= 1100101)
-
 	case SIOCGI2C:
 	{
 		struct ifi2creq i2c;
@@ -2838,7 +2808,6 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			i2c.data[4], i2c.data[5], i2c.data[6], i2c.data[7]);
 		break;
 	}
-#endif /* #if (__FreeBSD_version >= 1100101) */
 
 	default:
 		QL_DPRINT4(ha, "default (0x%lx)\n", cmd);
@@ -3085,11 +3054,7 @@ qlnx_transmit(struct ifnet *ifp, struct mbuf  *mp)
 
         QL_DPRINT2(ha, "enter\n");
 
-#if __FreeBSD_version >= 1100000
         if (M_HASHTYPE_GET(mp) != M_HASHTYPE_NONE)
-#else
-        if (mp->m_flags & M_FLOWID)
-#endif
                 rss_id = (mp->m_pkthdr.flowid % ECORE_RSS_IND_TABLE_SIZE) %
 					ha->num_rss;
 
@@ -3971,9 +3936,7 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	bus_dmamap_t		map;
 	struct eth_rx_bd	*rx_bd;
 	int			i;
-#if __FreeBSD_version >= 1100000
 	uint8_t			hash_type;
-#endif /* #if __FreeBSD_version >= 1100000 */
 
 	agg_index = cqe->tpa_agg_index;
 
@@ -4225,8 +4188,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	//mp->m_pkthdr.flowid = fp->rss_id;
 	mp->m_pkthdr.flowid = cqe->rss_hash;
 
-#if __FreeBSD_version >= 1100000
-
 	hash_type = cqe->bitfields &
 			(ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_MASK <<
 			ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_SHIFT);
@@ -4252,10 +4213,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 		M_HASHTYPE_SET(mp, M_HASHTYPE_OPAQUE);
 		break;
 	}
-
-#else
-	mp->m_flags |= M_FLOWID;
-#endif
 
 	mp->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID |
 					CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
@@ -4600,9 +4557,7 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
                 enum eth_rx_cqe_type		cqe_type;
                 uint16_t			len, pad, len_on_first_bd;
                 uint8_t				*data;
-#if __FreeBSD_version >= 1100000
 		uint8_t				hash_type;
-#endif /* #if __FreeBSD_version >= 1100000 */
 
                 /* Get the CQE from the completion ring */
                 cqe = (union eth_rx_cqe *)
@@ -4742,8 +4697,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 
 		mp->m_pkthdr.flowid = fp_cqe->rss_hash;
 
-#if __FreeBSD_version >= 1100000
-
 		hash_type = fp_cqe->bitfields &
 				(ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_MASK <<
 				ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_SHIFT);
@@ -4770,10 +4723,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 			break;
 		}
 
-#else
-		mp->m_flags |= M_FLOWID;
-#endif
-
 		if (CQE_L3_PACKET(fp_cqe->pars_flags.flags)) {
 			mp->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 		}
@@ -4797,22 +4746,10 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 		QLNX_INC_IBYTES(ifp, len);
 
 #ifdef QLNX_SOFT_LRO
-
-		if (lro_enable) {
-#if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
-
+		if (lro_enable)
 			tcp_lro_queue_mbuf(lro, mp);
-
-#else
-
-			if (tcp_lro_rx(lro, mp, 0))
-				(*ifp->if_input)(ifp, mp);
-
-#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
-
-		} else {
+		else
 			(*ifp->if_input)(ifp, mp);
-		}
 #else
 
 		(*ifp->if_input)(ifp, mp);
@@ -4932,7 +4869,6 @@ qlnx_fp_isr(void *arg)
                         lro = &fp->rxq->lro;
 
                         if (lro_enable && total_rx_count) {
-#if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
 
 #ifdef QLNX_TRACE_LRO_CNT
                                 if (lro->lro_mbuf_count & ~1023)
@@ -4948,17 +4884,6 @@ qlnx_fp_isr(void *arg)
 #endif /* #ifdef QLNX_TRACE_LRO_CNT */
 
                                 tcp_lro_flush_all(lro);
-
-#else
-                                struct lro_entry *queued;
-
-                                while ((!SLIST_EMPTY(&lro->lro_active))) {
-                                        queued = SLIST_FIRST(&lro->lro_active);
-                                        SLIST_REMOVE_HEAD(&lro->lro_active, \
-                                                next);
-                                        tcp_lro_flush(lro, queued);
-                                }
-#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
                         }
                 }
 #endif /* #ifdef QLNX_SOFT_LRO */
@@ -6287,19 +6212,11 @@ qlnx_alloc_mem_rxq(qlnx_host_t *ha, struct qlnx_rx_queue *rxq)
 
 		lro = &rxq->lro;
 
-#if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
 		if (tcp_lro_init_args(lro, ifp, 0, rxq->num_rx_buffers)) {
 			QL_DPRINT1(ha, "tcp_lro_init[%d] failed\n",
 				   rxq->rxq_id);
 			goto err;
 		}
-#else
-		if (tcp_lro_init(lro)) {
-			QL_DPRINT1(ha, "tcp_lro_init[%d] failed\n",
-				   rxq->rxq_id);
-			goto err;
-		}
-#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
 
 		lro->ifp = ha->ifp;
 	}
@@ -7197,7 +7114,6 @@ qlnx_set_link(qlnx_host_t *ha, bool link_up)
         return (rc);
 }
 
-#if __FreeBSD_version >= 1100000
 static uint64_t
 qlnx_get_counter(if_t ifp, ift_counter cnt)
 {
@@ -7262,7 +7178,6 @@ qlnx_get_counter(if_t ifp, ift_counter cnt)
         }
 	return (count);
 }
-#endif
 
 static void
 qlnx_timer(void *arg)
@@ -7382,20 +7297,7 @@ qlnx_drain_soft_lro(qlnx_host_t *ha)
 
 			lro = &fp->rxq->lro;
 
-#if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
-
 			tcp_lro_flush_all(lro);
-
-#else
-			struct lro_entry *queued;
-
-			while ((!SLIST_EMPTY(&lro->lro_active))){
-				queued = SLIST_FIRST(&lro->lro_active);
-				SLIST_REMOVE_HEAD(&lro->lro_active, next);
-				tcp_lro_flush(lro, queued);
-			}
-
-#endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
                 }
 	}
 
