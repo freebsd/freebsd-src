@@ -1192,6 +1192,8 @@ check_window(const struct secreplay *replay, uint64_t seq)
 {
 	int index, bit_location;
 
+	SECREPLAY_ASSERT(replay);
+
 	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
 	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS)
 		& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
@@ -1205,6 +1207,8 @@ advance_window(const struct secreplay *replay, uint64_t seq)
 {
 	int i;
 	uint64_t index, index_cur, diff;
+
+	SECREPLAY_ASSERT(replay);
 
 	index_cur = replay->last >> IPSEC_REDUNDANT_BIT_SHIFTS;
 	index = seq >> IPSEC_REDUNDANT_BIT_SHIFTS;
@@ -1225,6 +1229,8 @@ static inline void
 set_window(const struct secreplay *replay, uint64_t seq)
 {
 	int index, bit_location;
+
+	SECREPLAY_ASSERT(replay);
 
 	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
 	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS)
@@ -1259,12 +1265,17 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 	replay = sav->replay;
 
 	/* No need to check replay if disabled. */
-	if (replay->wsize == 0)
+	if (replay->wsize == 0) {
 		return (1);
+	}
+
+	SECREPLAY_LOCK(replay);
 
 	/* Zero sequence number is not allowed. */
-	if (seq == 0 && replay->last == 0)
+	if (seq == 0 && replay->last == 0) {
+		SECREPLAY_UNLOCK(replay);
 		return (0);
+	}
 
 	window = replay->wsize << 3;		/* Size of window */
 	tl = (uint32_t)replay->last;		/* Top of window, lower part */
@@ -1282,10 +1293,13 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 		*seqhigh = th;
 		if (seq <= tl) {
 			/* Sequence number inside window - check against replay */
-			if (check_window(replay, seq))
+			if (check_window(replay, seq)) {
+				SECREPLAY_UNLOCK(replay);
 				return (0);
+			}
 		}
 
+		SECREPLAY_UNLOCK(replay);
 		/* Sequence number above top of window or not found in bitmap */
 		return (1);
 	}
@@ -1303,6 +1317,7 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 				ESPSTAT_INC(esps_wrap);
 			else if (sav->sah->saidx.proto == IPPROTO_AH)
 				AHSTAT_INC(ahs_wrap);
+			SECREPLAY_UNLOCK(replay);
 			return (0);
 		}
 
@@ -1322,8 +1337,11 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 			return (0);
 		*seqhigh = th - 1;
 		seqh = th - 1;
-		if (check_window(replay, seq))
+		if (check_window(replay, seq)) {
+			SECREPLAY_UNLOCK(replay);
 			return (0);
+		}
+		SECREPLAY_UNLOCK(replay);
 		return (1);
 	}
 
@@ -1344,6 +1362,7 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 				ESPSTAT_INC(esps_wrap);
 			else if (sav->sah->saidx.proto == IPPROTO_AH)
 				AHSTAT_INC(ahs_wrap);
+			SECREPLAY_UNLOCK(replay);
 			return (0);
 		}
 
@@ -1352,6 +1371,7 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 		    ipsec_sa2str(sav, buf, sizeof(buf))));
 	}
 
+	SECREPLAY_UNLOCK(replay);
 	return (1);
 }
 
@@ -1377,9 +1397,13 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 	if (replay->wsize == 0)
 		return (0);
 
+	SECREPLAY_LOCK(replay);
+
 	/* Zero sequence number is not allowed. */
-	if (seq == 0 && replay->last == 0)
+	if (seq == 0 && replay->last == 0) {
+		SECREPLAY_UNLOCK(replay);
 		return (1);
+	}
 
 	window = replay->wsize << 3;		/* Size of window */
 	tl = (uint32_t)replay->last;		/* Top of window, lower part */
@@ -1397,8 +1421,10 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 		seqh = th;
 		if (seq <= tl) {
 			/* Sequence number inside window - check against replay */
-			if (check_window(replay, seq))
+			if (check_window(replay, seq)) {
+				SECREPLAY_UNLOCK(replay);
 				return (1);
+			}
 			set_window(replay, seq);
 		} else {
 			advance_window(replay, ((uint64_t)seqh << 32) | seq);
@@ -1408,11 +1434,14 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 
 		/* Sequence number above top of window or not found in bitmap */
 		replay->count++;
+		SECREPLAY_UNLOCK(replay);
 		return (0);
 	}
 
-	if (!(sav->flags & SADB_X_SAFLAGS_ESN))
+	if (!(sav->flags & SADB_X_SAFLAGS_ESN)) {
+		SECREPLAY_UNLOCK(replay);
 		return (1);
+	}
 
 	/*
 	 * Seq is within [bl, 0xffffffff] and bl is within
@@ -1421,13 +1450,18 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 	 * subspace.
 	 */
 	if (tl < window - 1 && seq >= bl) {
-		if (th == 0)
+		if (th == 0) {
+			SECREPLAY_UNLOCK(replay);
 			return (1);
-		if (check_window(replay, seq))
+		}
+		if (check_window(replay, seq)) {
+			SECREPLAY_UNLOCK(replay);
 			return (1);
+		}
 
 		set_window(replay, seq);
 		replay->count++;
+		SECREPLAY_UNLOCK(replay);
 		return (0);
 	}
 
@@ -1438,13 +1472,17 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 	seqh = th + 1;
 
 	/* Don't let high part wrap. */
-	if (seqh == 0)
+	if (seqh == 0) {
+		SECREPLAY_UNLOCK(replay);
 		return (1);
+	}
 
 	advance_window(replay, ((uint64_t)seqh << 32) | seq);
 	set_window(replay, seq);
 	replay->last = ((uint64_t)seqh << 32) | seq;
 	replay->count++;
+
+	SECREPLAY_UNLOCK(replay);
 	return (0);
 }
 int
@@ -1480,17 +1518,17 @@ ipsec_updateid(struct secasvar *sav, crypto_session_t *new,
 	    printf("%s: SA(%p) moves cryptoid %p -> %p\n",
 		__func__, sav, *old, *new));
 	KEYDBG(IPSEC_DATA, kdebug_secasv(sav));
-	SECASVAR_LOCK(sav);
+	SECASVAR_WLOCK(sav);
 	if (sav->tdb_cryptoid != *old) {
 		/* cryptoid was already updated */
 		tmp = *new;
 		*new = sav->tdb_cryptoid;
 		*old = tmp;
-		SECASVAR_UNLOCK(sav);
+		SECASVAR_WUNLOCK(sav);
 		return (1);
 	}
 	sav->tdb_cryptoid = *new;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_WUNLOCK(sav);
 	return (0);
 }
 
