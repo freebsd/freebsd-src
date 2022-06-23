@@ -543,7 +543,7 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		stateidp->other[1] = 0;
 		stateidp->other[2] = 0;
 	}
-	if (vnode_vtype(vp) != VREG)
+	if (vp->v_type != VREG)
 		return (EISDIR);
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);

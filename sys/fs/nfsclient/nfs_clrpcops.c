@@ -265,7 +265,7 @@ nfsrpc_access(vnode_t vp, int acmode, struct ucred *cred,
 		mode = NFSACCESS_READ;
 	else
 		mode = 0;
-	if (vnode_vtype(vp) == VDIR) {
+	if (vp->v_type == VDIR) {
 		if (acmode & VWRITE)
 			mode |= (NFSACCESS_MODIFY | NFSACCESS_EXTEND |
 				 NFSACCESS_DELETE);
@@ -370,7 +370,7 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 	/*
 	 * For NFSv4, Open Ops are only done on Regular Files.
 	 */
-	if (vnode_vtype(vp) != VREG)
+	if (vp->v_type != VREG)
 		return (0);
 	mode = 0;
 	if (amode & FREAD)
@@ -742,7 +742,7 @@ nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 	struct nfsclclient *clp;
 	int error;
 
-	if (vnode_vtype(vp) != VREG)
+	if (vp->v_type != VREG)
 		return (0);
 	if (doclose)
 		error = nfscl_doclose(vp, &clp, p);
@@ -1288,7 +1288,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 			nfhp = VTONFS(vp)->n_fhp;
 			error = nfscl_getstateid(vp, nfhp->nfh_fh,
 			    nfhp->nfh_len, mode, 0, cred, p, &stateid, &lckp);
-			if (error && vnode_vtype(vp) == VREG &&
+			if (error && vp->v_type == VREG &&
 			    (mode == NFSV4OPEN_ACCESSWRITE ||
 			     nfstest_openallsetattr)) {
 				/*
@@ -1359,7 +1359,7 @@ nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
 	NFSCL_REQSTART(nd, NFSPROC_SETATTR, vp);
 	if (nd->nd_flag & ND_NFSV4)
 		nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
-	vap->va_type = vnode_vtype(vp);
+	vap->va_type = vp->v_type;
 	nfscl_fillsattr(nd, vap, vp, NFSSATTR_FULL, 0);
 	if (nd->nd_flag & ND_NFSV3) {
 		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
@@ -1407,7 +1407,7 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 
 	*attrflagp = 0;
 	*dattrflagp = 0;
-	if (vnode_vtype(dvp) != VDIR)
+	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 	nmp = VFSTONFS(dvp->v_mount);
 	if (len > NFS_MAXNAMLEN)
