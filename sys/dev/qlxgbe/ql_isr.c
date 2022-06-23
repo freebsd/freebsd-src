@@ -165,33 +165,14 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 
 	mpf->m_pkthdr.flowid = sgc->rss_hash;
 
-#if __FreeBSD_version >= 1100000
 	M_HASHTYPE_SET(mpf, M_HASHTYPE_OPAQUE_HASH);
-#else
-#if (__FreeBSD_version >= 903511 && __FreeBSD_version < 1100000) 
-        M_HASHTYPE_SET(mpf, M_HASHTYPE_OPAQUE);
-#else
-        M_HASHTYPE_SET(mpf, M_HASHTYPE_NONE);
-#endif
-#endif /* #if __FreeBSD_version >= 1100000 */
 
 #if defined(INET) || defined(INET6)
-	if (ha->hw.enable_soft_lro) {
-#if (__FreeBSD_version >= 1100101)
-
+	if (ha->hw.enable_soft_lro)
 		tcp_lro_queue_mbuf(lro, mpf);
-
-#else
-		if (tcp_lro_rx(lro, mpf, 0))
-			(*ifp->if_input)(ifp, mpf);
-
-#endif /* #if (__FreeBSD_version >= 1100101) */
-
-	} else
+	else
 #endif
-	{
 		(*ifp->if_input)(ifp, mpf);
-	}
 
 	if (sdsp->rx_free > ha->std_replenish)
 		qla_replenish_normal_rx(ha, sdsp, r_idx);
@@ -735,21 +716,7 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		struct lro_ctrl		*lro;
 
 		lro = &ha->hw.sds[sds_idx].lro;
-
-#if (__FreeBSD_version >= 1100101)
-
 		tcp_lro_flush_all(lro);
-
-#else
-		struct lro_entry *queued;
-
-		while ((!SLIST_EMPTY(&lro->lro_active))) {
-			queued = SLIST_FIRST(&lro->lro_active);
-			SLIST_REMOVE_HEAD(&lro->lro_active, next);
-			tcp_lro_flush(lro, queued);
-		}
-
-#endif /* #if (__FreeBSD_version >= 1100101) */
 	}
 #endif
 
