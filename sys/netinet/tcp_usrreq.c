@@ -2206,13 +2206,13 @@ tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		case TCP_MD5SIG:
-			if (!TCPMD5_ENABLED()) {
-				INP_WUNLOCK(inp);
+			INP_WUNLOCK(inp);
+			if (!TCPMD5_ENABLED())
 				return (ENOPROTOOPT);
-			}
 			error = TCPMD5_PCBCTL(inp, sopt);
 			if (error)
 				return (error);
+			INP_WLOCK_RECHECK(inp);
 			goto unlock_and_done;
 #endif /* IPSEC */
 
@@ -2584,10 +2584,9 @@ unlock_and_done:
 		switch (sopt->sopt_name) {
 #if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
 		case TCP_MD5SIG:
-			if (!TCPMD5_ENABLED()) {
-				INP_WUNLOCK(inp);
+			INP_WUNLOCK(inp);
+			if (!TCPMD5_ENABLED())
 				return (ENOPROTOOPT);
-			}
 			error = TCPMD5_PCBCTL(inp, sopt);
 			break;
 #endif
