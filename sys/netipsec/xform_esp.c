@@ -274,6 +274,8 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	uint32_t seqh;
 	const struct crypto_session_params *csp;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->tdb_encalgxform != NULL, ("null encoding xform"));
 
@@ -329,10 +331,10 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/*
 	 * Check sequence number.
 	 */
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	if (esph != NULL && sav->replay != NULL && sav->replay->wsize != 0) {
 		if (ipsec_chkreplay(ntohl(esp->esp_seq), &seqh, sav) == 0) {
-			SECASVAR_UNLOCK(sav);
+			SECASVAR_RUNLOCK(sav);
 			DPRINTF(("%s: packet replay check for %s\n", __func__,
 			    ipsec_sa2str(sav, buf, sizeof(buf))));
 			ESPSTAT_INC(esps_replay);
@@ -342,7 +344,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		seqh = htonl(seqh);
 	}
 	cryptoid = sav->tdb_cryptoid;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	/* Update the counters */
 	ESPSTAT_ADD(esps_ibytes, m->m_pkthdr.len - (skip + hlen + alen));
@@ -494,6 +496,8 @@ esp_input_cb(struct cryptop *crp)
 	crypto_session_t cryptoid;
 	int hlen, skip, protoff, error, alen;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	m = crp->crp_buf.cb_mbuf;
 	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
@@ -570,16 +574,16 @@ esp_input_cb(struct cryptop *crp)
 
 		m_copydata(m, skip + offsetof(struct newesp, esp_seq),
 			   sizeof (seq), (caddr_t) &seq);
-		SECASVAR_LOCK(sav);
+		SECASVAR_RLOCK(sav);
 		if (ipsec_updatereplay(ntohl(seq), sav)) {
-			SECASVAR_UNLOCK(sav);
+			SECASVAR_RUNLOCK(sav);
 			DPRINTF(("%s: packet replay check for %s\n", __func__,
 			    ipsec_sa2str(sav, buf, sizeof(buf))));
 			ESPSTAT_INC(esps_replay);
 			error = EACCES;
 			goto bad;
 		}
-		SECASVAR_UNLOCK(sav);
+		SECASVAR_RUNLOCK(sav);
 	}
 
 	/* Determine the ESP header length */
@@ -694,6 +698,8 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	uint32_t seqh;
 	const struct crypto_session_params *csp;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	esph = sav->tdb_authalgxform;
 	espx = sav->tdb_encalgxform;
@@ -786,10 +792,11 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Initialize ESP header. */
 	bcopy((caddr_t) &sav->spi, mtod(mo, caddr_t) + roff,
 	    sizeof(uint32_t));
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	if (sav->replay) {
 		uint32_t replay;
 
+		SECREPLAY_LOCK(sav->replay);
 #ifdef REGRESSION
 		/* Emulate replay attack when ipsec_replay is TRUE. */
 		if (!V_ipsec_replay)
@@ -801,11 +808,12 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		    sizeof(uint32_t), sizeof(uint32_t));
 
 		seqh = htonl((uint32_t)(sav->replay->count >> IPSEC_SEQH_SHIFT));
+		SECREPLAY_UNLOCK(sav->replay);
 	}
 	cryptoid = sav->tdb_cryptoid;
 	if (SAV_ISCTRORGCM(sav))
 		cntr = sav->cntr++;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	/*
 	 * Add padding -- better to do it ourselves than use the crypto engine,

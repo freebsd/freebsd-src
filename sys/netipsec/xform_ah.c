@@ -543,6 +543,8 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	int hl, rplen, authsize, ahsize, error;
 	uint32_t seqh;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->key_auth != NULL, ("null authentication key"));
 	IPSEC_ASSERT(sav->tdb_authalgxform != NULL,
@@ -563,10 +565,10 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	ah = (struct newah *)(mtod(m, caddr_t) + skip);
 
 	/* Check replay window, if applicable. */
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	if (sav->replay != NULL && sav->replay->wsize != 0 &&
 	    ipsec_chkreplay(ntohl(ah->ah_seq), &seqh, sav) == 0) {
-		SECASVAR_UNLOCK(sav);
+		SECASVAR_RUNLOCK(sav);
 		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
 		    ipsec_sa2str(sav, buf, sizeof(buf))));
@@ -574,7 +576,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		goto bad;
 	}
 	cryptoid = sav->tdb_cryptoid;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	/* Verify AH header length. */
 	hl = sizeof(struct ah) + (ah->ah_len * sizeof (u_int32_t));
@@ -699,6 +701,8 @@ ah_input_cb(struct cryptop *crp)
 	int authsize, rplen, ahsize, error, skip, protoff;
 	uint8_t nxt;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	m = crp->crp_buf.cb_mbuf;
 	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
@@ -779,14 +783,14 @@ ah_input_cb(struct cryptop *crp)
 
 		m_copydata(m, skip + offsetof(struct newah, ah_seq),
 			   sizeof (seq), (caddr_t) &seq);
-		SECASVAR_LOCK(sav);
+		SECASVAR_RLOCK(sav);
 		if (ipsec_updatereplay(ntohl(seq), sav)) {
-			SECASVAR_UNLOCK(sav);
+			SECASVAR_RUNLOCK(sav);
 			AHSTAT_INC(ahs_replay);
 			error = EACCES;
 			goto bad;
 		}
-		SECASVAR_UNLOCK(sav);
+		SECASVAR_RUNLOCK(sav);
 	}
 
 	/*
@@ -849,6 +853,8 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	int error, rplen, authsize, ahsize, maxpacketsize, roff;
 	uint8_t prot;
 	uint32_t seqh;
+
+	SECASVAR_RLOCK_TRACKER;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	ahx = sav->tdb_authalgxform;
@@ -939,13 +945,15 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	    ipseczeroes);
 
 	/* Insert packet replay counter, as requested.  */
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	if (sav->replay) {
+		SECREPLAY_LOCK(sav->replay);
 		if ((sav->replay->count == ~0 ||
 		    (!(sav->flags & SADB_X_SAFLAGS_ESN) &&
 		    ((uint32_t)sav->replay->count) == ~0)) &&
 		    (sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
-			SECASVAR_UNLOCK(sav);
+			SECREPLAY_UNLOCK(sav->replay);
+			SECASVAR_RUNLOCK(sav);
 			DPRINTF(("%s: replay counter wrapped for SA %s/%08lx\n",
 			    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
 			    sizeof(buf)), (u_long) ntohl(sav->spi)));
@@ -959,9 +967,10 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 #endif
 			sav->replay->count++;
 		ah->ah_seq = htonl((uint32_t)sav->replay->count);
+		SECREPLAY_UNLOCK(sav->replay);
 	}
 	cryptoid = sav->tdb_cryptoid;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	/* Get crypto descriptors. */
 	crp = crypto_getreq(cryptoid, M_NOWAIT);
@@ -1045,8 +1054,10 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crp->crp_opaque = xd;
 
 	if (sav->flags & SADB_X_SAFLAGS_ESN && sav->replay != NULL) {
+		SECREPLAY_LOCK(sav->replay);
 		seqh = htonl((uint32_t)(sav->replay->count >> IPSEC_SEQH_SHIFT));
 		memcpy(crp->crp_esn, &seqh, sizeof(seqh));
+		SECREPLAY_UNLOCK(sav->replay);
 	}
 
 	/* These are passed as-is to the callback. */

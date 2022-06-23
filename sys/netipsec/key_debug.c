@@ -808,12 +808,15 @@ kdebug_secreplay(struct secreplay *rpl)
 {
 	int len, l;
 
+	SECREPLAY_LOCK(rpl);
+
 	IPSEC_ASSERT(rpl != NULL, ("null rpl"));
 	printf(" secreplay{ count=%lu bitmap_size=%u wsize=%u last=%lu",
 	    rpl->count, rpl->bitmap_size, rpl->wsize, rpl->last);
 
 	if (rpl->bitmap == NULL) {
 		printf("  }\n");
+		SECREPLAY_UNLOCK(rpl);
 		return;
 	}
 
@@ -823,6 +826,7 @@ kdebug_secreplay(struct secreplay *rpl)
 			printf("%u", (((rpl->bitmap)[len] >> l) & 1) ? 1 : 0);
 	}
 	printf("    }\n");
+	SECREPLAY_UNLOCK(rpl);
 }
 #endif /* IPSEC_DEBUG */
 
