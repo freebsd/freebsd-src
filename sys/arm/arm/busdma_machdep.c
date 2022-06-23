@@ -1183,10 +1183,13 @@ bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 	if ((bz = dmat->bounce_zone) != NULL) {
 		free_bounce_pages(dmat, map);
 
-		bz = dmat->bounce_zone;
-		bz->free_bpages += map->pagesreserved;
-		bz->reserved_bpages -= map->pagesreserved;
-		map->pagesreserved = 0;
+		if (map->pagesreserved != 0) {
+			mtx_lock(&bounce_lock);
+			bz->free_bpages += map->pagesreserved;
+			bz->reserved_bpages -= map->pagesreserved;
+			mtx_unlock(&bounce_lock);
+			map->pagesreserved = 0;
+		}
 		map->pagesneeded = 0;
 	}
 	map->sync_count = 0;
