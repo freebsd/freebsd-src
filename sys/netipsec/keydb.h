@@ -39,6 +39,7 @@
 #include <sys/counter.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rmlock.h>
 
 #include <netipsec/key_var.h>
 #include <opencrypto/_cryptodev.h>
@@ -157,7 +158,7 @@ struct secasvar {
 	struct seckey *key_enc;	        /* Key for Encryption */
 	struct secreplay *replay;	/* replay prevention */
 	struct secnatt *natt;		/* NAT-T config */
-	struct mtx *lock;		/* update/access lock */
+	struct rmlock *lock;		/* update/access lock */
 
 	const struct xformsw *tdb_xform;	/* transform */
 	const struct enc_xform *tdb_encalgxform;/* encoding algorithm */
@@ -187,9 +188,13 @@ struct secasvar {
 	volatile u_int refcnt;		/* reference count */
 };
 
-#define	SECASVAR_LOCK(_sav)		mtx_lock((_sav)->lock)
-#define	SECASVAR_UNLOCK(_sav)		mtx_unlock((_sav)->lock)
-#define	SECASVAR_LOCK_ASSERT(_sav)	mtx_assert((_sav)->lock, MA_OWNED)
+#define	SECASVAR_RLOCK_TRACKER		struct rm_priotracker _secas_tracker
+#define	SECASVAR_RLOCK(_sav)		rm_rlock((_sav)->lock, &_secas_tracker)
+#define	SECASVAR_RUNLOCK(_sav)		rm_runlock((_sav)->lock, &_secas_tracker)
+#define	SECASVAR_WLOCK(_sav)		rm_wlock((_sav)->lock)
+#define	SECASVAR_WUNLOCK(_sav)		rm_wunlock((_sav)->lock)
+#define	SECASVAR_LOCK_ASSERT(_sav)	rm_assert((_sav)->lock, RA_LOCKED)
+#define	SECASVAR_LOCK_WASSERT(_sav)	rm_assert((_sav)->lock, RA_WLOCKED)
 #define	SAV_ISGCM(_sav)							\
 			((_sav)->alg_enc == SADB_X_EALG_AESGCM8 ||	\
 			(_sav)->alg_enc == SADB_X_EALG_AESGCM12 ||	\
@@ -204,6 +209,7 @@ struct secasvar {
  *  (c) read only except during creation / free
  */
 struct secreplay {
+	struct mtx lock;
 	u_int64_t count;	/* (m) */
 	u_int wsize;		/* (c) window size, i.g. 4 bytes */
 	u_int64_t last;		/* (m) used by receiver */
@@ -211,6 +217,10 @@ struct secreplay {
 	u_int bitmap_size;	/* (c) size of the bitmap array */
 	int overflow;		/* (m) overflow flag */
 };
+
+#define SECREPLAY_LOCK(_r)	mtx_lock(&(_r)->lock)
+#define SECREPLAY_UNLOCK(_r)	mtx_unlock(&(_r)->lock)
+#define SECREPLAY_ASSERT(_r)	mtx_assert(&(_r)->lock, MA_OWNED)
 
 /* socket table due to send PF_KEY messages. */
 struct secreg {

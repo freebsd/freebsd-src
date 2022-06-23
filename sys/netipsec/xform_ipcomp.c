@@ -205,6 +205,8 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	caddr_t addr;
 	int error, hlen = IPCOMP_HLENGTH;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	/*
 	 * Check that the next header of the IPComp is not IPComp again, before
 	 * doing any real work.  Given it is not possible to do double
@@ -226,9 +228,9 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		goto bad;
 	}
 
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	cryptoid = sav->tdb_cryptoid;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(cryptoid, M_NOWAIT);
@@ -264,9 +266,9 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	xd->vnet = curvnet;
 	xd->cryptoid = cryptoid;
 
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	crp->crp_session = xd->cryptoid = sav->tdb_cryptoid;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	return crypto_dispatch(crp);
 bad:
@@ -405,6 +407,8 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crypto_session_t cryptoid;
 	int error, ralen, maxpacketsize;
 
+	SECASVAR_RLOCK_TRACKER;
+
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	ipcompx = sav->tdb_compalgxform;
 	IPSEC_ASSERT(ipcompx != NULL, ("null compression xform"));
@@ -470,9 +474,9 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	}
 
 	/* Ok now, we can pass to the crypto processing. */
-	SECASVAR_LOCK(sav);
+	SECASVAR_RLOCK(sav);
 	cryptoid = sav->tdb_cryptoid;
-	SECASVAR_UNLOCK(sav);
+	SECASVAR_RUNLOCK(sav);
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(cryptoid, M_NOWAIT);
