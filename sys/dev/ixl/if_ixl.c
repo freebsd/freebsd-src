@@ -314,11 +314,7 @@ TUNABLE_INT("hw.ixl.enable_iwarp", &ixl_enable_iwarp);
 SYSCTL_INT(_hw_ixl, OID_AUTO, enable_iwarp, CTLFLAG_RDTUN,
     &ixl_enable_iwarp, 0, "iWARP enabled");
 
-#if __FreeBSD_version < 1100000
-int ixl_limit_iwarp_msix = 1;
-#else
 int ixl_limit_iwarp_msix = IXL_IW_MAX_MSIX;
-#endif
 TUNABLE_INT("hw.ixl.limit_iwarp_msix", &ixl_limit_iwarp_msix);
 SYSCTL_INT(_hw_ixl, OID_AUTO, limit_iwarp_msix, CTLFLAG_RDTUN,
     &ixl_limit_iwarp_msix, 0, "Limit MSI-X vectors assigned to iWARP");
