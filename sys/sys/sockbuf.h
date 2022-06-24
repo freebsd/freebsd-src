@@ -136,10 +136,35 @@ struct sockbuf {
 		/*
 		 * PF_UNIX/SOCK_DGRAM
 		 *
-		 * Local protocol, thus any socket buffer is a receive buffer.
+		 * Local protocol, thus we should buffer on the receive side
+		 * only.  However, in one to many configuration we don't want
+		 * a single receive buffer to be shared.  So we would link
+		 * send buffers onto receive buffer.  All the fields are locked
+		 * by the receive buffer lock.
 		 */
 		struct {
+			/*
+			 * For receive buffer: own queue of this buffer for
+			 * unconnected sends.  For send buffer: queue lended
+			 * to the peer receive buffer, to isolate ourselves
+			 * from other senders.
+			 */
 			STAILQ_HEAD(, mbuf)	uxdg_mb;
+			/* For receive buffer: datagram seen via MSG_PEEK. */
+			struct mbuf		*uxdg_peeked;
+			/*
+			 * For receive buffer: queue of send buffers of
+			 * connected peers.  For send buffer: linkage on
+			 * connected peer receive buffer queue.
+			 */
+			union {
+				TAILQ_HEAD(, sockbuf)	uxdg_conns;
+				TAILQ_ENTRY(sockbuf)	uxdg_clist;
+			};
+			/* Counters for this buffer uxdg_mb chain + peeked. */
+			u_int uxdg_cc;
+			u_int uxdg_ctl;
+			u_int uxdg_mbcnt;
 		};
 	};
 };

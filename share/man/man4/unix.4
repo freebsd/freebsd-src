@@ -28,7 +28,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2021
+.Dd June 24, 2022
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -393,6 +393,62 @@ socket refer to the
 .Dv LOCAL_CREDS
 socket option.
 .El
+.Sh BUFFERING
+Due to the local nature of the
+.Ux Ns -domain
+sockets, they do not implement send buffers.
+The
+.Xr send 2
+and
+.Xr write 2
+families of system calls attempt to write data to the receive buffer of the
+destination socket.
+.Pp
+The default buffer sizes for
+.Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
+.Ux Ns -domain
+sockets can be configured with
+.Va net.local.stream
+and
+.Va net.local.seqpacket
+branches of
+.Xr sysctl 3
+MIB respectively.
+Note that setting the send buffer size (sendspace) affects only the maximum
+write size.
+.Pp
+The
+.Ux Ns -domain
+sockets of type
+.Dv SOCK_DGRAM
+are unreliable and always non-blocking for write operations.
+The default receive buffer can be configured with
+.Va net.local.dgram.recvspace .
+The maximum allowed datagram size is limited by
+.Va net.local.dgram.maxdgram .
+A
+.Dv SOCK_DGRAM
+socket that has been bound with
+.Xr bind 2
+can have multiple peers connected
+at the same time.
+The modern
+.Fx
+implementation will allocate
+.Va net.local.dgram.recvspace
+sized private buffers in the receive buffer of the bound socket for every
+connected socket, preventing a situation when a single writer can exhaust
+all of buffer space.
+Messages coming from unconnected sends using
+.Xr sendto 2
+land on the shared buffer of the receiving socket, which has the same
+size limit.
+A side effect of the implementation is that it doesn't guarantee
+that writes from different senders will arrive at the receiver in the same
+chronological order they were sent.
+The order is preserved for writes coming through a particular connection.
 .Sh SEE ALSO
 .Xr connect 2 ,
 .Xr dup 2 ,
@@ -404,7 +460,8 @@ socket option.
 .Xr setsockopt 2 ,
 .Xr socket 2 ,
 .Xr CMSG_DATA 3 ,
-.Xr intro 4
+.Xr intro 4 ,
+.Xr sysctl 8
 .Rs
 .%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
 .%B PS1

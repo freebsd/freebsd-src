@@ -170,15 +170,16 @@ ATF_TC_BODY(basic, tc)
 ATF_TC_WITHOUT_HEAD(one2many);
 ATF_TC_BODY(one2many, tc)
 {
-	int one, many[2], two;
-	char buf[1024];
+	int one, many[3], two;
+#define	BUFSIZE	1024
+	char buf[BUFSIZE], goodboy[BUFSIZE], flooder[BUFSIZE], notconn[BUFSIZE];
 
 	/* Establish one to many connection. */
 	ATF_REQUIRE((one = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
 	ATF_REQUIRE(bind(one, (struct sockaddr *)&sun, sizeof(sun)) == 0);
 	/* listen(2) shall fail. */
 	ATF_REQUIRE(listen(one, -1) != 0);
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 3; i++) {
 		ATF_REQUIRE((many[i] = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
 		ATF_REQUIRE(connect(many[i], (struct sockaddr *)&sun,
 		    sizeof(sun)) == 0);
@@ -198,22 +199,78 @@ ATF_TC_BODY(one2many, tc)
 	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == 42);
 
 	/*
-	 * Sending from an unconnected socket to a bound socket.  Connection is
-	 * created for the duration of the syscall.
+	 * Interaction between concurrent senders. New feature in FreeBSD 14.
+	 *
+	 * One sender can not fill the receive side.  Other senders can
+	 * continue operation.  Senders who don't fill their buffers are
+	 * prioritized over flooders.  Connected senders are prioritized over
+	 * unconnected.
+	 *
+	 * Disconnecting a sender that has queued data optionally preserves
+	 * the data.  Allow the data to migrate to peers buffer only if the
+	 * latter is empty.  Otherwise discard it, to prevent against
+	 * connect-fill-close attack.
 	 */
-	ATF_REQUIRE((two = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
-	ATF_REQUIRE(sendto(two, buf, 43, 0, (struct sockaddr *)&sun,
-	    sizeof(sun)) == 43);
-	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == 43);
+#define	FLOODER	13	/* for connected flooder on many[0] */
+#define	GOODBOY	42	/* for a good boy on many[1] */
+#define	NOTCONN	66	/* for sendto(2) via two */
+	goodboy[0] = GOODBOY;
+	flooder[0] = FLOODER;
+	notconn[0] = NOTCONN;
 
-	/* One sender can fill the receive side.
-	 * Current behavior which needs improvement.
-	 */
-	fill(many[0], buf, sizeof(buf));
-	ATF_REQUIRE(send(many[1], buf, sizeof(buf), 0) == -1);
-	ATF_REQUIRE(errno == ENOBUFS);
+	/* Connected priority over sendto(2). */
+	ATF_REQUIRE((two = socket(PF_UNIX, SOCK_DGRAM, 0)) > 0);
+	ATF_REQUIRE(sendto(two, notconn, BUFSIZE, 0, (struct sockaddr *)&sun,
+	    sizeof(sun)) == BUFSIZE);
+	ATF_REQUIRE(send(many[1], goodboy, BUFSIZE, 0) == BUFSIZE);
 	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
-	ATF_REQUIRE(send(many[1], buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == GOODBOY);	/* message from good boy comes first */
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == NOTCONN);	/* only then message from sendto(2) */
+
+	/* Casual sender priority over a flooder. */
+	fill(many[0], flooder, sizeof(flooder));
+	ATF_REQUIRE(send(many[0], flooder, BUFSIZE, 0) == -1);
+	ATF_REQUIRE(errno == ENOBUFS);
+	ATF_REQUIRE(send(many[1], goodboy, BUFSIZE, 0) == BUFSIZE);
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == GOODBOY);	/* message from good boy comes first */
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == FLOODER);	/* only then message from flooder */
+
+	/* Once seen, a message can't be deprioritized by any other message. */
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), MSG_PEEK) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == FLOODER); /* message from the flooder seen */
+	ATF_REQUIRE(send(many[1], goodboy, BUFSIZE, 0) == BUFSIZE);
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), MSG_PEEK) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == FLOODER); /* should be the same message */
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == FLOODER); /* now we read it out... */
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == GOODBOY); /* ... and next one is the good boy */
+
+	/* Disconnect in presence of data from not connected. */
+	ATF_REQUIRE(sendto(two, notconn, BUFSIZE, 0, (struct sockaddr *)&sun,
+	    sizeof(sun)) == BUFSIZE);
+	close(many[0]);
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == NOTCONN);	/* message from sendto() */
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), MSG_DONTWAIT) == -1);
+	ATF_REQUIRE(errno == EAGAIN);	/* data from many[0] discarded */
+
+	/* Disconnect in absence of data from not connected. */
+	ATF_REQUIRE(send(many[1], goodboy, BUFSIZE, 0) == BUFSIZE);
+	close(many[1]);
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), 0) == sizeof(buf));
+	ATF_REQUIRE(buf[0] == GOODBOY);	/* message from many[1] preserved */
+
+	/* Check that nothing leaks on close(2). */
+	ATF_REQUIRE(send(many[2], buf, 42, 0) == 42);
+	ATF_REQUIRE(send(many[2], buf, 42, 0) == 42);
+	ATF_REQUIRE(recv(one, buf, sizeof(buf), MSG_PEEK) == 42);
+	ATF_REQUIRE(sendto(two, notconn, 42, 0, (struct sockaddr *)&sun,
+	    sizeof(sun)) == 42);
+	close(one);
 }
 
 /*
