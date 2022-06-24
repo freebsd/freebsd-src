@@ -1256,6 +1256,230 @@ out:
 	return (error);
 }
 
+/*
+ * PF_UNIX/SOCK_DGRAM receive with MSG_PEEK
+ */
+static int
+uipc_peek_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **controlp, int *flagsp)
+{
+	struct mbuf *m;
+	ssize_t len;
+	int error;
+
+	SOCKBUF_UNLOCK(&so->so_rcv);
+
+	m = so->so_rcv.sb_mb;
+	KASSERT(m->m_type == MT_SONAME, ("m->m_type == %d", m->m_type));
+	if (psa != NULL)
+		*psa = sodupsockaddr(mtod(m, struct sockaddr *), M_WAITOK);
+
+	if ((m = m->m_next) == NULL) {
+		/* XXXRW: Can this happen? */
+		SOCK_IO_RECV_UNLOCK(so);
+		return (0);
+	}
+
+	/*
+	 * With MSG_PEEK the control isn't executed, just copied.
+	 */
+	while (m != NULL && m->m_type == MT_CONTROL) {
+		if (controlp != NULL) {
+			*controlp = m_copym(m, 0, m->m_len, M_WAITOK);
+			controlp = &(*controlp)->m_next;
+		}
+		m = m->m_next;
+	}
+	KASSERT(m == NULL || m->m_type == MT_DATA,
+	    ("%s: not MT_DATA mbuf %p", __func__, m));
+	while (m != NULL && uio->uio_resid > 0) {
+		len = uio->uio_resid;
+		if (len > m->m_len)
+			len = m->m_len;
+		error = uiomove(mtod(m, char *), (int)len, uio);
+		if (error) {
+			SOCK_IO_RECV_UNLOCK(so);
+			return (error);
+		}
+		if (len == m->m_len)
+			m = m->m_next;
+	}
+	SOCK_IO_RECV_UNLOCK(so);
+
+	if (m != NULL && flagsp != NULL)
+		*flagsp |= MSG_TRUNC;
+
+	return (0);
+}
+
+/*
+ * PF_UNIX/SOCK_DGRAM receive
+ */
+static int
+uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
+    struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
+{
+	struct mbuf *m, *m2;
+	int flags, error;
+	ssize_t len;
+	bool nonblock;
+
+	MPASS(mp0 == NULL);
+
+	if (psa != NULL)
+		*psa = NULL;
+	if (controlp != NULL)
+		*controlp = NULL;
+
+	flags = flagsp != NULL ? *flagsp : 0;
+	nonblock = (so->so_state & SS_NBIO) ||
+	    (flags & (MSG_DONTWAIT | MSG_NBIO));
+
+	error = SOCK_IO_RECV_LOCK(so, SBLOCKWAIT(flags));
+	if (__predict_false(error))
+		return (error);
+
+	/*
+	 * Loop blocking while waiting for a datagram.
+	 */
+	SOCK_RECVBUF_LOCK(so);
+	while ((m = so->so_rcv.sb_mb) == NULL) {
+		KASSERT(sbavail(&so->so_rcv) == 0,
+		    ("soreceive_dgram: sb_mb NULL but sbavail %u",
+		    sbavail(&so->so_rcv)));
+		if (so->so_error) {
+			error = so->so_error;
+			so->so_error = 0;
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_IO_RECV_UNLOCK(so);
+			return (error);
+		}
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE ||
+		    uio->uio_resid == 0) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_IO_RECV_UNLOCK(so);
+			return (0);
+		}
+		if (nonblock) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_IO_RECV_UNLOCK(so);
+			return (EWOULDBLOCK);
+		}
+		SBLASTRECORDCHK(&so->so_rcv);
+		SBLASTMBUFCHK(&so->so_rcv);
+		error = sbwait(so, SO_RCV);
+		if (error) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_IO_RECV_UNLOCK(so);
+			return (error);
+		}
+	}
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+
+	if (uio->uio_td)
+		uio->uio_td->td_ru.ru_msgrcv++;
+	SBLASTRECORDCHK(&so->so_rcv);
+	SBLASTMBUFCHK(&so->so_rcv);
+
+	if (__predict_false(flags & MSG_PEEK))
+		return (uipc_peek_dgram(so, psa, uio, controlp, flagsp));
+
+	/*
+	 * Advance the sb_mb, update sb_lastrecord if necessary.
+	 */
+	so->so_rcv.sb_mb = m->m_nextpkt;
+	if (so->so_rcv.sb_mb == NULL) {
+		KASSERT(so->so_rcv.sb_lastrecord == m,
+		    ("%s: lastrecord != m", __func__));
+		so->so_rcv.sb_lastrecord = NULL;
+		so->so_rcv.sb_mbtail = NULL;
+	} else if (so->so_rcv.sb_mb->m_nextpkt == NULL)
+		so->so_rcv.sb_lastrecord = so->so_rcv.sb_mb;
+
+	/*
+	 * Walk 'm's chain and free that many bytes from the socket buffer.
+	 */
+	for (m2 = m; m2 != NULL; m2 = m2->m_next)
+		sbfree(&so->so_rcv, m2);
+
+	/*
+	 * Do a few last checks before we let go of the lock.
+	 */
+	SBLASTRECORDCHK(&so->so_rcv);
+	SBLASTMBUFCHK(&so->so_rcv);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+
+	KASSERT(m->m_type == MT_SONAME, ("m->m_type == %d", m->m_type));
+	if (psa != NULL)
+		*psa = sodupsockaddr(mtod(m, struct sockaddr *), M_WAITOK);
+	m = m_free(m);
+
+	if (m == NULL) {
+		/* XXXRW: Can this happen? */
+		SOCK_IO_RECV_UNLOCK(so);
+		return (0);
+	}
+
+	/*
+	 * Packet to copyout() is now in 'm' and it is disconnected from the
+	 * queue.
+	 *
+	 * Process one or more MT_CONTROL mbufs present before any data mbufs
+	 * in the first mbuf chain on the socket buffer.  We call into the
+	 * unp_externalize() to perform externalization (or freeing if
+	 * controlp == NULL). In some cases there can be only MT_CONTROL mbufs
+	 * without MT_DATA mbufs.
+	 */
+	while (m != NULL && m->m_type == MT_CONTROL) {
+		struct mbuf *cm;
+
+		/* XXXGL: unp_externalize() is also dom_externalize() KBI and
+		 * it frees whole chain, so we must disconnect the mbuf.
+		 */
+		cm = m; m = m->m_next; cm->m_next = NULL;
+		error = unp_externalize(cm, controlp, flags);
+		if (error != 0) {
+			SOCK_IO_RECV_UNLOCK(so);
+			unp_scan(m, unp_freerights);
+			m_freem(m);
+			return (error);
+		}
+		if (controlp != NULL) {
+			while (*controlp != NULL)
+				controlp = &(*controlp)->m_next;
+		}
+	}
+	KASSERT(m == NULL || m->m_type == MT_DATA,
+	    ("%s: not MT_DATA mbuf %p", __func__, m));
+	while (m != NULL && uio->uio_resid > 0) {
+		len = uio->uio_resid;
+		if (len > m->m_len)
+			len = m->m_len;
+		error = uiomove(mtod(m, char *), (int)len, uio);
+		if (error) {
+			SOCK_IO_RECV_UNLOCK(so);
+			m_freem(m);
+			return (error);
+		}
+		if (len == m->m_len)
+			m = m_free(m);
+		else {
+			m->m_data += len;
+			m->m_len -= len;
+		}
+	}
+	SOCK_IO_RECV_UNLOCK(so);
+
+	if (m != NULL) {
+		flags |= MSG_TRUNC;
+		m_freem(m);
+	}
+	if (flagsp != NULL)
+		*flagsp |= flags;
+
+	return (0);
+}
+
 static bool
 uipc_ready_scan(struct socket *so, struct mbuf *m, int count, int *errorp)
 {
@@ -1401,7 +1625,7 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
-	.pru_soreceive =	soreceive_dgram,
+	.pru_soreceive =	uipc_soreceive_dgram,
 	.pru_close =		uipc_close,
 };
 
