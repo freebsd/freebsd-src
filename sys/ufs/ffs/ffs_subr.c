@@ -309,6 +309,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
  * Verify the filesystem values.
  */
 #define ILOG2(num) (fls(num) - 1)
+#undef CHK
 #define CHK(lhs, op, rhs, fmt)						\
 	if (lhs op rhs) {						\
 		printf("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
