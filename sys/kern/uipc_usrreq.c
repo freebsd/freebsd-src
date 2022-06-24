@@ -292,7 +292,7 @@ static int	uipc_ctloutput(struct socket *, struct sockopt *);
 static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
 static int	unp_connectat(int, struct socket *, struct sockaddr *,
-		    struct thread *);
+		    struct thread *, bool);
 static void	unp_connect2(struct socket *so, struct socket *so2, int);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
@@ -721,7 +721,7 @@ uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	int error;
 
 	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
-	error = unp_connectat(fd, so, nam, td);
+	error = unp_connectat(fd, so, nam, td, false);
 	return (error);
 }
 
@@ -1212,22 +1212,20 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	}
 	SOCKBUF_UNLOCK(&so->so_snd);
 
-	if (addr != NULL && (error = unp_connect(so, addr, td)))
-		goto out3;
-
-	UNP_PCB_LOCK(unp);
-	/*
-	 * Because connect() and send() are non-atomic in a sendto() with a
-	 * target address, it's possible that the socket will have disconnected
-	 * before the send() can run.  In that case return the slightly
-	 * counter-intuitive but otherwise correct error that the socket is not
-	 * connected.
-	 */
-	unp2 = unp_pcb_lock_peer(unp);
-	if (unp2 == NULL) {
-		UNP_PCB_UNLOCK(unp);
-		error = ENOTCONN;
-		goto out3;
+	if (addr != NULL) {
+		if ((error = unp_connectat(AT_FDCWD, so, addr, td, true)))
+			goto out3;
+		UNP_PCB_LOCK_ASSERT(unp);
+		unp2 = unp->unp_conn;
+		UNP_PCB_LOCK_ASSERT(unp2);
+	} else {
+		UNP_PCB_LOCK(unp);
+		unp2 = unp_pcb_lock_peer(unp);
+		if (unp2 == NULL) {
+			UNP_PCB_UNLOCK(unp);
+			error = ENOTCONN;
+			goto out3;
+		}
 	}
 
 	if (unp2->unp_flags & UNP_WANTCRED_MASK)
@@ -1828,12 +1826,12 @@ static int
 unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 
-	return (unp_connectat(AT_FDCWD, so, nam, td));
+	return (unp_connectat(AT_FDCWD, so, nam, td, false));
 }
 
 static int
 unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
-    struct thread *td)
+    struct thread *td, bool return_locked)
 {
 	struct mtx *vplock;
 	struct sockaddr_un *soun;
@@ -1983,11 +1981,19 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
 	    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
 	unp->unp_flags &= ~UNP_CONNECTING;
-	unp_pcb_unlock_pair(unp, unp2);
+	if (!return_locked)
+		unp_pcb_unlock_pair(unp, unp2);
 bad2:
 	mtx_unlock(vplock);
 bad:
 	if (vp != NULL) {
+		/*
+		 * If we are returning locked (called via uipc_sosend_dgram()),
+		 * we need to be sure that vput() won't sleep.  This is
+		 * guaranteed by VOP_UNP_CONNECT() call above and unp2 lock.
+		 * SOCK_STREAM/SEQPACKET can't request return_locked (yet).
+		 */
+		MPASS(!(return_locked && connreq));
 		vput(vp);
 	}
 	free(sa, M_SONAME);
