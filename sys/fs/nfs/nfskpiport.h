@@ -38,6 +38,5 @@
 typedef	struct mount *		mount_t;
 
 typedef struct vnode *		vnode_t;
-#define	vnode_vtype(v)		((v)->v_type)
 
 #endif	/* _NFS_NFSKPIPORT_H */
