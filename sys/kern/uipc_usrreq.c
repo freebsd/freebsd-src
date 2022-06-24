@@ -1008,96 +1008,90 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		goto release;
 
 	unp2 = NULL;
-	switch (so->so_type) {
-	case SOCK_SEQPACKET:
-	case SOCK_STREAM:
-		if ((so->so_state & SS_ISCONNECTED) == 0) {
-			if (nam != NULL) {
-				error = unp_connect(so, nam, td);
-				if (error != 0)
-					break;
-			} else {
-				error = ENOTCONN;
-				break;
-			}
-		}
-
-		UNP_PCB_LOCK(unp);
-		if ((unp2 = unp_pcb_lock_peer(unp)) == NULL) {
-			UNP_PCB_UNLOCK(unp);
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
+		if (nam != NULL) {
+			if ((error = unp_connect(so, nam, td)) != 0)
+				goto out;
+		} else {
 			error = ENOTCONN;
-			break;
-		} else if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-			unp_pcb_unlock_pair(unp, unp2);
-			error = EPIPE;
-			break;
+			goto out;
 		}
+	}
+
+	UNP_PCB_LOCK(unp);
+	if ((unp2 = unp_pcb_lock_peer(unp)) == NULL) {
 		UNP_PCB_UNLOCK(unp);
-		if ((so2 = unp2->unp_socket) == NULL) {
-			UNP_PCB_UNLOCK(unp2);
-			error = ENOTCONN;
-			break;
-		}
-		SOCKBUF_LOCK(&so2->so_rcv);
-		if (unp2->unp_flags & UNP_WANTCRED_MASK) {
-			/*
-			 * Credentials are passed only once on SOCK_STREAM and
-			 * SOCK_SEQPACKET (LOCAL_CREDS => WANTCRED_ONESHOT), or
-			 * forever (LOCAL_CREDS_PERSISTENT => WANTCRED_ALWAYS).
-			 */
-			control = unp_addsockcred(td, control, unp2->unp_flags);
-			unp2->unp_flags &= ~UNP_WANTCRED_ONESHOT;
-		}
-
-		/*
-		 * Send to paired receive port and wake up readers.  Don't
-		 * check for space available in the receive buffer if we're
-		 * attaching ancillary data; Unix domain sockets only check
-		 * for space in the sending sockbuf, and that check is
-		 * performed one level up the stack.  At that level we cannot
-		 * precisely account for the amount of buffer space used
-		 * (e.g., because control messages are not yet internalized).
-		 */
-		switch (so->so_type) {
-		case SOCK_STREAM:
-			if (control != NULL) {
-				sbappendcontrol_locked(&so2->so_rcv, m,
-				    control, flags);
-				control = NULL;
-			} else
-				sbappend_locked(&so2->so_rcv, m, flags);
-			break;
-
-		case SOCK_SEQPACKET:
-			if (sbappendaddr_nospacecheck_locked(&so2->so_rcv,
-			    &sun_noname, m, control))
-				control = NULL;
-			break;
-		}
-
-		mbcnt = so2->so_rcv.sb_mbcnt;
-		sbcc = sbavail(&so2->so_rcv);
-		if (sbcc)
-			sorwakeup_locked(so2);
-		else
-			SOCKBUF_UNLOCK(&so2->so_rcv);
-
-		/*
-		 * The PCB lock on unp2 protects the SB_STOP flag.  Without it,
-		 * it would be possible for uipc_rcvd to be called at this
-		 * point, drain the receiving sockbuf, clear SB_STOP, and then
-		 * we would set SB_STOP below.  That could lead to an empty
-		 * sockbuf having SB_STOP set
-		 */
-		SOCKBUF_LOCK(&so->so_snd);
-		if (sbcc >= so->so_snd.sb_hiwat || mbcnt >= so->so_snd.sb_mbmax)
-			so->so_snd.sb_flags |= SB_STOP;
-		SOCKBUF_UNLOCK(&so->so_snd);
+		error = ENOTCONN;
+		goto out;
+	} else if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+		unp_pcb_unlock_pair(unp, unp2);
+		error = EPIPE;
+		goto out;
+	}
+	UNP_PCB_UNLOCK(unp);
+	if ((so2 = unp2->unp_socket) == NULL) {
 		UNP_PCB_UNLOCK(unp2);
-		m = NULL;
+		error = ENOTCONN;
+		goto out;
+	}
+	SOCKBUF_LOCK(&so2->so_rcv);
+	if (unp2->unp_flags & UNP_WANTCRED_MASK) {
+		/*
+		 * Credentials are passed only once on SOCK_STREAM and
+		 * SOCK_SEQPACKET (LOCAL_CREDS => WANTCRED_ONESHOT), or
+		 * forever (LOCAL_CREDS_PERSISTENT => WANTCRED_ALWAYS).
+		 */
+		control = unp_addsockcred(td, control, unp2->unp_flags);
+		unp2->unp_flags &= ~UNP_WANTCRED_ONESHOT;
+	}
+
+	/*
+	 * Send to paired receive port and wake up readers.  Don't
+	 * check for space available in the receive buffer if we're
+	 * attaching ancillary data; Unix domain sockets only check
+	 * for space in the sending sockbuf, and that check is
+	 * performed one level up the stack.  At that level we cannot
+	 * precisely account for the amount of buffer space used
+	 * (e.g., because control messages are not yet internalized).
+	 */
+	switch (so->so_type) {
+	case SOCK_STREAM:
+		if (control != NULL) {
+			sbappendcontrol_locked(&so2->so_rcv, m,
+			    control, flags);
+			control = NULL;
+		} else
+			sbappend_locked(&so2->so_rcv, m, flags);
+		break;
+
+	case SOCK_SEQPACKET:
+		if (sbappendaddr_nospacecheck_locked(&so2->so_rcv,
+		    &sun_noname, m, control))
+			control = NULL;
 		break;
 	}
 
+	mbcnt = so2->so_rcv.sb_mbcnt;
+	sbcc = sbavail(&so2->so_rcv);
+	if (sbcc)
+		sorwakeup_locked(so2);
+	else
+		SOCKBUF_UNLOCK(&so2->so_rcv);
+
+	/*
+	 * The PCB lock on unp2 protects the SB_STOP flag.  Without it,
+	 * it would be possible for uipc_rcvd to be called at this
+	 * point, drain the receiving sockbuf, clear SB_STOP, and then
+	 * we would set SB_STOP below.  That could lead to an empty
+	 * sockbuf having SB_STOP set
+	 */
+	SOCKBUF_LOCK(&so->so_snd);
+	if (sbcc >= so->so_snd.sb_hiwat || mbcnt >= so->so_snd.sb_mbmax)
+		so->so_snd.sb_flags |= SB_STOP;
+	SOCKBUF_UNLOCK(&so->so_snd);
+	UNP_PCB_UNLOCK(unp2);
+	m = NULL;
+out:
 	/*
 	 * PRUS_EOF is equivalent to pru_send followed by pru_shutdown.
 	 */
