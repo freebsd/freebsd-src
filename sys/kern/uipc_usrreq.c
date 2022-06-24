@@ -302,11 +302,13 @@ static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
 static void	unp_discard(struct file *);
 static void	unp_freerights(struct filedescent **, int);
-static int	unp_internalize(struct mbuf **, struct thread *);
+static int	unp_internalize(struct mbuf **, struct thread *,
+		    struct mbuf **, u_int *, u_int *);
 static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(struct mbuf *, struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
-static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *, int);
+static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *,
+		    int, struct mbuf **, u_int *, u_int *);
 static void	unp_process_defers(void * __unused, int);
 
 static void
@@ -1014,7 +1016,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		error = EOPNOTSUPP;
 		goto release;
 	}
-	if (control != NULL && (error = unp_internalize(&control, td)))
+	if (control != NULL &&
+	    (error = unp_internalize(&control, td, NULL, NULL, NULL)))
 		goto release;
 
 	unp2 = NULL;
@@ -1051,7 +1054,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * SOCK_SEQPACKET (LOCAL_CREDS => WANTCRED_ONESHOT), or
 		 * forever (LOCAL_CREDS_PERSISTENT => WANTCRED_ALWAYS).
 		 */
-		control = unp_addsockcred(td, control, unp2->unp_flags);
+		control = unp_addsockcred(td, control, unp2->unp_flags, NULL,
+		    NULL, NULL);
 		unp2->unp_flags &= ~UNP_WANTCRED_ONESHOT;
 	}
 
@@ -1131,7 +1135,13 @@ release:
  *
  * Allocate a record consisting of 3 mbufs in the sequence of
  * from -> control -> data and append it to the socket buffer.
+ *
+ * The first mbuf carries sender's name and is a pkthdr that stores
+ * overall length of datagram, its memory consumption and control length.
  */
+#define	ctllen	PH_loc.thirtytwo[1]
+_Static_assert(offsetof(struct pkthdr, memlen) + sizeof(u_int) <=
+    offsetof(struct pkthdr, ctllen), "unix/dgram can not store ctllen");
 static int
 uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *m, struct mbuf *c, int flags, struct thread *td)
@@ -1140,14 +1150,16 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	const struct sockaddr *from;
 	struct socket *so2;
 	struct sockbuf *sb;
-	struct mbuf *f;
-	u_int cc;
+	struct mbuf *f, *clast;
+	u_int cc, ctl, mbcnt;
+	u_int dcc __diagused, dctl __diagused, dmbcnt __diagused;
 	int error;
 
 	MPASS((uio != NULL && m == NULL) || (m != NULL && uio == NULL));
 
 	error = 0;
 	f = NULL;
+	ctl = 0;
 
 	if (__predict_false(flags & MSG_OOB)) {
 		error = EOPNOTSUPP;
@@ -1163,8 +1175,11 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 			error = EFAULT;
 			goto out;
 		}
-		f = m_get(M_WAITOK, MT_SONAME);
-		if (c != NULL && (error = unp_internalize(&c, td)))
+		f = m_gethdr(M_WAITOK, MT_SONAME);
+		cc = m->m_pkthdr.len;
+		mbcnt = MSIZE + m->m_pkthdr.memlen;
+		if (c != NULL &&
+		    (error = unp_internalize(&c, td, &clast, &ctl, &mbcnt)))
 			goto out;
 	} else {
 		/* pru_sosend() with mbuf usually is a kernel thread. */
@@ -1177,7 +1192,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 			error = EMSGSIZE;
 			goto out;
 		}
-		if ((f = m_get(M_NOWAIT, MT_SONAME)) == NULL) {
+		if ((f = m_gethdr(M_NOWAIT, MT_SONAME)) == NULL) {
 			error = ENOBUFS;
 			goto out;
 		}
@@ -1189,6 +1204,14 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		m->m_pkthdr.csum_flags = 0;
 		m->m_pkthdr.fibnum = 0;
 		m->m_pkthdr.rsstype = 0;
+
+		cc = m->m_pkthdr.len;
+		mbcnt = MSIZE;
+		for (struct mbuf *mb = m; mb != NULL; mb = mb->m_next) {
+			mbcnt += MSIZE;
+			if (mb->m_flags & M_EXT)
+				mbcnt += mb->m_ext.ext_size;
+		}
 	}
 
 	unp = sotounpcb(so);
@@ -1240,7 +1263,8 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	}
 
 	if (unp2->unp_flags & UNP_WANTCRED_MASK)
-		c = unp_addsockcred(td, c, unp2->unp_flags);
+		c = unp_addsockcred(td, c, unp2->unp_flags, &clast, &ctl,
+		    &mbcnt);
 	if (unp->unp_addr != NULL)
 		from = (struct sockaddr *)unp->unp_addr;
 	else
@@ -1248,36 +1272,55 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	f->m_len = from->sa_len;
 	MPASS(from->sa_len <= MLEN);
 	bcopy(from, mtod(f, void *), from->sa_len);
-	cc = f->m_len + m->m_pkthdr.len;
+	ctl += f->m_len;
 
-	/* Concatenate: from -> control -> data. */
+	/*
+	 * Concatenate mbufs: from -> control -> data.
+	 * Save overall cc and mbcnt in "from" mbuf.
+	 */
 	if (c != NULL) {
-		struct mbuf *clast;
+#ifdef INVARIANTS
+		struct mbuf *mc;
 
-		cc += m_length(c, &clast);
+		for (mc = c; mc->m_next != NULL; mc = mc->m_next);
+		MPASS(mc == clast);
+#endif
 		f->m_next = c;
 		clast->m_next = m;
 		c = NULL;
 	} else
 		f->m_next = m;
 	m = NULL;
+#ifdef INVARIANTS
+	dcc = dctl = dmbcnt = 0;
+	for (struct mbuf *mb = f; mb != NULL; mb = mb->m_next) {
+		if (mb->m_type == MT_DATA)
+			dcc += mb->m_len;
+		else
+			dctl += mb->m_len;
+		dmbcnt += MSIZE;
+		if (mb->m_flags & M_EXT)
+			dmbcnt += mb->m_ext.ext_size;
+	}
+	MPASS(dcc == cc);
+	MPASS(dctl == ctl);
+	MPASS(dmbcnt == mbcnt);
+#endif
+	f->m_pkthdr.len = cc + ctl;
+	f->m_pkthdr.memlen = mbcnt;
+	f->m_pkthdr.ctllen = ctl;
 
 	so2 = unp2->unp_socket;
 	sb = &so2->so_rcv;
 	SOCK_RECVBUF_LOCK(so2);
 	if (cc <= sbspace(sb)) {
 		STAILQ_INSERT_TAIL(&sb->uxdg_mb, f, m_stailqpkt);
-		/* XXX: would be nice if m_uiotombuf() returns count. */
-		for (; f != NULL; f = f->m_next) {
-			if (f->m_type != MT_DATA)
-				sb->sb_ctl += f->m_len;
-			sb->sb_mbcnt += MSIZE;
-			if (f->m_flags & M_EXT)
-				sb->sb_mbcnt += f->m_ext.ext_size;
-		}
-		sb->sb_acc += cc;
-		sb->sb_ccc += cc;
+		sb->sb_acc += cc + ctl;
+		sb->sb_ccc += cc + ctl;
+		sb->sb_ctl += ctl;
+		sb->sb_mbcnt += mbcnt;
 		sorwakeup_locked(so2);
+		f = NULL;
 	} else {
 		soroverflow_locked(so2);
 		error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
@@ -1366,7 +1409,7 @@ static int
 uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
-	struct mbuf *m, *m2;
+	struct mbuf *m;
 	int flags, error;
 	ssize_t len;
 	bool nonblock;
@@ -1419,7 +1462,9 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			return (error);
 		}
 	}
-	SOCK_RECVBUF_LOCK_ASSERT(so);
+
+	M_ASSERTPKTHDR(m);
+	KASSERT(m->m_type == MT_SONAME, ("m->m_type == %d", m->m_type));
 
 	if (uio->uio_td)
 		uio->uio_td->td_ru.ru_msgrcv++;
@@ -1428,18 +1473,12 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		return (uipc_peek_dgram(so, psa, uio, controlp, flagsp));
 
 	STAILQ_REMOVE_HEAD(&so->so_rcv.uxdg_mb, m_stailqpkt);
-	for (m2 = m; m2 != NULL; m2 = m2->m_next) {
-		if (m2->m_type != MT_DATA)
-			so->so_rcv.sb_ctl -= m2->m_len;
-		so->so_rcv.sb_acc -= m2->m_len;
-		so->so_rcv.sb_ccc -= m2->m_len;
-		so->so_rcv.sb_mbcnt -= MSIZE;
-		if (m2->m_flags & M_EXT)
-			so->so_rcv.sb_mbcnt -= m2->m_ext.ext_size;
-	}
+	so->so_rcv.sb_acc -= m->m_pkthdr.len;
+	so->so_rcv.sb_ccc -= m->m_pkthdr.len;
+	so->so_rcv.sb_ctl -= m->m_pkthdr.ctllen;
+	so->so_rcv.sb_mbcnt -= m->m_pkthdr.memlen;
 	SOCK_RECVBUF_UNLOCK(so);
 
-	KASSERT(m->m_type == MT_SONAME, ("m->m_type == %d", m->m_type));
 	if (psa != NULL)
 		*psa = sodupsockaddr(mtod(m, struct sockaddr *), M_WAITOK);
 	m = m_free(m);
@@ -2510,7 +2549,8 @@ unp_internalize_cleanup_rights(struct mbuf *control)
 }
 
 static int
-unp_internalize(struct mbuf **controlp, struct thread *td)
+unp_internalize(struct mbuf **controlp, struct thread *td,
+    struct mbuf **clast, u_int *space, u_int *mbcnt)
 {
 	struct mbuf *control, **initial_controlp;
 	struct proc *p;
@@ -2527,6 +2567,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	int i, j, error, *fdp, oldfds;
 	u_int newlen;
 
+	MPASS((*controlp)->m_next == NULL); /* COMPAT_OLDSOCK may violate */
 	UNP_LINK_UNLOCK_ASSERT();
 
 	p = td->td_proc;
@@ -2672,6 +2713,13 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			goto out;
 		}
 
+		if (space != NULL) {
+			*space += (*controlp)->m_len;
+			*mbcnt += MSIZE;
+			if ((*controlp)->m_flags & M_EXT)
+				*mbcnt += (*controlp)->m_ext.ext_size;
+			*clast = *controlp;
+		}
 		controlp = &(*controlp)->m_next;
 	}
 	if (clen > 0)
@@ -2685,7 +2733,8 @@ out:
 }
 
 static struct mbuf *
-unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
+unp_addsockcred(struct thread *td, struct mbuf *control, int mode,
+    struct mbuf **clast, u_int *space, u_int *mbcnt)
 {
 	struct mbuf *m, *n, *n_prev;
 	const struct cmsghdr *cm;
@@ -2704,6 +2753,7 @@ unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
 	m = sbcreatecontrol(NULL, ctrlsz, cmsgtype, SOL_SOCKET, M_NOWAIT);
 	if (m == NULL)
 		return (control);
+	MPASS((m->m_flags & M_EXT) == 0 && m->m_next == NULL);
 
 	if (mode & UNP_WANTCRED_ALWAYS) {
 		struct sockcred2 *sc;
@@ -2745,6 +2795,25 @@ unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
 					control = n->m_next;
 				else
 					n_prev->m_next = n->m_next;
+				if (space != NULL) {
+					MPASS(*space >= n->m_len);
+					*space -= n->m_len;
+					MPASS(*mbcnt >= MSIZE);
+					*mbcnt -= MSIZE;
+					if (n->m_flags & M_EXT) {
+						MPASS(*mbcnt >=
+						    n->m_ext.ext_size);
+						*mbcnt -= n->m_ext.ext_size;
+					}
+					MPASS(clast);
+					if (*clast == n) {
+						MPASS(n->m_next == NULL);
+						if (n_prev == NULL)
+							*clast = m;
+						else
+							*clast = n_prev;
+					}
+				}
 				n = m_free(n);
 			} else {
 				n_prev = n;
@@ -2754,6 +2823,12 @@ unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
 
 	/* Prepend it to the head. */
 	m->m_next = control;
+	if (space != NULL) {
+		*space += m->m_len;
+		*mbcnt += MSIZE;
+		if (control == NULL)
+			*clast = m;
+	}
 	return (m);
 }
 
