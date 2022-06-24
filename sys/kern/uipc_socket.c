@@ -418,8 +418,6 @@ soalloc(struct vnet *vnet)
 	 * a feature to change class of an existing lock, so we use DUPOK.
 	 */
 	mtx_init(&so->so_lock, "socket", NULL, MTX_DEF | MTX_DUPOK);
-	so->so_snd.sb_mtx = &so->so_snd_mtx;
-	so->so_rcv.sb_mtx = &so->so_rcv_mtx;
 	mtx_init(&so->so_snd_mtx, "so_snd", NULL, MTX_DEF);
 	mtx_init(&so->so_rcv_mtx, "so_rcv", NULL, MTX_DEF);
 	so->so_rcv.sb_sel = &so->so_rdsel;
@@ -557,6 +555,10 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
 	    so_wrknl_assert_lock);
+	if ((prp->pr_flags & PR_SOCKBUF) == 0) {
+		so->so_snd.sb_mtx = &so->so_snd_mtx;
+		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
+	}
 	/*
 	 * Auto-sizing of socket buffers is managed by the protocols and
 	 * the appropriate flags must be set in the pru_attach function.
@@ -755,6 +757,10 @@ sonewconn(struct socket *head, int connstatus)
 		log(LOG_DEBUG, "%s: pcb %p: soreserve() failed\n",
 		    __func__, head->so_pcb);
 		return (NULL);
+	}
+	if ((so->so_proto->pr_flags & PR_SOCKBUF) == 0) {
+		so->so_snd.sb_mtx = &so->so_snd_mtx;
+		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
 	}
 	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sodealloc(so);
@@ -1207,7 +1213,7 @@ sofree(struct socket *so)
 	 * socket exist anywhere else in the stack.  Therefore, no locks need
 	 * to be acquired or held.
 	 */
-	if (!SOLISTENING(so)) {
+	if (!(pr->pr_flags & PR_SOCKBUF) && !SOLISTENING(so)) {
 		sbdestroy(so, SO_SND);
 		sbdestroy(so, SO_RCV);
 	}

@@ -114,6 +114,8 @@ struct protosw {
  *	and the protocol understands the MSG_EOF flag.  The first property is
  *	is only relevant if PR_CONNREQUIRED is set (otherwise sendto is allowed
  *	anyhow).
+ * PR_SOCKBUF requires protocol to initialize and destroy its socket buffers
+ * in its pr_attach and pr_detach.
  */
 #define	PR_ATOMIC	0x01		/* exchange atomic messages only */
 #define	PR_ADDR		0x02		/* addresses given with messages */
@@ -123,6 +125,7 @@ struct protosw {
 #define PR_IMPLOPCL	0x20		/* implied open/close */
 #define	PR_LASTHDR	0x40		/* enforce ipsec policy; last header */
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
+#define	PR_SOCKBUF	0x100		/* private implementation of buffers */
 
 /*
  * In earlier BSD network stacks, a single pr_usrreq() function pointer was
