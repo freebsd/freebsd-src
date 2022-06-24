@@ -40,10 +40,6 @@ $FreeBSD$
 #define MXGE_EEPROM_STRINGS_SIZE 256
 #define MXGE_MAX_SEND_DESC 128
 
-#define MXGE_VIRT_JUMBOS 0
-
-#define IFNET_BUF_RING 1
-
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
@@ -146,9 +142,7 @@ typedef struct
 typedef struct
 {
 	struct mtx mtx;
-#ifdef IFNET_BUF_RING
 	struct buf_ring *br;
-#endif
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
 	volatile uint32_t *send_go;		/* doorbell for sendq */
 	volatile uint32_t *send_stop;		/* doorbell for sendq */
