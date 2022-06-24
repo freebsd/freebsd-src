@@ -133,6 +133,14 @@ struct sockbuf {
 			uint64_t sb_tls_seqno;	/* TLS seqno */
 			struct	ktls_session *sb_tls_info; /* TLS state */
 		};
+		/*
+		 * PF_UNIX/SOCK_DGRAM
+		 *
+		 * Local protocol, thus any socket buffer is a receive buffer.
+		 */
+		struct {
+			STAILQ_HEAD(, mbuf)	uxdg_mb;
+		};
 	};
 };
 

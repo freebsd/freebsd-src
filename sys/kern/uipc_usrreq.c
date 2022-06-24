@@ -434,7 +434,8 @@ static struct protosw localsw[] = {
 {
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&localdomain,
-	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS|PR_CAPATTACH,
+	.pr_flags =		PR_ATOMIC | PR_ADDR |PR_RIGHTS | PR_CAPATTACH |
+				    PR_SOCKBUF,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_dgram
 },
@@ -528,6 +529,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 			break;
 
 		case SOCK_DGRAM:
+			STAILQ_INIT(&so->so_rcv.uxdg_mb);
 			sendspace = unpdg_maxdgram;
 			recvspace = unpdg_recvspace;
 			break;
@@ -850,6 +852,14 @@ uipc_detach(struct socket *so)
 	}
 	if (local_unp_rights)
 		taskqueue_enqueue_timeout(taskqueue_thread, &unp_gc_task, -1);
+
+	switch (so->so_type) {
+	case SOCK_DGRAM:
+		/*
+		 * Everything should have been unlinked/freed by unp_dispose().
+		 */
+		MPASS(STAILQ_EMPTY(&so->so_rcv.uxdg_mb));
+	}
 }
 
 static int
@@ -1130,8 +1140,9 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	const struct sockaddr *from;
 	struct socket *so2;
 	struct sockbuf *sb;
-	struct mbuf *f, *clast;
-	int cc, error;
+	struct mbuf *f;
+	u_int cc;
+	int error;
 
 	MPASS((uio != NULL && m == NULL) || (m != NULL && uio == NULL));
 
@@ -1193,7 +1204,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
 		goto out2;
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		SOCK_SENDBUF_UNLOCK(so);
 		error = EPIPE;
@@ -1202,15 +1213,15 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	if (so->so_error != 0) {
 		error = so->so_error;
 		so->so_error = 0;
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_SENDBUF_UNLOCK(so);
 		goto out3;
 	}
 	if (((so->so_state & SS_ISCONNECTED) == 0) && addr == NULL) {
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_SENDBUF_UNLOCK(so);
 		error = EDESTADDRREQ;
 		goto out3;
 	}
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_SENDBUF_UNLOCK(so);
 
 	if (addr != NULL) {
 		if ((error = unp_connectat(AT_FDCWD, so, addr, td, true)))
@@ -1238,34 +1249,35 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	MPASS(from->sa_len <= MLEN);
 	bcopy(from, mtod(f, void *), from->sa_len);
 	cc = f->m_len + m->m_pkthdr.len;
-	if (c != NULL)
+
+	/* Concatenate: from -> control -> data. */
+	if (c != NULL) {
+		struct mbuf *clast;
+
 		cc += m_length(c, &clast);
+		f->m_next = c;
+		clast->m_next = m;
+		c = NULL;
+	} else
+		f->m_next = m;
+	m = NULL;
+
 	so2 = unp2->unp_socket;
 	sb = &so2->so_rcv;
-	SOCKBUF_LOCK(sb);
+	SOCK_RECVBUF_LOCK(so2);
 	if (cc <= sbspace(sb)) {
-		/* Concatenate: from -> control -> data. */
-		if (c != NULL) {
-			f->m_next = c;
-			clast->m_next = m;
-		} else
-			f->m_next = m;
-		m = f;
-		/* Reusing f as iterator. */
-		for (f = m; f->m_next != NULL; f = f->m_next)
-			sballoc(sb, f);
-		sballoc(sb, f);
-		sb->sb_mbtail = f;
-		/* SBLINKRECORD */
-		if (sb->sb_lastrecord != NULL)
-			sb->sb_lastrecord->m_nextpkt = m;
-		else
-			sb->sb_mb = m;
-		sb->sb_lastrecord = m;
-		SBLASTMBUFCHK(sb);
-		SBLASTRECORDCHK(sb);
+		STAILQ_INSERT_TAIL(&sb->uxdg_mb, f, m_stailqpkt);
+		/* XXX: would be nice if m_uiotombuf() returns count. */
+		for (; f != NULL ; f = f->m_next) {
+			if (f->m_type != MT_DATA)
+				sb->sb_ctl += f->m_len;
+			sb->sb_mbcnt += MSIZE;
+			if (f->m_flags & M_EXT)
+				sb->sb_mbcnt += f->m_ext.ext_size;
+		}
+		sb->sb_acc += cc;
+		sb->sb_ccc += cc;
 		sorwakeup_locked(so2);
-		f = m = c = NULL;
 	} else {
 		soroverflow_locked(so2);
 		error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
@@ -1285,7 +1297,7 @@ out2:
 		unp_scan(c, unp_freerights);
 out:
 	if (f)
-		m_free(f);
+		m_freem(f);
 	if (c)
 		m_freem(c);
 	if (m)
@@ -1305,18 +1317,15 @@ uipc_peek_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	ssize_t len;
 	int error;
 
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCK_RECVBUF_UNLOCK(so);
 
-	m = so->so_rcv.sb_mb;
+	m = STAILQ_FIRST(&so->so_rcv.uxdg_mb);
 	KASSERT(m->m_type == MT_SONAME, ("m->m_type == %d", m->m_type));
 	if (psa != NULL)
 		*psa = sodupsockaddr(mtod(m, struct sockaddr *), M_WAITOK);
 
-	if ((m = m->m_next) == NULL) {
-		/* XXXRW: Can this happen? */
-		SOCK_IO_RECV_UNLOCK(so);
-		return (0);
-	}
+	m = m->m_next;
+	KASSERT(m, ("%s: no data or control after soname", __func__));
 
 	/*
 	 * With MSG_PEEK the control isn't executed, just copied.
@@ -1381,82 +1390,60 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * Loop blocking while waiting for a datagram.
 	 */
 	SOCK_RECVBUF_LOCK(so);
-	while ((m = so->so_rcv.sb_mb) == NULL) {
+	while ((m = STAILQ_FIRST(&so->so_rcv.uxdg_mb)) == NULL) {
 		KASSERT(sbavail(&so->so_rcv) == 0,
 		    ("soreceive_dgram: sb_mb NULL but sbavail %u",
 		    sbavail(&so->so_rcv)));
 		if (so->so_error) {
 			error = so->so_error;
 			so->so_error = 0;
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK(so);
 			SOCK_IO_RECV_UNLOCK(so);
 			return (error);
 		}
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE ||
 		    uio->uio_resid == 0) {
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK(so);
 			SOCK_IO_RECV_UNLOCK(so);
 			return (0);
 		}
 		if (nonblock) {
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK(so);
 			SOCK_IO_RECV_UNLOCK(so);
 			return (EWOULDBLOCK);
 		}
-		SBLASTRECORDCHK(&so->so_rcv);
-		SBLASTMBUFCHK(&so->so_rcv);
 		error = sbwait(so, SO_RCV);
 		if (error) {
-			SOCKBUF_UNLOCK(&so->so_rcv);
+			SOCK_RECVBUF_UNLOCK(so);
 			SOCK_IO_RECV_UNLOCK(so);
 			return (error);
 		}
 	}
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+	SOCK_RECVBUF_LOCK_ASSERT(so);
 
 	if (uio->uio_td)
 		uio->uio_td->td_ru.ru_msgrcv++;
-	SBLASTRECORDCHK(&so->so_rcv);
-	SBLASTMBUFCHK(&so->so_rcv);
 
 	if (__predict_false(flags & MSG_PEEK))
 		return (uipc_peek_dgram(so, psa, uio, controlp, flagsp));
 
-	/*
-	 * Advance the sb_mb, update sb_lastrecord if necessary.
-	 */
-	so->so_rcv.sb_mb = m->m_nextpkt;
-	if (so->so_rcv.sb_mb == NULL) {
-		KASSERT(so->so_rcv.sb_lastrecord == m,
-		    ("%s: lastrecord != m", __func__));
-		so->so_rcv.sb_lastrecord = NULL;
-		so->so_rcv.sb_mbtail = NULL;
-	} else if (so->so_rcv.sb_mb->m_nextpkt == NULL)
-		so->so_rcv.sb_lastrecord = so->so_rcv.sb_mb;
-
-	/*
-	 * Walk 'm's chain and free that many bytes from the socket buffer.
-	 */
-	for (m2 = m; m2 != NULL; m2 = m2->m_next)
-		sbfree(&so->so_rcv, m2);
-
-	/*
-	 * Do a few last checks before we let go of the lock.
-	 */
-	SBLASTRECORDCHK(&so->so_rcv);
-	SBLASTMBUFCHK(&so->so_rcv);
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	STAILQ_REMOVE_HEAD(&so->so_rcv.uxdg_mb, m_stailqpkt);
+	for (m2 = m; m2 != NULL; m2 = m2->m_next) {
+		if (m2->m_type != MT_DATA)
+			so->so_rcv.sb_ctl -= m2->m_len;
+		so->so_rcv.sb_acc -= m2->m_len;
+		so->so_rcv.sb_ccc -= m2->m_len;
+		so->so_rcv.sb_mbcnt -= MSIZE;
+		if (m2->m_flags & M_EXT)
+			so->so_rcv.sb_mbcnt -= m2->m_ext.ext_size;
+	}
+	SOCK_RECVBUF_UNLOCK(so);
 
 	KASSERT(m->m_type == MT_SONAME, ("m->m_type == %d", m->m_type));
 	if (psa != NULL)
 		*psa = sodupsockaddr(mtod(m, struct sockaddr *), M_WAITOK);
 	m = m_free(m);
-
-	if (m == NULL) {
-		/* XXXRW: Can this happen? */
-		SOCK_IO_RECV_UNLOCK(so);
-		return (0);
-	}
+	KASSERT(m, ("%s: no data or control after soname", __func__));
 
 	/*
 	 * Packet to copyout() is now in 'm' and it is disconnected from the
@@ -2916,6 +2903,28 @@ unp_restore_undead_ref(struct filedescent **fdep, int fdcount)
 }
 
 static void
+unp_scan_socket(struct socket *so, void (*op)(struct filedescent **, int))
+{
+
+	SOCK_LOCK_ASSERT(so);
+
+	if (sotounpcb(so)->unp_gcflag & UNPGC_IGNORE_RIGHTS)
+		return;
+
+	SOCK_RECVBUF_LOCK(so);
+	switch (so->so_type) {
+	case SOCK_DGRAM:
+		unp_scan(STAILQ_FIRST(&so->so_rcv.uxdg_mb), op);
+		break;
+	case SOCK_STREAM:
+	case SOCK_SEQPACKET:
+		unp_scan(so->so_rcv.sb_mb, op);
+		break;
+	}
+	SOCK_RECVBUF_UNLOCK(so);
+}
+
+static void
 unp_gc_scan(struct unpcb *unp, void (*op)(struct filedescent **, int))
 {
 	struct socket *so, *soa;
@@ -2926,22 +2935,13 @@ unp_gc_scan(struct unpcb *unp, void (*op)(struct filedescent **, int))
 		/*
 		 * Mark all sockets in our accept queue.
 		 */
-		TAILQ_FOREACH(soa, &so->sol_comp, so_list) {
-			if (sotounpcb(soa)->unp_gcflag & UNPGC_IGNORE_RIGHTS)
-				continue;
-			SOCKBUF_LOCK(&soa->so_rcv);
-			unp_scan(soa->so_rcv.sb_mb, op);
-			SOCKBUF_UNLOCK(&soa->so_rcv);
-		}
+		TAILQ_FOREACH(soa, &so->sol_comp, so_list)
+			unp_scan_socket(soa, op);
 	} else {
 		/*
 		 * Mark all sockets we reference with RIGHTS.
 		 */
-		if ((unp->unp_gcflag & UNPGC_IGNORE_RIGHTS) == 0) {
-			SOCKBUF_LOCK(&so->so_rcv);
-			unp_scan(so->so_rcv.sb_mb, op);
-			SOCKBUF_UNLOCK(&so->so_rcv);
-		}
+		unp_scan_socket(so, op);
 	}
 	SOCK_UNLOCK(so);
 }
@@ -3108,11 +3108,23 @@ unp_dispose(struct socket *so)
 	 * Grab our special mbufs before calling sbrelease().
 	 */
 	SOCK_RECVBUF_LOCK(so);
-	m = sbcut_locked(sb, sb->sb_ccc);
-	KASSERT(sb->sb_ccc == 0 && sb->sb_mb == 0 && sb->sb_mbcnt == 0,
-	    ("%s: ccc %u mb %p mbcnt %u", __func__,
-	    sb->sb_ccc, (void *)sb->sb_mb, sb->sb_mbcnt));
-	sbrelease_locked(so, SO_RCV);
+	switch (so->so_type) {
+	case SOCK_DGRAM:
+		m = STAILQ_FIRST(&sb->uxdg_mb);
+		STAILQ_INIT(&sb->uxdg_mb);
+		/* XXX: our shortened sbrelease() */
+		(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
+		    RLIM_INFINITY);
+		break;
+	case SOCK_STREAM:
+	case SOCK_SEQPACKET:
+		m = sbcut_locked(sb, sb->sb_ccc);
+		KASSERT(sb->sb_ccc == 0 && sb->sb_mb == 0 && sb->sb_mbcnt == 0,
+		    ("%s: ccc %u mb %p mbcnt %u", __func__,
+		    sb->sb_ccc, (void *)sb->sb_mb, sb->sb_mbcnt));
+		sbrelease_locked(so, SO_RCV);
+		break;
+	}
 	SOCK_RECVBUF_UNLOCK(so);
 	if (SOCK_IO_RECV_OWNED(so))
 		SOCK_IO_RECV_UNLOCK(so);
