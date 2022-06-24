@@ -1009,56 +1009,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 	unp2 = NULL;
 	switch (so->so_type) {
-	case SOCK_DGRAM:
-	{
-		const struct sockaddr *from;
-
-		if (nam != NULL) {
-			error = unp_connect(so, nam, td);
-			if (error != 0)
-				break;
-		}
-		UNP_PCB_LOCK(unp);
-
-		/*
-		 * Because connect() and send() are non-atomic in a sendto()
-		 * with a target address, it's possible that the socket will
-		 * have disconnected before the send() can run.  In that case
-		 * return the slightly counter-intuitive but otherwise
-		 * correct error that the socket is not connected.
-		 */
-		unp2 = unp_pcb_lock_peer(unp);
-		if (unp2 == NULL) {
-			UNP_PCB_UNLOCK(unp);
-			error = ENOTCONN;
-			break;
-		}
-
-		if (unp2->unp_flags & UNP_WANTCRED_MASK)
-			control = unp_addsockcred(td, control,
-			    unp2->unp_flags);
-		if (unp->unp_addr != NULL)
-			from = (struct sockaddr *)unp->unp_addr;
-		else
-			from = &sun_noname;
-		so2 = unp2->unp_socket;
-		SOCKBUF_LOCK(&so2->so_rcv);
-		if (sbappendaddr_locked(&so2->so_rcv, from, m,
-		    control)) {
-			sorwakeup_locked(so2);
-			m = NULL;
-			control = NULL;
-		} else {
-			soroverflow_locked(so2);
-			error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
-		}
-		if (nam != NULL)
-			unp_disconnect(unp, unp2);
-		else
-			unp_pcb_unlock_pair(unp, unp2);
-		break;
-	}
-
 	case SOCK_SEQPACKET:
 	case SOCK_STREAM:
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
