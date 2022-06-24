@@ -37,7 +37,6 @@
 
 #define	_PATH_LOG	"/var/run/log"
 #define	_PATH_LOG_PRIV	"/var/run/logpriv"
-#define	_PATH_OLDLOG	"/dev/log"	/* backward compatibility */
 
 /*
  * priorities/facilities are encoded into a single 32-bit quantity, where the
