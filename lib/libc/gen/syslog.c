@@ -436,18 +436,6 @@ connectlog(void)
 		}
 
 		if (status == NOCONN) {
-			/*
-			 * Try the old "/dev/log" path, for backward
-			 * compatibility.
-			 */
-			(void)strncpy(SyslogAddr.sun_path, _PATH_OLDLOG,
-			    sizeof SyslogAddr.sun_path);
-			if (_connect(LogFile, (struct sockaddr *)&SyslogAddr,
-			    sizeof(SyslogAddr)) != -1)
-				status = CONNDEF;
-		}
-
-		if (status == NOCONN) {
 			(void)_close(LogFile);
 			LogFile = -1;
 		}
