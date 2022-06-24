@@ -498,9 +498,6 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	int ip_ver = 0;
 	bool has_udp = false;
 
-#if !DEFINE_IB_AH_ATTR_WITH_DMAC
-	u8 mac[ETH_ALEN];
-#endif
 	int i;
 
 	send_size = 0;
@@ -525,12 +522,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	}
 
 	/* ENET + VLAN headers*/
-#if DEFINE_IB_AH_ATTR_WITH_DMAC
 	memcpy(udh->eth.dmac_h, ah_attr->dmac, ETH_ALEN);
-#else
-	qlnxr_get_dmac(dev, ah_attr, mac);
-	memcpy(udh->eth.dmac_h, mac, ETH_ALEN);
-#endif
 	memcpy(udh->eth.smac_h, dev->ha->primary_mac, ETH_ALEN);
 	if (has_vlan) {
 		udh->eth.type = htons(ETH_P_8021Q);

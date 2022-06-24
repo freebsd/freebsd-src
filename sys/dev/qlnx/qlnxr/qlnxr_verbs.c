@@ -1293,13 +1293,7 @@ qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
 	struct scatterlist	*sg;
 	int			shift, pg_cnt, pages, pbe_cnt, total_num_pbes = 0;
 	qlnx_host_t		*ha;
-
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
-        int                     i;
-        struct                  ib_umem_chunk *chunk = NULL;
-#else
         int                     entry;
-#endif
 
 	ha = dev->ha;
 
@@ -1333,53 +1327,42 @@ qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
 
 	shift = ilog2(umem->page_size);
 
-#ifndef DEFINE_IB_UMEM_WITH_CHUNK
-
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-#else
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
-		/* get all the dma regions from the chunk. */
-		for (i = 0; i < chunk->nmap; i++) {
-			sg = &chunk->page_list[i];
-#endif
-			pages = sg_dma_len(sg) >> shift;
-			for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-				/* store the page address in pbe */
-				pbe->lo =
-				    cpu_to_le32(sg_dma_address(sg) +
-						(umem->page_size * pg_cnt));
-				pbe->hi =
-				    cpu_to_le32(upper_32_bits
-						((sg_dma_address(sg) +
-						  umem->page_size * pg_cnt)));
+		pages = sg_dma_len(sg) >> shift;
+		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
+			/* store the page address in pbe */
+			pbe->lo =
+			    cpu_to_le32(sg_dma_address(sg) +
+					(umem->page_size * pg_cnt));
+			pbe->hi =
+			    cpu_to_le32(upper_32_bits
+					((sg_dma_address(sg) +
+					  umem->page_size * pg_cnt)));
 
-				QL_DPRINT12(ha,
-					"Populate pbl table:"
-					" pbe->addr=0x%x:0x%x "
-					" pbe_cnt = %d total_num_pbes=%d"
-					" pbe=%p\n", pbe->lo, pbe->hi, pbe_cnt,
-					total_num_pbes, pbe);
+			QL_DPRINT12(ha,
+				"Populate pbl table:"
+				" pbe->addr=0x%x:0x%x "
+				" pbe_cnt = %d total_num_pbes=%d"
+				" pbe=%p\n", pbe->lo, pbe->hi, pbe_cnt,
+				total_num_pbes, pbe);
 
-				pbe_cnt ++;
-				total_num_pbes ++;
-				pbe++;
+			pbe_cnt ++;
+			total_num_pbes ++;
+			pbe++;
 
-				if (total_num_pbes == pbl_info->num_pbes)
-					return;
+			if (total_num_pbes == pbl_info->num_pbes)
+				return;
 
-				/* if the given pbl is full storing the pbes,
-				 * move to next pbl.
-				 */
-				if (pbe_cnt ==
-					(pbl_info->pbl_size / sizeof(u64))) {
-					pbl_tbl++;
-					pbe = (struct regpair *)pbl_tbl->va;
-					pbe_cnt = 0;
-				}
+			/* if the given pbl is full storing the pbes,
+			 * move to next pbl.
+			 */
+			if (pbe_cnt ==
+				(pbl_info->pbl_size / sizeof(u64))) {
+				pbl_tbl++;
+				pbe = (struct regpair *)pbl_tbl->va;
+				pbe_cnt = 0;
 			}
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
 		}
-#endif
 	}
 	QL_DPRINT12(ha, "exit\n");
 	return;
@@ -2346,9 +2329,6 @@ qlnxr_init_srq_user_params(struct ib_ucontext *ib_ctx,
 	struct qlnxr_create_srq_ureq *ureq,
 	int access, int dmasync)
 {
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
-	struct ib_umem_chunk	*chunk;
-#endif
 	struct scatterlist	*sg;
 	int			rc;
 	struct qlnxr_dev	*dev = srq->dev;
@@ -2376,13 +2356,7 @@ qlnxr_init_srq_user_params(struct ib_ucontext *ib_ctx,
 		return PTR_ERR(srq->prod_umem);
 	}
 
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
-	chunk = container_of((&srq->prod_umem->chunk_list)->next,
-			     typeof(*chunk), list);
-	sg = &chunk->page_list[0];
-#else
 	sg = srq->prod_umem->sg_head.sgl;
-#endif
 	srq->hw_srq.phy_prod_pair_addr = sg_dma_address(sg);
 
 	QL_DPRINT12(ha, "exit\n");
