@@ -2691,7 +2691,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		 * Recommended Attributes. (Only the supported ones.)
 		 */
 		case NFSATTRBIT_ACL:
-			retnum += nfsrv_buildacl(nd, aclp, vnode_vtype(vp), p);
+			retnum += nfsrv_buildacl(nd, aclp, vp->v_type, p);
 			break;
 		case NFSATTRBIT_ACLSUPPORT:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
