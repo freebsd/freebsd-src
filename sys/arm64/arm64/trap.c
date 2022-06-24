@@ -593,6 +593,11 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		panic("VFP exception in userland");
 #endif
 		break;
+	case EXCP_SVE:
+		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_elr,
+		    exception);
+		userret(td, frame);
+		break;
 	case EXCP_SVC32:
 	case EXCP_SVC64:
 		svc_handler(td, frame);
