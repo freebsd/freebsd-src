@@ -75,41 +75,65 @@ struct thread;
 struct selinfo;
 
 /*
- * Variables for socket buffering.
+ * Socket buffer
  *
- * Locking key to struct sockbuf:
- * (a) locked by SOCKBUF_LOCK().
+ * A buffer starts with the fields that are accessed by I/O multiplexing
+ * APIs like select(2), kevent(2) or AIO and thus are shared between different
+ * buffer implementations.  They are protected by the SOCK_RECVBUF_LOCK()
+ * or SOCK_SENDBUF_LOCK() of the owning socket.
+ *
+ * XXX: sb_acc, sb_ccc and sb_mbcnt shall become implementation specific
+ * methods.
+ *
+ * Protocol specific implementations follow in a union.
  */
 struct sockbuf {
-	struct	mtx *sb_mtx;		/* sockbuf lock */
 	struct	selinfo *sb_sel;	/* process selecting read/write */
-	short	sb_state;	/* (a) socket state on sockbuf */
-	short	sb_flags;	/* (a) flags, see above */
-	struct	mbuf *sb_mb;	/* (a) the mbuf chain */
-	struct	mbuf *sb_mbtail; /* (a) the last mbuf in the chain */
-	struct	mbuf *sb_lastrecord;	/* (a) first mbuf of last
-					 * record in socket buffer */
-	struct	mbuf *sb_sndptr; /* (a) pointer into mbuf chain */
-	struct	mbuf *sb_fnrdy;	/* (a) pointer to first not ready buffer */
-	u_int	sb_sndptroff;	/* (a) byte offset of ptr into chain */
-	u_int	sb_acc;		/* (a) available chars in buffer */
-	u_int	sb_ccc;		/* (a) claimed chars in buffer */
-	u_int	sb_hiwat;	/* (a) max actual char count */
-	u_int	sb_mbcnt;	/* (a) chars of mbufs used */
-	u_int	sb_mbmax;	/* (a) max chars of mbufs to use */
-	u_int	sb_ctl;		/* (a) non-data chars in buffer */
-	u_int	sb_tlscc;	/* (a) TLS chain characters */
-	u_int	sb_tlsdcc;	/* (a) TLS characters being decrypted */
-	int	sb_lowat;	/* (a) low water mark */
-	sbintime_t	sb_timeo;	/* (a) timeout for read/write */
-	struct	mbuf *sb_mtls;	/* (a) TLS mbuf chain */
-	struct	mbuf *sb_mtlstail; /* (a) last mbuf in TLS chain */
-	int	(*sb_upcall)(struct socket *, void *, int); /* (a) */
-	void	*sb_upcallarg;	/* (a) */
-	uint64_t sb_tls_seqno;	/* (a) TLS seqno */
-	struct	ktls_session *sb_tls_info; /* (a + b) TLS state */
-	TAILQ_HEAD(, kaiocb) sb_aiojobq; /* (a) pending AIO ops */
-	struct	task sb_aiotask; /* AIO task */
+	short	sb_state;		/* socket state on sockbuf */
+	short	sb_flags;		/* flags, see above */
+	u_int	sb_acc;			/* available chars in buffer */
+	u_int	sb_ccc;			/* claimed chars in buffer */
+	u_int	sb_mbcnt;		/* chars of mbufs used */
+	u_int	sb_ctl;			/* non-data chars in buffer */
+	u_int	sb_hiwat;		/* max actual char count */
+	u_int	sb_lowat;		/* low water mark */
+	u_int	sb_mbmax;		/* max chars of mbufs to use */
+	sbintime_t sb_timeo;		/* timeout for read/write */
+	int	(*sb_upcall)(struct socket *, void *, int);
+	void	*sb_upcallarg;
+	TAILQ_HEAD(, kaiocb) sb_aiojobq;	/* pending AIO ops */
+	struct	task sb_aiotask;		/* AIO task */
+	union {
+		/*
+		 * Classic BSD one-size-fits-all socket buffer, capable of
+		 * doing streams and datagrams. The stream part is able
+		 * to perform special features:
+		 * - not ready data (sendfile)
+		 * - TLS
+		 */
+		struct {
+			/* compat: sockbuf lock pointer */
+			struct	mtx *sb_mtx;
+			/* first and last mbufs in the chain */
+			struct	mbuf *sb_mb;
+			struct	mbuf *sb_mbtail;
+			/* first mbuf of last record in socket buffer */
+			struct	mbuf *sb_lastrecord;
+			/* pointer to data to send next (TCP */
+			struct	mbuf *sb_sndptr;
+			/* pointer to first not ready buffer */
+			struct	mbuf *sb_fnrdy;
+			/* byte offset of ptr into chain, used with sb_sndptr */
+			u_int	sb_sndptroff;
+			/* TLS */
+			u_int	sb_tlscc;	/* TLS chain characters */
+			u_int	sb_tlsdcc;	/* characters being decrypted */
+			struct	mbuf *sb_mtls;	/*  TLS mbuf chain */
+			struct	mbuf *sb_mtlstail; /* last mbuf in TLS chain */
+			uint64_t sb_tls_seqno;	/* TLS seqno */
+			struct	ktls_session *sb_tls_info; /* TLS state */
+		};
+	};
 };
 
 #endif	/* defined(_KERNEL) || defined(_WANT_SOCKET) */
