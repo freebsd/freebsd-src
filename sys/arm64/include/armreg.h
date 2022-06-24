@@ -108,6 +108,11 @@
 #define	CNTP_CTL_ISTATUS	(1 << 2)
 
 /* CPACR_EL1 */
+#define	CPACR_ZEN_MASK		(0x3 << 16)
+#define	 CPACR_ZEN_TRAP_ALL1	(0x0 << 16) /* Traps from EL0 and EL1 */
+#define	 CPACR_ZEN_TRAP_EL0	(0x1 << 16) /* Traps from EL0 */
+#define	 CPACR_ZEN_TRAP_ALL2	(0x2 << 16) /* Traps from EL0 and EL1 */
+#define	 CPACR_ZEN_TRAP_NONE	(0x3 << 16) /* No traps */
 #define	CPACR_FPEN_MASK		(0x3 << 20)
 #define	 CPACR_FPEN_TRAP_ALL1	(0x0 << 20) /* Traps from EL0 and EL1 */
 #define	 CPACR_FPEN_TRAP_EL0	(0x1 << 20) /* Traps from EL0 */
@@ -1502,5 +1507,10 @@
 #define	TTBR_BADDR		0x0000fffffffffffeul
 #define	TTBR_CnP_SHIFT		0
 #define	TTBR_CnP		(1ul << TTBR_CnP_SHIFT)
+
+/* ZCR_EL1 - SVE Control Register */
+#define	ZCR_LEN_SHIFT		0
+#define	ZCR_LEN_MASK		(0xf << ZCR_LEN_SHIFT)
+#define	ZCR_LEN_BYTES(x)	((((x) & ZCR_LEN_MASK) + 1) * 16)
 
 #endif /* !_MACHINE_ARMREG_H_ */
