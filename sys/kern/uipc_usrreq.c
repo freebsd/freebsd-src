@@ -1268,7 +1268,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	if (cc <= sbspace(sb)) {
 		STAILQ_INSERT_TAIL(&sb->uxdg_mb, f, m_stailqpkt);
 		/* XXX: would be nice if m_uiotombuf() returns count. */
-		for (; f != NULL ; f = f->m_next) {
+		for (; f != NULL; f = f->m_next) {
 			if (f->m_type != MT_DATA)
 				sb->sb_ctl += f->m_len;
 			sb->sb_mbcnt += MSIZE;
