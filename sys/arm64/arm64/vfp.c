@@ -200,6 +200,32 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 }
 
 /*
+ * Update the VFP state for a forked process or new thread. The PCB will
+ * have been copied from the old thread.
+ */
+void
+vfp_new_thread(struct thread *newtd, struct thread *oldtd, bool fork)
+{
+	struct pcb *newpcb;
+
+	newpcb = newtd->td_pcb;
+
+	/* Kernel threads start with clean VFP */
+	if ((oldtd->td_pflags & TDP_KTHREAD) != 0) {
+		newpcb->pcb_fpflags &=
+		    ~(PCB_FP_STARTED | PCB_FP_KERN | PCB_FP_NOSAVE);
+	} else {
+		MPASS((newpcb->pcb_fpflags & (PCB_FP_KERN|PCB_FP_NOSAVE)) == 0);
+		if (!fork) {
+			newpcb->pcb_fpflags &= ~PCB_FP_STARTED;
+		}
+	}
+
+	newpcb->pcb_fpusaved = &newpcb->pcb_fpustate;
+	newpcb->pcb_vfpcpu = UINT_MAX;
+}
+
+/*
  * Reset the FP state to avoid leaking state from the parent process across
  * execve() (and to ensure that we get a consistent floating point environment
  * in every new process).
