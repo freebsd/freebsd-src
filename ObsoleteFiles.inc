@@ -52,6 +52,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20220624: unix_passfd_test -> unix_passfd_stream/unix_passfd_dgram
+OLD_FILES+=usr/tests/sys/kern/unix_passfd_test
 
 # 20220621: ISA sound card drivers removed
 OLD_FILES+=usr/share/man/man4/snd_ad1816.4

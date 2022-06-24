@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2005 Robert N. M. Watson
  * Copyright (c) 2015 Mark Johnston
+ * Copyright (c) 2022 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 
+#if !defined(TEST_PROTO)
+#error Need TEST_PROTO defined to SOCK_STREAM or SOCK_DGRAM
+#endif
+
 /*
  * UNIX domain sockets allow file descriptors to be passed via "ancillary
  * data", or control messages.  This regression test is intended to exercise
@@ -59,8 +64,8 @@ static void
 domainsocketpair(int *fdp)
 {
 
-	ATF_REQUIRE_MSG(socketpair(PF_UNIX, SOCK_STREAM, 0, fdp) != -1,
-	    "socketpair(PF_UNIX, SOCK_STREAM) failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG(socketpair(PF_UNIX, TEST_PROTO, 0, fdp) != -1,
+	    "socketpair(PF_UNIX, %u) failed: %s", TEST_PROTO, strerror(errno));
 }
 
 static void
@@ -153,13 +158,12 @@ samefile(struct stat *sb1, struct stat *sb2)
 	ATF_REQUIRE_MSG(sb1->st_ino == sb2->st_ino, "different inode");
 }
 
-static size_t
+static ssize_t
 sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 {
 	struct iovec iovec;
 	char message[CMSG_SPACE(sizeof(int))];
 	struct msghdr msghdr;
-	ssize_t len;
 
 	bzero(&msghdr, sizeof(msghdr));
 	bzero(&message, sizeof(message));
@@ -174,9 +178,7 @@ sendfd_payload(int sockfd, int send_fd, void *payload, size_t paylen)
 	msghdr.msg_iovlen = 1;
 
 	putfds(message, send_fd, 1);
-	len = sendmsg(sockfd, &msghdr, 0);
-	ATF_REQUIRE_MSG(len != -1, "sendmsg failed: %s", strerror(errno));
-	return ((size_t)len);
+	return (sendmsg(sockfd, &msghdr, 0));
 }
 
 static void
@@ -253,6 +255,9 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 	    "recvmsg: did not receive single-fd message");
 	ATF_REQUIRE_MSG(!localcreds(sockfd) || foundcreds,
 	    "recvmsg: expected credentials were not received");
+	if (recvmsg_flags & MSG_TRUNC)
+		ATF_REQUIRE_MSG(msghdr.msg_flags & MSG_TRUNC,
+		    "recvmsg: expected MSG_TRUNC missing");
 }
 
 static void
@@ -426,13 +431,25 @@ ATF_TC_BODY(send_a_lot, tc)
 	/* Such attempt shall fail with EMSGSIZE. */
 	ATF_REQUIRE(errno == EMSGSIZE);
 	ATF_REQUIRE(getnfds() == nfds);
+#if TEST_PROTO == SOCK_STREAM
 	/*
 	 * For the SOCK_STREAM the above attempt shall free the control in
 	 * the kernel, so that socket isn't left in a stuck state.  Next read
-	 * shall bring us the normal data only.
+	 * shall bring us the normal data only.  The stream data shall not
+	 * miss a byte.
 	 */
 	ATF_REQUIRE(recvmsg(fd[1], &msghdr, 0) == 1);
 	ATF_REQUIRE(msghdr.msg_controllen == 0);
+#elif TEST_PROTO == SOCK_DGRAM
+	/*
+	 * For SOCK_DGRAM there are two options for the previously failed
+	 * syscall: strip the control leaving datagram in the socket or
+	 * drop the whole datagram.  Our implementation drops the whole
+	 * datagram.
+	 */
+	ATF_REQUIRE(recvmsg(fd[1], &msghdr, MSG_DONTWAIT) == -1);
+	ATF_REQUIRE(errno == EAGAIN);
+#endif
 }
 
 /*
@@ -514,7 +531,11 @@ ATF_TC_BODY(devfs_orphan, tc)
 	closesocketpair(fd);
 }
 
+#if TEST_PROTO == SOCK_STREAM
 #define	LOCAL_SENDSPACE_SYSCTL	"net.local.stream.sendspace"
+#elif TEST_PROTO == SOCK_DGRAM
+#define	LOCAL_SENDSPACE_SYSCTL	"net.local.dgram.maxdgram"
+#endif
 
 /*
  * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel prepends a
@@ -527,7 +548,7 @@ ATF_TC_BODY(rights_creds_payload, tc)
 {
 	const int on = 1;
 	u_long sendspace;
-	size_t len;
+	ssize_t len;
 	void *buf;
 	int fd[2], getfd, putfd, rc;
 
@@ -551,9 +572,21 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	    strerror(errno));
 
 	len = sendfd_payload(fd[0], putfd, buf, sendspace);
-	ATF_REQUIRE_MSG(len < sendspace, "sendmsg: %zu bytes sent", len);
+#if TEST_PROTO == SOCK_STREAM
+	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG((size_t)len < sendspace,
+	    "sendmsg: %zu bytes sent", len);
 	recvfd_payload(fd[1], &getfd, buf, len,
 	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
+#endif
+#if TEST_PROTO == SOCK_DGRAM
+	ATF_REQUIRE_MSG(len != -1 , "sendmsg failed: %s", strerror(errno));
+	ATF_REQUIRE_MSG((size_t)len == sendspace,
+	    "sendmsg: %zu bytes sent", len);
+	recvfd_payload(fd[1], &getfd, buf, len,
+	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)),
+	    MSG_TRUNC);
+#endif
 
 	close(putfd);
 	close(getfd);
@@ -719,7 +752,8 @@ ATF_TC_BODY(copyout_rights_error, tc)
 	devnull(&putfd);
 	nfds = getnfds();
 
-	sendfd_payload(fd[0], putfd, buf, sizeof(buf));
+	len = sendfd_payload(fd[0], putfd, buf, sizeof(buf));
+	ATF_REQUIRE_MSG(len != -1, "sendmsg failed: %s", strerror(errno));
 
 	bzero(&msghdr, sizeof(msghdr));
 
