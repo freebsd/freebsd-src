@@ -445,6 +445,16 @@ CFLAGS.zstd_lazy.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.zstd_ldm.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 CFLAGS.zstd_opt.c+= ${__ZFS_ZSTD_AARCH64_FLAGS}
 
+b3_aarch64_sse2.o: b3_aarch64_sse2.S
+	${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC} \
+	     -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
+b3_aarch64_sse41.o: b3_aarch64_sse41.S
+	${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${.IMPSRC} \
+	     -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
 .endif
 CFLAGS.zstd.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 CFLAGS.entropy_common.c+= ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
