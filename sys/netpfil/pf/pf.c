@@ -3899,6 +3899,10 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	switch (proto) {
 #ifdef INET
 	case ETHERTYPE_IP: {
+		if (m_length(m, NULL) < (sizeof(struct ether_header) +
+		    sizeof(ip)))
+			return (PF_DROP);
+
 		af = AF_INET;
 		m_copydata(m, sizeof(struct ether_header), sizeof(ip),
 		    (caddr_t)&ip);
@@ -3909,6 +3913,10 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 #endif /* INET */
 #ifdef INET6
 	case ETHERTYPE_IPV6: {
+		if (m_length(m, NULL) < (sizeof(struct ether_header) +
+		    sizeof(ip6)))
+			return (PF_DROP);
+
 		af = AF_INET6;
 		m_copydata(m, sizeof(struct ether_header), sizeof(ip6),
 		    (caddr_t)&ip6);
