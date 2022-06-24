@@ -996,8 +996,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
-	KASSERT(so->so_type == SOCK_STREAM || so->so_type == SOCK_DGRAM ||
-	    so->so_type == SOCK_SEQPACKET,
+	KASSERT(so->so_type == SOCK_STREAM || so->so_type == SOCK_SEQPACKET,
 	    ("%s: socktype %d", __func__, so->so_type));
 
 	error = 0;
@@ -1173,6 +1172,146 @@ release:
 	return (error);
 }
 
+/*
+ * PF_UNIX/SOCK_DGRAM send
+ */
+static int
+uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *m, struct mbuf *c, int flags, struct thread *td)
+{
+	struct unpcb *unp, *unp2;
+	const struct sockaddr *from;
+	struct socket *so2;
+	int error;
+
+	MPASS((uio != NULL && m == NULL) || (m != NULL && uio == NULL));
+
+	error = 0;
+
+	if (__predict_false(flags & MSG_OOB)) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+	if (m == NULL) {
+		if (__predict_false(uio->uio_resid > unpdg_maxdgram)) {
+			error = EMSGSIZE;
+			goto out;
+		}
+		m = m_uiotombuf(uio, M_WAITOK, 0, max_hdr, M_PKTHDR);
+		if (__predict_false(m == NULL)) {
+			error = EFAULT;
+			goto out;
+		}
+		if (c != NULL && (error = unp_internalize(&c, td)))
+			goto out;
+	} else {
+		/* pru_sosend() with mbuf usually is a kernel thread. */
+
+		M_ASSERTPKTHDR(m);
+		if (__predict_false(c != NULL))
+			panic("%s: control from a kernel thread", __func__);
+
+		if (__predict_false(m->m_pkthdr.len > unpdg_maxdgram)) {
+			error = EMSGSIZE;
+			goto out;
+		}
+		/* Condition the foreign mbuf to our standards. */
+		m_clrprotoflags(m);
+		m_tag_delete_chain(m, NULL);
+		m->m_pkthdr.rcvif = NULL;
+		m->m_pkthdr.flowid = 0;
+		m->m_pkthdr.csum_flags = 0;
+		m->m_pkthdr.fibnum = 0;
+		m->m_pkthdr.rsstype = 0;
+	}
+
+	unp = sotounpcb(so);
+	MPASS(unp);
+
+	/*
+	 * XXXGL: would be cool to fully remove so_snd out of the equation
+	 * and avoid this lock, which is not only extraneous, but also being
+	 * released, thus still leaving possibility for a race.  We can easily
+	 * handle SBS_CANTSENDMORE/SS_ISCONNECTED complement in unpcb, but it
+	 * is more difficult to invent something to handle so_error.
+	 */
+	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
+	if (error)
+		goto out2;
+	SOCKBUF_LOCK(&so->so_snd);
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+		SOCK_SENDBUF_UNLOCK(so);
+		error = EPIPE;
+		goto out3;
+	}
+	if (so->so_error != 0) {
+		error = so->so_error;
+		so->so_error = 0;
+		SOCKBUF_UNLOCK(&so->so_snd);
+		goto out3;
+	}
+	if (((so->so_state & SS_ISCONNECTED) == 0) && addr == NULL) {
+		SOCKBUF_UNLOCK(&so->so_snd);
+		error = EDESTADDRREQ;
+		goto out3;
+	}
+	SOCKBUF_UNLOCK(&so->so_snd);
+
+	if (addr != NULL && (error = unp_connect(so, addr, td)))
+		goto out3;
+
+	UNP_PCB_LOCK(unp);
+	/*
+	 * Because connect() and send() are non-atomic in a sendto() with a
+	 * target address, it's possible that the socket will have disconnected
+	 * before the send() can run.  In that case return the slightly
+	 * counter-intuitive but otherwise correct error that the socket is not
+	 * connected.
+	 */
+	unp2 = unp_pcb_lock_peer(unp);
+	if (unp2 == NULL) {
+		UNP_PCB_UNLOCK(unp);
+		error = ENOTCONN;
+		goto out3;
+	}
+
+	if (unp2->unp_flags & UNP_WANTCRED_MASK)
+		c = unp_addsockcred(td, c, unp2->unp_flags);
+	if (unp->unp_addr != NULL)
+		from = (struct sockaddr *)unp->unp_addr;
+	else
+		from = &sun_noname;
+	so2 = unp2->unp_socket;
+	SOCKBUF_LOCK(&so2->so_rcv);
+	if (sbappendaddr_locked(&so2->so_rcv, from, m, c)) {
+		sorwakeup_locked(so2);
+		m = c = NULL;
+	} else {
+		soroverflow_locked(so2);
+		error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
+	}
+
+	if (addr != NULL)
+		unp_disconnect(unp, unp2);
+	else
+		unp_pcb_unlock_pair(unp, unp2);
+
+	td->td_ru.ru_msgsnd++;
+
+out3:
+	SOCK_IO_SEND_UNLOCK(so);
+out2:
+	if (c)
+		unp_scan(c, unp_freerights);
+out:
+	if (c)
+		m_freem(c);
+	if (m)
+		m_freem(m);
+
+	return (error);
+}
+
 static bool
 uipc_ready_scan(struct socket *so, struct mbuf *m, int count, int *errorp)
 {
@@ -1314,7 +1453,7 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
 	.pru_peeraddr =		uipc_peeraddr,
-	.pru_send =		uipc_send,
+	.pru_sosend =		uipc_sosend_dgram,
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
