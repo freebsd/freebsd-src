@@ -207,13 +207,17 @@ struct pkthdr {
 
 	/* Layer specific non-persistent local storage for reassembly, etc. */
 	union {
-		uint8_t  eight[8];
-		uint16_t sixteen[4];
-		uint32_t thirtytwo[2];
-		uint64_t sixtyfour[1];
-		uintptr_t unintptr[1];
-		void 	*ptr;
-	} PH_loc;
+		union {
+			uint8_t  eight[8];
+			uint16_t sixteen[4];
+			uint32_t thirtytwo[2];
+			uint64_t sixtyfour[1];
+			uintptr_t unintptr[1];
+			void 	*ptr;
+		} PH_loc;
+		/* Upon allocation: total packet memory consumption. */
+		u_int	memlen;
+	};
 };
 #define	ether_vtag	PH_per.sixteen[0]
 #define tcp_tun_port	PH_per.sixteen[0] /* outbound */

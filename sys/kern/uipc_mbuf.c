@@ -1899,8 +1899,12 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 
 		mb->m_len = length;
 		progress += length;
-		if (flags & M_PKTHDR)
+		if (flags & M_PKTHDR) {
 			m->m_pkthdr.len += length;
+			m->m_pkthdr.memlen += MSIZE;
+			if (mb->m_flags & M_EXT)
+				m->m_pkthdr.memlen += mb->m_ext.ext_size;
+		}
 	}
 	KASSERT(progress == total, ("%s: progress != total", __func__));
 
