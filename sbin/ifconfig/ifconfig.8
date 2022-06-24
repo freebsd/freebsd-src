@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2022
+.Dd June 24, 2022
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -199,6 +199,12 @@ Only one option
 should be specified as later override previous ones
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
+.Pp
+Setting
+.Ar groupname
+to
+.Cm all
+selects all interfaces.
 .It Fl g Ar groupname
 Limit the output to the members of the specified
 .Ar groupname .
@@ -221,6 +227,12 @@ Only one option
 should be specified as later override previous ones
 .Ar groupname
 may contain shell patterns in which case it should be quoted.
+.Pp
+Setting
+.Ar groupname
+to
+.Cm all
+selects all interfaces.
 .It Fl k
 Print keying information for the
 .Ar interface ,
