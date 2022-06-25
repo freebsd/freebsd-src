@@ -52,7 +52,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 #include <sys/systm.h>
 
 #include <net/if.h>
