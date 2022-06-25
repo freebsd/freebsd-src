@@ -57,6 +57,11 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#define	DEBUG_MOD_NAME	route_ctl
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 /*
  * This file contains control plane routing tables functions.
  *
@@ -999,18 +1004,17 @@ static int
 change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct route_nhop_data *rnd_orig, struct rib_cmd_info *rc)
 {
-	int error = 0;
-	struct nhop_object *nh_orig, *nh_new;
+	int error = 0, found_idx = 0;
+	struct nhop_object *nh_orig = NULL, *nh_new;
 	struct route_nhop_data rnd_new;
 	struct weightened_nhop *wn = NULL, *wn_new;
 	uint32_t num_nhops;
 
-	nh_orig = rnd_orig->rnd_nhop;
-	wn = nhgrp_get_nhops((struct nhgrp_object *)nh_orig, &num_nhops);
-	nh_orig = NULL;
+	wn = nhgrp_get_nhops(rnd_orig->rnd_nhgrp, &num_nhops);
 	for (int i = 0; i < num_nhops; i++) {
-		if (check_info_match_nhop(info, NULL, wn[i].nh)) {
+		if (check_info_match_nhop(info, NULL, wn[i].nh) == 0) {
 			nh_orig = wn[i].nh;
+			found_idx = i;
 			break;
 		}
 	}
@@ -1030,13 +1034,8 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 
 	memcpy(wn_new, wn, num_nhops * sizeof(struct weightened_nhop));
-	for (int i = 0; i < num_nhops; i++) {
-		if (wn[i].nh == nh_orig) {
-			wn[i].nh = nh_new;
-			wn[i].weight = get_info_weight(info, rnd_orig->rnd_weight);
-			break;
-		}
-	}
+	wn_new[found_idx].nh = nh_new;
+	wn_new[found_idx].weight = get_info_weight(info, wn[found_idx].weight);
 
 	error = nhgrp_get_group(rnh, wn_new, num_nhops, &rnd_new);
 	nhop_free(nh_new);
@@ -1188,6 +1187,15 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 	struct rtentry *rt_new;
 	int error = 0;
 
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
+	{
+		char buf_old[NHOP_PRINT_BUFSIZE], buf_new[NHOP_PRINT_BUFSIZE];
+		nhop_print_buf_any(rnd_orig->rnd_nhop, buf_old, NHOP_PRINT_BUFSIZE);
+		nhop_print_buf_any(rnd_new->rnd_nhop, buf_new, NHOP_PRINT_BUFSIZE);
+		FIB_LOG(LOG_DEBUG2, rnh->rib_fibnum, rnh->rib_family,
+		    "trying change %s -> %s", buf_old, buf_new);
+	}
+#endif
 	RIB_WLOCK(rnh);
 
 	rt_new = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
