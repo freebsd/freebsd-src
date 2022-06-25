@@ -803,6 +803,8 @@
         mqueue
         ..
         net
+            routing
+            ..
         ..
         netgraph
         ..
