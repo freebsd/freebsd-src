@@ -558,9 +558,6 @@ mtu_body()
 
 	atf_check -s exit:0 \
 		ifconfig ${bridge} addm ${epair}a
-	# Can't add an interface with an MTU mismatch
-	atf_check -s exit:1 -e ignore \
-		ifconfig ${bridge} addm ${gif}
 
 	ifconfig ${gif} mtu 1500
 	atf_check -s exit:0 \
@@ -586,6 +583,17 @@ mtu_body()
 	atf_check -s exit:1 -e ignore \
 		ifconfig ${epair}a mtu 1900
 	check_mtu ${epair}a 2000
+
+	# Test adding an interface with a different MTU
+	new_epair=$(vnet_mkepair)
+	check_mtu ${new_epair}a 1500
+	atf_check -s exit:0 -e ignore \
+		ifconfig ${bridge} addm ${new_epair}a
+
+	check_mtu ${bridge} 2000
+	check_mtu ${gif} 2000
+	check_mtu ${epair}a 2000
+	check_mtu ${new_epair}a 2000
 }
 
 mtu_cleanup()
