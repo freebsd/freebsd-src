@@ -248,7 +248,7 @@ zfs_uio_prefaultpages(ssize_t n, zfs_uio_t *uio)
 			/* touch each page in this segment. */
 			p = iov->iov_base + skip;
 			while (cnt) {
-				if (get_user(tmp, (uint8_t *)p))
+				if (copy_from_user(&tmp, p, 1))
 					return (EFAULT);
 				ulong_t incr = MIN(cnt, PAGESIZE);
 				p += incr;
@@ -256,7 +256,7 @@ zfs_uio_prefaultpages(ssize_t n, zfs_uio_t *uio)
 			}
 			/* touch the last byte in case it straddles a page. */
 			p--;
-			if (get_user(tmp, (uint8_t *)p))
+			if (copy_from_user(&tmp, p, 1))
 				return (EFAULT);
 		}
 	}

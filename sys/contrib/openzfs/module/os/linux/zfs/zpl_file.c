@@ -33,8 +33,12 @@
 #include <sys/zfs_vfsops.h>
 #include <sys/zfs_vnops.h>
 #include <sys/zfs_project.h>
-#ifdef HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS
+#if defined(HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS) || \
+    defined(HAVE_VFS_FILEMAP_DIRTY_FOLIO)
 #include <linux/pagemap.h>
+#endif
+#ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO
+#include <linux/writeback.h>
 #endif
 
 /*
@@ -413,6 +417,8 @@ zpl_aio_write(struct kiocb *kiocb, const struct iovec *iov,
 	if (ret)
 		return (ret);
 
+	kiocb->ki_pos = pos;
+
 	zfs_uio_t uio;
 	zfs_uio_iovec_init(&uio, iov, nr_segs, kiocb->ki_pos, UIO_USERSPACE,
 	    count, 0);
@@ -629,11 +635,19 @@ zpl_readpage_common(struct page *pp)
 	return (error);
 }
 
+#ifdef HAVE_VFS_READ_FOLIO
+static int
+zpl_read_folio(struct file *filp, struct folio *folio)
+{
+	return (zpl_readpage_common(&folio->page));
+}
+#else
 static int
 zpl_readpage(struct file *filp, struct page *pp)
 {
 	return (zpl_readpage_common(pp));
 }
+#endif
 
 static int
 zpl_readpage_filler(void *data, struct page *pp)
@@ -647,12 +661,29 @@ zpl_readpage_filler(void *data, struct page *pp)
  * paging.  For simplicity, the code relies on read_cache_pages() to
  * correctly lock each page for IO and call zpl_readpage().
  */
+#ifdef HAVE_VFS_READPAGES
 static int
 zpl_readpages(struct file *filp, struct address_space *mapping,
     struct list_head *pages, unsigned nr_pages)
 {
 	return (read_cache_pages(mapping, pages, zpl_readpage_filler, NULL));
 }
+#else
+static void
+zpl_readahead(struct readahead_control *ractl)
+{
+	struct page *page;
+
+	while ((page = readahead_page(ractl)) != NULL) {
+		int ret;
+
+		ret = zpl_readpage_filler(NULL, page);
+		put_page(page);
+		if (ret)
+			break;
+	}
+}
+#endif
 
 static int
 zpl_putpage(struct page *pp, struct writeback_control *wbc, void *data)
@@ -764,11 +795,13 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 	if (mode & (test_mode)) {
 		flock64_t bf;
 
-		if (offset > olen)
-			goto out_unmark;
+		if (mode & FALLOC_FL_KEEP_SIZE) {
+			if (offset > olen)
+				goto out_unmark;
 
-		if (offset + len > olen)
-			len = olen - offset;
+			if (offset + len > olen)
+				len = olen - offset;
+		}
 		bf.l_type = F_WRLCK;
 		bf.l_whence = SEEK_SET;
 		bf.l_start = offset;
@@ -1027,13 +1060,24 @@ zpl_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 
 const struct address_space_operations zpl_address_space_operations = {
+#ifdef HAVE_VFS_READPAGES
 	.readpages	= zpl_readpages,
+#else
+	.readahead	= zpl_readahead,
+#endif
+#ifdef HAVE_VFS_READ_FOLIO
+	.read_folio	= zpl_read_folio,
+#else
 	.readpage	= zpl_readpage,
+#endif
 	.writepage	= zpl_writepage,
 	.writepages	= zpl_writepages,
 	.direct_IO	= zpl_direct_IO,
 #ifdef HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS
 	.set_page_dirty = __set_page_dirty_nobuffers,
+#endif
+#ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO
+	.dirty_folio	= filemap_dirty_folio,
 #endif
 };
 

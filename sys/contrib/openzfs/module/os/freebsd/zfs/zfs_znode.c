@@ -575,7 +575,6 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	dmu_buf_t	*db;
 	timestruc_t	now;
 	uint64_t	gen, obj;
-	int		err;
 	int		bonuslen;
 	int		dnodesize;
 	sa_handle_t	*sa_hdl;
@@ -815,12 +814,11 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 		VERIFY0(zfs_aclset_common(*zpp, acl_ids->z_aclp, cr, tx));
 	}
 	if (!(flag & IS_ROOT_NODE)) {
-		vnode_t *vp;
-
-		vp = ZTOV(*zpp);
+		vnode_t *vp = ZTOV(*zpp);
 		vp->v_vflag |= VV_FORCEINSMQ;
-		err = insmntque(vp, zfsvfs->z_vfs);
+		int err = insmntque(vp, zfsvfs->z_vfs);
 		vp->v_vflag &= ~VV_FORCEINSMQ;
+		(void) err;
 		KASSERT(err == 0, ("insmntque() failed: error %d", err));
 	}
 	kmem_free(sa_attrs, sizeof (sa_bulk_attr_t) * ZPL_END);
@@ -934,11 +932,9 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 	znode_t		*zp;
 	vnode_t		*vp;
 	sa_handle_t	*hdl;
-	struct thread	*td;
 	int locked;
 	int err;
 
-	td = curthread;
 	getnewvnode_reserve_();
 again:
 	*zpp = NULL;
@@ -964,7 +960,7 @@ again:
 
 	hdl = dmu_buf_get_user(db);
 	if (hdl != NULL) {
-		zp  = sa_get_userdata(hdl);
+		zp = sa_get_userdata(hdl);
 
 		/*
 		 * Since "SA" does immediate eviction we
@@ -1496,12 +1492,16 @@ zfs_free_range(znode_t *zp, uint64_t off, uint64_t len)
 	error = dmu_free_long_range(zfsvfs->z_os, zp->z_id, off, len);
 
 	if (error == 0) {
+#if __FreeBSD_version >= 1400032
+		vnode_pager_purge_range(ZTOV(zp), off, off + len);
+#else
 		/*
-		 * In FreeBSD we cannot free block in the middle of a file,
-		 * but only at the end of a file, so this code path should
-		 * never happen.
+		 * Before __FreeBSD_version 1400032 we cannot free block in the
+		 * middle of a file, but only at the end of a file, so this code
+		 * path should never happen.
 		 */
 		vnode_pager_setsize(ZTOV(zp), off);
+#endif
 	}
 
 	zfs_rangelock_exit(lr);

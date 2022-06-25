@@ -110,6 +110,7 @@ extern int zfs_recover;
 extern unsigned long zfs_arc_meta_min, zfs_arc_meta_limit;
 extern int zfs_vdev_async_read_max_active;
 extern boolean_t spa_load_verify_dryrun;
+extern boolean_t spa_mode_readable_spacemaps;
 extern int zfs_reconstruct_indirect_combinations_max;
 extern int zfs_btree_verify_intensity;
 
@@ -3124,13 +3125,18 @@ dump_znode_symlink(sa_handle_t *hdl)
 {
 	int sa_symlink_size = 0;
 	char linktarget[MAXPATHLEN];
-	linktarget[0] = '\0';
 	int error;
 
 	error = sa_size(hdl, sa_attr_table[ZPL_SYMLINK], &sa_symlink_size);
 	if (error || sa_symlink_size == 0) {
 		return;
 	}
+	if (sa_symlink_size >= sizeof (linktarget)) {
+		(void) printf("symlink size %d is too large\n",
+		    sa_symlink_size);
+		return;
+	}
+	linktarget[sa_symlink_size] = '\0';
 	if (sa_lookup(hdl, sa_attr_table[ZPL_SYMLINK],
 	    &linktarget, sa_symlink_size) == 0)
 		(void) printf("\ttarget	%s\n", linktarget);
@@ -8468,6 +8474,11 @@ main(int argc, char **argv)
 	 * to load non-idle pools.
 	 */
 	spa_load_verify_dryrun = B_TRUE;
+
+	/*
+	 * ZDB should have ability to read spacemaps.
+	 */
+	spa_mode_readable_spacemaps = B_TRUE;
 
 	kernel_init(SPA_MODE_READ);
 
