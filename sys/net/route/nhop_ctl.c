@@ -229,7 +229,8 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
 		struct ifnet *ifp = ifnet_byindex(sdl->sdl_index);
 		if (ifp == NULL) {
-			FIB_NH_LOG(LOG_WARNING, nh, "invalid ifindex %d", sdl->sdl_index);
+			FIB_NH_LOG(LOG_DEBUG, nh, "error: invalid ifindex %d",
+			    sdl->sdl_index);
 			return (EINVAL);
 		}
 		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
@@ -247,9 +248,9 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		 *   happy.
 		 */
 		if (gw->sa_len > sizeof(struct sockaddr_in6)) {
-			FIB_NH_LOG(LOG_WARNING, nh, "nhop SA size too big: AF %d len %u",
+			FIB_NH_LOG(LOG_DEBUG, nh, "nhop SA size too big: AF %d len %u",
 			    gw->sa_family, gw->sa_len);
-			return (ENOMEM);
+			return (EINVAL);
 		}
 		memcpy(&nh->gw_sa, gw, gw->sa_len);
 	}
@@ -323,8 +324,10 @@ nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	NET_EPOCH_ASSERT();
 
-	if (info->rti_info[RTAX_GATEWAY] == NULL)
+	if (info->rti_info[RTAX_GATEWAY] == NULL) {
+		FIB_RH_LOG(LOG_DEBUG, rnh, "error: empty gateway");
 		return (EINVAL);
+	}
 
 	nh_priv = alloc_nhop_structure();
 
