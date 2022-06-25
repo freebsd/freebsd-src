@@ -168,7 +168,7 @@ link_nhgrp(struct nh_control *ctl, struct nhgrp_priv *grp_priv)
 
 	if (bitmask_alloc_idx(&ctl->nh_idx_head, &idx) != 0) {
 		NHOPS_WUNLOCK(ctl);
-		FIB_RH_LOG(LOG_INFO, ctl->ctl_rh, "Unable to allocate nhg index");
+		FIB_RH_LOG(LOG_DEBUG, ctl->ctl_rh, "Unable to allocate nhg index");
 		consider_resize(ctl, new_num_buckets, new_num_items);
 		return (0);
 	}
