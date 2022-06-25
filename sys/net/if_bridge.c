@@ -1266,9 +1266,21 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (CK_LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
 	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
-		if_printf(sc->sc_ifp, "invalid MTU: %u(%s) != %u\n",
-		    ifs->if_mtu, ifs->if_xname, sc->sc_ifp->if_mtu);
-		return (EINVAL);
+		struct ifreq ifr;
+
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s",
+		    ifs->if_xname);
+		ifr.ifr_mtu = sc->sc_ifp->if_mtu;
+
+		error = (*ifs->if_ioctl)(ifs,
+		    SIOCSIFMTU, (caddr_t)&ifr);
+		if (error != 0) {
+			log(LOG_NOTICE, "%s: invalid MTU: %u for"
+			    " new member %s\n", sc->sc_ifp->if_xname,
+			    ifr.ifr_mtu,
+			    ifs->if_xname);
+			return (EINVAL);
+		}
 	}
 
 	bif = malloc(sizeof(*bif), M_DEVBUF, M_NOWAIT|M_ZERO);
