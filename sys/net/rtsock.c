@@ -1137,9 +1137,12 @@ route_output(struct mbuf *m, struct socket *so, ...)
 				rc = rc_simple;
 			}
 #endif
+			/* nh MAY be empty if RTM_CHANGE request is no-op */
 			nh = rc.rc_nh_new;
-			rtm->rtm_index = nh->nh_ifp->if_index;
-			rtm->rtm_flags = rc.rc_rt->rte_flags | nhop_get_rtflags(nh);
+			if (nh != NULL) {
+				rtm->rtm_index = nh->nh_ifp->if_index;
+				rtm->rtm_flags = rc.rc_rt->rte_flags | nhop_get_rtflags(nh);
+			}
 		}
 		break;
 
@@ -1176,7 +1179,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		senderr(EOPNOTSUPP);
 	}
 
-	if (error == 0) {
+	if (error == 0 && nh != NULL) {
 		error = update_rtm_from_rc(&info, &rtm, alloc_len, &rc, nh);
 		/*
 		 * Note that some sockaddr pointers may have changed to
