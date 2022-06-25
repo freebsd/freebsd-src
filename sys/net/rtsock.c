@@ -80,6 +80,11 @@
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
 
+#define	DEBUG_MOD_NAME	rtsock
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 struct if_msghdr32 {
 	uint16_t ifm_msglen;
 	uint8_t	ifm_version;
@@ -133,8 +138,7 @@ struct linear_buffer {
 };
 #define	SCRATCH_BUFFER_SIZE	1024
 
-#define	RTS_PID_PRINTF(_fmt, ...) \
-    printf("rtsock:%s(): PID %d: " _fmt "\n", __func__, curproc->p_pid, ## __VA_ARGS__)
+#define	RTS_PID_LOG(_l, _fmt, ...)	RT_LOG_##_l(_l, "PID %d: " _fmt, curproc ? curproc->p_pid : 0, ## __VA_ARGS__)
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
@@ -581,7 +585,7 @@ fill_blackholeinfo(struct rt_addrinfo *info, union sockaddr_union *saun)
 	sa_family_t saf;
 
 	if (V_loif == NULL) {
-		RTS_PID_PRINTF("Unable to add blackhole/reject nhop without loopback");
+		RTS_PID_LOG(LOG_INFO, "Unable to add blackhole/reject nhop without loopback");
 		return (ENOTSUP);
 	}
 	info->rti_ifp = V_loif;
@@ -594,8 +598,10 @@ fill_blackholeinfo(struct rt_addrinfo *info, union sockaddr_union *saun)
 			break;
 		}
 	}
-	if (info->rti_ifa == NULL)
+	if (info->rti_ifa == NULL) {
+		RTS_PID_LOG(LOG_INFO, "Unable to find ifa for blackhole/reject nhop");
 		return (ENOTSUP);
+	}
 
 	bzero(saun, sizeof(union sockaddr_union));
 	switch (saf) {
@@ -614,6 +620,7 @@ fill_blackholeinfo(struct rt_addrinfo *info, union sockaddr_union *saun)
 		break;
 #endif
 	default:
+		RTS_PID_LOG(LOG_INFO, "unsupported family: %d", saf);
 		return (ENOTSUP);
 	}
 	info->rti_info[RTAX_GATEWAY] = &saun->sa;
@@ -1101,8 +1108,10 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	if (blackhole_flags != 0) {
 		if (blackhole_flags != (RTF_BLACKHOLE | RTF_REJECT))
 			error = fill_blackholeinfo(&info, &gw_saun);
-		else
+		else {
+			RTS_PID_LOG(LOG_DEBUG, "both BLACKHOLE and REJECT flags specifiied");
 			error = EINVAL;
+		}
 		if (error != 0)
 			senderr(error);
 	}
@@ -1111,8 +1120,10 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	case RTM_ADD:
 	case RTM_CHANGE:
 		if (rtm->rtm_type == RTM_ADD) {
-			if (info.rti_info[RTAX_GATEWAY] == NULL)
+			if (info.rti_info[RTAX_GATEWAY] == NULL) {
+				RTS_PID_LOG(LOG_DEBUG, "RTM_ADD w/o gateway");
 				senderr(EINVAL);
+			}
 		}
 		error = rib_action(fibnum, rtm->rtm_type, &info, &rc);
 		if (error == 0) {
@@ -1303,8 +1314,10 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 		/*
 		 * It won't fit.
 		 */
-		if (cp + sa->sa_len > cplim)
+		if (cp + sa->sa_len > cplim) {
+			RTS_PID_LOG(LOG_DEBUG, "sa_len too big for sa type %d", i);
 			return (EINVAL);
+		}
 		/*
 		 * there are no more.. quit now
 		 * If there are more bits, they are in error.
@@ -1372,11 +1385,15 @@ cleanup_xaddrs_lladdr(struct rt_addrinfo *info)
 	if (sdl->sdl_family != AF_LINK)
 		return (EINVAL);
 
-	if (sdl->sdl_index == 0)
+	if (sdl->sdl_index == 0) {
+		RTS_PID_LOG(LOG_DEBUG, "AF_LINK gateway w/o ifindex");
 		return (EINVAL);
+	}
 
-	if (offsetof(struct sockaddr_dl, sdl_data) + sdl->sdl_nlen + sdl->sdl_alen > sdl->sdl_len)
+	if (offsetof(struct sockaddr_dl, sdl_data) + sdl->sdl_nlen + sdl->sdl_alen > sdl->sdl_len) {
+		RTS_PID_LOG(LOG_DEBUG, "AF_LINK gw: sdl_nlen/sdl_alen too large");
 		return (EINVAL);
+	}
 
 	return (0);
 }
@@ -1398,7 +1415,8 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info, struct linear_buffer *lb)
 
 			/* Ensure reads do not go beyoud SA boundary */
 			if (SA_SIZE(gw) < offsetof(struct sockaddr_in, sin_zero)) {
-				RTS_PID_PRINTF("gateway sin_len too small: %d", gw->sa_len);
+				RTS_PID_LOG(LOG_DEBUG, "gateway sin_len too small: %d",
+				    gw->sa_len);
 				return (EINVAL);
 			}
 			sa = alloc_sockaddr_aligned(lb, sizeof(struct sockaddr_in));
@@ -1414,7 +1432,8 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info, struct linear_buffer *lb)
 		{
 			struct sockaddr_in6 *gw_sin6 = (struct sockaddr_in6 *)gw;
 			if (gw_sin6->sin6_len < sizeof(struct sockaddr_in6)) {
-				RTS_PID_PRINTF("gateway sin6_len too small: %d", gw->sa_len);
+				RTS_PID_LOG(LOG_DEBUG, "gateway sin6_len too small: %d",
+				    gw->sa_len);
 				return (EINVAL);
 			}
 			fill_sockaddr_inet6(gw_sin6, &gw_sin6->sin6_addr, 0);
@@ -1428,7 +1447,8 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info, struct linear_buffer *lb)
 			size_t sdl_min_len = offsetof(struct sockaddr_dl, sdl_data);
 			gw_sdl = (struct sockaddr_dl *)gw;
 			if (gw_sdl->sdl_len < sdl_min_len) {
-				RTS_PID_PRINTF("gateway sdl_len too small: %d", gw_sdl->sdl_len);
+				RTS_PID_LOG(LOG_DEBUG, "gateway sdl_len too small: %d",
+				    gw_sdl->sdl_len);
 				return (EINVAL);
 			}
 			sa = alloc_sockaddr_aligned(lb, sizeof(struct sockaddr_dl_short));
@@ -1470,8 +1490,11 @@ cleanup_xaddrs_inet(struct rt_addrinfo *info, struct linear_buffer *lb)
 	mask_sa = (struct sockaddr_in *)info->rti_info[RTAX_NETMASK];
 
 	/* Ensure reads do not go beyound the buffer size */
-	if (SA_SIZE(dst_sa) < offsetof(struct sockaddr_in, sin_zero))
+	if (SA_SIZE(dst_sa) < offsetof(struct sockaddr_in, sin_zero)) {
+		RTS_PID_LOG(LOG_DEBUG, "prefix dst sin_len too small: %d",
+		    dst_sa->sin_len);
 		return (EINVAL);
+	}
 
 	if ((mask_sa != NULL) && mask_sa->sin_len < sizeof(struct sockaddr_in)) {
 		/*
@@ -1485,7 +1508,8 @@ cleanup_xaddrs_inet(struct rt_addrinfo *info, struct linear_buffer *lb)
 				len = sizeof(struct in_addr);
 			memcpy(&mask, &mask_sa->sin_addr, len);
 		} else {
-			RTS_PID_PRINTF("prefix mask sin_len too small: %d", mask_sa->sin_len);
+			RTS_PID_LOG(LOG_DEBUG, "prefix mask sin_len too small: %d",
+			    mask_sa->sin_len);
 			return (EINVAL);
 		}
 	} else
@@ -1530,7 +1554,8 @@ cleanup_xaddrs_inet6(struct rt_addrinfo *info, struct linear_buffer *lb)
 	mask_sa = (struct sockaddr_in6 *)info->rti_info[RTAX_NETMASK];
 
 	if (dst_sa->sin6_len < sizeof(struct sockaddr_in6)) {
-		RTS_PID_PRINTF("prefix dst sin6_len too small: %d", dst_sa->sin6_len);
+		RTS_PID_LOG(LOG_DEBUG, "prefix dst sin6_len too small: %d",
+		    dst_sa->sin6_len);
 		return (EINVAL);
 	}
 
@@ -1546,7 +1571,8 @@ cleanup_xaddrs_inet6(struct rt_addrinfo *info, struct linear_buffer *lb)
 				len = sizeof(struct in6_addr);
 			memcpy(&mask, &mask_sa->sin6_addr, len);
 		} else {
-			RTS_PID_PRINTF("rtsock: prefix mask sin6_len too small: %d", mask_sa->sin6_len);
+			RTS_PID_LOG(LOG_DEBUG, "rtsock: prefix mask sin6_len too small: %d",
+			    mask_sa->sin6_len);
 			return (EINVAL);
 		}
 	} else
@@ -1582,8 +1608,10 @@ cleanup_xaddrs(struct rt_addrinfo *info, struct linear_buffer *lb)
 {
 	int error = EAFNOSUPPORT;
 
-	if (info->rti_info[RTAX_DST] == NULL)
+	if (info->rti_info[RTAX_DST] == NULL) {
+		RTS_PID_LOG(LOG_DEBUG, "prefix dst is not set");
 		return (EINVAL);
+	}
 
 	if (info->rti_flags & RTF_LLDATA) {
 		/*

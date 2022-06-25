@@ -62,6 +62,31 @@
 #define LOG_DEBUG3      9
 #endif
 
+/*
+ * Severity usage guidelines:
+ *
+ * LOG_WARNING - subsystem-global errors ("multipath init failed")
+ *
+ * LOG_INFO - subsystem non-transient errors ("Failed to unlink nexhop").
+ *  All logging <= LOG_INFO by default will be written to syslog.
+ *
+ * LOG_DEBUG - subsystem debug. Not-too often events (hash resizes, recoverable failures).
+ *  These are compiled in by default on production. Turning it it should NOT notable affect
+ *  performance
+ * LOG_DEBUG2 - more debug. Per-item level (nhg,nh,route) debug, up to multiple lines per item.
+ *  This is NOT compiled in by default. Turning it on should NOT seriously impact performance
+ * LOG_DEBUG3 - last debug level. Per-item large debug outputs.
+ *  This is NOT compiled in by default. All performance bets are off.
+ *
+ */
+
+
+#define	LOG_WARNING	4	/* warning conditions */
+#define	LOG_NOTICE	5	/* normal but significant condition */
+#define	LOG_INFO	6	/* informational */
+#define	LOG_DEBUG	7	/* debug-level messages */
+
+
 #define _output			printf
 #define	_DEBUG_PASS_MSG(_l)	(DEBUG_VAR_NAME >= (_l))
 

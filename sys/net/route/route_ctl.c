@@ -586,8 +586,10 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
 	 */
 	if (info->rti_flags & RTF_HOST)
 		info->rti_info[RTAX_NETMASK] = NULL;
-	else if (info->rti_info[RTAX_NETMASK] == NULL)
+	else if (info->rti_info[RTAX_NETMASK] == NULL) {
+		FIB_RH_LOG(LOG_DEBUG, rnh, "error: no RTF_HOST and empty netmask");
 		return (EINVAL);
+	}
 
 	bzero(rc, sizeof(struct rib_cmd_info));
 	rc->rc_cmd = RTM_ADD;
@@ -642,13 +644,22 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 	netmask = info->rti_info[RTAX_NETMASK];
 	flags = info->rti_flags;
 
-	if ((flags & RTF_GATEWAY) && !gateway)
+	if ((flags & RTF_GATEWAY) && !gateway) {
+		FIB_RH_LOG(LOG_DEBUG, rnh, "error: RTF_GATEWAY set with empty gw");
 		return (EINVAL);
-	if (dst && gateway && !check_gateway(rnh, dst, gateway))
+	}
+	if (dst && gateway && !check_gateway(rnh, dst, gateway)) {
+		FIB_RH_LOG(LOG_DEBUG, rnh,
+		    "error: invalid dst/gateway family combination (%d, %d)",
+		    dst->sa_family, gateway->sa_family);
 		return (EINVAL);
+	}
 
-	if (dst->sa_len > sizeof(((struct rtentry *)NULL)->rt_dstb))
+	if (dst->sa_len > sizeof(((struct rtentry *)NULL)->rt_dstb)) {
+		FIB_RH_LOG(LOG_DEBUG, rnh, "error: dst->sa_len too large: %d",
+		    dst->sa_len);
 		return (EINVAL);
+	}
 
 	if (info->rti_ifa == NULL) {
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
@@ -798,8 +809,10 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
 
 	if (netmask != NULL) {
 		/* Ensure @dst is always properly masked */
-		if (dst_orig->sa_len > sizeof(mdst))
+		if (dst_orig->sa_len > sizeof(mdst)) {
+			FIB_RH_LOG(LOG_DEBUG, rnh, "error: dst->sa_len too large");
 			return (EINVAL);
+		}
 		rt_maskedcopy(dst_orig, (struct sockaddr *)&mdst, netmask);
 		info->rti_info[RTAX_DST] = (struct sockaddr *)&mdst;
 	}
