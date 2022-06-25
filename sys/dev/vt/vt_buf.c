@@ -747,6 +747,29 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 	return (sz * sizeof(term_char_t));
 }
 
+static bool
+tchar_is_word_separator(term_char_t ch)
+{
+	/* List of unicode word separator characters: */
+	switch (TCHAR_CHARACTER(ch)) {
+	case 0x0020: /* SPACE */
+	case 0x180E: /* MONGOLIAN VOWEL SEPARATOR */
+	case 0x2002: /* EN SPACE (nut) */
+	case 0x2003: /* EM SPACE (mutton) */
+	case 0x2004: /* THREE-PER-EM SPACE (thick space) */
+	case 0x2005: /* FOUR-PER-EM SPACE (mid space) */
+	case 0x2006: /* SIX-PER-EM SPACE */
+	case 0x2008: /* PUNCTUATION SPACE */
+	case 0x2009: /* THIN SPACE */
+	case 0x200A: /* HAIR SPACE */
+	case 0x200B: /* ZERO WIDTH SPACE */
+	case 0x3000: /* IDEOGRAPHIC SPACE */
+		return (true);
+	default:
+		return (false);
+	}
+}
+
 void
 vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 {
@@ -779,7 +802,7 @@ vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 		if (r != e.tp_row) {
 			/* Trim trailing word separators, if any. */
 			for (; i != j; i--) {
-				if (TCHAR_CHARACTER(buf[i - 1]) != ' ')
+				if (!tchar_is_word_separator(buf[i - 1]))
 					break;
 			}
 			/* Add newline character as expected by TTY. */
@@ -824,7 +847,7 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 		    vtbuf_wth(vb, row);
 		r = vb->vb_rows[vb->vb_mark_start.tp_row];
 		for (i = col; i >= 0; i --) {
-			if (TCHAR_CHARACTER(r[i]) == ' ') {
+			if (tchar_is_word_separator(r[i])) {
 				vb->vb_mark_start.tp_col = i + 1;
 				break;
 			}
@@ -833,7 +856,7 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 		if (i == -1)
 			vb->vb_mark_start.tp_col = 0;
 		for (i = col; i < vb->vb_scr_size.tp_col; i++) {
-			if (TCHAR_CHARACTER(r[i]) == ' ') {
+			if (tchar_is_word_separator(r[i])) {
 				vb->vb_mark_end.tp_col = i;
 				break;
 			}
