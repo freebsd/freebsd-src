@@ -80,13 +80,6 @@
  *
  */
 
-
-#define	LOG_WARNING	4	/* warning conditions */
-#define	LOG_NOTICE	5	/* normal but significant condition */
-#define	LOG_INFO	6	/* informational */
-#define	LOG_DEBUG	7	/* debug-level messages */
-
-
 #define _output			printf
 #define	_DEBUG_PASS_MSG(_l)	(DEBUG_VAR_NAME >= (_l))
 
