@@ -76,13 +76,14 @@
 #endif
 #include <net/route/nhop.h>
 
+#define	DEBUG_MOD_NAME	rtsock
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG
+#include <net/route/route_debug.h>
+
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <compat/freebsd32/freebsd32.h>
 
-#define	DEBUG_MOD_NAME	rtsock
-#define	DEBUG_MAX_LEVEL	LOG_DEBUG
-#include <net/route/route_debug.h>
 _DECLARE_DEBUG(LOG_INFO);
 
 struct if_msghdr32 {
