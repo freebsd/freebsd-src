@@ -389,15 +389,6 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_increment_count(isrc);
 
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL) {
-		int error;
-		error = isrc->isrc_filter(isrc->isrc_arg, tf);
-		PIC_POST_FILTER(isrc->isrc_dev, isrc);
-		if (error == FILTER_HANDLED)
-			return (0);
-	} else
-#endif
 	if (intr_event_handle(isrc->isrc_event, tf) == 0)
 		return (0);
 
@@ -669,37 +660,6 @@ intr_isrc_init_on_cpu(struct intr_irqsrc *isrc, u_int cpu)
 
 	CPU_SET(cpu, &isrc->isrc_cpu);
 	return (true);
-}
-#endif
-
-#ifdef INTR_SOLO
-/*
- *  Setup filter into interrupt source.
- */
-static int
-iscr_setup_filter(struct intr_irqsrc *isrc, const char *name,
-    intr_irq_filter_t *filter, void *arg, void **cookiep)
-{
-
-	if (filter == NULL)
-		return (EINVAL);
-
-	mtx_lock(&isrc_table_lock);
-	/*
-	 * Make sure that we do not mix the two ways
-	 * how we handle interrupt sources.
-	 */
-	if (isrc->isrc_filter != NULL || isrc->isrc_event != NULL) {
-		mtx_unlock(&isrc_table_lock);
-		return (EBUSY);
-	}
-	isrc->isrc_filter = filter;
-	isrc->isrc_arg = arg;
-	isrc_update_name(isrc, name);
-	mtx_unlock(&isrc_table_lock);
-
-	*cookiep = isrc;
-	return (0);
 }
 #endif
 
@@ -1065,34 +1025,9 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 
 	startempty = ISRC_NO_HANDLER(isrc);
 
-#ifdef INTR_SOLO
-	/*
-	 * Standard handling is done through MI interrupt framework. However,
-	 * some interrupts could request solely own special handling. This
-	 * non standard handling can be used for interrupt controllers without
-	 * handler (filter only), so in case that interrupt controllers are
-	 * chained, MI interrupt framework is called only in leaf controller.
-	 *
-	 * Note that root interrupt controller routine is served as well,
-	 * however in intr_irq_handler(), i.e. main system dispatch routine.
-	 */
-	if (flags & INTR_SOLO && hand != NULL) {
-		debugf("irq %u cannot solo on %s\n", irq, name);
-		return (EINVAL);
-	}
-
-	if (flags & INTR_SOLO) {
-		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
-		    arg, cookiep);
-		debugf("irq %u setup filter error %d on %s\n", isrc->isrc_irq, error,
-		    name);
-	} else
-#endif
-		{
-		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
-		    cookiep);
-		debugf("irq %u add handler error %d on %s\n", isrc->isrc_event->ie_irq, error, name);
-	}
+	error = isrc_add_handler(isrc, name, filt, hand, arg, flags, cookiep);
+	debugf("irq %u add handler error %d on %s\n", isrc->isrc_event->ie_irq,
+	    error, name);
 	if (error != 0)
 		return (error);
 
@@ -1127,22 +1062,6 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 
 	data = rman_get_virtual(res);
 
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL) {
-		if (isrc != cookie)
-			return (EINVAL);
-
-		mtx_lock(&isrc_table_lock);
-		isrc->isrc_filter = NULL;
-		isrc->isrc_arg = NULL;
-		isrc->isrc_handlers = 0;
-		PIC_DISABLE_INTR(isrc->isrc_dev, isrc);
-		PIC_TEARDOWN_INTR(isrc->isrc_dev, isrc, res, data);
-		isrc_update_name(isrc, NULL);
-		mtx_unlock(&isrc_table_lock);
-		return (0);
-	}
-#endif
 	if (isrc != intr_handler_source(cookie))
 		return (EINVAL);
 
@@ -1174,17 +1093,6 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || ISRC_NO_HANDLER(isrc))
 		return (EINVAL);
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL) {
-		if (isrc != cookie)
-			return (EINVAL);
-
-		mtx_lock(&isrc_table_lock);
-		isrc_update_name(isrc, descr);
-		mtx_unlock(&isrc_table_lock);
-		return (0);
-	}
-#endif
 	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
@@ -1208,10 +1116,6 @@ intr_bind_irq(device_t dev, struct resource *res, int cpu)
 	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || ISRC_NO_HANDLER(isrc))
 		return (EINVAL);
-#ifdef INTR_SOLO
-	if (isrc->isrc_filter != NULL)
-		return (intr_isrc_assign_cpu(isrc, cpu));
-#endif
 	return (intr_event_bind(isrc->isrc_event, cpu));
 }
 

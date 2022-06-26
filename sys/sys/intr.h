@@ -61,12 +61,7 @@ struct intr_map_data_msi {
 	struct intr_irqsrc 	*isrc;
 };
 
-#ifdef notyet
-#define	INTR_SOLO	INTR_MD1
-typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
-#else
 typedef int intr_irq_filter_t(void *arg);
-#endif
 typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 
 #define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
@@ -87,10 +82,6 @@ struct intr_irqsrc {
 	u_long *		isrc_count;
 	u_int			isrc_handlers;
 	struct intr_event *	isrc_event;
-#ifdef INTR_SOLO
-	intr_irq_filter_t *	isrc_filter;
-	void *			isrc_arg;
-#endif
 	/* Used by MSI interrupts to store the iommu details */
 	void *			isrc_iommu;
 };
