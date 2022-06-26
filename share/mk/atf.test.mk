@@ -145,7 +145,7 @@ CLEANFILES+= ${_T} ${_T}.tmp
 ATF_TESTS_PYTEST_SED_${_T}?= # empty
 ATF_TESTS_PYTEST_SRC_${_T}?= ${.CURDIR}/${_T:S,.xtmp$,,}
 ${_T}:
-	echo "#!${TESTSBASE}/atf_pytest_wrapper -P ${TESTSBASE}" > ${.TARGET}.tmp
+	echo "#! /usr/libexec/atf_pytest_wrapper -P ${TESTSBASE}" > ${.TARGET}.tmp
 .if empty(ATF_TESTS_PYTEST_SED_${_T})
 	cat ${ATF_TESTS_PYTEST_SRC_${_T}}  >>${.TARGET}.tmp
 .else

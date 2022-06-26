@@ -421,6 +421,8 @@
         atf
             atf-check
             ..
+            atf-pytest-wrapper
+            ..
             atf-sh
             ..
         ..

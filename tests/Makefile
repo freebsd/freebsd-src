@@ -11,7 +11,6 @@ KYUAFILE= yes
 SUBDIR+= etc
 SUBDIR+= sys
 SUBDIR+= atf_python
-SUBDIR+= freebsd_test_suite
 
 SUBDIR_PARALLEL=
 
