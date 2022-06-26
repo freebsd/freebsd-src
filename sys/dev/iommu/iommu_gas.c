@@ -350,7 +350,7 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 	 * the next entry, then we do not have gap.  Ignore for now.
 	 */
 	if ((a->gas_flags & IOMMU_MF_CANSPLIT) != 0) {
-		a->size = bs - a->entry->start;
+		a->size = bs - a->entry->start - a->offset;
 		return (true);
 	}
 
