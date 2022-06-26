@@ -1036,47 +1036,6 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	 */
 	lkpi_wake_tx_queues(hw, sta, false, false);
 
-	{
-		int i, count;
-
-		for (i = 3 * (hw->queues + 1); i > 0; i--) {
-			struct lkpi_txq *ltxq;
-			int tid;
-
-			count = 0;
-			/* Wake up all queues to know they are allocated in the driver. */
-			for (tid = 0; tid < nitems(sta->txq); tid++) {
-
-				if (tid == IEEE80211_NUM_TIDS) {
-					IMPROVE("station specific?");
-					if (!ieee80211_hw_check(hw, STA_MMPDU_TXQ))
-						continue;
-				} else if (tid >= hw->queues)
-					continue;
-
-				if (sta->txq[tid] == NULL)
-					continue;
-
-				ltxq = TXQ_TO_LTXQ(sta->txq[tid]);
-				if (!ltxq->seen_dequeue)
-					count++;
-			}
-			if (count == 0)
-				break;
-#ifdef LINUXKPI_DEBUG_80211
-			if (count > 0)
-				ic_printf(vap->iv_ic, "%s: waiting for %d queues "
-				    "to be allocated by driver\n", __func__, count);
-#endif
-			pause("lkpi80211txq", hz/10);
-		}
-#ifdef LINUXKPI_DEBUG_80211
-		if (count > 0)
-			ic_printf(vap->iv_ic, "%s: %d queues still not "
-			    "allocated by driver\n", __func__, count);
-#endif
-	}
-
 	/* Start mgd_prepare_tx. */
 	memset(&prep_tx_info, 0, sizeof(prep_tx_info));
 	prep_tx_info.duration = PREP_TX_INFO_DURATION;
