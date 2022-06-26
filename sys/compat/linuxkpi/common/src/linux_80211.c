@@ -2073,8 +2073,8 @@ lkpi_iv_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 	struct lkpi_vif *lvif;
 	struct ieee80211_node *obss;
 	struct lkpi_sta *lsta;
+	struct ieee80211_sta *sta;
 
-	lvif = VAP_TO_LVIF(vap);
 	obss = vap->iv_bss;
 
 #ifdef LINUXKPI_DEBUG_80211
@@ -2101,13 +2101,20 @@ lkpi_iv_update_bss(struct ieee80211vap *vap, struct ieee80211_node *ni)
 	lsta = obss->ni_drv_data;
 	obss->ni_drv_data = ni->ni_drv_data;
 	ni->ni_drv_data = lsta;
-	if (lsta != NULL)
+	if (lsta != NULL) {
 		lsta->ni = ni;
+		sta = LSTA_TO_STA(lsta);
+		IEEE80211_ADDR_COPY(sta->addr, lsta->ni->ni_macaddr);
+	}
 	lsta = obss->ni_drv_data;
-	if (lsta != NULL)
+	if (lsta != NULL) {
 		lsta->ni = obss;
+		sta = LSTA_TO_STA(lsta);
+		IEEE80211_ADDR_COPY(sta->addr, lsta->ni->ni_macaddr);
+	}
 
 out:
+	lvif = VAP_TO_LVIF(vap);
 	return (lvif->iv_update_bss(vap, ni));
 }
 
