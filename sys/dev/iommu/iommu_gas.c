@@ -197,8 +197,7 @@ iommu_gas_rb_insert(struct iommu_domain *domain, struct iommu_map_entry *entry)
 {
 	struct iommu_map_entry *found;
 
-	found = RB_INSERT(iommu_gas_entries_tree,
-	    &domain->rb_root, entry);
+	found = RB_INSERT(iommu_gas_entries_tree, &domain->rb_root, entry);
 	return (found == NULL);
 }
 
@@ -303,6 +302,13 @@ iommu_gas_match_one(struct iommu_gas_match_args *a, iommu_gaddr_t beg,
 {
 	iommu_gaddr_t bs, start;
 
+	/*
+	 * The prev->end is always aligned on the page size, which
+	 * causes page alignment for the entry->start too.
+	 *
+	 * A page sized gap is created between consecutive
+	 * allocations to ensure that out-of-bounds accesses fault.
+	 */
 	a->entry->start = roundup2(beg + IOMMU_PAGE_SIZE,
 	    a->common->alignment);
 	if (a->entry->start + a->offset + a->size > maxaddr)
@@ -356,13 +362,6 @@ iommu_gas_match_insert(struct iommu_gas_match_args *a)
 {
 	bool found __diagused;
 
-	/*
-	 * The prev->end is always aligned on the page size, which
-	 * causes page alignment for the entry->start too.
-	 *
-	 * The page sized gap is created between consequent
-	 * allocations to ensure that out-of-bounds accesses fault.
-	 */
 	a->entry->end = a->entry->start +
 	    roundup2(a->size + a->offset, IOMMU_PAGE_SIZE);
 
@@ -487,8 +486,7 @@ iommu_gas_find_space(struct iommu_domain *domain,
 
 	/* Handle lower region. */
 	if (common->lowaddr > 0) {
-		error = iommu_gas_lowermatch(&a,
-		    RB_ROOT(&domain->rb_root));
+		error = iommu_gas_lowermatch(&a, RB_ROOT(&domain->rb_root));
 		if (error == 0)
 			return (0);
 		KASSERT(error == ENOMEM,
@@ -636,7 +634,7 @@ iommu_gas_map(struct iommu_domain *domain,
 	    ("invalid flags 0x%x", flags));
 
 	entry = iommu_gas_alloc_entry(domain,
-	    (flags & IOMMU_MF_CANWAIT) != 0 ?  IOMMU_PGF_WAITOK : 0);
+	    (flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0);
 	if (entry == NULL)
 		return (ENOMEM);
 	IOMMU_DOMAIN_LOCK(domain);
@@ -660,7 +658,7 @@ iommu_gas_map(struct iommu_domain *domain,
 
 	error = domain->ops->map(domain, entry->start,
 	    entry->end - entry->start, ma, eflags,
-	    ((flags & IOMMU_MF_CANWAIT) != 0 ?  IOMMU_PGF_WAITOK : 0));
+	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, true);
 		return (error);
