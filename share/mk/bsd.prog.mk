@@ -41,10 +41,12 @@ MK_DEBUG_FILES=	no
 .if ${MK_BIND_NOW} != "no"
 LDFLAGS+= -Wl,-znow
 .endif
+.if ${LINKER_TYPE} != "macos"
 .if ${MK_RELRO} == "no"
 LDFLAGS+= -Wl,-znorelro
 .else
 LDFLAGS+= -Wl,-zrelro
+.endif
 .endif
 .if ${MK_PIE} != "no"
 # Static PIE is not yet supported/tested.
