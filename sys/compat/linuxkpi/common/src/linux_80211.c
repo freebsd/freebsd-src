@@ -179,9 +179,12 @@ lkpi_lsta_remove(struct lkpi_sta *lsta, struct lkpi_vif *lvif)
 
 	lsta->ni = NULL;
 	ni->ni_drv_data = NULL;
-	ieee80211_free_node(ni);
+	if (ni != NULL)
+		ieee80211_free_node(ni);
 
-	IMPROVE("free lsta here?  We won't have a pointer to it from the node anymore.");
+	IMPROVE("more from lkpi_ic_node_free() should happen here.");
+
+	free(lsta, M_LKPI80211);
 }
 
 static struct lkpi_sta *
@@ -998,12 +1001,15 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			goto out;
 		}
 		lsta->ni = ieee80211_ref_node(ni);
-		LKPI_80211_LVIF_LOCK(lvif);
-		TAILQ_INSERT_TAIL(&lvif->lsta_head, lsta, lsta_entry);
-		LKPI_80211_LVIF_UNLOCK(lvif);
 	} else {
 		lsta = ni->ni_drv_data;
 	}
+
+	/* Insert the [l]sta into the list of known stations. */
+	LKPI_80211_LVIF_LOCK(lvif);
+	TAILQ_INSERT_TAIL(&lvif->lsta_head, lsta, lsta_entry);
+	LKPI_80211_LVIF_UNLOCK(lvif);
+
 	/* Add (or adjust) sta and change state (from NOTEXIST) to NONE. */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
 	KASSERT(lsta->state == IEEE80211_STA_NOTEXIST, ("%s: lsta %p state not "
@@ -2816,7 +2822,6 @@ lkpi_ic_node_init(struct ieee80211_node *ni)
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
 	struct lkpi_sta *lsta;
-	struct lkpi_vif *lvif;
 	int error;
 
 	ic = ni->ni_ic;
@@ -2828,16 +2833,10 @@ lkpi_ic_node_init(struct ieee80211_node *ni)
 			return (error);
 	}
 
-	lvif = VAP_TO_LVIF(ni->ni_vap);
-
 	lsta = ni->ni_drv_data;
 
 	/* Now take the reference before linking it to the table. */
 	lsta->ni = ieee80211_ref_node(ni);
-
-	LKPI_80211_LVIF_LOCK(lvif);
-	TAILQ_INSERT_TAIL(&lvif->lsta_head, lsta, lsta_entry);
-	LKPI_80211_LVIF_UNLOCK(lvif);
 
 	/* XXX-BZ Sync other state over. */
 	IMPROVE();
@@ -2888,11 +2887,11 @@ lkpi_ic_node_free(struct ieee80211_node *ni)
 	mtx_destroy(&lsta->txq_mtx);
 
 	/* Remove lsta if added_to_drv. */
+
 	/* Remove lsta from vif */
-
-	/* remove ref from lsta node... */
-
+	/* Remove ref from lsta node... */
 	/* Free lsta. */
+	lkpi_lsta_remove(lsta, VAP_TO_LVIF(ni->ni_vap));
 
 out:
 	if (lhw->ic_node_free != NULL)
