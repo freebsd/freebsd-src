@@ -1509,14 +1509,23 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	vif = LVIF_TO_VIF(lvif);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	ni = NULL;
 
 	IMPROVE("ponder some of this moved to ic_newassoc, scan_assoc_success, "
 	    "and to lesser extend ieee80211_notify_node_join");
 
+	/* Finish assoc. */
+	/* Update sta_state (AUTH to ASSOC) and set aid. */
 	ni = ieee80211_ref_node(vap->iv_bss);
 	lsta = ni->ni_drv_data;
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
+	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
+	    "AUTH: %#x\n", __func__, lsta, lsta->state));
 	sta = LSTA_TO_STA(lsta);
+	sta->aid = IEEE80211_NODE_AID(ni);
+	error = lkpi_80211_mo_sta_state(hw, vif, sta, IEEE80211_STA_ASSOC);
+	if (error != 0)
+		goto out;
 
 	IMPROVE("wme / conf_tx [all]");
 
@@ -1549,16 +1558,6 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
 
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
-
-	/* This MUST come after the bss_info_changed. */
-	/* Finish assoc. */
-	/* Update sta_state (AUTH to ASSOC) and set aid. */
-	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
-	    "AUTH: %#x\n", __func__, lsta, lsta->state));
-	sta->aid = IEEE80211_NODE_AID(ni);
-	error = lkpi_80211_mo_sta_state(hw, vif, sta, IEEE80211_STA_ASSOC);
-	if (error != 0)
-		goto out;
 
 	/* - change_chanctx (if needed)
 	 * - event_callback
