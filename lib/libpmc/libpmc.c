@@ -1476,9 +1476,11 @@ pmc_init(void)
 	/* Fill soft events information. */
 	pmc_class_table[n++] = &soft_class_table_descr;
 
+#if defined(__aarch64__)
 	pmc_class_table[n++] = &cmn600_pmu_class_table_descr;
 	pmc_class_table[n++] = &dmc620_pmu_cd2_class_table_descr;
 	pmc_class_table[n++] = &dmc620_pmu_c_class_table_descr;
+#endif
 #if defined(__amd64__) || defined(__i386__)
 	if (cpu_info.pm_cputype != PMC_CPU_GENERIC)
 		pmc_class_table[n++] = &tsc_class_table_descr;
