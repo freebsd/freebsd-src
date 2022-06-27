@@ -232,7 +232,7 @@ CLASSDEP_FN3(dmc620_read_pmc, int, cpu, int, ri, pmc_value_t *, v)
 CLASSDEP_FN3(dmc620_write_pmc, int, cpu, int, ri, pmc_value_t, v)
 {
 	struct dmc620_descr *desc;
-	struct pmc *pm;
+	struct pmc *pm __diagused;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[dmc620,%d] illegal CPU value %d", __LINE__, cpu));
@@ -353,7 +353,7 @@ CLASSDEP_FN4(dmc620_allocate_pmc, int, cpu, int, ri, struct pmc *,pm,
 /* ARGSUSED0 */
 CLASSDEP_FN3(dmc620_release_pmc, int, cpu, int, ri, struct pmc *, pmc)
 {
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 
 	(void) pmc;
 
@@ -537,7 +537,7 @@ CLASSDEP_FN2(dmc620_pcpu_fini, struct pmc_mdep *, md, int, cpu)
 int
 dmc620_intr(struct trapframe *tf, int class, int unit, int i)
 {
-	struct pmc_cpu *pc;
+	struct pmc_cpu *pc __diagused;
 	struct pmc_hw *phw;
 	struct pmc *pm;
 	int error, cpu, ri;
