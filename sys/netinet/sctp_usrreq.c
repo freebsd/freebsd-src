@@ -454,13 +454,10 @@ sctp_abort(struct socket *so)
 		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 		    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
 		SOCK_LOCK(so);
+		KASSERT(!SOLISTENING(so),
+		    ("sctp_abort: called on listening socket %p", so));
 		SCTP_SB_CLEAR(so->so_snd);
-		/*
-		 * same for the rcv ones, they are only here for the
-		 * accounting/select.
-		 */
 		SCTP_SB_CLEAR(so->so_rcv);
-
 		/* Now null out the reference, we are completely detached. */
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
@@ -842,14 +839,22 @@ sctp_flush(struct socket *so, int how)
 		inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_CANT_READ;
 		SCTP_INP_READ_UNLOCK(inp);
 		SCTP_INP_WUNLOCK(inp);
+		SOCK_LOCK(so);
+		KASSERT(!SOLISTENING(so),
+		    ("sctp_flush: called on listening socket %p", so));
 		SCTP_SB_CLEAR(so->so_rcv);
+		SOCK_UNLOCK(so);
 	}
 	if ((how == PRU_FLUSH_WR) || (how == PRU_FLUSH_RDWR)) {
 		/*
 		 * First make sure the sb will be happy, we don't use these
 		 * except maybe the count
 		 */
+		SOCK_LOCK(so);
+		KASSERT(!SOLISTENING(so),
+		    ("sctp_flush: called on listening socket %p", so));
 		SCTP_SB_CLEAR(so->so_snd);
+		SOCK_UNLOCK(so);
 	}
 	return (0);
 }
