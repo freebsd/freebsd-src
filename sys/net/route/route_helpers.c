@@ -64,6 +64,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/vnet.h>
 
+#define	DEBUG_MOD_NAME	rt_helpers
+#define	DEBUG_MAX_LEVEL	LOG_DEBUG2
+#include <net/route/route_debug.h>
+_DECLARE_DEBUG(LOG_INFO);
+
 /*
  * RIB helper functions.
  */
@@ -253,13 +258,38 @@ rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	return (nh);
 }
 
+static void
+notify_add(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
+    route_notification_t *cb, void *cbdata) {
+	rc->rc_nh_new = wn_src->nh;
+	rc->rc_nh_weight = wn_src->weight;
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
+	char nhbuf[NHOP_PRINT_BUFSIZE];
+	FIB_NH_LOG(LOG_DEBUG2, wn_src->nh, "RTM_ADD for %s @ w=%u",
+	    nhop_print_buf(wn_src->nh, nhbuf, sizeof(nhbuf)), wn_src->weight);
+#endif
+	cb(rc, cbdata);
+}
+
+static void
+notify_del(struct rib_cmd_info *rc, const struct weightened_nhop *wn_src,
+    route_notification_t *cb, void *cbdata) {
+	rc->rc_nh_old = wn_src->nh;
+	rc->rc_nh_weight = wn_src->weight;
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG2
+	char nhbuf[NHOP_PRINT_BUFSIZE];
+	FIB_NH_LOG(LOG_DEBUG2, wn_src->nh, "RTM_DEL for %s @ w=%u",
+	    nhop_print_buf(wn_src->nh, nhbuf, sizeof(nhbuf)), wn_src->weight);
+#endif
+	cb(rc, cbdata);
+}
+
 #ifdef ROUTE_MPATH
 static void
 decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
     void *cbdata)
 {
 	uint32_t num_old, num_new;
-	uint32_t nh_idx_old, nh_idx_new;
 	struct weightened_nhop *wn_old, *wn_new;
 	struct weightened_nhop tmp = { NULL, 0 };
 	uint32_t idx_old = 0, idx_new = 0;
@@ -283,90 +313,58 @@ decompose_change_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 		wn_new = &tmp;
 		num_new = 1;
 	}
+#if DEBUG_MAX_LEVEL >= LOG_DEBUG
+	{
+		char buf_old[NHOP_PRINT_BUFSIZE], buf_new[NHOP_PRINT_BUFSIZE];
+		nhop_print_buf_any(rc->rc_nh_old, buf_old, NHOP_PRINT_BUFSIZE);
+		nhop_print_buf_any(rc->rc_nh_new, buf_new, NHOP_PRINT_BUFSIZE);
+		FIB_NH_LOG(LOG_DEBUG, wn_old[0].nh, "change %s -> %s", buf_old, buf_new);
+	}
+#endif
 
 	/* Use the fact that each @wn array is sorted */
 	/*
-	 * Want to convert into set of add and delete operations
-	 * [1] -> [1, 2] = A{2}
-	 * [2] -> [1, 2] = A{1}
-	 * [1, 2, 4]->[1, 3, 4] = A{2}, D{3}
-	 * [1, 2, 4]->[1, 4] = D{2}
-	 * [1, 2, 4] -> [3, 4] = D{1}, C{2,3} OR C{1,3}, D{2} OR D{1},D{2},A{3}
-	 * [1, 2] -> [3, 4] =
+	 * Here we have one (or two) multipath groups and transition
+	 *  between them needs to be reported to the caller, using series
+	 *  of primitive (RTM_DEL, RTM_ADD) operations.
 	 *
+	 * Leverage the fact that each nexthop group has its nexthops sorted
+	 *  by their indices.
+	 * [1] -> [1, 2] = A{2}
+	 * [1, 2] -> [1] = D{2}
+	 * [1, 2, 4] -> [1, 3, 4] = D{2}, A{3}
+	 * [1, 2] -> [3, 4] = D{1}, D{2}, A{3}, A{4]
 	 */
-	idx_old = 0;
 	while ((idx_old < num_old) && (idx_new < num_new)) {
-		nh_idx_old = wn_old[idx_old].nh->nh_priv->nh_idx;
-		nh_idx_new = wn_new[idx_new].nh->nh_priv->nh_idx;
+		uint32_t nh_idx_old = wn_old[idx_old].nh->nh_priv->nh_idx;
+		uint32_t nh_idx_new = wn_new[idx_new].nh->nh_priv->nh_idx;
 
 		if (nh_idx_old == nh_idx_new) {
 			if (wn_old[idx_old].weight != wn_new[idx_new].weight) {
 				/* Update weight by providing del/add notifications */
-				rc_del.rc_nh_old = wn_old[idx_old].nh;
-				rc_del.rc_nh_weight = wn_old[idx_old].weight;
-				cb(&rc_del, cbdata);
-
-				rc_add.rc_nh_new = wn_new[idx_new].nh;
-				rc_add.rc_nh_weight = wn_new[idx_new].weight;
-				cb(&rc_add, cbdata);
+				notify_del(&rc_del, &wn_old[idx_old], cb, cbdata);
+				notify_add(&rc_add, &wn_new[idx_new], cb, cbdata);
 			}
 			idx_old++;
 			idx_new++;
 		} else if (nh_idx_old < nh_idx_new) {
-			/*
-			 * [1, ~2~, 4], [1, ~3~, 4]
-			 * [1, ~2~, 5], [1, ~3~, 4]
-			 * [1, ~2~], [1, ~3~, 4]
-			 */
-			if ((idx_old + 1 >= num_old) ||
-			    (wn_old[idx_old + 1].nh->nh_priv->nh_idx > nh_idx_new)) {
-				/* Add new unless the next old item is still <= new */
-				rc_add.rc_nh_new = wn_new[idx_new].nh;
-				rc_add.rc_nh_weight = wn_new[idx_new].weight;
-				cb(&rc_add, cbdata);
-				idx_new++;
-			}
-			/* In any case, delete current old */
-			rc_del.rc_nh_old = wn_old[idx_old].nh;
-			rc_del.rc_nh_weight = wn_old[idx_old].weight;
-			cb(&rc_del, cbdata);
+			/* [1, ~2~, 4], [1, ~3~, 4] */
+			notify_del(&rc_del, &wn_old[idx_old], cb, cbdata);
 			idx_old++;
 		} else {
-			/*
-			 * nh_idx_old > nh_idx_new
-			 *
-			 * [1, ~3~, 4], [1, ~2~, 4]
-			 * [1, ~3~, 5], [1, ~2~, 4]
-			 * [1, ~3~, 4], [1, ~2~]
-			 */
-			if ((idx_new + 1 >= num_new) ||
-			    (wn_new[idx_new + 1].nh->nh_priv->nh_idx > nh_idx_old)) {
-				/* No next item or next item is > current one */
-				rc_add.rc_nh_new = wn_new[idx_new].nh;
-				rc_add.rc_nh_weight = wn_new[idx_new].weight;
-				cb(&rc_add, cbdata);
-				idx_new++;
-			}
-			/* In any case, delete current old */
-			rc_del.rc_nh_old = wn_old[idx_old].nh;
-			rc_del.rc_nh_weight = wn_old[idx_old].weight;
-			cb(&rc_del, cbdata);
-			idx_old++;
+			/* nh_idx_old > nh_idx_new. */
+			notify_add(&rc_add, &wn_new[idx_new], cb, cbdata);
+			idx_new++;
 		}
 	}
 
 	while (idx_old < num_old) {
-		rc_del.rc_nh_old = wn_old[idx_old].nh;
-		rc_del.rc_nh_weight = wn_old[idx_old].weight;
-		cb(&rc_del, cbdata);
+		notify_del(&rc_del, &wn_old[idx_old], cb, cbdata);
 		idx_old++;
 	}
 
 	while (idx_new < num_new) {
-		rc_add.rc_nh_new = wn_new[idx_new].nh;
-		rc_add.rc_nh_weight = wn_new[idx_new].weight;
-		cb(&rc_add, cbdata);
+		notify_add(&rc_add, &wn_new[idx_new], cb, cbdata);
 		idx_new++;
 	}
 }
@@ -393,9 +391,7 @@ rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 			return;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)rc->rc_nh_new, &num_nhops);
 		for (uint32_t i = 0; i < num_nhops; i++) {
-			rc_new.rc_nh_new = wn[i].nh;
-			rc_new.rc_nh_weight = wn[i].weight;
-			cb(&rc_new, cbdata);
+			notify_add(&rc_new, &wn[i], cb, cbdata);
 		}
 		break;
 	case RTM_DELETE:
@@ -403,9 +399,7 @@ rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 			return;
 		wn = nhgrp_get_nhops((struct nhgrp_object *)rc->rc_nh_old, &num_nhops);
 		for (uint32_t i = 0; i < num_nhops; i++) {
-			rc_new.rc_nh_old = wn[i].nh;
-			rc_new.rc_nh_weight = wn[i].weight;
-			cb(&rc_new, cbdata);
+			notify_del(&rc_new, &wn[i], cb, cbdata);
 		}
 		break;
 	case RTM_CHANGE:
