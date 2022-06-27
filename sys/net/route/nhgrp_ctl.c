@@ -76,7 +76,7 @@ CHK_STRUCT_FIELD_GENERIC(struct nhop_object, nh_flags, struct nhgrp_object, nhg_
 /* Cap multipath to 64, as the larger values would break rib_cmd_info bmasks */
 CTASSERT(RIB_MAX_MPATH_WIDTH <= 64);
 
-static int wn_cmp(const void *a, const void *b);
+static int wn_cmp_idx(const void *a, const void *b);
 static void sort_weightened_nhops(struct weightened_nhop *wn, int num_nhops);
 
 static struct nhgrp_priv *get_nhgrp(struct nh_control *ctl,
@@ -86,40 +86,50 @@ static void destroy_nhgrp_epoch(epoch_context_t ctx);
 static void free_nhgrp_nhops(struct nhgrp_priv *nhg_priv);
 
 static int
-wn_cmp(const void *a, const void *b)
+wn_cmp_idx(const void *a, const void *b)
 {
-	const struct weightened_nhop *wa = a;
-	const struct weightened_nhop *wb = b;
+	const struct weightened_nhop *w_a = a;
+	const struct weightened_nhop *w_b = b;
+	uint32_t a_idx = w_a->nh->nh_priv->nh_idx;
+	uint32_t b_idx = w_b->nh->nh_priv->nh_idx;
 
-	if (wa->weight > wb->weight)
-		return (1);
-	else if (wa->weight < wb->weight)
+	if (a_idx < b_idx)
 		return (-1);
-
-	/* Compare nexthops by pointer */
-	if (wa->nh > wb->nh)
+	else if (a_idx > b_idx)
 		return (1);
-	else if (wa->nh < wb->nh)
-		return (-1);
 	else
 		return (0);
 }
 
 /*
  * Perform in-place sorting for array of nexthops in @wn.
- *
- * To avoid nh groups duplication, nexthops/weights in the
- *   @wn need to be ordered deterministically.
- * As this sorting is needed only for the control plane functionality,
- *  there are no specific external requirements.
- *
- * Sort by weight first, to ease calculation of the slot sizes.
+ * Sort by nexthop index ascending.
  */
 static void
 sort_weightened_nhops(struct weightened_nhop *wn, int num_nhops)
 {
 
-	qsort(wn, num_nhops, sizeof(struct weightened_nhop), wn_cmp);
+	qsort(wn, num_nhops, sizeof(struct weightened_nhop), wn_cmp_idx);
+}
+
+/*
+ * In order to determine the minimum weight difference in the array
+ * of weights, create a sorted array of weights, using spare "storage"
+ * field in the `struct weightened_nhop`.
+ * Assume weights to be (mostly) the same and use insertion sort to
+ * make it sorted.
+ */
+static void
+sort_weightened_nhops_weights(struct weightened_nhop *wn, int num_items)
+{
+	wn[0].storage = wn[0].weight;
+	for (int i = 1, j = 0; i < num_items; i++) {
+		uint32_t weight = wn[i].weight; // read from 'weight' as it's not reordered
+		/* Move all weights > weight 1 position right */
+		for (j = i - 1; j >= 0 && wn[j].storage > weight; j--)
+			wn[j + 1].storage = wn[j].storage;
+		wn[j + 1].storage = weight;
+	}
 }
 
 /*
@@ -136,19 +146,26 @@ sort_weightened_nhops(struct weightened_nhop *wn, int num_nhops)
  * (1, 100), (2, 200), (3, 400) -> 7 slots [1, 2, 2, 3, 3, 3]
  */
 static uint32_t
-calc_min_mpath_slots_fast(const struct weightened_nhop *wn, size_t num_items)
+calc_min_mpath_slots_fast(struct weightened_nhop *wn, size_t num_items,
+    uint64_t *ptotal)
 {
 	uint32_t i, last, xmin;
 	uint64_t total = 0;
 
+	// Get sorted array of weights in .storage field
+	sort_weightened_nhops_weights(wn, num_items);
+
 	last = 0;
-	xmin = wn[0].weight;
+	xmin = wn[0].storage;
 	for (i = 0; i < num_items; i++) {
-		total += wn[i].weight;
-		if ((wn[i].weight - last < xmin) && (wn[i].weight != last))
-			xmin = wn[i].weight - last;
-		last = wn[i].weight;
+		total += wn[i].storage;
+		if ((wn[i].storage != last) &&
+		    ((wn[i].storage - last < xmin) || xmin == 0)) {
+			xmin = wn[i].storage - last;
+		}
+		last = wn[i].storage;
 	}
+	*ptotal = total;
 	/* xmin is the minimum unit of desired capacity */
 	if ((total % xmin) != 0)
 		return (0);
@@ -170,11 +187,14 @@ calc_min_mpath_slots_fast(const struct weightened_nhop *wn, size_t num_items)
  *  RIB_MAX_MPATH_WIDTH in case of any failure.
  */
 static uint32_t
-calc_min_mpath_slots(const struct weightened_nhop *wn, size_t num_items)
+calc_min_mpath_slots(struct weightened_nhop *wn, size_t num_items)
 {
 	uint32_t v;
+	uint64_t total;
 
-	v = calc_min_mpath_slots_fast(wn, num_items);
+	v = calc_min_mpath_slots_fast(wn, num_items, &total);
+	if (total == 0)
+		return (0);
 	if ((v == 0) || (v > RIB_MAX_MPATH_WIDTH))
 		v = RIB_MAX_MPATH_WIDTH;
 
@@ -364,6 +384,7 @@ nhgrp_free(struct nhgrp_object *nhg)
 	}
 	NET_EPOCH_EXIT(et);
 
+	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
 	epoch_call(net_epoch_preempt, destroy_nhgrp_epoch,
 	    &nhg_priv->nhg_epoch_ctx);
 }
