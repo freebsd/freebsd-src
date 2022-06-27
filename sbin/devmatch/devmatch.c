@@ -313,7 +313,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 						}
 						if (bit >= 0 && ((1 << bit) & mask) == 0)
 							break;
-						if (strcmp(cp + 2, "#") == 0) {
+						if (cp[2] == '#') {
 							if (verbose_flag) {
 								printf("Ignoring %s (%c) table=%#x tomatch=%#x\n",
 								    cp + 2, *cp, v, ival);
@@ -358,7 +358,7 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 							break;
 						if (bit >= 0 && ((1 << bit) & mask) == 0)
 							break;
-						if (strcmp(cp + 2, "#") == 0) {
+						if (cp[2] == '#') {
 							if (verbose_flag) {
 								printf("Ignoring %s (%c) table=%#x tomatch=%#x\n",
 								    cp + 2, *cp, v, ival);
