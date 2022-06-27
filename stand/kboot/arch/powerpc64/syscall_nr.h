@@ -5,6 +5,7 @@
 #define SYS_kexec_load		268
 #define SYS_llseek		140
 #define SYS_mmap		 90
+#define	SYS_munmap		 91
 #define SYS_newfstat		SYS_fstat
 #define SYS_newfstatat		291
 #define SYS_openat		286

@@ -58,6 +58,12 @@ host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
 }
 
 int
+host_munmap(void *addr, size_t len)
+{
+	return host_syscall(SYS_munmap, (uintptr_t)addr, len);
+}
+
+int
 host_open(const char *path, int flags, int mode)
 {
 	return host_syscall(SYS_openat, HOST_AT_FDCWD, (uintptr_t)path, flags, mode);
