@@ -41,7 +41,7 @@
     	mrc	p15, 0, tmp, c13, c0, 4
 
 #define	ELFNOTE(section, type, vendor, desctype, descdata...)	  \
-	.pushsection section					; \
+	.pushsection section, "a", %note			; \
 	    .balign 4						; \
 	    .long 2f - 1f		/* namesz */		; \
 	    .long 4f - 3f		/* descsz */		; \
