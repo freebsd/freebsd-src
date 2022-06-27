@@ -166,6 +166,7 @@ struct nhop_object {
 struct weightened_nhop {
 	struct nhop_object	*nh;
 	uint32_t		weight;
+	uint32_t		storage;
 };
 
 void nhop_free(struct nhop_object *nh);
