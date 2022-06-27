@@ -375,8 +375,6 @@ cmn600_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	desc->pd_local_counter = pm->pm_md.pm_cmn600.pm_cmn600_local_counter =
 	    local_counter;
 
-	PMCDBG3(MDP, ALL, 2, "%s ri=%d -> control=0x%x", __func__, ri, control);
-
 	return (0);
 }
 
@@ -387,7 +385,7 @@ cmn600_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
 	struct cmn600_descr *desc;
 	struct pmc_hw *phw;
-	struct pmc *pm;
+	struct pmc *pm __diagused;
 	int err;
 
 	(void) pmc;
@@ -535,8 +533,6 @@ cmn600_start_pmc(int cpu, int ri)
 	pmu_cmn600_set8(arg, nodeid, NODE_TYPE_DTC, POR_DT_PMCR,
 	    POR_DT_PMCR_PMU_EN);
 
-	PMCDBG2(MDP, STA, 2, "%s control=0x%x", __func__, control);
-
 	return (0);
 }
 
@@ -674,7 +670,7 @@ cmn600_pcpu_fini(struct pmc_mdep *md, int cpu)
 static int
 cmn600_pmu_intr(struct trapframe *tf, int unit, int i)
 {
-	struct pmc_cpu *pc;
+	struct pmc_cpu *pc __diagused;
 	struct pmc_hw *phw;
 	struct pmc *pm;
 	int error, cpu, ri;

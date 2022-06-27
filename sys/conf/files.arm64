@@ -198,6 +198,10 @@ dev/gpio/qoriq_gpio.c				optional SOC_NXP_LS gpio fdt
 
 dev/hwpmc/hwpmc_arm64.c				optional hwpmc
 dev/hwpmc/hwpmc_arm64_md.c			optional hwpmc
+dev/hwpmc/hwpmc_cmn600.c			optional hwpmc
+arm64/arm64/cmn600.c				optional hwpmc
+dev/hwpmc/hwpmc_dmc620.c			optional hwpmc
+dev/hwpmc/pmu_dmc620.c				optional hwpmc
 
 dev/ice/if_ice_iflib.c				optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
