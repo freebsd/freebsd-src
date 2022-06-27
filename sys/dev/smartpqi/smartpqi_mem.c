@@ -99,7 +99,7 @@ os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 	}
 
 	if ((ret = bus_dmamem_alloc(dma_mem->dma_tag, (void **)&dma_mem->virt_addr,
-		BUS_DMA_WAITOK, &dma_mem->dma_map)) != 0) {
+		BUS_DMA_NOWAIT, &dma_mem->dma_map)) != 0) {
 		DBG_ERR("can't allocate DMA memory for required object \
 				with error = 0x%x\n", ret);
 		goto err_mem;
