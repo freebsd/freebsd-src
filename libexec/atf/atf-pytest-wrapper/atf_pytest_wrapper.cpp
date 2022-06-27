@@ -137,13 +137,15 @@ class Handler {
       if (flag_cleanup) {
         args.push_back("--atf-cleanup");
       }
+      // workaround pytest parser bug:
+      // https://github.com/pytest-dev/pytest/issues/3097
+      // use '--arg=value' format instead of '--arg value' for all
+      // path-like options
       if (!src_dir.empty()) {
-        args.push_back("--atf-source-dir");
-        args.push_back(src_dir);
+        args.push_back("--atf-source-dir=" + src_dir);
       }
       if (!dst_file.empty()) {
-        args.push_back("--atf-file");
-        args.push_back(dst_file);
+        args.push_back("--atf-file=" + dst_file);
       }
       for (auto &pair: kv_list) {
         args.push_back("--atf-var");
