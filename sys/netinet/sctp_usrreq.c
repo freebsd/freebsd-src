@@ -565,13 +565,10 @@ sctp_close(struct socket *so)
 		 * the SCTP association.
 		 */
 		SOCK_LOCK(so);
-		SCTP_SB_CLEAR(so->so_snd);
-		/*
-		 * same for the rcv ones, they are only here for the
-		 * accounting/select.
-		 */
-		SCTP_SB_CLEAR(so->so_rcv);
-
+		if (!SOLISTENING(so)) {
+			SCTP_SB_CLEAR(so->so_snd);
+			SCTP_SB_CLEAR(so->so_rcv);
+		}
 		/* Now null out the reference, we are completely detached. */
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
