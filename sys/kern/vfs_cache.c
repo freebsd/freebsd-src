@@ -445,10 +445,6 @@ static u_long __exclusive_cache_line	numcache;/* number of cache entries allocat
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
-static bool __read_mostly cache_rename_add = true;
-SYSCTL_BOOL(_vfs, OID_AUTO, cache_rename_add, CTLFLAG_RW,
-    &cache_rename_add, 0, "");
-
 static u_int __exclusive_cache_line neg_cycle;
 
 #define ncneghash	3
@@ -2964,9 +2960,7 @@ cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
 	 * Recode this to reduce relocking and reuse the existing entry (if any)
 	 * instead of just removing it above and allocating a new one here.
 	 */
-	if (cache_rename_add) {
-		cache_enter(tdvp, fvp, tcnp);
-	}
+	cache_enter(tdvp, fvp, tcnp);
 }
 
 void
