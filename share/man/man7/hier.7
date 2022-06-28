@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2022
+.Dd June 28, 2022
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -433,9 +433,11 @@ and
 .Po mimics
 .Pa /etc Ns Pc .
 .It Pa obj/
-architecture-specific target tree produced by building the
-.Pa /usr/src
-tree
+architecture-specific target tree produced by building
+.Fx
+from source;
+see
+.Xr build 7
 .It Pa ports/
 .Fx
 ports collection; see
