@@ -6,6 +6,7 @@ from typing import NamedTuple
 from typing import Tuple
 
 import pytest
+import os
 
 
 class ATFCleanupItem(pytest.Item):
@@ -216,3 +217,8 @@ class ATFHandler(object):
                 line = "{}: {}".format(test.state, test.reason)
             with open(path, mode="w") as f:
                 print(line, file=f)
+
+    @staticmethod
+    def get_atf_vars() -> Dict[str, str]:
+        px = "_ATF_VAR_"
+        return {k[len(px):]: v for k, v in os.environ.items() if k.startswith(px)}

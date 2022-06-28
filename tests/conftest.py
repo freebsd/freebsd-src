@@ -1,5 +1,6 @@
 import pytest
 from atf_python.atf_pytest import ATFHandler
+from typing import Dict
 
 
 PLUGIN_ENABLED = False
@@ -17,7 +18,6 @@ def pytest_addoption(parser):
     """Add file output"""
     # Add meta-values
     group = parser.getgroup("general", "Running and selection options")
-    group.addoption("--atf-var", dest="atf_vars", action="append", default=[])
     group.addoption(
         "--atf-source-dir",
         type=str,
@@ -44,6 +44,11 @@ def pytest_addoption(parser):
         dest="atf_file",
         help="Path to the status file provided by atf runtime",
     )
+
+
+@pytest.fixture(autouse=True, scope="session")
+def atf_vars() -> Dict[str, str]:
+    return ATFHandler.get_atf_vars()
 
 
 @pytest.mark.trylast
