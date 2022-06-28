@@ -30,6 +30,8 @@
 # "panic: flush_pagedep_deps: MKDIR_PARENT" seen:
 # http://people.freebsd.org/~pho/stress/log/suj30.txt
 
+# Hang seen: https://people.freebsd.org/~pho/stress/log/log0337.txt
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
 . ../default.cfg
