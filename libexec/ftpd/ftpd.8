@@ -28,7 +28,7 @@
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd June 28, 2022
 .Dt FTPD 8
 .Os
 .Sh NAME
@@ -436,7 +436,7 @@ uses its left-hand side as the name of the directory to do
 .Xr chroot 2
 to, and its right-hand side to change the current directory to afterwards.
 A typical example for this case would be
-.Pa /usr/local/ftp/./pub .
+.Pa /var/spool/ftp/./pub .
 In order that system security is not breached, it is recommended
 that the
 .Dq ftp
@@ -555,6 +555,9 @@ Displayed and access refused.
 Log file for anonymous transfers.
 .It Pa /var/log/xferlog
 Default place for session logs.
+.It Pa /var/spool/ftp
+Recommended directory for the FTP root directory
+(the home directory of the ftp user).
 .El
 .Sh SEE ALSO
 .Xr ftp 1 ,
