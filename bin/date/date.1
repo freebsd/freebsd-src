@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2021
+.Dd May 31, 2022
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -227,7 +227,15 @@ seconds are in the range 0-59, minutes are in the range 0-59, hours are
 in the range 0-23, month days are in the range 1-31, week days are in the
 range 0-6 (Sun-Sat),
 months are in the range 1-12 (Jan-Dec)
-and years are in the range 80-38 or 1980-2038.
+and years are in a limited range depending on the platform.
+.Pp
+On i386, years are in the range 69-38 representing 1969-2038.
+On every other platform, years 0-68 are accepted and represent 2000-2068, and
+69-99 are accepted and represent 1969-1999.
+In both cases, years between 100 and 1900 (both included) are accepted and
+interpreted as relative to 1900 of the Gregorian calendar with a limit of 138 on
+i386 and a much higher limit on every other platform.
+Years starting at 1901 are also accepted, and are interpreted as absolute years.
 .Pp
 If
 .Ar val
