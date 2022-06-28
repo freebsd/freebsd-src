@@ -127,6 +127,7 @@ struct cpu_desc {
 	uint64_t	id_aa64dfr1;
 	uint64_t	id_aa64isar0;
 	uint64_t	id_aa64isar1;
+	uint64_t	id_aa64isar2;
 	uint64_t	id_aa64mmfr0;
 	uint64_t	id_aa64mmfr1;
 	uint64_t	id_aa64mmfr2;
@@ -154,6 +155,7 @@ static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_DFR1	0x00000020
 #define	PRINT_ID_AA64_ISAR0	0x00000100
 #define	PRINT_ID_AA64_ISAR1	0x00000200
+#define	PRINT_ID_AA64_ISAR2	0x00000400
 #define	PRINT_ID_AA64_MMFR0	0x00001000
 #define	PRINT_ID_AA64_MMFR1	0x00002000
 #define	PRINT_ID_AA64_MMFR2	0x00004000
@@ -728,10 +730,10 @@ static struct mrs_field_value id_aa64isar1_apa[] = {
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_PAC, "APA PAC"),
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_EPAC, "APA EPAC"),
-	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_EPAC2, "PAuth+EPAC2"),
-	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_FPAC, "PAuth+FPAC"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_EPAC2, "APA EPAC2"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_FPAC, "APA FPAC"),
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_FPAC_COMBINED,
-	    "PAuth+FPAC+Combined"),
+	    "APA FPAC+Combined"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -773,6 +775,73 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	MRS_FIELD(ID_AA64ISAR1, APA, false, MRS_EXACT, id_aa64isar1_apa),
 	MRS_FIELD_HWCAP(ID_AA64ISAR1, DPB, false, MRS_LOWER, id_aa64isar1_dpb,
 	    id_aa64isar1_dpb_caps),
+	MRS_FIELD_END,
+};
+
+
+/* ID_AA64ISAR2_EL1 */
+static struct mrs_field_value id_aa64isar2_pac_frac[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, PAC_frac, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar2_bc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, BC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar2_mops[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, MOPS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar2_apa3[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR2_APA3_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR2_APA3_PAC, "APA3 PAC"),
+	MRS_FIELD_VALUE(ID_AA64ISAR2_APA3_EPAC, "APA3 EPAC"),
+	MRS_FIELD_VALUE(ID_AA64ISAR2_APA3_EPAC2, "APA3 EPAC2"),
+	MRS_FIELD_VALUE(ID_AA64ISAR2_APA3_FPAC, "APA3 FPAC"),
+	MRS_FIELD_VALUE(ID_AA64ISAR2_APA3_FPAC_COMBINED,
+	    "APA3 FPAC+Combined"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_hwcap id_aa64isar2_apa3_caps[] = {
+	MRS_HWCAP(&elf_hwcap, HWCAP_PACA, ID_AA64ISAR2_APA3_PAC),
+	MRS_HWCAP_END
+};
+
+static struct mrs_field_value id_aa64isar2_gpa3[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, GPA3, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_hwcap id_aa64isar2_gpa3_caps[] = {
+	MRS_HWCAP(&elf_hwcap, HWCAP_PACG, ID_AA64ISAR2_GPA3_IMPL),
+	MRS_HWCAP_END
+};
+
+static struct mrs_field_value id_aa64isar2_rpres[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, RPRES, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar2_wfxt[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, WFxT, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_aa64isar2_fields[] = {
+	MRS_FIELD(ID_AA64ISAR2, PAC_frac, false, MRS_EXACT,
+	    id_aa64isar2_pac_frac),
+	MRS_FIELD(ID_AA64ISAR2, BC, false, MRS_EXACT, id_aa64isar2_bc),
+	MRS_FIELD(ID_AA64ISAR2, MOPS, false, MRS_EXACT, id_aa64isar2_mops),
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, APA3, false, MRS_EXACT,
+	    id_aa64isar2_apa3, id_aa64isar2_apa3_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, GPA3, false, MRS_EXACT,
+	    id_aa64isar2_gpa3, id_aa64isar2_gpa3_caps),
+	MRS_FIELD(ID_AA64ISAR2, RPRES, false, MRS_EXACT, id_aa64isar2_rpres),
+	MRS_FIELD(ID_AA64ISAR2, WFxT, false, MRS_EXACT, id_aa64isar2_wfxt),
 	MRS_FIELD_END,
 };
 
@@ -2155,6 +2224,11 @@ print_cpu_features(u_int cpu)
 		print_id_register(sb, "Instruction Set Attributes 1",
 		    cpu_desc[cpu].id_aa64isar1, id_aa64isar1_fields);
 
+	/* AArch64 Instruction Set Attribute Register 2 */
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_ISAR2) != 0)
+		print_id_register(sb, "Instruction Set Attributes 2",
+		    cpu_desc[cpu].id_aa64isar2, id_aa64isar2_fields);
+
 	/* AArch64 Processor Feature Register 0 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_AA64_PFR0) != 0)
 		print_id_register(sb, "Processor Features 0",
@@ -2284,6 +2358,7 @@ identify_cpu(u_int cpu)
 	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
 	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
 	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
+	cpu_desc[cpu].id_aa64isar2 = READ_SPECIALREG(id_aa64isar2_el1);
 	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
 	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
 	cpu_desc[cpu].id_aa64mmfr2 = READ_SPECIALREG(id_aa64mmfr2_el1);
@@ -2370,6 +2445,8 @@ check_cpu_regs(u_int cpu)
 		cpu_print_regs |= PRINT_ID_AA64_ISAR0;
 	if (cpu_desc[cpu].id_aa64isar1 != cpu_desc[0].id_aa64isar1)
 		cpu_print_regs |= PRINT_ID_AA64_ISAR1;
+	if (cpu_desc[cpu].id_aa64isar2 != cpu_desc[0].id_aa64isar2)
+		cpu_print_regs |= PRINT_ID_AA64_ISAR2;
 
 	if (cpu_desc[cpu].id_aa64mmfr0 != cpu_desc[0].id_aa64mmfr0)
 		cpu_print_regs |= PRINT_ID_AA64_MMFR0;
