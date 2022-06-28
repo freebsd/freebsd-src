@@ -86,7 +86,20 @@ struct host_timeval {
 	long tv_usec;
 };
 
-#define HOST_AT_FDCWD		-100		/* Relative to current directory */
+/*
+ * Must match Linux's values see linux/tools/include/uapi/asm-generic/mman-common.h
+ * and linux/tools/include/linux/mman.h
+ *
+ * And pre-pend HOST_ here.
+ */
+#define HOST_PROT_READ	0x1
+#define HOST_PROT_WRITE	0x2
+#define HOST_PROT_EXEC	0x4
+
+#define HOST_MAP_SHARED		0x01
+#define	HOST_MAP_PRIVATE	0x02
+#define HOST_MAP_FIXED		0x10
+#define HOST_MAP_ANONYMOUS	0x20
 
 /* Mount flags from uapi */
 #define MS_RELATIME (1 << 21)
@@ -147,6 +160,8 @@ ssize_t host_write(int fd, const void *buf, size_t nbyte);
 /*
  * Wrappers / one-liners
  */
-#define host_getmem(size) host_mmap(0, size, 3 /* RW */, 0x22 /* ANON */, -1, 0);
+#define host_getmem(size) \
+	host_mmap(0, size, HOST_PROT_READ | HOST_PROT_WRITE, \
+	    HOST_MAP_PRIVATE | HOST_MAP_ANONYMOUS, -1, 0);
 
 #endif
