@@ -475,6 +475,13 @@ main(int argc, char **argv)
 
 	meminfo();
 
+	archsw.arch_loadaddr = uboot_loadaddr;
+	archsw.arch_getdev = uboot_getdev;
+	archsw.arch_copyin = uboot_copyin;
+	archsw.arch_copyout = uboot_copyout;
+	archsw.arch_readin = uboot_readin;
+	archsw.arch_autoload = uboot_autoload;
+
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE, "", uboot_setcurrdev, env_nounset);
 
@@ -537,13 +544,6 @@ do_interact:
 #ifdef __powerpc__
 	setenv("usefdt", "1", 1);
 #endif
-
-	archsw.arch_loadaddr = uboot_loadaddr;
-	archsw.arch_getdev = uboot_getdev;
-	archsw.arch_copyin = uboot_copyin;
-	archsw.arch_copyout = uboot_copyout;
-	archsw.arch_readin = uboot_readin;
-	archsw.arch_autoload = uboot_autoload;
 
 	interact();				/* doesn't return */
 
