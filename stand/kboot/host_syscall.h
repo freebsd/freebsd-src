@@ -91,6 +91,10 @@ struct host_timeval {
 /* Mount flags from uapi */
 #define MS_RELATIME (1 << 21)
 
+#define HOST_REBOOT_MAGIC1	0xfee1dead
+#define HOST_REBOOT_MAGIC2	672274793
+#define HOST_REBOOT_CMD_KEXEC	0x45584543
+
 /*
  * System Calls
  */

@@ -157,8 +157,8 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	if (error != 0)
 		panic("kexec_load returned error: %d", error);
 
-	error = host_reboot(0xfee1dead, 672274793,
-	    0x45584543 /* LINUX_REBOOT_CMD_KEXEC */, (uintptr_t)NULL);
+	error = host_reboot(HOST_REBOOT_MAGIC1, HOST_REBOOT_MAGIC2, HOST_REBOOT_CMD_KEXEC,
+	    (uintptr_t)NULL);
 	if (error != 0)
 		panic("reboot returned error: %d", error);
 
