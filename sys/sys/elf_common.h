@@ -944,6 +944,7 @@ typedef struct {
 
 /* Values for ch_type (compressed section headers). */
 #define	ELFCOMPRESS_ZLIB	1	/* ZLIB/DEFLATE */
+#define	ELFCOMPRESS_ZSTD	2	/* Zstandard */
 #define	ELFCOMPRESS_LOOS	0x60000000	/* OS-specific */
 #define	ELFCOMPRESS_HIOS	0x6fffffff
 #define	ELFCOMPRESS_LOPROC	0x70000000	/* Processor-specific */
