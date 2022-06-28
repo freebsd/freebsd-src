@@ -446,7 +446,6 @@ wtap_rx_proc(void *arg, int npending)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mbuf *m;
 	struct ieee80211_node *ni;
-	int type;
 	struct wtap_buf *bf;
 
 #if 0
@@ -487,10 +486,10 @@ wtap_rx_proc(void *arg, int npending)
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
-			type = ieee80211_input(ni, m, 1<<7, 10);
+			ieee80211_input(ni, m, 1<<7, 10);
 			ieee80211_free_node(ni);
 		} else {
-			type = ieee80211_input_all(ic, m, 1<<7, 10);
+			ieee80211_input_all(ic, m, 1<<7, 10);
 		}
 		NET_EPOCH_EXIT(et);
 
