@@ -69,7 +69,6 @@ init_hal(struct wtap_hal *hal)
 
 	hal->hal_md = (struct wtap_medium *)malloc(sizeof(struct wtap_medium),
 	    M_WTAP, M_NOWAIT | M_ZERO);
-	bzero(hal->hal_md, sizeof(struct wtap_medium));
 
 	init_medium(hal->hal_md);
 	/* register event handler for packets */
@@ -181,7 +180,6 @@ new_wtap(struct wtap_hal *hal, int32_t id)
 
 	hal->hal_devs[id] = (struct wtap_softc *)malloc(
 	    sizeof(struct wtap_softc), M_WTAP, M_NOWAIT | M_ZERO);
-	bzero(hal->hal_devs[id], sizeof(struct wtap_softc));
 	hal->hal_devs[id]->sc_md = hal->hal_md;
 	hal->hal_devs[id]->id = id;
 	snprintf(hal->hal_devs[id]->name, sizeof(hal->hal_devs[id]->name),
