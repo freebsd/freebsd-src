@@ -340,14 +340,7 @@ time(time_t *tloc)
 	return (rv);
 }
 
-struct kexec_segment {
-	void *buf;
-	int bufsz;
-	void *mem;
-	int memsz;
-};
-
-struct kexec_segment loaded_segments[128];
+struct host_kexec_segment loaded_segments[128];
 int nkexec_segments = 0;
 
 static ssize_t

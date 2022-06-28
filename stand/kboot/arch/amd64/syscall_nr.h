@@ -18,6 +18,3 @@
 #define SYS_symlinkat		266
 #define SYS_uname		 63
 #define SYS_write		  1
-
-#define KEXEC_ARCH_X86_64	 62
-#define KEXEC_ARCH		KEXEC_ARCH_X86_64

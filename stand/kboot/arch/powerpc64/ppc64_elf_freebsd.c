@@ -153,7 +153,7 @@ ppc64_elf_exec(struct preloaded_file *fp)
 		panic("architecture did not provide kexec segment mapping");
 	archsw.arch_kexec_kseg_get(&nseg, &kseg);
 
-	error = host_kexec_load(trampolinebase, nseg, (uintptr_t)kseg, KEXEC_ARCH << 16);
+	error = host_kexec_load(trampolinebase, nseg, kseg, HOST_KEXEC_ARCH_PPC64);
 	if (error != 0)
 		panic("kexec_load returned error: %d", error);
 
