@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2020
+.Dd July 25, 2022
 .Dt ELF 5
 .Os
 .Sh NAME
@@ -1069,6 +1069,10 @@ be registered.
 This section holds information used for C++ exception-handling.
 .El
 .Pp
+A value of
+.Dv ELFCOMPRESS_ZSTD
+indicates that the data is compressed using
+Zstandard.
 String table sections hold null-terminated character sequences, commonly
 called strings.
 The object file uses these strings to represent symbol
