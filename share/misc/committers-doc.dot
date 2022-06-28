@@ -89,6 +89,7 @@ manolis [label="Manolis Kiagias\nmanolis@FreeBSD.org\n2008/05/24"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
+pauamma [label="Pau Amma\npauamma@FreeBSD.org\n2022/06/03"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2021/07/13"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
@@ -138,6 +139,7 @@ brueffer -> joel
 carlavilla -> emaste
 carlavilla -> grahamperrin
 carlavilla -> lwhsu
+carlavilla -> pauamma
 
 ceri -> brd
 ceri -> brueffer
@@ -167,6 +169,7 @@ gjb -> dru
 gjb -> crees
 gjb -> grahamperrin
 gjb -> philip
+gjb -> pauamma
 
 hrs -> ryusuke
 hrs -> dru
