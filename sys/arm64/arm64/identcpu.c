@@ -132,6 +132,7 @@ struct cpu_desc {
 	uint64_t	id_aa64mmfr2;
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
+	uint64_t	id_aa64zfr0;
 	uint64_t	ctr;
 #ifdef COMPAT_FREEBSD32
 	uint64_t	id_isar5;
@@ -140,6 +141,7 @@ struct cpu_desc {
 #endif
 	uint64_t	clidr;
 	uint32_t	ccsidr[MAX_CACHES][2]; /* 2 possible types. */
+	bool		have_sve;
 };
 
 static struct cpu_desc cpu_desc[MAXCPU];
@@ -157,6 +159,7 @@ static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_MMFR2	0x00004000
 #define	PRINT_ID_AA64_PFR0	0x00010000
 #define	PRINT_ID_AA64_PFR1	0x00020000
+#define	PRINT_ID_AA64_ZFR0	0x00100000
 #ifdef COMPAT_FREEBSD32
 #define	PRINT_ID_ISAR5		0x01000000
 #define	PRINT_MVFR0		0x02000000
@@ -1251,6 +1254,70 @@ static struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD_END,
 };
 
+
+/* ID_AA64ZFR0_EL1 */
+static struct mrs_field_value id_aa64zfr0_f64mm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, F64MM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_f32mm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, F32MM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_i8mm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, I8MM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_sm4[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, SM4, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_sha3[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, SHA3, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_bf16[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, BF16, NONE, BASE),
+	MRS_FIELD_VALUE(ID_AA64ZFR0_BF16_EBF, "BF16+EBF"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_bitperm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, BitPerm, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_aes[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, AES, NONE, BASE),
+	MRS_FIELD_VALUE(ID_AA64ZFR0_AES_PMULL, "AES+PMULL"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64zfr0_svever[] = {
+	MRS_FIELD_VALUE(ID_AA64ZFR0_SVEver_SVE1, "SVE1"),
+	MRS_FIELD_VALUE(ID_AA64ZFR0_SVEver_SVE2, "SVE2"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_aa64zfr0_fields[] = {
+	MRS_FIELD(ID_AA64ZFR0, F64MM, false, MRS_EXACT, id_aa64zfr0_f64mm),
+	MRS_FIELD(ID_AA64ZFR0, F32MM, false, MRS_EXACT, id_aa64zfr0_f32mm),
+	MRS_FIELD(ID_AA64ZFR0, I8MM, false, MRS_EXACT, id_aa64zfr0_i8mm),
+	MRS_FIELD(ID_AA64ZFR0, SM4, false, MRS_EXACT, id_aa64zfr0_sm4),
+	MRS_FIELD(ID_AA64ZFR0, SHA3, false, MRS_EXACT, id_aa64zfr0_sha3),
+	MRS_FIELD(ID_AA64ZFR0, BF16, false, MRS_EXACT, id_aa64zfr0_bf16),
+	MRS_FIELD(ID_AA64ZFR0, BitPerm, false, MRS_EXACT, id_aa64zfr0_bitperm),
+	MRS_FIELD(ID_AA64ZFR0, AES, false, MRS_EXACT, id_aa64zfr0_aes),
+	MRS_FIELD(ID_AA64ZFR0, SVEver, false, MRS_EXACT, id_aa64zfr0_svever),
+	MRS_FIELD_END,
+};
+
+
 #ifdef COMPAT_FREEBSD32
 /* ID_ISAR5_EL1 */
 static struct mrs_field_value id_isar5_vcma[] = {
@@ -2153,6 +2220,12 @@ print_cpu_features(u_int cpu)
 		print_id_register(sb, "Auxiliary Features 1",
 		    cpu_desc[cpu].id_aa64afr1, id_aa64afr1_fields);
 
+	/* AArch64 SVE Feature Register 0 */
+	/* We check the cpu == 0 case when setting PRINT_ID_AA64_ZFR0 */
+	if ((cpu_print_regs & PRINT_ID_AA64_ZFR0) != 0)
+		print_id_register(sb, "SVE Features 0",
+		    cpu_desc[cpu].id_aa64zfr0, id_aa64zfr0_fields);
+
 #ifdef COMPAT_FREEBSD32
 	/* AArch32 Instruction Set Attribute Register 5 */
 	if (cpu == 0 || (cpu_print_regs & PRINT_ID_ISAR5) != 0)
@@ -2237,6 +2310,16 @@ identify_cpu(u_int cpu)
 	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
 	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
 
+	/*
+	 * ID_AA64ZFR0_EL1 is only valid when at least one of:
+	 *  - ID_AA64PFR0_EL1.SVE is non-zero
+	 *  - ID_AA64PFR1_EL1.SME is non-zero
+	 * In other cases it is zero, but still safe to read
+	 */
+	cpu_desc[cpu].have_sve =
+	    (ID_AA64PFR0_SVE_VAL(cpu_desc[cpu].id_aa64pfr0) != 0);
+	cpu_desc[cpu].id_aa64zfr0 = READ_SPECIALREG(ID_AA64ZFR0_EL1_REG);
+
 	cpu_desc[cpu].clidr = READ_SPECIALREG(clidr_el1);
 
 	clidr = cpu_desc[cpu].clidr;
@@ -2319,6 +2402,17 @@ check_cpu_regs(u_int cpu)
 		cpu_print_regs |= PRINT_ID_AA64_PFR0;
 	if (cpu_desc[cpu].id_aa64pfr1 != cpu_desc[0].id_aa64pfr1)
 		cpu_print_regs |= PRINT_ID_AA64_PFR1;
+
+	/* Only print if ID_AA64ZFR0_EL1 is valid */
+	if (cpu_desc[cpu].have_sve) {
+		/* Print if the value changed */
+		if (cpu_desc[cpu].id_aa64zfr0 != cpu_desc[0].id_aa64zfr0) {
+			cpu_print_regs |= PRINT_ID_AA64_ZFR0;
+		/* Print if it didn't, but the previous CPU was invalid */
+		} else if (cpu > 0 && !cpu_desc[cpu - 1].have_sve) {
+			cpu_print_regs |= PRINT_ID_AA64_ZFR0;
+		}
+	}
 
 	if (cpu_desc[cpu].ctr != cpu_desc[0].ctr) {
 		/*
