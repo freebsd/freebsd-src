@@ -427,6 +427,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 		sblock.fs_dsize += dlower;
 	}
 	sblock.fs_dsize += acg.cg_ndblk - dupper;
+	sblock.fs_old_dsize = sblock.fs_dsize;
 	if ((i = dupper % sblock.fs_frag)) {
 		acg.cg_frsum[sblock.fs_frag - i]++;
 		for (d = dupper + sblock.fs_frag - i; dupper < d; dupper++) {
@@ -636,6 +637,7 @@ updjcg(int cylno, time_t modtime, int fsi, int fso, unsigned int Nflag)
 	DBG_PRINT0("\n");
 	acg.cg_ndblk = dmax - cbase;
 	sblock.fs_dsize += acg.cg_ndblk - aocg.cg_ndblk;
+	sblock.fs_old_dsize = sblock.fs_dsize;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
 
@@ -813,6 +815,10 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 		DBG_LEAVE;
 		return;
 	}
+	/* Adjust fs_dsize by added summary blocks */
+	sblock.fs_dsize -= howmany(sblock.fs_cssize, sblock.fs_fsize) -
+	    howmany(osblock.fs_cssize, osblock.fs_fsize);
+	sblock.fs_old_dsize = sblock.fs_dsize;
 	ocscg = dtog(&osblock, osblock.fs_csaddr);
 	cs = fscs + ocscg;
 
@@ -1507,7 +1513,8 @@ main(int argc, char **argv)
 		   "filesystem size %s", newsizebuf, oldsizebuf);
 	}
 
-	sblock.fs_size = dbtofsb(&osblock, size / DEV_BSIZE);
+	sblock.fs_old_size = sblock.fs_size =
+	    dbtofsb(&osblock, size / DEV_BSIZE);
 	sblock.fs_providersize = dbtofsb(&osblock, mediasize / DEV_BSIZE);
 
 	/*
@@ -1628,7 +1635,8 @@ main(int argc, char **argv)
 		sblock.fs_ncg--;
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
 			sblock.fs_old_ncyl = sblock.fs_ncg * sblock.fs_old_cpg;
-		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
+		sblock.fs_old_size = sblock.fs_size =
+		    sblock.fs_ncg * sblock.fs_fpg;
 	}
 
 	/*
