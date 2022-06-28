@@ -96,6 +96,29 @@ struct host_timeval {
 #define HOST_REBOOT_CMD_KEXEC	0x45584543
 
 /*
+ * Values from linux/tools/include/uapi/linux/kexec.h
+ */
+
+/*
+ * Values match ELF architecture types.
+ */
+#define HOST_KEXEC_ARCH_X86_64  (62 << 16)
+#define HOST_KEXEC_ARCH_PPC64   (21 << 16)
+#define HOST_KEXEC_ARCH_ARM     (40 << 16)
+#define HOST_KEXEC_ARCH_AARCH64 (183 << 16)
+#define HOST_KEXEC_ARCH_RISCV   (243 << 16)
+
+/* Arbitrary cap on segments */
+#define HOST_KEXEC_SEGMENT_MAX 16
+
+struct host_kexec_segment {
+	void *buf;
+	int bufsz;
+	void *mem;
+	int memsz;
+};
+
+/*
  * System Calls
  */
 int host_close(int fd);
@@ -104,7 +127,7 @@ int host_fstat(int fd, struct host_kstat *sb);
 int host_getdents(int fd, void *dirp, int count);
 int host_getpid(void);
 int host_gettimeofday(struct host_timeval *a, void *b);
-int host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags);
+int host_kexec_load(unsigned long entry, unsigned long nsegs, struct host_kexec_segment *segs, unsigned long flags);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
 int host_mkdir(const char *, host_mode_t);
 void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
