@@ -44,9 +44,9 @@ host_gettimeofday(struct host_timeval *a, void *b)
 }
 
 int
-host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags)
+host_kexec_load(unsigned long entry, unsigned long nsegs, struct host_kexec_segment *segs, unsigned long flags)
 {
-	return host_syscall(SYS_kexec_load, start, nsegs, segs, flags);
+	return host_syscall(SYS_kexec_load, entry, nsegs, segs, flags);
 }
 
 ssize_t
