@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/cpu.h>
 
 #include <xen/xen-os.h>
 #include <xen/hvm.h>
@@ -143,10 +144,36 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	}
 
 	/*
-	 * The hvm_start_into structure is always appended after loading
-	 * the kernel and modules.
+	 * Select the higher address to use as physfree: either after
+	 * start_info, after the kernel, after the memory map or after any of
+	 * the modules.  We assume enough memory to be available after the
+	 * selected address for the needs of very early memory allocations.
 	 */
-	physfree = roundup2(start_info_paddr + PAGE_SIZE, PAGE_SIZE);
+	physfree = roundup2(start_info_paddr + sizeof(struct hvm_start_info),
+	    PAGE_SIZE);
+	physfree = MAX(roundup2((vm_paddr_t)_end - KERNBASE, PAGE_SIZE),
+	    physfree);
+
+	if (start_info->memmap_paddr != 0)
+		physfree = MAX(roundup2(start_info->memmap_paddr +
+		    start_info->memmap_entries *
+		    sizeof(struct hvm_memmap_table_entry), PAGE_SIZE),
+		    physfree);
+
+	if (start_info->modlist_paddr != 0) {
+		unsigned int i;
+
+		if (start_info->nr_modules == 0) {
+			xc_printf(
+			    "ERROR: modlist_paddr != 0 but nr_modules == 0\n");
+			HYPERVISOR_shutdown(SHUTDOWN_crash);
+		}
+		mod = (struct hvm_modlist_entry *)
+		    (start_info->modlist_paddr + KERNBASE);
+		for (i = 0; i < start_info->nr_modules; i++)
+			physfree = MAX(roundup2(mod[i].paddr + mod[i].size,
+			    PAGE_SIZE), physfree);
+	}
 
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
@@ -167,25 +194,6 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	physfree += PAGE_SIZE;
 	bzero_early(kenv, PAGE_SIZE);
 	init_static_kenv(kenv, PAGE_SIZE);
-
-	if (start_info->modlist_paddr != 0) {
-		if (start_info->modlist_paddr >= physfree) {
-			xc_printf(
-			    "ERROR: unexpected module list memory address\n");
-			HYPERVISOR_shutdown(SHUTDOWN_crash);
-		}
-		if (start_info->nr_modules == 0) {
-			xc_printf(
-			    "ERROR: modlist_paddr != 0 but nr_modules == 0\n");
-			HYPERVISOR_shutdown(SHUTDOWN_crash);
-		}
-		mod = (struct hvm_modlist_entry *)
-		    (start_info->modlist_paddr + KERNBASE);
-		if (mod[0].paddr >= physfree) {
-			xc_printf("ERROR: unexpected module memory address\n");
-			HYPERVISOR_shutdown(SHUTDOWN_crash);
-		}
-	}
 
 	/* Set the hooks for early functions that diverge from bare metal */
 	init_ops = xen_pvh_init_ops;
