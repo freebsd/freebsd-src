@@ -2821,6 +2821,9 @@ DIOCGETETHRULE_error:
 
 #define ERROUT(x)	ERROUT_IOCTL(DIOCADDETHRULE_error, x)
 
+		if (nv->len > pf_ioctl_maxcount)
+			ERROUT(ENOMEM);
+
 		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
 		if (nvlpacked == NULL)
 			ERROUT(ENOMEM);
