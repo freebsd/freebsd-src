@@ -919,7 +919,7 @@ findpcb:
 		 * completely ignore the segment and drop it.
 		 */
 		if (((V_blackhole == 1 && (thflags & TH_SYN)) ||
-		    V_blackhole == 2) && (V_blackhole_local ||
+		    V_blackhole == 2) && (V_blackhole_local || (
 #ifdef INET6
 		    isipv6 ? !in6_localaddr(&ip6->ip6_src) :
 #endif
@@ -928,7 +928,7 @@ findpcb:
 #else
 		    true
 #endif
-		    ))
+		    )))
 			goto dropunlock;
 
 		rstreason = BANDLIM_RST_CLOSEDPORT;
