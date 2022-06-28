@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2022
+.Dd June 28, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -87,14 +87,14 @@ which will be included by the
 function.
 For jail configurations you could use the file
 .Pa /etc/rc.conf.d/jail
-to store jail specific configuration options.
+to store jail-specific configuration options.
 If
 .Va local_startup
 contains
 .Pa /usr/local/etc/rc.d
 and
 .Pa /opt/conf ,
-.Pa /usr/local/rc.conf.d/jail
+.Pa /usr/local/etc/rc.conf.d/jail
 and
 .Pa /opt/conf/rc.conf.d/jail
 will be loaded.
