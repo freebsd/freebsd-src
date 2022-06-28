@@ -1,5 +1,6 @@
 #include <format>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 #include <stdlib.h>
@@ -10,6 +11,7 @@ class Handler {
     const std::string kPytestName = "pytest";
     const std::string kCleanupSuffix = ":cleanup";
     const std::string kPythonPathEnv = "PYTHONPATH";
+    const std::string kAtfVar = "_ATF_VAR_";
   public:
     // Test listing requested
     bool flag_list = false;
@@ -28,7 +30,7 @@ class Handler {
     // Name of the test to run (provided by ATF)
     std::string test_name;
     // kv pairs (provided by ATF)
-    std::vector<std::string> kv_list;
+    std::map<std::string,std::string> kv_map;
     // our binary name
     std::string binary_name;
 
@@ -102,7 +104,14 @@ class Handler {
           dst_file = std::string(optarg);
           break;
         case 'v':
-          kv_list.emplace_back(std::string(optarg));
+	  {
+	    std::string kv = std::string(optarg);
+	    size_t splitter = kv.find("=");
+	    if (splitter == std::string::npos) {
+	      Usage("Unknown variable: " + kv, true);
+	    }
+	    kv_map[kv.substr(0, splitter)] = kv.substr(splitter + 1);
+	  }
           break;
         default:
           Usage("Unknown option -" + std::string(1, static_cast<char>(c)), true);
@@ -147,22 +156,28 @@ class Handler {
       if (!dst_file.empty()) {
         args.push_back("--atf-file=" + dst_file);
       }
-      for (auto &pair: kv_list) {
-        args.push_back("--atf-var");
-        args.push_back(pair);
-      }
       // Create nodeid from the test path &name
       args.push_back(script_path + "::" + test_name);
       return args;
     }
 
-    void SetEnv() {
+    void SetPythonPath() {
       if (!python_path.empty()) {
         char *env_path = getenv(kPythonPathEnv.c_str());
         if (env_path != nullptr) {
           python_path = python_path + ":" + std::string(env_path);
         }
         setenv(kPythonPathEnv.c_str(), python_path.c_str(), 1);
+      }
+    }
+
+    void SetEnv() {
+      SetPythonPath();
+
+      // Pass ATF kv pairs as env variables to avoid dealing with
+      // pytest parser
+      for (auto [k, v]: kv_map) {
+	setenv((kAtfVar + k).c_str(), v.c_str(), 1);
       }
     }
 
