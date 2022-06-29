@@ -349,6 +349,8 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 			    cpu_stdext_feature_names[j][0] != '\0')
 				sbuf_printf(sb, " %s",
 				    cpu_stdext_feature_names[j]);
+		if (tsc_is_invariant)
+			sbuf_cat(sb, " constant_tsc");
 		sbuf_cat(sb, "\n");
 		sbuf_printf(sb,
 		    "bugs\t\t: %s\n"
