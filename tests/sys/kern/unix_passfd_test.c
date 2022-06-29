@@ -428,8 +428,8 @@ ATF_TC_BODY(send_a_lot, tc)
 	msghdr.msg_controllen = CMSG_LEN(sizeof(int));
 	ATF_REQUIRE(sendmsg(fd[0], &msghdr, 0) == 1);
 	ATF_REQUIRE(recvmsg(fd[1], &msghdr, 0) == -1);
-	/* Such attempt shall fail with EMSGSIZE. */
-	ATF_REQUIRE(errno == EMSGSIZE);
+	/* Such attempt shall fail with EMFILE. */
+	ATF_REQUIRE(errno == EMFILE);
 	ATF_REQUIRE(getnfds() == nfds);
 #if TEST_PROTO == SOCK_STREAM
 	/*
