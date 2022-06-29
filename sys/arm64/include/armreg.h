@@ -57,6 +57,12 @@
 #define	MRS_REG(reg)							\
     __MRS_REG(reg##_op0, reg##_op1, reg##_CRn, reg##_CRm, reg##_op2)
 
+#define	__MRS_REG_ALT_NAME(op0, op1, crn, crm, op2)			\
+    S##op0##_##op1##_C##crn##_C##crm##_##op2
+#define	_MRS_REG_ALT_NAME(op0, op1, crn, crm, op2)			\
+    __MRS_REG_ALT_NAME(op0, op1, crn, crm, op2)
+#define	MRS_REG_ALT_NAME(reg)						\
+    _MRS_REG_ALT_NAME(reg##_op0, reg##_op1, reg##_CRn, reg##_CRm, reg##_op2)
 
 
 #define	READ_SPECIALREG(reg)						\
