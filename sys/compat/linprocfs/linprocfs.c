@@ -255,7 +255,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	};
 
 	static char *cpu_stdext_feature_names[] = {
-		/*  0 */ "fsgsbase", "tsc_adjust", "", "bmi1",
+		/*  0 */ "fsgsbase", "tsc_adjust", "sgx", "bmi1",
 		/*  4 */ "hle", "avx2", "", "smep",
 		/*  8 */ "bmi2", "erms", "invpcid", "rtm",
 		/* 12 */ "cqm", "", "mpx", "rdt_a",
