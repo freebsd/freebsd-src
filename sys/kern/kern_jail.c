@@ -142,6 +142,7 @@ static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
 static void prison_deref_kill(struct prison *pr, struct prisonlist *freeprison);
 static int prison_lock_xlock(struct prison *pr, int flags);
+static void prison_cleanup(struct prison *pr);
 static void prison_free_not_last(struct prison *pr);
 static void prison_proc_free_not_last(struct prison *pr);
 static void prison_set_allow_locked(struct prison *pr, unsigned flag,
@@ -2776,8 +2777,7 @@ prison_deref(struct prison *pr, int flags)
 					pr->pr_state = PRISON_STATE_DYING;
 					mtx_unlock(&pr->pr_mtx);
 					flags &= ~PD_LOCKED;
-					(void)osd_jail_call(pr,
-					    PR_METHOD_REMOVE, NULL);
+					prison_cleanup(pr);
 				}
 			}
 		}
@@ -2932,7 +2932,7 @@ prison_deref_kill(struct prison *pr, struct prisonlist *freeprison)
 		}
 		if (!(cpr->pr_flags & PR_REMOVE))
 			continue;
-		(void)osd_jail_call(cpr, PR_METHOD_REMOVE, NULL);
+		prison_cleanup(cpr);
 		mtx_lock(&cpr->pr_mtx);
 		cpr->pr_flags &= ~PR_REMOVE;
 		if (cpr->pr_flags & PR_PERSIST) {
@@ -2968,7 +2968,7 @@ prison_deref_kill(struct prison *pr, struct prisonlist *freeprison)
 	if (rpr != NULL)
 		LIST_REMOVE(rpr, pr_sibling);
 
-	(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+	prison_cleanup(pr);
 	mtx_lock(&pr->pr_mtx);
 	if (pr->pr_flags & PR_PERSIST) {
 		pr->pr_flags &= ~PR_PERSIST;
@@ -3012,6 +3012,18 @@ prison_lock_xlock(struct prison *pr, int flags)
 		flags |= PD_LOCKED;
 	}
 	return flags;
+}
+
+/*
+ * Release a prison's resources when it starts dying (when the last user
+ * reference is dropped, or when it is killed).
+ */
+static void
+prison_cleanup(struct prison *pr)
+{
+	sx_assert(&allprison_lock, SA_XLOCKED);
+	mtx_assert(&pr->pr_mtx, MA_NOTOWNED);
+	(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 }
 
 /*
