@@ -202,6 +202,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	uint64_t freq;
 	size_t size;
 	u_int cache_size[4];
+	u_int regs[4] = { 0 };
 	int fqmhz, fqkhz;
 	int i, j;
 
@@ -262,6 +263,33 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		/* 20 */ "smap", "avx512ifma", "", "clflushopt",
 		/* 24 */ "clwb", "intel_pt", "avx512pf", "avx512er",
 		/* 28 */ "avx512cd", "sha_ni", "avx512bw", "avx512vl"
+	};
+
+	static char *cpu_stdext_feature2_names[] = {
+		/*  0 */ "prefetchwt1", "avx512vbmi", "umip", "pku",
+		/*  4 */ "ospke", "waitpkg", "avx512_vbmi2", "",
+		/*  8 */ "gfni", "vaes", "vpclmulqdq", "avx512_vnni",
+		/* 12 */ "avx512_bitalg", "", "avx512_vpopcntdq", "",
+		/* 16 */ "", "", "", "",
+		/* 20 */ "", "", "rdpid", "",
+		/* 24 */ "", "cldemote", "", "movdiri",
+		/* 28 */ "movdir64b", "enqcmd", "sgx_lc", ""
+	};
+
+	static char *cpu_stdext_feature3_names[] = {
+		/*  0 */ "", "", "avx512_4vnniw", "avx512_4fmaps",
+		/*  4 */ "fsrm", "", "", "",
+		/*  8 */ "avx512_vp2intersect", "", "md_clear", "",
+		/* 12 */ "", "", "", "",
+		/* 16 */ "", "", "pconfig", "",
+		/* 20 */ "", "", "", "",
+		/* 24 */ "", "", "ibrs", "stibp",
+		/* 28 */ "flush_l1d", "arch_capabilities", "core_capabilities", "ssbd"
+	};
+
+	static char *cpu_stdext_feature_l1_names[] = {
+		/*  0 */ "xsaveopt", "xsavec", "xgetbv1", "xsaves",
+		/*  4 */ "xfd"
 	};
 
 	static char *power_flags[] = {
@@ -351,6 +379,24 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 				    cpu_stdext_feature_names[j]);
 		if (tsc_is_invariant)
 			sbuf_cat(sb, " constant_tsc");
+		for (j = 0; j < nitems(cpu_stdext_feature2_names); j++)
+			if (cpu_stdext_feature2 & (1 << j) &&
+			    cpu_stdext_feature2_names[j][0] != '\0')
+				sbuf_printf(sb, " %s",
+				    cpu_stdext_feature2_names[j]);
+		for (j = 0; j < nitems(cpu_stdext_feature3_names); j++)
+			if (cpu_stdext_feature3 & (1 << j) &&
+			    cpu_stdext_feature3_names[j][0] != '\0')
+				sbuf_printf(sb, " %s",
+				    cpu_stdext_feature3_names[j]);
+		if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
+			cpuid_count(0xd, 0x1, regs);
+			for (j = 0; j < nitems(cpu_stdext_feature_l1_names); j++)
+				if (regs[0] & (1 << j) &&
+				    cpu_stdext_feature_l1_names[j][0] != '\0')
+					sbuf_printf(sb, " %s",
+					    cpu_stdext_feature_l1_names[j]);
+		}
 		sbuf_cat(sb, "\n");
 		sbuf_printf(sb,
 		    "bugs\t\t: %s\n"
