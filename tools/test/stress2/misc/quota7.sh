@@ -66,7 +66,7 @@ for i in `jot 20`; do
 	mksnap_ffs $mntpoint $mntpoint/.snap/snap$i
 	sleep 1
 done
-i=$(($(date '+%S') % 20 + 1))
+i=$(($(date '+%s') % 20 + 1))
 echo "rm -f $mntpoint/.snap/snap$i"
 rm -f $mntpoint/.snap/snap$i
 wait

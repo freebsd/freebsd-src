@@ -74,7 +74,7 @@ for i in `jot 20`; do
 	sleep 1
 done
 # Remove random snapshot file
-i=$((`date +%S` % 20 + 1))
+i=$((`date +%s` % 20 + 1))
 echo "rm -f $mntpoint/.snap/snap$i"
 rm -f $mntpoint/.snap/snap$i
 wait
