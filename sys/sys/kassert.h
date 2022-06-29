@@ -46,9 +46,21 @@ extern bool panicked;
 		kassert_panic msg;					\
 	}								\
 } while (0)
+#define	MPASSERT(exp, mp, msg) do {					\
+	if (__predict_false(!(exp))) {					\
+		printf("MPASSERT mp %p failed: %s not true at %s:%d (%s)\n",\
+		    (mp), #exp, __FILE__, __LINE__, __func__);		\
+		kassert_panic msg;					\
+	}								\
+} while (0)
 #define	VNPASS(exp, vp)	do {						\
 	const char *_exp = #exp;					\
 	VNASSERT(exp, vp, ("condition %s not met at %s:%d (%s)",	\
+	    _exp, __FILE__, __LINE__, __func__));			\
+} while (0)
+#define	MPPASS(exp, mp)	do {						\
+	const char *_exp = #exp;					\
+	MPASSERT(exp, mp, ("condition %s not met at %s:%d (%s)",	\
 	    _exp, __FILE__, __LINE__, __func__));			\
 } while (0)
 #define	__assert_unreachable() \
@@ -57,7 +69,11 @@ extern bool panicked;
 #else	/* INVARIANTS */
 #define	VNASSERT(exp, vp, msg) do { \
 } while (0)
+#define	MPASSERT(exp, mp, msg) do { \
+} while (0)
 #define	VNPASS(exp, vp) do { \
+} while (0)
+#define	MPPASS(exp, mp) do { \
 } while (0)
 #define	__assert_unreachable()	__unreachable()
 #endif	/* INVARIANTS */
