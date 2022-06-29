@@ -218,7 +218,7 @@ or
 .Fl C ,
 then
 .Nm
-lists names of interfaces beloning to
+lists names of interfaces belonging to
 .Ar groupname .
 Any other flags and arguments are ignored in this case.
 .Pp
@@ -286,11 +286,11 @@ Display only the interfaces that are up.
 .It Fl v
 Get more verbose status for an interface.
 .It Ar address
-For the DARPA-Internet family,
+For the inet family,
 the address is either a host name present in the host name data
 base,
 .Xr hosts 5 ,
-or a DARPA Internet address expressed in the Internet standard
+or a IPv4 address expressed in the Internet standard
 .Dq dot notation .
 .Pp
 It is also possible to use the CIDR notation (also known as the
@@ -418,7 +418,7 @@ Enable the use of the Address Resolution Protocol
 .Pq Xr arp 4
 in mapping
 between network level addresses and link level addresses (default).
-This is currently implemented for mapping between DARPA Internet addresses
+This is currently implemented for mapping between Internet Protocol addresses
 and IEEE 802 48-bit MAC addresses (Ethernet addresses).
 .It Fl arp
 Disable the use of the Address Resolution Protocol
