@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/racct.h>
 #include <sys/rctl.h>
@@ -3023,6 +3024,7 @@ prison_cleanup(struct prison *pr)
 {
 	sx_assert(&allprison_lock, SA_XLOCKED);
 	mtx_assert(&pr->pr_mtx, MA_NOTOWNED);
+	shm_remove_prison(pr);
 	(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 }
 
