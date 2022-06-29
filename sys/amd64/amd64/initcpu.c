@@ -292,6 +292,9 @@ initializecpu(void)
 			cr4 |= CR4_SMAP;
 	}
 	load_cr4(cr4);
+	/* Reload cpu ext features to reflect cr4 changes */
+	if (IS_BSP())
+		identify_cpu_ext_features();
 	if (IS_BSP() && (amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);

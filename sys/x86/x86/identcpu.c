@@ -1609,6 +1609,18 @@ identify_cpu2(void)
 }
 
 void
+identify_cpu_ext_features(void)
+{
+	u_int regs[4];
+
+	if (cpu_high >= 7) {
+		cpuid_count(7, 0, regs);
+		cpu_stdext_feature2 = regs[2];
+		cpu_stdext_feature3 = regs[3];
+	}
+}
+
+void
 identify_cpu_fixup_bsp(void)
 {
 	u_int regs[4];
