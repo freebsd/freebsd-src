@@ -420,8 +420,9 @@ ve_trust_init(void)
 #endif
 
 #ifdef TRUST_ANCHOR_STR
-	ve_trust_anchors_add_buf(__DECONST(unsigned char *, TRUST_ANCHOR_STR),
-	    sizeof(TRUST_ANCHOR_STR));
+	if (TRUST_ANCHOR_STR != NULL && strlen(TRUST_ANCHOR_STR) != 0ul)
+		ve_trust_anchors_add_buf(__DECONST(unsigned char *,
+		    TRUST_ANCHOR_STR), sizeof(TRUST_ANCHOR_STR));
 #endif
 	once = (int) VEC_LEN(trust_anchors);
 #ifdef VE_OPENPGP_SUPPORT
