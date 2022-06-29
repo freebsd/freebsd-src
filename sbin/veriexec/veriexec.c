@@ -33,16 +33,36 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <libsecureboot.h>
 #include <libveriexec.h>
+#include <sys/types.h>
 
 #include "veriexec.h"
 
+/* Globals that are shared with manifest_parser.c */
 int dev_fd = -1;
 int ForceFlags = 0;
 int Verbose = 0;
 int VeriexecVersion = 0;
-
 const char *Cdir = NULL;
 
+/*!
+ * @brief Print help message describing program's usage
+ * @param void
+ * @return always returns code 0
+ */
+static int
+veriexec_usage()
+{
+	printf("%s",
+	    "Usage:\tveriexec [-h] [-i state] [-C] [-xv state|verbosity] [path]\n");
+
+	return (0);
+}
+
+/*!
+ * @brief Load a veriexec manifest
+ * @param manifest Pointer to the location of the manifest file
+ * @retval the error code returned from the parser
+ */
 static int
 veriexec_load(const char *manifest)
 {
@@ -52,7 +72,7 @@ veriexec_load(const char *manifest)
 	content = verify_signed(manifest, VEF_VERBOSE);
 	if (!content)
 		errx(EX_USAGE, "cannot verify %s", manifest);
-	if (manifest_open(manifest, content)) {
+	if (manifest_open(manifest, (const char *)content)) {
 		rc = yyparse();
 	} else {
 		err(EX_NOINPUT, "cannot load %s", manifest);
@@ -61,21 +81,87 @@ veriexec_load(const char *manifest)
 	return (rc);
 }
 
+/*!
+ * @brief Get the veriexec state for the supplied argument
+ * @param arg_text String containing the argument to be processed
+ * @retval The veriexec state number for the specified argument
+ */
+static uint32_t
+veriexec_state_query(const char *arg_text)
+{
+	uint32_t state = 0;
+	unsigned long len;
+
+	len = strlen(arg_text);
+
+	if (strncmp(arg_text, "active", len) == 0)
+		state |= VERIEXEC_STATE_ACTIVE;
+	else if (strncmp(arg_text, "enforce", len) == 0)
+		state |= VERIEXEC_STATE_ENFORCE;
+	if (strncmp(arg_text, "loaded", len) == 0)
+		state |= VERIEXEC_STATE_LOADED;
+	if (strncmp(arg_text, "locked", len) == 0)
+		state |= VERIEXEC_STATE_LOCKED;
+	if (state == 0 || __bitcount(state) > 1)
+		errx(EX_USAGE, "Unknown state \'%s\'", arg_text);
+
+	return (state);
+}
+
+/*!
+ * @brief Get the veriexec command state for the supplied argument
+ * @param arg_text String containing the argument to be processed
+ * @retval The veriexec command state for the specified argument
+ */
+static uint32_t
+veriexec_state_modify(const char *arg_text)
+{
+	uint32_t state = 0;
+	unsigned long len;
+
+	len = strlen(arg_text);
+
+	if (strncmp(arg_text, "active", len) == 0)
+		state = VERIEXEC_ACTIVE;
+	else if (strncmp(arg_text, "enforce", len) == 0)
+		state = VERIEXEC_ENFORCE;
+	else if (strncmp(arg_text, "getstate", len) == 0)
+		state = VERIEXEC_GETSTATE;
+	else if (strncmp(arg_text, "lock", len) == 0)
+		state = VERIEXEC_LOCK;
+	else
+		errx(EX_USAGE, "Unknown command \'%s\'", arg_text);
+
+	return (state);
+}
+
 int
 main(int argc, char *argv[])
 {
-	unsigned long ctl;
-	int c;
+	long long converted_int;
+	uint32_t state;
+	char c;
 	int x;
+
+	if (argc < 2)
+		return (veriexec_usage());
 
 	dev_fd = open(_PATH_DEV_VERIEXEC, O_WRONLY, 0);
 
-	while ((c = getopt(argc, argv, "C:i:xvz:")) != -1) {
+	while ((c = getopt(argc, argv, "hC:i:xvz:")) != -1) {
 		switch (c) {
+		case 'h':
+			/* Print usage info */
+
+			return (veriexec_usage());
 		case 'C':
+			/* Get the provided directory argument */
+
 			Cdir = optarg;
 			break;
 		case 'i':
+			/* Query the current state */
+
 			if (dev_fd < 0) {
 				err(EX_UNAVAILABLE, "cannot open veriexec");
 			}
@@ -83,32 +169,23 @@ main(int argc, char *argv[])
 				err(EX_UNAVAILABLE,
 				    "Cannot get veriexec state");
 			}
-			switch (optarg[0]) {
-			case 'a':	/* active */
-				ctl = VERIEXEC_STATE_ACTIVE;
-				break;
-			case 'e':	/* enforce */
-				ctl = VERIEXEC_STATE_ENFORCE;
-				break;
-			case 'l':	/* loaded/locked */
-				ctl = (strncmp(optarg, "lock", 4) == 0) ?
-				    VERIEXEC_STATE_LOCKED :
-				    VERIEXEC_STATE_LOADED;
-				break;
-			default:
-				errx(EX_USAGE, "unknown state %s", optarg);
-				break;
-			}
-			exit((x & ctl) == 0);
+
+			state = veriexec_state_query(optarg);
+
+			exit((x & state) == 0);
 			break;
 		case 'v':
+			/* Increase the verbosity */
+
 			Verbose++;
 			break;
 		case 'x':
+			/* Check veriexec paths */
+
 			/*
 			 * -x says all other args are paths to check.
 			 */
-			for (x = 0; optind < argc; optind++) {
+			for (x = EX_OK; optind < argc; optind++) {
 				if (veriexec_check_path(argv[optind])) {
 					warn("%s", argv[optind]);
 					x = 2;
@@ -117,48 +194,63 @@ main(int argc, char *argv[])
 			exit(x);
 			break;
 		case 'z':
-			switch (optarg[0]) {
-			case 'a':	/* active */
-				ctl = VERIEXEC_ACTIVE;
-				break;
-			case 'd':	/* debug* */
-				ctl = (strstr(optarg, "off")) ?
-				    VERIEXEC_DEBUG_OFF : VERIEXEC_DEBUG_ON;
-				if (optind < argc && ctl == VERIEXEC_DEBUG_ON) {
-					x = atoi(argv[optind]);
+			/* Modify the state */
+
+			if (strncmp(optarg, "debug", strlen(optarg)) == 0) {
+				const char *error;
+
+				if (optind >= argc)
+					errx(EX_USAGE,
+					    "Missing mac_veriexec verbosity level \'N\', veriexec -z debug N, where N is \'off\' or the value 0 or greater");
+
+				if (strncmp(argv[optind], "off", strlen(argv[optind])) == 0) {
+					state = VERIEXEC_DEBUG_OFF;
+					x = 0;
+				} else {
+					state = VERIEXEC_DEBUG_ON;
+
+					converted_int = strtonum(argv[optind], 0, INT_MAX, &error);
+
+					if (error != NULL)
+						errx(EX_USAGE, "Conversion error for argument \'%s\' : %s",
+						    argv[optind], error);
+
+					x = (int) converted_int;
+
+
 					if (x == 0)
-						ctl = VERIEXEC_DEBUG_OFF;
+						state = VERIEXEC_DEBUG_OFF;
 				}
-				break;
-			case 'e':	/* enforce */
-				ctl = VERIEXEC_ENFORCE;
-				break;
-			case 'g':
-				ctl = VERIEXEC_GETSTATE; /* get state */
-				break;
-			case 'l':	/* lock */
-				ctl = VERIEXEC_LOCK;
-				break;
-			default:
-				errx(EX_USAGE, "unknown command %s", optarg);
-				break;
-			}
-			if (dev_fd < 0) {
-				err(EX_UNAVAILABLE, "cannot open veriexec");
-			}
-			if (ioctl(dev_fd, ctl, &x)) {
-				err(EX_UNAVAILABLE, "cannot %s veriexec", optarg);
-			}
-			if (ctl == VERIEXEC_DEBUG_ON ||
-			    ctl == VERIEXEC_DEBUG_OFF) {
-				printf("debug is: %d\n", x);
-			} else if (ctl == VERIEXEC_GETSTATE) {
-				printf("%#o\n", x);
-			}
+			} else
+				state = veriexec_state_modify(optarg);
+
+			if (dev_fd < 0)
+				err(EX_UNAVAILABLE, "Cannot open veriexec");
+			if (ioctl(dev_fd, state, &x))
+				err(EX_UNAVAILABLE, "Cannot %s veriexec", optarg);
+
+			if (state == VERIEXEC_DEBUG_ON || state == VERIEXEC_DEBUG_OFF)
+				printf("mac_veriexec debug verbosity level: %d\n", x);
+			else if (state == VERIEXEC_GETSTATE)
+				printf("Veriexec state (octal) : %#o\n", x);
+
 			exit(EX_OK);
+			break;
+		default:
+
+			/* Missing argument, print usage info.*/
+			veriexec_usage();
+			exit(EX_USAGE);
 			break;
 		}
 	}
+
+	if (Verbose)
+		printf("Verbosity level : %d\n", Verbose);
+
+	if (dev_fd < 0)
+		err(EX_UNAVAILABLE, "Cannot open veriexec");
+
 	openlog(getprogname(), LOG_PID, LOG_AUTH);
 	if (ve_trust_init() < 1)
 		errx(EX_OSFILE, "cannot initialize trust store");
