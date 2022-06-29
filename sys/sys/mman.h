@@ -300,6 +300,8 @@ struct shmfd {
 #endif
 
 #ifdef _KERNEL
+struct prison;
+
 int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
 int	shm_unmap(struct file *fp, void *mem, size_t size);
 
@@ -309,6 +311,7 @@ struct shmfd *shm_hold(struct shmfd *shmfd);
 void	shm_drop(struct shmfd *shmfd);
 int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 bool	shm_largepage(struct shmfd *shmfd);
+void	shm_remove_prison(struct prison *pr);
 
 extern struct fileops shm_ops;
 

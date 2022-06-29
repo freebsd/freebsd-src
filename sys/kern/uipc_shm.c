@@ -125,6 +125,7 @@ static void	shm_init(void *arg);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
 static struct shmfd *shm_lookup(char *path, Fnv32_t fnv);
 static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
+static void	shm_doremove(struct shm_mapping *map);
 static int	shm_dotruncate_cookie(struct shmfd *shmfd, off_t length,
     void *rl_cookie);
 static int	shm_dotruncate_locked(struct shmfd *shmfd, off_t length,
@@ -983,6 +984,26 @@ shm_init(void *arg)
 SYSINIT(shm_init, SI_SUB_SYSV_SHM, SI_ORDER_ANY, shm_init, NULL);
 
 /*
+ * Remove all shared memory objects that belong to a prison.
+ */
+void
+shm_remove_prison(struct prison *pr)
+{
+	struct shm_mapping *shmm, *tshmm;
+	u_long i;
+
+	sx_xlock(&shm_dict_lock);
+	for (i = 0; i < shm_hash + 1; i++) {
+		LIST_FOREACH_SAFE(shmm, &shm_dictionary[i], sm_link, tshmm) {
+			if (shmm->sm_shmfd->shm_object->cred &&
+			    shmm->sm_shmfd->shm_object->cred->cr_prison == pr)
+				shm_doremove(shmm);
+		}
+	}
+	sx_xunlock(&shm_dict_lock);
+}
+
+/*
  * Dictionary management.  We maintain an in-kernel dictionary to map
  * paths to shmfd objects.  We use the FNV hash on the path to store
  * the mappings in a hash table.
@@ -1034,16 +1055,22 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 			    FREAD | FWRITE);
 			if (error)
 				return (error);
-			map->sm_shmfd->shm_path = NULL;
-			LIST_REMOVE(map, sm_link);
-			shm_drop(map->sm_shmfd);
-			free(map->sm_path, M_SHMFD);
-			free(map, M_SHMFD);
+			shm_doremove(map);
 			return (0);
 		}
 	}
 
 	return (ENOENT);
+}
+
+static void
+shm_doremove(struct shm_mapping *map)
+{
+	map->sm_shmfd->shm_path = NULL;
+	LIST_REMOVE(map, sm_link);
+	shm_drop(map->sm_shmfd);
+	free(map->sm_path, M_SHMFD);
+	free(map, M_SHMFD);
 }
 
 int
