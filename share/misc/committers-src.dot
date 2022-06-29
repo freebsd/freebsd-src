@@ -234,6 +234,7 @@ kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kaktus [label="Pawel Biernacki\nkaktus@FreeBSD.org\n2019/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
 karels [label="Mike Karels\nkarels@FreeBSD.org\n2016/06/09"]
+kd [label="Kornel Dulęba\nkd@FreeBSD.org\n2022/06/22"]
 ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2017/06/20"]
@@ -522,6 +523,7 @@ eivind -> rwatson
 emaste -> achim
 emaste -> bwidawsk
 emaste -> dteske
+emaste -> kd
 emaste -> kevans
 emaste -> lwhsu
 emaste -> markj
@@ -766,6 +768,8 @@ murray -> delphij
 
 mux -> cognet
 mux -> dumbbell
+
+mw -> kd
 
 netchild -> ariff
 
