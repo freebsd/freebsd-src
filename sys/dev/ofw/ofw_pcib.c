@@ -211,7 +211,7 @@ ofw_pcib_init(device_t dev)
 	error = rman_init(&sc->sc_mem_rman);
 	if (error != 0) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
-		goto out;
+		goto out_mem_rman;
 	}
 
 	sc->sc_pmem_rman.rm_type = RMAN_ARRAY;
@@ -219,7 +219,7 @@ ofw_pcib_init(device_t dev)
 	error = rman_init(&sc->sc_pmem_rman);
 	if (error != 0) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
-		goto out;
+		goto out_pmem_rman;
 	}
 
 	for (i = 0; i < sc->sc_nrange; i++) {
@@ -254,21 +254,37 @@ ofw_pcib_init(device_t dev)
 			    "error = %d\n", rp->pci_hi &
 			    OFW_PCI_PHYS_HI_SPACEMASK, rp->pci,
 			    rp->pci + rp->size - 1, error);
-			goto out;
+			goto out_full;
 		}
 	}
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(cell_t));
 	return (0);
 
+out_full:
+	rman_fini(&sc->sc_pmem_rman);
+out_pmem_rman:
+	rman_fini(&sc->sc_mem_rman);
+out_mem_rman:
+	rman_fini(&sc->sc_io_rman);
 out:
-	free(cell_info, M_DEVBUF);
+	free(sc->sc_cell_info, M_DEVBUF);
+	free(sc->sc_range, M_DEVBUF);
+
+	return (error);
+}
+
+void
+ofw_pcib_fini(device_t dev)
+{
+	struct ofw_pci_softc *sc;
+
+	sc = device_get_softc(dev);
+	free(sc->sc_cell_info, M_DEVBUF);
 	free(sc->sc_range, M_DEVBUF);
 	rman_fini(&sc->sc_io_rman);
 	rman_fini(&sc->sc_mem_rman);
 	rman_fini(&sc->sc_pmem_rman);
-
-	return (error);
 }
 
 int
