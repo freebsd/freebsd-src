@@ -99,6 +99,7 @@ int host_getpid(void);
 int host_gettimeofday(struct host_timeval *a, void *b);
 int host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
+int host_mkdir(const char *, host_mode_t);
 void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
 int host_munmap(void *addr, size_t len);
 int host_open(const char *path, int flags, int mode);
