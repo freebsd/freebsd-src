@@ -79,7 +79,7 @@ TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
 .if ${MK_BIND_NOW} != "no"
 LDFLAGS+= -Wl,-znow
 .endif
-.if ${LINKER_TYPE} != "macos"
+.if ${LINKER_TYPE} != "mac"
 .if ${MK_RELRO} == "no"
 LDFLAGS+= -Wl,-znorelro
 .else
