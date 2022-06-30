@@ -14,6 +14,12 @@ host_close(int fd)
 }
 
 int
+host_dup(int fd)
+{
+	return host_syscall(SYS_dup, fd);
+}
+
+int
 host_fstat(int fd, struct host_kstat *sb)
 {
 	return host_syscall(SYS_newfstat, fd, (uintptr_t)sb);
