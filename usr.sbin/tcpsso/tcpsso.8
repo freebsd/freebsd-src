@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 10, 2022
+.Dd June 30, 2022
 .Dt TCPSSO 8
 .Os
 .Sh NAME
@@ -72,6 +72,15 @@ level socket option with name
 and value
 .Ar optval
 on a TCP endpoint from the command line.
+.Pp
+TCP endpoints in the
+.Dv TIME_WAIT
+state can not be handled by
+.Nm .
+TCP endpoints in the
+.Dv SYN_RCVD
+state can only be handled if their prior state was
+.Dv SYN_SENT .
 .Pp
 .Op Ar level
 can be specified as a non negative number or a symbolic name like
@@ -129,8 +138,8 @@ If
 .Fl a
 is specified then
 .Nm
-will apply the socket option to all TCP endpoints not being in the state
-.Dv TIME_WAIT .
+will apply the socket option to all TCP endpoints subject to the above state
+restrictions.
 .Pp
 If
 .Fl C Ar cc-algo
@@ -139,8 +148,7 @@ is specified then
 will apply the socket option to all TCP endpoints using the TCP
 congestion control algorithm
 .Ar cc-algo
-and not being in the state
-.Dv TIME_WAIT .
+and subject to the above state restrictions.
 .Pp
 If
 .Fl S Ar stack
@@ -149,8 +157,7 @@ is specified then
 will apply the socket option to all TCP endpoints using the TCP
 stack
 .Ar stack
-and not being in the state
-.Dv TIME_WAIT .
+and subject to the above state restrictions.
 .Pp
 If
 .Fl s Ar state
@@ -170,6 +177,12 @@ is one of
 .Dv CLOSING ,
 .Dv LAST_ACK ,
 .Dv FIN_WAIT_2 .
+Using
+.Dv SYN_RCVD
+only applies to TCP endpoints in the state
+.Dv SYN_RCVD
+if their prior state was
+.Dv SYN_SENT .
 .Pp
 If multiple of
 .Fl C Ar cc-algo ,
