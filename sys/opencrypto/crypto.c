@@ -1372,6 +1372,11 @@ crp_sanity(struct cryptop *crp)
 	if (out == NULL) {
 		KASSERT(crp->crp_payload_output_start == 0,
 		    ("payload output start non-zero without output buffer"));
+	} else if (csp->csp_mode == CSP_MODE_DIGEST) {
+		KASSERT(!(crp->crp_op & CRYPTO_OP_VERIFY_DIGEST),
+		    ("digest verify with separate output buffer"));
+		KASSERT(crp->crp_payload_output_start == 0,
+		    ("digest operation with non-zero payload output start"));
 	} else {
 		KASSERT(crp->crp_payload_output_start == 0 ||
 		    crp->crp_payload_output_start < olen,
