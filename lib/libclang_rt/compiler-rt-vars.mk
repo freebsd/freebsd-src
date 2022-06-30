@@ -9,7 +9,7 @@ SANITIZER_SHAREDIR=		${CLANGDIR}/share
     (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
 CRTARCH?=	armhf
 .else
-CRTARCH?=	${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:C/sf$//:S/mipsn32/mips64/}
+CRTARCH?=	${MACHINE_ARCH:S/amd64/x86_64/:C/sf$//}
 .endif
 
 .if ${COMPILER_TYPE} == "clang"
