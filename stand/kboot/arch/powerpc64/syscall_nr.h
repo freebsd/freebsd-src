@@ -13,6 +13,7 @@
 #define SYS_pselect6		280
 #define SYS_read		  3
 #define SYS_reboot		 88
+#define SYS_symlinkat		295
 #define SYS_uname		120
 #define SYS_write		  4
 

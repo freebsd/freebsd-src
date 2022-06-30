@@ -111,6 +111,12 @@ host_stat(const char *path, struct host_kstat *sb)
 }
 
 int
+host_symlink(const char *path1, const char *path2)
+{
+	return host_syscall(SYS_symlinkat, HOST_AT_FDCWD, path1, path2);
+}
+
+int
 host_uname(struct old_utsname *uts)
 {
 	return host_syscall(SYS_uname, (uintptr_t)uts);
