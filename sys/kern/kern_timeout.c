@@ -564,7 +564,7 @@ callout_lock(struct callout *c)
 static void
 callout_cc_add(struct callout *c, struct callout_cpu *cc,
     sbintime_t sbt, sbintime_t precision, void (*func)(void *),
-    void *arg, int cpu, int flags)
+    void *arg, int flags)
 {
 	int bucket;
 
@@ -597,7 +597,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	sbt = c->c_time + c->c_precision;
 	if (sbt < cc->cc_firstevent) {
 		cc->cc_firstevent = sbt;
-		cpu_new_callout(cpu, sbt, c->c_time);
+		cpu_new_callout(c->c_cpu, sbt, c->c_time);
 	}
 }
 
@@ -774,7 +774,7 @@ skip:
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		flags = (direct) ? C_DIRECT_EXEC : 0;
 		callout_cc_add(c, new_cc, new_time, new_prec, new_func,
-		    new_arg, new_cpu, flags);
+		    new_arg, flags);
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
 #else
@@ -1023,7 +1023,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	}
 #endif
 
-	callout_cc_add(c, cc, to_sbt, precision, ftn, arg, cpu, flags);
+	callout_cc_add(c, cc, to_sbt, precision, ftn, arg, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_sbt >> 32),
 	    (u_int)(to_sbt & 0xffffffff));
