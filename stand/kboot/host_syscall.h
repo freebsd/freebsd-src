@@ -68,6 +68,8 @@ typedef int64_t host_blkcnt_t;
 #define HOST_O_APPEND		02000
 #define HOST_O_NONBLOCK		04000
 
+#define HOST_AT_FDCWD		-100            /* Relative to current directory */
+
 /*
  * Data types
  */
@@ -104,6 +106,7 @@ int host_reboot(int, int, int, uintptr_t);
 int host_select(int nfds, long *readfds, long *writefds, long *exceptfds,
     struct host_timeval *timeout);
 int host_stat(const char *path, struct host_kstat *sb);
+int host_symlink(const char *path1, const char *path2);
 int host_uname(struct old_utsname *);
 ssize_t host_write(int fd, const void *buf, size_t nbyte);
 
