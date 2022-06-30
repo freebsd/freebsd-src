@@ -1070,16 +1070,16 @@ igc_if_media_change(if_ctx_t ctx)
 		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	case IFM_100_TX:
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_HDX)
-			adapter->hw.phy.autoneg_advertised = ADVERTISE_100_HALF;
-		else
+		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
 			adapter->hw.phy.autoneg_advertised = ADVERTISE_100_FULL;
+		else
+			adapter->hw.phy.autoneg_advertised = ADVERTISE_100_HALF;
 		break;
 	case IFM_10_T:
-		if ((ifm->ifm_media & IFM_GMASK) == IFM_HDX)
-			adapter->hw.phy.autoneg_advertised = ADVERTISE_10_HALF;
-		else
+		if ((ifm->ifm_media & IFM_GMASK) == IFM_FDX)
 			adapter->hw.phy.autoneg_advertised = ADVERTISE_10_FULL;
+		else
+			adapter->hw.phy.autoneg_advertised = ADVERTISE_10_HALF;
 		break;
 	default:
 		device_printf(adapter->dev, "Unsupported media type\n");
