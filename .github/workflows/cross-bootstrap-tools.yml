@@ -27,8 +27,8 @@ jobs:
             pkgs: bmake libarchive-dev clang-14 lld-14
           - os: macos-latest
             compiler: clang-13
-            cross-bindir: /usr/local/opt/llvm/bin
-            pkgs: bmake libarchive
+            cross-bindir: /usr/local/opt/llvm@13/bin
+            pkgs: bmake libarchive llvm@13
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64
