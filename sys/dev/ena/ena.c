@@ -376,7 +376,7 @@ ena_init_io_rings_common(struct ena_adapter *adapter, struct ena_ring *ring,
 	ring->qid = qid;
 	ring->adapter = adapter;
 	ring->ena_dev = adapter->ena_dev;
-	atomic_store_8(&ring->first_interrupt, false);
+	atomic_store_8(&ring->first_interrupt, 0);
 	ring->no_interrupt_event_cnt = 0;
 }
 

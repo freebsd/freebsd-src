@@ -329,7 +329,7 @@ struct ena_ring {
 
 	};
 
-	bool first_interrupt;
+	uint8_t first_interrupt;
 	uint16_t no_interrupt_event_cnt;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
