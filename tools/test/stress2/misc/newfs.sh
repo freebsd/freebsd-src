@@ -41,27 +41,26 @@ mount | grep "$mntpoint" | grep md$mdstart > /dev/null &&
     umount $mntpoint
 mdconfig -l | grep md$mdstart > /dev/null &&  mdconfig -d -u $mdstart
 
-mdconfig -a -t swap -s 1g -u $mdstart
+mdconfig -a -t swap -s 20g -u $mdstart
 
-echo "Expect warnings from SU and SU+J."
 log=/tmp/newfs.sh.log
 s=0
 export RUNDIR=$mntpoint/stressX
-export runRUNTIME=10s
+export runRUNTIME=15s
 export RUNTIME=$runRUNTIME
 export CTRLDIR=$mntpoint/stressX.control
 start=`date '+%s'`
 for opt in -O1 -O2 -U -j; do
-	echo "Testing newfs with option $opt."
 	blocksize=4096
 	while [ $blocksize -le 65536 ]; do
 		for i in 8 4 2 1; do
 			fragsize=$((blocksize / i))
+			echo "newfs $opt -b $blocksize -f $fragsize"\
+			    "md$mdstart"
 			newfs $opt -b $blocksize -f $fragsize \
-			    md$mdstart > /dev/null 2>&1 || continue
-			mount /dev/md$mdstart $mntpoint
+			    md$mdstart > /dev/null || { s=1; continue; }
+			mount /dev/md$mdstart $mntpoint || { s=2; continue; }
 			chmod 777 $mntpoint
-			rm -rf /tmp/stressX.control
 			su $testuser -c \
 				"(cd ..; ./run.sh disk.cfg > /dev/null 2>&1)" &
 			sleep 10
@@ -71,20 +70,17 @@ for opt in -O1 -O2 -U -j; do
 			    grep -q md$mdstart; do
 				umount $mntpoint > /dev/null 2>&1 || sleep 1
 			done
-			checkfs /dev/md$mdstart > $log 2>&1 || {
-				cmd="newfs $opt -b $blocksize -f $fragsize"
-#				if ! grep -q -- "$cmd" $0; then
-					s=1
-					echo "$cmd"
-					cat $log
-#				fi
+			fsck -fy /dev/md$mdstart > $log 2>&1
+			grep -q "WAS MODIFIED" $log && {
+				s=3
+				cat $log
 			}
 		done
 		blocksize=$((blocksize * 2))
 	done
 	if [ $((`date '+%s'` - start)) -gt 1200 ]; then
 		echo "Timed out"
-		s=1
+		s=4
 		break
 	fi
 done
