@@ -92,6 +92,7 @@ struct host_timeval {
  * System Calls
  */
 int host_close(int fd);
+int host_dup(int fd);
 int host_fstat(int fd, struct host_kstat *sb);
 int host_getdents(int fd, void *dirp, int count);
 int host_getpid(void);
