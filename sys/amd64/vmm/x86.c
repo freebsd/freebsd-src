@@ -576,6 +576,24 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id, uint64_t *rax, uint64_t *rbx,
 			}
 			break;
 
+		case CPUID_0000_000F:
+		case CPUID_0000_0010:
+			/*
+			 * Do not report any Resource Director Technology
+			 * capabilities.  Exposing control of cache or memory
+			 * controller resource partitioning to the guest is not
+			 * at all sensible.
+			 *
+			 * This is already hidden at a high level by masking of
+			 * leaf 0x7.  Even still, a guest may look here for
+			 * detailed capability information.
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+			break;
+
 		case CPUID_0000_0015:
 			/*
 			 * Don't report CPU TSC/Crystal ratio and clock
