@@ -85,13 +85,8 @@ struct sseg_closure {
 
 #ifdef ELFCORE_COMPAT_32
 typedef struct prpsinfo32 elfcore_prpsinfo_t;
-typedef struct ptrace_lwpinfo32 elfcore_lwpinfo_t;
-static void elf_convert_lwpinfo(struct ptrace_lwpinfo32 *pld,
-    struct ptrace_lwpinfo *pls);
 #else
 typedef prpsinfo_t elfcore_prpsinfo_t;
-typedef struct ptrace_lwpinfo elfcore_lwpinfo_t;
-#define	elf_convert_lwpinfo(d,s)	*d = *s
 #endif
 
 typedef void* (*notefunc_t)(void *, size_t *);
@@ -102,8 +97,6 @@ static void each_dumpable_segment(struct map_entry *, segment_callback,
     void *closure);
 static void elf_detach(void);	/* atexit() handler. */
 static void *elf_note_prpsinfo(void *, size_t *);
-static void *elf_note_thrmisc(void *, size_t *);
-static void *elf_note_ptlwpinfo(void *, size_t *);
 #if defined(__i386__) || defined(__amd64__)
 static void *elf_note_x86_xstate(void *, size_t *);
 #endif
@@ -366,8 +359,8 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 	for (i = 0; i < threads; ++i) {
 		elf_putregnote(NT_PRSTATUS, tids[i], sb);
 		elf_putregnote(NT_FPREGSET, tids[i], sb);
-		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
-		elf_putnote(NT_PTLWPINFO, elf_note_ptlwpinfo, tids + i, sb);
+		elf_putregnote(NT_THRMISC, tids[i], sb);
+		elf_putregnote(NT_PTLWPINFO, tids[i], sb);
 #if defined(__aarch64__) || defined(__arm__)
 		elf_putregnote(NT_ARM_TLS, tids[i], sb);
 #endif
@@ -680,47 +673,6 @@ elf_note_prpsinfo(void *arg, size_t *sizep)
 
 	*sizep = sizeof(*psinfo);
 	return (psinfo);
-}
-
-static void *
-elf_note_thrmisc(void *arg, size_t *sizep)
-{
-	lwpid_t tid;
-	struct ptrace_lwpinfo lwpinfo;
-	thrmisc_t *thrmisc;
-
-	tid = *(lwpid_t *)arg;
-	thrmisc = calloc(1, sizeof(*thrmisc));
-	if (thrmisc == NULL)
-		errx(1, "out of memory");
-	ptrace(PT_LWPINFO, tid, (void *)&lwpinfo,
-	    sizeof(lwpinfo));
-	memset(&thrmisc->_pad, 0, sizeof(thrmisc->_pad));
-	strcpy(thrmisc->pr_tname, lwpinfo.pl_tdname);
-
-	*sizep = sizeof(*thrmisc);
-	return (thrmisc);
-}
-
-static void *
-elf_note_ptlwpinfo(void *arg, size_t *sizep)
-{
-	lwpid_t tid;
-	elfcore_lwpinfo_t *elf_info;
-	struct ptrace_lwpinfo lwpinfo;
-	void *p;
-
-	tid = *(lwpid_t *)arg;
-	p = calloc(1, sizeof(int) + sizeof(elfcore_lwpinfo_t));
-	if (p == NULL)
-		errx(1, "out of memory");
-	*(int *)p = sizeof(elfcore_lwpinfo_t);
-	elf_info = (void *)((int *)p + 1);
-	ptrace(PT_LWPINFO, tid, (void *)&lwpinfo, sizeof(lwpinfo));
-	elf_convert_lwpinfo(elf_info, &lwpinfo);
-
-	*sizep = sizeof(int) + sizeof(struct ptrace_lwpinfo);
-	return (p);
 }
 
 #if defined(__i386__) || defined(__amd64__)
