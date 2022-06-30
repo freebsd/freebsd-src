@@ -88,6 +88,9 @@ struct host_timeval {
 
 #define HOST_AT_FDCWD		-100		/* Relative to current directory */
 
+/* Mount flags from uapi */
+#define MS_RELATIME (1 << 21)
+
 /*
  * System Calls
  */
@@ -101,6 +104,8 @@ int host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
 int host_mkdir(const char *, host_mode_t);
 void *host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off);
+int host_mount(const char *src, const char *target, const char *type,
+    unsigned long flags, void *data);
 int host_munmap(void *addr, size_t len);
 int host_open(const char *path, int flags, int mode);
 ssize_t host_read(int fd, void *buf, size_t nbyte);
