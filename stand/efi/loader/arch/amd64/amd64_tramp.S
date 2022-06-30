@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2013 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Benno Rice under sponsorship from
  * the FreeBSD Foundation.
