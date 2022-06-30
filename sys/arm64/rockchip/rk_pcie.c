@@ -405,17 +405,17 @@ rk_pcie_decode_ranges(struct rk_pcie_softc *sc, struct ofw_pci_range *ranges,
 	int i;
 
 	for (i = 0; i < nranges; i++) {
-		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK)  ==
-		    OFW_PCI_PHYS_HI_SPACE_IO) {
+		switch(ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
+		case OFW_PCI_PHYS_HI_SPACE_IO:
 			if (sc->io_range.size != 0) {
 				device_printf(sc->dev,
 				    "Duplicated IO range found in DT\n");
 				return (ENXIO);
 			}
 			sc->io_range = ranges[i];
-		}
-		if (((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
-		    OFW_PCI_PHYS_HI_SPACE_MEM64))  {
+			break;
+		case OFW_PCI_PHYS_HI_SPACE_MEM32:
+		case OFW_PCI_PHYS_HI_SPACE_MEM64:
 			if (ranges[i].pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) {
 				if (sc->pref_mem_range.size != 0) {
 					device_printf(sc->dev,
