@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2014
+.Dd June 30, 2022
 .Dt VOP_STRATEGY 9
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd read or write a file system buffer
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/buf.h
 .In sys/vnode.h
 .Ft int
 .Fn VOP_STRATEGY "struct vnode *vp" "struct buf *bp"
@@ -49,14 +50,22 @@ The buffer to be read or written.
 .El
 .Pp
 This call either reads or writes data from a file, depending on the value of
-.Fa bp->b_io.bio_cmd .
+.Fa bp->b_iocmd .
 .Pp
 The call may block.
 .Sh RETURN VALUES
 Always zero.
-Errors should be signalled by setting BIO_ERROR on b_ioflags field in struct buf,
-and setting b_error to the appropriate errno value.
+Errors should be signalled by setting the
+.Dv BIO_ERROR
+bit in
+.Fa bp->b_ioflags
+and setting
+.Fa bp->b_error
+to the appropriate
+.Va errno
+value.
 .Sh SEE ALSO
+.Xr errno 2 ,
 .Xr buf 9 ,
 .Xr vnode 9
 .Sh AUTHORS
