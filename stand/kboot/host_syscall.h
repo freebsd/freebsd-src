@@ -92,6 +92,7 @@ struct host_timeval {
 int host_close(int fd);
 int host_fstat(int fd, struct host_kstat *sb);
 int host_getdents(int fd, void *dirp, int count);
+int host_getpid(void);
 int host_gettimeofday(struct host_timeval *a, void *b);
 int host_kexec_load(uint32_t start, int nsegs, uint32_t segs, uint32_t flags);
 ssize_t host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, int whence);
