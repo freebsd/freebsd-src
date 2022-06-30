@@ -980,7 +980,7 @@ netbe_init(struct net_backend **ret, nvlist_t *nvl, net_be_rxeof_t cb,
     void *param)
 {
 	struct net_backend **pbe, *nbe, *tbe = NULL;
-	const char *value;
+	const char *value, *type;
 	char *devname;
 	int err;
 
@@ -991,11 +991,19 @@ netbe_init(struct net_backend **ret, nvlist_t *nvl, net_be_rxeof_t cb,
 	devname = strdup(value);
 
 	/*
+	 * Use the type given by configuration if exists; otherwise
+	 * use the prefix of the backend as the type.
+	 */
+	type = get_config_value_node(nvl, "type");
+	if (type == NULL)
+		type = devname;
+
+	/*
 	 * Find the network backend that matches the user-provided
 	 * device name. net_backend_set is built using a linker set.
 	 */
 	SET_FOREACH(pbe, net_backend_set) {
-		if (strncmp(devname, (*pbe)->prefix,
+		if (strncmp(type, (*pbe)->prefix,
 		    strlen((*pbe)->prefix)) == 0) {
 			tbe = *pbe;
 			assert(tbe->init != NULL);
