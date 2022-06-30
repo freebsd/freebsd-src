@@ -26,6 +26,12 @@ host_getdents(int fd, void *dirp, int count)
 }
 
 int
+host_getpid(void)
+{
+	return host_syscall(SYS_getpid);
+}
+
+int
 host_gettimeofday(struct host_timeval *a, void *b)
 {
 	return host_syscall(SYS_gettimeofday, (uintptr_t)a, (uintptr_t)b);
