@@ -105,6 +105,7 @@ typedef	void *	DIR;
 __BEGIN_DECLS
 #if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE >= 700
 int	 alphasort(const struct dirent **, const struct dirent **);
+int	 versionsort(const struct dirent **, const struct dirent **);
 int	 dirfd(DIR *);
 #endif
 #if __BSD_VISIBLE

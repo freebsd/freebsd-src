@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2020
+.Dd July 11, 2022
 .Dt LS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1\&,
+.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuvwxy1\&,
 .Op Fl -color Ns = Ns Ar when
 .Op Fl D Ar format
 .Op Ar
@@ -399,6 +399,12 @@ of the file for sorting
 .Pq Fl t
 or printing
 .Pq Fl l .
+.It Fl v
+Sort by natural ordering (using
+.Xr strverscmp 3
+instead of
+.Xr strcoll 3
+as the comparison function).
 .It Fl w
 Force raw printing of non-printable characters.
 This is the default
@@ -902,7 +908,7 @@ utility conforms to
 and
 .St -p1003.1-2008 .
 The options
-.Fl B , D , G , I , T , U , W , Z , b , h , w , y
+.Fl B , D , G , I , T , U , W , Z , b , h , v , w , y
 and
 .Fl ,
 are non-standard extensions.

@@ -90,8 +90,8 @@ struct execsw {
 #define	PROC_PS_STRINGS(p)	\
 	((p)->p_vmspace->vm_stacktop - (p)->p_sysent->sv_psstringssz)
 
-int exec_map_first_page(struct image_params *);        
-void exec_unmap_first_page(struct image_params *);       
+int exec_map_first_page(struct image_params *);
+void exec_unmap_first_page(struct image_params *);
 
 int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);

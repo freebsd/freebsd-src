@@ -1,0 +1,76 @@
+.\" Copyright (c) 2022 Obiwac,
+.\"	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)strverscmp.3	1.0 7/11/22
+.\" $FreeBSD$
+.\"
+.Dd July 11, 2022
+.Dt STRVERSCMP 3
+.Os
+.Sh NAME
+.Nm strverscmp
+.Nd compare strings according to natural order
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In string.h
+.Ft int
+.Fn strverscmp "const char *s1" "const char *s2"
+.Sh DESCRIPTION
+The
+.Fn strverscmp
+function
+compares the null-terminated strings
+.Fa s1
+and
+.Fa s2
+according to their natural order
+and returns an integer greater than, equal to, or less than 0,
+depending on whether
+.Fa s1
+is greater than, equal to, or less than
+.Fa s2 .
+.Pp
+More specifically, this natural order is found by iterating over both
+strings until a difference is found.
+If the difference is between non-decimal characters,
+.Fn strverscmp
+acts like
+.Xr strcmp 3
+(thus, ordering would be "a", "b", "train").
+If a decimal digit is found, the whole number is read and compared
+(thus, ordering would be "9", "10", "420" which is the opposite of lexicographic order,
+what
+.Xr strcmp 3
+would've done).
+Numbers with leading zeroes are interpreted as fractional parts,
+and numbers with more leading zeroes are placed before numbers with fewer leading zeroes
+(thus, ordering would be "000", "00", "01", "010", "09", "0", "1", "9", "10").
+.Sh SEE ALSO
+.Xr strcmp 3 ,
+.Xr versionsort 3
+.Sh STANDARDS
+The
+.Fn strverscmp
+function is a GNU extension and conforms to no standard.
