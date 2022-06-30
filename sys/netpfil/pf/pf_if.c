@@ -803,6 +803,11 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 	CK_STAILQ_HEAD(, ifg_member) ifg_members;
 	int			 i, j, k;
 
+	if (pfs) {
+		bzero(pfs->pcounters, sizeof(pfs->pcounters));
+		bzero(pfs->bcounters, sizeof(pfs->bcounters));
+	}
+
 	strlcpy(key.pfik_name, name, sizeof(key.pfik_name));
 	p = RB_FIND(pfi_ifhead, &V_pfi_ifs, (struct pfi_kkif *)&key);
 	if (p == NULL)
@@ -817,10 +822,6 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 		p_member.ifgm_ifp = p->pfik_ifp;
 		CK_STAILQ_INIT(&ifg_members);
 		CK_STAILQ_INSERT_TAIL(&ifg_members, &p_member, ifgm_next);
-	}
-	if (pfs) {
-		bzero(pfs->pcounters, sizeof(pfs->pcounters));
-		bzero(pfs->bcounters, sizeof(pfs->bcounters));
 	}
 	CK_STAILQ_FOREACH(ifgm, &ifg_members, ifgm_next) {
 		if (ifgm->ifgm_ifp == NULL || ifgm->ifgm_ifp->if_pf_kif == NULL)
