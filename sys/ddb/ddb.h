@@ -164,14 +164,22 @@ _func(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 #define	DB_FUNC(_name, _func, list, _flag, _more)		\
 	_DB_FUNC(_cmd, _name, _func, list, _flag, _more)
 
+#define	DB_COMMAND_FLAGS(cmd_name, func_name, flags) \
+	_DB_FUNC(_cmd, cmd_name, func_name, db_cmd_table, flags, NULL)
 #define	DB_COMMAND(cmd_name, func_name) \
-	_DB_FUNC(_cmd, cmd_name, func_name, db_cmd_table, 0, NULL)
+	DB_COMMAND_FLAGS(cmd_name, func_name, 0)
+#define	DB_ALIAS_FLAGS(alias_name, func_name, flags) \
+	_DB_SET(_cmd, alias_name, func_name, db_cmd_table, flags, NULL)
 #define	DB_ALIAS(alias_name, func_name) \
-	_DB_SET(_cmd, alias_name, func_name, db_cmd_table, 0, NULL)
+	DB_ALIAS_FLAGS(alias_name, func_name, 0)
+#define	DB_SHOW_COMMAND_FLAGS(cmd_name, func_name, flags) \
+	_DB_FUNC(_show, cmd_name, func_name, db_show_table, flags, NULL)
 #define	DB_SHOW_COMMAND(cmd_name, func_name) \
-	_DB_FUNC(_show, cmd_name, func_name, db_show_table, 0, NULL)
+	DB_SHOW_COMMAND_FLAGS(cmd_name, func_name, 0)
+#define	DB_SHOW_ALIAS_FLAGS(alias_name, func_name, flags) \
+	_DB_SET(_show, alias_name, func_name, db_show_table, flags, NULL)
 #define	DB_SHOW_ALIAS(alias_name, func_name) \
-	_DB_SET(_show, alias_name, func_name, db_show_table, 0, NULL)
+	DB_SHOW_ALIAS_FLAGS(alias_name, func_name, 0)
 #define	DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_show_all, cmd_name, func_name, db_show_all_table, 0, NULL)
 #define	DB_SHOW_ALL_ALIAS(alias_name, func_name) \
