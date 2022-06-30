@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2021
+.Dd June 30, 2022
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -32,21 +32,19 @@
 .Nd a utility for manipulating packages
 .Sh SYNOPSIS
 .Nm
-.Ao Ar command Ac
+.Ar command ...
 .Nm
-add
-.Op Fl f
+.Cm add
+.Op Fl fy
 .Op Fl r Ar reponame
-.Op Fl y
-.Ao Pa pkg.txz Ac
+.Ar pkg.txz
 .Nm
 .Fl N
 .Nm
-.Op Fl 4 | Fl 6
-bootstrap
-.Op Fl f
+.Op Fl 46
+.Cm bootstrap
+.Op Fl fy
 .Op Fl r Ar reponame
-.Op Fl y
 .Sh DESCRIPTION
 .Nm
 is the package management tool.
@@ -62,15 +60,15 @@ The first time invoked,
 will bootstrap the real
 .Xr pkg 8
 from a remote repository.
-.Bl -tag -width "pkg bootstrap"
-.It Nm Ao Ar command Ac
+.Bl -tag
+.It Nm Ar command ...
 If
 .Xr pkg 8
 is not installed yet, it will be fetched, have its signature verified,
 installed, and then have the original command forwarded to it.
 If already installed, the command requested will be forwarded to the real
 .Xr pkg 8 .
-.It Nm Li add Oo Fl f Oc Oo Fl r Ar reponame Oc Oo Fl y Oc Ao Pa pkg.txz Ac
+.It Nm Cm add Oo Fl fy Oc Oo Fl r Ar reponame Oc Ar pkg.txz
 Install
 .Xr pkg 8
 from a local package instead of fetching from remote.
@@ -96,8 +94,8 @@ Do not bootstrap, just determine if
 is actually installed or not.
 Returns 0 and the number of packages installed
 if it is, otherwise 1.
-.It Nm Oo Fl 4 | Fl 6 Oc Li bootstrap Oo Fl f Oc \
-Oo Fl r Ar reponame Oc Oo Fl y Oc
+.It Nm Oo Fl 46 Oc Cm bootstrap Oo Fl fy Oc \
+Oo Fl r Ar reponame Oc
 Attempt to bootstrap and do not forward anything to
 .Xr pkg 8
 after it is installed.
@@ -243,7 +241,7 @@ configuration files.
 .Sh FILES
 Configuration is read from the files in the listed order.
 This path can be changed by setting
-.Sy REPOS_DIR .
+.Ev REPOS_DIR .
 The last enabled repository is the one used for bootstrapping
 .Xr pkg 8 .
 .Bl -tag -width "/usr/local/etc/pkg/repos/*.conf"
@@ -282,12 +280,12 @@ Remove unneeded dependencies:
 .Dl % pkg autoremove
 .Pp
 Change a package from automatic to non-automatic, which will prevent
-.Ic autoremove
+.Xr pkg-autoremove 8
 from removing it:
 .Dl % pkg set -A 0 perl
 .Pp
 Change a package from non-automatic to automatic, which will make
-.Ic autoremove
+.Xr pkg-autoremove 8
 allow it be removed once nothing depends on it:
 .Dl % pkg set -A 1 perl
 .Pp
