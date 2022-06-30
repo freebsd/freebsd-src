@@ -462,6 +462,17 @@ struct {								\
 attr void								\
 name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 {									\
+	/*								\
+	 * Initially, elm is a leaf.  Either its parent was previously	\
+	 * a leaf, with two black null children, or an interior node	\
+	 * with a black non-null child and a red null child. The        \
+	 * balance criterion "the rank of any leaf is 1" precludes the  \
+	 * possibility of two red null children for the initial parent. \
+	 * So the first loop iteration cannot lead to accessing an      \
+	 * uninitialized 'child', and a later iteration can only happen \
+	 * when a value has been assigned to 'child' in the previous    \
+	 * one.								\
+	 */								\
 	struct type *child, *parent;					\
 	while ((parent = RB_PARENT(elm, field)) != NULL) {		\
 		if (RB_LEFT(parent, field) == elm) {			\
@@ -477,6 +488,7 @@ name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 			}						\
 			if (!RB_RED_RIGHT(elm, field)) {		\
 				RB_FLIP_LEFT(elm, field);		\
+				/* coverity[uninit_use] */		\
 				RB_ROTATE_LEFT(head, elm, child, field);\
 				if (RB_RED_LEFT(child, field))		\
 					RB_FLIP_RIGHT(elm, field);	\
@@ -498,6 +510,7 @@ name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 			}						\
 			if (!RB_RED_LEFT(elm, field)) {			\
 				RB_FLIP_RIGHT(elm, field);		\
+				/* coverity[uninit_use] */		\
 				RB_ROTATE_RIGHT(head, elm, child, field);\
 				if (RB_RED_RIGHT(child, field))		\
 					RB_FLIP_LEFT(elm, field);	\
