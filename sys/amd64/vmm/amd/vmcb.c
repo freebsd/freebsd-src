@@ -139,6 +139,7 @@ vmcb_access(struct svm_softc *softc, int vcpu, int write, int ident,
 	case 8:
 	case 4:
 	case 2:
+	case 1:
 		if (write)
 			memcpy(ptr + off, val, bytes);
 		else
