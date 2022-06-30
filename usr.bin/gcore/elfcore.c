@@ -84,18 +84,12 @@ struct sseg_closure {
 };
 
 #ifdef ELFCORE_COMPAT_32
-typedef struct fpreg32 elfcore_fpregset_t;
-typedef struct reg32   elfcore_gregset_t;
 typedef struct prpsinfo32 elfcore_prpsinfo_t;
-typedef struct prstatus32 elfcore_prstatus_t;
 typedef struct ptrace_lwpinfo32 elfcore_lwpinfo_t;
 static void elf_convert_lwpinfo(struct ptrace_lwpinfo32 *pld,
     struct ptrace_lwpinfo *pls);
 #else
-typedef fpregset_t elfcore_fpregset_t;
-typedef gregset_t  elfcore_gregset_t;
 typedef prpsinfo_t elfcore_prpsinfo_t;
-typedef prstatus_t elfcore_prstatus_t;
 typedef struct ptrace_lwpinfo elfcore_lwpinfo_t;
 #define	elf_convert_lwpinfo(d,s)	*d = *s
 #endif
