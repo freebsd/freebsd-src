@@ -6,6 +6,7 @@
 #define SYS_gettimeofday	 78
 #define SYS_kexec_load		268
 #define SYS_llseek		140
+#define	SYS_mkdirat		287
 #define SYS_mmap		 90
 #define	SYS_munmap		 91
 #define SYS_newfstat		SYS_fstat
