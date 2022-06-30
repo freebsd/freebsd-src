@@ -1543,8 +1543,6 @@ static void __elfN(putnote)(struct thread *td, struct note_info *, struct sbuf *
 
 static void __elfN(note_prpsinfo)(void *, struct sbuf *, size_t *);
 static void __elfN(note_threadmd)(void *, struct sbuf *, size_t *);
-static void __elfN(note_thrmisc)(void *, struct sbuf *, size_t *);
-static void __elfN(note_ptlwpinfo)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_auxv)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_proc)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_psstrings)(void *, struct sbuf *, size_t *);
@@ -1846,10 +1844,6 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 	thr = td;
 	while (thr != NULL) {
 		size += __elfN(prepare_register_notes)(td, list, thr);
-		size += __elfN(register_note)(td, list, NT_THRMISC,
-		    __elfN(note_thrmisc), thr);
-		size += __elfN(register_note)(td, list, NT_PTLWPINFO,
-		    __elfN(note_ptlwpinfo), thr);
 		size += __elfN(register_note)(td, list, -1,
 		    __elfN(note_threadmd), thr);
 
@@ -2146,6 +2140,7 @@ typedef struct fpreg32 elf_prfpregset_t;
 typedef struct fpreg32 elf_fpregset_t;
 typedef struct reg32 elf_gregset_t;
 typedef struct thrmisc32 elf_thrmisc_t;
+typedef struct ptrace_lwpinfo32 elf_lwpinfo_t;
 #define ELF_KERN_PROC_MASK	KERN_PROC_MASK32
 typedef struct kinfo_proc32 elf_kinfo_proc_t;
 typedef uint32_t elf_ps_strings_t;
@@ -2156,6 +2151,7 @@ typedef prfpregset_t elf_prfpregset_t;
 typedef prfpregset_t elf_fpregset_t;
 typedef gregset_t elf_gregset_t;
 typedef thrmisc_t elf_thrmisc_t;
+typedef struct ptrace_lwpinfo elf_lwpinfo_t;
 #define ELF_KERN_PROC_MASK	0
 typedef struct kinfo_proc elf_kinfo_proc_t;
 typedef vm_offset_t elf_ps_strings_t;
@@ -2318,6 +2314,72 @@ static struct regset __elfN(regset_fpregset) = {
 };
 ELF_REGSET(__elfN(regset_fpregset));
 
+static bool
+__elfN(get_thrmisc)(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	elf_thrmisc_t *thrmisc;
+
+	if (buf != NULL) {
+		KASSERT(*sizep == sizeof(*thrmisc),
+		    ("%s: invalid size", __func__));
+		thrmisc = buf;
+		bzero(thrmisc, sizeof(*thrmisc));
+		strcpy(thrmisc->pr_tname, td->td_name);
+	}
+	*sizep = sizeof(*thrmisc);
+	return (true);
+}
+
+static struct regset __elfN(regset_thrmisc) = {
+	.note = NT_THRMISC,
+	.size = sizeof(elf_thrmisc_t),
+	.get = __elfN(get_thrmisc),
+};
+ELF_REGSET(__elfN(regset_thrmisc));
+
+static bool
+__elfN(get_lwpinfo)(struct regset *rs, struct thread *td, void *buf,
+    size_t *sizep)
+{
+	elf_lwpinfo_t pl;
+	size_t size;
+	int structsize;
+
+	size = sizeof(structsize) + sizeof(pl);
+	if (buf != NULL) {
+		KASSERT(*sizep == size, ("%s: invalid size", __func__));
+		structsize = sizeof(pl);
+		memcpy(buf, &structsize, sizeof(structsize));
+		bzero(&pl, sizeof(pl));
+		pl.pl_lwpid = td->td_tid;
+		pl.pl_event = PL_EVENT_NONE;
+		pl.pl_sigmask = td->td_sigmask;
+		pl.pl_siglist = td->td_siglist;
+		if (td->td_si.si_signo != 0) {
+			pl.pl_event = PL_EVENT_SIGNAL;
+			pl.pl_flags |= PL_FLAG_SI;
+#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
+			siginfo_to_siginfo32(&td->td_si, &pl.pl_siginfo);
+#else
+			pl.pl_siginfo = td->td_si;
+#endif
+		}
+		strcpy(pl.pl_tdname, td->td_name);
+		/* XXX TODO: supply more information in struct ptrace_lwpinfo*/
+		memcpy((int *)buf + 1, &pl, sizeof(pl));
+	}
+	*sizep = size;
+	return (true);
+}
+
+static struct regset __elfN(regset_lwpinfo) = {
+	.note = NT_PTLWPINFO,
+	.size = sizeof(int) + sizeof(elf_lwpinfo_t),
+	.get = __elfN(get_lwpinfo),
+};
+ELF_REGSET(__elfN(regset_lwpinfo));
+
 static size_t
 __elfN(prepare_register_notes)(struct thread *td, struct note_info_list *list,
     struct thread *target_td)
@@ -2349,61 +2411,6 @@ __elfN(prepare_register_notes)(struct thread *td, struct note_info_list *list,
 		    target_td);
 	}
 	return (size);
-}
-
-static void
-__elfN(note_thrmisc)(void *arg, struct sbuf *sb, size_t *sizep)
-{
-	struct thread *td;
-	elf_thrmisc_t thrmisc;
-
-	td = arg;
-	if (sb != NULL) {
-		KASSERT(*sizep == sizeof(thrmisc), ("invalid size"));
-		bzero(&thrmisc, sizeof(thrmisc));
-		strcpy(thrmisc.pr_tname, td->td_name);
-		sbuf_bcat(sb, &thrmisc, sizeof(thrmisc));
-	}
-	*sizep = sizeof(thrmisc);
-}
-
-static void
-__elfN(note_ptlwpinfo)(void *arg, struct sbuf *sb, size_t *sizep)
-{
-	struct thread *td;
-	size_t size;
-	int structsize;
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-	struct ptrace_lwpinfo32 pl;
-#else
-	struct ptrace_lwpinfo pl;
-#endif
-
-	td = arg;
-	size = sizeof(structsize) + sizeof(pl);
-	if (sb != NULL) {
-		KASSERT(*sizep == size, ("invalid size"));
-		structsize = sizeof(pl);
-		sbuf_bcat(sb, &structsize, sizeof(structsize));
-		bzero(&pl, sizeof(pl));
-		pl.pl_lwpid = td->td_tid;
-		pl.pl_event = PL_EVENT_NONE;
-		pl.pl_sigmask = td->td_sigmask;
-		pl.pl_siglist = td->td_siglist;
-		if (td->td_si.si_signo != 0) {
-			pl.pl_event = PL_EVENT_SIGNAL;
-			pl.pl_flags |= PL_FLAG_SI;
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-			siginfo_to_siginfo32(&td->td_si, &pl.pl_siginfo);
-#else
-			pl.pl_siginfo = td->td_si;
-#endif
-		}
-		strcpy(pl.pl_tdname, td->td_name);
-		/* XXX TODO: supply more information in struct ptrace_lwpinfo*/
-		sbuf_bcat(sb, &pl, sizeof(pl));
-	}
-	*sizep = size;
 }
 
 /*
