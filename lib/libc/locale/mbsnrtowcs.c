@@ -6,10 +6,9 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  *
  * Copyright (c) 2011 The FreeBSD Foundation
- * All rights reserved.
+ *
  * Portions of this software were developed by David Chisnall
  * under sponsorship from the FreeBSD Foundation.
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

@@ -6,7 +6,6 @@
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
  *
  * Copyright (c) 2014-2015 The FreeBSD Foundation.
- * All rights reserved.
  *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.

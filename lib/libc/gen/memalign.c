@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2020 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
