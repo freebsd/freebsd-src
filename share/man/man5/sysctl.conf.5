@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2021
+.Dd June 30, 2022
 .Dt SYSCTL.CONF 5
 .Os
 .Sh NAME
@@ -50,9 +50,19 @@ at the beginning of a line.
 Comments can also exist at the end of a line,
 as seen in the
 .Sx EXAMPLES
-section, below.
+section.
 .Sh FILES
-.Bl -tag -width /etc/sysctl.conf.local -compact
+.Bl -tag -width /etc/rc.d/sysctl_lastload -compact
+.It Pa /etc/rc.d/sysctl
+.Xr rc 8
+script which processes
+.Nm
+early on in the process of transitioning to multi-user mode.
+.It Pa /etc/rc.d/sysctl_lastload
+.Xr rc 8
+script which processes
+.Nm
+shortly before the system reaches the multi-user mode.
 .It Pa /etc/sysctl.conf
 Initial settings for
 .Xr sysctl 8 .
@@ -81,11 +91,8 @@ If loadable kernel modules are used to introduce additional kernel
 functionality and sysctls to manage that functionality,
 .Nm
 may be processed too early in the boot process to set those sysctls.
-For example, sysctls to manage the Linux compatibility layer
-.Po
-.Xr linux 4
-.Pc
-cannot be set in
-.Nm
-if the Linux compatibility layer is loaded as a module rather than
-compiled into the kernel.
+Please consult
+.Xr rcorder 8
+to learn more about the ordering of
+.Xr rc 8
+scripts.
