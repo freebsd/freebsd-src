@@ -63,6 +63,12 @@ host_llseek(int fd, int32_t offset_high, int32_t offset_lo, uint64_t *result, in
 #endif
 }
 
+int
+host_mkdir(const char *path, host_mode_t mode)
+{
+	return host_syscall(SYS_mkdirat, HOST_AT_FDCWD, (uintptr_t)path, mode);
+}
+
 void *
 host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
 {
