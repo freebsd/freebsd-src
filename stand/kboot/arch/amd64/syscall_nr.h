@@ -7,6 +7,7 @@
 #define SYS_lseek		  8
 #define	SYS_mkdirat		258
 #define SYS_mmap		  9
+#define SYS_mount		165
 #define	SYS_munmap		 11
 #define SYS_newfstat		  5
 #define SYS_newfstatat		262

@@ -76,6 +76,13 @@ host_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
 }
 
 int
+host_mount(const char *src, const char *target, const char *type, unsigned long flags,
+    void *data)
+{
+	return host_syscall(SYS_mount, src, target, type, flags, data);
+}
+
+int
 host_munmap(void *addr, size_t len)
 {
 	return host_syscall(SYS_munmap, (uintptr_t)addr, len);
