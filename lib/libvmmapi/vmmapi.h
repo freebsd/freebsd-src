@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
 #include <stdbool.h>
@@ -118,6 +119,7 @@ int	vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
 
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
+void	vm_close(struct vmctx *ctx);
 void	vm_destroy(struct vmctx *ctx);
 int	vm_limit_rights(struct vmctx *ctx);
 int	vm_parse_memsize(const char *optarg, size_t *memsize);
