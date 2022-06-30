@@ -91,8 +91,8 @@ ena_cleanup(void *arg, int pending)
 	ena_qid = ENA_IO_TXQ_IDX(qid);
 	io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
 
-	atomic_store_8(&tx_ring->first_interrupt, true);
-	atomic_store_8(&rx_ring->first_interrupt, true);
+	atomic_store_8(&tx_ring->first_interrupt, 1);
+	atomic_store_8(&rx_ring->first_interrupt, 1);
 
 	for (i = 0; i < ENA_CLEAN_BUDGET; ++i) {
 		rxc = ena_rx_cleanup(rx_ring);
