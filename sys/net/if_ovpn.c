@@ -1441,6 +1441,10 @@ ovpn_finish_rx(struct ovpn_softc *sc, struct mbuf *m,
 
 	/* Ensure we can read the first byte. */
 	m = m_pullup(m, 1);
+	if (m == NULL) {
+		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		return;
+	}
 
 	/*
 	 * Check for address family, and disregard any control packets (e.g.
