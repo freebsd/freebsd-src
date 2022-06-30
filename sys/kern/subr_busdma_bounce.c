@@ -438,6 +438,7 @@ busdma_thread(void *dummy __unused)
 	struct bus_dmamap *map, *nmap;
 
 	thread_lock(curthread);
+	sched_class(curthread, PRI_ITHD);
 	sched_prio(curthread, PI_SWI(SWI_BUSDMA));
 	thread_unlock(curthread);
 	for (;;) {
