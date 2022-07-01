@@ -135,6 +135,5 @@ null_update(void *ctx, const void *buf, u_int len)
 static void
 null_final(uint8_t *buf, void *ctx)
 {
-	if (buf != (uint8_t *) 0)
-		bzero(buf, 12);
+	bzero(buf, NULL_HASH_LEN);
 }
