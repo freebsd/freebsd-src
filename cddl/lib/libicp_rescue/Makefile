@@ -27,7 +27,7 @@ ASM_SOURCES_C =
 ASM_SOURCES_AS = \
         asm-aarch64/blake3/b3_aarch64_sse2.S \
         asm-aarch64/blake3/b3_aarch64_sse41.S
-.elif ${MACHINE_ARCH} == "powerpc64"
+.elif ${MACHINE_ARCH} == "powerpc64le"
 ASM_SOURCES_C =
 ASM_SOURCES_AS = \
         asm-ppc64/blake3/b3_ppc64le_sse2.S \
