@@ -107,10 +107,6 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel -DDIS_MEM
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/arm
 .PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/arm
 .PATH:		${SRCTOP}/sys/cddl/dev/dtrace/arm
-.elif ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
-.PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/mips
-.PATH:		${SRCTOP}/sys/cddl/dev/dtrace/mips
 .elif ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 .PATH:		${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/powerpc
