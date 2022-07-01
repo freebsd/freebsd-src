@@ -419,6 +419,9 @@ dummynet_body()
 	pft_set_rules alcatraz \
 		"ether pass in dnpipe 1"
 
+	# Ensure things don't break if non-IP(v4/v6) traffic hits dummynet
+	arp -d 192.0.2.2
+
 	# single ping succeeds just fine
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
 
