@@ -2203,11 +2203,3 @@ EXPORT_SYMBOL(rtw_unregister_hw);
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ac wireless core module");
 MODULE_LICENSE("Dual BSD/GPL");
-#if defined(__FreeBSD__)
-MODULE_VERSION(rtw88_core, 1);
-MODULE_DEPEND(rtw88_core, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(rtw88_core, linuxkpi_wlan, 1, 1, 1);
-#ifdef CONFIG_RTW88_DEBUGFS
-MODULE_DEPEND(rtw88_core, debugfs, 1, 1, 1);
-#endif
-#endif

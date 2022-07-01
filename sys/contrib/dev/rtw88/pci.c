@@ -1951,8 +1951,10 @@ MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ac wireless PCI driver");
 MODULE_LICENSE("Dual BSD/GPL");
 #if defined(__FreeBSD__)
-MODULE_VERSION(rtw88_pci, 1);
-MODULE_DEPEND(rtw88_pci, rtw88_core, 1, 1, 1);
-MODULE_DEPEND(rtw88_pci, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(rtw88_pci, linuxkpi_wlan, 1, 1, 1);
+MODULE_VERSION(rtw_pci, 1);
+MODULE_DEPEND(rtw_pci, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(rtw_pci, linuxkpi_wlan, 1, 1, 1);
+#ifdef CONFIG_RTW88_DEBUGFS
+MODULE_DEPEND(rtw_pci, debugfs, 1, 1, 1);
+#endif
 #endif
