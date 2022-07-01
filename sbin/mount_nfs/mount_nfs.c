@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,7 +161,9 @@ main(int argc, char *argv[])
 	char mntpath[MAXPATHLEN], errmsg[255];
 	char hostname[MAXHOSTNAMELEN + 1], gssn[MAXHOSTNAMELEN + 50];
 	const char *gssname, *nmount_errstr;
+	bool softintr;
 
+	softintr = false;
 	iov = NULL;
 	iovlen = 0;
 	memset(errmsg, 0, sizeof(errmsg));
@@ -210,6 +213,7 @@ main(int argc, char *argv[])
 		case 'i':
 			printf("-i deprecated, use -o intr\n");
 			build_iovec(&iov, &iovlen, "intr", NULL, 0);
+			softintr = true;
 			break;
 		case 'L':
 			printf("-L deprecated, use -o nolockd\n");
@@ -366,6 +370,10 @@ main(int argc, char *argv[])
 						    "value -- %s", val);
 					}
 					pass_flag_to_nmount=0;
+				} else if (strcmp(opt, "soft") == 0) {
+					softintr = true;
+				} else if (strcmp(opt, "intr") == 0) {
+					softintr = true;
 				}
 				if (pass_flag_to_nmount) {
 					build_iovec(&iov, &iovlen, opt,
@@ -395,6 +403,7 @@ main(int argc, char *argv[])
 		case 's':
 			printf("-s deprecated, use -o soft\n");
 			build_iovec(&iov, &iovlen, "soft", NULL, 0);
+			softintr = true;
 			break;
 		case 'T':
 			nfsproto = IPPROTO_TCP;
@@ -432,6 +441,11 @@ main(int argc, char *argv[])
 		usage();
 		/* NOTREACHED */
 	}
+
+	/* Warn that NFSv4 mounts only work correctly as hard mounts. */
+	if (mountmode == V4 && softintr)
+		warnx("Warning, options soft and/or intr cannot be safely used"
+		    " for NFSv4. See the BUGS section of mount_nfs(8)");
 
 	spec = *argv++;
 	mntname = *argv;
