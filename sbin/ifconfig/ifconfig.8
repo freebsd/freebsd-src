@@ -277,10 +277,10 @@ of the supported media for the specified interface.
 .It Fl n
 Disable automatic loading of network interface drivers.
 .Pp
-If the network interface driver is not present in the kernel then
+By default if the network interface driver is not present in the kernel
+then
 .Nm
 will attempt to load it.
-This flag disables this behavior.
 .It Fl u
 Display only the interfaces that are up.
 .It Fl v
@@ -290,7 +290,7 @@ For the inet family,
 the address is either a host name present in the host name data
 base,
 .Xr hosts 5 ,
-or a IPv4 address expressed in the Internet standard
+or an IPv4 address expressed in the Internet standard
 .Dq dot notation .
 .Pp
 It is also possible to use the CIDR notation (also known as the
@@ -432,7 +432,7 @@ If the Address Resolution Protocol is enabled,
 the host will perform normally,
 sending out requests and listening for replies.
 .It Cm stickyarp
-Enable so-called sticky ARP mode for the interface.
+Enable the so-called sticky ARP mode for the interface.
 If this option is enabled on the given interface, any resolved address is
 marked as a static one and never expires. This may be used to increase
 security of the network by preventing ARP spoofing or to reduce latency for
@@ -445,7 +445,7 @@ option may impact techniques which rely on ARP expiration/overwriting feature
 such as load-balancers or high-availabity solutions such as
 .Xr carp 4 .
 .It Fl stickyarp
-Disable so-called sticky ARP mode for the interface (default).
+Disable the so-called sticky ARP mode for the interface (default).
 Resolved addresses will expire normally respecting the kernel ARP
 configuration.
 .It Cm broadcast
