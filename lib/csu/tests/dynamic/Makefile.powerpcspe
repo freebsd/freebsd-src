@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+# TODO: investigate and try a better fix on compiler side
+#
+# CSU tests build fails with '/usr/lib/libgcc_s.so: undefined reference to fma'
+# when built with LLVM 14, so '-lm' is being added explicitly here. Only
+# the powerpcspe target is affected and it may be linked to
+#       https://reviews.llvm.org/D77558
+
+LDFLAGS+=	-lm
+
