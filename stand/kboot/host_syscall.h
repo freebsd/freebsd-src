@@ -33,6 +33,27 @@
 long host_syscall(int number, ...);
 
 /*
+ * Constants for open, fcntl, etc
+ *
+ * Note: Some of these are arch dependent on Linux, but are the same for
+ * powerpc, x86, arm*, and riscv. We should be futureproof, though, since these
+ * are the 'generic' values and only older architectures (no longer supported by
+ * FreeBSD) vary.
+ *
+ * These are from tools/include/uapi/asm-generic/fcntl.h and use the octal
+ * notation. Beware, hex is used in other places creating potential confsion.
+ */
+#define HOST_O_RDONLY		    0
+#define HOST_O_WRONLY		    1
+#define HOST_O_RDWR		    2
+#define HOST_O_CREAT		00100
+#define HOST_O_EXCL		00200
+#define HOST_O_NOCTTY		00400
+#define HOST_O_TRUNC		01000
+#define HOST_O_APPEND		02000
+#define HOST_O_NONBLOCK		04000
+
+/*
  * Data types
  */
 struct old_utsname {
