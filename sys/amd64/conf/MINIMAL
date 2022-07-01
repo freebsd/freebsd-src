@@ -118,6 +118,10 @@ device		vt_vbefb
 
 device		agp			# support several AGP chipsets
 
+# Bring in 'uart' as well, since it can be a console driver and all console
+# drivers must be compiled into the kernel.
+device		uart
+
 # Pseudo devices.
 device		loop			# Network loopback
 device		padlock_rng		# VIA Padlock RNG
