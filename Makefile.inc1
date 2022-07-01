@@ -1368,12 +1368,8 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 		fi; \
 	    done); \
 	if [ -z "${CROSSBUILD_HOST}" ] ; then \
-		libs=$$(ldd -f "%o %p\n" -f "%o %p\n" $$progs 2>/dev/null | sort -u | \
+		libs=$$(ldd -f "%o %p\n" -f "%o %p\n" $$progs 2>/dev/null | sort -u | grep -Ev '\[.*]' | \
 		    while read line; do \
-			case $$line in \
-			"["*"]") \
-				continue;; \
-			esac; \
 			set -- $$line; \
 			if [ "$$2 $$3" != "not found" ]; then \
 				echo $$2; \
