@@ -415,7 +415,7 @@ callout_get_bucket(sbintime_t sbt)
 void
 callout_process(sbintime_t now)
 {
-	struct callout *tmp, *tmpn;
+	struct callout *c, *next;
 	struct callout_cpu *cc;
 	struct callout_list *sc;
 	sbintime_t first, last, lookahead, max, tmp_max;
@@ -459,58 +459,55 @@ callout_process(sbintime_t now)
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
 	do {
 		sc = &cc->cc_callwheel[firstb & callwheelmask];
-		tmp = LIST_FIRST(sc);
-		while (tmp != NULL) {
+		LIST_FOREACH_SAFE(c, sc, c_links.le, next) {
 			/* Run the callout if present time within allowed. */
-			if (tmp->c_time <= now) {
+			if (c->c_time <= now) {
 				/*
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
 				 */
-				if (tmp->c_iflags & CALLOUT_DIRECT) {
+				if (c->c_iflags & CALLOUT_DIRECT) {
 #ifdef CALLOUT_PROFILING
 					++depth_dir;
 #endif
-					cc_exec_next(cc) =
-					    LIST_NEXT(tmp, c_links.le);
+					cc_exec_next(cc) = next;
 					cc->cc_bucket = firstb & callwheelmask;
-					LIST_REMOVE(tmp, c_links.le);
-					softclock_call_cc(tmp, cc,
+					LIST_REMOVE(c, c_links.le);
+					softclock_call_cc(c, cc,
 #ifdef CALLOUT_PROFILING
 					    &mpcalls_dir, &lockcalls_dir, NULL,
 #endif
 					    1);
-					tmp = cc_exec_next(cc);
+					next = cc_exec_next(cc);
 					cc_exec_next(cc) = NULL;
 				} else {
-					tmpn = LIST_NEXT(tmp, c_links.le);
-					LIST_REMOVE(tmp, c_links.le);
+					LIST_REMOVE(c, c_links.le);
 					TAILQ_INSERT_TAIL(&cc->cc_expireq,
-					    tmp, c_links.tqe);
-					tmp->c_iflags |= CALLOUT_PROCESSED;
-					tmp = tmpn;
+					    c, c_links.tqe);
+					c->c_iflags |= CALLOUT_PROCESSED;
 				}
-				continue;
-			}
-			/* Skip events from distant future. */
-			if (tmp->c_time >= max)
-				goto next;
-			/*
-			 * Event minimal time is bigger than present maximal
-			 * time, so it cannot be aggregated.
-			 */
-			if (tmp->c_time > last) {
+			} else if (c->c_time >= max) {
+				/*
+				 * Skip events in the distant future.
+				 */
+				;
+			} else if (c->c_time > last) {
+				/*
+				 * Event minimal time is bigger than present
+				 * maximal time, so it cannot be aggregated.
+				 */
 				lastb = nowb;
-				goto next;
+			} else {
+				/*
+				 * Update first and last time, respecting this
+				 * event.
+				 */
+				if (c->c_time < first)
+					first = c->c_time;
+				tmp_max = c->c_time + c->c_precision;
+				if (tmp_max < last)
+					last = tmp_max;
 			}
-			/* Update first and last time, respecting this event. */
-			if (tmp->c_time < first)
-				first = tmp->c_time;
-			tmp_max = tmp->c_time + tmp->c_precision;
-			if (tmp_max < last)
-				last = tmp_max;
-next:
-			tmp = LIST_NEXT(tmp, c_links.le);
 		}
 		/* Proceed with the next bucket. */
 		firstb++;
