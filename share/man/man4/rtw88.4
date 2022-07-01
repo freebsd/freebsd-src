@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2022
+.Dd May 5, 2022
 .Dt rtw88 4
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ lines in
 .Xr rc.conf 5
 to manually load the driver as a module at boot time:
 .Bd -literal -offset indent
-kld_list="${kld_list} if_rtw88_pci"
+kld_list="${kld_list} if_rtw88"
 .Ed
 .Pp
 The driver should automatically load any
