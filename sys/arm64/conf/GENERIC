@@ -189,7 +189,7 @@ device		iicmux
 device		iic
 device		icee		# Generic IIC eeprom
 device		twsi		# Allwinner I2C controller
-device		pca9547		# NPX I2C bus multiplexer
+device		pca954x		# NPX I2C bus multiplexer
 device		pcf8563		# NXP Real-time clock/calendar
 device		rk_i2c		# RockChip I2C controller
 device		syr827		# Silergy SYR827 PMIC
