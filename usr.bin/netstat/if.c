@@ -284,20 +284,20 @@ intpr(void (*pfunc)(char *), int af)
 	if (aflag && getifmaddrs(&ifmap) != 0)
 		err(EX_OSERR, "getifmaddrs");
 
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if (interface != NULL &&
+		    strcmp(ifa->ifa_name, interface) != 0)
+			continue;
+		if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+			continue;
+		ifn_len = strlen(ifa->ifa_name);
+		if ((ifa->ifa_flags & IFF_UP) == 0)
+			++ifn_len;
+		ifn_len_max = MAX(ifn_len_max, ifn_len);
+		if (ifa->ifa_addr->sa_family == AF_INET6)
+			has_ipv6 = 1;
+	}
 	if (Wflag) {
-		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-			if (interface != NULL &&
-			    strcmp(ifa->ifa_name, interface) != 0)
-				continue;
-			if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
-				continue;
-			ifn_len = strlen(ifa->ifa_name);
-			if ((ifa->ifa_flags & IFF_UP) == 0)
-				++ifn_len;
-			ifn_len_max = MAX(ifn_len_max, ifn_len);
-			if (ifa->ifa_addr->sa_family == AF_INET6)
-				has_ipv6 = 1;
-		}
 		if (has_ipv6) {
 			net_len = 24;
 			addr_len = 39;
