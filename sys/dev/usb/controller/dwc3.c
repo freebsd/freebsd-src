@@ -264,7 +264,7 @@ snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
 
 	reg = DWC3_READ(sc, DWC3_GUSB3PIPECTL0);
 	if (device_has_property(sc->dev, "snps,dis-del-phy-power-chg-quirk"))
-		reg |= DWC3_GUSB3PIPECTL0_DELAYP1TRANS;
+		reg &= ~DWC3_GUSB3PIPECTL0_DELAYP1TRANS;
 	if (device_has_property(sc->dev, "snps,dis_rxdet_inp3_quirk"))
 		reg |= DWC3_GUSB3PIPECTL0_DISRXDETINP3;
 	DWC3_WRITE(sc, DWC3_GUSB3PIPECTL0, reg);
