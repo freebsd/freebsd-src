@@ -79,6 +79,7 @@ struct snps_dwc3_softc {
 	phandle_t		node;
 	phy_t			usb2_phy;
 	phy_t			usb3_phy;
+	uint32_t		snpsid;
 };
 
 #define	DWC3_WRITE(_sc, _off, _val)		\
@@ -165,15 +166,37 @@ snsp_dwc3_dump_regs(struct snps_dwc3_softc *sc)
 }
 #endif
 
+#ifdef DWC3_DEBUG
+static void
+snps_dwc3_dump_ctrlparams(struct snps_dwc3_softc *sc)
+{
+	const bus_size_t offs[] = {
+	    DWC3_GHWPARAMS0, DWC3_GHWPARAMS1, DWC3_GHWPARAMS2, DWC3_GHWPARAMS3,
+	    DWC3_GHWPARAMS4, DWC3_GHWPARAMS5, DWC3_GHWPARAMS6, DWC3_GHWPARAMS7,
+	    DWC3_GHWPARAMS8,
+	};
+	uint32_t reg;
+	int i;
+
+	for (i = 0; i < nitems(offs); i++) {
+		reg = DWC3_READ(sc, offs[i]);
+		if (bootverbose)
+			device_printf(sc->dev, "hwparams[%d]: %#012x\n", i, reg);
+	}
+}
+#endif
+
 static void
 snps_dwc3_reset(struct snps_dwc3_softc *sc)
 {
-	uint32_t gctl, phy2, phy3;
+	uint32_t gctl, ghwp0, phy2, phy3;
 
 	if (sc->usb2_phy)
 		phy_enable(sc->usb2_phy);
 	if (sc->usb3_phy)
 		phy_enable(sc->usb3_phy);
+
+	ghwp0 = DWC3_READ(sc, DWC3_GHWPARAMS0);
 
 	gctl = DWC3_READ(sc, DWC3_GCTL);
 	gctl |= DWC3_GCTL_CORESOFTRESET;
@@ -181,10 +204,16 @@ snps_dwc3_reset(struct snps_dwc3_softc *sc)
 
 	phy2 = DWC3_READ(sc, DWC3_GUSB2PHYCFG0);
 	phy2 |= DWC3_GUSB2PHYCFG0_PHYSOFTRST;
+	if ((ghwp0 & DWC3_GHWPARAMS0_MODE_MASK) ==
+	    DWC3_GHWPARAMS0_MODE_DUALROLEDEVICE)
+		phy2 &= ~DWC3_GUSB2PHYCFG0_SUSPENDUSB20;
 	DWC3_WRITE(sc, DWC3_GUSB2PHYCFG0, phy2);
 
 	phy3 = DWC3_READ(sc, DWC3_GUSB3PIPECTL0);
 	phy3 |= DWC3_GUSB3PIPECTL0_PHYSOFTRST;
+	if ((ghwp0 & DWC3_GHWPARAMS0_MODE_MASK) ==
+	    DWC3_GHWPARAMS0_MODE_DUALROLEDEVICE)
+		phy3 &= ~DWC3_GUSB3PIPECTL0_SUSPENDUSB3;
 	DWC3_WRITE(sc, DWC3_GUSB3PIPECTL0, phy3);
 
 	DELAY(1000);
@@ -249,8 +278,10 @@ snps_dwc3_configure_phy(struct snps_dwc3_softc *sc)
 static void
 snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
 {
-	uint32_t reg;
+	struct xhci_softc *xsc;
+	uint32_t ghwp0, reg;
 
+	ghwp0 = DWC3_READ(sc, DWC3_GHWPARAMS0);
 	reg = DWC3_READ(sc, DWC3_GUSB2PHYCFG0);
 	if (device_has_property(sc->dev, "snps,dis-u2-freeclk-exists-quirk"))
 		reg &= ~DWC3_GUSB2PHYCFG0_U2_FREECLK_EXISTS;
@@ -258,7 +289,8 @@ snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
 		reg |= DWC3_GUSB2PHYCFG0_U2_FREECLK_EXISTS;
 	if (device_has_property(sc->dev, "snps,dis_u2_susphy_quirk"))
 		reg &= ~DWC3_GUSB2PHYCFG0_SUSPENDUSB20;
-	else
+	else if ((ghwp0 & DWC3_GHWPARAMS0_MODE_MASK) ==
+	    DWC3_GHWPARAMS0_MODE_DUALROLEDEVICE)
 		reg |= DWC3_GUSB2PHYCFG0_SUSPENDUSB20;
 	if (device_has_property(sc->dev, "snps,dis_enblslpm_quirk"))
 		reg &= ~DWC3_GUSB2PHYCFG0_ENBLSLPM;
@@ -276,7 +308,18 @@ snps_dwc3_do_quirks(struct snps_dwc3_softc *sc)
 		reg &= ~DWC3_GUSB3PIPECTL0_DELAYP1TRANS;
 	if (device_has_property(sc->dev, "snps,dis_rxdet_inp3_quirk"))
 		reg |= DWC3_GUSB3PIPECTL0_DISRXDETINP3;
+	if (device_has_property(sc->dev, "snps,dis_u3_susphy_quirk"))
+		reg &= ~DWC3_GUSB3PIPECTL0_SUSPENDUSB3;
+	else if ((ghwp0 & DWC3_GHWPARAMS0_MODE_MASK) ==
+	    DWC3_GHWPARAMS0_MODE_DUALROLEDEVICE)
+		reg |= DWC3_GUSB3PIPECTL0_SUSPENDUSB3;
 	DWC3_WRITE(sc, DWC3_GUSB3PIPECTL0, reg);
+
+	/* Port Disable does not work on <= 3.00a. Disable PORT_PED. */
+	if ((sc->snpsid & 0xffff) <= 0x300a) {
+		xsc = &sc->sc;
+		xsc->sc_quirks |= XHCI_QUIRK_DISABLE_PORT_PED;
+	}
 }
 
 static int
@@ -326,8 +369,12 @@ snps_dwc3_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->mem_res);
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
+	sc->snpsid = DWC3_READ(sc, DWC3_GSNPSID);
 	if (bootverbose)
-		device_printf(dev, "snps id: %x\n", DWC3_READ(sc, DWC3_GSNPSID));
+		device_printf(sc->dev, "snps id: %#012x\n", sc->snpsid);
+#ifdef DWC3_DEBUG
+	snps_dwc3_dump_ctrlparams(sc);
+#endif
 
 	/* Get the phys */
 	sc->node = ofw_bus_get_node(dev);
