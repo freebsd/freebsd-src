@@ -209,6 +209,15 @@ snps_dwc3_configure_host(struct snps_dwc3_softc *sc)
 	reg &= ~DWC3_GCTL_PRTCAPDIR_MASK;
 	reg |= DWC3_GCTL_PRTCAPDIR_HOST;
 	DWC3_WRITE(sc, DWC3_GCTL, reg);
+
+	/*
+	 * Enable the Host IN Auto Retry feature, making the
+	 * host respond with a non-terminating retry ACK.
+	 * XXX If we ever support more than host mode this needs a dr_mode check.
+	 */
+	reg = DWC3_READ(sc, DWC3_GUCTL);
+	reg |= DWC3_GUCTL_HOST_AUTO_RETRY;
+	DWC3_WRITE(sc, DWC3_GUCTL, reg);
 }
 
 static void
