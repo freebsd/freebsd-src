@@ -147,22 +147,33 @@ snps_dwc3_attach_xhci(device_t dev)
 	return (0);
 }
 
-#if 0
+#ifdef DWC3_DEBUG
 static void
-snsp_dwc3_dump_regs(struct snps_dwc3_softc *sc)
+snsp_dwc3_dump_regs(struct snps_dwc3_softc *sc, const char *msg)
 {
+	struct xhci_softc *xsc;
 	uint32_t reg;
 
+	if (!bootverbose)
+		return;
+
+	device_printf(sc->dev, "%s: %s:\n", __func__, msg ? msg : "");
+
 	reg = DWC3_READ(sc, DWC3_GCTL);
-	device_printf(sc->dev, "GCTL: %x\n", reg);
+	device_printf(sc->dev, "GCTL: %#012x\n", reg);
+	reg = DWC3_READ(sc, DWC3_GUCTL);
+	device_printf(sc->dev, "GUCTL: %#012x\n", reg);
 	reg = DWC3_READ(sc, DWC3_GUCTL1);
-	device_printf(sc->dev, "GUCTL1: %x\n", reg);
+	device_printf(sc->dev, "GUCTL1: %#012x\n", reg);
 	reg = DWC3_READ(sc, DWC3_GUSB2PHYCFG0);
-	device_printf(sc->dev, "GUSB2PHYCFG0: %x\n", reg);
+	device_printf(sc->dev, "GUSB2PHYCFG0: %#012x\n", reg);
 	reg = DWC3_READ(sc, DWC3_GUSB3PIPECTL0);
-	device_printf(sc->dev, "GUSB3PIPECTL0: %x\n", reg);
+	device_printf(sc->dev, "GUSB3PIPECTL0: %#012x\n", reg);
 	reg = DWC3_READ(sc, DWC3_DCFG);
-	device_printf(sc->dev, "DCFG: %x\n", reg);
+	device_printf(sc->dev, "DCFG: %#012x\n", reg);
+
+	xsc = &sc->sc;
+	device_printf(sc->dev, "xhci quirks: %#012x\n", xsc->sc_quirks);
 }
 #endif
 
@@ -385,10 +396,14 @@ snps_dwc3_attach(device_t dev)
 	snps_dwc3_configure_host(sc);
 	snps_dwc3_configure_phy(sc);
 	snps_dwc3_do_quirks(sc);
-#if 0
-	snsp_dwc3_dump_regs(sc);
+
+#ifdef DWC3_DEBUG
+	snsp_dwc3_dump_regs(sc, "Pre XHCI init");
 #endif
 	snps_dwc3_attach_xhci(dev);
+#ifdef DWC3_DEBUG
+	snsp_dwc3_dump_regs(sc, "Post XHCI init");
+#endif
 
 	return (0);
 }
