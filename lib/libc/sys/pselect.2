@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2013
+.Dd July 2, 2022
 .Dt PSELECT 2
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ argument in
 .Fn pselect
 points to a
 .Vt "const struct timespec"
-rather than the (modifiable)
+rather than the potentially modifiable
 .Vt "struct timeval"
 used by
 .Fn select ;
@@ -81,6 +81,13 @@ specifies a signal mask which is set while waiting for input.
 When
 .Fn pselect
 returns, the original signal mask is restored.
+If
+.Fa newsigmask
+is a null pointer,
+.Fn pselect
+behaves like
+.Fn select
+with no setting or restoration of the signal mask.
 .Pp
 See
 .Xr select 2
