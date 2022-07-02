@@ -309,7 +309,8 @@ Do not resolve numeric addresses and port numbers to names.
 See
 .Sx GENERAL OPTIONS .
 .It Fl W
-Avoid truncating interface names even if this causes some fields to overflow.
+Avoid truncating addresses even if this causes some fields to overflow.
+See
 .Sx GENERAL OPTIONS .
 .It Fl f Ar protocol_family
 Filter by
@@ -795,6 +796,11 @@ Normally
 .Nm
 attempts to resolve addresses and ports,
 and display them symbolically.
+.It Fl W
+Wider output; expand address fields, etc, to avoid truncation.
+Non-numeric values such as domain names may still be truncated; use the
+.Fl n
+option if necessary to avoid ambiguity.
 .El
 .Sh EXAMPLES
 Show packet traffic information (packets, bytes, errors, packet drops, etc) for
