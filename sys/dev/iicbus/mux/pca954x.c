@@ -1,13 +1,15 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) Andriy Gapon
+ * Copyright (c) 2019 Ian Lepore <ian@freebsd.org>
+ * Copyright (c) 2020-2021 Andriy Gapon
+ * Copyright (c) 2022 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -15,15 +17,14 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 #include <sys/cdefs.h>
@@ -49,31 +50,60 @@ __FBSDID("$FreeBSD$");
 #include "iicmux_if.h"
 #include <dev/iicbus/mux/iicmux.h>
 
+enum pca954x_type {
+	PCA954X_MUX,
+	PCA954X_SW,
+};
+
 struct pca954x_descr {
-	const char 	*partname;
-	const char	*description;
-	int		numchannels;
+	const char 		*partname;
+	const char		*description;
+	enum pca954x_type	type;
+	uint8_t			numchannels;
+	uint8_t			enable;
+};
+
+static struct pca954x_descr pca9540_descr = {
+	.partname = "pca9540",
+	.description = "PCA9540B I2C Mux",
+	.type = PCA954X_MUX,
+	.numchannels = 2,
+	.enable = 0x04,
+};
+
+static struct pca954x_descr pca9547_descr = {
+	.partname = "pca9547",
+	.description = "PCA9547 I2C Mux",
+	.type = PCA954X_MUX,
+	.numchannels = 8,
+	.enable = 0x08,
 };
 
 static struct pca954x_descr pca9548_descr = {
 	.partname = "pca9548",
-	.description = "PCA9548A I2C Mux",
+	.description = "PCA9548A I2C Switch",
+	.type = PCA954X_SW,
 	.numchannels = 8,
 };
 
 #ifdef FDT
 static struct ofw_compat_data compat_data[] = {
+	{ "nxp,pca9540", (uintptr_t)&pca9540_descr },
+	{ "nxp,pca9547", (uintptr_t)&pca9547_descr },
 	{ "nxp,pca9548", (uintptr_t)&pca9548_descr },
 	{ NULL, 0 },
 };
 #else
 static struct pca954x_descr *part_descrs[] = {
+	&pca9540_descr,
+	&pca9547_descr,
 	&pca9548_descr,
 };
 #endif
 
 struct pca954x_softc {
 	struct iicmux_softc mux;
+	const struct pca954x_descr *descr;
 	uint8_t addr;
 	bool idle_disconnect;
 };
@@ -81,10 +111,12 @@ struct pca954x_softc {
 static int
 pca954x_bus_select(device_t dev, int busidx, struct iic_reqbus_data *rd)
 {
+	struct pca954x_softc *sc;
 	struct iic_msg msg;
-	struct pca954x_softc *sc = device_get_softc(dev);
-	uint8_t busbits;
 	int error;
+	uint8_t busbits;
+
+	sc = device_get_softc(dev);
 
 	/*
 	 * The iicmux caller ensures busidx is between 0 and the number of buses
@@ -98,8 +130,18 @@ pca954x_bus_select(device_t dev, int busidx, struct iic_reqbus_data *rd)
 			busbits = 0;
 		else
 			return (0);
-	} else {
+	} else if (sc->descr->type == PCA954X_MUX) {
+		uint8_t en;
+
+		en = sc->descr->enable;
+		KASSERT(en > 0 && powerof2(en), ("%s: %s enable %#x "
+		    "invalid\n", __func__, sc->descr->partname, en));
+		busbits = en | (busidx & (en - 1));
+	} else if (sc->descr->type == PCA954X_SW) {
 		busbits = 1u << busidx;
+	} else {
+		panic("%s: %s: unsupported type %d\n",
+		    __func__, sc->descr->partname, sc->descr->type);
 	}
 
 	msg.slave = sc->addr;
@@ -115,6 +157,9 @@ pca954x_find_chip(device_t dev)
 {
 #ifdef FDT
 	const struct ofw_compat_data *compat;
+
+	if (!ofw_bus_status_okay(dev))
+		return (NULL);
 
 	compat = ofw_bus_search_compatible(dev, compat_data);
 	if (compat == NULL)
@@ -151,34 +196,29 @@ pca954x_probe(device_t dev)
 static int
 pca954x_attach(device_t dev)
 {
-#ifdef FDT
-	phandle_t node;
-#endif
 	struct pca954x_softc *sc;
 	const struct pca954x_descr *descr;
-	int err;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->addr = iicbus_get_addr(dev);
-#ifdef FDT
-	node = ofw_bus_get_node(dev);
-	sc->idle_disconnect = OF_hasprop(node, "i2c-mux-idle-disconnect");
-#endif
+	sc->idle_disconnect = device_has_property(dev, "i2c-mux-idle-disconnect");
 
-	descr = pca954x_find_chip(dev);
-	err = iicmux_attach(dev, device_get_parent(dev), descr->numchannels);
-	if (err == 0)
+	sc->descr = descr = pca954x_find_chip(dev);
+	error = iicmux_attach(dev, device_get_parent(dev), descr->numchannels);
+	if (error == 0)
                 bus_generic_attach(dev);
-	return (err);
+
+	return (error);
 }
 
 static int
 pca954x_detach(device_t dev)
 {
-	int err;
+	int error;
 
-	err = iicmux_detach(dev);
-	return (err);
+	error = iicmux_detach(dev);
+	return (error);
 }
 
 static device_method_t pca954x_methods[] = {
@@ -193,19 +233,19 @@ static device_method_t pca954x_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pca9548, pca954x_driver, pca954x_methods,
+DEFINE_CLASS_1(pca954x, pca954x_driver, pca954x_methods,
     sizeof(struct pca954x_softc), iicmux_driver);
-DRIVER_MODULE(pca9548, iicbus, pca954x_driver, 0, 0);
+DRIVER_MODULE(pca954x, iicbus, pca954x_driver, 0, 0);
 
 #ifdef FDT
-DRIVER_MODULE(ofw_iicbus, pca9548, ofw_iicbus_driver, 0, 0);
+DRIVER_MODULE(ofw_iicbus, pca954x, ofw_iicbus_driver, 0, 0);
 #else
-DRIVER_MODULE(iicbus, pca9548, iicbus_driver, 0, 0);
+DRIVER_MODULE(iicbus, pca954x, iicbus_driver, 0, 0);
 #endif
 
-MODULE_DEPEND(pca9548, iicmux, 1, 1, 1);
-MODULE_DEPEND(pca9548, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-MODULE_VERSION(pca9548, 1);
+MODULE_DEPEND(pca954x, iicmux, 1, 1, 1);
+MODULE_DEPEND(pca954x, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(pca954x, 1);
 
 #ifdef FDT
 IICBUS_FDT_PNP_INFO(compat_data);
