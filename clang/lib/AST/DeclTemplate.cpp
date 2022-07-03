@@ -28,6 +28,7 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -1098,7 +1099,13 @@ FriendTemplateDecl::Create(ASTContext &Context, DeclContext *DC,
                            SourceLocation L,
                            MutableArrayRef<TemplateParameterList *> Params,
                            FriendUnion Friend, SourceLocation FLoc) {
-  return new (Context, DC) FriendTemplateDecl(DC, L, Params, Friend, FLoc);
+  TemplateParameterList **TPL = nullptr;
+  if (!Params.empty()) {
+    TPL = new (Context) TemplateParameterList *[Params.size()];
+    llvm::copy(Params, TPL);
+  }
+  return new (Context, DC)
+      FriendTemplateDecl(DC, L, TPL, Params.size(), Friend, FLoc);
 }
 
 FriendTemplateDecl *FriendTemplateDecl::CreateDeserialized(ASTContext &C,
@@ -1328,10 +1335,14 @@ VarTemplateDecl *VarTemplateSpecializationDecl::getSpecializedTemplate() const {
 
 void VarTemplateSpecializationDecl::setTemplateArgsInfo(
     const TemplateArgumentListInfo &ArgsInfo) {
-  TemplateArgsInfo.setLAngleLoc(ArgsInfo.getLAngleLoc());
-  TemplateArgsInfo.setRAngleLoc(ArgsInfo.getRAngleLoc());
-  for (const TemplateArgumentLoc &Loc : ArgsInfo.arguments())
-    TemplateArgsInfo.addArgument(Loc);
+  TemplateArgsInfo =
+      ASTTemplateArgumentListInfo::Create(getASTContext(), ArgsInfo);
+}
+
+void VarTemplateSpecializationDecl::setTemplateArgsInfo(
+    const ASTTemplateArgumentListInfo *ArgsInfo) {
+  TemplateArgsInfo =
+      ASTTemplateArgumentListInfo::Create(getASTContext(), ArgsInfo);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1507,12 +1518,20 @@ void TemplateParamObjectDecl::printName(llvm::raw_ostream &OS) const {
 }
 
 void TemplateParamObjectDecl::printAsExpr(llvm::raw_ostream &OS) const {
-  const ASTContext &Ctx = getASTContext();
-  getType().getUnqualifiedType().print(OS, Ctx.getPrintingPolicy());
-  printAsInit(OS);
+  printAsExpr(OS, getASTContext().getPrintingPolicy());
+}
+
+void TemplateParamObjectDecl::printAsExpr(llvm::raw_ostream &OS,
+                                          const PrintingPolicy &Policy) const {
+  getType().getUnqualifiedType().print(OS, Policy);
+  printAsInit(OS, Policy);
 }
 
 void TemplateParamObjectDecl::printAsInit(llvm::raw_ostream &OS) const {
-  const ASTContext &Ctx = getASTContext();
-  getValue().printPretty(OS, Ctx, getType());
+  printAsInit(OS, getASTContext().getPrintingPolicy());
+}
+
+void TemplateParamObjectDecl::printAsInit(llvm::raw_ostream &OS,
+                                          const PrintingPolicy &Policy) const {
+  getValue().printPretty(OS, Policy, getType(), &getASTContext());
 }

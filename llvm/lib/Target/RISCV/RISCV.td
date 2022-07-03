@@ -41,6 +41,13 @@ def HasStdExtD : Predicate<"Subtarget->hasStdExtD()">,
                            AssemblerPredicate<(all_of FeatureStdExtD),
                            "'D' (Double-Precision Floating-Point)">;
 
+def FeatureStdExtZihintpause
+    : SubtargetFeature<"zihintpause", "HasStdExtZihintpause", "true",
+                       "'zihintpause' (Pause Hint)">;
+def HasStdExtZihintpause : Predicate<"Subtarget->hasStdExtZihintpause()">,
+                                     AssemblerPredicate<(all_of FeatureStdExtZihintpause),
+                                     "'Zihintpause' (Pause Hint)">;
+
 def FeatureStdExtZfhmin
     : SubtargetFeature<"zfhmin", "HasStdExtZfhmin", "true",
                        "'Zfhmin' (Half-Precision Floating-Point Minimal)",
@@ -62,6 +69,43 @@ def HasStdExtZfhOrZfhmin
                 AssemblerPredicate<(any_of FeatureStdExtZfh, FeatureStdExtZfhmin),
                                    "'Zfh' (Half-Precision Floating-Point) or "
                                    "'Zfhmin' (Half-Precision Floating-Point Minimal)">;
+
+def FeatureStdExtZfinx
+    : SubtargetFeature<"zfinx", "HasStdExtZfinx", "true",
+                       "'Zfinx' (Float in Integer)">;
+def HasStdExtZfinx : Predicate<"Subtarget->hasStdExtZfinx()">,
+                               AssemblerPredicate<(all_of FeatureStdExtZfinx),
+                               "'Zfinx' (Float in Integer)">;
+
+def FeatureStdExtZdinx
+    : SubtargetFeature<"zdinx", "HasStdExtZdinx", "true",
+                       "'Zdinx' (Double in Integer)",
+                       [FeatureStdExtZfinx]>;
+def HasStdExtZdinx : Predicate<"Subtarget->hasStdExtZdinx()">,
+                               AssemblerPredicate<(all_of FeatureStdExtZdinx),
+                               "'Zdinx' (Double in Integer)">;
+
+def FeatureStdExtZhinxmin
+    : SubtargetFeature<"zhinxmin", "HasStdExtZhinxmin", "true",
+                       "'Zhinxmin' (Half Float in Integer Minimal)",
+                       [FeatureStdExtZfinx]>;
+def HasStdExtZhinxmin : Predicate<"Subtarget->hasStdExtZhinxmin()">,
+                                  AssemblerPredicate<(all_of FeatureStdExtZhinxmin),
+                                  "'Zhinxmin' (Half Float in Integer Minimal)">;
+
+def FeatureStdExtZhinx
+    : SubtargetFeature<"zhinx", "HasStdExtZhinx", "true",
+                       "'Zhinx' (Half Float in Integer)",
+                       [FeatureStdExtZfinx]>;
+def HasStdExtZhinx : Predicate<"Subtarget->hasStdExtZhinx()">,
+                               AssemblerPredicate<(all_of FeatureStdExtZhinx),
+                               "'Zhinx' (Half Float in Integer)">;
+
+def HasStdExtZhinxOrZhinxmin
+    : Predicate<"Subtarget->hasStdExtZhinx() || Subtarget->hasStdExtZhinxmin()">,
+                AssemblerPredicate<(any_of FeatureStdExtZhinx, FeatureStdExtZhinxmin),
+                                   "'Zhinx' (Half Float in Integer) or "
+                                   "'Zhinxmin' (Half Float in Integer Minimal)">;
 
 def FeatureStdExtC
     : SubtargetFeature<"c", "HasStdExtC", "true",
@@ -290,13 +334,13 @@ def HasRVCHints : Predicate<"Subtarget->enableRVCHintInstrs()">,
                   AssemblerPredicate<(all_of(not FeatureNoRVCHints)),
                                       "RVC Hint Instructions">;
 
-def FeatureStdExtZvl32b : SubtargetFeature<"zvl32b", "ZvlLen", "ExtZvl::Zvl32b",
+def FeatureStdExtZvl32b : SubtargetFeature<"zvl32b", "ZvlLen", "32",
                        "'Zvl' (Minimum Vector Length) 32">;
 
 foreach i = { 6-15 } in {
     defvar I = !shl(1, i);
     def FeatureStdExtZvl#I#b :
-        SubtargetFeature<"zvl"#I#"b", "ZvlLen", "ExtZvl::Zvl"#I#"b",
+        SubtargetFeature<"zvl"#I#"b", "ZvlLen", !cast<string>(I),
                         "'Zvl' (Minimum Vector Length) "#I,
                         [!cast<SubtargetFeature>("FeatureStdExtZvl"#!srl(I, 1)#"b")]>;
 }
@@ -333,23 +377,49 @@ def FeatureStdExtZve64d
 def FeatureStdExtV
     : SubtargetFeature<"v", "HasStdExtV", "true",
                        "'V' (Vector Extension for Application Processors)",
-                       [FeatureStdExtZvl128b, FeatureStdExtF, FeatureStdExtD]>;
+                       [FeatureStdExtZvl128b, FeatureStdExtZve64d, FeatureStdExtF, FeatureStdExtD]>;
 
 def HasVInstructions    : Predicate<"Subtarget->hasVInstructions()">,
       AssemblerPredicate<
-          (any_of FeatureStdExtZve32x, FeatureStdExtV),
+          (any_of FeatureStdExtZve32x),
           "'V' (Vector Extension for Application Processors), 'Zve32x' or "
           "'Zve64x' (Vector Extensions for Embedded Processors)">;
 def HasVInstructionsI64 : Predicate<"Subtarget->hasVInstructionsI64()">,
       AssemblerPredicate<
-          (any_of FeatureStdExtZve64x, FeatureStdExtV),
+          (any_of FeatureStdExtZve64x),
           "'V' (Vector Extension for Application Processors) or 'Zve64x' "
           "(Vector Extensions for Embedded Processors)">;
 def HasVInstructionsAnyF : Predicate<"Subtarget->hasVInstructionsAnyF()">,
       AssemblerPredicate<
-          (any_of FeatureStdExtZve32f, FeatureStdExtV),
+          (any_of FeatureStdExtZve32f),
           "'V' (Vector Extension for Application Processors), 'Zve32f', "
           "'Zve64f' or 'Zve64d' (Vector Extensions for Embedded Processors)">;
+
+def FeatureStdExtZvfh
+    : SubtargetFeature<"experimental-zvfh", "HasStdExtZvfh", "true",
+                       "'Zvfh' (Vector Half-Precision Floating-Point)",
+                       [FeatureStdExtZve32f]>;
+
+def FeatureStdExtZicbom
+    : SubtargetFeature<"zicbom", "HasStdExtZicbom", "true",
+                       "'Zicbom' (Cache-Block Management Instructions)">;
+def HasStdExtZicbom : Predicate<"Subtarget->hasStdExtZicbom()">,
+                                AssemblerPredicate<(all_of FeatureStdExtZicbom),
+                                "'Zicbom' (Cache-Block Management Instructions)">;
+
+def FeatureStdExtZicboz
+    : SubtargetFeature<"zicboz", "HasStdExtZicboz", "true",
+                       "'Zicboz' (Cache-Block Zero Instructions)">;
+def HasStdExtZicboz : Predicate<"Subtarget->hasStdExtZicboz()">,
+                                AssemblerPredicate<(all_of FeatureStdExtZicboz),
+                                "'Zicboz' (Cache-Block Zero Instructions)">;
+
+def FeatureStdExtZicbop
+    : SubtargetFeature<"zicbop", "HasStdExtZicbop", "true",
+                       "'Zicbop' (Cache-Block Prefetch Instructions)">;
+def HasStdExtZicbop : Predicate<"Subtarget->hasStdExtZicbop()">,
+                                AssemblerPredicate<(all_of FeatureStdExtZicbop),
+                                "'Zicbop' (Cache-Block Prefetch Instructions)">;
 
 def Feature64Bit
     : SubtargetFeature<"64bit", "HasRV64", "true", "Implements RV64">;
@@ -381,6 +451,19 @@ foreach i = {1-31} in
 def FeatureSaveRestore : SubtargetFeature<"save-restore", "EnableSaveRestore",
                                           "true", "Enable save/restore.">;
 
+def FeatureUnalignedScalarMem
+   : SubtargetFeature<"unaligned-scalar-mem", "EnableUnalignedScalarMem",
+                      "true", "Has reasonably performant unaligned scalar "
+                      "loads and stores">;
+
+def TuneLUIADDIFusion
+    : SubtargetFeature<"lui-addi-fusion", "HasLUIADDIFusion",
+                       "true", "Enable LUI+ADDI macrofusion">;
+
+def TuneNoDefaultUnroll
+    : SubtargetFeature<"no-default-unroll", "EnableDefaultUnroll", "false",
+                       "Disable default unroll preference.">;
+
 def TuneSiFive7 : SubtargetFeature<"sifive7", "RISCVProcFamily", "SiFive7",
                                    "SiFive 7-Series processors">;
 
@@ -408,14 +491,17 @@ include "RISCVSchedSiFive7.td"
 
 def : ProcessorModel<"generic-rv32", NoSchedModel, []>;
 def : ProcessorModel<"generic-rv64", NoSchedModel, [Feature64Bit]>;
+// Support generic for compatibility with other targets. The triple will be used
+// to change to the appropriate rv32/rv64 version.
+def : ProcessorModel<"generic", NoSchedModel, []>;
 
 def : ProcessorModel<"rocket-rv32", RocketModel, []>;
 def : ProcessorModel<"rocket-rv64", RocketModel, [Feature64Bit]>;
 
 def : ProcessorModel<"sifive-7-rv32", SiFive7Model, [],
-                     [TuneSiFive7]>;
+                     [TuneSiFive7, TuneNoDefaultUnroll]>;
 def : ProcessorModel<"sifive-7-rv64", SiFive7Model, [Feature64Bit],
-                     [TuneSiFive7]>;
+                     [TuneSiFive7, TuneNoDefaultUnroll]>;
 
 def : ProcessorModel<"sifive-e20", RocketModel, [FeatureStdExtM,
                                                  FeatureStdExtC]>;
@@ -442,7 +528,7 @@ def : ProcessorModel<"sifive-e76", SiFive7Model, [FeatureStdExtM,
                                                   FeatureStdExtA,
                                                   FeatureStdExtF,
                                                   FeatureStdExtC],
-                     [TuneSiFive7]>;
+                     [TuneSiFive7, TuneNoDefaultUnroll]>;
 
 def : ProcessorModel<"sifive-s21", RocketModel, [Feature64Bit,
                                                  FeatureStdExtM,
@@ -467,7 +553,7 @@ def : ProcessorModel<"sifive-s76", SiFive7Model, [Feature64Bit,
                                                   FeatureStdExtF,
                                                   FeatureStdExtD,
                                                   FeatureStdExtC],
-                     [TuneSiFive7]>;
+                     [TuneSiFive7, TuneNoDefaultUnroll]>;
 
 def : ProcessorModel<"sifive-u54", RocketModel, [Feature64Bit,
                                                  FeatureStdExtM,
@@ -482,7 +568,7 @@ def : ProcessorModel<"sifive-u74", SiFive7Model, [Feature64Bit,
                                                   FeatureStdExtF,
                                                   FeatureStdExtD,
                                                   FeatureStdExtC],
-                     [TuneSiFive7]>;
+                     [TuneSiFive7, TuneNoDefaultUnroll]>;
 
 //===----------------------------------------------------------------------===//
 // Define the RISC-V target.

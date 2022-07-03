@@ -14,9 +14,9 @@
 #define LLVM_CODEGEN_MACHINEBASICBLOCK_H
 
 #include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBundleIterator.h"
 #include "llvm/IR/DebugLoc.h"
@@ -24,7 +24,6 @@
 #include "llvm/Support/BranchProbability.h"
 #include <cassert>
 #include <cstdint>
-#include <functional>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -110,10 +109,10 @@ public:
 private:
   using Instructions = ilist<MachineInstr, ilist_sentinel_tracking<true>>;
 
-  Instructions Insts;
   const BasicBlock *BB;
   int Number;
   MachineFunction *xParent;
+  Instructions Insts;
 
   /// Keep track of the predecessor / successor basic blocks.
   std::vector<MachineBasicBlock *> Predecessors;
@@ -205,6 +204,12 @@ public:
   /// to an LLVM basic block.
   const BasicBlock *getBasicBlock() const { return BB; }
 
+  /// Remove the reference to the underlying IR BasicBlock. This is for
+  /// reduction tools and should generally not be used.
+  void clearBasicBlock() {
+    BB = nullptr;
+  }
+
   /// Return the name of the corresponding LLVM basic block, or an empty string.
   StringRef getName() const;
 
@@ -241,6 +246,7 @@ public:
       MachineInstrBundleIterator<const MachineInstr, true>;
 
   unsigned size() const { return (unsigned)Insts.size(); }
+  bool sizeWithoutDebugLargerThan(unsigned Limit) const;
   bool empty() const { return Insts.empty(); }
 
   MachineInstr       &instr_front()       { return Insts.front(); }
@@ -400,7 +406,7 @@ public:
   // Iteration support for live in sets.  These sets are kept in sorted
   // order by their register number.
   using livein_iterator = LiveInVector::const_iterator;
-#ifndef NDEBUG
+
   /// Unlike livein_begin, this method does not check that the liveness
   /// information is accurate. Still for debug purposes it may be useful
   /// to have iterators that won't assert if the liveness information
@@ -409,7 +415,7 @@ public:
   iterator_range<livein_iterator> liveins_dbg() const {
     return make_range(livein_begin_dbg(), livein_end());
   }
-#endif
+
   livein_iterator livein_begin() const;
   livein_iterator livein_end()   const { return LiveIns.end(); }
   bool            livein_empty() const { return LiveIns.empty(); }
@@ -730,6 +736,15 @@ public:
   /// all, for example if this block ends with an unconditional branch to some
   /// other block.
   bool isLayoutSuccessor(const MachineBasicBlock *MBB) const;
+
+  /// Return the successor of this block if it has a single successor.
+  /// Otherwise return a null pointer.
+  ///
+  const MachineBasicBlock *getSingleSuccessor() const;
+  MachineBasicBlock *getSingleSuccessor() {
+    return const_cast<MachineBasicBlock *>(
+        static_cast<const MachineBasicBlock *>(this)->getSingleSuccessor());
+  }
 
   /// Return the fallthrough block if the block can implicitly
   /// transfer control to the block after it by falling off the end of
@@ -1087,6 +1102,11 @@ public:
     IrrLoopHeaderWeight = Weight;
   }
 
+  /// Return probability of the edge from this block to MBB. This method should
+  /// NOT be called directly, but by using getEdgeProbability method from
+  /// MachineBranchProbabilityInfo class.
+  BranchProbability getSuccProbability(const_succ_iterator Succ) const;
+
 private:
   /// Return probability iterator corresponding to the I successor iterator.
   probability_iterator getProbabilityIterator(succ_iterator I);
@@ -1095,11 +1115,6 @@ private:
 
   friend class MachineBranchProbabilityInfo;
   friend class MIPrinter;
-
-  /// Return probability of the edge from this block to MBB. This method should
-  /// NOT be called directly, but by using getEdgeProbability method from
-  /// MachineBranchProbabilityInfo class.
-  BranchProbability getSuccProbability(const_succ_iterator Succ) const;
 
   // Methods used to maintain doubly linked list of blocks...
   friend struct ilist_callback_traits<MachineBasicBlock>;

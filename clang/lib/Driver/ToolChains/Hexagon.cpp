@@ -72,23 +72,25 @@ static void handleHVXTargetFeatures(const Driver &D, const ArgList &Args,
       (Cpu.back() == 'T' || Cpu.back() == 't' ? Cpu.drop_back(1) : Cpu).str();
   HasHVX = false;
 
-  // Handle -mhvx, -mhvx=, -mno-hvx. If both present, -mhvx= wins over -mhvx.
-  auto argOrNull = [&Args](auto FlagOn, auto FlagOff) -> Arg* {
-    if (Arg *A = Args.getLastArg(FlagOn, FlagOff)) {
-      if (A->getOption().matches(FlagOn))
-        return A;
+  // Handle -mhvx, -mhvx=, -mno-hvx. If versioned and versionless flags
+  // are both present, the last one wins.
+  Arg *HvxEnablingArg =
+      Args.getLastArg(options::OPT_mhexagon_hvx, options::OPT_mhexagon_hvx_EQ,
+                      options::OPT_mno_hexagon_hvx);
+  if (HvxEnablingArg) {
+    if (HvxEnablingArg->getOption().matches(options::OPT_mno_hexagon_hvx))
+      HvxEnablingArg = nullptr;
+  }
+
+  if (HvxEnablingArg) {
+    // If -mhvx[=] was given, it takes precedence.
+    if (Arg *A = Args.getLastArg(options::OPT_mhexagon_hvx,
+                                 options::OPT_mhexagon_hvx_EQ)) {
+      // If the version was given, set HvxVer. Otherwise HvxVer
+      // will remain equal to the CPU version.
+      if (A->getOption().matches(options::OPT_mhexagon_hvx_EQ))
+        HvxVer = StringRef(A->getValue()).lower();
     }
-    return nullptr;
-  };
-
-  Arg *HvxBareA =
-      argOrNull(options::OPT_mhexagon_hvx, options::OPT_mno_hexagon_hvx);
-  Arg *HvxVerA =
-      argOrNull(options::OPT_mhexagon_hvx_EQ, options::OPT_mno_hexagon_hvx);
-
-  if (Arg *A = HvxVerA ? HvxVerA : HvxBareA) {
-    if (A->getOption().matches(options::OPT_mhexagon_hvx_EQ))
-      HvxVer = StringRef(A->getValue()).lower(); // lower produces std:string
     HasHVX = true;
     Features.push_back(makeFeature(Twine("hvx") + HvxVer, true));
   } else if (Arg *A = Args.getLastArg(options::OPT_mno_hexagon_hvx)) {
@@ -228,7 +230,7 @@ void hexagon::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   if (auto G = toolchains::HexagonToolChain::getSmallDataThreshold(Args)) {
-    CmdArgs.push_back(Args.MakeArgString("-gpsize=" + Twine(G.getValue())));
+    CmdArgs.push_back(Args.MakeArgString("-gpsize=" + Twine(*G)));
   }
 
   Args.AddAllArgValues(CmdArgs, options::OPT_Wa_COMMA, options::OPT_Xassembler);
@@ -549,8 +551,7 @@ void HexagonToolChain::getHexagonLibraryPaths(const ArgList &Args,
   // -L Args
   //----------------------------------------------------------------------------
   for (Arg *A : Args.filtered(options::OPT_L))
-    for (const char *Value : A->getValues())
-      LibPaths.push_back(Value);
+    llvm::append_range(LibPaths, A->getValues());
 
   //----------------------------------------------------------------------------
   // Other standard paths
@@ -568,7 +569,7 @@ void HexagonToolChain::getHexagonLibraryPaths(const ArgList &Args,
   // Assume G0 with -shared.
   bool HasG0 = Args.hasArg(options::OPT_shared);
   if (auto G = getSmallDataThreshold(Args))
-    HasG0 = G.getValue() == 0;
+    HasG0 = *G == 0;
 
   const std::string CpuVer = GetTargetCPUVersion(Args).str();
   for (auto &Dir : RootDirs) {

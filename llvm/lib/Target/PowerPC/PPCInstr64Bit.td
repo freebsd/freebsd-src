@@ -580,6 +580,14 @@ def MTCTR8loop : XFXForm_7_ext<31, 467, 9, (outs), (ins g8rc:$rS),
                  PPC970_DGroup_First, PPC970_Unit_FXU;
 }
 
+
+let hasSideEffects = 1, Defs = [CTR8] in
+def MTCTR8Pseudo : PPCEmitTimePseudo<(outs), (ins g8rc:$rS), "#MTCTR8Pseudo", []>;
+
+let hasSideEffects = 1, Uses = [CTR8], Defs = [CTR8] in
+def DecreaseCTR8Pseudo : PPCEmitTimePseudo<(outs crbitrc:$rT), (ins i64imm:$stride),
+                                          "#DecreaseCTR8Pseudo", []>;
+
 let Pattern = [(set i64:$rT, readcyclecounter)] in
 def MFTB8 : XFXForm_1_ext<31, 339, 268, (outs g8rc:$rT), (ins),
                           "mfspr $rT, 268", IIC_SprMFTB>,
@@ -1014,8 +1022,6 @@ let Interpretation64Bit = 1, isCodeGenOnly = 1 in {
   def SETB8 : XForm_44<31, 128, (outs g8rc:$RT), (ins crrc:$BFA),
                        "setb $RT, $BFA", IIC_IntGeneral>, isPPC64;
 }
-def DARN : XForm_45<31, 755, (outs g8rc:$RT), (ins u2imm:$L),
-                     "darn $RT, $L", IIC_LdStLD>, isPPC64;
 def ADDPCIS : DXForm<19, 2, (outs g8rc:$RT), (ins i32imm:$D),
                      "addpcis $RT, $D", IIC_BrB, []>, isPPC64;
 def MODSD : XForm_8<31, 777, (outs g8rc:$rT), (ins g8rc:$rA, g8rc:$rB),
@@ -1038,6 +1044,11 @@ let Interpretation64Bit = 1, isCodeGenOnly = 1 in
 def MULLI8 : DForm_2<7, (outs g8rc:$rD), (ins g8rc:$rA, s16imm64:$imm),
                        "mulli $rD, $rA, $imm", IIC_IntMulLI,
                        [(set i64:$rD, (mul i64:$rA, imm64SExt16:$imm))]>;
+}
+
+let hasSideEffects = 1 in {
+def DARN : XForm_45<31, 755, (outs g8rc:$RT), (ins u2imm:$L),
+                    "darn $RT, $L", IIC_LdStLD>, isPPC64;
 }
 
 let hasSideEffects = 0 in {
@@ -1396,10 +1407,6 @@ def LDUX : XForm_1_memOp<31, 53, (outs g8rc:$rD, ptr_rc_nor0:$ea_result),
                         "ldux $rD, $addr", IIC_LdStLDUX,
                         []>, RegConstraint<"$addr.ptrreg = $ea_result">,
                         NoEncode<"$ea_result">, isPPC64;
-
-def LDMX : XForm_1<31, 309, (outs g8rc:$rD), (ins memrr:$src),
-                   "ldmx $rD, $src", IIC_LdStLD, []>, isPPC64,
-                   Requires<[IsISA3_0]>;
 }
 
 let mayLoad = 1, hasNoSchedulingInfo = 1 in {

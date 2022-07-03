@@ -57,11 +57,9 @@
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
-#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
@@ -78,14 +76,12 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -1016,7 +1012,7 @@ private:
         I.getParent()->getFirstInsertionPt() == I.getParent()->end())
       return PI.setAborted(&I);
 
-    // TODO: We could use SimplifyInstruction here to fold PHINodes and
+    // TODO: We could use simplifyInstruction here to fold PHINodes and
     // SelectInsts. However, doing so requires to change the current
     // dead-operand-tracking mechanism. For instance, suppose neither loading
     // from %U nor %other traps. Then "load (select undef, %U, %other)" does not
@@ -1987,12 +1983,21 @@ static bool isIntegerWideningViableForSlice(const Slice &S,
   uint64_t RelBegin = S.beginOffset() - AllocBeginOffset;
   uint64_t RelEnd = S.endOffset() - AllocBeginOffset;
 
+  Use *U = S.getUse();
+
+  // Lifetime intrinsics operate over the whole alloca whose sizes are usually
+  // larger than other load/store slices (RelEnd > Size). But lifetime are
+  // always promotable and should not impact other slices' promotability of the
+  // partition.
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U->getUser())) {
+    if (II->isLifetimeStartOrEnd() || II->isDroppable())
+      return true;
+  }
+
   // We can't reasonably handle cases where the load or store extends past
   // the end of the alloca's type and into its padding.
   if (RelEnd > Size)
     return false;
-
-  Use *U = S.getUse();
 
   if (LoadInst *LI = dyn_cast<LoadInst>(U->getUser())) {
     if (LI->isVolatile())
@@ -2048,9 +2053,6 @@ static bool isIntegerWideningViableForSlice(const Slice &S,
       return false;
     if (!S.isSplittable())
       return false; // Skip any unsplittable intrinsics.
-  } else if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U->getUser())) {
-    if (!II->isLifetimeStartOrEnd() && !II->isDroppable())
-      return false;
   } else {
     return false;
   }
@@ -2179,10 +2181,7 @@ static Value *extractVector(IRBuilderTy &IRB, Value *V, unsigned BeginIndex,
     return V;
   }
 
-  SmallVector<int, 8> Mask;
-  Mask.reserve(NumElements);
-  for (unsigned i = BeginIndex; i != EndIndex; ++i)
-    Mask.push_back(i);
+  auto Mask = llvm::to_vector<8>(llvm::seq<int>(BeginIndex, EndIndex));
   V = IRB.CreateShuffleVector(V, Mask, Name + ".extract");
   LLVM_DEBUG(dbgs() << "     shuffle: " << *V << "\n");
   return V;
@@ -2734,10 +2733,9 @@ private:
     Type *SplatIntTy = Type::getIntNTy(VTy->getContext(), Size * 8);
     V = IRB.CreateMul(
         IRB.CreateZExt(V, SplatIntTy, "zext"),
-        ConstantExpr::getUDiv(
-            Constant::getAllOnesValue(SplatIntTy),
-            ConstantExpr::getZExt(Constant::getAllOnesValue(V->getType()),
-                                  SplatIntTy)),
+        IRB.CreateUDiv(Constant::getAllOnesValue(SplatIntTy),
+                       IRB.CreateZExt(Constant::getAllOnesValue(V->getType()),
+                                      SplatIntTy)),
         "isplat");
     return V;
   }
@@ -2887,7 +2885,7 @@ private:
     assert((IsDest && II.getRawDest() == OldPtr) ||
            (!IsDest && II.getRawSource() == OldPtr));
 
-    MaybeAlign SliceAlign = getSliceAlign();
+    Align SliceAlign = getSliceAlign();
 
     // For unsplit intrinsics, we simply modify the source and destination
     // pointers in place. This isn't just an optimization, it is a matter of
@@ -3481,19 +3479,13 @@ private:
 
     Type *Ty = GEPI.getSourceElementType();
     Value *True = Sel->getTrueValue();
-    Value *NTrue =
-        IsInBounds
-            ? IRB.CreateInBoundsGEP(Ty, True, Index,
-                                    True->getName() + ".sroa.gep")
-            : IRB.CreateGEP(Ty, True, Index, True->getName() + ".sroa.gep");
+    Value *NTrue = IRB.CreateGEP(Ty, True, Index, True->getName() + ".sroa.gep",
+                                 IsInBounds);
 
     Value *False = Sel->getFalseValue();
 
-    Value *NFalse =
-        IsInBounds
-            ? IRB.CreateInBoundsGEP(Ty, False, Index,
-                                    False->getName() + ".sroa.gep")
-            : IRB.CreateGEP(Ty, False, Index, False->getName() + ".sroa.gep");
+    Value *NFalse = IRB.CreateGEP(Ty, False, Index,
+                                  False->getName() + ".sroa.gep", IsInBounds);
 
     Value *NSel = IRB.CreateSelect(Sel->getCondition(), NTrue, NFalse,
                                    Sel->getName() + ".sroa.sel");
@@ -3547,10 +3539,8 @@ private:
 
         IRB.SetInsertPoint(In->getParent(), std::next(In->getIterator()));
         Type *Ty = GEPI.getSourceElementType();
-        NewVal = IsInBounds ? IRB.CreateInBoundsGEP(Ty, In, Index,
-                                                    In->getName() + ".sroa.gep")
-                            : IRB.CreateGEP(Ty, In, Index,
-                                            In->getName() + ".sroa.gep");
+        NewVal = IRB.CreateGEP(Ty, In, Index, In->getName() + ".sroa.gep",
+                               IsInBounds);
       }
       NewPN->addIncoming(NewVal, B);
     }
@@ -3972,16 +3962,15 @@ bool SROAPass::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
   for (LoadInst *LI : Loads) {
     SplitLoads.clear();
 
-    IntegerType *Ty = cast<IntegerType>(LI->getType());
-    assert(Ty->getBitWidth() % 8 == 0);
-    uint64_t LoadSize = Ty->getBitWidth() / 8;
-    assert(LoadSize > 0 && "Cannot have a zero-sized integer load!");
-
     auto &Offsets = SplitOffsetsMap[LI];
-    assert(LoadSize == Offsets.S->endOffset() - Offsets.S->beginOffset() &&
-           "Slice size should always match load size exactly!");
+    unsigned SliceSize = Offsets.S->endOffset() - Offsets.S->beginOffset();
+    assert(LI->getType()->getIntegerBitWidth() % 8 == 0 &&
+           "Load must have type size equal to store size");
+    assert(LI->getType()->getIntegerBitWidth() / 8 >= SliceSize &&
+           "Load must be >= slice size");
+
     uint64_t BaseOffset = Offsets.S->beginOffset();
-    assert(BaseOffset + LoadSize > BaseOffset &&
+    assert(BaseOffset + SliceSize > BaseOffset &&
            "Cannot represent alloca access size using 64-bit integers!");
 
     Instruction *BasePtr = cast<Instruction>(LI->getPointerOperand());
@@ -3992,7 +3981,7 @@ bool SROAPass::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
     uint64_t PartOffset = 0, PartSize = Offsets.Splits.front();
     int Idx = 0, Size = Offsets.Splits.size();
     for (;;) {
-      auto *PartTy = Type::getIntNTy(Ty->getContext(), PartSize * 8);
+      auto *PartTy = Type::getIntNTy(LI->getContext(), PartSize * 8);
       auto AS = LI->getPointerAddressSpace();
       auto *PartPtrTy = PartTy->getPointerTo(AS);
       LoadInst *PLoad = IRB.CreateAlignedLoad(
@@ -4025,7 +4014,7 @@ bool SROAPass::presplitLoadsAndStores(AllocaInst &AI, AllocaSlices &AS) {
       // Setup the next partition.
       PartOffset = Offsets.Splits[Idx];
       ++Idx;
-      PartSize = (Idx < Size ? Offsets.Splits[Idx] : LoadSize) - PartOffset;
+      PartSize = (Idx < Size ? Offsets.Splits[Idx] : SliceSize) - PartOffset;
     }
 
     // Now that we have the split loads, do the slow walk over all uses of the

@@ -31,19 +31,16 @@
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/CFG.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SimplifyCFGOptions.h"
 #include <utility>
@@ -58,6 +55,11 @@ static cl::opt<unsigned> UserBonusInstThreshold(
 static cl::opt<bool> UserKeepLoops(
     "keep-loops", cl::Hidden, cl::init(true),
     cl::desc("Preserve canonical loop structure (default = true)"));
+
+static cl::opt<bool> UserSwitchRangeToICmp(
+    "switch-range-to-icmp", cl::Hidden, cl::init(false),
+    cl::desc(
+        "Convert switches into an integer range comparison (default = false)"));
 
 static cl::opt<bool> UserSwitchToLookup(
     "switch-to-lookup", cl::Hidden, cl::init(false),
@@ -311,6 +313,8 @@ static void applyCommandLineOverridesToOptions(SimplifyCFGOptions &Options) {
     Options.BonusInstThreshold = UserBonusInstThreshold;
   if (UserForwardSwitchCond.getNumOccurrences())
     Options.ForwardSwitchCondToPhi = UserForwardSwitchCond;
+  if (UserSwitchRangeToICmp.getNumOccurrences())
+    Options.ConvertSwitchRangeToICmp = UserSwitchRangeToICmp;
   if (UserSwitchToLookup.getNumOccurrences())
     Options.ConvertSwitchToLookupTable = UserSwitchToLookup;
   if (UserKeepLoops.getNumOccurrences())
@@ -337,6 +341,8 @@ void SimplifyCFGPass::printPipeline(
   OS << "<";
   OS << "bonus-inst-threshold=" << Options.BonusInstThreshold << ";";
   OS << (Options.ForwardSwitchCondToPhi ? "" : "no-") << "forward-switch-cond;";
+  OS << (Options.ConvertSwitchRangeToICmp ? "" : "no-")
+     << "switch-range-to-icmp;";
   OS << (Options.ConvertSwitchToLookupTable ? "" : "no-")
      << "switch-to-lookup;";
   OS << (Options.NeedCanonicalLoop ? "" : "no-") << "keep-loops;";

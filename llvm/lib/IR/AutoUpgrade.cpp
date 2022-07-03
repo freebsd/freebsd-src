@@ -14,6 +14,7 @@
 
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -575,19 +576,6 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
                                         F->arg_begin()->getType());
       return true;
     }
-    static const Regex vldRegex("^arm\\.neon\\.vld([1234]|[234]lane)\\.v[a-z0-9]*$");
-    if (vldRegex.match(Name)) {
-      auto fArgs = F->getFunctionType()->params();
-      SmallVector<Type *, 4> Tys(fArgs.begin(), fArgs.end());
-      // Can't use Intrinsic::getDeclaration here as the return types might
-      // then only be structurally equal.
-      FunctionType* fType = FunctionType::get(F->getReturnType(), Tys, false);
-      StringRef Suffix =
-          F->getContext().supportsTypedPointers() ? "p0i8" : "p0";
-      NewFn = Function::Create(fType, F->getLinkage(), F->getAddressSpace(),
-                               "llvm." + Name + "." + Suffix, F->getParent());
-      return true;
-    }
     static const Regex vstRegex("^arm\\.neon\\.vst([1234]|[234]lane)\\.v[a-z0-9]*$");
     if (vstRegex.match(Name)) {
       static const Intrinsic::ID StoreInts[] = {Intrinsic::arm_neon_vst1,
@@ -760,6 +748,23 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
     break;
   }
   case 'e': {
+    if (Name.startswith("experimental.vector.extract.")) {
+      rename(F);
+      Type *Tys[] = {F->getReturnType(), F->arg_begin()->getType()};
+      NewFn = Intrinsic::getDeclaration(F->getParent(),
+                                        Intrinsic::vector_extract, Tys);
+      return true;
+    }
+
+    if (Name.startswith("experimental.vector.insert.")) {
+      rename(F);
+      auto Args = F->getFunctionType()->params();
+      Type *Tys[] = {Args[0], Args[1]};
+      NewFn = Intrinsic::getDeclaration(F->getParent(),
+                                        Intrinsic::vector_insert, Tys);
+      return true;
+    }
+
     SmallVector<StringRef, 2> Groups;
     static const Regex R("^experimental.vector.reduce.([a-z]+)\\.[a-z][0-9]+");
     if (R.match(Name, &Groups)) {
@@ -1016,10 +1021,35 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
     if (UpgradeX86IntrinsicFunction(F, Name, NewFn))
       return true;
   }
+
+  auto *ST = dyn_cast<StructType>(F->getReturnType());
+  if (ST && (!ST->isLiteral() || ST->isPacked())) {
+    // Replace return type with literal non-packed struct. Only do this for
+    // intrinsics declared to return a struct, not for intrinsics with
+    // overloaded return type, in which case the exact struct type will be
+    // mangled into the name.
+    SmallVector<Intrinsic::IITDescriptor> Desc;
+    Intrinsic::getIntrinsicInfoTableEntries(F->getIntrinsicID(), Desc);
+    if (Desc.front().Kind == Intrinsic::IITDescriptor::Struct) {
+      auto *FT = F->getFunctionType();
+      auto *NewST = StructType::get(ST->getContext(), ST->elements());
+      auto *NewFT = FunctionType::get(NewST, FT->params(), FT->isVarArg());
+      std::string Name = F->getName().str();
+      rename(F);
+      NewFn = Function::Create(NewFT, F->getLinkage(), F->getAddressSpace(),
+                               Name, F->getParent());
+
+      // The new function may also need remangling.
+      if (auto Result = llvm::Intrinsic::remangleIntrinsicFunction(F))
+        NewFn = *Result;
+      return true;
+    }
+  }
+
   // Remangle our intrinsic since we upgrade the mangling
   auto Result = llvm::Intrinsic::remangleIntrinsicFunction(F);
   if (Result != None) {
-    NewFn = Result.getValue();
+    NewFn = *Result;
     return true;
   }
 
@@ -1237,7 +1267,7 @@ static Value *UpgradeX86ALIGNIntrinsics(IRBuilder<> &Builder, Value *Op0,
   return EmitX86Select(Builder, Mask, Align, Passthru);
 }
 
-static Value *UpgradeX86VPERMT2Intrinsics(IRBuilder<> &Builder, CallInst &CI,
+static Value *UpgradeX86VPERMT2Intrinsics(IRBuilder<> &Builder, CallBase &CI,
                                           bool ZeroMask, bool IndexForm) {
   Type *Ty = CI.getType();
   unsigned VecWidth = Ty->getPrimitiveSizeInBits();
@@ -1298,7 +1328,7 @@ static Value *UpgradeX86VPERMT2Intrinsics(IRBuilder<> &Builder, CallInst &CI,
   return EmitX86Select(Builder, CI.getArgOperand(3), V, PassThru);
 }
 
-static Value *UpgradeX86BinaryIntrinsics(IRBuilder<> &Builder, CallInst &CI,
+static Value *UpgradeX86BinaryIntrinsics(IRBuilder<> &Builder, CallBase &CI,
                                          Intrinsic::ID IID) {
   Type *Ty = CI.getType();
   Value *Op0 = CI.getOperand(0);
@@ -1314,7 +1344,7 @@ static Value *UpgradeX86BinaryIntrinsics(IRBuilder<> &Builder, CallInst &CI,
   return Res;
 }
 
-static Value *upgradeX86Rotate(IRBuilder<> &Builder, CallInst &CI,
+static Value *upgradeX86Rotate(IRBuilder<> &Builder, CallBase &CI,
                                bool IsRotateRight) {
   Type *Ty = CI.getType();
   Value *Src = CI.getArgOperand(0);
@@ -1341,7 +1371,7 @@ static Value *upgradeX86Rotate(IRBuilder<> &Builder, CallInst &CI,
   return Res;
 }
 
-static Value *upgradeX86vpcom(IRBuilder<> &Builder, CallInst &CI, unsigned Imm,
+static Value *upgradeX86vpcom(IRBuilder<> &Builder, CallBase &CI, unsigned Imm,
                               bool IsSigned) {
   Type *Ty = CI.getType();
   Value *LHS = CI.getArgOperand(0);
@@ -1380,7 +1410,7 @@ static Value *upgradeX86vpcom(IRBuilder<> &Builder, CallInst &CI, unsigned Imm,
   return Ext;
 }
 
-static Value *upgradeX86ConcatShift(IRBuilder<> &Builder, CallInst &CI,
+static Value *upgradeX86ConcatShift(IRBuilder<> &Builder, CallBase &CI,
                                     bool IsShiftRight, bool ZeroMask) {
   Type *Ty = CI.getType();
   Value *Op0 = CI.getArgOperand(0);
@@ -1459,7 +1489,7 @@ static Value *UpgradeMaskedLoad(IRBuilder<> &Builder,
   return Builder.CreateMaskedLoad(ValTy, Ptr, Alignment, Mask, Passthru);
 }
 
-static Value *upgradeAbs(IRBuilder<> &Builder, CallInst &CI) {
+static Value *upgradeAbs(IRBuilder<> &Builder, CallBase &CI) {
   Type *Ty = CI.getType();
   Value *Op0 = CI.getArgOperand(0);
   Function *F = Intrinsic::getDeclaration(CI.getModule(), Intrinsic::abs, Ty);
@@ -1469,7 +1499,7 @@ static Value *upgradeAbs(IRBuilder<> &Builder, CallInst &CI) {
   return Res;
 }
 
-static Value *upgradePMULDQ(IRBuilder<> &Builder, CallInst &CI, bool IsSigned) {
+static Value *upgradePMULDQ(IRBuilder<> &Builder, CallBase &CI, bool IsSigned) {
   Type *Ty = CI.getType();
 
   // Arguments have a vXi32 type so cast to vXi64.
@@ -1521,7 +1551,7 @@ static Value *ApplyX86MaskOn1BitsVec(IRBuilder<> &Builder, Value *Vec,
   return Builder.CreateBitCast(Vec, Builder.getIntNTy(std::max(NumElts, 8U)));
 }
 
-static Value *upgradeMaskedCompare(IRBuilder<> &Builder, CallInst &CI,
+static Value *upgradeMaskedCompare(IRBuilder<> &Builder, CallBase &CI,
                                    unsigned CC, bool Signed) {
   Value *Op0 = CI.getArgOperand(0);
   unsigned NumElts = cast<FixedVectorType>(Op0->getType())->getNumElements();
@@ -1553,7 +1583,7 @@ static Value *upgradeMaskedCompare(IRBuilder<> &Builder, CallInst &CI,
 }
 
 // Replace a masked intrinsic with an older unmasked intrinsic.
-static Value *UpgradeX86MaskedShift(IRBuilder<> &Builder, CallInst &CI,
+static Value *UpgradeX86MaskedShift(IRBuilder<> &Builder, CallBase &CI,
                                     Intrinsic::ID IID) {
   Function *Intrin = Intrinsic::getDeclaration(CI.getModule(), IID);
   Value *Rep = Builder.CreateCall(Intrin,
@@ -1561,7 +1591,7 @@ static Value *UpgradeX86MaskedShift(IRBuilder<> &Builder, CallInst &CI,
   return EmitX86Select(Builder, CI.getArgOperand(3), Rep, CI.getArgOperand(2));
 }
 
-static Value* upgradeMaskedMove(IRBuilder<> &Builder, CallInst &CI) {
+static Value* upgradeMaskedMove(IRBuilder<> &Builder, CallBase &CI) {
   Value* A = CI.getArgOperand(0);
   Value* B = CI.getArgOperand(1);
   Value* Src = CI.getArgOperand(2);
@@ -1576,7 +1606,7 @@ static Value* upgradeMaskedMove(IRBuilder<> &Builder, CallInst &CI) {
 }
 
 
-static Value* UpgradeMaskToInt(IRBuilder<> &Builder, CallInst &CI) {
+static Value* UpgradeMaskToInt(IRBuilder<> &Builder, CallBase &CI) {
   Value* Op = CI.getArgOperand(0);
   Type* ReturnOp = CI.getType();
   unsigned NumElts = cast<FixedVectorType>(CI.getType())->getNumElements();
@@ -1586,7 +1616,7 @@ static Value* UpgradeMaskToInt(IRBuilder<> &Builder, CallInst &CI) {
 
 // Replace intrinsic with unmasked version and a select.
 static bool upgradeAVX512MaskToSelect(StringRef Name, IRBuilder<> &Builder,
-                                      CallInst &CI, Value *&Rep) {
+                                      CallBase &CI, Value *&Rep) {
   Name = Name.substr(12); // Remove avx512.mask.
 
   unsigned VecWidth = CI.getType()->getPrimitiveSizeInBits();
@@ -1834,7 +1864,7 @@ void llvm::UpgradeInlineAsmString(std::string *AsmStr) {
   }
 }
 
-static Value *UpgradeARMIntrinsicCall(StringRef Name, CallInst *CI, Function *F,
+static Value *UpgradeARMIntrinsicCall(StringRef Name, CallBase *CI, Function *F,
                                       IRBuilder<> &Builder) {
   if (Name == "mve.vctp64.old") {
     // Replace the old v4i1 vctp64 with a v2i1 vctp and predicate-casts to the
@@ -1921,12 +1951,12 @@ static Value *UpgradeARMIntrinsicCall(StringRef Name, CallInst *CI, Function *F,
     Function *Fn = Intrinsic::getDeclaration(F->getParent(), ID, Tys);
     return Builder.CreateCall(Fn, Ops, CI->getName());
   }
-  llvm_unreachable("Unknown function for ARM CallInst upgrade.");
+  llvm_unreachable("Unknown function for ARM CallBase upgrade.");
 }
 
 /// Upgrade a call to an old intrinsic. All argument and return casting must be
 /// provided to seamlessly integrate with existing context.
-void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
+void llvm::UpgradeIntrinsicCall(CallBase *CI, Function *NewFn) {
   Function *F = CI->getCalledFunction();
   LLVMContext &C = CI->getContext();
   IRBuilder<> Builder(C);
@@ -3774,7 +3804,7 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     } else if (IsARM) {
       Rep = UpgradeARMIntrinsicCall(Name, CI, F, Builder);
     } else {
-      llvm_unreachable("Unknown function for CallInst upgrade.");
+      llvm_unreachable("Unknown function for CallBase upgrade.");
     }
 
     if (Rep)
@@ -3783,12 +3813,33 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     return;
   }
 
-  const auto &DefaultCase = [&NewFn, &CI]() -> void {
-    // Handle generic mangling change, but nothing else
-    assert(
-        (CI->getCalledFunction()->getName() != NewFn->getName()) &&
-        "Unknown function for CallInst upgrade and isn't just a name change");
-    CI->setCalledFunction(NewFn);
+  const auto &DefaultCase = [&]() -> void {
+    if (CI->getFunctionType() == NewFn->getFunctionType()) {
+      // Handle generic mangling change.
+      assert(
+          (CI->getCalledFunction()->getName() != NewFn->getName()) &&
+          "Unknown function for CallBase upgrade and isn't just a name change");
+      CI->setCalledFunction(NewFn);
+      return;
+    }
+
+    // This must be an upgrade from a named to a literal struct.
+    auto *OldST = cast<StructType>(CI->getType());
+    assert(OldST != NewFn->getReturnType() && "Return type must have changed");
+    assert(OldST->getNumElements() ==
+               cast<StructType>(NewFn->getReturnType())->getNumElements() &&
+           "Must have same number of elements");
+
+    SmallVector<Value *> Args(CI->args());
+    Value *NewCI = Builder.CreateCall(NewFn, Args);
+    Value *Res = PoisonValue::get(OldST);
+    for (unsigned Idx = 0; Idx < OldST->getNumElements(); ++Idx) {
+      Value *Elem = Builder.CreateExtractValue(NewCI, Idx);
+      Res = Builder.CreateInsertValue(Res, Elem, Idx);
+    }
+    CI->replaceAllUsesWith(Res);
+    CI->eraseFromParent();
+    return;
   };
   CallInst *NewCall = nullptr;
   switch (NewFn->getIntrinsicID()) {
@@ -3796,13 +3847,6 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     DefaultCase();
     return;
   }
-  case Intrinsic::arm_neon_vld1:
-  case Intrinsic::arm_neon_vld2:
-  case Intrinsic::arm_neon_vld3:
-  case Intrinsic::arm_neon_vld4:
-  case Intrinsic::arm_neon_vld2lane:
-  case Intrinsic::arm_neon_vld3lane:
-  case Intrinsic::arm_neon_vld4lane:
   case Intrinsic::arm_neon_vst1:
   case Intrinsic::arm_neon_vst2:
   case Intrinsic::arm_neon_vst3:
@@ -3885,8 +3929,11 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
 
   case Intrinsic::ptr_annotation:
     // Upgrade from versions that lacked the annotation attribute argument.
-    assert(CI->arg_size() == 4 &&
-           "Before LLVM 12.0 this intrinsic took four arguments");
+    if (CI->arg_size() != 4) {
+      DefaultCase();
+      return;
+    }
+
     // Create a new call with an added null annotation attribute argument.
     NewCall = Builder.CreateCall(
         NewFn,
@@ -4047,6 +4094,12 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     Value *Args[4] = {CI->getArgOperand(0), CI->getArgOperand(1),
                       CI->getArgOperand(2), CI->getArgOperand(4)};
     NewCall = Builder.CreateCall(NewFn, Args);
+    AttributeList OldAttrs = CI->getAttributes();
+    AttributeList NewAttrs = AttributeList::get(
+        C, OldAttrs.getFnAttrs(), OldAttrs.getRetAttrs(),
+        {OldAttrs.getParamAttrs(0), OldAttrs.getParamAttrs(1),
+         OldAttrs.getParamAttrs(2), OldAttrs.getParamAttrs(4)});
+    NewCall->setAttributes(NewAttrs);
     auto *MemCI = cast<MemIntrinsic>(NewCall);
     // All mem intrinsics support dest alignment.
     const ConstantInt *Align = cast<ConstantInt>(CI->getArgOperand(3));
@@ -4074,8 +4127,8 @@ void llvm::UpgradeCallsToIntrinsic(Function *F) {
     // Replace all users of the old function with the new function or new
     // instructions. This is not a range loop because the call is deleted.
     for (User *U : make_early_inc_range(F->users()))
-      if (CallInst *CI = dyn_cast<CallInst>(U))
-        UpgradeIntrinsicCall(CI, NewFn);
+      if (CallBase *CB = dyn_cast<CallBase>(U))
+        UpgradeIntrinsicCall(CB, NewFn);
 
     // Remove old function, no longer used, from the module.
     F->eraseFromParent();
@@ -4126,7 +4179,7 @@ Instruction *llvm::UpgradeBitCastInst(unsigned Opc, Value *V, Type *DestTy,
   return nullptr;
 }
 
-Value *llvm::UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy) {
+Constant *llvm::UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy) {
   if (Opc != Instruction::BitCast)
     return nullptr;
 
@@ -4358,6 +4411,24 @@ bool llvm::UpgradeModuleFlags(Module &M) {
         }
       }
     }
+
+    // Upgrade branch protection and return address signing module flags. The
+    // module flag behavior for these fields were Error and now they are Min.
+    if (ID->getString() == "branch-target-enforcement" ||
+        ID->getString().startswith("sign-return-address")) {
+      if (auto *Behavior =
+              mdconst::dyn_extract_or_null<ConstantInt>(Op->getOperand(0))) {
+        if (Behavior->getLimitedValue() == Module::Error) {
+          Type *Int32Ty = Type::getInt32Ty(M.getContext());
+          Metadata *Ops[3] = {
+              ConstantAsMetadata::get(ConstantInt::get(Int32Ty, Module::Min)),
+              Op->getOperand(1), Op->getOperand(2)};
+          ModFlags->setOperand(I, MDNode::get(M.getContext(), Ops));
+          Changed = true;
+        }
+      }
+    }
+
     // Upgrade Objective-C Image Info Section. Removed the whitespce in the
     // section name so that llvm-lto will not complain about mismatching
     // module flags that is functionally the same.
@@ -4469,7 +4540,7 @@ namespace {
 // folding and other libcall simplification. The nobuiltin attribute on the
 // callsite has the same effect.
 struct StrictFPUpgradeVisitor : public InstVisitor<StrictFPUpgradeVisitor> {
-  StrictFPUpgradeVisitor() {}
+  StrictFPUpgradeVisitor() = default;
 
   void visitCallBase(CallBase &Call) {
     if (!Call.isStrictFP())
@@ -4490,13 +4561,6 @@ void llvm::UpgradeFunctionAttributes(Function &F) {
   if (!F.isDeclaration() && !F.hasFnAttribute(Attribute::StrictFP)) {
     StrictFPUpgradeVisitor SFPV;
     SFPV.visit(F);
-  }
-
-  if (F.getCallingConv() == CallingConv::X86_INTR &&
-      !F.arg_empty() && !F.hasParamAttribute(0, Attribute::ByVal)) {
-    Type *ByValTy = F.getArg(0)->getType()->getPointerElementType();
-    Attribute NewAttr = Attribute::getWithByValType(F.getContext(), ByValTy);
-    F.addParamAttr(0, NewAttr);
   }
 
   // Remove all incompatibile attributes from function.
@@ -4627,4 +4691,16 @@ void llvm::UpgradeAttributes(AttrBuilder &B) {
     if (NullPointerIsValid)
       B.addAttribute(Attribute::NullPointerIsValid);
   }
+}
+
+void llvm::UpgradeOperandBundles(std::vector<OperandBundleDef> &Bundles) {
+
+  // clang.arc.attachedcall bundles are now required to have an operand.
+  // If they don't, it's okay to drop them entirely: when there is an operand,
+  // the "attachedcall" is meaningful and required, but without an operand,
+  // it's just a marker NOP.  Dropping it merely prevents an optimization.
+  erase_if(Bundles, [&](OperandBundleDef &OBD) {
+    return OBD.getTag() == "clang.arc.attachedcall" &&
+           OBD.inputs().empty();
+  });
 }

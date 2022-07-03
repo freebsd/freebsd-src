@@ -276,14 +276,13 @@ public:
   ///    The command arguments.
   ///
   /// \return
-  ///     nullptr if there is no special repeat command - it will use the
+  ///     llvm::None if there is no special repeat command - it will use the
   ///     current command line.
-  ///     Otherwise a pointer to the command to be repeated.
-  ///     If the returned string is the empty string, the command won't be
-  ///     repeated.
-  virtual const char *GetRepeatCommand(Args &current_command_args,
-                                       uint32_t index) {
-    return nullptr;
+  ///     Otherwise a std::string containing the command to be repeated.
+  ///     If the string is empty, the command won't be allow repeating.
+  virtual llvm::Optional<std::string>
+  GetRepeatCommand(Args &current_command_args, uint32_t index) {
+    return llvm::None;
   }
 
   bool HasOverrideCallback() const {
@@ -327,15 +326,20 @@ protected:
   }
 
   virtual const char *GetInvalidProcessDescription() {
-    return "invalid process";
+    return "Command requires a current process.";
   }
 
-  virtual const char *GetInvalidThreadDescription() { return "invalid thread"; }
+  virtual const char *GetInvalidThreadDescription() {
+    return "Command requires a process which is currently stopped.";
+  }
 
-  virtual const char *GetInvalidFrameDescription() { return "invalid frame"; }
+  virtual const char *GetInvalidFrameDescription() {
+    return "Command requires a process, which is currently stopped.";
+  }
 
   virtual const char *GetInvalidRegContextDescription() {
-    return "invalid frame, no registers";
+    return "invalid frame, no registers, command requires a process which is "
+           "currently stopped.";
   }
 
   // This is for use in the command interpreter, when you either want the

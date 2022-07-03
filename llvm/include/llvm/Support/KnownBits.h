@@ -324,7 +324,7 @@ public:
 
   /// Compute known bits resulting from multiplying LHS and RHS.
   static KnownBits mul(const KnownBits &LHS, const KnownBits &RHS,
-                       bool SelfMultiply = false);
+                       bool NoUndefSelfMultiply = false);
 
   /// Compute known bits from sign-extended multiply-hi.
   static KnownBits mulhs(const KnownBits &LHS, const KnownBits &RHS);
@@ -414,6 +414,12 @@ public:
   KnownBits reverseBits() {
     return KnownBits(Zero.reverseBits(), One.reverseBits());
   }
+
+  bool operator==(const KnownBits &Other) const {
+    return Zero == Other.Zero && One == Other.One;
+  }
+
+  bool operator!=(const KnownBits &Other) const { return !(*this == Other); }
 
   void print(raw_ostream &OS) const;
   void dump() const;

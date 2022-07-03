@@ -25,6 +25,7 @@
 #define LLVM_TRANSFORMS_VECTORIZE_LOOPVECTORIZATIONPLANNER_H
 
 #include "VPlan.h"
+#include "llvm/Support/InstructionCost.h"
 
 namespace llvm {
 
@@ -59,7 +60,7 @@ class VPBuilder {
   }
 
 public:
-  VPBuilder() {}
+  VPBuilder() = default;
 
   /// Clear the insertion point: created instructions will not be inserted into
   /// a block.
@@ -187,12 +188,16 @@ struct VectorizationFactor {
   /// Cost of the loop with that width.
   InstructionCost Cost;
 
-  VectorizationFactor(ElementCount Width, InstructionCost Cost)
-      : Width(Width), Cost(Cost) {}
+  /// Cost of the scalar loop.
+  InstructionCost ScalarCost;
+
+  VectorizationFactor(ElementCount Width, InstructionCost Cost,
+                      InstructionCost ScalarCost)
+      : Width(Width), Cost(Cost), ScalarCost(ScalarCost) {}
 
   /// Width 1 means no vectorization, cost 0 means uncomputed cost.
   static VectorizationFactor Disabled() {
-    return {ElementCount::getFixed(1), 0};
+    return {ElementCount::getFixed(1), 0, 0};
   }
 
   bool operator==(const VectorizationFactor &rhs) const {
@@ -298,8 +303,12 @@ public:
 
   /// Generate the IR code for the body of the vectorized loop according to the
   /// best selected \p VF, \p UF and VPlan \p BestPlan.
+  /// TODO: \p IsEpilogueVectorization is needed to avoid issues due to epilogue
+  /// vectorization re-using plans for both the main and epilogue vector loops.
+  /// It should be removed once the re-use issue has been fixed.
   void executePlan(ElementCount VF, unsigned UF, VPlan &BestPlan,
-                   InnerLoopVectorizer &LB, DominatorTree *DT);
+                   InnerLoopVectorizer &LB, DominatorTree *DT,
+                   bool IsEpilogueVectorization);
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void printPlans(raw_ostream &O);
@@ -318,6 +327,9 @@ public:
   static bool
   getDecisionAndClampRange(const std::function<bool(ElementCount)> &Predicate,
                            VFRange &Range);
+
+  /// Check if the number of runtime checks exceeds the threshold.
+  bool requiresTooManyRuntimeChecks() const;
 
 protected:
   /// Collect the instructions from the original loop that would be trivially

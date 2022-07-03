@@ -55,6 +55,8 @@ enum NodeType : unsigned {
   // x29, x29` marker instruction.
   CALL_RVMARKER,
 
+  CALL_BTI, // Function call followed by a BTI instruction.
+
   // Produces the full sequence of instructions for getting the thread pointer
   // offset of a variable into X0, using the TLSDesc model.
   TLSDESC_CALLSEQ,
@@ -79,7 +81,6 @@ enum NodeType : unsigned {
   // Predicated instructions where inactive lanes produce undefined results.
   ABDS_PRED,
   ABDU_PRED,
-  ADD_PRED,
   FADD_PRED,
   FDIV_PRED,
   FMA_PRED,
@@ -98,7 +99,6 @@ enum NodeType : unsigned {
   SMIN_PRED,
   SRA_PRED,
   SRL_PRED,
-  SUB_PRED,
   UDIV_PRED,
   UMAX_PRED,
   UMIN_PRED,
@@ -158,6 +158,7 @@ enum NodeType : unsigned {
   DUPLANE16,
   DUPLANE32,
   DUPLANE64,
+  DUPLANE128,
 
   // Vector immedate moves
   MOVI,
@@ -232,15 +233,10 @@ enum NodeType : unsigned {
   SADDV,
   UADDV,
 
-  // Vector halving addition
-  SHADD,
-  UHADD,
-
-  // Vector rounding halving addition
-  SRHADD,
-  URHADD,
-
-  // Unsigned Add Long Pairwise
+  // Add Pairwise of two vectors
+  ADDP,
+  // Add Long Pairwise
+  SADDLP,
   UADDLP,
 
   // udot/sdot instructions
@@ -411,6 +407,10 @@ enum NodeType : unsigned {
   SSTNT1_PRED,
   SSTNT1_INDEX_PRED,
 
+  // SME
+  RDSVL,
+  REVD_MERGE_PASSTHRU,
+
   // Asserts that a function argument (i32) is zero-extended to i8 by
   // the caller
   ASSERT_ZEXT_BOOL,
@@ -462,23 +462,6 @@ enum NodeType : unsigned {
 
 } // end namespace AArch64ISD
 
-namespace {
-
-// Any instruction that defines a 32-bit result zeros out the high half of the
-// register. Truncate can be lowered to EXTRACT_SUBREG. CopyFromReg may
-// be copying from a truncate. But any other 32-bit operation will zero-extend
-// up to 64 bits. AssertSext/AssertZext aren't saying anything about the upper
-// 32 bits, they're probably just qualifying a CopyFromReg.
-static inline bool isDef32(const SDNode &N) {
-  unsigned Opc = N.getOpcode();
-  return Opc != ISD::TRUNCATE && Opc != TargetOpcode::EXTRACT_SUBREG &&
-         Opc != ISD::CopyFromReg && Opc != ISD::AssertSext &&
-         Opc != ISD::AssertZext && Opc != ISD::AssertAlign &&
-         Opc != ISD::FREEZE;
-}
-
-} // end anonymous namespace
-
 namespace AArch64 {
 /// Possible values of current rounding mode, which is specified in bits
 /// 23:22 of FPCR.
@@ -500,6 +483,11 @@ class AArch64TargetLowering : public TargetLowering {
 public:
   explicit AArch64TargetLowering(const TargetMachine &TM,
                                  const AArch64Subtarget &STI);
+
+  /// Control the following reassociation of operands: (op (op x, c1), y) -> (op
+  /// (op x, y), c1) where N0 is (op x, c1) and N1 is y.
+  bool isReassocProfitable(SelectionDAG &DAG, SDValue N0,
+                           SDValue N1) const override;
 
   /// Selects the correct CCAssignFn for a given CallingConvention value.
   CCAssignFn *CCAssignFnForCall(CallingConv::ID CC, bool IsVarArg) const;
@@ -573,6 +561,17 @@ public:
   MachineBasicBlock *EmitLoweredCatchRet(MachineInstr &MI,
                                            MachineBasicBlock *BB) const;
 
+  MachineBasicBlock *EmitTileLoad(unsigned Opc, unsigned BaseReg,
+                                  MachineInstr &MI,
+                                  MachineBasicBlock *BB) const;
+  MachineBasicBlock *EmitFill(MachineInstr &MI, MachineBasicBlock *BB) const;
+  MachineBasicBlock *EmitMopa(unsigned Opc, unsigned BaseReg, MachineInstr &MI,
+                              MachineBasicBlock *BB) const;
+  MachineBasicBlock *EmitInsertVectorToTile(unsigned Opc, unsigned BaseReg,
+                                            MachineInstr &MI,
+                                            MachineBasicBlock *BB) const;
+  MachineBasicBlock *EmitZero(MachineInstr &MI, MachineBasicBlock *BB) const;
+
   MachineBasicBlock *
   EmitInstrWithCustomInserter(MachineInstr &MI,
                               MachineBasicBlock *MBB) const override;
@@ -610,8 +609,8 @@ public:
   bool isLegalAddImmediate(int64_t) const override;
   bool isLegalICmpImmediate(int64_t) const override;
 
-  bool isMulAddWithConstProfitable(const SDValue &AddNode,
-                                   const SDValue &ConstNode) const override;
+  bool isMulAddWithConstProfitable(SDValue AddNode,
+                                   SDValue ConstNode) const override;
 
   bool shouldConsiderGEPOffsetSplit() const override;
 
@@ -651,6 +650,10 @@ public:
   bool isDesirableToCommuteWithShift(const SDNode *N,
                                      CombineLevel Level) const override;
 
+  /// Return true if it is profitable to fold a pair of shifts into a mask.
+  bool shouldFoldConstantShiftPairToMask(const SDNode *N,
+                                         CombineLevel Level) const override;
+
   /// Returns true if it is beneficial to convert a load of a constant
   /// to just the constant itself.
   bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
@@ -680,7 +683,8 @@ public:
 
   TargetLoweringBase::AtomicExpansionKind
   shouldExpandAtomicLoadInIR(LoadInst *LI) const override;
-  bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
+  TargetLoweringBase::AtomicExpansionKind
+  shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
   TargetLoweringBase::AtomicExpansionKind
   shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
 
@@ -898,11 +902,8 @@ private:
   SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
 
-  bool isEligibleForTailCallOptimization(
-      SDValue Callee, CallingConv::ID CalleeCC, bool isVarArg,
-      const SmallVectorImpl<ISD::OutputArg> &Outs,
-      const SmallVectorImpl<SDValue> &OutVals,
-      const SmallVectorImpl<ISD::InputArg> &Ins, SelectionDAG &DAG) const;
+  bool
+  isEligibleForTailCallOptimization(const CallLoweringInfo &CLI) const;
 
   /// Finds the incoming stack arguments which overlap the given fixed stack
   /// object and incorporates their load into the current chain. This prevents
@@ -980,8 +981,8 @@ private:
   SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerSPLAT_VECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerDUPQLane(SDValue Op, SelectionDAG &DAG) const;
-  SDValue LowerToPredicatedOp(SDValue Op, SelectionDAG &DAG, unsigned NewOp,
-                              bool OverrideNEON = false) const;
+  SDValue LowerToPredicatedOp(SDValue Op, SelectionDAG &DAG,
+                              unsigned NewOp) const;
   SDValue LowerToScalableOp(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerVECTOR_SPLICE(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
@@ -1052,6 +1053,8 @@ private:
 
   SDValue BuildSDIVPow2(SDNode *N, const APInt &Divisor, SelectionDAG &DAG,
                         SmallVectorImpl<SDNode *> &Created) const override;
+  SDValue BuildSREMPow2(SDNode *N, const APInt &Divisor, SelectionDAG &DAG,
+                        SmallVectorImpl<SDNode *> &Created) const override;
   SDValue getSqrtEstimate(SDValue Operand, SelectionDAG &DAG, int Enabled,
                           int &ExtraSteps, bool &UseOneConst,
                           bool Reciprocal) const override;
@@ -1093,7 +1096,7 @@ private:
   }
 
   bool shouldExtendGSIndex(EVT VT, EVT &EltTy) const override;
-  bool shouldRemoveExtendFromGSIndex(EVT VT) const override;
+  bool shouldRemoveExtendFromGSIndex(EVT IndexVT, EVT DataVT) const override;
   bool isVectorLoadExtDesirable(SDValue ExtVal) const override;
   bool isUsedByReturnOnly(SDNode *N, SDValue &Chain) const override;
   bool mayBeEmittedAsTailCall(const CallInst *CI) const override;
@@ -1128,6 +1131,8 @@ private:
                                          KnownBits &Known,
                                          TargetLoweringOpt &TLO,
                                          unsigned Depth) const override;
+
+  bool isTargetCanonicalConstantNode(SDValue Op) const override;
 
   // Normally SVE is only used for byte size vectors that do not fit within a
   // NEON vector. This changes when OverrideNEON is true, allowing SVE to be

@@ -39,6 +39,10 @@
 # define __has_builtin(x) 0
 #endif
 
+#ifndef __has_include
+# define __has_include(x) 0
+#endif
+
 // Only use __has_cpp_attribute in C++ mode. GCC defines __has_cpp_attribute in
 // C mode, but the :: in __has_cpp_attribute(scoped::attribute) is invalid.
 #ifndef LLVM_HAS_CPP_ATTRIBUTE
@@ -90,30 +94,14 @@
 #define LLVM_MSC_PREREQ(version) (_MSC_VER >= (version))
 
 // We require at least VS 2019.
+#if !defined(LLVM_FORCE_USE_OLD_TOOLCHAIN)
 #if !LLVM_MSC_PREREQ(1920)
 #error LLVM requires at least VS 2019.
+#endif
 #endif
 
 #else
 #define LLVM_MSC_PREREQ(version) 0
-#endif
-
-/// Does the compiler support ref-qualifiers for *this?
-///
-/// Sadly, this is separate from just rvalue reference support because GCC
-/// and MSVC implemented this later than everything else. This appears to be
-/// corrected in MSVC 2019 but not MSVC 2017.
-/// FIXME: Remove LLVM_HAS_RVALUE_REFERENCE_THIS macro
-#define LLVM_HAS_RVALUE_REFERENCE_THIS 1
-
-/// Expands to '&' if ref-qualifiers for *this are supported.
-///
-/// This can be used to provide lvalue/rvalue overrides of member functions.
-/// The rvalue override should be guarded by LLVM_HAS_RVALUE_REFERENCE_THIS
-#if LLVM_HAS_RVALUE_REFERENCE_THIS
-#define LLVM_LVALUE_FUNCTION &
-#else
-#define LLVM_LVALUE_FUNCTION
 #endif
 
 /// LLVM_LIBRARY_VISIBILITY - If a class marked with this attribute is linked
@@ -325,20 +313,17 @@
 #define LLVM_EXTENSION
 #endif
 
-// LLVM_ATTRIBUTE_DEPRECATED(decl, "message")
-// This macro will be removed.
-// Use C++14's attribute instead: [[deprecated("message")]]
-#define LLVM_ATTRIBUTE_DEPRECATED(decl, message) [[deprecated(message)]] decl
-
 /// LLVM_BUILTIN_UNREACHABLE - On compilers which support it, expands
 /// to an expression which states that it is undefined behavior for the
 /// compiler to reach this point.  Otherwise is not defined.
+///
+/// '#else' is intentionally left out so that other macro logic (e.g.,
+/// LLVM_ASSUME_ALIGNED and llvm_unreachable()) can detect whether
+/// LLVM_BUILTIN_UNREACHABLE has a definition.
 #if __has_builtin(__builtin_unreachable) || defined(__GNUC__)
 # define LLVM_BUILTIN_UNREACHABLE __builtin_unreachable()
 #elif defined(_MSC_VER)
 # define LLVM_BUILTIN_UNREACHABLE __assume(false)
-#else
-# define LLVM_BUILTIN_UNREACHABLE
 #endif
 
 /// LLVM_BUILTIN_TRAP - On compilers which support it, expands to an expression
@@ -411,22 +396,6 @@
 # define LLVM_PACKED_END   _Pragma("pack(pop)")
 #endif
 
-/// \macro LLVM_PTR_SIZE
-/// A constant integer equivalent to the value of sizeof(void*).
-/// Generally used in combination with alignas or when doing computation in the
-/// preprocessor.
-#ifdef __SIZEOF_POINTER__
-# define LLVM_PTR_SIZE __SIZEOF_POINTER__
-#elif defined(_WIN64)
-# define LLVM_PTR_SIZE 8
-#elif defined(_WIN32)
-# define LLVM_PTR_SIZE 4
-#elif defined(_MSC_VER)
-# error "could not determine LLVM_PTR_SIZE as a constant int for MSVC"
-#else
-# define LLVM_PTR_SIZE sizeof(void *)
-#endif
-
 /// \macro LLVM_MEMORY_SANITIZER_BUILD
 /// Whether LLVM itself is built with MemorySanitizer instrumentation.
 #if __has_feature(memory_sanitizer)
@@ -444,7 +413,20 @@
 /// Whether LLVM itself is built with AddressSanitizer instrumentation.
 #if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
 # define LLVM_ADDRESS_SANITIZER_BUILD 1
+#if __has_include(<sanitizer/asan_interface.h>)
 # include <sanitizer/asan_interface.h>
+#else
+// These declarations exist to support ASan with MSVC. If MSVC eventually ships
+// asan_interface.h in their headers, then we can remove this.
+#ifdef __cplusplus
+extern "C" {
+#endif
+void __asan_poison_memory_region(void const volatile *addr, size_t size);
+void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
+#ifdef __cplusplus
+} // extern "C"
+#endif
+#endif
 #else
 # define LLVM_ADDRESS_SANITIZER_BUILD 0
 # define __asan_poison_memory_region(p, size)

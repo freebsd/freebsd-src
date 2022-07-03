@@ -13,15 +13,14 @@
 #ifndef LLVM_CODEGEN_MACHINEOPERAND_H
 #define LLVM_CODEGEN_MACHINEOPERAND_H
 
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/CodeGen/Register.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/LowLevelTypeImpl.h"
 #include <cassert>
 
 namespace llvm {
 
+class LLT;
 class BlockAddress;
 class Constant;
 class ConstantFP;
@@ -458,6 +457,16 @@ public:
   bool readsReg() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return !isUndef() && !isInternalRead() && (isUse() || getSubReg());
+  }
+
+  /// Return true if this operand can validly be appended to an arbitrary
+  /// operand list. i.e. this behaves like an implicit operand.
+  bool isValidExcessOperand() const {
+    if ((isReg() && isImplicit()) || isRegMask())
+      return true;
+
+    // Debug operands
+    return isMetadata() || isMCSymbol();
   }
 
   //===--------------------------------------------------------------------===//

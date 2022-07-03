@@ -17,6 +17,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/TypeMap.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/StreamString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -228,7 +229,7 @@ FunctionSP SymbolFileBreakpad::GetOrCreateFunction(CompileUnit &comp_unit) {
   if (FunctionSP func_sp = comp_unit.FindFunctionByUID(id))
     return func_sp;
 
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   FunctionSP func_sp;
   addr_t base = GetBaseFileAddress();
   if (base == LLDB_INVALID_ADDRESS) {
@@ -347,7 +348,7 @@ void SymbolFileBreakpad::ParseInlineOriginRecords() {
     return;
   m_inline_origins.emplace();
 
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   for (llvm::StringRef line : lines(Record::InlineOrigin)) {
     auto record = InlineOriginRecord::parse(line);
     if (!record) {
@@ -455,7 +456,7 @@ void SymbolFileBreakpad::FindTypes(
     llvm::DenseSet<SymbolFile *> &searched_symbol_files, TypeMap &types) {}
 
 void SymbolFileBreakpad::AddSymbols(Symtab &symtab) {
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   Module &module = *m_objfile_sp->GetModule();
   addr_t base = GetBaseFileAddress();
   if (base == LLDB_INVALID_ADDRESS) {
@@ -487,8 +488,8 @@ void SymbolFileBreakpad::AddSymbols(Symtab &symtab) {
         /*is_global*/ true, /*is_debug*/ false,
         /*is_trampoline*/ false, /*is_artificial*/ false,
         AddressRange(section_sp, address - section_sp->GetFileAddress(),
-                     size.getValueOr(0)),
-        size.hasValue(), /*contains_linker_annotations*/ false, /*flags*/ 0);
+                     size.value_or(0)),
+        size.has_value(), /*contains_linker_annotations*/ false, /*flags*/ 0);
   };
 
   for (llvm::StringRef line : lines(Record::Public)) {
@@ -510,7 +511,7 @@ SymbolFileBreakpad::GetParameterStackSize(Symbol &symbol) {
           symbol.GetAddress().GetFileAddress())) {
     auto record = StackWinRecord::parse(
         *LineIterator(*m_objfile_sp, Record::StackWin, entry->data));
-    assert(record.hasValue());
+    assert(record);
     return record->ParameterSize;
   }
   return llvm::createStringError(llvm::inconvertibleErrorCode(),
@@ -581,7 +582,7 @@ llvm::ArrayRef<uint8_t> SymbolFileBreakpad::SaveAsDWARF(postfix::Node &node) {
 bool SymbolFileBreakpad::ParseCFIUnwindRow(llvm::StringRef unwind_rules,
                                         const RegisterInfoResolver &resolver,
                                         UnwindPlan::Row &row) {
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
 
   llvm::BumpPtrAllocator node_alloc;
   llvm::Triple triple = m_objfile_sp->GetArchitecture().GetTriple();
@@ -654,7 +655,7 @@ SymbolFileBreakpad::ParseCFIUnwindPlan(const Bookmark &bookmark,
   LineIterator It(*m_objfile_sp, Record::StackCFI, bookmark),
       End(*m_objfile_sp);
   llvm::Optional<StackCFIRecord> init_record = StackCFIRecord::parse(*It);
-  assert(init_record.hasValue() && init_record->Size.hasValue() &&
+  assert(init_record && init_record->Size &&
          "Record already parsed successfully in ParseUnwindData!");
 
   auto plan_sp = std::make_shared<UnwindPlan>(lldb::eRegisterKindLLDB);
@@ -673,9 +674,9 @@ SymbolFileBreakpad::ParseCFIUnwindPlan(const Bookmark &bookmark,
   plan_sp->AppendRow(row_sp);
   for (++It; It != End; ++It) {
     llvm::Optional<StackCFIRecord> record = StackCFIRecord::parse(*It);
-    if (!record.hasValue())
+    if (!record)
       return nullptr;
-    if (record->Size.hasValue())
+    if (record->Size)
       break;
 
     row_sp = std::make_shared<UnwindPlan::Row>(*row_sp);
@@ -690,15 +691,14 @@ SymbolFileBreakpad::ParseCFIUnwindPlan(const Bookmark &bookmark,
 UnwindPlanSP
 SymbolFileBreakpad::ParseWinUnwindPlan(const Bookmark &bookmark,
                                        const RegisterInfoResolver &resolver) {
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   addr_t base = GetBaseFileAddress();
   if (base == LLDB_INVALID_ADDRESS)
     return nullptr;
 
   LineIterator It(*m_objfile_sp, Record::StackWin, bookmark);
   llvm::Optional<StackWinRecord> record = StackWinRecord::parse(*It);
-  assert(record.hasValue() &&
-         "Record already parsed successfully in ParseUnwindData!");
+  assert(record && "Record already parsed successfully in ParseUnwindData!");
 
   auto plan_sp = std::make_shared<UnwindPlan>(lldb::eRegisterKindLLDB);
   plan_sp->SetSourceName("breakpad STACK WIN");
@@ -794,7 +794,7 @@ void SymbolFileBreakpad::ParseFileRecords() {
     return;
   m_files.emplace();
 
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   for (llvm::StringRef line : lines(Record::File)) {
     auto record = FileRecord::parse(line);
     if (!record) {
@@ -805,7 +805,7 @@ void SymbolFileBreakpad::ParseFileRecords() {
     if (record->Number >= m_files->size())
       m_files->resize(record->Number + 1);
     FileSpec::Style style = FileSpec::GuessPathStyle(record->Name)
-                                .getValueOr(FileSpec::Style::native);
+                                .value_or(FileSpec::Style::native);
     (*m_files)[record->Number] = FileSpec(record->Name, style);
   }
 }
@@ -815,7 +815,7 @@ void SymbolFileBreakpad::ParseCUData() {
     return;
 
   m_cu_data.emplace();
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   addr_t base = GetBaseFileAddress();
   if (base == LLDB_INVALID_ADDRESS) {
     LLDB_LOG(log, "SymbolFile parsing failed: Unable to fetch the base address "
@@ -894,7 +894,7 @@ void SymbolFileBreakpad::ParseUnwindData() {
     return;
   m_unwind_data.emplace();
 
-  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS);
+  Log *log = GetLog(LLDBLog::Symbols);
   addr_t base = GetBaseFileAddress();
   if (base == LLDB_INVALID_ADDRESS) {
     LLDB_LOG(log, "SymbolFile parsing failed: Unable to fetch the base address "

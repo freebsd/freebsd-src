@@ -196,7 +196,7 @@ CXXNewExpr::CXXNewExpr(bool IsGlobalNew, FunctionDecl *OperatorNew,
          "Only NoInit can have no initializer!");
 
   CXXNewExprBits.IsGlobalNew = IsGlobalNew;
-  CXXNewExprBits.IsArray = ArraySize.hasValue();
+  CXXNewExprBits.IsArray = ArraySize.has_value();
   CXXNewExprBits.ShouldPassAlignment = ShouldPassAlignment;
   CXXNewExprBits.UsualArrayDeleteWantsSize = UsualArrayDeleteWantsSize;
   CXXNewExprBits.StoredInitializationStyle =
@@ -248,7 +248,7 @@ CXXNewExpr::Create(const ASTContext &Ctx, bool IsGlobalNew,
                    InitializationStyle InitializationStyle, Expr *Initializer,
                    QualType Ty, TypeSourceInfo *AllocatedTypeInfo,
                    SourceRange Range, SourceRange DirectInitRange) {
-  bool IsArray = ArraySize.hasValue();
+  bool IsArray = ArraySize.has_value();
   bool HasInit = Initializer != nullptr;
   unsigned NumPlacementArgs = PlacementArgs.size();
   bool IsParenTypeId = TypeIdParens.isValid();
@@ -989,7 +989,9 @@ CXXTemporaryObjectExpr::CXXTemporaryObjectExpr(
           Cons, /* Elidable=*/false, Args, HadMultipleCandidates,
           ListInitialization, StdInitListInitialization, ZeroInitialization,
           CXXConstructExpr::CK_Complete, ParenOrBraceRange),
-      TSI(TSI) {}
+      TSI(TSI) {
+  setDependence(computeDependence(this));
+}
 
 CXXTemporaryObjectExpr::CXXTemporaryObjectExpr(EmptyShell Empty,
                                                unsigned NumArgs)
@@ -1075,7 +1077,9 @@ CXXConstructExpr::CXXConstructExpr(
     TrailingArgs[I] = Args[I];
   }
 
-  setDependence(computeDependence(this));
+  // CXXTemporaryObjectExpr does this itself after setting its TypeSourceInfo.
+  if (SC == CXXConstructExprClass)
+    setDependence(computeDependence(this));
 }
 
 CXXConstructExpr::CXXConstructExpr(StmtClass SC, EmptyShell Empty,

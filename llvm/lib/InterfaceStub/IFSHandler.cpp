@@ -7,14 +7,17 @@
 //===-----------------------------------------------------------------------===/
 
 #include "llvm/InterfaceStub/IFSHandler.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/InterfaceStub/IFSStub.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/GlobPattern.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/YAMLTraits.h"
+#include <functional>
 
 using namespace llvm;
 using namespace llvm::ifs;
@@ -115,11 +118,12 @@ template <> struct MappingTraits<IFSSymbol> {
     IO.mapRequired("Type", Symbol.Type);
     // The need for symbol size depends on the symbol type.
     if (Symbol.Type == IFSSymbolType::NoType) {
-      IO.mapOptional("Size", Symbol.Size, (uint64_t)0);
-    } else if (Symbol.Type == IFSSymbolType::Func) {
-      Symbol.Size = 0;
-    } else {
-      IO.mapRequired("Size", Symbol.Size);
+      // Size is None, so we are reading it in, or it is non 0 so we
+      // should emit it.
+      if (!Symbol.Size || *Symbol.Size)
+        IO.mapOptional("Size", Symbol.Size);
+    } else if (Symbol.Type != IFSSymbolType::Func) {
+      IO.mapOptional("Size", Symbol.Size);
     }
     IO.mapOptional("Undefined", Symbol.Undefined, false);
     IO.mapOptional("Weak", Symbol.Weak, false);
@@ -189,7 +193,7 @@ Expected<std::unique_ptr<IFSStub>> ifs::readIFSFromBuffer(StringRef Buf) {
         std::make_error_code(std::errc::invalid_argument));
   if (Stub->Target.ArchString) {
     Stub->Target.Arch =
-        ELF::convertArchNameToEMachine(Stub->Target.ArchString.getValue());
+        ELF::convertArchNameToEMachine(*Stub->Target.ArchString);
   }
   return std::move(Stub);
 }
@@ -262,7 +266,7 @@ Error ifs::validateIFSTarget(IFSStub &Stub, bool ParseTriple) {
           ValidationEC);
     }
     if (ParseTriple) {
-      IFSTarget TargetFromTriple = parseTriple(Stub.Target.Triple.getValue());
+      IFSTarget TargetFromTriple = parseTriple(*Stub.Target.Triple);
       Stub.Target.Arch = TargetFromTriple.Arch;
       Stub.Target.BitWidth = TargetFromTriple.BitWidth;
       Stub.Target.Endianness = TargetFromTriple.Endianness;
@@ -328,12 +332,28 @@ void ifs::stripIFSTarget(IFSStub &Stub, bool StripTriple, bool StripArch,
   }
 }
 
-void ifs::stripIFSUndefinedSymbols(IFSStub &Stub) {
-  for (auto Iter = Stub.Symbols.begin(); Iter != Stub.Symbols.end();) {
-    if (Iter->Undefined) {
-      Iter = Stub.Symbols.erase(Iter);
-    } else {
-      Iter++;
-    }
+Error ifs::filterIFSSyms(IFSStub &Stub, bool StripUndefined,
+                         const std::vector<std::string> &Exclude) {
+  std::function<bool(const IFSSymbol &)> Filter = [](const IFSSymbol &) {
+    return false;
+  };
+
+  if (StripUndefined) {
+    Filter = [Filter](const IFSSymbol &Sym) {
+      return Sym.Undefined || Filter(Sym);
+    };
   }
+
+  for (StringRef Glob : Exclude) {
+    Expected<llvm::GlobPattern> PatternOrErr = llvm::GlobPattern::create(Glob);
+    if (!PatternOrErr)
+      return PatternOrErr.takeError();
+    Filter = [Pattern = *PatternOrErr, Filter](const IFSSymbol &Sym) {
+      return Pattern.match(Sym.Name) || Filter(Sym);
+    };
+  }
+
+  llvm::erase_if(Stub.Symbols, Filter);
+
+  return Error::success();
 }

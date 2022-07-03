@@ -38,6 +38,10 @@ namespace {
 
     void VisitStmt(const Stmt *S);
 
+    void VisitStmtNoChildren(const Stmt *S) {
+      HandleStmtClass(S->getStmtClass());
+    }
+
     virtual void HandleStmtClass(Stmt::StmtClass SC) = 0;
 
 #define STMT(Node, Base) void Visit##Node(const Node *S);
@@ -218,7 +222,7 @@ namespace {
 void StmtProfiler::VisitStmt(const Stmt *S) {
   assert(S && "Requires non-null Stmt pointer");
 
-  HandleStmtClass(S->getStmtClass());
+  VisitStmtNoChildren(S);
 
   for (const Stmt *SubStmt : S->children()) {
     if (SubStmt)
@@ -857,6 +861,10 @@ void OMPClauseProfiler::VisitOMPIsDevicePtrClause(
     const OMPIsDevicePtrClause *C) {
   VisitOMPClauseList(C);
 }
+void OMPClauseProfiler::VisitOMPHasDeviceAddrClause(
+    const OMPHasDeviceAddrClause *C) {
+  VisitOMPClauseList(C);
+}
 void OMPClauseProfiler::VisitOMPNontemporalClause(
     const OMPNontemporalClause *C) {
   VisitOMPClauseList(C);
@@ -980,6 +988,11 @@ void StmtProfiler::VisitOMPParallelMasterDirective(
   VisitOMPExecutableDirective(S);
 }
 
+void StmtProfiler::VisitOMPParallelMaskedDirective(
+    const OMPParallelMaskedDirective *S) {
+  VisitOMPExecutableDirective(S);
+}
+
 void StmtProfiler::VisitOMPParallelSectionsDirective(
     const OMPParallelSectionsDirective *S) {
   VisitOMPExecutableDirective(S);
@@ -1082,8 +1095,18 @@ void StmtProfiler::VisitOMPMasterTaskLoopDirective(
   VisitOMPLoopDirective(S);
 }
 
+void StmtProfiler::VisitOMPMaskedTaskLoopDirective(
+    const OMPMaskedTaskLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
 void StmtProfiler::VisitOMPMasterTaskLoopSimdDirective(
     const OMPMasterTaskLoopSimdDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPMaskedTaskLoopSimdDirective(
+    const OMPMaskedTaskLoopSimdDirective *S) {
   VisitOMPLoopDirective(S);
 }
 
@@ -1092,8 +1115,18 @@ void StmtProfiler::VisitOMPParallelMasterTaskLoopDirective(
   VisitOMPLoopDirective(S);
 }
 
+void StmtProfiler::VisitOMPParallelMaskedTaskLoopDirective(
+    const OMPParallelMaskedTaskLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
 void StmtProfiler::VisitOMPParallelMasterTaskLoopSimdDirective(
     const OMPParallelMasterTaskLoopSimdDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPParallelMaskedTaskLoopSimdDirective(
+    const OMPParallelMaskedTaskLoopSimdDirective *S) {
   VisitOMPLoopDirective(S);
 }
 
@@ -1200,6 +1233,26 @@ void StmtProfiler::VisitOMPMaskedDirective(const OMPMaskedDirective *S) {
 
 void StmtProfiler::VisitOMPGenericLoopDirective(
     const OMPGenericLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPTeamsGenericLoopDirective(
+    const OMPTeamsGenericLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPTargetTeamsGenericLoopDirective(
+    const OMPTargetTeamsGenericLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPParallelGenericLoopDirective(
+    const OMPParallelGenericLoopDirective *S) {
+  VisitOMPLoopDirective(S);
+}
+
+void StmtProfiler::VisitOMPTargetParallelGenericLoopDirective(
+    const OMPTargetParallelGenericLoopDirective *S) {
   VisitOMPLoopDirective(S);
 }
 
@@ -1945,7 +1998,11 @@ StmtProfiler::VisitCXXTemporaryObjectExpr(const CXXTemporaryObjectExpr *S) {
 
 void
 StmtProfiler::VisitLambdaExpr(const LambdaExpr *S) {
-  VisitExpr(S);
+  // Do not recursively visit the children of this expression. Profiling the
+  // body would result in unnecessary work, and is not safe to do during
+  // deserialization.
+  VisitStmtNoChildren(S);
+
   // C++20 [temp.over.link]p5:
   //   Two lambda-expressions are never considered equivalent.
   VisitDecl(S->getLambdaClass());

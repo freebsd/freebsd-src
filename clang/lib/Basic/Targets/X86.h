@@ -14,6 +14,7 @@
 #define LLVM_CLANG_LIB_BASIC_TARGETS_X86_H
 
 #include "OSTargets.h"
+#include "clang/Basic/BitmaskEnum.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/Triple.h"
@@ -168,10 +169,14 @@ public:
     return LongDoubleFormat == &llvm::APFloat::IEEEquad() ? "g" : "e";
   }
 
-  unsigned getFloatEvalMethod() const override {
+  LangOptions::FPEvalMethodKind getFPEvalMethod() const override {
     // X87 evaluates with 80 bits "long double" precision.
-    return SSELevel == NoSSE ? 2 : 0;
+    return SSELevel == NoSSE ? LangOptions::FPEvalMethodKind::FEM_Extended
+                             : LangOptions::FPEvalMethodKind::FEM_Source;
   }
+
+  // EvalMethod `source` is not supported for targets with `NoSSE` feature.
+  bool supportSourceEvalMethod() const override { return SSELevel > NoSSE; }
 
   ArrayRef<const char *> getGCCRegNames() const override;
 
@@ -196,6 +201,8 @@ public:
   void getCPUSpecificCPUDispatchFeatures(
       StringRef Name,
       llvm::SmallVectorImpl<StringRef> &Features) const override;
+
+  StringRef getCPUSpecificTuneName(StringRef Name) const override;
 
   Optional<unsigned> getCPUCacheLineSize() const override;
 
@@ -412,9 +419,9 @@ public:
     RegParmMax = 3;
 
     // Use fpret for all types.
-    RealTypeUsesObjCFPRet =
-        ((1 << (int)FloatModeKind::Float) | (1 << (int)FloatModeKind::Double) |
-         (1 << (int)FloatModeKind::LongDouble));
+    RealTypeUsesObjCFPRetMask =
+        (int)(FloatModeKind::Float | FloatModeKind::Double |
+              FloatModeKind::LongDouble);
 
     // x86-32 has atomics up to 8 bytes
     MaxAtomicPromoteWidth = 64;
@@ -471,13 +478,13 @@ public:
   NetBSDI386TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : NetBSDTargetInfo<X86_32TargetInfo>(Triple, Opts) {}
 
-  unsigned getFloatEvalMethod() const override {
+  LangOptions::FPEvalMethodKind getFPEvalMethod() const override {
     VersionTuple OsVersion = getTriple().getOSVersion();
     // New NetBSD uses the default rounding mode.
     if (OsVersion >= VersionTuple(6, 99, 26) || OsVersion.getMajor() == 0)
-      return X86_32TargetInfo::getFloatEvalMethod();
+      return X86_32TargetInfo::getFPEvalMethod();
     // NetBSD before 6.99.26 defaults to "double" rounding.
-    return 1;
+    return LangOptions::FPEvalMethodKind::FEM_Double;
   }
 };
 
@@ -693,7 +700,7 @@ public:
                                         "64-i64:64-f80:128-n8:16:32:64-S128");
 
     // Use fpret only for long double.
-    RealTypeUsesObjCFPRet = (1 << (int)FloatModeKind::LongDouble);
+    RealTypeUsesObjCFPRetMask = (int)FloatModeKind::LongDouble;
 
     // Use fp2ret for _Complex long double.
     ComplexLongDoubleUsesFP2Ret = true;

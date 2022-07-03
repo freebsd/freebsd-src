@@ -19,6 +19,7 @@
 #include "clang/Basic/CapturedStmt.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -128,10 +129,11 @@ protected:
 
     unsigned : NumStmtBits;
 
-    unsigned NumStmts : 32 - NumStmtBits;
+    /// True if the compound statement has one or more pragmas that set some
+    /// floating-point features.
+    unsigned HasFPFeatures : 1;
 
-    /// The location of the opening "{".
-    SourceLocation LBraceLoc;
+    unsigned NumStmts;
   };
 
   class LabelStmtBitfields {
@@ -594,8 +596,8 @@ protected:
     unsigned : NumExprBits;
 
     /// The kind of source location builtin represented by the SourceLocExpr.
-    /// Ex. __builtin_LINE, __builtin_FUNCTION, ect.
-    unsigned Kind : 2;
+    /// Ex. __builtin_LINE, __builtin_FUNCTION, etc.
+    unsigned Kind : 3;
   };
 
   class StmtExprBitfields {
@@ -1244,7 +1246,7 @@ public:
   }
 
   /// Child Iterators: All subclasses must implement 'children'
-  /// to permit easy iteration over the substatements/subexpessions of an
+  /// to permit easy iteration over the substatements/subexpressions of an
   /// AST node.  This permits easy iteration over all nodes in the AST.
   using child_iterator = StmtIterator;
   using const_child_iterator = ConstStmtIterator;
@@ -1401,35 +1403,60 @@ public:
 };
 
 /// CompoundStmt - This represents a group of statements like { stmt stmt }.
-class CompoundStmt final : public Stmt,
-                           private llvm::TrailingObjects<CompoundStmt, Stmt *> {
+class CompoundStmt final
+    : public Stmt,
+      private llvm::TrailingObjects<CompoundStmt, Stmt *, FPOptionsOverride> {
   friend class ASTStmtReader;
   friend TrailingObjects;
 
-  /// The location of the closing "}". LBraceLoc is stored in CompoundStmtBits.
+  /// The location of the opening "{".
+  SourceLocation LBraceLoc;
+
+  /// The location of the closing "}".
   SourceLocation RBraceLoc;
 
-  CompoundStmt(ArrayRef<Stmt *> Stmts, SourceLocation LB, SourceLocation RB);
+  CompoundStmt(ArrayRef<Stmt *> Stmts, FPOptionsOverride FPFeatures,
+               SourceLocation LB, SourceLocation RB);
   explicit CompoundStmt(EmptyShell Empty) : Stmt(CompoundStmtClass, Empty) {}
 
   void setStmts(ArrayRef<Stmt *> Stmts);
 
+  /// Set FPOptionsOverride in trailing storage. Used only by Serialization.
+  void setStoredFPFeatures(FPOptionsOverride F) {
+    assert(hasStoredFPFeatures());
+    *getTrailingObjects<FPOptionsOverride>() = F;
+  }
+
+  size_t numTrailingObjects(OverloadToken<Stmt *>) const {
+    return CompoundStmtBits.NumStmts;
+  }
+
 public:
   static CompoundStmt *Create(const ASTContext &C, ArrayRef<Stmt *> Stmts,
-                              SourceLocation LB, SourceLocation RB);
+                              FPOptionsOverride FPFeatures, SourceLocation LB,
+                              SourceLocation RB);
 
   // Build an empty compound statement with a location.
   explicit CompoundStmt(SourceLocation Loc)
-      : Stmt(CompoundStmtClass), RBraceLoc(Loc) {
+      : Stmt(CompoundStmtClass), LBraceLoc(Loc), RBraceLoc(Loc) {
     CompoundStmtBits.NumStmts = 0;
-    CompoundStmtBits.LBraceLoc = Loc;
+    CompoundStmtBits.HasFPFeatures = 0;
   }
 
   // Build an empty compound statement.
-  static CompoundStmt *CreateEmpty(const ASTContext &C, unsigned NumStmts);
+  static CompoundStmt *CreateEmpty(const ASTContext &C, unsigned NumStmts,
+                                   bool HasFPFeatures);
 
   bool body_empty() const { return CompoundStmtBits.NumStmts == 0; }
   unsigned size() const { return CompoundStmtBits.NumStmts; }
+
+  bool hasStoredFPFeatures() const { return CompoundStmtBits.HasFPFeatures; }
+
+  /// Get FPOptionsOverride from trailing storage.
+  FPOptionsOverride getStoredFPFeatures() const {
+    assert(hasStoredFPFeatures());
+    return *getTrailingObjects<FPOptionsOverride>();
+  }
 
   using body_iterator = Stmt **;
   using body_range = llvm::iterator_range<body_iterator>;
@@ -1505,10 +1532,10 @@ public:
     return const_cast<CompoundStmt *>(this)->getStmtExprResult();
   }
 
-  SourceLocation getBeginLoc() const { return CompoundStmtBits.LBraceLoc; }
+  SourceLocation getBeginLoc() const { return LBraceLoc; }
   SourceLocation getEndLoc() const { return RBraceLoc; }
 
-  SourceLocation getLBracLoc() const { return CompoundStmtBits.LBraceLoc; }
+  SourceLocation getLBracLoc() const { return LBraceLoc; }
   SourceLocation getRBracLoc() const { return RBraceLoc; }
 
   static bool classof(const Stmt *T) {

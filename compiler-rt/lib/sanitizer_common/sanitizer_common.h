@@ -16,7 +16,6 @@
 #define SANITIZER_COMMON_H
 
 #include "sanitizer_flags.h"
-#include "sanitizer_interface_internal.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
 #include "sanitizer_list.h"
@@ -171,8 +170,8 @@ void SetShadowRegionHugePageMode(uptr addr, uptr length);
 bool DontDumpShadowMemory(uptr addr, uptr length);
 // Check if the built VMA size matches the runtime one.
 void CheckVMASize();
-void RunMallocHooks(const void *ptr, uptr size);
-void RunFreeHooks(const void *ptr);
+void RunMallocHooks(void *ptr, uptr size);
+void RunFreeHooks(void *ptr);
 
 class ReservedAddressRange {
  public:
@@ -286,7 +285,7 @@ void SetStackSizeLimitInBytes(uptr limit);
 bool AddressSpaceIsUnlimited();
 void SetAddressSpaceUnlimited();
 void AdjustStackSize(void *attr);
-void PlatformPrepareForSandboxing(__sanitizer_sandbox_arguments *args);
+void PlatformPrepareForSandboxing(void *args);
 void SetSandboxingCallback(void (*f)());
 
 void InitializeCoverage(bool enabled, const char *coverage_dir);
@@ -295,6 +294,7 @@ void InitTlsSize();
 uptr GetTlsSize();
 
 // Other
+void WaitForDebugger(unsigned seconds, const char *label);
 void SleepForSeconds(unsigned seconds);
 void SleepForMillis(unsigned millis);
 u64 NanoTime();
@@ -310,6 +310,18 @@ CheckFailed(const char *file, int line, const char *cond, u64 v1, u64 v2);
 void NORETURN ReportMmapFailureAndDie(uptr size, const char *mem_type,
                                       const char *mmap_type, error_t err,
                                       bool raw_report = false);
+
+// Returns true if the platform-specific error reported is an OOM error.
+bool ErrorIsOOM(error_t err);
+
+// This reports an error in the form:
+//
+//   `ERROR: {{SanitizerToolName}}: out of memory: {{err_msg}}`
+//
+// Downstream tools that read sanitizer output will know that errors starting
+// in this format are specifically OOM errors.
+#define ERROR_OOM(err_msg, ...) \
+  Report("ERROR: %s: out of memory: " err_msg, SanitizerToolName, __VA_ARGS__)
 
 // Specific tools may override behavior of "Die" function to do tool-specific
 // job.
@@ -739,6 +751,9 @@ bool ReadFileToBuffer(const char *file_name, char **buff, uptr *buff_size,
                       uptr *read_len, uptr max_len = kDefaultFileMaxSize,
                       error_t *errno_p = nullptr);
 
+int GetModuleAndOffsetForPc(uptr pc, char *module_name, uptr module_name_len,
+                            uptr *pc_offset);
+
 // When adding a new architecture, don't forget to also update
 // script/asan_symbolize.py and sanitizer_symbolizer_libcdep.cpp.
 inline const char *ModuleArchToString(ModuleArch arch) {
@@ -780,7 +795,7 @@ class LoadedModule {
   LoadedModule()
       : full_name_(nullptr),
         base_address_(0),
-        max_executable_address_(0),
+        max_address_(0),
         arch_(kModuleArchUnknown),
         uuid_size_(0),
         instrumented_(false) {
@@ -798,7 +813,7 @@ class LoadedModule {
 
   const char *full_name() const { return full_name_; }
   uptr base_address() const { return base_address_; }
-  uptr max_executable_address() const { return max_executable_address_; }
+  uptr max_address() const { return max_address_; }
   ModuleArch arch() const { return arch_; }
   const u8 *uuid() const { return uuid_; }
   uptr uuid_size() const { return uuid_size_; }
@@ -828,7 +843,7 @@ class LoadedModule {
  private:
   char *full_name_;  // Owned.
   uptr base_address_;
-  uptr max_executable_address_;
+  uptr max_address_;
   ModuleArch arch_;
   uptr uuid_size_;
   u8 uuid_[kModuleUUIDSize];
@@ -888,13 +903,13 @@ void WriteToSyslog(const char *buffer);
 #define SANITIZER_WIN_TRACE 0
 #endif
 
-#if SANITIZER_MAC || SANITIZER_WIN_TRACE
+#if SANITIZER_APPLE || SANITIZER_WIN_TRACE
 void LogFullErrorReport(const char *buffer);
 #else
 inline void LogFullErrorReport(const char *buffer) {}
 #endif
 
-#if SANITIZER_LINUX || SANITIZER_MAC
+#if SANITIZER_LINUX || SANITIZER_APPLE
 void WriteOneLineToSyslog(const char *s);
 void LogMessageOnPrintf(const char *str);
 #else
@@ -956,7 +971,7 @@ struct SignalContext {
   uptr sp;
   uptr bp;
   bool is_memory_access;
-  enum WriteFlag { UNKNOWN, READ, WRITE } write_flag;
+  enum WriteFlag { Unknown, Read, Write } write_flag;
 
   // In some cases the kernel cannot provide the true faulting address; `addr`
   // will be zero then.  This field allows to distinguish between these cases

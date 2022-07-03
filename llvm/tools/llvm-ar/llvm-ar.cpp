@@ -22,6 +22,7 @@
 #include "llvm/Object/MachO.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/SymbolicFile.h"
+#include "llvm/Object/XCOFFObjectFile.h"
 #include "llvm/Support/Chrono.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ConvertUTF.h"
@@ -61,32 +62,30 @@ static StringRef ToolName;
 // The basename of this program.
 static StringRef Stem;
 
-const char RanlibHelp[] = R"(OVERVIEW: LLVM Ranlib (llvm-ranlib)
+static void printRanLibHelp(StringRef ToolName) {
+  outs() << "OVERVIEW: LLVM Ranlib\n\n"
+         << "This program generates an index to speed access to archives\n\n"
+         << "USAGE: " + ToolName + " <archive-file>\n\n"
+         << "OPTIONS:\n"
+         << "  -h --help             - Display available options\n"
+         << "  -v --version          - Display the version of this program\n"
+         << "  -D                    - Use zero for timestamps and uids/gids "
+            "(default)\n"
+         << "  -U                    - Use actual timestamps and uids/gids\n";
+}
 
-  This program generates an index to speed access to archives
-
-USAGE: llvm-ranlib <archive-file>
-
-OPTIONS:
-  -h --help             - Display available options
-  -v --version          - Display the version of this program
-  -D                    - Use zero for timestamps and uids/gids (default)
-  -U                    - Use actual timestamps and uids/gids
-)";
-
-const char ArHelp[] = R"(OVERVIEW: LLVM Archiver
-
-USAGE: llvm-ar [options] [-]<operation>[modifiers] [relpos] [count] <archive> [files]
-       llvm-ar -M [<mri-script]
-
-OPTIONS:
+static void printArHelp(StringRef ToolName) {
+  const char ArOptions[] =
+      R"(OPTIONS:
   --format              - archive format to create
     =default            -   default
     =gnu                -   gnu
     =darwin             -   darwin
     =bsd                -   bsd
+    =aix                -   aix (big archive)
   --plugin=<string>     - ignored for compatibility
   -h --help             - display this help and exit
+  --output              - the directory to extract archive members to
   --rsp-quoting         - quoting style for response files
     =posix              -   posix
     =windows            -   windows
@@ -126,11 +125,20 @@ MODIFIERS:
   [V] - display the version and exit
 )";
 
+  outs() << "OVERVIEW: LLVM Archiver\n\n"
+         << "USAGE: " + ToolName +
+                " [options] [-]<operation>[modifiers] [relpos] "
+                "[count] <archive> [files]\n"
+         << "       " + ToolName + " -M [<mri-script]\n\n";
+
+  outs() << ArOptions;
+}
+
 static void printHelpMessage() {
   if (Stem.contains_insensitive("ranlib"))
-    outs() << RanlibHelp;
+    printRanLibHelp(Stem);
   else if (Stem.contains_insensitive("ar"))
-    outs() << ArHelp;
+    printArHelp(Stem);
 }
 
 static unsigned MRILineNumber;
@@ -181,7 +189,7 @@ static SmallVector<const char *, 256> PositionalArgs;
 static bool MRI;
 
 namespace {
-enum Format { Default, GNU, BSD, DARWIN, Unknown };
+enum Format { Default, GNU, BSD, DARWIN, BIGARCHIVE, Unknown };
 }
 
 static Format FormatType = Default;
@@ -229,6 +237,9 @@ static int CountParam = 0;
 // This variable holds the name of the archive file as given on the
 // command line.
 static std::string ArchiveName;
+
+// Output directory specified by --output.
+static std::string OutputDir;
 
 static std::vector<std::unique_ptr<MemoryBuffer>> ArchiveBuffers;
 static std::vector<std::unique_ptr<object::Archive>> Archives;
@@ -447,6 +458,19 @@ static ArchiveOperation parseCommandLine() {
   if (AddLibrary && Operation != QuickAppend)
     badUsage("the 'L' modifier is only applicable to the 'q' operation");
 
+  if (!OutputDir.empty()) {
+    if (Operation != Extract)
+      badUsage("--output is only applicable to the 'x' operation");
+    bool IsDir = false;
+    // If OutputDir is not a directory, create_directories may still succeed if
+    // all components of the path prefix are directories. Test is_directory as
+    // well.
+    if (!sys::fs::create_directories(OutputDir))
+      sys::fs::is_directory(OutputDir, IsDir);
+    if (!IsDir)
+      fail("'" + OutputDir + "' is not a directory");
+  }
+
   // Return the parsed operation to the caller
   return Operation;
 }
@@ -547,7 +571,15 @@ static void doExtract(StringRef Name, const object::Archive::Child &C) {
   failIfError(ModeOrErr.takeError());
   sys::fs::perms Mode = ModeOrErr.get();
 
-  llvm::StringRef outputFilePath = sys::path::filename(Name);
+  StringRef outputFilePath;
+  SmallString<128> path;
+  if (OutputDir.empty()) {
+    outputFilePath = sys::path::filename(Name);
+  } else {
+    sys::path::append(path, OutputDir, sys::path::filename(Name));
+    outputFilePath = path.str();
+  }
+
   if (Verbose)
     outs() << "x - " << outputFilePath << '\n';
 
@@ -652,8 +684,6 @@ static void performReadOperation(ArchiveOperation Operation,
 static void addChildMember(std::vector<NewArchiveMember> &Members,
                            const object::Archive::Child &M,
                            bool FlattenArchive = false) {
-  if (Thin && !M.getParent()->isThin())
-    fail("cannot convert a regular archive to a thin one");
   Expected<NewArchiveMember> NMOrErr =
       NewArchiveMember::getOldMember(M, Deterministic);
   failIfError(NMOrErr.takeError());
@@ -875,48 +905,18 @@ computeNewArchiveMembers(ArchiveOperation Operation,
   return Ret;
 }
 
-static object::Archive::Kind getDefaultForHost() {
-  return Triple(sys::getProcessTriple()).isOSDarwin()
-             ? object::Archive::K_DARWIN
-             : object::Archive::K_GNU;
-}
-
-static object::Archive::Kind getKindFromMember(const NewArchiveMember &Member) {
-  auto MemBufferRef = Member.Buf->getMemBufferRef();
-  Expected<std::unique_ptr<object::ObjectFile>> OptionalObject =
-      object::ObjectFile::createObjectFile(MemBufferRef);
-
-  if (OptionalObject)
-    return isa<object::MachOObjectFile>(**OptionalObject)
-               ? object::Archive::K_DARWIN
-               : object::Archive::K_GNU;
-
-  // squelch the error in case we had a non-object file
-  consumeError(OptionalObject.takeError());
-
-  // If we're adding a bitcode file to the archive, detect the Archive kind
-  // based on the target triple.
-  LLVMContext Context;
-  if (identify_magic(MemBufferRef.getBuffer()) == file_magic::bitcode) {
-    if (auto ObjOrErr = object::SymbolicFile::createSymbolicFile(
-            MemBufferRef, file_magic::bitcode, &Context)) {
-      auto &IRObject = cast<object::IRObjectFile>(**ObjOrErr);
-      return Triple(IRObject.getTargetTriple()).isOSDarwin()
-                 ? object::Archive::K_DARWIN
-                 : object::Archive::K_GNU;
-    } else {
-      // Squelch the error in case this was not a SymbolicFile.
-      consumeError(ObjOrErr.takeError());
-    }
-  }
-
-  return getDefaultForHost();
-}
-
 static void performWriteOperation(ArchiveOperation Operation,
                                   object::Archive *OldArchive,
                                   std::unique_ptr<MemoryBuffer> OldArchiveBuf,
                                   std::vector<NewArchiveMember> *NewMembersP) {
+  if (OldArchive) {
+    if (Thin && !OldArchive->isThin())
+      fail("cannot convert a regular archive to a thin one");
+
+    if (OldArchive->isThin())
+      Thin = true;
+  }
+
   std::vector<NewArchiveMember> NewMembers;
   if (!NewMembersP)
     NewMembers = computeNewArchiveMembers(Operation, OldArchive);
@@ -926,14 +926,23 @@ static void performWriteOperation(ArchiveOperation Operation,
   case Default:
     if (Thin)
       Kind = object::Archive::K_GNU;
-    else if (OldArchive)
+    else if (OldArchive) {
       Kind = OldArchive->kind();
-    else if (NewMembersP)
-      Kind = !NewMembersP->empty() ? getKindFromMember(NewMembersP->front())
-                                   : getDefaultForHost();
+      if (Kind == object::Archive::K_BSD) {
+        auto InferredKind = object::Archive::K_BSD;
+        if (NewMembersP && !NewMembersP->empty())
+          InferredKind = NewMembersP->front().detectKindFromObject();
+        else if (!NewMembers.empty())
+          InferredKind = NewMembers.front().detectKindFromObject();
+        if (InferredKind == object::Archive::K_DARWIN)
+          Kind = object::Archive::K_DARWIN;
+      }
+    } else if (NewMembersP)
+      Kind = !NewMembersP->empty() ? NewMembersP->front().detectKindFromObject()
+                                   : object::Archive::getDefaultKindForHost();
     else
-      Kind = !NewMembers.empty() ? getKindFromMember(NewMembers.front())
-                                 : getDefaultForHost();
+      Kind = !NewMembers.empty() ? NewMembers.front().detectKindFromObject()
+                                 : object::Archive::getDefaultKindForHost();
     break;
   case GNU:
     Kind = object::Archive::K_GNU;
@@ -947,6 +956,11 @@ static void performWriteOperation(ArchiveOperation Operation,
     if (Thin)
       fail("only the gnu format has a thin mode");
     Kind = object::Archive::K_DARWIN;
+    break;
+  case BIGARCHIVE:
+    if (Thin)
+      fail("only the gnu format has a thin mode");
+    Kind = object::Archive::K_AIXBIG;
     break;
   case Unknown:
     llvm_unreachable("");
@@ -1073,8 +1087,12 @@ static void runMRIScript() {
 
     switch (Command) {
     case MRICommand::AddLib: {
+      if (!Create)
+        fail("no output archive has been opened");
       object::Archive &Lib = readLibrary(Rest);
       {
+        if (Thin && !Lib.isThin())
+          fail("cannot add a regular archive's contents to a thin archive");
         Error Err = Error::success();
         for (auto &Member : Lib.children(Err))
           addChildMember(NewMembers, Member, /*FlattenArchive=*/Thin);
@@ -1083,6 +1101,8 @@ static void runMRIScript() {
       break;
     }
     case MRICommand::AddMod:
+      if (!Create)
+        fail("no output archive has been opened");
       addMember(NewMembers, Rest);
       break;
     case MRICommand::CreateThin:
@@ -1095,6 +1115,8 @@ static void runMRIScript() {
       if (Saved)
         fail("file already saved");
       ArchiveName = std::string(Rest);
+      if (ArchiveName.empty())
+        fail("missing archive name");
       break;
     case MRICommand::Delete: {
       llvm::erase_if(NewMembers, [=](NewArchiveMember &M) {
@@ -1116,7 +1138,8 @@ static void runMRIScript() {
 
   // Nothing to do if not saved.
   if (Saved)
-    performOperation(ReplaceOrInsert, &NewMembers);
+    performOperation(ReplaceOrInsert, /*OldArchive=*/nullptr,
+                     /*OldArchiveBuf=*/nullptr, &NewMembers);
   exit(0);
 }
 
@@ -1219,9 +1242,15 @@ static int ar_main(int argc, char **argv) {
                        .Case("gnu", GNU)
                        .Case("darwin", DARWIN)
                        .Case("bsd", BSD)
+                       .Case("bigarchive", BIGARCHIVE)
                        .Default(Unknown);
       if (FormatType == Unknown)
         fail(std::string("Invalid format ") + Match);
+      continue;
+    }
+
+    if ((Match = matchFlagWithArg("output", ArgIt, Argv))) {
+      OutputDir = Match;
       continue;
     }
 
@@ -1274,7 +1303,7 @@ static int ranlib_main(int argc, char **argv) {
   return performOperation(CreateSymTab, nullptr);
 }
 
-int main(int argc, char **argv) {
+int llvm_ar_main(int argc, char **argv) {
   InitLLVM X(argc, argv);
   ToolName = argv[0];
 

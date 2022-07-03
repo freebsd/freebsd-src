@@ -10,17 +10,14 @@
 #define LLVM_LIB_CODEGEN_LIVEDEBUGVALUES_INSTRREFBASEDLDV_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/UniqueVector.h"
 #include "llvm/CodeGen/LexicalScopes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/TargetFrameLowering.h"
-#include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 
 #include "LiveDebugValues.h"
@@ -171,6 +168,13 @@ public:
   static ValueIDNum TombstoneValue;
 };
 
+/// Type for a table of values in a block.
+using ValueTable = std::unique_ptr<ValueIDNum[]>;
+
+/// Type for a table-of-table-of-values, i.e., the collection of either
+/// live-in or live-out values for each block in the function.
+using FuncValueTable = std::unique_ptr<ValueTable[]>;
+
 /// Thin wrapper around an integer -- designed to give more type safety to
 /// spill location numbers.
 class SpillLocationNo {
@@ -192,7 +196,7 @@ public:
 };
 
 /// Meta qualifiers for a value. Pair of whatever expression is used to qualify
-/// the the value, and Boolean of whether or not it's indirect.
+/// the value, and Boolean of whether or not it's indirect.
 class DbgValueProperties {
 public:
   DbgValueProperties(const DIExpression *DIExpr, bool Indirect)
@@ -507,7 +511,7 @@ public:
 
   /// Load values for each location from array of ValueIDNums. Take current
   /// bbnum just in case we read a value from a hitherto untouched register.
-  void loadFromArray(ValueIDNum *Locs, unsigned NewCurBB) {
+  void loadFromArray(ValueTable &Locs, unsigned NewCurBB) {
     CurBB = NewCurBB;
     // Iterate over all tracked locations, and load each locations live-in
     // value into our local index.
@@ -616,7 +620,9 @@ public:
   void writeRegMask(const MachineOperand *MO, unsigned CurBB, unsigned InstID);
 
   /// Find LocIdx for SpillLoc \p L, creating a new one if it's not tracked.
-  SpillLocationNo getOrTrackSpillLoc(SpillLoc L);
+  /// Returns None when in scenarios where a spill slot could be tracked, but
+  /// we would likely run into resource limitations.
+  Optional<SpillLocationNo> getOrTrackSpillLoc(SpillLoc L);
 
   // Get LocIdx of a spill ID.
   LocIdx getSpillMLoc(unsigned SpillID) {
@@ -626,6 +632,19 @@ public:
 
   /// Return true if Idx is a spill machine location.
   bool isSpill(LocIdx Idx) const { return LocIdxToLocID[Idx] >= NumRegs; }
+
+  /// How large is this location (aka, how wide is a value defined there?).
+  unsigned getLocSizeInBits(LocIdx L) const {
+    unsigned ID = LocIdxToLocID[L];
+    if (!isSpill(L)) {
+      return TRI.getRegSizeInBits(Register(ID), MF.getRegInfo());
+    } else {
+      // The slot location on the stack is uninteresting, we care about the
+      // position of the value within the slot (which comes with a size).
+      StackSlotPos Pos = locIDToSpillIdx(ID);
+      return Pos.first;
+    }
+  }
 
   MLocIterator begin() { return MLocIterator(LocIdxToIDNum, 0); }
 
@@ -678,7 +697,7 @@ public:
   /// movement of values between locations inside of a block is handled at a
   /// much later stage, in the TransferTracker class.
   MapVector<DebugVariable, DbgValue> Vars;
-  DenseMap<DebugVariable, const DILocation *> Scopes;
+  SmallDenseMap<DebugVariable, const DILocation *, 8> Scopes;
   MachineBasicBlock *MBB = nullptr;
   const OverlapMap &OverlappingFragments;
   DbgValueProperties EmptyProperties;
@@ -746,6 +765,11 @@ public:
         Result.first->second = Rec;
       Scopes[Overlapped] = Loc;
     }
+  }
+
+  void clear() {
+    Vars.clear();
+    Scopes.clear();
   }
 };
 
@@ -844,10 +868,16 @@ private:
   /// Record of where we observed a DBG_PHI instruction.
   class DebugPHIRecord {
   public:
-    uint64_t InstrNum;      ///< Instruction number of this DBG_PHI.
-    MachineBasicBlock *MBB; ///< Block where DBG_PHI occurred.
-    ValueIDNum ValueRead;   ///< The value number read by the DBG_PHI.
-    LocIdx ReadLoc;         ///< Register/Stack location the DBG_PHI reads.
+    /// Instruction number of this DBG_PHI.
+    uint64_t InstrNum;
+    /// Block where DBG_PHI occurred.
+    MachineBasicBlock *MBB;
+    /// The value number read by the DBG_PHI -- or None if it didn't refer to
+    /// a value.
+    Optional<ValueIDNum> ValueRead;
+    /// Register/Stack location the DBG_PHI reads -- or None if it referred to
+    /// something unexpected.
+    Optional<LocIdx> ReadLoc;
 
     operator unsigned() const { return InstrNum; }
   };
@@ -862,6 +892,12 @@ private:
   OverlapMap OverlapFragments;
   VarToFragments SeenFragments;
 
+  /// Mapping of DBG_INSTR_REF instructions to their values, for those
+  /// DBG_INSTR_REFs that call resolveDbgPHIs. These variable references solve
+  /// a mini SSA problem caused by DBG_PHIs being cloned, this collection caches
+  /// the result.
+  DenseMap<MachineInstr *, Optional<ValueIDNum>> SeenDbgPHIs;
+
   /// True if we need to examine call instructions for stack clobbers. We
   /// normally assume that they don't clobber SP, but stack probes on Windows
   /// do.
@@ -873,7 +909,8 @@ private:
   StringRef StackProbeSymbolName;
 
   /// Tests whether this instruction is a spill to a stack slot.
-  bool isSpillInstruction(const MachineInstr &MI, MachineFunction *MF);
+  Optional<SpillLocationNo> isSpillInstruction(const MachineInstr &MI,
+                                               MachineFunction *MF);
 
   /// Decide if @MI is a spill instruction and return true if it is. We use 2
   /// criteria to make this decision:
@@ -891,11 +928,12 @@ private:
 
   /// Given a spill instruction, extract the spill slot information, ensure it's
   /// tracked, and return the spill number.
-  SpillLocationNo extractSpillBaseRegAndOffset(const MachineInstr &MI);
+  Optional<SpillLocationNo>
+  extractSpillBaseRegAndOffset(const MachineInstr &MI);
 
   /// Observe a single instruction while stepping through a block.
-  void process(MachineInstr &MI, ValueIDNum **MLiveOuts = nullptr,
-               ValueIDNum **MLiveIns = nullptr);
+  void process(MachineInstr &MI, const ValueTable *MLiveOuts,
+               const ValueTable *MLiveIns);
 
   /// Examines whether \p MI is a DBG_VALUE and notifies trackers.
   /// \returns true if MI was recognized and processed.
@@ -903,8 +941,8 @@ private:
 
   /// Examines whether \p MI is a DBG_INSTR_REF and notifies trackers.
   /// \returns true if MI was recognized and processed.
-  bool transferDebugInstrRef(MachineInstr &MI, ValueIDNum **MLiveOuts,
-                             ValueIDNum **MLiveIns);
+  bool transferDebugInstrRef(MachineInstr &MI, const ValueTable *MLiveOuts,
+                             const ValueTable *MLiveIns);
 
   /// Stores value-information about where this PHI occurred, and what
   /// instruction number is associated with it.
@@ -936,9 +974,15 @@ private:
   /// \p InstrNum Debug instruction number defined by DBG_PHI instructions.
   /// \returns The machine value number at position Here, or None.
   Optional<ValueIDNum> resolveDbgPHIs(MachineFunction &MF,
-                                      ValueIDNum **MLiveOuts,
-                                      ValueIDNum **MLiveIns, MachineInstr &Here,
-                                      uint64_t InstrNum);
+                                      const ValueTable *MLiveOuts,
+                                      const ValueTable *MLiveIns,
+                                      MachineInstr &Here, uint64_t InstrNum);
+
+  Optional<ValueIDNum> resolveDbgPHIsImpl(MachineFunction &MF,
+                                          const ValueTable *MLiveOuts,
+                                          const ValueTable *MLiveIns,
+                                          MachineInstr &Here,
+                                          uint64_t InstrNum);
 
   /// Step through the function, recording register definitions and movements
   /// in an MLocTracker. Convert the observations into a per-block transfer
@@ -954,8 +998,8 @@ private:
   /// live-out arrays to the (initialized to zero) multidimensional arrays in
   /// \p MInLocs and \p MOutLocs. The outer dimension is indexed by block
   /// number, the inner by LocIdx.
-  void buildMLocValueMap(MachineFunction &MF, ValueIDNum **MInLocs,
-                         ValueIDNum **MOutLocs,
+  void buildMLocValueMap(MachineFunction &MF, FuncValueTable &MInLocs,
+                         FuncValueTable &MOutLocs,
                          SmallVectorImpl<MLocTransferMap> &MLocTransfer);
 
   /// Examine the stack indexes (i.e. offsets within the stack) to find the
@@ -966,7 +1010,7 @@ private:
   /// the IDF of each register.
   void placeMLocPHIs(MachineFunction &MF,
                      SmallPtrSetImpl<MachineBasicBlock *> &AllBlocks,
-                     ValueIDNum **MInLocs,
+                     FuncValueTable &MInLocs,
                      SmallVectorImpl<MLocTransferMap> &MLocTransfer);
 
   /// Propagate variable values to blocks in the common case where there's
@@ -997,7 +1041,7 @@ private:
   /// is true, revisiting this block is necessary.
   bool mlocJoin(MachineBasicBlock &MBB,
                 SmallPtrSet<const MachineBasicBlock *, 16> &Visited,
-                ValueIDNum **OutLocs, ValueIDNum *InLocs);
+                FuncValueTable &OutLocs, ValueTable &InLocs);
 
   /// Produce a set of blocks that are in the current lexical scope. This means
   /// those blocks that contain instructions "in" the scope, blocks where
@@ -1025,11 +1069,11 @@ private:
   /// scope, but which do contain DBG_VALUEs, which VarLocBasedImpl tracks
   /// locations through.
   void buildVLocValueMap(const DILocation *DILoc,
-                    const SmallSet<DebugVariable, 4> &VarsWeCareAbout,
-                    SmallPtrSetImpl<MachineBasicBlock *> &AssignBlocks,
-                    LiveInsT &Output, ValueIDNum **MOutLocs,
-                    ValueIDNum **MInLocs,
-                    SmallVectorImpl<VLocTracker> &AllTheVLocs);
+                         const SmallSet<DebugVariable, 4> &VarsWeCareAbout,
+                         SmallPtrSetImpl<MachineBasicBlock *> &AssignBlocks,
+                         LiveInsT &Output, FuncValueTable &MOutLocs,
+                         FuncValueTable &MInLocs,
+                         SmallVectorImpl<VLocTracker> &AllTheVLocs);
 
   /// Attempt to eliminate un-necessary PHIs on entry to a block. Examines the
   /// live-in values coming from predecessors live-outs, and replaces any PHIs
@@ -1047,20 +1091,8 @@ private:
   /// \returns Value ID of a machine PHI if an appropriate one is available.
   Optional<ValueIDNum>
   pickVPHILoc(const MachineBasicBlock &MBB, const DebugVariable &Var,
-              const LiveIdxT &LiveOuts, ValueIDNum **MOutLocs,
+              const LiveIdxT &LiveOuts, FuncValueTable &MOutLocs,
               const SmallVectorImpl<const MachineBasicBlock *> &BlockOrders);
-
-  /// Given the solutions to the two dataflow problems, machine value locations
-  /// in \p MInLocs and live-in variable values in \p SavedLiveIns, runs the
-  /// TransferTracker class over the function to produce live-in and transfer
-  /// DBG_VALUEs, then inserts them. Groups of DBG_VALUEs are inserted in the
-  /// order given by AllVarsNumbering -- this could be any stable order, but
-  /// right now "order of appearence in function, when explored in RPO", so
-  /// that we can compare explictly against VarLocBasedImpl.
-  void emitLocations(MachineFunction &MF, LiveInsT SavedLiveIns,
-                     ValueIDNum **MOutLocs, ValueIDNum **MInLocs,
-                     DenseMap<DebugVariable, unsigned> &AllVarsNumbering,
-                     const TargetPassConfig &TPC);
 
   /// Take collections of DBG_VALUE instructions stored in TTracker, and
   /// install them into their output blocks. Preserves a stable order of
@@ -1071,6 +1103,28 @@ private:
   /// Boilerplate computation of some initial sets, artifical blocks and
   /// RPOT block ordering.
   void initialSetup(MachineFunction &MF);
+
+  /// Produce a map of the last lexical scope that uses a block, using the
+  /// scopes DFSOut number. Mapping is block-number to DFSOut.
+  /// \p EjectionMap Pre-allocated vector in which to install the built ma.
+  /// \p ScopeToDILocation Mapping of LexicalScopes to their DILocations.
+  /// \p AssignBlocks Map of blocks where assignments happen for a scope.
+  void makeDepthFirstEjectionMap(SmallVectorImpl<unsigned> &EjectionMap,
+                                 const ScopeToDILocT &ScopeToDILocation,
+                                 ScopeToAssignBlocksT &AssignBlocks);
+
+  /// When determining per-block variable values and emitting to DBG_VALUEs,
+  /// this function explores by lexical scope depth. Doing so means that per
+  /// block information can be fully computed before exploration finishes,
+  /// allowing us to emit it and free data structures earlier than otherwise.
+  /// It's also good for locality.
+  bool depthFirstVLocAndEmit(
+      unsigned MaxNumBlocks, const ScopeToDILocT &ScopeToDILocation,
+      const ScopeToVarsT &ScopeToVars, ScopeToAssignBlocksT &ScopeToBlocks,
+      LiveInsT &Output, FuncValueTable &MOutLocs, FuncValueTable &MInLocs,
+      SmallVectorImpl<VLocTracker> &AllTheVLocs, MachineFunction &MF,
+      DenseMap<DebugVariable, unsigned> &AllVarsNumbering,
+      const TargetPassConfig &TPC);
 
   bool ExtendRanges(MachineFunction &MF, MachineDominatorTree *DomTree,
                     TargetPassConfig *TPC, unsigned InputBBLimit,

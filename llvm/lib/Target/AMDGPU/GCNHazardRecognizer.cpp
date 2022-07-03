@@ -13,14 +13,38 @@
 #include "GCNHazardRecognizer.h"
 #include "GCNSubtarget.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
+#include "SIMachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/Support/TargetParser.h"
 
 using namespace llvm;
 
+namespace {
+
+struct MFMAPaddingRatioParser : public cl::parser<unsigned> {
+  MFMAPaddingRatioParser(cl::Option &O) : cl::parser<unsigned>(O) {}
+
+  bool parse(cl::Option &O, StringRef ArgName, StringRef Arg, unsigned &Value) {
+    if (Arg.getAsInteger(0, Value))
+      return O.error("'" + Arg + "' value invalid for uint argument!");
+
+    if (Value > 100)
+      return O.error("'" + Arg + "' value must be in the range [0, 100]!");
+
+    return false;
+  }
+};
+
+} // end anonymous namespace
+
+static cl::opt<unsigned, false, MFMAPaddingRatioParser>
+    MFMAPaddingRatio("amdgpu-mfma-padding-ratio", cl::init(0), cl::Hidden,
+                     cl::desc("Fill a percentage of the latency between "
+                              "neighboring MFMA with s_nops."));
+
 //===----------------------------------------------------------------------===//
-// Hazard Recoginizer Implementation
+// Hazard Recognizer Implementation
 //===----------------------------------------------------------------------===//
 
 static bool shouldRunLdsBranchVmemWARHazardFixup(const MachineFunction &MF,
@@ -92,12 +116,7 @@ static bool isSMovRel(unsigned Opcode) {
 }
 
 static bool isDGEMM(unsigned Opcode) {
-  return Opcode == AMDGPU::V_MFMA_F64_4X4X4F64_e64 ||
-         Opcode == AMDGPU::V_MFMA_F64_4X4X4F64_vgprcd_e64 ||
-         Opcode == AMDGPU::V_MFMA_F64_16X16X4F64_e64 ||
-         Opcode == AMDGPU::V_MFMA_F64_16X16X4F64_vgprcd_e64 ||
-         Opcode == AMDGPU::V_MFMA_F64_16X16X4F64_mac_e64 ||
-         Opcode == AMDGPU::V_MFMA_F64_16X16X4F64_mac_vgprcd_e64;
+  return AMDGPU::getMAIIsDGEMM(Opcode);
 }
 
 static bool isXDL(const GCNSubtarget &ST, const MachineInstr &MI) {
@@ -109,7 +128,10 @@ static bool isXDL(const GCNSubtarget &ST, const MachineInstr &MI) {
       Opcode == AMDGPU::V_ACCVGPR_READ_B32_e64)
     return false;
 
-  return true;
+  if (!ST.hasGFX940Insts())
+    return true;
+
+  return AMDGPU::getMAIIsGFX940XDL(Opcode);
 }
 
 static bool isSendMsgTraceDataOrGDS(const SIInstrInfo &TII,
@@ -142,6 +164,11 @@ static bool isPermlane(const MachineInstr &MI) {
   unsigned Opcode = MI.getOpcode();
   return Opcode == AMDGPU::V_PERMLANE16_B32_e64 ||
          Opcode == AMDGPU::V_PERMLANEX16_B32_e64;
+}
+
+static bool isLdsDma(const MachineInstr &MI) {
+  return SIInstrInfo::isVALU(MI) &&
+         (SIInstrInfo::isMUBUF(MI) || SIInstrInfo::isFLAT(MI));
 }
 
 static unsigned getHWReg(const SIInstrInfo *TII, const MachineInstr &RegInstr) {
@@ -204,12 +231,12 @@ GCNHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
   if (isRFE(MI->getOpcode()) && checkRFEHazards(MI) > 0)
     return HazardType;
 
-  if (ST.hasReadM0MovRelInterpHazard() &&
-      (TII.isVINTRP(*MI) || isSMovRel(MI->getOpcode())) &&
-      checkReadM0Hazards(MI) > 0)
-    return HazardType;
-
-  if (ST.hasReadM0SendMsgHazard() && isSendMsgTraceDataOrGDS(TII, *MI) &&
+  if (((ST.hasReadM0MovRelInterpHazard() &&
+        (TII.isVINTRP(*MI) || isSMovRel(MI->getOpcode()))) ||
+       (ST.hasReadM0SendMsgHazard() && isSendMsgTraceDataOrGDS(TII, *MI)) ||
+       (ST.hasReadM0LdsDmaHazard() && isLdsDma(*MI)) ||
+       (ST.hasReadM0LdsDirectHazard() &&
+        MI->readsRegister(AMDGPU::LDS_DIRECT))) &&
       checkReadM0Hazards(MI) > 0)
     return HazardType;
 
@@ -235,6 +262,14 @@ static void insertNoopsInBundle(MachineInstr *MI, const SIInstrInfo &TII,
     BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), TII.get(AMDGPU::S_NOP))
         .addImm(Arg - 1);
   }
+}
+
+unsigned
+GCNHazardRecognizer::getMFMAPipelineWaitStates(const MachineInstr &MI) const {
+  const MCSchedClassDesc *SC = TSchedModel.resolveSchedClass(&MI);
+  assert(TSchedModel.getWriteProcResBegin(SC) !=
+         TSchedModel.getWriteProcResEnd(SC));
+  return TSchedModel.getWriteProcResBegin(SC)->Cycles;
 }
 
 void GCNHazardRecognizer::processBundle() {
@@ -321,11 +356,11 @@ unsigned GCNHazardRecognizer::PreEmitNoopsCommon(MachineInstr *MI) {
   if (isRFE(MI->getOpcode()))
     return std::max(WaitStates, checkRFEHazards(MI));
 
-  if (ST.hasReadM0MovRelInterpHazard() && (TII.isVINTRP(*MI) ||
-                                           isSMovRel(MI->getOpcode())))
-    return std::max(WaitStates, checkReadM0Hazards(MI));
-
-  if (ST.hasReadM0SendMsgHazard() && isSendMsgTraceDataOrGDS(TII, *MI))
+  if ((ST.hasReadM0MovRelInterpHazard() &&
+       (TII.isVINTRP(*MI) || isSMovRel(MI->getOpcode()))) ||
+      (ST.hasReadM0SendMsgHazard() && isSendMsgTraceDataOrGDS(TII, *MI)) ||
+      (ST.hasReadM0LdsDmaHazard() && isLdsDma(*MI)) ||
+      (ST.hasReadM0LdsDirectHazard() && MI->readsRegister(AMDGPU::LDS_DIRECT)))
     return std::max(WaitStates, checkReadM0Hazards(MI));
 
   if (SIInstrInfo::isMAI(*MI))
@@ -389,16 +424,61 @@ void GCNHazardRecognizer::RecedeCycle() {
 // Helper Functions
 //===----------------------------------------------------------------------===//
 
+typedef enum { HazardFound, HazardExpired, NoHazardFound } HazardFnResult;
+
 typedef function_ref<bool(const MachineInstr &, int WaitStates)> IsExpiredFn;
+typedef function_ref<unsigned int(const MachineInstr &)> GetNumWaitStatesFn;
+
+// Search for a hazard in a block and its predecessors.
+template <typename StateT>
+static bool
+hasHazard(StateT State,
+          function_ref<HazardFnResult(StateT &, const MachineInstr &)> IsHazard,
+          function_ref<void(StateT &, const MachineInstr &)> UpdateState,
+          const MachineBasicBlock *MBB,
+          MachineBasicBlock::const_reverse_instr_iterator I,
+          DenseSet<const MachineBasicBlock *> &Visited) {
+  for (auto E = MBB->instr_rend(); I != E; ++I) {
+    // No need to look at parent BUNDLE instructions.
+    if (I->isBundle())
+      continue;
+
+    switch (IsHazard(State, *I)) {
+    case HazardFound:
+      return true;
+    case HazardExpired:
+      return false;
+    default:
+      // Continue search
+      break;
+    }
+
+    if (I->isInlineAsm() || I->isMetaInstruction())
+      continue;
+
+    UpdateState(State, *I);
+  }
+
+  for (MachineBasicBlock *Pred : MBB->predecessors()) {
+    if (!Visited.insert(Pred).second)
+      continue;
+
+    if (hasHazard(State, IsHazard, UpdateState, Pred, Pred->instr_rbegin(),
+                  Visited))
+      return true;
+  }
+
+  return false;
+}
 
 // Returns a minimum wait states since \p I walking all predecessors.
 // Only scans until \p IsExpired does not return true.
 // Can only be run in a hazard recognizer mode.
-static int getWaitStatesSince(GCNHazardRecognizer::IsHazardFn IsHazard,
-                              const MachineBasicBlock *MBB,
-                              MachineBasicBlock::const_reverse_instr_iterator I,
-                              int WaitStates, IsExpiredFn IsExpired,
-                              DenseSet<const MachineBasicBlock *> &Visited) {
+static int getWaitStatesSince(
+    GCNHazardRecognizer::IsHazardFn IsHazard, const MachineBasicBlock *MBB,
+    MachineBasicBlock::const_reverse_instr_iterator I, int WaitStates,
+    IsExpiredFn IsExpired, DenseSet<const MachineBasicBlock *> &Visited,
+    GetNumWaitStatesFn GetNumWaitStates = SIInstrInfo::getNumWaitStates) {
   for (auto E = MBB->instr_rend(); I != E; ++I) {
     // Don't add WaitStates for parent BUNDLE instructions.
     if (I->isBundle())
@@ -410,7 +490,7 @@ static int getWaitStatesSince(GCNHazardRecognizer::IsHazardFn IsHazard,
     if (I->isInlineAsm())
       continue;
 
-    WaitStates += SIInstrInfo::getNumWaitStates(*I);
+    WaitStates += GetNumWaitStates(*I);
 
     if (IsExpired(*I, WaitStates))
       return std::numeric_limits<int>::max();
@@ -421,8 +501,8 @@ static int getWaitStatesSince(GCNHazardRecognizer::IsHazardFn IsHazard,
     if (!Visited.insert(Pred).second)
       continue;
 
-    int W = getWaitStatesSince(IsHazard, Pred, Pred->instr_rbegin(),
-                               WaitStates, IsExpired, Visited);
+    int W = getWaitStatesSince(IsHazard, Pred, Pred->instr_rbegin(), WaitStates,
+                               IsExpired, Visited, GetNumWaitStates);
 
     MinWaitStates = std::min(MinWaitStates, W);
   }
@@ -534,7 +614,7 @@ int GCNHazardRecognizer::checkSoftClauseHazards(MachineInstr *MEM) {
   // In order to handle these situations correctly we need to make sure that
   // when a clause has more than one instruction, no instruction in the clause
   // writes to a register that is read by another instruction in the clause
-  // (including itself). If we encounter this situaion, we need to break the
+  // (including itself). If we encounter this situation, we need to break the
   // clause by inserting a non SMEM instruction.
 
   for (MachineInstr *MI : EmittedInstrs) {
@@ -764,7 +844,7 @@ GCNHazardRecognizer::checkVALUHazardsHelper(const MachineOperand &Def,
   // 8 bytes can have there store data over written by the next instruction.
   const SIRegisterInfo *TRI = ST.getRegisterInfo();
 
-  const int VALUWaitStates = 1;
+  const int VALUWaitStates = ST.hasGFX940Insts() ? 2 : 1;
   int WaitStatesNeeded = 0;
 
   if (!TRI->isVectorRegister(MRI, Def.getReg()))
@@ -783,13 +863,136 @@ GCNHazardRecognizer::checkVALUHazardsHelper(const MachineOperand &Def,
 }
 
 int GCNHazardRecognizer::checkVALUHazards(MachineInstr *VALU) {
+  int WaitStatesNeeded = 0;
+
+  if (ST.hasTransForwardingHazard() && !SIInstrInfo::isTRANS(*VALU)) {
+    const int TransDefWaitstates = 1;
+
+    auto IsTransDefFn = [this, VALU](const MachineInstr &MI) {
+      if (!SIInstrInfo::isTRANS(MI))
+        return false;
+      const SIRegisterInfo *TRI = ST.getRegisterInfo();
+      const SIInstrInfo *TII = ST.getInstrInfo();
+      Register Def = TII->getNamedOperand(MI, AMDGPU::OpName::vdst)->getReg();
+
+      for (const MachineOperand &Use : VALU->explicit_uses()) {
+        if (Use.isReg() && TRI->regsOverlap(Def, Use.getReg()))
+          return true;
+      }
+
+      return false;
+    };
+
+    int WaitStatesNeededForDef =
+        TransDefWaitstates -
+        getWaitStatesSince(IsTransDefFn, TransDefWaitstates);
+    WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForDef);
+  }
+
+  if (ST.hasDstSelForwardingHazard()) {
+    const int Shift16DefWaitstates = 1;
+
+    auto IsShift16BitDefFn = [this, VALU](const MachineInstr &MI) {
+      if (!SIInstrInfo::isVALU(MI))
+        return false;
+      const SIInstrInfo *TII = ST.getInstrInfo();
+      if (SIInstrInfo::isSDWA(MI)) {
+        if (auto *DstSel = TII->getNamedOperand(MI, AMDGPU::OpName::dst_sel))
+          if (DstSel->getImm() == AMDGPU::SDWA::DWORD)
+            return false;
+      } else {
+        if ((AMDGPU::getNamedOperandIdx(MI.getOpcode(),
+                                        AMDGPU::OpName::op_sel) == -1) ||
+            !(TII->getNamedOperand(MI, AMDGPU::OpName::src0_modifiers)
+                  ->getImm() &
+              SISrcMods::DST_OP_SEL))
+          return false;
+      }
+      const SIRegisterInfo *TRI = ST.getRegisterInfo();
+      if (auto *Dst = TII->getNamedOperand(MI, AMDGPU::OpName::vdst)) {
+        Register Def = Dst->getReg();
+
+        for (const MachineOperand &Use : VALU->explicit_uses()) {
+          if (Use.isReg() && TRI->regsOverlap(Def, Use.getReg()))
+            return true;
+        }
+      }
+
+      return false;
+    };
+
+    int WaitStatesNeededForDef =
+        Shift16DefWaitstates -
+        getWaitStatesSince(IsShift16BitDefFn, Shift16DefWaitstates);
+    WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForDef);
+  }
+
+  if (ST.hasVDecCoExecHazard()) {
+    const int VALUWriteSGPRVALUReadWaitstates = 2;
+    const int VALUWriteEXECRWLane = 4;
+    const int VALUWriteVGPRReadlaneRead = 1;
+
+    const SIRegisterInfo *TRI = ST.getRegisterInfo();
+    const MachineRegisterInfo &MRI = MF.getRegInfo();
+    Register UseReg;
+    auto IsVALUDefSGPRFn = [&UseReg, TRI](const MachineInstr &MI) {
+      if (!SIInstrInfo::isVALU(MI))
+        return false;
+      return MI.modifiesRegister(UseReg, TRI);
+    };
+
+    for (const MachineOperand &Use : VALU->explicit_uses()) {
+      if (!Use.isReg())
+        continue;
+
+      UseReg = Use.getReg();
+      if (TRI->isSGPRReg(MRI, UseReg)) {
+        int WaitStatesNeededForDef =
+            VALUWriteSGPRVALUReadWaitstates -
+            getWaitStatesSince(IsVALUDefSGPRFn,
+                               VALUWriteSGPRVALUReadWaitstates);
+        WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForDef);
+      }
+    }
+
+    if (VALU->readsRegister(AMDGPU::VCC, TRI)) {
+      UseReg = AMDGPU::VCC;
+      int WaitStatesNeededForDef =
+          VALUWriteSGPRVALUReadWaitstates -
+          getWaitStatesSince(IsVALUDefSGPRFn, VALUWriteSGPRVALUReadWaitstates);
+      WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForDef);
+    }
+
+    switch (VALU->getOpcode()) {
+    case AMDGPU::V_READLANE_B32:
+    case AMDGPU::V_READFIRSTLANE_B32: {
+      MachineOperand *Src = TII.getNamedOperand(*VALU, AMDGPU::OpName::src0);
+      UseReg = Src->getReg();
+      int WaitStatesNeededForDef =
+          VALUWriteVGPRReadlaneRead -
+          getWaitStatesSince(IsVALUDefSGPRFn, VALUWriteVGPRReadlaneRead);
+      WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForDef);
+    }
+      LLVM_FALLTHROUGH;
+    case AMDGPU::V_WRITELANE_B32: {
+      UseReg = AMDGPU::EXEC;
+      int WaitStatesNeededForDef =
+          VALUWriteEXECRWLane -
+          getWaitStatesSince(IsVALUDefSGPRFn, VALUWriteEXECRWLane);
+      WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForDef);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
   // This checks for the hazard where VMEM instructions that store more than
   // 8 bytes can have there store data over written by the next instruction.
   if (!ST.has12DWordStoreHazard())
-    return 0;
+    return WaitStatesNeeded;
 
   const MachineRegisterInfo &MRI = MF.getRegInfo();
-  int WaitStatesNeeded = 0;
 
   for (const MachineOperand &Def : VALU->defs()) {
     WaitStatesNeeded = std::max(WaitStatesNeeded, checkVALUHazardsHelper(Def, MRI));
@@ -861,10 +1064,10 @@ int GCNHazardRecognizer::checkRFEHazards(MachineInstr *RFE) {
 
 int GCNHazardRecognizer::checkReadM0Hazards(MachineInstr *MI) {
   const SIInstrInfo *TII = ST.getInstrInfo();
-  const int SMovRelWaitStates = 1;
+  const int ReadM0WaitStates = 1;
   auto IsHazardFn = [TII](const MachineInstr &MI) { return TII->isSALU(MI); };
-  return SMovRelWaitStates - getWaitStatesSinceDef(AMDGPU::M0, IsHazardFn,
-                                                   SMovRelWaitStates);
+  return ReadM0WaitStates -
+         getWaitStatesSinceDef(AMDGPU::M0, IsHazardFn, ReadM0WaitStates);
 }
 
 void GCNHazardRecognizer::fixHazards(MachineInstr *MI) {
@@ -873,6 +1076,13 @@ void GCNHazardRecognizer::fixHazards(MachineInstr *MI) {
   fixSMEMtoVectorWriteHazards(MI);
   fixVcmpxExecWARHazard(MI);
   fixLdsBranchVmemWARHazard(MI);
+  if (ST.hasLdsDirect()) {
+    fixLdsDirectVALUHazard(MI);
+    fixLdsDirectVMEMHazard(MI);
+  }
+  fixVALUPartialForwardingHazard(MI);
+  fixVALUTransUseHazard(MI);
+  fixWMMAHazards(MI);
 }
 
 bool GCNHazardRecognizer::fixVcmpxPermlaneHazards(MachineInstr *MI) {
@@ -880,7 +1090,12 @@ bool GCNHazardRecognizer::fixVcmpxPermlaneHazards(MachineInstr *MI) {
     return false;
 
   const SIInstrInfo *TII = ST.getInstrInfo();
-  auto IsHazardFn = [TII](const MachineInstr &MI) { return TII->isVOPC(MI); };
+  const SIRegisterInfo *TRI = ST.getRegisterInfo();
+  auto IsHazardFn = [TII, TRI](const MachineInstr &MI) {
+    return (TII->isVOPC(MI) ||
+            ((TII->isVOP3(MI) || TII->isSDWA(MI)) && MI.isCompare())) &&
+           MI.modifiesRegister(AMDGPU::EXEC, TRI);
+  };
 
   auto IsExpiredFn = [](const MachineInstr &MI, int) {
     unsigned Opc = MI.getOpcode();
@@ -893,7 +1108,7 @@ bool GCNHazardRecognizer::fixVcmpxPermlaneHazards(MachineInstr *MI) {
     return false;
 
   // V_NOP will be discarded by SQ.
-  // Use V_MOB_B32 v?, v?. Register must be alive so use src0 of V_PERMLANE*
+  // Use V_MOV_B32 v?, v?. Register must be alive so use src0 of V_PERMLANE*
   // which is always a VGPR and available.
   auto *Src0 = TII->getNamedOperand(*MI, AMDGPU::OpName::src0);
   Register Reg = Src0->getReg();
@@ -1157,6 +1372,369 @@ bool GCNHazardRecognizer::fixLdsBranchVmemWARHazard(MachineInstr *MI) {
   return true;
 }
 
+bool GCNHazardRecognizer::fixLdsDirectVALUHazard(MachineInstr *MI) {
+  if (!SIInstrInfo::isLDSDIR(*MI))
+    return false;
+
+  const int NoHazardWaitStates = 15;
+  const MachineOperand *VDST = TII.getNamedOperand(*MI, AMDGPU::OpName::vdst);
+  const Register VDSTReg = VDST->getReg();
+
+  bool VisitedTrans = false;
+  auto IsHazardFn = [this, VDSTReg, &VisitedTrans](const MachineInstr &I) {
+    if (!SIInstrInfo::isVALU(I))
+      return false;
+    VisitedTrans = VisitedTrans || SIInstrInfo::isTRANS(I);
+    // Cover both WAR and WAW
+    return I.readsRegister(VDSTReg, &TRI) || I.modifiesRegister(VDSTReg, &TRI);
+  };
+  auto IsExpiredFn = [&](const MachineInstr &I, int WaitStates) {
+    if (WaitStates >= NoHazardWaitStates)
+      return true;
+    // Instructions which cause va_vdst==0 expire hazard
+    return SIInstrInfo::isVMEM(I) || SIInstrInfo::isFLAT(I) ||
+           SIInstrInfo::isDS(I) || SIInstrInfo::isEXP(I);
+  };
+  auto GetWaitStatesFn = [](const MachineInstr &MI) {
+    return SIInstrInfo::isVALU(MI) ? 1 : 0;
+  };
+
+  DenseSet<const MachineBasicBlock *> Visited;
+  auto Count = ::getWaitStatesSince(IsHazardFn, MI->getParent(),
+                                    std::next(MI->getReverseIterator()), 0,
+                                    IsExpiredFn, Visited, GetWaitStatesFn);
+
+  // Transcendentals can execute in parallel to other VALUs.
+  // This makes va_vdst count unusable with a mixture of VALU and TRANS.
+  if (VisitedTrans)
+    Count = 0;
+
+  MachineOperand *WaitVdstOp =
+      TII.getNamedOperand(*MI, AMDGPU::OpName::waitvdst);
+  WaitVdstOp->setImm(std::min(Count, NoHazardWaitStates));
+
+  return true;
+}
+
+bool GCNHazardRecognizer::fixLdsDirectVMEMHazard(MachineInstr *MI) {
+  if (!SIInstrInfo::isLDSDIR(*MI))
+    return false;
+
+  const MachineOperand *VDST = TII.getNamedOperand(*MI, AMDGPU::OpName::vdst);
+  const Register VDSTReg = VDST->getReg();
+
+  auto IsHazardFn = [this, VDSTReg](const MachineInstr &I) {
+    if (!SIInstrInfo::isVMEM(I) && !SIInstrInfo::isFLAT(I) &&
+        !SIInstrInfo::isDS(I))
+      return false;
+    return I.readsRegister(VDSTReg, &TRI) || I.modifiesRegister(VDSTReg, &TRI);
+  };
+  auto IsExpiredFn = [](const MachineInstr &I, int) {
+    return SIInstrInfo::isVALU(I) || SIInstrInfo::isEXP(I) ||
+           (I.getOpcode() == AMDGPU::S_WAITCNT && !I.getOperand(0).getImm()) ||
+           (I.getOpcode() == AMDGPU::S_WAITCNT_DEPCTR &&
+            I.getOperand(0).getImm() == 0xffe3);
+  };
+
+  if (::getWaitStatesSince(IsHazardFn, MI, IsExpiredFn) ==
+      std::numeric_limits<int>::max())
+    return false;
+
+  BuildMI(*MI->getParent(), MI, MI->getDebugLoc(),
+          TII.get(AMDGPU::S_WAITCNT_DEPCTR))
+      .addImm(0xffe3);
+
+  return true;
+}
+
+bool GCNHazardRecognizer::fixVALUPartialForwardingHazard(MachineInstr *MI) {
+  if (!ST.isWave64())
+    return false;
+  if (!ST.hasVALUPartialForwardingHazard())
+    return false;
+  if (!SIInstrInfo::isVALU(*MI))
+    return false;
+
+  SmallSetVector<Register, 4> SrcVGPRs;
+
+  for (const MachineOperand &Use : MI->explicit_uses()) {
+    if (Use.isReg() && TRI.isVGPR(MF.getRegInfo(), Use.getReg()))
+      SrcVGPRs.insert(Use.getReg());
+  }
+
+  // Only applies with >= 2 unique VGPR sources
+  if (SrcVGPRs.size() <= 1)
+    return false;
+
+  // Look for the following pattern:
+  //   Va <- VALU [PreExecPos]
+  //   intv1
+  //   Exec <- SALU [ExecPos]
+  //   intv2
+  //   Vb <- VALU [PostExecPos]
+  //   intv3
+  //   MI Va, Vb (WaitState = 0)
+  //
+  // Where:
+  // intv1 + intv2 <= 2 VALUs
+  // intv3 <= 4 VALUs
+  //
+  // If found, insert an appropriate S_WAITCNT_DEPCTR before MI.
+
+  const int Intv1plus2MaxVALUs = 2;
+  const int Intv3MaxVALUs = 4;
+  const int IntvMaxVALUs = 6;
+  const int NoHazardVALUWaitStates = IntvMaxVALUs + 2;
+
+  struct StateType {
+    SmallDenseMap<Register, int, 4> DefPos;
+    int ExecPos = std::numeric_limits<int>::max();
+    int VALUs = 0;
+  };
+
+  StateType State;
+
+  // This overloads expiry testing with all the hazard detection
+  auto IsHazardFn = [&, this](StateType &State, const MachineInstr &I) {
+    // Too many VALU states have passed
+    if (State.VALUs > NoHazardVALUWaitStates)
+      return HazardExpired;
+
+    // Instructions which cause va_vdst==0 expire hazard
+    if (SIInstrInfo::isVMEM(I) || SIInstrInfo::isFLAT(I) ||
+        SIInstrInfo::isDS(I) || SIInstrInfo::isEXP(I) ||
+        (I.getOpcode() == AMDGPU::S_WAITCNT_DEPCTR &&
+         I.getOperand(0).getImm() == 0x0fff))
+      return HazardExpired;
+
+    // Track registers writes
+    bool Changed = false;
+    if (SIInstrInfo::isVALU(I)) {
+      for (Register Src : SrcVGPRs) {
+        if (!State.DefPos.count(Src) && I.modifiesRegister(Src, &TRI)) {
+          State.DefPos[Src] = State.VALUs;
+          Changed = true;
+        }
+      }
+    } else if (SIInstrInfo::isSALU(I)) {
+      if (State.ExecPos == std::numeric_limits<int>::max()) {
+        if (!State.DefPos.empty() && I.modifiesRegister(AMDGPU::EXEC, &TRI)) {
+          State.ExecPos = State.VALUs;
+          Changed = true;
+        }
+      }
+    }
+
+    // Early expiration: too many VALUs in intv3
+    if (State.VALUs > Intv3MaxVALUs && State.DefPos.empty())
+      return HazardExpired;
+
+    // Only evaluate state if something changed
+    if (!Changed)
+      return NoHazardFound;
+
+    // Determine positions of VALUs pre/post exec change
+    if (State.ExecPos == std::numeric_limits<int>::max())
+      return NoHazardFound;
+
+    int PreExecPos = std::numeric_limits<int>::max();
+    int PostExecPos = std::numeric_limits<int>::max();
+
+    for (auto Entry : State.DefPos) {
+      int DefVALUs = Entry.second;
+      if (DefVALUs != std::numeric_limits<int>::max()) {
+        if (DefVALUs >= State.ExecPos)
+          PreExecPos = std::min(PreExecPos, DefVALUs);
+        else if (DefVALUs < State.ExecPos)
+          PostExecPos = std::min(PostExecPos, DefVALUs);
+      }
+    }
+
+    // Need a VALUs post exec change
+    if (PostExecPos == std::numeric_limits<int>::max())
+      return NoHazardFound;
+
+    // Too many VALUs in intv3?
+    int Intv3VALUs = PostExecPos;
+    if (Intv3VALUs > Intv3MaxVALUs)
+      return HazardExpired;
+
+    // Too many VALUs in intv2?
+    int Intv2VALUs = (State.ExecPos - PostExecPos) - 1;
+    if (Intv2VALUs > Intv1plus2MaxVALUs)
+      return HazardExpired;
+
+    // Need a VALUs pre exec change
+    if (PreExecPos == std::numeric_limits<int>::max())
+      return NoHazardFound;
+
+    // Too many VALUs in intv1?
+    int Intv1VALUs = PreExecPos - State.ExecPos;
+    if (Intv1VALUs > Intv1plus2MaxVALUs)
+      return HazardExpired;
+
+    // Too many VALUs in intv1 + intv2
+    if (Intv1VALUs + Intv2VALUs > Intv1plus2MaxVALUs)
+      return HazardExpired;
+
+    return HazardFound;
+  };
+  auto UpdateStateFn = [](StateType &State, const MachineInstr &MI) {
+    if (SIInstrInfo::isVALU(MI))
+      State.VALUs += 1;
+  };
+
+  DenseSet<const MachineBasicBlock *> Visited;
+  if (!hasHazard<StateType>(State, IsHazardFn, UpdateStateFn, MI->getParent(),
+                            std::next(MI->getReverseIterator()), Visited))
+    return false;
+
+  BuildMI(*MI->getParent(), MI, MI->getDebugLoc(),
+          TII.get(AMDGPU::S_WAITCNT_DEPCTR))
+      .addImm(0x0fff);
+
+  return true;
+}
+
+bool GCNHazardRecognizer::fixVALUTransUseHazard(MachineInstr *MI) {
+  if (!ST.hasVALUTransUseHazard())
+    return false;
+  if (!SIInstrInfo::isVALU(*MI))
+    return false;
+
+  SmallSet<Register, 4> SrcVGPRs;
+
+  for (const MachineOperand &Use : MI->explicit_uses()) {
+    if (Use.isReg() && TRI.isVGPR(MF.getRegInfo(), Use.getReg()))
+      SrcVGPRs.insert(Use.getReg());
+  }
+
+  // Look for the following pattern:
+  //   Va <- TRANS VALU
+  //   intv
+  //   MI Va (WaitState = 0)
+  //
+  // Where:
+  // intv <= 5 VALUs / 1 TRANS
+  //
+  // If found, insert an appropriate S_WAITCNT_DEPCTR before MI.
+
+  const int IntvMaxVALUs = 5;
+  const int IntvMaxTRANS = 1;
+
+  struct StateType {
+    int VALUs = 0;
+    int TRANS = 0;
+  };
+
+  StateType State;
+
+  // This overloads expiry testing with all the hazard detection
+  auto IsHazardFn = [&, this](StateType &State, const MachineInstr &I) {
+    // Too many VALU states have passed
+    if (State.VALUs > IntvMaxVALUs || State.TRANS > IntvMaxTRANS)
+      return HazardExpired;
+
+    // Instructions which cause va_vdst==0 expire hazard
+    if (SIInstrInfo::isVMEM(I) || SIInstrInfo::isFLAT(I) ||
+        SIInstrInfo::isDS(I) || SIInstrInfo::isEXP(I) ||
+        (I.getOpcode() == AMDGPU::S_WAITCNT_DEPCTR &&
+         I.getOperand(0).getImm() == 0x0fff))
+      return HazardExpired;
+
+    // Track registers writes
+    if (SIInstrInfo::isTRANS(I)) {
+      for (Register Src : SrcVGPRs) {
+        if (I.modifiesRegister(Src, &TRI)) {
+          return HazardFound;
+        }
+      }
+    }
+
+    return NoHazardFound;
+  };
+  auto UpdateStateFn = [](StateType &State, const MachineInstr &MI) {
+    if (SIInstrInfo::isVALU(MI))
+      State.VALUs += 1;
+    if (SIInstrInfo::isTRANS(MI))
+      State.TRANS += 1;
+  };
+
+  DenseSet<const MachineBasicBlock *> Visited;
+  if (!hasHazard<StateType>(State, IsHazardFn, UpdateStateFn, MI->getParent(),
+                            std::next(MI->getReverseIterator()), Visited))
+    return false;
+
+  // Hazard is observed - insert a wait on va_dst counter to ensure hazard is
+  // avoided (mask 0x0fff achieves this).
+  BuildMI(*MI->getParent(), MI, MI->getDebugLoc(),
+          TII.get(AMDGPU::S_WAITCNT_DEPCTR))
+      .addImm(0x0fff);
+
+  return true;
+}
+
+bool GCNHazardRecognizer::fixWMMAHazards(MachineInstr *MI) {
+  if (!SIInstrInfo::isWMMA(*MI))
+    return false;
+
+  const SIInstrInfo *TII = ST.getInstrInfo();
+  const SIRegisterInfo *TRI = ST.getRegisterInfo();
+
+  auto IsHazardFn = [MI, TII, TRI](const MachineInstr &I) {
+    if (!SIInstrInfo::isWMMA(I))
+      return false;
+
+    // Src0 or Src1 of the current wmma instruction overlaps with the dest of
+    // the previous wmma.
+    const Register CurSrc0Reg =
+        TII->getNamedOperand(*MI, AMDGPU::OpName::src0)->getReg();
+    const Register CurSrc1Reg =
+        TII->getNamedOperand(*MI, AMDGPU::OpName::src1)->getReg();
+
+    const Register PrevDstReg =
+        TII->getNamedOperand(I, AMDGPU::OpName::vdst)->getReg();
+
+    if (TRI->regsOverlap(PrevDstReg, CurSrc0Reg) ||
+        TRI->regsOverlap(PrevDstReg, CurSrc1Reg)) {
+      return true;
+    }
+
+    // Src2 of the current wmma instruction overlaps with the dest of the
+    // previous wmma.
+    const MachineOperand *Src2 =
+        TII->getNamedOperand(*MI, AMDGPU::OpName::src2);
+    const Register CurSrc2Reg = Src2->isReg() ? Src2->getReg() : Register();
+
+    if (CurSrc2Reg != AMDGPU::NoRegister &&
+        TRI->regsOverlap(PrevDstReg, CurSrc2Reg)) {
+
+      const MachineOperand *Src2Mods =
+          TII->getNamedOperand(*MI, AMDGPU::OpName::src2_modifiers);
+      const bool NoSrc2Mods =
+          (Src2Mods->getImm() & (SISrcMods::NEG | SISrcMods::NEG_HI)) == 0;
+      // Exception: there is no hazard if the wmma instructions are of the same
+      // type and there is no input modifier on src2 of the current instruction.
+      return !(NoSrc2Mods && (TII->pseudoToMCOpcode(I.getOpcode()) ==
+                              TII->pseudoToMCOpcode(MI->getOpcode())));
+    }
+
+    return false;
+  };
+
+  auto IsExpiredFn = [](const MachineInstr &I, int) {
+    return SIInstrInfo::isVALU(I);
+  };
+
+  if (::getWaitStatesSince(IsHazardFn, MI, IsExpiredFn) ==
+      std::numeric_limits<int>::max())
+    return false;
+
+  BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), TII->get(AMDGPU::V_NOP_e32));
+
+  return true;
+}
+
 int GCNHazardRecognizer::checkNSAtoVMEMHazard(MachineInstr *MI) {
   int NSAtoVMEMWaitStates = 1;
 
@@ -1223,6 +1801,36 @@ int GCNHazardRecognizer::checkMAIHazards(MachineInstr *MI) {
   return ST.hasGFX90AInsts() ? checkMAIHazards90A(MI) : checkMAIHazards908(MI);
 }
 
+int GCNHazardRecognizer::checkMFMAPadding(MachineInstr *MI) {
+  // Early exit if no padding is requested.
+  if (MFMAPaddingRatio == 0)
+    return 0;
+
+  const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
+  if (!SIInstrInfo::isMFMA(*MI) || MFI->getOccupancy() < 2)
+    return 0;
+
+  int NeighborMFMALatency = 0;
+  auto IsNeighboringMFMA = [&NeighborMFMALatency,
+                            this](const MachineInstr &MI) {
+    if (!SIInstrInfo::isMFMA(MI))
+      return false;
+
+    NeighborMFMALatency = this->getMFMAPipelineWaitStates(MI);
+    return true;
+  };
+
+  const int MaxMFMAPipelineWaitStates = 16;
+  int WaitStatesSinceNeighborMFMA =
+      getWaitStatesSince(IsNeighboringMFMA, MaxMFMAPipelineWaitStates);
+
+  int NeighborMFMAPaddingNeeded =
+      (NeighborMFMALatency * MFMAPaddingRatio / 100) -
+      WaitStatesSinceNeighborMFMA;
+
+  return std::max(0, NeighborMFMAPaddingNeeded);
+}
+
 int GCNHazardRecognizer::checkMAIHazards908(MachineInstr *MI) {
   int WaitStatesNeeded = 0;
   unsigned Opc = MI->getOpcode();
@@ -1257,12 +1865,6 @@ int GCNHazardRecognizer::checkMAIHazards908(MachineInstr *MI) {
     }
   }
 
-  auto IsMFMAFn = [](const MachineInstr &MI) {
-    return SIInstrInfo::isMAI(MI) &&
-           MI.getOpcode() != AMDGPU::V_ACCVGPR_WRITE_B32_e64 &&
-           MI.getOpcode() != AMDGPU::V_ACCVGPR_READ_B32_e64;
-  };
-
   for (const MachineOperand &Op : MI->explicit_operands()) {
     if (!Op.isReg() || !TRI.isAGPR(MF.getRegInfo(), Op.getReg()))
       continue;
@@ -1282,9 +1884,9 @@ int GCNHazardRecognizer::checkMAIHazards908(MachineInstr *MI) {
     Register Reg = Op.getReg();
     unsigned HazardDefLatency = 0;
 
-    auto IsOverlappedMFMAFn = [Reg, &IsMFMAFn, &HazardDefLatency,
+    auto IsOverlappedMFMAFn = [Reg, &HazardDefLatency,
                                this](const MachineInstr &MI) {
-      if (!IsMFMAFn(MI))
+      if (!SIInstrInfo::isMFMA(MI))
         return false;
       Register DstReg = MI.getOperand(0).getReg();
       if (DstReg == Reg)
@@ -1361,9 +1963,9 @@ int GCNHazardRecognizer::checkMAIHazards908(MachineInstr *MI) {
     Register DstReg = MI->getOperand(0).getReg();
     unsigned HazardDefLatency = 0;
 
-    auto IsSrcCMFMAFn = [DstReg, &IsMFMAFn, &HazardDefLatency,
+    auto IsSrcCMFMAFn = [DstReg, &HazardDefLatency,
                          this](const MachineInstr &MI) {
-      if (!IsMFMAFn(MI))
+      if (!SIInstrInfo::isMFMA(MI))
         return false;
       Register Reg = TII.getNamedOperand(MI, AMDGPU::OpName::src2)->getReg();
       HazardDefLatency =
@@ -1387,6 +1989,9 @@ int GCNHazardRecognizer::checkMAIHazards908(MachineInstr *MI) {
     WaitStatesNeeded = std::max(WaitStatesNeeded, WaitStatesNeededForUse);
   }
 
+  // Pad neighboring MFMA with noops for better inter-wave performance.
+  WaitStatesNeeded = std::max(WaitStatesNeeded, checkMFMAPadding(MI));
+
   return WaitStatesNeeded;
 }
 
@@ -1394,21 +1999,16 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
   int WaitStatesNeeded = 0;
   unsigned Opc = MI->getOpcode();
 
-  auto IsMFMAFn = [](const MachineInstr &MI) {
-    return SIInstrInfo::isMAI(MI) &&
-           MI.getOpcode() != AMDGPU::V_ACCVGPR_WRITE_B32_e64 &&
-           MI.getOpcode() != AMDGPU::V_ACCVGPR_READ_B32_e64;
+  auto IsLegacyVALUFn = [](const MachineInstr &MI) {
+    return SIInstrInfo::isVALU(MI) && !SIInstrInfo::isMFMA(MI);
   };
 
-  auto IsLegacyVALUFn = [&IsMFMAFn](const MachineInstr &MI) {
-    return SIInstrInfo::isVALU(MI) && !IsMFMAFn(MI);
+  auto IsLegacyVALUNotDotFn = [](const MachineInstr &MI) {
+    return SIInstrInfo::isVALU(MI) && !SIInstrInfo::isMFMA(MI) &&
+           !SIInstrInfo::isDOT(MI);
   };
 
-  auto IsLegacyVALUNotDotFn = [&IsMFMAFn](const MachineInstr &MI) {
-    return SIInstrInfo::isVALU(MI) && !IsMFMAFn(MI) && !SIInstrInfo::isDOT(MI);
-  };
-
-  if (!IsMFMAFn(*MI))
+  if (!SIInstrInfo::isMFMA(*MI))
     return WaitStatesNeeded;
 
   const int VALUWritesExecWaitStates = 4;
@@ -1423,6 +2023,13 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
   for (const MachineOperand &Use : MI->explicit_uses()) {
     const int LegacyVALUNotDotWritesVGPRWaitStates = 2;
     const int SMFMA4x4WritesVGPROverlappedSMFMASrcCWaitStates = 2;
+    const int GFX940_XDL2PassWritesVGPROverlappedSMFMASrcCWaitStates = 3;
+    const int GFX940_XDL4PassWritesVGPROverlappedSMFMASrcCWaitStates = 5;
+    const int GFX940_SMFMA4PassWritesVGPROverlappedSMFMASrcCWaitStates = 4;
+    const int GFX940_XDL8PassWritesVGPROverlappedSMFMASrcCWaitStates = 9;
+    const int GFX940_SMFMA8PassWritesVGPROverlappedSMFMASrcCWaitStates = 8;
+    const int GFX940_XDL16PassWritesVGPROverlappedSMFMASrcCWaitStates = 17;
+    const int GFX940_SMFMA16PassWritesVGPROverlappedSMFMASrcCWaitStates = 16;
     const int SMFMA16x16WritesVGPROverlappedSMFMASrcCWaitStates = 8;
     const int SMFMA32x32WritesVGPROverlappedSMFMASrcCWaitStates = 16;
     const int SMFMA4x4WritesVGPROverlappedDMFMASrcCWaitStates = 3;
@@ -1433,9 +2040,18 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
     const int SMFMA4x4WritesVGPROverlappedSrcABWaitStates = 5;
     const int SMFMA16x16WritesVGPROverlappedSrcABWaitStates = 11;
     const int SMFMA32x32WritesVGPROverlappedSrcABWaitStates = 19;
+    const int GFX940_SMFMA2PassWritesVGPROverlappedSrcABWaitStates = 4;
+    const int GFX940_SMFMA4PassWritesVGPROverlappedSrcABWaitStates = 6;
+    const int GFX940_SMFMA8PassWritesVGPROverlappedSrcABWaitStates = 10;
+    const int GFX940_SMFMA16PassWritesVGPROverlappedSrcABWaitStates = 18;
+    const int GFX940_XDL2PassWritesVGPROverlappedSrcABWaitStates = 5;
+    const int GFX940_XDL4PassWritesVGPROverlappedSrcABWaitStates = 7;
+    const int GFX940_XDL8PassWritesVGPROverlappedSrcABWaitStates = 11;
+    const int GFX940_XDL16PassWritesVGPROverlappedSrcABWaitStates = 19;
     const int DMFMA4x4WritesVGPROverlappedMFMASrcABWaitStates = 6;
     const int DMFMA16x16WritesVGPROverlappedMFMASrcABWaitStates = 11;
     const int DMFMA4x4WritesVGPRFullSrcCWaitStates = 4;
+    const int GFX940_SMFMA4x4WritesVGPRFullSrcCWaitStates = 2;
     const int MaxWaitStates = 19;
 
     if (!Use.isReg())
@@ -1444,9 +2060,9 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
     bool FullReg;
     const MachineInstr *MI1;
 
-    auto IsOverlappedMFMAFn = [Reg, &IsMFMAFn, &FullReg, &MI1,
+    auto IsOverlappedMFMAFn = [Reg, &FullReg, &MI1,
                                this](const MachineInstr &MI) {
-      if (!IsMFMAFn(MI))
+      if (!SIInstrInfo::isMFMA(MI))
         return false;
       Register DstReg = MI.getOperand(0).getReg();
       FullReg = (DstReg == Reg);
@@ -1467,7 +2083,7 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
     unsigned Opc1 = MI1->getOpcode();
     int NeedWaitStates = 0;
     if (OpNo == SrcCIdx) {
-      if (!isDGEMM(Opc) && isDGEMM(Opc1)) {
+      if (!isDGEMM(Opc) && (!ST.hasGFX940Insts() && isDGEMM(Opc1))) {
         NeedWaitStates = 0;
       } else if (FullReg) {
         if ((Opc == AMDGPU::V_MFMA_F64_4X4X4F64_e64 ||
@@ -1475,6 +2091,9 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
             (Opc1 == AMDGPU::V_MFMA_F64_4X4X4F64_e64 ||
              Opc1 == AMDGPU::V_MFMA_F64_4X4X4F64_vgprcd_e64))
           NeedWaitStates = DMFMA4x4WritesVGPRFullSrcCWaitStates;
+        else if (ST.hasGFX940Insts() &&
+                 TSchedModel.computeInstrLatency(MI1) == 2)
+          NeedWaitStates = GFX940_SMFMA4x4WritesVGPRFullSrcCWaitStates;
       } else {
         switch (Opc1) {
         case AMDGPU::V_MFMA_F64_16X16X4F64_e64:
@@ -1490,22 +2109,42 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
             NeedWaitStates = DMFMA4x4WritesVGPROverlappedSrcCWaitStates;
           break;
         default:
+          if (ST.hasGFX940Insts() && isXDL(ST, *MI) && !isXDL(ST, *MI1))
+            break;
           switch (TSchedModel.computeInstrLatency(MI1)) {
           case 2:
-            NeedWaitStates = isDGEMM(Opc)
-              ? SMFMA4x4WritesVGPROverlappedDMFMASrcCWaitStates
-              : SMFMA4x4WritesVGPROverlappedSMFMASrcCWaitStates;
+            NeedWaitStates = ST.hasGFX940Insts()
+              ? isXDL(ST, *MI1)
+                ? GFX940_XDL2PassWritesVGPROverlappedSMFMASrcCWaitStates
+                : SMFMA4x4WritesVGPROverlappedSMFMASrcCWaitStates
+              : isDGEMM(Opc)
+                ? SMFMA4x4WritesVGPROverlappedDMFMASrcCWaitStates
+                : SMFMA4x4WritesVGPROverlappedSMFMASrcCWaitStates;
+            break;
+          case 4:
+            assert(ST.hasGFX940Insts());
+            NeedWaitStates = isXDL(ST, *MI1)
+              ? GFX940_XDL4PassWritesVGPROverlappedSMFMASrcCWaitStates
+              : GFX940_SMFMA4PassWritesVGPROverlappedSMFMASrcCWaitStates;
             break;
           case 8:
-            NeedWaitStates = isDGEMM(Opc)
-              ? SMFMA16x16WritesVGPROverlappedDMFMASrcCWaitStates
-              : SMFMA16x16WritesVGPROverlappedSMFMASrcCWaitStates;
+            NeedWaitStates = ST.hasGFX940Insts()
+              ? isXDL(ST, *MI1)
+                ? GFX940_XDL8PassWritesVGPROverlappedSMFMASrcCWaitStates
+                : GFX940_SMFMA8PassWritesVGPROverlappedSMFMASrcCWaitStates
+              : isDGEMM(Opc)
+                ? SMFMA16x16WritesVGPROverlappedDMFMASrcCWaitStates
+                : SMFMA16x16WritesVGPROverlappedSMFMASrcCWaitStates;
             break;
           case 16: LLVM_FALLTHROUGH;
           default:
-            NeedWaitStates = isDGEMM(Opc)
-              ? SMFMA32x32WritesVGPROverlappedDMFMASrcCWaitStates
-              : SMFMA32x32WritesVGPROverlappedSMFMASrcCWaitStates;
+            NeedWaitStates = ST.hasGFX940Insts()
+              ? isXDL(ST, *MI1)
+                ? GFX940_XDL16PassWritesVGPROverlappedSMFMASrcCWaitStates
+                : GFX940_SMFMA16PassWritesVGPROverlappedSMFMASrcCWaitStates
+              : isDGEMM(Opc)
+                ? SMFMA32x32WritesVGPROverlappedDMFMASrcCWaitStates
+                : SMFMA32x32WritesVGPROverlappedSMFMASrcCWaitStates;
           }
         }
       }
@@ -1524,14 +2163,32 @@ int GCNHazardRecognizer::checkMAIHazards90A(MachineInstr *MI) {
       default:
         switch (TSchedModel.computeInstrLatency(MI1)) {
         case 2:
-          NeedWaitStates = SMFMA4x4WritesVGPROverlappedSrcABWaitStates;
+          NeedWaitStates = ST.hasGFX940Insts()
+            ? isXDL(ST, *MI1)
+              ? GFX940_XDL2PassWritesVGPROverlappedSrcABWaitStates
+              : GFX940_SMFMA2PassWritesVGPROverlappedSrcABWaitStates
+            : SMFMA4x4WritesVGPROverlappedSrcABWaitStates;
+          break;
+        case 4:
+          assert(ST.hasGFX940Insts());
+          NeedWaitStates = isXDL(ST, *MI1)
+            ? GFX940_XDL4PassWritesVGPROverlappedSrcABWaitStates
+            : GFX940_SMFMA4PassWritesVGPROverlappedSrcABWaitStates;
           break;
         case 8:
-          NeedWaitStates = SMFMA16x16WritesVGPROverlappedSrcABWaitStates;
+          NeedWaitStates = ST.hasGFX940Insts()
+            ? isXDL(ST, *MI1)
+              ? GFX940_XDL8PassWritesVGPROverlappedSrcABWaitStates
+              : GFX940_SMFMA8PassWritesVGPROverlappedSrcABWaitStates
+            : SMFMA16x16WritesVGPROverlappedSrcABWaitStates;
           break;
         case 16: LLVM_FALLTHROUGH;
         default:
-          NeedWaitStates = SMFMA32x32WritesVGPROverlappedSrcABWaitStates;
+          NeedWaitStates = ST.hasGFX940Insts()
+            ? isXDL(ST, *MI1)
+              ? GFX940_XDL16PassWritesVGPROverlappedSrcABWaitStates
+              : GFX940_SMFMA16PassWritesVGPROverlappedSrcABWaitStates
+            : SMFMA32x32WritesVGPROverlappedSrcABWaitStates;
         }
       }
     }
@@ -1599,18 +2256,12 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
   if (!ST.hasGFX90AInsts())
     return 0;
 
-  auto IsMFMAFn = [](const MachineInstr &MI) -> bool {
-    return SIInstrInfo::isMAI(MI) &&
-           MI.getOpcode() != AMDGPU::V_ACCVGPR_WRITE_B32_e64 &&
-           MI.getOpcode() != AMDGPU::V_ACCVGPR_READ_B32_e64;
-  };
-
   auto IsDGEMMFn = [](const MachineInstr &MI) -> bool {
     return isDGEMM(MI.getOpcode());
   };
 
   // This is checked in checkMAIHazards90A()
-  if (IsMFMAFn(*MI))
+  if (SIInstrInfo::isMFMA(*MI))
     return 0;
 
   int WaitStatesNeeded = 0;
@@ -1623,8 +2274,9 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
 
   const MachineInstr *MFMA = nullptr;
   unsigned Reg;
-  auto IsMFMAWriteFn = [&Reg, &IsMFMAFn, &MFMA, this](const MachineInstr &MI) {
-    if (!IsMFMAFn(MI) || !TRI.regsOverlap(MI.getOperand(0).getReg(), Reg))
+  auto IsMFMAWriteFn = [&Reg, &MFMA, this](const MachineInstr &MI) {
+    if (!SIInstrInfo::isMFMA(MI) ||
+        !TRI.regsOverlap(MI.getOperand(0).getReg(), Reg))
       return false;
     MFMA = &MI;
     return true;
@@ -1646,6 +2298,14 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
     const int SMFMA4x4WriteVgprVALUMemExpReadWaitStates = 5;
     const int SMFMA16x16WriteVgprVALUMemExpReadWaitStates = 11;
     const int SMFMA32x32WriteVgprVALUMemExpReadWaitStates = 19;
+    const int GFX940_SMFMA2PassWriteVgprVALUMemExpReadWaitStates = 4;
+    const int GFX940_SMFMA4PassWriteVgprVALUMemExpReadWaitStates = 6;
+    const int GFX940_SMFMA8PassWriteVgprVALUMemExpReadWaitStates = 10;
+    const int GFX940_SMFMA16PassWriteVgprVALUMemExpReadWaitStates = 18;
+    const int GFX940_XDL2PassWriteVgprVALUMemExpReadWaitStates = 5;
+    const int GFX940_XDL4PassWriteVgprVALUMemExpReadWaitStates = 7;
+    const int GFX940_XDL8PassWriteVgprVALUMemExpReadWaitStates = 11;
+    const int GFX940_XDL16PassWriteVgprVALUMemExpReadWaitStates = 19;
     const int DMFMA4x4WriteVgprMemExpReadWaitStates = 9;
     const int DMFMA16x16WriteVgprMemExpReadWaitStates = 18;
     const int DMFMA4x4WriteVgprVALUReadWaitStates = 6;
@@ -1685,16 +2345,30 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
       int NeedWaitStates = MaxWaitStates;
       switch (HazardDefLatency) {
       case 2:
-        NeedWaitStates = SMFMA4x4WriteVgprVALUMemExpReadWaitStates;
+        NeedWaitStates =
+          ST.hasGFX940Insts()
+            ? isXDL(ST, *MFMA)
+              ? GFX940_XDL2PassWriteVgprVALUMemExpReadWaitStates
+              : GFX940_SMFMA2PassWriteVgprVALUMemExpReadWaitStates
+            : SMFMA4x4WriteVgprVALUMemExpReadWaitStates;
         break;
       case 4:
-        assert(isDGEMM(MFMA->getOpcode()));
+        assert(isDGEMM(MFMA->getOpcode()) || ST.hasGFX940Insts());
         NeedWaitStates =
-            IsMemOrExport ? DMFMA4x4WriteVgprMemExpReadWaitStates
-                          : DMFMA4x4WriteVgprVALUReadWaitStates;
+          isDGEMM(MFMA->getOpcode())
+            ? IsMemOrExport ? DMFMA4x4WriteVgprMemExpReadWaitStates
+                            : DMFMA4x4WriteVgprVALUReadWaitStates
+            : isXDL(ST, *MFMA)
+              ? GFX940_XDL4PassWriteVgprVALUMemExpReadWaitStates
+              : GFX940_SMFMA4PassWriteVgprVALUMemExpReadWaitStates;
         break;
       case 8:
-        NeedWaitStates = SMFMA16x16WriteVgprVALUMemExpReadWaitStates;
+        NeedWaitStates =
+          ST.hasGFX940Insts()
+            ? isXDL(ST, *MFMA)
+              ? GFX940_XDL8PassWriteVgprVALUMemExpReadWaitStates
+              : GFX940_SMFMA8PassWriteVgprVALUMemExpReadWaitStates
+            : SMFMA16x16WriteVgprVALUMemExpReadWaitStates;
         break;
       case 16: LLVM_FALLTHROUGH;
       default:
@@ -1702,7 +2376,11 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
           isDGEMM(MFMA->getOpcode())
             ? IsMemOrExport ? DMFMA16x16WriteVgprMemExpReadWaitStates
                             : DMFMA16x16WriteVgprVALUReadWaitStates
-            : SMFMA32x32WriteVgprVALUMemExpReadWaitStates;
+            : ST.hasGFX940Insts()
+              ? isXDL(ST, *MFMA)
+                ? GFX940_XDL16PassWriteVgprVALUMemExpReadWaitStates
+                : GFX940_SMFMA16PassWriteVgprVALUMemExpReadWaitStates
+              : SMFMA32x32WriteVgprVALUMemExpReadWaitStates;
         break;
       }
 
@@ -1732,7 +2410,16 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
     const int SMFMA4x4WriteVgprVALUWawWaitStates = 5;
     const int SMFMA16x16WriteVgprVALUWawWaitStates = 11;
     const int SMFMA32x32WriteVgprVALUWawWaitStates = 19;
+    const int GFX940_SMFMA2PassWriteVgprVALUWawWaitStates = 4;
+    const int GFX940_SMFMA4PassWriteVgprVALUWawWaitStates = 6;
+    const int GFX940_SMFMA8PassWriteVgprVALUWawWaitStates = 10;
+    const int GFX940_SMFMA16PassWriteVgprVALUWawWaitStates = 18;
+    const int GFX940_XDL2PassWriteVgprVALUWawWaitStates = 5;
+    const int GFX940_XDL4PassWriteVgprVALUWawWaitStates = 7;
+    const int GFX940_XDL8PassWriteVgprVALUWawWaitStates = 11;
+    const int GFX940_XDL16PassWriteVgprVALUWawWaitStates = 19;
     const int SMFMA4x4ReadVgprVALUWarWaitStates = 1;
+    const int GFX940_XDL4PassReadVgprVALUWarWaitStates = 3;
     const int SMFMA16x16ReadVgprVALUWarWaitStates = 7;
     const int SMFMA32x32ReadVgprVALUWarWaitStates = 15;
     const int DMFMA4x4WriteVgprVALUWriteWaitStates = 6;
@@ -1757,19 +2444,35 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
       int NeedWaitStates = MaxWaitStates;
       switch (TSchedModel.computeInstrLatency(MFMA)) {
       case 2:
-        NeedWaitStates = SMFMA4x4WriteVgprVALUWawWaitStates;
+        NeedWaitStates = ST.hasGFX940Insts()
+          ? isXDL(ST, *MFMA)
+            ? GFX940_XDL2PassWriteVgprVALUWawWaitStates
+            : GFX940_SMFMA2PassWriteVgprVALUWawWaitStates
+          : SMFMA4x4WriteVgprVALUWawWaitStates;
         break;
       case 4:
-        assert(isDGEMM(MFMA->getOpcode()));
-        NeedWaitStates = DMFMA4x4WriteVgprVALUWriteWaitStates;
+        assert(isDGEMM(MFMA->getOpcode()) || ST.hasGFX940Insts());
+        NeedWaitStates = isDGEMM(MFMA->getOpcode())
+            ? DMFMA4x4WriteVgprVALUWriteWaitStates
+            : isXDL(ST, *MFMA)
+              ? GFX940_XDL4PassWriteVgprVALUWawWaitStates
+              : GFX940_SMFMA4PassWriteVgprVALUWawWaitStates;
         break;
       case 8:
-        NeedWaitStates = SMFMA16x16WriteVgprVALUWawWaitStates;
+        NeedWaitStates = ST.hasGFX940Insts()
+          ? isXDL(ST, *MFMA)
+            ? GFX940_XDL8PassWriteVgprVALUWawWaitStates
+            : GFX940_SMFMA8PassWriteVgprVALUWawWaitStates
+          : SMFMA16x16WriteVgprVALUWawWaitStates;
         break;
       case 16: LLVM_FALLTHROUGH;
       default:
         NeedWaitStates = isDGEMM(MFMA->getOpcode())
                    ? DMFMA16x16WriteVgprVALUWriteWaitStates
+                   : ST.hasGFX940Insts()
+                     ? isXDL(ST, *MFMA)
+                       ? GFX940_XDL16PassWriteVgprVALUWawWaitStates
+                       : GFX940_SMFMA16PassWriteVgprVALUWawWaitStates
                    : SMFMA32x32WriteVgprVALUWawWaitStates;
         break;
       }
@@ -1781,10 +2484,12 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
         break;
     }
 
-    auto IsSMFMAReadAsCFn = [&Reg, &IsMFMAFn, &MFMA,
-                             this](const MachineInstr &MI) {
-      if (!IsMFMAFn(MI) || isDGEMM(MI.getOpcode()) ||
+    auto IsSMFMAReadAsCFn = [&Reg, &MFMA, this](const MachineInstr &MI) {
+      if (!SIInstrInfo::isMFMA(MI) || isDGEMM(MI.getOpcode()) ||
           !MI.readsRegister(Reg, &TRI))
+        return false;
+
+      if (ST.hasGFX940Insts() && !isXDL(ST, MI))
         return false;
 
       const MachineOperand *SrcC =
@@ -1808,6 +2513,9 @@ int GCNHazardRecognizer::checkMAIVALUHazards(MachineInstr *MI) {
     switch (HazardDefLatency) {
     case 2:  NeedWaitStates = SMFMA4x4ReadVgprVALUWarWaitStates;
              break;
+    case 4:  assert(ST.hasGFX940Insts());
+             NeedWaitStates = GFX940_XDL4PassReadVgprVALUWarWaitStates;
+             break;
     case 8:  NeedWaitStates = SMFMA16x16ReadVgprVALUWarWaitStates;
              break;
     case 16: LLVM_FALLTHROUGH;
@@ -1827,11 +2535,10 @@ bool GCNHazardRecognizer::ShouldPreferAnother(SUnit *SU) {
     return false;
 
   const MachineInstr *MAI = nullptr;
+
   auto IsMFMAFn = [&MAI](const MachineInstr &MI) {
     MAI = nullptr;
-    if (SIInstrInfo::isMAI(MI) &&
-        MI.getOpcode() != AMDGPU::V_ACCVGPR_WRITE_B32_e64 &&
-        MI.getOpcode() != AMDGPU::V_ACCVGPR_READ_B32_e64)
+    if (SIInstrInfo::isMFMA(MI))
       MAI = &MI;
     return MAI != nullptr;
   };

@@ -23,6 +23,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
@@ -37,7 +38,7 @@ using namespace llvm;
 
 static cl::OptionCategory DisCategory("Disassembler Options");
 
-static cl::list<std::string> InputFilenames(cl::Positional, cl::ZeroOrMore,
+static cl::list<std::string> InputFilenames(cl::Positional,
                                             cl::desc("[input bitcode]..."),
                                             cl::cat(DisCategory));
 
@@ -179,8 +180,13 @@ int main(int argc, char **argv) {
   }
 
   for (std::string InputFilename : InputFilenames) {
-    std::unique_ptr<MemoryBuffer> MB = ExitOnErr(
-        errorOrToExpected(MemoryBuffer::getFileOrSTDIN(InputFilename)));
+    ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr =
+        MemoryBuffer::getFileOrSTDIN(InputFilename);
+    if (std::error_code EC = BufferOrErr.getError()) {
+      WithColor::error() << InputFilename << ": " << EC.message() << '\n';
+      return 1;
+    }
+    std::unique_ptr<MemoryBuffer> MB = std::move(BufferOrErr.get());
 
     BitcodeFileContents IF = ExitOnErr(llvm::getBitcodeFileContents(*MB));
 

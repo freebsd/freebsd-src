@@ -55,6 +55,7 @@
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace llvm {
@@ -82,10 +83,9 @@ struct MCPseudoProbeFuncDesc {
   void print(raw_ostream &OS);
 };
 
-class MCPseudoProbe;
 class MCDecodedPseudoProbe;
 
-// An inline frame has the form <Guid, ProbeID>
+// An inline frame has the form <CalleeGuid, ProbeID>
 using InlineSite = std::tuple<uint64_t, uint32_t>;
 using MCPseudoProbeInlineStack = SmallVector<InlineSite, 8>;
 // GUID to PseudoProbeFuncDesc map
@@ -95,7 +95,6 @@ using GUIDProbeFunctionMap =
 using AddressProbesMap =
     std::unordered_map<uint64_t, std::list<MCDecodedPseudoProbe>>;
 
-class MCPseudoProbeInlineTree;
 class MCDecodedPseudoProbeInlineTree;
 
 class MCPseudoProbeBase {
@@ -272,7 +271,7 @@ public:
   MCDecodedPseudoProbeInlineTree(const InlineSite &Site) : ISite(Site){};
 
   // Return false if it's a dummy inline site
-  bool hasInlineSite() const { return std::get<0>(ISite) != 0; }
+  bool hasInlineSite() const { return !isRoot() && !Parent->isRoot(); }
 };
 
 /// Instances of this class represent the pseudo probes inserted into a compile
@@ -354,6 +353,15 @@ public:
 
   // Decode pseudo_probe section to build address to probes map.
   bool buildAddress2ProbeMap(const uint8_t *Start, std::size_t Size);
+
+  // Decode pseudo_probe section to build address to probes map for specifed
+  // functions only.
+  bool buildAddress2ProbeMap(const uint8_t *Start, std::size_t Size,
+                             std::unordered_set<uint64_t> &GuildFilter);
+
+  bool buildAddress2ProbeMap(MCDecodedPseudoProbeInlineTree *Cur,
+                             uint64_t &LastAddr,
+                             std::unordered_set<uint64_t> &GuildFilter);
 
   // Print pseudo_probe_desc section info
   void printGUID2FuncDescMap(raw_ostream &OS);

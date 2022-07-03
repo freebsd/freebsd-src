@@ -17,9 +17,16 @@
 
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/IR/FMF.h"
 
 namespace llvm {
 class StringRef;
+
+namespace Intrinsic {
+typedef unsigned ID;
+}
+
+class Instruction;
 
 namespace fp {
 
@@ -59,10 +66,22 @@ inline bool isDefaultFPEnvironment(fp::ExceptionBehavior EB, RoundingMode RM) {
   return EB == fp::ebIgnore && RM == RoundingMode::NearestTiesToEven;
 }
 
+/// Returns constrained intrinsic id to represent the given instruction in
+/// strictfp function. If the instruction is already a constrained intrinsic or
+/// does not have a constrained intrinsic counterpart, the function returns
+/// zero.
+Intrinsic::ID getConstrainedIntrinsicID(const Instruction &Instr);
+
 /// Returns true if the rounding mode RM may be QRM at compile time or
 /// at run time.
 inline bool canRoundingModeBe(RoundingMode RM, RoundingMode QRM) {
   return RM == QRM || RM == RoundingMode::Dynamic;
+}
+
+/// Returns true if the possibility of a signaling NaN can be safely
+/// ignored.
+inline bool canIgnoreSNaN(fp::ExceptionBehavior EB, FastMathFlags FMF) {
+  return (EB == fp::ebIgnore || FMF.noNaNs());
 }
 }
 #endif

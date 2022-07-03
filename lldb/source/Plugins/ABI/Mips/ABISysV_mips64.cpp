@@ -25,6 +25,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
@@ -526,7 +527,7 @@ ABISysV_mips64::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch)
 bool ABISysV_mips64::PrepareTrivialCall(Thread &thread, addr_t sp,
                                         addr_t func_addr, addr_t return_addr,
                                         llvm::ArrayRef<addr_t> args) const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   if (log) {
     StreamString s;
@@ -826,7 +827,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
             DataExtractor f2_data;
             reg_ctx->ReadRegister(f2_info, f2_value);
             DataExtractor *copy_from_extractor = nullptr;
-            DataBufferSP data_sp(new DataBufferHeap(16, 0));
+            WritableDataBufferSP data_sp(new DataBufferHeap(16, 0));
             DataExtractor return_ext(
                 data_sp, target_byte_order,
                 target->GetArchitecture().GetAddressByteSize());
@@ -866,7 +867,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
              type_flags & eTypeIsVector) {
     // Any structure of up to 16 bytes in size is returned in the registers.
     if (*byte_size <= 16) {
-      DataBufferSP data_sp(new DataBufferHeap(16, 0));
+      WritableDataBufferSP data_sp(new DataBufferHeap(16, 0));
       DataExtractor return_ext(data_sp, target_byte_order,
                                target->GetArchitecture().GetAddressByteSize());
 

@@ -86,7 +86,9 @@ void tools::MinGW::Linker::AddLibGCC(const ArgList &Args,
   CmdArgs.push_back("-lmoldname");
   CmdArgs.push_back("-lmingwex");
   for (auto Lib : Args.getAllArgValues(options::OPT_l))
-    if (StringRef(Lib).startswith("msvcr") || StringRef(Lib).startswith("ucrt"))
+    if (StringRef(Lib).startswith("msvcr") ||
+        StringRef(Lib).startswith("ucrt") ||
+        StringRef(Lib).startswith("crtdll"))
       return;
   CmdArgs.push_back("-lmsvcrt");
 }
@@ -215,6 +217,11 @@ void tools::MinGW::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString("-L" + CRTPath));
 
   AddLinkerInputs(TC, Inputs, Args, CmdArgs, JA);
+
+  if (C.getDriver().IsFlangMode()) {
+    addFortranRuntimeLibraryPath(TC, Args, CmdArgs);
+    addFortranRuntimeLibs(TC, CmdArgs);
+  }
 
   // TODO: Add profile stuff here
 
@@ -476,8 +483,8 @@ bool toolchains::MinGW::IsUnwindTablesDefault(const ArgList &Args) const {
   if (ExceptionArg &&
       ExceptionArg->getOption().matches(options::OPT_fseh_exceptions))
     return true;
-  return getArch() == llvm::Triple::x86_64 ||
-         getArch() == llvm::Triple::aarch64;
+  return getArch() == llvm::Triple::x86_64 || getArch() == llvm::Triple::arm ||
+         getArch() == llvm::Triple::thumb || getArch() == llvm::Triple::aarch64;
 }
 
 bool toolchains::MinGW::isPICDefault() const {
@@ -493,7 +500,8 @@ bool toolchains::MinGW::isPICDefaultForced() const { return true; }
 
 llvm::ExceptionHandling
 toolchains::MinGW::GetExceptionModel(const ArgList &Args) const {
-  if (getArch() == llvm::Triple::x86_64 || getArch() == llvm::Triple::aarch64)
+  if (getArch() == llvm::Triple::x86_64 || getArch() == llvm::Triple::aarch64 ||
+      getArch() == llvm::Triple::arm || getArch() == llvm::Triple::thumb)
     return llvm::ExceptionHandling::WinEH;
   return llvm::ExceptionHandling::DwarfCFI;
 }

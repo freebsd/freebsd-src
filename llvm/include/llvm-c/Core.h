@@ -549,6 +549,13 @@ LLVMBool LLVMContextShouldDiscardValueNames(LLVMContextRef C);
 void LLVMContextSetDiscardValueNames(LLVMContextRef C, LLVMBool Discard);
 
 /**
+ * Set whether the given context is in opaque pointer mode.
+ *
+ * @see LLVMContext::setOpaquePointers()
+ */
+void LLVMContextSetOpaquePointers(LLVMContextRef C, LLVMBool OpaquePointers);
+
+/**
  * Destroy a context instance.
  *
  * This should be called for every call to LLVMContextCreate() or memory
@@ -1391,9 +1398,9 @@ LLVMBool LLVMIsLiteralStruct(LLVMTypeRef StructTy);
  */
 
 /**
- * Obtain the type of elements within a sequential type.
+ * Obtain the element type of an array or vector type.
  *
- * This works on array, vector, and pointer types.
+ * This currently also works for pointer types, but this usage is deprecated.
  *
  * @see llvm::SequentialType::getElementType()
  */
@@ -1441,6 +1448,22 @@ unsigned LLVMGetArrayLength(LLVMTypeRef ArrayTy);
  * @see llvm::PointerType::get()
  */
 LLVMTypeRef LLVMPointerType(LLVMTypeRef ElementType, unsigned AddressSpace);
+
+/**
+ * Determine whether a pointer is opaque.
+ *
+ * True if this is an instance of an opaque PointerType.
+ *
+ * @see llvm::Type::isOpaquePointerTy()
+ */
+LLVMBool LLVMPointerTypeIsOpaque(LLVMTypeRef Ty);
+
+/**
+ * Create an opaque pointer type in a context.
+ *
+ * @see llvm::PointerType::get()
+ */
+LLVMTypeRef LLVMPointerTypeInContext(LLVMContextRef C, unsigned AddressSpace);
 
 /**
  * Obtain the address space of a pointer type.
@@ -2089,11 +2112,23 @@ LLVMValueRef LLVMConstNamedStruct(LLVMTypeRef StructTy,
                                   unsigned Count);
 
 /**
+ * Get element of a constant aggregate (struct, array or vector) at the
+ * specified index. Returns null if the index is out of range, or it's not
+ * possible to determine the element (e.g., because the constant is a
+ * constant expression.)
+ *
+ * @see llvm::Constant::getAggregateElement()
+ */
+LLVMValueRef LLVMGetAggregateElement(LLVMValueRef C, unsigned Idx);
+
+/**
  * Get an element at specified index as a constant.
  *
  * @see ConstantDataSequential::getElementAsConstant()
  */
-LLVMValueRef LLVMGetElementAsConstant(LLVMValueRef C, unsigned idx);
+LLVM_ATTRIBUTE_C_DEPRECATED(
+    LLVMValueRef LLVMGetElementAsConstant(LLVMValueRef C, unsigned idx),
+    "Use LLVMGetAggregateElement instead");
 
 /**
  * Create a ConstantVector from values.
@@ -2203,8 +2238,6 @@ LLVMValueRef LLVMConstInsertElement(LLVMValueRef VectorConstant,
 LLVMValueRef LLVMConstShuffleVector(LLVMValueRef VectorAConstant,
                                     LLVMValueRef VectorBConstant,
                                     LLVMValueRef MaskConstant);
-LLVMValueRef LLVMConstExtractValue(LLVMValueRef AggConstant, unsigned *IdxList,
-                                   unsigned NumIdx);
 LLVMValueRef LLVMConstInsertValue(LLVMValueRef AggConstant,
                                   LLVMValueRef ElementValueConstant,
                                   unsigned *IdxList, unsigned NumIdx);
@@ -3977,6 +4010,9 @@ LLVMValueRef LLVMBuildFPCast(LLVMBuilderRef, LLVMValueRef Val,
 /** Deprecated: This cast is always signed. Use LLVMBuildIntCast2 instead. */
 LLVMValueRef LLVMBuildIntCast(LLVMBuilderRef, LLVMValueRef Val, /*Signed cast!*/
                               LLVMTypeRef DestTy, const char *Name);
+
+LLVMOpcode LLVMGetCastOpcode(LLVMValueRef Src, LLVMBool SrcIsSigned,
+                             LLVMTypeRef DestTy, LLVMBool DestIsSigned);
 
 /* Comparisons */
 LLVMValueRef LLVMBuildICmp(LLVMBuilderRef, LLVMIntPredicate Op,

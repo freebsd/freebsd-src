@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCObjectStreamer.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCAssembler.h"
@@ -37,7 +36,7 @@ MCObjectStreamer::MCObjectStreamer(MCContext &Context,
     setAllowAutoPadding(Assembler->getBackend().allowAutoPadding());
 }
 
-MCObjectStreamer::~MCObjectStreamer() {}
+MCObjectStreamer::~MCObjectStreamer() = default;
 
 // AssemblerPtr is used for evaluation of expressions and causes
 // difference between asm and object outputs. Return nullptr to in
@@ -561,7 +560,7 @@ void MCObjectStreamer::emitDwarfLineEndEntry(MCSection *Section,
   // Switch back the dwarf line section, in case endSection had to switch the
   // section.
   MCContext &Ctx = getContext();
-  SwitchSection(Ctx.getObjectFileInfo()->getDwarfLineSection());
+  switchSection(Ctx.getObjectFileInfo()->getDwarfLineSection());
 
   const MCAsmInfo *AsmInfo = Ctx.getAsmInfo();
   emitDwarfAdvanceLineAddr(INT64_MAX, LastLabel, SectionEnd,
@@ -648,7 +647,8 @@ void MCObjectStreamer::emitValueToAlignment(unsigned ByteAlignment,
                                             unsigned MaxBytesToEmit) {
   if (MaxBytesToEmit == 0)
     MaxBytesToEmit = ByteAlignment;
-  insert(new MCAlignFragment(ByteAlignment, Value, ValueSize, MaxBytesToEmit));
+  insert(new MCAlignFragment(Align(ByteAlignment), Value, ValueSize,
+                             MaxBytesToEmit));
 
   // Update the maximum alignment on the current section if necessary.
   MCSection *CurSec = getCurrentSectionOnly();
@@ -796,7 +796,7 @@ MCObjectStreamer::emitRelocDirective(const MCExpr &Offset, StringRef Name,
                                      const MCExpr *Expr, SMLoc Loc,
                                      const MCSubtargetInfo &STI) {
   Optional<MCFixupKind> MaybeKind = Assembler->getBackend().getFixupKind(Name);
-  if (!MaybeKind.hasValue())
+  if (!MaybeKind)
     return std::make_pair(true, std::string("unknown relocation name"));
 
   MCFixupKind Kind = *MaybeKind;

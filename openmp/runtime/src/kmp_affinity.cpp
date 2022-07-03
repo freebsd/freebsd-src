@@ -818,7 +818,7 @@ void kmp_topology_t::canonicalize() {
       // First try core, then thread, then package
       kmp_hw_t gran_types[3] = {KMP_HW_CORE, KMP_HW_THREAD, KMP_HW_SOCKET};
       for (auto g : gran_types) {
-        if (__kmp_topology->get_equivalent_type(g) != KMP_HW_UNKNOWN) {
+        if (get_equivalent_type(g) != KMP_HW_UNKNOWN) {
           gran_type = g;
           break;
         }
@@ -839,8 +839,8 @@ void kmp_topology_t::canonicalize() {
     // processor groups that cover a socket, then the runtime must
     // restrict the granularity down to the processor group level.
     if (__kmp_num_proc_groups > 1) {
-      int gran_depth = __kmp_topology->get_level(gran_type);
-      int proc_group_depth = __kmp_topology->get_level(KMP_HW_PROC_GROUP);
+      int gran_depth = get_level(gran_type);
+      int proc_group_depth = get_level(KMP_HW_PROC_GROUP);
       if (gran_depth >= 0 && proc_group_depth >= 0 &&
           gran_depth < proc_group_depth) {
         KMP_WARNING(AffGranTooCoarseProcGroup, "KMP_AFFINITY",
@@ -948,7 +948,7 @@ bool kmp_topology_t::filter_hw_subset() {
   bool using_core_effs = false;
   int hw_subset_depth = __kmp_hw_subset->get_depth();
   kmp_hw_t specified[KMP_HW_LAST];
-  int topology_levels[hw_subset_depth];
+  int *topology_levels = (int *)KMP_ALLOCA(sizeof(int) * hw_subset_depth);
   KMP_ASSERT(hw_subset_depth > 0);
   KMP_FOREACH_HW_TYPE(i) { specified[i] = KMP_HW_UNKNOWN; }
   int core_level = get_level(KMP_HW_CORE);
@@ -1765,7 +1765,7 @@ static bool __kmp_affinity_create_hwloc_map(kmp_i18n_id_t *const msg_id) {
 
   hw_thread_index = 0;
   pu = NULL;
-  while (pu = hwloc_get_next_obj_by_type(tp, HWLOC_OBJ_PU, pu)) {
+  while ((pu = hwloc_get_next_obj_by_type(tp, HWLOC_OBJ_PU, pu))) {
     int index = depth - 1;
     bool included = KMP_CPU_ISSET(pu->os_index, __kmp_affin_fullMask);
     kmp_hw_thread_t &hw_thread = __kmp_topology->at(hw_thread_index);

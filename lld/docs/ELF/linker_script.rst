@@ -61,13 +61,16 @@ In the case where no linker script has been provided or every ``SECTIONS``
 command is followed by ``INSERT``, LLD applies built-in rules which are similar
 to GNU ld's internal linker scripts.
 
-- Align the first section in a ``PT_LOAD`` segment according to ``-z noseparate-code``,
-  ``-z separate-code``, or ``-z separate-loadable-segments``
-- Define ``__bss_start``, ``end``, ``_end``, ``etext``, ``_etext``, ``edata``, ``_edata``
-- Sort ``.ctors.*``/``.dtors.*``/``.init_array.*``/``.fini_array.*`` and PowerPC64 specific ``.toc``
+- Align the first section in a ``PT_LOAD`` segment according to
+  ``-z noseparate-code``, ``-z separate-code``, or
+  ``-z separate-loadable-segments``
+- Define ``__bss_start``, ``end``, ``_end``, ``etext``, ``_etext``, ``edata``,
+  ``_edata``
+- Sort ``.ctors.*``/``.dtors.*``/``.init_array.*``/``.fini_array.*`` and
+  PowerPC64 specific ``.toc``
 - Place input ``.text.*`` into output ``.text``, and handle certain variants
-  (``.text.hot.``, ``.text.unknown.``, ``.text.unlikely.``, etc) in the precense of
-  ``-z keep-text-section-prefix``.
+  (``.text.hot.``, ``.text.unknown.``, ``.text.unlikely.``, etc) in the
+  presence of ``-z keep-text-section-prefix``.
 
 Output section description
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -93,6 +96,21 @@ The ELF specification says:
 The presence of ``address`` can cause the condition unsatisfied. LLD will warn.
 GNU ld from Binutils 2.35 onwards will reduce sh_addralign so that
 sh_addr=0 (modulo sh_addralign).
+
+Output section type
+-------------------
+
+When an *OutputSection* *S* has ``(type)``, LLD will set ``sh_type`` or
+``sh_flags`` of *S*. ``type`` is one of:
+
+- ``NOLOAD``: set ``sh_type`` to ``SHT_NOBITS``.
+- ``COPY``, ``INFO``, ``OVERLAY``: clear the ``SHF_ALLOC`` bit in ``sh_flags``.
+- ``TYPE=<value>``: set ``sh_type`` to the specified value. ``<value>`` must be
+  an integer or one of ``SHT_PROGBITS, SHT_NOTE, SHT_NOBITS, SHT_INIT_ARRAY,
+  SHT_FINI_ARRAY, SHT_PREINIT_ARRAY``.
+
+When ``sh_type`` is specified, it is an error if an input section in *S* has a
+different type.
 
 Output section alignment
 ------------------------

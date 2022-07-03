@@ -17,6 +17,7 @@
 
 #include "Encoding.h"
 #include "FormatToken.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Format/Format.h"
@@ -91,6 +92,8 @@ private:
 
   bool tryMergeConflictMarkers();
 
+  void truncateToken(size_t NewLen);
+
   FormatToken *getStashedToken();
 
   FormatToken *getNextToken();
@@ -101,6 +104,7 @@ private:
   unsigned Column;
   unsigned TrailingWhitespace;
   std::unique_ptr<Lexer> Lex;
+  LangOptions LangOpts;
   const SourceManager &SourceMgr;
   FileID ID;
   const FormatStyle &Style;
@@ -121,6 +125,9 @@ private:
 
   // Targets that may appear inside a C# attribute.
   static const llvm::StringSet<> CSharpAttributeTargets;
+
+  /// Handle Verilog-specific tokens.
+  bool readRawTokenVerilogSpecific(Token &Tok);
 
   void readRawToken(FormatToken &Tok);
 

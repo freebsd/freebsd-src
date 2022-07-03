@@ -35,19 +35,33 @@ void DefinitionBlockSeparator::separateBlocks(
   const bool IsNeverStyle =
       Style.SeparateDefinitionBlocks == FormatStyle::SDS_Never;
   const AdditionalKeywords &ExtraKeywords = Tokens.getKeywords();
-  auto LikelyDefinition = [this, ExtraKeywords](const AnnotatedLine *Line,
-                                                bool ExcludeEnum = false) {
+  auto GetBracketLevelChange = [](const FormatToken *Tok) {
+    if (Tok->isOneOf(tok::l_brace, tok::l_paren, tok::l_square))
+      return 1;
+    if (Tok->isOneOf(tok::r_brace, tok::r_paren, tok::r_square))
+      return -1;
+    return 0;
+  };
+  auto LikelyDefinition = [&](const AnnotatedLine *Line,
+                              bool ExcludeEnum = false) {
     if ((Line->MightBeFunctionDecl && Line->mightBeFunctionDefinition()) ||
-        Line->startsWithNamespace())
+        Line->startsWithNamespace()) {
       return true;
-    FormatToken *CurrentToken = Line->First;
-    while (CurrentToken) {
-      if (CurrentToken->isOneOf(tok::kw_class, tok::kw_struct) ||
-          (Style.isJavaScript() && CurrentToken->is(ExtraKeywords.kw_function)))
-        return true;
-      if (!ExcludeEnum && CurrentToken->is(tok::kw_enum))
-        return true;
-      CurrentToken = CurrentToken->Next;
+    }
+    int BracketLevel = 0;
+    for (const FormatToken *CurrentToken = Line->First; CurrentToken;
+         CurrentToken = CurrentToken->Next) {
+      if (BracketLevel == 0) {
+        if ((CurrentToken->isOneOf(tok::kw_class, tok::kw_struct,
+                                   tok::kw_union) ||
+             (Style.isJavaScript() &&
+              CurrentToken->is(ExtraKeywords.kw_function)))) {
+          return true;
+        }
+        if (!ExcludeEnum && CurrentToken->is(tok::kw_enum))
+          return true;
+      }
+      BracketLevel += GetBracketLevelChange(CurrentToken);
     }
     return false;
   };
@@ -80,8 +94,9 @@ void DefinitionBlockSeparator::separateBlocks(
         return;
       if (IsAccessSpecifierToken(TargetToken) ||
           (OpeningLineIndex > 0 &&
-           IsAccessSpecifierToken(Lines[OpeningLineIndex - 1]->First)))
+           IsAccessSpecifierToken(Lines[OpeningLineIndex - 1]->First))) {
         return;
+      }
       if (!TargetLine->Affected)
         return;
       Whitespaces.replaceWhitespace(*TargetToken, NewlineToInsert,
@@ -102,14 +117,17 @@ void DefinitionBlockSeparator::separateBlocks(
              IsPPConditional(OpeningLineIndex - 1);
     };
     const auto HasEnumOnLine = [&]() {
-      FormatToken *CurrentToken = CurrentLine->First;
       bool FoundEnumKeyword = false;
-      while (CurrentToken) {
-        if (CurrentToken->is(tok::kw_enum))
-          FoundEnumKeyword = true;
-        else if (FoundEnumKeyword && CurrentToken->is(tok::l_brace))
-          return true;
-        CurrentToken = CurrentToken->Next;
+      int BracketLevel = 0;
+      for (const FormatToken *CurrentToken = CurrentLine->First; CurrentToken;
+           CurrentToken = CurrentToken->Next) {
+        if (BracketLevel == 0) {
+          if (CurrentToken->is(tok::kw_enum))
+            FoundEnumKeyword = true;
+          else if (FoundEnumKeyword && CurrentToken->is(tok::l_brace))
+            return true;
+        }
+        BracketLevel += GetBracketLevelChange(CurrentToken);
       }
       return FoundEnumKeyword && I + 1 < Lines.size() &&
              Lines[I + 1]->First->is(tok::l_brace);
@@ -141,8 +159,9 @@ void DefinitionBlockSeparator::separateBlocks(
         if (NextLine->MightBeFunctionDecl &&
             NextLine->mightBeFunctionDefinition() &&
             NextLine->First->NewlinesBefore == 1 &&
-            OperateLine->First->is(TT_FunctionLikeOrFreestandingMacro))
+            OperateLine->First->is(TT_FunctionLikeOrFreestandingMacro)) {
           return true;
+        }
       }
 
       if ((Style.isCSharp() && OperateLine->First->is(TT_AttributeSquare)))
@@ -168,10 +187,9 @@ void DefinitionBlockSeparator::separateBlocks(
       TargetToken = TargetLine->First;
       while (TargetToken && !TargetToken->is(tok::r_brace))
         TargetToken = TargetToken->Next;
-      if (!TargetToken) {
+      if (!TargetToken)
         while (I < Lines.size() && !Lines[I]->First->is(tok::r_brace))
           ++I;
-      }
     } else if (CurrentLine->First->closesScope()) {
       if (OpeningLineIndex > Lines.size())
         continue;
@@ -180,8 +198,9 @@ void DefinitionBlockSeparator::separateBlocks(
       // misrecognition.
       if (OpeningLineIndex > 0 &&
           Lines[OpeningLineIndex]->First->is(tok::l_brace) &&
-          Lines[OpeningLineIndex - 1]->Last->isNot(tok::l_brace))
+          Lines[OpeningLineIndex - 1]->Last->isNot(tok::l_brace)) {
         --OpeningLineIndex;
+      }
       OpeningLine = Lines[OpeningLineIndex];
       // Closing a function definition.
       if (LikelyDefinition(OpeningLine)) {
@@ -195,8 +214,9 @@ void DefinitionBlockSeparator::separateBlocks(
           // Avoid duplicated replacement.
           if (TargetToken->isNot(tok::l_brace))
             InsertReplacement(NewlineCount);
-        } else if (IsNeverStyle)
+        } else if (IsNeverStyle) {
           InsertReplacement(OpeningLineIndex != 0);
+        }
       }
     }
 
@@ -212,8 +232,9 @@ void DefinitionBlockSeparator::separateBlocks(
       if (!TargetToken->closesScope() && !IsPPConditional(OpeningLineIndex)) {
         // Check whether current line may precede a definition line.
         while (OpeningLineIndex + 1 < Lines.size() &&
-               MayPrecedeDefinition(/*Direction=*/0))
+               MayPrecedeDefinition(/*Direction=*/0)) {
           ++OpeningLineIndex;
+        }
         TargetLine = Lines[OpeningLineIndex];
         if (!LikelyDefinition(TargetLine)) {
           OpeningLineIndex = I + 1;
@@ -221,16 +242,18 @@ void DefinitionBlockSeparator::separateBlocks(
           TargetToken = TargetLine->First;
           InsertReplacement(NewlineCount);
         }
-      } else if (IsNeverStyle)
+      } else if (IsNeverStyle) {
         InsertReplacement(/*NewlineToInsert=*/1);
+      }
     }
   }
-  for (const auto &R : Whitespaces.generateReplacements())
+  for (const auto &R : Whitespaces.generateReplacements()) {
     // The add method returns an Error instance which simulates program exit
     // code through overloading boolean operator, thus false here indicates
     // success.
     if (Result.add(R))
       return;
+  }
 }
 } // namespace format
 } // namespace clang

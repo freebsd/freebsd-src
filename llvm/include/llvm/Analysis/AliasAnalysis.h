@@ -38,7 +38,6 @@
 #define LLVM_ANALYSIS_ALIASANALYSIS_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/MemoryLocation.h"
@@ -64,6 +63,7 @@ class LoopInfo;
 class PreservedAnalyses;
 class TargetLibraryInfo;
 class Value;
+template <typename> class SmallPtrSetImpl;
 
 /// The possible results of an alias query.
 ///
@@ -413,8 +413,12 @@ class EarliestEscapeInfo final : public CaptureInfo {
   /// This is used for cache invalidation purposes.
   DenseMap<Instruction *, TinyPtrVector<const Value *>> Inst2Obj;
 
+  const SmallPtrSetImpl<const Value *> &EphValues;
+
 public:
-  EarliestEscapeInfo(DominatorTree &DT, const LoopInfo &LI) : DT(DT), LI(LI) {}
+  EarliestEscapeInfo(DominatorTree &DT, const LoopInfo &LI,
+                     const SmallPtrSetImpl<const Value *> &EphValues)
+      : DT(DT), LI(LI), EphValues(EphValues) {}
 
   bool isNotCapturedBeforeOrAt(const Value *Object,
                                const Instruction *I) override;
@@ -1266,6 +1270,10 @@ bool isIdentifiedObject(const Value *V);
 /// arguments other than itself, which is not necessarily true for
 /// IdentifiedObjects.
 bool isIdentifiedFunctionLocal(const Value *V);
+
+/// Returns true if the pointer is one which would have been considered an
+/// escape by isNonEscapingLocalObject.
+bool isEscapeSource(const Value *V);
 
 /// Return true if Object memory is not visible after an unwind, in the sense
 /// that program semantics cannot depend on Object containing any particular

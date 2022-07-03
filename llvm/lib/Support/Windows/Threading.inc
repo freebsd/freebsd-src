@@ -27,8 +27,8 @@ namespace llvm {
 HANDLE
 llvm_execute_on_thread_impl(unsigned(__stdcall *ThreadFunc)(void *), void *Arg,
                             llvm::Optional<unsigned> StackSizeInBytes) {
-  HANDLE hThread = (HANDLE)::_beginthreadex(
-      NULL, StackSizeInBytes.getValueOr(0), ThreadFunc, Arg, 0, NULL);
+  HANDLE hThread = (HANDLE)::_beginthreadex(NULL, StackSizeInBytes.value_or(0),
+                                            ThreadFunc, Arg, 0, NULL);
 
   if (!hThread) {
     ReportLastErrorFatal("_beginthreadex failed");
@@ -120,8 +120,10 @@ SetThreadPriorityResult llvm::set_thread_priority(ThreadPriority Priority) {
   // End background processing mode. The system restores the resource scheduling
   // priorities of the thread as they were before the thread entered background
   // processing mode.
+  //
+  // FIXME: consider THREAD_PRIORITY_BELOW_NORMAL for Low
   return SetThreadPriority(GetCurrentThread(),
-                           Priority == ThreadPriority::Background
+                           Priority != ThreadPriority::Default
                                ? THREAD_MODE_BACKGROUND_BEGIN
                                : THREAD_MODE_BACKGROUND_END)
              ? SetThreadPriorityResult::SUCCESS

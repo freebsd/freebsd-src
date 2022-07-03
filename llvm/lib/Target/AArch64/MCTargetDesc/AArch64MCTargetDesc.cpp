@@ -52,21 +52,14 @@ static MCSubtargetInfo *
 createAArch64MCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
   if (CPU.empty()) {
     CPU = "generic";
+    if (FS.empty())
+      FS = "+v8a";
 
     if (TT.isArm64e())
       CPU = "apple-a12";
   }
 
-  // Most of the NEON instruction set isn't supported in streaming mode on SME
-  // targets, disable NEON unless explicitly requested.
-  bool RequestedNEON = FS.contains("neon");
-  bool RequestedStreamingSVE = FS.contains("streaming-sve");
-  MCSubtargetInfo *STI =
-      createAArch64MCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
-  if (RequestedStreamingSVE && !RequestedNEON &&
-      STI->hasFeature(AArch64::FeatureNEON))
-    STI->ToggleFeature(AArch64::FeatureNEON);
-  return STI;
+  return createAArch64MCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
 }
 
 void AArch64_MC::initLLVMToCVRegMapping(MCRegisterInfo *MRI) {
@@ -241,6 +234,31 @@ void AArch64_MC::initLLVMToCVRegMapping(MCRegisterInfo *MRI) {
   };
   for (const auto &I : RegMap)
     MRI->mapLLVMRegToCVReg(I.Reg, static_cast<int>(I.CVReg));
+}
+
+bool AArch64_MC::isQForm(const MCInst &MI, const MCInstrInfo *MCII) {
+  const auto &FPR128 = AArch64MCRegisterClasses[AArch64::FPR128RegClassID];
+  return llvm::any_of(MI, [&](const MCOperand &Op) {
+    return Op.isReg() && FPR128.contains(Op.getReg());
+  });
+}
+
+bool AArch64_MC::isFpOrNEON(const MCInst &MI, const MCInstrInfo *MCII) {
+  const auto &FPR128 = AArch64MCRegisterClasses[AArch64::FPR128RegClassID];
+  const auto &FPR64 = AArch64MCRegisterClasses[AArch64::FPR64RegClassID];
+  const auto &FPR32 = AArch64MCRegisterClasses[AArch64::FPR32RegClassID];
+  const auto &FPR16 = AArch64MCRegisterClasses[AArch64::FPR16RegClassID];
+  const auto &FPR8 = AArch64MCRegisterClasses[AArch64::FPR8RegClassID];
+
+  auto IsFPR = [&](const MCOperand &Op) {
+    if (!Op.isReg())
+      return false;
+    auto Reg = Op.getReg();
+    return FPR128.contains(Reg) || FPR64.contains(Reg) || FPR32.contains(Reg) ||
+           FPR16.contains(Reg) || FPR8.contains(Reg);
+  };
+
+  return llvm::any_of(MI, IsFPR);
 }
 
 static MCRegisterInfo *createAArch64MCRegisterInfo(const Triple &Triple) {

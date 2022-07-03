@@ -25,7 +25,7 @@ class ScriptInterpreterPythonImpl;
 class ScriptedPythonInterface : virtual public ScriptedInterface {
 public:
   ScriptedPythonInterface(ScriptInterpreterPythonImpl &interpreter);
-  virtual ~ScriptedPythonInterface() = default;
+  ~ScriptedPythonInterface() override = default;
 
 protected:
   template <typename T = StructuredData::ObjectSP>
@@ -125,6 +125,11 @@ protected:
   // The lifetime is managed by the ScriptInterpreter
   ScriptInterpreterPythonImpl &m_interpreter;
 };
+
+template <>
+StructuredData::ArraySP
+ScriptedPythonInterface::ExtractValueFromPythonObject<StructuredData::ArraySP>(
+    python::PythonObject &p, Status &error);
 
 template <>
 StructuredData::DictionarySP

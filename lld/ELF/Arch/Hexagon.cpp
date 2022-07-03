@@ -12,7 +12,6 @@
 #include "Target.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/BinaryFormat/ELF.h"
-#include "llvm/Object/ELF.h"
 #include "llvm/Support/Endian.h"
 
 using namespace llvm;
@@ -60,12 +59,12 @@ Hexagon::Hexagon() {
 }
 
 uint32_t Hexagon::calcEFlags() const {
-  assert(!objectFiles.empty());
+  assert(!ctx->objectFiles.empty());
 
   // The architecture revision must always be equal to or greater than
   // greatest revision in the list of inputs.
   uint32_t ret = 0;
-  for (InputFile *f : objectFiles) {
+  for (InputFile *f : ctx->objectFiles) {
     uint32_t eflags = cast<ObjFile<ELF32LE>>(f)->getObj().getHeader().e_flags;
     if (eflags > ret)
       ret = eflags;

@@ -15,7 +15,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ModuleSummaryAnalysis.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/StackLifetime.h"
 #include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -384,9 +383,9 @@ bool StackSafetyLocalAnalysis::isSafeAccess(const Use &U, AllocaInst *AI,
   const SCEV *Max = SE.getMinusSCEV(ToDiffTy(SE.getConstant(Size.getUpper())),
                                     ToDiffTy(AccessSize));
   return SE.evaluatePredicateAt(ICmpInst::Predicate::ICMP_SGE, Diff, Min, I)
-             .getValueOr(false) &&
+             .value_or(false) &&
          SE.evaluatePredicateAt(ICmpInst::Predicate::ICMP_SLE, Diff, Max, I)
-             .getValueOr(false);
+             .value_or(false);
 }
 
 /// The function analyzes all local uses of Ptr (alloca or argument) and

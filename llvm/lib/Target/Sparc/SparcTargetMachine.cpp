@@ -55,7 +55,7 @@ static std::string computeDataLayout(const Triple &T, bool is64Bit) {
 }
 
 static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
-  return RM.getValueOr(Reloc::Static);
+  return RM.value_or(Reloc::Static);
 }
 
 // Code models. Some only make sense for 64-bit code.
@@ -102,7 +102,7 @@ SparcTargetMachine::SparcTargetMachine(
   initAsmInfo();
 }
 
-SparcTargetMachine::~SparcTargetMachine() {}
+SparcTargetMachine::~SparcTargetMachine() = default;
 
 const SparcSubtarget *
 SparcTargetMachine::getSubtargetImpl(const Function &F) const {

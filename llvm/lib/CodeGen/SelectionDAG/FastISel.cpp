@@ -72,7 +72,6 @@
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -94,7 +93,6 @@
 #include "llvm/IR/Value.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInstrDesc.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -1265,7 +1263,7 @@ bool FastISel::selectIntrinsicCall(const IntrinsicInst *II) {
       // If using instruction referencing, mutate this into a DBG_INSTR_REF,
       // to be later patched up by finalizeDebugInstrRefs. Tack a deref onto
       // the expression, we don't have an "indirect" flag in DBG_INSTR_REF.
-      if (FuncInfo.MF->useDebugInstrRef() && Op->isReg()) {
+      if (UseInstrRefDebugInfo && Op->isReg()) {
         Builder->setDesc(TII.get(TargetOpcode::DBG_INSTR_REF));
         Builder->getOperand(1).ChangeToImmediate(0);
         auto *NewExpr =
@@ -1324,7 +1322,7 @@ bool FastISel::selectIntrinsicCall(const IntrinsicInst *II) {
 
       // If using instruction referencing, mutate this into a DBG_INSTR_REF,
       // to be later patched up by finalizeDebugInstrRefs.
-      if (FuncInfo.MF->useDebugInstrRef()) {
+      if (UseInstrRefDebugInfo) {
         Builder->setDesc(TII.get(TargetOpcode::DBG_INSTR_REF));
         Builder->getOperand(1).ChangeToImmediate(0);
       }
@@ -1408,16 +1406,6 @@ bool FastISel::selectCast(const User *I, unsigned Opcode) {
 }
 
 bool FastISel::selectBitCast(const User *I) {
-  // If the bitcast doesn't change the type, just use the operand value.
-  if (I->getType() == I->getOperand(0)->getType()) {
-    Register Reg = getRegForValue(I->getOperand(0));
-    if (!Reg)
-      return false;
-    updateValueMap(I, Reg);
-    return true;
-  }
-
-  // Bitcasts of other values become reg-reg copies or BITCAST operators.
   EVT SrcEVT = TLI.getValueType(DL, I->getOperand(0)->getType());
   EVT DstEVT = TLI.getValueType(DL, I->getType());
   if (SrcEVT == MVT::Other || DstEVT == MVT::Other ||
@@ -1431,23 +1419,14 @@ bool FastISel::selectBitCast(const User *I) {
   if (!Op0) // Unhandled operand. Halt "fast" selection and bail.
     return false;
 
-  // First, try to perform the bitcast by inserting a reg-reg copy.
-  Register ResultReg;
+  // If the bitcast doesn't change the type, just use the operand value.
   if (SrcVT == DstVT) {
-    const TargetRegisterClass *SrcClass = TLI.getRegClassFor(SrcVT);
-    const TargetRegisterClass *DstClass = TLI.getRegClassFor(DstVT);
-    // Don't attempt a cross-class copy. It will likely fail.
-    if (SrcClass == DstClass) {
-      ResultReg = createResultReg(DstClass);
-      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
-              TII.get(TargetOpcode::COPY), ResultReg).addReg(Op0);
-    }
+    updateValueMap(I, Op0);
+    return true;
   }
 
-  // If the reg-reg copy failed, select a BITCAST opcode.
-  if (!ResultReg)
-    ResultReg = fastEmit_r(SrcVT, DstVT, ISD::BITCAST, Op0);
-
+  // Otherwise, select a BITCAST opcode.
+  Register ResultReg = fastEmit_r(SrcVT, DstVT, ISD::BITCAST, Op0);
   if (!ResultReg)
     return false;
 
@@ -2249,6 +2228,11 @@ bool FastISel::tryToFoldLoad(const LoadInst *LI, const Instruction *FoldInst) {
   // may mean that the instruction got lowered to multiple MIs, or the use of
   // the loaded value ended up being multiple operands of the result.
   if (!MRI.hasOneUse(LoadReg))
+    return false;
+
+  // If the register has fixups, there may be additional uses through a
+  // different alias of the register.
+  if (FuncInfo.RegsWithFixups.contains(LoadReg))
     return false;
 
   MachineRegisterInfo::reg_iterator RI = MRI.reg_begin(LoadReg);

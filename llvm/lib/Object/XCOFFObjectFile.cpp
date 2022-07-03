@@ -615,6 +615,16 @@ Expected<uint32_t> XCOFFObjectFile::getSymbolFlags(DataRefImpl Symb) const {
   if (XCOFFSym.getSectionNumber() == XCOFF::N_UNDEF)
     Result |= SymbolRef::SF_Undefined;
 
+  // There is no visibility in old 32 bit XCOFF object file interpret.
+  if (is64Bit() || (auxiliaryHeader32() && (auxiliaryHeader32()->getVersion() ==
+                                            NEW_XCOFF_INTERPRET))) {
+    uint16_t SymType = XCOFFSym.getSymbolType();
+    if ((SymType & VISIBILITY_MASK) == SYM_V_HIDDEN)
+      Result |= SymbolRef::SF_Hidden;
+
+    if ((SymType & VISIBILITY_MASK) == SYM_V_EXPORTED)
+      Result |= SymbolRef::SF_Exported;
+  }
   return Result;
 }
 
@@ -697,6 +707,19 @@ size_t XCOFFObjectFile::getSectionHeaderSize() const {
 
 bool XCOFFObjectFile::is64Bit() const {
   return Binary::ID_XCOFF64 == getType();
+}
+
+Expected<StringRef> XCOFFObjectFile::getRawData(const char *Start,
+                                                uint64_t Size,
+                                                StringRef Name) const {
+  uintptr_t StartPtr = reinterpret_cast<uintptr_t>(Start);
+  // TODO: this path is untested.
+  if (Error E = Binary::checkOffset(Data, StartPtr, Size))
+    return createError(toString(std::move(E)) + ": " + Name.data() +
+                       " data with offset 0x" + Twine::utohexstr(StartPtr) +
+                       " and size 0x" + Twine::utohexstr(Size) +
+                       " goes past the end of the file");
+  return StringRef(Start, Size);
 }
 
 uint16_t XCOFFObjectFile::getMagic() const {
@@ -1319,7 +1342,7 @@ XCOFFTracebackTable::XCOFFTracebackTable(const uint8_t *Ptr, uint64_t &Size,
     NumOfCtlAnchors = DE.getU32(Cur);
     if (Cur && NumOfCtlAnchors) {
       SmallVector<uint32_t, 8> Disp;
-      Disp.reserve(NumOfCtlAnchors.getValue());
+      Disp.reserve(*NumOfCtlAnchors);
       for (uint32_t I = 0; I < NumOfCtlAnchors && Cur; ++I)
         Disp.push_back(DE.getU32(Cur));
       if (Cur)
@@ -1346,7 +1369,7 @@ XCOFFTracebackTable::XCOFFTracebackTable(const uint8_t *Ptr, uint64_t &Size,
         return;
       }
       VecExt = TBVecExtOrErr.get();
-      VectorParmsNum = VecExt.getValue().getNumberOfVectorParms();
+      VectorParmsNum = VecExt->getNumberOfVectorParms();
     }
   }
 

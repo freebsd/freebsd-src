@@ -14,8 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMErrataFix.h"
-
-#include "Config.h"
+#include "InputFiles.h"
 #include "LinkerScript.h"
 #include "OutputSections.h"
 #include "Relocations.h"
@@ -25,7 +24,6 @@
 #include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/Strings.h"
 #include "llvm/Support/Endian.h"
-#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
 using namespace llvm;
@@ -209,7 +207,7 @@ static bool branchDestInFirstRegion(const InputSection *isec, uint64_t off,
                                     uint32_t instr, const Relocation *r) {
   uint64_t sourceAddr = isec->getVA(0) + off;
   assert((sourceAddr & 0xfff) == 0xffe);
-  uint64_t destAddr = sourceAddr;
+  uint64_t destAddr;
   // If there is a branch relocation at the same offset we must use this to
   // find the destination address as the branch could be indirected via a thunk
   // or the PLT.
@@ -268,7 +266,7 @@ static ScanResult scanCortexA8Errata657417(InputSection *isec, uint64_t &off,
   }
 
   ScanResult scanRes = {0, 0, nullptr};
-  const uint8_t *buf = isec->data().begin();
+  const uint8_t *buf = isec->rawData.begin();
   // ARMv7-A Thumb 32-bit instructions are encoded 2 consecutive
   // little-endian halfwords.
   const ulittle16_t *instBuf = reinterpret_cast<const ulittle16_t *>(buf + off);
@@ -329,7 +327,7 @@ void ARMErr657417Patcher::init() {
   };
 
   // Collect mapping symbols for every executable InputSection.
-  for (ELFFileBase *file : objectFiles) {
+  for (ELFFileBase *file : ctx->objectFiles) {
     for (Symbol *s : file->getLocalSymbols()) {
       auto *def = dyn_cast<Defined>(s);
       if (!def)
@@ -500,7 +498,7 @@ ARMErr657417Patcher::patchInputSectionDescription(
     while (thumbSym != mapSyms.end()) {
       auto nonThumbSym = std::next(thumbSym);
       uint64_t off = (*thumbSym)->value;
-      uint64_t limit = (nonThumbSym == mapSyms.end()) ? isec->data().size()
+      uint64_t limit = (nonThumbSym == mapSyms.end()) ? isec->rawData.size()
                                                       : (*nonThumbSym)->value;
 
       while (off < limit) {

@@ -12,6 +12,7 @@
 #include "MachOStructs.h"
 #include "Target.h"
 
+#include "lld/Common/DWARF.h"
 #include "lld/Common/LLVM.h"
 #include "lld/Common/Memory.h"
 #include "llvm/ADT/CachedHashString.h"
@@ -21,6 +22,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/TextAPI/TextAPIReader.h"
 
 #include <vector>
@@ -58,11 +60,32 @@ struct Subsection {
 };
 
 using Subsections = std::vector<Subsection>;
+class InputFile;
 
-struct Section {
-  uint64_t address = 0;
+class Section {
+public:
+  InputFile *file;
+  StringRef segname;
+  StringRef name;
+  uint32_t flags;
+  uint64_t addr;
   Subsections subsections;
-  Section(uint64_t addr) : address(addr){};
+
+  Section(InputFile *file, StringRef segname, StringRef name, uint32_t flags,
+          uint64_t addr)
+      : file(file), segname(segname), name(name), flags(flags), addr(addr) {}
+  // Ensure pointers to Sections are never invalidated.
+  Section(const Section &) = delete;
+  Section &operator=(const Section &) = delete;
+  Section(Section &&) = delete;
+  Section &operator=(Section &&) = delete;
+
+private:
+  // Whether we have already split this section into individual subsections.
+  // For sections that cannot be split (e.g. literal sections), this is always
+  // false.
+  bool doneSplitting = false;
+  friend class ObjFile;
 };
 
 // Represents a call graph profile edge.
@@ -73,6 +96,9 @@ struct CallGraphEntry {
   uint32_t toIndex;
   // Number of calls from callee to caller in the profile.
   uint64_t count;
+
+  CallGraphEntry(uint32_t fromIndex, uint32_t toIndex, uint64_t count)
+      : fromIndex(fromIndex), toIndex(toIndex), count(count) {}
 };
 
 class InputFile {
@@ -93,7 +119,7 @@ public:
   MemoryBufferRef mb;
 
   std::vector<Symbol *> symbols;
-  std::vector<Section> sections;
+  std::vector<Section *> sections;
 
   // If not empty, this stores the name of the archive containing this file.
   // We use this string for creating error messages.
@@ -119,6 +145,12 @@ private:
   static int idCount;
 };
 
+struct FDE {
+  uint32_t funcLength;
+  Symbol *personality;
+  InputSection *lsda;
+};
+
 // .o file
 class ObjFile final : public InputFile {
 public:
@@ -129,14 +161,22 @@ public:
 
   static bool classof(const InputFile *f) { return f->kind() == ObjKind; }
 
+  std::string sourceFile() const;
+  // Parses line table information for diagnostics. compileUnit should be used
+  // for other purposes.
+  lld::DWARFCache *getDwarf();
+
   llvm::DWARFUnit *compileUnit = nullptr;
+  std::unique_ptr<lld::DWARFCache> dwarfCache;
+  Section *addrSigSection = nullptr;
   const uint32_t modTime;
   std::vector<ConcatInputSection *> debugSections;
   std::vector<CallGraphEntry> callGraph;
+  llvm::DenseMap<ConcatInputSection *, FDE> fdes;
+  std::vector<OptimizationHint> optimizationHints;
 
 private:
-  Section *compactUnwindSection = nullptr;
-
+  llvm::once_flag initDwarf;
   template <class LP> void parseLazy();
   template <class SectionHeader> void parseSections(ArrayRef<SectionHeader>);
   template <class LP>
@@ -147,9 +187,12 @@ private:
   Symbol *parseNonSectionSymbol(const NList &sym, StringRef name);
   template <class SectionHeader>
   void parseRelocations(ArrayRef<SectionHeader> sectionHeaders,
-                        const SectionHeader &, Subsections &);
+                        const SectionHeader &, Section &);
   void parseDebugInfo();
-  void registerCompactUnwind();
+  void parseOptimizationHints(ArrayRef<uint8_t> data);
+  void splitEhFrames(ArrayRef<uint8_t> dataArr, Section &ehFrameSection);
+  void registerCompactUnwind(Section &compactUnwindSection);
+  void registerEhFrames(Section &ehFrameSection);
 };
 
 // command-line -sectcreate file
@@ -170,10 +213,10 @@ public:
   // to the root. On the other hand, if a dylib is being directly loaded
   // (through an -lfoo flag), then `umbrella` should be a nullptr.
   explicit DylibFile(MemoryBufferRef mb, DylibFile *umbrella,
-                     bool isBundleLoader = false);
+                     bool isBundleLoader, bool explicitlyLinked);
   explicit DylibFile(const llvm::MachO::InterfaceFile &interface,
-                     DylibFile *umbrella = nullptr,
-                     bool isBundleLoader = false);
+                     DylibFile *umbrella, bool isBundleLoader,
+                     bool explicitlyLinked);
 
   void parseLoadCommands(MemoryBufferRef mb);
   void parseReexports(const llvm::MachO::InterfaceFile &interface);
@@ -291,6 +334,7 @@ std::vector<const CommandType *> findCommands(const void *anyHdr,
 } // namespace macho
 
 std::string toString(const macho::InputFile *file);
+std::string toString(const macho::Section &);
 } // namespace lld
 
 #endif

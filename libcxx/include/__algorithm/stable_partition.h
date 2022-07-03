@@ -11,12 +11,14 @@
 
 #include <__algorithm/rotate.h>
 #include <__config>
+#include <__iterator/advance.h>
+#include <__iterator/distance.h>
 #include <__iterator/iterator_traits.h>
 #include <__utility/swap.h>
 #include <memory>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
@@ -130,7 +132,10 @@ __stable_partition(_ForwardIterator __first, _ForwardIterator __last, _Predicate
     unique_ptr<value_type, __return_temporary_buffer> __h;
     if (__len >= __alloc_limit)
     {
+// TODO: Remove the use of std::get_temporary_buffer
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
         __p = _VSTD::get_temporary_buffer<value_type>(__len);
+_LIBCPP_SUPPRESS_DEPRECATED_POP
         __h.reset(__p.first);
     }
     return _VSTD::__stable_partition<_Predicate&>(__first, __last, __pred, __len, __p, forward_iterator_tag());
@@ -276,7 +281,10 @@ __stable_partition(_BidirectionalIterator __first, _BidirectionalIterator __last
     unique_ptr<value_type, __return_temporary_buffer> __h;
     if (__len >= __alloc_limit)
     {
+// TODO: Remove the use of std::get_temporary_buffer
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
         __p = _VSTD::get_temporary_buffer<value_type>(__len);
+_LIBCPP_SUPPRESS_DEPRECATED_POP
         __h.reset(__p.first);
     }
     return _VSTD::__stable_partition<_Predicate&>(__first, __last, __pred, __len, __p, bidirectional_iterator_tag());

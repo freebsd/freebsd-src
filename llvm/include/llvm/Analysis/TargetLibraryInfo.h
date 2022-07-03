@@ -12,14 +12,15 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/IR/Function.h"
 #include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 
 namespace llvm {
+
 template <typename T> class ArrayRef;
+class Function;
+class Module;
 class Triple;
 
 /// Describes a possible vectorization of a function.
@@ -49,7 +50,7 @@ class TargetLibraryInfoImpl {
   friend class TargetLibraryInfo;
 
   unsigned char AvailableArray[(NumLibFuncs+3)/4];
-  llvm::DenseMap<unsigned, std::string> CustomNames;
+  DenseMap<unsigned, std::string> CustomNames;
   static StringLiteral const StandardNames[NumLibFuncs];
   bool ShouldExtI32Param, ShouldExtI32Return, ShouldSignExtI32Param;
   unsigned SizeOfInt;
@@ -277,6 +278,13 @@ public:
     // We can inline if the union of the caller and callee's nobuiltin
     // attributes is no stricter than the caller's nobuiltin attributes.
     return B == OverrideAsUnavailable;
+  }
+
+  /// Return true if the function type FTy is valid for the library function
+  /// F, regardless of whether the function is available.
+  bool isValidProtoForLibFunc(const FunctionType &FTy, LibFunc F,
+                              const Module &M) const {
+    return Impl->isValidProtoForLibFunc(FTy, F, M);
   }
 
   /// Searches for a particular function name.

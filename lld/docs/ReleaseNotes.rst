@@ -26,38 +26,33 @@ Non-comprehensive list of changes in this release
 ELF Improvements
 ----------------
 
-* ``--export-dynamic-symbol-list`` has been added.
-  (`D107317 <https://reviews.llvm.org/D107317>`_)
-* ``--why-extract`` has been added to query why archive members/lazy object files are extracted.
-  (`D109572 <https://reviews.llvm.org/D109572>`_)
-* ``e_entry`` no longer falls back to the address of ``.text`` if the entry symbol does not exist.
-  Instead, a value of 0 will be written.
-  (`D110014 <https://reviews.llvm.org/D110014>`_)
-* If ``-Map`` is specified, ``--cref`` will be printed to the specified file.
-  (`D114663 <https://reviews.llvm.org/D114663>`_)
-* No longer deduplicate local symbol names at the default optimization level of ``-O1``.
-  This results in a larger ``.strtab`` (usually less than 1%) but a faster link
-  time. Use optimization level ``-O2`` to restore the deduplication.
-
-Architecture specific changes:
-
-* The x86-32 port now supports TLSDESC (``-mtls-dialect=gnu2``).
-  (`D112582 <https://reviews.llvm.org/D112582>`_)
-* The x86-64 port now handles non-RAX/non-adjacent ``R_X86_64_GOTPC32_TLSDESC``
-  and ``R_X86_64_TLSDESC_CALL`` (``-mtls-dialect=gnu2``).
-  (`D114416 <https://reviews.llvm.org/D114416>`_)
-* For x86-64, ``--no-relax`` now suppresses ``R_X86_64_GOTPCRELX`` and
-  ``R_X86_64_REX_GOTPCRELX`` GOT optimization
-  (`D113615 <https://reviews.llvm.org/D113615>`_)
+* ``-z pack-relative-relocs`` is now available to support ``DT_RELR`` for glibc 2.36+.
+  (`D120701 <https://reviews.llvm.org/D120701>`_)
+* ``--no-fortran-common`` (pre 12.0.0 behavior) is now the default.
 
 Breaking changes
 ----------------
 
-* ...
+* The GNU ld incompatible ``--no-define-common`` has been removed.
+* The obscure ``-dc``/``-dp`` options have been removed.
+* ``-d`` is now ignored.
+* If a prevailing COMDAT group defines STB_WEAK symbol, having a STB_GLOBAL symbol in a non-prevailing group is now rejected with a diagnostic.
+  (`D120626 <https://reviews.llvm.org/D120626>`_)
+* Support for the legacy ``.zdebug`` format has been removed. Run
+  ``objcopy --decompress-debug-sections`` in case old object files use ``.zdebug``.
+  (`D126793 <https://reviews.llvm.org/D126793>`_)
+* ``--time-trace-file=<file>`` has been removed.
+  Use ``--time-trace=<file>`` instead.
+  (`D128451 <https://reviews.llvm.org/D128451>`_)
 
 COFF Improvements
 -----------------
 
+* Added autodetection of MSVC toolchain, a la clang-cl.  Also added
+  ``/winsysroot:`` support for explicit specification of MSVC toolchain
+  location, similar to clang-cl's ``/winsysroot``. For now,
+  ``/winsysroot:`` requires also passing in an explicit ``/machine:`` flag.
+  (`D118070 <https://reviews.llvm.org/D118070>`_)
 * ...
 
 MinGW Improvements

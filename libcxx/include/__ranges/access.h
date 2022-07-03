@@ -14,18 +14,16 @@
 #include <__iterator/concepts.h>
 #include <__iterator/readable_traits.h>
 #include <__ranges/enable_borrowed_range.h>
-#include <__utility/as_const.h>
 #include <__utility/auto_cast.h>
-#include <concepts>
 #include <type_traits>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-#if !defined(_LIBCPP_HAS_NO_CONCEPTS)
+#if _LIBCPP_STD_VER > 17
 
 namespace ranges {
   template <class _Tp>
@@ -59,10 +57,17 @@ namespace __begin {
 
   struct __fn {
     template <class _Tp>
-      requires is_array_v<remove_cv_t<_Tp>>
-    [[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr auto operator()(_Tp& __t) const noexcept
+    [[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr auto operator()(_Tp (&__t)[]) const noexcept
+      requires (sizeof(_Tp) >= 0)  // Disallow incomplete element types.
     {
-      return __t;
+      return __t + 0;
+    }
+
+    template <class _Tp, size_t _Np>
+    [[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr auto operator()(_Tp (&__t)[_Np]) const noexcept
+      requires (sizeof(_Tp) >= 0)  // Disallow incomplete element types.
+    {
+      return __t + 0;
     }
 
     template <class _Tp>
@@ -123,11 +128,10 @@ namespace __end {
       { _LIBCPP_AUTO_CAST(end(__t)) } -> sentinel_for<iterator_t<_Tp>>;
     };
 
-  class __fn {
-  public:
+  struct __fn {
     template <class _Tp, size_t _Np>
     [[nodiscard]] _LIBCPP_HIDE_FROM_ABI constexpr auto operator()(_Tp (&__t)[_Np]) const noexcept
-      requires (sizeof(*__t) != 0)  // Disallow incomplete element types.
+      requires (sizeof(_Tp) >= 0)  // Disallow incomplete element types.
     {
       return __t + _Np;
     }
@@ -213,7 +217,7 @@ inline namespace __cpo {
 } // namespace __cpo
 } // namespace ranges
 
-#endif // !defined(_LIBCPP_HAS_NO_CONCEPTS)
+#endif // _LIBCPP_STD_VER > 17
 
 _LIBCPP_END_NAMESPACE_STD
 

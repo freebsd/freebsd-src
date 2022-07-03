@@ -127,7 +127,7 @@ private:
       return Prefix;
     }
 
-    PrefixInfo() : Active(false), Predicated(false) {}
+    PrefixInfo() = default;
     bool isActive() const { return Active; }
     bool isPredicated() const { return Predicated; }
     unsigned getElementSize() const {
@@ -141,8 +141,8 @@ private:
     }
 
   private:
-    bool Active;
-    bool Predicated;
+    bool Active = false;
+    bool Predicated = false;
     unsigned ElementSize;
     unsigned Dst;
     unsigned Pg;
@@ -157,7 +157,8 @@ private:
 
   bool parseSysAlias(StringRef Name, SMLoc NameLoc, OperandVector &Operands);
   void createSysAlias(uint16_t Encoding, OperandVector &Operands, SMLoc S);
-  AArch64CC::CondCode parseCondCodeString(StringRef Cond);
+  AArch64CC::CondCode parseCondCodeString(StringRef Cond,
+                                          std::string &Suggestion);
   bool parseCondCode(OperandVector &Operands, bool invertCondCode);
   unsigned matchRegisterNameAlias(StringRef Name, RegKind Kind);
   bool parseRegister(OperandVector &Operands);
@@ -189,6 +190,7 @@ private:
   bool parseDirectiveUnreq(SMLoc L);
   bool parseDirectiveCFINegateRAState();
   bool parseDirectiveCFIBKeyFrame();
+  bool parseDirectiveCFIMTETaggedFrame();
 
   bool parseDirectiveVariantPCS(SMLoc L);
 
@@ -2425,7 +2427,7 @@ static Optional<std::pair<int, int>> parseVectorKind(StringRef Suffix,
 }
 
 static bool isValidVectorKind(StringRef Suffix, RegKind VectorKind) {
-  return parseVectorKind(Suffix, VectorKind).hasValue();
+  return parseVectorKind(Suffix, VectorKind).has_value();
 }
 
 static unsigned matchSVEDataVectorRegName(StringRef Name) {
@@ -2758,8 +2760,8 @@ AArch64AsmParser::tryParsePrefetch(OperandVector &Operands) {
     }
 
     auto PRFM = LookupByEncoding(MCE->getValue());
-    Operands.push_back(AArch64Operand::CreatePrefetch(
-        prfop, PRFM.getValueOr(""), S, getContext()));
+    Operands.push_back(AArch64Operand::CreatePrefetch(prfop, PRFM.value_or(""),
+                                                      S, getContext()));
     return MatchOperand_Success;
   }
 
@@ -3029,8 +3031,10 @@ AArch64AsmParser::tryParseImmWithOptionalShift(OperandVector &Operands) {
   return MatchOperand_Success;
 }
 
-/// parseCondCodeString - Parse a Condition Code string.
-AArch64CC::CondCode AArch64AsmParser::parseCondCodeString(StringRef Cond) {
+/// parseCondCodeString - Parse a Condition Code string, optionally returning a
+/// suggestion to help common typos.
+AArch64CC::CondCode
+AArch64AsmParser::parseCondCodeString(StringRef Cond, std::string &Suggestion) {
   AArch64CC::CondCode CC = StringSwitch<AArch64CC::CondCode>(Cond.lower())
                     .Case("eq", AArch64CC::EQ)
                     .Case("ne", AArch64CC::NE)
@@ -3053,7 +3057,7 @@ AArch64CC::CondCode AArch64AsmParser::parseCondCodeString(StringRef Cond) {
                     .Default(AArch64CC::Invalid);
 
   if (CC == AArch64CC::Invalid &&
-      getSTI().getFeatureBits()[AArch64::FeatureSVE])
+      getSTI().getFeatureBits()[AArch64::FeatureSVE]) {
     CC = StringSwitch<AArch64CC::CondCode>(Cond.lower())
                     .Case("none",  AArch64CC::EQ)
                     .Case("any",   AArch64CC::NE)
@@ -3067,6 +3071,9 @@ AArch64CC::CondCode AArch64AsmParser::parseCondCodeString(StringRef Cond) {
                     .Case("tstop", AArch64CC::LT)
                     .Default(AArch64CC::Invalid);
 
+    if (CC == AArch64CC::Invalid && Cond.lower() == "nfirst")
+      Suggestion = "nfrst";
+  }
   return CC;
 }
 
@@ -3078,9 +3085,14 @@ bool AArch64AsmParser::parseCondCode(OperandVector &Operands,
   assert(Tok.is(AsmToken::Identifier) && "Token is not an Identifier");
 
   StringRef Cond = Tok.getString();
-  AArch64CC::CondCode CC = parseCondCodeString(Cond);
-  if (CC == AArch64CC::Invalid)
-    return TokError("invalid condition code");
+  std::string Suggestion;
+  AArch64CC::CondCode CC = parseCondCodeString(Cond, Suggestion);
+  if (CC == AArch64CC::Invalid) {
+    std::string Msg = "invalid condition code";
+    if (!Suggestion.empty())
+      Msg += ", did you mean " + Suggestion + "?";
+    return TokError(Msg);
+  }
   Lex(); // Eat identifier token.
 
   if (invertCondCode) {
@@ -3910,7 +3922,6 @@ AArch64AsmParser::tryParseMatrixTileList(OperandVector &Operands) {
   const MCRegisterInfo *RI = getContext().getRegisterInfo();
 
   unsigned PrevReg = FirstReg;
-  unsigned Count = 1;
 
   SmallSet<unsigned, 8> DRegs;
   AArch64Operand::ComputeRegsForAlias(FirstReg, DRegs, ElementWidth);
@@ -3942,7 +3953,6 @@ AArch64AsmParser::tryParseMatrixTileList(OperandVector &Operands) {
     }
 
     PrevReg = Reg;
-    ++Count;
   }
 
   if (parseToken(AsmToken::RCurly, "'}' expected"))
@@ -4545,9 +4555,14 @@ bool AArch64AsmParser::ParseInstruction(ParseInstructionInfo &Info,
 
     SMLoc SuffixLoc = SMLoc::getFromPointer(NameLoc.getPointer() +
                                             (Head.data() - Name.data()));
-    AArch64CC::CondCode CC = parseCondCodeString(Head);
-    if (CC == AArch64CC::Invalid)
-      return Error(SuffixLoc, "invalid condition code");
+    std::string Suggestion;
+    AArch64CC::CondCode CC = parseCondCodeString(Head, Suggestion);
+    if (CC == AArch64CC::Invalid) {
+      std::string Msg = "invalid condition code";
+      if (!Suggestion.empty())
+        Msg += ", did you mean " + Suggestion + "?";
+      return Error(SuffixLoc, Msg);
+    }
     Operands.push_back(AArch64Operand::CreateToken(".", SuffixLoc, getContext(),
                                                    /*IsSuffix=*/true));
     Operands.push_back(
@@ -6024,6 +6039,8 @@ bool AArch64AsmParser::ParseDirective(AsmToken DirectiveID) {
     parseDirectiveCFINegateRAState();
   else if (IDVal == ".cfi_b_key_frame")
     parseDirectiveCFIBKeyFrame();
+  else if (IDVal == ".cfi_mte_tagged_frame")
+    parseDirectiveCFIMTETaggedFrame();
   else if (IDVal == ".arch_extension")
     parseDirectiveArchExtension(Loc);
   else if (IDVal == ".variant_pcs")
@@ -6198,12 +6215,11 @@ bool AArch64AsmParser::parseDirectiveArch(SMLoc L) {
       if (Extension.Features.none())
         report_fatal_error("unsupported architectural extension: " + Name);
 
-      FeatureBitset ToggleFeatures = EnableFeature
-                                         ? (~Features & Extension.Features)
-                                         : ( Features & Extension.Features);
-      FeatureBitset Features =
-          ComputeAvailableFeatures(STI.ToggleFeature(ToggleFeatures));
-      setAvailableFeatures(Features);
+      FeatureBitset ToggleFeatures =
+          EnableFeature
+              ? STI.SetFeatureBitsTransitively(~Features & Extension.Features)
+              : STI.ToggleFeature(Features & Extension.Features);
+      setAvailableFeatures(ComputeAvailableFeatures(ToggleFeatures));
       break;
     }
   }
@@ -6217,8 +6233,7 @@ bool AArch64AsmParser::parseDirectiveArchExtension(SMLoc L) {
 
   StringRef Name = getParser().parseStringToEndOfStatement().trim();
 
-  if (parseToken(AsmToken::EndOfStatement,
-                 "unexpected token in '.arch_extension' directive"))
+  if (parseEOL())
     return true;
 
   bool EnableFeature = true;
@@ -6236,12 +6251,11 @@ bool AArch64AsmParser::parseDirectiveArchExtension(SMLoc L) {
     if (Extension.Features.none())
       return Error(ExtLoc, "unsupported architectural extension: " + Name);
 
-    FeatureBitset ToggleFeatures = EnableFeature
-                                       ? (~Features & Extension.Features)
-                                       : (Features & Extension.Features);
-    FeatureBitset Features =
-        ComputeAvailableFeatures(STI.ToggleFeature(ToggleFeatures));
-    setAvailableFeatures(Features);
+    FeatureBitset ToggleFeatures =
+        EnableFeature
+            ? STI.SetFeatureBitsTransitively(~Features & Extension.Features)
+            : STI.ToggleFeature(Features & Extension.Features);
+    setAvailableFeatures(ComputeAvailableFeatures(ToggleFeatures));
     return false;
   }
 
@@ -6281,7 +6295,6 @@ bool AArch64AsmParser::parseDirectiveCPU(SMLoc L) {
 
   ExpandCryptoAEK(llvm::AArch64::getCPUArchKind(CPU), RequestedExtensions);
 
-  FeatureBitset Features = STI.getFeatureBits();
   for (auto Name : RequestedExtensions) {
     // Advance source location past '+'.
     CurLoc = incrementLoc(CurLoc, 1);
@@ -6301,12 +6314,12 @@ bool AArch64AsmParser::parseDirectiveCPU(SMLoc L) {
       if (Extension.Features.none())
         report_fatal_error("unsupported architectural extension: " + Name);
 
-      FeatureBitset ToggleFeatures = EnableFeature
-                                         ? (~Features & Extension.Features)
-                                         : ( Features & Extension.Features);
-      FeatureBitset Features =
-          ComputeAvailableFeatures(STI.ToggleFeature(ToggleFeatures));
-      setAvailableFeatures(Features);
+      FeatureBitset Features = STI.getFeatureBits();
+      FeatureBitset ToggleFeatures =
+          EnableFeature
+              ? STI.SetFeatureBitsTransitively(~Features & Extension.Features)
+              : STI.ToggleFeature(Features & Extension.Features);
+      setAvailableFeatures(ComputeAvailableFeatures(ToggleFeatures));
       FoundExtension = true;
 
       break;
@@ -6401,12 +6414,10 @@ bool AArch64AsmParser::parseDirectiveLOH(StringRef IDVal, SMLoc Loc) {
 
     if (Idx + 1 == NbArgs)
       break;
-    if (parseToken(AsmToken::Comma,
-                   "unexpected token in '" + Twine(IDVal) + "' directive"))
+    if (parseComma())
       return true;
   }
-  if (parseToken(AsmToken::EndOfStatement,
-                 "unexpected token in '" + Twine(IDVal) + "' directive"))
+  if (parseEOL())
     return true;
 
   getStreamer().emitLOHDirective((MCLOHType)Kind, Args);
@@ -6416,7 +6427,7 @@ bool AArch64AsmParser::parseDirectiveLOH(StringRef IDVal, SMLoc Loc) {
 /// parseDirectiveLtorg
 ///  ::= .ltorg | .pool
 bool AArch64AsmParser::parseDirectiveLtorg(SMLoc L) {
-  if (parseToken(AsmToken::EndOfStatement, "unexpected token in directive"))
+  if (parseEOL())
     return true;
   getTargetStreamer().emitCurrentConstantPool();
   return false;
@@ -6474,8 +6485,7 @@ bool AArch64AsmParser::parseDirectiveReq(StringRef Name, SMLoc L) {
     return Error(SRegLoc, "register name or alias expected");
 
   // Shouldn't be anything else.
-  if (parseToken(AsmToken::EndOfStatement,
-                 "unexpected input in .req directive"))
+  if (parseEOL())
     return true;
 
   auto pair = std::make_pair(RegisterKind, (unsigned) RegNum);
@@ -6496,7 +6506,7 @@ bool AArch64AsmParser::parseDirectiveUnreq(SMLoc L) {
 }
 
 bool AArch64AsmParser::parseDirectiveCFINegateRAState() {
-  if (parseToken(AsmToken::EndOfStatement, "unexpected token in directive"))
+  if (parseEOL())
     return true;
   getStreamer().emitCFINegateRAState();
   return false;
@@ -6505,31 +6515,31 @@ bool AArch64AsmParser::parseDirectiveCFINegateRAState() {
 /// parseDirectiveCFIBKeyFrame
 /// ::= .cfi_b_key
 bool AArch64AsmParser::parseDirectiveCFIBKeyFrame() {
-  if (parseToken(AsmToken::EndOfStatement,
-                 "unexpected token in '.cfi_b_key_frame'"))
+  if (parseEOL())
     return true;
   getStreamer().emitCFIBKeyFrame();
+  return false;
+}
+
+/// parseDirectiveCFIMTETaggedFrame
+/// ::= .cfi_mte_tagged_frame
+bool AArch64AsmParser::parseDirectiveCFIMTETaggedFrame() {
+  if (parseEOL())
+    return true;
+  getStreamer().emitCFIMTETaggedFrame();
   return false;
 }
 
 /// parseDirectiveVariantPCS
 /// ::= .variant_pcs symbolname
 bool AArch64AsmParser::parseDirectiveVariantPCS(SMLoc L) {
-  const AsmToken &Tok = getTok();
-  if (Tok.isNot(AsmToken::Identifier))
+  StringRef Name;
+  if (getParser().parseIdentifier(Name))
     return TokError("expected symbol name");
-
-  StringRef SymbolName = Tok.getIdentifier();
-
-  MCSymbol *Sym = getContext().lookupSymbol(SymbolName);
-  if (!Sym)
-    return TokError("unknown symbol");
-
-  Lex(); // Eat the symbol
-
   if (parseEOL())
     return true;
-  getTargetStreamer().emitDirectiveVariantPCS(Sym);
+  getTargetStreamer().emitDirectiveVariantPCS(
+      getContext().getOrCreateSymbol(Name));
   return false;
 }
 
@@ -6880,7 +6890,7 @@ unsigned AArch64AsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
     // as a literal token.
     if (Op.isTokenEqual("za"))
       return Match_Success;
-    break;
+    return Match_InvalidOperand;
   }
   if (!Op.isImm())
     return Match_InvalidOperand;

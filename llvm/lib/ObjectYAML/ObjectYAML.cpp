@@ -56,12 +56,19 @@ void MappingTraits<YamlObjectFile>::mapping(IO &IO,
     } else if (IO.mapTag("!minidump")) {
       ObjectFile.Minidump.reset(new MinidumpYAML::Object());
       MappingTraits<MinidumpYAML::Object>::mapping(IO, *ObjectFile.Minidump);
+    } else if (IO.mapTag("!Offload")) {
+      ObjectFile.Offload.reset(new OffloadYAML::Binary());
+      MappingTraits<OffloadYAML::Binary>::mapping(IO, *ObjectFile.Offload);
     } else if (IO.mapTag("!WASM")) {
       ObjectFile.Wasm.reset(new WasmYAML::Object());
       MappingTraits<WasmYAML::Object>::mapping(IO, *ObjectFile.Wasm);
     } else if (IO.mapTag("!XCOFF")) {
       ObjectFile.Xcoff.reset(new XCOFFYAML::Object());
       MappingTraits<XCOFFYAML::Object>::mapping(IO, *ObjectFile.Xcoff);
+    } else if (IO.mapTag("!dxcontainer")) {
+      ObjectFile.DXContainer.reset(new DXContainerYAML::Object());
+      MappingTraits<DXContainerYAML::Object>::mapping(IO,
+                                                      *ObjectFile.DXContainer);
     } else if (const Node *N = In.getCurrentNode()) {
       if (N->getRawTag().empty())
         IO.setError("YAML Object File missing document type tag!");

@@ -17,16 +17,20 @@
 #ifndef LLVM_CODEGEN_GLOBALISEL_COMBINERHELPER_H
 #define LLVM_CODEGEN_GLOBALISEL_COMBINERHELPER_H
 
-#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/CodeGen/GlobalISel/GenericMachineInstrs.h"
-#include "llvm/CodeGen/LowLevelType.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/Register.h"
-#include "llvm/Support/Alignment.h"
+#include "llvm/Support/LowLevelTypeImpl.h"
+#include <functional>
 
 namespace llvm {
 
 class GISelChangeObserver;
+class APFloat;
+class APInt;
+class GPtrAdd;
+class GStore;
+class GZExtLoad;
 class MachineIRBuilder;
 class MachineInstrBuilder;
 class MachineRegisterInfo;
@@ -124,9 +128,19 @@ public:
 
   const TargetLowering &getTargetLowering() const;
 
+  /// \returns true if the combiner is running pre-legalization.
+  bool isPreLegalize() const;
+
+  /// \returns true if \p Query is legal on the target.
+  bool isLegal(const LegalityQuery &Query) const;
+
   /// \return true if the combine is running prior to legalization, or if \p
   /// Query is legal on the target.
   bool isLegalOrBeforeLegalizer(const LegalityQuery &Query) const;
+
+  /// \return true if the combine is running prior to legalization, or if \p Ty
+  /// is a legal integer constant type on the target.
+  bool isConstantLegalOrBeforeLegalizer(const LLT Ty) const;
 
   /// MachineRegisterInfo::replaceRegWith() and inform the observer of the changes
   void replaceRegWith(MachineRegisterInfo &MRI, Register FromReg, Register ToReg) const;
@@ -529,6 +543,13 @@ public:
   /// Combine G_UREM x, (known power of 2) to an add and bitmasking.
   void applySimplifyURemByPow2(MachineInstr &MI);
 
+  /// Push a binary operator through a select on constants.
+  ///
+  /// binop (select cond, K0, K1), K2 ->
+  ///   select cond, (binop K0, K2), (binop K1, K2)
+  bool matchFoldBinOpIntoSelect(MachineInstr &MI, unsigned &SelectOpNo);
+  bool applyFoldBinOpIntoSelect(MachineInstr &MI, const unsigned &SelectOpNo);
+
   bool matchCombineInsertVecElts(MachineInstr &MI,
                                  SmallVectorImpl<Register> &MatchInfo);
 
@@ -645,6 +666,14 @@ public:
   ///   (G_SMULO x, 2) -> (G_SADDO x, x)
   bool matchMulOBy2(MachineInstr &MI, BuildFnTy &MatchInfo);
 
+  /// Match:
+  /// (G_*MULO x, 0) -> 0 + no carry out
+  bool matchMulOBy0(MachineInstr &MI, BuildFnTy &MatchInfo);
+
+  /// Match:
+  /// (G_*ADDO x, 0) -> x + no carry out
+  bool matchAddOBy0(MachineInstr &MI, BuildFnTy &MatchInfo);
+
   /// Transform (fadd x, fneg(y)) -> (fsub x, y)
   ///           (fadd fneg(x), y) -> (fsub y, x)
   ///           (fsub x, fneg(y)) -> (fadd x, y)
@@ -701,6 +730,15 @@ public:
   ///           -> (fneg (fmad (fpext x), (fpext y), z))
   bool matchCombineFSubFpExtFNegFMulToFMadOrFMA(MachineInstr &MI,
                                                 BuildFnTy &MatchInfo);
+
+  /// Fold boolean selects to logical operations.
+  bool matchSelectToLogical(MachineInstr &MI, BuildFnTy &MatchInfo);
+
+  bool matchCombineFMinMaxNaN(MachineInstr &MI, unsigned &Info);
+
+  /// Transform G_ADD(x, G_SUB(y, x)) to y.
+  /// Transform G_ADD(G_SUB(y, x), x) to y.
+  bool matchAddSubSameReg(MachineInstr &MI, Register &Src);
 
 private:
   /// Given a non-indexed load or store instruction \p MI, find an offset that

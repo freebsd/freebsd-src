@@ -17,10 +17,13 @@
 #include "llvm/Remarks/RemarkParser.h"
 #include "llvm/Remarks/RemarkSerializer.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace llvm::remarks;
+
+namespace llvm {
+class raw_ostream;
+}
 
 static Expected<StringRef>
 getRemarksSectionName(const object::ObjectFile &Obj) {
@@ -63,7 +66,7 @@ void RemarkLinker::setExternalFilePrependPath(StringRef PrependPathIn) {
 }
 
 // Discard remarks with no source location.
-static bool shouldKeepRemark(const Remark &R) { return R.Loc.hasValue(); }
+static bool shouldKeepRemark(const Remark &R) { return R.Loc.has_value(); }
 
 Error RemarkLinker::link(StringRef Buffer, Optional<Format> RemarkFormat) {
   if (!RemarkFormat) {

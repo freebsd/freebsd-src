@@ -19,6 +19,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
+#include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/Support/TimeProfiler.h"
 using namespace clang;
 
@@ -199,12 +200,15 @@ Decl *Parser::ParseSingleDeclarationAfterTemplate(
 
   if (Context == DeclaratorContext::Member) {
     // We are parsing a member template.
-    ParseCXXClassMemberDeclaration(AS, AccessAttrs, TemplateInfo,
-                                   &DiagsFromTParams);
-    return nullptr;
+    DeclGroupPtrTy D = ParseCXXClassMemberDeclaration(
+        AS, AccessAttrs, TemplateInfo, &DiagsFromTParams);
+
+    if (!D || !D.get().isSingleDecl())
+      return nullptr;
+    return D.get().getSingleDecl();
   }
 
-  ParsedAttributesWithRange prefixAttrs(AttrFactory);
+  ParsedAttributes prefixAttrs(AttrFactory);
   MaybeParseCXX11Attributes(prefixAttrs);
 
   if (Tok.is(tok::kw_using)) {
@@ -227,7 +231,7 @@ Decl *Parser::ParseSingleDeclarationAfterTemplate(
     DeclEnd = ConsumeToken();
     RecordDecl *AnonRecord = nullptr;
     Decl *Decl = Actions.ParsedFreeStandingDeclSpec(
-        getCurScope(), AS, DS,
+        getCurScope(), AS, DS, ParsedAttributesView::none(),
         TemplateInfo.TemplateParams ? *TemplateInfo.TemplateParams
                                     : MultiTemplateParamsArg(),
         TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation,
@@ -241,11 +245,10 @@ Decl *Parser::ParseSingleDeclarationAfterTemplate(
   // Move the attributes from the prefix into the DS.
   if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation)
     ProhibitAttributes(prefixAttrs);
-  else
-    DS.takeAttributesFrom(prefixAttrs);
 
   // Parse the declarator.
-  ParsingDeclarator DeclaratorInfo(*this, DS, (DeclaratorContext)Context);
+  ParsingDeclarator DeclaratorInfo(*this, DS, prefixAttrs,
+                                   (DeclaratorContext)Context);
   if (TemplateInfo.TemplateParams)
     DeclaratorInfo.setTemplateParameterLists(*TemplateInfo.TemplateParams);
 
@@ -665,7 +668,8 @@ NamedDecl *Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
     // probably meant to write the type of a NTTP.
     DeclSpec DS(getAttrFactory());
     DS.SetTypeSpecError();
-    Declarator D(DS, DeclaratorContext::TemplateParam);
+    Declarator D(DS, ParsedAttributesView::none(),
+                 DeclaratorContext::TemplateParam);
     D.SetIdentifier(nullptr, Tok.getLocation());
     D.setInvalidType(true);
     NamedDecl *ErrorParam = Actions.ActOnNonTypeTemplateParameter(
@@ -989,7 +993,8 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
                              DeclSpecContext::DSC_template_param);
 
   // Parse this as a typename.
-  Declarator ParamDecl(DS, DeclaratorContext::TemplateParam);
+  Declarator ParamDecl(DS, ParsedAttributesView::none(),
+                       DeclaratorContext::TemplateParam);
   ParseDeclarator(ParamDecl);
   if (DS.getTypeSpecType() == DeclSpec::TST_unspecified) {
     Diag(Tok.getLocation(), diag::err_expected_template_parameter);
@@ -1007,18 +1012,23 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
   SourceLocation EqualLoc;
   ExprResult DefaultArg;
   if (TryConsumeToken(tok::equal, EqualLoc)) {
-    // C++ [temp.param]p15:
-    //   When parsing a default template-argument for a non-type
-    //   template-parameter, the first non-nested > is taken as the
-    //   end of the template-parameter-list rather than a greater-than
-    //   operator.
-    GreaterThanIsOperatorScope G(GreaterThanIsOperator, false);
-    EnterExpressionEvaluationContext ConstantEvaluated(
-        Actions, Sema::ExpressionEvaluationContext::ConstantEvaluated);
-
-    DefaultArg = Actions.CorrectDelayedTyposInExpr(ParseAssignmentExpression());
-    if (DefaultArg.isInvalid())
+    if (Tok.is(tok::l_paren) && NextToken().is(tok::l_brace)) {
+      Diag(Tok.getLocation(), diag::err_stmt_expr_in_default_arg) << 1;
       SkipUntil(tok::comma, tok::greater, StopAtSemi | StopBeforeMatch);
+    } else {
+      // C++ [temp.param]p15:
+      //   When parsing a default template-argument for a non-type
+      //   template-parameter, the first non-nested > is taken as the
+      //   end of the template-parameter-list rather than a greater-than
+      //   operator.
+      GreaterThanIsOperatorScope G(GreaterThanIsOperator, false);
+      EnterExpressionEvaluationContext ConstantEvaluated(
+          Actions, Sema::ExpressionEvaluationContext::ConstantEvaluated);
+      DefaultArg =
+          Actions.CorrectDelayedTyposInExpr(ParseAssignmentExpression());
+      if (DefaultArg.isInvalid())
+        SkipUntil(tok::comma, tok::greater, StopAtSemi | StopBeforeMatch);
+    }
   }
 
   // Create the parameter.
@@ -1233,8 +1243,6 @@ bool Parser::ParseGreaterThanInTemplateList(SourceLocation LAngleLoc,
 /// token that forms the template-id. Otherwise, we will leave the
 /// last token in the stream (e.g., so that it can be replaced with an
 /// annotation token).
-///
-/// \param NameHint is not required, and merely affects code completion.
 bool Parser::ParseTemplateIdAfterTemplateName(bool ConsumeLastToken,
                                               SourceLocation &LAngleLoc,
                                               TemplateArgList &TemplateArgs,

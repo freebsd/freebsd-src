@@ -216,7 +216,7 @@ namespace llvm {
 RuntimeDyldELF::RuntimeDyldELF(RuntimeDyld::MemoryManager &MemMgr,
                                JITSymbolResolver &Resolver)
     : RuntimeDyldImpl(MemMgr, Resolver), GOTSectionID(0), CurrentGOTIndex(0) {}
-RuntimeDyldELF::~RuntimeDyldELF() {}
+RuntimeDyldELF::~RuntimeDyldELF() = default;
 
 void RuntimeDyldELF::registerEHFrames() {
   for (int i = 0, e = UnregisteredEHFrameSections.size(); i != e; ++i) {
@@ -444,6 +444,13 @@ void RuntimeDyldELF::resolveAArch64Relocation(const SectionEntry &Section,
     assert(static_cast<int64_t>(Result) >= INT32_MIN &&
            static_cast<int64_t>(Result) <= INT32_MAX);
     write(isBE, TargetPtr, static_cast<uint32_t>(Result));
+    break;
+  }
+  case ELF::R_AARCH64_PREL16: {
+    uint64_t Result = Value + Addend - FinalAddress;
+    assert(static_cast<int64_t>(Result) >= INT16_MIN &&
+           static_cast<int64_t>(Result) <= UINT16_MAX);
+    write(isBE, TargetPtr, static_cast<uint16_t>(Result & 0xffffU));
     break;
   }
   case ELF::R_AARCH64_PREL32: {

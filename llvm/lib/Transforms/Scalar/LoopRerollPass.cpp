@@ -29,15 +29,11 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
@@ -59,7 +55,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <iterator>
 #include <map>
 #include <utility>
@@ -559,12 +554,12 @@ bool LoopReroll::isLoopControlIV(Loop *L, Instruction *IV) {
           }
           // Must be a CMP or an ext (of a value with nsw) then CMP
           else {
-            Instruction *UUser = dyn_cast<Instruction>(UU);
+            auto *UUser = cast<Instruction>(UU);
             // Skip SExt if we are extending an nsw value
             // TODO: Allow ZExt too
-            if (BO->hasNoSignedWrap() && UUser && UUser->hasOneUse() &&
+            if (BO->hasNoSignedWrap() && UUser->hasOneUse() &&
                 isa<SExtInst>(UUser))
-              UUser = dyn_cast<Instruction>(*(UUser->user_begin()));
+              UUser = cast<Instruction>(*(UUser->user_begin()));
             if (!isCompareUsedByBranch(UUser))
               return false;
           }
