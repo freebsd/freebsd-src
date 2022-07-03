@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2002
+.Dd July 3, 2022
 .Dt SOCKATMARK 3
 .Os
 .Sh NAME
@@ -107,6 +107,21 @@ is a descriptor for a file, not a socket.
 .Sh SEE ALSO
 .Xr recv 2 ,
 .Xr send 2
+.Rs
+.%T "An Introductory 4.4BSD Interprocess Communication Tutorial"
+.%A Stuart Sechrest
+.Re
+.%U https://docs.freebsd.org/44doc/psd/20.ipctut/paper.pdf
+.Rs
+.%T "An Advanced 4.4BSD Interprocess Communication Tutorial"
+.%A Samuel J. Leffler
+.%A Robert S. Fabry
+.%A William N. Joy
+.%A Phil Lapsley
+.%A Steve Miller
+.%A Chris Torek
+.%U https://docs.freebsd.org/44doc/psd/21.ipc/paper.pdf
+.Re
 .Sh HISTORY
 The
 .Fn sockatmark
