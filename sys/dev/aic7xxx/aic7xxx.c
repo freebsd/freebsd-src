@@ -3632,7 +3632,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 }
 
 /*
- * Process an ingnore wide residue message.
+ * Process an ignore wide residue message.
  */
 static void
 ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
