@@ -770,7 +770,7 @@ driver_t ata_pcichannel_driver = {
 DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, NULL, NULL);
 
 /*
- * misc support fucntions
+ * misc support functions
  */
 int
 ata_legacy(device_t dev)
