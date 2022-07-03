@@ -1250,7 +1250,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				    M_DEVBUF, M_WAITOK);
 			remain -= 3;
 			i = 0;
-			/* keep in sync w/ state 3's transistions */
+			/* keep in sync w/ state 3's transitions */
 			if (dflen == 0 && remain == 0)
 				state = 0;
 			else if (dflen == 0)
@@ -1277,7 +1277,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			}
 			dflen--;
 			remain--;
-			/* keep in sync w/ state 2's transistions */
+			/* keep in sync w/ state 2's transitions */
 			if (dflen == 0)
 				cfg->vpd.vpd_ros[off++].value[i++] = '\0';
 			if (dflen == 0 && remain == 0) {
@@ -1319,7 +1319,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			    M_DEVBUF, M_WAITOK);
 			remain -= 3;
 			i = 0;
-			/* keep in sync w/ state 6's transistions */
+			/* keep in sync w/ state 6's transitions */
 			if (dflen == 0 && remain == 0)
 				state = 0;
 			else if (dflen == 0)
@@ -1332,7 +1332,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			cfg->vpd.vpd_w[off].value[i++] = byte;
 			dflen--;
 			remain--;
-			/* keep in sync w/ state 5's transistions */
+			/* keep in sync w/ state 5's transitions */
 			if (dflen == 0)
 				cfg->vpd.vpd_w[off++].value[i++] = '\0';
 			if (dflen == 0 && remain == 0) {
