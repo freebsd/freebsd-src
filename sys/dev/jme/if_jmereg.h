@@ -180,7 +180,7 @@
  * Misc registers         128 bytes     BAR2 + 0x80 ~       BAR0 + 0x800 ~
  *                                       BAR2 + 0x7F         BAR0 + 0x87F
  * -----------------------------------------------------------------------
- * To simplify register access fuctions and to get better performance
+ * To simplify register access functions and to get better performance
  * this driver doesn't support IO space access. It could be implemented
  * as a function which selects appropriate BARs to access requested
  * register.
