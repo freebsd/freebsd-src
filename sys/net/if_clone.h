@@ -59,7 +59,7 @@ struct if_clone *
 	if_clone_simple(const char *, ifcs_create_t, ifcs_destroy_t, u_int);
 void	if_clone_detach(struct if_clone *);
 
-/* Unit (de)allocating fucntions. */
+/* Unit (de)allocating functions. */
 int	ifc_name2unit(const char *name, int *unit);
 int	ifc_alloc_unit(struct if_clone *, int *);
 void	ifc_free_unit(struct if_clone *, int);
