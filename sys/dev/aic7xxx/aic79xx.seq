@@ -1208,7 +1208,7 @@ mesgin_complete:
 complete_accepted:
 
 	/*
-	 * See if we attempted to deliver a message but the target ingnored us.
+	 * See if we attempted to deliver a message but the target ignored us.
 	 */
 	test	SCB_CONTROL, MK_MESSAGE jz complete_nomsg;
 	SET_SEQINTCODE(MKMSG_FAILED)
