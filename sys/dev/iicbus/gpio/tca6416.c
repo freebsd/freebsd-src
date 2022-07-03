@@ -136,6 +136,7 @@ MODULE_VERSION(tca6416, 1);
 
 static struct ofw_compat_data compat_data[] = {
 	{"ti,tca6416",	1},
+	{"ti,tca9539",	1},
 	{0,0}
 };
 
