@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2022
+.Dd July 2, 2022
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -662,5 +662,8 @@ enforced by the server, the options
 and
 .Cm soft
 cannot be safely used.
+For NFSv4 minor version 1 or 2 mounts, these options may
+also result
+in hung mount points, due to corruption of session slots.
 .Cm hard
 nfsv4 mounts are strongly recommended.
