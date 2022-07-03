@@ -34,7 +34,9 @@ mountd_precmd()
 		rc_flags="${rc_flags} -R"
 	else
 		force_depend rpcbind || return 1
-		if ! checkyesno nfsv4_server_enable; then
+		if checkyesno nfsv4_server_enable; then
+			sysctl vfs.nfsd.server_max_nfsvers=4 > /dev/null
+		else
 			sysctl vfs.nfsd.server_max_nfsvers=3 > /dev/null
 		fi
 	fi
