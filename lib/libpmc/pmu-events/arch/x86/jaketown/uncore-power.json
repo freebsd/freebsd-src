@@ -58,7 +58,7 @@
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of times that the uncore transistioned to a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band1=XXX with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency. Derived from unc_p_freq_band1_cycles",
+        "BriefDescription": "Counts the number of times that the uncore transitioned to a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band1=XXX with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency. Derived from unc_p_freq_band1_cycles",
         "Counter": "0,1,2,3",
         "EventCode": "0xc",
         "EventName": "UNC_P_FREQ_BAND1_TRANSITIONS",
