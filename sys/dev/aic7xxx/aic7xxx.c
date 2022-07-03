@@ -6053,7 +6053,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	 *	 we have run out of ATIO resources to drain that
 	 *	 queue, we may not get them all out here.  Further,
 	 *	 the blocked transactions for the reset channel
-	 *	 should just be killed off, irrespecitve of whether
+	 *	 should just be killed off, irrespective of whether
 	 *	 we are blocked on ATIO resources.  Write a routine
 	 *	 to compact the tqinfifo appropriately.
 	 */
