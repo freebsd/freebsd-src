@@ -479,7 +479,7 @@ invalidate_swrun_entry(struct swrun_entry *entry, int commit)
 
 	if (entry->index >= NO_PID + 1)	{
 		/* this is a kernel item */
-		HRDBG("atempt to unload KLD %d",
+		HRDBG("attempt to unload KLD %d",
 		    entry->index -  NO_PID - 1);
 
 		if (entry->index == SWOSIndex) {
