@@ -579,12 +579,11 @@ ip6_input(struct mbuf *m)
 			IP6STAT_INC(ip6s_mext1);
 	} else {
 		if (m->m_next) {
-			if (m->m_flags & M_LOOP) {
-				IP6STAT_INC(ip6s_m2m[V_loif->if_index]);
-			} else if (rcvif->if_index < IP6S_M2MMAX)
-				IP6STAT_INC(ip6s_m2m[rcvif->if_index]);
-			else
-				IP6STAT_INC(ip6s_m2m[0]);
+			struct ifnet *ifp = (m->m_flags & M_LOOP) ? V_loif : rcvif;
+			int ifindex = ifp->if_index;
+			if (ifindex >= IP6S_M2MMAX)
+				ifindex = 0;
+			IP6STAT_INC(ip6s_m2m[ifindex]);
 		} else
 			IP6STAT_INC(ip6s_m1);
 	}
