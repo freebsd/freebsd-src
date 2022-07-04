@@ -643,6 +643,47 @@ cache_route(uint32_t fibnum, const struct sockaddr_in6 *dst, struct route_in6 *r
 	return (ro->ro_nh);
 }
 
+static struct nhop_object *
+lookup_route(uint32_t fibnum, struct sockaddr_in6 *dst, struct route_in6 *ro,
+    struct ip6_pktopts *opts, uint32_t flowid)
+{
+	struct nhop_object *nh = NULL;
+
+	/*
+	 * If the next hop address for the packet is specified by the caller,
+	 * use it as the gateway.
+	 */
+	if (opts && opts->ip6po_nexthop) {
+		struct route_in6 *ron = &opts->ip6po_nextroute;
+		struct sockaddr_in6 *sin6_next = satosin6(opts->ip6po_nexthop);
+
+		nh = cache_route(fibnum, sin6_next, ron, flowid);
+
+		/*
+		 * The node identified by that address must be a
+		 * neighbor of the sending host.
+		 */
+		if (nh != NULL && (nh->nh_flags & NHF_GATEWAY) != 0)
+			nh = NULL;
+	} else if (ro != NULL) {
+		nh = cache_route(fibnum, dst, ro, flowid);
+		if (nh == NULL)
+			return (NULL);
+
+		/*
+		 * Check if the outgoing interface conflicts with
+		 * the interface specified by ipi6_ifindex (if specified).
+		 */
+		struct in6_pktinfo *pi;
+		if (opts && (pi = opts->ip6po_pktinfo) != NULL && pi->ipi6_ifindex) {
+			if (nh->nh_aifp->if_index != pi->ipi6_ifindex)
+				nh = NULL;
+		}
+	}
+
+	return (nh);
+}
+
 /*
  * Finds outgoing nexthop or the outgoing interface for the
  * @dstsock.
@@ -656,11 +697,8 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 {
 	int error = 0;
 	struct ifnet *ifp = NULL;
-	struct nhop_object *nh = NULL;
-	struct sockaddr_in6 *sin6_next;
 	struct in6_pktinfo *pi = NULL;
 	struct in6_addr *dst = &dstsock->sin6_addr;
-	uint32_t zoneid;
 
 	/* If the caller specify the outgoing interface explicitly, use it. */
 	if (opts && (pi = opts->ip6po_pktinfo) != NULL && pi->ipi6_ifindex) {
@@ -689,66 +727,28 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 */
 	if (IN6_IS_ADDR_MC_LINKLOCAL(dst) ||
 	    IN6_IS_ADDR_MC_NODELOCAL(dst)) {
-		zoneid = ntohs(in6_getscope(dst));
+		uint32_t zoneid = ntohs(in6_getscope(dst));
 		if (zoneid > 0) {
 			ifp = in6_getlinkifnet(zoneid);
 			goto done;
 		}
 	}
 
-  getroute:
-	/*
-	 * If the next hop address for the packet is specified by the caller,
-	 * use it as the gateway.
-	 */
-	if (opts && opts->ip6po_nexthop) {
-		struct route_in6 *ron = &opts->ip6po_nextroute;
-		sin6_next = satosin6(opts->ip6po_nexthop);
-
-		nh = cache_route(fibnum, sin6_next, ron, flowid);
-
-		/*
-		 * The node identified by that address must be a
-		 * neighbor of the sending host.
-		 */
-		if (nh != NULL && (nh->nh_flags & NHF_GATEWAY) == 0)
-			ifp = nh->nh_ifp;
-		else {
-			nh = NULL; // cached nh is still stored in @opts
-			error = EHOSTUNREACH;
-		}
-	} else if (ro != NULL) {
-		nh = cache_route(fibnum, dstsock, ro, flowid);
-		if (nh != NULL)
-			ifp = nh->nh_ifp;
-		else
-			error = EHOSTUNREACH;
-
-		/*
-		 * Check if the outgoing interface conflicts with
-		 * the interface specified by ipi6_ifindex (if specified).
-		 * Note that loopback interface is always okay.
-		 * (this may happen when we are sending a packet to one of
-		 *  our own addresses.)
-		 */
-		if (ifp && opts && opts->ip6po_pktinfo &&
-		    opts->ip6po_pktinfo->ipi6_ifindex) {
-			if (!(ifp->if_flags & IFF_LOOPBACK) &&
-			    ifp->if_index !=
-			    opts->ip6po_pktinfo->ipi6_ifindex) {
-				error = EHOSTUNREACH;
-				ifp = NULL;
-				nh = NULL;
-			}
-		}
+  getroute:;
+	struct nhop_object *nh = lookup_route(fibnum, dstsock, ro, opts, flowid);
+	if (nh != NULL) {
+		*retifp = nh->nh_aifp;
+		error = 0;
+	} else {
+		*retifp = NULL;
+		IP6STAT_INC(ip6s_noroute);
+		error = EHOSTUNREACH;
 	}
-	/*
-	 * Output must be consistent: no error -> both ifp and nh != NULL,
-	 * otherwise both NULL
-	 */
+	*retnh = nh;
+	return (error);
 
   done:
-	if (ifp == NULL && nh == NULL) {
+	if (ifp == NULL) {
 		/*
 		 * This can happen if the caller did not pass a cached route
 		 * nor any other hints.  We treat this case an error.
@@ -758,11 +758,8 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (error == EHOSTUNREACH)
 		IP6STAT_INC(ip6s_noroute);
 
-	if (nh != NULL)
-		*retifp = nh->nh_aifp;
-	else
-		*retifp = ifp;
-	*retnh = nh;	/* nh may be NULL */
+	*retifp = ifp;
+	*retnh = NULL;
 
 	return (error);
 }
