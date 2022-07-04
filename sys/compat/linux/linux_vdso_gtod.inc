@@ -372,7 +372,14 @@ __vdso_getcpu(uint32_t *cpu, uint32_t *node, void *cache)
 int
 __vdso_time(long *tm)
 {
+	struct timeval tv;
+	int error;
 
-	return (__vdso_time_fallback(tm));
+	error = freebsd_gettimeofday(&tv, NULL);
+	if (error != 0)
+		return (__vdso_time_fallback(tm));
+	if (tm != NULL)
+		*tm = tv.tv_sec;
+	return (tv.tv_sec);
 }
 #endif
