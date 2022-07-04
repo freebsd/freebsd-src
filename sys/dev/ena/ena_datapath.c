@@ -219,8 +219,8 @@ ena_get_tx_req_id(struct ena_ring *tx_ring, struct ena_com_io_cq *io_cq,
 		return (0);
 
 	ena_log(adapter->pdev, ERR,
-	    "tx_info doesn't have valid mbuf. qid %hu req_id %hu\n",
-	    tx_ring->qid, *req_id);
+	    "tx_info doesn't have valid mbuf. req_id %hu qid %hu\n",
+	    *req_id, tx_ring->qid);
 err:
 	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
