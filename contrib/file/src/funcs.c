@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.122 2021/06/30 10:08:48 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.129 2022/05/28 20:24:09 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -54,9 +54,12 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.122 2021/06/30 10:08:48 christos Exp $")
 protected char *
 file_copystr(char *buf, size_t blen, size_t width, const char *str)
 {
-	if (++width > blen)
-		width = blen;
-	strlcpy(buf, str, width);
+	if (blen == 0)
+		return buf;
+	if (width >= blen)
+		width = blen - 1;
+	memcpy(buf, str, width);
+	buf[width] = '\0';
 	return buf;
 }
 
@@ -90,7 +93,8 @@ file_checkfield(char *msg, size_t mlen, const char *what, const char **pp)
 protected int
 file_checkfmt(char *msg, size_t mlen, const char *fmt)
 {
-	for (const char *p = fmt; *p; p++) {
+	const char *p;
+	for (p = fmt; *p; p++) {
 		if (*p != '%')
 			continue;
 		if (*++p == '%')
@@ -146,8 +150,8 @@ file_vprintf(struct magic_set *ms, const char *fmt, va_list ap)
 		size_t blen = ms->o.blen;
 		free(buf);
 		file_clearbuf(ms);
-		file_error(ms, 0, "Output buffer space exceeded %d+%zu", len,
-		    blen);
+		file_error(ms, 0, "Output buffer space exceeded %d+%"
+		    SIZE_T_FORMAT "u", len, blen);
 		return -1;
 	}
 
@@ -634,13 +638,11 @@ file_replace(struct magic_set *ms, const char *pat, const char *rep)
 	file_regex_t rx;
 	int rc, rv = -1;
 
-	rc = file_regcomp(&rx, pat, REG_EXTENDED);
-	if (rc) {
-		file_regerror(&rx, rc, ms);
-	} else {
+	rc = file_regcomp(ms, &rx, pat, REG_EXTENDED);
+	if (rc == 0) {
 		regmatch_t rm;
 		int nm = 0;
-		while (file_regexec(&rx, ms->o.buf, 1, &rm, 0) == 0) {
+		while (file_regexec(ms, &rx, ms->o.buf, 1, &rm, 0) == 0) {
 			ms->o.buf[rm.rm_so] = '\0';
 			if (file_printf(ms, "%s%s", rep,
 			    rm.rm_eo != 0 ? ms->o.buf + rm.rm_eo : "") == -1)
@@ -655,58 +657,64 @@ out:
 }
 
 protected int
-file_regcomp(file_regex_t *rx, const char *pat, int flags)
+file_regcomp(struct magic_set *ms file_locale_used, file_regex_t *rx,
+    const char *pat, int flags)
 {
 #ifdef USE_C_LOCALE
-	rx->c_lc_ctype = newlocale(LC_CTYPE_MASK, "C", 0);
-	assert(rx->c_lc_ctype != NULL);
-	rx->old_lc_ctype = uselocale(rx->c_lc_ctype);
-	assert(rx->old_lc_ctype != NULL);
+	locale_t old = uselocale(ms->c_lc_ctype);
+	assert(old != NULL);
 #else
-	rx->old_lc_ctype = setlocale(LC_CTYPE, NULL);
-	assert(rx->old_lc_ctype != NULL);
-	rx->old_lc_ctype = strdup(rx->old_lc_ctype);
-	assert(rx->old_lc_ctype != NULL);
+	char old[1024];
+	strlcpy(old, setlocale(LC_CTYPE, NULL), sizeof(old));
 	(void)setlocale(LC_CTYPE, "C");
 #endif
-	rx->pat = pat;
+	int rc;
+	rc = regcomp(rx, pat, flags);
 
-	return rx->rc = regcomp(&rx->rx, pat, flags);
+#ifdef USE_C_LOCALE
+	uselocale(old);
+#else
+	(void)setlocale(LC_CTYPE, old);
+#endif
+	if (rc > 0 && (ms->flags & MAGIC_CHECK)) {
+		char errmsg[512];
+
+		(void)regerror(rc, rx, errmsg, sizeof(errmsg));
+		file_magerror(ms, "regex error %d for `%s', (%s)", rc, pat,
+		    errmsg);
+	}
+	return rc;
 }
 
 protected int
-file_regexec(file_regex_t *rx, const char *str, size_t nmatch,
-    regmatch_t* pmatch, int eflags)
+file_regexec(struct magic_set *ms file_locale_used, file_regex_t *rx,
+    const char *str, size_t nmatch, regmatch_t* pmatch, int eflags)
 {
-	assert(rx->rc == 0);
+#ifdef USE_C_LOCALE
+	locale_t old = uselocale(ms->c_lc_ctype);
+	assert(old != NULL);
+#else
+	char old[1024];
+	strlcpy(old, setlocale(LC_CTYPE, NULL), sizeof(old));
+	(void)setlocale(LC_CTYPE, "C");
+#endif
+	int rc;
 	/* XXX: force initialization because glibc does not always do this */
 	if (nmatch != 0)
 		memset(pmatch, 0, nmatch * sizeof(*pmatch));
-	return regexec(&rx->rx, str, nmatch, pmatch, eflags);
+	rc = regexec(rx, str, nmatch, pmatch, eflags);
+#ifdef USE_C_LOCALE
+	uselocale(old);
+#else
+	(void)setlocale(LC_CTYPE, old);
+#endif
+	return rc;
 }
 
 protected void
 file_regfree(file_regex_t *rx)
 {
-	if (rx->rc == 0)
-		regfree(&rx->rx);
-#ifdef USE_C_LOCALE
-	(void)uselocale(rx->old_lc_ctype);
-	freelocale(rx->c_lc_ctype);
-#else
-	(void)setlocale(LC_CTYPE, rx->old_lc_ctype);
-	free(rx->old_lc_ctype);
-#endif
-}
-
-protected void
-file_regerror(file_regex_t *rx, int rc, struct magic_set *ms)
-{
-	char errmsg[512];
-
-	(void)regerror(rc, &rx->rx, errmsg, sizeof(errmsg));
-	file_magerror(ms, "regex error %d for `%s', (%s)", rc, rx->pat,
-	    errmsg);
+	regfree(rx);
 }
 
 protected file_pushbuf_t *
@@ -755,7 +763,7 @@ file_pop_buffer(struct magic_set *ms, file_pushbuf_t *pb)
 /*
  * convert string to ascii printable format.
  */
-protected char *
+public char *
 file_printable(struct magic_set *ms, char *buf, size_t bufsiz,
     const char *str, size_t slen)
 {
@@ -790,11 +798,25 @@ protected int
 file_parse_guid(const char *s, uint64_t *guid)
 {
 	struct guid *g = CAST(struct guid *, CAST(void *, guid));
+#ifndef WIN32
 	return sscanf(s,
 	    "%8x-%4hx-%4hx-%2hhx%2hhx-%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
 	    &g->data1, &g->data2, &g->data3, &g->data4[0], &g->data4[1],
 	    &g->data4[2], &g->data4[3], &g->data4[4], &g->data4[5],
 	    &g->data4[6], &g->data4[7]) == 11 ? 0 : -1;
+#else
+	/* MS-Windows runtime doesn't support %hhx, except under
+	   non-default __USE_MINGW_ANSI_STDIO.  */
+	uint16_t data16[8];
+	int rv = sscanf(s, "%8x-%4hx-%4hx-%2hx%2hx-%2hx%2hx%2hx%2hx%2hx%2hx",
+	    &g->data1, &g->data2, &g->data3, &data16[0], &data16[1],
+	    &data16[2], &data16[3], &data16[4], &data16[5],
+	    &data16[6], &data16[7]) == 11 ? 0 : -1;
+	int i;
+	for (i = 0; i < 8; i++)
+	    g->data4[i] = data16[i];
+	return rv;
+#endif
 }
 
 protected int
@@ -803,11 +825,19 @@ file_print_guid(char *str, size_t len, const uint64_t *guid)
 	const struct guid *g = CAST(const struct guid *,
 	    CAST(const void *, guid));
 
+#ifndef WIN32
 	return snprintf(str, len, "%.8X-%.4hX-%.4hX-%.2hhX%.2hhX-"
 	    "%.2hhX%.2hhX%.2hhX%.2hhX%.2hhX%.2hhX",
 	    g->data1, g->data2, g->data3, g->data4[0], g->data4[1],
 	    g->data4[2], g->data4[3], g->data4[4], g->data4[5],
 	    g->data4[6], g->data4[7]);
+#else
+	return snprintf(str, len, "%.8X-%.4hX-%.4hX-%.2hX%.2hX-"
+	    "%.2hX%.2hX%.2hX%.2hX%.2hX%.2hX",
+	    g->data1, g->data2, g->data3, g->data4[0], g->data4[1],
+	    g->data4[2], g->data4[3], g->data4[4], g->data4[5],
+	    g->data4[6], g->data4[7]);
+#endif
 }
 
 protected int
@@ -818,15 +848,21 @@ file_pipe_closexec(int *fds)
 #else
 	if (pipe(fds) == -1)
 		return -1;
+# ifdef F_SETFD
 	(void)fcntl(fds[0], F_SETFD, FD_CLOEXEC);
 	(void)fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+# endif
 	return 0;
 #endif
 }
 
 protected int
 file_clear_closexec(int fd) {
+#ifdef F_SETFD
 	return fcntl(fd, F_SETFD, 0);
+#else
+	return 0;
+#endif
 }
 
 protected char *

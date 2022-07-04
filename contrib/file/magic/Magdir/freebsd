@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: freebsd,v 1.7 2009/09/19 16:28:09 christos Exp $
+# $File: freebsd,v 1.9 2022/01/19 12:44:13 christos Exp $
 # freebsd:  file(1) magic for FreeBSD objects
 #
 # All new-style FreeBSD magic numbers are in host byte order (i.e.,
@@ -142,3 +142,23 @@
 >9	byte	2		%d bytes in header,
 >>10	byte	x		%d chars wide by
 >>11	byte	x		%d chars high
+
+#
+# FreeBSD kernel minidumps
+#
+0	string	minidump\040FreeBSD/	FreeBSD kernel minidump
+# powerpc uses 32-byte magic, followed by 32-byte mmu kind, then version
+>17	string	powerpc
+>>17	string	>\0			for %s,
+>>>32	string	>\0			%s,
+>>>>64	byte	0			big endian,
+>>>>>64	belong	x			version %d
+>>>>64	default	x			little endian,
+>>>>>64	lelong	x			version %d
+# all other architectures use 24-byte magic, followed by version
+>17	default	x
+>>17	string	>\0			for %s,
+>>>24	byte	0			big endian,
+>>>>24	belong	x			version %d
+>>>24	default	x			little endian,
+>>>>24	lelong	x			version %d

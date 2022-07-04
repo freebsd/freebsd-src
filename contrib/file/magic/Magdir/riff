@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.43 2021/04/26 15:56:00 christos Exp $
+# $File: riff,v 1.44 2022/05/14 19:42:47 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -161,6 +161,64 @@
 #>0  string  x		we got %s
 #>>&(4.l+4)  use riff-walk
 
+# RecorderGear TR500 call recorder digits (BCD)
+0	name	tr500-call-recorder-digits
+>0	byte&0xF0	0x00	\b0
+>0	byte&0xF0	0x10	\b1
+>0	byte&0xF0	0x20	\b2
+>0	byte&0xF0	0x30	\b3
+>0	byte&0xF0	0x40	\b4
+>0	byte&0xF0	0x50	\b5
+>0	byte&0xF0	0x60	\b6
+>0	byte&0xF0	0x70	\b7
+>0	byte&0xF0	0x80	\b8
+>0	byte&0xF0	0x90	\b9
+>0	byte&0xF0	0xb0	\b*
+>0	byte&0xF0	0xc0	\b#
+>0	byte&0x0F	0	\b0
+>0	byte&0x0F	1	\b1
+>0	byte&0x0F	2	\b2
+>0	byte&0x0F	3	\b3
+>0	byte&0x0F	4	\b4
+>0	byte&0x0F	5	\b5
+>0	byte&0x0F	6	\b6
+>0	byte&0x0F	7	\b7
+>0	byte&0x0F	8	\b8
+>0	byte&0x0F	9	\b9
+>0	byte&0x0F	0xb	\b*
+>0	byte&0x0F	0xc	\b#
+
+# TR500 call recorder extended header
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# Contains dialed/incoming phone number and timestamp.
+# TODO: Verify byte 15.
+0	name	tr500-call-recorder-header
+>15	byte	2	(outgoing call: 
+>15	byte	4	(incoming call: 
+>1	byte	0xFF	\bno number
+>1	byte	!0xFF
+>>1	use	tr500-call-recorder-digits
+>>2	byte	!0xFF
+>>>2	use	tr500-call-recorder-digits
+>>3	byte	!0xFF
+>>>3	use	tr500-call-recorder-digits
+>>4	byte	!0xFF
+>>>4	use	tr500-call-recorder-digits
+>>5	byte	!0xFF
+>>>5	use	tr500-call-recorder-digits
+>>6	byte	!0xFF
+>>>6	use	tr500-call-recorder-digits
+>>7	byte	!0xFF
+>>>7	use	tr500-call-recorder-digits
+>>8	byte	!0xFF
+>>>8	use	tr500-call-recorder-digits
+>9	byte	x	\b, 20%02x
+>10	byte	x	\b/%02x
+>11	byte	x	\b/%02x
+>12	byte	x	%02x
+>13	byte	x	\b:%02x
+>14	byte	x	\b:%02x)
+
 # AVI section extended by Patrik Radman <patrik+file-magic@iki.fi>
 #
 0	string		RIFF		RIFF (little-endian) data
@@ -231,6 +289,11 @@
 !:ext	wav/wave
 >>12    string  >\0
 >>>12   use     riff-walk
+# TR500 call recorder extended header
+>>16	ulelong		0x1E4
+>>>20	leshort		0x11
+>>>>256	byte		4
+>>>>>256 use		tr500-call-recorder-header
 # Update:	Joerg Jenderek
 # lower case for Corel Draw version 8 Bidi
 >8	string/c	cdr
@@ -676,6 +739,7 @@
 # for debugging purpose display 5th chunk like: LIST osfp
 #>>(26.l+30)	string	x		\b, 5th "%-4.4s"
 >4	ulelong+8	x		\b, %u bytes
+
 #
 # XXX - some of the below may only appear in little-endian form.
 #

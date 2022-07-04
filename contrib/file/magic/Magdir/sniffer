@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sniffer,v 1.30 2021/07/03 13:51:56 christos Exp $
+# $File: sniffer,v 1.31 2022/03/20 22:45:43 christos Exp $
 # sniffer:  file(1) magic for packet capture files
 #
 # From: guy@alum.mit.edu (Guy Harris)
@@ -362,4 +362,51 @@
 #
 # Files from Accellent Group's 5View products.
 #
-0	string		\xaa\xaa\xaa\xaa	5View capture file
+# URL:		http://www.infovista.com
+# Reference:	http://mark0.net/download/triddefs_xml.7z
+#		defs/0/5vw.trid.xml
+#		https://2.na.dl.wireshark.org/src/wireshark-3.6.2.tar.xz
+#		wireshark-3.6.2/wiretap/5views.c 
+# Update:	Joerg Jenderek
+# Note:		called "5View capture" by TrID and
+#		"Wireshark capture file" on Windows or
+#		"Packet Capture (Accellent/InfoVista 5view)" by shared MIME-info database
+#		verified/falsified by `wireshark *.5vw`
+0	string		\xaa\xaa\xaa\xaa
+# skip misidentified boot/x86_64/loader/kroete.dat on Suse LEAP DVD
+# by check for valid record version
+>8	ulelong		=0x00010000
+>>0	use	5view-le
+0	name	5view-le
+# t_5VW_Info_Header.Signature = CST_5VW_INFO_HEADER_KEY = 0xAAAAAAAAU
+>0	ulelong		x			5View capture file
+# https://reposcope.com/mimetype/application/x-5view
+!:mime	application/x-5view
+!:ext	5vw
+# size of header in bytes (included signature and reserved fields); probably always 20h
+>4	ulelong		!0x00000020		\b, header size %#x
+# version of header record; apparently always CST_5VW_INFO_RECORD_VERSION=0x00010000U
+>8	ulelong		!0x00010000		\b, record version %#x
+# DataSize; total size of data without header like: 18h
+>12	ulelong		x			\b, record size %#x
+# filetype; type of the capture file like: 18001000h
+>16	ulelong		x			\b, file type %#8.8x
+# Reserved[3]; reserved for future use; apparently zero
+>20	quad		!0			\b, Reserved %#llx
+# look for record header key CST_5VW_RECORDS_HEADER_KEY of structure t_5VW_TimeStamped_Header
+>0x20	search/0xB8/b	\xEE\xEE\x33\x33	\b; record
+# HeaderSize; actual size of this header in bytes like: 32 24h
+>>&0	uleshort	x			size %#x
+# HeaderType; exact type of this header; probably always 0x4000
+>>&2	uleshort	!0x4000			\b, header type %#x
+# RecType; type of record like: 80000000h
+>>&4	ulelong		x			\b, record type %#x
+# RecSubType; subtype of record like: 0
+>>&8	ulelong		!0			\b, subtype %#x
+# RecSize; Size of one record like: 5Ch
+>>&12	ulelong		x			\b, RecSize %#x
+# RecNb; Number of records like: 1
+>>&16	ulelong		>1			\b, %#x records
+# Timestamp Utc
+#>>&20	ulelong		x			\b, RAW TIME %#8.8x
+>>&20	date		x			\b, Time-stamp %s

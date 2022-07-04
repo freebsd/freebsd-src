@@ -1,20 +1,42 @@
 
 #------------------------------------------------------------------------
-# $File: sysex,v 1.10 2019/04/19 00:42:27 christos Exp $
+# $File: sysex,v 1.11 2022/01/17 17:16:51 christos Exp $
 # sysex: file(1) magic for MIDI sysex files
 #
 # GRR: original 1 byte test at offset was too general as it catches also many FATs of DOS filesystems
 # where real SYStem EXclusive messages at offset 1 are limited to seven bits
 # https://en.wikipedia.org/wiki/MIDI
-0	ubeshort&0xFF80		0xF000		SysEx File -
-
+# test for StartSysEx byte and upper unsed bit of vendor ID
+0	ubeshort&0xFF80		0xF000
+# MIDI System Exclusive (SysEx) messages (strength=50) after Microsoft Visual C library (strength=70)
+#!:strength +0
+# skip Microsoft Visual C library with page size 16 misidentifed as ADA and
+# page size 32 misidentifed as Inventronics by looking for terminating End Of eXclusive byte (EOX)
+>2		search/12	\xF7
+>>0	use	midi-sysex
+#	display information about MIDI System Exclusive (SysEx) messages
+0	name		midi-sysex
+# https://fileinfo.com/extension/syx	
+>1	ubyte			x		MIDI audio System Exclusive (SysEx) message -
+# Note: file (version 5.41) labeled the above entry as "SysEx File"
+#!:mime	application/octet-stream
+!:mime	audio/x-syx
+# https://onsongapp.com/docs/features/formats/sysex
+!:ext	syx/sysex
+# https://www.midi.org/specifications-old/item/manufacturer-id-numbers
+# https://raw.githubusercontent.com/insolace/MIDI-Sysex-MFG-IDs/master/Sysex%20ID%20Tables/MIDI%20Sysex%20MFG%20IDs.csv
+# SysEx manufacturer ID; originally one byte, but now 0 is used as an escapement to reach the next two
 # North American Group
->1	byte			0x01		Sequential
+#>1	byte			0x01		Sequential
+>1	byte			0x01		Sequential Circuits
 >1	byte			0x02		IDP
->1	byte			0x03		OctavePlateau
+#>1	byte			0x03		OctavePlateau
+>1	byte			0x03		Voyetra Turtle Beach
 >1	byte			0x04		Moog
->1	byte			0x05		Passport
->1	byte			0x06		Lexicon
+#>1	byte			0x05		Passport
+>1	byte			0x05		Passport Designs
+#>1	byte			0x06		Lexicon
+>1	byte			0x06		Lexicon Inc.
 >1	byte			0x07		Kurzweil/Future Retro
 >>3	byte			0x77		777
 >>4	byte			0x00		Bank
@@ -38,12 +60,17 @@
 >>5	byte			0x10		(ALL)
 >>2	byte			x			\b, Channel %d
 >1	byte			0x08		Fender
->1	byte			0x09		Gulbransen
->1	byte			0x0a		AKG
+#>1	byte			0x09		Gulbransen
+>1	byte			0x09		MIDI9
+#>1	byte			0x0a		AKG
+>1	byte			0x0a		AKG Acoustics
 >1	byte			0x0b		Voyce
 >1	byte			0x0c		Waveframe
->1	byte			0x0d		ADA
->1	byte			0x0e		Garfield
+# not ADA programming language
+#>1	byte			0x0d		ADA
+>1	byte			0x0d		ADA Signal Processors Inc.
+#>1	byte			0x0e		Garfield
+>1	byte			0x0e		Garfield Electronics
 >1	byte			0x0f		Ensoniq
 >1	byte			0x10		Oberheim
 >>2	byte			0x06		Matrix 6 series
@@ -59,7 +86,8 @@
 >1	byte			0x16		Lowrey
 >1	byte			0x17		AdamsSmith
 >1	byte			0x18		E-mu
->1	byte			0x19		Harmony
+#>1	byte			0x19		Harmony
+>1	byte			0x19		Harmony Systems
 >1	byte			0x1a		ART
 >1	byte			0x1b		Baldwin
 >1	byte			0x1c		Eventide
@@ -67,23 +95,28 @@
 >1	byte			0x1f		Clarity
 
 # European Group
->1	byte			0x21		SIEL
+#>1	byte			0x21		SIEL
+>1	byte			0x21		Proel Labs (SIEL)
 >1	byte			0x22		Synthaxe
 >1	byte			0x24		Hohner
 >1	byte			0x25		Twister
->1	byte			0x26		Solton
+#>1	byte			0x26		Solton
+>1	byte			0x26		Ketron s.r.l.
 >1	byte			0x27		Jellinghaus
 >1	byte			0x28		Southworth
 >1	byte			0x29		PPG
 >1	byte			0x2a		JEN
->1	byte			0x2b		SSL
->1	byte			0x2c		AudioVertrieb
+#>1	byte			0x2b		SSL
+>1	byte			0x2b		Solid State Logic Organ Systems
+#>1	byte			0x2c		AudioVertrieb
+>1	byte			0x2c		Audio Veritrieb-P. Struven
 
 >1	byte			0x2f		ELKA
 >>3	byte			0x09		EK-44
 
 >1	byte			0x30		Dynacord
->1	byte			0x31		Jomox
+#>1	byte			0x31		Jomox
+>1	byte			0x31		Viscount International Spa
 >1	byte			0x33		Clavia
 >1	byte			0x39		Soundcraft
 # Some Waldorf info from http://Stromeko.Synth.net/Downloads#WaldorfDocs
@@ -202,14 +235,16 @@
 >1	byte			0x44		Casio
 >1	byte			0x46		Kamiya
 >1	byte			0x47		Akai
->1	byte			0x48		Victor
+#>1	byte			0x48		Victor
+>1	byte			0x48		Victor Company of Japan. Ltd.
 >1	byte			0x49		Mesosha
 >1	byte			0x4b		Fujitsu
 >1	byte			0x4c		Sony
 >1	byte			0x4e		Teac
 >1	byte			0x50		Matsushita
 >1	byte			0x51		Fostex
->1	byte			0x52		Zoom
+#>1	byte			0x52		Zoom
+>1	byte			0x52		Zoom Corporation
 >1	byte			0x54		Matsushita
 >1	byte			0x57		Acoustic tech. lab.
 # https://www.midi.org/techspecs/manid.php
@@ -316,5 +351,79 @@
 >1	belong&0xffffff00	0x00204600	C-Mexx Software
 >1	belong&0xffffff00	0x00204700	Klavis Tech.
 >1	belong&0xffffff00	0x00204800	Noteheads AB
+
+# Update:	Joerg Jenderek; January 2022
+>1	byte			0x00		ID EXTENSIONS
+>1	byte			0x13		Digidesign Inc.
+>1	byte			0x1e		Key Concepts
+>1	byte			0x20		Passac
+>1	byte			0x23		Stepp
+>1	byte			0x2d		Neve
+>1	byte			0x2e		Soundtracs Ltd.
+>1	byte			0x32		Drawmer
+>1	byte			0x34		Audio Architecture
+>1	byte			0x35		Generalmusic Corp SpA
+>1	byte			0x36		Cheetah Marketing
+>1	byte			0x37		C.T.M.
+>1	byte			0x38		Simmons UK
+>1	byte			0x3a		Steinberg
+>1	byte			0x3b		Wersi GmbH
+>1	byte			0x3c		AVAB Niethammer AB
+>1	byte			0x3d		Digigram
+>1	byte			0x3f		Quasimidi
+#
+>1	byte			0x40		Kawai Musical Instruments MFG. CO. Ltd
+#>1	byte			0x45		foo
+#>1	byte			0x4a		foo
+#>1	byte			0x4d		foo
+#>1	byte			0x4f		foo
+#>1	byte			0x53		foo
+>1	byte			0x55		Suzuki Musical Instruments MFG. Co. Ltd.
+>1	byte			0x56		Fuji Sound Corporation Ltd.
+#>1	byte			0x58		foo
+>1	byte			0x59		Faith. Inc.
+>1	byte			0x5a		Internet Corporation
+#>1	byte			0x5b		foo
+>1	byte			0x5c		Seekers Co. Ltd.
+#>1	byte			0x5d		foo
+#>1	byte			0x5e		foo
+>1	byte			0x5f		SD Card Association
+# Reserved for other uses for 60H to 7FH
+# URL:		https://www.philscomputerlab.com/roland-midi-emulator-project-20.html
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/syx--midiemu.trid.xml
+# Note:         called by TrID "MIDI Emulator Project SysEx preset command"
+>1	byte			0x66		MIDI Emulator
+# https://electronicmusic.fandom.com/wiki/List_of_MIDI_Manufacturer_IDs
+# Educational, prototyping, test, private use and experimentation
+>1	byte			0x7D		PROTOTYPING
+# universal non-real-time (sample dump, tuning table, etc.)
+>1	byte			0x7E		UNIVERSAL
+# universal real time (MIDI time code, MIDI Machine control, etc.)
+>1	byte			0x7F		universal real time 
+# display information about End Of eXclusive byte (EOX=F7)
+#>2	ubyte			0xF7		\b, at 2 EOX
+#>3	ubyte			0xF7		\b, at 3 EOX
+# https://tttapa.github.io/Control-Surface-doc/new-input/Doxygen/d2/d93/SysEx-Send-Receive_8ino-example.html
+>4	ubyte			0xF7		\b, at 4 EOX
+# http://www.1manband.nl/tutorials2/sysex.htm
+>5	ubyte			0xF7		\b, at 5 EOX
+# http://www.somascape.org/midi/tech/mfile.html#sysex
+>6	ubyte			0xF7		\b, at 6 EOX
+#
+>7	ubyte			0xF7		\b, at 7 EOX
+# https://webmidijs.org/forum/discussion/34/how-to-send-or-receive-system-exclusive-messages
+>8	ubyte			0xF7		\b, at 8 EOX
+#
+>9	ubyte			0xF7		\b, at 9 EOX
+# https://www.chd-el.cz/wp-content/uploads/845010_syxcom.pdf
+>10	ubyte			0xF7		\b, at 10 EOX
+# https://stackoverflow.com/questions/52906076/handling-midi-the-input-of-multiple-system-exclusive-messages-in-vb
+>11	ubyte			0xF7		\b, at 11 EOX
+# https://www.2writers.com/eddie/TutSysEx.htm
+>12	ubyte			0xF7		\b, at 12 EOX
+>13	ubyte			0xF7		\b, at 13 EOX
+# http://www.chromakinetics.com/handsonic/rolSysEx.htm
+>14	ubyte			0xF7		\b, at 14 EOX
+#>15	ubyte			0xF7		\b, at 15 EOX
 
 0	string			T707		Roland TR-707 Data
