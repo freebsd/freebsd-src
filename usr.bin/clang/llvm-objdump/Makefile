@@ -8,6 +8,7 @@ SRCDIR=		llvm/tools/llvm-objdump
 SRCS+=		COFFDump.cpp
 SRCS+=		ELFDump.cpp
 SRCS+=		MachODump.cpp
+SRCS+=		OffloadDump.cpp
 SRCS+=		SourcePrinter.cpp
 SRCS+=		WasmDump.cpp
 SRCS+=		XCOFFDump.cpp

@@ -17,7 +17,9 @@
 #include "llvm/Transforms/Vectorize/LoopVectorizationLegality.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -30,8 +32,6 @@ using namespace PatternMatch;
 
 #define LV_NAME "loop-vectorize"
 #define DEBUG_TYPE LV_NAME
-
-extern cl::opt<bool> EnableVPlanPredication;
 
 static cl::opt<bool>
     EnableIfConversion("enable-if-conversion", cl::init(true), cl::Hidden,
@@ -439,6 +439,26 @@ static bool hasOutsideLoopUser(const Loop *TheLoop, Instruction *Inst,
   return false;
 }
 
+/// Returns true if A and B have same pointer operands or same SCEVs addresses
+static bool storeToSameAddress(ScalarEvolution *SE, StoreInst *A,
+                               StoreInst *B) {
+  // Compare store
+  if (A == B)
+    return true;
+
+  // Otherwise Compare pointers
+  Value *APtr = A->getPointerOperand();
+  Value *BPtr = B->getPointerOperand();
+  if (APtr == BPtr)
+    return true;
+
+  // Otherwise compare address SCEVs
+  if (SE->getSCEV(APtr) == SE->getSCEV(BPtr))
+    return true;
+
+  return false;
+}
+
 int LoopVectorizationLegality::isConsecutivePtr(Type *AccessTy,
                                                 Value *Ptr) const {
   const ValueToValueMap &Strides =
@@ -487,7 +507,7 @@ bool LoopVectorizationLegality::canVectorizeOuterLoop() {
     // FIXME: We skip these checks when VPlan predication is enabled as we
     // want to allow divergent branches. This whole check will be removed
     // once VPlan predication is on by default.
-    if (!EnableVPlanPredication && Br && Br->isConditional() &&
+    if (Br && Br->isConditional() &&
         !TheLoop->isLoopInvariant(Br->getCondition()) &&
         !LI->isLoopHeader(Br->getSuccessor(0)) &&
         !LI->isLoopHeader(Br->getSuccessor(1))) {
@@ -572,7 +592,7 @@ void LoopVectorizationLegality::addInductionPhi(
   // on predicates that only hold within the loop, since allowing the exit
   // currently means re-using this SCEV outside the loop (see PR33706 for more
   // details).
-  if (PSE.getUnionPredicate().isAlwaysTrue()) {
+  if (PSE.getPredicate().isAlwaysTrue()) {
     AllowedExit.insert(Phi);
     AllowedExit.insert(Phi->getIncomingValueForBlock(TheLoop->getLoopLatch()));
   }
@@ -676,7 +696,7 @@ bool LoopVectorizationLegality::canVectorizeInstrs() {
 
         RecurrenceDescriptor RedDes;
         if (RecurrenceDescriptor::isReductionPHI(Phi, TheLoop, RedDes, DB, AC,
-                                                 DT)) {
+                                                 DT, PSE.getSE())) {
           Requirements->addExactFPMathInst(RedDes.getExactFPMathInst());
           AllowedExit.insert(RedDes.getLoopExitInstr());
           Reductions[Phi] = RedDes;
@@ -770,7 +790,7 @@ bool LoopVectorizationLegality::canVectorizeInstrs() {
         auto *SE = PSE.getSE();
         Intrinsic::ID IntrinID = getVectorIntrinsicIDForCall(CI, TLI);
         for (unsigned i = 0, e = CI->arg_size(); i != e; ++i)
-          if (hasVectorInstrinsicScalarOpd(IntrinID, i)) {
+          if (isVectorIntrinsicWithScalarOpAtArg(IntrinID, i)) {
             if (!SE->isLoopInvariant(PSE.getSCEV(CI->getOperand(i)), TheLoop)) {
               reportVectorizationFailure("Found unvectorizable intrinsic",
                   "intrinsic instruction cannot be vectorized",
@@ -849,7 +869,7 @@ bool LoopVectorizationLegality::canVectorizeInstrs() {
         // used outside the loop only if the SCEV predicates within the loop is
         // same as outside the loop. Allowing the exit means reusing the SCEV
         // outside the loop.
-        if (PSE.getUnionPredicate().isAlwaysTrue()) {
+        if (PSE.getPredicate().isAlwaysTrue()) {
           AllowedExit.insert(&I);
           continue;
         }
@@ -911,15 +931,70 @@ bool LoopVectorizationLegality::canVectorizeMemory() {
   if (!LAI->canVectorizeMemory())
     return false;
 
-  if (LAI->hasDependenceInvolvingLoopInvariantAddress()) {
-    reportVectorizationFailure("Stores to a uniform address",
-        "write to a loop invariant address could not be vectorized",
-        "CantVectorizeStoreToLoopInvariantAddress", ORE, TheLoop);
-    return false;
+  // We can vectorize stores to invariant address when final reduction value is
+  // guaranteed to be stored at the end of the loop. Also, if decision to
+  // vectorize loop is made, runtime checks are added so as to make sure that
+  // invariant address won't alias with any other objects.
+  if (!LAI->getStoresToInvariantAddresses().empty()) {
+    // For each invariant address, check its last stored value is unconditional.
+    for (StoreInst *SI : LAI->getStoresToInvariantAddresses()) {
+      if (isInvariantStoreOfReduction(SI) &&
+          blockNeedsPredication(SI->getParent())) {
+        reportVectorizationFailure(
+            "We don't allow storing to uniform addresses",
+            "write of conditional recurring variant value to a loop "
+            "invariant address could not be vectorized",
+            "CantVectorizeStoreToLoopInvariantAddress", ORE, TheLoop);
+        return false;
+      }
+    }
+
+    if (LAI->hasDependenceInvolvingLoopInvariantAddress()) {
+      // For each invariant address, check its last stored value is the result
+      // of one of our reductions.
+      //
+      // We do not check if dependence with loads exists because they are
+      // currently rejected earlier in LoopAccessInfo::analyzeLoop. In case this
+      // behaviour changes we have to modify this code.
+      ScalarEvolution *SE = PSE.getSE();
+      SmallVector<StoreInst *, 4> UnhandledStores;
+      for (StoreInst *SI : LAI->getStoresToInvariantAddresses()) {
+        if (isInvariantStoreOfReduction(SI)) {
+          // Earlier stores to this address are effectively deadcode.
+          // With opaque pointers it is possible for one pointer to be used with
+          // different sizes of stored values:
+          //    store i32 0, ptr %x
+          //    store i8 0, ptr %x
+          // The latest store doesn't complitely overwrite the first one in the
+          // example. That is why we have to make sure that types of stored
+          // values are same.
+          // TODO: Check that bitwidth of unhandled store is smaller then the
+          // one that overwrites it and add a test.
+          erase_if(UnhandledStores, [SE, SI](StoreInst *I) {
+            return storeToSameAddress(SE, SI, I) &&
+                   I->getValueOperand()->getType() ==
+                       SI->getValueOperand()->getType();
+          });
+          continue;
+        }
+        UnhandledStores.push_back(SI);
+      }
+
+      bool IsOK = UnhandledStores.empty();
+      // TODO: we should also validate against InvariantMemSets.
+      if (!IsOK) {
+        reportVectorizationFailure(
+            "We don't allow storing to uniform addresses",
+            "write to a loop invariant address could not "
+            "be vectorized",
+            "CantVectorizeStoreToLoopInvariantAddress", ORE, TheLoop);
+        return false;
+      }
+    }
   }
 
   Requirements->addRuntimePointerChecks(LAI->getNumRuntimePointerChecks());
-  PSE.addPredicate(LAI->getPSE().getUnionPredicate());
+  PSE.addPredicate(LAI->getPSE().getPredicate());
   return true;
 }
 
@@ -949,6 +1024,26 @@ bool LoopVectorizationLegality::canVectorizeFPMath(
   }));
 }
 
+bool LoopVectorizationLegality::isInvariantStoreOfReduction(StoreInst *SI) {
+  return any_of(getReductionVars(), [&](auto &Reduction) -> bool {
+    const RecurrenceDescriptor &RdxDesc = Reduction.second;
+    return RdxDesc.IntermediateStore == SI;
+  });
+}
+
+bool LoopVectorizationLegality::isInvariantAddressOfReduction(Value *V) {
+  return any_of(getReductionVars(), [&](auto &Reduction) -> bool {
+    const RecurrenceDescriptor &RdxDesc = Reduction.second;
+    if (!RdxDesc.IntermediateStore)
+      return false;
+
+    ScalarEvolution *SE = PSE.getSE();
+    Value *InvariantAddress = RdxDesc.IntermediateStore->getPointerOperand();
+    return V == InvariantAddress ||
+           SE->getSCEV(V) == SE->getSCEV(InvariantAddress);
+  });
+}
+
 bool LoopVectorizationLegality::isInductionPhi(const Value *V) const {
   Value *In0 = const_cast<Value *>(V);
   PHINode *PN = dyn_cast_or_null<PHINode>(In0);
@@ -965,6 +1060,16 @@ LoopVectorizationLegality::getIntOrFpInductionDescriptor(PHINode *Phi) const {
   auto &ID = getInductionVars().find(Phi)->second;
   if (ID.getKind() == InductionDescriptor::IK_IntInduction ||
       ID.getKind() == InductionDescriptor::IK_FpInduction)
+    return &ID;
+  return nullptr;
+}
+
+const InductionDescriptor *
+LoopVectorizationLegality::getPointerInductionDescriptor(PHINode *Phi) const {
+  if (!isInductionPhi(Phi))
+    return nullptr;
+  auto &ID = getInductionVars().find(Phi)->second;
+  if (ID.getKind() == InductionDescriptor::IK_PtrInduction)
     return &ID;
   return nullptr;
 }
@@ -1266,7 +1371,7 @@ bool LoopVectorizationLegality::canVectorize(bool UseVPlanNativePath) {
   if (Hints->getForce() == LoopVectorizeHints::FK_Enabled)
     SCEVThreshold = PragmaVectorizeSCEVCheckThreshold;
 
-  if (PSE.getUnionPredicate().getComplexity() > SCEVThreshold) {
+  if (PSE.getPredicate().getComplexity() > SCEVThreshold) {
     reportVectorizationFailure("Too many SCEV checks needed",
         "Too many SCEV assumptions need to be made and checked at runtime",
         "TooManySCEVRunTimeChecks", ORE, TheLoop);

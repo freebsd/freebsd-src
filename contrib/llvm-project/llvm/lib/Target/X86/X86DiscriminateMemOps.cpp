@@ -16,6 +16,7 @@
 #include "X86InstrInfo.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86Subtarget.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/ProfileData/SampleProf.h"
@@ -159,7 +160,7 @@ bool X86DiscriminateMemOps::runOnMachineFunction(MachineFunction &MF) {
         }
         // Since we were able to encode, bump the MemOpDiscriminators.
         ++MemOpDiscriminators[L];
-        DI = DI->cloneWithDiscriminator(EncodedDiscriminator.getValue());
+        DI = DI->cloneWithDiscriminator(*EncodedDiscriminator);
         assert(DI && "DI should not be nullptr");
         updateDebugInfo(&MI, DI);
         Changed = true;

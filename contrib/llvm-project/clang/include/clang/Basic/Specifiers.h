@@ -280,6 +280,8 @@ namespace clang {
     CC_PreserveMost, // __attribute__((preserve_most))
     CC_PreserveAll,  // __attribute__((preserve_all))
     CC_AArch64VectorCall, // __attribute__((aarch64_vector_pcs))
+    CC_AArch64SVEPCS, // __attribute__((aarch64_sve_pcs))
+    CC_AMDGPUKernelCall, // __attribute__((amdgpu_kernel))
   };
 
   /// Checks whether the given calling convention supports variadic
@@ -324,7 +326,7 @@ namespace clang {
     Unspecified,
     // Generally behaves like Nullable, except when used in a block parameter
     // that was imported into a swift async method. There, swift will assume
-    // that the parameter can get null even if no error occured. _Nullable
+    // that the parameter can get null even if no error occurred. _Nullable
     // parameters are assumed to only get null on error.
     NullableResult,
   };

@@ -106,13 +106,10 @@
 
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/bit.h"
-#include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/RecyclingAllocator.h"
 #include <algorithm>
 #include <cassert>
-#include <cstdint>
 #include <iterator>
 #include <new>
 #include <utility>
@@ -969,7 +966,10 @@ public:
 
 private:
   // The root data is either a RootLeaf or a RootBranchData instance.
-  AlignedCharArrayUnion<RootLeaf, RootBranchData> data;
+  union {
+    RootLeaf leaf;
+    RootBranchData branchData;
+  };
 
   // Tree height.
   // 0: Leaves in root.
@@ -983,25 +983,22 @@ private:
   // Allocator used for creating external nodes.
   Allocator &allocator;
 
-  /// Represent data as a node type without breaking aliasing rules.
-  template <typename T> T &dataAs() const { return *bit_cast<T *>(&data); }
-
   const RootLeaf &rootLeaf() const {
     assert(!branched() && "Cannot acces leaf data in branched root");
-    return dataAs<RootLeaf>();
+    return leaf;
   }
   RootLeaf &rootLeaf() {
     assert(!branched() && "Cannot acces leaf data in branched root");
-    return dataAs<RootLeaf>();
+    return leaf;
   }
 
-  RootBranchData &rootBranchData() const {
+  const RootBranchData &rootBranchData() const {
     assert(branched() && "Cannot access branch data in non-branched root");
-    return dataAs<RootBranchData>();
+    return branchData;
   }
   RootBranchData &rootBranchData() {
     assert(branched() && "Cannot access branch data in non-branched root");
-    return dataAs<RootBranchData>();
+    return branchData;
   }
 
   const RootBranch &rootBranch() const { return rootBranchData().node; }
@@ -1042,10 +1039,19 @@ private:
 
 public:
   explicit IntervalMap(Allocator &a) : height(0), rootSize(0), allocator(a) {
-    assert((uintptr_t(&data) & (alignof(RootLeaf) - 1)) == 0 &&
-           "Insufficient alignment");
     new(&rootLeaf()) RootLeaf();
   }
+
+  // The default copy/move constructors and assignment operators would perform
+  // a shallow copy, leading to an incorrect internal state. To prevent
+  // accidental use, explicitly delete these operators.
+  // If necessary, implement them to perform a deep copy.
+  IntervalMap(const IntervalMap &Other) = delete;
+  IntervalMap(IntervalMap &&Other) = delete;
+  // Note: these are already implicitly deleted, because RootLeaf (union
+  // member) has a non-trivial assignment operator (because of std::pair).
+  IntervalMap &operator=(const IntervalMap &Other) = delete;
+  IntervalMap &operator=(IntervalMap &&Other) = delete;
 
   ~IntervalMap() {
     clear();

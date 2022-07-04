@@ -14,6 +14,7 @@
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
 #include "RISCVSubtarget.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -101,6 +102,7 @@ BitVector RISCVRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   markSuperRegs(Reserved, RISCV::VTYPE);
   markSuperRegs(Reserved, RISCV::VXSAT);
   markSuperRegs(Reserved, RISCV::VXRM);
+  markSuperRegs(Reserved, RISCV::VLENB); // vlenb (constant)
 
   // Floating point environment registers.
   markSuperRegs(Reserved, RISCV::FRM);
@@ -116,7 +118,7 @@ bool RISCVRegisterInfo::isAsmClobberable(const MachineFunction &MF,
 }
 
 bool RISCVRegisterInfo::isConstantPhysReg(MCRegister PhysReg) const {
-  return PhysReg == RISCV::X0;
+  return PhysReg == RISCV::X0 || PhysReg == RISCV::VLENB;
 }
 
 const uint32_t *RISCVRegisterInfo::getNoPreservedMask() const {
@@ -125,7 +127,7 @@ const uint32_t *RISCVRegisterInfo::getNoPreservedMask() const {
 
 // Frame indexes representing locations of CSRs which are given a fixed location
 // by save/restore libcalls.
-static const std::map<unsigned, int> FixedCSRFIMap = {
+static const std::pair<unsigned, int> FixedCSRFIMap[] = {
   {/*ra*/  RISCV::X1,   -1},
   {/*s0*/  RISCV::X8,   -2},
   {/*s1*/  RISCV::X9,   -3},
@@ -148,8 +150,9 @@ bool RISCVRegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
   if (!RVFI->useSaveRestoreLibCalls(MF))
     return false;
 
-  auto FII = FixedCSRFIMap.find(Reg);
-  if (FII == FixedCSRFIMap.end())
+  const auto *FII =
+      llvm::find_if(FixedCSRFIMap, [&](auto P) { return P.first == Reg; });
+  if (FII == std::end(FixedCSRFIMap))
     return false;
 
   FrameIdx = FII->second;
@@ -171,7 +174,7 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   Register FrameReg;
   StackOffset Offset =
       getFrameLowering(MF)->getFrameIndexReference(MF, FrameIndex, FrameReg);
-  bool IsRVVSpill = TII->isRVVSpill(MI, /*CheckFIs*/ false);
+  bool IsRVVSpill = RISCV::isRVVSpill(MI);
   if (!IsRVVSpill)
     Offset += StackOffset::getFixed(MI.getOperand(FIOperandNum + 1).getImm());
 
@@ -270,7 +273,7 @@ void RISCVRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset.getFixed());
   }
 
-  auto ZvlssegInfo = TII->isRVVSpillForZvlsseg(MI.getOpcode());
+  auto ZvlssegInfo = RISCV::isRVVSpillForZvlsseg(MI.getOpcode());
   if (ZvlssegInfo) {
     Register VL = MRI.createVirtualRegister(&RISCV::GPRRegClass);
     BuildMI(MBB, II, DL, TII->get(RISCV::PseudoReadVLENB), VL);

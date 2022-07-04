@@ -340,7 +340,7 @@ Optional<bool> KnownBits::eq(const KnownBits &LHS, const KnownBits &RHS) {
 
 Optional<bool> KnownBits::ne(const KnownBits &LHS, const KnownBits &RHS) {
   if (Optional<bool> KnownEQ = eq(LHS, RHS))
-    return Optional<bool>(!KnownEQ.getValue());
+    return Optional<bool>(!*KnownEQ);
   return None;
 }
 
@@ -356,7 +356,7 @@ Optional<bool> KnownBits::ugt(const KnownBits &LHS, const KnownBits &RHS) {
 
 Optional<bool> KnownBits::uge(const KnownBits &LHS, const KnownBits &RHS) {
   if (Optional<bool> IsUGT = ugt(RHS, LHS))
-    return Optional<bool>(!IsUGT.getValue());
+    return Optional<bool>(!*IsUGT);
   return None;
 }
 
@@ -380,7 +380,7 @@ Optional<bool> KnownBits::sgt(const KnownBits &LHS, const KnownBits &RHS) {
 
 Optional<bool> KnownBits::sge(const KnownBits &LHS, const KnownBits &RHS) {
   if (Optional<bool> KnownSGT = sgt(RHS, LHS))
-    return Optional<bool>(!KnownSGT.getValue());
+    return Optional<bool>(!*KnownSGT);
   return None;
 }
 
@@ -413,11 +413,11 @@ KnownBits KnownBits::abs(bool IntMinIsPoison) const {
 }
 
 KnownBits KnownBits::mul(const KnownBits &LHS, const KnownBits &RHS,
-                         bool SelfMultiply) {
+                         bool NoUndefSelfMultiply) {
   unsigned BitWidth = LHS.getBitWidth();
   assert(BitWidth == RHS.getBitWidth() && !LHS.hasConflict() &&
          !RHS.hasConflict() && "Operand mismatch");
-  assert((!SelfMultiply || (LHS.One == RHS.One && LHS.Zero == RHS.Zero)) &&
+  assert((!NoUndefSelfMultiply || LHS == RHS) &&
          "Self multiplication knownbits mismatch");
 
   // Compute the high known-0 bits by multiplying the unsigned max of each side.
@@ -501,7 +501,7 @@ KnownBits KnownBits::mul(const KnownBits &LHS, const KnownBits &RHS,
   Res.One = BottomKnown.getLoBits(ResultBitsKnown);
 
   // If we're self-multiplying then bit[1] is guaranteed to be zero.
-  if (SelfMultiply && BitWidth > 1) {
+  if (NoUndefSelfMultiply && BitWidth > 1) {
     assert(Res.One[1] == 0 &&
            "Self-multiplication failed Quadratic Reciprocity!");
     Res.Zero.setBit(1);

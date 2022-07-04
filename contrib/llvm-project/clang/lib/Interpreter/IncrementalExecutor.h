@@ -13,8 +13,8 @@
 #ifndef LLVM_CLANG_LIB_INTERPRETER_INCREMENTALEXECUTOR_H
 #define LLVM_CLANG_LIB_INTERPRETER_INCREMENTALEXECUTOR_H
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 
 #include <memory>
@@ -29,19 +29,27 @@ class ThreadSafeContext;
 } // namespace llvm
 
 namespace clang {
+
+struct PartialTranslationUnit;
+class TargetInfo;
+
 class IncrementalExecutor {
   using CtorDtorIterator = llvm::orc::CtorDtorIterator;
   std::unique_ptr<llvm::orc::LLJIT> Jit;
   llvm::orc::ThreadSafeContext &TSCtx;
 
+  llvm::DenseMap<const PartialTranslationUnit *, llvm::orc::ResourceTrackerSP>
+      ResourceTrackers;
+
 public:
   enum SymbolNameKind { IRName, LinkerName };
 
   IncrementalExecutor(llvm::orc::ThreadSafeContext &TSC, llvm::Error &Err,
-                      const llvm::Triple &Triple);
+                      const clang::TargetInfo &TI);
   ~IncrementalExecutor();
 
-  llvm::Error addModule(std::unique_ptr<llvm::Module> M);
+  llvm::Error addModule(PartialTranslationUnit &PTU);
+  llvm::Error removeModule(PartialTranslationUnit &PTU);
   llvm::Error runCtors() const;
   llvm::Expected<llvm::JITTargetAddress>
   getSymbolAddress(llvm::StringRef Name, SymbolNameKind NameKind) const;

@@ -29,16 +29,6 @@
 using namespace clang;
 using namespace CodeGen;
 
-#ifndef NDEBUG
-#include "llvm/Support/CommandLine.h"
-// TODO: turn on by default when defined(EXPENSIVE_CHECKS) once check-clang is
-// -verify-type-cache clean.
-static llvm::cl::opt<bool> VerifyTypeCache(
-    "verify-type-cache",
-    llvm::cl::desc("Verify that the type cache matches the computed type"),
-    llvm::cl::init(false), llvm::cl::Hidden);
-#endif
-
 CodeGenTypes::CodeGenTypes(CodeGenModule &cgm)
   : CGM(cgm), Context(cgm.getContext()), TheModule(cgm.getModule()),
     Target(cgm.getTarget()), TheCXXABI(cgm.getCXXABI()),
@@ -107,6 +97,14 @@ llvm::Type *CodeGenTypes::ConvertTypeForMem(QualType T, bool ForBitField) {
   }
 
   llvm::Type *R = ConvertType(T);
+
+  // Check for the boolean vector case.
+  if (T->isExtVectorBoolType()) {
+    auto *FixedVT = cast<llvm::FixedVectorType>(R);
+    // Pad to at least one byte.
+    uint64_t BytePadded = std::max<uint64_t>(FixedVT->getNumElements(), 8);
+    return llvm::IntegerType::get(FixedVT->getContext(), BytePadded);
+  }
 
   // If this is a bool type, or a bit-precise integer type in a bitfield
   // representation, map this integer to the target-specified size.
@@ -437,14 +435,12 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
         TypeCache.find(Ty);
     if (TCI != TypeCache.end())
       CachedType = TCI->second;
-    if (CachedType) {
-#ifndef NDEBUG
-      if (!VerifyTypeCache)
-        return CachedType;
-#else
+      // With expensive checks, check that the type we compute matches the
+      // cached type.
+#ifndef EXPENSIVE_CHECKS
+    if (CachedType)
       return CachedType;
 #endif
-    }
   }
 
   // If we don't have it in the cache, convert it now.
@@ -713,9 +709,12 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   }
   case Type::ExtVector:
   case Type::Vector: {
-    const VectorType *VT = cast<VectorType>(Ty);
-    ResultType = llvm::FixedVectorType::get(ConvertType(VT->getElementType()),
-                                            VT->getNumElements());
+    const auto *VT = cast<VectorType>(Ty);
+    // An ext_vector_type of Bool is really a vector of bits.
+    llvm::Type *IRElemTy = VT->isExtVectorBoolType()
+                               ? llvm::Type::getInt1Ty(getLLVMContext())
+                               : ConvertType(VT->getElementType());
+    ResultType = llvm::FixedVectorType::get(IRElemTy, VT->getNumElements());
     break;
   }
   case Type::ConstantMatrix: {
@@ -784,8 +783,11 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   case Type::MemberPointer: {
     auto *MPTy = cast<MemberPointerType>(Ty);
     if (!getCXXABI().isMemberPointerConvertible(MPTy)) {
-      RecordsWithOpaqueMemberPointers.insert(MPTy->getClass());
-      ResultType = llvm::StructType::create(getLLVMContext());
+      auto *C = MPTy->getClass();
+      auto Insertion = RecordsWithOpaqueMemberPointers.insert({C, nullptr});
+      if (Insertion.second)
+        Insertion.first->second = llvm::StructType::create(getLLVMContext());
+      ResultType = Insertion.first->second;
     } else {
       ResultType = getCXXABI().ConvertMemberPointerType(MPTy);
     }
@@ -822,13 +824,8 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   }
 
   assert(ResultType && "Didn't convert a type?");
-
-#ifndef NDEBUG
-  if (CachedType) {
-    assert(CachedType == ResultType &&
-           "Cached type doesn't match computed type");
-  }
-#endif
+  assert((!CachedType || CachedType == ResultType) &&
+         "Cached type doesn't match computed type");
 
   if (ShouldUseCache)
     TypeCache[Ty] = ResultType;

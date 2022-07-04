@@ -101,6 +101,7 @@ public:
   StringRef logName = "lld";
   bool exitEarly = true;
   bool fatalWarnings = false;
+  bool suppressWarnings = false;
   bool verbose = false;
   bool vsDiagnostics = false;
   bool disableOutput = false;
@@ -133,7 +134,7 @@ private:
   // We wrap stdout and stderr so that you can pass alternative stdout/stderr as
   // arguments to lld::*::link() functions. Since lld::outs() or lld::errs() can
   // be indirectly called from multiple threads, we protect them using a mutex.
-  // In the future, we plan on supporting several concurent linker contexts,
+  // In the future, we plan on supporting several concurrent linker contexts,
   // which explains why the mutex is not a global but part of this context.
   std::mutex mu;
   llvm::raw_ostream *stdoutOS{};
@@ -143,17 +144,13 @@ private:
 /// Returns the default error handler.
 ErrorHandler &errorHandler();
 
-inline void error(const Twine &msg) { errorHandler().error(msg); }
-inline void error(const Twine &msg, ErrorTag tag, ArrayRef<StringRef> args) {
-  errorHandler().error(msg, tag, args);
-}
-[[noreturn]] inline void fatal(const Twine &msg) { errorHandler().fatal(msg); }
-inline void log(const Twine &msg) { errorHandler().log(msg); }
-inline void message(const Twine &msg, llvm::raw_ostream &s = outs()) {
-  errorHandler().message(msg, s);
-}
-inline void warn(const Twine &msg) { errorHandler().warn(msg); }
-inline uint64_t errorCount() { return errorHandler().errorCount; }
+void error(const Twine &msg);
+void error(const Twine &msg, ErrorTag tag, ArrayRef<StringRef> args);
+[[noreturn]] void fatal(const Twine &msg);
+void log(const Twine &msg);
+void message(const Twine &msg, llvm::raw_ostream &s = outs());
+void warn(const Twine &msg);
+uint64_t errorCount();
 
 [[noreturn]] void exitLld(int val);
 

@@ -18,23 +18,23 @@ include "llvm/TableGen/SearchableTable.td"
 //===----------------------------------------------------------------------===//
 
 def HasCCPP    : Predicate<"Subtarget->hasCCPP()">,
-                 AssemblerPredicate<(all_of FeatureCCPP), "ccpp">;
+                 AssemblerPredicateWithAll<(all_of FeatureCCPP), "ccpp">;
 
 def HasPAN     : Predicate<"Subtarget->hasPAN()">,
-                 AssemblerPredicate<(all_of FeaturePAN),
+                 AssemblerPredicateWithAll<(all_of FeaturePAN),
                  "ARM v8.1  Privileged Access-Never extension">;
 
 def HasPsUAO   : Predicate<"Subtarget->hasPsUAO()">,
-                 AssemblerPredicate<(all_of FeaturePsUAO),
+                 AssemblerPredicateWithAll<(all_of FeaturePsUAO),
                  "ARM v8.2 UAO PState extension (psuao)">;
 
 def HasPAN_RWV : Predicate<"Subtarget->hasPAN_RWV()">,
-                 AssemblerPredicate<(all_of FeaturePAN_RWV),
+                 AssemblerPredicateWithAll<(all_of FeaturePAN_RWV),
                  "ARM v8.2 PAN AT S1E1R and AT S1E1W Variation">;
 
 def HasCONTEXTIDREL2
                : Predicate<"Subtarget->hasCONTEXTIDREL2()">,
-                 AssemblerPredicate<(all_of FeatureCONTEXTIDREL2),
+                 AssemblerPredicateWithAll<(all_of FeatureCONTEXTIDREL2),
                  "Target contains CONTEXTIDR_EL2 RW operand">;
 
 //===----------------------------------------------------------------------===//
@@ -631,6 +631,7 @@ def : ROSysReg<"OSLSR_EL1",          0b10, 0b000, 0b0001, 0b0001, 0b100>;
 def : ROSysReg<"DBGAUTHSTATUS_EL1",  0b10, 0b000, 0b0111, 0b1110, 0b110>;
 def : ROSysReg<"PMCEID0_EL0",        0b11, 0b011, 0b1001, 0b1100, 0b110>;
 def : ROSysReg<"PMCEID1_EL0",        0b11, 0b011, 0b1001, 0b1100, 0b111>;
+def : ROSysReg<"PMMIR_EL1",          0b11, 0b000, 0b1001, 0b1110, 0b110>;
 def : ROSysReg<"MIDR_EL1",           0b11, 0b000, 0b0000, 0b0000, 0b000>;
 def : ROSysReg<"CCSIDR_EL1",         0b11, 0b001, 0b0000, 0b0000, 0b000>;
 
@@ -977,7 +978,6 @@ def : RWSysReg<"PMUSERENR_EL0",      0b11, 0b011, 0b1001, 0b1110, 0b000>;
 def : RWSysReg<"PMINTENSET_EL1",     0b11, 0b000, 0b1001, 0b1110, 0b001>;
 def : RWSysReg<"PMINTENCLR_EL1",     0b11, 0b000, 0b1001, 0b1110, 0b010>;
 def : RWSysReg<"PMOVSSET_EL0",       0b11, 0b011, 0b1001, 0b1110, 0b011>;
-def : RWSysReg<"PMMIR_EL1",          0b11, 0b000, 0b1001, 0b1110, 0b110>;
 def : RWSysReg<"MAIR_EL1",           0b11, 0b000, 0b1010, 0b0010, 0b000>;
 def : RWSysReg<"MAIR_EL2",           0b11, 0b100, 0b1010, 0b0010, 0b000>;
 def : RWSysReg<"MAIR_EL3",           0b11, 0b110, 0b1010, 0b0010, 0b000>;

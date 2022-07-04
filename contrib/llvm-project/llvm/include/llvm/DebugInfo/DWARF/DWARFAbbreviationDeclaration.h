@@ -13,13 +13,13 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/BinaryFormat/Dwarf.h"
-#include "llvm/Support/DataExtractor.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 
 namespace llvm {
 
+class DataExtractor;
 class DWARFFormValue;
 class DWARFUnit;
 class raw_ostream;
@@ -34,7 +34,7 @@ public:
     AttributeSpec(dwarf::Attribute A, dwarf::Form F, Optional<uint8_t> ByteSize)
         : Attr(A), Form(F) {
       assert(!isImplicitConst());
-      this->ByteSize.HasByteSize = ByteSize.hasValue();
+      this->ByteSize.HasByteSize = ByteSize.has_value();
       if (this->ByteSize.HasByteSize)
         this->ByteSize.ByteSize = *ByteSize;
     }

@@ -223,9 +223,7 @@ predictValueUseListOrder(const Value *V, unsigned ID, const OrderMap &OM) {
     return LU->getOperandNo() > RU->getOperandNo();
   });
 
-  if (llvm::is_sorted(List, [](const Entry &L, const Entry &R) {
-        return L.second < R.second;
-      }))
+  if (llvm::is_sorted(List, llvm::less_second()))
     // Order is already correct.
     return {};
 
@@ -612,6 +610,11 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
     OS << '>';
     return;
   }
+  case Type::DXILPointerTyID:
+    // DXIL pointer types are only handled by the DirectX backend. To avoid
+    // extra dependencies we just print the pointer's address here.
+    OS << "dxil-ptr (" << Ty << ")";
+    return;
   }
   llvm_unreachable("Invalid TypeID");
 }
@@ -641,7 +644,7 @@ void TypePrinting::printStructBody(StructType *STy, raw_ostream &OS) {
     OS << '>';
 }
 
-AbstractSlotTrackerStorage::~AbstractSlotTrackerStorage() {}
+AbstractSlotTrackerStorage::~AbstractSlotTrackerStorage() = default;
 
 namespace llvm {
 
@@ -1290,7 +1293,7 @@ struct AsmWriterContext {
   /// prints a Metadata as operand.
   virtual void onWriteMetadataAsOperand(const Metadata *) {}
 
-  virtual ~AsmWriterContext() {}
+  virtual ~AsmWriterContext() = default;
 };
 } // end anonymous namespace
 
@@ -2072,7 +2075,7 @@ static void writeDIFile(raw_ostream &Out, const DIFile *N, AsmWriterContext &) {
   // Print all values for checksum together, or not at all.
   if (N->getChecksum())
     Printer.printChecksum(*N->getChecksum());
-  Printer.printString("source", N->getSource().getValueOr(StringRef()),
+  Printer.printString("source", N->getSource().value_or(StringRef()),
                       /* ShouldSkipEmpty */ true);
   Out << ")";
 }
@@ -2131,6 +2134,7 @@ static void writeDISubprogram(raw_ostream &Out, const DISubprogram *N,
   Printer.printMetadata("retainedNodes", N->getRawRetainedNodes());
   Printer.printMetadata("thrownTypes", N->getRawThrownTypes());
   Printer.printMetadata("annotations", N->getRawAnnotations());
+  Printer.printString("targetFuncName", N->getTargetFuncName());
   Out << ")";
 }
 
@@ -3531,6 +3535,19 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
     Out << '"';
   }
 
+  using SanitizerMetadata = llvm::GlobalValue::SanitizerMetadata;
+  if (GV->hasSanitizerMetadata()) {
+    SanitizerMetadata MD = GV->getSanitizerMetadata();
+    if (MD.NoAddress)
+      Out << ", no_sanitize_address";
+    if (MD.NoHWAddress)
+      Out << ", no_sanitize_hwaddress";
+    if (MD.NoMemtag)
+      Out << ", no_sanitize_memtag";
+    if (MD.IsDynInit)
+      Out << ", sanitize_address_dyninit";
+  }
+
   maybePrintComdat(Out, *GV);
   if (MaybeAlign A = GV->getAlign())
     Out << ", align " << A->value();
@@ -4708,9 +4725,8 @@ struct MDTreeAsmWriterContext : public AsmWriterContext {
       : AsmWriterContext(TP, ST, M), Level(0U), Visited({InitMD}), MainOS(OS) {}
 
   void onWriteMetadataAsOperand(const Metadata *MD) override {
-    if (Visited.count(MD))
+    if (!Visited.insert(MD).second)
       return;
-    Visited.insert(MD);
 
     std::string Str;
     raw_string_ostream SS(Str);

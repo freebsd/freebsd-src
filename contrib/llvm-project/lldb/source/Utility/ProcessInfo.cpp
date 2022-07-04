@@ -26,8 +26,8 @@ ProcessInfo::ProcessInfo()
 
 ProcessInfo::ProcessInfo(const char *name, const ArchSpec &arch,
                          lldb::pid_t pid)
-    : m_executable(name), m_arguments(), m_environment(), m_uid(UINT32_MAX),
-      m_gid(UINT32_MAX), m_arch(arch), m_pid(pid) {}
+    : m_executable(name), m_arguments(), m_environment(), m_arch(arch),
+      m_pid(pid) {}
 
 void ProcessInfo::Clear() {
   m_executable.Clear();
@@ -144,19 +144,19 @@ void ProcessInstanceInfo::Dump(Stream &s, UserIDResolver &resolver) const {
 
   if (UserIDIsValid()) {
     s.Format("    uid = {0,-5} ({1})\n", GetUserID(),
-             resolver.GetUserName(GetUserID()).getValueOr(""));
+             resolver.GetUserName(GetUserID()).value_or(""));
   }
   if (GroupIDIsValid()) {
     s.Format("    gid = {0,-5} ({1})\n", GetGroupID(),
-             resolver.GetGroupName(GetGroupID()).getValueOr(""));
+             resolver.GetGroupName(GetGroupID()).value_or(""));
   }
   if (EffectiveUserIDIsValid()) {
     s.Format("   euid = {0,-5} ({1})\n", GetEffectiveUserID(),
-             resolver.GetUserName(GetEffectiveUserID()).getValueOr(""));
+             resolver.GetUserName(GetEffectiveUserID()).value_or(""));
   }
   if (EffectiveGroupIDIsValid()) {
     s.Format("   egid = {0,-5} ({1})\n", GetEffectiveGroupID(),
-             resolver.GetGroupName(GetEffectiveGroupID()).getValueOr(""));
+             resolver.GetGroupName(GetEffectiveGroupID()).value_or(""));
   }
 }
 

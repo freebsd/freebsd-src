@@ -1269,7 +1269,7 @@ public:
   void log(raw_ostream &OS) const override {
     assert(Err && "Trying to log after takeError().");
     OS << "'" << FileName << "': ";
-    if (Line.hasValue())
+    if (Line)
       OS << "line " << Line.getValue() << ": ";
     Err->log(OS);
   }
@@ -1281,7 +1281,7 @@ public:
     return OS.str();
   }
 
-  StringRef getFileName() { return FileName; }
+  StringRef getFileName() const { return FileName; }
 
   Error takeError() { return Error(std::move(Err)); }
 

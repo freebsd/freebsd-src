@@ -9,10 +9,10 @@
 #ifndef LLVM_DWARFLINKER_DWARFLINKERCOMPILEUNIT_H
 #define LLVM_DWARFLINKER_DWARFLINKERCOMPILEUNIT_H
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntervalMap.h"
 #include "llvm/CodeGen/DIE.h"
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
-#include "llvm/Support/DataExtractor.h"
 
 namespace llvm {
 
@@ -74,6 +74,12 @@ public:
 
     /// Does DIE transitively refer an incomplete decl?
     bool Incomplete : 1;
+
+    /// Is DIE in the clang module scope?
+    bool InModuleScope : 1;
+
+    /// Is ODR marking done?
+    bool ODRMarkingDone : 1;
   };
 
   CompileUnit(DWARFUnit &OrigUnit, unsigned ID, bool CanUseODR,

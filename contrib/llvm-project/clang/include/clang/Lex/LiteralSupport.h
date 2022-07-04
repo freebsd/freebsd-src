@@ -69,10 +69,11 @@ public:
   bool isImaginary : 1;     // 1.0i
   bool isFloat16 : 1;       // 1.0f16
   bool isFloat128 : 1;      // 1.0q
-  uint8_t MicrosoftInteger; // Microsoft suffix extension i8, i16, i32, or i64.
-
   bool isFract : 1;         // 1.0hr/r/lr/uhr/ur/ulr
   bool isAccum : 1;         // 1.0hk/k/lk/uhk/uk/ulk
+  bool isBitInt : 1;        // 1wb, 1uwb (C2x)
+  uint8_t MicrosoftInteger; // Microsoft suffix extension i8, i16, i32, or i64.
+
 
   bool isFixedPointLiteral() const {
     return (saw_period || saw_exponent) && saw_fixed_point_suffix;
@@ -119,6 +120,13 @@ public:
   /// occurred when calculating the integral part of the scaled integer or
   /// calculating the digit sequence of the exponent.
   bool GetFixedPointValue(llvm::APInt &StoreVal, unsigned Scale);
+
+  /// Get the digits that comprise the literal. This excludes any prefix or
+  /// suffix associated with the literal.
+  StringRef getLiteralDigits() const {
+    assert(!hadError && "cannot reliably get the literal digits with an error");
+    return StringRef(DigitsBegin, SuffixBegin - DigitsBegin);
+  }
 
 private:
 
@@ -190,7 +198,7 @@ public:
                     tok::TokenKind kind);
 
   bool hadError() const { return HadError; }
-  bool isAscii() const { return Kind == tok::char_constant; }
+  bool isOrdinary() const { return Kind == tok::char_constant; }
   bool isWide() const { return Kind == tok::wide_char_constant; }
   bool isUTF8() const { return Kind == tok::utf8_char_constant; }
   bool isUTF16() const { return Kind == tok::utf16_char_constant; }
@@ -255,7 +263,7 @@ public:
   /// checking of the string literal and emit errors and warnings.
   unsigned getOffsetOfStringByte(const Token &TheTok, unsigned ByteNo) const;
 
-  bool isAscii() const { return Kind == tok::string_literal; }
+  bool isOrdinary() const { return Kind == tok::string_literal; }
   bool isWide() const { return Kind == tok::wide_string_literal; }
   bool isUTF8() const { return Kind == tok::utf8_string_literal; }
   bool isUTF16() const { return Kind == tok::utf16_string_literal; }

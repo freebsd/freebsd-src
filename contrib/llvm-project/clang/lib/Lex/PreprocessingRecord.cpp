@@ -42,7 +42,8 @@ ExternalPreprocessingRecordSource::~ExternalPreprocessingRecordSource() =
 InclusionDirective::InclusionDirective(PreprocessingRecord &PPRec,
                                        InclusionKind Kind, StringRef FileName,
                                        bool InQuotes, bool ImportedModule,
-                                       const FileEntry *File, SourceRange Range)
+                                       Optional<FileEntryRef> File,
+                                       SourceRange Range)
     : PreprocessingDirective(InclusionDirectiveKind, Range), InQuotes(InQuotes),
       Kind(Kind), ImportedModule(ImportedModule), File(File) {
   char *Memory = (char *)PPRec.Allocate(FileName.size() + 1, alignof(char));
@@ -113,7 +114,7 @@ bool PreprocessingRecord::isEntityInFileID(iterator PPEI, FileID FID) {
     // deserializing it.
     Optional<bool> IsInFile =
         ExternalSource->isPreprocessedEntityInFileID(LoadedIndex, FID);
-    if (IsInFile.hasValue())
+    if (IsInFile)
       return IsInFile.getValue();
 
     // The external source did not provide a definite answer, go and deserialize
@@ -480,7 +481,7 @@ void PreprocessingRecord::InclusionDirective(
     StringRef FileName,
     bool IsAngled,
     CharSourceRange FilenameRange,
-    const FileEntry *File,
+    Optional<FileEntryRef> File,
     StringRef SearchPath,
     StringRef RelativePath,
     const Module *Imported,

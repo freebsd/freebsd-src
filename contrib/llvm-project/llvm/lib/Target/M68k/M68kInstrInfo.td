@@ -291,13 +291,13 @@ def MxARIPD32_TC  : MxMemOp<(ops AR32_TC), MxSize32, "e", "printARIPD32Mem", MxA
 // extension word. The reference is classified as a data reference with the
 // exception of the jump and jump-to-subroutine instructions.
 def MxARID        : MxOpClass<"ARID">;
-def MxARID8       : MxMemOp<(ops i16imm, AR32), MxSize8,  "p", "printARID8Mem", MxARID>;
-def MxARID16      : MxMemOp<(ops i16imm, AR32), MxSize16, "p", "printARID16Mem", MxARID>;
-def MxARID32      : MxMemOp<(ops i16imm, AR32), MxSize32, "p", "printARID32Mem", MxARID>;
+def MxARID8       : MxMemOp<(ops i16imm:$disp, AR32:$reg), MxSize8,  "p", "printARID8Mem", MxARID>;
+def MxARID16      : MxMemOp<(ops i16imm:$disp, AR32:$reg), MxSize16, "p", "printARID16Mem", MxARID>;
+def MxARID32      : MxMemOp<(ops i16imm:$disp, AR32:$reg), MxSize32, "p", "printARID32Mem", MxARID>;
 
-def MxARID8_TC    : MxMemOp<(ops i16imm, AR32_TC), MxSize8,  "p", "printARID8Mem", MxARID>;
-def MxARID16_TC   : MxMemOp<(ops i16imm, AR32_TC), MxSize16, "p", "printARID16Mem", MxARID>;
-def MxARID32_TC   : MxMemOp<(ops i16imm, AR32_TC), MxSize32, "p", "printARID32Mem", MxARID>;
+def MxARID8_TC    : MxMemOp<(ops i16imm:$disp, AR32_TC:$reg), MxSize8,  "p", "printARID8Mem", MxARID>;
+def MxARID16_TC   : MxMemOp<(ops i16imm:$disp, AR32_TC:$reg), MxSize16, "p", "printARID16Mem", MxARID>;
+def MxARID32_TC   : MxMemOp<(ops i16imm:$disp, AR32_TC:$reg), MxSize32, "p", "printARID32Mem", MxARID>;
 
 // ADDRESS REGISTER INDIRECT WITH INDEX. This addressing mode requires one word
 // of extension. The address of the operand is the sum of the address in the
@@ -306,13 +306,19 @@ def MxARID32_TC   : MxMemOp<(ops i16imm, AR32_TC), MxSize32, "p", "printARID32Me
 // The reference is classified as a data reference with the exception of the
 // jump and jump-to-subroutine instructions
 def MxARII       : MxOpClass<"ARII">;
-def MxARII8      : MxMemOp<(ops i8imm, AR32, XR32), MxSize8,  "f", "printARII8Mem", MxARII>;
-def MxARII16     : MxMemOp<(ops i8imm, AR32, XR32), MxSize16, "f", "printARII16Mem", MxARII>;
-def MxARII32     : MxMemOp<(ops i8imm, AR32, XR32), MxSize32, "f", "printARII32Mem", MxARII>;
+def MxARII8      : MxMemOp<(ops i8imm:$disp, AR32:$reg, XR32:$index),
+                           MxSize8,  "f", "printARII8Mem", MxARII>;
+def MxARII16     : MxMemOp<(ops i8imm:$disp, AR32:$reg, XR32:$index),
+                           MxSize16, "f", "printARII16Mem", MxARII>;
+def MxARII32     : MxMemOp<(ops i8imm:$disp, AR32:$reg, XR32:$index),
+                           MxSize32, "f", "printARII32Mem", MxARII>;
 
-def MxARII8_TC   : MxMemOp<(ops i8imm, AR32_TC, XR32_TC), MxSize8,  "f", "printARII8Mem", MxARII>;
-def MxARII16_TC  : MxMemOp<(ops i8imm, AR32_TC, XR32_TC), MxSize16, "f", "printARII16Mem", MxARII>;
-def MxARII32_TC  : MxMemOp<(ops i8imm, AR32_TC, XR32_TC), MxSize32, "f", "printARII32Mem", MxARII>;
+def MxARII8_TC   : MxMemOp<(ops i8imm:$disp, AR32_TC:$reg, XR32_TC:$index),
+                           MxSize8,  "f", "printARII8Mem", MxARII>;
+def MxARII16_TC  : MxMemOp<(ops i8imm:$disp, AR32_TC:$reg, XR32_TC:$index),
+                           MxSize16, "f", "printARII16Mem", MxARII>;
+def MxARII32_TC  : MxMemOp<(ops i8imm:$disp, AR32_TC:$reg, XR32_TC:$index),
+                           MxSize32, "f", "printARII32Mem", MxARII>;
 
 // ABSOLUTE SHORT ADDRESS. This addressing mode requires one word of extension.
 // The address of the operand is the extension word. The 16-bit address is sign
@@ -360,9 +366,9 @@ def MxPCD32    : MxMemOp<(ops i16imm), MxSize32, "q", "printPCD32Mem", MxPCD>;
 // word, and the contents of the index register.  The value in the program
 // counter is the address of the extension word. This reference is classified as
 // a program reference.
-def MxPCI8   : MxMemOp<(ops i8imm, XR32), MxSize8,  "k", "printPCI8Mem", MxPCI>;
-def MxPCI16  : MxMemOp<(ops i8imm, XR32), MxSize16, "k", "printPCI16Mem", MxPCI>;
-def MxPCI32  : MxMemOp<(ops i8imm, XR32), MxSize32, "k", "printPCI32Mem", MxPCI>;
+def MxPCI8   : MxMemOp<(ops i8imm:$disp, XR32:$index), MxSize8,  "k", "printPCI8Mem", MxPCI>;
+def MxPCI16  : MxMemOp<(ops i8imm:$disp, XR32:$index), MxSize16, "k", "printPCI16Mem", MxPCI>;
+def MxPCI32  : MxMemOp<(ops i8imm:$disp, XR32:$index), MxSize32, "k", "printPCI32Mem", MxPCI>;
 } // OPERAND_PCREL
 
 def MxImm : AsmOperandClass {
@@ -632,6 +638,74 @@ class MxType<ValueType vt, string prefix, string postfix,
 
   PatFrag Load = load;
 }
+
+// Provides an alternative way to access the MxOperand and
+// patterns w.r.t a specific addressing mode.
+class MxOpBundle<int size, MxOperand op, ComplexPattern pat> {
+  int Size = size;
+  MxOperand Op = op;
+  ComplexPattern Pat = pat;
+}
+
+class MxImmOpBundle<int size, MxOperand op, PatFrag pat>
+  : MxOpBundle<size, op, ?> {
+  PatFrag ImmPat = pat;
+}
+
+// TODO: We can use MxOp<S>AddrMode_<AM> in more places to
+// replace MxType-based operand factoring.
+foreach size = [8, 16, 32] in {
+  // Dn
+  def MxOp#size#AddrMode_d
+    : MxOpBundle<size, !cast<MxOperand>("MxDRD"#size), ?>;
+
+  // (An)
+  def MxOp#size#AddrMode_j
+    : MxOpBundle<size, !cast<MxOperand>("MxARI"#size), MxCP_ARI>;
+
+  // (An)+
+  def MxOp#size#AddrMode_o
+    : MxOpBundle<size, !cast<MxOperand>("MxARIPI"#size), MxCP_ARIPI>;
+
+  // -(An)
+  def MxOp#size#AddrMode_e
+    : MxOpBundle<size, !cast<MxOperand>("MxARIPD"#size), MxCP_ARIPD>;
+
+  // (i,An)
+  def MxOp#size#AddrMode_p
+    : MxOpBundle<size, !cast<MxOperand>("MxARID"#size), MxCP_ARID>;
+
+  // (i,An,Xn)
+  def MxOp#size#AddrMode_f
+    : MxOpBundle<size, !cast<MxOperand>("MxARII"#size), MxCP_ARII>;
+
+  // (ABS).L
+  def MxOp#size#AddrMode_b
+    : MxOpBundle<size, !cast<MxOperand>("MxAL"#size), MxCP_AL>;
+
+  // (i,PC)
+  def MxOp#size#AddrMode_q
+    : MxOpBundle<size, !cast<MxOperand>("MxPCD"#size), MxCP_PCD>;
+
+  // (i,PC,Xn)
+  def MxOp#size#AddrMode_k
+    : MxOpBundle<size, !cast<MxOperand>("MxPCI"#size), MxCP_PCI>;
+
+  // #imm
+  def MxOp#size#AddrMode_i
+    : MxImmOpBundle<size, !cast<MxOperand>("Mxi"#size#"imm"),
+                    !cast<PatFrag>("MximmSExt"#size)>;
+} // foreach size = [8, 16, 32]
+
+foreach size = [16, 32] in {
+  // An
+  def MxOp#size#AddrMode_a
+    : MxOpBundle<size, !cast<MxOperand>("MxARD"#size), ?>;
+
+  // Xn
+  def MxOp#size#AddrMode_r
+    : MxOpBundle<size, !cast<MxOperand>("MxXRD"#size), ?>;
+} // foreach size = [16, 32]
 
 class MxType8Class<string rLet, MxOperand reg>
     : MxType<i8, "b", "", rLet, reg,

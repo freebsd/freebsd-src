@@ -171,13 +171,7 @@ public:
     }
 
     // Create the analyzer component creators.
-    switch (Opts->AnalysisStoreOpt) {
-    default:
-      llvm_unreachable("Unknown store manager.");
-#define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATEFN)           \
-      case NAME##Model: CreateStoreMgr = CREATEFN; break;
-#include "clang/StaticAnalyzer/Core/Analyses.def"
-    }
+    CreateStoreMgr = &CreateRegionStoreManager;
 
     switch (Opts->AnalysisConstraintsOpt) {
     default:
@@ -289,7 +283,7 @@ public:
       return true;
 
     if (VD->hasExternalStorage() || VD->isStaticDataMember()) {
-      if (!cross_tu::containsConst(VD, *Ctx))
+      if (!cross_tu::shouldImport(VD, *Ctx))
         return true;
     } else {
       // Cannot be initialized in another TU.
@@ -358,7 +352,6 @@ public:
 
 private:
   void storeTopLevelDecls(DeclGroupRef DG);
-  std::string getFunctionName(const Decl *D);
 
   /// Check if we should skip (not analyze) the given function.
   AnalysisMode getModeForDecl(Decl *D, AnalysisMode Mode);
@@ -383,14 +376,14 @@ void AnalysisConsumer::HandleTopLevelDeclInObjCContainer(DeclGroupRef DG) {
 }
 
 void AnalysisConsumer::storeTopLevelDecls(DeclGroupRef DG) {
-  for (DeclGroupRef::iterator I = DG.begin(), E = DG.end(); I != E; ++I) {
+  for (auto &I : DG) {
 
     // Skip ObjCMethodDecl, wait for the objc container to avoid
     // analyzing twice.
-    if (isa<ObjCMethodDecl>(*I))
+    if (isa<ObjCMethodDecl>(I))
       continue;
 
-    LocalTUDecls.push_back(*I);
+    LocalTUDecls.push_back(I);
   }
 }
 
@@ -462,11 +455,9 @@ void AnalysisConsumer::HandleDeclsCallGraph(const unsigned LocalTUDeclsSize) {
   SetOfConstDecls Visited;
   SetOfConstDecls VisitedAsTopLevel;
   llvm::ReversePostOrderTraversal<clang::CallGraph*> RPOT(&CG);
-  for (llvm::ReversePostOrderTraversal<clang::CallGraph*>::rpo_iterator
-         I = RPOT.begin(), E = RPOT.end(); I != E; ++I) {
+  for (auto &N : RPOT) {
     NumFunctionTopLevel++;
 
-    CallGraphNode *N = *I;
     Decl *D = N->getDecl();
 
     // Skip the abstract root node.
@@ -477,6 +468,18 @@ void AnalysisConsumer::HandleDeclsCallGraph(const unsigned LocalTUDeclsSize) {
     // inlined.
     if (shouldSkipFunction(D, Visited, VisitedAsTopLevel))
       continue;
+
+    // The CallGraph might have declarations as callees. However, during CTU
+    // the declaration might form a declaration chain with the newly imported
+    // definition from another TU. In this case we don't want to analyze the
+    // function definition as toplevel.
+    if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
+      // Calling 'hasBody' replaces 'FD' in place with the FunctionDecl
+      // that has the body.
+      FD->hasBody(FD);
+      if (CTU.isImportedAsNew(FD))
+        continue;
+    }
 
     // Analyze the function.
     SetOfConstDecls VisitedCallees;
@@ -499,6 +502,28 @@ static bool fileContainsString(StringRef Substring, ASTContext &C) {
   FileID FID = SM.getMainFileID();
   StringRef Buffer = SM.getBufferOrFake(FID).getBuffer();
   return Buffer.contains(Substring);
+}
+
+static void reportAnalyzerFunctionMisuse(const AnalyzerOptions &Opts,
+                                         const ASTContext &Ctx) {
+  llvm::errs() << "Every top-level function was skipped.\n";
+
+  if (!Opts.AnalyzerDisplayProgress)
+    llvm::errs() << "Pass the -analyzer-display-progress for tracking which "
+                    "functions are analyzed.\n";
+
+  bool HasBrackets =
+      Opts.AnalyzeSpecificFunction.find("(") != std::string::npos;
+
+  if (Ctx.getLangOpts().CPlusPlus && !HasBrackets) {
+    llvm::errs()
+        << "For analyzing C++ code you need to pass the function parameter "
+           "list: -analyze-function=\"foobar(int, _Bool)\"\n";
+  } else if (!Ctx.getLangOpts().CPlusPlus && HasBrackets) {
+    llvm::errs() << "For analyzing C code you shouldn't pass the function "
+                    "parameter list, only the name of the function: "
+                    "-analyze-function=foobar\n";
+  }
 }
 
 void AnalysisConsumer::runAnalysisOnTranslationUnit(ASTContext &C) {
@@ -537,6 +562,14 @@ void AnalysisConsumer::runAnalysisOnTranslationUnit(ASTContext &C) {
 
   BR.FlushReports();
   RecVisitorBR = nullptr;
+
+  // If the user wanted to analyze a specific function and the number of basic
+  // blocks analyzed is zero, than the user might not specified the function
+  // name correctly.
+  // FIXME: The user might have analyzed the requested function in Syntax mode,
+  // but we are unaware of that.
+  if (!Opts->AnalyzeSpecificFunction.empty() && NumFunctionsAnalyzed == 0)
+    reportAnalyzerFunctionMisuse(*Opts, *Ctx);
 }
 
 void AnalysisConsumer::reportAnalyzerProgress(StringRef S) {

@@ -11,10 +11,7 @@
 
 #include "llvm/Analysis/InlineAdvisor.h"
 #include "llvm/Analysis/InlineCost.h"
-#include "llvm/Analysis/ReplayInlineAdvisor.h"
-#include "llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h"
 #include "llvm/IR/PassManager.h"
-#include <utility>
 
 namespace llvm {
 
@@ -30,8 +27,9 @@ namespace llvm {
 class ModuleInlinerPass : public PassInfoMixin<ModuleInlinerPass> {
 public:
   ModuleInlinerPass(InlineParams Params = getInlineParams(),
-                    InliningAdvisorMode Mode = InliningAdvisorMode::Default)
-      : Params(Params), Mode(Mode){};
+                    InliningAdvisorMode Mode = InliningAdvisorMode::Default,
+                    ThinOrFullLTOPhase LTOPhase = ThinOrFullLTOPhase::None)
+      : Params(Params), Mode(Mode), LTOPhase(LTOPhase){};
   ModuleInlinerPass(ModuleInlinerPass &&Arg) = default;
 
   PreservedAnalyses run(Module &, ModuleAnalysisManager &);
@@ -42,6 +40,7 @@ private:
   std::unique_ptr<InlineAdvisor> OwnedAdvisor;
   const InlineParams Params;
   const InliningAdvisorMode Mode;
+  const ThinOrFullLTOPhase LTOPhase;
 };
 } // end namespace llvm
 

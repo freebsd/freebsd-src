@@ -14,7 +14,7 @@
 
 #include "llvm/DebugInfo/PDB/Native/GSIStreamBuilder.h"
 #include "llvm/DebugInfo/CodeView/RecordName.h"
-#include "llvm/DebugInfo/CodeView/SymbolDeserializer.h"
+#include "llvm/DebugInfo/CodeView/RecordSerialization.h"
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
 #include "llvm/DebugInfo/CodeView/SymbolSerializer.h"
 #include "llvm/DebugInfo/MSF/MSFBuilder.h"
@@ -22,6 +22,7 @@
 #include "llvm/DebugInfo/MSF/MappedBlockStream.h"
 #include "llvm/DebugInfo/PDB/Native/GlobalsStream.h"
 #include "llvm/DebugInfo/PDB/Native/Hash.h"
+#include "llvm/DebugInfo/PDB/Native/RawTypes.h"
 #include "llvm/Support/BinaryItemStream.h"
 #include "llvm/Support/BinaryStreamWriter.h"
 #include "llvm/Support/Parallel.h"
@@ -196,7 +197,7 @@ void GSIStreamBuilder::finalizeGlobalBuckets(uint32_t RecordZeroOffset) {
 void GSIHashStreamBuilder::finalizeBuckets(
     uint32_t RecordZeroOffset, MutableArrayRef<BulkPublic> Records) {
   // Hash every name in parallel.
-  parallelForEachN(0, Records.size(), [&](size_t I) {
+  parallelFor(0, Records.size(), [&](size_t I) {
     Records[I].setBucketIdx(hashStringV1(Records[I].Name) % IPHR_HASH);
   });
 
@@ -231,7 +232,7 @@ void GSIHashStreamBuilder::finalizeBuckets(
   // bucket can properly early-out when it detects the record won't be found.
   // The algorithm used here corresponds to the function
   // caseInsensitiveComparePchPchCchCch in the reference implementation.
-  parallelForEachN(0, IPHR_HASH, [&](size_t I) {
+  parallelFor(0, IPHR_HASH, [&](size_t I) {
     auto B = HashRecords.begin() + BucketStarts[I];
     auto E = HashRecords.begin() + BucketCursors[I];
     if (B == E)
@@ -286,7 +287,7 @@ GSIStreamBuilder::GSIStreamBuilder(msf::MSFBuilder &Msf)
     : Msf(Msf), PSH(std::make_unique<GSIHashStreamBuilder>()),
       GSH(std::make_unique<GSIHashStreamBuilder>()) {}
 
-GSIStreamBuilder::~GSIStreamBuilder() {}
+GSIStreamBuilder::~GSIStreamBuilder() = default;
 
 uint32_t GSIStreamBuilder::calculatePublicsHashStreamSize() const {
   uint32_t Size = 0;

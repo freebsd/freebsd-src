@@ -28,6 +28,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
@@ -80,7 +81,7 @@ ABISysV_ppc64::CreateInstance(lldb::ProcessSP process_sp,
 bool ABISysV_ppc64::PrepareTrivialCall(Thread &thread, addr_t sp,
                                        addr_t func_addr, addr_t return_addr,
                                        llvm::ArrayRef<addr_t> args) const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   if (log) {
     StreamString s;
@@ -478,8 +479,7 @@ class ReturnValueExtractor {
     Type m_type;
     RegisterContext *m_reg_ctx;
     ByteOrder m_byte_order;
-    Log *m_log =
-        lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS);
+    Log *m_log = GetLog(LLDBLog::Expressions);
   };
 
   Register GetGPR(uint32_t index) const {
@@ -555,7 +555,7 @@ private:
   int32_t m_src_offs = 0;
   int32_t m_dst_offs = 0;
   bool m_packed = false;
-  Log *m_log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS);
+  Log *m_log = GetLog(LLDBLog::Expressions);
   RegisterContext *m_reg_ctx;
   ProcessSP m_process_sp;
   ByteOrder m_byte_order;
@@ -567,7 +567,7 @@ private:
   ReturnValueExtractor(Thread &thread, CompilerType &type,
                        RegisterContext *reg_ctx, ProcessSP process_sp)
       : m_thread(thread), m_type(type),
-        m_byte_size(m_type.GetByteSize(&thread).getValueOr(0)),
+        m_byte_size(m_type.GetByteSize(&thread).value_or(0)),
         m_data_up(new DataBufferHeap(m_byte_size, 0)), m_reg_ctx(reg_ctx),
         m_process_sp(process_sp), m_byte_order(process_sp->GetByteOrder()),
         m_addr_size(
@@ -934,7 +934,7 @@ ABISysV_ppc64::GetReturnValueObjectSimple(Thread &thread,
 
   auto exp_extractor = ReturnValueExtractor::Create(thread, type);
   if (!exp_extractor) {
-    Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS);
+    Log *log = GetLog(LLDBLog::Expressions);
     LLDB_LOG_ERROR(log, exp_extractor.takeError(),
                    "Extracting return value failed: {0}");
     return ValueObjectSP();

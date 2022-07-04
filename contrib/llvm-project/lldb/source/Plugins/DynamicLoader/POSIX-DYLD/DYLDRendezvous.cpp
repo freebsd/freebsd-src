@@ -14,6 +14,7 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/ArchSpec.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Status.h"
 
@@ -34,7 +35,7 @@ DYLDRendezvous::DYLDRendezvous(Process *process)
 }
 
 addr_t DYLDRendezvous::ResolveRendezvousAddress() {
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
   addr_t info_location;
   addr_t info_addr;
   Status error;
@@ -113,7 +114,7 @@ addr_t DYLDRendezvous::ResolveRendezvousAddress() {
 
 void DYLDRendezvous::UpdateExecutablePath() {
   if (m_process) {
-    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    Log *log = GetLog(LLDBLog::DynamicLoader);
     Module *exe_mod = m_process->GetTarget().GetExecutableModulePointer();
     if (exe_mod) {
       m_exe_file_spec = exe_mod->GetPlatformFileSpec();
@@ -129,7 +130,7 @@ void DYLDRendezvous::UpdateExecutablePath() {
 }
 
 bool DYLDRendezvous::Resolve() {
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
 
   const size_t word_size = 4;
   Rendezvous info;
@@ -209,14 +210,7 @@ DYLDRendezvous::RendezvousAction DYLDRendezvous::GetAction() const {
 
   case eAdd:
   case eDelete:
-    // Some versions of the android dynamic linker might send two
-    // notifications with state == eAdd back to back. Ignore them until we
-    // get an eConsistent notification.
-    if (!(m_previous.state == eConsistent ||
-          (m_previous.state == eAdd && m_current.state == eDelete)))
-      return eNoAction;
-
-    return eTakeSnapshot;
+    return eNoAction;
   }
 
   return eNoAction;
@@ -228,9 +222,9 @@ bool DYLDRendezvous::UpdateSOEntriesFromRemote() {
   if (action == eNoAction)
     return false;
 
+  m_added_soentries.clear();
+  m_removed_soentries.clear();
   if (action == eTakeSnapshot) {
-    m_added_soentries.clear();
-    m_removed_soentries.clear();
     // We already have the loaded list from the previous update so no need to
     // find all the modules again.
     if (!m_loaded_modules.m_list.empty())
@@ -259,11 +253,11 @@ bool DYLDRendezvous::UpdateSOEntriesFromRemote() {
 }
 
 bool DYLDRendezvous::UpdateSOEntries() {
+  m_added_soentries.clear();
+  m_removed_soentries.clear();
   switch (GetAction()) {
   case eTakeSnapshot:
     m_soentries.clear();
-    m_added_soentries.clear();
-    m_removed_soentries.clear();
     return TakeSnapshot(m_soentries);
   case eAddModules:
     return AddSOEntries();

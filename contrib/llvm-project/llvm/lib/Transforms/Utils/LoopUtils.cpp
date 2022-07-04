@@ -23,31 +23,25 @@
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/InstSimplifyFolder.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
@@ -260,10 +254,10 @@ llvm::getOptionalElementCountLoopAttribute(const Loop *TheLoop) {
   Optional<int> Width =
       getOptionalIntLoopAttribute(TheLoop, "llvm.loop.vectorize.width");
 
-  if (Width.hasValue()) {
+  if (Width) {
     Optional<int> IsScalable = getOptionalIntLoopAttribute(
         TheLoop, "llvm.loop.vectorize.scalable.enable");
-    return ElementCount::get(*Width, IsScalable.getValueOr(false));
+    return ElementCount::get(*Width, IsScalable.value_or(false));
   }
 
   return None;
@@ -364,7 +358,7 @@ TransformationMode llvm::hasUnrollTransformation(const Loop *L) {
 
   Optional<int> Count =
       getOptionalIntLoopAttribute(L, "llvm.loop.unroll.count");
-  if (Count.hasValue())
+  if (Count)
     return Count.getValue() == 1 ? TM_SuppressedByUser : TM_ForcedByUser;
 
   if (getBooleanLoopAttribute(L, "llvm.loop.unroll.enable"))
@@ -385,7 +379,7 @@ TransformationMode llvm::hasUnrollAndJamTransformation(const Loop *L) {
 
   Optional<int> Count =
       getOptionalIntLoopAttribute(L, "llvm.loop.unroll_and_jam.count");
-  if (Count.hasValue())
+  if (Count)
     return Count.getValue() == 1 ? TM_SuppressedByUser : TM_ForcedByUser;
 
   if (getBooleanLoopAttribute(L, "llvm.loop.unroll_and_jam.enable"))
@@ -497,9 +491,11 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
   if (SE)
     SE->forgetLoop(L);
 
-  auto *OldBr = dyn_cast<BranchInst>(Preheader->getTerminator());
-  assert(OldBr && "Preheader must end with a branch");
-  assert(OldBr->isUnconditional() && "Preheader must have a single successor");
+  Instruction *OldTerm = Preheader->getTerminator();
+  assert(!OldTerm->mayHaveSideEffects() &&
+         "Preheader must end with a side-effect-free terminator");
+  assert(OldTerm->getNumSuccessors() == 1 &&
+         "Preheader must have a single successor");
   // Connect the preheader to the exit block. Keep the old edge to the header
   // around to perform the dominator tree update in two separate steps
   // -- #1 insertion of the edge preheader -> exit and #2 deletion of the edge
@@ -525,7 +521,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
   // coming to this inner loop, this will break the outer loop structure (by
   // deleting the backedge of the outer loop). If the outer loop is indeed a
   // non-loop, it will be deleted in a future iteration of loop deletion pass.
-  IRBuilder<> Builder(OldBr);
+  IRBuilder<> Builder(OldTerm);
 
   auto *ExitBlock = L->getUniqueExitBlock();
   DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
@@ -535,7 +531,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
 
     Builder.CreateCondBr(Builder.getFalse(), L->getHeader(), ExitBlock);
     // Remove the old branch. The conditional branch becomes a new terminator.
-    OldBr->eraseFromParent();
+    OldTerm->eraseFromParent();
 
     // Rewrite phis in the exit block to get their inputs from the Preheader
     // instead of the exiting block.
@@ -579,7 +575,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
     assert(L->hasNoExitBlocks() &&
            "Loop should have either zero or one exit blocks.");
 
-    Builder.SetInsertPoint(OldBr);
+    Builder.SetInsertPoint(OldTerm);
     Builder.CreateUnreachable();
     Preheader->getTerminator()->eraseFromParent();
   }
@@ -692,18 +688,12 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
   }
 }
 
-static Loop *getOutermostLoop(Loop *L) {
-  while (Loop *Parent = L->getParentLoop())
-    L = Parent;
-  return L;
-}
-
 void llvm::breakLoopBackedge(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
                              LoopInfo &LI, MemorySSA *MSSA) {
   auto *Latch = L->getLoopLatch();
   assert(Latch && "multiple latches not yet supported");
   auto *Header = L->getHeader();
-  Loop *OutermostLoop = getOutermostLoop(L);
+  Loop *OutermostLoop = L->getOutermostLoop();
 
   SE.forgetLoop(L);
 
@@ -1103,7 +1093,8 @@ Value *llvm::createOrderedReduction(IRBuilderBase &B,
   return B.CreateFAddReduce(Start, Src);
 }
 
-void llvm::propagateIRFlags(Value *I, ArrayRef<Value *> VL, Value *OpValue) {
+void llvm::propagateIRFlags(Value *I, ArrayRef<Value *> VL, Value *OpValue,
+                            bool IncludeWrapFlags) {
   auto *VecOp = dyn_cast<Instruction>(I);
   if (!VecOp)
     return;
@@ -1112,7 +1103,7 @@ void llvm::propagateIRFlags(Value *I, ArrayRef<Value *> VL, Value *OpValue) {
   if (!Intersection)
     return;
   const unsigned Opcode = Intersection->getOpcode();
-  VecOp->copyIRFlags(Intersection);
+  VecOp->copyIRFlags(Intersection, IncludeWrapFlags);
   for (auto *V : VL) {
     auto *Instr = dyn_cast<Instruction>(V);
     if (!Instr)
@@ -1536,6 +1527,11 @@ static PointerBounds expandBounds(const RuntimeCheckingPtrGroup *CG,
   LLVM_DEBUG(dbgs() << "LAA: Adding RT check for range:\n");
   Start = Exp.expandCodeFor(CG->Low, PtrArithTy, Loc);
   End = Exp.expandCodeFor(CG->High, PtrArithTy, Loc);
+  if (CG->NeedsFreeze) {
+    IRBuilder<> Builder(Loc);
+    Start = Builder.CreateFreeze(Start, Start->getName() + ".fr");
+    End = Builder.CreateFreeze(End, End->getName() + ".fr");
+  }
   LLVM_DEBUG(dbgs() << "Start: " << *CG->Low << " End: " << *CG->High << "\n");
   return {Start, End};
 }
@@ -1604,6 +1600,45 @@ Value *llvm::addRuntimeChecks(
     Value *Cmp0 = ChkBuilder.CreateICmpULT(Start0, End1, "bound0");
     Value *Cmp1 = ChkBuilder.CreateICmpULT(Start1, End0, "bound1");
     Value *IsConflict = ChkBuilder.CreateAnd(Cmp0, Cmp1, "found.conflict");
+    if (MemoryRuntimeCheck) {
+      IsConflict =
+          ChkBuilder.CreateOr(MemoryRuntimeCheck, IsConflict, "conflict.rdx");
+    }
+    MemoryRuntimeCheck = IsConflict;
+  }
+
+  return MemoryRuntimeCheck;
+}
+
+Value *llvm::addDiffRuntimeChecks(
+    Instruction *Loc, Loop *TheLoop, ArrayRef<PointerDiffInfo> Checks,
+    SCEVExpander &Expander,
+    function_ref<Value *(IRBuilderBase &, unsigned)> GetVF, unsigned IC) {
+
+  LLVMContext &Ctx = Loc->getContext();
+  IRBuilder<InstSimplifyFolder> ChkBuilder(Ctx,
+                                           Loc->getModule()->getDataLayout());
+  ChkBuilder.SetInsertPoint(Loc);
+  // Our instructions might fold to a constant.
+  Value *MemoryRuntimeCheck = nullptr;
+
+  for (auto &C : Checks) {
+    Type *Ty = C.SinkStart->getType();
+    // Compute VF * IC * AccessSize.
+    auto *VFTimesUFTimesSize =
+        ChkBuilder.CreateMul(GetVF(ChkBuilder, Ty->getScalarSizeInBits()),
+                             ConstantInt::get(Ty, IC * C.AccessSize));
+    Value *Sink = Expander.expandCodeFor(C.SinkStart, Ty, Loc);
+    Value *Src = Expander.expandCodeFor(C.SrcStart, Ty, Loc);
+    if (C.NeedsFreeze) {
+      IRBuilder<> Builder(Loc);
+      Sink = Builder.CreateFreeze(Sink, Sink->getName() + ".fr");
+      Src = Builder.CreateFreeze(Src, Src->getName() + ".fr");
+    }
+    Value *Diff = ChkBuilder.CreateSub(Sink, Src);
+    Value *IsConflict =
+        ChkBuilder.CreateICmpULT(Diff, VFTimesUFTimesSize, "diff.check");
+
     if (MemoryRuntimeCheck) {
       IsConflict =
           ChkBuilder.CreateOr(MemoryRuntimeCheck, IsConflict, "conflict.rdx");

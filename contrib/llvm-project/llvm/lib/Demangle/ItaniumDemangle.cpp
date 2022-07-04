@@ -172,6 +172,50 @@ struct DumpVisitor {
       return printStr("TemplateParamKind::Template");
     }
   }
+  void print(Node::Prec P) {
+    switch (P) {
+    case Node::Prec::Primary:
+      return printStr("Node::Prec::Primary");
+    case Node::Prec::Postfix:
+      return printStr("Node::Prec::Postfix");
+    case Node::Prec::Unary:
+      return printStr("Node::Prec::Unary");
+    case Node::Prec::Cast:
+      return printStr("Node::Prec::Cast");
+    case Node::Prec::PtrMem:
+      return printStr("Node::Prec::PtrMem");
+    case Node::Prec::Multiplicative:
+      return printStr("Node::Prec::Multiplicative");
+    case Node::Prec::Additive:
+      return printStr("Node::Prec::Additive");
+    case Node::Prec::Shift:
+      return printStr("Node::Prec::Shift");
+    case Node::Prec::Spaceship:
+      return printStr("Node::Prec::Spaceship");
+    case Node::Prec::Relational:
+      return printStr("Node::Prec::Relational");
+    case Node::Prec::Equality:
+      return printStr("Node::Prec::Equality");
+    case Node::Prec::And:
+      return printStr("Node::Prec::And");
+    case Node::Prec::Xor:
+      return printStr("Node::Prec::Xor");
+    case Node::Prec::Ior:
+      return printStr("Node::Prec::Ior");
+    case Node::Prec::AndIf:
+      return printStr("Node::Prec::AndIf");
+    case Node::Prec::OrIf:
+      return printStr("Node::Prec::OrIf");
+    case Node::Prec::Conditional:
+      return printStr("Node::Prec::Conditional");
+    case Node::Prec::Assign:
+      return printStr("Node::Prec::Assign");
+    case Node::Prec::Comma:
+      return printStr("Node::Prec::Comma");
+    case Node::Prec::Default:
+      return printStr("Node::Prec::Default");
+    }
+  }
 
   void newLine() {
     printStr("\n");
@@ -404,8 +448,8 @@ char *ItaniumPartialDemangler::getFunctionBaseName(char *Buf, size_t *N) const {
     case Node::KAbiTagAttr:
       Name = static_cast<const AbiTagAttr *>(Name)->Base;
       continue;
-    case Node::KStdQualifiedName:
-      Name = static_cast<const StdQualifiedName *>(Name)->Child;
+    case Node::KModuleEntity:
+      Name = static_cast<const ModuleEntity *>(Name)->Name;
       continue;
     case Node::KNestedName:
       Name = static_cast<const NestedName *>(Name)->Name;
@@ -445,10 +489,10 @@ char *ItaniumPartialDemangler::getFunctionDeclContextName(char *Buf,
     break;
   }
 
+  if (Name->getKind() == Node::KModuleEntity)
+    Name = static_cast<const ModuleEntity *>(Name)->Name;
+
   switch (Name->getKind()) {
-  case Node::KStdQualifiedName:
-    OB += "std";
-    break;
   case Node::KNestedName:
     static_cast<const NestedName *>(Name)->Qual->print(OB);
     break;
@@ -550,8 +594,8 @@ bool ItaniumPartialDemangler::isCtorOrDtor() const {
     case Node::KNestedName:
       N = static_cast<const NestedName *>(N)->Name;
       break;
-    case Node::KStdQualifiedName:
-      N = static_cast<const StdQualifiedName *>(N)->Child;
+    case Node::KModuleEntity:
+      N = static_cast<const ModuleEntity *>(N)->Name;
       break;
     }
   }

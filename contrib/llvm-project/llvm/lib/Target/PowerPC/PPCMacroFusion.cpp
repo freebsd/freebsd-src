@@ -15,6 +15,7 @@
 #include "PPCSubtarget.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/CodeGen/MacroFusion.h"
+#include "llvm/CodeGen/ScheduleDAGMutation.h"
 
 using namespace llvm;
 namespace {
@@ -266,13 +267,13 @@ static bool shouldScheduleAdjacent(const TargetInstrInfo &TII,
         continue;
 
       auto DepOpIdx = Feature.depOpIdx();
-      if (DepOpIdx.hasValue()) {
+      if (DepOpIdx) {
         // Checking if the result of the FirstMI is the desired operand of the
         // SecondMI if the DepOpIdx is set. Otherwise, ignore it.
         if (!matchingRegOps(*FirstMI, 0, SecondMI, *DepOpIdx))
           return false;
       }
-  
+
       // Checking more on the instruction operands.
       if (checkOpConstraints(Feature.getKind(), *FirstMI, SecondMI))
         return true;

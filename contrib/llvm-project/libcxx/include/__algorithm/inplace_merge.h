@@ -17,12 +17,15 @@
 #include <__algorithm/rotate.h>
 #include <__algorithm/upper_bound.h>
 #include <__config>
+#include <__iterator/advance.h>
+#include <__iterator/distance.h>
 #include <__iterator/iterator_traits.h>
+#include <__iterator/reverse_iterator.h>
 #include <__utility/swap.h>
 #include <memory>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
 _LIBCPP_PUSH_MACROS
@@ -166,7 +169,7 @@ __inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator __middle,
             __len11 = __len1 / 2;
             __m1 = __first;
             _VSTD::advance(__m1, __len11);
-            __m2 = _VSTD::__lower_bound<_Compare>(__middle, __last, *__m1, __comp);
+            __m2 = std::lower_bound(__middle, __last, *__m1, __comp);
             __len21 = _VSTD::distance(__middle, __m2);
         }
         difference_type __len12 = __len1 - __len11;  // distance(__m1, __middle)
@@ -208,7 +211,10 @@ inplace_merge(_BidirectionalIterator __first, _BidirectionalIterator __middle, _
     difference_type __len1 = _VSTD::distance(__first, __middle);
     difference_type __len2 = _VSTD::distance(__middle, __last);
     difference_type __buf_size = _VSTD::min(__len1, __len2);
+// TODO: Remove the use of std::get_temporary_buffer
+_LIBCPP_SUPPRESS_DEPRECATED_PUSH
     pair<value_type*, ptrdiff_t> __buf = _VSTD::get_temporary_buffer<value_type>(__buf_size);
+_LIBCPP_SUPPRESS_DEPRECATED_POP
     unique_ptr<value_type, __return_temporary_buffer> __h(__buf.first);
     typedef typename __comp_ref_type<_Compare>::type _Comp_ref;
     return _VSTD::__inplace_merge<_Comp_ref>(__first, __middle, __last, __comp, __len1, __len2,

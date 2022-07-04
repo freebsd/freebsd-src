@@ -25,4 +25,8 @@ SRCS+=		RISCVVEmitter.cpp
 SRCS+=		SveEmitter.cpp
 SRCS+=		TableGen.cpp
 
-.include "../llvm.prog.mk"
+.include "${SRCTOP}/lib/clang/clang.pre.mk"
+
+CFLAGS.RISCVVEmitter.cpp+=	-I${CLANG_SRCS}/include
+
+.include "../clang.prog.mk"

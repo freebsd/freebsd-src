@@ -12,12 +12,12 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/DebugInfo/DWARF/DWARFDataExtractor.h"
+#include "llvm/DebugInfo/DWARF/DWARFDie.h"
 #include "llvm/DebugInfo/DWARF/DWARFFormValue.h"
-#include "llvm/DebugInfo/DWARF/DWARFRelocMap.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
-#include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -28,6 +28,10 @@
 
 using namespace llvm;
 using namespace dwarf;
+
+namespace llvm {
+class DwarfContext;
+}
 
 using FileLineInfoKind = DILineInfoSpecifier::FileLineInfoKind;
 
@@ -337,7 +341,7 @@ parseV5DirFileTables(const DWARFDataExtractor &DebugLineData,
               errc::invalid_argument,
               "failed to parse file entry because the MD5 hash is invalid");
         std::uninitialized_copy_n(Value.getAsBlock().getValue().begin(), 16,
-                                  FileEntry.Checksum.Bytes.begin());
+                                  FileEntry.Checksum.begin());
         break;
       default:
         break;
@@ -595,6 +599,10 @@ Expected<const DWARFDebugLine::LineTable *> DWARFDebugLine::getOrParseLineTable(
     return LT;
   }
   return LT;
+}
+
+void DWARFDebugLine::clearLineTable(uint64_t Offset) {
+  LineTableMap.erase(Offset);
 }
 
 static StringRef getOpcodeName(uint8_t Opcode, uint8_t OpcodeBase) {

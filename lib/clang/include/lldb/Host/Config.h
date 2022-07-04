@@ -54,4 +54,6 @@
 
 #define LLDB_LIBDIR_SUFFIX ""
 
+/* #undef LLDB_GLOBAL_INIT_DIRECTORY */
+
 #endif // #ifndef LLDB_HOST_CONFIG_H

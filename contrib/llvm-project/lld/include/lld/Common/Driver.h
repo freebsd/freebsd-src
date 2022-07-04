@@ -52,6 +52,6 @@ namespace wasm {
 bool link(llvm::ArrayRef<const char *> args, llvm::raw_ostream &stdoutOS,
           llvm::raw_ostream &stderrOS, bool exitEarly, bool disableOutput);
 }
-}
+} // namespace lld
 
 #endif

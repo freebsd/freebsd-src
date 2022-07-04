@@ -81,6 +81,9 @@ def dwarf_EQ : Joined<["--"], "dwarf=">,
 def fault_map_section : Flag<["--"], "fault-map-section">,
   HelpText<"Display the content of the fault map section">;
 
+def offloading : Flag<["--"], "offloading">,
+  HelpText<"Display the content of the offloading section">;
+
 def file_headers : Flag<["--"], "file-headers">,
   HelpText<"Display the contents of the overall file header">;
 def : Flag<["-"], "f">, Alias<file_headers>,
@@ -295,6 +298,12 @@ def info_plist : Flag<["--"], "info-plist">,
   HelpText<"Print the info plist section as strings for "
            "Mach-O objects (requires --macho)">,
   Group<grp_mach_o>;
+
+def dyld_info : Flag<["--"], "dyld_info">,
+      HelpText<"Print bind and rebase information used by dyld to resolve "
+               "external references in a final linked binary "
+               "(requires --macho)">,
+      Group<grp_mach_o>;
 
 def dylibs_used : Flag<["--"], "dylibs-used">,
   HelpText<"Print the shared libraries used for linked "

@@ -36,8 +36,8 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Use.h"
 #include "llvm/InitializePasses.h"
@@ -49,10 +49,10 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
-#include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <utility>
@@ -129,6 +129,12 @@ class MemorySSAWalkerAnnotatedWriter : public AssemblyAnnotationWriter {
 public:
   MemorySSAWalkerAnnotatedWriter(MemorySSA *M)
       : MSSA(M), Walker(M->getWalker()) {}
+
+  void emitBasicBlockStartAnnot(const BasicBlock *BB,
+                                formatted_raw_ostream &OS) override {
+    if (MemoryAccess *MA = MSSA->getMemoryAccess(BB))
+      OS << "; " << *MA << "\n";
+  }
 
   void emitInstructionAnnot(const Instruction *I,
                             formatted_raw_ostream &OS) override {
@@ -732,7 +738,7 @@ template <class AliasAnalysisType> class ClobberWalker {
   struct generic_def_path_iterator
       : public iterator_facade_base<generic_def_path_iterator<T, Walker>,
                                     std::forward_iterator_tag, T *> {
-    generic_def_path_iterator() {}
+    generic_def_path_iterator() = default;
     generic_def_path_iterator(Walker *W, ListIndex N) : W(W), N(N) {}
 
     T &operator*() const { return curNode(); }
@@ -743,9 +749,9 @@ template <class AliasAnalysisType> class ClobberWalker {
     }
 
     bool operator==(const generic_def_path_iterator &O) const {
-      if (N.hasValue() != O.N.hasValue())
+      if (N.has_value() != O.N.has_value())
         return false;
-      return !N.hasValue() || *N == *O.N;
+      return !N || *N == *O.N;
     }
 
   private:
@@ -1397,6 +1403,9 @@ void MemorySSA::OptimizeUses::optimizeUsesInBlock(
       continue;
     }
 
+    if (MU->isOptimized())
+      continue;
+
     if (isUseTriviallyOptimizableToLiveOnEntry(*AA, MU->getMemoryInst())) {
       MU->setDefiningAccess(MSSA->getLiveOnEntryDef(), true, None);
       continue;
@@ -1584,10 +1593,6 @@ void MemorySSA::buildMemorySSA(BatchAAResults &BAA) {
   // filled in with all blocks.
   SmallPtrSet<BasicBlock *, 16> Visited;
   renamePass(DT->getRootNode(), LiveOnEntryDef.get(), Visited);
-
-  ClobberWalkerBase<BatchAAResults> WalkerBase(this, &BAA, DT);
-  CachingWalker<BatchAAResults> WalkerLocal(this, &WalkerBase);
-  OptimizeUses(this, &WalkerLocal, &BAA, DT).optimizeUses();
 
   // Mark the uses in unreachable blocks as live on entry, so that they go
   // somewhere.
@@ -2178,6 +2183,17 @@ bool MemorySSA::dominates(const MemoryAccess *Dominator,
   return dominates(Dominator, cast<MemoryAccess>(Dominatee.getUser()));
 }
 
+void MemorySSA::ensureOptimizedUses() {
+  if (IsOptimized)
+    return;
+
+  BatchAAResults BatchAA(*AA);
+  ClobberWalkerBase<BatchAAResults> WalkerBase(this, &BatchAA, DT);
+  CachingWalker<BatchAAResults> WalkerLocal(this, &WalkerBase);
+  OptimizeUses(this, &WalkerLocal, &BatchAA, DT).optimizeUses();
+  IsOptimized = true;
+}
+
 void MemoryAccess::print(raw_ostream &OS) const {
   switch (getValueID()) {
   case MemoryPhiVal: return static_cast<const MemoryPhi *>(this)->print(OS);
@@ -2350,6 +2366,7 @@ struct DOTGraphTraits<DOTFuncMSSAInfo *> : public DefaultDOTGraphTraits {
 
 bool MemorySSAPrinterLegacyPass::runOnFunction(Function &F) {
   auto &MSSA = getAnalysis<MemorySSAWrapperPass>().getMSSA();
+  MSSA.ensureOptimizedUses();
   if (DotCFGMSSA != "") {
     DOTFuncMSSAInfo CFGInfo(F, MSSA);
     WriteGraph(&CFGInfo, "", false, "MSSA", DotCFGMSSA);
@@ -2382,6 +2399,7 @@ bool MemorySSAAnalysis::Result::invalidate(
 PreservedAnalyses MemorySSAPrinterPass::run(Function &F,
                                             FunctionAnalysisManager &AM) {
   auto &MSSA = AM.getResult<MemorySSAAnalysis>(F).getMSSA();
+  MSSA.ensureOptimizedUses();
   if (DotCFGMSSA != "") {
     DOTFuncMSSAInfo CFGInfo(F, MSSA);
     WriteGraph(&CFGInfo, "", false, "MSSA", DotCFGMSSA);

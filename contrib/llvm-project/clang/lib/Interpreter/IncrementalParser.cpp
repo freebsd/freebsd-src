@@ -134,7 +134,10 @@ IncrementalParser::IncrementalParser(std::unique_ptr<CompilerInstance> Instance,
   P->Initialize();
 }
 
-IncrementalParser::~IncrementalParser() { Act->FinalizeAction(); }
+IncrementalParser::~IncrementalParser() {
+  P.reset();
+  Act->FinalizeAction();
+}
 
 llvm::Expected<PartialTranslationUnit &>
 IncrementalParser::ParseOrWrapTopLevelDecl() {
@@ -164,8 +167,9 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   }
 
   Parser::DeclGroupPtrTy ADecl;
-  for (bool AtEOF = P->ParseFirstTopLevelDecl(ADecl); !AtEOF;
-       AtEOF = P->ParseTopLevelDecl(ADecl)) {
+  Sema::ModuleImportState ImportState;
+  for (bool AtEOF = P->ParseFirstTopLevelDecl(ADecl, ImportState); !AtEOF;
+       AtEOF = P->ParseTopLevelDecl(ADecl, ImportState)) {
     // If we got a null return and something *was* parsed, ignore it.  This
     // is due to a top-level semicolon, an action override, or a parse error
     // skipping something.
@@ -177,30 +181,12 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
 
   DiagnosticsEngine &Diags = getCI()->getDiagnostics();
   if (Diags.hasErrorOccurred()) {
-    TranslationUnitDecl *MostRecentTU = C.getTranslationUnitDecl();
-    TranslationUnitDecl *PreviousTU = MostRecentTU->getPreviousDecl();
-    assert(PreviousTU && "Must have a TU from the ASTContext initialization!");
-    TranslationUnitDecl *FirstTU = MostRecentTU->getFirstDecl();
-    assert(FirstTU);
-    FirstTU->RedeclLink.setLatest(PreviousTU);
-    C.TUDecl = PreviousTU;
-    S.TUScope->setEntity(PreviousTU);
+    PartialTranslationUnit MostRecentPTU = {C.getTranslationUnitDecl(),
+                                            nullptr};
+    CleanUpPTU(MostRecentPTU);
 
-    // Clean up the lookup table
-    if (StoredDeclsMap *Map = PreviousTU->getLookupPtr()) {
-      for (auto I = Map->begin(); I != Map->end(); ++I) {
-        StoredDeclsList &List = I->second;
-        DeclContextLookupResult R = List.getLookupResult();
-        for (NamedDecl *D : R)
-          if (D->getTranslationUnitDecl() == MostRecentTU)
-            List.remove(D);
-        if (List.isNull())
-          Map->erase(I);
-      }
-    }
-
-    // FIXME: Do not reset the pragma handlers.
-    Diags.Reset();
+    Diags.Reset(/*soft=*/true);
+    Diags.getClient()->clear();
     return llvm::make_error<llvm::StringError>("Parsing failed.",
                                                std::error_code());
   }
@@ -290,6 +276,24 @@ IncrementalParser::Parse(llvm::StringRef input) {
   }
 
   return PTU;
+}
+
+void IncrementalParser::CleanUpPTU(PartialTranslationUnit &PTU) {
+  TranslationUnitDecl *MostRecentTU = PTU.TUPart;
+  TranslationUnitDecl *FirstTU = MostRecentTU->getFirstDecl();
+  if (StoredDeclsMap *Map = FirstTU->getPrimaryContext()->getLookupPtr()) {
+    for (auto I = Map->begin(); I != Map->end(); ++I) {
+      StoredDeclsList &List = I->second;
+      DeclContextLookupResult R = List.getLookupResult();
+      for (NamedDecl *D : R) {
+        if (D->getTranslationUnitDecl() == MostRecentTU) {
+          List.remove(D);
+        }
+      }
+      if (List.isNull())
+        Map->erase(I);
+    }
+  }
 }
 
 llvm::StringRef IncrementalParser::GetMangledName(GlobalDecl GD) const {

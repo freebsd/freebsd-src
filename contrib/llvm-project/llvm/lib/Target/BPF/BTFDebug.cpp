@@ -22,6 +22,7 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/LineIterator.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 
 using namespace llvm;
@@ -161,9 +162,10 @@ void BTFTypeInt::emitType(MCStreamer &OS) {
   OS.emitInt32(IntVal);
 }
 
-BTFTypeEnum::BTFTypeEnum(const DICompositeType *ETy, uint32_t VLen) : ETy(ETy) {
+BTFTypeEnum::BTFTypeEnum(const DICompositeType *ETy, uint32_t VLen,
+    bool IsSigned) : ETy(ETy) {
   Kind = BTF::BTF_KIND_ENUM;
-  BTFType.Info = Kind << 24 | VLen;
+  BTFType.Info = IsSigned << 31 | Kind << 24 | VLen;
   BTFType.Size = roundupToBytes(ETy->getSizeInBits());
 }
 
@@ -196,6 +198,48 @@ void BTFTypeEnum::emitType(MCStreamer &OS) {
   for (const auto &Enum : EnumValues) {
     OS.emitInt32(Enum.NameOff);
     OS.emitInt32(Enum.Val);
+  }
+}
+
+BTFTypeEnum64::BTFTypeEnum64(const DICompositeType *ETy, uint32_t VLen,
+    bool IsSigned) : ETy(ETy) {
+  Kind = BTF::BTF_KIND_ENUM64;
+  BTFType.Info = IsSigned << 31 | Kind << 24 | VLen;
+  BTFType.Size = roundupToBytes(ETy->getSizeInBits());
+}
+
+void BTFTypeEnum64::completeType(BTFDebug &BDebug) {
+  if (IsCompleted)
+    return;
+  IsCompleted = true;
+
+  BTFType.NameOff = BDebug.addString(ETy->getName());
+
+  DINodeArray Elements = ETy->getElements();
+  for (const auto Element : Elements) {
+    const auto *Enum = cast<DIEnumerator>(Element);
+
+    struct BTF::BTFEnum64 BTFEnum;
+    BTFEnum.NameOff = BDebug.addString(Enum->getName());
+    uint64_t Value;
+    if (Enum->isUnsigned())
+      Value = static_cast<uint64_t>(Enum->getValue().getZExtValue());
+    else
+      Value = static_cast<uint64_t>(Enum->getValue().getSExtValue());
+    BTFEnum.Val_Lo32 = Value;
+    BTFEnum.Val_Hi32 = Value >> 32;
+    EnumValues.push_back(BTFEnum);
+  }
+}
+
+void BTFTypeEnum64::emitType(MCStreamer &OS) {
+  BTFTypeBase::emitType(OS);
+  for (const auto &Enum : EnumValues) {
+    OS.emitInt32(Enum.NameOff);
+    OS.AddComment("0x" + Twine::utohexstr(Enum.Val_Lo32));
+    OS.emitInt32(Enum.Val_Lo32);
+    OS.AddComment("0x" + Twine::utohexstr(Enum.Val_Hi32));
+    OS.emitInt32(Enum.Val_Hi32);
   }
 }
 
@@ -552,6 +596,46 @@ void BTFDebug::processDeclAnnotations(DINodeArray Annotations,
   }
 }
 
+/// Generate btf_type_tag chains.
+int BTFDebug::genBTFTypeTags(const DIDerivedType *DTy, int BaseTypeId) {
+  SmallVector<const MDString *, 4> MDStrs;
+  DINodeArray Annots = DTy->getAnnotations();
+  if (Annots) {
+    // For type with "int __tag1 __tag2 *p", the MDStrs will have
+    // content: [__tag1, __tag2].
+    for (const Metadata *Annotations : Annots->operands()) {
+      const MDNode *MD = cast<MDNode>(Annotations);
+      const MDString *Name = cast<MDString>(MD->getOperand(0));
+      if (!Name->getString().equals("btf_type_tag"))
+        continue;
+      MDStrs.push_back(cast<MDString>(MD->getOperand(1)));
+    }
+  }
+
+  if (MDStrs.size() == 0)
+    return -1;
+
+  // With MDStrs [__tag1, __tag2], the output type chain looks like
+  //   PTR -> __tag2 -> __tag1 -> BaseType
+  // In the below, we construct BTF types with the order of __tag1, __tag2
+  // and PTR.
+  unsigned TmpTypeId;
+  std::unique_ptr<BTFTypeTypeTag> TypeEntry;
+  if (BaseTypeId >= 0)
+    TypeEntry =
+        std::make_unique<BTFTypeTypeTag>(BaseTypeId, MDStrs[0]->getString());
+  else
+    TypeEntry = std::make_unique<BTFTypeTypeTag>(DTy, MDStrs[0]->getString());
+  TmpTypeId = addType(std::move(TypeEntry));
+
+  for (unsigned I = 1; I < MDStrs.size(); I++) {
+    const MDString *Value = MDStrs[I];
+    TypeEntry = std::make_unique<BTFTypeTypeTag>(TmpTypeId, Value->getString());
+    TmpTypeId = addType(std::move(TypeEntry));
+  }
+  return TmpTypeId;
+}
+
 /// Handle structure/union types.
 void BTFDebug::visitStructType(const DICompositeType *CTy, bool IsStruct,
                                uint32_t &TypeId) {
@@ -633,8 +717,25 @@ void BTFDebug::visitEnumType(const DICompositeType *CTy, uint32_t &TypeId) {
   if (VLen > BTF::MAX_VLEN)
     return;
 
-  auto TypeEntry = std::make_unique<BTFTypeEnum>(CTy, VLen);
-  TypeId = addType(std::move(TypeEntry), CTy);
+  bool IsSigned = false;
+  unsigned NumBits = 32;
+  // No BaseType implies forward declaration in which case a
+  // BTFTypeEnum with Vlen = 0 is emitted.
+  if (CTy->getBaseType() != nullptr) {
+    const auto *BTy = cast<DIBasicType>(CTy->getBaseType());
+    IsSigned = BTy->getEncoding() == dwarf::DW_ATE_signed ||
+               BTy->getEncoding() == dwarf::DW_ATE_signed_char;
+    NumBits = BTy->getSizeInBits();
+  }
+
+  if (NumBits <= 32) {
+    auto TypeEntry = std::make_unique<BTFTypeEnum>(CTy, VLen, IsSigned);
+    TypeId = addType(std::move(TypeEntry), CTy);
+  } else {
+    assert(NumBits == 64);
+    auto TypeEntry = std::make_unique<BTFTypeEnum64>(CTy, VLen, IsSigned);
+    TypeId = addType(std::move(TypeEntry), CTy);
+  }
   // No need to visit base type as BTF does not encode it.
 }
 
@@ -684,9 +785,8 @@ void BTFDebug::visitDerivedType(const DIDerivedType *DTy, uint32_t &TypeId,
           /// pointee type will be replaced with either a real type or
           /// a forward declaration.
           auto TypeEntry = std::make_unique<BTFTypeDerived>(DTy, Tag, true);
-          auto &Fixup = FixupDerivedTypes[CTy->getName()];
-          Fixup.first = CTag == dwarf::DW_TAG_union_type;
-          Fixup.second.push_back(TypeEntry.get());
+          auto &Fixup = FixupDerivedTypes[CTy];
+          Fixup.push_back(std::make_pair(DTy, TypeEntry.get()));
           TypeId = addType(std::move(TypeEntry), DTy);
           return;
         }
@@ -695,34 +795,8 @@ void BTFDebug::visitDerivedType(const DIDerivedType *DTy, uint32_t &TypeId,
   }
 
   if (Tag == dwarf::DW_TAG_pointer_type) {
-    SmallVector<const MDString *, 4> MDStrs;
-    DINodeArray Annots = DTy->getAnnotations();
-    if (Annots) {
-      // For type with "int __tag1 __tag2 *p", the MDStrs will have
-      // content: [__tag1, __tag2].
-      for (const Metadata *Annotations : Annots->operands()) {
-        const MDNode *MD = cast<MDNode>(Annotations);
-        const MDString *Name = cast<MDString>(MD->getOperand(0));
-        if (!Name->getString().equals("btf_type_tag"))
-          continue;
-        MDStrs.push_back(cast<MDString>(MD->getOperand(1)));
-      }
-    }
-
-    if (MDStrs.size() > 0) {
-      // With MDStrs [__tag1, __tag2], the output type chain looks like
-      //   PTR -> __tag2 -> __tag1 -> BaseType
-      // In the below, we construct BTF types with the order of __tag1, __tag2
-      // and PTR.
-      auto TypeEntry =
-          std::make_unique<BTFTypeTypeTag>(DTy, MDStrs[0]->getString());
-      unsigned TmpTypeId = addType(std::move(TypeEntry));
-      for (unsigned I = 1; I < MDStrs.size(); I++) {
-        const MDString *Value = MDStrs[I];
-        TypeEntry =
-            std::make_unique<BTFTypeTypeTag>(TmpTypeId, Value->getString());
-        TmpTypeId = addType(std::move(TypeEntry));
-      }
+    int TmpTypeId = genBTFTypeTags(DTy, -1);
+    if (TmpTypeId >= 0) {
       auto TypeDEntry =
           std::make_unique<BTFTypeDerived>(TmpTypeId, Tag, DTy->getName());
       TypeId = addType(std::move(TypeDEntry), DTy);
@@ -773,15 +847,31 @@ void BTFDebug::visitTypeEntry(const DIType *Ty, uint32_t &TypeId,
     // already defined, we should keep moving to eventually
     // bring in types for "struct t". Otherwise, the "struct s2"
     // definition won't be correct.
+    //
+    // In the above, we have following debuginfo:
+    //  {ptr, struct_member} ->  typedef -> struct
+    // and BTF type for 'typedef' is generated while 'struct' may
+    // be in FixUp. But let us generalize the above to handle
+    //  {different types} -> [various derived types]+ -> another type.
+    // For example,
+    //  {func_param, struct_member} -> const -> ptr -> volatile -> struct
+    // We will traverse const/ptr/volatile which already have corresponding
+    // BTF types and generate type for 'struct' which might be in Fixup
+    // state.
     if (Ty && (!CheckPointer || !SeenPointer)) {
       if (const auto *DTy = dyn_cast<DIDerivedType>(Ty)) {
-        unsigned Tag = DTy->getTag();
-        if (Tag == dwarf::DW_TAG_typedef || Tag == dwarf::DW_TAG_const_type ||
-            Tag == dwarf::DW_TAG_volatile_type ||
-            Tag == dwarf::DW_TAG_restrict_type) {
-          uint32_t TmpTypeId;
-          visitTypeEntry(DTy->getBaseType(), TmpTypeId, CheckPointer,
-                         SeenPointer);
+        while (DTy) {
+          const DIType *BaseTy = DTy->getBaseType();
+          if (!BaseTy)
+            break;
+
+          if (DIToIdMap.find(BaseTy) != DIToIdMap.end()) {
+            DTy = dyn_cast<DIDerivedType>(BaseTy);
+          } else {
+            uint32_t TmpTypeId;
+            visitTypeEntry(BaseTy, TmpTypeId, CheckPointer, SeenPointer);
+            break;
+          }
         }
       }
     }
@@ -908,7 +998,7 @@ void BTFDebug::emitBTFSection() {
   MCContext &Ctx = OS.getContext();
   MCSectionELF *Sec = Ctx.getELFSection(".BTF", ELF::SHT_PROGBITS, 0);
   Sec->setAlignment(Align(4));
-  OS.SwitchSection(Sec);
+  OS.switchSection(Sec);
 
   // Emit header.
   emitCommonHeader();
@@ -948,7 +1038,7 @@ void BTFDebug::emitBTFExtSection() {
   MCContext &Ctx = OS.getContext();
   MCSectionELF *Sec = Ctx.getELFSection(".BTF.ext", ELF::SHT_PROGBITS, 0);
   Sec->setAlignment(Align(4));
-  OS.SwitchSection(Sec);
+  OS.switchSection(Sec);
 
   // Emit header.
   emitCommonHeader();
@@ -1436,9 +1526,8 @@ void BTFDebug::processFuncPrototypes(const Function *F) {
     return;
 
   // Do not emit again if already emitted.
-  if (ProtoFunctions.find(F) != ProtoFunctions.end())
+  if (!ProtoFunctions.insert(F).second)
     return;
-  ProtoFunctions.insert(F);
 
   uint32_t ProtoTypeId;
   const std::unordered_map<uint32_t, StringRef> FuncArgNames;
@@ -1480,8 +1569,9 @@ void BTFDebug::endModule() {
 
   // Fixups
   for (auto &Fixup : FixupDerivedTypes) {
-    StringRef TypeName = Fixup.first;
-    bool IsUnion = Fixup.second.first;
+    const DICompositeType *CTy = Fixup.first;
+    StringRef TypeName = CTy->getName();
+    bool IsUnion = CTy->getTag() == dwarf::DW_TAG_union_type;
 
     // Search through struct types
     uint32_t StructTypeId = 0;
@@ -1497,8 +1587,15 @@ void BTFDebug::endModule() {
       StructTypeId = addType(std::move(FwdTypeEntry));
     }
 
-    for (auto &DType : Fixup.second.second) {
-      DType->setPointeeType(StructTypeId);
+    for (auto &TypeInfo : Fixup.second) {
+      const DIDerivedType *DTy = TypeInfo.first;
+      BTFTypeDerived *BDType = TypeInfo.second;
+
+      int TmpTypeId = genBTFTypeTags(DTy, StructTypeId);
+      if (TmpTypeId >= 0)
+        BDType->setPointeeType(TmpTypeId);
+      else
+        BDType->setPointeeType(StructTypeId);
     }
   }
 

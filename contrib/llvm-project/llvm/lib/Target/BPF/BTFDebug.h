@@ -103,7 +103,7 @@ class BTFTypeEnum : public BTFTypeBase {
   std::vector<struct BTF::BTFEnum> EnumValues;
 
 public:
-  BTFTypeEnum(const DICompositeType *ETy, uint32_t NumValues);
+  BTFTypeEnum(const DICompositeType *ETy, uint32_t NumValues, bool IsSigned);
   uint32_t getSize() override {
     return BTFTypeBase::getSize() + EnumValues.size() * BTF::BTFEnumSize;
   }
@@ -218,6 +218,20 @@ public:
   void emitType(MCStreamer &OS) override;
 };
 
+/// Handle 64-bit enumerate type.
+class BTFTypeEnum64 : public BTFTypeBase {
+  const DICompositeType *ETy;
+  std::vector<struct BTF::BTFEnum64> EnumValues;
+
+public:
+  BTFTypeEnum64(const DICompositeType *ETy, uint32_t NumValues, bool IsSigned);
+  uint32_t getSize() override {
+    return BTFTypeBase::getSize() + EnumValues.size() * BTF::BTFEnum64Size;
+  }
+  void completeType(BTFDebug &BDebug) override;
+  void emitType(MCStreamer &OS) override;
+};
+
 class BTFTypeTypeTag : public BTFTypeBase {
   const DIDerivedType *DTy;
   StringRef Tag;
@@ -289,7 +303,8 @@ class BTFDebug : public DebugHandlerBase {
   std::map<std::string, std::unique_ptr<BTFKindDataSec>> DataSecEntries;
   std::vector<BTFTypeStruct *> StructTypes;
   std::map<const GlobalVariable *, std::pair<int64_t, uint32_t>> PatchImms;
-  std::map<StringRef, std::pair<bool, std::vector<BTFTypeDerived *>>>
+  std::map<const DICompositeType *,
+           std::vector<std::pair<const DIDerivedType *, BTFTypeDerived *>>>
       FixupDerivedTypes;
   std::set<const Function *>ProtoFunctions;
 
@@ -340,6 +355,13 @@ class BTFDebug : public DebugHandlerBase {
   /// Generate types for decl annotations.
   void processDeclAnnotations(DINodeArray Annotations, uint32_t BaseTypeId,
                               int ComponentId);
+
+  /// Generate BTF type_tag's. If BaseTypeId is nonnegative, the last
+  /// BTF type_tag in the chain points to BaseTypeId. Otherwise, it points to
+  /// the base type of DTy. Return the type id of the first BTF type_tag
+  /// in the chain. If no type_tag's are generated, a negative value
+  /// is returned.
+  int genBTFTypeTags(const DIDerivedType *DTy, int BaseTypeId);
 
   /// Generate one field relocation record.
   void generatePatchImmReloc(const MCSymbol *ORSym, uint32_t RootId,

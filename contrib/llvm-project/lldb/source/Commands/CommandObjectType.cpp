@@ -286,7 +286,7 @@ class CommandObjectTypeSynthAdd : public CommandObjectParsed,
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -498,7 +498,7 @@ class CommandObjectTypeFormatAdd : public CommandObjectParsed {
 private:
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -707,7 +707,7 @@ class CommandObjectTypeFormatterDelete : public CommandObjectParsed {
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -872,7 +872,7 @@ class CommandObjectTypeFormatterClear : public CommandObjectParsed {
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -914,7 +914,10 @@ public:
                                   uint32_t formatter_kind_mask,
                                   const char *name, const char *help)
       : CommandObjectParsed(interpreter, name, help, nullptr),
-        m_formatter_kind_mask(formatter_kind_mask) {}
+        m_formatter_kind_mask(formatter_kind_mask) {
+    CommandArgumentData category_arg{eArgTypeName, eArgRepeatOptional};
+    m_arguments.push_back({category_arg});
+  }
 
   ~CommandObjectTypeFormatterClear() override = default;
 
@@ -1337,9 +1340,9 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
         m_options.m_flags, funct_name_str.c_str(), code.c_str());
   } else {
     // Use an IOHandler to grab Python code from the user
-    ScriptAddOptions *options =
-        new ScriptAddOptions(m_options.m_flags, m_options.m_regex,
-                             m_options.m_name, m_options.m_category);
+    auto options = std::make_unique<ScriptAddOptions>(
+        m_options.m_flags, m_options.m_regex, m_options.m_name,
+        m_options.m_category);
 
     for (auto &entry : command.entries()) {
       if (entry.ref().empty()) {
@@ -1351,10 +1354,10 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
     }
 
     m_interpreter.GetPythonCommandsFromIOHandler(
-        "    ",   // Prompt
-        *this,    // IOHandlerDelegate
-        options); // Baton for the "io_handler" that will be passed back into
-                  // our IOHandlerDelegate functions
+        "    ",             // Prompt
+        *this,              // IOHandlerDelegate
+        options.release()); // Baton for the "io_handler" that will be passed
+                            // back into our IOHandlerDelegate functions
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
 
     return result.Succeeded();
@@ -1815,7 +1818,7 @@ protected:
 class CommandObjectTypeCategoryEnable : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1992,7 +1995,7 @@ protected:
 class CommandObjectTypeCategoryDisable : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -2252,7 +2255,7 @@ public:
 
 bool CommandObjectTypeSynthAdd::Execute_HandwritePython(
     Args &command, CommandReturnObject &result) {
-  SynthAddOptions *options = new SynthAddOptions(
+  auto options = std::make_unique<SynthAddOptions>(
       m_options.m_skip_pointers, m_options.m_skip_references,
       m_options.m_cascade, m_options.m_regex, m_options.m_category);
 
@@ -2266,10 +2269,10 @@ bool CommandObjectTypeSynthAdd::Execute_HandwritePython(
   }
 
   m_interpreter.GetPythonCommandsFromIOHandler(
-      "    ",   // Prompt
-      *this,    // IOHandlerDelegate
-      options); // Baton for the "io_handler" that will be passed back into our
-                // IOHandlerDelegate functions
+      "    ",             // Prompt
+      *this,              // IOHandlerDelegate
+      options.release()); // Baton for the "io_handler" that will be passed back
+                          // into our IOHandlerDelegate functions
   result.SetStatus(eReturnStatusSuccessFinishNoResult);
   return result.Succeeded();
 }
@@ -2405,7 +2408,7 @@ private:
     typedef std::vector<std::string> option_vector;
 
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -2661,7 +2664,7 @@ protected:
 
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 //  This file defines a meta-engine for path-sensitive dataflow analysis that
-//  is built on GREngine, but provides the boilerplate to execute transfer
+//  is built on CoreEngine, but provides the boilerplate to execute transfer
 //  functions and build the ExplodedGraph at the expression level.
 //
 //===----------------------------------------------------------------------===//
@@ -118,17 +118,9 @@ namespace {
 /// the construction context was present and contained references to these
 /// AST nodes.
 class ConstructedObjectKey {
-  typedef std::pair<ConstructionContextItem, const LocationContext *>
-      ConstructedObjectKeyImpl;
-
+  using ConstructedObjectKeyImpl =
+      std::pair<ConstructionContextItem, const LocationContext *>;
   const ConstructedObjectKeyImpl Impl;
-
-  const void *getAnyASTNodePtr() const {
-    if (const Stmt *S = getItem().getStmtOrNull())
-      return S;
-    else
-      return getItem().getCXXCtorInitializer();
-  }
 
 public:
   explicit ConstructedObjectKey(const ConstructionContextItem &Item,
@@ -200,24 +192,17 @@ REGISTER_TRAIT_WITH_PROGRAMSTATE(ObjectsUnderConstruction,
 static const char* TagProviderName = "ExprEngine";
 
 ExprEngine::ExprEngine(cross_tu::CrossTranslationUnitContext &CTU,
-                       AnalysisManager &mgr,
-                       SetOfConstDecls *VisitedCalleesIn,
-                       FunctionSummariesTy *FS,
-                       InliningModes HowToInlineIn)
-    : CTU(CTU), AMgr(mgr),
-      AnalysisDeclContexts(mgr.getAnalysisDeclContextManager()),
+                       AnalysisManager &mgr, SetOfConstDecls *VisitedCalleesIn,
+                       FunctionSummariesTy *FS, InliningModes HowToInlineIn)
+    : CTU(CTU), IsCTUEnabled(mgr.getAnalyzerOptions().IsNaiveCTUEnabled),
+      AMgr(mgr), AnalysisDeclContexts(mgr.getAnalysisDeclContextManager()),
       Engine(*this, FS, mgr.getAnalyzerOptions()), G(Engine.getGraph()),
       StateMgr(getContext(), mgr.getStoreManagerCreator(),
-               mgr.getConstraintManagerCreator(), G.getAllocator(),
-               this),
-      SymMgr(StateMgr.getSymbolManager()),
-      MRMgr(StateMgr.getRegionManager()),
-      svalBuilder(StateMgr.getSValBuilder()),
-      ObjCNoRet(mgr.getASTContext()),
-      BR(mgr, *this),
-      VisitedCallees(VisitedCalleesIn),
-      HowToInline(HowToInlineIn)
-  {
+               mgr.getConstraintManagerCreator(), G.getAllocator(), this),
+      SymMgr(StateMgr.getSymbolManager()), MRMgr(StateMgr.getRegionManager()),
+      svalBuilder(StateMgr.getSValBuilder()), ObjCNoRet(mgr.getASTContext()),
+      BR(mgr, *this), VisitedCallees(VisitedCalleesIn),
+      HowToInline(HowToInlineIn) {
   unsigned TrimInterval = mgr.options.GraphTrimInterval;
   if (TrimInterval != 0) {
     // Enable eager node reclamation when constructing the ExplodedGraph.
@@ -319,7 +304,7 @@ ProgramStateRef ExprEngine::createTemporaryRegionIfNeeded(
   if (!Result) {
     // If we don't have an explicit result expression, we're in "if needed"
     // mode. Only create a region if the current value is a NonLoc.
-    if (!InitValWithAdjustments.getAs<NonLoc>()) {
+    if (!isa<NonLoc>(InitValWithAdjustments)) {
       if (OutRegionWithAdjustments)
         *OutRegionWithAdjustments = nullptr;
       return State;
@@ -328,7 +313,7 @@ ProgramStateRef ExprEngine::createTemporaryRegionIfNeeded(
   } else {
     // We need to create a region no matter what. Make sure we don't try to
     // stuff a Loc into a non-pointer temporary region.
-    assert(!InitValWithAdjustments.getAs<Loc>() ||
+    assert(!isa<Loc>(InitValWithAdjustments) ||
            Loc::isLocType(Result->getType()) ||
            Result->getType()->isMemberPointerType());
   }
@@ -620,6 +605,8 @@ void ExprEngine::printJson(raw_ostream &Out, ProgramStateRef State,
 }
 
 void ExprEngine::processEndWorklist() {
+  // This prints the name of the top-level function if we crash.
+  PrettyStackTraceLocationContext CrashInfo(getRootLocationContext());
   getCheckerManager().runCheckersForEndAnalysis(G, BR, *this);
 }
 
@@ -1251,6 +1238,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::OMPParallelForSimdDirectiveClass:
     case Stmt::OMPParallelSectionsDirectiveClass:
     case Stmt::OMPParallelMasterDirectiveClass:
+    case Stmt::OMPParallelMaskedDirectiveClass:
     case Stmt::OMPTaskDirectiveClass:
     case Stmt::OMPTaskyieldDirectiveClass:
     case Stmt::OMPBarrierDirectiveClass:
@@ -1274,9 +1262,13 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::OMPTaskLoopDirectiveClass:
     case Stmt::OMPTaskLoopSimdDirectiveClass:
     case Stmt::OMPMasterTaskLoopDirectiveClass:
+    case Stmt::OMPMaskedTaskLoopDirectiveClass:
     case Stmt::OMPMasterTaskLoopSimdDirectiveClass:
+    case Stmt::OMPMaskedTaskLoopSimdDirectiveClass:
     case Stmt::OMPParallelMasterTaskLoopDirectiveClass:
+    case Stmt::OMPParallelMaskedTaskLoopDirectiveClass:
     case Stmt::OMPParallelMasterTaskLoopSimdDirectiveClass:
+    case Stmt::OMPParallelMaskedTaskLoopSimdDirectiveClass:
     case Stmt::OMPDistributeDirectiveClass:
     case Stmt::OMPDistributeParallelForDirectiveClass:
     case Stmt::OMPDistributeParallelForSimdDirectiveClass:
@@ -1297,6 +1289,10 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::OMPDispatchDirectiveClass:
     case Stmt::OMPMaskedDirectiveClass:
     case Stmt::OMPGenericLoopDirectiveClass:
+    case Stmt::OMPTeamsGenericLoopDirectiveClass:
+    case Stmt::OMPTargetTeamsGenericLoopDirectiveClass:
+    case Stmt::OMPParallelGenericLoopDirectiveClass:
+    case Stmt::OMPTargetParallelGenericLoopDirectiveClass:
     case Stmt::CapturedStmtClass:
     case Stmt::OMPUnrollDirectiveClass:
     case Stmt::OMPMetaDirectiveClass: {
@@ -1342,8 +1338,9 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::GNUNullExprClass: {
       // GNU __null is a pointer-width integer, not an actual pointer.
       ProgramStateRef state = Pred->getState();
-      state = state->BindExpr(S, Pred->getLocationContext(),
-                              svalBuilder.makeIntValWithPtrWidth(0, false));
+      state = state->BindExpr(
+          S, Pred->getLocationContext(),
+          svalBuilder.makeIntValWithWidth(getContext().VoidPtrTy, 0));
       Bldr.generateNode(S, Pred, state);
       break;
     }
@@ -1370,10 +1367,14 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       break;
     }
 
+    case Stmt::ArrayInitLoopExprClass:
+      Bldr.takeNodes(Pred);
+      VisitArrayInitLoopExpr(cast<ArrayInitLoopExpr>(S), Pred, Dst);
+      Bldr.addNodes(Dst);
+      break;
     // Cases not handled yet; but will handle some day.
     case Stmt::DesignatedInitExprClass:
     case Stmt::DesignatedInitUpdateExprClass:
-    case Stmt::ArrayInitLoopExprClass:
     case Stmt::ArrayInitIndexExprClass:
     case Stmt::ExtVectorElementExprClass:
     case Stmt::ImaginaryLiteralClass:
@@ -2343,7 +2344,7 @@ void ExprEngine::processIndirectGoto(IndirectGotoNodeBuilder &builder) {
     llvm_unreachable("No block with label.");
   }
 
-  if (V.getAs<loc::ConcreteInt>() || V.getAs<UndefinedVal>()) {
+  if (isa<UndefinedVal, loc::ConcreteInt>(V)) {
     // Dispatch to the first target and mark it as a sink.
     //ExplodedNode* N = builder.generateNode(builder.begin(), state, true);
     // FIXME: add checker visit.
@@ -2598,13 +2599,142 @@ void ExprEngine::VisitCommonDeclRefExpr(const Expr *Ex, const NamedDecl *D,
     // operator&.
     return;
   }
-  if (isa<BindingDecl>(D)) {
-    // FIXME: proper support for bound declarations.
-    // For now, let's just prevent crashing.
+  if (const auto *BD = dyn_cast<BindingDecl>(D)) {
+    const auto *DD = cast<DecompositionDecl>(BD->getDecomposedDecl());
+
+    SVal Base = state->getLValue(DD, LCtx);
+    if (DD->getType()->isReferenceType()) {
+      Base = state->getSVal(Base.getAsRegion());
+    }
+
+    SVal V = UnknownVal();
+
+    // Handle binding to data members
+    if (const auto *ME = dyn_cast<MemberExpr>(BD->getBinding())) {
+      const auto *Field = cast<FieldDecl>(ME->getMemberDecl());
+      V = state->getLValue(Field, Base);
+    }
+    // Handle binding to arrays
+    else if (const auto *ASE = dyn_cast<ArraySubscriptExpr>(BD->getBinding())) {
+      SVal Idx = state->getSVal(ASE->getIdx(), LCtx);
+
+      // Note: the index of an element in a structured binding is automatically
+      // created and it is a unique identifier of the specific element. Thus it
+      // cannot be a value that varies at runtime.
+      assert(Idx.isConstant() && "BindingDecl array index is not a constant!");
+
+      V = state->getLValue(BD->getType(), Idx, Base);
+    }
+    // Handle binding to tuple-like strcutures
+    else if (BD->getHoldingVar()) {
+      // FIXME: handle tuples
+      return;
+    } else
+      llvm_unreachable("An unknown case of structured binding encountered!");
+
+    if (BD->getType()->isReferenceType())
+      V = state->getSVal(V.getAsRegion());
+
+    Bldr.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, V), nullptr,
+                      ProgramPoint::PostLValueKind);
+
     return;
   }
 
   llvm_unreachable("Support for this Decl not implemented.");
+}
+
+/// VisitArrayInitLoopExpr - Transfer function for array init loop.
+void ExprEngine::VisitArrayInitLoopExpr(const ArrayInitLoopExpr *Ex,
+                                        ExplodedNode *Pred,
+                                        ExplodedNodeSet &Dst) {
+  ExplodedNodeSet CheckerPreStmt;
+  getCheckerManager().runCheckersForPreStmt(CheckerPreStmt, Pred, Ex, *this);
+
+  ExplodedNodeSet EvalSet;
+  StmtNodeBuilder Bldr(CheckerPreStmt, EvalSet, *currBldrCtx);
+
+  const Expr *Arr = Ex->getCommonExpr()->getSourceExpr();
+
+  for (auto *Node : CheckerPreStmt) {
+    const LocationContext *LCtx = Node->getLocationContext();
+    ProgramStateRef state = Node->getState();
+
+    SVal Base = UnknownVal();
+
+    // As in case of this expression the sub-expressions are not visited by any
+    // other transfer functions, they are handled by matching their AST.
+
+    // Case of implicit copy or move ctor of object with array member
+    //
+    // Note: ExprEngine::VisitMemberExpr is not able to bind the array to the
+    // environment.
+    //
+    //    struct S {
+    //      int arr[2];
+    //    };
+    //
+    //
+    //    S a;
+    //    S b = a;
+    //
+    // The AST in case of a *copy constructor* looks like this:
+    //    ArrayInitLoopExpr
+    //    |-OpaqueValueExpr
+    //    | `-MemberExpr              <-- match this
+    //    |   `-DeclRefExpr
+    //    ` ...
+    //
+    //
+    //    S c;
+    //    S d = std::move(d);
+    //
+    // In case of a *move constructor* the resulting AST looks like:
+    //    ArrayInitLoopExpr
+    //    |-OpaqueValueExpr
+    //    | `-MemberExpr              <-- match this first
+    //    |   `-CXXStaticCastExpr     <-- match this after
+    //    |     `-DeclRefExpr
+    //    ` ...
+    if (const auto *ME = dyn_cast<MemberExpr>(Arr)) {
+      Expr *MEBase = ME->getBase();
+
+      // Move ctor
+      if (auto CXXSCE = dyn_cast<CXXStaticCastExpr>(MEBase)) {
+        MEBase = CXXSCE->getSubExpr();
+      }
+
+      auto ObjDeclExpr = cast<DeclRefExpr>(MEBase);
+      SVal Obj = state->getLValue(cast<VarDecl>(ObjDeclExpr->getDecl()), LCtx);
+
+      Base = state->getLValue(cast<FieldDecl>(ME->getMemberDecl()), Obj);
+    }
+
+    // Case of lambda capture and decomposition declaration
+    //
+    //    int arr[2];
+    //
+    //    [arr]{ int a = arr[0]; }();
+    //    auto[a, b] = arr;
+    //
+    // In both of these cases the AST looks like the following:
+    //    ArrayInitLoopExpr
+    //    |-OpaqueValueExpr
+    //    | `-DeclRefExpr             <-- match this
+    //    ` ...
+    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Arr))
+      Base = state->getLValue(cast<VarDecl>(DRE->getDecl()), LCtx);
+
+    // Create a lazy compound value to the original array
+    if (const MemRegion *R = Base.getAsRegion())
+      Base = state->getSVal(R);
+    else
+      Base = UnknownVal();
+
+    Bldr.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, Base));
+  }
+
+  getCheckerManager().runCheckersForPostStmt(Dst, EvalSet, Ex, *this);
 }
 
 /// VisitArraySubscriptExpr - Transfer function for array accesses
@@ -2894,7 +3024,7 @@ void ExprEngine::evalBind(ExplodedNodeSet &Dst, const Stmt *StoreE,
 
   // If the location is not a 'Loc', it will already be handled by
   // the checkers.  There is nothing left to do.
-  if (!location.getAs<Loc>()) {
+  if (!isa<Loc>(location)) {
     const ProgramPoint L = PostStore(StoreE, LC, /*Loc*/nullptr,
                                      /*tag*/nullptr);
     ProgramStateRef state = Pred->getState();
@@ -2964,7 +3094,7 @@ void ExprEngine::evalLoad(ExplodedNodeSet &Dst,
                           SVal location,
                           const ProgramPointTag *tag,
                           QualType LoadTy) {
-  assert(!location.getAs<NonLoc>() && "location cannot be a NonLoc.");
+  assert(!isa<NonLoc>(location) && "location cannot be a NonLoc.");
   assert(NodeEx);
   assert(BoundEx);
   // Evaluate the location (checks for bad dereferences).
@@ -3095,7 +3225,7 @@ void ExprEngine::VisitGCCAsmStmt(const GCCAsmStmt *A, ExplodedNode *Pred,
 
   for (const Expr *O : A->outputs()) {
     SVal X = state->getSVal(O, Pred->getLocationContext());
-    assert(!X.getAs<NonLoc>());  // Should be an Lval, or unknown, undef.
+    assert(!isa<NonLoc>(X)); // Should be an Lval, or unknown, undef.
 
     if (Optional<Loc> LV = X.getAs<Loc>())
       state = state->bindLoc(*LV, UnknownVal(), Pred->getLocationContext());
@@ -3114,7 +3244,6 @@ void ExprEngine::VisitMSAsmStmt(const MSAsmStmt *A, ExplodedNode *Pred,
 // Visualization.
 //===----------------------------------------------------------------------===//
 
-#ifndef NDEBUG
 namespace llvm {
 
 template<>
@@ -3212,29 +3341,18 @@ struct DOTGraphTraits<ExplodedGraph*> : public DefaultDOTGraphTraits {
 };
 
 } // namespace llvm
-#endif
 
 void ExprEngine::ViewGraph(bool trim) {
-#ifndef NDEBUG
   std::string Filename = DumpGraph(trim);
   llvm::DisplayGraph(Filename, false, llvm::GraphProgram::DOT);
-#else
-  llvm::errs() << "Warning: viewing graph requires assertions" << "\n";
-#endif
 }
 
-
-void ExprEngine::ViewGraph(ArrayRef<const ExplodedNode*> Nodes) {
-#ifndef NDEBUG
+void ExprEngine::ViewGraph(ArrayRef<const ExplodedNode *> Nodes) {
   std::string Filename = DumpGraph(Nodes);
   llvm::DisplayGraph(Filename, false, llvm::GraphProgram::DOT);
-#else
-  llvm::errs() << "Warning: viewing graph requires assertions" << "\n";
-#endif
 }
 
 std::string ExprEngine::DumpGraph(bool trim, StringRef Filename) {
-#ifndef NDEBUG
   if (trim) {
     std::vector<const ExplodedNode *> Src;
 
@@ -3249,35 +3367,26 @@ std::string ExprEngine::DumpGraph(bool trim, StringRef Filename) {
       Src.push_back(N);
     }
     return DumpGraph(Src, Filename);
-  } else {
-    return llvm::WriteGraph(&G, "ExprEngine", /*ShortNames=*/false,
-                            /*Title=*/"Exploded Graph",
-                            /*Filename=*/std::string(Filename));
   }
-#else
-  llvm::errs() << "Warning: dumping graph requires assertions" << "\n";
-  return "";
-#endif
+
+  return llvm::WriteGraph(&G, "ExprEngine", /*ShortNames=*/false,
+                          /*Title=*/"Exploded Graph",
+                          /*Filename=*/std::string(Filename));
 }
 
-std::string ExprEngine::DumpGraph(ArrayRef<const ExplodedNode*> Nodes,
+std::string ExprEngine::DumpGraph(ArrayRef<const ExplodedNode *> Nodes,
                                   StringRef Filename) {
-#ifndef NDEBUG
   std::unique_ptr<ExplodedGraph> TrimmedG(G.trim(Nodes));
 
   if (!TrimmedG.get()) {
     llvm::errs() << "warning: Trimmed ExplodedGraph is empty.\n";
     return "";
-  } else {
-    return llvm::WriteGraph(TrimmedG.get(), "TrimmedExprEngine",
-                            /*ShortNames=*/false,
-                            /*Title=*/"Trimmed Exploded Graph",
-                            /*Filename=*/std::string(Filename));
   }
-#else
-  llvm::errs() << "Warning: dumping graph requires assertions" << "\n";
-  return "";
-#endif
+
+  return llvm::WriteGraph(TrimmedG.get(), "TrimmedExprEngine",
+                          /*ShortNames=*/false,
+                          /*Title=*/"Trimmed Exploded Graph",
+                          /*Filename=*/std::string(Filename));
 }
 
 void *ProgramStateTrait<ReplayWithoutInlining>::GDMIndex() {

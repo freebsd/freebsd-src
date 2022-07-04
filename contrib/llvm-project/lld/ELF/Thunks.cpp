@@ -22,6 +22,7 @@
 
 #include "Thunks.h"
 #include "Config.h"
+#include "InputFiles.h"
 #include "InputSection.h"
 #include "OutputSections.h"
 #include "Symbols.h"
@@ -30,7 +31,6 @@
 #include "lld/Common/CommonLinkerContext.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <cstdint>

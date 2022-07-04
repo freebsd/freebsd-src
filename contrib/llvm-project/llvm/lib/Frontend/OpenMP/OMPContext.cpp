@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Frontend/OpenMP/OMPContext.h"
-#include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
@@ -214,7 +213,7 @@ static int isVariantApplicableInContextHelper(
       });
 
     Optional<bool> Result = HandleTrait(Property, IsActiveTrait);
-    if (Result.hasValue())
+    if (Result)
       return Result.getValue();
   }
 
@@ -235,7 +234,7 @@ static int isVariantApplicableInContextHelper(
         ConstructMatches->push_back(ConstructIdx - 1);
 
       Optional<bool> Result = HandleTrait(Property, FoundInOrder);
-      if (Result.hasValue())
+      if (Result)
         return Result.getValue();
 
       if (!FoundInOrder) {

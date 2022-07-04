@@ -13,8 +13,8 @@
 #include "lldb/Target/Language.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataEncoder.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/Logging.h"
 #include "lldb/Utility/RegularExpression.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/lldb-enumerations.h"
@@ -130,7 +130,7 @@ static char *GetMSVCDemangledStr(const char *M) {
           llvm::MSDF_NoAccessSpecifier | llvm::MSDF_NoCallingConvention |
           llvm::MSDF_NoMemberType | llvm::MSDF_NoVariableType));
 
-  if (Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE)) {
+  if (Log *log = GetLog(LLDBLog::Demangle)) {
     if (demangled_cstr && demangled_cstr[0])
       LLDB_LOGF(log, "demangled msvc: %s -> \"%s\"", M, demangled_cstr);
     else
@@ -157,7 +157,7 @@ static char *GetItaniumDemangledStr(const char *M) {
            "Expected demangled_size to return length including trailing null");
   }
 
-  if (Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE)) {
+  if (Log *log = GetLog(LLDBLog::Demangle)) {
     if (demangled_cstr)
       LLDB_LOGF(log, "demangled itanium: %s -> \"%s\"", M, demangled_cstr);
     else
@@ -168,9 +168,9 @@ static char *GetItaniumDemangledStr(const char *M) {
 }
 
 static char *GetRustV0DemangledStr(const char *M) {
-  char *demangled_cstr = llvm::rustDemangle(M, nullptr, nullptr, nullptr);
+  char *demangled_cstr = llvm::rustDemangle(M);
 
-  if (Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE)) {
+  if (Log *log = GetLog(LLDBLog::Demangle)) {
     if (demangled_cstr && demangled_cstr[0])
       LLDB_LOG(log, "demangled rustv0: {0} -> \"{1}\"", M, demangled_cstr);
     else
@@ -183,7 +183,7 @@ static char *GetRustV0DemangledStr(const char *M) {
 static char *GetDLangDemangledStr(const char *M) {
   char *demangled_cstr = llvm::dlangDemangle(M);
 
-  if (Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_DEMANGLE)) {
+  if (Log *log = GetLog(LLDBLog::Demangle)) {
     if (demangled_cstr && demangled_cstr[0])
       LLDB_LOG(log, "demangled dlang: {0} -> \"{1}\"", M, demangled_cstr);
     else

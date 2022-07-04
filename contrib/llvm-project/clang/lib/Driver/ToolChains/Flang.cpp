@@ -19,6 +19,14 @@ using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
+/// Add -x lang to \p CmdArgs for \p Input.
+static void addDashXForInput(const ArgList &Args, const InputInfo &Input,
+                             ArgStringList &CmdArgs) {
+  CmdArgs.push_back("-x");
+  // Map the driver type to the frontend type.
+  CmdArgs.push_back(types::getTypeName(Input.getType()));
+}
+
 void Flang::AddFortranDialectOptions(const ArgList &Args,
                                      ArgStringList &CmdArgs) const {
   Args.AddAllArgs(
@@ -54,21 +62,18 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
                          const InputInfo &Output, const InputInfoList &Inputs,
                          const ArgList &Args, const char *LinkingOutput) const {
   const auto &TC = getToolChain();
-  // TODO: Once code-generation is available, this will need to be commented
-  // out.
-  // const llvm::Triple &Triple = TC.getEffectiveTriple();
-  // const std::string &TripleStr = Triple.getTriple();
+  const llvm::Triple &Triple = TC.getEffectiveTriple();
+  const std::string &TripleStr = Triple.getTriple();
 
+  const Driver &D = TC.getDriver();
   ArgStringList CmdArgs;
 
   // Invoke ourselves in -fc1 mode.
   CmdArgs.push_back("-fc1");
 
-  // TODO: Once code-generation is available, this will need to be commented
-  // out.
   // Add the "effective" target triple.
-  // CmdArgs.push_back("-triple");
-  // CmdArgs.push_back(Args.MakeArgString(TripleStr));
+  CmdArgs.push_back("-triple");
+  CmdArgs.push_back(Args.MakeArgString(TripleStr));
 
   if (isa<PreprocessJobAction>(JA)) {
       CmdArgs.push_back("-E");
@@ -104,11 +109,41 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
 
   AddFortranDialectOptions(Args, CmdArgs);
 
+  // Color diagnostics are parsed by the driver directly from argv and later
+  // re-parsed to construct this job; claim any possible color diagnostic here
+  // to avoid warn_drv_unused_argument.
+  Args.getLastArg(options::OPT_fcolor_diagnostics,
+                  options::OPT_fno_color_diagnostics);
+  if (D.getDiags().getDiagnosticOptions().ShowColors)
+    CmdArgs.push_back("-fcolor-diagnostics");
+
   // Add other compile options
   AddOtherOptions(Args, CmdArgs);
 
   // Forward -Xflang arguments to -fc1
   Args.AddAllArgValues(CmdArgs, options::OPT_Xflang);
+
+  // Forward -mllvm options to the LLVM option parser. In practice, this means
+  // forwarding to `-fc1` as that's where the LLVM parser is run.
+  for (const Arg *A : Args.filtered(options::OPT_mllvm)) {
+    A->claim();
+    A->render(Args, CmdArgs);
+  }
+
+  for (const Arg *A : Args.filtered(options::OPT_mmlir)) {
+    A->claim();
+    A->render(Args, CmdArgs);
+  }
+
+  // Optimization level for CodeGen.
+  if (const Arg *A = Args.getLastArg(options::OPT_O_Group)) {
+    if (A->getOption().matches(options::OPT_O4)) {
+      CmdArgs.push_back("-O3");
+      D.Diag(diag::warn_O4_is_O3);
+    } else {
+      A->render(Args, CmdArgs);
+    }
+  }
 
   if (Output.isFilename()) {
     CmdArgs.push_back("-o");
@@ -118,9 +153,11 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   assert(Input.isFilename() && "Invalid input.");
+
+  addDashXForInput(Args, Input, CmdArgs);
+
   CmdArgs.push_back(Input.getFilename());
 
-  const auto& D = C.getDriver();
   // TODO: Replace flang-new with flang once the new driver replaces the
   // throwaway driver
   const char *Exec = Args.MakeArgString(D.GetProgramPath("flang-new", TC));

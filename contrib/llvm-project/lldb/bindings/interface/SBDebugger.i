@@ -117,12 +117,31 @@ or the equivalent arguments for :py:class:`SBTarget.AttachToProcessWithID` .") S
 class SBDebugger
 {
 public:
+    enum
+    {
+        eBroadcastBitProgress = (1 << 0),
+        eBroadcastBitWarning = (1 << 1),
+        eBroadcastBitError = (1 << 2),
+    };
+
+
+    static const char *GetProgressFromEvent(const lldb::SBEvent &event,
+                                        uint64_t &OUTPUT,
+                                        uint64_t &OUTPUT,
+                                        uint64_t &OUTPUT,
+                                        bool &OUTPUT);
+
+    static lldb::SBStructuredData GetDiagnosticFromEvent(const lldb::SBEvent &event);
+
+    SBBroadcaster GetBroadcaster();
 
     static void
     Initialize();
 
     static SBError
     InitializeWithErrorHandling();
+
+    static void PrintStackTraceOnError();
 
     static void
     Terminate();
@@ -522,6 +541,8 @@ Example: ::
 
     lldb::SBError
     RunREPL (lldb::LanguageType language, const char *repl_options);
+
+    SBTrace LoadTraceFromFile(SBError &error, const SBFileSpec &trace_description_file);
 
 #ifdef SWIGPYTHON
     %pythoncode%{

@@ -32,8 +32,6 @@
 #include "llvm/IR/OperandTraits.h"
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/IR/Value.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/Compiler.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -290,7 +288,7 @@ public:
   /// profile annotations. If IncludeSynthetic is false, only return true
   /// when the profile data is real.
   bool hasProfileData(bool IncludeSynthetic = false) const {
-    return getEntryCount(IncludeSynthetic).hasValue();
+    return getEntryCount(IncludeSynthetic).has_value();
   }
 
   /// Returns the set of GUIDs that needs to be imported to the function for
@@ -486,11 +484,12 @@ public:
     return AttributeSets.getParamDereferenceableOrNullBytes(ArgNo);
   }
 
-  /// A function will have the "coroutine.presplit" attribute if it's
-  /// a coroutine and has not gone through full CoroSplit pass.
+  /// Determine if the function is presplit coroutine.
   bool isPresplitCoroutine() const {
-    return hasFnAttribute("coroutine.presplit");
+    return hasFnAttribute(Attribute::PresplitCoroutine);
   }
+  void setPresplitCoroutine() { addFnAttr(Attribute::PresplitCoroutine); }
+  void setSplittedCoroutine() { removeFnAttr(Attribute::PresplitCoroutine); }
 
   /// Determine if the function does not access memory.
   bool doesNotAccessMemory() const {
@@ -623,15 +622,19 @@ public:
   bool willReturn() const { return hasFnAttribute(Attribute::WillReturn); }
   void setWillReturn() { addFnAttr(Attribute::WillReturn); }
 
+  /// Get what kind of unwind table entry to generate for this function.
+  UWTableKind getUWTableKind() const {
+    return AttributeSets.getUWTableKind();
+  }
+
   /// True if the ABI mandates (or the user requested) that this
   /// function be in a unwind table.
   bool hasUWTable() const {
-    return hasFnAttribute(Attribute::UWTable);
+    return getUWTableKind() != UWTableKind::None;
   }
-  void setHasUWTable() {
-    addFnAttr(Attribute::UWTable);
+  void setUWTableKind(UWTableKind K) {
+    addFnAttr(Attribute::getWithUWTableKind(getContext(), K));
   }
-
   /// True if this function needs an unwind table.
   bool needsUnwindTableEntry() const {
     return hasUWTable() || !doesNotThrow() || hasPersonalityFn();

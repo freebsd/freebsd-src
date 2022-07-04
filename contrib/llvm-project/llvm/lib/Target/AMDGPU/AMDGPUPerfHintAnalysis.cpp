@@ -116,7 +116,6 @@ private:
 
   bool isGlobalAddr(const Value *V) const;
   bool isLocalAddr(const Value *V) const;
-  bool isConstantAddr(const Value *V) const;
 };
 
 static std::pair<const Value *, const Type *> getMemoryInstrPtrAndType(
@@ -153,7 +152,7 @@ bool AMDGPUPerfHint::isIndirectAccess(const Instruction *Inst) const {
 
     if (auto LD = dyn_cast<LoadInst>(V)) {
       auto M = LD->getPointerOperand();
-      if (isGlobalAddr(M) || isLocalAddr(M) || isConstantAddr(M)) {
+      if (isGlobalAddr(M)) {
         LLVM_DEBUG(dbgs() << "    is IA\n");
         return true;
       }
@@ -267,19 +266,23 @@ bool AMDGPUPerfHint::runOnFunction(Function &F) {
                     << " LSMInst cost: " << Info->LSMInstCost << '\n'
                     << " TotalInst cost: " << Info->InstCost << '\n');
 
+  bool Changed = false;
+
   if (isMemBound(*Info)) {
     LLVM_DEBUG(dbgs() << F.getName() << " is memory bound\n");
     NumMemBound++;
     F.addFnAttr("amdgpu-memory-bound", "true");
+    Changed = true;
   }
 
   if (AMDGPU::isEntryFunctionCC(F.getCallingConv()) && needLimitWave(*Info)) {
     LLVM_DEBUG(dbgs() << F.getName() << " needs limit wave\n");
     NumLimitWave++;
     F.addFnAttr("amdgpu-wave-limiter", "true");
+    Changed = true;
   }
 
-  return true;
+  return Changed;
 }
 
 bool AMDGPUPerfHint::isMemBound(const AMDGPUPerfHintAnalysis::FuncInfo &FI) {
@@ -330,15 +333,6 @@ AMDGPUPerfHint::makeMemAccessInfo(Instruction *Inst) const {
   MAI.V = MO;
   MAI.Base = GetPointerBaseWithConstantOffset(MO, MAI.Offset, *DL);
   return MAI;
-}
-
-bool AMDGPUPerfHint::isConstantAddr(const Value *V) const {
-  if (auto PT = dyn_cast<PointerType>(V->getType())) {
-    unsigned As = PT->getAddressSpace();
-    return As == AMDGPUAS::CONSTANT_ADDRESS ||
-           As == AMDGPUAS::CONSTANT_ADDRESS_32BIT;
-  }
-  return false;
 }
 
 bool AMDGPUPerfHint::MemAccessInfo::isLargeStride(

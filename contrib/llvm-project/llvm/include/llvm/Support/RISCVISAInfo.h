@@ -66,6 +66,7 @@ public:
   bool hasExtension(StringRef Ext) const;
   std::string toString() const;
   std::vector<std::string> toFeatureVector() const;
+  StringRef computeDefaultABI() const;
 
   static bool isSupportedExtensionFeature(StringRef Ext);
   static bool isSupportedExtension(StringRef Ext);
@@ -89,6 +90,7 @@ private:
   Error checkDependency();
 
   void updateImplication();
+  void updateCombination();
   void updateFLen();
   void updateMinVLen();
   void updateMaxELen();

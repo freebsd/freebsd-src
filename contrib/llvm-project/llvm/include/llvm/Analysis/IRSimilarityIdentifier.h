@@ -51,12 +51,13 @@
 
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 
 namespace llvm {
+class Module;
+
 namespace IRSimilarity {
 
 struct IRInstructionDataList;
@@ -546,7 +547,7 @@ struct IRInstructionMapper {
       // an outlined function. Also, assume-like intrinsics could be removed
       // from the region, removing arguments, causing discrepencies in the
       // number of inputs between different regions.
-      if (II.isLifetimeStartOrEnd() || II.isAssumeLikeIntrinsic())
+      if (II.isAssumeLikeIntrinsic())
         return Illegal;
       return EnableIntrinsics ? Legal : Illegal;
     }
@@ -558,6 +559,18 @@ struct IRInstructionMapper {
       if (IsIndirectCall && !EnableIndirectCalls)
         return Illegal;
       if (!F && !IsIndirectCall)
+        return Illegal;
+      // Functions marked with the swifttailcc and tailcc calling conventions
+      // require special handling when outlining musttail functions.  The
+      // calling convention must be passed down to the outlined function as
+      // well. Further, there is special handling for musttail calls as well,
+      // requiring a return call directly after.  For now, the outliner does not
+      // support this, so we do not handle matching this case either.
+      if ((CI.getCallingConv() == CallingConv::SwiftTail ||
+           CI.getCallingConv() == CallingConv::Tail) &&
+          !EnableMustTailCalls)
+        return Illegal;
+      if (CI.isMustTailCall() && !EnableMustTailCalls)
         return Illegal;
       return Legal;
     }
@@ -580,6 +593,10 @@ struct IRInstructionMapper {
     // Flag that lets the classifier know whether we should allow intrinsics to
     // be checked for similarity.
     bool EnableIntrinsics = false;
+  
+    // Flag that lets the classifier know whether we should allow tail calls to
+    // be checked for similarity.
+    bool EnableMustTailCalls = false;
   };
 
   /// Maps an Instruction to a member of InstrType.
@@ -814,8 +831,6 @@ public:
   void getBasicBlocks(DenseSet<BasicBlock *> &BBSet) const {
     for (IRInstructionData &ID : *this) {
       BasicBlock *BB = ID.Inst->getParent();
-      if (BBSet.contains(BB))
-        continue;
       BBSet.insert(BB);
     }
   }
@@ -826,10 +841,8 @@ public:
                       SmallVector<BasicBlock *> &BBList) const {
     for (IRInstructionData &ID : *this) {
       BasicBlock *BB = ID.Inst->getParent();
-      if (BBSet.contains(BB))
-        continue;
-      BBSet.insert(BB);
-      BBList.push_back(BB);
+      if (BBSet.insert(BB).second)
+        BBList.push_back(BB);
     }
   }
 
@@ -967,11 +980,13 @@ public:
   IRSimilarityIdentifier(bool MatchBranches = true,
                          bool MatchIndirectCalls = true,
                          bool MatchCallsWithName = false,
-                         bool MatchIntrinsics = true)
+                         bool MatchIntrinsics = true,
+                         bool MatchMustTailCalls = true)
       : Mapper(&InstDataAllocator, &InstDataListAllocator),
         EnableBranches(MatchBranches), EnableIndirectCalls(MatchIndirectCalls),
         EnableMatchingCallsByName(MatchCallsWithName),
-        EnableIntrinsics(MatchIntrinsics) {}
+        EnableIntrinsics(MatchIntrinsics),
+        EnableMustTailCalls(MatchMustTailCalls) {}
 
 private:
   /// Map the instructions in the module to unsigned integers, using mapping
@@ -1024,7 +1039,7 @@ public:
     // If we've already analyzed a Module or set of Modules, so we must clear
     // the SimilarityCandidates to make sure we do not have only old values
     // hanging around.
-    if (SimilarityCandidates.hasValue())
+    if (SimilarityCandidates)
       SimilarityCandidates->clear();
     else
       SimilarityCandidates = SimilarityGroupList();
@@ -1063,6 +1078,10 @@ private:
   /// The flag variable that marks whether we should check intrinsics for
   /// similarity.
   bool EnableIntrinsics = true;
+
+  // The flag variable that marks whether we should allow tailcalls
+  // to be checked for similarity.
+  bool EnableMustTailCalls = false;
 
   /// The SimilarityGroups found with the most recent run of \ref
   /// findSimilarity. None if there is no recent run.

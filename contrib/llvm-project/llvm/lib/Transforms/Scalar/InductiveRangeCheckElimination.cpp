@@ -56,8 +56,6 @@
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/BasicBlock.h"
@@ -1411,12 +1409,12 @@ bool LoopConstrainer::run() {
 
   bool IsSignedPredicate = MainLoopStructure.IsSignedPredicate;
   Optional<SubRanges> MaybeSR = calculateSubRanges(IsSignedPredicate);
-  if (!MaybeSR.hasValue()) {
+  if (!MaybeSR) {
     LLVM_DEBUG(dbgs() << "irce: could not compute subranges\n");
     return false;
   }
 
-  SubRanges SR = MaybeSR.getValue();
+  SubRanges SR = *MaybeSR;
   bool Increasing = MainLoopStructure.IndVarIncreasing;
   IntegerType *IVTy =
       cast<IntegerType>(Range.getBegin()->getType());
@@ -1429,9 +1427,9 @@ bool LoopConstrainer::run() {
   // constructor.
   ClonedLoop PreLoop, PostLoop;
   bool NeedsPreLoop =
-      Increasing ? SR.LowLimit.hasValue() : SR.HighLimit.hasValue();
+      Increasing ? SR.LowLimit.has_value() : SR.HighLimit.has_value();
   bool NeedsPostLoop =
-      Increasing ? SR.HighLimit.hasValue() : SR.LowLimit.hasValue();
+      Increasing ? SR.HighLimit.has_value() : SR.LowLimit.has_value();
 
   Value *ExitPreLoopAt = nullptr;
   Value *ExitMainLoopAt = nullptr;
@@ -1710,7 +1708,7 @@ IntersectSignedRange(ScalarEvolution &SE,
                      const InductiveRangeCheck::Range &R2) {
   if (R2.isEmpty(SE, /* IsSigned */ true))
     return None;
-  if (!R1.hasValue())
+  if (!R1)
     return R2;
   auto &R1Value = R1.getValue();
   // We never return empty ranges from this function, and R1 is supposed to be
@@ -1739,7 +1737,7 @@ IntersectUnsignedRange(ScalarEvolution &SE,
                        const InductiveRangeCheck::Range &R2) {
   if (R2.isEmpty(SE, /* IsSigned */ false))
     return None;
-  if (!R1.hasValue())
+  if (!R1)
     return R2;
   auto &R1Value = R1.getValue();
   // We never return empty ranges from this function, and R1 is supposed to be
@@ -1763,10 +1761,14 @@ IntersectUnsignedRange(ScalarEvolution &SE,
 }
 
 PreservedAnalyses IRCEPass::run(Function &F, FunctionAnalysisManager &AM) {
-  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
-  auto &BPI = AM.getResult<BranchProbabilityAnalysis>(F);
   LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+  // There are no loops in the function. Return before computing other expensive
+  // analyses.
+  if (LI.empty())
+    return PreservedAnalyses::all();
+  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+  auto &BPI = AM.getResult<BranchProbabilityAnalysis>(F);
 
   // Get BFI analysis result on demand. Please note that modification of
   // CFG invalidates this analysis and we should handle it.
@@ -1854,7 +1856,7 @@ InductiveRangeCheckElimination::isProfitableToTransform(const Loop &L,
                                                         LoopStructure &LS) {
   if (SkipProfitabilityChecks)
     return true;
-  if (GetBFI.hasValue()) {
+  if (GetBFI) {
     BlockFrequencyInfo &BFI = (*GetBFI)();
     uint64_t hFreq = BFI.getBlockFreq(LS.Header).getFrequency();
     uint64_t phFreq = BFI.getBlockFreq(L.getLoopPreheader()).getFrequency();
@@ -1920,12 +1922,12 @@ bool InductiveRangeCheckElimination::run(
   const char *FailureReason = nullptr;
   Optional<LoopStructure> MaybeLoopStructure =
       LoopStructure::parseLoopStructure(SE, *L, FailureReason);
-  if (!MaybeLoopStructure.hasValue()) {
+  if (!MaybeLoopStructure) {
     LLVM_DEBUG(dbgs() << "irce: could not parse loop structure: "
                       << FailureReason << "\n";);
     return false;
   }
-  LoopStructure LS = MaybeLoopStructure.getValue();
+  LoopStructure LS = *MaybeLoopStructure;
   if (!isProfitableToTransform(*L, LS))
     return false;
   const SCEVAddRecExpr *IndVar =
@@ -1946,10 +1948,10 @@ bool InductiveRangeCheckElimination::run(
   for (InductiveRangeCheck &IRC : RangeChecks) {
     auto Result = IRC.computeSafeIterationSpace(SE, IndVar,
                                                 LS.IsSignedPredicate);
-    if (Result.hasValue()) {
+    if (Result) {
       auto MaybeSafeIterRange =
           IntersectRange(SE, SafeIterRange, Result.getValue());
-      if (MaybeSafeIterRange.hasValue()) {
+      if (MaybeSafeIterRange) {
         assert(
             !MaybeSafeIterRange.getValue().isEmpty(SE, LS.IsSignedPredicate) &&
             "We should never return empty ranges!");
@@ -1959,7 +1961,7 @@ bool InductiveRangeCheckElimination::run(
     }
   }
 
-  if (!SafeIterRange.hasValue())
+  if (!SafeIterRange)
     return false;
 
   LoopConstrainer LC(*L, LI, LPMAddNewLoop, LS, SE, DT,

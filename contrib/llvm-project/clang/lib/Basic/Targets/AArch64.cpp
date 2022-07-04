@@ -435,6 +435,9 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasRandGen)
     Builder.defineMacro("__ARM_FEATURE_RNG", "1");
 
+  if (HasMOPS)
+    Builder.defineMacro("__ARM_FEATURE_MOPS", "1");
+
   switch (ArchKind) {
   default:
     break;
@@ -482,6 +485,10 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4");
   Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8");
 
+  // Allow detection of fast FMA support.
+  Builder.defineMacro("__FP_FAST_FMA", "1");
+  Builder.defineMacro("__FP_FAST_FMAF", "1");
+
   if (Opts.VScaleMin && Opts.VScaleMin == Opts.VScaleMax) {
     Builder.defineMacro("__ARM_FEATURE_SVE_BITS", Twine(Opts.VScaleMin * 128));
     Builder.defineMacro("__ARM_FEATURE_SVE_VECTOR_OPERATORS");
@@ -506,21 +513,18 @@ AArch64TargetInfo::getVScaleRange(const LangOptions &LangOpts) const {
 }
 
 bool AArch64TargetInfo::hasFeature(StringRef Feature) const {
-  return Feature == "aarch64" || Feature == "arm64" || Feature == "arm" ||
-         (Feature == "neon" && (FPU & NeonMode)) ||
-         ((Feature == "sve" || Feature == "sve2" || Feature == "sve2-bitperm" ||
-           Feature == "sve2-aes" || Feature == "sve2-sha3" ||
-           Feature == "sve2-sm4" || Feature == "f64mm" || Feature == "f32mm" ||
-           Feature == "i8mm" || Feature == "bf16") &&
-          (FPU & SveMode)) ||
-         (Feature == "ls64" && HasLS64);
+  return llvm::StringSwitch<bool>(Feature)
+    .Cases("aarch64", "arm64", "arm", true)
+    .Case("neon", FPU & NeonMode)
+    .Cases("sve", "sve2", "sve2-bitperm", "sve2-aes", "sve2-sha3", "sve2-sm4", "f64mm", "f32mm", "i8mm", "bf16", FPU & SveMode)
+    .Case("ls64", HasLS64)
+    .Default(false);
 }
 
 bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                                              DiagnosticsEngine &Diags) {
   FPU = FPUMode;
   HasCRC = false;
-  HasCrypto = false;
   HasAES = false;
   HasSHA2 = false;
   HasSHA3 = false;
@@ -543,7 +547,6 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   HasMatmulFP64 = false;
   HasMatmulFP32 = false;
   HasLSE = false;
-  HasHBC = false;
   HasMOPS = false;
 
   ArchKind = llvm::AArch64::ArchKind::INVALID;
@@ -594,8 +597,6 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
     }
     if (Feature == "+crc")
       HasCRC = true;
-    if (Feature == "+crypto")
-      HasCrypto = true;
     if (Feature == "+aes")
       HasAES = true;
     if (Feature == "+sha2")
@@ -660,8 +661,8 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasRandGen = true;
     if (Feature == "+flagm")
       HasFlagM = true;
-    if (Feature == "+hbc")
-      HasHBC = true;
+    if (Feature == "+mops")
+      HasMOPS = true;
   }
 
   setDataLayout();
@@ -679,6 +680,7 @@ AArch64TargetInfo::checkCallingConvention(CallingConv CC) const {
   case CC_PreserveAll:
   case CC_OpenCLKernel:
   case CC_AArch64VectorCall:
+  case CC_AArch64SVEPCS:
   case CC_Win64:
     return CCCR_OK;
   default:

@@ -22,6 +22,7 @@
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/SourceMgr.h"
 #include <cassert>
@@ -29,8 +30,8 @@
 using namespace llvm;
 
 static cl::opt<bool>
-    RelaxNVChecks("relax-nv-checks", cl::init(false), cl::ZeroOrMore,
-                  cl::Hidden, cl::desc("Relax checks of new-value validity"));
+    RelaxNVChecks("relax-nv-checks", cl::Hidden,
+                  cl::desc("Relax checks of new-value validity"));
 
 const HexagonMCChecker::PredSense
     HexagonMCChecker::Unconditional(Hexagon::NoRegister, false);

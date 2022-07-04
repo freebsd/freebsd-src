@@ -137,16 +137,16 @@ protected:
 
     ValueObjectSP valobj_sp;
 
-    if (m_options.address.hasValue()) {
-      if (m_options.reg.hasValue() || m_options.offset.hasValue()) {
+    if (m_options.address) {
+      if (m_options.reg || m_options.offset) {
         result.AppendError(
             "`frame diagnose --address` is incompatible with other arguments.");
         return false;
       }
       valobj_sp = frame_sp->GuessValueForAddress(m_options.address.getValue());
-    } else if (m_options.reg.hasValue()) {
+    } else if (m_options.reg) {
       valobj_sp = frame_sp->GuessValueForRegisterAndOffset(
-          m_options.reg.getValue(), m_options.offset.getValueOr(0));
+          m_options.reg.getValue(), m_options.offset.value_or(0));
     } else {
       StopInfoSP stop_info_sp = thread->GetStopInfo();
       if (!stop_info_sp) {
@@ -304,7 +304,7 @@ protected:
     Thread *thread = m_exe_ctx.GetThreadPtr();
 
     uint32_t frame_idx = UINT32_MAX;
-    if (m_options.relative_frame_offset.hasValue()) {
+    if (m_options.relative_frame_offset) {
       // The one and only argument is a signed relative frame index
       frame_idx = thread->GetSelectedFrameIndex();
       if (frame_idx == UINT32_MAX)
@@ -348,7 +348,7 @@ protected:
             "too many arguments; expected frame-index, saw '%s'.\n",
             command[0].c_str());
         m_options.GenerateOptionUsage(
-            result.GetErrorStream(), this,
+            result.GetErrorStream(), *this,
             GetCommandInterpreter().GetDebugger().GetTerminalWidth());
         return false;
       }
@@ -695,11 +695,8 @@ protected:
       }
     }
 
-    if (m_interpreter.TruncationWarningNecessary()) {
-      result.GetOutputStream().Printf(m_interpreter.TruncationWarningText(),
-                                      m_cmd_name.c_str());
-      m_interpreter.TruncationWarningGiven();
-    }
+    m_interpreter.PrintWarningsIfNecessary(result.GetOutputStream(),
+                                           m_cmd_name);
 
     // Increment statistics.
     bool res = result.Succeeded();
@@ -726,7 +723,7 @@ class CommandObjectFrameRecognizerAdd : public CommandObjectParsed {
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
     ~CommandOptions() override = default;
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
@@ -927,7 +924,11 @@ class CommandObjectFrameRecognizerDelete : public CommandObjectParsed {
 public:
   CommandObjectFrameRecognizerDelete(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "frame recognizer delete",
-                            "Delete an existing frame recognizer.", nullptr) {}
+                            "Delete an existing frame recognizer by id.",
+                            nullptr) {
+    CommandArgumentData thread_arg{eArgTypeRecognizerID, eArgRepeatPlain};
+    m_arguments.push_back({thread_arg});
+  }
 
   ~CommandObjectFrameRecognizerDelete() override = default;
 

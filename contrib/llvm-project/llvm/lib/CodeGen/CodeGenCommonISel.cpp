@@ -129,7 +129,9 @@ llvm::findSplitPointForStackProtector(MachineBasicBlock *BB,
 
   MachineBasicBlock::iterator Start = BB->begin();
   MachineBasicBlock::iterator Previous = SplitPoint;
-  --Previous;
+  do {
+    --Previous;
+  } while (Previous != Start && Previous->isDebugInstr());
 
   if (TII.isTailCall(*SplitPoint) &&
       Previous->getOpcode() == TII.getCallFrameDestroyOpcode()) {
@@ -142,7 +144,7 @@ llvm::findSplitPointForStackProtector(MachineBasicBlock *BB,
     //     ADJCALLSTACKUP ...
     //     TAILJMP somewhere
     // On the other hand, it could be an unrelated call in which case this tail
-    // call has to register moves of its own and should be the split point. For
+    // call has no register moves of its own and should be the split point. For
     // example:
     //     ADJCALLSTACKDOWN
     //     CALL something_else
@@ -166,4 +168,32 @@ llvm::findSplitPointForStackProtector(MachineBasicBlock *BB,
   }
 
   return SplitPoint;
+}
+
+unsigned llvm::getInvertedFPClassTest(unsigned Test) {
+  unsigned InvertedTest = ~Test & fcAllFlags;
+  switch (InvertedTest) {
+  default:
+    break;
+  case fcNan:
+  case fcSNan:
+  case fcQNan:
+  case fcInf:
+  case fcPosInf:
+  case fcNegInf:
+  case fcNormal:
+  case fcPosNormal:
+  case fcNegNormal:
+  case fcSubnormal:
+  case fcPosSubnormal:
+  case fcNegSubnormal:
+  case fcZero:
+  case fcPosZero:
+  case fcNegZero:
+  case fcFinite:
+  case fcPosFinite:
+  case fcNegFinite:
+    return InvertedTest;
+  }
+  return 0;
 }

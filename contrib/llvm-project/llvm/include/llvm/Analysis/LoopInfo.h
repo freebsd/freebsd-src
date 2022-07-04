@@ -44,7 +44,6 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/CFG.h"
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
@@ -55,9 +54,10 @@
 namespace llvm {
 
 class DominatorTree;
+class InductionDescriptor;
+class Instruction;
 class LoopInfo;
 class Loop;
-class InductionDescriptor;
 class MDNode;
 class MemorySSAUpdater;
 class ScalarEvolution;
@@ -111,6 +111,22 @@ public:
   /// If a loop is top-level, it has no parent, otherwise its
   /// parent is the innermost loop in which it is enclosed.
   LoopT *getParentLoop() const { return ParentLoop; }
+
+  /// Get the outermost loop in which this loop is contained.
+  /// This may be the loop itself, if it already is the outermost loop.
+  const LoopT *getOutermostLoop() const {
+    const LoopT *L = static_cast<const LoopT *>(this);
+    while (L->ParentLoop)
+      L = L->ParentLoop;
+    return L;
+  }
+
+  LoopT *getOutermostLoop() {
+    LoopT *L = static_cast<LoopT *>(this);
+    while (L->ParentLoop)
+      L = L->ParentLoop;
+    return L;
+  }
 
   /// This is a raw interface for bypassing addChildLoop.
   void setParentLoop(LoopT *L) {
