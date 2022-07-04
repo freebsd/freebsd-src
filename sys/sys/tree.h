@@ -340,6 +340,7 @@ struct {								\
 #define RB_RED_MASK			((__uintptr_t)3)
 #define RB_FLIP_LEFT(elm, field)	(RB_BITS(elm, field) ^= RB_RED_L)
 #define RB_FLIP_RIGHT(elm, field)	(RB_BITS(elm, field) ^= RB_RED_R)
+#define RB_FLIP_ALL(elm, field)		(RB_BITS(elm, field) ^= RB_RED_MASK)
 #define RB_RED_LEFT(elm, field)		((RB_BITS(elm, field) & RB_RED_L) != 0)
 #define RB_RED_RIGHT(elm, field)	((RB_BITS(elm, field) & RB_RED_R) != 0)
 #define RB_PARENT(elm, field)		((__typeof(RB_UP(elm, field)))	\
@@ -348,8 +349,8 @@ struct {								\
 #define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
 
 #define RB_SET_PARENT(dst, src, field) do {				\
-	RB_BITS(dst, field) &= RB_RED_MASK;				\
-	RB_BITS(dst, field) |= (__uintptr_t)src;			\
+	RB_BITS(dst, field) = (__uintptr_t)src |			\
+	    (RB_BITS(dst, field) & RB_RED_MASK);			\
 } while (/*CONSTCOND*/ 0)
 
 #define RB_SET(elm, parent, field) do {					\
@@ -487,13 +488,14 @@ name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 				continue;				\
 			}						\
 			if (!RB_RED_RIGHT(elm, field)) {		\
-				RB_FLIP_LEFT(elm, field);		\
 				/* coverity[uninit_use] */		\
 				RB_ROTATE_LEFT(head, elm, child, field);\
-				if (RB_RED_LEFT(child, field))		\
-					RB_FLIP_RIGHT(elm, field);	\
-				else if (RB_RED_RIGHT(child, field))	\
+				if (RB_RED_RIGHT(child, field))		\
 					RB_FLIP_LEFT(parent, field);	\
+				if (RB_RED_LEFT(child, field))		\
+					RB_FLIP_ALL(elm, field);	\
+				else					\
+					RB_FLIP_LEFT(elm, field);	\
 				elm = child;				\
 			}						\
 			RB_ROTATE_RIGHT(head, parent, elm, field);	\
@@ -509,13 +511,14 @@ name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 				continue;				\
 			}						\
 			if (!RB_RED_LEFT(elm, field)) {			\
-				RB_FLIP_RIGHT(elm, field);		\
 				/* coverity[uninit_use] */		\
 				RB_ROTATE_RIGHT(head, elm, child, field);\
-				if (RB_RED_RIGHT(child, field))		\
-					RB_FLIP_LEFT(elm, field);	\
-				else if (RB_RED_LEFT(child, field))	\
+				if (RB_RED_LEFT(child, field))		\
 					RB_FLIP_RIGHT(parent, field);	\
+				if (RB_RED_RIGHT(child, field))		\
+					RB_FLIP_ALL(elm, field);	\
+				else					\
+					RB_FLIP_RIGHT(elm, field);	\
 				elm = child;				\
 			}						\
 			RB_ROTATE_LEFT(head, parent, elm, field);	\
@@ -524,6 +527,17 @@ name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 		break;							\
 	}								\
 }
+
+#ifndef RB_STRICT_HST
+/*
+ * In REMOVE_COLOR, the HST paper, in figure 3, in the single-rotate case, has
+ * 'parent' with one higher rank, and then reduces its rank if 'parent' has
+ * become a leaf.  This implementation always has the parent in its new position
+ * with lower rank, to avoid the leaf check.  Define RB_STRICT_HST to 1 to get
+ * the behavior that HST describes.
+ */
+#define RB_STRICT_HST 0
+#endif
 
 #define RB_GENERATE_REMOVE_COLOR(name, type, field, attr)		\
 attr void								\
@@ -539,7 +553,7 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 		if (parent == NULL)					\
 			return;						\
 	}								\
-	do  {								\
+	do {								\
 		if (RB_LEFT(parent, field) == elm) {			\
 			if (!RB_RED_LEFT(parent, field)) {		\
 				RB_FLIP_LEFT(parent, field);		\
@@ -551,24 +565,36 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 				continue;				\
 			}						\
 			sib = RB_RIGHT(parent, field);			\
-			if ((~RB_BITS(sib, field) & RB_RED_MASK) == 0) {\
-				RB_BITS(sib, field) &= ~RB_RED_MASK;	\
+			switch (RB_BITS(sib, field) & RB_RED_MASK) {	\
+			case RB_RED_MASK:				\
+				RB_FLIP_ALL(sib, field);		\
 				elm = parent;				\
 				continue;				\
-			}						\
-			RB_FLIP_RIGHT(sib, field);			\
-			if (RB_RED_LEFT(sib, field))			\
-				RB_FLIP_LEFT(parent, field);		\
-			else if (!RB_RED_RIGHT(sib, field)) {		\
-				RB_FLIP_LEFT(parent, field);		\
+			case RB_RED_R:					\
 				elm = RB_LEFT(sib, field);		\
 				RB_ROTATE_RIGHT(head, sib, elm, field);	\
-				if (RB_RED_RIGHT(elm, field))		\
-					RB_FLIP_LEFT(sib, field);	\
 				if (RB_RED_LEFT(elm, field))		\
-					RB_FLIP_RIGHT(parent, field);	\
+					RB_FLIP_ALL(parent, field);	\
+				else					\
+					RB_FLIP_LEFT(parent, field);	\
+				if (RB_RED_RIGHT(elm, field))		\
+					RB_FLIP_ALL(sib, field);	\
+				else					\
+					RB_FLIP_RIGHT(sib, field);	\
 				RB_BITS(elm, field) |= RB_RED_MASK;	\
 				sib = elm;				\
+				break;					\
+			case RB_RED_L:					\
+				if (RB_STRICT_HST && elm != NULL) {	\
+					RB_FLIP_RIGHT(parent, field);	\
+					RB_FLIP_ALL(sib, field);	\
+					break;				\
+				}					\
+				RB_FLIP_LEFT(parent, field);		\
+				/* FALLTHROUGH */			\
+			default:					\
+				RB_FLIP_RIGHT(sib, field);		\
+				break;					\
 			}						\
 			RB_ROTATE_LEFT(head, parent, sib, field);	\
 		} else {						\
@@ -582,24 +608,36 @@ name##_RB_REMOVE_COLOR(struct name *head,				\
 				continue;				\
 			}						\
 			sib = RB_LEFT(parent, field);			\
-			if ((~RB_BITS(sib, field) & RB_RED_MASK) == 0) {\
-				RB_BITS(sib, field) &= ~RB_RED_MASK;	\
+			switch (RB_BITS(sib, field) & RB_RED_MASK) {	\
+			case RB_RED_MASK:				\
+				RB_FLIP_ALL(sib, field);		\
 				elm = parent;				\
 				continue;				\
-			}						\
-			RB_FLIP_LEFT(sib, field);			\
-			if (RB_RED_RIGHT(sib, field))			\
-				RB_FLIP_RIGHT(parent, field);		\
-			else if (!RB_RED_LEFT(sib, field)) {		\
-				RB_FLIP_RIGHT(parent, field);		\
+			case RB_RED_L:					\
 				elm = RB_RIGHT(sib, field);		\
 				RB_ROTATE_LEFT(head, sib, elm, field);	\
-				if (RB_RED_LEFT(elm, field))		\
-					RB_FLIP_RIGHT(sib, field);	\
 				if (RB_RED_RIGHT(elm, field))		\
-					RB_FLIP_LEFT(parent, field);	\
+					RB_FLIP_ALL(parent, field);	\
+				else					\
+					RB_FLIP_RIGHT(parent, field);	\
+				if (RB_RED_LEFT(elm, field))		\
+					RB_FLIP_ALL(sib, field);	\
+				else					\
+					RB_FLIP_LEFT(sib, field);	\
 				RB_BITS(elm, field) |= RB_RED_MASK;	\
 				sib = elm;				\
+				break;					\
+			case RB_RED_R:					\
+				if (RB_STRICT_HST && elm != NULL) {	\
+					RB_FLIP_LEFT(parent, field);	\
+					RB_FLIP_ALL(sib, field);	\
+					break;				\
+				}					\
+				RB_FLIP_RIGHT(parent, field);		\
+				/* FALLTHROUGH */			\
+			default:					\
+				RB_FLIP_LEFT(sib, field);		\
+				break;					\
 			}						\
 			RB_ROTATE_RIGHT(head, parent, sib, field);	\
 		}							\
