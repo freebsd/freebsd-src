@@ -606,14 +606,14 @@ predicate_add(char **pred, char *what, char *cmp, uintptr_t value)
 
 	if (*pred[0] != '\0') {
 		if (cmp != NULL) {
-			(void) sprintf(new, "(%s) && (%s %s 0x%p)",
+			(void) sprintf(new, "(%s) && (%s %s %p)",
 			    *pred, what, cmp, (void *)value);
 		} else {
 			(void) sprintf(new, "(%s) && (%s)", *pred, what);
 		}
 	} else {
 		if (cmp != NULL) {
-			(void) sprintf(new, "%s %s 0x%p",
+			(void) sprintf(new, "%s %s %p",
 			    what, cmp, (void *)value);
 		} else {
 			(void) sprintf(new, "%s", what);
