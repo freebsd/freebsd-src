@@ -158,10 +158,6 @@ db_print_sostate(short so_state)
 	int comma;
 
 	comma = 0;
-	if (so_state & SS_FDREF) {
-		db_printf("%sSS_FDREF", comma ? ", " : "");
-		comma = 1;
-	}
 	if (so_state & SS_ISCONNECTED) {
 		db_printf("%sSS_ISCONNECTED", comma ? ", " : "");
 		comma = 1;
@@ -184,10 +180,6 @@ db_print_sostate(short so_state)
 	}
 	if (so_state & SS_ISCONFIRMING) {
 		db_printf("%sSS_ISCONFIRMING", comma ? ", " : "");
-		comma = 1;
-	}
-	if (so_state & SS_PROTOREF) {
-		db_printf("%sSS_PROTOREF", comma ? ", " : "");
 		comma = 1;
 	}
 }

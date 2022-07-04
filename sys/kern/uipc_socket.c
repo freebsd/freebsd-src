@@ -540,7 +540,6 @@ socreate(int dom, struct socket **aso, int type, int proto,
 		return (ENOBUFS);
 
 	so->so_type = type;
-	so->so_state = SS_FDREF;
 	so->so_cred = crhold(cred);
 	if ((prp->pr_domain->dom_family == PF_INET) ||
 	    (prp->pr_domain->dom_family == PF_INET6) ||
@@ -741,7 +740,7 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_type = head->so_type;
 	so->so_options = head->so_options & ~SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
-	so->so_state = head->so_state & ~SS_FDREF;
+	so->so_state = head->so_state;
 	so->so_fibnum = head->so_fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
@@ -763,7 +762,10 @@ sonewconn(struct socket *head, int connstatus)
 		so->so_snd.sb_mtx = &so->so_snd_mtx;
 		so->so_rcv.sb_mtx = &so->so_rcv_mtx;
 	}
+	/* Socket starts with a reference from the listen queue. */
+	refcount_init(&so->so_count, 1);
 	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
+		MPASS(refcount_release(&so->so_count));
 		sodealloc(so);
 		log(LOG_DEBUG, "%s: pcb %p: pru_attach() failed\n",
 		    __func__, head->so_pcb);
@@ -1062,7 +1064,8 @@ solisten_wakeup(struct socket *sol)
 /*
  * Return single connection off a listening socket queue.  Main consumer of
  * the function is kern_accept4().  Some modules, that do their own accept
- * management also use the function.
+ * management also use the function.  The socket reference held by the
+ * listen queue is handed to the caller.
  *
  * Listening socket must be locked on entry and is returned unlocked on
  * return.
@@ -1100,7 +1103,6 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
 	SOCK_LOCK(so);
 	KASSERT(so->so_qstate == SQ_COMP,
 	    ("%s: so %p not SQ_COMP", __func__, so));
-	soref(so);
 	head->sol_qlen--;
 	so->so_qstate = SQ_NONE;
 	so->so_listen = NULL;
@@ -1117,86 +1119,19 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
 }
 
 /*
- * Evaluate the reference count and named references on a socket; if no
- * references remain, free it.  This should be called whenever a reference is
- * released, such as in sorele(), but also when named reference flags are
- * cleared in socket or protocol code.
- *
- * sofree() will free the socket if:
- *
- * - There are no outstanding file descriptor references or related consumers
- *   (so_count == 0).
- *
- * - The socket has been closed by user space, if ever open (no SS_FDREF).
- *
- * - The protocol does not have an outstanding strong reference on the socket
- *   (SS_PROTOREF).
- *
- * - The socket is not in a completed connection queue, so a process has been
- *   notified that it is present.  If it is removed, the user process may
- *   block in accept() despite select() saying the socket was ready.
+ * Free socket upon release of the very last reference.
  */
-void
+static void
 sofree(struct socket *so)
 {
 	struct protosw *pr = so->so_proto;
-	bool last __diagused;
 
 	SOCK_LOCK_ASSERT(so);
+	KASSERT(refcount_load(&so->so_count) == 0,
+	    ("%s: so %p has references", __func__, so));
+	KASSERT(SOLISTENING(so) || so->so_qstate == SQ_NONE,
+	    ("%s: so %p is on listen queue", __func__, so));
 
-	if ((so->so_state & (SS_FDREF | SS_PROTOREF)) != 0 ||
-	    refcount_load(&so->so_count) != 0 || so->so_qstate == SQ_COMP) {
-		SOCK_UNLOCK(so);
-		return;
-	}
-
-	if (!SOLISTENING(so) && so->so_qstate == SQ_INCOMP) {
-		struct socket *sol;
-
-		sol = so->so_listen;
-		KASSERT(sol, ("%s: so %p on incomp of NULL", __func__, so));
-
-		/*
-		 * To solve race between close of a listening socket and
-		 * a socket on its incomplete queue, we need to lock both.
-		 * The order is first listening socket, then regular.
-		 * Since we don't have SS_FDREF neither SS_PROTOREF, this
-		 * function and the listening socket are the only pointers
-		 * to so.  To preserve so and sol, we reference both and then
-		 * relock.
-		 * After relock the socket may not move to so_comp since it
-		 * doesn't have PCB already, but it may be removed from
-		 * so_incomp. If that happens, we share responsiblity on
-		 * freeing the socket, but soclose() has already removed
-		 * it from queue.
-		 */
-		soref(sol);
-		soref(so);
-		SOCK_UNLOCK(so);
-		SOLISTEN_LOCK(sol);
-		SOCK_LOCK(so);
-		if (so->so_qstate == SQ_INCOMP) {
-			KASSERT(so->so_listen == sol,
-			    ("%s: so %p migrated out of sol %p",
-			    __func__, so, sol));
-			TAILQ_REMOVE(&sol->sol_incomp, so, so_list);
-			sol->sol_incqlen--;
-			last = refcount_release(&sol->so_count);
-			KASSERT(!last, ("%s: released last reference for %p",
-			    __func__, sol));
-			so->so_qstate = SQ_NONE;
-			so->so_listen = NULL;
-		} else
-			KASSERT(so->so_listen == NULL,
-			    ("%s: so %p not on (in)comp with so_listen",
-			    __func__, so));
-		sorele_locked(sol);
-		KASSERT(refcount_load(&so->so_count) == 1,
-		    ("%s: so %p count %u", __func__, so, so->so_count));
-		so->so_count = 0;
-	}
-	if (SOLISTENING(so))
-		so->so_error = ECONNABORTED;
 	SOCK_UNLOCK(so);
 
 	if (so->so_dtor != NULL)
@@ -1255,9 +1190,6 @@ soclose(struct socket *so)
 	int error = 0;
 	bool listening, last __diagused;
 
-	KASSERT(so->so_state & SS_FDREF,
-	    ("%s: %p no SS_FDREF on enter", __func__, so));
-
 	CURVNET_SET(so->so_vnet);
 	funsetown(&so->so_sigio);
 	if (so->so_state & SS_ISCONNECTED) {
@@ -1308,24 +1240,12 @@ drop:
 			    __func__, so));
 		}
 	}
-	KASSERT(so->so_state & SS_FDREF,
-	    ("%s: %p no SS_FDREF upon lock", __func__, so));
-	so->so_state &= ~SS_FDREF;
 	sorele_locked(so);
 	if (listening) {
 		struct socket *sp, *tsp;
 
-		TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp) {
-			SOCK_LOCK(sp);
-			if (refcount_load(&sp->so_count) == 0) {
-				SOCK_UNLOCK(sp);
-				soabort(sp);
-			} else {
-				/* See the handling of queued sockets
-				   in sofree(). */
-				SOCK_UNLOCK(sp);
-			}
-		}
+		TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp)
+			soabort(sp);
 	}
 	CURVNET_RESTORE();
 	return (error);
@@ -1338,43 +1258,36 @@ drop:
  *
  * This interface is tricky, because it is called on an unreferenced socket,
  * and must be called only by a thread that has actually removed the socket
- * from the listen queue it was on, or races with other threads are risked.
+ * from the listen queue it was on.  Likely this thread holds the last
+ * reference on the socket and soabort() will proceed with sofree().  But
+ * it might be not the last, as the sockets on the listen queues are seen
+ * from the protocol side.
  *
  * This interface will call into the protocol code, so must not be called
  * with any socket locks held.  Protocols do call it while holding their own
  * recursible protocol mutexes, but this is something that should be subject
  * to review in the future.
+ *
+ * Usually socket should have a single reference left, but this is not a
+ * requirement.  In the past, when we have had named references for file
+ * descriptor and protocol, we asserted that none of them are being held.
  */
 void
 soabort(struct socket *so)
 {
 
-	/*
-	 * In as much as is possible, assert that no references to this
-	 * socket are held.  This is not quite the same as asserting that the
-	 * current thread is responsible for arranging for no references, but
-	 * is as close as we can get for now.
-	 */
-	KASSERT((so->so_state & (SS_FDREF | SS_PROTOREF)) == 0 &&
-	    so->so_count == 0, ("%s: so %p has references", __func__, so));
 	VNET_SO_ASSERT(so);
 
 	if (so->so_proto->pr_usrreqs->pru_abort != NULL)
 		(*so->so_proto->pr_usrreqs->pru_abort)(so);
 	SOCK_LOCK(so);
-	sofree(so);
+	sorele_locked(so);
 }
 
 int
 soaccept(struct socket *so, struct sockaddr **nam)
 {
 	int error;
-
-	SOCK_LOCK(so);
-	KASSERT((so->so_state & SS_FDREF) == 0,
-	    ("%s: %p has SS_FDREF", __func__, so));
-	so->so_state |= SS_FDREF;
-	SOCK_UNLOCK(so);
 
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_accept)(so, nam);

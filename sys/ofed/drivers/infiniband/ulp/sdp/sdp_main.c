@@ -308,13 +308,9 @@ sdp_closed(struct sdp_sock *ssk)
 	so = ssk->socket;
 	soisdisconnected(so);
 	if (ssk->flags & SDP_SOCKREF) {
-		KASSERT(so->so_state & SS_PROTOREF,
-		    ("sdp_closed: !SS_PROTOREF"));
 		ssk->flags &= ~SDP_SOCKREF;
 		SDP_WUNLOCK(ssk);
-		SOCK_LOCK(so);
-		so->so_state &= ~SS_PROTOREF;
-		sofree(so);
+		sorele(so);
 		return (NULL);
 	}
 	return (ssk);
@@ -1472,10 +1468,8 @@ sdp_close(struct socket *so)
 	 * holding on to the socket and pcb for a while.
 	 */
 	if (!(ssk->flags & SDP_DROPPED)) {
-		SOCK_LOCK(so);
-		so->so_state |= SS_PROTOREF;
-		SOCK_UNLOCK(so);
 		ssk->flags |= SDP_SOCKREF;
+		soref(so);
 	}
 	SDP_WUNLOCK(ssk);
 }

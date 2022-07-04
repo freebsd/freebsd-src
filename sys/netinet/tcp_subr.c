@@ -2501,13 +2501,9 @@ tcp_close(struct tcpcb *tp)
 	so = inp->inp_socket;
 	soisdisconnected(so);
 	if (inp->inp_flags & INP_SOCKREF) {
-		KASSERT(so->so_state & SS_PROTOREF,
-		    ("tcp_close: !SS_PROTOREF"));
 		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
-		SOCK_LOCK(so);
-		so->so_state &= ~SS_PROTOREF;
-		sofree(so);
+		sorele(so);
 		return (NULL);
 	}
 	return (tp);
