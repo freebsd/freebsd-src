@@ -524,7 +524,7 @@ tcp_unlock_or_drop(struct tcpcb *tp, int tcp_output_retval)
 #define	TF_FORCEDATA	0x00800000	/* force out a byte */
 #define	TF_TSO		0x01000000	/* TSO enabled on this connection */
 #define	TF_TOE		0x02000000	/* this connection is offloaded */
-#define	TF_UNUSED0	0x04000000	/* unused */
+#define	TF_CLOSED	0x04000000	/* close(2) called on socket */
 #define	TF_UNUSED1	0x08000000	/* unused */
 #define	TF_LRD		0x10000000	/* Lost Retransmission Detection */
 #define	TF_CONGRECOVERY	0x20000000	/* congestion recovery mode */

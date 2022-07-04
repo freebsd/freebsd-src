@@ -9493,15 +9493,12 @@ bbr_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
+	 * We call a new function now so we might continue and setup
+	 * to reset at all data being ack'd.
 	 */
-	if ((so->so_state & SS_NOFDREF) && tlen) {
-		/*
-		 * We call a new function now so we might continue and setup
-		 * to reset at all data being ack'd.
-		 */
-		if (bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -9620,15 +9617,12 @@ bbr_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
+	 * We call a new function now so we might continue and setup
+	 * to reset at all data being ack'd.
 	 */
-	if ((so->so_state & SS_NOFDREF) && tlen) {
-		/*
-		 * We call a new function now so we might continue and setup
-		 * to reset at all data being ack'd.
-		 */
-		if (bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -9733,15 +9727,12 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
+	 * We call a new function now so we might continue and setup
+	 * to reset at all data being ack'd.
 	 */
-	if ((so->so_state & SS_NOFDREF) && tlen) {
-		/*
-		 * We call a new function now so we might continue and setup
-		 * to reset at all data being ack'd.
-		 */
-		if (bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -9850,17 +9841,12 @@ bbr_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If new data are received on a connection after the user processes
 	 * are gone, then we may RST the other end depending on the outcome
 	 * of bbr_check_data_after_close.
+	 * We call a new function now so we might continue and setup
+	 * to reset at all data being ack'd.
 	 */
-	if ((so->so_state & SS_NOFDREF) &&
-	    tlen) {
-		/*
-		 * We call a new function now so we might continue and setup
-		 * to reset at all data being ack'd.
-		 */
-		if (bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
-			return (1);
-	}
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	if (tp->t_state > TCPS_CLOSE_WAIT && tlen &&
+	    bbr_check_data_after_close(m, bbr, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
