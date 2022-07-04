@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.66 2021/07/03 13:50:29 christos Exp $
+# $File: commands,v 1.69 2022/04/20 21:14:23 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -35,7 +35,7 @@
 !:mime	text/x-shellscript
 0	string/fwt	#!\ /usr/local/bin/zsh	Paul Falstad's zsh script text executable
 !:mime	text/x-shellscript
-0	search/1	#!/usr/bin/env\ zsh	Paul Falstad's zsh script text executable
+0	string/fwt	#!\ /usr/bin/env\ zsh	Paul Falstad's zsh script text executable
 !:mime	text/x-shellscript
 
 0	string/fwt	#!\ /bin/ash		Neil Brown's ash script text executable
@@ -98,7 +98,7 @@
 !:mime	text/x-shellscript
 
 0	string/wt	#!\ 	a
->&-1	string		x	%s script text executable
+>&-1	string/T	x	%s script text executable
 
 0	search/1/fwt	#!\ /usr/bin/tclsh	Tcl/Tk script text executable
 !:mime  text/x-tcl
@@ -152,6 +152,32 @@
 !:mime	text/x-php
 
 0	string		Zend\x00		PHP script Zend Optimizer data
+
+# From: Anatol Belski <ab@php.net>
+0	string		OPCACHE
+>7	ubyte		0			PHP opcache filecache data
+
+0	search/64	--TEST--
+>16	search/64	--FILE--
+>24	search/8192	--EXPECT		PHP core test
+!:ext	phpt
+
+# https://www.php.net/manual/en/phar.fileformat.signature.php
+-4	string		GBMB			PHP phar archive
+>-8	ubyte		0x1			with MD5 signature
+!:ext	phar
+>-8	ubyte		0x2			with SHA1 signature
+!:ext	phar
+>-8	ubyte		0x3			with SHA256 signature
+!:ext	phar
+>-8	ubyte		0x4			with SHA512 signature
+!:ext	phar
+>-8	ubyte		0x10			with OpenSSL signature
+!:ext	phar
+>-8	ubyte		0x11			with OpenSSL SHA256 signature
+!:ext	phar
+>-8	ubyte		0x12			with OpenSSL SHA512 signature
+!:ext	phar
 
 0	string/t	$!			DCL command file
 

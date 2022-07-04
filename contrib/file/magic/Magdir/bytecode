@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------
-# $File: bytecode,v 1.2 2021/06/30 11:57:32 christos Exp $
+# $File: bytecode,v 1.3 2022/03/24 15:48:58 christos Exp $
 # magic for various bytecodes
 
 # From: Mikhail Gusarov <dottedmag@dottedmag.net>
@@ -27,4 +27,4 @@
 >8	string	BE		\b, big endian
 >11	string	4		\b, 32bit
 >11	string	8		\b, 64bit
->13	regex	.\..		\b, bytecode v%s
+>13	regex	.\\..		\b, bytecode v%s

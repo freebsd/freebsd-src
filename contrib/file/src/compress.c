@@ -35,13 +35,16 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.129 2020/12/08 21:26:00 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.135 2022/04/11 18:14:41 christos Exp $")
 #endif
 
 #include "magic.h"
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_SPAWN_H
+#include <spawn.h>
 #endif
 #include <string.h>
 #include <errno.h>
@@ -51,7 +54,7 @@ FILE_RCSID("@(#)$File: compress.c,v 1.129 2020/12/08 21:26:00 christos Exp $")
 #ifndef HAVE_SIG_T
 typedef void (*sig_t)(int);
 #endif /* HAVE_SIG_T */
-#if !defined(__MINGW32__) && !defined(WIN32) && !defined(__MINGW64__)
+#ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
 #ifdef HAVE_SYS_WAIT_H
@@ -449,7 +452,21 @@ file_pipe2file(struct magic_set *ms, int fd, const void *startbuf,
 	ssize_t r;
 	int tfd;
 
-	(void)strlcpy(buf, "/tmp/file.XXXXXX", sizeof buf);
+#ifdef WIN32
+	const char *t;
+	buf[0] = '\0';
+	if ((t = getenv("TEMP")) != NULL)
+		(void)strlcpy(buf, t, sizeof(buf));
+	else if ((t = getenv("TMP")) != NULL)
+		(void)strlcpy(buf, t, sizeof(buf));
+	else if ((t = getenv("TMPDIR")) != NULL)
+		(void)strlcpy(buf, t, sizeof(buf));
+	if (buf[0] != '\0')
+		(void)strlcat(buf, "/", sizeof(buf));
+	(void)strlcat(buf, "file.XXXXXX", sizeof(buf));
+#else
+	(void)strlcpy(buf, "/tmp/file.XXXXXX", sizeof(buf));
+#endif
 #ifndef HAVE_MKSTEMP
 	{
 		char *ptr = mktemp(buf);
@@ -718,16 +735,61 @@ closep(int *fd)
 		closefd(fd, i);
 }
 
-static int
-copydesc(int i, int fd)
+static void
+movedesc(void *v, int i, int fd)
 {
 	if (fd == i)
-		return 0; /* "no dup was necessary" */
+		return; /* "no dup was necessary" */
+#ifdef HAVE_POSIX_SPAWNP
+	posix_spawn_file_actions_t *fa = RCAST(posix_spawn_file_actions_t *, v);
+	posix_spawn_file_actions_adddup2(fa, fd, i);
+	posix_spawn_file_actions_addclose(fa, fd);
+#else
 	if (dup2(fd, i) == -1) {
 		DPRINTF("dup(%d, %d) failed (%s)\n", fd, i, strerror(errno));
 		exit(1);
 	}
-	return 1;
+	close(v ? fd : fd);
+#endif
+}
+
+static void
+closedesc(void *v, int fd)
+{
+#ifdef HAVE_POSIX_SPAWNP
+	posix_spawn_file_actions_t *fa = RCAST(posix_spawn_file_actions_t *, v);
+	posix_spawn_file_actions_addclose(fa, fd);
+#else
+	close(v ? fd : fd);
+#endif
+}
+
+static void
+handledesc(void *v, int fd, int fdp[3][2])
+{
+	if (fd != -1) {
+		(void) lseek(fd, CAST(off_t, 0), SEEK_SET);
+		movedesc(v, STDIN_FILENO, fd);
+	} else {
+		movedesc(v, STDIN_FILENO, fdp[STDIN_FILENO][0]);
+		if (fdp[STDIN_FILENO][1] > 2)
+		    closedesc(v, fdp[STDIN_FILENO][1]);
+	}
+
+	file_clear_closexec(STDIN_FILENO);
+
+///FIXME: if one of the fdp[i][j] is 0 or 1, this can bomb spectacularly
+	movedesc(v, STDOUT_FILENO, fdp[STDOUT_FILENO][1]);
+	if (fdp[STDOUT_FILENO][0] > 2)
+		closedesc(v, fdp[STDOUT_FILENO][0]);
+
+	file_clear_closexec(STDOUT_FILENO);
+
+	movedesc(v, STDERR_FILENO, fdp[STDERR_FILENO][1]);
+	if (fdp[STDERR_FILENO][0] > 2)
+		closedesc(v, fdp[STDERR_FILENO][0]);
+
+	file_clear_closexec(STDERR_FILENO);
 }
 
 static pid_t
@@ -817,6 +879,10 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 	pid_t writepid = -1;
 	size_t i;
 	ssize_t r;
+	char *const *args;
+#ifdef HAVE_POSIX_SPAWNP
+	posix_spawn_file_actions_t fa;
+#endif
 
 	switch (method) {
 #ifdef BUILTIN_DECOMPRESS
@@ -867,6 +933,22 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 		    strerror(errno));
 	}
 
+	args = RCAST(char *const *, RCAST(intptr_t, compr[method].argv));
+#ifdef HAVE_POSIX_SPAWNP
+	posix_spawn_file_actions_init(&fa);
+
+	handledesc(&fa, fd, fdp);
+
+	status = posix_spawnp(&pid, compr[method].argv[0], &fa, NULL,
+	    args, NULL);
+
+	posix_spawn_file_actions_destroy(&fa);
+
+	if (status == -1) {
+		return makeerror(newch, n, "Cannot posix_spawn `%s', %s",
+		    compr[method].argv[0], strerror(errno));
+	}
+#else
 	/* For processes with large mapped virtual sizes, vfork
 	 * may be _much_ faster (10-100 times) than fork.
 	 */
@@ -881,37 +963,14 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 		 * in a way which confuses parent. In particular,
 		 * do not modify fdp[i][j].
 		 */
-		if (fd != -1) {
-			(void) lseek(fd, CAST(off_t, 0), SEEK_SET);
-			if (copydesc(STDIN_FILENO, fd))
-				(void) close(fd);
-		} else {
-			if (copydesc(STDIN_FILENO, fdp[STDIN_FILENO][0]))
-				(void) close(fdp[STDIN_FILENO][0]);
-			if (fdp[STDIN_FILENO][1] > 2)
-				(void) close(fdp[STDIN_FILENO][1]);
-		}
-		file_clear_closexec(STDIN_FILENO);
+		handledesc(NULL, fd, fdp);
 
-///FIXME: if one of the fdp[i][j] is 0 or 1, this can bomb spectacularly
-		if (copydesc(STDOUT_FILENO, fdp[STDOUT_FILENO][1]))
-			(void) close(fdp[STDOUT_FILENO][1]);
-		if (fdp[STDOUT_FILENO][0] > 2)
-			(void) close(fdp[STDOUT_FILENO][0]);
-		file_clear_closexec(STDOUT_FILENO);
-
-		if (copydesc(STDERR_FILENO, fdp[STDERR_FILENO][1]))
-			(void) close(fdp[STDERR_FILENO][1]);
-		if (fdp[STDERR_FILENO][0] > 2)
-			(void) close(fdp[STDERR_FILENO][0]);
-		file_clear_closexec(STDERR_FILENO);
-
-		(void)execvp(compr[method].argv[0],
-		    RCAST(char *const *, RCAST(intptr_t, compr[method].argv)));
+		(void)execvp(compr[method].argv[0], args);
 		dprintf(STDERR_FILENO, "exec `%s' failed, %s",
 		    compr[method].argv[0], strerror(errno));
 		_exit(1); /* _exit(), not exit(), because of vfork */
 	}
+#endif
 	/* parent */
 	/* Close write sides of child stdout/err pipes */
 	for (i = 1; i < __arraycount(fdp); i++)

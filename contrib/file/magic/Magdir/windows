@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.37 2021/04/26 15:56:00 christos Exp $
+# $File: windows,v 1.44 2022/05/31 17:39:08 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -358,7 +358,7 @@
 # skip space at beginning
 >0     string		\040
 # name without extension and greater character or name with hlp extension
->>1	regex/c		\^([^\xd>]*|.*\.hlp)	MS Windows help file Content, based "%s"
+>>1	regex/c		\^([^\xd>]*|.*\\.hlp)	MS Windows help file Content, based "%s"
 !:mime	text/plain
 !:apple	????TEXT
 !:ext	cnt
@@ -382,6 +382,8 @@
 # Created by: unknown
 # 'L' + GUUID
 0	string		\114\0\0\0\001\024\002\0\0\0\0\0\300\0\0\0\0\0\0\106	MS Windows shortcut
+!:mime	application/x-ms-shortcut
+!:ext	lnk
 >20	lelong&1	1	\b, Item id list present
 >20	lelong&2	2	\b, Points to a file or directory
 >20	lelong&4	4	\b, Has Description string
@@ -495,10 +497,16 @@
 # empty line CRLF
 0	ubeshort	0x0D0A
 >0	use		ini-file
-# comment line
+# comment line starting with semicolon
 0	string		;
->0	use		ini-file
-# section line
+# look for phrase of Windows policy ADMinistrative template (with starting remark)
+# like: WINDOW_95_CD/TOOLS/RESKIT/netadmin/poledit/conf.adm
+>1	search/3548	END\040CATEGORY
+# ADM with remark (by adm-rem.trid.xml) already done by generic ASCII variant
+# if no Windows policy ADMinistrative template then Windows INItialization
+>1	default		x
+>>0	use		ini-file
+# section line starting with left bracket
 0	string		[
 >0	use		ini-file
 # check and then display Windows INItialization configuration
@@ -510,7 +518,7 @@
 # space after right bracket
 # or AutoRun.Amd64 for 64 bit systems
 # or only NL separator
->>&0	regex/c		\^(autorun)
+>>&0	regex/c		\^autorun
 # but sometimes total commander directory tree file "treeinfo.wc" with lines like
 # [AUTORUN]
 # [boot]
@@ -535,11 +543,11 @@
 # http://www.winfaq.de/faq_html/Content/tip2500/onlinefaq.php?h=tip2653.htm
 # https://msdn.microsoft.com/en-us/library/windows/desktop/cc144102.aspx
 # .ShellClassInfo DeleteOnCopy LocalizedFileNames ASCII coded case-independent
->>&0	regex/c	\^(\.ShellClassInfo|DeleteOnCopy|LocalizedFileNames)]	Windows desktop.ini
+>>&0	regex/1024c	\^(\\.ShellClassInfo|DeleteOnCopy|LocalizedFileNames)]	Windows desktop.ini
 !:mime application/x-wine-extension-ini
 #!:mime text/plain
 # https://support.microsoft.com/kb/84709/
->>&0	regex/c		\^(don't\ load)]				Windows CONTROL.INI
+>>&0	regex/c		\^don't\ load]					Windows CONTROL.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 >>&0	regex/c		\^(ndishlp\\$|protman\\$|NETBEUI\\$)]		Windows PROTOCOL.INI
@@ -555,34 +563,57 @@
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # http://www.mdgx.com/newtip6.htm
->>&0	regex/c		\^(SafeList)]					Windows IOS.INI
+>>&0	regex/c		\^SafeList]					Windows IOS.INI
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # https://en.wikipedia.org/wiki/NTLDR	Windows Boot Loader information
->>&0	regex/c		\^(boot\x20loader)]				Windows boot.ini
+>>&0	regex/c		\^boot\x20loader]				Windows boot.ini
 !:mime application/x-wine-extension-ini
 !:ext	ini
 # https://en.wikipedia.org/wiki/CONFIG.SYS
->>&0	regex/c		\^(menu)]					MS-DOS CONFIG.SYS
+>>&0	regex/c		\^menu]						MS-DOS CONFIG.SYS
 # @CONFIG.UI configuration file of previous DOS version saved by Caldera OPENDOS INSTALL.EXE
 # CONFIG.PSS saved version of file CONFIG.SYS created by %WINDIR%\SYSTEM\MSCONFIG.EXE
 # CONFIG.TSH renamed file CONFIG.SYS.BAT by %WINDIR%\SYSTEM\MSCONFIG.EXE
 # dos and w40 used in dual booting scene
 !:ext	sys/dos/w40
 # https://support.microsoft.com/kb/118579/
->>&0	regex/c		\^(Paths)]\r\n					MS-DOS MSDOS.SYS
+>>&0	regex/c		\^Paths]\r\n					MS-DOS MSDOS.SYS
 !:ext	sys/dos
 # http://chmspec.nongnu.org/latest/INI.html#HHP
->>&0	regex/c		\^(options)]\r\n				Microsoft HTML Help Project
+>>&0	regex/c		\^options]\r\n					Microsoft HTML Help Project
 !:mime text/plain
 !:ext	hhp
 # From:		Joerg Jenderek
-# URL:		https://documentation.basis.com/BASISHelp/WebHelp/b3odbc/obdcdriv_character_translation.htm
+# URL:		https://documentation.basis.com/BASISHelp/WebHelp/b3odbc/ODBC_Driver/obdcdriv_character_translation.htm
 # Reference:	https://www.garykessler.net/library/file_sigs.html
+#		http://mark0.net/download/triddefs_xml.7z/defs/c/cpx.trid.xml
 # Note:		stored in directory %WINDIR%\SysWOW64 or %WINDIR%\system
->>&0	regex/c		\^(Windows\ Latin)				Windows codepage translator
-!:mime	text/plain
+#		second word often Latin but sometimes Cyrillic like in 12510866.CPX
+>>&0	regex/c		\^Windows\ (Latin|Cyrillic)			Windows codepage translator
+#!:mime	text/plain
+!:mime	text/x-ms-cpx
+# like: 12510866.CPX 
 !:ext	cpx
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/InstallShield
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/l/lid-is.trid.xml
+# Note:		contain also 3 keywords like: count Default key0
+>>&0	regex/c		\^Languages]					InstallShield Language Identifier
+#!:mime	text/plain
+!:mime	text/x-installshield-lid
+# like: SETUP.LID
+!:ext	lid
+# From:		Joerg Jenderek
+# URL:		https://www.file-extensions.org/tag-file-extension
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/t/taginfo.trid.xml
+# Note:		contain also keywords like: Application Category Company Misc Version
+>>&0	regex/c		\^TagInfo]					TagInfo
+#!:mime	text/plain
+#!:mime	text/prs.lines.tag
+!:mime	text/x-ms-tag
+# like: DATA.TAG
+!:ext	tag
 # unknown keyword after opening bracket
 >>&0	default				x
 #>>>&0	string/c			x	UNKNOWN [%s
@@ -603,27 +634,72 @@
 !:mime	application/x-wine-extension-ini
 #!:mime	text/plain
 !:ext	ini/inf
+# UTF-16 BOM
+0	ubeshort		=0xFFFE
+# look for phrase of Windows policy ADMinistrative template (UTF-16 by adm-uni.trid.xml)
+# like: wuau.adm
+>2	search/0x384A	E\0N\0D\0\040\0C\0A\0T\0E\0G\0O\0R\0Y\0
+>>0	use		windows-adm
+# if no Windows policy ADMinistrative template then Windows INFormation
+>2	default		x
 # UTF-16 BOM followed by CR~0D00 , comment~semicolon~3B00 , section~bracket~5B00
-0	ubelong&0xFFff89FF	=0xFFFE0900
+>>0	ubelong&0xFFff89FF	=0xFFFE0900
 # look for left bracket in section line
->2	search/8192		[
+>>>2	search/8192		[
 # keyword without 1st letter which is maybe up-/down-case
->>&3	lestring16		ersion]			Windows setup INFormation
-!:mime	application/x-setupscript
-!:ext	inf
->>&3	lestring16		trings]			Windows setup INFormation
-!:mime	application/x-setupscript
-!:ext	inf
->>&3	lestring16		ourceDisksNames]	Windows setup INFormation
-!:mime	application/x-setupscript
-!:ext	inf
-# netnwcli.inf start with ;---[ NetNWCli.INX ]
->>&3	default			x
-# look for NL followed by left bracket
->>>&0	search/8192		\x0A\x00\x5b
 >>>>&3	lestring16		ersion]			Windows setup INFormation
 !:mime	application/x-setupscript
+# like: hdaudio.inf iscsi.inf spaceport.inf tpm.inf usbhub3.inf UVncVirtualDisplay.inf
 !:ext	inf
+>>>>&3	lestring16		trings]			Windows setup INFormation
+!:mime	application/x-setupscript
+# like: arduino_gemma.inf iis.inf MSM8960.inf
+!:ext	inf
+>>>>&3	lestring16		ourceDisksNames]	Windows setup INFormation
+!:mime	application/x-setupscript
+# like: atiixpag.inf mdmnokia.inf netefe32.inf rdpbus.inf
+!:ext	inf
+# netnwcli.inf start with ;---[ NetNWCli.INX ]
+>>>>&3	default			x
+# look for NL followed by left bracket
+>>>>>&0	search/8192		\x0A\x00\x5b
+# like: defltwk.inf netvwifibus.inf WSDPrint.inf
+>>>>>>&3 lestring16		ersion]			Windows setup INFormation
+!:mime	application/x-setupscript
+!:ext	inf
+
+# Summary:	Windows Policy ADMinistrative template
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Administrative_Template
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/adm.trid.xml
+# Note:		typically stored in directory like: %WINDIR%\system32\GroupPolicy\ADM
+# worst case ASCII variant starting with remark line like: inetset.adm
+0	search/0x4E	CLASS\040
+>&0	string		MACHINE
+>>0	use		windows-adm
+>&0	string		USER
+>>0	use		windows-adm
+# display information about Windows policy ADMinistrative template
+0	name		windows-adm	Windows Policy Administrative Template
+!:mime	text/x-ms-adm
+!:ext	adm
+# UTF-16 BOM implies UTF-16 encoded ADM (by adm-uni.trid.xml)
+>0	ubeshort		=0xFFFE
+>>2	lestring16		x		\b, 1st line "%s"
+# look for UTF-16 encoded CarriageReturn LineFeed
+>>>2	search/0x3A		\r\0\n\0
+>>>>&0	lestring16		x		\b, 2nd line "%s"
+# no UTF-16 BOM implies "ASCII" encoded ADM (by adm.trid.xml)
+>0	ubeshort		!0xFFFE
+>>0		string		x		\b, 1st line "%s"
+#>>>&0		ubequad		x		\b, 2ND %16.16llx
+# 2nd line empty
+>>>&2		beshort		=0x0D0A
+>>>>&0		beshort		!0x0D0A		\b, 3th line
+>>>>>&-2	string		x		"%s"
+# 2nd line with content
+>>>&2		beshort		!0x0D0A		\b, 2nd line
+>>>>&-2		string		x		"%s"
 
 # Windows Precompiled INF files *.PNF added by Joerg Jenderek at Mar 2013 of _PNF_HEADER inf.h
 # http://read.pudn.com/downloads3/sourcecode/windows/248345/win2k/private/windows/setup/setupapi/inf.h__.htm
@@ -1080,3 +1156,61 @@
 0	string	ID;P	Microsoft SYLK program
 >4	string	>0	\b, created by %s
 !:ext	slk/sylk
+
+# Summary:	Windows Performance Monitor Alert
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Performance_Monitor
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pma.trid.xml
+# Note:		called "Windows Performance Monitor Alert" by TrID
+0	ubelong			=0xDC058340
+>4	ubyte			=0		Windows Performance Monitor Alert
+#!:mime		application/octet-stream
+# https://www.thoughtco.com/mime-types-by-content-type-3469108
+# https://filext.com/file-extension/PAM
+!:mime		application/x-perfmon 
+#!:mime		application/x-ms-pma
+!:ext		pma
+# metric type like: "BrowserMetrics" "CrashpadMetrics" "SetupMetrics"
+>>80	string			x		\b, "%s"
+
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/InstallShield
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/ins.trid.xml
+# Note:		contain also keywords like: BATCH_INSTALL ISVERSION LOGHANDLE SRCDIR SRCDISK WINDIR WINSYSDISK 
+0	ubelong	0xB8C90C00	InstallShield Script
+#!:mime	application/octet-stream
+!:mime	application/x-installshield-ins
+# like test.ins Setup.ins
+!:ext	ins
+# UNKNOWN like: 160034121de07e00 1600341260befe00 16003412e0783700
+# 5000010021083f00 50000100b0335600 50000100cbfdf800 50000100dfbc4700
+#>4	ubequad		x		\b, at 4 %#16.16llx
+# copyright text like:	"Stirling Technologies, Inc.  (c) 1990-1994"
+#			"InstallSHIELD Software Coporation  (c) 1990-1997"
+>13	pstring/h	x		"%s"
+# look for specific ASCII variable names
+>1	search/0x121/s	SRCDIR	\b, variable names:
+# 1st like: SRCDIR
+>>&-4		leshort		x	#%u
+>>&-2		pstring/h	x	%s
+# 2nd like: SRCDISK
+>>>&0		leshort		x	#%u
+>>>&2		pstring/h	x	%s
+# 3rd like: TARGETDISK
+>>>>&0		leshort		x	#%u
+>>>>&2		pstring/h	x	%s
+# 4th like: TARGETDIR
+#>>>>>&0		leshort		x	#%u
+#>>>>>&2		pstring/h	x	%s
+# 5th like: WINDIR
+#>>>>>>&0	leshort		x	#%u
+#>>>>>>&2	pstring/h	x	%s
+# 6th like: WINDISK
+#>>>>>>>&0	leshort		x	#%u
+#>>>>>>>&2	pstring/h	x	%s
+# 7th like: WINSYSDIR
+#>>>>>>>>&0	leshort		x	#%u
+#>>>>>>>>&2	pstring/h	x	%s
+# ... LOGHANDLE
+>0		ubelong		x	...
+#

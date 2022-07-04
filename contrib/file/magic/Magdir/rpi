@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: rpi,v 1.2 2019/10/02 02:07:30 christos Exp $
+# $File: rpi,v 1.3 2022/04/02 14:39:34 christos Exp $
 # rpi:  file(1) magic for Raspberry Pi images
 -44		lelong	0
 >4		lelong	0
@@ -27,3 +27,26 @@
 >>>>>>>>>40	string	DDTK8
 >>>>>>>>>>48	lelong	4
 >>>>>>>>>>>52	string	RPTL		Raspberry PI kernel image
+
+# From: 	Joerg Jenderek
+# URL:		https://www.raspberrypi.com/documentation/computers/raspberry-pi.html
+#		#raspberry-pi-4-boot-eeprom
+# Reference:	https://github.com/raspberrypi/rpi-eeprom/blob/master/rpi-eeprom-config
+# Note:		start with same magic as for BIOS (ia32) ROM Extension handled by ./intel
+# masked with MAGIC_MASK and then compared with MAGIC
+0	belong&0xFFffF00F	0x55aaF00F	Raspberry PI EEPROM
+#!:mime	application/octet-stream
+!:mime	application/x-raspberry-eeprom
+# like: pieeprom-2020-09-03.bin
+!:ext	bin
+# a 32 bit offset to the next section like: 000184d4 000184c8 00018534 ... 0000bb84 0000bbd4 0000bbd4
+>4	ubelong			x		\b, offset %8.8x
+#>(4.L)	ubelong			x		NEXT=%8.8x
+# self.length
+>8	ubelong			!0		\b, length %x
+# self.filename
+>12	string			>0		\b, "%s"
+# length is zero
+>8	ubelong			=0
+# if length is zero then 2nd section magic here can be zero; this means sections parsing done
+>>8	ubelong			!0		\b, 2nd MAGIC=%8.8x

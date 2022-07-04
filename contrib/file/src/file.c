@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.190 2021/09/24 14:14:26 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.195 2022/06/02 15:45:43 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -56,6 +56,9 @@ FILE_RCSID("@(#)$File: file.c,v 1.190 2021/09/24 14:14:26 christos Exp $")
 #endif
 #ifdef HAVE_WCHAR_H
 #include <wchar.h>
+#endif
+#ifdef HAVE_WCTYPE_H
+#include <wctype.h>
 #endif
 
 #if defined(HAVE_GETOPT_H) && defined(HAVE_STRUCT_OPTION)
@@ -182,7 +185,7 @@ int
 main(int argc, char *argv[])
 {
 	int c;
-	size_t i;
+	size_t i, j, wid, nw;
 	int action = 0, didsomefiles = 0, errflg = 0;
 	int flags = 0, e = 0;
 #ifdef HAVE_LIBSECCOMP
@@ -408,27 +411,30 @@ main(int argc, char *argv[])
 	if (optind == argc) {
 		if (!didsomefiles)
 			usage();
-	}
-	else {
-		size_t j, wid, nw;
-		for (wid = 0, j = CAST(size_t, optind); j < CAST(size_t, argc);
-		    j++) {
-			nw = file_mbswidth(argv[j]);
-			if (nw > wid)
-				wid = nw;
-		}
-		/*
-		 * If bflag is only set twice, set it depending on
-		 * number of files [this is undocumented, and subject to change]
-		 */
-		if (bflag == 2) {
-			bflag = optind >= argc - 1;
-		}
-		for (; optind < argc; optind++)
-			e |= process(magic, argv[optind], wid);
+		goto out;
 	}
 
+	for (wid = 0, j = CAST(size_t, optind); j < CAST(size_t, argc);
+	    j++) {
+		nw = file_mbswidth(magic, argv[j]);
+		if (nw > wid)
+			wid = nw;
+	}
+
+	/*
+	 * If bflag is only set twice, set it depending on
+	 * number of files [this is undocumented, and subject to change]
+	 */
+	if (bflag == 2) {
+		bflag = optind >= argc - 1;
+	}
+	for (; optind < argc; optind++)
+		e |= process(magic, argv[optind], wid);
+
 out:
+	if (!nobuffer)
+		e |= fflush(stdout) != 0;
+
 	if (magic)
 		magic_close(magic);
 	return e;
@@ -453,7 +459,7 @@ setparam(const char *p)
 	size_t i;
 	char *s;
 
-	if ((s = strchr(p, '=')) == NULL)
+	if ((s = CCAST(char *, strchr(p, '='))) == NULL)
 		goto badparm;
 
 	for (i = 0; i < __arraycount(pm); i++) {
@@ -513,7 +519,7 @@ unwrap(struct magic_set *ms, const char *fn)
 		while ((len = getline(&line, &llen, f)) > 0) {
 			if (line[len - 1] == '\n')
 				line[len - 1] = '\0';
-			cwid = file_mbswidth(line);
+			cwid = file_mbswidth(ms, line);
 			if (cwid > wid)
 				wid = cwid;
 		}
@@ -540,35 +546,45 @@ process(struct magic_set *ms, const char *inname, int wid)
 {
 	const char *type, c = nulsep > 1 ? '\0' : '\n';
 	int std_in = strcmp(inname, "-") == 0;
+	int haderror = 0;
+	size_t plen = 4 * wid + 1;
+	char *pbuf, *pname;
+
+	if ((pbuf = CAST(char *, malloc(plen))) == NULL)
+	    file_err(EXIT_FAILURE, "Can't allocate %zu bytes", plen);
 
 	if (wid > 0 && !bflag) {
-		(void)printf("%s", std_in ? "/dev/stdin" : inname);
+		pname = file_printable(ms, pbuf, plen, inname, wid);
+		(void)printf("%s", std_in ? "/dev/stdin" : pname);
 		if (nulsep)
 			(void)putc('\0', stdout);
 		if (nulsep < 2) {
 			(void)printf("%s", separator);
 			(void)printf("%*s ", CAST(int, nopad ? 0
-			    : (wid - file_mbswidth(inname))), "");
+			    : (wid - file_mbswidth(ms, inname))), "");
 		}
 	}
 
 	type = magic_file(ms, std_in ? NULL : inname);
 
 	if (type == NULL) {
-		(void)printf("ERROR: %s%c", magic_error(ms), c);
+		haderror |= printf("ERROR: %s%c", magic_error(ms), c);
 	} else {
-		(void)printf("%s%c", type, c);
+		haderror |= printf("%s%c", type, c) < 0;
 	}
 	if (nobuffer)
-		(void)fflush(stdout);
-	return type == NULL;
+		haderror |= fflush(stdout) != 0;
+	free(pbuf);
+	return haderror || type == NULL;
 }
 
 protected size_t
-file_mbswidth(const char *s)
+file_mbswidth(struct magic_set *ms, const char *s)
 {
-#if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH)
-	size_t bytesconsumed, old_n, n, width = 0;
+	size_t width = 0;
+#if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH) && \
+   defined(HAVE_WCTYPE_H)
+	size_t bytesconsumed, old_n, n;
 	mbstate_t state;
 	wchar_t nextchar;
 	(void)memset(&state, 0, sizeof(mbstate_t));
@@ -581,22 +597,18 @@ file_mbswidth(const char *s)
 			/* Something went wrong, return something reasonable */
 			return old_n;
 		}
-		if (s[0] == '\n') {
-			/*
-			 * do what strlen() would do, so that caller
-			 * is always right
-			 */
-			width++;
-		} else {
-			int w = wcwidth(nextchar);
-			if (w > 0)
-				width += w;
-		}
+		width += ((ms->flags & MAGIC_RAW) != 0
+		    || iswprint(nextchar)) ? wcwidth(nextchar) : 4;
 
 		s += bytesconsumed, n -= bytesconsumed;
 	}
 	return width;
 #else
+	while (*s) {
+		width += (ms->flags & MAGIC_RAW) != 0
+		    || isprint(CAST(unsigned char, *s)) ? 1 : 4;
+	}
+
 	return strlen(s);
 #endif
 }
@@ -626,7 +638,7 @@ docprint(const char *opts, int def)
 	int comma, pad;
 	char *sp, *p;
 
-	p = strchr(opts, '%');
+	p = CCAST(char *, strchr(opts, '%'));
 	if (p == NULL) {
 		fprintf(stdout, "%s", opts);
 		defprint(def);

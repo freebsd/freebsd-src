@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: der.c,v 1.21 2020/06/15 00:58:10 christos Exp $")
+FILE_RCSID("@(#)$File: der.c,v 1.22 2022/01/10 14:15:08 christos Exp $")
 #endif
 #else
 #define SIZE_T_FORMAT "z"
@@ -235,6 +235,7 @@ der_tag(char *buf, size_t len, uint32_t tag)
 static int
 der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 {
+	uint32_t i;
 	const uint8_t *d = CAST(const uint8_t *, q);
 	switch (tag) {
 	case DER_TAG_PRINTABLE_STRING:
@@ -251,7 +252,7 @@ der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 		break;
 	}
 
-	for (uint32_t i = 0; i < len; i++) {
+	for (i = 0; i < len; i++) {
 		uint32_t z = i << 1;
 		if (z < blen - 2)
 			snprintf(buf + z, blen - z, "%.2x", d[i]);
@@ -283,7 +284,8 @@ der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 	offs += ms->offset + m->offset;
 	DPRINTF(("cont_level = %d\n", m->cont_level));
 #ifdef DEBUG_DER
-	for (size_t i = 0; i < m->cont_level; i++)
+	size_t i;
+	for (i = 0; i < m->cont_level; i++)
 		printf("cont_level[%" SIZE_T_FORMAT "u] = %u\n", i,
 		    ms->c.li[i].off);
 #endif

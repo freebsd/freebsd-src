@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.12 2021/09/04 16:00:38 christos Exp $
+# $File: ole2compounddocs,v 1.18 2022/05/31 17:38:36 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -200,6 +200,22 @@
 !:mime	application/x-ms-info
 !:ext	nfo
 #
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Access
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/m/mdz.trid.xml
+#		http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		only version foo tested and called "Microsoft Access Wizard template" by TrID
+# Fourth directory entry name TemplateID
+>>>>384 	lestring16	TemplateID		: Microsoft Access wizard template
+# Second directory entry name like \005SummaryInformation and 3rd name like \005DocumentSummaryInformation
+#!:mime	application/x-ole-storage
+#!:mime	application/vnd.ms-office
+#!:mime	application/vnd.ms-access
+#!:mime	application/msaccess
+!:mime	application/x-ms-mdz
+# http://extension.nirsoft.net/mdz
+!:ext	mdz
+#
 # URL:	http://fileformats.archiveteam.org/wiki/Corel_Print_House
 # Second directory entry name Thumbnail
 >>>>128 	lestring16	Thumbnail		: Corel PrintHouse image
@@ -258,6 +274,24 @@
 !:ext	prd/prv
 # 2nd directory entry name Pictures
 >>>>>>128 	lestring16	Pictures		with pictures
+#
+# URL:		http://fileformats.archiveteam.org/wiki/PageMaker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p
+#		pagemaker-generic.trid.xml
+#		pagemaker-pm6.trid.xml
+#		pagemaker-pm65.trid.xml
+#		pmd-pm7.trid.xml
+# From:		Joerg Jenderek
+# Note:		since version 6 embedd as stream with PageMaker name the "old" format handled by ./wordprocessors
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe brochus.pt6`
+# Second directory entry name PageMaker
+>>>>128 	lestring16	PageMaker		:
+# look for magic of "old" PageMaker like in 02TEMPLT.T65
+>>>>>0	search/0xa900/s	\0\0\0\0\0\0\xff\x99
+# GRR: jump to PageMaker stream and inspect it by sub routine PageMaker of ./wordprocessors failed with wrong version!
+#>>>>>>&0	use		PageMaker
+# THIS WORKS PARTLY!
+>>>>>>&0	indirect	x
 #	remaining null clsid
 >>>>128 	default		x			: UNKNOWN
 # second directory entry name like VisioDocument Control000
@@ -267,6 +301,9 @@
 # forth
 >>>>>384	lestring16	x %.20s
 !:mime	application/x-ole-storage
+# according to file version 5.41 with -e soft option
+#!:mime	application/CDFV2
+#!:ext	???
 #	look for known clsid GUID
 # - Visio documents
 # URL:	http://fileformats.archiveteam.org/wiki/Visio
@@ -417,6 +454,28 @@
 !:apple	????PPT3
 # /autostart/template
 !:ext	ppt/pps/pot
+# From:		Joerg Jenderek
+# URL:		https://www.file-extensions.org/ppa-file-extension
+#		https://en.wikipedia.org/wiki/Microsoft_PowerPoint#cite_note-231
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+>>88 	ubequad		0x871800aa0060263b	: Microsoft
+# only version 8 (97) tested; PowerPoint 4.0 to 11.0 (2004) (Wikipedia); 97 to 2003 (file-extensions.org)
+>>>80 	ubequad		0xf04672810a72cf11	PowerPoint Addin or Wizard
+# second, third and fourth directory entry name like VBA PROJECT PROJECTwm
+# http://extension.nirsoft.net/pwz
+!:mime	application/vnd.ms-powerpoint
+# like: BSHPPT97.PPA "AutoContent Wizard.pwz"
+!:ext	ppa/pwz
+#
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/AWD_(At_Work_Document)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/awd-fax.trid.xml
+# Note:		called "Microsoft At Work Fax document" by TrID
+>>88 	ubequad		0xb29400dd010f2bf9	: Microsoft
+>>>80 	ubequad		0x801cb0023de01a10	At Work fax Document
+#!:mime	application/x-ole-storage
+!:mime	image/x-ms-awd
+!:ext	awd
 #
 # URL:	https://en.wikipedia.org/wiki/Microsoft_Project
 #??
@@ -424,6 +483,20 @@
 >>>80 	ubequad		0x3a8fb774c8c8d111	Project
 !:mime	application/vnd.ms-project
 !:ext	mpp
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Office_shared_tools#Binder
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/o/obd.trid.xml
+#		http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		only version 8 tested and called "Office Binder Document" by TrID and
+#		"Microsoft Office Binder File for Windows" version 97-2000 by DROID fmt/240
+>>88 	ubequad		0xb21c00aa004ba90b	: Microsoft
+>>>80 	ubequad		0x0004855964661b10	Office Binder Document, Template or wizard
+# second directory entry name like Binder
+# https://www.file-extensions.org/obd-file-extension
+#!:mime	application/vnd.ms-binder
+!:mime	application/x-msbinder
+# obt for template; obz for Microsoft Office Binder wizard
+!:ext	obd/obt/obz
 #
 # URL:		http://fileformats.archiveteam.org/wiki/WordPerfect
 # Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
@@ -560,9 +633,29 @@
 !:mime	application/vnd.softmaker.planmaker
 # pmv for template	https://www.file-extensions.org/pmv-file-extension
 !:ext	pmd/pmv
+# URL:		http://fileformats.archiveteam.org/wiki/MAX_(3ds_Max)
+#		https://en.wikipedia.org/wiki/Autodesk_3ds_Max
+# Reference:	http://fileformats.archiveteam.org/wiki/Microsoft_Compound_File
+# Note:		called "3D Studio Max Scene" by TrID and "3DS Max" by DROID and
+#		"3DSMax thumbnail" by XnView and verfied by `nconvert -info A380.max`
+#		applies only to "newer" versions (about 2008-2020)
+>>88 	ubequad		0x9fed04143144cc1e	: Autodesk
+>>>80 	ubequad		0x7b8cdd1cc081a045	3ds Max
+#!:mime	application/x-ole-storage
+!:mime	model/x-autodesk-max
+# like: https://static.free3d.com/models/dropbox/dropbox/sq/A380.7z/A380.max 
+!:ext	max
+# also chr for character file according to DROID https://www.nationalarchives.gov.uk/PRONOM/fmt/978
+#!:ext	max/chr
 # remaining non null clsid
->>88 	default		x			: UNKNOWN
+>>88 	default		x
+# GRR: check again for non null clsid because wrong when called by indirect directive
+>>>88 	ubequad		!0			: UNKNOWN
+# https://reposcope.com/mimetype/application/x-ole-storage
 !:mime	application/x-ole-storage
->>>80 	ubequad		!0			\b, clsid %#16.16llx
->>>88 	ubequad		x			\b%16.16llx
+# according to file version 5.41 with -e soft option
+#!:mime	application/CDFV2
+#!:ext	???
+>>>>80 	ubequad		!0			\b, clsid %#16.16llx
+>>>>88 	ubequad		x			\b%16.16llx
 

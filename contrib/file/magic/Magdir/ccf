@@ -1,0 +1,14 @@
+
+#------------------------------------------------------------------------------
+# $File: ccf,v 1.1 2022/02/15 12:57:45 christos Exp $
+# file(1) magic(5) data for Phillips remote controls
+
+# Exchange format for Philips Pronto universal infrared remote controls
+# A CCF file describes a learned/customized remote control,
+# i.e. it contains button UI and infrared pulse code definitions
+# (Georg Sauthoff)
+# http://files.remotecentral.com/download/45/pan-air-csakr.zip.html
+# https://github.com/gsauthof/pronto-ccf/blob/
+
+8	string	@\xa5Z@_CCF
+>32	string	CCF\x00		Philips Pronto IR remote control CCF

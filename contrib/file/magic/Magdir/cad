@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.28 2021/04/26 15:56:00 christos Exp $
+# $File: cad,v 1.29 2021/12/06 19:33:27 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -287,6 +287,8 @@
 >6	leshort		0x2
 >>8	lelong		0xa
 >>>16	leshort		0x3d3d	3D Studio model
+# Beat sgi MMV
+!:strength +20
 !:mime	image/x-3ds
 !:ext 3ds
 

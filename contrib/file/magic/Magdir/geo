@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: geo,v 1.7 2019/04/19 00:42:27 christos Exp $
+# $File: geo,v 1.8 2022/03/24 15:48:58 christos Exp $
 # Geo- files from Kurt Schwehr <schwehr@ccom.unh.edu>
 
 ######################################################################
@@ -28,8 +28,8 @@
 # Knudsen subbottom chirp profiler - Binary File Format: B9
 # KEB D409-03167 V1.75 Huffman
 0	string	KEB\ 	Knudsen seismic KEL binary (KEB) -
->4	regex	[-A-Z0-9]*	Software: %s
->>&1	regex	V[0-9]*\.[0-9]*	version %s
+>4	regex	[-A-Z0-9]+	Software: %s
+>>&1	regex	V[0-9]+\\.[0-9]+	version %s
 
 ######################################################################
 #
@@ -40,7 +40,7 @@
 
 # Caris LIDAR format for LADS comes as two parts... ascii location file and binary waveform data
 0	string	HCA	LADS Caris Ascii Format (CAF) bathymetric lidar
->4	regex [0-9]*\.[0-9]*	version %s
+>4	regex [0-9]+\\.[0-9]+	version %s
 
 0	string	HCB	LADS Caris Binary Format (CBF) bathymetric lidar waveform data
 >3      byte    x	version %d .
@@ -69,7 +69,7 @@
 
 # mb121 https://www.saic.com/maritime/gsf/
 8	string	GSF-v	SAIC generic sensor format (GSF) sonar data,
->&0	regex [0-9]*\.[0-9]*	version %s
+>&0	regex [0-9]+\\.[0-9]+	version %s
 
 # MGD77 - https://www.ngdc.noaa.gov/mgg/dat/geodas/docs/mgd77.htm
 # mb161

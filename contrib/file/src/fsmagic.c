@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: fsmagic.c,v 1.81 2019/07/16 13:30:32 christos Exp $")
+FILE_RCSID("@(#)$File: fsmagic.c,v 1.82 2022/04/11 18:14:41 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -327,7 +327,7 @@ file_fsmagic(struct magic_set *ms, const char *fn, struct stat *sb)
 			char *tmp;
 			char buf2[BUFSIZ+BUFSIZ+4];
 
-			if ((tmp = strrchr(fn,  '/')) == NULL) {
+			if ((tmp = CCAST(char *, strrchr(fn,  '/'))) == NULL) {
 				tmp = buf; /* in current directory anyway */
 			} else {
 				if (tmp - fn + 1 > BUFSIZ) {

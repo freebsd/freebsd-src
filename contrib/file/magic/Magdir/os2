@@ -1,12 +1,14 @@
 
 #------------------------------------------------------------------------------
-# $File: os2,v 1.13 2021/04/26 15:56:00 christos Exp $
+# $File: os2,v 1.14 2022/03/21 21:25:50 christos Exp $
 # os2:  file(1) magic for OS/2 files
 #
 
 # Provided 1998/08/22 by
 # David Mediavilla <davidme.news@REMOVEIFNOTSPAMusa.net>
 1	search/100	InternetShortcut	MS Windows 95 Internet shortcut text
+!:mime	application/x-mswinurl
+!:ext	url
 >17	search/100	URL= 			(URL=<
 >>&0	string		x			\b%s>)
 

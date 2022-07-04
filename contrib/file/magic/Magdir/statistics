@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: statistics,v 1.2 2020/10/08 17:51:53 christos Exp $
+# $File: statistics,v 1.3 2022/03/24 15:48:58 christos Exp $
 # statistics:  file(1) magic for statistics related software
 #
 
@@ -42,4 +42,4 @@
 # Example of those files can be found on Zenodo:
 # https://zenodo.org/search?page=1&size=20&q=&file_type=dta
 0	string	\<stata_dta\>\<header\>\<release\>	Stata Data File
->&0	regex	[0-9]*					(Release %s)
+>&0	regex	[0-9]+					(Release %s)

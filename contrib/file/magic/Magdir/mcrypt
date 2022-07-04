@@ -1,14 +1,28 @@
 
 #------------------------------------------------------------------------------
-# $File: mcrypt,v 1.5 2009/09/19 16:28:10 christos Exp $
+# $File: mcrypt,v 1.6 2022/02/08 18:51:45 christos Exp $
 # Mavroyanopoulos Nikos <nmav@hellug.gr>
 # mcrypt:   file(1) magic for mcrypt 2.2.x;
+# URL: 		https://en.wikipedia.org/wiki/Mcrypt
+#		http://fileformats.archiveteam.org/wiki/MCrypt
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/n/nc-mcrypt.trid.xml
+# Update:	Joerg Jenderek
+# Note:		called by TrID "mcrypt encrypted (v2.5)"
 0	string		\0m\3		mcrypt 2.5 encrypted data,
+#!:mime	application/octet-stream
+!:mime	application/x-crypt-nc
+!:ext	nc
 >4	string		>\0		algorithm: %s,
 >>&1	leshort		>0		keysize: %d bytes,
 >>>&0	string		>\0		mode: %s,
 
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/n/nc-mcrypt-22.trid.xml
+# Note:		called by TrID "mcrypt encrypted (v2.2)"
 0	string		\0m\2		mcrypt 2.2 encrypted data,
+#!:mime	application/octet-stream
+!:mime	application/x-crypt-nc
+# no example
+!:ext	nc
 >3	byte		0		algorithm: blowfish-448,
 >3	byte		1		algorithm: DES,
 >3	byte		2		algorithm: 3DES,

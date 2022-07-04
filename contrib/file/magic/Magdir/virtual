@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: virtual,v 1.14 2021/04/26 15:56:00 christos Exp $
+# $File: virtual,v 1.16 2022/01/18 14:08:15 christos Exp $
 # From: James Nobis <quel@quelrod.net>
 # Microsoft hard disk images for:
 # Virtual Server
@@ -219,7 +219,8 @@
 # Updated by Adam Buchbinder (adam.buchbinder@gmail.com)
 # Made by reading sources, reading documentation, and doing trial and error
 # on existing QCOW files
-0	string/b	QFI\xFB
+0	string/b	QFI\xFB	QEMU QCOW Image
+!:mime	application/x-qemu-disk
 
 # Uncomment the following line to display Magic (only used for debugging
 # this magic number)
@@ -227,8 +228,7 @@
 
 # There are currently 2 Versions: "1" and "2".
 # https://www.gnome.org/~markmc/qcow-image-format-version-1.html
->4	belong		!1	QEMU QCOW2 Image
->4	belong		1	QEMU QCOW Image (v1)
+>4	belong		x	(v%d)
 
 # Using the existence of the Backing File Offset to determine whether
 # to read Backing File Information

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: asf,v 1.2 2021/04/26 15:56:00 christos Exp $
+# $File: asf,v 1.3 2022/04/25 17:33:13 christos Exp $
 # asf:  file(1) magic for Microsoft Advanced Systems Format (ASF) files
 # http://www.staroceans.org/e-book/ASF_Specification.pdf
 
@@ -88,7 +88,7 @@
 >0	guid	26F18B5D-4584-47EC-9F5F-0E651F0452C9 ASF_Compatibility_Object
 >0	guid	43058533-6981-49E6-9B74-AD12CB86D58C ASF_Advanced_Content_Encryption_Object
 >0	guid	59DACFC0-59E6-11D0-A3AC-00A0C90348F6 ASF_Command_Media
->0	guid	B61BE100-5B4E-11CF-A8FD-00805F5C44 ASF_JFIF_Media
+>0	guid	B61BE100-5B4E-11CF-A8FD-00805F5C442B ASF_JFIF_Media
 >0	guid	35907DE0-E415-11CF-A917-00805F5C442B ASF_Degradable_JPEG_Media
 >0	guid	91BD222C-F21C-497A-8B6D-5AA86BFC0185 ASF_File_Transfer_Media
 >0	guid	3AFB65E2-47EF-40F2-AC2C-70A90D71D343 ASF_Binary_Media

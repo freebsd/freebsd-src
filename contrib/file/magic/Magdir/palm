@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: palm,v 1.14 2019/04/19 00:42:27 christos Exp $
+# $File: palm,v 1.15 2021/12/16 21:50:06 christos Exp $
 # palm:	 file(1) magic for PalmOS {.prc,.pdb}: applications, docfiles, and hacks
 #
 # Brian Lalor <blalor@hcirisc.cs.binghamton.edu>
@@ -55,6 +55,7 @@
 # Mobipocket (www.mobipocket.com), donated by Carl Witty
 # expanded by Ralf Brown
 60		string	 	BOOKMOBI	Mobipocket E-book
+!:mime	application/x-mobipocket-ebook
 # MobiPocket stores a full title, pointed at by the belong at offset
 # 0x54 in its header at (78.L), with length given by the belong at
 # offset 0x58.

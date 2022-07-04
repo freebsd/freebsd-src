@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.63 2021/04/26 15:56:00 christos Exp $
+# $File: console,v 1.68 2022/05/14 20:04:43 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -78,8 +78,8 @@
 >23	byte	!1		FMC-
 >23	byte	1		FSC-
 >16	string	x		\b%.3s
->15	byte	x		\b, mfr %02X
->20	byte	x		(Rev.%02u)
+>15	ubyte	x		\b, mfr %02X
+>20	ubyte	x		(Rev.%02u)
 
 # Headered version.
 0	string	FDS\x1A
@@ -228,21 +228,56 @@
 >0x10	use	sega-mega-drive-header
 >0	byte	x			\b, 2352-byte sectors
 
-# Sega Mega Drive, 32X, Pico, and Mega CD Boot ROM images.
+# Sega Mega Drive: Identify the system ID.
 0x100		string	SEGA
->0x3C0		bequad	0x4D41525320434845	Sega 32X ROM image
+>0x3C0		string	MARS\ CHECK\ MODE	Sega 32X ROM image
 !:mime		application/x-genesis-32x-rom
 >>0		use	sega-mega-drive-header
->0x3C0		bequad	!0x4D41525320434845
->>0x105		belong	0x5049434F	Sega Pico ROM image
+>0x104		string	\ PICO			Sega Pico ROM image
 !:mime		application/x-sega-pico-rom
->>>0		use	sega-mega-drive-header
->>0x105		belong	!0x5049434F
->>>0x180	beshort	0x4252		Sega Mega CD Boot ROM image
+>>0		use	sega-mega-drive-header
+>0x104		string	TOYS\ PICO		Sega Pico ROM image
+!:mime		application/x-sega-pico-rom
+>>0		use	sega-mega-drive-header
+>0x104		string	\ TOYS\ PICO		Sega Pico ROM image
+!:mime		application/x-sega-pico-rom
+>>0		use	sega-mega-drive-header
+>0x104		string	\ IAC			Sega Pico ROM image
+!:mime		application/x-sega-pico-rom
+>>0		use	sega-mega-drive-header
+>0x104		string	\ TERA68K		Sega Teradrive (68K) ROM image
+!:mime		application/x-sega-teradrive-rom
+>>0		use	sega-mega-drive-header
+>0x104		string	\ TERA286		Sega Teradrive (286) ROM image
+!:mime		application/x-sega-teradrive-rom
+>>0		use	sega-mega-drive-header
+>0x180		string	BR			Sega Mega CD Boot ROM image
 !:mime		application/x-genesis-rom
->>>0x180	beshort	!0x4252		Sega Mega Drive / Genesis ROM image
+>>0		use	sega-mega-drive-header
+>0x104		default	x			Sega Mega Drive / Genesis ROM image
 !:mime		application/x-genesis-rom
->>>0		use	sega-mega-drive-header
+>>0		use	sega-mega-drive-header
+
+# Sega Mega Drive: Some ROMs have "SEGA" at 0x101, not 0x100.
+0x100		string	\ SEGA			Sega Mega Drive / Genesis ROM image
+>0		use	sega-mega-drive-header
+
+# Sega Pico ROMs that don't start with "SEGA".
+0x100		string	SAMSUNG\ PICO		Samsung Pico ROM image
+!:mime		application/x-sega-pico-rom
+>0		use	sega-mega-drive-header
+0x100		string	IMA\ IKUNOUJYUKU	Samsung Pico ROM image
+!:mime		application/x-sega-pico-rom
+>0		use	sega-mega-drive-header
+0x100		string	IMA IKUNOJYUKU		Samsung Pico ROM image
+!:mime		application/x-sega-pico-rom
+>0		use	sega-mega-drive-header
+
+# Sega Picture Magic (modified 32X)
+0x100		string	Picture\ Magic
+>0x3C0		string	PICTURE MAGIC-01	Sega 32X ROM image
+!:mime		application/x-genesis-32x-rom
+>>0		use	sega-mega-drive-header
 
 #------------------------------------------------------------------------------
 # genesis: file(1) magic for the Super MegaDrive ROM dump format
@@ -474,12 +509,13 @@
 # - https://neogpc.googlecode.com/svn-history/r10/trunk/src/core/neogpc.cpp
 # - https://www.devrs.com/ngp/files/ngpctech.txt
 #
-0x0A	string	BY\ SNK\ CORPORATION	Neo Geo Pocket
+0x0A	string		BY\ SNK\ CORPORATION	Neo Geo Pocket
 !:mime	application/x-neo-geo-pocket-rom
->0x23	byte	0x10			Color
->0	byte	x			ROM image
->0x24	string	>\0			\b: "%.12s"
->0x1F	byte	0xFF			(debug mode enabled)
+>0x23	byte		0x10			Color
+>0	byte		x			ROM image
+>0x24	string		>\0			\b: "%.12s"
+>0x21	uleshort	x			\b, NEOP%04X
+>0x1F	ubyte		0xFF			(debug mode enabled)
 
 #------------------------------------------------------------------------------
 # msx: file(1) magic for MSX game cartridge dumps
@@ -639,17 +675,21 @@
 >>0	use	xbox-360-package
 
 # Atari Lynx cartridge dump (EXE/BLL header)
-# From: "Stefan A. Haubenthal" <polluks@web.de>
-
+# From: "Stefan A. Haubenthal" <polluks@sdf.lonestar.org>
+# Reference:
+# https://raw.githubusercontent.com/cc65/cc65/master/libsrc/lynx/exehdr.s
 # Double-check that the image type matches too, 0x8008 conflicts with
 # 8 character OMF-86 object file headers.
 0	beshort		0x8008
 >6	string		BS93		Lynx homebrew cartridge
 !:mime	application/x-atari-lynx-rom
 >>2	beshort		x		\b, RAM start $%04x
->6	string		LYNX		Lynx cartridge
+0	string		LYNX		Lynx cartridge
 !:mime	application/x-atari-lynx-rom
->>2	beshort		x		\b, RAM start $%04x
+>4	leshort/4	>0		\b, bank 0 %dk
+>6	leshort/4	>0		\b, bank 1 %dk
+>10	string		>\0		\b, "%.32s"
+>42	string		>\0		\b, "%.16s"
 
 # Opera file system that is used on the 3DO console
 # From: Serge van den Boom <svdb@stack.nl>
@@ -898,6 +938,16 @@
 !:mime	application/x-gamecube-rom
 >>>>0x8000	use	nintendo-gcn-disc-common
 
+# Type: Nintendo GameCube/Wii disc image (RVZ format)
+0	string		RVZ\001	Nintendo
+>0x48	belong		1	GameCube
+!:mime	application/x-gamecube-rom
+>0x48	belong		2	Wii
+!:mime	application/x-wii-rom
+>0x48	default		x	GameCube/Wii
+>0x48	belong		x	disc image (RVZ format):
+>>0x58	use		nintendo-gcn-disc-common
+
 #------------------------------------------------------------------------------
 # Nintendo 3DS file formats.
 #
@@ -1126,14 +1176,3 @@
 >>0x34	ubyte		1	[FastROM]
 >>0x35	ubyte		1	[SRAM]
 >>0x35	ubyte		3	[Special]
-
-# Type: Nintendo GameCube/Wii disc image (RVZ format)
-0	string		RVZ\001	Nintendo
->0x48	belong		1	GameCube
-!:mime	application/x-gamecube-rom
->0x48	belong		2	Wii
-!:mime	application/x-wii-rom
->0x48	default		x	GameCube/Wii
->0x48	belong		x	disc image (RVZ format):
->>0x58	use		nintendo-gcn-disc-common
-

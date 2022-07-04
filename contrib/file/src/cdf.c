@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: cdf.c,v 1.120 2021/09/24 13:59:19 christos Exp $")
+FILE_RCSID("@(#)$File: cdf.c,v 1.121 2021/10/20 13:56:15 christos Exp $")
 #endif
 
 #include <assert.h>
@@ -48,6 +48,12 @@ FILE_RCSID("@(#)$File: cdf.c,v 1.120 2021/09/24 13:59:19 christos Exp $")
 #include <time.h>
 #include <ctype.h>
 #include <limits.h>
+#ifdef HAVE_BYTESWAP_H
+#include <byteswap.h>
+#endif
+#ifdef HAVE_SYS_BSWAP_H
+#include <sys/bswap.h>
+#endif
 
 #ifndef EFTYPE
 #define EFTYPE EINVAL
@@ -124,6 +130,15 @@ cdf_calloc(const char *file __attribute__((__unused__)),
 	return calloc(n, u);
 }
 
+#if defined(HAVE_BYTESWAP_H)
+# define _cdf_tole2(x)	bswap_16(x)
+# define _cdf_tole4(x)	bswap_32(x)
+# define _cdf_tole8(x)	bswap_64(x)
+#elif defined(HAVE_SYS_BSWAP_H)
+# define _cdf_tole2(x)	bswap16(x)
+# define _cdf_tole4(x)	bswap32(x)
+# define _cdf_tole8(x)	bswap64(x)
+#else
 /*
  * swap a short
  */
@@ -173,6 +188,7 @@ _cdf_tole8(uint64_t sv)
 	d[7] = s[0];
 	return rv;
 }
+#endif
 
 /*
  * grab a uint32_t from a possibly unaligned address, and return it in

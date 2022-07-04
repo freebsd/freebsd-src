@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.43 2021/05/25 15:12:03 christos Exp $
+# $File: python,v 1.44 2021/10/20 11:15:35 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -8,6 +8,7 @@
 # often the module starts with a multiline string
 0	string/t	"""	Python script text executable
 # MAGIC as specified in Python/import.c (1.0 to 3.7)
+# and in Lib/importlib/_bootstrap_external.py (3.5+)
 # two bytes of magic followed by "\r\n" in little endian order
 0	belong		0x02099900	python 1.0 byte-compiled
 !:mime application/x-bytecode.python
@@ -214,6 +215,50 @@
 0	belong		0x600d0d0a	python 3.9 byte-compiled
 !:mime application/x-bytecode.python
 0	belong		0x610d0d0a	python 3.9 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x660d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x670d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x680d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x690d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x6a0d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x6b0d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x6c0d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x6d0d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x6e0d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x6f0d0d0a	python 3.10 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x7a0d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x7b0d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x7c0d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x7d0d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x7e0d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x7f0d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x800d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x810d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x820d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x830d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x840d0d0a	python 3.11 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x850d0d0a	python 3.11 byte-compiled
 !:mime application/x-bytecode.python
 
 0	search/1/w	#!\040/usr/bin/python	Python script text executable

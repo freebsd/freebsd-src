@@ -1,19 +1,19 @@
 
 #------------------------------------------------------------------------------
-# $File: javascript,v 1.2 2019/08/05 10:34:26 christos Exp $
+# $File: javascript,v 1.3 2021/12/08 13:42:00 christos Exp $
 # javascript:  magic for javascript and node.js scripts.
 #
-0	search/1/w	#!/bin/node		Node.js script text executable
+0	string/w	#!/bin/node		Node.js script text executable
 !:mime application/javascript
-0	search/1/w	#!/usr/bin/node		Node.js script text executable
+0	string/w	#!/usr/bin/node		Node.js script text executable
 !:mime application/javascript
-0	search/1/w	#!/bin/nodejs		Node.js script text executable
+0	string/w	#!/bin/nodejs		Node.js script text executable
 !:mime application/javascript
-0	search/1/w	#!/usr/bin/nodejs	Node.js script text executable
+0	string/w	#!/usr/bin/nodejs	Node.js script text executable
 !:mime application/javascript
-0	search/1	#!/usr/bin/env\ node	Node.js script text executable
+0	string		#!/usr/bin/env\ node	Node.js script text executable
 !:mime application/javascript
-0	search/1	#!/usr/bin/env\ nodejs	Node.js script text executable
+0	string		#!/usr/bin/env\ nodejs	Node.js script text executable
 !:mime application/javascript
 # Hermes by Facebook https://hermesengine.dev/
 # https://github.com/facebook/hermes/blob/master/include/hermes/\

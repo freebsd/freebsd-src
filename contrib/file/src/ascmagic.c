@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: ascmagic.c,v 1.109 2021/02/05 23:01:40 christos Exp $")
+FILE_RCSID("@(#)$File: ascmagic.c,v 1.110 2021/12/06 15:33:00 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -273,8 +273,8 @@ file_ascmagic_with_encoding(struct magic_set *ms, const struct buffer *b,
 				goto done;
 
 		if (has_long_lines)
-			if (file_printf(ms, ", with very long lines (%zu)",
-			    has_long_lines) == -1)
+			if (file_printf(ms, ", with very long lines (%"
+			    SIZE_T_FORMAT "u)", has_long_lines) == -1)
 				goto done;
 
 		/*

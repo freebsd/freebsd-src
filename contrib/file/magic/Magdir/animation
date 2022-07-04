@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.87 2021/08/24 09:25:11 christos Exp $
+# $File: animation,v 1.88 2022/05/14 22:06:04 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -940,6 +940,7 @@
 
 # DIF digital video file format <mpruett@sgi.com>
 0	belong&0xffffff00	0x1f070000      DIF
+!:mime  video/x-dv
 >4	byte			&0x01		(DVCPRO) movie file
 >4	byte			^0x01		(DV) movie file
 >3	byte			&0x80		(PAL)
