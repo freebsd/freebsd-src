@@ -257,7 +257,6 @@ class TestIP6OutputLL(BaseTestIP6Ouput):
         assert rx_obj["dst_iface_alias"] == "if2"
 
 
-@pytest.mark.skip(reason="Currently fails")
 class TestIP6OutputNhopLL(BaseTestIP6Ouput):
     def vnet2_handler(self, vnet, obj_map, pipe):
         """Generic listener that sends first received packet with metadata
