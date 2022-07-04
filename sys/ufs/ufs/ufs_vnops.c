@@ -1576,17 +1576,17 @@ relock:
 			 * .. is rewritten below.
 			 */
 			if (tdp->i_nlink >= UFS_LINK_MAX) {
-				if (!DOINGSOFTDEP(tdvp) ||
-				    tdp->i_effnlink >= UFS_LINK_MAX) {
-					error = EMLINK;
-					goto unlockout;
-				}
 				fip->i_effnlink--;
 				fip->i_nlink--;
 				DIP_SET(fip, i_nlink, fip->i_nlink);
 				UFS_INODE_SET_FLAG(fip, IN_CHANGE);
 				if (DOINGSOFTDEP(fvp))
 					softdep_revert_link(tdp, fip);
+				if (!DOINGSOFTDEP(tdvp) ||
+				    tdp->i_effnlink >= UFS_LINK_MAX) {
+					error = EMLINK;
+					goto unlockout;
+				}
 				MPASS(want_seqc_end);
 				if (tvp != NULL)
 					vn_seqc_write_end(tvp);
