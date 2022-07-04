@@ -669,6 +669,11 @@ dummynet_task(void *context, int pending)
 		memset(&q, 0, sizeof(struct mq));
 		CURVNET_SET(vnet_iter);
 
+		if (! V_dn_cfg.init_done) {
+			CURVNET_RESTORE();
+			continue;
+		}
+
 		DN_BH_WLOCK();
 
 		/* Update number of lost(coalesced) ticks. */
