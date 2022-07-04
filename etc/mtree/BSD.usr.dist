@@ -35,11 +35,13 @@
     ..
     lib
         clang
-            14.0.5
+            15.0.0
                 include
                     cuda_wrappers
                     ..
                     fuzzer
+                    ..
+                    hlsl
                     ..
                     openmp_wrappers
                     ..

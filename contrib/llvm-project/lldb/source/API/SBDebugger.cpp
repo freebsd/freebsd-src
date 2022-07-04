@@ -6,10 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "lldb/API/SBDebugger.h"
 #include "SystemInitializerFull.h"
 #include "lldb/Utility/Instrumentation.h"
-
-#include "lldb/API/SBDebugger.h"
+#include "lldb/Utility/LLDBLog.h"
 
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBCommandInterpreter.h"
@@ -27,6 +27,7 @@
 #include "lldb/API/SBStructuredData.h"
 #include "lldb/API/SBTarget.h"
 #include "lldb/API/SBThread.h"
+#include "lldb/API/SBTrace.h"
 #include "lldb/API/SBTypeCategory.h"
 #include "lldb/API/SBTypeFilter.h"
 #include "lldb/API/SBTypeFormat.h"
@@ -35,6 +36,7 @@
 #include "lldb/API/SBTypeSynthetic.h"
 
 #include "lldb/Core/Debugger.h"
+#include "lldb/Core/DebuggerEvents.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Progress.h"
 #include "lldb/Core/StreamFile.h"
@@ -56,6 +58,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Signals.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -151,10 +155,9 @@ const char *SBDebugger::GetProgressFromEvent(const lldb::SBEvent &event,
                                              uint64_t &completed,
                                              uint64_t &total,
                                              bool &is_debugger_specific) {
-  LLDB_INSTRUMENT_VA(event, progress_id, completed, total,
-                     is_debugger_specific);
-  const Debugger::ProgressEventData *progress_data =
-      Debugger::ProgressEventData::GetEventDataFromEvent(event.get());
+  LLDB_INSTRUMENT_VA(event);
+  const ProgressEventData *progress_data =
+      ProgressEventData::GetEventDataFromEvent(event.get());
   if (progress_data == nullptr)
     return nullptr;
   progress_id = progress_data->GetID();
@@ -162,6 +165,26 @@ const char *SBDebugger::GetProgressFromEvent(const lldb::SBEvent &event,
   total = progress_data->GetTotal();
   is_debugger_specific = progress_data->IsDebuggerSpecific();
   return progress_data->GetMessage().c_str();
+}
+
+lldb::SBStructuredData
+SBDebugger::GetDiagnosticFromEvent(const lldb::SBEvent &event) {
+  LLDB_INSTRUMENT_VA(event);
+
+  const DiagnosticEventData *diagnostic_data =
+      DiagnosticEventData::GetEventDataFromEvent(event.get());
+  if (!diagnostic_data)
+    return {};
+
+  auto dictionary = std::make_unique<StructuredData::Dictionary>();
+  dictionary->AddStringItem("message", diagnostic_data->GetMessage());
+  dictionary->AddStringItem("type", diagnostic_data->GetPrefix());
+  dictionary->AddBooleanItem("debugger_specific",
+                             diagnostic_data->IsDebuggerSpecific());
+
+  SBStructuredData data;
+  data.m_impl_up->SetObjectSP(std::move(dictionary));
+  return data;
 }
 
 SBBroadcaster SBDebugger::GetBroadcaster() {
@@ -184,6 +207,15 @@ lldb::SBError SBDebugger::InitializeWithErrorHandling() {
     error.SetError(Status(std::move(e)));
   }
   return error;
+}
+
+void SBDebugger::PrintStackTraceOnError() {
+  LLDB_INSTRUMENT();
+
+  llvm::EnablePrettyStackTrace();
+  static std::string executable =
+      llvm::sys::fs::getMainExecutable(nullptr, nullptr);
+  llvm::sys::PrintStackTraceOnErrorSignal(executable);
 }
 
 void SBDebugger::Terminate() {
@@ -236,6 +268,7 @@ SBDebugger SBDebugger::Create(bool source_init_files,
     interp.get()->SkipLLDBInitFiles(false);
     interp.get()->SkipAppInitFiles(false);
     SBCommandReturnObject result;
+    interp.SourceInitFileInGlobalDirectory(result);
     interp.SourceInitFileInHomeDirectory(result, false);
   } else {
     interp.get()->SkipLLDBInitFiles(true);
@@ -760,7 +793,7 @@ lldb::SBTarget SBDebugger::CreateTarget(const char *filename,
     sb_error.SetErrorString("invalid debugger");
   }
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
   LLDB_LOGF(log,
             "SBDebugger(%p)::CreateTarget (filename=\"%s\", triple=%s, "
             "platform_name=%s, add_dependent_modules=%u, error=%s) => "
@@ -788,7 +821,7 @@ SBDebugger::CreateTargetWithFileAndTargetTriple(const char *filename,
     sb_target.SetSP(target_sp);
   }
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
   LLDB_LOGF(log,
             "SBDebugger(%p)::CreateTargetWithFileAndTargetTriple "
             "(filename=\"%s\", triple=%s) => SBTarget(%p)",
@@ -802,7 +835,7 @@ SBTarget SBDebugger::CreateTargetWithFileAndArch(const char *filename,
                                                  const char *arch_cstr) {
   LLDB_INSTRUMENT_VA(this, filename, arch_cstr);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
 
   SBTarget sb_target;
   TargetSP target_sp;
@@ -858,7 +891,7 @@ SBTarget SBDebugger::CreateTarget(const char *filename) {
     if (error.Success())
       sb_target.SetSP(target_sp);
   }
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
   LLDB_LOGF(log,
             "SBDebugger(%p)::CreateTarget (filename=\"%s\") => SBTarget(%p)",
             static_cast<void *>(m_opaque_sp.get()), filename,
@@ -873,7 +906,7 @@ SBTarget SBDebugger::GetDummyTarget() {
   if (m_opaque_sp) {
     sb_target.SetSP(m_opaque_sp->GetDummyTarget().shared_from_this());
   }
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
   LLDB_LOGF(log, "SBDebugger(%p)::GetDummyTarget() => SBTarget(%p)",
             static_cast<void *>(m_opaque_sp.get()),
             static_cast<void *>(sb_target.GetSP().get()));
@@ -894,7 +927,7 @@ bool SBDebugger::DeleteTarget(lldb::SBTarget &target) {
     }
   }
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
   LLDB_LOGF(log, "SBDebugger(%p)::DeleteTarget (SBTarget(%p)) => %i",
             static_cast<void *>(m_opaque_sp.get()),
             static_cast<void *>(target.m_opaque_sp.get()), result);
@@ -977,7 +1010,7 @@ uint32_t SBDebugger::GetNumTargets() {
 SBTarget SBDebugger::GetSelectedTarget() {
   LLDB_INSTRUMENT_VA(this);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
 
   SBTarget sb_target;
   TargetSP target_sp;
@@ -1001,7 +1034,7 @@ SBTarget SBDebugger::GetSelectedTarget() {
 void SBDebugger::SetSelectedTarget(SBTarget &sb_target) {
   LLDB_INSTRUMENT_VA(this, sb_target);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
 
   TargetSP target_sp(sb_target.GetSP());
   if (m_opaque_sp) {
@@ -1019,7 +1052,7 @@ void SBDebugger::SetSelectedTarget(SBTarget &sb_target) {
 SBPlatform SBDebugger::GetSelectedPlatform() {
   LLDB_INSTRUMENT_VA(this);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
 
   SBPlatform sb_platform;
   DebuggerSP debugger_sp(m_opaque_sp);
@@ -1036,7 +1069,7 @@ SBPlatform SBDebugger::GetSelectedPlatform() {
 void SBDebugger::SetSelectedPlatform(SBPlatform &sb_platform) {
   LLDB_INSTRUMENT_VA(this, sb_platform);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
 
   DebuggerSP debugger_sp(m_opaque_sp);
   if (debugger_sp) {
@@ -1123,7 +1156,7 @@ void SBDebugger::DispatchInput(void *baton, const void *data, size_t data_len) {
 void SBDebugger::DispatchInput(const void *data, size_t data_len) {
   LLDB_INSTRUMENT_VA(this, data, data_len);
 
-  //    Log *log(GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+  //    Log *log(GetLog (LLDBLog::API));
   //
   //    if (log)
   //        LLDB_LOGF(log, "SBDebugger(%p)::DispatchInput (data=\"%.*s\",
@@ -1312,7 +1345,7 @@ void SBDebugger::SetTerminalWidth(uint32_t term_width) {
 const char *SBDebugger::GetPrompt() const {
   LLDB_INSTRUMENT_VA(this);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  Log *log = GetLog(LLDBLog::API);
 
   LLDB_LOGF(log, "SBDebugger(%p)::GetPrompt () => \"%s\"",
             static_cast<void *>(m_opaque_sp.get()),
@@ -1428,21 +1461,11 @@ SBError SBDebugger::SetCurrentPlatform(const char *platform_name_cstr) {
   SBError sb_error;
   if (m_opaque_sp) {
     if (platform_name_cstr && platform_name_cstr[0]) {
-      ConstString platform_name(platform_name_cstr);
-      PlatformSP platform_sp(Platform::Find(platform_name));
-
-      if (platform_sp) {
-        // Already have a platform with this name, just select it
-        m_opaque_sp->GetPlatformList().SetSelectedPlatform(platform_sp);
-      } else {
-        // We don't have a platform by this name yet, create one
-        platform_sp = Platform::Create(platform_name, sb_error.ref());
-        if (platform_sp) {
-          // We created the platform, now append and select it
-          bool make_selected = true;
-          m_opaque_sp->GetPlatformList().Append(platform_sp, make_selected);
-        }
-      }
+      PlatformList &platforms = m_opaque_sp->GetPlatformList();
+      if (PlatformSP platform_sp = platforms.GetOrCreate(platform_name_cstr))
+        platforms.SetSelectedPlatform(platform_sp);
+      else
+        sb_error.ref().SetErrorString("platform not found");
     } else {
       sb_error.ref().SetErrorString("invalid platform name");
     }
@@ -1598,7 +1621,8 @@ bool SBDebugger::EnableLog(const char *channel, const char **categories) {
     std::string error;
     llvm::raw_string_ostream error_stream(error);
     return m_opaque_sp->EnableLog(channel, GetCategoryArray(categories), "",
-                                  log_options, error_stream);
+                                  log_options, /*buffer_size=*/0,
+                                  eLogHandlerStream, error_stream);
   } else
     return false;
 }
@@ -1610,4 +1634,11 @@ void SBDebugger::SetLoggingCallback(lldb::LogOutputCallback log_callback,
   if (m_opaque_sp) {
     return m_opaque_sp->SetLoggingCallback(log_callback, baton);
   }
+}
+
+SBTrace
+SBDebugger::LoadTraceFromFile(SBError &error,
+                              const SBFileSpec &trace_description_file) {
+  LLDB_INSTRUMENT_VA(this, error, trace_description_file);
+  return SBTrace::LoadTraceFromFile(error, *this, trace_description_file);
 }

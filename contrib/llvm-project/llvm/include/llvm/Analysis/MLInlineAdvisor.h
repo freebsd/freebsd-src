@@ -9,6 +9,7 @@
 #ifndef LLVM_ANALYSIS_MLINLINEADVISOR_H
 #define LLVM_ANALYSIS_MLINLINEADVISOR_H
 
+#include "llvm/Analysis/FunctionPropertiesAnalysis.h"
 #include "llvm/Analysis/InlineAdvisor.h"
 #include "llvm/Analysis/LazyCallGraph.h"
 #include "llvm/Analysis/MLModelRunner.h"
@@ -19,6 +20,7 @@
 #include <memory>
 
 namespace llvm {
+class DiagnosticInfoOptimizationBase;
 class Module;
 class MLInlineAdvice;
 
@@ -29,16 +31,19 @@ public:
 
   virtual ~MLInlineAdvisor() = default;
 
-  void onPassEntry() override;
+  void onPassEntry(LazyCallGraph::SCC *SCC) override;
   void onPassExit(LazyCallGraph::SCC *SCC) override;
 
-  int64_t getIRSize(const Function &F) const { return F.getInstructionCount(); }
+  int64_t getIRSize(Function &F) const {
+    return getCachedFPI(F).TotalInstructionCount;
+  }
   void onSuccessfulInlining(const MLInlineAdvice &Advice,
                             bool CalleeWasDeleted);
 
   bool isForcedToStop() const { return ForceStop; }
   int64_t getLocalCalls(Function &F);
   const MLModelRunner &getModelRunner() const { return *ModelRunner.get(); }
+  FunctionPropertiesInfo &getCachedFPI(Function &) const;
 
 protected:
   std::unique_ptr<InlineAdvice> getAdviceImpl(CallBase &CB) override;
@@ -60,11 +65,11 @@ protected:
 
 private:
   int64_t getModuleIRSize() const;
+  std::unique_ptr<InlineAdvice>
+  getSkipAdviceIfUnreachableCallsite(CallBase &CB);
+  void print(raw_ostream &OS) const override;
 
-  void print(raw_ostream &OS) const override {
-    OS << "[MLInlineAdvisor] Nodes: " << NodeCount << " Edges: " << EdgeCount
-       << "\n";
-  }
+  mutable DenseMap<const Function *, FunctionPropertiesInfo> FPICache;
 
   LazyCallGraph &CG;
 
@@ -75,7 +80,7 @@ private:
   std::map<const LazyCallGraph::Node *, unsigned> FunctionLevels;
   const int32_t InitialIRSize = 0;
   int32_t CurrentIRSize = 0;
-  std::deque<const LazyCallGraph::Node *> NodesInLastSCC;
+  llvm::SmallPtrSet<const LazyCallGraph::Node *, 1> NodesInLastSCC;
   DenseSet<const LazyCallGraph::Node *> AllNodes;
   bool ForceStop = false;
 };
@@ -85,16 +90,7 @@ private:
 class MLInlineAdvice : public InlineAdvice {
 public:
   MLInlineAdvice(MLInlineAdvisor *Advisor, CallBase &CB,
-                 OptimizationRemarkEmitter &ORE, bool Recommendation)
-      : InlineAdvice(Advisor, CB, ORE, Recommendation),
-        CallerIRSize(Advisor->isForcedToStop() ? 0
-                                               : Advisor->getIRSize(*Caller)),
-        CalleeIRSize(Advisor->isForcedToStop() ? 0
-                                               : Advisor->getIRSize(*Callee)),
-        CallerAndCalleeEdges(Advisor->isForcedToStop()
-                                 ? 0
-                                 : (Advisor->getLocalCalls(*Caller) +
-                                    Advisor->getLocalCalls(*Callee))) {}
+                 OptimizationRemarkEmitter &ORE, bool Recommendation);
   virtual ~MLInlineAdvice() = default;
 
   void recordInliningImpl() override;
@@ -108,13 +104,17 @@ public:
   const int64_t CallerIRSize;
   const int64_t CalleeIRSize;
   const int64_t CallerAndCalleeEdges;
+  void updateCachedCallerFPI(FunctionAnalysisManager &FAM) const;
 
 private:
   void reportContextForRemark(DiagnosticInfoOptimizationBase &OR);
-
   MLInlineAdvisor *getAdvisor() const {
     return static_cast<MLInlineAdvisor *>(Advisor);
   };
+  // Make a copy of the FPI of the caller right before inlining. If inlining
+  // fails, we can just update the cache with that value.
+  const FunctionPropertiesInfo PreInlineCallerFPI;
+  Optional<FunctionPropertiesUpdater> FPU;
 };
 
 } // namespace llvm

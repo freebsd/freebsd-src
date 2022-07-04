@@ -31,6 +31,12 @@ public:
 
   StorageLocation(Kind LocKind, QualType Type) : LocKind(LocKind), Type(Type) {}
 
+  // Non-copyable because addresses of storage locations are used as their
+  // identities throughout framework and user code. The framework is responsible
+  // for construction and destruction of storage locations.
+  StorageLocation(const StorageLocation &) = delete;
+  StorageLocation &operator=(const StorageLocation &) = delete;
+
   virtual ~StorageLocation() = default;
 
   Kind getKind() const { return LocKind; }
@@ -56,7 +62,9 @@ public:
 
 /// A storage location which is subdivided into smaller storage locations that
 /// can be traced independently by abstract interpretation. For example: a
-/// struct with public members.
+/// struct with public members. The child map is flat, so when used for a struct
+/// or class type, all accessible members of base struct and class types are
+/// directly accesible as children of this location.
 class AggregateStorageLocation final : public StorageLocation {
 public:
   explicit AggregateStorageLocation(QualType Type)

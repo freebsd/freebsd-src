@@ -17,16 +17,19 @@
 #include <__algorithm/min.h>
 #include <__algorithm/rotate.h>
 #include <__algorithm/transform.h>
+#include <__assert>
 #include <__concepts/arithmetic.h>
+#include <__concepts/same_as.h>
 #include <__config>
-#include <__debug>
 #include <__format/format_error.h>
 #include <__format/format_fwd.h>
 #include <__format/format_string.h>
 #include <__format/formatter.h>
 #include <__format/formatter_integral.h>
 #include <__format/parser_std_format_spec.h>
+#include <__memory/allocator.h>
 #include <__utility/move.h>
+#include <__utility/unreachable.h>
 #include <charconv>
 #include <cmath>
 
@@ -44,12 +47,6 @@ _LIBCPP_PUSH_MACROS
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 #if _LIBCPP_STD_VER > 17
-
-// TODO FMT Remove this once we require compilers with proper C++20 support.
-// If the compiler has no concepts support, the format header will be disabled.
-// Without concepts support enable_if needs to be used and that too much effort
-// to support compilers with partial C++20 support.
-#  if !defined(_LIBCPP_HAS_NO_CONCEPTS)
 
 namespace __format_spec {
 
@@ -450,7 +447,7 @@ _LIBCPP_HIDE_FROM_ABI _OutIt __format_locale_specific_form(_OutIt __out_it, cons
     if (__digits <= __grouping[0])
       __grouping.clear();
     else
-      __grouping = __determine_grouping(__digits, __grouping);
+      __grouping = __formatter::__determine_grouping(__digits, __grouping);
   }
 
   size_t __size = __result.__last - __buffer.begin() + // Formatted string
@@ -689,7 +686,7 @@ private:
 
     default:
       _LIBCPP_ASSERT(false, "The parser should have validated the type");
-      _LIBCPP_UNREACHABLE();
+      __libcpp_unreachable();
     }
   }
 };
@@ -705,8 +702,6 @@ struct _LIBCPP_TEMPLATE_VIS _LIBCPP_AVAILABILITY_FORMAT formatter<double, _CharT
 template <__formatter::__char_type _CharT>
 struct _LIBCPP_TEMPLATE_VIS _LIBCPP_AVAILABILITY_FORMAT formatter<long double, _CharT>
     : public __format_spec::__formatter_floating_point<_CharT> {};
-
-#  endif // !defined(_LIBCPP_HAS_NO_CONCEPTS)
 
 #endif //_LIBCPP_STD_VER > 17
 

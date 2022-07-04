@@ -20,6 +20,7 @@
 
 namespace llvm {
 
+struct Align;
 class Constant;
 class DataLayout;
 class Function;
@@ -276,7 +277,7 @@ public:
   }
 
   /// If supported, return the function entry point symbol.
-  /// Otherwise, returns nulltpr.
+  /// Otherwise, returns nullptr.
   /// Func must be a function or an alias which has a function as base object.
   virtual MCSymbol *getFunctionEntryPointSymbol(const GlobalValue *Func,
                                                 const TargetMachine &TM) const {

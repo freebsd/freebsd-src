@@ -19,17 +19,12 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
-#include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormattedStream.h"
 #include <algorithm>
-#include <memory>
 #include <tuple>
 
 using namespace llvm;
@@ -75,7 +70,7 @@ static const AllocaInst *findMatchingAlloca(const IntrinsicInst &II,
   auto AllocaSizeInBits = AI->getAllocationSizeInBits(DL);
   if (!AllocaSizeInBits)
     return nullptr;
-  int64_t AllocaSize = AllocaSizeInBits.getValue() / 8;
+  int64_t AllocaSize = *AllocaSizeInBits / 8;
 
   auto *Size = dyn_cast<ConstantInt>(II.getArgOperand(0));
   if (!Size)

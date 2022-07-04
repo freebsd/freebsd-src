@@ -19,6 +19,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstBuilder.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCAsmParserExtension.h"
@@ -1589,9 +1590,11 @@ SystemZAsmParser::parsePCRel(OperandVector &Operands, int64_t MinVal,
   if (getParser().parseExpression(Expr))
     return MatchOperand_NoMatch;
 
-  auto isOutOfRangeConstant = [&](const MCExpr *E) -> bool {
+  auto isOutOfRangeConstant = [&](const MCExpr *E, bool Negate) -> bool {
     if (auto *CE = dyn_cast<MCConstantExpr>(E)) {
       int64_t Value = CE->getValue();
+      if (Negate)
+        Value = -Value;
       if ((Value & 1) || Value < MinVal || Value > MaxVal)
         return true;
     }
@@ -1605,7 +1608,7 @@ SystemZAsmParser::parsePCRel(OperandVector &Operands, int64_t MinVal,
       Error(StartLoc, "Expected PC-relative expression");
       return MatchOperand_ParseFail;
     }
-    if (isOutOfRangeConstant(CE)) {
+    if (isOutOfRangeConstant(CE, false)) {
       Error(StartLoc, "offset out of range");
       return MatchOperand_ParseFail;
     }
@@ -1620,8 +1623,9 @@ SystemZAsmParser::parsePCRel(OperandVector &Operands, int64_t MinVal,
   // For consistency with the GNU assembler, conservatively assume that a
   // constant offset must by itself be within the given size range.
   if (const auto *BE = dyn_cast<MCBinaryExpr>(Expr))
-    if (isOutOfRangeConstant(BE->getLHS()) ||
-        isOutOfRangeConstant(BE->getRHS())) {
+    if (isOutOfRangeConstant(BE->getLHS(), false) ||
+        isOutOfRangeConstant(BE->getRHS(),
+                             BE->getOpcode() == MCBinaryExpr::Sub)) {
       Error(StartLoc, "offset out of range");
       return MatchOperand_ParseFail;
     }

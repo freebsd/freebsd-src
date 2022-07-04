@@ -125,9 +125,8 @@ const char *AMDGCN::OpenMPLinker::constructLLVMLinkCommand(
       //    the device-libs bitcode through that on the way to this llvm-link
       SmallVector<std::string, 12> BCLibs =
           AMDGPUOpenMPTC.getCommonDeviceLibNames(Args, SubArchName.str());
-      llvm::for_each(BCLibs, [&](StringRef BCFile) {
+      for (StringRef BCFile : BCLibs)
         CmdArgs.push_back(Args.MakeArgString(BCFile));
-      });
     }
   }
 
@@ -289,15 +288,7 @@ void AMDGPUOpenMPToolChain::addClangTargetOptions(
   if (getDriver().isUsingLTO(/* IsOffload */ true))
     return;
 
-  std::string BitcodeSuffix;
-  if (DriverArgs.hasFlag(options::OPT_fopenmp_target_new_runtime,
-                         options::OPT_fno_openmp_target_new_runtime, true))
-    BitcodeSuffix = "new-amdgpu-" + GPUArch;
-  else
-    BitcodeSuffix = "amdgcn-" + GPUArch;
-
-  addOpenMPDeviceRTL(getDriver(), DriverArgs, CC1Args, BitcodeSuffix,
-                     getTriple());
+  addOpenMPDeviceRTL(getDriver(), DriverArgs, CC1Args, GPUArch, getTriple());
 }
 
 llvm::opt::DerivedArgList *AMDGPUOpenMPToolChain::TranslateArgs(
@@ -315,9 +306,10 @@ llvm::opt::DerivedArgList *AMDGPUOpenMPToolChain::TranslateArgs(
       if (!llvm::is_contained(*DAL, A))
         DAL->append(A);
 
-    std::string Arch = DAL->getLastArgValue(options::OPT_march_EQ).str();
-    if (Arch.empty()) {
-      checkSystemForAMDGPU(Args, *this, Arch);
+    if (!DAL->hasArg(options::OPT_march_EQ)) {
+      std::string Arch = BoundArch.str();
+      if (BoundArch.empty())
+        checkSystemForAMDGPU(Args, *this, Arch);
       DAL->AddJoinedArg(nullptr, Opts.getOption(options::OPT_march_EQ), Arch);
     }
 

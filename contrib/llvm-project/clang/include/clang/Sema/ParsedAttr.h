@@ -21,7 +21,6 @@
 #include "clang/Sema/Ownership.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Registry.h"
 #include "llvm/Support/VersionTuple.h"
@@ -49,8 +48,12 @@ struct ParsedAttrInfo {
   unsigned NumArgs : 4;
   /// The number of optional arguments of this attributes.
   unsigned OptArgs : 4;
+  /// The number of non-fake arguments specified in the attribute definition.
+  unsigned NumArgMembers : 4;
   /// True if the parsing does not match the semantic content.
   unsigned HasCustomParsing : 1;
+  // True if this attribute accepts expression parameter pack expansions.
+  unsigned AcceptsExprPack : 1;
   /// True if this attribute is only available for certain targets.
   unsigned IsTargetSpecific : 1;
   /// True if this attribute applies to types.
@@ -70,12 +73,29 @@ struct ParsedAttrInfo {
   // The names of the known arguments of this attribute.
   ArrayRef<const char *> ArgNames;
 
-  ParsedAttrInfo(AttributeCommonInfo::Kind AttrKind =
-                     AttributeCommonInfo::NoSemaHandlerAttribute)
-      : AttrKind(AttrKind), NumArgs(0), OptArgs(0), HasCustomParsing(0),
-        IsTargetSpecific(0), IsType(0), IsStmt(0), IsKnownToGCC(0),
-        IsSupportedByPragmaAttribute(0) {}
+protected:
+  constexpr ParsedAttrInfo(AttributeCommonInfo::Kind AttrKind =
+                               AttributeCommonInfo::NoSemaHandlerAttribute)
+      : AttrKind(AttrKind), NumArgs(0), OptArgs(0), NumArgMembers(0),
+        HasCustomParsing(0), AcceptsExprPack(0), IsTargetSpecific(0), IsType(0),
+        IsStmt(0), IsKnownToGCC(0), IsSupportedByPragmaAttribute(0) {}
 
+  constexpr ParsedAttrInfo(AttributeCommonInfo::Kind AttrKind, unsigned NumArgs,
+                           unsigned OptArgs, unsigned NumArgMembers,
+                           unsigned HasCustomParsing, unsigned AcceptsExprPack,
+                           unsigned IsTargetSpecific, unsigned IsType,
+                           unsigned IsStmt, unsigned IsKnownToGCC,
+                           unsigned IsSupportedByPragmaAttribute,
+                           ArrayRef<Spelling> Spellings,
+                           ArrayRef<const char *> ArgNames)
+      : AttrKind(AttrKind), NumArgs(NumArgs), OptArgs(OptArgs),
+        NumArgMembers(NumArgMembers), HasCustomParsing(HasCustomParsing),
+        AcceptsExprPack(AcceptsExprPack), IsTargetSpecific(IsTargetSpecific),
+        IsType(IsType), IsStmt(IsStmt), IsKnownToGCC(IsKnownToGCC),
+        IsSupportedByPragmaAttribute(IsSupportedByPragmaAttribute),
+        Spellings(Spellings), ArgNames(ArgNames) {}
+
+public:
   virtual ~ParsedAttrInfo() = default;
 
   /// Check if this attribute appertains to D, and issue a diagnostic if not.
@@ -106,6 +126,10 @@ struct ParsedAttrInfo {
   spellingIndexToSemanticSpelling(const ParsedAttr &Attr) const {
     return UINT_MAX;
   }
+  /// Returns true if the specified parameter index for this attribute in
+  /// Attr.td is an ExprArgument or VariadicExprArgument, or a subclass thereof;
+  /// returns false otherwise.
+  virtual bool isParamExpr(size_t N) const { return false; }
   /// Populate Rules with the match rules of this attribute.
   virtual void getPragmaAttributeMatchRules(
       llvm::SmallVectorImpl<std::pair<attr::SubjectMatchRule, bool>> &Rules,
@@ -601,9 +625,13 @@ public:
   bool isStmtAttr() const;
 
   bool hasCustomParsing() const;
+  bool acceptsExprPack() const;
+  bool isParamExpr(size_t N) const;
   unsigned getMinArgs() const;
   unsigned getMaxArgs() const;
+  unsigned getNumArgMembers() const;
   bool hasVariadicArg() const;
+  void handleAttrWithDelayedArgs(Sema &S, Decl *D) const;
   bool diagnoseAppertainsTo(class Sema &S, const Decl *D) const;
   bool diagnoseAppertainsTo(class Sema &S, const Stmt *St) const;
   bool diagnoseMutualExclusion(class Sema &S, const Decl *D) const;
@@ -621,6 +649,18 @@ public:
   bool existsInTarget(const TargetInfo &Target) const;
   bool isKnownToGCC() const;
   bool isSupportedByPragmaAttribute() const;
+
+  /// Returns whether a [[]] attribute, if specified ahead of a declaration,
+  /// should be applied to the decl-specifier-seq instead (i.e. whether it
+  /// "slides" to the decl-specifier-seq).
+  ///
+  /// By the standard, attributes specified before the declaration always
+  /// appertain to the declaration, but historically we have allowed some of
+  /// these attributes to slide to the decl-specifier-seq, so we need to keep
+  /// supporting this behavior.
+  ///
+  /// This may only be called if isStandardAttributeSyntax() returns true.
+  bool slidesFromDeclToDeclSpecLegacyBehavior() const;
 
   /// If the parsed attribute has a semantic equivalent, and it would
   /// have a semantic Spelling enumeration (due to having semantically-distinct
@@ -742,7 +782,7 @@ class AttributePool {
   friend class AttributeFactory;
   friend class ParsedAttributes;
   AttributeFactory &Factory;
-  llvm::TinyPtrVector<ParsedAttr *> Attrs;
+  llvm::SmallVector<ParsedAttr *> Attrs;
 
   void *allocate(size_t size) {
     return Factory.allocate(size);
@@ -867,10 +907,17 @@ public:
 };
 
 class ParsedAttributesView {
-  using VecTy = llvm::TinyPtrVector<ParsedAttr *>;
+  using VecTy = llvm::SmallVector<ParsedAttr *>;
   using SizeType = decltype(std::declval<VecTy>().size());
 
 public:
+  SourceRange Range;
+
+  static const ParsedAttributesView &none() {
+    static const ParsedAttributesView Attrs;
+    return Attrs;
+  }
+
   bool empty() const { return AttrList.empty(); }
   SizeType size() const { return AttrList.size(); }
   ParsedAttr &operator[](SizeType pos) { return *AttrList[pos]; }
@@ -969,15 +1016,19 @@ public:
 
   AttributePool &getPool() const { return pool; }
 
-  void takeAllFrom(ParsedAttributes &attrs) {
-    addAll(attrs.begin(), attrs.end());
-    attrs.clearListOnly();
-    pool.takeAllFrom(attrs.pool);
+  void takeAllFrom(ParsedAttributes &Other) {
+    assert(&Other != this &&
+           "ParsedAttributes can't take attributes from itself");
+    addAll(Other.begin(), Other.end());
+    Other.clearListOnly();
+    pool.takeAllFrom(Other.pool);
   }
 
-  void takeOneFrom(ParsedAttributes &Attrs, ParsedAttr *PA) {
-    Attrs.getPool().remove(PA);
-    Attrs.remove(PA);
+  void takeOneFrom(ParsedAttributes &Other, ParsedAttr *PA) {
+    assert(&Other != this &&
+           "ParsedAttributes can't take attribute from itself");
+    Other.getPool().remove(PA);
+    Other.remove(PA);
     getPool().add(PA);
     addAtEnd(PA);
   }
@@ -985,6 +1036,7 @@ public:
   void clear() {
     clearListOnly();
     pool.clear();
+    Range = SourceRange();
   }
 
   /// Add attribute with expression arguments.
@@ -1068,26 +1120,10 @@ private:
   mutable AttributePool pool;
 };
 
-struct ParsedAttributesWithRange : ParsedAttributes {
-  ParsedAttributesWithRange(AttributeFactory &factory)
-      : ParsedAttributes(factory) {}
-
-  void clear() {
-    ParsedAttributes::clear();
-    Range = SourceRange();
-  }
-
-  SourceRange Range;
-};
-struct ParsedAttributesViewWithRange : ParsedAttributesView {
-  ParsedAttributesViewWithRange() {}
-  void clearListOnly() {
-    ParsedAttributesView::clearListOnly();
-    Range = SourceRange();
-  }
-
-  SourceRange Range;
-};
+/// Consumes the attributes from `First` and `Second` and concatenates them into
+/// `Result`. Sets `Result.Range` to the combined range of `First` and `Second`.
+void takeAndConcatenateAttrs(ParsedAttributes &First, ParsedAttributes &Second,
+                             ParsedAttributes &Result);
 
 /// These constants match the enumerated choices of
 /// err_attribute_argument_n_type and err_attribute_argument_type.

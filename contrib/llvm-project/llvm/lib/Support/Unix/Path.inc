@@ -194,7 +194,7 @@ getprogpath(char ret[PATH_MAX], const char *bin)
 
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
-std::string getMainExecutable(const char *argv0, void *MainAddr) {
+std::string getMainExecutableImpl(const char *argv0, void *MainAddr) {
 #if defined(__APPLE__)
   // On OS X the executable path is saved to the stack by dyld. Reading it
   // from there is much faster than calling dladdr, especially for large
@@ -874,12 +874,14 @@ void mapped_file_region::unmapImpl() {
 
 void mapped_file_region::dontNeedImpl() {
   assert(Mode == mapped_file_region::readonly);
+  if (!Mapping)
+      return;
 #if defined(__MVS__) || defined(_AIX)
   // If we don't have madvise, or it isn't beneficial, treat this as a no-op.
-  return;
+#elif defined(POSIX_MADV_DONTNEED)
+  ::posix_madvise(Mapping, Size, POSIX_MADV_DONTNEED);
 #else
-  if (Mapping)
-    ::madvise(Mapping, Size, MADV_DONTNEED);
+  ::madvise(Mapping, Size, MADV_DONTNEED);
 #endif
 }
 

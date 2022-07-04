@@ -8,7 +8,6 @@
 
 #include "lldb/Host/Config.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/Logging.h"
 #include "lldb/lldb-enumerations.h"
 
 #if LLDB_ENABLE_PYTHON
@@ -113,7 +112,14 @@ StructuredData::DictionarySP ScriptedThreadPythonInterface::GetStopReason() {
 }
 
 StructuredData::ArraySP ScriptedThreadPythonInterface::GetStackFrames() {
-  return nullptr;
+  Status error;
+  StructuredData::ArraySP arr =
+      Dispatch<StructuredData::ArraySP>("get_stackframes", error);
+
+  if (!CheckStructuredDataObject(LLVM_PRETTY_FUNCTION, arr, error))
+    return {};
+
+  return arr;
 }
 
 StructuredData::DictionarySP ScriptedThreadPythonInterface::GetRegisterInfo() {

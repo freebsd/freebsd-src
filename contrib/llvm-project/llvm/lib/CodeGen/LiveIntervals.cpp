@@ -33,22 +33,20 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/CodeGen/StackMaps.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Statepoint.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/CodeGen/StackMaps.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -149,7 +147,7 @@ bool LiveIntervals::runOnMachineFunction(MachineFunction &fn) {
       getRegUnit(i);
   }
   LLVM_DEBUG(dump());
-  return true;
+  return false;
 }
 
 void LiveIntervals::print(raw_ostream &OS, const Module* ) const {
@@ -500,7 +498,7 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
 
   // Create new live ranges with only minimal live segments per def.
   LiveRange NewLR;
-  createSegmentsForValues(NewLR, make_range(li->vni_begin(), li->vni_end()));
+  createSegmentsForValues(NewLR, li->vnis());
   extendSegmentsToUses(NewLR, WorkList, Reg, LaneBitmask::getNone());
 
   // Move the trimmed segments back.
@@ -604,7 +602,7 @@ void LiveIntervals::shrinkToUses(LiveInterval::SubRange &SR, Register Reg) {
 
   // Create a new live ranges with only minimal live segments per def.
   LiveRange NewLR;
-  createSegmentsForValues(NewLR, make_range(SR.vni_begin(), SR.vni_end()));
+  createSegmentsForValues(NewLR, SR.vnis());
   extendSegmentsToUses(NewLR, WorkList, Reg, SR.LaneMask);
 
   // Move the trimmed ranges back.
@@ -913,11 +911,11 @@ static bool hasLiveThroughUse(const MachineInstr *MI, Register Reg) {
   return false;
 }
 
-bool LiveIntervals::checkRegMaskInterference(LiveInterval &LI,
+bool LiveIntervals::checkRegMaskInterference(const LiveInterval &LI,
                                              BitVector &UsableRegs) {
   if (LI.empty())
     return false;
-  LiveInterval::iterator LiveI = LI.begin(), LiveE = LI.end();
+  LiveInterval::const_iterator LiveI = LI.begin(), LiveE = LI.end();
 
   // Use a smaller arrays for local live ranges.
   ArrayRef<SlotIndex> Slots;

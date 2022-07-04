@@ -680,6 +680,10 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
       if (FT->isVariadic()) {
         if (D->getNumParams()) POut << ", ";
         POut << "...";
+      } else if (!D->getNumParams() && !Context.getLangOpts().CPlusPlus) {
+        // The function has a prototype, so it needs to retain the prototype
+        // in C.
+        POut << "void";
       }
     } else if (D->doesThisDeclarationHaveABody() && !D->hasPrototype()) {
       for (unsigned i = 0, e = D->getNumParams(); i != e; ++i) {
@@ -891,12 +895,15 @@ void DeclPrinter::VisitVarDecl(VarDecl *D) {
   Expr *Init = D->getInit();
   if (!Policy.SuppressInitializers && Init) {
     bool ImplicitInit = false;
-    if (CXXConstructExpr *Construct =
-            dyn_cast<CXXConstructExpr>(Init->IgnoreImplicit())) {
+    if (D->isCXXForRangeDecl()) {
+      // FIXME: We should print the range expression instead.
+      ImplicitInit = true;
+    } else if (CXXConstructExpr *Construct =
+                   dyn_cast<CXXConstructExpr>(Init->IgnoreImplicit())) {
       if (D->getInitStyle() == VarDecl::CallInit &&
           !Construct->isListInitialization()) {
         ImplicitInit = Construct->getNumArgs() == 0 ||
-          Construct->getArg(0)->isDefaultArgument();
+                       Construct->getArg(0)->isDefaultArgument();
       }
     }
     if (!ImplicitInit) {

@@ -43,11 +43,33 @@ public:
   /// Callback invoked whenever a source file is entered or exited.
   ///
   /// \param Loc Indicates the new location.
-  /// \param PrevFID the file that was exited if \p Reason is ExitFile.
+  /// \param PrevFID the file that was exited if \p Reason is ExitFile or the
+  /// the file before the new one entered for \p Reason EnterFile.
   virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                            SrcMgr::CharacteristicKind FileType,
                            FileID PrevFID = FileID()) {
   }
+
+  enum class LexedFileChangeReason { EnterFile, ExitFile };
+
+  /// Callback invoked whenever the \p Lexer moves to a different file for
+  /// lexing. Unlike \p FileChanged line number directives and other related
+  /// pragmas do not trigger callbacks to \p LexedFileChanged.
+  ///
+  /// \param FID The \p FileID that the \p Lexer moved to.
+  ///
+  /// \param Reason Whether the \p Lexer entered a new file or exited one.
+  ///
+  /// \param FileType The \p CharacteristicKind of the file the \p Lexer moved
+  /// to.
+  ///
+  /// \param PrevFID The \p FileID the \p Lexer was using before the change.
+  ///
+  /// \param Loc The location where the \p Lexer entered a new file from or the
+  /// location that the \p Lexer moved into after exiting a file.
+  virtual void LexedFileChanged(FileID FID, LexedFileChangeReason Reason,
+                                SrcMgr::CharacteristicKind FileType,
+                                FileID PrevFID, SourceLocation Loc) {}
 
   /// Callback invoked whenever a source file is skipped as the result
   /// of header guard optimization.
@@ -60,23 +82,6 @@ public:
   virtual void FileSkipped(const FileEntryRef &SkippedFile,
                            const Token &FilenameTok,
                            SrcMgr::CharacteristicKind FileType) {}
-
-  /// Callback invoked whenever an inclusion directive results in a
-  /// file-not-found error.
-  ///
-  /// \param FileName The name of the file being included, as written in the
-  /// source code.
-  ///
-  /// \param RecoveryPath If this client indicates that it can recover from
-  /// this missing file, the client should set this as an additional header
-  /// search patch.
-  ///
-  /// \returns true to indicate that the preprocessor should attempt to recover
-  /// by adding \p RecoveryPath as a header search path.
-  virtual bool FileNotFound(StringRef FileName,
-                            SmallVectorImpl<char> &RecoveryPath) {
-    return false;
-  }
 
   /// Callback invoked whenever an inclusion directive of
   /// any kind (\c \#include, \c \#import, etc.) has been processed, regardless
@@ -124,7 +129,7 @@ public:
                                   StringRef FileName,
                                   bool IsAngled,
                                   CharSourceRange FilenameRange,
-                                  const FileEntry *File,
+                                  Optional<FileEntryRef> File,
                                   StringRef SearchPath,
                                   StringRef RelativePath,
                                   const Module *Imported,
@@ -437,23 +442,24 @@ public:
     Second->FileChanged(Loc, Reason, FileType, PrevFID);
   }
 
+  void LexedFileChanged(FileID FID, LexedFileChangeReason Reason,
+                        SrcMgr::CharacteristicKind FileType, FileID PrevFID,
+                        SourceLocation Loc) override {
+    First->LexedFileChanged(FID, Reason, FileType, PrevFID, Loc);
+    Second->LexedFileChanged(FID, Reason, FileType, PrevFID, Loc);
+  }
+
   void FileSkipped(const FileEntryRef &SkippedFile, const Token &FilenameTok,
                    SrcMgr::CharacteristicKind FileType) override {
     First->FileSkipped(SkippedFile, FilenameTok, FileType);
     Second->FileSkipped(SkippedFile, FilenameTok, FileType);
   }
 
-  bool FileNotFound(StringRef FileName,
-                    SmallVectorImpl<char> &RecoveryPath) override {
-    return First->FileNotFound(FileName, RecoveryPath) ||
-           Second->FileNotFound(FileName, RecoveryPath);
-  }
-
   void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
                           StringRef FileName, bool IsAngled,
-                          CharSourceRange FilenameRange, const FileEntry *File,
-                          StringRef SearchPath, StringRef RelativePath,
-                          const Module *Imported,
+                          CharSourceRange FilenameRange,
+                          Optional<FileEntryRef> File, StringRef SearchPath,
+                          StringRef RelativePath, const Module *Imported,
                           SrcMgr::CharacteristicKind FileType) override {
     First->InclusionDirective(HashLoc, IncludeTok, FileName, IsAngled,
                               FilenameRange, File, SearchPath, RelativePath,

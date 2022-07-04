@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/IVDescriptors.h"
@@ -30,7 +29,6 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
@@ -38,9 +36,7 @@
 #include "llvm/IR/PrintPasses.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
 using namespace llvm;
 
 // Explicitly instantiate methods in LoopInfoImpl.h for IR-level Loops.
@@ -740,6 +736,7 @@ void UnloopUpdater::updateBlockParents() {
   bool Changed = FoundIB;
   for (unsigned NIters = 0; Changed; ++NIters) {
     assert(NIters < Unloop.getNumBlocks() && "runaway iterative algorithm");
+    (void) NIters;
 
     // Iterate over the postorder list of blocks, propagating the nearest loop
     // from successors to predecessors as before.
@@ -1085,13 +1082,13 @@ Optional<bool> llvm::getOptionalBoolLoopAttribute(const Loop *TheLoop,
 }
 
 bool llvm::getBooleanLoopAttribute(const Loop *TheLoop, StringRef Name) {
-  return getOptionalBoolLoopAttribute(TheLoop, Name).getValueOr(false);
+  return getOptionalBoolLoopAttribute(TheLoop, Name).value_or(false);
 }
 
 llvm::Optional<int> llvm::getOptionalIntLoopAttribute(const Loop *TheLoop,
                                                       StringRef Name) {
   const MDOperand *AttrMD =
-      findStringMetadataForLoop(TheLoop, Name).getValueOr(nullptr);
+      findStringMetadataForLoop(TheLoop, Name).value_or(nullptr);
   if (!AttrMD)
     return None;
 
@@ -1104,7 +1101,7 @@ llvm::Optional<int> llvm::getOptionalIntLoopAttribute(const Loop *TheLoop,
 
 int llvm::getIntLoopAttribute(const Loop *TheLoop, StringRef Name,
                               int Default) {
-  return getOptionalIntLoopAttribute(TheLoop, Name).getValueOr(Default);
+  return getOptionalIntLoopAttribute(TheLoop, Name).value_or(Default);
 }
 
 bool llvm::isFinite(const Loop *L) {

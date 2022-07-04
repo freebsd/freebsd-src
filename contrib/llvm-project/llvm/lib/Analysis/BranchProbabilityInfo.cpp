@@ -414,8 +414,7 @@ bool BranchProbabilityInfo::calcMetadataWeights(const BasicBlock *BB) {
     const LoopBlock DstLoopBB = getLoopBlock(TI->getSuccessor(I - 1));
     auto EstimatedWeight = getEstimatedEdgeWeight({SrcLoopBB, DstLoopBB});
     if (EstimatedWeight &&
-        EstimatedWeight.getValue() <=
-            static_cast<uint32_t>(BlockExecWeight::UNREACHABLE))
+        *EstimatedWeight <= static_cast<uint32_t>(BlockExecWeight::UNREACHABLE))
       UnreachableIdxs.push_back(I - 1);
     else
       ReachableIdxs.push_back(I - 1);
@@ -688,7 +687,7 @@ Optional<uint32_t> BranchProbabilityInfo::getMaxEstimatedEdgeWeight(
     if (!Weight)
       return None;
 
-    if (!MaxWeight || MaxWeight.getValue() < Weight.getValue())
+    if (!MaxWeight || *MaxWeight < *Weight)
       MaxWeight = Weight;
   }
 
@@ -852,8 +851,7 @@ void BranchProbabilityInfo::computeEestimateBlockWeight(
         if (LoopWeight <= static_cast<uint32_t>(BlockExecWeight::UNREACHABLE))
           LoopWeight = static_cast<uint32_t>(BlockExecWeight::LOWEST_NON_ZERO);
 
-        EstimatedLoopWeight.insert(
-            {LoopBB.getLoopData(), LoopWeight.getValue()});
+        EstimatedLoopWeight.insert({LoopBB.getLoopData(), *LoopWeight});
         // Add all blocks entering the loop into working list.
         getLoopEnterBlocks(LoopBB, BlockWorkList);
       }
@@ -875,7 +873,7 @@ void BranchProbabilityInfo::computeEestimateBlockWeight(
       auto MaxWeight = getMaxEstimatedEdgeWeight(LoopBB, successors(BB));
 
       if (MaxWeight)
-        propagateEstimatedBlockWeight(LoopBB, DT, PDT, MaxWeight.getValue(),
+        propagateEstimatedBlockWeight(LoopBB, DT, PDT, *MaxWeight,
                                       BlockWorkList, LoopWorkList);
     }
   } while (!BlockWorkList.empty() || !LoopWorkList.empty());
@@ -913,7 +911,7 @@ bool BranchProbabilityInfo::calcEstimatedHeuristics(const BasicBlock *BB) {
       // Scale down loop exiting weight by trip count.
       Weight = std::max(
           static_cast<uint32_t>(BlockExecWeight::LOWEST_NON_ZERO),
-          Weight.getValueOr(static_cast<uint32_t>(BlockExecWeight::DEFAULT)) /
+          Weight.value_or(static_cast<uint32_t>(BlockExecWeight::DEFAULT)) /
               TC);
     }
     bool IsUnlikelyEdge = LoopBB.getLoop() && UnlikelyBlocks.contains(SuccBB);
@@ -923,15 +921,14 @@ bool BranchProbabilityInfo::calcEstimatedHeuristics(const BasicBlock *BB) {
       // 'Unlikely' blocks have twice lower weight.
       Weight = std::max(
           static_cast<uint32_t>(BlockExecWeight::LOWEST_NON_ZERO),
-          Weight.getValueOr(static_cast<uint32_t>(BlockExecWeight::DEFAULT)) /
-              2);
+          Weight.value_or(static_cast<uint32_t>(BlockExecWeight::DEFAULT)) / 2);
     }
 
     if (Weight)
       FoundEstimatedWeight = true;
 
     auto WeightVal =
-        Weight.getValueOr(static_cast<uint32_t>(BlockExecWeight::DEFAULT));
+        Weight.value_or(static_cast<uint32_t>(BlockExecWeight::DEFAULT));
     TotalWeight += WeightVal;
     SuccWeights.push_back(WeightVal);
   }

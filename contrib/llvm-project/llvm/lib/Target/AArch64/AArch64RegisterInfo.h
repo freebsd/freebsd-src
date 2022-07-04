@@ -42,8 +42,6 @@ public:
   void UpdateCustomCallPreservedMask(MachineFunction &MF,
                                      const uint32_t **Mask) const;
 
-  static bool hasSVEArgsOrReturn(const MachineFunction *MF);
-
   /// Code Generation virtual methods...
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
   const MCPhysReg *getDarwinCalleeSavedRegs(const MachineFunction *MF) const;
@@ -119,6 +117,9 @@ public:
   bool requiresVirtualBaseRegisters(const MachineFunction &MF) const override;
   bool hasBasePointer(const MachineFunction &MF) const;
   unsigned getBaseRegister() const;
+
+  bool isArgumentRegister(const MachineFunction &MF,
+                          MCRegister Reg) const override;
 
   // Debug information queries.
   Register getFrameRegister(const MachineFunction &MF) const override;

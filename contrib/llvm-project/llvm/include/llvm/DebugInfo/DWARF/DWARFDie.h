@@ -18,7 +18,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFAddressRange.h"
 #include "llvm/DebugInfo/DWARF/DWARFAttribute.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugInfoEntry.h"
-#include "llvm/DebugInfo/DWARF/DWARFDebugLoc.h"
+#include "llvm/DebugInfo/DWARF/DWARFLocationExpression.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -279,6 +279,13 @@ public:
   ///
   /// \returns an iterator range for the attributes of the current DIE.
   iterator_range<attribute_iterator> attributes() const;
+
+  /// Gets the type size (in bytes) for this DIE.
+  ///
+  /// \param PointerSize the pointer size of the containing CU.
+  /// \returns if this is a type DIE, or this DIE contains a DW_AT_type, returns
+  /// the size of the type.
+  Optional<uint64_t> getTypeSize(uint64_t PointerSize);
 
   class iterator;
 

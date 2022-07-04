@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
@@ -24,9 +23,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Utils/CallGraphUpdater.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -246,7 +243,7 @@ static void DeleteBasicBlock(BasicBlock *BB, CallGraphUpdater &CGU) {
     }
 
     if (!I->use_empty())
-      I->replaceAllUsesWith(UndefValue::get(I->getType()));
+      I->replaceAllUsesWith(PoisonValue::get(I->getType()));
   }
 
   if (TokenInst) {

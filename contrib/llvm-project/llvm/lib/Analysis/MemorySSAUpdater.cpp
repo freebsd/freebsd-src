@@ -10,22 +10,15 @@
 //
 //===----------------------------------------------------------------===//
 #include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/LoopIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/IteratedDominanceFrontier.h"
+#include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Metadata.h"
-#include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/FormattedStream.h"
 #include <algorithm>
 
 #define DEBUG_TYPE "memoryssa"
@@ -243,6 +236,7 @@ MemoryAccess *MemorySSAUpdater::tryRemoveTrivialPhi(MemoryPhi *Phi,
 }
 
 void MemorySSAUpdater::insertUse(MemoryUse *MU, bool RenameUses) {
+  VisitedBlocks.clear();
   InsertedPHIs.clear();
   MU->setDefiningAccess(getPreviousDef(MU));
 
@@ -311,6 +305,13 @@ static void setMemoryPhiValueForBlock(MemoryPhi *MP, const BasicBlock *BB,
 // point to the correct new defs, to ensure we only have one variable, and no
 // disconnected stores.
 void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
+  // Don't bother updating dead code.
+  if (!MSSA->DT->isReachableFromEntry(MD->getBlock())) {
+    MD->setDefiningAccess(MSSA->getLiveOnEntryDef());
+    return;
+  }
+
+  VisitedBlocks.clear();
   InsertedPHIs.clear();
 
   // See if we had a local def, and if not, go hunting.
@@ -427,10 +428,10 @@ void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
   if (NewPhiSize)
     tryRemoveTrivialPhis(ArrayRef<WeakVH>(&InsertedPHIs[NewPhiIndex], NewPhiSize));
 
-  // Now that all fixups are done, rename all uses if we are asked. Skip
-  // renaming for defs in unreachable blocks.
+  // Now that all fixups are done, rename all uses if we are asked. The defs are
+  // guaranteed to be in reachable code due to the check at the method entry.
   BasicBlock *StartBlock = MD->getBlock();
-  if (RenameUses && MSSA->getDomTree().getNode(StartBlock)) {
+  if (RenameUses) {
     SmallPtrSet<BasicBlock *, 16> Visited;
     // We are guaranteed there is a def in the block, because we just got it
     // handed to us in this function.

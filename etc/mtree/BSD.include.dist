@@ -37,6 +37,10 @@
             ..
             __functional
             ..
+            __fwd
+            ..
+            __ios
+            ..
             __iterator
             ..
             __memory
@@ -47,7 +51,11 @@
             ..
             __ranges
             ..
+            __string
+            ..
             __thread
+            ..
+            __type_traits
             ..
             __utility
             ..

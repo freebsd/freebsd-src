@@ -8,6 +8,8 @@ MAN=		llvm-ar.1 llvm-ranlib.1
 SRCDIR=		llvm/tools/llvm-ar
 SRCS+=		llvm-ar.cpp
 
+CFLAGS.llvm-ar.cpp+=	-Dllvm_ar_main=main
+
 LIBADD+=	z
 
 LINKS+=		${BINDIR}/llvm-ar ${BINDIR}/llvm-ranlib

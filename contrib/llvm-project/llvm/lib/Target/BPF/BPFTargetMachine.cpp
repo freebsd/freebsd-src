@@ -59,7 +59,7 @@ static std::string computeDataLayout(const Triple &TT) {
 }
 
 static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
-  return RM.getValueOr(Reloc::PIC_);
+  return RM.value_or(Reloc::PIC_);
 }
 
 BPFTargetMachine::BPFTargetMachine(const Target &T, const Triple &TT,
@@ -149,7 +149,7 @@ void BPFPassConfig::addIRPasses() {
 }
 
 TargetTransformInfo
-BPFTargetMachine::getTargetTransformInfo(const Function &F) {
+BPFTargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(BPFTTIImpl(this, F));
 }
 

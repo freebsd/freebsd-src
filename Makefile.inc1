@@ -2349,7 +2349,8 @@ _clang_tblgen= \
 	usr.bin/clang/llvm-tblgen
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
     ${MK_LLDB} != "no"
-_clang_tblgen+=	usr.bin/clang/clang-tblgen
+_clang_tblgen+=	lib/clang/libclangminimal
+_clang_tblgen+= usr.bin/clang/clang-tblgen
 .endif
 .if ${MK_LLDB} != "no"
 _clang_tblgen+=	usr.bin/clang/lldb-tblgen

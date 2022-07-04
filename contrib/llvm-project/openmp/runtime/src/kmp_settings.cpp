@@ -812,6 +812,7 @@ static void __kmp_stg_parse_wait_policy(char const *name, char const *value,
       }
     } else if (__kmp_str_match("PASSIVE", 1, value)) {
       __kmp_library = library_throughput;
+      __kmp_wpolicy_passive = true; /* allow sleep while active tasking */
       if (blocktime_str == NULL) {
         // KMP_BLOCKTIME not specified, so set default to 0.
         __kmp_dflt_blocktime = 0;
@@ -1245,13 +1246,25 @@ static void __kmp_stg_parse_num_hidden_helper_threads(char const *name,
   // task
   if (__kmp_hidden_helper_threads_num == 0) {
     __kmp_enable_hidden_helper = FALSE;
+  } else {
+    // Since the main thread of hidden helper team dooes not participate
+    // in tasks execution let's increment the number of threads by one
+    // so that requested number of threads do actual job.
+    __kmp_hidden_helper_threads_num++;
   }
 } // __kmp_stg_parse_num_hidden_helper_threads
 
 static void __kmp_stg_print_num_hidden_helper_threads(kmp_str_buf_t *buffer,
                                                       char const *name,
                                                       void *data) {
-  __kmp_stg_print_int(buffer, name, __kmp_hidden_helper_threads_num);
+  if (__kmp_hidden_helper_threads_num == 0) {
+    __kmp_stg_print_int(buffer, name, __kmp_hidden_helper_threads_num);
+  } else {
+    KMP_DEBUG_ASSERT(__kmp_hidden_helper_threads_num > 1);
+    // Let's exclude the main thread of hidden helper team and print
+    // number of worker threads those do actual job.
+    __kmp_stg_print_int(buffer, name, __kmp_hidden_helper_threads_num - 1);
+  }
 } // __kmp_stg_print_num_hidden_helper_threads
 
 static void __kmp_stg_parse_use_hidden_helper(char const *name,
@@ -5009,7 +5022,7 @@ static void __kmp_stg_parse_hw_subset(char const *name, char const *value,
           attr.set_core_type(KMP_HW_CORE_TYPE_CORE);
         } else if (__kmp_str_match("intel_atom", -1, attr_ptr + 1)) {
           attr.set_core_type(KMP_HW_CORE_TYPE_ATOM);
-        }
+        } else
 #endif
         if (__kmp_str_match("eff", 3, attr_ptr + 1)) {
           const char *number = attr_ptr + 1;

@@ -47,20 +47,24 @@ public:
         auto_repeat_command == nullptr
             ? llvm::None
             : llvm::Optional<std::string>(auto_repeat_command);
+    // We don't know whether any given command coming from this interface takes
+    // arguments or not so here we're just disabling the basic args check.
+    CommandArgumentData none_arg{eArgTypeNone, eArgRepeatStar};
+    m_arguments.push_back({none_arg});
   }
 
   bool IsRemovable() const override { return true; }
 
   /// More documentation is available in lldb::CommandObject::GetRepeatCommand,
-  /// but in short, if nullptr is returned, the previous command will be
+  /// but in short, if llvm::None is returned, the previous command will be
   /// repeated, and if an empty string is returned, no commands will be
   /// executed.
-  const char *GetRepeatCommand(Args &current_command_args,
-                               uint32_t index) override {
+  llvm::Optional<std::string> GetRepeatCommand(Args &current_command_args,
+                                               uint32_t index) override {
     if (!m_auto_repeat_command)
-      return nullptr;
+      return llvm::None;
     else
-      return m_auto_repeat_command->c_str();
+      return m_auto_repeat_command;
   }
 
 protected:
@@ -329,6 +333,12 @@ bool SBCommandInterpreter::HasAliasOptions() {
   return (IsValid() ? m_opaque_ptr->HasAliasOptions() : false);
 }
 
+bool SBCommandInterpreter::IsInteractive() {
+  LLDB_INSTRUMENT_VA(this);
+
+  return (IsValid() ? m_opaque_ptr->IsInteractive() : false);
+}
+
 SBProcess SBCommandInterpreter::GetProcess() {
   LLDB_INSTRUMENT_VA(this);
 
@@ -417,7 +427,7 @@ void SBCommandInterpreter::reset(
   m_opaque_ptr = interpreter;
 }
 
-void SBCommandInterpreter::SourceInitFileInHomeDirectory(
+void SBCommandInterpreter::SourceInitFileInGlobalDirectory(
     SBCommandReturnObject &result) {
   LLDB_INSTRUMENT_VA(this, result);
 
@@ -427,10 +437,17 @@ void SBCommandInterpreter::SourceInitFileInHomeDirectory(
     std::unique_lock<std::recursive_mutex> lock;
     if (target_sp)
       lock = std::unique_lock<std::recursive_mutex>(target_sp->GetAPIMutex());
-    m_opaque_ptr->SourceInitFileHome(result.ref());
+    m_opaque_ptr->SourceInitFileGlobal(result.ref());
   } else {
     result->AppendError("SBCommandInterpreter is not valid");
   }
+}
+
+void SBCommandInterpreter::SourceInitFileInHomeDirectory(
+    SBCommandReturnObject &result) {
+  LLDB_INSTRUMENT_VA(this, result);
+
+  SourceInitFileInHomeDirectory(result, /*is_repl=*/false);
 }
 
 void SBCommandInterpreter::SourceInitFileInHomeDirectory(

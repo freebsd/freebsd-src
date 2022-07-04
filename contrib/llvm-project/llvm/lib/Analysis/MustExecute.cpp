@@ -16,14 +16,11 @@
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -143,7 +140,7 @@ static bool CanProveNotTakenFirstIteration(const BasicBlock *ExitBlock,
     return false;
   auto DL = ExitBlock->getModule()->getDataLayout();
   auto *IVStart = LHS->getIncomingValueForBlock(CurLoop->getLoopPreheader());
-  auto *SimpleValOrNull = SimplifyCmpInst(Cond->getPredicate(),
+  auto *SimpleValOrNull = simplifyCmpInst(Cond->getPredicate(),
                                           IVStart, RHS,
                                           {DL, /*TLI*/ nullptr,
                                               DT, /*AC*/ nullptr, BI});
@@ -494,7 +491,7 @@ template <typename K, typename V, typename FnTy, typename... ArgsTy>
 static V getOrCreateCachedOptional(K Key, DenseMap<K, Optional<V>> &Map,
                                    FnTy &&Fn, ArgsTy&&... args) {
   Optional<V> &OptVal = Map[Key];
-  if (!OptVal.hasValue())
+  if (!OptVal)
     OptVal = Fn(std::forward<ArgsTy>(args)...);
   return OptVal.getValue();
 }
