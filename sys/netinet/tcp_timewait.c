@@ -370,13 +370,9 @@ tcp_twstart(struct tcpcb *tp)
 	 * detach and free the socket as it is not needed in time wait.
 	 */
 	if (inp->inp_flags & INP_SOCKREF) {
-		KASSERT(so->so_state & SS_PROTOREF,
-		    ("tcp_twstart: !SS_PROTOREF"));
 		inp->inp_flags &= ~INP_SOCKREF;
 		INP_WUNLOCK(inp);
-		SOCK_LOCK(so);
-		so->so_state &= ~SS_PROTOREF;
-		sofree(so);
+		sorele(so);
 	} else
 		INP_WUNLOCK(inp);
 }
@@ -573,11 +569,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 		if (inp->inp_flags & INP_SOCKREF) {
 			inp->inp_flags &= ~INP_SOCKREF;
 			INP_WUNLOCK(inp);
-			SOCK_LOCK(so);
-			KASSERT(so->so_state & SS_PROTOREF,
-			    ("tcp_twclose: INP_SOCKREF && !SS_PROTOREF"));
-			so->so_state &= ~SS_PROTOREF;
-			sofree(so);
+			sorele(so);
 		} else {
 			/*
 			 * If we don't own the only reference, the socket and

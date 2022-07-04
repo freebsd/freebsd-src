@@ -210,7 +210,6 @@ struct socket {
  * Many fields will be read without locks to improve performance and avoid
  * lock order issues.  However, this approach must be used with caution.
  */
-#define	SS_FDREF		0x0001	/* strong file descriptor reference */
 #define	SS_ISCONNECTED		0x0002	/* socket connected to a peer */
 #define	SS_ISCONNECTING		0x0004	/* in process of connecting to peer */
 #define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
@@ -218,15 +217,6 @@ struct socket {
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
-
-/*
- * Protocols can mark a socket as SS_PROTOREF to indicate that, following
- * pru_detach, they still want the socket to persist, and will free it
- * themselves when they are done.  Protocols should only ever call sofree()
- * following setting this flag in pru_detach(), and never otherwise, as
- * sofree() bypasses socket reference counting.
- */
-#define	SS_PROTOREF		0x4000	/* strong protocol reference */
 
 #ifdef _KERNEL
 
@@ -479,7 +469,6 @@ int	socreate(int dom, struct socket **aso, int type, int proto,
 int	sodisconnect(struct socket *so);
 void	sodtor_set(struct socket *, so_dtor_t *);
 struct	sockaddr *sodupsockaddr(const struct sockaddr *sa, int mflags);
-void	sofree(struct socket *so);
 void	sohasoutofband(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 void	solisten_proto(struct socket *so, int backlog);
