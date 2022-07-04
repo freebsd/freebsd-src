@@ -158,8 +158,8 @@ db_print_sostate(short so_state)
 	int comma;
 
 	comma = 0;
-	if (so_state & SS_NOFDREF) {
-		db_printf("%sSS_NOFDREF", comma ? ", " : "");
+	if (so_state & SS_FDREF) {
+		db_printf("%sSS_FDREF", comma ? ", " : "");
 		comma = 1;
 	}
 	if (so_state & SS_ISCONNECTED) {

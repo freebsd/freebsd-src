@@ -498,8 +498,8 @@ sodealloc(struct socket *so)
 }
 
 /*
- * socreate returns a socket with a ref count of 1.  The socket should be
- * closed with soclose().
+ * socreate returns a socket with a ref count of 1 and a file descriptor
+ * reference.  The socket should be closed with soclose().
  */
 int
 socreate(int dom, struct socket **aso, int type, int proto,
@@ -540,6 +540,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 		return (ENOBUFS);
 
 	so->so_type = type;
+	so->so_state = SS_FDREF;
 	so->so_cred = crhold(cred);
 	if ((prp->pr_domain->dom_family == PF_INET) ||
 	    (prp->pr_domain->dom_family == PF_INET6) ||
@@ -740,7 +741,7 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_type = head->so_type;
 	so->so_options = head->so_options & ~SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
-	so->so_state = head->so_state | SS_NOFDREF;
+	so->so_state = head->so_state & ~SS_FDREF;
 	so->so_fibnum = head->so_fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
@@ -1126,7 +1127,7 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
  * - There are no outstanding file descriptor references or related consumers
  *   (so_count == 0).
  *
- * - The socket has been closed by user space, if ever open (SS_NOFDREF).
+ * - The socket has been closed by user space, if ever open (no SS_FDREF).
  *
  * - The protocol does not have an outstanding strong reference on the socket
  *   (SS_PROTOREF).
@@ -1143,7 +1144,7 @@ sofree(struct socket *so)
 
 	SOCK_LOCK_ASSERT(so);
 
-	if ((so->so_state & (SS_NOFDREF | SS_PROTOREF)) != SS_NOFDREF ||
+	if ((so->so_state & (SS_FDREF | SS_PROTOREF)) != 0 ||
 	    refcount_load(&so->so_count) != 0 || so->so_qstate == SQ_COMP) {
 		SOCK_UNLOCK(so);
 		return;
@@ -1159,7 +1160,7 @@ sofree(struct socket *so)
 		 * To solve race between close of a listening socket and
 		 * a socket on its incomplete queue, we need to lock both.
 		 * The order is first listening socket, then regular.
-		 * Since we don't have SS_NOFDREF neither SS_PROTOREF, this
+		 * Since we don't have SS_FDREF neither SS_PROTOREF, this
 		 * function and the listening socket are the only pointers
 		 * to so.  To preserve so and sol, we reference both and then
 		 * relock.
@@ -1254,7 +1255,8 @@ soclose(struct socket *so)
 	int error = 0;
 	bool listening, last __diagused;
 
-	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
+	KASSERT(so->so_state & SS_FDREF,
+	    ("%s: %p no SS_FDREF on enter", __func__, so));
 
 	CURVNET_SET(so->so_vnet);
 	funsetown(&so->so_sigio);
@@ -1306,8 +1308,9 @@ drop:
 			    __func__, so));
 		}
 	}
-	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
-	so->so_state |= SS_NOFDREF;
+	KASSERT(so->so_state & SS_FDREF,
+	    ("%s: %p no SS_FDREF upon lock", __func__, so));
+	so->so_state &= ~SS_FDREF;
 	sorele_locked(so);
 	if (listening) {
 		struct socket *sp, *tsp;
@@ -1352,9 +1355,8 @@ soabort(struct socket *so)
 	 * current thread is responsible for arranging for no references, but
 	 * is as close as we can get for now.
 	 */
-	KASSERT(so->so_count == 0, ("soabort: so_count"));
-	KASSERT((so->so_state & SS_PROTOREF) == 0, ("soabort: SS_PROTOREF"));
-	KASSERT(so->so_state & SS_NOFDREF, ("soabort: !SS_NOFDREF"));
+	KASSERT((so->so_state & (SS_FDREF | SS_PROTOREF)) == 0 &&
+	    so->so_count == 0, ("%s: so %p has references", __func__, so));
 	VNET_SO_ASSERT(so);
 
 	if (so->so_proto->pr_usrreqs->pru_abort != NULL)
@@ -1369,8 +1371,9 @@ soaccept(struct socket *so, struct sockaddr **nam)
 	int error;
 
 	SOCK_LOCK(so);
-	KASSERT((so->so_state & SS_NOFDREF) != 0, ("soaccept: !NOFDREF"));
-	so->so_state &= ~SS_NOFDREF;
+	KASSERT((so->so_state & SS_FDREF) == 0,
+	    ("%s: %p has SS_FDREF", __func__, so));
+	so->so_state |= SS_FDREF;
 	SOCK_UNLOCK(so);
 
 	CURVNET_SET(so->so_vnet);

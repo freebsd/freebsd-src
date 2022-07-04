@@ -210,7 +210,7 @@ struct socket {
  * Many fields will be read without locks to improve performance and avoid
  * lock order issues.  However, this approach must be used with caution.
  */
-#define	SS_NOFDREF		0x0001	/* no file table ref any more */
+#define	SS_FDREF		0x0001	/* strong file descriptor reference */
 #define	SS_ISCONNECTED		0x0002	/* socket connected to a peer */
 #define	SS_ISCONNECTING		0x0004	/* in process of connecting to peer */
 #define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
