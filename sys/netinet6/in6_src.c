@@ -612,8 +612,41 @@ in6_selectsrc_addr(uint32_t fibnum, const struct in6_addr *dst,
 	return (error);
 }
 
+static struct nhop_object *
+cache_route(uint32_t fibnum, const struct sockaddr_in6 *dst, struct route_in6 *ro,
+    uint32_t flowid)
+{
+	/*
+	 * Use a cached route if it exists and is valid, else try to allocate
+	 * a new one. Note that we should check the address family of the
+	 * cached destination, in case of sharing the cache with IPv4.
+	 * Assumes that 'struct route_in6' is exclusively locked.
+	 */
+	if (ro->ro_nh != NULL && (
+	    !NH_IS_VALID(ro->ro_nh) || ro->ro_dst.sin6_family != AF_INET6 ||
+	    !IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &dst->sin6_addr)))
+		RO_NHFREE(ro);
+
+	if (ro->ro_nh == NULL) {
+		ro->ro_dst = *dst;
+
+		const struct in6_addr *paddr;
+		struct in6_addr unscoped_addr;
+		uint32_t scopeid = 0;
+		if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr)) {
+			in6_splitscope(&dst->sin6_addr, &unscoped_addr, &scopeid);
+			paddr = &unscoped_addr;
+		} else
+			paddr = &dst->sin6_addr;
+		ro->ro_nh = fib6_lookup(fibnum, paddr, scopeid, NHR_REF, flowid);
+	}
+	return (ro->ro_nh);
+}
+
 /*
- * clone - meaningful only for bsdi and freebsd
+ * Finds outgoing nexthop or the outgoing interface for the
+ * @dstsock.
+ * Return 0 on success and stores the lookup result in @retnh and @retifp
  */
 static int
 selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
@@ -628,28 +661,12 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	struct in6_pktinfo *pi = NULL;
 	struct in6_addr *dst = &dstsock->sin6_addr;
 	uint32_t zoneid;
-#if 0
-	char ip6buf[INET6_ADDRSTRLEN];
-
-	if (dstsock->sin6_addr.s6_addr32[0] == 0 &&
-	    dstsock->sin6_addr.s6_addr32[1] == 0 &&
-	    !IN6_IS_ADDR_LOOPBACK(&dstsock->sin6_addr)) {
-		printf("%s: strange destination %s\n", __func__,
-		       ip6_sprintf(ip6buf, &dstsock->sin6_addr));
-	} else {
-		printf("%s: destination = %s%%%d\n", __func__,
-		       ip6_sprintf(ip6buf, &dstsock->sin6_addr),
-		       dstsock->sin6_scope_id); /* for debug */
-	}
-#endif
 
 	/* If the caller specify the outgoing interface explicitly, use it. */
 	if (opts && (pi = opts->ip6po_pktinfo) != NULL && pi->ipi6_ifindex) {
 		/* XXX boundary check is assumed to be already done. */
 		ifp = ifnet_byindex(pi->ipi6_ifindex);
-		if (ifp != NULL &&
-		    (norouteok || retnh == NULL ||
-		    IN6_IS_ADDR_MULTICAST(dst))) {
+		if (ifp != NULL && (norouteok || IN6_IS_ADDR_MULTICAST(dst))) {
 			/*
 			 * we do not have to check or get the route for
 			 * multicast.
@@ -685,104 +702,27 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * use it as the gateway.
 	 */
 	if (opts && opts->ip6po_nexthop) {
-		struct route_in6 *ron;
-
+		struct route_in6 *ron = &opts->ip6po_nextroute;
 		sin6_next = satosin6(opts->ip6po_nexthop);
-		if (IN6_IS_ADDR_LINKLOCAL(&sin6_next->sin6_addr)) {
-			/*
-			 * Next hop is LLA, thus it should be neighbor.
-			 * Determine outgoing interface by zone index.
-			 */
-			zoneid = ntohs(in6_getscope(&sin6_next->sin6_addr));
-			if (zoneid > 0) {
-				ifp = in6_getlinkifnet(zoneid);
-				goto done;
-			}
-		}
-		ron = &opts->ip6po_nextroute;
-		/* Use a cached route if it exists and is valid. */
-		if (ron->ro_nh != NULL && (
-		    !NH_IS_VALID(ron->ro_nh) ||
-		    ron->ro_dst.sin6_family != AF_INET6 ||
-		    !IN6_ARE_ADDR_EQUAL(&ron->ro_dst.sin6_addr,
-			&sin6_next->sin6_addr)))
-			RO_NHFREE(ron);
-		if (ron->ro_nh == NULL) {
-			ron->ro_dst = *sin6_next;
-			/*
-			 * sin6_next is not link-local OR scopeid is 0,
-			 * no need to clear scope
-			 */
-			ron->ro_nh = fib6_lookup(fibnum,
-			    &sin6_next->sin6_addr, 0, NHR_REF, flowid);
-		}
+
+		nh = cache_route(fibnum, sin6_next, ron, flowid);
+
 		/*
 		 * The node identified by that address must be a
 		 * neighbor of the sending host.
 		 */
-		if (ron->ro_nh == NULL ||
-		    (ron->ro_nh->nh_flags & NHF_GATEWAY) != 0)
-			error = EHOSTUNREACH;
-		else {
-			nh = ron->ro_nh;
+		if (nh != NULL && (nh->nh_flags & NHF_GATEWAY) == 0)
 			ifp = nh->nh_ifp;
+		else {
+			nh = NULL; // cached nh is still stored in @opts
+			error = EHOSTUNREACH;
 		}
-		goto done;
-	}
-
-	/*
-	 * Use a cached route if it exists and is valid, else try to allocate
-	 * a new one.  Note that we should check the address family of the
-	 * cached destination, in case of sharing the cache with IPv4.
-	 */
-	if (ro) {
-		if (ro->ro_nh &&
-		    (!NH_IS_VALID(ro->ro_nh) ||
-		     ((struct sockaddr *)(&ro->ro_dst))->sa_family != AF_INET6 ||
-		     !IN6_ARE_ADDR_EQUAL(&satosin6(&ro->ro_dst)->sin6_addr,
-		     dst))) {
-			RO_NHFREE(ro);
-		}
-		if (ro->ro_nh == (struct nhop_object *)NULL) {
-			struct sockaddr_in6 *sa6;
-
-			/* No route yet, so try to acquire one */
-			bzero(&ro->ro_dst, sizeof(struct sockaddr_in6));
-			sa6 = (struct sockaddr_in6 *)&ro->ro_dst;
-			*sa6 = *dstsock;
-			sa6->sin6_scope_id = 0;
-
-			/*
-			 * Currently dst has scopeid embedded iff it is LL.
-			 * New routing API accepts scopeid as a separate argument.
-			 * Convert dst before/after doing lookup
-			 */
-			uint32_t scopeid = 0;
-			if (IN6_IS_SCOPE_LINKLOCAL(&sa6->sin6_addr)) {
-				/* Unwrap in6_getscope() and in6_clearscope() */
-				scopeid = ntohs(sa6->sin6_addr.s6_addr16[1]);
-				sa6->sin6_addr.s6_addr16[1] = 0;
-			}
-
-			ro->ro_nh = fib6_lookup(fibnum,
-			    &sa6->sin6_addr, scopeid, NHR_REF, flowid);
-
-			if (IN6_IS_SCOPE_LINKLOCAL(&sa6->sin6_addr))
-				sa6->sin6_addr.s6_addr16[1] = htons(scopeid);
-		}
-				
-		/*
-		 * do not care about the result if we have the nexthop
-		 * explicitly specified.
-		 */
-		if (opts && opts->ip6po_nexthop)
-			goto done;
-
-		if (ro->ro_nh)
-			ifp = ro->ro_nh->nh_ifp;
+	} else if (ro != NULL) {
+		nh = cache_route(fibnum, dstsock, ro, flowid);
+		if (nh != NULL)
+			ifp = nh->nh_ifp;
 		else
 			error = EHOSTUNREACH;
-		nh = ro->ro_nh;
 
 		/*
 		 * Check if the outgoing interface conflicts with
@@ -797,10 +737,15 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			    ifp->if_index !=
 			    opts->ip6po_pktinfo->ipi6_ifindex) {
 				error = EHOSTUNREACH;
-				goto done;
+				ifp = NULL;
+				nh = NULL;
 			}
 		}
 	}
+	/*
+	 * Output must be consistent: no error -> both ifp and nh != NULL,
+	 * otherwise both NULL
+	 */
 
   done:
 	if (ifp == NULL && nh == NULL) {
@@ -813,15 +758,11 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (error == EHOSTUNREACH)
 		IP6STAT_INC(ip6s_noroute);
 
-	if (retifp != NULL) {
-		if (nh != NULL)
-			*retifp = nh->nh_aifp;
-		else
-			*retifp = ifp;
-	}
-
-	if (retnh != NULL)
-		*retnh = nh;	/* nh may be NULL */
+	if (nh != NULL)
+		*retifp = nh->nh_aifp;
+	else
+		*retifp = ifp;
+	*retnh = nh;	/* nh may be NULL */
 
 	return (error);
 }
@@ -889,6 +830,8 @@ in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro,
     struct ifnet **retifp, struct nhop_object **retnh, u_int fibnum, uint32_t flowid)
 {
+	MPASS(retifp != NULL);
+	MPASS(retnh != NULL);
 
 	return (selectroute(dstsock, opts, mopts, ro, retifp,
 	    retnh, 0, fibnum, flowid));
