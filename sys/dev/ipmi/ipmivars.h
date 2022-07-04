@@ -54,6 +54,9 @@ struct ipmi_request {
 	uint8_t		ir_addr;
 	uint8_t		ir_command;
 	uint8_t		ir_compcode;
+	bool		ir_ipmb;
+	uint8_t		ir_ipmb_addr;
+	uint8_t		ir_ipmb_command;
 };
 
 #define	MAX_RES				3
@@ -127,10 +130,6 @@ struct ipmi_softc {
 
 #define	ipmi_ssif_smbus_address		_iface.ssif.smbus_address
 #define	ipmi_ssif_smbus			_iface.ssif.smbus
-
-struct ipmi_ipmb {
-	u_char foo;
-};
 
 #define KCS_MODE		0x01
 #define SMIC_MODE		0x02
@@ -230,6 +229,8 @@ int	ipmi_detach(device_t);
 void	ipmi_release_resources(device_t);
 
 /* Manage requests. */
+void ipmi_init_request(struct ipmi_request *, struct ipmi_device *, long,
+	    uint8_t, uint8_t, size_t, size_t);
 struct ipmi_request *ipmi_alloc_request(struct ipmi_device *, long, uint8_t,
 	    uint8_t, size_t, size_t);
 void	ipmi_complete_request(struct ipmi_softc *, struct ipmi_request *);
@@ -250,10 +251,6 @@ int	ipmi_kcs_attach(struct ipmi_softc *);
 int	ipmi_kcs_probe_align(struct ipmi_softc *);
 int	ipmi_smic_attach(struct ipmi_softc *);
 int	ipmi_ssif_attach(struct ipmi_softc *, device_t, int);
-
-#ifdef IPMB
-int	ipmi_handle_attn(struct ipmi_softc *);
-#endif
 
 extern int ipmi_attached;
 

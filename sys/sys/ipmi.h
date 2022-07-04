@@ -33,9 +33,11 @@
 
 #define IPMI_MAX_ADDR_SIZE		0x20
 #define IPMI_MAX_RX			1024
-#define IPMI_BMC_SLAVE_ADDR		0x20 /* Linux Default slave address */
-#define IPMI_BMC_CHANNEL		0x0f /* Linux BMC channel */
 
+#define IPMI_BMC_CHANNEL		0x0f /* Linux BMC channel */
+#define IPMI_IPMB_CHANNEL		0x00
+
+#define IPMI_BMC_SLAVE_ADDR		0x20 /* Linux Default slave address */
 #define IPMI_BMC_SMS_LUN		0x02
 
 #define IPMI_SYSTEM_INTERFACE_ADDR_TYPE	0x0c
