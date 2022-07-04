@@ -21,6 +21,8 @@ PROG=	ndp
 MAN=	ndp.8
 SRCS=	ndp.c gmt2local.c
 
+LIBADD=	xo
+
 CFLAGS+= -I. -I${.CURDIR} -I${SRCTOP}/contrib/tcpdump
 CFLAGS+= -D_U_=""
 
