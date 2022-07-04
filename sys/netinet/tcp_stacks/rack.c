@@ -11855,10 +11855,9 @@ rack_do_fin_wait_1(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
 	 */
-	if ((so->so_state & SS_NOFDREF) && tlen) {
-		if (rack_check_data_after_close(m, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    rack_check_data_after_close(m, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -11983,10 +11982,9 @@ rack_do_closing(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
 	 */
-	if ((so->so_state & SS_NOFDREF) && tlen) {
-		if (rack_check_data_after_close(m, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    rack_check_data_after_close(m, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -12097,10 +12095,9 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
 	 */
-	if ((so->so_state & SS_NOFDREF) && tlen) {
-		if (rack_check_data_after_close(m, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    rack_check_data_after_close(m, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
@@ -12212,11 +12209,9 @@ rack_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If new data are received on a connection after the user processes
 	 * are gone, then RST the other end.
 	 */
-	if ((so->so_state & SS_NOFDREF) &&
-	    tlen) {
-		if (rack_check_data_after_close(m, tp, &tlen, th, so))
-			return (1);
-	}
+	if ((tp->t_flags & TF_CLOSED) && tlen &&
+	    rack_check_data_after_close(m, tp, &tlen, th, so))
+		return (1);
 	/*
 	 * If last ACK falls within this segment's sequence numbers, record
 	 * its timestamp. NOTE: 1) That the test incorporates suggestions
