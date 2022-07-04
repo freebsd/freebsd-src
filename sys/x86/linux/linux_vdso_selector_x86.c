@@ -61,20 +61,9 @@ linux_vdso_tsc_selector_idx()
 int
 linux_vdso_cpu_selector_idx()
 {
-	u_int amd_feature, cpu_exthigh, p[4];
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
 		return (LINUX_VDSO_CPU_RDPID);
-
-	amd_feature = 0;
-	if (cpu_feature != 0) {
-		do_cpuid(0x80000000, p);
-		cpu_exthigh = p[0];
-		if (cpu_exthigh >= 0x80000001) {
-			do_cpuid(0x80000001, p);
-			amd_feature = p[3];
-		}
-	}
 
 	return ((amd_feature & AMDID_RDTSCP) == 0 ?
 	    LINUX_VDSO_CPU_DEFAULT : LINUX_VDSO_CPU_RDTSCP);
