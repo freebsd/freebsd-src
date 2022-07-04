@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.145 2021/09/07 18:57:50 christos Exp $
+# $File: filesystems,v 1.149 2022/05/21 22:50:28 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -2317,6 +2317,8 @@
 >0x10070	lequad		x		\b%lld bytes used,
 >0x10088	lequad		x		%lld devices
 
+0		string		btrfs-stream	BTRFS stream file
+
 # dvdisaster's .ecc
 # From: "Nelson A. de Oliveira" <naoliv@gmail.com>
 0	string	*dvdisaster*	dvdisaster error correction file
@@ -2399,11 +2401,166 @@
 
 0	string	ACT\020Apricot\020disk\020image\032\004	floppy image data (ApriDisk)
 
-0	beshort	0xAA58		floppy image data (IBM SaveDskF, old)
-0	beshort	0xAA59		floppy image data (IBM SaveDskF)
-0	beshort	0xAA5A		floppy image data (IBM SaveDskF, compressed)
+# URL:		http://fileformats.archiveteam.org/wiki/LoadDskF/SaveDskF
+# Update:	Joerg Jenderek
+# Note:		called "IBM SKF disk image" by TrID
+#		verfied by 7-Zip `7z l -tFAT -slt *.dsk` and
+#		`deark -l -m loaddskf  06200D19.DSK`
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dsk-skf-old.trid.xml 
+0	beshort	0xAA58
+>0	use		SaveDskF
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dsk-skf.trid.xml
+0	beshort	0xAA59
+>0	use		SaveDskF
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dsk-skf-comp.trid.xml
+0	beshort	0xAA5A
+# skip foo by additional check for unused upper byte of media type in SaveDskF header
+#>3	ubyte		=0
+# skip bar by additional check for valid "low" number of heads in SaveDskF header
+#>>26	uleshort	<3
+# skip foo by additional check for unused double word field in SaveDskF header
+#>>>30	long		=0
+#>>>>0	use		SaveDskF
+>0	use		SaveDskF
+# display information about IBM SaveDskF floppy disk images
+0	name			SaveDskF
+# SaveDskF magic
+>0	beshort	x		floppy image data (IBM SaveDskF
+#!:mime	application/octet-stream
+!:mime	application/x-ibm-dsk
+!:ext	dsk
+# also suffix with digit (1dk .2dk ...); NO example FOUND!
+#!:ext	dsk/1dk/2dk
+>1	ubyte		=0x58	\b, old)
+>1	ubyte		=0x59	\b)
+>1	ubyte		=0x5A	\b, compressed)
+# media type; the first byte of the FAT like: 0xF0 (usual floppy) 0xF9 0xFE
+# https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system
+>2	ubyte		!0xF0	\b, Media descriptor %#x
+# upper byte of media type is not used; so this seems to be nil
+>3	ubyte		!0	\b, upper byte of media type %#x
+# sector size in bytes as in the BIOS parameter block like: 512 ; SAVEDSKF.EXE with other sizes produce garbage images
+>4	uleshort	!512	\b, Bytes/sector %u
+# cluster mask; number of sectors per cluster, minus 1
+>6	uleshort+1	>1	\b, sectors/cluster %u
+#>6	uleshort+1	x	\b, sectors/cluster %u
+# cluster shift; log2(cluster size / sector size) like: 0~1=ClusterSize/SectorSize
+>7	ubyte		>0	\b, cluster shift %u
+#>7	ubyte		x	\b, cluster shift %u
+# reserved sectors; as in the BIOS parameter block like: 1 256 (2M256R-K.DSK)
+>8	uleshort	>1	\b, reserved sectors %u
+#>8	uleshort	x	\b, reserved sectors %u
+# FAT copies; as in the BIOS parameter block like: 2 (usual) 1 (2-NK.DSK)
+>10	ubyte		!2	\b, FAT
+# plural s
+>>10	ubyte		>1	\bs
+>>10	ubyte		x	%u
+# root directory entries; as in the BIOS parameter block like: 224 (usual) 64 (H1-NK.DSK) 4096 (2-NK.DSK)
+>11	uleshort	!224	\b, root entries %u
+# sector number of first cluster (count sectors used by boot sector, FATs and root directory) like: 7 10 29 33 288
+>13	uleshort	!33	\b, 1st cluster at sector %u
+# number of clusters in image; empty clusters at the end are not saved and counted like: 2372 2848
+>15	uleshort	x	\b, %u clusters
+# sectors/FAT; as in the BIOS parameter block like: 1 (H1-NK.DSK) 7 9
+>17	ubyte		!9	\b, sectors/FAT %u
+# sector number of root directory (ie, count of sectors used by boot sector and FATs) like: 3 (H1-NK.DSK) 9 10 15 19 274 (2M256R-K.DSK)
+>18	uleshort	!19	\b, root directory at sector %u
+# checksum; sum of all bytes in the file
+>20	ulelong		x	\b, checksum %#8.8x
+# cylinders; number of cylinders like: 40 80
+>24 	uleshort	!80	\b, %u cylinders
+#>24 	uleshort	x	\b, %u cylinders
+# heads; number of heads as in the BIOS parameter block like: 1 (H1-NK.DSK) 2
+>26	uleshort	!2	\b, heads %u
+#>26	uleshort	x	\b, heads %u
+# sectors/track; number of sectors per track as in the BIOS parameter block like: 8 15 18 36
+>28	uleshort	!18	\b, sectors/track %u
+#>28	uleshort	x	\b, sectors/track %u
+# unused double word field seems to be always like: 0
+>30	ulelong		!0	\b, at 0x1E %#x
+# number of sectors in images like: 1017 2786 2880
+>34 	uleshort	x	\b, sectors %u
+# if string is "printable" it can be a real comment
+>(36.s)	ubyte		!0x00
+# if 1st sector is far enough away (> 0x29) then there is space for comment part
+>>38	uleshort	>41
+# offset to comment string like: 28h=40
+>>>36	uleshort	x	\b, at %#x
+# comment string terminated with \r\n\0
+>>>(36.s)	string	x	"%s"
+# offset to the first sector like: 0 (If this is 0, assume it is 0x200) 29h=41 (DISPLAY3.DSK) 31h 43h 45h 46h 48h 50h 200h=512
+>38	uleshort	!0	\b, 1st sector at %#x
+# FOR DEBUGGING!
+#>(38.s)	ubelong		x	SECTOR CONTENT %x
+# not compressed floppy image implies readable DOS boot sector inside image
+>>1		ubyte	!0x5A
+# when not compressed it is readable as DOS boot sector via ./filesystems
+#>>>(38.s)	indirect x	\b; contains
+>38	uleshort	=0	\b, 1st sector at 0x200 (0)
+# maybe standard DOS boot sector; NO example FOUND HERE!
+#>>0x200	indirect	x	\b; contains
 
 0	string	\074CPM_Disk\076	disk image data (YAZE)
+
+# From: 	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Central_Point_Software#cite_note-6
+# Reference:	https://www.robcraig.com/download/transcopy-5-x-file-format
+#		https://www.robcraig.com/download/transcopy-file-format-by-gene-thompson
+#		http://mark0.net/download/triddefs_xml.7z/defs/t/tc-transcopy.trid.xml
+# TransCopy signature
+0		beshort		0x5AA5
+# skip Intel serial flash ROM with invalid 0 disk sides handled by ./intel
+>0x103		ubyte		!0
+# skip Intel serial flash ROM with unlikely "high" start cylinder 100 handled by ./intel
+#>>0x101		ubyte		<100		VALID_START_CYLINDER
+# skip Intel serial flash ROM with unlikely description handled by ./intel
+#>>>2		beshort		!0xF00f		VALID_DESCRIPTION
+# skip Intel serial flash ROM with invalid disk types 89h 88h handled by ./intel
+#>>>>0x100	byte		!0x89		VALID_DISK_TYPE
+>>0	use	tc-floppy
+#	display information of Central Point Software (CPS) Option Board TransCopy floppy image
+0	name		tc-floppy
+>0		beshort		x		TransCopy disk image
+#!:mime	application/octet-stream
+!:mime	application/x-floppy-image-tc
+# like: disk04.tc VOCALC2.TC WIZ5_A.tc WIZ2_720.IMG
+!:ext	tc/img
+# 1st description (optional 0-terminated maximal 32) like:
+# "Project Workbench 2.20" "Visi On Calc" "Wizardry V Disk 1 of 3"
+>2		string		>\0		%.32s
+# 2nd desc. (optional 0-terminated maximal 32) like:
+# "(1988)." "Advanced - Utility" 'Program Disk 2"
+>0x22		string		>\0		"%.32s"
+# Looks like ascii (like MESSAGES) formatted with attribute bytes (190)? 
+# not needed for disk copy
+#>>0x42		string		x		'%.190s'
+#>>0x88		lestring16	x		"%.8s"
+# disktype: 2~MFM High Density 3~MFM Double Density 4~Apple II GCR 5~FM Single Density
+# 6~Commodore GCR 7~MFM Double Density 8~Commodore Amiga Ch~Atari FM FFh~Unknown
+>0x100		ubyte		!0xFF		\b, disk type %u
+# StartingCylinder like: 0
+>0x101		ubyte		x		\b, cylinder
+>0x101		ubyte		!0		start=%u
+# EndingCylinder like: 40 (often) 41 79
+>0x102		ubyte		x		end=%u
+# NumberOfSides like: 2
+>0x103		ubyte		!2		\b, %u sides
+# TrackIncrement like: 1
+>0x104		ubyte		!1		\b, track increment %u
+# TrackPosTbl Track skew
+#>0x105		ubequad		x		\b, Track skew %#16.16llx
+# TrackOffsTbl
+#>0x305		ubequad		x		\b, TrackOffsTbl %#16.16llx
+# TrackLngthTbl
+#>0x505		ubequad		x		\b, TrackLngthTbl %#16.16llx
+# TrackTypeTable
+#>0x705		ubequad		x		\b, TrackTypeTable %#16.16llx
+# Address mark timing
+#>0x905		ubequad		x		\b, Address mark timing %#16.16llx
+# Track fragment
+#>0x2905 ubequad			!0		\b, Track fragment %#16.16llx
+# Track data
+#>0x4000		ubequad		!0		\b, Track data %#16.16llx
 
 # ReFS
 # Richard W.M. Jones <rjones@redhat.com>

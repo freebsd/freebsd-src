@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.172 2021/10/07 15:41:22 christos Exp $
+# $File: Makefile.am,v 1.178 2022/04/02 14:47:42 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_DIR = $(top_srcdir)/magic
@@ -29,6 +29,7 @@ $(MAGIC_FRAGMENT_DIR)/application \
 $(MAGIC_FRAGMENT_DIR)/applix \
 $(MAGIC_FRAGMENT_DIR)/apt \
 $(MAGIC_FRAGMENT_DIR)/archive \
+$(MAGIC_FRAGMENT_DIR)/aria \
 $(MAGIC_FRAGMENT_DIR)/arm \
 $(MAGIC_FRAGMENT_DIR)/asf \
 $(MAGIC_FRAGMENT_DIR)/assembler \
@@ -58,6 +59,7 @@ $(MAGIC_FRAGMENT_DIR)/c64 \
 $(MAGIC_FRAGMENT_DIR)/cad \
 $(MAGIC_FRAGMENT_DIR)/cafebabe \
 $(MAGIC_FRAGMENT_DIR)/cbor \
+$(MAGIC_FRAGMENT_DIR)/ccf \
 $(MAGIC_FRAGMENT_DIR)/cddb \
 $(MAGIC_FRAGMENT_DIR)/chord \
 $(MAGIC_FRAGMENT_DIR)/cisco \
@@ -89,6 +91,7 @@ $(MAGIC_FRAGMENT_DIR)/dif \
 $(MAGIC_FRAGMENT_DIR)/diff \
 $(MAGIC_FRAGMENT_DIR)/digital \
 $(MAGIC_FRAGMENT_DIR)/dolby \
+$(MAGIC_FRAGMENT_DIR)/dsf \
 $(MAGIC_FRAGMENT_DIR)/dump \
 $(MAGIC_FRAGMENT_DIR)/dyadic \
 $(MAGIC_FRAGMENT_DIR)/ebml \
@@ -206,6 +209,7 @@ $(MAGIC_FRAGMENT_DIR)/netbsd \
 $(MAGIC_FRAGMENT_DIR)/netscape \
 $(MAGIC_FRAGMENT_DIR)/netware \
 $(MAGIC_FRAGMENT_DIR)/news \
+$(MAGIC_FRAGMENT_DIR)/nifty \
 $(MAGIC_FRAGMENT_DIR)/nim-lang \
 $(MAGIC_FRAGMENT_DIR)/nitpicker \
 $(MAGIC_FRAGMENT_DIR)/numpy \
@@ -216,6 +220,7 @@ $(MAGIC_FRAGMENT_DIR)/ole2compounddocs \
 $(MAGIC_FRAGMENT_DIR)/olf \
 $(MAGIC_FRAGMENT_DIR)/openfst \
 $(MAGIC_FRAGMENT_DIR)/opentimestamps \
+$(MAGIC_FRAGMENT_DIR)/oric \
 $(MAGIC_FRAGMENT_DIR)/os2 \
 $(MAGIC_FRAGMENT_DIR)/os400 \
 $(MAGIC_FRAGMENT_DIR)/os9 \
@@ -228,6 +233,7 @@ $(MAGIC_FRAGMENT_DIR)/pbf \
 $(MAGIC_FRAGMENT_DIR)/pbm \
 $(MAGIC_FRAGMENT_DIR)/pc88 \
 $(MAGIC_FRAGMENT_DIR)/pc98 \
+$(MAGIC_FRAGMENT_DIR)/pci_ids \
 $(MAGIC_FRAGMENT_DIR)/pcjr \
 $(MAGIC_FRAGMENT_DIR)/pdf \
 $(MAGIC_FRAGMENT_DIR)/pdp \

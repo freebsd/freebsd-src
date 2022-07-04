@@ -86,7 +86,7 @@ main(int argc, char **argv)
 	else
 		prog = argv[0];
 
-	ms = magic_open(MAGIC_NONE);
+	ms = magic_open(MAGIC_ERROR);
 	if (ms == NULL) {
 		(void)fprintf(stderr, "%s: ERROR opening MAGIC_NONE: %s\n",
 		    prog, strerror(errno));
@@ -105,7 +105,6 @@ main(int argc, char **argv)
 
 	if (argc != 3) {
 		(void)fprintf(stderr, "Usage: %s TEST-FILE RESULT\n", prog);
-		magic_close(ms);
 		goto bad;
 	}
 	if ((result = magic_file(ms, argv[1])) == NULL) {

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.26 2021/08/21 12:45:34 christos Exp $
+# $File: wordprocessors,v 1.27 2021/12/06 15:05:16 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -228,6 +228,68 @@
 2	string	MMXPR3			Motorola Quark Express Document (English)
 !:mime	application/x-quark-xpress-3
 2	string	MMXPRa			Motorola Quark Express Document (Korean)
+
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/PageMaker
+#		https://en.wikipedia.org/wiki/Adobe_PageMaker
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p
+#		pm4-pagemaker.trid.xml
+#		pm5-pagemaker.trid.xml
+# Note:		since version 6 in 1995 called Adobe PageMaker and
+#		embedded in Compound Document handled by ./ole2compounddocs
+#		mainly tested little endian variant
+4	ubelong		=0x0000FF99
+>0	use		PageMaker
+# big endian variant
+4	ubelong		=0x000099FF
+>0	use		\^PageMaker
+#	display information of Aldus/Adobe PageMaker document/publication
+0	name		PageMaker
+>110	uleshort	<0x0600			Aldus
+>110	uleshort	>0x05FF			Adobe
+>110	uleshort	x			PageMaker
+# "MP" marker for newer version 4 and above according to TrID
+#>108	string		x			\b, MARKER "%.2s"
+# http://www.nationalarchives.gov.uk/pronom/fmt/876
+!:mime		application/vnd.pagemaker	
+#!:mime		application/x-pagemaker
+# different file name extensions are used depending on version
+# older version like 3
+>110	uleshort/256	=0			document
+# https://www.macdisk.com/macsigen.php
+!:apple	ALB3ALD3
+# PT3 for template and no example for PageMaker document/publiction with PM3 extension
+!:ext	pm3/pt3
+>110	uleshort/256	=4			document
+!:apple	ALD4ALB4
+# no example for PT4 template
+!:ext	pm4/pt4
+>110	uleshort/256	=5			document
+!:apple	ALD5ALB5
+# no example for PT5 template
+!:ext	pm5/pt5
+>110	uleshort	=0x0600			document
+!:apple	ALD6ALB6
+# PT6 for template
+!:ext	pm6/pt6
+# HOWTO to distinguish version 7 from 6.5 ?
+>110	uleshort	=0x0632			document
+!:apple	AD65AB65
+# no example for T65 template
+!:ext	p65/t65/pmd/pmt
+# version 7 with PMT extension for template
+#!:ext	pmd/pmt
+#!:apple	????PUBF
+# endian marker FF 99 for little endian
+>6	ubyte	=0xFF			\b, little-endian
+>6	ubyte	=0x99			\b, big-endian
+# newer numeric version like: 4 5 6 6.50
+#>110	uleshort	x			\b, VERSION=%#x
+>110	uleshort	>0x03FF
+>>110	uleshort/256	x			\b, version %u
+>>110	uleshort%256	>0			\b.%u
+# older version like 3
+>110	uleshort	<0x0400			\b, maybe version 3
 
 # adobe indesign (document, whatever...) from querkan
 0	belong	0x0606edf5		Adobe InDesign

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.151 2021/08/16 10:19:56 christos Exp $
+# $File: archive,v 1.162 2022/05/27 21:27:59 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -150,7 +150,7 @@
 # Incremental snapshot gnu-tar format from:
 # https://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
 0	string		GNU\ tar-	GNU tar incremental snapshot data
->&0	regex		[0-9]\.[0-9]+-[0-9]+	version %s
+>&0	regex		[0-9]\\.[0-9]+-[0-9]+	version %s
 
 # cpio archives
 #
@@ -518,46 +518,65 @@
 #>-3	ubyte		x	\b, last 3 bytes 0x%2.2x
 #>-2	ubeshort	x	\b%4.4x
 # From:		Joerg Jenderek
-# URL:		https://wiki.68kmla.org/DiskCopy_4.2_format_specification
+# URL:		https://en.wikipedia.org/wiki/Disk_Copy
 # reference:	http://nulib.com/library/FTN.e00005.htm
 0x52	ubeshort	0x0100
 # test for disk image size equal or above 400k
 >0x40	ubelong		>409599
 # test also for disk image size equal or below 1440k to skip
 # windows7en.mbr UNICODE.DAT
->>0x40	ubelong		<1474561
-# To skip Flags$StringJoiner.class with size 00106A61h test also for only 4 disk image sizes
-# 00064000 for  400k GCR disks
-# 000c8000 for  800k GCR disks
-# 000b4000 for  720k MFM disks
-# 00168000 for 1440k MFM disks
->>>0x40	ubelong&0xffE03fFF	0
->>>>0	use	dc42-floppy
+#>>0x40	ubelong		<1474561
+# test now for "low" disk image size equal or below 64 MiB to skip
+# windows7en.mbr (B441BBAAh) UNICODE.DAT (0400AF05h)
+>>0x40	ubelong		<0x04000001
+# To skip Flags$StringJoiner.class with size 00106A61h test also for valid disk image sizes
+# 00064000 for  400k GCR disks	dc42-400k-gcr.trid.xml
+# 000c8000 for  800k GCR disks	dc42-800k-gcr.trid.xml
+# 000b4000 for  720k MFM disks	dc42-720k-mfm.trid.xml
+# 00168000 for 1440k MFM disks	dc42-1440k-mfm.trid.xml
+#	https://lisaem.sunder.net/LisaProjectDocs.txt
+# 00500000	05M	available
+# 00A00000	10M	available
+# 01800000	24M	possible
+# 02000000	32M	uncertain
+# 04000000	64M	uncertain
+>>>0x40	ubelong&0xf8003fFF	0
+# skip samples with invalid disk name length like:
+# 181 (biosmd80.rom) 202 (Flags$StringJoiner.class) 90 (UNICODE.DAT)
+>>>>0x0	ubyte			<64
+>>>>>0	use			dc42-floppy
 #	display information of Apple DiskCopy 4.2 floppy image
 0	name		dc42-floppy
-# image pascal name padded with NULs like Microsoft Mail
+# disk name length; maximal 63
+#>0	ubyte	    	x	DISK NAME LENGTH %u
+# ASCII image pascal (maximal 63 bytes) name padded with NULs like:
+# "Microsoft Mail" "Disquette 2" "IIe Installer Disk"
+# "-lisaem.sunder.net hd-" (dc42-lisaem.trid.xml) "-not a Macintosh disk" (dc42-nonmac.trid.xml)
 >00	pstring/B	x	Apple DiskCopy 4.2 image %s
 #!:mime	application/octet-stream
 !:mime	application/x-dc42-floppy-image
 !:apple	dCpydImg
-!:ext	image/dc42
-# data size in bytes like 409600
+# probably also img like: "Utilitaires 2.img" "Installation 7.img"
+!:ext	image/dc42/img
+# data size in bytes like: 409600 737280 819200 1474560
 >0x40	ubelong		x	\b, %u bytes
 # for debugging purpose size in hexadecimal
 #>0x40	ubelong		x	(%#8.8x)
-# tag size in bytes
+# tag size in bytes like: 0 (often) 2580h (PUID fmt/625) 4B00h (Microsoft Mail.image)
 >0x44	ubelong		>0	\b, %#x tag size
 # data checksum
 #>0x48	ubelong		x	\b, %#x checksum
 # tag checksum
 #>0x4c	ubelong		x	\b, %#x tag checksum
-# disk encoding
+# disk encoding like: 0 1 2 3 (PUID: fmt/625)
 >0x50	ubyte		0	\b, GCR CLV ssdd (400k)
 >0x50	ubyte		1	\b, GCR CLV dsdd (800k)
 >0x50	ubyte		2	\b, MFM CAV dsdd (720k)
 >0x50	ubyte		3	\b, MFM CAV dshd (1440k)
 >0x50	ubyte		>3	\b, %#x encoding
-# format byte
+# format byte like: 12h (Lisa 400K) 24h (400K Macintosh) 96h (800K Apple II disk)
+# 2 (Mac 400k "Disquette Installation 13.image")
+# 22h (double-sided MFM or Mac 800k "Disco 12.image" "IIe Installer Disk.image")
 >0x51	ubyte		x	\b, %#x format
 #>0x54	ubequad		x	\b, data %#16.16llx
 # ESP, could this conflict with Easy Software Products' (e.g.ESP ghostscript) documentation?
@@ -670,7 +689,15 @@
 # 2 bytes: length of data + mentioned bytes
 #
 #		SZDD variant Haruhiko Okumura's LZSS or 7z type MsLZ
+# URL:		http://fileformats.archiveteam.org/wiki/MS-DOS_installation_compression
+# Reference:	http://www.cabextract.org.uk/libmspack/doc/szdd_kwaj_format.html
+#		http://mark0.net/download/triddefs_xml.7z/defs/s/szdd.trid.xml
+# Note:		called "Microsoft SZDD compressed (Haruhiko Okumura's LZSS)" by TrID
+#		verfied by 7-Zip `7z l -tMsLZ -slt *.??_` as MsLZ
+#		`deark -l -m lzss_oku -d2 setup-1-41.bin` as "LZSS.C by Haruhiko Okumura"
 >0	string	SZDD		MS Compress archive data, SZDD variant
+# 2nd part of signature
+#>>4	ubelong	0x88F02733	\b, SIGNATURE OK
 !:mime	application/x-ms-compress-szdd
 !:ext	??_
 # The character missing from the end of the filename (0=unknown)
@@ -679,12 +706,41 @@
 # Compression mode: "A" (0x41) found but sometimes "B" in Windows 3.1 builds 026 and 034e
 >>8	string	!A		\b, %-.1s method
 >>10	ulelong	>0		\b, original size: %u bytes
+# Summary:	InstallShield archive with SZDD compressed
+# URL:		https://community.flexera.com/t5/InstallShield-Knowledge-Base/InstallShield-Redistributable-Files/ta-p/5647
+# From:		Joerg Jenderek
+1	search/48/bs	SZDD\x88\xF0\x27\x33	InstallShield archive
+#!:mime	application/octet-stream
+!:mime	application/x-installshield-compress-szdd
+!:ext	ibt
+# name of compressed archive member like: setup.dl_ _setup7int.dl_ _setup2k.dl_ _igdi.dl_ cabinet.dl_
+>0	string	x		%s
+# name of uncompressed archive member like: setup.dll _Setup.dll IGdi.dll CABINET.DLL
+>>&1	string	x		(%s)
+# probably version like: 9.0.0.333 9.1.0.429 11.50.0.42618
+>>>&1	string	x		\b, version %s
+# SZDD member length like: 168048 169333 181842
+>>>>&1	string	x		\b, %s bytes
+# MS Compress archive data
+#>&0	string		SZDD	\b, SIGNATURE FOUND
+>&0	indirect	x
 #		QBasic SZDD variant
 3	string	\x88\xf0\x27
 >0	string	SZ\x20		MS Compress archive data, QBasic variant
 !:mime	application/x-ms-compress-sz
 !:ext	??$
 >>8	ulelong	>0		\b, original size: %u bytes
+
+# Summary:	CAZIP compressed file
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/CAZIP
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/caz.trid.xml
+# Note:		Format is distinct from CAZIPXP compressed
+0	string	\x0D\x0A\x1ACAZIP	CAZIP compressed file
+#!:mime	application/octet-stream
+!:mime	application/x-compress-cazip
+# like: BLINKER.WR_ CLIPDEFS._ CAOSETUP.EX_ CLIPPER.EX_ FILEIO.C_
+!:ext	??_/?_/_
 
 # Summary:	FTCOMP compressed archive
 # From:		Joerg Jenderek
@@ -772,13 +828,43 @@
 0	string	NSK NaShrink archive data
 # SAPCAR
 0	string	#\ CAR\ archive\ header SAPCAR archive data
-0	string	CAR\ 2.00RG SAPCAR archive data
+0	string	CAR\ 2.00 SAPCAR archive data
+0	string	CAR\ 2.01 SAPCAR archive data
+#!:mime	application/octet-stream
+!:mime	application/vnd.sar
+!:ext	sar
 # Disintegrator
 0	string	DST Disintegrator archive data
 # ASD
 0	string	ASD ASD archive data
 # InstallShield CAB
-0	string	ISc( InstallShield CAB
+# Update:	Joerg Jenderek at Nov 2021
+# URL:		https://en.wikipedia.org/wiki/InstallShield
+# Reference:	https://github.com/twogood/unshield/blob/master/lib/cabfile.h
+# Note:		Not compatible with Microsoft CAB files
+# http://mark0.net/download/triddefs_xml.7z/defs/a/ark-cab-ishield.trid.xml
+# CAB_SIGNATURE 0x28635349
+0	string	ISc( InstallShield
+#!:mime		application/octet-stream
+!:mime		application/x-installshield
+# http://mark0.net/download/triddefs_xml.7z/defs/a/ark-cab-ishield-hdr.trid.xml
+>16	ulelong	!0	setup header
+# like: _SYS1.HDR _USER1.HDR data1.hdr
+!:ext	hdr
+>16	ulelong	=0	CAB
+# like: _SYS1.CAB _USER1.CAB DATA1.CAB  data2.cab
+!:ext	cab
+# https://github.com/twogood/unshield/blob/master/lib/helper.c
+# version like:	0x1005201 0x100600c 0x1007000 0x1009500
+#		0x2000578 0x20005dc 0x2000640 0x40007d0 0x4000834
+>4	ulelong	x	\b, version %#x
+# volume_info like: 0
+>8	ulelong	!0	\b, volume_info %#x
+# cab_descriptor_offset like: 0x200
+>12	ulelong	!0x200	\b, offset %#x
+#>0x200	ubequad	x	\b, at 0x200 %#16.16llx
+# cab_descriptor_size like: 0 (*.cab) BD5 C8B DA5 E2A E36 116C 251D 4DA9 56F0 5CC2 6E4B 777D 779E 1F7C2
+>16	ulelong	!0	\b, descriptor size %#x
 # TOP4
 0	string	T4\x1a TOP4 archive data
 # BatComp left out: sig looks like COM executable
@@ -925,30 +1011,143 @@
 >3	byte&0xf0	0x30
 >>3	byte	x (v%c)
 # JAR archiver (.j), this is the successor to ARJ, not Java's JAR (which is essentially ZIP)
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JAR_(ARJ_Software)
+# reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/ark-jar.trid.xml
+#		https://www.sac.sk/download/pack/jar102x.exe/TECHNOTE.DOC
+# Note:		called "JAR compressed archive" by TrID
 0xe	string	\x1aJar\x1b JAR (ARJ Software, Inc.) archive data
+#!:mime	application/octet-stream
+!:mime	application/x-compress-j
+>0	ulelong	x		\b, CRC32 %#x
+# standard suffix is ".j"; for multi volumes following order j01 j02 ... j99 100 ... 990
+!:ext	j/j01/j02
+# URL:		http://fileformats.archiveteam.org/wiki/JARCS
+# reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/ark-jarcs.trid.xml
+# Note:		called "JARCS compressed archive" by TrID
 0	string	JARCS JAR (ARJ Software, Inc.) archive data
+#!:mime	application/octet-stream
+!:mime	application/x-compress-jar
+!:ext	jar
 
 # ARJ archiver (jason@jarthur.Claremont.EDU)
-0	leshort		0xea60		ARJ archive data
+# URL:		http://fileformats.archiveteam.org/wiki/ARJ
+# reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/ark-arj.trid.xml
+#		https://github.com/FarGroup/FarManager/
+#		blob/master/plugins/multiarc/arc.doc/arj.txt
+# Note:		called "ARJ compressed archive" by TrID and
+#		"ARJ File Format" by DROID via PUID fmt/610
+#		verified by `7z l -tarj PHRACK1.ARJ` and
+#		`arj.exe l TEST-hk9.ARJ`
+0	leshort		0xea60
+# skip DROID fmt-610-signature-id-946.arj by check for valid file type of main header
+>0xA	ubyte		2
+>>0	use		arj-archive
+0	name		arj-archive
+>0	leshort		x		ARJ archive
 !:mime	application/x-arj
->5	byte		x		\b, v%d,
->8	byte		&0x04		multi-volume,
->8	byte		&0x10		slash-switched,
->8	byte		&0x20		backup,
->34	string		x		original name: %s,
->7	byte		0		os: MS-DOS
->7	byte		1		os: PRIMOS
->7	byte		2		os: Unix
->7	byte		3		os: Amiga
->7	byte		4		os: Macintosh
->7	byte		5		os: OS/2
->7	byte		6		os: Apple ][ GS
->7	byte		7		os: Atari ST
->7	byte		8		os: NeXT
->7	byte		9		os: VAX/VMS
->3	byte		>0		%d]
+# look for terminating 0-character of filename
+>0x26	search/1024	\0
+# file name extension is normally .arj but not for parts of multi volume
+#>>&-5	string		x		extension %.4s
+>>&-5	string/c	.arj		data
+!:ext	arj
+>>&-5	default		x
+# for multi volume first name is archive.arj then following parts archive.a01 archive.a02 ...
+>>>8	byte		&0x04		data
+!:ext	a01/a02
+# for SFX first name is archive.exe then following parts archive.e01 archive.e02 ...
+>>>8	byte		^0x04		data, SFX multi-volume
+!:ext	e01/e02
+# basic header size like: 0x002b 0x002c 0x04e0 0x04e3 0x04e7
+#>2	uleshort	x		basic header size %#4.4x
+# next fragment content like: 0x0a200a003a8fc713 0x524a000010bb3471 0x524a0000c73c70f9
+#>(2.s)	ubequad		x		NEXT FRAGMENT CONTENT %#16.16llx
+# first_hdr_size; seems to be same as basic header size
+#>2	uleshort	x		1st header size %#x
+# archiver version number like: 3 4 6 11 102
+>5	byte		x		\b, v%d
+# minimum archiver version to extract like: 1
+>6	ubyte		!1		\b, minimum %u to extract
+# FOR DEBUGGING
+#>8	byte		x		\b, FLAGS %#x
+# GARBLED_FLAG1; garble with password; g switch
+>8	byte		&0x01		\b, password-protected
+# encryption version: 0~old  1~old 2~new 3~reserved 4~40 bit key GOST
+>>0x20	ubyte		x		(v%u)
+#>8	byte		&0x02		\b, secured
+# ANSIPAGE_FLAG; indicates ANSI codepage used by ARJ32; hy switch
+>8	byte		&0x02		\b, ANSI codepage
+# VOLUME_FLAG indicates presence of succeeding volume; but apparently not for SFX
+>8	byte		&0x04		\b, multi-volume
+#>8	byte		&0x08		\b, file-offset
+# ARJPROT_FLAG; build with data protection record; hk switch
+>8	byte		&0x08		\b, recoverable
+# arj protection factor; maximal 10; switch hky -> factor=y+1
+>>0x22	byte		x		(factor %u)
+>8	byte		&0x10		\b, slash-switched
+# BACKUP_FLAG; obsolete
+>8	byte		&0x20		\b, backup
+# SECURED_FLAG;
+>8	byte		&0x40		\b, secured,
+# ALTNAME_FLAG; indicates dual-name archive
+>8	byte		&0x80		\b, dual-name
+# security version; 0~old 2~current
+>9	ubyte		!0
+>>9	ubyte		!2		\b, security version %u
+# file type; 2 in main header; 0~binary 1~7-bitText 2~comment 3~directory 4~VolumeLabel 5=ChapterLabel
+>0xA	ubyte		!2		\b, file type %u
+# date+time when original archive was created in MS-DOS format via ./msdos
+>0xC	ulelong		x		\b, created
+>0xC	use		dos-date
+# or date and time by new internal function
+#>0xE	lemsdosdate	x		%s
+#>0xC	lemsdostime	x		%s
+# FOR DEBUGGING
+#>0x12	uleshort	x		RAW DATE %#4.4x
+#>0x10	uleshort	x		RAW TIME %#4.4x
+# date+time when archive was last modified; sometimes nil or
+# maybe wrong like in HP4DRVR.ARJ
+#>0x10	ulelong		>0		\b, modified
+#>>0x10	use		dos-date
+# or date and time by new internal function
+#>>0x12	lemsdosdate	x		%s
+#>>0x10	lemsdostime	x		%s
+# archive size (currently used only for secured archives); MAYBE?
+#>0x14	ulelong		!0		\b, file size %u
+# security envelope file position; MAYBE?
+#>0x18	ulelong		!0		\b, at %#x security envelope
+# filespec position in filename; WHAT IS THAT?
+#>0x1C	uleshort	>0		\b, filespec position %#x
+# length in bytes of security envelope data like: 2CAh 301h 364h 471h
+>0x1E	uleshort	!0		\b, security envelope length %#x
+# last chapter like: 0 1
+>0x21	ubyte		!0		\b, last chapter %u
+# filename (null-terminated string); sometimes at 0x26 when 4 bytes for extra data
+>34	byte		x		\b, original name:
+# with extras data
+>34	byte		<0x0B
+>>38	string		x		%s
+# without extras data
+>34	byte		>0x0A
+>>34	string		x		%s
+# host OS: 0~MSDOS ... 11~WIN32
+>7	byte		0		\b, os: MS-DOS
+>7	byte		1		\b, os: PRIMOS
+>7	byte		2		\b, os: Unix
+>7	byte		3		\b, os: Amiga
+>7	byte		4		\b, os: Macintosh
+>7	byte		5		\b, os: OS/2
+>7	byte		6		\b, os: Apple ][ GS
+>7	byte		7		\b, os: Atari ST
+>7	byte		8		\b, os: NeXT
+>7	byte		9		\b, os: VAX/VMS
+>7	byte		10		\b, os: WIN95
+>7	byte		11		\b, os: WIN32
 # [JW] idarc says this is also possible
 2	leshort		0xea60		ARJ archive data
+#2	leshort		0xea60
+#>2	use		arj-archive
 
 # HA archiver (Greg Roelofs, newt@uchicago.edu)
 # This is a really bad format. A file containing HAWAII will match this...
@@ -1276,6 +1475,18 @@
 !:mime	application/vnd.sun.xml.base
 !:ext	sdb
 
+# URL:	https://wiki.openoffice.org/wiki/Documentation/DevGuide/Extensions/File_Format
+# From:	Joerg Jenderek
+# Note:	only few OXT samples are detected here by mimetype member
+#	is used by OpenOffice and LibreOffice and probably also NeoOffice
+#	verified by `unzip -Zv *.oxt` or `7z l -slt *.oxt`
+>>50	string	vnd.openofficeorg.		OpenOffice
+>>>68	string	extension			\b/LibreOffice Extension
+# http://extension.nirsoft.net/oxt
+!:mime	application/vnd.openofficeorg.extension
+# like: Gallery-Puzzle.2.1.0.1.oxt
+!:ext	oxt
+
 #   OpenDocument formats (for OpenOffice 2.x / StarOffice >= 8)
 #   URL: http://fileformats.archiveteam.org/wiki/OpenDocument
 #    https://lists.oasis-open.org/archives/office/200505/msg00006.html
@@ -1522,12 +1733,30 @@
 !:mime	application/x-bittorrent
 
 # Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
-0	beshort 0x0e0f		Atari MSA archive data
->2	beshort x		\b, %d sectors per track
->4	beshort 0		\b, 1 sided
->4	beshort 1		\b, 2 sided
->6	beshort x		\b, starting track: %d
->8	beshort x		\b, ending track: %d
+# URL:		http://fileformats.archiveteam.org/wiki/MSA_(Magic_Shadow_Archiver)
+# Reference:	http://info-coach.fr/atari/documents/_mydoc/FD_Image_File_Format.pdf
+#		http://mark0.net/download/triddefs_xml.7z/defs/m/msa.trid.xml
+# Update:	Joerg Jenderek
+# Note:		called by TrID "Atari MSA Disk Image" and verified by
+#		command like `deark -l -m msa -d2 PDATS578.msa` as " Atari ST floppy disk image"
+# GRR: line below is too general as it matches setup.skin
+0	beshort 0x0e0f
+# skip foo setup.skin with unrealistic high number 52255 of sides by check for valid "low" value
+>4	ubeshort <2		Atari MSA archive data
+#!:mime	application/octet-stream
+!:mime	application/x-atari-msa
+!:ext	msa
+# sectors per track like: 9 10
+>>2	beshort x		\b, %d sectors per track
+# sides (0 or 1; add 1 to this to get correct number of sides)
+>>4	beshort 0		\b, 1 sided
+>>4	beshort 1		\b, 2 sided
+# starting track like: 0
+>>6	beshort x		\b, starting track: %d
+# ending track like: 39 79 80 81
+>>8	beshort x		\b, ending track: %d
+# tracks content
+#>>10	ubequad x		\b, track content %#16.16llx
 
 # Alternate ZIP string (amc@arwen.cs.berkeley.edu)
 0	string	PK00PK\003\004	Zip archive data
@@ -1537,6 +1766,8 @@
 # ACE archive (from http://www.wotsit.org/download.asp?f=ace)
 # by Stefan `Sec` Zehl <sec@42.org>
 7	string		**ACE**		ACE archive data
+!:mime	application/x-ace-compressed
+!:ext	ace
 >15	byte	>0		version %d
 >16	byte	=0x00		\b, from MS-DOS
 >16	byte	=0x01		\b, from OS/2
